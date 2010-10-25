@@ -790,7 +790,6 @@ static struct notifier_block css_reboot_notifier = {
 static int css_power_event(struct notifier_block *this, unsigned long event,
 			   void *ptr)
 {
-	void *secm_area;
 	int ret, i;
 
 	switch (event) {
@@ -806,15 +805,8 @@ static int css_power_event(struct notifier_block *this, unsigned long event,
 				mutex_unlock(&css->mutex);
 				continue;
 			}
-			secm_area = (void *)get_zeroed_page(GFP_KERNEL |
-							    GFP_DMA);
-			if (secm_area) {
-				if (__chsc_do_secm(css, 0, secm_area))
-					ret = NOTIFY_BAD;
-				free_page((unsigned long)secm_area);
-			} else
+			if (__chsc_do_secm(css, 0))
 				ret = NOTIFY_BAD;
-
 			mutex_unlock(&css->mutex);
 		}
 		break;
@@ -830,15 +822,8 @@ static int css_power_event(struct notifier_block *this, unsigned long event,
 				mutex_unlock(&css->mutex);
 				continue;
 			}
-			secm_area = (void *)get_zeroed_page(GFP_KERNEL |
-							    GFP_DMA);
-			if (secm_area) {
-				if (__chsc_do_secm(css, 1, secm_area))
-					ret = NOTIFY_BAD;
-				free_page((unsigned long)secm_area);
-			} else
+			if (__chsc_do_secm(css, 1))
 				ret = NOTIFY_BAD;
-
 			mutex_unlock(&css->mutex);
 		}
 		/* search for subchannels, which appeared during hibernation */
@@ -867,10 +852,7 @@ static int __init css_bus_init(void)
 	if (ret)
 		return ret;
 
-	ret = chsc_determine_css_characteristics();
-	if (ret == -ENOMEM)
-		goto out;
-
+	chsc_determine_css_characteristics();
 	/* Try to enable MSS. */
 	ret = chsc_enable_facility(CHSC_SDA_OC_MSS);
 	if (ret)

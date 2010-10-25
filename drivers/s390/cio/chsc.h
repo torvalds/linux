@@ -66,7 +66,7 @@ extern void chsc_init_cleanup(void);
 extern int chsc_enable_facility(int);
 struct channel_subsystem;
 extern int chsc_secm(struct channel_subsystem *, int);
-int __chsc_do_secm(struct channel_subsystem *css, int enable, void *page);
+int __chsc_do_secm(struct channel_subsystem *css, int enable);
 
 int chsc_chp_vary(struct chp_id chpid, int on);
 int chsc_determine_channel_path_desc(struct chp_id chpid, int fmt, int rfmt,

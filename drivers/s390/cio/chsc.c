@@ -29,8 +29,8 @@
 #include "chsc.h"
 
 static void *sei_page;
-static DEFINE_SPINLOCK(siosl_lock);
-static DEFINE_SPINLOCK(sda_lock);
+static void *chsc_page;
+static DEFINE_SPINLOCK(chsc_page_lock);
 
 /**
  * chsc_error_from_response() - convert a chsc response to an error
@@ -85,17 +85,15 @@ struct chsc_ssd_area {
 
 int chsc_get_ssd_info(struct subchannel_id schid, struct chsc_ssd_info *ssd)
 {
-	unsigned long page;
 	struct chsc_ssd_area *ssd_area;
 	int ccode;
 	int ret;
 	int i;
 	int mask;
 
-	page = get_zeroed_page(GFP_KERNEL | GFP_DMA);
-	if (!page)
-		return -ENOMEM;
-	ssd_area = (struct chsc_ssd_area *) page;
+	spin_lock_irq(&chsc_page_lock);
+	memset(chsc_page, 0, PAGE_SIZE);
+	ssd_area = chsc_page;
 	ssd_area->request.length = 0x0010;
 	ssd_area->request.code = 0x0004;
 	ssd_area->ssid = schid.ssid;
@@ -106,25 +104,25 @@ int chsc_get_ssd_info(struct subchannel_id schid, struct chsc_ssd_info *ssd)
 	/* Check response. */
 	if (ccode > 0) {
 		ret = (ccode == 3) ? -ENODEV : -EBUSY;
-		goto out_free;
+		goto out;
 	}
 	ret = chsc_error_from_response(ssd_area->response.code);
 	if (ret != 0) {
 		CIO_MSG_EVENT(2, "chsc: ssd failed for 0.%x.%04x (rc=%04x)\n",
 			      schid.ssid, schid.sch_no,
 			      ssd_area->response.code);
-		goto out_free;
+		goto out;
 	}
 	if (!ssd_area->sch_valid) {
 		ret = -ENODEV;
-		goto out_free;
+		goto out;
 	}
 	/* Copy data */
 	ret = 0;
 	memset(ssd, 0, sizeof(struct chsc_ssd_info));
 	if ((ssd_area->st != SUBCHANNEL_TYPE_IO) &&
 	    (ssd_area->st != SUBCHANNEL_TYPE_MSG))
-		goto out_free;
+		goto out;
 	ssd->path_mask = ssd_area->path_mask;
 	ssd->fla_valid_mask = ssd_area->fla_valid_mask;
 	for (i = 0; i < 8; i++) {
@@ -136,8 +134,8 @@ int chsc_get_ssd_info(struct subchannel_id schid, struct chsc_ssd_info *ssd)
 		if (ssd_area->fla_valid_mask & mask)
 			ssd->fla[i] = ssd_area->fla[i];
 	}
-out_free:
-	free_page(page);
+out:
+	spin_unlock_irq(&chsc_page_lock);
 	return ret;
 }
 
@@ -552,7 +550,7 @@ cleanup:
 	return ret;
 }
 
-int __chsc_do_secm(struct channel_subsystem *css, int enable, void *page)
+int __chsc_do_secm(struct channel_subsystem *css, int enable)
 {
 	struct {
 		struct chsc_header request;
@@ -573,7 +571,9 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable, void *page)
 	} __attribute__ ((packed)) *secm_area;
 	int ret, ccode;
 
-	secm_area = page;
+	spin_lock_irq(&chsc_page_lock);
+	memset(chsc_page, 0, PAGE_SIZE);
+	secm_area = chsc_page;
 	secm_area->request.length = 0x0050;
 	secm_area->request.code = 0x0016;
 
@@ -584,8 +584,10 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable, void *page)
 	secm_area->operation_code = enable ? 0 : 1;
 
 	ccode = chsc(secm_area);
-	if (ccode > 0)
-		return (ccode == 3) ? -ENODEV : -EBUSY;
+	if (ccode > 0) {
+		ret = (ccode == 3) ? -ENODEV : -EBUSY;
+		goto out;
+	}
 
 	switch (secm_area->response.code) {
 	case 0x0102:
@@ -598,18 +600,15 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable, void *page)
 	if (ret != 0)
 		CIO_CRW_EVENT(2, "chsc: secm failed (rc=%04x)\n",
 			      secm_area->response.code);
+out:
+	spin_unlock_irq(&chsc_page_lock);
 	return ret;
 }
 
 int
 chsc_secm(struct channel_subsystem *css, int enable)
 {
-	void  *secm_area;
 	int ret;
-
-	secm_area = (void *)get_zeroed_page(GFP_KERNEL |  GFP_DMA);
-	if (!secm_area)
-		return -ENOMEM;
 
 	if (enable && !css->cm_enabled) {
 		css->cub_addr1 = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
@@ -617,18 +616,16 @@ chsc_secm(struct channel_subsystem *css, int enable)
 		if (!css->cub_addr1 || !css->cub_addr2) {
 			free_page((unsigned long)css->cub_addr1);
 			free_page((unsigned long)css->cub_addr2);
-			free_page((unsigned long)secm_area);
 			return -ENOMEM;
 		}
 	}
-	ret = __chsc_do_secm(css, enable, secm_area);
+	ret = __chsc_do_secm(css, enable);
 	if (!ret) {
 		css->cm_enabled = enable;
 		if (css->cm_enabled) {
 			ret = chsc_add_cmg_attr(css);
 			if (ret) {
-				memset(secm_area, 0, PAGE_SIZE);
-				__chsc_do_secm(css, 0, secm_area);
+				__chsc_do_secm(css, 0);
 				css->cm_enabled = 0;
 			}
 		} else
@@ -638,7 +635,6 @@ chsc_secm(struct channel_subsystem *css, int enable)
 		free_page((unsigned long)css->cub_addr1);
 		free_page((unsigned long)css->cub_addr2);
 	}
-	free_page((unsigned long)secm_area);
 	return ret;
 }
 
@@ -669,13 +665,12 @@ int chsc_determine_channel_path_desc(struct chp_id chpid, int fmt, int rfmt,
 		return -EINVAL;
 	if ((rfmt == 2) && !css_general_characteristics.cib)
 		return -EINVAL;
-	scpd_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
-	if (!scpd_area)
-		return -ENOMEM;
 
+	spin_lock_irq(&chsc_page_lock);
+	memset(chsc_page, 0, PAGE_SIZE);
+	scpd_area = chsc_page;
 	scpd_area->request.length = 0x0010;
 	scpd_area->request.code = 0x0002;
-
 	scpd_area->cssid = chpid.cssid;
 	scpd_area->first_chpid = chpid.id;
 	scpd_area->last_chpid = chpid.id;
@@ -698,7 +693,7 @@ int chsc_determine_channel_path_desc(struct chp_id chpid, int fmt, int rfmt,
 		CIO_CRW_EVENT(2, "chsc: scpd failed (rc=%04x)\n",
 			      scpd_area->response.code);
 out:
-	free_page((unsigned long)scpd_area);
+	spin_unlock_irq(&chsc_page_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(chsc_determine_channel_path_desc);
@@ -725,33 +720,22 @@ static void
 chsc_initialize_cmg_chars(struct channel_path *chp, u8 cmcv,
 			  struct cmg_chars *chars)
 {
-	switch (chp->cmg) {
-	case 2:
-	case 3:
-		chp->cmg_chars = kmalloc(sizeof(struct cmg_chars),
-					 GFP_KERNEL);
-		if (chp->cmg_chars) {
-			int i, mask;
-			struct cmg_chars *cmg_chars;
+	struct cmg_chars *cmg_chars;
+	int i, mask;
 
-			cmg_chars = chp->cmg_chars;
-			for (i = 0; i < NR_MEASUREMENT_CHARS; i++) {
-				mask = 0x80 >> (i + 3);
-				if (cmcv & mask)
-					cmg_chars->values[i] = chars->values[i];
-				else
-					cmg_chars->values[i] = 0;
-			}
-		}
-		break;
-	default:
-		/* No cmg-dependent data. */
-		break;
+	cmg_chars = chp->cmg_chars;
+	for (i = 0; i < NR_MEASUREMENT_CHARS; i++) {
+		mask = 0x80 >> (i + 3);
+		if (cmcv & mask)
+			cmg_chars->values[i] = chars->values[i];
+		else
+			cmg_chars->values[i] = 0;
 	}
 }
 
 int chsc_get_channel_measurement_chars(struct channel_path *chp)
 {
+	struct cmg_chars *cmg_chars;
 	int ccode, ret;
 
 	struct {
@@ -775,13 +759,16 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 		u32 data[NR_MEASUREMENT_CHARS];
 	} __attribute__ ((packed)) *scmc_area;
 
-	scmc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
-	if (!scmc_area)
+	chp->cmg_chars = NULL;
+	cmg_chars = kmalloc(sizeof(*cmg_chars), GFP_KERNEL);
+	if (!cmg_chars)
 		return -ENOMEM;
 
+	spin_lock_irq(&chsc_page_lock);
+	memset(chsc_page, 0, PAGE_SIZE);
+	scmc_area = chsc_page;
 	scmc_area->request.length = 0x0010;
 	scmc_area->request.code = 0x0022;
-
 	scmc_area->first_chpid = chp->chpid.id;
 	scmc_area->last_chpid = chp->chpid.id;
 
@@ -792,24 +779,30 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 	}
 
 	ret = chsc_error_from_response(scmc_area->response.code);
-	if (ret == 0) {
-		/* Success. */
-		if (!scmc_area->not_valid) {
-			chp->cmg = scmc_area->cmg;
-			chp->shared = scmc_area->shared;
-			chsc_initialize_cmg_chars(chp, scmc_area->cmcv,
-						  (struct cmg_chars *)
-						  &scmc_area->data);
-		} else {
-			chp->cmg = -1;
-			chp->shared = -1;
-		}
-	} else {
+	if (ret) {
 		CIO_CRW_EVENT(2, "chsc: scmc failed (rc=%04x)\n",
 			      scmc_area->response.code);
+		goto out;
 	}
+	if (scmc_area->not_valid) {
+		chp->cmg = -1;
+		chp->shared = -1;
+		goto out;
+	}
+	chp->cmg = scmc_area->cmg;
+	chp->shared = scmc_area->shared;
+	if (chp->cmg != 2 && chp->cmg != 3) {
+		/* No cmg-dependent data. */
+		goto out;
+	}
+	chp->cmg_chars = cmg_chars;
+	chsc_initialize_cmg_chars(chp, scmc_area->cmcv,
+				  (struct cmg_chars *) &scmc_area->data);
 out:
-	free_page((unsigned long)scmc_area);
+	spin_unlock_irq(&chsc_page_lock);
+	if (!chp->cmg_chars)
+		kfree(cmg_chars);
+
 	return ret;
 }
 
@@ -818,27 +811,33 @@ int __init chsc_init(void)
 	int ret;
 
 	sei_page = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
-	if (!sei_page) {
-		CIO_MSG_EVENT(0, "Can't allocate page for processing of "
-			      "chsc machine checks!\n");
-		return -ENOMEM;
+	chsc_page = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!sei_page || !chsc_page) {
+		ret = -ENOMEM;
+		goto out_err;
 	}
 	ret = crw_register_handler(CRW_RSC_CSS, chsc_process_crw);
 	if (ret)
-		free_page((unsigned long)sei_page);
+		goto out_err;
+	return ret;
+out_err:
+	free_page((unsigned long)chsc_page);
+	free_page((unsigned long)sei_page);
 	return ret;
 }
 
 void __init chsc_init_cleanup(void)
 {
 	crw_unregister_handler(CRW_RSC_CSS);
+	free_page((unsigned long)chsc_page);
 	free_page((unsigned long)sei_page);
 }
 
 int chsc_enable_facility(int operation_code)
 {
+	unsigned long flags;
 	int ret;
-	static struct {
+	struct {
 		struct chsc_header request;
 		u8 reserved1:4;
 		u8 format:4;
@@ -851,32 +850,33 @@ int chsc_enable_facility(int operation_code)
 		u32 reserved5:4;
 		u32 format2:4;
 		u32 reserved6:24;
-	} __attribute__ ((packed, aligned(4096))) sda_area;
+	} __attribute__ ((packed)) *sda_area;
 
-	spin_lock(&sda_lock);
-	memset(&sda_area, 0, sizeof(sda_area));
-	sda_area.request.length = 0x0400;
-	sda_area.request.code = 0x0031;
-	sda_area.operation_code = operation_code;
+	spin_lock_irqsave(&chsc_page_lock, flags);
+	memset(chsc_page, 0, PAGE_SIZE);
+	sda_area = chsc_page;
+	sda_area->request.length = 0x0400;
+	sda_area->request.code = 0x0031;
+	sda_area->operation_code = operation_code;
 
-	ret = chsc(&sda_area);
+	ret = chsc(sda_area);
 	if (ret > 0) {
 		ret = (ret == 3) ? -ENODEV : -EBUSY;
 		goto out;
 	}
 
-	switch (sda_area.response.code) {
+	switch (sda_area->response.code) {
 	case 0x0101:
 		ret = -EOPNOTSUPP;
 		break;
 	default:
-		ret = chsc_error_from_response(sda_area.response.code);
+		ret = chsc_error_from_response(sda_area->response.code);
 	}
 	if (ret != 0)
 		CIO_CRW_EVENT(2, "chsc: sda (oc=%x) failed (rc=%04x)\n",
-			      operation_code, sda_area.response.code);
- out:
-	spin_unlock(&sda_lock);
+			      operation_code, sda_area->response.code);
+out:
+	spin_unlock_irqrestore(&chsc_page_lock, flags);
 	return ret;
 }
 
@@ -898,10 +898,9 @@ chsc_determine_css_characteristics(void)
 		u32 chsc_char[508];
 	} __attribute__ ((packed)) *scsc_area;
 
-	scsc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
-	if (!scsc_area)
-		return -ENOMEM;
-
+	spin_lock_irq(&chsc_page_lock);
+	memset(chsc_page, 0, PAGE_SIZE);
+	scsc_area = chsc_page;
 	scsc_area->request.length = 0x0010;
 	scsc_area->request.code = 0x0010;
 
@@ -921,7 +920,7 @@ chsc_determine_css_characteristics(void)
 		CIO_CRW_EVENT(2, "chsc: scsc failed (rc=%04x)\n",
 			      scsc_area->response.code);
 exit:
-	free_page ((unsigned long) scsc_area);
+	spin_unlock_irq(&chsc_page_lock);
 	return result;
 }
 
@@ -976,29 +975,29 @@ int chsc_sstpi(void *page, void *result, size_t size)
 	return (rr->response.code == 0x0001) ? 0 : -EIO;
 }
 
-static struct {
-	struct chsc_header request;
-	u32 word1;
-	struct subchannel_id sid;
-	u32 word3;
-	struct chsc_header response;
-	u32 word[11];
-} __attribute__ ((packed)) siosl_area __attribute__ ((__aligned__(PAGE_SIZE)));
-
 int chsc_siosl(struct subchannel_id schid)
 {
+	struct {
+		struct chsc_header request;
+		u32 word1;
+		struct subchannel_id sid;
+		u32 word3;
+		struct chsc_header response;
+		u32 word[11];
+	} __attribute__ ((packed)) *siosl_area;
 	unsigned long flags;
 	int ccode;
 	int rc;
 
-	spin_lock_irqsave(&siosl_lock, flags);
-	memset(&siosl_area, 0, sizeof(siosl_area));
-	siosl_area.request.length = 0x0010;
-	siosl_area.request.code = 0x0046;
-	siosl_area.word1 = 0x80000000;
-	siosl_area.sid = schid;
+	spin_lock_irqsave(&chsc_page_lock, flags);
+	memset(chsc_page, 0, PAGE_SIZE);
+	siosl_area = chsc_page;
+	siosl_area->request.length = 0x0010;
+	siosl_area->request.code = 0x0046;
+	siosl_area->word1 = 0x80000000;
+	siosl_area->sid = schid;
 
-	ccode = chsc(&siosl_area);
+	ccode = chsc(siosl_area);
 	if (ccode > 0) {
 		if (ccode == 3)
 			rc = -ENODEV;
@@ -1008,17 +1007,16 @@ int chsc_siosl(struct subchannel_id schid)
 			      schid.ssid, schid.sch_no, ccode);
 		goto out;
 	}
-	rc = chsc_error_from_response(siosl_area.response.code);
+	rc = chsc_error_from_response(siosl_area->response.code);
 	if (rc)
 		CIO_MSG_EVENT(2, "chsc: siosl failed for 0.%x.%04x (rc=%04x)\n",
 			      schid.ssid, schid.sch_no,
-			      siosl_area.response.code);
+			      siosl_area->response.code);
 	else
 		CIO_MSG_EVENT(4, "chsc: siosl succeeded for 0.%x.%04x\n",
 			      schid.ssid, schid.sch_no);
 out:
-	spin_unlock_irqrestore(&siosl_lock, flags);
-
+	spin_unlock_irqrestore(&chsc_page_lock, flags);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(chsc_siosl);
