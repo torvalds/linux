@@ -2438,7 +2438,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			topology informations if the hardware supports these.
 			The scheduler will make use of these informations and
 			e.g. base its process migration decisions on it.
-			Default is off.
+			Default is on.
 
 	tp720=		[HW,PS2]
 

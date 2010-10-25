@@ -745,7 +745,7 @@ int page_mkclean(struct page *page)
 		if (mapping) {
 			ret = page_mkclean_file(mapping, page);
 			if (page_test_dirty(page)) {
-				page_clear_dirty(page);
+				page_clear_dirty(page, 1);
 				ret = 1;
 			}
 		}
@@ -942,7 +942,7 @@ void page_remove_rmap(struct page *page)
 	 * containing the swap entry, but page not yet written to swap.
 	 */
 	if ((!PageAnon(page) || PageSwapCache(page)) && page_test_dirty(page)) {
-		page_clear_dirty(page);
+		page_clear_dirty(page, 1);
 		set_page_dirty(page);
 	}
 	/*

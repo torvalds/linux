@@ -154,14 +154,7 @@ static inline int ap_instructions_available(void)
  */
 static int ap_interrupts_available(void)
 {
-	unsigned long long facility_bits[2];
-
-	if (stfle(facility_bits, 2) <= 1)
-		return 0;
-	if (!(facility_bits[0] & (1ULL << 61)) ||
-	    !(facility_bits[1] & (1ULL << 62)))
-		return 0;
-	return 1;
+	return test_facility(1) && test_facility(2);
 }
 
 /**

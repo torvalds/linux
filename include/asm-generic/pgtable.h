@@ -108,7 +108,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
 #endif
 
 #ifndef __HAVE_ARCH_PAGE_CLEAR_DIRTY
-#define page_clear_dirty(page)		do { } while (0)
+#define page_clear_dirty(page, mapped)	do { } while (0)
 #endif
 
 #ifndef __HAVE_ARCH_PAGE_TEST_DIRTY

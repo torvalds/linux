@@ -113,7 +113,7 @@ enum {
 	INSTR_INVALID,
 	INSTR_E,
 	INSTR_RIE_R0IU, INSTR_RIE_R0UU, INSTR_RIE_RRP, INSTR_RIE_RRPU,
-	INSTR_RIE_RRUUU, INSTR_RIE_RUPI, INSTR_RIE_RUPU,
+	INSTR_RIE_RRUUU, INSTR_RIE_RUPI, INSTR_RIE_RUPU, INSTR_RIE_RRI0,
 	INSTR_RIL_RI, INSTR_RIL_RP, INSTR_RIL_RU, INSTR_RIL_UP,
 	INSTR_RIS_R0RDU, INSTR_RIS_R0UU, INSTR_RIS_RURDI, INSTR_RIS_RURDU,
 	INSTR_RI_RI, INSTR_RI_RP, INSTR_RI_RU, INSTR_RI_UP,
@@ -122,13 +122,14 @@ enum {
 	INSTR_RRE_RR, INSTR_RRE_RR_OPT,
 	INSTR_RRF_0UFF, INSTR_RRF_F0FF, INSTR_RRF_F0FF2, INSTR_RRF_F0FR,
 	INSTR_RRF_FFRU, INSTR_RRF_FUFF, INSTR_RRF_M0RR, INSTR_RRF_R0RR,
-	INSTR_RRF_RURR, INSTR_RRF_U0FF, INSTR_RRF_U0RF, INSTR_RRF_U0RR,
-	INSTR_RRF_UUFF, INSTR_RRR_F0FF, INSTR_RRS_RRRDU,
+	INSTR_RRF_R0RR2, INSTR_RRF_RURR, INSTR_RRF_U0FF, INSTR_RRF_U0RF,
+	INSTR_RRF_U0RR, INSTR_RRF_UUFF, INSTR_RRR_F0FF, INSTR_RRS_RRRDU,
 	INSTR_RR_FF, INSTR_RR_R0, INSTR_RR_RR, INSTR_RR_U0, INSTR_RR_UR,
 	INSTR_RSE_CCRD, INSTR_RSE_RRRD, INSTR_RSE_RURD,
 	INSTR_RSI_RRP,
 	INSTR_RSL_R0RD,
 	INSTR_RSY_AARD, INSTR_RSY_CCRD, INSTR_RSY_RRRD, INSTR_RSY_RURD,
+	INSTR_RSY_RDRM,
 	INSTR_RS_AARD, INSTR_RS_CCRD, INSTR_RS_R0RD, INSTR_RS_RRRD,
 	INSTR_RS_RURD,
 	INSTR_RXE_FRRD, INSTR_RXE_RRRD,
@@ -139,7 +140,7 @@ enum {
 	INSTR_SIY_IRD, INSTR_SIY_URD,
 	INSTR_SI_URD,
 	INSTR_SSE_RDRD,
-	INSTR_SSF_RRDRD,
+	INSTR_SSF_RRDRD, INSTR_SSF_RRDRD2,
 	INSTR_SS_L0RDRD, INSTR_SS_LIRDRD, INSTR_SS_LLRDRD, INSTR_SS_RRRDRD,
 	INSTR_SS_RRRDRD2, INSTR_SS_RRRDRD3,
 	INSTR_S_00, INSTR_S_RD,
@@ -152,7 +153,7 @@ struct operand {
 };
 
 struct insn {
-	const char name[6];
+	const char name[5];
 	unsigned char opfrag;
 	unsigned char format;
 };
@@ -217,6 +218,7 @@ static const unsigned char formats[][7] = {
 	[INSTR_RIE_RRP]	  = { 0xff, R_8,R_12,J16_16,0,0,0 },
 	[INSTR_RIE_RRUUU] = { 0xff, R_8,R_12,U8_16,U8_24,U8_32,0 },
 	[INSTR_RIE_RUPI]  = { 0xff, R_8,I8_32,U4_12,J16_16,0,0 },
+	[INSTR_RIE_RRI0]  = { 0xff, R_8,R_12,I16_16,0,0,0 },
 	[INSTR_RIL_RI]	  = { 0x0f, R_8,I32_16,0,0,0,0 },
 	[INSTR_RIL_RP]	  = { 0x0f, R_8,J32_16,0,0,0,0 },
 	[INSTR_RIL_RU]	  = { 0x0f, R_8,U32_16,0,0,0,0 },
@@ -248,6 +250,7 @@ static const unsigned char formats[][7] = {
 	[INSTR_RRF_FUFF]  = { 0xff, F_24,F_16,F_28,U4_20,0,0 },
 	[INSTR_RRF_M0RR]  = { 0xff, R_24,R_28,M_16,0,0,0 },
 	[INSTR_RRF_R0RR]  = { 0xff, R_24,R_16,R_28,0,0,0 },
+	[INSTR_RRF_R0RR2] = { 0xff, R_24,R_28,R_16,0,0,0 },
 	[INSTR_RRF_RURR]  = { 0xff, R_24,R_28,R_16,U4_20,0,0 },
 	[INSTR_RRF_U0FF]  = { 0xff, F_24,U4_16,F_28,0,0,0 },
 	[INSTR_RRF_U0RF]  = { 0xff, R_24,U4_16,F_28,0,0,0 },
@@ -269,6 +272,7 @@ static const unsigned char formats[][7] = {
 	[INSTR_RSY_CCRD]  = { 0xff, C_8,C_12,D20_20,B_16,0,0 },
 	[INSTR_RSY_RRRD]  = { 0xff, R_8,R_12,D20_20,B_16,0,0 },
 	[INSTR_RSY_RURD]  = { 0xff, R_8,U4_12,D20_20,B_16,0,0 },
+	[INSTR_RSY_RDRM]  = { 0xff, R_8,D20_20,B_16,U4_12,0,0 },
 	[INSTR_RS_AARD]	  = { 0xff, A_8,A_12,D_20,B_16,0,0 },
 	[INSTR_RS_CCRD]	  = { 0xff, C_8,C_12,D_20,B_16,0,0 },
 	[INSTR_RS_R0RD]	  = { 0xff, R_8,D_20,B_16,0,0,0 },
@@ -290,6 +294,7 @@ static const unsigned char formats[][7] = {
 	[INSTR_SI_URD]	  = { 0xff, D_20,B_16,U8_8,0,0,0 },
 	[INSTR_SSE_RDRD]  = { 0xff, D_20,B_16,D_36,B_32,0,0 },
 	[INSTR_SSF_RRDRD] = { 0x00, D_20,B_16,D_36,B_32,R_8,0 },
+	[INSTR_SSF_RRDRD2]= { 0x00, R_8,D_20,B_16,D_36,B_32,0 },
 	[INSTR_SS_L0RDRD] = { 0xff, D_20,L8_8,B_16,D_36,B_32,0 },
 	[INSTR_SS_LIRDRD] = { 0xff, D_20,L4_8,B_16,D_36,B_32,U4_12 },
 	[INSTR_SS_LLRDRD] = { 0xff, D_20,L4_8,B_16,D_36,L4_12,B_32 },
@@ -298,6 +303,36 @@ static const unsigned char formats[][7] = {
 	[INSTR_SS_RRRDRD] = { 0xff, D_20,R_8,B_16,D_36,B_32,R_12 },
 	[INSTR_S_00]	  = { 0xff, 0,0,0,0,0,0 },
 	[INSTR_S_RD]	  = { 0xff, D_20,B_16,0,0,0,0 },
+};
+
+enum {
+	LONG_INSN_ALGHSIK,
+	LONG_INSN_ALHSIK,
+	LONG_INSN_CLFHSI,
+	LONG_INSN_CLGFRL,
+	LONG_INSN_CLGHRL,
+	LONG_INSN_CLGHSI,
+	LONG_INSN_CLHHSI,
+	LONG_INSN_LLGFRL,
+	LONG_INSN_LLGHRL,
+	LONG_INSN_POPCNT,
+	LONG_INSN_RISBHG,
+	LONG_INSN_RISBLG,
+};
+
+static char *long_insn_name[] = {
+	[LONG_INSN_ALGHSIK] = "alghsik",
+	[LONG_INSN_ALHSIK] = "alhsik",
+	[LONG_INSN_CLFHSI] = "clfhsi",
+	[LONG_INSN_CLGFRL] = "clgfrl",
+	[LONG_INSN_CLGHRL] = "clghrl",
+	[LONG_INSN_CLGHSI] = "clghsi",
+	[LONG_INSN_CLHHSI] = "clhhsi",
+	[LONG_INSN_LLGFRL] = "llgfrl",
+	[LONG_INSN_LLGHRL] = "llghrl",
+	[LONG_INSN_POPCNT] = "popcnt",
+	[LONG_INSN_RISBHG] = "risbhg",
+	[LONG_INSN_RISBLG] = "risblk",
 };
 
 static struct insn opcode[] = {
@@ -881,6 +916,35 @@ static struct insn opcode_b9[] = {
 	{ "pfmf", 0xaf, INSTR_RRE_RR },
 	{ "trte", 0xbf, INSTR_RRF_M0RR },
 	{ "trtre", 0xbd, INSTR_RRF_M0RR },
+	{ "ahhhr", 0xc8, INSTR_RRF_R0RR2 },
+	{ "shhhr", 0xc9, INSTR_RRF_R0RR2 },
+	{ "alhhh", 0xca, INSTR_RRF_R0RR2 },
+	{ "alhhl", 0xca, INSTR_RRF_R0RR2 },
+	{ "slhhh", 0xcb, INSTR_RRF_R0RR2 },
+	{ "chhr ", 0xcd, INSTR_RRE_RR },
+	{ "clhhr", 0xcf, INSTR_RRE_RR },
+	{ "ahhlr", 0xd8, INSTR_RRF_R0RR2 },
+	{ "shhlr", 0xd9, INSTR_RRF_R0RR2 },
+	{ "slhhl", 0xdb, INSTR_RRF_R0RR2 },
+	{ "chlr", 0xdd, INSTR_RRE_RR },
+	{ "clhlr", 0xdf, INSTR_RRE_RR },
+	{ { 0, LONG_INSN_POPCNT }, 0xe1, INSTR_RRE_RR },
+	{ "locgr", 0xe2, INSTR_RRF_M0RR },
+	{ "ngrk", 0xe4, INSTR_RRF_R0RR2 },
+	{ "ogrk", 0xe6, INSTR_RRF_R0RR2 },
+	{ "xgrk", 0xe7, INSTR_RRF_R0RR2 },
+	{ "agrk", 0xe8, INSTR_RRF_R0RR2 },
+	{ "sgrk", 0xe9, INSTR_RRF_R0RR2 },
+	{ "algrk", 0xea, INSTR_RRF_R0RR2 },
+	{ "slgrk", 0xeb, INSTR_RRF_R0RR2 },
+	{ "locr", 0xf2, INSTR_RRF_M0RR },
+	{ "nrk", 0xf4, INSTR_RRF_R0RR2 },
+	{ "ork", 0xf6, INSTR_RRF_R0RR2 },
+	{ "xrk", 0xf7, INSTR_RRF_R0RR2 },
+	{ "ark", 0xf8, INSTR_RRF_R0RR2 },
+	{ "srk", 0xf9, INSTR_RRF_R0RR2 },
+	{ "alrk", 0xfa, INSTR_RRF_R0RR2 },
+	{ "slrk", 0xfb, INSTR_RRF_R0RR2 },
 #endif
 	{ "kmac", 0x1e, INSTR_RRE_RR },
 	{ "lrvr", 0x1f, INSTR_RRE_RR },
@@ -949,9 +1013,9 @@ static struct insn opcode_c4[] = {
 	{ "lgfrl", 0x0c, INSTR_RIL_RP },
 	{ "lhrl", 0x05, INSTR_RIL_RP },
 	{ "lghrl", 0x04, INSTR_RIL_RP },
-	{ "llgfrl", 0x0e, INSTR_RIL_RP },
+	{ { 0, LONG_INSN_LLGFRL }, 0x0e, INSTR_RIL_RP },
 	{ "llhrl", 0x02, INSTR_RIL_RP },
-	{ "llghrl", 0x06, INSTR_RIL_RP },
+	{ { 0, LONG_INSN_LLGHRL }, 0x06, INSTR_RIL_RP },
 	{ "strl", 0x0f, INSTR_RIL_RP },
 	{ "stgrl", 0x0b, INSTR_RIL_RP },
 	{ "sthrl", 0x07, INSTR_RIL_RP },
@@ -968,9 +1032,9 @@ static struct insn opcode_c6[] = {
 	{ "cghrl", 0x04, INSTR_RIL_RP },
 	{ "clrl", 0x0f, INSTR_RIL_RP },
 	{ "clgrl", 0x0a, INSTR_RIL_RP },
-	{ "clgfrl", 0x0e, INSTR_RIL_RP },
+	{ { 0, LONG_INSN_CLGFRL }, 0x0e, INSTR_RIL_RP },
 	{ "clhrl", 0x07, INSTR_RIL_RP },
-	{ "clghrl", 0x06, INSTR_RIL_RP },
+	{ { 0, LONG_INSN_CLGHRL }, 0x06, INSTR_RIL_RP },
 	{ "pfdrl", 0x02, INSTR_RIL_UP },
 	{ "exrl", 0x00, INSTR_RIL_RP },
 #endif
@@ -982,6 +1046,20 @@ static struct insn opcode_c8[] = {
 	{ "mvcos", 0x00, INSTR_SSF_RRDRD },
 	{ "ectg", 0x01, INSTR_SSF_RRDRD },
 	{ "csst", 0x02, INSTR_SSF_RRDRD },
+	{ "lpd", 0x04, INSTR_SSF_RRDRD2 },
+	{ "lpdg ", 0x05, INSTR_SSF_RRDRD2 },
+#endif
+	{ "", 0, INSTR_INVALID }
+};
+
+static struct insn opcode_cc[] = {
+#ifdef CONFIG_64BIT
+	{ "brcth", 0x06, INSTR_RIL_RP },
+	{ "aih", 0x08, INSTR_RIL_RI },
+	{ "alsih", 0x0a, INSTR_RIL_RI },
+	{ "alsih", 0x0b, INSTR_RIL_RI },
+	{ "cih", 0x0d, INSTR_RIL_RI },
+	{ "clih ", 0x0f, INSTR_RIL_RI },
 #endif
 	{ "", 0, INSTR_INVALID }
 };
@@ -1063,6 +1141,16 @@ static struct insn opcode_e3[] = {
 	{ "mfy", 0x5c, INSTR_RXY_RRRD },
 	{ "mhy", 0x7c, INSTR_RXY_RRRD },
 	{ "pfd", 0x36, INSTR_RXY_URRD },
+	{ "lbh", 0xc0, INSTR_RXY_RRRD },
+	{ "llch", 0xc2, INSTR_RXY_RRRD },
+	{ "stch", 0xc3, INSTR_RXY_RRRD },
+	{ "lhh", 0xc4, INSTR_RXY_RRRD },
+	{ "llhh", 0xc6, INSTR_RXY_RRRD },
+	{ "sthh", 0xc7, INSTR_RXY_RRRD },
+	{ "lfh", 0xca, INSTR_RXY_RRRD },
+	{ "stfh", 0xcb, INSTR_RXY_RRRD },
+	{ "chf", 0xcd, INSTR_RXY_RRRD },
+	{ "clhf", 0xcf, INSTR_RXY_RRRD },
 #endif
 	{ "lrv", 0x1e, INSTR_RXY_RRRD },
 	{ "lrvh", 0x1f, INSTR_RXY_RRRD },
@@ -1080,9 +1168,9 @@ static struct insn opcode_e5[] = {
 	{ "chhsi", 0x54, INSTR_SIL_RDI },
 	{ "chsi", 0x5c, INSTR_SIL_RDI },
 	{ "cghsi", 0x58, INSTR_SIL_RDI },
-	{ "clhhsi", 0x55, INSTR_SIL_RDU },
-	{ "clfhsi", 0x5d, INSTR_SIL_RDU },
-	{ "clghsi", 0x59, INSTR_SIL_RDU },
+	{ { 0, LONG_INSN_CLHHSI }, 0x55, INSTR_SIL_RDU },
+	{ { 0, LONG_INSN_CLFHSI }, 0x5d, INSTR_SIL_RDU },
+	{ { 0, LONG_INSN_CLGHSI }, 0x59, INSTR_SIL_RDU },
 	{ "mvhhi", 0x44, INSTR_SIL_RDI },
 	{ "mvhi", 0x4c, INSTR_SIL_RDI },
 	{ "mvghi", 0x48, INSTR_SIL_RDI },
@@ -1137,6 +1225,24 @@ static struct insn opcode_eb[] = {
 	{ "alsi", 0x6e, INSTR_SIY_IRD },
 	{ "algsi", 0x7e, INSTR_SIY_IRD },
 	{ "ecag", 0x4c, INSTR_RSY_RRRD },
+	{ "srak", 0xdc, INSTR_RSY_RRRD },
+	{ "slak", 0xdd, INSTR_RSY_RRRD },
+	{ "srlk", 0xde, INSTR_RSY_RRRD },
+	{ "sllk", 0xdf, INSTR_RSY_RRRD },
+	{ "locg", 0xe2, INSTR_RSY_RDRM },
+	{ "stocg", 0xe3, INSTR_RSY_RDRM },
+	{ "lang", 0xe4, INSTR_RSY_RRRD },
+	{ "laog", 0xe6, INSTR_RSY_RRRD },
+	{ "laxg", 0xe7, INSTR_RSY_RRRD },
+	{ "laag", 0xe8, INSTR_RSY_RRRD },
+	{ "laalg", 0xea, INSTR_RSY_RRRD },
+	{ "loc", 0xf2, INSTR_RSY_RDRM },
+	{ "stoc", 0xf3, INSTR_RSY_RDRM },
+	{ "lan", 0xf4, INSTR_RSY_RRRD },
+	{ "lao", 0xf6, INSTR_RSY_RRRD },
+	{ "lax", 0xf7, INSTR_RSY_RRRD },
+	{ "laa", 0xf8, INSTR_RSY_RRRD },
+	{ "laal", 0xfa, INSTR_RSY_RRRD },
 #endif
 	{ "rll", 0x1d, INSTR_RSY_RRRD },
 	{ "mvclu", 0x8e, INSTR_RSY_RRRD },
@@ -1172,6 +1278,12 @@ static struct insn opcode_ec[] = {
 	{ "rxsbg", 0x57, INSTR_RIE_RRUUU },
 	{ "rosbg", 0x56, INSTR_RIE_RRUUU },
 	{ "risbg", 0x55, INSTR_RIE_RRUUU },
+	{ { 0, LONG_INSN_RISBLG }, 0x51, INSTR_RIE_RRUUU },
+	{ { 0, LONG_INSN_RISBHG }, 0x5D, INSTR_RIE_RRUUU },
+	{ "ahik", 0xd8, INSTR_RIE_RRI0 },
+	{ "aghik", 0xd9, INSTR_RIE_RRI0 },
+	{ { 0, LONG_INSN_ALHSIK }, 0xda, INSTR_RIE_RRI0 },
+	{ { 0, LONG_INSN_ALGHSIK }, 0xdb, INSTR_RIE_RRI0 },
 #endif
 	{ "", 0, INSTR_INVALID }
 };
@@ -1321,6 +1433,9 @@ static struct insn *find_insn(unsigned char *code)
 	case 0xc8:
 		table = opcode_c8;
 		break;
+	case 0xcc:
+		table = opcode_cc;
+		break;
 	case 0xe3:
 		table = opcode_e3;
 		opfrag = code[5];
@@ -1367,7 +1482,11 @@ static int print_insn(char *buffer, unsigned char *code, unsigned long addr)
 	ptr = buffer;
 	insn = find_insn(code);
 	if (insn) {
-		ptr += sprintf(ptr, "%.5s\t", insn->name);
+		if (insn->name[0] == '\0')
+			ptr += sprintf(ptr, "%s\t",
+				       long_insn_name[(int) insn->name[1]]);
+		else
+			ptr += sprintf(ptr, "%.5s\t", insn->name);
 		/* Extract the operands. */
 		separator = 0;
 		for (ops = formats[insn->format] + 1, i = 0;

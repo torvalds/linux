@@ -314,7 +314,8 @@ static void do_callbacks(struct list_head *cb_list)
 /*
  * Handler for the virtual CPU timer.
  */
-static void do_cpu_timer_interrupt(__u16 error_code)
+static void do_cpu_timer_interrupt(unsigned int ext_int_code,
+				   unsigned int param32, unsigned long param64)
 {
 	struct vtimer_queue *vq;
 	struct vtimer_list *event, *tmp;

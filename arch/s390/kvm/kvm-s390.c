@@ -740,8 +740,8 @@ static int __init kvm_s390_init(void)
 		kvm_exit();
 		return -ENOMEM;
 	}
-	stfle(facilities, 1);
-	facilities[0] &= 0xff00fff3f0700000ULL;
+	memcpy(facilities, S390_lowcore.stfle_fac_list, 16);
+	facilities[0] &= 0xff00fff3f47c0000ULL;
 	return 0;
 }
 

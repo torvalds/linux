@@ -156,7 +156,8 @@ void smp_send_stop(void)
  * cpus are handled.
  */
 
-static void do_ext_call_interrupt(__u16 code)
+static void do_ext_call_interrupt(unsigned int ext_int_code,
+				  unsigned int param32, unsigned long param64)
 {
 	unsigned long bits;
 
@@ -593,6 +594,8 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	cpu_lowcore->kernel_asce = S390_lowcore.kernel_asce;
 	cpu_lowcore->machine_flags = S390_lowcore.machine_flags;
 	cpu_lowcore->ftrace_func = S390_lowcore.ftrace_func;
+	memcpy(cpu_lowcore->stfle_fac_list, S390_lowcore.stfle_fac_list,
+	       MAX_FACILITY_BIT/8);
 	eieio();
 
 	while (sigp(cpu, sigp_restart) == sigp_busy)

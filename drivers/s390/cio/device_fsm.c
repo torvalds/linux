@@ -174,7 +174,10 @@ ccw_device_cancel_halt_clear(struct ccw_device *cdev)
 		ret = cio_clear (sch);
 		return (ret == 0) ? -EBUSY : ret;
 	}
-	panic("Can't stop i/o on subchannel.\n");
+	/* Function was unsuccessful */
+	CIO_MSG_EVENT(0, "0.%x.%04x: could not stop I/O\n",
+		      cdev->private->dev_id.ssid, cdev->private->dev_id.devno);
+	return -EIO;
 }
 
 void ccw_device_update_sense_data(struct ccw_device *cdev)
@@ -349,9 +352,13 @@ out:
 
 static void ccw_device_oper_notify(struct ccw_device *cdev)
 {
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+
 	if (ccw_device_notify(cdev, CIO_OPER) == NOTIFY_OK) {
 		/* Reenable channel measurements, if needed. */
 		ccw_device_sched_todo(cdev, CDEV_TODO_ENABLE_CMF);
+		/* Save indication for new paths. */
+		cdev->private->path_new_mask = sch->vpm;
 		return;
 	}
 	/* Driver doesn't want device back. */
@@ -462,6 +469,32 @@ static void ccw_device_request_event(struct ccw_device *cdev, enum dev_event e)
 	}
 }
 
+static void ccw_device_report_path_events(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+	int path_event[8];
+	int chp, mask;
+
+	for (chp = 0, mask = 0x80; chp < 8; chp++, mask >>= 1) {
+		path_event[chp] = PE_NONE;
+		if (mask & cdev->private->path_gone_mask & ~(sch->vpm))
+			path_event[chp] |= PE_PATH_GONE;
+		if (mask & cdev->private->path_new_mask & sch->vpm)
+			path_event[chp] |= PE_PATH_AVAILABLE;
+		if (mask & cdev->private->pgid_reset_mask & sch->vpm)
+			path_event[chp] |= PE_PATHGROUP_ESTABLISHED;
+	}
+	if (cdev->online && cdev->drv->path_event)
+		cdev->drv->path_event(cdev, path_event);
+}
+
+static void ccw_device_reset_path_events(struct ccw_device *cdev)
+{
+	cdev->private->path_gone_mask = 0;
+	cdev->private->path_new_mask = 0;
+	cdev->private->pgid_reset_mask = 0;
+}
+
 void
 ccw_device_verify_done(struct ccw_device *cdev, int err)
 {
@@ -498,6 +531,7 @@ callback:
 					      &cdev->private->irb);
 			memset(&cdev->private->irb, 0, sizeof(struct irb));
 		}
+		ccw_device_report_path_events(cdev);
 		break;
 	case -ETIME:
 	case -EUSERS:
@@ -516,6 +550,7 @@ callback:
 		ccw_device_done(cdev, DEV_STATE_NOT_OPER);
 		break;
 	}
+	ccw_device_reset_path_events(cdev);
 }
 
 /*
@@ -734,13 +769,14 @@ ccw_device_online_timeout(struct ccw_device *cdev, enum dev_event dev_event)
 	int ret;
 
 	ccw_device_set_timeout(cdev, 0);
+	cdev->private->iretry = 255;
 	ret = ccw_device_cancel_halt_clear(cdev);
 	if (ret == -EBUSY) {
 		ccw_device_set_timeout(cdev, 3*HZ);
 		cdev->private->state = DEV_STATE_TIMEOUT_KILL;
 		return;
 	}
-	if (ret == -ENODEV)
+	if (ret)
 		dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
 	else if (cdev->handler)
 		cdev->handler(cdev, cdev->private->intparm,
@@ -837,6 +873,7 @@ void ccw_device_kill_io(struct ccw_device *cdev)
 {
 	int ret;
 
+	cdev->private->iretry = 255;
 	ret = ccw_device_cancel_halt_clear(cdev);
 	if (ret == -EBUSY) {
 		ccw_device_set_timeout(cdev, 3*HZ);
