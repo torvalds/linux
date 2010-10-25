@@ -25,12 +25,7 @@
 #include <mach/hardware.h>
 
 static struct map_desc imx_io_desc[] __initdata = {
-	{
-		.virtual = MX1_IO_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX1_IO_BASE_ADDR),
-		.length = MX1_IO_SIZE,
-		.type = MT_DEVICE
-	}
+	imx_map_entry(MX1, IO, MT_DEVICE),
 };
 
 void __init mx1_map_io(void)

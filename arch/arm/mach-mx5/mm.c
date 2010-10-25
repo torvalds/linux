@@ -23,33 +23,12 @@
 /*
  * Define the MX51 memory map.
  */
-static struct map_desc mxc_io_desc[] __initdata = {
-	{
-		.virtual = MX51_IRAM_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX51_IRAM_BASE_ADDR),
-		.length = MX51_IRAM_SIZE,
-		.type = MT_DEVICE
-	}, {
-		.virtual = MX51_DEBUG_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX51_DEBUG_BASE_ADDR),
-		.length = MX51_DEBUG_SIZE,
-		.type = MT_DEVICE
-	}, {
-		.virtual = MX51_AIPS1_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX51_AIPS1_BASE_ADDR),
-		.length = MX51_AIPS1_SIZE,
-		.type = MT_DEVICE
-	}, {
-		.virtual = MX51_SPBA0_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX51_SPBA0_BASE_ADDR),
-		.length = MX51_SPBA0_SIZE,
-		.type = MT_DEVICE
-	}, {
-		.virtual = MX51_AIPS2_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX51_AIPS2_BASE_ADDR),
-		.length = MX51_AIPS2_SIZE,
-		.type = MT_DEVICE
-	},
+static struct map_desc mx51_io_desc[] __initdata = {
+	imx_map_entry(MX51, IRAM, MT_DEVICE),
+	imx_map_entry(MX51, DEBUG, MT_DEVICE),
+	imx_map_entry(MX51, AIPS1, MT_DEVICE),
+	imx_map_entry(MX51, SPBA0, MT_DEVICE),
+	imx_map_entry(MX51, AIPS2, MT_DEVICE),
 };
 
 /*
@@ -62,7 +41,7 @@ void __init mx51_map_io(void)
 	mxc_set_cpu_type(MXC_CPU_MX51);
 	mxc_iomux_v3_init(MX51_IO_ADDRESS(MX51_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX51_IO_ADDRESS(MX51_WDOG_BASE_ADDR));
-	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
+	iotable_init(mx51_io_desc, ARRAY_SIZE(mx51_io_desc));
 }
 
 int imx51_register_gpios(void);

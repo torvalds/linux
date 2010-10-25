@@ -66,4 +66,11 @@
 
 #include <mach/mxc.h>
 
+#define imx_map_entry(soc, name, _type)	{				\
+	.virtual = soc ## _IO_P2V(soc ## _ ## name ## _BASE_ADDR),	\
+	.pfn = __phys_to_pfn(soc ## _ ## name ## _BASE_ADDR),		\
+	.length = soc ## _ ## name ## _SIZE,				\
+	.type = _type,							\
+}
+
 #endif /* __ASM_ARCH_MXC_HARDWARE_H__ */

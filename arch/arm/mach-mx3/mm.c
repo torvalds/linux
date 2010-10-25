@@ -36,40 +36,16 @@
  * @ingroup Memory
  */
 
-/*!
- * This table defines static virtual address mappings for I/O regions.
- * These are the mappings common across all MX3 boards.
- */
-static struct map_desc mxc_io_desc[] __initdata = {
-	{
-		.virtual = MX3x_X_MEMC_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX3x_X_MEMC_BASE_ADDR),
-		.length = MX3x_X_MEMC_SIZE,
-		.type = MT_DEVICE
-	}, {
-		.virtual = MX3x_AVIC_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX3x_AVIC_BASE_ADDR),
-		.length = MX3x_AVIC_SIZE,
-		.type = MT_DEVICE_NONSHARED
-	}, {
-		.virtual = MX3x_AIPS1_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX3x_AIPS1_BASE_ADDR),
-		.length = MX3x_AIPS1_SIZE,
-		.type = MT_DEVICE_NONSHARED
-	}, {
-		.virtual = MX3x_AIPS2_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX3x_AIPS2_BASE_ADDR),
-		.length = MX3x_AIPS2_SIZE,
-		.type = MT_DEVICE_NONSHARED
-	}, {
-		.virtual = MX3x_SPBA0_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX3x_SPBA0_BASE_ADDR),
-		.length = MX3x_SPBA0_SIZE,
-		.type = MT_DEVICE_NONSHARED
-	},
+#ifdef CONFIG_ARCH_MX31
+static struct map_desc mx31_io_desc[] __initdata = {
+	imx_map_entry(MX31, X_MEMC, MT_DEVICE),
+	imx_map_entry(MX31, AVIC, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX31, AIPS1, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX31, AIPS2, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX31, SPBA0, MT_DEVICE_NONSHARED),
 };
 
-/*!
+/*
  * This function initializes the memory map. It is called during the
  * system startup to create static physical to virtual memory mappings
  * for the IO modules.
@@ -79,17 +55,26 @@ void __init mx31_map_io(void)
 	mxc_set_cpu_type(MXC_CPU_MX31);
 	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
 
-	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
+	iotable_init(mx31_io_desc, ARRAY_SIZE(mx31_io_desc));
 }
+#endif
 
 #ifdef CONFIG_ARCH_MX35
+static struct map_desc mx35_io_desc[] __initdata = {
+	imx_map_entry(MX35, X_MEMC, MT_DEVICE),
+	imx_map_entry(MX35, AVIC, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX35, AIPS1, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX35, AIPS2, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX35, SPBA0, MT_DEVICE_NONSHARED),
+};
+
 void __init mx35_map_io(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX35);
 	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX35_IO_ADDRESS(MX3x_WDOG_BASE_ADDR));
 
-	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
+	iotable_init(mx35_io_desc, ARRAY_SIZE(mx35_io_desc));
 }
 #endif
 
