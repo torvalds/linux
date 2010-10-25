@@ -84,6 +84,7 @@ int main(void)
 	DEFINE(__LC_SVC_INT_CODE, offsetof(struct _lowcore, svc_code));
 	DEFINE(__LC_PGM_ILC, offsetof(struct _lowcore, pgm_ilc));
 	DEFINE(__LC_PGM_INT_CODE, offsetof(struct _lowcore, pgm_code));
+	DEFINE(__LC_TRANS_EXC_CODE, offsetof(struct _lowcore, trans_exc_code));
 	DEFINE(__LC_PER_ATMID, offsetof(struct _lowcore, per_perc_atmid));
 	DEFINE(__LC_PER_ADDRESS, offsetof(struct _lowcore, per_address));
 	DEFINE(__LC_PER_ACCESS_ID, offsetof(struct _lowcore, per_access_id));

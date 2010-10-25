@@ -333,12 +333,6 @@ static inline int do_exception(struct pt_regs *regs, int access,
 		goto out;
 
 	address = trans_exc_code & __FAIL_ADDR_MASK;
-	/*
-	 * When we get here, the fault happened in the current
-	 * task's user address space, so we can switch on the
-	 * interrupts again and then search the VMAs
-	 */
-	local_irq_enable();
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
 	down_read(&mm->mmap_sem);
 
@@ -397,20 +391,20 @@ out:
 	return fault;
 }
 
-void __kprobes do_protection_exception(struct pt_regs *regs, long int_code)
+void __kprobes do_protection_exception(struct pt_regs *regs, long pgm_int_code,
+				       unsigned long trans_exc_code)
 {
-	unsigned long trans_exc_code = S390_lowcore.trans_exc_code;
 	int fault;
 
 	/* Protection exception is supressing, decrement psw address. */
-	regs->psw.addr -= (int_code >> 16);
+	regs->psw.addr -= (pgm_int_code >> 16);
 	/*
 	 * Check for low-address protection.  This needs to be treated
 	 * as a special case because the translation exception code
 	 * field is not guaranteed to contain valid data in this case.
 	 */
 	if (unlikely(!(trans_exc_code & 4))) {
-		do_low_address(regs, int_code, trans_exc_code);
+		do_low_address(regs, pgm_int_code, trans_exc_code);
 		return;
 	}
 	fault = do_exception(regs, VM_WRITE, trans_exc_code);
@@ -418,9 +412,9 @@ void __kprobes do_protection_exception(struct pt_regs *regs, long int_code)
 		do_fault_error(regs, 4, trans_exc_code, fault);
 }
 
-void __kprobes do_dat_exception(struct pt_regs *regs, long int_code)
+void __kprobes do_dat_exception(struct pt_regs *regs, long pgm_int_code,
+				unsigned long trans_exc_code)
 {
-	unsigned long trans_exc_code = S390_lowcore.trans_exc_code;
 	int access, fault;
 
 	access = VM_READ | VM_EXEC | VM_WRITE;
@@ -431,20 +425,18 @@ void __kprobes do_dat_exception(struct pt_regs *regs, long int_code)
 #endif
 	fault = do_exception(regs, access, trans_exc_code);
 	if (unlikely(fault))
-		do_fault_error(regs, int_code & 255, trans_exc_code, fault);
+		do_fault_error(regs, pgm_int_code & 255, trans_exc_code, fault);
 }
 
 #ifdef CONFIG_64BIT
-void __kprobes do_asce_exception(struct pt_regs *regs, long int_code)
+void __kprobes do_asce_exception(struct pt_regs *regs, long pgm_int_code,
+				 unsigned long trans_exc_code)
 {
-	unsigned long trans_exc_code = S390_lowcore.trans_exc_code;
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 
 	if (unlikely(!user_space_fault(trans_exc_code) || in_atomic() || !mm))
 		goto no_context;
-
-	local_irq_enable();
 
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, trans_exc_code & __FAIL_ADDR_MASK);
@@ -457,16 +449,16 @@ void __kprobes do_asce_exception(struct pt_regs *regs, long int_code)
 
 	/* User mode accesses just cause a SIGSEGV */
 	if (regs->psw.mask & PSW_MASK_PSTATE) {
-		do_sigsegv(regs, int_code, SEGV_MAPERR, trans_exc_code);
+		do_sigsegv(regs, pgm_int_code, SEGV_MAPERR, trans_exc_code);
 		return;
 	}
 
 no_context:
-	do_no_context(regs, int_code, trans_exc_code);
+	do_no_context(regs, pgm_int_code, trans_exc_code);
 }
 #endif
 
-int __handle_fault(unsigned long uaddr, unsigned long int_code, int write_user)
+int __handle_fault(unsigned long uaddr, unsigned long pgm_int_code, int write)
 {
 	struct pt_regs regs;
 	int access, fault;
@@ -477,14 +469,14 @@ int __handle_fault(unsigned long uaddr, unsigned long int_code, int write_user)
 	regs.psw.addr = (unsigned long) __builtin_return_address(0);
 	regs.psw.addr |= PSW_ADDR_AMODE;
 	uaddr &= PAGE_MASK;
-	access = write_user ? VM_WRITE : VM_READ;
+	access = write ? VM_WRITE : VM_READ;
 	fault = do_exception(&regs, access, uaddr | 2);
 	if (unlikely(fault)) {
 		if (fault & VM_FAULT_OOM) {
 			pagefault_out_of_memory();
 			fault = 0;
 		} else if (fault & VM_FAULT_SIGBUS)
-			do_sigbus(&regs, int_code, uaddr);
+			do_sigbus(&regs, pgm_int_code, uaddr);
 	}
 	return fault ? -EFAULT : 0;
 }

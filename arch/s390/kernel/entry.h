@@ -5,7 +5,7 @@
 #include <linux/signal.h>
 #include <asm/ptrace.h>
 
-typedef void pgm_check_handler_t(struct pt_regs *, long);
+typedef void pgm_check_handler_t(struct pt_regs *, long, unsigned long);
 extern pgm_check_handler_t *pgm_check_table[128];
 pgm_check_handler_t do_protection_exception;
 pgm_check_handler_t do_dat_exception;
