@@ -871,7 +871,7 @@ static int tegra2_periph_clk_enable(struct clk *c)
 
 	tegra_periph_clk_enable_refcount[c->u.periph.clk_num]++;
 	if (tegra_periph_clk_enable_refcount[c->u.periph.clk_num] > 1)
-		return;
+		return 0;
 
 	clk_writel(PERIPH_CLK_TO_ENB_BIT(c),
 		CLK_OUT_ENB_SET + PERIPH_CLK_TO_ENB_SET_REG(c));
