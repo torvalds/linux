@@ -136,7 +136,7 @@ static int max8952_set_voltage(struct regulator_dev *rdev,
 				int min_uV, int max_uV)
 {
 	struct max8952_data *max8952 = rdev_get_drvdata(rdev);
-	u8 vid = -1, i;
+	s8 vid = -1, i;
 
 	if (!gpio_is_valid(max8952->pdata->gpio_vid0) ||
 			!gpio_is_valid(max8952->pdata->gpio_vid0)) {
