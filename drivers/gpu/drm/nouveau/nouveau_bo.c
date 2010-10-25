@@ -678,7 +678,7 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	chan = nvbo->channel;
 	if (!chan || nvbo->no_vm) {
 		chan = dev_priv->channel;
-		mutex_lock(&chan->mutex);
+		mutex_lock_nested(&chan->mutex, NOUVEAU_KCHANNEL_MUTEX);
 	}
 
 	if (dev_priv->card_type < NV_50)

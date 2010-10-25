@@ -173,6 +173,11 @@ struct nouveau_page_flip_state {
 	uint64_t offset;
 };
 
+enum nouveau_channel_mutex_class {
+	NOUVEAU_UCHANNEL_MUTEX,
+	NOUVEAU_KCHANNEL_MUTEX
+};
+
 struct nouveau_channel {
 	struct drm_device *dev;
 	int id;
