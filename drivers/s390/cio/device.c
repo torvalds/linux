@@ -1468,9 +1468,13 @@ static int io_subchannel_sch_event(struct subchannel *sch, int process)
 			goto out;
 		break;
 	case IO_SCH_UNREG_ATTACH:
+		if (cdev->private->flags.resuming) {
+			/* Device will be handled later. */
+			rc = 0;
+			goto out;
+		}
 		/* Unregister ccw device. */
-		if (!cdev->private->flags.resuming)
-			ccw_device_unregister(cdev);
+		ccw_device_unregister(cdev);
 		break;
 	default:
 		break;
