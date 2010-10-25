@@ -281,29 +281,25 @@ static inline int eilvt_is_available(int offset)
 
 static inline int ibs_eilvt_valid(void)
 {
-	u64 val;
 	int offset;
+	u64 val;
 
 	rdmsrl(MSR_AMD64_IBSCTL, val);
+	offset = val & IBSCTL_LVT_OFFSET_MASK;
+
 	if (!(val & IBSCTL_LVT_OFFSET_VALID)) {
-		pr_err(FW_BUG "cpu %d, invalid IBS "
-		       "interrupt offset %d (MSR%08X=0x%016llx)",
-		       smp_processor_id(), offset,
-		       MSR_AMD64_IBSCTL, val);
+		pr_err(FW_BUG "cpu %d, invalid IBS interrupt offset %d (MSR%08X=0x%016llx)\n",
+		       smp_processor_id(), offset, MSR_AMD64_IBSCTL, val);
 		return 0;
 	}
 
-	offset = val & IBSCTL_LVT_OFFSET_MASK;
+	if (!eilvt_is_available(offset)) {
+		pr_err(FW_BUG "cpu %d, IBS interrupt offset %d not available (MSR%08X=0x%016llx)\n",
+		       smp_processor_id(), offset, MSR_AMD64_IBSCTL, val);
+		return 0;
+	}
 
-	if (eilvt_is_available(offset))
-		return !0;
-
-	pr_err(FW_BUG "cpu %d, IBS interrupt offset %d "
-	       "not available (MSR%08X=0x%016llx)",
-	       smp_processor_id(), offset,
-	       MSR_AMD64_IBSCTL, val);
-
-	return 0;
+	return 1;
 }
 
 static inline int get_ibs_offset(void)
