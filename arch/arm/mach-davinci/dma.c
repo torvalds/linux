@@ -354,10 +354,12 @@ static int irq2ctlr(int irq)
 static irqreturn_t dma_irq_handler(int irq, void *data)
 {
 	int i;
-	unsigned ctlr;
+	int ctlr;
 	unsigned int cnt = 0;
 
 	ctlr = irq2ctlr(irq);
+	if (ctlr < 0)
+		return IRQ_NONE;
 
 	dev_dbg(data, "dma_irq_handler\n");
 
@@ -408,10 +410,12 @@ static irqreturn_t dma_irq_handler(int irq, void *data)
 static irqreturn_t dma_ccerr_handler(int irq, void *data)
 {
 	int i;
-	unsigned ctlr;
+	int ctlr;
 	unsigned int cnt = 0;
 
 	ctlr = irq2ctlr(irq);
+	if (ctlr < 0)
+		return IRQ_NONE;
 
 	dev_dbg(data, "dma_ccerr_handler\n");
 

@@ -42,6 +42,7 @@
 #include <mach/nand.h>
 #include <mach/clock.h>
 #include <mach/cdce949.h>
+#include <mach/aemif.h>
 
 #include "clock.h"
 
@@ -69,6 +70,16 @@ static struct mtd_partition davinci_nand_partitions[] = {
 		.size		= MTDPART_SIZ_FULL,
 		.mask_flags	= 0,
 	}
+};
+
+static struct davinci_aemif_timing dm6467tevm_nandflash_timing = {
+	.wsetup		= 29,
+	.wstrobe	= 24,
+	.whold		= 14,
+	.rsetup		= 19,
+	.rstrobe	= 33,
+	.rhold		= 0,
+	.ta		= 29,
 };
 
 static struct davinci_nand_pdata davinci_nand_data = {
@@ -718,9 +729,7 @@ static struct davinci_uart_config uart_config __initdata = {
 	.enabled_uarts = (1 << 0),
 };
 
-#define DM646X_EVM_PHY_MASK		(0x2)
-#define DM646X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
-
+#define DM646X_EVM_PHY_ID		"0:01"
 /*
  * The following EDMA channels/slots are not being used by drivers (for
  * example: Timer, GPIO, UART events etc) on dm646x, hence they are being
@@ -763,6 +772,9 @@ static __init void evm_init(void)
 	dm646x_init_mcasp0(&dm646x_evm_snd_data[0]);
 	dm646x_init_mcasp1(&dm646x_evm_snd_data[1]);
 
+	if (machine_is_davinci_dm6467tevm())
+		davinci_nand_data.timing = &dm6467tevm_nandflash_timing;
+
 	platform_device_register(&davinci_nand_device);
 
 	dm646x_init_edma(dm646x_edma_rsv);
@@ -770,8 +782,7 @@ static __init void evm_init(void)
 	if (HAS_ATA)
 		davinci_init_ide();
 
-	soc_info->emac_pdata->phy_mask = DM646X_EVM_PHY_MASK;
-	soc_info->emac_pdata->mdio_max_freq = DM646X_EVM_MDIO_FREQUENCY;
+	soc_info->emac_pdata->phy_id = DM646X_EVM_PHY_ID;
 }
 
 #define DM646X_EVM_REF_FREQ		27000000

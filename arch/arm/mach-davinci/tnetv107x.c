@@ -104,7 +104,7 @@ static u32 pll_ext_freq[] = {
 };
 
 /* PSC control registers */
-static u32 psc_regs[] __initconst = { TNETV107X_PSC_BASE };
+static u32 psc_regs[] = { TNETV107X_PSC_BASE };
 
 /* Host map for interrupt controller */
 static u32 intc_host_map[] = { 0x01010000, 0x01010101, -1 };
@@ -581,7 +581,14 @@ static struct davinci_id ids[] = {
 		.part_no	= 0xb8a1,
 		.manufacturer	= 0x017,
 		.cpu_id		= DAVINCI_CPU_ID_TNETV107X,
-		.name		= "tnetv107x rev1.0",
+		.name		= "tnetv107x rev 1.0",
+	},
+	{
+		.variant	= 0x1,
+		.part_no	= 0xb8a1,
+		.manufacturer	= 0x017,
+		.cpu_id		= DAVINCI_CPU_ID_TNETV107X,
+		.name		= "tnetv107x rev 1.1/1.2",
 	},
 };
 
