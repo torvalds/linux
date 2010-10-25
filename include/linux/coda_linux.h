@@ -89,7 +89,11 @@ static __inline__ char *coda_i2s(struct inode *inode)
 /* this will not zap the inode away */
 static __inline__ void coda_flag_inode(struct inode *inode, int flag)
 {
-	ITOC(inode)->c_flags |= flag;
+	struct coda_inode_info *cii = ITOC(inode);
+
+	spin_lock(&cii->c_lock);
+	cii->c_flags |= flag;
+	spin_unlock(&cii->c_lock);
 }		
 
 #endif

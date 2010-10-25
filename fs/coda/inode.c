@@ -16,6 +16,7 @@
 #include <linux/errno.h>
 #include <linux/unistd.h>
 #include <linux/smp_lock.h>
+#include <linux/spinlock.h>
 #include <linux/file.h>
 #include <linux/vfs.h>
 #include <linux/slab.h>
@@ -51,6 +52,7 @@ static struct inode *coda_alloc_inode(struct super_block *sb)
 	ei->c_flags = 0;
 	ei->c_uid = 0;
 	ei->c_cached_perm = 0;
+	spin_lock_init(&ei->c_lock);
 	return &ei->vfs_inode;
 }
 

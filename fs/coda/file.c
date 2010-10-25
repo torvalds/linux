@@ -16,6 +16,7 @@
 #include <linux/cred.h>
 #include <linux/errno.h>
 #include <linux/smp_lock.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
@@ -109,19 +110,24 @@ coda_file_mmap(struct file *coda_file, struct vm_area_struct *vma)
 
 	coda_inode = coda_file->f_path.dentry->d_inode;
 	host_inode = host_file->f_path.dentry->d_inode;
+
+	cii = ITOC(coda_inode);
+	spin_lock(&cii->c_lock);
 	coda_file->f_mapping = host_file->f_mapping;
 	if (coda_inode->i_mapping == &coda_inode->i_data)
 		coda_inode->i_mapping = host_inode->i_mapping;
 
 	/* only allow additional mmaps as long as userspace isn't changing
 	 * the container file on us! */
-	else if (coda_inode->i_mapping != host_inode->i_mapping)
+	else if (coda_inode->i_mapping != host_inode->i_mapping) {
+		spin_unlock(&cii->c_lock);
 		return -EBUSY;
+	}
 
 	/* keep track of how often the coda_inode/host_file has been mmapped */
-	cii = ITOC(coda_inode);
 	cii->c_mapcount++;
 	cfi->cfi_mapcount++;
+	spin_unlock(&cii->c_lock);
 
 	return host_file->f_op->mmap(host_file, vma);
 }
@@ -185,11 +191,13 @@ int coda_release(struct inode *coda_inode, struct file *coda_file)
 	cii = ITOC(coda_inode);
 
 	/* did we mmap this file? */
+	spin_lock(&cii->c_lock);
 	if (coda_inode->i_mapping == &host_inode->i_data) {
 		cii->c_mapcount -= cfi->cfi_mapcount;
 		if (!cii->c_mapcount)
 			coda_inode->i_mapping = &coda_inode->i_data;
 	}
+	spin_unlock(&cii->c_lock);
 
 	fput(cfi->cfi_container);
 	kfree(coda_file->private_data);

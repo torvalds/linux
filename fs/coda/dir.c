@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/smp_lock.h>
+#include <linux/spinlock.h>
 
 #include <asm/uaccess.h>
 
@@ -617,7 +618,9 @@ static int coda_dentry_revalidate(struct dentry *de, struct nameidata *nd)
 		goto out;
 
 	/* clear the flags. */
+	spin_lock(&cii->c_lock);
 	cii->c_flags &= ~(C_VATTR | C_PURGE | C_FLUSH);
+	spin_unlock(&cii->c_lock);
 
 bad:
 	unlock_kernel();
@@ -691,7 +694,10 @@ int coda_revalidate_inode(struct dentry *dentry)
 			goto return_bad;
 		
 		coda_flag_inode_children(inode, C_FLUSH);
+
+		spin_lock(&cii->c_lock);
 		cii->c_flags &= ~(C_VATTR | C_PURGE | C_FLUSH);
+		spin_unlock(&cii->c_lock);
 	}
 
 ok:
