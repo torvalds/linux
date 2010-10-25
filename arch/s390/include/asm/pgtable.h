@@ -316,6 +316,7 @@ extern unsigned long VMALLOC_START;
 
 /* Bits in the segment table entry */
 #define _SEGMENT_ENTRY_ORIGIN	0x7fffffc0UL	/* page table origin	    */
+#define _SEGMENT_ENTRY_RO	0x200	/* page protection bit		    */
 #define _SEGMENT_ENTRY_INV	0x20	/* invalid segment table entry	    */
 #define _SEGMENT_ENTRY_COMMON	0x10	/* common segment bit		    */
 #define _SEGMENT_ENTRY_PTL	0x0f	/* page table length		    */
