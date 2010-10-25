@@ -3,10 +3,15 @@ config SND_EP93XX_SOC
 	depends on ARCH_EP93XX && SND_SOC
 	help
 	  Say Y or M if you want to add support for codecs attached to
-	  the EP93xx I2S interface.
+	  the EP93xx I2S or AC97 interfaces.
 
 config SND_EP93XX_SOC_I2S
 	tristate
+
+config SND_EP93XX_SOC_AC97
+	tristate
+	select AC97_BUS
+	select SND_SOC_AC97_BUS
 
 config SND_EP93XX_SOC_SNAPPERCL15
         tristate "SoC Audio support for Bluewater Systems Snapper CL15 module"
@@ -16,3 +21,12 @@ config SND_EP93XX_SOC_SNAPPERCL15
         help
           Say Y or M here if you want to add support for I2S audio on the
           Bluewater Systems Snapper CL15 module.
+
+config SND_EP93XX_SOC_SIMONE
+	tristate "SoC Audio support for Simplemachines Sim.One board"
+	depends on SND_EP93XX_SOC && MACH_SIM_ONE
+	select SND_EP93XX_SOC_AC97
+	select SND_SOC_AC97_CODEC
+	help
+	  Say Y or M here if you want to add support for AC97 audio on the
+	  Simplemachines Sim.One board.

@@ -64,11 +64,6 @@ static struct s3c_dma_params s3c_pcm_stereo_in[] = {
 
 static struct s3c_pcm_info s3c_pcm[2];
 
-static inline struct s3c_pcm_info *to_info(struct snd_soc_dai *cpu_dai)
-{
-	return cpu_dai->private_data;
-}
-
 static void s3c_pcm_snd_txctrl(struct s3c_pcm_info *pcm, int on)
 {
 	void __iomem *regs = pcm->regs;
@@ -83,7 +78,7 @@ static void s3c_pcm_snd_txctrl(struct s3c_pcm_info *pcm, int on)
 		ctl |= S3C_PCM_CTL_TXDMA_EN;
 		ctl |= S3C_PCM_CTL_TXFIFO_EN;
 		ctl |= S3C_PCM_CTL_ENABLE;
-		ctl |= (0x20<<S3C_PCM_CTL_TXDIPSTICK_SHIFT);
+		ctl |= (0x4<<S3C_PCM_CTL_TXDIPSTICK_SHIFT);
 		clkctl |= S3C_PCM_CLKCTL_SERCLK_EN;
 	} else {
 		ctl &= ~S3C_PCM_CTL_TXDMA_EN;
@@ -107,11 +102,14 @@ static void s3c_pcm_snd_rxctrl(struct s3c_pcm_info *pcm, int on)
 
 	ctl = readl(regs + S3C_PCM_CTL);
 	clkctl = readl(regs + S3C_PCM_CLKCTL);
+	ctl &= ~(S3C_PCM_CTL_RXDIPSTICK_MASK
+			 << S3C_PCM_CTL_RXDIPSTICK_SHIFT);
 
 	if (on) {
 		ctl |= S3C_PCM_CTL_RXDMA_EN;
 		ctl |= S3C_PCM_CTL_RXFIFO_EN;
 		ctl |= S3C_PCM_CTL_ENABLE;
+		ctl |= (0x20<<S3C_PCM_CTL_RXDIPSTICK_SHIFT);
 		clkctl |= S3C_PCM_CLKCTL_SERCLK_EN;
 	} else {
 		ctl &= ~S3C_PCM_CTL_RXDMA_EN;
@@ -132,7 +130,7 @@ static int s3c_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct s3c_pcm_info *pcm = to_info(rtd->dai->cpu_dai);
+	struct s3c_pcm_info *pcm = snd_soc_dai_get_drvdata(rtd->cpu_dai);
 	unsigned long flags;
 
 	dev_dbg(pcm->dev, "Entered %s\n", __func__);
@@ -176,8 +174,7 @@ static int s3c_pcm_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *socdai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai_link *dai = rtd->dai;
-	struct s3c_pcm_info *pcm = to_info(dai->cpu_dai);
+	struct s3c_pcm_info *pcm = snd_soc_dai_get_drvdata(rtd->cpu_dai);
 	struct s3c_dma_params *dma_data;
 	void __iomem *regs = pcm->regs;
 	struct clk *clk;
@@ -192,7 +189,7 @@ static int s3c_pcm_hw_params(struct snd_pcm_substream *substream,
 	else
 		dma_data = pcm->dma_capture;
 
-	snd_soc_dai_set_dma_data(dai->cpu_dai, substream, dma_data);
+	snd_soc_dai_set_dma_data(rtd->cpu_dai, substream, dma_data);
 
 	/* Strictly check for sample size */
 	switch (params_format(params)) {
@@ -242,7 +239,7 @@ static int s3c_pcm_hw_params(struct snd_pcm_substream *substream,
 static int s3c_pcm_set_fmt(struct snd_soc_dai *cpu_dai,
 			       unsigned int fmt)
 {
-	struct s3c_pcm_info *pcm = to_info(cpu_dai);
+	struct s3c_pcm_info *pcm = snd_soc_dai_get_drvdata(cpu_dai);
 	void __iomem *regs = pcm->regs;
 	unsigned long flags;
 	int ret = 0;
@@ -313,7 +310,7 @@ exit:
 static int s3c_pcm_set_clkdiv(struct snd_soc_dai *cpu_dai,
 						int div_id, int div)
 {
-	struct s3c_pcm_info *pcm = to_info(cpu_dai);
+	struct s3c_pcm_info *pcm = snd_soc_dai_get_drvdata(cpu_dai);
 
 	switch (div_id) {
 	case S3C_PCM_SCLK_PER_FS:
@@ -330,7 +327,7 @@ static int s3c_pcm_set_clkdiv(struct snd_soc_dai *cpu_dai,
 static int s3c_pcm_set_sysclk(struct snd_soc_dai *cpu_dai,
 				  int clk_id, unsigned int freq, int dir)
 {
-	struct s3c_pcm_info *pcm = to_info(cpu_dai);
+	struct s3c_pcm_info *pcm = snd_soc_dai_get_drvdata(cpu_dai);
 	void __iomem *regs = pcm->regs;
 	u32 clkctl = readl(regs + S3C_PCM_CLKCTL);
 
@@ -366,10 +363,7 @@ static struct snd_soc_dai_ops s3c_pcm_dai_ops = {
 
 #define S3C_PCM_RATES  SNDRV_PCM_RATE_8000_96000
 
-#define S3C_PCM_DECLARE(n)			\
-{								\
-	.name		 = "samsung-pcm",			\
-	.id		 = (n),				\
+#define S3C_PCM_DAI_DECLARE			\
 	.symmetric_rates = 1,					\
 	.ops = &s3c_pcm_dai_ops,				\
 	.playback = {						\
@@ -383,19 +377,23 @@ static struct snd_soc_dai_ops s3c_pcm_dai_ops = {
 		.channels_max	= 2,				\
 		.rates		= S3C_PCM_RATES,		\
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE,	\
-	},							\
-}
+	}
 
-struct snd_soc_dai s3c_pcm_dai[] = {
-	S3C_PCM_DECLARE(0),
-	S3C_PCM_DECLARE(1),
+struct snd_soc_dai_driver s3c_pcm_dai[] = {
+	[0] = {
+		.name	= "samsung-pcm.0",
+		S3C_PCM_DAI_DECLARE,
+	},
+	[1] = {
+		.name	= "samsung-pcm.1",
+		S3C_PCM_DAI_DECLARE,
+	},
 };
 EXPORT_SYMBOL_GPL(s3c_pcm_dai);
 
 static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 {
 	struct s3c_pcm_info *pcm;
-	struct snd_soc_dai *dai;
 	struct resource *mem_res, *dmatx_res, *dmarx_res;
 	struct s3c_audio_pdata *pcm_pdata;
 	int ret;
@@ -437,9 +435,6 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pcm->lock);
 
-	dai = &s3c_pcm_dai[pdev->id];
-	dai->dev = &pdev->dev;
-
 	/* Default is 128fs */
 	pcm->sclk_per_fs = 128;
 
@@ -452,7 +447,7 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 	clk_enable(pcm->cclk);
 
 	/* record our pcm structure for later use in the callbacks */
-	dai->private_data = pcm;
+	dev_set_drvdata(&pdev->dev, pcm);
 
 	if (!request_mem_region(mem_res->start,
 				resource_size(mem_res), "samsung-pcm")) {
@@ -476,7 +471,7 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 	}
 	clk_enable(pcm->pclk);
 
-	ret = snd_soc_register_dai(dai);
+	ret = snd_soc_register_dai(&pdev->dev, &s3c_pcm_dai[pdev->id]);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "failed to get pcm_clock\n");
 		goto err5;
@@ -513,6 +508,8 @@ static __devexit int s3c_pcm_dev_remove(struct platform_device *pdev)
 {
 	struct s3c_pcm_info *pcm = &s3c_pcm[pdev->id];
 	struct resource *mem_res;
+
+	snd_soc_unregister_dai(&pdev->dev);
 
 	iounmap(pcm->regs);
 
@@ -552,3 +549,4 @@ module_exit(s3c_pcm_exit);
 MODULE_AUTHOR("Jaswinder Singh, <jassi.brar@samsung.com>");
 MODULE_DESCRIPTION("S3C PCM Controller Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:samsung-pcm");

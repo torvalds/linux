@@ -36,7 +36,6 @@
 
 #include "davinci-pcm.h"
 #include "davinci-i2s.h"
-#include "davinci-vcif.h"
 
 #define MOD_REG_BIT(val, mask, set) do { \
 	if (set) { \
@@ -55,7 +54,7 @@ static void davinci_vcif_start(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct davinci_vcif_dev *davinci_vcif_dev =
-					rtd->dai->cpu_dai->private_data;
+			snd_soc_dai_get_drvdata(rtd->cpu_dai);
 	struct davinci_vc *davinci_vc = davinci_vcif_dev->davinci_vc;
 	u32 w;
 
@@ -74,7 +73,7 @@ static void davinci_vcif_stop(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct davinci_vcif_dev *davinci_vcif_dev =
-					rtd->dai->cpu_dai->private_data;
+			snd_soc_dai_get_drvdata(rtd->cpu_dai);
 	struct davinci_vc *davinci_vc = davinci_vcif_dev->davinci_vc;
 	u32 w;
 
@@ -92,11 +91,14 @@ static int davinci_vcif_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
 				  struct snd_soc_dai *dai)
 {
-	struct davinci_vcif_dev *davinci_vcif_dev = dai->private_data;
+	struct davinci_vcif_dev *davinci_vcif_dev = snd_soc_dai_get_drvdata(dai);
 	struct davinci_vc *davinci_vc = davinci_vcif_dev->davinci_vc;
 	struct davinci_pcm_dma_params *dma_params =
 			&davinci_vcif_dev->dma_params[substream->stream];
 	u32 w;
+
+	dai->capture_dma_data = davinci_vcif_dev->dma_params;
+	dai->playback_dma_data = davinci_vcif_dev->dma_params;
 
 	/* Restart the codec before setup */
 	davinci_vcif_stop(substream);
@@ -179,8 +181,7 @@ static struct snd_soc_dai_ops davinci_vcif_dai_ops = {
 	.hw_params	= davinci_vcif_hw_params,
 };
 
-struct snd_soc_dai davinci_vcif_dai = {
-	.name = "davinci-vcif",
+static struct snd_soc_dai_driver davinci_vcif_dai = {
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 2,
@@ -194,7 +195,6 @@ struct snd_soc_dai davinci_vcif_dai = {
 	.ops = &davinci_vcif_dai_ops,
 
 };
-EXPORT_SYMBOL_GPL(davinci_vcif_dai);
 
 static int davinci_vcif_probe(struct platform_device *pdev)
 {
@@ -222,12 +222,9 @@ static int davinci_vcif_probe(struct platform_device *pdev)
 	davinci_vcif_dev->dma_params[SNDRV_PCM_STREAM_CAPTURE].dma_addr =
 					davinci_vc->davinci_vcif.dma_rx_addr;
 
-	davinci_vcif_dai.dev = &pdev->dev;
-	davinci_vcif_dai.capture.dma_data = davinci_vcif_dev->dma_params;
-	davinci_vcif_dai.playback.dma_data = davinci_vcif_dev->dma_params;
-	davinci_vcif_dai.private_data = davinci_vcif_dev;
+	dev_set_drvdata(&pdev->dev, davinci_vcif_dev);
 
-	ret = snd_soc_register_dai(&davinci_vcif_dai);
+	ret = snd_soc_register_dai(&pdev->dev, &davinci_vcif_dai);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "could not register dai\n");
 		goto fail;
@@ -243,7 +240,7 @@ fail:
 
 static int davinci_vcif_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dai(&davinci_vcif_dai);
+	snd_soc_unregister_dai(&pdev->dev);
 
 	return 0;
 }
@@ -252,7 +249,7 @@ static struct platform_driver davinci_vcif_driver = {
 	.probe		= davinci_vcif_probe,
 	.remove		= davinci_vcif_remove,
 	.driver		= {
-		.name	= "davinci_vcif",
+		.name	= "davinci-vcif",
 		.owner	= THIS_MODULE,
 	},
 };

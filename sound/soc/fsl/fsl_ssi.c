@@ -3,10 +3,11 @@
  *
  * Author: Timur Tabi <timur@freescale.com>
  *
- * Copyright 2007-2008 Freescale Semiconductor, Inc.  This file is licensed
- * under the terms of the GNU General Public License version 2.  This
- * program is licensed "as is" without any warranty of any kind, whether
- * express or implied.
+ * Copyright 2007-2010 Freescale Semiconductor, Inc.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
  */
 
 #include <linux/init.h>
@@ -15,14 +16,13 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/of_platform.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-
-#include <asm/immap_86xx.h>
 
 #include "fsl_ssi.h"
 
@@ -71,33 +71,32 @@
 /**
  * fsl_ssi_private: per-SSI private data
  *
- * @name: short name for this device ("SSI0", "SSI1", etc)
  * @ssi: pointer to the SSI's registers
  * @ssi_phys: physical address of the SSI registers
  * @irq: IRQ of this SSI
  * @first_stream: pointer to the stream that was opened first
  * @second_stream: pointer to second stream
- * @dev: struct device pointer
  * @playback: the number of playback streams opened
  * @capture: the number of capture streams opened
  * @asynchronous: 0=synchronous mode, 1=asynchronous mode
  * @cpu_dai: the CPU DAI for this device
  * @dev_attr: the sysfs device attribute structure
  * @stats: SSI statistics
+ * @name: name for this device
  */
 struct fsl_ssi_private {
-	char name[8];
 	struct ccsr_ssi __iomem *ssi;
 	dma_addr_t ssi_phys;
 	unsigned int irq;
 	struct snd_pcm_substream *first_stream;
 	struct snd_pcm_substream *second_stream;
-	struct device *dev;
 	unsigned int playback;
 	unsigned int capture;
 	int asynchronous;
-	struct snd_soc_dai cpu_dai;
+	unsigned int fifo_depth;
+	struct snd_soc_dai_driver cpu_dai_drv;
 	struct device_attribute dev_attr;
+	struct platform_device *pdev;
 
 	struct {
 		unsigned int rfrc;
@@ -122,6 +121,8 @@ struct fsl_ssi_private {
 		unsigned int tfe1;
 		unsigned int tfe0;
 	} stats;
+
+	char name[1];
 };
 
 /**
@@ -280,7 +281,7 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct fsl_ssi_private *ssi_private = rtd->dai->cpu_dai->private_data;
+	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(rtd->cpu_dai);
 
 	/*
 	 * If this is the first stream opened, then request the IRQ
@@ -290,6 +291,7 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 		struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
 		int ret;
 
+		/* The 'name' should not have any slashes in it. */
 		ret = request_irq(ssi_private->irq, fsl_ssi_isr, 0,
 				  ssi_private->name, ssi_private);
 		if (ret < 0) {
@@ -336,11 +338,20 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 
 		/*
 		 * Set the watermark for transmit FIFI 0 and receive FIFO 0. We
-		 * don't use FIFO 1.  Since the SSI only supports stereo, the
-		 * watermark should never be an odd number.
+		 * don't use FIFO 1.  We program the transmit water to signal a
+		 * DMA transfer if there are only two (or fewer) elements left
+		 * in the FIFO.  Two elements equals one frame (left channel,
+		 * right channel).  This value, however, depends on the depth of
+		 * the transmit buffer.
+		 *
+		 * We program the receive FIFO to notify us if at least two
+		 * elements (one frame) have been written to the FIFO.  We could
+		 * make this value larger (and maybe we should), but this way
+		 * data will be written to memory as soon as it's available.
 		 */
 		out_be32(&ssi->sfcsr,
-			 CCSR_SSI_SFCSR_TFWM0(6) | CCSR_SSI_SFCSR_RFWM0(2));
+			CCSR_SSI_SFCSR_TFWM0(ssi_private->fifo_depth - 2) |
+			CCSR_SSI_SFCSR_RFWM0(ssi_private->fifo_depth - 2));
 
 		/*
 		 * We keep the SSI disabled because if we enable it, then the
@@ -422,7 +433,7 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *hw_params, struct snd_soc_dai *cpu_dai)
 {
-	struct fsl_ssi_private *ssi_private = cpu_dai->private_data;
+	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(cpu_dai);
 
 	if (substream == ssi_private->first_stream) {
 		struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
@@ -458,7 +469,7 @@ static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct fsl_ssi_private *ssi_private = rtd->dai->cpu_dai->private_data;
+	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(rtd->cpu_dai);
 	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
 
 	switch (cmd) {
@@ -497,7 +508,7 @@ static void fsl_ssi_shutdown(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct fsl_ssi_private *ssi_private = rtd->dai->cpu_dai->private_data;
+	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(rtd->cpu_dai);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		ssi_private->playback--;
@@ -523,56 +534,15 @@ static void fsl_ssi_shutdown(struct snd_pcm_substream *substream,
 	}
 }
 
-/**
- * fsl_ssi_set_sysclk: set the clock frequency and direction
- *
- * This function is called by the machine driver to tell us what the clock
- * frequency and direction are.
- *
- * Currently, we only support operating as a clock slave (SND_SOC_CLOCK_IN),
- * and we don't care about the frequency.  Return an error if the direction
- * is not SND_SOC_CLOCK_IN.
- *
- * @clk_id: reserved, should be zero
- * @freq: the frequency of the given clock ID, currently ignored
- * @dir: SND_SOC_CLOCK_IN (clock slave) or SND_SOC_CLOCK_OUT (clock master)
- */
-static int fsl_ssi_set_sysclk(struct snd_soc_dai *cpu_dai,
-			      int clk_id, unsigned int freq, int dir)
-{
-
-	return (dir == SND_SOC_CLOCK_IN) ? 0 : -EINVAL;
-}
-
-/**
- * fsl_ssi_set_fmt: set the serial format.
- *
- * This function is called by the machine driver to tell us what serial
- * format to use.
- *
- * Currently, we only support I2S mode.  Return an error if the format is
- * not SND_SOC_DAIFMT_I2S.
- *
- * @format: one of SND_SOC_DAIFMT_xxx
- */
-static int fsl_ssi_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int format)
-{
-	return (format == SND_SOC_DAIFMT_I2S) ? 0 : -EINVAL;
-}
-
-/**
- * fsl_ssi_dai_template: template CPU DAI for the SSI
- */
 static struct snd_soc_dai_ops fsl_ssi_dai_ops = {
 	.startup	= fsl_ssi_startup,
 	.hw_params	= fsl_ssi_hw_params,
 	.shutdown	= fsl_ssi_shutdown,
 	.trigger	= fsl_ssi_trigger,
-	.set_sysclk	= fsl_ssi_set_sysclk,
-	.set_fmt	= fsl_ssi_set_fmt,
 };
 
-static struct snd_soc_dai fsl_ssi_dai_template = {
+/* Template for the CPU dai driver structure */
+static struct snd_soc_dai_driver fsl_ssi_dai_template = {
 	.playback = {
 		/* The SSI does not support monaural audio. */
 		.channels_min = 2,
@@ -640,95 +610,195 @@ static ssize_t fsl_sysfs_ssi_show(struct device *dev,
 }
 
 /**
- * fsl_ssi_create_dai: create a snd_soc_dai structure
- *
- * This function is called by the machine driver to create a snd_soc_dai
- * structure.  The function creates an ssi_private object, which contains
- * the snd_soc_dai.  It also creates the sysfs statistics device.
+ * Make every character in a string lower-case
  */
-struct snd_soc_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
+static void make_lowercase(char *s)
 {
-	struct snd_soc_dai *fsl_ssi_dai;
+	char *p = s;
+	char c;
+
+	while ((c = *p)) {
+		if ((c >= 'A') && (c <= 'Z'))
+			*p = c + ('a' - 'A');
+		p++;
+	}
+}
+
+static int __devinit fsl_ssi_probe(struct platform_device *pdev,
+				   const struct of_device_id *match)
+{
 	struct fsl_ssi_private *ssi_private;
 	int ret = 0;
-	struct device_attribute *dev_attr;
+	struct device_attribute *dev_attr = NULL;
+	struct device_node *np = pdev->dev.of_node;
+	const char *p, *sprop;
+	const uint32_t *iprop;
+	struct resource res;
+	char name[64];
 
-	ssi_private = kzalloc(sizeof(struct fsl_ssi_private), GFP_KERNEL);
-	if (!ssi_private) {
-		dev_err(ssi_info->dev, "could not allocate DAI object\n");
-		return NULL;
+	/* SSIs that are not connected on the board should have a
+	 *      status = "disabled"
+	 * property in their device tree nodes.
+	 */
+	if (!of_device_is_available(np))
+		return -ENODEV;
+
+	/* Check for a codec-handle property. */
+	if (!of_get_property(np, "codec-handle", NULL)) {
+		dev_err(&pdev->dev, "missing codec-handle property\n");
+		return -ENODEV;
 	}
-	memcpy(&ssi_private->cpu_dai, &fsl_ssi_dai_template,
-	       sizeof(struct snd_soc_dai));
 
-	fsl_ssi_dai = &ssi_private->cpu_dai;
-	dev_attr = &ssi_private->dev_attr;
+	/* We only support the SSI in "I2S Slave" mode */
+	sprop = of_get_property(np, "fsl,mode", NULL);
+	if (!sprop || strcmp(sprop, "i2s-slave")) {
+		dev_notice(&pdev->dev, "mode %s is unsupported\n", sprop);
+		return -ENODEV;
+	}
 
-	sprintf(ssi_private->name, "ssi%u", (u8) ssi_info->id);
-	ssi_private->ssi = ssi_info->ssi;
-	ssi_private->ssi_phys = ssi_info->ssi_phys;
-	ssi_private->irq = ssi_info->irq;
-	ssi_private->dev = ssi_info->dev;
-	ssi_private->asynchronous = ssi_info->asynchronous;
+	/* The DAI name is the last part of the full name of the node. */
+	p = strrchr(np->full_name, '/') + 1;
+	ssi_private = kzalloc(sizeof(struct fsl_ssi_private) + strlen(p),
+			      GFP_KERNEL);
+	if (!ssi_private) {
+		dev_err(&pdev->dev, "could not allocate DAI object\n");
+		return -ENOMEM;
+	}
 
-	dev_set_drvdata(ssi_private->dev, fsl_ssi_dai);
+	strcpy(ssi_private->name, p);
+
+	/* Initialize this copy of the CPU DAI driver structure */
+	memcpy(&ssi_private->cpu_dai_drv, &fsl_ssi_dai_template,
+	       sizeof(fsl_ssi_dai_template));
+	ssi_private->cpu_dai_drv.name = ssi_private->name;
+
+	/* Get the addresses and IRQ */
+	ret = of_address_to_resource(np, 0, &res);
+	if (ret) {
+		dev_err(&pdev->dev, "could not determine device resources\n");
+		kfree(ssi_private);
+		return ret;
+	}
+	ssi_private->ssi = ioremap(res.start, 1 + res.end - res.start);
+	ssi_private->ssi_phys = res.start;
+	ssi_private->irq = irq_of_parse_and_map(np, 0);
+
+	/* Are the RX and the TX clocks locked? */
+	if (of_find_property(np, "fsl,ssi-asynchronous", NULL))
+		ssi_private->asynchronous = 1;
+	else
+		ssi_private->cpu_dai_drv.symmetric_rates = 1;
+
+	/* Determine the FIFO depth. */
+	iprop = of_get_property(np, "fsl,fifo-depth", NULL);
+	if (iprop)
+		ssi_private->fifo_depth = *iprop;
+	else
+                /* Older 8610 DTs didn't have the fifo-depth property */
+		ssi_private->fifo_depth = 8;
 
 	/* Initialize the the device_attribute structure */
-	dev_attr->attr.name = "ssi-stats";
+	dev_attr = &ssi_private->dev_attr;
+	dev_attr->attr.name = "statistics";
 	dev_attr->attr.mode = S_IRUGO;
 	dev_attr->show = fsl_sysfs_ssi_show;
 
-	ret = device_create_file(ssi_private->dev, dev_attr);
+	ret = device_create_file(&pdev->dev, dev_attr);
 	if (ret) {
-		dev_err(ssi_info->dev, "could not create sysfs %s file\n",
+		dev_err(&pdev->dev, "could not create sysfs %s file\n",
 			ssi_private->dev_attr.attr.name);
-		kfree(fsl_ssi_dai);
-		return NULL;
+		goto error;
 	}
 
-	fsl_ssi_dai->private_data = ssi_private;
-	fsl_ssi_dai->name = ssi_private->name;
-	fsl_ssi_dai->id = ssi_info->id;
-	fsl_ssi_dai->dev = ssi_info->dev;
-	fsl_ssi_dai->symmetric_rates = 1;
+	/* Register with ASoC */
+	dev_set_drvdata(&pdev->dev, ssi_private);
 
-	ret = snd_soc_register_dai(fsl_ssi_dai);
-	if (ret != 0) {
-		dev_err(ssi_info->dev, "failed to register DAI: %d\n", ret);
-		kfree(fsl_ssi_dai);
-		return NULL;
+	ret = snd_soc_register_dai(&pdev->dev, &ssi_private->cpu_dai_drv);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register DAI: %d\n", ret);
+		goto error;
 	}
 
-	return fsl_ssi_dai;
+	/* Trigger the machine driver's probe function.  The platform driver
+	 * name of the machine driver is taken from the /model property of the
+	 * device tree.  We also pass the address of the CPU DAI driver
+	 * structure.
+	 */
+	sprop = of_get_property(of_find_node_by_path("/"), "model", NULL);
+	/* Sometimes the model name has a "fsl," prefix, so we strip that. */
+	p = strrchr(sprop, ',');
+	if (p)
+		sprop = p + 1;
+	snprintf(name, sizeof(name), "snd-soc-%s", sprop);
+	make_lowercase(name);
+
+	ssi_private->pdev =
+		platform_device_register_data(&pdev->dev, name, 0, NULL, 0);
+	if (IS_ERR(ssi_private->pdev)) {
+		ret = PTR_ERR(ssi_private->pdev);
+		dev_err(&pdev->dev, "failed to register platform: %d\n", ret);
+		goto error;
+	}
+
+	return 0;
+
+error:
+	snd_soc_unregister_dai(&pdev->dev);
+	dev_set_drvdata(&pdev->dev, NULL);
+	if (dev_attr)
+		device_remove_file(&pdev->dev, dev_attr);
+	irq_dispose_mapping(ssi_private->irq);
+	iounmap(ssi_private->ssi);
+	kfree(ssi_private);
+
+	return ret;
 }
-EXPORT_SYMBOL_GPL(fsl_ssi_create_dai);
 
-/**
- * fsl_ssi_destroy_dai: destroy the snd_soc_dai object
- *
- * This function undoes the operations of fsl_ssi_create_dai()
- */
-void fsl_ssi_destroy_dai(struct snd_soc_dai *fsl_ssi_dai)
+static int fsl_ssi_remove(struct platform_device *pdev)
 {
-	struct fsl_ssi_private *ssi_private =
-	container_of(fsl_ssi_dai, struct fsl_ssi_private, cpu_dai);
+	struct fsl_ssi_private *ssi_private = dev_get_drvdata(&pdev->dev);
 
-	device_remove_file(ssi_private->dev, &ssi_private->dev_attr);
-
-	snd_soc_unregister_dai(&ssi_private->cpu_dai);
+	platform_device_unregister(ssi_private->pdev);
+	snd_soc_unregister_dai(&pdev->dev);
+	device_remove_file(&pdev->dev, &ssi_private->dev_attr);
 
 	kfree(ssi_private);
+	dev_set_drvdata(&pdev->dev, NULL);
+
+	return 0;
 }
-EXPORT_SYMBOL_GPL(fsl_ssi_destroy_dai);
+
+static const struct of_device_id fsl_ssi_ids[] = {
+	{ .compatible = "fsl,mpc8610-ssi", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, fsl_ssi_ids);
+
+static struct of_platform_driver fsl_ssi_driver = {
+	.driver = {
+		.name = "fsl-ssi-dai",
+		.owner = THIS_MODULE,
+		.of_match_table = fsl_ssi_ids,
+	},
+	.probe = fsl_ssi_probe,
+	.remove = fsl_ssi_remove,
+};
 
 static int __init fsl_ssi_init(void)
 {
 	printk(KERN_INFO "Freescale Synchronous Serial Interface (SSI) ASoC Driver\n");
 
-	return 0;
+	return of_register_platform_driver(&fsl_ssi_driver);
 }
+
+static void __exit fsl_ssi_exit(void)
+{
+	of_unregister_platform_driver(&fsl_ssi_driver);
+}
+
 module_init(fsl_ssi_init);
+module_exit(fsl_ssi_exit);
 
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
 MODULE_DESCRIPTION("Freescale Synchronous Serial Interface (SSI) ASoC Driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

@@ -20,26 +20,21 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include "../codecs/ac97.h"
 #include "nuc900-audio.h"
 
 static struct snd_soc_dai_link nuc900evb_ac97_dai = {
 	.name		= "AC97",
 	.stream_name	= "AC97 HiFi",
-	.cpu_dai	= &nuc900_ac97_dai,
-	.codec_dai	= &ac97_dai,
+	.cpu_dai_name	= "nuc900-ac97",
+	.codec_dai_name	= "ac97-hifi",
+	.codec_name	= "ac97-codec",
+	.platform_name	= "nuc900-pcm-audio",
 };
 
 static struct snd_soc_card nuc900evb_audio_machine = {
 	.name		= "NUC900EVB_AC97",
 	.dai_link	= &nuc900evb_ac97_dai,
 	.num_links	= 1,
-	.platform	= &nuc900_soc_platform,
-};
-
-static struct snd_soc_device nuc900evb_ac97_devdata = {
-	.card		= &nuc900evb_audio_machine,
-	.codec_dev	= &soc_codec_dev_ac97,
 };
 
 static struct platform_device *nuc900evb_asoc_dev;
@@ -54,9 +49,8 @@ static int __init nuc900evb_audio_init(void)
 		goto out;
 
 	/* nuc900 board audio device */
-	platform_set_drvdata(nuc900evb_asoc_dev, &nuc900evb_ac97_devdata);
+	platform_set_drvdata(nuc900evb_asoc_dev, &nuc900evb_audio_machine);
 
-	nuc900evb_ac97_devdata.dev = &nuc900evb_asoc_dev->dev;
 	ret = platform_device_add(nuc900evb_asoc_dev);
 
 	if (ret) {

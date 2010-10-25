@@ -34,8 +34,6 @@
 
 #include "wm9090.h"
 
-static struct snd_soc_codec *wm9090_codec;
-
 static const u16 wm9090_reg_defaults[] = {
 	0x9093,     /* R0   - Software Reset */
 	0x0006,     /* R1   - Power Management (1) */
@@ -142,15 +140,10 @@ static const u16 wm9090_reg_defaults[] = {
 
 /* This struct is used to save the context */
 struct wm9090_priv {
-	/* We're not really registering as a CODEC since ASoC core
-	 * does not yet support multiple CODECs but having the CODEC
-	 * structure means we can reuse some of the ASoC core
-	 * features.
-	 */
-	struct snd_soc_codec codec;
 	struct mutex mutex;
 	u16 reg_cache[WM9090_MAX_REGISTER + 1];
 	struct wm9090_platform_data pdata;
+	void *control_data;
 };
 
 static int wm9090_volatile(unsigned int reg)
@@ -523,7 +516,7 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
 			/* Restore the register cache */
-			for (i = 1; i < codec->reg_cache_size; i++) {
+			for (i = 1; i < codec->driver->reg_cache_size; i++) {
 				if (reg_cache[i] == wm9090_reg_defaults[i])
 					continue;
 				if (wm9090_volatile(i))
@@ -556,136 +549,29 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm9090_probe(struct platform_device *pdev)
+static int wm9090_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	int ret = 0;
-
-	if (wm9090_codec == NULL) {
-		dev_err(&pdev->dev, "Codec device not registered\n");
-		return -ENODEV;
-	}
-
-	socdev->card->codec = wm9090_codec;
-	codec = wm9090_codec;
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to create pcms: %d\n", ret);
-		goto pcm_err;
-	}
-
-	wm9090_add_controls(codec);
-
-	return 0;
-
-pcm_err:
-	return ret;
-}
-
-#ifdef CONFIG_PM
-static int wm9090_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	wm9090_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int wm9090_resume(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	wm9090_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-#else
-#define wm9090_suspend NULL
-#define wm9090_resume NULL
-#endif
-
-static int wm9090_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-
-	return 0;
-}
-
-struct snd_soc_codec_device soc_codec_dev_wm9090 = {
-	.probe = 	wm9090_probe,
-	.remove = 	wm9090_remove,
-	.suspend = 	wm9090_suspend,
-	.resume =	wm9090_resume,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_wm9090);
-
-static int wm9090_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
-{
-	struct wm9090_priv *wm9090;
-	struct snd_soc_codec *codec;
+	struct wm9090_priv *wm9090 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	wm9090 = kzalloc(sizeof(*wm9090), GFP_KERNEL);
-	if (wm9090 == NULL) {
-		dev_err(&i2c->dev, "Can not allocate memory\n");
-		return -ENOMEM;
-	}
-	codec = &wm9090->codec;
-
-	if (i2c->dev.platform_data)
-		memcpy(&wm9090->pdata, i2c->dev.platform_data,
-		       sizeof(wm9090->pdata));
-
-	wm9090_codec = codec;
-
-	i2c_set_clientdata(i2c, wm9090);
-
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	codec->control_data = i2c;
-	snd_soc_codec_set_drvdata(codec, wm9090);
-	codec->dev = &i2c->dev;
-	codec->name = "WM9090";
-	codec->owner = THIS_MODULE;
-	codec->bias_level = SND_SOC_BIAS_OFF;
-	codec->set_bias_level = wm9090_set_bias_level,
-	codec->reg_cache_size = WM9090_MAX_REGISTER + 1;
-	codec->reg_cache = &wm9090->reg_cache;
-	codec->volatile_register = wm9090_volatile;
-
+	codec->control_data = wm9090->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		goto err;
+		return ret;
 	}
-
-	memcpy(&wm9090->reg_cache, wm9090_reg_defaults,
-	       sizeof(wm9090->reg_cache));
 
 	ret = snd_soc_read(codec, WM9090_SOFTWARE_RESET);
 	if (ret < 0)
-		goto err;
+		return ret;
 	if (ret != wm9090_reg_defaults[WM9090_SOFTWARE_RESET]) {
-		dev_err(&i2c->dev, "Device is not a WM9090, ID=%x\n", ret);
-		ret = -EINVAL;
-		goto err;
+		dev_err(codec->dev, "Device is not a WM9090, ID=%x\n", ret);
+		return -EINVAL;
 	}
 
 	ret = snd_soc_write(codec, WM9090_SOFTWARE_RESET, 0);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	/* Configure some defaults; they will be written out when we
 	 * bring the bias up.
@@ -700,7 +586,7 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 		| WM9090_IN2B_ZC;
 	wm9090->reg_cache[WM9090_SPEAKER_VOLUME_LEFT] |=
 		WM9090_SPKOUT_VU | WM9090_SPKOUTL_ZC;
-	wm9090->reg_cache[WM9090_LEFT_OUTPUT_VOLUME] |= 
+	wm9090->reg_cache[WM9090_LEFT_OUTPUT_VOLUME] |=
 		WM9090_HPOUT1_VU | WM9090_HPOUT1L_ZC;
 	wm9090->reg_cache[WM9090_RIGHT_OUTPUT_VOLUME] |=
 		WM9090_HPOUT1_VU | WM9090_HPOUT1R_ZC;
@@ -709,33 +595,82 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 
 	wm9090_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	ret = snd_soc_register_codec(codec);
-	if (ret != 0) {
-		dev_err(&i2c->dev, "Failed to register CODEC: %d\n", ret);
-		goto err_bias;
-	}
+	wm9090_add_controls(codec);
 
 	return 0;
+}
 
-err_bias:
+#ifdef CONFIG_PM
+static int wm9090_suspend(struct snd_soc_codec *codec, pm_message_t state)
+{
 	wm9090_set_bias_level(codec, SND_SOC_BIAS_OFF);
-err:
-	kfree(wm9090);
-	i2c_set_clientdata(i2c, NULL);
-	wm9090_codec = NULL;
 
+	return 0;
+}
+
+static int wm9090_resume(struct snd_soc_codec *codec)
+{
+	wm9090_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	return 0;
+}
+#else
+#define wm9090_suspend NULL
+#define wm9090_resume NULL
+#endif
+
+static int wm9090_remove(struct snd_soc_codec *codec)
+{
+	wm9090_set_bias_level(codec, SND_SOC_BIAS_OFF);
+
+	return 0;
+}
+
+static struct snd_soc_codec_driver soc_codec_dev_wm9090 = {
+	.probe = 	wm9090_probe,
+	.remove = 	wm9090_remove,
+	.suspend = 	wm9090_suspend,
+	.resume =	wm9090_resume,
+	.set_bias_level = wm9090_set_bias_level,
+	.reg_cache_size = (WM9090_MAX_REGISTER + 1),
+	.reg_word_size = sizeof(u16),
+	.reg_cache_default = wm9090_reg_defaults,
+	.volatile_register = wm9090_volatile,
+};
+
+static int wm9090_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
+{
+	struct wm9090_priv *wm9090;
+	int ret;
+
+	wm9090 = kzalloc(sizeof(*wm9090), GFP_KERNEL);
+	if (wm9090 == NULL) {
+		dev_err(&i2c->dev, "Can not allocate memory\n");
+		return -ENOMEM;
+	}
+
+	if (i2c->dev.platform_data)
+		memcpy(&wm9090->pdata, i2c->dev.platform_data,
+		       sizeof(wm9090->pdata));
+
+	i2c_set_clientdata(i2c, wm9090);
+	wm9090->control_data = i2c;
+	mutex_init(&wm9090->mutex);
+
+	ret =  snd_soc_register_codec(&i2c->dev,
+			&soc_codec_dev_wm9090,  NULL, 0);
+	if (ret < 0)
+		kfree(wm9090);
 	return ret;
 }
 
 static int wm9090_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm9090_priv *wm9090 = i2c_get_clientdata(i2c);
-	struct snd_soc_codec *codec = &wm9090->codec;
 
-	snd_soc_unregister_codec(codec);
-	wm9090_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_unregister_codec(&i2c->dev);
 	kfree(wm9090);
-	wm9090_codec = NULL;
 
 	return 0;
 }
@@ -748,7 +683,7 @@ MODULE_DEVICE_TABLE(i2c, wm9090_id);
 
 static struct i2c_driver wm9090_i2c_driver = {
 	.driver = {
-		.name = "wm9090",
+		.name = "wm9090-codec",
 		.owner = THIS_MODULE,
 	},
 	.probe = wm9090_i2c_probe,

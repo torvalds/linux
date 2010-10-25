@@ -79,20 +79,17 @@ static struct snd_soc_ops eukrea_tlv320_snd_ops = {
 static struct snd_soc_dai_link eukrea_tlv320_dai = {
 	.name		= "tlv320aic23",
 	.stream_name	= "TLV320AIC23",
-	.codec_dai	= &tlv320aic23_dai,
+	.codec_dai	= "tlv320aic23-hifi",
+	.platform_name	= "imx-pcm-audio.0",
+	.codec_name	= "tlv320aic23-codec.0-001a",
+	.cpu_dai = "imx-ssi.0",
 	.ops		= &eukrea_tlv320_snd_ops,
 };
 
 static struct snd_soc_card eukrea_tlv320 = {
 	.name		= "cpuimx-audio",
-	.platform	= &imx_soc_platform,
 	.dai_link	= &eukrea_tlv320_dai,
 	.num_links	= 1,
-};
-
-static struct snd_soc_device eukrea_tlv320_snd_devdata = {
-	.card		= &eukrea_tlv320,
-	.codec_dev	= &soc_codec_dev_tlv320aic23,
 };
 
 static struct platform_device *eukrea_tlv320_snd_device;
@@ -110,10 +107,7 @@ static int __init eukrea_tlv320_init(void)
 	if (!eukrea_tlv320_snd_device)
 		return -ENOMEM;
 
-	eukrea_tlv320_dai.cpu_dai = &imx_ssi_pcm_dai[0];
-
-	platform_set_drvdata(eukrea_tlv320_snd_device, &eukrea_tlv320_snd_devdata);
-	eukrea_tlv320_snd_devdata.dev = &eukrea_tlv320_snd_device->dev;
+	platform_set_drvdata(eukrea_tlv320_snd_device, &eukrea_tlv320);
 	ret = platform_device_add(eukrea_tlv320_snd_device);
 
 	if (ret) {

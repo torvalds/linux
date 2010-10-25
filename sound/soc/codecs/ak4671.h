@@ -150,7 +150,4 @@
 /* AK4671_LOUT2_POWER_MANAGEMENT (0x10) Fields */
 #define AK4671_MUTEN				0x04
 
-extern struct snd_soc_dai ak4671_dai;
-extern struct snd_soc_codec_device soc_codec_dev_ak4671;
-
 #endif

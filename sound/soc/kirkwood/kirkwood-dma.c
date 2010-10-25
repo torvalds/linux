@@ -2,6 +2,7 @@
  * kirkwood-dma.c
  *
  * (c) 2010 Arnaud Patard <apatard@mandriva.com>
+ * (c) 2010 Arnaud Patard <arnaud.patard@rtp-net.org>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -18,7 +19,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/mbus.h>
 #include <sound/soc.h>
-#include "kirkwood-dma.h"
 #include "kirkwood.h"
 
 #define KIRKWOOD_RATES \
@@ -123,9 +123,10 @@ static int kirkwood_dma_open(struct snd_pcm_substream *substream)
 	int err;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct snd_soc_dai *cpu_dai = soc_runtime->dai->cpu_dai;
+	struct snd_soc_platform *platform = soc_runtime->platform;
+	struct snd_soc_dai *cpu_dai = soc_runtime->cpu_dai;
 	struct kirkwood_dma_data *priv;
-	struct kirkwood_dma_priv *prdata = cpu_dai->private_data;
+	struct kirkwood_dma_priv *prdata = snd_soc_platform_get_drvdata(platform);
 	unsigned long addr;
 
 	priv = snd_soc_dai_get_dma_data(cpu_dai, substream);
@@ -151,7 +152,7 @@ static int kirkwood_dma_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		return err;
 
-	if (soc_runtime->dai->cpu_dai->private_data == NULL) {
+	if (prdata == NULL) {
 		prdata = kzalloc(sizeof(struct kirkwood_dma_priv), GFP_KERNEL);
 		if (prdata == NULL)
 			return -ENOMEM;
@@ -165,7 +166,7 @@ static int kirkwood_dma_open(struct snd_pcm_substream *substream)
 			return -EBUSY;
 		}
 
-		soc_runtime->dai->cpu_dai->private_data = prdata;
+		snd_soc_platform_set_drvdata(platform, prdata);
 
 		/*
 		 * Enable Error interrupts. We're only ack'ing them but
@@ -191,8 +192,9 @@ static int kirkwood_dma_open(struct snd_pcm_substream *substream)
 static int kirkwood_dma_close(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct snd_soc_dai *cpu_dai = soc_runtime->dai->cpu_dai;
-	struct kirkwood_dma_priv *prdata = cpu_dai->private_data;
+	struct snd_soc_dai *cpu_dai = soc_runtime->cpu_dai;
+	struct snd_soc_platform *platform = soc_runtime->platform;
+	struct kirkwood_dma_priv *prdata = snd_soc_platform_get_drvdata(platform);
 	struct kirkwood_dma_data *priv;
 
 	priv = snd_soc_dai_get_dma_data(cpu_dai, substream);
@@ -209,7 +211,7 @@ static int kirkwood_dma_close(struct snd_pcm_substream *substream)
 		writel(0, priv->io + KIRKWOOD_ERR_MASK);
 		free_irq(priv->irq, prdata);
 		kfree(prdata);
-		soc_runtime->dai->cpu_dai->private_data = NULL;
+		snd_soc_platform_set_drvdata(platform, NULL);
 	}
 
 	return 0;
@@ -236,7 +238,7 @@ static int kirkwood_dma_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct snd_soc_dai *cpu_dai = soc_runtime->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = soc_runtime->cpu_dai;
 	struct kirkwood_dma_data *priv;
 	unsigned long size, count;
 
@@ -265,7 +267,7 @@ static snd_pcm_uframes_t kirkwood_dma_pointer(struct snd_pcm_substream
 						*substream)
 {
 	struct snd_soc_pcm_runtime *soc_runtime = substream->private_data;
-	struct snd_soc_dai *cpu_dai = soc_runtime->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = soc_runtime->cpu_dai;
 	struct kirkwood_dma_data *priv;
 	snd_pcm_uframes_t count;
 
@@ -320,14 +322,14 @@ static int kirkwood_dma_new(struct snd_card *card,
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = 0xffffffff;
 
-	if (dai->playback.channels_min) {
+	if (dai->driver->playback.channels_min) {
 		ret = kirkwood_dma_preallocate_dma_buffer(pcm,
 				SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			return ret;
 	}
 
-	if (dai->capture.channels_min) {
+	if (dai->driver->capture.channels_min) {
 		ret = kirkwood_dma_preallocate_dma_buffer(pcm,
 				SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
@@ -357,27 +359,46 @@ static void kirkwood_dma_free_dma_buffers(struct snd_pcm *pcm)
 	}
 }
 
-struct snd_soc_platform kirkwood_soc_platform = {
-	.name		= "kirkwood-dma",
-	.pcm_ops	= &kirkwood_dma_ops,
+static struct snd_soc_platform_driver kirkwood_soc_platform = {
+	.ops		= &kirkwood_dma_ops,
 	.pcm_new	= kirkwood_dma_new,
 	.pcm_free	= kirkwood_dma_free_dma_buffers,
 };
-EXPORT_SYMBOL_GPL(kirkwood_soc_platform);
 
-static int __init kirkwood_soc_platform_init(void)
+static int __devinit kirkwood_soc_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_platform(&kirkwood_soc_platform);
+	return snd_soc_register_platform(&pdev->dev, &kirkwood_soc_platform);
 }
-module_init(kirkwood_soc_platform_init);
 
-static void __exit kirkwood_soc_platform_exit(void)
+static int __devexit kirkwood_soc_platform_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_platform(&kirkwood_soc_platform);
+	snd_soc_unregister_platform(&pdev->dev);
+	return 0;
 }
-module_exit(kirkwood_soc_platform_exit);
 
-MODULE_AUTHOR("Arnaud Patard <apatard@mandriva.com>");
+static struct platform_driver kirkwood_pcm_driver = {
+	.driver = {
+			.name = "kirkwood-pcm-audio",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = kirkwood_soc_platform_probe,
+	.remove = __devexit_p(kirkwood_soc_platform_remove),
+};
+
+static int __init kirkwood_pcm_init(void)
+{
+	return platform_driver_register(&kirkwood_pcm_driver);
+}
+module_init(kirkwood_pcm_init);
+
+static void __exit kirkwood_pcm_exit(void)
+{
+	platform_driver_unregister(&kirkwood_pcm_driver);
+}
+module_exit(kirkwood_pcm_exit);
+
+MODULE_AUTHOR("Arnaud Patard <arnaud.patard@rtp-net.org>");
 MODULE_DESCRIPTION("Marvell Kirkwood Audio DMA module");
 MODULE_LICENSE("GPL");
-
+MODULE_ALIAS("platform:kirkwood-pcm-audio");

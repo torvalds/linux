@@ -45,7 +45,4 @@
 #define WM8776_DAI_DAC 0
 #define WM8776_DAI_ADC 1
 
-extern struct snd_soc_dai wm8776_dai[];
-extern struct snd_soc_codec_device soc_codec_dev_wm8776;
-
 #endif

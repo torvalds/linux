@@ -22,6 +22,8 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <sound/soc-dapm.h>
+#include <sound/initval.h>
 
 #include <video/sh_mobile_hdmi.h>
 #include <video/sh_mobile_lcdc.h>
@@ -222,6 +224,58 @@ static u8 hdmi_read(struct sh_hdmi *hdmi, u8 reg)
 	return ioread8(hdmi->base + reg);
 }
 
+/*
+ *	HDMI sound
+ */
+static unsigned int sh_hdmi_snd_read(struct snd_soc_codec *codec,
+				     unsigned int reg)
+{
+	struct sh_hdmi *hdmi = snd_soc_codec_get_drvdata(codec);
+
+	return hdmi_read(hdmi, reg);
+}
+
+static int sh_hdmi_snd_write(struct snd_soc_codec *codec,
+			     unsigned int reg,
+			     unsigned int value)
+{
+	struct sh_hdmi *hdmi = snd_soc_codec_get_drvdata(codec);
+
+	hdmi_write(hdmi, value, reg);
+	return 0;
+}
+
+static struct snd_soc_dai_driver sh_hdmi_dai = {
+	.name = "sh_mobile_hdmi-hifi",
+	.playback = {
+		.stream_name = "Playback",
+		.channels_min = 2,
+		.channels_max = 8,
+		.rates = SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100  |
+			 SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200  |
+			 SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |
+			 SNDRV_PCM_RATE_192000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+	},
+};
+
+static int sh_hdmi_snd_probe(struct snd_soc_codec *codec)
+{
+	dev_info(codec->dev, "SH Mobile HDMI Audio Codec");
+
+	return 0;
+}
+
+static struct snd_soc_codec_driver soc_codec_dev_sh_hdmi = {
+	.probe		= sh_hdmi_snd_probe,
+	.read		= sh_hdmi_snd_read,
+	.write		= sh_hdmi_snd_write,
+};
+
+/*
+ *	HDMI video
+ */
+
 /* External video parameter settings */
 static void hdmi_external_video_param(struct sh_hdmi *hdmi)
 {
@@ -318,6 +372,9 @@ static void sh_hdmi_video_config(struct sh_hdmi *hdmi)
  */
 static void sh_hdmi_audio_config(struct sh_hdmi *hdmi)
 {
+	u8 data;
+	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
+
 	/*
 	 * [7:4] L/R data swap control
 	 * [3:0] appropriate N[19:16]
@@ -335,7 +392,23 @@ static void sh_hdmi_audio_config(struct sh_hdmi *hdmi)
 	 * [6:5] set required down sampling rate if required
 	 * [4:3] set required audio source
 	 */
-	hdmi_write(hdmi, 0x00, HDMI_AUDIO_SETTING_1);
+	switch (pdata->flags & HDMI_SND_SRC_MASK) {
+	default:
+		/* fall through */
+	case HDMI_SND_SRC_I2S:
+		data = 0x0 << 3;
+		break;
+	case HDMI_SND_SRC_SPDIF:
+		data = 0x1 << 3;
+		break;
+	case HDMI_SND_SRC_DSD:
+		data = 0x2 << 3;
+		break;
+	case HDMI_SND_SRC_HBR:
+		data = 0x3 << 3;
+		break;
+	}
+	hdmi_write(hdmi, data, HDMI_AUDIO_SETTING_1);
 
 	/* [3:0] set sending channel number for channel status */
 	hdmi_write(hdmi, 0x40, HDMI_AUDIO_SETTING_2);
@@ -891,6 +964,11 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	ret =  snd_soc_register_codec(&pdev->dev,
+			&soc_codec_dev_sh_hdmi, &sh_hdmi_dai, 1);
+	if (ret < 0)
+		goto esndreg;
+
 	hdmi->dev = &pdev->dev;
 
 	hdmi->hdmi_clk = clk_get(&pdev->dev, "ick");
@@ -976,6 +1054,8 @@ eclkenable:
 erate:
 	clk_put(hdmi->hdmi_clk);
 egetclk:
+	snd_soc_unregister_codec(&pdev->dev);
+esndreg:
 	kfree(hdmi);
 
 	return ret;
@@ -987,6 +1067,8 @@ static int __exit sh_hdmi_remove(struct platform_device *pdev)
 	struct sh_hdmi *hdmi = platform_get_drvdata(pdev);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int irq = platform_get_irq(pdev, 0);
+
+	snd_soc_unregister_codec(&pdev->dev);
 
 	pdata->lcd_chan->board_cfg.display_on = NULL;
 	pdata->lcd_chan->board_cfg.display_off = NULL;

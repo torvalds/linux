@@ -30,6 +30,4 @@ struct s6000_pcm_dma_params {
 	int rate;
 };
 
-extern struct snd_soc_platform s6000_soc_platform;
-
 #endif

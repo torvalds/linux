@@ -46,8 +46,8 @@ static int afeb9260_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int err;
 
 	/* Set codec DAI configuration */
@@ -102,8 +102,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"MICIN", NULL, "Mic Jack"},
 };
 
-static int afeb9260_tlv320aic23_init(struct snd_soc_codec *codec)
+static int afeb9260_tlv320aic23_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
 
 	/* Add afeb9260 specific widgets */
 	snd_soc_dapm_new_controls(codec, tlv320aic23_dapm_widgets,
@@ -125,8 +126,10 @@ static int afeb9260_tlv320aic23_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link afeb9260_dai = {
 	.name = "TLV320AIC23",
 	.stream_name = "AIC23",
-	.cpu_dai = &atmel_ssc_dai[0],
-	.codec_dai = &tlv320aic23_dai,
+	.cpu_dai_name = "atmel-ssc-dai.0",
+	.codec_dai_name = "tlv320aic23-hifi",
+	.platform_name = "atmel_pcm-audio",
+	.codec_name = "tlv320aic23-codec.0-0x1a",
 	.init = afeb9260_tlv320aic23_init,
 	.ops = &afeb9260_ops,
 };
@@ -134,15 +137,8 @@ static struct snd_soc_dai_link afeb9260_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_machine_afeb9260 = {
 	.name = "AFEB9260",
-	.platform = &atmel_soc_platform,
 	.dai_link = &afeb9260_dai,
 	.num_links = 1,
-};
-
-/* Audio subsystem */
-static struct snd_soc_device afeb9260_snd_devdata = {
-	.card = &snd_soc_machine_afeb9260,
-	.codec_dev = &soc_codec_dev_tlv320aic23,
 };
 
 static struct platform_device *afeb9260_snd_device;
@@ -151,20 +147,10 @@ static int __init afeb9260_soc_init(void)
 {
 	int err;
 	struct device *dev;
-	struct atmel_ssc_info *ssc_p = afeb9260_dai.cpu_dai->private_data;
-	struct ssc_device *ssc = NULL;
 
 	if (!(machine_is_afeb9260()))
 		return -ENODEV;
 
-	ssc = ssc_request(0);
-	if (IS_ERR(ssc)) {
-		printk(KERN_ERR "ASoC: Failed to request SSC 0\n");
-		err = PTR_ERR(ssc);
-		ssc = NULL;
-		goto err_ssc;
-	}
-	ssc_p->ssc = ssc;
 
 	afeb9260_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!afeb9260_snd_device) {
@@ -172,8 +158,7 @@ static int __init afeb9260_soc_init(void)
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(afeb9260_snd_device, &afeb9260_snd_devdata);
-	afeb9260_snd_devdata.dev = &afeb9260_snd_device->dev;
+	platform_set_drvdata(afeb9260_snd_device, &snd_soc_machine_afeb9260);
 	err = platform_device_add(afeb9260_snd_device);
 	if (err)
 		goto err1;
@@ -184,9 +169,7 @@ static int __init afeb9260_soc_init(void)
 err1:
 	platform_device_del(afeb9260_snd_device);
 	platform_device_put(afeb9260_snd_device);
-err_ssc:
 	return err;
-
 }
 
 static void __exit afeb9260_soc_exit(void)

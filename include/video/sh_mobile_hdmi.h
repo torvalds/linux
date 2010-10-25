@@ -14,9 +14,25 @@
 struct sh_mobile_lcdc_chan_cfg;
 struct device;
 
+/*
+ * flags format
+ *
+ * 0x0000000A
+ *
+ * A: Audio source select
+ */
+
+/* Audio source select */
+#define HDMI_SND_SRC_MASK	(0xF << 0)
+#define HDMI_SND_SRC_I2S	(0 << 0) /* default */
+#define HDMI_SND_SRC_SPDIF	(1 << 0)
+#define HDMI_SND_SRC_DSD	(2 << 0)
+#define HDMI_SND_SRC_HBR	(3 << 0)
+
 struct sh_mobile_hdmi_info {
 	struct sh_mobile_lcdc_chan_cfg	*lcd_chan;
 	struct device			*lcd_dev;
+	unsigned int			 flags;
 };
 
 #endif

@@ -133,8 +133,8 @@ static int s3c24xx_uda134x_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int clk = 0;
 	int ret = 0;
 	int clk_source, fs_mode;
@@ -227,14 +227,15 @@ static struct snd_soc_ops s3c24xx_uda134x_ops = {
 static struct snd_soc_dai_link s3c24xx_uda134x_dai_link = {
 	.name = "UDA134X",
 	.stream_name = "UDA134X",
-	.codec_dai = &uda134x_dai,
-	.cpu_dai = &s3c24xx_i2s_dai,
+	.codec_name = "uda134x-hifi",
+	.codec_dai_name = "uda134x-hifi",
+	.cpu_dai_name = "s3c24xx-i2s",
 	.ops = &s3c24xx_uda134x_ops,
+	.platform_name	= "s3c24xx-pcm-audio",
 };
 
 static struct snd_soc_card snd_soc_s3c24xx_uda134x = {
 	.name = "S3C24XX_UDA134X",
-	.platform = &s3c24xx_soc_platform,
 	.dai_link = &s3c24xx_uda134x_dai_link,
 	.num_links = 1,
 };
@@ -256,6 +257,7 @@ static void setmode(int v)
 	gpio_set_value(s3c24xx_uda134x_l3_pins->l3_mode, v > 0);
 }
 
+/* FIXME - This must be codec platform data but in which board file ?? */
 static struct uda134x_platform_data s3c24xx_uda134x = {
 	.l3 = {
 		.setdat = setdat,
@@ -268,12 +270,6 @@ static struct uda134x_platform_data s3c24xx_uda134x = {
 		.mode = 1,
 		.mode_setup = 1,
 	},
-};
-
-static struct snd_soc_device s3c24xx_uda134x_snd_devdata = {
-	.card = &snd_soc_s3c24xx_uda134x,
-	.codec_dev = &soc_codec_dev_uda134x,
-	.codec_data = &s3c24xx_uda134x,
 };
 
 static int s3c24xx_uda134x_setup_pin(int pin, char *fun)
@@ -325,8 +321,7 @@ static int s3c24xx_uda134x_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(s3c24xx_uda134x_snd_device,
-			     &s3c24xx_uda134x_snd_devdata);
-	s3c24xx_uda134x_snd_devdata.dev = &s3c24xx_uda134x_snd_device->dev;
+			     &snd_soc_s3c24xx_uda134x);
 	ret = platform_device_add(s3c24xx_uda134x_snd_device);
 	if (ret) {
 		printk(KERN_ERR "S3C24XX_UDA134X SoC Audio: Unable to add\n");

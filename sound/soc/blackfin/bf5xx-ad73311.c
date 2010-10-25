@@ -47,7 +47,6 @@
 #include "../codecs/ad73311.h"
 #include "bf5xx-sport.h"
 #include "bf5xx-i2s-pcm.h"
-#include "bf5xx-i2s.h"
 
 #if CONFIG_SND_BF5XX_SPORT_NUM == 0
 #define bfin_write_SPORT_TCR1	bfin_write_SPORT0_TCR1
@@ -150,10 +149,10 @@ static int bf5xx_probe(struct platform_device *pdev)
 static int bf5xx_ad73311_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 
 	pr_debug("%s enter\n", __func__);
-	cpu_dai->private_data = sport_handle;
+	snd_soc_dai_set_drvdata(cpu_dai, sport_handle);
 	return 0;
 }
 
@@ -161,7 +160,7 @@ static int bf5xx_ad73311_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret = 0;
 
 	pr_debug("%s rate %d format %x\n", __func__, params_rate(params),
@@ -185,22 +184,18 @@ static struct snd_soc_ops bf5xx_ad73311_ops = {
 static struct snd_soc_dai_link bf5xx_ad73311_dai = {
 	.name = "ad73311",
 	.stream_name = "AD73311",
-	.cpu_dai = &bf5xx_i2s_dai,
-	.codec_dai = &ad73311_dai,
+	.cpu_dai_name = "bf5xx-i2s",
+	.codec_dai_name = "ad73311-hifi",
+	.platform_name = "bfin-pcm-audio",
+	.codec_name = "ad73311-codec",
 	.ops = &bf5xx_ad73311_ops,
 };
 
 static struct snd_soc_card bf5xx_ad73311 = {
 	.name = "bf5xx_ad73311",
-	.platform = &bf5xx_i2s_soc_platform,
 	.probe = bf5xx_probe,
 	.dai_link = &bf5xx_ad73311_dai,
 	.num_links = 1,
-};
-
-static struct snd_soc_device bf5xx_ad73311_snd_devdata = {
-	.card = &bf5xx_ad73311,
-	.codec_dev = &soc_codec_dev_ad73311,
 };
 
 static struct platform_device *bf5xx_ad73311_snd_device;
@@ -214,8 +209,7 @@ static int __init bf5xx_ad73311_init(void)
 	if (!bf5xx_ad73311_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(bf5xx_ad73311_snd_device, &bf5xx_ad73311_snd_devdata);
-	bf5xx_ad73311_snd_devdata.dev = &bf5xx_ad73311_snd_device->dev;
+	platform_set_drvdata(bf5xx_ad73311_snd_device, &bf5xx_ad73311);
 	ret = platform_device_add(bf5xx_ad73311_snd_device);
 
 	if (ret)

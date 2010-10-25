@@ -154,7 +154,4 @@
 #define WM8523_ZD_COUNT_SHIFT                        0  /* ZD_COUNT - [1:0] */
 #define WM8523_ZD_COUNT_WIDTH                        2  /* ZD_COUNT - [1:0] */
 
-extern struct snd_soc_dai wm8523_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8523;
-
 #endif

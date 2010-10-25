@@ -80,7 +80,4 @@ enum wm8978_sysclk_src {
 	WM8978_MCLK
 };
 
-extern struct snd_soc_dai wm8978_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8978;
-
 #endif	/* __WM8978_H__ */

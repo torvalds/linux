@@ -45,6 +45,16 @@ int wm9713_irq;
 int lcd_id;
 int lcd_orientation;
 
+struct platform_device pxa_device_wm9713_audio = {
+	.name		= "wm9713-codec",
+	.id		= -1,
+};
+
+static void __init zylonite_init_wm9713_audio(void)
+{
+	platform_device_register(&pxa_device_wm9713_audio);
+}
+
 static struct resource smc91x_resources[] = {
 	[0] = {
 		.start	= ZYLONITE_ETH_PHYS + 0x300,
@@ -408,6 +418,7 @@ static void __init zylonite_init(void)
 	zylonite_init_nand();
 	zylonite_init_leds();
 	zylonite_init_ohci();
+	zylonite_init_wm9713_audio();
 }
 
 MACHINE_START(ZYLONITE, "PXA3xx Platform Development Kit (aka Zylonite)")

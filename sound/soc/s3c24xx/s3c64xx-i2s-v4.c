@@ -16,9 +16,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#include <mach/gpio-bank-c.h>
-#include <mach/gpio-bank-h.h>
-#include <plat/gpio-cfg.h>
+#include <plat/audio.h>
 
 #include <mach/map.h>
 #include <mach/dma.h>
@@ -39,34 +37,23 @@ static struct s3c_dma_params s3c64xx_i2sv4_pcm_stereo_out;
 static struct s3c_dma_params s3c64xx_i2sv4_pcm_stereo_in;
 static struct s3c_i2sv2_info s3c64xx_i2sv4;
 
-struct snd_soc_dai s3c64xx_i2s_v4_dai;
-EXPORT_SYMBOL_GPL(s3c64xx_i2s_v4_dai);
-
-static inline struct s3c_i2sv2_info *to_info(struct snd_soc_dai *cpu_dai)
+static int s3c64xx_i2sv4_probe(struct snd_soc_dai *dai)
 {
-	return cpu_dai->private_data;
-}
+	struct s3c_i2sv2_info *i2s = &s3c64xx_i2sv4;
+	int ret = 0;
 
-static int s3c64xx_i2sv4_probe(struct platform_device *pdev,
-			     struct snd_soc_dai *dai)
-{
-	/* configure GPIO for i2s port */
-	s3c_gpio_cfgpin(S3C64XX_GPC(4), S3C64XX_GPC4_I2S_V40_DO0);
-	s3c_gpio_cfgpin(S3C64XX_GPC(5), S3C64XX_GPC5_I2S_V40_DO1);
-	s3c_gpio_cfgpin(S3C64XX_GPC(7), S3C64XX_GPC7_I2S_V40_DO2);
-	s3c_gpio_cfgpin(S3C64XX_GPH(6), S3C64XX_GPH6_I2S_V40_BCLK);
-	s3c_gpio_cfgpin(S3C64XX_GPH(7), S3C64XX_GPH7_I2S_V40_CDCLK);
-	s3c_gpio_cfgpin(S3C64XX_GPH(8), S3C64XX_GPH8_I2S_V40_LRCLK);
-	s3c_gpio_cfgpin(S3C64XX_GPH(9), S3C64XX_GPH9_I2S_V40_DI);
+	snd_soc_dai_set_drvdata(dai, i2s);
 
-	return 0;
+	ret = s3c_i2sv2_probe(dai, i2s, i2s->base);
+
+	return ret;
 }
 
 static int s3c_i2sv4_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *cpu_dai)
 {
-	struct s3c_i2sv2_info *i2s = to_info(cpu_dai);
+	struct s3c_i2sv2_info *i2s = snd_soc_dai_get_drvdata(cpu_dai);
 	struct s3c_dma_params *dma_data;
 	u32 iismod;
 
@@ -104,50 +91,78 @@ static struct snd_soc_dai_ops s3c64xx_i2sv4_dai_ops = {
 	.hw_params	= s3c_i2sv4_hw_params,
 };
 
+static struct snd_soc_dai_driver s3c64xx_i2s_v4_dai = {
+	.symmetric_rates = 1,
+	.playback = {
+		.channels_min = 2,
+		.channels_max = 2,
+		.rates = S3C64XX_I2S_RATES,
+		.formats = S3C64XX_I2S_FMTS,
+	},
+	.capture = {
+		.channels_min = 2,
+		.channels_max = 2,
+		.rates = S3C64XX_I2S_RATES,
+		.formats = S3C64XX_I2S_FMTS,
+	},
+	.probe = s3c64xx_i2sv4_probe,
+	.ops = &s3c64xx_i2sv4_dai_ops,
+};
+
 static __devinit int s3c64xx_i2sv4_dev_probe(struct platform_device *pdev)
 {
+	struct s3c_audio_pdata *i2s_pdata;
 	struct s3c_i2sv2_info *i2s;
-	struct snd_soc_dai *dai;
+	struct resource *res;
 	int ret;
 
 	i2s = &s3c64xx_i2sv4;
-	dai = &s3c64xx_i2s_v4_dai;
-
-	if (dai->dev) {
-		dev_dbg(dai->dev, "%s: \
-			I2Sv4 instance already registered!\n", __func__);
-		return -EBUSY;
-	}
-
-	dai->dev = &pdev->dev;
-	dai->name = "s3c64xx-i2s-v4";
-	dai->id = 0;
-	dai->symmetric_rates = 1;
-	dai->playback.channels_min = 2;
-	dai->playback.channels_max = 2;
-	dai->playback.rates = S3C64XX_I2S_RATES;
-	dai->playback.formats = S3C64XX_I2S_FMTS;
-	dai->capture.channels_min = 2;
-	dai->capture.channels_max = 2;
-	dai->capture.rates = S3C64XX_I2S_RATES;
-	dai->capture.formats = S3C64XX_I2S_FMTS;
-	dai->probe = s3c64xx_i2sv4_probe;
-	dai->ops = &s3c64xx_i2sv4_dai_ops;
 
 	i2s->feature |= S3C_FEATURE_CDCLKCON;
 
 	i2s->dma_capture = &s3c64xx_i2sv4_pcm_stereo_in;
 	i2s->dma_playback = &s3c64xx_i2sv4_pcm_stereo_out;
 
-	i2s->dma_capture->channel = DMACH_HSI_I2SV40_RX;
-	i2s->dma_capture->dma_addr = S3C64XX_PA_IISV4 + S3C2412_IISRXD;
-	i2s->dma_playback->channel = DMACH_HSI_I2SV40_TX;
-	i2s->dma_playback->dma_addr = S3C64XX_PA_IISV4 + S3C2412_IISTXD;
+	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "Unable to get I2S-TX dma resource\n");
+		return -ENXIO;
+	}
+	i2s->dma_playback->channel = res->start;
+
+	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+	if (!res) {
+		dev_err(&pdev->dev, "Unable to get I2S-RX dma resource\n");
+		return -ENXIO;
+	}
+	i2s->dma_capture->channel = res->start;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "Unable to get I2S SFR address\n");
+		return -ENXIO;
+	}
+
+	if (!request_mem_region(res->start, resource_size(res),
+				"s3c64xx-i2s-v4")) {
+		dev_err(&pdev->dev, "Unable to request SFR region\n");
+		return -EBUSY;
+	}
+	i2s->dma_capture->dma_addr = res->start + S3C2412_IISRXD;
+	i2s->dma_playback->dma_addr = res->start + S3C2412_IISTXD;
 
 	i2s->dma_capture->client = &s3c64xx_dma_client_in;
 	i2s->dma_capture->dma_size = 4;
 	i2s->dma_playback->client = &s3c64xx_dma_client_out;
 	i2s->dma_playback->dma_size = 4;
+
+	i2s->base = res->start;
+
+	i2s_pdata = pdev->dev.platform_data;
+	if (i2s_pdata && i2s_pdata->cfg_gpio && i2s_pdata->cfg_gpio(pdev)) {
+		dev_err(&pdev->dev, "Unable to configure gpio\n");
+		return -EINVAL;
+	}
 
 	i2s->iis_cclk = clk_get(&pdev->dev, "audio-bus");
 	if (IS_ERR(i2s->iis_cclk)) {
@@ -158,19 +173,13 @@ static __devinit int s3c64xx_i2sv4_dev_probe(struct platform_device *pdev)
 
 	clk_enable(i2s->iis_cclk);
 
-	ret = s3c_i2sv2_probe(pdev, dai, i2s, 0);
-	if (ret)
-		goto err_clk;
-
-	ret = s3c_i2sv2_register_dai(dai);
+	ret = s3c_i2sv2_register_dai(&pdev->dev, pdev->id, &s3c64xx_i2s_v4_dai);
 	if (ret != 0)
 		goto err_i2sv2;
 
 	return 0;
 
 err_i2sv2:
-	/* Not implemented for I2Sv2 core yet */
-err_clk:
 	clk_put(i2s->iis_cclk);
 err:
 	return ret;
@@ -178,7 +187,18 @@ err:
 
 static __devexit int s3c64xx_i2sv4_dev_remove(struct platform_device *pdev)
 {
-	dev_err(&pdev->dev, "Device removal not yet supported\n");
+	struct s3c_i2sv2_info *i2s = &s3c64xx_i2sv4;
+	struct resource *res;
+
+	snd_soc_unregister_dai(&pdev->dev);
+	clk_put(i2s->iis_cclk);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res)
+		release_mem_region(res->start, resource_size(res));
+	else
+		dev_warn(&pdev->dev, "Unable to get I2S SFR address\n");
+		
 	return 0;
 }
 
@@ -207,3 +227,4 @@ module_exit(s3c64xx_i2sv4_exit);
 MODULE_AUTHOR("Jaswinder Singh, <jassi.brar@samsung.com>");
 MODULE_DESCRIPTION("S3C64XX I2Sv4 SoC Interface");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:s3c64xx-iis-v4");

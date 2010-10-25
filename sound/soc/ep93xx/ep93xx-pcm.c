@@ -95,7 +95,7 @@ static void ep93xx_pcm_buffer_finished(void *cookie,
 static int ep93xx_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *soc_rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = soc_rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = soc_rtd->cpu_dai;
 	struct ep93xx_pcm_dma_params *dma_params;
 	struct ep93xx_runtime_data *rtd;    
 	int ret;
@@ -276,14 +276,14 @@ static int ep93xx_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = 0xffffffff;
 
-	if (dai->playback.channels_min) {
+	if (dai->driver->playback.channels_min) {
 		ret = ep93xx_pcm_preallocate_dma_buffer(pcm,
 					SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			return ret;
 	}
 
-	if (dai->capture.channels_min) {
+	if (dai->driver->capture.channels_min) {
 		ret = ep93xx_pcm_preallocate_dma_buffer(pcm,
 					SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
@@ -293,22 +293,41 @@ static int ep93xx_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 	return 0;
 }
 
-struct snd_soc_platform ep93xx_soc_platform = {
-	.name		= "ep93xx-audio",
-	.pcm_ops	= &ep93xx_pcm_ops,
+static struct snd_soc_platform_driver ep93xx_soc_platform = {
+	.ops		= &ep93xx_pcm_ops,
 	.pcm_new	= &ep93xx_pcm_new,
 	.pcm_free	= &ep93xx_pcm_free_dma_buffers,
 };
-EXPORT_SYMBOL_GPL(ep93xx_soc_platform);
+
+static int __devinit ep93xx_soc_platform_probe(struct platform_device *pdev)
+{
+	return snd_soc_register_platform(&pdev->dev, &ep93xx_soc_platform);
+}
+
+static int __devexit ep93xx_soc_platform_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_platform(&pdev->dev);
+	return 0;
+}
+
+static struct platform_driver ep93xx_pcm_driver = {
+	.driver = {
+			.name = "ep93xx-pcm-audio",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = ep93xx_soc_platform_probe,
+	.remove = __devexit_p(ep93xx_soc_platform_remove),
+};
 
 static int __init ep93xx_soc_platform_init(void)
 {
-	return snd_soc_register_platform(&ep93xx_soc_platform);
+	return platform_driver_register(&ep93xx_pcm_driver);
 }
 
 static void __exit ep93xx_soc_platform_exit(void)
 {
-	snd_soc_unregister_platform(&ep93xx_soc_platform);
+	platform_driver_unregister(&ep93xx_pcm_driver);
 }
 
 module_init(ep93xx_soc_platform_init);

@@ -99,7 +99,4 @@ struct wm8510_setup_data {
 	unsigned short i2c_address;
 };
 
-extern struct snd_soc_dai wm8510_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8510;
-
 #endif

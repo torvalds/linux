@@ -16,9 +16,6 @@ struct wm2000_setup_data {
 
 extern int wm2000_add_controls(struct snd_soc_codec *codec);
 
-extern struct snd_soc_dai wm2000_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm2000;
-
 #define WM2000_REG_SYS_START	    0x8000
 #define WM2000_REG_SPEECH_CLARITY   0x8fef
 #define WM2000_REG_SYS_WATCHDOG     0x8ff6

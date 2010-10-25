@@ -24,6 +24,8 @@
 #include <plat/common.h>
 #include <plat/usb.h>
 
+#include <mach/board-zoom.h>
+
 #include "mux.h"
 #include "hsmmc.h"
 
@@ -188,6 +190,11 @@ static int zoom_twl_gpio_setup(struct device *dev,
 	return 0;
 }
 
+/* EXTMUTE callback function */
+void zoom2_set_hs_extmute(int mute)
+{
+	gpio_set_value(ZOOM2_HEADSET_EXTMUTE_GPIO, mute);
+}
 
 static int zoom_batt_table[] = {
 /* 0 C*/
@@ -257,6 +264,11 @@ static struct i2c_board_info __initdata zoom_i2c_boardinfo[] = {
 
 static int __init omap_i2c_init(void)
 {
+	if (machine_is_omap_zoom2()) {
+		zoom_audio_data.ramp_delay_value = 3;	/* 161 ms */
+		zoom_audio_data.hs_extmute = 1;
+		zoom_audio_data.set_hs_extmute = zoom2_set_hs_extmute;
+	}
 	omap_register_i2c_bus(1, 2400, zoom_i2c_boardinfo,
 			ARRAY_SIZE(zoom_i2c_boardinfo));
 	omap_register_i2c_bus(2, 400, NULL, 0);
