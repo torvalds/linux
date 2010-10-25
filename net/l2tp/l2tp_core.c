@@ -844,7 +844,6 @@ error:
 
 	return 1;
 }
-EXPORT_SYMBOL_GPL(l2tp_udp_recv_core);
 
 /* UDP encapsulation receive handler. See net/ipv4/udp.c.
  * Return codes:
@@ -1003,7 +1002,6 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(l2tp_xmit_core);
 
 /* Automatically called when the skb is freed.
  */
@@ -1225,7 +1223,6 @@ again:
 	}
 	write_unlock_bh(&tunnel->hlist_lock);
 }
-EXPORT_SYMBOL_GPL(l2tp_tunnel_closeall);
 
 /* Really kill the tunnel.
  * Come here only when all sessions have been cleared from the tunnel.
