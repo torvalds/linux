@@ -84,7 +84,7 @@ config CAN_FLEXCAN
 
 config PCH_CAN
 	tristate "PCH CAN"
-	depends on  CAN_DEV
+	depends on CAN_DEV && PCI
 	---help---
 	  This driver is for PCH CAN of Topcliff which is an IOH for x86
 	  embedded processor.
