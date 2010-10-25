@@ -21,6 +21,13 @@ config CONSTRUCTORS
 	depends on !UML
 	default y
 
+config HAVE_IRQ_WORK
+	bool
+
+config IRQ_WORK
+	bool
+	depends on HAVE_IRQ_WORK
+
 menu "General setup"
 
 config EXPERIMENTAL
@@ -332,6 +339,8 @@ config AUDIT_TREE
 	depends on AUDITSYSCALL
 	select FSNOTIFY
 
+source "kernel/irq/Kconfig"
+
 menu "RCU Subsystem"
 
 choice
@@ -340,6 +349,7 @@ choice
 
 config TREE_RCU
 	bool "Tree-based hierarchical RCU"
+	depends on !PREEMPT && SMP
 	help
 	  This option selects the RCU implementation that is
 	  designed for very large SMP system with hundreds or
@@ -347,7 +357,7 @@ config TREE_RCU
 	  smaller systems.
 
 config TREE_PREEMPT_RCU
-	bool "Preemptable tree-based hierarchical RCU"
+	bool "Preemptible tree-based hierarchical RCU"
 	depends on PREEMPT
 	help
 	  This option selects the RCU implementation that is
@@ -365,7 +375,21 @@ config TINY_RCU
 	  is not required.  This option greatly reduces the
 	  memory footprint of RCU.
 
+config TINY_PREEMPT_RCU
+	bool "Preemptible UP-only small-memory-footprint RCU"
+	depends on !SMP && PREEMPT
+	help
+	  This option selects the RCU implementation that is designed
+	  for real-time UP systems.  This option greatly reduces the
+	  memory footprint of RCU.
+
 endchoice
+
+config PREEMPT_RCU
+	def_bool ( TREE_PREEMPT_RCU || TINY_PREEMPT_RCU )
+	help
+	  This option enables preemptible-RCU code that is common between
+	  the TREE_PREEMPT_RCU and TINY_PREEMPT_RCU implementations.
 
 config RCU_TRACE
 	bool "Enable tracing for RCU"
@@ -387,9 +411,12 @@ config RCU_FANOUT
 	help
 	  This option controls the fanout of hierarchical implementations
 	  of RCU, allowing RCU to work efficiently on machines with
-	  large numbers of CPUs.  This value must be at least the cube
-	  root of NR_CPUS, which allows NR_CPUS up to 32,768 for 32-bit
-	  systems and up to 262,144 for 64-bit systems.
+	  large numbers of CPUs.  This value must be at least the fourth
+	  root of NR_CPUS, which allows NR_CPUS to be insanely large.
+	  The default value of RCU_FANOUT should be used for production
+	  systems, but if you are stress-testing the RCU implementation
+	  itself, small RCU_FANOUT values allow you to test large-system
+	  code paths on small(er) systems.
 
 	  Select a specific number if testing RCU itself.
 	  Take the default if unsure.
@@ -987,6 +1014,7 @@ config PERF_EVENTS
 	default y if (PROFILING || PERF_COUNTERS)
 	depends on HAVE_PERF_EVENTS
 	select ANON_INODES
+	select IRQ_WORK
 	help
 	  Enable kernel support for various performance events provided
 	  by software and hardware.

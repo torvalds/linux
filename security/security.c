@@ -89,20 +89,12 @@ __setup("security=", choose_lsm);
  * Return true if:
  *	-The passed LSM is the one chosen by user at boot time,
  *	-or the passed LSM is configured as the default and the user did not
- *	 choose an alternate LSM at boot time,
- *	-or there is no default LSM set and the user didn't specify a
- *	 specific LSM and we're the first to ask for registration permission,
- *	-or the passed LSM is currently loaded.
+ *	 choose an alternate LSM at boot time.
  * Otherwise, return false.
  */
 int __init security_module_enable(struct security_operations *ops)
 {
-	if (!*chosen_lsm)
-		strncpy(chosen_lsm, ops->name, SECURITY_NAME_MAX);
-	else if (strncmp(ops->name, chosen_lsm, SECURITY_NAME_MAX))
-		return 0;
-
-	return 1;
+	return !strcmp(ops->name, chosen_lsm);
 }
 
 /**
@@ -786,10 +778,9 @@ int security_task_setrlimit(struct task_struct *p, unsigned int resource,
 	return security_ops->task_setrlimit(p, resource, new_rlim);
 }
 
-int security_task_setscheduler(struct task_struct *p,
-				int policy, struct sched_param *lp)
+int security_task_setscheduler(struct task_struct *p)
 {
-	return security_ops->task_setscheduler(p, policy, lp);
+	return security_ops->task_setscheduler(p);
 }
 
 int security_task_getscheduler(struct task_struct *p)
@@ -1144,6 +1135,24 @@ void security_inet_conn_established(struct sock *sk,
 {
 	security_ops->inet_conn_established(sk, skb);
 }
+
+int security_secmark_relabel_packet(u32 secid)
+{
+	return security_ops->secmark_relabel_packet(secid);
+}
+EXPORT_SYMBOL(security_secmark_relabel_packet);
+
+void security_secmark_refcount_inc(void)
+{
+	security_ops->secmark_refcount_inc();
+}
+EXPORT_SYMBOL(security_secmark_refcount_inc);
+
+void security_secmark_refcount_dec(void)
+{
+	security_ops->secmark_refcount_dec();
+}
+EXPORT_SYMBOL(security_secmark_refcount_dec);
 
 int security_tun_dev_create(void)
 {

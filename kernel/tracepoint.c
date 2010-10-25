@@ -265,10 +265,10 @@ static void set_tracepoint(struct tracepoint_entry **entry,
 	 */
 	rcu_assign_pointer(elem->funcs, (*entry)->funcs);
 	if (!elem->state && active) {
-		enable_jump_label(&elem->state);
+		jump_label_enable(&elem->state);
 		elem->state = active;
 	} else if (elem->state && !active) {
-		disable_jump_label(&elem->state);
+		jump_label_disable(&elem->state);
 		elem->state = active;
 	}
 }
@@ -285,7 +285,7 @@ static void disable_tracepoint(struct tracepoint *elem)
 		elem->unregfunc();
 
 	if (elem->state) {
-		disable_jump_label(&elem->state);
+		jump_label_disable(&elem->state);
 		elem->state = 0;
 	}
 	rcu_assign_pointer(elem->funcs, NULL);

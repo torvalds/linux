@@ -154,14 +154,6 @@ void set_irq_flags(unsigned int irq, unsigned int iflags)
 
 void __init init_IRQ(void)
 {
-	struct irq_desc *desc;
-	int irq;
-
-	for (irq = 0; irq < nr_irqs; irq++) {
-		desc = irq_to_desc_alloc_node(irq, 0);
-		desc->status |= IRQ_NOREQUEST | IRQ_NOPROBE;
-	}
-
 	init_arch_irq();
 }
 
@@ -169,7 +161,7 @@ void __init init_IRQ(void)
 int __init arch_probe_nr_irqs(void)
 {
 	nr_irqs = arch_nr_irqs ? arch_nr_irqs : NR_IRQS;
-	return 0;
+	return nr_irqs;
 }
 #endif
 

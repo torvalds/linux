@@ -142,9 +142,9 @@ static void ddebug_change(const struct ddebug_query *query,
 				dt->num_enabled++;
 			dp->flags = newflags;
 			if (newflags) {
-				enable_jump_label(&dp->enabled);
+				jump_label_enable(&dp->enabled);
 			} else {
-				disable_jump_label(&dp->enabled);
+				jump_label_disable(&dp->enabled);
 			}
 			if (verbose)
 				printk(KERN_INFO

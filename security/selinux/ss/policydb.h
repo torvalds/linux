@@ -254,6 +254,9 @@ struct policydb {
 
 	struct ebitmap permissive_map;
 
+	/* length of this policy when it was loaded */
+	size_t len;
+
 	unsigned int policyvers;
 
 	unsigned int reject_unknown : 1;
@@ -270,6 +273,7 @@ extern int policydb_class_isvalid(struct policydb *p, unsigned int class);
 extern int policydb_type_isvalid(struct policydb *p, unsigned int type);
 extern int policydb_role_isvalid(struct policydb *p, unsigned int role);
 extern int policydb_read(struct policydb *p, void *fp);
+extern int policydb_write(struct policydb *p, void *fp);
 
 #define PERM_SYMTAB_SIZE 32
 
@@ -290,6 +294,11 @@ struct policy_file {
 	size_t len;
 };
 
+struct policy_data {
+	struct policydb *p;
+	void *fp;
+};
+
 static inline int next_entry(void *buf, struct policy_file *fp, size_t bytes)
 {
 	if (bytes > fp->len)
@@ -298,6 +307,17 @@ static inline int next_entry(void *buf, struct policy_file *fp, size_t bytes)
 	memcpy(buf, fp->data, bytes);
 	fp->data += bytes;
 	fp->len -= bytes;
+	return 0;
+}
+
+static inline int put_entry(void *buf, size_t bytes, int num, struct policy_file *fp)
+{
+	size_t len = bytes * num;
+
+	memcpy(fp->data, buf, len);
+	fp->data += len;
+	fp->len -= len;
+
 	return 0;
 }
 

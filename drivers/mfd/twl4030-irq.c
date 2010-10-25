@@ -78,7 +78,7 @@ struct sih {
 	u8	irq_lines;		/* number of supported irq lines */
 
 	/* SIR ignored -- set interrupt, for testing only */
-	struct irq_data {
+	struct sih_irq_data {
 		u8	isr_offset;
 		u8	imr_offset;
 	} mask[2];
@@ -810,7 +810,7 @@ int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 	twl4030_irq_chip = dummy_irq_chip;
 	twl4030_irq_chip.name = "twl4030";
 
-	twl4030_sih_irq_chip.ack = dummy_irq_chip.ack;
+	twl4030_sih_irq_chip.irq_ack = dummy_irq_chip.irq_ack;
 
 	for (i = irq_base; i < irq_end; i++) {
 		set_irq_chip_and_handler(i, &twl4030_irq_chip,

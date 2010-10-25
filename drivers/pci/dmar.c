@@ -1221,9 +1221,9 @@ const char *dmar_get_fault_reason(u8 fault_reason, int *fault_type)
 	}
 }
 
-void dmar_msi_unmask(unsigned int irq)
+void dmar_msi_unmask(struct irq_data *data)
 {
-	struct intel_iommu *iommu = get_irq_data(irq);
+	struct intel_iommu *iommu = irq_data_get_irq_data(data);
 	unsigned long flag;
 
 	/* unmask it */
@@ -1234,10 +1234,10 @@ void dmar_msi_unmask(unsigned int irq)
 	spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
-void dmar_msi_mask(unsigned int irq)
+void dmar_msi_mask(struct irq_data *data)
 {
 	unsigned long flag;
-	struct intel_iommu *iommu = get_irq_data(irq);
+	struct intel_iommu *iommu = irq_data_get_irq_data(data);
 
 	/* mask it */
 	spin_lock_irqsave(&iommu->register_lock, flag);

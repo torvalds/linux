@@ -290,7 +290,7 @@ void __init init_IRQ(void)
 int __init arch_probe_nr_irqs(void)
 {
 	nr_irqs = sh_mv.mv_nr_irqs;
-	return 0;
+	return NR_IRQS_LEGACY;
 }
 #endif
 

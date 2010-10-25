@@ -25,10 +25,10 @@ extern void jump_label_update(unsigned long key, enum jump_label_type type);
 extern void jump_label_apply_nops(struct module *mod);
 extern int jump_label_text_reserved(void *start, void *end);
 
-#define enable_jump_label(key) \
+#define jump_label_enable(key) \
 	jump_label_update((unsigned long)key, JUMP_LABEL_ENABLE);
 
-#define disable_jump_label(key) \
+#define jump_label_disable(key) \
 	jump_label_update((unsigned long)key, JUMP_LABEL_DISABLE);
 
 #else
@@ -39,12 +39,12 @@ do {						\
 		goto label;			\
 } while (0)
 
-#define enable_jump_label(cond_var)	\
+#define jump_label_enable(cond_var)	\
 do {					\
        *(cond_var) = 1;			\
 } while (0)
 
-#define disable_jump_label(cond_var)	\
+#define jump_label_disable(cond_var)	\
 do {					\
        *(cond_var) = 0;			\
 } while (0)
@@ -60,5 +60,15 @@ static inline int jump_label_text_reserved(void *start, void *end)
 }
 
 #endif
+
+#define COND_STMT(key, stmt)					\
+do {								\
+	__label__ jl_enabled;					\
+	JUMP_LABEL(key, jl_enabled);				\
+	if (0) {						\
+jl_enabled:							\
+		stmt;						\
+	}							\
+} while (0)
 
 #endif

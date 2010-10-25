@@ -57,7 +57,7 @@ static void __init rcu_bootup_announce_oddness(void)
 	printk(KERN_INFO
 	       "\tRCU-based detection of stalled CPUs is disabled.\n");
 #endif
-#ifndef CONFIG_RCU_CPU_STALL_VERBOSE
+#if defined(CONFIG_TREE_PREEMPT_RCU) && !defined(CONFIG_RCU_CPU_STALL_VERBOSE)
 	printk(KERN_INFO "\tVerbose stalled-CPUs detection is disabled.\n");
 #endif
 #if NUM_RCU_LVL_4 != 0
@@ -154,7 +154,7 @@ static void rcu_preempt_note_context_switch(int cpu)
 	    (t->rcu_read_unlock_special & RCU_READ_UNLOCK_BLOCKED) == 0) {
 
 		/* Possibly blocking in an RCU read-side critical section. */
-		rdp = rcu_preempt_state.rda[cpu];
+		rdp = per_cpu_ptr(rcu_preempt_state.rda, cpu);
 		rnp = rdp->mynode;
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		t->rcu_read_unlock_special |= RCU_READ_UNLOCK_BLOCKED;
@@ -201,7 +201,7 @@ static void rcu_preempt_note_context_switch(int cpu)
  */
 void __rcu_read_lock(void)
 {
-	ACCESS_ONCE(current->rcu_read_lock_nesting)++;
+	current->rcu_read_lock_nesting++;
 	barrier();  /* needed if we ever invoke rcu_read_lock in rcutree.c */
 }
 EXPORT_SYMBOL_GPL(__rcu_read_lock);
@@ -344,7 +344,9 @@ void __rcu_read_unlock(void)
 	struct task_struct *t = current;
 
 	barrier();  /* needed if we ever invoke rcu_read_unlock in rcutree.c */
-	if (--ACCESS_ONCE(t->rcu_read_lock_nesting) == 0 &&
+	--t->rcu_read_lock_nesting;
+	barrier();  /* decrement before load of ->rcu_read_unlock_special */
+	if (t->rcu_read_lock_nesting == 0 &&
 	    unlikely(ACCESS_ONCE(t->rcu_read_unlock_special)))
 		rcu_read_unlock_special(t);
 #ifdef CONFIG_PROVE_LOCKING
@@ -415,6 +417,16 @@ static void rcu_print_task_stall(struct rcu_node *rnp)
 		list_for_each_entry(t, lp, rcu_node_entry)
 			printk(" P%d", t->pid);
 	}
+}
+
+/*
+ * Suppress preemptible RCU's CPU stall warnings by pushing the
+ * time of the next stall-warning message comfortably far into the
+ * future.
+ */
+static void rcu_preempt_stall_reset(void)
+{
+	rcu_preempt_state.jiffies_stall = jiffies + ULONG_MAX / 2;
 }
 
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
@@ -546,9 +558,11 @@ EXPORT_SYMBOL_GPL(call_rcu);
  *
  * Control will return to the caller some time after a full grace
  * period has elapsed, in other words after all currently executing RCU
- * read-side critical sections have completed.  RCU read-side critical
- * sections are delimited by rcu_read_lock() and rcu_read_unlock(),
- * and may be nested.
+ * read-side critical sections have completed.  Note, however, that
+ * upon return from synchronize_rcu(), the caller might well be executing
+ * concurrently with new RCU read-side critical sections that began while
+ * synchronize_rcu() was waiting.  RCU read-side critical sections are
+ * delimited by rcu_read_lock() and rcu_read_unlock(), and may be nested.
  */
 void synchronize_rcu(void)
 {
@@ -771,7 +785,7 @@ static void rcu_preempt_send_cbs_to_orphanage(void)
  */
 static void __init __rcu_init_preempt(void)
 {
-	RCU_INIT_FLAVOR(&rcu_preempt_state, rcu_preempt_data);
+	rcu_init_one(&rcu_preempt_state, &rcu_preempt_data);
 }
 
 /*
@@ -865,6 +879,14 @@ static void rcu_print_task_stall(struct rcu_node *rnp)
 {
 }
 
+/*
+ * Because preemptible RCU does not exist, there is no need to suppress
+ * its CPU stall warnings.
+ */
+static void rcu_preempt_stall_reset(void)
+{
+}
+
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
 
 /*
@@ -917,15 +939,6 @@ static void rcu_preempt_check_callbacks(int cpu)
 static void rcu_preempt_process_callbacks(void)
 {
 }
-
-/*
- * In classic RCU, call_rcu() is just call_rcu_sched().
- */
-void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
-{
-	call_rcu_sched(head, func);
-}
-EXPORT_SYMBOL_GPL(call_rcu);
 
 /*
  * Wait for an rcu-preempt grace period, but make it happen quickly.

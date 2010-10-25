@@ -59,17 +59,10 @@
 #include <linux/hrtimer.h>	/* ktime_get_real() */
 #include <trace/events/power.h>
 #include <linux/sched.h>
+#include <asm/mwait.h>
 
 #define INTEL_IDLE_VERSION "0.4"
 #define PREFIX "intel_idle: "
-
-#define MWAIT_SUBSTATE_MASK	(0xf)
-#define MWAIT_CSTATE_MASK	(0xf)
-#define MWAIT_SUBSTATE_SIZE	(4)
-#define MWAIT_MAX_NUM_CSTATES	8
-#define CPUID_MWAIT_LEAF (5)
-#define CPUID5_ECX_EXTENSIONS_SUPPORTED (0x1)
-#define CPUID5_ECX_INTERRUPT_BREAK	(0x2)
 
 static struct cpuidle_driver intel_idle_driver = {
 	.name = "intel_idle",
@@ -157,13 +150,13 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C5 */ },
 	{ /* MWAIT C6 */
 		.name = "ATM-C6",
-		.desc = "MWAIT 0x40",
-		.driver_data = (void *) 0x40,
+		.desc = "MWAIT 0x52",
+		.driver_data = (void *) 0x52,
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
-		.exit_latency = 200,
+		.exit_latency = 140,
 		.power_usage = 150,
-		.target_residency = 800,
-		.enter = NULL },	/* disabled */
+		.target_residency = 560,
+		.enter = &intel_idle },
 };
 
 /**

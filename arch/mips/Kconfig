@@ -881,10 +881,14 @@ config NO_IOPORT
 config GENERIC_ISA_DMA
 	bool
 	select ZONE_DMA if GENERIC_ISA_DMA_SUPPORT_BROKEN=n
+	select ISA_DMA_API
 
 config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	bool
 	select GENERIC_ISA_DMA
+
+config ISA_DMA_API
+	bool
 
 config GENERIC_GPIO
 	bool

@@ -488,4 +488,21 @@ config BLK_DEV_HD
 
 	  If unsure, say N.
 
+config BLK_DEV_RBD
+	tristate "Rados block device (RBD)"
+	depends on INET && EXPERIMENTAL && BLOCK
+	select CEPH_LIB
+	select LIBCRC32C
+	select CRYPTO_AES
+	select CRYPTO
+	default n
+	help
+	  Say Y here if you want include the Rados block device, which stripes
+	  a block device over objects stored in the Ceph distributed object
+	  store.
+
+	  More information at http://ceph.newdream.net/.
+
+	  If unsure, say N.
+
 endif # BLK_DEV

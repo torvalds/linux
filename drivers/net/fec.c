@@ -678,24 +678,37 @@ static int fec_enet_mii_probe(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	struct phy_device *phy_dev = NULL;
-	int ret;
+	char mdio_bus_id[MII_BUS_ID_SIZE];
+	char phy_name[MII_BUS_ID_SIZE + 3];
+	int phy_id;
 
 	fep->phy_dev = NULL;
 
-	/* find the first phy */
-	phy_dev = phy_find_first(fep->mii_bus);
-	if (!phy_dev) {
-		printk(KERN_ERR "%s: no PHY found\n", dev->name);
-		return -ENODEV;
+	/* check for attached phy */
+	for (phy_id = 0; (phy_id < PHY_MAX_ADDR); phy_id++) {
+		if ((fep->mii_bus->phy_mask & (1 << phy_id)))
+			continue;
+		if (fep->mii_bus->phy_map[phy_id] == NULL)
+			continue;
+		if (fep->mii_bus->phy_map[phy_id]->phy_id == 0)
+			continue;
+		strncpy(mdio_bus_id, fep->mii_bus->id, MII_BUS_ID_SIZE);
+		break;
 	}
 
-	/* attach the mac to the phy */
-	ret = phy_connect_direct(dev, phy_dev,
-			     &fec_enet_adjust_link, 0,
-			     PHY_INTERFACE_MODE_MII);
-	if (ret) {
-		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
-		return ret;
+	if (phy_id >= PHY_MAX_ADDR) {
+		printk(KERN_INFO "%s: no PHY, assuming direct connection "
+			"to switch\n", dev->name);
+		strncpy(mdio_bus_id, "0", MII_BUS_ID_SIZE);
+		phy_id = 0;
+	}
+
+	snprintf(phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT, mdio_bus_id, phy_id);
+	phy_dev = phy_connect(dev, phy_name, &fec_enet_adjust_link, 0,
+		PHY_INTERFACE_MODE_MII);
+	if (IS_ERR(phy_dev)) {
+		printk(KERN_ERR "%s: could not attach to PHY\n", dev->name);
+		return PTR_ERR(phy_dev);
 	}
 
 	/* mask with MAC supported features */
@@ -738,7 +751,7 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	fep->mii_bus->read = fec_enet_mdio_read;
 	fep->mii_bus->write = fec_enet_mdio_write;
 	fep->mii_bus->reset = fec_enet_mdio_reset;
-	snprintf(fep->mii_bus->id, MII_BUS_ID_SIZE, "%x", pdev->id);
+	snprintf(fep->mii_bus->id, MII_BUS_ID_SIZE, "%x", pdev->id + 1);
 	fep->mii_bus->priv = fep;
 	fep->mii_bus->parent = &pdev->dev;
 
@@ -1310,6 +1323,9 @@ fec_probe(struct platform_device *pdev)
 	ret = fec_enet_mii_init(pdev);
 	if (ret)
 		goto failed_mii_init;
+
+	/* Carrier starts down, phylib will bring it up */
+	netif_carrier_off(ndev);
 
 	ret = register_netdev(ndev);
 	if (ret)
