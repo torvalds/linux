@@ -120,36 +120,35 @@ static int tegra_fb_set_par(struct fb_info *info)
 	struct tegra_fb_info *tegra_fb = info->par;
 	struct fb_var_screeninfo *var = &info->var;
 
-	/* we only support RGB ordering for now */
-	switch (var->bits_per_pixel) {
-	case 32:
-	case 24:
-		var->red.offset = 0;
-		var->red.length = 8;
-		var->green.offset = 8;
-		var->green.length = 8;
-		var->blue.offset = 16;
-		var->blue.length = 8;
-		tegra_fb->win->fmt = TEGRA_WIN_FMT_R8G8B8A8;
-		break;
-	case 16:
-		var->red.offset = 11;
-		var->red.length = 5;
-		var->green.offset = 5;
-		var->green.length = 6;
-		var->blue.offset = 0;
-		var->blue.length = 5;
-		tegra_fb->win->fmt = TEGRA_WIN_FMT_B5G6R5;
-		break;
+	if (var->bits_per_pixel) {
+		/* we only support RGB ordering for now */
+		switch (var->bits_per_pixel) {
+		case 32:
+		case 24:
+			var->red.offset = 0;
+			var->red.length = 8;
+			var->green.offset = 8;
+			var->green.length = 8;
+			var->blue.offset = 16;
+			var->blue.length = 8;
+			tegra_fb->win->fmt = TEGRA_WIN_FMT_R8G8B8A8;
+			break;
+		case 16:
+			var->red.offset = 11;
+			var->red.length = 5;
+			var->green.offset = 5;
+			var->green.length = 6;
+			var->blue.offset = 0;
+			var->blue.length = 5;
+			tegra_fb->win->fmt = TEGRA_WIN_FMT_B5G6R5;
+			break;
 
-	case 0:
-		break;
-
-	default:
-		return -EINVAL;
+		default:
+			return -EINVAL;
+		}
+		info->fix.line_length = var->xres * var->bits_per_pixel / 8;
+		tegra_fb->win->stride = info->fix.line_length;
 	}
-	info->fix.line_length = var->xres * var->bits_per_pixel / 8;
-	tegra_fb->win->stride = info->fix.line_length;
 
 	if (var->pixclock) {
 		struct tegra_dc_mode mode;
