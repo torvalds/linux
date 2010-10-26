@@ -1459,10 +1459,13 @@ sub process {
 		}
 
 # check for spaces at the beginning of a line.
-		if ($rawline =~ /^\+ / && $rawline !~ /\+ +\*/)  {
+# Exceptions:
+#  1) within comments
+#  2) indented preprocessor commands
+#  3) hanging labels
+		if ($rawline =~ /^\+ / && $line !~ /\+ *(?:$;|#|$Ident:)/)  {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
-			WARN("please, no space for starting a line, \
-				excluding comments\n" . $herevet);
+			WARN("please, no spaces at the start of a line\n" . $herevet);
 		}
 
 # check we are in a valid C source file if not then ignore this hunk
