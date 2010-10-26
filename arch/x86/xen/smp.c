@@ -28,6 +28,7 @@
 #include <asm/xen/interface.h>
 #include <asm/xen/hypercall.h>
 
+#include <xen/xen.h>
 #include <xen/page.h>
 #include <xen/events.h>
 
@@ -156,6 +157,25 @@ static void __init xen_fill_possible_map(void)
 {
 	int i, rc;
 
+	if (xen_initial_domain())
+		return;
+
+	for (i = 0; i < nr_cpu_ids; i++) {
+		rc = HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL);
+		if (rc >= 0) {
+			num_processors++;
+			set_cpu_possible(i, true);
+		}
+	}
+}
+
+static void __init xen_filter_cpu_maps(void)
+{
+	int i, rc;
+
+	if (!xen_initial_domain())
+		return;
+
 	num_processors = 0;
 	disabled_cpus = 0;
 	for (i = 0; i < nr_cpu_ids; i++) {
@@ -179,6 +199,7 @@ static void __init xen_smp_prepare_boot_cpu(void)
 	   old memory can be recycled */
 	make_lowmem_page_readwrite(xen_initial_gdt);
 
+	xen_filter_cpu_maps();
 	xen_setup_vcpu_info_placement();
 }
 
@@ -194,8 +215,6 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 
 	if (xen_smp_intr_init(0))
 		BUG();
-
-	xen_fill_possible_map();
 
 	if (!alloc_cpumask_var(&xen_cpu_initialized_map, GFP_KERNEL))
 		panic("could not allocate xen_cpu_initialized_map\n");
@@ -487,5 +506,6 @@ static const struct smp_ops xen_smp_ops __initdata = {
 void __init xen_smp_init(void)
 {
 	smp_ops = xen_smp_ops;
+	xen_fill_possible_map();
 	xen_init_spinlocks();
 }
