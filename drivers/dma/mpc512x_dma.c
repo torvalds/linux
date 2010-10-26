@@ -328,18 +328,54 @@ static irqreturn_t mpc_dma_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/* DMA Tasklet */
-static void mpc_dma_tasklet(unsigned long data)
+/* proccess completed descriptors */
+static void mpc_dma_process_completed(struct mpc_dma *mdma)
 {
-	struct mpc_dma *mdma = (void *)data;
 	dma_cookie_t last_cookie = 0;
 	struct mpc_dma_chan *mchan;
 	struct mpc_dma_desc *mdesc;
 	struct dma_async_tx_descriptor *desc;
 	unsigned long flags;
 	LIST_HEAD(list);
-	uint es;
 	int i;
+
+	for (i = 0; i < mdma->dma.chancnt; i++) {
+		mchan = &mdma->channels[i];
+
+		/* Get all completed descriptors */
+		spin_lock_irqsave(&mchan->lock, flags);
+		if (!list_empty(&mchan->completed))
+			list_splice_tail_init(&mchan->completed, &list);
+		spin_unlock_irqrestore(&mchan->lock, flags);
+
+		if (list_empty(&list))
+			continue;
+
+		/* Execute callbacks and run dependencies */
+		list_for_each_entry(mdesc, &list, node) {
+			desc = &mdesc->desc;
+
+			if (desc->callback)
+				desc->callback(desc->callback_param);
+
+			last_cookie = desc->cookie;
+			dma_run_dependencies(desc);
+		}
+
+		/* Free descriptors */
+		spin_lock_irqsave(&mchan->lock, flags);
+		list_splice_tail_init(&list, &mchan->free);
+		mchan->completed_cookie = last_cookie;
+		spin_unlock_irqrestore(&mchan->lock, flags);
+	}
+}
+
+/* DMA Tasklet */
+static void mpc_dma_tasklet(unsigned long data)
+{
+	struct mpc_dma *mdma = (void *)data;
+	unsigned long flags;
+	uint es;
 
 	spin_lock_irqsave(&mdma->error_status_lock, flags);
 	es = mdma->error_status;
@@ -379,35 +415,7 @@ static void mpc_dma_tasklet(unsigned long data)
 			dev_err(mdma->dma.dev, "- Destination Bus Error\n");
 	}
 
-	for (i = 0; i < mdma->dma.chancnt; i++) {
-		mchan = &mdma->channels[i];
-
-		/* Get all completed descriptors */
-		spin_lock_irqsave(&mchan->lock, flags);
-		if (!list_empty(&mchan->completed))
-			list_splice_tail_init(&mchan->completed, &list);
-		spin_unlock_irqrestore(&mchan->lock, flags);
-
-		if (list_empty(&list))
-			continue;
-
-		/* Execute callbacks and run dependencies */
-		list_for_each_entry(mdesc, &list, node) {
-			desc = &mdesc->desc;
-
-			if (desc->callback)
-				desc->callback(desc->callback_param);
-
-			last_cookie = desc->cookie;
-			dma_run_dependencies(desc);
-		}
-
-		/* Free descriptors */
-		spin_lock_irqsave(&mchan->lock, flags);
-		list_splice_tail_init(&list, &mchan->free);
-		mchan->completed_cookie = last_cookie;
-		spin_unlock_irqrestore(&mchan->lock, flags);
-	}
+	mpc_dma_process_completed(mdma);
 }
 
 /* Submit descriptor to hardware */
@@ -587,8 +595,11 @@ mpc_dma_prep_memcpy(struct dma_chan *chan, dma_addr_t dst, dma_addr_t src,
 	}
 	spin_unlock_irqrestore(&mchan->lock, iflags);
 
-	if (!mdesc)
+	if (!mdesc) {
+		/* try to free completed descriptors */
+		mpc_dma_process_completed(mdma);
 		return NULL;
+	}
 
 	mdesc->error = 0;
 	tcd = mdesc->tcd;
