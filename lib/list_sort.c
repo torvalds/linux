@@ -141,7 +141,7 @@ void list_sort(void *priv, struct list_head *head,
 }
 EXPORT_SYMBOL(list_sort);
 
-#ifdef DEBUG_LIST_SORT
+#ifdef CONFIG_TEST_LIST_SORT
 struct debug_el {
 	struct list_head l_h;
 	int value;
@@ -214,4 +214,4 @@ static int __init list_sort_test(void)
 	return 0;
 }
 module_init(list_sort_test);
-#endif
+#endif /* CONFIG_TEST_LIST_SORT */
