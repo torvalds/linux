@@ -103,7 +103,7 @@ MODULE_PARM_DESC(use_prio, "Enable steering by VLAN priority on ETH ports "
 
 static int log_mtts_per_seg = ilog2(MLX4_MTT_ENTRY_PER_SEG);
 module_param_named(log_mtts_per_seg, log_mtts_per_seg, int, 0444);
-MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment (1-5)");
+MODULE_PARM_DESC(log_mtts_per_seg, "Log2 number of MTT entries per segment (1-7)");
 
 int mlx4_check_port_params(struct mlx4_dev *dev,
 			   enum mlx4_port_type *port_type)
@@ -1304,7 +1304,7 @@ static int __init mlx4_verify_params(void)
 		return -1;
 	}
 
-	if ((log_mtts_per_seg < 1) || (log_mtts_per_seg > 5)) {
+	if ((log_mtts_per_seg < 1) || (log_mtts_per_seg > 7)) {
 		pr_warning("mlx4_core: bad log_mtts_per_seg: %d\n", log_mtts_per_seg);
 		return -1;
 	}

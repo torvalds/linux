@@ -2951,7 +2951,7 @@ M:	Roland Dreier <rolandd@cisco.com>
 M:	Sean Hefty <sean.hefty@intel.com>
 M:	Hal Rosenstock <hal.rosenstock@gmail.com>
 L:	linux-rdma@vger.kernel.org
-W:	http://www.openib.org/
+W:	http://www.openfabrics.org/
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/roland/infiniband.git
 S:	Supported
@@ -5034,6 +5034,16 @@ L:	linux-scsi@vger.kernel.org
 W:	http://www.kernel.dk
 S:	Maintained
 F:	drivers/scsi/sr*
+
+SCSI RDMA PROTOCOL (SRP) INITIATOR
+M:	David Dillow <dillowda@ornl.gov>
+L:	linux-rdma@vger.kernel.org
+S:	Supported
+W:	http://www.openfabrics.org
+Q:	http://patchwork.kernel.org/project/linux-rdma/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dad/srp-initiator.git
+F:	drivers/infiniband/ulp/srp/
+F:	include/scsi/srp.h
 
 SCSI SG DRIVER
 M:	Doug Gilbert <dgilbert@interlog.com>

@@ -44,15 +44,24 @@ enum mlx4_dev_event {
 	MLX4_DEV_EVENT_PORT_REINIT,
 };
 
+enum mlx4_protocol {
+	MLX4_PROTOCOL_IB,
+	MLX4_PROTOCOL_EN,
+};
+
 struct mlx4_interface {
 	void *			(*add)	 (struct mlx4_dev *dev);
 	void			(*remove)(struct mlx4_dev *dev, void *context);
 	void			(*event) (struct mlx4_dev *dev, void *context,
 					  enum mlx4_dev_event event, int port);
+	void *			(*get_dev)(struct mlx4_dev *dev, void *context, u8 port);
 	struct list_head	list;
+	enum mlx4_protocol	protocol;
 };
 
 int mlx4_register_interface(struct mlx4_interface *intf);
 void mlx4_unregister_interface(struct mlx4_interface *intf);
+
+void *mlx4_get_protocol_dev(struct mlx4_dev *dev, enum mlx4_protocol proto, int port);
 
 #endif /* MLX4_DRIVER_H */
