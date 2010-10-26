@@ -6114,13 +6114,6 @@ L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/usb/serial/option.c
 
-USB OV511 DRIVER
-M:	Mark McClelland <mmcclell@bigfoot.com>
-L:	linux-usb@vger.kernel.org
-W:	http://alpha.dyndns.org/ov511/
-S:	Maintained
-F:	drivers/media/video/ov511.*
-
 USB PEGASUS DRIVER
 M:	Petko Manolov <petkan@users.sourceforge.net>
 L:	linux-usb@vger.kernel.org
