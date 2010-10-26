@@ -101,6 +101,7 @@ static char nfs_export_path[NFS_MAXPATHLEN + 1] __initdata = "";
 /* server:export path string passed to super.c */
 static char nfs_root_device[NFS_MAXPATHLEN + 1] __initdata = "";
 
+#ifdef RPC_DEBUG
 /*
  * When the "nfsrootdebug" kernel command line option is specified,
  * enable debugging messages for NFSROOT.
@@ -112,6 +113,7 @@ static int __init nfs_root_debug(char *__unused)
 }
 
 __setup("nfsrootdebug", nfs_root_debug);
+#endif
 
 /*
  *  Parse NFS server and directory information passed on the kernel
