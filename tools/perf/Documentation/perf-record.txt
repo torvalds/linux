@@ -83,6 +83,10 @@ OPTIONS
 --call-graph::
 	Do call-graph (stack chain/backtrace) recording.
 
+-q::
+--quiet::
+	Don't print any message, useful for scripting.
+
 -v::
 --verbose::
 	Be more verbose (show counter open errors, etc).
