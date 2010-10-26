@@ -1163,6 +1163,7 @@ struct s3_save {
 
 /* There is one ehci_hci structure per controller */
 struct xhci_hcd {
+	struct usb_hcd *main_hcd;
 	/* glue to PCI and HCD framework */
 	struct xhci_cap_regs __iomem *cap_regs;
 	struct xhci_op_regs __iomem *op_regs;
@@ -1266,12 +1267,12 @@ struct xhci_hcd {
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
 static inline struct xhci_hcd *hcd_to_xhci(struct usb_hcd *hcd)
 {
-	return (struct xhci_hcd *) (hcd->hcd_priv);
+	return *((struct xhci_hcd **) (hcd->hcd_priv));
 }
 
 static inline struct usb_hcd *xhci_to_hcd(struct xhci_hcd *xhci)
 {
-	return container_of((void *) xhci, struct usb_hcd, hcd_priv);
+	return xhci->main_hcd;
 }
 
 #ifdef CONFIG_USB_XHCI_HCD_DEBUGGING

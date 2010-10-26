@@ -57,6 +57,12 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 
 	hcd->self.sg_tablesize = TRBS_PER_SEGMENT - 2;
 
+	xhci = kzalloc(sizeof(struct xhci_hcd), GFP_KERNEL);
+	if (!xhci)
+		return -ENOMEM;
+	*((struct xhci_hcd **) hcd->hcd_priv) = xhci;
+	xhci->main_hcd = hcd;
+
 	xhci->cap_regs = hcd->regs;
 	xhci->op_regs = hcd->regs +
 		HC_LENGTH(xhci_readl(xhci, &xhci->cap_regs->hc_capbase));
@@ -85,13 +91,13 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	/* Make sure the HC is halted. */
 	retval = xhci_halt(xhci);
 	if (retval)
-		return retval;
+		goto error;
 
 	xhci_dbg(xhci, "Resetting HCD\n");
 	/* Reset the internal HC memory state and registers. */
 	retval = xhci_reset(xhci);
 	if (retval)
-		return retval;
+		goto error;
 	xhci_dbg(xhci, "Reset complete\n");
 
 	temp = xhci_readl(xhci, &xhci->cap_regs->hcc_params);
@@ -106,14 +112,29 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	/* Initialize HCD and host controller data structures. */
 	retval = xhci_init(hcd);
 	if (retval)
-		return retval;
+		goto error;
 	xhci_dbg(xhci, "Called HCD init\n");
 
 	pci_read_config_byte(pdev, XHCI_SBRN_OFFSET, &xhci->sbrn);
 	xhci_dbg(xhci, "Got SBRN %u\n", (unsigned int) xhci->sbrn);
 
 	/* Find any debug ports */
-	return xhci_pci_reinit(xhci, pdev);
+	retval = xhci_pci_reinit(xhci, pdev);
+	if (!retval)
+		return retval;
+
+error:
+	kfree(xhci);
+	return retval;
+}
+
+static void xhci_pci_remove(struct pci_dev *dev)
+{
+	struct xhci_hcd *xhci;
+
+	xhci = hcd_to_xhci(pci_get_drvdata(dev));
+	usb_hcd_pci_remove(dev);
+	kfree(xhci);
 }
 
 #ifdef CONFIG_PM
@@ -143,7 +164,7 @@ static int xhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 static const struct hc_driver xhci_pci_hc_driver = {
 	.description =		hcd_name,
 	.product_desc =		"xHCI Host Controller",
-	.hcd_priv_size =	sizeof(struct xhci_hcd),
+	.hcd_priv_size =	sizeof(struct xhci_hcd *),
 
 	/*
 	 * generic hardware linkage
@@ -211,7 +232,7 @@ static struct pci_driver xhci_pci_driver = {
 	.id_table =	pci_ids,
 
 	.probe =	usb_hcd_pci_probe,
-	.remove =	usb_hcd_pci_remove,
+	.remove =	xhci_pci_remove,
 	/* suspend and resume implemented later */
 
 	.shutdown = 	usb_hcd_pci_shutdown,
