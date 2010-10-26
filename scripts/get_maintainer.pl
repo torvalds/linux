@@ -13,7 +13,7 @@
 use strict;
 
 my $P = $0;
-my $V = '0.24';
+my $V = '0.25';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -88,6 +88,7 @@ my %VCS_cmds_git = (
     "available" => '(which("git") ne "") && (-d ".git")',
     "find_signers_cmd" => "git log --no-color --since=\$email_git_since -- \$file",
     "find_commit_signers_cmd" => "git log --no-color -1 \$commit",
+    "find_commit_author_cmd" => "git log -1 --format=\"%an <%ae>\" \$commit",
     "blame_range_cmd" => "git blame -l -L \$diff_start,+\$diff_length \$file",
     "blame_file_cmd" => "git blame -l \$file",
     "commit_pattern" => "^commit [0-9a-f]{40,40}",
@@ -101,6 +102,7 @@ my %VCS_cmds_hg = (
 	"hg log --date=\$email_hg_since" .
 		" --template='commit {node}\\n{desc}\\n' -- \$file",
     "find_commit_signers_cmd" => "hg log --template='{desc}\\n' -r \$commit",
+    "find_commit_author_cmd" => "hg log -l 1 --template='{author}\\n' -r \$commit",
     "blame_range_cmd" => "",		# not supported
     "blame_file_cmd" => "hg blame -c \$file",
     "commit_pattern" => "^commit [0-9a-f]{40,40}",
@@ -1014,6 +1016,9 @@ sub vcs_find_signers {
     if (!$email_git_penguin_chiefs) {
 	@lines = grep(!/${penguin_chiefs}/i, @lines);
     }
+
+    return (0, @lines) if !@lines;
+
     # cut -f2- -d":"
     s/.*:\s*(.+)\s*/$1/ for (@lines);
 
@@ -1025,6 +1030,28 @@ sub vcs_find_signers {
     }
 
     return ($commits, @lines);
+}
+
+sub vcs_find_author {
+    my ($cmd) = @_;
+    my @lines = ();
+
+    @lines = &{$VCS_cmds{"execute_cmd"}}($cmd);
+
+    if (!$email_git_penguin_chiefs) {
+	@lines = grep(!/${penguin_chiefs}/i, @lines);
+    }
+
+    return @lines if !@lines;
+
+## Reformat email addresses (with names) to avoid badly written signatures
+
+    foreach my $line (@lines) {
+	my ($name, $address) = parse_email($line);
+	$line = format_email($name, $address, 1);
+    }
+
+    return @lines;
 }
 
 sub vcs_save_commits {
@@ -1084,6 +1111,10 @@ sub vcs_blame {
 	@commits = vcs_save_commits($cmd);
     }
 
+    foreach my $commit (@commits) {
+	$commit =~ s/^\^//g;
+    }
+
     return @commits;
 }
 
@@ -1120,6 +1151,8 @@ sub vcs_assign {
     if ($email_remove_duplicates) {
 	@lines = mailmap(@lines);
     }
+
+    return if (@lines <= 0);
 
     @lines = sort(@lines);
 
@@ -1165,14 +1198,17 @@ sub vcs_file_blame {
     my ($file) = @_;
 
     my @signers = ();
+    my @all_commits = ();
     my @commits = ();
     my $total_commits;
+    my $total_lines;
 
     return if (!vcs_exists());
 
-    @commits = vcs_blame($file);
-    @commits = uniq(@commits);
+    @all_commits = vcs_blame($file);
+    @commits = uniq(@all_commits);
     $total_commits = @commits;
+    $total_lines = @all_commits;
 
     foreach my $commit (@commits) {
 	my $commit_count;
@@ -1182,10 +1218,28 @@ sub vcs_file_blame {
 	$cmd =~ s/(\$\w+)/$1/eeg;	#interpolate $cmd
 
 	($commit_count, @commit_signers) = vcs_find_signers($cmd);
+
 	push(@signers, @commit_signers);
     }
 
     if ($from_filename) {
+	if ($output_rolestats) {
+	    my @blame_signers;
+	    foreach my $commit (@commits) {
+		my $i;
+		my $cmd = $VCS_cmds{"find_commit_author_cmd"};
+		$cmd =~ s/(\$\w+)/$1/eeg;	#interpolate $cmd
+		my @author = vcs_find_author($cmd);
+		next if !@author;
+		my $count = grep(/$commit/, @all_commits);
+		for ($i = 0; $i < $count ; $i++) {
+		    push(@blame_signers, $author[0]);
+		}
+	    }
+	    if (@blame_signers) {
+		vcs_assign("authored lines", $total_lines, @blame_signers);
+	    }
+	}
 	vcs_assign("commits", $total_commits, @signers);
     } else {
 	vcs_assign("modified commits", $total_commits, @signers);
