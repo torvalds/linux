@@ -276,6 +276,9 @@ static void mpc_dma_irq_process(struct mpc_dma *mdma, u32 is, u32 es, int off)
 
 		spin_lock(&mchan->lock);
 
+		out_8(&mdma->regs->dmacint, ch + off);
+		out_8(&mdma->regs->dmacerr, ch + off);
+
 		/* Check error status */
 		if (es & (1 << ch))
 			list_for_each_entry(mdesc, &mchan->active, node)
@@ -308,12 +311,6 @@ static irqreturn_t mpc_dma_irq(int irq, void *data)
 					in_be32(&mdma->regs->dmaerrh), 32);
 	mpc_dma_irq_process(mdma, in_be32(&mdma->regs->dmaintl),
 					in_be32(&mdma->regs->dmaerrl), 0);
-
-	/* Ack interrupt on all channels */
-	out_be32(&mdma->regs->dmainth, 0xFFFFFFFF);
-	out_be32(&mdma->regs->dmaintl, 0xFFFFFFFF);
-	out_be32(&mdma->regs->dmaerrh, 0xFFFFFFFF);
-	out_be32(&mdma->regs->dmaerrl, 0xFFFFFFFF);
 
 	/* Schedule tasklet */
 	tasklet_schedule(&mdma->tasklet);
