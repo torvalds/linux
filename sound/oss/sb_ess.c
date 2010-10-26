@@ -1722,7 +1722,6 @@ printk (KERN_INFO "FKS: es_rec_set_recmask mask = %x\n", mask);
 				right = (value & 0x0000ff00) >> 8;
 			} else {				/* Turn it off (3)  */
 				left  = 0;
-				left  = 0;
 				right = 0;
 			}
 			sb_common_mixer_set(devc, i + ES_REC_MIXER_RECDIFF, left, right);
