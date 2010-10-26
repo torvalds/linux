@@ -113,7 +113,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 };
 
-static struct pad_desc eukrea_cpuimx51_pads[] = {
+static iomux_v3_cfg_t eukrea_cpuimx51_pads[] = {
 	/* UART1 */
 	MX51_PAD_UART1_RXD__UART1_RXD,
 	MX51_PAD_UART1_TXD__UART1_TXD,

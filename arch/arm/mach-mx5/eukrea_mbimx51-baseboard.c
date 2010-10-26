@@ -84,7 +84,7 @@ static struct platform_device *devices[] __initdata = {
 	&mbimx51_leds_gpio,
 };
 
-static struct pad_desc mbimx51_pads[] = {
+static iomux_v3_cfg_t mbimx51_pads[] = {
 	/* UART2 */
 	MX51_PAD_UART2_RXD__UART2_RXD,
 	MX51_PAD_UART2_TXD__UART2_TXD,

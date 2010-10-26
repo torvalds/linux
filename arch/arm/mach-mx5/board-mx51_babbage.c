@@ -65,7 +65,7 @@ static const struct gpio_keys_platform_data imx_button_data __initconst = {
 	.nbuttons	= ARRAY_SIZE(babbage_buttons),
 };
 
-static struct pad_desc mx51babbage_pads[] = {
+static iomux_v3_cfg_t mx51babbage_pads[] = {
 	/* UART1 */
 	MX51_PAD_UART1_RXD__UART1_RXD,
 	MX51_PAD_UART1_TXD__UART1_TXD,
@@ -177,8 +177,8 @@ static struct imxi2c_platform_data babbage_hsi2c_data = {
 
 static int gpio_usbh1_active(void)
 {
-	struct pad_desc usbh1stp_gpio = MX51_PAD_USBH1_STP__GPIO_1_27;
-	struct pad_desc phyreset_gpio = MX51_PAD_EIM_D21__GPIO_2_5;
+	iomux_v3_cfg_t usbh1stp_gpio = MX51_PAD_USBH1_STP__GPIO_1_27;
+	iomux_v3_cfg_t phyreset_gpio = MX51_PAD_EIM_D21__GPIO_2_5;
 	int ret;
 
 	/* Set USBH1_STP to GPIO and toggle it */
@@ -315,8 +315,8 @@ __setup("otg_mode=", babbage_otg_mode);
  */
 static void __init mxc_board_init(void)
 {
-	struct pad_desc usbh1stp = MX51_PAD_USBH1_STP__USBH1_STP;
-	struct pad_desc power_key = MX51_PAD_EIM_A27__GPIO_2_21;
+	iomux_v3_cfg_t usbh1stp = MX51_PAD_USBH1_STP__USBH1_STP;
+	iomux_v3_cfg_t power_key = MX51_PAD_EIM_A27__GPIO_2_21;
 
 #if defined(CONFIG_CPU_FREQ_IMX)
 	get_cpu_op = mx51_get_cpu_op;

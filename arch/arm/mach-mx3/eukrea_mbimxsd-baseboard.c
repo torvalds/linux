@@ -111,7 +111,7 @@ static struct mx3fb_platform_data mx3fb_pdata = {
 	.num_modes	= ARRAY_SIZE(fb_modedb),
 };
 
-static struct pad_desc eukrea_mbimxsd_pads[] = {
+static iomux_v3_cfg_t eukrea_mbimxsd_pads[] = {
 	/* LCD */
 	MX35_PAD_LD0__IPU_DISPB_DAT_0,
 	MX35_PAD_LD1__IPU_DISPB_DAT_1,

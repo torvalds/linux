@@ -48,7 +48,7 @@
 #define MBIMXSD_GPIO_3_31 IOMUX_PAD(0x554, 0x16C, 3, 0x0, 0, \
 				MX51_PAD_CTRL_1 | PAD_CTL_PUS_22K_UP)
 
-static struct pad_desc eukrea_mbimxsd_pads[] = {
+static iomux_v3_cfg_t eukrea_mbimxsd_pads[] = {
 	/* LED */
 	MX51_PAD_NANDF_D10__GPIO_3_30,
 	/* SWITCH */

@@ -46,7 +46,7 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static struct pad_desc eukrea_cpuimx25_pads[] = {
+static iomux_v3_cfg_t eukrea_cpuimx25_pads[] = {
 	/* FEC - RMII */
 	MX25_PAD_FEC_MDC__FEC_MDC,
 	MX25_PAD_FEC_MDIO__FEC_MDIO,

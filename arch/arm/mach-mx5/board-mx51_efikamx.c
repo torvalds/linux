@@ -39,7 +39,7 @@
 
 #define	MX51_USB_PLL_DIV_24_MHZ	0x01
 
-static struct pad_desc mx51efikamx_pads[] = {
+static iomux_v3_cfg_t mx51efikamx_pads[] = {
 	/* UART1 */
 	MX51_PAD_UART1_RXD__UART1_RXD,
 	MX51_PAD_UART1_TXD__UART1_TXD,

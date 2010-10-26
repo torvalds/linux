@@ -30,7 +30,7 @@
 #define EXPIO_PARENT_INT	(MXC_INTERNAL_IRQS + GPIO_PORTA + 6)
 #define MX51_3DS_ECSPI2_CS	(GPIO_PORTC + 28)
 
-static struct pad_desc mx51_3ds_pads[] = {
+static iomux_v3_cfg_t mx51_3ds_pads[] = {
 	/* UART1 */
 	MX51_PAD_UART1_RXD__UART1_RXD,
 	MX51_PAD_UART1_TXD__UART1_TXD,

@@ -32,26 +32,26 @@
 static void __iomem *base;
 
 /*
- * setups a single pad in the iomuxer
+ * configures a single pad in the iomuxer
  */
-int mxc_iomux_v3_setup_pad(struct pad_desc *pad)
+int mxc_iomux_v3_setup_pad(iomux_v3_cfg_t *pad)
 {
-	if (pad->mux_ctrl_ofs)
-		__raw_writel(pad->mux_mode, base + pad->mux_ctrl_ofs);
+	if (MUX_CTRL_OFS(pad))
+		__raw_writel(MUX_MODE(pad), base + MUX_CTRL_OFS(pad));
 
-	if (pad->select_input_ofs)
-		__raw_writel(pad->select_input,
-				base + pad->select_input_ofs);
+	if (MUX_SELECT_INPUT_OFS(pad))
+		__raw_writel(MUX_SELECT_INPUT(pad),
+			base + MUX_SELECT_INPUT(pad));
 
-	if (!(pad->pad_ctrl & NO_PAD_CTRL) && pad->pad_ctrl_ofs)
-		__raw_writel(pad->pad_ctrl, base + pad->pad_ctrl_ofs);
+	if (!(MUX_PAD_CTRL(pad) & NO_PAD_CTRL) && MUX_PAD_CTRL_OFS(pad))
+		__raw_writel(MUX_PAD_CTRL(pad), base + MUX_PAD_CTRL_OFS(pad));
 	return 0;
 }
 EXPORT_SYMBOL(mxc_iomux_v3_setup_pad);
 
-int mxc_iomux_v3_setup_multiple_pads(struct pad_desc *pad_list, unsigned count)
+int mxc_iomux_v3_setup_multiple_pads(iomux_v3_cfg_t *pad_list, unsigned count)
 {
-	struct pad_desc *p = pad_list;
+	iomux_v3_cfg_t *p = pad_list;
 	int i;
 	int ret;
 
