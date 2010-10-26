@@ -691,15 +691,15 @@ sub ctx_block_get {
 		$blk .= $rawlines[$line];
 
 		# Handle nested #if/#else.
-		if ($rawlines[$line] =~ /^.\s*#\s*(?:ifndef|ifdef|if)\s/) {
+		if ($lines[$line] =~ /^.\s*#\s*(?:ifndef|ifdef|if)\s/) {
 			push(@stack, $level);
-		} elsif ($rawlines[$line] =~ /^.\s*#\s*(?:else|elif)\b/) {
+		} elsif ($lines[$line] =~ /^.\s*#\s*(?:else|elif)\b/) {
 			$level = $stack[$#stack - 1];
-		} elsif ($rawlines[$line] =~ /^.\s*#\s*endif\b/) {
+		} elsif ($lines[$line] =~ /^.\s*#\s*endif\b/) {
 			$level = pop(@stack);
 		}
 
-		foreach my $c (split(//, $rawlines[$line])) {
+		foreach my $c (split(//, $lines[$line])) {
 			##print "C<$c>L<$level><$open$close>O<$off>\n";
 			if ($off > 0) {
 				$off--;
@@ -1652,7 +1652,7 @@ sub process {
 
 			if ($ctx !~ /{\s*/ && defined($lines[$ctx_ln -1]) && $lines[$ctx_ln - 1] =~ /^\+\s*{/) {
 				ERROR("that open brace { should be on the previous line\n" .
-					"$here\n$ctx\n$lines[$ctx_ln - 1]\n");
+					"$here\n$ctx\n$rawlines[$ctx_ln - 1]\n");
 			}
 			if ($level == 0 && $pre_ctx !~ /}\s*while\s*\($/ &&
 			    $ctx =~ /\)\s*\;\s*$/ &&
@@ -1661,7 +1661,7 @@ sub process {
 				my ($nlength, $nindent) = line_stats($lines[$ctx_ln - 1]);
 				if ($nindent > $indent) {
 					WARN("trailing semicolon indicates no statements, indent implies otherwise\n" .
-						"$here\n$ctx\n$lines[$ctx_ln - 1]\n");
+						"$here\n$ctx\n$rawlines[$ctx_ln - 1]\n");
 				}
 			}
 		}
