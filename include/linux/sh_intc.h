@@ -129,7 +129,4 @@ static inline int register_intc_userimask(unsigned long addr)
 }
 #endif
 
-int reserve_irq_vector(unsigned int irq);
-void reserve_irq_legacy(void);
-
 #endif /* __SH_INTC_H */
