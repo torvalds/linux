@@ -157,7 +157,6 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->avail_idx = 0;
 	vq->last_used_idx = 0;
 	vq->used_flags = 0;
-	vq->used_flags = 0;
 	vq->log_used = false;
 	vq->log_addr = -1ull;
 	vq->vhost_hlen = 0;
