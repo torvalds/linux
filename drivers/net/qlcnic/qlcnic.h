@@ -1134,7 +1134,7 @@ struct qlcnic_eswitch {
 #define MAX_RX_QUEUES		4
 #define DEFAULT_MAC_LEARN	1
 
-#define IS_VALID_VLAN(vlan)	(vlan >= MIN_VLAN_ID && vlan <= MAX_VLAN_ID)
+#define IS_VALID_VLAN(vlan)	(vlan >= MIN_VLAN_ID && vlan < MAX_VLAN_ID)
 #define IS_VALID_BW(bw)		(bw >= MIN_BW && bw <= MAX_BW)
 #define IS_VALID_TX_QUEUES(que)	(que > 0 && que <= MAX_TX_QUEUES)
 #define IS_VALID_RX_QUEUES(que)	(que > 0 && que <= MAX_RX_QUEUES)
