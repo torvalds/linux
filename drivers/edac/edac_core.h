@@ -42,8 +42,10 @@
 
 #if PAGE_SHIFT < 20
 #define PAGES_TO_MiB( pages )	( ( pages ) >> ( 20 - PAGE_SHIFT ) )
+#define MiB_TO_PAGES(mb)	((mb) >> (20 - PAGE_SHIFT))
 #else				/* PAGE_SHIFT > 20 */
 #define PAGES_TO_MiB( pages )	( ( pages ) << ( PAGE_SHIFT - 20 ) )
+#define MiB_TO_PAGES(mb)	((mb) >> (PAGE_SHIFT - 20))
 #endif
 
 #define edac_printk(level, prefix, fmt, arg...) \
@@ -328,7 +330,7 @@ struct csrow_info {
 
 struct mcidev_sysfs_group {
 	const char *name;				/* group name */
-	struct mcidev_sysfs_attribute *mcidev_attr;	/* group attributes */
+	const struct mcidev_sysfs_attribute *mcidev_attr; /* group attributes */
 };
 
 struct mcidev_sysfs_group_kobj {
@@ -336,7 +338,7 @@ struct mcidev_sysfs_group_kobj {
 
 	struct kobject kobj;		/* kobj for the group */
 
-	struct mcidev_sysfs_group *grp;	/* group description table */
+	const struct mcidev_sysfs_group *grp;	/* group description table */
 	struct mem_ctl_info *mci;	/* the parent */
 };
 
@@ -347,7 +349,7 @@ struct mcidev_sysfs_group_kobj {
 struct mcidev_sysfs_attribute {
 	/* It should use either attr or grp */
 	struct attribute attr;
-	struct mcidev_sysfs_group *grp;	/* Points to a group of attributes */
+	const struct mcidev_sysfs_group *grp;	/* Points to a group of attributes */
 
 	/* Ops for show/store values at the attribute - not used on group */
         ssize_t (*show)(struct mem_ctl_info *,char *);
@@ -440,7 +442,7 @@ struct mem_ctl_info {
 	 * If attributes are desired, then set to array of attributes
 	 * If no attributes are desired, leave NULL
 	 */
-	struct mcidev_sysfs_attribute *mc_driver_sysfs_attributes;
+	const struct mcidev_sysfs_attribute *mc_driver_sysfs_attributes;
 
 	/* work struct for this MC */
 	struct delayed_work work;
@@ -810,6 +812,7 @@ extern struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 extern int edac_mc_add_mc(struct mem_ctl_info *mci);
 extern void edac_mc_free(struct mem_ctl_info *mci);
 extern struct mem_ctl_info *edac_mc_find(int idx);
+extern struct mem_ctl_info *find_mci_by_dev(struct device *dev);
 extern struct mem_ctl_info *edac_mc_del_mc(struct device *dev);
 extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 				      unsigned long page);

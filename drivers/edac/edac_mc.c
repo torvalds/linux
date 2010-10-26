@@ -207,6 +207,7 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 	}
 
 	mci->op_state = OP_ALLOC;
+	INIT_LIST_HEAD(&mci->grp_kobj_list);
 
 	/*
 	 * Initialize the 'root' kobj for the edac_mc controller
@@ -234,18 +235,24 @@ EXPORT_SYMBOL_GPL(edac_mc_alloc);
  */
 void edac_mc_free(struct mem_ctl_info *mci)
 {
+	debugf1("%s()\n", __func__);
+
 	edac_mc_unregister_sysfs_main_kobj(mci);
+
+	/* free the mci instance memory here */
+	kfree(mci);
 }
 EXPORT_SYMBOL_GPL(edac_mc_free);
 
 
-/*
+/**
  * find_mci_by_dev
  *
  *	scan list of controllers looking for the one that manages
  *	the 'dev' device
+ * @dev: pointer to a struct device related with the MCI
  */
-static struct mem_ctl_info *find_mci_by_dev(struct device *dev)
+struct mem_ctl_info *find_mci_by_dev(struct device *dev)
 {
 	struct mem_ctl_info *mci;
 	struct list_head *item;
@@ -261,6 +268,7 @@ static struct mem_ctl_info *find_mci_by_dev(struct device *dev)
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(find_mci_by_dev);
 
 /*
  * handler for EDAC to check if NMI type handler has asserted interrupt
