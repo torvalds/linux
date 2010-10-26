@@ -46,9 +46,6 @@ static struct scripting_ops	*scripting_ops;
 
 static void setup_scripting(void)
 {
-	/* make sure PERF_EXEC_PATH is set for scripts */
-	perf_set_argv_exec_path(perf_exec_path());
-
 	setup_perl_scripting();
 	setup_python_scripting();
 
@@ -285,7 +282,7 @@ static int parse_scriptname(const struct option *opt __used,
 		script++;
 	} else {
 		script = str;
-		ext = strchr(script, '.');
+		ext = strrchr(script, '.');
 		if (!ext) {
 			fprintf(stderr, "invalid script extension");
 			return -1;
@@ -592,6 +589,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		}
 		suffix = REPORT_SUFFIX;
 	}
+
+	/* make sure PERF_EXEC_PATH is set for scripts */
+	perf_set_argv_exec_path(perf_exec_path());
 
 	if (!suffix && argc >= 2 && strncmp(argv[1], "-", strlen("-")) != 0) {
 		char *record_script_path, *report_script_path;

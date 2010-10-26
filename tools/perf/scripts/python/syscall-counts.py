@@ -13,6 +13,7 @@ sys.path.append(os.environ['PERF_EXEC_PATH'] + \
 
 from perf_trace_context import *
 from Core import *
+from Util import syscall_name
 
 usage = "perf trace -s syscall-counts.py [comm]\n";
 
@@ -27,7 +28,7 @@ if len(sys.argv) > 1:
 syscalls = autodict()
 
 def trace_begin():
-	pass
+	print "Press control+C to stop and show the summary"
 
 def trace_end():
 	print_syscall_totals()
@@ -55,4 +56,4 @@ def print_syscall_totals():
 
     for id, val in sorted(syscalls.iteritems(), key = lambda(k, v): (v, k), \
 				  reverse = True):
-	    print "%-40d  %10d\n" % (id, val),
+	    print "%-40s  %10d\n" % (syscall_name(id), val),
