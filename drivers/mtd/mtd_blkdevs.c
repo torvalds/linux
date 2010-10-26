@@ -502,12 +502,15 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	mutex_lock(&mtd_table_mutex);
 
 	ret = register_blkdev(tr->major, tr->name);
-	if (ret) {
+	if (ret < 0) {
 		printk(KERN_WARNING "Unable to register %s block device on major %d: %d\n",
 		       tr->name, tr->major, ret);
 		mutex_unlock(&mtd_table_mutex);
 		return ret;
 	}
+
+	if (ret)
+		tr->major = ret;
 
 	tr->blkshift = ffs(tr->blksize) - 1;
 
