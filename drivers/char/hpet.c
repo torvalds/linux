@@ -32,12 +32,12 @@
 #include <linux/bitops.h>
 #include <linux/compat.h>
 #include <linux/clocksource.h>
+#include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 
 #include <asm/current.h>
-#include <asm/uaccess.h>
 #include <asm/system.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
 
@@ -81,13 +81,13 @@ static cycle_t read_hpet(struct clocksource *cs)
 }
 
 static struct clocksource clocksource_hpet = {
-        .name           = "hpet",
-        .rating         = 250,
-        .read           = read_hpet,
-        .mask           = CLOCKSOURCE_MASK(64),
-	.mult		= 0, /* to be calculated */
-        .shift          = 10,
-        .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
+	.name		= "hpet",
+	.rating		= 250,
+	.read		= read_hpet,
+	.mask		= CLOCKSOURCE_MASK(64),
+	.mult		= 0,		/* to be calculated */
+	.shift		= 10,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 static struct clocksource *hpet_clocksource;
 #endif
@@ -826,7 +826,7 @@ int hpet_alloc(struct hpet_data *hdp)
 	struct hpets *hpetp;
 	size_t siz;
 	struct hpet __iomem *hpet;
-	static struct hpets *last = NULL;
+	static struct hpets *last;
 	unsigned long period;
 	unsigned long long temp;
 	u32 remainder;
