@@ -2769,16 +2769,55 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
+static int sd_isoc_init(struct gspca_dev *gspca_dev)
+{
+	struct usb_host_interface *alt;
+	int max_packet_size;
+
+	switch (gspca_dev->width) {
+	case 160:
+		max_packet_size = 450;
+		break;
+	case 176:
+		max_packet_size = 600;
+		break;
+	default:
+		max_packet_size = 1022;
+		break;
+	}
+
+	/* Start isoc bandwidth "negotiation" at max isoc bandwidth */
+	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
+	alt->endpoint[0].desc.wMaxPacketSize = cpu_to_le16(max_packet_size);
+
+	return 0;
+}
+
 static int sd_isoc_nego(struct gspca_dev *gspca_dev)
 {
-	int ret, packet_size;
+	int ret, packet_size, min_packet_size;
 	struct usb_host_interface *alt;
+
+	switch (gspca_dev->width) {
+	case 160:
+		min_packet_size = 200;
+		break;
+	case 176:
+		min_packet_size = 266;
+		break;
+	default:
+		min_packet_size = 400;
+		break;
+	}
 
 	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
 	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
-	packet_size -= 100;
-	if (packet_size < 300)
+	if (packet_size <= min_packet_size)
 		return -EIO;
+
+	packet_size -= 100;
+	if (packet_size < min_packet_size)
+		packet_size = min_packet_size;
 	alt->endpoint[0].desc.wMaxPacketSize = cpu_to_le16(packet_size);
 
 	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, 1);
@@ -2796,14 +2835,11 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_host_interface *alt;
 
 	/* We cannot use gspca_dev->present here as that is not set when
 	   sd_init gets called and we get called from sd_init */
 	if (!gspca_dev->dev)
 		return;
-
-	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
 
 	switch (sd->model) {
 	case CIT_MODEL0:
@@ -2859,10 +2895,6 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		   restarting the stream after this */
 		/* cit_write_reg(gspca_dev, 0x0000, 0x0112); */
 		cit_write_reg(gspca_dev, 0x00c0, 0x0100);
-
-		/* Start isoc bandwidth "negotiation" at max isoc bandwith
-		   next stream start */
-		alt->endpoint[0].desc.wMaxPacketSize = cpu_to_le16(1022);
 		break;
 	}
 }
@@ -3179,6 +3211,7 @@ static const struct sd_desc sd_desc_isoc_nego = {
 	.config = sd_config,
 	.init = sd_init,
 	.start = sd_start,
+	.isoc_init = sd_isoc_init,
 	.isoc_nego = sd_isoc_nego,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
