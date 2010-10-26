@@ -25,8 +25,8 @@
  * pointing to this anon_vma once its vma list is empty.
  */
 struct anon_vma {
-	spinlock_t lock;	/* Serialize access to vma list */
 	struct anon_vma *root;	/* Root of this anon_vma tree */
+	spinlock_t lock;	/* Serialize access to vma list */
 #if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
 
 	/*
