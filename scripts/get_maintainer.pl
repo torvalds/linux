@@ -110,10 +110,12 @@ my %VCS_cmds_hg = (
     "blame_commit_pattern" => "^([0-9a-f]+):"
 );
 
-if (-f "${lk_path}.get_maintainer.conf") {
+my $conf = which_conf(".get_maintainer.conf");
+if (-f $conf) {
     my @conf_args;
-    open(my $conffile, '<', "${lk_path}.get_maintainer.conf")
-	or warn "$P: Can't open .get_maintainer.conf: $!\n";
+    open(my $conffile, '<', "$conf")
+	or warn "$P: Can't find a readable .get_maintainer.conf file $!\n";
+
     while (<$conffile>) {
 	my $line = $_;
 
@@ -955,6 +957,18 @@ sub which {
     foreach my $path (split(/:/, $ENV{PATH})) {
 	if (-e "$path/$bin") {
 	    return "$path/$bin";
+	}
+    }
+
+    return "";
+}
+
+sub which_conf {
+    my ($conf) = @_;
+
+    foreach my $path (split(/:/, ".:$ENV{HOME}:.scripts")) {
+	if (-e "$path/$conf") {
+	    return "$path/$conf";
 	}
     }
 
