@@ -249,7 +249,7 @@ extern time_t nfsd4_grace;
 #define	COMPOUND_SLACK_SPACE		140    /* OP_GETFH */
 #define COMPOUND_ERR_SLACK_SPACE	12     /* OP_SETATTR */
 
-#define NFSD_LAUNDROMAT_MINTIMEOUT      10   /* seconds */
+#define NFSD_LAUNDROMAT_MINTIMEOUT      1   /* seconds */
 
 /*
  * The following attributes are currently not supported by the NFSv4 server:

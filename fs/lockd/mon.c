@@ -69,6 +69,7 @@ static struct rpc_clnt *nsm_create(void)
 		.sin_addr.s_addr	= htonl(INADDR_LOOPBACK),
 	};
 	struct rpc_create_args args = {
+		.net			= &init_net,
 		.protocol		= XPRT_TRANSPORT_UDP,
 		.address		= (struct sockaddr *)&sin,
 		.addrsize		= sizeof(sin),

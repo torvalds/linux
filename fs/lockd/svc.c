@@ -206,7 +206,7 @@ static int create_lockd_listener(struct svc_serv *serv, const char *name,
 
 	xprt = svc_find_xprt(serv, name, family, 0);
 	if (xprt == NULL)
-		return svc_create_xprt(serv, name, family, port,
+		return svc_create_xprt(serv, name, &init_net, family, port,
 						SVC_SOCK_DEFAULTS);
 	svc_xprt_put(xprt);
 	return 0;

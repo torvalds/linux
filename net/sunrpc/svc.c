@@ -1055,6 +1055,9 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 		goto err_bad;
 	case SVC_DENIED:
 		goto err_bad_auth;
+	case SVC_CLOSE:
+		if (test_bit(XPT_TEMP, &rqstp->rq_xprt->xpt_flags))
+			svc_close_xprt(rqstp->rq_xprt);
 	case SVC_DROP:
 		goto dropit;
 	case SVC_COMPLETE:

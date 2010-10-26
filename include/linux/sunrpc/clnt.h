@@ -102,6 +102,7 @@ struct rpc_procinfo {
 #ifdef __KERNEL__
 
 struct rpc_create_args {
+	struct net		*net;
 	int			protocol;
 	struct sockaddr		*address;
 	size_t			addrsize;

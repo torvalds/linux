@@ -964,7 +964,7 @@ svcauth_gss_set_client(struct svc_rqst *rqstp)
 	if (rqstp->rq_gssclient == NULL)
 		return SVC_DENIED;
 	stat = svcauth_unix_set_client(rqstp);
-	if (stat == SVC_DROP)
+	if (stat == SVC_DROP || stat == SVC_CLOSE)
 		return stat;
 	return SVC_OK;
 }
@@ -1018,7 +1018,7 @@ static int svcauth_gss_handle_init(struct svc_rqst *rqstp,
 		return SVC_DENIED;
 	memset(&rsikey, 0, sizeof(rsikey));
 	if (dup_netobj(&rsikey.in_handle, &gc->gc_ctx))
-		return SVC_DROP;
+		return SVC_CLOSE;
 	*authp = rpc_autherr_badverf;
 	if (svc_safe_getnetobj(argv, &tmpobj)) {
 		kfree(rsikey.in_handle.data);
@@ -1026,38 +1026,35 @@ static int svcauth_gss_handle_init(struct svc_rqst *rqstp,
 	}
 	if (dup_netobj(&rsikey.in_token, &tmpobj)) {
 		kfree(rsikey.in_handle.data);
-		return SVC_DROP;
+		return SVC_CLOSE;
 	}
 
 	/* Perform upcall, or find upcall result: */
 	rsip = rsi_lookup(&rsikey);
 	rsi_free(&rsikey);
 	if (!rsip)
-		return SVC_DROP;
-	switch (cache_check(&rsi_cache, &rsip->h, &rqstp->rq_chandle)) {
-	case -EAGAIN:
-	case -ETIMEDOUT:
-	case -ENOENT:
+		return SVC_CLOSE;
+	if (cache_check(&rsi_cache, &rsip->h, &rqstp->rq_chandle) < 0)
 		/* No upcall result: */
-		return SVC_DROP;
-	case 0:
-		ret = SVC_DROP;
-		/* Got an answer to the upcall; use it: */
-		if (gss_write_init_verf(rqstp, rsip))
-			goto out;
-		if (resv->iov_len + 4 > PAGE_SIZE)
-			goto out;
-		svc_putnl(resv, RPC_SUCCESS);
-		if (svc_safe_putnetobj(resv, &rsip->out_handle))
-			goto out;
-		if (resv->iov_len + 3 * 4 > PAGE_SIZE)
-			goto out;
-		svc_putnl(resv, rsip->major_status);
-		svc_putnl(resv, rsip->minor_status);
-		svc_putnl(resv, GSS_SEQ_WIN);
-		if (svc_safe_putnetobj(resv, &rsip->out_token))
-			goto out;
-	}
+		return SVC_CLOSE;
+
+	ret = SVC_CLOSE;
+	/* Got an answer to the upcall; use it: */
+	if (gss_write_init_verf(rqstp, rsip))
+		goto out;
+	if (resv->iov_len + 4 > PAGE_SIZE)
+		goto out;
+	svc_putnl(resv, RPC_SUCCESS);
+	if (svc_safe_putnetobj(resv, &rsip->out_handle))
+		goto out;
+	if (resv->iov_len + 3 * 4 > PAGE_SIZE)
+		goto out;
+	svc_putnl(resv, rsip->major_status);
+	svc_putnl(resv, rsip->minor_status);
+	svc_putnl(resv, GSS_SEQ_WIN);
+	if (svc_safe_putnetobj(resv, &rsip->out_token))
+		goto out;
+
 	ret = SVC_COMPLETE;
 out:
 	cache_put(&rsip->h, &rsi_cache);

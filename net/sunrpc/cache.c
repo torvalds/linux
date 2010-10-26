@@ -33,15 +33,16 @@
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
+#include "netns.h"
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
 
-static int cache_defer_req(struct cache_req *req, struct cache_head *item);
+static void cache_defer_req(struct cache_req *req, struct cache_head *item);
 static void cache_revisit_request(struct cache_head *item);
 
 static void cache_init(struct cache_head *h)
 {
-	time_t now = get_seconds();
+	time_t now = seconds_since_boot();
 	h->next = NULL;
 	h->flags = 0;
 	kref_init(&h->ref);
@@ -51,7 +52,7 @@ static void cache_init(struct cache_head *h)
 
 static inline int cache_is_expired(struct cache_detail *detail, struct cache_head *h)
 {
-	return  (h->expiry_time < get_seconds()) ||
+	return  (h->expiry_time < seconds_since_boot()) ||
 		(detail->flush_time > h->last_refresh);
 }
 
@@ -126,7 +127,7 @@ static void cache_dequeue(struct cache_detail *detail, struct cache_head *ch);
 static void cache_fresh_locked(struct cache_head *head, time_t expiry)
 {
 	head->expiry_time = expiry;
-	head->last_refresh = get_seconds();
+	head->last_refresh = seconds_since_boot();
 	set_bit(CACHE_VALID, &head->flags);
 }
 
@@ -237,7 +238,7 @@ int cache_check(struct cache_detail *detail,
 
 	/* now see if we want to start an upcall */
 	refresh_age = (h->expiry_time - h->last_refresh);
-	age = get_seconds() - h->last_refresh;
+	age = seconds_since_boot() - h->last_refresh;
 
 	if (rqstp == NULL) {
 		if (rv == -EAGAIN)
@@ -252,7 +253,7 @@ int cache_check(struct cache_detail *detail,
 				cache_revisit_request(h);
 				if (rv == -EAGAIN) {
 					set_bit(CACHE_NEGATIVE, &h->flags);
-					cache_fresh_locked(h, get_seconds()+CACHE_NEW_EXPIRY);
+					cache_fresh_locked(h, seconds_since_boot()+CACHE_NEW_EXPIRY);
 					cache_fresh_unlocked(h, detail);
 					rv = -ENOENT;
 				}
@@ -267,7 +268,8 @@ int cache_check(struct cache_detail *detail,
 	}
 
 	if (rv == -EAGAIN) {
-		if (cache_defer_req(rqstp, h) < 0) {
+		cache_defer_req(rqstp, h);
+		if (!test_bit(CACHE_PENDING, &h->flags)) {
 			/* Request is not deferred */
 			rv = cache_is_valid(detail, h);
 			if (rv == -EAGAIN)
@@ -387,11 +389,11 @@ static int cache_clean(void)
 			return -1;
 		}
 		current_detail = list_entry(next, struct cache_detail, others);
-		if (current_detail->nextcheck > get_seconds())
+		if (current_detail->nextcheck > seconds_since_boot())
 			current_index = current_detail->hash_size;
 		else {
 			current_index = 0;
-			current_detail->nextcheck = get_seconds()+30*60;
+			current_detail->nextcheck = seconds_since_boot()+30*60;
 		}
 	}
 
@@ -476,7 +478,7 @@ EXPORT_SYMBOL_GPL(cache_flush);
 void cache_purge(struct cache_detail *detail)
 {
 	detail->flush_time = LONG_MAX;
-	detail->nextcheck = get_seconds();
+	detail->nextcheck = seconds_since_boot();
 	cache_flush();
 	detail->flush_time = 1;
 }
@@ -505,81 +507,155 @@ EXPORT_SYMBOL_GPL(cache_purge);
 
 static DEFINE_SPINLOCK(cache_defer_lock);
 static LIST_HEAD(cache_defer_list);
-static struct list_head cache_defer_hash[DFR_HASHSIZE];
+static struct hlist_head cache_defer_hash[DFR_HASHSIZE];
 static int cache_defer_cnt;
 
-static int cache_defer_req(struct cache_req *req, struct cache_head *item)
+static void __unhash_deferred_req(struct cache_deferred_req *dreq)
 {
-	struct cache_deferred_req *dreq, *discard;
+	hlist_del_init(&dreq->hash);
+	if (!list_empty(&dreq->recent)) {
+		list_del_init(&dreq->recent);
+		cache_defer_cnt--;
+	}
+}
+
+static void __hash_deferred_req(struct cache_deferred_req *dreq, struct cache_head *item)
+{
 	int hash = DFR_HASH(item);
 
-	if (cache_defer_cnt >= DFR_MAX) {
-		/* too much in the cache, randomly drop this one,
-		 * or continue and drop the oldest below
-		 */
-		if (net_random()&1)
-			return -ENOMEM;
-	}
-	dreq = req->defer(req);
-	if (dreq == NULL)
-		return -ENOMEM;
+	INIT_LIST_HEAD(&dreq->recent);
+	hlist_add_head(&dreq->hash, &cache_defer_hash[hash]);
+}
+
+static void setup_deferral(struct cache_deferred_req *dreq,
+			   struct cache_head *item,
+			   int count_me)
+{
 
 	dreq->item = item;
 
 	spin_lock(&cache_defer_lock);
 
-	list_add(&dreq->recent, &cache_defer_list);
+	__hash_deferred_req(dreq, item);
 
-	if (cache_defer_hash[hash].next == NULL)
-		INIT_LIST_HEAD(&cache_defer_hash[hash]);
-	list_add(&dreq->hash, &cache_defer_hash[hash]);
-
-	/* it is in, now maybe clean up */
-	discard = NULL;
-	if (++cache_defer_cnt > DFR_MAX) {
-		discard = list_entry(cache_defer_list.prev,
-				     struct cache_deferred_req, recent);
-		list_del_init(&discard->recent);
-		list_del_init(&discard->hash);
-		cache_defer_cnt--;
+	if (count_me) {
+		cache_defer_cnt++;
+		list_add(&dreq->recent, &cache_defer_list);
 	}
+
 	spin_unlock(&cache_defer_lock);
 
-	if (discard)
-		/* there was one too many */
-		discard->revisit(discard, 1);
+}
 
-	if (!test_bit(CACHE_PENDING, &item->flags)) {
-		/* must have just been validated... */
-		cache_revisit_request(item);
-		return -EAGAIN;
+struct thread_deferred_req {
+	struct cache_deferred_req handle;
+	struct completion completion;
+};
+
+static void cache_restart_thread(struct cache_deferred_req *dreq, int too_many)
+{
+	struct thread_deferred_req *dr =
+		container_of(dreq, struct thread_deferred_req, handle);
+	complete(&dr->completion);
+}
+
+static void cache_wait_req(struct cache_req *req, struct cache_head *item)
+{
+	struct thread_deferred_req sleeper;
+	struct cache_deferred_req *dreq = &sleeper.handle;
+
+	sleeper.completion = COMPLETION_INITIALIZER_ONSTACK(sleeper.completion);
+	dreq->revisit = cache_restart_thread;
+
+	setup_deferral(dreq, item, 0);
+
+	if (!test_bit(CACHE_PENDING, &item->flags) ||
+	    wait_for_completion_interruptible_timeout(
+		    &sleeper.completion, req->thread_wait) <= 0) {
+		/* The completion wasn't completed, so we need
+		 * to clean up
+		 */
+		spin_lock(&cache_defer_lock);
+		if (!hlist_unhashed(&sleeper.handle.hash)) {
+			__unhash_deferred_req(&sleeper.handle);
+			spin_unlock(&cache_defer_lock);
+		} else {
+			/* cache_revisit_request already removed
+			 * this from the hash table, but hasn't
+			 * called ->revisit yet.  It will very soon
+			 * and we need to wait for it.
+			 */
+			spin_unlock(&cache_defer_lock);
+			wait_for_completion(&sleeper.completion);
+		}
 	}
-	return 0;
+}
+
+static void cache_limit_defers(void)
+{
+	/* Make sure we haven't exceed the limit of allowed deferred
+	 * requests.
+	 */
+	struct cache_deferred_req *discard = NULL;
+
+	if (cache_defer_cnt <= DFR_MAX)
+		return;
+
+	spin_lock(&cache_defer_lock);
+
+	/* Consider removing either the first or the last */
+	if (cache_defer_cnt > DFR_MAX) {
+		if (net_random() & 1)
+			discard = list_entry(cache_defer_list.next,
+					     struct cache_deferred_req, recent);
+		else
+			discard = list_entry(cache_defer_list.prev,
+					     struct cache_deferred_req, recent);
+		__unhash_deferred_req(discard);
+	}
+	spin_unlock(&cache_defer_lock);
+	if (discard)
+		discard->revisit(discard, 1);
+}
+
+static void cache_defer_req(struct cache_req *req, struct cache_head *item)
+{
+	struct cache_deferred_req *dreq;
+
+	if (req->thread_wait) {
+		cache_wait_req(req, item);
+		if (!test_bit(CACHE_PENDING, &item->flags))
+			return;
+	}
+	dreq = req->defer(req);
+	if (dreq == NULL)
+		return;
+	setup_deferral(dreq, item, 1);
+	if (!test_bit(CACHE_PENDING, &item->flags))
+		/* Bit could have been cleared before we managed to
+		 * set up the deferral, so need to revisit just in case
+		 */
+		cache_revisit_request(item);
+
+	cache_limit_defers();
 }
 
 static void cache_revisit_request(struct cache_head *item)
 {
 	struct cache_deferred_req *dreq;
 	struct list_head pending;
-
-	struct list_head *lp;
+	struct hlist_node *lp, *tmp;
 	int hash = DFR_HASH(item);
 
 	INIT_LIST_HEAD(&pending);
 	spin_lock(&cache_defer_lock);
 
-	lp = cache_defer_hash[hash].next;
-	if (lp) {
-		while (lp != &cache_defer_hash[hash]) {
-			dreq = list_entry(lp, struct cache_deferred_req, hash);
-			lp = lp->next;
-			if (dreq->item == item) {
-				list_del_init(&dreq->hash);
-				list_move(&dreq->recent, &pending);
-				cache_defer_cnt--;
-			}
+	hlist_for_each_entry_safe(dreq, lp, tmp, &cache_defer_hash[hash], hash)
+		if (dreq->item == item) {
+			__unhash_deferred_req(dreq);
+			list_add(&dreq->recent, &pending);
 		}
-	}
+
 	spin_unlock(&cache_defer_lock);
 
 	while (!list_empty(&pending)) {
@@ -600,9 +676,8 @@ void cache_clean_deferred(void *owner)
 
 	list_for_each_entry_safe(dreq, tmp, &cache_defer_list, recent) {
 		if (dreq->owner == owner) {
-			list_del_init(&dreq->hash);
-			list_move(&dreq->recent, &pending);
-			cache_defer_cnt--;
+			__unhash_deferred_req(dreq);
+			list_add(&dreq->recent, &pending);
 		}
 	}
 	spin_unlock(&cache_defer_lock);
@@ -901,7 +976,7 @@ static int cache_release(struct inode *inode, struct file *filp,
 		filp->private_data = NULL;
 		kfree(rp);
 
-		cd->last_close = get_seconds();
+		cd->last_close = seconds_since_boot();
 		atomic_dec(&cd->readers);
 	}
 	module_put(cd->owner);
@@ -1014,6 +1089,23 @@ static void warn_no_listener(struct cache_detail *detail)
 	}
 }
 
+static bool cache_listeners_exist(struct cache_detail *detail)
+{
+	if (atomic_read(&detail->readers))
+		return true;
+	if (detail->last_close == 0)
+		/* This cache was never opened */
+		return false;
+	if (detail->last_close < seconds_since_boot() - 30)
+		/*
+		 * We allow for the possibility that someone might
+		 * restart a userspace daemon without restarting the
+		 * server; but after 30 seconds, we give up.
+		 */
+		 return false;
+	return true;
+}
+
 /*
  * register an upcall request to user-space and queue it up for read() by the
  * upcall daemon.
@@ -1032,10 +1124,9 @@ int sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h,
 	char *bp;
 	int len;
 
-	if (atomic_read(&detail->readers) == 0 &&
-	    detail->last_close < get_seconds() - 30) {
-			warn_no_listener(detail);
-			return -EINVAL;
+	if (!cache_listeners_exist(detail)) {
+		warn_no_listener(detail);
+		return -EINVAL;
 	}
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
@@ -1094,13 +1185,19 @@ int qword_get(char **bpp, char *dest, int bufsize)
 	if (bp[0] == '\\' && bp[1] == 'x') {
 		/* HEX STRING */
 		bp += 2;
-		while (isxdigit(bp[0]) && isxdigit(bp[1]) && len < bufsize) {
-			int byte = isdigit(*bp) ? *bp-'0' : toupper(*bp)-'A'+10;
-			bp++;
-			byte <<= 4;
-			byte |= isdigit(*bp) ? *bp-'0' : toupper(*bp)-'A'+10;
-			*dest++ = byte;
-			bp++;
+		while (len < bufsize) {
+			int h, l;
+
+			h = hex_to_bin(bp[0]);
+			if (h < 0)
+				break;
+
+			l = hex_to_bin(bp[1]);
+			if (l < 0)
+				break;
+
+			*dest++ = (h << 4) | l;
+			bp += 2;
 			len++;
 		}
 	} else {
@@ -1218,7 +1315,8 @@ static int c_show(struct seq_file *m, void *p)
 
 	ifdebug(CACHE)
 		seq_printf(m, "# expiry=%ld refcnt=%d flags=%lx\n",
-			   cp->expiry_time, atomic_read(&cp->ref.refcount), cp->flags);
+			   convert_to_wallclock(cp->expiry_time),
+			   atomic_read(&cp->ref.refcount), cp->flags);
 	cache_get(cp);
 	if (cache_check(cd, cp, NULL))
 		/* cache_check does a cache_put on failure */
@@ -1284,7 +1382,7 @@ static ssize_t read_flush(struct file *file, char __user *buf,
 	unsigned long p = *ppos;
 	size_t len;
 
-	sprintf(tbuf, "%lu\n", cd->flush_time);
+	sprintf(tbuf, "%lu\n", convert_to_wallclock(cd->flush_time));
 	len = strlen(tbuf);
 	if (p >= len)
 		return 0;
@@ -1302,19 +1400,20 @@ static ssize_t write_flush(struct file *file, const char __user *buf,
 			   struct cache_detail *cd)
 {
 	char tbuf[20];
-	char *ep;
-	long flushtime;
+	char *bp, *ep;
+
 	if (*ppos || count > sizeof(tbuf)-1)
 		return -EINVAL;
 	if (copy_from_user(tbuf, buf, count))
 		return -EFAULT;
 	tbuf[count] = 0;
-	flushtime = simple_strtoul(tbuf, &ep, 0);
+	simple_strtoul(tbuf, &ep, 0);
 	if (*ep && *ep != '\n')
 		return -EINVAL;
 
-	cd->flush_time = flushtime;
-	cd->nextcheck = get_seconds();
+	bp = tbuf;
+	cd->flush_time = get_expiry(&bp);
+	cd->nextcheck = seconds_since_boot();
 	cache_flush();
 
 	*ppos += count;
@@ -1438,8 +1537,10 @@ static const struct file_operations cache_flush_operations_procfs = {
 	.llseek		= no_llseek,
 };
 
-static void remove_cache_proc_entries(struct cache_detail *cd)
+static void remove_cache_proc_entries(struct cache_detail *cd, struct net *net)
 {
+	struct sunrpc_net *sn;
+
 	if (cd->u.procfs.proc_ent == NULL)
 		return;
 	if (cd->u.procfs.flush_ent)
@@ -1449,15 +1550,18 @@ static void remove_cache_proc_entries(struct cache_detail *cd)
 	if (cd->u.procfs.content_ent)
 		remove_proc_entry("content", cd->u.procfs.proc_ent);
 	cd->u.procfs.proc_ent = NULL;
-	remove_proc_entry(cd->name, proc_net_rpc);
+	sn = net_generic(net, sunrpc_net_id);
+	remove_proc_entry(cd->name, sn->proc_net_rpc);
 }
 
 #ifdef CONFIG_PROC_FS
-static int create_cache_proc_entries(struct cache_detail *cd)
+static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
 {
 	struct proc_dir_entry *p;
+	struct sunrpc_net *sn;
 
-	cd->u.procfs.proc_ent = proc_mkdir(cd->name, proc_net_rpc);
+	sn = net_generic(net, sunrpc_net_id);
+	cd->u.procfs.proc_ent = proc_mkdir(cd->name, sn->proc_net_rpc);
 	if (cd->u.procfs.proc_ent == NULL)
 		goto out_nomem;
 	cd->u.procfs.channel_ent = NULL;
@@ -1488,11 +1592,11 @@ static int create_cache_proc_entries(struct cache_detail *cd)
 	}
 	return 0;
 out_nomem:
-	remove_cache_proc_entries(cd);
+	remove_cache_proc_entries(cd, net);
 	return -ENOMEM;
 }
 #else /* CONFIG_PROC_FS */
-static int create_cache_proc_entries(struct cache_detail *cd)
+static int create_cache_proc_entries(struct cache_detail *cd, struct net *net)
 {
 	return 0;
 }
@@ -1503,22 +1607,32 @@ void __init cache_initialize(void)
 	INIT_DELAYED_WORK_DEFERRABLE(&cache_cleaner, do_cache_clean);
 }
 
-int cache_register(struct cache_detail *cd)
+int cache_register_net(struct cache_detail *cd, struct net *net)
 {
 	int ret;
 
 	sunrpc_init_cache_detail(cd);
-	ret = create_cache_proc_entries(cd);
+	ret = create_cache_proc_entries(cd, net);
 	if (ret)
 		sunrpc_destroy_cache_detail(cd);
 	return ret;
 }
+
+int cache_register(struct cache_detail *cd)
+{
+	return cache_register_net(cd, &init_net);
+}
 EXPORT_SYMBOL_GPL(cache_register);
+
+void cache_unregister_net(struct cache_detail *cd, struct net *net)
+{
+	remove_cache_proc_entries(cd, net);
+	sunrpc_destroy_cache_detail(cd);
+}
 
 void cache_unregister(struct cache_detail *cd)
 {
-	remove_cache_proc_entries(cd);
-	sunrpc_destroy_cache_detail(cd);
+	cache_unregister_net(cd, &init_net);
 }
 EXPORT_SYMBOL_GPL(cache_unregister);
 
