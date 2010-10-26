@@ -75,7 +75,7 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
 
 'f'	- Will call oom_kill to kill a memory hog process.
 
-'g'	- Used by kgdb on ppc and sh platforms.
+'g'	- Used by kgdb (kernel debugger)
 
 'h'     - Will display help (actually any other key than those listed
           here will display help. but 'h' is easy to remember :-)
@@ -110,11 +110,14 @@ On all -  write a character to /proc/sysrq-trigger.  e.g.:
 
 'u'     - Will attempt to remount all mounted filesystems read-only.
 
-'v'	- Dumps Voyager SMP processor info to your console.
+'v'	- Forcefully restores framebuffer console
+'v'	- Causes ETM buffer dump [ARM-specific]
 
 'w'	- Dumps tasks that are in uninterruptable (blocked) state.
 
 'x'	- Used by xmon interface on ppc/powerpc platforms.
+
+'y'	- Show global CPU Registers [SPARC-64 specific]
 
 'z'	- Dump the ftrace buffer
 
