@@ -81,6 +81,7 @@ struct idr {
 #define _idr_rc_to_errno(rc) ((rc) == -1 ? -EAGAIN : -ENOSPC)
 
 /**
+ * DOC: idr sync
  * idr synchronization (stolen from radix-tree.h)
  *
  * idr_find() is able to be called locklessly, using RCU. The caller must
