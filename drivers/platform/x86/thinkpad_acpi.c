@@ -8497,7 +8497,6 @@ static void ibm_exit(struct ibm_struct *ibm)
 					   ibm->acpi->type,
 					   dispatch_acpi_notify);
 		ibm->flags.acpi_notify_installed = 0;
-		ibm->flags.acpi_notify_installed = 0;
 	}
 
 	if (ibm->flags.proc_created) {
