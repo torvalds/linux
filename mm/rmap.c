@@ -409,7 +409,7 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
  *
  * On success returns with pte mapped and locked.
  */
-pte_t *page_check_address(struct page *page, struct mm_struct *mm,
+pte_t *__page_check_address(struct page *page, struct mm_struct *mm,
 			  unsigned long address, spinlock_t **ptlp, int sync)
 {
 	pgd_t *pgd;
