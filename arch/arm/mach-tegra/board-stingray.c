@@ -659,6 +659,7 @@ static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 	{ "i2s2",	"pll_a_out0",	24000000,	false},
 	{ "audio",	"pll_a_out0",	24000000,	false},
 	{ "audio_2x",	"audio",	48000000,	false},
+	{ "sdmmc2",	"pll_m",	50000000,	false},
 	{ NULL,		NULL,		0,		0},
 };
 
