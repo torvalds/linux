@@ -2167,11 +2167,11 @@ peek_fb(struct drm_device *dev, struct io_mapping *fb,
 
 	if (off < pci_resource_len(dev->pdev, 1)) {
 		uint8_t __iomem *p =
-			io_mapping_map_atomic_wc(fb, off & PAGE_MASK, KM_USER0);
+			io_mapping_map_atomic_wc(fb, off & PAGE_MASK);
 
 		val = ioread32(p + (off & ~PAGE_MASK));
 
-		io_mapping_unmap_atomic(p, KM_USER0);
+		io_mapping_unmap_atomic(p);
 	}
 
 	return val;
@@ -2183,12 +2183,12 @@ poke_fb(struct drm_device *dev, struct io_mapping *fb,
 {
 	if (off < pci_resource_len(dev->pdev, 1)) {
 		uint8_t __iomem *p =
-			io_mapping_map_atomic_wc(fb, off & PAGE_MASK, KM_USER0);
+			io_mapping_map_atomic_wc(fb, off & PAGE_MASK);
 
 		iowrite32(val, p + (off & ~PAGE_MASK));
 		wmb();
 
-		io_mapping_unmap_atomic(p, KM_USER0);
+		io_mapping_unmap_atomic(p);
 	}
 }
 
