@@ -437,9 +437,9 @@ struct wlc_if;
 #define EDCF_ENAB(pub) (WME_ENAB(pub))
 #define QOS_ENAB(pub) (WME_ENAB(pub) || N_ENAB(pub))
 
-#define MONITOR_ENAB(wlc)	(bcmspace && (wlc)->monitor)
+#define MONITOR_ENAB(wlc)	((wlc)->monitor)
 
-#define PROMISC_ENAB(wlc)	(bcmspace && (wlc)->promisc)
+#define PROMISC_ENAB(wlc)	((wlc)->promisc)
 
 extern void wlc_pkttag_info_move(wlc_pub_t *pub, void *pkt_from, void *pkt_to);
 
