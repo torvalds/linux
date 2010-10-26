@@ -883,14 +883,6 @@ config BFIN_RX_DESC_NUM
 	help
 	  Set the number of buffer packets used in driver.
 
-config BFIN_MAC_RMII
-	bool "RMII PHY Interface"
-	depends on BFIN_MAC
-	default y if BFIN527_EZKIT
-	default n if BFIN537_STAMP
-	help
-	  Use Reduced PHY MII Interface
-
 config BFIN_MAC_USE_HWSTAMP
 	bool "Use IEEE 1588 hwstamp"
 	depends on BFIN_MAC && BF518
