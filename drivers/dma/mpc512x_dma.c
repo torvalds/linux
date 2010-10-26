@@ -252,11 +252,13 @@ static void mpc_dma_execute(struct mpc_dma_chan *mchan)
 		prev = mdesc;
 	}
 
-	prev->tcd->start = 0;
 	prev->tcd->int_maj = 1;
 
 	/* Send first descriptor in chain into hardware */
 	memcpy_toio(&mdma->tcd[cid], first->tcd, sizeof(struct mpc_dma_tcd));
+
+	if (first != prev)
+		mdma->tcd[cid].e_sg = 1;
 	out_8(&mdma->regs->dmassrt, cid);
 }
 
