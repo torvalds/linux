@@ -647,6 +647,7 @@ static inline int can_use_console(unsigned int cpu)
  * released but interrupts still disabled.
  */
 static int acquire_console_semaphore_for_printk(unsigned int cpu)
+	__releases(&logbuf_lock)
 {
 	int retval = 0;
 
