@@ -455,9 +455,6 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 		ppci->iommu_table = iommu_init_table(tbl, ppci->phb->node);
 		pr_debug("  created table: %p\n", ppci->iommu_table);
 	}
-
-	if (pdn != dn)
-		PCI_DN(dn)->iommu_table = ppci->iommu_table;
 }
 
 
@@ -571,8 +568,7 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 
 	switch (action) {
 	case PSERIES_RECONFIG_REMOVE:
-		if (pci && pci->iommu_table &&
-		    of_get_property(np, "ibm,dma-window", NULL))
+		if (pci && pci->iommu_table)
 			iommu_free_table(pci->iommu_table, np->full_name);
 		break;
 	default:
