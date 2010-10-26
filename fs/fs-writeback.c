@@ -721,6 +721,10 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
 		return 0;
 
 	wb->last_old_flush = jiffies;
+	/*
+	 * Add in the number of potentially dirty inodes, because each inode
+	 * write can dirty pagecache in the underlying blockdev.
+	 */
 	nr_pages = global_page_state(NR_FILE_DIRTY) +
 			global_page_state(NR_UNSTABLE_NFS) +
 			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
