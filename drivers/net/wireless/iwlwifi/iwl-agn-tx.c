@@ -1227,7 +1227,8 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	struct ieee80211_tx_info *info;
 
 	if (unlikely(!agg->wait_for_ba))  {
-		IWL_ERR(priv, "Received BA when not expected\n");
+		if (unlikely(ba_resp->bitmap))
+			IWL_ERR(priv, "Received BA when not expected\n");
 		return -EINVAL;
 	}
 

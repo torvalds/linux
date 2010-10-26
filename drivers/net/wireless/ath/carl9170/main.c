@@ -639,8 +639,8 @@ init:
 		if (err)
 			goto unlock;
 	} else {
-		err = carl9170_mod_virtual_mac(ar, vif_id, vif->addr);
 		rcu_read_unlock();
+		err = carl9170_mod_virtual_mac(ar, vif_id, vif->addr);
 
 		if (err)
 			goto unlock;
