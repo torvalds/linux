@@ -1417,7 +1417,6 @@ cy_as_usb_set_enum_config(cy_as_device_handle handle,
 	 */
 	bus_mask   = 0;
 	media_mask = 0;
-	media_mask = 0;
 	for (bus = 0; bus < CY_AS_MAX_BUSES; bus++) {
 		for (device = 0; device < CY_AS_MAX_STORAGE_DEVICES; device++) {
 			if (config_p->devices_to_enumerate[bus][device] ==
