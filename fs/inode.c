@@ -478,6 +478,49 @@ static void dispose_list(struct list_head *head)
 }
 
 /**
+ * evict_inodes	- evict all evictable inodes for a superblock
+ * @sb:		superblock to operate on
+ *
+ * Make sure that no inodes with zero refcount are retained.  This is
+ * called by superblock shutdown after having MS_ACTIVE flag removed,
+ * so any inode reaching zero refcount during or after that call will
+ * be immediately evicted.
+ */
+void evict_inodes(struct super_block *sb)
+{
+	struct inode *inode, *next;
+	LIST_HEAD(dispose);
+
+	down_write(&iprune_sem);
+
+	spin_lock(&inode_lock);
+	list_for_each_entry_safe(inode, next, &sb->s_inodes, i_sb_list) {
+		if (atomic_read(&inode->i_count))
+			continue;
+
+		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
+			WARN_ON(1);
+			continue;
+		}
+
+		inode->i_state |= I_FREEING;
+
+		/*
+		 * Move the inode off the IO lists and LRU once I_FREEING is
+		 * set so that it won't get moved back on there if it is dirty.
+		 */
+		list_move(&inode->i_lru, &dispose);
+		list_del_init(&inode->i_wb_list);
+		if (!(inode->i_state & (I_DIRTY | I_SYNC)))
+			percpu_counter_dec(&nr_inodes_unused);
+	}
+	spin_unlock(&inode_lock);
+
+	dispose_list(&dispose);
+	up_write(&iprune_sem);
+}
+
+/**
  * invalidate_inodes	- attempt to free all inodes on a superblock
  * @sb:		superblock to operate on
  *
@@ -493,9 +536,8 @@ int invalidate_inodes(struct super_block *sb)
 	down_write(&iprune_sem);
 
 	spin_lock(&inode_lock);
-	fsnotify_unmount_inodes(&sb->s_inodes);
 	list_for_each_entry_safe(inode, next, &sb->s_inodes, i_sb_list) {
-		if (inode->i_state & I_NEW)
+		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE))
 			continue;
 		if (atomic_read(&inode->i_count)) {
 			busy = 1;
