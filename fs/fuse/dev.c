@@ -811,7 +811,7 @@ static int fuse_copy_page(struct fuse_copy_state *cs, struct page **pagep,
 
 	if (page && zeroing && count < PAGE_SIZE) {
 		void *mapaddr = kmap_atomic(page, KM_USER1);
-		memset(mapaddr, 0, PAGE_SIZE);
+		clear_page(mapaddr);
 		kunmap_atomic(mapaddr, KM_USER1);
 	}
 	while (count) {

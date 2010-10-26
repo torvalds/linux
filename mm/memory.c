@@ -2080,7 +2080,7 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
 		 * zeroes.
 		 */
 		if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE))
-			memset(kaddr, 0, PAGE_SIZE);
+			clear_page(kaddr);
 		kunmap_atomic(kaddr, KM_USER0);
 		flush_dcache_page(dst);
 	} else
