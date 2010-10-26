@@ -15,6 +15,9 @@ config ARM_VIC_NR
 config ICST525
 	bool
 
+config PL330
+	bool
+
 config ICST307
 	bool
 

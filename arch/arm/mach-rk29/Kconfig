@@ -2,5 +2,6 @@ config MACH_RK29SDK
 	depends on ARCH_RK29
 	default y
 	bool "ROCKCHIP Board Rk29 For Sdk"
-	help
+        select PL330	
+        help
 	  Support for the ROCKCHIP Board For Rk29 Sdk.
