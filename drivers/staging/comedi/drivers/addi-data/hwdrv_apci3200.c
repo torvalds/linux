@@ -3011,7 +3011,7 @@ int i_APCI3200_Reset(struct comedi_device *dev)
 
 	outl(0x83838383, devpriv->i_IobaseAmcc + 0x60);
 
-	/*  Enable the interrupt for the controler */
+	/*  Enable the interrupt for the controller */
 	dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
 	outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
 	outl(0, devpriv->i_IobaseAddon);	/* Resets the output */
