@@ -942,6 +942,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_LOOPBACK_TEST		2
 
 #define QLCNIC_FILTER_AGE	80
+#define QLCNIC_READD_AGE	20
 #define QLCNIC_LB_MAX_FILTERS	64
 
 struct qlcnic_filter {
