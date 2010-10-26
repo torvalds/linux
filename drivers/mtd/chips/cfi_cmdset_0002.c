@@ -293,6 +293,21 @@ static void fixup_sst39vf_rev_b(struct mtd_info *mtd, void *param)
 	cfi->addr_unlock2 = 0x2AA;
 }
 
+static void fixup_sst38vf640x_sectorsize(struct mtd_info *mtd, void *param)
+{
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+
+	fixup_sst39vf_rev_b(mtd, param);
+
+	/*
+	 * CFI reports 1024 sectors (0x03ff+1) of 64KBytes (0x0100*256) where
+	 * it should report a size of 8KBytes (0x0020*256).
+	 */
+	cfi->cfiq->EraseRegionInfo[0] = 0x002003ff;
+	pr_warning("%s: Bad 38VF640x CFI data; adjusting sector size from 64 to 8KiB\n", mtd->name);
+}
+
 static void fixup_s29gl064n_sectors(struct mtd_info *mtd, void *param)
 {
 	struct map_info *map = mtd->priv;
@@ -344,6 +359,10 @@ static struct cfi_fixup cfi_fixup_table[] = {
 	{ CFI_MFR_AMD, 0x1301, fixup_s29gl064n_sectors, NULL, },
 	{ CFI_MFR_AMD, 0x1a00, fixup_s29gl032n_sectors, NULL, },
 	{ CFI_MFR_AMD, 0x1a01, fixup_s29gl032n_sectors, NULL, },
+	{ CFI_MFR_SST, 0x536A, fixup_sst38vf640x_sectorsize, NULL, }, /* SST38VF6402 */
+	{ CFI_MFR_SST, 0x536B, fixup_sst38vf640x_sectorsize, NULL, }, /* SST38VF6401 */
+	{ CFI_MFR_SST, 0x536C, fixup_sst38vf640x_sectorsize, NULL, }, /* SST38VF6404 */
+	{ CFI_MFR_SST, 0x536D, fixup_sst38vf640x_sectorsize, NULL, }, /* SST38VF6403 */
 #if !FORCE_WORD_WRITE
 	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_use_write_buffers, NULL, },
 #endif
@@ -374,6 +393,13 @@ static void cfi_fixup_major_minor(struct cfi_private *cfi,
 	if (cfi->mfr == CFI_MFR_SAMSUNG && cfi->id == 0x257e &&
 	    extp->MajorVersion == '0')
 		extp->MajorVersion = '1';
+	/*
+	 * SST 38VF640x chips report major=0xFF / minor=0xFF.
+	 */
+	if (cfi->mfr == CFI_MFR_SST && (cfi->id >> 4) == 0x0536) {
+		extp->MajorVersion = '1';
+		extp->MinorVersion = '0';
+	}
 }
 
 struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
