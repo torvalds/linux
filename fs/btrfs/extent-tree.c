@@ -3157,6 +3157,7 @@ static int reserve_metadata_bytes(struct btrfs_trans_handle *trans,
 	int retries = 0;
 	int ret = 0;
 	bool reserved = false;
+	bool committed = false;
 
 again:
 	ret = -ENOSPC;
@@ -3249,17 +3250,19 @@ again:
 		goto out;
 
 	ret = -EAGAIN;
-	if (trans)
+	if (trans || committed)
 		goto out;
-
 
 	ret = -ENOSPC;
 	trans = btrfs_join_transaction(root, 1);
 	if (IS_ERR(trans))
 		goto out;
 	ret = btrfs_commit_transaction(trans, root);
-	if (!ret)
+	if (!ret) {
+		trans = NULL;
+		committed = true;
 		goto again;
+	}
 
 out:
 	if (reserved) {
