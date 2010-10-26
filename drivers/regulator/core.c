@@ -766,7 +766,7 @@ static int drms_uA_update(struct regulator_dev *rdev)
 {
 	struct regulator *sibling;
 	int current_uA = 0, output_uV, input_uV, err;
-	unsigned int mode;
+	unsigned int regulator_curr_mode, mode;
 
 	lockdep_assert_held_once(&rdev->mutex);
 
@@ -825,6 +825,14 @@ static int drms_uA_update(struct regulator_dev *rdev)
 			rdev_err(rdev, "failed to get optimum mode @ %d uA %d -> %d uV\n",
 				 current_uA, input_uV, output_uV);
 			return err;
+		}
+		/* return if the same mode is requested */
+		if (rdev->desc->ops->get_mode) {
+			regulator_curr_mode = rdev->desc->ops->get_mode(rdev);
+			if (regulator_curr_mode == mode)
+				return 0;
+		} else {
+			return 0;
 		}
 
 		err = rdev->desc->ops->set_mode(rdev, mode);
