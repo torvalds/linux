@@ -418,6 +418,17 @@ config F71808E_WDT
 	  You can compile this driver directly into the kernel, or use
 	  it as a module.  The module will be called f71808e_wdt.
 
+config SP5100_TCO
+	tristate "AMD/ATI SP5100 TCO Timer/Watchdog"
+	depends on X86 && PCI
+	---help---
+	  Hardware watchdog driver for the AMD/ATI SP5100 chipset. The TCO
+	  (Total Cost of Ownership) timer is a watchdog timer that will reboot
+	  the machine after its expiration. The expiration time can be
+	  configured with the "heartbeat" parameter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sp5100_tco.
 
 config GEODE_WDT
 	tristate "AMD Geode CS5535/CS5536 Watchdog"
