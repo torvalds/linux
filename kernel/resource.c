@@ -357,6 +357,14 @@ int __weak page_is_ram(unsigned long pfn)
 	return walk_system_ram_range(pfn, 1, NULL, __is_ram) == 1;
 }
 
+static resource_size_t simple_align_resource(void *data,
+					     const struct resource *avail,
+					     resource_size_t size,
+					     resource_size_t align)
+{
+	return avail->start;
+}
+
 /*
  * Find empty slot in the resource tree given range and alignment.
  */
@@ -391,8 +399,8 @@ static int find_resource(struct resource *root, struct resource *new,
 		if (tmp.end > max)
 			tmp.end = max;
 		tmp.start = ALIGN(tmp.start, align);
-		if (alignf)
-			tmp.start = alignf(alignf_data, &tmp, size, align);
+
+		tmp.start = alignf(alignf_data, &tmp, size, align);
 		if (tmp.start < tmp.end && tmp.end - tmp.start >= size - 1) {
 			new->start = tmp.start;
 			new->end = tmp.start + size - 1;
@@ -427,6 +435,9 @@ int allocate_resource(struct resource *root, struct resource *new,
 		      void *alignf_data)
 {
 	int err;
+
+	if (!alignf)
+		alignf = simple_align_resource;
 
 	write_lock(&resource_lock);
 	err = find_resource(root, new, size, min, max, align, alignf, alignf_data);
