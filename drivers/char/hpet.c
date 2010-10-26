@@ -985,6 +985,8 @@ static int hpet_acpi_add(struct acpi_device *device)
 		return -ENODEV;
 
 	if (!data.hd_address || !data.hd_nirqs) {
+		if (data.hd_address)
+			iounmap(data.hd_address);
 		printk("%s: no address or irqs in _CRS\n", __func__);
 		return -ENODEV;
 	}
