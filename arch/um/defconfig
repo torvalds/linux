@@ -566,7 +566,6 @@ CONFIG_CRC32=m
 # CONFIG_CRC7 is not set
 # CONFIG_LIBCRC32C is not set
 CONFIG_PLIST=y
-CONFIG_HAS_DMA=y
 
 #
 # SCSI device support
