@@ -96,8 +96,6 @@ DECLARE_EVENT_CLASS(wbc_class,
 		__field(long, nr_to_write)
 		__field(long, pages_skipped)
 		__field(int, sync_mode)
-		__field(int, nonblocking)
-		__field(int, encountered_congestion)
 		__field(int, for_kupdate)
 		__field(int, for_background)
 		__field(int, for_reclaim)

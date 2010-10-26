@@ -497,7 +497,6 @@ static int writeout(struct address_space *mapping, struct page *page)
 		.nr_to_write = 1,
 		.range_start = 0,
 		.range_end = LLONG_MAX,
-		.nonblocking = 1,
 		.for_reclaim = 1
 	};
 	int rc;

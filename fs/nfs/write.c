@@ -290,9 +290,7 @@ static int nfs_do_writepage(struct page *page, struct writeback_control *wbc, st
 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
 
 	nfs_pageio_cond_complete(pgio, page->index);
-	ret = nfs_page_async_flush(pgio, page,
-			wbc->sync_mode == WB_SYNC_NONE ||
-			wbc->nonblocking != 0);
+	ret = nfs_page_async_flush(pgio, page, wbc->sync_mode == WB_SYNC_NONE);
 	if (ret == -EAGAIN) {
 		redirty_page_for_writepage(wbc, page);
 		ret = 0;
