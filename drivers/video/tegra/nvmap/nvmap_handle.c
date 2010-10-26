@@ -81,6 +81,9 @@ void _nvmap_handle_free(struct nvmap_handle *h)
 		goto out;
 
 	if (!h->heap_pgalloc) {
+		nvmap_carveout_commit_subtract(client,
+			nvmap_heap_to_arg(nvmap_block_to_heap(h->carveout)),
+			h->size);
 		nvmap_heap_free(h->carveout);
 		goto out;
 	}
