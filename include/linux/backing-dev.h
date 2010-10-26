@@ -111,6 +111,7 @@ void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi);
 
 extern spinlock_t bdi_lock;
 extern struct list_head bdi_list;
+extern struct list_head bdi_pending_list;
 
 static inline int wb_has_dirty_io(struct bdi_writeback *wb)
 {
