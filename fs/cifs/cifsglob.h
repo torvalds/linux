@@ -111,7 +111,7 @@ struct sdesc {
 	char ctx[];
 };
 
-/* crypto hashing related structure/fields, not speicific to a sec mech */
+/* crypto hashing related structure/fields, not specific to a sec mech */
 struct cifs_secmech {
 	struct crypto_shash *hmacmd5; /* hmac-md5 hash function */
 	struct crypto_shash *md5; /* md5 hash function */

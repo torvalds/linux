@@ -738,7 +738,7 @@ ssetup_ntlmssp_authenticate:
 		 * assigned, tilen is 0 otherwise.
 		 */
 		pSMB->req_no_secext.CaseSensitivePasswordLength =
-			cpu_to_le16(ses->auth_key.len);
+			cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
 
 		if (ses->capabilities & CAP_UNICODE) {
 			if (iov[0].iov_len % 2) {

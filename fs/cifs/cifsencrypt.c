@@ -391,7 +391,7 @@ build_avpair_blob(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
  * about target string i.e. for some, just user name might suffice.
  */
 static int
-find_domain_name(struct cifsSesInfo *ses)
+find_domain_name(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 {
 	unsigned int attrsize;
 	unsigned int type;
@@ -420,16 +420,13 @@ find_domain_name(struct cifsSesInfo *ses)
 			if (!attrsize)
 				break;
 			if (!ses->domainName) {
-				struct nls_table *default_nls;
 				ses->domainName =
 					kmalloc(attrsize + 1, GFP_KERNEL);
 				if (!ses->domainName)
 						return -ENOMEM;
-				default_nls = load_nls_default();
 				cifs_from_ucs2(ses->domainName,
 					(__le16 *)blobptr, attrsize, attrsize,
-					default_nls, false);
-				unload_nls(default_nls);
+					nls_cp, false);
 				break;
 			}
 		}
@@ -561,7 +558,7 @@ setup_ntlmv2_rsp(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 
 	if (ses->server->secType == RawNTLMSSP) {
 		if (!ses->domainName) {
-			rc = find_domain_name(ses);
+			rc = find_domain_name(ses, nls_cp);
 			if (rc) {
 				cERROR(1, "error %d finding domain name", rc);
 				goto setup_ntlmv2_rsp_ret;
@@ -594,12 +591,14 @@ setup_ntlmv2_rsp(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 
 	memcpy(ses->auth_key.response + baselen, ses->tiblob, ses->tilen);
 
-	/* calculate buf->ntlmv2_hash */
+	/* calculate ntlmv2_hash */
 	rc = calc_ntlmv2_hash(ses, nls_cp);
 	if (rc) {
 		cERROR(1, "could not get v2 hash rc %d", rc);
 		goto setup_ntlmv2_rsp_ret;
 	}
+
+	/* calculate first part of the client response (CR1) */
 	rc = CalcNTLMv2_response(ses);
 	if (rc) {
 		cERROR(1, "Could not calculate CR1  rc: %d", rc);
@@ -622,8 +621,6 @@ setup_ntlmv2_rsp(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 
 	rc = crypto_shash_final(&ses->server->secmech.sdeschmacmd5->shash,
 		ses->auth_key.response);
-
-	return 0;
 
 setup_ntlmv2_rsp_ret:
 	kfree(ses->tiblob);
