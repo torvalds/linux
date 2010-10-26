@@ -580,6 +580,15 @@ static u64 div_factor(u64 num, int factor)
 	return num;
 }
 
+static u64 div_factor_fine(u64 num, int factor)
+{
+	if (factor == 100)
+		return num;
+	num *= factor;
+	do_div(num, 100);
+	return num;
+}
+
 u64 btrfs_find_block_group(struct btrfs_root *root,
 			   u64 search_start, u64 search_hint, int owner)
 {
@@ -3218,9 +3227,11 @@ static void force_metadata_allocation(struct btrfs_fs_info *info)
 	rcu_read_unlock();
 }
 
-static int should_alloc_chunk(struct btrfs_space_info *sinfo, u64 alloc_bytes)
+static int should_alloc_chunk(struct btrfs_root *root,
+			      struct btrfs_space_info *sinfo, u64 alloc_bytes)
 {
 	u64 num_bytes = sinfo->total_bytes - sinfo->bytes_readonly;
+	u64 thresh;
 
 	if (sinfo->bytes_used + sinfo->bytes_reserved +
 	    alloc_bytes + 256 * 1024 * 1024 < num_bytes)
@@ -3230,8 +3241,10 @@ static int should_alloc_chunk(struct btrfs_space_info *sinfo, u64 alloc_bytes)
 	    alloc_bytes < div_factor(num_bytes, 8))
 		return 0;
 
-	if (num_bytes > 256 * 1024 * 1024 &&
-	    sinfo->bytes_used < div_factor(num_bytes, 3))
+	thresh = btrfs_super_total_bytes(&root->fs_info->super_copy);
+	thresh = max_t(u64, 256 * 1024 * 1024, div_factor_fine(thresh, 5));
+
+	if (num_bytes > thresh && sinfo->bytes_used < div_factor(num_bytes, 3))
 		return 0;
 
 	return 1;
@@ -3265,7 +3278,8 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	if (!force && !should_alloc_chunk(space_info, alloc_bytes)) {
+	if (!force && !should_alloc_chunk(extent_root, space_info,
+					  alloc_bytes)) {
 		spin_unlock(&space_info->lock);
 		goto out;
 	}
