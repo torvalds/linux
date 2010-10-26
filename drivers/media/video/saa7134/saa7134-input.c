@@ -972,7 +972,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		   an existing device. Weird...
 		   REVISIT: might no longer be needed */
 		rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
-		dprintk(KERN_DEBUG "probe 0x%02x @ %s: %s\n",
+		dprintk("probe 0x%02x @ %s: %s\n",
 			msg_msi.addr, dev->i2c_adap.name,
 			(1 == rc) ? "yes" : "no");
 		break;
