@@ -488,6 +488,21 @@ config RCU_BOOST_DELAY
 
 	  Accept the default if unsure.
 
+config SRCU_SYNCHRONIZE_DELAY
+	int "Microseconds to delay before waiting for readers"
+	range 0 20
+	default 10
+	help
+	  This option controls how long SRCU delays before entering its
+	  loop waiting on SRCU readers.  The purpose of this loop is
+	  to avoid the unconditional context-switch penalty that would
+	  otherwise be incurred if there was an active SRCU reader,
+	  in a manner similar to adaptive locking schemes.  This should
+	  be set to be a bit longer than the common-case SRCU read-side
+	  critical-section overhead.
+
+	  Accept the default if unsure.
+
 endmenu # "RCU Subsystem"
 
 config IKCONFIG

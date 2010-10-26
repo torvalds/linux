@@ -31,6 +31,7 @@
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
+#include <linux/delay.h>
 #include <linux/srcu.h>
 
 static int init_srcu_struct_fields(struct srcu_struct *sp)
@@ -203,9 +204,14 @@ static void __synchronize_srcu(struct srcu_struct *sp, void (*sync_func)(void))
 	 * all srcu_read_lock() calls using the old counters have completed.
 	 * Their corresponding critical sections might well be still
 	 * executing, but the srcu_read_lock() primitives themselves
-	 * will have finished executing.
+	 * will have finished executing.  We initially give readers
+	 * an arbitrarily chosen 10 microseconds to get out of their
+	 * SRCU read-side critical sections, then loop waiting 1/HZ
+	 * seconds per iteration.
 	 */
 
+	if (srcu_readers_active_idx(sp, idx))
+		udelay(CONFIG_SRCU_SYNCHRONIZE_DELAY);
 	while (srcu_readers_active_idx(sp, idx))
 		schedule_timeout_interruptible(1);
 
