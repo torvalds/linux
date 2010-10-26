@@ -889,7 +889,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		}
 		mirror = conf->mirrors + disk;
 
-		read_bio = bio_clone(bio, GFP_NOIO);
+		read_bio = bio_clone_mddev(bio, GFP_NOIO, mddev);
 
 		r10_bio->devs[slot].bio = read_bio;
 
@@ -958,7 +958,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		if (!r10_bio->devs[i].bio)
 			continue;
 
-		mbio = bio_clone(bio, GFP_NOIO);
+		mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
 		r10_bio->devs[i].bio = mbio;
 
 		mbio->bi_sector	= r10_bio->devs[i].addr+
@@ -1746,7 +1746,8 @@ static void raid10d(mddev_t *mddev)
 					       mdname(mddev),
 					       bdevname(rdev->bdev,b),
 					       (unsigned long long)r10_bio->sector);
-				bio = bio_clone(r10_bio->master_bio, GFP_NOIO);
+				bio = bio_clone_mddev(r10_bio->master_bio,
+						      GFP_NOIO, mddev);
 				r10_bio->devs[r10_bio->read_slot].bio = bio;
 				bio->bi_sector = r10_bio->devs[r10_bio->read_slot].addr
 					+ rdev->data_offset;

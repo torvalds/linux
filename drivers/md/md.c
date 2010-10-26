@@ -149,6 +149,72 @@ static const struct block_device_operations md_fops;
 
 static int start_readonly;
 
+/* bio_clone_mddev
+ * like bio_clone, but with a local bio set
+ */
+
+static void mddev_bio_destructor(struct bio *bio)
+{
+	mddev_t *mddev, **mddevp;
+
+	mddevp = (void*)bio;
+	mddev = mddevp[-1];
+
+	bio_free(bio, mddev->bio_set);
+}
+
+struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
+			    mddev_t *mddev)
+{
+	struct bio *b;
+	mddev_t **mddevp;
+
+	if (!mddev || !mddev->bio_set)
+		return bio_alloc(gfp_mask, nr_iovecs);
+
+	b = bio_alloc_bioset(gfp_mask, nr_iovecs,
+			     mddev->bio_set);
+	if (!b)
+		return NULL;
+	mddevp = (void*)b;
+	mddevp[-1] = mddev;
+	b->bi_destructor = mddev_bio_destructor;
+	return b;
+}
+EXPORT_SYMBOL_GPL(bio_alloc_mddev);
+
+struct bio *bio_clone_mddev(struct bio *bio, gfp_t gfp_mask,
+			    mddev_t *mddev)
+{
+	struct bio *b;
+	mddev_t **mddevp;
+
+	if (!mddev || !mddev->bio_set)
+		return bio_clone(bio, gfp_mask);
+
+	b = bio_alloc_bioset(gfp_mask, bio->bi_max_vecs,
+			     mddev->bio_set);
+	if (!b)
+		return NULL;
+	mddevp = (void*)b;
+	mddevp[-1] = mddev;
+	b->bi_destructor = mddev_bio_destructor;
+	__bio_clone(b, bio);
+	if (bio_integrity(bio)) {
+		int ret;
+
+		ret = bio_integrity_clone(b, bio, gfp_mask, mddev->bio_set);
+
+		if (ret < 0) {
+			bio_put(b);
+			return NULL;
+		}
+	}
+
+	return b;
+}
+EXPORT_SYMBOL_GPL(bio_clone_mddev);
+
 /*
  * We have a system wide 'event count' that is incremented
  * on any 'interesting' event, and readers of /proc/mdstat
@@ -321,7 +387,7 @@ static void submit_flushes(mddev_t *mddev)
 			atomic_inc(&rdev->nr_pending);
 			atomic_inc(&rdev->nr_pending);
 			rcu_read_unlock();
-			bi = bio_alloc(GFP_KERNEL, 0);
+			bi = bio_alloc_mddev(GFP_KERNEL, 0, mddev);
 			bi->bi_end_io = md_end_flush;
 			bi->bi_private = rdev;
 			bi->bi_bdev = rdev->bdev;
@@ -428,6 +494,8 @@ static void mddev_delayed_delete(struct work_struct *ws);
 
 static void mddev_put(mddev_t *mddev)
 {
+	struct bio_set *bs = NULL;
+
 	if (!atomic_dec_and_lock(&mddev->active, &all_mddevs_lock))
 		return;
 	if (!mddev->raid_disks && list_empty(&mddev->disks) &&
@@ -435,6 +503,8 @@ static void mddev_put(mddev_t *mddev)
 		/* Array is not configured at all, and not held active,
 		 * so destroy it */
 		list_del(&mddev->all_mddevs);
+		bs = mddev->bio_set;
+		mddev->bio_set = NULL;
 		if (mddev->gendisk) {
 			/* We did a probe so need to clean up.  Call
 			 * queue_work inside the spinlock so that
@@ -447,6 +517,8 @@ static void mddev_put(mddev_t *mddev)
 			kfree(mddev);
 	}
 	spin_unlock(&all_mddevs_lock);
+	if (bs)
+		bioset_free(bs);
 }
 
 void mddev_init(mddev_t *mddev)
@@ -690,7 +762,7 @@ void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 	 * if zero is reached.
 	 * If an error occurred, call md_error
 	 */
-	struct bio *bio = bio_alloc(GFP_NOIO, 1);
+	struct bio *bio = bio_alloc_mddev(GFP_NOIO, 1, mddev);
 
 	bio->bi_bdev = rdev->bdev;
 	bio->bi_sector = sector;
@@ -724,7 +796,7 @@ static void bi_complete(struct bio *bio, int error)
 int sync_page_io(mdk_rdev_t *rdev, sector_t sector, int size,
 		 struct page *page, int rw)
 {
-	struct bio *bio = bio_alloc(GFP_NOIO, 1);
+	struct bio *bio = bio_alloc_mddev(GFP_NOIO, 1, rdev->mddev);
 	struct completion event;
 	int ret;
 
@@ -4378,6 +4450,9 @@ int md_run(mddev_t *mddev)
 		}
 		sysfs_notify_dirent_safe(rdev->sysfs_state);
 	}
+
+	if (mddev->bio_set == NULL)
+		mddev->bio_set = bioset_create(BIO_POOL_SIZE, sizeof(mddev));
 
 	spin_lock(&pers_lock);
 	pers = find_pers(mddev->level, mddev->clevel);

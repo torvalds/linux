@@ -3876,9 +3876,9 @@ static int chunk_aligned_read(mddev_t *mddev, struct bio * raid_bio)
 		return 0;
 	}
 	/*
-	 * use bio_clone to make a copy of the bio
+	 * use bio_clone_mddev to make a copy of the bio
 	 */
-	align_bi = bio_clone(raid_bio, GFP_NOIO);
+	align_bi = bio_clone_mddev(raid_bio, GFP_NOIO, mddev);
 	if (!align_bi)
 		return 0;
 	/*

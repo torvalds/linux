@@ -861,7 +861,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		}
 		r1_bio->read_disk = rdisk;
 
-		read_bio = bio_clone(bio, GFP_NOIO);
+		read_bio = bio_clone_mddev(bio, GFP_NOIO, mddev);
 
 		r1_bio->bios[rdisk] = read_bio;
 
@@ -950,7 +950,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		if (!r1_bio->bios[i])
 			continue;
 
-		mbio = bio_clone(bio, GFP_NOIO);
+		mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
 		r1_bio->bios[i] = mbio;
 
 		mbio->bi_sector	= r1_bio->sector + conf->mirrors[i].rdev->data_offset;
@@ -1640,7 +1640,8 @@ static void raid1d(mddev_t *mddev)
 					mddev->ro ? IO_BLOCKED : NULL;
 				r1_bio->read_disk = disk;
 				bio_put(bio);
-				bio = bio_clone(r1_bio->master_bio, GFP_NOIO);
+				bio = bio_clone_mddev(r1_bio->master_bio,
+						      GFP_NOIO, mddev);
 				r1_bio->bios[r1_bio->read_disk] = bio;
 				rdev = conf->mirrors[disk].rdev;
 				if (printk_ratelimit())
