@@ -499,6 +499,9 @@ static int tegra_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long 
 {
 	struct tegra_fb_info *tegra_fb = info->par;
 	struct tegra_fb_flip_args flip_args;
+	struct tegra_fb_modedb modedb;
+	struct fb_modelist *modelist;
+	int i;
 	int fd;
 	int ret;
 
@@ -519,6 +522,29 @@ static int tegra_fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long 
 			return -EFAULT;
 
 		return ret;
+
+	case FBIO_TEGRA_GET_MODEDB:
+		if (copy_from_user(&modedb, (void __user *)arg, sizeof(modedb)))
+			return -EFAULT;
+
+		i = 0;
+		list_for_each_entry(modelist, &info->modelist, list) {
+			struct fb_var_screeninfo var;
+
+			if (i >= modedb.modedb_len)
+				break;
+			fb_videomode_to_var(&var, &modelist->mode);
+
+			if (copy_to_user((void __user *)&modedb.modedb[i],
+					 &var, sizeof(var)))
+				return -EFAULT;
+			i++;
+		}
+		modedb.modedb_len = i;
+
+		if (copy_to_user((void __user *)arg, &modedb, sizeof(modedb)))
+			return -EFAULT;
+		break;
 
 	default:
 		return -ENOTTY;
