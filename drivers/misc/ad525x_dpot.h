@@ -166,14 +166,14 @@ enum dpot_devid {
 #define DPOT_AD5291_RDAC	0x01
 #define DPOT_AD5291_READ_RDAC	0x02
 
-/* AD524x use special commands */
 #define DPOT_AD5291_RDAC_AB	0x80
 
+#define DPOT_AD5282_RDAC_AB	0x80
 #define DPOT_AD5273_FUSE	0x80
-#define DPOT_AD5270_2_3_FUSE	0x20
-#define DPOT_AD5270_2_3_OW	0x08
-#define DPOT_AD5272_3_A0	0x08
-#define DPOT_AD5270_2FUSE	0x80
+#define DPOT_AD5170_2_3_FUSE	0x20
+#define DPOT_AD5170_2_3_OW	0x08
+#define DPOT_AD5172_3_A0	0x08
+#define DPOT_AD5170_2FUSE	0x80
 
 struct dpot_data;
 

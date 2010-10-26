@@ -166,7 +166,7 @@ static s32 dpot_read_i2c(struct dpot_data *dpot, u8 reg)
 	case DPOT_UID(AD5280_ID):
 	case DPOT_UID(AD5282_ID):
 		ctrl = ((reg & DPOT_RDAC_MASK) == DPOT_RDAC0) ?
-			0 : DPOT_AD5291_RDAC_AB;
+			0 : DPOT_AD5282_RDAC_AB;
 		return dpot_read_r8d8(dpot, ctrl);
 	case DPOT_UID(AD5170_ID):
 	case DPOT_UID(AD5171_ID):
@@ -175,7 +175,7 @@ static s32 dpot_read_i2c(struct dpot_data *dpot, u8 reg)
 	case DPOT_UID(AD5172_ID):
 	case DPOT_UID(AD5173_ID):
 		ctrl = ((reg & DPOT_RDAC_MASK) == DPOT_RDAC0) ?
-			0 : DPOT_AD5272_3_A0;
+			0 : DPOT_AD5172_3_A0;
 		return dpot_read_r8d8(dpot, ctrl);
 	default:
 		if ((reg & DPOT_REG_TOL) || (dpot->max_pos > 256))
@@ -273,7 +273,7 @@ static s32 dpot_write_i2c(struct dpot_data *dpot, u8 reg, u16 value)
 	case DPOT_UID(AD5280_ID):
 	case DPOT_UID(AD5282_ID):
 		ctrl = ((reg & DPOT_RDAC_MASK) == DPOT_RDAC0) ?
-			0 : DPOT_AD5291_RDAC_AB;
+			0 : DPOT_AD5282_RDAC_AB;
 		return dpot_write_r8d8(dpot, ctrl, value);
 		break;
 	case DPOT_UID(AD5171_ID):
@@ -289,12 +289,12 @@ static s32 dpot_write_i2c(struct dpot_data *dpot, u8 reg, u16 value)
 	case DPOT_UID(AD5172_ID):
 	case DPOT_UID(AD5173_ID):
 		ctrl = ((reg & DPOT_RDAC_MASK) == DPOT_RDAC0) ?
-			0 : DPOT_AD5272_3_A0;
+			0 : DPOT_AD5172_3_A0;
 		if (reg & DPOT_ADDR_OTP) {
 			tmp = dpot_read_r8d16(dpot, ctrl);
 			if (tmp >> 14) /* Ready to Program? */
 				return -EFAULT;
-			ctrl |= DPOT_AD5270_2_3_FUSE;
+			ctrl |= DPOT_AD5170_2_3_FUSE;
 		}
 		return dpot_write_r8d8(dpot, ctrl, value);
 		break;
