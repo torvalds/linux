@@ -24,9 +24,10 @@ my $email_maintainer = 1;
 my $email_list = 1;
 my $email_subscriber_list = 0;
 my $email_git_penguin_chiefs = 0;
-my $email_git = 1;
+my $email_git = 0;
 my $email_git_all_signature_types = 0;
 my $email_git_blame = 0;
+my $email_git_fallback = 1;
 my $email_git_min_signatures = 1;
 my $email_git_max_maintainers = 5;
 my $email_git_min_percent = 5;
@@ -138,6 +139,7 @@ if (!GetOptions(
 		'git!' => \$email_git,
 		'git-all-signature-types!' => \$email_git_all_signature_types,
 		'git-blame!' => \$email_git_blame,
+		'git-fallback!' => \$email_git_fallback,
 		'git-chief-penguins!' => \$email_git_penguin_chiefs,
 		'git-min-signatures=i' => \$email_git_min_signatures,
 		'git-max-maintainers=i' => \$email_git_max_maintainers,
@@ -371,6 +373,7 @@ my @status = ();
 foreach my $file (@files) {
 
     my %hash;
+    my $exact_pattern_match = 0;
     my $tvi = find_first_section();
     while ($tvi < @typevalue) {
 	my $start = find_starting_index($tvi);
@@ -405,6 +408,8 @@ foreach my $file (@files) {
 			    my $value_pd = ($value =~ tr@/@@);
 			    my $file_pd = ($file  =~ tr@/@@);
 			    $value_pd++ if (substr($value,-1,1) ne "/");
+			    $value_pd = -1 if ($value =~ /^\.\*/);
+			    $exact_pattern_match = 1 if ($value_pd >= $file_pd);
 			    if ($pattern_depth == 0 ||
 				(($file_pd - $value_pd) < $pattern_depth)) {
 				$hash{$tvi} = $value_pd;
@@ -439,7 +444,8 @@ foreach my $file (@files) {
 	}
     }
 
-    if ($email && $email_git) {
+    if ($email &&
+	($email_git || ($email_git_fallback && !$exact_pattern_match))) {
 	vcs_file_signoffs($file);
     }
 
@@ -540,6 +546,7 @@ MAINTAINER field selection options:
     --git => include recent git \*-by: signers
     --git-all-signature-types => include signers regardless of signature type
         or use only ${signaturePattern} signers (default: $email_git_all_signature_types)
+    --git-fallback => use git when no exact MAINTAINERS pattern (default: $email_git_fallback)
     --git-chief-penguins => include ${penguin_chiefs}
     --git-min-signatures => number of signatures required (default: $email_git_min_signatures)
     --git-max-maintainers => maximum maintainers to add (default: $email_git_max_maintainers)
