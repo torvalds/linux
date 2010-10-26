@@ -213,24 +213,6 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 	}
 }
 
-static bool
-nouveau_connector_poll_allowed(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
-	bool spare_crtc = false;
-
-	if (dev_priv->card_type >= NV_50) {
-		return true;
-	} else {
-		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-			spare_crtc |= !crtc->enabled;
-
-		return spare_crtc;
-	}
-}
-
 static enum drm_connector_status
 nouveau_connector_detect(struct drm_connector *connector, bool force)
 {
@@ -299,8 +281,7 @@ detect_analog:
 	nv_encoder = find_encoder_by_type(connector, OUTPUT_ANALOG);
 	if (!nv_encoder && !nouveau_tv_disable)
 		nv_encoder = find_encoder_by_type(connector, OUTPUT_TV);
-	if (nv_encoder &&
-	    (force || nouveau_connector_poll_allowed(connector))) {
+	if (nv_encoder && force) {
 		struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 		struct drm_encoder_helper_funcs *helper =
 						encoder->helper_private;
@@ -868,14 +849,12 @@ nouveau_connector_create(struct drm_device *dev, int index)
 					dev->mode_config.scaling_mode_property,
 					nv_connector->scaling_mode);
 		}
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		/* fall-through */
 	case DCB_CONNECTOR_TV_0:
 	case DCB_CONNECTOR_TV_1:
 	case DCB_CONNECTOR_TV_3:
 		nv_connector->scaling_mode = DRM_MODE_SCALE_NONE;
-
-		if (nv_gf4_disp_arch(dev))
-			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		break;
 	default:
 		nv_connector->scaling_mode = DRM_MODE_SCALE_FULLSCREEN;
