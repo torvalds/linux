@@ -44,8 +44,8 @@ struct ds278x_info;
 
 struct ds278x_battery_ops {
 	int (*get_battery_current)(struct ds278x_info *info, int *current_uA);
-	int (*get_battery_voltage)(struct ds278x_info *info, int *voltage_uA);
-	int (*get_battery_capacity)(struct ds278x_info *info, int *capacity_uA);
+	int (*get_battery_voltage)(struct ds278x_info *info, int *voltage_uV);
+	int (*get_battery_capacity)(struct ds278x_info *info, int *capacity);
 };
 
 #define to_ds278x_info(x) container_of(x, struct ds278x_info, battery)
@@ -137,7 +137,7 @@ static int ds2782_get_current(struct ds278x_info *info, int *current_uA)
 	return 0;
 }
 
-static int ds2782_get_voltage(struct ds278x_info *info, int *voltage_uA)
+static int ds2782_get_voltage(struct ds278x_info *info, int *voltage_uV)
 {
 	s16 raw;
 	int err;
@@ -149,7 +149,7 @@ static int ds2782_get_voltage(struct ds278x_info *info, int *voltage_uA)
 	err = ds278x_read_reg16(info, DS278x_REG_VOLT_MSB, &raw);
 	if (err)
 		return err;
-	*voltage_uA = (raw / 32) * 4800;
+	*voltage_uV = (raw / 32) * 4800;
 	return 0;
 }
 
@@ -177,7 +177,7 @@ static int ds2786_get_current(struct ds278x_info *info, int *current_uA)
 	return 0;
 }
 
-static int ds2786_get_voltage(struct ds278x_info *info, int *voltage_uA)
+static int ds2786_get_voltage(struct ds278x_info *info, int *voltage_uV)
 {
 	s16 raw;
 	int err;
@@ -189,7 +189,7 @@ static int ds2786_get_voltage(struct ds278x_info *info, int *voltage_uA)
 	err = ds278x_read_reg16(info, DS278x_REG_VOLT_MSB, &raw);
 	if (err)
 		return err;
-	*voltage_uA = (raw / 8) * 1220;
+	*voltage_uV = (raw / 8) * 1220;
 	return 0;
 }
 

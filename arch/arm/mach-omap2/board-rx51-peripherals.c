@@ -107,6 +107,10 @@ static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
 	},
 };
 
+static struct platform_device rx51_charger_device = {
+	.name = "isp1704_charger",
+};
+
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 
 #define RX51_GPIO_CAMERA_LENS_COVER	110
@@ -919,5 +923,6 @@ void __init rx51_peripherals_init(void)
 	spi_register_board_info(rx51_peripherals_spi_board_info,
 				ARRAY_SIZE(rx51_peripherals_spi_board_info));
 	omap2_hsmmc_init(mmc);
+	platform_device_register(&rx51_charger_device);
 }
 

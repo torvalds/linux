@@ -383,6 +383,7 @@ static int __devexit jz_battery_remove(struct platform_device *pdev)
 
 	iounmap(jz_battery->base);
 	release_mem_region(jz_battery->mem->start, resource_size(jz_battery->mem));
+	kfree(jz_battery);
 
 	return 0;
 }
