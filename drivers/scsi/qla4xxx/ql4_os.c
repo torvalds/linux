@@ -881,7 +881,13 @@ static int qla4xxx_cmd_wait(struct scsi_qla_host *ha)
 		/* Find a command that hasn't completed. */
 		for (index = 0; index < ha->host->can_queue; index++) {
 			cmd = scsi_host_find_tag(ha->host, index);
-			if (cmd != NULL)
+			/*
+			 * We cannot just check if the index is valid,
+			 * becase if we are run from the scsi eh, then
+			 * the scsi/block layer is going to prevent
+			 * the tag from being released.
+			 */
+			if (cmd != NULL && CMD_SP(cmd))
 				break;
 		}
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
