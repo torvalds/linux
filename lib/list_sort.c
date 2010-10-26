@@ -165,56 +165,67 @@ static int cmp(void *priv, struct list_head *a, struct list_head *b)
 
 static int __init list_sort_test(void)
 {
-	int i, count;
-	struct list_head *head = kmalloc(sizeof(*head), GFP_KERNEL);
-	struct list_head *cur;
+	int i, count = 1, err = -EINVAL;
+	struct debug_el *el;
+	struct list_head *cur, *tmp;
+	LIST_HEAD(head);
 
 	printk(KERN_DEBUG "testing list_sort()\n");
 
-	cur = head;
 	for (i = 0; i < TEST_LIST_LEN; i++) {
-		struct debug_el *el = kmalloc(sizeof(*el), GFP_KERNEL);
-		BUG_ON(!el);
+		el = kmalloc(sizeof(*el), GFP_KERNEL);
+		if (!el) {
+			printk(KERN_ERR "cancel list_sort() testing - cannot "
+					"allocate memory\n");
+			goto exit;
+		}
 		 /* force some equivalencies */
 		el->value = random32() % (TEST_LIST_LEN/3);
 		el->serial = i;
-
-		el->list.prev = cur;
-		cur->next = &el->list;
-		cur = cur->next;
+		list_add_tail(&el->list, &head);
 	}
-	head->prev = cur;
 
-	list_sort(NULL, head, cmp);
+	list_sort(NULL, &head, cmp);
 
-	count = 1;
-	for (cur = head->next; cur->next != head; cur = cur->next) {
-		struct debug_el *el = container_of(cur, struct debug_el, list);
-		int cmp_result = cmp(NULL, cur, cur->next);
+	for (cur = head.next; cur->next != &head; cur = cur->next) {
+		struct debug_el *el1;
+		int cmp_result;
+
 		if (cur->next->prev != cur) {
 			printk(KERN_ERR "list_sort() returned "
 					"a corrupted list!\n");
-			return 1;
-		} else if (cmp_result > 0) {
+			goto exit;
+		}
+
+		cmp_result = cmp(NULL, cur, cur->next);
+		if (cmp_result > 0) {
 			printk(KERN_ERR "list_sort() failed to sort!\n");
-			return 1;
-		} else if (cmp_result == 0 &&
-				el->serial >= container_of(cur->next,
-					struct debug_el, list)->serial) {
+			goto exit;
+		}
+
+		el = container_of(cur, struct debug_el, list);
+		el1 = container_of(cur->next, struct debug_el, list);
+		if (cmp_result == 0 && el->serial >= el1->serial) {
 			printk(KERN_ERR "list_sort() failed to preserve order "
 					"of equivalent elements!\n");
-			return 1;
+			goto exit;
 		}
-		kfree(cur->prev);
 		count++;
 	}
-	kfree(cur);
+
 	if (count != TEST_LIST_LEN) {
 		printk(KERN_ERR "list_sort() returned list of "
 				"different length!\n");
-		return 1;
+		goto exit;
 	}
-	return 0;
+
+	err = 0;
+exit:
+	list_for_each_safe(cur, tmp, &head) {
+		list_del(cur);
+		kfree(container_of(cur, struct debug_el, list));
+	}
+	return err;
 }
 module_init(list_sort_test);
 #endif /* CONFIG_TEST_LIST_SORT */
