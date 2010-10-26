@@ -166,7 +166,7 @@ static int __init list_sort_test(void)
 	struct list_head *head = kmalloc(sizeof(*head), GFP_KERNEL);
 	struct list_head *cur;
 
-	printk(KERN_WARNING "testing list_sort()\n");
+	printk(KERN_DEBUG "testing list_sort()\n");
 
 	cur = head;
 	for (i = 0; i < LIST_SORT_TEST_LENGTH; i++) {
@@ -189,17 +189,17 @@ static int __init list_sort_test(void)
 		struct debug_el *el = container_of(cur, struct debug_el, l_h);
 		int cmp_result = cmp(NULL, cur, cur->next);
 		if (cur->next->prev != cur) {
-			printk(KERN_EMERG "list_sort() returned "
-						"a corrupted list!\n");
+			printk(KERN_ERR "list_sort() returned "
+					"a corrupted list!\n");
 			return 1;
 		} else if (cmp_result > 0) {
-			printk(KERN_EMERG "list_sort() failed to sort!\n");
+			printk(KERN_ERR "list_sort() failed to sort!\n");
 			return 1;
 		} else if (cmp_result == 0 &&
 				el->serial >= container_of(cur->next,
 					struct debug_el, l_h)->serial) {
-			printk(KERN_EMERG "list_sort() failed to preserve order"
-						 " of equivalent elements!\n");
+			printk(KERN_ERR "list_sort() failed to preserve order "
+					"of equivalent elements!\n");
 			return 1;
 		}
 		kfree(cur->prev);
@@ -207,8 +207,8 @@ static int __init list_sort_test(void)
 	}
 	kfree(cur);
 	if (count != LIST_SORT_TEST_LENGTH) {
-		printk(KERN_EMERG "list_sort() returned list of"
-						"different length!\n");
+		printk(KERN_ERR "list_sort() returned list of "
+				"different length!\n");
 		return 1;
 	}
 	return 0;
