@@ -258,16 +258,23 @@ static int at91_pm_enter(suspend_state_t state)
 			 * NOTE: the Wait-for-Interrupt instruction needs to be
 			 * in icache so no SDRAM accesses are needed until the
 			 * wakeup IRQ occurs and self-refresh is terminated.
+			 * For ARM 926 based chips, this requirement is weaker
+			 * as at91sam9 can access a RAM in self-refresh mode.
 			 */
-			asm("b 1f; .align 5; 1:");
-			asm("mcr p15, 0, r0, c7, c10, 4");	/* drain write buffer */
+			asm volatile (	"mov r0, #0\n\t"
+					"b 1f\n\t"
+					".align 5\n\t"
+					"1: mcr p15, 0, r0, c7, c10, 4\n\t"
+					: /* no output */
+					: /* no input */
+					: "r0");
 			saved_lpr = sdram_selfrefresh_enable();
-			asm("mcr p15, 0, r0, c7, c0, 4");	/* wait for interrupt */
+			wait_for_interrupt_enable();
 			sdram_selfrefresh_disable(saved_lpr);
 			break;
 
 		case PM_SUSPEND_ON:
-			asm("mcr p15, 0, r0, c7, c0, 4");	/* wait for interrupt */
+			cpu_do_idle();
 			break;
 
 		default:
