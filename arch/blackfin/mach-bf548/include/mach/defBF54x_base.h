@@ -2634,14 +2634,4 @@ PORTJ_FER registers
 #define B3MAP_PIH 0x06000000 /* Map Port I High to Byte 3 */
 #define B3MAP_PJH 0x07000000 /* Map Port J High to Byte 3 */
 
-
-/* for legacy compatibility */
-
-#define EBIU_AMCBCTL0 EBIU_AMBCTL0
-#define EBIU_AMCBCTL1 EBIU_AMBCTL1
-#define PINT0_IRQ PINT0_REQUEST
-#define PINT1_IRQ PINT1_REQUEST
-#define PINT2_IRQ PINT2_REQUEST
-#define PINT3_IRQ PINT3_REQUEST
-
 #endif /* _DEF_BF54X_H */
