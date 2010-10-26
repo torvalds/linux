@@ -52,6 +52,7 @@ struct sh_cpuinfo cpu_data[NR_CPUS] __read_mostly = {
 		.type			= CPU_SH_NONE,
 		.family			= CPU_FAMILY_UNKNOWN,
 		.loops_per_jiffy	= 10000000,
+		.phys_bits		= MAX_PHYSMEM_BITS,
 	},
 };
 EXPORT_SYMBOL(cpu_data);
@@ -431,6 +432,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	/* Optional secondary cache */
 	if (c->flags & CPU_HAS_L2_CACHE)
 		show_cacheinfo(m, "scache", c->scache);
+
+	seq_printf(m, "address sizes\t: %u bits physical\n", c->phys_bits);
 
 	seq_printf(m, "bogomips\t: %lu.%02lu\n",
 		     c->loops_per_jiffy/(500000/HZ),
