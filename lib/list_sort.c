@@ -170,12 +170,12 @@ static int __init list_sort_test(void)
 	struct list_head *cur, *tmp;
 	LIST_HEAD(head);
 
-	printk(KERN_DEBUG "testing list_sort()\n");
+	printk(KERN_DEBUG "list_sort_test: start testing list_sort()\n");
 
 	for (i = 0; i < TEST_LIST_LEN; i++) {
 		el = kmalloc(sizeof(*el), GFP_KERNEL);
 		if (!el) {
-			printk(KERN_ERR "cancel list_sort() testing - cannot "
+			printk(KERN_ERR "list_sort_test: error: cannot "
 					"allocate memory\n");
 			goto exit;
 		}
@@ -192,30 +192,31 @@ static int __init list_sort_test(void)
 		int cmp_result;
 
 		if (cur->next->prev != cur) {
-			printk(KERN_ERR "list_sort() returned "
-					"a corrupted list!\n");
+			printk(KERN_ERR "list_sort_test: error: list is "
+					"corrupted\n");
 			goto exit;
 		}
 
 		cmp_result = cmp(NULL, cur, cur->next);
 		if (cmp_result > 0) {
-			printk(KERN_ERR "list_sort() failed to sort!\n");
+			printk(KERN_ERR "list_sort_test: error: list is not "
+					"sorted\n");
 			goto exit;
 		}
 
 		el = container_of(cur, struct debug_el, list);
 		el1 = container_of(cur->next, struct debug_el, list);
 		if (cmp_result == 0 && el->serial >= el1->serial) {
-			printk(KERN_ERR "list_sort() failed to preserve order "
-					"of equivalent elements!\n");
+			printk(KERN_ERR "list_sort_test: error: order of "
+					"equivalent elements not preserved\n");
 			goto exit;
 		}
 		count++;
 	}
 
 	if (count != TEST_LIST_LEN) {
-		printk(KERN_ERR "list_sort() returned list of "
-				"different length!\n");
+		printk(KERN_ERR "list_sort_test: error: bad list length %d",
+				count);
 		goto exit;
 	}
 
