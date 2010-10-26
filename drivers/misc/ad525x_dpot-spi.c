@@ -38,6 +38,8 @@ static const struct ad_dpot_id ad_dpot_spi_devlist[] = {
 	{.name = "ad8402", .devid = AD8402_ID},
 	{.name = "ad8403", .devid = AD8403_ID},
 	{.name = "adn2850", .devid = ADN2850_ID},
+	{.name = "ad5270", .devid = AD5270_ID},
+	{.name = "ad5271", .devid = AD5271_ID},
 	{}
 };
 
