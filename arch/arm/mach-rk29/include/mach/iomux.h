@@ -692,6 +692,13 @@
 #define GPIO5C1_EBCSDDO1_SMCDATA1_NAME				"gpio5c1_ebcsddo1_smcdata1_name"
 #define GPIO5C0_EBCSDDO0_SMCDATA0_NAME				"gpio5c0_ebcsddo0_smcdata0_name"
 
+#define GRF_GPIO0_PULL								0x0078
+#define GRF_GPIO1_PULL								0x007C
+#define GRF_GPIO2_PULL								0x0080
+#define GRF_GPIO3_PULL								0x0084
+#define GRF_GPIO4_PULL								0x0088
+#define GRF_GPIO5_PULL								0x008C
+#define GRF_GPIO6_PULL								0x0090
 
 #define MUX_CFG(desc,reg,off,interl,mux_mode,bflags)	\
 {						  	\

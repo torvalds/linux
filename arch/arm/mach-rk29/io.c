@@ -38,6 +38,13 @@ static struct map_desc rk29_io_desc[] __initdata = {
 	RK29_DEVICE(UART1),
 	RK29_DEVICE(GRF),
 	RK29_DEVICE(CRU),
+	RK29_DEVICE(GPIO0),
+	RK29_DEVICE(GPIO1),
+	RK29_DEVICE(GPIO2),
+	RK29_DEVICE(GPIO3),
+	RK29_DEVICE(GPIO4),
+	RK29_DEVICE(GPIO5),
+	RK29_DEVICE(GPIO6),
 };
 
 void __init rk29_map_common_io(void)

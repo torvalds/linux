@@ -30,6 +30,8 @@
 #include <asm/mach/flash.h>
 #include <asm/hardware/gic.h>
 
+#include <mach/iomux.h>
+#include <mach/gpio.h>
 #include <mach/irqs.h>
 #include <mach/rk29_iomap.h>
 #include <mach/board.h>
@@ -41,6 +43,38 @@
 #include "devices.h"
 
 extern struct sys_timer rk29_timer;
+
+
+static struct rk29_gpio_bank rk29_gpiobankinit[] = {
+	{
+		.id		= RK29_ID_GPIO0,
+		.offset	= RK29_GPIO0_BASE,
+	},
+	{
+		.id		= RK29_ID_GPIO1,
+		.offset	= RK29_GPIO1_BASE,
+	}, 
+	{
+		.id		= RK29_ID_GPIO2,
+		.offset	= RK29_GPIO2_BASE,
+	}, 
+	{
+		.id		= RK29_ID_GPIO3,
+		.offset	= RK29_GPIO3_BASE,
+	}, 
+	{
+		.id		= RK29_ID_GPIO4,
+		.offset	= RK29_GPIO4_BASE,
+	}, 
+	{
+		.id		= RK29_ID_GPIO5,
+		.offset	= RK29_GPIO5_BASE,
+	}, 
+	{
+		.id		= RK29_ID_GPIO6,
+		.offset	= RK29_GPIO6_BASE,
+	},  	
+};
 
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART1_RK29	
@@ -58,8 +92,8 @@ static void __init rk29_gic_init_irq(void)
 static void __init machine_rk29_init_irq(void)
 {
 	rk29_gic_init_irq();
-	//rk29_gpio_init(rk29_gpioBank, 8);
-	//rk29_gpio_irq_setup();
+	rk29_gpio_init(rk29_gpiobankinit, MAX_BANK);
+	rk29_gpio_irq_setup();
 }
 static void __init machine_rk29_board_init(void)
 { 
@@ -70,7 +104,7 @@ static void __init machine_rk29_mapio(void)
 {
 	rk29_map_common_io();
 	rk29_clock_init();
-	//rk29_iomux_init();	
+	rk29_iomux_init();	
 }
 
 MACHINE_START(RK29, "RK29board")

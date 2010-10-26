@@ -104,14 +104,14 @@ static void rk29_serial_pm(struct uart_port *port, unsigned int state,
 		 * Enable the peripheral clock for this serial port.
 		 * This is called on uart_open() or a resume event.
 		 */
-		//clk_enable(rk29_port->clk);
+		clk_enable(rk29_port->clk);
 		break;
 	case 3:
 		/*
 		 * Disable the peripheral clock for this serial port.
 		 * This is called on uart_close() or a suspend event.
 		 */
-		//clk_disable(rk29_port->clk);
+		clk_disable(rk29_port->clk);
 		break;
 	default:
 		printk(KERN_ERR "rk29_serial: unknown pm %d\n", state);
@@ -266,7 +266,7 @@ static void rk29_serial_shutdown(struct uart_port *port)
 {
    struct rk29_port *rk29_port = UART_TO_RK29(port);
    rk29_uart_write(port,0x00,UART_IER);
-   //clk_disable(rk29_port->clk);
+   clk_disable(rk29_port->clk);
    free_irq(port->irq, port);
 }
 /*
@@ -286,7 +286,7 @@ static int rk29_serial_startup(struct uart_port *port)
 		rk29_serial_shutdown(port);
 		return 	retval;
 	}	
-	//clk_enable(rk29_port->clk);
+	clk_enable(rk29_port->clk);
 	rk29_uart_write(port,0xf1,UART_FCR);
 	rk29_uart_write(port,0x01,UART_SFE);///enable fifo
     rk29_uart_write(port,UART_IER_RECV_DATA_AVAIL_INT_ENABLE,UART_IER);  //enable uart recevice IRQ
@@ -635,7 +635,7 @@ static int __devinit rk29_serial_probe(struct platform_device *pdev)
 	port->dev = &pdev->dev;
 	rk29_port = UART_TO_RK29(port);
 
-	///rk29_port->clk = clk_get(&pdev->dev, "uart");
+	rk29_port->clk = clk_get(&pdev->dev, "uart");
 	if (unlikely(IS_ERR(rk29_port->clk)))
 		return PTR_ERR(rk29_port->clk);
 	port->uartclk = 24000000; ///clk_get_rate(rk29_port->clk);
@@ -658,7 +658,7 @@ static int __devexit rk29_serial_remove(struct platform_device *pdev)
 {
 	struct rk29_port *rk29_port = platform_get_drvdata(pdev);
 
-	///clk_put(rk29_port->clk);
+	clk_put(rk29_port->clk);
 
 	return 0;
 }

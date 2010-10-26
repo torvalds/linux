@@ -724,7 +724,8 @@ config ARCH_RK29
 	select COMMON_CLKDEV
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-        select ARM_GIC
+	select ARCH_REQUIRE_GPIOLIB
+    select ARM_GIC
 	help
 	  Support for Rockchip RK29 soc.
 
