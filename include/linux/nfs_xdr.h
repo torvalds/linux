@@ -114,6 +114,7 @@ struct nfs_fsinfo {
 	__u64			maxfilesize;
 	struct timespec		time_delta; /* server time granularity */
 	__u32			lease_time; /* in seconds */
+	__u32			layouttype; /* supported pnfs layout driver */
 };
 
 struct nfs_fsstat {
@@ -184,6 +185,55 @@ struct nfs4_get_lease_time_args {
 struct nfs4_get_lease_time_res {
 	struct nfs_fsinfo	       *lr_fsinfo;
 	struct nfs4_sequence_res	lr_seq_res;
+};
+
+#define PNFS_LAYOUT_MAXSIZE 4096
+
+struct nfs4_layoutdriver_data {
+	__u32 len;
+	void *buf;
+};
+
+struct pnfs_layout_range {
+	u32 iomode;
+	u64 offset;
+	u64 length;
+};
+
+struct nfs4_layoutget_args {
+	__u32 type;
+	struct pnfs_layout_range range;
+	__u64 minlength;
+	__u32 maxcount;
+	struct inode *inode;
+	struct nfs_open_context *ctx;
+	struct nfs4_sequence_args seq_args;
+};
+
+struct nfs4_layoutget_res {
+	__u32 return_on_close;
+	struct pnfs_layout_range range;
+	__u32 type;
+	nfs4_stateid stateid;
+	struct nfs4_layoutdriver_data layout;
+	struct nfs4_sequence_res seq_res;
+};
+
+struct nfs4_layoutget {
+	struct nfs4_layoutget_args args;
+	struct nfs4_layoutget_res res;
+	struct pnfs_layout_segment **lsegpp;
+	int status;
+};
+
+struct nfs4_getdeviceinfo_args {
+	struct pnfs_device *pdev;
+	struct nfs4_sequence_args seq_args;
+};
+
+struct nfs4_getdeviceinfo_res {
+	struct pnfs_device *pdev;
+	struct nfs4_sequence_res seq_res;
 };
 
 /*
