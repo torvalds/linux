@@ -146,11 +146,13 @@
 #define MAX_CMD_DESCRIPTORS		1024
 #define MAX_RCV_DESCRIPTORS_1G		4096
 #define MAX_RCV_DESCRIPTORS_10G 	8192
+#define MAX_RCV_DESCRIPTORS_VF		2048
 #define MAX_JUMBO_RCV_DESCRIPTORS_1G	512
 #define MAX_JUMBO_RCV_DESCRIPTORS_10G	1024
 
 #define DEFAULT_RCV_DESCRIPTORS_1G	2048
 #define DEFAULT_RCV_DESCRIPTORS_10G	4096
+#define DEFAULT_RCV_DESCRIPTORS_VF	1024
 #define MAX_RDS_RINGS                   2
 
 #define get_next_index(index, length)	\
@@ -971,6 +973,8 @@ struct qlcnic_adapter {
 	u16 num_txd;
 	u16 num_rxd;
 	u16 num_jumbo_rxd;
+	u16 max_rxd;
+	u16 max_jumbo_rxd;
 
 	u8 max_rds_rings;
 	u8 max_sds_rings;

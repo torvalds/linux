@@ -437,14 +437,8 @@ qlcnic_get_ringparam(struct net_device *dev,
 	ring->rx_jumbo_pending = adapter->num_jumbo_rxd;
 	ring->tx_pending = adapter->num_txd;
 
-	if (adapter->ahw.port_type == QLCNIC_GBE) {
-		ring->rx_max_pending = MAX_RCV_DESCRIPTORS_1G;
-		ring->rx_jumbo_max_pending = MAX_JUMBO_RCV_DESCRIPTORS_1G;
-	} else {
-		ring->rx_max_pending = MAX_RCV_DESCRIPTORS_10G;
-		ring->rx_jumbo_max_pending = MAX_JUMBO_RCV_DESCRIPTORS_10G;
-	}
-
+	ring->rx_max_pending = adapter->max_rxd;
+	ring->rx_jumbo_max_pending = adapter->max_jumbo_rxd;
 	ring->tx_max_pending = MAX_CMD_DESCRIPTORS;
 
 	ring->rx_mini_max_pending = 0;
@@ -472,24 +466,17 @@ qlcnic_set_ringparam(struct net_device *dev,
 		struct ethtool_ringparam *ring)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	u16 max_rcv_desc = MAX_RCV_DESCRIPTORS_10G;
-	u16 max_jumbo_desc = MAX_JUMBO_RCV_DESCRIPTORS_10G;
 	u16 num_rxd, num_jumbo_rxd, num_txd;
-
 
 	if (ring->rx_mini_pending)
 		return -EOPNOTSUPP;
 
-	if (adapter->ahw.port_type == QLCNIC_GBE) {
-		max_rcv_desc = MAX_RCV_DESCRIPTORS_1G;
-		max_jumbo_desc = MAX_JUMBO_RCV_DESCRIPTORS_10G;
-	}
-
 	num_rxd = qlcnic_validate_ringparam(ring->rx_pending,
-			MIN_RCV_DESCRIPTORS, max_rcv_desc, "rx");
+			MIN_RCV_DESCRIPTORS, adapter->max_rxd, "rx");
 
 	num_jumbo_rxd = qlcnic_validate_ringparam(ring->rx_jumbo_pending,
-			MIN_JUMBO_DESCRIPTORS, max_jumbo_desc, "rx jumbo");
+			MIN_JUMBO_DESCRIPTORS, adapter->max_jumbo_rxd,
+						"rx jumbo");
 
 	num_txd = qlcnic_validate_ringparam(ring->tx_pending,
 			MIN_CMD_DESCRIPTORS, MAX_CMD_DESCRIPTORS, "tx");

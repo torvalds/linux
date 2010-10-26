@@ -656,13 +656,23 @@ qlcnic_check_options(struct qlcnic_adapter *adapter)
 
 	dev_info(&pdev->dev, "firmware v%d.%d.%d\n",
 			fw_major, fw_minor, fw_build);
-
 	if (adapter->ahw.port_type == QLCNIC_XGBE) {
-		adapter->num_rxd = DEFAULT_RCV_DESCRIPTORS_10G;
+		if (adapter->flags & QLCNIC_ESWITCH_ENABLED) {
+			adapter->num_rxd = DEFAULT_RCV_DESCRIPTORS_VF;
+			adapter->max_rxd = MAX_RCV_DESCRIPTORS_VF;
+		} else {
+			adapter->num_rxd = DEFAULT_RCV_DESCRIPTORS_10G;
+			adapter->max_rxd = MAX_RCV_DESCRIPTORS_10G;
+		}
+
 		adapter->num_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS_10G;
+		adapter->max_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS_10G;
+
 	} else if (adapter->ahw.port_type == QLCNIC_GBE) {
 		adapter->num_rxd = DEFAULT_RCV_DESCRIPTORS_1G;
 		adapter->num_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS_1G;
+		adapter->max_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS_1G;
+		adapter->max_rxd = MAX_RCV_DESCRIPTORS_1G;
 	}
 
 	adapter->msix_supported = !!use_msi_x;
