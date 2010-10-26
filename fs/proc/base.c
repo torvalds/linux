@@ -1047,6 +1047,21 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 		return -EACCES;
 	}
 
+	task_lock(task);
+	if (!task->mm) {
+		task_unlock(task);
+		unlock_task_sighand(task, &flags);
+		put_task_struct(task);
+		return -EINVAL;
+	}
+
+	if (oom_adjust != task->signal->oom_adj) {
+		if (oom_adjust == OOM_DISABLE)
+			atomic_inc(&task->mm->oom_disable_count);
+		if (task->signal->oom_adj == OOM_DISABLE)
+			atomic_dec(&task->mm->oom_disable_count);
+	}
+
 	/*
 	 * Warn that /proc/pid/oom_adj is deprecated, see
 	 * Documentation/feature-removal-schedule.txt.
@@ -1065,6 +1080,7 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 	else
 		task->signal->oom_score_adj = (oom_adjust * OOM_SCORE_ADJ_MAX) /
 								-OOM_DISABLE;
+	task_unlock(task);
 	unlock_task_sighand(task, &flags);
 	put_task_struct(task);
 
@@ -1133,6 +1149,19 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 		return -EACCES;
 	}
 
+	task_lock(task);
+	if (!task->mm) {
+		task_unlock(task);
+		unlock_task_sighand(task, &flags);
+		put_task_struct(task);
+		return -EINVAL;
+	}
+	if (oom_score_adj != task->signal->oom_score_adj) {
+		if (oom_score_adj == OOM_SCORE_ADJ_MIN)
+			atomic_inc(&task->mm->oom_disable_count);
+		if (task->signal->oom_score_adj == OOM_SCORE_ADJ_MIN)
+			atomic_dec(&task->mm->oom_disable_count);
+	}
 	task->signal->oom_score_adj = oom_score_adj;
 	/*
 	 * Scale /proc/pid/oom_adj appropriately ensuring that OOM_DISABLE is
@@ -1143,6 +1172,7 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 	else
 		task->signal->oom_adj = (oom_score_adj * OOM_ADJUST_MAX) /
 							OOM_SCORE_ADJ_MAX;
+	task_unlock(task);
 	unlock_task_sighand(task, &flags);
 	put_task_struct(task);
 	return count;
