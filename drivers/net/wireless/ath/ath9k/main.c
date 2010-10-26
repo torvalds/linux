@@ -262,19 +262,15 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 		  channel->center_freq, conf_is_ht40(conf),
 		  fastcc);
 
-	spin_lock_bh(&sc->sc_resetlock);
-
 	r = ath9k_hw_reset(ah, hchan, caldata, fastcc);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset channel (%u MHz), "
 			  "reset status %d\n",
 			  channel->center_freq, r);
-		spin_unlock_bh(&sc->sc_resetlock);
 		spin_unlock_bh(&sc->rx.pcu_lock);
 		goto ps_restore;
 	}
-	spin_unlock_bh(&sc->sc_resetlock);
 
 	if (ath_startrecv(sc) != 0) {
 		ath_print(common, ATH_DBG_FATAL,
@@ -886,7 +882,6 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 		ah->curchan = ath_get_curchannel(sc, sc->hw);
 
 	spin_lock_bh(&sc->rx.pcu_lock);
-	spin_lock_bh(&sc->sc_resetlock);
 	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
@@ -894,7 +889,6 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 			  "reset status %d\n",
 			  channel->center_freq, r);
 	}
-	spin_unlock_bh(&sc->sc_resetlock);
 
 	ath_update_txpow(sc);
 	if (ath_startrecv(sc) != 0) {
@@ -951,7 +945,6 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	if (!ah->curchan)
 		ah->curchan = ath_get_curchannel(sc, hw);
 
-	spin_lock_bh(&sc->sc_resetlock);
 	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (r) {
 		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
@@ -959,7 +952,6 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 			  "reset status %d\n",
 			  channel->center_freq, r);
 	}
-	spin_unlock_bh(&sc->sc_resetlock);
 
 	ath9k_hw_phy_disable(ah);
 
@@ -990,12 +982,10 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	ath_stoprecv(sc);
 	ath_flushrecv(sc);
 
-	spin_lock_bh(&sc->sc_resetlock);
 	r = ath9k_hw_reset(ah, sc->sc_ah->curchan, ah->caldata, false);
 	if (r)
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset hardware; reset status %d\n", r);
-	spin_unlock_bh(&sc->sc_resetlock);
 
 	if (ath_startrecv(sc) != 0)
 		ath_print(common, ATH_DBG_FATAL,
@@ -1166,18 +1156,15 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 * and then setup of the interrupt mask.
 	 */
 	spin_lock_bh(&sc->rx.pcu_lock);
-	spin_lock_bh(&sc->sc_resetlock);
 	r = ath9k_hw_reset(ah, init_channel, ah->caldata, false);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to reset hardware; reset status %d "
 			  "(freq %u MHz)\n", r,
 			  curchan->center_freq);
-		spin_unlock_bh(&sc->sc_resetlock);
 		spin_unlock_bh(&sc->rx.pcu_lock);
 		goto mutex_unlock;
 	}
-	spin_unlock_bh(&sc->sc_resetlock);
 
 	/*
 	 * This is needed only to setup initial state
@@ -1398,14 +1385,17 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	 * before setting the invalid flag. */
 	ath9k_hw_disable_interrupts(ah);
 
-	spin_lock_bh(&sc->rx.pcu_lock);
 	if (!(sc->sc_flags & SC_OP_INVALID)) {
 		ath_drain_all_txq(sc, false);
+		spin_lock_bh(&sc->rx.pcu_lock);
 		ath_stoprecv(sc);
 		ath9k_hw_phy_disable(ah);
-	} else
+		spin_unlock_bh(&sc->rx.pcu_lock);
+	} else {
+		spin_lock_bh(&sc->rx.pcu_lock);
 		sc->rx.rxlink = NULL;
-	spin_unlock_bh(&sc->rx.pcu_lock);
+		spin_unlock_bh(&sc->rx.pcu_lock);
+	}
 
 	/* disable HAL and put h/w to sleep */
 	ath9k_hw_disable(ah);
