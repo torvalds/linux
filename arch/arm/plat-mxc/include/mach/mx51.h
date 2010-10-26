@@ -53,7 +53,6 @@
  * AIPS 1
  */
 #define MX51_AIPS1_BASE_ADDR		0x73f00000
-#define MX51_AIPS1_BASE_ADDR_VIRT	0xf5700000
 #define MX51_AIPS1_SIZE			SZ_1M
 
 #define MX51_OTG_BASE_ADDR		(MX51_AIPS1_BASE_ADDR + 0x80000)
@@ -136,10 +135,6 @@
 
 #define MX51_IO_P2V(x)			IMX_IO_P2V(x)
 #define MX51_IO_ADDRESS(x)		IOMEM(MX51_IO_P2V(x))
-
-/* This is currently used in <mach/debug-macro.S>, but should go away */
-#define MX51_AIPS1_IO_ADDRESS(x)  \
-	(((x) - MX51_AIPS1_BASE_ADDR) + MX51_AIPS1_BASE_ADDR_VIRT)
 
 /*
  * defines for SPBA modules
