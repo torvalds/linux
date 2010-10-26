@@ -1905,6 +1905,16 @@ sub process {
 			ERROR("open brace '{' following function declarations go on the next line\n" . $herecurr);
 		}
 
+# missing space after union or struct definition
+		if ($rawline =~ /^\+\s*(union|struct)\s+$Ident[=\{]/) {
+		    WARN("Missing space after struct or union definition\n" . $herecurr);
+		}
+
+# missing space after enum definition
+		if ($rawline =~ /^\+\s*enum\{/) {
+		    WARN("Missing space after enum definition\n" . $herecurr);
+		}
+
 # open braces for enum, union and struct go on the same line.
 		if ($line =~ /^.\s*{/ &&
 		    $prevline =~ /^.\s*(?:typedef\s+)?(enum|union|struct)(?:\s+$Ident)?\s*$/) {
