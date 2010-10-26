@@ -420,23 +420,23 @@ foreach my $file (@files) {
 
     foreach my $line (sort {$hash{$b} <=> $hash{$a}} keys %hash) {
 	add_categories($line);
-	    if ($sections) {
-		my $i;
-		my $start = find_starting_index($line);
-		my $end = find_ending_index($line);
-		for ($i = $start; $i < $end; $i++) {
-		    my $line = $typevalue[$i];
-		    if ($line =~ /^[FX]:/) {		##Restore file patterns
-			$line =~ s/([^\\])\.([^\*])/$1\?$2/g;
-			$line =~ s/([^\\])\.$/$1\?/g;	##Convert . back to ?
-			$line =~ s/\\\./\./g;       	##Convert \. to .
-			$line =~ s/\.\*/\*/g;       	##Convert .* to *
-		    }
-		    $line =~ s/^([A-Z]):/$1:\t/g;
-		    print("$line\n");
+	if ($sections) {
+	    my $i;
+	    my $start = find_starting_index($line);
+	    my $end = find_ending_index($line);
+	    for ($i = $start; $i < $end; $i++) {
+		my $line = $typevalue[$i];
+		if ($line =~ /^[FX]:/) {		##Restore file patterns
+		    $line =~ s/([^\\])\.([^\*])/$1\?$2/g;
+		    $line =~ s/([^\\])\.$/$1\?/g;	##Convert . back to ?
+		    $line =~ s/\\\./\./g;       	##Convert \. to .
+		    $line =~ s/\.\*/\*/g;       	##Convert .* to *
 		}
-		print("\n");
+		$line =~ s/^([A-Z]):/$1:\t/g;
+		print("$line\n");
 	    }
+	    print("\n");
+	}
     }
 
     if ($email && $email_git) {
