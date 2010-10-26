@@ -1247,4 +1247,30 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 	return nid;
 }
 
+static u64 hot_add_drconf_memory_max(void)
+{
+        struct device_node *memory = NULL;
+        unsigned int drconf_cell_cnt = 0;
+        u64 lmb_size = 0;
+        const u32 *dm = 0;
+
+        memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+        if (memory) {
+                drconf_cell_cnt = of_get_drconf_memory(memory, &dm);
+                lmb_size = of_get_lmb_size(memory);
+                of_node_put(memory);
+        }
+        return lmb_size * drconf_cell_cnt;
+}
+
+/*
+ * memory_hotplug_max - return max address of memory that may be added
+ *
+ * This is currently only used on systems that support drconfig memory
+ * hotplug.
+ */
+u64 memory_hotplug_max(void)
+{
+        return max(hot_add_drconf_memory_max(), memblock_end_of_DRAM());
+}
 #endif /* CONFIG_MEMORY_HOTPLUG */
