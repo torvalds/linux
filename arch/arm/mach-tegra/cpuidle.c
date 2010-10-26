@@ -38,6 +38,7 @@
 #include <linux/tick.h>
 
 #include <asm/cacheflush.h>
+#include <asm/hardware/gic.h>
 #include <asm/localtimer.h>
 
 #include <mach/iomap.h>
@@ -63,7 +64,7 @@ static bool lp2_in_idle __read_mostly = true;
 static bool lp2_disabled_by_suspend;
 module_param(lp2_in_idle, bool, 0644);
 
-static s64 tegra_cpu1_idle_time;
+static s64 tegra_cpu1_idle_time = LLONG_MAX;;
 static int tegra_lp2_exit_latency;
 static int tegra_lp2_power_off_time;
 
@@ -77,6 +78,8 @@ static struct {
 	unsigned int lp2_completed_count;
 	unsigned int lp2_count_bin[32];
 	unsigned int lp2_completed_count_bin[32];
+	unsigned int lp2_int_count[NR_IRQS];
+	unsigned int last_lp2_int_count[NR_IRQS];
 } idle_stats;
 
 struct cpuidle_driver tegra_idle = {
@@ -97,17 +100,7 @@ static DEFINE_PER_CPU(struct cpuidle_device *, idle_devices);
 
 static inline unsigned int time_to_bin(unsigned int time)
 {
-	unsigned int bin = 0;
-	int i;
-
-	for (i = 4; i >= 0; i--) {
-		if (time > (1 << (1 << i)) - 1) {
-			time >>= (1 << i);
-			bin += (1 << i);
-		}
-	}
-
-	return bin;
+	return fls(time);
 }
 
 static inline void tegra_unmask_irq(int irq)
@@ -146,6 +139,7 @@ static inline void tegra_flow_wfi(struct cpuidle_device *dev)
 	reg = __raw_readl(flow_ctrl);
 }
 
+#ifdef CONFIG_SMP
 static inline bool tegra_wait_for_both_idle(struct cpuidle_device *dev)
 {
 	int wake_int;
@@ -183,36 +177,9 @@ static inline bool tegra_cpu_in_reset(int cpu)
 	return !!(readl(CLK_RST_CONTROLLER_RST_CPU_CMPLX_SET) & (1 << cpu));
 }
 
-static void tegra_idle_enter_lp2_cpu0(struct cpuidle_device *dev,
-	struct cpuidle_state *state)
+static int tegra_tear_down_cpu1(void)
 {
-	s64 request;
 	u32 reg;
-	ktime_t enter;
-	ktime_t exit;
-	bool sleep_completed = false;
-	int bin;
-	unsigned long boot_vector;
-	unsigned long old_boot_vector;
-	unsigned long timeout;
-
-restart:
-	if (!tegra_wait_for_both_idle(dev))
-		return;
-
-	idle_stats.both_idle_count++;
-
-	if (need_resched())
-		return;
-
-	/* CPU1 woke CPU0 because both are idle */
-
-	request = ktime_to_us(tick_nohz_get_sleep_length());
-	if (request < tegra_lp2_exit_latency) {
-		/* Not enough time left to enter LP2 */
-		tegra_flow_wfi(dev);
-		return;
-	}
 
 	/* Signal to CPU1 to tear down */
 	tegra_legacy_force_irq_set(TEGRA_CPUIDLE_TEAR_DOWN);
@@ -226,39 +193,24 @@ restart:
 
 	tegra_legacy_force_irq_clr(TEGRA_CPUIDLE_TEAR_DOWN);
 
-	idle_stats.tear_down_count++;
-
 	/* If CPU1 aborted LP2, restart the process */
 	if (!tegra_legacy_force_irq_status(TEGRA_CPUIDLE_BOTH_IDLE))
-		goto restart;
+		return -EAGAIN;
 
 	/* CPU1 is ready for LP2, clock gate it */
 	reg = readl(CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
 	writel(reg | (1<<9), CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
 
-	/* Enter LP2 */
-	request = ktime_to_us(tick_nohz_get_sleep_length());
-	smp_rmb();
-	request = min_t(s64, request, tegra_cpu1_idle_time);
+	return 0;
+}
 
-	enter = ktime_get();
-	if (request > tegra_lp2_exit_latency + state->target_residency) {
-		s64 sleep_time = request - tegra_lp2_exit_latency;
+static void tegra_wake_cpu1(void)
+{
+	unsigned long boot_vector;
+	unsigned long old_boot_vector;
+	unsigned long timeout;
+	u32 reg;
 
-		bin = time_to_bin((u32)request / 1000);
-		idle_stats.lp2_count++;
-		idle_stats.lp2_count_bin[bin]++;
-
-		if (tegra_suspend_lp2(sleep_time) == 0)
-			sleep_completed = true;
-	}
-
-	/* Bring CPU1 out of LP2 */
-	/* TODO: polls for CPU1 to boot, wfi would be better */
-	/* takes ~80 us */
-
-	/* set the reset vector to point to the secondary_startup routine */
-	smp_wmb();
 	boot_vector = virt_to_phys(tegra_hotplug_startup);
 	old_boot_vector = readl(EVP_CPU_RESET_VECTOR);
 	writel(boot_vector, EVP_CPU_RESET_VECTOR);
@@ -284,6 +236,82 @@ restart:
 	writel(old_boot_vector, EVP_CPU_RESET_VECTOR);
 
 	/* CPU1 is now started */
+}
+#else
+static inline bool tegra_wait_for_both_idle(struct cpuidle_device *dev)
+{
+	return true;
+}
+
+static inline int tegra_tear_down_cpu1(void)
+{
+	return 0;
+}
+
+static inline void tegra_wake_cpu1(void)
+{
+}
+#endif
+
+static void tegra_idle_enter_lp2_cpu0(struct cpuidle_device *dev,
+	struct cpuidle_state *state)
+{
+	s64 request;
+	ktime_t enter;
+	ktime_t exit;
+	bool sleep_completed = false;
+	int bin;
+
+restart:
+	if (!tegra_wait_for_both_idle(dev))
+		return;
+
+	idle_stats.both_idle_count++;
+
+	if (need_resched())
+		return;
+
+	/* CPU1 woke CPU0 because both are idle */
+
+	request = ktime_to_us(tick_nohz_get_sleep_length());
+	if (request < state->target_residency) {
+		/* Not enough time left to enter LP2 */
+		tegra_flow_wfi(dev);
+		return;
+	}
+
+	idle_stats.tear_down_count++;
+
+	if (tegra_tear_down_cpu1())
+		goto restart;
+
+	/* Enter LP2 */
+	request = ktime_to_us(tick_nohz_get_sleep_length());
+	smp_rmb();
+	request = min_t(s64, request, tegra_cpu1_idle_time);
+
+	enter = ktime_get();
+	if (request > state->target_residency) {
+		s64 sleep_time = request - tegra_lp2_exit_latency;
+
+		bin = time_to_bin((u32)request / 1000);
+		idle_stats.lp2_count++;
+		idle_stats.lp2_count_bin[bin]++;
+
+		if (tegra_suspend_lp2(sleep_time) == 0)
+			sleep_completed = true;
+		else
+			idle_stats.lp2_int_count[tegra_pending_interrupt()]++;
+	}
+
+	/* Bring CPU1 out of LP2 */
+	/* TODO: polls for CPU1 to boot, wfi would be better */
+	/* takes ~80 us */
+
+	/* set the reset vector to point to the secondary_startup routine */
+	smp_wmb();
+
+	tegra_wake_cpu1();
 
 	/*
 	 * TODO: is it worth going back to wfi if no interrupt is pending
@@ -312,6 +340,7 @@ restart:
 	}
 }
 
+#ifdef CONFIG_SMP
 static void tegra_idle_enter_lp2_cpu1(struct cpuidle_device *dev,
 	struct cpuidle_state *state)
 {
@@ -380,6 +409,7 @@ static void tegra_idle_enter_lp2_cpu1(struct cpuidle_device *dev,
 out:
 	tegra_legacy_force_irq_clr(TEGRA_CPUIDLE_BOTH_IDLE);
 }
+#endif
 
 static int tegra_idle_enter_lp3(struct cpuidle_device *dev,
 	struct cpuidle_state *state)
@@ -416,10 +446,14 @@ static int tegra_idle_enter_lp2(struct cpuidle_device *dev,
 
 	idle_stats.cpu_ready_count[dev->cpu]++;
 
+#ifdef CONFIG_SMP
 	if (dev->cpu == 0)
 		tegra_idle_enter_lp2_cpu0(dev, state);
 	else
 		tegra_idle_enter_lp2_cpu1(dev, state);
+#else
+	tegra_idle_enter_lp2_cpu0(dev, state);
+#endif
 
 	exit = ktime_sub(ktime_get(), enter);
 	us = ktime_to_us(exit);
@@ -476,6 +510,7 @@ static int tegra_idle_enter(unsigned int cpu)
 	state->flags = CPUIDLE_FLAG_BALANCED | CPUIDLE_FLAG_TIME_VALID;
 	state->enter = tegra_idle_enter_lp2;
 
+	dev->power_specified = 1;
 	dev->safe_state = state;
 	dev->state_count++;
 
@@ -577,6 +612,7 @@ module_exit(tegra_cpuidle_exit);
 static int tegra_lp2_debug_show(struct seq_file *s, void *data)
 {
 	int bin;
+	int i;
 	seq_printf(s, "                                    cpu0     cpu1\n");
 	seq_printf(s, "-------------------------------------------------\n");
 	seq_printf(s, "cpu ready:                      %8u %8u\n",
@@ -624,6 +660,21 @@ static int tegra_lp2_debug_show(struct seq_file *s, void *data)
 				idle_stats.lp2_count_bin[bin]);
 	}
 
+	seq_printf(s, "\n");
+	seq_printf(s, "%3s %20s %6s %10s\n",
+		"int", "name", "count", "last count");
+	seq_printf(s, "--------------------------------------------\n");
+	for (i = 0; i < NR_IRQS; i++) {
+		if (idle_stats.lp2_int_count[i] == 0)
+			continue;
+		seq_printf(s, "%3d %20s %6d %10d\n",
+			i, irq_to_desc(i)->action ?
+				irq_to_desc(i)->action->name ?: "???" : "???",
+			idle_stats.lp2_int_count[i],
+			idle_stats.lp2_int_count[i] -
+				idle_stats.last_lp2_int_count[i]);
+		idle_stats.last_lp2_int_count[i] = idle_stats.lp2_int_count[i];
+	};
 	return 0;
 }
 

@@ -37,6 +37,7 @@
 
 #include "board.h"
 #include "clock.h"
+#include "power.h"
 
 #define RTC_SECONDS		0x08
 #define RTC_SHADOW_SECONDS	0x0c
@@ -104,19 +105,15 @@ static cycle_t tegra_clocksource_us_read(struct clocksource *cs)
 
 void tegra_clocksource_us_suspend(struct clocksource *cs)
 {
-	tegra_us_resume_offset = tegra_clocksource_us_read(cs);
+	tegra_us_resume_offset = tegra_clocksource_us_read(cs) -
+		tegra_rtc_read_ms() * 1000;
 }
 
 void tegra_clocksource_us_resume(struct clocksource *cs)
 {
-	tegra_us_clocksource_offset = tegra_us_resume_offset;
-}
-
-static cycle_t tegra_clocksource_32k_read(struct clocksource *cs)
-{
-	u32 ms = readl(rtc_base + RTC_MILLISECONDS);
-	u32 s = readl(rtc_base + RTC_SHADOW_SECONDS);
-	return (u64)s * 1000 + ms;
+	tegra_us_clocksource_offset += tegra_us_resume_offset +
+		tegra_rtc_read_ms() * 1000 -
+		tegra_clocksource_us_read(cs);
 }
 
 static struct clock_event_device tegra_clockevent = {
@@ -137,43 +134,47 @@ static struct clocksource tegra_clocksource_us = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static struct clocksource tegra_clocksource_32k = {
-	.name	= "rtc_32k",
-	.rating	= 100,
-	.read	= tegra_clocksource_32k_read,
-	.mask	= 0x7FFFFFFFFFFFFFFFULL,
-	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 unsigned long long sched_clock(void)
 {
 	return tegra_clocksource_us.read(&tegra_clocksource_us) * 1000;
 }
 
-/**
+
+/*
+ * tegra_rtc_read - Reads the Tegra RTC registers
+ * Care must be taken that this funciton is not called while the
+ * tegra_rtc driver could be executing to avoid race conditions
+ * on the RTC shadow register
+ */
+u64 tegra_rtc_read_ms(void)
+{
+	u32 ms = readl(rtc_base + RTC_MILLISECONDS);
+	u32 s = readl(rtc_base + RTC_SHADOW_SECONDS);
+	return (u64)s * 1000 + ms;
+}
+
+/*
  * read_persistent_clock -  Return time from a persistent clock.
  *
  * Reads the time from a source which isn't disabled during PM, the
  * 32k sync timer.  Convert the cycles elapsed since last read into
  * nsecs and adds to a monotonically increasing timespec.
+ * Care must be taken that this funciton is not called while the
+ * tegra_rtc driver could be executing to avoid race conditions
+ * on the RTC shadow register
  */
 static struct timespec persistent_ts;
-static cycles_t cycles, last_cycles;
+static u64 persistent_ms, last_persistent_ms;
 void read_persistent_clock(struct timespec *ts)
 {
-	unsigned long long nsecs;
-	cycles_t delta;
+	u64 delta;
 	struct timespec *tsp = &persistent_ts;
 
-	last_cycles = cycles;
-	cycles = tegra_clocksource_32k.read(&tegra_clocksource_32k);
-	delta = cycles - last_cycles;
+	last_persistent_ms = persistent_ms;
+	persistent_ms = tegra_rtc_read_ms();
+	delta = persistent_ms - last_persistent_ms;
 
-	nsecs = clocksource_cyc2ns(delta,
-				   tegra_clocksource_32k.mult,
-				   tegra_clocksource_32k.shift);
-
-	timespec_add_ns(tsp, nsecs);
+	timespec_add_ns(tsp, delta * 1000000);
 	*ts = *tsp;
 }
 
@@ -235,11 +236,6 @@ static void __init tegra_init_timer(void)
 
 	if (clocksource_register_hz(&tegra_clocksource_us, 1000000)) {
 		printk(KERN_ERR "Failed to register us clocksource\n");
-		BUG();
-	}
-
-	if (clocksource_register_hz(&tegra_clocksource_32k, 1000)) {
-		printk(KERN_ERR "Failed to register 32k clocksource\n");
 		BUG();
 	}
 
