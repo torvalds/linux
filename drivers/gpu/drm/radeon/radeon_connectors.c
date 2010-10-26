@@ -663,6 +663,11 @@ radeon_vga_detect(struct drm_connector *connector, bool force)
 				ret = connector_status_connected;
 		}
 	} else {
+
+		/* if we aren't forcing don't do destructive polling */
+		if (!force)
+			return connector->status;
+
 		if (radeon_connector->dac_load_detect && encoder) {
 			encoder_funcs = encoder->helper_private;
 			ret = encoder_funcs->detect(encoder, connector);
@@ -849,6 +854,11 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 
 	if ((ret == connector_status_connected) && (radeon_connector->use_digital == true))
 		goto out;
+
+	if (!force) {
+		ret = connector->status;
+		goto out;
+	}
 
 	/* find analog encoder */
 	if (radeon_connector->dac_load_detect) {
