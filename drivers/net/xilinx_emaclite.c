@@ -24,6 +24,7 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_mdio.h>
+#include <linux/of_net.h>
 #include <linux/phy.h>
 
 #define DRIVER_NAME "xilinx_emaclite"
