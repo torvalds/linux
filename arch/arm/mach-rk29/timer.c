@@ -30,7 +30,7 @@
 #define TIMER_EOI		0x000C
 #define TIMER_INT_STATUS	0x0010
 
-#define TIMER_DISABLE			4
+#define TIMER_DISABLE			6
 #define TIMER_ENABLE			3
 #define TIMER_ENABLE_FREE_RUNNING	1
 
@@ -59,15 +59,17 @@ static int rk29_timer_set_next_event(unsigned long cycles, struct clock_event_de
 	RK_TIMER_DISABLE(TIMER_CLKEVT);
 	RK_TIMER_SETCOUNT(TIMER_CLKEVT, cycles);
 	RK_TIMER_ENABLE(TIMER_CLKEVT);
-
 	return 0;
 }
 
 static void rk29_timer_set_mode(enum clock_event_mode mode, struct clock_event_device *evt)
 {
 	switch (mode) {
-	case CLOCK_EVT_MODE_RESUME:
 	case CLOCK_EVT_MODE_PERIODIC:
+		RK_TIMER_DISABLE(TIMER_CLKEVT);
+		RK_TIMER_SETCOUNT(TIMER_CLKEVT, 24000000/HZ - 1);
+		RK_TIMER_ENABLE(TIMER_CLKEVT);
+	case CLOCK_EVT_MODE_RESUME:
 	case CLOCK_EVT_MODE_ONESHOT:
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
@@ -79,7 +81,7 @@ static void rk29_timer_set_mode(enum clock_event_mode mode, struct clock_event_d
 
 static struct clock_event_device rk29_timer_clockevent = {
 	.name           = TIMER_CLKEVT_NAME,
-	.features       = CLOCK_EVT_FEAT_ONESHOT,
+	.features       = CLOCK_EVT_FEAT_PERIODIC /*| CLOCK_EVT_FEAT_ONESHOT*/,
 	.shift          = 32,
 	.rating         = 200,
 	.set_next_event = rk29_timer_set_next_event,
@@ -91,7 +93,8 @@ static irqreturn_t rk29_timer_clockevent_interrupt(int irq, void *dev_id)
 	struct clock_event_device *evt = dev_id;
 
 	RK_TIMER_INT_CLEAR(TIMER_CLKEVT);
-	RK_TIMER_DISABLE(TIMER_CLKEVT);
+	if (evt->mode == CLOCK_EVT_MODE_ONESHOT)
+		RK_TIMER_DISABLE(TIMER_CLKEVT);
 
 	evt->event_handler(evt);
 
