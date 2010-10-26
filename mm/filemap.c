@@ -2193,12 +2193,12 @@ generic_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	}
 
 	if (written > 0) {
-		loff_t end = pos + written;
-		if (end > i_size_read(inode) && !S_ISBLK(inode->i_mode)) {
-			i_size_write(inode,  end);
+		pos += written;
+		if (pos > i_size_read(inode) && !S_ISBLK(inode->i_mode)) {
+			i_size_write(inode, pos);
 			mark_inode_dirty(inode);
 		}
-		*ppos = end;
+		*ppos = pos;
 	}
 out:
 	return written;
