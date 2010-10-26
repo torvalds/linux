@@ -359,7 +359,6 @@ EXPORT_SYMBOL(bitmap_find_next_zero_area);
 
 #define CHUNKSZ				32
 #define nbits_to_hold_value(val)	fls(val)
-#define unhex(c)			(isdigit(c) ? (c - '0') : (toupper(c) - 'A' + 10))
 #define BASEDEC 10		/* fancier cpuset lists input in decimal */
 
 /**
@@ -466,7 +465,7 @@ int __bitmap_parse(const char *buf, unsigned int buflen,
 			if (chunk & ~((1UL << (CHUNKSZ - 4)) - 1))
 				return -EOVERFLOW;
 
-			chunk = (chunk << 4) | unhex(c);
+			chunk = (chunk << 4) | hex_to_bin(c);
 			ndigits++; totaldigits++;
 		}
 		if (ndigits == 0)
