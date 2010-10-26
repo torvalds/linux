@@ -666,7 +666,7 @@ static void raise_barrier(conf_t *conf)
 	/* block any new IO from starting */
 	conf->barrier++;
 
-	/* No wait for all pending IO to complete */
+	/* Now wait for all pending IO to complete */
 	wait_event_lock_irq(conf->wait_barrier,
 			    !conf->nr_pending && conf->barrier < RESYNC_DEPTH,
 			    conf->resync_lock,
@@ -967,7 +967,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 			 * we clear any unused pointer in the io_vec, rather
 			 * than leave them unchanged.  This is important
 			 * because when we come to free the pages, we won't
-			 * know the originial bi_idx, so we just free
+			 * know the original bi_idx, so we just free
 			 * them all
 			 */
 			__bio_for_each_segment(bvec, mbio, j, 0)
@@ -1177,7 +1177,7 @@ static int raid1_remove_disk(mddev_t *mddev, int number)
 			err = -EBUSY;
 			goto abort;
 		}
-		/* Only remove non-faulty devices is recovery
+		/* Only remove non-faulty devices if recovery
 		 * is not possible.
 		 */
 		if (!test_bit(Faulty, &rdev->flags) &&
