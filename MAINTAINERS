@@ -241,21 +241,6 @@ F:	drivers/pnp/pnpacpi/
 F:	include/linux/acpi.h
 F:	include/acpi/
 
-ACPI BATTERY DRIVERS
-M:	Alexey Starikovskiy <astarikovskiy@suse.de>
-L:	linux-acpi@vger.kernel.org
-W:	http://www.lesswatts.org/projects/acpi/
-S:	Supported
-F:	drivers/acpi/battery.c
-F:	drivers/acpi/*sbs*
-
-ACPI EC DRIVER
-M:	Alexey Starikovskiy <astarikovskiy@suse.de>
-L:	linux-acpi@vger.kernel.org
-W:	http://www.lesswatts.org/projects/acpi/
-S:	Supported
-F:	drivers/acpi/ec.c
-
 ACPI FAN DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org

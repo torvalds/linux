@@ -245,8 +245,6 @@ int acpi_check_resource_conflict(const struct resource *res);
 
 int acpi_check_region(resource_size_t start, resource_size_t n,
 		      const char *name);
-int acpi_check_mem_region(resource_size_t start, resource_size_t n,
-		      const char *name);
 
 int acpi_resources_are_enforced(void);
 
@@ -343,12 +341,6 @@ static inline int acpi_check_resource_conflict(struct resource *res)
 
 static inline int acpi_check_region(resource_size_t start, resource_size_t n,
 				    const char *name)
-{
-	return 0;
-}
-
-static inline int acpi_check_mem_region(resource_size_t start,
-					resource_size_t n, const char *name)
 {
 	return 0;
 }
