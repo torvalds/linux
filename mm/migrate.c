@@ -1037,7 +1037,7 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
 
 		err = -EFAULT;
 		vma = find_vma(mm, pp->addr);
-		if (!vma || !vma_migratable(vma))
+		if (!vma || pp->addr < vma->vm_start || !vma_migratable(vma))
 			goto set_status;
 
 		page = follow_page(vma, pp->addr, FOLL_GET);
@@ -1204,7 +1204,7 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
 		int err = -EFAULT;
 
 		vma = find_vma(mm, addr);
-		if (!vma)
+		if (!vma || addr < vma->vm_start)
 			goto set_status;
 
 		page = follow_page(vma, addr, 0);
