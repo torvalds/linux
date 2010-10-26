@@ -3274,7 +3274,6 @@ int dsi_init(struct platform_device *pdev)
 
 	dsi.vdds_dsi_reg = dss_get_vdds_dsi();
 	if (IS_ERR(dsi.vdds_dsi_reg)) {
-		iounmap(dsi.base);
 		DSSERR("can't get VDDS_DSI regulator\n");
 		r = PTR_ERR(dsi.vdds_dsi_reg);
 		goto err2;

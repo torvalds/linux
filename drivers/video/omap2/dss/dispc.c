@@ -39,6 +39,7 @@
 #include <plat/display.h>
 
 #include "dss.h"
+#include "dss_features.h"
 
 /* DISPC */
 #define DISPC_BASE			0x48050400
@@ -137,6 +138,22 @@ struct omap_dispc_isr_data {
 	omap_dispc_isr_t	isr;
 	void			*arg;
 	u32			mask;
+};
+
+struct dispc_h_coef {
+	s8 hc4;
+	s8 hc3;
+	u8 hc2;
+	s8 hc1;
+	s8 hc0;
+};
+
+struct dispc_v_coef {
+	s8 vc22;
+	s8 vc2;
+	u8 vc1;
+	s8 vc0;
+	s8 vc00;
 };
 
 #define REG_GET(idx, start, end) \
@@ -564,106 +581,77 @@ static void _dispc_set_scale_coef(enum omap_plane plane, int hscaleup,
 		int vscaleup, int five_taps)
 {
 	/* Coefficients for horizontal up-sampling */
-	static const u32 coef_hup[8] = {
-		0x00800000,
-		0x0D7CF800,
-		0x1E70F5FF,
-		0x335FF5FE,
-		0xF74949F7,
-		0xF55F33FB,
-		0xF5701EFE,
-		0xF87C0DFF,
-	};
-
-	/* Coefficients for horizontal down-sampling */
-	static const u32 coef_hdown[8] = {
-		0x24382400,
-		0x28371FFE,
-		0x2C361BFB,
-		0x303516F9,
-		0x11343311,
-		0x1635300C,
-		0x1B362C08,
-		0x1F372804,
-	};
-
-	/* Coefficients for horizontal and vertical up-sampling */
-	static const u32 coef_hvup[2][8] = {
-		{
-		0x00800000,
-		0x037B02FF,
-		0x0C6F05FE,
-		0x205907FB,
-		0x00404000,
-		0x075920FE,
-		0x056F0CFF,
-		0x027B0300,
-		},
-		{
-		0x00800000,
-		0x0D7CF8FF,
-		0x1E70F5FE,
-		0x335FF5FB,
-		0xF7404000,
-		0xF55F33FE,
-		0xF5701EFF,
-		0xF87C0D00,
-		},
-	};
-
-	/* Coefficients for horizontal and vertical down-sampling */
-	static const u32 coef_hvdown[2][8] = {
-		{
-		0x24382400,
-		0x28391F04,
-		0x2D381B08,
-		0x3237170C,
-		0x123737F7,
-		0x173732F9,
-		0x1B382DFB,
-		0x1F3928FE,
-		},
-		{
-		0x24382400,
-		0x28371F04,
-		0x2C361B08,
-		0x3035160C,
-		0x113433F7,
-		0x163530F9,
-		0x1B362CFB,
-		0x1F3728FE,
-		},
+	static const struct dispc_h_coef coef_hup[8] = {
+		{  0,   0, 128,   0,  0 },
+		{ -1,  13, 124,  -8,  0 },
+		{ -2,  30, 112, -11, -1 },
+		{ -5,  51,  95, -11, -2 },
+		{  0,  -9,  73,  73, -9 },
+		{ -2, -11,  95,  51, -5 },
+		{ -1, -11, 112,  30, -2 },
+		{  0,  -8, 124,  13, -1 },
 	};
 
 	/* Coefficients for vertical up-sampling */
-	static const u32 coef_vup[8] = {
-		0x00000000,
-		0x0000FF00,
-		0x0000FEFF,
-		0x0000FBFE,
-		0x000000F7,
-		0x0000FEFB,
-		0x0000FFFE,
-		0x000000FF,
+	static const struct dispc_v_coef coef_vup_3tap[8] = {
+		{ 0,  0, 128,  0, 0 },
+		{ 0,  3, 123,  2, 0 },
+		{ 0, 12, 111,  5, 0 },
+		{ 0, 32,  89,  7, 0 },
+		{ 0,  0,  64, 64, 0 },
+		{ 0,  7,  89, 32, 0 },
+		{ 0,  5, 111, 12, 0 },
+		{ 0,  2, 123,  3, 0 },
 	};
 
+	static const struct dispc_v_coef coef_vup_5tap[8] = {
+		{  0,   0, 128,   0,  0 },
+		{ -1,  13, 124,  -8,  0 },
+		{ -2,  30, 112, -11, -1 },
+		{ -5,  51,  95, -11, -2 },
+		{  0,  -9,  73,  73, -9 },
+		{ -2, -11,  95,  51, -5 },
+		{ -1, -11, 112,  30, -2 },
+		{  0,  -8, 124,  13, -1 },
+	};
+
+	/* Coefficients for horizontal down-sampling */
+	static const struct dispc_h_coef coef_hdown[8] = {
+		{   0, 36, 56, 36,  0 },
+		{   4, 40, 55, 31, -2 },
+		{   8, 44, 54, 27, -5 },
+		{  12, 48, 53, 22, -7 },
+		{  -9, 17, 52, 51, 17 },
+		{  -7, 22, 53, 48, 12 },
+		{  -5, 27, 54, 44,  8 },
+		{  -2, 31, 55, 40,  4 },
+	};
 
 	/* Coefficients for vertical down-sampling */
-	static const u32 coef_vdown[8] = {
-		0x00000000,
-		0x000004FE,
-		0x000008FB,
-		0x00000CF9,
-		0x0000F711,
-		0x0000F90C,
-		0x0000FB08,
-		0x0000FE04,
+	static const struct dispc_v_coef coef_vdown_3tap[8] = {
+		{ 0, 36, 56, 36, 0 },
+		{ 0, 40, 57, 31, 0 },
+		{ 0, 45, 56, 27, 0 },
+		{ 0, 50, 55, 23, 0 },
+		{ 0, 18, 55, 55, 0 },
+		{ 0, 23, 55, 50, 0 },
+		{ 0, 27, 56, 45, 0 },
+		{ 0, 31, 57, 40, 0 },
 	};
 
-	const u32 *h_coef;
-	const u32 *hv_coef;
-	const u32 *hv_coef_mod;
-	const u32 *v_coef;
+	static const struct dispc_v_coef coef_vdown_5tap[8] = {
+		{   0, 36, 56, 36,  0 },
+		{   4, 40, 55, 31, -2 },
+		{   8, 44, 54, 27, -5 },
+		{  12, 48, 53, 22, -7 },
+		{  -9, 17, 52, 51, 17 },
+		{  -7, 22, 53, 48, 12 },
+		{  -5, 27, 54, 44,  8 },
+		{  -2, 31, 55, 40,  4 },
+	};
+
+	const struct dispc_h_coef *h_coef;
+	const struct dispc_v_coef *v_coef;
 	int i;
 
 	if (hscaleup)
@@ -671,47 +659,34 @@ static void _dispc_set_scale_coef(enum omap_plane plane, int hscaleup,
 	else
 		h_coef = coef_hdown;
 
-	if (vscaleup) {
-		hv_coef = coef_hvup[five_taps];
-		v_coef = coef_vup;
-
-		if (hscaleup)
-			hv_coef_mod = NULL;
-		else
-			hv_coef_mod = coef_hvdown[five_taps];
-	} else {
-		hv_coef = coef_hvdown[five_taps];
-		v_coef = coef_vdown;
-
-		if (hscaleup)
-			hv_coef_mod = coef_hvup[five_taps];
-		else
-			hv_coef_mod = NULL;
-	}
+	if (vscaleup)
+		v_coef = five_taps ? coef_vup_5tap : coef_vup_3tap;
+	else
+		v_coef = five_taps ? coef_vdown_5tap : coef_vdown_3tap;
 
 	for (i = 0; i < 8; i++) {
 		u32 h, hv;
 
-		h = h_coef[i];
-
-		hv = hv_coef[i];
-
-		if (hv_coef_mod) {
-			hv &= 0xffffff00;
-			hv |= (hv_coef_mod[i] & 0xff);
-		}
+		h = FLD_VAL(h_coef[i].hc0, 7, 0)
+			| FLD_VAL(h_coef[i].hc1, 15, 8)
+			| FLD_VAL(h_coef[i].hc2, 23, 16)
+			| FLD_VAL(h_coef[i].hc3, 31, 24);
+		hv = FLD_VAL(h_coef[i].hc4, 7, 0)
+			| FLD_VAL(v_coef[i].vc0, 15, 8)
+			| FLD_VAL(v_coef[i].vc1, 23, 16)
+			| FLD_VAL(v_coef[i].vc2, 31, 24);
 
 		_dispc_write_firh_reg(plane, i, h);
 		_dispc_write_firhv_reg(plane, i, hv);
 	}
 
-	if (!five_taps)
-		return;
-
-	for (i = 0; i < 8; i++) {
-		u32 v;
-		v = v_coef[i];
-		_dispc_write_firv_reg(plane, i, v);
+	if (five_taps) {
+		for (i = 0; i < 8; i++) {
+			u32 v;
+			v = FLD_VAL(v_coef[i].vc00, 7, 0)
+				| FLD_VAL(v_coef[i].vc22, 15, 8);
+			_dispc_write_firv_reg(plane, i, v);
+		}
 	}
 }
 
@@ -800,11 +775,11 @@ static void _dispc_set_vid_size(enum omap_plane plane, int width, int height)
 
 static void _dispc_setup_global_alpha(enum omap_plane plane, u8 global_alpha)
 {
-
-	BUG_ON(plane == OMAP_DSS_VIDEO1);
-
-	if (cpu_is_omap24xx())
+	if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
 		return;
+
+	BUG_ON(!dss_has_feature(FEAT_GLOBAL_ALPHA_VID1) &&
+			plane == OMAP_DSS_VIDEO1);
 
 	if (plane == OMAP_DSS_GFX)
 		REG_FLD_MOD(DISPC_GLOBAL_ALPHA, global_alpha, 7, 0);
@@ -975,17 +950,14 @@ static void dispc_read_plane_fifo_sizes(void)
 				      DISPC_VID_FIFO_SIZE_STATUS(1) };
 	u32 size;
 	int plane;
+	u8 start, end;
 
 	enable_clocks(1);
 
-	for (plane = 0; plane < ARRAY_SIZE(dispc.fifo_size); ++plane) {
-		if (cpu_is_omap24xx())
-			size = FLD_GET(dispc_read_reg(fsz_reg[plane]), 8, 0);
-		else if (cpu_is_omap34xx())
-			size = FLD_GET(dispc_read_reg(fsz_reg[plane]), 10, 0);
-		else
-			BUG();
+	dss_feat_get_reg_field(FEAT_REG_FIFOSIZE, &start, &end);
 
+	for (plane = 0; plane < ARRAY_SIZE(dispc.fifo_size); ++plane) {
+		size = FLD_GET(dispc_read_reg(fsz_reg[plane]), start, end);
 		dispc.fifo_size[plane] = size;
 	}
 
@@ -1002,6 +974,8 @@ void dispc_setup_plane_fifo(enum omap_plane plane, u32 low, u32 high)
 	const struct dispc_reg ftrs_reg[] = { DISPC_GFX_FIFO_THRESHOLD,
 				       DISPC_VID_FIFO_THRESHOLD(0),
 				       DISPC_VID_FIFO_THRESHOLD(1) };
+	u8 hi_start, hi_end, lo_start, lo_end;
+
 	enable_clocks(1);
 
 	DSSDBG("fifo(%d) low/high old %u/%u, new %u/%u\n",
@@ -1010,12 +984,12 @@ void dispc_setup_plane_fifo(enum omap_plane plane, u32 low, u32 high)
 			REG_GET(ftrs_reg[plane], 27, 16),
 			low, high);
 
-	if (cpu_is_omap24xx())
-		dispc_write_reg(ftrs_reg[plane],
-				FLD_VAL(high, 24, 16) | FLD_VAL(low, 8, 0));
-	else
-		dispc_write_reg(ftrs_reg[plane],
-				FLD_VAL(high, 27, 16) | FLD_VAL(low, 11, 0));
+	dss_feat_get_reg_field(FEAT_REG_FIFOHIGHTHRESHOLD, &hi_start, &hi_end);
+	dss_feat_get_reg_field(FEAT_REG_FIFOLOWTHRESHOLD, &lo_start, &lo_end);
+
+	dispc_write_reg(ftrs_reg[plane],
+			FLD_VAL(high, hi_start, hi_end) |
+			FLD_VAL(low, lo_start, lo_end));
 
 	enable_clocks(0);
 }
@@ -1035,13 +1009,16 @@ static void _dispc_set_fir(enum omap_plane plane, int hinc, int vinc)
 	u32 val;
 	const struct dispc_reg fir_reg[] = { DISPC_VID_FIR(0),
 				      DISPC_VID_FIR(1) };
+	u8 hinc_start, hinc_end, vinc_start, vinc_end;
 
 	BUG_ON(plane == OMAP_DSS_GFX);
 
-	if (cpu_is_omap24xx())
-		val = FLD_VAL(vinc, 27, 16) | FLD_VAL(hinc, 11, 0);
-	else
-		val = FLD_VAL(vinc, 28, 16) | FLD_VAL(hinc, 12, 0);
+	dss_feat_get_reg_field(FEAT_REG_FIRHINC, &hinc_start, &hinc_end);
+	dss_feat_get_reg_field(FEAT_REG_FIRVINC, &vinc_start, &vinc_end);
+
+	val = FLD_VAL(vinc, vinc_start, vinc_end) |
+			FLD_VAL(hinc, hinc_start, hinc_end);
+
 	dispc_write_reg(fir_reg[plane-1], val);
 }
 
@@ -1567,6 +1544,8 @@ static int _dispc_setup_plane(enum omap_plane plane,
 		case OMAP_DSS_COLOR_ARGB16:
 		case OMAP_DSS_COLOR_ARGB32:
 		case OMAP_DSS_COLOR_RGBA32:
+			if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
+				return -EINVAL;
 		case OMAP_DSS_COLOR_RGBX32:
 			if (cpu_is_omap24xx())
 				return -EINVAL;
@@ -1607,9 +1586,10 @@ static int _dispc_setup_plane(enum omap_plane plane,
 		case OMAP_DSS_COLOR_ARGB16:
 		case OMAP_DSS_COLOR_ARGB32:
 		case OMAP_DSS_COLOR_RGBA32:
-			if (cpu_is_omap24xx())
+			if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
 				return -EINVAL;
-			if (plane == OMAP_DSS_VIDEO1)
+			if (!dss_has_feature(FEAT_GLOBAL_ALPHA_VID1) &&
+					plane == OMAP_DSS_VIDEO1)
 				return -EINVAL;
 			break;
 
@@ -2002,7 +1982,7 @@ void dispc_enable_trans_key(enum omap_channel ch, bool enable)
 }
 void dispc_enable_alpha_blending(enum omap_channel ch, bool enable)
 {
-	if (cpu_is_omap24xx())
+	if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
 		return;
 
 	enable_clocks(1);
@@ -2016,7 +1996,7 @@ bool dispc_alpha_blending_enabled(enum omap_channel ch)
 {
 	bool enabled;
 
-	if (cpu_is_omap24xx())
+	if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
 		return false;
 
 	enable_clocks(1);

@@ -33,6 +33,7 @@
 #include <plat/cpu.h>
 
 #include "dss.h"
+#include "dss_features.h"
 
 static int num_managers;
 static struct list_head manager_list;
@@ -448,8 +449,8 @@ struct manager_cache_data {
 
 static struct {
 	spinlock_t lock;
-	struct overlay_cache_data overlay_cache[3];
-	struct manager_cache_data manager_cache[2];
+	struct overlay_cache_data overlay_cache[MAX_DSS_OVERLAYS];
+	struct manager_cache_data manager_cache[MAX_DSS_MANAGERS];
 
 	bool irq_enabled;
 } dss_cache;
@@ -882,12 +883,12 @@ static int configure_dispc(void)
 {
 	struct overlay_cache_data *oc;
 	struct manager_cache_data *mc;
-	const int num_ovls = ARRAY_SIZE(dss_cache.overlay_cache);
-	const int num_mgrs = ARRAY_SIZE(dss_cache.manager_cache);
+	const int num_ovls = dss_feat_get_num_ovls();
+	const int num_mgrs = dss_feat_get_num_mgrs();
 	int i;
 	int r;
-	bool mgr_busy[2];
-	bool mgr_go[2];
+	bool mgr_busy[MAX_DSS_MANAGERS];
+	bool mgr_go[MAX_DSS_MANAGERS];
 	bool busy;
 
 	r = 0;
@@ -989,7 +990,7 @@ void dss_setup_partial_planes(struct omap_dss_device *dssdev,
 {
 	struct overlay_cache_data *oc;
 	struct manager_cache_data *mc;
-	const int num_ovls = ARRAY_SIZE(dss_cache.overlay_cache);
+	const int num_ovls = dss_feat_get_num_ovls();
 	struct omap_overlay_manager *mgr;
 	int i;
 	u16 x, y, w, h;
@@ -1121,8 +1122,8 @@ void dss_start_update(struct omap_dss_device *dssdev)
 {
 	struct manager_cache_data *mc;
 	struct overlay_cache_data *oc;
-	const int num_ovls = ARRAY_SIZE(dss_cache.overlay_cache);
-	const int num_mgrs = ARRAY_SIZE(dss_cache.manager_cache);
+	const int num_ovls = dss_feat_get_num_ovls();
+	const int num_mgrs = dss_feat_get_num_mgrs();
 	struct omap_overlay_manager *mgr;
 	int i;
 
@@ -1151,10 +1152,10 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 {
 	struct manager_cache_data *mc;
 	struct overlay_cache_data *oc;
-	const int num_ovls = ARRAY_SIZE(dss_cache.overlay_cache);
-	const int num_mgrs = ARRAY_SIZE(dss_cache.manager_cache);
+	const int num_ovls = dss_feat_get_num_ovls();
+	const int num_mgrs = dss_feat_get_num_mgrs();
 	int i, r;
-	bool mgr_busy[2];
+	bool mgr_busy[MAX_DSS_MANAGERS];
 
 	mgr_busy[0] = dispc_go_busy(0);
 	mgr_busy[1] = dispc_go_busy(1);
@@ -1461,7 +1462,7 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 
 	num_managers = 0;
 
-	for (i = 0; i < 2; ++i) {
+	for (i = 0; i < dss_feat_get_num_mgrs(); ++i) {
 		struct omap_overlay_manager *mgr;
 		mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
 
@@ -1471,14 +1472,10 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 		case 0:
 			mgr->name = "lcd";
 			mgr->id = OMAP_DSS_CHANNEL_LCD;
-			mgr->supported_displays =
-				OMAP_DISPLAY_TYPE_DPI | OMAP_DISPLAY_TYPE_DBI |
-				OMAP_DISPLAY_TYPE_SDI | OMAP_DISPLAY_TYPE_DSI;
 			break;
 		case 1:
 			mgr->name = "tv";
 			mgr->id = OMAP_DSS_CHANNEL_DIGIT;
-			mgr->supported_displays = OMAP_DISPLAY_TYPE_VENC;
 			break;
 		}
 
@@ -1494,6 +1491,8 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 		mgr->disable = &dss_mgr_disable;
 
 		mgr->caps = OMAP_DSS_OVL_MGR_CAP_DISPC;
+		mgr->supported_displays =
+			dss_feat_get_supported_displays(mgr->id);
 
 		dss_overlay_setup_dispc_manager(mgr);
 
