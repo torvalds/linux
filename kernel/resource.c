@@ -374,6 +374,11 @@ static void resource_clip(struct resource *res, resource_size_t min,
 		res->end = max;
 }
 
+static bool resource_contains(struct resource *res1, struct resource *res2)
+{
+	return res1->start <= res2->start && res1->end >= res2->end;
+}
+
 /*
  * Find empty slot in the resource tree given range and alignment.
  */
@@ -387,7 +392,7 @@ static int find_resource(struct resource *root, struct resource *new,
 			 void *alignf_data)
 {
 	struct resource *this = root->child;
-	struct resource tmp = *new;
+	struct resource tmp = *new, alloc;
 
 	tmp.start = root->start;
 	/*
@@ -407,10 +412,11 @@ static int find_resource(struct resource *root, struct resource *new,
 		resource_clip(&tmp, min, max);
 		tmp.start = ALIGN(tmp.start, align);
 
-		tmp.start = alignf(alignf_data, &tmp, size, align);
-		if (tmp.start < tmp.end && tmp.end - tmp.start >= size - 1) {
-			new->start = tmp.start;
-			new->end = tmp.start + size - 1;
+		alloc.start = alignf(alignf_data, &tmp, size, align);
+		alloc.end = alloc.start + size - 1;
+		if (resource_contains(&tmp, &alloc)) {
+			new->start = alloc.start;
+			new->end = alloc.end;
 			return 0;
 		}
 		if (!this)
