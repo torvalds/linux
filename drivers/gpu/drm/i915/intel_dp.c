@@ -1517,7 +1517,7 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 			status = connector_status_connected;
 	}
 
-	return bit;
+	return status;
 }
 
 /**
