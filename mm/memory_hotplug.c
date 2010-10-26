@@ -705,24 +705,21 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 			   check this again here. */
 			if (page_count(page)) {
 				not_managed++;
+				ret = -EBUSY;
 				break;
 			}
 		}
 	}
-	ret = -EBUSY;
-	if (not_managed) {
-		if (!list_empty(&source))
+	if (!list_empty(&source)) {
+		if (not_managed) {
 			putback_lru_pages(&source);
-		goto out;
+			goto out;
+		}
+		/* this function returns # of failed pages */
+		ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
+		if (ret)
+			putback_lru_pages(&source);
 	}
-	ret = 0;
-	if (list_empty(&source))
-		goto out;
-	/* this function returns # of failed pages */
-	ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
-	if (ret)
-		putback_lru_pages(&source);
-
 out:
 	return ret;
 }
