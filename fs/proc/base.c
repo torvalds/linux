@@ -1042,20 +1042,21 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 		err = -ESRCH;
 		goto out;
 	}
-	if (!lock_task_sighand(task, &flags)) {
-		err = -ESRCH;
-		goto err_task_struct;
-	}
-
-	if (oom_adjust < task->signal->oom_adj && !capable(CAP_SYS_RESOURCE)) {
-		err = -EACCES;
-		goto err_sighand;
-	}
 
 	task_lock(task);
 	if (!task->mm) {
 		err = -EINVAL;
 		goto err_task_lock;
+	}
+
+	if (!lock_task_sighand(task, &flags)) {
+		err = -ESRCH;
+		goto err_task_lock;
+	}
+
+	if (oom_adjust < task->signal->oom_adj && !capable(CAP_SYS_RESOURCE)) {
+		err = -EACCES;
+		goto err_sighand;
 	}
 
 	if (oom_adjust != task->signal->oom_adj) {
@@ -1083,11 +1084,10 @@ static ssize_t oom_adjust_write(struct file *file, const char __user *buf,
 	else
 		task->signal->oom_score_adj = (oom_adjust * OOM_SCORE_ADJ_MAX) /
 								-OOM_DISABLE;
-err_task_lock:
-	task_unlock(task);
 err_sighand:
 	unlock_task_sighand(task, &flags);
-err_task_struct:
+err_task_lock:
+	task_unlock(task);
 	put_task_struct(task);
 out:
 	return err < 0 ? err : count;
@@ -1150,21 +1150,24 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 		err = -ESRCH;
 		goto out;
 	}
-	if (!lock_task_sighand(task, &flags)) {
-		err = -ESRCH;
-		goto err_task_struct;
-	}
-	if (oom_score_adj < task->signal->oom_score_adj &&
-			!capable(CAP_SYS_RESOURCE)) {
-		err = -EACCES;
-		goto err_sighand;
-	}
 
 	task_lock(task);
 	if (!task->mm) {
 		err = -EINVAL;
 		goto err_task_lock;
 	}
+
+	if (!lock_task_sighand(task, &flags)) {
+		err = -ESRCH;
+		goto err_task_lock;
+	}
+
+	if (oom_score_adj < task->signal->oom_score_adj &&
+			!capable(CAP_SYS_RESOURCE)) {
+		err = -EACCES;
+		goto err_sighand;
+	}
+
 	if (oom_score_adj != task->signal->oom_score_adj) {
 		if (oom_score_adj == OOM_SCORE_ADJ_MIN)
 			atomic_inc(&task->mm->oom_disable_count);
@@ -1181,11 +1184,10 @@ static ssize_t oom_score_adj_write(struct file *file, const char __user *buf,
 	else
 		task->signal->oom_adj = (oom_score_adj * OOM_ADJUST_MAX) /
 							OOM_SCORE_ADJ_MAX;
-err_task_lock:
-	task_unlock(task);
 err_sighand:
 	unlock_task_sighand(task, &flags);
-err_task_struct:
+err_task_lock:
+	task_unlock(task);
 	put_task_struct(task);
 out:
 	return err < 0 ? err : count;
