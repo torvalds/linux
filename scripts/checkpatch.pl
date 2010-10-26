@@ -103,6 +103,8 @@ for my $key (keys %debug) {
 	die "$@" if ($@);
 }
 
+my $rpt_cleaners = 0;
+
 if ($terse) {
 	$emacs = 1;
 	$quiet++;
@@ -1389,6 +1391,7 @@ sub process {
 		} elsif ($rawline =~ /^\+.*\S\s+$/ || $rawline =~ /^\+\s+$/) {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
 			ERROR("trailing whitespace\n" . $herevet);
+			$rpt_cleaners = 1;
 		}
 
 # check for Kconfig help text having a real description
@@ -1450,6 +1453,7 @@ sub process {
 		    $rawline =~ /^\+\s*        \s*/) {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
 			ERROR("code indent should use tabs where possible\n" . $herevet);
+			$rpt_cleaners = 1;
 		}
 
 # check for space before tabs.
@@ -2840,6 +2844,15 @@ sub process {
 			(($check)? "$cnt_chk checks, " : "") .
 			"$cnt_lines lines checked\n";
 		print "\n" if ($quiet == 0);
+	}
+
+	if ($quiet == 0) {
+		# If there were whitespace errors which cleanpatch can fix
+		# then suggest that.
+		if ($rpt_cleaners) {
+			print "NOTE: whitespace errors detected, you may wish to use scripts/cleanpatch or\n";
+			print "      scripts/cleanfile\n\n";
+		}
 	}
 
 	if ($clean == 1 && $quiet == 0) {
