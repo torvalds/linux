@@ -676,13 +676,11 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 			i, ep->desc.bEndpointAddress);
 	gspca_dev->alt = i;		/* memorize the current alt setting */
 	if (gspca_dev->nbalt > 1) {
-		gspca_input_destroy_urb(gspca_dev);
 		ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, i);
 		if (ret < 0) {
 			err("set alt %d err %d", i, ret);
 			ep = NULL;
 		}
-		gspca_input_create_urb(gspca_dev);
 	}
 	return ep;
 }
@@ -781,7 +779,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 
 	if (!gspca_dev->present) {
 		ret = -ENODEV;
-		goto out;
+		goto unlock;
 	}
 
 	/* reset the streaming variables */
@@ -802,8 +800,10 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 	if (gspca_dev->sd_desc->isoc_init) {
 		ret = gspca_dev->sd_desc->isoc_init(gspca_dev);
 		if (ret < 0)
-			goto out;
+			goto unlock;
 	}
+
+	gspca_input_destroy_urb(gspca_dev);
 	ep = get_ep(gspca_dev);
 	if (ep == NULL) {
 		ret = -EIO;
@@ -873,6 +873,8 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		}
 	}
 out:
+	gspca_input_create_urb(gspca_dev);
+unlock:
 	mutex_unlock(&gspca_dev->usb_lock);
 	return ret;
 }
