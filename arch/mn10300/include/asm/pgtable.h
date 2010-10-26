@@ -457,9 +457,7 @@ static inline int set_kernel_exec(unsigned long vaddr, int enable)
 
 #define pte_offset_map(dir, address) \
 	((pte_t *) page_address(pmd_page(*(dir))) + pte_index(address))
-#define pte_offset_map_nested(dir, address) pte_offset_map(dir, address)
 #define pte_unmap(pte)		do {} while (0)
-#define pte_unmap_nested(pte)	do {} while (0)
 
 /*
  * The MN10300 has external MMU info in the form of a TLB: this is adapted from
