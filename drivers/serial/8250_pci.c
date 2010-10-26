@@ -2863,6 +2863,9 @@ static struct pci_device_id serial_pci_tbl[] = {
 		PCI_SUBVENDOR_ID_SIIG, PCI_SUBDEVICE_ID_SIIG_QUARTET_SERIAL,
 		0, 0,
 		pbn_b0_4_1152000 },
+	{	PCI_VENDOR_ID_OXSEMI, 0x9505,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b0_bt_2_921600 },
 
 		/*
 		 * The below card is a little controversial since it is the
