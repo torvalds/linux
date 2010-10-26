@@ -392,7 +392,7 @@ static int find_resource(struct resource *root, struct resource *new,
 			 void *alignf_data)
 {
 	struct resource *this = root->child;
-	struct resource tmp = *new, alloc;
+	struct resource tmp = *new, avail, alloc;
 
 	tmp.start = root->start;
 	/*
@@ -410,14 +410,19 @@ static int find_resource(struct resource *root, struct resource *new,
 			tmp.end = root->end;
 
 		resource_clip(&tmp, min, max);
-		tmp.start = ALIGN(tmp.start, align);
 
-		alloc.start = alignf(alignf_data, &tmp, size, align);
-		alloc.end = alloc.start + size - 1;
-		if (resource_contains(&tmp, &alloc)) {
-			new->start = alloc.start;
-			new->end = alloc.end;
-			return 0;
+		/* Check for overflow after ALIGN() */
+		avail = *new;
+		avail.start = ALIGN(tmp.start, align);
+		avail.end = tmp.end;
+		if (avail.start >= tmp.start) {
+			alloc.start = alignf(alignf_data, &avail, size, align);
+			alloc.end = alloc.start + size - 1;
+			if (resource_contains(&avail, &alloc)) {
+				new->start = alloc.start;
+				new->end = alloc.end;
+				return 0;
+			}
 		}
 		if (!this)
 			break;
