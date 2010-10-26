@@ -2476,8 +2476,8 @@ sub process {
 				\.$Ident\s*=\s*|
 				^\"|\"$
 			}x;
-			#print "REST<$rest> dstat<$dstat>\n";
-			if ($rest ne '') {
+			#print "REST<$rest> dstat<$dstat> ctx<$ctx>\n";
+			if ($rest ne '' && $rest ne ',') {
 				if ($rest !~ /while\s*\(/ &&
 				    $dstat !~ /$exceptions/)
 				{
