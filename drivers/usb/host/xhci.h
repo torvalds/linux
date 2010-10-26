@@ -448,6 +448,24 @@ struct xhci_doorbell_array {
 
 
 /**
+ * struct xhci_protocol_caps
+ * @revision:		major revision, minor revision, capability ID,
+ *			and next capability pointer.
+ * @name_string:	Four ASCII characters to say which spec this xHC
+ *			follows, typically "USB ".
+ * @port_info:		Port offset, count, and protocol-defined information.
+ */
+struct xhci_protocol_caps {
+	u32	revision;
+	u32	name_string;
+	u32	port_info;
+};
+
+#define	XHCI_EXT_PORT_MAJOR(x)	(((x) >> 24) & 0xff)
+#define	XHCI_EXT_PORT_OFF(x)	((x) & 0xff)
+#define	XHCI_EXT_PORT_COUNT(x)	(((x) >> 8) & 0xff)
+
+/**
  * struct xhci_container_ctx
  * @type: Type of context.  Used to calculated offsets to contained contexts.
  * @size: Size of the context data
@@ -1204,6 +1222,15 @@ struct xhci_hcd {
 #define	XHCI_LINK_TRB_QUIRK	(1 << 0)
 #define XHCI_RESET_EP_QUIRK	(1 << 1)
 #define XHCI_NEC_HOST		(1 << 2)
+
+	/* Is each xHCI roothub port a USB 3.0, USB 2.0, or USB 1.1 port? */
+	u8			*port_array;
+	/* Array of pointers to USB 3.0 PORTSC registers */
+	u32 __iomem		**usb3_ports;
+	unsigned int		num_usb3_ports;
+	/* Array of pointers to USB 2.0 PORTSC registers */
+	u32 __iomem		**usb2_ports;
+	unsigned int		num_usb2_ports;
 };
 
 /* For testing purposes */
