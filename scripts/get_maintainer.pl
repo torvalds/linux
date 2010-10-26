@@ -13,7 +13,7 @@
 use strict;
 
 my $P = $0;
-my $V = '0.26-beta5';
+my $V = '0.26-beta6';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -1036,7 +1036,7 @@ sub push_email_address {
 	push(@email_to, [format_email($name, $address, $email_usename), $role]);
     } elsif (!email_inuse($name, $address)) {
 	push(@email_to, [format_email($name, $address, $email_usename), $role]);
-	$email_hash_name{lc($name)}++;
+	$email_hash_name{lc($name)}++ if ($name ne "");
 	$email_hash_address{lc($address)}++;
     }
 
@@ -1659,7 +1659,7 @@ sub deduplicate_email {
 
     ($name, $address) = parse_email($email);
 
-    if ($deduplicate_name_hash{lc($name)}) {
+    if ($name ne "" && $deduplicate_name_hash{lc($name)}) {
 	$name = $deduplicate_name_hash{lc($name)}->[0];
 	$address = $deduplicate_name_hash{lc($name)}->[1];
 	$matched = 1;
