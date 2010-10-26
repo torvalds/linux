@@ -95,6 +95,21 @@ struct acpi_res_list {
 static LIST_HEAD(resource_list_head);
 static DEFINE_SPINLOCK(acpi_res_lock);
 
+/*
+ * This list of permanent mappings is for memory that may be accessed from
+ * interrupt context, where we can't do the ioremap().
+ */
+struct acpi_ioremap {
+	struct list_head list;
+	void __iomem *virt;
+	acpi_physical_address phys;
+	acpi_size size;
+	struct kref ref;
+};
+
+static LIST_HEAD(acpi_ioremaps);
+static DEFINE_SPINLOCK(acpi_ioremap_lock);
+
 #define	OSI_STRING_LENGTH_MAX 64	/* arbitrary */
 static char osi_setup_string[OSI_STRING_LENGTH_MAX];
 
@@ -201,38 +216,6 @@ static int __init acpi_reserve_resources(void)
 }
 device_initcall(acpi_reserve_resources);
 
-acpi_status __init acpi_os_initialize(void)
-{
-	return AE_OK;
-}
-
-acpi_status acpi_os_initialize1(void)
-{
-	kacpid_wq = create_workqueue("kacpid");
-	kacpi_notify_wq = create_workqueue("kacpi_notify");
-	kacpi_hotplug_wq = create_workqueue("kacpi_hotplug");
-	BUG_ON(!kacpid_wq);
-	BUG_ON(!kacpi_notify_wq);
-	BUG_ON(!kacpi_hotplug_wq);
-	acpi_install_interface_handler(acpi_osi_handler);
-	acpi_osi_setup_late();
-	return AE_OK;
-}
-
-acpi_status acpi_os_terminate(void)
-{
-	if (acpi_irq_handler) {
-		acpi_os_remove_interrupt_handler(acpi_irq_irq,
-						 acpi_irq_handler);
-	}
-
-	destroy_workqueue(kacpid_wq);
-	destroy_workqueue(kacpi_notify_wq);
-	destroy_workqueue(kacpi_hotplug_wq);
-
-	return AE_OK;
-}
-
 void acpi_os_printf(const char *fmt, ...)
 {
 	va_list args;
@@ -278,29 +261,135 @@ acpi_physical_address __init acpi_os_get_root_pointer(void)
 	}
 }
 
+/* Must be called with 'acpi_ioremap_lock' or RCU read lock held. */
+static struct acpi_ioremap *
+acpi_map_lookup(acpi_physical_address phys, acpi_size size)
+{
+	struct acpi_ioremap *map;
+
+	list_for_each_entry_rcu(map, &acpi_ioremaps, list)
+		if (map->phys <= phys &&
+		    phys + size <= map->phys + map->size)
+			return map;
+
+	return NULL;
+}
+
+/* Must be called with 'acpi_ioremap_lock' or RCU read lock held. */
+static void __iomem *
+acpi_map_vaddr_lookup(acpi_physical_address phys, unsigned int size)
+{
+	struct acpi_ioremap *map;
+
+	map = acpi_map_lookup(phys, size);
+	if (map)
+		return map->virt + (phys - map->phys);
+
+	return NULL;
+}
+
+/* Must be called with 'acpi_ioremap_lock' or RCU read lock held. */
+static struct acpi_ioremap *
+acpi_map_lookup_virt(void __iomem *virt, acpi_size size)
+{
+	struct acpi_ioremap *map;
+
+	list_for_each_entry_rcu(map, &acpi_ioremaps, list)
+		if (map->virt <= virt &&
+		    virt + size <= map->virt + map->size)
+			return map;
+
+	return NULL;
+}
+
 void __iomem *__init_refok
 acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
+	struct acpi_ioremap *map, *tmp_map;
+	unsigned long flags, pg_sz;
+	void __iomem *virt;
+	phys_addr_t pg_off;
+
 	if (phys > ULONG_MAX) {
 		printk(KERN_ERR PREFIX "Cannot map memory that high\n");
 		return NULL;
 	}
-	if (acpi_gbl_permanent_mmap)
-		/*
-		* ioremap checks to ensure this is in reserved space
-		*/
-		return ioremap((unsigned long)phys, size);
-	else
+
+	if (!acpi_gbl_permanent_mmap)
 		return __acpi_map_table((unsigned long)phys, size);
+
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	if (!map)
+		return NULL;
+
+	pg_off = round_down(phys, PAGE_SIZE);
+	pg_sz = round_up(phys + size, PAGE_SIZE) - pg_off;
+	virt = ioremap(pg_off, pg_sz);
+	if (!virt) {
+		kfree(map);
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(&map->list);
+	map->virt = virt;
+	map->phys = pg_off;
+	map->size = pg_sz;
+	kref_init(&map->ref);
+
+	spin_lock_irqsave(&acpi_ioremap_lock, flags);
+	/* Check if page has already been mapped. */
+	tmp_map = acpi_map_lookup(phys, size);
+	if (tmp_map) {
+		kref_get(&tmp_map->ref);
+		spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
+		iounmap(map->virt);
+		kfree(map);
+		return tmp_map->virt + (phys - tmp_map->phys);
+	}
+	list_add_tail_rcu(&map->list, &acpi_ioremaps);
+	spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
+
+	return map->virt + (phys - map->phys);
 }
 EXPORT_SYMBOL_GPL(acpi_os_map_memory);
 
+static void acpi_kref_del_iomap(struct kref *ref)
+{
+	struct acpi_ioremap *map;
+
+	map = container_of(ref, struct acpi_ioremap, ref);
+	list_del_rcu(&map->list);
+}
+
 void __ref acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 {
-	if (acpi_gbl_permanent_mmap)
-		iounmap(virt);
-	else
+	struct acpi_ioremap *map;
+	unsigned long flags;
+	int del;
+
+	if (!acpi_gbl_permanent_mmap) {
 		__acpi_unmap_table(virt, size);
+		return;
+	}
+
+	spin_lock_irqsave(&acpi_ioremap_lock, flags);
+	map = acpi_map_lookup_virt(virt, size);
+	if (!map) {
+		spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
+		printk(KERN_ERR PREFIX "%s: bad address %p\n", __func__, virt);
+		dump_stack();
+		return;
+	}
+
+	del = kref_put(&map->ref, acpi_kref_del_iomap);
+	spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
+
+	if (!del)
+		return;
+
+	synchronize_rcu();
+	iounmap(map->virt);
+	kfree(map);
 }
 EXPORT_SYMBOL_GPL(acpi_os_unmap_memory);
 
@@ -309,6 +398,44 @@ void __init early_acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 	if (!acpi_gbl_permanent_mmap)
 		__acpi_unmap_table(virt, size);
 }
+
+int acpi_os_map_generic_address(struct acpi_generic_address *addr)
+{
+	void __iomem *virt;
+
+	if (addr->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		return 0;
+
+	if (!addr->address || !addr->bit_width)
+		return -EINVAL;
+
+	virt = acpi_os_map_memory(addr->address, addr->bit_width / 8);
+	if (!virt)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acpi_os_map_generic_address);
+
+void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
+{
+	void __iomem *virt;
+	unsigned long flags;
+	acpi_size size = addr->bit_width / 8;
+
+	if (addr->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		return;
+
+	if (!addr->address || !addr->bit_width)
+		return;
+
+	spin_lock_irqsave(&acpi_ioremap_lock, flags);
+	virt = acpi_map_vaddr_lookup(addr->address, size);
+	spin_unlock_irqrestore(&acpi_ioremap_lock, flags);
+
+	acpi_os_unmap_memory(virt, size);
+}
+EXPORT_SYMBOL_GPL(acpi_os_unmap_generic_address);
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
@@ -513,8 +640,15 @@ acpi_os_read_memory(acpi_physical_address phys_addr, u32 * value, u32 width)
 {
 	u32 dummy;
 	void __iomem *virt_addr;
+	int size = width / 8, unmap = 0;
 
-	virt_addr = ioremap(phys_addr, width);
+	rcu_read_lock();
+	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
+	rcu_read_unlock();
+	if (!virt_addr) {
+		virt_addr = ioremap(phys_addr, size);
+		unmap = 1;
+	}
 	if (!value)
 		value = &dummy;
 
@@ -532,7 +666,8 @@ acpi_os_read_memory(acpi_physical_address phys_addr, u32 * value, u32 width)
 		BUG();
 	}
 
-	iounmap(virt_addr);
+	if (unmap)
+		iounmap(virt_addr);
 
 	return AE_OK;
 }
@@ -541,8 +676,15 @@ acpi_status
 acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
 {
 	void __iomem *virt_addr;
+	int size = width / 8, unmap = 0;
 
-	virt_addr = ioremap(phys_addr, width);
+	rcu_read_lock();
+	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
+	rcu_read_unlock();
+	if (!virt_addr) {
+		virt_addr = ioremap(phys_addr, size);
+		unmap = 1;
+	}
 
 	switch (width) {
 	case 8:
@@ -558,7 +700,8 @@ acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
 		BUG();
 	}
 
-	iounmap(virt_addr);
+	if (unmap)
+		iounmap(virt_addr);
 
 	return AE_OK;
 }
@@ -1400,5 +1543,46 @@ acpi_os_validate_address (
 	}
 	return AE_OK;
 }
-
 #endif
+
+acpi_status __init acpi_os_initialize(void)
+{
+	acpi_os_map_generic_address(&acpi_gbl_FADT.xpm1a_event_block);
+	acpi_os_map_generic_address(&acpi_gbl_FADT.xpm1b_event_block);
+	acpi_os_map_generic_address(&acpi_gbl_FADT.xgpe0_block);
+	acpi_os_map_generic_address(&acpi_gbl_FADT.xgpe1_block);
+
+	return AE_OK;
+}
+
+acpi_status acpi_os_initialize1(void)
+{
+	kacpid_wq = create_workqueue("kacpid");
+	kacpi_notify_wq = create_workqueue("kacpi_notify");
+	kacpi_hotplug_wq = create_workqueue("kacpi_hotplug");
+	BUG_ON(!kacpid_wq);
+	BUG_ON(!kacpi_notify_wq);
+	BUG_ON(!kacpi_hotplug_wq);
+	acpi_install_interface_handler(acpi_osi_handler);
+	acpi_osi_setup_late();
+	return AE_OK;
+}
+
+acpi_status acpi_os_terminate(void)
+{
+	if (acpi_irq_handler) {
+		acpi_os_remove_interrupt_handler(acpi_irq_irq,
+						 acpi_irq_handler);
+	}
+
+	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xgpe1_block);
+	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xgpe0_block);
+	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xpm1b_event_block);
+	acpi_os_unmap_generic_address(&acpi_gbl_FADT.xpm1a_event_block);
+
+	destroy_workqueue(kacpid_wq);
+	destroy_workqueue(kacpi_notify_wq);
+	destroy_workqueue(kacpi_hotplug_wq);
+
+	return AE_OK;
+}
