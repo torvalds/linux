@@ -94,8 +94,7 @@ void *open_dir(char *path, int *err_out)
 
 	dir = opendir(path);
 	*err_out = errno;
-	if (dir == NULL)
-		return NULL;
+
 	return dir;
 }
 
@@ -205,7 +204,7 @@ int set_attr(const char *file, struct hostfs_iattr *attrs, int fd)
 	if (attrs->ia_valid & HOSTFS_ATTR_MODE) {
 		if (fd >= 0) {
 			if (fchmod(fd, attrs->ia_mode) != 0)
-				return (-errno);
+				return -errno;
 		} else if (chmod(file, attrs->ia_mode) != 0) {
 			return -errno;
 		}
