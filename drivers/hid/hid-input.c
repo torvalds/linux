@@ -136,7 +136,8 @@ static int hidinput_setkeycode(struct input_dev *dev,
 
 		clear_bit(old_keycode, dev->keybit);
 		set_bit(usage->code, dev->keybit);
-		dbg_hid(KERN_DEBUG "Assigned keycode %d to HID usage code %x\n", keycode, scancode);
+		dbg_hid("Assigned keycode %d to HID usage code %x\n",
+				keycode, scancode);
 		/* Set the keybit for the old keycode if the old keycode is used
 		 * by another key */
 		if (hidinput_find_key (hid, 0, old_keycode))
