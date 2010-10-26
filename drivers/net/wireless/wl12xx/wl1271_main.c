@@ -1056,6 +1056,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl)
 		wl->scan.state = WL1271_SCAN_STATE_IDLE;
 		kfree(wl->scan.scanned_ch);
 		wl->scan.scanned_ch = NULL;
+		wl->scan.req = NULL;
 		ieee80211_scan_completed(wl->hw, true);
 	}
 
@@ -1676,6 +1677,16 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 
 	mutex_lock(&wl->mutex);
 
+	if (wl->state == WL1271_STATE_OFF) {
+		/*
+		 * We cannot return -EBUSY here because cfg80211 will expect
+		 * a call to ieee80211_scan_completed if we do - in this case
+		 * there won't be any call.
+		 */
+		ret = -EAGAIN;
+		goto out;
+	}
+
 	ret = wl1271_ps_elp_wakeup(wl, false);
 	if (ret < 0)
 		goto out;
@@ -2093,14 +2104,14 @@ static int wl1271_op_get_survey(struct ieee80211_hw *hw, int idx,
 {
 	struct wl1271 *wl = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
- 
+
 	if (idx != 0)
 		return -ENOENT;
- 
+
 	survey->channel = conf->channel;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
 	survey->noise = wl->noise;
- 
+
 	return 0;
 }
 
