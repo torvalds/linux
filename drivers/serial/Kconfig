@@ -1632,4 +1632,10 @@ config SERIAL_ALTERA_UART_CONSOLE
 	help
 	  Enable a Altera UART port to be the system console.
 
+config SERIAL_IFX6X60
+        tristate "SPI protocol driver for Infineon 6x60 modem (EXPERIMENTAL)"
+	depends on GPIOLIB && EXPERIMENTAL
+	help
+	  Support for the IFX6x60 modem devices on Intel MID platforms.
+
 endmenu
