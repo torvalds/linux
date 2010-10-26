@@ -1749,8 +1749,8 @@ static int fw4_ack(struct c4iw_dev *dev, struct sk_buff *skb)
 	ep = lookup_tid(t, tid);
 	PDBG("%s ep %p tid %u credits %u\n", __func__, ep, ep->hwtid, credits);
 	if (credits == 0) {
-		PDBG(KERN_ERR "%s 0 credit ack ep %p tid %u state %u\n",
-			__func__, ep, ep->hwtid, state_read(&ep->com));
+		PDBG("%s 0 credit ack ep %p tid %u state %u\n",
+		     __func__, ep, ep->hwtid, state_read(&ep->com));
 		return 0;
 	}
 
