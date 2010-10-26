@@ -365,6 +365,15 @@ static resource_size_t simple_align_resource(void *data,
 	return avail->start;
 }
 
+static void resource_clip(struct resource *res, resource_size_t min,
+			  resource_size_t max)
+{
+	if (res->start < min)
+		res->start = min;
+	if (res->end > max)
+		res->end = max;
+}
+
 /*
  * Find empty slot in the resource tree given range and alignment.
  */
@@ -394,10 +403,8 @@ static int find_resource(struct resource *root, struct resource *new,
 			tmp.end = this->start - 1;
 		else
 			tmp.end = root->end;
-		if (tmp.start < min)
-			tmp.start = min;
-		if (tmp.end > max)
-			tmp.end = max;
+
+		resource_clip(&tmp, min, max);
 		tmp.start = ALIGN(tmp.start, align);
 
 		tmp.start = alignf(alignf_data, &tmp, size, align);
