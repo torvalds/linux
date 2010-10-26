@@ -594,13 +594,14 @@ static inline void xhci_stop_watchdog_timer_in_irq(struct xhci_hcd *xhci,
 static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
 		struct xhci_td *cur_td, int status, char *adjective)
 {
-	struct usb_hcd *hcd = xhci_to_hcd(xhci);
+	struct usb_hcd *hcd;
 	struct urb	*urb;
 	struct urb_priv	*urb_priv;
 
 	urb = cur_td->urb;
 	urb_priv = urb->hcpriv;
 	urb_priv->td_cnt++;
+	hcd = bus_to_hcd(urb->dev->bus);
 
 	/* Only giveback urb when this is the last td in urb */
 	if (urb_priv->td_cnt == urb_priv->length) {
@@ -1982,12 +1983,12 @@ cleanup:
 					trb_comp_code != COMP_BABBLE))
 				xhci_urb_free_priv(xhci, urb_priv);
 
-			usb_hcd_unlink_urb_from_ep(xhci_to_hcd(xhci), urb);
+			usb_hcd_unlink_urb_from_ep(bus_to_hcd(urb->dev->bus), urb);
 			xhci_dbg(xhci, "Giveback URB %p, len = %d, "
 					"status = %d\n",
 					urb, urb->actual_length, status);
 			spin_unlock(&xhci->lock);
-			usb_hcd_giveback_urb(xhci_to_hcd(xhci), urb, status);
+			usb_hcd_giveback_urb(bus_to_hcd(urb->dev->bus), urb, status);
 			spin_lock(&xhci->lock);
 		}
 
@@ -2323,7 +2324,7 @@ static int prepare_transfer(struct xhci_hcd *xhci,
 	INIT_LIST_HEAD(&td->cancelled_td_list);
 
 	if (td_index == 0) {
-		ret = usb_hcd_link_urb_to_ep(xhci_to_hcd(xhci), urb);
+		ret = usb_hcd_link_urb_to_ep(bus_to_hcd(urb->dev->bus), urb);
 		if (unlikely(ret)) {
 			xhci_urb_free_priv(xhci, urb_priv);
 			urb->hcpriv = NULL;
