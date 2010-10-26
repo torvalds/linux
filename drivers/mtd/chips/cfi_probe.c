@@ -177,6 +177,8 @@ static int __xipram cfi_chip_setup(struct map_info *map,
 
 	cfi->cfi_mode = CFI_MODE_CFI;
 
+	cfi->sector_erase_cmd = CMD(0x30);
+
 	/* Read the CFI info structure */
 	xip_disable_qry(base, map, cfi);
 	for (i=0; i<(sizeof(struct cfi_ident) + num_erase_regions * 4); i++)
