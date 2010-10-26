@@ -262,7 +262,7 @@ repeat:
 		cpu_stop_fn_t fn = work->fn;
 		void *arg = work->arg;
 		struct cpu_stop_done *done = work->done;
-		char ksym_buf[KSYM_NAME_LEN];
+		char ksym_buf[KSYM_NAME_LEN] __maybe_unused;
 
 		__set_current_state(TASK_RUNNING);
 
