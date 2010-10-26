@@ -1097,44 +1097,6 @@
 #define ERR_TYP_P0		0x0E
 #define ERR_TYP_P1		0x0F
 
-/*/ ******************   PROGRAMMABLE FLAG MASKS  ********************* */
-
-/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  Masks */
-#define PF0         0x0001
-#define PF1         0x0002
-#define PF2         0x0004
-#define PF3         0x0008
-#define PF4         0x0010
-#define PF5         0x0020
-#define PF6         0x0040
-#define PF7         0x0080
-#define PF8         0x0100
-#define PF9         0x0200
-#define PF10        0x0400
-#define PF11        0x0800
-#define PF12        0x1000
-#define PF13        0x2000
-#define PF14        0x4000
-#define PF15        0x8000
-
-/*  General Purpose IO (0xFFC00700 - 0xFFC007FF)  BIT POSITIONS */
-#define PF0_P         0
-#define PF1_P         1
-#define PF2_P         2
-#define PF3_P         3
-#define PF4_P         4
-#define PF5_P         5
-#define PF6_P         6
-#define PF7_P         7
-#define PF8_P         8
-#define PF9_P         9
-#define PF10_P        10
-#define PF11_P        11
-#define PF12_P        12
-#define PF13_P        13
-#define PF14_P        14
-#define PF15_P        15
-
 /* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  ************* */
 
 /* AMGCTL Masks */
