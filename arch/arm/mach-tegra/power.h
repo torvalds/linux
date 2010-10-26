@@ -47,9 +47,14 @@
 #define TEGRA_IRAM_CODE_SIZE		SZ_4K
 
 #ifndef __ASSEMBLY__
+extern void *tegra_context_area;
+
+u64 tegra_rtc_read_ms(void);
 void tegra_lp2_set_trigger(unsigned long cycles);
 unsigned long tegra_lp2_timer_remain(void);
 void __cortex_a9_save(unsigned int mode);
+void __cortex_a9_restore(void);
+void __shut_off_mmu(void);
 void tegra_lp2_startup(void);
 unsigned int tegra_suspend_lp2(unsigned int us);
 void tegra_hotplug_startup(void);

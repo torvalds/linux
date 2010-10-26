@@ -48,6 +48,7 @@
 	str	\val, [\tmp]
 .endm
 
+#ifdef CONFIG_SMP
 /*
  *	tegra_secondary_startup
  *
@@ -62,6 +63,7 @@ ENTRY(tegra_secondary_startup)
 	poke_ev	r0, r1
 	b	secondary_startup
 ENDPROC(tegra_secondary_startup)
+#endif
 
 /*
  *	__restart_pllx

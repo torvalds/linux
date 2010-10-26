@@ -41,36 +41,13 @@
 #define ENABLE_ON_INIT		(1 << 28)
 
 struct clk;
-struct regulator;
-
-struct dvfs_table {
-	unsigned long rate;
-	int millivolts;
-};
-
-struct dvfs_process_id_table {
-	int process_id;
-	struct dvfs_table *table;
-};
-
-
-struct dvfs {
-	struct regulator *reg;
-	struct dvfs_table *table;
-	int max_millivolts;
-
-	int process_id_table_length;
-	const char *reg_id;
-	bool cpu;
-	struct dvfs_process_id_table process_id_table[];
-};
 
 struct clk_mux_sel {
 	struct clk	*input;
 	u32		value;
 };
 
-struct clk_pll_table {
+struct clk_pll_freq_table {
 	unsigned long	input_rate;
 	unsigned long	output_rate;
 	u16		n;
@@ -97,52 +74,69 @@ enum clk_state {
 
 struct clk {
 	/* node for master clocks list */
-	struct list_head		node;
-	struct list_head		children;	/* list of children */
-	struct list_head		sibling;	/* node for children */
+	struct list_head	node;		/* node for list of all clocks */
+	struct list_head	children;	/* list of children */
+	struct list_head	sibling;	/* node for children */
+	struct list_head	dvfs;		/* list of dvfs dependencies */
+	struct clk_lookup	lookup;
+
 #ifdef CONFIG_DEBUG_FS
-	struct dentry			*dent;
-	struct dentry			*parent_dent;
+	struct dentry		*dent;
+	struct dentry		*parent_dent;
 #endif
-	struct clk_ops			*ops;
-	struct clk			*parent;
-	struct clk_lookup		lookup;
-	unsigned long			rate;
-	unsigned long			max_rate;
-	u32				flags;
-	u32				refcnt;
-	const char			*name;
+	bool			set;
+	struct clk_ops		*ops;
+	unsigned long		dvfs_rate;
+	unsigned long		rate;
+	unsigned long		max_rate;
+	bool			is_dvfs;
+	bool			auto_dvfs;
+	u32			flags;
+	const char		*name;
+
+	u32			refcnt;
+	unsigned long		requested_rate;
+	enum clk_state		state;
+	struct clk		*parent;
+	u32			div;
+	u32			mul;
+
+	const struct clk_mux_sel	*inputs;
 	u32				reg;
 	u32				reg_shift;
-	unsigned int			clk_num;
-	enum clk_state			state;
-#ifdef CONFIG_DEBUG_FS
-	bool				set;
-#endif
 
-	/* PLL */
-	unsigned long			input_min;
-	unsigned long			input_max;
-	unsigned long			cf_min;
-	unsigned long			cf_max;
-	unsigned long			vco_min;
-	unsigned long			vco_max;
-	const struct clk_pll_table	*pll_table;
-
-	/* DIV */
-	u32				div;
-	u32				mul;
-
-	/* MUX */
-	const struct clk_mux_sel	*inputs;
-	u32				sel;
-	u32				reg_mask;
-
-	/* Virtual cpu clock */
-	struct clk			*main;
-	struct clk			*backup;
-
-	struct dvfs			*dvfs;
+	union {
+		struct {
+			unsigned int			clk_num;
+		} periph;
+		struct {
+			unsigned long			input_min;
+			unsigned long			input_max;
+			unsigned long			cf_min;
+			unsigned long			cf_max;
+			unsigned long			vco_min;
+			unsigned long			vco_max;
+			const struct clk_pll_freq_table	*freq_table;
+			int				lock_delay;
+		} pll;
+		struct {
+			u32				sel;
+			u32				reg_mask;
+		} mux;
+		struct {
+			struct clk			*main;
+			struct clk			*backup;
+		} cpu;
+		struct {
+			struct list_head		list;
+			unsigned long			min_rate;
+		} shared_bus;
+		struct {
+			struct list_head		node;
+			bool				enabled;
+			unsigned long			rate;
+		} shared_bus_user;
+	} u;
 };
 
 
@@ -170,5 +164,6 @@ int clk_set_parent_locked(struct clk *c, struct clk *parent);
 int clk_set_rate_locked(struct clk *c, unsigned long rate);
 int clk_reparent(struct clk *c, struct clk *parent);
 void tegra_clk_init_from_table(struct tegra_clk_init_table *table);
+void tegra_clk_set_dvfs_rates(void);
 
 #endif

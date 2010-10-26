@@ -73,6 +73,7 @@ unsigned int tegra_getspeed(unsigned int cpu)
 	return rate;
 }
 
+#ifdef CONFIG_HAVE_ARM_TWD
 static void tegra_cpufreq_rescale_twd_other_cpu(void *data) {
 	unsigned long new_rate = *(unsigned long *)data;
 	twd_recalc_prescaler(new_rate);
@@ -83,6 +84,11 @@ static void tegra_cpufreq_rescale_twds(unsigned long new_rate)
 	twd_recalc_prescaler(new_rate);
 	smp_call_function(tegra_cpufreq_rescale_twd_other_cpu, &new_rate, 1);
 }
+#else
+static inline void tegra_cpufreq_rescale_twds(unsigned long new_rate)
+{
+}
+#endif
 
 static int tegra_update_cpu_speed(unsigned long rate)
 {
@@ -106,7 +112,7 @@ static int tegra_update_cpu_speed(unsigned long rate)
 	       freqs.old, freqs.new);
 #endif
 
-	ret = clk_set_rate_cansleep(cpu_clk, freqs.new * 1000);
+	ret = clk_set_rate(cpu_clk, freqs.new * 1000);
 	if (ret) {
 		pr_err("cpu-tegra: Failed to set cpu frequency to %d kHz\n",
 			freqs.new);

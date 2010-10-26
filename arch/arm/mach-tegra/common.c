@@ -52,6 +52,7 @@ unsigned long tegra_grhost_aperture;
 void (*tegra_reset)(char mode, const char *cmd);
 
 static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
+	/* set up clocks that should always be on */
 	/* name		parent		rate		enabled */
 	{ "clk_m",	NULL,		0,		true },
 	{ "pll_p",	"clk_m",	216000000,	true },
@@ -62,6 +63,14 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	{ "sclk",	"pll_m_out1",	240000000,	true },
 	{ "hclk",	"sclk",		240000000,	true },
 	{ "pclk",	"hclk",		120000000,	true },
+	{ "pll_x",	NULL,		0,		true },
+	{ "cpu",	NULL,		0,		true },
+	{ "emc",	NULL,		0,		true },
+	{ "csite",	NULL,		0,		true },
+	{ "timer", 	NULL,		0,		true },
+	{ "rtc",	NULL,		0,		true },
+
+	/* set frequencies of some device clocks */
 	{ "pll_u",	"clk_m",	480000000,	false },
 	{ "sdmmc1",	"pll_p",	48000000,	false},
 	{ "sdmmc2",	"pll_p",	48000000,	false},
@@ -170,8 +179,6 @@ void tegra_move_framebuffer(unsigned long to, unsigned long from,
 		pr_err("%s: Failed to map target framebuffer\n", __func__);
 		return;
 	}
-
-	pr_info("%s: %08lx %08lx %08lx %p", __func__, to, from, size, to_io);
 
 	if (pfn_valid(page_to_pfn(phys_to_page(from)))) {
 		for (i = 0 ; i < size; i += PAGE_SIZE) {
