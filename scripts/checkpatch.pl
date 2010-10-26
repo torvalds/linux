@@ -1822,8 +1822,17 @@ sub process {
 		    !defined $suppress_export{$realline_next} &&
 		    ($lines[$realline_next - 1] =~ /EXPORT_SYMBOL.*\((.*)\)/ ||
 		     $lines[$realline_next - 1] =~ /EXPORT_UNUSED_SYMBOL.*\((.*)\)/)) {
+			# Handle definitions which produce identifiers with
+			# a prefix:
+			#   XXX(foo);
+			#   EXPORT_SYMBOL(something_foo);
 			my $name = $1;
-			if ($stat !~ /(?:
+			if ($stat =~ /^.([A-Z_]+)\s*\(\s*($Ident)/ &&
+			    $name =~ /^${Ident}_$2/) {
+#print "FOO C name<$name>\n";
+				$suppress_export{$realline_next} = 1;
+
+			} elsif ($stat !~ /(?:
 				\n.}\s*$|
 				^.DEFINE_$Ident\(\Q$name\E\)|
 				^.DECLARE_$Ident\(\Q$name\E\)|
