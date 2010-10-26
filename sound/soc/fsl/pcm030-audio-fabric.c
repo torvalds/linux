@@ -24,7 +24,6 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-#include <sound/soc-of-simple.h>
 
 #include "mpc5200_dma.h"
 #include "mpc5200_psc_ac97.h"
@@ -49,7 +48,7 @@ static struct snd_soc_dai_link pcm030_fabric_dai[] = {
 	.codec_dai_name = "wm9712-aux",
 	.cpu_dai_name = "mpc5200-psc-ac97.1",
 	.platform_name = "mpc5200-pcm-audio",
-	..codec_name = "wm9712-codec",
+	.codec_name = "wm9712-codec",
 },
 };
 
