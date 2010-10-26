@@ -2249,6 +2249,11 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	memset(swqe, 0, SWQE_HEADER_SIZE);
 	atomic_dec(&pr->swqe_avail);
 
+	if (vlan_tx_tag_present(skb)) {
+		swqe->tx_control |= EHEA_SWQE_VLAN_INSERT;
+		swqe->vlan_tag = vlan_tx_tag_get(skb);
+	}
+
 	if (skb->len <= SWQE3_MAX_IMM) {
 		u32 sig_iv = port->sig_comp_iv;
 		u32 swqe_num = pr->swqe_id_counter;
@@ -2278,11 +2283,6 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		swqe->tx_control |= EHEA_SWQE_SIGNALLED_COMPLETION;
 	}
 	pr->swqe_id_counter += 1;
-
-	if (vlan_tx_tag_present(skb)) {
-		swqe->tx_control |= EHEA_SWQE_VLAN_INSERT;
-		swqe->vlan_tag = vlan_tx_tag_get(skb);
-	}
 
 	if (netif_msg_tx_queued(port)) {
 		ehea_info("post swqe on QP %d", pr->qp->init_attr.qp_nr);
