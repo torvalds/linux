@@ -260,13 +260,11 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	idr_init(&dev_priv->context_idr);
 	idr_init(&dev_priv->surface_idr);
 	idr_init(&dev_priv->stream_idr);
-	ida_init(&dev_priv->gmr_ida);
 	mutex_init(&dev_priv->init_mutex);
 	init_waitqueue_head(&dev_priv->fence_queue);
 	init_waitqueue_head(&dev_priv->fifo_queue);
 	atomic_set(&dev_priv->fence_queue_waiters, 0);
 	atomic_set(&dev_priv->fifo_queue_waiters, 0);
-	INIT_LIST_HEAD(&dev_priv->gmr_lru);
 
 	dev_priv->io_start = pci_resource_start(dev->pdev, 0);
 	dev_priv->vram_start = pci_resource_start(dev->pdev, 1);
@@ -339,6 +337,14 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed initializing memory manager for VRAM.\n");
 		goto out_err2;
+	}
+
+	dev_priv->has_gmr = true;
+	if (ttm_bo_init_mm(&dev_priv->bdev, VMW_PL_GMR,
+			   dev_priv->max_gmr_ids) != 0) {
+		DRM_INFO("No GMR memory available. "
+			 "Graphics memory resources are very limited.\n");
+		dev_priv->has_gmr = false;
 	}
 
 	dev_priv->mmio_mtrr = drm_mtrr_add(dev_priv->mmio_start,
@@ -440,13 +446,14 @@ out_err4:
 out_err3:
 	drm_mtrr_del(dev_priv->mmio_mtrr, dev_priv->mmio_start,
 		     dev_priv->mmio_size, DRM_MTRR_WC);
+	if (dev_priv->has_gmr)
+		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_GMR);
 	(void)ttm_bo_clean_mm(&dev_priv->bdev, TTM_PL_VRAM);
 out_err2:
 	(void)ttm_bo_device_release(&dev_priv->bdev);
 out_err1:
 	vmw_ttm_global_release(dev_priv);
 out_err0:
-	ida_destroy(&dev_priv->gmr_ida);
 	idr_destroy(&dev_priv->surface_idr);
 	idr_destroy(&dev_priv->context_idr);
 	idr_destroy(&dev_priv->stream_idr);
@@ -478,10 +485,11 @@ static int vmw_driver_unload(struct drm_device *dev)
 	iounmap(dev_priv->mmio_virt);
 	drm_mtrr_del(dev_priv->mmio_mtrr, dev_priv->mmio_start,
 		     dev_priv->mmio_size, DRM_MTRR_WC);
+	if (dev_priv->has_gmr)
+		(void)ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_GMR);
 	(void)ttm_bo_clean_mm(&dev_priv->bdev, TTM_PL_VRAM);
 	(void)ttm_bo_device_release(&dev_priv->bdev);
 	vmw_ttm_global_release(dev_priv);
-	ida_destroy(&dev_priv->gmr_ida);
 	idr_destroy(&dev_priv->surface_idr);
 	idr_destroy(&dev_priv->context_idr);
 	idr_destroy(&dev_priv->stream_idr);
