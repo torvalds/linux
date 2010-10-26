@@ -2183,15 +2183,16 @@ sub process {
 			my $value = $2;
 
 			# Flatten any parentheses
-			$value =~ s/\)\(/\) \(/g;
+			$value =~ s/\(/ \(/g;
+			$value =~ s/\)/\) /g;
 			while ($value =~ s/\[[^\{\}]*\]/1/ ||
 			       $value !~ /(?:$Ident|-?$Constant)\s*
 					     $Compare\s*
 					     (?:$Ident|-?$Constant)/x &&
 			       $value =~ s/\([^\(\)]*\)/1/) {
 			}
-
-			if ($value =~ /^(?:$Ident|-?$Constant)$/) {
+#print "value<$value>\n";
+			if ($value =~ /^\s*(?:$Ident|-?$Constant)\s*$/) {
 				ERROR("return is not a function, parentheses are not required\n" . $herecurr);
 
 			} elsif ($spacing !~ /\s+/) {
