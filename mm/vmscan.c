@@ -1956,16 +1956,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 	}
 
 out:
-	/*
-	 * Now that we've scanned all the zones at this priority level, note
-	 * that level within the zone so that the next thread which performs
-	 * scanning of this zone will immediately start out at this priority
-	 * level.  This affects only the decision whether or not to bring
-	 * mapped pages onto the inactive list.
-	 */
-	if (priority < 0)
-		priority = 0;
-
 	delayacct_freepages_end();
 	put_mems_allowed();
 
