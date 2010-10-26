@@ -1300,7 +1300,7 @@ typhoon_init_rings(struct typhoon *tp)
 	tp->rxHiRing.lastWrite = 0;
 	tp->rxBuffRing.lastWrite = 0;
 	tp->cmdRing.lastWrite = 0;
-	tp->cmdRing.lastWrite = 0;
+	tp->respRing.lastWrite = 0;
 
 	tp->txLoRing.lastRead = 0;
 	tp->txHiRing.lastRead = 0;
