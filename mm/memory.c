@@ -1450,7 +1450,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 					if (ret & VM_FAULT_OOM)
 						return i ? i : -ENOMEM;
 					if (ret &
-					    (VM_FAULT_HWPOISON|VM_FAULT_SIGBUS))
+					    (VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE|
+					     VM_FAULT_SIGBUS))
 						return i ? i : -EFAULT;
 					BUG();
 				}
