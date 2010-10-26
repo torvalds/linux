@@ -558,6 +558,9 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 	case handed_over_to_network:
 		/* assert something? */
+		if (bio_data_dir(req->master_bio) == WRITE)
+			atomic_add(req->size>>9, &mdev->ap_in_flight);
+
 		if (bio_data_dir(req->master_bio) == WRITE &&
 		    mdev->net_conf->wire_protocol == DRBD_PROT_A) {
 			/* this is what is dangerous about protocol A:
@@ -591,6 +594,9 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			dec_ap_pending(mdev);
 		req->rq_state &= ~(RQ_NET_OK|RQ_NET_PENDING);
 		req->rq_state |= RQ_NET_DONE;
+		if (req->rq_state & RQ_NET_SENT && req->rq_state & RQ_WRITE)
+			atomic_sub(req->size>>9, &mdev->ap_in_flight);
+
 		/* if it is still queued, we may not complete it here.
 		 * it will be canceled soon. */
 		if (!(req->rq_state & RQ_NET_QUEUED))
@@ -628,14 +634,17 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_NET_OK;
 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
 		dec_ap_pending(mdev);
+		atomic_sub(req->size>>9, &mdev->ap_in_flight);
 		req->rq_state &= ~RQ_NET_PENDING;
 		_req_may_be_done_not_susp(req, m);
 		break;
 
 	case neg_acked:
 		/* assert something? */
-		if (req->rq_state & RQ_NET_PENDING)
+		if (req->rq_state & RQ_NET_PENDING) {
 			dec_ap_pending(mdev);
+			atomic_sub(req->size>>9, &mdev->ap_in_flight);
+		}
 		req->rq_state &= ~(RQ_NET_OK|RQ_NET_PENDING);
 
 		req->rq_state |= RQ_NET_DONE;
@@ -692,6 +701,8 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		}
 		D_ASSERT(req->rq_state & RQ_NET_SENT);
 		req->rq_state |= RQ_NET_DONE;
+		if (mdev->net_conf->wire_protocol == DRBD_PROT_A)
+			atomic_sub(req->size>>9, &mdev->ap_in_flight);
 		_req_may_be_done(req, m); /* Allowed while state.susp */
 		break;
 

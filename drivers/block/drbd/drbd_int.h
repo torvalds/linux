@@ -1102,6 +1102,7 @@ struct drbd_conf {
 	struct fifo_buffer rs_plan_s; /* correction values of resync planer */
 	int rs_in_flight; /* resync sectors in flight (to proxy, in proxy and from proxy) */
 	int rs_planed;    /* resync sectors already planed */
+	atomic_t ap_in_flight; /* App sectors in flight (waiting for ack) */
 };
 
 static inline struct drbd_conf *minor_to_mdev(unsigned int minor)
