@@ -19,7 +19,8 @@
 #include <bcmdefs.h>
 #include <wlc_cfg.h>
 #include <osl.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <sbhndpio.h>

@@ -299,10 +299,6 @@ extern int osl_error(int bcmerror);
 #define	W_SM(r, v)		(*(r) = (v))
 #define	BZERO_SM(r, len)	memset((r), '\0', (len))
 
-#ifdef BRCM_FULLMAC
-#include <linuxver.h>		/* use current 2.4.x calling conventions */
-#endif
-
 /* packet primitives */
 #define	PKTGET(osh, len, send)		osl_pktget((osh), (len))
 #define	PKTFREE(osh, skb, send)		osl_pktfree((osh), (skb), (send))

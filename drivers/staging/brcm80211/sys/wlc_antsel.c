@@ -19,7 +19,8 @@
 #ifdef WLANTSEL
 
 #include <linux/kernel.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>

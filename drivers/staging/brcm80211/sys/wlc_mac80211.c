@@ -18,7 +18,6 @@
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <wlc_cfg.h>
-#include <linuxver.h>
 #include <osl.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>

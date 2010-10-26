@@ -20,8 +20,7 @@
 
 #define __UNDEF_NO_VERSION__
 
-#include <linuxver.h>
-
+#include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/completion.h>
 

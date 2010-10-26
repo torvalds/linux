@@ -16,7 +16,6 @@
 
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
-#include <linuxver.h>
 #include <osl.h>
 
 #include <bcmutils.h>

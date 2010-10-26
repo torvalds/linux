@@ -15,6 +15,7 @@
  */
 #include <linux/types.h>
 #include <linux/sched.h>	/* request_irq() */
+#include <linux/netdevice.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <sdio.h>		/* SDIO Specs */

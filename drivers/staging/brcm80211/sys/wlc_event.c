@@ -16,7 +16,8 @@
 
 #include <linux/kernel.h>
 #include <bcmdefs.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <sbhndpio.h>

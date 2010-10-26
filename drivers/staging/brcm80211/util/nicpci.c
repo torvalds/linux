@@ -15,7 +15,7 @@
  */
 
 #include <linux/string.h>
-#include <linuxver.h>
+#include <linux/pci.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>

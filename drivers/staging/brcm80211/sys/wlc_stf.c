@@ -15,8 +15,8 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <wlc_cfg.h>
-#include <linuxver.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>

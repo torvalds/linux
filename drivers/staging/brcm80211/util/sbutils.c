@@ -16,6 +16,9 @@
 
 #include <linux/types.h>
 #include <bcmdefs.h>
+#ifdef BRCM_FULLMAC
+#include <linux/netdevice.h>
+#endif
 #include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>

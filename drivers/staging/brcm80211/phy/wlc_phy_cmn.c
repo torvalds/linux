@@ -20,7 +20,8 @@
 #include <linux/string.h>
 #include <bcmdefs.h>
 #include <osl.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <bcmendian.h>
 #include <bcmnvram.h>
 #include <sbchipc.h>

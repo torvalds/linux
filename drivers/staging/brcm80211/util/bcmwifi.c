@@ -15,6 +15,9 @@
  */
 #include <linux/ctype.h>
 #include <linux/kernel.h>
+#ifdef BRCM_FULLMAC
+#include <linux/netdevice.h>
+#endif
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>

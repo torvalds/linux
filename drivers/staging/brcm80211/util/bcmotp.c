@@ -18,7 +18,8 @@
 #include <linux/string.h>
 #include <bcmdefs.h>
 #include <osl.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <bcmdevs.h>
 #include <bcmutils.h>
 #include <siutils.h>

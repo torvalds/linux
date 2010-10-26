@@ -14,7 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linuxver.h>
+#include <linux/netdevice.h>
 #include <osl.h>
 #include <bcmutils.h>
 

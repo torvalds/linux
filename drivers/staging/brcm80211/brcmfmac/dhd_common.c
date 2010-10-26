@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <bcmdefs.h>
+#include <linux/netdevice.h>
 #include <osl.h>
 #include <bcmutils.h>
 #include <bcmendian.h>

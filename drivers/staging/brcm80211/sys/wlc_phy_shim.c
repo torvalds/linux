@@ -24,7 +24,8 @@
 #include <linux/kernel.h>
 #include <bcmdefs.h>
 #include <wlc_cfg.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <bcmutils.h>
 #include <osl.h>
 

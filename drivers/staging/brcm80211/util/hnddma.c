@@ -16,7 +16,8 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linuxver.h>
+#include <linux/netdevice.h>
+#include <linux/pci.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <osl.h>

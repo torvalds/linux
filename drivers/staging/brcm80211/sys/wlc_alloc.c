@@ -17,7 +17,8 @@
 #include <linux/string.h>
 #include <bcmdefs.h>
 #include <wlc_cfg.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>

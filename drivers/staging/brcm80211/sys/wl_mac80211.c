@@ -21,7 +21,9 @@
 #include <linux/string.h>
 #include <linux/pci_ids.h>
 #include <bcmdefs.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/sched.h>
 #include <osl.h>
 #define WLC_MAXBSSCFG		1	/* single BSS configs */
 

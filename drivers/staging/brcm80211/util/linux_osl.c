@@ -20,7 +20,10 @@
 #include <asm/paccess.h>
 #endif				/* mips */
 #include <bcmendian.h>
-#include <linuxver.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/netdevice.h>
+#include <linux/sched.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>

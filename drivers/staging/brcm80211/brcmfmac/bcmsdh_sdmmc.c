@@ -14,6 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/types.h>
+#include <linux/netdevice.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmendian.h>

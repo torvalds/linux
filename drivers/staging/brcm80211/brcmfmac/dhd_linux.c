@@ -32,7 +32,6 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <bcmdefs.h>
-#include <linuxver.h>
 #include <osl.h>
 #include <bcmutils.h>
 #include <bcmendian.h>

@@ -16,7 +16,7 @@
 
 #include <linux/kthread.h>
 #include <bcmdefs.h>
-#include <linuxver.h>
+#include <linux/netdevice.h>
 #include <osl.h>
 #include <wlioctl.h>
 

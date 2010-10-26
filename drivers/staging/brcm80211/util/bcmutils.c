@@ -19,8 +19,10 @@
 #include <linux/string.h>
 #include <bcmdefs.h>
 #include <stdarg.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/netdevice.h>
 #include <osl.h>
-#include <linuxver.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <bcmnvram.h>
@@ -29,7 +31,6 @@
 #include <proto/ethernet.h>
 #include <proto/802.1d.h>
 #include <proto/802.11.h>
-
 
 /* copy a buffer into a pkt buffer chain */
 uint pktfrombuf(osl_t *osh, void *p, uint offset, int len, unsigned char *buf)

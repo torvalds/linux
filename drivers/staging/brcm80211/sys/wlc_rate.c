@@ -17,7 +17,7 @@
 #include <bcmdefs.h>
 #include <wlc_cfg.h>
 #include <osl.h>
-#include <linuxver.h>
+#include <linux/module.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <bcmendian.h>
