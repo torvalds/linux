@@ -302,6 +302,15 @@ static void svc_thread_dequeue(struct svc_pool *pool, struct svc_rqst *rqstp)
 	list_del(&rqstp->rq_list);
 }
 
+static bool svc_xprt_has_something_to_do(struct svc_xprt *xprt)
+{
+	if (xprt->xpt_flags & ((1<<XPT_CONN)|(1<<XPT_CLOSE)))
+		return true;
+	if (xprt->xpt_flags & ((1<<XPT_DATA)|(1<<XPT_DEFERRED)))
+		return xprt->xpt_ops->xpo_has_wspace(xprt);
+	return false;
+}
+
 /*
  * Queue up a transport with data pending. If there are idle nfsd
  * processes, wake 'em up.
@@ -314,8 +323,7 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	struct svc_rqst	*rqstp;
 	int cpu;
 
-	if (!(xprt->xpt_flags &
-	      ((1<<XPT_CONN)|(1<<XPT_DATA)|(1<<XPT_CLOSE)|(1<<XPT_DEFERRED))))
+	if (!svc_xprt_has_something_to_do(xprt))
 		return;
 
 	cpu = get_cpu();
@@ -345,25 +353,6 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	BUG_ON(xprt->xpt_pool != NULL);
 	xprt->xpt_pool = pool;
 
-	/* Handle pending connection */
-	if (test_bit(XPT_CONN, &xprt->xpt_flags))
-		goto process;
-
-	/* Handle close in-progress */
-	if (test_bit(XPT_CLOSE, &xprt->xpt_flags))
-		goto process;
-
-	/* Check if we have space to reply to a request */
-	if (!xprt->xpt_ops->xpo_has_wspace(xprt)) {
-		/* Don't enqueue while not enough space for reply */
-		dprintk("svc: no write space, transport %p  not enqueued\n",
-			xprt);
-		xprt->xpt_pool = NULL;
-		clear_bit(XPT_BUSY, &xprt->xpt_flags);
-		goto out_unlock;
-	}
-
- process:
 	if (!list_empty(&pool->sp_threads)) {
 		rqstp = list_entry(pool->sp_threads.next,
 				   struct svc_rqst,
@@ -744,7 +733,7 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 			spin_unlock_bh(&serv->sv_lock);
 			svc_xprt_received(newxpt);
 		}
-	} else {
+	} else if (xprt->xpt_ops->xpo_has_wspace(xprt)) {
 		dprintk("svc: server %p, pool %u, transport %p, inuse=%d\n",
 			rqstp, pool->sp_id, xprt,
 			atomic_read(&xprt->xpt_ref.refcount));
