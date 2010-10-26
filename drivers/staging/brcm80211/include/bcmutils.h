@@ -30,7 +30,6 @@
 	};
 
 /* ** driver-only section ** */
-#include <osl.h>
 
 #define GPIO_PIN_NOTDEFINED 	0x20	/* Pin not defined */
 

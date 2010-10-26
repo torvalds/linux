@@ -18,6 +18,7 @@
 #include <bcmdefs.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <osl.h>
 #include <bcmutils.h>
 #include <siutils.h>
 #include <sbhndpio.h>

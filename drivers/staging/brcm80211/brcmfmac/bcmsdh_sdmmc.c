@@ -18,8 +18,8 @@
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmendian.h>
-#include <bcmutils.h>
 #include <osl.h>
+#include <bcmutils.h>
 #include <sdio.h>		/* SDIO Device and Protocol Specs */
 #include <sdioh.h>		/* SDIO Host Controller Specification */
 #include <bcmsdbus.h>		/* bcmsdh to/from specific controller APIs */

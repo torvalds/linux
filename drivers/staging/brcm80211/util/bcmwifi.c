@@ -18,6 +18,7 @@
 #ifdef BRCM_FULLMAC
 #include <linux/netdevice.h>
 #endif
+#include <osl.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>

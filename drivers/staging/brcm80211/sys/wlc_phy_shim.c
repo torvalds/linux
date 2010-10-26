@@ -26,8 +26,8 @@
 #include <wlc_cfg.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <bcmutils.h>
 #include <osl.h>
+#include <bcmutils.h>
 
 #include <proto/802.11.h>
 #include <bcmwifi.h>
