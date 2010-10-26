@@ -2204,6 +2204,13 @@ sub process {
 				ERROR("space required before the open parenthesis '('\n" . $herecurr);
 			}
 		}
+# Return of what appears to be an errno should normally be -'ve
+		if ($line =~ /^.\s*return\s*(E[A-Z]*)\s*;/) {
+			my $name = $1;
+			if ($name ne 'EOF' && $name ne 'ERROR') {
+				WARN("return of an errno should typically be -ve (return -$1)\n" . $herecurr);
+			}
+		}
 
 # Need a space before open parenthesis after if, while etc
 		if ($line=~/\b(if|while|for|switch)\(/) {
