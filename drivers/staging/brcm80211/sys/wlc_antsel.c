@@ -26,6 +26,9 @@
 #include <siutils.h>
 #include <wlioctl.h>
 
+#include <bcmdevs.h>
+#include <sbhndpio.h>
+#include <sbhnddma.h>
 #include <d11.h>
 #include <wlc_rate.h>
 #include <wlc_key.h>

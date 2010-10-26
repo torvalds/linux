@@ -35,6 +35,8 @@
 #include <pcicfg.h>
 #include <wlioctl.h>
 #include <wlc_key.h>
+#include <sbhndpio.h>
+#include <sbhnddma.h>
 #include <wlc_channel.h>
 #include <wlc_pub.h>
 #include <wlc_scb.h>

@@ -25,6 +25,8 @@
 #include <proto/802.11.h>
 #include <wlioctl.h>
 #include <bcmwifi.h>
+#include <sbhndpio.h>
+#include <sbhnddma.h>
 #include <d11.h>
 #include <wlc_rate.h>
 #include <wlc_pub.h>

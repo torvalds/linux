@@ -42,6 +42,7 @@
 #include <wlc_channel.h>
 #include <bcmsrom.h>
 #include <wlc_key.h>
+#include <bcmdevs.h>
 /* BMAC_NOTE: a WLC_HIGH compile include of wlc.h adds in more structures and type
  * dependencies. Need to include these to files to allow a clean include of wlc.h
  * with WLC_HIGH defined.

@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <bcmdefs.h>
+#include <bcmdevs.h>
 #include <wlc_cfg.h>
 #include <linuxver.h>
 #include <osl.h>
@@ -28,6 +29,7 @@
 #include <bcmsrom.h>
 #include <wlioctl.h>
 #include <epivers.h>
+#include <sbhndpio.h>
 #include <sbhnddma.h>
 #include <hnddma.h>
 #include <hndpmu.h>

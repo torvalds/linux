@@ -23,6 +23,7 @@
 #include <siutils.h>
 #include <bcmendian.h>
 #include <wlioctl.h>
+#include <sbhndpio.h>
 #include <sbhnddma.h>
 #include <hnddma.h>
 #include <d11.h>

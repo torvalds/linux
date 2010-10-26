@@ -22,6 +22,8 @@
 #include <linuxver.h>
 #include <bcmutils.h>
 #include <siutils.h>
+#include <sbhndpio.h>
+#include <sbhnddma.h>
 #include <wlioctl.h>
 #include <wlc_pub.h>
 #include <wlc_key.h>

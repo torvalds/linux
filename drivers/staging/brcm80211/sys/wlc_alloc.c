@@ -24,6 +24,8 @@
 #include <wlioctl.h>
 #include <wlc_pub.h>
 #include <wlc_key.h>
+#include <sbhndpio.h>
+#include <sbhnddma.h>
 #include <wlc_mac80211.h>
 #include <wlc_alloc.h>
 
