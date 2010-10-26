@@ -1749,11 +1749,11 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		msleep_interruptible(1000);
 
 	bitmap_cond_end_sync(mddev->bitmap, sector_nr);
+	r1_bio = mempool_alloc(conf->r1buf_pool, GFP_NOIO);
 	raise_barrier(conf);
 
 	conf->next_resync = sector_nr;
 
-	r1_bio = mempool_alloc(conf->r1buf_pool, GFP_NOIO);
 	rcu_read_lock();
 	/*
 	 * If we get a correctably read error during resync or recovery,
