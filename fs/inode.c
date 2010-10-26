@@ -24,6 +24,7 @@
 #include <linux/mount.h>
 #include <linux/async.h>
 #include <linux/posix_acl.h>
+#include <linux/ima.h>
 
 /*
  * This is needed for the following functions:

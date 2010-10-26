@@ -325,16 +325,8 @@ EXPORT_SYMBOL(security_sb_parse_opts_str);
 
 int security_inode_alloc(struct inode *inode)
 {
-	int ret;
-
 	inode->i_security = NULL;
-	ret =  security_ops->inode_alloc_security(inode);
-	if (ret)
-		return ret;
-	ret = ima_inode_alloc(inode);
-	if (ret)
-		security_inode_free(inode);
-	return ret;
+	return security_ops->inode_alloc_security(inode);
 }
 
 void security_inode_free(struct inode *inode)

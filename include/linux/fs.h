@@ -231,6 +231,7 @@ struct inodes_stat_t {
 #define S_NOCMTIME	128	/* Do not update file c/mtime */
 #define S_SWAPFILE	256	/* Do not truncate: swapon got its bmaps */
 #define S_PRIVATE	512	/* Inode is fs-internal */
+#define S_IMA		1024	/* Inode has an associated IMA struct */
 
 /*
  * Note that nosuid etc flags are inode-specific: setting some file-system
@@ -265,6 +266,7 @@ struct inodes_stat_t {
 #define IS_NOCMTIME(inode)	((inode)->i_flags & S_NOCMTIME)
 #define IS_SWAPFILE(inode)	((inode)->i_flags & S_SWAPFILE)
 #define IS_PRIVATE(inode)	((inode)->i_flags & S_PRIVATE)
+#define IS_IMA(inode)		((inode)->i_flags & S_IMA)
 
 /* the read-only stuff doesn't really belong here, but any other place is
    probably as bad and I don't want to create yet another include file. */
@@ -772,6 +774,10 @@ struct inode {
 
 	unsigned int		i_flags;
 
+#ifdef CONFIG_IMA
+	/* protected by i_lock */
+	unsigned int		i_readcount; /* struct files open RO */
+#endif
 	atomic_t		i_writecount;
 #ifdef CONFIG_SECURITY
 	void			*i_security;
