@@ -161,8 +161,6 @@ extern int no_unaligned_warning;
 extern int unaligned_dump_stack;
 #endif
 
-extern struct ratelimit_state printk_ratelimit_state;
-
 #ifdef CONFIG_PROC_SYSCTL
 static int proc_do_cad_pid(struct ctl_table *table, int write,
 		  void __user *buffer, size_t *lenp, loff_t *ppos);
