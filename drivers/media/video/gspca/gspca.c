@@ -224,12 +224,12 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 		buffer, buffer_len,
 		int_irq, (void *)gspca_dev, interval);
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-	gspca_dev->int_urb = urb;
 	ret = usb_submit_urb(urb, GFP_KERNEL);
 	if (ret < 0) {
 		PDEBUG(D_ERR, "submit int URB failed with error %i", ret);
 		goto error_submit;
 	}
+	gspca_dev->int_urb = urb;
 	return ret;
 
 error_submit:
