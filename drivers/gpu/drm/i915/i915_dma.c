@@ -1920,6 +1920,16 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (IS_GEN2(dev))
 		dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(30));
 
+	dev_priv->mm.gtt = intel_gtt_get();
+	if (!dev_priv->mm.gtt) {
+		DRM_ERROR("Failed to initialize GTT\n");
+		ret = -ENODEV;
+		goto out_iomapfree;
+	}
+
+	prealloc_size = dev_priv->mm.gtt->gtt_stolen_entries << PAGE_SHIFT;
+	agp_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+
 	dev_priv->regs = ioremap(base, size);
 	if (!dev_priv->regs) {
 		DRM_ERROR("failed to map registers\n");
@@ -1928,8 +1938,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 
         dev_priv->mm.gtt_mapping =
-		io_mapping_create_wc(dev->agp->base,
-				     dev->agp->agp_info.aper_size * 1024*1024);
+		io_mapping_create_wc(dev->agp->base, agp_size);
 	if (dev_priv->mm.gtt_mapping == NULL) {
 		ret = -EIO;
 		goto out_rmmap;
@@ -1941,23 +1950,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 * MTRR if present.  Even if a UC MTRR isn't present.
 	 */
 	dev_priv->mm.gtt_mtrr = mtrr_add(dev->agp->base,
-					 dev->agp->agp_info.aper_size *
-					 1024 * 1024,
+					 agp_size,
 					 MTRR_TYPE_WRCOMB, 1);
 	if (dev_priv->mm.gtt_mtrr < 0) {
 		DRM_INFO("MTRR allocation failed.  Graphics "
 			 "performance may suffer.\n");
 	}
-
-	dev_priv->mm.gtt = intel_gtt_get();
-	if (!dev_priv->mm.gtt) {
-		DRM_ERROR("Failed to initialize GTT\n");
-		ret = -ENODEV;
-		goto out_iomapfree;
-	}
-
-	prealloc_size = dev_priv->mm.gtt->gtt_stolen_entries << PAGE_SHIFT;
-	agp_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
 
 	/* The i915 workqueue is primarily used for batched retirement of
 	 * requests (and thus managing bo) once the task has been completed
