@@ -1132,6 +1132,7 @@ static long get_params32(struct slgt_info *info, struct MGSL_PARAMS32 __user *us
 	struct MGSL_PARAMS32 tmp_params;
 
 	DBGINFO(("%s get_params32\n", info->device_name));
+	memset(&tmp_params, 0, sizeof(tmp_params));
 	tmp_params.mode            = (compat_ulong_t)info->params.mode;
 	tmp_params.loopback        = info->params.loopback;
 	tmp_params.flags           = info->params.flags;
@@ -1616,6 +1617,8 @@ static int hdlcdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	if (cmd != SIOCWANDEV)
 		return hdlc_ioctl(dev, ifr, cmd);
+
+	memset(&new_line, 0, sizeof(new_line));
 
 	switch(ifr->ifr_settings.type) {
 	case IF_GET_IFACE: /* return current sync_serial_settings */
