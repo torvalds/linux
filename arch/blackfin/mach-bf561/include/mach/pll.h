@@ -20,18 +20,18 @@ static __inline__ void bfin_write_PLL_CTL(unsigned int val)
 
 	flags = hard_local_irq_save();
 	/* Enable the PLL Wakeup bit in SIC IWR */
-	iwr0 = bfin_read32(SICA_IWR0);
-	iwr1 = bfin_read32(SICA_IWR1);
+	iwr0 = bfin_read32(SIC_IWR0);
+	iwr1 = bfin_read32(SIC_IWR1);
 	/* Only allow PPL Wakeup) */
-	bfin_write32(SICA_IWR0, IWR_ENABLE(0));
-	bfin_write32(SICA_IWR1, 0);
+	bfin_write32(SIC_IWR0, IWR_ENABLE(0));
+	bfin_write32(SIC_IWR1, 0);
 
 	bfin_write16(PLL_CTL, val);
 	SSYNC();
 	asm("IDLE;");
 
-	bfin_write32(SICA_IWR0, iwr0);
-	bfin_write32(SICA_IWR1, iwr1);
+	bfin_write32(SIC_IWR0, iwr0);
+	bfin_write32(SIC_IWR1, iwr1);
 	hard_local_irq_restore(flags);
 }
 
@@ -45,18 +45,18 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 
 	flags = hard_local_irq_save();
 	/* Enable the PLL Wakeup bit in SIC IWR */
-	iwr0 = bfin_read32(SICA_IWR0);
-	iwr1 = bfin_read32(SICA_IWR1);
+	iwr0 = bfin_read32(SIC_IWR0);
+	iwr1 = bfin_read32(SIC_IWR1);
 	/* Only allow PPL Wakeup) */
-	bfin_write32(SICA_IWR0, IWR_ENABLE(0));
-	bfin_write32(SICA_IWR1, 0);
+	bfin_write32(SIC_IWR0, IWR_ENABLE(0));
+	bfin_write32(SIC_IWR1, 0);
 
 	bfin_write16(VR_CTL, val);
 	SSYNC();
 	asm("IDLE;");
 
-	bfin_write32(SICA_IWR0, iwr0);
-	bfin_write32(SICA_IWR1, iwr1);
+	bfin_write32(SIC_IWR0, iwr0);
+	bfin_write32(SIC_IWR1, iwr1);
 	hard_local_irq_restore(flags);
 }
 
