@@ -175,22 +175,8 @@ static void send_cpu_listeners(struct sk_buff *skb,
 	up_write(&listeners->sem);
 }
 
-static int fill_pid(pid_t pid, struct task_struct *tsk,
-		struct taskstats *stats)
+static void fill_stats(struct task_struct *tsk, struct taskstats *stats)
 {
-	int rc = 0;
-
-	if (!tsk) {
-		rcu_read_lock();
-		tsk = find_task_by_vpid(pid);
-		if (tsk)
-			get_task_struct(tsk);
-		rcu_read_unlock();
-		if (!tsk)
-			return -ESRCH;
-	} else
-		get_task_struct(tsk);
-
 	memset(stats, 0, sizeof(*stats));
 	/*
 	 * Each accounting subsystem adds calls to its functions to
@@ -209,17 +195,27 @@ static int fill_pid(pid_t pid, struct task_struct *tsk,
 
 	/* fill in extended acct fields */
 	xacct_add_tsk(stats, tsk);
-
-	/* Define err: label here if needed */
-	put_task_struct(tsk);
-	return rc;
-
 }
 
-static int fill_tgid(pid_t tgid, struct task_struct *first,
-		struct taskstats *stats)
+static int fill_stats_for_pid(pid_t pid, struct taskstats *stats)
 {
 	struct task_struct *tsk;
+
+	rcu_read_lock();
+	tsk = find_task_by_vpid(pid);
+	if (tsk)
+		get_task_struct(tsk);
+	rcu_read_unlock();
+	if (!tsk)
+		return -ESRCH;
+	fill_stats(tsk, stats);
+	put_task_struct(tsk);
+	return 0;
+}
+
+static int fill_stats_for_tgid(pid_t tgid, struct taskstats *stats)
+{
+	struct task_struct *tsk, *first;
 	unsigned long flags;
 	int rc = -ESRCH;
 
@@ -228,8 +224,7 @@ static int fill_tgid(pid_t tgid, struct task_struct *first,
 	 * leaders who are already counted with the dead tasks
 	 */
 	rcu_read_lock();
-	if (!first)
-		first = find_task_by_vpid(tgid);
+	first = find_task_by_vpid(tgid);
 
 	if (!first || !lock_task_sighand(first, &flags))
 		goto out;
@@ -267,7 +262,6 @@ out:
 	 */
 	return rc;
 }
-
 
 static void fill_tgid_exit(struct task_struct *tsk)
 {
@@ -483,7 +477,7 @@ static int cmd_attr_pid(struct genl_info *info)
 	if (!stats)
 		goto err;
 
-	rc = fill_pid(pid, NULL, stats);
+	rc = fill_stats_for_pid(pid, stats);
 	if (rc < 0)
 		goto err;
 	return send_reply(rep_skb, info);
@@ -513,7 +507,7 @@ static int cmd_attr_tgid(struct genl_info *info)
 	if (!stats)
 		goto err;
 
-	rc = fill_tgid(tgid, NULL, stats);
+	rc = fill_stats_for_tgid(tgid, stats);
 	if (rc < 0)
 		goto err;
 	return send_reply(rep_skb, info);
@@ -599,9 +593,7 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 	if (!stats)
 		goto err;
 
-	rc = fill_pid(-1, tsk, stats);
-	if (rc < 0)
-		goto err;
+	fill_stats(tsk, stats);
 
 	/*
 	 * Doesn't matter if tsk is the leader or the last group member leaving
