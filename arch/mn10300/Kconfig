@@ -17,6 +17,7 @@ config AM33_3
 
 config AM34_2
 	def_bool n
+	select MN10300_HAS_ATOMIC_OPS_UNIT
 
 config MMU
 	def_bool y
@@ -123,6 +124,12 @@ config MN10300_CPU_AM33V2
 	bool "AM33v2"
 
 endchoice
+
+config MN10300_HAS_ATOMIC_OPS_UNIT
+	def_bool n
+	help
+	  This should be enabled if the processor has an atomic ops unit
+	  capable of doing LL/SC equivalent operations.
 
 config FPU
 	bool "FPU present"
