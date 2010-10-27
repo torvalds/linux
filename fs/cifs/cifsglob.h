@@ -196,6 +196,7 @@ struct TCP_Server_Info {
 	int capabilities; /* allow selective disabling of caps by smb sess */
 	int timeAdj;  /* Adjust for difference in server time zone in sec */
 	__u16 CurrentMid;         /* multiplex id - rotating counter */
+	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlm, ntlmv2 etc */
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
 	__u32 sequence_number; /* needed for CIFS PDU signature */
@@ -240,7 +241,7 @@ struct cifsSesInfo {
 	char userName[MAX_USERNAME_SIZE + 1];
 	char *domainName;
 	char *password;
-	char cryptKey[CIFS_CRYPTO_KEY_SIZE];
+	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlmssp */
 	struct session_key auth_key;
 	char ntlmv2_hash[16];
 	unsigned int tilen; /* length of the target info blob */

@@ -249,7 +249,7 @@ int setup_ntlm_response(struct cifsSesInfo *ses)
 	}
 	ses->auth_key.len = temp_len;
 
-	SMBNTencrypt(ses->password, ses->cryptKey,
+	SMBNTencrypt(ses->password, ses->server->cryptkey,
 			ses->auth_key.response + CIFS_SESS_KEY_SIZE);
 
 	E_md4hash(ses->password, temp_key);
@@ -537,8 +537,12 @@ CalcNTLMv2_response(const struct cifsSesInfo *ses)
 		return rc;
 	}
 
-	memcpy(ses->auth_key.response + offset,
-		ses->cryptKey, CIFS_SERVER_CHALLENGE_SIZE);
+	if (ses->server->secType == RawNTLMSSP)
+		memcpy(ses->auth_key.response + offset,
+			ses->cryptkey, CIFS_SERVER_CHALLENGE_SIZE);
+	else
+		memcpy(ses->auth_key.response + offset,
+			ses->server->cryptkey, CIFS_SERVER_CHALLENGE_SIZE);
 	crypto_shash_update(&ses->server->secmech.sdeschmacmd5->shash,
 		ses->auth_key.response + offset, ses->auth_key.len - offset);
 

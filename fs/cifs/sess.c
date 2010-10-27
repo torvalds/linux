@@ -399,7 +399,7 @@ static int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 		return -EINVAL;
 	}
 
-	memcpy(ses->cryptKey, pblob->Challenge, CIFS_CRYPTO_KEY_SIZE);
+	memcpy(ses->cryptkey, pblob->Challenge, CIFS_CRYPTO_KEY_SIZE);
 	/* BB we could decode pblob->NegotiateFlags; some may be useful */
 	/* In particular we can examine sign flags */
 	/* BB spec says that if AvId field of MsvAvTimestamp is populated then
@@ -667,10 +667,14 @@ ssetup_ntlmssp_authenticate:
 		/* no capabilities flags in old lanman negotiation */
 
 		pSMB->old_req.PasswordLength = cpu_to_le16(CIFS_SESS_KEY_SIZE);
-		/* BB calculate hash with password */
-		/* and copy into bcc */
 
-		calc_lanman_hash(ses->password, ses->cryptKey,
+		/* Calculate hash with password and copy into bcc_ptr.
+		 * Encryption Key (stored as in cryptkey) gets used if the
+		 * security mode bit in Negottiate Protocol response states
+		 * to use challenge/response method (i.e. Password bit is 1).
+		 */
+
+		calc_lanman_hash(ses->password, ses->server->cryptkey,
 				 ses->server->secMode & SECMODE_PW_ENCRYPT ?
 					true : false, lnm_session_key);
 

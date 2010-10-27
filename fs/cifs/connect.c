@@ -3002,13 +3002,13 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 		if ((global_secflags & CIFSSEC_MAY_LANMAN) &&
 		    (ses->server->secType == LANMAN))
-			calc_lanman_hash(tcon->password, ses->cryptKey,
+			calc_lanman_hash(tcon->password, ses->server->cryptkey,
 					 ses->server->secMode &
 					    SECMODE_PW_ENCRYPT ? true : false,
 					 bcc_ptr);
 		else
 #endif /* CIFS_WEAK_PW_HASH */
-		SMBNTencrypt(tcon->password, ses->cryptKey, bcc_ptr);
+		SMBNTencrypt(tcon->password, ses->server->cryptkey, bcc_ptr);
 
 		bcc_ptr += CIFS_SESS_KEY_SIZE;
 		if (ses->capabilities & CAP_UNICODE) {
