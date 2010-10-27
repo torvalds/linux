@@ -1258,6 +1258,7 @@ int
 i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		   struct drm_file *file_priv)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_mmap *args = data;
 	struct drm_gem_object *obj;
 	loff_t offset;
@@ -1269,6 +1270,11 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
 		return -ENOENT;
+
+	if (obj->size > dev_priv->mm.gtt_mappable_end) {
+		drm_gem_object_unreference_unlocked(obj);
+		return -E2BIG;
+	}
 
 	offset = args->offset;
 
@@ -1547,6 +1553,7 @@ int
 i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_mmap_gtt *args = data;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
@@ -1565,6 +1572,11 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 		goto unlock;
 	}
 	obj_priv = to_intel_bo(obj);
+
+	if (obj->size > dev_priv->mm.gtt_mappable_end) {
+		ret = -E2BIG;
+		goto unlock;
+	}
 
 	if (obj_priv->madv != I915_MADV_WILLNEED) {
 		DRM_ERROR("Attempting to mmap a purgeable buffer\n");
