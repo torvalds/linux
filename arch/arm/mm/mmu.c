@@ -744,11 +744,14 @@ static int __init early_vmalloc(char *arg)
 }
 early_param("vmalloc", early_vmalloc);
 
+static phys_addr_t lowmem_limit __initdata = 0;
+
 static void __init sanity_check_meminfo(void)
 {
 	int i, j, highmem = 0;
 
-	memblock_set_current_limit(__pa(vmalloc_min - 1) + 1);
+	lowmem_limit = __pa(vmalloc_min - 1) + 1;
+	memblock_set_current_limit(lowmem_limit);
 
 	for (i = 0, j = 0; i < meminfo.nr_banks; i++) {
 		struct membank *bank = &meminfo.bank[j];
@@ -849,6 +852,7 @@ static void __init sanity_check_meminfo(void)
 static inline void prepare_page_table(void)
 {
 	unsigned long addr;
+	phys_addr_t end;
 
 	/*
 	 * Clear out all the mappings below the kernel image.
@@ -864,10 +868,17 @@ static inline void prepare_page_table(void)
 		pmd_clear(pmd_off_k(addr));
 
 	/*
+	 * Find the end of the first block of lowmem.
+	 */
+	end = memblock.memory.regions[0].base + memblock.memory.regions[0].size;
+	if (end >= lowmem_limit)
+		end = lowmem_limit;
+
+	/*
 	 * Clear out all the kernel space mappings, except for the first
 	 * memory bank, up to the end of the vmalloc region.
 	 */
-	for (addr = __phys_to_virt(bank_phys_end(&meminfo.bank[0]));
+	for (addr = __phys_to_virt(end);
 	     addr < VMALLOC_END; addr += PGDIR_SIZE)
 		pmd_clear(pmd_off_k(addr));
 }
@@ -984,29 +995,27 @@ static void __init kmap_init(void)
 #endif
 }
 
-static inline void map_memory_bank(struct membank *bank)
-{
-	struct map_desc map;
-
-	map.pfn = bank_pfn_start(bank);
-	map.virtual = __phys_to_virt(bank_phys_start(bank));
-	map.length = bank_phys_size(bank);
-	map.type = MT_MEMORY;
-
-	create_mapping(&map);
-}
-
 static void __init map_lowmem(void)
 {
-	struct meminfo *mi = &meminfo;
-	int i;
+	struct memblock_region *reg;
 
 	/* Map all the lowmem memory banks. */
-	for (i = 0; i < mi->nr_banks; i++) {
-		struct membank *bank = &mi->bank[i];
+	for_each_memblock(memory, reg) {
+		phys_addr_t start = reg->base;
+		phys_addr_t end = start + reg->size;
+		struct map_desc map;
 
-		if (!bank->highmem)
-			map_memory_bank(bank);
+		if (end > lowmem_limit)
+			end = lowmem_limit;
+		if (start >= end)
+			break;
+
+		map.pfn = __phys_to_pfn(start);
+		map.virtual = __phys_to_virt(start);
+		map.length = end - start;
+		map.type = MT_MEMORY;
+
+		create_mapping(&map);
 	}
 }
 
