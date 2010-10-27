@@ -100,7 +100,7 @@ static int s3c_rtc_setpie(struct device *dev, int enabled)
 	spin_lock_irq(&s3c_rtc_pie_lock);
 
 	if (s3c_rtc_cpu_type == TYPE_S3C64XX) {
-		tmp = readb(s3c_rtc_base + S3C2410_RTCCON);
+		tmp = readw(s3c_rtc_base + S3C2410_RTCCON);
 		tmp &= ~S3C64XX_RTCCON_TICEN;
 
 		if (enabled)
@@ -318,7 +318,7 @@ static int s3c_rtc_proc(struct device *dev, struct seq_file *seq)
 	unsigned int ticnt;
 
 	if (s3c_rtc_cpu_type == TYPE_S3C64XX) {
-		ticnt = readb(s3c_rtc_base + S3C2410_RTCCON);
+		ticnt = readw(s3c_rtc_base + S3C2410_RTCCON);
 		ticnt &= S3C64XX_RTCCON_TICEN;
 	} else {
 		ticnt = readb(s3c_rtc_base + S3C2410_TICNT);
@@ -391,11 +391,11 @@ static void s3c_rtc_enable(struct platform_device *pdev, int en)
 		return;
 
 	if (!en) {
-		tmp = readb(base + S3C2410_RTCCON);
+		tmp = readw(base + S3C2410_RTCCON);
 		if (s3c_rtc_cpu_type == TYPE_S3C64XX)
 			tmp &= ~S3C64XX_RTCCON_TICEN;
 		tmp &= ~S3C2410_RTCCON_RTCEN;
-		writeb(tmp, base + S3C2410_RTCCON);
+		writew(tmp, base + S3C2410_RTCCON);
 
 		if (s3c_rtc_cpu_type == TYPE_S3C2410) {
 			tmp = readb(base + S3C2410_TICNT);
@@ -405,25 +405,28 @@ static void s3c_rtc_enable(struct platform_device *pdev, int en)
 	} else {
 		/* re-enable the device, and check it is ok */
 
-		if ((readb(base+S3C2410_RTCCON) & S3C2410_RTCCON_RTCEN) == 0){
+		if ((readw(base+S3C2410_RTCCON) & S3C2410_RTCCON_RTCEN) == 0) {
 			dev_info(&pdev->dev, "rtc disabled, re-enabling\n");
 
-			tmp = readb(base + S3C2410_RTCCON);
-			writeb(tmp|S3C2410_RTCCON_RTCEN, base+S3C2410_RTCCON);
+			tmp = readw(base + S3C2410_RTCCON);
+			writew(tmp | S3C2410_RTCCON_RTCEN,
+				base + S3C2410_RTCCON);
 		}
 
-		if ((readb(base + S3C2410_RTCCON) & S3C2410_RTCCON_CNTSEL)){
+		if ((readw(base + S3C2410_RTCCON) & S3C2410_RTCCON_CNTSEL)) {
 			dev_info(&pdev->dev, "removing RTCCON_CNTSEL\n");
 
-			tmp = readb(base + S3C2410_RTCCON);
-			writeb(tmp& ~S3C2410_RTCCON_CNTSEL, base+S3C2410_RTCCON);
+			tmp = readw(base + S3C2410_RTCCON);
+			writew(tmp & ~S3C2410_RTCCON_CNTSEL,
+				base + S3C2410_RTCCON);
 		}
 
-		if ((readb(base + S3C2410_RTCCON) & S3C2410_RTCCON_CLKRST)){
+		if ((readw(base + S3C2410_RTCCON) & S3C2410_RTCCON_CLKRST)) {
 			dev_info(&pdev->dev, "removing RTCCON_CLKRST\n");
 
-			tmp = readb(base + S3C2410_RTCCON);
-			writeb(tmp & ~S3C2410_RTCCON_CLKRST, base+S3C2410_RTCCON);
+			tmp = readw(base + S3C2410_RTCCON);
+			writew(tmp & ~S3C2410_RTCCON_CLKRST,
+				base + S3C2410_RTCCON);
 		}
 	}
 }
@@ -514,8 +517,8 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 
 	s3c_rtc_enable(pdev, 1);
 
- 	pr_debug("s3c2410_rtc: RTCCON=%02x\n",
-		 readb(s3c_rtc_base + S3C2410_RTCCON));
+	pr_debug("s3c2410_rtc: RTCCON=%02x\n",
+		 readw(s3c_rtc_base + S3C2410_RTCCON));
 
 	device_init_wakeup(&pdev->dev, 1);
 
@@ -578,7 +581,7 @@ static int s3c_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 	/* save TICNT for anyone using periodic interrupts */
 	ticnt_save = readb(s3c_rtc_base + S3C2410_TICNT);
 	if (s3c_rtc_cpu_type == TYPE_S3C64XX) {
-		ticnt_en_save = readb(s3c_rtc_base + S3C2410_RTCCON);
+		ticnt_en_save = readw(s3c_rtc_base + S3C2410_RTCCON);
 		ticnt_en_save &= S3C64XX_RTCCON_TICEN;
 	}
 	s3c_rtc_enable(pdev, 0);
@@ -596,8 +599,8 @@ static int s3c_rtc_resume(struct platform_device *pdev)
 	s3c_rtc_enable(pdev, 1);
 	writeb(ticnt_save, s3c_rtc_base + S3C2410_TICNT);
 	if (s3c_rtc_cpu_type == TYPE_S3C64XX && ticnt_en_save) {
-		tmp = readb(s3c_rtc_base + S3C2410_RTCCON);
-		writeb(tmp | ticnt_en_save, s3c_rtc_base + S3C2410_RTCCON);
+		tmp = readw(s3c_rtc_base + S3C2410_RTCCON);
+		writew(tmp | ticnt_en_save, s3c_rtc_base + S3C2410_RTCCON);
 	}
 
 	if (device_may_wakeup(&pdev->dev))
