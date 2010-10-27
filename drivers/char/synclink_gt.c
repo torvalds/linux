@@ -2357,26 +2357,27 @@ static irqreturn_t slgt_interrupt(int dummy, void *dev_id)
 
 	DBGISR(("slgt_interrupt irq=%d entry\n", info->irq_level));
 
-	spin_lock(&info->lock);
-
 	while((gsr = rd_reg32(info, GSR) & 0xffffff00)) {
 		DBGISR(("%s gsr=%08x\n", info->device_name, gsr));
 		info->irq_occurred = true;
 		for(i=0; i < info->port_count ; i++) {
 			if (info->port_array[i] == NULL)
 				continue;
+			spin_lock(&info->port_array[i]->lock);
 			if (gsr & (BIT8 << i))
 				isr_serial(info->port_array[i]);
 			if (gsr & (BIT16 << (i*2)))
 				isr_rdma(info->port_array[i]);
 			if (gsr & (BIT17 << (i*2)))
 				isr_tdma(info->port_array[i]);
+			spin_unlock(&info->port_array[i]->lock);
 		}
 	}
 
 	if (info->gpio_present) {
 		unsigned int state;
 		unsigned int changed;
+		spin_lock(&info->lock);
 		while ((changed = rd_reg32(info, IOSR)) != 0) {
 			DBGISR(("%s iosr=%08x\n", info->device_name, changed));
 			/* read latched state of GPIO signals */
@@ -2388,21 +2389,23 @@ static irqreturn_t slgt_interrupt(int dummy, void *dev_id)
 					isr_gpio(info->port_array[i], changed, state);
 			}
 		}
+		spin_unlock(&info->lock);
 	}
 
 	for(i=0; i < info->port_count ; i++) {
 		struct slgt_info *port = info->port_array[i];
-
-		if (port && (port->port.count || port->netcount) &&
+		if (port == NULL)
+			continue;
+		spin_lock(&port->lock);
+		if ((port->port.count || port->netcount) &&
 		    port->pending_bh && !port->bh_running &&
 		    !port->bh_requested) {
 			DBGISR(("%s bh queued\n", port->device_name));
 			schedule_work(&port->task);
 			port->bh_requested = true;
 		}
+		spin_unlock(&port->lock);
 	}
-
-	spin_unlock(&info->lock);
 
 	DBGISR(("slgt_interrupt irq=%d exit\n", info->irq_level));
 	return IRQ_HANDLED;
@@ -2906,7 +2909,7 @@ static int set_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
 		 info->device_name, gpio.state, gpio.smask,
 		 gpio.dir, gpio.dmask));
 
-	spin_lock_irqsave(&info->lock,flags);
+	spin_lock_irqsave(&info->port_array[0]->lock, flags);
 	if (gpio.dmask) {
 		data = rd_reg32(info, IODR);
 		data |= gpio.dmask & gpio.dir;
@@ -2919,7 +2922,7 @@ static int set_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
 		data &= ~(gpio.smask & ~gpio.state);
 		wr_reg32(info, IOVR, data);
 	}
-	spin_unlock_irqrestore(&info->lock,flags);
+	spin_unlock_irqrestore(&info->port_array[0]->lock, flags);
 
 	return 0;
 }
@@ -3020,7 +3023,7 @@ static int wait_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
 		return -EINVAL;
 	init_cond_wait(&wait, gpio.smask);
 
-	spin_lock_irqsave(&info->lock, flags);
+	spin_lock_irqsave(&info->port_array[0]->lock, flags);
 	/* enable interrupts for watched pins */
 	wr_reg32(info, IOER, rd_reg32(info, IOER) | gpio.smask);
 	/* get current pin states */
@@ -3032,20 +3035,20 @@ static int wait_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
 	} else {
 		/* wait for target state */
 		add_cond_wait(&info->gpio_wait_q, &wait);
-		spin_unlock_irqrestore(&info->lock, flags);
+		spin_unlock_irqrestore(&info->port_array[0]->lock, flags);
 		schedule();
 		if (signal_pending(current))
 			rc = -ERESTARTSYS;
 		else
 			gpio.state = wait.data;
-		spin_lock_irqsave(&info->lock, flags);
+		spin_lock_irqsave(&info->port_array[0]->lock, flags);
 		remove_cond_wait(&info->gpio_wait_q, &wait);
 	}
 
 	/* disable all GPIO interrupts if no waiting processes */
 	if (info->gpio_wait_q == NULL)
 		wr_reg32(info, IOER, 0);
-	spin_unlock_irqrestore(&info->lock,flags);
+	spin_unlock_irqrestore(&info->port_array[0]->lock, flags);
 
 	if ((rc == 0) && copy_to_user(user_gpio, &gpio, sizeof(gpio)))
 		rc = -EFAULT;
@@ -3578,7 +3581,6 @@ static void device_init(int adapter_num, struct pci_dev *pdev)
 
 		/* copy resource information from first port to others */
 		for (i = 1; i < port_count; ++i) {
-			port_array[i]->lock      = port_array[0]->lock;
 			port_array[i]->irq_level = port_array[0]->irq_level;
 			port_array[i]->reg_addr  = port_array[0]->reg_addr;
 			alloc_dma_bufs(port_array[i]);
