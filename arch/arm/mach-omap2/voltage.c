@@ -250,6 +250,47 @@ static void omap3_voltage_write_reg(u32 val, u16 mod, u8 offset)
 	omap2_prm_write_mod_reg(val, mod, offset);
 }
 
+/* Voltage debugfs support */
+static int vp_volt_debug_get(void *data, u64 *val)
+{
+	struct omap_vdd_info *vdd = (struct omap_vdd_info *) data;
+	u8 vsel;
+
+	if (!vdd) {
+		pr_warning("Wrong paramater passed\n");
+		return -EINVAL;
+	}
+
+	vsel = vdd->read_reg(vdd->vp_reg.prm_mod, vdd->vp_offs.voltage);
+	pr_notice("curr_vsel = %x\n", vsel);
+
+	if (!vdd->pmic_info->vsel_to_uv) {
+		pr_warning("PMIC function to convert vsel to voltage"
+			"in uV not registerd\n");
+		return -EINVAL;
+	}
+
+	*val = vdd->pmic_info->vsel_to_uv(vsel);
+	return 0;
+}
+
+static int nom_volt_debug_get(void *data, u64 *val)
+{
+	struct omap_vdd_info *vdd = (struct omap_vdd_info *) data;
+
+	if (!vdd) {
+		pr_warning("Wrong paramater passed\n");
+		return -EINVAL;
+	}
+
+	*val = omap_voltage_get_nom_volt(&vdd->voltdm);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(vp_volt_debug_fops, vp_volt_debug_get, NULL, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(nom_volt_debug_fops, nom_volt_debug_get, NULL,
+								"%llu\n");
 static void vp_latch_vsel(struct omap_vdd_info *vdd)
 {
 	u32 vpconfig;
@@ -349,7 +390,32 @@ static void __init vdd_debugfs_init(struct omap_vdd_info *vdd)
 		pr_warning("%s: Unable to create debugfs directory for"
 			" vdd_%s\n", __func__, vdd->voltdm.name);
 		vdd->debug_dir = NULL;
+		return;
 	}
+
+	(void) debugfs_create_x16("vp_errorgain", S_IRUGO, vdd->debug_dir,
+				&(vdd->vp_reg.vpconfig_errorgain));
+	(void) debugfs_create_x16("vp_smpswaittimemin", S_IRUGO,
+				vdd->debug_dir,
+				&(vdd->vp_reg.vstepmin_smpswaittimemin));
+	(void) debugfs_create_x8("vp_stepmin", S_IRUGO, vdd->debug_dir,
+				&(vdd->vp_reg.vstepmin_stepmin));
+	(void) debugfs_create_x16("vp_smpswaittimemax", S_IRUGO,
+				vdd->debug_dir,
+				&(vdd->vp_reg.vstepmax_smpswaittimemax));
+	(void) debugfs_create_x8("vp_stepmax", S_IRUGO, vdd->debug_dir,
+				&(vdd->vp_reg.vstepmax_stepmax));
+	(void) debugfs_create_x8("vp_vddmax", S_IRUGO, vdd->debug_dir,
+				&(vdd->vp_reg.vlimitto_vddmax));
+	(void) debugfs_create_x8("vp_vddmin", S_IRUGO, vdd->debug_dir,
+				&(vdd->vp_reg.vlimitto_vddmin));
+	(void) debugfs_create_x16("vp_timeout", S_IRUGO, vdd->debug_dir,
+				&(vdd->vp_reg.vlimitto_timeout));
+	(void) debugfs_create_file("curr_vp_volt", S_IRUGO, vdd->debug_dir,
+				(void *) vdd, &vp_volt_debug_fops);
+	(void) debugfs_create_file("curr_nominal_volt", S_IRUGO,
+				vdd->debug_dir, (void *) vdd,
+				&nom_volt_debug_fops);
 }
 
 /* Voltage scale and accessory APIs */

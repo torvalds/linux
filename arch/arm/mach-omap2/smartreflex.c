@@ -31,6 +31,7 @@
 #include "pm.h"
 
 #define SMARTREFLEX_NAME_LEN	16
+#define NVALUE_NAME_LEN		40
 #define SR_DISABLE_TIMEOUT	200
 
 struct omap_sr {
@@ -817,8 +818,9 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	struct omap_sr *sr_info = kzalloc(sizeof(struct omap_sr), GFP_KERNEL);
 	struct omap_sr_data *pdata = pdev->dev.platform_data;
 	struct resource *mem, *irq;
-	struct dentry *vdd_dbg_dir, *dbg_dir;
-	int ret = 0;
+	struct dentry *vdd_dbg_dir, *dbg_dir, *nvalue_dir;
+	struct omap_volt_data *volt_data;
+	int i, ret = 0;
 
 	if (!sr_info) {
 		dev_err(&pdev->dev, "%s: unable to allocate sr_info\n",
@@ -897,6 +899,46 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 
 	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUGO, dbg_dir,
 				(void *)sr_info, &pm_sr_fops);
+	(void) debugfs_create_x32("errweight", S_IRUGO, dbg_dir,
+			&sr_info->err_weight);
+	(void) debugfs_create_x32("errmaxlimit", S_IRUGO, dbg_dir,
+			&sr_info->err_maxlimit);
+	(void) debugfs_create_x32("errminlimit", S_IRUGO, dbg_dir,
+			&sr_info->err_minlimit);
+
+	nvalue_dir = debugfs_create_dir("nvalue", dbg_dir);
+	if (IS_ERR(nvalue_dir)) {
+		dev_err(&pdev->dev, "%s: Unable to create debugfs directory"
+			"for n-values\n", __func__);
+		return PTR_ERR(nvalue_dir);
+	}
+
+	omap_voltage_get_volttable(sr_info->voltdm, &volt_data);
+	if (!volt_data) {
+		dev_warn(&pdev->dev, "%s: No Voltage table for the"
+			" corresponding vdd vdd_%s. Cannot create debugfs"
+			"entries for n-values\n",
+			__func__, sr_info->voltdm->name);
+		return -ENODATA;
+	}
+
+	for (i = 0; i < sr_info->nvalue_count; i++) {
+		char *name;
+		char volt_name[32];
+
+		name = kzalloc(NVALUE_NAME_LEN + 1, GFP_KERNEL);
+		if (!name) {
+			dev_err(&pdev->dev, "%s: Unable to allocate memory"
+				" for n-value directory name\n",  __func__);
+			return -ENOMEM;
+		}
+
+		strcpy(name, "volt_");
+		sprintf(volt_name, "%d", volt_data[i].volt_nominal);
+		strcat(name, volt_name);
+		(void) debugfs_create_x32(name, S_IRUGO | S_IWUGO, nvalue_dir,
+				&(sr_info->nvalue_table[i].nvalue));
+	}
 
 	return ret;
 
