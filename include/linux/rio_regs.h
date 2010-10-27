@@ -224,15 +224,17 @@
 #define  RIO_PORT_GEN_MASTER		0x40000000
 #define  RIO_PORT_GEN_DISCOVERED	0x20000000
 #define RIO_PORT_N_MNT_REQ_CSR(x)	(0x0040 + x*0x20)	/* 0x0002 */
+#define  RIO_MNT_REQ_CMD_RD		0x03	/* Reset-device command */
+#define  RIO_MNT_REQ_CMD_IS		0x04	/* Input-status command */
 #define RIO_PORT_N_MNT_RSP_CSR(x)	(0x0044 + x*0x20)	/* 0x0002 */
 #define  RIO_PORT_N_MNT_RSP_RVAL	0x80000000 /* Response Valid */
 #define  RIO_PORT_N_MNT_RSP_ASTAT	0x000003e0 /* ackID Status */
 #define  RIO_PORT_N_MNT_RSP_LSTAT	0x0000001f /* Link Status */
 #define RIO_PORT_N_ACK_STS_CSR(x)	(0x0048 + x*0x20)	/* 0x0002 */
 #define  RIO_PORT_N_ACK_CLEAR		0x80000000
-#define  RIO_PORT_N_ACK_INBOUND		0x1f000000
-#define  RIO_PORT_N_ACK_OUTSTAND	0x00001f00
-#define  RIO_PORT_N_ACK_OUTBOUND	0x0000001f
+#define  RIO_PORT_N_ACK_INBOUND		0x3f000000
+#define  RIO_PORT_N_ACK_OUTSTAND	0x00003f00
+#define  RIO_PORT_N_ACK_OUTBOUND	0x0000003f
 #define RIO_PORT_N_ERR_STS_CSR(x)	(0x0058 + x*0x20)
 #define  RIO_PORT_N_ERR_STS_PW_OUT_ES	0x00010000 /* Output Error-stopped */
 #define  RIO_PORT_N_ERR_STS_PW_INP_ES	0x00000100 /* Input Error-stopped */

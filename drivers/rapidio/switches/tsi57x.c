@@ -205,6 +205,10 @@ tsi57x_em_init(struct rio_dev *rdev)
 			portnum++;
 	}
 
+	/* set TVAL = ~50us */
+	rio_mport_write_config_32(mport, destid, hopcount,
+		rdev->phys_efptr + RIO_PORT_LINKTO_CTL_CSR, 0x9a << 8);
+
 	return 0;
 }
 
