@@ -3085,9 +3085,6 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
 	struct drm_i915_gem_object	*obj_priv = to_intel_bo(obj);
 	uint32_t			invalidate_domains = 0;
 	uint32_t			flush_domains = 0;
-	uint32_t			old_read_domains;
-
-	intel_mark_busy(dev, obj);
 
 	/*
 	 * If the object isn't moving to a new write domain,
@@ -3095,8 +3092,6 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
 	 */
 	if (obj->pending_write_domain == 0)
 		obj->pending_read_domains |= obj->read_domains;
-	else
-		obj_priv->dirty = 1;
 
 	/*
 	 * Flush the current write domain if
@@ -3118,8 +3113,6 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
 	if ((flush_domains | invalidate_domains) & I915_GEM_DOMAIN_CPU)
 		i915_gem_clflush_object(obj);
 
-	old_read_domains = obj->read_domains;
-
 	/* The actual obj->write_domain will be updated with
 	 * pending_write_domain after we emit the accumulated flush for all
 	 * of our domain changes in execbuffers (which clears objects'
@@ -3128,7 +3121,6 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
 	 */
 	if (flush_domains == 0 && obj->pending_write_domain == 0)
 		obj->pending_write_domain = obj->write_domain;
-	obj->read_domains = obj->pending_read_domains;
 
 	dev->invalidate_domains |= invalidate_domains;
 	dev->flush_domains |= flush_domains;
@@ -3136,10 +3128,6 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
 		dev_priv->mm.flush_rings |= obj_priv->ring->id;
 	if (invalidate_domains & I915_GEM_GPU_DOMAINS)
 		dev_priv->mm.flush_rings |= ring->id;
-
-	trace_i915_gem_object_change_domain(obj,
-					    old_read_domains,
-					    obj->write_domain);
 }
 
 /**
@@ -3602,7 +3590,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_gem_object **object_list = NULL;
 	struct drm_gem_object *batch_obj;
-	struct drm_i915_gem_object *obj_priv;
 	struct drm_clip_rect *cliprects = NULL;
 	struct drm_i915_gem_request *request = NULL;
 	int ret, i, flips;
@@ -3697,6 +3684,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	/* Look up object handles */
 	for (i = 0; i < args->buffer_count; i++) {
+		struct drm_i915_gem_object *obj_priv;
+
 		object_list[i] = drm_gem_object_lookup(dev, file,
 						       exec_list[i].handle);
 		if (object_list[i] == NULL) {
@@ -3761,13 +3750,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	dev->invalidate_domains = 0;
 	dev->flush_domains = 0;
 	dev_priv->mm.flush_rings = 0;
-
-	for (i = 0; i < args->buffer_count; i++) {
-		struct drm_gem_object *obj = object_list[i];
-
-		/* Compute new gpu domains and update invalidate/flush */
-		i915_gem_object_set_to_gpu_domain(obj, ring);
-	}
+	for (i = 0; i < args->buffer_count; i++)
+		i915_gem_object_set_to_gpu_domain(object_list[i], ring);
 
 	if (dev->invalidate_domains | dev->flush_domains) {
 #if WATCH_EXEC
@@ -3780,15 +3764,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			       dev->invalidate_domains,
 			       dev->flush_domains,
 			       dev_priv->mm.flush_rings);
-	}
-
-	for (i = 0; i < args->buffer_count; i++) {
-		struct drm_gem_object *obj = object_list[i];
-		uint32_t old_write_domain = obj->write_domain;
-		obj->write_domain = obj->pending_write_domain;
-		trace_i915_gem_object_change_domain(obj,
-						    obj->read_domains,
-						    old_write_domain);
 	}
 
 #if WATCH_COHERENCY
@@ -3843,30 +3818,41 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		goto err;
 	}
 
+	for (i = 0; i < args->buffer_count; i++) {
+		struct drm_gem_object *obj = object_list[i];
+
+		obj->read_domains = obj->pending_read_domains;
+		obj->write_domain = obj->pending_write_domain;
+
+		i915_gem_object_move_to_active(obj, ring);
+		if (obj->write_domain) {
+			struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+			obj_priv->dirty = 1;
+			list_move_tail(&obj_priv->gpu_write_list,
+				       &ring->gpu_write_list);
+			intel_mark_busy(dev, obj);
+		}
+
+		trace_i915_gem_object_change_domain(obj,
+						    obj->read_domains,
+						    obj->write_domain);
+	}
+
 	/*
 	 * Ensure that the commands in the batch buffer are
 	 * finished before the interrupt fires
 	 */
 	i915_retire_commands(dev, ring);
 
-	for (i = 0; i < args->buffer_count; i++) {
-		struct drm_gem_object *obj = object_list[i];
-
-		i915_gem_object_move_to_active(obj, ring);
-		if (obj->write_domain)
-			list_move_tail(&to_intel_bo(obj)->gpu_write_list,
-				       &ring->gpu_write_list);
-	}
-
 	i915_add_request(dev, file, request, ring);
 	request = NULL;
 
 err:
 	for (i = 0; i < args->buffer_count; i++) {
-		if (object_list[i]) {
-			obj_priv = to_intel_bo(object_list[i]);
-			obj_priv->in_execbuffer = false;
-		}
+		if (object_list[i] == NULL)
+		    break;
+
+		to_intel_bo(object_list[i])->in_execbuffer = false;
 		drm_gem_object_unreference(object_list[i]);
 	}
 
