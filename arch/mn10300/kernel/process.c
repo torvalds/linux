@@ -228,6 +228,7 @@ int copy_thread(unsigned long clone_flags,
 		unsigned long c_usp, unsigned long ustk_size,
 		struct task_struct *p, struct pt_regs *kregs)
 {
+	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *c_uregs, *c_kregs, *uregs;
 	unsigned long c_ksp;
 
@@ -248,7 +249,7 @@ int copy_thread(unsigned long clone_flags,
 
 	/* the new TLS pointer is passed in as arg #5 to sys_clone() */
 	if (clone_flags & CLONE_SETTLS)
-		c_uregs->e2 = __frame->d3;
+		c_uregs->e2 = current_frame()->d3;
 
 	/* set up the return kernel frame if called from kernel_thread() */
 	c_kregs = c_uregs;
@@ -266,7 +267,7 @@ int copy_thread(unsigned long clone_flags,
 	}
 
 	/* set up things up so the scheduler can start the new task */
-	p->thread.frame = c_kregs;
+	ti->frame	= c_kregs;
 	p->thread.a3	= (unsigned long) c_kregs;
 	p->thread.sp	= c_ksp;
 	p->thread.pc	= (unsigned long) ret_from_fork;
@@ -278,25 +279,26 @@ int copy_thread(unsigned long clone_flags,
 
 /*
  * clone a process
- * - tlsptr is retrieved by copy_thread() from __frame->d3
+ * - tlsptr is retrieved by copy_thread() from current_frame()->d3
  */
 asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp,
 			  int __user *parent_tidptr, int __user *child_tidptr,
 			  int __user *tlsptr)
 {
-	return do_fork(clone_flags, newsp ?: __frame->sp, __frame, 0,
-		       parent_tidptr, child_tidptr);
+	return do_fork(clone_flags, newsp ?: current_frame()->sp,
+		       current_frame(), 0, parent_tidptr, child_tidptr);
 }
 
 asmlinkage long sys_fork(void)
 {
-	return do_fork(SIGCHLD, __frame->sp, __frame, 0, NULL, NULL);
+	return do_fork(SIGCHLD, current_frame()->sp,
+		       current_frame(), 0, NULL, NULL);
 }
 
 asmlinkage long sys_vfork(void)
 {
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, __frame->sp, __frame,
-		       0, NULL, NULL);
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, current_frame()->sp,
+		       current_frame(), 0, NULL, NULL);
 }
 
 asmlinkage long sys_execve(const char __user *name,
@@ -310,7 +312,7 @@ asmlinkage long sys_execve(const char __user *name,
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		return error;
-	error = do_execve(filename, argv, envp, __frame);
+	error = do_execve(filename, argv, envp, current_frame());
 	putname(filename);
 	return error;
 }

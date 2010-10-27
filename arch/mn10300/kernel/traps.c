@@ -45,14 +45,6 @@
 #error "INTERRUPT_VECTOR_BASE not aligned to 16MiB boundary!"
 #endif
 
-#ifdef CONFIG_SMP
-struct pt_regs *___frame[NR_CPUS]; /* current frame pointer */
-EXPORT_SYMBOL(___frame);
-#else  /* CONFIG_SMP */
-struct pt_regs *__frame; /* current frame pointer */
-EXPORT_SYMBOL(__frame);
-#endif /* CONFIG_SMP */
-
 int kstack_depth_to_print = 24;
 
 spinlock_t die_lock = __SPIN_LOCK_UNLOCKED(die_lock);

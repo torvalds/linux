@@ -13,10 +13,13 @@
 #ifndef _ASM_PROCESSOR_H
 #define _ASM_PROCESSOR_H
 
+#include <linux/threads.h>
+#include <linux/thread_info.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/cpu-regs.h>
-#include <linux/threads.h>
+#include <asm/uaccess.h>
+#include <asm/current.h>
 
 /* Forward declaration, a strange C thing */
 struct task_struct;
@@ -83,10 +86,6 @@ extern void dodgy_tsc(void);
  */
 #define TASK_UNMAPPED_BASE	0x30000000
 
-typedef struct {
-	unsigned long	seg;
-} mm_segment_t;
-
 struct fpu_state_struct {
 	unsigned long	fs[32];		/* fpu registers */
 	unsigned long	fpcr;		/* fpu control register */
@@ -99,7 +98,6 @@ struct thread_struct {
 	unsigned long		a3;		/* kernel FP */
 	unsigned long		wchan;
 	unsigned long		usp;
-	struct pt_regs		*frame;
 	unsigned long		fpu_flags;
 #define THREAD_USING_FPU	0x00000001	/* T if this task is using the FPU */
 #define THREAD_HAS_FPU		0x00000002	/* T if this task owns the FPU right now */
@@ -113,7 +111,6 @@ struct thread_struct {
 	.sp	= 0,		\
 	.a3	= 0,		\
 	.wchan	= 0,		\
-	.frame	= NULL,		\
 }
 
 #define INIT_MMAP \
@@ -125,27 +122,20 @@ struct thread_struct {
  * - need to discard the frame stacked by the kernel thread invoking the execve
  *   syscall (see RESTORE_ALL macro)
  */
-#if defined(CONFIG_SMP) && defined(CONFIG_PREEMPT) /* FIXME */
-#define start_thread(regs, new_pc, new_sp) do {		\
-	int cpu;					\
-	preempt_disable();				\
-	cpu = CPUID;					\
-	set_fs(USER_DS);				\
-	___frame[cpu] = current->thread.uregs;		\
-	___frame[cpu]->epsw = EPSW_nSL | EPSW_IE | EPSW_IM;\
-	___frame[cpu]->pc = new_pc;			\
-	___frame[cpu]->sp = new_sp;			\
-	preempt_enable();				\
-} while (0)
-#else  /* CONFIG_SMP && CONFIG_PREEMPT */
-#define start_thread(regs, new_pc, new_sp) do {		\
-	set_fs(USER_DS);				\
-	__frame = current->thread.uregs;		\
-	__frame->epsw = EPSW_nSL | EPSW_IE | EPSW_IM;	\
-	__frame->pc = new_pc;				\
-	__frame->sp = new_sp;				\
-} while (0)
-#endif /* CONFIG_SMP && CONFIG_PREEMPT */
+static inline void start_thread(struct pt_regs *regs,
+				unsigned long new_pc, unsigned long new_sp)
+{
+	struct thread_info *ti = current_thread_info();
+	struct pt_regs *frame0;
+	set_fs(USER_DS);
+
+	frame0 = thread_info_to_uregs(ti);
+	frame0->epsw = EPSW_nSL | EPSW_IE | EPSW_IM;
+	frame0->pc = new_pc;
+	frame0->sp = new_sp;
+	ti->frame = frame0;
+}
+
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);

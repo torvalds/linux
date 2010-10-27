@@ -86,12 +86,6 @@ struct pt_regs {
 
 #ifdef __KERNEL__
 
-#ifdef CONFIG_SMP
-extern struct pt_regs *___frame[];	/* current frame pointer */
-#else
-extern struct pt_regs *__frame;		/* current frame pointer */
-#endif
-
 #define user_mode(regs)			(((regs)->epsw & EPSW_nSL) == EPSW_nSL)
 #define instruction_pointer(regs)	((regs)->pc)
 #define user_stack_pointer(regs)	((regs)->sp)

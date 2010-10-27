@@ -122,7 +122,7 @@ void __init watchdog_go(void)
 static void watchdog_dump_register(void *dummy)
 {
 	printk(KERN_ERR "--- Register Dump (CPU%d) ---\n", CPUID);
-	show_registers(__frame);
+	show_registers(current_frame());
 }
 #endif
 

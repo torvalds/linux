@@ -23,6 +23,7 @@ void foo(void)
 
 	OFFSET(TI_task,			thread_info, task);
 	OFFSET(TI_exec_domain,		thread_info, exec_domain);
+	OFFSET(TI_frame,		thread_info, frame);
 	OFFSET(TI_flags,		thread_info, flags);
 	OFFSET(TI_cpu,			thread_info, cpu);
 	OFFSET(TI_preempt_count,	thread_info, preempt_count);
@@ -66,7 +67,6 @@ void foo(void)
 	OFFSET(THREAD_SP,		thread_struct, sp);
 	OFFSET(THREAD_A3,		thread_struct, a3);
 	OFFSET(THREAD_USP,		thread_struct, usp);
-	OFFSET(THREAD_FRAME,		thread_struct, frame);
 #ifdef CONFIG_FPU
 	OFFSET(THREAD_FPU_FLAGS,	thread_struct, fpu_flags);
 	OFFSET(THREAD_FPU_STATE,	thread_struct, fpu_state);

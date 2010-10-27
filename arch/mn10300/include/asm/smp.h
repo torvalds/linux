@@ -93,19 +93,6 @@ extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 #endif /* CONFIG_HOTPLUG_CPU */
 
-#ifdef CONFIG_PREEMPT /* FIXME */
-#define __frame					\
-	({					\
-		struct pt_regs *f;		\
-		preempt_disable();		\
-		f = ___frame[CPUID];		\
-		preempt_enable();		\
-		f;				\
-	})
-#else
-#define __frame ___frame[CPUID]
-#endif
-
 #endif /* __ASSEMBLY__ */
 #else /* CONFIG_SMP */
 #ifndef __ASSEMBLY__
