@@ -21,7 +21,6 @@ config ARCH_MSM7X30
 	select MSM_SMD
 	select MSM_VIC
 	select CPU_V7
-	select MSM_REMOTE_SPINLOCK_DEKKERS
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
 	select HAS_MSM_DEBUG_UART_PHYS
@@ -33,7 +32,6 @@ config ARCH_QSD8X50
 	select MSM_SMD
 	select MSM_VIC
 	select CPU_V7
-	select MSM_REMOTE_SPINLOCK_LDREX
 	select MSM_GPIOMUX
 	select MSM_PROC_COMM
 	select HAS_MSM_DEBUG_UART_PHYS
