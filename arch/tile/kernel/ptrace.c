@@ -58,7 +58,7 @@ long arch_ptrace(struct task_struct *child, long request,
 	switch (request) {
 
 	case PTRACE_PEEKUSR:  /* Read register from pt_regs. */
-		if (addr < 0 || addr >= PTREGS_SIZE)
+		if (addr >= PTREGS_SIZE)
 			break;
 		childreg = (char *)task_pt_regs(child) + addr;
 #ifdef CONFIG_COMPAT
@@ -77,7 +77,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		break;
 
 	case PTRACE_POKEUSR:  /* Write register in pt_regs. */
-		if (addr < 0 || addr >= PTREGS_SIZE)
+		if (addr >= PTREGS_SIZE)
 			break;
 		childreg = (char *)task_pt_regs(child) + addr;
 #ifdef CONFIG_COMPAT
