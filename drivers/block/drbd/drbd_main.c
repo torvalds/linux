@@ -2846,6 +2846,7 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	INIT_LIST_HEAD(&mdev->unplug_work.list);
 	INIT_LIST_HEAD(&mdev->go_diskless.list);
 	INIT_LIST_HEAD(&mdev->md_sync_work.list);
+	INIT_LIST_HEAD(&mdev->start_resync_work.list);
 	INIT_LIST_HEAD(&mdev->bm_io_work.w.list);
 
 	mdev->resync_work.cb  = w_resync_inactive;

@@ -973,7 +973,8 @@ struct drbd_conf {
 	struct drbd_work  resync_work,
 			  unplug_work,
 			  go_diskless,
-			  md_sync_work;
+			  md_sync_work,
+			  start_resync_work;
 	struct timer_list resync_timer;
 	struct timer_list md_sync_timer;
 #ifdef DRBD_DEBUG_MD_SYNC
@@ -1546,6 +1547,7 @@ extern int w_prev_work_done(struct drbd_conf *, struct drbd_work *, int);
 extern int w_e_reissue(struct drbd_conf *, struct drbd_work *, int);
 extern int w_restart_disk_io(struct drbd_conf *, struct drbd_work *, int);
 extern int w_send_oos(struct drbd_conf *, struct drbd_work *, int);
+extern int w_start_resync(struct drbd_conf *, struct drbd_work *, int);
 
 extern void resync_timer_fn(unsigned long data);
 

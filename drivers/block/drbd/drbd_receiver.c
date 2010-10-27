@@ -3279,6 +3279,7 @@ static int receive_sync_uuid(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
 
 	wait_event(mdev->misc_wait,
 		   mdev->state.conn == C_WF_SYNC_UUID ||
+		   mdev->state.conn == C_BEHIND ||
 		   mdev->state.conn < C_CONNECTED ||
 		   mdev->state.disk < D_NEGOTIATING);
 
@@ -4337,6 +4338,14 @@ static int got_BarrierAck(struct drbd_conf *mdev, struct p_header80 *h)
 	struct p_barrier_ack *p = (struct p_barrier_ack *)h;
 
 	tl_release(mdev, p->barrier, be32_to_cpu(p->set_size));
+
+	if (mdev->state.conn == C_AHEAD &&
+	    atomic_read(&mdev->ap_in_flight) == 0 &&
+	    list_empty(&mdev->start_resync_work.list)) {
+		    struct drbd_work *w = &mdev->start_resync_work;
+		    w->cb = w_start_resync;
+		    drbd_queue_work_front(&mdev->data.work, w);
+	}
 
 	return TRUE;
 }

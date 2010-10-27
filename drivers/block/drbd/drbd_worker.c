@@ -742,6 +742,14 @@ static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int ca
 	return 1;
 }
 
+
+int w_start_resync(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+{
+	drbd_start_resync(mdev, C_SYNC_SOURCE);
+
+	return 1;
+}
+
 int w_ov_finished(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
 	kfree(w);
@@ -1472,7 +1480,7 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 	union drbd_state ns;
 	int r;
 
-	if (mdev->state.conn >= C_SYNC_SOURCE) {
+	if (mdev->state.conn >= C_SYNC_SOURCE && mdev->state.conn < C_AHEAD) {
 		dev_err(DEV, "Resync already running!\n");
 		return;
 	}
