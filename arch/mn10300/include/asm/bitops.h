@@ -72,7 +72,7 @@ static inline void __clear_bit(unsigned long nr, volatile void *addr)
  */
 static inline int test_bit(unsigned long nr, const volatile void *addr)
 {
-	return 1UL & (((const unsigned int *) addr)[nr >> 5] >> (nr & 31));
+	return 1UL & (((const volatile unsigned int *) addr)[nr >> 5] >> (nr & 31));
 }
 
 /*
