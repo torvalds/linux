@@ -33,6 +33,7 @@
 #define BWL_DEFAULT_PACKING
 #include <packed_section_start.h>
 
+#ifdef BRCM_FULLMAC
 /* Legacy structure to help keep backward compatible wl tool and tray app */
 
 #define	LEGACY_WL_BSS_INFO_VERSION	107	/* older version of wl_bss_info struct */
@@ -148,12 +149,14 @@ typedef struct wl_bss_info {
 	/* Add new fields here */
 	/* variable length Information Elements */
 } wl_bss_info_t;
+#endif /* BRCM_FULLMAC */
 
 typedef struct wlc_ssid {
 	u32 SSID_len;
 	unsigned char SSID[32];
 } wlc_ssid_t;
 
+#ifdef BRCM_FULLMAC
 typedef struct chan_scandata {
 	u8 txpower;
 	u8 pad;
@@ -308,6 +311,7 @@ typedef struct wl_probe_params {
 	struct ether_addr bssid;
 	struct ether_addr mac;
 } wl_probe_params_t;
+#endif /* BRCM_FULLMAC */
 
 #define WL_NUMRATES		16	/* max # of rates in a rateset */
 typedef struct wl_rateset {
@@ -315,6 +319,7 @@ typedef struct wl_rateset {
 	u8 rates[WL_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
 } wl_rateset_t;
 
+#ifdef BRCM_FULLMAC
 typedef struct wl_rateset_args {
 	u32 count;		/* # rates in this set */
 	u8 rates[WL_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
@@ -351,6 +356,8 @@ typedef struct wl_join_params {
 					 */
 } wl_join_params_t;
 #define WL_JOIN_PARAMS_FIXED_SIZE 	(sizeof(wl_join_params_t) - sizeof(chanspec_t))
+
+#endif /* BRCM_FULLMAC */
 
 /* defines used by the nrate iovar */
 #define NRATE_MCS_INUSE	0x00000080	/* MSC in use,indicates b0-6 holds an mcs */
@@ -391,6 +398,7 @@ typedef struct {
 
 #define HIGHEST_SINGLE_STREAM_MCS	7	/* MCS values greater than this enable multiple streams */
 
+#ifdef BRCM_FULLMAC
 #define MAX_CCA_CHANNELS 38	/* Max number of 20 Mhz wide channels */
 #define MAX_CCA_SECS     60	/* CCA keeps this many seconds history */
 
@@ -428,8 +436,11 @@ typedef struct {
 	cca_congest_t secs[1];	/* Data */
 } cca_congest_channel_req_t;
 
+#endif /* BRCM_FULLMAC */
+
 #define WLC_CNTRY_BUF_SZ	4	/* Country string is 3 bytes + NUL */
 
+#ifdef BRCM_FULLMAC
 typedef struct wl_country {
 	char country_abbrev[WLC_CNTRY_BUF_SZ];	/* nul-terminated country code used in
 						 * the Country IE
@@ -516,6 +527,7 @@ typedef struct wl_rm_rep {
 	wl_rm_rep_elt_t rep[1];	/* variable length block of reports */
 } wl_rm_rep_t;
 #define WL_RM_REP_FIXED_LEN	8
+#endif /* BRCM_FULLMAC */
 
 /* Enumerate crypto algorithms */
 #define	CRYPTO_ALGO_OFF			0
