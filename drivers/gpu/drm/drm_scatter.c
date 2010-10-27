@@ -184,8 +184,6 @@ int drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * request)
 	drm_sg_cleanup(entry);
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(drm_sg_alloc);
-
 
 int drm_sg_alloc_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)

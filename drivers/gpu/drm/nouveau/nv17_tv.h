@@ -127,7 +127,8 @@ void nv17_ctv_update_rescaler(struct drm_encoder *encoder);
 
 /* TV hardware access functions */
 
-static inline void nv_write_ptv(struct drm_device *dev, uint32_t reg, uint32_t val)
+static inline void nv_write_ptv(struct drm_device *dev, uint32_t reg,
+				uint32_t val)
 {
 	nv_wr32(dev, reg, val);
 }
@@ -137,7 +138,8 @@ static inline uint32_t nv_read_ptv(struct drm_device *dev, uint32_t reg)
 	return nv_rd32(dev, reg);
 }
 
-static inline void nv_write_tv_enc(struct drm_device *dev, uint8_t reg, uint8_t val)
+static inline void nv_write_tv_enc(struct drm_device *dev, uint8_t reg,
+				   uint8_t val)
 {
 	nv_write_ptv(dev, NV_PTV_TV_INDEX, reg);
 	nv_write_ptv(dev, NV_PTV_TV_DATA, val);
@@ -149,8 +151,11 @@ static inline uint8_t nv_read_tv_enc(struct drm_device *dev, uint8_t reg)
 	return nv_read_ptv(dev, NV_PTV_TV_DATA);
 }
 
-#define nv_load_ptv(dev, state, reg) nv_write_ptv(dev, NV_PTV_OFFSET + 0x##reg, state->ptv_##reg)
-#define nv_save_ptv(dev, state, reg) state->ptv_##reg = nv_read_ptv(dev, NV_PTV_OFFSET + 0x##reg)
-#define nv_load_tv_enc(dev, state, reg) nv_write_tv_enc(dev, 0x##reg, state->tv_enc[0x##reg])
+#define nv_load_ptv(dev, state, reg) \
+	nv_write_ptv(dev, NV_PTV_OFFSET + 0x##reg, state->ptv_##reg)
+#define nv_save_ptv(dev, state, reg) \
+	state->ptv_##reg = nv_read_ptv(dev, NV_PTV_OFFSET + 0x##reg)
+#define nv_load_tv_enc(dev, state, reg) \
+	nv_write_tv_enc(dev, 0x##reg, state->tv_enc[0x##reg])
 
 #endif

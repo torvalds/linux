@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Dave Airlie <airlied@linux.ie>
- * Copyright (c) 2007 Intel Corporation
+ * Copyright (c) 2007, 2010 Intel Corporation
  *   Jesse Barnes <jesse.barnes@intel.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -34,11 +34,11 @@
  * intel_ddc_probe
  *
  */
-bool intel_ddc_probe(struct intel_encoder *intel_encoder)
+bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus)
 {
+	struct drm_i915_private *dev_priv = intel_encoder->base.dev->dev_private;
 	u8 out_buf[] = { 0x0, 0x0};
 	u8 buf[2];
-	int ret;
 	struct i2c_msg msgs[] = {
 		{
 			.addr = 0x50,
@@ -54,13 +54,7 @@ bool intel_ddc_probe(struct intel_encoder *intel_encoder)
 		}
 	};
 
-	intel_i2c_quirk_set(intel_encoder->enc.dev, true);
-	ret = i2c_transfer(intel_encoder->ddc_bus, msgs, 2);
-	intel_i2c_quirk_set(intel_encoder->enc.dev, false);
-	if (ret == 2)
-		return true;
-
-	return false;
+	return i2c_transfer(&dev_priv->gmbus[ddc_bus].adapter, msgs, 2) == 2;
 }
 
 /**
@@ -76,9 +70,7 @@ int intel_ddc_get_modes(struct drm_connector *connector,
 	struct edid *edid;
 	int ret = 0;
 
-	intel_i2c_quirk_set(connector->dev, true);
 	edid = drm_get_edid(connector, adapter);
-	intel_i2c_quirk_set(connector->dev, false);
 	if (edid) {
 		drm_mode_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);

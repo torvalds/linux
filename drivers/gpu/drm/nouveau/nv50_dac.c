@@ -79,7 +79,7 @@ nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 
 	nv_wr32(dev, NV50_PDISPLAY_DAC_DPMS_CTRL(or),
 		0x00150000 | NV50_PDISPLAY_DAC_DPMS_CTRL_PENDING);
-	if (!nv_wait(NV50_PDISPLAY_DAC_DPMS_CTRL(or),
+	if (!nv_wait(dev, NV50_PDISPLAY_DAC_DPMS_CTRL(or),
 		     NV50_PDISPLAY_DAC_DPMS_CTRL_PENDING, 0)) {
 		NV_ERROR(dev, "timeout: DAC_DPMS_CTRL_PENDING(%d) == 0\n", or);
 		NV_ERROR(dev, "DAC_DPMS_CTRL(%d) = 0x%08x\n", or,
@@ -130,7 +130,7 @@ nv50_dac_dpms(struct drm_encoder *encoder, int mode)
 	NV_DEBUG_KMS(dev, "or %d mode %d\n", or, mode);
 
 	/* wait for it to be done */
-	if (!nv_wait(NV50_PDISPLAY_DAC_DPMS_CTRL(or),
+	if (!nv_wait(dev, NV50_PDISPLAY_DAC_DPMS_CTRL(or),
 		     NV50_PDISPLAY_DAC_DPMS_CTRL_PENDING, 0)) {
 		NV_ERROR(dev, "timeout: DAC_DPMS_CTRL_PENDING(%d) == 0\n", or);
 		NV_ERROR(dev, "DAC_DPMS_CTRL(%d) = 0x%08x\n", or,

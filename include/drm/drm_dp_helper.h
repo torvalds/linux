@@ -23,6 +23,9 @@
 #ifndef _DRM_DP_HELPER_H_
 #define _DRM_DP_HELPER_H_
 
+#include <linux/types.h>
+#include <linux/i2c.h>
+
 /* From the VESA DisplayPort spec */
 
 #define AUX_NATIVE_WRITE	0x8

@@ -28,6 +28,7 @@
 #include "drmP.h"
 #include "drm.h"
 #include "nouveau_drv.h"
+#include "nouveau_ramht.h"
 
 int
 nouveau_notifier_init_channel(struct nouveau_channel *chan)
@@ -112,7 +113,7 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 		return -ENOMEM;
 	}
 
-	offset = chan->notifier_bo->bo.mem.mm_node->start << PAGE_SHIFT;
+	offset = chan->notifier_bo->bo.mem.start << PAGE_SHIFT;
 	if (chan->notifier_bo->bo.mem.mem_type == TTM_PL_VRAM) {
 		target = NV_DMA_TARGET_VIDMEM;
 	} else
@@ -146,11 +147,11 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 	nobj->dtor = nouveau_notifier_gpuobj_dtor;
 	nobj->priv = mem;
 
-	ret = nouveau_gpuobj_ref_add(dev, chan, handle, nobj, NULL);
+	ret = nouveau_ramht_insert(chan, handle, nobj);
+	nouveau_gpuobj_ref(NULL, &nobj);
 	if (ret) {
-		nouveau_gpuobj_del(dev, &nobj);
 		drm_mm_put_block(mem);
-		NV_ERROR(dev, "Error referencing notifier ctxdma: %d\n", ret);
+		NV_ERROR(dev, "Error adding notifier to ramht: %d\n", ret);
 		return ret;
 	}
 

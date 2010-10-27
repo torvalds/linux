@@ -27,8 +27,9 @@
 #include "drmP.h"
 #include "drm.h"
 #include "nouveau_drv.h"
+#include "nouveau_ramht.h"
 
-#define NV04_RAMFC(c) (dev_priv->ramfc_offset + ((c) * NV04_RAMFC__SIZE))
+#define NV04_RAMFC(c) (dev_priv->ramfc->pinst + ((c) * NV04_RAMFC__SIZE))
 #define NV04_RAMFC__SIZE 32
 #define NV04_RAMFC_DMA_PUT                                       0x00
 #define NV04_RAMFC_DMA_GET                                       0x04
@@ -38,10 +39,8 @@
 #define NV04_RAMFC_ENGINE                                        0x14
 #define NV04_RAMFC_PULL1_ENGINE                                  0x18
 
-#define RAMFC_WR(offset, val) nv_wo32(dev, chan->ramfc->gpuobj, \
-					 NV04_RAMFC_##offset/4, (val))
-#define RAMFC_RD(offset)      nv_ro32(dev, chan->ramfc->gpuobj, \
-					 NV04_RAMFC_##offset/4)
+#define RAMFC_WR(offset, val) nv_wo32(chan->ramfc, NV04_RAMFC_##offset, (val))
+#define RAMFC_RD(offset)      nv_ro32(chan->ramfc, NV04_RAMFC_##offset)
 
 void
 nv04_fifo_disable(struct drm_device *dev)
@@ -72,37 +71,32 @@ nv04_fifo_reassign(struct drm_device *dev, bool enable)
 }
 
 bool
-nv04_fifo_cache_flush(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
-	uint64_t start = ptimer->read(dev);
-
-	do {
-		if (nv_rd32(dev, NV03_PFIFO_CACHE1_GET) ==
-		    nv_rd32(dev, NV03_PFIFO_CACHE1_PUT))
-			return true;
-
-	} while (ptimer->read(dev) - start < 100000000);
-
-	NV_ERROR(dev, "Timeout flushing the PFIFO cache.\n");
-
-	return false;
-}
-
-bool
 nv04_fifo_cache_pull(struct drm_device *dev, bool enable)
 {
-	uint32_t pull = nv_rd32(dev, NV04_PFIFO_CACHE1_PULL0);
+	int pull = nv_mask(dev, NV04_PFIFO_CACHE1_PULL0, 1, enable);
 
-	if (enable) {
-		nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, pull | 1);
-	} else {
-		nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, pull & ~1);
+	if (!enable) {
+		/* In some cases the PFIFO puller may be left in an
+		 * inconsistent state if you try to stop it when it's
+		 * busy translating handles. Sometimes you get a
+		 * PFIFO_CACHE_ERROR, sometimes it just fails silently
+		 * sending incorrect instance offsets to PGRAPH after
+		 * it's started up again. To avoid the latter we
+		 * invalidate the most recently calculated instance.
+		 */
+		if (!nv_wait(dev, NV04_PFIFO_CACHE1_PULL0,
+			     NV04_PFIFO_CACHE1_PULL0_HASH_BUSY, 0))
+			NV_ERROR(dev, "Timeout idling the PFIFO puller.\n");
+
+		if (nv_rd32(dev, NV04_PFIFO_CACHE1_PULL0) &
+		    NV04_PFIFO_CACHE1_PULL0_HASH_FAILED)
+			nv_wr32(dev, NV03_PFIFO_INTR_0,
+				NV_PFIFO_INTR_CACHE_ERROR);
+
 		nv_wr32(dev, NV04_PFIFO_CACHE1_HASH, 0);
 	}
 
-	return !!(pull & 1);
+	return pull & 1;
 }
 
 int
@@ -130,7 +124,7 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 						NV04_RAMFC__SIZE,
 						NVOBJ_FLAG_ZERO_ALLOC |
 						NVOBJ_FLAG_ZERO_FREE,
-						NULL, &chan->ramfc);
+						&chan->ramfc);
 	if (ret)
 		return ret;
 
@@ -139,7 +133,7 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 	/* Setup initial state */
 	RAMFC_WR(DMA_PUT, chan->pushbuf_base);
 	RAMFC_WR(DMA_GET, chan->pushbuf_base);
-	RAMFC_WR(DMA_INSTANCE, chan->pushbuf->instance >> 4);
+	RAMFC_WR(DMA_INSTANCE, chan->pushbuf->pinst >> 4);
 	RAMFC_WR(DMA_FETCH, (NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8 |
@@ -161,7 +155,7 @@ nv04_fifo_destroy_context(struct nouveau_channel *chan)
 	nv_wr32(dev, NV04_PFIFO_MODE,
 		nv_rd32(dev, NV04_PFIFO_MODE) & ~(1 << chan->id));
 
-	nouveau_gpuobj_ref_del(dev, &chan->ramfc);
+	nouveau_gpuobj_ref(NULL, &chan->ramfc);
 }
 
 static void
@@ -264,10 +258,10 @@ nv04_fifo_init_ramxx(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	nv_wr32(dev, NV03_PFIFO_RAMHT, (0x03 << 24) /* search 128 */ |
-				       ((dev_priv->ramht_bits - 9) << 16) |
-				       (dev_priv->ramht_offset >> 8));
-	nv_wr32(dev, NV03_PFIFO_RAMRO, dev_priv->ramro_offset>>8);
-	nv_wr32(dev, NV03_PFIFO_RAMFC, dev_priv->ramfc_offset >> 8);
+				       ((dev_priv->ramht->bits - 9) << 16) |
+				       (dev_priv->ramht->gpuobj->pinst >> 8));
+	nv_wr32(dev, NV03_PFIFO_RAMRO, dev_priv->ramro->pinst >> 8);
+	nv_wr32(dev, NV03_PFIFO_RAMFC, dev_priv->ramfc->pinst >> 8);
 }
 
 static void

@@ -332,18 +332,55 @@ struct vmw_framebuffer_surface {
 	struct delayed_work d_work;
 	struct mutex work_lock;
 	bool present_fs;
+	struct list_head head;
+	struct drm_master *master;
 };
+
+/**
+ * vmw_kms_idle_workqueues - Flush workqueues on this master
+ *
+ * @vmaster - Pointer identifying the master, for the surfaces of which
+ * we idle the dirty work queues.
+ *
+ * This function should be called with the ttm lock held in exclusive mode
+ * to idle all dirty work queues before the fifo is taken down.
+ *
+ * The work task may actually requeue itself, but after the flush returns we're
+ * sure that there's nothing to present, since the ttm lock is held in
+ * exclusive mode, so the fifo will never get used.
+ */
+
+void vmw_kms_idle_workqueues(struct vmw_master *vmaster)
+{
+	struct vmw_framebuffer_surface *entry;
+
+	mutex_lock(&vmaster->fb_surf_mutex);
+	list_for_each_entry(entry, &vmaster->fb_surf, head) {
+		if (cancel_delayed_work_sync(&entry->d_work))
+			(void) entry->d_work.work.func(&entry->d_work.work);
+
+		(void) cancel_delayed_work_sync(&entry->d_work);
+	}
+	mutex_unlock(&vmaster->fb_surf_mutex);
+}
 
 void vmw_framebuffer_surface_destroy(struct drm_framebuffer *framebuffer)
 {
-	struct vmw_framebuffer_surface *vfb =
+	struct vmw_framebuffer_surface *vfbs =
 		vmw_framebuffer_to_vfbs(framebuffer);
+	struct vmw_master *vmaster = vmw_master(vfbs->master);
 
-	cancel_delayed_work_sync(&vfb->d_work);
+
+	mutex_lock(&vmaster->fb_surf_mutex);
+	list_del(&vfbs->head);
+	mutex_unlock(&vmaster->fb_surf_mutex);
+
+	cancel_delayed_work_sync(&vfbs->d_work);
+	drm_master_put(&vfbs->master);
 	drm_framebuffer_cleanup(framebuffer);
-	vmw_surface_unreference(&vfb->surface);
+	vmw_surface_unreference(&vfbs->surface);
 
-	kfree(framebuffer);
+	kfree(vfbs);
 }
 
 static void vmw_framebuffer_present_fs_callback(struct work_struct *work)
@@ -362,6 +399,12 @@ static void vmw_framebuffer_present_fs_callback(struct work_struct *work)
 		SVGA3dCopyRect cr;
 	} *cmd;
 
+	/**
+	 * Strictly we should take the ttm_lock in read mode before accessing
+	 * the fifo, to make sure the fifo is present and up. However,
+	 * instead we flush all workqueues under the ttm lock in exclusive mode
+	 * before taking down the fifo.
+	 */
 	mutex_lock(&vfbs->work_lock);
 	if (!vfbs->present_fs)
 		goto out_unlock;
@@ -392,23 +435,33 @@ out_unlock:
 
 
 int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
+				  struct drm_file *file_priv,
 				  unsigned flags, unsigned color,
 				  struct drm_clip_rect *clips,
 				  unsigned num_clips)
 {
 	struct vmw_private *dev_priv = vmw_priv(framebuffer->dev);
+	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	struct vmw_framebuffer_surface *vfbs =
 		vmw_framebuffer_to_vfbs(framebuffer);
 	struct vmw_surface *surf = vfbs->surface;
 	struct drm_clip_rect norect;
 	SVGA3dCopyRect *cr;
 	int i, inc = 1;
+	int ret;
 
 	struct {
 		SVGA3dCmdHeader header;
 		SVGA3dCmdPresent body;
 		SVGA3dCopyRect cr;
 	} *cmd;
+
+	if (unlikely(vfbs->master != file_priv->master))
+		return -EINVAL;
+
+	ret = ttm_read_lock(&vmaster->lock, true);
+	if (unlikely(ret != 0))
+		return ret;
 
 	if (!num_clips ||
 	    !(dev_priv->fifo.capabilities &
@@ -425,6 +478,7 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 			 */
 			vmw_framebuffer_present_fs_callback(&vfbs->d_work.work);
 		}
+		ttm_read_unlock(&vmaster->lock);
 		return 0;
 	}
 
@@ -442,6 +496,7 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd) + (num_clips - 1) * sizeof(cmd->cr));
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Fifo reserve failed.\n");
+		ttm_read_unlock(&vmaster->lock);
 		return -ENOMEM;
 	}
 
@@ -461,7 +516,7 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 	}
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd) + (num_clips - 1) * sizeof(cmd->cr));
-
+	ttm_read_unlock(&vmaster->lock);
 	return 0;
 }
 
@@ -471,15 +526,56 @@ static struct drm_framebuffer_funcs vmw_framebuffer_surface_funcs = {
 	.create_handle = vmw_framebuffer_create_handle,
 };
 
-int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
-				    struct vmw_surface *surface,
-				    struct vmw_framebuffer **out,
-				    unsigned width, unsigned height)
+static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
+					   struct drm_file *file_priv,
+					   struct vmw_surface *surface,
+					   struct vmw_framebuffer **out,
+					   const struct drm_mode_fb_cmd
+					   *mode_cmd)
 
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct vmw_framebuffer_surface *vfbs;
+	enum SVGA3dSurfaceFormat format;
+	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	int ret;
+
+	/*
+	 * Sanity checks.
+	 */
+
+	if (unlikely(surface->mip_levels[0] != 1 ||
+		     surface->num_sizes != 1 ||
+		     surface->sizes[0].width < mode_cmd->width ||
+		     surface->sizes[0].height < mode_cmd->height ||
+		     surface->sizes[0].depth != 1)) {
+		DRM_ERROR("Incompatible surface dimensions "
+			  "for requested mode.\n");
+		return -EINVAL;
+	}
+
+	switch (mode_cmd->depth) {
+	case 32:
+		format = SVGA3D_A8R8G8B8;
+		break;
+	case 24:
+		format = SVGA3D_X8R8G8B8;
+		break;
+	case 16:
+		format = SVGA3D_R5G6B5;
+		break;
+	case 15:
+		format = SVGA3D_A1R5G5B5;
+		break;
+	default:
+		DRM_ERROR("Invalid color depth: %d\n", mode_cmd->depth);
+		return -EINVAL;
+	}
+
+	if (unlikely(format != surface->format)) {
+		DRM_ERROR("Invalid surface format for requested mode.\n");
+		return -EINVAL;
+	}
 
 	vfbs = kzalloc(sizeof(*vfbs), GFP_KERNEL);
 	if (!vfbs) {
@@ -498,16 +594,22 @@ int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	}
 
 	/* XXX get the first 3 from the surface info */
-	vfbs->base.base.bits_per_pixel = 32;
-	vfbs->base.base.pitch = width * 32 / 4;
-	vfbs->base.base.depth = 24;
-	vfbs->base.base.width = width;
-	vfbs->base.base.height = height;
+	vfbs->base.base.bits_per_pixel = mode_cmd->bpp;
+	vfbs->base.base.pitch = mode_cmd->pitch;
+	vfbs->base.base.depth = mode_cmd->depth;
+	vfbs->base.base.width = mode_cmd->width;
+	vfbs->base.base.height = mode_cmd->height;
 	vfbs->base.pin = &vmw_surface_dmabuf_pin;
 	vfbs->base.unpin = &vmw_surface_dmabuf_unpin;
 	vfbs->surface = surface;
+	vfbs->master = drm_master_get(file_priv->master);
 	mutex_init(&vfbs->work_lock);
+
+	mutex_lock(&vmaster->fb_surf_mutex);
 	INIT_DELAYED_WORK(&vfbs->d_work, &vmw_framebuffer_present_fs_callback);
+	list_add_tail(&vfbs->head, &vmaster->fb_surf);
+	mutex_unlock(&vmaster->fb_surf_mutex);
+
 	*out = &vfbs->base;
 
 	return 0;
@@ -544,17 +646,24 @@ void vmw_framebuffer_dmabuf_destroy(struct drm_framebuffer *framebuffer)
 }
 
 int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
+				 struct drm_file *file_priv,
 				 unsigned flags, unsigned color,
 				 struct drm_clip_rect *clips,
 				 unsigned num_clips)
 {
 	struct vmw_private *dev_priv = vmw_priv(framebuffer->dev);
+	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	struct drm_clip_rect norect;
+	int ret;
 	struct {
 		uint32_t header;
 		SVGAFifoCmdUpdate body;
 	} *cmd;
 	int i, increment = 1;
+
+	ret = ttm_read_lock(&vmaster->lock, true);
+	if (unlikely(ret != 0))
+		return ret;
 
 	if (!num_clips) {
 		num_clips = 1;
@@ -570,6 +679,7 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd) * num_clips);
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Fifo reserve failed.\n");
+		ttm_read_unlock(&vmaster->lock);
 		return -ENOMEM;
 	}
 
@@ -582,6 +692,7 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	}
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd) * num_clips);
+	ttm_read_unlock(&vmaster->lock);
 
 	return 0;
 }
@@ -659,15 +770,24 @@ static int vmw_framebuffer_dmabuf_unpin(struct vmw_framebuffer *vfb)
 	return vmw_dmabuf_from_vram(dev_priv, vfbd->buffer);
 }
 
-int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
-				   struct vmw_dma_buffer *dmabuf,
-				   struct vmw_framebuffer **out,
-				   unsigned width, unsigned height)
+static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
+					  struct vmw_dma_buffer *dmabuf,
+					  struct vmw_framebuffer **out,
+					  const struct drm_mode_fb_cmd
+					  *mode_cmd)
 
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct vmw_framebuffer_dmabuf *vfbd;
+	unsigned int requested_size;
 	int ret;
+
+	requested_size = mode_cmd->height * mode_cmd->pitch;
+	if (unlikely(requested_size > dmabuf->base.num_pages * PAGE_SIZE)) {
+		DRM_ERROR("Screen buffer object size is too small "
+			  "for requested mode.\n");
+		return -EINVAL;
+	}
 
 	vfbd = kzalloc(sizeof(*vfbd), GFP_KERNEL);
 	if (!vfbd) {
@@ -685,12 +805,11 @@ int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 		goto out_err3;
 	}
 
-	/* XXX get the first 3 from the surface info */
-	vfbd->base.base.bits_per_pixel = 32;
-	vfbd->base.base.pitch = width * vfbd->base.base.bits_per_pixel / 8;
-	vfbd->base.base.depth = 24;
-	vfbd->base.base.width = width;
-	vfbd->base.base.height = height;
+	vfbd->base.base.bits_per_pixel = mode_cmd->bpp;
+	vfbd->base.base.pitch = mode_cmd->pitch;
+	vfbd->base.base.depth = mode_cmd->depth;
+	vfbd->base.base.width = mode_cmd->width;
+	vfbd->base.base.height = mode_cmd->height;
 	vfbd->base.pin = vmw_framebuffer_dmabuf_pin;
 	vfbd->base.unpin = vmw_framebuffer_dmabuf_unpin;
 	vfbd->buffer = dmabuf;
@@ -719,7 +838,24 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	struct vmw_framebuffer *vfb = NULL;
 	struct vmw_surface *surface = NULL;
 	struct vmw_dma_buffer *bo = NULL;
+	u64 required_size;
 	int ret;
+
+	/**
+	 * This code should be conditioned on Screen Objects not being used.
+	 * If screen objects are used, we can allocate a GMR to hold the
+	 * requested framebuffer.
+	 */
+
+	required_size = mode_cmd->pitch * mode_cmd->height;
+	if (unlikely(required_size > (u64) dev_priv->vram_size)) {
+		DRM_ERROR("VRAM size is too small for requested mode.\n");
+		return NULL;
+	}
+
+	/**
+	 * End conditioned code.
+	 */
 
 	ret = vmw_user_surface_lookup_handle(dev_priv, tfile,
 					     mode_cmd->handle, &surface);
@@ -729,8 +865,8 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	if (!surface->scanout)
 		goto err_not_scanout;
 
-	ret = vmw_kms_new_framebuffer_surface(dev_priv, surface, &vfb,
-					      mode_cmd->width, mode_cmd->height);
+	ret = vmw_kms_new_framebuffer_surface(dev_priv, file_priv, surface,
+					      &vfb, mode_cmd);
 
 	/* vmw_user_surface_lookup takes one ref so does new_fb */
 	vmw_surface_unreference(&surface);
@@ -751,7 +887,7 @@ try_dmabuf:
 	}
 
 	ret = vmw_kms_new_framebuffer_dmabuf(dev_priv, bo, &vfb,
-					     mode_cmd->width, mode_cmd->height);
+					     mode_cmd);
 
 	/* vmw_user_dmabuf_lookup takes one ref so does new_fb */
 	vmw_dmabuf_unreference(&bo);
@@ -889,6 +1025,9 @@ int vmw_kms_save_vga(struct vmw_private *vmw_priv)
 	vmw_priv->num_displays = vmw_read(vmw_priv,
 					  SVGA_REG_NUM_GUEST_DISPLAYS);
 
+	if (vmw_priv->num_displays == 0)
+		vmw_priv->num_displays = 1;
+
 	for (i = 0; i < vmw_priv->num_displays; ++i) {
 		save = &vmw_priv->vga_save[i];
 		vmw_write(vmw_priv, SVGA_REG_DISPLAY_ID, i);
@@ -995,6 +1134,13 @@ out_free:
 out_unlock:
 	ttm_read_unlock(&vmaster->lock);
 	return ret;
+}
+
+bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
+				uint32_t pitch,
+				uint32_t height)
+{
+	return ((u64) pitch * (u64) height) < (u64) dev_priv->vram_size;
 }
 
 u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc)

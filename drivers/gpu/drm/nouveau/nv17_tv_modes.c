@@ -336,12 +336,17 @@ static void tv_setup_filter(struct drm_encoder *encoder)
 			struct filter_params *p = &fparams[k][j];
 
 			for (i = 0; i < 7; i++) {
-				int64_t c = (p->k1 + p->ki*i + p->ki2*i*i + p->ki3*i*i*i)
-					+ (p->kr + p->kir*i + p->ki2r*i*i + p->ki3r*i*i*i)*rs[k]
-					+ (p->kf + p->kif*i + p->ki2f*i*i + p->ki3f*i*i*i)*flicker
-					+ (p->krf + p->kirf*i + p->ki2rf*i*i + p->ki3rf*i*i*i)*flicker*rs[k];
+				int64_t c = (p->k1 + p->ki*i + p->ki2*i*i +
+					     p->ki3*i*i*i)
+					+ (p->kr + p->kir*i + p->ki2r*i*i +
+					   p->ki3r*i*i*i) * rs[k]
+					+ (p->kf + p->kif*i + p->ki2f*i*i +
+					   p->ki3f*i*i*i) * flicker
+					+ (p->krf + p->kirf*i + p->ki2rf*i*i +
+					   p->ki3rf*i*i*i) * flicker * rs[k];
 
-				(*filters[k])[j][i] = (c + id5/2) >> 39 & (0x1 << 31 | 0x7f << 9);
+				(*filters[k])[j][i] = (c + id5/2) >> 39
+					& (0x1 << 31 | 0x7f << 9);
 			}
 		}
 	}
@@ -349,7 +354,8 @@ static void tv_setup_filter(struct drm_encoder *encoder)
 
 /* Hardware state saving/restoring */
 
-static void tv_save_filter(struct drm_device *dev, uint32_t base, uint32_t regs[4][7])
+static void tv_save_filter(struct drm_device *dev, uint32_t base,
+			   uint32_t regs[4][7])
 {
 	int i, j;
 	uint32_t offsets[] = { base, base + 0x1c, base + 0x40, base + 0x5c };
@@ -360,7 +366,8 @@ static void tv_save_filter(struct drm_device *dev, uint32_t base, uint32_t regs[
 	}
 }
 
-static void tv_load_filter(struct drm_device *dev, uint32_t base, uint32_t regs[4][7])
+static void tv_load_filter(struct drm_device *dev, uint32_t base,
+			   uint32_t regs[4][7])
 {
 	int i, j;
 	uint32_t offsets[] = { base, base + 0x1c, base + 0x40, base + 0x5c };
@@ -504,10 +511,10 @@ void nv17_tv_update_properties(struct drm_encoder *encoder)
 		break;
 	}
 
-	regs->tv_enc[0x20] = interpolate(0, tv_norm->tv_enc_mode.tv_enc[0x20], 255,
-					 tv_enc->saturation);
-	regs->tv_enc[0x22] = interpolate(0, tv_norm->tv_enc_mode.tv_enc[0x22], 255,
-					 tv_enc->saturation);
+	regs->tv_enc[0x20] = interpolate(0, tv_norm->tv_enc_mode.tv_enc[0x20],
+					 255, tv_enc->saturation);
+	regs->tv_enc[0x22] = interpolate(0, tv_norm->tv_enc_mode.tv_enc[0x22],
+					 255, tv_enc->saturation);
 	regs->tv_enc[0x25] = tv_enc->hue * 255 / 100;
 
 	nv_load_ptv(dev, regs, 204);
@@ -541,7 +548,8 @@ void nv17_ctv_update_rescaler(struct drm_encoder *encoder)
 	int head = nouveau_crtc(encoder->crtc)->index;
 	struct nv04_crtc_reg *regs = &dev_priv->mode_reg.crtc_reg[head];
 	struct drm_display_mode *crtc_mode = &encoder->crtc->mode;
-	struct drm_display_mode *output_mode = &get_tv_norm(encoder)->ctv_enc_mode.mode;
+	struct drm_display_mode *output_mode =
+		&get_tv_norm(encoder)->ctv_enc_mode.mode;
 	int overscan, hmargin, vmargin, hratio, vratio;
 
 	/* The rescaler doesn't do the right thing for interlaced modes. */
@@ -553,13 +561,15 @@ void nv17_ctv_update_rescaler(struct drm_encoder *encoder)
 	hmargin = (output_mode->hdisplay - crtc_mode->hdisplay) / 2;
 	vmargin = (output_mode->vdisplay - crtc_mode->vdisplay) / 2;
 
-	hmargin = interpolate(0, min(hmargin, output_mode->hdisplay/20), hmargin,
-			      overscan);
-	vmargin = interpolate(0, min(vmargin, output_mode->vdisplay/20), vmargin,
-			      overscan);
+	hmargin = interpolate(0, min(hmargin, output_mode->hdisplay/20),
+			      hmargin, overscan);
+	vmargin = interpolate(0, min(vmargin, output_mode->vdisplay/20),
+			      vmargin, overscan);
 
-	hratio = crtc_mode->hdisplay * 0x800 / (output_mode->hdisplay - 2*hmargin);
-	vratio = crtc_mode->vdisplay * 0x800 / (output_mode->vdisplay - 2*vmargin) & ~3;
+	hratio = crtc_mode->hdisplay * 0x800 /
+		(output_mode->hdisplay - 2*hmargin);
+	vratio = crtc_mode->vdisplay * 0x800 /
+		(output_mode->vdisplay - 2*vmargin) & ~3;
 
 	regs->fp_horiz_regs[FP_VALID_START] = hmargin;
 	regs->fp_horiz_regs[FP_VALID_END] = output_mode->hdisplay - hmargin - 1;

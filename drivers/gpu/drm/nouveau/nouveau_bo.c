@@ -36,29 +36,12 @@
 #include <linux/log2.h>
 #include <linux/slab.h>
 
-int
-nouveau_bo_sync_gpu(struct nouveau_bo *nvbo, struct nouveau_channel *chan)
-{
-	struct nouveau_fence *prev_fence = nvbo->bo.sync_obj;
-	int ret;
-
-	if (!prev_fence || nouveau_fence_channel(prev_fence) == chan)
-		return 0;
-
-	spin_lock(&nvbo->bo.lock);
-	ret = ttm_bo_wait(&nvbo->bo, false, false, false);
-	spin_unlock(&nvbo->bo.lock);
-	return ret;
-}
-
 static void
 nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
 	struct drm_device *dev = dev_priv->dev;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-
-	ttm_bo_kunmap(&nvbo->kmap);
 
 	if (unlikely(nvbo->gem))
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
@@ -164,8 +147,6 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	nouveau_bo_fixup_align(dev, tile_mode, tile_flags, &align, &size);
 	align >>= PAGE_SHIFT;
 
-	nvbo->placement.fpfn = 0;
-	nvbo->placement.lpfn = mappable ? dev_priv->fb_mappable_pages : 0;
 	nouveau_bo_placement_set(nvbo, flags, 0);
 
 	nvbo->channel = chan;
@@ -305,7 +286,8 @@ nouveau_bo_map(struct nouveau_bo *nvbo)
 void
 nouveau_bo_unmap(struct nouveau_bo *nvbo)
 {
-	ttm_bo_kunmap(&nvbo->kmap);
+	if (nvbo)
+		ttm_bo_kunmap(&nvbo->kmap);
 }
 
 u16
@@ -399,14 +381,19 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_VRAM:
+		man->func = &ttm_bo_manager_func;
 		man->flags = TTM_MEMTYPE_FLAG_FIXED |
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
 					 TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
-		man->gpu_offset = dev_priv->vm_vram_base;
+		if (dev_priv->card_type == NV_50)
+			man->gpu_offset = 0x40000000;
+		else
+			man->gpu_offset = 0;
 		break;
 	case TTM_PL_TT:
+		man->func = &ttm_bo_manager_func;
 		switch (dev_priv->gart_info.type) {
 		case NOUVEAU_GART_AGP:
 			man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
@@ -469,19 +456,26 @@ nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 	if (ret)
 		return ret;
 
-	ret = ttm_bo_move_accel_cleanup(&nvbo->bo, fence, NULL,
-					evict || (nvbo->channel &&
-						  nvbo->channel != chan),
+	if (nvbo->channel) {
+		ret = nouveau_fence_sync(fence, nvbo->channel);
+		if (ret)
+			goto out;
+	}
+
+	ret = ttm_bo_move_accel_cleanup(&nvbo->bo, fence, NULL, evict,
 					no_wait_reserve, no_wait_gpu, new_mem);
+out:
 	nouveau_fence_unref((void *)&fence);
 	return ret;
 }
 
 static inline uint32_t
-nouveau_bo_mem_ctxdma(struct nouveau_bo *nvbo, struct nouveau_channel *chan,
-		      struct ttm_mem_reg *mem)
+nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
+		      struct nouveau_channel *chan, struct ttm_mem_reg *mem)
 {
-	if (chan == nouveau_bdev(nvbo->bo.bdev)->channel) {
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+
+	if (nvbo->no_vm) {
 		if (mem->mem_type == TTM_PL_TT)
 			return NvDmaGART;
 		return NvDmaVRAM;
@@ -493,85 +487,180 @@ nouveau_bo_mem_ctxdma(struct nouveau_bo *nvbo, struct nouveau_channel *chan,
 }
 
 static int
-nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
-		     bool no_wait_reserve, bool no_wait_gpu,
-		     struct ttm_mem_reg *new_mem)
+nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
+		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
 {
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
-	struct ttm_mem_reg *old_mem = &bo->mem;
-	struct nouveau_channel *chan;
-	uint64_t src_offset, dst_offset;
-	uint32_t page_count;
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	u64 length = (new_mem->num_pages << PAGE_SHIFT);
+	u64 src_offset, dst_offset;
 	int ret;
 
-	chan = nvbo->channel;
-	if (!chan || nvbo->tile_flags || nvbo->no_vm)
-		chan = dev_priv->channel;
-
-	src_offset = old_mem->mm_node->start << PAGE_SHIFT;
-	dst_offset = new_mem->mm_node->start << PAGE_SHIFT;
-	if (chan != dev_priv->channel) {
-		if (old_mem->mem_type == TTM_PL_TT)
-			src_offset += dev_priv->vm_gart_base;
-		else
+	src_offset = old_mem->start << PAGE_SHIFT;
+	dst_offset = new_mem->start << PAGE_SHIFT;
+	if (!nvbo->no_vm) {
+		if (old_mem->mem_type == TTM_PL_VRAM)
 			src_offset += dev_priv->vm_vram_base;
-
-		if (new_mem->mem_type == TTM_PL_TT)
-			dst_offset += dev_priv->vm_gart_base;
 		else
+			src_offset += dev_priv->vm_gart_base;
+
+		if (new_mem->mem_type == TTM_PL_VRAM)
 			dst_offset += dev_priv->vm_vram_base;
+		else
+			dst_offset += dev_priv->vm_gart_base;
 	}
 
 	ret = RING_SPACE(chan, 3);
 	if (ret)
 		return ret;
-	BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_DMA_SOURCE, 2);
-	OUT_RING(chan, nouveau_bo_mem_ctxdma(nvbo, chan, old_mem));
-	OUT_RING(chan, nouveau_bo_mem_ctxdma(nvbo, chan, new_mem));
 
-	if (dev_priv->card_type >= NV_50) {
-		ret = RING_SPACE(chan, 4);
+	BEGIN_RING(chan, NvSubM2MF, 0x0184, 2);
+	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, old_mem));
+	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, new_mem));
+
+	while (length) {
+		u32 amount, stride, height;
+
+		amount  = min(length, (u64)(4 * 1024 * 1024));
+		stride  = 16 * 4;
+		height  = amount / stride;
+
+		if (new_mem->mem_type == TTM_PL_VRAM && nvbo->tile_flags) {
+			ret = RING_SPACE(chan, 8);
+			if (ret)
+				return ret;
+
+			BEGIN_RING(chan, NvSubM2MF, 0x0200, 7);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, stride);
+			OUT_RING  (chan, height);
+			OUT_RING  (chan, 1);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0);
+		} else {
+			ret = RING_SPACE(chan, 2);
+			if (ret)
+				return ret;
+
+			BEGIN_RING(chan, NvSubM2MF, 0x0200, 1);
+			OUT_RING  (chan, 1);
+		}
+		if (old_mem->mem_type == TTM_PL_VRAM && nvbo->tile_flags) {
+			ret = RING_SPACE(chan, 8);
+			if (ret)
+				return ret;
+
+			BEGIN_RING(chan, NvSubM2MF, 0x021c, 7);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, stride);
+			OUT_RING  (chan, height);
+			OUT_RING  (chan, 1);
+			OUT_RING  (chan, 0);
+			OUT_RING  (chan, 0);
+		} else {
+			ret = RING_SPACE(chan, 2);
+			if (ret)
+				return ret;
+
+			BEGIN_RING(chan, NvSubM2MF, 0x021c, 1);
+			OUT_RING  (chan, 1);
+		}
+
+		ret = RING_SPACE(chan, 14);
 		if (ret)
 			return ret;
-		BEGIN_RING(chan, NvSubM2MF, 0x0200, 1);
-		OUT_RING(chan, 1);
-		BEGIN_RING(chan, NvSubM2MF, 0x021c, 1);
-		OUT_RING(chan, 1);
+
+		BEGIN_RING(chan, NvSubM2MF, 0x0238, 2);
+		OUT_RING  (chan, upper_32_bits(src_offset));
+		OUT_RING  (chan, upper_32_bits(dst_offset));
+		BEGIN_RING(chan, NvSubM2MF, 0x030c, 8);
+		OUT_RING  (chan, lower_32_bits(src_offset));
+		OUT_RING  (chan, lower_32_bits(dst_offset));
+		OUT_RING  (chan, stride);
+		OUT_RING  (chan, stride);
+		OUT_RING  (chan, stride);
+		OUT_RING  (chan, height);
+		OUT_RING  (chan, 0x00000101);
+		OUT_RING  (chan, 0x00000000);
+		BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_NOP, 1);
+		OUT_RING  (chan, 0);
+
+		length -= amount;
+		src_offset += amount;
+		dst_offset += amount;
 	}
+
+	return 0;
+}
+
+static int
+nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
+		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+{
+	u32 src_offset = old_mem->start << PAGE_SHIFT;
+	u32 dst_offset = new_mem->start << PAGE_SHIFT;
+	u32 page_count = new_mem->num_pages;
+	int ret;
+
+	ret = RING_SPACE(chan, 3);
+	if (ret)
+		return ret;
+
+	BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_DMA_SOURCE, 2);
+	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, old_mem));
+	OUT_RING  (chan, nouveau_bo_mem_ctxdma(bo, chan, new_mem));
 
 	page_count = new_mem->num_pages;
 	while (page_count) {
 		int line_count = (page_count > 2047) ? 2047 : page_count;
 
-		if (dev_priv->card_type >= NV_50) {
-			ret = RING_SPACE(chan, 3);
-			if (ret)
-				return ret;
-			BEGIN_RING(chan, NvSubM2MF, 0x0238, 2);
-			OUT_RING(chan, upper_32_bits(src_offset));
-			OUT_RING(chan, upper_32_bits(dst_offset));
-		}
 		ret = RING_SPACE(chan, 11);
 		if (ret)
 			return ret;
+
 		BEGIN_RING(chan, NvSubM2MF,
 				 NV_MEMORY_TO_MEMORY_FORMAT_OFFSET_IN, 8);
-		OUT_RING(chan, lower_32_bits(src_offset));
-		OUT_RING(chan, lower_32_bits(dst_offset));
-		OUT_RING(chan, PAGE_SIZE); /* src_pitch */
-		OUT_RING(chan, PAGE_SIZE); /* dst_pitch */
-		OUT_RING(chan, PAGE_SIZE); /* line_length */
-		OUT_RING(chan, line_count);
-		OUT_RING(chan, (1<<8)|(1<<0));
-		OUT_RING(chan, 0);
+		OUT_RING  (chan, src_offset);
+		OUT_RING  (chan, dst_offset);
+		OUT_RING  (chan, PAGE_SIZE); /* src_pitch */
+		OUT_RING  (chan, PAGE_SIZE); /* dst_pitch */
+		OUT_RING  (chan, PAGE_SIZE); /* line_length */
+		OUT_RING  (chan, line_count);
+		OUT_RING  (chan, 0x00000101);
+		OUT_RING  (chan, 0x00000000);
 		BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_NOP, 1);
-		OUT_RING(chan, 0);
+		OUT_RING  (chan, 0);
 
 		page_count -= line_count;
 		src_offset += (PAGE_SIZE * line_count);
 		dst_offset += (PAGE_SIZE * line_count);
 	}
+
+	return 0;
+}
+
+static int
+nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
+		     bool no_wait_reserve, bool no_wait_gpu,
+		     struct ttm_mem_reg *new_mem)
+{
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	struct nouveau_channel *chan;
+	int ret;
+
+	chan = nvbo->channel;
+	if (!chan || nvbo->no_vm)
+		chan = dev_priv->channel;
+
+	if (dev_priv->card_type < NV_50)
+		ret = nv04_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
+	else
+		ret = nv50_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
+	if (ret)
+		return ret;
 
 	return nouveau_bo_move_accel_cleanup(chan, nvbo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 }
@@ -606,12 +695,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 
 	ret = ttm_bo_move_ttm(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 out:
-	if (tmp_mem.mm_node) {
-		spin_lock(&bo->bdev->glob->lru_lock);
-		drm_mm_put_block(tmp_mem.mm_node);
-		spin_unlock(&bo->bdev->glob->lru_lock);
-	}
-
+	ttm_bo_mem_put(bo, &tmp_mem);
 	return ret;
 }
 
@@ -644,12 +728,7 @@ nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 		goto out;
 
 out:
-	if (tmp_mem.mm_node) {
-		spin_lock(&bo->bdev->glob->lru_lock);
-		drm_mm_put_block(tmp_mem.mm_node);
-		spin_unlock(&bo->bdev->glob->lru_lock);
-	}
-
+	ttm_bo_mem_put(bo, &tmp_mem);
 	return ret;
 }
 
@@ -669,7 +748,7 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem,
 		return 0;
 	}
 
-	offset = new_mem->mm_node->start << PAGE_SHIFT;
+	offset = new_mem->start << PAGE_SHIFT;
 
 	if (dev_priv->card_type == NV_50) {
 		ret = nv50_mem_vm_bind_linear(dev,
@@ -719,17 +798,17 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		return ret;
 
-	/* Software copy if the card isn't up and running yet. */
-	if (!dev_priv->channel) {
-		ret = ttm_bo_move_memcpy(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
-		goto out;
-	}
-
 	/* Fake bo copy. */
 	if (old_mem->mem_type == TTM_PL_SYSTEM && !bo->ttm) {
 		BUG_ON(bo->mem.mm_node != NULL);
 		bo->mem = *new_mem;
 		new_mem->mm_node = NULL;
+		goto out;
+	}
+
+	/* Software copy if the card isn't up and running yet. */
+	if (!dev_priv->channel) {
+		ret = ttm_bo_move_memcpy(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 		goto out;
 	}
 
@@ -783,14 +862,14 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 	case TTM_PL_TT:
 #if __OS_HAS_AGP
 		if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
-			mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
+			mem->bus.offset = mem->start << PAGE_SHIFT;
 			mem->bus.base = dev_priv->gart_info.aper_base;
 			mem->bus.is_iomem = true;
 		}
 #endif
 		break;
 	case TTM_PL_VRAM:
-		mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
+		mem->bus.offset = mem->start << PAGE_SHIFT;
 		mem->bus.base = pci_resource_start(dev->pdev, 1);
 		mem->bus.is_iomem = true;
 		break;
@@ -808,7 +887,26 @@ nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 static int
 nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
-	return 0;
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+
+	/* as long as the bo isn't in vram, and isn't tiled, we've got
+	 * nothing to do here.
+	 */
+	if (bo->mem.mem_type != TTM_PL_VRAM) {
+		if (dev_priv->card_type < NV_50 || !nvbo->tile_flags)
+			return 0;
+	}
+
+	/* make sure bo is in mappable vram */
+	if (bo->mem.start + bo->mem.num_pages < dev_priv->fb_mappable_pages)
+		return 0;
+
+
+	nvbo->placement.fpfn = 0;
+	nvbo->placement.lpfn = dev_priv->fb_mappable_pages;
+	nouveau_bo_placement_set(nvbo, TTM_PL_VRAM, 0);
+	return ttm_bo_validate(bo, &nvbo->placement, false, true, false);
 }
 
 struct ttm_bo_driver nouveau_bo_driver = {

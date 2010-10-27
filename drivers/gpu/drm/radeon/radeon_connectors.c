@@ -326,6 +326,34 @@ int radeon_connector_set_property(struct drm_connector *connector, struct drm_pr
 		}
 	}
 
+	if (property == rdev->mode_info.underscan_hborder_property) {
+		/* need to find digital encoder on connector */
+		encoder = radeon_find_encoder(connector, DRM_MODE_ENCODER_TMDS);
+		if (!encoder)
+			return 0;
+
+		radeon_encoder = to_radeon_encoder(encoder);
+
+		if (radeon_encoder->underscan_hborder != val) {
+			radeon_encoder->underscan_hborder = val;
+			radeon_property_change_mode(&radeon_encoder->base);
+		}
+	}
+
+	if (property == rdev->mode_info.underscan_vborder_property) {
+		/* need to find digital encoder on connector */
+		encoder = radeon_find_encoder(connector, DRM_MODE_ENCODER_TMDS);
+		if (!encoder)
+			return 0;
+
+		radeon_encoder = to_radeon_encoder(encoder);
+
+		if (radeon_encoder->underscan_vborder != val) {
+			radeon_encoder->underscan_vborder = val;
+			radeon_property_change_mode(&radeon_encoder->base);
+		}
+	}
+
 	if (property == rdev->mode_info.tv_std_property) {
 		encoder = radeon_find_encoder(connector, DRM_MODE_ENCODER_TVDAC);
 		if (!encoder) {
@@ -635,6 +663,11 @@ radeon_vga_detect(struct drm_connector *connector, bool force)
 				ret = connector_status_connected;
 		}
 	} else {
+
+		/* if we aren't forcing don't do destructive polling */
+		if (!force)
+			return connector->status;
+
 		if (radeon_connector->dac_load_detect && encoder) {
 			encoder_funcs = encoder->helper_private;
 			ret = encoder_funcs->detect(encoder, connector);
@@ -821,6 +854,11 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 
 	if ((ret == connector_status_connected) && (radeon_connector->use_digital == true))
 		goto out;
+
+	if (!force) {
+		ret = connector->status;
+		goto out;
+	}
 
 	/* find analog encoder */
 	if (radeon_connector->dac_load_detect) {
@@ -1153,10 +1191,17 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
-		if (ASIC_IS_AVIVO(rdev))
+		if (ASIC_IS_AVIVO(rdev)) {
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.underscan_property,
 						      UNDERSCAN_AUTO);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_hborder_property,
+						      0);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_vborder_property,
+						      0);
+		}
 		if (connector_type == DRM_MODE_CONNECTOR_DVII) {
 			radeon_connector->dac_load_detect = true;
 			drm_connector_attach_property(&radeon_connector->base,
@@ -1181,10 +1226,17 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
-		if (ASIC_IS_AVIVO(rdev))
+		if (ASIC_IS_AVIVO(rdev)) {
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.underscan_property,
 						      UNDERSCAN_AUTO);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_hborder_property,
+						      0);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_vborder_property,
+						      0);
+		}
 		subpixel_order = SubPixelHorizontalRGB;
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
@@ -1212,10 +1264,17 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
-		if (ASIC_IS_AVIVO(rdev))
+		if (ASIC_IS_AVIVO(rdev)) {
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.underscan_property,
 						      UNDERSCAN_AUTO);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_hborder_property,
+						      0);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_vborder_property,
+						      0);
+		}
 		break;
 	case DRM_MODE_CONNECTOR_SVIDEO:
 	case DRM_MODE_CONNECTOR_Composite:

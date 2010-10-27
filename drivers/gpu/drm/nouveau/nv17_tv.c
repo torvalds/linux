@@ -193,55 +193,56 @@ nv17_tv_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 	}
 }
 
-static const struct {
-	int hdisplay;
-	int vdisplay;
-} modes[] = {
-	{ 640, 400 },
-	{ 640, 480 },
-	{ 720, 480 },
-	{ 720, 576 },
-	{ 800, 600 },
-	{ 1024, 768 },
-	{ 1280, 720 },
-	{ 1280, 1024 },
-	{ 1920, 1080 }
-};
-
-static int nv17_tv_get_modes(struct drm_encoder *encoder,
-			     struct drm_connector *connector)
+static int nv17_tv_get_ld_modes(struct drm_encoder *encoder,
+				struct drm_connector *connector)
 {
 	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
-	struct drm_display_mode *mode;
-	struct drm_display_mode *output_mode;
+	struct drm_display_mode *mode, *tv_mode;
 	int n = 0;
-	int i;
 
-	if (tv_norm->kind != CTV_ENC_MODE) {
-		struct drm_display_mode *tv_mode;
+	for (tv_mode = nv17_tv_modes; tv_mode->hdisplay; tv_mode++) {
+		mode = drm_mode_duplicate(encoder->dev, tv_mode);
 
-		for (tv_mode = nv17_tv_modes; tv_mode->hdisplay; tv_mode++) {
-			mode = drm_mode_duplicate(encoder->dev, tv_mode);
+		mode->clock = tv_norm->tv_enc_mode.vrefresh *
+			mode->htotal / 1000 *
+			mode->vtotal / 1000;
 
-			mode->clock = tv_norm->tv_enc_mode.vrefresh *
-						mode->htotal / 1000 *
-						mode->vtotal / 1000;
+		if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+			mode->clock *= 2;
 
-			if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-				mode->clock *= 2;
+		if (mode->hdisplay == tv_norm->tv_enc_mode.hdisplay &&
+		    mode->vdisplay == tv_norm->tv_enc_mode.vdisplay)
+			mode->type |= DRM_MODE_TYPE_PREFERRED;
 
-			if (mode->hdisplay == tv_norm->tv_enc_mode.hdisplay &&
-			    mode->vdisplay == tv_norm->tv_enc_mode.vdisplay)
-				mode->type |= DRM_MODE_TYPE_PREFERRED;
-
-			drm_mode_probed_add(connector, mode);
-			n++;
-		}
-		return n;
+		drm_mode_probed_add(connector, mode);
+		n++;
 	}
 
-	/* tv_norm->kind == CTV_ENC_MODE */
-	output_mode = &tv_norm->ctv_enc_mode.mode;
+	return n;
+}
+
+static int nv17_tv_get_hd_modes(struct drm_encoder *encoder,
+				struct drm_connector *connector)
+{
+	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct drm_display_mode *output_mode = &tv_norm->ctv_enc_mode.mode;
+	struct drm_display_mode *mode;
+	const struct {
+		int hdisplay;
+		int vdisplay;
+	} modes[] = {
+		{ 640, 400 },
+		{ 640, 480 },
+		{ 720, 480 },
+		{ 720, 576 },
+		{ 800, 600 },
+		{ 1024, 768 },
+		{ 1280, 720 },
+		{ 1280, 1024 },
+		{ 1920, 1080 }
+	};
+	int i, n = 0;
+
 	for (i = 0; i < ARRAY_SIZE(modes); i++) {
 		if (modes[i].hdisplay > output_mode->hdisplay ||
 		    modes[i].vdisplay > output_mode->vdisplay)
@@ -251,11 +252,12 @@ static int nv17_tv_get_modes(struct drm_encoder *encoder,
 		    modes[i].vdisplay == output_mode->vdisplay) {
 			mode = drm_mode_duplicate(encoder->dev, output_mode);
 			mode->type |= DRM_MODE_TYPE_PREFERRED;
+
 		} else {
 			mode = drm_cvt_mode(encoder->dev, modes[i].hdisplay,
-				modes[i].vdisplay, 60, false,
-				output_mode->flags & DRM_MODE_FLAG_INTERLACE,
-				false);
+					    modes[i].vdisplay, 60, false,
+					    (output_mode->flags &
+					     DRM_MODE_FLAG_INTERLACE), false);
 		}
 
 		/* CVT modes are sometimes unsuitable... */
@@ -266,6 +268,7 @@ static int nv17_tv_get_modes(struct drm_encoder *encoder,
 					     - mode->hdisplay) * 9 / 10) & ~7;
 			mode->hsync_end = mode->hsync_start + 8;
 		}
+
 		if (output_mode->vdisplay >= 1024) {
 			mode->vtotal = output_mode->vtotal;
 			mode->vsync_start = output_mode->vsync_start;
@@ -276,7 +279,19 @@ static int nv17_tv_get_modes(struct drm_encoder *encoder,
 		drm_mode_probed_add(connector, mode);
 		n++;
 	}
+
 	return n;
+}
+
+static int nv17_tv_get_modes(struct drm_encoder *encoder,
+			     struct drm_connector *connector)
+{
+	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+
+	if (tv_norm->kind == CTV_ENC_MODE)
+		return nv17_tv_get_hd_modes(encoder, connector);
+	else
+		return nv17_tv_get_ld_modes(encoder, connector);
 }
 
 static int nv17_tv_mode_valid(struct drm_encoder *encoder,
@@ -408,15 +423,8 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 
 	}
 
-	/* Some NV4x have unknown values (0x3f, 0x50, 0x54, 0x6b, 0x79, 0x7f)
-	 * at LCD__INDEX which we don't alter
-	 */
-	if (!(*cr_lcd & 0x44)) {
-		if (tv_norm->kind == CTV_ENC_MODE)
-			*cr_lcd = 0x1 | (head ? 0x0 : 0x8);
-		else
-			*cr_lcd = 0;
-	}
+	if (tv_norm->kind == CTV_ENC_MODE)
+		*cr_lcd |= 0x1 | (head ? 0x0 : 0x8);
 
 	/* Set the DACCLK register */
 	dacclk = (NVReadRAMDAC(dev, 0, dacclk_off) & ~0x30) | 0x1;

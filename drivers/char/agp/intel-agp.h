@@ -215,44 +215,7 @@
 #define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_HB		0x0108  /* Server */
 #define PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_IG		0x010A
 
-/* cover 915 and 945 variants */
-#define IS_I915 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_E7221_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915G_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945G_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945GM_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945GME_HB)
-
-#define IS_I965 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82946GZ_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82G35_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965Q_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965G_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GM_HB || \
-		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GME_HB)
-
-#define IS_G33 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G33_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q35_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q33_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_HB)
-
-#define IS_PINEVIEW (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_HB)
-
-#define IS_SNB (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_HB)
-
-#define IS_G4X (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_EAGLELAKE_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q45_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_GM45_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G41_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_B43_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB || \
-		IS_SNB)
-
+int intel_gmch_probe(struct pci_dev *pdev,
+			       struct agp_bridge_data *bridge);
+void intel_gmch_remove(struct pci_dev *pdev);
 #endif

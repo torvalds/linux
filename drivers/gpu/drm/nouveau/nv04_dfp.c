@@ -104,6 +104,8 @@ void nv04_dfp_disable(struct drm_device *dev, int head)
 	}
 	/* don't inadvertently turn it on when state written later */
 	crtcstate[head].fp_control = FP_TG_CONTROL_OFF;
+	crtcstate[head].CRTC[NV_CIO_CRE_LCD__INDEX] &=
+		~NV_CIO_CRE_LCD_ROUTE_MASK;
 }
 
 void nv04_dfp_update_fp_control(struct drm_encoder *encoder, int mode)
@@ -253,26 +255,21 @@ static void nv04_dfp_prepare(struct drm_encoder *encoder)
 
 	nv04_dfp_prepare_sel_clk(dev, nv_encoder, head);
 
-	/* Some NV4x have unknown values (0x3f, 0x50, 0x54, 0x6b, 0x79, 0x7f)
-	 * at LCD__INDEX which we don't alter
-	 */
-	if (!(*cr_lcd & 0x44)) {
-		*cr_lcd = 0x3;
+	*cr_lcd = (*cr_lcd & ~NV_CIO_CRE_LCD_ROUTE_MASK) | 0x3;
 
-		if (nv_two_heads(dev)) {
-			if (nv_encoder->dcb->location == DCB_LOC_ON_CHIP)
-				*cr_lcd |= head ? 0x0 : 0x8;
-			else {
-				*cr_lcd |= (nv_encoder->dcb->or << 4) & 0x30;
-				if (nv_encoder->dcb->type == OUTPUT_LVDS)
-					*cr_lcd |= 0x30;
-				if ((*cr_lcd & 0x30) == (*cr_lcd_oth & 0x30)) {
-					/* avoid being connected to both crtcs */
-					*cr_lcd_oth &= ~0x30;
-					NVWriteVgaCrtc(dev, head ^ 1,
-						       NV_CIO_CRE_LCD__INDEX,
-						       *cr_lcd_oth);
-				}
+	if (nv_two_heads(dev)) {
+		if (nv_encoder->dcb->location == DCB_LOC_ON_CHIP)
+			*cr_lcd |= head ? 0x0 : 0x8;
+		else {
+			*cr_lcd |= (nv_encoder->dcb->or << 4) & 0x30;
+			if (nv_encoder->dcb->type == OUTPUT_LVDS)
+				*cr_lcd |= 0x30;
+			if ((*cr_lcd & 0x30) == (*cr_lcd_oth & 0x30)) {
+				/* avoid being connected to both crtcs */
+				*cr_lcd_oth &= ~0x30;
+				NVWriteVgaCrtc(dev, head ^ 1,
+					       NV_CIO_CRE_LCD__INDEX,
+					       *cr_lcd_oth);
 			}
 		}
 	}
@@ -640,7 +637,7 @@ static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 	    get_tmds_slave(encoder))
 		return;
 
-	type = nouveau_i2c_identify(dev, "TMDS transmitter", info, 2);
+	type = nouveau_i2c_identify(dev, "TMDS transmitter", info, NULL, 2);
 	if (type < 0)
 		return;
 
