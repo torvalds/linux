@@ -38,6 +38,7 @@ extern int rio_std_route_get_entry(struct rio_mport *mport, u16 destid,
 extern int rio_std_route_clr_table(struct rio_mport *mport, u16 destid,
 				   u8 hopcount, u16 table);
 extern int rio_set_port_lockout(struct rio_dev *rdev, u32 pnum, int lock);
+extern struct rio_dev *rio_get_comptag(u32 comp_tag, struct rio_dev *from);
 
 /* Structures internal to the RIO core code */
 extern struct device_attribute rio_dev_attrs[];

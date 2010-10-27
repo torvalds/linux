@@ -177,6 +177,7 @@ enum rio_phy_type {
  * @index: Port index, unique among all port interfaces of the same type
  * @sys_size: RapidIO common transport system size
  * @phy_type: RapidIO phy type
+ * @phys_efptr: RIO port extended features pointer
  * @name: Port name string
  * @priv: Master port private data
  */
@@ -198,6 +199,7 @@ struct rio_mport {
 				 * 1 - Large size, 65536 devices.
 				 */
 	enum rio_phy_type phy_type;	/* RapidIO phy type */
+	u32 phys_efptr;
 	unsigned char name[40];
 	void *priv;		/* Master port private data */
 };

@@ -50,6 +50,7 @@
 #define RIO_ATMU_REGS_OFFSET	0x10c00
 #define RIO_P_MSG_REGS_OFFSET	0x11000
 #define RIO_S_MSG_REGS_OFFSET	0x13000
+#define RIO_GCCSR		0x13c
 #define RIO_ESCSR		0x158
 #define RIO_CCSR		0x15c
 #define RIO_LTLEDCSR		0x0608
@@ -1471,6 +1472,7 @@ int fsl_rio_setup(struct platform_device *dev)
 	port->host_deviceid = fsl_rio_get_hdid(port->id);
 
 	port->priv = priv;
+	port->phys_efptr = 0x100;
 	rio_register_mport(port);
 
 	priv->regs_win = ioremap(regs.start, regs.end - regs.start + 1);
@@ -1517,6 +1519,12 @@ int fsl_rio_setup(struct platform_device *dev)
 					& RIO_PEF_CTLS) >> 4;
 	dev_info(&dev->dev, "RapidIO Common Transport System size: %d\n",
 			port->sys_size ? 65536 : 256);
+
+	if (port->host_deviceid >= 0)
+		out_be32(priv->regs_win + RIO_GCCSR, RIO_PORT_GEN_HOST |
+			RIO_PORT_GEN_MASTER | RIO_PORT_GEN_DISCOVERED);
+	else
+		out_be32(priv->regs_win + RIO_GCCSR, 0x00000000);
 
 	priv->atmu_regs = (struct rio_atmu_regs *)(priv->regs_win
 					+ RIO_ATMU_REGS_OFFSET);

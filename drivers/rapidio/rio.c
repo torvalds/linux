@@ -443,7 +443,7 @@ rio_mport_get_physefb(struct rio_mport *port, int local,
  * @from is not %NULL, searches continue from next device on the global
  * list.
  */
-static struct rio_dev *rio_get_comptag(u32 comp_tag, struct rio_dev *from)
+struct rio_dev *rio_get_comptag(u32 comp_tag, struct rio_dev *from)
 {
 	struct list_head *n;
 	struct rio_dev *rdev;
@@ -507,7 +507,7 @@ static int
 rio_chk_dev_route(struct rio_dev *rdev, struct rio_dev **nrdev, int *npnum)
 {
 	u32 result;
-	int p_port, rc = -EIO;
+	int p_port, dstid, rc = -EIO;
 	struct rio_dev *prev = NULL;
 
 	/* Find switch with failed RIO link */
@@ -522,20 +522,18 @@ rio_chk_dev_route(struct rio_dev *rdev, struct rio_dev **nrdev, int *npnum)
 	if (prev == NULL)
 		goto err_out;
 
-	/* Find port with failed RIO link */
-	for (p_port = 0;
-	     p_port < RIO_GET_TOTAL_PORTS(prev->swpinfo); p_port++)
-		if (prev->rswitch->nextdev[p_port] == rdev)
-			break;
+	dstid = (rdev->pef & RIO_PEF_SWITCH) ?
+			rdev->rswitch->destid : rdev->destid;
+	p_port = prev->rswitch->route_table[dstid];
 
-	if (p_port < RIO_GET_TOTAL_PORTS(prev->swpinfo)) {
+	if (p_port != RIO_INVALID_ROUTE) {
 		pr_debug("RIO: link failed on [%s]-P%d\n",
 			 rio_name(prev), p_port);
 		*nrdev = prev;
 		*npnum = p_port;
 		rc = 0;
 	} else
-		pr_debug("RIO: failed to trace route to %s\n", rio_name(prev));
+		pr_debug("RIO: failed to trace route to %s\n", rio_name(rdev));
 err_out:
 	return rc;
 }

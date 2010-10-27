@@ -48,7 +48,7 @@ DEFINE_SPINLOCK(rio_global_list_lock);
 static int next_destid = 0;
 static int next_switchid = 0;
 static int next_net = 0;
-static int next_comptag;
+static int next_comptag = 1;
 
 static struct timer_list rio_enum_timer =
 TIMER_INITIALIZER(rio_enum_timeout, 0, 0);
@@ -121,27 +121,6 @@ static int rio_clear_locks(struct rio_mport *port)
 	u32 result;
 	int ret = 0;
 
-	/* Assign component tag to all devices */
-	next_comptag = 1;
-	rio_local_write_config_32(port, RIO_COMPONENT_TAG_CSR, next_comptag++);
-
-	list_for_each_entry(rdev, &rio_devices, global_list) {
-		/* Mark device as discovered */
-		rio_read_config_32(rdev,
-				   rdev->phys_efptr + RIO_PORT_GEN_CTL_CSR,
-				   &result);
-		rio_write_config_32(rdev,
-				    rdev->phys_efptr + RIO_PORT_GEN_CTL_CSR,
-				    result | RIO_PORT_GEN_DISCOVERED);
-
-		rio_write_config_32(rdev, RIO_COMPONENT_TAG_CSR, next_comptag);
-		rdev->comp_tag = next_comptag++;
-		if (next_comptag >= 0x10000) {
-			pr_err("RIO: Component Tag Counter Overflow\n");
-			break;
-		}
-	}
-
 	/* Release host device id locks */
 	rio_local_write_config_32(port, RIO_HOST_DID_LOCK_CSR,
 				  port->host_deviceid);
@@ -162,6 +141,15 @@ static int rio_clear_locks(struct rio_mport *port)
 			       rdev->vid, rdev->did);
 			ret = -EINVAL;
 		}
+
+		/* Mark device as discovered and enable master */
+		rio_read_config_32(rdev,
+				   rdev->phys_efptr + RIO_PORT_GEN_CTL_CSR,
+				   &result);
+		result |= RIO_PORT_GEN_DISCOVERED | RIO_PORT_GEN_MASTER;
+		rio_write_config_32(rdev,
+				    rdev->phys_efptr + RIO_PORT_GEN_CTL_CSR,
+				    result);
 	}
 
 	return ret;
@@ -429,6 +417,17 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 				 &rdev->src_ops);
 	rio_mport_read_config_32(port, destid, hopcount, RIO_DST_OPS_CAR,
 				 &rdev->dst_ops);
+
+	if (do_enum) {
+		/* Assign component tag to device */
+		if (next_comptag >= 0x10000) {
+			pr_err("RIO: Component Tag Counter Overflow\n");
+			goto cleanup;
+		}
+		rio_mport_write_config_32(port, destid, hopcount,
+					  RIO_COMPONENT_TAG_CSR, next_comptag);
+		rdev->comp_tag = next_comptag++;
+	}
 
 	if (rio_device_has_destid(port, rdev->src_ops, rdev->dst_ops)) {
 		if (do_enum) {
@@ -726,21 +725,6 @@ static u16 rio_get_host_deviceid_lock(struct rio_mport *port, u8 hopcount)
 }
 
 /**
- * rio_net_add_mport- Add a master port to a RIO network
- * @net: RIO network
- * @port: Master port to add
- *
- * Adds a master port to the network list of associated master
- * ports..
- */
-static void rio_net_add_mport(struct rio_net *net, struct rio_mport *port)
-{
-	spin_lock(&rio_global_list_lock);
-	list_add_tail(&port->nnode, &net->mports);
-	spin_unlock(&rio_global_list_lock);
-}
-
-/**
  * rio_enum_peer- Recursively enumerate a RIO network through a master port
  * @net: RIO network being enumerated
  * @port: Master port to send transactions
@@ -760,6 +744,7 @@ static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 	int sw_inport;
 	struct rio_dev *rdev;
 	u16 destid;
+	u32 regval;
 	int tmp;
 
 	if (rio_mport_chk_dev_access(port,
@@ -772,9 +757,21 @@ static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 		pr_debug("RIO: PE already discovered by this host\n");
 		/*
 		 * Already discovered by this host. Add it as another
-		 * master port for the current network.
+		 * link to the existing device.
 		 */
-		rio_net_add_mport(net, port);
+		rio_mport_read_config_32(port, RIO_ANY_DESTID(port->sys_size),
+				hopcount, RIO_COMPONENT_TAG_CSR, &regval);
+
+		if (regval) {
+			rdev = rio_get_comptag((regval & 0xffff), NULL);
+
+			if (rdev && prev && rio_is_switch(prev)) {
+				pr_debug("RIO: redundant path to %s\n",
+					 rio_name(rdev));
+				prev->rswitch->nextdev[prev_port] = rdev;
+			}
+		}
+
 		return 0;
 	}
 
@@ -925,10 +922,11 @@ static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
  */
 static int rio_enum_complete(struct rio_mport *port)
 {
-	u32 tag_csr;
+	u32 regval;
 
-	rio_local_read_config_32(port, RIO_COMPONENT_TAG_CSR, &tag_csr);
-	return (tag_csr & 0xffff) ? 1 : 0;
+	rio_local_read_config_32(port, port->phys_efptr + RIO_PORT_GEN_CTL_CSR,
+				 &regval);
+	return (regval & RIO_PORT_GEN_MASTER) ? 1 : 0;
 }
 
 /**
@@ -991,6 +989,8 @@ rio_disc_peer(struct rio_net *net, struct rio_mport *port, u16 destid,
 						break;
 				}
 
+				if (ndestid == RIO_ANY_DESTID(port->sys_size))
+					continue;
 				rio_unlock_device(port, destid, hopcount);
 				if (rio_disc_peer
 				    (net, port, ndestid, hopcount + 1) < 0)
@@ -1162,6 +1162,10 @@ int __devinit rio_enum_mport(struct rio_mport *mport)
 
 		/* Enable Input Output Port (transmitter reviever) */
 		rio_enable_rx_tx_port(mport, 1, 0, 0, 0);
+
+		/* Set component tag for host */
+		rio_local_write_config_32(mport, RIO_COMPONENT_TAG_CSR,
+					  next_comptag++);
 
 		if (rio_enum_peer(net, mport, 0, NULL, 0) < 0) {
 			/* A higher priority host won enumeration, bail. */
