@@ -252,14 +252,6 @@ asm(" .am33_2\n");
 #define xPTEL_PS_4Mb		0x00000c00	/* - 4Mb page */
 #define xPTEL_PPN		0xfffff006	/* physical page number */
 
-#define xPTEL_V_BIT		0	/* bit numbers corresponding to above masks */
-#define xPTEL_UNUSED1_BIT	1
-#define xPTEL_UNUSED2_BIT	2
-#define xPTEL_C_BIT		3
-#define xPTEL_PV_BIT		4
-#define xPTEL_D_BIT		5
-#define xPTEL_G_BIT		9
-
 #define IPTEU			__SYSREG(0xc00000a4, u32)	/* instruction TLB virtual addr */
 #define DPTEU			__SYSREG(0xc00000b4, u32)	/* data TLB virtual addr */
 #define xPTEU_VPN		0xfffffc00	/* virtual page number */
@@ -283,7 +275,16 @@ asm(" .am33_2\n");
 #define xPTEL2_PS_128Kb		0x00000100	/* - 128Kb page */
 #define xPTEL2_PS_1Kb		0x00000200	/* - 1Kb page */
 #define xPTEL2_PS_4Mb		0x00000300	/* - 4Mb page */
-#define xPTEL2_PPN		0xfffffc00	/* physical page number */
+#define xPTEL2_CWT		0x00000400	/* cacheable write-through */
+#define xPTEL2_UNUSED1		0x00000800	/* unused bit (broadcast mask) */
+#define xPTEL2_PPN		0xfffff000	/* physical page number */
+
+#define xPTEL2_V_BIT		0	/* bit numbers corresponding to above masks */
+#define xPTEL2_C_BIT		1
+#define xPTEL2_PV_BIT		2
+#define xPTEL2_D_BIT		3
+#define xPTEL2_G_BIT		7
+#define xPTEL2_UNUSED1_BIT	11
 
 #define MMUFCR			__SYSREGC(0xc000009c, u32)	/* MMU exception cause */
 #define MMUFCR_IFC		__SYSREGC(0xc000009c, u16)	/* MMU instruction excep cause */

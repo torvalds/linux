@@ -61,10 +61,16 @@ ENTRY(itlb_miss)
 	btst	_PAGE_VALID,d2
 	beq	itlb_miss_fault		# jump if doesn't point to a page
 					# (might be a swap id)
+#if	((_PAGE_ACCESSED & 0xffffff00) == 0)
 	bset	_PAGE_ACCESSED,(0,a2)
-	and	~(xPTEL_UNUSED1|xPTEL_UNUSED2),d2
+#elif	((_PAGE_ACCESSED & 0xffff00ff) == 0)
+	bset	+(_PAGE_ACCESSED >> 8),(1,a2)
+#else
+#error	"_PAGE_ACCESSED value is out of range"
+#endif
+	and	~xPTEL2_UNUSED1,d2
 itlb_miss_set:
-	mov	d2,(IPTEL)		# change the TLB
+	mov	d2,(IPTEL2)		# change the TLB
 #ifdef CONFIG_GDBSTUB
 	movm	(sp),[d2,d3,a2]
 #endif
@@ -118,10 +124,16 @@ ENTRY(dtlb_miss)
 	btst	_PAGE_VALID,d2
 	beq	dtlb_miss_fault		# jump if doesn't point to a page
 					# (might be a swap id)
+#if	((_PAGE_ACCESSED & 0xffffff00) == 0)
 	bset	_PAGE_ACCESSED,(0,a2)
-	and	~(xPTEL_UNUSED1|xPTEL_UNUSED2),d2
+#elif	((_PAGE_ACCESSED & 0xffff00ff) == 0)
+	bset	+(_PAGE_ACCESSED >> 8),(1,a2)
+#else
+#error	"_PAGE_ACCESSED value is out of range"
+#endif
+	and	~xPTEL2_UNUSED1,d2
 dtlb_miss_set:
-	mov	d2,(DPTEL)		# change the TLB
+	mov	d2,(DPTEL2)		# change the TLB
 #ifdef CONFIG_GDBSTUB
 	movm	(sp),[d2,d3,a2]
 #endif
@@ -156,13 +168,12 @@ ENTRY(itlb_aerror)
 	or	0x00010000,d1			# it's an instruction fetch
 
 	# determine the page address
-	mov	(IPTEU),a2
-	mov	a2,d0
+	mov	(IPTEU),d0
 	and	PAGE_MASK,d0
 	mov	d0,(12,sp)
 
 	clr	d0
-	mov	d0,(IPTEL)
+	mov	d0,(IPTEL2)
 
 	or	EPSW_IE,epsw
 	mov	fp,d0
@@ -199,7 +210,7 @@ ENTRY(dtlb_aerror)
 	mov	d0,(12,sp)
 
 	clr	d0
-	mov	d0,(DPTEL)
+	mov	d0,(DPTEL2)
 
 	or	EPSW_IE,epsw
 	mov	fp,d0
