@@ -584,8 +584,25 @@ int tegra_dc_sync_windows(struct tegra_dc_win *windows[], int n)
 }
 EXPORT_SYMBOL(tegra_dc_sync_windows);
 
+static unsigned long tegra_dc_pclk_round_rate(struct tegra_dc *dc, int pclk)
+{
+	unsigned long rate;
+	unsigned long div;
+
+	rate = clk_get_rate(dc->clk);
+
+	div = DIV_ROUND_CLOSEST(rate * 2, pclk);
+
+	if (div < 2)
+		return 0;
+
+	return rate * 2 / div;
+}
+
 void tegra_dc_setup_clk(struct tegra_dc *dc, struct clk *clk)
 {
+	int pclk;
+
 	if (dc->out->type == TEGRA_DC_OUT_HDMI) {
 		unsigned long rate;
 		struct clk *pll_d_out0_clk =
@@ -604,21 +621,10 @@ void tegra_dc_setup_clk(struct tegra_dc *dc, struct clk *clk)
 		if (clk_get_parent(clk) != pll_d_out0_clk)
 			clk_set_parent(clk, pll_d_out0_clk);
 	}
-}
 
-static unsigned long tegra_dc_pclk_round_rate(struct tegra_dc *dc, int pclk)
-{
-	unsigned long rate;
-	unsigned long div;
+	pclk = tegra_dc_pclk_round_rate(dc, dc->mode.pclk);
+	tegra_dvfs_set_rate(clk, pclk);
 
-	rate = clk_get_rate(dc->clk);
-
-	div = DIV_ROUND_CLOSEST(rate * 2, pclk);
-
-	if (div < 2)
-		return 0;
-
-	return rate * 2 / div;
 }
 
 static int tegra_dc_program_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode)
@@ -837,8 +843,6 @@ static void tegra_dc_init(struct tegra_dc *dc)
 
 static bool _tegra_dc_enable(struct tegra_dc *dc)
 {
-	int pclk;
-
 	if (dc->mode.pclk == 0)
 		return false;
 
@@ -848,9 +852,6 @@ static bool _tegra_dc_enable(struct tegra_dc *dc)
 		dc->out->enable();
 
 	tegra_dc_setup_clk(dc, dc->clk);
-
-	pclk = tegra_dc_pclk_round_rate(dc, dc->mode.pclk);
-	tegra_dvfs_set_rate(dc->clk, pclk);
 
 	clk_enable(dc->clk);
 	enable_irq(dc->irq);
