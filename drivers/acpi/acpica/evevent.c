@@ -95,47 +95,6 @@ acpi_status acpi_ev_initialize_events(void)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ev_install_fadt_gpes
- *
- * PARAMETERS:  None
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Completes initialization of the FADT-defined GPE blocks
- *              (0 and 1). The HW must be fully initialized at this point,
- *              including global lock support.
- *
- ******************************************************************************/
-
-acpi_status acpi_ev_install_fadt_gpes(void)
-{
-	acpi_status status;
-
-	ACPI_FUNCTION_TRACE(ev_install_fadt_gpes);
-
-	/* Namespace must be locked */
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
-
-	/* FADT GPE Block 0 */
-
-	(void)acpi_ev_initialize_gpe_block(acpi_gbl_fadt_gpe_device,
-					   acpi_gbl_gpe_fadt_blocks[0]);
-
-	/* FADT GPE Block 1 */
-
-	(void)acpi_ev_initialize_gpe_block(acpi_gbl_fadt_gpe_device,
-					   acpi_gbl_gpe_fadt_blocks[1]);
-
-	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-	return_ACPI_STATUS(AE_OK);
-}
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_ev_install_xrupt_handlers
  *
  * PARAMETERS:  None

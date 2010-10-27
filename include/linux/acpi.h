@@ -245,8 +245,6 @@ int acpi_check_resource_conflict(const struct resource *res);
 
 int acpi_check_region(resource_size_t start, resource_size_t n,
 		      const char *name);
-int acpi_check_mem_region(resource_size_t start, resource_size_t n,
-		      const char *name);
 
 int acpi_resources_are_enforced(void);
 
@@ -308,6 +306,9 @@ extern acpi_status acpi_pci_osc_control_set(acpi_handle handle,
 					     u32 *mask, u32 req);
 extern void acpi_early_init(void);
 
+int acpi_os_map_generic_address(struct acpi_generic_address *addr);
+void acpi_os_unmap_generic_address(struct acpi_generic_address *addr);
+
 #else	/* !CONFIG_ACPI */
 
 #define acpi_disabled 1
@@ -340,12 +341,6 @@ static inline int acpi_check_resource_conflict(struct resource *res)
 
 static inline int acpi_check_region(resource_size_t start, resource_size_t n,
 				    const char *name)
-{
-	return 0;
-}
-
-static inline int acpi_check_mem_region(resource_size_t start,
-					resource_size_t n, const char *name)
 {
 	return 0;
 }

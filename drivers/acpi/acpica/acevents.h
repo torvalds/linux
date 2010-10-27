@@ -105,8 +105,9 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 			 struct acpi_gpe_block_info **return_gpe_block);
 
 acpi_status
-acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
-			     struct acpi_gpe_block_info *gpe_block);
+acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
+			     struct acpi_gpe_block_info *gpe_block,
+			     void *ignored);
 
 acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block);
 
