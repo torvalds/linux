@@ -592,13 +592,11 @@ static void i915_capture_error_state(struct drm_device *dev)
 	error->pipeastat = I915_READ(PIPEASTAT);
 	error->pipebstat = I915_READ(PIPEBSTAT);
 	error->instpm = I915_READ(INSTPM);
-	if (INTEL_INFO(dev)->gen < 4) {
-		error->ipeir = I915_READ(IPEIR);
-		error->ipehr = I915_READ(IPEHR);
-		error->instdone = I915_READ(INSTDONE);
-		error->acthd = I915_READ(ACTHD);
-		error->bbaddr = 0;
-	} else {
+	error->error = 0;
+	if (INTEL_INFO(dev)->gen >= 6) {
+		error->error = I915_READ(ERROR_GEN6);
+	}
+	if (INTEL_INFO(dev)->gen >= 4) {
 		error->ipeir = I915_READ(IPEIR_I965);
 		error->ipehr = I915_READ(IPEHR_I965);
 		error->instdone = I915_READ(INSTDONE_I965);
@@ -606,6 +604,12 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->instdone1 = I915_READ(INSTDONE1);
 		error->acthd = I915_READ(ACTHD_I965);
 		error->bbaddr = I915_READ64(BB_ADDR);
+	} else {
+		error->ipeir = I915_READ(IPEIR);
+		error->ipehr = I915_READ(IPEHR);
+		error->instdone = I915_READ(INSTDONE);
+		error->acthd = I915_READ(ACTHD);
+		error->bbaddr = 0;
 	}
 
 	bbaddr = i915_ringbuffer_last_batch(dev);

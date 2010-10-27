@@ -306,6 +306,8 @@
 #define NOPID		0x02094
 #define HWSTAM		0x02098
 
+#define ERROR_GEN6	0x040a0
+
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)
 # define MI_FLUSH_ENABLE				(1 << 11)
