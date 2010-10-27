@@ -141,9 +141,9 @@ struct adp5588_kpad_platform_data {
 };
 
 struct adp5588_gpio_platform_data {
-	unsigned gpio_start;		/* GPIO Chip base # */
-	unsigned irq_base;		/* interrupt base # */
-	unsigned pullup_dis_mask;	/* Pull-Up Disable Mask */
+	int gpio_start;		/* GPIO Chip base # */
+	unsigned irq_base;	/* interrupt base # */
+	unsigned pullup_dis_mask; /* Pull-Up Disable Mask */
 	int	(*setup)(struct i2c_client *client,
 				int gpio, unsigned ngpio,
 				void *context);
