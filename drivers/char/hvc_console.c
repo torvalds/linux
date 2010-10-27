@@ -713,7 +713,6 @@ static int khvcd(void *unused)
 	struct hvc_struct *hp;
 
 	set_freezable();
-	__set_current_state(TASK_RUNNING);
 	do {
 		poll_mask = 0;
 		hvc_kicked = 0;
