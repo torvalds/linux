@@ -420,6 +420,11 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 						hopcount, RIO_EFB_ERR_MGMNT);
 	}
 
+	if (rdev->pef & (RIO_PEF_SWITCH | RIO_PEF_MULTIPORT)) {
+		rio_mport_read_config_32(port, destid, hopcount,
+					 RIO_SWP_INFO_CAR, &rdev->swpinfo);
+	}
+
 	rio_mport_read_config_32(port, destid, hopcount, RIO_SRC_OPS_CAR,
 				 &rdev->src_ops);
 	rio_mport_read_config_32(port, destid, hopcount, RIO_DST_OPS_CAR,
@@ -439,8 +444,6 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 
 	/* If a PE has both switch and other functions, show it as a switch */
 	if (rio_is_switch(rdev)) {
-		rio_mport_read_config_32(port, destid, hopcount,
-					 RIO_SWP_INFO_CAR, &rdev->swpinfo);
 		rswitch = kzalloc(sizeof(struct rio_switch), GFP_KERNEL);
 		if (!rswitch)
 			goto cleanup;
@@ -458,6 +461,7 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 				rdid++)
 			rswitch->route_table[rdid] = RIO_INVALID_ROUTE;
 		rdev->rswitch = rswitch;
+		rswitch->rdev = rdev;
 		dev_set_name(&rdev->dev, "%02x:s:%04x", rdev->net->id,
 			     rdev->rswitch->switchid);
 		rio_switch_init(rdev, do_enum);
@@ -719,25 +723,6 @@ static u16 rio_get_host_deviceid_lock(struct rio_mport *port, u8 hopcount)
 }
 
 /**
- * rio_get_swpinfo_inport- Gets the ingress port number
- * @mport: Master port to send transaction
- * @destid: Destination ID associated with the switch
- * @hopcount: Number of hops to the device
- *
- * Returns port number being used to access the switch device.
- */
-static u8
-rio_get_swpinfo_inport(struct rio_mport *mport, u16 destid, u8 hopcount)
-{
-	u32 result;
-
-	rio_mport_read_config_32(mport, destid, hopcount, RIO_SWP_INFO_CAR,
-				 &result);
-
-	return (u8) (result & 0xff);
-}
-
-/**
  * rio_get_swpinfo_tports- Gets total number of ports on the switch
  * @mport: Master port to send transaction
  * @destid: Destination ID associated with the switch
@@ -834,8 +819,7 @@ static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 
 	if (rio_is_switch(rdev)) {
 		next_switchid++;
-		sw_inport = rio_get_swpinfo_inport(port,
-				RIO_ANY_DESTID(port->sys_size), hopcount);
+		sw_inport = RIO_GET_PORT_NUM(rdev->swpinfo);
 		rio_route_add_entry(port, rdev->rswitch, RIO_GLOBAL_TABLE,
 				    port->host_deviceid, sw_inport, 0);
 		rdev->rswitch->route_table[port->host_deviceid] = sw_inport;
@@ -989,8 +973,7 @@ rio_disc_peer(struct rio_net *net, struct rio_mport *port, u16 destid,
 		    "RIO: found %s (vid %4.4x did %4.4x) with %d ports\n",
 		    rio_name(rdev), rdev->vid, rdev->did, num_ports);
 		for (port_num = 0; port_num < num_ports; port_num++) {
-			if (rio_get_swpinfo_inport(port, destid, hopcount) ==
-			    port_num)
+			if (RIO_GET_PORT_NUM(rdev->swpinfo) == port_num)
 				continue;
 
 			if (rio_sport_is_active
@@ -1109,8 +1092,7 @@ static void rio_update_route_tables(struct rio_mport *port)
 				if (rswitch->destid == destid)
 					continue;
 
-				sport = rio_get_swpinfo_inport(port,
-						rswitch->destid, rswitch->hopcount);
+				sport = RIO_GET_PORT_NUM(rswitch->rdev->swpinfo);
 
 				if (rswitch->add_entry)	{
 					rio_route_add_entry(port, rswitch,

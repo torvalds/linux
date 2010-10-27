@@ -112,7 +112,7 @@ struct rio_dev {
 	u16 asm_rev;
 	u16 efptr;
 	u32 pef;
-	u32 swpinfo;		/* Only used for switches */
+	u32 swpinfo;
 	u32 src_ops;
 	u32 dst_ops;
 	u32 comp_tag;
@@ -219,6 +219,7 @@ struct rio_net {
 /**
  * struct rio_switch - RIO switch info
  * @node: Node in global list of switches
+ * @rdev: Associated RIO device structure
  * @switchid: Switch ID that is unique across a network
  * @hopcount: Hopcount to this switch
  * @destid: Associated destid in the path
@@ -234,6 +235,7 @@ struct rio_net {
  */
 struct rio_switch {
 	struct list_head node;
+	struct rio_dev *rdev;
 	u16 switchid;
 	u16 hopcount;
 	u16 destid;

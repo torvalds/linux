@@ -33,6 +33,7 @@
 #define  RIO_PEF_MEMORY			0x40000000	/* [I] MMIO */
 #define  RIO_PEF_PROCESSOR		0x20000000	/* [I] Processor */
 #define  RIO_PEF_SWITCH			0x10000000	/* [I] Switch */
+#define  RIO_PEF_MULTIPORT		0x08000000	/* [VI, 2.1] Multiport */
 #define  RIO_PEF_INB_MBOX		0x00f00000	/* [II] Mailboxes */
 #define  RIO_PEF_INB_MBOX0		0x00800000	/* [II] Mailbox 0 */
 #define  RIO_PEF_INB_MBOX1		0x00400000	/* [II] Mailbox 1 */
@@ -51,6 +52,7 @@
 #define  RIO_SWP_INFO_PORT_TOTAL_MASK	0x0000ff00	/* [I] Total number of ports */
 #define  RIO_SWP_INFO_PORT_NUM_MASK	0x000000ff	/* [I] Maintenance transaction port number */
 #define  RIO_GET_TOTAL_PORTS(x)		((x & RIO_SWP_INFO_PORT_TOTAL_MASK) >> 8)
+#define  RIO_GET_PORT_NUM(x)		(x & RIO_SWP_INFO_PORT_NUM_MASK)
 
 #define RIO_SRC_OPS_CAR		0x18	/* [I] Source Operations CAR */
 #define  RIO_SRC_OPS_READ		0x00008000	/* [I] Read op */
