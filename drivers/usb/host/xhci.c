@@ -714,6 +714,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		return retval;
 	}
 
+	spin_unlock_irq(&xhci->lock);
 	/* Re-setup MSI-X */
 	if (hcd->irq)
 		free_irq(hcd->irq, hcd);
@@ -736,6 +737,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		hcd->irq = pdev->irq;
 	}
 
+	spin_lock_irq(&xhci->lock);
 	/* step 4: set Run/Stop bit */
 	command = xhci_readl(xhci, &xhci->op_regs->command);
 	command |= CMD_RUN;
