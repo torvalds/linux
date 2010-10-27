@@ -42,7 +42,7 @@ config BINFMT_ELF_FDPIC
 
 config CORE_DUMP_DEFAULT_ELF_HEADERS
 	bool "Write ELF core dumps with partial segments"
-	default n
+	default y
 	depends on BINFMT_ELF && ELF_CORE
 	help
 	  ELF core dump files describe each memory mapping of the crashed
@@ -60,7 +60,7 @@ config CORE_DUMP_DEFAULT_ELF_HEADERS
 	  inherited.  See Documentation/filesystems/proc.txt for details.
 
 	  This config option changes the default setting of coredump_filter
-	  seen at boot time.  If unsure, say N.
+	  seen at boot time.  If unsure, say Y.
 
 config BINFMT_FLAT
 	bool "Kernel support for flat binaries"
