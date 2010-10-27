@@ -2634,6 +2634,16 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 	return ok;
 }
 
+int drbd_send_oos(struct drbd_conf *mdev, struct drbd_request *req)
+{
+	struct p_block_desc p;
+
+	p.sector  = cpu_to_be64(req->sector);
+	p.blksize = cpu_to_be32(req->size);
+
+	return drbd_send_cmd(mdev, USE_DATA_SOCKET, P_OUT_OF_SYNC, &p.head, sizeof(p));
+}
+
 /*
   drbd_send distinguishes two cases:
 

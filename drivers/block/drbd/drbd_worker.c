@@ -1237,6 +1237,22 @@ int w_send_write_hint(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	return drbd_send_short_cmd(mdev, P_UNPLUG_REMOTE);
 }
 
+int w_send_oos(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+{
+	struct drbd_request *req = container_of(w, struct drbd_request, w);
+	int ok;
+
+	if (unlikely(cancel)) {
+		req_mod(req, send_canceled);
+		return 1;
+	}
+
+	ok = drbd_send_oos(mdev, req);
+	req_mod(req, oos_handed_to_network);
+
+	return ok;
+}
+
 /**
  * w_send_dblock() - Worker callback to send a P_DATA packet in order to mirror a write request
  * @mdev:	DRBD device.

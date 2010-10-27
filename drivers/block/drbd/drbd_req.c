@@ -142,7 +142,7 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 
 	/* before we can signal completion to the upper layers,
 	 * we may need to close the current epoch */
-	if (mdev->state.conn >= C_CONNECTED &&
+	if (mdev->state.conn >= C_CONNECTED && mdev->state.conn < C_AHEAD &&
 	    req->epoch == mdev->newest_tle->br_number)
 		queue_barrier(mdev);
 
@@ -545,6 +545,14 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		break;
 
+	case queue_for_send_oos:
+		req->rq_state |= RQ_NET_QUEUED;
+		req->w.cb =  w_send_oos;
+		drbd_queue_work(&mdev->data.work, &req->w);
+		break;
+
+	case oos_handed_to_network:
+		/* actually the same */
 	case send_canceled:
 		/* treat it the same */
 	case send_failed:
@@ -756,7 +764,7 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
 	const sector_t sector = bio->bi_sector;
 	struct drbd_tl_epoch *b = NULL;
 	struct drbd_request *req;
-	int local, remote;
+	int local, remote, send_oos = 0;
 	int err = -EIO;
 	int ret = 0;
 
@@ -820,8 +828,11 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
 	}
 
 	remote = remote && (mdev->state.pdsk == D_UP_TO_DATE ||
-			    (mdev->state.pdsk == D_INCONSISTENT &&
-			     mdev->state.conn >= C_CONNECTED));
+			    (mdev->state.pdsk >= D_INCONSISTENT &&
+			     mdev->state.conn >= C_CONNECTED &&
+			     mdev->state.conn < C_AHEAD));
+	send_oos = (rw == WRITE && mdev->state.conn == C_AHEAD &&
+		    mdev->state.pdsk >= D_INCONSISTENT);
 
 	if (!(local || remote) && !is_susp(mdev->state)) {
 		if (__ratelimit(&drbd_ratelimit_state))
@@ -835,7 +846,7 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
 	 * but there is a race between testing the bit and pointer outside the
 	 * spinlock, and grabbing the spinlock.
 	 * if we lost that race, we retry.  */
-	if (rw == WRITE && remote &&
+	if (rw == WRITE && (remote || send_oos) &&
 	    mdev->unused_spare_tle == NULL &&
 	    test_bit(CREATE_BARRIER, &mdev->flags)) {
 allocate_barrier:
@@ -860,11 +871,15 @@ allocate_barrier:
 		goto fail_free_complete;
 	}
 
-	if (remote) {
+	if (remote || send_oos) {
 		remote = (mdev->state.pdsk == D_UP_TO_DATE ||
-			    (mdev->state.pdsk == D_INCONSISTENT &&
-			     mdev->state.conn >= C_CONNECTED));
-		if (!remote)
+			    (mdev->state.pdsk >= D_INCONSISTENT &&
+			     mdev->state.conn >= C_CONNECTED &&
+			     mdev->state.conn < C_AHEAD));
+		send_oos = (rw == WRITE && mdev->state.conn == C_AHEAD &&
+			    mdev->state.pdsk >= D_INCONSISTENT);
+
+		if (!(remote || send_oos))
 			dev_warn(DEV, "lost connection while grabbing the req_lock!\n");
 		if (!(local || remote)) {
 			dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
@@ -877,7 +892,7 @@ allocate_barrier:
 		mdev->unused_spare_tle = b;
 		b = NULL;
 	}
-	if (rw == WRITE && remote &&
+	if (rw == WRITE && (remote || send_oos) &&
 	    mdev->unused_spare_tle == NULL &&
 	    test_bit(CREATE_BARRIER, &mdev->flags)) {
 		/* someone closed the current epoch
@@ -900,7 +915,7 @@ allocate_barrier:
 	 * barrier packet.  To get the write ordering right, we only have to
 	 * make sure that, if this is a write request and it triggered a
 	 * barrier packet, this request is queued within the same spinlock. */
-	if (remote && mdev->unused_spare_tle &&
+	if ((remote || send_oos) && mdev->unused_spare_tle &&
 	    test_and_clear_bit(CREATE_BARRIER, &mdev->flags)) {
 		_tl_add_barrier(mdev, mdev->unused_spare_tle);
 		mdev->unused_spare_tle = NULL;
@@ -948,8 +963,11 @@ allocate_barrier:
 				? queue_for_net_write
 				: queue_for_net_read);
 	}
+	if (send_oos && drbd_set_out_of_sync(mdev, sector, size))
+		_req_mod(req, queue_for_send_oos);
 
-	if (remote && mdev->net_conf->on_congestion != OC_BLOCK) {
+	if (remote &&
+	    mdev->net_conf->on_congestion != OC_BLOCK && mdev->agreed_pro_version >= 96) {
 		int congested = 0;
 
 		if (mdev->net_conf->cong_fill &&
@@ -964,6 +982,8 @@ allocate_barrier:
 		}
 
 		if (congested) {
+			queue_barrier(mdev);
+
 			if (mdev->net_conf->on_congestion == OC_PULL_AHEAD)
 				_drbd_set_state(_NS(mdev, conn, C_AHEAD), 0, NULL);
 			else  /*mdev->net_conf->on_congestion == OC_DISCONNECT */

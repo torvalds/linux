@@ -56,7 +56,7 @@ extern const char *drbd_buildtag(void);
 #define REL_VERSION "8.3.9"
 #define API_VERSION 88
 #define PRO_VERSION_MIN 86
-#define PRO_VERSION_MAX 95
+#define PRO_VERSION_MAX 96
 
 
 enum drbd_io_error_p {

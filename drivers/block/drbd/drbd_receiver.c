@@ -3562,6 +3562,15 @@ static int receive_UnplugRemote(struct drbd_conf *mdev, enum drbd_packets cmd, u
 	return TRUE;
 }
 
+static int receive_out_of_sync(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned int data_size)
+{
+	struct p_block_desc *p = &mdev->data.rbuf.block_desc;
+
+	drbd_set_out_of_sync(mdev, be64_to_cpu(p->sector), be32_to_cpu(p->blksize));
+
+	return TRUE;
+}
+
 typedef int (*drbd_cmd_handler_f)(struct drbd_conf *, enum drbd_packets cmd, unsigned int to_receive);
 
 struct data_cmd {
@@ -3592,6 +3601,7 @@ static struct data_cmd drbd_cmd_handler[] = {
 	[P_OV_REPLY]        = { 1, sizeof(struct p_block_req), receive_DataRequest },
 	[P_CSUM_RS_REQUEST] = { 1, sizeof(struct p_block_req), receive_DataRequest },
 	[P_DELAY_PROBE]     = { 0, sizeof(struct p_delay_probe93), receive_skip },
+	[P_OUT_OF_SYNC]     = { 0, sizeof(struct p_block_desc), receive_out_of_sync },
 	/* anything missing from this table is in
 	 * the asender_tbl, see get_asender_cmd */
 	[P_MAX_CMD]	    = { 0, 0, NULL },

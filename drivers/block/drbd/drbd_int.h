@@ -212,6 +212,7 @@ enum drbd_packets {
 	/* P_CKPT_FENCE_REQ      = 0x25, * currently reserved for protocol D */
 	/* P_CKPT_DISABLE_REQ    = 0x26, * currently reserved for protocol D */
 	P_DELAY_PROBE         = 0x27, /* is used on BOTH sockets */
+	P_OUT_OF_SYNC         = 0x28, /* Mark as out of sync (Outrunning), data socket */
 
 	P_MAX_CMD	      = 0x28,
 	P_MAY_IGNORE	      = 0x100, /* Flag to test if (cmd > P_MAY_IGNORE) ... */
@@ -269,6 +270,7 @@ static inline const char *cmdname(enum drbd_packets cmd)
 		[P_RS_IS_IN_SYNC]	= "CsumRSIsInSync",
 		[P_COMPRESSED_BITMAP]   = "CBitmap",
 		[P_DELAY_PROBE]         = "DelayProbe",
+		[P_OUT_OF_SYNC]		= "OutOfSync",
 		[P_MAX_CMD]	        = NULL,
 	};
 
@@ -550,6 +552,13 @@ struct p_discard {
 	u32	    pad;
 } __packed;
 
+struct p_block_desc {
+	struct p_header80 head;
+	u64 sector;
+	u32 blksize;
+	u32 pad;	/* to multiple of 8 Byte */
+} __packed;
+
 /* Valid values for the encoding field.
  * Bump proto version when changing this. */
 enum drbd_bitmap_code {
@@ -647,6 +656,7 @@ union p_polymorph {
         struct p_block_req       block_req;
 	struct p_delay_probe93   delay_probe93;
 	struct p_rs_uuid         rs_uuid;
+	struct p_block_desc      block_desc;
 } __packed;
 
 /**********************************************************************/
@@ -1221,6 +1231,7 @@ extern int drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packets cmd,
 			struct p_data *dp, int data_size);
 extern int drbd_send_ack_ex(struct drbd_conf *mdev, enum drbd_packets cmd,
 			    sector_t sector, int blksize, u64 block_id);
+extern int drbd_send_oos(struct drbd_conf *mdev, struct drbd_request *req);
 extern int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 			   struct drbd_epoch_entry *e);
 extern int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req);
@@ -1534,6 +1545,7 @@ extern int w_send_read_req(struct drbd_conf *, struct drbd_work *, int);
 extern int w_prev_work_done(struct drbd_conf *, struct drbd_work *, int);
 extern int w_e_reissue(struct drbd_conf *, struct drbd_work *, int);
 extern int w_restart_disk_io(struct drbd_conf *, struct drbd_work *, int);
+extern int w_send_oos(struct drbd_conf *, struct drbd_work *, int);
 
 extern void resync_timer_fn(unsigned long data);
 
@@ -1626,7 +1638,7 @@ extern void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector,
 		int size, const char *file, const unsigned int line);
 #define drbd_set_in_sync(mdev, sector, size) \
 	__drbd_set_in_sync(mdev, sector, size, __FILE__, __LINE__)
-extern void __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector,
+extern int __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector,
 		int size, const char *file, const unsigned int line);
 #define drbd_set_out_of_sync(mdev, sector, size) \
 	__drbd_set_out_of_sync(mdev, sector, size, __FILE__, __LINE__)

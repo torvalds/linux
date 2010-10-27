@@ -1007,22 +1007,22 @@ void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector, int size,
  * called by tl_clear and drbd_send_dblock (==drbd_make_request).
  * so this can be _any_ process.
  */
-void __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector, int size,
+int __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector, int size,
 			    const char *file, const unsigned int line)
 {
 	unsigned long sbnr, ebnr, lbnr, flags;
 	sector_t esector, nr_sectors;
-	unsigned int enr, count;
+	unsigned int enr, count = 0;
 	struct lc_element *e;
 
 	if (size <= 0 || (size & 0x1ff) != 0 || size > DRBD_MAX_BIO_SIZE) {
 		dev_err(DEV, "sector: %llus, size: %d\n",
 			(unsigned long long)sector, size);
-		return;
+		return 0;
 	}
 
 	if (!get_ldev(mdev))
-		return; /* no disk, no metadata, no bitmap to set bits in */
+		return 0; /* no disk, no metadata, no bitmap to set bits in */
 
 	nr_sectors = drbd_get_capacity(mdev->this_bdev);
 	esector = sector + (size >> 9) - 1;
@@ -1052,6 +1052,8 @@ void __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector, int size,
 
 out:
 	put_ldev(mdev);
+
+	return count;
 }
 
 static

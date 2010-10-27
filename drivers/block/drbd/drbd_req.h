@@ -82,14 +82,16 @@ enum drbd_req_event {
 	to_be_submitted,
 
 	/* XXX yes, now I am inconsistent...
-	 * these two are not "events" but "actions"
+	 * these are not "events" but "actions"
 	 * oh, well... */
 	queue_for_net_write,
 	queue_for_net_read,
+	queue_for_send_oos,
 
 	send_canceled,
 	send_failed,
 	handed_over_to_network,
+	oos_handed_to_network,
 	connection_lost_while_pending,
 	read_retry_remote_canceled,
 	recv_acked_by_peer,
