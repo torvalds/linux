@@ -329,6 +329,8 @@ int ptrace_detach(struct task_struct *child, unsigned int data)
  * and reacquire the lock.
  */
 void exit_ptrace(struct task_struct *tracer)
+	__releases(&tasklist_lock)
+	__acquires(&tasklist_lock)
 {
 	struct task_struct *p, *n;
 	LIST_HEAD(ptrace_dead);
