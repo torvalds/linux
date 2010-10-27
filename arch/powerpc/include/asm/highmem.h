@@ -60,9 +60,8 @@ extern pte_t *pkmap_page_table;
 
 extern void *kmap_high(struct page *page);
 extern void kunmap_high(struct page *page);
-extern void *kmap_atomic_prot(struct page *page, enum km_type type,
-			      pgprot_t prot);
-extern void kunmap_atomic_notypecheck(void *kvaddr, enum km_type type);
+extern void *kmap_atomic_prot(struct page *page, pgprot_t prot);
+extern void __kunmap_atomic(void *kvaddr);
 
 static inline void *kmap(struct page *page)
 {
@@ -80,9 +79,9 @@ static inline void kunmap(struct page *page)
 	kunmap_high(page);
 }
 
-static inline void *kmap_atomic(struct page *page, enum km_type type)
+static inline void *__kmap_atomic(struct page *page)
 {
-	return kmap_atomic_prot(page, type, kmap_prot);
+	return kmap_atomic_prot(page, kmap_prot);
 }
 
 static inline struct page *kmap_atomic_to_page(void *ptr)

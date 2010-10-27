@@ -110,9 +110,10 @@ static void idr_mark_full(struct idr_layer **pa, int id)
  * @idp:	idr handle
  * @gfp_mask:	memory allocation flags
  *
- * This function should be called prior to locking and calling the
- * idr_get_new* functions. It preallocates enough memory to satisfy
- * the worst possible allocation.
+ * This function should be called prior to calling the idr_get_new* functions.
+ * It preallocates enough memory to satisfy the worst possible allocation. The
+ * caller should pass in GFP_KERNEL if possible.  This of course requires that
+ * no spinning locks be held.
  *
  * If the system is REALLY out of memory this function returns 0,
  * otherwise 1.
@@ -290,9 +291,11 @@ static int idr_get_new_above_int(struct idr *idp, void *ptr, int starting_id)
  * This is the allocate id function.  It should be called with any
  * required locks.
  *
- * If memory is required, it will return -EAGAIN, you should unlock
- * and go back to the idr_pre_get() call.  If the idr is full, it will
- * return -ENOSPC.
+ * If allocation from IDR's private freelist fails, idr_get_new_above() will
+ * return -EAGAIN.  The caller should retry the idr_pre_get() call to refill
+ * IDR's preallocation and then retry the idr_get_new_above() call.
+ *
+ * If the idr is full idr_get_new_above() will return -ENOSPC.
  *
  * @id returns a value in the range @starting_id ... 0x7fffffff
  */
@@ -318,12 +321,11 @@ EXPORT_SYMBOL(idr_get_new_above);
  * @ptr: pointer you want associated with the id
  * @id: pointer to the allocated handle
  *
- * This is the allocate id function.  It should be called with any
- * required locks.
+ * If allocation from IDR's private freelist fails, idr_get_new_above() will
+ * return -EAGAIN.  The caller should retry the idr_pre_get() call to refill
+ * IDR's preallocation and then retry the idr_get_new_above() call.
  *
- * If memory is required, it will return -EAGAIN, you should unlock
- * and go back to the idr_pre_get() call.  If the idr is full, it will
- * return -ENOSPC.
+ * If the idr is full idr_get_new_above() will return -ENOSPC.
  *
  * @id returns a value in the range 0 ... 0x7fffffff
  */

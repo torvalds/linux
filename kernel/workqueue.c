@@ -2064,7 +2064,7 @@ static void insert_wq_barrier(struct cpu_workqueue_struct *cwq,
 	 * checks and call back into the fixup functions where we
 	 * might deadlock.
 	 */
-	INIT_WORK_ON_STACK(&barr->work, wq_barrier_func);
+	INIT_WORK_ONSTACK(&barr->work, wq_barrier_func);
 	__set_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(&barr->work));
 	init_completion(&barr->done);
 

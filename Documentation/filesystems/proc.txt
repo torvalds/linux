@@ -374,13 +374,13 @@ Swap:                  0 kB
 KernelPageSize:        4 kB
 MMUPageSize:           4 kB
 
-The first  of these lines shows  the same information  as is displayed for the
-mapping in /proc/PID/maps.  The remaining lines show  the size of the mapping,
-the amount of the mapping that is currently resident in RAM, the "proportional
-set size” (divide each shared page by the number of processes sharing it), the
-number of clean and dirty shared pages in the mapping, and the number of clean
-and dirty private pages in the mapping.  The "Referenced" indicates the amount
-of memory currently marked as referenced or accessed.
+The first of these lines shows the same information as is displayed for the
+mapping in /proc/PID/maps.  The remaining lines show the size of the mapping
+(size), the amount of the mapping that is currently resident in RAM (RSS), the
+process' proportional share of this mapping (PSS), the number of clean and
+dirty shared pages in the mapping, and the number of clean and dirty private
+pages in the mapping.  The "Referenced" indicates the amount of memory
+currently marked as referenced or accessed.
 
 This file is only present if the CONFIG_MMU kernel configuration option is
 enabled.

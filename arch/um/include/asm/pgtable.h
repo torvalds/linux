@@ -338,9 +338,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	((pte_t *) pmd_page_vaddr(*(dir)) +  pte_index(address))
 #define pte_offset_map(dir, address) \
 	((pte_t *)page_address(pmd_page(*(dir))) + pte_index(address))
-#define pte_offset_map_nested(dir, address) pte_offset_map(dir, address)
 #define pte_unmap(pte) do { } while (0)
-#define pte_unmap_nested(pte) do { } while (0)
 
 struct mm_struct;
 extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);

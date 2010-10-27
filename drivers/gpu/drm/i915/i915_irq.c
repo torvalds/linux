@@ -456,10 +456,9 @@ i915_error_object_create(struct drm_device *dev,
 
 		local_irq_save(flags);
 		s = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
-					     reloc_offset,
-					     KM_IRQ0);
+					     reloc_offset);
 		memcpy_fromio(d, s, PAGE_SIZE);
-		io_mapping_unmap_atomic(s, KM_IRQ0);
+		io_mapping_unmap_atomic(s);
 		local_irq_restore(flags);
 
 		dst->pages[page] = d;

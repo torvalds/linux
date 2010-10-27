@@ -343,8 +343,10 @@ static int __devinit phantom_probe(struct pci_dev *pdev,
 	int retval;
 
 	retval = pci_enable_device(pdev);
-	if (retval)
+	if (retval) {
+		dev_err(&pdev->dev, "pci_enable_device failed!\n");
 		goto err;
+	}
 
 	minor = phantom_get_free();
 	if (minor == PHANTOM_MAX_MINORS) {
@@ -356,8 +358,10 @@ static int __devinit phantom_probe(struct pci_dev *pdev,
 	phantom_devices[minor] = 1;
 
 	retval = pci_request_regions(pdev, "phantom");
-	if (retval)
+	if (retval) {
+		dev_err(&pdev->dev, "pci_request_regions failed!\n");
 		goto err_null;
+	}
 
 	retval = -ENOMEM;
 	pht = kzalloc(sizeof(*pht), GFP_KERNEL);

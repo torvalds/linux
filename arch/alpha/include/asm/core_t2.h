@@ -1,6 +1,9 @@
 #ifndef __ALPHA_T2__H__
 #define __ALPHA_T2__H__
 
+/* Fit everything into one 128MB HAE window. */
+#define T2_ONE_HAE_WINDOW 1
+
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <asm/compiler.h>
@@ -19,7 +22,7 @@
  *
  */
 
-#define T2_MEM_R1_MASK 0x07ffffff  /* Mem sparse region 1 mask is 26 bits */
+#define T2_MEM_R1_MASK 0x07ffffff  /* Mem sparse region 1 mask is 27 bits */
 
 /* GAMMA-SABLE is a SABLE with EV5-based CPUs */
 /* All LYNX machines, EV4 or EV5, use the GAMMA bias also */
@@ -85,7 +88,9 @@
 #define T2_DIR			(IDENT_ADDR + GAMMA_BIAS + 0x38e0004a0UL)
 #define T2_ICE			(IDENT_ADDR + GAMMA_BIAS + 0x38e0004c0UL)
 
+#ifndef T2_ONE_HAE_WINDOW
 #define T2_HAE_ADDRESS		T2_HAE_1
+#endif
 
 /*  T2 CSRs are in the non-cachable primary IO space from 3.8000.0000 to
  3.8fff.ffff
@@ -429,13 +434,15 @@ extern inline void t2_outl(u32 b, unsigned long addr)
  *
  */
 
+#ifdef T2_ONE_HAE_WINDOW
+#define t2_set_hae
+#else
 #define t2_set_hae { \
-	msb = addr  >> 27; \
+	unsigned long msb = addr >> 27; \
 	addr &= T2_MEM_R1_MASK; \
 	set_hae(msb); \
 }
-
-extern raw_spinlock_t t2_hae_lock;
+#endif
 
 /*
  * NOTE: take T2_DENSE_MEM off in each readX/writeX routine, since
@@ -446,28 +453,22 @@ extern raw_spinlock_t t2_hae_lock;
 __EXTERN_INLINE u8 t2_readb(const volatile void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr - T2_DENSE_MEM;
-	unsigned long result, msb;
-	unsigned long flags;
-	raw_spin_lock_irqsave(&t2_hae_lock, flags);
+	unsigned long result;
 
 	t2_set_hae;
 
 	result = *(vip) ((addr << 5) + T2_SPARSE_MEM + 0x00);
-	raw_spin_unlock_irqrestore(&t2_hae_lock, flags);
 	return __kernel_extbl(result, addr & 3);
 }
 
 __EXTERN_INLINE u16 t2_readw(const volatile void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr - T2_DENSE_MEM;
-	unsigned long result, msb;
-	unsigned long flags;
-	raw_spin_lock_irqsave(&t2_hae_lock, flags);
+	unsigned long result;
 
 	t2_set_hae;
 
 	result = *(vuip) ((addr << 5) + T2_SPARSE_MEM + 0x08);
-	raw_spin_unlock_irqrestore(&t2_hae_lock, flags);
 	return __kernel_extwl(result, addr & 3);
 }
 
@@ -478,59 +479,47 @@ __EXTERN_INLINE u16 t2_readw(const volatile void __iomem *xaddr)
 __EXTERN_INLINE u32 t2_readl(const volatile void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr - T2_DENSE_MEM;
-	unsigned long result, msb;
-	unsigned long flags;
-	raw_spin_lock_irqsave(&t2_hae_lock, flags);
+	unsigned long result;
 
 	t2_set_hae;
 
 	result = *(vuip) ((addr << 5) + T2_SPARSE_MEM + 0x18);
-	raw_spin_unlock_irqrestore(&t2_hae_lock, flags);
 	return result & 0xffffffffUL;
 }
 
 __EXTERN_INLINE u64 t2_readq(const volatile void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr - T2_DENSE_MEM;
-	unsigned long r0, r1, work, msb;
-	unsigned long flags;
-	raw_spin_lock_irqsave(&t2_hae_lock, flags);
+	unsigned long r0, r1, work;
 
 	t2_set_hae;
 
 	work = (addr << 5) + T2_SPARSE_MEM + 0x18;
 	r0 = *(vuip)(work);
 	r1 = *(vuip)(work + (4 << 5));
-	raw_spin_unlock_irqrestore(&t2_hae_lock, flags);
 	return r1 << 32 | r0;
 }
 
 __EXTERN_INLINE void t2_writeb(u8 b, volatile void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr - T2_DENSE_MEM;
-	unsigned long msb, w;
-	unsigned long flags;
-	raw_spin_lock_irqsave(&t2_hae_lock, flags);
+	unsigned long w;
 
 	t2_set_hae;
 
 	w = __kernel_insbl(b, addr & 3);
 	*(vuip) ((addr << 5) + T2_SPARSE_MEM + 0x00) = w;
-	raw_spin_unlock_irqrestore(&t2_hae_lock, flags);
 }
 
 __EXTERN_INLINE void t2_writew(u16 b, volatile void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr - T2_DENSE_MEM;
-	unsigned long msb, w;
-	unsigned long flags;
-	raw_spin_lock_irqsave(&t2_hae_lock, flags);
+	unsigned long w;
 
 	t2_set_hae;
 
 	w = __kernel_inswl(b, addr & 3);
 	*(vuip) ((addr << 5) + T2_SPARSE_MEM + 0x08) = w;
-	raw_spin_unlock_irqrestore(&t2_hae_lock, flags);
 }
 
 /*
@@ -540,29 +529,22 @@ __EXTERN_INLINE void t2_writew(u16 b, volatile void __iomem *xaddr)
 __EXTERN_INLINE void t2_writel(u32 b, volatile void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr - T2_DENSE_MEM;
-	unsigned long msb;
-	unsigned long flags;
-	raw_spin_lock_irqsave(&t2_hae_lock, flags);
 
 	t2_set_hae;
 
 	*(vuip) ((addr << 5) + T2_SPARSE_MEM + 0x18) = b;
-	raw_spin_unlock_irqrestore(&t2_hae_lock, flags);
 }
 
 __EXTERN_INLINE void t2_writeq(u64 b, volatile void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr - T2_DENSE_MEM;
-	unsigned long msb, work;
-	unsigned long flags;
-	raw_spin_lock_irqsave(&t2_hae_lock, flags);
+	unsigned long work;
 
 	t2_set_hae;
 
 	work = (addr << 5) + T2_SPARSE_MEM + 0x18;
 	*(vuip)work = b;
 	*(vuip)(work + (4 << 5)) = b >> 32;
-	raw_spin_unlock_irqrestore(&t2_hae_lock, flags);
 }
 
 __EXTERN_INLINE void __iomem *t2_ioportmap(unsigned long addr)

@@ -497,7 +497,6 @@ static int writeout(struct address_space *mapping, struct page *page)
 		.nr_to_write = 1,
 		.range_start = 0,
 		.range_end = LLONG_MAX,
-		.nonblocking = 1,
 		.for_reclaim = 1
 	};
 	int rc;
@@ -884,8 +883,9 @@ out:
  *
  * The function returns after 10 attempts or if no pages
  * are movable anymore because to has become empty
- * or no retryable pages exist anymore. All pages will be
- * returned to the LRU or freed.
+ * or no retryable pages exist anymore.
+ * Caller should call putback_lru_pages to return pages to the LRU
+ * or free list.
  *
  * Return: Number of pages not migrated or error code.
  */
@@ -931,8 +931,6 @@ int migrate_pages(struct list_head *from,
 out:
 	if (!swapwrite)
 		current->flags &= ~PF_SWAPWRITE;
-
-	putback_lru_pages(from);
 
 	if (rc)
 		return rc;
@@ -1039,7 +1037,7 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
 
 		err = -EFAULT;
 		vma = find_vma(mm, pp->addr);
-		if (!vma || !vma_migratable(vma))
+		if (!vma || pp->addr < vma->vm_start || !vma_migratable(vma))
 			goto set_status;
 
 		page = follow_page(vma, pp->addr, FOLL_GET);
@@ -1088,9 +1086,12 @@ set_status:
 	}
 
 	err = 0;
-	if (!list_empty(&pagelist))
+	if (!list_empty(&pagelist)) {
 		err = migrate_pages(&pagelist, new_page_node,
 				(unsigned long)pm, 0);
+		if (err)
+			putback_lru_pages(&pagelist);
+	}
 
 	up_read(&mm->mmap_sem);
 	return err;
@@ -1203,7 +1204,7 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
 		int err = -EFAULT;
 
 		vma = find_vma(mm, addr);
-		if (!vma)
+		if (!vma || addr < vma->vm_start)
 			goto set_status;
 
 		page = follow_page(vma, addr, 0);
