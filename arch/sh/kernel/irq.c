@@ -56,6 +56,8 @@ int show_interrupts(struct seq_file *p, void *v)
 	int i = *(loff_t *)v, j, prec;
 	struct irqaction *action;
 	struct irq_desc *desc;
+	struct irq_data *data;
+	struct irq_chip *chip;
 
 	if (i > nr_irqs)
 		return 0;
@@ -77,6 +79,9 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (!desc)
 		return 0;
 
+	data = irq_get_irq_data(i);
+	chip = irq_data_get_irq_chip(data);
+
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	for_each_online_cpu(j)
 		any_count |= kstat_irqs_cpu(i, j);
@@ -87,7 +92,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	seq_printf(p, "%*d: ", prec, i);
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-	seq_printf(p, " %14s", desc->chip->name);
+	seq_printf(p, " %14s", chip->name);
 	seq_printf(p, "-%-8s", desc->name);
 
 	if (action) {
