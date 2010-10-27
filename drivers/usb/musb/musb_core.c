@@ -1056,7 +1056,6 @@ static void musb_shutdown(struct platform_device *pdev)
 		usb_remove_hcd(musb_to_hcd(musb));
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	musb_platform_exit(musb);
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 
 	/* FIXME power down */
 }
