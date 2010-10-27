@@ -158,15 +158,15 @@ static int lnw_irq_type(unsigned irq, unsigned type)
 	spin_unlock_irqrestore(&lnw->lock, flags);
 
 	return 0;
-};
+}
 
 static void lnw_irq_unmask(unsigned irq)
 {
-};
+}
 
 static void lnw_irq_mask(unsigned irq)
 {
-};
+}
 
 static struct irq_chip lnw_irqchip = {
 	.name		= "LNW-GPIO",
