@@ -18,23 +18,22 @@
 
 unsigned int se7722_fpga_irq[SE7722_FPGA_IRQ_NR] = { 0, };
 
-static void disable_se7722_irq(unsigned int irq)
+static void disable_se7722_irq(struct irq_data *data)
 {
-	unsigned int bit = (unsigned int)get_irq_chip_data(irq);
+	unsigned int bit = (unsigned int)irq_data_get_irq_chip_data(data);
 	__raw_writew(__raw_readw(IRQ01_MASK) | 1 << bit, IRQ01_MASK);
 }
 
-static void enable_se7722_irq(unsigned int irq)
+static void enable_se7722_irq(struct irq_data *data)
 {
-	unsigned int bit = (unsigned int)get_irq_chip_data(irq);
+	unsigned int bit = (unsigned int)irq_data_get_irq_chip_data(data);
 	__raw_writew(__raw_readw(IRQ01_MASK) & ~(1 << bit), IRQ01_MASK);
 }
 
 static struct irq_chip se7722_irq_chip __read_mostly = {
-	.name           = "SE7722-FPGA",
-	.mask           = disable_se7722_irq,
-	.unmask         = enable_se7722_irq,
-	.mask_ack       = disable_se7722_irq,
+	.name		= "SE7722-FPGA",
+	.irq_mask	= disable_se7722_irq,
+	.irq_unmask	= enable_se7722_irq,
 };
 
 static void se7722_irq_demux(unsigned int irq, struct irq_desc *desc)

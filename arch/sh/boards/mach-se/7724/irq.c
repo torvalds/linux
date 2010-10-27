@@ -68,25 +68,26 @@ static struct fpga_irq get_fpga_irq(unsigned int irq)
 	return set;
 }
 
-static void disable_se7724_irq(unsigned int irq)
+static void disable_se7724_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	struct fpga_irq set = get_fpga_irq(fpga2irq(irq));
 	unsigned int bit = irq - set.base;
 	__raw_writew(__raw_readw(set.mraddr) | 0x0001 << bit, set.mraddr);
 }
 
-static void enable_se7724_irq(unsigned int irq)
+static void enable_se7724_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	struct fpga_irq set = get_fpga_irq(fpga2irq(irq));
 	unsigned int bit = irq - set.base;
 	__raw_writew(__raw_readw(set.mraddr) & ~(0x0001 << bit), set.mraddr);
 }
 
 static struct irq_chip se7724_irq_chip __read_mostly = {
-	.name           = "SE7724-FPGA",
-	.mask           = disable_se7724_irq,
-	.unmask         = enable_se7724_irq,
-	.mask_ack       = disable_se7724_irq,
+	.name		= "SE7724-FPGA",
+	.irq_mask	= disable_se7724_irq,
+	.irq_unmask	= enable_se7724_irq,
 };
 
 static void se7724_irq_demux(unsigned int irq, struct irq_desc *desc)
