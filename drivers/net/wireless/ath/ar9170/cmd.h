@@ -79,7 +79,7 @@ __regwrite_out :							\
 	if (__nreg) {							\
 		if (IS_ACCEPTING_CMD(__ar))				\
 			__err = ar->exec_cmd(__ar, AR9170_CMD_WREG,	\
-					     8 * __nreg, 		\
+					     8 * __nreg,		\
 					     (u8 *) &__ar->cmdbuf[1],	\
 					     0, NULL);			\
 		__nreg = 0;						\

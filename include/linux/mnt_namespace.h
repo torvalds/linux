@@ -35,6 +35,7 @@ static inline void get_mnt_ns(struct mnt_namespace *ns)
 extern const struct seq_operations mounts_op;
 extern const struct seq_operations mountinfo_op;
 extern const struct seq_operations mountstats_op;
+extern int mnt_had_events(struct proc_mounts *);
 
 #endif
 #endif

@@ -524,6 +524,7 @@ static int simple_radio_bandswitch(struct dvb_frontend *fe, u8 *buffer)
 		buffer[3] = 0x39;
 		break;
 	case TUNER_PHILIPS_FQ1216LME_MK3:
+	case TUNER_PHILIPS_FQ1236_MK5:
 		tuner_err("This tuner doesn't have FM\n");
 		/* Set the low band for sanity, since it covers 88-108 MHz */
 		buffer[3] = 0x01;
@@ -545,13 +546,10 @@ static int simple_set_tv_freq(struct dvb_frontend *fe,
 	struct tuner_simple_priv *priv = fe->tuner_priv;
 	u8 config, cb;
 	u16 div;
-	struct tunertype *tun;
 	u8 buffer[4];
 	int rc, IFPCoff, i;
 	enum param_type desired_type;
 	struct tuner_params *t_params;
-
-	tun = priv->tun;
 
 	/* IFPCoff = Video Intermediate Frequency - Vif:
 		940  =16*58.75  NTSC/J (Japan)

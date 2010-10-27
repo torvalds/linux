@@ -78,12 +78,14 @@
  *
  */
 
-void uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type)
+void uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,
+		    int drop_corrupted)
 {
 	mutex_init(&queue->mutex);
 	spin_lock_init(&queue->irqlock);
 	INIT_LIST_HEAD(&queue->mainqueue);
 	INIT_LIST_HEAD(&queue->irqqueue);
+	queue->flags = drop_corrupted ? UVC_QUEUE_DROP_CORRUPTED : 0;
 	queue->type = type;
 }
 
@@ -388,8 +390,12 @@ unsigned int uvc_queue_poll(struct uvc_video_queue *queue, struct file *file,
 
 	poll_wait(file, &buf->wait, wait);
 	if (buf->state == UVC_BUF_STATE_DONE ||
-	    buf->state == UVC_BUF_STATE_ERROR)
-		mask |= POLLIN | POLLRDNORM;
+	    buf->state == UVC_BUF_STATE_ERROR) {
+		if (queue->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+			mask |= POLLIN | POLLRDNORM;
+		else
+			mask |= POLLOUT | POLLWRNORM;
+	}
 
 done:
 	mutex_unlock(&queue->mutex);
@@ -431,8 +437,10 @@ int uvc_queue_enable(struct uvc_video_queue *queue, int enable)
 		uvc_queue_cancel(queue, 0);
 		INIT_LIST_HEAD(&queue->mainqueue);
 
-		for (i = 0; i < queue->count; ++i)
+		for (i = 0; i < queue->count; ++i) {
+			queue->buffer[i].error = 0;
 			queue->buffer[i].state = UVC_BUF_STATE_IDLE;
+		}
 
 		queue->flags &= ~UVC_QUEUE_STREAMING;
 	}
@@ -484,8 +492,8 @@ struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 	struct uvc_buffer *nextbuf;
 	unsigned long flags;
 
-	if ((queue->flags & UVC_QUEUE_DROP_INCOMPLETE) &&
-	    buf->buf.length != buf->buf.bytesused) {
+	if ((queue->flags & UVC_QUEUE_DROP_CORRUPTED) && buf->error) {
+		buf->error = 0;
 		buf->state = UVC_BUF_STATE_QUEUED;
 		buf->buf.bytesused = 0;
 		return buf;
@@ -493,6 +501,7 @@ struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 
 	spin_lock_irqsave(&queue->irqlock, flags);
 	list_del(&buf->queue);
+	buf->error = 0;
 	buf->state = UVC_BUF_STATE_DONE;
 	if (!list_empty(&queue->irqqueue))
 		nextbuf = list_first_entry(&queue->irqqueue, struct uvc_buffer,
@@ -502,7 +511,6 @@ struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 	spin_unlock_irqrestore(&queue->irqlock, flags);
 
 	buf->buf.sequence = queue->sequence++;
-	do_gettimeofday(&buf->buf.timestamp);
 
 	wake_up(&buf->wait);
 	return nextbuf;

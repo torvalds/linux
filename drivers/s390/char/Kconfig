@@ -148,12 +148,11 @@ config VMLOGRDR
 	  This driver depends on the IUCV support driver.
 
 config VMCP
-	tristate "Support for the z/VM CP interface (VM only)"
+	bool "Support for the z/VM CP interface"
 	depends on S390
 	help
 	  Select this option if you want to be able to interact with the control
 	  program on z/VM
-
 
 config MONREADER
 	tristate "API for reading z/VM monitor service records"

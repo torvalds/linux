@@ -38,8 +38,6 @@
 typedef __u32 zorro_id;
 
 
-#define ZORRO_WILDCARD		(0xffffffff)	/* not official */
-
 /* Include the ID list */
 #include <linux/zorro_ids.h>
 
@@ -116,6 +114,7 @@ struct ConfigDev {
 
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/mod_devicetable.h>
 
 #include <asm/zorro.h>
 
@@ -142,26 +141,7 @@ struct zorro_dev {
      *  Zorro bus
      */
 
-struct zorro_bus {
-    struct list_head devices;		/* list of devices on this bus */
-    unsigned int num_resources;		/* number of resources */
-    struct resource resources[4];	/* address space routed to this bus */
-    struct device dev;
-    char name[10];
-};
-
-extern struct zorro_bus zorro_bus;	/* single Zorro bus */
 extern struct bus_type zorro_bus_type;
-
-
-    /*
-     *  Zorro device IDs
-     */
-
-struct zorro_device_id {
-	zorro_id id;			/* Device ID or ZORRO_WILDCARD */
-	unsigned long driver_data;	/* Data private to the driver */
-};
 
 
     /*

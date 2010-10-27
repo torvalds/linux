@@ -102,16 +102,16 @@ static void __init setup_itimer(void)
 	clockevents_register_device(&itimer_clockevent);
 }
 
+void read_persistent_clock(struct timespec *ts)
+{
+	long long nsecs = os_nsecs();
+
+	set_normalized_timespec(ts, nsecs / NSEC_PER_SEC,
+				nsecs % NSEC_PER_SEC);
+}
+
 void __init time_init(void)
 {
-	long long nsecs;
-
 	timer_init();
-
-	nsecs = os_nsecs();
-	set_normalized_timespec(&wall_to_monotonic, -nsecs / NSEC_PER_SEC,
-				-nsecs % NSEC_PER_SEC);
-	set_normalized_timespec(&xtime, nsecs / NSEC_PER_SEC,
-				nsecs % NSEC_PER_SEC);
 	late_time_init = setup_itimer;
 }

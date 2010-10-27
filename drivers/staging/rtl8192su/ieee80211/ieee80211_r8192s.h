@@ -172,18 +172,20 @@ enum {
 	IG_Max
 };
 
-typedef enum _LED_CTL_MODE {
-	LED_CTL_POWER_ON	 = 1,
-	LED_CTL_LINK		 = 2,
-	LED_CTL_NO_LINK		 = 3,
-	LED_CTL_TX		 = 4,
-	LED_CTL_RX		 = 5,
-	LED_CTL_SITE_SURVEY	 = 6,
-	LED_CTL_POWER_OFF	 = 7,
-	LED_CTL_START_TO_LINK	 = 8,
-	LED_CTL_START_WPS	 = 9,
-	LED_CTL_STOP_WPS	 = 10,
+typedef enum _LED_CTL_MODE{
+	LED_CTL_POWER_ON = 1,
+	LED_CTL_LINK = 2,
+	LED_CTL_NO_LINK = 3,
+	LED_CTL_TX = 4,
+	LED_CTL_RX = 5,
+	LED_CTL_SITE_SURVEY = 6,
+	LED_CTL_POWER_OFF = 7,
+	LED_CTL_START_TO_LINK = 8,
+	LED_CTL_START_WPS = 9,
+	LED_CTL_STOP_WPS = 10,
 	LED_CTL_START_WPS_BOTTON = 11,
+	LED_CTL_STOP_WPS_FAIL = 12,
+	LED_CTL_STOP_WPS_FAIL_OVERLAP = 13,
 } LED_CTL_MODE;
 
 typedef union _frameqos {
@@ -201,7 +203,7 @@ typedef union _frameqos {
 static inline u8 Frame_QoSTID(u8 *buf)
 {
 	struct ieee80211_hdr_3addr *hdr = (struct ieee80211_hdr_3addr *)buf;
-	u16 fc = le16_to_cpu(hdr->frame_ctl);
+	u16 fc = le16_to_cpu(hdr->frame_control);
 
 	return (u8)((frameqos *)(buf +
 		(((fc & IEEE80211_FCTL_TODS) &&
@@ -337,28 +339,39 @@ enum {
 };
 
 /* Firmware related CMD IO. */
-typedef enum _FW_CMD_IO_TYPE {
-	FW_CMD_DIG_ENABLE = 0,		/* for DIG DM */
+typedef	enum _FW_CMD_IO_TYPE{
+	FW_CMD_DIG_ENABLE = 0, /* for DIG DM */
 	FW_CMD_DIG_DISABLE = 1,
 	FW_CMD_DIG_HALT = 2,
 	FW_CMD_DIG_RESUME = 3,
-	FW_CMD_HIGH_PWR_ENABLE = 4,	/* for High Power DM */
+	FW_CMD_HIGH_PWR_ENABLE = 4, /* for DIG DM */
 	FW_CMD_HIGH_PWR_DISABLE = 5,
-	FW_CMD_RA_RESET = 6,		/* for Rate adaptive DM */
-	FW_CMD_RA_ACTIVE = 7,
-	FW_CMD_RA_REFRESH_N = 8,
-	FW_CMD_RA_REFRESH_BG = 9,
-	FW_CMD_IQK_ENABLE = 10,		/* for FW supported IQK */
-	FW_CMD_TXPWR_TRACK_ENABLE = 11,	/* Tx power tracking switch */
-	FW_CMD_TXPWR_TRACK_DISABLE = 12,/* Tx power tracking switch */
-	FW_CMD_PAUSE_DM_BY_SCAN = 13,
-	FW_CMD_RESUME_DM_BY_SCAN = 14,
-	FW_CMD_MID_HIGH_PWR_ENABLE = 15,
+	FW_CMD_RA_RESET = 6, /* for DIG DM */
+	FW_CMD_RA_ACTIVE= 7,
+	FW_CMD_RA_REFRESH_N= 8,
+	FW_CMD_RA_REFRESH_BG= 9,
+	FW_CMD_RA_INIT= 10, /* for FW supported IQK */
+	FW_CMD_IQK_ENABLE = 11, /* Tx power tracking switch */
+	FW_CMD_TXPWR_TRACK_ENABLE = 12, /* Tx power tracking switch */
+	FW_CMD_TXPWR_TRACK_DISABLE = 13,
+	FW_CMD_TXPWR_TRACK_THERMAL = 14,
+	FW_CMD_PAUSE_DM_BY_SCAN = 15,
 	/* indicate firmware that driver enters LPS, for PS-Poll hardware bug */
-	FW_CMD_LPS_ENTER = 16,
+	FW_CMD_RESUME_DM_BY_SCAN = 16,
 	/* indicate firmware that driver leave LPS */
-	FW_CMD_LPS_LEAVE = 17,
-} FW_CMD_IO_TYPE;
+	FW_CMD_RA_REFRESH_N_COMB = 17,
+	FW_CMD_RA_REFRESH_BG_COMB = 18,
+	FW_CMD_ANTENNA_SW_ENABLE = 19,
+	FW_CMD_ANTENNA_SW_DISABLE = 20,
+	FW_CMD_TX_FEEDBACK_CCX_ENABLE = 21,
+	FW_CMD_LPS_ENTER = 22,
+	FW_CMD_LPS_LEAVE = 23,
+	FW_CMD_DIG_MODE_SS = 24,
+	FW_CMD_DIG_MODE_FA = 25,
+	FW_CMD_ADD_A2_ENTRY = 26,
+	FW_CMD_CTRL_DM_BY_DRIVER = 27,
+	FW_CMD_CTRL_DM_BY_DRIVER_NEW = 28,
+}FW_CMD_IO_TYPE,*PFW_CMD_IO_TYPE;
 
 #define RT_MAX_LD_SLOT_NUM	10
 struct rt_link_detect {

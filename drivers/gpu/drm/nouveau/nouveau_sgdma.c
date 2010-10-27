@@ -1,6 +1,7 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 
 #define NV_CTXDMA_PAGE_SHIFT 12
 #define NV_CTXDMA_PAGE_SIZE  (1 << NV_CTXDMA_PAGE_SHIFT)
@@ -54,11 +55,12 @@ static void
 nouveau_sgdma_clear(struct ttm_backend *be)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)be;
-	struct drm_device *dev = nvbe->dev;
-
-	NV_DEBUG(nvbe->dev, "\n");
+	struct drm_device *dev;
 
 	if (nvbe && nvbe->pages) {
+		dev = nvbe->dev;
+		NV_DEBUG(dev, "\n");
+
 		if (nvbe->bound)
 			be->func->unbind(be);
 
@@ -95,7 +97,6 @@ nouveau_sgdma_bind(struct ttm_backend *be, struct ttm_mem_reg *mem)
 
 	NV_DEBUG(dev, "pg=0x%lx\n", mem->mm_node->start);
 
-	dev_priv->engine.instmem.prepare_access(nvbe->dev, true);
 	pte = nouveau_sgdma_pte(nvbe->dev, mem->mm_node->start << PAGE_SHIFT);
 	nvbe->pte_start = pte;
 	for (i = 0; i < nvbe->nr_pages; i++) {
@@ -114,24 +115,11 @@ nouveau_sgdma_bind(struct ttm_backend *be, struct ttm_mem_reg *mem)
 			dma_offset += NV_CTXDMA_PAGE_SIZE;
 		}
 	}
-	dev_priv->engine.instmem.finish_access(nvbe->dev);
+	dev_priv->engine.instmem.flush(nvbe->dev);
 
 	if (dev_priv->card_type == NV_50) {
-		nv_wr32(dev, 0x100c80, 0x00050001);
-		if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
-			NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
-			NV_ERROR(dev, "0x100c80 = 0x%08x\n",
-						nv_rd32(dev, 0x100c80));
-			return -EBUSY;
-		}
-
-		nv_wr32(dev, 0x100c80, 0x00000001);
-		if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
-			NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
-			NV_ERROR(dev, "0x100c80 = 0x%08x\n",
-						nv_rd32(dev, 0x100c80));
-			return -EBUSY;
-		}
+		nv50_vm_flush(dev, 5); /* PGRAPH */
+		nv50_vm_flush(dev, 0); /* PFIFO */
 	}
 
 	nvbe->bound = true;
@@ -152,7 +140,6 @@ nouveau_sgdma_unbind(struct ttm_backend *be)
 	if (!nvbe->bound)
 		return 0;
 
-	dev_priv->engine.instmem.prepare_access(nvbe->dev, true);
 	pte = nvbe->pte_start;
 	for (i = 0; i < nvbe->nr_pages; i++) {
 		dma_addr_t dma_offset = dev_priv->gart_info.sg_dummy_bus;
@@ -168,7 +155,12 @@ nouveau_sgdma_unbind(struct ttm_backend *be)
 			dma_offset += NV_CTXDMA_PAGE_SIZE;
 		}
 	}
-	dev_priv->engine.instmem.finish_access(nvbe->dev);
+	dev_priv->engine.instmem.flush(nvbe->dev);
+
+	if (dev_priv->card_type == NV_50) {
+		nv50_vm_flush(dev, 5);
+		nv50_vm_flush(dev, 0);
+	}
 
 	nvbe->bound = false;
 	return 0;
@@ -222,6 +214,7 @@ int
 nouveau_sgdma_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct pci_dev *pdev = dev->pdev;
 	struct nouveau_gpuobj *gpuobj = NULL;
 	uint32_t aper_size, obj_size;
 	int i, ret;
@@ -247,12 +240,20 @@ nouveau_sgdma_init(struct drm_device *dev)
 
 	dev_priv->gart_info.sg_dummy_page =
 		alloc_page(GFP_KERNEL|__GFP_DMA32);
+	if (!dev_priv->gart_info.sg_dummy_page) {
+		nouveau_gpuobj_del(dev, &gpuobj);
+		return -ENOMEM;
+	}
+
 	set_bit(PG_locked, &dev_priv->gart_info.sg_dummy_page->flags);
 	dev_priv->gart_info.sg_dummy_bus =
-		pci_map_page(dev->pdev, dev_priv->gart_info.sg_dummy_page, 0,
+		pci_map_page(pdev, dev_priv->gart_info.sg_dummy_page, 0,
 			     PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+	if (pci_dma_mapping_error(pdev, dev_priv->gart_info.sg_dummy_bus)) {
+		nouveau_gpuobj_del(dev, &gpuobj);
+		return -EFAULT;
+	}
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	if (dev_priv->card_type < NV_50) {
 		/* Maybe use NV_DMA_TARGET_AGP for PCIE? NVIDIA do this, and
 		 * confirmed to work on c51.  Perhaps means NV_DMA_TARGET_PCIE
@@ -274,7 +275,7 @@ nouveau_sgdma_init(struct drm_device *dev)
 			nv_wo32(dev, gpuobj, (i+4)/4, 0);
 		}
 	}
-	dev_priv->engine.instmem.finish_access(dev);
+	dev_priv->engine.instmem.flush(dev);
 
 	dev_priv->gart_info.type      = NOUVEAU_GART_SGDMA;
 	dev_priv->gart_info.aper_base = 0;
@@ -305,14 +306,11 @@ nouveau_sgdma_get_page(struct drm_device *dev, uint32_t offset, uint32_t *page)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *gpuobj = dev_priv->gart_info.sg_ctxdma;
-	struct nouveau_instmem_engine *instmem = &dev_priv->engine.instmem;
 	int pte;
 
 	pte = (offset >> NV_CTXDMA_PAGE_SHIFT);
 	if (dev_priv->card_type < NV_50) {
-		instmem->prepare_access(dev, false);
 		*page = nv_ro32(dev, gpuobj, (pte + 2)) & ~NV_CTXDMA_PAGE_MASK;
-		instmem->finish_access(dev);
 		return 0;
 	}
 

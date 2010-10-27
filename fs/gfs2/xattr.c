@@ -1296,6 +1296,7 @@ fail:
 
 int gfs2_xattr_acl_chmod(struct gfs2_inode *ip, struct iattr *attr, char *data)
 {
+	struct inode *inode = &ip->i_inode;
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_ea_location el;
 	struct buffer_head *dibh;
@@ -1321,14 +1322,25 @@ int gfs2_xattr_acl_chmod(struct gfs2_inode *ip, struct iattr *attr, char *data)
 		return error;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (!error) {
-		error = inode_setattr(&ip->i_inode, attr);
-		gfs2_assert_warn(GFS2_SB(&ip->i_inode), !error);
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(ip, dibh->b_data);
-		brelse(dibh);
+	if (error)
+		goto out_trans_end;
+
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		int error;
+
+		error = vmtruncate(inode, attr->ia_size);
+		gfs2_assert_warn(GFS2_SB(inode), !error);
 	}
 
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_dinode_out(ip, dibh->b_data);
+	brelse(dibh);
+
+out_trans_end:
 	gfs2_trans_end(sdp);
 	return error;
 }
@@ -1535,21 +1547,21 @@ out_alloc:
 	return error;
 }
 
-static struct xattr_handler gfs2_xattr_user_handler = {
+static const struct xattr_handler gfs2_xattr_user_handler = {
 	.prefix = XATTR_USER_PREFIX,
 	.flags  = GFS2_EATYPE_USR,
 	.get    = gfs2_xattr_get,
 	.set    = gfs2_xattr_set,
 };
 
-static struct xattr_handler gfs2_xattr_security_handler = {
+static const struct xattr_handler gfs2_xattr_security_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.flags  = GFS2_EATYPE_SECURITY,
 	.get    = gfs2_xattr_get,
 	.set    = gfs2_xattr_set,
 };
 
-struct xattr_handler *gfs2_xattr_handlers[] = {
+const struct xattr_handler *gfs2_xattr_handlers[] = {
 	&gfs2_xattr_user_handler,
 	&gfs2_xattr_security_handler,
 	&gfs2_xattr_system_handler,

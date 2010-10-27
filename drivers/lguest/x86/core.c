@@ -288,6 +288,18 @@ static int emulate_insn(struct lg_cpu *cpu)
 	insn = lgread(cpu, physaddr, u8);
 
 	/*
+	 * Around 2.6.33, the kernel started using an emulation for the
+	 * cmpxchg8b instruction in early boot on many configurations.  This
+	 * code isn't paravirtualized, and it tries to disable interrupts.
+	 * Ignore it, which will Mostly Work.
+	 */
+	if (insn == 0xfa) {
+		/* "cli", or Clear Interrupt Enable instruction.  Skip it. */
+		cpu->regs->eip++;
+		return 1;
+	}
+
+	/*
 	 * 0x66 is an "operand prefix".  It means it's using the upper 16 bits
 	 * of the eax register.
 	 */

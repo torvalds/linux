@@ -50,12 +50,12 @@ enum bfa_port_role {
  * FCS port configuration.
  */
 struct bfa_port_cfg_s {
-    wwn_t               pwwn;       /*  port wwn */
-    wwn_t               nwwn;       /*  node wwn */
-    struct bfa_port_symname_s  sym_name;   /*  vm port symbolic name */
-    enum bfa_port_role     roles;      /*  FCS port roles */
-	u32			rsvd;
-    u8             tag[16];	/*  opaque tag from application */
+	wwn_t               pwwn;       /*  port wwn */
+	wwn_t               nwwn;       /*  node wwn */
+	struct bfa_port_symname_s  sym_name;   /*  vm port symbolic name */
+	bfa_boolean_t       preboot_vp;  /* vport created from PBC */
+	enum bfa_port_role     roles;      /*  FCS port roles */
+	u8             tag[16];	/*  opaque tag from application */
 };
 
 /**
@@ -159,7 +159,7 @@ struct bfa_port_stats_s {
 	u32        ms_plogi_rsp_err;
 	u32        ms_plogi_acc_err;
 	u32        ms_plogi_accepts;
-	u32        ms_rejects;	/* NS command rejects */
+	u32        ms_rejects;	/* MS command rejects */
 	u32        ms_plogi_unknown_rsp;
 	u32        ms_plogi_alloc_wait;
 
@@ -185,6 +185,8 @@ struct bfa_port_attr_s {
 	wwn_t		fabric_name; /*  attached switch's nwwn */
 	u8		fabric_ip_addr[BFA_FCS_FABRIC_IPADDR_SZ]; /*  attached
 							* fabric's ip addr */
+	struct mac_s    fpma_mac;	/*  Lport's FPMA Mac address */
+	u16     authfail;		/*  auth failed state */
 };
 
 /**
@@ -232,14 +234,15 @@ enum bfa_port_aen_sfp_pom {
 };
 
 struct bfa_port_aen_data_s {
-	enum bfa_ioc_type_e ioc_type;
-	wwn_t           pwwn;	      /*  WWN of the physical port */
-	wwn_t           fwwn;	      /*  WWN of the fabric port */
-	mac_t           mac;	      /*  MAC addres of the ethernet port,
-				       * applicable to CNA port only */
-	int             phy_port_num; /*! For SFP related events */
-	enum bfa_port_aen_sfp_pom level; /*  Only transitions will
-					  * be informed */
+	wwn_t           pwwn;         /*  WWN of the physical port */
+	wwn_t           fwwn;         /*  WWN of the fabric port */
+	s32         phy_port_num; /*! For SFP related events */
+	s16         ioc_type;
+	s16         level;        /*  Only transitions will
+					* be informed */
+	struct mac_s    mac;          /*  MAC address of the ethernet port,
+					* applicable to CNA port only */
+	s16         rsvd;
 };
 
 #endif /* __BFA_DEFS_PORT_H__ */

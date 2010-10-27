@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef __ASM_ARCH_OMAP24XX_H
-#define __ASM_ARCH_OMAP24XX_H
+#ifndef __ASM_ARCH_OMAP2_H
+#define __ASM_ARCH_OMAP2_H
 
 /*
  * Please place only base defines here and put the rest in device
@@ -85,5 +85,5 @@
 #define OMAP24XX_SEC_AES_BASE	(OMAP24XX_SEC_BASE + 0x6000)
 #define OMAP24XX_SEC_PKA_BASE	(OMAP24XX_SEC_BASE + 0x8000)
 
-#endif /* __ASM_ARCH_OMAP24XX_H */
+#endif /* __ASM_ARCH_OMAP2_H */
 

@@ -42,21 +42,31 @@
 #endif
 
 struct drm_mm_node {
-	struct list_head fl_entry;
-	struct list_head ml_entry;
-	int free;
+	struct list_head free_stack;
+	struct list_head node_list;
+	unsigned free : 1;
+	unsigned scanned_block : 1;
+	unsigned scanned_prev_free : 1;
+	unsigned scanned_next_free : 1;
 	unsigned long start;
 	unsigned long size;
 	struct drm_mm *mm;
-	void *private;
 };
 
 struct drm_mm {
-	struct list_head fl_entry;
-	struct list_head ml_entry;
+	/* List of free memory blocks, most recently freed ordered. */
+	struct list_head free_stack;
+	/* List of all memory nodes, ordered according to the (increasing) start
+	 * address of the memory node. */
+	struct list_head node_list;
 	struct list_head unused_nodes;
 	int num_unused;
 	spinlock_t unused_lock;
+	unsigned scan_alignment;
+	unsigned long scan_size;
+	unsigned long scan_hit_start;
+	unsigned scan_hit_size;
+	unsigned scanned_blocks;
 };
 
 /*
@@ -132,6 +142,11 @@ static inline struct drm_mm *drm_get_mm(struct drm_mm_node *block)
 {
 	return block->mm;
 }
+
+void drm_mm_init_scan(struct drm_mm *mm, unsigned long size,
+		      unsigned alignment);
+int drm_mm_scan_add_block(struct drm_mm_node *node);
+int drm_mm_scan_remove_block(struct drm_mm_node *node);
 
 extern void drm_mm_debug_table(struct drm_mm *mm, const char *prefix);
 #ifdef CONFIG_DEBUG_FS

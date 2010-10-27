@@ -57,6 +57,7 @@
 #define OMAPFB_WAITFORGO	OMAP_IO(60)
 #define OMAPFB_GET_VRAM_INFO	OMAP_IOR(61, struct omapfb_vram_info)
 #define OMAPFB_SET_TEARSYNC	OMAP_IOW(62, struct omapfb_tearsync_info)
+#define OMAPFB_GET_DISPLAY_INFO	OMAP_IOR(63, struct omapfb_display_info)
 
 #define OMAPFB_CAPS_GENERIC_MASK	0x00000fff
 #define OMAPFB_CAPS_LCDC_MASK		0x00fff000
@@ -83,6 +84,9 @@
 #define OMAPFB_MEMTYPE_SDRAM		0
 #define OMAPFB_MEMTYPE_SRAM		1
 #define OMAPFB_MEMTYPE_MAX		1
+
+#define OMAPFB_MEM_IDX_ENABLED	0x80
+#define OMAPFB_MEM_IDX_MASK	0x7f
 
 enum omapfb_color_format {
 	OMAPFB_COLOR_RGB565 = 0,
@@ -135,7 +139,7 @@ struct omapfb_plane_info {
 	__u8  enabled;
 	__u8  channel_out;
 	__u8  mirror;
-	__u8  reserved1;
+	__u8  mem_idx;
 	__u32 out_width;
 	__u32 out_height;
 	__u32 reserved2[12];
@@ -206,6 +210,14 @@ struct omapfb_tearsync_info {
 	__u16 reserved2;
 };
 
+struct omapfb_display_info {
+	__u16 xres;
+	__u16 yres;
+	__u32 width;	/* phys width of the display in micrometers */
+	__u32 height;	/* phys height of the display in micrometers */
+	__u32 reserved[5];
+};
+
 #ifdef __KERNEL__
 
 #include <plat/board.h>
@@ -244,7 +256,7 @@ struct omapfb_platform_data {
 /* in arch/arm/plat-omap/fb.c */
 extern void omapfb_set_platform_data(struct omapfb_platform_data *data);
 extern void omapfb_set_ctrl_platform_data(void *pdata);
-extern void omapfb_reserve_sdram(void);
+extern void omapfb_reserve_sdram_memblock(void);
 
 #endif
 

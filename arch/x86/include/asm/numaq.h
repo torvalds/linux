@@ -30,8 +30,13 @@
 
 extern int found_numaq;
 extern int get_memcfg_numaq(void);
+extern int pci_numaq_init(void);
 
 extern void *xquad_portio;
+
+#define XQUAD_PORTIO_BASE 0xfe400000
+#define XQUAD_PORTIO_QUAD 0x40000  /* 256k per quad. */
+#define XQUAD_PORT_ADDR(port, quad) (xquad_portio + (XQUAD_PORTIO_QUAD*quad) + port)
 
 /*
  * SYS_CFG_DATA_PRIV_ADDR, struct eachquadmem, and struct sys_cfg_data are the

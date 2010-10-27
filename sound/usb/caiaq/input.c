@@ -16,9 +16,11 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
+#include <sound/core.h>
 #include <sound/pcm.h>
 
 #include "device.h"
@@ -64,6 +66,8 @@ static unsigned short keycode_kore[] = {
 	KEY_BRL_DOT6,
 	KEY_BRL_DOT5
 };
+
+#define KONTROLX1_INPUTS 40
 
 #define DEG90		(range / 2)
 #define DEG180		(range)
@@ -162,6 +166,17 @@ static void snd_caiaq_input_read_analog(struct snd_usb_caiaqdev *dev,
 		input_report_abs(input_dev, ABS_Z, (buf[4] << 8) | buf[5]);
 		input_sync(input_dev);
 		break;
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
+		input_report_abs(input_dev, ABS_HAT0X, (buf[8] << 8)  | buf[9]);
+		input_report_abs(input_dev, ABS_HAT0Y, (buf[4] << 8)  | buf[5]);
+		input_report_abs(input_dev, ABS_HAT1X, (buf[12] << 8) | buf[13]);
+		input_report_abs(input_dev, ABS_HAT1Y, (buf[2] << 8)  | buf[3]);
+		input_report_abs(input_dev, ABS_HAT2X, (buf[14] << 8) | buf[15]);
+		input_report_abs(input_dev, ABS_HAT2Y, (buf[0] << 8)  | buf[1]);
+		input_report_abs(input_dev, ABS_HAT3X, (buf[10] << 8) | buf[11]);
+		input_report_abs(input_dev, ABS_HAT3Y, (buf[6] << 8)  | buf[7]);
+		input_sync(input_dev);
+		break;
 	}
 }
 
@@ -201,7 +216,7 @@ static void snd_caiaq_input_read_erp(struct snd_usb_caiaqdev *dev,
 }
 
 static void snd_caiaq_input_read_io(struct snd_usb_caiaqdev *dev,
-				    char *buf, unsigned int len)
+				    unsigned char *buf, unsigned int len)
 {
 	struct input_dev *input_dev = dev->input_dev;
 	unsigned short *keycode = input_dev->keycode;
@@ -218,13 +233,82 @@ static void snd_caiaq_input_read_io(struct snd_usb_caiaqdev *dev,
 		input_report_key(input_dev, keycode[i],
 				 buf[i / 8] & (1 << (i % 8)));
 
-	if (dev->chip.usb_id ==
-		USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER) ||
-	    dev->chip.usb_id ==
-		USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER2))
+	switch (dev->chip.usb_id) {
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER):
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER2):
 		input_report_abs(dev->input_dev, ABS_MISC, 255 - buf[4]);
+		break;
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
+		/* rotary encoders */
+		input_report_abs(dev->input_dev, ABS_X, buf[5] & 0xf);
+		input_report_abs(dev->input_dev, ABS_Y, buf[5] >> 4);
+		input_report_abs(dev->input_dev, ABS_Z, buf[6] & 0xf);
+		input_report_abs(dev->input_dev, ABS_MISC, buf[6] >> 4);
+		break;
+	}
 
 	input_sync(input_dev);
+}
+
+static void snd_usb_caiaq_ep4_reply_dispatch(struct urb *urb)
+{
+	struct snd_usb_caiaqdev *dev = urb->context;
+	unsigned char *buf = urb->transfer_buffer;
+	int ret;
+
+	if (urb->status || !dev || urb != dev->ep4_in_urb)
+		return;
+
+	if (urb->actual_length < 24)
+		goto requeue;
+
+	switch (dev->chip.usb_id) {
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
+		if (buf[0] & 0x3)
+			snd_caiaq_input_read_io(dev, buf + 1, 7);
+
+		if (buf[0] & 0x4)
+			snd_caiaq_input_read_analog(dev, buf + 8, 16);
+
+		break;
+	}
+
+requeue:
+	dev->ep4_in_urb->actual_length = 0;
+	ret = usb_submit_urb(dev->ep4_in_urb, GFP_ATOMIC);
+	if (ret < 0)
+		log("unable to submit urb. OOM!?\n");
+}
+
+static int snd_usb_caiaq_input_open(struct input_dev *idev)
+{
+	struct snd_usb_caiaqdev *dev = input_get_drvdata(idev);
+
+	if (!dev)
+		return -EINVAL;
+
+	switch (dev->chip.usb_id) {
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
+		if (usb_submit_urb(dev->ep4_in_urb, GFP_KERNEL) != 0)
+			return -EIO;
+		break;
+	}
+
+	return 0;
+}
+
+static void snd_usb_caiaq_input_close(struct input_dev *idev)
+{
+	struct snd_usb_caiaqdev *dev = input_get_drvdata(idev);
+
+	if (!dev)
+		return;
+
+	switch (dev->chip.usb_id) {
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
+		usb_kill_urb(dev->ep4_in_urb);
+		break;
+	}
 }
 
 void snd_usb_caiaq_input_dispatch(struct snd_usb_caiaqdev *dev,
@@ -251,7 +335,7 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *dev)
 {
 	struct usb_device *usb_dev = dev->chip.dev;
 	struct input_dev *input;
-	int i, ret;
+	int i, ret = 0;
 
 	input = input_allocate_device();
 	if (!input)
@@ -265,7 +349,9 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *dev)
 	usb_to_input_id(usb_dev, &input->id);
 	input->dev.parent = &usb_dev->dev;
 
-        switch (dev->chip.usb_id) {
+	input_set_drvdata(input, dev);
+
+	switch (dev->chip.usb_id) {
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_RIGKONTROL2):
 		input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 		input->absbit[0] = BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) |
@@ -326,31 +412,82 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *dev)
 		input_set_abs_params(input, ABS_MISC, 0, 255, 0, 1);
 		snd_usb_caiaq_set_auto_msg(dev, 1, 10, 5);
 		break;
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
+		input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+		input->absbit[0] = BIT_MASK(ABS_HAT0X) | BIT_MASK(ABS_HAT0Y) |
+				   BIT_MASK(ABS_HAT1X) | BIT_MASK(ABS_HAT1Y) |
+				   BIT_MASK(ABS_HAT2X) | BIT_MASK(ABS_HAT2Y) |
+				   BIT_MASK(ABS_HAT3X) | BIT_MASK(ABS_HAT3Y) |
+				   BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) |
+				   BIT_MASK(ABS_Z);
+		input->absbit[BIT_WORD(ABS_MISC)] |= BIT_MASK(ABS_MISC);
+		BUILD_BUG_ON(sizeof(dev->keycode) < KONTROLX1_INPUTS);
+		for (i = 0; i < KONTROLX1_INPUTS; i++)
+			dev->keycode[i] = BTN_MISC + i;
+		input->keycodemax = KONTROLX1_INPUTS;
+
+		/* analog potentiometers */
+		input_set_abs_params(input, ABS_HAT0X, 0, 4096, 0, 10);
+		input_set_abs_params(input, ABS_HAT0Y, 0, 4096, 0, 10);
+		input_set_abs_params(input, ABS_HAT1X, 0, 4096, 0, 10);
+		input_set_abs_params(input, ABS_HAT1Y, 0, 4096, 0, 10);
+		input_set_abs_params(input, ABS_HAT2X, 0, 4096, 0, 10);
+		input_set_abs_params(input, ABS_HAT2Y, 0, 4096, 0, 10);
+		input_set_abs_params(input, ABS_HAT3X, 0, 4096, 0, 10);
+		input_set_abs_params(input, ABS_HAT3Y, 0, 4096, 0, 10);
+
+		/* rotary encoders */
+		input_set_abs_params(input, ABS_X, 0, 0xf, 0, 1);
+		input_set_abs_params(input, ABS_Y, 0, 0xf, 0, 1);
+		input_set_abs_params(input, ABS_Z, 0, 0xf, 0, 1);
+		input_set_abs_params(input, ABS_MISC, 0, 0xf, 0, 1);
+
+		dev->ep4_in_urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!dev->ep4_in_urb) {
+			ret = -ENOMEM;
+			goto exit_free_idev;
+		}
+
+		usb_fill_bulk_urb(dev->ep4_in_urb, usb_dev,
+				  usb_rcvbulkpipe(usb_dev, 0x4),
+				  dev->ep4_in_buf, EP4_BUFSIZE,
+				  snd_usb_caiaq_ep4_reply_dispatch, dev);
+
+		snd_usb_caiaq_set_auto_msg(dev, 1, 10, 5);
+
+		break;
 	default:
 		/* no input methods supported on this device */
-		input_free_device(input);
-		return 0;
+		goto exit_free_idev;
 	}
 
+	input->open = snd_usb_caiaq_input_open;
+	input->close = snd_usb_caiaq_input_close;
 	input->keycode = dev->keycode;
 	input->keycodesize = sizeof(unsigned short);
 	for (i = 0; i < input->keycodemax; i++)
 		__set_bit(dev->keycode[i], input->keybit);
 
 	ret = input_register_device(input);
-	if (ret < 0) {
-		input_free_device(input);
-		return ret;
-	}
+	if (ret < 0)
+		goto exit_free_idev;
 
 	dev->input_dev = input;
 	return 0;
+
+exit_free_idev:
+	input_free_device(input);
+	return ret;
 }
 
 void snd_usb_caiaq_input_free(struct snd_usb_caiaqdev *dev)
 {
 	if (!dev || !dev->input_dev)
 		return;
+
+	usb_kill_urb(dev->ep4_in_urb);
+	usb_free_urb(dev->ep4_in_urb);
+	dev->ep4_in_urb = NULL;
 
 	input_unregister_device(dev->input_dev);
 	dev->input_dev = NULL;

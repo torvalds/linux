@@ -405,28 +405,30 @@ static inline int fls(int x)
 
 #if defined(CONFIG_ALPHA_EV6) && defined(CONFIG_ALPHA_EV67)
 /* Whee.  EV67 can calculate it directly.  */
-static inline unsigned long hweight64(unsigned long w)
+static inline unsigned long __arch_hweight64(unsigned long w)
 {
 	return __kernel_ctpop(w);
 }
 
-static inline unsigned int hweight32(unsigned int w)
+static inline unsigned int __arch_hweight32(unsigned int w)
 {
-	return hweight64(w);
+	return __arch_hweight64(w);
 }
 
-static inline unsigned int hweight16(unsigned int w)
+static inline unsigned int __arch_hweight16(unsigned int w)
 {
-	return hweight64(w & 0xffff);
+	return __arch_hweight64(w & 0xffff);
 }
 
-static inline unsigned int hweight8(unsigned int w)
+static inline unsigned int __arch_hweight8(unsigned int w)
 {
-	return hweight64(w & 0xff);
+	return __arch_hweight64(w & 0xff);
 }
 #else
-#include <asm-generic/bitops/hweight.h>
+#include <asm-generic/bitops/arch_hweight.h>
 #endif
+
+#include <asm-generic/bitops/const_hweight.h>
 
 #endif /* __KERNEL__ */
 
@@ -436,22 +438,20 @@ static inline unsigned int hweight8(unsigned int w)
 
 /*
  * Every architecture must define this function. It's the fastest
- * way of searching a 140-bit bitmap where the first 100 bits are
- * unlikely to be set. It's guaranteed that at least one of the 140
- * bits is set.
+ * way of searching a 100-bit bitmap.  It's guaranteed that at least
+ * one of the 100 bits is cleared.
  */
 static inline unsigned long
-sched_find_first_bit(unsigned long b[3])
+sched_find_first_bit(const unsigned long b[2])
 {
-	unsigned long b0 = b[0], b1 = b[1], b2 = b[2];
-	unsigned long ofs;
+	unsigned long b0, b1, ofs, tmp;
 
-	ofs = (b1 ? 64 : 128);
-	b1 = (b1 ? b1 : b2);
-	ofs = (b0 ? 0 : ofs);
-	b0 = (b0 ? b0 : b1);
+	b0 = b[0];
+	b1 = b[1];
+	ofs = (b0 ? 0 : 64);
+	tmp = (b0 ? b0 : b1);
 
-	return __ffs(b0) + ofs;
+	return __ffs(tmp) + ofs;
 }
 
 #include <asm-generic/bitops/ext2-non-atomic.h>

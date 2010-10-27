@@ -18,4 +18,10 @@
 #define MAX_DMA_ADDRESS (CONFIG_KERNEL_START + memory_size - 1)
 #endif
 
+#ifdef CONFIG_PCI
+extern int isa_dma_bridge_buggy;
+#else
+#define isa_dma_bridge_buggy     (0)
+#endif
+
 #endif /* _ASM_MICROBLAZE_DMA_H */

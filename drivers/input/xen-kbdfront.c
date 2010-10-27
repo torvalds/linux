@@ -21,6 +21,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/input.h>
+#include <linux/slab.h>
 
 #include <asm/xen/hypervisor.h>
 
@@ -321,7 +322,7 @@ InitWait:
 	}
 }
 
-static struct xenbus_device_id xenkbd_ids[] = {
+static const struct xenbus_device_id xenkbd_ids[] = {
 	{ "vkbd" },
 	{ "" }
 };
@@ -338,7 +339,7 @@ static struct xenbus_driver xenkbd_driver = {
 
 static int __init xenkbd_init(void)
 {
-	if (!xen_domain())
+	if (!xen_pv_domain())
 		return -ENODEV;
 
 	/* Nothing to do if running in dom0. */

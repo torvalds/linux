@@ -47,3 +47,26 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr,
 }
 EXPORT_SYMBOL(get_fb_unmapped_area);
 #endif
+
+/* Needed for legacy userspace atomic emulation */
+static DEFINE_SPINLOCK(bfin_spinlock_lock);
+
+#ifdef CONFIG_SYS_BFIN_SPINLOCK_L1
+__attribute__((l1_text))
+#endif
+asmlinkage int sys_bfin_spinlock(int *p)
+{
+	int ret, tmp = 0;
+
+	spin_lock(&bfin_spinlock_lock); /* This would also hold kernel preemption. */
+	ret = get_user(tmp, p);
+	if (likely(ret == 0)) {
+		if (unlikely(tmp))
+			ret = 1;
+		else
+			put_user(1, p);
+	}
+	spin_unlock(&bfin_spinlock_lock);
+
+	return ret;
+}

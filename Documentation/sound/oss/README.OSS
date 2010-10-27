@@ -36,7 +36,7 @@ with OSS API.
 
 Packages "snd-util-3.8.tar.gz" and "snd-data-0.1.tar.Z"
 contain useful utilities to be used with this driver.
-See http://www.opensound.com/ossfree/getting.html for
+See http://www.opensound.com/ossfree/ for
 download instructions.
 
 If you are looking for the installation instructions, please
@@ -1438,7 +1438,7 @@ of this driver (see http://www.4Front-tech.com/oss.html for more info).
 There are some common audio chipsets that are not supported yet. For example
 Sierra Aria and IBM Mwave. It's possible that these architectures
 get some support in future but I can't make any promises. Just look
-at the home page (http://www.opensound.com/ossfree/new_cards.html)
+at the home page (http://www.opensound.com/ossfree/)
 for latest info.
 
 Information about unsupported sound cards and chipsets is welcome as well
@@ -1449,7 +1449,6 @@ If you have any corrections and/or comments, please contact me.
 Hannu Savolainen
 hannu@opensound.com
 
-Personal home page:	   http://www.compusonic.fi/~hannu
 home page of OSS/Free: http://www.opensound.com/ossfree
 
 home page of commercial OSS

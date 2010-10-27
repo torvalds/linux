@@ -50,6 +50,11 @@ struct fchs_s {
 
 	u32        ro;		/* relative offset */
 };
+
+#define FC_SOF_LEN      4
+#define FC_EOF_LEN      4
+#define FC_CRC_LEN      4
+
 /*
  * Fibre Channel BB_E Header Structure
  */
@@ -1075,6 +1080,7 @@ struct fc_alpabm_s{
 #define FC_REC_TOV		(FC_ED_TOV + 1)
 #define FC_RA_TOV		10
 #define FC_ELS_TOV		(2 * FC_RA_TOV)
+#define FC_FCCT_TOV		(3 * FC_RA_TOV)
 
 /*
  * virtual fabric related defines

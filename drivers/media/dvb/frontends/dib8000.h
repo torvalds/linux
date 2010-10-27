@@ -109,6 +109,7 @@ static inline void dib8000_pwm_agc_reset(struct dvb_frontend *fe)
 static inline s32 dib8000_get_adc_power(struct dvb_frontend *fe, u8 mode)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return 0;
 }
 #endif
 

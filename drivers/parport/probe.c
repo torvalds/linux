@@ -9,6 +9,7 @@
 #include <linux/parport.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 static const struct {

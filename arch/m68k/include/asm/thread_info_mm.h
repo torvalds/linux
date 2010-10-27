@@ -16,6 +16,7 @@ struct thread_info {
 	struct exec_domain	*exec_domain;	/* execution domain */
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	__u32 cpu; /* should always be 0 on m68k */
+	unsigned long		tp_value;	/* thread pointer */
 	struct restart_block    restart_block;
 };
 #endif /* __ASSEMBLY__ */
@@ -64,7 +65,7 @@ struct thread_info {
 #define TIF_NEED_RESCHED	7	/* rescheduling necessary */
 #define TIF_DELAYED_TRACE	14	/* single step a syscall */
 #define TIF_SYSCALL_TRACE	15	/* syscall trace active */
-#define TIF_MEMDIE		16
+#define TIF_MEMDIE		16	/* is terminating due to OOM killer */
 #define TIF_FREEZE		17	/* thread is freezing for suspend */
 
 #endif	/* _ASM_M68K_THREAD_INFO_H */

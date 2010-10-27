@@ -87,6 +87,8 @@ extern void	rtnl_link_unregister(struct rtnl_link_ops *ops);
 extern struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[]);
 extern struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
 	char *ifname, const struct rtnl_link_ops *ops, struct nlattr *tb[]);
+extern int rtnl_configure_link(struct net_device *dev,
+			       const struct ifinfomsg *ifm);
 extern const struct nla_policy ifla_policy[IFLA_MAX+1];
 
 #define MODULE_ALIAS_RTNL_LINK(kind) MODULE_ALIAS("rtnl-link-" kind)

@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/uwb.h>
 
 #include "uwb-internal.h"

@@ -26,6 +26,7 @@
 
 #include <linux/module.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/version.h>

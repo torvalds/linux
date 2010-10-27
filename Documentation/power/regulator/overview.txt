@@ -13,7 +13,7 @@ regulators (where voltage output is controllable) and current sinks (where
 current limit is controllable).
 
 (C) 2008  Wolfson Microelectronics PLC.
-Author: Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Author: Liam Girdwood <lrg@slimlogic.co.uk>
 
 
 Nomenclature
@@ -35,16 +35,16 @@ Some terms used in this document:-
   o Consumer     - Electronic device that is supplied power by a regulator.
                    Consumers can be classified into two types:-
 
-                   Static: consumer does not change it's supply voltage or
+                   Static: consumer does not change its supply voltage or
                    current limit. It only needs to enable or disable it's
-                   power supply. It's supply voltage is set by the hardware,
+                   power supply. Its supply voltage is set by the hardware,
                    bootloader, firmware or kernel board initialisation code.
 
                    Dynamic: consumer needs to change it's supply voltage or
                    current limit to meet operation demands.
 
 
-  o Power Domain - Electronic circuit that is supplied it's input power by the
+  o Power Domain - Electronic circuit that is supplied its input power by the
                    output power of a regulator, switch or by another power
                    domain.
 

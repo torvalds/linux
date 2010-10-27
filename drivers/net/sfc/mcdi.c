@@ -127,7 +127,7 @@ static int efx_mcdi_poll(struct efx_nic *efx)
 	efx_dword_t reg;
 
 	/* Check for a reboot atomically with respect to efx_mcdi_copyout() */
-	rc = efx_mcdi_poll_reboot(efx);
+	rc = -efx_mcdi_poll_reboot(efx);
 	if (rc)
 		goto out;
 
@@ -168,11 +168,12 @@ static int efx_mcdi_poll(struct efx_nic *efx)
 	error = EFX_DWORD_FIELD(reg, MCDI_HEADER_ERROR);
 
 	if (error && mcdi->resplen == 0) {
-		EFX_ERR(efx, "MC rebooted\n");
+		netif_err(efx, hw, efx->net_dev, "MC rebooted\n");
 		rc = EIO;
 	} else if ((respseq ^ mcdi->seqno) & SEQ_MASK) {
-		EFX_ERR(efx, "MC response mismatch tx seq 0x%x rx seq 0x%x\n",
-			respseq, mcdi->seqno);
+		netif_err(efx, hw, efx->net_dev,
+			  "MC response mismatch tx seq 0x%x rx seq 0x%x\n",
+			  respseq, mcdi->seqno);
 		rc = EIO;
 	} else if (error) {
 		efx_readd(efx, &reg, pdu + 4);
@@ -303,8 +304,9 @@ static void efx_mcdi_ev_cpl(struct efx_nic *efx, unsigned int seqno,
 			/* The request has been cancelled */
 			--mcdi->credits;
 		else
-			EFX_ERR(efx, "MC response mismatch tx seq 0x%x rx "
-				"seq 0x%x\n", seqno, mcdi->seqno);
+			netif_err(efx, hw, efx->net_dev,
+				  "MC response mismatch tx seq 0x%x rx "
+				  "seq 0x%x\n", seqno, mcdi->seqno);
 	} else {
 		mcdi->resprc = errno;
 		mcdi->resplen = datalen;
@@ -352,8 +354,9 @@ int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
 		++mcdi->credits;
 		spin_unlock_bh(&mcdi->iface_lock);
 
-		EFX_ERR(efx, "MC command 0x%x inlen %d mode %d timed out\n",
-			cmd, (int)inlen, mcdi->mode);
+		netif_err(efx, hw, efx->net_dev,
+			  "MC command 0x%x inlen %d mode %d timed out\n",
+			  cmd, (int)inlen, mcdi->mode);
 	} else {
 		size_t resplen;
 
@@ -374,11 +377,13 @@ int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
 		} else if (cmd == MC_CMD_REBOOT && rc == -EIO)
 			; /* Don't reset if MC_CMD_REBOOT returns EIO */
 		else if (rc == -EIO || rc == -EINTR) {
-			EFX_ERR(efx, "MC fatal error %d\n", -rc);
+			netif_err(efx, hw, efx->net_dev, "MC fatal error %d\n",
+				  -rc);
 			efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
 		} else
-			EFX_ERR(efx, "MC command 0x%x inlen %d failed rc=%d\n",
-				cmd, (int)inlen, -rc);
+			netif_err(efx, hw, efx->net_dev,
+				  "MC command 0x%x inlen %d failed rc=%d\n",
+				  cmd, (int)inlen, -rc);
 	}
 
 	efx_mcdi_release(mcdi);
@@ -534,8 +539,9 @@ static void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
 	EFX_BUG_ON_PARANOID(state >= ARRAY_SIZE(sensor_status_names));
 	state_txt = sensor_status_names[state];
 
-	EFX_ERR(efx, "Sensor %d (%s) reports condition '%s' for raw value %d\n",
-		monitor, name, state_txt, value);
+	netif_err(efx, hw, efx->net_dev,
+		  "Sensor %d (%s) reports condition '%s' for raw value %d\n",
+		  monitor, name, state_txt, value);
 }
 
 /* Called from  falcon_process_eventq for MCDI events */
@@ -548,12 +554,13 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 
 	switch (code) {
 	case MCDI_EVENT_CODE_BADSSERT:
-		EFX_ERR(efx, "MC watchdog or assertion failure at 0x%x\n", data);
+		netif_err(efx, hw, efx->net_dev,
+			  "MC watchdog or assertion failure at 0x%x\n", data);
 		efx_mcdi_ev_death(efx, EINTR);
 		break;
 
 	case MCDI_EVENT_CODE_PMNOTICE:
-		EFX_INFO(efx, "MCDI PM event.\n");
+		netif_info(efx, wol, efx->net_dev, "MCDI PM event.\n");
 		break;
 
 	case MCDI_EVENT_CODE_CMDDONE:
@@ -570,10 +577,11 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		efx_mcdi_sensor_event(efx, event);
 		break;
 	case MCDI_EVENT_CODE_SCHEDERR:
-		EFX_INFO(efx, "MC Scheduler error address=0x%x\n", data);
+		netif_info(efx, hw, efx->net_dev,
+			   "MC Scheduler error address=0x%x\n", data);
 		break;
 	case MCDI_EVENT_CODE_REBOOT:
-		EFX_INFO(efx, "MC Reboot\n");
+		netif_info(efx, hw, efx->net_dev, "MC Reboot\n");
 		efx_mcdi_ev_death(efx, EIO);
 		break;
 	case MCDI_EVENT_CODE_MAC_STATS_DMA:
@@ -581,7 +589,8 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		break;
 
 	default:
-		EFX_ERR(efx, "Unknown MCDI event 0x%x\n", code);
+		netif_err(efx, hw, efx->net_dev, "Unknown MCDI event 0x%x\n",
+			  code);
 	}
 }
 
@@ -613,7 +622,7 @@ int efx_mcdi_fwver(struct efx_nic *efx, u64 *version, u32 *build)
 	}
 
 	if (outlength < MC_CMD_GET_VERSION_V1_OUT_LEN) {
-		rc = -EMSGSIZE;
+		rc = -EIO;
 		goto fail;
 	}
 
@@ -627,7 +636,7 @@ int efx_mcdi_fwver(struct efx_nic *efx, u64 *version, u32 *build)
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, probe, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -647,15 +656,17 @@ int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		goto fail;
-	if (outlen < MC_CMD_DRV_ATTACH_OUT_LEN)
+	if (outlen < MC_CMD_DRV_ATTACH_OUT_LEN) {
+		rc = -EIO;
 		goto fail;
+	}
 
 	if (was_attached != NULL)
 		*was_attached = MCDI_DWORD(outbuf, DRV_ATTACH_OUT_OLD_STATE);
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, probe, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -676,7 +687,7 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 		goto fail;
 
 	if (outlen < MC_CMD_GET_BOARD_CFG_OUT_LEN) {
-		rc = -EMSGSIZE;
+		rc = -EIO;
 		goto fail;
 	}
 
@@ -693,7 +704,8 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d len=%d\n", __func__, rc, (int)outlen);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d len=%d\n",
+		  __func__, rc, (int)outlen);
 
 	return rc;
 }
@@ -722,7 +734,7 @@ int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart, u32 dest_evq)
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -738,15 +750,17 @@ int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out)
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		goto fail;
-	if (outlen < MC_CMD_NVRAM_TYPES_OUT_LEN)
+	if (outlen < MC_CMD_NVRAM_TYPES_OUT_LEN) {
+		rc = -EIO;
 		goto fail;
+	}
 
 	*nvram_types_out = MCDI_DWORD(outbuf, NVRAM_TYPES_OUT_TYPES);
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n",
-		__func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
+		  __func__, rc);
 	return rc;
 }
 
@@ -765,8 +779,10 @@ int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		goto fail;
-	if (outlen < MC_CMD_NVRAM_INFO_OUT_LEN)
+	if (outlen < MC_CMD_NVRAM_INFO_OUT_LEN) {
+		rc = -EIO;
 		goto fail;
+	}
 
 	*size_out = MCDI_DWORD(outbuf, NVRAM_INFO_OUT_SIZE);
 	*erase_size_out = MCDI_DWORD(outbuf, NVRAM_INFO_OUT_ERASESIZE);
@@ -775,7 +791,7 @@ int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -796,7 +812,7 @@ int efx_mcdi_nvram_update_start(struct efx_nic *efx, unsigned int type)
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -821,7 +837,7 @@ int efx_mcdi_nvram_read(struct efx_nic *efx, unsigned int type,
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -847,7 +863,7 @@ int efx_mcdi_nvram_write(struct efx_nic *efx, unsigned int type,
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -871,7 +887,7 @@ int efx_mcdi_nvram_erase(struct efx_nic *efx, unsigned int type,
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -892,55 +908,96 @@ int efx_mcdi_nvram_update_finish(struct efx_nic *efx, unsigned int type)
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
-int efx_mcdi_handle_assertion(struct efx_nic *efx)
+static int efx_mcdi_nvram_test(struct efx_nic *efx, unsigned int type)
 {
-	union {
-		u8 asserts[MC_CMD_GET_ASSERTS_IN_LEN];
-		u8 reboot[MC_CMD_REBOOT_IN_LEN];
-	} inbuf;
-	u8 assertion[MC_CMD_GET_ASSERTS_OUT_LEN];
+	u8 inbuf[MC_CMD_NVRAM_TEST_IN_LEN];
+	u8 outbuf[MC_CMD_NVRAM_TEST_OUT_LEN];
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, NVRAM_TEST_IN_TYPE, type);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_TEST, inbuf, sizeof(inbuf),
+			  outbuf, sizeof(outbuf), NULL);
+	if (rc)
+		return rc;
+
+	switch (MCDI_DWORD(outbuf, NVRAM_TEST_OUT_RESULT)) {
+	case MC_CMD_NVRAM_TEST_PASS:
+	case MC_CMD_NVRAM_TEST_NOTSUPP:
+		return 0;
+	default:
+		return -EIO;
+	}
+}
+
+int efx_mcdi_nvram_test_all(struct efx_nic *efx)
+{
+	u32 nvram_types;
+	unsigned int type;
+	int rc;
+
+	rc = efx_mcdi_nvram_types(efx, &nvram_types);
+	if (rc)
+		goto fail1;
+
+	type = 0;
+	while (nvram_types != 0) {
+		if (nvram_types & 1) {
+			rc = efx_mcdi_nvram_test(efx, type);
+			if (rc)
+				goto fail2;
+		}
+		type++;
+		nvram_types >>= 1;
+	}
+
+	return 0;
+
+fail2:
+	netif_err(efx, hw, efx->net_dev, "%s: failed type=%u\n",
+		  __func__, type);
+fail1:
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	return rc;
+}
+
+static int efx_mcdi_read_assertion(struct efx_nic *efx)
+{
+	u8 inbuf[MC_CMD_GET_ASSERTS_IN_LEN];
+	u8 outbuf[MC_CMD_GET_ASSERTS_OUT_LEN];
 	unsigned int flags, index, ofst;
 	const char *reason;
 	size_t outlen;
 	int retry;
 	int rc;
 
-	/* Check if the MC is in the assertion handler, retrying twice. Once
+	/* Attempt to read any stored assertion state before we reboot
+	 * the mcfw out of the assertion handler. Retry twice, once
 	 * because a boot-time assertion might cause this command to fail
 	 * with EINTR. And once again because GET_ASSERTS can race with
 	 * MC_CMD_REBOOT running on the other port. */
 	retry = 2;
 	do {
-		MCDI_SET_DWORD(inbuf.asserts, GET_ASSERTS_IN_CLEAR, 0);
+		MCDI_SET_DWORD(inbuf, GET_ASSERTS_IN_CLEAR, 1);
 		rc = efx_mcdi_rpc(efx, MC_CMD_GET_ASSERTS,
-				  inbuf.asserts, MC_CMD_GET_ASSERTS_IN_LEN,
-				  assertion, sizeof(assertion), &outlen);
+				  inbuf, MC_CMD_GET_ASSERTS_IN_LEN,
+				  outbuf, sizeof(outbuf), &outlen);
 	} while ((rc == -EINTR || rc == -EIO) && retry-- > 0);
 
 	if (rc)
 		return rc;
 	if (outlen < MC_CMD_GET_ASSERTS_OUT_LEN)
-		return -EINVAL;
+		return -EIO;
 
-	flags = MCDI_DWORD(assertion, GET_ASSERTS_OUT_GLOBAL_FLAGS);
+	/* Print out any recorded assertion state */
+	flags = MCDI_DWORD(outbuf, GET_ASSERTS_OUT_GLOBAL_FLAGS);
 	if (flags == MC_CMD_GET_ASSERTS_FLAGS_NO_FAILS)
 		return 0;
 
-	/* Reset the hardware atomically such that only one port with succeed.
-	 * This command will succeed if a reboot is no longer required (because
-	 * the other port did it first), but fail with EIO if it succeeds.
-	 */
-	BUILD_BUG_ON(MC_CMD_REBOOT_OUT_LEN != 0);
-	MCDI_SET_DWORD(inbuf.reboot, REBOOT_IN_FLAGS,
-		       MC_CMD_REBOOT_FLAGS_AFTER_ASSERTION);
-	efx_mcdi_rpc(efx, MC_CMD_REBOOT, inbuf.reboot, MC_CMD_REBOOT_IN_LEN,
-		     NULL, 0, NULL);
-
-	/* Print out the assertion */
 	reason = (flags == MC_CMD_GET_ASSERTS_FLAGS_SYS_FAIL)
 		? "system-level assertion"
 		: (flags == MC_CMD_GET_ASSERTS_FLAGS_THR_FAIL)
@@ -948,17 +1005,43 @@ int efx_mcdi_handle_assertion(struct efx_nic *efx)
 		: (flags == MC_CMD_GET_ASSERTS_FLAGS_WDOG_FIRED)
 		? "watchdog reset"
 		: "unknown assertion";
-	EFX_ERR(efx, "MCPU %s at PC = 0x%.8x in thread 0x%.8x\n", reason,
-		MCDI_DWORD(assertion, GET_ASSERTS_OUT_SAVED_PC_OFFS),
-		MCDI_DWORD(assertion, GET_ASSERTS_OUT_THREAD_OFFS));
+	netif_err(efx, hw, efx->net_dev,
+		  "MCPU %s at PC = 0x%.8x in thread 0x%.8x\n", reason,
+		  MCDI_DWORD(outbuf, GET_ASSERTS_OUT_SAVED_PC_OFFS),
+		  MCDI_DWORD(outbuf, GET_ASSERTS_OUT_THREAD_OFFS));
 
 	/* Print out the registers */
 	ofst = MC_CMD_GET_ASSERTS_OUT_GP_REGS_OFFS_OFST;
 	for (index = 1; index < 32; index++) {
-		EFX_ERR(efx, "R%.2d (?): 0x%.8x\n", index,
-			MCDI_DWORD2(assertion, ofst));
+		netif_err(efx, hw, efx->net_dev, "R%.2d (?): 0x%.8x\n", index,
+			MCDI_DWORD2(outbuf, ofst));
 		ofst += sizeof(efx_dword_t);
 	}
+
+	return 0;
+}
+
+static void efx_mcdi_exit_assertion(struct efx_nic *efx)
+{
+	u8 inbuf[MC_CMD_REBOOT_IN_LEN];
+
+	/* Atomically reboot the mcfw out of the assertion handler */
+	BUILD_BUG_ON(MC_CMD_REBOOT_OUT_LEN != 0);
+	MCDI_SET_DWORD(inbuf, REBOOT_IN_FLAGS,
+		       MC_CMD_REBOOT_FLAGS_AFTER_ASSERTION);
+	efx_mcdi_rpc(efx, MC_CMD_REBOOT, inbuf, MC_CMD_REBOOT_IN_LEN,
+		     NULL, 0, NULL);
+}
+
+int efx_mcdi_handle_assertion(struct efx_nic *efx)
+{
+	int rc;
+
+	rc = efx_mcdi_read_assertion(efx);
+	if (rc)
+		return rc;
+
+	efx_mcdi_exit_assertion(efx);
 
 	return 0;
 }
@@ -979,14 +1062,16 @@ void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 	rc = efx_mcdi_rpc(efx, MC_CMD_SET_ID_LED, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
 	if (rc)
-		EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
+			  __func__, rc);
 }
 
 int efx_mcdi_reset_port(struct efx_nic *efx)
 {
 	int rc = efx_mcdi_rpc(efx, MC_CMD_PORT_RESET, NULL, 0, NULL, 0, NULL);
 	if (rc)
-		EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
+			  __func__, rc);
 	return rc;
 }
 
@@ -1004,7 +1089,7 @@ int efx_mcdi_reset_mc(struct efx_nic *efx)
 		return 0;
 	if (rc == 0)
 		rc = -EIO;
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -1027,7 +1112,7 @@ int efx_mcdi_wol_filter_set(struct efx_nic *efx, u32 type,
 		goto fail;
 
 	if (outlen < MC_CMD_WOL_FILTER_SET_OUT_LEN) {
-		rc = -EMSGSIZE;
+		rc = -EIO;
 		goto fail;
 	}
 
@@ -1037,7 +1122,7 @@ int efx_mcdi_wol_filter_set(struct efx_nic *efx, u32 type,
 
 fail:
 	*id_out = -1;
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 
 }
@@ -1062,7 +1147,7 @@ int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out)
 		goto fail;
 
 	if (outlen < MC_CMD_WOL_FILTER_GET_OUT_LEN) {
-		rc = -EMSGSIZE;
+		rc = -EIO;
 		goto fail;
 	}
 
@@ -1072,7 +1157,7 @@ int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out)
 
 fail:
 	*id_out = -1;
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -1092,7 +1177,7 @@ int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id)
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -1108,7 +1193,7 @@ int efx_mcdi_wol_filter_reset(struct efx_nic *efx)
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 

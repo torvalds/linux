@@ -17,12 +17,11 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/string.h>
-#include <asm/geode.h>
-#include <asm/olpc.h>
 
-#ifdef CONFIG_OPEN_FIRMWARE
-#include <asm/ofw.h>
-#endif
+#include <asm/geode.h>
+#include <asm/setup.h>
+#include <asm/olpc.h>
+#include <asm/olpc_ofw.h>
 
 struct olpc_platform_t olpc_platform_info;
 EXPORT_SYMBOL_GPL(olpc_platform_info);
@@ -143,7 +142,7 @@ restart:
 	 * The OBF flag will sometimes misbehave due to what we believe
 	 * is a hardware quirk..
 	 */
-	printk(KERN_DEBUG "olpc-ec:  running cmd 0x%x\n", cmd);
+	pr_devel("olpc-ec:  running cmd 0x%x\n", cmd);
 	outb(cmd, 0x6c);
 
 	if (wait_on_ibf(0x6c, 0)) {
@@ -160,8 +159,7 @@ restart:
 						" EC accept data!\n");
 				goto err;
 			}
-			printk(KERN_DEBUG "olpc-ec:  sending cmd arg 0x%x\n",
-					inbuf[i]);
+			pr_devel("olpc-ec:  sending cmd arg 0x%x\n", inbuf[i]);
 			outb(inbuf[i], 0x68);
 		}
 	}
@@ -174,8 +172,7 @@ restart:
 				goto restart;
 			}
 			outbuf[i] = inb(0x68);
-			printk(KERN_DEBUG "olpc-ec:  received 0x%x\n",
-					outbuf[i]);
+			pr_devel("olpc-ec:  received 0x%x\n", outbuf[i]);
 		}
 	}
 
@@ -186,14 +183,15 @@ err:
 }
 EXPORT_SYMBOL_GPL(olpc_ec_cmd);
 
-#ifdef CONFIG_OPEN_FIRMWARE
+#ifdef CONFIG_OLPC_OPENFIRMWARE
 static void __init platform_detect(void)
 {
 	size_t propsize;
 	__be32 rev;
+	const void *args[] = { NULL, "board-revision-int", &rev, (void *)4 };
+	void *res[] = { &propsize };
 
-	if (ofw("getprop", 4, 1, NULL, "board-revision-int", &rev, 4,
-			&propsize) || propsize != 4) {
+	if (olpc_ofw("getprop", args, res) || propsize != 4) {
 		printk(KERN_ERR "ofw: getprop call failed!\n");
 		rev = cpu_to_be32(0);
 	}
@@ -243,9 +241,11 @@ static int __init olpc_init(void)
 	olpc_ec_cmd(EC_FIRMWARE_REV, NULL, 0,
 			(unsigned char *) &olpc_platform_info.ecver, 1);
 
-	/* check to see if the VSA exists */
-	if (cs5535_has_vsa2())
-		olpc_platform_info.flags |= OLPC_F_VSA;
+#ifdef CONFIG_PCI_OLPC
+	/* If the VSA exists let it emulate PCI, if not emulate in kernel */
+	if (!cs5535_has_vsa2())
+		x86_init.pci.arch_init = pci_olpc_init;
+#endif
 
 	printk(KERN_INFO "OLPC board revision %s%X (EC=%x)\n",
 			((olpc_platform_info.boardrev & 0xf) < 8) ? "pre" : "",

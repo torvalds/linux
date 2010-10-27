@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -1608,6 +1609,7 @@ static int __init m66592_probe(struct platform_device *pdev)
 	/* initialize ucd */
 	m66592 = kzalloc(sizeof(struct m66592), GFP_KERNEL);
 	if (m66592 == NULL) {
+		ret = -ENOMEM;
 		pr_err("kzalloc error\n");
 		goto clean_up;
 	}

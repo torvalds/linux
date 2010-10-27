@@ -169,6 +169,7 @@ static netdev_tx_t irlan_eth_xmit(struct sk_buff *skb,
 {
 	struct irlan_cb *self = netdev_priv(dev);
 	int ret;
+	unsigned int len;
 
 	/* skb headroom large enough to contain all IrDA-headers? */
 	if ((skb_headroom(skb) < self->max_header_size) || (skb_shared(skb))) {
@@ -188,6 +189,7 @@ static netdev_tx_t irlan_eth_xmit(struct sk_buff *skb,
 
 	dev->trans_start = jiffies;
 
+	len = skb->len;
 	/* Now queue the packet in the transport layer */
 	if (self->use_udata)
 		ret = irttp_udata_request(self->tsap_data, skb);
@@ -209,7 +211,7 @@ static netdev_tx_t irlan_eth_xmit(struct sk_buff *skb,
 		self->stats.tx_dropped++;
 	} else {
 		self->stats.tx_packets++;
-		self->stats.tx_bytes += skb->len;
+		self->stats.tx_bytes += len;
 	}
 
 	return NETDEV_TX_OK;
@@ -321,14 +323,15 @@ static void irlan_eth_set_multicast_list(struct net_device *dev)
 		/* Enable promiscuous mode */
 		IRDA_WARNING("Promiscuous mode not implemented by IrLAN!\n");
 	}
-	else if ((dev->flags & IFF_ALLMULTI) || dev->mc_count > HW_MAX_ADDRS) {
+	else if ((dev->flags & IFF_ALLMULTI) ||
+		 netdev_mc_count(dev) > HW_MAX_ADDRS) {
 		/* Disable promiscuous mode, use normal mode. */
 		IRDA_DEBUG(4, "%s(), Setting multicast filter\n", __func__ );
 		/* hardware_set_filter(NULL); */
 
 		irlan_set_multicast_filter(self, TRUE);
 	}
-	else if (dev->mc_count) {
+	else if (!netdev_mc_empty(dev)) {
 		IRDA_DEBUG(4, "%s(), Setting multicast filter\n", __func__ );
 		/* Walk the address list, and load the filter */
 		/* hardware_set_filter(dev->mc_list); */

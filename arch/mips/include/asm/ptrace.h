@@ -137,14 +137,15 @@ extern int ptrace_set_watch_regs(struct task_struct *child,
  */
 #define user_mode(regs) (((regs)->cp0_status & KU_MASK) == KU_USER)
 
+#define regs_return_value(_regs) ((_regs)->regs[2])
 #define instruction_pointer(regs) ((regs)->cp0_epc)
 #define profile_pc(regs) instruction_pointer(regs)
 
 extern asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit);
 
-extern NORET_TYPE void die(const char *, const struct pt_regs *) ATTRIB_NORET;
+extern NORET_TYPE void die(const char *, struct pt_regs *) ATTRIB_NORET;
 
-static inline void die_if_kernel(const char *str, const struct pt_regs *regs)
+static inline void die_if_kernel(const char *str, struct pt_regs *regs)
 {
 	if (unlikely(!user_mode(regs)))
 		die(str, regs);

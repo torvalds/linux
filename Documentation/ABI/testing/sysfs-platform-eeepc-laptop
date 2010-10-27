@@ -1,4 +1,4 @@
-What:		/sys/devices/platform/eeepc-laptop/disp
+What:		/sys/devices/platform/eeepc/disp
 Date:		May 2008
 KernelVersion:	2.6.26
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
@@ -9,21 +9,21 @@ Description:
 		- 3 = LCD+CRT
 		If you run X11, you should use xrandr instead.
 
-What:		/sys/devices/platform/eeepc-laptop/camera
+What:		/sys/devices/platform/eeepc/camera
 Date:		May 2008
 KernelVersion:	2.6.26
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
 Description:
 		Control the camera. 1 means on, 0 means off.
 
-What:		/sys/devices/platform/eeepc-laptop/cardr
+What:		/sys/devices/platform/eeepc/cardr
 Date:		May 2008
 KernelVersion:	2.6.26
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
 Description:
 		Control the card reader. 1 means on, 0 means off.
 
-What:		/sys/devices/platform/eeepc-laptop/cpufv
+What:		/sys/devices/platform/eeepc/cpufv
 Date:		Jun 2009
 KernelVersion:	2.6.31
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
@@ -42,7 +42,7 @@ Description:
 		    `------------ Availables modes
 		For example, 0x301 means: mode 1 selected, 3 available modes.
 
-What:		/sys/devices/platform/eeepc-laptop/available_cpufv
+What:		/sys/devices/platform/eeepc/available_cpufv
 Date:		Jun 2009
 KernelVersion:	2.6.31
 Contact:	"Corentin Chary" <corentincj@iksaif.net>

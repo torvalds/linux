@@ -6,21 +6,24 @@
 
 targets		:= vmlinux vmlinux.bin vmlinux.bin.gz \
 		   vmlinux.bin.bz2 vmlinux.bin.lzma \
+		   vmlinux.bin.lzo \
 		   head_$(BITS).o misc.o piggy.o
 
 OBJECTS = $(obj)/head_$(BITS).o $(obj)/misc.o $(obj)/cache.o
 
-ifdef CONFIG_SH_STANDARD_BIOS
-OBJECTS += $(obj)/../../kernel/sh_bios.o
-endif
-
 #
 # IMAGE_OFFSET is the load offset of the compression loader
 #
+ifeq ($(CONFIG_32BIT),y)
+IMAGE_OFFSET	:= $(shell /bin/bash -c 'printf "0x%08x" \
+		     $$[$(CONFIG_MEMORY_START)  + \
+			$(CONFIG_BOOT_LINK_OFFSET)]')
+else
 IMAGE_OFFSET	:= $(shell /bin/bash -c 'printf "0x%08x" \
 		     $$[$(CONFIG_PAGE_OFFSET)  + \
 			$(KERNEL_MEMORY) + \
 			$(CONFIG_BOOT_LINK_OFFSET)]')
+endif
 
 LIBGCC	:= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
@@ -47,6 +50,8 @@ $(obj)/vmlinux.bin.bz2: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,bzip2)
 $(obj)/vmlinux.bin.lzma: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,lzma)
+$(obj)/vmlinux.bin.lzo: $(vmlinux.bin.all-y) FORCE
+	$(call if_changed,lzo)
 
 OBJCOPYFLAGS += -R .empty_zero_page
 

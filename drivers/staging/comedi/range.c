@@ -21,15 +21,22 @@
 
 */
 
+#include <linux/uaccess.h>
 #include "comedidev.h"
-#include <asm/uaccess.h>
+#include "internal.h"
 
 const struct comedi_lrange range_bipolar10 = { 1, {BIP_RANGE(10)} };
+EXPORT_SYMBOL(range_bipolar10);
 const struct comedi_lrange range_bipolar5 = { 1, {BIP_RANGE(5)} };
+EXPORT_SYMBOL(range_bipolar5);
 const struct comedi_lrange range_bipolar2_5 = { 1, {BIP_RANGE(2.5)} };
+EXPORT_SYMBOL(range_bipolar2_5);
 const struct comedi_lrange range_unipolar10 = { 1, {UNI_RANGE(10)} };
+EXPORT_SYMBOL(range_unipolar10);
 const struct comedi_lrange range_unipolar5 = { 1, {UNI_RANGE(5)} };
-const struct comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none}} };
+EXPORT_SYMBOL(range_unipolar5);
+const struct comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none} } };
+EXPORT_SYMBOL(range_unknown);
 
 /*
 	COMEDI_RANGEINFO
@@ -44,7 +51,8 @@ const struct comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none}} };
 	writes:
 		n struct comedi_krange structures to rangeinfo->range_ptr
 */
-int do_rangeinfo_ioctl(struct comedi_device *dev, struct comedi_rangeinfo *arg)
+int do_rangeinfo_ioctl(struct comedi_device *dev,
+		       struct comedi_rangeinfo __user *arg)
 {
 	struct comedi_rangeinfo it;
 	int subd, chan;
@@ -120,7 +128,8 @@ static int aref_invalid(struct comedi_subdevice *s, unsigned int chanspec)
    This function checks each element in a channel/gain list to make
    make sure it is valid.
 */
-int check_chanlist(struct comedi_subdevice *s, int n, unsigned int *chanlist)
+int comedi_check_chanlist(struct comedi_subdevice *s, int n,
+			  unsigned int *chanlist)
 {
 	int i;
 	int chan;
@@ -130,14 +139,10 @@ int check_chanlist(struct comedi_subdevice *s, int n, unsigned int *chanlist)
 			if (CR_CHAN(chanlist[i]) >= s->n_chan ||
 			    CR_RANGE(chanlist[i]) >= s->range_table->length
 			    || aref_invalid(s, chanlist[i])) {
-				printk
-				    ("bad chanlist[%d]=0x%08x n_chan=%d range length=%d\n",
-				     i, chanlist[i], s->n_chan,
-				     s->range_table->length);
-#if 0
-				for (i = 0; i < n; i++)
-					printk("[%d]=0x%08x\n", i, chanlist[i]);
-#endif
+				printk(KERN_ERR "bad chanlist[%d]=0x%08x "
+				       "in_chan=%d range length=%d\n", i,
+				       chanlist[i], s->n_chan,
+				       s->range_table->length);
 				return -EINVAL;
 			}
 	} else if (s->range_table_list) {
@@ -147,14 +152,15 @@ int check_chanlist(struct comedi_subdevice *s, int n, unsigned int *chanlist)
 			    CR_RANGE(chanlist[i]) >=
 			    s->range_table_list[chan]->length
 			    || aref_invalid(s, chanlist[i])) {
-				printk("bad chanlist[%d]=0x%08x\n", i,
-				       chanlist[i]);
+				printk(KERN_ERR "bad chanlist[%d]=0x%08x\n",
+				       i, chanlist[i]);
 				return -EINVAL;
 			}
 		}
 	} else {
-		printk("comedi: (bug) no range type list!\n");
+		printk(KERN_ERR "comedi: (bug) no range type list!\n");
 		return -EINVAL;
 	}
 	return 0;
 }
+EXPORT_SYMBOL(comedi_check_chanlist);

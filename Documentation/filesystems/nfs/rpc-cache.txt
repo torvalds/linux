@@ -185,7 +185,7 @@ failed lookup meant a definite 'no'.
 request/response format
 -----------------------
 
-While each cache is free to use it's own format for requests
+While each cache is free to use its own format for requests
 and responses over channel, the following is recommended as
 appropriate and support routines are available to help:
 Each request or response record should be printable ASCII

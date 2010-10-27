@@ -56,4 +56,11 @@ void xen_poll_irq(int irq);
 /* Determine the IRQ which is bound to an event channel */
 unsigned irq_from_evtchn(unsigned int evtchn);
 
+/* Xen HVM evtchn vector callback */
+extern void xen_hvm_callback_vector(void);
+extern int xen_have_vector_callback;
+int xen_set_callback_via(uint64_t via);
+void xen_evtchn_do_upcall(struct pt_regs *regs);
+void xen_hvm_evtchn_do_upcall(void);
+
 #endif	/* _XEN_EVENTS_H */

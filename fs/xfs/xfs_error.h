@@ -29,10 +29,11 @@ extern int	xfs_error_trap(int);
 
 struct xfs_mount;
 
-extern void xfs_error_report(char *tag, int level, struct xfs_mount *mp,
-				char *fname, int linenum, inst_t *ra);
-extern void xfs_corruption_error(char *tag, int level, struct xfs_mount *mp,
-				void *p, char *fname, int linenum, inst_t *ra);
+extern void xfs_error_report(const char *tag, int level, struct xfs_mount *mp,
+			const char *filename, int linenum, inst_t *ra);
+extern void xfs_corruption_error(const char *tag, int level,
+			struct xfs_mount *mp, void *p, const char *filename,
+			int linenum, inst_t *ra);
 
 #define	XFS_ERROR_REPORT(e, lvl, mp)	\
 	xfs_error_report(e, lvl, mp, __FILE__, __LINE__, __return_address)

@@ -106,6 +106,10 @@ struct afs_volume *afs_volume_lookup(struct afs_mount_params *params)
 	volume->cell		= params->cell;
 	volume->vid		= vlocation->vldb.vid[params->type];
 
+	ret = bdi_setup_and_register(&volume->bdi, "afs", BDI_CAP_MAP_COPY);
+	if (ret)
+		goto error_bdi;
+
 	init_rwsem(&volume->server_sem);
 
 	/* look up all the applicable server records */
@@ -151,6 +155,8 @@ error:
 	return ERR_PTR(ret);
 
 error_discard:
+	bdi_destroy(&volume->bdi);
+error_bdi:
 	up_write(&params->cell->vl_sem);
 
 	for (loop = volume->nservers - 1; loop >= 0; loop--)
@@ -200,6 +206,7 @@ void afs_put_volume(struct afs_volume *volume)
 	for (loop = volume->nservers - 1; loop >= 0; loop--)
 		afs_put_server(volume->servers[loop]);
 
+	bdi_destroy(&volume->bdi);
 	kfree(volume);
 
 	_leave(" [destroyed]");

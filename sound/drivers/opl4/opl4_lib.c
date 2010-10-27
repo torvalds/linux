@@ -20,6 +20,7 @@
 #include "opl4_local.h"
 #include <sound/initval.h>
 #include <linux/ioport.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <asm/io.h>
 

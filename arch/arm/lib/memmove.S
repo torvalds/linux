@@ -74,7 +74,7 @@ ENTRY(memmove)
 		rsb	ip, ip, #32
 		addne	pc, pc, ip		@ C is always clear here
 		b	7f
-6:		nop
+6:		W(nop)
 		W(ldr)	r3, [r1, #-4]!
 		W(ldr)	r4, [r1, #-4]!
 		W(ldr)	r5, [r1, #-4]!
@@ -85,7 +85,7 @@ ENTRY(memmove)
 
 		add	pc, pc, ip
 		nop
-		nop
+		W(nop)
 		W(str)	r3, [r0, #-4]!
 		W(str)	r4, [r0, #-4]!
 		W(str)	r5, [r0, #-4]!

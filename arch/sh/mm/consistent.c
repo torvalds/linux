@@ -16,6 +16,7 @@
 #include <linux/dma-debug.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <asm/cacheflush.h>
 #include <asm/addrspace.h>
 

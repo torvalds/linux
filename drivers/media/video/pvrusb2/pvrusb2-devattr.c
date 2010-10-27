@@ -117,6 +117,7 @@ static const struct pvr2_device_desc pvr2_device_24xxx = {
 static const struct pvr2_device_client_desc pvr2_cli_gotview_2[] = {
 	{ .module_id = PVR2_CLIENT_ID_CX25840 },
 	{ .module_id = PVR2_CLIENT_ID_TUNER },
+	{ .module_id = PVR2_CLIENT_ID_DEMOD },
 };
 
 static const struct pvr2_device_desc pvr2_device_gotview_2 = {

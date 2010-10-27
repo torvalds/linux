@@ -13,6 +13,10 @@ perf*.xml
 perf*.html
 common-cmds.h
 perf.data
+perf.data.old
+perf-archive
 tags
 TAGS
 cscope*
+config.mak
+config.mak.autogen

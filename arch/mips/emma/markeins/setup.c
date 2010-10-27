@@ -52,7 +52,6 @@ static void markeins_machine_halt(void)
 
 static void markeins_machine_power_off(void)
 {
-	printk("EMMA2RH Mark-eins halted. Please turn off the power.\n");
 	markeins_led("poweroff.");
 	while (1) ;
 }

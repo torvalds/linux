@@ -45,6 +45,7 @@
  */
 #include <linux/etherdevice.h> /* for is_valid_ether_addr */
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/wlp.h>
 
 #include "wlp-internal.h"
@@ -179,7 +180,7 @@ error_kobject_register:
  * If memory was allocated for the kobject's name then it will
  * be freed by the kobject system during this time.
  *
- * The EDA cache is removed and reinitilized when the WSS is removed. We
+ * The EDA cache is removed and reinitialized when the WSS is removed. We
  * thus loose knowledge of members of this WSS at that time and need not do
  * it here.
  */

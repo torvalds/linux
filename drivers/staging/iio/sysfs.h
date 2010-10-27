@@ -98,6 +98,9 @@ struct iio_const_attr {
 	struct iio_dev_attr iio_dev_attr_##_name		\
 	= IIO_ATTR(_name, _mode, _show, _store, _addr)
 
+#define IIO_DEVICE_ATTR_NAMED(_vname, _name, _mode, _show, _store, _addr) \
+	struct iio_dev_attr iio_dev_attr_##_vname			\
+	= IIO_ATTR(_name, _mode, _show, _store, _addr)
 
 #define IIO_DEVICE_ATTR_2(_name, _mode, _show, _store, _addr, _val2)	\
 	struct iio_dev_attr iio_dev_attr_##_name			\
@@ -141,17 +144,24 @@ struct iio_const_attr {
  *
  * May be mode dependent on some devices
  **/
+/* Deprecated */
 #define IIO_DEV_ATTR_AVAIL_SAMP_FREQ(_show)				\
 	IIO_DEVICE_ATTR(available_sampling_frequency, S_IRUGO, _show, NULL, 0)
 
+#define IIO_DEV_ATTR_SAMP_FREQ_AVAIL(_show)				\
+	IIO_DEVICE_ATTR(sampling_frequency_available, S_IRUGO, _show, NULL, 0)
 /**
  * IIO_CONST_ATTR_AVAIL_SAMP_FREQ - list available sampling frequencies
  * @_string: frequency string for the attribute
  *
  * Constant version
  **/
-#define IIO_CONST_ATTR_AVAIL_SAMP_FREQ(_string)	\
+/* Deprecated */
+#define IIO_CONST_ATTR_AVAIL_SAMP_FREQ(_string)			\
 	IIO_CONST_ATTR(available_sampling_frequency, _string)
+
+#define IIO_CONST_ATTR_SAMP_FREQ_AVAIL(_string)			\
+	IIO_CONST_ATTR(sampling_frequency_available, _string)
 
 /**
  * IIO_DEV_ATTR_SCAN_MODE - select a scan mode
@@ -231,6 +241,9 @@ struct iio_const_attr {
 #define IIO_DEV_ATTR_TEMP(_show)			\
 	IIO_DEVICE_ATTR(temp, S_IRUGO, _show, NULL, 0)
 
+#define IIO_DEV_ATTR_TEMP_RAW(_show)			\
+	IIO_DEVICE_ATTR(temp_raw, S_IRUGO, _show, NULL, 0)
+
 /**
  * IIO_EVENT_SH - generic shared event handler
  * @_name: event name
@@ -271,6 +284,14 @@ struct iio_const_attr {
 	    .mask = _mask,						\
 	    .listel = &_ev_list };
 
+#define IIO_EVENT_ATTR_NAMED_SH(_vname, _name, _ev_list, _show, _store, _mask) \
+	static struct iio_event_attr					\
+	iio_event_attr_##_vname						\
+	= { .dev_attr = __ATTR(_name, S_IRUGO | S_IWUSR,		\
+			       _show, _store),				\
+	    .mask = _mask,						\
+	    .listel = &_ev_list };
+
 /**
  * IIO_EVENT_ATTR - non-shared event attribute
  * @_name: event name
@@ -280,10 +301,7 @@ struct iio_const_attr {
  * @_handler: handler function to be called
  **/
 #define IIO_EVENT_ATTR(_name, _show, _store, _mask, _handler)		\
-	static struct iio_event_handler_list				\
-	iio_event_##_name = {						\
-		.handler = _handler,					\
-	};								\
+	IIO_EVENT_SH(_name, _handler);					\
 	static struct							\
 	iio_event_attr							\
 	iio_event_attr_##_name						\
@@ -311,6 +329,7 @@ struct iio_const_attr {
 #define IIO_EVENT_CODE_GYRO_BASE	400
 #define IIO_EVENT_CODE_ADC_BASE		500
 #define IIO_EVENT_CODE_MISC_BASE	600
+#define IIO_EVENT_CODE_LIGHT_BASE	700
 
 #define IIO_EVENT_CODE_DEVICE_SPECIFIC	1000
 

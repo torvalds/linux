@@ -46,8 +46,7 @@ static ssize_t mmapper_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static int mmapper_ioctl(struct inode *inode, struct file *file,
-			 unsigned int cmd, unsigned long arg)
+static long mmapper_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	return -ENOIOCTLCMD;
 }
@@ -90,7 +89,7 @@ static const struct file_operations mmapper_fops = {
 	.owner		= THIS_MODULE,
 	.read		= mmapper_read,
 	.write		= mmapper_write,
-	.ioctl		= mmapper_ioctl,
+	.unlocked_ioctl	= mmapper_ioctl,
 	.mmap		= mmapper_mmap,
 	.open		= mmapper_open,
 	.release	= mmapper_release,

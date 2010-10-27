@@ -232,7 +232,7 @@ ds1620_read(struct file *file, char __user *buf, size_t count, loff_t *ptr)
 }
 
 static int
-ds1620_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+ds1620_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct therm therm;
 	union {
@@ -316,6 +316,18 @@ ds1620_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned 
 	return 0;
 }
 
+static long
+ds1620_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = ds1620_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 #ifdef THERM_USE_PROC
 static int
 proc_therm_ds1620_read(char *buf, char **start, off_t offset,
@@ -344,7 +356,7 @@ static const struct file_operations ds1620_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ds1620_open,
 	.read		= ds1620_read,
-	.ioctl		= ds1620_ioctl,
+	.unlocked_ioctl	= ds1620_unlocked_ioctl,
 };
 
 static struct miscdevice ds1620_miscdev = {

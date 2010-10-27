@@ -1,29 +1,23 @@
 /*
- * File:	linux/drivers/serial/bfin_sport_uart.h
+ * Blackfin On-Chip Sport Emulated UART Driver
  *
- * Based on:	include/asm-blackfin/mach-533/bfin_serial_5xx.h
- * Author:	Roy Huang <roy.huang>analog.com>
+ * Copyright 2006-2008 Analog Devices Inc.
  *
- * Created:	Nov 22, 2006
- * Copyright:	(C) Analog Device Inc.
- * Description: this driver enable SPORTs on Blackfin emulate UART.
+ * Enter bugs at http://blackfin.uclinux.org/
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
+/*
+ * This driver and the hardware supported are in term of EE-191 of ADI.
+ * http://www.analog.com/UploadedFiles/Application_Notes/399447663EE191.pdf
+ * This application note describe how to implement a UART on a Sharc DSP,
+ * but this driver is implemented on Blackfin Processor.
+ * Transmit Frame Sync is not used by this driver to transfer data out.
+ */
+
+#ifndef _BFIN_SPORT_UART_H
+#define _BFIN_SPORT_UART_H
 
 #define OFFSET_TCR1		0x00	/* Transmit Configuration 1 Register */
 #define OFFSET_TCR2		0x04	/* Transmit Configuration 2 Register */
@@ -43,7 +37,21 @@
 #define SPORT_GET_TFSDIV(sport)		bfin_read16(((sport)->port.membase + OFFSET_TFSDIV))
 #define SPORT_GET_TX(sport)		bfin_read16(((sport)->port.membase + OFFSET_TX))
 #define SPORT_GET_RX(sport)		bfin_read16(((sport)->port.membase + OFFSET_RX))
-#define SPORT_GET_RX32(sport)		bfin_read32(((sport)->port.membase + OFFSET_RX))
+/*
+ * If another interrupt fires while doing a 32-bit read from RX FIFO,
+ * a fake RX underflow error will be generated.  So disable interrupts
+ * to prevent interruption while reading the FIFO.
+ */
+#define SPORT_GET_RX32(sport) \
+({ \
+	unsigned int __ret; \
+	if (ANOMALY_05000473) \
+		local_irq_disable(); \
+	__ret = bfin_read32((sport)->port.membase + OFFSET_RX); \
+	if (ANOMALY_05000473) \
+		local_irq_enable(); \
+	__ret; \
+})
 #define SPORT_GET_RCR1(sport)		bfin_read16(((sport)->port.membase + OFFSET_RCR1))
 #define SPORT_GET_RCR2(sport)		bfin_read16(((sport)->port.membase + OFFSET_RCR2))
 #define SPORT_GET_RCLKDIV(sport)	bfin_read16(((sport)->port.membase + OFFSET_RCLKDIV))
@@ -61,3 +69,18 @@
 #define SPORT_PUT_RCLKDIV(sport, v)	bfin_write16(((sport)->port.membase + OFFSET_RCLKDIV), v)
 #define SPORT_PUT_RFSDIV(sport, v)	bfin_write16(((sport)->port.membase + OFFSET_RFSDIV), v)
 #define SPORT_PUT_STAT(sport, v)	bfin_write16(((sport)->port.membase + OFFSET_STAT), v)
+
+#define SPORT_TX_FIFO_SIZE	8
+
+#define SPORT_UART_GET_CTS(x)		gpio_get_value(x->cts_pin)
+#define SPORT_UART_DISABLE_RTS(x)	gpio_set_value(x->rts_pin, 1)
+#define SPORT_UART_ENABLE_RTS(x)	gpio_set_value(x->rts_pin, 0)
+
+#if defined(CONFIG_SERIAL_BFIN_SPORT0_UART_CTSRTS) \
+	|| defined(CONFIG_SERIAL_BFIN_SPORT1_UART_CTSRTS) \
+	|| defined(CONFIG_SERIAL_BFIN_SPORT2_UART_CTSRTS) \
+	|| defined(CONFIG_SERIAL_BFIN_SPORT3_UART_CTSRTS)
+# define CONFIG_SERIAL_BFIN_SPORT_CTSRTS
+#endif
+
+#endif /* _BFIN_SPORT_UART_H */

@@ -10,6 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/etherdevice.h>
 
@@ -24,16 +25,20 @@ MODULE_DESCRIPTION("Xtables: MAC address match");
 MODULE_ALIAS("ipt_mac");
 MODULE_ALIAS("ip6t_mac");
 
-static bool mac_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+static bool mac_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
-    const struct xt_mac_info *info = par->matchinfo;
+	const struct xt_mac_info *info = par->matchinfo;
+	bool ret;
 
-    /* Is mac pointer valid? */
-    return skb_mac_header(skb) >= skb->head &&
-	   skb_mac_header(skb) + ETH_HLEN <= skb->data
-	   /* If so, compare... */
-	   && ((!compare_ether_addr(eth_hdr(skb)->h_source, info->srcaddr))
-		^ info->invert);
+	if (skb->dev == NULL || skb->dev->type != ARPHRD_ETHER)
+		return false;
+	if (skb_mac_header(skb) < skb->head)
+		return false;
+	if (skb_mac_header(skb) + ETH_HLEN > skb->data)
+		return false;
+	ret  = compare_ether_addr(eth_hdr(skb)->h_source, info->srcaddr) == 0;
+	ret ^= info->invert;
+	return ret;
 }
 
 static struct xt_match mac_mt_reg __read_mostly = {

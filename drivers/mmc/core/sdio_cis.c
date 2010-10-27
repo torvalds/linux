@@ -14,6 +14,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>

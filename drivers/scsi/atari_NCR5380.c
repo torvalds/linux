@@ -651,6 +651,7 @@ static inline void NCR5380_print_phase(struct Scsi_Host *instance)
  * interrupt or bottom half.
  */
 
+#include <linux/gfp.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 

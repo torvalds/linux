@@ -34,15 +34,15 @@
 
 
 
-/* The following table is used to map the USBx port number to 
+/* The following table is used to map the USBx port number to
  * the device serial number (or physical USB path), */
 #define MAX_EDGEPORTS	64
 
 struct comMapper {
 	char	SerialNumber[MAX_SERIALNUMBER_LEN+1];	/* Serial number/usb path */
-	int	numPorts;			       	/* Number of ports */
-	int	Original[MAX_RS232_PORTS];	       	/* Port numbers set by IOCTL */
-	int	Port[MAX_RS232_PORTS];		       	/* Actual used port numbers */
+	int	numPorts;				/* Number of ports */
+	int	Original[MAX_RS232_PORTS];		/* Port numbers set by IOCTL */
+	int	Port[MAX_RS232_PORTS];			/* Actual used port numbers */
 };
 
 
@@ -51,7 +51,7 @@ struct comMapper {
 /* /proc/edgeport Interface
  * This interface uses read/write/lseek interface to talk to the edgeport driver
  * the following read functions are supported: */
-#define PROC_GET_MAPPING_TO_PATH 	1
+#define PROC_GET_MAPPING_TO_PATH	1
 #define PROC_GET_COM_ENTRY		2
 #define PROC_GET_EDGE_MANUF_DESCRIPTOR	3
 #define PROC_GET_BOOT_DESCRIPTOR	4
@@ -64,7 +64,7 @@ struct comMapper {
 
 
 /* the following write functions are supported: */
-#define PROC_SET_COM_MAPPING 		1
+#define PROC_SET_COM_MAPPING		1
 #define PROC_SET_COM_ENTRY		2
 
 
@@ -97,8 +97,8 @@ struct edgeport_product_info {
 	__u8	BoardRev;			/* PCB revision level (chg only if s/w visible) */
 
 	__u8	BootMajorVersion;		/* Boot Firmware version: xx. */
-	__u8	BootMinorVersion;		/*	   		  yy. */
-	__le16	BootBuildNumber;		/*		      	  zzzz (LE format) */
+	__u8	BootMinorVersion;		/*			  yy. */
+	__le16	BootBuildNumber;		/*			  zzzz (LE format) */
 
 	__u8	FirmwareMajorVersion;		/* Operational Firmware version:xx. */
 	__u8	FirmwareMinorVersion;		/*				yy. */

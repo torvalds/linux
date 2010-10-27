@@ -1436,7 +1436,8 @@ u16_t zfiWlanDeauth(zdev_t *dev, u16_t *macAddr, u16_t reason)
 		*/
 
 		/*
-		if ((id = zfApFindSta(dev, macAddr)) != 0xffff)
+		id = zfApFindSta(dev, macAddr);
+		if (id != 0xffff)
 		{
 			u32_t key[8];
 			u16_t nullAddr[3] = { 0x0, 0x0, 0x0 };
@@ -1659,7 +1660,7 @@ void zfiWlanSetPacketTypePromiscuous(zdev_t *dev, u32_t setValue)
 	if (setValue) {
 		/* write register for sniffer mode */
 		zfHpSetSnifferMode(dev, 1);
-		zm_msg0_mm(ZM_LV_1, "enalbe sniffer mode");
+		zm_msg0_mm(ZM_LV_1, "enable sniffer mode");
 	} else {
 		zfHpSetSnifferMode(dev, 0);
 		zm_msg0_mm(ZM_LV_0, "disalbe sniffer mode");

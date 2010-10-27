@@ -8,12 +8,21 @@
  * published by the Free Software Foundation.
  *
  */
-	.macro	addruart,rx
+#include <mach/hardware.h>
+
+#if CONFIG_UX500_DEBUG_UART > 2
+#error Invalid Ux500 debug UART
+#endif
+
+#define __UX500_UART(n)	UX500_UART##n##_BASE
+#define UX500_UART(n)	__UX500_UART(n)
+#define UART_BASE	UX500_UART(CONFIG_UX500_DEBUG_UART)
+
+	.macro	addruart, rx, tmp
 	mrc	p15, 0, \rx, c1, c0
-	tst	\rx, #1			@MMU enabled?
-	moveq	\rx, #0x80000000	@MMU off, Physical address
-	movne	\rx, #0xF0000000	@MMU on, Virtual address
-	orr	\rx, \rx, #0x7000
+	tst	\rx, #1					@ MMU enabled?
+	ldreq	\rx, =UART_BASE				@ no, physical address
+	ldrne	\rx, =IO_ADDRESS(UART_BASE)		@ yes, virtual address
 	.endm
 
 #include <asm/hardware/debug-pl01x.S>

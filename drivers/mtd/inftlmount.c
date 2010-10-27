@@ -2,11 +2,11 @@
  * inftlmount.c -- INFTL mount code with extensive checks.
  *
  * Author: Greg Ungerer (gerg@snapgear.com)
- * (C) Copyright 2002-2003, Greg Ungerer (gerg@snapgear.com)
+ * Copyright © 2002-2003, Greg Ungerer (gerg@snapgear.com)
  *
  * Based heavily on the nftlmount.c code which is:
  * Author: Fabrice Bellard (fabrice.bellard@netgem.com)
- * Copyright (C) 2000 Netgem S.A.
+ * Copyright © 2000 Netgem S.A.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nftl.h>
 #include <linux/mtd/inftl.h>
-#include <linux/mtd/compatmac.h>
 
 /*
  * find_boot_record: Find the INFTL Media Header and its Spare copy which
@@ -100,9 +99,10 @@ static int find_boot_record(struct INFTLrecord *inftl)
 		}
 
 		/* To be safer with BIOS, also use erase mark as discriminant */
-		if ((ret = inftl_read_oob(mtd, block * inftl->EraseSize +
-					  SECTORSIZE + 8, 8, &retlen,
-					  (char *)&h1) < 0)) {
+		ret = inftl_read_oob(mtd,
+				     block * inftl->EraseSize + SECTORSIZE + 8,
+				     8, &retlen,(char *)&h1);
+		if (ret < 0) {
 			printk(KERN_WARNING "INFTL: ANAND header found at "
 				"0x%x in mtd%d, but OOB data read failed "
 				"(err %d)\n", block * inftl->EraseSize,

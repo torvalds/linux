@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007 Florian Fainelli <florian@openwrt.org>
+ * Copyright (C) 2007-2009 Florian Fainelli <florian@openwrt.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,88 +22,18 @@
 #include <asm/mach-ar7/ar7.h>
 
 #define AR7_GPIO_MAX 32
+#define NR_BUILTIN_GPIO AR7_GPIO_MAX
 
-extern int gpio_request(unsigned gpio, const char *label);
-extern void gpio_free(unsigned gpio);
+#define gpio_to_irq(gpio)	-1
 
-/* Common GPIO layer */
-static inline int gpio_get_value(unsigned gpio)
-{
-	void __iomem *gpio_in =
-		(void __iomem *)KSEG1ADDR(AR7_REGS_GPIO + AR7_GPIO_INPUT);
+#define gpio_get_value __gpio_get_value
+#define gpio_set_value __gpio_set_value
 
-	return readl(gpio_in) & (1 << gpio);
-}
-
-static inline void gpio_set_value(unsigned gpio, int value)
-{
-	void __iomem *gpio_out =
-		(void __iomem *)KSEG1ADDR(AR7_REGS_GPIO + AR7_GPIO_OUTPUT);
-	unsigned tmp;
-
-	tmp = readl(gpio_out) & ~(1 << gpio);
-	if (value)
-		tmp |= 1 << gpio;
-	writel(tmp, gpio_out);
-}
-
-static inline int gpio_direction_input(unsigned gpio)
-{
-	void __iomem *gpio_dir =
-		(void __iomem *)KSEG1ADDR(AR7_REGS_GPIO + AR7_GPIO_DIR);
-
-	if (gpio >= AR7_GPIO_MAX)
-		return -EINVAL;
-
-	writel(readl(gpio_dir) | (1 << gpio), gpio_dir);
-
-	return 0;
-}
-
-static inline int gpio_direction_output(unsigned gpio, int value)
-{
-	void __iomem *gpio_dir =
-		(void __iomem *)KSEG1ADDR(AR7_REGS_GPIO + AR7_GPIO_DIR);
-
-	if (gpio >= AR7_GPIO_MAX)
-		return -EINVAL;
-
-	gpio_set_value(gpio, value);
-	writel(readl(gpio_dir) & ~(1 << gpio), gpio_dir);
-
-	return 0;
-}
-
-static inline int gpio_to_irq(unsigned gpio)
-{
-	return -EINVAL;
-}
-
-static inline int irq_to_gpio(unsigned irq)
-{
-	return -EINVAL;
-}
+#define gpio_cansleep __gpio_cansleep
 
 /* Board specific GPIO functions */
-static inline int ar7_gpio_enable(unsigned gpio)
-{
-	void __iomem *gpio_en =
-		(void __iomem *)KSEG1ADDR(AR7_REGS_GPIO + AR7_GPIO_ENABLE);
-
-	writel(readl(gpio_en) | (1 << gpio), gpio_en);
-
-	return 0;
-}
-
-static inline int ar7_gpio_disable(unsigned gpio)
-{
-	void __iomem *gpio_en =
-		(void __iomem *)KSEG1ADDR(AR7_REGS_GPIO + AR7_GPIO_ENABLE);
-
-	writel(readl(gpio_en) & ~(1 << gpio), gpio_en);
-
-	return 0;
-}
+int ar7_gpio_enable(unsigned gpio);
+int ar7_gpio_disable(unsigned gpio);
 
 #include <asm-generic/gpio.h>
 

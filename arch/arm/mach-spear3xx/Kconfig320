@@ -1,0 +1,17 @@
+#
+# SPEAr320 machine configuration file
+#
+
+if MACH_SPEAR320
+
+choice
+	prompt "SPEAr320 Boards"
+	default BOARD_SPEAR320_EVB
+
+config BOARD_SPEAR320_EVB
+	bool "SPEAr320 Evaluation Board"
+	help
+	  Supports ST SPEAr320 Evaluation Board
+endchoice
+
+endif	#MACH_SPEAR320

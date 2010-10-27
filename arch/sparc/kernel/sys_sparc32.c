@@ -21,7 +21,6 @@
 #include <linux/sem.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
-#include <linux/slab.h>
 #include <linux/uio.h>
 #include <linux/nfs_fs.h>
 #include <linux/quota.h>
@@ -43,8 +42,8 @@
 #include <linux/security.h>
 #include <linux/compat.h>
 #include <linux/vfs.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/ptrace.h>
+#include <linux/slab.h>
 
 #include <asm/types.h>
 #include <asm/uaccess.h>
@@ -163,7 +162,7 @@ static int cp_compat_stat64(struct kstat *stat,
 	return err;
 }
 
-asmlinkage long compat_sys_stat64(char __user * filename,
+asmlinkage long compat_sys_stat64(const char __user * filename,
 		struct compat_stat64 __user *statbuf)
 {
 	struct kstat stat;
@@ -174,7 +173,7 @@ asmlinkage long compat_sys_stat64(char __user * filename,
 	return error;
 }
 
-asmlinkage long compat_sys_lstat64(char __user * filename,
+asmlinkage long compat_sys_lstat64(const char __user * filename,
 		struct compat_stat64 __user *statbuf)
 {
 	struct kstat stat;
@@ -196,7 +195,8 @@ asmlinkage long compat_sys_fstat64(unsigned int fd,
 	return error;
 }
 
-asmlinkage long compat_sys_fstatat64(unsigned int dfd, char __user *filename,
+asmlinkage long compat_sys_fstatat64(unsigned int dfd,
+		const char __user *filename,
 		struct compat_stat64 __user * statbuf, int flag)
 {
 	struct kstat stat;

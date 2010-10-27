@@ -25,6 +25,7 @@
 #include "ivtv-mailbox.h"
 #include "ivtv-vbi.h"
 #include "ivtv-yuv.h"
+#include <media/v4l2-event.h>
 
 #define DMA_MAGIC_COOKIE 0x000001fe
 
@@ -70,19 +71,10 @@ static void ivtv_pio_work_handler(struct ivtv *itv)
 	write_reg(IVTV_IRQ_ENC_PIO_COMPLETE, 0x44);
 }
 
-void ivtv_irq_work_handler(struct work_struct *work)
+void ivtv_irq_work_handler(struct kthread_work *work)
 {
-	struct ivtv *itv = container_of(work, struct ivtv, irq_work_queue);
+	struct ivtv *itv = container_of(work, struct ivtv, irq_work);
 
-	DEFINE_WAIT(wait);
-
-	if (test_and_clear_bit(IVTV_F_I_WORK_INITED, &itv->i_flags)) {
-		struct sched_param param = { .sched_priority = 99 };
-
-		/* This thread must use the FIFO scheduler as it
-		   is realtime sensitive. */
-		sched_setscheduler(current, SCHED_FIFO, &param);
-	}
 	if (test_and_clear_bit(IVTV_F_I_WORK_HANDLER_PIO, &itv->i_flags))
 		ivtv_pio_work_handler(itv);
 
@@ -562,7 +554,7 @@ static void ivtv_irq_enc_dma_complete(struct ivtv *itv)
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	struct ivtv_stream *s;
 
-	ivtv_api_get_data(&itv->enc_mbox, IVTV_MBOX_DMA_END, data);
+	ivtv_api_get_data(&itv->enc_mbox, IVTV_MBOX_DMA_END, 2, data);
 	IVTV_DEBUG_HI_IRQ("ENC DMA COMPLETE %x %d (%d)\n", data[0], data[1], itv->cur_dma_stream);
 
 	del_timer(&itv->dma_timer);
@@ -638,7 +630,7 @@ static void ivtv_irq_dma_err(struct ivtv *itv)
 	u32 data[CX2341X_MBOX_MAX_DATA];
 
 	del_timer(&itv->dma_timer);
-	ivtv_api_get_data(&itv->enc_mbox, IVTV_MBOX_DMA_END, data);
+	ivtv_api_get_data(&itv->enc_mbox, IVTV_MBOX_DMA_END, 2, data);
 	IVTV_DEBUG_WARN("DMA ERROR %08x %08x %08x %d\n", data[0], data[1],
 				read_reg(IVTV_REG_DMASTATUS), itv->cur_dma_stream);
 	write_reg(read_reg(IVTV_REG_DMASTATUS) & 3, IVTV_REG_DMASTATUS);
@@ -669,7 +661,7 @@ static void ivtv_irq_enc_start_cap(struct ivtv *itv)
 	struct ivtv_stream *s;
 
 	/* Get DMA destination and size arguments from card */
-	ivtv_api_get_data(&itv->enc_mbox, IVTV_MBOX_DMA, data);
+	ivtv_api_get_data(&itv->enc_mbox, IVTV_MBOX_DMA, 7, data);
 	IVTV_DEBUG_HI_IRQ("ENC START CAP %d: %08x %08x\n", data[0], data[1], data[2]);
 
 	if (data[0] > 2 || data[1] == 0 || data[2] == 0) {
@@ -713,9 +705,9 @@ static void ivtv_irq_dec_data_req(struct ivtv *itv)
 	struct ivtv_stream *s;
 
 	/* YUV or MPG */
-	ivtv_api_get_data(&itv->dec_mbox, IVTV_MBOX_DMA, data);
 
 	if (test_bit(IVTV_F_I_DEC_YUV, &itv->i_flags)) {
+		ivtv_api_get_data(&itv->dec_mbox, IVTV_MBOX_DMA, 2, data);
 		itv->dma_data_req_size =
 				 1080 * ((itv->yuv_info.v4l2_src_h + 31) & ~31);
 		itv->dma_data_req_offset = data[1];
@@ -724,6 +716,7 @@ static void ivtv_irq_dec_data_req(struct ivtv *itv)
 		s = &itv->streams[IVTV_DEC_STREAM_TYPE_YUV];
 	}
 	else {
+		ivtv_api_get_data(&itv->dec_mbox, IVTV_MBOX_DMA, 3, data);
 		itv->dma_data_req_size = min_t(u32, data[2], 0x10000);
 		itv->dma_data_req_offset = data[1];
 		s = &itv->streams[IVTV_DEC_STREAM_TYPE_MPG];
@@ -751,7 +744,7 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 	 * to determine the line being displayed and ensure we handle
 	 * one vsync per frame.
 	 */
-	unsigned int frame = read_reg(0x28c0) & 1;
+	unsigned int frame = read_reg(IVTV_REG_DEC_LINE_FIELD) & 1;
 	struct yuv_playback_info *yi = &itv->yuv_info;
 	int last_dma_frame = atomic_read(&yi->next_dma_frame);
 	struct yuv_frame_info *f = &yi->new_frame_info[last_dma_frame];
@@ -777,6 +770,14 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 		}
 	}
 	if (frame != (itv->last_vsync_field & 1)) {
+		static const struct v4l2_event evtop = {
+			.type = V4L2_EVENT_VSYNC,
+			.u.vsync.field = V4L2_FIELD_TOP,
+		};
+		static const struct v4l2_event evbottom = {
+			.type = V4L2_EVENT_VSYNC,
+			.u.vsync.field = V4L2_FIELD_BOTTOM,
+		};
 		struct ivtv_stream *s = ivtv_get_output_stream(itv);
 
 		itv->last_vsync_field += 1;
@@ -790,10 +791,12 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 		if (test_bit(IVTV_F_I_EV_VSYNC_ENABLED, &itv->i_flags)) {
 			set_bit(IVTV_F_I_EV_VSYNC, &itv->i_flags);
 			wake_up(&itv->event_waitq);
+			if (s)
+				wake_up(&s->waitq);
 		}
+		if (s && s->vdev)
+			v4l2_event_queue(s->vdev, frame ? &evtop : &evbottom);
 		wake_up(&itv->vsync_waitq);
-		if (s)
-			wake_up(&s->waitq);
 
 		/* Send VBI to saa7127 */
 		if (frame && (itv->output_mode == OUT_PASSTHROUGH ||
@@ -851,9 +854,11 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 		 */
 		if (~itv->irqmask & IVTV_IRQ_DEC_VSYNC) {
 			/* vsync is enabled, see if we're in a new field */
-			if ((itv->last_vsync_field & 1) != (read_reg(0x28c0) & 1)) {
+			if ((itv->last_vsync_field & 1) !=
+			    (read_reg(IVTV_REG_DEC_LINE_FIELD) & 1)) {
 				/* New field, looks like we missed it */
-				IVTV_DEBUG_YUV("VSync interrupt missed %d\n",read_reg(0x28c0)>>16);
+				IVTV_DEBUG_YUV("VSync interrupt missed %d\n",
+				       read_reg(IVTV_REG_DEC_LINE_FIELD) >> 16);
 				vsync_force = 1;
 			}
 		}
@@ -940,9 +945,10 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 				ivtv_dma_enc_start(s);
 			break;
 		}
-		if (i == IVTV_MAX_STREAMS && test_and_clear_bit(IVTV_F_I_UDMA_PENDING, &itv->i_flags)) {
+
+		if (i == IVTV_MAX_STREAMS &&
+		    test_bit(IVTV_F_I_UDMA_PENDING, &itv->i_flags))
 			ivtv_udma_start(itv);
-		}
 	}
 
 	if ((combo & IVTV_IRQ_DMA) && !test_bit(IVTV_F_I_PIO, &itv->i_flags)) {
@@ -960,7 +966,7 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 	}
 
 	if (test_and_clear_bit(IVTV_F_I_HAVE_WORK, &itv->i_flags)) {
-		queue_work(itv->irq_work_queues, &itv->irq_work_queue);
+		queue_kthread_work(&itv->irq_worker, &itv->irq_work);
 	}
 
 	spin_unlock(&itv->dma_reg_lock);

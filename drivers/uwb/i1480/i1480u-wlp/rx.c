@@ -64,6 +64,7 @@
  *
  */
 
+#include <linux/gfp.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include "i1480u-wlp.h"

@@ -50,6 +50,10 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_transport.h>
 
+#ifdef __BIG_ENDIAN
+#define __BIGENDIAN
+#endif
+
 #define BFA_ERR			KERN_ERR
 #define BFA_WARNING		KERN_WARNING
 #define BFA_NOTICE		KERN_NOTICE
@@ -123,6 +127,15 @@ int bfa_os_MWB(void *);
 	(((_x) & 0x00ff0000) >> 8)	|	\
 	(((_x) & 0xff000000) >> 24))
 
+#define bfa_os_swap_sgaddr(_x)	((u64)(					\
+	(((u64)(_x) & (u64)0x00000000000000ffull) << 32)	|	\
+	(((u64)(_x) & (u64)0x000000000000ff00ull) << 32)	|	\
+	(((u64)(_x) & (u64)0x0000000000ff0000ull) << 32)	|	\
+	(((u64)(_x) & (u64)0x00000000ff000000ull) << 32)	|	\
+	(((u64)(_x) & (u64)0x000000ff00000000ull) >> 32)	|	\
+	(((u64)(_x) & (u64)0x0000ff0000000000ull) >> 32)	|	\
+	(((u64)(_x) & (u64)0x00ff000000000000ull) >> 32)	|	\
+	(((u64)(_x) & (u64)0xff00000000000000ull) >> 32)))
 
 #ifndef __BIGENDIAN
 #define bfa_os_htons(_x) ((u16)((((_x) & 0xff00) >> 8) | \
@@ -133,6 +146,7 @@ int bfa_os_MWB(void *);
 #define bfa_os_hton3b(_x)	bfa_swap_3b(_x)
 
 #define bfa_os_wtole(_x)   (_x)
+#define bfa_os_sgaddr(_x)  (_x)
 
 #else
 
@@ -141,6 +155,7 @@ int bfa_os_MWB(void *);
 #define bfa_os_hton3b(_x)  (_x)
 #define bfa_os_htonll(_x)  (_x)
 #define bfa_os_wtole(_x)   bfa_os_swap32(_x)
+#define bfa_os_sgaddr(_x)  bfa_os_swap_sgaddr(_x)
 
 #endif
 
@@ -161,12 +176,12 @@ int bfa_os_MWB(void *);
 #define bfa_os_addr_t char __iomem *
 #define bfa_os_panic()
 
-#define bfa_os_reg_read(_raddr) bfa_os_wtole(readl(_raddr))
-#define bfa_os_reg_write(_raddr, _val) writel(bfa_os_wtole((_val)), (_raddr))
+#define bfa_os_reg_read(_raddr) readl(_raddr)
+#define bfa_os_reg_write(_raddr, _val) writel((_val), (_raddr))
 #define bfa_os_mem_read(_raddr, _off)                                   \
-	bfa_os_ntohl(readl(((_raddr) + (_off))))
+	bfa_os_swap32(readl(((_raddr) + (_off))))
 #define bfa_os_mem_write(_raddr, _off, _val)                            \
-	writel(bfa_os_htonl((_val)), ((_raddr) + (_off)))
+	writel(bfa_os_swap32((_val)), ((_raddr) + (_off)))
 
 #define BFA_TRC_TS(_trcm)						\
 			({						\

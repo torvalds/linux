@@ -119,7 +119,7 @@ static enum drm_connector_status nv04_dac_detect(struct drm_encoder *encoder,
 						 struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
-	uint8_t saved_seq1, saved_pi, saved_rpc1;
+	uint8_t saved_seq1, saved_pi, saved_rpc1, saved_cr_mode;
 	uint8_t saved_palette0[3], saved_palette_mask;
 	uint32_t saved_rtest_ctrl, saved_rgen_ctrl;
 	int i;
@@ -134,6 +134,9 @@ static enum drm_connector_status nv04_dac_detect(struct drm_encoder *encoder,
 	if (nv_two_heads(dev))
 		/* only implemented for head A for now */
 		NVSetOwner(dev, 0);
+
+	saved_cr_mode = NVReadVgaCrtc(dev, 0, NV_CIO_CR_MODE_INDEX);
+	NVWriteVgaCrtc(dev, 0, NV_CIO_CR_MODE_INDEX, saved_cr_mode | 0x80);
 
 	saved_seq1 = NVReadVgaSeq(dev, 0, NV_VIO_SR_CLOCK_INDEX);
 	NVWriteVgaSeq(dev, 0, NV_VIO_SR_CLOCK_INDEX, saved_seq1 & ~0x20);
@@ -203,6 +206,7 @@ out:
 	NVWriteVgaCrtc(dev, 0, NV_CIO_CRE_PIXEL_INDEX, saved_pi);
 	NVWriteVgaCrtc(dev, 0, NV_CIO_CRE_RPC1_INDEX, saved_rpc1);
 	NVWriteVgaSeq(dev, 0, NV_VIO_SR_CLOCK_INDEX, saved_seq1);
+	NVWriteVgaCrtc(dev, 0, NV_CIO_CR_MODE_INDEX, saved_cr_mode);
 
 	if (blue == 0x18) {
 		NV_INFO(dev, "Load detected on head A\n");
@@ -216,6 +220,7 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpio_engine *gpio = &dev_priv->engine.gpio;
 	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
 	uint32_t sample, testval, regoffset = nv04_dac_output_offset(encoder);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput,
@@ -226,13 +231,13 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	if (dcb->type == OUTPUT_TV) {
 		testval = RGB_TEST_DATA(0xa0, 0xa0, 0xa0);
 
-		if (dev_priv->vbios->tvdactestval)
-			testval = dev_priv->vbios->tvdactestval;
+		if (dev_priv->vbios.tvdactestval)
+			testval = dev_priv->vbios.tvdactestval;
 	} else {
 		testval = RGB_TEST_DATA(0x140, 0x140, 0x140); /* 0x94050140 */
 
-		if (dev_priv->vbios->dactestval)
-			testval = dev_priv->vbios->dactestval;
+		if (dev_priv->vbios.dactestval)
+			testval = dev_priv->vbios.dactestval;
 	}
 
 	saved_rtest_ctrl = NVReadRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset);
@@ -247,22 +252,21 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 		nvWriteMC(dev, NV_PBUS_POWERCTRL_4, saved_powerctrl_4 & 0xffffffcf);
 	}
 
-	saved_gpio1 = nv17_gpio_get(dev, DCB_GPIO_TVDAC1);
-	saved_gpio0 = nv17_gpio_get(dev, DCB_GPIO_TVDAC0);
+	saved_gpio1 = gpio->get(dev, DCB_GPIO_TVDAC1);
+	saved_gpio0 = gpio->get(dev, DCB_GPIO_TVDAC0);
 
-	nv17_gpio_set(dev, DCB_GPIO_TVDAC1, dcb->type == OUTPUT_TV);
-	nv17_gpio_set(dev, DCB_GPIO_TVDAC0, dcb->type == OUTPUT_TV);
+	gpio->set(dev, DCB_GPIO_TVDAC1, dcb->type == OUTPUT_TV);
+	gpio->set(dev, DCB_GPIO_TVDAC0, dcb->type == OUTPUT_TV);
 
 	msleep(4);
 
 	saved_routput = NVReadRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + regoffset);
 	head = (saved_routput & 0x100) >> 8;
-#if 0
-	/* if there's a spare crtc, using it will minimise flicker for the case
-	 * where the in-use crtc is in use by an off-chip tmds encoder */
-	if (xf86_config->crtc[head]->enabled && !xf86_config->crtc[head ^ 1]->enabled)
+
+	/* if there's a spare crtc, using it will minimise flicker */
+	if (!(NVReadVgaCrtc(dev, head, NV_CIO_CRE_RPC1_INDEX) & 0xC0))
 		head ^= 1;
-#endif
+
 	/* nv driver and nv31 use 0xfffffeee, nv34 and 6600 use 0xfffffece */
 	routput = (saved_routput & 0xfffffece) | head << 8;
 
@@ -300,8 +304,8 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 		nvWriteMC(dev, NV_PBUS_POWERCTRL_4, saved_powerctrl_4);
 	nvWriteMC(dev, NV_PBUS_POWERCTRL_2, saved_powerctrl_2);
 
-	nv17_gpio_set(dev, DCB_GPIO_TVDAC1, saved_gpio1);
-	nv17_gpio_set(dev, DCB_GPIO_TVDAC0, saved_gpio0);
+	gpio->set(dev, DCB_GPIO_TVDAC1, saved_gpio1);
+	gpio->set(dev, DCB_GPIO_TVDAC0, saved_gpio0);
 
 	return sample;
 }
@@ -311,9 +315,12 @@ nv17_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
 	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
-	uint32_t sample = nv17_dac_sample_load(encoder);
 
-	if (sample & NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI) {
+	if (nv04_dac_in_use(encoder))
+		return connector_status_disconnected;
+
+	if (nv17_dac_sample_load(encoder) &
+	    NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI) {
 		NV_INFO(dev, "Load detected on output %c\n",
 			'@' + ffs(dcb->or));
 		return connector_status_connected;
@@ -326,6 +333,9 @@ static bool nv04_dac_mode_fixup(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
+	if (nv04_dac_in_use(encoder))
+		return false;
+
 	return true;
 }
 
@@ -424,6 +434,17 @@ void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable)
 	}
 }
 
+/* Check if the DAC corresponding to 'encoder' is being used by
+ * someone else. */
+bool nv04_dac_in_use(struct drm_encoder *encoder)
+{
+	struct drm_nouveau_private *dev_priv = encoder->dev->dev_private;
+	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+
+	return nv_gf4_disp_arch(encoder->dev) &&
+		(dev_priv->dac_users[ffs(dcb->or) - 1] & ~(1 << dcb->index));
+}
+
 static void nv04_dac_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
@@ -497,11 +518,13 @@ static const struct drm_encoder_funcs nv04_dac_funcs = {
 	.destroy = nv04_dac_destroy,
 };
 
-int nv04_dac_create(struct drm_device *dev, struct dcb_entry *entry)
+int
+nv04_dac_create(struct drm_connector *connector, struct dcb_entry *entry)
 {
 	const struct drm_encoder_helper_funcs *helper;
-	struct drm_encoder *encoder;
 	struct nouveau_encoder *nv_encoder = NULL;
+	struct drm_device *dev = connector->dev;
+	struct drm_encoder *encoder;
 
 	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
 	if (!nv_encoder)
@@ -523,5 +546,6 @@ int nv04_dac_create(struct drm_device *dev, struct dcb_entry *entry)
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
 
+	drm_mode_connector_attach_encoder(connector, encoder);
 	return 0;
 }

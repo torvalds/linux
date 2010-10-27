@@ -99,7 +99,7 @@ struct pmc_type {
 	int has_deep_sleep;
 };
 
-static struct of_device *pmc_dev;
+static struct platform_device *pmc_dev;
 static int has_deep_sleep, deep_sleeping;
 static int pmc_irq;
 static struct mpc83xx_pmc __iomem *pmc_regs;
@@ -318,10 +318,10 @@ static struct platform_suspend_ops mpc83xx_suspend_ops = {
 	.end = mpc83xx_suspend_end,
 };
 
-static int pmc_probe(struct of_device *ofdev,
+static int pmc_probe(struct platform_device *ofdev,
                      const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 	struct pmc_type *type = match->data;
 	int ret = 0;
@@ -396,7 +396,7 @@ out:
 	return ret;
 }
 
-static int pmc_remove(struct of_device *ofdev)
+static int pmc_remove(struct platform_device *ofdev)
 {
 	return -EPERM;
 };
@@ -423,8 +423,11 @@ static struct of_device_id pmc_match[] = {
 };
 
 static struct of_platform_driver pmc_driver = {
-	.name = "mpc83xx-pmc",
-	.match_table = pmc_match,
+	.driver = {
+		.name = "mpc83xx-pmc",
+		.owner = THIS_MODULE,
+		.of_match_table = pmc_match,
+	},
 	.probe = pmc_probe,
 	.remove = pmc_remove
 };

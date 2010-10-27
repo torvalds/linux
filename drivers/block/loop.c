@@ -67,11 +67,11 @@
 #include <linux/compat.h>
 #include <linux/suspend.h>
 #include <linux/freezer.h>
+#include <linux/smp_lock.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>		/* for invalidate_bdev() */
 #include <linux/completion.h>
 #include <linux/highmem.h>
-#include <linux/gfp.h>
 #include <linux/kthread.h>
 #include <linux/splice.h>
 
@@ -237,6 +237,8 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 							&page, &fsdata);
 		if (ret)
 			goto fail;
+
+		file_update_time(file);
 
 		transfer_result = lo_do_transfer(lo, WRITE, page, offset,
 				bvec->bv_page, bv_offs, size, IV);
@@ -475,7 +477,7 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 	pos = ((loff_t) bio->bi_sector << 9) + lo->lo_offset;
 
 	if (bio_rw(bio) == WRITE) {
-		bool barrier = bio_rw_flagged(bio, BIO_RW_BARRIER);
+		bool barrier = !!(bio->bi_rw & REQ_HARDBARRIER);
 		struct file *file = lo->lo_backing_file;
 
 		if (barrier) {
@@ -484,7 +486,7 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 				goto out;
 			}
 
-			ret = vfs_fsync(file, file->f_path.dentry, 0);
+			ret = vfs_fsync(file, 0);
 			if (unlikely(ret)) {
 				ret = -EIO;
 				goto out;
@@ -494,7 +496,7 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 		ret = lo_send(lo, bio, pos);
 
 		if (barrier && !ret) {
-			ret = vfs_fsync(file, file->f_path.dentry, 0);
+			ret = vfs_fsync(file, 0);
 			if (unlikely(ret))
 				ret = -EIO;
 		}
@@ -830,10 +832,12 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	lo->lo_queue->unplug_fn = loop_unplug;
 
 	if (!(lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
-		blk_queue_ordered(lo->lo_queue, QUEUE_ORDERED_DRAIN, NULL);
+		blk_queue_ordered(lo->lo_queue, QUEUE_ORDERED_DRAIN);
 
 	set_capacity(lo->lo_disk, size);
 	bd_set_size(bdev, size << 9);
+	/* let user-space know about the new size */
+	kobject_uevent(&disk_to_dev(bdev->bd_disk)->kobj, KOBJ_CHANGE);
 
 	set_blocksize(bdev, lo_blocksize);
 
@@ -857,6 +861,7 @@ out_clr:
 	set_capacity(lo->lo_disk, 0);
 	invalidate_bdev(bdev);
 	bd_set_size(bdev, 0);
+	kobject_uevent(&disk_to_dev(bdev->bd_disk)->kobj, KOBJ_CHANGE);
 	mapping_set_gfp_mask(mapping, lo->old_gfp_mask);
 	lo->lo_state = Lo_unbound;
  out_putf:
@@ -943,8 +948,11 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 	if (bdev)
 		invalidate_bdev(bdev);
 	set_capacity(lo->lo_disk, 0);
-	if (bdev)
+	if (bdev) {
 		bd_set_size(bdev, 0);
+		/* let user-space know about this change */
+		kobject_uevent(&disk_to_dev(bdev->bd_disk)->kobj, KOBJ_CHANGE);
+	}
 	mapping_set_gfp_mask(filp->f_mapping, gfp);
 	lo->lo_state = Lo_unbound;
 	/* This is safe: open() is still holding a reference. */
@@ -1188,6 +1196,8 @@ static int loop_set_capacity(struct loop_device *lo, struct block_device *bdev)
 	sz <<= 9;
 	mutex_lock(&bdev->bd_mutex);
 	bd_set_size(bdev, sz);
+	/* let user-space know about the new size */
+	kobject_uevent(&disk_to_dev(bdev->bd_disk)->kobj, KOBJ_CHANGE);
 	mutex_unlock(&bdev->bd_mutex);
 
  out:
@@ -1399,9 +1409,11 @@ static int lo_open(struct block_device *bdev, fmode_t mode)
 {
 	struct loop_device *lo = bdev->bd_disk->private_data;
 
+	lock_kernel();
 	mutex_lock(&lo->lo_ctl_mutex);
 	lo->lo_refcnt++;
 	mutex_unlock(&lo->lo_ctl_mutex);
+	unlock_kernel();
 
 	return 0;
 }
@@ -1411,6 +1423,7 @@ static int lo_release(struct gendisk *disk, fmode_t mode)
 	struct loop_device *lo = disk->private_data;
 	int err;
 
+	lock_kernel();
 	mutex_lock(&lo->lo_ctl_mutex);
 
 	if (--lo->lo_refcnt)
@@ -1435,6 +1448,7 @@ static int lo_release(struct gendisk *disk, fmode_t mode)
 out:
 	mutex_unlock(&lo->lo_ctl_mutex);
 out_unlocked:
+	lock_kernel();
 	return 0;
 }
 

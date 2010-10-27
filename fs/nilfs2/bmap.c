@@ -26,6 +26,8 @@
 #include "nilfs.h"
 #include "bmap.h"
 #include "sb.h"
+#include "btree.h"
+#include "direct.h"
 #include "btnode.h"
 #include "mdt.h"
 #include "dat.h"
@@ -533,7 +535,7 @@ void nilfs_bmap_init_gc(struct nilfs_bmap *bmap)
 
 void nilfs_bmap_init_gcdat(struct nilfs_bmap *gcbmap, struct nilfs_bmap *bmap)
 {
-	memcpy(gcbmap, bmap, sizeof(union nilfs_bmap_union));
+	memcpy(gcbmap, bmap, sizeof(*bmap));
 	init_rwsem(&gcbmap->b_sem);
 	lockdep_set_class(&bmap->b_sem, &nilfs_bmap_dat_lock_key);
 	gcbmap->b_inode = &NILFS_BMAP_I(gcbmap)->vfs_inode;
@@ -541,7 +543,7 @@ void nilfs_bmap_init_gcdat(struct nilfs_bmap *gcbmap, struct nilfs_bmap *bmap)
 
 void nilfs_bmap_commit_gcdat(struct nilfs_bmap *gcbmap, struct nilfs_bmap *bmap)
 {
-	memcpy(bmap, gcbmap, sizeof(union nilfs_bmap_union));
+	memcpy(bmap, gcbmap, sizeof(*bmap));
 	init_rwsem(&bmap->b_sem);
 	lockdep_set_class(&bmap->b_sem, &nilfs_bmap_dat_lock_key);
 	bmap->b_inode = &NILFS_BMAP_I(bmap)->vfs_inode;

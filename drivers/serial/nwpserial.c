@@ -81,7 +81,7 @@ nwpserial_console_write(struct console *co, const char *s, unsigned int count)
 
 	uart_console_write(&up->port, s, count, nwpserial_console_putchar);
 
-	/* wait for transmitter to become emtpy */
+	/* wait for transmitter to become empty */
 	while ((dcr_read(up->dcr_host, UART_LSR) & UART_LSR_THRE) == 0)
 		cpu_relax();
 
@@ -344,7 +344,7 @@ int nwpserial_register_port(struct uart_port *port)
 
 	mutex_lock(&nwpserial_mutex);
 
-	dn = to_of_device(port->dev)->node;
+	dn = port->dev->of_node;
 	if (dn == NULL)
 		goto out;
 

@@ -15,6 +15,7 @@
 #include <linux/mutex.h>
 #include <linux/spi/spi.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 /*
  * WARNING! Do not include this pl022-specific controller header
  * for any generic driver. It is only done in this dummy chip

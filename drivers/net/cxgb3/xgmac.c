@@ -297,29 +297,30 @@ static int hash_hw_addr(const u8 * addr)
 	return hash;
 }
 
-int t3_mac_set_rx_mode(struct cmac *mac, struct t3_rx_mode *rm)
+int t3_mac_set_rx_mode(struct cmac *mac, struct net_device *dev)
 {
 	u32 val, hash_lo, hash_hi;
 	struct adapter *adap = mac->adapter;
 	unsigned int oft = mac->offset;
 
 	val = t3_read_reg(adap, A_XGM_RX_CFG + oft) & ~F_COPYALLFRAMES;
-	if (rm->dev->flags & IFF_PROMISC)
+	if (dev->flags & IFF_PROMISC)
 		val |= F_COPYALLFRAMES;
 	t3_write_reg(adap, A_XGM_RX_CFG + oft, val);
 
-	if (rm->dev->flags & IFF_ALLMULTI)
+	if (dev->flags & IFF_ALLMULTI)
 		hash_lo = hash_hi = 0xffffffff;
 	else {
-		u8 *addr;
+		struct netdev_hw_addr *ha;
 		int exact_addr_idx = mac->nucast;
 
 		hash_lo = hash_hi = 0;
-		while ((addr = t3_get_next_mcaddr(rm)))
+		netdev_for_each_mc_addr(ha, dev)
 			if (exact_addr_idx < EXACT_ADDR_FILTERS)
-				set_addr_filter(mac, exact_addr_idx++, addr);
+				set_addr_filter(mac, exact_addr_idx++,
+						ha->addr);
 			else {
-				int hash = hash_hw_addr(addr);
+				int hash = hash_hw_addr(ha->addr);
 
 				if (hash < 32)
 					hash_lo |= (1 << hash);
@@ -353,6 +354,9 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 	 * packet size register includes header, but not FCS.
 	 */
 	mtu += 14;
+	if (mtu > 1536)
+		mtu += 4;
+
 	if (mtu > MAX_FRAME_SIZE - 4)
 		return -EINVAL;
 	t3_write_reg(adap, A_XGM_RX_MAX_PKT_SIZE + mac->offset, mtu);

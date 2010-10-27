@@ -26,7 +26,9 @@
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
 #include <linux/swap.h>
+#include <linux/slab.h>
 #include "nilfs.h"
+#include "btnode.h"
 #include "segment.h"
 #include "page.h"
 #include "mdt.h"

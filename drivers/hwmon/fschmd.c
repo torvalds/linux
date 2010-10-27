@@ -38,6 +38,7 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/smp_lock.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
@@ -267,7 +268,7 @@ struct fschmd_data {
 	struct list_head list; /* member of the watchdog_data_list */
 	struct kref kref;
 	struct miscdevice watchdog_miscdev;
-	int kind;
+	enum chips kind;
 	unsigned long watchdog_is_open;
 	char watchdog_expect_close;
 	char watchdog_name[10]; /* must be unique to avoid sysfs conflict */
@@ -325,8 +326,7 @@ static ssize_t show_in_value(struct device *dev,
 	int index = to_sensor_dev_attr(devattr)->index;
 	struct fschmd_data *data = fschmd_update_device(dev);
 
-	/* fscher / fschrc - 1 as data->kind is an array index, not a chips */
-	if (data->kind == (fscher - 1) || data->kind >= (fschrc - 1))
+	if (data->kind == fscher || data->kind >= fschrc)
 		return sprintf(buf, "%d\n", (data->volt[index] * dmi_vref *
 			dmi_mult[index]) / 255 + dmi_offset[index]);
 	else
@@ -492,7 +492,7 @@ static ssize_t show_pwm_auto_point1_pwm(struct device *dev,
 	int val = data->fan_min[index];
 
 	/* 0 = allow turning off (except on the syl), 1-255 = 50-100% */
-	if (val || data->kind == fscsyl - 1)
+	if (val || data->kind == fscsyl)
 		val = val / 2 + 128;
 
 	return sprintf(buf, "%d\n", val);
@@ -506,7 +506,7 @@ static ssize_t store_pwm_auto_point1_pwm(struct device *dev,
 	unsigned long v = simple_strtoul(buf, NULL, 10);
 
 	/* reg: 0 = allow turning off (except on the syl), 1-255 = 50-100% */
-	if (v || data->kind == fscsyl - 1) {
+	if (v || data->kind == fscsyl) {
 		v = SENSORS_LIMIT(v, 128, 255);
 		v = (v - 128) * 2 + 1;
 	}
@@ -848,8 +848,7 @@ static ssize_t watchdog_write(struct file *filp, const char __user *buf,
 	return count;
 }
 
-static int watchdog_ioctl(struct inode *inode, struct file *filp,
-	unsigned int cmd, unsigned long arg)
+static long watchdog_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	static struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT |
@@ -859,6 +858,7 @@ static int watchdog_ioctl(struct inode *inode, struct file *filp,
 	int i, ret = 0;
 	struct fschmd_data *data = filp->private_data;
 
+	lock_kernel();
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
 		ident.firmware_version = data->revision;
@@ -915,7 +915,7 @@ static int watchdog_ioctl(struct inode *inode, struct file *filp,
 	default:
 		ret = -ENOTTY;
 	}
-
+	unlock_kernel();
 	return ret;
 }
 
@@ -925,7 +925,7 @@ static const struct file_operations watchdog_fops = {
 	.open = watchdog_open,
 	.release = watchdog_release,
 	.write = watchdog_write,
-	.ioctl = watchdog_ioctl,
+	.unlocked_ioctl = watchdog_ioctl,
 };
 
 
@@ -1037,7 +1037,7 @@ static int fschmd_detect(struct i2c_client *client,
 	else
 		return -ENODEV;
 
-	strlcpy(info->type, fschmd_id[kind - 1].name, I2C_NAME_SIZE);
+	strlcpy(info->type, fschmd_id[kind].name, I2C_NAME_SIZE);
 
 	return 0;
 }
@@ -1065,6 +1065,7 @@ static int fschmd_probe(struct i2c_client *client,
 	   (where the client is found through a data ptr instead of the
 	   otherway around) */
 	data->client = client;
+	data->kind = kind;
 
 	if (kind == fscpos) {
 		/* The Poseidon has hardwired temp limits, fill these
@@ -1084,9 +1085,6 @@ static int fschmd_probe(struct i2c_client *client,
 			dmi_vref = 33;
 		}
 	}
-
-	/* i2c kind goes from 1-6, we want from 0-5 to address arrays */
-	data->kind = kind - 1;
 
 	/* Read in some never changing registers */
 	data->revision = i2c_smbus_read_byte_data(client, FSCHMD_REG_REVISION);

@@ -19,6 +19,7 @@
 #include <linux/rtc.h>
 #include <linux/rtc/m48t59.h>
 #include <linux/bcd.h>
+#include <linux/slab.h>
 
 #ifndef NO_IRQ
 #define NO_IRQ	(-1)
@@ -104,7 +105,7 @@ static int m48t59_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	dev_dbg(dev, "RTC read time %04d-%02d-%02d %02d/%02d/%02d\n",
 		tm->tm_year + 1900, tm->tm_mon, tm->tm_mday,
 		tm->tm_hour, tm->tm_min, tm->tm_sec);
-	return 0;
+	return rtc_valid_tm(tm);
 }
 
 static int m48t59_rtc_set_time(struct device *dev, struct rtc_time *tm)
@@ -195,7 +196,7 @@ static int m48t59_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	dev_dbg(dev, "RTC read alarm time %04d-%02d-%02d %02d/%02d/%02d\n",
 		tm->tm_year + 1900, tm->tm_mon, tm->tm_mday,
 		tm->tm_hour, tm->tm_min, tm->tm_sec);
-	return 0;
+	return rtc_valid_tm(tm);
 }
 
 /*
@@ -342,7 +343,7 @@ static const struct rtc_class_ops m48t02_rtc_ops = {
 	.set_time	= m48t59_rtc_set_time,
 };
 
-static ssize_t m48t59_nvram_read(struct kobject *kobj,
+static ssize_t m48t59_nvram_read(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t pos, size_t size)
 {
@@ -362,7 +363,7 @@ static ssize_t m48t59_nvram_read(struct kobject *kobj,
 	return cnt;
 }
 
-static ssize_t m48t59_nvram_write(struct kobject *kobj,
+static ssize_t m48t59_nvram_write(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t pos, size_t size)
 {
@@ -505,7 +506,6 @@ out:
 		free_irq(m48t59->irq, &pdev->dev);
 	if (m48t59->ioaddr)
 		iounmap(m48t59->ioaddr);
-	if (m48t59)
 		kfree(m48t59);
 	return ret;
 }

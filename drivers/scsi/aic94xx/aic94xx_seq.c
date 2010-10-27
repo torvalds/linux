@@ -27,6 +27,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gfp.h>
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/firmware.h>
@@ -587,7 +588,7 @@ static void asd_init_cseq_mdp(struct asd_ha_struct *asd_ha)
  * asd_init_cseq_scratch -- setup and init CSEQ
  * @asd_ha: pointer to host adapter structure
  *
- * Setup and initialize Central sequencers. Initialiaze the mode
+ * Setup and initialize Central sequencers. Initialize the mode
  * independent and dependent scratch page to the default settings.
  */
 static void asd_init_cseq_scratch(struct asd_ha_struct *asd_ha)
@@ -781,7 +782,7 @@ static void asd_init_lseq_mdp(struct asd_ha_struct *asd_ha,  int lseq)
 	asd_write_reg_word(asd_ha, LmSEQ_OOB_INT_ENABLES(lseq), 0);
 	/*
 	 * Set the desired interval between transmissions of the NOTIFY
-	 * (ENABLE SPINUP) primitive.  Must be initilized to val - 1.
+	 * (ENABLE SPINUP) primitive.  Must be initialized to val - 1.
 	 */
 	asd_write_reg_word(asd_ha, LmSEQ_NOTIFY_TIMER_TIMEOUT(lseq),
 			   ASD_NOTIFY_TIMEOUT - 1);

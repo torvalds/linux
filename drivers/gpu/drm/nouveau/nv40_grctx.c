@@ -115,11 +115,6 @@
 
 /* TODO:
  *  - get vs count from 0x1540
- *  - document unimplemented bits compared to nvidia
- *    - nsource handling
- *    - R0 & 0x0200 handling
- *    - single-vs handling
- *    - 400314 bit 0
  */
 
 static int

@@ -50,6 +50,7 @@
 #include <linux/device.h>
 #include <linux/eisa.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 
 #include <asm/dma.h>
 #include <asm/system.h>

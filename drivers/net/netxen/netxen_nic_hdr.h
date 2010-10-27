@@ -19,7 +19,7 @@
  * MA  02111-1307, USA.
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.
+ * in the file called "COPYING".
  *
  */
 
@@ -681,14 +681,8 @@ enum {
 #define MIU_TEST_AGT_ADDR_HI		(0x08)
 #define MIU_TEST_AGT_WRDATA_LO		(0x10)
 #define MIU_TEST_AGT_WRDATA_HI		(0x14)
-#define MIU_TEST_AGT_WRDATA_UPPER_LO	(0x20)
-#define MIU_TEST_AGT_WRDATA_UPPER_HI	(0x24)
-#define MIU_TEST_AGT_WRDATA(i)		(0x10+(0x10*((i)>>1))+(4*((i)&1)))
 #define MIU_TEST_AGT_RDDATA_LO		(0x18)
 #define MIU_TEST_AGT_RDDATA_HI		(0x1c)
-#define MIU_TEST_AGT_RDDATA_UPPER_LO	(0x28)
-#define MIU_TEST_AGT_RDDATA_UPPER_HI	(0x2c)
-#define MIU_TEST_AGT_RDDATA(i)		(0x18+(0x10*((i)>>1))+(4*((i)&1)))
 
 #define MIU_TEST_AGT_ADDR_MASK		0xfffffff8
 #define MIU_TEST_AGT_UPPER_ADDR(off)	(0)
@@ -789,9 +783,7 @@ enum {
  * for backward compability
  */
 #define CRB_NIC_CAPABILITIES_HOST	NETXEN_NIC_REG(0x1a8)
-#define CRB_NIC_CAPABILITIES_FW	  	NETXEN_NIC_REG(0x1dc)
 #define CRB_NIC_MSI_MODE_HOST		NETXEN_NIC_REG(0x270)
-#define CRB_NIC_MSI_MODE_FW	  	NETXEN_NIC_REG(0x274)
 
 #define INTR_SCHEME_PERPORT	      	0x1
 #define MSI_MODE_MULTIFUNC	      	0x1
@@ -969,7 +961,8 @@ enum {
 #define NX_DEV_READY		3
 #define NX_DEV_NEED_RESET	4
 #define NX_DEV_NEED_QUISCENT	5
-#define NX_DEV_FAILED		6
+#define NX_DEV_NEED_AER 	6
+#define NX_DEV_FAILED		7
 
 #define NX_RCODE_DRIVER_INFO		0x20000000
 #define NX_RCODE_DRIVER_CAN_RELOAD	0x40000000

@@ -59,3 +59,29 @@ long probe_kernel_write(void *dst, void *src, size_t size)
 	}
 	return copied < 0 ? -EFAULT : 0;
 }
+
+int memcpy_real(void *dest, void *src, size_t count)
+{
+	register unsigned long _dest asm("2") = (unsigned long) dest;
+	register unsigned long _len1 asm("3") = (unsigned long) count;
+	register unsigned long _src  asm("4") = (unsigned long) src;
+	register unsigned long _len2 asm("5") = (unsigned long) count;
+	unsigned long flags;
+	int rc = -EFAULT;
+
+	if (!count)
+		return 0;
+	flags = __raw_local_irq_stnsm(0xf8UL);
+	asm volatile (
+		"0:	mvcle	%1,%2,0x0\n"
+		"1:	jo	0b\n"
+		"	lhi	%0,0x0\n"
+		"2:\n"
+		EX_TABLE(1b,2b)
+		: "+d" (rc), "+d" (_dest), "+d" (_src), "+d" (_len1),
+		  "+d" (_len2), "=m" (*((long *) dest))
+		: "m" (*((long *) src))
+		: "cc", "memory");
+	__raw_local_irq_ssm(flags);
+	return rc;
+}

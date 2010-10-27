@@ -1,7 +1,7 @@
 /*
- *    Support for LGDT3305 - VSB/QAM
+ *    Support for LG Electronics LGDT3304 and LGDT3305 - VSB/QAM
  *
- *    Copyright (C) 2008, 2009 Michael Krufky <mkrufky@linuxtv.org>
+ *    Copyright (C) 2008, 2009, 2010 Michael Krufky <mkrufky@linuxtv.org>
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,11 @@ enum lgdt3305_tp_valid_polarity {
 	LGDT3305_TP_VALID_HIGH = 1,
 };
 
+enum lgdt_demod_chip_type {
+	LGDT3305 = 0,
+	LGDT3304 = 1,
+};
+
 struct lgdt3305_config {
 	u8 i2c_addr;
 
@@ -65,6 +70,7 @@ struct lgdt3305_config {
 	enum lgdt3305_mpeg_mode mpeg_mode;
 	enum lgdt3305_tp_clock_edge tpclk_edge;
 	enum lgdt3305_tp_valid_polarity tpvalid_polarity;
+	enum lgdt_demod_chip_type demod_chip;
 };
 
 #if defined(CONFIG_DVB_LGDT3305) || (defined(CONFIG_DVB_LGDT3305_MODULE) && \

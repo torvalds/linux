@@ -48,14 +48,14 @@ extern void kunmap_high(struct page *page);
 extern void *__kmap(struct page *page);
 extern void __kunmap(struct page *page);
 extern void *__kmap_atomic(struct page *page, enum km_type type);
-extern void __kunmap_atomic(void *kvaddr, enum km_type type);
+extern void __kunmap_atomic_notypecheck(void *kvaddr, enum km_type type);
 extern void *kmap_atomic_pfn(unsigned long pfn, enum km_type type);
 extern struct page *__kmap_atomic_to_page(void *ptr);
 
 #define kmap			__kmap
 #define kunmap			__kunmap
 #define kmap_atomic		__kmap_atomic
-#define kunmap_atomic		__kunmap_atomic
+#define kunmap_atomic_notypecheck		__kunmap_atomic_notypecheck
 #define kmap_atomic_to_page	__kmap_atomic_to_page
 
 #define flush_cache_kmaps()	flush_cache_all()

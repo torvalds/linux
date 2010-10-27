@@ -20,6 +20,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/gpio.h>
 #include <linux/amba/mmci.h>
+#include <linux/slab.h>
 
 #include "mmc.h"
 #include "padmux.h"
@@ -73,16 +74,16 @@ static void _mmci_callback(struct work_struct *ws)
 
 	mdelay(20);
 
-	mmci_card->mmc_inserted = !!gpio_get_value(U300_GPIO_PIN_MMC_CD);
+	mmci_card->mmc_inserted = !gpio_get_value(U300_GPIO_PIN_MMC_CD);
 
 	input_report_switch(mmci_card->mmc_input, KEY_INSERT,
-			    !mmci_card->mmc_inserted);
+			    mmci_card->mmc_inserted);
 	input_sync(mmci_card->mmc_input);
 
 	pr_debug("MMC/SD card was %s\n",
-		 mmci_card->mmc_inserted ? "removed" : "inserted");
+		 mmci_card->mmc_inserted ? "inserted" : "removed");
 
-	enable_irq_on_gpio_pin(U300_GPIO_PIN_MMC_CD, !mmci_card->mmc_inserted);
+	enable_irq_on_gpio_pin(U300_GPIO_PIN_MMC_CD, mmci_card->mmc_inserted);
 }
 
 int __devinit mmc_init(struct amba_device *adev)
@@ -101,11 +102,12 @@ int __devinit mmc_init(struct amba_device *adev)
 	 * we have a regulator we can control instead.
 	 */
 	/* Nominally 2.85V on our platform */
+	mmci_card->mmc0_plat_data.f_max = 24000000;
 	mmci_card->mmc0_plat_data.status = mmc_status;
 	mmci_card->mmc0_plat_data.gpio_wp = -1;
 	mmci_card->mmc0_plat_data.gpio_cd = -1;
 	mmci_card->mmc0_plat_data.capabilities = MMC_CAP_MMC_HIGHSPEED |
-		MMC_CAP_SD_HIGHSPEED | MMC_CAP_4_BIT_DATA;
+		MMC_CAP_SD_HIGHSPEED | MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
 
 	mmcsd_device->platform_data = (void *) &mmci_card->mmc0_plat_data;
 

@@ -81,11 +81,28 @@ struct pad_desc {
 
 #define PAD_CTL_ODE			(1 << 3)
 
-#define PAD_CTL_DSE_STANDARD		(0 << 1)
-#define PAD_CTL_DSE_HIGH		(1 << 1)
-#define PAD_CTL_DSE_MAX			(2 << 1)
+#define PAD_CTL_DSE_LOW			(0 << 1)
+#define PAD_CTL_DSE_MED			(1 << 1)
+#define PAD_CTL_DSE_HIGH		(2 << 1)
+#define PAD_CTL_DSE_MAX			(3 << 1)
 
 #define PAD_CTL_SRE_FAST		(1 << 0)
+#define PAD_CTL_SRE_SLOW		(0 << 0)
+
+
+#define MX51_NUM_GPIO_PORT	4
+
+#define GPIO_PIN_MASK 0x1f
+
+#define GPIO_PORT_SHIFT 5
+#define GPIO_PORT_MASK (0x7 << GPIO_PORT_SHIFT)
+
+#define GPIO_PORTA	(0 << GPIO_PORT_SHIFT)
+#define GPIO_PORTB	(1 << GPIO_PORT_SHIFT)
+#define GPIO_PORTC	(2 << GPIO_PORT_SHIFT)
+#define GPIO_PORTD	(3 << GPIO_PORT_SHIFT)
+#define GPIO_PORTE	(4 << GPIO_PORT_SHIFT)
+#define GPIO_PORTF	(5 << GPIO_PORT_SHIFT)
 
 /*
  * setups a single pad in the iomuxer

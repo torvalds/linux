@@ -68,7 +68,7 @@ static void scatterwalk_pagedone(struct scatter_walk *walk, int out,
 
 void scatterwalk_done(struct scatter_walk *walk, int out, int more)
 {
-	if (!offset_in_page(walk->offset) || !more)
+	if (!(scatterwalk_pagelen(walk) & (PAGE_SIZE - 1)) || !more)
 		scatterwalk_pagedone(walk, out, more);
 }
 EXPORT_SYMBOL_GPL(scatterwalk_done);

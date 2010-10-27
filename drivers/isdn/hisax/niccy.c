@@ -297,12 +297,12 @@ int __devinit setup_niccy(struct IsdnCard *card)
 			return 0;
 		}
 	} else {
-#ifdef CONFIG_PCI_LEGACY
+#ifdef CONFIG_PCI
 		static struct pci_dev *niccy_dev __devinitdata;
 
 		u_int pci_ioaddr;
 		cs->subtyp = 0;
-		if ((niccy_dev = pci_find_device(PCI_VENDOR_ID_SATSAGEM,
+		if ((niccy_dev = hisax_find_pci_device(PCI_VENDOR_ID_SATSAGEM,
 						 PCI_DEVICE_ID_SATSAGEM_NICCY,
 						 niccy_dev))) {
 			if (pci_enable_device(niccy_dev))
@@ -354,7 +354,7 @@ int __devinit setup_niccy(struct IsdnCard *card)
 		printk(KERN_WARNING "Niccy: io0 0 and NO_PCI_BIOS\n");
 		printk(KERN_WARNING "Niccy: unable to config NICCY PCI\n");
 		return 0;
-#endif				/* CONFIG_PCI_LEGACY */
+#endif				/* CONFIG_PCI */
 	}
 	printk(KERN_INFO "HiSax: NICCY %s config irq:%d data:0x%X ale:0x%X\n",
 		(cs->subtyp == 1) ? "PnP" : "PCI",

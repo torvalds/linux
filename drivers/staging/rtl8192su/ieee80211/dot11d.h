@@ -1,9 +1,25 @@
+/******************************************************************************
+ * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
+******************************************************************************/
 #ifndef __INC_DOT11D_H
 #define __INC_DOT11D_H
 
 #include "ieee80211.h"
-
-//#define DOT11D_MAX_CHNL_NUM 83
 
 typedef struct _CHNL_TXPOWER_TRIPLE {
 	u8 FirstChnl;
@@ -18,7 +34,6 @@ typedef enum _DOT11D_STATE {
 }DOT11D_STATE;
 
 typedef struct _RT_DOT11D_INFO {
-	//DECLARE_RT_OBJECT(RT_DOT11D_INFO);
 
 	bool bEnabled; // dot11MultiDomainCapabilityEnabled
 
@@ -28,8 +43,6 @@ typedef struct _RT_DOT11D_INFO {
 	u8  CountryIeWatchdog;
 
 	u8  channel_map[MAX_CHANNEL_NUMBER+1];  //!!!Value 0: Invalid, 1: Valid (active scan), 2: Valid (passive scan)
-	//u8  ChnlListLen; // #Bytes valid in ChnlList[].
-	//u8  ChnlList[DOT11D_MAX_CHNL_NUM];
 	u8  MaxTxPwrDbmList[MAX_CHANNEL_NUMBER+1];
 
 	DOT11D_STATE State;
@@ -95,4 +108,4 @@ int ToLegalChannel(
 	struct ieee80211_device * dev,
 	u8 channel
 );
-#endif // #ifndef __INC_DOT11D_H
+#endif

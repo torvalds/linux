@@ -85,13 +85,13 @@
 struct v4l2_prio_state {
 	atomic_t prios[4];
 };
-int v4l2_prio_init(struct v4l2_prio_state *global);
+void v4l2_prio_init(struct v4l2_prio_state *global);
 int v4l2_prio_change(struct v4l2_prio_state *global, enum v4l2_priority *local,
 		     enum v4l2_priority new);
-int v4l2_prio_open(struct v4l2_prio_state *global, enum v4l2_priority *local);
-int v4l2_prio_close(struct v4l2_prio_state *global, enum v4l2_priority *local);
+void v4l2_prio_open(struct v4l2_prio_state *global, enum v4l2_priority *local);
+void v4l2_prio_close(struct v4l2_prio_state *global, enum v4l2_priority local);
 enum v4l2_priority v4l2_prio_max(struct v4l2_prio_state *global);
-int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority *local);
+int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority local);
 
 /* ------------------------------------------------------------------------- */
 
@@ -181,6 +181,25 @@ enum v4l2_i2c_tuner_type {
 /* Return a list of I2C tuner addresses to probe. Use only if the tuner
    addresses are unknown. */
 const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type);
+
+/* ------------------------------------------------------------------------- */
+
+/* SPI Helper functions */
+#if defined(CONFIG_SPI)
+
+#include <linux/spi/spi.h>
+
+struct spi_device;
+
+/* Load an spi module and return an initialized v4l2_subdev struct.
+   The client_type argument is the name of the chip that's on the adapter. */
+struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
+		struct spi_master *master, struct spi_board_info *info);
+
+/* Initialize an v4l2_subdev with data from an spi_device struct */
+void v4l2_spi_subdev_init(struct v4l2_subdev *sd, struct spi_device *spi,
+		const struct v4l2_subdev_ops *ops);
+#endif
 
 /* ------------------------------------------------------------------------- */
 

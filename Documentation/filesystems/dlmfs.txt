@@ -47,7 +47,7 @@ You'll want to start heartbeating on a volume which all the nodes in
 your lockspace can access. The easiest way to do this is via
 ocfs2_hb_ctl (distributed with ocfs2-tools). Right now it requires
 that an OCFS2 file system be in place so that it can automatically
-find it's heartbeat area, though it will eventually support heartbeat
+find its heartbeat area, though it will eventually support heartbeat
 against raw disks.
 
 Please see the ocfs2_hb_ctl and mkfs.ocfs2 manual pages distributed

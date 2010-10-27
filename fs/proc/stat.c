@@ -1,6 +1,5 @@
 #include <linux/cpumask.h>
 #include <linux/fs.h>
-#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>

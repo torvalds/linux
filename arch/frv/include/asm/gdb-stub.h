@@ -12,6 +12,7 @@
 #ifndef __ASM_GDB_STUB_H
 #define __ASM_GDB_STUB_H
 
+#undef GDBSTUB_DEBUG_IO
 #undef GDBSTUB_DEBUG_PROTOCOL
 
 #include <asm/ptrace.h>
@@ -107,6 +108,12 @@ extern u8		gdbstub_rx_unget;
 extern void gdbstub_printk(const char *fmt, ...);
 extern void debug_to_serial(const char *p, int n);
 extern void console_set_baud(unsigned baud);
+
+#ifdef GDBSTUB_DEBUG_IO
+#define gdbstub_io(FMT,...) gdbstub_printk(FMT, ##__VA_ARGS__)
+#else
+#define gdbstub_io(FMT,...) ({ 0; })
+#endif
 
 #ifdef GDBSTUB_DEBUG_PROTOCOL
 #define gdbstub_proto(FMT,...) gdbstub_printk(FMT,##__VA_ARGS__)

@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -175,7 +176,7 @@ static inline void __add_pwm(struct pwm_device *pwm)
 
 static int __devinit pwm_probe(struct platform_device *pdev)
 {
-	struct platform_device_id *id = platform_get_device_id(pdev);
+	const struct platform_device_id *id = platform_get_device_id(pdev);
 	struct pwm_device *pwm, *secondary = NULL;
 	struct resource *r;
 	int ret = 0;

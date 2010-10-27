@@ -95,7 +95,7 @@
 #define	FRF_AA_INT_ACK_KER_FIELD_LBN 0
 #define	FRF_AA_INT_ACK_KER_FIELD_WIDTH 32
 
-/* INT_ISR0_REG: Function 0 Interrupt Acknowlege Status register */
+/* INT_ISR0_REG: Function 0 Interrupt Acknowledge Status register */
 #define	FR_BZ_INT_ISR0 0x00000090
 #define	FRF_BZ_INT_ISR_REG_LBN 0
 #define	FRF_BZ_INT_ISR_REG_WIDTH 64

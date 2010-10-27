@@ -34,6 +34,7 @@
 #include <linux/fs.h>
 #include <linux/timer.h>
 #include <linux/poll.h>
+#include <linux/gfp.h>
 
 #include "av7110.h"
 #include "av7110_hw.h"
@@ -247,8 +248,7 @@ static unsigned int dvb_ca_poll (struct file *file, poll_table *wait)
 	return mask;
 }
 
-static int dvb_ca_ioctl(struct inode *inode, struct file *file,
-		 unsigned int cmd, void *parg)
+static int dvb_ca_ioctl(struct file *file, unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct av7110 *av7110 = dvbdev->priv;
@@ -349,7 +349,7 @@ static const struct file_operations dvb_ca_fops = {
 	.owner		= THIS_MODULE,
 	.read		= dvb_ca_read,
 	.write		= dvb_ca_write,
-	.ioctl		= dvb_generic_ioctl,
+	.unlocked_ioctl	= dvb_generic_ioctl,
 	.open		= dvb_ca_open,
 	.release	= dvb_generic_release,
 	.poll		= dvb_ca_poll,

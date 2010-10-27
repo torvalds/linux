@@ -48,8 +48,10 @@ static int mpc837xmds_usb_cfg(void)
 		return -1;
 
 	np = of_find_node_by_name(NULL, "usb");
-	if (!np)
-		return -ENODEV;
+	if (!np) {
+		ret = -ENODEV;
+		goto out;
+	}
 	phy_type = of_get_property(np, "phy_type", NULL);
 	if (phy_type && !strcmp(phy_type, "ulpi")) {
 		clrbits8(bcsr_regs + 12, BCSR12_USB_SER_PIN);
@@ -65,8 +67,9 @@ static int mpc837xmds_usb_cfg(void)
 	}
 
 	of_node_put(np);
+out:
 	iounmap(bcsr_regs);
-	return 0;
+	return ret;
 }
 
 /* ************************************************************************
@@ -102,7 +105,7 @@ static struct of_device_id mpc837x_ids[] = {
 
 static int __init mpc837x_declare_of_platform_devices(void)
 {
-	/* Publish of_device */
+	/* Publish platform_device */
 	of_platform_bus_probe(NULL, mpc837x_ids, NULL);
 
 	return 0;

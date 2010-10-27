@@ -50,6 +50,7 @@
 /* #define VERBOSE_DEBUG */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/utsname.h>
 #include <linux/device.h>
 
@@ -263,7 +264,7 @@ static void zero_resume(struct usb_composite_dev *cdev)
 
 /*-------------------------------------------------------------------------*/
 
-static int __init zero_bind(struct usb_composite_dev *cdev)
+static int __ref zero_bind(struct usb_composite_dev *cdev)
 {
 	int			gcnum;
 	struct usb_gadget	*gadget = cdev->gadget;
@@ -297,12 +298,10 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 	 */
 	if (loopdefault) {
 		loopback_add(cdev, autoresume != 0);
-		if (!gadget_is_sh(gadget))
-			sourcesink_add(cdev, autoresume != 0);
+		sourcesink_add(cdev, autoresume != 0);
 	} else {
 		sourcesink_add(cdev, autoresume != 0);
-		if (!gadget_is_sh(gadget))
-			loopback_add(cdev, autoresume != 0);
+		loopback_add(cdev, autoresume != 0);
 	}
 
 	gcnum = usb_gadget_controller_number(gadget);

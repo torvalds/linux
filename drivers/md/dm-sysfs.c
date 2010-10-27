@@ -75,16 +75,9 @@ static struct attribute *dm_attrs[] = {
 	NULL,
 };
 
-static struct sysfs_ops dm_sysfs_ops = {
+static const struct sysfs_ops dm_sysfs_ops = {
 	.show	= dm_attr_show,
 };
-
-/*
- * The sysfs structure is embedded in md struct, nothing to do here
- */
-static void dm_sysfs_release(struct kobject *kobj)
-{
-}
 
 /*
  * dm kobject is embedded in mapped_device structure
@@ -93,7 +86,6 @@ static void dm_sysfs_release(struct kobject *kobj)
 static struct kobj_type dm_ktype = {
 	.sysfs_ops	= &dm_sysfs_ops,
 	.default_attrs	= dm_attrs,
-	.release	= dm_sysfs_release
 };
 
 /*

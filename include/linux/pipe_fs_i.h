@@ -3,7 +3,7 @@
 
 #define PIPEFS_MAGIC 0x50495045
 
-#define PIPE_BUFFERS (16)
+#define PIPE_DEF_BUFFERS	16
 
 #define PIPE_BUF_FLAG_LRU	0x01	/* page is on the LRU */
 #define PIPE_BUF_FLAG_ATOMIC	0x02	/* was atomically mapped */
@@ -44,17 +44,17 @@ struct pipe_buffer {
  **/
 struct pipe_inode_info {
 	wait_queue_head_t wait;
-	unsigned int nrbufs, curbuf;
-	struct page *tmp_page;
+	unsigned int nrbufs, curbuf, buffers;
 	unsigned int readers;
 	unsigned int writers;
 	unsigned int waiting_writers;
 	unsigned int r_counter;
 	unsigned int w_counter;
+	struct page *tmp_page;
 	struct fasync_struct *fasync_readers;
 	struct fasync_struct *fasync_writers;
 	struct inode *inode;
-	struct pipe_buffer bufs[PIPE_BUFFERS];
+	struct pipe_buffer *bufs;
 };
 
 /*
@@ -139,6 +139,10 @@ void pipe_lock(struct pipe_inode_info *);
 void pipe_unlock(struct pipe_inode_info *);
 void pipe_double_lock(struct pipe_inode_info *, struct pipe_inode_info *);
 
+extern unsigned int pipe_max_size, pipe_min_size;
+int pipe_proc_fn(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+
+
 /* Drop the inode semaphore and wait for a pipe event, atomically */
 void pipe_wait(struct pipe_inode_info *pipe);
 
@@ -153,5 +157,8 @@ void generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
 int generic_pipe_buf_confirm(struct pipe_inode_info *, struct pipe_buffer *);
 int generic_pipe_buf_steal(struct pipe_inode_info *, struct pipe_buffer *);
 void generic_pipe_buf_release(struct pipe_inode_info *, struct pipe_buffer *);
+
+/* for F_SETPIPE_SZ and F_GETPIPE_SZ */
+long pipe_fcntl(struct file *, unsigned int, unsigned long arg);
 
 #endif

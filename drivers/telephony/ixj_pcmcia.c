@@ -8,7 +8,6 @@
 #include <linux/errno.h>	/* error codes */
 #include <linux/slab.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -22,7 +21,6 @@
 
 typedef struct ixj_info_t {
 	int ndev;
-	dev_node_t node;
 	struct ixj *port;
 } ixj_info_t;
 
@@ -34,9 +32,8 @@ static int ixj_probe(struct pcmcia_device *p_dev)
 {
 	dev_dbg(&p_dev->dev, "ixj_attach()\n");
 	/* Create new ixj device */
-	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	p_dev->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-	p_dev->io.IOAddrLines = 3;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 	p_dev->priv = kzalloc(sizeof(struct ixj_info_t), GFP_KERNEL);
 	if (!p_dev->priv) {
@@ -122,13 +119,14 @@ static int ixj_config_check(struct pcmcia_device *p_dev,
 {
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io.BasePort1 = io->win[0].base;
-		p_dev->io.NumPorts1 = io->win[0].len;
+		p_dev->resource[0]->start = io->win[0].base;
+		p_dev->resource[0]->end = io->win[0].len;
+		p_dev->io_lines = 3;
 		if (io->nwin == 2) {
-			p_dev->io.BasePort2 = io->win[1].base;
-			p_dev->io.NumPorts2 = io->win[1].len;
+			p_dev->resource[1]->start = io->win[1].base;
+			p_dev->resource[1]->end = io->win[1].len;
 		}
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
+		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
 	return -ENODEV;
@@ -152,11 +150,10 @@ static int ixj_config(struct pcmcia_device * link)
 	/*
  	 *	Register the card with the core.
 	 */
-	j = ixj_pcmcia_probe(link->io.BasePort1, link->io.BasePort1 + 0x10);
+	j = ixj_pcmcia_probe(link->resource[0]->start,
+			     link->resource[0]->start + 0x10);
 
 	info->ndev = 1;
-	info->node.major = PHONE_MAJOR;
-	link->dev_node = &info->node;
 	ixj_get_serial(link, j);
 	return 0;
 

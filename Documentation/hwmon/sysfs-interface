@@ -80,9 +80,9 @@ All entries (except name) are optional, and should only be created in a
 given driver if the chip has the feature.
 
 
-********
-* Name *
-********
+*********************
+* Global attributes *
+*********************
 
 name		The chip name.
 		This should be a short, lowercase string, not containing
@@ -90,6 +90,12 @@ name		The chip name.
 		the only mandatory attribute.
 		I2C devices get this attribute created automatically.
 		RO
+
+update_interval	The interval at which the chip will update readings.
+		Unit: millisecond
+		RW
+		Some devices have a variable update rate or interval.
+		This attribute can be used to change it to the desired value.
 
 
 ************
@@ -100,10 +106,24 @@ in[0-*]_min	Voltage min value.
 		Unit: millivolt
 		RW
 		
+in[0-*]_lcrit	Voltage critical min value.
+		Unit: millivolt
+		RW
+		If voltage drops to or below this limit, the system may
+		take drastic action such as power down or reset. At the very
+		least, it should report a fault.
+
 in[0-*]_max	Voltage max value.
 		Unit: millivolt
 		RW
 		
+in[0-*]_crit	Voltage critical max value.
+		Unit: millivolt
+		RW
+		If voltage reaches or exceeds this limit, the system may
+		take drastic action such as power down or reset. At the very
+		least, it should report a fault.
+
 in[0-*]_input	Voltage input value.
 		Unit: millivolt
 		RO
@@ -277,7 +297,7 @@ temp[1-*]_input Temperature input value.
 		Unit: millidegree Celsius
 		RO
 
-temp[1-*]_crit	Temperature critical value, typically greater than
+temp[1-*]_crit	Temperature critical max value, typically greater than
 		corresponding temp_max values.
 		Unit: millidegree Celsius
 		RW
@@ -287,6 +307,11 @@ temp[1-*]_crit_hyst
 		Unit: millidegree Celsius
 		Must be reported as an absolute temperature, NOT a delta
 		from the critical value.
+		RW
+
+temp[1-*]_lcrit	Temperature critical min value, typically lower than
+		corresponding temp_min values.
+		Unit: millidegree Celsius
 		RW
 
 temp[1-*]_offset
@@ -336,9 +361,6 @@ Also see the Alarms section for status flags associated with temperatures.
 ************
 * Currents *
 ************
-
-Note that no known chip provides current measurements as of writing,
-so this part is theoretical, so to say.
 
 curr[1-*]_max	Current max value
 		Unit: milliampere
@@ -464,6 +486,7 @@ limit-related alarms, not both. The driver should just reflect the hardware
 implementation.
 
 in[0-*]_alarm
+curr[1-*]_alarm
 fan[1-*]_alarm
 temp[1-*]_alarm
 		Channel alarm
@@ -475,6 +498,8 @@ OR
 
 in[0-*]_min_alarm
 in[0-*]_max_alarm
+curr[1-*]_min_alarm
+curr[1-*]_max_alarm
 fan[1-*]_min_alarm
 fan[1-*]_max_alarm
 temp[1-*]_min_alarm
@@ -490,7 +515,6 @@ to notify open diodes, unconnected fans etc. where the hardware
 supports it. When this boolean has value 1, the measurement for that
 channel should not be trusted.
 
-in[0-*]_fault
 fan[1-*]_fault
 temp[1-*]_fault
 		Input fault condition
@@ -506,6 +530,7 @@ beep_enable	Master beep enable
 		RW
 
 in[0-*]_beep
+curr[1-*]_beep
 fan[1-*]_beep
 temp[1-*]_beep
 		Channel beep

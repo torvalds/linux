@@ -25,18 +25,14 @@
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
 #include "xfs_bmap.h"
 #include "xfs_error.h"
 #include "xfs_quota.h"
-#include "xfs_rw.h"
 #include "xfs_itable.h"
 #include "xfs_utils.h"
 
@@ -323,87 +319,4 @@ xfs_bumplink(
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	return 0;
-}
-
-/*
- * Try to truncate the given file to 0 length.  Currently called
- * only out of xfs_remove when it has to truncate a file to free
- * up space for the remove to proceed.
- */
-int
-xfs_truncate_file(
-	xfs_mount_t	*mp,
-	xfs_inode_t	*ip)
-{
-	xfs_trans_t	*tp;
-	int		error;
-
-#ifdef QUOTADEBUG
-	/*
-	 * This is called to truncate the quotainodes too.
-	 */
-	if (XFS_IS_UQUOTA_ON(mp)) {
-		if (ip->i_ino != mp->m_sb.sb_uquotino)
-			ASSERT(ip->i_udquot);
-	}
-	if (XFS_IS_OQUOTA_ON(mp)) {
-		if (ip->i_ino != mp->m_sb.sb_gquotino)
-			ASSERT(ip->i_gdquot);
-	}
-#endif
-	/*
-	 * Make the call to xfs_itruncate_start before starting the
-	 * transaction, because we cannot make the call while we're
-	 * in a transaction.
-	 */
-	xfs_ilock(ip, XFS_IOLOCK_EXCL);
-	error = xfs_itruncate_start(ip, XFS_ITRUNC_DEFINITE, (xfs_fsize_t)0);
-	if (error) {
-		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-		return error;
-	}
-
-	tp = xfs_trans_alloc(mp, XFS_TRANS_TRUNCATE_FILE);
-	if ((error = xfs_trans_reserve(tp, 0, XFS_ITRUNCATE_LOG_RES(mp), 0,
-				      XFS_TRANS_PERM_LOG_RES,
-				      XFS_ITRUNCATE_LOG_COUNT))) {
-		xfs_trans_cancel(tp, 0);
-		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-		return error;
-	}
-
-	/*
-	 * Follow the normal truncate locking protocol.  Since we
-	 * hold the inode in the transaction, we know that its number
-	 * of references will stay constant.
-	 */
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-	xfs_trans_ihold(tp, ip);
-	/*
-	 * Signal a sync xaction.  The only case where that isn't
-	 * the case is if we're truncating an already unlinked file
-	 * on a wsync fs.  In that case, we know the blocks can't
-	 * reappear in the file because the links to file are
-	 * permanently toast.  Currently, we're always going to
-	 * want a sync transaction because this code is being
-	 * called from places where nlink is guaranteed to be 1
-	 * but I'm leaving the tests in to protect against future
-	 * changes -- rcc.
-	 */
-	error = xfs_itruncate_finish(&tp, ip, (xfs_fsize_t)0,
-				     XFS_DATA_FORK,
-				     ((ip->i_d.di_nlink != 0 ||
-				       !(mp->m_flags & XFS_MOUNT_WSYNC))
-				      ? 1 : 0));
-	if (error) {
-		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES |
-				 XFS_TRANS_ABORT);
-	} else {
-		xfs_ichgtime(ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
-		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
-	}
-	xfs_iunlock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-
-	return error;
 }

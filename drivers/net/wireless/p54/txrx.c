@@ -38,8 +38,8 @@ static void p54_dump_tx_queue(struct p54_common *priv)
 	u32 largest_hole = 0, free;
 
 	spin_lock_irqsave(&priv->tx_queue.lock, flags);
-	printk(KERN_DEBUG "%s: / --- tx queue dump (%d entries) --- \n",
-	       wiphy_name(priv->hw->wiphy), skb_queue_len(&priv->tx_queue));
+	wiphy_debug(priv->hw->wiphy, "/ --- tx queue dump (%d entries) ---\n",
+		    skb_queue_len(&priv->tx_queue));
 
 	prev_addr = priv->rx_start;
 	skb_queue_walk(&priv->tx_queue, skb) {
@@ -48,21 +48,23 @@ static void p54_dump_tx_queue(struct p54_common *priv)
 		hdr = (void *) skb->data;
 
 		free = range->start_addr - prev_addr;
-		printk(KERN_DEBUG "%s: | [%02d] => [skb:%p skb_len:0x%04x "
-		       "hdr:{flags:%02x len:%04x req_id:%04x type:%02x} "
-		       "mem:{start:%04x end:%04x, free:%d}]\n",
-		       wiphy_name(priv->hw->wiphy), i++, skb, skb->len,
-		       le16_to_cpu(hdr->flags), le16_to_cpu(hdr->len),
-		       le32_to_cpu(hdr->req_id), le16_to_cpu(hdr->type),
-		       range->start_addr, range->end_addr, free);
+		wiphy_debug(priv->hw->wiphy,
+			    "| [%02d] => [skb:%p skb_len:0x%04x "
+			    "hdr:{flags:%02x len:%04x req_id:%04x type:%02x} "
+			    "mem:{start:%04x end:%04x, free:%d}]\n",
+			    i++, skb, skb->len,
+			    le16_to_cpu(hdr->flags), le16_to_cpu(hdr->len),
+			    le32_to_cpu(hdr->req_id), le16_to_cpu(hdr->type),
+			    range->start_addr, range->end_addr, free);
 
 		prev_addr = range->end_addr;
 		largest_hole = max(largest_hole, free);
 	}
 	free = priv->rx_end - prev_addr;
 	largest_hole = max(largest_hole, free);
-	printk(KERN_DEBUG "%s: \\ --- [free: %d], largest free block: %d ---\n",
-	       wiphy_name(priv->hw->wiphy), free, largest_hole);
+	wiphy_debug(priv->hw->wiphy,
+		    "\\ --- [free: %d], largest free block: %d ---\n",
+		    free, largest_hole);
 	spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 }
 #endif /* P54_MM_DEBUG */
@@ -183,10 +185,10 @@ static int p54_tx_qos_accounting_alloc(struct p54_common *priv,
 				       struct sk_buff *skb,
 				       const u16 p54_queue)
 {
-	struct ieee80211_tx_queue_stats *queue;
+	struct p54_tx_queue_stats *queue;
 	unsigned long flags;
 
-	if (WARN_ON(p54_queue > P54_QUEUE_NUM))
+	if (WARN_ON(p54_queue >= P54_QUEUE_NUM))
 		return -EINVAL;
 
 	queue = &priv->tx_stats[p54_queue];
@@ -350,7 +352,6 @@ static int p54_rx_data(struct p54_common *priv, struct sk_buff *skb)
 		rx_status->flag |= RX_FLAG_MMIC_ERROR;
 
 	rx_status->signal = p54_rssi_to_dbm(priv, hdr->rssi);
-	rx_status->noise = priv->noise;
 	if (hdr->rate & 0x10)
 		rx_status->flag |= RX_FLAG_SHORTPRE;
 	if (priv->hw->conf.channel->band == IEEE80211_BAND_5GHZ)
@@ -445,7 +446,7 @@ static void p54_rx_frame_sent(struct p54_common *priv, struct sk_buff *skb)
 	}
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
-	     (!payload->status))
+	     !(payload->status & P54_TX_FAILED))
 		info->flags |= IEEE80211_TX_STAT_ACK;
 	if (payload->status & P54_TX_PSM_CANCELLED)
 		info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
@@ -539,8 +540,7 @@ static void p54_rx_trap(struct p54_common *priv, struct sk_buff *skb)
 	case P54_TRAP_BEACON_TX:
 		break;
 	case P54_TRAP_RADAR:
-		printk(KERN_INFO "%s: radar (freq:%d MHz)\n",
-			wiphy_name(priv->hw->wiphy), freq);
+		wiphy_info(priv->hw->wiphy, "radar (freq:%d MHz)\n", freq);
 		break;
 	case P54_TRAP_NO_BEACON:
 		if (priv->vif)
@@ -559,8 +559,8 @@ static void p54_rx_trap(struct p54_common *priv, struct sk_buff *skb)
 		wiphy_rfkill_set_hw_state(priv->hw->wiphy, false);
 		break;
 	default:
-		printk(KERN_INFO "%s: received event:%x freq:%d\n",
-		       wiphy_name(priv->hw->wiphy), event, freq);
+		wiphy_info(priv->hw->wiphy, "received event:%x freq:%d\n",
+			   event, freq);
 		break;
 	}
 }
@@ -585,8 +585,9 @@ static int p54_rx_control(struct p54_common *priv, struct sk_buff *skb)
 		p54_rx_eeprom_readback(priv, skb);
 		break;
 	default:
-		printk(KERN_DEBUG "%s: not handling 0x%02x type control frame\n",
-		       wiphy_name(priv->hw->wiphy), le16_to_cpu(hdr->type));
+		wiphy_debug(priv->hw->wiphy,
+			    "not handling 0x%02x type control frame\n",
+			    le16_to_cpu(hdr->type));
 		break;
 	}
 	return 0;

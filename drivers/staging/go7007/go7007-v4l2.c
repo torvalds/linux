@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/unistd.h>
 #include <linux/time.h>
@@ -719,15 +720,13 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		if (count > 32)
 			count = 32;
 
-		gofh->bufs = kmalloc(count * sizeof(struct go7007_buffer),
+		gofh->bufs = kcalloc(count, sizeof(struct go7007_buffer),
 				     GFP_KERNEL);
 
 		if (!gofh->bufs) {
 			mutex_unlock(&go->hw_lock);
 			goto unlock_and_return;
 		}
-
-		memset(gofh->bufs, 0, count * sizeof(struct go7007_buffer));
 
 		for (i = 0; i < count; ++i) {
 			gofh->bufs[i].go = go;

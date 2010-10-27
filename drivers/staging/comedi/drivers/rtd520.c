@@ -2356,4 +2356,44 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_PCI_INITCLEANUP(rtd520Driver, rtd520_pci_table);
+static int __devinit rtd520Driver_pci_probe(struct pci_dev *dev,
+					    const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, rtd520Driver.driver_name);
+}
+
+static void __devexit rtd520Driver_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver rtd520Driver_pci_driver = {
+	.id_table = rtd520_pci_table,
+	.probe = &rtd520Driver_pci_probe,
+	.remove = __devexit_p(&rtd520Driver_pci_remove)
+};
+
+static int __init rtd520Driver_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&rtd520Driver);
+	if (retval < 0)
+		return retval;
+
+	rtd520Driver_pci_driver.name = (char *)rtd520Driver.driver_name;
+	return pci_register_driver(&rtd520Driver_pci_driver);
+}
+
+static void __exit rtd520Driver_cleanup_module(void)
+{
+	pci_unregister_driver(&rtd520Driver_pci_driver);
+	comedi_driver_unregister(&rtd520Driver);
+}
+
+module_init(rtd520Driver_init_module);
+module_exit(rtd520Driver_cleanup_module);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

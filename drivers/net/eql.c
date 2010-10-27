@@ -115,6 +115,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/netdevice.h>
 #include <net/net_namespace.h>
@@ -287,7 +288,7 @@ static int eql_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return eql_s_master_cfg(dev, ifr->ifr_data);
 		default:
 			return -EOPNOTSUPP;
-	};
+	}
 }
 
 /* queue->lock must be held */
@@ -553,6 +554,8 @@ static int eql_g_master_cfg(struct net_device *dev, master_config_t __user *mcp)
 {
 	equalizer_t *eql;
 	master_config_t mc;
+
+	memset(&mc, 0, sizeof(master_config_t));
 
 	if (eql_is_master(dev)) {
 		eql = netdev_priv(dev);

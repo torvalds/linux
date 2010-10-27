@@ -11,7 +11,9 @@ struct scatterlist {
 	unsigned int	offset;
 	unsigned int	length;
 	dma_addr_t	dma_address;
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
 	unsigned int	dma_length;
+#endif
 };
 
 /*
@@ -22,22 +24,11 @@ struct scatterlist {
  * is 0.
  */
 #define sg_dma_address(sg)	((sg)->dma_address)
-#ifndef sg_dma_len
-/*
- * Normally, you have an iommu on 64 bit machines, but not on 32 bit
- * machines. Architectures that are differnt should override this.
- */
-#if __BITS_PER_LONG == 64
+
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
 #define sg_dma_len(sg)		((sg)->dma_length)
 #else
 #define sg_dma_len(sg)		((sg)->length)
-#endif /* 64 bit */
-#endif /* sg_dma_len */
-
-#ifndef ISA_DMA_THRESHOLD
-#define ISA_DMA_THRESHOLD	(~0UL)
 #endif
-
-#define ARCH_HAS_SG_CHAIN
 
 #endif /* __ASM_GENERIC_SCATTERLIST_H */

@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/if_arp.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/af_ieee802154.h>
 

@@ -250,9 +250,21 @@ static int __init rtc_init(void)
 }
 module_init(rtc_init);
 
-void __init time_init(void)
+void read_persistent_clock(struct timespec *ts)
 {
 	static struct pdc_tod tod_data;
+	if (pdc_tod_read(&tod_data) == 0) {
+		ts->tv_sec = tod_data.tod_sec;
+		ts->tv_nsec = tod_data.tod_usec * 1000;
+	} else {
+		printk(KERN_ERR "Error reading tod clock\n");
+	        ts->tv_sec = 0;
+		ts->tv_nsec = 0;
+	}
+}
+
+void __init time_init(void)
+{
 	unsigned long current_cr16_khz;
 
 	clocktick = (100 * PAGE0->mem_10msec) / HZ;
@@ -264,19 +276,4 @@ void __init time_init(void)
 	clocksource_cr16.mult = clocksource_khz2mult(current_cr16_khz,
 						clocksource_cr16.shift);
 	clocksource_register(&clocksource_cr16);
-
-	if (pdc_tod_read(&tod_data) == 0) {
-		unsigned long flags;
-
-		write_seqlock_irqsave(&xtime_lock, flags);
-		xtime.tv_sec = tod_data.tod_sec;
-		xtime.tv_nsec = tod_data.tod_usec * 1000;
-		set_normalized_timespec(&wall_to_monotonic,
-		                        -xtime.tv_sec, -xtime.tv_nsec);
-		write_sequnlock_irqrestore(&xtime_lock, flags);
-	} else {
-		printk(KERN_ERR "Error reading tod clock\n");
-	        xtime.tv_sec = 0;
-		xtime.tv_nsec = 0;
-	}
 }

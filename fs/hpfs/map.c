@@ -35,7 +35,7 @@ unsigned int *hpfs_map_bitmap(struct super_block *s, unsigned bmp_block,
  * lowercasing table
  */
 
-char *hpfs_load_code_page(struct super_block *s, secno cps)
+unsigned char *hpfs_load_code_page(struct super_block *s, secno cps)
 {
 	struct buffer_head *bh;
 	secno cpds;
@@ -71,7 +71,7 @@ char *hpfs_load_code_page(struct super_block *s, secno cps)
 		brelse(bh);
 		return NULL;
 	}
-	ptr = (char *)cpd + cpd->offs[cpi] + 6;
+	ptr = (unsigned char *)cpd + cpd->offs[cpi] + 6;
 	if (!(cp_table = kmalloc(256, GFP_KERNEL))) {
 		printk("HPFS: out of memory for code page table\n");
 		brelse(bh);
@@ -217,7 +217,7 @@ struct dnode *hpfs_map_dnode(struct super_block *s, unsigned secno,
 	if ((dnode = hpfs_map_4sectors(s, secno, qbh, DNODE_RD_AHEAD)))
 		if (hpfs_sb(s)->sb_chk) {
 			unsigned p, pp = 0;
-			unsigned char *d = (char *)dnode;
+			unsigned char *d = (unsigned char *)dnode;
 			int b = 0;
 			if (dnode->magic != DNODE_MAGIC) {
 				hpfs_error(s, "bad magic on dnode %08x", secno);

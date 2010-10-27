@@ -188,7 +188,7 @@ static void tick_handle_periodic_broadcast(struct clock_event_device *dev)
 	/*
 	 * Setup the next period for devices, which do not have
 	 * periodic mode. We read dev->next_event first and add to it
-	 * when the event alrady expired. clockevents_program_event()
+	 * when the event already expired. clockevents_program_event()
 	 * sets dev->next_event only when the event is really
 	 * programmed to the device.
 	 */

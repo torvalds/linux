@@ -86,11 +86,26 @@ struct flowi {
 
 struct net;
 struct sock;
-typedef int (*flow_resolve_t)(struct net *net, struct flowi *key, u16 family,
-			      u8 dir, void **objp, atomic_t **obj_refp);
+struct flow_cache_ops;
 
-extern void *flow_cache_lookup(struct net *net, struct flowi *key, u16 family,
-			       u8 dir, flow_resolve_t resolver);
+struct flow_cache_object {
+	const struct flow_cache_ops *ops;
+};
+
+struct flow_cache_ops {
+	struct flow_cache_object *(*get)(struct flow_cache_object *);
+	int (*check)(struct flow_cache_object *);
+	void (*delete)(struct flow_cache_object *);
+};
+
+typedef struct flow_cache_object *(*flow_resolve_t)(
+		struct net *net, struct flowi *key, u16 family,
+		u8 dir, struct flow_cache_object *oldobj, void *ctx);
+
+extern struct flow_cache_object *flow_cache_lookup(
+		struct net *net, struct flowi *key, u16 family,
+		u8 dir, flow_resolve_t resolver, void *ctx);
+
 extern void flow_cache_flush(void);
 extern atomic_t flow_cache_genid;
 

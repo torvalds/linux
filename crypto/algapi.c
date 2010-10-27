@@ -17,6 +17,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 
 #include "internal.h"
@@ -230,7 +231,7 @@ static struct crypto_larval *__crypto_register_alg(struct crypto_alg *alg)
 	list_add(&alg->cra_list, &crypto_alg_list);
 	list_add(&larval->alg.cra_list, &crypto_alg_list);
 
-out:	
+out:
 	return larval;
 
 free_larval:
@@ -388,7 +389,7 @@ int crypto_unregister_alg(struct crypto_alg *alg)
 {
 	int ret;
 	LIST_HEAD(list);
-	
+
 	down_write(&crypto_alg_sem);
 	ret = crypto_remove_alg(alg, &list);
 	up_write(&crypto_alg_sem);
@@ -543,7 +544,7 @@ int crypto_init_spawn2(struct crypto_spawn *spawn, struct crypto_alg *alg,
 {
 	int err = -EINVAL;
 
-	if (frontend && (alg->cra_flags ^ frontend->type) & frontend->maskset)
+	if ((alg->cra_flags ^ frontend->type) & frontend->maskset)
 		goto out;
 
 	spawn->frontend = frontend;

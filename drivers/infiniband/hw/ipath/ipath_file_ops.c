@@ -36,6 +36,7 @@
 #include <linux/cdev.h>
 #include <linux/swap.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
@@ -2054,7 +2055,7 @@ static int ipath_close(struct inode *in, struct file *fp)
 
 	mutex_lock(&ipath_mutex);
 
-	fd = (struct ipath_filedata *) fp->private_data;
+	fd = fp->private_data;
 	fp->private_data = NULL;
 	pd = fd->pd;
 	if (!pd) {

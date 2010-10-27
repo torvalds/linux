@@ -44,6 +44,9 @@ enum colIdx {
 enum listMode {
 	singleMode, menuMode, symbolMode, fullMode, listMode
 };
+enum optionMode {
+	normalOpt = 0, allOpt, promptOpt
+};
 
 class ConfigList : public QListView {
 	Q_OBJECT
@@ -115,6 +118,8 @@ public:
 	void setAllOpen(bool open);
 	void setParentMenu(void);
 
+	bool menuSkip(struct menu *);
+
 	template <class P>
 	void updateMenuList(P*, struct menu*);
 
@@ -124,8 +129,9 @@ public:
 	QPixmap choiceYesPix, choiceNoPix;
 	QPixmap menuPix, menuInvPix, menuBackPix, voidPix;
 
-	bool showAll, showName, showRange, showData;
+	bool showName, showRange, showData;
 	enum listMode mode;
+	enum optionMode optMode;
 	struct menu *rootEntry;
 	QColorGroup disabledColorGroup;
 	QColorGroup inactivedColorGroup;
@@ -222,17 +228,15 @@ public:
 	static void updateList(ConfigItem* item);
 	static void updateListAll(void);
 
-	bool showAll(void) const { return list->showAll; }
 	bool showName(void) const { return list->showName; }
 	bool showRange(void) const { return list->showRange; }
 	bool showData(void) const { return list->showData; }
 public slots:
-	void setShowAll(bool);
 	void setShowName(bool);
 	void setShowRange(bool);
 	void setShowData(bool);
+	void setOptionMode(QAction *);
 signals:
-	void showAllChanged(bool);
 	void showNameChanged(bool);
 	void showRangeChanged(bool);
 	void showDataChanged(bool);
@@ -242,6 +246,10 @@ public:
 
 	static ConfigView* viewList;
 	ConfigView* nextView;
+
+	static QAction *showNormalAction;
+	static QAction *showAllAction;
+	static QAction *showPromptAction;
 };
 
 class ConfigInfoView : public QTextBrowser {
@@ -254,7 +262,6 @@ public:
 public slots:
 	void setInfo(struct menu *menu);
 	void saveSettings(void);
-	void setSource(const QString& name);
 	void setShowDebug(bool);
 
 signals:

@@ -215,6 +215,18 @@
 			clock-frequency = <0>;
 		};
 
+		msi@41600 {
+			compatible = "fsl,mpc8572-msi", "fsl,mpic-msi";
+			reg = <0x41600 0x80>;
+			msi-available-ranges = <0 0x80>;
+			interrupts = <
+				0xe0 0
+				0xe1 0
+				0xe2 0
+				0xe3 0>;
+			interrupt-parent = <&mpic>;
+		};
+
 		global-utilities@e0000 {	//global utilities block
 			compatible = "fsl,mpc8572-guts";
 			reg = <0xe0000 0x1000>;
@@ -243,8 +255,7 @@
 			protected-sources = <
 			31 32 33 37 38 39       /* enet2 enet3 */
 			76 77 78 79 26 42	/* dma2 pci2 serial*/
-			0xe0 0xe1 0xe2 0xe3     /* msi */
-			0xe4 0xe5 0xe6 0xe7
+			0xe4 0xe5 0xe6 0xe7	/* msi */
 			>;
 		};
 	};

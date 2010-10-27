@@ -547,8 +547,8 @@ typedef struct {
 #define DRM_IOCTL_RADEON_GEM_WAIT_IDLE	DRM_IOW(DRM_COMMAND_BASE + DRM_RADEON_GEM_WAIT_IDLE, struct drm_radeon_gem_wait_idle)
 #define DRM_IOCTL_RADEON_CS		DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_CS, struct drm_radeon_cs)
 #define DRM_IOCTL_RADEON_INFO		DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_INFO, struct drm_radeon_info)
-#define DRM_IOCTL_RADEON_SET_TILING	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_SET_TILING, struct drm_radeon_gem_set_tiling)
-#define DRM_IOCTL_RADEON_GET_TILING	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_GET_TILING, struct drm_radeon_gem_get_tiling)
+#define DRM_IOCTL_RADEON_GEM_SET_TILING	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_SET_TILING, struct drm_radeon_gem_set_tiling)
+#define DRM_IOCTL_RADEON_GEM_GET_TILING	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_GET_TILING, struct drm_radeon_gem_get_tiling)
 #define DRM_IOCTL_RADEON_GEM_BUSY	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_BUSY, struct drm_radeon_gem_busy)
 
 typedef struct drm_radeon_init {
@@ -808,6 +808,7 @@ struct drm_radeon_gem_create {
 #define RADEON_TILING_SWAP_32BIT  0x8
 #define RADEON_TILING_SURFACE     0x10 /* this object requires a surface
 					* when mapped - i.e. front buffer */
+#define RADEON_TILING_MICRO_SQUARE 0x20
 
 struct drm_radeon_gem_set_tiling {
 	uint32_t	handle;
@@ -901,6 +902,10 @@ struct drm_radeon_cs {
 #define RADEON_INFO_NUM_GB_PIPES	0x01
 #define RADEON_INFO_NUM_Z_PIPES 	0x02
 #define RADEON_INFO_ACCEL_WORKING	0x03
+#define RADEON_INFO_CRTC_FROM_ID	0x04
+#define RADEON_INFO_ACCEL_WORKING2	0x05
+#define RADEON_INFO_TILING_CONFIG	0x06
+#define RADEON_INFO_WANT_HYPERZ		0x07
 
 struct drm_radeon_info {
 	uint32_t		request;

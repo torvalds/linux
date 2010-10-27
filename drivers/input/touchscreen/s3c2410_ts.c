@@ -26,7 +26,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/init.h>
@@ -38,9 +37,7 @@
 
 #include <plat/adc.h>
 #include <plat/regs-adc.h>
-
-#include <mach/regs-gpio.h>
-#include <mach/ts.h>
+#include <plat/ts.h>
 
 #define TSC_SLEEP  (S3C2410_ADCTSC_PULL_UP_DISABLE | S3C2410_ADCTSC_XY_PST(0))
 
@@ -58,6 +55,8 @@
 			 S3C2410_ADCTSC_AUTO_PST | \
 			 S3C2410_ADCTSC_XY_PST(0))
 
+#define FEAT_PEN_IRQ	(1 << 0)	/* HAS ADCCLRINTPNDNUP */
+
 /* Per-touchscreen data. */
 
 /**
@@ -72,6 +71,7 @@
  * @irq_tc: The interrupt number for pen up/down interrupt
  * @count: The number of samples collected.
  * @shift: The log2 of the maximum count to read in one go.
+ * @features: The features supported by the TSADC MOdule.
  */
 struct s3c2410ts {
 	struct s3c_adc_client *client;
@@ -84,24 +84,10 @@ struct s3c2410ts {
 	int irq_tc;
 	int count;
 	int shift;
+	int features;
 };
 
 static struct s3c2410ts ts;
-
-/**
- * s3c2410_ts_connect - configure gpio for s3c2410 systems
- *
- * Configure the GPIO for the S3C2410 system, where we have external FETs
- * connected to the device (later systems such as the S3C2440 integrate
- * these into the device).
-*/
-static inline void s3c2410_ts_connect(void)
-{
-	s3c2410_gpio_cfgpin(S3C2410_GPG(12), S3C2410_GPG12_XMON);
-	s3c2410_gpio_cfgpin(S3C2410_GPG(13), S3C2410_GPG13_nXPON);
-	s3c2410_gpio_cfgpin(S3C2410_GPG(14), S3C2410_GPG14_YMON);
-	s3c2410_gpio_cfgpin(S3C2410_GPG(15), S3C2410_GPG15_nYPON);
-}
 
 /**
  * get_down - return the down state of the pen
@@ -128,27 +114,29 @@ static void touch_timer_fire(unsigned long data)
 
 	down = get_down(data0, data1);
 
-	if (ts.count == (1 << ts.shift)) {
-		ts.xp >>= ts.shift;
-		ts.yp >>= ts.shift;
-
-		dev_dbg(ts.dev, "%s: X=%lu, Y=%lu, count=%d\n",
-			__func__, ts.xp, ts.yp, ts.count);
-
-		input_report_abs(ts.input, ABS_X, ts.xp);
-		input_report_abs(ts.input, ABS_Y, ts.yp);
-
-		input_report_key(ts.input, BTN_TOUCH, 1);
-		input_sync(ts.input);
-
-		ts.xp = 0;
-		ts.yp = 0;
-		ts.count = 0;
-	}
-
 	if (down) {
+		if (ts.count == (1 << ts.shift)) {
+			ts.xp >>= ts.shift;
+			ts.yp >>= ts.shift;
+
+			dev_dbg(ts.dev, "%s: X=%lu, Y=%lu, count=%d\n",
+				__func__, ts.xp, ts.yp, ts.count);
+
+			input_report_abs(ts.input, ABS_X, ts.xp);
+			input_report_abs(ts.input, ABS_Y, ts.yp);
+
+			input_report_key(ts.input, BTN_TOUCH, 1);
+			input_sync(ts.input);
+
+			ts.xp = 0;
+			ts.yp = 0;
+			ts.count = 0;
+		}
+
 		s3c_adc_start(ts.client, 0, 1 << ts.shift);
 	} else {
+		ts.xp = 0;
+		ts.yp = 0;
 		ts.count = 0;
 
 		input_report_key(ts.input, BTN_TOUCH, 0);
@@ -185,7 +173,12 @@ static irqreturn_t stylus_irq(int irq, void *dev_id)
 	if (down)
 		s3c_adc_start(ts.client, 0, 1 << ts.shift);
 	else
-		dev_info(ts.dev, "%s: count=%d\n", __func__, ts.count);
+		dev_dbg(ts.dev, "%s: count=%d\n", __func__, ts.count);
+
+	if (ts.features & FEAT_PEN_IRQ) {
+		/* Clear pen down/up interrupt */
+		writel(0x0, ts.io + S3C64XX_ADCCLRINTPNDNUP);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -295,9 +288,9 @@ static int __devinit s3c2410ts_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	/* Configure the touchscreen external FETs on the S3C2410 */
-	if (!platform_get_device_id(pdev)->driver_data)
-		s3c2410_ts_connect();
+	/* inititalise the gpio */
+	if (info->cfg_gpio)
+		info->cfg_gpio(to_platform_device(ts.dev));
 
 	ts.client = s3c_adc_register(pdev, s3c24xx_ts_select,
 				     s3c24xx_ts_conversion, 1);
@@ -333,6 +326,7 @@ static int __devinit s3c2410ts_probe(struct platform_device *pdev)
 	ts.input->id.version = 0x0102;
 
 	ts.shift = info->oversampling_shift;
+	ts.features = platform_get_device_id(pdev)->driver_data;
 
 	ret = request_irq(ts.irq_tc, stylus_irq, IRQF_DISABLED,
 			  "s3c2410_ts_pen", ts.input);
@@ -401,6 +395,7 @@ static int s3c2410ts_resume(struct device *dev)
 	struct s3c2410_ts_mach_info *info = pdev->dev.platform_data;
 
 	clk_enable(ts.clock);
+	enable_irq(ts.irq_tc);
 
 	/* Initialise registers */
 	if ((info->delay & 0xffff) > 0)
@@ -419,14 +414,15 @@ static struct dev_pm_ops s3c_ts_pmops = {
 
 static struct platform_device_id s3cts_driver_ids[] = {
 	{ "s3c2410-ts", 0 },
-	{ "s3c2440-ts", 1 },
+	{ "s3c2440-ts", 0 },
+	{ "s3c64xx-ts", FEAT_PEN_IRQ },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, s3cts_driver_ids);
 
 static struct platform_driver s3c_ts_driver = {
 	.driver         = {
-		.name   = "s3c24xx-ts",
+		.name   = "samsung-ts",
 		.owner  = THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &s3c_ts_pmops,

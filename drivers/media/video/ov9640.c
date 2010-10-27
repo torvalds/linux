@@ -59,9 +59,9 @@ static const struct ov9640_reg ov9640_regs_dflt[] = {
  * 		COM12 |= OV9640_COM12_YUV_AVG
  *
  *	 for RGB, alter the following registers:
- *	 	COM7  |= OV9640_COM7_RGB
- *	 	COM13 |= OV9640_COM13_RGB_AVG
- *	 	COM15 |= proper RGB color encoding mode
+ *		COM7  |= OV9640_COM7_RGB
+ *		COM13 |= OV9640_COM13_RGB_AVG
+ *		COM15 |= proper RGB color encoding mode
  */
 static const struct ov9640_reg ov9640_regs_qqcif[] = {
 	{ OV9640_CLKRC,	OV9640_CLKRC_DPLL_EN | OV9640_CLKRC_DIV(0x0f) },
@@ -155,7 +155,7 @@ static const struct ov9640_reg ov9640_regs_rgb[] = {
 };
 
 static enum v4l2_mbus_pixelcode ov9640_codes[] = {
-	V4L2_MBUS_FMT_YUYV8_2X8_BE,
+	V4L2_MBUS_FMT_UYVY8_2X8,
 	V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE,
 	V4L2_MBUS_FMT_RGB565_2X8_LE,
 };
@@ -430,7 +430,7 @@ static void ov9640_alter_regs(enum v4l2_mbus_pixelcode code,
 {
 	switch (code) {
 	default:
-	case V4L2_MBUS_FMT_YUYV8_2X8_BE:
+	case V4L2_MBUS_FMT_UYVY8_2X8:
 		alt->com12	= OV9640_COM12_YUV_AVG;
 		alt->com13	= OV9640_COM13_Y_DELAY_EN |
 					OV9640_COM13_YUV_DLY(0x01);
@@ -493,7 +493,7 @@ static int ov9640_write_regs(struct i2c_client *client, u32 width,
 	}
 
 	/* select color matrix configuration for given color encoding */
-	if (code == V4L2_MBUS_FMT_YUYV8_2X8_BE) {
+	if (code == V4L2_MBUS_FMT_UYVY8_2X8) {
 		matrix_regs	= ov9640_regs_yuv;
 		matrix_regs_len	= ARRAY_SIZE(ov9640_regs_yuv);
 	} else {
@@ -579,8 +579,8 @@ static int ov9640_s_fmt(struct v4l2_subdev *sd,
 		cspace = V4L2_COLORSPACE_SRGB;
 		break;
 	default:
-		code = V4L2_MBUS_FMT_YUYV8_2X8_BE;
-	case V4L2_MBUS_FMT_YUYV8_2X8_BE:
+		code = V4L2_MBUS_FMT_UYVY8_2X8;
+	case V4L2_MBUS_FMT_UYVY8_2X8:
 		cspace = V4L2_COLORSPACE_JPEG;
 	}
 
@@ -606,18 +606,18 @@ static int ov9640_try_fmt(struct v4l2_subdev *sd,
 		mf->colorspace = V4L2_COLORSPACE_SRGB;
 		break;
 	default:
-		mf->code = V4L2_MBUS_FMT_YUYV8_2X8_BE;
-	case V4L2_MBUS_FMT_YUYV8_2X8_BE:
+		mf->code = V4L2_MBUS_FMT_UYVY8_2X8;
+	case V4L2_MBUS_FMT_UYVY8_2X8:
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
 	}
 
 	return 0;
 }
 
-static int ov9640_enum_fmt(struct v4l2_subdev *sd, int index,
+static int ov9640_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			   enum v4l2_mbus_pixelcode *code)
 {
-	if ((unsigned int)index >= ARRAY_SIZE(ov9640_codes))
+	if (index >= ARRAY_SIZE(ov9640_codes))
 		return -EINVAL;
 
 	*code = ov9640_codes[index];
@@ -783,7 +783,6 @@ static int ov9640_probe(struct i2c_client *client,
 
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(priv);
 	}
 
@@ -794,7 +793,6 @@ static int ov9640_remove(struct i2c_client *client)
 {
 	struct ov9640_priv *priv = i2c_get_clientdata(client);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(priv);
 	return 0;
 }

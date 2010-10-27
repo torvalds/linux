@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb.h>
 
@@ -27,7 +28,7 @@
 #define USB_SKEL_VENDOR_ID	0x04b4
 #define USB_SKEL_PRODUCT_ID	0x0002
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID) },
 	{ }
 };

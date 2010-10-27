@@ -53,6 +53,7 @@
 static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 				u8 type, u8 code, int offset, __be32 info)
 {
+	struct net *net = dev_net(skb->dev);
 	__be32 spi;
 	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;
 	struct ip_comp_hdr *ipcomph =
@@ -63,7 +64,7 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		return;
 
 	spi = htonl(ntohs(ipcomph->cpi));
-	x = xfrm_state_lookup(&init_net, (xfrm_address_t *)&iph->daddr, spi, IPPROTO_COMP, AF_INET6);
+	x = xfrm_state_lookup(net, skb->mark, (xfrm_address_t *)&iph->daddr, spi, IPPROTO_COMP, AF_INET6);
 	if (!x)
 		return;
 
@@ -74,14 +75,15 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 static struct xfrm_state *ipcomp6_tunnel_create(struct xfrm_state *x)
 {
+	struct net *net = xs_net(x);
 	struct xfrm_state *t = NULL;
 
-	t = xfrm_state_alloc(&init_net);
+	t = xfrm_state_alloc(net);
 	if (!t)
 		goto out;
 
 	t->id.proto = IPPROTO_IPV6;
-	t->id.spi = xfrm6_tunnel_alloc_spi((xfrm_address_t *)&x->props.saddr);
+	t->id.spi = xfrm6_tunnel_alloc_spi(net, (xfrm_address_t *)&x->props.saddr);
 	if (!t->id.spi)
 		goto error;
 
@@ -90,6 +92,7 @@ static struct xfrm_state *ipcomp6_tunnel_create(struct xfrm_state *x)
 	t->props.family = AF_INET6;
 	t->props.mode = x->props.mode;
 	memcpy(t->props.saddr.a6, x->props.saddr.a6, sizeof(struct in6_addr));
+	memcpy(&t->mark, &x->mark, sizeof(t->mark));
 
 	if (xfrm_init_state(t))
 		goto error;
@@ -108,13 +111,15 @@ error:
 
 static int ipcomp6_tunnel_attach(struct xfrm_state *x)
 {
+	struct net *net = xs_net(x);
 	int err = 0;
 	struct xfrm_state *t = NULL;
 	__be32 spi;
+	u32 mark = x->mark.m & x->mark.v;
 
-	spi = xfrm6_tunnel_spi_lookup((xfrm_address_t *)&x->props.saddr);
+	spi = xfrm6_tunnel_spi_lookup(net, (xfrm_address_t *)&x->props.saddr);
 	if (spi)
-		t = xfrm_state_lookup(&init_net, (xfrm_address_t *)&x->id.daddr,
+		t = xfrm_state_lookup(net, mark, (xfrm_address_t *)&x->id.daddr,
 					      spi, IPPROTO_IPV6, AF_INET6);
 	if (!t) {
 		t = ipcomp6_tunnel_create(x);
@@ -154,16 +159,12 @@ static int ipcomp6_init_state(struct xfrm_state *x)
 	if (x->props.mode == XFRM_MODE_TUNNEL) {
 		err = ipcomp6_tunnel_attach(x);
 		if (err)
-			goto error_tunnel;
+			goto out;
 	}
 
 	err = 0;
 out:
 	return err;
-error_tunnel:
-	ipcomp_destroy(x);
-
-	goto out;
 }
 
 static const struct xfrm_type ipcomp6_type =

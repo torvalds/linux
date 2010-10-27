@@ -30,10 +30,112 @@ struct btrfs_ioctl_vol_args {
 	char name[BTRFS_PATH_NAME_MAX + 1];
 };
 
+#define BTRFS_INO_LOOKUP_PATH_MAX 4080
+struct btrfs_ioctl_ino_lookup_args {
+	__u64 treeid;
+	__u64 objectid;
+	char name[BTRFS_INO_LOOKUP_PATH_MAX];
+};
+
+struct btrfs_ioctl_search_key {
+	/* which root are we searching.  0 is the tree of tree roots */
+	__u64 tree_id;
+
+	/* keys returned will be >= min and <= max */
+	__u64 min_objectid;
+	__u64 max_objectid;
+
+	/* keys returned will be >= min and <= max */
+	__u64 min_offset;
+	__u64 max_offset;
+
+	/* max and min transids to search for */
+	__u64 min_transid;
+	__u64 max_transid;
+
+	/* keys returned will be >= min and <= max */
+	__u32 min_type;
+	__u32 max_type;
+
+	/*
+	 * how many items did userland ask for, and how many are we
+	 * returning
+	 */
+	__u32 nr_items;
+
+	/* align to 64 bits */
+	__u32 unused;
+
+	/* some extra for later */
+	__u64 unused1;
+	__u64 unused2;
+	__u64 unused3;
+	__u64 unused4;
+};
+
+struct btrfs_ioctl_search_header {
+	__u64 transid;
+	__u64 objectid;
+	__u64 offset;
+	__u32 type;
+	__u32 len;
+};
+
+#define BTRFS_SEARCH_ARGS_BUFSIZE (4096 - sizeof(struct btrfs_ioctl_search_key))
+/*
+ * the buf is an array of search headers where
+ * each header is followed by the actual item
+ * the type field is expanded to 32 bits for alignment
+ */
+struct btrfs_ioctl_search_args {
+	struct btrfs_ioctl_search_key key;
+	char buf[BTRFS_SEARCH_ARGS_BUFSIZE];
+};
+
 struct btrfs_ioctl_clone_range_args {
   __s64 src_fd;
   __u64 src_offset, src_length;
   __u64 dest_offset;
+};
+
+/* flags for the defrag range ioctl */
+#define BTRFS_DEFRAG_RANGE_COMPRESS 1
+#define BTRFS_DEFRAG_RANGE_START_IO 2
+
+struct btrfs_ioctl_defrag_range_args {
+	/* start of the defrag operation */
+	__u64 start;
+
+	/* number of bytes to defrag, use (u64)-1 to say all */
+	__u64 len;
+
+	/*
+	 * flags for the operation, which can include turning
+	 * on compression for this one defrag
+	 */
+	__u64 flags;
+
+	/*
+	 * any extent bigger than this will be considered
+	 * already defragged.  Use 0 to take the kernel default
+	 * Use 1 to say every single extent must be rewritten
+	 */
+	__u32 extent_thresh;
+
+	/* spare for later */
+	__u32 unused[5];
+};
+
+struct btrfs_ioctl_space_info {
+	__u64 flags;
+	__u64 total_bytes;
+	__u64 used_bytes;
+};
+
+struct btrfs_ioctl_space_args {
+	__u64 space_slots;
+	__u64 total_spaces;
+	struct btrfs_ioctl_space_info spaces[0];
 };
 
 #define BTRFS_IOC_SNAP_CREATE _IOW(BTRFS_IOCTL_MAGIC, 1, \
@@ -67,4 +169,13 @@ struct btrfs_ioctl_clone_range_args {
 				   struct btrfs_ioctl_vol_args)
 #define BTRFS_IOC_SNAP_DESTROY _IOW(BTRFS_IOCTL_MAGIC, 15, \
 				struct btrfs_ioctl_vol_args)
+#define BTRFS_IOC_DEFRAG_RANGE _IOW(BTRFS_IOCTL_MAGIC, 16, \
+				struct btrfs_ioctl_defrag_range_args)
+#define BTRFS_IOC_TREE_SEARCH _IOWR(BTRFS_IOCTL_MAGIC, 17, \
+				   struct btrfs_ioctl_search_args)
+#define BTRFS_IOC_INO_LOOKUP _IOWR(BTRFS_IOCTL_MAGIC, 18, \
+				   struct btrfs_ioctl_ino_lookup_args)
+#define BTRFS_IOC_DEFAULT_SUBVOL _IOW(BTRFS_IOCTL_MAGIC, 19, u64)
+#define BTRFS_IOC_SPACE_INFO _IOWR(BTRFS_IOCTL_MAGIC, 20, \
+				    struct btrfs_ioctl_space_args)
 #endif

@@ -16,11 +16,11 @@ OR:  they can now be DMA-aware.
   manage dma mappings for existing dma-ready buffers (see below).
 
 - URBs have an additional "transfer_dma" field, as well as a transfer_flags
-  bit saying if it's valid.  (Control requests also have "setup_dma" and a
-  corresponding transfer_flags bit.)
+  bit saying if it's valid.  (Control requests also have "setup_dma", but
+  drivers must not use it.)
 
-- "usbcore" will map those DMA addresses, if a DMA-aware driver didn't do
-  it first and set URB_NO_TRANSFER_DMA_MAP or URB_NO_SETUP_DMA_MAP.  HCDs
+- "usbcore" will map this DMA address, if a DMA-aware driver didn't do
+  it first and set URB_NO_TRANSFER_DMA_MAP.  HCDs
   don't manage dma mappings for URBs.
 
 - There's a new "generic DMA API", parts of which are usable by USB device
@@ -43,21 +43,15 @@ and effects like cache-trashing can impose subtle penalties.
   kind of addresses to store in urb->transfer_buffer and urb->transfer_dma.
   You'd also set URB_NO_TRANSFER_DMA_MAP in urb->transfer_flags:
 
-	void *usb_buffer_alloc (struct usb_device *dev, size_t size,
+	void *usb_alloc_coherent (struct usb_device *dev, size_t size,
 		int mem_flags, dma_addr_t *dma);
 
-	void usb_buffer_free (struct usb_device *dev, size_t size,
+	void usb_free_coherent (struct usb_device *dev, size_t size,
 		void *addr, dma_addr_t dma);
 
   Most drivers should *NOT* be using these primitives; they don't need
   to use this type of memory ("dma-coherent"), and memory returned from
   kmalloc() will work just fine.
-
-  For control transfers you can use the buffer primitives or not for each
-  of the transfer buffer and setup buffer independently.  Set the flag bits
-  URB_NO_TRANSFER_DMA_MAP and URB_NO_SETUP_DMA_MAP to indicate which
-  buffers you have prepared.  For non-control transfers URB_NO_SETUP_DMA_MAP
-  is ignored.
 
   The memory buffer returned is "dma-coherent"; sometimes you might need to
   force a consistent memory access ordering by using memory barriers.  It's
@@ -130,8 +124,8 @@ of Documentation/PCI/PCI-DMA-mapping.txt, titled "What memory is DMA-able?")
 	void usb_buffer_unmap (struct urb *urb);
 
   The calls manage urb->transfer_dma for you, and set URB_NO_TRANSFER_DMA_MAP
-  so that usbcore won't map or unmap the buffer.  The same goes for
-  urb->setup_dma and URB_NO_SETUP_DMA_MAP for control requests.
+  so that usbcore won't map or unmap the buffer.  They cannot be used for
+  setup_packet buffers in control requests.
 
 Note that several of those interfaces are currently commented out, since
 they don't have current users.  See the source code.  Other than the dmasync

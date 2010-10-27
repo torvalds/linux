@@ -1,3 +1,7 @@
+if ARCH_OMAP1
+
+menu "TI OMAP1 specific features"
+
 comment "OMAP Core Type"
 	depends on ARCH_OMAP1
 
@@ -152,6 +156,16 @@ config MACH_AMS_DELTA
 	  Support for the Amstrad E3 (codename Delta) videophone. Say Y here
 	  if you have such a device.
 
+config AMS_DELTA_FIQ
+	bool "Fast Interrupt Request (FIQ) support for the E3"
+	depends on MACH_AMS_DELTA
+	select FIQ
+	help
+	  Provide a FIQ handler for the E3.
+	  This allows for fast handling of interrupts generated
+	  by the clock line of the E3 mailboard (or a PS/2 keyboard)
+	  connected to the GPIO based external keyboard port.
+
 config MACH_OMAP_GENERIC
 	bool "Generic OMAP board"
 	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX)
@@ -214,6 +228,12 @@ config OMAP_ARM_120MHZ
 	help
           Enable 120MHz clock for OMAP CPU. If unsure, say N.
 
+config OMAP_ARM_96MHZ
+	bool "OMAP ARM 96 MHz CPU"
+	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730 || ARCH_OMAP850)
+	help
+          Enable 96MHz clock for OMAP CPU. If unsure, say N.
+
 config OMAP_ARM_60MHZ
 	bool "OMAP ARM 60 MHz CPU"
 	depends on ARCH_OMAP1 && (ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730 || ARCH_OMAP850)
@@ -227,3 +247,6 @@ config OMAP_ARM_30MHZ
 	help
           Enable 30MHz clock for OMAP CPU. If unsure, say N.
 
+endmenu
+
+endif

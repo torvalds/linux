@@ -12,6 +12,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/cdev.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>

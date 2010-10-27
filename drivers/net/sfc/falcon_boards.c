@@ -29,6 +29,15 @@
 #define FALCON_BOARD_SFN4111T 0x51
 #define FALCON_BOARD_SFN4112F 0x52
 
+/* Board temperature is about 15°C above ambient when air flow is
+ * limited. */
+#define FALCON_BOARD_TEMP_BIAS	15
+
+/* SFC4000 datasheet says: 'The maximum permitted junction temperature
+ * is 125°C; the thermal design of the environment for the SFC4000
+ * should aim to keep this well below 100°C.' */
+#define FALCON_JUNC_TEMP_MAX	90
+
 /*****************************************************************************
  * Support for LM87 sensor chip used on several boards
  */
@@ -97,12 +106,17 @@ static int efx_check_lm87(struct efx_nic *efx, unsigned mask)
 	alarms1 &= mask;
 	alarms2 &= mask >> 8;
 	if (alarms1 || alarms2) {
-		EFX_ERR(efx,
-			"LM87 detected a hardware failure (status %02x:%02x)"
-			"%s%s\n",
-			alarms1, alarms2,
-			(alarms1 & LM87_ALARM_TEMP_INT) ? " INTERNAL" : "",
-			(alarms1 & LM87_ALARM_TEMP_EXT1) ? " EXTERNAL" : "");
+		netif_err(efx, hw, efx->net_dev,
+			  "LM87 detected a hardware failure (status %02x:%02x)"
+			  "%s%s%s\n",
+			  alarms1, alarms2,
+			  (alarms1 & LM87_ALARM_TEMP_INT) ?
+			  "; board is overheating" : "",
+			  (alarms1 & LM87_ALARM_TEMP_EXT1) ?
+			  "; controller is overheating" : "",
+			  (alarms1 & ~(LM87_ALARM_TEMP_INT | LM87_ALARM_TEMP_EXT1)
+			   || alarms2) ?
+			  "; electrical fault" : "");
 		return -ERANGE;
 	}
 
@@ -234,7 +248,7 @@ static int sfe4001_poweron(struct efx_nic *efx)
 		       (0 << P0_EN_3V3X_LBN) | (0 << P0_EN_5V_LBN) |
 		       (0 << P0_EN_1V0X_LBN));
 	if (rc != out) {
-		EFX_INFO(efx, "power-cycling PHY\n");
+		netif_info(efx, hw, efx->net_dev, "power-cycling PHY\n");
 		rc = i2c_smbus_write_byte_data(ioexp_client, P0_OUT, out);
 		if (rc)
 			goto fail_on;
@@ -260,7 +274,8 @@ static int sfe4001_poweron(struct efx_nic *efx)
 		if (rc)
 			goto fail_on;
 
-		EFX_INFO(efx, "waiting for DSP boot (attempt %d)...\n", i);
+		netif_info(efx, hw, efx->net_dev,
+			   "waiting for DSP boot (attempt %d)...\n", i);
 
 		/* In flash config mode, DSP does not turn on AFE, so
 		 * just wait 1 second.
@@ -282,7 +297,7 @@ static int sfe4001_poweron(struct efx_nic *efx)
 		}
 	}
 
-	EFX_INFO(efx, "timed out waiting for DSP boot\n");
+	netif_info(efx, hw, efx->net_dev, "timed out waiting for DSP boot\n");
 	rc = -ETIMEDOUT;
 fail_on:
 	sfe4001_poweroff(efx);
@@ -368,7 +383,7 @@ static void sfe4001_fini(struct efx_nic *efx)
 {
 	struct falcon_board *board = falcon_board(efx);
 
-	EFX_INFO(efx, "%s\n", __func__);
+	netif_info(efx, drv, efx->net_dev, "%s\n", __func__);
 
 	device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_flash_cfg);
 	sfe4001_poweroff(efx);
@@ -452,7 +467,7 @@ static int sfe4001_init(struct efx_nic *efx)
 	if (rc)
 		goto fail_on;
 
-	EFX_INFO(efx, "PHY is powered on\n");
+	netif_info(efx, hw, efx->net_dev, "PHY is powered on\n");
 	return 0;
 
 fail_on:
@@ -484,7 +499,7 @@ static int sfn4111t_check_hw(struct efx_nic *efx)
 
 static void sfn4111t_fini(struct efx_nic *efx)
 {
-	EFX_INFO(efx, "%s\n", __func__);
+	netif_info(efx, drv, efx->net_dev, "%s\n", __func__);
 
 	device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_flash_cfg);
 	i2c_unregister_device(falcon_board(efx)->hwmon_client);
@@ -548,16 +563,16 @@ fail_hwmon:
 static u8 sfe4002_lm87_channel = 0x03; /* use AIN not FAN inputs */
 
 static const u8 sfe4002_lm87_regs[] = {
-	LM87_IN_LIMITS(0, 0x83, 0x91),		/* 2.5V:  1.8V +/- 5% */
-	LM87_IN_LIMITS(1, 0x51, 0x5a),		/* Vccp1: 1.2V +/- 5% */
-	LM87_IN_LIMITS(2, 0xb6, 0xca),		/* 3.3V:  3.3V +/- 5% */
-	LM87_IN_LIMITS(3, 0xb0, 0xc9),		/* 5V:    4.6-5.2V */
-	LM87_IN_LIMITS(4, 0xb0, 0xe0),		/* 12V:   11-14V */
-	LM87_IN_LIMITS(5, 0x44, 0x4b),		/* Vccp2: 1.0V +/- 5% */
-	LM87_AIN_LIMITS(0, 0xa0, 0xb2),		/* AIN1:  1.66V +/- 5% */
-	LM87_AIN_LIMITS(1, 0x91, 0xa1),		/* AIN2:  1.5V +/- 5% */
-	LM87_TEMP_INT_LIMITS(10, 60),		/* board */
-	LM87_TEMP_EXT1_LIMITS(10, 70),		/* Falcon */
+	LM87_IN_LIMITS(0, 0x7c, 0x99),		/* 2.5V:  1.8V +/- 10% */
+	LM87_IN_LIMITS(1, 0x4c, 0x5e),		/* Vccp1: 1.2V +/- 10% */
+	LM87_IN_LIMITS(2, 0xac, 0xd4),		/* 3.3V:  3.3V +/- 10% */
+	LM87_IN_LIMITS(3, 0xac, 0xd4),		/* 5V:    5.0V +/- 10% */
+	LM87_IN_LIMITS(4, 0xac, 0xe0),		/* 12V:   10.8-14V */
+	LM87_IN_LIMITS(5, 0x3f, 0x4f),		/* Vccp2: 1.0V +/- 10% */
+	LM87_AIN_LIMITS(0, 0x98, 0xbb),		/* AIN1:  1.66V +/- 10% */
+	LM87_AIN_LIMITS(1, 0x8a, 0xa9),		/* AIN2:  1.5V +/- 10% */
+	LM87_TEMP_INT_LIMITS(0, 80 + FALCON_BOARD_TEMP_BIAS),
+	LM87_TEMP_EXT1_LIMITS(0, FALCON_JUNC_TEMP_MAX),
 	0
 };
 
@@ -619,14 +634,14 @@ static int sfe4002_init(struct efx_nic *efx)
 static u8 sfn4112f_lm87_channel = 0x03; /* use AIN not FAN inputs */
 
 static const u8 sfn4112f_lm87_regs[] = {
-	LM87_IN_LIMITS(0, 0x83, 0x91),		/* 2.5V:  1.8V +/- 5% */
-	LM87_IN_LIMITS(1, 0x51, 0x5a),		/* Vccp1: 1.2V +/- 5% */
-	LM87_IN_LIMITS(2, 0xb6, 0xca),		/* 3.3V:  3.3V +/- 5% */
-	LM87_IN_LIMITS(4, 0xb0, 0xe0),		/* 12V:   11-14V */
-	LM87_IN_LIMITS(5, 0x44, 0x4b),		/* Vccp2: 1.0V +/- 5% */
-	LM87_AIN_LIMITS(1, 0x91, 0xa1),		/* AIN2:  1.5V +/- 5% */
-	LM87_TEMP_INT_LIMITS(10, 60),		/* board */
-	LM87_TEMP_EXT1_LIMITS(10, 70),		/* Falcon */
+	LM87_IN_LIMITS(0, 0x7c, 0x99),		/* 2.5V:  1.8V +/- 10% */
+	LM87_IN_LIMITS(1, 0x4c, 0x5e),		/* Vccp1: 1.2V +/- 10% */
+	LM87_IN_LIMITS(2, 0xac, 0xd4),		/* 3.3V:  3.3V +/- 10% */
+	LM87_IN_LIMITS(4, 0xac, 0xe0),		/* 12V:   10.8-14V */
+	LM87_IN_LIMITS(5, 0x3f, 0x4f),		/* Vccp2: 1.0V +/- 10% */
+	LM87_AIN_LIMITS(1, 0x8a, 0xa9),		/* AIN2:  1.5V +/- 10% */
+	LM87_TEMP_INT_LIMITS(0, 60 + FALCON_BOARD_TEMP_BIAS),
+	LM87_TEMP_EXT1_LIMITS(0, FALCON_JUNC_TEMP_MAX),
 	0
 };
 
@@ -719,15 +734,7 @@ static const struct falcon_board_type board_types[] = {
 	},
 };
 
-static const struct falcon_board_type falcon_dummy_board = {
-	.init		= efx_port_dummy_op_int,
-	.init_phy	= efx_port_dummy_op_void,
-	.fini		= efx_port_dummy_op_void,
-	.set_id_led	= efx_port_dummy_op_set_id_led,
-	.monitor	= efx_port_dummy_op_int,
-};
-
-void falcon_probe_board(struct efx_nic *efx, u16 revision_info)
+int falcon_probe_board(struct efx_nic *efx, u16 revision_info)
 {
 	struct falcon_board *board = falcon_board(efx);
 	u8 type_id = FALCON_BOARD_TYPE(revision_info);
@@ -741,12 +748,14 @@ void falcon_probe_board(struct efx_nic *efx, u16 revision_info)
 			board->type = &board_types[i];
 
 	if (board->type) {
-		EFX_INFO(efx, "board is %s rev %c%d\n",
+		netif_info(efx, probe, efx->net_dev, "board is %s rev %c%d\n",
 			 (efx->pci_dev->subsystem_vendor == EFX_VENDID_SFC)
 			 ? board->type->ref_model : board->type->gen_type,
 			 'A' + board->major, board->minor);
+		return 0;
 	} else {
-		EFX_ERR(efx, "unknown board type %d\n", type_id);
-		board->type = &falcon_dummy_board;
+		netif_err(efx, probe, efx->net_dev, "unknown board type %d\n",
+			  type_id);
+		return -ENODEV;
 	}
 }

@@ -19,8 +19,8 @@
 #include "ath.h"
 #include "reg.h"
 
-#define REG_READ	common->ops->read
-#define REG_WRITE	common->ops->write
+#define REG_READ	(common->ops->read)
+#define REG_WRITE	(common->ops->write)
 
 /**
  * ath_hw_set_bssid_mask - filter out bssids we listen

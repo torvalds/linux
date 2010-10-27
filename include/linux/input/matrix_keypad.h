@@ -41,9 +41,13 @@ struct matrix_keymap_data {
  * @col_scan_delay_us: delay, measured in microseconds, that is
  *	needed before we can keypad after activating column gpio
  * @debounce_ms: debounce interval in milliseconds
+ * @clustered_irq: may be specified if interrupts of all row/column GPIOs
+ *	are bundled to one single irq
+ * @clustered_irq_flags: flags that are needed for the clustered irq
  * @active_low: gpio polarity
  * @wakeup: controls whether the device should be set up as wakeup
  *	source
+ * @no_autorepeat: disable key autorepeat
  *
  * This structure represents platform-specific data that use used by
  * matrix_keypad driver to perform proper initialization.
@@ -62,8 +66,12 @@ struct matrix_keypad_platform_data {
 	/* key debounce interval in milli-second */
 	unsigned int	debounce_ms;
 
+	unsigned int	clustered_irq;
+	unsigned int	clustered_irq_flags;
+
 	bool		active_low;
 	bool		wakeup;
+	bool		no_autorepeat;
 };
 
 /**

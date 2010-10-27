@@ -1,6 +1,7 @@
 #ifndef __ASM_SH_MIGOR_H
 #define __ASM_SH_MIGOR_H
 
+#define PORT_MSELCRA 0xa4050180
 #define PORT_MSELCRB 0xa4050182
 #define BSC_CS4BCR 0xfec10010
 #define BSC_CS6ABCR 0xfec1001c

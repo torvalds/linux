@@ -79,7 +79,7 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 		ERROR(rt2x00dev,
 		      "Current firmware does not support detected chipset.\n");
 		goto exit;
-	};
+	}
 
 	rt2x00dev->fw = fw;
 

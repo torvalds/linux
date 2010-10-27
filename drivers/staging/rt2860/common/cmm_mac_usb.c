@@ -1087,7 +1087,7 @@ void RT28xxUsbMlmeRadioOFF(struct rt_rtmp_adapter *pAd)
 		if (INFRA_ON(pAd) || ADHOC_ON(pAd)) {
 			struct rt_mlme_disassoc_req DisReq;
 			struct rt_mlme_queue_elem *pMsgElem =
-			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
+			    kmalloc(sizeof(struct rt_mlme_queue_elem),
 							MEM_ALLOC_FLAG);
 
 			if (pMsgElem) {

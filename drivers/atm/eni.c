@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/atm_eni.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/atomic.h>
@@ -1130,7 +1131,7 @@ DPRINTK("doing direct send\n"); /* @@@ well, this doesn't work anyway */
 			if (i == -1)
 				put_dma(tx->index,eni_dev->dma,&j,(unsigned long)
 				    skb->data,
-				    skb->len - skb->data_len);
+				    skb_headlen(skb));
 			else
 				put_dma(tx->index,eni_dev->dma,&j,(unsigned long)
 				    skb_shinfo(skb)->frags[i].page + skb_shinfo(skb)->frags[i].page_offset,
@@ -2268,10 +2269,8 @@ out0:
 
 
 static struct pci_device_id eni_pci_tbl[] = {
-	{ PCI_VENDOR_ID_EF, PCI_DEVICE_ID_EF_ATM_FPGA, PCI_ANY_ID, PCI_ANY_ID,
-	  0, 0, 0 /* FPGA */ },
-	{ PCI_VENDOR_ID_EF, PCI_DEVICE_ID_EF_ATM_ASIC, PCI_ANY_ID, PCI_ANY_ID,
-	  0, 0, 1 /* ASIC */ },
+	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_FPGA), 0 /* FPGA */ },
+	{ PCI_VDEVICE(EF, PCI_DEVICE_ID_EF_ATM_ASIC), 1 /* ASIC */ },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci,eni_pci_tbl);

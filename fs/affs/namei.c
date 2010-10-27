@@ -224,7 +224,7 @@ affs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 		affs_brelse(bh);
 		inode = affs_iget(sb, ino);
 		if (IS_ERR(inode))
-			return ERR_PTR(PTR_ERR(inode));
+			return ERR_CAST(inode);
 	}
 	dentry->d_op = AFFS_SB(sb)->s_flags & SF_INTL ? &affs_intl_dentry_operations : &affs_dentry_operations;
 	d_add(dentry, inode);

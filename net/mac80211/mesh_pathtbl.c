@@ -10,6 +10,7 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <net/mac80211.h>
@@ -260,7 +261,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	int err = 0;
 	u32 hash_idx;
 
-	if (memcmp(dst, sdata->dev->dev_addr, ETH_ALEN) == 0)
+	if (memcmp(dst, sdata->vif.addr, ETH_ALEN) == 0)
 		/* never add ourselves as neighbours */
 		return -ENOTSUPP;
 
@@ -314,7 +315,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	read_unlock(&pathtbl_resize_lock);
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPATH_TABLE,  &ifmsh->wrkq_flags);
-		ieee80211_queue_work(&local->hw, &ifmsh->work);
+		ieee80211_queue_work(&local->hw, &sdata->work);
 	}
 	return 0;
 
@@ -377,7 +378,7 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	int err = 0;
 	u32 hash_idx;
 
-	if (memcmp(dst, sdata->dev->dev_addr, ETH_ALEN) == 0)
+	if (memcmp(dst, sdata->vif.addr, ETH_ALEN) == 0)
 		/* never add ourselves as neighbours */
 		return -ENOTSUPP;
 
@@ -424,7 +425,7 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	read_unlock(&pathtbl_resize_lock);
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPP_TABLE,  &ifmsh->wrkq_flags);
-		ieee80211_queue_work(&local->hw, &ifmsh->work);
+		ieee80211_queue_work(&local->hw, &sdata->work);
 	}
 	return 0;
 
@@ -605,7 +606,7 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 	struct mesh_path *mpath;
 	u32 sn = 0;
 
-	if (memcmp(hdr->addr4, sdata->dev->dev_addr, ETH_ALEN) != 0) {
+	if (memcmp(hdr->addr4, sdata->vif.addr, ETH_ALEN) != 0) {
 		u8 *ra, *da;
 
 		da = hdr->addr3;

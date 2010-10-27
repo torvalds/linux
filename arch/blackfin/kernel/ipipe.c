@@ -27,7 +27,6 @@
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
 #include <linux/bitops.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/kthread.h>
 #include <linux/unistd.h>

@@ -70,7 +70,6 @@
 #include <linux/workqueue.h>
 #include <linux/hdlc.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -220,7 +219,6 @@ typedef struct _mgslpc_info {
 
 	/* PCMCIA support */
 	struct pcmcia_device	*p_dev;
-	dev_node_t	      node;
 	int		      stop;
 
 	/* SPPP/Cisco HDLC device parts */
@@ -552,10 +550,6 @@ static int mgslpc_probe(struct pcmcia_device *link)
 
     /* Initialize the struct pcmcia_device structure */
 
-    /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.Handler = NULL;
-
     link->conf.Attributes = 0;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -577,18 +571,15 @@ static int mgslpc_ioprobe(struct pcmcia_device *p_dev,
 			  unsigned int vcc,
 			  void *priv_data)
 {
-	if (cfg->io.nwin > 0) {
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-		if (!(cfg->io.flags & CISTPL_IO_8BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-		if (!(cfg->io.flags & CISTPL_IO_16BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
-		p_dev->io.BasePort1 = cfg->io.win[0].base;
-		p_dev->io.NumPorts1 = cfg->io.win[0].len;
-		return pcmcia_request_io(p_dev, &p_dev->io);
-	}
-	return -ENODEV;
+	if (!cfg->io.nwin)
+		return -ENODEV;
+
+	p_dev->resource[0]->start = cfg->io.win[0].base;
+	p_dev->resource[0]->end = cfg->io.win[0].len;
+	p_dev->resource[0]->flags |= pcmcia_io_cfg_data_width(cfg->io.flags);
+	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
+
+	return pcmcia_request_io(p_dev);
 }
 
 static int mgslpc_config(struct pcmcia_device *link)
@@ -608,30 +599,22 @@ static int mgslpc_config(struct pcmcia_device *link)
     link->conf.ConfigIndex = 8;
     link->conf.Present = PRESENT_OPTION;
 
-    link->irq.Handler     = mgslpc_isr;
-
-    ret = pcmcia_request_irq(link, &link->irq);
+    ret = pcmcia_request_irq(link, mgslpc_isr);
     if (ret)
 	    goto failed;
     ret = pcmcia_request_configuration(link, &link->conf);
     if (ret)
 	    goto failed;
 
-    info->io_base = link->io.BasePort1;
-    info->irq_level = link->irq.AssignedIRQ;
+    info->io_base = link->resource[0]->start;
+    info->irq_level = link->irq;
 
-    /* add to linked list of devices */
-    sprintf(info->node.dev_name, "mgslpc0");
-    info->node.major = info->node.minor = 0;
-    link->dev_node = &info->node;
-
-    printk(KERN_INFO "%s: index 0x%02x:",
-	   info->node.dev_name, link->conf.ConfigIndex);
+    dev_info(&link->dev, "index 0x%02x:",
+	    link->conf.ConfigIndex);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	    printk(", irq %d", link->irq.AssignedIRQ);
-    if (link->io.NumPorts1)
-	    printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		   link->io.BasePort1+link->io.NumPorts1-1);
+	    printk(", irq %d", link->irq);
+    if (link->resource[0])
+	    printk(", io %pR", link->resource[0]);
     printk("\n");
     return 0;
 

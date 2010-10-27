@@ -23,8 +23,7 @@ checksum_block(__be32 *m, int size)
 	return sum;
 }
 
-int
-amiga_partition(struct parsed_partitions *state, struct block_device *bdev)
+int amiga_partition(struct parsed_partitions *state)
 {
 	Sector sect;
 	unsigned char *data;
@@ -38,11 +37,11 @@ amiga_partition(struct parsed_partitions *state, struct block_device *bdev)
 	for (blk = 0; ; blk++, put_dev_sector(sect)) {
 		if (blk == RDB_ALLOCATION_LIMIT)
 			goto rdb_done;
-		data = read_dev_sector(bdev, blk, &sect);
+		data = read_part_sector(state, blk, &sect);
 		if (!data) {
 			if (warn_no_part)
 				printk("Dev %s: unable to read RDB block %d\n",
-				       bdevname(bdev, b), blk);
+				       bdevname(state->bdev, b), blk);
 			res = -1;
 			goto rdb_done;
 		}
@@ -64,22 +63,28 @@ amiga_partition(struct parsed_partitions *state, struct block_device *bdev)
 		}
 
 		printk("Dev %s: RDB in block %d has bad checksum\n",
-			       bdevname(bdev, b), blk);
+		       bdevname(state->bdev, b), blk);
 	}
 
 	/* blksize is blocks per 512 byte standard block */
 	blksize = be32_to_cpu( rdb->rdb_BlockBytes ) / 512;
 
-	printk(" RDSK (%d)", blksize * 512);	/* Be more informative */
+	{
+		char tmp[7 + 10 + 1 + 1];
+
+		/* Be more informative */
+		snprintf(tmp, sizeof(tmp), " RDSK (%d)", blksize * 512);
+		strlcat(state->pp_buf, tmp, PAGE_SIZE);
+	}
 	blk = be32_to_cpu(rdb->rdb_PartitionList);
 	put_dev_sector(sect);
 	for (part = 1; blk>0 && part<=16; part++, put_dev_sector(sect)) {
 		blk *= blksize;	/* Read in terms partition table understands */
-		data = read_dev_sector(bdev, blk, &sect);
+		data = read_part_sector(state, blk, &sect);
 		if (!data) {
 			if (warn_no_part)
 				printk("Dev %s: unable to read partition block %d\n",
-				       bdevname(bdev, b), blk);
+				       bdevname(state->bdev, b), blk);
 			res = -1;
 			goto rdb_done;
 		}
@@ -107,23 +112,27 @@ amiga_partition(struct parsed_partitions *state, struct block_device *bdev)
 		{
 			/* Be even more informative to aid mounting */
 			char dostype[4];
+			char tmp[42];
+
 			__be32 *dt = (__be32 *)dostype;
 			*dt = pb->pb_Environment[16];
 			if (dostype[3] < ' ')
-				printk(" (%c%c%c^%c)",
+				snprintf(tmp, sizeof(tmp), " (%c%c%c^%c)",
 					dostype[0], dostype[1],
 					dostype[2], dostype[3] + '@' );
 			else
-				printk(" (%c%c%c%c)",
+				snprintf(tmp, sizeof(tmp), " (%c%c%c%c)",
 					dostype[0], dostype[1],
 					dostype[2], dostype[3]);
-			printk("(res %d spb %d)",
+			strlcat(state->pp_buf, tmp, PAGE_SIZE);
+			snprintf(tmp, sizeof(tmp), "(res %d spb %d)",
 				be32_to_cpu(pb->pb_Environment[6]),
 				be32_to_cpu(pb->pb_Environment[4]));
+			strlcat(state->pp_buf, tmp, PAGE_SIZE);
 		}
 		res = 1;
 	}
-	printk("\n");
+	strlcat(state->pp_buf, "\n", PAGE_SIZE);
 
 rdb_done:
 	return res;

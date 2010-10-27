@@ -15,6 +15,19 @@
 #define PCI_CONFIG_SPACE_DELAY 10000
 
 /*
+ * The physical memory base mapped by BAR1.  256MB at the end of the
+ * first 4GB.
+ */
+#define CVMX_PCIE_BAR1_PHYS_BASE ((1ull << 32) - (1ull << 28))
+#define CVMX_PCIE_BAR1_PHYS_SIZE (1ull << 28)
+
+/*
+ * The RC base of BAR1.  gen1 has a 39-bit BAR2, gen2 has 41-bit BAR2,
+ * place BAR1 so it is the same for both.
+ */
+#define CVMX_PCIE_BAR1_RC_BASE (1ull << 41)
+
+/*
  * pcibios_map_irq() is defined inside pci-octeon.c. All it does is
  * call the Octeon specific version pointed to by this variable. This
  * function needs to change for PCI or PCIe based hosts.

@@ -4,7 +4,7 @@
  *  Derived from cx25840-core.h
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -61,6 +61,25 @@ enum cx18_av_video_input {
 	CX18_AV_SVIDEO2 = 0x620,
 	CX18_AV_SVIDEO3 = 0x730,
 	CX18_AV_SVIDEO4 = 0x840,
+
+	/* Component Video inputs consist of one luma input (In1-In8) ORed
+	   with a red chroma (In4-In6) and blue chroma input (In7-In8) */
+	CX18_AV_COMPONENT_LUMA1 = 0x1000,
+	CX18_AV_COMPONENT_LUMA2 = 0x2000,
+	CX18_AV_COMPONENT_LUMA3 = 0x3000,
+	CX18_AV_COMPONENT_LUMA4 = 0x4000,
+	CX18_AV_COMPONENT_LUMA5 = 0x5000,
+	CX18_AV_COMPONENT_LUMA6 = 0x6000,
+	CX18_AV_COMPONENT_LUMA7 = 0x7000,
+	CX18_AV_COMPONENT_LUMA8 = 0x8000,
+	CX18_AV_COMPONENT_R_CHROMA4 = 0x40000,
+	CX18_AV_COMPONENT_R_CHROMA5 = 0x50000,
+	CX18_AV_COMPONENT_R_CHROMA6 = 0x60000,
+	CX18_AV_COMPONENT_B_CHROMA7 = 0x700000,
+	CX18_AV_COMPONENT_B_CHROMA8 = 0x800000,
+
+	/* Component Video aliases for common combinations */
+	CX18_AV_COMPONENT1 = 0x861000,
 };
 
 enum cx18_av_audio_input {
@@ -359,7 +378,8 @@ void cx18_av_audio_set_path(struct cx18 *cx);
 /* cx18_av-vbi.c                                                           */
 int cx18_av_decode_vbi_line(struct v4l2_subdev *sd,
 			   struct v4l2_decode_vbi_line *vbi);
-int cx18_av_vbi_g_fmt(struct cx18 *cx, struct v4l2_format *fmt);
-int cx18_av_vbi_s_fmt(struct cx18 *cx, struct v4l2_format *fmt);
+int cx18_av_s_raw_fmt(struct v4l2_subdev *sd, struct v4l2_vbi_format *fmt);
+int cx18_av_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *fmt);
+int cx18_av_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *fmt);
 
 #endif

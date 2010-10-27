@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
@@ -258,7 +259,6 @@ static void bitbang_work(struct work_struct *work)
 	struct spi_bitbang	*bitbang =
 		container_of(work, struct spi_bitbang, work);
 	unsigned long		flags;
-	int			do_setup = -1;
 	int			(*setup_transfer)(struct spi_device *,
 					struct spi_transfer *);
 
@@ -274,6 +274,7 @@ static void bitbang_work(struct work_struct *work)
 		unsigned		tmp;
 		unsigned		cs_change;
 		int			status;
+		int			do_setup = -1;
 
 		m = container_of(bitbang->queue.next, struct spi_message,
 				queue);
@@ -306,6 +307,8 @@ static void bitbang_work(struct work_struct *work)
 				status = setup_transfer(spi, t);
 				if (status < 0)
 					break;
+				if (do_setup == -1)
+					do_setup = 0;
 			}
 
 			/* set up default clock polarity, and activate chip;
@@ -365,11 +368,6 @@ static void bitbang_work(struct work_struct *work)
 
 		m->status = status;
 		m->complete(m->context);
-
-		/* restore speed and wordsize if it was overridden */
-		if (do_setup == 1)
-			setup_transfer(spi, NULL);
-		do_setup = 0;
 
 		/* normally deactivate chipselect ... unless no error and
 		 * cs_change has hinted that the next message will probably

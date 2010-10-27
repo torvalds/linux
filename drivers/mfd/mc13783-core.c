@@ -9,10 +9,33 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
+#include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/mutex.h>
+#include <linux/interrupt.h>
 #include <linux/spi/spi.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/mc13783-private.h>
+#include <linux/mfd/mc13783.h>
+
+struct mc13783 {
+	struct spi_device *spidev;
+	struct mutex lock;
+	int irq;
+	int flags;
+
+	irq_handler_t irqhandler[MC13783_NUM_IRQ];
+	void *irqdata[MC13783_NUM_IRQ];
+
+	/* XXX these should go as platformdata to the regulator subdevice */
+	struct mc13783_regulator_init_data *regulators;
+	int num_regulators;
+};
+
+#define MC13783_REG_REVISION			 7
+#define MC13783_REG_ADC_0			43
+#define MC13783_REG_ADC_1			44
+#define MC13783_REG_ADC_2			45
 
 #define MC13783_IRQSTAT0	0
 #define MC13783_IRQSTAT0_ADCDONEI	(1 << 0)
@@ -225,7 +248,13 @@ int mc13783_reg_rmw(struct mc13783 *mc13783, unsigned int offset,
 }
 EXPORT_SYMBOL(mc13783_reg_rmw);
 
-int mc13783_mask(struct mc13783 *mc13783, int irq)
+int mc13783_get_flags(struct mc13783 *mc13783)
+{
+	return mc13783->flags;
+}
+EXPORT_SYMBOL(mc13783_get_flags);
+
+int mc13783_irq_mask(struct mc13783 *mc13783, int irq)
 {
 	int ret;
 	unsigned int offmask = irq < 24 ? MC13783_IRQMASK0 : MC13783_IRQMASK1;
@@ -245,9 +274,9 @@ int mc13783_mask(struct mc13783 *mc13783, int irq)
 
 	return mc13783_reg_write(mc13783, offmask, mask | irqbit);
 }
-EXPORT_SYMBOL(mc13783_mask);
+EXPORT_SYMBOL(mc13783_irq_mask);
 
-int mc13783_unmask(struct mc13783 *mc13783, int irq)
+int mc13783_irq_unmask(struct mc13783 *mc13783, int irq)
 {
 	int ret;
 	unsigned int offmask = irq < 24 ? MC13783_IRQMASK0 : MC13783_IRQMASK1;
@@ -267,7 +296,53 @@ int mc13783_unmask(struct mc13783 *mc13783, int irq)
 
 	return mc13783_reg_write(mc13783, offmask, mask & ~irqbit);
 }
-EXPORT_SYMBOL(mc13783_unmask);
+EXPORT_SYMBOL(mc13783_irq_unmask);
+
+int mc13783_irq_status(struct mc13783 *mc13783, int irq,
+		int *enabled, int *pending)
+{
+	int ret;
+	unsigned int offmask = irq < 24 ? MC13783_IRQMASK0 : MC13783_IRQMASK1;
+	unsigned int offstat = irq < 24 ? MC13783_IRQSTAT0 : MC13783_IRQSTAT1;
+	u32 irqbit = 1 << (irq < 24 ? irq : irq - 24);
+
+	if (irq < 0 || irq >= MC13783_NUM_IRQ)
+		return -EINVAL;
+
+	if (enabled) {
+		u32 mask;
+
+		ret = mc13783_reg_read(mc13783, offmask, &mask);
+		if (ret)
+			return ret;
+
+		*enabled = mask & irqbit;
+	}
+
+	if (pending) {
+		u32 stat;
+
+		ret = mc13783_reg_read(mc13783, offstat, &stat);
+		if (ret)
+			return ret;
+
+		*pending = stat & irqbit;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(mc13783_irq_status);
+
+int mc13783_irq_ack(struct mc13783 *mc13783, int irq)
+{
+	unsigned int offstat = irq < 24 ? MC13783_IRQSTAT0 : MC13783_IRQSTAT1;
+	unsigned int val = 1 << (irq < 24 ? irq : irq - 24);
+
+	BUG_ON(irq < 0 || irq >= MC13783_NUM_IRQ);
+
+	return mc13783_reg_write(mc13783, offstat, val);
+}
+EXPORT_SYMBOL(mc13783_irq_ack);
 
 int mc13783_irq_request_nounmask(struct mc13783 *mc13783, int irq,
 		irq_handler_t handler, const char *name, void *dev)
@@ -297,7 +372,7 @@ int mc13783_irq_request(struct mc13783 *mc13783, int irq,
 	if (ret)
 		return ret;
 
-	ret = mc13783_unmask(mc13783, irq);
+	ret = mc13783_irq_unmask(mc13783, irq);
 	if (ret) {
 		mc13783->irqhandler[irq] = NULL;
 		mc13783->irqdata[irq] = NULL;
@@ -317,7 +392,7 @@ int mc13783_irq_free(struct mc13783 *mc13783, int irq, void *dev)
 			mc13783->irqdata[irq] != dev)
 		return -EINVAL;
 
-	ret = mc13783_mask(mc13783, irq);
+	ret = mc13783_irq_mask(mc13783, irq);
 	if (ret)
 		return ret;
 
@@ -332,17 +407,6 @@ static inline irqreturn_t mc13783_irqhandler(struct mc13783 *mc13783, int irq)
 {
 	return mc13783->irqhandler[irq](irq, mc13783->irqdata[irq]);
 }
-
-int mc13783_ackirq(struct mc13783 *mc13783, int irq)
-{
-	unsigned int offstat = irq < 24 ? MC13783_IRQSTAT0 : MC13783_IRQSTAT1;
-	unsigned int val = 1 << (irq < 24 ? irq : irq - 24);
-
-	BUG_ON(irq < 0 || irq >= MC13783_NUM_IRQ);
-
-	return mc13783_reg_write(mc13783, offstat, val);
-}
-EXPORT_SYMBOL(mc13783_ackirq);
 
 /*
  * returns: number of handled irqs or negative error
@@ -422,7 +486,7 @@ static irqreturn_t mc13783_handler_adcdone(int irq, void *data)
 {
 	struct mc13783_adcdone_data *adcdone_data = data;
 
-	mc13783_ackirq(adcdone_data->mc13783, irq);
+	mc13783_irq_ack(adcdone_data->mc13783, irq);
 
 	complete_all(&adcdone_data->done);
 
@@ -486,7 +550,7 @@ int mc13783_adc_do_conversion(struct mc13783 *mc13783, unsigned int mode,
 	dev_dbg(&mc13783->spidev->dev, "%s: request irq\n", __func__);
 	mc13783_irq_request(mc13783, MC13783_IRQ_ADCDONE,
 			mc13783_handler_adcdone, __func__, &adcdone_data);
-	mc13783_ackirq(mc13783, MC13783_IRQ_ADCDONE);
+	mc13783_irq_ack(mc13783, MC13783_IRQ_ADCDONE);
 
 	mc13783_reg_write(mc13783, MC13783_REG_ADC_0, adc0);
 	mc13783_reg_write(mc13783, MC13783_REG_ADC_1, adc1);
@@ -642,6 +706,10 @@ err_revision:
 
 	if (pdata->flags & MC13783_USE_TOUCHSCREEN)
 		mc13783_add_subdevice(mc13783, "mc13783-ts");
+
+	if (pdata->flags & MC13783_USE_LED)
+		mc13783_add_subdevice_pdata(mc13783, "mc13783-led",
+					pdata->leds, sizeof(*pdata->leds));
 
 	return 0;
 }

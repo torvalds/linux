@@ -205,16 +205,17 @@ extern struct rpc_procinfo nfs4_procedures[];
 void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
 
 /* dir.c */
-extern int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask);
+extern int nfs_access_cache_shrinker(struct shrinker *shrink,
+					int nr_to_scan, gfp_t gfp_mask);
 
 /* inode.c */
 extern struct workqueue_struct *nfsiod_workqueue;
 extern struct inode *nfs_alloc_inode(struct super_block *sb);
 extern void nfs_destroy_inode(struct inode *);
-extern int nfs_write_inode(struct inode *,int);
-extern void nfs_clear_inode(struct inode *);
+extern int nfs_write_inode(struct inode *, struct writeback_control *);
+extern void nfs_evict_inode(struct inode *);
 #ifdef CONFIG_NFS_V4
-extern void nfs4_clear_inode(struct inode *);
+extern void nfs4_evict_inode(struct inode *);
 #endif
 void nfs_zap_acl_cache(struct inode *inode);
 extern int nfs_wait_bit_killable(void *word);
@@ -244,9 +245,7 @@ extern struct dentry *nfs_get_root(struct super_block *, struct nfs_fh *);
 #ifdef CONFIG_NFS_V4
 extern struct dentry *nfs4_get_root(struct super_block *, struct nfs_fh *);
 
-extern int nfs4_path_walk(struct nfs_server *server,
-			  struct nfs_fh *mntfh,
-			  const char *path);
+extern int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh);
 #endif
 
 /* read.c */
@@ -371,10 +370,9 @@ unsigned int nfs_page_array_len(unsigned int base, size_t len)
  * Helper for restarting RPC calls in the possible presence of NFSv4.1
  * sessions.
  */
-static inline void nfs_restart_rpc(struct rpc_task *task, const struct nfs_client *clp)
+static inline int nfs_restart_rpc(struct rpc_task *task, const struct nfs_client *clp)
 {
 	if (nfs4_has_session(clp))
-		rpc_restart_call_prepare(task);
-	else
-		rpc_restart_call(task);
+		return rpc_restart_call_prepare(task);
+	return rpc_restart_call(task);
 }

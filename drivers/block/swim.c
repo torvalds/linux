@@ -18,7 +18,9 @@
 
 #include <linux/module.h>
 #include <linux/fd.h>
+#include <linux/slab.h>
 #include <linux/blkdev.h>
+#include <linux/smp_lock.h>
 #include <linux/hdreg.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -660,11 +662,23 @@ out:
 	return err;
 }
 
+static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
+{
+	int ret;
+
+	lock_kernel();
+	ret = floppy_open(bdev, mode);
+	unlock_kernel();
+
+	return ret;
+}
+
 static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	struct floppy_state *fs = disk->private_data;
 	struct swim __iomem *base = fs->swd->base;
 
+	lock_kernel();
 	if (fs->ref_count < 0)
 		fs->ref_count = 0;
 	else if (fs->ref_count > 0)
@@ -672,6 +686,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 
 	if (fs->ref_count == 0)
 		swim_motor(base, OFF);
+	unlock_kernel();
 
 	return 0;
 }
@@ -689,7 +704,9 @@ static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
 	case FDEJECT:
 		if (fs->ref_count != 1)
 			return -EBUSY;
+		lock_kernel();
 		err = floppy_eject(fs);
+		unlock_kernel();
 		return err;
 
 	case FDGETPRM:
@@ -750,9 +767,9 @@ static int floppy_revalidate(struct gendisk *disk)
 
 static const struct block_device_operations floppy_fops = {
 	.owner		 = THIS_MODULE,
-	.open		 = floppy_open,
+	.open		 = floppy_unlocked_open,
 	.release	 = floppy_release,
-	.locked_ioctl	 = floppy_ioctl,
+	.ioctl		 = floppy_ioctl,
 	.getgeo		 = floppy_getgeo,
 	.media_changed	 = floppy_check_change,
 	.revalidate_disk = floppy_revalidate,
@@ -864,7 +881,7 @@ static int __devinit swim_probe(struct platform_device *dev)
 	struct swim_priv *swd;
 	int ret;
 
-	res = platform_get_resource_byname(dev, IORESOURCE_MEM, "swim-regs");
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res) {
 		ret = -ENODEV;
 		goto out;
@@ -942,7 +959,7 @@ static int __devexit swim_remove(struct platform_device *dev)
 
 	iounmap(swd->base);
 
-	res = platform_get_resource_byname(dev, IORESOURCE_MEM, "swim-regs");
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (res)
 		release_mem_region(res->start, resource_size(res));
 

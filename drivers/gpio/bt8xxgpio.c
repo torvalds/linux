@@ -47,6 +47,7 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 /* Steal the hardware definitions from the bttv driver. */
 #include "../media/video/bt8xx/bt848.h"

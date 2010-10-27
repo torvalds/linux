@@ -117,6 +117,9 @@ void usbip_stop_eh(struct usbip_device *ud)
 {
 	struct usbip_task *eh = &ud->eh;
 
+	if (eh->thread == current)
+		return; /* do not wait for myself */
+
 	wait_for_completion(&eh->thread_done);
 	usbip_dbg_eh("usbip_eh has finished\n");
 }

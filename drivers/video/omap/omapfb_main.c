@@ -26,6 +26,7 @@
  */
 #include <linux/platform_device.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 
 #include <plat/dma.h>
@@ -486,10 +487,11 @@ static int set_color_mode(struct omapfb_plane_struct *plane,
 		return 0;
 	case 12:
 		var->bits_per_pixel = 16;
-		plane->color_mode = OMAPFB_COLOR_RGB444;
-		return 0;
 	case 16:
-		plane->color_mode = OMAPFB_COLOR_RGB565;
+		if (plane->fbdev->panel->bpp == 12)
+			plane->color_mode = OMAPFB_COLOR_RGB444;
+		else
+			plane->color_mode = OMAPFB_COLOR_RGB565;
 		return 0;
 	default:
 		return -EINVAL;

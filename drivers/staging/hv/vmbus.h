@@ -26,7 +26,7 @@
 #define _VMBUS_H_
 
 #include <linux/device.h>
-#include "VmbusApi.h"
+#include "vmbus_api.h"
 
 struct driver_context {
 	struct hv_guid class_id;
@@ -43,23 +43,23 @@ struct driver_context {
 	void (*shutdown)(struct device *);
 };
 
-struct device_context {
+struct vm_device {
 	struct work_struct probe_failed_work_item;
 	struct hv_guid class_id;
 	struct hv_guid device_id;
 	int probe_error;
-	struct device device;
 	struct hv_device device_obj;
+	struct device device;
 };
 
-static inline struct device_context *to_device_context(struct hv_device *d)
+static inline struct vm_device *to_vm_device(struct hv_device *d)
 {
-	return container_of(d, struct device_context, device_obj);
+	return container_of(d, struct vm_device, device_obj);
 }
 
-static inline struct device_context *device_to_device_context(struct device *d)
+static inline struct vm_device *device_to_vm_device(struct device *d)
 {
-	return container_of(d, struct device_context, device);
+	return container_of(d, struct vm_device, device);
 }
 
 static inline struct driver_context *driver_to_driver_context(struct device_driver *d)
@@ -73,5 +73,7 @@ static inline struct driver_context *driver_to_driver_context(struct device_driv
 int vmbus_child_driver_register(struct driver_context *driver_ctx);
 void vmbus_child_driver_unregister(struct driver_context *driver_ctx);
 void vmbus_get_interface(struct vmbus_channel_interface *interface);
+
+extern struct completion hv_channel_ready;
 
 #endif /* _VMBUS_H_ */

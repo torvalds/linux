@@ -33,7 +33,8 @@ struct statfs {
 	__kernel_fsid_t f_fsid;
 	__statfs_word f_namelen;
 	__statfs_word f_frsize;
-	__statfs_word f_spare[5];
+	__statfs_word f_flags;
+	__statfs_word f_spare[4];
 };
 
 /*
@@ -55,7 +56,8 @@ struct statfs64 {
 	__kernel_fsid_t f_fsid;
 	__statfs_word f_namelen;
 	__statfs_word f_frsize;
-	__statfs_word f_spare[5];
+	__statfs_word f_flags;
+	__statfs_word f_spare[4];
 } ARCH_PACK_STATFS64;
 
 /* 
@@ -77,7 +79,8 @@ struct compat_statfs64 {
 	__kernel_fsid_t f_fsid;
 	__u32 f_namelen;
 	__u32 f_frsize;
-	__u32 f_spare[5];
+	__u32 f_flags;
+	__u32 f_spare[4];
 } ARCH_PACK_COMPAT_STATFS64;
 
 #endif

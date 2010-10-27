@@ -124,7 +124,13 @@ static inline unsigned int readl(const volatile void __iomem *addr)
 #define iowrite16(val, x)		writew(val, x)
 #define iowrite32(val, x)		writel(val, x)
 
-#define mmiowb() wmb()
+/**
+ * I/O write barrier
+ *
+ * Ensure ordering of I/O space writes. This will make sure that writes
+ * following the barrier will arrive after all previous writes.
+ */
+#define mmiowb() do { SSYNC(); wmb(); } while (0)
 
 #define IO_SPACE_LIMIT 0xffffffff
 

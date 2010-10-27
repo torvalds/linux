@@ -18,10 +18,11 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/io.h>
 #include <linux/usb.h>
-#include "../core/hcd.h"
+#include <linux/usb/hcd.h>
 #include "fhci.h"
 
 #define DUMMY_BD_BUFFER  0xdeadbeef
@@ -105,7 +106,7 @@ void fhci_ep0_free(struct fhci_usb *usb)
 		if (ep->td_base)
 			cpm_muram_free(cpm_muram_offset(ep->td_base));
 
-		if (ep->conf_frame_Q) {
+		if (kfifo_initialized(&ep->conf_frame_Q)) {
 			size = cq_howmany(&ep->conf_frame_Q);
 			for (; size; size--) {
 				struct packet *pkt = cq_get(&ep->conf_frame_Q);
@@ -115,7 +116,7 @@ void fhci_ep0_free(struct fhci_usb *usb)
 			cq_delete(&ep->conf_frame_Q);
 		}
 
-		if (ep->empty_frame_Q) {
+		if (kfifo_initialized(&ep->empty_frame_Q)) {
 			size = cq_howmany(&ep->empty_frame_Q);
 			for (; size; size--) {
 				struct packet *pkt = cq_get(&ep->empty_frame_Q);
@@ -125,7 +126,7 @@ void fhci_ep0_free(struct fhci_usb *usb)
 			cq_delete(&ep->empty_frame_Q);
 		}
 
-		if (ep->dummy_packets_Q) {
+		if (kfifo_initialized(&ep->dummy_packets_Q)) {
 			size = cq_howmany(&ep->dummy_packets_Q);
 			for (; size; size--) {
 				u8 *buff = cq_get(&ep->dummy_packets_Q);

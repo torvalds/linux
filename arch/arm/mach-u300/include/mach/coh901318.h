@@ -53,7 +53,7 @@ struct coh901318_params {
  * struct coh_dma_channel - dma channel base
  * @name: ascii name of dma channel
  * @number: channel id number
- * @desc_nbr_max: number of preallocated descriptortors
+ * @desc_nbr_max: number of preallocated descriptors
  * @priority_high: prio of channel, 0 low otherwise high.
  * @param: configuration parameters
  * @dev_addr: physical address of periphal connected to channel
@@ -101,27 +101,6 @@ struct coh901318_platform {
 	const struct coh_dma_channel *chan_conf;
 	const int max_channels;
 };
-
-/**
- * coh901318_get_bytes_left() - Get number of bytes left on a current transfer
- * @chan: dma channel handle
- * return number of bytes left, or negative on error
- */
-u32 coh901318_get_bytes_left(struct dma_chan *chan);
-
-/**
- * coh901318_stop() - Stops dma transfer
- * @chan: dma channel handle
- * return 0 on success otherwise negative value
- */
-void coh901318_stop(struct dma_chan *chan);
-
-/**
- * coh901318_continue() - Resumes a stopped dma transfer
- * @chan: dma channel handle
- * return 0 on success otherwise negative value
- */
-void coh901318_continue(struct dma_chan *chan);
 
 /**
  * coh901318_filter_id() - DMA channel filter function

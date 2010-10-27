@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -185,20 +184,36 @@ static void proc_keys_stop(struct seq_file *p, void *v)
 
 static int proc_keys_show(struct seq_file *m, void *v)
 {
+	const struct cred *cred = current_cred();
 	struct rb_node *_p = v;
 	struct key *key = rb_entry(_p, struct key, serial_node);
 	struct timespec now;
 	unsigned long timo;
+	key_ref_t key_ref, skey_ref;
 	char xbuf[12];
 	int rc;
+
+	key_ref = make_key_ref(key, 0);
+
+	/* determine if the key is possessed by this process (a test we can
+	 * skip if the key does not indicate the possessor can view it
+	 */
+	if (key->perm & KEY_POS_VIEW) {
+		skey_ref = search_my_process_keyrings(key->type, key,
+						      lookup_user_key_possessed,
+						      cred);
+		if (!IS_ERR(skey_ref)) {
+			key_ref_put(skey_ref);
+			key_ref = make_key_ref(key, 1);
+		}
+	}
 
 	/* check whether the current task is allowed to view the key (assuming
 	 * non-possession)
 	 * - the caller holds a spinlock, and thus the RCU read lock, making our
 	 *   access to __current_cred() safe
 	 */
-	rc = key_task_permission(make_key_ref(key, 0), current_cred(),
-				 KEY_VIEW);
+	rc = key_task_permission(key_ref, cred, KEY_VIEW);
 	if (rc < 0)
 		return 0;
 
@@ -307,7 +322,7 @@ static void *proc_key_users_start(struct seq_file *p, loff_t *_pos)
 static void *proc_key_users_next(struct seq_file *p, void *v, loff_t *_pos)
 {
 	(*_pos)++;
-	return key_user_next((struct rb_node *) v);
+	return key_user_next((struct rb_node *)v);
 }
 
 static void proc_key_users_stop(struct seq_file *p, void *v)

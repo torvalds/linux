@@ -81,15 +81,15 @@ static u8 pci_bus_clock_list_ultra (u8 speed, struct chipset_bus_clock_list_entr
 	return chipset_table->ultra_settings;
 }
 
-static void aec6210_set_mode(ide_drive_t *drive, const u8 speed)
+static void aec6210_set_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	struct ide_host *host	= pci_get_drvdata(dev);
 	struct chipset_bus_clock_list_entry *bus_clock = host->host_priv;
 	u16 d_conf		= 0;
 	u8 ultra = 0, ultra_conf = 0;
 	u8 tmp0 = 0, tmp1 = 0, tmp2 = 0;
+	const u8 speed = drive->dma_mode;
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -109,15 +109,15 @@ static void aec6210_set_mode(ide_drive_t *drive, const u8 speed)
 	local_irq_restore(flags);
 }
 
-static void aec6260_set_mode(ide_drive_t *drive, const u8 speed)
+static void aec6260_set_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	struct ide_host *host	= pci_get_drvdata(dev);
 	struct chipset_bus_clock_list_entry *bus_clock = host->host_priv;
 	u8 unit			= drive->dn & 1;
 	u8 tmp1 = 0, tmp2 = 0;
 	u8 ultra = 0, drive_conf = 0, ultra_conf = 0;
+	const u8 speed = drive->dma_mode;
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -134,9 +134,10 @@ static void aec6260_set_mode(ide_drive_t *drive, const u8 speed)
 	local_irq_restore(flags);
 }
 
-static void aec_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void aec_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	drive->hwif->port_ops->set_dma_mode(drive, pio + XFER_PIO_0);
+	drive->dma_mode = drive->pio_mode;
+	hwif->port_ops->set_dma_mode(hwif, drive);
 }
 
 static int init_chipset_aec62xx(struct pci_dev *dev)

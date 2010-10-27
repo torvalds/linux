@@ -10,7 +10,6 @@
  * (display/resolving)
  */
 struct arch_hw_breakpoint {
-	char		*name; /* Contains name of the symbol to set bkpt */
 	unsigned long	address;
 	u8		len;
 	u8		type;
@@ -21,10 +20,10 @@ struct arch_hw_breakpoint {
 #include <linux/list.h>
 
 /* Available HW breakpoint length encodings */
+#define X86_BREAKPOINT_LEN_X		0x40
 #define X86_BREAKPOINT_LEN_1		0x40
 #define X86_BREAKPOINT_LEN_2		0x44
 #define X86_BREAKPOINT_LEN_4		0x4c
-#define X86_BREAKPOINT_LEN_EXECUTE	0x40
 
 #ifdef CONFIG_X86_64
 #define X86_BREAKPOINT_LEN_8		0x48
@@ -42,12 +41,16 @@ struct arch_hw_breakpoint {
 /* Total number of available HW breakpoint registers */
 #define HBP_NUM 4
 
+static inline int hw_breakpoint_slots(int type)
+{
+	return HBP_NUM;
+}
+
 struct perf_event;
 struct pmu;
 
-extern int arch_check_va_in_userspace(unsigned long va, u8 hbp_len);
-extern int arch_validate_hwbkpt_settings(struct perf_event *bp,
-					 struct task_struct *tsk);
+extern int arch_check_bp_in_kernelspace(struct perf_event *bp);
+extern int arch_validate_hwbkpt_settings(struct perf_event *bp);
 extern int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
 					   unsigned long val, void *data);
 

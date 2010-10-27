@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/types.h>
+#include <linux/pid_namespace.h>
 #include <asm/uaccess.h>
 #include "os.h"
 
@@ -587,7 +588,7 @@ static int hppfs_readdir(struct file *file, void *ent, filldir_t filldir)
 	return err;
 }
 
-static int hppfs_fsync(struct file *file, struct dentry *dentry, int datasync)
+static int hppfs_fsync(struct file *file, int datasync)
 {
 	return 0;
 }
@@ -623,12 +624,11 @@ static struct inode *hppfs_alloc_inode(struct super_block *sb)
 	return &hi->vfs_inode;
 }
 
-void hppfs_delete_inode(struct inode *ino)
+void hppfs_evict_inode(struct inode *ino)
 {
+	end_writeback(ino);
 	dput(HPPFS_I(ino)->proc_dentry);
 	mntput(ino->i_sb->s_fs_info);
-
-	clear_inode(ino);
 }
 
 static void hppfs_destroy_inode(struct inode *inode)
@@ -639,7 +639,7 @@ static void hppfs_destroy_inode(struct inode *inode)
 static const struct super_operations hppfs_sbops = {
 	.alloc_inode	= hppfs_alloc_inode,
 	.destroy_inode	= hppfs_destroy_inode,
-	.delete_inode	= hppfs_delete_inode,
+	.evict_inode	= hppfs_evict_inode,
 	.statfs		= hppfs_statfs,
 };
 
@@ -718,7 +718,7 @@ static int hppfs_fill_super(struct super_block *sb, void *d, int silent)
 	struct vfsmount *proc_mnt;
 	int err = -ENOENT;
 
-	proc_mnt = do_kern_mount("proc", 0, "proc", NULL);
+	proc_mnt = mntget(current->nsproxy->pid_ns->proc_mnt);
 	if (IS_ERR(proc_mnt))
 		goto out;
 

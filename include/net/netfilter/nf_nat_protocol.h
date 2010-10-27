@@ -27,9 +27,9 @@ struct nf_nat_protocol {
 
 	/* Alter the per-proto part of the tuple (depending on
 	   maniptype), to give a unique tuple in the given range if
-	   possible; return false if not.  Per-protocol part of tuple
-	   is initialized to the incoming packet. */
-	bool (*unique_tuple)(struct nf_conntrack_tuple *tuple,
+	   possible.  Per-protocol part of tuple is initialized to the
+	   incoming packet. */
+	void (*unique_tuple)(struct nf_conntrack_tuple *tuple,
 			     const struct nf_nat_range *range,
 			     enum nf_nat_manip_type maniptype,
 			     const struct nf_conn *ct);
@@ -63,7 +63,7 @@ extern bool nf_nat_proto_in_range(const struct nf_conntrack_tuple *tuple,
 				  const union nf_conntrack_man_proto *min,
 				  const union nf_conntrack_man_proto *max);
 
-extern bool nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
+extern void nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 				      const struct nf_nat_range *range,
 				      enum nf_nat_manip_type maniptype,
 				      const struct nf_conn *ct,

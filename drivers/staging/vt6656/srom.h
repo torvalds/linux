@@ -124,4 +124,4 @@ typedef struct tagSSromReg {
 
 /*---------------------  Export Functions  --------------------------*/
 
-#endif // __EEPROM_H__
+#endif /* __EEPROM_H__ */

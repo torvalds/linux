@@ -640,6 +640,7 @@ unsigned int qe_get_num_of_snums(void)
 		if ((num_of_snums < 28) || (num_of_snums > QE_NUM_OF_SNUM)) {
 			/* No QE ever has fewer than 28 SNUMs */
 			pr_err("QE: number of snum is invalid\n");
+			of_node_put(qe);
 			return -EINVAL;
 		}
 	}
@@ -651,14 +652,15 @@ unsigned int qe_get_num_of_snums(void)
 EXPORT_SYMBOL(qe_get_num_of_snums);
 
 #if defined(CONFIG_SUSPEND) && defined(CONFIG_PPC_85xx)
-static int qe_resume(struct of_device *ofdev)
+static int qe_resume(struct platform_device *ofdev)
 {
 	if (!qe_alive_during_sleep())
 		qe_reset();
 	return 0;
 }
 
-static int qe_probe(struct of_device *ofdev, const struct of_device_id *id)
+static int qe_probe(struct platform_device *ofdev,
+		    const struct of_device_id *id)
 {
 	return 0;
 }
@@ -669,8 +671,11 @@ static const struct of_device_id qe_ids[] = {
 };
 
 static struct of_platform_driver qe_driver = {
-	.driver.name = "fsl-qe",
-	.match_table = qe_ids,
+	.driver = {
+		.name = "fsl-qe",
+		.owner = THIS_MODULE,
+		.of_match_table = qe_ids,
+	},
 	.probe = qe_probe,
 	.resume = qe_resume,
 };

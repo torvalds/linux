@@ -30,7 +30,10 @@
 
 #include <mach/addr-map.h>
 #include <mach/regs-timers.h>
+#include <mach/regs-apbc.h>
 #include <mach/irqs.h>
+#include <mach/cputype.h>
+#include <asm/mach/time.h>
 
 #include "clock.h"
 
@@ -158,7 +161,7 @@ static void __init timer_config(void)
 
 	__raw_writel(cer & ~0x1, TIMERS_VIRT_BASE + TMR_CER); /* disable */
 
-	ccr &= TMR_CCR_CS_0(0x3);
+	ccr &= (cpu_is_mmp2()) ? TMR_CCR_CS_0(0) : TMR_CCR_CS_0(3);
 	__raw_writel(ccr, TIMERS_VIRT_BASE + TMR_CCR);
 
 	/* free-running mode */

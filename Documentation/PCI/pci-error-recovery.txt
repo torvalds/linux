@@ -216,7 +216,7 @@ The driver should return one of the following result codes:
 
 		- PCI_ERS_RESULT_NEED_RESET
 		  Driver returns this if it thinks the device is not
-		  recoverable in it's current state and it needs a slot
+		  recoverable in its current state and it needs a slot
 		  reset to proceed.
 
 		- PCI_ERS_RESULT_DISCONNECT
@@ -241,7 +241,7 @@ in working condition.
 
 The driver is not supposed to restart normal driver I/O operations
 at this point.  It should limit itself to "probing" the device to
-check it's recoverability status. If all is right, then the platform
+check its recoverability status. If all is right, then the platform
 will call resume() once all drivers have ack'd link_reset().
 
 	Result codes:

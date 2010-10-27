@@ -412,6 +412,6 @@ have in your mail headers, when sending mail to the list server.
 You might also find some useful information on the linux-parport
 web pages (although they are not always up to date) at
 
-	http://www.torque.net/parport/
+	http://web.archive.org/web/*/http://www.torque.net/parport/
 
 

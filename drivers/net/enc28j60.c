@@ -18,7 +18,6 @@
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -1294,8 +1293,6 @@ static netdev_tx_t enc28j60_send_packet(struct sk_buff *skb,
 	 */
 	netif_stop_queue(dev);
 
-	/* save the timestamp */
-	priv->netdev->trans_start = jiffies;
 	/* Remember the skb for deferred processing */
 	priv->tx_skb = skb;
 	schedule_work(&priv->tx_work);
@@ -1413,7 +1410,7 @@ static void enc28j60_set_multicast_list(struct net_device *dev)
 		if (netif_msg_link(priv))
 			dev_info(&dev->dev, "promiscuous mode\n");
 		priv->rxfilter = RXFILTER_PROMISC;
-	} else if ((dev->flags & IFF_ALLMULTI) || dev->mc_count) {
+	} else if ((dev->flags & IFF_ALLMULTI) || !netdev_mc_empty(dev)) {
 		if (netif_msg_link(priv))
 			dev_info(&dev->dev, "%smulticast mode\n",
 				(dev->flags & IFF_ALLMULTI) ? "all-" : "");

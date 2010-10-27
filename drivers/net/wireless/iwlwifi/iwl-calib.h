@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,10 +66,8 @@
 #include "iwl-core.h"
 #include "iwl-commands.h"
 
-void iwl_chain_noise_calibration(struct iwl_priv *priv,
-				struct iwl_notif_statistics *stat_resp);
-void iwl_sensitivity_calibration(struct iwl_priv *priv,
-				struct iwl_notif_statistics *resp);
+void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp);
+void iwl_sensitivity_calibration(struct iwl_priv *priv, void *resp);
 
 void iwl_init_sensitivity(struct iwl_priv *priv);
 void iwl_reset_run_time_calib(struct iwl_priv *priv);

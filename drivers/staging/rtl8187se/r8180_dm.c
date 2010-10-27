@@ -282,30 +282,13 @@ DIG_Zebra(
 //		Dispatch DIG implementation according to RF.
 //
 void
-DynamicInitGain(
-	struct net_device *dev
-	)
+DynamicInitGain(struct net_device *dev)
 {
-	struct r8180_priv *priv = ieee80211_priv(dev);
-
-	switch(priv->rf_chip)
-	{
-		case RF_ZEBRA2:  // [AnnieWorkaround] For Zebra2, 2005-08-01.
-		case RF_ZEBRA4:
-			DIG_Zebra( dev );
-			break;
-
-		default:
-			printk("DynamicInitGain(): unknown RFChipID(%d) !!!\n", priv->rf_chip);
-			break;
-	}
+	DIG_Zebra(dev);
 }
 
 void rtl8180_hw_dig_wq (struct work_struct *work)
 {
-//      struct r8180_priv *priv = container_of(work, struct r8180_priv, watch_dog_wq);
-//      struct ieee80211_device * ieee = (struct ieee80211_device*)
-//                                             container_of(work, struct ieee80211_device, watch_dog_wq);
 	struct delayed_work *dwork = to_delayed_work(work);
         struct ieee80211_device *ieee = container_of(dwork,struct ieee80211_device,hw_dig_wq);
         struct net_device *dev = ieee->dev;
@@ -1310,44 +1293,24 @@ SetAntenna8185(
 	switch(u1bAntennaIndex)
 	{
 	case 0:
-		switch(priv->rf_chip)
-		{
-		case RF_ZEBRA2:
-		case RF_ZEBRA4:
-			// Mac register, main antenna
-			write_nic_byte(dev, ANTSEL, 0x03);
-			//base band
-			write_phy_cck(dev,0x11, 0x9b); // Config CCK RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x5c); // Config OFDM RX antenna.
+		/* Mac register, main antenna */
+		write_nic_byte(dev, ANTSEL, 0x03);
+		/* base band */
+		write_phy_cck(dev, 0x11, 0x9b); /* Config CCK RX antenna. */
+		write_phy_ofdm(dev, 0x0d, 0x5c); /* Config OFDM RX antenna. */
 
-
-			bAntennaSwitched = true;
-			break;
-
-		default:
-			printk("SetAntenna8185: unknown RFChipID(%d)\n", priv->rf_chip);
-			break;
-		}
+		bAntennaSwitched = true;
 		break;
 
 	case 1:
-		switch(priv->rf_chip)
-		{
-		case RF_ZEBRA2:
-		case RF_ZEBRA4:
-			// Mac register, aux antenna
-			write_nic_byte(dev, ANTSEL, 0x00);
-			//base band
-			write_phy_cck(dev, 0x11, 0xbb); // Config CCK RX antenna.
-			write_phy_ofdm(dev, 0x0d, 0x54); // Config OFDM RX antenna.
+		/* Mac register, aux antenna */
+		write_nic_byte(dev, ANTSEL, 0x00);
+		/* base band */
+		write_phy_cck(dev, 0x11, 0xbb); /* Config CCK RX antenna. */
+		write_phy_ofdm(dev, 0x0d, 0x54); /* Config OFDM RX antenna. */
 
-			bAntennaSwitched = true;
-			break;
+		bAntennaSwitched = true;
 
-		default:
-			printk("SetAntenna8185: unknown RFChipID(%d)\n", priv->rf_chip);
-			break;
-		}
 		break;
 
 	default:

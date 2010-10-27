@@ -48,9 +48,14 @@ struct bfi_ioc_getattr_req_s {
 };
 
 struct bfi_ioc_attr_s {
-	wwn_t           mfg_wwn;
-	mac_t		mfg_mac;
-	u16	rsvd_a;
+	wwn_t           mfg_pwwn;       /* Mfg port wwn */
+	wwn_t           mfg_nwwn;       /* Mfg node wwn */
+	mac_t		mfg_mac;	/* Mfg mac      */
+	u16		rsvd_a;
+	wwn_t           pwwn;
+	wwn_t           nwwn;
+	mac_t           mac;            /* PBC or Mfg mac */
+	u16        	rsvd_b;
 	char            brcd_serialnum[STRSZ(BFA_MFG_SERIALNUM_SIZE)];
 	u8         pcie_gen;
 	u8         pcie_lanes_orig;
@@ -58,11 +63,12 @@ struct bfi_ioc_attr_s {
 	u8         rx_bbcredit;	/*  receive buffer credits */
 	u32        adapter_prop;	/*  adapter properties     */
 	u16        maxfrsize;	/*  max receive frame size */
-	char         	asic_rev;
-	u8         rsvd_b;
-	char            fw_version[BFA_VERSION_LEN];
-	char            optrom_version[BFA_VERSION_LEN];
+	char       asic_rev;
+	u8         rsvd_c;
+	char       fw_version[BFA_VERSION_LEN];
+	char       optrom_version[BFA_VERSION_LEN];
 	struct bfa_mfg_vpd_s	vpd;
+	u32        card_type;	/* card type */
 };
 
 /**
@@ -123,7 +129,7 @@ enum bfi_ioc_state {
 	BFI_IOC_DISABLING 	 = 5,	/*  IOC is being disabled           */
 	BFI_IOC_DISABLED 	 = 6,	/*  IOC is disabled                 */
 	BFI_IOC_CFG_DISABLED = 7,	/*  IOC is being disabled;transient */
-	BFI_IOC_HBFAIL       = 8,	/*  IOC heart-beat failure          */
+	BFI_IOC_FAIL       = 8,		/*  IOC heart-beat failure          */
 	BFI_IOC_MEMTEST      = 9,	/*  IOC is doing memtest            */
 };
 

@@ -34,6 +34,7 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -174,6 +175,7 @@ out:
 	fib_res_put(&res);
 	return dev;
 }
+EXPORT_SYMBOL(ip_dev_find);
 
 /*
  * Find address type as if only "dev" was present in the system. If
@@ -213,12 +215,14 @@ unsigned int inet_addr_type(struct net *net, __be32 addr)
 {
 	return __inet_dev_addr_type(net, NULL, addr);
 }
+EXPORT_SYMBOL(inet_addr_type);
 
 unsigned int inet_dev_addr_type(struct net *net, const struct net_device *dev,
 				__be32 addr)
 {
        return __inet_dev_addr_type(net, dev, addr);
 }
+EXPORT_SYMBOL(inet_dev_addr_type);
 
 /* Given (packet source, input interface) and optional (dst, oif, tos):
    - (main) check, that source is valid i.e. not broadcast or our local
@@ -242,6 +246,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 
 	struct fib_result res;
 	int no_addr, rpf, accept_local;
+	bool dev_match;
 	int ret;
 	struct net *net;
 
@@ -269,12 +274,22 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 	}
 	*spec_dst = FIB_RES_PREFSRC(res);
 	fib_combine_itag(itag, &res);
+	dev_match = false;
+
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-	if (FIB_RES_DEV(res) == dev || res.fi->fib_nhs > 1)
+	for (ret = 0; ret < res.fi->fib_nhs; ret++) {
+		struct fib_nh *nh = &res.fi->fib_nh[ret];
+
+		if (nh->nh_dev == dev) {
+			dev_match = true;
+			break;
+		}
+	}
 #else
 	if (FIB_RES_DEV(res) == dev)
+		dev_match = true;
 #endif
-	{
+	if (dev_match) {
 		ret = FIB_RES_NH(res).nh_scope >= RT_SCOPE_HOST;
 		fib_res_put(&res);
 		return ret;
@@ -283,7 +298,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 	if (no_addr)
 		goto last_resort;
 	if (rpf == 1)
-		goto e_inval;
+		goto e_rpf;
 	fl.oif = dev->ifindex;
 
 	ret = 0;
@@ -298,7 +313,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 
 last_resort:
 	if (rpf)
-		goto e_inval;
+		goto e_rpf;
 	*spec_dst = inet_select_addr(dev, 0, RT_SCOPE_UNIVERSE);
 	*itag = 0;
 	return 0;
@@ -307,6 +322,8 @@ e_inval_res:
 	fib_res_put(&res);
 e_inval:
 	return -EINVAL;
+e_rpf:
+	return -EXDEV;
 }
 
 static inline __be32 sk_extract_addr(struct sockaddr *addr)
@@ -883,7 +900,7 @@ static void nl_fib_input(struct sk_buff *skb)
 	netlink_unicast(net->ipv4.fibnl, skb, pid, MSG_DONTWAIT);
 }
 
-static int nl_fib_lookup_init(struct net *net)
+static int __net_init nl_fib_lookup_init(struct net *net)
 {
 	struct sock *sk;
 	sk = netlink_kernel_create(net, NETLINK_FIB_LOOKUP, 0,
@@ -1004,7 +1021,7 @@ fail:
 	return err;
 }
 
-static void __net_exit ip_fib_net_exit(struct net *net)
+static void ip_fib_net_exit(struct net *net)
 {
 	unsigned int i;
 
@@ -1074,7 +1091,3 @@ void __init ip_fib_init(void)
 
 	fib_hash_init();
 }
-
-EXPORT_SYMBOL(inet_addr_type);
-EXPORT_SYMBOL(inet_dev_addr_type);
-EXPORT_SYMBOL(ip_dev_find);

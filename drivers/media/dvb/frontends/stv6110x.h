@@ -26,6 +26,7 @@
 struct stv6110x_config {
 	u8	addr;
 	u32	refclk;
+	u8	clk_div; /* divisor value for the output clock */
 };
 
 enum tuner_mode {
@@ -39,6 +40,7 @@ enum tuner_status {
 
 struct stv6110x_devctl {
 	int (*tuner_init) (struct dvb_frontend *fe);
+	int (*tuner_sleep) (struct dvb_frontend *fe);
 	int (*tuner_set_mode) (struct dvb_frontend *fe, enum tuner_mode mode);
 	int (*tuner_set_frequency) (struct dvb_frontend *fe, u32 frequency);
 	int (*tuner_get_frequency) (struct dvb_frontend *fe, u32 *frequency);

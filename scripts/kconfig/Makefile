@@ -21,44 +21,54 @@ menuconfig: $(obj)/mconf
 	$< $(Kconfig)
 
 config: $(obj)/conf
-	$< $(Kconfig)
+	$< --oldaskconfig $(Kconfig)
 
 nconfig: $(obj)/nconf
 	$< $(Kconfig)
 
 oldconfig: $(obj)/conf
-	$< -o $(Kconfig)
+	$< --$@ $(Kconfig)
 
 silentoldconfig: $(obj)/conf
 	$(Q)mkdir -p include/generated
-	$< -s $(Kconfig)
+	$< --$@ $(Kconfig)
+
+# if no path is given, then use src directory to find file
+ifdef LSMOD
+LSMOD_F := $(LSMOD)
+ifeq ($(findstring /,$(LSMOD)),)
+  LSMOD_F := $(objtree)/$(LSMOD)
+endif
+endif
 
 localmodconfig: $(obj)/streamline_config.pl $(obj)/conf
-	$(Q)perl $< $(srctree) $(Kconfig) > .tmp.config
-	$(Q)if [ -f .config ]; then 				\
-			cmp -s .tmp.config .config ||		\
-			(mv -f .config .config.old.1;		\
-			 mv -f .tmp.config .config;		\
-			 $(obj)/conf -s $(Kconfig);		\
-			 mv -f .config.old.1 .config.old)	\
-	else							\
-			mv -f .tmp.config .config;		\
-			$(obj)/conf -s $(Kconfig);		\
+	$(Q)mkdir -p include/generated
+	$(Q)perl $< $(srctree) $(Kconfig) $(LSMOD_F) > .tmp.config
+	$(Q)if [ -f .config ]; then 					\
+			cmp -s .tmp.config .config ||			\
+			(mv -f .config .config.old.1;			\
+			 mv -f .tmp.config .config;			\
+			 $(obj)/conf --silentoldconfig $(Kconfig);	\
+			 mv -f .config.old.1 .config.old)		\
+	else								\
+			mv -f .tmp.config .config;			\
+			$(obj)/conf --silentoldconfig $(Kconfig);	\
 	fi
 	$(Q)rm -f .tmp.config
 
 localyesconfig: $(obj)/streamline_config.pl $(obj)/conf
-	$(Q)perl $< $(srctree) $(Kconfig) > .tmp.config
+	$(Q)mkdir -p include/generated
+	$(Q)perl $< $(srctree) $(Kconfig) $(LSMOD_F) > .tmp.config
 	$(Q)sed -i s/=m/=y/ .tmp.config
-	$(Q)if [ -f .config ]; then 				\
-			cmp -s .tmp.config .config ||		\
-			(mv -f .config .config.old.1;		\
-			 mv -f .tmp.config .config;		\
-			 $(obj)/conf -s $(Kconfig);		\
-			 mv -f .config.old.1 .config.old)	\
-	else							\
-			mv -f .tmp.config .config;		\
-			$(obj)/conf -s $(Kconfig);		\
+	$(Q)if [ -f .config ]; then					\
+			cmp -s .tmp.config .config ||			\
+			(mv -f .config .config.old.1;			\
+			 mv -f .tmp.config .config;			\
+			 $(obj)/conf --silentoldconfig $(Kconfig);	\
+			 mv -f .config.old.1 .config.old)		\
+	else								\
+			mv -f .tmp.config .config;			\
+			$(obj)/conf --silentoldconfig $(Kconfig);	\
 	fi
 	$(Q)rm -f .tmp.config
 
@@ -85,30 +95,29 @@ update-po-config: $(obj)/kxgettext $(obj)/gconf.glade.h
 	$(Q)rm -f arch/um/Kconfig.arch
 	$(Q)rm -f $(obj)/config.pot
 
-PHONY += randconfig allyesconfig allnoconfig allmodconfig defconfig
+PHONY += allnoconfig allyesconfig allmodconfig alldefconfig randconfig
 
-randconfig: $(obj)/conf
-	$< -r $(Kconfig)
+allnoconfig allyesconfig allmodconfig alldefconfig randconfig: $(obj)/conf
+	$< --$@ $(Kconfig)
 
-allyesconfig: $(obj)/conf
-	$< -y $(Kconfig)
+PHONY += listnewconfig oldnoconfig savedefconfig defconfig
 
-allnoconfig: $(obj)/conf
-	$< -n $(Kconfig)
+listnewconfig oldnoconfig: $(obj)/conf
+	$< --$@ $(Kconfig)
 
-allmodconfig: $(obj)/conf
-	$< -m $(Kconfig)
+savedefconfig: $(obj)/conf
+	$< --$@=defconfig $(Kconfig)
 
 defconfig: $(obj)/conf
 ifeq ($(KBUILD_DEFCONFIG),)
-	$< -d $(Kconfig)
+	$< --defconfig $(Kconfig)
 else
 	@echo "*** Default configuration is based on '$(KBUILD_DEFCONFIG)'"
-	$(Q)$< -D arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG) $(Kconfig)
+	$(Q)$< --defconfig=arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG) $(Kconfig)
 endif
 
 %_defconfig: $(obj)/conf
-	$(Q)$< -D arch/$(SRCARCH)/configs/$@ $(Kconfig)
+	$(Q)$< --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig)
 
 # Help text used by make help
 help:
@@ -121,11 +130,15 @@ help:
 	@echo  '  localmodconfig  - Update current config disabling modules not loaded'
 	@echo  '  localyesconfig  - Update current config converting local mods to core'
 	@echo  '  silentoldconfig - Same as oldconfig, but quietly, additionally update deps'
-	@echo  '  randconfig	  - New config with random answer to all options'
-	@echo  '  defconfig	  - New config with default answer to all options'
-	@echo  '  allmodconfig	  - New config selecting modules when possible'
-	@echo  '  allyesconfig	  - New config where all options are accepted with yes'
+	@echo  '  defconfig	  - New config with default from ARCH supplied defconfig'
+	@echo  '  savedefconfig   - Save current config as ./defconfig (minimal config)'
 	@echo  '  allnoconfig	  - New config where all options are answered with no'
+	@echo  '  allyesconfig	  - New config where all options are accepted with yes'
+	@echo  '  allmodconfig	  - New config selecting modules when possible'
+	@echo  '  alldefconfig    - New config with all symbols set to default'
+	@echo  '  randconfig	  - New config with random answer to all options'
+	@echo  '  listnewconfig   - List new options'
+	@echo  '  oldnoconfig     - Same as silentoldconfig but set new symbols to n (unset)'
 
 # lxdialog stuff
 check-lxdialog  := $(srctree)/$(src)/lxdialog/check-lxdialog.sh
@@ -209,7 +222,7 @@ HOSTCFLAGS_zconf.tab.o	:= -I$(src)
 HOSTLOADLIBES_qconf	= $(KC_QT_LIBS) -ldl
 HOSTCXXFLAGS_qconf.o	= $(KC_QT_CFLAGS) -D LKC_DIRECT_LINK
 
-HOSTLOADLIBES_gconf	= `pkg-config --libs gtk+-2.0 gmodule-2.0 libglade-2.0`
+HOSTLOADLIBES_gconf	= `pkg-config --libs gtk+-2.0 gmodule-2.0 libglade-2.0` -ldl
 HOSTCFLAGS_gconf.o	= `pkg-config --cflags gtk+-2.0 gmodule-2.0 libglade-2.0` \
                           -D LKC_DIRECT_LINK
 

@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/leds.h>
+#include <linux/slab.h>
 #include "leds.h"
 
 struct gpio_trig_data {

@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 /*
  * This function can't run concurrently against mmu_notifier_register

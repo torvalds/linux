@@ -25,6 +25,7 @@
 
 #include <linux/err.h>
 #include <linux/math64.h>
+#include <linux/slab.h>
 #include "ubi.h"
 
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID

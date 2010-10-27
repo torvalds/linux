@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 
 struct device;
+struct gpio_chip;
 
 /*
  * Some platforms don't support the GPIO programming interface.
@@ -47,6 +48,11 @@ static inline int gpio_direction_input(unsigned gpio)
 }
 
 static inline int gpio_direction_output(unsigned gpio, int value)
+{
+	return -ENOSYS;
+}
+
+static inline int gpio_set_debounce(unsigned gpio, unsigned debounce)
 {
 	return -ENOSYS;
 }

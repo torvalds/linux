@@ -18,6 +18,7 @@
 #include <linux/key-type.h>
 #include <linux/crypto.h>
 #include <linux/ctype.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include <keys/rxrpc-type.h>

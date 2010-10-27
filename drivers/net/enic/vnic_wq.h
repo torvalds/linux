@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Cisco Systems, Inc.  All rights reserved.
+ * Copyright 2008-2010 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
  *
  * This program is free software; you may redistribute it and/or modify
@@ -60,12 +60,16 @@ struct vnic_wq_buf {
 	void *desc;
 };
 
-/* Break the vnic_wq_buf allocations into blocks of 64 entries */
-#define VNIC_WQ_BUF_BLK_ENTRIES 64
-#define VNIC_WQ_BUF_BLK_SZ \
-	(VNIC_WQ_BUF_BLK_ENTRIES * sizeof(struct vnic_wq_buf))
+/* Break the vnic_wq_buf allocations into blocks of 32/64 entries */
+#define VNIC_WQ_BUF_MIN_BLK_ENTRIES 32
+#define VNIC_WQ_BUF_DFLT_BLK_ENTRIES 64
+#define VNIC_WQ_BUF_BLK_ENTRIES(entries) \
+	((unsigned int)((entries < VNIC_WQ_BUF_DFLT_BLK_ENTRIES) ? \
+	VNIC_WQ_BUF_MIN_BLK_ENTRIES : VNIC_WQ_BUF_DFLT_BLK_ENTRIES))
+#define VNIC_WQ_BUF_BLK_SZ(entries) \
+	(VNIC_WQ_BUF_BLK_ENTRIES(entries) * sizeof(struct vnic_wq_buf))
 #define VNIC_WQ_BUF_BLKS_NEEDED(entries) \
-	DIV_ROUND_UP(entries, VNIC_WQ_BUF_BLK_ENTRIES)
+	DIV_ROUND_UP(entries, VNIC_WQ_BUF_BLK_ENTRIES(entries))
 #define VNIC_WQ_BUF_BLKS_MAX VNIC_WQ_BUF_BLKS_NEEDED(4096)
 
 struct vnic_wq {

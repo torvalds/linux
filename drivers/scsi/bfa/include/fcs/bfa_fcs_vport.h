@@ -49,6 +49,10 @@ bfa_status_t bfa_fcs_vport_create(struct bfa_fcs_vport_s *vport,
 			struct bfa_fcs_s *fcs, u16 vf_id,
 			struct bfa_port_cfg_s *port_cfg,
 			struct bfad_vport_s *vport_drv);
+bfa_status_t bfa_fcs_pbc_vport_create(struct bfa_fcs_vport_s *vport,
+			struct bfa_fcs_s *fcs, uint16_t vf_id,
+			struct bfa_port_cfg_s *port_cfg,
+			struct bfad_vport_s *vport_drv);
 bfa_status_t bfa_fcs_vport_delete(struct bfa_fcs_vport_s *vport);
 bfa_status_t bfa_fcs_vport_start(struct bfa_fcs_vport_s *vport);
 bfa_status_t bfa_fcs_vport_stop(struct bfa_fcs_vport_s *vport);

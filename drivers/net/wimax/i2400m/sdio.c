@@ -48,6 +48,7 @@
  *     __i2400ms_send_barker()
  */
 
+#include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio.h>
@@ -304,7 +305,7 @@ error_kzalloc:
  *
  * The device will be fully reset internally, but won't be
  * disconnected from the bus (so no reenumeration will
- * happen). Firmware upload will be neccessary.
+ * happen). Firmware upload will be necessary.
  *
  * The device will send a reboot barker that will trigger the driver
  * to reinitialize the state via __i2400m_dev_reset_handle.
@@ -314,7 +315,7 @@ error_kzalloc:
  *
  * The device will be fully reset internally, disconnected from the
  * bus an a reenumeration will happen. Firmware upload will be
- * neccessary. Thus, we don't do any locking or struct
+ * necessary. Thus, we don't do any locking or struct
  * reinitialization, as we are going to be fully disconnected and
  * reenumerated.
  *
@@ -482,6 +483,13 @@ int i2400ms_probe(struct sdio_func *func,
 	sdio_set_drvdata(func, i2400ms);
 
 	i2400m->bus_tx_block_size = I2400MS_BLK_SIZE;
+	/*
+	 * Room required in the TX queue for SDIO message to accommodate
+	 * a smallest payload while allocating header space is 224 bytes,
+	 * which is the smallest message size(the block size 256 bytes)
+	 * minus the smallest message header size(32 bytes).
+	 */
+	i2400m->bus_tx_room_min = I2400MS_BLK_SIZE - I2400M_PL_ALIGN * 2;
 	i2400m->bus_pl_size_max = I2400MS_PL_SIZE_MAX;
 	i2400m->bus_setup = i2400ms_bus_setup;
 	i2400m->bus_dev_start = i2400ms_bus_dev_start;

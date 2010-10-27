@@ -381,6 +381,10 @@ struct nfsd4_destroy_session {
 	struct nfs4_sessionid	sessionid;
 };
 
+struct nfsd4_reclaim_complete {
+	u32 rca_one_fs;
+};
+
 struct nfsd4_op {
 	int					opnum;
 	__be32					status;
@@ -421,6 +425,7 @@ struct nfsd4_op {
 		struct nfsd4_create_session	create_session;
 		struct nfsd4_destroy_session	destroy_session;
 		struct nfsd4_sequence		sequence;
+		struct nfsd4_reclaim_complete	reclaim_complete;
 	} u;
 	struct nfs4_replay *			replay;
 };
@@ -513,9 +518,8 @@ extern void nfsd4_store_cache_entry(struct nfsd4_compoundres *resp);
 extern __be32 nfsd4_replay_cache_entry(struct nfsd4_compoundres *resp,
 		struct nfsd4_sequence *seq);
 extern __be32 nfsd4_exchange_id(struct svc_rqst *rqstp,
-		struct nfsd4_compound_state *,
-struct nfsd4_exchange_id *);
-		extern __be32 nfsd4_create_session(struct svc_rqst *,
+		struct nfsd4_compound_state *, struct nfsd4_exchange_id *);
+extern __be32 nfsd4_create_session(struct svc_rqst *,
 		struct nfsd4_compound_state *,
 		struct nfsd4_create_session *);
 extern __be32 nfsd4_sequence(struct svc_rqst *,
@@ -524,6 +528,7 @@ extern __be32 nfsd4_sequence(struct svc_rqst *,
 extern __be32 nfsd4_destroy_session(struct svc_rqst *,
 		struct nfsd4_compound_state *,
 		struct nfsd4_destroy_session *);
+__be32 nfsd4_reclaim_complete(struct svc_rqst *, struct nfsd4_compound_state *, struct nfsd4_reclaim_complete *);
 extern __be32 nfsd4_process_open1(struct nfsd4_compound_state *,
 		struct nfsd4_open *open);
 extern __be32 nfsd4_process_open2(struct svc_rqst *rqstp,

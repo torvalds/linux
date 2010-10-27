@@ -19,4 +19,15 @@
 /* device can't handle its Configuration or Interface strings */
 #define USB_QUIRK_CONFIG_INTF_STRINGS	0x00000008
 
+/*device will morph if reset, don't use reset for handling errors */
+#define USB_QUIRK_RESET_MORPHS		0x00000010
+
+/* device has more interface descriptions than the bNumInterfaces count,
+   and can't handle talking to these interfaces */
+#define USB_QUIRK_HONOR_BNUMINTERFACES	0x00000020
+
+/* device needs a pause during initialization, after we read the device
+   descriptor */
+#define USB_QUIRK_DELAY_INIT		0x00000040
+
 #endif /* __LINUX_USB_QUIRKS_H */

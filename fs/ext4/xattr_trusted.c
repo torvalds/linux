@@ -51,7 +51,7 @@ ext4_xattr_trusted_set(struct dentry *dentry, const char *name,
 			      name, value, size, flags);
 }
 
-struct xattr_handler ext4_xattr_trusted_handler = {
+const struct xattr_handler ext4_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
 	.list	= ext4_xattr_trusted_list,
 	.get	= ext4_xattr_trusted_get,

@@ -90,7 +90,7 @@ void STAvClearAllCounter (PSStatCounter pStatistic)
  * Return Value: none
  *
  */
-void STAvUpdateIsrStatCounter (PSStatCounter pStatistic, DWORD dwIsr)
+void STAvUpdateIsrStatCounter (PSStatCounter pStatistic, unsigned long dwIsr)
 {
     /**********************/
     /* ABNORMAL interrupt */
@@ -177,8 +177,8 @@ void STAvUpdateIsrStatCounter (PSStatCounter pStatistic, DWORD dwIsr)
  *
  */
 void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
-                              BYTE byRSR, BYTE byNewRSR, BYTE byRxRate,
-                              PBYTE pbyBuffer, UINT cbFrameLength)
+                              unsigned char byRSR, unsigned char byNewRSR, unsigned char byRxRate,
+                              unsigned char *pbyBuffer, unsigned int cbFrameLength)
 {
     //need change
     PS802_11Header pHeader = (PS802_11Header)pbyBuffer;
@@ -190,19 +190,19 @@ void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
 
         pStatistic->ullRsrOK++;
 
-        if (cbFrameLength >= U_ETHER_ADDR_LEN) {
+        if (cbFrameLength >= ETH_ALEN) {
             // update counters in case that successful transmit
             if (byRSR & RSR_ADDRBROAD) {
                 pStatistic->ullRxBroadcastFrames++;
-                pStatistic->ullRxBroadcastBytes += (ULONGLONG)cbFrameLength;
+                pStatistic->ullRxBroadcastBytes += (unsigned long long) cbFrameLength;
             }
             else if (byRSR & RSR_ADDRMULTI) {
                 pStatistic->ullRxMulticastFrames++;
-                pStatistic->ullRxMulticastBytes += (ULONGLONG)cbFrameLength;
+                pStatistic->ullRxMulticastBytes += (unsigned long long) cbFrameLength;
             }
             else {
                 pStatistic->ullRxDirectedFrames++;
-                pStatistic->ullRxDirectedBytes += (ULONGLONG)cbFrameLength;
+                pStatistic->ullRxDirectedBytes += (unsigned long long) cbFrameLength;
             }
         }
     }
@@ -212,87 +212,87 @@ void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
         if(byRSR & RSR_CRCOK) {
             pStatistic->CustomStat.ullRsr11MCRCOk++;
         }
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"11M: ALL[%d], OK[%d]:[%02x]\n", (INT)pStatistic->CustomStat.ullRsr11M, (INT)pStatistic->CustomStat.ullRsr11MCRCOk, byRSR);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"11M: ALL[%d], OK[%d]:[%02x]\n", (int)pStatistic->CustomStat.ullRsr11M, (int)pStatistic->CustomStat.ullRsr11MCRCOk, byRSR);
     }
     else if(byRxRate==11) {
         pStatistic->CustomStat.ullRsr5M++;
         if(byRSR & RSR_CRCOK) {
             pStatistic->CustomStat.ullRsr5MCRCOk++;
         }
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 5M: ALL[%d], OK[%d]:[%02x]\n", (INT)pStatistic->CustomStat.ullRsr5M, (INT)pStatistic->CustomStat.ullRsr5MCRCOk, byRSR);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 5M: ALL[%d], OK[%d]:[%02x]\n", (int)pStatistic->CustomStat.ullRsr5M, (int)pStatistic->CustomStat.ullRsr5MCRCOk, byRSR);
     }
     else if(byRxRate==4) {
         pStatistic->CustomStat.ullRsr2M++;
         if(byRSR & RSR_CRCOK) {
             pStatistic->CustomStat.ullRsr2MCRCOk++;
         }
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 2M: ALL[%d], OK[%d]:[%02x]\n", (INT)pStatistic->CustomStat.ullRsr2M, (INT)pStatistic->CustomStat.ullRsr2MCRCOk, byRSR);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 2M: ALL[%d], OK[%d]:[%02x]\n", (int)pStatistic->CustomStat.ullRsr2M, (int)pStatistic->CustomStat.ullRsr2MCRCOk, byRSR);
     }
     else if(byRxRate==2){
         pStatistic->CustomStat.ullRsr1M++;
         if(byRSR & RSR_CRCOK) {
             pStatistic->CustomStat.ullRsr1MCRCOk++;
         }
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 1M: ALL[%d], OK[%d]:[%02x]\n", (INT)pStatistic->CustomStat.ullRsr1M, (INT)pStatistic->CustomStat.ullRsr1MCRCOk, byRSR);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 1M: ALL[%d], OK[%d]:[%02x]\n", (int)pStatistic->CustomStat.ullRsr1M, (int)pStatistic->CustomStat.ullRsr1MCRCOk, byRSR);
     }
     else if(byRxRate==12){
         pStatistic->CustomStat.ullRsr6M++;
         if(byRSR & RSR_CRCOK) {
             pStatistic->CustomStat.ullRsr6MCRCOk++;
         }
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 6M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr6M, (INT)pStatistic->CustomStat.ullRsr6MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 6M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr6M, (int)pStatistic->CustomStat.ullRsr6MCRCOk);
     }
     else if(byRxRate==18){
         pStatistic->CustomStat.ullRsr9M++;
         if(byRSR & RSR_CRCOK) {
             pStatistic->CustomStat.ullRsr9MCRCOk++;
         }
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 9M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr9M, (INT)pStatistic->CustomStat.ullRsr9MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" 9M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr9M, (int)pStatistic->CustomStat.ullRsr9MCRCOk);
     }
     else if(byRxRate==24){
         pStatistic->CustomStat.ullRsr12M++;
         if(byRSR & RSR_CRCOK) {
             pStatistic->CustomStat.ullRsr12MCRCOk++;
         }
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"12M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr12M, (INT)pStatistic->CustomStat.ullRsr12MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"12M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr12M, (int)pStatistic->CustomStat.ullRsr12MCRCOk);
     }
     else if(byRxRate==36){
         pStatistic->CustomStat.ullRsr18M++;
         if(byRSR & RSR_CRCOK) {
             pStatistic->CustomStat.ullRsr18MCRCOk++;
         }
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"18M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr18M, (INT)pStatistic->CustomStat.ullRsr18MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"18M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr18M, (int)pStatistic->CustomStat.ullRsr18MCRCOk);
     }
     else if(byRxRate==48){
         pStatistic->CustomStat.ullRsr24M++;
         if(byRSR & RSR_CRCOK) {
             pStatistic->CustomStat.ullRsr24MCRCOk++;
         }
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"24M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr24M, (INT)pStatistic->CustomStat.ullRsr24MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"24M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr24M, (int)pStatistic->CustomStat.ullRsr24MCRCOk);
     }
     else if(byRxRate==72){
         pStatistic->CustomStat.ullRsr36M++;
         if(byRSR & RSR_CRCOK) {
             pStatistic->CustomStat.ullRsr36MCRCOk++;
         }
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"36M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr36M, (INT)pStatistic->CustomStat.ullRsr36MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"36M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr36M, (int)pStatistic->CustomStat.ullRsr36MCRCOk);
     }
     else if(byRxRate==96){
         pStatistic->CustomStat.ullRsr48M++;
         if(byRSR & RSR_CRCOK) {
             pStatistic->CustomStat.ullRsr48MCRCOk++;
         }
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"48M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr48M, (INT)pStatistic->CustomStat.ullRsr48MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"48M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr48M, (int)pStatistic->CustomStat.ullRsr48MCRCOk);
     }
     else if(byRxRate==108){
         pStatistic->CustomStat.ullRsr54M++;
         if(byRSR & RSR_CRCOK) {
             pStatistic->CustomStat.ullRsr54MCRCOk++;
         }
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"54M: ALL[%d], OK[%d]\n", (INT)pStatistic->CustomStat.ullRsr54M, (INT)pStatistic->CustomStat.ullRsr54MCRCOk);
+        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"54M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr54M, (int)pStatistic->CustomStat.ullRsr54MCRCOk);
     }
     else {
-    	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Unknown: Total[%d], CRCOK[%d]\n", (INT)pStatistic->dwRsrRxPacket+1, (INT)pStatistic->dwRsrCRCOk);
+    	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Unknown: Total[%d], CRCOK[%d]\n", (int)pStatistic->dwRsrRxPacket+1, (int)pStatistic->dwRsrCRCOk);
     }
 
     if (byRSR & RSR_BSSIDOK)
@@ -341,10 +341,10 @@ void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
     if (WLAN_GET_FC_MOREFRAG(pHeader->wFrameCtl))
         pStatistic->dwRsrRxFragment++;
 
-    if (cbFrameLength < MIN_PACKET_LEN + 4) {
+    if (cbFrameLength < ETH_ZLEN + 4) {
         pStatistic->dwRsrRunt++;
     }
-    else if (cbFrameLength == MIN_PACKET_LEN + 4) {
+    else if (cbFrameLength == ETH_ZLEN + 4) {
         pStatistic->dwRsrRxFrmLen64++;
     }
     else if ((65 <= cbFrameLength) && (cbFrameLength <= 127)) {
@@ -359,9 +359,9 @@ void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
     else if ((512 <= cbFrameLength) && (cbFrameLength <= 1023)) {
         pStatistic->dwRsrRxFrmLen512_1023++;
     }
-    else if ((1024 <= cbFrameLength) && (cbFrameLength <= MAX_PACKET_LEN + 4)) {
+    else if ((1024 <= cbFrameLength) && (cbFrameLength <= ETH_FRAME_LEN + 4)) {
         pStatistic->dwRsrRxFrmLen1024_1518++;
-    } else if (cbFrameLength > MAX_PACKET_LEN + 4) {
+    } else if (cbFrameLength > ETH_FRAME_LEN + 4) {
         pStatistic->dwRsrLong++;
     }
 
@@ -389,11 +389,11 @@ void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
 void
 STAvUpdateRDStatCounterEx (
     PSStatCounter   pStatistic,
-    BYTE            byRSR,
-    BYTE            byNewRSR,
-    BYTE            byRxRate,
-    PBYTE           pbyBuffer,
-    UINT            cbFrameLength
+    unsigned char byRSR,
+    unsigned char byNewRSR,
+    unsigned char byRxRate,
+    unsigned char *pbyBuffer,
+    unsigned int cbFrameLength
     )
 {
     STAvUpdateRDStatCounter(
@@ -408,7 +408,7 @@ STAvUpdateRDStatCounterEx (
     // rx length
     pStatistic->dwCntRxFrmLength = cbFrameLength;
     // rx pattern, we just see 10 bytes for sample
-    memcpy(pStatistic->abyCntRxPattern, (PBYTE)pbyBuffer, 10);
+    memcpy(pStatistic->abyCntRxPattern, (unsigned char *)pbyBuffer, 10);
 }
 
 
@@ -432,16 +432,16 @@ STAvUpdateRDStatCounterEx (
 void
 STAvUpdateTDStatCounter (
     PSStatCounter   pStatistic,
-    BYTE            byTSR0,
-    BYTE            byTSR1,
-    PBYTE           pbyBuffer,
-    UINT            cbFrameLength,
-    UINT            uIdx
+    unsigned char byTSR0,
+    unsigned char byTSR1,
+    unsigned char *pbyBuffer,
+    unsigned int cbFrameLength,
+    unsigned int uIdx
     )
 {
     PWLAN_80211HDR_A4   pHeader;
-    PBYTE               pbyDestAddr;
-    BYTE                byTSR0_NCR = byTSR0 & TSR0_NCR;
+    unsigned char *pbyDestAddr;
+    unsigned char byTSR0_NCR = byTSR0 & TSR0_NCR;
 
 
 
@@ -471,17 +471,17 @@ STAvUpdateTDStatCounter (
         pStatistic->CustomStat.ullTsrAllOK =
             (pStatistic->ullTsrOK[TYPE_AC0DMA] + pStatistic->ullTsrOK[TYPE_TXDMA0]);
         // update counters in case that successful transmit
-        if (IS_BROADCAST_ADDRESS(pbyDestAddr)) {
+        if (is_broadcast_ether_addr(pbyDestAddr)) {
             pStatistic->ullTxBroadcastFrames[uIdx]++;
-            pStatistic->ullTxBroadcastBytes[uIdx] += (ULONGLONG)cbFrameLength;
+            pStatistic->ullTxBroadcastBytes[uIdx] += (unsigned long long) cbFrameLength;
         }
-        else if (IS_MULTICAST_ADDRESS(pbyDestAddr)) {
+        else if (is_multicast_ether_addr(pbyDestAddr)) {
             pStatistic->ullTxMulticastFrames[uIdx]++;
-            pStatistic->ullTxMulticastBytes[uIdx] += (ULONGLONG)cbFrameLength;
+            pStatistic->ullTxMulticastBytes[uIdx] += (unsigned long long) cbFrameLength;
         }
         else {
             pStatistic->ullTxDirectedFrames[uIdx]++;
-            pStatistic->ullTxDirectedBytes[uIdx] += (ULONGLONG)cbFrameLength;
+            pStatistic->ullTxDirectedBytes[uIdx] += (unsigned long long) cbFrameLength;
         }
     }
     else {
@@ -495,9 +495,9 @@ STAvUpdateTDStatCounter (
             pStatistic->dwTsrACKData[uIdx]++;
     }
 
-    if (IS_BROADCAST_ADDRESS(pbyDestAddr))
+    if (is_broadcast_ether_addr(pbyDestAddr))
         pStatistic->dwTsrBroadcast[uIdx]++;
-    else if (IS_MULTICAST_ADDRESS(pbyDestAddr))
+    else if (is_multicast_ether_addr(pbyDestAddr))
         pStatistic->dwTsrMulticast[uIdx]++;
     else
         pStatistic->dwTsrDirected[uIdx]++;
@@ -522,13 +522,13 @@ STAvUpdateTDStatCounter (
 void
 STAvUpdateTDStatCounterEx (
     PSStatCounter   pStatistic,
-    PBYTE           pbyBuffer,
-    DWORD           cbFrameLength
+    unsigned char *pbyBuffer,
+    unsigned long cbFrameLength
     )
 {
-    UINT    uPktLength;
+    unsigned int uPktLength;
 
-    uPktLength = (UINT)cbFrameLength;
+    uPktLength = (unsigned int)cbFrameLength;
 
     // tx length
     pStatistic->dwCntTxBufLength = uPktLength;
@@ -555,25 +555,25 @@ void
 STAvUpdate802_11Counter(
     PSDot11Counters         p802_11Counter,
     PSStatCounter           pStatistic,
-    DWORD                   dwCounter
+    unsigned long dwCounter
     )
 {
     //p802_11Counter->TransmittedFragmentCount
-    p802_11Counter->MulticastTransmittedFrameCount = (ULONGLONG) (pStatistic->dwTsrBroadcast[TYPE_AC0DMA] +
+    p802_11Counter->MulticastTransmittedFrameCount = (unsigned long long) (pStatistic->dwTsrBroadcast[TYPE_AC0DMA] +
                                                                   pStatistic->dwTsrBroadcast[TYPE_TXDMA0] +
                                                                   pStatistic->dwTsrMulticast[TYPE_AC0DMA] +
                                                                   pStatistic->dwTsrMulticast[TYPE_TXDMA0]);
-    p802_11Counter->FailedCount = (ULONGLONG) (pStatistic->dwTsrErr[TYPE_AC0DMA] + pStatistic->dwTsrErr[TYPE_TXDMA0]);
-    p802_11Counter->RetryCount = (ULONGLONG) (pStatistic->dwTsrRetry[TYPE_AC0DMA] + pStatistic->dwTsrRetry[TYPE_TXDMA0]);
-    p802_11Counter->MultipleRetryCount = (ULONGLONG) (pStatistic->dwTsrMoreThanOnceRetry[TYPE_AC0DMA] +
+    p802_11Counter->FailedCount = (unsigned long long) (pStatistic->dwTsrErr[TYPE_AC0DMA] + pStatistic->dwTsrErr[TYPE_TXDMA0]);
+    p802_11Counter->RetryCount = (unsigned long long) (pStatistic->dwTsrRetry[TYPE_AC0DMA] + pStatistic->dwTsrRetry[TYPE_TXDMA0]);
+    p802_11Counter->MultipleRetryCount = (unsigned long long) (pStatistic->dwTsrMoreThanOnceRetry[TYPE_AC0DMA] +
                                                           pStatistic->dwTsrMoreThanOnceRetry[TYPE_TXDMA0]);
     //p802_11Counter->FrameDuplicateCount
-    p802_11Counter->RTSSuccessCount += (ULONGLONG)  (dwCounter & 0x000000ff);
-    p802_11Counter->RTSFailureCount += (ULONGLONG) ((dwCounter & 0x0000ff00) >> 8);
-    p802_11Counter->ACKFailureCount += (ULONGLONG) ((dwCounter & 0x00ff0000) >> 16);
-    p802_11Counter->FCSErrorCount +=   (ULONGLONG) ((dwCounter & 0xff000000) >> 24);
+    p802_11Counter->RTSSuccessCount += (unsigned long long)  (dwCounter & 0x000000ff);
+    p802_11Counter->RTSFailureCount += (unsigned long long) ((dwCounter & 0x0000ff00) >> 8);
+    p802_11Counter->ACKFailureCount += (unsigned long long) ((dwCounter & 0x00ff0000) >> 16);
+    p802_11Counter->FCSErrorCount +=   (unsigned long long) ((dwCounter & 0xff000000) >> 24);
     //p802_11Counter->ReceivedFragmentCount
-    p802_11Counter->MulticastReceivedFrameCount = (ULONGLONG) (pStatistic->dwRsrBroadcast +
+    p802_11Counter->MulticastReceivedFrameCount = (unsigned long long) (pStatistic->dwRsrBroadcast +
                                                                pStatistic->dwRsrMulticast);
 }
 

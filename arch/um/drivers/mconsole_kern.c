@@ -140,7 +140,7 @@ void mconsole_proc(struct mc_request *req)
 		goto out;
 	}
 
-	err = may_open(&nd.path, MAY_READ, FMODE_READ);
+	err = may_open(&nd.path, MAY_READ, O_RDONLY);
 	if (result) {
 		mconsole_reply(req, "Failed to open file", 1, 0);
 		path_put(&nd.path);
@@ -690,7 +690,7 @@ static void with_console(struct mc_request *req, void (*proc)(void *),
 static void sysrq_proc(void *arg)
 {
 	char *op = arg;
-	handle_sysrq(*op, NULL);
+	handle_sysrq(*op);
 }
 
 void mconsole_sysrq(struct mc_request *req)

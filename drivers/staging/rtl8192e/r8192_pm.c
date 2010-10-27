@@ -9,8 +9,6 @@
    Released under the terms of GPL (General Public Licence)
 */
 
-#ifdef CONFIG_PM_RTL
-
 #include "r8192E.h"
 #include "r8192E_hw.h"
 #include "r8192_pm.h"
@@ -27,7 +25,9 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv = ieee80211_priv(dev);
+#ifdef RTL8190P
 	u8	ucRegRead;
+#endif
 	u32	ulRegRead;
 
         RT_TRACE(COMP_POWER, "============> r8192E suspend call.\n");
@@ -168,5 +168,3 @@ int rtl8192E_enable_wake (struct pci_dev *dev, pm_message_t state, int enable)
 	       state.event, enable);
 	return(-EAGAIN);
 }
-
-#endif //CONFIG_PM_RTL

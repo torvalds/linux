@@ -531,7 +531,7 @@ static void initio_read_eeprom(unsigned long base)
  *	initio_stop_bm		-	stop bus master
  *	@host: InitIO we are stopping
  *
- *	Stop any pending DMA operation, aborting the DMA if neccessary
+ *	Stop any pending DMA operation, aborting the DMA if necessary
  */
 
 static void initio_stop_bm(struct initio_host * host)
@@ -2817,7 +2817,6 @@ static void i91uSCBPost(u8 * host_mem, u8 * cblk_mem)
 	}
 
 	cmnd->result = cblk->tastat | (cblk->hastat << 16);
-	WARN_ON(cmnd == NULL);
 	i91u_unmap_scb(host->pci_dev, cmnd);
 	cmnd->scsi_done(cmnd);	/* Notify system DONE           */
 	initio_release_scb(host, cblk);	/* Release SCB for current channel */

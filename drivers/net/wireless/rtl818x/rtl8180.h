@@ -36,7 +36,7 @@ struct rtl8180_tx_desc {
 	u8 agc;
 	u8 flags2;
 	u32 reserved[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct rtl8180_rx_desc {
 	__le32 flags;
@@ -45,7 +45,7 @@ struct rtl8180_rx_desc {
 		__le32 rx_buf;
 		__le64 tsft;
 	};
-} __attribute__ ((packed));
+} __packed;
 
 struct rtl8180_tx_ring {
 	struct rtl8180_tx_desc *desc;
@@ -55,12 +55,19 @@ struct rtl8180_tx_ring {
 	struct sk_buff_head queue;
 };
 
+struct rtl8180_vif {
+	struct ieee80211_hw *dev;
+
+	/* beaconing */
+	struct delayed_work beacon_work;
+	bool enable_beacon;
+};
+
 struct rtl8180_priv {
 	/* common between rtl818x drivers */
 	struct rtl818x_csr __iomem *map;
 	const struct rtl818x_rf_ops *rf;
 	struct ieee80211_vif *vif;
-	int mode;
 
 	/* rtl8180 driver specific */
 	spinlock_t lock;
@@ -79,6 +86,9 @@ struct rtl8180_priv {
 	u32 anaparam;
 	u16 rfparam;
 	u8 csthreshold;
+
+	/* sequence # */
+	u16 seqno;
 };
 
 void rtl8180_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data);

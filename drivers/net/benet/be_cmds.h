@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -124,6 +124,8 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
 #define OPCODE_COMMON_MCC_CREATE        		21
+#define OPCODE_COMMON_SET_QOS				28
+#define OPCODE_COMMON_SEEPROM_READ			30
 #define OPCODE_COMMON_NTWK_RX_FILTER    		34
 #define OPCODE_COMMON_GET_FW_VERSION			35
 #define OPCODE_COMMON_SET_FLOW_CONTROL			36
@@ -143,6 +145,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_ENABLE_DISABLE_BEACON		69
 #define OPCODE_COMMON_GET_BEACON_STATE			70
 #define OPCODE_COMMON_READ_TRANSRECV_DATA		73
+#define OPCODE_COMMON_GET_PHY_DETAILS			102
 
 #define OPCODE_ETH_ACPI_CONFIG				2
 #define OPCODE_ETH_PROMISCUOUS				3
@@ -164,7 +167,8 @@ struct be_cmd_req_hdr {
 	u8 domain;		/* dword 0 */
 	u32 timeout;		/* dword 1 */
 	u32 request_length;	/* dword 2 */
-	u32 rsvd;		/* dword 3 */
+	u8 version;		/* dword 3 */
+	u8 rsvd[3];		/* dword 3 */
 };
 
 #define RESP_HDR_INFO_OPCODE_SHIFT	0	/* bits 0 - 7 */
@@ -745,7 +749,7 @@ struct be_cmd_resp_query_fw_cfg {
 	u32 be_config_number;
 	u32 asic_revision;
 	u32 phys_port;
-	u32 function_cap;
+	u32 function_mode;
 	u32 rsvd[26];
 };
 
@@ -854,6 +858,59 @@ struct be_cmd_resp_ddrdma_test {
 	u8  rcv_buff[4096];
 };
 
+/*********************** SEEPROM Read ***********************/
+
+#define BE_READ_SEEPROM_LEN 1024
+struct be_cmd_req_seeprom_read {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd0[BE_READ_SEEPROM_LEN];
+};
+
+struct be_cmd_resp_seeprom_read {
+	struct be_cmd_req_hdr hdr;
+	u8 seeprom_data[BE_READ_SEEPROM_LEN];
+};
+
+enum {
+	PHY_TYPE_CX4_10GB = 0,
+	PHY_TYPE_XFP_10GB,
+	PHY_TYPE_SFP_1GB,
+	PHY_TYPE_SFP_PLUS_10GB,
+	PHY_TYPE_KR_10GB,
+	PHY_TYPE_KX4_10GB,
+	PHY_TYPE_BASET_10GB,
+	PHY_TYPE_BASET_1GB,
+	PHY_TYPE_DISABLED = 255
+};
+
+struct be_cmd_req_get_phy_info {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd0[24];
+};
+struct be_cmd_resp_get_phy_info {
+	struct be_cmd_req_hdr hdr;
+	u16 phy_type;
+	u16 interface_type;
+	u32 misc_params;
+	u32 future_use[4];
+};
+
+/*********************** Set QOS ***********************/
+
+#define BE_QOS_BITS_NIC				1
+
+struct be_cmd_req_set_qos {
+	struct be_cmd_req_hdr hdr;
+	u32 valid_bits;
+	u32 max_bps_nic;
+	u32 rsvd[7];
+};
+
+struct be_cmd_resp_set_qos {
+	struct be_cmd_resp_hdr hdr;
+	u32 rsvd;
+};
+
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
@@ -863,7 +920,7 @@ extern int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
 extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id, u32 pmac_id);
 extern int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags,
 			u32 en_flags, u8 *mac, bool pmac_invalid,
-			u32 *if_handle, u32 *pmac_id);
+			u32 *if_handle, u32 *pmac_id, u32 domain);
 extern int be_cmd_if_destroy(struct be_adapter *adapter, u32 if_handle);
 extern int be_cmd_eq_create(struct be_adapter *adapter,
 			struct be_queue_info *eq, int eq_delay);
@@ -897,8 +954,7 @@ extern int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id,
 extern int be_cmd_promiscuous_config(struct be_adapter *adapter,
 			u8 port_num, bool en);
 extern int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
-			struct dev_mc_list *mc_list, u32 mc_count,
-			struct be_dma_mem *mem);
+			struct net_device *netdev, struct be_dma_mem *mem);
 extern int be_cmd_set_flow_control(struct be_adapter *adapter,
 			u32 tx_fc, u32 rx_fc);
 extern int be_cmd_get_flow_control(struct be_adapter *adapter,
@@ -906,7 +962,7 @@ extern int be_cmd_get_flow_control(struct be_adapter *adapter,
 extern int be_cmd_query_fw_cfg(struct be_adapter *adapter,
 			u32 *port_num, u32 *cap);
 extern int be_cmd_reset_function(struct be_adapter *adapter);
-extern int be_process_mcc(struct be_adapter *adapter);
+extern int be_process_mcc(struct be_adapter *adapter, int *status);
 extern int be_cmd_set_beacon_state(struct be_adapter *adapter,
 			u8 port_num, u8 beacon, u8 status, u8 state);
 extern int be_cmd_get_beacon_state(struct be_adapter *adapter,
@@ -916,15 +972,25 @@ extern int be_cmd_read_port_type(struct be_adapter *adapter, u32 port,
 extern int be_cmd_write_flashrom(struct be_adapter *adapter,
 			struct be_dma_mem *cmd, u32 flash_oper,
 			u32 flash_opcode, u32 buf_size);
-extern int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc);
+int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
+				int offset);
 extern int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
 				struct be_dma_mem *nonemb_cmd);
 extern int be_cmd_fw_init(struct be_adapter *adapter);
 extern int be_cmd_fw_clean(struct be_adapter *adapter);
+extern void be_async_mcc_enable(struct be_adapter *adapter);
+extern void be_async_mcc_disable(struct be_adapter *adapter);
 extern int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 				u32 loopback_type, u32 pkt_size,
 				u32 num_pkts, u64 pattern);
 extern int be_cmd_ddr_dma_test(struct be_adapter *adapter, u64 pattern,
 			u32 byte_cnt, struct be_dma_mem *cmd);
+extern int be_cmd_get_seeprom_data(struct be_adapter *adapter,
+				struct be_dma_mem *nonemb_cmd);
 extern int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 				u8 loopback_type, u8 enable);
+extern int be_cmd_get_phy_info(struct be_adapter *adapter,
+		struct be_dma_mem *cmd);
+extern int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain);
+extern void be_detect_dump_ue(struct be_adapter *adapter);
+

@@ -63,7 +63,7 @@ MODULE_LICENSE("GPL");
 /*
  * PCI ID of the Intel ICH7 LPC Device within which the GPIO block lives.
  */
-static struct pci_device_id ich7_lpc_pci_id[] =
+static const struct pci_device_id ich7_lpc_pci_id[] =
 {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_0) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_1) },
@@ -534,7 +534,7 @@ static int __init nas_gpio_init(void)
 	set_power_light_amber_noblink();
 	return 0;
 out_err:
-	for (; i >= 0; i--)
+	for (i--; i >= 0; i--)
 		unregister_nasgpio_led(i);
 	pci_unregister_driver(&nas_gpio_pci_driver);
 	return ret;

@@ -49,21 +49,15 @@
 #define edac_printk(level, prefix, fmt, arg...) \
 	printk(level "EDAC " prefix ": " fmt, ##arg)
 
-#define edac_printk_verbose(level, prefix, fmt, arg...) \
-	printk(level "EDAC " prefix ": " "in %s, line at %d: " fmt,	\
-	       __FILE__, __LINE__, ##arg)
-
 #define edac_mc_printk(mci, level, fmt, arg...) \
 	printk(level "EDAC MC%d: " fmt, mci->mc_idx, ##arg)
 
 #define edac_mc_chipset_printk(mci, level, prefix, fmt, arg...) \
 	printk(level "EDAC " prefix " MC%d: " fmt, mci->mc_idx, ##arg)
 
-/* edac_device printk */
 #define edac_device_printk(ctl, level, fmt, arg...) \
 	printk(level "EDAC DEVICE%d: " fmt, ctl->dev_idx, ##arg)
 
-/* edac_pci printk */
 #define edac_pci_printk(ctl, level, fmt, arg...) \
 	printk(level "EDAC PCI%d: " fmt, ctl->pci_idx, ##arg)
 
@@ -76,21 +70,12 @@
 extern int edac_debug_level;
 extern const char *edac_mem_types[];
 
-#ifndef CONFIG_EDAC_DEBUG_VERBOSE
 #define edac_debug_printk(level, fmt, arg...)                           \
 	do {                                                            \
 		if (level <= edac_debug_level)                          \
 			edac_printk(KERN_DEBUG, EDAC_DEBUG,		\
 				    "%s: " fmt, __func__, ##arg);	\
 	} while (0)
-#else  /* CONFIG_EDAC_DEBUG_VERBOSE */
-#define edac_debug_printk(level, fmt, arg...)                            \
-	do {                                                             \
-		if (level <= edac_debug_level)                           \
-			edac_printk_verbose(KERN_DEBUG, EDAC_DEBUG, fmt, \
-					    ##arg);			\
-	} while (0)
-#endif
 
 #define debugf0( ... ) edac_debug_printk(0, __VA_ARGS__ )
 #define debugf1( ... ) edac_debug_printk(1, __VA_ARGS__ )
@@ -341,12 +326,30 @@ struct csrow_info {
 	struct channel_info *channels;
 };
 
+struct mcidev_sysfs_group {
+	const char *name;				/* group name */
+	struct mcidev_sysfs_attribute *mcidev_attr;	/* group attributes */
+};
+
+struct mcidev_sysfs_group_kobj {
+	struct list_head list;		/* list for all instances within a mc */
+
+	struct kobject kobj;		/* kobj for the group */
+
+	struct mcidev_sysfs_group *grp;	/* group description table */
+	struct mem_ctl_info *mci;	/* the parent */
+};
+
 /* mcidev_sysfs_attribute structure
  *	used for driver sysfs attributes and in mem_ctl_info
  * 	sysfs top level entries
  */
 struct mcidev_sysfs_attribute {
-        struct attribute attr;
+	/* It should use either attr or grp */
+	struct attribute attr;
+	struct mcidev_sysfs_group *grp;	/* Points to a group of attributes */
+
+	/* Ops for show/store values at the attribute - not used on group */
         ssize_t (*show)(struct mem_ctl_info *,char *);
         ssize_t (*store)(struct mem_ctl_info *, const char *,size_t);
 };
@@ -375,7 +378,7 @@ struct mem_ctl_info {
 	   internal representation and configures whatever else needs
 	   to be configured.
 	 */
-	int (*set_sdram_scrub_rate) (struct mem_ctl_info * mci, u32 * bw);
+	int (*set_sdram_scrub_rate) (struct mem_ctl_info * mci, u32 bw);
 
 	/* Get the current sdram memory scrub rate from the internal
 	   representation and converts it to the closest matching
@@ -423,6 +426,9 @@ struct mem_ctl_info {
 
 	/* edac sysfs device control */
 	struct kobject edac_mci_kobj;
+
+	/* list for all grp instances within a mc */
+	struct list_head grp_kobj_list;
 
 	/* Additional top controller level attributes, but specified
 	 * by the low level driver.

@@ -9,6 +9,7 @@
  */
 
 #include <linux/kobject.h>
+#include <linux/slab.h>
 #include "ieee80211_i.h"
 #include "key.h"
 #include "debugfs.h"
@@ -56,7 +57,7 @@ KEY_CONF_FILE(keyidx, D);
 KEY_CONF_FILE(hw_key_idx, D);
 KEY_FILE(flags, X);
 KEY_FILE(tx_rx_count, D);
-KEY_READ(ifindex, sdata->dev->ifindex, 20, "%d\n");
+KEY_READ(ifindex, sdata->name, IFNAMSIZ + 2, "%s\n");
 KEY_OPS(ifindex);
 
 static ssize_t key_algorithm_read(struct file *file,
@@ -142,7 +143,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 		len = p - buf;
 		break;
 	case ALG_CCMP:
-		for (i = 0; i < NUM_RX_DATA_QUEUES; i++) {
+		for (i = 0; i < NUM_RX_DATA_QUEUES + 1; i++) {
 			rpn = key->u.ccmp.rx_pn[i];
 			p += scnprintf(p, sizeof(buf)+buf-p,
 				       "%02x%02x%02x%02x%02x%02x\n",

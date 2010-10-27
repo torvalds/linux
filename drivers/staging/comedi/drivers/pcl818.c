@@ -102,6 +102,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
 
 #include <linux/ioport.h>
 #include <linux/mc146818rtc.h>
+#include <linux/gfp.h>
 #include <linux/delay.h>
 #include <asm/dma.h>
 
@@ -312,7 +313,18 @@ static struct comedi_driver driver_pcl818 = {
 	.offset = sizeof(struct pcl818_board),
 };
 
-COMEDI_INITCLEANUP(driver_pcl818);
+static int __init driver_pcl818_init_module(void)
+{
+	return comedi_driver_register(&driver_pcl818);
+}
+
+static void __exit driver_pcl818_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_pcl818);
+}
+
+module_init(driver_pcl818_init_module);
+module_exit(driver_pcl818_cleanup_module);
 
 struct pcl818_private {
 
@@ -557,8 +569,14 @@ conv_finish:
 		comedi_event(dev, s);
 		return IRQ_HANDLED;
 	}
-	if (s->async->cur_chan == 0) {
+	devpriv->act_chanlist_pos++;
+	if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len) {
+		devpriv->act_chanlist_pos = 0;
+	}
+	s->async->cur_chan++;
+	if (s->async->cur_chan >= devpriv->ai_n_chan) {
 		/*  printk("E"); */
+		s->async->cur_chan = 0;
 		devpriv->ai_act_scan--;
 	}
 
@@ -627,8 +645,12 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 
 		devpriv->act_chanlist_pos++;
 		if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len) {
-			devpriv->ai_act_scan--;
 			devpriv->act_chanlist_pos = 0;
+		}
+		s->async->cur_chan++;
+		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+			s->async->cur_chan = 0;
+			devpriv->ai_act_scan--;
 		}
 
 		if (!devpriv->neverending_ai)
@@ -717,7 +739,14 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 			comedi_buf_put(s->async, dmabuf[bufptr++] >> 4);	/*  get one sample */
 			bufptr &= (devpriv->dmasamplsize - 1);
 
-			if (s->async->cur_chan == 0) {
+			devpriv->act_chanlist_pos++;
+			if (devpriv->act_chanlist_pos >=
+					devpriv->act_chanlist_len) {
+				devpriv->act_chanlist_pos = 0;
+			}
+			s->async->cur_chan++;
+			if (s->async->cur_chan >= devpriv->ai_n_chan) {
+				s->async->cur_chan = 0;
 				devpriv->ai_act_scan--;
 			}
 
@@ -796,7 +825,13 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 
 		comedi_buf_put(s->async, (lo >> 4) | (inb(dev->iobase + PCL818_FI_DATAHI) << 4));	/*  get one sample */
 
-		if (s->async->cur_chan == 0) {
+		devpriv->act_chanlist_pos++;
+		if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len) {
+			devpriv->act_chanlist_pos = 0;
+		}
+		s->async->cur_chan++;
+		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+			s->async->cur_chan = 0;
 			devpriv->ai_act_scan--;
 		}
 
@@ -1369,14 +1404,6 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		}
 	}
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->chanlist_len > s->n_chan) {
-		cmd->chanlist_len = s->n_chan;
-		err++;
-	}
 	if (cmd->scan_end_arg != cmd->chanlist_len) {
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
@@ -2020,3 +2047,7 @@ static int pcl818_detach(struct comedi_device *dev)
 	free_resources(dev);
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

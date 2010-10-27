@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
+#include <linux/gfp.h>
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/kernel.h>
@@ -24,7 +25,6 @@
 #include <linux/netdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/tcp.h>
 #include <linux/types.h>
 #include <linux/wireless.h>
@@ -918,7 +918,6 @@ void libipw_rx_any(struct libipw_device *ieee,
 drop_free:
 	dev_kfree_skb_irq(skb);
 	ieee->dev->stats.rx_dropped++;
-	return;
 }
 
 #define MGMT_FRAME_FIXED_PART_LENGTH		0x24

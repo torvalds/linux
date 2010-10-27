@@ -58,6 +58,7 @@ nv40_graph_create_context(struct nouveau_channel *chan)
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
+	struct nouveau_grctx ctx = {};
 	int ret;
 
 	ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, pgraph->grctx_size,
@@ -67,20 +68,13 @@ nv40_graph_create_context(struct nouveau_channel *chan)
 		return ret;
 
 	/* Initialise default context values */
-	dev_priv->engine.instmem.prepare_access(dev, true);
-	if (!pgraph->ctxprog) {
-		struct nouveau_grctx ctx = {};
+	ctx.dev = chan->dev;
+	ctx.mode = NOUVEAU_GRCTX_VALS;
+	ctx.data = chan->ramin_grctx->gpuobj;
+	nv40_grctx_init(&ctx);
 
-		ctx.dev = chan->dev;
-		ctx.mode = NOUVEAU_GRCTX_VALS;
-		ctx.data = chan->ramin_grctx->gpuobj;
-		nv40_grctx_init(&ctx);
-	} else {
-		nouveau_grctx_vals_load(dev, chan->ramin_grctx->gpuobj);
-	}
 	nv_wo32(dev, chan->ramin_grctx->gpuobj, 0,
 		     chan->ramin_grctx->gpuobj->im_pramin->start);
-	dev_priv->engine.instmem.finish_access(dev);
 	return 0;
 }
 
@@ -238,7 +232,8 @@ nv40_graph_init(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv =
 		(struct drm_nouveau_private *)dev->dev_private;
 	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
-	uint32_t vramsz;
+	struct nouveau_grctx ctx = {};
+	uint32_t vramsz, *cp;
 	int i, j;
 
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) &
@@ -246,26 +241,22 @@ nv40_graph_init(struct drm_device *dev)
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) |
 			 NV_PMC_ENABLE_PGRAPH);
 
-	if (nouveau_ctxfw) {
-		nouveau_grctx_prog_load(dev);
-		dev_priv->engine.graph.grctx_size = 175 * 1024;
-	}
+	cp = kmalloc(sizeof(*cp) * 256, GFP_KERNEL);
+	if (!cp)
+		return -ENOMEM;
 
-	if (!dev_priv->engine.graph.ctxprog) {
-		struct nouveau_grctx ctx = {};
-		uint32_t cp[256];
+	ctx.dev = dev;
+	ctx.mode = NOUVEAU_GRCTX_PROG;
+	ctx.data = cp;
+	ctx.ctxprog_max = 256;
+	nv40_grctx_init(&ctx);
+	dev_priv->engine.graph.grctx_size = ctx.ctxvals_pos * 4;
 
-		ctx.dev = dev;
-		ctx.mode = NOUVEAU_GRCTX_PROG;
-		ctx.data = cp;
-		ctx.ctxprog_max = 256;
-		nv40_grctx_init(&ctx);
-		dev_priv->engine.graph.grctx_size = ctx.ctxvals_pos * 4;
+	nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
+	for (i = 0; i < ctx.ctxprog_len; i++)
+		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA, cp[i]);
 
-		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
-		for (i = 0; i < ctx.ctxprog_len; i++)
-			nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA, cp[i]);
-	}
+	kfree(cp);
 
 	/* No context present currently */
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, 0x00000000);
@@ -335,12 +326,33 @@ nv40_graph_init(struct drm_device *dev)
 	nv_wr32(dev, 0x400b38, 0x2ffff800);
 	nv_wr32(dev, 0x400b3c, 0x00006000);
 
+	/* Tiling related stuff. */
+	switch (dev_priv->chipset) {
+	case 0x44:
+	case 0x4a:
+		nv_wr32(dev, 0x400bc4, 0x1003d888);
+		nv_wr32(dev, 0x400bbc, 0xb7a7b500);
+		break;
+	case 0x46:
+		nv_wr32(dev, 0x400bc4, 0x0000e024);
+		nv_wr32(dev, 0x400bbc, 0xb7a7b520);
+		break;
+	case 0x4c:
+	case 0x4e:
+	case 0x67:
+		nv_wr32(dev, 0x400bc4, 0x1003d888);
+		nv_wr32(dev, 0x400bbc, 0xb7a7b540);
+		break;
+	default:
+		break;
+	}
+
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < pfb->num_tiles; i++)
 		nv40_graph_set_region_tiling(dev, i, 0, 0, 0);
 
 	/* begin RAM config */
-	vramsz = drm_get_resource_len(dev, 0) - 1;
+	vramsz = pci_resource_len(dev->pdev, 0) - 1;
 	switch (dev_priv->chipset) {
 	case 0x40:
 		nv_wr32(dev, 0x4009A4, nv_rd32(dev, NV04_PFB_CFG0));
@@ -380,7 +392,6 @@ nv40_graph_init(struct drm_device *dev)
 
 void nv40_graph_takedown(struct drm_device *dev)
 {
-	nouveau_grctx_fini(dev);
 }
 
 struct nouveau_pgraph_object_class nv40_graph_grclass[] = {

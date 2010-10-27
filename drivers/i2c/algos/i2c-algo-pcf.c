@@ -29,7 +29,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
@@ -176,7 +175,7 @@ static int pcf_init_8584 (struct i2c_algo_pcf_data *adap)
 	 */
 	if (((temp = get_pcf(adap, 1)) & 0x7f) != (0)) {
 		DEB2(printk(KERN_ERR "i2c-algo-pcf.o: PCF detection failed -- can't select S0 (0x%02x).\n", temp));
-		return -ENXIO; /* definetly not PCF8584 */
+		return -ENXIO; /* definitely not PCF8584 */
 	}
 
 	/* load own address in S0, effective address is (own << 1) */

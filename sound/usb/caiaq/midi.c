@@ -17,6 +17,7 @@
 */
 
 #include <linux/usb.h>
+#include <linux/gfp.h>
 #include <sound/rawmidi.h>
 #include <sound/core.h>
 #include <sound/pcm.h>

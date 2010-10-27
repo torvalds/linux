@@ -128,6 +128,7 @@ void rt2x00crypto_tx_remove_iv(struct sk_buff *skb, struct txentry_desc *txdesc)
 
 	/* Pull buffer to correct size */
 	skb_pull(skb, txdesc->iv_len);
+	txdesc->length -= txdesc->iv_len;
 
 	/* IV/EIV data has officially been stripped */
 	skbdesc->flags |= SKBDESC_IV_STRIPPED;

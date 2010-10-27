@@ -33,18 +33,11 @@ V_FUNCTION_BEGIN(__kernel_gettimeofday)
 	bl	V_LOCAL_FUNC(__get_datapage)	/* get data page */
 	cmpldi	r11,0			/* check if tv is NULL */
 	beq	2f
-	bl	V_LOCAL_FUNC(__do_get_xsec)	/* get xsec from tb & kernel */
-	lis     r7,15			/* r7 = 1000000 = USEC_PER_SEC */
-	ori     r7,r7,16960
-	rldicl  r5,r4,44,20		/* r5 = sec = xsec / XSEC_PER_SEC */
-	rldicr  r6,r5,20,43		/* r6 = sec * XSEC_PER_SEC */
-	std	r5,TVAL64_TV_SEC(r11)	/* store sec in tv */
-	subf	r0,r6,r4		/* r0 = xsec = (xsec - r6) */
-	mulld   r0,r0,r7		/* usec = (xsec * USEC_PER_SEC) /
-					 * XSEC_PER_SEC
-					 */
-	rldicl  r0,r0,44,20
-	std	r0,TVAL64_TV_USEC(r11)	/* store usec in tv */
+	lis	r7,1000000@ha		/* load up USEC_PER_SEC */
+	addi	r7,r7,1000000@l
+	bl	V_LOCAL_FUNC(__do_get_tspec) /* get sec/us from tb & kernel */
+	std	r4,TVAL64_TV_SEC(r11)	/* store sec in tv */
+	std	r5,TVAL64_TV_USEC(r11)	/* store usec in tv */
 2:	cmpldi	r10,0			/* check if tz is NULL */
 	beq	1f
 	lwz	r4,CFG_TZ_MINUTEWEST(r3)/* fill tz */
@@ -77,6 +70,8 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
   .cfi_register lr,r12
 	mr	r11,r4			/* r11 saves tp */
 	bl	V_LOCAL_FUNC(__get_datapage)	/* get data page */
+	lis	r7,NSEC_PER_SEC@h	/* want nanoseconds */
+	ori	r7,r7,NSEC_PER_SEC@l
 50:	bl	V_LOCAL_FUNC(__do_get_tspec)	/* get time from tb & kernel */
 	bne	cr1,80f			/* if not monotonic, all done */
 
@@ -171,49 +166,12 @@ V_FUNCTION_END(__kernel_clock_getres)
 
 
 /*
- * This is the core of gettimeofday(), it returns the xsec
- * value in r4 and expects the datapage ptr (non clobbered)
- * in r3. clobbers r0,r4,r5,r6,r7,r8
- * When returning, r8 contains the counter value that can be reused
- */
-V_FUNCTION_BEGIN(__do_get_xsec)
-  .cfi_startproc
-	/* check for update count & load values */
-1:	ld	r8,CFG_TB_UPDATE_COUNT(r3)
-	andi.	r0,r8,1			/* pending update ? loop */
-	bne-	1b
-	xor	r0,r8,r8		/* create dependency */
-	add	r3,r3,r0
-
-	/* Get TB & offset it. We use the MFTB macro which will generate
-	 * workaround code for Cell.
-	 */
-	MFTB(r7)
-	ld	r9,CFG_TB_ORIG_STAMP(r3)
-	subf	r7,r9,r7
-
-	/* Scale result */
-	ld	r5,CFG_TB_TO_XS(r3)
-	mulhdu	r7,r7,r5
-
-	/* Add stamp since epoch */
-	ld	r6,CFG_STAMP_XSEC(r3)
-	add	r4,r6,r7
-
-	xor	r0,r4,r4
-	add	r3,r3,r0
-	ld	r0,CFG_TB_UPDATE_COUNT(r3)
-        cmpld   cr0,r0,r8		/* check if updated */
-	bne-	1b
-	blr
-  .cfi_endproc
-V_FUNCTION_END(__do_get_xsec)
-
-/*
- * This is the core of clock_gettime(), it returns the current
- * time in seconds and nanoseconds in r4 and r5.
+ * This is the core of clock_gettime() and gettimeofday(),
+ * it returns the current time in r4 (seconds) and r5.
+ * On entry, r7 gives the resolution of r5, either USEC_PER_SEC
+ * or NSEC_PER_SEC, giving r5 in microseconds or nanoseconds.
  * It expects the datapage ptr in r3 and doesn't clobber it.
- * It clobbers r0 and r6 and returns NSEC_PER_SEC in r7.
+ * It clobbers r0, r6 and r9.
  * On return, r8 contains the counter value that can be reused.
  * This clobbers cr0 but not any other cr field.
  */
@@ -229,18 +187,18 @@ V_FUNCTION_BEGIN(__do_get_tspec)
 	/* Get TB & offset it. We use the MFTB macro which will generate
 	 * workaround code for Cell.
 	 */
-	MFTB(r7)
+	MFTB(r6)
 	ld	r9,CFG_TB_ORIG_STAMP(r3)
-	subf	r7,r9,r7
+	subf	r6,r9,r6
 
 	/* Scale result */
 	ld	r5,CFG_TB_TO_XS(r3)
-	sldi	r7,r7,12		/* compute time since stamp_xtime */
-	mulhdu	r6,r7,r5		/* in units of 2^-32 seconds */
+	sldi	r6,r6,12		/* compute time since stamp_xtime */
+	mulhdu	r6,r6,r5		/* in units of 2^-32 seconds */
 
 	/* Add stamp since epoch */
 	ld	r4,STAMP_XTIME+TSPC64_TV_SEC(r3)
-	ld	r5,STAMP_XTIME+TSPC64_TV_NSEC(r3)
+	lwz	r5,STAMP_SEC_FRAC(r3)
 	or	r0,r4,r5
 	or	r0,r0,r6
 	xor	r0,r0,r0
@@ -250,17 +208,11 @@ V_FUNCTION_BEGIN(__do_get_tspec)
 	bne-	1b			/* reload if so */
 
 	/* convert to seconds & nanoseconds and add to stamp */
-	lis	r7,NSEC_PER_SEC@h
-	ori	r7,r7,NSEC_PER_SEC@l
-	mulhwu	r0,r6,r7		/* compute nanoseconds and */
+	add	r6,r6,r5		/* add on fractional seconds of xtime */
+	mulhwu	r5,r6,r7		/* compute micro or nanoseconds and */
 	srdi	r6,r6,32		/* seconds since stamp_xtime */
-	clrldi	r0,r0,32
-	add	r5,r5,r0		/* add nanoseconds together */
-	cmpd	r5,r7			/* overflow? */
+	clrldi	r5,r5,32
 	add	r4,r4,r6
-	bltlr				/* all done if no overflow */
-	subf	r5,r7,r5		/* if overflow, adjust */
-	addi	r4,r4,1
 	blr
   .cfi_endproc
 V_FUNCTION_END(__do_get_tspec)

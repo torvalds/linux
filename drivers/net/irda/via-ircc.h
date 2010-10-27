@@ -774,7 +774,7 @@ static void SetBaudRate(__u16 iobase, __u32 rate)
 			break;
 		default:
 			break;
-		};
+		}
 	} else if (IsMIROn(iobase)) {
 		value = 0;	// will automatically be fixed in 1.152M
 	} else if (IsFIROn(iobase)) {

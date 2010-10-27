@@ -196,7 +196,7 @@ extern int ssb_devices_thaw(struct ssb_freeze_context *ctx);
 #ifdef CONFIG_SSB_B43_PCI_BRIDGE
 extern int __init b43_pci_ssb_bridge_init(void);
 extern void __exit b43_pci_ssb_bridge_exit(void);
-#else /* CONFIG_SSB_B43_PCI_BRIDGR */
+#else /* CONFIG_SSB_B43_PCI_BRIDGE */
 static inline int b43_pci_ssb_bridge_init(void)
 {
 	return 0;
@@ -204,6 +204,6 @@ static inline int b43_pci_ssb_bridge_init(void)
 static inline void b43_pci_ssb_bridge_exit(void)
 {
 }
-#endif /* CONFIG_SSB_PCIHOST */
+#endif /* CONFIG_SSB_B43_PCI_BRIDGE */
 
 #endif /* LINUX_SSB_PRIVATE_H_ */

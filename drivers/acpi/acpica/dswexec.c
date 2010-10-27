@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -140,7 +140,7 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 
 	if (local_obj_desc->common.type != ACPI_TYPE_INTEGER) {
 		ACPI_ERROR((AE_INFO,
-			    "Bad predicate (not an integer) ObjDesc=%p State=%p Type=%X",
+			    "Bad predicate (not an integer) ObjDesc=%p State=%p Type=0x%X",
 			    obj_desc, walk_state, obj_desc->common.type));
 
 		status = AE_AML_OPERAND_TYPE;
@@ -354,7 +354,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	op_class = walk_state->op_info->class;
 
 	if (op_class == AML_CLASS_UNKNOWN) {
-		ACPI_ERROR((AE_INFO, "Unknown opcode %X",
+		ACPI_ERROR((AE_INFO, "Unknown opcode 0x%X",
 			    op->common.aml_opcode));
 		return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
 	}
@@ -678,7 +678,7 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unimplemented opcode, class=%X type=%X Opcode=%X Op=%p",
+				    "Unimplemented opcode, class=0x%X type=0x%X Opcode=-0x%X Op=%p",
 				    op_class, op_type, op->common.aml_opcode,
 				    op));
 

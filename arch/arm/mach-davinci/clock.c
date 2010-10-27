@@ -22,6 +22,7 @@
 
 #include <mach/hardware.h>
 
+#include <mach/clock.h>
 #include <mach/psc.h>
 #include <mach/cputype.h>
 #include "clock.h"
@@ -42,15 +43,19 @@ static void __clk_enable(struct clk *clk)
 	if (clk->parent)
 		__clk_enable(clk->parent);
 	if (clk->usecount++ == 0 && (clk->flags & CLK_PSC))
-		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc, 1);
+		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc,
+				PSC_STATE_ENABLE);
 }
 
 static void __clk_disable(struct clk *clk)
 {
 	if (WARN_ON(clk->usecount == 0))
 		return;
-	if (--clk->usecount == 0 && !(clk->flags & CLK_PLL))
-		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc, 0);
+	if (--clk->usecount == 0 && !(clk->flags & CLK_PLL) &&
+	    (clk->flags & CLK_PSC))
+		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc,
+				(clk->flags & PSC_SWRSTDISABLE) ?
+				PSC_STATE_SWRSTDISABLE : PSC_STATE_DISABLE);
 	if (clk->parent)
 		__clk_disable(clk->parent);
 }
@@ -124,9 +129,10 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (clk == NULL || IS_ERR(clk))
 		return ret;
 
-	spin_lock_irqsave(&clockfw_lock, flags);
 	if (clk->set_rate)
 		ret = clk->set_rate(clk, rate);
+
+	spin_lock_irqsave(&clockfw_lock, flags);
 	if (ret == 0) {
 		if (clk->recalc)
 			clk->rate = clk->recalc(clk);
@@ -231,7 +237,10 @@ static int __init clk_disable_unused(void)
 			continue;
 
 		pr_info("Clocks: disable unused %s\n", ck->name);
-		davinci_psc_config(psc_domain(ck), ck->gpsc, ck->lpsc, 0);
+
+		davinci_psc_config(psc_domain(ck), ck->gpsc, ck->lpsc,
+				(ck->flags & PSC_SWRSTDISABLE) ?
+				PSC_STATE_SWRSTDISABLE : PSC_STATE_DISABLE);
 	}
 	spin_unlock_irq(&clockfw_lock);
 
@@ -270,7 +279,7 @@ static unsigned long clk_sysclk_recalc(struct clk *clk)
 
 	v = __raw_readl(pll->base + clk->div_reg);
 	if (v & PLLDIV_EN) {
-		plldiv = (v & PLLDIV_RATIO_MASK) + 1;
+		plldiv = (v & pll->div_ratio_mask) + 1;
 		if (plldiv)
 			rate /= plldiv;
 	}
@@ -293,7 +302,6 @@ static unsigned long clk_pllclk_recalc(struct clk *clk)
 	struct pll_data *pll = clk->pll_data;
 	unsigned long rate = clk->rate;
 
-	pll->base = IO_ADDRESS(pll->phys_base);
 	ctrl = __raw_readl(pll->base + PLLCTL);
 	rate = pll->input_rate = clk->parent->rate;
 
@@ -310,7 +318,7 @@ static unsigned long clk_pllclk_recalc(struct clk *clk)
 	if (pll->flags & PLL_HAS_PREDIV) {
 		prediv = __raw_readl(pll->base + PREDIV);
 		if (prediv & PLLDIV_EN)
-			prediv = (prediv & PLLDIV_RATIO_MASK) + 1;
+			prediv = (prediv & pll->div_ratio_mask) + 1;
 		else
 			prediv = 1;
 	}
@@ -322,7 +330,7 @@ static unsigned long clk_pllclk_recalc(struct clk *clk)
 	if (pll->flags & PLL_HAS_POSTDIV) {
 		postdiv = __raw_readl(pll->base + POSTDIV);
 		if (postdiv & PLLDIV_EN)
-			postdiv = (postdiv & PLLDIV_RATIO_MASK) + 1;
+			postdiv = (postdiv & pll->div_ratio_mask) + 1;
 		else
 			postdiv = 1;
 	}
@@ -363,6 +371,7 @@ int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 {
 	u32 ctrl;
 	unsigned int locktime;
+	unsigned long flags;
 
 	if (pll->base == NULL)
 		return -EINVAL;
@@ -376,12 +385,15 @@ int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 		locktime = ((2000 * prediv) / 100);
 		prediv = (prediv - 1) | PLLDIV_EN;
 	} else {
-		locktime = 20;
+		locktime = PLL_LOCK_TIME;
 	}
 	if (postdiv)
 		postdiv = (postdiv - 1) | PLLDIV_EN;
 	if (mult)
 		mult = mult - 1;
+
+	/* Protect against simultaneous calls to PLL setting seqeunce */
+	spin_lock_irqsave(&clockfw_lock, flags);
 
 	ctrl = __raw_readl(pll->base + PLLCTL);
 
@@ -389,12 +401,7 @@ int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 	ctrl &= ~(PLLCTL_PLLENSRC | PLLCTL_PLLEN);
 	__raw_writel(ctrl, pll->base + PLLCTL);
 
-	/*
-	 * Wait for 4 OSCIN/CLKIN cycles to ensure that the PLLC has switched
-	 * to bypass mode. Delay of 1us ensures we are good for all > 4MHz
-	 * OSCIN/CLKIN inputs. Typically the input is ~25MHz.
-	 */
-	udelay(1);
+	udelay(PLL_BYPASS_TIME);
 
 	/* Reset and enable PLL */
 	ctrl &= ~(PLLCTL_PLLRST | PLLCTL_PLLDIS);
@@ -408,11 +415,7 @@ int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 	if (pll->flags & PLL_HAS_POSTDIV)
 		__raw_writel(postdiv, pll->base + POSTDIV);
 
-	/*
-	 * Wait for PLL to reset properly, OMAP-L138 datasheet says
-	 * 'min' time = 125ns
-	 */
-	udelay(1);
+	udelay(PLL_RESET_TIME);
 
 	/* Bring PLL out of reset */
 	ctrl |= PLLCTL_PLLRST;
@@ -424,17 +427,20 @@ int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 	ctrl |= PLLCTL_PLLEN;
 	__raw_writel(ctrl, pll->base + PLLCTL);
 
+	spin_unlock_irqrestore(&clockfw_lock, flags);
+
 	return 0;
 }
 EXPORT_SYMBOL(davinci_set_pllrate);
 
-int __init davinci_clk_init(struct davinci_clk *clocks)
+int __init davinci_clk_init(struct clk_lookup *clocks)
   {
-	struct davinci_clk *c;
+	struct clk_lookup *c;
 	struct clk *clk;
+	size_t num_clocks = 0;
 
-	for (c = clocks; c->lk.clk; c++) {
-		clk = c->lk.clk;
+	for (c = clocks; c->clk; c++) {
+		clk = c->clk;
 
 		if (!clk->recalc) {
 
@@ -451,41 +457,41 @@ int __init davinci_clk_init(struct davinci_clk *clocks)
 				clk->recalc = clk_leafclk_recalc;
 		}
 
+		if (clk->pll_data) {
+			struct pll_data *pll = clk->pll_data;
+
+			if (!pll->div_ratio_mask)
+				pll->div_ratio_mask = PLLDIV_RATIO_MASK;
+
+			if (pll->phys_base && !pll->base) {
+				pll->base = ioremap(pll->phys_base, SZ_4K);
+				WARN_ON(!pll->base);
+			}
+		}
+
 		if (clk->recalc)
 			clk->rate = clk->recalc(clk);
 
 		if (clk->lpsc)
 			clk->flags |= CLK_PSC;
 
-		clkdev_add(&c->lk);
 		clk_register(clk);
+		num_clocks++;
 
 		/* Turn on clocks that Linux doesn't otherwise manage */
 		if (clk->flags & ALWAYS_ENABLED)
 			clk_enable(clk);
 	}
 
+	clkdev_add_table(clocks, num_clocks);
+
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
-#include <linux/proc_fs.h>
+#ifdef CONFIG_DEBUG_FS
+
+#include <linux/debugfs.h>
 #include <linux/seq_file.h>
-
-static void *davinci_ck_start(struct seq_file *m, loff_t *pos)
-{
-	return *pos < 1 ? (void *)1 : NULL;
-}
-
-static void *davinci_ck_next(struct seq_file *m, void *v, loff_t *pos)
-{
-	++*pos;
-	return NULL;
-}
-
-static void davinci_ck_stop(struct seq_file *m, void *v)
-{
-}
 
 #define CLKNAME_MAX	10		/* longest clock name */
 #define NEST_DELTA	2
@@ -525,41 +531,38 @@ dump_clock(struct seq_file *s, unsigned nest, struct clk *parent)
 
 static int davinci_ck_show(struct seq_file *m, void *v)
 {
-	/* Show clock tree; we know the main oscillator is first.
-	 * We trust nonzero usecounts equate to PSC enables...
+	struct clk *clk;
+
+	/*
+	 * Show clock tree; We trust nonzero usecounts equate to PSC enables...
 	 */
 	mutex_lock(&clocks_mutex);
-	if (!list_empty(&clocks))
-		dump_clock(m, 0, list_first_entry(&clocks, struct clk, node));
+	list_for_each_entry(clk, &clocks, node)
+		if (!clk->parent)
+			dump_clock(m, 0, clk);
 	mutex_unlock(&clocks_mutex);
 
 	return 0;
 }
 
-static const struct seq_operations davinci_ck_op = {
-	.start	= davinci_ck_start,
-	.next	= davinci_ck_next,
-	.stop	= davinci_ck_stop,
-	.show	= davinci_ck_show
-};
-
 static int davinci_ck_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &davinci_ck_op);
+	return single_open(file, davinci_ck_show, NULL);
 }
 
-static const struct file_operations proc_davinci_ck_operations = {
+static const struct file_operations davinci_ck_operations = {
 	.open		= davinci_ck_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
-static int __init davinci_ck_proc_init(void)
+static int __init davinci_clk_debugfs_init(void)
 {
-	proc_create("davinci_clocks", 0, NULL, &proc_davinci_ck_operations);
+	debugfs_create_file("davinci_clocks", S_IFREG | S_IRUGO, NULL, NULL,
+						&davinci_ck_operations);
 	return 0;
 
 }
-__initcall(davinci_ck_proc_init);
-#endif /* CONFIG_DEBUG_PROC_FS */
+device_initcall(davinci_clk_debugfs_init);
+#endif /* CONFIG_DEBUG_FS */

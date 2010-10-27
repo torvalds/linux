@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/ide.h>
 #include <linux/hdreg.h>
+#include <linux/smp_lock.h>
 
 #include "ide-disk.h"
 
@@ -18,9 +19,13 @@ int ide_disk_ioctl(ide_drive_t *drive, struct block_device *bdev, fmode_t mode,
 {
 	int err;
 
+	lock_kernel();
 	err = ide_setting_ioctl(drive, bdev, cmd, arg, ide_disk_ioctl_settings);
 	if (err != -EOPNOTSUPP)
-		return err;
+		goto out;
 
-	return generic_ide_ioctl(drive, bdev, cmd, arg);
+	err = generic_ide_ioctl(drive, bdev, cmd, arg);
+out:
+	unlock_kernel();
+	return err;
 }

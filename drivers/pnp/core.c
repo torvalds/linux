@@ -164,6 +164,9 @@ int __pnp_add_device(struct pnp_dev *dev)
 	list_add_tail(&dev->global_list, &pnp_global);
 	list_add_tail(&dev->protocol_list, &dev->protocol->devices);
 	spin_unlock(&pnp_lock);
+	if (dev->protocol->can_wakeup)
+		device_set_wakeup_capable(&dev->dev,
+				dev->protocol->can_wakeup(dev));
 	return device_register(&dev->dev);
 }
 

@@ -18,6 +18,7 @@
 #define MMU_FTR_TYPE_44x		ASM_CONST(0x00000008)
 #define MMU_FTR_TYPE_FSL_E		ASM_CONST(0x00000010)
 #define MMU_FTR_TYPE_3E			ASM_CONST(0x00000020)
+#define MMU_FTR_TYPE_47x		ASM_CONST(0x00000040)
 
 /*
  * This is individual features

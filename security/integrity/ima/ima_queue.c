@@ -20,6 +20,7 @@
  */
 #include <linux/module.h>
 #include <linux/rculist.h>
+#include <linux/slab.h>
 #include "ima.h"
 
 LIST_HEAD(ima_measurements);	/* list of all measurements */
@@ -70,7 +71,7 @@ static int ima_add_digest_entry(struct ima_template_entry *entry)
 
 	qe = kmalloc(sizeof(*qe), GFP_KERNEL);
 	if (qe == NULL) {
-		pr_err("OUT OF MEMORY ERROR creating queue entry.\n");
+		pr_err("IMA: OUT OF MEMORY ERROR creating queue entry.\n");
 		return -ENOMEM;
 	}
 	qe->entry = entry;
@@ -93,7 +94,7 @@ static int ima_pcr_extend(const u8 *hash)
 
 	result = tpm_pcr_extend(TPM_ANY_NUM, CONFIG_IMA_MEASURE_PCR_IDX, hash);
 	if (result != 0)
-		pr_err("Error Communicating to TPM chip\n");
+		pr_err("IMA: Error Communicating to TPM chip\n");
 	return result;
 }
 

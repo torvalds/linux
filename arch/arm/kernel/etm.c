@@ -230,7 +230,7 @@ static void etm_dump(void)
 	etb_lock(t);
 }
 
-static void sysrq_etm_dump(int key, struct tty_struct *tty)
+static void sysrq_etm_dump(int key)
 {
 	dev_dbg(tracer.dev, "Dumping ETB buffer\n");
 	etm_dump();
@@ -543,7 +543,9 @@ static int __init etm_probe(struct amba_device *dev, struct amba_id *id)
 	t->etm_portsz = 1;
 
 	etm_unlock(t);
-	ret = etm_readl(t, CSCR_PRSR);
+	(void)etm_readl(t, ETMMR_PDSR);
+	/* dummy first read */
+	(void)etm_readl(&tracer, ETMMR_OSSRR);
 
 	t->ncmppairs = etm_readl(t, ETMR_CONFCODE) & 0xf;
 	etm_writel(t, 0x440, ETMR_CTRL);

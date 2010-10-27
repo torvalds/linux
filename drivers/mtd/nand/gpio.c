@@ -181,11 +181,11 @@ static int __devexit gpio_nand_remove(struct platform_device *dev)
 	res = platform_get_resource(dev, IORESOURCE_MEM, 1);
 	iounmap(gpiomtd->io_sync);
 	if (res)
-		release_mem_region(res->start, res->end - res->start + 1);
+		release_mem_region(res->start, resource_size(res));
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	iounmap(gpiomtd->nand_chip.IO_ADDR_R);
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 	if (gpio_is_valid(gpiomtd->plat.gpio_nwp))
 		gpio_set_value(gpiomtd->plat.gpio_nwp, 0);
@@ -208,14 +208,14 @@ static void __iomem *request_and_remap(struct resource *res, size_t size,
 {
 	void __iomem *ptr;
 
-	if (!request_mem_region(res->start, res->end - res->start + 1, name)) {
+	if (!request_mem_region(res->start, resource_size(res), name)) {
 		*err = -EBUSY;
 		return NULL;
 	}
 
 	ptr = ioremap(res->start, size);
 	if (!ptr) {
-		release_mem_region(res->start, res->end - res->start + 1);
+		release_mem_region(res->start, resource_size(res));
 		*err = -ENOMEM;
 	}
 	return ptr;
@@ -338,10 +338,10 @@ err_nwp:
 err_nce:
 	iounmap(gpiomtd->io_sync);
 	if (res1)
-		release_mem_region(res1->start, res1->end - res1->start + 1);
+		release_mem_region(res1->start, resource_size(res1));
 err_sync:
 	iounmap(gpiomtd->nand_chip.IO_ADDR_R);
-	release_mem_region(res0->start, res0->end - res0->start + 1);
+	release_mem_region(res0->start, resource_size(res0));
 err_map:
 	kfree(gpiomtd);
 	return ret;

@@ -320,7 +320,12 @@ struct dasd_gneq {
 		__u8 identifier:2;
 		__u8 reserved:6;
 	} __attribute__ ((packed)) flags;
-	__u8 reserved[7];
+	__u8 reserved[5];
+	struct {
+		__u8 value:2;
+		__u8 number:6;
+	} __attribute__ ((packed)) timeout;
+	__u8 reserved3;
 	__u16 subsystemID;
 	__u8 reserved2[22];
 } __attribute__ ((packed));
@@ -426,7 +431,6 @@ struct alias_pav_group {
 	struct dasd_device *next;
 };
 
-
 struct dasd_eckd_private {
 	struct dasd_eckd_characteristics rdc_data;
 	u8 *conf_data;
@@ -463,4 +467,5 @@ void dasd_alias_handle_summary_unit_check(struct dasd_device *, struct irb *);
 void dasd_eckd_reset_ccw_to_base_io(struct dasd_ccw_req *);
 void dasd_alias_lcu_setup_complete(struct dasd_device *);
 void dasd_alias_wait_for_lcu_setup(struct dasd_device *);
+int dasd_alias_update_add_device(struct dasd_device *);
 #endif				/* DASD_ECKD_H */

@@ -34,6 +34,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <asm/irq.h>
 #include <mach/hardware.h>

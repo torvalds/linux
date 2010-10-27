@@ -84,9 +84,10 @@ void bfa_fcs_port_uf_recv(struct bfa_fcs_port_s *lport, struct fchs_s *fchs,
  * Following routines will be called by Fabric to indicate port
  * online/offline to vport.
  */
-void bfa_fcs_lport_init(struct bfa_fcs_port_s *lport, struct bfa_fcs_s *fcs,
-			u16 vf_id, struct bfa_port_cfg_s *port_cfg,
-			struct bfa_fcs_vport_s *vport);
+void bfa_fcs_lport_attach(struct bfa_fcs_port_s *lport, struct bfa_fcs_s *fcs,
+			uint16_t vf_id, struct bfa_fcs_vport_s *vport);
+void bfa_fcs_lport_init(struct bfa_fcs_port_s *lport,
+			struct bfa_port_cfg_s *port_cfg);
 void bfa_fcs_port_online(struct bfa_fcs_port_s *port);
 void bfa_fcs_port_offline(struct bfa_fcs_port_s *port);
 void bfa_fcs_port_delete(struct bfa_fcs_port_s *port);

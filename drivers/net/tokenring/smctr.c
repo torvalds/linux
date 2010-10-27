@@ -36,7 +36,6 @@
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/time.h>
 #include <linux/errno.h>
@@ -4563,7 +4562,7 @@ static void smctr_timeout(struct net_device *dev)
          * fake transmission time and go on trying. Our own timeout
          * routine is in sktr_timer_chk()
          */
-        dev->trans_start = jiffies;
+        dev->trans_start = jiffies; /* prevent tx timeout */
         netif_wake_queue(dev);
 }
 
@@ -5148,8 +5147,6 @@ static void smctr_set_multicast_list(struct net_device *dev)
 {
         if(smctr_debug > 10)
                 printk(KERN_DEBUG "%s: smctr_set_multicast_list\n", dev->name);
-
-        return;
 }
 
 static int smctr_set_page(struct net_device *dev, __u8 *buf)

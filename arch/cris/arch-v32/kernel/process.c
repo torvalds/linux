@@ -9,9 +9,9 @@
  */
 
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/fs.h>
-#include <linux/slab.h>
 #include <hwregs/reg_rdwr.h>
 #include <hwregs/reg_map.h>
 #include <hwregs/timer_defs.h>
@@ -218,8 +218,10 @@ sys_vfork(long r10, long r11, long r12, long r13, long mof, long srp,
 
 /* sys_execve() executes a new program. */
 asmlinkage int
-sys_execve(const char *fname, char **argv, char **envp, long r13, long mof, long srp,
-	struct pt_regs *regs)
+sys_execve(const char *fname,
+	   const char *const *argv,
+	   const char *const *envp, long r13, long mof, long srp,
+	   struct pt_regs *regs)
 {
 	int error;
 	char *filename;

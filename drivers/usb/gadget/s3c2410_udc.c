@@ -735,6 +735,10 @@ static void s3c2410_udc_handle_ep0_idle(struct s3c2410_udc *dev,
 	else
 		dev->ep0state = EP0_OUT_DATA_PHASE;
 
+	if (!dev->driver)
+		return;
+
+	/* deliver the request to the gadget driver */
 	ret = dev->driver->setup(&dev->gadget, crq);
 	if (ret < 0) {
 		if (dev->req_config) {
@@ -1700,8 +1704,12 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	if (!driver || driver != udc->driver || !driver->unbind)
 		return -EINVAL;
 
-	dprintk(DEBUG_NORMAL,"usb_gadget_register_driver() '%s'\n",
+	dprintk(DEBUG_NORMAL, "usb_gadget_unregister_driver() '%s'\n",
 		driver->driver.name);
+
+	/* report disconnect */
+	if (driver->disconnect)
+		driver->disconnect(&udc->gadget);
 
 	driver->unbind(&udc->gadget);
 

@@ -136,7 +136,7 @@ try_iso:
 					iso_out = e;
 			}
 		}
-		if ((in && out)  ||  (iso_in && iso_out))
+		if ((in && out)  ||  iso_in || iso_out)
 			goto found;
 	}
 	return -EINVAL;
@@ -162,6 +162,9 @@ found:
 		dev->in_iso_pipe = usb_rcvisocpipe (udev,
 				iso_in->desc.bEndpointAddress
 					& USB_ENDPOINT_NUMBER_MASK);
+	}
+
+	if (iso_out) {
 		dev->iso_out = &iso_out->desc;
 		dev->out_iso_pipe = usb_sndisocpipe (udev,
 				iso_out->desc.bEndpointAddress
@@ -202,7 +205,7 @@ static struct urb *simple_alloc_urb (
 	urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 	if (usb_pipein (pipe))
 		urb->transfer_flags |= URB_SHORT_NOT_OK;
-	urb->transfer_buffer = usb_buffer_alloc (udev, bytes, GFP_KERNEL,
+	urb->transfer_buffer = usb_alloc_coherent (udev, bytes, GFP_KERNEL,
 			&urb->transfer_dma);
 	if (!urb->transfer_buffer) {
 		usb_free_urb (urb);
@@ -272,8 +275,8 @@ static inline int simple_check_buf(struct usbtest_dev *tdev, struct urb *urb)
 
 static void simple_free_urb (struct urb *urb)
 {
-	usb_buffer_free (urb->dev, urb->transfer_buffer_length,
-			urb->transfer_buffer, urb->transfer_dma);
+	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+			  urb->transfer_buffer, urb->transfer_dma);
 	usb_free_urb (urb);
 }
 
@@ -977,15 +980,13 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 		if (!u)
 			goto cleanup;
 
-		reqp = usb_buffer_alloc (udev, sizeof *reqp, GFP_KERNEL,
-				&u->setup_dma);
+		reqp = kmalloc(sizeof *reqp, GFP_KERNEL);
 		if (!reqp)
 			goto cleanup;
 		reqp->setup = req;
 		reqp->number = i % NUM_SUBCASES;
 		reqp->expected = expected;
 		u->setup_packet = (char *) &reqp->setup;
-		u->transfer_flags |= URB_NO_SETUP_DMA_MAP;
 
 		u->context = &context;
 		u->complete = ctrl_complete;
@@ -1017,10 +1018,7 @@ cleanup:
 		if (!urb [i])
 			continue;
 		urb [i]->dev = udev;
-		if (urb [i]->setup_packet)
-			usb_buffer_free (udev, sizeof (struct usb_ctrlrequest),
-					urb [i]->setup_packet,
-					urb [i]->setup_dma);
+		kfree(urb[i]->setup_packet);
 		simple_free_urb (urb [i]);
 	}
 	kfree (urb);
@@ -1383,7 +1381,6 @@ static void iso_callback (struct urb *urb)
 			break;
 		}
 	}
-	simple_free_urb (urb);
 
 	ctx->pending--;
 	if (ctx->pending == 0) {
@@ -1421,7 +1418,7 @@ static struct urb *iso_alloc_urb (
 
 	urb->number_of_packets = packets;
 	urb->transfer_buffer_length = bytes;
-	urb->transfer_buffer = usb_buffer_alloc (udev, bytes, GFP_KERNEL,
+	urb->transfer_buffer = usb_alloc_coherent (udev, bytes, GFP_KERNEL,
 			&urb->transfer_dma);
 	if (!urb->transfer_buffer) {
 		usb_free_urb (urb);
@@ -1500,6 +1497,7 @@ test_iso_queue (struct usbtest_dev *dev, struct usbtest_param *param,
 			}
 
 			simple_free_urb (urbs [i]);
+			urbs[i] = NULL;
 			context.pending--;
 			context.submit_error = 1;
 			break;
@@ -1509,6 +1507,10 @@ test_iso_queue (struct usbtest_dev *dev, struct usbtest_param *param,
 
 	wait_for_completion (&context.done);
 
+	for (i = 0; i < param->sglen; i++) {
+		if (urbs[i])
+			simple_free_urb(urbs[i]);
+	}
 	/*
 	 * Isochronous transfers are expected to fail sometimes.  As an
 	 * arbitrary limit, we will report an error if any submissions
@@ -1553,6 +1555,7 @@ fail:
  * off just killing the userspace task and waiting for it to exit.
  */
 
+/* No BKL needed */
 static int
 usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 {
@@ -1580,10 +1583,6 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 		return -ERESTARTSYS;
 
 	/* FIXME: What if a system sleep starts while a test is running? */
-	if (!intf->is_active) {
-		mutex_unlock(&dev->lock);
-		return -EHOSTUNREACH;
-	}
 
 	/* some devices, like ez-usb default devices, need a non-default
 	 * altsetting to have any active endpoints.  some tests change
@@ -2101,7 +2100,7 @@ static struct usbtest_info generic_info = {
 #endif
 
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 
 	/*-------------------------------------------------------------*/
 
@@ -2179,7 +2178,7 @@ static struct usb_driver usbtest_driver = {
 	.name =		"usbtest",
 	.id_table =	id_table,
 	.probe =	usbtest_probe,
-	.ioctl =	usbtest_ioctl,
+	.unlocked_ioctl = usbtest_ioctl,
 	.disconnect =	usbtest_disconnect,
 	.suspend =	usbtest_suspend,
 	.resume =	usbtest_resume,

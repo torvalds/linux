@@ -23,6 +23,13 @@
  * Definitions of CPU card resources only
  */
 
+/* phyCORE-PXA270 (PCM027) Interrupts */
+#define PCM027_IRQ(x)          (IRQ_BOARD_START + (x))
+#define PCM027_BTDET_IRQ       PCM027_IRQ(0)
+#define PCM027_FF_RI_IRQ       PCM027_IRQ(1)
+#define PCM027_MMCDET_IRQ      PCM027_IRQ(2)
+#define PCM027_PM_5V_IRQ       PCM027_IRQ(3)
+
 /* I2C RTC */
 #define PCM027_RTC_IRQ_GPIO	0
 #define PCM027_RTC_IRQ		IRQ_GPIO(PCM027_RTC_IRQ_GPIO)

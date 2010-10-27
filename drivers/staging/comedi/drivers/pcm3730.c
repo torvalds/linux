@@ -38,7 +38,18 @@ static struct comedi_driver driver_pcm3730 = {
 	.detach = pcm3730_detach,
 };
 
-COMEDI_INITCLEANUP(driver_pcm3730);
+static int __init driver_pcm3730_init_module(void)
+{
+	return comedi_driver_register(&driver_pcm3730);
+}
+
+static void __exit driver_pcm3730_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_pcm3730);
+}
+
+module_init(driver_pcm3730_init_module);
+module_exit(driver_pcm3730_cleanup_module);
 
 static int pcm3730_do_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
@@ -73,7 +84,7 @@ static int pcm3730_attach(struct comedi_device *dev,
 	unsigned long iobase;
 
 	iobase = it->options[0];
-	printk("comedi%d: pcm3730: 0x%04lx ", dev->minor, iobase);
+	printk(KERN_INFO "comedi%d: pcm3730: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, PCM3730_SIZE, "pcm3730")) {
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -140,17 +151,21 @@ static int pcm3730_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->private = (void *)PCM3730_DIC;
 
-	printk("\n");
+	printk(KERN_INFO "\n");
 
 	return 0;
 }
 
 static int pcm3730_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: pcm3730: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: pcm3730: remove\n", dev->minor);
 
 	if (dev->iobase)
 		release_region(dev->iobase, PCM3730_SIZE);
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

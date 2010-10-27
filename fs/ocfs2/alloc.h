@@ -140,8 +140,9 @@ int ocfs2_remove_extent(handle_t *handle, struct ocfs2_extent_tree *et,
 			struct ocfs2_cached_dealloc_ctxt *dealloc);
 int ocfs2_remove_btree_range(struct inode *inode,
 			     struct ocfs2_extent_tree *et,
-			     u32 cpos, u32 phys_cpos, u32 len,
-			     struct ocfs2_cached_dealloc_ctxt *dealloc);
+			     u32 cpos, u32 phys_cpos, u32 len, int flags,
+			     struct ocfs2_cached_dealloc_ctxt *dealloc,
+			     u64 refcount_loc);
 
 int ocfs2_num_free_extents(struct ocfs2_super *osb,
 			   struct ocfs2_extent_tree *et);
@@ -209,7 +210,7 @@ static inline void ocfs2_init_dealloc_ctxt(struct ocfs2_cached_dealloc_ctxt *c)
 int ocfs2_cache_cluster_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
 				u64 blkno, unsigned int bit);
 int ocfs2_cache_block_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
-			      int type, int slot, u64 blkno,
+			      int type, int slot, u64 suballoc, u64 blkno,
 			      unsigned int bit);
 static inline int ocfs2_dealloc_has_cluster(struct ocfs2_cached_dealloc_ctxt *c)
 {
@@ -233,8 +234,7 @@ int ocfs2_prepare_truncate(struct ocfs2_super *osb,
 			   struct ocfs2_truncate_context **tc);
 int ocfs2_commit_truncate(struct ocfs2_super *osb,
 			  struct inode *inode,
-			  struct buffer_head *fe_bh,
-			  struct ocfs2_truncate_context *tc);
+			  struct buffer_head *di_bh);
 int ocfs2_truncate_inline(struct inode *inode, struct buffer_head *di_bh,
 			  unsigned int start, unsigned int end, int trunc);
 
@@ -319,6 +319,8 @@ int ocfs2_journal_access_path(struct ocfs2_caching_info *ci,
 			      struct ocfs2_path *path);
 int ocfs2_find_cpos_for_right_leaf(struct super_block *sb,
 				   struct ocfs2_path *path, u32 *cpos);
+int ocfs2_find_cpos_for_left_leaf(struct super_block *sb,
+				  struct ocfs2_path *path, u32 *cpos);
 int ocfs2_find_subtree_root(struct ocfs2_extent_tree *et,
 			    struct ocfs2_path *left,
 			    struct ocfs2_path *right);

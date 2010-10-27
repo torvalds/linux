@@ -43,17 +43,14 @@ system_reset_iSeries:
 	LOAD_REG_ADDR(r23, alpaca)
 	li	r0,ALPACA_SIZE
 	sub	r23,r13,r23
-	divdu	r23,r23,r0		/* r23 has cpu number */
-	LOAD_REG_ADDR(r13, paca)
-	mulli	r0,r23,PACA_SIZE
-	add	r13,r13,r0
-	mtspr	SPRN_SPRG_PACA,r13	/* Save it away for the future */
-	mfmsr	r24
-	ori	r24,r24,MSR_RI
-	mtmsrd	r24			/* RI on */
-	mr	r24,r23
+	divdu	r24,r23,r0		/* r24 has cpu number */
 	cmpwi	0,r24,0			/* Are we processor 0? */
 	bne	1f
+	LOAD_REG_ADDR(r13, boot_paca)
+	mtspr	SPRN_SPRG_PACA,r13	/* Save it away for the future */
+	mfmsr	r23
+	ori	r23,r23,MSR_RI
+	mtmsrd	r23			/* RI on */
 	b	.__start_initialization_iSeries	/* Start up the first processor */
 1:	mfspr	r4,SPRN_CTRLF
 	li	r5,CTRL_RUNLATCH	/* Turn off the run light */
@@ -86,6 +83,16 @@ system_reset_iSeries:
 #endif
 
 2:
+	/* Load our paca now that it's been allocated */
+	LOAD_REG_ADDR(r13, paca)
+	ld	r13,0(r13)
+	mulli	r0,r24,PACA_SIZE
+	add	r13,r13,r0
+	mtspr	SPRN_SPRG_PACA,r13	/* Save it away for the future */
+	mfmsr	r23
+	ori	r23,r23,MSR_RI
+	mtmsrd	r23			/* RI on */
+
 	HMT_LOW
 #ifdef CONFIG_SMP
 	lbz	r23,PACAPROCSTART(r13)	/* Test if this processor
@@ -245,8 +252,8 @@ decrementer_iSeries_masked:
 	li	r11,1
 	ld	r12,PACALPPACAPTR(r13)
 	stb	r11,LPPACADECRINT(r12)
-	LOAD_REG_IMMEDIATE(r12, tb_ticks_per_jiffy)
-	lwz	r12,0(r12)
+	li	r12,-1
+	clrldi	r12,r12,33	/* set DEC to 0x7fffffff */
 	mtspr	SPRN_DEC,r12
 	/* fall through */
 

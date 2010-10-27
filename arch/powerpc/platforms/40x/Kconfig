@@ -71,22 +71,6 @@ config MAKALU
 	help
 	  This option enables support for the AMCC PPC405EX board.
 
-#config REDWOOD_5
-#	bool "Redwood-5"
-#	depends on 40x
-#	default n
-#	select STB03xxx
-#	help
-#	  This option enables support for the IBM STB04 evaluation board.
-
-#config REDWOOD_6
-#	bool "Redwood-6"
-#	depends on 40x
-#	default n
-#	select STB03xxx
-#	help
-#	  This option enables support for the IBM STBx25xx evaluation board.
-
 #config SYCAMORE
 #	bool "Sycamore"
 #	depends on 40x

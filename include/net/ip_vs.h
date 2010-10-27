@@ -26,6 +26,11 @@
 #include <linux/ipv6.h>			/* for struct ipv6hdr */
 #include <net/ipv6.h>			/* for ipv6_addr_copy */
 
+
+/* Connections' size value needed by ip_vs_ctl.c */
+extern int ip_vs_conn_tab_size;
+
+
 struct ip_vs_iphdr {
 	int len;
 	__u8 protocol;
@@ -217,6 +222,26 @@ enum {
 enum {
 	IP_VS_ICMP_S_NORMAL,
 	IP_VS_ICMP_S_LAST,
+};
+
+/*
+ *	SCTP State Values
+ */
+enum ip_vs_sctp_states {
+	IP_VS_SCTP_S_NONE,
+	IP_VS_SCTP_S_INIT_CLI,
+	IP_VS_SCTP_S_INIT_SER,
+	IP_VS_SCTP_S_INIT_ACK_CLI,
+	IP_VS_SCTP_S_INIT_ACK_SER,
+	IP_VS_SCTP_S_ECHO_CLI,
+	IP_VS_SCTP_S_ECHO_SER,
+	IP_VS_SCTP_S_ESTABLISHED,
+	IP_VS_SCTP_S_SHUT_CLI,
+	IP_VS_SCTP_S_SHUT_SER,
+	IP_VS_SCTP_S_SHUT_ACK_CLI,
+	IP_VS_SCTP_S_SHUT_ACK_SER,
+	IP_VS_SCTP_S_CLOSED,
+	IP_VS_SCTP_S_LAST
 };
 
 /*
@@ -592,17 +617,6 @@ extern void ip_vs_init_hash_table(struct list_head *table, int rows);
  *     (from ip_vs_conn.c)
  */
 
-/*
- *     IPVS connection entry hash table
- */
-#ifndef CONFIG_IP_VS_TAB_BITS
-#define CONFIG_IP_VS_TAB_BITS   12
-#endif
-
-#define IP_VS_CONN_TAB_BITS	CONFIG_IP_VS_TAB_BITS
-#define IP_VS_CONN_TAB_SIZE     (1 << IP_VS_CONN_TAB_BITS)
-#define IP_VS_CONN_TAB_MASK     (IP_VS_CONN_TAB_SIZE - 1)
-
 enum {
 	IP_VS_DIR_INPUT = 0,
 	IP_VS_DIR_OUTPUT,
@@ -618,9 +632,21 @@ extern struct ip_vs_conn *ip_vs_ct_in_get
 (int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
  const union nf_inet_addr *d_addr, __be16 d_port);
 
+struct ip_vs_conn * ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
+					    struct ip_vs_protocol *pp,
+					    const struct ip_vs_iphdr *iph,
+					    unsigned int proto_off,
+					    int inverse);
+
 extern struct ip_vs_conn *ip_vs_conn_out_get
 (int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
  const union nf_inet_addr *d_addr, __be16 d_port);
+
+struct ip_vs_conn * ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
+					     struct ip_vs_protocol *pp,
+					     const struct ip_vs_iphdr *iph,
+					     unsigned int proto_off,
+					     int inverse);
 
 /* put back the conn without restarting its timer */
 static inline void __ip_vs_conn_put(struct ip_vs_conn *cp)
@@ -722,8 +748,6 @@ extern void ip_vs_app_inc_put(struct ip_vs_app *inc);
 
 extern int ip_vs_app_pkt_out(struct ip_vs_conn *, struct sk_buff *skb);
 extern int ip_vs_app_pkt_in(struct ip_vs_conn *, struct sk_buff *skb);
-extern int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
-			     char *o_buf, int o_len, char *n_buf, int n_len);
 extern int ip_vs_app_init(void);
 extern void ip_vs_app_cleanup(void);
 
@@ -747,7 +771,7 @@ extern struct ip_vs_protocol ip_vs_protocol_udp;
 extern struct ip_vs_protocol ip_vs_protocol_icmp;
 extern struct ip_vs_protocol ip_vs_protocol_esp;
 extern struct ip_vs_protocol ip_vs_protocol_ah;
-
+extern struct ip_vs_protocol ip_vs_protocol_sctp;
 
 /*
  *      Registering/unregistering scheduler functions
@@ -930,6 +954,9 @@ static inline __wsum ip_vs_check_diff2(__be16 old, __be16 new, __wsum oldsum)
 
 	return csum_partial(diff, sizeof(diff), oldsum);
 }
+
+extern void ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp,
+				   int outin);
 
 #endif /* __KERNEL__ */
 

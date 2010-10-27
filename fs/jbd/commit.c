@@ -17,7 +17,6 @@
 #include <linux/fs.h>
 #include <linux/jbd.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/bio.h>
@@ -120,7 +119,6 @@ static int journal_write_commit_record(journal_t *journal,
 	struct buffer_head *bh;
 	journal_header_t *header;
 	int ret;
-	int barrier_done = 0;
 
 	if (is_journal_aborted(journal))
 		return 0;
@@ -138,34 +136,36 @@ static int journal_write_commit_record(journal_t *journal,
 
 	JBUFFER_TRACE(descriptor, "write commit block");
 	set_buffer_dirty(bh);
+
 	if (journal->j_flags & JFS_BARRIER) {
-		set_buffer_ordered(bh);
-		barrier_done = 1;
-	}
-	ret = sync_dirty_buffer(bh);
-	if (barrier_done)
-		clear_buffer_ordered(bh);
-	/* is it possible for another commit to fail at roughly
-	 * the same time as this one?  If so, we don't want to
-	 * trust the barrier flag in the super, but instead want
-	 * to remember if we sent a barrier request
-	 */
-	if (ret == -EOPNOTSUPP && barrier_done) {
-		char b[BDEVNAME_SIZE];
+		ret = __sync_dirty_buffer(bh, WRITE_SYNC | WRITE_BARRIER);
 
-		printk(KERN_WARNING
-			"JBD: barrier-based sync failed on %s - "
-			"disabling barriers\n",
-			bdevname(journal->j_dev, b));
-		spin_lock(&journal->j_state_lock);
-		journal->j_flags &= ~JFS_BARRIER;
-		spin_unlock(&journal->j_state_lock);
+		/*
+		 * Is it possible for another commit to fail at roughly
+		 * the same time as this one?  If so, we don't want to
+		 * trust the barrier flag in the super, but instead want
+		 * to remember if we sent a barrier request
+		 */
+		if (ret == -EOPNOTSUPP) {
+			char b[BDEVNAME_SIZE];
 
-		/* And try again, without the barrier */
-		set_buffer_uptodate(bh);
-		set_buffer_dirty(bh);
+			printk(KERN_WARNING
+				"JBD: barrier-based sync failed on %s - "
+				"disabling barriers\n",
+				bdevname(journal->j_dev, b));
+			spin_lock(&journal->j_state_lock);
+			journal->j_flags &= ~JFS_BARRIER;
+			spin_unlock(&journal->j_state_lock);
+
+			/* And try again, without the barrier */
+			set_buffer_uptodate(bh);
+			set_buffer_dirty(bh);
+			ret = sync_dirty_buffer(bh);
+		}
+	} else {
 		ret = sync_dirty_buffer(bh);
 	}
+
 	put_bh(bh);		/* One for getblk() */
 	journal_put_journal_head(descriptor);
 
@@ -787,6 +787,12 @@ wait_for_iobuf:
 
 	jbd_debug(3, "JBD: commit phase 6\n");
 
+	/* All metadata is written, now write commit record and do cleanup */
+	spin_lock(&journal->j_state_lock);
+	J_ASSERT(commit_transaction->t_state == T_COMMIT);
+	commit_transaction->t_state = T_COMMIT_RECORD;
+	spin_unlock(&journal->j_state_lock);
+
 	if (journal_write_commit_record(journal, commit_transaction))
 		err = -EIO;
 
@@ -862,12 +868,12 @@ restart_loop:
 		/* A buffer which has been freed while still being
 		 * journaled by a previous transaction may end up still
 		 * being dirty here, but we want to avoid writing back
-		 * that buffer in the future now that the last use has
-		 * been committed.  That's not only a performance gain,
-		 * it also stops aliasing problems if the buffer is left
-		 * behind for writeback and gets reallocated for another
+		 * that buffer in the future after the "add to orphan"
+		 * operation been committed,  That's not only a performance
+		 * gain, it also stops aliasing problems if the buffer is
+		 * left behind for writeback and gets reallocated for another
 		 * use in a different page. */
-		if (buffer_freed(bh)) {
+		if (buffer_freed(bh) && !jh->b_next_transaction) {
 			clear_buffer_freed(bh);
 			clear_buffer_jbddirty(bh);
 		}
@@ -924,7 +930,7 @@ restart_loop:
 
 	jbd_debug(3, "JBD: commit phase 8\n");
 
-	J_ASSERT(commit_transaction->t_state == T_COMMIT);
+	J_ASSERT(commit_transaction->t_state == T_COMMIT_RECORD);
 
 	commit_transaction->t_state = T_FINISHED;
 	J_ASSERT(commit_transaction == journal->j_committing_transaction);

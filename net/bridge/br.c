@@ -38,7 +38,7 @@ static int __init br_init(void)
 
 	err = stp_proto_register(&br_stp_proto);
 	if (err < 0) {
-		printk(KERN_ERR "bridge: can't register sap for STP\n");
+		pr_err("bridge: can't register sap for STP\n");
 		return err;
 	}
 
@@ -63,7 +63,6 @@ static int __init br_init(void)
 		goto err_out4;
 
 	brioctl_set(br_ioctl_deviceless_stub);
-	br_handle_frame_hook = br_handle_frame;
 
 #if defined(CONFIG_ATM_LANE) || defined(CONFIG_ATM_LANE_MODULE)
 	br_fdb_test_addr_hook = br_fdb_test_addr;
@@ -100,7 +99,6 @@ static void __exit br_deinit(void)
 	br_fdb_test_addr_hook = NULL;
 #endif
 
-	br_handle_frame_hook = NULL;
 	br_fdb_fini();
 }
 

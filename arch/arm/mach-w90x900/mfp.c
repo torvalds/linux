@@ -36,9 +36,12 @@
 
 #define GPIOG0TO1	(0x03 << 14)
 #define GPIOG2TO3	(0x03 << 16)
+#define GPIOG22TO23	(0x03 << 22)
+
 #define ENSPI		(0x0a << 14)
 #define ENI2C0		(0x01 << 14)
 #define ENI2C1		(0x01 << 16)
+#define ENAC97		(0x02 << 22)
 
 static DEFINE_MUTEX(mfp_mutex);
 
@@ -146,6 +149,9 @@ void mfp_set_groupg(struct device *dev)
 	} else if (strcmp(dev_id, "nuc900-i2c1") == 0) {
 		mfpen &= ~(GPIOG2TO3);
 		mfpen |= ENI2C1;/*enable i2c1*/
+	} else if (strcmp(dev_id, "nuc900-audio") == 0) {
+		mfpen &= ~(GPIOG22TO23);
+		mfpen |= ENAC97;/*enable AC97*/
 	} else {
 		mfpen &= ~(GPIOG0TO1 | GPIOG2TO3);/*GPIOG[3:0]*/
 	}

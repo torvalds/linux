@@ -53,6 +53,7 @@
 #include <linux/socket.h>
 #include <linux/ip.h>
 #include <linux/time.h> /* For struct timeval */
+#include <linux/slab.h>
 #include <net/ip.h>
 #include <net/icmp.h>
 #include <net/snmp.h>
@@ -75,7 +76,7 @@ static struct sctp_association *__sctp_lookup_association(
 					const union sctp_addr *peer,
 					struct sctp_transport **pt);
 
-static void sctp_add_backlog(struct sock *sk, struct sk_buff *skb);
+static int sctp_add_backlog(struct sock *sk, struct sk_buff *skb);
 
 
 /* Calculate the SCTP checksum of an SCTP packet.  */
@@ -265,8 +266,13 @@ int sctp_rcv(struct sk_buff *skb)
 	}
 
 	if (sock_owned_by_user(sk)) {
+		if (sctp_add_backlog(sk, skb)) {
+			sctp_bh_unlock_sock(sk);
+			sctp_chunk_free(chunk);
+			skb = NULL; /* sctp_chunk_free already freed the skb */
+			goto discard_release;
+		}
 		SCTP_INC_STATS_BH(SCTP_MIB_IN_PKT_BACKLOG);
-		sctp_add_backlog(sk, skb);
 	} else {
 		SCTP_INC_STATS_BH(SCTP_MIB_IN_PKT_SOFTIRQ);
 		sctp_inq_push(&chunk->rcvr->inqueue, chunk);
@@ -336,8 +342,10 @@ int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 		sctp_bh_lock_sock(sk);
 
 		if (sock_owned_by_user(sk)) {
-			sk_add_backlog(sk, skb);
-			backloged = 1;
+			if (sk_add_backlog(sk, skb))
+				sctp_chunk_free(chunk);
+			else
+				backloged = 1;
 		} else
 			sctp_inq_push(inqueue, chunk);
 
@@ -362,22 +370,27 @@ done:
 	return 0;
 }
 
-static void sctp_add_backlog(struct sock *sk, struct sk_buff *skb)
+static int sctp_add_backlog(struct sock *sk, struct sk_buff *skb)
 {
 	struct sctp_chunk *chunk = SCTP_INPUT_CB(skb)->chunk;
 	struct sctp_ep_common *rcvr = chunk->rcvr;
+	int ret;
 
-	/* Hold the assoc/ep while hanging on the backlog queue.
-	 * This way, we know structures we need will not disappear from us
-	 */
-	if (SCTP_EP_TYPE_ASSOCIATION == rcvr->type)
-		sctp_association_hold(sctp_assoc(rcvr));
-	else if (SCTP_EP_TYPE_SOCKET == rcvr->type)
-		sctp_endpoint_hold(sctp_ep(rcvr));
-	else
-		BUG();
+	ret = sk_add_backlog(sk, skb);
+	if (!ret) {
+		/* Hold the assoc/ep while hanging on the backlog queue.
+		 * This way, we know structures we need will not disappear
+		 * from us
+		 */
+		if (SCTP_EP_TYPE_ASSOCIATION == rcvr->type)
+			sctp_association_hold(sctp_assoc(rcvr));
+		else if (SCTP_EP_TYPE_SOCKET == rcvr->type)
+			sctp_endpoint_hold(sctp_ep(rcvr));
+		else
+			BUG();
+	}
+	return ret;
 
-	sk_add_backlog(sk, skb);
 }
 
 /* Handle icmp frag needed error. */
@@ -427,11 +440,25 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 {
 	SCTP_DEBUG_PRINTK("%s\n",  __func__);
 
-	sctp_do_sm(SCTP_EVENT_T_OTHER,
-		   SCTP_ST_OTHER(SCTP_EVENT_ICMP_PROTO_UNREACH),
-		   asoc->state, asoc->ep, asoc, t,
-		   GFP_ATOMIC);
+	if (sock_owned_by_user(sk)) {
+		if (timer_pending(&t->proto_unreach_timer))
+			return;
+		else {
+			if (!mod_timer(&t->proto_unreach_timer,
+						jiffies + (HZ/20)))
+				sctp_association_hold(asoc);
+		}
+			
+	} else {
+		if (timer_pending(&t->proto_unreach_timer) &&
+		    del_timer(&t->proto_unreach_timer))
+			sctp_association_put(asoc);
 
+		sctp_do_sm(SCTP_EVENT_T_OTHER,
+			   SCTP_ST_OTHER(SCTP_EVENT_ICMP_PROTO_UNREACH),
+			   asoc->state, asoc->ep, asoc, t,
+			   GFP_ATOMIC);
+	}
 }
 
 /* Common lookup code for icmp/icmpv6 error handler. */

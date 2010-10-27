@@ -177,7 +177,7 @@ static int uic_set_irq_type(unsigned int virq, unsigned int flow_type)
 }
 
 static struct irq_chip uic_irq_chip = {
-	.name		= " UIC  ",
+	.name		= "UIC",
 	.unmask		= uic_unmask_irq,
 	.mask		= uic_mask_irq,
  	.mask_ack	= uic_mask_ack_irq,

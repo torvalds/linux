@@ -1,0 +1,13 @@
+#
+# IIO Digital Gyroscope Sensor drivers configuration
+#
+comment "Digital gyroscope sensors"
+
+config ADIS16260
+	tristate "Analog Devices ADIS16260/5 Digital Gyroscope Sensor SPI driver"
+	depends on SPI
+	select IIO_TRIGGER if IIO_RING_BUFFER
+	select IIO_SW_RING if IIO_RING_BUFFER
+	help
+	  Say yes here to build support for Analog Devices adis16260/5
+	  programmable digital gyroscope sensor.

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -137,7 +137,7 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 
 	/* Check if table is already registered */
 
-	for (i = 0; i < acpi_gbl_root_table_list.count; ++i) {
+	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
 		if (!acpi_gbl_root_table_list.tables[i].pointer) {
 			status =
 			    acpi_tb_verify_table(&acpi_gbl_root_table_list.
@@ -273,7 +273,7 @@ acpi_status acpi_tb_resize_root_table_list(void)
 	/* Increase the Table Array size */
 
 	tables = ACPI_ALLOCATE_ZEROED(((acpi_size) acpi_gbl_root_table_list.
-				       size +
+				       max_table_count +
 				       ACPI_ROOT_TABLE_SIZE_INCREMENT) *
 				      sizeof(struct acpi_table_desc));
 	if (!tables) {
@@ -286,8 +286,8 @@ acpi_status acpi_tb_resize_root_table_list(void)
 
 	if (acpi_gbl_root_table_list.tables) {
 		ACPI_MEMCPY(tables, acpi_gbl_root_table_list.tables,
-			    (acpi_size) acpi_gbl_root_table_list.size *
-			    sizeof(struct acpi_table_desc));
+			    (acpi_size) acpi_gbl_root_table_list.
+			    max_table_count * sizeof(struct acpi_table_desc));
 
 		if (acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) {
 			ACPI_FREE(acpi_gbl_root_table_list.tables);
@@ -295,8 +295,9 @@ acpi_status acpi_tb_resize_root_table_list(void)
 	}
 
 	acpi_gbl_root_table_list.tables = tables;
-	acpi_gbl_root_table_list.size += ACPI_ROOT_TABLE_SIZE_INCREMENT;
-	acpi_gbl_root_table_list.flags |= (u8) ACPI_ROOT_ORIGIN_ALLOCATED;
+	acpi_gbl_root_table_list.max_table_count +=
+	    ACPI_ROOT_TABLE_SIZE_INCREMENT;
+	acpi_gbl_root_table_list.flags |= (u8)ACPI_ROOT_ORIGIN_ALLOCATED;
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -321,38 +322,36 @@ acpi_tb_store_table(acpi_physical_address address,
 		    struct acpi_table_header *table,
 		    u32 length, u8 flags, u32 *table_index)
 {
-	acpi_status status = AE_OK;
+	acpi_status status;
+	struct acpi_table_desc *new_table;
 
 	/* Ensure that there is room for the table in the Root Table List */
 
-	if (acpi_gbl_root_table_list.count >= acpi_gbl_root_table_list.size) {
+	if (acpi_gbl_root_table_list.current_table_count >=
+	    acpi_gbl_root_table_list.max_table_count) {
 		status = acpi_tb_resize_root_table_list();
 		if (ACPI_FAILURE(status)) {
 			return (status);
 		}
 	}
 
+	new_table =
+	    &acpi_gbl_root_table_list.tables[acpi_gbl_root_table_list.
+					     current_table_count];
+
 	/* Initialize added table */
 
-	acpi_gbl_root_table_list.tables[acpi_gbl_root_table_list.count].
-	    address = address;
-	acpi_gbl_root_table_list.tables[acpi_gbl_root_table_list.count].
-	    pointer = table;
-	acpi_gbl_root_table_list.tables[acpi_gbl_root_table_list.count].length =
-	    length;
-	acpi_gbl_root_table_list.tables[acpi_gbl_root_table_list.count].
-	    owner_id = 0;
-	acpi_gbl_root_table_list.tables[acpi_gbl_root_table_list.count].flags =
-	    flags;
+	new_table->address = address;
+	new_table->pointer = table;
+	new_table->length = length;
+	new_table->owner_id = 0;
+	new_table->flags = flags;
 
-	ACPI_MOVE_32_TO_32(&
-			   (acpi_gbl_root_table_list.
-			    tables[acpi_gbl_root_table_list.count].signature),
-			   table->signature);
+	ACPI_MOVE_32_TO_32(&new_table->signature, table->signature);
 
-	*table_index = acpi_gbl_root_table_list.count;
-	acpi_gbl_root_table_list.count++;
-	return (status);
+	*table_index = acpi_gbl_root_table_list.current_table_count;
+	acpi_gbl_root_table_list.current_table_count++;
+	return (AE_OK);
 }
 
 /*******************************************************************************
@@ -408,7 +407,7 @@ void acpi_tb_terminate(void)
 
 	/* Delete the individual tables */
 
-	for (i = 0; i < acpi_gbl_root_table_list.count; ++i) {
+	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; i++) {
 		acpi_tb_delete_table(&acpi_gbl_root_table_list.tables[i]);
 	}
 
@@ -422,7 +421,7 @@ void acpi_tb_terminate(void)
 
 	acpi_gbl_root_table_list.tables = NULL;
 	acpi_gbl_root_table_list.flags = 0;
-	acpi_gbl_root_table_list.count = 0;
+	acpi_gbl_root_table_list.current_table_count = 0;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "ACPI Tables freed\n"));
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
@@ -452,7 +451,7 @@ acpi_status acpi_tb_delete_namespace_by_owner(u32 table_index)
 		return_ACPI_STATUS(status);
 	}
 
-	if (table_index >= acpi_gbl_root_table_list.count) {
+	if (table_index >= acpi_gbl_root_table_list.current_table_count) {
 
 		/* The table index does not exist */
 
@@ -505,7 +504,7 @@ acpi_status acpi_tb_allocate_owner_id(u32 table_index)
 	ACPI_FUNCTION_TRACE(tb_allocate_owner_id);
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-	if (table_index < acpi_gbl_root_table_list.count) {
+	if (table_index < acpi_gbl_root_table_list.current_table_count) {
 		status = acpi_ut_allocate_owner_id
 		    (&(acpi_gbl_root_table_list.tables[table_index].owner_id));
 	}
@@ -533,7 +532,7 @@ acpi_status acpi_tb_release_owner_id(u32 table_index)
 	ACPI_FUNCTION_TRACE(tb_release_owner_id);
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-	if (table_index < acpi_gbl_root_table_list.count) {
+	if (table_index < acpi_gbl_root_table_list.current_table_count) {
 		acpi_ut_release_owner_id(&
 					 (acpi_gbl_root_table_list.
 					  tables[table_index].owner_id));
@@ -564,7 +563,7 @@ acpi_status acpi_tb_get_owner_id(u32 table_index, acpi_owner_id *owner_id)
 	ACPI_FUNCTION_TRACE(tb_get_owner_id);
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-	if (table_index < acpi_gbl_root_table_list.count) {
+	if (table_index < acpi_gbl_root_table_list.current_table_count) {
 		*owner_id =
 		    acpi_gbl_root_table_list.tables[table_index].owner_id;
 		status = AE_OK;
@@ -589,7 +588,7 @@ u8 acpi_tb_is_table_loaded(u32 table_index)
 	u8 is_loaded = FALSE;
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-	if (table_index < acpi_gbl_root_table_list.count) {
+	if (table_index < acpi_gbl_root_table_list.current_table_count) {
 		is_loaded = (u8)
 		    (acpi_gbl_root_table_list.tables[table_index].flags &
 		     ACPI_TABLE_IS_LOADED);
@@ -616,7 +615,7 @@ void acpi_tb_set_table_loaded_flag(u32 table_index, u8 is_loaded)
 {
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
-	if (table_index < acpi_gbl_root_table_list.count) {
+	if (table_index < acpi_gbl_root_table_list.current_table_count) {
 		if (is_loaded) {
 			acpi_gbl_root_table_list.tables[table_index].flags |=
 			    ACPI_TABLE_IS_LOADED;

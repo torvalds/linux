@@ -676,6 +676,8 @@ static void *item_data(void)
 	struct mitem *mcur;
 
 	cur = current_item(curses_menu);
+	if (!cur)
+		return NULL;
 	mcur = (struct mitem *) item_userptr(cur);
 	return mcur->usrptr;
 

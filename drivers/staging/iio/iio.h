@@ -16,9 +16,7 @@
 #include "chrdev.h"
 
 /* IIO TODO LIST */
-/* Static device specific elements (conversion factors etc)
- * should be exported via sysfs
- *
+/*
  * Provide means of adjusting timer accuracy.
  * Currently assumes nano seconds.
  */
@@ -96,6 +94,7 @@ void iio_remove_event_from_list(struct iio_event_handler_list *el,
  *			control method is used
  * @scan_count:	[INTERN] the number of elements in the current scan mode
  * @scan_mask:		[INTERN] bitmask used in masking scan mode elements
+ * @available_scan_masks: [DRIVER] optional array of allowed bitmasks
  * @scan_timestamp:	[INTERN] does the scan mode include a timestamp
  * @trig:		[INTERN] current device trigger (ring buffer modes)
  * @pollfunc:		[DRIVER] function run on trigger being recieved
@@ -122,7 +121,8 @@ struct iio_dev {
 	struct attribute_group		*scan_el_attrs;
 	int				scan_count;
 
-	u16				scan_mask;
+	u32				scan_mask;
+	u32				*available_scan_masks;
 	bool				scan_timestamp;
 	struct iio_trigger		*trig;
 	struct iio_poll_func		*pollfunc;
@@ -132,22 +132,57 @@ struct iio_dev {
  * These are mainly provided to allow for a change of implementation if a device
  * has a large number of scan elements
  */
-#define IIO_MAX_SCAN_LENGTH 15
+#define IIO_MAX_SCAN_LENGTH 31
+
+/* note 0 used as error indicator as it doesn't make sense. */
+static inline u32 iio_scan_mask_match(u32 *av_masks, u32 mask)
+{
+	while (*av_masks) {
+		if (!(~*av_masks & mask))
+			return *av_masks;
+		av_masks++;
+	}
+	return 0;
+}
 
 static inline int iio_scan_mask_query(struct iio_dev *dev_info, int bit)
 {
+	u32 mask;
+
 	if (bit > IIO_MAX_SCAN_LENGTH)
 		return -EINVAL;
+
+	if (!dev_info->scan_mask)
+		return 0;
+
+	if (dev_info->available_scan_masks)
+		mask = iio_scan_mask_match(dev_info->available_scan_masks,
+					dev_info->scan_mask);
 	else
-		return !!(dev_info->scan_mask & (1 << bit));
+		mask = dev_info->scan_mask;
+
+	if (!mask)
+		return -EINVAL;
+
+	return !!(mask & (1 << bit));
 };
 
 static inline int iio_scan_mask_set(struct iio_dev *dev_info, int bit)
 {
+	u32 mask;
+	u32 trialmask = dev_info->scan_mask | (1 << bit);
+
 	if (bit > IIO_MAX_SCAN_LENGTH)
 		return -EINVAL;
-	dev_info->scan_mask |= (1 << bit);
+	if (dev_info->available_scan_masks) {
+		mask = iio_scan_mask_match(dev_info->available_scan_masks,
+					trialmask);
+		if (!mask)
+			return -EINVAL;
+	}
+	dev_info->scan_mask = trialmask;
 	dev_info->scan_count++;
+
 	return 0;
 };
 
@@ -247,49 +282,6 @@ int iio_push_event(struct iio_dev *dev_info,
 		  s64 timestamp);
 
 /**
- * struct iio_work_cont - container for when singleton handler case matters
- * @ws:			[DEVICE] work_struct when not only possible event
- * @ws_nocheck:		[DEVICE] work_struct when only possible event
- * @address:		[DEVICE] associated register address
- * @mask:		[DEVICE] associated mask for identifying event source
- * @st:			[DEVICE] device specific state information
- **/
-struct iio_work_cont {
-	struct work_struct	ws;
-	struct work_struct	ws_nocheck;
-	int			address;
-	int			mask;
-	void			*st;
-};
-
-#define to_iio_work_cont_check(_ws)			\
-	container_of(_ws, struct iio_work_cont, ws)
-
-#define to_iio_work_cont_no_check(_ws)				\
-	container_of(_ws, struct iio_work_cont, ws_nocheck)
-
-/**
- * iio_init_work_cont() - intiialize the elements of a work container
- * @cont: the work container
- * @_checkfunc: function called when there are multiple possible int sources
- * @_nocheckfunc: function for when there is only one int source
- * @_add: driver dependent, typically a register address
- * @_mask: driver dependent, typically a bit mask for a register
- * @_st: driver dependent, typically pointer to a device state structure
- **/
-static inline void
-iio_init_work_cont(struct iio_work_cont *cont,
-		   void (*_checkfunc)(struct work_struct *),
-		   void (*_nocheckfunc)(struct work_struct *),
-		   int _add, int _mask, void *_st)
-{
-	INIT_WORK(&(cont)->ws, _checkfunc);
-	INIT_WORK(&(cont)->ws_nocheck, _nocheckfunc);
-	cont->address = _add;
-	cont->mask = _mask;
-	cont->st = _st;
-}
-/**
  * __iio_push_event() - tries to add an event to the list associated with a chrdev
  * @ev_int:		the event interface to which we are pushing the event
  * @ev_code:		the outgoing event code
@@ -340,7 +332,7 @@ void iio_deallocate_chrdev(struct iio_handler *handler);
 #define IIO_UNSIGNED(a) (a)
 
 extern dev_t iio_devt;
-extern struct class iio_class;
+extern struct bus_type iio_bus_type;
 
 /**
  * iio_put_device() - reference counted deallocation of struct device
@@ -391,7 +383,9 @@ void iio_put(void);
  **/
 void iio_get(void);
 
-/* Ring buffer related */
+/**
+ * iio_device_get_chrdev_minor() - get an unused minor number
+ **/
 int iio_device_get_chrdev_minor(void);
 void iio_device_free_chrdev_minor(int val);
 

@@ -31,6 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 
 #include <linux/i2c/twl.h>
 
@@ -231,10 +232,11 @@ static const struct sih sih_modules_twl5031[8] = {
 	},
 	[6] = {
 		/*
-		 * ACI doesn't use the same SIH organization.
-		 * For example, it supports only one interrupt line
+		 * ECI/DBI doesn't use the same SIH organization.
+		 * For example, it supports only one interrupt output line.
+		 * That is, the interrupts are seen on both INT1 and INT2 lines.
 		 */
-		.name		= "aci",
+		.name		= "eci_dbi",
 		.module		= TWL5031_MODULE_ACCESSORY,
 		.bits		= 9,
 		.bytes_ixr	= 2,
@@ -246,8 +248,8 @@ static const struct sih sih_modules_twl5031[8] = {
 
 	},
 	[7] = {
-		/* Accessory */
-		.name		= "acc",
+		/* Audio accessory */
+		.name		= "audio",
 		.module		= TWL5031_MODULE_ACCESSORY,
 		.control_offset	= TWL5031_ACCSIHCTRL,
 		.bits		= 2,

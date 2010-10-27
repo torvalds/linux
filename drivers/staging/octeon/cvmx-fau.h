@@ -299,7 +299,7 @@ cvmx_fau_tagwait_fetch_and_add8(cvmx_fau_reg_8_t reg, int8_t value)
 /**
  * Builds I/O data for async operations
  *
- * @scraddr: Scratch pad byte addres to write to.  Must be 8 byte aligned
+ * @scraddr: Scratch pad byte address to write to.  Must be 8 byte aligned
  * @value:   Signed value to add.
  *                Note: When performing 32 and 64 bit access, only the low
  *                22 bits are available.

@@ -30,7 +30,6 @@ struct serio {
 	char phys[32];
 
 	bool manual_bind;
-	bool registered;	/* port has been fully registered with driver core */
 
 	struct serio_device_id id;
 
@@ -197,5 +196,6 @@ static inline void serio_continue_rx(struct serio *serio)
 #define SERIO_TOUCHIT213	0x38
 #define SERIO_W8001	0x39
 #define SERIO_DYNAPRO	0x3a
+#define SERIO_HAMPSHIRE	0x3b
 
 #endif

@@ -37,14 +37,15 @@
 
 #define NES_PHY_TYPE_CX4       1
 #define NES_PHY_TYPE_1G        2
-#define NES_PHY_TYPE_IRIS      3
 #define NES_PHY_TYPE_ARGUS     4
 #define NES_PHY_TYPE_PUMA_1G   5
 #define NES_PHY_TYPE_PUMA_10G  6
 #define NES_PHY_TYPE_GLADIUS   7
 #define NES_PHY_TYPE_SFP_D     8
+#define NES_PHY_TYPE_KR	       9
 
 #define NES_MULTICAST_PF_MAX 8
+#define NES_A0 3
 
 enum pci_regs {
 	NES_INT_STAT = 0x0000,
@@ -160,6 +161,7 @@ enum indexed_regs {
 	NES_IDX_ENDNODE0_NSTAT_TX_OCTETS_HI = 0x7004,
 	NES_IDX_ENDNODE0_NSTAT_TX_FRAMES_LO = 0x7008,
 	NES_IDX_ENDNODE0_NSTAT_TX_FRAMES_HI = 0x700c,
+	NES_IDX_WQM_CONFIG0 = 0x5000,
 	NES_IDX_WQM_CONFIG1 = 0x5004,
 	NES_IDX_CM_CONFIG = 0x5100,
 	NES_IDX_NIC_LOGPORT_TO_PHYPORT = 0x6000,
@@ -1099,11 +1101,12 @@ struct nes_adapter {
 	u32 wqm_wat;
 	u32 core_clock;
 	u32 firmware_version;
+	u32 eeprom_version;
 
 	u32 nic_rx_eth_route_err;
 
 	u32 et_rx_coalesce_usecs;
-	u32	et_rx_max_coalesced_frames;
+	u32 et_rx_max_coalesced_frames;
 	u32 et_rx_coalesce_usecs_irq;
 	u32 et_rx_max_coalesced_frames_irq;
 	u32 et_pkt_rate_low;

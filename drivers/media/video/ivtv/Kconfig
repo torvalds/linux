@@ -3,7 +3,7 @@ config VIDEO_IVTV
 	depends on VIDEO_V4L2 && PCI && I2C
 	depends on INPUT   # due to VIDEO_IR
 	select I2C_ALGOBIT
-	select VIDEO_IR
+	depends on VIDEO_IR
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_CX2341X

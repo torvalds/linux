@@ -22,7 +22,7 @@
 static char			const *input_name = "perf.data";
 
 static char			default_sort_order[] = "avg, max, switch, runtime";
-static char			*sort_order = default_sort_order;
+static const char		*sort_order = default_sort_order;
 
 static int			profile_cpu = -1;
 
@@ -68,10 +68,10 @@ enum sched_event_type {
 
 struct sched_atom {
 	enum sched_event_type	type;
+	int			specific_wait;
 	u64			timestamp;
 	u64			duration;
 	unsigned long		nr;
-	int			specific_wait;
 	sem_t			*wait_sem;
 	struct task_desc	*wakee;
 };
@@ -105,7 +105,7 @@ static u64			sum_runtime;
 static u64			sum_fluct;
 static u64			run_avg;
 
-static unsigned long		replay_repeat = 10;
+static unsigned int		replay_repeat = 10;
 static unsigned long		nr_timestamps;
 static unsigned long		nr_unordered_timestamps;
 static unsigned long		nr_state_machine_bugs;
@@ -1621,11 +1621,8 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 	event__parse_sample(event, session->sample_type, &data);
 
-	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
-		event->header.misc,
-		data.pid, data.tid,
-		(void *)(long)data.ip,
-		(long long)data.period);
+	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
+		    data.pid, data.tid, data.ip, data.period);
 
 	thread = perf_session__findnew(session, data.pid);
 	if (thread == NULL) {
@@ -1644,42 +1641,28 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	return 0;
 }
 
-static int process_lost_event(event_t *event __used,
-			      struct perf_session *session __used)
-{
-	nr_lost_chunks++;
-	nr_lost_events += event->lost.lost;
-
-	return 0;
-}
-
-static int sample_type_check(struct perf_session *session __used)
-{
-	if (!(session->sample_type & PERF_SAMPLE_RAW)) {
-		fprintf(stderr,
-			"No trace sample to read. Did you call perf record "
-			"without -R?");
-		return -1;
-	}
-
-	return 0;
-}
-
 static struct perf_event_ops event_ops = {
-	.process_sample_event	= process_sample_event,
-	.process_comm_event	= event__process_comm,
-	.process_lost_event	= process_lost_event,
-	.sample_type_check	= sample_type_check,
+	.sample			= process_sample_event,
+	.comm			= event__process_comm,
+	.lost			= event__process_lost,
+	.fork			= event__process_task,
+	.ordered_samples	= true,
 };
 
 static int read_events(void)
 {
-	int err;
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
+	int err = -EINVAL;
+	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0, false);
 	if (session == NULL)
 		return -ENOMEM;
 
-	err = perf_session__process_events(session, &event_ops);
+	if (perf_session__has_traces(session, "record -R")) {
+		err = perf_session__process_events(session, &event_ops);
+		nr_events      = session->hists.stats.nr_events[0];
+		nr_lost_events = session->hists.stats.total_lost;
+		nr_lost_chunks = session->hists.stats.nr_events[PERF_RECORD_LOST];
+	}
+
 	perf_session__delete(session);
 	return err;
 }
@@ -1804,7 +1787,7 @@ static const char * const sched_usage[] = {
 static const struct option sched_options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
@@ -1819,7 +1802,7 @@ static const char * const latency_usage[] = {
 static const struct option latency_options[] = {
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): runtime, switch, avg, max"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_INTEGER('C', "CPU", &profile_cpu,
 		    "CPU to profile on"),
@@ -1834,9 +1817,9 @@ static const char * const replay_usage[] = {
 };
 
 static const struct option replay_options[] = {
-	OPT_INTEGER('r', "repeat", &replay_repeat,
-		    "repeat the workload replay N times (-1: infinite)"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_UINTEGER('r', "repeat", &replay_repeat,
+		     "repeat the workload replay N times (-1: infinite)"),
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
@@ -1864,7 +1847,6 @@ static const char *record_args[] = {
 	"record",
 	"-a",
 	"-R",
-	"-M",
 	"-f",
 	"-m", "1024",
 	"-c", "1",

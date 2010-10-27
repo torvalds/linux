@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/time.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/stat.h>
 #include <linux/errno.h>

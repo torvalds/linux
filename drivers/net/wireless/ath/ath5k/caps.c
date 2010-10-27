@@ -34,7 +34,6 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 {
 	u16 ee_header;
 
-	ATH5K_TRACE(ah->ah_sc);
 	/* Capabilities stored in the EEPROM */
 	ee_header = ah->ah_capabilities.cap_eeprom.ee_header;
 
@@ -102,15 +101,18 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 		}
 	}
 
-	/* GPIO */
-	ah->ah_gpio_npins = AR5K_NUM_GPIO;
-
 	/* Set number of supported TX queues */
 	if (ah->ah_version == AR5K_AR5210)
 		ah->ah_capabilities.cap_queues.q_tx_num =
 			AR5K_NUM_TX_QUEUES_NOQCU;
 	else
 		ah->ah_capabilities.cap_queues.q_tx_num = AR5K_NUM_TX_QUEUES;
+
+	/* newer hardware has PHY error counters */
+	if (ah->ah_mac_srev >= AR5K_SREV_AR5213A)
+		ah->ah_capabilities.cap_has_phyerr_counters = true;
+	else
+		ah->ah_capabilities.cap_has_phyerr_counters = false;
 
 	return 0;
 }
@@ -120,8 +122,6 @@ int ath5k_hw_get_capability(struct ath5k_hw *ah,
 		enum ath5k_capability_type cap_type,
 		u32 capability, u32 *result)
 {
-	ATH5K_TRACE(ah->ah_sc);
-
 	switch (cap_type) {
 	case AR5K_CAP_NUM_TXQUEUES:
 		if (result) {
@@ -170,8 +170,6 @@ yes:
 int ath5k_hw_enable_pspoll(struct ath5k_hw *ah, u8 *bssid,
 		u16 assoc_id)
 {
-	ATH5K_TRACE(ah->ah_sc);
-
 	if (ah->ah_version == AR5K_AR5210) {
 		AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1,
 			AR5K_STA_ID1_NO_PSPOLL | AR5K_STA_ID1_DEFAULT_ANTENNA);
@@ -183,8 +181,6 @@ int ath5k_hw_enable_pspoll(struct ath5k_hw *ah, u8 *bssid,
 
 int ath5k_hw_disable_pspoll(struct ath5k_hw *ah)
 {
-	ATH5K_TRACE(ah->ah_sc);
-
 	if (ah->ah_version == AR5K_AR5210) {
 		AR5K_REG_ENABLE_BITS(ah, AR5K_STA_ID1,
 			AR5K_STA_ID1_NO_PSPOLL | AR5K_STA_ID1_DEFAULT_ANTENNA);

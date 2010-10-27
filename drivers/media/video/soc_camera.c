@@ -24,6 +24,8 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include <linux/vmalloc.h>
 
 #include <media/soc_camera.h>
@@ -198,7 +200,8 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	int i, fmts = 0, raw_fmts = 0, ret;
+	unsigned int i, fmts = 0, raw_fmts = 0;
+	int ret;
 	enum v4l2_mbus_pixelcode code;
 
 	while (!v4l2_subdev_call(sd, video, enum_mbus_fmt, raw_fmts, &code))
@@ -387,6 +390,11 @@ static int soc_camera_open(struct file *file)
 			goto eiciadd;
 		}
 
+		pm_runtime_enable(&icd->vdev->dev);
+		ret = pm_runtime_resume(&icd->vdev->dev);
+		if (ret < 0 && ret != -ENOSYS)
+			goto eresume;
+
 		/*
 		 * Try to configure with default parameters. Notice: this is the
 		 * very first open, so, we cannot race against other calls,
@@ -408,10 +416,12 @@ static int soc_camera_open(struct file *file)
 	return 0;
 
 	/*
-	 * First five errors are entered with the .video_lock held
+	 * First four errors are entered with the .video_lock held
 	 * and use_count == 1
 	 */
 esfmt:
+	pm_runtime_disable(&icd->vdev->dev);
+eresume:
 	ici->ops->remove(icd);
 eiciadd:
 	if (icl->power)
@@ -436,7 +446,11 @@ static int soc_camera_close(struct file *file)
 	if (!icd->use_count) {
 		struct soc_camera_link *icl = to_soc_camera_link(icd);
 
+		pm_runtime_suspend(&icd->vdev->dev);
+		pm_runtime_disable(&icd->vdev->dev);
+
 		ici->ops->remove(icd);
+
 		if (icl->power)
 			icl->power(icd->pdev, 0);
 	}
@@ -740,8 +754,7 @@ static int soc_camera_g_crop(struct file *file, void *fh,
 /*
  * According to the V4L2 API, drivers shall not update the struct v4l2_crop
  * argument with the actual geometry, instead, the user shall use G_CROP to
- * retrieve it. However, we expect camera host and client drivers to update
- * the argument, which we then use internally, but do not return to the user.
+ * retrieve it.
  */
 static int soc_camera_s_crop(struct file *file, void *fh,
 			     struct v4l2_crop *a)
@@ -766,9 +779,12 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	ret = ici->ops->get_crop(icd, &current_crop);
 
 	/* Prohibit window size change with initialised buffers */
-	if (icf->vb_vidq.bufs[0] && !ret &&
-	    (a->c.width != current_crop.c.width ||
-	     a->c.height != current_crop.c.height)) {
+	if (ret < 0) {
+		dev_err(&icd->dev,
+			"S_CROP denied: getting current crop failed\n");
+	} else if (icf->vb_vidq.bufs[0] &&
+		   (a->c.width != current_crop.c.width ||
+		    a->c.height != current_crop.c.height)) {
 		dev_err(&icd->dev,
 			"S_CROP denied: queue initialised and sizes differ\n");
 		ret = -EBUSY;
@@ -779,6 +795,32 @@ static int soc_camera_s_crop(struct file *file, void *fh,
 	mutex_unlock(&icf->vb_vidq.vb_lock);
 
 	return ret;
+}
+
+static int soc_camera_g_parm(struct file *file, void *fh,
+			     struct v4l2_streamparm *a)
+{
+	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = icf->icd;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+
+	if (ici->ops->get_parm)
+		return ici->ops->get_parm(icd, a);
+
+	return -ENOIOCTLCMD;
+}
+
+static int soc_camera_s_parm(struct file *file, void *fh,
+			     struct v4l2_streamparm *a)
+{
+	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = icf->icd;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+
+	if (ici->ops->set_parm)
+		return ici->ops->set_parm(icd, a);
+
+	return -ENOIOCTLCMD;
 }
 
 static int soc_camera_g_chip_ident(struct file *file, void *fh,
@@ -846,10 +888,8 @@ static int soc_camera_init_i2c(struct soc_camera_device *icd,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct i2c_adapter *adap = i2c_get_adapter(icl->i2c_adapter_id);
 	struct v4l2_subdev *subdev;
-	int ret;
 
 	if (!adap) {
-		ret = -ENODEV;
 		dev_err(&icd->dev, "Cannot get I2C adapter #%d. No driver?\n",
 			icl->i2c_adapter_id);
 		goto ei2cga;
@@ -859,10 +899,8 @@ static int soc_camera_init_i2c(struct soc_camera_device *icd,
 
 	subdev = v4l2_i2c_new_subdev_board(&ici->v4l2_dev, adap,
 				icl->module_name, icl->board_info, NULL);
-	if (!subdev) {
-		ret = -ENOMEM;
+	if (!subdev)
 		goto ei2cnd;
-	}
 
 	client = subdev->priv;
 
@@ -873,7 +911,7 @@ static int soc_camera_init_i2c(struct soc_camera_device *icd,
 ei2cnd:
 	i2c_put_adapter(adap);
 ei2cga:
-	return ret;
+	return -ENODEV;
 }
 
 static void soc_camera_free_i2c(struct soc_camera_device *icd)
@@ -1072,13 +1110,14 @@ static int soc_camera_resume(struct device *dev)
 	return ret;
 }
 
-static struct bus_type soc_camera_bus_type = {
+struct bus_type soc_camera_bus_type = {
 	.name		= "soc-camera",
 	.probe		= soc_camera_probe,
 	.remove		= soc_camera_remove,
 	.suspend	= soc_camera_suspend,
 	.resume		= soc_camera_resume,
 };
+EXPORT_SYMBOL_GPL(soc_camera_bus_type);
 
 static struct device_driver ic_drv = {
 	.name	= "camera",
@@ -1260,6 +1299,8 @@ static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 	.vidioc_cropcap		 = soc_camera_cropcap,
 	.vidioc_g_crop		 = soc_camera_g_crop,
 	.vidioc_s_crop		 = soc_camera_s_crop,
+	.vidioc_g_parm		 = soc_camera_g_parm,
+	.vidioc_s_parm		 = soc_camera_s_parm,
 	.vidioc_g_chip_ident     = soc_camera_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register	 = soc_camera_g_register,
@@ -1294,6 +1335,7 @@ static int video_dev_create(struct soc_camera_device *icd)
  */
 static int soc_camera_video_start(struct soc_camera_device *icd)
 {
+	struct device_type *type = icd->vdev->dev.type;
 	int ret;
 
 	if (!icd->dev.parent)
@@ -1309,6 +1351,9 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 		dev_err(&icd->dev, "video_register_device failed: %d\n", ret);
 		return ret;
 	}
+
+	/* Restore device type, possibly set by the subdevice driver */
+	icd->vdev->dev.type = type;
 
 	return 0;
 }

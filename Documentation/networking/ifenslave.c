@@ -756,7 +756,7 @@ static int enslave(char *master_ifname, char *slave_ifname)
 		 */
 		if (abi_ver < 1) {
 			/* For old ABI, the master needs to be
-			 * down before setting it's hwaddr
+			 * down before setting its hwaddr
 			 */
 			res = set_if_down(master_ifname, master_flags.ifr_flags);
 			if (res) {

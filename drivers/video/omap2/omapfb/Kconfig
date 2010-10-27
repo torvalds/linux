@@ -16,16 +16,7 @@ config FB_OMAP2_DEBUG_SUPPORT
 	depends on FB_OMAP2
 	help
 	  Support for debug output. You have to enable the actual printing
-	  with debug module parameter.
-
-config FB_OMAP2_FORCE_AUTO_UPDATE
-	bool "Force main display to automatic update mode"
-	depends on FB_OMAP2
-	help
-	  Forces main display to automatic update mode (if possible),
-	  and also enables tearsync (if possible). By default
-	  displays that support manual update are started in manual
-	  update mode.
+	  with 'debug' module parameter.
 
 config FB_OMAP2_NUM_FBS
 	int "Number of framebuffers"

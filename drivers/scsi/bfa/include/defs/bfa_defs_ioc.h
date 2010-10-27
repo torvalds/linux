@@ -126,6 +126,7 @@ struct bfa_ioc_attr_s {
 	struct bfa_ioc_driver_attr_s 	driver_attr;	/*  driver attr    */
 	struct bfa_ioc_pci_attr_s	pci_attr;
 	u8				port_id;	/*  port number    */
+	u8				rsvd[7];	/*  64bit align    */
 };
 
 /**
@@ -137,14 +138,19 @@ enum bfa_ioc_aen_event {
 	BFA_IOC_AEN_ENABLE	= 3,	/*  IOC enabled event		*/
 	BFA_IOC_AEN_DISABLE	= 4,	/*  IOC disabled event		*/
 	BFA_IOC_AEN_FWMISMATCH	= 5,	/*  IOC firmware mismatch	*/
+	BFA_IOC_AEN_FWCFG_ERROR = 6,    /*  IOC firmware config error   */
+	BFA_IOC_AEN_INVALID_VENDOR = 7,
+	BFA_IOC_AEN_INVALID_NWWN = 8,   /*  Zero NWWN                   */
+	BFA_IOC_AEN_INVALID_PWWN = 9    /*  Zero PWWN                   */
+
 };
 
 /**
  * BFA IOC level event data, now just a place holder
  */
 struct bfa_ioc_aen_data_s {
-	enum bfa_ioc_type_e ioc_type;
 	wwn_t	pwwn;
+	s16 ioc_type;
 	mac_t	mac;
 };
 

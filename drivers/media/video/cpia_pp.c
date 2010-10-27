@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <linux/kmod.h>
 

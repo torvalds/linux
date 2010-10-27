@@ -24,6 +24,7 @@
 #include <linux/string.h>
 #include <linux/jiffies.h>
 #include <media/ir-common.h>
+#include "ir-core-priv.h"
 
 /* -------------------------------------------------------------------------- */
 
@@ -52,7 +53,7 @@ static void ir_input_key_event(struct input_dev *dev, struct ir_input_state *ir)
 /* -------------------------------------------------------------------------- */
 
 int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
-		   int ir_type)
+		  const u64 ir_type)
 {
 	ir->ir_type = ir_type;
 

@@ -30,6 +30,7 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
+#include <linux/semaphore.h>
 
 #include <linux/delay.h>
 #include <linux/wireless.h>
@@ -167,6 +168,10 @@ typedef struct ieee_param {
 /* QOS control */
 #define IEEE80211_QCTL_TID              0x000F
 
+#define OUI_SUBTYPE_WMM_INFO		0
+#define OUI_SUBTYPE_WMM_PARAM	1
+#define OUI_SUBTYPE_QOS_CAPABI	5
+
 /* debug macros */
 #define CONFIG_IEEE80211_DEBUG
 #ifdef CONFIG_IEEE80211_DEBUG
@@ -194,10 +199,6 @@ extern u32 ieee80211_debug_level;
 #define IEEE80211_DEBUG(level, fmt, args...) do {} while (0)
 #define IEEE80211_DEBUG_DATA(level, data, datalen) do {} while(0)
 #endif	/* CONFIG_IEEE80211_DEBUG */
-
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], \
-		   ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5]
 
 /*
  * To use the debug system;
@@ -606,16 +607,6 @@ struct ieee80211_hdr_2addr {
         __le16 duration_id;
         u8 addr1[ETH_ALEN];
         u8 addr2[ETH_ALEN];
-        u8 payload[0];
-} __attribute__ ((packed));
-
-struct ieee80211_hdr_3addr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	__le16 seq_ctl;
         u8 payload[0];
 } __attribute__ ((packed));
 
@@ -1133,10 +1124,26 @@ enum {
 	COUNTRY_CODE_MKK = 5,
 	COUNTRY_CODE_MKK1 = 6,
 	COUNTRY_CODE_ISRAEL = 7,
-	COUNTRY_CODE_TELEC,
-	COUNTRY_CODE_MIC,
-	COUNTRY_CODE_GLOBAL_DOMAIN
+	COUNTRY_CODE_TELEC = 8,
+	COUNTRY_CODE_MIC = 9,
+	COUNTRY_CODE_GLOBAL_DOMAIN = 10,
+	COUNTRY_CODE_WORLD_WIDE_13 = 11,
+	COUNTRY_CODE_TELEC_NETGEAR = 12,
+	COUNTRY_CODE_MAX
 };
+
+#define	NUM_PMKID_CACHE		16
+
+typedef struct _RT_PMKID_LIST
+{
+	u8						bUsed;
+	u8 						Bssid[6];
+	u8						PMKID[16];
+	u8						SsidBuf[33];
+	u8*						ssid_octet;
+	u16 					ssid_length;
+} RT_PMKID_LIST, *PRT_PMKID_LIST;
+
 
 #include "ieee80211_r8192s.h"
 
@@ -1147,6 +1154,7 @@ struct ieee80211_device {
 	/* hw security related */
 	u8 hwsec_active;
 	bool is_silent_reset;
+	bool force_mic_error;
 	bool is_roaming;
 	bool ieee_up;
 	bool bSupportRemoteWakeUp;
@@ -1165,7 +1173,7 @@ struct ieee80211_device {
 	spinlock_t reorder_spinlock;
 	/*
 	 * for HT operation rate set, we use this one for HT data rate to
-	 * seperate different descriptors the way fill this is the same as
+	 * separate different descriptors the way fill this is the same as
 	 * in the IE
 	 */
 	u8	Regdot11HTOperationalRateSet[16];	/* use RATR format */
@@ -1260,6 +1268,7 @@ struct ieee80211_device {
 	int bcrx_sta_key; /* use individual keys to override default keys even
 			   * with RX of broad/multicast frames */
 
+	RT_PMKID_LIST		PMKIDList[NUM_PMKID_CACHE];
 	/* Fragmentation structures */
 	// each streaming contain a entry
 	struct ieee80211_frag_entry frag_cache[17][IEEE80211_FRAG_CACHE_LEN];
@@ -1308,6 +1317,10 @@ struct ieee80211_device {
 	 */
 	void *pDot11dInfo;
 	bool bGlobalDomain;
+
+	u8   IbssStartChnl;
+	u8   ibss_maxjoin_chal;
+
 	int rate;       /* current rate */
 	int basic_rate;
 	//FIXME: pleace callback, see if redundant with softmac_features
@@ -1672,7 +1685,7 @@ static inline u8 *ieee80211_get_payload(struct rtl_ieee80211_hdr *hdr)
         case IEEE80211_2ADDR_LEN:
                 return ((struct ieee80211_hdr_2addr *)hdr)->payload;
         case IEEE80211_3ADDR_LEN:
-                return ((struct ieee80211_hdr_3addr *)hdr)->payload;
+                return (void *)hdr+sizeof(struct ieee80211_hdr_3addr);
         case IEEE80211_4ADDR_LEN:
                 return ((struct ieee80211_hdr_4addr *)hdr)->payload;
         }

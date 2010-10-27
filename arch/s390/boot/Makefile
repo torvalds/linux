@@ -9,9 +9,17 @@ COMPILE_VERSION := __linux_compile_version_id__`hostname |  \
 EXTRA_CFLAGS  := -DCOMPILE_VERSION=$(COMPILE_VERSION) -gstabs -I.
 
 targets := image
+targets += bzImage
+subdir- := compressed
 
 $(obj)/image: vmlinux FORCE
 	$(call if_changed,objcopy)
+
+$(obj)/bzImage: $(obj)/compressed/vmlinux FORCE
+	$(call if_changed,objcopy)
+
+$(obj)/compressed/vmlinux: FORCE
+	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
 
 install: $(CONFIGURE) $(obj)/image
 	sh -x  $(srctree)/$(obj)/install.sh $(KERNELRELEASE) $(obj)/image \

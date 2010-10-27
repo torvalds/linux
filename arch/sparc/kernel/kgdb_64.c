@@ -5,6 +5,7 @@
 
 #include <linux/kgdb.h>
 #include <linux/kdebug.h>
+#include <linux/ftrace.h>
 
 #include <asm/kdebug.h>
 #include <asm/ptrace.h>
@@ -108,7 +109,7 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_SMP
-void smp_kgdb_capture_client(int irq, struct pt_regs *regs)
+void __irq_entry smp_kgdb_capture_client(int irq, struct pt_regs *regs)
 {
 	unsigned long flags;
 
@@ -178,6 +179,12 @@ int kgdb_arch_init(void)
 
 void kgdb_arch_exit(void)
 {
+}
+
+void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
+{
+	regs->tpc = ip;
+	regs->tnpc = regs->tpc + 4;
 }
 
 struct kgdb_arch arch_kgdb_ops = {

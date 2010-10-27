@@ -121,7 +121,7 @@ static struct s3c2410_platform_nand __initdata vstms_nand_info = {
 };
 
 static struct platform_device *vstms_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
 	&s3c_device_iis,
@@ -137,7 +137,6 @@ static void __init vstms_fixup(struct machine_desc *desc,
 		mi->nr_banks=1;
 		mi->bank[0].start = 0x30000000;
 		mi->bank[0].size = SZ_64M;
-		mi->bank[0].node = 0;
 	}
 }
 

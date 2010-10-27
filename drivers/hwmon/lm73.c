@@ -16,7 +16,6 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
@@ -137,7 +136,6 @@ static int lm73_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm73_group);
-	i2c_set_clientdata(client, NULL);
 	return 0;
 }
 

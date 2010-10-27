@@ -19,6 +19,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <linux/tc_act/tc_ipt.h>
@@ -46,8 +47,8 @@ static int ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int
 
 	target = xt_request_find_target(AF_INET, t->u.user.name,
 					t->u.user.revision);
-	if (!target)
-		return -ENOENT;
+	if (IS_ERR(target))
+		return PTR_ERR(target);
 
 	t->u.kernel.target = target;
 	par.table     = table;
@@ -198,7 +199,7 @@ static int tcf_ipt(struct sk_buff *skb, struct tc_action *a,
 {
 	int ret = 0, result = 0;
 	struct tcf_ipt *ipt = a->priv;
-	struct xt_target_param par;
+	struct xt_action_param par;
 
 	if (skb_cloned(skb)) {
 		if (pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
@@ -234,7 +235,8 @@ static int tcf_ipt(struct sk_buff *skb, struct tc_action *a,
 		break;
 	default:
 		if (net_ratelimit())
-			printk("Bogus netfilter code %d assume ACCEPT\n", ret);
+			pr_notice("tc filter: Bogus netfilter code"
+				  " %d assume ACCEPT\n", ret);
 		result = TC_POLICE_OK;
 		break;
 	}

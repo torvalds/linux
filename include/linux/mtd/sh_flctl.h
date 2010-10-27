@@ -51,6 +51,8 @@
 #define _4ECCCNTEN	(0x1 << 24)
 #define _4ECCEN		(0x1 << 23)
 #define _4ECCCORRECT	(0x1 << 22)
+#define SHBUSSEL	(0x1 << 20)
+#define SEL_16BIT	(0x1 << 19)
 #define SNAND_E		(0x1 << 18)	/* SNAND (0=512 1=2048)*/
 #define QTSEL_E		(0x1 << 17)
 #define ENDIAN		(0x1 << 16)	/* 1 = little endian */
@@ -91,11 +93,10 @@
 #define INIT_FL4ECCRESULT_VAL	0x03FF03FF
 #define LOOP_TIMEOUT_MAX	0x00010000
 
-#define mtd_to_flctl(mtd)	container_of(mtd, struct sh_flctl, mtd)
-
 struct sh_flctl {
 	struct mtd_info		mtd;
 	struct nand_chip	chip;
+	struct platform_device	*pdev;
 	void __iomem		*reg;
 
 	uint8_t	done_buff[2048 + 64];	/* max size 2048 + 64 */
@@ -121,5 +122,10 @@ struct sh_flctl_platform_data {
 
 	unsigned has_hwecc:1;
 };
+
+static inline struct sh_flctl *mtd_to_flctl(struct mtd_info *mtdinfo)
+{
+	return container_of(mtdinfo, struct sh_flctl, mtd);
+}
 
 #endif	/* __SH_FLCTL_H__ */

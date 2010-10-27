@@ -53,7 +53,7 @@
  * Address is fully defined internally and cannot be changed.
  */
 
-static const unsigned short normal_i2c[] = { 0x4c, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x18, 0x4c, 0x4e, I2C_CLIENT_END };
 
 /*
  * The LM63 registers
@@ -131,12 +131,15 @@ static struct lm63_data *lm63_update_device(struct device *dev);
 static int lm63_detect(struct i2c_client *client, struct i2c_board_info *info);
 static void lm63_init_client(struct i2c_client *client);
 
+enum chips { lm63, lm64 };
+
 /*
  * Driver data (common to all clients)
  */
 
 static const struct i2c_device_id lm63_id[] = {
-	{ "lm63", 0 },
+	{ "lm63", lm63 },
+	{ "lm64", lm64 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm63_id);
@@ -422,6 +425,7 @@ static int lm63_detect(struct i2c_client *new_client,
 	struct i2c_adapter *adapter = new_client->adapter;
 	u8 man_id, chip_id, reg_config1, reg_config2;
 	u8 reg_alert_status, reg_alert_mask;
+	int address = new_client->addr;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
@@ -439,7 +443,6 @@ static int lm63_detect(struct i2c_client *new_client,
 			 LM63_REG_ALERT_MASK);
 
 	if (man_id != 0x01 /* National Semiconductor */
-	 || chip_id != 0x41 /* LM63 */
 	 || (reg_config1 & 0x18) != 0x00
 	 || (reg_config2 & 0xF8) != 0x00
 	 || (reg_alert_status & 0x20) != 0x00
@@ -450,7 +453,12 @@ static int lm63_detect(struct i2c_client *new_client,
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, "lm63", I2C_NAME_SIZE);
+	if (chip_id == 0x41 && address == 0x4c)
+		strlcpy(info->type, "lm63", I2C_NAME_SIZE);
+	else if (chip_id == 0x51 && (address == 0x18 || address == 0x4e))
+		strlcpy(info->type, "lm64", I2C_NAME_SIZE);
+	else
+		return -ENODEV;
 
 	return 0;
 }

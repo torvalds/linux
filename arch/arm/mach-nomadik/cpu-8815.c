@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/amba/bus.h>
+#include <linux/platform_device.h>
 #include <linux/gpio.h>
 
 #include <mach/hardware.h>
@@ -30,73 +31,93 @@
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
 
+#include "clock.h"
+
+#define __MEM_4K_RESOURCE(x) \
+	.res = {.start = (x), .end = (x) + SZ_4K - 1, .flags = IORESOURCE_MEM}
+
 /* The 8815 has 4 GPIO blocks, let's register them immediately */
+
+#define GPIO_RESOURCE(block)						\
+	{								\
+		.start	= NOMADIK_GPIO##block##_BASE,			\
+		.end	= NOMADIK_GPIO##block##_BASE + SZ_4K - 1,	\
+		.flags	= IORESOURCE_MEM,				\
+	},								\
+	{								\
+		.start	= IRQ_GPIO##block,				\
+		.end	= IRQ_GPIO##block,				\
+		.flags	= IORESOURCE_IRQ,				\
+	}
+
+#define GPIO_DEVICE(block)						\
+	{								\
+		.name 		= "gpio",				\
+		.id		= block,				\
+		.num_resources 	= 2,					\
+		.resource	= &cpu8815_gpio_resources[block * 2],	\
+		.dev = {						\
+			.platform_data = &cpu8815_gpio[block],		\
+		},							\
+	}
+
 static struct nmk_gpio_platform_data cpu8815_gpio[] = {
 	{
 		.name = "GPIO-0-31",
 		.first_gpio = 0,
 		.first_irq = NOMADIK_GPIO_TO_IRQ(0),
-		.parent_irq = IRQ_GPIO0,
 	}, {
 		.name = "GPIO-32-63",
 		.first_gpio = 32,
 		.first_irq = NOMADIK_GPIO_TO_IRQ(32),
-		.parent_irq = IRQ_GPIO1,
 	}, {
 		.name = "GPIO-64-95",
 		.first_gpio = 64,
 		.first_irq = NOMADIK_GPIO_TO_IRQ(64),
-		.parent_irq = IRQ_GPIO2,
 	}, {
 		.name = "GPIO-96-127", /* 124..127 not routed to pin */
 		.first_gpio = 96,
 		.first_irq = NOMADIK_GPIO_TO_IRQ(96),
-		.parent_irq = IRQ_GPIO3,
 	}
 };
 
-#define __MEM_4K_RESOURCE(x) \
-	.res = {.start = (x), .end = (x) + SZ_4K - 1, .flags = IORESOURCE_MEM}
+static struct resource cpu8815_gpio_resources[] = {
+	GPIO_RESOURCE(0),
+	GPIO_RESOURCE(1),
+	GPIO_RESOURCE(2),
+	GPIO_RESOURCE(3),
+};
 
-static struct amba_device cpu8815_amba_gpio[] = {
-	{
-		.dev = {
-			.init_name = "gpio0",
-			.platform_data = cpu8815_gpio + 0,
-		},
-		__MEM_4K_RESOURCE(NOMADIK_GPIO0_BASE),
-	}, {
-		.dev = {
-			.init_name = "gpio1",
-			.platform_data = cpu8815_gpio + 1,
-		},
-		__MEM_4K_RESOURCE(NOMADIK_GPIO1_BASE),
-	}, {
-		.dev = {
-			.init_name = "gpio2",
-			.platform_data = cpu8815_gpio + 2,
-		},
-		__MEM_4K_RESOURCE(NOMADIK_GPIO2_BASE),
-	}, {
-		.dev = {
-			.init_name = "gpio3",
-			.platform_data = cpu8815_gpio + 3,
-		},
-		__MEM_4K_RESOURCE(NOMADIK_GPIO3_BASE),
+static struct platform_device cpu8815_platform_gpio[] = {
+	GPIO_DEVICE(0),
+	GPIO_DEVICE(1),
+	GPIO_DEVICE(2),
+	GPIO_DEVICE(3),
+};
+
+static struct amba_device cpu8815_amba_rng = {
+	.dev = {
+		.init_name = "rng",
 	},
+	__MEM_4K_RESOURCE(NOMADIK_RNG_BASE),
+};
+
+static struct platform_device *platform_devs[] __initdata = {
+	cpu8815_platform_gpio + 0,
+	cpu8815_platform_gpio + 1,
+	cpu8815_platform_gpio + 2,
+	cpu8815_platform_gpio + 3,
 };
 
 static struct amba_device *amba_devs[] __initdata = {
-	cpu8815_amba_gpio + 0,
-	cpu8815_amba_gpio + 1,
-	cpu8815_amba_gpio + 2,
-	cpu8815_amba_gpio + 3,
+	&cpu8815_amba_rng
 };
 
 static int __init cpu8815_init(void)
 {
 	int i;
 
+	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++)
 		amba_device_register(amba_devs[i], &iomem_resource);
 	return 0;
@@ -124,6 +145,12 @@ void __init cpu8815_init_irq(void)
 	/* This modified VIC cell has two register blocks, at 0 and 0x20 */
 	vic_init(io_p2v(NOMADIK_IC_BASE + 0x00), IRQ_VIC_START +  0, ~0, 0);
 	vic_init(io_p2v(NOMADIK_IC_BASE + 0x20), IRQ_VIC_START + 32, ~0, 0);
+
+	/*
+	 * Init clocks here so that they are available for system timer
+	 * initialization.
+	 */
+	clk_init();
 }
 
 /*

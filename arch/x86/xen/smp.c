@@ -14,6 +14,7 @@
  */
 #include <linux/sched.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <linux/smp.h>
 
 #include <asm/paravirt.h>
@@ -361,7 +362,7 @@ static void xen_cpu_die(unsigned int cpu)
 		alternatives_smp_switch(0);
 }
 
-static void __cpuinit xen_play_dead(void) /* used only with CPU_HOTPLUG */
+static void __cpuinit xen_play_dead(void) /* used only with HOTPLUG_CPU */
 {
 	play_dead_common();
 	HYPERVISOR_vcpu_op(VCPUOP_down, smp_processor_id(), NULL);
@@ -392,6 +393,8 @@ static void stop_self(void *v)
 	/* make sure we're not pinning something down */
 	load_cr3(swapper_pg_dir);
 	/* should set up a minimal gdt */
+
+	set_cpu_online(cpu, false);
 
 	HYPERVISOR_vcpu_op(VCPUOP_down, cpu, NULL);
 	BUG();

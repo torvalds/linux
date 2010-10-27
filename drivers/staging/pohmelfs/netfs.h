@@ -18,6 +18,7 @@
 
 #include <linux/types.h>
 #include <linux/connector.h>
+#include <linux/backing-dev.h>
 
 #define POHMELFS_CN_IDX			5
 #define POHMELFS_CN_VAL			0
@@ -304,7 +305,7 @@ struct pohmelfs_inode {
 };
 
 struct netfs_trans;
-typedef int (* netfs_trans_complete_t)(struct page **pages, unsigned int page_num,
+typedef int (*netfs_trans_complete_t)(struct page **pages, unsigned int page_num,
 		void *private, int err);
 
 struct netfs_state;
@@ -488,7 +489,7 @@ void pohmelfs_crypto_thread_make_ready(struct pohmelfs_crypto_thread *th);
 struct netfs_state {
 	struct mutex		__state_lock;		/* Can not allow to use the same socket simultaneously */
 	struct mutex		__state_send_lock;
-	struct netfs_cmd 	cmd;			/* Cached command */
+	struct netfs_cmd	cmd;			/* Cached command */
 	struct netfs_inode_info	info;			/* Cached inode info */
 
 	void			*data;			/* Cached some data */
@@ -499,9 +500,9 @@ struct netfs_state {
 	struct task_struct	*thread;		/* Async receiving thread */
 
 	/* Waiting/polling machinery */
-	wait_queue_t 		wait;
-	wait_queue_head_t 	*whead;
-	wait_queue_head_t 	thread_wait;
+	wait_queue_t		wait;
+	wait_queue_head_t	*whead;
+	wait_queue_head_t	thread_wait;
 
 	struct mutex		trans_lock;
 	struct rb_root		trans_root;
@@ -619,10 +620,12 @@ struct pohmelfs_sb {
 	/*
 	 * Timed checks: stale transactions, inodes to be freed and so on.
 	 */
-	struct delayed_work 	dwork;
-	struct delayed_work 	drop_dwork;
+	struct delayed_work	dwork;
+	struct delayed_work	drop_dwork;
 
 	struct super_block	*sb;
+
+	struct backing_dev_info	bdi;
 
 	/*
 	 * Algorithm strings.
@@ -908,7 +911,8 @@ static inline void pohmelfs_mcache_put(struct pohmelfs_sb *psb,
 		pohmelfs_mcache_free(psb, m);
 }
 
-//#define POHMELFS_TRUNCATE_ON_INODE_FLUSH
+/*#define POHMELFS_TRUNCATE_ON_INODE_FLUSH
+ */
 
 #endif /* __KERNEL__*/
 

@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/rtnetlink.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "efx.h"
 #include "mdio_10g.h"
 #include "nic.h"
@@ -227,7 +228,8 @@ int sft9001_wait_boot(struct efx_nic *efx)
 		boot_stat = efx_mdio_read(efx, MDIO_MMD_PCS,
 					  PCS_BOOT_STATUS_REG);
 		if (boot_stat >= 0) {
-			EFX_LOG(efx, "PHY boot status = %#x\n", boot_stat);
+			netif_dbg(efx, hw, efx->net_dev,
+				  "PHY boot status = %#x\n", boot_stat);
 			switch (boot_stat &
 				((1 << PCS_BOOT_FATAL_ERROR_LBN) |
 				 (3 << PCS_BOOT_PROGRESS_LBN) |
@@ -462,10 +464,11 @@ static void sfx7101_check_bad_lp(struct efx_nic *efx, bool link_ok)
 			reg |= PMA_PMD_LED_OFF << PMA_PMD_LED_RX_LBN;
 		} else {
 			reg |= PMA_PMD_LED_FLASH << PMA_PMD_LED_RX_LBN;
-			EFX_ERR(efx, "appears to be plugged into a port"
-				" that is not 10GBASE-T capable. The PHY"
-				" supports 10GBASE-T ONLY, so no link can"
-				" be established\n");
+			netif_err(efx, link, efx->net_dev,
+				  "appears to be plugged into a port"
+				  " that is not 10GBASE-T capable. The PHY"
+				  " supports 10GBASE-T ONLY, so no link can"
+				  " be established\n");
 		}
 		efx_mdio_write(efx, MDIO_MMD_PMAPMD,
 			       PMA_PMD_LED_OVERR_REG, reg);
@@ -842,6 +845,7 @@ struct efx_phy_operations falcon_sfx7101_phy_ops = {
 	.get_settings	  = tenxpress_get_settings,
 	.set_settings	  = tenxpress_set_settings,
 	.set_npage_adv    = sfx7101_set_npage_adv,
+	.test_alive	  = efx_mdio_test_alive,
 	.test_name	  = sfx7101_test_name,
 	.run_tests	  = sfx7101_run_tests,
 };
@@ -856,6 +860,7 @@ struct efx_phy_operations falcon_sft9001_phy_ops = {
 	.get_settings	  = tenxpress_get_settings,
 	.set_settings	  = tenxpress_set_settings,
 	.set_npage_adv    = sft9001_set_npage_adv,
+	.test_alive	  = efx_mdio_test_alive,
 	.test_name	  = sft9001_test_name,
 	.run_tests	  = sft9001_run_tests,
 };

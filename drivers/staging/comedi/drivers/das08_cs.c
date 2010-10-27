@@ -34,7 +34,7 @@ This is the PCMCIA-specific support split off from the
 das08 driver.
 
 Options (for pcm-das08):
-        NONE
+	NONE
 
 Command support does not exist, but could be added for this board.
 */
@@ -43,16 +43,16 @@ Command support does not exist, but could be added for this board.
 
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include "das08.h"
 
 /* pcmcia includes */
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
-static struct pcmcia_device *cur_dev = NULL;
+static struct pcmcia_device *cur_dev;
 
 #define thisboard ((const struct das08_board_struct *)dev->board_ptr)
 
@@ -88,7 +88,7 @@ static int das08_cs_attach(struct comedi_device *dev,
 			printk(" no pcmcia cards found\n");
 			return -EIO;
 		}
-		iobase = link->io.BasePort1;
+		iobase = link->resource[0]->start;
 	} else {
 		printk(" bug! board does not have PCMCIA bustype\n");
 		return -EINVAL;
@@ -131,17 +131,8 @@ static void das08_pcmcia_detach(struct pcmcia_device *);
    less on other parts of the kernel.
 */
 
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static const dev_info_t dev_info = "pcm-das08";
-
 struct local_info_t {
 	struct pcmcia_device *link;
-	dev_node_t node;
 	int stop;
 	struct bus_operations *bus;
 };
@@ -170,10 +161,6 @@ static int das08_pcmcia_attach(struct pcmcia_device *link)
 		return -ENOMEM;
 	local->link = link;
 	link->priv = local;
-
-	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-	link->irq.Handler = NULL;
 
 	/*
 	   General socket configuration defaults can go here.  In this
@@ -206,14 +193,11 @@ static void das08_pcmcia_detach(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "das08_pcmcia_detach\n");
 
-	if (link->dev_node) {
-		((struct local_info_t *)link->priv)->stop = 1;
-		das08_pcmcia_release(link);
-	}
+	((struct local_info_t *)link->priv)->stop = 1;
+	das08_pcmcia_release(link);
 
 	/* This points to the parent struct local_info_t struct */
-	if (link->priv)
-		kfree(link->priv);
+	kfree(link->priv);
 
 }				/* das08_pcmcia_detach */
 
@@ -228,28 +212,25 @@ static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		return -ENODEV;
 
 	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
-	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
+	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-		if (!(io->flags & CISTPL_IO_8BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-		if (!(io->flags & CISTPL_IO_16BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-		p_dev->io.BasePort1 = io->win[0].base;
-		p_dev->io.NumPorts1 = io->win[0].len;
+		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+		p_dev->resource[0]->flags |=
+			pcmcia_io_cfg_data_width(io->flags);
+		p_dev->resource[0]->start = io->win[0].base;
+		p_dev->resource[0]->end = io->win[0].len;
 		if (io->nwin > 1) {
-			p_dev->io.Attributes2 = p_dev->io.Attributes1;
-			p_dev->io.BasePort2 = io->win[1].base;
-			p_dev->io.NumPorts2 = io->win[1].len;
+			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
+			p_dev->resource[1]->start = io->win[1].base;
+			p_dev->resource[1]->end = io->win[1].len;
 		}
 		/* This reserves IO space but doesn't actually enable it */
-		return pcmcia_request_io(p_dev, &p_dev->io);
+		return pcmcia_request_io(p_dev);
 	}
 	return 0;
 }
@@ -265,7 +246,6 @@ static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 static void das08_pcmcia_config(struct pcmcia_device *link)
 {
-	struct local_info_t *dev = link->priv;
 	int ret;
 
 	dev_dbg(&link->dev, "das08_pcmcia_config\n");
@@ -276,11 +256,8 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	}
+	if (!link->irq)
+		goto failed;
 
 	/*
 	   This actually configures the PCMCIA socket -- setting up
@@ -291,25 +268,14 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	/*
-	   At this point, the dev_node_t structure(s) need to be
-	   initialized and arranged in a linked list at link->dev.
-	 */
-	sprintf(dev->node.dev_name, "pcm-das08");
-	dev->node.major = dev->node.minor = 0;
-	link->dev_node = &dev->node;
-
 	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x",
-	       dev->node.dev_name, link->conf.ConfigIndex);
+	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u", link->irq.AssignedIRQ);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1 + link->io.NumPorts1 - 1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2 + link->io.NumPorts2 - 1);
+		printk(", irq %u", link->irq);
+	if (link->resource[0])
+		printk(", io %pR", link->resource[0]);
+	if (link->resource[1])
+		printk(" & %pR", link->resource[1]);
 	printk("\n");
 
 	return;
@@ -370,6 +336,10 @@ static struct pcmcia_device_id das08_cs_id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pcmcia, das08_cs_id_table);
+MODULE_AUTHOR("David A. Schleef <ds@schleef.org>, "
+	      "Frank Mori Hess <fmhess@users.sourceforge.net>");
+MODULE_DESCRIPTION("Comedi driver for ComputerBoards DAS-08 PCMCIA boards");
+MODULE_LICENSE("GPL");
 
 struct pcmcia_driver das08_cs_driver = {
 	.probe = das08_pcmcia_attach,
@@ -379,7 +349,7 @@ struct pcmcia_driver das08_cs_driver = {
 	.id_table = das08_cs_id_table,
 	.owner = THIS_MODULE,
 	.drv = {
-		.name = dev_info,
+		.name = "pcm-das08",
 		},
 };
 
@@ -412,6 +382,5 @@ static void __exit das08_cs_exit_module(void)
 	comedi_driver_unregister(&driver_das08_cs);
 }
 
-MODULE_LICENSE("GPL");
 module_init(das08_cs_init_module);
 module_exit(das08_cs_exit_module);

@@ -43,6 +43,12 @@ EXPORT_SYMBOL(__list_add);
  */
 void list_del(struct list_head *entry)
 {
+	WARN(entry->next == LIST_POISON1,
+		"list_del corruption, next is LIST_POISON1 (%p)\n",
+		LIST_POISON1);
+	WARN(entry->next != LIST_POISON1 && entry->prev == LIST_POISON2,
+		"list_del corruption, prev is LIST_POISON2 (%p)\n",
+		LIST_POISON2);
 	WARN(entry->prev->next != entry,
 		"list_del corruption. prev->next should be %p, "
 		"but was %p\n", entry, entry->prev->next);

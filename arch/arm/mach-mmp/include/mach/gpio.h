@@ -10,7 +10,7 @@
 #define BANK_OFF(n)	(((n) < 3) ? (n) << 2 : 0x100 + (((n) - 3) << 2))
 #define GPIO_REG(x)	(*((volatile u32 *)(GPIO_REGS_VIRT + (x))))
 
-#define NR_BUILTIN_GPIO	(128)
+#define NR_BUILTIN_GPIO	(192)
 
 #define gpio_to_bank(gpio)	((gpio) >> 5)
 #define gpio_to_irq(gpio)	(IRQ_GPIO_START + (gpio))

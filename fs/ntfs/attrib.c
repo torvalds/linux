@@ -22,6 +22,7 @@
 
 #include <linux/buffer_head.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
 

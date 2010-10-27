@@ -645,6 +645,7 @@ __inline__ void NCR5380_print_phase(struct Scsi_Host *instance) { };
  * interrupt or bottom half.
  */
 
+#include <linux/gfp.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 
@@ -2021,7 +2022,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		if((count > SUN3_DMA_MINSIZE) && (sun3_dma_setup_done
 						  != cmd))
 		{
-			if(blk_fs_request(cmd->request)) {
+			if (cmd->request->cmd_type == REQ_TYPE_FS) {
 				sun3scsi_dma_setup(d, count,
 						   rq_data_dir(cmd->request));
 				sun3_dma_setup_done = cmd;

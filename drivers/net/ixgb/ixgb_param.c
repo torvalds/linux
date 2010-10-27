@@ -26,6 +26,8 @@
 
 *******************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "ixgb.h"
 
 /* This is the only thing that needs to be changed to adjust the
@@ -209,16 +211,16 @@ ixgb_validate_option(unsigned int *value, const struct ixgb_option *opt)
 	case enable_option:
 		switch (*value) {
 		case OPTION_ENABLED:
-			printk(KERN_INFO "%s Enabled\n", opt->name);
+			pr_info("%s Enabled\n", opt->name);
 			return 0;
 		case OPTION_DISABLED:
-			printk(KERN_INFO "%s Disabled\n", opt->name);
+			pr_info("%s Disabled\n", opt->name);
 			return 0;
 		}
 		break;
 	case range_option:
 		if (*value >= opt->arg.r.min && *value <= opt->arg.r.max) {
-			printk(KERN_INFO "%s set to %i\n", opt->name, *value);
+			pr_info("%s set to %i\n", opt->name, *value);
 			return 0;
 		}
 		break;
@@ -230,7 +232,7 @@ ixgb_validate_option(unsigned int *value, const struct ixgb_option *opt)
 			ent = &opt->arg.l.p[i];
 			if (*value == ent->i) {
 				if (ent->str[0] != '\0')
-					printk(KERN_INFO "%s\n", ent->str);
+					pr_info("%s\n", ent->str);
 				return 0;
 			}
 		}
@@ -240,8 +242,7 @@ ixgb_validate_option(unsigned int *value, const struct ixgb_option *opt)
 		BUG();
 	}
 
-	printk(KERN_INFO "Invalid %s specified (%i) %s\n",
-		   opt->name, *value, opt->err);
+	pr_info("Invalid %s specified (%i) %s\n", opt->name, *value, opt->err);
 	*value = opt->def;
 	return -1;
 }
@@ -261,9 +262,8 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 {
 	int bd = adapter->bd_number;
 	if (bd >= IXGB_MAX_NIC) {
-		printk(KERN_NOTICE
-			   "Warning: no configuration for board #%i\n", bd);
-		printk(KERN_NOTICE "Using defaults for all values\n");
+		pr_notice("Warning: no configuration for board #%i\n", bd);
+		pr_notice("Using defaults for all values\n");
 	}
 
 	{ /* Transmit Descriptor Count */
@@ -363,8 +363,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			adapter->hw.fc.high_water = opt.def;
 		}
 		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
-			printk(KERN_INFO
-				"Ignoring RxFCHighThresh when no RxFC\n");
+			pr_info("Ignoring RxFCHighThresh when no RxFC\n");
 	}
 	{ /* Receive Flow Control Low Threshold */
 		const struct ixgb_option opt = {
@@ -383,8 +382,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			adapter->hw.fc.low_water = opt.def;
 		}
 		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
-			printk(KERN_INFO
-				"Ignoring RxFCLowThresh when no RxFC\n");
+			pr_info("Ignoring RxFCLowThresh when no RxFC\n");
 	}
 	{ /* Flow Control Pause Time Request*/
 		const struct ixgb_option opt = {
@@ -404,17 +402,14 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			adapter->hw.fc.pause_time = opt.def;
 		}
 		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
-			printk(KERN_INFO
-				"Ignoring FCReqTimeout when no RxFC\n");
+			pr_info("Ignoring FCReqTimeout when no RxFC\n");
 	}
 	/* high low and spacing check for rx flow control thresholds */
 	if (adapter->hw.fc.type & ixgb_fc_tx_pause) {
 		/* high must be greater than low */
 		if (adapter->hw.fc.high_water < (adapter->hw.fc.low_water + 8)) {
 			/* set defaults */
-			printk(KERN_INFO
-				"RxFCHighThresh must be >= (RxFCLowThresh + 8), "
-				"Using Defaults\n");
+			pr_info("RxFCHighThresh must be >= (RxFCLowThresh + 8), Using Defaults\n");
 			adapter->hw.fc.high_water = DEFAULT_FCRTH;
 			adapter->hw.fc.low_water  = DEFAULT_FCRTL;
 		}

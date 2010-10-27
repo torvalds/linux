@@ -74,6 +74,10 @@ struct ath5k_dbg_info {
 	struct dentry		*debugfs_registers;
 	struct dentry		*debugfs_beacon;
 	struct dentry		*debugfs_reset;
+	struct dentry		*debugfs_antenna;
+	struct dentry		*debugfs_frameerrors;
+	struct dentry		*debugfs_ani;
+	struct dentry		*debugfs_queue;
 };
 
 /**
@@ -112,16 +116,11 @@ enum ath5k_debug_level {
 	ATH5K_DEBUG_DUMP_RX	= 0x00000100,
 	ATH5K_DEBUG_DUMP_TX	= 0x00000200,
 	ATH5K_DEBUG_DUMPBANDS	= 0x00000400,
-	ATH5K_DEBUG_TRACE	= 0x00001000,
+	ATH5K_DEBUG_ANI		= 0x00002000,
 	ATH5K_DEBUG_ANY		= 0xffffffff
 };
 
 #ifdef CONFIG_ATH5K_DEBUG
-
-#define ATH5K_TRACE(_sc) do { \
-	if (unlikely((_sc)->debug.level & ATH5K_DEBUG_TRACE)) \
-		printk(KERN_DEBUG "ath5k trace %s:%d\n", __func__, __LINE__); \
-	} while (0)
 
 #define ATH5K_DBG(_sc, _m, _fmt, ...) do { \
 	if (unlikely((_sc)->debug.level & (_m) && net_ratelimit())) \
@@ -163,8 +162,6 @@ ath5k_debug_printtxbuf(struct ath5k_softc *sc, struct ath5k_buf *bf);
 #else /* no debugging */
 
 #include <linux/compiler.h>
-
-#define ATH5K_TRACE(_sc) typecheck(struct ath5k_softc *, (_sc))
 
 static inline void __attribute__ ((format (printf, 3, 4)))
 ATH5K_DBG(struct ath5k_softc *sc, unsigned int m, const char *fmt, ...) {}

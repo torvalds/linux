@@ -8,17 +8,27 @@
 int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 		      u16 vlan_tci, int polling)
 {
+	struct net_device *vlan_dev;
+	u16 vlan_id;
+
 	if (netpoll_rx(skb))
 		return NET_RX_DROP;
 
-	if (skb_bond_should_drop(skb))
-		goto drop;
+	if (skb_bond_should_drop(skb, ACCESS_ONCE(skb->dev->master)))
+		skb->deliver_no_wcard = 1;
 
+	skb->skb_iif = skb->dev->ifindex;
 	__vlan_hwaccel_put_tag(skb, vlan_tci);
-	skb->dev = vlan_group_get_device(grp, vlan_tci & VLAN_VID_MASK);
+	vlan_id = vlan_tci & VLAN_VID_MASK;
+	vlan_dev = vlan_group_get_device(grp, vlan_id);
 
-	if (!skb->dev)
-		goto drop;
+	if (vlan_dev)
+		skb->dev = vlan_dev;
+	else if (vlan_id) {
+		if (!(skb->dev->flags & IFF_PROMISC))
+			goto drop;
+		skb->pkt_type = PACKET_OTHERHOST;
+	}
 
 	return (polling ? netif_receive_skb(skb) : netif_rx(skb));
 
@@ -40,9 +50,9 @@ int vlan_hwaccel_do_receive(struct sk_buff *skb)
 	skb->priority = vlan_get_ingress_priority(dev, skb->vlan_tci);
 	skb->vlan_tci = 0;
 
-	rx_stats = per_cpu_ptr(vlan_dev_info(dev)->vlan_rx_stats,
-			       smp_processor_id());
+	rx_stats = this_cpu_ptr(vlan_dev_info(dev)->vlan_rx_stats);
 
+	u64_stats_update_begin(&rx_stats->syncp);
 	rx_stats->rx_packets++;
 	rx_stats->rx_bytes += skb->len;
 
@@ -50,7 +60,7 @@ int vlan_hwaccel_do_receive(struct sk_buff *skb)
 	case PACKET_BROADCAST:
 		break;
 	case PACKET_MULTICAST:
-		rx_stats->multicast++;
+		rx_stats->rx_multicast++;
 		break;
 	case PACKET_OTHERHOST:
 		/* Our lower layer thinks this is not local, let's make sure.
@@ -60,7 +70,8 @@ int vlan_hwaccel_do_receive(struct sk_buff *skb)
 					dev->dev_addr))
 			skb->pkt_type = PACKET_HOST;
 		break;
-	};
+	}
+	u64_stats_update_end(&rx_stats->syncp);
 	return 0;
 }
 
@@ -81,15 +92,24 @@ vlan_gro_common(struct napi_struct *napi, struct vlan_group *grp,
 		unsigned int vlan_tci, struct sk_buff *skb)
 {
 	struct sk_buff *p;
+	struct net_device *vlan_dev;
+	u16 vlan_id;
 
-	if (skb_bond_should_drop(skb))
-		goto drop;
+	if (skb_bond_should_drop(skb, ACCESS_ONCE(skb->dev->master)))
+		skb->deliver_no_wcard = 1;
 
+	skb->skb_iif = skb->dev->ifindex;
 	__vlan_hwaccel_put_tag(skb, vlan_tci);
-	skb->dev = vlan_group_get_device(grp, vlan_tci & VLAN_VID_MASK);
+	vlan_id = vlan_tci & VLAN_VID_MASK;
+	vlan_dev = vlan_group_get_device(grp, vlan_id);
 
-	if (!skb->dev)
-		goto drop;
+	if (vlan_dev)
+		skb->dev = vlan_dev;
+	else if (vlan_id) {
+		if (!(skb->dev->flags & IFF_PROMISC))
+			goto drop;
+		skb->pkt_type = PACKET_OTHERHOST;
+	}
 
 	for (p = napi->gro_list; p; p = p->next) {
 		NAPI_GRO_CB(p)->same_flow =

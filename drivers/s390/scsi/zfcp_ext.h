@@ -3,7 +3,7 @@
  *
  * External function declarations.
  *
- * Copyright IBM Corporation 2002, 2009
+ * Copyright IBM Corporation 2002, 2010
  */
 
 #ifndef ZFCP_EXT_H
@@ -21,7 +21,6 @@ extern struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *);
 extern struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *, u64, u32,
 					   u32);
 extern struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *, u64);
-extern int zfcp_reqlist_isempty(struct zfcp_adapter *);
 extern void zfcp_sg_free_table(struct scatterlist *, int);
 extern int zfcp_sg_setup_table(struct scatterlist *, int);
 extern void zfcp_device_unregister(struct device *,
@@ -97,6 +96,9 @@ extern void zfcp_erp_adapter_access_changed(struct zfcp_adapter *, char *,
 extern void zfcp_erp_timeout_handler(unsigned long);
 
 /* zfcp_fc.c */
+extern void zfcp_fc_enqueue_event(struct zfcp_adapter *,
+				enum fc_host_event_code event_code, u32);
+extern void zfcp_fc_post_event(struct work_struct *);
 extern void zfcp_fc_scan_ports(struct work_struct *);
 extern void zfcp_fc_incoming_els(struct zfcp_fsf_req *);
 extern void zfcp_fc_port_did_lookup(struct work_struct *);
@@ -144,16 +146,13 @@ extern void zfcp_fsf_reqid_check(struct zfcp_qdio *, int);
 /* zfcp_qdio.c */
 extern int zfcp_qdio_setup(struct zfcp_adapter *);
 extern void zfcp_qdio_destroy(struct zfcp_qdio *);
-extern int zfcp_qdio_send(struct zfcp_qdio *, struct zfcp_queue_req *);
-extern struct qdio_buffer_element
-	*zfcp_qdio_sbale_req(struct zfcp_qdio *, struct zfcp_queue_req *);
-extern struct qdio_buffer_element
-	*zfcp_qdio_sbale_curr(struct zfcp_qdio *, struct zfcp_queue_req *);
-extern int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *,
-				   struct zfcp_queue_req *, unsigned long,
-				   struct scatterlist *, int);
+extern int zfcp_qdio_sbal_get(struct zfcp_qdio *);
+extern int zfcp_qdio_send(struct zfcp_qdio *, struct zfcp_qdio_req *);
+extern int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *, struct zfcp_qdio_req *,
+				   struct scatterlist *);
 extern int zfcp_qdio_open(struct zfcp_qdio *);
 extern void zfcp_qdio_close(struct zfcp_qdio *);
+extern void zfcp_qdio_siosl(struct zfcp_adapter *);
 
 /* zfcp_scsi.c */
 extern struct zfcp_data zfcp_data;
@@ -164,7 +163,10 @@ extern void zfcp_scsi_rport_work(struct work_struct *);
 extern void zfcp_scsi_schedule_rport_register(struct zfcp_port *);
 extern void zfcp_scsi_schedule_rport_block(struct zfcp_port *);
 extern void zfcp_scsi_schedule_rports_block(struct zfcp_adapter *);
-extern void zfcp_scsi_scan(struct work_struct *);
+extern void zfcp_scsi_scan(struct zfcp_unit *);
+extern void zfcp_scsi_scan_work(struct work_struct *);
+extern void zfcp_scsi_set_prot(struct zfcp_adapter *);
+extern void zfcp_scsi_dif_sense_error(struct scsi_cmnd *, int);
 
 /* zfcp_sysfs.c */
 extern struct attribute_group zfcp_sysfs_unit_attrs;

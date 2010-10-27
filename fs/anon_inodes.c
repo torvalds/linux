@@ -12,7 +12,6 @@
 #include <linux/file.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -209,6 +208,7 @@ static struct inode *anon_inode_mkinode(void)
 	inode->i_mode = S_IRUSR | S_IWUSR;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
+	inode->i_flags |= S_PRIVATE;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	return inode;
 }

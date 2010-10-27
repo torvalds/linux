@@ -21,6 +21,7 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>

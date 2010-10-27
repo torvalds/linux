@@ -114,10 +114,6 @@ struct opregion_asle {
 #define ASLE_REQ_MSK           0xf
 
 /* response bits of ASLE irq request */
-#define ASLE_ALS_ILLUM_FAIL    (2<<10)
-#define ASLE_BACKLIGHT_FAIL    (2<<12)
-#define ASLE_PFIT_FAIL         (2<<14)
-#define ASLE_PWM_FREQ_FAIL     (2<<16)
 #define ASLE_ALS_ILLUM_FAILED	(1<<10)
 #define ASLE_BACKLIGHT_FAILED	(1<<12)
 #define ASLE_PFIT_FAILED	(1<<14)
@@ -155,11 +151,11 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	u32 max_backlight, level, shift;
 
 	if (!(bclp & ASLE_BCLP_VALID))
-		return ASLE_BACKLIGHT_FAIL;
+		return ASLE_BACKLIGHT_FAILED;
 
 	bclp &= ASLE_BCLP_MSK;
 	if (bclp < 0 || bclp > 255)
-		return ASLE_BACKLIGHT_FAIL;
+		return ASLE_BACKLIGHT_FAILED;
 
 	blc_pwm_ctl = I915_READ(BLC_PWM_CTL);
 	blc_pwm_ctl2 = I915_READ(BLC_PWM_CTL2);
@@ -211,7 +207,7 @@ static u32 asle_set_pfit(struct drm_device *dev, u32 pfit)
 	/* Panel fitting is currently controlled by the X code, so this is a
 	   noop until modesetting support works fully */
 	if (!(pfit & ASLE_PFIT_VALID))
-		return ASLE_PFIT_FAIL;
+		return ASLE_PFIT_FAILED;
 	return 0;
 }
 
@@ -382,8 +378,57 @@ static void intel_didl_outputs(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_opregion *opregion = &dev_priv->opregion;
 	struct drm_connector *connector;
+	acpi_handle handle;
+	struct acpi_device *acpi_dev, *acpi_cdev, *acpi_video_bus = NULL;
+	unsigned long long device_id;
+	acpi_status status;
 	int i = 0;
 
+	handle = DEVICE_ACPI_HANDLE(&dev->pdev->dev);
+	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &acpi_dev)))
+		return;
+
+	if (acpi_is_video_device(acpi_dev))
+		acpi_video_bus = acpi_dev;
+	else {
+		list_for_each_entry(acpi_cdev, &acpi_dev->children, node) {
+			if (acpi_is_video_device(acpi_cdev)) {
+				acpi_video_bus = acpi_cdev;
+				break;
+			}
+		}
+	}
+
+	if (!acpi_video_bus) {
+		printk(KERN_WARNING "No ACPI video bus found\n");
+		return;
+	}
+
+	list_for_each_entry(acpi_cdev, &acpi_video_bus->children, node) {
+		if (i >= 8) {
+			dev_printk (KERN_ERR, &dev->pdev->dev,
+				    "More than 8 outputs detected\n");
+			return;
+		}
+		status =
+			acpi_evaluate_integer(acpi_cdev->handle, "_ADR",
+						NULL, &device_id);
+		if (ACPI_SUCCESS(status)) {
+			if (!device_id)
+				goto blind_set;
+			opregion->acpi->didl[i] = (u32)(device_id & 0x0f0f);
+			i++;
+		}
+	}
+
+end:
+	/* If fewer than 8 outputs, the list must be null terminated */
+	if (i < 8)
+		opregion->acpi->didl[i] = 0;
+	return;
+
+blind_set:
+	i = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		int output_type = ACPI_OTHER_OUTPUT;
 		if (i >= 8) {
@@ -416,10 +461,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 		opregion->acpi->didl[i] |= (1<<31) | output_type | i;
 		i++;
 	}
-
-	/* If fewer than 8 outputs, the list must be null terminated */
-	if (i < 8)
-		opregion->acpi->didl[i] = 0;
+	goto end;
 }
 
 int intel_opregion_init(struct drm_device *dev, int resume)
@@ -489,6 +531,7 @@ int intel_opregion_init(struct drm_device *dev, int resume)
 err_out:
 	iounmap(opregion->header);
 	opregion->header = NULL;
+	acpi_video_register();
 	return err;
 }
 

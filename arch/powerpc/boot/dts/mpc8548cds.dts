@@ -20,10 +20,8 @@
 	aliases {
 		ethernet0 = &enet0;
 		ethernet1 = &enet1;
-/*
 		ethernet2 = &enet2;
 		ethernet3 = &enet3;
-*/
 		serial0 = &serial0;
 		serial1 = &serial1;
 		pci0 = &pci0;
@@ -76,14 +74,14 @@
 		};
 
 		memory-controller@2000 {
-			compatible = "fsl,8548-memory-controller";
+			compatible = "fsl,mpc8548-memory-controller";
 			reg = <0x2000 0x1000>;
 			interrupt-parent = <&mpic>;
 			interrupts = <18 2>;
 		};
 
 		L2: l2-cache-controller@20000 {
-			compatible = "fsl,8548-l2-cache-controller";
+			compatible = "fsl,mpc8548-l2-cache-controller";
 			reg = <0x20000 0x1000>;
 			cache-line-size = <32>;	// 32 bytes
 			cache-size = <0x80000>;	// L2, 512K
@@ -254,7 +252,6 @@
 			};
 		};
 
-/* eTSEC 3/4 are currently broken
 		enet2: ethernet@26000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -310,7 +307,6 @@
 				};
 			};
 		};
- */
 
 		serial0: serial@4500 {
 			cell-index = <0>;

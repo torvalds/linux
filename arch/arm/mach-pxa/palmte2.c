@@ -23,7 +23,7 @@
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
-#include <linux/wm97xx_batt.h>
+#include <linux/wm97xx.h>
 #include <linux/power_supply.h>
 #include <linux/usb/gpio_vbus.h>
 
@@ -73,26 +73,7 @@ static unsigned long palmte2_pin_config[] __initdata = {
 	GPIO47_FICP_TXD,
 
 	/* LCD */
-	GPIO58_LCD_LDD_0,
-	GPIO59_LCD_LDD_1,
-	GPIO60_LCD_LDD_2,
-	GPIO61_LCD_LDD_3,
-	GPIO62_LCD_LDD_4,
-	GPIO63_LCD_LDD_5,
-	GPIO64_LCD_LDD_6,
-	GPIO65_LCD_LDD_7,
-	GPIO66_LCD_LDD_8,
-	GPIO67_LCD_LDD_9,
-	GPIO68_LCD_LDD_10,
-	GPIO69_LCD_LDD_11,
-	GPIO70_LCD_LDD_12,
-	GPIO71_LCD_LDD_13,
-	GPIO72_LCD_LDD_14,
-	GPIO73_LCD_LDD_15,
-	GPIO74_LCD_FCLK,
-	GPIO75_LCD_LCLK,
-	GPIO76_LCD_PCLK,
-	GPIO77_LCD_BIAS,
+	GPIOxx_LCD_TFT_16BPP,
 
 	/* GPIO KEYS */
 	GPIO5_GPIO,	/* notes */
@@ -290,9 +271,9 @@ static struct platform_device power_supply = {
 };
 
 /******************************************************************************
- * WM97xx battery
+ * WM97xx audio, battery
  ******************************************************************************/
-static struct wm97xx_batt_info wm97xx_batt_pdata = {
+static struct wm97xx_batt_pdata palmte2_batt_pdata = {
 	.batt_aux	= WM97XX_AUX_ID3,
 	.temp_aux	= WM97XX_AUX_ID2,
 	.charge_gpio	= -1,
@@ -306,9 +287,14 @@ static struct wm97xx_batt_info wm97xx_batt_pdata = {
 	.batt_name	= "main-batt",
 };
 
-/******************************************************************************
- * aSoC audio
- ******************************************************************************/
+static struct wm97xx_pdata palmte2_wm97xx_pdata = {
+	.batt_pdata	= &palmte2_batt_pdata,
+};
+
+static pxa2xx_audio_ops_t palmte2_ac97_pdata = {
+	.codec_pdata	= { &palmte2_wm97xx_pdata, },
+};
+
 static struct palm27x_asoc_info palmte2_asoc_pdata = {
 	.jack_gpio	= GPIO_NR_PALMTE2_EARPHONE_DETECT,
 };
@@ -380,9 +366,8 @@ static void __init palmte2_init(void)
 	set_pxa_fb_info(&palmte2_lcd_screen);
 	pxa_set_mci_info(&palmte2_mci_platform_data);
 	palmte2_udc_init();
-	pxa_set_ac97_info(NULL);
+	pxa_set_ac97_info(&palmte2_ac97_pdata);
 	pxa_set_ficp_info(&palmte2_ficp_platform_data);
-	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }

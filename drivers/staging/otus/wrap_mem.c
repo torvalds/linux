@@ -27,6 +27,7 @@
 #include "usbdrv.h"
 
 #include <linux/netlink.h>
+#include <linux/slab.h>
 #include <net/iw_handler.h>
 
 /* Memory management */

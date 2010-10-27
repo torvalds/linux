@@ -11,6 +11,7 @@
 
 #include <linux/fs.h>
 #include <linux/mount.h>
+#include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -25,14 +26,10 @@ MODULE_LICENSE("GPL");
 
 /* ------------------------------------------------------------------ */
 
-static char *revision = "$Revision: 1.1.2.3 $";
-
-/* ------------------------------------------------------------------ */
-
 #define CAPIFS_SUPER_MAGIC (('C'<<8)|'N')
 
 static struct vfsmount *capifs_mnt;
-static struct dentry *capifs_root;
+static int capifs_mnt_count;
 
 static struct {
 	int setuid;
@@ -118,7 +115,7 @@ capifs_fill_super(struct super_block *s, void *data, int silent)
 	inode->i_fop = &simple_dir_operations;
 	inode->i_nlink = 2;
 
-	capifs_root = s->s_root = d_alloc_root(inode);
+	s->s_root = d_alloc_root(inode);
 	if (s->s_root)
 		return 0;
 	
@@ -141,82 +138,98 @@ static struct file_system_type capifs_fs_type = {
 	.kill_sb	= kill_anon_super,
 };
 
-static struct dentry *get_node(int num)
+static struct dentry *new_ncci(unsigned int number, dev_t device)
 {
-	char s[10];
-	struct dentry *root = capifs_root;
-	mutex_lock(&root->d_inode->i_mutex);
-	return lookup_one_len(s, root, sprintf(s, "%d", num));
-}
-
-void capifs_new_ncci(unsigned int number, dev_t device)
-{
+	struct super_block *s = capifs_mnt->mnt_sb;
+	struct dentry *root = s->s_root;
 	struct dentry *dentry;
-	struct inode *inode = new_inode(capifs_mnt->mnt_sb);
-	if (!inode)
-		return;
-	inode->i_ino = number+2;
+	struct inode *inode;
+	char name[10];
+	int namelen;
 
-	dentry = get_node(number);
+	mutex_lock(&root->d_inode->i_mutex);
+
+	namelen = sprintf(name, "%d", number);
+	dentry = lookup_one_len(name, root, namelen);
+	if (IS_ERR(dentry)) {
+		dentry = NULL;
+		goto unlock_out;
+	}
+
+	if (dentry->d_inode) {
+		dput(dentry);
+		dentry = NULL;
+		goto unlock_out;
+	}
+
+	inode = new_inode(s);
+	if (!inode) {
+		dput(dentry);
+		dentry = NULL;
+		goto unlock_out;
+	}
 
 	/* config contents is protected by root's i_mutex */
 	inode->i_uid = config.setuid ? config.uid : current_fsuid();
 	inode->i_gid = config.setgid ? config.gid : current_fsgid();
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+	inode->i_ino = number + 2;
 	init_special_inode(inode, S_IFCHR|config.mode, device);
-	//inode->i_op = &capifs_file_inode_operations;
 
-	if (!IS_ERR(dentry) && !dentry->d_inode)
-		d_instantiate(dentry, inode);
-	mutex_unlock(&capifs_root->d_inode->i_mutex);
+	d_instantiate(dentry, inode);
+	dget(dentry);
+
+unlock_out:
+	mutex_unlock(&root->d_inode->i_mutex);
+
+	return dentry;
 }
 
-void capifs_free_ncci(unsigned int number)
+struct dentry *capifs_new_ncci(unsigned int number, dev_t device)
 {
-	struct dentry *dentry = get_node(number);
+	struct dentry *dentry;
 
-	if (!IS_ERR(dentry)) {
-		struct inode *inode = dentry->d_inode;
-		if (inode) {
-			inode->i_nlink--;
-			d_delete(dentry);
-			dput(dentry);
-		}
+	if (simple_pin_fs(&capifs_fs_type, &capifs_mnt, &capifs_mnt_count) < 0)
+		return NULL;
+
+	dentry = new_ncci(number, device);
+	if (!dentry)
+		simple_release_fs(&capifs_mnt, &capifs_mnt_count);
+
+	return dentry;
+}
+
+void capifs_free_ncci(struct dentry *dentry)
+{
+	struct dentry *root = capifs_mnt->mnt_sb->s_root;
+	struct inode *inode;
+
+	if (!dentry)
+		return;
+
+	mutex_lock(&root->d_inode->i_mutex);
+
+	inode = dentry->d_inode;
+	if (inode) {
+		drop_nlink(inode);
+		d_delete(dentry);
 		dput(dentry);
 	}
-	mutex_unlock(&capifs_root->d_inode->i_mutex);
+	dput(dentry);
+
+	mutex_unlock(&root->d_inode->i_mutex);
+
+	simple_release_fs(&capifs_mnt, &capifs_mnt_count);
 }
 
 static int __init capifs_init(void)
 {
-	char rev[32];
-	char *p;
-	int err;
-
-	if ((p = strchr(revision, ':')) != NULL && p[1]) {
-		strlcpy(rev, p + 2, sizeof(rev));
-		if ((p = strchr(rev, '$')) != NULL && p > rev)
-		   *(p-1) = 0;
-	} else
-		strcpy(rev, "1.0");
-
-	err = register_filesystem(&capifs_fs_type);
-	if (!err) {
-		capifs_mnt = kern_mount(&capifs_fs_type);
-		if (IS_ERR(capifs_mnt)) {
-			err = PTR_ERR(capifs_mnt);
-			unregister_filesystem(&capifs_fs_type);
-		}
-	}
-	if (!err)
-		printk(KERN_NOTICE "capifs: Rev %s\n", rev);
-	return err;
+	return register_filesystem(&capifs_fs_type);
 }
 
 static void __exit capifs_exit(void)
 {
 	unregister_filesystem(&capifs_fs_type);
-	mntput(capifs_mnt);
 }
 
 EXPORT_SYMBOL(capifs_new_ncci);

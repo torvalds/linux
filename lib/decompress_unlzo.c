@@ -97,7 +97,7 @@ STATIC inline int INIT unlzo(u8 *input, int in_len,
 	u32 src_len, dst_len;
 	size_t tmp;
 	u8 *in_buf, *in_buf_save, *out_buf;
-	int obytes_processed = 0;
+	int ret = -1;
 
 	set_error_fn(error_fn);
 
@@ -174,15 +174,22 @@ STATIC inline int INIT unlzo(u8 *input, int in_len,
 
 		/* decompress */
 		tmp = dst_len;
-		r = lzo1x_decompress_safe((u8 *) in_buf, src_len,
+
+		/* When the input data is not compressed at all,
+		 * lzo1x_decompress_safe will fail, so call memcpy()
+		 * instead */
+		if (unlikely(dst_len == src_len))
+			memcpy(out_buf, in_buf, src_len);
+		else {
+			r = lzo1x_decompress_safe((u8 *) in_buf, src_len,
 						out_buf, &tmp);
 
-		if (r != LZO_E_OK || dst_len != tmp) {
-			error("Compressed data violation");
-			goto exit_2;
+			if (r != LZO_E_OK || dst_len != tmp) {
+				error("Compressed data violation");
+				goto exit_2;
+			}
 		}
 
-		obytes_processed += dst_len;
 		if (flush)
 			flush(out_buf, dst_len);
 		if (output)
@@ -196,6 +203,7 @@ STATIC inline int INIT unlzo(u8 *input, int in_len,
 			in_buf += src_len;
 	}
 
+	ret = 0;
 exit_2:
 	if (!input)
 		free(in_buf);
@@ -203,7 +211,7 @@ exit_1:
 	if (!output)
 		free(out_buf);
 exit:
-	return obytes_processed;
+	return ret;
 }
 
 #define decompress unlzo

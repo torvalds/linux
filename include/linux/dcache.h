@@ -186,6 +186,8 @@ d_iput:		no		no		no       yes
 
 #define DCACHE_FSNOTIFY_PARENT_WATCHED	0x0080 /* Parent inode is watched by some fsnotify listener */
 
+#define DCACHE_CANT_MOUNT	0x0100
+
 extern spinlock_t dcache_lock;
 extern seqlock_t rename_lock;
 
@@ -313,6 +315,8 @@ extern char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
 
 extern char *__d_path(const struct path *path, struct path *root, char *, int);
 extern char *d_path(const struct path *, char *, int);
+extern char *d_path_with_unreachable(const struct path *, char *, int);
+extern char *__dentry_path(struct dentry *, char *, int);
 extern char *dentry_path(struct dentry *, char *, int);
 
 /* Allocation counts.. */
@@ -356,6 +360,18 @@ static inline int d_unhashed(struct dentry *dentry)
 static inline int d_unlinked(struct dentry *dentry)
 {
 	return d_unhashed(dentry) && !IS_ROOT(dentry);
+}
+
+static inline int cant_mount(struct dentry *dentry)
+{
+	return (dentry->d_flags & DCACHE_CANT_MOUNT);
+}
+
+static inline void dont_mount(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	dentry->d_flags |= DCACHE_CANT_MOUNT;
+	spin_unlock(&dentry->d_lock);
 }
 
 static inline struct dentry *dget_parent(struct dentry *dentry)

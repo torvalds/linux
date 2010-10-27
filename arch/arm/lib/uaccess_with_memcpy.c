@@ -16,6 +16,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/hardirq.h> /* for in_atomic() */
+#include <linux/gfp.h>
 #include <asm/current.h>
 #include <asm/page.h>
 

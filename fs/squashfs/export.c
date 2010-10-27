@@ -39,7 +39,6 @@
 #include <linux/vfs.h>
 #include <linux/dcache.h>
 #include <linux/exportfs.h>
-#include <linux/zlib.h>
 #include <linux/slab.h>
 
 #include "squashfs_fs.h"

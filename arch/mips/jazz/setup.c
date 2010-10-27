@@ -76,15 +76,9 @@ void __init plat_mem_setup(void)
 
 #ifdef CONFIG_VT
 	screen_info = (struct screen_info) {
-		0, 0,		/* orig-x, orig-y */
-		0,		/* unused */
-		0,		/* orig_video_page */
-		0,		/* orig_video_mode */
-		160,		/* orig_video_cols */
-		0, 0, 0,	/* unused, ega_bx, unused */
-		64,		/* orig_video_lines */
-		0,		/* orig_video_isVGA */
-		16		/* orig_video_points */
+		.orig_video_cols	= 160,
+		.orig_video_lines	= 64,
+		.orig_video_points	= 16,
 	};
 #endif
 

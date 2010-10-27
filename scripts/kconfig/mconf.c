@@ -74,7 +74,7 @@ static const char mconf_readme[] = N_(
 "\n"
 "   Shortcut: Press <H> or <?>.\n"
 "\n"
-"o  To show hidden options, press <Z>.\n"
+"o  To toggle the display of hidden options, press <Z>.\n"
 "\n"
 "\n"
 "Radiolists  (Choice lists)\n"

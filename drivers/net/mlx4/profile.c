@@ -32,6 +32,8 @@
  * SOFTWARE.
  */
 
+#include <linux/slab.h>
+
 #include "mlx4.h"
 #include "fw.h"
 

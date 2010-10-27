@@ -23,9 +23,9 @@
 #include <linux/i2c-algo-pca.h>
 #include <linux/i2c-pca-platform.h>
 #include <linux/gpio.h>
+#include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/io.h>
 
 struct i2c_pca_pf_data {
 	void __iomem			*reg_base;
@@ -80,8 +80,8 @@ static void i2c_pca_pf_writebyte32(void *pd, int reg, int val)
 static int i2c_pca_pf_waitforcompletion(void *pd)
 {
 	struct i2c_pca_pf_data *i2c = pd;
-	long ret = ~0;
 	unsigned long timeout;
+	long ret;
 
 	if (i2c->irq) {
 		ret = wait_event_timeout(i2c->wait,
@@ -90,10 +90,13 @@ static int i2c_pca_pf_waitforcompletion(void *pd)
 	} else {
 		/* Do polling */
 		timeout = jiffies + i2c->adap.timeout;
-		while (((i2c->algo_data.read_byte(i2c, I2C_PCA_CON)
-				& I2C_PCA_CON_SI) == 0)
-				&& (ret = time_before(jiffies, timeout)))
+		do {
+			ret = time_before(jiffies, timeout);
+			if (i2c->algo_data.read_byte(i2c, I2C_PCA_CON)
+					& I2C_PCA_CON_SI)
+				break;
 			udelay(100);
+		} while (ret);
 	}
 
 	return ret > 0;

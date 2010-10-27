@@ -21,6 +21,7 @@
 #include <linux/pmu.h>
 #include <linux/scatterlist.h>
 #include <linux/of.h>
+#include <linux/gfp.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -719,6 +720,8 @@ static int pata_macio_port_start(struct ata_port *ap)
 	if (priv->dma_table_cpu == NULL) {
 		dev_err(priv->dev, "Unable to allocate DMA command list\n");
 		ap->ioaddr.bmdma_addr = NULL;
+		ap->mwdma_mask = 0;
+		ap->udma_mask = 0;
 	}
 	return 0;
 }
@@ -916,7 +919,7 @@ static struct scsi_host_template pata_macio_sht = {
 };
 
 static struct ata_port_operations pata_macio_ops = {
-	.inherits		= &ata_sff_port_ops,
+	.inherits		= &ata_bmdma_port_ops,
 
 	.freeze			= pata_macio_freeze,
 	.set_piomode		= pata_macio_set_timings,
@@ -924,7 +927,6 @@ static struct ata_port_operations pata_macio_ops = {
 	.cable_detect		= pata_macio_cable_detect,
 	.sff_dev_select		= pata_macio_dev_select,
 	.qc_prep		= pata_macio_qc_prep,
-	.mode_filter		= ata_bmdma_mode_filter,
 	.bmdma_setup		= pata_macio_bmdma_setup,
 	.bmdma_start		= pata_macio_bmdma_start,
 	.bmdma_stop		= pata_macio_bmdma_stop,
@@ -1108,7 +1110,7 @@ static int __devinit pata_macio_common_init(struct pata_macio_priv	*priv,
 
 	/* Start it up */
 	priv->irq = irq;
-	return ata_host_activate(priv->host, irq, ata_sff_interrupt, 0,
+	return ata_host_activate(priv->host, irq, ata_bmdma_interrupt, 0,
 				 &pata_macio_sht);
 }
 
@@ -1138,7 +1140,7 @@ static int __devinit pata_macio_attach(struct macio_dev *mdev,
 			"Failed to allocate private memory\n");
 		return -ENOMEM;
 	}
-	priv->node = of_node_get(mdev->ofdev.node);
+	priv->node = of_node_get(mdev->ofdev.dev.of_node);
 	priv->mdev = mdev;
 	priv->dev = &mdev->ofdev.dev;
 
@@ -1353,8 +1355,11 @@ static struct of_device_id pata_macio_match[] =
 
 static struct macio_driver pata_macio_driver =
 {
-	.name 		= "pata-macio",
-	.match_table	= pata_macio_match,
+	.driver = {
+		.name 		= "pata-macio",
+		.owner		= THIS_MODULE,
+		.of_match_table	= pata_macio_match,
+	},
 	.probe		= pata_macio_attach,
 	.remove		= pata_macio_detach,
 #ifdef CONFIG_PM
@@ -1364,9 +1369,6 @@ static struct macio_driver pata_macio_driver =
 #ifdef CONFIG_PMAC_MEDIABAY
 	.mediabay_event	= pata_macio_mb_event,
 #endif
-	.driver = {
-		.owner		= THIS_MODULE,
-	},
 };
 
 static const struct pci_device_id pata_macio_pci_match[] = {

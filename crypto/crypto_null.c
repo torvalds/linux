@@ -1,11 +1,11 @@
-/* 
+/*
  * Cryptographic API.
  *
  * Null algorithms, aka Much Ado About Nothing.
  *
  * These are needed for IPsec, and may be useful in general for
  * testing & debugging.
- * 
+ *
  * The null cipher is compliant with RFC2410.
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
@@ -163,7 +163,7 @@ MODULE_ALIAS("cipher_null");
 static int __init crypto_null_mod_init(void)
 {
 	int ret = 0;
-	
+
 	ret = crypto_register_alg(&cipher_null);
 	if (ret < 0)
 		goto out;
@@ -180,7 +180,7 @@ static int __init crypto_null_mod_init(void)
 	if (ret < 0)
 		goto out_unregister_digest;
 
-out:	
+out:
 	return ret;
 
 out_unregister_digest:

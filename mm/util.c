@@ -186,6 +186,27 @@ void kzfree(const void *p)
 }
 EXPORT_SYMBOL(kzfree);
 
+int kern_ptr_validate(const void *ptr, unsigned long size)
+{
+	unsigned long addr = (unsigned long)ptr;
+	unsigned long min_addr = PAGE_OFFSET;
+	unsigned long align_mask = sizeof(void *) - 1;
+
+	if (unlikely(addr < min_addr))
+		goto out;
+	if (unlikely(addr > (unsigned long)high_memory - size))
+		goto out;
+	if (unlikely(addr & align_mask))
+		goto out;
+	if (unlikely(!kern_addr_valid(addr)))
+		goto out;
+	if (unlikely(!kern_addr_valid(addr + size - 1)))
+		goto out;
+	return 1;
+out:
+	return 0;
+}
+
 /*
  * strndup_user - duplicate an existing string from user space
  * @s: The string to duplicate
@@ -204,15 +225,10 @@ char *strndup_user(const char __user *s, long n)
 	if (length > n)
 		return ERR_PTR(-EINVAL);
 
-	p = kmalloc(length, GFP_KERNEL);
+	p = memdup_user(s, length);
 
-	if (!p)
-		return ERR_PTR(-ENOMEM);
-
-	if (copy_from_user(p, s, length)) {
-		kfree(p);
-		return ERR_PTR(-EFAULT);
-	}
+	if (IS_ERR(p))
+		return p;
 
 	p[length - 1] = '\0';
 

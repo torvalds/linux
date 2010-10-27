@@ -5,6 +5,7 @@
 #include <linux/elevator.h>
 #include <linux/bio.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 
 struct noop_data {

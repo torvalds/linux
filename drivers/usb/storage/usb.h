@@ -139,8 +139,7 @@ struct us_data {
 	struct usb_ctrlrequest	*cr;		 /* control requests	 */
 	struct usb_sg_request	current_sg;	 /* scatter-gather req.  */
 	unsigned char		*iobuf;		 /* I/O buffer		 */
-	dma_addr_t		cr_dma;		 /* buffer DMA addresses */
-	dma_addr_t		iobuf_dma;
+	dma_addr_t		iobuf_dma;	 /* buffer DMA addresses */
 	struct task_struct	*ctl_thread;	 /* the control thread   */
 
 	/* mutual exclusion and synchronization structures */

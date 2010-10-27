@@ -25,14 +25,15 @@
 #include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
 #include <mach/gpio.h>
+#include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/dma.h>
@@ -126,10 +127,9 @@ static struct mtd_partition palmz71_rom_partitions[] = {
 	},
 };
 
-static struct flash_platform_data palmz71_rom_data = {
-	.map_name	= "map_rom",
-	.name		= "onboardrom",
+static struct physmap_flash_data palmz71_rom_data = {
 	.width		= 2,
+	.set_vpp	= omap1_set_vpp,
 	.parts		= palmz71_rom_partitions,
 	.nr_parts	= ARRAY_SIZE(palmz71_rom_partitions),
 };
@@ -141,7 +141,7 @@ static struct resource palmz71_rom_resource = {
 };
 
 static struct platform_device palmz71_rom_device = {
-	.name	= "omapflash",
+	.name	= "physmap-flash",
 	.id	= -1,
 	.dev = {
 		.platform_data = &palmz71_rom_data,
@@ -325,7 +325,7 @@ omap_palmz71_init(void)
 
 	spi_register_board_info(palmz71_boardinfo,
 				ARRAY_SIZE(palmz71_boardinfo));
-	omap_usb_init(&palmz71_usb_config);
+	omap1_usb_init(&palmz71_usb_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
 	palmz71_gpio_setup(0);
@@ -338,10 +338,12 @@ omap_palmz71_map_io(void)
 }
 
 MACHINE_START(OMAP_PALMZ71, "OMAP310 based Palm Zire71")
-	.phys_io = 0xfff00000,
-	.io_pg_offst = ((0xfef00000) >> 18) & 0xfffc,
-	.boot_params = 0x10000100,.map_io = omap_palmz71_map_io,
-	.init_irq = omap_palmz71_init_irq,
-	.init_machine = omap_palmz71_init,
-	.timer = &omap_timer,
+	.phys_io	= 0xfff00000,
+	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
+	.boot_params	= 0x10000100,
+	.map_io		= omap_palmz71_map_io,
+	.reserve	= omap_reserve,
+	.init_irq	= omap_palmz71_init_irq,
+	.init_machine	= omap_palmz71_init,
+	.timer		= &omap_timer,
 MACHINE_END

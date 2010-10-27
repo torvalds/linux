@@ -43,7 +43,7 @@
 #define NCP_DEFAULT_TIME_OUT 10
 #define NCP_DEFAULT_RETRY_COUNT 20
 
-static void ncp_delete_inode(struct inode *);
+static void ncp_evict_inode(struct inode *);
 static void ncp_put_super(struct super_block *);
 static int  ncp_statfs(struct dentry *, struct kstatfs *);
 static int  ncp_show_options(struct seq_file *, struct vfsmount *);
@@ -100,7 +100,7 @@ static const struct super_operations ncp_sops =
 	.alloc_inode	= ncp_alloc_inode,
 	.destroy_inode	= ncp_destroy_inode,
 	.drop_inode	= generic_delete_inode,
-	.delete_inode	= ncp_delete_inode,
+	.evict_inode	= ncp_evict_inode,
 	.put_super	= ncp_put_super,
 	.statfs		= ncp_statfs,
 	.remount_fs	= ncp_remount,
@@ -282,19 +282,19 @@ ncp_iget(struct super_block *sb, struct ncp_entry_info *info)
 }
 
 static void
-ncp_delete_inode(struct inode *inode)
+ncp_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 
 	if (S_ISDIR(inode->i_mode)) {
-		DDPRINTK("ncp_delete_inode: put directory %ld\n", inode->i_ino);
+		DDPRINTK("ncp_evict_inode: put directory %ld\n", inode->i_ino);
 	}
 
 	if (ncp_make_closed(inode) != 0) {
 		/* We can't do anything but complain. */
-		printk(KERN_ERR "ncp_delete_inode: could not close\n");
+		printk(KERN_ERR "ncp_evict_inode: could not close\n");
 	}
-	clear_inode(inode);
 }
 
 static void ncp_stop_tasks(struct ncp_server *server) {
@@ -526,9 +526,14 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	sb->s_blocksize_bits = 10;
 	sb->s_magic = NCP_SUPER_MAGIC;
 	sb->s_op = &ncp_sops;
+	sb->s_bdi = &server->bdi;
 
 	server = NCP_SBP(sb);
 	memset(server, 0, sizeof(*server));
+
+	error = bdi_setup_and_register(&server->bdi, "ncpfs", BDI_CAP_MAP_COPY);
+	if (error)
+		goto out_bdi;
 
 	server->ncp_filp = ncp_filp;
 	server->ncp_sock = sock;
@@ -719,10 +724,12 @@ out_fput2:
 	if (server->info_filp)
 		fput(server->info_filp);
 out_fput:
+	bdi_destroy(&server->bdi);
+out_bdi:
 	/* 23/12/1998 Marcin Dalecki <dalecki@cs.net.pl>:
 	 * 
-	 * The previously used put_filp(ncp_filp); was bogous, since
-	 * it doesn't proper unlocking.
+	 * The previously used put_filp(ncp_filp); was bogus, since
+	 * it doesn't perform proper unlocking.
 	 */
 	fput(ncp_filp);
 out:
@@ -756,6 +763,7 @@ static void ncp_put_super(struct super_block *sb)
 	kill_pid(server->m.wdog_pid, SIGTERM, 1);
 	put_pid(server->m.wdog_pid);
 
+	bdi_destroy(&server->bdi);
 	kfree(server->priv.data);
 	kfree(server->auth.object_name);
 	vfree(server->rxbuf);
@@ -916,9 +924,8 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 				tmpattr.ia_valid = ATTR_MODE;
 				tmpattr.ia_mode = attr->ia_mode;
 
-				result = inode_setattr(inode, &tmpattr);
-				if (result)
-					goto out;
+				setattr_copy(inode, &tmpattr);
+				mark_inode_dirty(inode);
 			}
 		}
 #endif
@@ -946,15 +953,12 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 		result = ncp_make_closed(inode);
 		if (result)
 			goto out;
-		{
-			struct iattr tmpattr;
-			
-			tmpattr.ia_valid = ATTR_SIZE;
-			tmpattr.ia_size = attr->ia_size;
-			
-			result = inode_setattr(inode, &tmpattr);
+
+		if (attr->ia_size != i_size_read(inode)) {
+			result = vmtruncate(inode, attr->ia_size);
 			if (result)
 				goto out;
+			mark_inode_dirty(inode);
 		}
 	}
 	if ((attr->ia_valid & ATTR_CTIME) != 0) {
@@ -994,8 +998,12 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 			NCP_FINFO(inode)->nwattr = info.attributes;
 #endif
 	}
-	if (!result)
-		result = inode_setattr(inode, attr);
+	if (result)
+		goto out;
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+
 out:
 	unlock_kernel();
 	return result;

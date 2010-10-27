@@ -7,4 +7,6 @@
 #define __user
 #define __attribute_const__
 
+#define __used		__attribute__((__unused__))
+
 #endif

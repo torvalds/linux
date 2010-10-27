@@ -10,6 +10,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
@@ -509,7 +510,7 @@ static int da9030_battery_probe(struct platform_device *pdev)
 
 	charger->master = pdev->dev.parent;
 
-	/* 10 seconds between monotor runs unless platfrom defines other
+	/* 10 seconds between monitor runs unless platform defines other
 	   interval */
 	charger->interval = msecs_to_jiffies(
 		(pdata->batmon_interval ? : 10) * 1000);

@@ -20,7 +20,7 @@
 #include <linux/seq_file.h>
 #include <linux/kexec.h>
 #include <linux/of_platform.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <mm/mmu_decl.h>
 
 #include <asm/io.h>
@@ -65,19 +65,19 @@ static int __init page_aligned(unsigned long x)
 
 void __init wii_memory_fixups(void)
 {
-	struct lmb_property *p = lmb.memory.region;
+	struct memblock_property *p = memblock.memory.region;
 
 	/*
 	 * This is part of a workaround to allow the use of two
-	 * discontiguous RAM ranges on the Wii, even if this is
+	 * discontinuous RAM ranges on the Wii, even if this is
 	 * currently unsupported on 32-bit PowerPC Linux.
 	 *
-	 * We coealesce the two memory ranges of the Wii into a
+	 * We coalesce the two memory ranges of the Wii into a
 	 * single range, then create a reservation for the "hole"
 	 * between both ranges.
 	 */
 
-	BUG_ON(lmb.memory.cnt != 2);
+	BUG_ON(memblock.memory.cnt != 2);
 	BUG_ON(!page_aligned(p[0].base) || !page_aligned(p[1].base));
 
 	p[0].size = _ALIGN_DOWN(p[0].size, PAGE_SIZE);
@@ -92,11 +92,11 @@ void __init wii_memory_fixups(void)
 
 	p[0].size += wii_hole_size + p[1].size;
 
-	lmb.memory.cnt = 1;
-	lmb_analyze();
+	memblock.memory.cnt = 1;
+	memblock_analyze();
 
 	/* reserve the hole */
-	lmb_reserve(wii_hole_start, wii_hole_size);
+	memblock_reserve(wii_hole_start, wii_hole_size);
 
 	/* allow ioremapping the address space in the hole */
 	__allow_ioremap_reserved = 1;

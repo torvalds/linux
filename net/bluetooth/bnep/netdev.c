@@ -26,6 +26,7 @@
 */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <linux/socket.h>
 #include <linux/netdevice.h>
@@ -64,7 +65,7 @@ static void bnep_net_set_mc_list(struct net_device *dev)
 	struct sk_buff *skb;
 	int size;
 
-	BT_DBG("%s mc_count %d", dev->name, dev->mc_count);
+	BT_DBG("%s mc_count %d", dev->name, netdev_mc_count(dev));
 
 	size = sizeof(*r) + (BNEP_MAX_MULTICAST_FILTERS + 1) * ETH_ALEN * 2;
 	skb  = alloc_skb(size, GFP_ATOMIC);
@@ -87,7 +88,7 @@ static void bnep_net_set_mc_list(struct net_device *dev)
 		memcpy(__skb_put(skb, ETH_ALEN), dev->broadcast, ETH_ALEN);
 		r->len = htons(ETH_ALEN * 2);
 	} else {
-		struct dev_mc_list *dmi = dev->mc_list;
+		struct netdev_hw_addr *ha;
 		int i, len = skb->len;
 
 		if (dev->flags & IFF_BROADCAST) {
@@ -97,16 +98,20 @@ static void bnep_net_set_mc_list(struct net_device *dev)
 
 		/* FIXME: We should group addresses here. */
 
-		for (i = 0; i < dev->mc_count && i < BNEP_MAX_MULTICAST_FILTERS; i++) {
-			memcpy(__skb_put(skb, ETH_ALEN), dmi->dmi_addr, ETH_ALEN);
-			memcpy(__skb_put(skb, ETH_ALEN), dmi->dmi_addr, ETH_ALEN);
-			dmi = dmi->next;
+		i = 0;
+		netdev_for_each_mc_addr(ha, dev) {
+			if (i == BNEP_MAX_MULTICAST_FILTERS)
+				break;
+			memcpy(__skb_put(skb, ETH_ALEN), ha->addr, ETH_ALEN);
+			memcpy(__skb_put(skb, ETH_ALEN), ha->addr, ETH_ALEN);
+
+			i++;
 		}
 		r->len = htons(skb->len - len);
 	}
 
 	skb_queue_tail(&sk->sk_write_queue, skb);
-	wake_up_interruptible(sk->sk_sleep);
+	wake_up_interruptible(sk_sleep(sk));
 #endif
 }
 
@@ -190,11 +195,11 @@ static netdev_tx_t bnep_net_xmit(struct sk_buff *skb,
 	/*
 	 * We cannot send L2CAP packets from here as we are potentially in a bh.
 	 * So we have to queue them and wake up session thread which is sleeping
-	 * on the sk->sk_sleep.
+	 * on the sk_sleep(sk).
 	 */
 	dev->trans_start = jiffies;
 	skb_queue_tail(&sk->sk_write_queue, skb);
-	wake_up_interruptible(sk->sk_sleep);
+	wake_up_interruptible(sk_sleep(sk));
 
 	if (skb_queue_len(&sk->sk_write_queue) >= BNEP_TX_QUEUE_LEN) {
 		BT_DBG("tx queue is full");

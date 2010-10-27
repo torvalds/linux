@@ -10,6 +10,7 @@
 #include <linux/hwmon.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <acpi/acpi.h>
 #include <acpi/acpixf.h>
@@ -1168,15 +1169,19 @@ static int atk_create_files(struct atk_data *data)
 	int err;
 
 	list_for_each_entry(s, &data->sensor_list, list) {
+		sysfs_attr_init(&s->input_attr.attr);
 		err = device_create_file(data->hwmon_dev, &s->input_attr);
 		if (err)
 			return err;
+		sysfs_attr_init(&s->label_attr.attr);
 		err = device_create_file(data->hwmon_dev, &s->label_attr);
 		if (err)
 			return err;
+		sysfs_attr_init(&s->limit1_attr.attr);
 		err = device_create_file(data->hwmon_dev, &s->limit1_attr);
 		if (err)
 			return err;
+		sysfs_attr_init(&s->limit2_attr.attr);
 		err = device_create_file(data->hwmon_dev, &s->limit2_attr);
 		if (err)
 			return err;
@@ -1405,6 +1410,13 @@ static int atk_remove(struct acpi_device *device, int type)
 static int __init atk0110_init(void)
 {
 	int ret;
+
+	/* Make sure it's safe to access the device through ACPI */
+	if (!acpi_resources_are_enforced()) {
+		pr_err("atk: Resources not safely usable due to "
+		       "acpi_enforce_resources kernel parameter\n");
+		return -EBUSY;
+	}
 
 	ret = acpi_bus_register_driver(&atk_driver);
 	if (ret)

@@ -1,5 +1,5 @@
 perf-bench(1)
-============
+=============
 
 NAME
 ----
@@ -19,12 +19,12 @@ COMMON OPTIONS
 -f::
 --format=::
 Specify format style.
-Current available format styles are,
+Current available format styles are:
 
 'default'::
 Default style. This is mainly for human reading.
 ---------------------
-% perf bench sched pipe                      # with no style specify
+% perf bench sched pipe                      # with no style specified
 (executing 1000000 pipe operations between two tasks)
         Total time:5.855 sec
                 5.855061 usecs/op
@@ -79,7 +79,7 @@ options (20 sender and receiver processes per group)
 
       Total time:0.308 sec
 
-% perf bench sched messaging -t -g 20        # be multi-thread,with 20 groups
+% perf bench sched messaging -t -g 20        # be multi-thread, with 20 groups
 (20 sender and receiver threads per group)
 (20 groups == 800 threads run)
 

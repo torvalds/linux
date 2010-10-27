@@ -13,6 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/leds.h>
 #include <linux/input.h>
 #include <linux/mutex.h>
@@ -319,10 +320,8 @@ static int pca9532_probe(struct i2c_client *client,
 	mutex_init(&data->update_lock);
 
 	err = pca9532_configure(client, data, pca9532_pdata);
-	if (err) {
+	if (err)
 		kfree(data);
-		i2c_set_clientdata(client, NULL);
-	}
 
 	return err;
 }
@@ -350,7 +349,6 @@ static int pca9532_remove(struct i2c_client *client)
 		}
 
 	kfree(data);
-	i2c_set_clientdata(client, NULL);
 	return 0;
 }
 

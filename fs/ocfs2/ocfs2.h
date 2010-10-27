@@ -42,10 +42,12 @@
 
 #include "ocfs2_fs.h"
 #include "ocfs2_lockid.h"
+#include "ocfs2_ioctl.h"
 
 /* For struct ocfs2_blockcheck_stats */
 #include "blockcheck.h"
 
+#include "reservations.h"
 
 /* Caching of metadata buffers */
 
@@ -136,6 +138,10 @@ enum ocfs2_unlock_action {
 #define OCFS2_LOCK_PENDING       (0x00000400) /* This lockres is pending a
 						 call to dlm_lock.  Only
 						 exists with BUSY set. */
+#define OCFS2_LOCK_UPCONVERT_FINISHING (0x00000800) /* blocks the dc thread
+						     * from downconverting
+						     * before the upconvert
+						     * has completed */
 
 struct ocfs2_lock_res_ops;
 
@@ -155,7 +161,7 @@ struct ocfs2_lock_res {
 	int                      l_level;
 	unsigned int             l_ro_holders;
 	unsigned int             l_ex_holders;
-	union ocfs2_dlm_lksb     l_lksb;
+	struct ocfs2_dlm_lksb    l_lksb;
 
 	/* used from AST/BAST funcs. */
 	enum ocfs2_ast_action    l_action;
@@ -301,7 +307,9 @@ struct ocfs2_super
 	u32 s_next_generation;
 	unsigned long osb_flags;
 	s16 s_inode_steal_slot;
+	s16 s_meta_steal_slot;
 	atomic_t s_num_inodes_stolen;
+	atomic_t s_num_meta_stolen;
 
 	unsigned long s_mount_opt;
 	unsigned int s_atime_quantum;
@@ -334,6 +342,9 @@ struct ocfs2_super
 	 */
 	unsigned int local_alloc_bits;
 	unsigned int local_alloc_default_bits;
+	/* osb_clusters_at_boot can become stale! Do not trust it to
+	 * be up to date. */
+	unsigned int osb_clusters_at_boot;
 
 	enum ocfs2_local_alloc_state local_alloc_state; /* protected
 							 * by osb_lock */
@@ -341,6 +352,11 @@ struct ocfs2_super
 	struct buffer_head *local_alloc_bh;
 
 	u64 la_last_gd;
+
+	struct ocfs2_reservation_map	osb_la_resmap;
+
+	unsigned int	osb_resv_level;
+	unsigned int	osb_dir_resv_level;
 
 	/* Next three fields are for local node slot recovery during
 	 * mount. */
@@ -471,6 +487,13 @@ static inline int ocfs2_meta_ecc(struct ocfs2_super *osb)
 static inline int ocfs2_supports_indexed_dirs(struct ocfs2_super *osb)
 {
 	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_INDEXED_DIRS)
+		return 1;
+	return 0;
+}
+
+static inline int ocfs2_supports_discontig_bg(struct ocfs2_super *osb)
+{
+	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG)
 		return 1;
 	return 0;
 }
@@ -756,35 +779,24 @@ static inline unsigned int ocfs2_megabytes_to_clusters(struct super_block *sb,
 	return megs << (20 - OCFS2_SB(sb)->s_clustersize_bits);
 }
 
-static inline void ocfs2_init_inode_steal_slot(struct ocfs2_super *osb)
+static inline unsigned int ocfs2_clusters_to_megabytes(struct super_block *sb,
+						       unsigned int clusters)
 {
-	spin_lock(&osb->osb_lock);
-	osb->s_inode_steal_slot = OCFS2_INVALID_SLOT;
-	spin_unlock(&osb->osb_lock);
-	atomic_set(&osb->s_num_inodes_stolen, 0);
+	return clusters >> (20 - OCFS2_SB(sb)->s_clustersize_bits);
 }
 
-static inline void ocfs2_set_inode_steal_slot(struct ocfs2_super *osb,
-					      s16 slot)
+static inline void _ocfs2_set_bit(unsigned int bit, unsigned long *bitmap)
 {
-	spin_lock(&osb->osb_lock);
-	osb->s_inode_steal_slot = slot;
-	spin_unlock(&osb->osb_lock);
+	ext2_set_bit(bit, bitmap);
 }
+#define ocfs2_set_bit(bit, addr) _ocfs2_set_bit((bit), (unsigned long *)(addr))
 
-static inline s16 ocfs2_get_inode_steal_slot(struct ocfs2_super *osb)
+static inline void _ocfs2_clear_bit(unsigned int bit, unsigned long *bitmap)
 {
-	s16 slot;
-
-	spin_lock(&osb->osb_lock);
-	slot = osb->s_inode_steal_slot;
-	spin_unlock(&osb->osb_lock);
-
-	return slot;
+	ext2_clear_bit(bit, bitmap);
 }
+#define ocfs2_clear_bit(bit, addr) _ocfs2_clear_bit((bit), (unsigned long *)(addr))
 
-#define ocfs2_set_bit ext2_set_bit
-#define ocfs2_clear_bit ext2_clear_bit
 #define ocfs2_test_bit ext2_test_bit
 #define ocfs2_find_next_zero_bit ext2_find_next_zero_bit
 #define ocfs2_find_next_bit ext2_find_next_bit

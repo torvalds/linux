@@ -29,6 +29,7 @@
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
 #include <linux/irda.h>
+#include <linux/slab.h>
 
 #include <net/pkt_sched.h>
 #include <net/sock.h>

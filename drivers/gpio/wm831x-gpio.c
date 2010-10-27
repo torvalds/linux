@@ -13,6 +13,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/gpio.h>
 #include <linux/mfd/core.h>
@@ -38,10 +39,14 @@ static int wm831x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
 	struct wm831x_gpio *wm831x_gpio = to_wm831x_gpio(chip);
 	struct wm831x *wm831x = wm831x_gpio->wm831x;
+	int val = WM831X_GPN_DIR;
+
+	if (wm831x->has_gpio_ena)
+		val |= WM831X_GPN_TRI;
 
 	return wm831x_set_bits(wm831x, WM831X_GPIO1_CONTROL + offset,
-			       WM831X_GPN_DIR | WM831X_GPN_TRI,
-			       WM831X_GPN_DIR);
+			       WM831X_GPN_DIR | WM831X_GPN_TRI |
+			       WM831X_GPN_FN_MASK, val);
 }
 
 static int wm831x_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -60,16 +65,6 @@ static int wm831x_gpio_get(struct gpio_chip *chip, unsigned offset)
 		return 0;
 }
 
-static int wm831x_gpio_direction_out(struct gpio_chip *chip,
-				     unsigned offset, int value)
-{
-	struct wm831x_gpio *wm831x_gpio = to_wm831x_gpio(chip);
-	struct wm831x *wm831x = wm831x_gpio->wm831x;
-
-	return wm831x_set_bits(wm831x, WM831X_GPIO1_CONTROL + offset,
-			       WM831X_GPN_DIR | WM831X_GPN_TRI, 0);
-}
-
 static void wm831x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct wm831x_gpio *wm831x_gpio = to_wm831x_gpio(chip);
@@ -77,6 +72,29 @@ static void wm831x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 	wm831x_set_bits(wm831x, WM831X_GPIO_LEVEL, 1 << offset,
 			value << offset);
+}
+
+static int wm831x_gpio_direction_out(struct gpio_chip *chip,
+				     unsigned offset, int value)
+{
+	struct wm831x_gpio *wm831x_gpio = to_wm831x_gpio(chip);
+	struct wm831x *wm831x = wm831x_gpio->wm831x;
+	int val = 0;
+	int ret;
+
+	if (wm831x->has_gpio_ena)
+		val |= WM831X_GPN_TRI;
+
+	ret = wm831x_set_bits(wm831x, WM831X_GPIO1_CONTROL + offset,
+			      WM831X_GPN_DIR | WM831X_GPN_TRI |
+			      WM831X_GPN_FN_MASK, val);
+	if (ret < 0)
+		return ret;
+
+	/* Can only set GPIO state once it's in output mode */
+	wm831x_gpio_set(chip, offset, value);
+
+	return 0;
 }
 
 static int wm831x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
@@ -90,12 +108,43 @@ static int wm831x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return wm831x->irq_base + WM831X_IRQ_GPIO_1 + offset;
 }
 
+static int wm831x_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
+				    unsigned debounce)
+{
+	struct wm831x_gpio *wm831x_gpio = to_wm831x_gpio(chip);
+	struct wm831x *wm831x = wm831x_gpio->wm831x;
+	int reg = WM831X_GPIO1_CONTROL + offset;
+	int ret, fn;
+
+	ret = wm831x_reg_read(wm831x, reg);
+	if (ret < 0)
+		return ret;
+
+	switch (ret & WM831X_GPN_FN_MASK) {
+	case 0:
+	case 1:
+		break;
+	default:
+		/* Not in GPIO mode */
+		return -EBUSY;
+	}
+
+	if (debounce >= 32 && debounce <= 64)
+		fn = 0;
+	else if (debounce >= 4000 && debounce <= 8000)
+		fn = 1;
+	else
+		return -EINVAL;
+
+	return wm831x_set_bits(wm831x, reg, WM831X_GPN_FN_MASK, fn);
+}
+
 #ifdef CONFIG_DEBUG_FS
 static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	struct wm831x_gpio *wm831x_gpio = to_wm831x_gpio(chip);
 	struct wm831x *wm831x = wm831x_gpio->wm831x;
-	int i;
+	int i, tristated;
 
 	for (i = 0; i < chip->ngpio; i++) {
 		int gpio = i + chip->base;
@@ -162,15 +211,19 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			break;
 		}
 
+		tristated = reg & WM831X_GPN_TRI;
+		if (wm831x->has_gpio_ena)
+			tristated = !tristated;
+
 		seq_printf(s, " %s %s %s %s%s\n"
 			   "                                  %s%s (0x%4x)\n",
 			   reg & WM831X_GPN_DIR ? "in" : "out",
 			   wm831x_gpio_get(chip, i) ? "high" : "low",
 			   pull,
 			   powerdomain,
-			   reg & WM831X_GPN_POL ? " inverted" : "",
+			   reg & WM831X_GPN_POL ? "" : " inverted",
 			   reg & WM831X_GPN_OD ? "open-drain" : "CMOS",
-			   reg & WM831X_GPN_TRI ? " tristated" : "",
+			   tristated ? " tristated" : "",
 			   reg);
 	}
 }
@@ -186,6 +239,7 @@ static struct gpio_chip template_chip = {
 	.direction_output	= wm831x_gpio_direction_out,
 	.set			= wm831x_gpio_set,
 	.to_irq			= wm831x_gpio_to_irq,
+	.set_debounce		= wm831x_gpio_set_debounce,
 	.dbg_show		= wm831x_gpio_dbg_show,
 	.can_sleep		= 1,
 };

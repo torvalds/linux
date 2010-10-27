@@ -21,7 +21,7 @@ asmlinkage int sys_vfork(unsigned long r2, unsigned long r3,
 			 unsigned long r4, unsigned long r5,
 			 unsigned long r6, unsigned long r7,
 			 struct pt_regs *pregs);
-asmlinkage int sys_execve(char *ufilename, char **uargv,
+asmlinkage int sys_execve(const char *ufilename, char **uargv,
 			  char **uenvp, unsigned long r5,
 			  unsigned long r6, unsigned long r7,
 			  struct pt_regs *pregs);

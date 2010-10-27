@@ -6,6 +6,7 @@
  * Copyright (C) 1996, Olaf Kirch <okir@monad.swb.de>
  */
 
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/module.h>
@@ -28,7 +29,6 @@ struct unx_cred {
 #endif
 
 static struct rpc_auth		unix_auth;
-static struct rpc_cred_cache	unix_cred_cache;
 static const struct rpc_credops	unix_credops;
 
 static struct rpc_auth *
@@ -140,7 +140,7 @@ static __be32 *
 unx_marshal(struct rpc_task *task, __be32 *p)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
-	struct unx_cred	*cred = container_of(task->tk_msg.rpc_cred, struct unx_cred, uc_base);
+	struct unx_cred	*cred = container_of(task->tk_rqstp->rq_cred, struct unx_cred, uc_base);
 	__be32		*base, *hold;
 	int		i;
 
@@ -173,7 +173,7 @@ unx_marshal(struct rpc_task *task, __be32 *p)
 static int
 unx_refresh(struct rpc_task *task)
 {
-	set_bit(RPCAUTH_CRED_UPTODATE, &task->tk_msg.rpc_cred->cr_flags);
+	set_bit(RPCAUTH_CRED_UPTODATE, &task->tk_rqstp->rq_cred->cr_flags);
 	return 0;
 }
 
@@ -196,15 +196,20 @@ unx_validate(struct rpc_task *task, __be32 *p)
 		printk("RPC: giant verf size: %u\n", size);
 		return NULL;
 	}
-	task->tk_msg.rpc_cred->cr_auth->au_rslack = (size >> 2) + 2;
+	task->tk_rqstp->rq_cred->cr_auth->au_rslack = (size >> 2) + 2;
 	p += (size >> 2);
 
 	return p;
 }
 
-void __init rpc_init_authunix(void)
+int __init rpc_init_authunix(void)
 {
-	spin_lock_init(&unix_cred_cache.lock);
+	return rpcauth_init_credcache(&unix_auth);
+}
+
+void rpc_destroy_authunix(void)
+{
+	rpcauth_destroy_credcache(&unix_auth);
 }
 
 const struct rpc_authops authunix_ops = {
@@ -218,17 +223,12 @@ const struct rpc_authops authunix_ops = {
 };
 
 static
-struct rpc_cred_cache	unix_cred_cache = {
-};
-
-static
 struct rpc_auth		unix_auth = {
 	.au_cslack	= UNX_WRITESLACK,
 	.au_rslack	= 2,			/* assume AUTH_NULL verf */
 	.au_ops		= &authunix_ops,
 	.au_flavor	= RPC_AUTH_UNIX,
 	.au_count	= ATOMIC_INIT(0),
-	.au_credcache	= &unix_cred_cache,
 };
 
 static

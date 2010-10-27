@@ -27,6 +27,7 @@
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
+#include <linux/slab.h>
 #include <net/cfg80211.h>
 
 #include "iwm.h"
@@ -263,7 +264,7 @@ static int iwm_cfg80211_get_station(struct wiphy *wiphy,
 int iwm_cfg80211_inform_bss(struct iwm_priv *iwm)
 {
 	struct wiphy *wiphy = iwm_to_wiphy(iwm);
-	struct iwm_bss_info *bss, *next;
+	struct iwm_bss_info *bss;
 	struct iwm_umac_notif_bss_info *umac_bss;
 	struct ieee80211_mgmt *mgmt;
 	struct ieee80211_channel *channel;
@@ -271,7 +272,7 @@ int iwm_cfg80211_inform_bss(struct iwm_priv *iwm)
 	s32 signal;
 	int freq;
 
-	list_for_each_entry_safe(bss, next, &iwm->bss_list, node) {
+	list_for_each_entry(bss, &iwm->bss_list, node) {
 		umac_bss = bss->bss;
 		mgmt = (struct ieee80211_mgmt *)(umac_bss->frame_buf);
 
@@ -669,20 +670,24 @@ static int iwm_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int iwm_cfg80211_set_txpower(struct wiphy *wiphy,
-				    enum tx_power_setting type, int dbm)
+				    enum nl80211_tx_power_setting type, int mbm)
 {
 	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
 	int ret;
 
 	switch (type) {
-	case TX_POWER_AUTOMATIC:
+	case NL80211_TX_POWER_AUTOMATIC:
 		return 0;
-	case TX_POWER_FIXED:
+	case NL80211_TX_POWER_FIXED:
+		if (mbm < 0 || (mbm % 100))
+			return -EOPNOTSUPP;
+
 		if (!test_bit(IWM_STATUS_READY, &iwm->status))
 			return 0;
 
 		ret = iwm_umac_set_config_fix(iwm, UMAC_PARAM_TBL_CFG_FIX,
-					      CFG_TX_PWR_LIMIT_USR, dbm * 2);
+					      CFG_TX_PWR_LIMIT_USR,
+					      MBM_TO_DBM(mbm) * 2);
 		if (ret < 0)
 			return ret;
 
@@ -725,23 +730,26 @@ static int iwm_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 				       CFG_POWER_INDEX, iwm->conf.power_index);
 }
 
-int iwm_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *netdev,
-			   struct cfg80211_pmksa *pmksa)
+static int iwm_cfg80211_set_pmksa(struct wiphy *wiphy,
+				  struct net_device *netdev,
+				  struct cfg80211_pmksa *pmksa)
 {
 	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
 
 	return iwm_send_pmkid_update(iwm, pmksa, IWM_CMD_PMKID_ADD);
 }
 
-int iwm_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
-			   struct cfg80211_pmksa *pmksa)
+static int iwm_cfg80211_del_pmksa(struct wiphy *wiphy,
+				  struct net_device *netdev,
+				  struct cfg80211_pmksa *pmksa)
 {
 	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
 
 	return iwm_send_pmkid_update(iwm, pmksa, IWM_CMD_PMKID_DEL);
 }
 
-int iwm_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
+static int iwm_cfg80211_flush_pmksa(struct wiphy *wiphy,
+				    struct net_device *netdev)
 {
 	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
 	struct cfg80211_pmksa pmksa;

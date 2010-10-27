@@ -519,7 +519,7 @@ void ibm440ep_fixup_clocks(unsigned int sys_clk,
 {
 	unsigned int plb_clk = __ibm440eplike_fixup_clocks(sys_clk, tmr_clk, 0);
 
-	/* serial clocks beed fixup based on int/ext */
+	/* serial clocks need fixup based on int/ext */
 	eplike_fixup_uart_clk(0, "/plb/opb/serial@ef600300", ser_clk, plb_clk);
 	eplike_fixup_uart_clk(1, "/plb/opb/serial@ef600400", ser_clk, plb_clk);
 	eplike_fixup_uart_clk(2, "/plb/opb/serial@ef600500", ser_clk, plb_clk);
@@ -532,7 +532,7 @@ void ibm440gx_fixup_clocks(unsigned int sys_clk,
 {
 	unsigned int plb_clk = __ibm440eplike_fixup_clocks(sys_clk, tmr_clk, 1);
 
-	/* serial clocks beed fixup based on int/ext */
+	/* serial clocks need fixup based on int/ext */
 	eplike_fixup_uart_clk(0, "/plb/opb/serial@40000200", ser_clk, plb_clk);
 	eplike_fixup_uart_clk(1, "/plb/opb/serial@40000300", ser_clk, plb_clk);
 }
@@ -543,10 +543,10 @@ void ibm440spe_fixup_clocks(unsigned int sys_clk,
 {
 	unsigned int plb_clk = __ibm440eplike_fixup_clocks(sys_clk, tmr_clk, 1);
 
-	/* serial clocks beed fixup based on int/ext */
-	eplike_fixup_uart_clk(0, "/plb/opb/serial@10000200", ser_clk, plb_clk);
-	eplike_fixup_uart_clk(1, "/plb/opb/serial@10000300", ser_clk, plb_clk);
-	eplike_fixup_uart_clk(2, "/plb/opb/serial@10000600", ser_clk, plb_clk);
+	/* serial clocks need fixup based on int/ext */
+	eplike_fixup_uart_clk(0, "/plb/opb/serial@f0000200", ser_clk, plb_clk);
+	eplike_fixup_uart_clk(1, "/plb/opb/serial@f0000300", ser_clk, plb_clk);
+	eplike_fixup_uart_clk(2, "/plb/opb/serial@f0000600", ser_clk, plb_clk);
 }
 
 void ibm405gp_fixup_clocks(unsigned int sys_clk, unsigned int ser_clk)

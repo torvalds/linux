@@ -81,6 +81,10 @@ struct dasd_block;
 #define DASD_SIM_MSG_TO_OP 0x03
 #define DASD_SIM_LOG 0x0C
 
+/* lock class for nested cdev lock */
+#define CDEV_NESTED_FIRST 1
+#define CDEV_NESTED_SECOND 2
+
 /*
  * SECTION: MACROs for klogd and s390 debug feature (dbf)
  */
@@ -182,7 +186,7 @@ struct dasd_ccw_req {
 
 	/* ... and how */
 	unsigned long starttime;	/* jiffies time of request start */
-	int expires;			/* expiration period in jiffies */
+	unsigned long expires;		/* expiration period in jiffies */
 	char lpm;			/* logical path mask */
 	void *data;			/* pointer to data area */
 
@@ -220,6 +224,9 @@ struct dasd_ccw_req {
 #define DASD_CQR_CLEARED	0x84	/* request was cleared */
 #define DASD_CQR_SUCCESS	0x85	/* request was successful */
 
+/* default expiration time*/
+#define DASD_EXPIRES	  300
+#define DASD_EXPIRES_MAX  40000000
 
 /* per dasd_ccw_req flags */
 #define DASD_CQR_FLAGS_USE_ERP   0	/* use ERP for this request */
@@ -227,6 +234,24 @@ struct dasd_ccw_req {
 
 /* Signature for error recovery functions. */
 typedef struct dasd_ccw_req *(*dasd_erp_fn_t) (struct dasd_ccw_req *);
+
+/*
+ * Unique identifier for dasd device.
+ */
+#define UA_NOT_CONFIGURED  0x00
+#define UA_BASE_DEVICE	   0x01
+#define UA_BASE_PAV_ALIAS  0x02
+#define UA_HYPER_PAV_ALIAS 0x03
+
+struct dasd_uid {
+	__u8 type;
+	char vendor[4];
+	char serial[15];
+	__u16 ssid;
+	__u8 real_unit_addr;
+	__u8 base_unit_addr;
+	char vduit[33];
+};
 
 /*
  * the struct dasd_discipline is
@@ -312,27 +337,14 @@ struct dasd_discipline {
 	/* suspend/resume functions */
 	int (*freeze) (struct dasd_device *);
 	int (*restore) (struct dasd_device *);
+
+	/* reload device after state change */
+	int (*reload) (struct dasd_device *);
+
+	int (*get_uid) (struct dasd_device *, struct dasd_uid *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
-
-/*
- * Unique identifier for dasd device.
- */
-#define UA_NOT_CONFIGURED  0x00
-#define UA_BASE_DEVICE	   0x01
-#define UA_BASE_PAV_ALIAS  0x02
-#define UA_HYPER_PAV_ALIAS 0x03
-
-struct dasd_uid {
-	__u8 type;
-	char vendor[4];
-	char serial[15];
-	__u16 ssid;
-	__u8 real_unit_addr;
-	__u8 base_unit_addr;
-	char vduit[33];
-};
 
 /*
  * Notification numbers for extended error reporting notifications:
@@ -368,6 +380,7 @@ struct dasd_device {
 
 	/* Device state and target state. */
 	int state, target;
+	struct mutex state_mutex;
 	int stopped;		/* device (ccw_device_start) was stopped */
 
 	/* reference count. */
@@ -385,6 +398,7 @@ struct dasd_device {
         struct tasklet_struct tasklet;
 	struct work_struct kick_work;
 	struct work_struct restore_device;
+	struct work_struct reload_device;
 	struct timer_list timer;
 
 	debug_info_t *debug_area;
@@ -393,6 +407,9 @@ struct dasd_device {
 
 	/* hook for alias management */
 	struct list_head alias_list;
+
+	/* default expiration time in s */
+	unsigned long default_expires;
 };
 
 struct dasd_block {
@@ -435,6 +452,10 @@ struct dasd_block {
 #define DASD_FLAG_OFFLINE	3	/* device is in offline processing */
 #define DASD_FLAG_EER_SNSS	4	/* A SNSS is required */
 #define DASD_FLAG_EER_IN_USE	5	/* A SNSS request is running */
+#define DASD_FLAG_DEVICE_RO	6	/* The device itself is read-only. Don't
+					 * confuse this with the user specified
+					 * read-only feature.
+					 */
 
 void dasd_put_device_wake(struct dasd_device *);
 
@@ -577,6 +598,7 @@ void dasd_enable_device(struct dasd_device *);
 void dasd_set_target_state(struct dasd_device *, int);
 void dasd_kick_device(struct dasd_device *);
 void dasd_restore_device(struct dasd_device *);
+void dasd_reload_device(struct dasd_device *);
 
 void dasd_add_request_head(struct dasd_ccw_req *);
 void dasd_add_request_tail(struct dasd_ccw_req *);
@@ -601,12 +623,16 @@ int dasd_generic_notify(struct ccw_device *, int);
 void dasd_generic_handle_state_change(struct dasd_device *);
 int dasd_generic_pm_freeze(struct ccw_device *);
 int dasd_generic_restore_device(struct ccw_device *);
+enum uc_todo dasd_generic_uc_handler(struct ccw_device *, struct irb *);
 
 int dasd_generic_read_dev_chars(struct dasd_device *, int, void *, int);
 char *dasd_get_sense(struct irb *);
 
 void dasd_device_set_stop_bits(struct dasd_device *, int);
 void dasd_device_remove_stop_bits(struct dasd_device *, int);
+
+int dasd_device_is_ro(struct dasd_device *);
+
 
 /* externals in dasd_devmap.c */
 extern int dasd_max_devindex;
@@ -621,8 +647,6 @@ void dasd_devmap_exit(void);
 struct dasd_device *dasd_create_device(struct ccw_device *);
 void dasd_delete_device(struct dasd_device *);
 
-int dasd_get_uid(struct ccw_device *, struct dasd_uid *);
-int dasd_set_uid(struct ccw_device *, struct dasd_uid *);
 int dasd_get_feature(struct ccw_device *, int);
 int dasd_set_feature(struct ccw_device *, int, int);
 

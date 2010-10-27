@@ -21,9 +21,9 @@
 
 #include <linux/xattr.h>
 
-extern struct xattr_handler btrfs_xattr_acl_access_handler;
-extern struct xattr_handler btrfs_xattr_acl_default_handler;
-extern struct xattr_handler *btrfs_xattr_handlers[];
+extern const struct xattr_handler btrfs_xattr_acl_access_handler;
+extern const struct xattr_handler btrfs_xattr_acl_default_handler;
+extern const struct xattr_handler *btrfs_xattr_handlers[];
 
 extern ssize_t __btrfs_getxattr(struct inode *inode, const char *name,
 		void *buffer, size_t size);

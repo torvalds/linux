@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -60,6 +60,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(be_rx_events)},
 	{DRVSTAT_INFO(be_tx_compl)},
 	{DRVSTAT_INFO(be_rx_compl)},
+	{DRVSTAT_INFO(be_rx_mcast_pkt)},
 	{DRVSTAT_INFO(be_ethrx_post_fail)},
 	{DRVSTAT_INFO(be_802_3_dropped_frames)},
 	{DRVSTAT_INFO(be_802_3_malformed_frames)},
@@ -112,6 +113,7 @@ static const char et_self_tests[][ETH_GSTRING_LEN] = {
 	"PHY Loopback test",
 	"External Loopback test",
 	"DDR DMA test"
+	"Link test"
 };
 
 #define ETHTOOL_TESTS_NUM ARRAY_SIZE(et_self_tests)
@@ -275,8 +277,6 @@ be_get_ethtool_stats(struct net_device *netdev,
 		data[i] = (et_stats[i].size == sizeof(u64)) ?
 				*(u64 *)p: *(u32 *)p;
 	}
-
-	return;
 }
 
 static void
@@ -315,15 +315,19 @@ static int be_get_sset_count(struct net_device *netdev, int stringset)
 static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	u8 mac_speed = 0, connector = 0;
+	struct be_dma_mem phy_cmd;
+	struct be_cmd_resp_get_phy_info *resp;
+	u8 mac_speed = 0;
 	u16 link_speed = 0;
 	bool link_up = false;
 	int status;
+	u16 intf_type;
 
-	if (adapter->link_speed < 0) {
+	if ((adapter->link_speed < 0) || (!(netdev->flags & IFF_UP))) {
 		status = be_cmd_link_status_query(adapter, &link_up,
 						&mac_speed, &link_speed);
 
+		be_link_status_update(adapter, link_up);
 		/* link_speed is in units of 10 Mbps */
 		if (link_speed) {
 			ecmd->speed = link_speed*10;
@@ -338,40 +342,57 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 			}
 		}
 
-		status = be_cmd_read_port_type(adapter, adapter->port_num,
-						&connector);
+		phy_cmd.size = sizeof(struct be_cmd_req_get_phy_info);
+		phy_cmd.va = pci_alloc_consistent(adapter->pdev, phy_cmd.size,
+					&phy_cmd.dma);
+		if (!phy_cmd.va) {
+			dev_err(&adapter->pdev->dev, "Memory alloc failure\n");
+			return -ENOMEM;
+		}
+		status = be_cmd_get_phy_info(adapter, &phy_cmd);
 		if (!status) {
-			switch (connector) {
-			case 7:
+			resp = (struct be_cmd_resp_get_phy_info *) phy_cmd.va;
+			intf_type = le16_to_cpu(resp->interface_type);
+
+			switch (intf_type) {
+			case PHY_TYPE_XFP_10GB:
+			case PHY_TYPE_SFP_1GB:
+			case PHY_TYPE_SFP_PLUS_10GB:
 				ecmd->port = PORT_FIBRE;
-				ecmd->transceiver = XCVR_EXTERNAL;
-				break;
-			case 0:
-				ecmd->port = PORT_TP;
-				ecmd->transceiver = XCVR_EXTERNAL;
 				break;
 			default:
 				ecmd->port = PORT_TP;
-				ecmd->transceiver = XCVR_INTERNAL;
 				break;
 			}
-		} else {
-			ecmd->port = PORT_AUI;
+
+			switch (intf_type) {
+			case PHY_TYPE_KR_10GB:
+			case PHY_TYPE_KX4_10GB:
+				ecmd->autoneg = AUTONEG_ENABLE;
 			ecmd->transceiver = XCVR_INTERNAL;
+				break;
+			default:
+				ecmd->autoneg = AUTONEG_DISABLE;
+				ecmd->transceiver = XCVR_EXTERNAL;
+				break;
+			}
 		}
 
 		/* Save for future use */
 		adapter->link_speed = ecmd->speed;
 		adapter->port_type = ecmd->port;
 		adapter->transceiver = ecmd->transceiver;
+		adapter->autoneg = ecmd->autoneg;
+		pci_free_consistent(adapter->pdev, phy_cmd.size,
+					phy_cmd.va, phy_cmd.dma);
 	} else {
 		ecmd->speed = adapter->link_speed;
 		ecmd->port = adapter->port_type;
 		ecmd->transceiver = adapter->transceiver;
+		ecmd->autoneg = adapter->autoneg;
 	}
 
 	ecmd->duplex = DUPLEX_FULL;
-	ecmd->autoneg = AUTONEG_DISABLE;
 	ecmd->phy_address = adapter->port_num;
 	switch (ecmd->port) {
 	case PORT_FIBRE:
@@ -383,6 +404,13 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	case PORT_AUI:
 		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_AUI);
 		break;
+	}
+
+	if (ecmd->autoneg) {
+		ecmd->supported |= SUPPORTED_1000baseT_Full;
+		ecmd->supported |= SUPPORTED_Autoneg;
+		ecmd->advertising |= (ADVERTISED_10000baseT_Full |
+				ADVERTISED_1000baseT_Full);
 	}
 
 	return 0;
@@ -465,7 +493,6 @@ be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	else
 		wol->wolopts = 0;
 	memset(&wol->sopass, 0, sizeof(wol->sopass));
-	return;
 }
 
 static int
@@ -489,13 +516,13 @@ be_test_ddr_dma(struct be_adapter *adapter)
 {
 	int ret, i;
 	struct be_dma_mem ddrdma_cmd;
-	u64 pattern[2] = {0x5a5a5a5a5a5a5a5a, 0xa5a5a5a5a5a5a5a5};
+	u64 pattern[2] = {0x5a5a5a5a5a5a5a5aULL, 0xa5a5a5a5a5a5a5a5ULL};
 
 	ddrdma_cmd.size = sizeof(struct be_cmd_req_ddrdma_test);
 	ddrdma_cmd.va = pci_alloc_consistent(adapter->pdev, ddrdma_cmd.size,
 					&ddrdma_cmd.dma);
 	if (!ddrdma_cmd.va) {
-		dev_err(&adapter->pdev->dev, "Memory allocation failure \n");
+		dev_err(&adapter->pdev->dev, "Memory allocation failure\n");
 		return -ENOMEM;
 	}
 
@@ -529,6 +556,9 @@ static void
 be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	bool link_up;
+	u8 mac_speed = 0;
+	u16 qos_link_speed = 0;
 
 	memset(data, 0, sizeof(u64) * ETHTOOL_TESTS_NUM);
 
@@ -545,12 +575,20 @@ be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 						&data[2]) != 0) {
 			test->flags |= ETH_TEST_FL_FAILED;
 		}
-
-		data[3] = be_test_ddr_dma(adapter);
-		if (data[3] != 0)
-			test->flags |= ETH_TEST_FL_FAILED;
 	}
 
+	if (be_test_ddr_dma(adapter) != 0) {
+		data[3] = 1;
+		test->flags |= ETH_TEST_FL_FAILED;
+	}
+
+	if (be_cmd_link_status_query(adapter, &link_up, &mac_speed,
+				&qos_link_speed) != 0) {
+		test->flags |= ETH_TEST_FL_FAILED;
+		data[4] = -1;
+	} else if (mac_speed) {
+		data[4] = 1;
+	}
 }
 
 static int
@@ -567,12 +605,57 @@ be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 	return be_load_fw(adapter, file_name);
 }
 
+static int
+be_get_eeprom_len(struct net_device *netdev)
+{
+	return BE_READ_SEEPROM_LEN;
+}
+
+static int
+be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
+			uint8_t *data)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_dma_mem eeprom_cmd;
+	struct be_cmd_resp_seeprom_read *resp;
+	int status;
+
+	if (!eeprom->len)
+		return -EINVAL;
+
+	eeprom->magic = BE_VENDOR_ID | (adapter->pdev->device<<16);
+
+	memset(&eeprom_cmd, 0, sizeof(struct be_dma_mem));
+	eeprom_cmd.size = sizeof(struct be_cmd_req_seeprom_read);
+	eeprom_cmd.va = pci_alloc_consistent(adapter->pdev, eeprom_cmd.size,
+				&eeprom_cmd.dma);
+
+	if (!eeprom_cmd.va) {
+		dev_err(&adapter->pdev->dev,
+			"Memory allocation failure. Could not read eeprom\n");
+		return -ENOMEM;
+	}
+
+	status = be_cmd_get_seeprom_data(adapter, &eeprom_cmd);
+
+	if (!status) {
+		resp = (struct be_cmd_resp_seeprom_read *) eeprom_cmd.va;
+		memcpy(data, resp->seeprom_data + eeprom->offset, eeprom->len);
+	}
+	pci_free_consistent(adapter->pdev, eeprom_cmd.size, eeprom_cmd.va,
+			eeprom_cmd.dma);
+
+	return status;
+}
+
 const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
 	.get_wol = be_get_wol,
 	.set_wol = be_set_wol,
 	.get_link = ethtool_op_get_link,
+	.get_eeprom_len = be_get_eeprom_len,
+	.get_eeprom = be_read_eeprom,
 	.get_coalesce = be_get_coalesce,
 	.set_coalesce = be_set_coalesce,
 	.get_ringparam = be_get_ringparam,

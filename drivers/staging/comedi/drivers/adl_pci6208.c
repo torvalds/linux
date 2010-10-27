@@ -54,7 +54,7 @@ References:
 #include "../comedidev.h"
 #include "comedi_pci.h"
 
-#define PCI6208_DRIVER_NAME 	"adl_pci6208"
+#define PCI6208_DRIVER_NAME	"adl_pci6208"
 
 /* Board descriptions */
 struct pci6208_board {
@@ -119,7 +119,43 @@ static struct comedi_driver driver_pci6208 = {
 	.detach = pci6208_detach,
 };
 
-COMEDI_PCI_INITCLEANUP(driver_pci6208, pci6208_pci_table);
+static int __devinit driver_pci6208_pci_probe(struct pci_dev *dev,
+					      const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_pci6208.driver_name);
+}
+
+static void __devexit driver_pci6208_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_pci6208_pci_driver = {
+	.id_table = pci6208_pci_table,
+	.probe = &driver_pci6208_pci_probe,
+	.remove = __devexit_p(&driver_pci6208_pci_remove)
+};
+
+static int __init driver_pci6208_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_pci6208);
+	if (retval < 0)
+		return retval;
+
+	driver_pci6208_pci_driver.name = (char *)driver_pci6208.driver_name;
+	return pci_register_driver(&driver_pci6208_pci_driver);
+}
+
+static void __exit driver_pci6208_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_pci6208_pci_driver);
+	comedi_driver_unregister(&driver_pci6208);
+}
+
+module_init(driver_pci6208_init_module);
+module_exit(driver_pci6208_cleanup_module);
 
 static int pci6208_find_device(struct comedi_device *dev, int bus, int slot);
 static int
@@ -134,10 +170,10 @@ static int pci6208_ao_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data);
 /* static int pci6208_dio_insn_bits (struct comedi_device *dev,
- * 					struct comedi_subdevice *s, */
+ *					struct comedi_subdevice *s, */
 /* struct comedi_insn *insn,unsigned int *data); */
 /* static int pci6208_dio_insn_config(struct comedi_device *dev,
- * 					struct comedi_subdevice *s, */
+ *					struct comedi_subdevice *s, */
 /* struct comedi_insn *insn,unsigned int *data); */
 
 /*
@@ -268,7 +304,7 @@ static int pci6208_ao_rinsn(struct comedi_device *dev,
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
 /* static int pci6208_dio_insn_bits(struct comedi_device *dev,
- * 					struct comedi_subdevice *s, */
+ *					struct comedi_subdevice *s, */
 /* struct comedi_insn *insn,unsigned int *data) */
 /* { */
 /* if(insn->n!=2)return -EINVAL; */
@@ -293,7 +329,7 @@ static int pci6208_ao_rinsn(struct comedi_device *dev,
 /* } */
 
 /* static int pci6208_dio_insn_config(struct comedi_device *dev,
- * 					struct comedi_subdevice *s, */
+ *					struct comedi_subdevice *s, */
 /* struct comedi_insn *insn,unsigned int *data) */
 /* { */
 /* int chan=CR_CHAN(insn->chanspec); */
@@ -315,12 +351,10 @@ static int pci6208_ao_rinsn(struct comedi_device *dev,
 
 static int pci6208_find_device(struct comedi_device *dev, int bus, int slot)
 {
-	struct pci_dev *pci_dev;
+	struct pci_dev *pci_dev = NULL;
 	int i;
 
-	for (pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pci_dev != NULL;
-	     pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
+	for_each_pci_dev(pci_dev) {
 		if (pci_dev->vendor == PCI_VENDOR_ID_ADLINK) {
 			for (i = 0; i < ARRAY_SIZE(pci6208_boards); i++) {
 				if (pci6208_boards[i].dev_id ==
@@ -408,3 +442,7 @@ pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr,
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

@@ -34,6 +34,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 
 #include "c2.h"

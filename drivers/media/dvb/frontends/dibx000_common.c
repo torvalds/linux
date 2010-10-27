@@ -174,7 +174,7 @@ void dibx000_exit_i2c_master(struct dibx000_i2c_master *mst)
 EXPORT_SYMBOL(dibx000_exit_i2c_master);
 
 
-u32 systime()
+u32 systime(void)
 {
     struct timespec t;
 

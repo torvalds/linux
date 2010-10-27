@@ -84,7 +84,7 @@ enum {
 /* BD Address */
 typedef struct {
 	__u8 b[6];
-} __attribute__((packed)) bdaddr_t;
+} __packed bdaddr_t;
 
 #define BDADDR_ANY   (&(bdaddr_t) {{0, 0, 0, 0, 0, 0}})
 #define BDADDR_LOCAL (&(bdaddr_t) {{0, 0, 0, 0xff, 0xff, 0xff}})
@@ -138,6 +138,7 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock);
 struct bt_skb_cb {
 	__u8 pkt_type;
 	__u8 incoming;
+	__u16 expect;
 	__u8 tx_seq;
 	__u8 retries;
 	__u8 sar;
@@ -160,12 +161,30 @@ static inline struct sk_buff *bt_skb_send_alloc(struct sock *sk, unsigned long l
 {
 	struct sk_buff *skb;
 
+	release_sock(sk);
 	if ((skb = sock_alloc_send_skb(sk, len + BT_SKB_RESERVE, nb, err))) {
 		skb_reserve(skb, BT_SKB_RESERVE);
 		bt_cb(skb)->incoming  = 0;
 	}
+	lock_sock(sk);
+
+	if (!skb && *err)
+		return NULL;
+
+	*err = sock_error(sk);
+	if (*err)
+		goto out;
+
+	if (sk->sk_shutdown) {
+		*err = -ECONNRESET;
+		goto out;
+	}
 
 	return skb;
+
+out:
+	kfree_skb(skb);
+	return NULL;
 }
 
 int bt_err(__u16 code);
@@ -176,6 +195,6 @@ extern void hci_sock_cleanup(void);
 extern int bt_sysfs_init(void);
 extern void bt_sysfs_cleanup(void);
 
-extern struct class *bt_class;
+extern struct dentry *bt_debugfs;
 
 #endif /* __BLUETOOTH_H */

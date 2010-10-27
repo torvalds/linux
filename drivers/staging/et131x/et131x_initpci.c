@@ -68,7 +68,6 @@
 
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/timer.h>
@@ -87,20 +86,16 @@
 #include <linux/random.h>
 
 #include "et1310_phy.h"
-#include "et1310_pm.h"
-#include "et1310_jagcore.h"
 
 #include "et131x_adapter.h"
-#include "et131x_netdev.h"
-#include "et131x_config.h"
-#include "et131x_isr.h"
 
 #include "et1310_address_map.h"
 #include "et1310_tx.h"
 #include "et1310_rx.h"
-#include "et1310_mac.h"
-#include "et1310_eeprom.h"
+#include "et131x.h"
 
+#define INTERNAL_MEM_SIZE       0x400	/* 1024 of internal memory */
+#define INTERNAL_MEM_RX_OFFSET  0x1FF	/* 50%   Tx, 50%   Rx */
 
 /* Defines for Parameter Default/Min/Max vaules */
 #define PARM_SPEED_DUPLEX_MIN   0
@@ -118,7 +113,13 @@
 static u32 et131x_speed_set;
 module_param(et131x_speed_set, uint, 0);
 MODULE_PARM_DESC(et131x_speed_set,
-		"Set Link speed and dublex manually (0-5)  [0] \n  1 : 10Mb   Half-Duplex \n  2 : 10Mb   Full-Duplex \n  3 : 100Mb  Half-Duplex \n  4 : 100Mb  Full-Duplex \n  5 : 1000Mb Full-Duplex \n 0 : Auto Speed Auto Dublex");
+		"Set Link speed and dublex manually (0-5)  [0]\n \
+		 1 : 10Mb   Half-Duplex\n \
+		 2 : 10Mb   Full-Duplex\n \
+		 3 : 100Mb  Half-Duplex\n \
+		 4 : 100Mb  Full-Duplex\n \
+		 5 : 1000Mb Full-Duplex\n \
+		 0 : Auto Speed Auto Dublex");
 
 /**
  * et131x_hwaddr_init - set up the MAC Address on the ET1310
@@ -327,7 +328,7 @@ void et131x_link_detection_handler(unsigned long data)
  */
 void ConfigGlobalRegs(struct et131x_adapter *etdev)
 {
-	struct _GLOBAL_t __iomem *regs = &etdev->regs->global;
+	struct global_regs __iomem *regs = &etdev->regs->global;
 
 	writel(0, &regs->rxq_start_addr);
 	writel(INTERNAL_MEM_SIZE - 1, &regs->txq_end_addr);
@@ -563,7 +564,7 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	/* Parse configuration parameters into the private adapter struct */
 	if (et131x_speed_set)
 		dev_info(&etdev->pdev->dev,
-			"Speed set manually to : %d \n", et131x_speed_set);
+			"Speed set manually to : %d\n", et131x_speed_set);
 
 	etdev->SpeedDuplex = et131x_speed_set;
 	etdev->RegistryJumboPacket = 1514;	/* 1514-9216 */
@@ -825,7 +826,7 @@ static int __init et131x_init_module(void)
 	if (et131x_speed_set < PARM_SPEED_DUPLEX_MIN ||
 	    et131x_speed_set > PARM_SPEED_DUPLEX_MAX) {
 		printk(KERN_WARNING "et131x: invalid speed setting ignored.\n");
-	    	et131x_speed_set = 0;
+		et131x_speed_set = 0;
 	}
 	return pci_register_driver(&et131x_driver);
 }

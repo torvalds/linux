@@ -6,6 +6,7 @@
  */
 
 #include <linux/irq.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/interrupt.h>
@@ -70,7 +71,7 @@ static struct irq_desc *__real_move_irq_desc(struct irq_desc *old_desc,
 	raw_spin_lock_irqsave(&sparse_irq_lock, flags);
 
 	/* We have to check it to avoid races with another CPU */
-	desc = irq_desc_ptrs[irq];
+	desc = irq_to_desc(irq);
 
 	if (desc && old_desc != desc)
 		goto out_unlock;
@@ -90,7 +91,7 @@ static struct irq_desc *__real_move_irq_desc(struct irq_desc *old_desc,
 		goto out_unlock;
 	}
 
-	irq_desc_ptrs[irq] = desc;
+	replace_irq_desc(irq, desc);
 	raw_spin_unlock_irqrestore(&sparse_irq_lock, flags);
 
 	/* free the old one */

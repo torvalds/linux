@@ -32,7 +32,7 @@ Notes:
 
 - The flash on board is divided into 3 partitions.
   You should be careful to use flash on board.
-  It's partition is different from GraphicsClient Plus and GraphicsMaster
+  Its partition is different from GraphicsClient Plus and GraphicsMaster
 
 - 16bpp mode requires a different cable than what ships with the board.
   Contact ADS or look through the manual to wire your own. Currently,

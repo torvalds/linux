@@ -442,7 +442,14 @@
 		interrupt-map = <
 				/* IDSEL 28 */
 				 0xe000 0 0 1 &mpic 2 1
-				 0xe000 0 0 2 &mpic 3 1>;
+				 0xe000 0 0 2 &mpic 3 1
+				 0xe000 0 0 3 &mpic 6 1
+				 0xe000 0 0 4 &mpic 5 1
+
+				/* IDSEL 11 */
+				 0x5800 0 0 1 &mpic 6 1
+				 0x5800 0 0 2 &mpic 5 1
+				 >;
 
 		interrupt-parent = <&mpic>;
 		interrupts = <24 2>;

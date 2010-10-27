@@ -71,7 +71,7 @@ static void __init rd88f6192_init(void)
 static int __init rd88f6192_pci_init(void)
 {
 	if (machine_is_rd88f6192_nas())
-		kirkwood_pcie_init();
+		kirkwood_pcie_init(KW_PCIE0);
 
 	return 0;
 }

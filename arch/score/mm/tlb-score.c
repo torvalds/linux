@@ -158,7 +158,7 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 
 void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
-	if (!vma || vma->vm_mm->context != 0) {
+	if (vma && vma->vm_mm->context != 0) {
 		unsigned long flags;
 		int oldpid, newpid, idx;
 		unsigned long vma_ASID = vma->vm_mm->context;

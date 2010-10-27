@@ -3,7 +3,7 @@
  *
  * Interface to the FSF support functions.
  *
- * Copyright IBM Corporation 2002, 2009
+ * Copyright IBM Corporation 2002, 2010
  */
 
 #ifndef FSF_H
@@ -80,11 +80,15 @@
 #define FSF_REQUEST_SIZE_TOO_LARGE		0x00000061
 #define FSF_RESPONSE_SIZE_TOO_LARGE		0x00000062
 #define FSF_SBAL_MISMATCH			0x00000063
+#define FSF_INCONSISTENT_PROT_DATA		0x00000070
+#define FSF_INVALID_PROT_PARM			0x00000071
+#define FSF_BLOCK_GUARD_CHECK_FAILURE		0x00000081
+#define FSF_APP_TAG_CHECK_FAILURE		0x00000082
+#define FSF_REF_TAG_CHECK_FAILURE		0x00000083
 #define FSF_ADAPTER_STATUS_AVAILABLE		0x000000AD
 #define FSF_UNKNOWN_COMMAND			0x000000E2
 #define FSF_UNKNOWN_OP_SUBTYPE                  0x000000E3
 #define FSF_INVALID_COMMAND_OPTION              0x000000E5
-/* #define FSF_ERROR                             0x000000FF  */
 
 #define FSF_PROT_STATUS_QUAL_SIZE		16
 #define FSF_STATUS_QUALIFIER_SIZE		16
@@ -147,12 +151,16 @@
 #define FSF_DATADIR_WRITE			0x00000001
 #define FSF_DATADIR_READ			0x00000002
 #define FSF_DATADIR_CMND			0x00000004
+#define FSF_DATADIR_DIF_WRITE_INSERT		0x00000009
+#define FSF_DATADIR_DIF_READ_STRIP		0x0000000a
+#define FSF_DATADIR_DIF_WRITE_CONVERT		0x0000000b
+#define FSF_DATADIR_DIF_READ_CONVERT		0X0000000c
+
+/* data protection control flags */
+#define FSF_APP_TAG_CHECK_ENABLE		0x10
 
 /* fc service class */
 #define FSF_CLASS_3				0x00000003
-
-/* SBAL chaining */
-#define FSF_MAX_SBALS_PER_REQ			36
 
 /* logging space behind QTCB */
 #define FSF_QTCB_LOG_SIZE			1024
@@ -165,6 +173,8 @@
 #define FSF_FEATURE_ELS_CT_CHAINED_SBALS	0x00000020
 #define FSF_FEATURE_UPDATE_ALERT		0x00000100
 #define FSF_FEATURE_MEASUREMENT_DATA		0x00000200
+#define FSF_FEATURE_DIF_PROT_TYPE1		0x00010000
+#define FSF_FEATURE_DIX_PROT_TCPIP		0x00020000
 
 /* host connection features */
 #define FSF_FEATURE_NPIV_MODE			0x00000001
@@ -319,9 +329,14 @@ struct fsf_qtcb_header {
 struct fsf_qtcb_bottom_io {
 	u32 data_direction;
 	u32 service_class;
-	u8  res1[8];
+	u8  res1;
+	u8  data_prot_flags;
+	u16 app_tag_value;
+	u32 ref_tag_value;
 	u32 fcp_cmnd_length;
-	u8  res2[12];
+	u32 data_block_length;
+	u32 prot_data_length;
+	u8  res2[4];
 	u8  fcp_cmnd[FSF_FCP_CMND_SIZE];
 	u8  fcp_rsp[FSF_FCP_RSP_SIZE];
 	u8  res3[64];
@@ -347,6 +362,8 @@ struct fsf_qtcb_bottom_support {
 	u8  els[256];
 } __attribute__ ((packed));
 
+#define ZFCP_FSF_TIMER_INT_MASK	0x3FFF
+
 struct fsf_qtcb_bottom_config {
 	u32 lic_version;
 	u32 feature_selection;
@@ -361,7 +378,7 @@ struct fsf_qtcb_bottom_config {
 	u32 adapter_type;
 	u8 res0;
 	u8 peer_d_id[3];
-	u8 res1[2];
+	u16 status_read_buf_num;
 	u16 timer_interval;
 	u8 res2[9];
 	u8 s_id[3];

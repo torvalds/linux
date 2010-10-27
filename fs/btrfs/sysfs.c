@@ -164,12 +164,12 @@ static void btrfs_root_release(struct kobject *kobj)
 	complete(&root->kobj_unregister);
 }
 
-static struct sysfs_ops btrfs_super_attr_ops = {
+static const struct sysfs_ops btrfs_super_attr_ops = {
 	.show	= btrfs_super_attr_show,
 	.store	= btrfs_super_attr_store,
 };
 
-static struct sysfs_ops btrfs_root_attr_ops = {
+static const struct sysfs_ops btrfs_root_attr_ops = {
 	.show	= btrfs_root_attr_show,
 	.store	= btrfs_root_attr_store,
 };

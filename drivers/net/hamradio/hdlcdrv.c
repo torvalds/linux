@@ -48,7 +48,6 @@
 #include <linux/net.h>
 #include <linux/in.h>
 #include <linux/if.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/bitops.h>

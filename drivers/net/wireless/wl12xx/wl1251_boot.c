@@ -22,6 +22,7 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #include "wl1251_reg.h"
 #include "wl1251_boot.h"
@@ -224,7 +225,7 @@ static void wl1251_boot_set_ecpu_ctrl(struct wl1251 *wl, u32 flag)
 int wl1251_boot_run_firmware(struct wl1251 *wl)
 {
 	int loop, ret;
-	u32 chip_id, interrupt;
+	u32 chip_id, acx_intr;
 
 	wl1251_boot_set_ecpu_ctrl(wl, ECPU_CONTROL_HALT);
 
@@ -241,15 +242,15 @@ int wl1251_boot_run_firmware(struct wl1251 *wl)
 	loop = 0;
 	while (loop++ < INIT_LOOP) {
 		udelay(INIT_LOOP_DELAY);
-		interrupt = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+		acx_intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 
-		if (interrupt == 0xffffffff) {
+		if (acx_intr == 0xffffffff) {
 			wl1251_error("error reading hardware complete "
 				     "init indication");
 			return -EIO;
 		}
 		/* check that ACX_INTR_INIT_COMPLETE is enabled */
-		else if (interrupt & WL1251_ACX_INTR_INIT_COMPLETE) {
+		else if (acx_intr & WL1251_ACX_INTR_INIT_COMPLETE) {
 			wl1251_reg_write32(wl, ACX_REG_INTERRUPT_ACK,
 					   WL1251_ACX_INTR_INIT_COMPLETE);
 			break;
@@ -496,7 +497,8 @@ int wl1251_boot(struct wl1251 *wl)
 	/* 2. start processing NVS file */
 	if (wl->use_eeprom) {
 		wl1251_reg_write32(wl, ACX_REG_EE_START, START_EEPROM_MGR);
-		msleep(4000);
+		/* Wait for EEPROM NVS burst read to complete */
+		msleep(40);
 		wl1251_reg_write32(wl, ACX_EEPROMLESS_IND_REG, USE_EEPROM);
 	} else {
 		ret = wl1251_boot_upload_nvs(wl);

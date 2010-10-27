@@ -1,3 +1,3 @@
 obj-m := DocBook/ accounting/ auxdisplay/ connector/ \
-	filesystems/configfs/ ia64/ networking/ \
-	pcmcia/ spi/ video4linux/ vm/ watchdog/src/
+	filesystems/ filesystems/configfs/ ia64/ laptops/ networking/ \
+	pcmcia/ spi/ timers/ video4linux/ vm/ watchdog/src/

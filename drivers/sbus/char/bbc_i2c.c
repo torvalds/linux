@@ -51,7 +51,7 @@
  * The second controller also connects to the smartcard reader, if present.
  */
 
-static void set_device_claimage(struct bbc_i2c_bus *bp, struct of_device *op, int val)
+static void set_device_claimage(struct bbc_i2c_bus *bp, struct platform_device *op, int val)
 {
 	int i;
 
@@ -66,9 +66,9 @@ static void set_device_claimage(struct bbc_i2c_bus *bp, struct of_device *op, in
 #define claim_device(BP,ECHILD)		set_device_claimage(BP,ECHILD,1)
 #define release_device(BP,ECHILD)	set_device_claimage(BP,ECHILD,0)
 
-struct of_device *bbc_i2c_getdev(struct bbc_i2c_bus *bp, int index)
+struct platform_device *bbc_i2c_getdev(struct bbc_i2c_bus *bp, int index)
 {
-	struct of_device *op = NULL;
+	struct platform_device *op = NULL;
 	int curidx = 0, i;
 
 	for (i = 0; i < NUM_CHILDREN; i++) {
@@ -86,7 +86,7 @@ out:
 	return NULL;
 }
 
-struct bbc_i2c_client *bbc_i2c_attach(struct bbc_i2c_bus *bp, struct of_device *op)
+struct bbc_i2c_client *bbc_i2c_attach(struct bbc_i2c_bus *bp, struct platform_device *op)
 {
 	struct bbc_i2c_client *client;
 	const u32 *reg;
@@ -97,7 +97,7 @@ struct bbc_i2c_client *bbc_i2c_attach(struct bbc_i2c_bus *bp, struct of_device *
 	client->bp = bp;
 	client->op = op;
 
-	reg = of_get_property(op->node, "reg", NULL);
+	reg = of_get_property(op->dev.of_node, "reg", NULL);
 	if (!reg) {
 		kfree(client);
 		return NULL;
@@ -114,7 +114,7 @@ struct bbc_i2c_client *bbc_i2c_attach(struct bbc_i2c_bus *bp, struct of_device *
 void bbc_i2c_detach(struct bbc_i2c_client *client)
 {
 	struct bbc_i2c_bus *bp = client->bp;
-	struct of_device *op = client->op;
+	struct platform_device *op = client->op;
 
 	release_device(bp, op);
 	kfree(client);
@@ -297,7 +297,7 @@ static void __init reset_one_i2c(struct bbc_i2c_bus *bp)
 	writeb(I2C_PCF_IDLE, bp->i2c_control_regs + 0x0);
 }
 
-static struct bbc_i2c_bus * __init attach_one_i2c(struct of_device *op, int index)
+static struct bbc_i2c_bus * __init attach_one_i2c(struct platform_device *op, int index)
 {
 	struct bbc_i2c_bus *bp;
 	struct device_node *dp;
@@ -317,7 +317,7 @@ static struct bbc_i2c_bus * __init attach_one_i2c(struct of_device *op, int inde
 
 	bp->waiting = 0;
 	init_waitqueue_head(&bp->wq);
-	if (request_irq(op->irqs[0], bbc_i2c_interrupt,
+	if (request_irq(op->archdata.irqs[0], bbc_i2c_interrupt,
 			IRQF_SHARED, "bbc_i2c", bp))
 		goto fail;
 
@@ -327,10 +327,10 @@ static struct bbc_i2c_bus * __init attach_one_i2c(struct of_device *op, int inde
 	spin_lock_init(&bp->lock);
 
 	entry = 0;
-	for (dp = op->node->child;
+	for (dp = op->dev.of_node->child;
 	     dp && entry < 8;
 	     dp = dp->sibling, entry++) {
-		struct of_device *child_op;
+		struct platform_device *child_op;
 
 		child_op = of_find_device_by_node(dp);
 		bp->devs[entry].device = child_op;
@@ -361,7 +361,7 @@ fail:
 extern int bbc_envctrl_init(struct bbc_i2c_bus *bp);
 extern void bbc_envctrl_cleanup(struct bbc_i2c_bus *bp);
 
-static int __devinit bbc_i2c_probe(struct of_device *op,
+static int __devinit bbc_i2c_probe(struct platform_device *op,
 				   const struct of_device_id *match)
 {
 	struct bbc_i2c_bus *bp;
@@ -373,7 +373,7 @@ static int __devinit bbc_i2c_probe(struct of_device *op,
 
 	err = bbc_envctrl_init(bp);
 	if (err) {
-		free_irq(op->irqs[0], bp);
+		free_irq(op->archdata.irqs[0], bp);
 		if (bp->i2c_bussel_reg)
 			of_iounmap(&op->resource[0], bp->i2c_bussel_reg, 1);
 		if (bp->i2c_control_regs)
@@ -386,13 +386,13 @@ static int __devinit bbc_i2c_probe(struct of_device *op,
 	return err;
 }
 
-static int __devexit bbc_i2c_remove(struct of_device *op)
+static int __devexit bbc_i2c_remove(struct platform_device *op)
 {
 	struct bbc_i2c_bus *bp = dev_get_drvdata(&op->dev);
 
 	bbc_envctrl_cleanup(bp);
 
-	free_irq(op->irqs[0], bp);
+	free_irq(op->archdata.irqs[0], bp);
 
 	if (bp->i2c_bussel_reg)
 		of_iounmap(&op->resource[0], bp->i2c_bussel_reg, 1);
@@ -414,20 +414,23 @@ static const struct of_device_id bbc_i2c_match[] = {
 MODULE_DEVICE_TABLE(of, bbc_i2c_match);
 
 static struct of_platform_driver bbc_i2c_driver = {
-	.name		= "bbc_i2c",
-	.match_table	= bbc_i2c_match,
+	.driver = {
+		.name = "bbc_i2c",
+		.owner = THIS_MODULE,
+		.of_match_table = bbc_i2c_match,
+	},
 	.probe		= bbc_i2c_probe,
 	.remove		= __devexit_p(bbc_i2c_remove),
 };
 
 static int __init bbc_i2c_init(void)
 {
-	return of_register_driver(&bbc_i2c_driver, &of_bus_type);
+	return of_register_platform_driver(&bbc_i2c_driver);
 }
 
 static void __exit bbc_i2c_exit(void)
 {
-	of_unregister_driver(&bbc_i2c_driver);
+	of_unregister_platform_driver(&bbc_i2c_driver);
 }
 
 module_init(bbc_i2c_init);

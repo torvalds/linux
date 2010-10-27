@@ -1,0 +1,43 @@
+RAR Handler (memrar) Driver TODO Items
+======================================
+
+Maintainer: Eugene Epshteyn <eugene.epshteyn@intel.com>
+
+memrar.h
+--------
+1. This header exposes the driver's user space and kernel space
+   interfaces.  It should be moved to <linux/rar/memrar.h>, or
+   something along those lines, when this memrar driver is moved out
+   of `staging'.
+     a. It would be ideal if staging/rar_register/rar_register.h was
+        moved to the same directory.
+
+memrar_allocator.[ch]
+---------------------
+1. Address potential fragmentation issues with the memrar_allocator.
+
+2. Hide struct memrar_allocator details/fields.  They need not be
+   exposed to the user.
+     a. Forward declare struct memrar_allocator.
+     b. Move all three struct definitions to `memrar_allocator.c'
+        source file.
+     c. Add a memrar_allocator_largest_free_area() function, or
+        something like that to get access to the value of the struct
+        memrar_allocator "largest_free_area" field.  This allows the
+        struct memrar_allocator fields to be completely hidden from
+        the user.  The memrar_handler code really only needs this for
+        statistic gathering on-demand.
+     d. Do the same for the "capacity" field as the
+        "largest_free_area" field.
+
+3. Move memrar_allocator.* to kernel `lib' directory since it is HW
+   neutral.
+     a. Alternatively, use lib/genalloc.c instead.
+     b. A kernel port of Doug Lea's malloc() implementation may also
+        be an option.
+
+memrar_handler.c
+----------------
+1. Split user space interface (ioctl code) from core/kernel code,
+   e.g.:
+     memrar_handler.c -> memrar_core.c, memrar_user.c

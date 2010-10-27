@@ -34,6 +34,7 @@
 #include <rdma/ib_mad.h>
 #include <rdma/ib_user_verbs.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/utsname.h>
 #include <linux/rculist.h>
 
@@ -2181,7 +2182,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 	snprintf(dev->node_desc, sizeof(dev->node_desc),
 		 IPATH_IDSTR " %s", init_utsname()->nodename);
 
-	ret = ib_register_device(dev);
+	ret = ib_register_device(dev, NULL);
 	if (ret)
 		goto err_reg;
 

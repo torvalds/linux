@@ -1,13 +1,15 @@
 NIC_SELECT = RTL8192E
 
-
 EXTRA_CFLAGS += -DRTL8192E
 EXTRA_CFLAGS += -std=gnu89
 EXTRA_CFLAGS += -O2
 EXTRA_CFLAGS += -DTHOMAS_TURBO
 EXTRA_CFLAGS += -DENABLE_DOT11D
 
-r8192_pci-objs :=		\
+EXTRA_CFLAGS += -DENABLE_IPS
+EXTRA_CFLAGS += -DENABLE_LPS
+
+r8192e_pci-objs :=		\
 	r8192E_core.o		\
 	r8180_93cx6.o		\
 	r8192E_wx.o		\
@@ -16,6 +18,7 @@ r8192_pci-objs :=		\
 	r819xE_firmware.o	\
 	r819xE_cmdpkt.o		\
 	r8192E_dm.o		\
+	r8192_pm.o		\
 	ieee80211/ieee80211_rx.o		\
 	ieee80211/ieee80211_softmac.o		\
 	ieee80211/ieee80211_tx.o		\
@@ -31,4 +34,5 @@ r8192_pci-objs :=		\
 	ieee80211/ieee80211_crypt_ccmp.o	\
 	ieee80211/ieee80211_crypt_wep.o
 
-obj-$(CONFIG_RTL8192E) += r8192_pci.o
+obj-$(CONFIG_RTL8192E) += r8192e_pci.o
+

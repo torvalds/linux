@@ -79,11 +79,7 @@ unsigned long vmi_tsc_khz(void)
 
 static inline unsigned int vmi_get_timer_vector(void)
 {
-#ifdef CONFIG_X86_IO_APIC
-	return FIRST_DEVICE_VECTOR;
-#else
-	return FIRST_EXTERNAL_VECTOR;
-#endif
+	return IRQ0_VECTOR;
 }
 
 /** vmi clockchip */
@@ -171,7 +167,7 @@ static int vmi_timer_next_event(unsigned long delta,
 {
 	/* Unfortunately, set_next_event interface only passes relative
 	 * expiry, but we want absolute expiry.  It'd be better if were
-	 * were passed an aboslute expiry, since a bunch of time may
+	 * were passed an absolute expiry, since a bunch of time may
 	 * have been stolen between the time the delta is computed and
 	 * when we set the alarm below. */
 	cycle_t now = vmi_timer_ops.get_cycle_counter(vmi_counter(VMI_ONESHOT));

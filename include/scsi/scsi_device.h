@@ -348,7 +348,8 @@ extern int scsi_mode_select(struct scsi_device *sdev, int pf, int sp,
 			    struct scsi_sense_hdr *);
 extern int scsi_test_unit_ready(struct scsi_device *sdev, int timeout,
 				int retries, struct scsi_sense_hdr *sshdr);
-extern unsigned char *scsi_get_vpd_page(struct scsi_device *, u8 page);
+extern int scsi_get_vpd_page(struct scsi_device *, u8 page, unsigned char *buf,
+			     int buf_len);
 extern int scsi_device_set_state(struct scsi_device *sdev,
 				 enum scsi_device_state state);
 extern struct scsi_event *sdev_evt_alloc(enum scsi_device_event evt_type,
@@ -379,6 +380,14 @@ extern int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
 			    int data_direction, void *buffer, unsigned bufflen,
 			    struct scsi_sense_hdr *, int timeout, int retries,
 			    int *resid);
+
+#ifdef CONFIG_PM_RUNTIME
+extern int scsi_autopm_get_device(struct scsi_device *);
+extern void scsi_autopm_put_device(struct scsi_device *);
+#else
+static inline int scsi_autopm_get_device(struct scsi_device *d) { return 0; }
+static inline void scsi_autopm_put_device(struct scsi_device *d) {}
+#endif /* CONFIG_PM_RUNTIME */
 
 static inline int __must_check scsi_device_reprobe(struct scsi_device *sdev)
 {

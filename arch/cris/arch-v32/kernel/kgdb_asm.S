@@ -5,7 +5,7 @@
  * port exceptions for kernel debugging purposes.
  */
 
-#include <arch/hwregs/intr_vect.h>
+#include <hwregs/intr_vect.h>
 
 	;; Exported functions.
 	.globl kgdb_handle_exception

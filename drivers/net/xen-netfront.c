@@ -40,6 +40,7 @@
 #include <linux/udp.h>
 #include <linux/moduleparam.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 
 #include <xen/xen.h>
@@ -1620,6 +1621,7 @@ static void backend_changed(struct xenbus_device *dev,
 		if (xennet_connect(netdev) != 0)
 			break;
 		xenbus_switch_state(dev, XenbusStateConnected);
+		netif_notify_peers(netdev);
 		break;
 
 	case XenbusStateClosing:

@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/log2.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 #include <asm/rtc.h>
 
 #define DRV_NAME	"sh-rtc"

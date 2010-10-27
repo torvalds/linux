@@ -15,7 +15,7 @@ config MSM_CAMERA_DEBUG
 
 config MSM_CAMERA_FLASH
 	bool "Qualcomm MSM camera flash support"
-	depends on MSM_CAMERA
+	depends on MSM_CAMERA && BROKEN
 	---help---
 	  Enable support for LED flash for msm camera
 

@@ -194,10 +194,8 @@ static inline void print_state(struct hvsi_struct *hp)
 		"HVSI_WAIT_FOR_MCTRL_RESPONSE",
 		"HVSI_FSP_DIED",
 	};
-	const char *name = state_names[hp->state];
-
-	if (hp->state > ARRAY_SIZE(state_names))
-		name = "UNKNOWN";
+	const char *name = (hp->state < ARRAY_SIZE(state_names))
+		? state_names[hp->state] : "UNKNOWN";
 
 	pr_debug("hvsi%i: state = %s\n", hp->index, name);
 #endif /* DEBUG */
@@ -405,7 +403,7 @@ static void hvsi_insert_chars(struct hvsi_struct *hp, const char *buf, int len)
 			hp->sysrq = 1;
 			continue;
 		} else if (hp->sysrq) {
-			handle_sysrq(c, hp->tty);
+			handle_sysrq(c);
 			hp->sysrq = 0;
 			continue;
 		}
@@ -1257,7 +1255,7 @@ static int __init hvsi_console_setup(struct console *console, char *options)
 	return 0;
 }
 
-static struct console hvsi_con_driver = {
+static struct console hvsi_console = {
 	.name		= "hvsi",
 	.write		= hvsi_console_print,
 	.device		= hvsi_console_device,
@@ -1310,7 +1308,7 @@ static int __init hvsi_console_init(void)
 	}
 
 	if (hvsi_count)
-		register_console(&hvsi_con_driver);
+		register_console(&hvsi_console);
 	return 0;
 }
 console_initcall(hvsi_console_init);

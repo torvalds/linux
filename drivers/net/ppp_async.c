@@ -31,6 +31,7 @@
 #include <linux/spinlock.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <asm/string.h>
 
@@ -107,9 +108,9 @@ static void ppp_async_process(unsigned long arg);
 static void async_lcp_peek(struct asyncppp *ap, unsigned char *data,
 			   int len, int inbound);
 
-static struct ppp_channel_ops async_ops = {
-	ppp_async_send,
-	ppp_async_ioctl
+static const struct ppp_channel_ops async_ops = {
+	.start_xmit = ppp_async_send,
+	.ioctl      = ppp_async_ioctl,
 };
 
 /*

@@ -20,8 +20,8 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/lmb.h>
-#include <linux/of_device.h>
+#include <linux/memblock.h>
+#include <linux/of.h>
 
 #include <asm/prom.h>
 #include <asm/oplib.h>
@@ -34,7 +34,7 @@
 
 void * __init prom_early_alloc(unsigned long size)
 {
-	unsigned long paddr = lmb_alloc(size, SMP_CACHE_BYTES);
+	unsigned long paddr = memblock_alloc(size, SMP_CACHE_BYTES);
 	void *ret;
 
 	if (!paddr) {
@@ -81,7 +81,7 @@ static void __init sun4v_path_component(struct device_node *dp, char *tmp_buf)
 		return;
 
 	regs = rprop->value;
-	if (!is_root_node(dp->parent)) {
+	if (!of_node_is_root(dp->parent)) {
 		sprintf(tmp_buf, "%s@%x,%x",
 			dp->name,
 			(unsigned int) (regs->phys_addr >> 32UL),
@@ -121,7 +121,7 @@ static void __init sun4u_path_component(struct device_node *dp, char *tmp_buf)
 		return;
 
 	regs = prop->value;
-	if (!is_root_node(dp->parent)) {
+	if (!of_node_is_root(dp->parent)) {
 		sprintf(tmp_buf, "%s@%x,%x",
 			dp->name,
 			(unsigned int) (regs->phys_addr >> 32UL),

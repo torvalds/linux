@@ -44,15 +44,15 @@ unsigned long get_cmos_time(void)
 	spin_lock(&sh03_rtc_lock);
  again:
 	do {
-		sec  = (ctrl_inb(RTC_SEC1) & 0xf) + (ctrl_inb(RTC_SEC10) & 0x7) * 10;
-		min  = (ctrl_inb(RTC_MIN1) & 0xf) + (ctrl_inb(RTC_MIN10) & 0xf) * 10;
-		hour = (ctrl_inb(RTC_HOU1) & 0xf) + (ctrl_inb(RTC_HOU10) & 0xf) * 10;
-		day  = (ctrl_inb(RTC_DAY1) & 0xf) + (ctrl_inb(RTC_DAY10) & 0xf) * 10;
-		mon  = (ctrl_inb(RTC_MON1) & 0xf) + (ctrl_inb(RTC_MON10) & 0xf) * 10;
-		year = (ctrl_inb(RTC_YEA1) & 0xf) + (ctrl_inb(RTC_YEA10) & 0xf) * 10
-		     + (ctrl_inb(RTC_YEA100 ) & 0xf) * 100
-		     + (ctrl_inb(RTC_YEA1000) & 0xf) * 1000;
-	} while (sec != (ctrl_inb(RTC_SEC1) & 0xf) + (ctrl_inb(RTC_SEC10) & 0x7) * 10);
+		sec  = (__raw_readb(RTC_SEC1) & 0xf) + (__raw_readb(RTC_SEC10) & 0x7) * 10;
+		min  = (__raw_readb(RTC_MIN1) & 0xf) + (__raw_readb(RTC_MIN10) & 0xf) * 10;
+		hour = (__raw_readb(RTC_HOU1) & 0xf) + (__raw_readb(RTC_HOU10) & 0xf) * 10;
+		day  = (__raw_readb(RTC_DAY1) & 0xf) + (__raw_readb(RTC_DAY10) & 0xf) * 10;
+		mon  = (__raw_readb(RTC_MON1) & 0xf) + (__raw_readb(RTC_MON10) & 0xf) * 10;
+		year = (__raw_readb(RTC_YEA1) & 0xf) + (__raw_readb(RTC_YEA10) & 0xf) * 10
+		     + (__raw_readb(RTC_YEA100 ) & 0xf) * 100
+		     + (__raw_readb(RTC_YEA1000) & 0xf) * 1000;
+	} while (sec != (__raw_readb(RTC_SEC1) & 0xf) + (__raw_readb(RTC_SEC10) & 0x7) * 10);
 	if (year == 0 || mon < 1 || mon > 12 || day > 31 || day < 1 ||
 	    hour > 23 || min > 59 || sec > 59) {
 		printk(KERN_ERR
@@ -60,16 +60,16 @@ unsigned long get_cmos_time(void)
 		printk("year=%d, mon=%d, day=%d, hour=%d, min=%d, sec=%d\n",
 		       year, mon, day, hour, min, sec);
 
-		ctrl_outb(0, RTC_SEC1); ctrl_outb(0, RTC_SEC10);
-		ctrl_outb(0, RTC_MIN1); ctrl_outb(0, RTC_MIN10);
-		ctrl_outb(0, RTC_HOU1); ctrl_outb(0, RTC_HOU10);
-		ctrl_outb(6, RTC_WEE1);
-		ctrl_outb(1, RTC_DAY1); ctrl_outb(0, RTC_DAY10);
-		ctrl_outb(1, RTC_MON1); ctrl_outb(0, RTC_MON10);
-		ctrl_outb(0, RTC_YEA1); ctrl_outb(0, RTC_YEA10);
-		ctrl_outb(0, RTC_YEA100);
-		ctrl_outb(2, RTC_YEA1000);
-		ctrl_outb(0, RTC_CTL);
+		__raw_writeb(0, RTC_SEC1); __raw_writeb(0, RTC_SEC10);
+		__raw_writeb(0, RTC_MIN1); __raw_writeb(0, RTC_MIN10);
+		__raw_writeb(0, RTC_HOU1); __raw_writeb(0, RTC_HOU10);
+		__raw_writeb(6, RTC_WEE1);
+		__raw_writeb(1, RTC_DAY1); __raw_writeb(0, RTC_DAY10);
+		__raw_writeb(1, RTC_MON1); __raw_writeb(0, RTC_MON10);
+		__raw_writeb(0, RTC_YEA1); __raw_writeb(0, RTC_YEA10);
+		__raw_writeb(0, RTC_YEA100);
+		__raw_writeb(2, RTC_YEA1000);
+		__raw_writeb(0, RTC_CTL);
 		goto again;
 	}
 
@@ -93,9 +93,9 @@ static int set_rtc_mmss(unsigned long nowtime)
 	/* gets recalled with irq locally disabled */
 	spin_lock(&sh03_rtc_lock);
 	for (i = 0 ; i < 1000000 ; i++)	/* may take up to 1 second... */
-		if (!(ctrl_inb(RTC_CTL) & RTC_BUSY))
+		if (!(__raw_readb(RTC_CTL) & RTC_BUSY))
 			break;
-	cmos_minutes = (ctrl_inb(RTC_MIN1) & 0xf) + (ctrl_inb(RTC_MIN10) & 0xf) * 10;
+	cmos_minutes = (__raw_readb(RTC_MIN1) & 0xf) + (__raw_readb(RTC_MIN10) & 0xf) * 10;
 	real_seconds = nowtime % 60;
 	real_minutes = nowtime / 60;
 	if (((abs(real_minutes - cmos_minutes) + 15)/30) & 1)
@@ -103,10 +103,10 @@ static int set_rtc_mmss(unsigned long nowtime)
 	real_minutes %= 60;
 
 	if (abs(real_minutes - cmos_minutes) < 30) {
-		ctrl_outb(real_seconds % 10, RTC_SEC1);
-		ctrl_outb(real_seconds / 10, RTC_SEC10);
-		ctrl_outb(real_minutes % 10, RTC_MIN1);
-		ctrl_outb(real_minutes / 10, RTC_MIN10);
+		__raw_writeb(real_seconds % 10, RTC_SEC1);
+		__raw_writeb(real_seconds / 10, RTC_SEC10);
+		__raw_writeb(real_minutes % 10, RTC_MIN1);
+		__raw_writeb(real_minutes / 10, RTC_MIN10);
 	} else {
 		printk(KERN_WARNING
 		       "set_rtc_mmss: can't update from %d to %d\n",

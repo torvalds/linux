@@ -100,6 +100,13 @@ struct fc_ns_fts {
 };
 
 /*
+ * FC4-features object.
+ */
+struct fc_ns_ff	{
+	__be32	fd_feat[FC_NS_TYPES * 4 / FC_NS_BPW]; /* 4-bits per FC-type */
+};
+
+/*
  * GID_PT request.
  */
 struct fc_ns_gid_pt {

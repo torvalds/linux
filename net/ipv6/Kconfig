@@ -229,6 +229,20 @@ config IPV6_MROUTE
 	  Experimental support for IPv6 multicast forwarding.
 	  If unsure, say N.
 
+config IPV6_MROUTE_MULTIPLE_TABLES
+	bool "IPv6: multicast policy routing"
+	depends on IPV6_MROUTE
+	select FIB_RULES
+	help
+	  Normally, a multicast router runs a userspace daemon and decides
+	  what to do with a multicast packet based on the source and
+	  destination addresses. If you say Y here, the multicast router
+	  will also be able to take interfaces and packet marks into
+	  account and run multiple instances of userspace daemons
+	  simultaneously, each one handling a single table.
+
+	  If unsure, say N.
+
 config IPV6_PIMSM_V2
 	bool "IPv6: PIM-SM version 2 support (EXPERIMENTAL)"
 	depends on IPV6_MROUTE

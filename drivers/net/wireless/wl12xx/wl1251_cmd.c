@@ -1,6 +1,7 @@
 #include "wl1251_cmd.h"
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/crc7.h>
 
 #include "wl1251.h"
@@ -403,6 +404,89 @@ int wl1251_cmd_template_set(struct wl1251 *wl, u16 cmd_id,
 	ret = wl1251_cmd_send(wl, cmd_id, cmd, cmd_len);
 	if (ret < 0) {
 		wl1251_warning("cmd set_template failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(cmd);
+	return ret;
+}
+
+int wl1251_cmd_scan(struct wl1251 *wl, u8 *ssid, size_t ssid_len,
+		    struct ieee80211_channel *channels[],
+		    unsigned int n_channels, unsigned int n_probes)
+{
+	struct wl1251_cmd_scan *cmd;
+	int i, ret = 0;
+
+	wl1251_debug(DEBUG_CMD, "cmd scan");
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->params.rx_config_options = cpu_to_le32(CFG_RX_ALL_GOOD);
+	cmd->params.rx_filter_options = cpu_to_le32(CFG_RX_PRSP_EN |
+						    CFG_RX_MGMT_EN |
+						    CFG_RX_BCN_EN);
+	cmd->params.scan_options = 0;
+	cmd->params.num_channels = n_channels;
+	cmd->params.num_probe_requests = n_probes;
+	cmd->params.tx_rate = cpu_to_le16(1 << 1); /* 2 Mbps */
+	cmd->params.tid_trigger = 0;
+
+	for (i = 0; i < n_channels; i++) {
+		cmd->channels[i].min_duration =
+			cpu_to_le32(WL1251_SCAN_MIN_DURATION);
+		cmd->channels[i].max_duration =
+			cpu_to_le32(WL1251_SCAN_MAX_DURATION);
+		memset(&cmd->channels[i].bssid_lsb, 0xff, 4);
+		memset(&cmd->channels[i].bssid_msb, 0xff, 2);
+		cmd->channels[i].early_termination = 0;
+		cmd->channels[i].tx_power_att = 0;
+		cmd->channels[i].channel = channels[i]->hw_value;
+	}
+
+	cmd->params.ssid_len = ssid_len;
+	if (ssid)
+		memcpy(cmd->params.ssid, ssid, ssid_len);
+
+	ret = wl1251_cmd_send(wl, CMD_SCAN, cmd, sizeof(*cmd));
+	if (ret < 0) {
+		wl1251_error("cmd scan failed: %d", ret);
+		goto out;
+	}
+
+	wl1251_mem_read(wl, wl->cmd_box_addr, cmd, sizeof(*cmd));
+
+	if (cmd->header.status != CMD_STATUS_SUCCESS) {
+		wl1251_error("cmd scan status wasn't success: %d",
+			     cmd->header.status);
+		ret = -EIO;
+		goto out;
+	}
+
+out:
+	kfree(cmd);
+	return ret;
+}
+
+int wl1251_cmd_trigger_scan_to(struct wl1251 *wl, u32 timeout)
+{
+	struct wl1251_cmd_trigger_scan_to *cmd;
+	int ret;
+
+	wl1251_debug(DEBUG_CMD, "cmd trigger scan to");
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->timeout = timeout;
+
+	ret = wl1251_cmd_send(wl, CMD_TRIGGER_SCAN_TO, cmd, sizeof(*cmd));
+	if (ret < 0) {
+		wl1251_error("cmd trigger scan to failed: %d", ret);
 		goto out;
 	}
 

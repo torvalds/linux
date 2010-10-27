@@ -48,6 +48,7 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 /* LED select registers determine the source that drives LED outputs */
 #define PCA955X_LS_LED_ON	0x0	/* Output LOW */
@@ -341,7 +342,6 @@ exit:
 	}
 
 	kfree(pca955x);
-	i2c_set_clientdata(client, NULL);
 
 	return err;
 }
@@ -357,7 +357,6 @@ static int __devexit pca955x_remove(struct i2c_client *client)
 	}
 
 	kfree(pca955x);
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }

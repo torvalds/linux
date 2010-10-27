@@ -65,21 +65,21 @@ static inline dma_addr_t plat_map_dma_mem(struct device *dev, void *addr,
 	size_t size)
 {
 	if (is_kseg2(addr))
-		return phys_to_bus(virt_to_phys_from_pte(addr));
+		return phys_to_dma(virt_to_phys_from_pte(addr));
 	else
-		return phys_to_bus(virt_to_phys(addr));
+		return phys_to_dma(virt_to_phys(addr));
 }
 
 static inline dma_addr_t plat_map_dma_mem_page(struct device *dev,
 	struct page *page)
 {
-	return phys_to_bus(page_to_phys(page));
+	return phys_to_dma(page_to_phys(page));
 }
 
 static inline unsigned long plat_dma_addr_to_phys(struct device *dev,
 	dma_addr_t dma_addr)
 {
-	return bus_to_phys(dma_addr);
+	return dma_to_phys(dma_addr);
 }
 
 static inline void plat_unmap_dma_mem(struct device *dev, dma_addr_t dma_addr,

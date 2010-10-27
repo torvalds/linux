@@ -60,6 +60,7 @@
 #define   OHCI1394_LinkControl_cycleSource	(1 << 22)
 #define OHCI1394_NodeID                       0x0E8
 #define   OHCI1394_NodeID_idValid             0x80000000
+#define   OHCI1394_NodeID_root                0x40000000
 #define   OHCI1394_NodeID_nodeNumber          0x0000003f
 #define   OHCI1394_NodeID_busNumber           0x0000ffc0
 #define OHCI1394_PhyControl                   0x0EC
@@ -67,7 +68,7 @@
 #define   OHCI1394_PhyControl_ReadDone		0x80000000
 #define   OHCI1394_PhyControl_ReadData(r)	(((r) & 0x00ff0000) >> 16)
 #define   OHCI1394_PhyControl_Write(addr, data)	(((addr) << 8) | (data) | 0x00004000)
-#define   OHCI1394_PhyControl_WriteDone		0x00004000
+#define   OHCI1394_PhyControl_WritePending	0x00004000
 #define OHCI1394_IsochronousCycleTimer        0x0F0
 #define OHCI1394_AsReqFilterHiSet             0x100
 #define OHCI1394_AsReqFilterHiClear           0x104

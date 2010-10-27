@@ -21,6 +21,7 @@
 #include <linux/smp.h>
 #include <linux/bitops.h>
 #include <linux/perf_event.h>
+#include <linux/ratelimit.h>
 #include <asm/fpumacro.h>
 
 enum direction {
@@ -49,7 +50,7 @@ static inline enum direction decode_direction(unsigned int insn)
 }
 
 /* 16 = double-word, 8 = extra-word, 4 = word, 2 = half-word */
-static inline int decode_access_size(unsigned int insn)
+static inline int decode_access_size(struct pt_regs *regs, unsigned int insn)
 {
 	unsigned int tmp;
 
@@ -65,7 +66,7 @@ static inline int decode_access_size(unsigned int insn)
 		return 2;
 	else {
 		printk("Impossible unaligned trap. insn=%08x\n", insn);
-		die_if_kernel("Byte sized unaligned access?!?!", current_thread_info()->kregs);
+		die_if_kernel("Byte sized unaligned access?!?!", regs);
 
 		/* GCC should never warn that control reaches the end
 		 * of this function without returning a value because
@@ -274,13 +275,9 @@ static void kernel_mna_trap_fault(int fixup_tstate_asi)
 
 static void log_unaligned(struct pt_regs *regs)
 {
-	static unsigned long count, last_time;
+	static DEFINE_RATELIMIT_STATE(ratelimit, 5 * HZ, 5);
 
-	if (time_after(jiffies, last_time + 5 * HZ))
-		count = 0;
-	if (count < 5) {
-		last_time = jiffies;
-		count++;
+	if (__ratelimit(&ratelimit)) {
 		printk("Kernel unaligned access at TPC[%lx] %pS\n",
 		       regs->tpc, (void *) regs->tpc);
 	}
@@ -289,7 +286,7 @@ static void log_unaligned(struct pt_regs *regs)
 asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 {
 	enum direction dir = decode_direction(insn);
-	int size = decode_access_size(insn);
+	int size = decode_access_size(regs, insn);
 	int orig_asi, asi;
 
 	current_thread_info()->kern_una_regs = regs;
@@ -636,7 +633,6 @@ daex:
 		return;
 	}
 	advance(regs);
-	return;
 }
 
 void handle_stdfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr)
@@ -685,5 +681,4 @@ daex:
 		return;
 	}
 	advance(regs);
-	return;
 }

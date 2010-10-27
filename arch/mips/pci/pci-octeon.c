@@ -209,16 +209,14 @@ const char *octeon_get_pci_interrupts(void)
 	case CVMX_BOARD_TYPE_NAO38:
 		/* This is really the NAC38 */
 		return "AAAAADABAAAAAAAAAAAAAAAAAAAAAAAA";
-	case CVMX_BOARD_TYPE_THUNDER:
-		return "";
-	case CVMX_BOARD_TYPE_EBH3000:
-		return "";
 	case CVMX_BOARD_TYPE_EBH3100:
 	case CVMX_BOARD_TYPE_CN3010_EVB_HS5:
 	case CVMX_BOARD_TYPE_CN3005_EVB_HS5:
 		return "AAABAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 	case CVMX_BOARD_TYPE_BBGW_REF:
 		return "AABCD";
+	case CVMX_BOARD_TYPE_THUNDER:
+	case CVMX_BOARD_TYPE_EBH3000:
 	default:
 		return "";
 	}

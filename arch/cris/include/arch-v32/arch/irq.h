@@ -23,8 +23,8 @@ struct etrax_interrupt_vector {
 
 extern struct etrax_interrupt_vector *etrax_irv;	/* head.S */
 
-void mask_irq(int irq);
-void unmask_irq(int irq);
+void crisv32_mask_irq(int irq);
+void crisv32_unmask_irq(int irq);
 
 void set_exception_vector(int n, irqvectptr addr);
 

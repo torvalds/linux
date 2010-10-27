@@ -44,6 +44,7 @@ Devices: [Fastwel] UNIOxx-5 (unioxx5),
 
 #include "../comedidev.h"
 #include <linux/ioport.h>
+#include <linux/slab.h>
 
 #define DRIVER_NAME "unioxx5"
 #define UNIOXX5_SIZE 0x10
@@ -113,7 +114,18 @@ static struct comedi_driver unioxx5_driver = {
 	.detach = unioxx5_detach
 };
 
-COMEDI_INITCLEANUP(unioxx5_driver);
+static int __init unioxx5_driver_init_module(void)
+{
+	return comedi_driver_register(&unioxx5_driver);
+}
+
+static void __exit unioxx5_driver_cleanup_module(void)
+{
+	comedi_driver_unregister(&unioxx5_driver);
+}
+
+module_init(unioxx5_driver_init_module);
+module_exit(unioxx5_driver_cleanup_module);
 
 static int unioxx5_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
@@ -284,7 +296,7 @@ static int __unioxx5_subdev_init(struct comedi_subdevice *subdev,
 		return -EIO;
 	}
 
-	usp = (struct unioxx5_subd_priv *)kzalloc(sizeof(*usp), GFP_KERNEL);
+	usp = kzalloc(sizeof(*usp), GFP_KERNEL);
 
 	if (usp == NULL) {
 		printk(KERN_ERR "comedi%d: erorr! --> out of memory!\n", minor);
@@ -301,7 +313,8 @@ static int __unioxx5_subdev_init(struct comedi_subdevice *subdev,
 		__unioxx5_analog_config(usp, i * 2);
 		outb(i + 1, subdev_iobase + 5);	/* sends channel number to card */
 		outb('H', subdev_iobase + 6);	/* requests EEPROM world */
-		while (!(inb(subdev_iobase + 0) & TxBE)) ;	/* waits while writting will be allowed */
+		while (!(inb(subdev_iobase + 0) & TxBE))
+			;	/* waits while writting will be allowed */
 		outb(0, subdev_iobase + 6);
 
 		/* waits while reading of two bytes will be allowed */
@@ -436,7 +449,8 @@ static int __unioxx5_analog_write(struct unioxx5_subd_priv *usp,
 
 	/* sending for bytes to module(one byte per cycle iteration) */
 	for (i = 0; i < 4; i++) {
-		while (!((inb(usp->usp_iobase + 0)) & TxBE)) ;	/* waits while writting will be allowed */
+		while (!((inb(usp->usp_iobase + 0)) & TxBE))
+			;	/* waits while writting will be allowed */
 		outb(usp->usp_extra_data[module][i], usp->usp_iobase + 6);
 	}
 
@@ -466,7 +480,8 @@ static int __unioxx5_analog_read(struct unioxx5_subd_priv *usp,
 	control = inb(usp->usp_iobase);	/* get control register byte */
 
 	/* waits while reading four bytes will be allowed */
-	while (!((control = inb(usp->usp_iobase + 0)) & Rx4CA)) ;
+	while (!((control = inb(usp->usp_iobase + 0)) & Rx4CA))
+		;
 
 	/* if four bytes readding error occurs - return 0(false) */
 	if ((control & Rx4CA_ERR_MASK)) {
@@ -525,3 +540,7 @@ static int __unioxx5_define_chan_offset(int chan_num)
 
 	return (chan_num >> 3) + 1;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

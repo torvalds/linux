@@ -54,6 +54,7 @@
  *          the times the MTU will be smaller than one page...
  */
 
+#include <linux/slab.h>
 #include "i1480u-wlp.h"
 
 enum {

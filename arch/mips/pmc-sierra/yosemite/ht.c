@@ -26,7 +26,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <asm/pci.h>
 #include <asm/io.h>
 
@@ -345,14 +344,13 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
         return pcibios_enable_resources(dev);
 }
 
-void pcibios_align_resource(void *data, struct resource *res,
-                            resource_size_t size, resource_size_t align)
+resource_size_t pcibios_align_resource(void *data, const struct resource *res,
+				resource_size_t size, resource_size_t align)
 {
         struct pci_dev *dev = data;
+	resource_size_t start = res->start;
 
         if (res->flags & IORESOURCE_IO) {
-                resource_size_t start = res->start;
-
                 /* We need to avoid collisions with `mirrored' VGA ports
                    and other strange ISA hardware, so we always want the
                    addresses kilobyte aligned.  */
@@ -363,8 +361,9 @@ void pcibios_align_resource(void *data, struct resource *res,
                 }
 
                 start = (start + 1024 - 1) & ~(1024 - 1);
-                res->start = start;
         }
+
+	return start;
 }
 
 struct pci_ops titan_pci_ops = {

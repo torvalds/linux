@@ -80,6 +80,7 @@ struct iommu_functions {
 
 	int (*enable)(struct iommu *obj);
 	void (*disable)(struct iommu *obj);
+	void (*set_twl)(struct iommu *obj, bool on);
 	u32 (*fault_isr)(struct iommu *obj, u32 *ra);
 
 	void (*tlb_read_cr)(struct iommu *obj, struct cr_regs *cr);
@@ -143,6 +144,7 @@ extern void iotlb_cr_to_e(struct cr_regs *cr, struct iotlb_entry *e);
 extern u32 iotlb_cr_to_virt(struct cr_regs *cr);
 
 extern int load_iotlb_entry(struct iommu *obj, struct iotlb_entry *e);
+extern void iommu_set_twl(struct iommu *obj, bool on);
 extern void flush_iotlb_page(struct iommu *obj, u32 da);
 extern void flush_iotlb_range(struct iommu *obj, u32 start, u32 end);
 extern void flush_iotlb_all(struct iommu *obj);

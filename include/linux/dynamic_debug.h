@@ -28,7 +28,7 @@ struct _ddebug {
 	/*
  	 * The flags field controls the behaviour at the callsite.
  	 * The bits here are changed dynamically when the user
- 	 * writes commands to <debugfs>/dynamic_debug/ddebug
+	 * writes commands to <debugfs>/dynamic_debug/control
 	 */
 #define _DPRINTK_FLAGS_PRINT   (1<<0)  /* printk() a message using the format */
 #define _DPRINTK_FLAGS_DEFAULT 0
@@ -40,7 +40,7 @@ int ddebug_add_module(struct _ddebug *tab, unsigned int n,
 				const char *modname);
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
-extern int ddebug_remove_module(char *mod_name);
+extern int ddebug_remove_module(const char *mod_name);
 
 #define __dynamic_dbg_enabled(dd)  ({	     \
 	int __ret = 0;							     \
@@ -73,7 +73,7 @@ extern int ddebug_remove_module(char *mod_name);
 
 #else
 
-static inline int ddebug_remove_module(char *mod)
+static inline int ddebug_remove_module(const char *mod)
 {
 	return 0;
 }

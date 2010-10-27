@@ -29,6 +29,8 @@
 
 #include "tda826x.h"
 #include "tda10086.h"
+#include "tda1002x.h"
+#include "tda827x.h"
 #include "lnbp21.h"
 
 /* debug */
@@ -150,7 +152,17 @@ static struct tda10086_config tda10086_config = {
 	.xtal_freq = TDA10086_XTAL_16M,
 };
 
-static int ttusb2_frontend_attach(struct dvb_usb_adapter *adap)
+static struct tda10023_config tda10023_config = {
+	.demod_address = 0x0c,
+	.invert = 0,
+	.xtal = 16000000,
+	.pll_m = 11,
+	.pll_p = 3,
+	.pll_n = 1,
+	.deltaf = 0xa511,
+};
+
+static int ttusb2_frontend_tda10086_attach(struct dvb_usb_adapter *adap)
 {
 	if (usb_set_interface(adap->dev->udev,0,3) < 0)
 		err("set interface to alts=3 failed");
@@ -163,7 +175,27 @@ static int ttusb2_frontend_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int ttusb2_tuner_attach(struct dvb_usb_adapter *adap)
+static int ttusb2_frontend_tda10023_attach(struct dvb_usb_adapter *adap)
+{
+	if (usb_set_interface(adap->dev->udev, 0, 3) < 0)
+		err("set interface to alts=3 failed");
+	if ((adap->fe = dvb_attach(tda10023_attach, &tda10023_config, &adap->dev->i2c_adap, 0x48)) == NULL) {
+		deb_info("TDA10023 attach failed\n");
+		return -ENODEV;
+	}
+	return 0;
+}
+
+static int ttusb2_tuner_tda827x_attach(struct dvb_usb_adapter *adap)
+{
+	if (dvb_attach(tda827x_attach, adap->fe, 0x61, &adap->dev->i2c_adap, NULL) == NULL) {
+		printk(KERN_ERR "%s: No tda827x found!\n", __func__);
+		return -ENODEV;
+	}
+	return 0;
+}
+
+static int ttusb2_tuner_tda826x_attach(struct dvb_usb_adapter *adap)
 {
 	if (dvb_attach(tda826x_attach, adap->fe, 0x60, &adap->dev->i2c_adap, 0) == NULL) {
 		deb_info("TDA8263 attach failed\n");
@@ -180,6 +212,7 @@ static int ttusb2_tuner_attach(struct dvb_usb_adapter *adap)
 /* DVB USB Driver stuff */
 static struct dvb_usb_device_properties ttusb2_properties;
 static struct dvb_usb_device_properties ttusb2_properties_s2400;
+static struct dvb_usb_device_properties ttusb2_properties_ct3650;
 
 static int ttusb2_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
@@ -187,6 +220,8 @@ static int ttusb2_probe(struct usb_interface *intf,
 	if (0 == dvb_usb_device_init(intf, &ttusb2_properties,
 				     THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &ttusb2_properties_s2400,
+				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &ttusb2_properties_ct3650,
 				     THIS_MODULE, NULL, adapter_nr))
 		return 0;
 	return -ENODEV;
@@ -197,6 +232,8 @@ static struct usb_device_id ttusb2_table [] = {
 	{ USB_DEVICE(USB_VID_PINNACLE, USB_PID_PCTV_450E) },
 	{ USB_DEVICE(USB_VID_TECHNOTREND,
 		USB_PID_TECHNOTREND_CONNECT_S2400) },
+	{ USB_DEVICE(USB_VID_TECHNOTREND,
+		USB_PID_TECHNOTREND_CONNECT_CT3650) },
 	{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, ttusb2_table);
@@ -214,8 +251,8 @@ static struct dvb_usb_device_properties ttusb2_properties = {
 		{
 			.streaming_ctrl   = NULL, // ttusb2_streaming_ctrl,
 
-			.frontend_attach  = ttusb2_frontend_attach,
-			.tuner_attach     = ttusb2_tuner_attach,
+			.frontend_attach  = ttusb2_frontend_tda10086_attach,
+			.tuner_attach     = ttusb2_tuner_tda826x_attach,
 
 			/* parameter for the MPEG2-data transfer */
 			.stream = {
@@ -266,8 +303,8 @@ static struct dvb_usb_device_properties ttusb2_properties_s2400 = {
 		{
 			.streaming_ctrl   = NULL,
 
-			.frontend_attach  = ttusb2_frontend_attach,
-			.tuner_attach     = ttusb2_tuner_attach,
+			.frontend_attach  = ttusb2_frontend_tda10086_attach,
+			.tuner_attach     = ttusb2_tuner_tda826x_attach,
 
 			/* parameter for the MPEG2-data transfer */
 			.stream = {
@@ -297,6 +334,52 @@ static struct dvb_usb_device_properties ttusb2_properties_s2400 = {
 		{   "Technotrend TT-connect S-2400",
 			{ &ttusb2_table[2], NULL },
 			{ NULL },
+		},
+	}
+};
+
+static struct dvb_usb_device_properties ttusb2_properties_ct3650 = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl = CYPRESS_FX2,
+
+	.size_of_priv = sizeof(struct ttusb2_state),
+
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.streaming_ctrl   = NULL,
+
+			.frontend_attach  = ttusb2_frontend_tda10023_attach,
+			.tuner_attach = ttusb2_tuner_tda827x_attach,
+
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_ISOC,
+				.count = 5,
+				.endpoint = 0x02,
+				.u = {
+					.isoc = {
+						.framesperurb = 4,
+						.framesize = 940,
+						.interval = 1,
+					}
+				}
+			}
+		},
+	},
+
+	.power_ctrl       = ttusb2_power_ctrl,
+	.identify_state   = ttusb2_identify_state,
+
+	.i2c_algo         = &ttusb2_i2c_algo,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+
+	.num_device_descs = 1,
+	.devices = {
+		{   "Technotrend TT-connect CT-3650",
+			.warm_ids = { &ttusb2_table[3], NULL },
 		},
 	}
 };

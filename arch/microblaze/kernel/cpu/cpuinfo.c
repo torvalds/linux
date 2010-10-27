@@ -9,7 +9,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <asm/cpuinfo.h>
 #include <asm/pvr.h>
 

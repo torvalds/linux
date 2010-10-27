@@ -622,7 +622,7 @@ struct rndis_message {
 /* get the size of an RNDIS message. Pass in the message type, */
 /* struct rndis_set_request, struct rndis_packet for example */
 #define RNDIS_MESSAGE_SIZE(Message)				\
-	(sizeof(Message) + (sizeof(struct rndis_message) - 	\
+	(sizeof(Message) + (sizeof(struct rndis_message) -	\
 	 sizeof(union rndis_message_container)))
 
 /* get pointer to info buffer with message pointer */

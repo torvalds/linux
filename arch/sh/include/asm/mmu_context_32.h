@@ -49,11 +49,11 @@ static inline unsigned long get_asid(void)
 /* MMU_TTB is used for optimizing the fault handling. */
 static inline void set_TTB(pgd_t *pgd)
 {
-	ctrl_outl((unsigned long)pgd, MMU_TTB);
+	__raw_writel((unsigned long)pgd, MMU_TTB);
 }
 
 static inline pgd_t *get_TTB(void)
 {
-	return (pgd_t *)ctrl_inl(MMU_TTB);
+	return (pgd_t *)__raw_readl(MMU_TTB);
 }
 #endif /* __ASM_SH_MMU_CONTEXT_32_H */

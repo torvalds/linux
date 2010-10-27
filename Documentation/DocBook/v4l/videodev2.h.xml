@@ -1018,6 +1018,13 @@ enum <link linkend="v4l2-colorfx">v4l2_colorfx</link> {
         V4L2_COLORFX_NONE       = 0,
         V4L2_COLORFX_BW         = 1,
         V4L2_COLORFX_SEPIA      = 2,
+        V4L2_COLORFX_NEGATIVE   = 3,
+        V4L2_COLORFX_EMBOSS     = 4,
+        V4L2_COLORFX_SKETCH     = 5,
+        V4L2_COLORFX_SKY_BLUE   = 6,
+        V4L2_COLORFX_GRASS_GREEN = 7,
+        V4L2_COLORFX_SKIN_WHITEN = 8,
+        V4L2_COLORFX_VIVID      = 9.
 };
 #define V4L2_CID_AUTOBRIGHTNESS                 (V4L2_CID_BASE+32)
 #define V4L2_CID_BAND_STOP_FILTER               (V4L2_CID_BASE+33)
@@ -1270,6 +1277,9 @@ enum  <link linkend="v4l2-exposure-auto-type">v4l2_exposure_auto_type</link> {
 #define V4L2_CID_ZOOM_CONTINUOUS                (V4L2_CID_CAMERA_CLASS_BASE+15)
 
 #define V4L2_CID_PRIVACY                        (V4L2_CID_CAMERA_CLASS_BASE+16)
+
+#define V4L2_CID_IRIS_ABSOLUTE                  (V4L2_CID_CAMERA_CLASS_BASE+17)
+#define V4L2_CID_IRIS_RELATIVE                  (V4L2_CID_CAMERA_CLASS_BASE+18)
 
 /* FM Modulator class control IDs */
 #define V4L2_CID_FM_TX_CLASS_BASE               (V4L2_CTRL_CLASS_FM_TX | 0x900)

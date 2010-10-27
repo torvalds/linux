@@ -12,6 +12,7 @@
 
 #include <linux/mm.h>
 #include <linux/kernel_stat.h>
+#include <linux/gfp.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
 #include <linux/bio.h>
@@ -105,7 +106,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
 		goto out;
 	}
 	if (wbc->sync_mode == WB_SYNC_ALL)
-		rw |= (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG);
+		rw |= REQ_SYNC | REQ_UNPLUG;
 	count_vm_event(PSWPOUT);
 	set_page_writeback(page);
 	unlock_page(page);

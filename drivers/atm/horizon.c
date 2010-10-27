@@ -40,6 +40,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/wait.h>
+#include <linux/slab.h>
 
 #include <asm/system.h>
 #include <asm/io.h>

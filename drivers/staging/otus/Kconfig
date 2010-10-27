@@ -1,6 +1,8 @@
 config OTUS
 	tristate "Atheros OTUS 802.11n USB wireless support"
 	depends on USB && WLAN && MAC80211
+	select WIRELESS_EXT
+	select WEXT_PRIV
 	default N
 	---help---
 	  Enable support for Atheros 802.11n USB hardware:

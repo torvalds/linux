@@ -24,6 +24,7 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #define DS1374_REG_TOD0		0x00 /* Time of Day */
 #define DS1374_REG_TOD1		0x01
@@ -402,7 +403,6 @@ out_irq:
 		free_irq(client->irq, client);
 
 out_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(ds1374);
 	return ret;
 }
@@ -421,7 +421,6 @@ static int __devexit ds1374_remove(struct i2c_client *client)
 	}
 
 	rtc_device_unregister(ds1374->rtc);
-	i2c_set_clientdata(client, NULL);
 	kfree(ds1374);
 	return 0;
 }

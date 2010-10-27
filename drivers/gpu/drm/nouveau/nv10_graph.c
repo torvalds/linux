@@ -43,51 +43,51 @@ struct pipe_state {
 };
 
 static int nv10_graph_ctx_regs[] = {
-	NV10_PGRAPH_CTX_SWITCH1,
-	NV10_PGRAPH_CTX_SWITCH2,
-	NV10_PGRAPH_CTX_SWITCH3,
-	NV10_PGRAPH_CTX_SWITCH4,
-	NV10_PGRAPH_CTX_SWITCH5,
-	NV10_PGRAPH_CTX_CACHE1,	/* 8 values from 0x400160 to 0x40017c */
-	NV10_PGRAPH_CTX_CACHE2,	/* 8 values from 0x400180 to 0x40019c */
-	NV10_PGRAPH_CTX_CACHE3,	/* 8 values from 0x4001a0 to 0x4001bc */
-	NV10_PGRAPH_CTX_CACHE4,	/* 8 values from 0x4001c0 to 0x4001dc */
-	NV10_PGRAPH_CTX_CACHE5,	/* 8 values from 0x4001e0 to 0x4001fc */
-	0x00400164,
-	0x00400184,
-	0x004001a4,
-	0x004001c4,
-	0x004001e4,
-	0x00400168,
-	0x00400188,
-	0x004001a8,
-	0x004001c8,
-	0x004001e8,
-	0x0040016c,
-	0x0040018c,
-	0x004001ac,
-	0x004001cc,
-	0x004001ec,
-	0x00400170,
-	0x00400190,
-	0x004001b0,
-	0x004001d0,
-	0x004001f0,
-	0x00400174,
-	0x00400194,
-	0x004001b4,
-	0x004001d4,
-	0x004001f4,
-	0x00400178,
-	0x00400198,
-	0x004001b8,
-	0x004001d8,
-	0x004001f8,
-	0x0040017c,
-	0x0040019c,
-	0x004001bc,
-	0x004001dc,
-	0x004001fc,
+	NV10_PGRAPH_CTX_SWITCH(0),
+	NV10_PGRAPH_CTX_SWITCH(1),
+	NV10_PGRAPH_CTX_SWITCH(2),
+	NV10_PGRAPH_CTX_SWITCH(3),
+	NV10_PGRAPH_CTX_SWITCH(4),
+	NV10_PGRAPH_CTX_CACHE(0, 0),
+	NV10_PGRAPH_CTX_CACHE(0, 1),
+	NV10_PGRAPH_CTX_CACHE(0, 2),
+	NV10_PGRAPH_CTX_CACHE(0, 3),
+	NV10_PGRAPH_CTX_CACHE(0, 4),
+	NV10_PGRAPH_CTX_CACHE(1, 0),
+	NV10_PGRAPH_CTX_CACHE(1, 1),
+	NV10_PGRAPH_CTX_CACHE(1, 2),
+	NV10_PGRAPH_CTX_CACHE(1, 3),
+	NV10_PGRAPH_CTX_CACHE(1, 4),
+	NV10_PGRAPH_CTX_CACHE(2, 0),
+	NV10_PGRAPH_CTX_CACHE(2, 1),
+	NV10_PGRAPH_CTX_CACHE(2, 2),
+	NV10_PGRAPH_CTX_CACHE(2, 3),
+	NV10_PGRAPH_CTX_CACHE(2, 4),
+	NV10_PGRAPH_CTX_CACHE(3, 0),
+	NV10_PGRAPH_CTX_CACHE(3, 1),
+	NV10_PGRAPH_CTX_CACHE(3, 2),
+	NV10_PGRAPH_CTX_CACHE(3, 3),
+	NV10_PGRAPH_CTX_CACHE(3, 4),
+	NV10_PGRAPH_CTX_CACHE(4, 0),
+	NV10_PGRAPH_CTX_CACHE(4, 1),
+	NV10_PGRAPH_CTX_CACHE(4, 2),
+	NV10_PGRAPH_CTX_CACHE(4, 3),
+	NV10_PGRAPH_CTX_CACHE(4, 4),
+	NV10_PGRAPH_CTX_CACHE(5, 0),
+	NV10_PGRAPH_CTX_CACHE(5, 1),
+	NV10_PGRAPH_CTX_CACHE(5, 2),
+	NV10_PGRAPH_CTX_CACHE(5, 3),
+	NV10_PGRAPH_CTX_CACHE(5, 4),
+	NV10_PGRAPH_CTX_CACHE(6, 0),
+	NV10_PGRAPH_CTX_CACHE(6, 1),
+	NV10_PGRAPH_CTX_CACHE(6, 2),
+	NV10_PGRAPH_CTX_CACHE(6, 3),
+	NV10_PGRAPH_CTX_CACHE(6, 4),
+	NV10_PGRAPH_CTX_CACHE(7, 0),
+	NV10_PGRAPH_CTX_CACHE(7, 1),
+	NV10_PGRAPH_CTX_CACHE(7, 2),
+	NV10_PGRAPH_CTX_CACHE(7, 3),
+	NV10_PGRAPH_CTX_CACHE(7, 4),
 	NV10_PGRAPH_CTX_USER,
 	NV04_PGRAPH_DMA_START_0,
 	NV04_PGRAPH_DMA_START_1,
@@ -653,6 +653,78 @@ static int nv17_graph_ctx_regs_find_offset(struct drm_device *dev, int reg)
 	return -1;
 }
 
+static void nv10_graph_load_dma_vtxbuf(struct nouveau_channel *chan,
+				       uint32_t inst)
+{
+	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
+	uint32_t st2, st2_dl, st2_dh, fifo_ptr, fifo[0x60/4];
+	uint32_t ctx_user, ctx_switch[5];
+	int i, subchan = -1;
+
+	/* NV10TCL_DMA_VTXBUF (method 0x18c) modifies hidden state
+	 * that cannot be restored via MMIO. Do it through the FIFO
+	 * instead.
+	 */
+
+	/* Look for a celsius object */
+	for (i = 0; i < 8; i++) {
+		int class = nv_rd32(dev, NV10_PGRAPH_CTX_CACHE(i, 0)) & 0xfff;
+
+		if (class == 0x56 || class == 0x96 || class == 0x99) {
+			subchan = i;
+			break;
+		}
+	}
+
+	if (subchan < 0 || !inst)
+		return;
+
+	/* Save the current ctx object */
+	ctx_user = nv_rd32(dev, NV10_PGRAPH_CTX_USER);
+	for (i = 0; i < 5; i++)
+		ctx_switch[i] = nv_rd32(dev, NV10_PGRAPH_CTX_SWITCH(i));
+
+	/* Save the FIFO state */
+	st2 = nv_rd32(dev, NV10_PGRAPH_FFINTFC_ST2);
+	st2_dl = nv_rd32(dev, NV10_PGRAPH_FFINTFC_ST2_DL);
+	st2_dh = nv_rd32(dev, NV10_PGRAPH_FFINTFC_ST2_DH);
+	fifo_ptr = nv_rd32(dev, NV10_PGRAPH_FFINTFC_FIFO_PTR);
+
+	for (i = 0; i < ARRAY_SIZE(fifo); i++)
+		fifo[i] = nv_rd32(dev, 0x4007a0 + 4 * i);
+
+	/* Switch to the celsius subchannel */
+	for (i = 0; i < 5; i++)
+		nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH(i),
+			nv_rd32(dev, NV10_PGRAPH_CTX_CACHE(subchan, i)));
+	nv_mask(dev, NV10_PGRAPH_CTX_USER, 0xe000, subchan << 13);
+
+	/* Inject NV10TCL_DMA_VTXBUF */
+	nv_wr32(dev, NV10_PGRAPH_FFINTFC_FIFO_PTR, 0);
+	nv_wr32(dev, NV10_PGRAPH_FFINTFC_ST2,
+		0x2c000000 | chan->id << 20 | subchan << 16 | 0x18c);
+	nv_wr32(dev, NV10_PGRAPH_FFINTFC_ST2_DL, inst);
+	nv_mask(dev, NV10_PGRAPH_CTX_CONTROL, 0, 0x10000);
+	pgraph->fifo_access(dev, true);
+	pgraph->fifo_access(dev, false);
+
+	/* Restore the FIFO state */
+	for (i = 0; i < ARRAY_SIZE(fifo); i++)
+		nv_wr32(dev, 0x4007a0 + 4 * i, fifo[i]);
+
+	nv_wr32(dev, NV10_PGRAPH_FFINTFC_FIFO_PTR, fifo_ptr);
+	nv_wr32(dev, NV10_PGRAPH_FFINTFC_ST2, st2);
+	nv_wr32(dev, NV10_PGRAPH_FFINTFC_ST2_DL, st2_dl);
+	nv_wr32(dev, NV10_PGRAPH_FFINTFC_ST2_DH, st2_dh);
+
+	/* Restore the current ctx object */
+	for (i = 0; i < 5; i++)
+		nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH(i), ctx_switch[i]);
+	nv_wr32(dev, NV10_PGRAPH_CTX_USER, ctx_user);
+}
+
 int nv10_graph_load_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
@@ -670,6 +742,8 @@ int nv10_graph_load_context(struct nouveau_channel *chan)
 	}
 
 	nv10_graph_load_pipe(chan);
+	nv10_graph_load_dma_vtxbuf(chan, (nv_rd32(dev, NV10_PGRAPH_GLOBALSTATE1)
+					  & 0xffff));
 
 	nv_wr32(dev, NV10_PGRAPH_CTX_CONTROL, 0x10010100);
 	tmp = nv_rd32(dev, NV10_PGRAPH_CTX_USER);
@@ -856,11 +930,12 @@ int nv10_graph_init(struct drm_device *dev)
 	for (i = 0; i < NV10_PFB_TILE__SIZE; i++)
 		nv10_graph_set_region_tiling(dev, i, 0, 0, 0);
 
-	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH1, 0x00000000);
-	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH2, 0x00000000);
-	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH3, 0x00000000);
-	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH4, 0x00000000);
-	nv_wr32(dev, NV10_PGRAPH_STATE      , 0xFFFFFFFF);
+	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH(0), 0x00000000);
+	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH(1), 0x00000000);
+	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH(2), 0x00000000);
+	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH(3), 0x00000000);
+	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH(4), 0x00000000);
+	nv_wr32(dev, NV10_PGRAPH_STATE, 0xFFFFFFFF);
 
 	tmp  = nv_rd32(dev, NV10_PGRAPH_CTX_USER) & 0x00ffffff;
 	tmp |= (dev_priv->engine.fifo.channels - 1) << 24;

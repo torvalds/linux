@@ -24,9 +24,13 @@
 #ifndef _SS_POLICYDB_H_
 #define _SS_POLICYDB_H_
 
+#include <linux/flex_array.h>
+
 #include "symtab.h"
 #include "avtab.h"
 #include "sidtab.h"
+#include "ebitmap.h"
+#include "mls_types.h"
 #include "context.h"
 #include "constraint.h"
 
@@ -113,8 +117,6 @@ struct range_trans {
 	u32 source_type;
 	u32 target_type;
 	u32 target_class;
-	struct mls_range target_range;
-	struct range_trans *next;
 };
 
 /* Boolean data type */
@@ -187,6 +189,8 @@ struct genfs {
 
 /* The policy database */
 struct policydb {
+	int mls_enabled;
+
 	/* symbol tables */
 	struct symtab symtab[SYM_NUM];
 #define p_commons symtab[SYM_COMMONS]
@@ -240,11 +244,11 @@ struct policydb {
 	   fixed labeling behavior. */
 	struct genfs *genfs;
 
-	/* range transitions */
-	struct range_trans *range_tr;
+	/* range transitions table (range_trans_key -> mls_range) */
+	struct hashtab *range_tr;
 
 	/* type -> attribute reverse mapping */
-	struct ebitmap *type_attr_map;
+	struct flex_array *type_attr_map_array;
 
 	struct ebitmap policycaps;
 

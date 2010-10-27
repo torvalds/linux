@@ -125,7 +125,7 @@ versions of the sysfs interface.
 - Block
   The converted block subsystem at /sys/class/block or
   /sys/subsystem/block will contain the links for disks and partitions
-  at the same level, never in a hierarchy. Assuming the block subsytem to
+  at the same level, never in a hierarchy. Assuming the block subsystem to
   contain only disks and not partition devices in the same flat list is
   a bug in the application.
 

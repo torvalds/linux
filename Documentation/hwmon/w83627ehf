@@ -20,6 +20,10 @@ Supported chips:
     Prefix: 'w83667hg'
     Addresses scanned: ISA address retrieved from Super I/O registers
     Datasheet: not available
+  * Winbond W83667HG-B
+    Prefix: 'w83667hg'
+    Addresses scanned: ISA address retrieved from Super I/O registers
+    Datasheet: Available from Nuvoton upon request
 
 Authors:
         Jean Delvare <khali@linux-fr.org>
@@ -32,8 +36,8 @@ Description
 -----------
 
 This driver implements support for the Winbond W83627EHF, W83627EHG,
-W83627DHG, W83627DHG-P and W83667HG super I/O chips. We will refer to them
-collectively as Winbond chips.
+W83627DHG, W83627DHG-P, W83667HG and W83667HG-B super I/O chips.
+We will refer to them collectively as Winbond chips.
 
 The chips implement three temperature sensors, five fan rotation
 speed sensors, ten analog voltage sensors (only nine for the 627DHG), one
@@ -68,14 +72,15 @@ follows:
 temp1 -> pwm1
 temp2 -> pwm2
 temp3 -> pwm3
-prog  -> pwm4 (not on 667HG; the programmable setting is not supported by
-	       the driver)
+prog  -> pwm4 (not on 667HG and 667HG-B; the programmable setting is not
+	       supported by the driver)
 
 /sys files
 ----------
 
 name - this is a standard hwmon device entry. For the W83627EHF and W83627EHG,
-       it is set to "w83627ehf" and for the W83627DHG it is set to "w83627dhg"
+       it is set to "w83627ehf", for the W83627DHG it is set to "w83627dhg",
+       and for the W83667HG it is set to "w83667hg".
 
 pwm[1-4] - this file stores PWM duty cycle or DC value (fan speed) in range:
 	   0 (stop) to 255 (full)

@@ -58,7 +58,7 @@ MPEG stream embedded, sliced VBI data format in this specification.
 </contrib>
 	<affiliation>
 	  <address>
-	    <email>awalls@radix.net</email>
+	    <email>awalls@md.metrocast.net</email>
 	  </address>
 	</affiliation>
       </author>
@@ -401,6 +401,7 @@ and discussions on the V4L mailing list.</revremark>
     <section id="ttx"> &sub-dev-teletext; </section>
     <section id="radio"> &sub-dev-radio; </section>
     <section id="rds"> &sub-dev-rds; </section>
+    <section id="event"> &sub-dev-event; </section>
   </chapter>
 
   <chapter id="driver">
@@ -426,6 +427,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-cropcap;
     &sub-dbg-g-chip-ident;
     &sub-dbg-g-register;
+    &sub-dqevent;
     &sub-encoder-cmd;
     &sub-enumaudio;
     &sub-enumaudioout;
@@ -467,6 +469,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-reqbufs;
     &sub-s-hw-freq-seek;
     &sub-streamon;
+    &sub-subscribe-event;
     <!-- End of ioctls. -->
     &sub-mmap;
     &sub-munmap;

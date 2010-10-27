@@ -65,7 +65,7 @@ struct n2rng_unit {
 };
 
 struct n2rng {
-	struct of_device	*op;
+	struct platform_device	*op;
 
 	unsigned long		flags;
 #define N2RNG_FLAG_VF		0x00000001 /* Victoria Falls RNG, else N2 */

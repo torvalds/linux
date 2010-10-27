@@ -41,6 +41,10 @@
 #define WM831X_GPN_OD_MASK                      0x0200  /* GPN_OD */
 #define WM831X_GPN_OD_SHIFT                          9  /* GPN_OD */
 #define WM831X_GPN_OD_WIDTH                          1  /* GPN_OD */
+#define WM831X_GPN_ENA                          0x0080  /* GPN_ENA */
+#define WM831X_GPN_ENA_MASK                     0x0080  /* GPN_ENA */
+#define WM831X_GPN_ENA_SHIFT                         7  /* GPN_ENA */
+#define WM831X_GPN_ENA_WIDTH                         1  /* GPN_ENA */
 #define WM831X_GPN_TRI                          0x0080  /* GPN_TRI */
 #define WM831X_GPN_TRI_MASK                     0x0080  /* GPN_TRI */
 #define WM831X_GPN_TRI_SHIFT                         7  /* GPN_TRI */

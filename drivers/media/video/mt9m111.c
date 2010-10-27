@@ -1,5 +1,5 @@
 /*
- * Driver for MT9M111/MT9M112 CMOS Image Sensor from Micron
+ * Driver for MT9M111/MT9M112/MT9M131 CMOS Image Sensor from Micron/Aptina
  *
  * Copyright (C) 2008, Robert Jarzmik <robert.jarzmik@free.fr>
  *
@@ -19,11 +19,14 @@
 #include <media/soc_camera.h>
 
 /*
- * mt9m111 and mt9m112 i2c address is 0x5d or 0x48 (depending on SAddr pin)
+ * MT9M111, MT9M112 and MT9M131:
+ * i2c address is 0x48 or 0x5d (depending on SADDR pin)
  * The platform has to define i2c_board_info and call i2c_register_board_info()
  */
 
-/* mt9m111: Sensor register addresses */
+/*
+ * Sensor core register addresses (0x000..0x0ff)
+ */
 #define MT9M111_CHIP_VERSION		0x000
 #define MT9M111_ROW_START		0x001
 #define MT9M111_COLUMN_START		0x002
@@ -72,8 +75,9 @@
 #define MT9M111_CTXT_CTRL_LED_FLASH_EN	(1 << 2)
 #define MT9M111_CTXT_CTRL_VBLANK_SEL_B	(1 << 1)
 #define MT9M111_CTXT_CTRL_HBLANK_SEL_B	(1 << 0)
+
 /*
- * mt9m111: Colorpipe register addresses (0x100..0x1ff)
+ * Colorpipe register addresses (0x100..0x1ff)
  */
 #define MT9M111_OPER_MODE_CTRL		0x106
 #define MT9M111_OUTPUT_FORMAT_CTRL	0x108
@@ -109,8 +113,9 @@
 #define MT9M111_OUTFMT_SWAP_YCbCr_C_Y	(1 << 1)
 #define MT9M111_OUTFMT_SWAP_RGB_EVEN	(1 << 1)
 #define MT9M111_OUTFMT_SWAP_YCbCr_Cb_Cr	(1 << 0)
+
 /*
- * mt9m111: Camera control register addresses (0x200..0x2ff not implemented)
+ * Camera control register addresses (0x200..0x2ff not implemented)
  */
 
 #define reg_read(reg) mt9m111_reg_read(client, MT9M111_##reg)
@@ -143,10 +148,10 @@ static const struct mt9m111_datafmt *mt9m111_find_datafmt(
 }
 
 static const struct mt9m111_datafmt mt9m111_colour_fmts[] = {
-	{V4L2_MBUS_FMT_YUYV8_2X8_LE, V4L2_COLORSPACE_JPEG},
-	{V4L2_MBUS_FMT_YVYU8_2X8_LE, V4L2_COLORSPACE_JPEG},
-	{V4L2_MBUS_FMT_YUYV8_2X8_BE, V4L2_COLORSPACE_JPEG},
-	{V4L2_MBUS_FMT_YVYU8_2X8_BE, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_YVYU8_2X8, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_JPEG},
+	{V4L2_MBUS_FMT_VYUY8_2X8, V4L2_COLORSPACE_JPEG},
 	{V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE, V4L2_COLORSPACE_SRGB},
 	{V4L2_MBUS_FMT_RGB565_2X8_LE, V4L2_COLORSPACE_SRGB},
 	{V4L2_MBUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
@@ -160,7 +165,8 @@ enum mt9m111_context {
 
 struct mt9m111 {
 	struct v4l2_subdev subdev;
-	int model;	/* V4L2_IDENT_MT9M11x* codes from v4l2-chip-ident.h */
+	int model;	/* V4L2_IDENT_MT9M111 or V4L2_IDENT_MT9M112 code
+			 * from v4l2-chip-ident.h */
 	enum mt9m111_context context;
 	struct v4l2_rect rect;
 	const struct mt9m111_datafmt *fmt;
@@ -441,6 +447,9 @@ static int mt9m111_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	dev_dbg(&client->dev, "%s left=%d, top=%d, width=%d, height=%d\n",
 		__func__, rect.left, rect.top, rect.width, rect.height);
 
+	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
 	ret = mt9m111_make_rect(client, &rect);
 	if (!ret)
 		mt9m111->rect = rect;
@@ -460,12 +469,14 @@ static int mt9m111_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 
 static int mt9m111_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 {
+	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
 	a->bounds.left			= MT9M111_MIN_DARK_COLS;
 	a->bounds.top			= MT9M111_MIN_DARK_ROWS;
 	a->bounds.width			= MT9M111_MAX_WIDTH;
 	a->bounds.height		= MT9M111_MAX_HEIGHT;
 	a->defrect			= a->bounds;
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	a->pixelaspect.numerator	= 1;
 	a->pixelaspect.denominator	= 1;
 
@@ -481,6 +492,7 @@ static int mt9m111_g_fmt(struct v4l2_subdev *sd,
 	mf->width	= mt9m111->rect.width;
 	mf->height	= mt9m111->rect.height;
 	mf->code	= mt9m111->fmt->code;
+	mf->colorspace	= mt9m111->fmt->colorspace;
 	mf->field	= V4L2_FIELD_NONE;
 
 	return 0;
@@ -505,22 +517,22 @@ static int mt9m111_set_pixfmt(struct i2c_client *client,
 	case V4L2_MBUS_FMT_RGB565_2X8_LE:
 		ret = mt9m111_setfmt_rgb565(client);
 		break;
-	case V4L2_MBUS_FMT_YUYV8_2X8_BE:
+	case V4L2_MBUS_FMT_UYVY8_2X8:
 		mt9m111->swap_yuv_y_chromas = 0;
 		mt9m111->swap_yuv_cb_cr = 0;
 		ret = mt9m111_setfmt_yuv(client);
 		break;
-	case V4L2_MBUS_FMT_YVYU8_2X8_BE:
+	case V4L2_MBUS_FMT_VYUY8_2X8:
 		mt9m111->swap_yuv_y_chromas = 0;
 		mt9m111->swap_yuv_cb_cr = 1;
 		ret = mt9m111_setfmt_yuv(client);
 		break;
-	case V4L2_MBUS_FMT_YUYV8_2X8_LE:
+	case V4L2_MBUS_FMT_YUYV8_2X8:
 		mt9m111->swap_yuv_y_chromas = 1;
 		mt9m111->swap_yuv_cb_cr = 0;
 		ret = mt9m111_setfmt_yuv(client);
 		break;
-	case V4L2_MBUS_FMT_YVYU8_2X8_LE:
+	case V4L2_MBUS_FMT_YVYU8_2X8:
 		mt9m111->swap_yuv_y_chromas = 1;
 		mt9m111->swap_yuv_cb_cr = 1;
 		ret = mt9m111_setfmt_yuv(client);
@@ -934,7 +946,7 @@ static int mt9m111_init(struct i2c_client *client)
 	if (!ret)
 		ret = mt9m111_set_autoexposure(client, mt9m111->autoexposure);
 	if (ret)
-		dev_err(&client->dev, "mt9m11x init failed: %d\n", ret);
+		dev_err(&client->dev, "mt9m111 init failed: %d\n", ret);
 	return ret;
 }
 
@@ -963,27 +975,27 @@ static int mt9m111_video_probe(struct soc_camera_device *icd,
 	mt9m111->swap_rgb_even_odd = 1;
 	mt9m111->swap_rgb_red_blue = 1;
 
-	ret = mt9m111_init(client);
-	if (ret)
-		goto ei2c;
-
 	data = reg_read(CHIP_VERSION);
 
 	switch (data) {
-	case 0x143a: /* MT9M111 */
+	case 0x143a: /* MT9M111 or MT9M131 */
 		mt9m111->model = V4L2_IDENT_MT9M111;
+		dev_info(&client->dev,
+			"Detected a MT9M111/MT9M131 chip ID %x\n", data);
 		break;
 	case 0x148c: /* MT9M112 */
 		mt9m111->model = V4L2_IDENT_MT9M112;
+		dev_info(&client->dev, "Detected a MT9M112 chip ID %x\n", data);
 		break;
 	default:
 		ret = -ENODEV;
 		dev_err(&client->dev,
-			"No MT9M11x chip detected, register read %x\n", data);
+			"No MT9M111/MT9M112/MT9M131 chip detected register read %x\n",
+			data);
 		goto ei2c;
 	}
 
-	dev_info(&client->dev, "Detected a MT9M11x chip ID %x\n", data);
+	ret = mt9m111_init(client);
 
 ei2c:
 	return ret;
@@ -999,10 +1011,10 @@ static struct v4l2_subdev_core_ops mt9m111_subdev_core_ops = {
 #endif
 };
 
-static int mt9m111_enum_fmt(struct v4l2_subdev *sd, int index,
+static int mt9m111_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			    enum v4l2_mbus_pixelcode *code)
 {
-	if ((unsigned int)index >= ARRAY_SIZE(mt9m111_colour_fmts))
+	if (index >= ARRAY_SIZE(mt9m111_colour_fmts))
 		return -EINVAL;
 
 	*code = mt9m111_colour_fmts[index].code;
@@ -1034,13 +1046,13 @@ static int mt9m111_probe(struct i2c_client *client,
 	int ret;
 
 	if (!icd) {
-		dev_err(&client->dev, "MT9M11x: missing soc-camera data!\n");
+		dev_err(&client->dev, "mt9m111: soc-camera data missing!\n");
 		return -EINVAL;
 	}
 
 	icl = to_soc_camera_link(icd);
 	if (!icl) {
-		dev_err(&client->dev, "MT9M11x driver needs platform data\n");
+		dev_err(&client->dev, "mt9m111: driver needs platform data\n");
 		return -EINVAL;
 	}
 
@@ -1068,7 +1080,6 @@ static int mt9m111_probe(struct i2c_client *client,
 	ret = mt9m111_video_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(mt9m111);
 	}
 
@@ -1081,7 +1092,6 @@ static int mt9m111_remove(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 
 	icd->ops = NULL;
-	i2c_set_clientdata(client, NULL);
 	client->driver = NULL;
 	kfree(mt9m111);
 
@@ -1116,6 +1126,6 @@ static void __exit mt9m111_mod_exit(void)
 module_init(mt9m111_mod_init);
 module_exit(mt9m111_mod_exit);
 
-MODULE_DESCRIPTION("Micron MT9M111/MT9M112 Camera driver");
+MODULE_DESCRIPTION("Micron/Aptina MT9M111/MT9M112/MT9M131 Camera driver");
 MODULE_AUTHOR("Robert Jarzmik");
 MODULE_LICENSE("GPL");

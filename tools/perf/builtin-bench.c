@@ -95,7 +95,7 @@ static void dump_suites(int subsys_index)
 	return;
 }
 
-static char *bench_format_str;
+static const char *bench_format_str;
 int bench_format = BENCH_FORMAT_DEFAULT;
 
 static const struct option bench_options[] = {
@@ -126,7 +126,7 @@ static void print_usage(void)
 	printf("\n");
 }
 
-static int bench_str2int(char *str)
+static int bench_str2int(const char *str)
 {
 	if (!str)
 		return BENCH_FORMAT_DEFAULT;

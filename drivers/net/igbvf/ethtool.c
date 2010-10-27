@@ -390,8 +390,6 @@ static void igbvf_get_wol(struct net_device *netdev,
 {
 	wol->supported = 0;
 	wol->wolopts = 0;
-
-	return;
 }
 
 static int igbvf_set_wol(struct net_device *netdev,

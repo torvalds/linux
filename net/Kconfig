@@ -32,7 +32,7 @@ config WANT_COMPAT_NETLINK_MESSAGES
 config COMPAT_NETLINK_MESSAGES
 	def_bool y
 	depends on COMPAT
-	depends on WIRELESS_EXT || WANT_COMPAT_NETLINK_MESSAGES
+	depends on WEXT_CORE || WANT_COMPAT_NETLINK_MESSAGES
 	help
 	  This option makes it possible to send different netlink messages
 	  to tasks depending on whether the task is a compat task or not. To
@@ -84,6 +84,16 @@ config NETWORK_SECMARK
 	help
 	  This enables security marking of network packets, similar
 	  to nfmark, but designated for security purposes.
+	  If you are unsure how to answer this question, answer N.
+
+config NETWORK_PHY_TIMESTAMPING
+	bool "Timestamping in PHY devices"
+	depends on EXPERIMENTAL
+	help
+	  This allows timestamping of network packets by PHYs with
+	  hardware timestamping capabilities. This option adds some
+	  overhead in the transmit and receive paths.
+
 	  If you are unsure how to answer this question, answer N.
 
 menuconfig NETFILTER
@@ -186,6 +196,7 @@ source "net/sctp/Kconfig"
 source "net/rds/Kconfig"
 source "net/tipc/Kconfig"
 source "net/atm/Kconfig"
+source "net/l2tp/Kconfig"
 source "net/802/Kconfig"
 source "net/bridge/Kconfig"
 source "net/dsa/Kconfig"
@@ -202,6 +213,12 @@ source "net/phonet/Kconfig"
 source "net/ieee802154/Kconfig"
 source "net/sched/Kconfig"
 source "net/dcb/Kconfig"
+source "net/dns_resolver/Kconfig"
+
+config RPS
+	boolean
+	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
+	default y
 
 menu "Network testing"
 
@@ -275,5 +292,7 @@ source "net/wimax/Kconfig"
 
 source "net/rfkill/Kconfig"
 source "net/9p/Kconfig"
+source "net/caif/Kconfig"
+
 
 endif   # if NET

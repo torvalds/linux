@@ -547,9 +547,6 @@ do { if (ieee80211_debug_level & (level)) \
 
 /* debug macros not dependent on CONFIG_IEEE80211_DEBUG */
 
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
-
 /*
  * To use the debug system;
  *
@@ -1849,7 +1846,7 @@ struct ieee80211_device {
 	spinlock_t bw_spinlock;
 
 	spinlock_t reorder_spinlock;
-	// for HT operation rate set.  we use this one for HT data rate to seperate different descriptors
+	// for HT operation rate set.  we use this one for HT data rate to separate different descriptors
 	//the way fill this is the same as in the IE
 	u8	Regdot11HTOperationalRateSet[16];		//use RATR format
 	u8	dot11HTOperationalRateSet[16];		//use RATR format

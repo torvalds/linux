@@ -30,6 +30,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
+#include <linux/slab.h>
 
 #include <scsi/scsi_host.h>
 
@@ -687,9 +688,9 @@ static int asd_register_sas_ha(struct asd_ha_struct *asd_ha)
 {
 	int i;
 	struct asd_sas_phy   **sas_phys =
-		kmalloc(ASD_MAX_PHYS * sizeof(struct asd_sas_phy), GFP_KERNEL);
+		kcalloc(ASD_MAX_PHYS, sizeof(*sas_phys), GFP_KERNEL);
 	struct asd_sas_port  **sas_ports =
-		kmalloc(ASD_MAX_PHYS * sizeof(struct asd_sas_port), GFP_KERNEL);
+		kcalloc(ASD_MAX_PHYS, sizeof(*sas_ports), GFP_KERNEL);
 
 	if (!sas_phys || !sas_ports) {
 		kfree(sas_phys);

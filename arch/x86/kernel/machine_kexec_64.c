@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/kexec.h>
 #include <linux/string.h>
+#include <linux/gfp.h>
 #include <linux/reboot.h>
 #include <linux/numa.h>
 #include <linux/ftrace.h>

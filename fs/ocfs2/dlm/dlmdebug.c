@@ -102,7 +102,7 @@ void __dlm_print_one_lock_resource(struct dlm_lock_resource *res)
 	assert_spin_locked(&res->spinlock);
 
 	stringify_lockname(res->lockname.name, res->lockname.len,
-			   buf, sizeof(buf) - 1);
+			   buf, sizeof(buf));
 	printk("lockres: %s, owner=%u, state=%u\n",
 	       buf, res->owner, res->state);
 	printk("  last used: %lu, refcnt: %u, on purge list: %s\n",
@@ -419,7 +419,7 @@ static loff_t debug_buffer_llseek(struct file *file, loff_t off, int whence)
 
 static int debug_buffer_release(struct inode *inode, struct file *file)
 {
-	struct debug_buffer *db = (struct debug_buffer *)file->private_data;
+	struct debug_buffer *db = file->private_data;
 
 	if (db)
 		kfree(db->buf);
@@ -636,8 +636,14 @@ static void *lockres_seq_start(struct seq_file *m, loff_t *pos)
 	spin_lock(&dlm->track_lock);
 	if (oldres)
 		track_list = &oldres->tracking;
-	else
+	else {
 		track_list = &dlm->tracking_list;
+		if (list_empty(track_list)) {
+			dl = NULL;
+			spin_unlock(&dlm->track_lock);
+			goto bail;
+		}
+	}
 
 	list_for_each_entry(res, track_list, tracking) {
 		if (&res->tracking == &dlm->tracking_list)
@@ -660,6 +666,7 @@ static void *lockres_seq_start(struct seq_file *m, loff_t *pos)
 	} else
 		dl = NULL;
 
+bail:
 	/* passed to seq_show */
 	return dl;
 }
@@ -715,7 +722,7 @@ static int debug_lockres_open(struct inode *inode, struct file *file)
 		goto bail;
 	}
 
-	seq = (struct seq_file *) file->private_data;
+	seq = file->private_data;
 	seq->private = dl;
 
 	dlm_grab(dlm);
@@ -731,7 +738,7 @@ bail:
 
 static int debug_lockres_release(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq = (struct seq_file *)file->private_data;
+	struct seq_file *seq = file->private_data;
 	struct debug_lockres *dl = (struct debug_lockres *)seq->private;
 
 	if (dl->dl_res)

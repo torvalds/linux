@@ -1,19 +1,18 @@
 /*
- *  linux/arch/cris/mm/fault.c
+ *  arch/cris/mm/fault.c
  *
- *  Copyright (C) 2000-2006  Axis Communications AB
- *
- *  Authors:  Bjorn Wesen
- *
+ *  Copyright (C) 2000-2010  Axis Communications AB
  */
 
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/wait.h>
 #include <asm/uaccess.h>
 
 extern int find_fixup_code(struct pt_regs *);
 extern void die_if_kernel(const char *, struct pt_regs *, long);
+extern void show_registers(struct pt_regs *regs);
 
 /* debug of low-level TLB reload */
 #undef DEBUG
@@ -108,11 +107,11 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 	info.si_code = SEGV_MAPERR;
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or "atomic" operation or have no
+	 * user context, we must not take the fault.
 	 */
 
-	if (in_interrupt() || !mm)
+	if (in_atomic() || !mm)
 		goto no_context;
 
 	down_read(&mm->mmap_sem);
@@ -193,14 +192,25 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 	/* User mode accesses just cause a SIGSEGV */
 
 	if (user_mode(regs)) {
+		printk(KERN_NOTICE "%s (pid %d) segfaults for page "
+			"address %08lx at pc %08lx\n",
+			tsk->comm, tsk->pid,
+			address, instruction_pointer(regs));
+
+		/* With DPG on, we've already dumped registers above.  */
+		DPG(if (0))
+			show_registers(regs);
+
+#ifdef CONFIG_NO_SEGFAULT_TERMINATION
+		DECLARE_WAIT_QUEUE_HEAD(wq);
+		wait_event_interruptible(wq, 0 == 1);
+#else
 		info.si_signo = SIGSEGV;
 		info.si_errno = 0;
 		/* info.si_code has been set above */
 		info.si_addr = (void *)address;
 		force_sig_info(SIGSEGV, &info, tsk);
-		printk(KERN_NOTICE "%s (pid %d) segfaults for page "
-		       "address %08lx at pc %08lx\n",
-		       tsk->comm, tsk->pid, address, instruction_pointer(regs));
+#endif
 		return;
 	}
 
@@ -245,10 +255,10 @@ do_page_fault(unsigned long address, struct pt_regs *regs,
 
  out_of_memory:
 	up_read(&mm->mmap_sem);
-	printk("VM: killing process %s\n", tsk->comm);
-	if (user_mode(regs))
-		do_exit(SIGKILL);
-	goto no_context;
+	if (!user_mode(regs))
+		goto no_context;
+	pagefault_out_of_memory();
+	return;
 
  do_sigbus:
 	up_read(&mm->mmap_sem);
@@ -334,8 +344,11 @@ int
 find_fixup_code(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fixup;
+	/* in case of delay slot fault (v32) */
+	unsigned long ip = (instruction_pointer(regs) & ~0x1);
 
-	if ((fixup = search_exception_tables(instruction_pointer(regs))) != 0) {
+	fixup = search_exception_tables(ip);
+	if (fixup != 0) {
 		/* Adjust the instruction pointer in the stackframe. */
 		instruction_pointer(regs) = fixup->fixup;
 		arch_fixup(regs);

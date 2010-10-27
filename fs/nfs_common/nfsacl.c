@@ -22,6 +22,7 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/nfsacl.h>
 #include <linux/nfs3.h>

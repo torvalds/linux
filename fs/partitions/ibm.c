@@ -58,9 +58,9 @@ cchhb2blk (struct vtoc_cchhb *ptr, struct hd_geometry *geo) {
 
 /*
  */
-int
-ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
+int ibm_partition(struct parsed_partitions *state)
 {
+	struct block_device *bdev = state->bdev;
 	int blocksize, res;
 	loff_t i_size, offset, size, fmt_size;
 	dasd_information2_t *info;
@@ -74,6 +74,8 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 	} *label;
 	unsigned char *data;
 	Sector sect;
+	sector_t labelsect;
+	char tmp[64];
 
 	res = 0;
 	blocksize = bdev_logical_block_size(bdev);
@@ -98,9 +100,19 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 		goto out_freeall;
 
 	/*
+	 * Special case for FBA disks: label sector does not depend on
+	 * blocksize.
+	 */
+	if ((info->cu_type == 0x6310 && info->dev_type == 0x9336) ||
+	    (info->cu_type == 0x3880 && info->dev_type == 0x3370))
+		labelsect = info->label_block;
+	else
+		labelsect = info->label_block * (blocksize >> 9);
+
+	/*
 	 * Get volume label, extract name and type.
 	 */
-	data = read_dev_sector(bdev, info->label_block*(blocksize/512), &sect);
+	data = read_part_sector(state, labelsect, &sect);
 	if (data == NULL)
 		goto out_readerr;
 
@@ -133,13 +145,15 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 			 */
 			blocksize = label->cms.block_size;
 			if (label->cms.disk_offset != 0) {
-				printk("CMS1/%8s(MDSK):", name);
+				snprintf(tmp, sizeof(tmp), "CMS1/%8s(MDSK):", name);
+				strlcat(state->pp_buf, tmp, PAGE_SIZE);
 				/* disk is reserved minidisk */
 				offset = label->cms.disk_offset;
 				size = (label->cms.block_count - 1)
 					* (blocksize >> 9);
 			} else {
-				printk("CMS1/%8s:", name);
+				snprintf(tmp, sizeof(tmp), "CMS1/%8s:", name);
+				strlcat(state->pp_buf, tmp, PAGE_SIZE);
 				offset = (info->label_block + 1);
 				size = label->cms.block_count
 					* (blocksize >> 9);
@@ -148,7 +162,8 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 				      size-offset*(blocksize >> 9));
 		} else {
 			if (strncmp(type, "LNX1", 4) == 0) {
-				printk("LNX1/%8s:", name);
+				snprintf(tmp, sizeof(tmp), "LNX1/%8s:", name);
+				strlcat(state->pp_buf, tmp, PAGE_SIZE);
 				if (label->lnx.ldl_version == 0xf2) {
 					fmt_size = label->lnx.formatted_blocks
 						* (blocksize >> 9);
@@ -167,7 +182,7 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 				offset = (info->label_block + 1);
 			} else {
 				/* unlabeled disk */
-				printk("(nonl)");
+				strlcat(state->pp_buf, "(nonl)", PAGE_SIZE);
 				size = i_size >> 9;
 				offset = (info->label_block + 1);
 			}
@@ -186,15 +201,16 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 		 * if not, something is wrong, skipping partition detection
 		 */
 		if (strncmp(type, "VOL1",  4) == 0) {
-			printk("VOL1/%8s:", name);
+			snprintf(tmp, sizeof(tmp), "VOL1/%8s:", name);
+			strlcat(state->pp_buf, tmp, PAGE_SIZE);
 			/*
 			 * get block number and read then go through format1
 			 * labels
 			 */
 			blk = cchhb2blk(&label->vol.vtoc, geo) + 1;
 			counter = 0;
-			data = read_dev_sector(bdev, blk * (blocksize/512),
-					       &sect);
+			data = read_part_sector(state, blk * (blocksize/512),
+						&sect);
 			while (data != NULL) {
 				struct vtoc_format1_label f1;
 
@@ -208,9 +224,8 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 				    || f1.DS1FMTID == _ascebc['7']
 				    || f1.DS1FMTID == _ascebc['9']) {
 					blk++;
-					data = read_dev_sector(bdev, blk *
-							       (blocksize/512),
-								&sect);
+					data = read_part_sector(state,
+						blk * (blocksize/512), &sect);
 					continue;
 				}
 
@@ -230,9 +245,8 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 					      size * (blocksize >> 9));
 				counter++;
 				blk++;
-				data = read_dev_sector(bdev,
-						       blk * (blocksize/512),
-						       &sect);
+				data = read_part_sector(state,
+						blk * (blocksize/512), &sect);
 			}
 
 			if (!data)
@@ -244,7 +258,7 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 
 	}
 
-	printk("\n");
+	strlcat(state->pp_buf, "\n", PAGE_SIZE);
 	goto out_freeall;
 
 

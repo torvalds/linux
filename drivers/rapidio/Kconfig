@@ -8,3 +8,27 @@ config RAPIDIO_DISC_TIMEOUT
 	---help---
 	  Amount of time a discovery node waits for a host to complete
 	  enumeration before giving up.
+
+config RAPIDIO_ENABLE_RX_TX_PORTS
+	bool "Enable RapidIO Input/Output Ports"
+	depends on RAPIDIO
+	---help---
+	  The RapidIO specification describes a Output port transmit
+	  enable and a Input port receive enable. The recommended state
+	  for Input ports and Output ports should be disabled. When
+	  this switch is set the RapidIO subsystem will enable all
+	  ports for Input/Output direction to allow other traffic
+	  than Maintenance transfers.
+
+source "drivers/rapidio/switches/Kconfig"
+
+config RAPIDIO_DEBUG
+	bool "RapidIO subsystem debug messages"
+	depends on RAPIDIO
+	help
+	  Say Y here if you want the RapidIO subsystem to produce a bunch of
+	  debug messages to the system log. Select this if you are having a
+	  problem with the RapidIO subsystem and want to see more of what is
+	  going on.
+
+	  If you are unsure about this, say N here.

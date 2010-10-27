@@ -3,11 +3,11 @@
 #include "nouveau_dma.h"
 #include "nouveau_fbcon.h"
 
-static void
+void
 nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
 
@@ -46,11 +46,11 @@ nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	FIRE_RING(chan);
 }
 
-static void
+void
 nv50_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
 
@@ -81,11 +81,11 @@ nv50_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 	FIRE_RING(chan);
 }
 
-static void
+void
 nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
 	uint32_t width, dwords, *data = (uint32_t *)image->data;
@@ -109,7 +109,7 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 		return;
 	}
 
-	width = (image->width + 31) & ~31;
+	width = ALIGN(image->width, 32);
 	dwords = (width * image->height) >> 5;
 
 	BEGIN_RING(chan, NvSub2D, 0x0814, 2);
@@ -152,12 +152,15 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 int
 nv50_fbcon_accel_init(struct fb_info *info)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
 	struct nouveau_gpuobj *eng2d = NULL;
+	uint64_t fb;
 	int ret, format;
+
+	fb = info->fix.smem_start - dev_priv->fb_phys + dev_priv->vm_vram_base;
 
 	switch (info->var.bits_per_pixel) {
 	case 8:
@@ -233,7 +236,7 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	BEGIN_RING(chan, NvSub2D, 0x0808, 3);
 	OUT_RING(chan, 0);
 	OUT_RING(chan, 0);
-	OUT_RING(chan, 0);
+	OUT_RING(chan, 1);
 	BEGIN_RING(chan, NvSub2D, 0x081c, 1);
 	OUT_RING(chan, 1);
 	BEGIN_RING(chan, NvSub2D, 0x0840, 4);
@@ -248,9 +251,8 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, info->fix.line_length);
 	OUT_RING(chan, info->var.xres_virtual);
 	OUT_RING(chan, info->var.yres_virtual);
-	OUT_RING(chan, 0);
-	OUT_RING(chan, info->fix.smem_start - dev_priv->fb_phys +
-			 dev_priv->vm_vram_base);
+	OUT_RING(chan, upper_32_bits(fb));
+	OUT_RING(chan, lower_32_bits(fb));
 	BEGIN_RING(chan, NvSub2D, 0x0230, 2);
 	OUT_RING(chan, format);
 	OUT_RING(chan, 1);
@@ -258,13 +260,9 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, info->fix.line_length);
 	OUT_RING(chan, info->var.xres_virtual);
 	OUT_RING(chan, info->var.yres_virtual);
-	OUT_RING(chan, 0);
-	OUT_RING(chan, info->fix.smem_start - dev_priv->fb_phys +
-			 dev_priv->vm_vram_base);
+	OUT_RING(chan, upper_32_bits(fb));
+	OUT_RING(chan, lower_32_bits(fb));
 
-	info->fbops->fb_fillrect = nv50_fbcon_fillrect;
-	info->fbops->fb_copyarea = nv50_fbcon_copyarea;
-	info->fbops->fb_imageblit = nv50_fbcon_imageblit;
 	return 0;
 }
 

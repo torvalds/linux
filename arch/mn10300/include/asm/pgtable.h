@@ -466,7 +466,7 @@ static inline int set_kernel_exec(unsigned long vaddr, int enable)
  * the kernel page tables containing the necessary information by tlb-mn10300.S
  */
 extern void update_mmu_cache(struct vm_area_struct *vma,
-			     unsigned long address, pte_t pte);
+			     unsigned long address, pte_t *ptep);
 
 #endif /* !__ASSEMBLY__ */
 

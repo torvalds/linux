@@ -59,17 +59,18 @@ enum ATH_DEBUG {
 	ATH_DBG_PS		= 0x00000800,
 	ATH_DBG_HWTIMER		= 0x00001000,
 	ATH_DBG_BTCOEX		= 0x00002000,
+	ATH_DBG_WMI		= 0x00004000,
 	ATH_DBG_ANY		= 0xffffffff
 };
 
 #define ATH_DBG_DEFAULT (ATH_DBG_FATAL)
 
 #ifdef CONFIG_ATH_DEBUG
-void ath_print(struct ath_common *common, int dbg_mask, const char *fmt, ...);
+void ath_print(struct ath_common *common, int dbg_mask, const char *fmt, ...)
+	__attribute__ ((format (printf, 3, 4)));
 #else
-static inline void ath_print(struct ath_common *common,
-			     int dbg_mask,
-			     const char *fmt, ...)
+static inline void __attribute__ ((format (printf, 3, 4)))
+ath_print(struct ath_common *common, int dbg_mask, const char *fmt, ...)
 {
 }
 #endif /* CONFIG_ATH_DEBUG */

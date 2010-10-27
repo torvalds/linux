@@ -108,7 +108,7 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	Node *fmt;
 	struct file * interp_file = NULL;
 	char iname[BINPRM_BUF_SIZE];
-	char *iname_addr = iname;
+	const char *iname_addr = iname;
 	int retval;
 	int fd_binary = -1;
 
@@ -502,8 +502,9 @@ static struct inode *bm_get_inode(struct super_block *sb, int mode)
 	return inode;
 }
 
-static void bm_clear_inode(struct inode *inode)
+static void bm_evict_inode(struct inode *inode)
 {
+	end_writeback(inode);
 	kfree(inode->i_private);
 }
 
@@ -685,7 +686,7 @@ static const struct file_operations bm_status_operations = {
 
 static const struct super_operations s_ops = {
 	.statfs		= simple_statfs,
-	.clear_inode	= bm_clear_inode,
+	.evict_inode	= bm_evict_inode,
 };
 
 static int bm_fill_super(struct super_block * sb, void * data, int silent)
@@ -723,7 +724,7 @@ static int __init init_misc_binfmt(void)
 {
 	int err = register_filesystem(&bm_fs_type);
 	if (!err) {
-		err = register_binfmt(&misc_format);
+		err = insert_binfmt(&misc_format);
 		if (err)
 			unregister_filesystem(&bm_fs_type);
 	}

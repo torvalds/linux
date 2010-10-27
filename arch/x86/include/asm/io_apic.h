@@ -143,8 +143,6 @@ extern int noioapicreroute;
 /* 1 if the timer IRQ uses the '8259A Virtual Wire' mode */
 extern int timer_through_8259;
 
-extern void io_apic_disable_legacy(void);
-
 /*
  * If we use the IO-APIC for IRQ routing, disable automatic
  * assignment of PCI IRQ's.
@@ -160,7 +158,7 @@ extern int io_apic_get_redir_entries(int ioapic);
 struct io_apic_irq_attr;
 extern int io_apic_set_pci_routing(struct device *dev, int irq,
 		 struct io_apic_irq_attr *irq_attr);
-extern int (*ioapic_renumber_irq)(int ioapic, int irq);
+void setup_IO_APIC_irq_extra(u32 gsi);
 extern void ioapic_init_mappings(void);
 extern void ioapic_insert_resources(void);
 
@@ -181,13 +179,15 @@ extern void ioapic_write_entry(int apic, int pin,
 extern void setup_ioapic_ids_from_mpc(void);
 
 struct mp_ioapic_gsi{
-	int gsi_base;
-	int gsi_end;
+	u32 gsi_base;
+	u32 gsi_end;
 };
 extern struct mp_ioapic_gsi  mp_gsi_routing[];
-int mp_find_ioapic(int gsi);
-int mp_find_ioapic_pin(int ioapic, int gsi);
+extern u32 gsi_top;
+int mp_find_ioapic(u32 gsi);
+int mp_find_ioapic_pin(int ioapic, u32 gsi);
 void __init mp_register_ioapic(int id, u32 address, u32 gsi_base);
+extern void __init pre_init_apic_IRQ0(void);
 
 #else  /* !CONFIG_X86_IO_APIC */
 
@@ -197,7 +197,12 @@ static const int timer_through_8259 = 0;
 static inline void ioapic_init_mappings(void)	{ }
 static inline void ioapic_insert_resources(void) { }
 static inline void probe_nr_irqs_gsi(void)	{ }
+#define gsi_top (NR_IRQS_LEGACY)
+static inline int mp_find_ioapic(u32 gsi) { return 0; }
 
+struct io_apic_irq_attr;
+static inline int io_apic_set_pci_routing(struct device *dev, int irq,
+		 struct io_apic_irq_attr *irq_attr) { return 0; }
 #endif
 
 #endif /* _ASM_X86_IO_APIC_H */

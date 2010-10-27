@@ -38,6 +38,7 @@
  */
 
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "drmP.h"
 
 /***************************************************

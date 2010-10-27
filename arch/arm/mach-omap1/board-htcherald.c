@@ -28,7 +28,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
-#include <linux/bootmem.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 
@@ -288,7 +287,7 @@ static void __init htcherald_init(void)
 	htcherald_disable_watchdog();
 
 	htcherald_usb_enable();
-	omap_usb_init(&htcherald_usb_config);
+	omap1_usb_init(&htcherald_usb_config);
 }
 
 static void __init htcherald_init_irq(void)
@@ -305,6 +304,7 @@ MACHINE_START(HERALD, "HTC Herald")
 	.io_pg_offst    = ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params    = 0x10000100,
 	.map_io         = htcherald_map_io,
+	.reserve	= omap_reserve,
 	.init_irq       = htcherald_init_irq,
 	.init_machine   = htcherald_init,
 	.timer          = &omap_timer,

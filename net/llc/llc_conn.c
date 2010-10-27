@@ -13,6 +13,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <net/llc_sap.h>
 #include <net/llc_conn.h>
 #include <net/sock.h>
@@ -468,6 +469,19 @@ static int llc_exec_conn_trans_actions(struct sock *sk,
 	return rc;
 }
 
+static inline bool llc_estab_match(const struct llc_sap *sap,
+				   const struct llc_addr *daddr,
+				   const struct llc_addr *laddr,
+				   const struct sock *sk)
+{
+	struct llc_sock *llc = llc_sk(sk);
+
+	return llc->laddr.lsap == laddr->lsap &&
+		llc->daddr.lsap == daddr->lsap &&
+		llc_mac_match(llc->laddr.mac, laddr->mac) &&
+		llc_mac_match(llc->daddr.mac, daddr->mac);
+}
+
 /**
  *	__llc_lookup_established - Finds connection for the remote/local sap/mac
  *	@sap: SAP
@@ -484,23 +498,35 @@ static struct sock *__llc_lookup_established(struct llc_sap *sap,
 					     struct llc_addr *laddr)
 {
 	struct sock *rc;
-	struct hlist_node *node;
+	struct hlist_nulls_node *node;
+	int slot = llc_sk_laddr_hashfn(sap, laddr);
+	struct hlist_nulls_head *laddr_hb = &sap->sk_laddr_hash[slot];
 
-	read_lock(&sap->sk_list.lock);
-	sk_for_each(rc, node, &sap->sk_list.list) {
-		struct llc_sock *llc = llc_sk(rc);
-
-		if (llc->laddr.lsap == laddr->lsap &&
-		    llc->daddr.lsap == daddr->lsap &&
-		    llc_mac_match(llc->laddr.mac, laddr->mac) &&
-		    llc_mac_match(llc->daddr.mac, daddr->mac)) {
-			sock_hold(rc);
+	rcu_read_lock();
+again:
+	sk_nulls_for_each_rcu(rc, node, laddr_hb) {
+		if (llc_estab_match(sap, daddr, laddr, rc)) {
+			/* Extra checks required by SLAB_DESTROY_BY_RCU */
+			if (unlikely(!atomic_inc_not_zero(&rc->sk_refcnt)))
+				goto again;
+			if (unlikely(llc_sk(rc)->sap != sap ||
+				     !llc_estab_match(sap, daddr, laddr, rc))) {
+				sock_put(rc);
+				continue;
+			}
 			goto found;
 		}
 	}
 	rc = NULL;
+	/*
+	 * if the nulls value we got at the end of this lookup is
+	 * not the expected one, we must restart lookup.
+	 * We probably met an item that was moved to another chain.
+	 */
+	if (unlikely(get_nulls_value(node) != slot))
+		goto again;
 found:
-	read_unlock(&sap->sk_list.lock);
+	rcu_read_unlock();
 	return rc;
 }
 
@@ -516,6 +542,53 @@ struct sock *llc_lookup_established(struct llc_sap *sap,
 	return sk;
 }
 
+static inline bool llc_listener_match(const struct llc_sap *sap,
+				      const struct llc_addr *laddr,
+				      const struct sock *sk)
+{
+	struct llc_sock *llc = llc_sk(sk);
+
+	return sk->sk_type == SOCK_STREAM && sk->sk_state == TCP_LISTEN &&
+		llc->laddr.lsap == laddr->lsap &&
+		llc_mac_match(llc->laddr.mac, laddr->mac);
+}
+
+static struct sock *__llc_lookup_listener(struct llc_sap *sap,
+					  struct llc_addr *laddr)
+{
+	struct sock *rc;
+	struct hlist_nulls_node *node;
+	int slot = llc_sk_laddr_hashfn(sap, laddr);
+	struct hlist_nulls_head *laddr_hb = &sap->sk_laddr_hash[slot];
+
+	rcu_read_lock();
+again:
+	sk_nulls_for_each_rcu(rc, node, laddr_hb) {
+		if (llc_listener_match(sap, laddr, rc)) {
+			/* Extra checks required by SLAB_DESTROY_BY_RCU */
+			if (unlikely(!atomic_inc_not_zero(&rc->sk_refcnt)))
+				goto again;
+			if (unlikely(llc_sk(rc)->sap != sap ||
+				     !llc_listener_match(sap, laddr, rc))) {
+				sock_put(rc);
+				continue;
+			}
+			goto found;
+		}
+	}
+	rc = NULL;
+	/*
+	 * if the nulls value we got at the end of this lookup is
+	 * not the expected one, we must restart lookup.
+	 * We probably met an item that was moved to another chain.
+	 */
+	if (unlikely(get_nulls_value(node) != slot))
+		goto again;
+found:
+	rcu_read_unlock();
+	return rc;
+}
+
 /**
  *	llc_lookup_listener - Finds listener for local MAC + SAP
  *	@sap: SAP
@@ -529,24 +602,12 @@ struct sock *llc_lookup_established(struct llc_sap *sap,
 static struct sock *llc_lookup_listener(struct llc_sap *sap,
 					struct llc_addr *laddr)
 {
-	struct sock *rc;
-	struct hlist_node *node;
+	static struct llc_addr null_addr;
+	struct sock *rc = __llc_lookup_listener(sap, laddr);
 
-	read_lock(&sap->sk_list.lock);
-	sk_for_each(rc, node, &sap->sk_list.list) {
-		struct llc_sock *llc = llc_sk(rc);
+	if (!rc)
+		rc = __llc_lookup_listener(sap, &null_addr);
 
-		if (rc->sk_type == SOCK_STREAM && rc->sk_state == TCP_LISTEN &&
-		    llc->laddr.lsap == laddr->lsap &&
-		    (llc_mac_match(llc->laddr.mac, laddr->mac) ||
-		     llc_mac_null(llc->laddr.mac))) {
-			sock_hold(rc);
-			goto found;
-		}
-	}
-	rc = NULL;
-found:
-	read_unlock(&sap->sk_list.lock);
 	return rc;
 }
 
@@ -647,15 +708,22 @@ static int llc_find_offset(int state, int ev_type)
  *	@sap: SAP
  *	@sk: socket
  *
- *	This function adds a socket to sk_list of a SAP.
+ *	This function adds a socket to the hash tables of a SAP.
  */
 void llc_sap_add_socket(struct llc_sap *sap, struct sock *sk)
 {
+	struct llc_sock *llc = llc_sk(sk);
+	struct hlist_head *dev_hb = llc_sk_dev_hash(sap, llc->dev->ifindex);
+	struct hlist_nulls_head *laddr_hb = llc_sk_laddr_hash(sap, &llc->laddr);
+
 	llc_sap_hold(sap);
-	write_lock_bh(&sap->sk_list.lock);
 	llc_sk(sk)->sap = sap;
-	sk_add_node(sk, &sap->sk_list.list);
-	write_unlock_bh(&sap->sk_list.lock);
+
+	spin_lock_bh(&sap->sk_lock);
+	sap->sk_count++;
+	sk_nulls_add_node_rcu(sk, laddr_hb);
+	hlist_add_head(&llc->dev_hash_node, dev_hb);
+	spin_unlock_bh(&sap->sk_lock);
 }
 
 /**
@@ -663,14 +731,18 @@ void llc_sap_add_socket(struct llc_sap *sap, struct sock *sk)
  *	@sap: SAP
  *	@sk: socket
  *
- *	This function removes a connection from sk_list.list of a SAP if
+ *	This function removes a connection from the hash tables of a SAP if
  *	the connection was in this list.
  */
 void llc_sap_remove_socket(struct llc_sap *sap, struct sock *sk)
 {
-	write_lock_bh(&sap->sk_list.lock);
-	sk_del_node_init(sk);
-	write_unlock_bh(&sap->sk_list.lock);
+	struct llc_sock *llc = llc_sk(sk);
+
+	spin_lock_bh(&sap->sk_lock);
+	sk_nulls_del_node_init_rcu(sk);
+	hlist_del(&llc->dev_hash_node);
+	sap->sk_count--;
+	spin_unlock_bh(&sap->sk_lock);
 	llc_sap_put(sap);
 }
 
@@ -756,7 +828,8 @@ void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
 	else {
 		dprintk("%s: adding to backlog...\n", __func__);
 		llc_set_backlog_type(skb, LLC_PACKET);
-		sk_add_backlog(sk, skb);
+		if (sk_add_backlog(sk, skb))
+			goto drop_unlock;
 	}
 out:
 	bh_unlock_sock(sk);

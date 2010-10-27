@@ -23,8 +23,9 @@
 #include <linux/android_pmem.h>
 #include <linux/mempolicy.h>
 #include <linux/sched.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/slab.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 
 #define PMEM_MAX_DEVICES 10
@@ -37,17 +38,17 @@
  * the file should not be released until put_pmem_file is called */
 #define PMEM_FLAGS_BUSY 0x1
 /* indicates that this is a suballocation of a larger master range */
-#define PMEM_FLAGS_CONNECTED 0x1 << 1
+#define PMEM_FLAGS_CONNECTED (0x1 << 1)
 /* indicates this is a master and not a sub allocation and that it is mmaped */
-#define PMEM_FLAGS_MASTERMAP 0x1 << 2
+#define PMEM_FLAGS_MASTERMAP (0x1 << 2)
 /* submap and unsubmap flags indicate:
  * 00: subregion has never been mmaped
  * 10: subregion has been mmaped, reference to the mm was taken
  * 11: subretion has ben released, refernece to the mm still held
  * 01: subretion has been released, reference to the mm has been released
  */
-#define PMEM_FLAGS_SUBMAP 0x1 << 3
-#define PMEM_FLAGS_UNSUBMAP 0x1 << 4
+#define PMEM_FLAGS_SUBMAP (0x1 << 3)
+#define PMEM_FLAGS_UNSUBMAP (0x1 << 4)
 
 
 struct pmem_data {
@@ -91,7 +92,7 @@ struct pmem_region_node {
 
 #define PMEM_DEBUG_MSGS 0
 #if PMEM_DEBUG_MSGS
-#define DLOG(fmt,args...) \
+#define DLOG(fmt, args...) \
 	do { printk(KERN_INFO "[%s:%s:%d] "fmt, __FILE__, __func__, __LINE__, \
 		    ##args); } \
 	while (0)
@@ -152,7 +153,7 @@ struct pmem_info {
 static struct pmem_info pmem[PMEM_MAX_DEVICES];
 static int id_count;
 
-#define PMEM_IS_FREE(id, index) !(pmem[id].bitmap[index].allocated)
+#define PMEM_IS_FREE(id, index) (!(pmem[id].bitmap[index].allocated))
 #define PMEM_ORDER(id, index) pmem[id].bitmap[index].order
 #define PMEM_BUDDY_INDEX(id, index) (index ^ (1 << PMEM_ORDER(id, index)))
 #define PMEM_NEXT_INDEX(id, index) (index + (1 << PMEM_ORDER(id, index)))
@@ -174,7 +175,7 @@ static int pmem_mmap(struct file *, struct vm_area_struct *);
 static int pmem_open(struct inode *, struct file *);
 static long pmem_ioctl(struct file *, unsigned int, unsigned long);
 
-struct file_operations pmem_fops = {
+const struct file_operations pmem_fops = {
 	.release = pmem_release,
 	.mmap = pmem_mmap,
 	.open = pmem_open,
@@ -208,7 +209,7 @@ static int has_allocation(struct file *file)
 
 	if (unlikely(!file->private_data))
 		return 0;
-	data = (struct pmem_data *)file->private_data;
+	data = file->private_data;
 	if (unlikely(data->index < 0))
 		return 0;
 	return 1;
@@ -222,7 +223,7 @@ static int is_master_owner(struct file *file)
 
 	if (!is_pmem_file(file) || !has_allocation(file))
 		return 0;
-	data = (struct pmem_data *)file->private_data;
+	data = file->private_data;
 	if (PMEM_FLAGS_MASTERMAP & data->flags)
 		return 1;
 	master_file = fget_light(data->master_fd, &put_needed);
@@ -267,7 +268,7 @@ static void pmem_revoke(struct file *file, struct pmem_data *data);
 
 static int pmem_release(struct inode *inode, struct file *file)
 {
-	struct pmem_data *data = (struct pmem_data *)file->private_data;
+	struct pmem_data *data = file->private_data;
 	struct pmem_region_node *region_node;
 	struct list_head *elt, *elt2;
 	int id = get_id(file), ret = 0;
@@ -398,8 +399,8 @@ static int pmem_allocate(int id, unsigned long len)
 	DLOG("order %lx\n", order);
 
 	/* look through the bitmap:
-	 * 	if you find a free slot of the correct order use it
-	 * 	otherwise, use the best fit (smallest with size > order) slot
+	 *	if you find a free slot of the correct order use it
+	 *	otherwise, use the best fit (smallest with size > order) slot
 	 */
 	while (curr < end) {
 		if (PMEM_IS_FREE(id, curr)) {
@@ -425,8 +426,8 @@ static int pmem_allocate(int id, unsigned long len)
 	}
 
 	/* now partition the best fit:
-	 * 	split the slot into 2 buddies of order - 1
-	 * 	repeat until the slot is of the correct order
+	 *	split the slot into 2 buddies of order - 1
+	 *	repeat until the slot is of the correct order
 	 */
 	while (PMEM_ORDER(id, best_fit) > (unsigned char)order) {
 		int buddy;
@@ -590,7 +591,7 @@ static int pmem_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	data = (struct pmem_data *)file->private_data;
+	data = file->private_data;
 	down_write(&data->sem);
 	/* check this file isn't already mmaped, for submaps check this file
 	 * has never been mmaped */
@@ -689,7 +690,7 @@ int get_pmem_user_addr(struct file *file, unsigned long *start,
 #endif
 		return -1;
 	}
-	data = (struct pmem_data *)file->private_data;
+	data = file->private_data;
 	down_read(&data->sem);
 	if (data->vma) {
 		*start = data->vma->vm_start;
@@ -708,11 +709,10 @@ int get_pmem_addr(struct file *file, unsigned long *start,
 	struct pmem_data *data;
 	int id;
 
-	if (!is_pmem_file(file) || !has_allocation(file)) {
+	if (!is_pmem_file(file) || !has_allocation(file))
 		return -1;
-	}
 
-	data = (struct pmem_data *)file->private_data;
+	data = file->private_data;
 	if (data->index == -1) {
 #if PMEM_DEBUG
 		printk(KERN_INFO "pmem: requested pmem data from file with no "
@@ -766,7 +766,7 @@ void put_pmem_file(struct file *file)
 	if (!is_pmem_file(file))
 		return;
 	id = get_id(file);
-	data = (struct pmem_data *)file->private_data;
+	data = file->private_data;
 #if PMEM_DEBUG
 	down_write(&data->sem);
 	if (data->ref == 0) {
@@ -789,12 +789,11 @@ void flush_pmem_file(struct file *file, unsigned long offset, unsigned long len)
 	struct list_head *elt;
 	void *flush_start, *flush_end;
 
-	if (!is_pmem_file(file) || !has_allocation(file)) {
+	if (!is_pmem_file(file) || !has_allocation(file))
 		return;
-	}
 
 	id = get_id(file);
-	data = (struct pmem_data *)file->private_data;
+	data = file->private_data;
 	if (!pmem[id].cached)
 		return;
 
@@ -823,7 +822,7 @@ end:
 
 static int pmem_connect(unsigned long connect, struct file *file)
 {
-	struct pmem_data *data = (struct pmem_data *)file->private_data;
+	struct pmem_data *data = file->private_data;
 	struct pmem_data *src_data;
 	struct file *src_file;
 	int ret = 0, put_needed;
@@ -833,7 +832,7 @@ static int pmem_connect(unsigned long connect, struct file *file)
 	src_file = fget_light(connect, &put_needed);
 	DLOG("connect %p to %p\n", file, src_file);
 	if (!src_file) {
-		printk("pmem: src file not found!\n");
+		printk(KERN_INFO "pmem: src file not found!\n");
 		ret = -EINVAL;
 		goto err_no_file;
 	}
@@ -843,11 +842,11 @@ static int pmem_connect(unsigned long connect, struct file *file)
 		ret = -EINVAL;
 		goto err_bad_file;
 	}
-	src_data = (struct pmem_data *)src_file->private_data;
+	src_data = src_file->private_data;
 
 	if (has_allocation(file) && (data->index != src_data->index)) {
-		printk("pmem: file is already mapped but doesn't match this"
-		       " src_file!\n");
+		printk(KERN_INFO "pmem: file is already mapped but doesn't "
+			"match this src_file!\n");
 		ret = -EINVAL;
 		goto err_bad_file;
 	}
@@ -885,7 +884,7 @@ lock_mm:
 		mm = get_task_mm(data->task);
 		if (!mm) {
 #if PMEM_DEBUG
-			printk("pmem: can't remap task is gone!\n");
+			printk(KERN_DEBUG "pmem: can't remap task is gone!\n");
 #endif
 			up_read(&data->sem);
 			return -1;
@@ -930,14 +929,14 @@ int pmem_remap(struct pmem_region *region, struct file *file,
 	struct mm_struct *mm = NULL;
 	struct list_head *elt, *elt2;
 	int id = get_id(file);
-	struct pmem_data *data = (struct pmem_data *)file->private_data;
+	struct pmem_data *data = file->private_data;
 
 	/* pmem region must be aligned on a page boundry */
 	if (unlikely(!PMEM_IS_PAGE_ALIGNED(region->offset) ||
 		 !PMEM_IS_PAGE_ALIGNED(region->len))) {
 #if PMEM_DEBUG
-		printk("pmem: request for unaligned pmem suballocation "
-		       "%lx %lx\n", region->offset, region->len);
+		printk(KERN_DEBUG "pmem: request for unaligned pmem "
+			"suballocation %lx %lx\n", region->offset, region->len);
 #endif
 		return -EINVAL;
 	}
@@ -1054,7 +1053,7 @@ static void pmem_revoke(struct file *file, struct pmem_data *data)
 
 static void pmem_get_size(struct pmem_region *region, struct file *file)
 {
-	struct pmem_data *data = (struct pmem_data *)file->private_data;
+	struct pmem_data *data = file->private_data;
 	int id = get_id(file);
 
 	if (!has_allocation(file)) {
@@ -1083,12 +1082,12 @@ static long pmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				region.offset = 0;
 				region.len = 0;
 			} else {
-				data = (struct pmem_data *)file->private_data;
+				data = file->private_data;
 				region.offset = pmem_start_addr(id, data);
 				region.len = pmem_len(id, data);
 			}
-			printk(KERN_INFO "pmem: request for physical address of pmem region "
-					"from process %d.\n", current->pid);
+			printk(KERN_INFO "pmem: request for physical address "
+			     "of pmem region from process %d.\n", current->pid);
 			if (copy_to_user((void __user *)arg, &region,
 						sizeof(struct pmem_region)))
 				return -EFAULT;
@@ -1100,7 +1099,7 @@ static long pmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (copy_from_user(&region, (void __user *)arg,
 						sizeof(struct pmem_region)))
 				return -EFAULT;
-			data = (struct pmem_data *)file->private_data;
+			data = file->private_data;
 			return pmem_remap(&region, file, PMEM_MAP);
 		}
 		break;
@@ -1110,7 +1109,7 @@ static long pmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (copy_from_user(&region, (void __user *)arg,
 						sizeof(struct pmem_region)))
 				return -EFAULT;
-			data = (struct pmem_data *)file->private_data;
+			data = file->private_data;
 			return pmem_remap(&region, file, PMEM_UNMAP);
 			break;
 		}
@@ -1140,7 +1139,7 @@ static long pmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			if (has_allocation(file))
 				return -EINVAL;
-			data = (struct pmem_data *)file->private_data;
+			data = file->private_data;
 			data->index = pmem_allocate(id, arg);
 			break;
 		}
@@ -1246,13 +1245,10 @@ int pmem_setup(struct android_pmem_platform_data *pdata,
 	}
 	pmem[id].num_entries = pmem[id].size / PMEM_MIN_ALLOC;
 
-	pmem[id].bitmap = kmalloc(pmem[id].num_entries *
+	pmem[id].bitmap = kcalloc(pmem[id].num_entries,
 				  sizeof(struct pmem_bits), GFP_KERNEL);
 	if (!pmem[id].bitmap)
 		goto err_no_mem_for_metadata;
-
-	memset(pmem[id].bitmap, 0, sizeof(struct pmem_bits) *
-					  pmem[id].num_entries);
 
 	for (i = sizeof(pmem[id].num_entries) * 8 - 1; i >= 0; i--) {
 		if ((pmem[id].num_entries) &  1<<i) {

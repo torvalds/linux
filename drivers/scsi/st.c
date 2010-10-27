@@ -27,6 +27,7 @@ static const char *verstr = "20081215";
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/mtio.h>
 #include <linux/cdrom.h>
@@ -3961,6 +3962,7 @@ static const struct file_operations st_fops =
 	.open =		st_open,
 	.flush =	st_flush,
 	.release =	st_release,
+	.llseek =	noop_llseek,
 };
 
 static int st_probe(struct device *dev)
@@ -3983,8 +3985,7 @@ static int st_probe(struct device *dev)
 		return -ENODEV;
 	}
 
-	i = min(queue_max_hw_segments(SDp->request_queue),
-		queue_max_phys_segments(SDp->request_queue));
+	i = queue_max_segments(SDp->request_queue);
 	if (st_max_sg_segs < i)
 		i = st_max_sg_segs;
 	buffer = new_tape_buffer((SDp->host)->unchecked_isa_dma, i);

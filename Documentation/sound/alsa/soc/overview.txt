@@ -33,7 +33,7 @@ features :-
     and machines.
 
   * Easy I2S/PCM audio interface setup between codec and SoC. Each SoC
-    interface and codec registers it's audio interface capabilities with the
+    interface and codec registers its audio interface capabilities with the
     core and are subsequently matched and configured when the application
     hardware parameters are known.
 

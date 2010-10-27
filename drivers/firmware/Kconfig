@@ -124,7 +124,8 @@ config ISCSI_IBFT_FIND
 
 config ISCSI_IBFT
 	tristate "iSCSI Boot Firmware Table Attributes module"
-	depends on ISCSI_IBFT_FIND
+	select ISCSI_BOOT_SYSFS
+	depends on ISCSI_IBFT_FIND && SCSI
 	default	n
 	help
 	  This option enables support for detection and exposing of iSCSI

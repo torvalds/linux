@@ -226,6 +226,18 @@ setuserscan
     All entries in the scan table (not just the new scan data when keep=1)
     will be displayed upon completion by use of the getscantable ioctl.
 
+hostsleep
+	This command is used to enable/disable host sleep.
+	Note: Host sleep parameters should be configured using
+	"ethtool -s ethX wol X" command before enabling host sleep.
+
+	Path: /sys/kernel/debug/libertas_wireless/ethX/
+
+	Usage:
+		cat hostsleep: reads the current hostsleep state
+		echo "1" > hostsleep : enable host sleep.
+		echo "0" > hostsleep : disable host sleep
+
 ========================
 IWCONFIG COMMANDS
 ========================

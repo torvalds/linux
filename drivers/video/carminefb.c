@@ -11,6 +11,7 @@
 #include <linux/fb.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include "carminefb.h"
 #include "carminefb_regs.h"
@@ -431,7 +432,7 @@ static int init_hardware(struct carmine_hw *hw)
 	u32 loops;
 	u32 ret;
 
-	/* Initalize Carmine */
+	/* Initialize Carmine */
 	/* Sets internal clock */
 	c_set_hw_reg(hw, CARMINE_CTL_REG + CARMINE_CTL_REG_CLOCK_ENABLE,
 			CARMINE_DFLT_IP_CLOCK_ENABLE);

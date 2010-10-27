@@ -17,8 +17,8 @@ static struct list_head adapter_list = LIST_HEAD_INIT(adapter_list);
 static u32 adapter_count;
 
 #define DRV_MODULE_NAME		"bnx2i"
-#define DRV_MODULE_VERSION	"2.1.0"
-#define DRV_MODULE_RELDATE	"Dec 06, 2009"
+#define DRV_MODULE_VERSION	"2.1.2"
+#define DRV_MODULE_RELDATE	"Jun 28, 2010"
 
 static char version[] __devinitdata =
 		"Broadcom NetXtreme II iSCSI Driver " DRV_MODULE_NAME \
@@ -26,7 +26,8 @@ static char version[] __devinitdata =
 
 
 MODULE_AUTHOR("Anil Veerabhadrappa <anilgv@broadcom.com>");
-MODULE_DESCRIPTION("Broadcom NetXtreme II BCM5706/5708/5709 iSCSI Driver");
+MODULE_DESCRIPTION("Broadcom NetXtreme II BCM5706/5708/5709/57710/57711"
+		   " iSCSI Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
@@ -175,13 +176,51 @@ void bnx2i_start(void *handle)
 void bnx2i_stop(void *handle)
 {
 	struct bnx2i_hba *hba = handle;
+	struct list_head *pos, *tmp;
+	struct bnx2i_endpoint *bnx2i_ep;
+	int conns_active;
 
 	/* check if cleanup happened in GOING_DOWN context */
-	clear_bit(ADAPTER_STATE_UP, &hba->adapter_state);
 	if (!test_and_clear_bit(ADAPTER_STATE_GOING_DOWN,
 				&hba->adapter_state))
 		iscsi_host_for_each_session(hba->shost,
 					    bnx2i_drop_session);
+
+	/* Wait for all endpoints to be torn down, Chip will be reset once
+	 *  control returns to network driver. So it is required to cleanup and
+	 * release all connection resources before returning from this routine.
+	 */
+	while (hba->ofld_conns_active) {
+		conns_active = hba->ofld_conns_active;
+		wait_event_interruptible_timeout(hba->eh_wait,
+				(hba->ofld_conns_active != conns_active),
+				hba->hba_shutdown_tmo);
+		if (hba->ofld_conns_active == conns_active)
+			break;
+	}
+	if (hba->ofld_conns_active) {
+		/* Stage to force the disconnection
+		 * This is the case where the daemon is either slow or
+		 * not present
+		 */
+		printk(KERN_ALERT "bnx2i: Wait timeout, force all eps "
+			"to disconnect (%d)\n", hba->ofld_conns_active);
+		mutex_lock(&hba->net_dev_lock);
+		list_for_each_safe(pos, tmp, &hba->ep_active_list) {
+			bnx2i_ep = list_entry(pos, struct bnx2i_endpoint, link);
+			/* Clean up the chip only */
+			bnx2i_hw_ep_disconnect(bnx2i_ep);
+		}
+		mutex_unlock(&hba->net_dev_lock);
+		if (hba->ofld_conns_active)
+			printk(KERN_ERR "bnx2i: EP disconnect timeout (%d)!\n",
+				hba->ofld_conns_active);
+	}
+
+	/* This flag should be cleared last so that ep_disconnect() gracefully
+	 * cleans up connection context
+	 */
+	clear_bit(ADAPTER_STATE_UP, &hba->adapter_state);
 }
 
 /**
@@ -278,6 +317,7 @@ static int bnx2i_init_one(struct bnx2i_hba *hba, struct cnic_dev *cnic)
 	int rc;
 
 	mutex_lock(&bnx2i_dev_lock);
+	hba->cnic = cnic;
 	rc = cnic->register_device(cnic, CNIC_ULP_ISCSI, hba);
 	if (!rc) {
 		hba->age++;
@@ -324,8 +364,7 @@ void bnx2i_ulp_init(struct cnic_dev *dev)
 	if (bnx2i_init_one(hba, dev)) {
 		printk(KERN_ERR "bnx2i - hba %p init failed\n", hba);
 		bnx2i_free_hba(hba);
-	} else
-		hba->cnic = dev;
+	}
 }
 
 

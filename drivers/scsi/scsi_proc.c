@@ -20,12 +20,12 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/errno.h>
 #include <linux/blkdev.h>
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
+#include <linux/gfp.h>
 #include <asm/uaccess.h>
 
 #include <scsi/scsi.h>

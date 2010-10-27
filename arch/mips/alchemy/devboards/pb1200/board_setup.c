@@ -25,38 +25,34 @@
  */
 
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/sched.h>
 
-#include <prom.h>
-#include <au1xxx.h>
+#include <asm/mach-au1x00/au1000.h>
+#include <asm/mach-db1x00/bcsr.h>
 
+#ifdef CONFIG_MIPS_PB1200
+#include <asm/mach-pb1x00/pb1200.h>
+#endif
+
+#ifdef CONFIG_MIPS_DB1200
+#include <asm/mach-db1x00/db1200.h>
+#define PB1200_INT_BEGIN DB1200_INT_BEGIN
+#define PB1200_INT_END DB1200_INT_END
+#endif
+
+#include <prom.h>
 
 const char *get_system_type(void)
 {
 	return "Alchemy Pb1200";
 }
 
-void board_reset(void)
-{
-	bcsr->resets = 0;
-	bcsr->system = 0;
-}
-
 void __init board_setup(void)
 {
-	char *argptr;
-
-	argptr = prom_getcmdline();
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	argptr = strstr(argptr, "console=");
-	if (argptr == NULL) {
-		argptr = prom_getcmdline();
-		strcat(argptr, " console=ttyS0,115200");
-	}
-#endif
-#ifdef CONFIG_FB_AU1200
-	strcat(argptr, " video=au1200fb:panel:bs");
-#endif
+	printk(KERN_INFO "AMD Alchemy Pb1200 Board\n");
+	bcsr_init(PB1200_BCSR_PHYS_ADDR,
+		  PB1200_BCSR_PHYS_ADDR + PB1200_BCSR_HEXLED_OFS);
 
 #if 0
 	{
@@ -82,7 +78,7 @@ void __init board_setup(void)
 		u32 pin_func;
 
 		/* Select SMBus in CPLD */
-		bcsr->resets &= ~BCSR_RESETS_PCS0MUX;
+		bcsr_mod(BCSR_RESETS, BCSR_RESETS_PSC0MUX, 0);
 
 		pin_func = au_readl(SYS_PINFUNC);
 		au_sync();
@@ -116,38 +112,54 @@ void __init board_setup(void)
 
 	/*
 	 * The Pb1200 development board uses external MUX for PSC0 to
-	 * support SMB/SPI. bcsr->resets bit 12: 0=SMB 1=SPI
+	 * support SMB/SPI. bcsr_resets bit 12: 0=SMB 1=SPI
 	 */
 #ifdef CONFIG_I2C_AU1550
-	bcsr->resets &= ~BCSR_RESETS_PCS0MUX;
+	bcsr_mod(BCSR_RESETS, BCSR_RESETS_PSC0MUX, 0);
 #endif
 	au_sync();
-
-#ifdef CONFIG_MIPS_PB1200
-	printk(KERN_INFO "AMD Alchemy Pb1200 Board\n");
-#endif
-#ifdef CONFIG_MIPS_DB1200
-	printk(KERN_INFO "AMD Alchemy Db1200 Board\n");
-#endif
 }
+
+static int __init pb1200_init_irq(void)
+{
+	/* We have a problem with CPLD rev 3. */
+	if (BCSR_WHOAMI_CPLD(bcsr_read(BCSR_WHOAMI)) <= 3) {
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "Pb1200 must be at CPLD rev 4. Please have Pb1200\n");
+		printk(KERN_ERR "updated to latest revision. This software will\n");
+		printk(KERN_ERR "not work on anything less than CPLD rev 4.\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		printk(KERN_ERR "WARNING!!!\n");
+		panic("Game over.  Your score is 0.");
+	}
+
+	set_irq_type(AU1200_GPIO7_INT, IRQF_TRIGGER_LOW);
+	bcsr_init_irq(PB1200_INT_BEGIN, PB1200_INT_END, AU1200_GPIO7_INT);
+
+	return 0;
+}
+arch_initcall(pb1200_init_irq);
+
 
 int board_au1200fb_panel(void)
 {
-	BCSR *bcsr = (BCSR *)BCSR_KSEG1_ADDR;
-	int p;
-
-	p = bcsr->switches;
-	p >>= 8;
-	p &= 0x0F;
-	return p;
+	return (bcsr_read(BCSR_SWITCHES) >> 8) & 0x0f;
 }
 
 int board_au1200fb_panel_init(void)
 {
 	/* Apply power */
-	BCSR *bcsr = (BCSR *)BCSR_KSEG1_ADDR;
-
-	bcsr->board |= BCSR_BOARD_LCDVEE | BCSR_BOARD_LCDVDD | BCSR_BOARD_LCDBL;
+	bcsr_mod(BCSR_BOARD, 0, BCSR_BOARD_LCDVEE | BCSR_BOARD_LCDVDD |
+				BCSR_BOARD_LCDBL);
 	/* printk(KERN_DEBUG "board_au1200fb_panel_init()\n"); */
 	return 0;
 }
@@ -155,10 +167,8 @@ int board_au1200fb_panel_init(void)
 int board_au1200fb_panel_shutdown(void)
 {
 	/* Remove power */
-	BCSR *bcsr = (BCSR *)BCSR_KSEG1_ADDR;
-
-	bcsr->board &= ~(BCSR_BOARD_LCDVEE | BCSR_BOARD_LCDVDD |
-			 BCSR_BOARD_LCDBL);
+	bcsr_mod(BCSR_BOARD, BCSR_BOARD_LCDVEE | BCSR_BOARD_LCDVDD |
+			     BCSR_BOARD_LCDBL, 0);
 	/* printk(KERN_DEBUG "board_au1200fb_panel_shutdown()\n"); */
 	return 0;
 }

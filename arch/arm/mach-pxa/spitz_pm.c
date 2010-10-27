@@ -22,11 +22,11 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 
-#include <mach/sharpsl.h>
 #include <mach/spitz.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/pxa2xx-gpio.h>
-#include "sharpsl.h"
+#include <mach/pxa27x.h>
+#include <mach/sharpsl_pm.h>
+
+#include "generic.h"
 
 #define SHARPSL_CHARGE_ON_VOLT         0x99  /* 2.9V */
 #define SHARPSL_CHARGE_ON_TEMP         0xe0  /* 2.9V */
@@ -37,10 +37,17 @@
 
 static int spitz_last_ac_status;
 
+static struct gpio spitz_charger_gpios[] = {
+	{ SPITZ_GPIO_KEY_INT,	GPIOF_IN, "Keyboard Interrupt" },
+	{ SPITZ_GPIO_SYNC,	GPIOF_IN, "Sync" },
+	{ SPITZ_GPIO_ADC_TEMP_ON, GPIOF_OUT_INIT_LOW, "ADC Temp On" },
+	{ SPITZ_GPIO_JK_B,	  GPIOF_OUT_INIT_LOW, "JK B" },
+	{ SPITZ_GPIO_CHRG_ON,	  GPIOF_OUT_INIT_LOW, "Charger On" },
+};
+
 static void spitz_charger_init(void)
 {
-	pxa_gpio_mode(SPITZ_GPIO_KEY_INT | GPIO_IN);
-	pxa_gpio_mode(SPITZ_GPIO_SYNC | GPIO_IN);
+	gpio_request_array(ARRAY_AND_SIZE(spitz_charger_gpios));
 }
 
 static void spitz_measure_temp(int on)
@@ -76,6 +83,11 @@ static void spitz_discharge1(int on)
 	gpio_set_value(SPITZ_GPIO_LED_GREEN, on);
 }
 
+static unsigned long gpio18_config[] = {
+	GPIO18_RDY,
+	GPIO18_GPIO,
+};
+
 static void spitz_presuspend(void)
 {
 	spitz_last_ac_status = sharpsl_pm.machinfo->read_devdata(SHARPSL_STATUS_ACIN);
@@ -97,7 +109,9 @@ static void spitz_presuspend(void)
 	PGSR3 &= ~SPITZ_GPIO_G3_STROBE_BIT;
 	PGSR2 |= GPIO_bit(SPITZ_GPIO_KEY_STROBE0);
 
-	pxa_gpio_mode(GPIO18_RDY|GPIO_OUT | GPIO_DFLT_HIGH);
+	pxa2xx_mfp_config(&gpio18_config[0], 1);
+	gpio_request_one(18, GPIOF_OUT_INIT_HIGH, "Unknown");
+	gpio_free(18);
 
 	PRER = GPIO_bit(SPITZ_GPIO_KEY_INT);
 	PFER = GPIO_bit(SPITZ_GPIO_KEY_INT) | GPIO_bit(SPITZ_GPIO_RESET);
@@ -114,8 +128,7 @@ static void spitz_presuspend(void)
 
 static void spitz_postsuspend(void)
 {
-	pxa_gpio_mode(GPIO18_RDY_MD);
-	pxa_gpio_mode(10 | GPIO_IN);
+	pxa2xx_mfp_config(&gpio18_config[1], 1);
 }
 
 static int spitz_should_wakeup(unsigned int resume_on_alarm)
@@ -164,11 +177,11 @@ unsigned long spitzpm_read_devdata(int type)
 	case SHARPSL_STATUS_ACIN:
 		return (((~GPLR(SPITZ_GPIO_AC_IN)) & GPIO_bit(SPITZ_GPIO_AC_IN)) != 0);
 	case SHARPSL_STATUS_LOCK:
-		return READ_GPIO_BIT(sharpsl_pm.machinfo->gpio_batlock);
+		return gpio_get_value(sharpsl_pm.machinfo->gpio_batlock);
 	case SHARPSL_STATUS_CHRGFULL:
-		return READ_GPIO_BIT(sharpsl_pm.machinfo->gpio_batfull);
+		return gpio_get_value(sharpsl_pm.machinfo->gpio_batfull);
 	case SHARPSL_STATUS_FATAL:
-		return READ_GPIO_BIT(sharpsl_pm.machinfo->gpio_fatal);
+		return gpio_get_value(sharpsl_pm.machinfo->gpio_fatal);
 	case SHARPSL_ACIN_VOLT:
 		return sharpsl_pm_pxa_read_max1111(MAX1111_ACIN_VOLT);
 	case SHARPSL_BATT_TEMP:
@@ -198,8 +211,6 @@ struct sharpsl_charger_machinfo spitz_pm_machinfo = {
 	.should_wakeup    = spitz_should_wakeup,
 #if defined(CONFIG_LCD_CORGI)
 	.backlight_limit = corgi_lcd_limit_intensity,
-#elif defined(CONFIG_BACKLIGHT_CORGI)
-	.backlight_limit  = corgibl_limit_intensity,
 #endif
 	.charge_on_volt	  = SHARPSL_CHARGE_ON_VOLT,
 	.charge_on_temp	  = SHARPSL_CHARGE_ON_TEMP,

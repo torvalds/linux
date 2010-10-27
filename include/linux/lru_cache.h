@@ -64,7 +64,7 @@ For crash recovery after replication node failure,
   usually the condition is softened to regions that _may_ have been target of
   in-flight WRITE IO, e.g. by only lazily clearing the on-disk write-intent
   bitmap, trading frequency of meta data transactions against amount of
-  (possibly unneccessary) resync traffic.
+  (possibly unnecessary) resync traffic.
 
   If we set a hard limit on the area that may be "hot" at any given time, we
   limit the amount of resync traffic needed for crash recovery.
@@ -262,7 +262,7 @@ extern void lc_seq_dump_details(struct seq_file *seq, struct lru_cache *lc, char
  * @lc: the lru cache to operate on
  *
  * Note that the reference counts and order on the active and lru lists may
- * still change.  Returns true if we aquired the lock.
+ * still change.  Returns true if we acquired the lock.
  */
 static inline int lc_try_lock(struct lru_cache *lc)
 {

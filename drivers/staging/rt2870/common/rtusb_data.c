@@ -124,7 +124,7 @@ int RTUSBFreeDescriptorRequest(struct rt_rtmp_adapter *pAd,
 	}
 	RTMP_IRQ_UNLOCK(&pAd->TxContextQueueLock[BulkOutPipeId], IrqFlags);
 
-	return (Status);
+	return Status;
 }
 
 int RTUSBFreeDescriptorRelease(struct rt_rtmp_adapter *pAd,
@@ -138,7 +138,7 @@ int RTUSBFreeDescriptorRelease(struct rt_rtmp_adapter *pAd,
 	pHTTXContext->bCurWriting = FALSE;
 	RTMP_IRQ_UNLOCK(&pAd->TxContextQueueLock[BulkOutPipeId], IrqFlags);
 
-	return (NDIS_STATUS_SUCCESS);
+	return NDIS_STATUS_SUCCESS;
 }
 
 BOOLEAN RTUSBNeedQueueBackForAgg(struct rt_rtmp_adapter *pAd, u8 BulkOutPipeId)
@@ -151,7 +151,7 @@ BOOLEAN RTUSBNeedQueueBackForAgg(struct rt_rtmp_adapter *pAd, u8 BulkOutPipeId)
 
 	RTMP_IRQ_LOCK(&pAd->TxContextQueueLock[BulkOutPipeId], IrqFlags);
 	if ((pHTTXContext->IRPPending ==
-	     TRUE) /*&& (pAd->TxSwQueue[BulkOutPipeId].Number == 0) */ ) {
+	     TRUE) /*&& (pAd->TxSwQueue[BulkOutPipeId].Number == 0) */) {
 		if ((pHTTXContext->CurWritePosition <
 		     pHTTXContext->ENextBulkOutPosition)
 		    &&
@@ -201,7 +201,7 @@ void RTUSBRejectPendingPackets(struct rt_rtmp_adapter *pAd)
 	for (Index = 0; Index < 4; Index++) {
 		NdisAcquireSpinLock(&pAd->TxSwQueueLock[Index]);
 		while (pAd->TxSwQueue[Index].Head != NULL) {
-			pQueue = (struct rt_queue_header *)& (pAd->TxSwQueue[Index]);
+			pQueue = (struct rt_queue_header *)&(pAd->TxSwQueue[Index]);
 			pEntry = RemoveHeadQueue(pQueue);
 			pPacket = QUEUE_ENTRY_TO_PACKET(pEntry);
 			RELEASE_NDIS_PACKET(pAd, pPacket, NDIS_STATUS_FAILURE);

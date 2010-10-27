@@ -23,7 +23,6 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/platform/sja1000.h>
 

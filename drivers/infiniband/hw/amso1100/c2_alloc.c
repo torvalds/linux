@@ -32,7 +32,6 @@
  */
 
 #include <linux/errno.h>
-#include <linux/slab.h>
 #include <linux/bitmap.h>
 
 #include "c2.h"
@@ -50,7 +49,7 @@ static int c2_alloc_mqsp_chunk(struct c2_dev *c2dev, gfp_t gfp_mask,
 		return -ENOMEM;
 
 	new_head->dma_addr = dma_addr;
-	pci_unmap_addr_set(new_head, mapping, new_head->dma_addr);
+	dma_unmap_addr_set(new_head, mapping, new_head->dma_addr);
 
 	new_head->next = NULL;
 	new_head->head = 0;
@@ -82,7 +81,7 @@ void c2_free_mqsp_pool(struct c2_dev *c2dev, struct sp_chunk *root)
 	while (root) {
 		next = root->next;
 		dma_free_coherent(&c2dev->pcidev->dev, PAGE_SIZE, root,
-				  pci_unmap_addr(root, mapping));
+				  dma_unmap_addr(root, mapping));
 		root = next;
 	}
 }

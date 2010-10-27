@@ -142,7 +142,7 @@ bad_clone_list[] __initdata = {
     {"PCM-4823", "PCM-4823", {0x00, 0xc0, 0x6c}}, /* Broken Advantech MoBo */
     {"REALTEK", "RTL8019", {0x00, 0x00, 0xe8}}, /* no-name with Realtek chip */
 #ifdef CONFIG_MACH_TX49XX
-    {"RBHMA4X00-RTL8019", "RBHMA4X00/RTL8019", {0x00, 0x60, 0x0a}},  /* Toshiba built-in */
+    {"RBHMA4X00-RTL8019", "RBHMA4X00-RTL8019", {0x00, 0x60, 0x0a}},  /* Toshiba built-in */
 #endif
     {"LCS-8834", "LCS-8836", {0x04, 0x04, 0x37}}, /* ShinyNet (SET) */
     {NULL,}
@@ -785,7 +785,6 @@ retry:
 
 	outb_p(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
 	ei_status.dmaing &= ~0x01;
-	return;
 }
 
 static int __init ne_drv_probe(struct platform_device *pdev)
@@ -807,8 +806,10 @@ static int __init ne_drv_probe(struct platform_device *pdev)
 		dev->base_addr = res->start;
 		dev->irq = platform_get_irq(pdev, 0);
 	} else {
-		if (this_dev < 0 || this_dev >= MAX_NE_CARDS)
+		if (this_dev < 0 || this_dev >= MAX_NE_CARDS) {
+			free_netdev(dev);
 			return -EINVAL;
+		}
 		dev->base_addr = io[this_dev];
 		dev->irq = irq[this_dev];
 		dev->mem_end = bad[this_dev];

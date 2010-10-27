@@ -72,14 +72,14 @@ static void disable_se7724_irq(unsigned int irq)
 {
 	struct fpga_irq set = get_fpga_irq(fpga2irq(irq));
 	unsigned int bit = irq - set.base;
-	ctrl_outw(ctrl_inw(set.mraddr) | 0x0001 << bit, set.mraddr);
+	__raw_writew(__raw_readw(set.mraddr) | 0x0001 << bit, set.mraddr);
 }
 
 static void enable_se7724_irq(unsigned int irq)
 {
 	struct fpga_irq set = get_fpga_irq(fpga2irq(irq));
 	unsigned int bit = irq - set.base;
-	ctrl_outw(ctrl_inw(set.mraddr) & ~(0x0001 << bit), set.mraddr);
+	__raw_writew(__raw_readw(set.mraddr) & ~(0x0001 << bit), set.mraddr);
 }
 
 static struct irq_chip se7724_irq_chip __read_mostly = {
@@ -92,19 +92,16 @@ static struct irq_chip se7724_irq_chip __read_mostly = {
 static void se7724_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
 	struct fpga_irq set = get_fpga_irq(irq);
-	unsigned short intv = ctrl_inw(set.sraddr);
-	struct irq_desc *ext_desc;
+	unsigned short intv = __raw_readw(set.sraddr);
 	unsigned int ext_irq = set.base;
 
 	intv &= set.mask;
 
-	while (intv) {
-		if (intv & 0x0001) {
-			ext_desc = irq_desc + ext_irq;
-			handle_level_irq(ext_irq, ext_desc);
-		}
-		intv >>= 1;
-		ext_irq++;
+	for (; intv; intv >>= 1, ext_irq++) {
+		if (!(intv & 1))
+			continue;
+
+		generic_handle_irq(ext_irq);
 	}
 }
 
@@ -113,20 +110,39 @@ static void se7724_irq_demux(unsigned int irq, struct irq_desc *desc)
  */
 void __init init_se7724_IRQ(void)
 {
-	int i;
+	int i, nid = cpu_to_node(boot_cpu_data);
 
-	ctrl_outw(0xffff, IRQ0_MR);  /* mask all */
-	ctrl_outw(0xffff, IRQ1_MR);  /* mask all */
-	ctrl_outw(0xffff, IRQ2_MR);  /* mask all */
-	ctrl_outw(0x0000, IRQ0_SR);  /* clear irq */
-	ctrl_outw(0x0000, IRQ1_SR);  /* clear irq */
-	ctrl_outw(0x0000, IRQ2_SR);  /* clear irq */
-	ctrl_outw(0x002a, IRQ_MODE); /* set irq type */
+	__raw_writew(0xffff, IRQ0_MR);  /* mask all */
+	__raw_writew(0xffff, IRQ1_MR);  /* mask all */
+	__raw_writew(0xffff, IRQ2_MR);  /* mask all */
+	__raw_writew(0x0000, IRQ0_SR);  /* clear irq */
+	__raw_writew(0x0000, IRQ1_SR);  /* clear irq */
+	__raw_writew(0x0000, IRQ2_SR);  /* clear irq */
+	__raw_writew(0x002a, IRQ_MODE); /* set irq type */
 
-	for (i = 0; i < SE7724_FPGA_IRQ_NR; i++)
-		set_irq_chip_and_handler_name(SE7724_FPGA_IRQ_BASE + i,
+	for (i = 0; i < SE7724_FPGA_IRQ_NR; i++) {
+		int irq, wanted;
+
+		wanted = SE7724_FPGA_IRQ_BASE + i;
+
+		irq = create_irq_nr(wanted, nid);
+		if (unlikely(irq == 0)) {
+			pr_err("%s: failed hooking irq %d for FPGA\n",
+			       __func__, wanted);
+			return;
+		}
+
+		if (unlikely(irq != wanted)) {
+			pr_err("%s: got irq %d but wanted %d, bailing.\n",
+			       __func__, irq, wanted);
+			destroy_irq(irq);
+			return;
+		}
+
+		set_irq_chip_and_handler_name(irq,
 					      &se7724_irq_chip,
 					      handle_level_irq, "level");
+	}
 
 	set_irq_chained_handler(IRQ0_IRQ, se7724_irq_demux);
 	set_irq_type(IRQ0_IRQ, IRQ_TYPE_LEVEL_LOW);

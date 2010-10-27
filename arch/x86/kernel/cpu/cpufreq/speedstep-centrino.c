@@ -20,6 +20,7 @@
 #include <linux/sched.h>	/* current */
 #include <linux/delay.h>
 #include <linux/compiler.h>
+#include <linux/gfp.h>
 
 #include <asm/msr.h>
 #include <asm/processor.h>

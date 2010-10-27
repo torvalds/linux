@@ -286,7 +286,7 @@ static struct parport_operations parport_sunbpp_ops =
 	.owner		= THIS_MODULE,
 };
 
-static int __devinit bpp_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit bpp_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct parport_operations *ops;
 	struct bpp_regs __iomem *regs;
@@ -295,7 +295,7 @@ static int __devinit bpp_probe(struct of_device *op, const struct of_device_id *
 	void __iomem *base;
 	struct parport *p;
 
-	irq = op->irqs[0];
+	irq = op->archdata.irqs[0];
 	base = of_ioremap(&op->resource[0], 0,
 			  resource_size(&op->resource[0]),
 			  "sunbpp");
@@ -351,7 +351,7 @@ out_unmap:
 	return err;
 }
 
-static int __devexit bpp_remove(struct of_device *op)
+static int __devexit bpp_remove(struct platform_device *op)
 {
 	struct parport *p = dev_get_drvdata(&op->dev);
 	struct parport_operations *ops = p->ops;
@@ -382,20 +382,23 @@ static const struct of_device_id bpp_match[] = {
 MODULE_DEVICE_TABLE(of, bpp_match);
 
 static struct of_platform_driver bpp_sbus_driver = {
-	.name		= "bpp",
-	.match_table	= bpp_match,
+	.driver = {
+		.name = "bpp",
+		.owner = THIS_MODULE,
+		.of_match_table = bpp_match,
+	},
 	.probe		= bpp_probe,
 	.remove		= __devexit_p(bpp_remove),
 };
 
 static int __init parport_sunbpp_init(void)
 {
-	return of_register_driver(&bpp_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&bpp_sbus_driver);
 }
 
 static void __exit parport_sunbpp_exit(void)
 {
-	of_unregister_driver(&bpp_sbus_driver);
+	of_unregister_platform_driver(&bpp_sbus_driver);
 }
 
 MODULE_AUTHOR("Derrick J Brashear");

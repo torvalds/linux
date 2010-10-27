@@ -9,7 +9,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
@@ -26,7 +26,7 @@ MODULE_DESCRIPTION("Xtables: Hoplimit/TTL Limit field modification target");
 MODULE_LICENSE("GPL");
 
 static unsigned int
-ttl_tg(struct sk_buff *skb, const struct xt_target_param *par)
+ttl_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct iphdr *iph;
 	const struct ipt_TTL_info *info = par->targinfo;
@@ -66,7 +66,7 @@ ttl_tg(struct sk_buff *skb, const struct xt_target_param *par)
 }
 
 static unsigned int
-hl_tg6(struct sk_buff *skb, const struct xt_target_param *par)
+hl_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct ipv6hdr *ip6h;
 	const struct ip6t_HL_info *info = par->targinfo;
@@ -101,35 +101,33 @@ hl_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool ttl_tg_check(const struct xt_tgchk_param *par)
+static int ttl_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct ipt_TTL_info *info = par->targinfo;
 
 	if (info->mode > IPT_TTL_MAXMODE) {
-		printk(KERN_WARNING "ipt_TTL: invalid or unknown Mode %u\n",
-			info->mode);
-		return false;
+		pr_info("TTL: invalid or unknown mode %u\n", info->mode);
+		return -EINVAL;
 	}
 	if (info->mode != IPT_TTL_SET && info->ttl == 0)
-		return false;
-	return true;
+		return -EINVAL;
+	return 0;
 }
 
-static bool hl_tg6_check(const struct xt_tgchk_param *par)
+static int hl_tg6_check(const struct xt_tgchk_param *par)
 {
 	const struct ip6t_HL_info *info = par->targinfo;
 
 	if (info->mode > IP6T_HL_MAXMODE) {
-		printk(KERN_WARNING "ip6t_HL: invalid or unknown Mode %u\n",
-			info->mode);
-		return false;
+		pr_info("invalid or unknown mode %u\n", info->mode);
+		return -EINVAL;
 	}
 	if (info->mode != IP6T_HL_SET && info->hop_limit == 0) {
-		printk(KERN_WARNING "ip6t_HL: increment/decrement doesn't "
+		pr_info("increment/decrement does not "
 			"make sense with value 0\n");
-		return false;
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_target hl_tg_reg[] __read_mostly = {

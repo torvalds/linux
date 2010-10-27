@@ -16,6 +16,7 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
+#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/buffer_head.h>
 #include <linux/kernel.h>
@@ -216,15 +217,13 @@ tapeblock_setup_device(struct tape_device * device)
 	if (!blkdat->request_queue)
 		return -ENOMEM;
 
-	elevator_exit(blkdat->request_queue->elevator);
-	rc = elevator_init(blkdat->request_queue, "noop");
+	rc = elevator_change(blkdat->request_queue, "noop");
 	if (rc)
 		goto cleanup_queue;
 
 	blk_queue_logical_block_size(blkdat->request_queue, TAPEBLOCK_HSEC_SIZE);
-	blk_queue_max_sectors(blkdat->request_queue, TAPEBLOCK_MAX_SEC);
-	blk_queue_max_phys_segments(blkdat->request_queue, -1L);
-	blk_queue_max_hw_segments(blkdat->request_queue, -1L);
+	blk_queue_max_hw_sectors(blkdat->request_queue, TAPEBLOCK_MAX_SEC);
+	blk_queue_max_segments(blkdat->request_queue, -1L);
 	blk_queue_max_segment_size(blkdat->request_queue, -1L);
 	blk_queue_segment_boundary(blkdat->request_queue, -1L);
 
@@ -362,6 +361,7 @@ tapeblock_open(struct block_device *bdev, fmode_t mode)
 	struct tape_device *	device;
 	int			rc;
 
+	lock_kernel();
 	device = tape_get_device(disk->private_data);
 
 	if (device->required_tapemarks) {
@@ -385,12 +385,14 @@ tapeblock_open(struct block_device *bdev, fmode_t mode)
 	 *       is called.
 	 */
 	tape_state_set(device, TS_BLKUSE);
+	unlock_kernel();
 	return 0;
 
 release:
 	tape_release(device);
  put_device:
 	tape_put_device(device);
+	unlock_kernel();
 	return rc;
 }
 
@@ -404,10 +406,12 @@ static int
 tapeblock_release(struct gendisk *disk, fmode_t mode)
 {
 	struct tape_device *device = disk->private_data;
-
+ 
+	lock_kernel();
 	tape_state_set(device, TS_IN_USE);
 	tape_release(device);
 	tape_put_device(device);
+	unlock_kernel();
 
 	return 0;
 }

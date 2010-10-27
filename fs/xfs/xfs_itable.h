@@ -27,10 +27,7 @@ typedef int (*bulkstat_one_pf)(struct xfs_mount	*mp,
 			       xfs_ino_t	ino,
 			       void		__user *buffer,
 			       int		ubsize,
-			       void		*private_data,
-			       xfs_daddr_t	bno,
 			       int		*ubused,
-			       void		*dip,
 			       int		*stat);
 
 /*
@@ -41,13 +38,6 @@ typedef int (*bulkstat_one_pf)(struct xfs_mount	*mp,
 #define BULKSTAT_RV_GIVEUP	2
 
 /*
- * Values for bulkstat flag argument.
- */
-#define BULKSTAT_FG_IGET	0x1	/* Go through the buffer cache */
-#define BULKSTAT_FG_QUICK	0x2	/* No iget, walk the dinode cluster */
-#define BULKSTAT_FG_INLINE	0x4	/* No iget if inline attrs */
-
-/*
  * Return stat information in bulk (by-inode) for the filesystem.
  */
 int					/* error status */
@@ -56,10 +46,8 @@ xfs_bulkstat(
 	xfs_ino_t	*lastino,	/* last inode returned */
 	int		*count,		/* size of buffer/count returned */
 	bulkstat_one_pf formatter,	/* func that'd fill a single buf */
-	void		*private_data,	/* private data for formatter */
 	size_t		statstruct_size,/* sizeof struct that we're filling */
 	char		__user *ubuffer,/* buffer with inode stats */
-	int		flags,		/* flag to control access method */
 	int		*done);		/* 1 if there are more stats to get */
 
 int
@@ -82,9 +70,7 @@ xfs_bulkstat_one_int(
 	void			__user *buffer,
 	int			ubsize,
 	bulkstat_one_fmt_pf	formatter,
-	xfs_daddr_t		bno,
 	int			*ubused,
-	void			*dibuff,
 	int			*stat);
 
 int
@@ -93,10 +79,7 @@ xfs_bulkstat_one(
 	xfs_ino_t		ino,
 	void			__user *buffer,
 	int			ubsize,
-	void			*private_data,
-	xfs_daddr_t		bno,
 	int			*ubused,
-	void			*dibuff,
 	int			*stat);
 
 typedef int (*inumbers_fmt_pf)(

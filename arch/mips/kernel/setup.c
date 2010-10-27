@@ -569,27 +569,6 @@ void __init setup_arch(char **cmdline_p)
 	plat_smp_setup();
 }
 
-static int __init fpu_disable(char *s)
-{
-	int i;
-
-	for (i = 0; i < NR_CPUS; i++)
-		cpu_data[i].options &= ~MIPS_CPU_FPU;
-
-	return 1;
-}
-
-__setup("nofpu", fpu_disable);
-
-static int __init dsp_disable(char *s)
-{
-	cpu_data[0].ases &= ~MIPS_ASE_DSP;
-
-	return 1;
-}
-
-__setup("nodsp", dsp_disable);
-
 unsigned long kernelsp[NR_CPUS];
 unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
 

@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -137,7 +138,7 @@ static int wm8523_startup(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8523_priv *wm8523 = codec->private_data;
+	struct wm8523_priv *wm8523 = snd_soc_codec_get_drvdata(codec);
 
 	/* The set of sample rates that can be supported depends on the
 	 * MCLK supplied to the CODEC - enforce this.
@@ -163,7 +164,7 @@ static int wm8523_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8523_priv *wm8523 = codec->private_data;
+	struct wm8523_priv *wm8523 = snd_soc_codec_get_drvdata(codec);
 	int i;
 	u16 aifctrl1 = snd_soc_read(codec, WM8523_AIF_CTRL1);
 	u16 aifctrl2 = snd_soc_read(codec, WM8523_AIF_CTRL2);
@@ -210,7 +211,7 @@ static int wm8523_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8523_priv *wm8523 = codec->private_data;
+	struct wm8523_priv *wm8523 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val;
 	int i;
 
@@ -317,7 +318,7 @@ static int wm8523_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int wm8523_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	struct wm8523_priv *wm8523 = codec->private_data;
+	struct wm8523_priv *wm8523 = snd_soc_codec_get_drvdata(codec);
 	int ret, i;
 
 	switch (level) {
@@ -481,14 +482,15 @@ static int wm8523_register(struct wm8523_priv *wm8523,
 
 	if (wm8523_codec) {
 		dev_err(codec->dev, "Another WM8523 is registered\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8523;
+	snd_soc_codec_set_drvdata(codec, wm8523);
 	codec->name = "WM8523";
 	codec->owner = THIS_MODULE;
 	codec->bias_level = SND_SOC_BIAS_OFF;
@@ -569,18 +571,19 @@ static int wm8523_register(struct wm8523_priv *wm8523,
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-		return ret;
+		goto err_enable;
 	}
 
 	ret = snd_soc_register_dai(&wm8523_dai);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		snd_soc_unregister_codec(codec);
-		return ret;
+		goto err_codec;
 	}
 
 	return 0;
 
+err_codec:
+	snd_soc_unregister_codec(codec);
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8523->supplies), wm8523->supplies);
 err_get:

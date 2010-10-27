@@ -16,6 +16,8 @@
 #include <linux/sched.h>
 #include <linux/err.h>
 
+extern const unsigned long sys_call_table[];
+
 /*
  * Only the low 32 bits of orig_ax are meaningful, so we return int.
  * This importantly ignores the high bits on 64-bit, so comparisons

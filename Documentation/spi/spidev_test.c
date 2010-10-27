@@ -58,7 +58,7 @@ static void transfer(int fd)
 	};
 
 	ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
-	if (ret == 1)
+	if (ret < 1)
 		pabort("can't send spi message");
 
 	for (ret = 0; ret < ARRAY_SIZE(tx); ret++) {

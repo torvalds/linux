@@ -262,7 +262,7 @@ static inline int gen_set_rtc_irq_bit(unsigned char bit)
 #endif
 }
 
-static int gen_rtc_ioctl(struct inode *inode, struct file *file,
+static int gen_rtc_ioctl(struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct rtc_time wtime;
@@ -330,6 +330,18 @@ static int gen_rtc_ioctl(struct inode *inode, struct file *file,
 	}
 
 	return -EINVAL;
+}
+
+static long gen_rtc_unlocked_ioctl(struct file *file, unsigned int cmd,
+				   unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = gen_rtc_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
 }
 
 /*
@@ -482,7 +494,7 @@ static const struct file_operations gen_rtc_fops = {
 	.read		= gen_rtc_read,
 	.poll		= gen_rtc_poll,
 #endif
-	.ioctl		= gen_rtc_ioctl,
+	.unlocked_ioctl	= gen_rtc_unlocked_ioctl,
 	.open		= gen_rtc_open,
 	.release	= gen_rtc_release,
 };

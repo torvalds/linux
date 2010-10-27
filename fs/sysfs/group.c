@@ -23,7 +23,7 @@ static void remove_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
 	int i;
 
 	for (i = 0, attr = grp->attrs; *attr; i++, attr++)
-		sysfs_hash_and_remove(dir_sd, (*attr)->name);
+		sysfs_hash_and_remove(dir_sd, NULL, (*attr)->name);
 }
 
 static int create_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
@@ -39,7 +39,7 @@ static int create_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
 		 * visibility.  Do this by first removing then
 		 * re-adding (if required) the file */
 		if (update)
-			sysfs_hash_and_remove(dir_sd, (*attr)->name);
+			sysfs_hash_and_remove(dir_sd, NULL, (*attr)->name);
 		if (grp->is_visible) {
 			mode = grp->is_visible(kobj, *attr, i);
 			if (!mode)
@@ -132,7 +132,7 @@ void sysfs_remove_group(struct kobject * kobj,
 	struct sysfs_dirent *sd;
 
 	if (grp->name) {
-		sd = sysfs_get_dirent(dir_sd, grp->name);
+		sd = sysfs_get_dirent(dir_sd, NULL, grp->name);
 		if (!sd) {
 			WARN(!sd, KERN_WARNING "sysfs group %p not found for "
 				"kobject '%s'\n", grp, kobject_name(kobj));

@@ -120,7 +120,7 @@ u32 nfsd_supported_minorversion;
 int nfsd_vers(int vers, enum vers_op change)
 {
 	if (vers < NFSD_MINVERS || vers >= NFSD_NRVERS)
-		return -1;
+		return 0;
 	switch(change) {
 	case NFSD_SET:
 		nfsd_versions[vers] = nfsd_version[vers];
@@ -180,15 +180,80 @@ int nfsd_nrthreads(void)
 	return rv;
 }
 
+static int nfsd_init_socks(int port)
+{
+	int error;
+	if (!list_empty(&nfsd_serv->sv_permsocks))
+		return 0;
+
+	error = svc_create_xprt(nfsd_serv, "udp", PF_INET, port,
+					SVC_SOCK_DEFAULTS);
+	if (error < 0)
+		return error;
+
+	error = svc_create_xprt(nfsd_serv, "tcp", PF_INET, port,
+					SVC_SOCK_DEFAULTS);
+	if (error < 0)
+		return error;
+
+	return 0;
+}
+
+static bool nfsd_up = false;
+
+static int nfsd_startup(unsigned short port, int nrservs)
+{
+	int ret;
+
+	if (nfsd_up)
+		return 0;
+	/*
+	 * Readahead param cache - will no-op if it already exists.
+	 * (Note therefore results will be suboptimal if number of
+	 * threads is modified after nfsd start.)
+	 */
+	ret = nfsd_racache_init(2*nrservs);
+	if (ret)
+		return ret;
+	ret = nfsd_init_socks(port);
+	if (ret)
+		goto out_racache;
+	ret = lockd_up();
+	if (ret)
+		goto out_racache;
+	ret = nfs4_state_start();
+	if (ret)
+		goto out_lockd;
+	nfsd_up = true;
+	return 0;
+out_lockd:
+	lockd_down();
+out_racache:
+	nfsd_racache_shutdown();
+	return ret;
+}
+
+static void nfsd_shutdown(void)
+{
+	/*
+	 * write_ports can create the server without actually starting
+	 * any threads--if we get shut down before any threads are
+	 * started, then nfsd_last_thread will be run before any of this
+	 * other initialization has been done.
+	 */
+	if (!nfsd_up)
+		return;
+	nfs4_state_shutdown();
+	lockd_down();
+	nfsd_racache_shutdown();
+	nfsd_up = false;
+}
+
 static void nfsd_last_thread(struct svc_serv *serv)
 {
 	/* When last nfsd thread exits we need to do some clean-up */
-	struct svc_xprt *xprt;
-	list_for_each_entry(xprt, &serv->sv_permsocks, xpt_list)
-		lockd_down();
 	nfsd_serv = NULL;
-	nfsd_racache_shutdown();
-	nfs4_state_shutdown();
+	nfsd_shutdown();
 
 	printk(KERN_WARNING "nfsd: last server has exited, flushing export "
 			    "cache\n");
@@ -263,43 +328,16 @@ int nfsd_create_serv(void)
 		       nfsd_max_blksize >= 8*1024*2)
 			nfsd_max_blksize /= 2;
 	}
+	nfsd_reset_versions();
 
 	nfsd_serv = svc_create_pooled(&nfsd_program, nfsd_max_blksize,
 				      nfsd_last_thread, nfsd, THIS_MODULE);
 	if (nfsd_serv == NULL)
-		err = -ENOMEM;
-	else
-		set_max_drc();
+		return -ENOMEM;
 
+	set_max_drc();
 	do_gettimeofday(&nfssvc_boot);		/* record boot time */
 	return err;
-}
-
-static int nfsd_init_socks(int port)
-{
-	int error;
-	if (!list_empty(&nfsd_serv->sv_permsocks))
-		return 0;
-
-	error = svc_create_xprt(nfsd_serv, "udp", PF_INET, port,
-					SVC_SOCK_DEFAULTS);
-	if (error < 0)
-		return error;
-
-	error = lockd_up();
-	if (error < 0)
-		return error;
-
-	error = svc_create_xprt(nfsd_serv, "tcp", PF_INET, port,
-					SVC_SOCK_DEFAULTS);
-	if (error < 0)
-		return error;
-
-	error = lockd_up();
-	if (error < 0)
-		return error;
-
-	return 0;
 }
 
 int nfsd_nrpools(void)
@@ -376,10 +414,16 @@ int nfsd_set_nrthreads(int n, int *nthreads)
 	return err;
 }
 
+/*
+ * Adjust the number of threads and return the new number of threads.
+ * This is also the function that starts the server if necessary, if
+ * this is the first time nrservs is nonzero.
+ */
 int
 nfsd_svc(unsigned short port, int nrservs)
 {
 	int	error;
+	bool	nfsd_up_before;
 
 	mutex_lock(&nfsd_mutex);
 	dprintk("nfsd: creating service\n");
@@ -391,34 +435,29 @@ nfsd_svc(unsigned short port, int nrservs)
 	if (nrservs == 0 && nfsd_serv == NULL)
 		goto out;
 
-	/* Readahead param cache - will no-op if it already exists */
-	error =	nfsd_racache_init(2*nrservs);
-	if (error<0)
-		goto out;
-	error = nfs4_state_start();
-	if (error)
-		goto out;
-
-	nfsd_reset_versions();
-
 	error = nfsd_create_serv();
-
 	if (error)
 		goto out;
-	error = nfsd_init_socks(port);
-	if (error)
-		goto failure;
 
+	nfsd_up_before = nfsd_up;
+
+	error = nfsd_startup(port, nrservs);
+	if (error)
+		goto out_destroy;
 	error = svc_set_num_threads(nfsd_serv, NULL, nrservs);
-	if (error == 0)
-		/* We are holding a reference to nfsd_serv which
-		 * we don't want to count in the return value,
-		 * so subtract 1
-		 */
-		error = nfsd_serv->sv_nrthreads - 1;
- failure:
+	if (error)
+		goto out_shutdown;
+	/* We are holding a reference to nfsd_serv which
+	 * we don't want to count in the return value,
+	 * so subtract 1
+	 */
+	error = nfsd_serv->sv_nrthreads - 1;
+out_shutdown:
+	if (error < 0 && !nfsd_up_before)
+		nfsd_shutdown();
+out_destroy:
 	svc_destroy(nfsd_serv);		/* Release server */
- out:
+out:
 	mutex_unlock(&nfsd_mutex);
 	return error;
 }

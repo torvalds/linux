@@ -81,7 +81,7 @@ void RTMP_AllocateTxDescMemory(struct rt_rtmp_adapter *pAd,
 			       u32 Index,
 			       unsigned long Length,
 			       IN BOOLEAN Cached,
-			       void ** VirtualAddress,
+			       void **VirtualAddress,
 			       dma_addr_t *PhysicalAddress)
 {
 	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
@@ -96,7 +96,7 @@ void RTMP_AllocateTxDescMemory(struct rt_rtmp_adapter *pAd,
 void RTMP_AllocateMgmtDescMemory(struct rt_rtmp_adapter *pAd,
 				 unsigned long Length,
 				 IN BOOLEAN Cached,
-				 void ** VirtualAddress,
+				 void **VirtualAddress,
 				 dma_addr_t *PhysicalAddress)
 {
 	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
@@ -111,7 +111,7 @@ void RTMP_AllocateMgmtDescMemory(struct rt_rtmp_adapter *pAd,
 void RTMP_AllocateRxDescMemory(struct rt_rtmp_adapter *pAd,
 			       unsigned long Length,
 			       IN BOOLEAN Cached,
-			       void ** VirtualAddress,
+			       void **VirtualAddress,
 			       dma_addr_t *PhysicalAddress)
 {
 	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
@@ -139,7 +139,7 @@ void RTMP_AllocateFirstTxBuffer(struct rt_rtmp_adapter *pAd,
 				u32 Index,
 				unsigned long Length,
 				IN BOOLEAN Cached,
-				void ** VirtualAddress,
+				void **VirtualAddress,
 				dma_addr_t *PhysicalAddress)
 {
 	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
@@ -173,7 +173,7 @@ void RTMP_FreeFirstTxBuffer(struct rt_rtmp_adapter *pAd,
 void RTMP_AllocateSharedMemory(struct rt_rtmp_adapter *pAd,
 			       unsigned long Length,
 			       IN BOOLEAN Cached,
-			       void ** VirtualAddress,
+			       void **VirtualAddress,
 			       dma_addr_t *PhysicalAddress)
 {
 	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
@@ -197,7 +197,7 @@ void RTMP_AllocateSharedMemory(struct rt_rtmp_adapter *pAd,
 void *RTMP_AllocateRxPacketBuffer(struct rt_rtmp_adapter *pAd,
 					 unsigned long Length,
 					 IN BOOLEAN Cached,
-					 void ** VirtualAddress,
+					 void **VirtualAddress,
 					 OUT dma_addr_t *
 					 PhysicalAddress)
 {
@@ -790,10 +790,9 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
  * invaild or writeback cache
  * and convert virtual address to physical address
  */
-dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size,
-				int sd_idx, int direction)
+dma_addr_t linux_pci_map_single(struct rt_rtmp_adapter *pAd, void *ptr,
+				size_t size, int sd_idx, int direction)
 {
-	struct rt_rtmp_adapter *pAd;
 	struct os_cookie *pObj;
 
 	/*
@@ -812,7 +811,6 @@ dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size,
 	   sd_idx = -1
 	 */
 
-	pAd = (struct rt_rtmp_adapter *)handle;
 	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	if (sd_idx == 1) {
@@ -826,13 +824,11 @@ dma_addr_t linux_pci_map_single(void *handle, void *ptr, size_t size,
 
 }
 
-void linux_pci_unmap_single(void *handle, dma_addr_t dma_addr, size_t size,
-			    int direction)
+void linux_pci_unmap_single(struct rt_rtmp_adapter *pAd, dma_addr_t dma_addr,
+			    size_t size, int direction)
 {
-	struct rt_rtmp_adapter *pAd;
 	struct os_cookie *pObj;
 
-	pAd = (struct rt_rtmp_adapter *)handle;
 	pObj = (struct os_cookie *)pAd->OS_Cookie;
 
 	pci_unmap_single(pObj->pci_dev, dma_addr, size, direction);

@@ -20,9 +20,13 @@
 #ifndef __ASM_ARCH_NAND_H
 #define __ASM_ARCH_NAND_H
 
+#include <linux/mtd/partitions.h>
+
 struct mxc_nand_platform_data {
-	int width;	/* data bus width in bytes */
-	int hw_ecc:1;	/* 0 if supress hardware ECC */
-	int flash_bbt:1; /* set to 1 to use a flash based bbt */
+	unsigned int width;	/* data bus width in bytes */
+	unsigned int hw_ecc:1;	/* 0 if supress hardware ECC */
+	unsigned int flash_bbt:1; /* set to 1 to use a flash based bbt */
+	struct mtd_partition *parts;	/* partition table */
+	int nr_parts;			/* size of parts */
 };
 #endif /* __ASM_ARCH_NAND_H */

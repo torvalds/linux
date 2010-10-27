@@ -208,7 +208,7 @@ EXPORT_SYMBOL(mdiobus_scan);
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
-int mdiobus_read(struct mii_bus *bus, int addr, u16 regnum)
+int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum)
 {
 	int retval;
 
@@ -233,7 +233,7 @@ EXPORT_SYMBOL(mdiobus_read);
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
-int mdiobus_write(struct mii_bus *bus, int addr, u16 regnum, u16 val)
+int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val)
 {
 	int err;
 
@@ -308,7 +308,7 @@ static int mdio_bus_suspend(struct device *dev)
 	 * may call phy routines that try to grab the same lock, and that may
 	 * lead to a deadlock.
 	 */
-	if (phydev->attached_dev)
+	if (phydev->attached_dev && phydev->adjust_link)
 		phy_stop_machine(phydev);
 
 	if (!mdio_bus_phy_may_suspend(phydev))
@@ -331,7 +331,7 @@ static int mdio_bus_resume(struct device *dev)
 		return ret;
 
 no_resume:
-	if (phydev->attached_dev)
+	if (phydev->attached_dev && phydev->adjust_link)
 		phy_start_machine(phydev, NULL);
 
 	return 0;

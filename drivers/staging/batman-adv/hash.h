@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2009 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2006-2010 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -19,8 +19,14 @@
  *
  */
 
-#ifndef _BATMAN_HASH_H
-#define _BATMAN_HASH_H
+#ifndef _NET_BATMAN_ADV_HASH_H_
+#define _NET_BATMAN_ADV_HASH_H_
+
+#define HASHIT(name) struct hash_it_t name = { \
+		.index = -1, .bucket = NULL, \
+		.prev_bucket = NULL, \
+		.first_bucket = NULL }
+
 
 typedef int (*hashdata_compare_cb)(void *, void *);
 typedef int (*hashdata_choose_cb)(void *, int);
@@ -50,9 +56,6 @@ struct hashtable_t {
 				     * based on the key in the data of the first
 				     * argument and the size the second */
 };
-
-/* clears the hash */
-void hash_init(struct hashtable_t *hash);
 
 /* allocates and clears the hash */
 struct hashtable_t *hash_new(int size, hashdata_compare_cb compare,
@@ -94,6 +97,4 @@ struct hashtable_t *hash_resize(struct hashtable_t *hash, int size);
 struct hash_it_t *hash_iterate(struct hashtable_t *hash,
 			       struct hash_it_t *iter_in);
 
-/* print the hash table for debugging */
-void hash_debug(struct hashtable_t *hash);
-#endif
+#endif /* _NET_BATMAN_ADV_HASH_H_ */

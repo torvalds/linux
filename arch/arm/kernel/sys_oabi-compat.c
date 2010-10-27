@@ -141,7 +141,7 @@ static long cp_oldabi_stat64(struct kstat *stat,
 	return copy_to_user(statbuf,&tmp,sizeof(tmp)) ? -EFAULT : 0;
 }
 
-asmlinkage long sys_oabi_stat64(char __user * filename,
+asmlinkage long sys_oabi_stat64(const char __user * filename,
 				struct oldabi_stat64 __user * statbuf)
 {
 	struct kstat stat;
@@ -151,7 +151,7 @@ asmlinkage long sys_oabi_stat64(char __user * filename,
 	return error;
 }
 
-asmlinkage long sys_oabi_lstat64(char __user * filename,
+asmlinkage long sys_oabi_lstat64(const char __user * filename,
 				 struct oldabi_stat64 __user * statbuf)
 {
 	struct kstat stat;
@@ -172,7 +172,7 @@ asmlinkage long sys_oabi_fstat64(unsigned long fd,
 }
 
 asmlinkage long sys_oabi_fstatat64(int dfd,
-				   char __user *filename,
+				   const char __user *filename,
 				   struct oldabi_stat64  __user *statbuf,
 				   int flag)
 {
@@ -345,9 +345,6 @@ asmlinkage long sys_oabi_semop(int semid, struct oabi_sembuf __user *tsops,
 {
 	return sys_oabi_semtimedop(semid, tsops, nsops, NULL);
 }
-
-extern asmlinkage int sys_ipc(uint call, int first, int second, int third,
-			      void __user *ptr, long fifth);
 
 asmlinkage int sys_oabi_ipc(uint call, int first, int second, int third,
 			    void __user *ptr, long fifth)

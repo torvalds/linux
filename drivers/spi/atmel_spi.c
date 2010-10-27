@@ -18,6 +18,7 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/spi/spi.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <mach/board.h>

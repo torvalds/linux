@@ -57,7 +57,7 @@ static struct acpi_driver toshiba_bt_rfkill_driver = {
 static int toshiba_bluetooth_enable(acpi_handle handle)
 {
 	acpi_status res1, res2;
-	acpi_integer result;
+	u64 result;
 
 	/*
 	 * Query ACPI to verify RFKill switch is set to 'on'.
@@ -95,7 +95,7 @@ static int toshiba_bt_resume(struct acpi_device *device)
 static int toshiba_bt_rfkill_add(struct acpi_device *device)
 {
 	acpi_status status;
-	acpi_integer bt_present;
+	u64 bt_present;
 	int result = -ENODEV;
 
 	/*

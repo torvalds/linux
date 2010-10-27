@@ -39,6 +39,7 @@ enum environment_cap {
  * 	00 - World regulatory domain
  * 	99 - built by driver but a specific alpha2 cannot be determined
  * 	98 - result of an intersection between two regulatory domains
+ *	97 - regulatory domain has not yet been configured
  * @intersect: indicates whether the wireless core should intersect
  * 	the requested regulatory domain with the presently set regulatory
  * 	domain.
@@ -53,7 +54,6 @@ struct regulatory_request {
 	enum nl80211_reg_initiator initiator;
 	char alpha2[2];
 	bool intersect;
-	u32 country_ie_checksum;
 	enum environment_cap country_ie_env;
 	struct list_head list;
 };

@@ -25,7 +25,7 @@
 /* Register descriptions are here */
 #include <linux/mfd/twl4030-codec.h>
 
-/* Sgadow register used by the audio driver */
+/* Shadow register used by the audio driver */
 #define TWL4030_REG_SW_SHADOW		0x4A
 #define TWL4030_CACHEREGNUM	(TWL4030_REG_SW_SHADOW + 1)
 
@@ -41,7 +41,11 @@ extern struct snd_soc_codec_device soc_codec_dev_twl4030;
 
 struct twl4030_setup_data {
 	unsigned int ramp_delay_value;
+	unsigned int digimic_delay; /* in ms */
 	unsigned int sysclk;
+	unsigned int offset_cncl_path;
+	unsigned int check_defaults:1;
+	unsigned int reset_registers:1;
 	unsigned int hs_extmute:1;
 	void (*set_hs_extmute)(int mute);
 };

@@ -12,6 +12,7 @@
 #ifndef CODEC_STUBS_H
 #define CODEC_STUBS_H
 
+extern struct snd_soc_codec_device soc_codec_dev_spdif_dit;
 extern struct snd_soc_dai dit_stub_dai;
 
 #endif /* CODEC_STUBS_H */

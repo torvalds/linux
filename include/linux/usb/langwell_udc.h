@@ -181,7 +181,7 @@ struct langwell_op_regs {
 #define	PORTS_PIC	(BIT(15) | BIT(14))	/* port indicator control */
 #define	PORTS_PO	BIT(13)	/* port owner */
 #define	PORTS_PP	BIT(12)	/* port power */
-#define	PORTS_LS	(BIT(11) | BIT(10)) 	/* line status */
+#define	PORTS_LS	(BIT(11) | BIT(10))	/* line status */
 #define	PORTS_SLP	BIT(9)	/* suspend using L1 */
 #define	PORTS_PR	BIT(8)	/* port reset */
 #define	PORTS_SUSP	BIT(7)	/* suspend */

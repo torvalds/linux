@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/hugetlb.h>
+#include <linux/slab.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/setup.h>
@@ -70,12 +71,8 @@ static pte_t __ref *vmem_pte_alloc(void)
 		pte = alloc_bootmem(PTRS_PER_PTE * sizeof(pte_t));
 	if (!pte)
 		return NULL;
-	if (MACHINE_HAS_HPAGE)
-		clear_table((unsigned long *) pte, _PAGE_TYPE_EMPTY | _PAGE_CO,
-			    PTRS_PER_PTE * sizeof(pte_t));
-	else
-		clear_table((unsigned long *) pte, _PAGE_TYPE_EMPTY,
-			    PTRS_PER_PTE * sizeof(pte_t));
+	clear_table((unsigned long *) pte, _PAGE_TYPE_EMPTY,
+		    PTRS_PER_PTE * sizeof(pte_t));
 	return pte;
 }
 
@@ -116,8 +113,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		if (MACHINE_HAS_HPAGE && !(address & ~HPAGE_MASK) &&
 		    (address + HPAGE_SIZE <= start + size) &&
 		    (address >= HPAGE_SIZE)) {
-			pte_val(pte) |= _SEGMENT_ENTRY_LARGE |
-					_SEGMENT_ENTRY_CO;
+			pte_val(pte) |= _SEGMENT_ENTRY_LARGE;
 			pmd_val(*pm_dir) = pte_val(pte);
 			address += HPAGE_SIZE - PAGE_SIZE;
 			continue;
@@ -336,10 +332,6 @@ void __init vmem_map_init(void)
 	unsigned long start, end;
 	int i;
 
-	spin_lock_init(&init_mm.context.list_lock);
-	INIT_LIST_HEAD(&init_mm.context.crst_list);
-	INIT_LIST_HEAD(&init_mm.context.pgtable_list);
-	init_mm.context.noexec = 0;
 	ro_start = ((unsigned long)&_stext) & PAGE_MASK;
 	ro_end = PFN_ALIGN((unsigned long)&_eshared);
 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {

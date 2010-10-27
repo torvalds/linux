@@ -39,6 +39,7 @@
  * happy to assist.
  */
 
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -414,22 +415,11 @@ static irqreturn_t inic_interrupt(int irq, void *dev_instance)
 
 	spin_lock(&host->lock);
 
-	for (i = 0; i < NR_PORTS; i++) {
-		struct ata_port *ap = host->ports[i];
-
-		if (!(host_irq_stat & (HIRQ_PORT0 << i)))
-			continue;
-
-		if (likely(ap && !(ap->flags & ATA_FLAG_DISABLED))) {
-			inic_host_intr(ap);
+	for (i = 0; i < NR_PORTS; i++)
+		if (host_irq_stat & (HIRQ_PORT0 << i)) {
+			inic_host_intr(host->ports[i]);
 			handled++;
-		} else {
-			if (ata_ratelimit())
-				dev_printk(KERN_ERR, host->dev, "interrupt "
-					   "from disabled port %d (0x%x)\n",
-					   i, host_irq_stat);
 		}
-	}
 
 	spin_unlock(&host->lock);
 
@@ -678,8 +668,7 @@ static void init_port(struct ata_port *ap)
 	memset(pp->pkt, 0, sizeof(struct inic_pkt));
 	memset(pp->cpb_tbl, 0, IDMA_CPB_TBL_SIZE);
 
-	/* setup PRD and CPB lookup table addresses */
-	writel(ap->prd_dma, port_base + PORT_PRD_ADDR);
+	/* setup CPB lookup table addresses */
 	writel(pp->cpb_tbl_dma, port_base + PORT_CPB_CPBLAR);
 }
 
@@ -693,7 +682,6 @@ static int inic_port_start(struct ata_port *ap)
 {
 	struct device *dev = ap->host->dev;
 	struct inic_port_priv *pp;
-	int rc;
 
 	/* alloc and initialize private data */
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
@@ -702,10 +690,6 @@ static int inic_port_start(struct ata_port *ap)
 	ap->private_data = pp;
 
 	/* Alloc resources */
-	rc = ata_port_start(ap);
-	if (rc)
-		return rc;
-
 	pp->pkt = dmam_alloc_coherent(dev, sizeof(struct inic_pkt),
 				      &pp->pkt_dma, GFP_KERNEL);
 	if (!pp->pkt)

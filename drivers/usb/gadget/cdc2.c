@@ -129,7 +129,7 @@ static u8 hostaddr[ETH_ALEN];
 /*
  * We _always_ have both CDC ECM and CDC ACM functions.
  */
-static int __init cdc_do_config(struct usb_configuration *c)
+static int __ref cdc_do_config(struct usb_configuration *c)
 {
 	int	status;
 
@@ -159,7 +159,7 @@ static struct usb_configuration cdc_config_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __init cdc_bind(struct usb_composite_dev *cdev)
+static int __ref cdc_bind(struct usb_composite_dev *cdev)
 {
 	int			gcnum;
 	struct usb_gadget	*gadget = cdev->gadget;

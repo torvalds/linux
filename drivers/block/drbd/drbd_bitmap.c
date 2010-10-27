@@ -26,6 +26,7 @@
 #include <linux/vmalloc.h>
 #include <linux/string.h>
 #include <linux/drbd.h>
+#include <linux/slab.h>
 #include <asm/kmap_types.h>
 #include "drbd_int.h"
 
@@ -66,7 +67,7 @@ struct drbd_bitmap {
 	size_t   bm_words;
 	size_t   bm_number_of_pages;
 	sector_t bm_dev_capacity;
-	struct semaphore bm_change; /* serializes resize operations */
+	struct mutex bm_change; /* serializes resize operations */
 
 	atomic_t bm_async_io;
 	wait_queue_head_t bm_io_wait;
@@ -82,6 +83,9 @@ struct drbd_bitmap {
 #define BM_LOCKED       0
 #define BM_MD_IO_ERROR  1
 #define BM_P_VMALLOCED  2
+
+static int __bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
+			       unsigned long e, int val, const enum km_type km);
 
 static int bm_is_locked(struct drbd_bitmap *b)
 {
@@ -114,7 +118,7 @@ void drbd_bm_lock(struct drbd_conf *mdev, char *why)
 		return;
 	}
 
-	trylock_failed = down_trylock(&b->bm_change);
+	trylock_failed = !mutex_trylock(&b->bm_change);
 
 	if (trylock_failed) {
 		dev_warn(DEV, "%s going to '%s' but bitmap already locked for '%s' by %s\n",
@@ -125,7 +129,7 @@ void drbd_bm_lock(struct drbd_conf *mdev, char *why)
 		    b->bm_task == mdev->receiver.task ? "receiver" :
 		    b->bm_task == mdev->asender.task  ? "asender"  :
 		    b->bm_task == mdev->worker.task   ? "worker"   : "?");
-		down(&b->bm_change);
+		mutex_lock(&b->bm_change);
 	}
 	if (__test_and_set_bit(BM_LOCKED, &b->bm_flags))
 		dev_err(DEV, "FIXME bitmap already locked in bm_lock\n");
@@ -147,7 +151,7 @@ void drbd_bm_unlock(struct drbd_conf *mdev)
 
 	b->bm_why  = NULL;
 	b->bm_task = NULL;
-	up(&b->bm_change);
+	mutex_unlock(&b->bm_change);
 }
 
 /* word offset to long pointer */
@@ -295,7 +299,7 @@ int drbd_bm_init(struct drbd_conf *mdev)
 	if (!b)
 		return -ENOMEM;
 	spin_lock_init(&b->bm_lock);
-	init_MUTEX(&b->bm_change);
+	mutex_init(&b->bm_change);
 	init_waitqueue_head(&b->bm_io_wait);
 
 	mdev->bitmap = b;
@@ -440,7 +444,7 @@ static void bm_memset(struct drbd_bitmap *b, size_t offset, int c, size_t len)
  * In case this is actually a resize, we copy the old bitmap into the new one.
  * Otherwise, the bitmap is initialized to all bits set.
  */
-int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity)
+int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
 	unsigned long bits, words, owords, obits, *p_addr, *bm;
@@ -515,7 +519,7 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity)
 	obits  = b->bm_bits;
 
 	growing = bits > obits;
-	if (opages)
+	if (opages && growing && set_new_bits)
 		bm_set_surplus(b);
 
 	b->bm_pages = npages;
@@ -525,8 +529,12 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity)
 	b->bm_dev_capacity = capacity;
 
 	if (growing) {
-		bm_memset(b, owords, 0xff, words-owords);
-		b->bm_set += bits - obits;
+		if (set_new_bits) {
+			bm_memset(b, owords, 0xff, words-owords);
+			b->bm_set += bits - obits;
+		} else
+			bm_memset(b, owords, 0x00, words-owords);
+
 	}
 
 	if (want < have) {
@@ -772,7 +780,7 @@ static void bm_page_io_async(struct drbd_conf *mdev, struct drbd_bitmap *b, int 
 	/* nothing to do, on disk == in memory */
 # define bm_cpu_to_lel(x) ((void)0)
 # else
-void bm_cpu_to_lel(struct drbd_bitmap *b)
+static void bm_cpu_to_lel(struct drbd_bitmap *b)
 {
 	/* need to cpu_to_lel all the pages ...
 	 * this may be optimized by using
@@ -1014,7 +1022,7 @@ unsigned long _drbd_bm_find_next_zero(struct drbd_conf *mdev, unsigned long bm_f
  * wants bitnr, not sector.
  * expected to be called for only a few bits (e - s about BITS_PER_LONG).
  * Must hold bitmap lock already. */
-int __bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
+static int __bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
 	unsigned long e, int val, const enum km_type km)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
@@ -1052,7 +1060,7 @@ int __bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
  * for val != 0, we change 0 -> 1, return code positive
  * for val == 0, we change 1 -> 0, return code negative
  * wants bitnr, not sector */
-int bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
+static int bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
 	const unsigned long e, int val)
 {
 	unsigned long flags;

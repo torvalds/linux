@@ -567,30 +567,6 @@ static int au8522_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 /* ----------------------------------------------------------------------- */
 
-static int au8522_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	switch (fmt->type) {
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int au8522_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	switch (fmt->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		/* Not yet implemented */
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-/* ----------------------------------------------------------------------- */
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int au8522_g_register(struct v4l2_subdev *sd,
 			     struct v4l2_dbg_register *reg)
@@ -663,6 +639,13 @@ static int au8522_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 static int au8522_reset(struct v4l2_subdev *sd, u32 val)
 {
 	struct au8522_state *state = to_state(sd);
+
+	state->operational_mode = AU8522_ANALOG_MODE;
+
+	/* Clear out any state associated with the digital side of the
+	   chip, so that when it gets powered back up it won't think
+	   that it is already tuned */
+	state->current_frequency = 0;
 
 	au8522_writereg(state, 0xa4, 1 << 5);
 
@@ -765,8 +748,6 @@ static const struct v4l2_subdev_audio_ops au8522_audio_ops = {
 
 static const struct v4l2_subdev_video_ops au8522_video_ops = {
 	.s_routing = au8522_s_video_routing,
-	.g_fmt = au8522_g_fmt,
-	.s_fmt = au8522_s_fmt,
 	.s_stream = au8522_s_stream,
 };
 

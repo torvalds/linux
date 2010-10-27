@@ -352,7 +352,6 @@ static void ultra32_reset_8390(struct net_device *dev)
 	outb(0x84, ioaddr + 5);	/* Enable MEM16 & Disable Bus Master. */
 	outb(0x01, ioaddr + 6);	/* Enable Interrupts. */
 	if (ei_debug > 1) printk("reset done\n");
-	return;
 }
 
 /* Grab the 8390 specific header. Similar to the block_input routine, but

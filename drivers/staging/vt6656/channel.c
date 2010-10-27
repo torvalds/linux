@@ -116,7 +116,7 @@ static SChannelTblElement sChannelTbl[CB_MAX_CHANNEL+1] =
 static  struct
 {
     BYTE    byChannelCountryCode;             /* The country code         */
-    CHAR    chCountryCode[2];
+    char    chCountryCode[2];
     BYTE    bChannelIdxList[CB_MAX_CHANNEL];  /* Available channels Index */
     BYTE    byPower[CB_MAX_CHANNEL];
 }   ChannelRuleTab[] =
@@ -389,7 +389,7 @@ static  struct
 // 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165 (Value 23 ~ 56)
  ************************************************************************/
 BOOL
-ChannelValid(UINT CountryCode, UINT ChannelIndex)
+ChannelValid(unsigned int CountryCode, unsigned int ChannelIndex)
 {
     BOOL    bValid;
 
@@ -425,8 +425,8 @@ exit:
  ************************************************************************/
 BOOL
 CHvChannelGetList (
-    IN  UINT       uCountryCodeIdx,
-    OUT PBYTE      pbyChannelTable
+      unsigned int       uCountryCodeIdx,
+     PBYTE      pbyChannelTable
     )
 {
     if (uCountryCodeIdx >= CCODE_MAX) {
@@ -437,15 +437,14 @@ CHvChannelGetList (
 }
 
 
-VOID CHvInitChannelTable (PVOID pDeviceHandler)
+void CHvInitChannelTable(void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     BOOL        bMultiBand = FALSE;
-    UINT        ii;
+    unsigned int ii;
 
-    for(ii=1;ii<=CB_MAX_CHANNEL;ii++) {
-        sChannelTbl[ii].bValid = FALSE;
-    }
+    for (ii = 1; ii <= CB_MAX_CHANNEL; ii++)
+	sChannelTbl[ii].bValid = FALSE;
 
     switch (pDevice->byRFType) {
         case RF_AL2230:
@@ -464,43 +463,43 @@ VOID CHvInitChannelTable (PVOID pDeviceHandler)
     if ((pDevice->dwDiagRefCount != 0) ||
         (pDevice->b11hEable == TRUE)) {
         if (bMultiBand == TRUE) {
-            for(ii=0;ii<CB_MAX_CHANNEL;ii++) {
-                sChannelTbl[ii+1].bValid = TRUE;
+		for (ii = 0; ii < CB_MAX_CHANNEL; ii++) {
+			sChannelTbl[ii+1].bValid = TRUE;
                 //pDevice->abyRegPwr[ii+1] = pDevice->abyOFDMDefaultPwr[ii+1];
                 //pDevice->abyLocalPwr[ii+1] = pDevice->abyOFDMDefaultPwr[ii+1];
-            }
-            for(ii=0;ii<CB_MAX_CHANNEL_24G;ii++) {
+		}
+		for (ii = 0; ii < CB_MAX_CHANNEL_24G; ii++) {
                 //pDevice->abyRegPwr[ii+1] = pDevice->abyCCKDefaultPwr[ii+1];
                 //pDevice->abyLocalPwr[ii+1] = pDevice->abyCCKDefaultPwr[ii+1];
-            }
+		}
         } else {
-            for(ii=0;ii<CB_MAX_CHANNEL_24G;ii++) {
-                sChannelTbl[ii+1].bValid = TRUE;
+		for (ii = 0; ii < CB_MAX_CHANNEL_24G; ii++) {
+			sChannelTbl[ii+1].bValid = TRUE;
                 //pDevice->abyRegPwr[ii+1] = pDevice->abyCCKDefaultPwr[ii+1];
                 //pDevice->abyLocalPwr[ii+1] = pDevice->abyCCKDefaultPwr[ii+1];
-            }
+		}
         }
     } else if (pDevice->byZoneType <= CCODE_MAX) {
         if (bMultiBand == TRUE) {
-            for(ii=0;ii<CB_MAX_CHANNEL;ii++) {
-                if (ChannelRuleTab[pDevice->byZoneType].bChannelIdxList[ii] != 0) {
-                    sChannelTbl[ii+1].bValid = TRUE;
+		for (ii = 0; ii < CB_MAX_CHANNEL; ii++) {
+			if (ChannelRuleTab[pDevice->byZoneType].bChannelIdxList[ii] != 0) {
+				sChannelTbl[ii+1].bValid = TRUE;
                     //pDevice->abyRegPwr[ii+1] = ChannelRuleTab[pDevice->byZoneType].byPower[ii];
                     //pDevice->abyLocalPwr[ii+1] = ChannelRuleTab[pDevice->byZoneType].byPower[ii];
-                }
-            }
+			}
+		}
         } else {
-            for(ii=0;ii<CB_MAX_CHANNEL_24G;ii++) {
-                if (ChannelRuleTab[pDevice->byZoneType].bChannelIdxList[ii] != 0) {
-                    sChannelTbl[ii+1].bValid = TRUE;
+		for (ii = 0; ii < CB_MAX_CHANNEL_24G; ii++) {
+			if (ChannelRuleTab[pDevice->byZoneType].bChannelIdxList[ii] != 0) {
+				sChannelTbl[ii+1].bValid = TRUE;
                     //pDevice->abyRegPwr[ii+1] = ChannelRuleTab[pDevice->byZoneType].byPower[ii];
                     //pDevice->abyLocalPwr[ii+1] = ChannelRuleTab[pDevice->byZoneType].byPower[ii];
-                }
-            }
+			}
+		}
         }
     }
     DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO"Zone=[%d][%c][%c]!!\n",pDevice->byZoneType,ChannelRuleTab[pDevice->byZoneType].chCountryCode[0],ChannelRuleTab[pDevice->byZoneType].chCountryCode[1]);
-    for(ii=0;ii<CB_MAX_CHANNEL;ii++) {
+    for (ii = 0; ii < CB_MAX_CHANNEL; ii++) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Channel[%d] is [%d]\n",sChannelTbl[ii].byChannelNumber,sChannelTbl[ii+1].bValid);
         /*if (pDevice->abyRegPwr[ii+1] == 0) {
             pDevice->abyRegPwr[ii+1] = pDevice->abyOFDMDefaultPwr[ii+1];

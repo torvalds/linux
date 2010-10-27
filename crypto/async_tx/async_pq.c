@@ -24,6 +24,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/raid/pq.h>
 #include <linux/async_tx.h>
+#include <linux/gfp.h>
 
 /**
  * pq_scribble_page - space to hold throwaway P or Q buffer for

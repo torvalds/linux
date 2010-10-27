@@ -31,7 +31,7 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
  */
 extern void pmd_init(unsigned long page, unsigned long pagetable);
 
-#ifdef CONFIG_64BIT
+#ifndef __PAGETABLE_PMD_FOLDED
 
 static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 {
@@ -104,7 +104,7 @@ do {							\
 	tlb_remove_page((tlb), pte);			\
 } while (0)
 
-#ifdef CONFIG_64BIT
+#ifndef __PAGETABLE_PMD_FOLDED
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
 {

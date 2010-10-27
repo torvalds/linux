@@ -75,7 +75,7 @@ struct sms_board {
 	enum sms_device_type_st type;
 	char *name, *fw[DEVICE_MODE_MAX];
 	struct sms_board_gpio_cfg board_cfg;
-	enum ir_kb_type ir_kb_type;
+	char *rc_codes;				/* Name of IR codes table */
 
 	/* gpios */
 	int led_power, led_hi, led_lo, lna_ctrl, rf_switch;

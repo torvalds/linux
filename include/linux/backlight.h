@@ -36,18 +36,18 @@ struct backlight_device;
 struct fb_info;
 
 struct backlight_ops {
-	const unsigned int options;
+	unsigned int options;
 
 #define BL_CORE_SUSPENDRESUME	(1 << 0)
 
 	/* Notify the backlight driver some property has changed */
-	int (* const update_status)(struct backlight_device *);
+	int (*update_status)(struct backlight_device *);
 	/* Return the current backlight brightness (accounting for power,
 	   fb_blank etc.) */
-	int (* const get_brightness)(struct backlight_device *);
+	int (*get_brightness)(struct backlight_device *);
 	/* Check if given framebuffer device is the one bound to this backlight;
 	   return 0 if not, !=0 if it is. If NULL, backlight always matches the fb. */
-	int (* const check_fb)(struct fb_info *);
+	int (*check_fb)(struct backlight_device *, struct fb_info *);
 };
 
 /* This structure defines all the properties of a backlight */
@@ -103,7 +103,8 @@ static inline void backlight_update_status(struct backlight_device *bd)
 }
 
 extern struct backlight_device *backlight_device_register(const char *name,
-	struct device *dev, void *devdata, const struct backlight_ops *ops);
+	struct device *dev, void *devdata, const struct backlight_ops *ops,
+	const struct backlight_properties *props);
 extern void backlight_device_unregister(struct backlight_device *bd);
 extern void backlight_force_update(struct backlight_device *bd,
 				   enum backlight_update_reason reason);

@@ -209,6 +209,24 @@ static void chipco_powercontrol_init(struct ssb_chipcommon *cc)
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PmuFastPwrupDelay */
+static u16 pmu_fast_powerup_delay(struct ssb_chipcommon *cc)
+{
+	struct ssb_bus *bus = cc->dev->bus;
+
+	switch (bus->chip_id) {
+	case 0x4312:
+	case 0x4322:
+	case 0x4328:
+		return 7000;
+	case 0x4325:
+		/* TODO: */
+	default:
+		return 15000;
+	}
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/ClkctlFastPwrupDelay */
 static void calc_fast_powerup_delay(struct ssb_chipcommon *cc)
 {
 	struct ssb_bus *bus = cc->dev->bus;
@@ -218,6 +236,12 @@ static void calc_fast_powerup_delay(struct ssb_chipcommon *cc)
 
 	if (bus->bustype != SSB_BUSTYPE_PCI)
 		return;
+
+	if (cc->capabilities & SSB_CHIPCO_CAP_PMU) {
+		cc->fast_pwrup_delay = pmu_fast_powerup_delay(cc);
+		return;
+	}
+
 	if (!(cc->capabilities & SSB_CHIPCO_CAP_PCTL))
 		return;
 
@@ -233,6 +257,9 @@ void ssb_chipcommon_init(struct ssb_chipcommon *cc)
 {
 	if (!cc->dev)
 		return; /* We don't have a ChipCommon */
+	if (cc->dev->id.revision >= 11)
+		cc->status = chipco_read32(cc, SSB_CHIPCO_CHIPSTAT);
+	ssb_dprintk(KERN_INFO PFX "chipcommon status is 0x%x\n", cc->status);
 	ssb_pmu_init(cc);
 	chipco_powercontrol_init(cc);
 	ssb_chipco_set_clockmode(cc, SSB_CLKMODE_FAST);
@@ -370,6 +397,7 @@ u32 ssb_chipco_gpio_control(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
 	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOCTL, mask, value);
 }
+EXPORT_SYMBOL(ssb_chipco_gpio_control);
 
 u32 ssb_chipco_gpio_intmask(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {

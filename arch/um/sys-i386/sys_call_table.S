@@ -7,7 +7,7 @@
 #define sys_vm86old sys_ni_syscall
 #define sys_vm86 sys_ni_syscall
 
-#define old_mmap old_mmap_i386
+#define old_mmap sys_old_mmap
 
 #define ptregs_fork sys_fork
 #define ptregs_execve sys_execve

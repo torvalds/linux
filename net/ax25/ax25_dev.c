@@ -9,6 +9,7 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
+#include <linux/slab.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
 #include <linux/timer.h>

@@ -109,6 +109,13 @@
 #define U300_NR_IRQS			48
 #endif
 
+#ifdef CONFIG_AB3550_CORE
+#define IRQ_AB3550_BASE			(U300_NR_IRQS)
+#define IRQ_AB3550_END			(IRQ_AB3550_BASE + 37)
+
+#define NR_IRQS				(IRQ_AB3550_END + 1)
+#else
 #define NR_IRQS U300_NR_IRQS
+#endif
 
 #endif

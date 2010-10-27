@@ -95,7 +95,7 @@ static int rz1000_init_one (struct pci_dev *pdev, const struct pci_device_id *en
 	printk_once(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
 
 	if (rz1000_fifo_disable(pdev) == 0)
-		return ata_pci_sff_init_one(pdev, ppi, &rz1000_sht, NULL);
+		return ata_pci_sff_init_one(pdev, ppi, &rz1000_sht, NULL, 0);
 
 	printk(KERN_ERR DRV_NAME ": failed to disable read-ahead on chipset..\n");
 	/* Not safe to use so skip */

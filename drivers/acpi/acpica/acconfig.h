@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,6 +118,10 @@
 /* Maximum number of While() loop iterations before forced abort */
 
 #define ACPI_MAX_LOOP_ITERATIONS        0xFFFF
+
+/* Maximum sleep allowed via Sleep() operator */
+
+#define ACPI_MAX_SLEEP                  20000	/* Two seconds */
 
 /******************************************************************************
  *

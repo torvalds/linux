@@ -56,7 +56,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
-#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -1351,12 +1350,11 @@ static void sbp2_parse_unit_directory(struct sbp2_lu *lu,
 	struct csr1212_keyval *kv;
 	struct csr1212_dentry *dentry;
 	u64 management_agent_addr;
-	u32 unit_characteristics, firmware_revision, model;
+	u32 firmware_revision, model;
 	unsigned workarounds;
 	int i;
 
 	management_agent_addr = 0;
-	unit_characteristics = 0;
 	firmware_revision = SBP2_ROM_VALUE_MISSING;
 	model = ud->flags & UNIT_DIRECTORY_MODEL_ID ?
 				ud->model_id : SBP2_ROM_VALUE_MISSING;
@@ -1373,17 +1371,15 @@ static void sbp2_parse_unit_directory(struct sbp2_lu *lu,
 				lu->lun = ORB_SET_LUN(kv->value.immediate);
 			break;
 
-		case SBP2_UNIT_CHARACTERISTICS_KEY:
-			/* FIXME: This is ignored so far.
-			 * See SBP-2 clause 7.4.8. */
-			unit_characteristics = kv->value.immediate;
-			break;
 
 		case SBP2_FIRMWARE_REVISION_KEY:
 			firmware_revision = kv->value.immediate;
 			break;
 
 		default:
+			/* FIXME: Check for SBP2_UNIT_CHARACTERISTICS_KEY
+			 * mgt_ORB_timeout and ORB_size, SBP-2 clause 7.4.8. */
+
 			/* FIXME: Check for SBP2_DEVICE_TYPE_AND_LUN_KEY.
 			 * Its "ordered" bit has consequences for command ORB
 			 * list handling. See SBP-2 clauses 4.6, 7.4.11, 10.2 */
@@ -2020,7 +2016,7 @@ static int sbp2scsi_slave_configure(struct scsi_device *sdev)
 	if (lu->workarounds & SBP2_WORKAROUND_POWER_CONDITION)
 		sdev->start_stop_pwr_cond = 1;
 	if (lu->workarounds & SBP2_WORKAROUND_128K_MAX_TRANS)
-		blk_queue_max_sectors(sdev->request_queue, 128 * 1024 / 512);
+		blk_queue_max_hw_sectors(sdev->request_queue, 128 * 1024 / 512);
 
 	blk_queue_max_segment_size(sdev->request_queue, SBP2_MAX_SEG_SIZE);
 	return 0;

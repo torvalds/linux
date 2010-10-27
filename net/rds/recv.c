@@ -31,6 +31,7 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <linux/in.h>
 
@@ -296,7 +297,7 @@ static int rds_still_queued(struct rds_sock *rs, struct rds_incoming *inc,
 int rds_notify_queue_get(struct rds_sock *rs, struct msghdr *msghdr)
 {
 	struct rds_notifier *notifier;
-	struct rds_rdma_notify cmsg;
+	struct rds_rdma_notify cmsg = { 0 }; /* fill holes with zero */
 	unsigned int count = 0, max_messages = ~0U;
 	unsigned long flags;
 	LIST_HEAD(copy);
@@ -431,7 +432,7 @@ int rds_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 				break;
 			}
 
-			timeo = wait_event_interruptible_timeout(*sk->sk_sleep,
+			timeo = wait_event_interruptible_timeout(*sk_sleep(sk),
 					(!list_empty(&rs->rs_notify_queue) ||
 					 rs->rs_cong_notify ||
 					 rds_next_incoming(rs, &inc)), timeo);

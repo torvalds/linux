@@ -33,6 +33,7 @@
  */
 
 #include <linux/timer.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <asm/unaligned.h>
 
@@ -62,27 +63,25 @@ static void fc_disc_restart(struct fc_disc *);
 void fc_disc_stop_rports(struct fc_disc *disc)
 {
 	struct fc_lport *lport;
-	struct fc_rport_priv *rdata, *next;
+	struct fc_rport_priv *rdata;
 
-	lport = disc->lport;
+	lport = fc_disc_lport(disc);
 
 	mutex_lock(&disc->disc_mutex);
-	list_for_each_entry_safe(rdata, next, &disc->rports, peers)
+	list_for_each_entry_rcu(rdata, &disc->rports, peers)
 		lport->tt.rport_logoff(rdata);
 	mutex_unlock(&disc->disc_mutex);
 }
 
 /**
  * fc_disc_recv_rscn_req() - Handle Registered State Change Notification (RSCN)
- * @sp:	   The sequence of the RSCN exchange
+ * @disc:  The discovery object to which the RSCN applies
  * @fp:	   The RSCN frame
- * @lport: The local port that the request will be sent on
  *
  * Locking Note: This function expects that the disc_mutex is locked
  *		 before it is called.
  */
-static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
-				  struct fc_disc *disc)
+static void fc_disc_recv_rscn_req(struct fc_disc *disc, struct fc_frame *fp)
 {
 	struct fc_lport *lport;
 	struct fc_els_rscn *rp;
@@ -95,7 +94,7 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 	LIST_HEAD(disc_ports);
 	struct fc_disc_port *dp, *next;
 
-	lport = disc->lport;
+	lport = fc_disc_lport(disc);
 
 	FC_DISC_DBG(disc, "Received an RSCN event\n");
 
@@ -131,7 +130,7 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 		switch (fmt) {
 		case ELS_ADDR_FMT_PORT:
 			FC_DISC_DBG(disc, "Port address format for port "
-				    "(%6x)\n", ntoh24(pp->rscn_fid));
+				    "(%6.6x)\n", ntoh24(pp->rscn_fid));
 			dp = kzalloc(sizeof(*dp), GFP_KERNEL);
 			if (!dp) {
 				redisc = 1;
@@ -150,7 +149,7 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 			break;
 		}
 	}
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_ACC, NULL);
+	lport->tt.seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
 
 	/*
 	 * If not doing a complete rediscovery, do GPN_ID on
@@ -176,25 +175,22 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 	return;
 reject:
 	FC_DISC_DBG(disc, "Received a bad RSCN frame\n");
-	rjt_data.fp = NULL;
 	rjt_data.reason = ELS_RJT_LOGIC;
 	rjt_data.explan = ELS_EXPL_NONE;
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
+	lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &rjt_data);
 	fc_frame_free(fp);
 }
 
 /**
  * fc_disc_recv_req() - Handle incoming requests
- * @sp:	   The sequence of the request exchange
- * @fp:	   The request frame
  * @lport: The local port receiving the request
+ * @fp:	   The request frame
  *
  * Locking Note: This function is called from the EM and will lock
  *		 the disc_mutex before calling the handler for the
  *		 request.
  */
-static void fc_disc_recv_req(struct fc_seq *sp, struct fc_frame *fp,
-			     struct fc_lport *lport)
+static void fc_disc_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 {
 	u8 op;
 	struct fc_disc *disc = &lport->disc;
@@ -203,7 +199,7 @@ static void fc_disc_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 	switch (op) {
 	case ELS_RSCN:
 		mutex_lock(&disc->disc_mutex);
-		fc_disc_recv_rscn_req(sp, fp, disc);
+		fc_disc_recv_rscn_req(disc, fp);
 		mutex_unlock(&disc->disc_mutex);
 		break;
 	default:
@@ -274,7 +270,7 @@ static void fc_disc_start(void (*disc_callback)(struct fc_lport *,
  */
 static void fc_disc_done(struct fc_disc *disc, enum fc_disc_event event)
 {
-	struct fc_lport *lport = disc->lport;
+	struct fc_lport *lport = fc_disc_lport(disc);
 	struct fc_rport_priv *rdata;
 
 	FC_DISC_DBG(disc, "Discovery complete\n");
@@ -291,7 +287,7 @@ static void fc_disc_done(struct fc_disc *disc, enum fc_disc_event event)
 	 * Skip ports which were never discovered.  These are the dNS port
 	 * and ports which were created by PLOGI.
 	 */
-	list_for_each_entry(rdata, &disc->rports, peers) {
+	list_for_each_entry_rcu(rdata, &disc->rports, peers) {
 		if (!rdata->disc_id)
 			continue;
 		if (rdata->disc_id == disc->disc_id)
@@ -312,7 +308,7 @@ static void fc_disc_done(struct fc_disc *disc, enum fc_disc_event event)
  */
 static void fc_disc_error(struct fc_disc *disc, struct fc_frame *fp)
 {
-	struct fc_lport *lport = disc->lport;
+	struct fc_lport *lport = fc_disc_lport(disc);
 	unsigned long delay = 0;
 
 	FC_DISC_DBG(disc, "Error %ld, retries %d/%d\n",
@@ -352,7 +348,7 @@ static void fc_disc_error(struct fc_disc *disc, struct fc_frame *fp)
 static void fc_disc_gpn_ft_req(struct fc_disc *disc)
 {
 	struct fc_frame *fp;
-	struct fc_lport *lport = disc->lport;
+	struct fc_lport *lport = fc_disc_lport(disc);
 
 	WARN_ON(!fc_lport_test_ready(lport));
 
@@ -395,7 +391,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 	struct fc_rport_identifiers ids;
 	struct fc_rport_priv *rdata;
 
-	lport = disc->lport;
+	lport = fc_disc_lport(disc);
 	disc->seq_count++;
 
 	/*
@@ -439,7 +435,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 		ids.port_id = ntoh24(np->fp_fid);
 		ids.port_name = ntohll(np->fp_wwpn);
 
-		if (ids.port_id != fc_host_port_id(lport->host) &&
+		if (ids.port_id != lport->port_id &&
 		    ids.port_name != lport->wwpn) {
 			rdata = lport->tt.rport_create(lport, ids.port_id);
 			if (rdata) {
@@ -448,7 +444,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 			} else {
 				printk(KERN_WARNING "libfc: Failed to allocate "
 				       "memory for the newly discovered port "
-				       "(%6x)\n", ids.port_id);
+				       "(%6.6x)\n", ids.port_id);
 				error = -ENOMEM;
 			}
 		}
@@ -606,7 +602,7 @@ static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 			rdata->ids.port_name = port_name;
 		else if (rdata->ids.port_name != port_name) {
 			FC_DISC_DBG(disc, "GPN_ID accepted.  WWPN changed. "
-				    "Port-id %x wwpn %llx\n",
+				    "Port-id %6.6x wwpn %16.16llx\n",
 				    rdata->ids.port_id, port_name);
 			lport->tt.rport_logoff(rdata);
 
@@ -732,7 +728,7 @@ int fc_disc_init(struct fc_lport *lport)
 	mutex_init(&disc->disc_mutex);
 	INIT_LIST_HEAD(&disc->rports);
 
-	disc->lport = lport;
+	disc->priv = lport;
 
 	return 0;
 }

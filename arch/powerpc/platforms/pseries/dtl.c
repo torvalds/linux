@@ -21,6 +21,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <asm/smp.h>
 #include <asm/system.h>

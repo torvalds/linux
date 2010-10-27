@@ -21,6 +21,9 @@
 #define __ASM_ARM_HARDWARE_L2X0_H
 
 #define L2X0_CACHE_ID			0x000
+#define   L2X0_CACHE_ID_PART_MASK	(0xf << 6)
+#define   L2X0_CACHE_ID_PART_L210	(1 << 6)
+#define   L2X0_CACHE_ID_PART_L310	(3 << 6)
 #define L2X0_CACHE_TYPE			0x004
 #define L2X0_CTRL			0x100
 #define L2X0_AUX_CTRL			0x104

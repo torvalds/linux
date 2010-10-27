@@ -34,6 +34,7 @@ struct cachefiles_object {
 	loff_t				i_size;		/* object size */
 	unsigned long			flags;
 #define CACHEFILES_OBJECT_ACTIVE	0		/* T if marked active */
+#define CACHEFILES_OBJECT_BURIED	1		/* T if preemptively buried */
 	atomic_t			usage;		/* object usage count */
 	uint8_t				type;		/* object type */
 	uint8_t				new;		/* T if object new */
@@ -266,13 +267,6 @@ do {									\
 #define dbgprintk(FMT, ...) \
 	printk(KERN_DEBUG "[%-6.6s] "FMT"\n", current->comm, ##__VA_ARGS__)
 
-/* make sure we maintain the format strings, even when debugging is disabled */
-static inline void _dbprintk(const char *fmt, ...)
-	__attribute__((format(printf, 1, 2)));
-static inline void _dbprintk(const char *fmt, ...)
-{
-}
-
 #define kenter(FMT, ...) dbgprintk("==> %s("FMT")", __func__, ##__VA_ARGS__)
 #define kleave(FMT, ...) dbgprintk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
 #define kdebug(FMT, ...) dbgprintk(FMT, ##__VA_ARGS__)
@@ -303,9 +297,9 @@ do {							\
 } while (0)
 
 #else
-#define _enter(FMT, ...) _dbprintk("==> %s("FMT")", __func__, ##__VA_ARGS__)
-#define _leave(FMT, ...) _dbprintk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
-#define _debug(FMT, ...) _dbprintk(FMT, ##__VA_ARGS__)
+#define _enter(FMT, ...) no_printk("==> %s("FMT")", __func__, ##__VA_ARGS__)
+#define _leave(FMT, ...) no_printk("<== %s()"FMT"", __func__, ##__VA_ARGS__)
+#define _debug(FMT, ...) no_printk(FMT, ##__VA_ARGS__)
 #endif
 
 #if 1 /* defined(__KDEBUGALL) */

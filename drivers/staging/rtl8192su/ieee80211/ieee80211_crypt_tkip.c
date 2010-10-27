@@ -9,7 +9,6 @@
  * more details.
  */
 
-//#include <linux/config.h>
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -43,6 +42,7 @@ struct ieee80211_tkip_data {
 
 	u32 rx_iv32;
 	u16 rx_iv16;
+	bool initialized;
 	u16 rx_ttak[5];
 	int rx_phase1_done;
 	u32 rx_iv32_new;
@@ -67,10 +67,9 @@ static void * ieee80211_tkip_init(int key_idx)
 {
 	struct ieee80211_tkip_data *priv;
 
-	priv = kmalloc(sizeof(*priv), GFP_ATOMIC);
+	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
 	if (priv == NULL)
 		goto fail;
-	memset(priv, 0, sizeof(*priv));
 	priv->key_idx = key_idx;
 
 	priv->tx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
@@ -410,7 +409,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (!(keyidx & (1 << 5))) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "TKIP: received packet without ExtIV"
-			       " flag from " MAC_FMT "\n", MAC_ARG(hdr->addr2));
+			       " flag from %pM\n", hdr->addr2);
 		}
 		return -2;
 	}
@@ -422,9 +421,9 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	}
 	if (!tkey->key_set) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "TKIP: received packet from " MAC_FMT
+			printk(KERN_DEBUG "TKIP: received packet from %pM"
 			       " with keyid=%d that does not have a configured"
-			       " key\n", MAC_ARG(hdr->addr2), keyidx);
+			       " key\n", hdr->addr2, keyidx);
 		}
 		return -3;
 	}
@@ -434,17 +433,18 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (!tcb_desc->bHwSec)
 	{
-		if (iv32 < tkey->rx_iv32 ||
-		(iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16)) {
+		if ((iv32 < tkey->rx_iv32 ||
+		(iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16))&&tkey->initialized) {
 			if (net_ratelimit()) {
-				printk(KERN_DEBUG "TKIP: replay detected: STA=" MAC_FMT
+				printk(KERN_DEBUG "TKIP: replay detected: STA=%pM"
 				" previous TSC %08x%04x received TSC "
-				"%08x%04x\n", MAC_ARG(hdr->addr2),
+				"%08x%04x\n", hdr->addr2,
 				tkey->rx_iv32, tkey->rx_iv16, iv32, iv16);
 			}
 			tkey->dot11RSNAStatsTKIPReplays++;
 			return -4;
 		}
+                tkey->initialized = true;
 
 		if (iv32 != tkey->rx_iv32 || !tkey->rx_phase1_done) {
 			tkip_mixing_phase1(tkey->rx_ttak, tkey->key, hdr->addr2, iv32);
@@ -453,15 +453,13 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		tkip_mixing_phase2(rc4key, tkey->key, tkey->rx_ttak, iv16);
 
 		plen = skb->len - hdr_len - 12;
-
+		sg_init_one(&sg, pos, plen+4);
 		crypto_blkcipher_setkey(tkey->rx_tfm_arc4, rc4key, 16);
-		sg_init_one(&sg, pos, plen + 4);
-
 		if (crypto_blkcipher_decrypt(&desc, &sg, &sg, plen + 4)) {
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG ": TKIP: failed to decrypt "
-						"received packet from " MAC_FMT "\n",
-						MAC_ARG(hdr->addr2));
+						"received packet from %pM\n",
+						hdr->addr2);
 			}
 			return -7;
 		}
@@ -480,7 +478,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			}
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "TKIP: ICV error detected: STA="
-				MAC_FMT "\n", MAC_ARG(hdr->addr2));
+				"%pM\n", hdr->addr2);
 			}
 			tkey->dot11RSNAStatsTKIPICVErrors++;
 			return -5;
@@ -572,12 +570,9 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len, void *pri
 
 	michael_mic_hdr(skb, tkey->tx_hdr);
 
-	// { david, 2006.9.1
-	// fix the wpa process with wmm enabled.
 	if(IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
 		tkey->tx_hdr[12] = *(skb->data + hdr_len - 2) & 0x07;
 	}
-	// }
 	pos = skb_put(skb, 8);
 
 	if (michael_mic(tkey->tx_tfm_michael, &tkey->key[16], tkey->tx_hdr,
@@ -609,7 +604,7 @@ static void ieee80211_michael_mic_failure(struct net_device *dev,
 }
 
 static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
-				     int hdr_len, void *priv)
+				     int hdr_len, void *priv, struct ieee80211_device* ieee)
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	u8 mic[8];
@@ -621,12 +616,9 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		return -1;
 
 	michael_mic_hdr(skb, tkey->rx_hdr);
-	// { david, 2006.9.1
-	// fix the wpa process with wmm enabled.
 	if(IEEE80211_QOS_HAS_SEQ(le16_to_cpu(hdr->frame_ctl))) {
 		tkey->rx_hdr[12] = *(skb->data + hdr_len - 2) & 0x07;
 	}
-	// }
 
 	if (michael_mic(tkey->rx_tfm_michael, &tkey->key[24], tkey->rx_hdr,
 			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
@@ -635,12 +627,17 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		struct ieee80211_hdr_4addr *hdr;
 		hdr = (struct ieee80211_hdr_4addr *) skb->data;
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
-		       "MSDU from " MAC_FMT " keyidx=%d\n",
-		       skb->dev ? skb->dev->name : "N/A", MAC_ARG(hdr->addr2),
+		       "MSDU from %pM keyidx=%d\n",
+		       skb->dev ? skb->dev->name : "N/A", hdr->addr2,
 		       keyidx);
-		if (skb->dev)
+                printk("%d, force_mic_error = %d\n", (memcmp(mic, skb->data + skb->len - 8, 8) != 0),\
+                        ieee->force_mic_error);
+		if (skb->dev) {
+                        printk("skb->dev != NULL\n");
 			ieee80211_michael_mic_failure(skb->dev, hdr, keyidx);
+                }
 		tkey->dot11RSNAStatsTKIPLocalMICFailures++;
+                ieee->force_mic_error = false;
 		return -1;
 	}
 
@@ -763,18 +760,17 @@ static struct ieee80211_crypto_ops ieee80211_crypt_tkip = {
 	.owner		        = THIS_MODULE,
 };
 
-int __init ieee80211_crypto_tkip_init(void)
+int ieee80211_crypto_tkip_init(void)
 {
 	return ieee80211_register_crypto_ops(&ieee80211_crypt_tkip);
 }
 
-void __exit ieee80211_crypto_tkip_exit(void)
+void ieee80211_crypto_tkip_exit(void)
 {
 	ieee80211_unregister_crypto_ops(&ieee80211_crypt_tkip);
 }
 
 void ieee80211_tkip_null(void)
 {
-//    printk("============>%s()\n", __FUNCTION__);
         return;
 }

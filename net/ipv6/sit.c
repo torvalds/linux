@@ -28,6 +28,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/icmp.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/init.h>
 #include <linux/netfilter_ipv4.h>
@@ -62,7 +63,6 @@
 #define HASH_SIZE  16
 #define HASH(addr) (((__force u32)addr^((__force u32)addr>>4))&0xF)
 
-static void ipip6_fb_tunnel_init(struct net_device *dev);
 static void ipip6_tunnel_init(struct net_device *dev);
 static void ipip6_tunnel_setup(struct net_device *dev);
 
@@ -249,8 +249,6 @@ failed:
 	return NULL;
 }
 
-static DEFINE_SPINLOCK(ipip6_prl_lock);
-
 #define for_each_prl_rcu(start)			\
 	for (prl = rcu_dereference(start);	\
 	     prl;				\
@@ -340,7 +338,7 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 	if (a->addr == htonl(INADDR_ANY))
 		return -EINVAL;
 
-	spin_lock(&ipip6_prl_lock);
+	ASSERT_RTNL();
 
 	for (p = t->prl; p; p = p->next) {
 		if (p->addr == a->addr) {
@@ -364,14 +362,12 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 		goto out;
 	}
 
-	INIT_RCU_HEAD(&p->rcu_head);
 	p->next = t->prl;
 	p->addr = a->addr;
 	p->flags = a->flags;
 	t->prl_count++;
 	rcu_assign_pointer(t->prl, p);
 out:
-	spin_unlock(&ipip6_prl_lock);
 	return err;
 }
 
@@ -398,7 +394,7 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 	struct ip_tunnel_prl_entry *x, **p;
 	int err = 0;
 
-	spin_lock(&ipip6_prl_lock);
+	ASSERT_RTNL();
 
 	if (a && a->addr != htonl(INADDR_ANY)) {
 		for (p = &t->prl; *p; p = &(*p)->next) {
@@ -420,7 +416,6 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 		}
 	}
 out:
-	spin_unlock(&ipip6_prl_lock);
 	return err;
 }
 
@@ -567,11 +562,9 @@ static int ipip6_rcv(struct sk_buff *skb)
 			kfree_skb(skb);
 			return 0;
 		}
-		tunnel->dev->stats.rx_packets++;
-		tunnel->dev->stats.rx_bytes += skb->len;
-		skb->dev = tunnel->dev;
-		skb_dst_drop(skb);
-		nf_reset(skb);
+
+		skb_tunnel_rx(skb, tunnel->dev);
+
 		ipip6_ecn_decapsulate(iph, skb);
 		netif_rx(skb);
 		rcu_read_unlock();
@@ -719,7 +712,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		stats->tx_carrier_errors++;
 		goto tx_error_icmp;
 	}
-	tdev = rt->u.dst.dev;
+	tdev = rt->dst.dev;
 
 	if (tdev == dev) {
 		ip_rt_put(rt);
@@ -728,7 +721,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	}
 
 	if (df) {
-		mtu = dst_mtu(&rt->u.dst) - sizeof(struct iphdr);
+		mtu = dst_mtu(&rt->dst) - sizeof(struct iphdr);
 
 		if (mtu < 68) {
 			stats->collisions++;
@@ -745,7 +738,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
 
 		if (skb->len > mtu) {
-			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu, dev);
+			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 			ip_rt_put(rt);
 			goto tx_error;
 		}
@@ -787,7 +780,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 	IPCB(skb)->flags = 0;
 	skb_dst_drop(skb);
-	skb_dst_set(skb, &rt->u.dst);
+	skb_dst_set(skb, &rt->dst);
 
 	/*
 	 *	Push down and install the IPIP header.
@@ -836,7 +829,7 @@ static void ipip6_tunnel_bind_dev(struct net_device *dev)
 				    .proto = IPPROTO_IPV6 };
 		struct rtable *rt;
 		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
-			tdev = rt->u.dst.dev;
+			tdev = rt->dst.dev;
 			ip_rt_put(rt);
 		}
 		dev->flags |= IFF_POINTOPOINT;
@@ -1120,7 +1113,7 @@ static void ipip6_tunnel_init(struct net_device *dev)
 	ipip6_tunnel_bind_dev(dev);
 }
 
-static void ipip6_fb_tunnel_init(struct net_device *dev)
+static void __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
@@ -1145,7 +1138,7 @@ static struct xfrm_tunnel sit_handler = {
 	.priority	=	1,
 };
 
-static void sit_destroy_tunnels(struct sit_net *sitn, struct list_head *head)
+static void __net_exit sit_destroy_tunnels(struct sit_net *sitn, struct list_head *head)
 {
 	int prio;
 
@@ -1162,7 +1155,7 @@ static void sit_destroy_tunnels(struct sit_net *sitn, struct list_head *head)
 	}
 }
 
-static int sit_init_net(struct net *net)
+static int __net_init sit_init_net(struct net *net)
 {
 	struct sit_net *sitn = net_generic(net, sit_net_id);
 	int err;
@@ -1195,7 +1188,7 @@ err_alloc_dev:
 	return err;
 }
 
-static void sit_exit_net(struct net *net)
+static void __net_exit sit_exit_net(struct net *net)
 {
 	struct sit_net *sitn = net_generic(net, sit_net_id);
 	LIST_HEAD(list);
@@ -1228,15 +1221,14 @@ static int __init sit_init(void)
 
 	printk(KERN_INFO "IPv6 over IPv4 tunneling driver\n");
 
-	if (xfrm4_tunnel_register(&sit_handler, AF_INET6) < 0) {
-		printk(KERN_INFO "sit init: Can't add protocol\n");
-		return -EAGAIN;
-	}
-
 	err = register_pernet_device(&sit_net_ops);
 	if (err < 0)
-		xfrm4_tunnel_deregister(&sit_handler, AF_INET6);
-
+		return err;
+	err = xfrm4_tunnel_register(&sit_handler, AF_INET6);
+	if (err < 0) {
+		unregister_pernet_device(&sit_net_ops);
+		printk(KERN_INFO "sit init: Can't add protocol\n");
+	}
 	return err;
 }
 

@@ -627,7 +627,7 @@ u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *destnode)
 	struct name_seq *seq;
 	u32 ref;
 
-	if (!in_scope(*destnode, tipc_own_addr))
+	if (!tipc_in_scope(*destnode, tipc_own_addr))
 		return 0;
 
 	read_lock_bh(&tipc_nametbl_lock);

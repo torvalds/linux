@@ -564,7 +564,7 @@ static int __devinit media_bay_attach(struct macio_dev *mdev, const struct of_de
 	unsigned long base;
 	int i;
 
-	ofnode = mdev->ofdev.node;
+	ofnode = mdev->ofdev.dev.of_node;
 
 	if (macio_resource_count(mdev) < 1)
 		return -ENODEV;
@@ -728,8 +728,10 @@ static struct of_device_id media_bay_match[] =
 
 static struct macio_driver media_bay_driver =
 {
-	.name		= "media-bay",
-	.match_table	= media_bay_match,
+	.driver = {
+		.name		= "media-bay",
+		.of_match_table	= media_bay_match,
+	},
 	.probe		= media_bay_attach,
 	.suspend	= media_bay_suspend,
 	.resume		= media_bay_resume

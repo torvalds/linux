@@ -41,11 +41,6 @@
 #include "dvb_frontend.h"
 #include "dvb_net.h"
 
-#include <asm/irq.h>
-#include <linux/signal.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-
 #include "mantis_common.h"
 #include "mantis_reg.h"
 #include "mantis_pci.h"

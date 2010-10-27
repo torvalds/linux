@@ -10,7 +10,6 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/init.h>
@@ -20,6 +19,7 @@
 #include <linux/seq_file.h>
 #include <linux/kdebug.h>
 #include <linux/log2.h>
+#include <linux/gfp.h>
 
 #include <asm/bitext.h>
 #include <asm/page.h>
@@ -694,7 +694,7 @@ extern void tsunami_setup_blockops(void);
  * The following code is a deadwood that may be necessary when
  * we start to make precise page flushes again. --zaitcev
  */
-static void swift_update_mmu_cache(struct vm_area_struct * vma, unsigned long address, pte_t pte)
+static void swift_update_mmu_cache(struct vm_area_struct * vma, unsigned long address, pte_t *ptep)
 {
 #if 0
 	static unsigned long last;
@@ -703,10 +703,10 @@ static void swift_update_mmu_cache(struct vm_area_struct * vma, unsigned long ad
 
 	if (address == last) {
 		val = srmmu_hwprobe(address);
-		if (val != 0 && pte_val(pte) != val) {
+		if (val != 0 && pte_val(*ptep) != val) {
 			printk("swift_update_mmu_cache: "
 			    "addr %lx put %08x probed %08x from %p\n",
-			    address, pte_val(pte), val,
+			    address, pte_val(*ptep), val,
 			    __builtin_return_address(0));
 			srmmu_flush_whole_tlb();
 		}
@@ -2214,8 +2214,6 @@ void __init ld_mmu_srmmu(void)
 	BTFIXUPSET_CALL(pte_pfn, srmmu_pte_pfn, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pmd_page, srmmu_pmd_page, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pgd_page_vaddr, srmmu_pgd_page, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_SETHI(none_mask, 0xF0000000);
 
 	BTFIXUPSET_CALL(pte_present, srmmu_pte_present, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pte_clear, srmmu_pte_clear, BTFIXUPCALL_SWAPO0G0);

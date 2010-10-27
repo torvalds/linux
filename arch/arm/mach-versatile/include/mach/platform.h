@@ -205,7 +205,7 @@
 #define VERSATILE_CLCD_BASE            0x10120000	/* CLCD */
 #define VERSATILE_DMAC_BASE            0x10130000	/* DMA controller */
 #define VERSATILE_VIC_BASE             0x10140000	/* Vectored interrupt controller */
-#define VERSATILE_PERIPH_BASE          0x10150000    /* off-chip peripherals alias from */
+#define VERSATILE_PERIPH_BASE          0x10150000	/* off-chip peripherals alias from */
                                                 /* 0x10000000 - 0x100FFFFF */
 #define VERSATILE_AHBM_BASE            0x101D0000	/* AHB monitor */
 #define VERSATILE_SCTL_BASE            0x101E0000	/* System controller */
@@ -213,7 +213,7 @@
 #define VERSATILE_TIMER0_1_BASE        0x101E2000	/* Timer 0 and 1 */
 #define VERSATILE_TIMER2_3_BASE        0x101E3000	/* Timer 2 and 3 */
 #define VERSATILE_GPIO0_BASE           0x101E4000	/* GPIO port 0 */
-#define VERSATILE_GPIO1_BASE           0x101E5000    /* GPIO port 1 */
+#define VERSATILE_GPIO1_BASE           0x101E5000	/* GPIO port 1 */
 #define VERSATILE_GPIO2_BASE           0x101E6000	/* GPIO port 2 */
 #define VERSATILE_GPIO3_BASE           0x101E7000	/* GPIO port 3 */
 #define VERSATILE_RTC_BASE             0x101E8000	/* Real Time Clock */
@@ -379,12 +379,6 @@
 #define SIC_INT_PCI3                    30
 
 
-/* 
- *  Clean base - dummy
- * 
- */
-#define CLEAN_BASE                      VERSATILE_BOOT_ROM_HI
-
 /*
  * System controller bit assignment
  */
@@ -396,20 +390,6 @@
 #define VERSATILE_TIMER3_EnSel	19
 #define VERSATILE_TIMER4_EnSel	21
 
-
-#define MAX_TIMER                       2
-#define MAX_PERIOD                      699050
-#define TICKS_PER_uSEC                  1
-
-/* 
- *  These are useconds NOT ticks.  
- * 
- */
-#define mSEC_1                          1000
-#define mSEC_5                          (mSEC_1 * 5)
-#define mSEC_10                         (mSEC_1 * 10)
-#define mSEC_25                         (mSEC_1 * 25)
-#define SEC_1                           (mSEC_1 * 1000)
 
 #define VERSATILE_CSR_BASE             0x10000000
 #define VERSATILE_CSR_SIZE             0x10000000
@@ -432,5 +412,3 @@
 #endif
 
 #endif
-
-/* 	END */

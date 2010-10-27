@@ -60,7 +60,7 @@ static struct irq_chip mpic_pasemi_msi_chip = {
 	.eoi		= mpic_end_irq,
 	.set_type	= mpic_set_irq_type,
 	.set_affinity	= mpic_set_affinity,
-	.name		= "PASEMI-MSI ",
+	.name		= "PASEMI-MSI",
 };
 
 static int pasemi_msi_check_device(struct pci_dev *pdev, int nvec, int type)

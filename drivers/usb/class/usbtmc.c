@@ -25,6 +25,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/kref.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/usb.h>
 #include <linux/usb/tmc.h>
@@ -48,7 +49,7 @@
  */
 #define USBTMC_MAX_READS_TO_CLEAR_BULK_IN	100
 
-static struct usb_device_id usbtmc_devices[] = {
+static const struct usb_device_id usbtmc_devices[] = {
 	{ USB_INTERFACE_INFO(USB_CLASS_APP_SPEC, 3, 0), },
 	{ USB_INTERFACE_INFO(USB_CLASS_APP_SPEC, 3, 1), },
 	{ 0, } /* terminating entry */

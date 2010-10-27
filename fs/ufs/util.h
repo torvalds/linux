@@ -257,9 +257,7 @@ ufs_set_inode_gid(struct super_block *sb, struct ufs_inode *inode, u32 value)
 
 extern dev_t ufs_get_inode_dev(struct super_block *, struct ufs_inode_info *);
 extern void ufs_set_inode_dev(struct super_block *, struct ufs_inode_info *, dev_t);
-extern int __ufs_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, unsigned flags,
-		struct page **pagep, void **fsdata);
+extern int ufs_prepare_chunk(struct page *page, loff_t pos, unsigned len);
 
 /*
  * These functions manipulate ufs buffers
@@ -271,8 +269,7 @@ extern void ubh_brelse (struct ufs_buffer_head *);
 extern void ubh_brelse_uspi (struct ufs_sb_private_info *);
 extern void ubh_mark_buffer_dirty (struct ufs_buffer_head *);
 extern void ubh_mark_buffer_uptodate (struct ufs_buffer_head *, int);
-extern void ubh_ll_rw_block(int, struct ufs_buffer_head *);
-extern void ubh_wait_on_buffer (struct ufs_buffer_head *);
+extern void ubh_sync_block(struct ufs_buffer_head *);
 extern void ubh_bforget (struct ufs_buffer_head *);
 extern int  ubh_buffer_dirty (struct ufs_buffer_head *);
 #define ubh_ubhcpymem(mem,ubh,size) _ubh_ubhcpymem_(uspi,mem,ubh,size)

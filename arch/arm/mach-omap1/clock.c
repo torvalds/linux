@@ -1,7 +1,7 @@
 /*
  *  linux/arch/arm/mach-omap1/clock.c
  *
- *  Copyright (C) 2004 - 2005, 2009 Nokia corporation
+ *  Copyright (C) 2004 - 2005, 2009-2010 Nokia Corporation
  *  Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
  *
  *  Modified to use omap shared clock framework by
@@ -11,7 +11,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/errno.h>
@@ -34,29 +33,9 @@
 __u32 arm_idlect1_mask;
 struct clk *api_ck_p, *ck_dpll1_p, *ck_ref_p;
 
-/*-------------------------------------------------------------------------
+/*
  * Omap1 specific clock functions
- *-------------------------------------------------------------------------*/
-
-static int clk_omap1_dummy_enable(struct clk *clk)
-{
-	return 0;
-}
-
-static void clk_omap1_dummy_disable(struct clk *clk)
-{
-}
-
-const struct clkops clkops_dummy = {
-	.enable		= clk_omap1_dummy_enable,
-	.disable	= clk_omap1_dummy_disable,
-};
-
-/* XXX can be replaced with a fixed_divisor_recalc */
-unsigned long omap1_watchdog_recalc(struct clk *clk)
-{
-	return clk->parent->rate / 14;
-}
+ */
 
 unsigned long omap1_uart_recalc(struct clk *clk)
 {
@@ -543,7 +522,8 @@ const struct clkops clkops_dspck = {
 	.disable	= omap1_clk_disable_dsp_domain,
 };
 
-static int omap1_clk_enable_uart_functional(struct clk *clk)
+/* XXX SYSC register handling does not belong in the clock framework */
+static int omap1_clk_enable_uart_functional_16xx(struct clk *clk)
 {
 	int ret;
 	struct uart_clk *uclk;
@@ -559,7 +539,8 @@ static int omap1_clk_enable_uart_functional(struct clk *clk)
 	return ret;
 }
 
-static void omap1_clk_disable_uart_functional(struct clk *clk)
+/* XXX SYSC register handling does not belong in the clock framework */
+static void omap1_clk_disable_uart_functional_16xx(struct clk *clk)
 {
 	struct uart_clk *uclk;
 
@@ -570,16 +551,14 @@ static void omap1_clk_disable_uart_functional(struct clk *clk)
 	omap1_clk_disable_generic(clk);
 }
 
-const struct clkops clkops_uart = {
-	.enable		= omap1_clk_enable_uart_functional,
-	.disable	= omap1_clk_disable_uart_functional,
+/* XXX SYSC register handling does not belong in the clock framework */
+const struct clkops clkops_uart_16xx = {
+	.enable		= omap1_clk_enable_uart_functional_16xx,
+	.disable	= omap1_clk_disable_uart_functional_16xx,
 };
 
 long omap1_clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	if (clk->flags & RATE_FIXED)
-		return clk->rate;
-
 	if (clk->round_rate != NULL)
 		return clk->round_rate(clk, rate);
 
@@ -595,13 +574,13 @@ int omap1_clk_set_rate(struct clk *clk, unsigned long rate)
 	return ret;
 }
 
-/*-------------------------------------------------------------------------
+/*
  * Omap1 clock reset and init functions
- *-------------------------------------------------------------------------*/
+ */
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 
-void __init omap1_clk_disable_unused(struct clk *clk)
+void omap1_clk_disable_unused(struct clk *clk)
 {
 	__u32 regval32;
 

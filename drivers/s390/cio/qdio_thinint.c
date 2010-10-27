@@ -7,6 +7,7 @@
  *	      Jan Glauber <jang@linux.vnet.ibm.com>
  */
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <asm/atomic.h>
 #include <asm/debug.h>
 #include <asm/qdio.h>
@@ -94,7 +95,7 @@ void tiqdio_add_input_queues(struct qdio_irq *irq_ptr)
 	for_each_input_queue(irq_ptr, q, i)
 		list_add_rcu(&q->entry, &tiq_list);
 	mutex_unlock(&tiq_list_lock);
-	xchg(irq_ptr->dsci, 1);
+	xchg(irq_ptr->dsci, 1 << 7);
 }
 
 void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
@@ -172,7 +173,7 @@ static void tiqdio_thinint_handler(void *ind, void *drv_data)
 
 		/* prevent racing */
 		if (*tiqdio_alsi)
-			xchg(&q_indicators[TIQDIO_SHARED_IND].ind, 1);
+			xchg(&q_indicators[TIQDIO_SHARED_IND].ind, 1 << 7);
 	}
 }
 
@@ -198,8 +199,8 @@ static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 		.code	= 0x0021,
 	};
 	scssc_area->operation_code = 0;
-	scssc_area->ks = PAGE_DEFAULT_KEY;
-	scssc_area->kc = PAGE_DEFAULT_KEY;
+	scssc_area->ks = PAGE_DEFAULT_KEY >> 4;
+	scssc_area->kc = PAGE_DEFAULT_KEY >> 4;
 	scssc_area->isc = QDIO_AIRQ_ISC;
 	scssc_area->schid = irq_ptr->schid;
 

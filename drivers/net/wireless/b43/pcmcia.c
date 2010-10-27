@@ -24,8 +24,8 @@
 #include "pcmcia.h"
 
 #include <linux/ssb/ssb.h>
+#include <linux/slab.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
@@ -64,7 +64,6 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 {
 	struct ssb_bus *ssb;
 	win_req_t win;
-	memreq_t mem;
 	int err = -ENOMEM;
 	int res = 0;
 
@@ -77,12 +76,7 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	dev->conf.Attributes = CONF_ENABLE_IRQ;
 	dev->conf.IntType = INT_MEMORY_AND_IO;
 
-	dev->io.BasePort2 = 0;
-	dev->io.NumPorts2 = 0;
-	dev->io.Attributes2 = 0;
-
-	win.Attributes = WIN_ADDR_SPACE_MEM | WIN_MEMORY_TYPE_CM |
-			 WIN_ENABLE | WIN_DATA_WIDTH_16 |
+	win.Attributes =  WIN_ENABLE | WIN_DATA_WIDTH_16 |
 			 WIN_USE_WAIT;
 	win.Base = 0;
 	win.Size = SSB_CORE_SIZE;
@@ -91,16 +85,11 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	if (res != 0)
 		goto err_kfree_ssb;
 
-	mem.CardOffset = 0;
-	mem.Page = 0;
-	res = pcmcia_map_mem_page(dev, dev->win, &mem);
+	res = pcmcia_map_mem_page(dev, dev->win, 0);
 	if (res != 0)
 		goto err_disable;
 
-	dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	dev->irq.Handler = NULL; /* The handler is registered later. */
-	res = pcmcia_request_irq(dev, &dev->irq);
-	if (res != 0)
+	if (!dev->irq)
 		goto err_disable;
 
 	res = pcmcia_request_configuration(dev, &dev->conf);

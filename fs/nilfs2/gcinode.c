@@ -28,10 +28,10 @@
  * gcinodes), and this file provides lookup function of the dummy
  * inodes and their buffer read function.
  *
- * Since NILFS2 keeps up multiple checkpoints/snapshots accross GC, it
+ * Since NILFS2 keeps up multiple checkpoints/snapshots across GC, it
  * has to treat blocks that belong to a same file but have different
  * checkpoint numbers.  To avoid interference among generations, dummy
- * inodes are managed separatly from actual inodes, and their lookup
+ * inodes are managed separately from actual inodes, and their lookup
  * function (nilfs_gc_iget) is designed to be specified with a
  * checkpoint number argument as well as an inode number.
  *
@@ -45,8 +45,11 @@
 #include <linux/buffer_head.h>
 #include <linux/mpage.h>
 #include <linux/hash.h>
+#include <linux/slab.h>
 #include <linux/swap.h>
 #include "nilfs.h"
+#include "btree.h"
+#include "btnode.h"
 #include "page.h"
 #include "mdt.h"
 #include "dat.h"
@@ -148,8 +151,10 @@ int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
 int nilfs_gccache_submit_read_node(struct inode *inode, sector_t pbn,
 				   __u64 vbn, struct buffer_head **out_bh)
 {
-	int ret = nilfs_btnode_submit_block(&NILFS_I(inode)->i_btnode_cache,
-					    vbn ? : pbn, pbn, out_bh);
+	int ret;
+
+	ret = nilfs_btnode_submit_block(&NILFS_I(inode)->i_btnode_cache,
+					vbn ? : pbn, pbn, READ, out_bh, &pbn);
 	if (ret == -EEXIST) /* internal code (cache hit) */
 		ret = 0;
 	return ret;
@@ -163,10 +168,15 @@ int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *bh)
 	if (buffer_dirty(bh))
 		return -EEXIST;
 
-	if (buffer_nilfs_node(bh))
+	if (buffer_nilfs_node(bh)) {
+		if (nilfs_btree_broken_node_block(bh)) {
+			clear_buffer_uptodate(bh);
+			return -EIO;
+		}
 		nilfs_btnode_mark_dirty(bh);
-	else
+	} else {
 		nilfs_mdt_mark_buffer_dirty(bh);
+	}
 	return 0;
 }
 

@@ -10,6 +10,13 @@
 #ifndef _PSERIES_PSERIES_H
 #define _PSERIES_PSERIES_H
 
+#include <linux/interrupt.h>
+
+struct device_node;
+
+extern void request_event_sources_irqs(struct device_node *np,
+				       irq_handler_t handler, const char *name);
+
 extern void __init fw_feature_init(const char *hypertas, unsigned long len);
 
 struct pt_regs;

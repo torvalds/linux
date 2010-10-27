@@ -42,19 +42,6 @@
 #define	FC_EX_TIMEOUT	1	/* Exchange timeout */
 #define	FC_EX_CLOSED	2	/* Exchange closed */
 
-/* some helpful macros */
-
-#define ntohll(x) be64_to_cpu(x)
-#define htonll(x) cpu_to_be64(x)
-
-#define ntoh24(p) (((p)[0] << 16) | ((p)[1] << 8) | ((p)[2]))
-
-#define hton24(p, v)	do {			\
-		p[0] = (((v) >> 16) & 0xFF);	\
-		p[1] = (((v) >> 8) & 0xFF);	\
-		p[2] = ((v) & 0xFF);		\
-	} while (0)
-
 /**
  * enum fc_lport_state - Local port states
  * @LPORT_ST_DISABLED: Disabled
@@ -92,25 +79,25 @@ enum fc_disc_event {
 /**
  * enum fc_rport_state - Remote port states
  * @RPORT_ST_INIT:    Initialized
+ * @RPORT_ST_FLOGI:   Waiting for FLOGI completion for point-to-multipoint
+ * @RPORT_ST_PLOGI_WAIT:   Waiting for peer to login for point-to-multipoint
  * @RPORT_ST_PLOGI:   Waiting for PLOGI completion
  * @RPORT_ST_PRLI:    Waiting for PRLI completion
  * @RPORT_ST_RTV:     Waiting for RTV completion
  * @RPORT_ST_READY:   Ready for use
- * @RPORT_ST_LOGO:    Remote port logout (LOGO) sent
  * @RPORT_ST_ADISC:   Discover Address sent
  * @RPORT_ST_DELETE:  Remote port being deleted
- * @RPORT_ST_RESTART: Remote port being deleted and will restart
 */
 enum fc_rport_state {
 	RPORT_ST_INIT,
+	RPORT_ST_FLOGI,
+	RPORT_ST_PLOGI_WAIT,
 	RPORT_ST_PLOGI,
 	RPORT_ST_PRLI,
 	RPORT_ST_RTV,
 	RPORT_ST_READY,
-	RPORT_ST_LOGO,
 	RPORT_ST_ADISC,
 	RPORT_ST_DELETE,
-	RPORT_ST_RESTART,
 };
 
 /**
@@ -168,6 +155,7 @@ struct fc_rport_libfc_priv {
 	u16			   flags;
 	#define FC_RP_FLAGS_REC_SUPPORTED	(1 << 0)
 	#define FC_RP_FLAGS_RETRY		(1 << 1)
+	#define FC_RP_STARTED			(1 << 2)
 	unsigned int	           e_d_tov;
 	unsigned int	           r_a_tov;
 };
@@ -180,16 +168,18 @@ struct fc_rport_libfc_priv {
  * @rp_state:       Enumeration that tracks progress of PLOGI, PRLI,
  *                  and RTV exchanges
  * @ids:            The remote port identifiers and roles
- * @flags:          REC and RETRY supported flags
+ * @flags:          STARTED, REC and RETRY_SUPPORTED flags
  * @max_seq:        Maximum number of concurrent sequences
  * @disc_id:        The discovery identifier
  * @maxframe_size:  The maximum frame size
  * @retries:        The retry count for the current state
+ * @major_retries:  The retry count for the entire PLOGI/PRLI state machine
  * @e_d_tov:        Error detect timeout value (in msec)
  * @r_a_tov:        Resource allocation timeout value (in msec)
  * @rp_mutex:       The mutex that protects the remote port
  * @retry_work:     Handle for retries
  * @event_callback: Callback when READY, FAILED or LOGO states complete
+ * @rcu:	    Structure used for freeing in an RCU-safe manner
  */
 struct fc_rport_priv {
 	struct fc_lport		    *local_port;
@@ -202,6 +192,7 @@ struct fc_rport_priv {
 	u16			    disc_id;
 	u16			    maxframe_size;
 	unsigned int	            retries;
+	unsigned int	            major_retries;
 	unsigned int	            e_d_tov;
 	unsigned int	            r_a_tov;
 	struct mutex                rp_mutex;
@@ -211,6 +202,7 @@ struct fc_rport_priv {
 	struct list_head            peers;
 	struct work_struct          event_work;
 	u32			    supported_classes;
+	struct rcu_head		    rcu;
 };
 
 /**
@@ -257,14 +249,12 @@ struct fcoe_dev_stats {
 
 /**
  * struct fc_seq_els_data - ELS data used for passing ELS specific responses
- * @fp:     The ELS frame
  * @reason: The reason for rejection
  * @explan: The explaination of the rejection
  *
  * Mainly used by the exchange manager layer.
  */
 struct fc_seq_els_data {
-	struct fc_frame *fp;
 	enum fc_els_rjt_reason reason;
 	enum fc_els_rjt_explan explan;
 };
@@ -400,6 +390,7 @@ struct fc_seq {
  * @esb_stat:     ESB exchange status
  * @r_a_tov:      Resouce allocation time out value (in msecs)
  * @seq_id:       The next sequence ID to use
+ * @encaps:       encapsulation information for lower-level driver
  * @f_ctl:        F_CTL flags for the sequence
  * @fh_type:      The frame type
  * @class:        The class of service
@@ -431,6 +422,7 @@ struct fc_exch {
 	u32		    esb_stat;
 	u32		    r_a_tov;
 	u8		    seq_id;
+	u8		    encaps;
 	u32		    f_ctl;
 	u8		    fh_type;
 	enum fc_class	    class;
@@ -525,12 +517,11 @@ struct libfc_function_template {
 			struct fc_frame *);
 
 	/*
-	 * Send an ELS response using infomation from a previous
-	 * exchange and sequence.
+	 * Send an ELS response using infomation from the received frame.
 	 *
 	 * STATUS: OPTIONAL
 	 */
-	void (*seq_els_rsp_send)(struct fc_seq *, enum fc_els_cmd,
+	void (*seq_els_rsp_send)(struct fc_frame *, enum fc_els_cmd,
 				 struct fc_seq_els_data *);
 
 	/*
@@ -562,6 +553,13 @@ struct libfc_function_template {
 	struct fc_seq *(*seq_start_next)(struct fc_seq *);
 
 	/*
+	 * Assign a sequence for an incoming request frame.
+	 *
+	 * STATUS: OPTIONAL
+	 */
+	struct fc_seq *(*seq_assign)(struct fc_lport *, struct fc_frame *);
+
+	/*
 	 * Reset an exchange manager, completing all sequences and exchanges.
 	 * If s_id is non-zero, reset only exchanges originating from that FID.
 	 * If d_id is non-zero, reset only exchanges sending to that FID.
@@ -582,8 +580,7 @@ struct libfc_function_template {
 	 *
 	 * STATUS: OPTIONAL
 	 */
-	void (*lport_recv)(struct fc_lport *, struct fc_seq *,
-			   struct fc_frame *);
+	void (*lport_recv)(struct fc_lport *, struct fc_frame *);
 
 	/*
 	 * Reset the local port.
@@ -645,8 +642,7 @@ struct libfc_function_template {
 	 *
 	 * STATUS: OPTIONAL
 	 */
-	void (*rport_recv_req)(struct fc_seq *, struct fc_frame *,
-			       struct fc_lport *);
+	void (*rport_recv_req)(struct fc_lport *, struct fc_frame *);
 
 	/*
 	 * lookup an rport by it's port ID.
@@ -692,8 +688,7 @@ struct libfc_function_template {
 	 *
 	 * STATUS: OPTIONAL
 	 */
-	void (*disc_recv_req)(struct fc_seq *, struct fc_frame *,
-			      struct fc_lport *);
+	void (*disc_recv_req)(struct fc_lport *, struct fc_frame *);
 
 	/*
 	 * Start discovery for a local port.
@@ -731,7 +726,7 @@ struct libfc_function_template {
  * @buf_len:       Length of the discovery buffer
  * @disc_id:       Discovery ID
  * @rports:        List of discovered remote ports
- * @lport:         The local port that discovery is for
+ * @priv:          Private pointer for use by discovery code
  * @disc_mutex:    Mutex that protects the discovery context
  * @partial_buf:   Partial name buffer (if names are returned
  *                 in multiple frames)
@@ -747,7 +742,7 @@ struct fc_disc {
 	u16                   disc_id;
 
 	struct list_head      rports;
-	struct fc_lport	      *lport;
+	void		      *priv;
 	struct mutex	      disc_mutex;
 	struct fc_gpn_ft_resp partial_buf;
 	struct delayed_work   disc_work;
@@ -775,6 +770,7 @@ struct fc_disc {
  * @dev_stats:             FCoE device stats (TODO: libfc should not be
  *                         FCoE aware)
  * @retry_count:           Number of retries in the current state
+ * @port_id:               FC Port ID
  * @wwpn:                  World Wide Port Name
  * @wwnn:                  World Wide Node Name
  * @service_params:        Common service parameters
@@ -790,6 +786,7 @@ struct fc_disc {
  * @mfs:                   The maximum Fibre Channel payload size
  * @max_retry_count:       The maximum retry attempts
  * @max_rport_retry_count: The maximum remote port retry attempts
+ * @rport_priv_size:       Size needed by driver after struct fc_rport_priv
  * @lro_xid:               The maximum XID for LRO
  * @lso_max:               The maximum large offload send size
  * @fcts:                  FC-4 type mask
@@ -821,6 +818,7 @@ struct fc_lport {
 	u8			       retry_count;
 
 	/* Fabric information */
+	u32                            port_id;
 	u64			       wwpn;
 	u64			       wwnn;
 	unsigned int		       service_params;
@@ -835,9 +833,11 @@ struct fc_lport {
 	u32			       lro_enabled:1;
 	u32			       does_npiv:1;
 	u32			       npiv_enabled:1;
+	u32			       point_to_multipoint:1;
 	u32			       mfs;
 	u8			       max_retry_count;
 	u8			       max_rport_retry_count;
+	u16			       rport_priv_size;
 	u16			       link_speed;
 	u16			       link_supported_speeds;
 	u16			       lro_xid;
@@ -918,15 +918,6 @@ static inline void fc_lport_free_stats(struct fc_lport *lport)
 }
 
 /**
- * fc_lport_get_stats() - Get a local port's statistics
- * @lport: The local port whose statistics are to be retreived
- */
-static inline struct fcoe_dev_stats *fc_lport_get_stats(struct fc_lport *lport)
-{
-	return per_cpu_ptr(lport->dev_stats, smp_processor_id());
-}
-
-/**
  * lport_priv() - Return the private data from a local port
  * @lport: The local port whose private data is to be retreived
  */
@@ -988,6 +979,7 @@ int fc_set_mfs(struct fc_lport *, u32 mfs);
 struct fc_lport *libfc_vport_create(struct fc_vport *, int privsize);
 struct fc_lport *fc_vport_id_lookup(struct fc_lport *, u32 port_id);
 int fc_lport_bsg_request(struct fc_bsg_job *);
+void fc_lport_set_local_id(struct fc_lport *, u32 port_id);
 
 /*
  * REMOTE PORT LAYER
@@ -999,6 +991,11 @@ void fc_rport_terminate_io(struct fc_rport *);
  * DISCOVERY LAYER
  *****************************/
 int fc_disc_init(struct fc_lport *);
+
+static inline struct fc_lport *fc_disc_lport(struct fc_disc *disc)
+{
+	return container_of(disc, struct fc_lport, disc);
+}
 
 /*
  * FCP LAYER
@@ -1031,6 +1028,10 @@ struct fc_seq *fc_elsct_send(struct fc_lport *, u32 did,
 				    void *arg, u32 timer_msec);
 void fc_lport_flogi_resp(struct fc_seq *, struct fc_frame *, void *);
 void fc_lport_logo_resp(struct fc_seq *, struct fc_frame *, void *);
+void fc_fill_reply_hdr(struct fc_frame *, const struct fc_frame *,
+		       enum fc_rctl, u32 parm_offset);
+void fc_fill_hdr(struct fc_frame *, const struct fc_frame *,
+		 enum fc_rctl, u32 f_ctl, u16 seq_cnt, u32 parm_offset);
 
 
 /*
@@ -1053,7 +1054,6 @@ void fc_exch_mgr_reset(struct fc_lport *, u32 s_id, u32 d_id);
  * Functions for fc_functions_template
  */
 void fc_get_host_speed(struct Scsi_Host *);
-void fc_get_host_port_type(struct Scsi_Host *);
 void fc_get_host_port_state(struct Scsi_Host *);
 void fc_set_rport_loss_tmo(struct fc_rport *, u32 timeout);
 struct fc_host_statistics *fc_get_host_stats(struct Scsi_Host *);

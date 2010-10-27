@@ -6,6 +6,7 @@
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
 #include <linux/log2.h>
+#include <linux/gfp.h>
 
 #include <asm/paravirt.h>
 

@@ -20,17 +20,15 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/regulator/consumer.h>
+#include <linux/backlight.h>
+#include <linux/fb.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #include <plat/display.h>
 
 struct sharp_data {
-	/* XXX This regulator should actually be in SDP board file, not here,
-	 * as it doesn't actually power the LCD, but something else that
-	 * affects the output to LCD (I think. Somebody clarify). It doesn't do
-	 * harm here, as SDP is the only board using this currently */
-	struct regulator *vdvi_reg;
+	struct backlight_device *bl;
 };
 
 static struct omap_video_timings sharp_ls_timings = {
@@ -48,9 +46,45 @@ static struct omap_video_timings sharp_ls_timings = {
 	.vbp		= 1,
 };
 
+static int sharp_ls_bl_update_status(struct backlight_device *bl)
+{
+	struct omap_dss_device *dssdev = dev_get_drvdata(&bl->dev);
+	int level;
+
+	if (!dssdev->set_backlight)
+		return -EINVAL;
+
+	if (bl->props.fb_blank == FB_BLANK_UNBLANK &&
+			bl->props.power == FB_BLANK_UNBLANK)
+		level = bl->props.brightness;
+	else
+		level = 0;
+
+	return dssdev->set_backlight(dssdev, level);
+}
+
+static int sharp_ls_bl_get_brightness(struct backlight_device *bl)
+{
+	if (bl->props.fb_blank == FB_BLANK_UNBLANK &&
+			bl->props.power == FB_BLANK_UNBLANK)
+		return bl->props.brightness;
+
+	return 0;
+}
+
+static const struct backlight_ops sharp_ls_bl_ops = {
+	.get_brightness = sharp_ls_bl_get_brightness,
+	.update_status  = sharp_ls_bl_update_status,
+};
+
+
+
 static int sharp_ls_panel_probe(struct omap_dss_device *dssdev)
 {
+	struct backlight_properties props;
+	struct backlight_device *bl;
 	struct sharp_data *sd;
+	int r;
 
 	dssdev->panel.config = OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
 		OMAP_DSS_LCD_IHS;
@@ -63,12 +97,24 @@ static int sharp_ls_panel_probe(struct omap_dss_device *dssdev)
 
 	dev_set_drvdata(&dssdev->dev, sd);
 
-	sd->vdvi_reg = regulator_get(&dssdev->dev, "vdvi");
-	if (IS_ERR(sd->vdvi_reg)) {
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = dssdev->max_backlight_level;
+
+	bl = backlight_device_register("sharp-ls", &dssdev->dev, dssdev,
+			&sharp_ls_bl_ops, &props);
+	if (IS_ERR(bl)) {
+		r = PTR_ERR(bl);
 		kfree(sd);
-		pr_err("failed to get VDVI regulator\n");
-		return PTR_ERR(sd->vdvi_reg);
+		return r;
 	}
+	sd->bl = bl;
+
+	bl->props.fb_blank = FB_BLANK_UNBLANK;
+	bl->props.power = FB_BLANK_UNBLANK;
+	bl->props.brightness = dssdev->max_backlight_level;
+	r = sharp_ls_bl_update_status(bl);
+	if (r < 0)
+		dev_err(&dssdev->dev, "failed to set lcd brightness\n");
 
 	return 0;
 }
@@ -76,51 +122,78 @@ static int sharp_ls_panel_probe(struct omap_dss_device *dssdev)
 static void sharp_ls_panel_remove(struct omap_dss_device *dssdev)
 {
 	struct sharp_data *sd = dev_get_drvdata(&dssdev->dev);
+	struct backlight_device *bl = sd->bl;
 
-	regulator_put(sd->vdvi_reg);
+	bl->props.power = FB_BLANK_POWERDOWN;
+	sharp_ls_bl_update_status(bl);
+	backlight_device_unregister(bl);
 
 	kfree(sd);
 }
 
-static int sharp_ls_panel_enable(struct omap_dss_device *dssdev)
+static int sharp_ls_power_on(struct omap_dss_device *dssdev)
 {
-	struct sharp_data *sd = dev_get_drvdata(&dssdev->dev);
 	int r = 0;
+
+	r = omapdss_dpi_display_enable(dssdev);
+	if (r)
+		goto err0;
 
 	/* wait couple of vsyncs until enabling the LCD */
 	msleep(50);
 
-	regulator_enable(sd->vdvi_reg);
-
-	if (dssdev->platform_enable)
+	if (dssdev->platform_enable) {
 		r = dssdev->platform_enable(dssdev);
+		if (r)
+			goto err1;
+	}
 
+	return 0;
+err1:
+	omapdss_dpi_display_disable(dssdev);
+err0:
+	return r;
+}
+
+static void sharp_ls_power_off(struct omap_dss_device *dssdev)
+{
+	if (dssdev->platform_disable)
+		dssdev->platform_disable(dssdev);
+
+	/* wait at least 5 vsyncs after disabling the LCD */
+
+	msleep(100);
+
+	omapdss_dpi_display_disable(dssdev);
+}
+
+static int sharp_ls_panel_enable(struct omap_dss_device *dssdev)
+{
+	int r;
+	r = sharp_ls_power_on(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 	return r;
 }
 
 static void sharp_ls_panel_disable(struct omap_dss_device *dssdev)
 {
-	struct sharp_data *sd = dev_get_drvdata(&dssdev->dev);
-
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
-
-	regulator_disable(sd->vdvi_reg);
-
-	/* wait at least 5 vsyncs after disabling the LCD */
-
-	msleep(100);
+	sharp_ls_power_off(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static int sharp_ls_panel_suspend(struct omap_dss_device *dssdev)
 {
-	sharp_ls_panel_disable(dssdev);
+	sharp_ls_power_off(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
 	return 0;
 }
 
 static int sharp_ls_panel_resume(struct omap_dss_device *dssdev)
 {
-	return sharp_ls_panel_enable(dssdev);
+	int r;
+	r = sharp_ls_power_on(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+	return r;
 }
 
 static struct omap_dss_driver sharp_ls_driver = {

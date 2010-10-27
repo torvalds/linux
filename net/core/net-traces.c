@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/netlink.h>
 #include <linux/net_dropmon.h>
+#include <linux/slab.h>
 
 #include <asm/unaligned.h>
 #include <asm/bitops.h>

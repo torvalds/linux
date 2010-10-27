@@ -27,15 +27,6 @@ static unsigned int cached_irq_mask;
 atomic_t irq_err_count;
 
 /*
- * 'what should we do if we get a hw irq event on an illegal vector'.
- * each architecture has to answer this themselves.
- */
-void ack_bad_irq(unsigned int irq)
-{
-          printk("unexpected IRQ trap at vector %02x\n", irq);
-}
-
-/*
  * do_IRQ handles all normal device IRQ's (the special
  * SMP cross-CPU interrupts have their own specific
  * handlers).

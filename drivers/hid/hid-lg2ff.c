@@ -22,6 +22,7 @@
 
 
 #include <linux/input.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/hid.h>
 

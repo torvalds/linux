@@ -3,13 +3,14 @@
  *
  * Fibre Channel related functions for the zfcp device driver.
  *
- * Copyright IBM Corporation 2008, 2009
+ * Copyright IBM Corporation 2008, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <scsi/fc/fc_els.h>
 #include <scsi/libfc.h>
 #include "zfcp_ext.h"
@@ -21,6 +22,58 @@ static u32 zfcp_fc_rscn_range_mask[] = {
 	[ELS_ADDR_FMT_DOM]		= 0xFF0000,
 	[ELS_ADDR_FMT_FAB]		= 0x000000,
 };
+
+/**
+ * zfcp_fc_post_event - post event to userspace via fc_transport
+ * @work: work struct with enqueued events
+ */
+void zfcp_fc_post_event(struct work_struct *work)
+{
+	struct zfcp_fc_event *event = NULL, *tmp = NULL;
+	LIST_HEAD(tmp_lh);
+	struct zfcp_fc_events *events = container_of(work,
+					struct zfcp_fc_events, work);
+	struct zfcp_adapter *adapter = container_of(events, struct zfcp_adapter,
+						events);
+
+	spin_lock_bh(&events->list_lock);
+	list_splice_init(&events->list, &tmp_lh);
+	spin_unlock_bh(&events->list_lock);
+
+	list_for_each_entry_safe(event, tmp, &tmp_lh, list) {
+		fc_host_post_event(adapter->scsi_host, fc_get_event_number(),
+				event->code, event->data);
+		list_del(&event->list);
+		kfree(event);
+	}
+
+}
+
+/**
+ * zfcp_fc_enqueue_event - safely enqueue FC HBA API event from irq context
+ * @adapter: The adapter where to enqueue the event
+ * @event_code: The event code (as defined in fc_host_event_code in
+ *		scsi_transport_fc.h)
+ * @event_data: The event data (e.g. n_port page in case of els)
+ */
+void zfcp_fc_enqueue_event(struct zfcp_adapter *adapter,
+			enum fc_host_event_code event_code, u32 event_data)
+{
+	struct zfcp_fc_event *event;
+
+	event = kmalloc(sizeof(struct zfcp_fc_event), GFP_ATOMIC);
+	if (!event)
+		return;
+
+	event->code = event_code;
+	event->data = event_data;
+
+	spin_lock(&adapter->events.list_lock);
+	list_add_tail(&event->list, &adapter->events.list);
+	spin_unlock(&adapter->events.list_lock);
+
+	queue_work(adapter->work_queue, &adapter->events.work);
+}
 
 static int zfcp_fc_wka_port_get(struct zfcp_fc_wka_port *wka_port)
 {
@@ -147,6 +200,8 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 		afmt = page->rscn_page_flags & ELS_RSCN_ADDR_FMT_MASK;
 		_zfcp_fc_incoming_rscn(fsf_req, zfcp_fc_rscn_range_mask[afmt],
 				       page);
+		zfcp_fc_enqueue_event(fsf_req->adapter, FCH_EVT_RSCN,
+				      *(u32 *)page);
 	}
 	queue_work(fsf_req->adapter->work_queue, &fsf_req->adapter->scan_work);
 }
@@ -316,7 +371,7 @@ void zfcp_fc_port_did_lookup(struct work_struct *work)
 
 	zfcp_erp_port_reopen(port, 0, "fcgpn_3", NULL);
 out:
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 }
 
 /**
@@ -325,9 +380,9 @@ out:
  */
 void zfcp_fc_trigger_did_lookup(struct zfcp_port *port)
 {
-	get_device(&port->sysfs_device);
+	get_device(&port->dev);
 	if (!queue_work(port->adapter->work_queue, &port->gid_pn_work))
-		put_device(&port->sysfs_device);
+		put_device(&port->dev);
 }
 
 /**
@@ -389,7 +444,7 @@ static void zfcp_fc_adisc_handler(void *data)
 	zfcp_scsi_schedule_rport_register(port);
  out:
 	atomic_clear_mask(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 	kmem_cache_free(zfcp_data.adisc_cache, adisc);
 }
 
@@ -399,7 +454,7 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 	struct zfcp_adapter *adapter = port->adapter;
 	int ret;
 
-	adisc = kmem_cache_alloc(zfcp_data.adisc_cache, GFP_ATOMIC);
+	adisc = kmem_cache_zalloc(zfcp_data.adisc_cache, GFP_ATOMIC);
 	if (!adisc)
 		return -ENOMEM;
 
@@ -436,7 +491,7 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 		container_of(work, struct zfcp_port, test_link_work);
 	int retval;
 
-	get_device(&port->sysfs_device);
+	get_device(&port->dev);
 	port->rport_task = RPORT_DEL;
 	zfcp_scsi_rport_work(&port->rport_work);
 
@@ -455,7 +510,7 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 	zfcp_erp_port_forced_reopen(port, 0, "fcltwk1", NULL);
 
 out:
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 }
 
 /**
@@ -468,9 +523,9 @@ out:
  */
 void zfcp_fc_test_link(struct zfcp_port *port)
 {
-	get_device(&port->sysfs_device);
+	get_device(&port->dev);
 	if (!queue_work(port->adapter->work_queue, &port->test_link_work))
-		put_device(&port->sysfs_device);
+		put_device(&port->dev);
 }
 
 static void zfcp_free_sg_env(struct zfcp_fc_gpn_ft *gpn_ft, int buf_num)
@@ -492,7 +547,7 @@ static struct zfcp_fc_gpn_ft *zfcp_alloc_sg_env(int buf_num)
 	if (!gpn_ft)
 		return NULL;
 
-	req = kmem_cache_alloc(zfcp_data.gpn_ft_cache, GFP_KERNEL);
+	req = kmem_cache_zalloc(zfcp_data.gpn_ft_cache, GFP_KERNEL);
 	if (!req) {
 		kfree(gpn_ft);
 		gpn_ft = NULL;
@@ -617,8 +672,7 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_fc_gpn_ft *gpn_ft,
 
 	list_for_each_entry_safe(port, tmp, &remove_lh, list) {
 		zfcp_erp_port_shutdown(port, 0, "fcegpf2", NULL);
-		zfcp_device_unregister(&port->sysfs_device,
-				       &zfcp_sysfs_port_attrs);
+		zfcp_device_unregister(&port->dev, &zfcp_sysfs_port_attrs);
 	}
 
 	return ret;
@@ -671,12 +725,11 @@ static void zfcp_fc_ct_els_job_handler(void *data)
 {
 	struct fc_bsg_job *job = data;
 	struct zfcp_fsf_ct_els *zfcp_ct_els = job->dd_data;
-	int status = zfcp_ct_els->status;
-	int reply_status;
+	struct fc_bsg_reply *jr = job->reply;
 
-	reply_status = status ? FC_CTELS_STATUS_REJECT : FC_CTELS_STATUS_OK;
-	job->reply->reply_data.ctels_reply.status = reply_status;
-	job->reply->reply_payload_rcv_len = job->reply_payload.payload_len;
+	jr->reply_payload_rcv_len = job->reply_payload.payload_len;
+	jr->reply_data.ctels_reply.status = FC_CTELS_STATUS_OK;
+	jr->result = zfcp_ct_els->status ? -EIO : 0;
 	job->job_done(job);
 }
 
@@ -732,7 +785,7 @@ static int zfcp_fc_exec_els_job(struct fc_bsg_job *job,
 			return -EINVAL;
 
 		d_id = port->d_id;
-		put_device(&port->sysfs_device);
+		put_device(&port->dev);
 	} else
 		d_id = ntoh24(job->request->rqst_data.h_els.port_id);
 

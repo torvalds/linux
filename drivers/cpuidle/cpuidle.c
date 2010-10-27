@@ -74,6 +74,17 @@ static void cpuidle_idle_call(void)
 	 */
 	hrtimer_peek_ahead_timers();
 #endif
+
+	/*
+	 * Call the device's prepare function before calling the
+	 * governor's select function.  ->prepare gives the device's
+	 * cpuidle driver a chance to update any dynamic information
+	 * of its cpuidle states for the current idle period, e.g.
+	 * state availability, latencies, residencies, etc.
+	 */
+	if (dev->prepare)
+		dev->prepare(dev);
+
 	/* ask the governor for the next state */
 	next_state = cpuidle_curr_governor->select(dev);
 	if (need_resched()) {
@@ -95,7 +106,7 @@ static void cpuidle_idle_call(void)
 	/* give the governor an opportunity to reflect on the outcome */
 	if (cpuidle_curr_governor->reflect)
 		cpuidle_curr_governor->reflect(dev);
-	trace_power_end(0);
+	trace_power_end(smp_processor_id());
 }
 
 /**
@@ -156,7 +167,7 @@ int cpuidle_enable_device(struct cpuidle_device *dev)
 
 	if (dev->enabled)
 		return 0;
-	if (!cpuidle_curr_driver || !cpuidle_curr_governor)
+	if (!cpuidle_get_driver() || !cpuidle_curr_governor)
 		return -EIO;
 	if (!dev->state_count)
 		return -EINVAL;
@@ -207,7 +218,7 @@ void cpuidle_disable_device(struct cpuidle_device *dev)
 {
 	if (!dev->enabled)
 		return;
-	if (!cpuidle_curr_driver || !cpuidle_curr_governor)
+	if (!cpuidle_get_driver() || !cpuidle_curr_governor)
 		return;
 
 	dev->enabled = 0;
@@ -271,20 +282,41 @@ static int __cpuidle_register_device(struct cpuidle_device *dev)
 {
 	int ret;
 	struct sys_device *sys_dev = get_cpu_sysdev((unsigned long)dev->cpu);
+	struct cpuidle_driver *cpuidle_driver = cpuidle_get_driver();
 
 	if (!sys_dev)
 		return -EINVAL;
-	if (!try_module_get(cpuidle_curr_driver->owner))
+	if (!try_module_get(cpuidle_driver->owner))
 		return -EINVAL;
 
 	init_completion(&dev->kobj_unregister);
 
 	poll_idle_init(dev);
 
+	/*
+	 * cpuidle driver should set the dev->power_specified bit
+	 * before registering the device if the driver provides
+	 * power_usage numbers.
+	 *
+	 * For those devices whose ->power_specified is not set,
+	 * we fill in power_usage with decreasing values as the
+	 * cpuidle code has an implicit assumption that state Cn
+	 * uses less power than C(n-1).
+	 *
+	 * With CONFIG_ARCH_HAS_CPU_RELAX, C0 is already assigned
+	 * an power value of -1.  So we use -2, -3, etc, for other
+	 * c-states.
+	 */
+	if (!dev->power_specified) {
+		int i;
+		for (i = CPUIDLE_DRIVER_STATE_START; i < dev->state_count; i++)
+			dev->states[i].power_usage = -1 - i;
+	}
+
 	per_cpu(cpuidle_devices, dev->cpu) = dev;
 	list_add(&dev->device_list, &cpuidle_detected_devices);
 	if ((ret = cpuidle_add_sysfs(sys_dev))) {
-		module_put(cpuidle_curr_driver->owner);
+		module_put(cpuidle_driver->owner);
 		return ret;
 	}
 
@@ -325,6 +357,7 @@ EXPORT_SYMBOL_GPL(cpuidle_register_device);
 void cpuidle_unregister_device(struct cpuidle_device *dev)
 {
 	struct sys_device *sys_dev = get_cpu_sysdev((unsigned long)dev->cpu);
+	struct cpuidle_driver *cpuidle_driver = cpuidle_get_driver();
 
 	if (dev->registered == 0)
 		return;
@@ -340,7 +373,7 @@ void cpuidle_unregister_device(struct cpuidle_device *dev)
 
 	cpuidle_resume_and_unlock();
 
-	module_put(cpuidle_curr_driver->owner);
+	module_put(cpuidle_driver->owner);
 }
 
 EXPORT_SYMBOL_GPL(cpuidle_unregister_device);

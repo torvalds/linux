@@ -9,6 +9,7 @@
  * for more details.
  */
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <asm/dwarf.h>
 
 #ifdef CONFIG_DWARF_UNWINDER
@@ -23,6 +24,8 @@ void *return_address(unsigned int depth)
 		struct dwarf_frame *tmp;
 
 		tmp = dwarf_unwind_stack(ra, frame);
+		if (!tmp)
+			return NULL;
 
 		if (frame)
 			dwarf_free_frame(frame);
@@ -52,3 +55,5 @@ void *return_address(unsigned int depth)
 }
 
 #endif
+
+EXPORT_SYMBOL_GPL(return_address);

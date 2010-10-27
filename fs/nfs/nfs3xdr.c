@@ -9,7 +9,6 @@
 #include <linux/param.h>
 #include <linux/time.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/in.h>
@@ -331,7 +330,7 @@ nfs3_xdr_accessargs(struct rpc_rqst *req, __be32 *p, struct nfs3_accessargs *arg
 static int
 nfs3_xdr_readargs(struct rpc_rqst *req, __be32 *p, struct nfs_readargs *args)
 {
-	struct rpc_auth	*auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
+	struct rpc_auth	*auth = req->rq_cred->cr_auth;
 	unsigned int replen;
 	u32 count = args->count;
 
@@ -472,7 +471,7 @@ nfs3_xdr_linkargs(struct rpc_rqst *req, __be32 *p, struct nfs3_linkargs *args)
 static int
 nfs3_xdr_readdirargs(struct rpc_rqst *req, __be32 *p, struct nfs3_readdirargs *args)
 {
-	struct rpc_auth	*auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
+	struct rpc_auth	*auth = req->rq_cred->cr_auth;
 	unsigned int replen;
 	u32 count = args->count;
 
@@ -676,7 +675,7 @@ static int
 nfs3_xdr_getaclargs(struct rpc_rqst *req, __be32 *p,
 		    struct nfs3_getaclargs *args)
 {
-	struct rpc_auth	*auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
+	struct rpc_auth	*auth = req->rq_cred->cr_auth;
 	unsigned int replen;
 
 	p = xdr_encode_fhandle(p, args->fh);
@@ -763,7 +762,7 @@ nfs3_xdr_wccstat(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 static int
 nfs3_xdr_removeres(struct rpc_rqst *req, __be32 *p, struct nfs_removeres *res)
 {
-	return nfs3_xdr_wccstat(req, p, &res->dir_attr);
+	return nfs3_xdr_wccstat(req, p, res->dir_attr);
 }
 
 /*
@@ -803,7 +802,7 @@ nfs3_xdr_accessres(struct rpc_rqst *req, __be32 *p, struct nfs3_accessres *res)
 static int
 nfs3_xdr_readlinkargs(struct rpc_rqst *req, __be32 *p, struct nfs3_readlinkargs *args)
 {
-	struct rpc_auth	*auth = req->rq_task->tk_msg.rpc_cred->cr_auth;
+	struct rpc_auth	*auth = req->rq_cred->cr_auth;
 	unsigned int replen;
 
 	p = xdr_encode_fhandle(p, args->fh);

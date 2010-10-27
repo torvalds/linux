@@ -9,6 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/lglock.h>
+
 struct super_block;
 struct linux_binprm;
 struct path;
@@ -70,6 +72,9 @@ extern struct vfsmount *copy_tree(struct vfsmount *, struct dentry *, int);
 
 extern void __init mnt_init(void);
 
+DECLARE_BRLOCK(vfsmount_lock);
+
+
 /*
  * fs_struct.c
  */
@@ -78,6 +83,8 @@ extern void chroot_fs_refs(struct path *, struct path *);
 /*
  * file_table.c
  */
+extern void file_sb_list_add(struct file *f, struct super_block *sb);
+extern void file_sb_list_del(struct file *f);
 extern void mark_files_ro(struct super_block *);
 extern struct file *get_empty_filp(void);
 
@@ -85,6 +92,8 @@ extern struct file *get_empty_filp(void);
  * super.c
  */
 extern int do_remount_sb(struct super_block *, int, void *, int);
+extern void __put_super(struct super_block *sb);
+extern void put_super(struct super_block *sb);
 
 /*
  * open.c

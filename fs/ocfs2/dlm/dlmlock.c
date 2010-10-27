@@ -269,7 +269,7 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 		}
 		dlm_revert_pending_lock(res, lock);
 		dlm_lock_put(lock);
-	} else if (dlm_is_recovery_lock(res->lockname.name, 
+	} else if (dlm_is_recovery_lock(res->lockname.name,
 					res->lockname.len)) {
 		/* special case for the $RECOVERY lock.
 		 * there will never be an AST delivered to put
@@ -329,7 +329,9 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 			BUG();
 		}
 	} else {
-		mlog_errno(tmpret);
+		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
+		     "node %u\n", tmpret, DLM_CREATE_LOCK_MSG, dlm->key,
+		     res->owner);
 		if (dlm_is_host_down(tmpret)) {
 			ret = DLM_RECOVERING;
 			mlog(0, "node %u died so returning DLM_RECOVERING "
@@ -429,7 +431,7 @@ struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
 	struct dlm_lock *lock;
 	int kernel_allocated = 0;
 
-	lock = (struct dlm_lock *) kmem_cache_zalloc(dlm_lock_cache, GFP_NOFS);
+	lock = kmem_cache_zalloc(dlm_lock_cache, GFP_NOFS);
 	if (!lock)
 		return NULL;
 

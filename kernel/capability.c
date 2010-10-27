@@ -15,7 +15,6 @@
 #include <linux/syscalls.h>
 #include <linux/pid_namespace.h>
 #include <asm/uaccess.h>
-#include "cred-internals.h"
 
 /*
  * Leveraged for setting/resetting capabilities
@@ -135,7 +134,7 @@ static inline int cap_get_target_pid(pid_t pid, kernel_cap_t *pEp,
 	if (pid && (pid != task_pid_vnr(current))) {
 		struct task_struct *target;
 
-		read_lock(&tasklist_lock);
+		rcu_read_lock();
 
 		target = find_task_by_vpid(pid);
 		if (!target)
@@ -143,7 +142,7 @@ static inline int cap_get_target_pid(pid_t pid, kernel_cap_t *pEp,
 		else
 			ret = security_capget(target, pEp, pIp, pPp);
 
-		read_unlock(&tasklist_lock);
+		rcu_read_unlock();
 	} else
 		ret = security_capget(current, pEp, pIp, pPp);
 

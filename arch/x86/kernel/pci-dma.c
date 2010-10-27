@@ -2,6 +2,7 @@
 #include <linux/dma-debug.h>
 #include <linux/dmar.h>
 #include <linux/bootmem.h>
+#include <linux/gfp.h>
 #include <linux/pci.h>
 #include <linux/kmemleak.h>
 
@@ -12,6 +13,7 @@
 #include <asm/calgary.h>
 #include <asm/amd_iommu.h>
 #include <asm/x86_init.h>
+#include <asm/xen/swiotlb-xen.h>
 
 static int forbid_dac __read_mostly;
 
@@ -38,7 +40,7 @@ int iommu_detected __read_mostly = 0;
  * This variable becomes 1 if iommu=pt is passed on the kernel command line.
  * If this variable is 1, IOMMU implementations do no DMA translation for
  * devices and allow every device to access to whole physical memory. This is
- * useful if a user want to use an IOMMU only for KVM device assignment to
+ * useful if a user wants to use an IOMMU only for KVM device assignment to
  * guests and not for driver dma translation.
  */
 int iommu_pass_through __read_mostly;
@@ -65,7 +67,7 @@ int dma_set_mask(struct device *dev, u64 mask)
 }
 EXPORT_SYMBOL(dma_set_mask);
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_NUMA)
 static __initdata void *dma32_bootmem_ptr;
 static unsigned long dma32_bootmem_size __initdata = (128ULL<<20);
 
@@ -116,15 +118,22 @@ static void __init dma32_free_bootmem(void)
 	dma32_bootmem_ptr = NULL;
 	dma32_bootmem_size = 0;
 }
+#else
+void __init dma32_reserve_bootmem(void)
+{
+}
+static void __init dma32_free_bootmem(void)
+{
+}
+
 #endif
 
 void __init pci_iommu_alloc(void)
 {
-#ifdef CONFIG_X86_64
 	/* free the range so iommu could get some range less than 4G */
 	dma32_free_bootmem();
-#endif
-	if (pci_swiotlb_detect())
+
+	if (pci_xen_swiotlb_detect() || pci_swiotlb_detect())
 		goto out;
 
 	gart_iommu_hole_init();
@@ -136,6 +145,8 @@ void __init pci_iommu_alloc(void)
 	/* needs to be called after gart_iommu_hole_init */
 	amd_iommu_detect();
 out:
+	pci_xen_swiotlb_init();
+
 	pci_swiotlb_init();
 }
 
@@ -288,7 +299,7 @@ static int __init pci_iommu_init(void)
 #endif
 	x86_init.iommu.iommu_init();
 
-	if (swiotlb) {
+	if (swiotlb || xen_swiotlb) {
 		printk(KERN_INFO "PCI-DMA: "
 		       "Using software bounce buffering for IO (SWIOTLB)\n");
 		swiotlb_print_info();

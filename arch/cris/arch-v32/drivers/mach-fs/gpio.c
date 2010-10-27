@@ -74,8 +74,7 @@ static wait_queue_head_t *gpio_wq;
 static int virtual_gpio_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg);
 #endif
-static int gpio_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg);
+static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static ssize_t gpio_write(struct file *file, const char *buf, size_t count,
 	loff_t *off);
 static int gpio_open(struct inode *inode, struct file *filp);
@@ -185,7 +184,7 @@ static volatile unsigned long *dir_oe[NUM_PORTS] = {
 static unsigned int gpio_poll(struct file *file, struct poll_table_struct *wait)
 {
 	unsigned int mask = 0;
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 	unsigned long data;
 	poll_wait(file, &priv->alarm_wq, wait);
 	if (priv->minor == GPIO_MINOR_A) {
@@ -353,7 +352,7 @@ gpio_pa_interrupt(int irq, void *dev_id)
 static ssize_t gpio_write(struct file *file, const char *buf, size_t count,
 	loff_t *off)
 {
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 	unsigned char data, clk_mask, data_mask, write_msb;
 	unsigned long flags;
 	unsigned long shadow;
@@ -468,7 +467,7 @@ gpio_release(struct inode *inode, struct file *filp)
 
 	spin_lock_irq(&alarm_lock);
 	p = alarmlist;
-	todel = (struct gpio_private *)filp->private_data;
+	todel = filp->private_data;
 
 	if (p == todel) {
 		alarmlist = todel->next;
@@ -557,17 +556,15 @@ inline unsigned long setget_output(struct gpio_private *priv, unsigned long arg)
 	return dir_shadow;
 } /* setget_output */
 
-static int
-gpio_leds_ioctl(unsigned int cmd, unsigned long arg);
+static int gpio_leds_ioctl(unsigned int cmd, unsigned long arg);
 
 static int
-gpio_ioctl(struct inode *inode, struct file *file,
-	   unsigned int cmd, unsigned long arg)
+gpio_ioctl_unlocked(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
 	unsigned long val;
 	unsigned long shadow;
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 	if (_IOC_TYPE(cmd) != ETRAXGPIO_IOCTYPE)
 		return -EINVAL;
 
@@ -707,6 +704,17 @@ gpio_ioctl(struct inode *inode, struct file *file,
 	return 0;
 }
 
+static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+       long ret;
+
+       lock_kernel();
+       ret = gpio_ioctl_unlocked(file, cmd, arg);
+       unlock_kernel();
+
+       return ret;
+}
+
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO
 static int
 virtual_gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -714,7 +722,7 @@ virtual_gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	unsigned long flags;
 	unsigned short val;
 	unsigned short shadow;
-	struct gpio_private *priv = (struct gpio_private *)file->private_data;
+	struct gpio_private *priv = file->private_data;
 
 	switch (_IOC_NR(cmd)) {
 	case IO_SETBITS:
@@ -856,12 +864,12 @@ gpio_leds_ioctl(unsigned int cmd, unsigned long arg)
 }
 
 static const struct file_operations gpio_fops = {
-	.owner       = THIS_MODULE,
-	.poll        = gpio_poll,
-	.ioctl       = gpio_ioctl,
-	.write       = gpio_write,
-	.open        = gpio_open,
-	.release     = gpio_release,
+	.owner		= THIS_MODULE,
+	.poll		= gpio_poll,
+	.unlocked_ioctl	= gpio_ioctl,
+	.write		= gpio_write,
+	.open		= gpio_open,
+	.release	= gpio_release,
 };
 
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO

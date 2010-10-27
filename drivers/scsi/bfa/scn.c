@@ -90,7 +90,7 @@ bfa_fcs_port_scn_sm_offline(struct bfa_fcs_port_scn_s *scn,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(scn->port->fcs, event);
 	}
 }
 
@@ -109,7 +109,7 @@ bfa_fcs_port_scn_sm_sending_scr(struct bfa_fcs_port_scn_s *scn,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(scn->port->fcs, event);
 	}
 }
 
@@ -137,7 +137,7 @@ bfa_fcs_port_scn_sm_scr(struct bfa_fcs_port_scn_s *scn,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(scn->port->fcs, event);
 	}
 }
 
@@ -157,7 +157,7 @@ bfa_fcs_port_scn_sm_scr_retry(struct bfa_fcs_port_scn_s *scn,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(scn->port->fcs, event);
 	}
 }
 
@@ -171,7 +171,7 @@ bfa_fcs_port_scn_sm_online(struct bfa_fcs_port_scn_s *scn,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(scn->port->fcs, event);
 	}
 }
 
@@ -218,7 +218,7 @@ bfa_fcs_port_scn_send_scr(void *scn_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_port_scn_scr_response,
-		      (void *)scn, FC_MAX_PDUSZ, FC_RA_TOV);
+		      (void *)scn, FC_MAX_PDUSZ, FC_ELS_TOV);
 
 	bfa_sm_send_event(scn, SCNSM_EVENT_SCR_SENT);
 }

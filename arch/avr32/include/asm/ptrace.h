@@ -124,6 +124,8 @@ struct pt_regs {
 
 #include <asm/ocd.h>
 
+#define arch_has_single_step()		(1)
+
 #define arch_ptrace_attach(child)       ocd_enable(child)
 
 #define user_mode(regs)                 (((regs)->sr & MODE_MASK) == MODE_USER)

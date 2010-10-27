@@ -28,9 +28,10 @@ MODULE_ALIAS("ip6t_NFQUEUE");
 MODULE_ALIAS("arpt_NFQUEUE");
 
 static u32 jhash_initval __read_mostly;
+static bool rnd_inited __read_mostly;
 
 static unsigned int
-nfqueue_tg(struct sk_buff *skb, const struct xt_target_param *par)
+nfqueue_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_NFQ_info *tinfo = par->targinfo;
 
@@ -48,17 +49,6 @@ static u32 hash_v4(const struct sk_buff *skb)
 	return jhash_2words((__force u32)ipaddr, iph->protocol, jhash_initval);
 }
 
-static unsigned int
-nfqueue_tg4_v1(struct sk_buff *skb, const struct xt_target_param *par)
-{
-	const struct xt_NFQ_info_v1 *info = par->targinfo;
-	u32 queue = info->queuenum;
-
-	if (info->queues_total > 1)
-		queue = hash_v4(skb) % info->queues_total + queue;
-	return NF_QUEUE_NR(queue);
-}
-
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 static u32 hash_v6(const struct sk_buff *skb)
 {
@@ -72,35 +62,45 @@ static u32 hash_v6(const struct sk_buff *skb)
 
 	return jhash2((__force u32 *)addr, ARRAY_SIZE(addr), jhash_initval);
 }
+#endif
 
 static unsigned int
-nfqueue_tg6_v1(struct sk_buff *skb, const struct xt_target_param *par)
+nfqueue_tg_v1(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_NFQ_info_v1 *info = par->targinfo;
 	u32 queue = info->queuenum;
 
-	if (info->queues_total > 1)
-		queue = hash_v6(skb) % info->queues_total + queue;
+	if (info->queues_total > 1) {
+		if (par->family == NFPROTO_IPV4)
+			queue = hash_v4(skb) % info->queues_total + queue;
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+		else if (par->family == NFPROTO_IPV6)
+			queue = hash_v6(skb) % info->queues_total + queue;
+#endif
+	}
 	return NF_QUEUE_NR(queue);
 }
-#endif
 
-static bool nfqueue_tg_v1_check(const struct xt_tgchk_param *par)
+static int nfqueue_tg_v1_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_NFQ_info_v1 *info = par->targinfo;
 	u32 maxid;
 
+	if (unlikely(!rnd_inited)) {
+		get_random_bytes(&jhash_initval, sizeof(jhash_initval));
+		rnd_inited = true;
+	}
 	if (info->queues_total == 0) {
 		pr_err("NFQUEUE: number of total queues is 0\n");
-		return false;
+		return -EINVAL;
 	}
 	maxid = info->queues_total - 1 + info->queuenum;
 	if (maxid > 0xffff) {
 		pr_err("NFQUEUE: number of queues (%u) out of range (got %u)\n",
 		       info->queues_total, maxid);
-		return false;
+		return -ERANGE;
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_target nfqueue_tg_reg[] __read_mostly = {
@@ -114,28 +114,16 @@ static struct xt_target nfqueue_tg_reg[] __read_mostly = {
 	{
 		.name		= "NFQUEUE",
 		.revision	= 1,
-		.family		= NFPROTO_IPV4,
+		.family		= NFPROTO_UNSPEC,
 		.checkentry	= nfqueue_tg_v1_check,
-		.target		= nfqueue_tg4_v1,
+		.target		= nfqueue_tg_v1,
 		.targetsize	= sizeof(struct xt_NFQ_info_v1),
 		.me		= THIS_MODULE,
 	},
-#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
-	{
-		.name		= "NFQUEUE",
-		.revision	= 1,
-		.family		= NFPROTO_IPV6,
-		.checkentry	= nfqueue_tg_v1_check,
-		.target		= nfqueue_tg6_v1,
-		.targetsize	= sizeof(struct xt_NFQ_info_v1),
-		.me		= THIS_MODULE,
-	},
-#endif
 };
 
 static int __init nfqueue_tg_init(void)
 {
-	get_random_bytes(&jhash_initval, sizeof(jhash_initval));
 	return xt_register_targets(nfqueue_tg_reg, ARRAY_SIZE(nfqueue_tg_reg));
 }
 

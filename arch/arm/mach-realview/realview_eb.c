@@ -25,14 +25,16 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
+#include <linux/amba/pl022.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
+#include <asm/pmu.h>
+#include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
-#include <asm/hardware/icst307.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/localtimer.h>
 
@@ -44,7 +46,6 @@
 #include <mach/irqs.h>
 
 #include "core.h"
-#include "clock.h"
 
 static struct map_desc realview_eb_io_desc[] __initdata = {
 	{
@@ -127,6 +128,12 @@ static struct pl061_platform_data gpio1_plat_data = {
 static struct pl061_platform_data gpio2_plat_data = {
 	.gpio_base	= 16,
 	.irq_base	= -1,
+};
+
+static struct pl022_ssp_controller ssp0_plat_data = {
+	.bus_id = 0,
+	.enable_dma = 0,
+	.num_chipselect = 1,
 };
 
 /*
@@ -213,7 +220,7 @@ AMBA_DEVICE(sci0,  "dev:sci0",  SCI,      NULL);
 AMBA_DEVICE(uart0, "dev:uart0", EB_UART0, NULL);
 AMBA_DEVICE(uart1, "dev:uart1", EB_UART1, NULL);
 AMBA_DEVICE(uart2, "dev:uart2", EB_UART2, NULL);
-AMBA_DEVICE(ssp0,  "dev:ssp0",  EB_SSP,   NULL);
+AMBA_DEVICE(ssp0,  "dev:ssp0",  EB_SSP,   &ssp0_plat_data);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&dmac_device,
@@ -292,6 +299,56 @@ static struct resource realview_eb_isp1761_resources[] = {
 		.end		= IRQ_EB_USB,
 		.flags		= IORESOURCE_IRQ,
 	},
+};
+
+static struct resource pmu_resources[] = {
+	[0] = {
+		.start		= IRQ_EB11MP_PMU_CPU0,
+		.end		= IRQ_EB11MP_PMU_CPU0,
+		.flags		= IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start		= IRQ_EB11MP_PMU_CPU1,
+		.end		= IRQ_EB11MP_PMU_CPU1,
+		.flags		= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start		= IRQ_EB11MP_PMU_CPU2,
+		.end		= IRQ_EB11MP_PMU_CPU2,
+		.flags		= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start		= IRQ_EB11MP_PMU_CPU3,
+		.end		= IRQ_EB11MP_PMU_CPU3,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device pmu_device = {
+	.name			= "arm-pmu",
+	.id			= ARM_PMU_DEVICE_CPU,
+	.num_resources		= ARRAY_SIZE(pmu_resources),
+	.resource		= pmu_resources,
+};
+
+static struct resource char_lcd_resources[] = {
+	{
+		.start = REALVIEW_CHAR_LCD_BASE,
+		.end   = (REALVIEW_CHAR_LCD_BASE + SZ_4K - 1),
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_EB_CHARLCD,
+		.end	= IRQ_EB_CHARLCD,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device char_lcd_device = {
+	.name		=	"arm-charlcd",
+	.id		=	-1,
+	.num_resources	=	ARRAY_SIZE(char_lcd_resources),
+	.resource	=	char_lcd_resources,
 };
 
 static void __init gic_init_irq(void)
@@ -407,10 +464,12 @@ static void __init realview_eb_init(void)
 		 * Bits:  .... ...0 0111 1001 0000 .... .... .... */
 		l2x0_init(__io_address(REALVIEW_EB11MP_L220_BASE), 0x00790000, 0xfe000fff);
 #endif
+		platform_device_register(&pmu_device);
 	}
 
 	realview_flash_register(&realview_eb_flash_resource, 1);
 	platform_device_register(&realview_i2c_device);
+	platform_device_register(&char_lcd_device);
 	eth_device_register();
 	realview_usb_register(realview_eb_isp1761_resources);
 
@@ -427,7 +486,7 @@ static void __init realview_eb_init(void)
 
 MACHINE_START(REALVIEW_EB, "ARM-RealView EB")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.phys_io	= REALVIEW_EB_UART0_BASE,
+	.phys_io	= REALVIEW_EB_UART0_BASE & SECTION_MASK,
 	.io_pg_offst	= (IO_ADDRESS(REALVIEW_EB_UART0_BASE) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.fixup		= realview_fixup,

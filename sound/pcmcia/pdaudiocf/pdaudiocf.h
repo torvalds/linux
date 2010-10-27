@@ -24,7 +24,6 @@
 #include <sound/pcm.h>
 #include <asm/io.h>
 #include <linux/interrupt.h>
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -117,7 +116,6 @@ struct snd_pdacf {
 	
 	/* pcmcia stuff */
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 };
 
 static inline void pdacf_reg_write(struct snd_pdacf *chip, unsigned char reg, unsigned short val)

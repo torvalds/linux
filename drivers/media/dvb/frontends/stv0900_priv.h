@@ -247,6 +247,7 @@ struct stv0900_init_params{
 
 	u8	tun1_maddress;
 	int	tuner1_adc;
+	int 	tuner1_type;
 
 	/* IQ from the tuner1 to the demod */
 	enum stv0900_iq_inversion	tun1_iq_inv;
@@ -254,6 +255,7 @@ struct stv0900_init_params{
 
 	u8	tun2_maddress;
 	int	tuner2_adc;
+	int	tuner2_type;
 
 	/* IQ from the tuner2 to the demod */
 	enum stv0900_iq_inversion	tun2_iq_inv;
@@ -309,6 +311,8 @@ struct stv0900_internal{
 	s32	bw[2];
 	s32	symbol_rate[2];
 	s32	srch_range[2];
+	/* for software/auto tuner */
+	int	tuner_type[2];
 
 	/* algorithm for search Blind, Cold or Warm*/
 	enum fe_stv0900_search_algo	srch_algo[2];
@@ -393,5 +397,12 @@ extern void stv0900_activate_s2_modcod_single(struct stv0900_internal *i_params,
 extern enum
 fe_stv0900_tracking_standard stv0900_get_standard(struct dvb_frontend *fe,
 				enum fe_stv0900_demod_num demod);
+
+extern u32
+stv0900_get_freq_auto(struct stv0900_internal *intp, int demod);
+
+extern void
+stv0900_set_tuner_auto(struct stv0900_internal *intp, u32 Frequency,
+						u32 Bandwidth, int demod);
 
 #endif

@@ -82,7 +82,6 @@
 #include <linux/bitops.h>
 #include <linux/mii.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -297,31 +296,9 @@ static void xirc2ps_detach(struct pcmcia_device *p_dev);
 
 static irqreturn_t xirc2ps_interrupt(int irq, void *dev_id);
 
-/****************
- * A linked list of "instances" of the device.  Each actual
- * PCMCIA card corresponds to one device instance, and is described
- * by one struct pcmcia_device structure (defined in ds.h).
- *
- * You may not want to use a linked list for this -- for example, the
- * memory card driver uses an array of struct pcmcia_device pointers, where minor
- * device numbers are used to derive the corresponding array index.
- */
-
-/****************
- * A driver needs to provide a dev_node_t structure for each device
- * on a card.  In some cases, there is only one device per card (for
- * example, ethernet cards, modems).  In other cases, there may be
- * many actual or logical devices (SCSI adapters, memory cards with
- * multiple partitions).  The dev_node_t structures need to be kept
- * in a linked list starting at the 'dev' field of a struct pcmcia_device
- * structure.  We allocate them in the card's private data structure,
- * because they generally can't be allocated dynamically.
- */
-
 typedef struct local_info_t {
 	struct net_device	*dev;
 	struct pcmcia_device	*p_dev;
-    dev_node_t node;
 
     int card_type;
     int probe_port;
@@ -555,7 +532,6 @@ xirc2ps_probe(struct pcmcia_device *link)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 1;
-    link->irq.Handler = xirc2ps_interrupt;
 
     /* Fill in card specific entries */
     dev->netdev_ops = &netdev_ops;
@@ -580,8 +556,7 @@ xirc2ps_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "detach\n");
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     xirc2ps_release(link);
 
@@ -702,9 +677,9 @@ xirc2ps_config_modem(struct pcmcia_device *p_dev,
 
 	if (cf->io.nwin > 0  &&  (cf->io.win[0].base & 0xf) == 8) {
 		for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
-			p_dev->io.BasePort2 = cf->io.win[0].base;
-			p_dev->io.BasePort1 = ioaddr;
-			if (!pcmcia_request_io(p_dev, &p_dev->io))
+			p_dev->resource[1]->start = cf->io.win[0].base;
+			p_dev->resource[0]->start = ioaddr;
+			if (!pcmcia_request_io(p_dev))
 				return 0;
 		}
 	}
@@ -721,11 +696,11 @@ xirc2ps_config_check(struct pcmcia_device *p_dev,
 	int *pass = priv_data;
 
 	if (cf->io.nwin > 0 && (cf->io.win[0].base & 0xf) == 8) {
-		p_dev->io.BasePort2 = cf->io.win[0].base;
-		p_dev->io.BasePort1 = p_dev->io.BasePort2
+		p_dev->resource[1]->start = cf->io.win[0].base;
+		p_dev->resource[0]->start = p_dev->resource[1]->start
 			+ (*pass ? (cf->index & 0x20 ? -24:8)
 			   : (cf->index & 0x20 ?   8:-24));
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
+		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
 	return -ENODEV;
@@ -832,8 +807,8 @@ xirc2ps_config(struct pcmcia_device * link)
 	goto failure;
     }
 
-    link->io.IOAddrLines =10;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
+    link->io_lines = 10;
     if (local->modem) {
 	int pass;
 
@@ -841,17 +816,16 @@ xirc2ps_config(struct pcmcia_device * link)
 	    link->conf.Attributes |= CONF_ENABLE_SPKR;
 	    link->conf.Status |= CCSR_AUDIO_ENA;
 	}
-	link->irq.Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
-	link->io.NumPorts2 = 8;
-	link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
+	link->resource[1]->end = 8;
+	link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 	if (local->dingo) {
 	    /* Take the Modem IO port from the CIS and scan for a free
 	     * Ethernet port */
-	    link->io.NumPorts1 = 16; /* no Mako stuff anymore */
+	    link->resource[0]->end = 16; /* no Mako stuff anymore */
 	    if (!pcmcia_loop_config(link, xirc2ps_config_modem, NULL))
 		    goto port_found;
 	} else {
-	    link->io.NumPorts1 = 18;
+	    link->resource[0]->end = 18;
 	    /* We do 2 passes here: The first one uses the regular mapping and
 	     * the second tries again, thereby considering that the 32 ports are
 	     * mirrored every 32 bytes. Actually we use a mirrored port for
@@ -866,15 +840,14 @@ xirc2ps_config(struct pcmcia_device * link)
 	}
 	printk(KNOT_XIRC "no ports available\n");
     } else {
-	link->irq.Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
-	link->io.NumPorts1 = 16;
+	link->resource[0]->end = 16;
 	for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
-	    link->io.BasePort1 = ioaddr;
-	    if (!(err=pcmcia_request_io(link, &link->io)))
+	    link->resource[0]->start = ioaddr;
+	    if (!(err = pcmcia_request_io(link)))
 		goto port_found;
 	}
-	link->io.BasePort1 = 0; /* let CS decide */
-	if ((err=pcmcia_request_io(link, &link->io)))
+	link->resource[0]->start = 0; /* let CS decide */
+	if ((err = pcmcia_request_io(link)))
 	    goto config_error;
     }
   port_found:
@@ -885,7 +858,7 @@ xirc2ps_config(struct pcmcia_device * link)
      * Now allocate an interrupt line.	Note that this does not
      * actually assign a handler to the interrupt.
      */
-    if ((err=pcmcia_request_irq(link, &link->irq)))
+    if ((err=pcmcia_request_irq(link, xirc2ps_interrupt)))
 	goto config_error;
 
     /****************
@@ -896,24 +869,21 @@ xirc2ps_config(struct pcmcia_device * link)
 	goto config_error;
 
     if (local->dingo) {
-	conf_reg_t reg;
 	win_req_t req;
-	memreq_t mem;
 
 	/* Reset the modem's BAR to the correct value
 	 * This is necessary because in the RequestConfiguration call,
 	 * the base address of the ethernet port (BasePort1) is written
 	 * to the BAR registers of the modem.
 	 */
-	reg.Action = CS_WRITE;
-	reg.Offset = CISREG_IOBASE_0;
-	reg.Value = link->io.BasePort2 & 0xff;
-	if ((err = pcmcia_access_configuration_register(link, &reg)))
+	err = pcmcia_write_config_byte(link, CISREG_IOBASE_0, (u8)
+				link->resource[1]->start & 0xff);
+	if (err)
 	    goto config_error;
-	reg.Action = CS_WRITE;
-	reg.Offset = CISREG_IOBASE_1;
-	reg.Value = (link->io.BasePort2 >> 8) & 0xff;
-	if ((err = pcmcia_access_configuration_register(link, &reg)))
+
+	err = pcmcia_write_config_byte(link, CISREG_IOBASE_1,
+				(link->resource[1]->start >> 8) & 0xff);
+	if (err)
 	    goto config_error;
 
 	/* There is no config entry for the Ethernet part which
@@ -927,16 +897,14 @@ xirc2ps_config(struct pcmcia_device * link)
 	    goto config_error;
 
 	local->dingo_ccr = ioremap(req.Base,0x1000) + 0x0800;
-	mem.CardOffset = 0x0;
-	mem.Page = 0;
-	if ((err = pcmcia_map_mem_page(link, link->win, &mem)))
+	if ((err = pcmcia_map_mem_page(link, link->win, 0)))
 	    goto config_error;
 
 	/* Setup the CCRs; there are no infos in the CIS about the Ethernet
 	 * part.
 	 */
 	writeb(0x47, local->dingo_ccr + CISREG_COR);
-	ioaddr = link->io.BasePort1;
+	ioaddr = link->resource[0]->start;
 	writeb(ioaddr & 0xff	  , local->dingo_ccr + CISREG_IOBASE_0);
 	writeb((ioaddr >> 8)&0xff , local->dingo_ccr + CISREG_IOBASE_1);
 
@@ -982,22 +950,18 @@ xirc2ps_config(struct pcmcia_device * link)
 	printk(KNOT_XIRC "invalid if_port requested\n");
 
     /* we can now register the device with the net subsystem */
-    dev->irq = link->irq.AssignedIRQ;
-    dev->base_addr = link->io.BasePort1;
+    dev->irq = link->irq;
+    dev->base_addr = link->resource[0]->start;
 
     if (local->dingo)
 	do_reset(dev, 1); /* a kludge to make the cem56 work */
 
-    link->dev_node = &local->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     if ((err=register_netdev(dev))) {
 	printk(KNOT_XIRC "register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto config_error;
     }
-
-    strcpy(local->node.dev_name, dev->name);
 
     /* give some infos about the hardware */
     printk(KERN_INFO "%s: %s: port %#3lx, irq %d, hwaddr %pM\n",
@@ -1295,7 +1259,7 @@ xirc2ps_tx_timeout_task(struct work_struct *work)
 	struct net_device *dev = local->dev;
     /* reset the card */
     do_reset(dev,1);
-    dev->trans_start = jiffies;
+    dev->trans_start = jiffies; /* prevent tx timeout */
     netif_wake_queue(dev);
 }
 
@@ -1358,10 +1322,34 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	PutByte(XIRCREG_CR, TransmitPacket|EnableIntr);
 
     dev_kfree_skb (skb);
-    dev->trans_start = jiffies;
     dev->stats.tx_bytes += pktlen;
     netif_start_queue(dev);
     return NETDEV_TX_OK;
+}
+
+struct set_address_info {
+	int reg_nr;
+	int page_nr;
+	int mohawk;
+	unsigned int ioaddr;
+};
+
+static void set_address(struct set_address_info *sa_info, char *addr)
+{
+	unsigned int ioaddr = sa_info->ioaddr;
+	int i;
+
+	for (i = 0; i < 6; i++) {
+		if (sa_info->reg_nr > 15) {
+			sa_info->reg_nr = 8;
+			sa_info->page_nr++;
+			SelectPage(sa_info->page_nr);
+		}
+		if (sa_info->mohawk)
+			PutByte(sa_info->reg_nr++, addr[5 - i]);
+		else
+			PutByte(sa_info->reg_nr++, addr[i]);
+	}
 }
 
 /****************
@@ -1369,42 +1357,33 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * the next 9 addresses are taken from the multicast list and
  * the rest is filled with the individual address.
  */
-static void
-set_addresses(struct net_device *dev)
+static void set_addresses(struct net_device *dev)
 {
-    unsigned int ioaddr = dev->base_addr;
-    local_info_t *lp = netdev_priv(dev);
-    struct dev_mc_list *dmi = dev->mc_list;
-    unsigned char *addr;
-    int i,j,k,n;
+	unsigned int ioaddr = dev->base_addr;
+	local_info_t *lp = netdev_priv(dev);
+	struct netdev_hw_addr *ha;
+	struct set_address_info sa_info;
+	int i;
 
-    SelectPage(k=0x50);
-    for (i=0,j=8,n=0; ; i++, j++) {
-	if (i > 5) {
-	    if (++n > 9)
-		break;
-	    i = 0;
-	    if (n > 1 && n <= dev->mc_count && dmi) {
-	   	 dmi = dmi->next;
-	    }
+	/*
+	 * Setup the info structure so that by first set_address call it will do
+	 * SelectPage with the right page number. Hence these ones here.
+	 */
+	sa_info.reg_nr = 15 + 1;
+	sa_info.page_nr = 0x50 - 1;
+	sa_info.mohawk = lp->mohawk;
+	sa_info.ioaddr = ioaddr;
+
+	set_address(&sa_info, dev->dev_addr);
+	i = 0;
+	netdev_for_each_mc_addr(ha, dev) {
+		if (i++ == 9)
+			break;
+		set_address(&sa_info, ha->addr);
 	}
-	if (j > 15) {
-	    j = 8;
-	    k++;
-	    SelectPage(k);
-	}
-
-	if (n && n <= dev->mc_count && dmi)
-	    addr = dmi->dmi_addr;
-	else
-	    addr = dev->dev_addr;
-
-	if (lp->mohawk)
-	    PutByte(j, addr[5-i]);
-	else
-	    PutByte(j, addr[i]);
-    }
-    SelectPage(0);
+	while (i++ < 9)
+		set_address(&sa_info, dev->dev_addr);
+	SelectPage(0);
 }
 
 /****************
@@ -1424,9 +1403,9 @@ set_multicast_list(struct net_device *dev)
 
     if (dev->flags & IFF_PROMISC) { /* snoop */
 	PutByte(XIRCREG42_SWC1, value | 0x06); /* set MPE and PME */
-    } else if (dev->mc_count > 9 || (dev->flags & IFF_ALLMULTI)) {
+    } else if (netdev_mc_count(dev) > 9 || (dev->flags & IFF_ALLMULTI)) {
 	PutByte(XIRCREG42_SWC1, value | 0x02); /* set MPE */
-    } else if (dev->mc_count) {
+    } else if (!netdev_mc_empty(dev)) {
 	/* the chip can filter 9 addresses perfectly */
 	PutByte(XIRCREG42_SWC1, value | 0x01);
 	SelectPage(0x40);

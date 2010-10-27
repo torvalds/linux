@@ -6,11 +6,9 @@
 #include <linux/swap.h>
 #include <linux/smp.h>
 #include <linux/highmem.h>
-#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
-#include <linux/quicklist.h>
 
 #include <asm/system.h>
 #include <asm/pgtable.h>
@@ -19,6 +17,7 @@
 #include <asm/e820.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
+#include <asm/io.h>
 
 unsigned int __VMALLOC_RESERVE = 128 << 20;
 
@@ -129,6 +128,7 @@ static int __init parse_reservetop(char *arg)
 
 	address = memparse(arg, &arg);
 	reserve_top_address(address);
+	fixup_early_ioremap();
 	return 0;
 }
 early_param("reservetop", parse_reservetop);

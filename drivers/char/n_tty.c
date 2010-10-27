@@ -48,6 +48,7 @@
 #include <linux/audit.h>
 #include <linux/file.h>
 #include <linux/uaccess.h>
+#include <linux/module.h>
 
 #include <asm/system.h>
 
@@ -1101,6 +1102,11 @@ static inline void n_tty_receive_char(struct tty_struct *tty, unsigned char c)
 	if (I_IUCLC(tty) && L_IEXTEN(tty))
 		c = tolower(c);
 
+	if (L_EXTPROC(tty)) {
+		put_tty_queue(c, tty);
+		return;
+	}
+
 	if (tty->stopped && !tty->flow_stopped && I_IXON(tty) &&
 	    I_IXANY(tty) && c != START_CHAR(tty) && c != STOP_CHAR(tty) &&
 	    c != INTR_CHAR(tty) && c != QUIT_CHAR(tty) && c != SUSP_CHAR(tty)) {
@@ -1408,7 +1414,8 @@ static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 
 	n_tty_set_room(tty);
 
-	if (!tty->icanon && (tty->read_cnt >= tty->minimum_to_wake)) {
+	if ((!tty->icanon && (tty->read_cnt >= tty->minimum_to_wake)) ||
+		L_EXTPROC(tty)) {
 		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
 		if (waitqueue_active(&tty->read_wait))
 			wake_up_interruptible(&tty->read_wait);
@@ -1584,7 +1591,7 @@ static int n_tty_open(struct tty_struct *tty)
 static inline int input_available_p(struct tty_struct *tty, int amt)
 {
 	tty_flush_to_ldisc(tty);
-	if (tty->icanon) {
+	if (tty->icanon && !L_EXTPROC(tty)) {
 		if (tty->canon_data)
 			return 1;
 	} else if (tty->read_cnt >= (amt ? amt : 1))
@@ -1631,6 +1638,11 @@ static int copy_from_read_buf(struct tty_struct *tty,
 		spin_lock_irqsave(&tty->read_lock, flags);
 		tty->read_tail = (tty->read_tail + n) & (N_TTY_BUF_SIZE-1);
 		tty->read_cnt -= n;
+		/* Turn single EOF into zero-length read */
+		if (L_EXTPROC(tty) && tty->icanon && n == 1) {
+			if (!tty->read_cnt && (*b)[n-1] == EOF_CHAR(tty))
+				n--;
+		}
 		spin_unlock_irqrestore(&tty->read_lock, flags);
 		*b += n;
 		*nr -= n;
@@ -1811,7 +1823,7 @@ do_it_again:
 			nr--;
 		}
 
-		if (tty->icanon) {
+		if (tty->icanon && !L_EXTPROC(tty)) {
 			/* N.B. avoid overrun if nr == 0 */
 			while (nr && tty->read_cnt) {
 				int eol;
@@ -2091,3 +2103,19 @@ struct tty_ldisc_ops tty_ldisc_N_TTY = {
 	.receive_buf     = n_tty_receive_buf,
 	.write_wakeup    = n_tty_write_wakeup
 };
+
+/**
+ *	n_tty_inherit_ops	-	inherit N_TTY methods
+ *	@ops: struct tty_ldisc_ops where to save N_TTY methods
+ *
+ *	Used by a generic struct tty_ldisc_ops to easily inherit N_TTY
+ *	methods.
+ */
+
+void n_tty_inherit_ops(struct tty_ldisc_ops *ops)
+{
+	*ops = tty_ldisc_N_TTY;
+	ops->owner = NULL;
+	ops->refcount = ops->flags = 0;
+}
+EXPORT_SYMBOL_GPL(n_tty_inherit_ops);

@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/fb.h>
-#include <linux/slab.h>
 #include <asm/types.h>
 #include <asm/io.h>
 #include "fb_draw.h"

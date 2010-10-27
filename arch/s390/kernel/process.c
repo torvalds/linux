@@ -16,9 +16,9 @@
 #include <linux/fs.h>
 #include <linux/smp.h>
 #include <linux/stddef.h>
+#include <linux/slab.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/user.h>
 #include <linux/interrupt.h>
@@ -267,8 +267,9 @@ asmlinkage void execve_tail(void)
 /*
  * sys_execve() executes a new program.
  */
-SYSCALL_DEFINE3(execve, char __user *, name, char __user * __user *, argv,
-		char __user * __user *, envp)
+SYSCALL_DEFINE3(execve, const char __user *, name,
+		const char __user *const __user *, argv,
+		const char __user *const __user *, envp)
 {
 	struct pt_regs *regs = task_pt_regs(current);
 	char *filename;

@@ -78,7 +78,7 @@ static unsigned long sis_sman_mm_offset(void *private, void *ref)
 #else /* CONFIG_FB_SIS[_MODULE] */
 
 #define SIS_MM_ALIGN_SHIFT 4
-#define SIS_MM_ALIGN_MASK ( (1 << SIS_MM_ALIGN_SHIFT) - 1)
+#define SIS_MM_ALIGN_MASK ((1 << SIS_MM_ALIGN_SHIFT) - 1)
 
 #endif /* CONFIG_FB_SIS[_MODULE] */
 
@@ -225,9 +225,8 @@ static drm_local_map_t *sis_reg_init(struct drm_device *dev)
 		map = entry->map;
 		if (!map)
 			continue;
-		if (map->type == _DRM_REGISTERS) {
+		if (map->type == _DRM_REGISTERS)
 			return map;
-		}
 	}
 	return NULL;
 }
@@ -264,10 +263,10 @@ int sis_idle(struct drm_device *dev)
 
 	end = jiffies + (DRM_HZ * 3);
 
-	for (i=0; i<4; ++i) {
+	for (i = 0; i < 4; ++i) {
 		do {
 			idle_reg = SIS_READ(0x85cc);
-		} while ( !time_after_eq(jiffies, end) &&
+		} while (!time_after_eq(jiffies, end) &&
 			  ((idle_reg & 0x80000000) != 0x80000000));
 	}
 
@@ -301,7 +300,7 @@ void sis_lastclose(struct drm_device *dev)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-void sis_reclaim_buffers_locked(struct drm_device * dev,
+void sis_reclaim_buffers_locked(struct drm_device *dev,
 				struct drm_file *file_priv)
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
@@ -312,9 +311,8 @@ void sis_reclaim_buffers_locked(struct drm_device * dev,
 		return;
 	}
 
-	if (dev->driver->dma_quiescent) {
+	if (dev->driver->dma_quiescent)
 		dev->driver->dma_quiescent(dev);
-	}
 
 	drm_sman_owner_cleanup(&dev_priv->sman, (unsigned long)file_priv);
 	mutex_unlock(&dev->struct_mutex);
@@ -322,12 +320,12 @@ void sis_reclaim_buffers_locked(struct drm_device * dev,
 }
 
 struct drm_ioctl_desc sis_ioctls[] = {
-	DRM_IOCTL_DEF(DRM_SIS_FB_ALLOC, sis_fb_alloc, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_SIS_FB_FREE, sis_drm_free, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_SIS_AGP_INIT, sis_ioctl_agp_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF(DRM_SIS_AGP_ALLOC, sis_ioctl_agp_alloc, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_SIS_AGP_FREE, sis_drm_free, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_SIS_FB_INIT, sis_fb_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(SIS_FB_ALLOC, sis_fb_alloc, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(SIS_FB_FREE, sis_drm_free, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(SIS_AGP_INIT, sis_ioctl_agp_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(SIS_AGP_ALLOC, sis_ioctl_agp_alloc, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(SIS_AGP_FREE, sis_drm_free, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(SIS_FB_INIT, sis_fb_init, DRM_AUTH | DRM_MASTER | DRM_ROOT_ONLY),
 };
 
 int sis_max_ioctl = DRM_ARRAY_SIZE(sis_ioctls);

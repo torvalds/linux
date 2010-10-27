@@ -8,6 +8,7 @@
  * GNU General Public Licence
  */
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/maple.h>

@@ -42,6 +42,7 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <mach/hardware.h>
 #include <plat/prcm.h>
 

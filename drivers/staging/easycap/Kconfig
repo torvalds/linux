@@ -1,0 +1,17 @@
+config EASYCAP
+	tristate "EasyCAP USB ID 05e1:0408 support"
+	depends on USB && VIDEO_DEV
+
+	---help---
+	  This is an integrated audio/video driver for EasyCAP cards with
+	  USB ID 05e1:0408.  It supports two hardware variants:
+
+	  *  EasyCAP USB 2.0 Video Adapter with Audio, Model DC60,
+	     having input cables labelled CVBS, S-VIDEO, AUDIO(L), AUDIO(R)
+
+	  *  EasyCAP002 4-Channel USB 2.0 DVR, having input cables labelled
+	     1, 2, 3, 4 and an unlabelled input cable for a microphone.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called easycap
+

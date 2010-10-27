@@ -82,9 +82,10 @@ static inline void cleanup_fault_attr_dentries(struct fault_attr *attr)
 #endif /* CONFIG_FAULT_INJECTION */
 
 #ifdef CONFIG_FAILSLAB
-extern bool should_failslab(size_t size, gfp_t gfpflags);
+extern bool should_failslab(size_t size, gfp_t gfpflags, unsigned long flags);
 #else
-static inline bool should_failslab(size_t size, gfp_t gfpflags)
+static inline bool should_failslab(size_t size, gfp_t gfpflags,
+				unsigned long flags)
 {
 	return false;
 }

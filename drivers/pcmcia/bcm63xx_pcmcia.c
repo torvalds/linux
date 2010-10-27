@@ -11,6 +11,7 @@
 #include <linux/ioport.h>
 #include <linux/timer.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/gpio.h>

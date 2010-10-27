@@ -31,8 +31,6 @@ static void stmmac_timer_handler(void *data)
 	struct net_device *dev = (struct net_device *)data;
 
 	stmmac_schedule(dev);
-
-	return;
 }
 
 #define STMMAC_TIMER_MSG(timer, freq) \
@@ -47,13 +45,11 @@ static void stmmac_rtc_start(unsigned int new_freq)
 {
 	rtc_irq_set_freq(stmmac_rtc, &stmmac_task, new_freq);
 	rtc_irq_set_state(stmmac_rtc, &stmmac_task, 1);
-	return;
 }
 
 static void stmmac_rtc_stop(void)
 {
 	rtc_irq_set_state(stmmac_rtc, &stmmac_task, 0);
-	return;
 }
 
 int stmmac_open_ext_timer(struct net_device *dev, struct stmmac_timer *tm)
@@ -102,13 +98,11 @@ static void stmmac_tmu_start(unsigned int new_freq)
 {
 	clk_set_rate(timer_clock, new_freq);
 	clk_enable(timer_clock);
-	return;
 }
 
 static void stmmac_tmu_stop(void)
 {
 	clk_disable(timer_clock);
-	return;
 }
 
 int stmmac_open_ext_timer(struct net_device *dev, struct stmmac_timer *tm)

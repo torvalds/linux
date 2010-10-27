@@ -174,7 +174,7 @@ static u32 compress_sliced_buf(struct cx18 *cx, u8 *buf, u32 size,
 		     p[3] != sliced_vbi_eav_rp[1]))
 			continue;
 		vbi.p = p + 4;
-		v4l2_subdev_call(cx->sd_av, video, decode_vbi_line, &vbi);
+		v4l2_subdev_call(cx->sd_av, vbi, decode_vbi_line, &vbi);
 		if (vbi.type) {
 			cx->vbi.sliced_data[line].id = vbi.type;
 			cx->vbi.sliced_data[line].field = vbi.is_second_field;

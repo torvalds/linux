@@ -15,6 +15,7 @@
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
 #include <linux/bitmap.h>
+#include <linux/slab.h>
 
 /* Mark the filesystem dirty, so that chkdsk checks it when os/2 booted */
 
@@ -449,7 +450,7 @@ static const struct super_operations hpfs_sops =
 {
 	.alloc_inode	= hpfs_alloc_inode,
 	.destroy_inode	= hpfs_destroy_inode,
-	.delete_inode	= hpfs_delete_inode,
+	.evict_inode	= hpfs_evict_inode,
 	.put_super	= hpfs_put_super,
 	.statfs		= hpfs_statfs,
 	.remount_fs	= hpfs_remount_fs,

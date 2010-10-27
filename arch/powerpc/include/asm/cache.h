@@ -12,8 +12,12 @@
 #define L1_CACHE_SHIFT		6
 #define MAX_COPY_PREFETCH	4
 #elif defined(CONFIG_PPC32)
-#define L1_CACHE_SHIFT		5
 #define MAX_COPY_PREFETCH	4
+#if defined(CONFIG_PPC_47x)
+#define L1_CACHE_SHIFT		7
+#else
+#define L1_CACHE_SHIFT		5
+#endif
 #else /* CONFIG_PPC64 */
 #define L1_CACHE_SHIFT		7
 #endif

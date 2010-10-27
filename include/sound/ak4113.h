@@ -307,7 +307,7 @@ struct ak4113 {
 
 int snd_ak4113_create(struct snd_card *card, ak4113_read_t *read,
 		ak4113_write_t *write,
-		const unsigned char pgm[AK4113_WRITABLE_REGS],
+		const unsigned char *pgm,
 		void *private_data, struct ak4113 **r_ak4113);
 void snd_ak4113_reg_write(struct ak4113 *ak4113, unsigned char reg,
 		unsigned char mask, unsigned char val);

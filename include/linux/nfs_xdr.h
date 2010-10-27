@@ -196,8 +196,10 @@ struct nfs_openargs {
 	__u64                   clientid;
 	__u64                   id;
 	union {
-		struct iattr *  attrs;    /* UNCHECKED, GUARDED */
-		nfs4_verifier   verifier; /* EXCLUSIVE */
+		struct {
+			struct iattr *  attrs;    /* UNCHECKED, GUARDED */
+			nfs4_verifier   verifier; /* EXCLUSIVE */
+		};
 		nfs4_stateid	delegation;		/* CLAIM_DELEGATE_CUR */
 		fmode_t		delegation_type;	/* CLAIM_PREVIOUS */
 	} u;
@@ -313,6 +315,10 @@ struct nfs_lockt_res {
 	struct nfs4_sequence_res	seq_res;
 };
 
+struct nfs_release_lockowner_args {
+	struct nfs_lowner	lock_owner;
+};
+
 struct nfs4_delegreturnargs {
 	const struct nfs_fh *fhandle;
 	const nfs4_stateid *stateid;
@@ -332,6 +338,7 @@ struct nfs4_delegreturnres {
 struct nfs_readargs {
 	struct nfs_fh *		fh;
 	struct nfs_open_context *context;
+	struct nfs_lock_context *lock_context;
 	__u64			offset;
 	__u32			count;
 	unsigned int		pgbase;
@@ -352,6 +359,7 @@ struct nfs_readres {
 struct nfs_writeargs {
 	struct nfs_fh *		fh;
 	struct nfs_open_context *context;
+	struct nfs_lock_context *lock_context;
 	__u64			offset;
 	__u32			count;
 	enum nfs3_stable_how	stable;
@@ -386,8 +394,8 @@ struct nfs_removeargs {
 
 struct nfs_removeres {
 	const struct nfs_server *server;
+	struct nfs_fattr	*dir_attr;
 	struct nfs4_change_info	cinfo;
-	struct nfs_fattr	dir_attr;
 	struct nfs4_sequence_res 	seq_res;
 };
 
@@ -822,6 +830,11 @@ struct nfs4_setclientid {
 	unsigned int			sc_uaddr_len;
 	char				sc_uaddr[RPCBIND_MAXUADDRLEN + 1];
 	u32				sc_cb_ident;
+};
+
+struct nfs4_setclientid_res {
+	u64				clientid;
+	nfs4_verifier			confirm;
 };
 
 struct nfs4_statfs_arg {

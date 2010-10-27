@@ -24,7 +24,7 @@
  *                                                                       *
  *************************************************************************
 
- 	Module Name:
+	Module Name:
 	rtusb_io.c
 
 	Abstract:
@@ -84,7 +84,7 @@ static int RTUSBFirmwareRun(struct rt_rtmp_adapter *pAd)
 	========================================================================
 */
 int RTUSBFirmwareWrite(struct rt_rtmp_adapter *pAd,
-			    u8 *pFwImage, unsigned long FwLen)
+		       const u8 *pFwImage, unsigned long FwLen)
 {
 	u32 MacReg;
 	int Status;
@@ -167,7 +167,7 @@ int RTUSBMultiRead(struct rt_rtmp_adapter *pAd,
 	========================================================================
 */
 int RTUSBMultiWrite_OneByte(struct rt_rtmp_adapter *pAd,
-				 u16 Offset, u8 *pData)
+			    u16 Offset, const u8 *pData)
 {
 	int Status;
 
@@ -175,18 +175,18 @@ int RTUSBMultiWrite_OneByte(struct rt_rtmp_adapter *pAd,
 	Status = RTUSB_VendorRequest(pAd,
 				     USBD_TRANSFER_DIRECTION_OUT,
 				     DEVICE_VENDOR_REQUEST_OUT,
-				     0x6, 0, Offset, pData, 1);
+				     0x6, 0, Offset, (u8 *)pData, 1);
 
 	return Status;
 }
 
 int RTUSBMultiWrite(struct rt_rtmp_adapter *pAd,
-			 u16 Offset, u8 *pData, u16 length)
+		    u16 Offset, const u8 *pData, u16 length)
 {
 	int Status;
 
 	u16 index = 0, Value;
-	u8 *pSrc = pData;
+	const u8 *pSrc = pData;
 	u16 resude = 0;
 
 	resude = length % 2;
@@ -400,8 +400,7 @@ int RTUSBWriteBBPRegister(struct rt_rtmp_adapter *pAd,
 			 ("RTUSBWriteBBPRegister(BBP_CSR_CFG):retry count=%d!\n",
 			  i));
 		i++;
-	}
-	while ((i < RETRY_LIMIT)
+	} while ((i < RETRY_LIMIT)
 	       && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)));
 
 	if ((i == RETRY_LIMIT)
@@ -455,8 +454,7 @@ int RTUSBWriteRFRegister(struct rt_rtmp_adapter *pAd, u32 Value)
 			 ("RTUSBWriteRFRegister(RF_CSR_CFG0):retry count=%d!\n",
 			  i));
 		i++;
-	}
-	while ((i < RETRY_LIMIT)
+	} while ((i < RETRY_LIMIT)
 	       && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)));
 
 	if ((i == RETRY_LIMIT)
@@ -652,11 +650,11 @@ int RTUSBEnqueueCmdFromNdis(struct rt_rtmp_adapter *pAd,
 	}
 	else
 #endif
-	return (NDIS_STATUS_RESOURCES);
+	return NDIS_STATUS_RESOURCES;
 
 	status = os_alloc_mem(pAd, (u8 **) (&cmdqelmt), sizeof(struct rt_cmdqelmt));
 	if ((status != NDIS_STATUS_SUCCESS) || (cmdqelmt == NULL))
-		return (NDIS_STATUS_RESOURCES);
+		return NDIS_STATUS_RESOURCES;
 
 	cmdqelmt->buffer = NULL;
 	if (pInformationBuffer != NULL) {
@@ -666,7 +664,7 @@ int RTUSBEnqueueCmdFromNdis(struct rt_rtmp_adapter *pAd,
 		if ((status != NDIS_STATUS_SUCCESS)
 		    || (cmdqelmt->buffer == NULL)) {
 			kfree(cmdqelmt);
-			return (NDIS_STATUS_RESOURCES);
+			return NDIS_STATUS_RESOURCES;
 		} else {
 			NdisMoveMemory(cmdqelmt->buffer, pInformationBuffer,
 				       InformationBufferLength);
@@ -698,7 +696,7 @@ int RTUSBEnqueueCmdFromNdis(struct rt_rtmp_adapter *pAd,
 	} else
 		RTUSBCMDUp(pAd);
 
-	return (NDIS_STATUS_SUCCESS);
+	return NDIS_STATUS_SUCCESS;
 }
 
 /*
@@ -726,7 +724,7 @@ int RTUSBEnqueueInternalCmd(struct rt_rtmp_adapter *pAd,
 
 	status = os_alloc_mem(pAd, (u8 **) & cmdqelmt, sizeof(struct rt_cmdqelmt));
 	if ((status != NDIS_STATUS_SUCCESS) || (cmdqelmt == NULL))
-		return (NDIS_STATUS_RESOURCES);
+		return NDIS_STATUS_RESOURCES;
 	NdisZeroMemory(cmdqelmt, sizeof(struct rt_cmdqelmt));
 
 	if (InformationBufferLength > 0) {
@@ -736,7 +734,7 @@ int RTUSBEnqueueInternalCmd(struct rt_rtmp_adapter *pAd,
 		if ((status != NDIS_STATUS_SUCCESS)
 		    || (cmdqelmt->buffer == NULL)) {
 			os_free_mem(pAd, cmdqelmt);
-			return (NDIS_STATUS_RESOURCES);
+			return NDIS_STATUS_RESOURCES;
 		} else {
 			NdisMoveMemory(cmdqelmt->buffer, pInformationBuffer,
 				       InformationBufferLength);
@@ -767,7 +765,7 @@ int RTUSBEnqueueInternalCmd(struct rt_rtmp_adapter *pAd,
 		} else
 			RTUSBCMDUp(pAd);
 	}
-	return (NDIS_STATUS_SUCCESS);
+	return NDIS_STATUS_SUCCESS;
 }
 
 /*
@@ -1071,7 +1069,7 @@ void CMDHandler(struct rt_rtmp_adapter *pAd)
 								     TXRXQ_PCNT,
 								     &MACValue);
 						if ((MACValue & 0xf00000
-						     /*0x800000 */ ) == 0)
+						     /*0x800000 */) == 0)
 							break;
 						Index++;
 						RTMPusecDelay(10000);
@@ -1169,11 +1167,10 @@ void CMDHandler(struct rt_rtmp_adapter *pAd)
 								     (usb_complete_t)
 								     RTUSBBulkOutDataPacketComplete);
 
-								if ((ret =
-								     RTUSB_SUBMIT_URB
+								ret = RTUSB_SUBMIT_URB
 								     (pHTTXContext->
-								      pUrb)) !=
-								    0) {
+								      pUrb);
+								if (ret != 0) {
 									RTMP_INT_LOCK
 									    (&pAd->
 									     BulkOutLock
@@ -1406,15 +1403,13 @@ void CMDHandler(struct rt_rtmp_adapter *pAd)
 				/* All transfers must be aborted or cancelled before attempting to reset the pipe. */
 				{
 					u32 MACValue;
-
 					{
 						/*while ((atomic_read(&pAd->PendingRx) > 0) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST))) */
 						if ((pAd->PendingRx > 0)
 						    &&
 						    (!RTMP_TEST_FLAG
 						     (pAd,
-						      fRTMP_ADAPTER_NIC_NOT_EXIST)))
-						{
+						      fRTMP_ADAPTER_NIC_NOT_EXIST))) {
 							DBGPRINT_RAW
 							    (RT_DEBUG_ERROR,
 							     ("BulkIn IRP Pending!!!\n"));
@@ -1424,7 +1419,6 @@ void CMDHandler(struct rt_rtmp_adapter *pAd)
 							pAd->PendingRx = 0;
 						}
 					}
-
 					/* Wait 10ms before reading register. */
 					RTMPusecDelay(10000);
 					ntStatus =
@@ -1545,7 +1539,8 @@ void CMDHandler(struct rt_rtmp_adapter *pAd)
 							RTUSBInitRxDesc(pAd,
 									pRxContext);
 							pUrb = pRxContext->pUrb;
-							if ((ret = RTUSB_SUBMIT_URB(pUrb)) != 0) {	/* fail */
+							ret = RTUSB_SUBMIT_URB(pUrb);
+							if (ret != 0) {	/* fail */
 
 								RTMP_IRQ_LOCK
 								    (&pAd->

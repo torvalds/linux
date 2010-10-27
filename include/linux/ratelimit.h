@@ -2,7 +2,7 @@
 #define _LINUX_RATELIMIT_H
 
 #include <linux/param.h>
-#include <linux/spinlock_types.h>
+#include <linux/spinlock.h>
 
 #define DEFAULT_RATELIMIT_INTERVAL	(5 * HZ)
 #define DEFAULT_RATELIMIT_BURST		10
@@ -24,6 +24,17 @@ struct ratelimit_state {
 		.interval	= interval_init,			\
 		.burst		= burst_init,				\
 	}
+
+static inline void ratelimit_state_init(struct ratelimit_state *rs,
+					int interval, int burst)
+{
+	spin_lock_init(&rs->lock);
+	rs->interval = interval;
+	rs->burst = burst;
+	rs->printed = 0;
+	rs->missed = 0;
+	rs->begin = 0;
+}
 
 extern int ___ratelimit(struct ratelimit_state *rs, const char *func);
 #define __ratelimit(state) ___ratelimit(state, __func__)

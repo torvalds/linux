@@ -125,7 +125,7 @@ struct irda_class_desc {
 	__u8  bmAdditionalBOFs;
 	__u8  bIrdaRateSniff;
 	__u8  bMaxUnicastList;
-} __attribute__ ((packed));
+} __packed;
 
 /* class specific interface request to get the IrDA-USB class descriptor
  * (6.2.5, USB-IrDA class spec 1.0) */

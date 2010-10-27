@@ -23,6 +23,7 @@
 #include <linux/crc32.h>
 
 #include <scsi/libfc.h>
+#include <scsi/fc_encode.h>
 
 #include "fc_libfc.h"
 
@@ -132,3 +133,80 @@ u32 fc_copy_buffer_to_sglist(void *buf, size_t len,
 	}
 	return copy_len;
 }
+
+/**
+ * fc_fill_hdr() -  fill FC header fields based on request
+ * @fp: reply frame containing header to be filled in
+ * @in_fp: request frame containing header to use in filling in reply
+ * @r_ctl: R_CTL value for header
+ * @f_ctl: F_CTL value for header, with 0 pad
+ * @seq_cnt: sequence count for the header, ignored if frame has a sequence
+ * @parm_offset: parameter / offset value
+ */
+void fc_fill_hdr(struct fc_frame *fp, const struct fc_frame *in_fp,
+		 enum fc_rctl r_ctl, u32 f_ctl, u16 seq_cnt, u32 parm_offset)
+{
+	struct fc_frame_header *fh;
+	struct fc_frame_header *in_fh;
+	struct fc_seq *sp;
+	u32 fill;
+
+	fh = __fc_frame_header_get(fp);
+	in_fh = __fc_frame_header_get(in_fp);
+
+	if (f_ctl & FC_FC_END_SEQ) {
+		fill = -fr_len(fp) & 3;
+		if (fill) {
+			/* TODO, this may be a problem with fragmented skb */
+			memset(skb_put(fp_skb(fp), fill), 0, fill);
+			f_ctl |= fill;
+		}
+		fr_eof(fp) = FC_EOF_T;
+	} else {
+		WARN_ON(fr_len(fp) % 4 != 0);	/* no pad to non last frame */
+		fr_eof(fp) = FC_EOF_N;
+	}
+
+	fh->fh_r_ctl = r_ctl;
+	memcpy(fh->fh_d_id, in_fh->fh_s_id, sizeof(fh->fh_d_id));
+	memcpy(fh->fh_s_id, in_fh->fh_d_id, sizeof(fh->fh_s_id));
+	fh->fh_type = in_fh->fh_type;
+	hton24(fh->fh_f_ctl, f_ctl);
+	fh->fh_ox_id = in_fh->fh_ox_id;
+	fh->fh_rx_id = in_fh->fh_rx_id;
+	fh->fh_cs_ctl = 0;
+	fh->fh_df_ctl = 0;
+	fh->fh_parm_offset = htonl(parm_offset);
+
+	sp = fr_seq(in_fp);
+	if (sp) {
+		fr_seq(fp) = sp;
+		fh->fh_seq_id = sp->id;
+		seq_cnt = sp->cnt;
+	} else {
+		fh->fh_seq_id = 0;
+	}
+	fh->fh_seq_cnt = ntohs(seq_cnt);
+	fr_sof(fp) = seq_cnt ? FC_SOF_N3 : FC_SOF_I3;
+	fr_encaps(fp) = fr_encaps(in_fp);
+}
+EXPORT_SYMBOL(fc_fill_hdr);
+
+/**
+ * fc_fill_reply_hdr() -  fill FC reply header fields based on request
+ * @fp: reply frame containing header to be filled in
+ * @in_fp: request frame containing header to use in filling in reply
+ * @r_ctl: R_CTL value for reply
+ * @parm_offset: parameter / offset value
+ */
+void fc_fill_reply_hdr(struct fc_frame *fp, const struct fc_frame *in_fp,
+		       enum fc_rctl r_ctl, u32 parm_offset)
+{
+	struct fc_seq *sp;
+
+	sp = fr_seq(in_fp);
+	if (sp)
+		fr_seq(fp) = fr_dev(in_fp)->tt.seq_start_next(sp);
+	fc_fill_hdr(fp, in_fp, r_ctl, FC_FCTL_RESP, 0, parm_offset);
+}
+EXPORT_SYMBOL(fc_fill_reply_hdr);

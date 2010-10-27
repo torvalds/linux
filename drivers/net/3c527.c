@@ -729,14 +729,14 @@ static void mc32_halt_transceiver(struct net_device *dev)
  *	mc32_load_rx_ring	-	load the ring of receive buffers
  *	@dev: 3c527 to build the ring for
  *
- *	This initalises the on-card and driver datastructures to
+ *	This initialises the on-card and driver datastructures to
  *	the point where mc32_start_transceiver() can be called.
  *
  *	The card sets up the receive ring for us. We are required to use the
  *	ring it provides, although the size of the ring is configurable.
  *
  * 	We allocate an sk_buff for each ring entry in turn and
- * 	initalise its house-keeping info. At the same time, we read
+ * 	initialise its house-keeping info. At the same time, we read
  * 	each 'next' pointer in our rx_ring array. This reduces slow
  * 	shared-memory reads and makes it easy to access predecessor
  * 	descriptors.
@@ -1526,32 +1526,29 @@ static void do_mc32_set_multicast_list(struct net_device *dev, int retry)
 
 	if ((dev->flags&IFF_PROMISC) ||
 	    (dev->flags&IFF_ALLMULTI) ||
-	    dev->mc_count > 10)
+	    netdev_mc_count(dev) > 10)
 		/* Enable promiscuous mode */
 		filt |= 1;
-	else if(dev->mc_count)
+	else if (!netdev_mc_empty(dev))
 	{
 		unsigned char block[62];
 		unsigned char *bp;
-		struct dev_mc_list *dmc=dev->mc_list;
-
-		int i;
+		struct netdev_hw_addr *ha;
 
 		if(retry==0)
 			lp->mc_list_valid = 0;
 		if(!lp->mc_list_valid)
 		{
 			block[1]=0;
-			block[0]=dev->mc_count;
+			block[0]=netdev_mc_count(dev);
 			bp=block+2;
 
-			for(i=0;i<dev->mc_count;i++)
-			{
-				memcpy(bp, dmc->dmi_addr, 6);
+			netdev_for_each_mc_addr(ha, dev) {
+				memcpy(bp, ha->addr, 6);
 				bp+=6;
-				dmc=dmc->next;
 			}
-			if(mc32_command_nowait(dev, 2, block, 2+6*dev->mc_count)==-1)
+			if(mc32_command_nowait(dev, 2, block,
+					       2+6*netdev_mc_count(dev))==-1)
 			{
 				lp->mc_reload_wait = 1;
 				return;

@@ -55,11 +55,11 @@ struct sdhci_of_data sdhci_hlwd = {
 	.quirks = SDHCI_QUIRK_32BIT_DMA_ADDR |
 		  SDHCI_QUIRK_32BIT_DMA_SIZE,
 	.ops = {
-		.readl = sdhci_be32bs_readl,
-		.readw = sdhci_be32bs_readw,
-		.readb = sdhci_be32bs_readb,
-		.writel = sdhci_hlwd_writel,
-		.writew = sdhci_hlwd_writew,
-		.writeb = sdhci_hlwd_writeb,
+		.read_l = sdhci_be32bs_readl,
+		.read_w = sdhci_be32bs_readw,
+		.read_b = sdhci_be32bs_readb,
+		.write_l = sdhci_hlwd_writel,
+		.write_w = sdhci_hlwd_writew,
+		.write_b = sdhci_hlwd_writeb,
 	},
 };

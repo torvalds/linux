@@ -68,26 +68,15 @@ struct genl_info {
 #endif
 };
 
-#ifdef CONFIG_NET_NS
 static inline struct net *genl_info_net(struct genl_info *info)
 {
-	return info->_net;
+	return read_pnet(&info->_net);
 }
 
 static inline void genl_info_net_set(struct genl_info *info, struct net *net)
 {
-	info->_net = net;
+	write_pnet(&info->_net, net);
 }
-#else
-static inline struct net *genl_info_net(struct genl_info *info)
-{
-	return &init_net;
-}
-
-static inline void genl_info_net_set(struct genl_info *info, struct net *net)
-{
-}
-#endif
 
 /**
  * struct genl_ops - generic netlink operations

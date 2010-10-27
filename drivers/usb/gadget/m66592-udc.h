@@ -537,35 +537,35 @@ struct m66592 {
 /*-------------------------------------------------------------------------*/
 static inline u16 m66592_read(struct m66592 *m66592, unsigned long offset)
 {
-	return inw((unsigned long)m66592->reg + offset);
+	return ioread16(m66592->reg + offset);
 }
 
 static inline void m66592_read_fifo(struct m66592 *m66592,
 		unsigned long offset,
 		void *buf, unsigned long len)
 {
-	unsigned long fifoaddr = (unsigned long)m66592->reg + offset;
+	void __iomem *fifoaddr = m66592->reg + offset;
 
 	if (m66592->pdata->on_chip) {
 		len = (len + 3) / 4;
-		insl(fifoaddr, buf, len);
+		ioread32_rep(fifoaddr, buf, len);
 	} else {
 		len = (len + 1) / 2;
-		insw(fifoaddr, buf, len);
+		ioread16_rep(fifoaddr, buf, len);
 	}
 }
 
 static inline void m66592_write(struct m66592 *m66592, u16 val,
 				unsigned long offset)
 {
-	outw(val, (unsigned long)m66592->reg + offset);
+	iowrite16(val, m66592->reg + offset);
 }
 
 static inline void m66592_write_fifo(struct m66592 *m66592,
 		unsigned long offset,
 		void *buf, unsigned long len)
 {
-	unsigned long fifoaddr = (unsigned long)m66592->reg + offset;
+	void __iomem *fifoaddr = m66592->reg + offset;
 
 	if (m66592->pdata->on_chip) {
 		unsigned long count;
@@ -573,25 +573,25 @@ static inline void m66592_write_fifo(struct m66592 *m66592,
 		int i;
 
 		count = len / 4;
-		outsl(fifoaddr, buf, count);
+		iowrite32_rep(fifoaddr, buf, count);
 
 		if (len & 0x00000003) {
 			pb = buf + count * 4;
 			for (i = 0; i < (len & 0x00000003); i++) {
 				if (m66592_read(m66592, M66592_CFBCFG))	/* le */
-					outb(pb[i], fifoaddr + (3 - i));
+					iowrite8(pb[i], fifoaddr + (3 - i));
 				else
-					outb(pb[i], fifoaddr + i);
+					iowrite8(pb[i], fifoaddr + i);
 			}
 		}
 	} else {
 		unsigned long odd = len & 0x0001;
 
 		len = len / 2;
-		outsw(fifoaddr, buf, len);
+		iowrite16_rep(fifoaddr, buf, len);
 		if (odd) {
 			unsigned char *p = buf + len*2;
-			outb(*p, fifoaddr);
+			iowrite8(*p, fifoaddr);
 		}
 	}
 }

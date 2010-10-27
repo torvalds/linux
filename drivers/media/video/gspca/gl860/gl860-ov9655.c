@@ -69,7 +69,7 @@ static u8 *tbl_640[] = {
 	"\xd0\x01\xd1\x08\xd2\xe0\xd3\x01" "\xd4\x10\xd5\x80"
 };
 
-static u8 *tbl_800[] = {
+static u8 *tbl_1280[] = {
 	"\x00\x40\x07\x6a\x06\xf3\x0d\x6a" "\x10\x10\xc1\x01"
 	,
 	"\x12\x80\x00\x00\x01\x98\x02\x80" "\x03\x12\x04\x01\x0b\x57\x0e\x61"
@@ -217,7 +217,7 @@ static int ov9655_init_post_alt(struct gspca_dev *gspca_dev)
 
 	ctrl_out(gspca_dev, 0x40, 5, 0x0001, 0x0000, 0, NULL);
 
-	tbl = (reso == IMAGE_640) ? tbl_640 : tbl_800;
+	tbl = (reso == IMAGE_640) ? tbl_640 : tbl_1280;
 
 	ctrl_out(gspca_dev, 0x40, 3, 0x0000, 0x0200,
 			tbl_length[0], tbl[0]);

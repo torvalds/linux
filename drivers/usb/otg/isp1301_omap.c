@@ -1654,7 +1654,7 @@ static int __init isp_init(void)
 {
 	return i2c_add_driver(&isp1301_driver);
 }
-module_init(isp_init);
+subsys_initcall(isp_init);
 
 static void __exit isp_exit(void)
 {

@@ -22,23 +22,18 @@
 
 /*
  * FCoE - Fibre Channel over Ethernet.
+ * See T11 FC-BB-5 Rev 2.00 (09-056v5.pdf)
  */
 
 /*
- * FC_FCOE_OUI hasn't been standardized yet.   XXX TBD.
+ * Default FC_FCOE_OUI / FC-MAP value.
  */
-#ifndef FC_FCOE_OUI
-#define	FC_FCOE_OUI	0x0efc00	/* upper 24 bits of FCOE dest MAC TBD */
-#endif
+#define	FC_FCOE_OUI	0x0efc00	/* upper 24 bits of FCOE MAC */
 
 /*
- * The destination MAC address for the fabric login may get a different OUI.
- * This isn't standardized yet.
+ * Fabric Login (FLOGI) MAC for non-FIP use.  Non-FIP use is deprecated.
  */
-#ifndef FC_FCOE_FLOGI_MAC
-/* gateway MAC - TBD */
 #define	FC_FCOE_FLOGI_MAC { 0x0e, 0xfc, 0x00, 0xff, 0xff, 0xfe }
-#endif
 
 #define	FC_FCOE_VER	0			/* version */
 
@@ -51,8 +46,6 @@
 
 /*
  * FCoE frame header - 14 bytes
- *
- * This is the August 2007 version of the FCoE header as defined by T11.
  * This follows the VLAN header, which includes the ethertype.
  */
 struct fcoe_hdr {

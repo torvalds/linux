@@ -1,0 +1,8 @@
+- All drivers should either be ported to ir-core, or dropped entirely
+  (see drivers/media/IR/mceusb.c vs. lirc_mceusb.c in lirc cvs for an
+  example of a previously completed port).
+
+Please send patches to:
+Jarod Wilson <jarod@wilsonet.com>
+Greg Kroah-Hartman <greg@kroah.com>
+

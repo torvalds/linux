@@ -300,7 +300,7 @@ static int jdvbt90502_set_frontend(struct dvb_frontend *fe,
 				   struct dvb_frontend_parameters *p)
 {
 	/**
-	 * NOTE: ignore all the paramters except frequency.
+	 * NOTE: ignore all the parameters except frequency.
 	 *       others should be fixed to the proper value for ISDB-T,
 	 *       but don't check here.
 	 */
@@ -366,7 +366,7 @@ static u8 init_code[][2] = {
 	{0x76, 0x0C},
 };
 
-const static int init_code_len = sizeof(init_code) / sizeof(u8[2]);
+static const int init_code_len = sizeof(init_code) / sizeof(u8[2]);
 
 static int jdvbt90502_init(struct dvb_frontend *fe)
 {

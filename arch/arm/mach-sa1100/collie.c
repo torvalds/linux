@@ -11,7 +11,7 @@
  * published by the Free Software Foundation.
  *
  * ChangeLog:
- *  2006 Pavel Machek <pavel@suse.cz>
+ *  2006 Pavel Machek <pavel@ucw.cz>
  *  03-06-2004 John Lenz <lenz@cs.wisc.edu>
  *  06-04-2002 Chris Larson <kergoth@digitalnemesis.net>
  *  04-16-2001 Lineo Japan,Inc. ...
@@ -232,6 +232,10 @@ static struct resource locomo_resources[] = {
 		.end		= IRQ_GPIO25,
 		.flags		= IORESOURCE_IRQ,
 	},
+};
+
+static struct locomo_platform_data locomo_info = {
+	.irq_base	= IRQ_BOARD_START,
 };
 
 struct platform_device collie_locomo_device = {

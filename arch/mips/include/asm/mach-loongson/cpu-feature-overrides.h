@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2009 Wu Zhangjin <wuzj@lemote.com>
+ * Copyright (C) 2009 Wu Zhangjin <wuzhangjin@gmail.com>
  * Copyright (C) 2009 Philippe Vachon <philippe@cowpig.ca>
  * Copyright (C) 2009 Zhang Le <r0bertz@gentoo.org>
  *
@@ -52,6 +52,8 @@
 #define cpu_has_tx39_cache	0
 #define cpu_has_userlocal	0
 #define cpu_has_vce		0
+#define cpu_has_veic		0
+#define cpu_has_vint		0
 #define cpu_has_vtag_icache	0
 #define cpu_has_watch		1
 

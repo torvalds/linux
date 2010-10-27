@@ -20,6 +20,7 @@
  *
  */
 #include <linux/async_tx.h>
+#include <linux/gfp.h>
 #include <linux/random.h>
 
 #undef pr

@@ -48,7 +48,6 @@
 #include <scsi/scsi_host.h>
 #include "../qlogicfas408.h"
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -82,7 +81,6 @@ static struct scsi_host_template qlogicfas_driver_template = {
 
 typedef struct scsi_info_t {
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 	struct Scsi_Host *host;
 	unsigned short manf_id;
 } scsi_info_t;
@@ -158,10 +156,8 @@ static int qlogic_probe(struct pcmcia_device *link)
 		return -ENOMEM;
 	info->p_dev = link;
 	link->priv = info;
-	link->io.NumPorts1 = 16;
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	link->io.IOAddrLines = 10;
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+	link->resource[0]->end = 16;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.Present = PRESENT_OPTION;
@@ -188,13 +184,14 @@ static int qlogic_config_check(struct pcmcia_device *p_dev,
 			       unsigned int vcc,
 			       void *priv_data)
 {
-	p_dev->io.BasePort1 = cfg->io.win[0].base;
-	p_dev->io.NumPorts1 = cfg->io.win[0].len;
+	p_dev->io_lines = 10;
+	p_dev->resource[0]->start = cfg->io.win[0].base;
+	p_dev->resource[0]->end = cfg->io.win[0].len;
 
-	if (p_dev->io.BasePort1 == 0)
+	if (p_dev->resource[0]->start == 0)
 		return -ENODEV;
 
-	return pcmcia_request_io(p_dev, &p_dev->io);
+	return pcmcia_request_io(p_dev);
 }
 
 static int qlogic_config(struct pcmcia_device * link)
@@ -209,8 +206,7 @@ static int qlogic_config(struct pcmcia_device * link)
 	if (ret)
 		goto failed;
 
-	ret = pcmcia_request_irq(link, &link->irq);
-	if (ret)
+	if (!link->irq)
 		goto failed;
 
 	ret = pcmcia_request_configuration(link, &link->conf);
@@ -219,26 +215,24 @@ static int qlogic_config(struct pcmcia_device * link)
 
 	if ((info->manf_id == MANFID_MACNICA) || (info->manf_id == MANFID_PIONEER) || (info->manf_id == 0x0098)) {
 		/* set ATAcmd */
-		outb(0xb4, link->io.BasePort1 + 0xd);
-		outb(0x24, link->io.BasePort1 + 0x9);
-		outb(0x04, link->io.BasePort1 + 0xd);
+		outb(0xb4, link->resource[0]->start + 0xd);
+		outb(0x24, link->resource[0]->start + 0x9);
+		outb(0x04, link->resource[0]->start + 0xd);
 	}
 
 	/* The KXL-810AN has a bigger IO port window */
-	if (link->io.NumPorts1 == 32)
+	if (resource_size(link->resource[0]) == 32)
 		host = qlogic_detect(&qlogicfas_driver_template, link,
-			link->io.BasePort1 + 16, link->irq.AssignedIRQ);
+			link->resource[0]->start + 16, link->irq);
 	else
 		host = qlogic_detect(&qlogicfas_driver_template, link,
-			link->io.BasePort1, link->irq.AssignedIRQ);
+			link->resource[0]->start, link->irq);
 	
 	if (!host) {
 		printk(KERN_INFO "%s: no SCSI devices found\n", qlogic_name);
 		goto failed;
 	}
 
-	sprintf(info->node.dev_name, "scsi%d", host->host_no);
-	link->dev_node = &info->node;
 	info->host = host;
 
 	return 0;
@@ -258,7 +252,7 @@ static void qlogic_release(struct pcmcia_device *link)
 
 	scsi_remove_host(info->host);
 
-	free_irq(link->irq.AssignedIRQ, info->host);
+	free_irq(link->irq, info->host);
 	pcmcia_disable_device(link);
 
 	scsi_host_put(info->host);
@@ -274,9 +268,9 @@ static int qlogic_resume(struct pcmcia_device *link)
 	if ((info->manf_id == MANFID_MACNICA) ||
 	    (info->manf_id == MANFID_PIONEER) ||
 	    (info->manf_id == 0x0098)) {
-		outb(0x80, link->io.BasePort1 + 0xd);
-		outb(0x24, link->io.BasePort1 + 0x9);
-		outb(0x04, link->io.BasePort1 + 0xd);
+		outb(0x80, link->resource[0]->start + 0xd);
+		outb(0x24, link->resource[0]->start + 0x9);
+		outb(0x04, link->resource[0]->start + 0xd);
 	}
 	/* Ugggglllyyyy!!! */
 	qlogicfas408_bus_reset(NULL);

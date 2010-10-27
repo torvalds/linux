@@ -8,6 +8,7 @@
  *
  */
 
+#include <linux/gfp.h>
 #include <linux/mISDNif.h>
 #include <linux/mISDNdsp.h>
 #include "core.h"

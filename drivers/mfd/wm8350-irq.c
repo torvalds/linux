@@ -18,7 +18,7 @@
 #include <linux/bug.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
-#include <linux/workqueue.h>
+#include <linux/irq.h>
 
 #include <linux/mfd/wm8350/core.h>
 #include <linux/mfd/wm8350/audio.h>
@@ -28,8 +28,6 @@
 #include <linux/mfd/wm8350/rtc.h>
 #include <linux/mfd/wm8350/supply.h>
 #include <linux/mfd/wm8350/wdt.h>
-
-#define WM8350_NUM_IRQ_REGS 7
 
 #define WM8350_INT_OFFSET_1                     0
 #define WM8350_INT_OFFSET_2                     1
@@ -366,19 +364,10 @@ static struct wm8350_irq_data wm8350_irqs[] = {
 	},
 };
 
-static void wm8350_irq_call_handler(struct wm8350 *wm8350, int irq)
+static inline struct wm8350_irq_data *irq_to_wm8350_irq(struct wm8350 *wm8350,
+							int irq)
 {
-	mutex_lock(&wm8350->irq_mutex);
-
-	if (wm8350->irq[irq].handler)
-		wm8350->irq[irq].handler(irq, wm8350->irq[irq].data);
-	else {
-		dev_err(wm8350->dev, "irq %d nobody cared. now masked.\n",
-			irq);
-		wm8350_mask_irq(wm8350, irq);
-	}
-
-	mutex_unlock(&wm8350->irq_mutex);
+	return &wm8350_irqs[irq - wm8350->irq_base];
 }
 
 /*
@@ -386,7 +375,9 @@ static void wm8350_irq_call_handler(struct wm8350 *wm8350, int irq)
  * interrupts are clear on read the IRQ line will be reasserted and
  * the physical IRQ will be handled again if another interrupt is
  * asserted while we run - in the normal course of events this is a
- * rare occurrence so we save I2C/SPI reads.
+ * rare occurrence so we save I2C/SPI reads.  We're also assuming that
+ * it's rare to get lots of interrupts firing simultaneously so try to
+ * minimise I/O.
  */
 static irqreturn_t wm8350_irq(int irq, void *irq_data)
 {
@@ -397,7 +388,6 @@ static irqreturn_t wm8350_irq(int irq, void *irq_data)
 	struct wm8350_irq_data *data;
 	int i;
 
-	/* TODO: Use block reads to improve performance? */
 	level_one = wm8350_reg_read(wm8350, WM8350_SYSTEM_INTERRUPTS)
 		& ~wm8350_reg_read(wm8350, WM8350_SYSTEM_INTERRUPTS_MASK);
 
@@ -416,93 +406,101 @@ static irqreturn_t wm8350_irq(int irq, void *irq_data)
 			sub_reg[data->reg] =
 				wm8350_reg_read(wm8350, WM8350_INT_STATUS_1 +
 						data->reg);
-			sub_reg[data->reg] &=
-				~wm8350_reg_read(wm8350,
-						 WM8350_INT_STATUS_1_MASK +
-						 data->reg);
+			sub_reg[data->reg] &= ~wm8350->irq_masks[data->reg];
 			read_done[data->reg] = 1;
 		}
 
 		if (sub_reg[data->reg] & data->mask)
-			wm8350_irq_call_handler(wm8350, i);
+			handle_nested_irq(wm8350->irq_base + i);
 	}
 
 	return IRQ_HANDLED;
 }
 
-int wm8350_register_irq(struct wm8350 *wm8350, int irq,
-			irq_handler_t handler, unsigned long flags,
-			const char *name, void *data)
+static void wm8350_irq_lock(unsigned int irq)
 {
-	if (irq < 0 || irq >= WM8350_NUM_IRQ || !handler)
-		return -EINVAL;
+	struct wm8350 *wm8350 = get_irq_chip_data(irq);
 
-	if (wm8350->irq[irq].handler)
-		return -EBUSY;
-
-	mutex_lock(&wm8350->irq_mutex);
-	wm8350->irq[irq].handler = handler;
-	wm8350->irq[irq].data = data;
-	mutex_unlock(&wm8350->irq_mutex);
-
-	wm8350_unmask_irq(wm8350, irq);
-
-	return 0;
+	mutex_lock(&wm8350->irq_lock);
 }
-EXPORT_SYMBOL_GPL(wm8350_register_irq);
 
-int wm8350_free_irq(struct wm8350 *wm8350, int irq)
+static void wm8350_irq_sync_unlock(unsigned int irq)
 {
-	if (irq < 0 || irq >= WM8350_NUM_IRQ)
-		return -EINVAL;
+	struct wm8350 *wm8350 = get_irq_chip_data(irq);
+	int i;
 
-	wm8350_mask_irq(wm8350, irq);
+	for (i = 0; i < ARRAY_SIZE(wm8350->irq_masks); i++) {
+		/* If there's been a change in the mask write it back
+		 * to the hardware. */
+		if (wm8350->irq_masks[i] !=
+		    wm8350->reg_cache[WM8350_INT_STATUS_1_MASK + i])
+			WARN_ON(wm8350_reg_write(wm8350,
+					 WM8350_INT_STATUS_1_MASK + i,
+						 wm8350->irq_masks[i]));
+	}
 
-	mutex_lock(&wm8350->irq_mutex);
-	wm8350->irq[irq].handler = NULL;
-	mutex_unlock(&wm8350->irq_mutex);
-	return 0;
+	mutex_unlock(&wm8350->irq_lock);
 }
-EXPORT_SYMBOL_GPL(wm8350_free_irq);
 
-int wm8350_mask_irq(struct wm8350 *wm8350, int irq)
+static void wm8350_irq_enable(unsigned int irq)
 {
-	return wm8350_set_bits(wm8350, WM8350_INT_STATUS_1_MASK +
-			       wm8350_irqs[irq].reg,
-			       wm8350_irqs[irq].mask);
-}
-EXPORT_SYMBOL_GPL(wm8350_mask_irq);
+	struct wm8350 *wm8350 = get_irq_chip_data(irq);
+	struct wm8350_irq_data *irq_data = irq_to_wm8350_irq(wm8350, irq);
 
-int wm8350_unmask_irq(struct wm8350 *wm8350, int irq)
-{
-	return wm8350_clear_bits(wm8350, WM8350_INT_STATUS_1_MASK +
-				 wm8350_irqs[irq].reg,
-				 wm8350_irqs[irq].mask);
+	wm8350->irq_masks[irq_data->reg] &= ~irq_data->mask;
 }
-EXPORT_SYMBOL_GPL(wm8350_unmask_irq);
+
+static void wm8350_irq_disable(unsigned int irq)
+{
+	struct wm8350 *wm8350 = get_irq_chip_data(irq);
+	struct wm8350_irq_data *irq_data = irq_to_wm8350_irq(wm8350, irq);
+
+	wm8350->irq_masks[irq_data->reg] |= irq_data->mask;
+}
+
+static struct irq_chip wm8350_irq_chip = {
+	.name = "wm8350",
+	.bus_lock = wm8350_irq_lock,
+	.bus_sync_unlock = wm8350_irq_sync_unlock,
+	.disable = wm8350_irq_disable,
+	.enable = wm8350_irq_enable,
+};
 
 int wm8350_irq_init(struct wm8350 *wm8350, int irq,
 		    struct wm8350_platform_data *pdata)
 {
-	int ret;
+	int ret, cur_irq, i;
 	int flags = IRQF_ONESHOT;
 
 	if (!irq) {
-		dev_err(wm8350->dev, "No IRQ configured\n");
-		return -EINVAL;
+		dev_warn(wm8350->dev, "No interrupt support, no core IRQ\n");
+		return 0;
 	}
 
+	if (!pdata || !pdata->irq_base) {
+		dev_warn(wm8350->dev, "No interrupt support, no IRQ base\n");
+		return 0;
+	}
+
+	/* Mask top level interrupts */
 	wm8350_reg_write(wm8350, WM8350_SYSTEM_INTERRUPTS_MASK, 0xFFFF);
-	wm8350_reg_write(wm8350, WM8350_INT_STATUS_1_MASK, 0xFFFF);
-	wm8350_reg_write(wm8350, WM8350_INT_STATUS_2_MASK, 0xFFFF);
-	wm8350_reg_write(wm8350, WM8350_UNDER_VOLTAGE_INT_STATUS_MASK, 0xFFFF);
-	wm8350_reg_write(wm8350, WM8350_GPIO_INT_STATUS_MASK, 0xFFFF);
-	wm8350_reg_write(wm8350, WM8350_COMPARATOR_INT_STATUS_MASK, 0xFFFF);
 
-	mutex_init(&wm8350->irq_mutex);
+	/* Mask all individual interrupts by default and cache the
+	 * masks.  We read the masks back since there are unwritable
+	 * bits in the mask registers. */
+	for (i = 0; i < ARRAY_SIZE(wm8350->irq_masks); i++) {
+		wm8350_reg_write(wm8350, WM8350_INT_STATUS_1_MASK + i,
+				 0xFFFF);
+		wm8350->irq_masks[i] =
+			wm8350_reg_read(wm8350,
+					WM8350_INT_STATUS_1_MASK + i);
+	}
+
+	mutex_init(&wm8350->irq_lock);
 	wm8350->chip_irq = irq;
+	wm8350->irq_base = pdata->irq_base;
 
-	if (pdata && pdata->irq_high) {
+	if (pdata->irq_high) {
 		flags |= IRQF_TRIGGER_HIGH;
 
 		wm8350_set_bits(wm8350, WM8350_SYSTEM_CONTROL_1,
@@ -514,10 +512,31 @@ int wm8350_irq_init(struct wm8350 *wm8350, int irq,
 				  WM8350_IRQ_POL);
 	}
 
+	/* Register with genirq */
+	for (cur_irq = wm8350->irq_base;
+	     cur_irq < ARRAY_SIZE(wm8350_irqs) + wm8350->irq_base;
+	     cur_irq++) {
+		set_irq_chip_data(cur_irq, wm8350);
+		set_irq_chip_and_handler(cur_irq, &wm8350_irq_chip,
+					 handle_edge_irq);
+		set_irq_nested_thread(cur_irq, 1);
+
+		/* ARM needs us to explicitly flag the IRQ as valid
+		 * and will set them noprobe when we do so. */
+#ifdef CONFIG_ARM
+		set_irq_flags(cur_irq, IRQF_VALID);
+#else
+		set_irq_noprobe(cur_irq);
+#endif
+	}
+
 	ret = request_threaded_irq(irq, NULL, wm8350_irq, flags,
 				   "wm8350", wm8350);
 	if (ret != 0)
 		dev_err(wm8350->dev, "Failed to request IRQ: %d\n", ret);
+
+	/* Allow interrupts to fire */
+	wm8350_reg_write(wm8350, WM8350_SYSTEM_INTERRUPTS_MASK, 0);
 
 	return ret;
 }

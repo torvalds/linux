@@ -40,6 +40,7 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/sysctl.h>
 #include <linux/sunrpc/clnt.h>

@@ -19,6 +19,7 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 
 #include "hid-ids.h"
@@ -39,6 +40,11 @@ static unsigned int fnmode = 1;
 module_param(fnmode, uint, 0644);
 MODULE_PARM_DESC(fnmode, "Mode of fn key on Apple keyboards (0 = disabled, "
 		"[1] = fkeyslast, 2 = fkeysfirst)");
+
+static unsigned int iso_layout = 1;
+module_param(iso_layout, uint, 0644);
+MODULE_PARM_DESC(iso_layout, "Enable/Disable hardcoded ISO-layout of the keyboard. "
+		"(0 = disabled, [1] = enabled)");
 
 struct apple_sc {
 	unsigned long quirks;
@@ -199,11 +205,13 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 		}
 	}
 
-	if (asc->quirks & APPLE_ISO_KEYBOARD) {
-		trans = apple_find_translation(apple_iso_keyboard, usage->code);
-		if (trans) {
-			input_event(input, usage->type, trans->to, value);
-			return 1;
+        if (iso_layout) {
+		if (asc->quirks & APPLE_ISO_KEYBOARD) {
+			trans = apple_find_translation(apple_iso_keyboard, usage->code);
+			if (trans) {
+				input_event(input, usage->type, trans->to, value);
+				return 1;
+			}
 		}
 	}
 

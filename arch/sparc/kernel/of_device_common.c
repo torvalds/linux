@@ -4,7 +4,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/irq.h>
 #include <linux/of_device.h>
@@ -12,48 +11,28 @@
 
 #include "of_device_common.h"
 
-static int node_match(struct device *dev, void *data)
-{
-	struct of_device *op = to_of_device(dev);
-	struct device_node *dp = data;
-
-	return (op->node == dp);
-}
-
-struct of_device *of_find_device_by_node(struct device_node *dp)
-{
-	struct device *dev = bus_find_device(&of_platform_bus_type, NULL,
-					     dp, node_match);
-
-	if (dev)
-		return to_of_device(dev);
-
-	return NULL;
-}
-EXPORT_SYMBOL(of_find_device_by_node);
-
 unsigned int irq_of_parse_and_map(struct device_node *node, int index)
 {
-	struct of_device *op = of_find_device_by_node(node);
+	struct platform_device *op = of_find_device_by_node(node);
 
-	if (!op || index >= op->num_irqs)
+	if (!op || index >= op->archdata.num_irqs)
 		return 0;
 
-	return op->irqs[index];
+	return op->archdata.irqs[index];
 }
 EXPORT_SYMBOL(irq_of_parse_and_map);
 
 /* Take the archdata values for IOMMU, STC, and HOSTDATA found in
- * BUS and propagate to all child of_device objects.
+ * BUS and propagate to all child platform_device objects.
  */
-void of_propagate_archdata(struct of_device *bus)
+void of_propagate_archdata(struct platform_device *bus)
 {
 	struct dev_archdata *bus_sd = &bus->dev.archdata;
-	struct device_node *bus_dp = bus->node;
+	struct device_node *bus_dp = bus->dev.of_node;
 	struct device_node *dp;
 
 	for (dp = bus_dp->child; dp; dp = dp->sibling) {
-		struct of_device *op = of_find_device_by_node(dp);
+		struct platform_device *op = of_find_device_by_node(dp);
 
 		op->dev.archdata.iommu = bus_sd->iommu;
 		op->dev.archdata.stc = bus_sd->stc;
@@ -64,9 +43,6 @@ void of_propagate_archdata(struct of_device *bus)
 			of_propagate_archdata(op);
 	}
 }
-
-struct bus_type of_platform_bus_type;
-EXPORT_SYMBOL(of_platform_bus_type);
 
 static void get_cells(struct device_node *dp, int *addrc, int *sizec)
 {

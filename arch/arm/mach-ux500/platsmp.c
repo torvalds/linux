@@ -30,7 +30,7 @@ volatile int __cpuinitdata pen_release = -1;
 
 static unsigned int __init get_core_count(void)
 {
-	return scu_get_core_count(__io_address(U8500_SCU_BASE));
+	return scu_get_core_count(__io_address(UX500_SCU_BASE));
 }
 
 static DEFINE_SPINLOCK(boot_lock);
@@ -44,7 +44,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * core (e.g. timer irq), then they will not have been enabled
 	 * for us: do so
 	 */
-	gic_cpu_init(0, __io_address(U8500_GIC_CPU_BASE));
+	gic_cpu_init(0, __io_address(UX500_GIC_CPU_BASE));
 
 	/*
 	 * let the primary processor know we're out of the
@@ -75,7 +75,8 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * that it has been released by resetting pen_release.
 	 */
 	pen_release = cpu;
-	flush_cache_all();
+	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
+	outer_clean_range(__pa(&pen_release), __pa(&pen_release) + 1);
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
@@ -105,12 +106,12 @@ static void __init wakeup_secondary(void)
 	 */
 #define U8500_CPU1_JUMPADDR_OFFSET 0x1FF4
 	__raw_writel(virt_to_phys(u8500_secondary_startup),
-		(void __iomem *)IO_ADDRESS(U8500_BACKUPRAM0_BASE) +
+		__io_address(UX500_BACKUPRAM0_BASE) +
 		U8500_CPU1_JUMPADDR_OFFSET);
 
 #define U8500_CPU1_WAKEMAGIC_OFFSET 0x1FF0
 	__raw_writel(0xA1FEED01,
-		(void __iomem *)IO_ADDRESS(U8500_BACKUPRAM0_BASE) +
+		__io_address(UX500_BACKUPRAM0_BASE) +
 		U8500_CPU1_WAKEMAGIC_OFFSET);
 
 	/* make sure write buffer is drained */
@@ -171,7 +172,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		 * boot CPU, but only if we have more than one CPU.
 		 */
 		percpu_timer_setup();
-		scu_enable(__io_address(U8500_SCU_BASE));
+		scu_enable(__io_address(UX500_SCU_BASE));
 		wakeup_secondary();
 	}
 }

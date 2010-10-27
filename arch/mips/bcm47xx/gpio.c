@@ -59,4 +59,3 @@ int gpio_to_irq(unsigned gpio)
 		return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(gpio_to_irq);
-

@@ -490,13 +490,13 @@ static int isd200_action( struct us_data *us, int action,
 			  void* pointer, int value )
 {
 	union ata_cdb ata;
-	struct scsi_device srb_dev;
+	/* static to prevent this large struct being placed on the valuable stack */
+	static struct scsi_device srb_dev;
 	struct isd200_info *info = (struct isd200_info *)us->extra;
 	struct scsi_cmnd *srb = &info->srb;
 	int status;
 
 	memset(&ata, 0, sizeof(ata));
-	memset(&srb_dev, 0, sizeof(srb_dev));
 	srb->cmnd = info->cmnd;
 	srb->device = &srb_dev;
 	++srb->serial_number;
@@ -1456,8 +1456,7 @@ static int isd200_init_info(struct us_data *us)
 	int retStatus = ISD200_GOOD;
 	struct isd200_info *info;
 
-	info = (struct isd200_info *)
-			kzalloc(sizeof(struct isd200_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct isd200_info), GFP_KERNEL);
 	if (!info)
 		retStatus = ISD200_ERROR;
 	else {

@@ -402,7 +402,7 @@ for the port of the SoundFusion is supported by the cs461x.c module.
 ~~~~~~~~~~~~~~~~~~~~~~~~
   The Live! has a special PCI gameport, which, although it doesn't provide
 any "Enhanced" stuff like 4DWave and friends, is quite a bit faster than
-it's ISA counterparts. It also requires special support, hence the
+its ISA counterparts. It also requires special support, hence the
 emu10k1-gp.c module for it instead of the normal ns558.c one.
 
 3.15 SoundBlaster 64 and 128 - ES1370 and ES1371, ESS Solo1 and S3 SonicVibes

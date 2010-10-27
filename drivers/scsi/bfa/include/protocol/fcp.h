@@ -18,6 +18,7 @@
 #ifndef __FCPPROTO_H__
 #define __FCPPROTO_H__
 
+#include <linux/bitops.h>
 #include <protocol/scsi.h>
 
 #pragma pack(1)
@@ -102,9 +103,6 @@ enum {
 /*
  * Task management flags field - only one bit shall be set
  */
-#ifndef BIT
-#define BIT(_x)	(1 << (_x))
-#endif
 enum fcp_tm_cmnd{
 	FCP_TM_ABORT_TASK_SET	= BIT(1),
 	FCP_TM_CLEAR_TASK_SET	= BIT(2),

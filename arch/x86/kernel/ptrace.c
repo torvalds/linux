@@ -2,9 +2,6 @@
 /*
  * Pentium III FXSR, SSE support
  *	Gareth Hughes <gareth@valinux.com>, May 2000
- *
- * BTS tracing
- *	Markus Metzger <markus.t.metzger@intel.com>, Dec 2007
  */
 
 #include <linux/kernel.h>
@@ -12,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/ptrace.h>
 #include <linux/regset.h>
 #include <linux/tracehook.h>
@@ -21,7 +19,6 @@
 #include <linux/audit.h>
 #include <linux/seccomp.h>
 #include <linux/signal.h>
-#include <linux/workqueue.h>
 #include <linux/perf_event.h>
 #include <linux/hw_breakpoint.h>
 
@@ -35,7 +32,6 @@
 #include <asm/desc.h>
 #include <asm/prctl.h>
 #include <asm/proto.h>
-#include <asm/ds.h>
 #include <asm/hw_breakpoint.h>
 
 #include "tls.h"
@@ -48,6 +44,7 @@ enum x86_regset {
 	REGSET_FP,
 	REGSET_XFP,
 	REGSET_IOPERM64 = REGSET_XFP,
+	REGSET_XSTATE,
 	REGSET_TLS,
 	REGSET_IOPERM32,
 };
@@ -139,30 +136,6 @@ static const int arg_offs_table[] = {
 	[5] = offsetof(struct pt_regs, r9)
 #endif
 };
-
-/**
- * regs_get_argument_nth() - get Nth argument at function call
- * @regs:	pt_regs which contains registers at function entry.
- * @n:		argument number.
- *
- * regs_get_argument_nth() returns @n th argument of a function call.
- * Since usually the kernel stack will be changed right after function entry,
- * you must use this at function entry. If the @n th entry is NOT in the
- * kernel stack or pt_regs, this returns 0.
- */
-unsigned long regs_get_argument_nth(struct pt_regs *regs, unsigned int n)
-{
-	if (n < ARRAY_SIZE(arg_offs_table))
-		return *(unsigned long *)((char *)regs + arg_offs_table[n]);
-	else {
-		/*
-		 * The typical case: arg n is on the stack.
-		 * (Note: stack[0] = return address, so skip it)
-		 */
-		n -= ARRAY_SIZE(arg_offs_table);
-		return regs_get_kernel_stack_nth(regs, 1 + n);
-	}
-}
 
 /*
  * does not yet catch signals sent when the child dies.
@@ -604,7 +577,7 @@ ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 	struct perf_event_attr attr;
 
 	/*
-	 * We shoud have at least an inactive breakpoint at this
+	 * We should have at least an inactive breakpoint at this
 	 * slot. It means the user is writing dr7 without having
 	 * written the address register first
 	 */
@@ -702,7 +675,7 @@ static unsigned long ptrace_get_debugreg(struct task_struct *tsk, int n)
 	} else if (n == 6) {
 		val = thread->debugreg6;
 	 } else if (n == 7) {
-		val = ptrace_get_dr7(thread->ptrace_bps);
+		val = thread->ptrace_dr7;
 	}
 	return val;
 }
@@ -715,7 +688,7 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 	struct perf_event_attr attr;
 
 	if (!t->ptrace_bps[nr]) {
-		hw_breakpoint_init(&attr);
+		ptrace_breakpoint_init(&attr);
 		/*
 		 * Put stub len and type to register (reserve) an inactive but
 		 * correct bp
@@ -778,8 +751,11 @@ int ptrace_set_debugreg(struct task_struct *tsk, int n, unsigned long val)
 			return rc;
 	}
 	/* All that's left is DR7 */
-	if (n == 7)
+	if (n == 7) {
 		rc = ptrace_write_dr7(tsk, val);
+		if (!rc)
+			thread->ptrace_dr7 = val;
+	}
 
 ret_path:
 	return rc;
@@ -807,342 +783,6 @@ static int ioperm_get(struct task_struct *target,
 				   target->thread.io_bitmap_ptr,
 				   0, IO_BITMAP_BYTES);
 }
-
-#ifdef CONFIG_X86_PTRACE_BTS
-/*
- * A branch trace store context.
- *
- * Contexts may only be installed by ptrace_bts_config() and only for
- * ptraced tasks.
- *
- * Contexts are destroyed when the tracee is detached from the tracer.
- * The actual destruction work requires interrupts enabled, so the
- * work is deferred and will be scheduled during __ptrace_unlink().
- *
- * Contexts hold an additional task_struct reference on the traced
- * task, as well as a reference on the tracer's mm.
- *
- * Ptrace already holds a task_struct for the duration of ptrace operations,
- * but since destruction is deferred, it may be executed after both
- * tracer and tracee exited.
- */
-struct bts_context {
-	/* The branch trace handle. */
-	struct bts_tracer	*tracer;
-
-	/* The buffer used to store the branch trace and its size. */
-	void			*buffer;
-	unsigned int		size;
-
-	/* The mm that paid for the above buffer. */
-	struct mm_struct	*mm;
-
-	/* The task this context belongs to. */
-	struct task_struct	*task;
-
-	/* The signal to send on a bts buffer overflow. */
-	unsigned int		bts_ovfl_signal;
-
-	/* The work struct to destroy a context. */
-	struct work_struct	work;
-};
-
-static int alloc_bts_buffer(struct bts_context *context, unsigned int size)
-{
-	void *buffer = NULL;
-	int err = -ENOMEM;
-
-	err = account_locked_memory(current->mm, current->signal->rlim, size);
-	if (err < 0)
-		return err;
-
-	buffer = kzalloc(size, GFP_KERNEL);
-	if (!buffer)
-		goto out_refund;
-
-	context->buffer = buffer;
-	context->size = size;
-	context->mm = get_task_mm(current);
-
-	return 0;
-
- out_refund:
-	refund_locked_memory(current->mm, size);
-	return err;
-}
-
-static inline void free_bts_buffer(struct bts_context *context)
-{
-	if (!context->buffer)
-		return;
-
-	kfree(context->buffer);
-	context->buffer = NULL;
-
-	refund_locked_memory(context->mm, context->size);
-	context->size = 0;
-
-	mmput(context->mm);
-	context->mm = NULL;
-}
-
-static void free_bts_context_work(struct work_struct *w)
-{
-	struct bts_context *context;
-
-	context = container_of(w, struct bts_context, work);
-
-	ds_release_bts(context->tracer);
-	put_task_struct(context->task);
-	free_bts_buffer(context);
-	kfree(context);
-}
-
-static inline void free_bts_context(struct bts_context *context)
-{
-	INIT_WORK(&context->work, free_bts_context_work);
-	schedule_work(&context->work);
-}
-
-static inline struct bts_context *alloc_bts_context(struct task_struct *task)
-{
-	struct bts_context *context = kzalloc(sizeof(*context), GFP_KERNEL);
-	if (context) {
-		context->task = task;
-		task->bts = context;
-
-		get_task_struct(task);
-	}
-
-	return context;
-}
-
-static int ptrace_bts_read_record(struct task_struct *child, size_t index,
-				  struct bts_struct __user *out)
-{
-	struct bts_context *context;
-	const struct bts_trace *trace;
-	struct bts_struct bts;
-	const unsigned char *at;
-	int error;
-
-	context = child->bts;
-	if (!context)
-		return -ESRCH;
-
-	trace = ds_read_bts(context->tracer);
-	if (!trace)
-		return -ESRCH;
-
-	at = trace->ds.top - ((index + 1) * trace->ds.size);
-	if ((void *)at < trace->ds.begin)
-		at += (trace->ds.n * trace->ds.size);
-
-	if (!trace->read)
-		return -EOPNOTSUPP;
-
-	error = trace->read(context->tracer, at, &bts);
-	if (error < 0)
-		return error;
-
-	if (copy_to_user(out, &bts, sizeof(bts)))
-		return -EFAULT;
-
-	return sizeof(bts);
-}
-
-static int ptrace_bts_drain(struct task_struct *child,
-			    long size,
-			    struct bts_struct __user *out)
-{
-	struct bts_context *context;
-	const struct bts_trace *trace;
-	const unsigned char *at;
-	int error, drained = 0;
-
-	context = child->bts;
-	if (!context)
-		return -ESRCH;
-
-	trace = ds_read_bts(context->tracer);
-	if (!trace)
-		return -ESRCH;
-
-	if (!trace->read)
-		return -EOPNOTSUPP;
-
-	if (size < (trace->ds.top - trace->ds.begin))
-		return -EIO;
-
-	for (at = trace->ds.begin; (void *)at < trace->ds.top;
-	     out++, drained++, at += trace->ds.size) {
-		struct bts_struct bts;
-
-		error = trace->read(context->tracer, at, &bts);
-		if (error < 0)
-			return error;
-
-		if (copy_to_user(out, &bts, sizeof(bts)))
-			return -EFAULT;
-	}
-
-	memset(trace->ds.begin, 0, trace->ds.n * trace->ds.size);
-
-	error = ds_reset_bts(context->tracer);
-	if (error < 0)
-		return error;
-
-	return drained;
-}
-
-static int ptrace_bts_config(struct task_struct *child,
-			     long cfg_size,
-			     const struct ptrace_bts_config __user *ucfg)
-{
-	struct bts_context *context;
-	struct ptrace_bts_config cfg;
-	unsigned int flags = 0;
-
-	if (cfg_size < sizeof(cfg))
-		return -EIO;
-
-	if (copy_from_user(&cfg, ucfg, sizeof(cfg)))
-		return -EFAULT;
-
-	context = child->bts;
-	if (!context)
-		context = alloc_bts_context(child);
-	if (!context)
-		return -ENOMEM;
-
-	if (cfg.flags & PTRACE_BTS_O_SIGNAL) {
-		if (!cfg.signal)
-			return -EINVAL;
-
-		return -EOPNOTSUPP;
-		context->bts_ovfl_signal = cfg.signal;
-	}
-
-	ds_release_bts(context->tracer);
-	context->tracer = NULL;
-
-	if ((cfg.flags & PTRACE_BTS_O_ALLOC) && (cfg.size != context->size)) {
-		int err;
-
-		free_bts_buffer(context);
-		if (!cfg.size)
-			return 0;
-
-		err = alloc_bts_buffer(context, cfg.size);
-		if (err < 0)
-			return err;
-	}
-
-	if (cfg.flags & PTRACE_BTS_O_TRACE)
-		flags |= BTS_USER;
-
-	if (cfg.flags & PTRACE_BTS_O_SCHED)
-		flags |= BTS_TIMESTAMPS;
-
-	context->tracer =
-		ds_request_bts_task(child, context->buffer, context->size,
-				    NULL, (size_t)-1, flags);
-	if (unlikely(IS_ERR(context->tracer))) {
-		int error = PTR_ERR(context->tracer);
-
-		free_bts_buffer(context);
-		context->tracer = NULL;
-		return error;
-	}
-
-	return sizeof(cfg);
-}
-
-static int ptrace_bts_status(struct task_struct *child,
-			     long cfg_size,
-			     struct ptrace_bts_config __user *ucfg)
-{
-	struct bts_context *context;
-	const struct bts_trace *trace;
-	struct ptrace_bts_config cfg;
-
-	context = child->bts;
-	if (!context)
-		return -ESRCH;
-
-	if (cfg_size < sizeof(cfg))
-		return -EIO;
-
-	trace = ds_read_bts(context->tracer);
-	if (!trace)
-		return -ESRCH;
-
-	memset(&cfg, 0, sizeof(cfg));
-	cfg.size	= trace->ds.end - trace->ds.begin;
-	cfg.signal	= context->bts_ovfl_signal;
-	cfg.bts_size	= sizeof(struct bts_struct);
-
-	if (cfg.signal)
-		cfg.flags |= PTRACE_BTS_O_SIGNAL;
-
-	if (trace->ds.flags & BTS_USER)
-		cfg.flags |= PTRACE_BTS_O_TRACE;
-
-	if (trace->ds.flags & BTS_TIMESTAMPS)
-		cfg.flags |= PTRACE_BTS_O_SCHED;
-
-	if (copy_to_user(ucfg, &cfg, sizeof(cfg)))
-		return -EFAULT;
-
-	return sizeof(cfg);
-}
-
-static int ptrace_bts_clear(struct task_struct *child)
-{
-	struct bts_context *context;
-	const struct bts_trace *trace;
-
-	context = child->bts;
-	if (!context)
-		return -ESRCH;
-
-	trace = ds_read_bts(context->tracer);
-	if (!trace)
-		return -ESRCH;
-
-	memset(trace->ds.begin, 0, trace->ds.n * trace->ds.size);
-
-	return ds_reset_bts(context->tracer);
-}
-
-static int ptrace_bts_size(struct task_struct *child)
-{
-	struct bts_context *context;
-	const struct bts_trace *trace;
-
-	context = child->bts;
-	if (!context)
-		return -ESRCH;
-
-	trace = ds_read_bts(context->tracer);
-	if (!trace)
-		return -ESRCH;
-
-	return (trace->ds.top - trace->ds.begin) / trace->ds.size;
-}
-
-/*
- * Called from __ptrace_unlink() after the child has been moved back
- * to its original parent.
- */
-void ptrace_bts_untrace(struct task_struct *child)
-{
-	if (unlikely(child->bts)) {
-		free_bts_context(child->bts);
-		child->bts = NULL;
-	}
-}
-#endif /* CONFIG_X86_PTRACE_BTS */
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -1270,39 +910,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = do_arch_prctl(child, data, addr);
 		break;
 #endif
-
-	/*
-	 * These bits need more cooking - not enabled yet:
-	 */
-#ifdef CONFIG_X86_PTRACE_BTS
-	case PTRACE_BTS_CONFIG:
-		ret = ptrace_bts_config
-			(child, data, (struct ptrace_bts_config __user *)addr);
-		break;
-
-	case PTRACE_BTS_STATUS:
-		ret = ptrace_bts_status
-			(child, data, (struct ptrace_bts_config __user *)addr);
-		break;
-
-	case PTRACE_BTS_SIZE:
-		ret = ptrace_bts_size(child);
-		break;
-
-	case PTRACE_BTS_GET:
-		ret = ptrace_bts_read_record
-			(child, data, (struct bts_struct __user *) addr);
-		break;
-
-	case PTRACE_BTS_CLEAR:
-		ret = ptrace_bts_clear(child);
-		break;
-
-	case PTRACE_BTS_DRAIN:
-		ret = ptrace_bts_drain
-			(child, data, (struct bts_struct __user *) addr);
-		break;
-#endif /* CONFIG_X86_PTRACE_BTS */
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
@@ -1563,14 +1170,6 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 	case PTRACE_GET_THREAD_AREA:
 	case PTRACE_SET_THREAD_AREA:
-#ifdef CONFIG_X86_PTRACE_BTS
-	case PTRACE_BTS_CONFIG:
-	case PTRACE_BTS_STATUS:
-	case PTRACE_BTS_SIZE:
-	case PTRACE_BTS_GET:
-	case PTRACE_BTS_CLEAR:
-	case PTRACE_BTS_DRAIN:
-#endif /* CONFIG_X86_PTRACE_BTS */
 		return arch_ptrace(child, request, addr, data);
 
 	default:
@@ -1584,7 +1183,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 #ifdef CONFIG_X86_64
 
-static const struct user_regset x86_64_regsets[] = {
+static struct user_regset x86_64_regsets[] __read_mostly = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
 		.n = sizeof(struct user_regs_struct) / sizeof(long),
@@ -1596,6 +1195,12 @@ static const struct user_regset x86_64_regsets[] = {
 		.n = sizeof(struct user_i387_struct) / sizeof(long),
 		.size = sizeof(long), .align = sizeof(long),
 		.active = xfpregs_active, .get = xfpregs_get, .set = xfpregs_set
+	},
+	[REGSET_XSTATE] = {
+		.core_note_type = NT_X86_XSTATE,
+		.size = sizeof(u64), .align = sizeof(u64),
+		.active = xstateregs_active, .get = xstateregs_get,
+		.set = xstateregs_set
 	},
 	[REGSET_IOPERM64] = {
 		.core_note_type = NT_386_IOPERM,
@@ -1622,7 +1227,7 @@ static const struct user_regset_view user_x86_64_view = {
 #endif	/* CONFIG_X86_64 */
 
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
-static const struct user_regset x86_32_regsets[] = {
+static struct user_regset x86_32_regsets[] __read_mostly = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
 		.n = sizeof(struct user_regs_struct32) / sizeof(u32),
@@ -1640,6 +1245,12 @@ static const struct user_regset x86_32_regsets[] = {
 		.n = sizeof(struct user32_fxsr_struct) / sizeof(u32),
 		.size = sizeof(u32), .align = sizeof(u32),
 		.active = xfpregs_active, .get = xfpregs_get, .set = xfpregs_set
+	},
+	[REGSET_XSTATE] = {
+		.core_note_type = NT_X86_XSTATE,
+		.size = sizeof(u64), .align = sizeof(u64),
+		.active = xstateregs_active, .get = xstateregs_get,
+		.set = xstateregs_set
 	},
 	[REGSET_TLS] = {
 		.core_note_type = NT_386_TLS,
@@ -1662,6 +1273,23 @@ static const struct user_regset_view user_x86_32_view = {
 	.regsets = x86_32_regsets, .n = ARRAY_SIZE(x86_32_regsets)
 };
 #endif
+
+/*
+ * This represents bytes 464..511 in the memory layout exported through
+ * the REGSET_XSTATE interface.
+ */
+u64 xstate_fx_sw_bytes[USER_XSTATE_FX_SW_WORDS];
+
+void update_regset_xstate_info(unsigned int size, u64 xstate_mask)
+{
+#ifdef CONFIG_X86_64
+	x86_64_regsets[REGSET_XSTATE].n = size / sizeof(u64);
+#endif
+#if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
+	x86_32_regsets[REGSET_XSTATE].n = size / sizeof(u64);
+#endif
+	xstate_fx_sw_bytes[USER_XSTATE_XCR0_WORD] = xstate_mask;
+}
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {

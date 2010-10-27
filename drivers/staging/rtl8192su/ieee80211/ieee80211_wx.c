@@ -31,6 +31,7 @@
 ******************************************************************************/
 #include <linux/wireless.h>
 #include <linux/kmod.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 
 #include "ieee80211.h"
@@ -76,7 +77,6 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	/* Add the ESSID */
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.flags = 1;
-//	if (network->flags & NETWORK_EMPTY_ESSID) {
 	if (network->ssid_len == 0) {
 		iwe.u.data.length = sizeof("<hidden>");
                 start = iwe_stream_add_point(info, start, stop, &iwe, "<hidden>");
@@ -239,9 +239,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 	unsigned long flags;
 
 	char *ev = extra;
-//	char *stop = ev + IW_SCAN_MAX_DATA;
 	char *stop = ev + wrqu->data.length;//IW_SCAN_MAX_DATA;
-	//char *stop = ev + IW_SCAN_MAX_DATA;
 	int i = 0;
 	int err = 0;
 	IEEE80211_DEBUG_WX("Getting scan\n");
@@ -261,10 +259,10 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 		else
 			IEEE80211_DEBUG_SCAN(
 				"Not showing network '%s ("
-				MAC_FMT ")' due to age (%lums).\n",
+				"%pM)' due to age (%lums).\n",
 				escape_essid(network->ssid,
 					     network->ssid_len),
-				MAC_ARG(network->bssid),
+				network->bssid,
 				(jiffies - network->last_scanned) / (HZ / 100));
 	}
 
@@ -351,11 +349,10 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		struct ieee80211_crypt_data *new_crypt;
 
 		/* take WEP into use */
-		new_crypt = kmalloc(sizeof(struct ieee80211_crypt_data),
+		new_crypt = kzalloc(sizeof(struct ieee80211_crypt_data),
 				    GFP_KERNEL);
 		if (new_crypt == NULL)
 			return -ENOMEM;
-		memset(new_crypt, 0, sizeof(struct ieee80211_crypt_data));
 		new_crypt->ops = ieee80211_get_crypto_ops("WEP");
 		if (!new_crypt->ops)
 			new_crypt->ops = ieee80211_get_crypto_ops("WEP");
@@ -511,7 +508,6 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
         struct ieee80211_security sec = {
                 .flags = 0,
         };
-	//printk("======>encoding flag:%x,ext flag:%x, ext alg:%d\n", encoding->flags,ext->ext_flags, ext->alg);
         idx = encoding->flags & IW_ENCODE_INDEX;
         if (idx) {
                 if (idx < 1 || idx > WEP_KEYS)
@@ -562,7 +558,6 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
         }
 
 	sec.enabled = 1;
-    //    sec.encrypt = 1;
 
         switch (ext->alg) {
         case IW_ENCODE_ALG_WEP:
@@ -580,7 +575,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
                 ret = -EINVAL;
                 goto done;
         }
-	printk("alg name:%s\n",alg);
+	IEEE80211_DEBUG_WX("alg name: %s\n", alg);
 
 	 ops = ieee80211_get_crypto_ops(alg);
         if (ops == NULL)
@@ -624,8 +619,6 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
                 goto done;
         }
 #if 1
- //skip_host_crypt:
-	//printk("skip_host_crypt:ext_flags:%x\n", ext->ext_flags);
         if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
                 ieee->tx_keyidx = idx;
                 sec.active_key = idx;
@@ -633,7 +626,6 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
         }
 
         if (ext->alg != IW_ENCODE_ALG_NONE) {
-                //memcpy(sec.keys[idx], ext->key, ext->key_len);
                 sec.key_sizes[idx] = ext->key_len;
                 sec.flags |= (1 << idx);
                 if (ext->alg == IW_ENCODE_ALG_WEP) {
@@ -690,7 +682,6 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 	switch (data->flags & IW_AUTH_INDEX) {
         case IW_AUTH_WPA_VERSION:
 	     /*need to support wpa2 here*/
-		//printk("wpa version:%x\n", data->value);
 		break;
         case IW_AUTH_CIPHER_PAIRWISE:
         case IW_AUTH_CIPHER_GROUP:
@@ -708,8 +699,6 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 		break;
 
 	case IW_AUTH_80211_AUTH_ALG:
-		//printk("======>%s():data->value is %d\n",__FUNCTION__,data->value);
-	//	ieee->open_wep = (data->value&IW_AUTH_ALG_OPEN_SYSTEM)?1:0;
 		if(data->value & IW_AUTH_ALG_SHARED_KEY){
 			ieee->open_wep = 0;
 			ieee->auth_mode = 1;
@@ -721,17 +710,14 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 		else if(data->value & IW_AUTH_ALG_LEAP){
 			ieee->open_wep = 1;
 			ieee->auth_mode = 2;
-			//printk("hahahaa:LEAP\n");
 		}
 		else
 			return -EINVAL;
-		//printk("open_wep:%d\n", ieee->open_wep);
 		break;
 
 #if 1
 	case IW_AUTH_WPA_ENABLED:
 		ieee->wpa_enabled = (data->value)?1:0;
-		//printk("enalbe wpa:%d\n", ieee->wpa_enabled);
 		break;
 
 #endif
@@ -755,7 +741,6 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 
 	if (len>MAX_WPA_IE_LEN || (len && ie == NULL))
 	{
-	//	printk("return error out, len:%d\n", len);
 	return -EINVAL;
 	}
 
@@ -767,10 +752,9 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 			printk("len: %Zd, ie:%d\n", len, ie[1]);
 			return -EINVAL;
 		}
-		buf = kmalloc(len, GFP_KERNEL);
+		buf = kmemdup(ie, len, GFP_KERNEL);
 		if (buf == NULL)
 			return -ENOMEM;
-		memcpy(buf, ie, len);
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = len;

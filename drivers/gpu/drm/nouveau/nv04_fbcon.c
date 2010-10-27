@@ -27,11 +27,11 @@
 #include "nouveau_dma.h"
 #include "nouveau_fbcon.h"
 
-static void
+void
 nv04_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
 
@@ -54,11 +54,11 @@ nv04_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 	FIRE_RING(chan);
 }
 
-static void
+void
 nv04_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
 
@@ -88,11 +88,11 @@ nv04_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	FIRE_RING(chan);
 }
 
-static void
+void
 nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
 	uint32_t fg;
@@ -118,8 +118,8 @@ nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 		return;
 	}
 
-	width = (image->width + 31) & ~31;
-	dsize = (width * image->height) >> 5;
+	width = ALIGN(image->width, 8);
+	dsize = ALIGN(width * image->height, 32) >> 5;
 
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
 	    info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
@@ -136,8 +136,8 @@ nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 			 ((image->dx + image->width) & 0xffff));
 	OUT_RING(chan, bg);
 	OUT_RING(chan, fg);
-	OUT_RING(chan, (image->height << 16) | image->width);
 	OUT_RING(chan, (image->height << 16) | width);
+	OUT_RING(chan, (image->height << 16) | image->width);
 	OUT_RING(chan, (image->dy << 16) | (image->dx & 0xffff));
 
 	while (dsize) {
@@ -179,8 +179,8 @@ nv04_fbcon_grobj_new(struct drm_device *dev, int class, uint32_t handle)
 int
 nv04_fbcon_accel_init(struct fb_info *info)
 {
-	struct nouveau_fbcon_par *par = info->par;
-	struct drm_device *dev = par->dev;
+	struct nouveau_fbdev *nfbdev = info->par;
+	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
 	const int sub = NvSubCtxSurf2D;
@@ -236,7 +236,7 @@ nv04_fbcon_accel_init(struct fb_info *info)
 	if (ret)
 		return ret;
 
-	ret = nv04_fbcon_grobj_new(dev, dev_priv->card_type >= NV_10 ?
+	ret = nv04_fbcon_grobj_new(dev, dev_priv->chipset >= 0x11 ?
 				   0x009f : 0x005f, NvImageBlit);
 	if (ret)
 		return ret;
@@ -307,9 +307,6 @@ nv04_fbcon_accel_init(struct fb_info *info)
 
 	FIRE_RING(chan);
 
-	info->fbops->fb_fillrect = nv04_fbcon_fillrect;
-	info->fbops->fb_copyarea = nv04_fbcon_copyarea;
-	info->fbops->fb_imageblit = nv04_fbcon_imageblit;
 	return 0;
 }
 

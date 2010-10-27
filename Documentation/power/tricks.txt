@@ -1,6 +1,6 @@
 	swsusp/S3 tricks
 	~~~~~~~~~~~~~~~~
-Pavel Machek <pavel@suse.cz>
+Pavel Machek <pavel@ucw.cz>
 
 If you want to trick swsusp/S3 into working, you might want to try:
 

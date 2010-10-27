@@ -792,6 +792,18 @@ http://www.thedirks.org/winnov/</ulink></para></entry>
 	    <entry>'YYUV'</entry>
 	    <entry>unknown</entry>
 	  </row>
+	  <row id="V4L2-PIX-FMT-Y4">
+	    <entry><constant>V4L2_PIX_FMT_Y4</constant></entry>
+	    <entry>'Y04 '</entry>
+	    <entry>Old 4-bit greyscale format. Only the least significant 4 bits of each byte are used,
+the other bits are set to 0.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-Y6">
+	    <entry><constant>V4L2_PIX_FMT_Y6</constant></entry>
+	    <entry>'Y06 '</entry>
+	    <entry>Old 6-bit greyscale format. Only the least significant 6 bits of each byte are used,
+the other bits are set to 0.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>

@@ -36,7 +36,7 @@ struct ppp_channel_ops {
 
 struct ppp_channel {
 	void		*private;	/* channel private data */
-	struct ppp_channel_ops *ops;	/* operations for this channel */
+	const struct ppp_channel_ops *ops; /* operations for this channel */
 	int		mtu;		/* max transmit packet size */
 	int		hdrlen;		/* amount of headroom channel needs */
 	void		*ppp;		/* opaque to channel */
@@ -71,6 +71,9 @@ extern int ppp_channel_index(struct ppp_channel *);
 
 /* Get the unit number associated with a channel, or -1 if none */
 extern int ppp_unit_number(struct ppp_channel *);
+
+/* Get the device name associated with a channel, or NULL if none */
+extern char *ppp_dev_name(struct ppp_channel *);
 
 /*
  * SMP locking notes:

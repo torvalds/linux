@@ -1,6 +1,7 @@
 #include <linux/interrupt.h>
 #include <linux/dmar.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/hpet.h>
 #include <linux/pci.h>
@@ -20,12 +21,30 @@ static int ir_ioapic_num, ir_hpet_num;
 int intr_remapping_enabled;
 
 static int disable_intremap;
+static int disable_sourceid_checking;
+
 static __init int setup_nointremap(char *str)
 {
 	disable_intremap = 1;
 	return 0;
 }
 early_param("nointremap", setup_nointremap);
+
+static __init int setup_intremap(char *str)
+{
+	if (!str)
+		return -EINVAL;
+
+	if (!strncmp(str, "on", 2))
+		disable_intremap = 0;
+	else if (!strncmp(str, "off", 3))
+		disable_intremap = 1;
+	else if (!strncmp(str, "nosid", 5))
+		disable_sourceid_checking = 1;
+
+	return 0;
+}
+early_param("intremap", setup_intremap);
 
 struct irq_2_iommu {
 	struct intel_iommu *iommu;
@@ -310,8 +329,8 @@ int modify_irte(int irq, struct irte *irte_modified)
 	index = irq_iommu->irte_index + irq_iommu->sub_handle;
 	irte = &iommu->ir_table->base[index];
 
-	set_64bit((unsigned long *)&irte->low, irte_modified->low);
-	set_64bit((unsigned long *)&irte->high, irte_modified->high);
+	set_64bit(&irte->low, irte_modified->low);
+	set_64bit(&irte->high, irte_modified->high);
 	__iommu_flush_cache(iommu, irte, sizeof(*irte));
 
 	rc = qi_flush_iec(iommu, index, 0);
@@ -392,8 +411,8 @@ static int clear_entries(struct irq_2_iommu *irq_iommu)
 	end = start + (1 << irq_iommu->irte_mask);
 
 	for (entry = start; entry < end; entry++) {
-		set_64bit((unsigned long *)&entry->low, 0);
-		set_64bit((unsigned long *)&entry->high, 0);
+		set_64bit(&entry->low, 0);
+		set_64bit(&entry->high, 0);
 	}
 
 	return qi_flush_iec(iommu, index, irq_iommu->irte_mask);
@@ -452,6 +471,8 @@ int free_irte(int irq)
 static void set_irte_sid(struct irte *irte, unsigned int svt,
 			 unsigned int sq, unsigned int sid)
 {
+	if (disable_sourceid_checking)
+		svt = SVT_NO_VERIFY;
 	irte->svt = svt;
 	irte->sq = sq;
 	irte->sid = sid;
@@ -831,9 +852,9 @@ static int ir_parse_ioapic_hpet_scope(struct acpi_dmar_header *header,
 				return -1;
 			}
 
-			printk(KERN_INFO "IOAPIC id %d under DRHD base"
-			       " 0x%Lx\n", scope->enumeration_id,
-			       drhd->address);
+			printk(KERN_INFO "IOAPIC id %d under DRHD base "
+			       " 0x%Lx IOMMU %d\n", scope->enumeration_id,
+			       drhd->address, iommu->seq_id);
 
 			ir_parse_one_ioapic_scope(scope, iommu);
 		} else if (scope->entry_type == ACPI_DMAR_SCOPE_TYPE_HPET) {

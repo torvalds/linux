@@ -22,15 +22,3 @@ int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 {
 	return irq_tab[slot];
 }
-
-int pci_fixup_pcic(struct pci_channel *chan)
-{
-	pci_write_reg(chan, 0x000043ff, SH4_PCIINTM);
-	pci_write_reg(chan, 0x00000000, SH7780_PCIIBAR);
-	pci_write_reg(chan, 0x08000000, SH7780_PCICSCR0);
-	pci_write_reg(chan, 0x0000001b, SH7780_PCICSAR0);
-	pci_write_reg(chan, 0xfd000000, SH7780_PCICSCR1);
-	pci_write_reg(chan, 0x0000000f, SH7780_PCICSAR1);
-
-	return 0;
-}

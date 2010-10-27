@@ -23,8 +23,14 @@ BFA_TRC_FILE(LDRV, INTR);
 /**
  *  bfa_isr BFA driver interrupt functions
  */
-static int msix_disable;
-module_param(msix_disable, int, S_IRUGO | S_IWUSR);
+static int msix_disable_cb;
+static int msix_disable_ct;
+module_param(msix_disable_cb, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(msix_disable_cb, "Disable MSIX for Brocade-415/425/815/825"
+		" cards, default=0, Range[false:0|true:1]");
+module_param(msix_disable_ct, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(msix_disable_ct, "Disable MSIX for Brocade-1010/1020/804"
+		" cards, default=0, Range[false:0|true:1]");
 /**
  * Line based interrupt handler.
  */
@@ -141,6 +147,7 @@ bfad_setup_intr(struct bfad_s *bfad)
 	int error = 0;
 	u32 mask = 0, i, num_bit = 0, max_bit = 0;
 	struct msix_entry msix_entries[MAX_MSIX_ENTRY];
+	struct pci_dev *pdev = bfad->pcidev;
 
 	/* Call BFA to get the msix map for this PCI function.  */
 	bfa_msix_getvecs(&bfad->bfa, &mask, &num_bit, &max_bit);
@@ -148,7 +155,9 @@ bfad_setup_intr(struct bfad_s *bfad)
 	/* Set up the msix entry table */
 	bfad_init_msix_entry(bfad, msix_entries, mask, max_bit);
 
-	if (!msix_disable) {
+	if ((bfa_asic_id_ct(pdev->device) && !msix_disable_ct) ||
+		(!bfa_asic_id_ct(pdev->device) && !msix_disable_cb)) {
+
 		error = pci_enable_msix(bfad->pcidev, msix_entries, bfad->nvec);
 		if (error) {
 			/*

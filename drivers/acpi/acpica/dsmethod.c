@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -225,7 +225,7 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 		    (walk_state->thread->current_sync_level >
 		     obj_desc->method.mutex->mutex.sync_level)) {
 			ACPI_ERROR((AE_INFO,
-				    "Cannot acquire Mutex for method [%4.4s], current SyncLevel is too large (%d)",
+				    "Cannot acquire Mutex for method [%4.4s], current SyncLevel is too large (%u)",
 				    acpi_ut_get_node_name(method_node),
 				    walk_state->thread->current_sync_level));
 
@@ -584,8 +584,22 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		 * want make the objects permanent.
 		 */
 		if (!(method_desc->method.flags & AOPOBJ_MODULE_LEVEL)) {
-			acpi_ns_delete_namespace_by_owner(method_desc->method.
-							  owner_id);
+
+			/* Delete any direct children of (created by) this method */
+
+			acpi_ns_delete_namespace_subtree(walk_state->
+							 method_node);
+
+			/*
+			 * Delete any objects that were created by this method
+			 * elsewhere in the namespace (if any were created).
+			 */
+			if (method_desc->method.
+			    flags & AOPOBJ_MODIFIED_NAMESPACE) {
+				acpi_ns_delete_namespace_by_owner(method_desc->
+								  method.
+								  owner_id);
+			}
 		}
 	}
 
@@ -605,7 +619,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		 * we immediately reuse it for the next thread executing this method
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-				  "*** Completed execution of one thread, %d threads remaining\n",
+				  "*** Completed execution of one thread, %u threads remaining\n",
 				  method_desc->method.thread_count));
 	} else {
 		/* This is the only executing thread for this method */

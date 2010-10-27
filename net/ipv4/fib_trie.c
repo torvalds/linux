@@ -71,6 +71,7 @@
 #include <linux/netlink.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -185,7 +186,9 @@ static inline struct tnode *node_parent_rcu(struct node *node)
 {
 	struct tnode *ret = node_parent(node);
 
-	return rcu_dereference(ret);
+	return rcu_dereference_check(ret,
+				     rcu_read_lock_held() ||
+				     lockdep_rtnl_is_held());
 }
 
 /* Same as rcu_assign_pointer
@@ -208,7 +211,9 @@ static inline struct node *tnode_get_child_rcu(struct tnode *tn, unsigned int i)
 {
 	struct node *ret = tnode_get_child(tn, i);
 
-	return rcu_dereference(ret);
+	return rcu_dereference_check(ret,
+				     rcu_read_lock_held() ||
+				     lockdep_rtnl_is_held());
 }
 
 static inline int tnode_child_length(const struct tnode *tn)
@@ -961,7 +966,9 @@ fib_find_node(struct trie *t, u32 key)
 	struct node *n;
 
 	pos = 0;
-	n = rcu_dereference(t->trie);
+	n = rcu_dereference_check(t->trie,
+				  rcu_read_lock_held() ||
+				  lockdep_rtnl_is_held());
 
 	while (n != NULL &&  NODE_TYPE(n) == T_TNODE) {
 		tn = (struct tnode *) n;
@@ -1017,8 +1024,6 @@ static void trie_rebalance(struct trie *t, struct tnode *tn)
 
 	rcu_assign_pointer(t->trie, (struct node *)tn);
 	tnode_free_flush();
-
-	return;
 }
 
 /* only used from updater-side */
@@ -1750,7 +1755,9 @@ static struct leaf *leaf_walk_rcu(struct tnode *p, struct node *c)
 
 static struct leaf *trie_firstleaf(struct trie *t)
 {
-	struct tnode *n = (struct tnode *) rcu_dereference(t->trie);
+	struct tnode *n = (struct tnode *) rcu_dereference_check(t->trie,
+							rcu_read_lock_held() ||
+							lockdep_rtnl_is_held());
 
 	if (!n)
 		return NULL;

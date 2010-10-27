@@ -1,7 +1,7 @@
 /*
  * Battery driver for One Laptop Per Child board.
  *
- *	Copyright © 2006  David Woodhouse <dwmw2@infradead.org>
+ *	Copyright © 2006-2010  David Woodhouse <dwmw2@infradead.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -354,7 +354,7 @@ static enum power_supply_property olpc_bat_props[] = {
 #define EEPROM_END	0x80
 #define EEPROM_SIZE	(EEPROM_END - EEPROM_START)
 
-static ssize_t olpc_bat_eeprom_read(struct kobject *kobj,
+static ssize_t olpc_bat_eeprom_read(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
 	uint8_t ec_byte;
@@ -384,7 +384,6 @@ static struct bin_attribute olpc_bat_eeprom = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO,
-		.owner = THIS_MODULE,
 	},
 	.size = 0,
 	.read = olpc_bat_eeprom_read,

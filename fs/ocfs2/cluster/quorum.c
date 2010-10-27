@@ -44,7 +44,6 @@
  * and if they're the last, they fire off the decision.
  */
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/reboot.h>
 

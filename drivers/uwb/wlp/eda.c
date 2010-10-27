@@ -53,6 +53,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/slab.h>
 #include <linux/wlp.h>
 #include "wlp-internal.h"
 

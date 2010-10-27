@@ -216,7 +216,7 @@ serial21285_set_termios(struct uart_port *port, struct ktermios *termios,
 			struct ktermios *old)
 {
 	unsigned long flags;
-	unsigned int baud, quot, h_lcr;
+	unsigned int baud, quot, h_lcr, b;
 
 	/*
 	 * We don't support modem control lines.
@@ -234,12 +234,8 @@ serial21285_set_termios(struct uart_port *port, struct ktermios *termios,
 	 */
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16); 
 	quot = uart_get_divisor(port, baud);
-
-	if (port->state && port->state->port.tty) {
-		struct tty_struct *tty = port->state->port.tty;
-		unsigned int b = port->uartclk / (16 * quot);
-		tty_encode_baud_rate(tty, b, b);
-	}
+	b = port->uartclk / (16 * quot);
+	tty_termios_encode_baud_rate(termios, b, b);
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:

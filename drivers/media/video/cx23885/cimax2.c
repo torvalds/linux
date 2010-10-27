@@ -60,11 +60,17 @@ static unsigned int ci_dbg;
 module_param(ci_dbg, int, 0644);
 MODULE_PARM_DESC(ci_dbg, "Enable CI debugging");
 
+static unsigned int ci_irq_enable;
+module_param(ci_irq_enable, int, 0644);
+MODULE_PARM_DESC(ci_irq_enable, "Enable IRQ from CAM");
+
 #define ci_dbg_print(args...) \
 	do { \
 		if (ci_dbg) \
 			printk(KERN_DEBUG args); \
 	} while (0)
+
+#define ci_irq_flags() (ci_irq_enable ? NETUP_IRQ_IRQAM : 0)
 
 /* stores all private variables for communication with CI */
 struct netup_ci_state {
@@ -392,7 +398,7 @@ int netup_poll_ci_slot_status(struct dvb_ca_en50221 *en50221, int slot, int open
 	if (0 != slot)
 		return -EINVAL;
 
-	netup_ci_set_irq(en50221, open ? (NETUP_IRQ_DETAM | NETUP_IRQ_IRQAM)
+	netup_ci_set_irq(en50221, open ? (NETUP_IRQ_DETAM | ci_irq_flags())
 			: NETUP_IRQ_DETAM);
 
 	return state->status;
@@ -429,7 +435,7 @@ int netup_ci_init(struct cx23885_tsport *port)
 		0x01, /* power on (use it like store place) */
 		0x00, /* RFU */
 		0x00, /* int status read only */
-		NETUP_IRQ_IRQAM | NETUP_IRQ_DETAM, /* DETAM, IRQAM unmasked */
+		ci_irq_flags() | NETUP_IRQ_DETAM, /* DETAM, IRQAM unmasked */
 		0x05, /* EXTINT=active-high, INT=push-pull */
 		0x00, /* USCG1 */
 		0x04, /* ack active low */
@@ -470,7 +476,7 @@ int netup_ci_init(struct cx23885_tsport *port)
 	state->ca.poll_slot_status = netup_poll_ci_slot_status;
 	state->ca.data = state;
 	state->priv = port;
-	state->current_irq_mode = NETUP_IRQ_IRQAM | NETUP_IRQ_DETAM;
+	state->current_irq_mode = ci_irq_flags() | NETUP_IRQ_DETAM;
 
 	ret = netup_write_i2c(state->i2c_adap, state->ci_i2c_addr,
 						0, &cimax_init[0], 34);

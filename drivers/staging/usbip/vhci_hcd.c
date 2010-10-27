@@ -17,6 +17,7 @@
  * USA.
  */
 
+#include <linux/slab.h>
 
 #include "usbip_common.h"
 #include "vhci.h"
@@ -214,7 +215,7 @@ static int vhci_hub_status(struct usb_hcd *hcd, char *buf)
 	vhci = hcd_to_vhci(hcd);
 
 	spin_lock_irqsave(&vhci->lock, flags);
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		usbip_dbg_vhci_rh("hw accessible flag in on?\n");
 		goto done;
 	}
@@ -268,7 +269,7 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 	u32 prev_port_status[VHCI_NPORTS];
 
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))
+	if (!HCD_HW_ACCESSIBLE(hcd))
 		return -ETIMEDOUT;
 
 	/*
@@ -1040,7 +1041,7 @@ static int vhci_bus_resume(struct usb_hcd *hcd)
 	dev_dbg(&hcd->self.root_hub->dev, "%s\n", __func__);
 
 	spin_lock_irq(&vhci->lock);
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		rc = -ESHUTDOWN;
 	} else {
 		/* vhci->rh_state = DUMMY_RH_RUNNING;
@@ -1071,7 +1072,7 @@ static struct hc_driver vhci_hc_driver = {
 	.flags		= HCD_USB2,
 
 	.start		= vhci_start,
-	.stop 		= vhci_stop,
+	.stop		= vhci_stop,
 
 	.urb_enqueue	= vhci_urb_enqueue,
 	.urb_dequeue	= vhci_urb_dequeue,

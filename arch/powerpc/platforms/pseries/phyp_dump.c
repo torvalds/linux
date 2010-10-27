@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/kobject.h>
 #include <linux/mm.h>
@@ -150,7 +151,7 @@ static void print_dump_header(const struct phyp_dump_header *ph)
 	printk(KERN_INFO "Max auto time= %d\n", ph->maxtime_to_auto);
 
 	/*set cpu state and hpte states as well scratch pad area */
-	printk(KERN_INFO " CPU AREA \n");
+	printk(KERN_INFO " CPU AREA\n");
 	printk(KERN_INFO "cpu dump_flags =%d\n", ph->cpu_data.dump_flags);
 	printk(KERN_INFO "cpu source_type =%d\n", ph->cpu_data.source_type);
 	printk(KERN_INFO "cpu error_flags =%d\n", ph->cpu_data.error_flags);
@@ -161,7 +162,7 @@ static void print_dump_header(const struct phyp_dump_header *ph)
 	printk(KERN_INFO "cpu length_copied =%llx\n",
 		ph->cpu_data.length_copied);
 
-	printk(KERN_INFO " HPTE AREA \n");
+	printk(KERN_INFO " HPTE AREA\n");
 	printk(KERN_INFO "HPTE dump_flags =%d\n", ph->hpte_data.dump_flags);
 	printk(KERN_INFO "HPTE source_type =%d\n", ph->hpte_data.source_type);
 	printk(KERN_INFO "HPTE error_flags =%d\n", ph->hpte_data.error_flags);
@@ -172,7 +173,7 @@ static void print_dump_header(const struct phyp_dump_header *ph)
 	printk(KERN_INFO "HPTE length_copied =%llx\n",
 		ph->hpte_data.length_copied);
 
-	printk(KERN_INFO " SRSD AREA \n");
+	printk(KERN_INFO " SRSD AREA\n");
 	printk(KERN_INFO "SRSD dump_flags =%d\n", ph->kernel_data.dump_flags);
 	printk(KERN_INFO "SRSD source_type =%d\n", ph->kernel_data.source_type);
 	printk(KERN_INFO "SRSD error_flags =%d\n", ph->kernel_data.error_flags);
@@ -254,12 +255,12 @@ void invalidate_last_dump(struct phyp_dump_header *ph, unsigned long addr)
 
 /* ------------------------------------------------- */
 /**
- * release_memory_range -- release memory previously lmb_reserved
+ * release_memory_range -- release memory previously memblock_reserved
  * @start_pfn: starting physical frame number
  * @nr_pages: number of pages to free.
  *
  * This routine will release memory that had been previously
- * lmb_reserved in early boot. The released memory becomes
+ * memblock_reserved in early boot. The released memory becomes
  * available for genreal use.
  */
 static void release_memory_range(unsigned long start_pfn,

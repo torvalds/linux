@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/preempt.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
@@ -982,11 +983,11 @@ static int __init copy_keymap(void)
 	for (key = keymap; key->type != KE_END; key++)
 		length++;
 
-	new_keymap = kmalloc(length * sizeof(struct key_entry), GFP_KERNEL);
+	new_keymap = kmemdup(keymap, length * sizeof(struct key_entry),
+			     GFP_KERNEL);
 	if (!new_keymap)
 		return -ENOMEM;
 
-	memcpy(new_keymap, keymap, length * sizeof(struct key_entry));
 	keymap = new_keymap;
 
 	return 0;
@@ -1346,7 +1347,7 @@ static int __init wb_module_init(void)
 
 	err = map_bios();
 	if (err)
-		return err;
+		goto err_free_keymap;
 
 	err = platform_driver_register(&wistron_driver);
 	if (err)
@@ -1370,6 +1371,8 @@ static int __init wb_module_init(void)
 	platform_driver_unregister(&wistron_driver);
  err_unmap_bios:
 	unmap_bios();
+ err_free_keymap:
+	kfree(keymap);
 
 	return err;
 }

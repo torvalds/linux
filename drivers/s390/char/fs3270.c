@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/smp_lock.h>
 
@@ -483,6 +484,7 @@ fs3270_open(struct inode *inode, struct file *filp)
 		raw3270_del_view(&fp->view);
 		goto out;
 	}
+	nonseekable_open(inode, filp);
 	filp->private_data = fp;
 out:
 	mutex_unlock(&fs3270_mutex);

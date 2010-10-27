@@ -91,7 +91,7 @@ static inline unsigned long kmap_atomic(struct page *page, enum km_type type)
 	return vaddr;
 }
 
-static inline void kunmap_atomic(unsigned long vaddr, enum km_type type)
+static inline void kunmap_atomic_notypecheck(unsigned long vaddr, enum km_type type)
 {
 #if HIGHMEM_DEBUG
 	enum fixed_addresses idx = type + KM_TYPE_NR * smp_processor_id();

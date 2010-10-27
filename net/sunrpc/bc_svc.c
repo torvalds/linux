@@ -37,21 +37,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define RPCDBG_FACILITY	RPCDBG_SVCDSP
 
-void bc_release_request(struct rpc_task *task)
-{
-	struct rpc_rqst *req = task->tk_rqstp;
-
-	dprintk("RPC:       bc_release_request: task= %p\n", task);
-
-	/*
-	 * Release this request only if it's a backchannel
-	 * preallocated request
-	 */
-	if (!bc_prealloc(req))
-		return;
-	xprt_free_bc_request(req);
-}
-
 /* Empty callback ops */
 static const struct rpc_call_ops nfs41_callback_ops = {
 };
@@ -75,7 +60,7 @@ int bc_send(struct rpc_rqst *req)
 		rpc_put_task(task);
 	}
 	return ret;
-	dprintk("RPC:       bc_send ret= %d \n", ret);
+	dprintk("RPC:       bc_send ret= %d\n", ret);
 }
 
 #endif /* CONFIG_NFS_V4_1 */

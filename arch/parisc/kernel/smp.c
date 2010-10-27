@@ -18,7 +18,6 @@
 */
 #include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/slab.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>

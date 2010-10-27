@@ -200,7 +200,7 @@ nv04_update_arb(struct drm_device *dev, int VClk, int bpp,
 	struct nv_sim_state sim_data;
 	int MClk = nouveau_hw_get_clock(dev, MPLL);
 	int NVClk = nouveau_hw_get_clock(dev, NVPLL);
-	uint32_t cfg1 = nvReadFB(dev, NV_PFB_CFG1);
+	uint32_t cfg1 = nvReadFB(dev, NV04_PFB_CFG1);
 
 	sim_data.pclk_khz = VClk;
 	sim_data.mclk_khz = MClk;
@@ -218,7 +218,7 @@ nv04_update_arb(struct drm_device *dev, int VClk, int bpp,
 		sim_data.mem_latency = 3;
 		sim_data.mem_page_miss = 10;
 	} else {
-		sim_data.memory_type = nvReadFB(dev, NV_PFB_CFG0) & 0x1;
+		sim_data.memory_type = nvReadFB(dev, NV04_PFB_CFG0) & 0x1;
 		sim_data.memory_width = (nvReadEXTDEV(dev, NV_PEXTDEV_BOOT_0) & 0x10) ? 128 : 64;
 		sim_data.mem_latency = cfg1 & 0xf;
 		sim_data.mem_page_miss = ((cfg1 >> 4) & 0xf) + ((cfg1 >> 31) & 0x1);
@@ -274,7 +274,7 @@ getMNP_single(struct drm_device *dev, struct pll_lims *pll_lim, int clk,
 	 * returns calculated clock
 	 */
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int cv = dev_priv->vbios->chip_version;
+	int cv = dev_priv->vbios.chip_version;
 	int minvco = pll_lim->vco1.minfreq, maxvco = pll_lim->vco1.maxfreq;
 	int minM = pll_lim->vco1.min_m, maxM = pll_lim->vco1.max_m;
 	int minN = pll_lim->vco1.min_n, maxN = pll_lim->vco1.max_n;
@@ -373,7 +373,7 @@ getMNP_double(struct drm_device *dev, struct pll_lims *pll_lim, int clk,
 	 * returns calculated clock
 	 */
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int chip_version = dev_priv->vbios->chip_version;
+	int chip_version = dev_priv->vbios.chip_version;
 	int minvco1 = pll_lim->vco1.minfreq, maxvco1 = pll_lim->vco1.maxfreq;
 	int minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq;
 	int minU1 = pll_lim->vco1.min_inputfreq, minU2 = pll_lim->vco2.min_inputfreq;

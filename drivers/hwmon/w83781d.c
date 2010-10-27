@@ -1197,7 +1197,6 @@ ERROR4:
 	if (data->lm75[1])
 		i2c_unregister_device(data->lm75[1]);
 ERROR3:
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 ERROR1:
 	return err;
@@ -1219,7 +1218,6 @@ w83781d_remove(struct i2c_client *client)
 	if (data->lm75[1])
 		i2c_unregister_device(data->lm75[1]);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 
 	return 0;
@@ -1793,17 +1791,17 @@ static int __init
 w83781d_isa_found(unsigned short address)
 {
 	int val, save, found = 0;
+	int port;
 
-	/* We have to request the region in two parts because some
-	   boards declare base+4 to base+7 as a PNP device */
-	if (!request_region(address, 4, "w83781d")) {
-		pr_debug("w83781d: Failed to request low part of region\n");
-		return 0;
-	}
-	if (!request_region(address + 4, 4, "w83781d")) {
-		pr_debug("w83781d: Failed to request high part of region\n");
-		release_region(address, 4);
-		return 0;
+	/* Some boards declare base+0 to base+7 as a PNP device, some base+4
+	 * to base+7 and some base+5 to base+6. So we better request each port
+	 * individually for the probing phase. */
+	for (port = address; port < address + W83781D_EXTENT; port++) {
+		if (!request_region(port, 1, "w83781d")) {
+			pr_debug("w83781d: Failed to request port 0x%x\n",
+				 port);
+			goto release;
+		}
 	}
 
 #define REALLY_SLOW_IO
@@ -1877,8 +1875,8 @@ w83781d_isa_found(unsigned short address)
 			val == 0x30 ? "W83782D" : "W83781D", (int)address);
 
  release:
-	release_region(address + 4, 4);
-	release_region(address, 4);
+	for (port--; port >= address; port--)
+		release_region(port, 1);
 	return found;
 }
 

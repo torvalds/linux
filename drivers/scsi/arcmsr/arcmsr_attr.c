@@ -59,7 +59,8 @@
 
 struct device_attribute *arcmsr_host_attrs[];
 
-static ssize_t arcmsr_sysfs_iop_message_read(struct kobject *kobj,
+static ssize_t arcmsr_sysfs_iop_message_read(struct file *filp,
+					     struct kobject *kobj,
 					     struct bin_attribute *bin,
 					     char *buf, loff_t off,
 					     size_t count)
@@ -105,7 +106,8 @@ static ssize_t arcmsr_sysfs_iop_message_read(struct kobject *kobj,
 	return (allxfer_len);
 }
 
-static ssize_t arcmsr_sysfs_iop_message_write(struct kobject *kobj,
+static ssize_t arcmsr_sysfs_iop_message_write(struct file *filp,
+					      struct kobject *kobj,
 					      struct bin_attribute *bin,
 					      char *buf, loff_t off,
 					      size_t count)
@@ -153,7 +155,8 @@ static ssize_t arcmsr_sysfs_iop_message_write(struct kobject *kobj,
 	}
 }
 
-static ssize_t arcmsr_sysfs_iop_message_clear(struct kobject *kobj,
+static ssize_t arcmsr_sysfs_iop_message_clear(struct file *filp,
+					      struct kobject *kobj,
 					      struct bin_attribute *bin,
 					      char *buf, loff_t off,
 					      size_t count)

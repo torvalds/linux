@@ -25,6 +25,7 @@
 #include <linux/net.h>
 #include <linux/inet.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>

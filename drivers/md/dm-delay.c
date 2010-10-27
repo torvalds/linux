@@ -156,8 +156,8 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	if (dm_get_device(ti, argv[0], dc->start_read, ti->len,
-			  dm_table_get_mode(ti->table), &dc->dev_read)) {
+	if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table),
+			  &dc->dev_read)) {
 		ti->error = "Device lookup failed";
 		goto bad;
 	}
@@ -177,8 +177,8 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_dev_read;
 	}
 
-	if (dm_get_device(ti, argv[3], dc->start_write, ti->len,
-			  dm_table_get_mode(ti->table), &dc->dev_write)) {
+	if (dm_get_device(ti, argv[3], dm_table_get_mode(ti->table),
+			  &dc->dev_write)) {
 		ti->error = "Write device lookup failed";
 		goto bad_dev_read;
 	}
@@ -198,6 +198,7 @@ out:
 	atomic_set(&dc->may_delay, 1);
 
 	ti->num_flush_requests = 1;
+	ti->num_discard_requests = 1;
 	ti->private = dc;
 	return 0;
 
@@ -281,14 +282,13 @@ static int delay_map(struct dm_target *ti, struct bio *bio,
 		bio->bi_bdev = dc->dev_write->bdev;
 		if (bio_sectors(bio))
 			bio->bi_sector = dc->start_write +
-					 (bio->bi_sector - ti->begin);
+					 dm_target_offset(ti, bio->bi_sector);
 
 		return delay_bio(dc, dc->write_delay, bio);
 	}
 
 	bio->bi_bdev = dc->dev_read->bdev;
-	bio->bi_sector = dc->start_read +
-			 (bio->bi_sector - ti->begin);
+	bio->bi_sector = dc->start_read + dm_target_offset(ti, bio->bi_sector);
 
 	return delay_bio(dc, dc->read_delay, bio);
 }

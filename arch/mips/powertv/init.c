@@ -117,8 +117,10 @@ void __init prom_init(void)
 	board_nmi_handler_setup = mips_nmi_setup;
 	board_ejtag_handler_setup = mips_ejtag_setup;
 
-	if (prom_argc == 1)
+	if (prom_argc == 1) {
+		strlcat(arcs_cmdline, " ", COMMAND_LINE_SIZE);
 		strlcat(arcs_cmdline, prom_argv, COMMAND_LINE_SIZE);
+	}
 
 	configure_platform();
 	prom_meminit();

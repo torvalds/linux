@@ -31,6 +31,7 @@
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
+#include <linux/hardirq.h>
 
 #include <plat/sram.h>
 #include <plat/clock.h>
@@ -335,7 +336,7 @@ void dispc_save_context(void)
 void dispc_restore_context(void)
 {
 	RR(SYSCONFIG);
-	RR(IRQENABLE);
+	/*RR(IRQENABLE);*/
 	/*RR(CONTROL);*/
 	RR(CONFIG);
 	RR(DEFAULT_COLOR0);
@@ -472,6 +473,15 @@ void dispc_restore_context(void)
 
 	/* enable last, because LCD & DIGIT enable are here */
 	RR(CONTROL);
+
+	/* clear spurious SYNC_LOST_DIGIT interrupts */
+	dispc_write_reg(DISPC_IRQSTATUS, DISPC_IRQ_SYNC_LOST_DIGIT);
+
+	/*
+	 * enable last so IRQs won't trigger before
+	 * the context is fully restored
+	 */
+	RR(IRQENABLE);
 }
 
 #undef SR
@@ -1725,7 +1735,7 @@ static void _enable_lcd_out(bool enable)
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 0, 0);
 }
 
-void dispc_enable_lcd_out(bool enable)
+static void dispc_enable_lcd_out(bool enable)
 {
 	struct completion frame_done_completion;
 	bool is_on;
@@ -1772,7 +1782,7 @@ static void _enable_digit_out(bool enable)
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 1, 1);
 }
 
-void dispc_enable_digit_out(bool enable)
+static void dispc_enable_digit_out(bool enable)
 {
 	struct completion frame_done_completion;
 	int r;
@@ -1834,6 +1844,26 @@ void dispc_enable_digit_out(bool enable)
 	}
 
 	enable_clocks(0);
+}
+
+bool dispc_is_channel_enabled(enum omap_channel channel)
+{
+	if (channel == OMAP_DSS_CHANNEL_LCD)
+		return !!REG_GET(DISPC_CONTROL, 0, 0);
+	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
+		return !!REG_GET(DISPC_CONTROL, 1, 1);
+	else
+		BUG();
+}
+
+void dispc_enable_channel(enum omap_channel channel, bool enable)
+{
+	if (channel == OMAP_DSS_CHANNEL_LCD)
+		dispc_enable_lcd_out(enable);
+	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
+		dispc_enable_digit_out(enable);
+	else
+		BUG();
 }
 
 void dispc_lcd_enable_signal_polarity(bool act_high)
@@ -2198,7 +2228,7 @@ unsigned long dispc_fclk_rate(void)
 {
 	unsigned long r = 0;
 
-	if (dss_get_dispc_clk_source() == 0)
+	if (dss_get_dispc_clk_source() == DSS_SRC_DSS1_ALWON_FCLK)
 		r = dss_clk_get_rate(DSS_CLK_FCK1);
 	else
 #ifdef CONFIG_OMAP2_DSS_DSI
@@ -2251,7 +2281,7 @@ void dispc_dump_clocks(struct seq_file *s)
 	seq_printf(s, "- DISPC -\n");
 
 	seq_printf(s, "dispc fclk source = %s\n",
-			dss_get_dispc_clk_source() == 0 ?
+			dss_get_dispc_clk_source() == DSS_SRC_DSS1_ALWON_FCLK ?
 			"dss1_alwon_fclk" : "dsi1_pll_fclk");
 
 	seq_printf(s, "fck\t\t%-16lu\n", dispc_fclk_rate());
@@ -2301,8 +2331,6 @@ void dispc_dump_irqs(struct seq_file *s)
 	PIS(WAKEUP);
 #undef PIS
 }
-#else
-void dispc_dump_irqs(struct seq_file *s) { }
 #endif
 
 void dispc_dump_regs(struct seq_file *s)
@@ -2854,12 +2882,13 @@ static void dispc_error_worker(struct work_struct *work)
 				manager = mgr;
 				enable = mgr->device->state ==
 						OMAP_DSS_DISPLAY_ACTIVE;
-				mgr->device->disable(mgr->device);
+				mgr->device->driver->disable(mgr->device);
 				break;
 			}
 		}
 
 		if (manager) {
+			struct omap_dss_device *dssdev = manager->device;
 			for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
 				struct omap_overlay *ovl;
 				ovl = omap_dss_get_overlay(i);
@@ -2874,7 +2903,7 @@ static void dispc_error_worker(struct work_struct *work)
 			dispc_go(manager->id);
 			mdelay(50);
 			if (enable)
-				manager->device->enable(manager->device);
+				dssdev->driver->enable(dssdev);
 		}
 	}
 
@@ -2892,12 +2921,13 @@ static void dispc_error_worker(struct work_struct *work)
 				manager = mgr;
 				enable = mgr->device->state ==
 						OMAP_DSS_DISPLAY_ACTIVE;
-				mgr->device->disable(mgr->device);
+				mgr->device->driver->disable(mgr->device);
 				break;
 			}
 		}
 
 		if (manager) {
+			struct omap_dss_device *dssdev = manager->device;
 			for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
 				struct omap_overlay *ovl;
 				ovl = omap_dss_get_overlay(i);
@@ -2912,7 +2942,7 @@ static void dispc_error_worker(struct work_struct *work)
 			dispc_go(manager->id);
 			mdelay(50);
 			if (enable)
-				manager->device->enable(manager->device);
+				dssdev->driver->enable(dssdev);
 		}
 	}
 
@@ -2923,7 +2953,7 @@ static void dispc_error_worker(struct work_struct *work)
 			mgr = omap_dss_get_overlay_manager(i);
 
 			if (mgr->caps & OMAP_DSS_OVL_CAP_DISPC)
-				mgr->device->disable(mgr->device);
+				mgr->device->driver->disable(mgr->device);
 		}
 	}
 
@@ -2999,7 +3029,7 @@ void dispc_fake_vsync_irq(void)
 	u32 irqstatus = DISPC_IRQ_VSYNC;
 	int i;
 
-	local_irq_disable();
+	WARN_ON(!in_interrupt());
 
 	for (i = 0; i < DISPC_MAX_NR_ISRS; i++) {
 		struct omap_dispc_isr_data *isr_data;
@@ -3011,8 +3041,6 @@ void dispc_fake_vsync_irq(void)
 		if (isr_data->mask & irqstatus)
 			isr_data->isr(isr_data->arg, irqstatus);
 	}
-
-	local_irq_enable();
 }
 #endif
 

@@ -75,11 +75,14 @@ struct vf_data_storage {
 	u16 vlans_enabled;
 	u32 flags;
 	unsigned long last_nack;
+	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
+	u16 pf_qos;
 };
 
 #define IGB_VF_FLAG_CTS            0x00000001 /* VF is clear to send data */
 #define IGB_VF_FLAG_UNI_PROMISC    0x00000002 /* VF has unicast promisc */
 #define IGB_VF_FLAG_MULTI_PROMISC  0x00000004 /* VF has multicast promisc */
+#define IGB_VF_FLAG_PF_SET_MAC     0x00000008 /* PF has set MAC address */
 
 /* RX descriptor control thresholds.
  * PTHRESH - MAC will consider prefetch if it has fewer than this number of
@@ -92,18 +95,19 @@ struct vf_data_storage {
  *           descriptors until either it has this many to write back, or the
  *           ITR timer expires.
  */
-#define IGB_RX_PTHRESH                    (hw->mac.type <= e1000_82576 ? 16 : 8)
+#define IGB_RX_PTHRESH                     8
 #define IGB_RX_HTHRESH                     8
 #define IGB_RX_WTHRESH                     1
 #define IGB_TX_PTHRESH                     8
 #define IGB_TX_HTHRESH                     1
 #define IGB_TX_WTHRESH                     ((hw->mac.type == e1000_82576 && \
-                                             adapter->msix_entries) ? 0 : 16)
+                                             adapter->msix_entries) ? 1 : 16)
 
 /* this is the size past which hardware will drop packets when setting LPE=0 */
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
 
 /* Supported Rx Buffer Sizes */
+#define IGB_RXBUFFER_64    64     /* Used for packet split */
 #define IGB_RXBUFFER_128   128    /* Used for packet split */
 #define IGB_RXBUFFER_1024  1024
 #define IGB_RXBUFFER_2048  2048
@@ -137,7 +141,10 @@ struct igb_buffer {
 			unsigned long time_stamp;
 			u16 length;
 			u16 next_to_watch;
-			u16 mapped_as_page;
+			unsigned int bytecount;
+			u16 gso_segs;
+			union skb_shared_tx shtx;
+			u8 mapped_as_page;
 		};
 		/* RX */
 		struct {
@@ -173,7 +180,6 @@ struct igb_q_vector {
 
 	u16 itr_val;
 	u8 set_itr;
-	u8 itr_shift;
 	void __iomem *itr_register;
 
 	char name[IFNAMSIZ + 9];
@@ -182,7 +188,7 @@ struct igb_q_vector {
 struct igb_ring {
 	struct igb_q_vector *q_vector; /* backlink to q_vector */
 	struct net_device *netdev;     /* back pointer to net_device */
-	struct pci_dev *pdev;          /* pci device for dma mapping */
+	struct device *dev;            /* device pointer for dma mapping */
 	dma_addr_t dma;                /* phys address of the ring */
 	void *desc;                    /* descriptor ring memory */
 	unsigned int size;             /* length of desc. ring in bytes */
@@ -238,7 +244,6 @@ static inline int igb_desc_unused(struct igb_ring *ring)
 }
 
 /* board specific private data structure */
-
 struct igb_adapter {
 	struct timer_list watchdog_timer;
 	struct timer_list phy_info_timer;
@@ -264,12 +269,11 @@ struct igb_adapter {
 	unsigned long led_status;
 
 	/* TX */
-	struct igb_ring *tx_ring;      /* One per active queue */
-	unsigned long tx_queue_len;
+	struct igb_ring *tx_ring[16];
 	u32 tx_timeout_count;
 
 	/* RX */
-	struct igb_ring *rx_ring;      /* One per active queue */
+	struct igb_ring *rx_ring[16];
 	int num_tx_queues;
 	int num_rx_queues;
 
@@ -322,6 +326,7 @@ struct igb_adapter {
 
 #define IGB_82576_TSYNC_SHIFT 19
 #define IGB_82580_TSYNC_SHIFT 24
+#define IGB_TS_HDR_LEN        16
 enum e1000_state_t {
 	__IGB_TESTING,
 	__IGB_RESETTING,
@@ -335,7 +340,6 @@ enum igb_boards {
 extern char igb_driver_name[];
 extern char igb_driver_version[];
 
-extern char *igb_get_hw_dev_name(struct e1000_hw *hw);
 extern int igb_up(struct igb_adapter *);
 extern void igb_down(struct igb_adapter *);
 extern void igb_reinit_locked(struct igb_adapter *);
@@ -354,7 +358,9 @@ extern void igb_unmap_and_free_tx_resource(struct igb_ring *,
 					   struct igb_buffer *);
 extern void igb_alloc_rx_buffers_adv(struct igb_ring *, int);
 extern void igb_update_stats(struct igb_adapter *);
+extern bool igb_has_link(struct igb_adapter *adapter);
 extern void igb_set_ethtool_ops(struct net_device *);
+extern void igb_power_up_link(struct igb_adapter *);
 
 static inline s32 igb_reset_phy(struct e1000_hw *hw)
 {

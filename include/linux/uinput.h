@@ -37,7 +37,6 @@
 #define UINPUT_VERSION		3
 
 #ifdef __KERNEL__
-#define UINPUT_MINOR		223
 #define UINPUT_NAME		"uinput"
 #define UINPUT_BUFFER_SIZE	16
 #define UINPUT_NUM_REQUESTS	16
@@ -166,11 +165,11 @@ struct uinput_ff_erase {
 struct uinput_user_dev {
 	char name[UINPUT_MAX_NAME_SIZE];
 	struct input_id id;
-        int ff_effects_max;
-        int absmax[ABS_MAX + 1];
-        int absmin[ABS_MAX + 1];
-        int absfuzz[ABS_MAX + 1];
-        int absflat[ABS_MAX + 1];
+	int ff_effects_max;
+	int absmax[ABS_CNT];
+	int absmin[ABS_CNT];
+	int absfuzz[ABS_CNT];
+	int absflat[ABS_CNT];
 };
 #endif	/* __UINPUT_H_ */
 

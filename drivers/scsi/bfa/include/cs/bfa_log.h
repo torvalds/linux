@@ -157,7 +157,7 @@ typedef void (*bfa_log_cb_t)(struct bfa_log_mod_s *log_mod, u32 msg_id,
 
 
 struct bfa_log_mod_s {
-	char		instance_info[16];	/*  instance info */
+	char		instance_info[BFA_STRING_32];	/*  instance info */
 	int		log_level[BFA_LOG_MODULE_ID_MAX + 1];
 						/*  log level for modules */
 	bfa_log_cb_t	cbfn; 			/*  callback function */

@@ -38,7 +38,7 @@
 #define RESET_STATUS          -1
 #define NUM_NO_OPS            5
 
-// PAL and NTSC line sizes and number of lines.
+/* PAL and NTSC line sizes and number of lines. */
 #define WIDTH_D1              720
 #define NTSC_LINES_PER_FRAME  480
 #define PAL_LINES_PER_FRAME   576

@@ -37,6 +37,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/c67x00.h>
 
@@ -137,13 +138,13 @@ static int __devinit c67x00_drv_probe(struct platform_device *pdev)
 	if (!c67x00)
 		return -ENOMEM;
 
-	if (!request_mem_region(res->start, res->end - res->start + 1,
+	if (!request_mem_region(res->start, resource_size(res),
 				pdev->name)) {
 		dev_err(&pdev->dev, "Memory region busy\n");
 		ret = -EBUSY;
 		goto request_mem_failed;
 	}
-	c67x00->hpi.base = ioremap(res->start, res->end - res->start + 1);
+	c67x00->hpi.base = ioremap(res->start, resource_size(res));
 	if (!c67x00->hpi.base) {
 		dev_err(&pdev->dev, "Unable to map HPI registers\n");
 		ret = -EIO;
@@ -182,7 +183,7 @@ static int __devinit c67x00_drv_probe(struct platform_device *pdev)
  request_irq_failed:
 	iounmap(c67x00->hpi.base);
  map_failed:
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
  request_mem_failed:
 	kfree(c67x00);
 
@@ -208,7 +209,7 @@ static int __devexit c67x00_drv_remove(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res)
-		release_mem_region(res->start, res->end - res->start + 1);
+		release_mem_region(res->start, resource_size(res));
 
 	kfree(c67x00);
 

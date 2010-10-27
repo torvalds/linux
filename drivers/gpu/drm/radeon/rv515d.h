@@ -217,6 +217,52 @@
 #define CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
 
 /* Registers */
+#define R_0000F0_RBBM_SOFT_RESET                     0x0000F0
+#define   S_0000F0_SOFT_RESET_CP(x)                    (((x) & 0x1) << 0)
+#define   G_0000F0_SOFT_RESET_CP(x)                    (((x) >> 0) & 0x1)
+#define   C_0000F0_SOFT_RESET_CP                       0xFFFFFFFE
+#define   S_0000F0_SOFT_RESET_HI(x)                    (((x) & 0x1) << 1)
+#define   G_0000F0_SOFT_RESET_HI(x)                    (((x) >> 1) & 0x1)
+#define   C_0000F0_SOFT_RESET_HI                       0xFFFFFFFD
+#define   S_0000F0_SOFT_RESET_VAP(x)                   (((x) & 0x1) << 2)
+#define   G_0000F0_SOFT_RESET_VAP(x)                   (((x) >> 2) & 0x1)
+#define   C_0000F0_SOFT_RESET_VAP                      0xFFFFFFFB
+#define   S_0000F0_SOFT_RESET_RE(x)                    (((x) & 0x1) << 3)
+#define   G_0000F0_SOFT_RESET_RE(x)                    (((x) >> 3) & 0x1)
+#define   C_0000F0_SOFT_RESET_RE                       0xFFFFFFF7
+#define   S_0000F0_SOFT_RESET_PP(x)                    (((x) & 0x1) << 4)
+#define   G_0000F0_SOFT_RESET_PP(x)                    (((x) >> 4) & 0x1)
+#define   C_0000F0_SOFT_RESET_PP                       0xFFFFFFEF
+#define   S_0000F0_SOFT_RESET_E2(x)                    (((x) & 0x1) << 5)
+#define   G_0000F0_SOFT_RESET_E2(x)                    (((x) >> 5) & 0x1)
+#define   C_0000F0_SOFT_RESET_E2                       0xFFFFFFDF
+#define   S_0000F0_SOFT_RESET_RB(x)                    (((x) & 0x1) << 6)
+#define   G_0000F0_SOFT_RESET_RB(x)                    (((x) >> 6) & 0x1)
+#define   C_0000F0_SOFT_RESET_RB                       0xFFFFFFBF
+#define   S_0000F0_SOFT_RESET_HDP(x)                   (((x) & 0x1) << 7)
+#define   G_0000F0_SOFT_RESET_HDP(x)                   (((x) >> 7) & 0x1)
+#define   C_0000F0_SOFT_RESET_HDP                      0xFFFFFF7F
+#define   S_0000F0_SOFT_RESET_MC(x)                    (((x) & 0x1) << 8)
+#define   G_0000F0_SOFT_RESET_MC(x)                    (((x) >> 8) & 0x1)
+#define   C_0000F0_SOFT_RESET_MC                       0xFFFFFEFF
+#define   S_0000F0_SOFT_RESET_AIC(x)                   (((x) & 0x1) << 9)
+#define   G_0000F0_SOFT_RESET_AIC(x)                   (((x) >> 9) & 0x1)
+#define   C_0000F0_SOFT_RESET_AIC                      0xFFFFFDFF
+#define   S_0000F0_SOFT_RESET_VIP(x)                   (((x) & 0x1) << 10)
+#define   G_0000F0_SOFT_RESET_VIP(x)                   (((x) >> 10) & 0x1)
+#define   C_0000F0_SOFT_RESET_VIP                      0xFFFFFBFF
+#define   S_0000F0_SOFT_RESET_DISP(x)                  (((x) & 0x1) << 11)
+#define   G_0000F0_SOFT_RESET_DISP(x)                  (((x) >> 11) & 0x1)
+#define   C_0000F0_SOFT_RESET_DISP                     0xFFFFF7FF
+#define   S_0000F0_SOFT_RESET_CG(x)                    (((x) & 0x1) << 12)
+#define   G_0000F0_SOFT_RESET_CG(x)                    (((x) >> 12) & 0x1)
+#define   C_0000F0_SOFT_RESET_CG                       0xFFFFEFFF
+#define   S_0000F0_SOFT_RESET_GA(x)                    (((x) & 0x1) << 13)
+#define   G_0000F0_SOFT_RESET_GA(x)                    (((x) >> 13) & 0x1)
+#define   C_0000F0_SOFT_RESET_GA                       0xFFFFDFFF
+#define   S_0000F0_SOFT_RESET_IDCT(x)                  (((x) & 0x1) << 14)
+#define   G_0000F0_SOFT_RESET_IDCT(x)                  (((x) >> 14) & 0x1)
+#define   C_0000F0_SOFT_RESET_IDCT                     0xFFFFBFFF
 #define R_0000F8_CONFIG_MEMSIZE                      0x0000F8
 #define   S_0000F8_CONFIG_MEMSIZE(x)                   (((x) & 0xFFFFFFFF) << 0)
 #define   G_0000F8_CONFIG_MEMSIZE(x)                   (((x) >> 0) & 0xFFFFFFFF)

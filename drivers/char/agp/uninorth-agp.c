@@ -3,6 +3,7 @@
  */
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
 #include <linux/agp_backend.h>
@@ -27,6 +28,7 @@
  */
 static int uninorth_rev;
 static int is_u3;
+static u32 scratch_value;
 
 #define DEFAULT_APERTURE_SIZE 256
 #define DEFAULT_APERTURE_STRING "256"
@@ -171,7 +173,7 @@ static int uninorth_insert_memory(struct agp_memory *mem, off_t pg_start, int ty
 
 	gp = (u32 *) &agp_bridge->gatt_table[pg_start];
 	for (i = 0; i < mem->page_count; ++i) {
-		if (gp[i]) {
+		if (gp[i] != scratch_value) {
 			dev_info(&agp_bridge->dev->dev,
 				 "uninorth_insert_memory: entry 0x%x occupied (%x)\n",
 				 i, gp[i]);
@@ -213,8 +215,9 @@ int uninorth_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 		return 0;
 
 	gp = (u32 *) &agp_bridge->gatt_table[pg_start];
-	for (i = 0; i < mem->page_count; ++i)
-		gp[i] = 0;
+	for (i = 0; i < mem->page_count; ++i) {
+		gp[i] = scratch_value;
+	}
 	mb();
 	uninorth_tlbflush(mem);
 
@@ -412,7 +415,7 @@ static int uninorth_create_gatt_table(struct agp_bridge_data *bridge)
 	bridge->gatt_table_real = (u32 *) table;
 	/* Need to clear out any dirty data still sitting in caches */
 	flush_dcache_range((unsigned long)table,
-			   (unsigned long)(table_end + PAGE_SIZE));
+			   (unsigned long)table_end + 1);
 	bridge->gatt_table = vmap(pages, (1 << page_order), 0, PAGE_KERNEL_NCG);
 
 	if (bridge->gatt_table == NULL)
@@ -420,8 +423,13 @@ static int uninorth_create_gatt_table(struct agp_bridge_data *bridge)
 
 	bridge->gatt_bus_addr = virt_to_phys(table);
 
+	if (is_u3)
+		scratch_value = (page_to_phys(agp_bridge->scratch_page_page) >> PAGE_SHIFT) | 0x80000000UL;
+	else
+		scratch_value =	cpu_to_le32((page_to_phys(agp_bridge->scratch_page_page) & 0xFFFFF000UL) |
+				0x1UL);
 	for (i = 0; i < num_entries; i++)
-		bridge->gatt_table[i] = 0;
+		bridge->gatt_table[i] = scratch_value;
 
 	return 0;
 
@@ -518,6 +526,7 @@ const struct agp_bridge_driver uninorth_agp_driver = {
 	.agp_destroy_pages	= agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 	.cant_use_aperture	= true,
+	.needs_scratch_page	= true,
 };
 
 const struct agp_bridge_driver u3_agp_driver = {

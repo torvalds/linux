@@ -18,9 +18,6 @@
 #include <linux/phy.h>
 #include <linux/brcmphy.h>
 
-#define PHY_ID_BCM50610		0x0143bd60
-#define PHY_ID_BCM50610M	0x0143bd70
-#define PHY_ID_BCM57780		0x03625d90
 
 #define BRCM_PHY_MODEL(phydev) \
 	((phydev)->drv->phy_id & (phydev)->drv->phy_id_mask)
@@ -688,7 +685,7 @@ static int brcm_fet_config_intr(struct phy_device *phydev)
 }
 
 static struct phy_driver bcm5411_driver = {
-	.phy_id		= 0x00206070,
+	.phy_id		= PHY_ID_BCM5411,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCM5411",
 	.features	= PHY_GBIT_FEATURES |
@@ -703,7 +700,7 @@ static struct phy_driver bcm5411_driver = {
 };
 
 static struct phy_driver bcm5421_driver = {
-	.phy_id		= 0x002060e0,
+	.phy_id		= PHY_ID_BCM5421,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCM5421",
 	.features	= PHY_GBIT_FEATURES |
@@ -718,7 +715,7 @@ static struct phy_driver bcm5421_driver = {
 };
 
 static struct phy_driver bcm5461_driver = {
-	.phy_id		= 0x002060c0,
+	.phy_id		= PHY_ID_BCM5461,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCM5461",
 	.features	= PHY_GBIT_FEATURES |
@@ -733,7 +730,7 @@ static struct phy_driver bcm5461_driver = {
 };
 
 static struct phy_driver bcm5464_driver = {
-	.phy_id		= 0x002060b0,
+	.phy_id		= PHY_ID_BCM5464,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCM5464",
 	.features	= PHY_GBIT_FEATURES |
@@ -748,7 +745,7 @@ static struct phy_driver bcm5464_driver = {
 };
 
 static struct phy_driver bcm5481_driver = {
-	.phy_id		= 0x0143bca0,
+	.phy_id		= PHY_ID_BCM5481,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCM5481",
 	.features	= PHY_GBIT_FEATURES |
@@ -763,7 +760,7 @@ static struct phy_driver bcm5481_driver = {
 };
 
 static struct phy_driver bcm5482_driver = {
-	.phy_id		= 0x0143bcb0,
+	.phy_id		= PHY_ID_BCM5482,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCM5482",
 	.features	= PHY_GBIT_FEATURES |
@@ -823,9 +820,24 @@ static struct phy_driver bcm57780_driver = {
 };
 
 static struct phy_driver bcmac131_driver = {
-	.phy_id		= 0x0143bc70,
+	.phy_id		= PHY_ID_BCMAC131,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCMAC131",
+	.features	= PHY_BASIC_FEATURES |
+			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
+	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.config_init	= brcm_fet_config_init,
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
+	.ack_interrupt	= brcm_fet_ack_interrupt,
+	.config_intr	= brcm_fet_config_intr,
+	.driver		= { .owner = THIS_MODULE },
+};
+
+static struct phy_driver bcm5241_driver = {
+	.phy_id		= PHY_ID_BCM5241,
+	.phy_id_mask	= 0xfffffff0,
+	.name		= "Broadcom BCM5241",
 	.features	= PHY_BASIC_FEATURES |
 			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
@@ -871,8 +883,13 @@ static int __init broadcom_init(void)
 	ret = phy_driver_register(&bcmac131_driver);
 	if (ret)
 		goto out_ac131;
+	ret = phy_driver_register(&bcm5241_driver);
+	if (ret)
+		goto out_5241;
 	return ret;
 
+out_5241:
+	phy_driver_unregister(&bcmac131_driver);
 out_ac131:
 	phy_driver_unregister(&bcm57780_driver);
 out_57780:
@@ -897,6 +914,7 @@ out_5411:
 
 static void __exit broadcom_exit(void)
 {
+	phy_driver_unregister(&bcm5241_driver);
 	phy_driver_unregister(&bcmac131_driver);
 	phy_driver_unregister(&bcm57780_driver);
 	phy_driver_unregister(&bcm50610m_driver);
@@ -911,3 +929,20 @@ static void __exit broadcom_exit(void)
 
 module_init(broadcom_init);
 module_exit(broadcom_exit);
+
+static struct mdio_device_id broadcom_tbl[] = {
+	{ PHY_ID_BCM5411, 0xfffffff0 },
+	{ PHY_ID_BCM5421, 0xfffffff0 },
+	{ PHY_ID_BCM5461, 0xfffffff0 },
+	{ PHY_ID_BCM5464, 0xfffffff0 },
+	{ PHY_ID_BCM5482, 0xfffffff0 },
+	{ PHY_ID_BCM5482, 0xfffffff0 },
+	{ PHY_ID_BCM50610, 0xfffffff0 },
+	{ PHY_ID_BCM50610M, 0xfffffff0 },
+	{ PHY_ID_BCM57780, 0xfffffff0 },
+	{ PHY_ID_BCMAC131, 0xfffffff0 },
+	{ PHY_ID_BCM5241, 0xfffffff0 },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(mdio, broadcom_tbl);

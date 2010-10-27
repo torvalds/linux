@@ -135,6 +135,7 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
  * @fw_build: Firmware build number
  * @mcdi: Management-Controller-to-Driver Interface
  * @wol_filter_id: Wake-on-LAN packet filter id
+ * @ipv6_rss_key: Toeplitz hash key for IPv6 RSS
  */
 struct siena_nic_data {
 	u64 fw_version;
@@ -156,7 +157,7 @@ extern struct efx_nic_type siena_a0_nic_type;
  **************************************************************************
  */
 
-extern void falcon_probe_board(struct efx_nic *efx, u16 revision_info);
+extern int falcon_probe_board(struct efx_nic *efx, u16 revision_info);
 
 /* TX data path */
 extern int efx_nic_probe_tx(struct efx_tx_queue *tx_queue);
@@ -188,8 +189,8 @@ extern int efx_nic_rx_xoff_thresh, efx_nic_rx_xon_thresh;
 /* Interrupts and test events */
 extern int efx_nic_init_interrupt(struct efx_nic *efx);
 extern void efx_nic_enable_interrupts(struct efx_nic *efx);
-extern void efx_nic_generate_test_event(struct efx_channel *channel,
-					unsigned int magic);
+extern void efx_nic_generate_test_event(struct efx_channel *channel);
+extern void efx_nic_generate_fill_event(struct efx_channel *channel);
 extern void efx_nic_generate_interrupt(struct efx_nic *efx);
 extern void efx_nic_disable_interrupts(struct efx_nic *efx);
 extern void efx_nic_fini_interrupt(struct efx_nic *efx);
@@ -203,8 +204,10 @@ extern void falcon_irq_ack_a1(struct efx_nic *efx);
 extern int efx_nic_flush_queues(struct efx_nic *efx);
 extern void falcon_start_nic_stats(struct efx_nic *efx);
 extern void falcon_stop_nic_stats(struct efx_nic *efx);
+extern void falcon_setup_xaui(struct efx_nic *efx);
 extern int falcon_reset_xaui(struct efx_nic *efx);
 extern void efx_nic_init_common(struct efx_nic *efx);
+extern void efx_nic_push_rx_indir_table(struct efx_nic *efx);
 
 int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
 			 unsigned int len);
@@ -218,6 +221,9 @@ struct efx_nic_register_test {
 extern int efx_nic_test_registers(struct efx_nic *efx,
 				  const struct efx_nic_register_test *regs,
 				  size_t n_regs);
+
+extern size_t efx_nic_get_regs_len(struct efx_nic *efx);
+extern void efx_nic_get_regs(struct efx_nic *efx, void *buf);
 
 /**************************************************************************
  *

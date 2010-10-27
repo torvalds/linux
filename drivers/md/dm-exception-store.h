@@ -126,8 +126,9 @@ struct dm_exception_store {
 };
 
 /*
- * Obtain the cow device used by a given snapshot.
+ * Obtain the origin or cow device used by a given snapshot.
  */
+struct dm_dev *dm_snap_origin(struct dm_snapshot *snap);
 struct dm_dev *dm_snap_cow(struct dm_snapshot *snap);
 
 /*

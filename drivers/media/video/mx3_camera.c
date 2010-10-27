@@ -672,7 +672,7 @@ static bool mx3_camera_packing_supported(const struct soc_mbus_pixelfmt *fmt)
 		 fmt->packing == SOC_MBUS_PACKING_EXTEND16);
 }
 
-static int mx3_camera_get_formats(struct soc_camera_device *icd, int idx,
+static int mx3_camera_get_formats(struct soc_camera_device *icd, unsigned int idx,
 				  struct soc_camera_format_xlate *xlate)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
@@ -689,7 +689,7 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, int idx,
 	fmt = soc_mbus_get_fmtdesc(code);
 	if (!fmt) {
 		dev_err(icd->dev.parent,
-			"Invalid format code #%d: %d\n", idx, code);
+			"Invalid format code #%u: %d\n", idx, code);
 		return 0;
 	}
 
@@ -796,7 +796,7 @@ static int acquire_dma_channel(struct mx3_camera_dev *mx3_cam)
  * FIXME: learn to use stride != width, then we can keep stride properly aligned
  * and support arbitrary (even) widths.
  */
-static inline void stride_align(__s32 *width)
+static inline void stride_align(__u32 *width)
 {
 	if (((*width + 7) &  ~7) < 4096)
 		*width = (*width + 7) &  ~7;
@@ -844,7 +844,7 @@ static int mx3_camera_set_crop(struct soc_camera_device *icd,
 		 * So far only direct camera-to-memory is supported
 		 */
 		if (channel_change_requested(icd, rect)) {
-			int ret = acquire_dma_channel(mx3_cam);
+			ret = acquire_dma_channel(mx3_cam);
 			if (ret < 0)
 				return ret;
 		}

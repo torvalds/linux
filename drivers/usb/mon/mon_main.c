@@ -9,11 +9,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
+#include <linux/slab.h>
 #include <linux/notifier.h>
 #include <linux/mutex.h>
 
 #include "usb_mon.h"
-#include "../core/hcd.h"
+
 
 static void mon_stop(struct mon_bus *mbus);
 static void mon_dissolve(struct mon_bus *mbus, struct usb_bus *ubus);

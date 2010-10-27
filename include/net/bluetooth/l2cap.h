@@ -1,6 +1,8 @@
 /* 
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (C) 2000-2001 Qualcomm Incorporated
+   Copyright (C) 2009-2010 Gustavo F. Padovan <gustavo@padovan.org>
+   Copyright (C) 2010 Google Inc.
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -30,11 +32,12 @@
 #define L2CAP_DEFAULT_MIN_MTU		48
 #define L2CAP_DEFAULT_FLUSH_TO		0xffff
 #define L2CAP_DEFAULT_TX_WINDOW		63
-#define L2CAP_DEFAULT_NUM_TO_ACK        (L2CAP_DEFAULT_TX_WINDOW/5)
 #define L2CAP_DEFAULT_MAX_TX		3
-#define L2CAP_DEFAULT_RETRANS_TO	1000    /* 1 second */
+#define L2CAP_DEFAULT_RETRANS_TO	2000    /* 2 seconds */
 #define L2CAP_DEFAULT_MONITOR_TO	12000   /* 12 seconds */
-#define L2CAP_DEFAULT_MAX_PDU_SIZE	672
+#define L2CAP_DEFAULT_MAX_PDU_SIZE	1009    /* Sized for 3-DH5 packet */
+#define L2CAP_DEFAULT_ACK_TO		200
+#define L2CAP_LOCAL_BUSY_TRIES		12
 
 #define L2CAP_CONN_TIMEOUT	(40000) /* 40 seconds */
 #define L2CAP_INFO_TIMEOUT	(4000)  /*  4 seconds */
@@ -55,6 +58,8 @@ struct l2cap_options {
 	__u16 flush_to;
 	__u8  mode;
 	__u8  fcs;
+	__u8  max_tx;
+	__u16 txwin_size;
 };
 
 #define L2CAP_CONNINFO	0x02
@@ -126,31 +131,31 @@ struct l2cap_conninfo {
 struct l2cap_hdr {
 	__le16     len;
 	__le16     cid;
-} __attribute__ ((packed));
+} __packed;
 #define L2CAP_HDR_SIZE		4
 
 struct l2cap_cmd_hdr {
 	__u8       code;
 	__u8       ident;
 	__le16     len;
-} __attribute__ ((packed));
+} __packed;
 #define L2CAP_CMD_HDR_SIZE	4
 
 struct l2cap_cmd_rej {
 	__le16     reason;
-} __attribute__ ((packed));
+} __packed;
 
 struct l2cap_conn_req {
 	__le16     psm;
 	__le16     scid;
-} __attribute__ ((packed));
+} __packed;
 
 struct l2cap_conn_rsp {
 	__le16     dcid;
 	__le16     scid;
 	__le16     result;
 	__le16     status;
-} __attribute__ ((packed));
+} __packed;
 
 /* channel indentifier */
 #define L2CAP_CID_SIGNALING	0x0001
@@ -174,14 +179,14 @@ struct l2cap_conf_req {
 	__le16     dcid;
 	__le16     flags;
 	__u8       data[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct l2cap_conf_rsp {
 	__le16     scid;
 	__le16     flags;
 	__le16     result;
 	__u8       data[0];
-} __attribute__ ((packed));
+} __packed;
 
 #define L2CAP_CONF_SUCCESS	0x0000
 #define L2CAP_CONF_UNACCEPT	0x0001
@@ -192,7 +197,7 @@ struct l2cap_conf_opt {
 	__u8       type;
 	__u8       len;
 	__u8       val[0];
-} __attribute__ ((packed));
+} __packed;
 #define L2CAP_CONF_OPT_SIZE	2
 
 #define L2CAP_CONF_HINT		0x80
@@ -213,7 +218,7 @@ struct l2cap_conf_rfc {
 	__le16     retrans_timeout;
 	__le16     monitor_timeout;
 	__le16     max_pdu_size;
-} __attribute__ ((packed));
+} __packed;
 
 #define L2CAP_MODE_BASIC	0x00
 #define L2CAP_MODE_RETRANS	0x01
@@ -224,22 +229,22 @@ struct l2cap_conf_rfc {
 struct l2cap_disconn_req {
 	__le16     dcid;
 	__le16     scid;
-} __attribute__ ((packed));
+} __packed;
 
 struct l2cap_disconn_rsp {
 	__le16     dcid;
 	__le16     scid;
-} __attribute__ ((packed));
+} __packed;
 
 struct l2cap_info_req {
 	__le16      type;
-} __attribute__ ((packed));
+} __packed;
 
 struct l2cap_info_rsp {
 	__le16      type;
 	__le16      result;
 	__u8        data[0];
-} __attribute__ ((packed));
+} __packed;
 
 /* info type */
 #define L2CAP_IT_CL_MTU     0x0001
@@ -284,6 +289,11 @@ struct l2cap_conn {
 	struct l2cap_chan_list chan_list;
 };
 
+struct sock_del_list {
+	struct sock *sk;
+	struct list_head list;
+};
+
 #define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
 #define L2CAP_INFO_FEAT_MASK_REQ_SENT	0x04
 #define L2CAP_INFO_FEAT_MASK_REQ_DONE	0x08
@@ -292,6 +302,7 @@ struct l2cap_conn {
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)
 #define TX_QUEUE(sk) (&l2cap_pi(sk)->tx_queue)
 #define SREJ_QUEUE(sk) (&l2cap_pi(sk)->srej_queue)
+#define BUSY_QUEUE(sk) (&l2cap_pi(sk)->busy_queue)
 #define SREJ_LIST(sk) (&l2cap_pi(sk)->srej_l.list)
 
 struct srej_list {
@@ -320,7 +331,7 @@ struct l2cap_pinfo {
 	__u8		conf_req[64];
 	__u8		conf_len;
 	__u8		conf_state;
-	__u8		conn_state;
+	__u16		conn_state;
 
 	__u8		next_tx_seq;
 	__u8		expected_ack_seq;
@@ -328,27 +339,34 @@ struct l2cap_pinfo {
 	__u8		buffer_seq;
 	__u8		buffer_seq_srej;
 	__u8		srej_save_reqseq;
+	__u8		frames_sent;
 	__u8		unacked_frames;
 	__u8		retry_count;
-	__u8		num_to_ack;
+	__u8		num_acked;
 	__u16		sdu_len;
 	__u16		partial_sdu_len;
 	struct sk_buff	*sdu;
 
 	__u8		ident;
 
+	__u8		tx_win;
+	__u8		max_tx;
 	__u8		remote_tx_win;
 	__u8		remote_max_tx;
 	__u16		retrans_timeout;
 	__u16		monitor_timeout;
-	__u16		max_pdu_size;
+	__u16		remote_mps;
+	__u16		mps;
 
 	__le16		sport;
 
 	struct timer_list	retrans_timer;
 	struct timer_list	monitor_timer;
+	struct timer_list	ack_timer;
 	struct sk_buff_head	tx_queue;
 	struct sk_buff_head	srej_queue;
+	struct sk_buff_head	busy_queue;
+	struct work_struct	busy_work;
 	struct srej_list	srej_l;
 	struct l2cap_conn	*conn;
 	struct sock		*next_c;
@@ -367,19 +385,24 @@ struct l2cap_pinfo {
 #define L2CAP_CONF_MAX_CONF_REQ 2
 #define L2CAP_CONF_MAX_CONF_RSP 2
 
-#define L2CAP_CONN_SAR_SDU         0x01
-#define L2CAP_CONN_SREJ_SENT       0x02
-#define L2CAP_CONN_WAIT_F          0x04
-#define L2CAP_CONN_SREJ_ACT        0x08
-#define L2CAP_CONN_SEND_PBIT       0x10
-#define L2CAP_CONN_REMOTE_BUSY     0x20
-#define L2CAP_CONN_LOCAL_BUSY      0x40
-#define L2CAP_CONN_REJ_ACT         0x80
+#define L2CAP_CONN_SAR_SDU         0x0001
+#define L2CAP_CONN_SREJ_SENT       0x0002
+#define L2CAP_CONN_WAIT_F          0x0004
+#define L2CAP_CONN_SREJ_ACT        0x0008
+#define L2CAP_CONN_SEND_PBIT       0x0010
+#define L2CAP_CONN_REMOTE_BUSY     0x0020
+#define L2CAP_CONN_LOCAL_BUSY      0x0040
+#define L2CAP_CONN_REJ_ACT         0x0080
+#define L2CAP_CONN_SEND_FBIT       0x0100
+#define L2CAP_CONN_RNR_SENT        0x0200
+#define L2CAP_CONN_SAR_RETRY       0x0400
 
 #define __mod_retrans_timer() mod_timer(&l2cap_pi(sk)->retrans_timer, \
 		jiffies +  msecs_to_jiffies(L2CAP_DEFAULT_RETRANS_TO));
 #define __mod_monitor_timer() mod_timer(&l2cap_pi(sk)->monitor_timer, \
 		jiffies + msecs_to_jiffies(L2CAP_DEFAULT_MONITOR_TO));
+#define __mod_ack_timer() mod_timer(&l2cap_pi(sk)->ack_timer, \
+		jiffies + msecs_to_jiffies(L2CAP_DEFAULT_ACK_TO));
 
 static inline int l2cap_tx_window_full(struct sock *sk)
 {

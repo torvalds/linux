@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <asm/eeh_event.h>
 #include <asm/ppc-pci.h>
@@ -80,7 +81,7 @@ static int eeh_event_handler(void * dummy)
 	eeh_mark_slot(event->dn, EEH_MODE_RECOVERING);
 
 	printk(KERN_INFO "EEH: Detected PCI bus error on device %s\n",
-	       pci_name(event->dev));
+	       eeh_pci_name(event->dev));
 
 	pdn = handle_eeh_events(event);
 

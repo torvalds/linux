@@ -46,7 +46,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -76,7 +75,7 @@ module_param(protocol, int, 0);
    handler.
 */
 
-static int elsa_cs_config(struct pcmcia_device *link);
+static int elsa_cs_config(struct pcmcia_device *link) __devinit ;
 static void elsa_cs_release(struct pcmcia_device *link);
 
 /*
@@ -85,26 +84,10 @@ static void elsa_cs_release(struct pcmcia_device *link);
    needed to manage one actual PCMCIA card.
 */
 
-static void elsa_cs_detach(struct pcmcia_device *p_dev);
-
-/*
-   A driver needs to provide a dev_node_t structure for each device
-   on a card.  In some cases, there is only one device per card (for
-   example, ethernet cards, modems).  In other cases, there may be
-   many actual or logical devices (SCSI adapters, memory cards with
-   multiple partitions).  The dev_node_t structures need to be kept
-   in a linked list starting at the 'dev' field of a struct pcmcia_device
-   structure.  We allocate them in the card's private data structure,
-   because they generally shouldn't be allocated dynamically.
-   In this case, we also provide a flag to indicate if a device is
-   "stopped" due to a power management event, or card ejection.  The
-   device IO routines can use a flag like this to throttle IO to a
-   card that is not ready to accept it.
-*/
+static void elsa_cs_detach(struct pcmcia_device *p_dev) __devexit;
 
 typedef struct local_info_t {
 	struct pcmcia_device	*p_dev;
-    dev_node_t          node;
     int                 busy;
     int			cardnr;
 } local_info_t;
@@ -121,7 +104,7 @@ typedef struct local_info_t {
 
 ======================================================================*/
 
-static int elsa_cs_probe(struct pcmcia_device *link)
+static int __devinit elsa_cs_probe(struct pcmcia_device *link)
 {
     local_info_t *local;
 
@@ -136,10 +119,6 @@ static int elsa_cs_probe(struct pcmcia_device *link)
 
     local->cardnr = -1;
 
-    /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.Handler = NULL;
-
     /*
       General socket configuration defaults can go here.  In this
       client, we assume very little, and rely on the CIS for almost
@@ -147,9 +126,8 @@ static int elsa_cs_probe(struct pcmcia_device *link)
       and attributes of IO windows) are fixed by the nature of the
       device, and can be hard-wired here.
     */
-    link->io.NumPorts1 = 8;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-    link->io.IOAddrLines = 3;
+    link->resource[0]->end = 8;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
@@ -166,7 +144,7 @@ static int elsa_cs_probe(struct pcmcia_device *link)
 
 ======================================================================*/
 
-static void elsa_cs_detach(struct pcmcia_device *link)
+static void __devexit elsa_cs_detach(struct pcmcia_device *link)
 {
 	local_info_t *info = link->priv;
 
@@ -194,23 +172,25 @@ static int elsa_cs_configcheck(struct pcmcia_device *p_dev,
 {
 	int j;
 
+	p_dev->io_lines = 3;
+
 	if ((cf->io.nwin > 0) && cf->io.win[0].base) {
 		printk(KERN_INFO "(elsa_cs: looks like the 96 model)\n");
-		p_dev->io.BasePort1 = cf->io.win[0].base;
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
+		p_dev->resource[0]->start = cf->io.win[0].base;
+		if (!pcmcia_request_io(p_dev))
 			return 0;
 	} else {
 		printk(KERN_INFO "(elsa_cs: looks like the 97 model)\n");
 		for (j = 0x2f0; j > 0x100; j -= 0x10) {
-			p_dev->io.BasePort1 = j;
-			if (!pcmcia_request_io(p_dev, &p_dev->io))
+			p_dev->resource[0]->start = j;
+			if (!pcmcia_request_io(p_dev))
 				return 0;
 		}
 	}
 	return -ENODEV;
 }
 
-static int elsa_cs_config(struct pcmcia_device *link)
+static int __devinit elsa_cs_config(struct pcmcia_device *link)
 {
     local_info_t *dev;
     int i;
@@ -223,45 +203,33 @@ static int elsa_cs_config(struct pcmcia_device *link)
     if (i != 0)
 	goto failed;
 
-    i = pcmcia_request_irq(link, &link->irq);
-    if (i != 0) {
-        link->irq.AssignedIRQ = 0;
+    if (!link->irq)
 	goto failed;
-    }
 
     i = pcmcia_request_configuration(link, &link->conf);
     if (i != 0)
 	goto failed;
 
-    /* At this point, the dev_node_t structure(s) should be
-       initialized and arranged in a linked list at link->dev. *//*  */
-    sprintf(dev->node.dev_name, "elsa");
-    dev->node.major = dev->node.minor = 0x0;
-
-    link->dev_node = &dev->node;
-
     /* Finally, report what we've done */
-    printk(KERN_INFO "%s: index 0x%02x: ",
-           dev->node.dev_name, link->conf.ConfigIndex);
+    dev_info(&link->dev, "index 0x%02x: ",
+	    link->conf.ConfigIndex);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-        printk(", irq %d", link->irq.AssignedIRQ);
-    if (link->io.NumPorts1)
-        printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-               link->io.BasePort1+link->io.NumPorts1-1);
-    if (link->io.NumPorts2)
-        printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-               link->io.BasePort2+link->io.NumPorts2-1);
+	printk(", irq %d", link->irq);
+    if (link->resource[0])
+	printk(" & %pR", link->resource[0]);
+    if (link->resource[1])
+	printk(" & %pR", link->resource[1]);
     printk("\n");
 
-    icard.para[0] = link->irq.AssignedIRQ;
-    icard.para[1] = link->io.BasePort1;
+    icard.para[0] = link->irq;
+    icard.para[1] = link->resource[0]->start;
     icard.protocol = protocol;
     icard.typ = ISDN_CTYPE_ELSA_PCMCIA;
     
     i = hisax_init_pcmcia(link, &(((local_info_t*)link->priv)->busy), &icard);
     if (i < 0) {
-    	printk(KERN_ERR "elsa_cs: failed to initialize Elsa PCMCIA %d at i/o %#x\n",
-    		i, link->io.BasePort1);
+	printk(KERN_ERR "elsa_cs: failed to initialize Elsa "
+		"PCMCIA %d with %pR\n", i, link->resource[0]);
     	elsa_cs_release(link);
     } else
     	((local_info_t*)link->priv)->cardnr = i;
@@ -327,7 +295,7 @@ static struct pcmcia_driver elsa_cs_driver = {
 		.name	= "elsa_cs",
 	},
 	.probe		= elsa_cs_probe,
-	.remove		= elsa_cs_detach,
+	.remove		= __devexit_p(elsa_cs_detach),
 	.id_table	= elsa_ids,
 	.suspend	= elsa_suspend,
 	.resume		= elsa_resume,

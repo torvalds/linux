@@ -58,7 +58,7 @@ OPTIONS
 
 -f::
 --force::
-	Overwrite existing data file.
+	Overwrite existing data file. (deprecated)
 
 -c::
 --count=::
@@ -69,8 +69,8 @@ OPTIONS
 	Output file name.
 
 -i::
---inherit::
-	Child tasks inherit counters.
+--no-inherit::
+	Child tasks do not inherit counters.
 -F::
 --freq=::
 	Profile at this frequency.
@@ -101,7 +101,20 @@ OPTIONS
 
 -R::
 --raw-samples::
-Collect raw sample records from all opened counters (typically for tracepoint counters).
+Collect raw sample records from all opened counters (default for tracepoint counters).
+
+-C::
+--cpu::
+Collect samples only on the list of cpus provided. Multiple CPUs can be provided as a
+comma-sperated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+In per-thread mode with inheritance mode on (default), samples are captured only when
+the thread executes on the designated CPUs. Default is to monitor all CPUs.
+
+-N::
+--no-buildid-cache::
+Do not update the builid cache. This saves some overhead in situations
+where the information in the perf.data file (which includes buildids)
+is sufficient.
 
 SEE ALSO
 --------

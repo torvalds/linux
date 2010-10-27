@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -175,13 +175,13 @@
 struct iwl3945_tfd_tb {
 	__le32 addr;
 	__le32 len;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwl3945_tfd {
 	__le32 control_flags;
 	struct iwl3945_tfd_tb tbs[4];
 	u8 __pad[28];
-} __attribute__ ((packed));
+} __packed;
 
 
 #endif /* __iwl_3945_fh_h__ */

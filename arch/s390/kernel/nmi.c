@@ -255,7 +255,8 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	int umode;
 
 	nmi_enter();
-	s390_idle_check();
+	s390_idle_check(regs, S390_lowcore.mcck_clock,
+			S390_lowcore.mcck_enter_timer);
 
 	mci = (struct mci *) &S390_lowcore.mcck_interruption_code;
 	mcck = &__get_cpu_var(cpu_mcck);

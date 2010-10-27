@@ -202,6 +202,7 @@ static inline int is_mem_section_removable(unsigned long pfn,
 }
 #endif /* CONFIG_MEMORY_HOTREMOVE */
 
+extern int mem_online_node(int nid);
 extern int add_memory(int nid, u64 start, u64 size);
 extern int arch_add_memory(int nid, u64 start, u64 size);
 extern int remove_memory(u64 start, u64 size);

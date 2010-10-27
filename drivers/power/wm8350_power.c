@@ -190,7 +190,7 @@ static irqreturn_t wm8350_charger_handler(int irq, void *data)
 	struct wm8350_power *power = &wm8350->power;
 	struct wm8350_charger_policy *policy = power->policy;
 
-	switch (irq) {
+	switch (irq - wm8350->irq_base) {
 	case WM8350_IRQ_CHG_BAT_FAIL:
 		dev_err(wm8350->dev, "battery failed\n");
 		break;
@@ -428,18 +428,18 @@ static void wm8350_init_charger(struct wm8350 *wm8350)
 
 static void free_charger_irq(struct wm8350 *wm8350)
 {
-	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_BAT_HOT);
-	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_BAT_COLD);
-	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_BAT_FAIL);
-	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_TO);
-	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_END);
-	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_START);
-	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_VBATT_LT_3P9);
-	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_VBATT_LT_3P1);
-	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_VBATT_LT_2P85);
-	wm8350_free_irq(wm8350, WM8350_IRQ_EXT_USB_FB);
-	wm8350_free_irq(wm8350, WM8350_IRQ_EXT_WALL_FB);
-	wm8350_free_irq(wm8350, WM8350_IRQ_EXT_BAT_FB);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_BAT_HOT, wm8350);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_BAT_COLD, wm8350);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_BAT_FAIL, wm8350);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_TO, wm8350);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_END, wm8350);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_START, wm8350);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_VBATT_LT_3P9, wm8350);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_VBATT_LT_3P1, wm8350);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CHG_VBATT_LT_2P85, wm8350);
+	wm8350_free_irq(wm8350, WM8350_IRQ_EXT_USB_FB, wm8350);
+	wm8350_free_irq(wm8350, WM8350_IRQ_EXT_WALL_FB, wm8350);
+	wm8350_free_irq(wm8350, WM8350_IRQ_EXT_BAT_FB, wm8350);
 }
 
 static __devinit int wm8350_power_probe(struct platform_device *pdev)

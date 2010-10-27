@@ -1,14 +1,13 @@
 /*
-  This is part of the rtl8180-sa2400 driver
-  released under the GPL (See file COPYING for details).
-  Copyright (c) 2005 Andrea Merello <andreamrl@tiscali.it>
-
-  This files contains programming code for the rtl8225
-  radio frontend.
-
-  *Many* thanks to Realtek Corp. for their great support!
-
-*/
+ * This is part of the rtl8180-sa2400 driver
+ * released under the GPL (See file COPYING for details).
+ * Copyright (c) 2005 Andrea Merello <andreamrl@tiscali.it>
+ *
+ * This files contains programming code for the rtl8225
+ * radio frontend.
+ *
+ * *Many* thanks to Realtek Corp. for their great support!
+ */
 
 #include "r8180_hw.h"
 #include "r8180_rtl8225.h"
@@ -225,7 +224,7 @@ static void rtl8225_SetTXPowerLevel(struct net_device *dev, short ch)
 }
 
 static const u8 rtl8225z2_threshold[] = {
-        0x8d, 0x8d, 0x8d, 0x8d, 0x9d, 0xad, 0xbd,
+	0x8d, 0x8d, 0x8d, 0x8d, 0x9d, 0xad, 0xbd,
 };
 
 static const u8 rtl8225z2_gain_bg[] = {
@@ -307,7 +306,7 @@ static u32 read_rtl8225(struct net_device *dev, u8 adr)
 	u32 data2Write = ((u32)(adr & 0x1f)) << 27;
 	u32 dataRead;
 	u32 mask;
-	u16 oval,oval2,oval3,tmp;
+	u16 oval, oval2, oval3, tmp;
 	int i;
 	short bit, rw;
 	u8 wLength = 6;
@@ -325,9 +324,11 @@ static u32 read_rtl8225(struct net_device *dev, u8 adr)
 
 	oval &= ~0xf;
 
-	write_nic_word(dev, RFPinsOutput, oval | BB_HOST_BANG_EN ); udelay(4);
+	write_nic_word(dev, RFPinsOutput, oval | BB_HOST_BANG_EN);
+	udelay(4);
 
-	write_nic_word(dev, RFPinsOutput, oval ); udelay(5);
+	write_nic_word(dev, RFPinsOutput, oval);
+	udelay(5);
 
 	rw = 0;
 
@@ -335,31 +336,45 @@ static u32 read_rtl8225(struct net_device *dev, u8 adr)
 
 	for (i = 0; i < wLength/2; i++) {
 		bit = ((data2Write&mask) != 0) ? 1 : 0;
-		write_nic_word(dev, RFPinsOutput, bit|oval | rw); udelay(1);
+		write_nic_word(dev, RFPinsOutput, bit | oval | rw);
+		udelay(1);
 
-		write_nic_word(dev, RFPinsOutput, bit|oval | BB_HOST_BANG_CLK | rw); udelay(2);
-		write_nic_word(dev, RFPinsOutput, bit|oval | BB_HOST_BANG_CLK | rw); udelay(2);
+		write_nic_word(dev, RFPinsOutput,
+				bit | oval | BB_HOST_BANG_CLK | rw);
+		udelay(2);
+		write_nic_word(dev, RFPinsOutput,
+				bit | oval | BB_HOST_BANG_CLK | rw);
+		udelay(2);
 
-		mask = (low2high) ? (mask<<1): (mask>>1);
+		mask = (low2high) ? (mask<<1) : (mask>>1);
 
 		if (i == 2) {
 			rw = BB_HOST_BANG_RW;
-			write_nic_word(dev, RFPinsOutput, bit|oval | BB_HOST_BANG_CLK | rw); udelay(2);
-			write_nic_word(dev, RFPinsOutput, bit|oval | rw); udelay(2);
+			write_nic_word(dev, RFPinsOutput,
+					bit | oval | BB_HOST_BANG_CLK | rw);
+			udelay(2);
+			write_nic_word(dev, RFPinsOutput, bit | oval | rw);
+			udelay(2);
 			break;
 		}
 
-		bit = ((data2Write&mask) != 0) ? 1: 0;
+		bit = ((data2Write&mask) != 0) ? 1 : 0;
 
-		write_nic_word(dev, RFPinsOutput, oval|bit|rw| BB_HOST_BANG_CLK); udelay(2);
-		write_nic_word(dev, RFPinsOutput, oval|bit|rw| BB_HOST_BANG_CLK); udelay(2);
+		write_nic_word(dev, RFPinsOutput,
+				oval | bit | rw | BB_HOST_BANG_CLK);
+		udelay(2);
+		write_nic_word(dev, RFPinsOutput,
+				oval | bit | rw | BB_HOST_BANG_CLK);
+		udelay(2);
 
-		write_nic_word(dev, RFPinsOutput, oval| bit |rw); udelay(1);
+		write_nic_word(dev, RFPinsOutput, oval | bit | rw);
+		udelay(1);
 
 		mask = (low2high) ? (mask<<1) : (mask>>1);
 	}
 
-	write_nic_word(dev, RFPinsOutput, rw|oval); udelay(2);
+	write_nic_word(dev, RFPinsOutput, rw|oval);
+	udelay(2);
 	mask = (low2high) ? 0x01 : (((u32)0x01) << (12-1));
 
 	/*
@@ -371,9 +386,12 @@ static u32 read_rtl8225(struct net_device *dev, u8 adr)
 	for (i = 0; i < rLength; i++) {
 		write_nic_word(dev, RFPinsOutput, rw|oval); udelay(1);
 
-		write_nic_word(dev, RFPinsOutput, rw|oval|BB_HOST_BANG_CLK); udelay(2);
-		write_nic_word(dev, RFPinsOutput, rw|oval|BB_HOST_BANG_CLK); udelay(2);
-		write_nic_word(dev, RFPinsOutput, rw|oval|BB_HOST_BANG_CLK); udelay(2);
+		write_nic_word(dev, RFPinsOutput, rw|oval|BB_HOST_BANG_CLK);
+		udelay(2);
+		write_nic_word(dev, RFPinsOutput, rw|oval|BB_HOST_BANG_CLK);
+		udelay(2);
+		write_nic_word(dev, RFPinsOutput, rw|oval|BB_HOST_BANG_CLK);
+		udelay(2);
 		tmp = read_nic_word(dev, RFPinsInput);
 
 		dataRead |= (tmp & BB_HOST_BANG_CLK ? mask : 0);
@@ -383,7 +401,9 @@ static u32 read_rtl8225(struct net_device *dev, u8 adr)
 		mask = (low2high) ? (mask<<1) : (mask>>1);
 	}
 
-	write_nic_word(dev, RFPinsOutput, BB_HOST_BANG_EN|BB_HOST_BANG_RW|oval); udelay(2);
+	write_nic_word(dev, RFPinsOutput,
+			BB_HOST_BANG_EN | BB_HOST_BANG_RW | oval);
+	udelay(2);
 
 	write_nic_word(dev, RFPinsEnable, oval2);
 	write_nic_word(dev, RFPinsSelect, oval3); /* Set To SW Switch */
@@ -426,7 +446,7 @@ void rtl8225z2_rf_close(struct net_device *dev)
 s8 DbmToTxPwrIdx(struct r8180_priv *priv, WIRELESS_MODE WirelessMode,
 		 s32 PowerInDbm)
 {
- 	bool bUseDefault = true;
+	bool bUseDefault = true;
 	s8 TxPwrIdx = 0;
 
 	/*
@@ -486,8 +506,10 @@ void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch)
 	if (IS_DOT11D_ENABLE(priv->ieee80211) &&
 	    IS_DOT11D_STATE_DONE(priv->ieee80211)) {
 		u8 MaxTxPwrInDbm = DOT11D_GetMaxTxPwrInDbm(priv->ieee80211, ch);
-		u8 CckMaxPwrIdx = DbmToTxPwrIdx(priv, WIRELESS_MODE_B, MaxTxPwrInDbm);
-		u8 OfdmMaxPwrIdx = DbmToTxPwrIdx(priv, WIRELESS_MODE_G, MaxTxPwrInDbm);
+		u8 CckMaxPwrIdx = DbmToTxPwrIdx(priv, WIRELESS_MODE_B,
+							MaxTxPwrInDbm);
+		u8 OfdmMaxPwrIdx = DbmToTxPwrIdx(priv, WIRELESS_MODE_G,
+							MaxTxPwrInDbm);
 
 		if (cck_power_level > CckMaxPwrIdx)
 			cck_power_level = CckMaxPwrIdx;
@@ -524,7 +546,7 @@ void rtl8225z2_SetTXPowerLevel(struct net_device *dev, short ch)
 	if (ofdm_power_level <= 11) {
 		write_phy_ofdm(dev, 0x07, 0x5c);
 		write_phy_ofdm(dev, 0x09, 0x5c);
-        }
+	}
 
 	if (ofdm_power_level <= 17) {
 		write_phy_ofdm(dev, 0x07, 0x54);
@@ -613,7 +635,7 @@ void rtl8225z2_rf_init(struct net_device *dev)
 	int i;
 	short channel = 1;
 	u16	brsr;
-	u32	data,addr;
+	u32	data, addr;
 
 	priv->chan = channel;
 
@@ -740,7 +762,7 @@ void rtl8225z2_rf_init(struct net_device *dev)
 	write_phy_ofdm(dev, 0x26, 0x90); mdelay(1);
 	write_phy_ofdm(dev, 0x27, 0x88); mdelay(1);
 
-	rtl8225z2_set_gain(dev,4);
+	rtl8225z2_set_gain(dev, 4);
 
 	write_phy_cck(dev, 0x0, 0x98); mdelay(1);
 	write_phy_cck(dev, 0x3, 0x20); mdelay(1);
@@ -803,12 +825,12 @@ void rtl8225z2_rf_set_mode(struct net_device *dev)
 		write_phy_ofdm(dev, 0xf, 0x20);
 		write_phy_ofdm(dev, 0x11, 0x7);
 
-		rtl8225z2_set_gain(dev,4);
+		rtl8225z2_set_gain(dev, 4);
 
-		write_phy_ofdm(dev,0x15, 0x40);
-		write_phy_ofdm(dev,0x17, 0x40);
+		write_phy_ofdm(dev, 0x15, 0x40);
+		write_phy_ofdm(dev, 0x17, 0x40);
 
-		write_nic_dword(dev, 0x94,0x10000000);
+		write_nic_dword(dev, 0x94, 0x10000000);
 	} else {
 		write_rtl8225(dev, 0x5, 0x1864);
 		write_nic_dword(dev, RF_PARA, 0x10044);
@@ -819,18 +841,18 @@ void rtl8225z2_rf_set_mode(struct net_device *dev)
 		write_phy_ofdm(dev, 0xf, 0x20);
 		write_phy_ofdm(dev, 0x11, 0x7);
 
-		rtl8225z2_set_gain(dev,4);
+		rtl8225z2_set_gain(dev, 4);
 
-		write_phy_ofdm(dev,0x15, 0x40);
-		write_phy_ofdm(dev,0x17, 0x40);
+		write_phy_ofdm(dev, 0x15, 0x40);
+		write_phy_ofdm(dev, 0x17, 0x40);
 
-		write_nic_dword(dev, 0x94,0x04000002);
+		write_nic_dword(dev, 0x94, 0x04000002);
 	}
 }
 
-#define MAX_DOZE_WAITING_TIMES_85B 		20
-#define MAX_POLLING_24F_TIMES_87SE 		10
-#define LPS_MAX_SLEEP_WAITING_TIMES_87SE 	5
+#define MAX_DOZE_WAITING_TIMES_85B		20
+#define MAX_POLLING_24F_TIMES_87SE		10
+#define LPS_MAX_SLEEP_WAITING_TIMES_87SE	5
 
 bool SetZebraRFPowerState8185(struct net_device *dev,
 			      RT_RF_POWER_STATE eRFPowerState)
@@ -854,134 +876,50 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 	btConfig3 = read_nic_byte(dev, CONFIG3);
 	write_nic_byte(dev, CONFIG3, (btConfig3 | CONFIG3_PARM_En));
 
-	switch (priv->rf_chip) {
-	case RF_ZEBRA2:
-		switch (eRFPowerState) {
-		case eRfOn:
-			RF_WriteReg(dev,0x4,0x9FF);
+	switch (eRFPowerState) {
+	case eRfOn:
+		write_nic_word(dev, 0x37C, 0x00EC);
 
-			write_nic_dword(dev, ANAPARAM, ANAPARM_ON);
-			write_nic_dword(dev, ANAPARAM2, ANAPARM2_ON);
+		/* turn on AFE */
+		write_nic_byte(dev, 0x54, 0x00);
+		write_nic_byte(dev, 0x62, 0x00);
 
-			write_nic_byte(dev, CONFIG4, priv->RFProgType);
+		/* turn on RF */
+		RF_WriteReg(dev, 0x0, 0x009f); udelay(500);
+		RF_WriteReg(dev, 0x4, 0x0972); udelay(500);
 
-			/* turn on CCK and OFDM */
-			u1bTmp = read_nic_byte(dev, 0x24E);
-			write_nic_byte(dev, 0x24E, (u1bTmp & (~(BIT5 | BIT6))));
-			break;
-		case eRfSleep:
-			break;
-		case eRfOff:
-			break;
-		default:
-			bResult = false;
-			break;
-		}
+		/* turn on RF again */
+		RF_WriteReg(dev, 0x0, 0x009f); udelay(500);
+		RF_WriteReg(dev, 0x4, 0x0972); udelay(500);
+
+		/* turn on BB */
+		write_phy_ofdm(dev, 0x10, 0x40);
+		write_phy_ofdm(dev, 0x12, 0x40);
+
+		/* Avoid power down at init time. */
+		write_nic_byte(dev, CONFIG4, priv->RFProgType);
+
+		u1bTmp = read_nic_byte(dev, 0x24E);
+		write_nic_byte(dev, 0x24E, (u1bTmp & (~(BIT5 | BIT6))));
 		break;
-	case RF_ZEBRA4:
-		switch (eRFPowerState) {
-		case eRfOn:
-			write_nic_word(dev, 0x37C, 0x00EC);
-
-			/* turn on AFE */
-			write_nic_byte(dev, 0x54, 0x00);
-			write_nic_byte(dev, 0x62, 0x00);
-
-			/* turn on RF */
-			RF_WriteReg(dev, 0x0, 0x009f); udelay(500);
-			RF_WriteReg(dev, 0x4, 0x0972); udelay(500);
-
-			/* turn on RF again */
-			RF_WriteReg(dev, 0x0, 0x009f); udelay(500);
-			RF_WriteReg(dev, 0x4, 0x0972); udelay(500);
-
-			/* turn on BB */
-			write_phy_ofdm(dev,0x10,0x40);
-			write_phy_ofdm(dev,0x12,0x40);
-
-			/* Avoid power down at init time. */
-			write_nic_byte(dev, CONFIG4, priv->RFProgType);
-
-			u1bTmp = read_nic_byte(dev, 0x24E);
-			write_nic_byte(dev, 0x24E, (u1bTmp & (~(BIT5 | BIT6))));
-			break;
-		case eRfSleep:
-			for (QueueID = 0, i = 0; QueueID < 6;) {
-				if (get_curr_tx_free_desc(dev, QueueID) == priv->txringcount) {
-					QueueID++;
-					continue;
-				} else {
-					priv->TxPollingTimes ++;
-					if (priv->TxPollingTimes >= LPS_MAX_SLEEP_WAITING_TIMES_87SE) {
-						bActionAllowed = false;
-						break;
-					} else
-						udelay(10);
-				}
-			}
-
-			if (bActionAllowed) {
-				/* turn off BB RXIQ matrix to cut off rx signal */
-				write_phy_ofdm(dev, 0x10, 0x00);
-				write_phy_ofdm(dev, 0x12, 0x00);
-
-				/* turn off RF */
-				RF_WriteReg(dev, 0x4, 0x0000);
-				RF_WriteReg(dev, 0x0, 0x0000);
-
-				/* turn off AFE except PLL */
-				write_nic_byte(dev, 0x62, 0xff);
-				write_nic_byte(dev, 0x54, 0xec);
-
-				mdelay(1);
-
-				{
-					int i = 0;
-					while (true) {
-						u8 tmp24F = read_nic_byte(dev, 0x24f);
-
-						if ((tmp24F == 0x01) || (tmp24F == 0x09)) {
-							bTurnOffBB = true;
-							break;
-						} else {
-							udelay(10);
-							i++;
-							priv->TxPollingTimes++;
-
-							if (priv->TxPollingTimes >= LPS_MAX_SLEEP_WAITING_TIMES_87SE) {
-								bTurnOffBB = false;
-								break;
-							} else
-								udelay(10);
-						}
-					}
-				}
-
-				if (bTurnOffBB) {
-					/* turn off BB */
-					u1bTmp = read_nic_byte(dev, 0x24E);
-					write_nic_byte(dev, 0x24E, (u1bTmp | BIT5 | BIT6));
-
-					/* turn off AFE PLL */
-					write_nic_byte(dev, 0x54, 0xFC);
-					write_nic_word(dev, 0x37C, 0x00FC);
-				}
-			}
-			break;
-		case eRfOff:
-			for (QueueID = 0, i = 0; QueueID < 6;) {
-				if (get_curr_tx_free_desc(dev, QueueID) == priv->txringcount) {
-					QueueID++;
-					continue;
-				} else {
-					udelay(10);
-					i++;
-				}
-
-				if (i >= MAX_DOZE_WAITING_TIMES_85B)
+	case eRfSleep:
+		for (QueueID = 0, i = 0; QueueID < 6;) {
+			if (get_curr_tx_free_desc(dev, QueueID) ==
+							priv->txringcount) {
+				QueueID++;
+				continue;
+			} else {
+				priv->TxPollingTimes++;
+				if (priv->TxPollingTimes >=
+					LPS_MAX_SLEEP_WAITING_TIMES_87SE) {
+					bActionAllowed = false;
 					break;
+				} else
+					udelay(10);
 			}
+		}
 
+		if (bActionAllowed) {
 			/* turn off BB RXIQ matrix to cut off rx signal */
 			write_phy_ofdm(dev, 0x10, 0x00);
 			write_phy_ofdm(dev, 0x12, 0x00);
@@ -998,39 +936,96 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 
 			{
 				int i = 0;
-
-				while (true)
-				{
+				while (true) {
 					u8 tmp24F = read_nic_byte(dev, 0x24f);
 
-					if ((tmp24F == 0x01) || (tmp24F == 0x09)) {
+					if ((tmp24F == 0x01) ||
+							(tmp24F == 0x09)) {
 						bTurnOffBB = true;
 						break;
 					} else {
-						bTurnOffBB = false;
 						udelay(10);
 						i++;
-					}
+						priv->TxPollingTimes++;
 
-					if (i > MAX_POLLING_24F_TIMES_87SE)
-						break;
+						if (priv->TxPollingTimes >= LPS_MAX_SLEEP_WAITING_TIMES_87SE) {
+							bTurnOffBB = false;
+							break;
+						} else
+							udelay(10);
+					}
 				}
 			}
 
 			if (bTurnOffBB) {
 				/* turn off BB */
 				u1bTmp = read_nic_byte(dev, 0x24E);
-				write_nic_byte(dev, 0x24E, (u1bTmp | BIT5 | BIT6));
+				write_nic_byte(dev, 0x24E,
+						(u1bTmp | BIT5 | BIT6));
 
-				/* turn off AFE PLL (80M) */
+				/* turn off AFE PLL */
 				write_nic_byte(dev, 0x54, 0xFC);
 				write_nic_word(dev, 0x37C, 0x00FC);
 			}
-			break;
-		default:
-			bResult = false;
-			printk("SetZebraRFPowerState8185(): unknown state to set: 0x%X!!!\n", eRFPowerState);
-			break;
+		}
+		break;
+	case eRfOff:
+		for (QueueID = 0, i = 0; QueueID < 6;) {
+			if (get_curr_tx_free_desc(dev, QueueID) ==
+					priv->txringcount) {
+				QueueID++;
+				continue;
+			} else {
+				udelay(10);
+				i++;
+			}
+
+			if (i >= MAX_DOZE_WAITING_TIMES_85B)
+				break;
+		}
+
+		/* turn off BB RXIQ matrix to cut off rx signal */
+		write_phy_ofdm(dev, 0x10, 0x00);
+		write_phy_ofdm(dev, 0x12, 0x00);
+
+		/* turn off RF */
+		RF_WriteReg(dev, 0x4, 0x0000);
+		RF_WriteReg(dev, 0x0, 0x0000);
+
+		/* turn off AFE except PLL */
+		write_nic_byte(dev, 0x62, 0xff);
+		write_nic_byte(dev, 0x54, 0xec);
+
+		mdelay(1);
+
+		{
+			int i = 0;
+
+			while (true) {
+				u8 tmp24F = read_nic_byte(dev, 0x24f);
+
+				if ((tmp24F == 0x01) || (tmp24F == 0x09)) {
+					bTurnOffBB = true;
+					break;
+				} else {
+					bTurnOffBB = false;
+					udelay(10);
+					i++;
+				}
+
+				if (i > MAX_POLLING_24F_TIMES_87SE)
+					break;
+			}
+		}
+
+		if (bTurnOffBB) {
+			/* turn off BB */
+			u1bTmp = read_nic_byte(dev, 0x24E);
+			write_nic_byte(dev, 0x24E, (u1bTmp | BIT5 | BIT6));
+
+			/* turn off AFE PLL (80M) */
+			write_nic_byte(dev, 0x54, 0xFC);
+			write_nic_word(dev, 0x37C, 0x00FC);
 		}
 		break;
 	}

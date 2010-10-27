@@ -97,7 +97,6 @@ static void ns_giga_speed_fallback(struct phy_device *phydev, int mode)
 	phy_write(phydev, NS_EXP_MEM_DATA, 0x0008);
 	phy_write(phydev, MII_BMCR, (bmcr & ~BMCR_PDOWN));
 	phy_write(phydev, LED_CTRL_REG, mode);
-	return;
 }
 
 static void ns_10_base_t_hdx_loopack(struct phy_device *phydev, int disable)
@@ -110,8 +109,6 @@ static void ns_10_base_t_hdx_loopack(struct phy_device *phydev, int disable)
 
 	printk(KERN_DEBUG "DP83865 PHY: 10BASE-T HDX loopback %s\n",
 	       (ns_exp_read(phydev, 0x1c0) & 0x0001) ? "off" : "on");
-
-	return;
 }
 
 static int ns_config_init(struct phy_device *phydev)
@@ -153,3 +150,10 @@ MODULE_LICENSE("GPL");
 
 module_init(ns_init);
 module_exit(ns_exit);
+
+static struct mdio_device_id ns_tbl[] = {
+	{ DP83865_PHY_ID, 0xfffffff0 },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(mdio, ns_tbl);

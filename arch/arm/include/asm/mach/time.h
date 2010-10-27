@@ -38,20 +38,12 @@ struct sys_timer {
 	void			(*init)(void);
 	void			(*suspend)(void);
 	void			(*resume)(void);
-#ifndef CONFIG_GENERIC_TIME
+#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
 	unsigned long		(*offset)(void);
 #endif
 };
 
 extern struct sys_timer *system_timer;
 extern void timer_tick(void);
-
-/*
- * Kernel time keeping support.
- */
-struct timespec;
-extern int (*set_rtc)(void);
-extern void save_time_delta(struct timespec *delta, struct timespec *rtc);
-extern void restore_time_delta(struct timespec *delta, struct timespec *rtc);
 
 #endif

@@ -31,7 +31,7 @@ Current maintainer: Sergey S. Kostyliov <rathamahata@php4.ru>
 
 WHAT IS THIS DRIVER?
 ==================
-This module implements the native filesystem of BeOS <http://www.be.com/>
+This module implements the native filesystem of BeOS http://www.beincorporated.com/ 
 for the linux 2.4.1 and later kernels. Currently it is a read-only
 implementation.
 
@@ -61,7 +61,7 @@ step 2.  Configuration & make kernel
 
 The linux kernel has many compile-time options. Most of them are beyond the
 scope of this document. I suggest the Kernel-HOWTO document as a good general
-reference on this topic. <http://www.linux.com/howto/Kernel-HOWTO.html>
+reference on this topic. http://www.linuxdocs.org/HOWTOs/Kernel-HOWTO-4.html 
 
 However, to use the BeFS module, you must enable it at configure time.
 

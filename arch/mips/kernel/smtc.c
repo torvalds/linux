@@ -26,6 +26,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/ftrace.h>
+#include <linux/slab.h>
 
 #include <asm/cpu.h>
 #include <asm/processor.h>
@@ -181,7 +182,7 @@ static int vpemask[2][8] = {
 	{0, 0, 0, 0, 0, 0, 0, 1}
 };
 int tcnoprog[NR_CPUS];
-static atomic_t idle_hook_initialized = {0};
+static atomic_t idle_hook_initialized = ATOMIC_INIT(0);
 static int clock_hang_reported[NR_CPUS];
 
 #endif /* CONFIG_SMTC_IDLE_HOOK_DEBUG */
@@ -974,8 +975,7 @@ void ipi_decode(struct smtc_ipi *pipi)
 			ipi_call_interrupt();
 			break;
 		default:
-			printk("Impossible SMTC IPI Argument 0x%x\n",
-				(int)arg_copy);
+			printk("Impossible SMTC IPI Argument %p\n", arg_copy);
 			break;
 		}
 		break;

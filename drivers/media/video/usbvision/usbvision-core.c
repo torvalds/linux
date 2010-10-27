@@ -26,7 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/timer.h>
-#include <linux/slab.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>
@@ -2493,10 +2493,10 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		}
 		usbvision->sbuf[bufIdx].urb = urb;
 		usbvision->sbuf[bufIdx].data =
-			usb_buffer_alloc(usbvision->dev,
-					 sb_size,
-					 GFP_KERNEL,
-					 &urb->transfer_dma);
+			usb_alloc_coherent(usbvision->dev,
+					   sb_size,
+					   GFP_KERNEL,
+					   &urb->transfer_dma);
 		urb->dev = dev;
 		urb->context = usbvision;
 		urb->pipe = usb_rcvisocpipe(dev, usbvision->video_endp);
@@ -2552,10 +2552,10 @@ void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 	for (bufIdx = 0; bufIdx < USBVISION_NUMSBUF; bufIdx++) {
 		usb_kill_urb(usbvision->sbuf[bufIdx].urb);
 		if (usbvision->sbuf[bufIdx].data){
-			usb_buffer_free(usbvision->dev,
-					sb_size,
-					usbvision->sbuf[bufIdx].data,
-					usbvision->sbuf[bufIdx].urb->transfer_dma);
+			usb_free_coherent(usbvision->dev,
+					  sb_size,
+					  usbvision->sbuf[bufIdx].data,
+					  usbvision->sbuf[bufIdx].urb->transfer_dma);
 		}
 		usb_free_urb(usbvision->sbuf[bufIdx].urb);
 		usbvision->sbuf[bufIdx].urb = NULL;

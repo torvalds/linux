@@ -10,6 +10,7 @@
  */
 
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 

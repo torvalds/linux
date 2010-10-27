@@ -35,7 +35,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <linux/jiffies.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static struct i2c_driver i2cdev_driver;
 
@@ -132,53 +132,49 @@ static DEVICE_ATTR(name, S_IRUGO, show_adapter_name, NULL);
  * needed by those system calls and by this SMBus interface.
  */
 
-static ssize_t i2cdev_read (struct file *file, char __user *buf, size_t count,
-                            loff_t *offset)
+static ssize_t i2cdev_read(struct file *file, char __user *buf, size_t count,
+		loff_t *offset)
 {
 	char *tmp;
 	int ret;
 
-	struct i2c_client *client = (struct i2c_client *)file->private_data;
+	struct i2c_client *client = file->private_data;
 
 	if (count > 8192)
 		count = 8192;
 
-	tmp = kmalloc(count,GFP_KERNEL);
-	if (tmp==NULL)
+	tmp = kmalloc(count, GFP_KERNEL);
+	if (tmp == NULL)
 		return -ENOMEM;
 
 	pr_debug("i2c-dev: i2c-%d reading %zu bytes.\n",
 		iminor(file->f_path.dentry->d_inode), count);
 
-	ret = i2c_master_recv(client,tmp,count);
+	ret = i2c_master_recv(client, tmp, count);
 	if (ret >= 0)
-		ret = copy_to_user(buf,tmp,count)?-EFAULT:ret;
+		ret = copy_to_user(buf, tmp, count) ? -EFAULT : ret;
 	kfree(tmp);
 	return ret;
 }
 
-static ssize_t i2cdev_write (struct file *file, const char __user *buf, size_t count,
-                             loff_t *offset)
+static ssize_t i2cdev_write(struct file *file, const char __user *buf,
+		size_t count, loff_t *offset)
 {
 	int ret;
 	char *tmp;
-	struct i2c_client *client = (struct i2c_client *)file->private_data;
+	struct i2c_client *client = file->private_data;
 
 	if (count > 8192)
 		count = 8192;
 
-	tmp = kmalloc(count,GFP_KERNEL);
-	if (tmp==NULL)
-		return -ENOMEM;
-	if (copy_from_user(tmp,buf,count)) {
-		kfree(tmp);
-		return -EFAULT;
-	}
+	tmp = memdup_user(buf, count);
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
 
 	pr_debug("i2c-dev: i2c-%d writing %zu bytes.\n",
 		iminor(file->f_path.dentry->d_inode), count);
 
-	ret = i2c_master_send(client,tmp,count);
+	ret = i2c_master_send(client, tmp, count);
 	kfree(tmp);
 	return ret;
 }
@@ -193,12 +189,50 @@ static int i2cdev_check(struct device *dev, void *addrp)
 	return dev->driver ? -EBUSY : 0;
 }
 
+/* walk up mux tree */
+static int i2cdev_check_mux_parents(struct i2c_adapter *adapter, int addr)
+{
+	int result;
+
+	result = device_for_each_child(&adapter->dev, &addr, i2cdev_check);
+
+	if (!result && i2c_parent_is_i2c_adapter(adapter))
+		result = i2cdev_check_mux_parents(
+				    to_i2c_adapter(adapter->dev.parent), addr);
+
+	return result;
+}
+
+/* recurse down mux tree */
+static int i2cdev_check_mux_children(struct device *dev, void *addrp)
+{
+	int result;
+
+	if (dev->type == &i2c_adapter_type)
+		result = device_for_each_child(dev, addrp,
+						i2cdev_check_mux_children);
+	else
+		result = i2cdev_check(dev, addrp);
+
+	return result;
+}
+
 /* This address checking function differs from the one in i2c-core
    in that it considers an address with a registered device, but no
    driver bound to it, as NOT busy. */
 static int i2cdev_check_addr(struct i2c_adapter *adapter, unsigned int addr)
 {
-	return device_for_each_child(&adapter->dev, &addr, i2cdev_check);
+	int result = 0;
+
+	if (i2c_parent_is_i2c_adapter(adapter))
+		result = i2cdev_check_mux_parents(
+				    to_i2c_adapter(adapter->dev.parent), addr);
+
+	if (!result)
+		result = device_for_each_child(&adapter->dev, &addr,
+						i2cdev_check_mux_children);
+
+	return result;
 }
 
 static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
@@ -219,9 +253,7 @@ static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
 	if (rdwr_arg.nmsgs > I2C_RDRW_IOCTL_MAX_MSGS)
 		return -EINVAL;
 
-	rdwr_pa = (struct i2c_msg *)
-		kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg),
-		GFP_KERNEL);
+	rdwr_pa = kmalloc(rdwr_arg.nmsgs * sizeof(struct i2c_msg), GFP_KERNEL);
 	if (!rdwr_pa)
 		return -ENOMEM;
 
@@ -247,15 +279,9 @@ static noinline int i2cdev_ioctl_rdrw(struct i2c_client *client,
 			break;
 		}
 		data_ptrs[i] = (u8 __user *)rdwr_pa[i].buf;
-		rdwr_pa[i].buf = kmalloc(rdwr_pa[i].len, GFP_KERNEL);
-		if (rdwr_pa[i].buf == NULL) {
-			res = -ENOMEM;
-			break;
-		}
-		if (copy_from_user(rdwr_pa[i].buf, data_ptrs[i],
-				   rdwr_pa[i].len)) {
-				++i; /* Needs to be kfreed too */
-				res = -EFAULT;
+		rdwr_pa[i].buf = memdup_user(data_ptrs[i], rdwr_pa[i].len);
+		if (IS_ERR(rdwr_pa[i].buf)) {
+			res = PTR_ERR(rdwr_pa[i].buf);
 			break;
 		}
 	}
@@ -369,13 +395,13 @@ static noinline int i2cdev_ioctl_smbus(struct i2c_client *client,
 
 static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct i2c_client *client = (struct i2c_client *)file->private_data;
+	struct i2c_client *client = file->private_data;
 	unsigned long funcs;
 
 	dev_dbg(&client->adapter->dev, "ioctl, cmd=0x%02x, arg=0x%02lx\n",
 		cmd, arg);
 
-	switch ( cmd ) {
+	switch (cmd) {
 	case I2C_SLAVE:
 	case I2C_SLAVE_FORCE:
 		/* NOTE:  devices set up to work with "new style" drivers
@@ -601,7 +627,7 @@ static void __exit i2c_dev_exit(void)
 {
 	i2c_del_driver(&i2cdev_driver);
 	class_destroy(i2c_dev_class);
-	unregister_chrdev(I2C_MAJOR,"i2c");
+	unregister_chrdev(I2C_MAJOR, "i2c");
 }
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl> and "

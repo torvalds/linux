@@ -11,6 +11,7 @@
 #include <linux/unistd.h>
 #include <linux/user.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/tick.h>
 #include <linux/fs.h>
@@ -96,13 +97,6 @@ void cpu_idle(void)
 		schedule();
 		preempt_disable();
 	}
-}
-
-/* Fill in the fpu structure for a core dump.  */
-
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpregs)
-{
-	return 1;
 }
 
 /*
@@ -215,7 +209,9 @@ copy_thread(unsigned long clone_flags,
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(char __user *name, char __user * __user *argv, char __user * __user *envp)
+asmlinkage int sys_execve(const char __user *name,
+			  const char __user *const __user *argv,
+			  const char __user *const __user *envp)
 {
 	int error;
 	char *filename;

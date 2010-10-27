@@ -41,6 +41,7 @@
 #include <linux/interrupt.h>
 #include <linux/ctype.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 #include <asm/mach-au1x00/au1000.h>
 #include "au1200fb.h"

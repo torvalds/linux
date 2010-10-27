@@ -22,7 +22,7 @@
 #ifndef _VT1636_H_
 #define _VT1636_H_
 #include "chip.h"
-bool viafb_lvds_identify_vt1636(void);
+bool viafb_lvds_identify_vt1636(u8 i2c_adapter);
 void viafb_init_lvds_vt1636(struct lvds_setting_information
 	*plvds_setting_info, struct lvds_chip_information *plvds_chip_info);
 void viafb_enable_lvds_vt1636(struct lvds_setting_information

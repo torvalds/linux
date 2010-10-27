@@ -12,6 +12,7 @@
  */
 
 #include <linux/isdn.h>
+#include <linux/slab.h>
 #include "isdn_audio.h"
 #include "isdn_common.h"
 

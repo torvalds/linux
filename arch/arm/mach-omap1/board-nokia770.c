@@ -32,7 +32,6 @@
 #include <plat/board.h>
 #include <plat/keypad.h>
 #include <plat/common.h>
-#include <plat/dsp_common.h>
 #include <plat/hwa742.h>
 #include <plat/lcd_mipid.h>
 #include <plat/mmc.h>
@@ -242,138 +241,6 @@ static inline void nokia770_mmc_init(void)
 }
 #endif
 
-#if	defined(CONFIG_OMAP_DSP)
-/*
- * audio power control
- */
-#define	HEADPHONE_GPIO		14
-#define	AMPLIFIER_CTRL_GPIO	58
-
-static struct clk *dspxor_ck;
-static DEFINE_MUTEX(audio_pwr_lock);
-/*
- * audio_pwr_state
- * +--+-------------------------+---------------------------------------+
- * |-1|down			|power-up request -> 0			|
- * +--+-------------------------+---------------------------------------+
- * | 0|up			|power-down(1) request -> 1		|
- * |  |				|power-down(2) request -> (ignore)	|
- * +--+-------------------------+---------------------------------------+
- * | 1|up,			|power-up request -> 0			|
- * |  |received down(1) request	|power-down(2) request -> -1		|
- * +--+-------------------------+---------------------------------------+
- */
-static int audio_pwr_state = -1;
-
-static inline void aic23_power_up(void)
-{
-}
-static inline void aic23_power_down(void)
-{
-}
-
-/*
- * audio_pwr_up / down should be called under audio_pwr_lock
- */
-static void nokia770_audio_pwr_up(void)
-{
-	clk_enable(dspxor_ck);
-
-	/* Turn on codec */
-	aic23_power_up();
-
-	if (gpio_get_value(HEADPHONE_GPIO))
-		/* HP not connected, turn on amplifier */
-		gpio_set_value(AMPLIFIER_CTRL_GPIO, 1);
-	else
-		/* HP connected, do not turn on amplifier */
-		printk("HP connected\n");
-}
-
-static void codec_delayed_power_down(struct work_struct *work)
-{
-	mutex_lock(&audio_pwr_lock);
-	if (audio_pwr_state == -1)
-		aic23_power_down();
-	clk_disable(dspxor_ck);
-	mutex_unlock(&audio_pwr_lock);
-}
-
-static DECLARE_DELAYED_WORK(codec_power_down_work, codec_delayed_power_down);
-
-static void nokia770_audio_pwr_down(void)
-{
-	/* Turn off amplifier */
-	gpio_set_value(AMPLIFIER_CTRL_GPIO, 0);
-
-	/* Turn off codec: schedule delayed work */
-	schedule_delayed_work(&codec_power_down_work, HZ / 20);	/* 50ms */
-}
-
-static int
-nokia770_audio_pwr_up_request(struct dsp_kfunc_device *kdev, int stage)
-{
-	mutex_lock(&audio_pwr_lock);
-	if (audio_pwr_state == -1)
-		nokia770_audio_pwr_up();
-	/* force audio_pwr_state = 0, even if it was 1. */
-	audio_pwr_state = 0;
-	mutex_unlock(&audio_pwr_lock);
-	return 0;
-}
-
-static int
-nokia770_audio_pwr_down_request(struct dsp_kfunc_device *kdev, int stage)
-{
-	mutex_lock(&audio_pwr_lock);
-	switch (stage) {
-	case 1:
-		if (audio_pwr_state == 0)
-			audio_pwr_state = 1;
-		break;
-	case 2:
-		if (audio_pwr_state == 1) {
-			nokia770_audio_pwr_down();
-			audio_pwr_state = -1;
-		}
-		break;
-	}
-	mutex_unlock(&audio_pwr_lock);
-	return 0;
-}
-
-static struct dsp_kfunc_device nokia770_audio_device = {
-	.name	 = "audio",
-	.type	 = DSP_KFUNC_DEV_TYPE_AUDIO,
-	.enable  = nokia770_audio_pwr_up_request,
-	.disable = nokia770_audio_pwr_down_request,
-};
-
-static __init int omap_dsp_init(void)
-{
-	int ret;
-
-	dspxor_ck = clk_get(0, "dspxor_ck");
-	if (IS_ERR(dspxor_ck)) {
-		printk(KERN_ERR "couldn't acquire dspxor_ck\n");
-		return PTR_ERR(dspxor_ck);
-	}
-
-	ret = dsp_kfunc_device_register(&nokia770_audio_device);
-	if (ret) {
-		printk(KERN_ERR
-		       "KFUNC device registration faild: %s\n",
-		       nokia770_audio_device.name);
-		goto out;
-	}
-	return 0;
- out:
-	return ret;
-}
-#else
-#define omap_dsp_init()		do {} while (0)
-#endif	/* CONFIG_OMAP_DSP */
-
 static void __init omap_nokia770_init(void)
 {
 	platform_add_devices(nokia770_devices, ARRAY_SIZE(nokia770_devices));
@@ -382,11 +249,10 @@ static void __init omap_nokia770_init(void)
 	omap_gpio_init();
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
-	omap_dsp_init();
 	hwa742_dev_init();
 	ads7846_dev_init();
 	mipid_dev_init();
-	omap_usb_init(&nokia770_usb_config);
+	omap1_usb_init(&nokia770_usb_config);
 	nokia770_mmc_init();
 }
 
@@ -400,6 +266,7 @@ MACHINE_START(NOKIA770, "Nokia 770")
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= omap_nokia770_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_nokia770_init_irq,
 	.init_machine	= omap_nokia770_init,
 	.timer		= &omap_timer,

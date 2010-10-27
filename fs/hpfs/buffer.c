@@ -6,6 +6,7 @@
  *  general buffer i/o
  */
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include "hpfs_fn.h"
 
 void hpfs_lock_creation(struct super_block *s)

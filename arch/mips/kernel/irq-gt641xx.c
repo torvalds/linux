@@ -27,18 +27,18 @@
 
 #define GT641XX_IRQ_TO_BIT(irq)	(1U << (irq - GT641XX_IRQ_BASE))
 
-static DEFINE_SPINLOCK(gt641xx_irq_lock);
+static DEFINE_RAW_SPINLOCK(gt641xx_irq_lock);
 
 static void ack_gt641xx_irq(unsigned int irq)
 {
 	unsigned long flags;
 	u32 cause;
 
-	spin_lock_irqsave(&gt641xx_irq_lock, flags);
+	raw_spin_lock_irqsave(&gt641xx_irq_lock, flags);
 	cause = GT_READ(GT_INTRCAUSE_OFS);
 	cause &= ~GT641XX_IRQ_TO_BIT(irq);
 	GT_WRITE(GT_INTRCAUSE_OFS, cause);
-	spin_unlock_irqrestore(&gt641xx_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&gt641xx_irq_lock, flags);
 }
 
 static void mask_gt641xx_irq(unsigned int irq)
@@ -46,11 +46,11 @@ static void mask_gt641xx_irq(unsigned int irq)
 	unsigned long flags;
 	u32 mask;
 
-	spin_lock_irqsave(&gt641xx_irq_lock, flags);
+	raw_spin_lock_irqsave(&gt641xx_irq_lock, flags);
 	mask = GT_READ(GT_INTRMASK_OFS);
 	mask &= ~GT641XX_IRQ_TO_BIT(irq);
 	GT_WRITE(GT_INTRMASK_OFS, mask);
-	spin_unlock_irqrestore(&gt641xx_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&gt641xx_irq_lock, flags);
 }
 
 static void mask_ack_gt641xx_irq(unsigned int irq)
@@ -58,7 +58,7 @@ static void mask_ack_gt641xx_irq(unsigned int irq)
 	unsigned long flags;
 	u32 cause, mask;
 
-	spin_lock_irqsave(&gt641xx_irq_lock, flags);
+	raw_spin_lock_irqsave(&gt641xx_irq_lock, flags);
 	mask = GT_READ(GT_INTRMASK_OFS);
 	mask &= ~GT641XX_IRQ_TO_BIT(irq);
 	GT_WRITE(GT_INTRMASK_OFS, mask);
@@ -66,7 +66,7 @@ static void mask_ack_gt641xx_irq(unsigned int irq)
 	cause = GT_READ(GT_INTRCAUSE_OFS);
 	cause &= ~GT641XX_IRQ_TO_BIT(irq);
 	GT_WRITE(GT_INTRCAUSE_OFS, cause);
-	spin_unlock_irqrestore(&gt641xx_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&gt641xx_irq_lock, flags);
 }
 
 static void unmask_gt641xx_irq(unsigned int irq)
@@ -74,11 +74,11 @@ static void unmask_gt641xx_irq(unsigned int irq)
 	unsigned long flags;
 	u32 mask;
 
-	spin_lock_irqsave(&gt641xx_irq_lock, flags);
+	raw_spin_lock_irqsave(&gt641xx_irq_lock, flags);
 	mask = GT_READ(GT_INTRMASK_OFS);
 	mask |= GT641XX_IRQ_TO_BIT(irq);
 	GT_WRITE(GT_INTRMASK_OFS, mask);
-	spin_unlock_irqrestore(&gt641xx_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&gt641xx_irq_lock, flags);
 }
 
 static struct irq_chip gt641xx_irq_chip = {

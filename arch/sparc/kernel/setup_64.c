@@ -12,7 +12,6 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <asm/smp.h>
 #include <linux/user.h>
 #include <linux/screen_info.h>

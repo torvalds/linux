@@ -79,8 +79,8 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 	md_io.error = 0;
 
 	if ((rw & WRITE) && !test_bit(MD_NO_BARRIER, &mdev->flags))
-		rw |= (1 << BIO_RW_BARRIER);
-	rw |= ((1<<BIO_RW_UNPLUG) | (1<<BIO_RW_SYNCIO));
+		rw |= REQ_HARDBARRIER;
+	rw |= REQ_UNPLUG | REQ_SYNC;
 
  retry:
 	bio = bio_alloc(GFP_NOIO, 1);
@@ -103,11 +103,11 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 	/* check for unsupported barrier op.
 	 * would rather check on EOPNOTSUPP, but that is not reliable.
 	 * don't try again for ANY return value != 0 */
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER) && !ok)) {
+	if (unlikely((bio->bi_rw & REQ_HARDBARRIER) && !ok)) {
 		/* Try again with no barrier */
 		dev_warn(DEV, "Barriers not supported on meta data device - disabling\n");
 		set_bit(MD_NO_BARRIER, &mdev->flags);
-		rw &= ~(1 << BIO_RW_BARRIER);
+		rw &= ~REQ_HARDBARRIER;
 		bio_put(bio);
 		goto retry;
 	}
@@ -536,7 +536,9 @@ static void atodb_endio(struct bio *bio, int error)
 	put_ldev(mdev);
 }
 
+/* sector to word */
 #define S2W(s)	((s)<<(BM_EXT_SHIFT-BM_BLOCK_SHIFT-LN2_BPL))
+
 /* activity log to on disk bitmap -- prepare bio unless that sector
  * is already covered by previously prepared bios */
 static int atodb_prepare_unless_covered(struct drbd_conf *mdev,
@@ -546,12 +548,19 @@ static int atodb_prepare_unless_covered(struct drbd_conf *mdev,
 {
 	struct bio *bio;
 	struct page *page;
-	sector_t on_disk_sector = enr + mdev->ldev->md.md_offset
-				      + mdev->ldev->md.bm_offset;
+	sector_t on_disk_sector;
 	unsigned int page_offset = PAGE_SIZE;
 	int offset;
 	int i = 0;
 	int err = -ENOMEM;
+
+	/* We always write aligned, full 4k blocks,
+	 * so we can ignore the logical_block_size (for now) */
+	enr &= ~7U;
+	on_disk_sector = enr + mdev->ldev->md.md_offset
+			     + mdev->ldev->md.bm_offset;
+
+	D_ASSERT(!(on_disk_sector & 7U));
 
 	/* Check if that enr is already covered by an already created bio.
 	 * Caution, bios[] is not NULL terminated,
@@ -588,7 +597,7 @@ static int atodb_prepare_unless_covered(struct drbd_conf *mdev,
 
 	offset = S2W(enr);
 	drbd_bm_get_lel(mdev, offset,
-			min_t(size_t, S2W(1), drbd_bm_words(mdev) - offset),
+			min_t(size_t, S2W(8), drbd_bm_words(mdev) - offset),
 			kmap(page) + page_offset);
 	kunmap(page);
 
@@ -597,7 +606,7 @@ static int atodb_prepare_unless_covered(struct drbd_conf *mdev,
 	bio->bi_bdev = mdev->ldev->md_bdev;
 	bio->bi_sector = on_disk_sector;
 
-	if (bio_add_page(bio, page, MD_SECTOR_SIZE, page_offset) != MD_SECTOR_SIZE)
+	if (bio_add_page(bio, page, 4096, page_offset) != 4096)
 		goto out_put_page;
 
 	atomic_inc(&wc->count);
@@ -1327,7 +1336,7 @@ int drbd_rs_del_all(struct drbd_conf *mdev)
 		/* ok, ->resync is there. */
 		for (i = 0; i < mdev->resync->nr_elements; i++) {
 			e = lc_element_by_index(mdev->resync, i);
-			bm_ext = e ? lc_entry(e, struct bm_extent, lce) : NULL;
+			bm_ext = lc_entry(e, struct bm_extent, lce);
 			if (bm_ext->lce.lc_number == LC_FREE)
 				continue;
 			if (bm_ext->lce.lc_number == mdev->resync_wenr) {

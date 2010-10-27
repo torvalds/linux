@@ -90,9 +90,6 @@ struct zdap_ioctl {
 
 #endif
 
-char hex(char);
-unsigned char asctohex(char *str);
-
 char *prgname;
 
 int set_ioctl(int sock, struct ifreq *req)
@@ -109,10 +106,10 @@ int set_ioctl(int sock, struct ifreq *req)
 
 int read_reg(int sock, struct ifreq *req)
 {
-	struct zdap_ioctl *zdreq = 0;
+	struct zdap_ioctl *zdreq = NULL;
 
 	if (!set_ioctl(sock, req))
-			return -1;
+		return -1;
 
 	/*
 	 * zdreq = (struct zdap_ioctl *)req->ifr_data;
@@ -125,7 +122,7 @@ int read_reg(int sock, struct ifreq *req)
 
 int read_mem(int sock, struct ifreq *req)
 {
-	struct zdap_ioctl *zdreq = 0;
+	struct zdap_ioctl *zdreq = NULL;
 	int i;
 
 	if (!set_ioctl(sock, req))
@@ -161,7 +158,7 @@ int main(int argc, char **argv)
 	if (argc < 3) {
 		fprintf(stderr, "%s: usage is \"%s <ifname> <operation>"
 				"[<address>] [<value>]\"\n", prgname, prgname);
-		fprintf(stderr, "valid operation : read, write, mem, reg, \n");
+		fprintf(stderr, "valid operation : read, write, mem, reg,\n");
 		fprintf(stderr, "		: txd, rxd, rmem, wmem\n");
 		fprintf(stderr, "		: dmat, regt, test\n");
 
@@ -368,7 +365,7 @@ int main(int argc, char **argv)
 
 		zdreq.addr = addr;
 		zdreq.cmd = ZM_IOCTL_SET_PIBSS_MODE;
-	} else 	{
+	} else {
 		fprintf(stderr, "error action\n");
 		exit(1);
 	}
@@ -378,27 +375,5 @@ int main(int argc, char **argv)
 
 fail:
 	exit(0);
-}
-
-unsigned char asctohex(char *str)
-{
-	unsigned char value;
-
-	value = hex(*str) & 0x0f;
-	value = value << 4;
-	str++;
-	value |= hex(*str) & 0x0f;
-
-	return value;
-}
-
-char hex(char v)
-{
-	if (isdigit(v))
-		return v - '0';
-	else if (isxdigit(v))
-		return tolower(v) - 'a' + 10;
-	else
-		return 0;
 }
 

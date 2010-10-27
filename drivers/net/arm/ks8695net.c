@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <asm/irq.h>
 
@@ -327,25 +328,24 @@ ks8695_refill_rxbuffers(struct ks8695_priv *ksp)
  */
 static void
 ks8695_init_partial_multicast(struct ks8695_priv *ksp,
-			      struct dev_mc_list *addr,
-			      int nr_addr)
+			      struct net_device *ndev)
 {
 	u32 low, high;
 	int i;
+	struct netdev_hw_addr *ha;
 
-	for (i = 0; i < nr_addr; i++, addr = addr->next) {
-		/* Ran out of addresses? */
-		if (!addr)
-			break;
+	i = 0;
+	netdev_for_each_mc_addr(ha, ndev) {
 		/* Ran out of space in chip? */
 		BUG_ON(i == KS8695_NR_ADDRESSES);
 
-		low = (addr->dmi_addr[2] << 24) | (addr->dmi_addr[3] << 16) |
-			(addr->dmi_addr[4] << 8) | (addr->dmi_addr[5]);
-		high = (addr->dmi_addr[0] << 8) | (addr->dmi_addr[1]);
+		low = (ha->addr[2] << 24) | (ha->addr[3] << 16) |
+		      (ha->addr[4] << 8) | (ha->addr[5]);
+		high = (ha->addr[0] << 8) | (ha->addr[1]);
 
 		ks8695_writereg(ksp, KS8695_AAL_(i), low);
 		ks8695_writereg(ksp, KS8695_AAH_(i), AAH_E | high);
+		i++;
 	}
 
 	/* Clear the remaining Additional Station Addresses */
@@ -450,11 +450,10 @@ ks8695_rx_irq(int irq, void *dev_id)
 }
 
 /**
- *	ks8695_rx - Receive packets  called by NAPI poll method
+ *	ks8695_rx - Receive packets called by NAPI poll method
  *	@ksp: Private data for the KS8695 Ethernet
- *	@budget: The max packets would be receive
+ *	@budget: Number of packets allowed to process
  */
-
 static int ks8695_rx(struct ks8695_priv *ksp, int budget)
 {
 	struct net_device *ndev = ksp->ndev;
@@ -462,7 +461,6 @@ static int ks8695_rx(struct ks8695_priv *ksp, int budget)
 	int buff_n;
 	u32 flags;
 	int pktlen;
-	int last_rx_processed = -1;
 	int received = 0;
 
 	buff_n = ksp->next_rx_desc_read;
@@ -472,6 +470,7 @@ static int ks8695_rx(struct ks8695_priv *ksp, int budget)
 					cpu_to_le32(RDES_OWN)))) {
 			rmb();
 			flags = le32_to_cpu(ksp->rx_ring[buff_n].status);
+
 			/* Found an SKB which we own, this means we
 			 * received a packet
 			 */
@@ -534,23 +533,18 @@ rx_failure:
 			ksp->rx_ring[buff_n].status = cpu_to_le32(RDES_OWN);
 rx_finished:
 			received++;
-			/* And note this as processed so we can start
-			 * from here next time
-			 */
-			last_rx_processed = buff_n;
 			buff_n = (buff_n + 1) & MAX_RX_DESC_MASK;
-			/*And note which RX descriptor we last did */
-			if (likely(last_rx_processed != -1))
-				ksp->next_rx_desc_read =
-					(last_rx_processed + 1) &
-					MAX_RX_DESC_MASK;
 	}
+
+	/* And note which RX descriptor we last did */
+	ksp->next_rx_desc_read = buff_n;
+
 	/* And refill the buffers */
 	ks8695_refill_rxbuffers(ksp);
 
-	/* Kick the RX DMA engine, in case it became
-	 *  suspended */
+	/* Kick the RX DMA engine, in case it became suspended */
 	ks8695_writereg(ksp, KS8695_DRSC, 0);
+
 	return received;
 }
 
@@ -576,9 +570,9 @@ static int ks8695_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		unsigned long flags;
 		spin_lock_irqsave(&ksp->rx_lock, flags);
+		__napi_complete(napi);
 		/*enable rx interrupt*/
 		writel(isr | mask_bit, KS8695_IRQ_VA + KS8695_INTEN);
-		__napi_complete(napi);
 		spin_unlock_irqrestore(&ksp->rx_lock, flags);
 	}
 	return work_done;
@@ -1207,7 +1201,7 @@ ks8695_set_multicast(struct net_device *ndev)
 	if (ndev->flags & IFF_ALLMULTI) {
 		/* enable all multicast mode */
 		ctrl |= DRXC_RM;
-	} else if (ndev->mc_count > KS8695_NR_ADDRESSES) {
+	} else if (netdev_mc_count(ndev) > KS8695_NR_ADDRESSES) {
 		/* more specific multicast addresses than can be
 		 * handled in hardware
 		 */
@@ -1215,8 +1209,7 @@ ks8695_set_multicast(struct net_device *ndev)
 	} else {
 		/* enable specific multicasts */
 		ctrl &= ~DRXC_RM;
-		ks8695_init_partial_multicast(ksp, ndev->mc_list,
-					      ndev->mc_count);
+		ks8695_init_partial_multicast(ksp, ndev);
 	}
 
 	ks8695_writereg(ksp, KS8695_DRXC, ctrl);
@@ -1309,8 +1302,6 @@ ks8695_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (++ksp->tx_ring_used == MAX_TX_DESC)
 		netif_stop_queue(ndev);
 
-	ndev->trans_start = jiffies;
-
 	/* Kick the TX DMA in case it decided to go IDLE */
 	ks8695_writereg(ksp, KS8695_DTSC, 0);
 
@@ -1335,7 +1326,6 @@ ks8695_stop(struct net_device *ndev)
 
 	netif_stop_queue(ndev);
 	napi_disable(&ksp->napi);
-	netif_carrier_off(ndev);
 
 	ks8695_shutdown(ksp);
 
@@ -1480,7 +1470,6 @@ ks8695_probe(struct platform_device *pdev)
 
 	/* Configure our private structure a little */
 	ksp = netdev_priv(ndev);
-	memset(ksp, 0, sizeof(struct ks8695_priv));
 
 	ksp->dev = &pdev->dev;
 	ksp->ndev = ndev;

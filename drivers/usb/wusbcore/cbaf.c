@@ -92,6 +92,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/uwb.h>
 #include <linux/usb/wusb.h>
@@ -641,7 +642,7 @@ static void cbaf_disconnect(struct usb_interface *iface)
 	kzfree(cbaf);
 }
 
-static struct usb_device_id cbaf_id_table[] = {
+static const struct usb_device_id cbaf_id_table[] = {
 	{ USB_INTERFACE_INFO(0xef, 0x03, 0x01), },
 	{ },
 };

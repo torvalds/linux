@@ -35,6 +35,7 @@
 
 #include <linux/mutex.h>
 #include <linux/inetdevice.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <net/arp.h>
 #include <net/neighbour.h>
@@ -214,7 +215,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 
 	neigh = neigh_lookup(&arp_tbl, &rt->rt_gateway, rt->idev->dev);
 	if (!neigh || !(neigh->nud_state & NUD_VALID)) {
-		neigh_event_send(rt->u.dst.neighbour, NULL);
+		neigh_event_send(rt->dst.neighbour, NULL);
 		ret = -ENODATA;
 		if (neigh)
 			goto release;

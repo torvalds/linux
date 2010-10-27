@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/reboot.h>
 
 #include <asm/firmware.h>

@@ -31,7 +31,7 @@ models:
 Large portions of this documentation were heavily borrowed from the guide
 written the original author of the 3c509 driver, Donald Becker. The master
 copy of that document, which contains notes on older versions of the driver,
-currently resides on Scyld web server: http://www.scyld.com/network/3c509.html.
+currently resides on Scyld web server: http://www.scyld.com/.
 
 
 (1) Special Driver Features

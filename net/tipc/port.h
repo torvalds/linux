@@ -75,7 +75,6 @@ struct user_port {
  * @wakeup: ptr to routine to call when port is no longer congested
  * @user_port: ptr to user port associated with port (if any)
  * @wait_list: adjacent ports in list of ports waiting on link congestion
- * @congested_link: ptr to congested link port is waiting on
  * @waiting_pkts:
  * @sent:
  * @acked:
@@ -95,7 +94,6 @@ struct port {
 	void (*wakeup)(struct tipc_port *);
 	struct user_port *user_port;
 	struct list_head wait_list;
-	struct link *congested_link;
 	u32 waiting_pkts;
 	u32 sent;
 	u32 acked;

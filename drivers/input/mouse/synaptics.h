@@ -18,6 +18,8 @@
 #define SYN_QUE_SERIAL_NUMBER_SUFFIX	0x07
 #define SYN_QUE_RESOLUTION		0x08
 #define SYN_QUE_EXT_CAPAB		0x09
+#define SYN_QUE_EXT_CAPAB_0C		0x0c
+#define SYN_QUE_EXT_DIMENSIONS		0x0d
 
 /* synatics modes */
 #define SYN_BIT_ABSOLUTE_MODE		(1 << 7)
@@ -45,9 +47,12 @@
 #define SYN_CAP_FOUR_BUTTON(c)		((c) & (1 << 3))
 #define SYN_CAP_MULTIFINGER(c)		((c) & (1 << 1))
 #define SYN_CAP_PALMDETECT(c)		((c) & (1 << 0))
-#define SYN_CAP_VALID(c)		((((c) & 0x00ff00) >> 8) == 0x47)
+#define SYN_CAP_SUBMODEL_ID(c)		(((c) & 0x00ff00) >> 8)
 #define SYN_EXT_CAP_REQUESTS(c)		(((c) & 0x700000) >> 20)
 #define SYN_CAP_MULTI_BUTTON_NO(ec)	(((ec) & 0x00f000) >> 12)
+#define SYN_CAP_PRODUCT_ID(ec)		(((ec) & 0xff0000) >> 16)
+#define SYN_CAP_CLICKPAD(ex0c)		((ex0c) & 0x100100)
+#define SYN_CAP_MAX_DIMENSIONS(ex0c)	((ex0c) & 0x020000)
 
 /* synaptics modes query bits */
 #define SYN_MODE_ABSOLUTE(m)		((m) & (1 << 7))
@@ -61,6 +66,7 @@
 #define SYN_ID_MODEL(i)			(((i) >> 4) & 0x0f)
 #define SYN_ID_MAJOR(i)			((i) & 0x0f)
 #define SYN_ID_MINOR(i)			(((i) >> 16) & 0xff)
+#define SYN_ID_FULL(i)			((SYN_ID_MAJOR(i) << 8) | SYN_ID_MINOR(i))
 #define SYN_ID_IS_SYNAPTICS(i)		((((i) >> 8) & 0xff) == 0x47)
 
 /* synaptics special commands */
@@ -96,9 +102,10 @@ struct synaptics_data {
 	unsigned long int model_id;		/* Model-ID */
 	unsigned long int capabilities;		/* Capabilities */
 	unsigned long int ext_cap;		/* Extended Capabilities */
+	unsigned long int ext_cap_0c;		/* Ext Caps from 0x0c query */
 	unsigned long int identity;		/* Identification */
-	int x_res;				/* X resolution in units/mm */
-	int y_res;				/* Y resolution in units/mm */
+	unsigned int x_res, y_res;		/* X/Y resolution in units/mm */
+	unsigned int x_max, y_max;		/* Max dimensions (from FW) */
 
 	unsigned char pkt_type;			/* packet type - old, new, etc */
 	unsigned char mode;			/* current mode byte */

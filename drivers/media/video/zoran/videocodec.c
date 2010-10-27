@@ -107,15 +107,14 @@ videocodec_attach (struct videocodec_master *master)
 			if (!try_module_get(h->codec->owner))
 				return NULL;
 
-			codec =
-			    kmalloc(sizeof(struct videocodec), GFP_KERNEL);
+			codec = kmemdup(h->codec, sizeof(struct videocodec),
+					GFP_KERNEL);
 			if (!codec) {
 				dprintk(1,
 					KERN_ERR
 					"videocodec_attach: no mem\n");
 				goto out_module_put;
 			}
-			memcpy(codec, h->codec, sizeof(struct videocodec));
 
 			snprintf(codec->name, sizeof(codec->name),
 				 "%s[%d]", codec->name, h->attached);

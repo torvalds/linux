@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
+#include <linux/ratelimit.h>
 
 #include <asm/intrinsics.h>
 #include <asm/processor.h>
@@ -1283,24 +1284,9 @@ emulate_store_float (unsigned long ifa, load_store_t ld, struct pt_regs *regs)
 /*
  * Make sure we log the unaligned access, so that user/sysadmin can notice it and
  * eventually fix the program.  However, we don't want to do that for every access so we
- * pace it with jiffies.  This isn't really MP-safe, but it doesn't really have to be
- * either...
+ * pace it with jiffies.
  */
-static int
-within_logging_rate_limit (void)
-{
-	static unsigned long count, last_time;
-
-	if (time_after(jiffies, last_time + 5 * HZ))
-		count = 0;
-	if (count < 5) {
-		last_time = jiffies;
-		count++;
-		return 1;
-	}
-	return 0;
-
-}
+static DEFINE_RATELIMIT_STATE(logging_rate_limit, 5 * HZ, 5);
 
 void
 ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
@@ -1337,7 +1323,7 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 
 		if (!no_unaligned_warning &&
 		    !(current->thread.flags & IA64_THREAD_UAC_NOPRINT) &&
-		    within_logging_rate_limit())
+		    __ratelimit(&logging_rate_limit))
 		{
 			char buf[200];	/* comm[] is at most 16 bytes... */
 			size_t len;
@@ -1370,7 +1356,7 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 			}
 		}
 	} else {
-		if (within_logging_rate_limit()) {
+		if (__ratelimit(&logging_rate_limit)) {
 			printk(KERN_WARNING "kernel unaligned access to 0x%016lx, ip=0x%016lx\n",
 			       ifa, regs->cr_iip + ipsr->ri);
 			if (unaligned_dump_stack)

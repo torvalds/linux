@@ -190,7 +190,7 @@ static int uhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	spin_lock_irqsave(&uhci->lock, flags);
 
 	uhci_scan_schedule(uhci);
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags) || uhci->dead)
+	if (!HCD_HW_ACCESSIBLE(hcd) || uhci->dead)
 		goto done;
 	uhci_check_ports(uhci);
 
@@ -200,7 +200,7 @@ static int uhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	    case UHCI_RH_SUSPENDING:
 	    case UHCI_RH_SUSPENDED:
 		/* if port change, ask to be resumed */
-		if (status)
+		if (status || uhci->resuming_ports)
 			usb_hcd_resume_root_hub(hcd);
 		break;
 
@@ -246,7 +246,7 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	u16 wPortChange, wPortStatus;
 	unsigned long flags;
 
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags) || uhci->dead)
+	if (!HCD_HW_ACCESSIBLE(hcd) || uhci->dead)
 		return -ETIMEDOUT;
 
 	spin_lock_irqsave(&uhci->lock, flags);

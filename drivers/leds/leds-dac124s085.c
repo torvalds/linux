@@ -9,7 +9,6 @@
  * LED driver for the DAC124S085 SPI DAC
  */
 
-#include <linux/gfp.h>
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>

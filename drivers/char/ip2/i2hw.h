@@ -559,7 +559,7 @@ Loadware may be sent to the board in two ways:
 
 2) It may be hard-coded into your source by including a .h file (typically
 	supplied by Computone), which declares a data array and initializes every
-	element. This acheives the same result as if an entire loadware file had 
+	element. This achieves the same result as if an entire loadware file had 
 	been read into the array.
 
 	This requires more data space in your program, but access to the file system

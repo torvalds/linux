@@ -157,7 +157,7 @@ static inline ssize_t vhci_put_user(struct vhci_data *data,
 		break;
 
 	case HCI_SCODATA_PKT:
-		data->hdev->stat.cmd_tx++;
+		data->hdev->stat.sco_tx++;
 		break;
 	};
 
@@ -236,7 +236,7 @@ static int vhci_open(struct inode *inode, struct file *file)
 
 	data->hdev = hdev;
 
-	hdev->type = HCI_VIRTUAL;
+	hdev->bus = HCI_VIRTUAL;
 	hdev->driver_data = data;
 
 	hdev->open     = vhci_open_dev;

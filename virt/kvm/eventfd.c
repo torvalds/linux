@@ -2,6 +2,7 @@
  * kvm eventfd support - use eventfd objects to signal various KVM events
  *
  * Copyright 2009 Novell.  All Rights Reserved.
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Author:
  *	Gregory Haskins <ghaskins@novell.com>
@@ -30,6 +31,7 @@
 #include <linux/list.h>
 #include <linux/eventfd.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include "iodev.h"
 
@@ -47,7 +49,6 @@ struct _irqfd {
 	int                       gsi;
 	struct list_head          list;
 	poll_table                pt;
-	wait_queue_head_t        *wqh;
 	wait_queue_t              wait;
 	struct work_struct        inject;
 	struct work_struct        shutdown;
@@ -159,8 +160,6 @@ irqfd_ptable_queue_proc(struct file *file, wait_queue_head_t *wqh,
 			poll_table *pt)
 {
 	struct _irqfd *irqfd = container_of(pt, struct _irqfd, pt);
-
-	irqfd->wqh = wqh;
 	add_wait_queue(wqh, &irqfd->wait);
 }
 
@@ -219,7 +218,6 @@ kvm_irqfd_assign(struct kvm *kvm, int fd, int gsi)
 	events = file->f_op->poll(file, &irqfd->pt);
 
 	list_add_tail(&irqfd->list, &kvm->irqfds.items);
-	spin_unlock_irq(&kvm->irqfds.lock);
 
 	/*
 	 * Check if there was an event already pending on the eventfd
@@ -227,6 +225,8 @@ kvm_irqfd_assign(struct kvm *kvm, int fd, int gsi)
 	 */
 	if (events & POLLIN)
 		schedule_work(&irqfd->inject);
+
+	spin_unlock_irq(&kvm->irqfds.lock);
 
 	/*
 	 * do not drop the file until the irqfd is fully initialized, otherwise
@@ -463,7 +463,7 @@ static int
 kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 {
 	int                       pio = args->flags & KVM_IOEVENTFD_FLAG_PIO;
-	struct kvm_io_bus        *bus = pio ? &kvm->pio_bus : &kvm->mmio_bus;
+	enum kvm_bus              bus_idx = pio ? KVM_PIO_BUS : KVM_MMIO_BUS;
 	struct _ioeventfd        *p;
 	struct eventfd_ctx       *eventfd;
 	int                       ret;
@@ -508,7 +508,7 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 	else
 		p->wildcard = true;
 
-	down_write(&kvm->slots_lock);
+	mutex_lock(&kvm->slots_lock);
 
 	/* Verify that there isnt a match already */
 	if (ioeventfd_check_collision(kvm, p)) {
@@ -518,18 +518,18 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 
 	kvm_iodevice_init(&p->dev, &ioeventfd_ops);
 
-	ret = __kvm_io_bus_register_dev(bus, &p->dev);
+	ret = kvm_io_bus_register_dev(kvm, bus_idx, &p->dev);
 	if (ret < 0)
 		goto unlock_fail;
 
 	list_add_tail(&p->list, &kvm->ioeventfds);
 
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 
 	return 0;
 
 unlock_fail:
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 
 fail:
 	kfree(p);
@@ -542,7 +542,7 @@ static int
 kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 {
 	int                       pio = args->flags & KVM_IOEVENTFD_FLAG_PIO;
-	struct kvm_io_bus        *bus = pio ? &kvm->pio_bus : &kvm->mmio_bus;
+	enum kvm_bus              bus_idx = pio ? KVM_PIO_BUS : KVM_MMIO_BUS;
 	struct _ioeventfd        *p, *tmp;
 	struct eventfd_ctx       *eventfd;
 	int                       ret = -ENOENT;
@@ -551,7 +551,7 @@ kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 	if (IS_ERR(eventfd))
 		return PTR_ERR(eventfd);
 
-	down_write(&kvm->slots_lock);
+	mutex_lock(&kvm->slots_lock);
 
 	list_for_each_entry_safe(p, tmp, &kvm->ioeventfds, list) {
 		bool wildcard = !(args->flags & KVM_IOEVENTFD_FLAG_DATAMATCH);
@@ -565,13 +565,13 @@ kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 		if (!p->wildcard && p->datamatch != args->datamatch)
 			continue;
 
-		__kvm_io_bus_unregister_dev(bus, &p->dev);
+		kvm_io_bus_unregister_dev(kvm, bus_idx, &p->dev);
 		ioeventfd_release(p);
 		ret = 0;
 		break;
 	}
 
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 
 	eventfd_ctx_put(eventfd);
 

@@ -48,7 +48,7 @@ MODULE_PARM_DESC(id, "ID string");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "enable card");
 
-static struct pci_device_id hifier_ids[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(hifier_ids) = {
 	{ OXYGEN_PCI_SUBID(0x14c3, 0x1710) },
 	{ OXYGEN_PCI_SUBID(0x14c3, 0x1711) },
 	{ OXYGEN_PCI_SUBID_BROKEN_EEPROM },

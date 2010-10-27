@@ -262,6 +262,10 @@ static inline void dma_disable_irq(unsigned int channel)
 {
 	disable_irq(dma_ch[channel].irq);
 }
+static inline void dma_disable_irq_nosync(unsigned int channel)
+{
+	disable_irq_nosync(dma_ch[channel].irq);
+}
 static inline void dma_enable_irq(unsigned int channel)
 {
 	enable_irq(dma_ch[channel].irq);
@@ -272,6 +276,7 @@ static inline void clear_dma_irqstat(unsigned int channel)
 }
 
 void *dma_memcpy(void *dest, const void *src, size_t count);
+void *dma_memcpy_nocache(void *dest, const void *src, size_t count);
 void *safe_dma_memcpy(void *dest, const void *src, size_t count);
 void blackfin_dma_early_init(void);
 void early_dma_memcpy(void *dest, const void *src, size_t count);

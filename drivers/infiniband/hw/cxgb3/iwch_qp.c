@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 #include <linux/sched.h>
+#include <linux/gfp.h>
 #include "iwch_provider.h"
 #include "iwch.h"
 #include "iwch_cm.h"
@@ -370,7 +371,7 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	}
 	num_wrs = Q_FREECNT(qhp->wq.sq_rptr, qhp->wq.sq_wptr,
 		  qhp->wq.sq_size_log2);
-	if (num_wrs <= 0) {
+	if (num_wrs == 0) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
 		err = -ENOMEM;
 		goto out;
@@ -452,7 +453,8 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		++(qhp->wq.sq_wptr);
 	}
 	spin_unlock_irqrestore(&qhp->lock, flag);
-	ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
+	if (cxio_wq_db_enabled(&qhp->wq))
+		ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
 
 out:
 	if (err)
@@ -514,7 +516,8 @@ int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		num_wrs--;
 	}
 	spin_unlock_irqrestore(&qhp->lock, flag);
-	ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
+	if (cxio_wq_db_enabled(&qhp->wq))
+		ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
 
 out:
 	if (err)
@@ -551,7 +554,7 @@ int iwch_bind_mw(struct ib_qp *qp,
 	}
 	num_wrs = Q_FREECNT(qhp->wq.sq_rptr, qhp->wq.sq_wptr,
 			    qhp->wq.sq_size_log2);
-	if ((num_wrs) <= 0) {
+	if (num_wrs == 0) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
 		return -ENOMEM;
 	}
@@ -597,7 +600,8 @@ int iwch_bind_mw(struct ib_qp *qp,
 	++(qhp->wq.sq_wptr);
 	spin_unlock_irqrestore(&qhp->lock, flag);
 
-	ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
+	if (cxio_wq_db_enabled(&qhp->wq))
+		ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
 
 	return err;
 }
@@ -812,7 +816,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 	atomic_inc(&qhp->refcnt);
 	spin_unlock_irqrestore(&qhp->lock, *flag);
 
-	/* locking heirarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&rchp->lock, *flag);
 	spin_lock(&qhp->lock);
 	cxio_flush_hw_cq(&rchp->cq);
@@ -823,7 +827,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 	if (flushed)
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
 
-	/* locking heirarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, *flag);
 	spin_lock(&qhp->lock);
 	cxio_flush_hw_cq(&schp->cq);

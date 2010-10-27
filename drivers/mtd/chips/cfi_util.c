@@ -22,7 +22,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/cfi.h>
-#include <linux/mtd/compatmac.h>
 
 int __xipram cfi_qry_present(struct map_info *map, __u32 base,
 			     struct cfi_private *cfi)
@@ -104,9 +103,10 @@ __xipram cfi_read_pri(struct map_info *map, __u16 adr, __u16 size, const char* n
 	int i;
 	struct cfi_extquery *extp = NULL;
 
-	printk(" %s Extended Query Table at 0x%4.4X\n", name, adr);
 	if (!adr)
 		goto out;
+
+	printk(KERN_INFO "%s Extended Query Table at 0x%4.4X\n", name, adr);
 
 	extp = kmalloc(size, GFP_KERNEL);
 	if (!extp) {

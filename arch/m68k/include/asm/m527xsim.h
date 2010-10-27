@@ -31,6 +31,7 @@
 #define	MCFINT_UART0		13		/* Interrupt number for UART0 */
 #define	MCFINT_UART1		14		/* Interrupt number for UART1 */
 #define	MCFINT_UART2		15		/* Interrupt number for UART2 */
+#define	MCFINT_QSPI		18		/* Interrupt number for QSPI */
 #define	MCFINT_PIT1		36		/* Interrupt number for PIT1 */
 
 /*
@@ -120,6 +121,9 @@
 #define MCFGPIO_PIN_MAX			100
 #define MCFGPIO_IRQ_MAX			8
 #define MCFGPIO_IRQ_VECBASE		MCFINT_VECBASE
+
+#define MCFGPIO_PAR_QSPI	(MCF_IPSBAR + 0x10004A)
+#define MCFGPIO_PAR_TIMER	(MCF_IPSBAR + 0x10004C)
 #endif
 
 #ifdef CONFIG_M5275
@@ -212,6 +216,8 @@
 #define MCFGPIO_PIN_MAX			148
 #define MCFGPIO_IRQ_MAX			8
 #define MCFGPIO_IRQ_VECBASE		MCFINT_VECBASE
+
+#define MCFGPIO_PAR_QSPI	(MCF_IPSBAR + 0x10007E)
 #endif
 
 /*
@@ -221,6 +227,7 @@
 #define MCFEPORT_EPDDR		(MCF_IPSBAR + 0x130002)
 #define MCFEPORT_EPDR		(MCF_IPSBAR + 0x130004)
 #define MCFEPORT_EPPDR		(MCF_IPSBAR + 0x130005)
+
 
 
 /*

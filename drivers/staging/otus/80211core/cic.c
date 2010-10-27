@@ -329,7 +329,8 @@ void zfCoreEvent(zdev_t* dev, u16_t event, u8_t* rsp)
         if (wd->wlanMode == ZM_MODE_AP)
         {
             zmw_enter_critical_section(dev);
-            if ((i=zfApFindSta(dev, (u16_t*)rsp)) != 0xffff)
+            i = zfApFindSta(dev, (u16_t*)rsp);
+            if (i != 0xffff)
             {
                 zfRateCtrlTxFailEvent(dev, &wd->ap.staTable[i].rcCell, 0,(u32_t)zfPhyCtrlToRate(retryRate));
             }
@@ -357,7 +358,8 @@ void zfCoreEvent(zdev_t* dev, u16_t event, u8_t* rsp)
         if (wd->wlanMode == ZM_MODE_AP)
         {
             zmw_enter_critical_section(dev);
-            if ((i=zfApFindSta(dev, (u16_t*)rsp)) != 0xffff)
+            i = zfApFindSta(dev, (u16_t*)rsp);
+            if (i != 0xffff)
             {
                 zfRateCtrlTxFailEvent(dev, &wd->ap.staTable[i].rcCell, 0,(u32_t)zfPhyCtrlToRate(retryRate));
             }
@@ -387,7 +389,8 @@ void zfCoreEvent(zdev_t* dev, u16_t event, u8_t* rsp)
         if (wd->wlanMode == ZM_MODE_AP)
         {
             zmw_enter_critical_section(dev);
-            if ((i=zfApFindSta(dev, (u16_t*)rsp)) != 0xffff)
+            i = zfApFindSta(dev, (u16_t*)rsp);
+            if (i != 0xffff)
             {
                 zfRateCtrlTxSuccessEvent(dev, &wd->ap.staTable[i].rcCell, zfPhyCtrlToRate(retryRate));
             }

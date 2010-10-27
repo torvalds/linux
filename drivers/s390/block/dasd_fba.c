@@ -124,6 +124,7 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	struct dasd_fba_private *private;
 	struct ccw_device *cdev = device->cdev;
 	int rc;
+	int readonly;
 
 	private = (struct dasd_fba_private *) device->private;
 	if (!private) {
@@ -162,16 +163,23 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 		return rc;
 	}
 
+	device->default_expires = DASD_EXPIRES;
+
+	readonly = dasd_device_is_ro(device);
+	if (readonly)
+		set_bit(DASD_FLAG_DEVICE_RO, &device->flags);
+
 	dev_info(&device->cdev->dev,
 		 "New FBA DASD %04X/%02X (CU %04X/%02X) with %d MB "
-		 "and %d B/blk\n",
+		 "and %d B/blk%s\n",
 		 cdev->id.dev_type,
 		 cdev->id.dev_model,
 		 cdev->id.cu_type,
 		 cdev->id.cu_model,
 		 ((private->rdc_data.blk_bdsa *
 		   (private->rdc_data.blk_size >> 9)) >> 11),
-		 private->rdc_data.blk_size);
+		 private->rdc_data.blk_size,
+		 readonly ? ", read-only device" : "");
 	return 0;
 }
 
@@ -364,7 +372,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp(struct dasd_device * memdev,
 	cqr->startdev = memdev;
 	cqr->memdev = memdev;
 	cqr->block = block;
-	cqr->expires = 5 * 60 * HZ;	/* 5 minutes */
+	cqr->expires = memdev->default_expires * HZ;	/* default 5 minutes */
 	cqr->retries = 32;
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;

@@ -25,7 +25,6 @@ struct beacon_rx {
 typedef struct ray_dev_t {
     int card_status;
     int authentication_state;
-    dev_node_t  node;
     window_handle_t amem_handle;   /* handle to window for attribute memory  */
     window_handle_t rmem_handle;   /* handle to window for rx buffer on card */
     void __iomem *sram;            /* pointer to beginning of shared RAM     */

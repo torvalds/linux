@@ -222,11 +222,16 @@ struct bitmap {
 	unsigned long file_pages; /* number of pages in the file */
 	int last_page_size; /* bytes in the last page */
 
+	unsigned long logattrs; /* used when filemap_attr doesn't exist
+				 * because we are working with a dirty_log
+				 */
+
 	unsigned long flags;
 
 	int allclean;
 
 	atomic_t behind_writes;
+	unsigned long behind_writes_used; /* highest actual value at runtime */
 
 	/*
 	 * the bitmap daemon - periodically wakes up and sweeps the bitmap
@@ -239,14 +244,17 @@ struct bitmap {
 	atomic_t pending_writes; /* pending writes to the bitmap file */
 	wait_queue_head_t write_wait;
 	wait_queue_head_t overflow_wait;
+	wait_queue_head_t behind_wait;
 
 	struct sysfs_dirent *sysfs_can_clear;
+
 };
 
 /* the bitmap API */
 
 /* these are used only by md/bitmap */
 int  bitmap_create(mddev_t *mddev);
+int bitmap_load(mddev_t *mddev);
 void bitmap_flush(mddev_t *mddev);
 void bitmap_destroy(mddev_t *mddev);
 

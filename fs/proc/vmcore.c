@@ -12,6 +12,7 @@
 #include <linux/user.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
+#include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/bootmem.h>
 #include <linux/init.h>
@@ -162,6 +163,7 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
 
 static const struct file_operations proc_vmcore_operations = {
 	.read		= read_vmcore,
+	.llseek		= default_llseek,
 };
 
 static struct vmcore* __init get_new_element(void)

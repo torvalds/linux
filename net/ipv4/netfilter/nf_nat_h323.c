@@ -10,7 +10,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/tcp.h>
 #include <net/tcp.h>
 
@@ -44,7 +43,7 @@ static int set_addr(struct sk_buff *skb,
 					      addroff, sizeof(buf),
 					      (char *) &buf, sizeof(buf))) {
 			if (net_ratelimit())
-				printk("nf_nat_h323: nf_nat_mangle_tcp_packet"
+				pr_notice("nf_nat_h323: nf_nat_mangle_tcp_packet"
 				       " error\n");
 			return -1;
 		}
@@ -60,7 +59,7 @@ static int set_addr(struct sk_buff *skb,
 					      addroff, sizeof(buf),
 					      (char *) &buf, sizeof(buf))) {
 			if (net_ratelimit())
-				printk("nf_nat_h323: nf_nat_mangle_udp_packet"
+				pr_notice("nf_nat_h323: nf_nat_mangle_udp_packet"
 				       " error\n");
 			return -1;
 		}
@@ -216,7 +215,7 @@ static int nat_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 	/* Run out of expectations */
 	if (i >= H323_RTP_CHANNEL_MAX) {
 		if (net_ratelimit())
-			printk("nf_nat_h323: out of expectations\n");
+			pr_notice("nf_nat_h323: out of expectations\n");
 		return 0;
 	}
 
@@ -235,7 +234,7 @@ static int nat_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (nated_port == 0) {	/* No port available */
 		if (net_ratelimit())
-			printk("nf_nat_h323: out of RTP ports\n");
+			pr_notice("nf_nat_h323: out of RTP ports\n");
 		return 0;
 	}
 
@@ -292,7 +291,7 @@ static int nat_t120(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (nated_port == 0) {	/* No port available */
 		if (net_ratelimit())
-			printk("nf_nat_h323: out of TCP ports\n");
+			pr_notice("nf_nat_h323: out of TCP ports\n");
 		return 0;
 	}
 
@@ -342,7 +341,7 @@ static int nat_h245(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (nated_port == 0) {	/* No port available */
 		if (net_ratelimit())
-			printk("nf_nat_q931: out of TCP ports\n");
+			pr_notice("nf_nat_q931: out of TCP ports\n");
 		return 0;
 	}
 
@@ -426,7 +425,7 @@ static int nat_q931(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (nated_port == 0) {	/* No port available */
 		if (net_ratelimit())
-			printk("nf_nat_ras: out of TCP ports\n");
+			pr_notice("nf_nat_ras: out of TCP ports\n");
 		return 0;
 	}
 
@@ -508,7 +507,7 @@ static int nat_callforwarding(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (nated_port == 0) {	/* No port available */
 		if (net_ratelimit())
-			printk("nf_nat_q931: out of TCP ports\n");
+			pr_notice("nf_nat_q931: out of TCP ports\n");
 		return 0;
 	}
 

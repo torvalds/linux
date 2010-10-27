@@ -57,7 +57,6 @@
 #include <linux/trdevice.h>
 #include <linux/ibmtr.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -104,7 +103,6 @@ static void ibmtr_detach(struct pcmcia_device *p_dev);
 typedef struct ibmtr_dev_t {
 	struct pcmcia_device	*p_dev;
     struct net_device	*dev;
-    dev_node_t          node;
     window_handle_t     sram_win_handle;
     struct tok_info	*ti;
 } ibmtr_dev_t;
@@ -153,11 +151,8 @@ static int __devinit ibmtr_attach(struct pcmcia_device *link)
     link->priv = info;
     info->ti = netdev_priv(dev);
 
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    link->io.NumPorts1 = 4;
-    link->io.IOAddrLines = 16;
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.Handler = ibmtr_interrupt;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+    link->resource[0]->end = 4;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
@@ -192,8 +187,7 @@ static void ibmtr_detach(struct pcmcia_device *link)
      */
     ti->sram_phys |= 1;
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
     
     del_timer_sync(&(ti->tr_timer));
 
@@ -217,32 +211,32 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     struct net_device *dev = info->dev;
     struct tok_info *ti = netdev_priv(dev);
     win_req_t req;
-    memreq_t mem;
     int i, ret;
 
     dev_dbg(&link->dev, "ibmtr_config\n");
 
     link->conf.ConfigIndex = 0x61;
+    link->io_lines = 16;
 
     /* Determine if this is PRIMARY or ALTERNATE. */
 
     /* Try PRIMARY card at 0xA20-0xA23 */
-    link->io.BasePort1 = 0xA20;
-    i = pcmcia_request_io(link, &link->io);
+    link->resource[0]->start = 0xA20;
+    i = pcmcia_request_io(link);
     if (i != 0) {
 	/* Couldn't get 0xA20-0xA23.  Try ALTERNATE at 0xA24-0xA27. */
-	link->io.BasePort1 = 0xA24;
-	ret = pcmcia_request_io(link, &link->io);
+	link->resource[0]->start = 0xA24;
+	ret = pcmcia_request_io(link);
 	if (ret)
 		goto failed;
     }
-    dev->base_addr = link->io.BasePort1;
+    dev->base_addr = link->resource[0]->start;
 
-    ret = pcmcia_request_irq(link, &link->irq);
+    ret = pcmcia_request_exclusive_irq(link, ibmtr_interrupt);
     if (ret)
 	    goto failed;
-    dev->irq = link->irq.AssignedIRQ;
-    ti->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
+    ti->irq = link->irq;
     ti->global_int_enable=GLOBAL_INT_ENABLE+((dev->irq==9) ? 2 : dev->irq);
 
     /* Allocate the MMIO memory window */
@@ -255,9 +249,7 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    mem.CardOffset = mmiobase;
-    mem.Page = 0;
-    ret = pcmcia_map_mem_page(link, link->win, &mem);
+    ret = pcmcia_map_mem_page(link, link->win, mmiobase);
     if (ret)
 	    goto failed;
     ti->mmio = ioremap(req.Base, req.Size);
@@ -272,13 +264,11 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    mem.CardOffset = srambase;
-    mem.Page = 0;
-    ret = pcmcia_map_mem_page(link, info->sram_win_handle, &mem);
+    ret = pcmcia_map_mem_page(link, info->sram_win_handle, srambase);
     if (ret)
 	    goto failed;
 
-    ti->sram_base = mem.CardOffset >> 12;
+    ti->sram_base = srambase >> 12;
     ti->sram_virt = ioremap(req.Base, req.Size);
     ti->sram_phys = req.Base;
 
@@ -291,17 +281,13 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
         Adapters Technical Reference"  SC30-3585 for this info.  */
     ibmtr_hw_setup(dev, mmiobase);
 
-    link->dev_node = &info->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     i = ibmtr_probe_card(dev);
     if (i != 0) {
 	printk(KERN_NOTICE "ibmtr_cs: register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto failed;
     }
-
-    strcpy(info->node.dev_name, dev->name);
 
     printk(KERN_INFO
 	   "%s: port %#3lx, irq %d,  mmio %#5lx, sram %#5lx, hwaddr=%pM\n",
@@ -333,7 +319,6 @@ static void ibmtr_release(struct pcmcia_device *link)
 	if (link->win) {
 		struct tok_info *ti = netdev_priv(dev);
 		iounmap(ti->mmio);
-		pcmcia_release_window(link, info->sram_win_handle);
 	}
 	pcmcia_disable_device(link);
 }
@@ -402,8 +387,6 @@ static void ibmtr_hw_setup(struct net_device *dev, u_int mmiobase)
 
     /* 0x40 will release the card for use */
     outb(0x40, dev->base_addr);
-
-    return;
 }
 
 static struct pcmcia_device_id ibmtr_ids[] = {

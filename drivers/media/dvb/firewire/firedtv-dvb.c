@@ -277,7 +277,6 @@ struct firedtv *fdtv_alloc(struct device *dev,
 
 	mutex_init(&fdtv->avc_mutex);
 	init_waitqueue_head(&fdtv->avc_wait);
-	fdtv->avc_reply_received = true;
 	mutex_init(&fdtv->demux_mutex);
 	INIT_WORK(&fdtv->remote_ctrl_work, avc_remote_ctrl_work);
 

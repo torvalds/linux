@@ -29,7 +29,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -72,7 +71,6 @@ static struct class *cmx_class;
 
 struct reader_dev {
 	struct pcmcia_device	*p_dev;
-	dev_node_t		node;
 	wait_queue_head_t	devq;
 	wait_queue_head_t	poll_wait;
 	wait_queue_head_t	read_wait;
@@ -111,7 +109,7 @@ static inline unsigned char xinb(unsigned short port)
 static void cm4040_do_poll(unsigned long dummy)
 {
 	struct reader_dev *dev = (struct reader_dev *) dummy;
-	unsigned int obs = xinb(dev->p_dev->io.BasePort1
+	unsigned int obs = xinb(dev->p_dev->resource[0]->start
 				+ REG_OFFSET_BUFFER_STATUS);
 
 	if ((obs & BSR_BULK_IN_FULL)) {
@@ -142,7 +140,7 @@ static void cm4040_stop_poll(struct reader_dev *dev)
 static int wait_for_bulk_out_ready(struct reader_dev *dev)
 {
 	int i, rc;
-	int iobase = dev->p_dev->io.BasePort1;
+	int iobase = dev->p_dev->resource[0]->start;
 
 	for (i = 0; i < POLL_LOOP_COUNT; i++) {
 		if ((xinb(iobase + REG_OFFSET_BUFFER_STATUS)
@@ -172,7 +170,7 @@ static int wait_for_bulk_out_ready(struct reader_dev *dev)
 /* Write to Sync Control Register */
 static int write_sync_reg(unsigned char val, struct reader_dev *dev)
 {
-	int iobase = dev->p_dev->io.BasePort1;
+	int iobase = dev->p_dev->resource[0]->start;
 	int rc;
 
 	rc = wait_for_bulk_out_ready(dev);
@@ -190,7 +188,7 @@ static int write_sync_reg(unsigned char val, struct reader_dev *dev)
 static int wait_for_bulk_in_ready(struct reader_dev *dev)
 {
 	int i, rc;
-	int iobase = dev->p_dev->io.BasePort1;
+	int iobase = dev->p_dev->resource[0]->start;
 
 	for (i = 0; i < POLL_LOOP_COUNT; i++) {
 		if ((xinb(iobase + REG_OFFSET_BUFFER_STATUS)
@@ -220,7 +218,7 @@ static ssize_t cm4040_read(struct file *filp, char __user *buf,
 			size_t count, loff_t *ppos)
 {
 	struct reader_dev *dev = filp->private_data;
-	int iobase = dev->p_dev->io.BasePort1;
+	int iobase = dev->p_dev->resource[0]->start;
 	size_t bytes_to_read;
 	unsigned long i;
 	size_t min_bytes_to_read;
@@ -322,7 +320,7 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
 	struct reader_dev *dev = filp->private_data;
-	int iobase = dev->p_dev->io.BasePort1;
+	int iobase = dev->p_dev->resource[0]->start;
 	ssize_t rc;
 	int i;
 	unsigned int bytes_to_write;
@@ -529,16 +527,12 @@ static int cm4040_config_check(struct pcmcia_device *p_dev,
 		return -ENODEV;
 
 	/* Get the IOaddr */
-	p_dev->io.BasePort1 = cfg->io.win[0].base;
-	p_dev->io.NumPorts1 = cfg->io.win[0].len;
-	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	if (!(cfg->io.flags & CISTPL_IO_8BIT))
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-	if (!(cfg->io.flags & CISTPL_IO_16BIT))
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
+	p_dev->resource[0]->start = cfg->io.win[0].base;
+	p_dev->resource[0]->end = cfg->io.win[0].len;
+	p_dev->resource[0]->flags |= pcmcia_io_cfg_data_width(cfg->io.flags);
+	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
+	rc = pcmcia_request_io(p_dev);
 
-	rc = pcmcia_request_io(p_dev, &p_dev->io);
 	dev_printk(KERN_INFO, &p_dev->dev,
 		   "pcmcia_request_io returned 0x%x\n", rc);
 	return rc;
@@ -549,10 +543,6 @@ static int reader_config(struct pcmcia_device *link, int devno)
 {
 	struct reader_dev *dev;
 	int fail_rc;
-
-	link->io.BasePort2 = 0;
-	link->io.NumPorts2 = 0;
-	link->io.Attributes2 = 0;
 
 	if (pcmcia_loop_config(link, cm4040_config_check, NULL))
 		goto cs_release;
@@ -568,13 +558,9 @@ static int reader_config(struct pcmcia_device *link, int devno)
 	}
 
 	dev = link->priv;
-	sprintf(dev->node.dev_name, DEVICE_NAME "%d", devno);
-	dev->node.major = major;
-	dev->node.minor = devno;
-	dev->node.next = &dev->node;
 
-	DEBUGP(2, dev, "device " DEVICE_NAME "%d at 0x%.4x-0x%.4x\n", devno,
-	      link->io.BasePort1, link->io.BasePort1+link->io.NumPorts1);
+	DEBUGP(2, dev, "device " DEVICE_NAME "%d at %pR\n", devno,
+	      link->resource[0]);
 	DEBUGP(2, dev, "<- reader_config (succ)\n");
 
 	return 0;

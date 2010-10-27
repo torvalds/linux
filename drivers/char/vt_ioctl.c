@@ -133,7 +133,7 @@ static void vt_event_wait(struct vt_event_wait *vw)
 	list_add(&vw->list, &vt_events);
 	spin_unlock_irqrestore(&vt_event_lock, flags);
 	/* Wait for it to pass */
-	wait_event_interruptible(vt_event_waitqueue, vw->done);
+	wait_event_interruptible_tty(vt_event_waitqueue, vw->done);
 	/* Dequeue it */
 	spin_lock_irqsave(&vt_event_lock, flags);
 	list_del(&vw->list);
@@ -509,7 +509,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 
 	console = vc->vc_num;
 
-	lock_kernel();
+	tty_lock();
 
 	if (!vc_cons_allocated(console)) { 	/* impossible? */
 		ret = -ENOIOCTLCMD;
@@ -533,11 +533,14 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 	case KIOCSOUND:
 		if (!perm)
 			goto eperm;
-		/* FIXME: This is an old broken API but we need to keep it
-		   supported and somehow separate the historic advertised
-		   tick rate from any real one */
+		/*
+		 * The use of PIT_TICK_RATE is historic, it used to be
+		 * the platform-dependent CLOCK_TICK_RATE between 2.6.12
+		 * and 2.6.36, which was a minor but unfortunate ABI
+		 * change.
+		 */
 		if (arg)
-			arg = CLOCK_TICK_RATE / arg;
+			arg = PIT_TICK_RATE / arg;
 		kd_mksound(arg, 0);
 		break;
 
@@ -553,11 +556,8 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		 */
 		ticks = HZ * ((arg >> 16) & 0xffff) / 1000;
 		count = ticks ? (arg & 0xffff) : 0;
-		/* FIXME: This is an old broken API but we need to keep it
-		   supported and somehow separate the historic advertised
-		   tick rate from any real one */
 		if (count)
-			count = CLOCK_TICK_RATE / count;
+			count = PIT_TICK_RATE / count;
 		kd_mksound(count, ticks);
 		break;
 	}
@@ -1303,7 +1303,9 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		if (!perm)
 			goto eperm;
 		ret = copy_from_user(&ui, up, sizeof(struct unimapinit));
-		if (!ret)
+		if (ret)
+			ret = -EFAULT;
+		else
 			con_clear_unimap(vc, &ui);
 		break;
 	      }
@@ -1334,7 +1336,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		ret = -ENOIOCTLCMD;
 	}
 out:
-	unlock_kernel();
+	tty_unlock();
 	return ret;
 eperm:
 	ret = -EPERM;
@@ -1367,7 +1369,7 @@ void vc_SAK(struct work_struct *work)
 	acquire_console_sem();
 	vc = vc_con->d;
 	if (vc) {
-		tty = vc->vc_tty;
+		tty = vc->port.tty;
 		/*
 		 * SAK should also work in all raw modes and reset
 		 * them properly.
@@ -1501,7 +1503,7 @@ long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
 
 	console = vc->vc_num;
 
-	lock_kernel();
+	tty_lock();
 
 	if (!vc_cons_allocated(console)) { 	/* impossible? */
 		ret = -ENOIOCTLCMD;
@@ -1569,11 +1571,11 @@ long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
 		goto fallback;
 	}
 out:
-	unlock_kernel();
+	tty_unlock();
 	return ret;
 
 fallback:
-	unlock_kernel();
+	tty_unlock();
 	return vt_ioctl(tty, file, cmd, arg);
 }
 
@@ -1759,10 +1761,13 @@ int vt_move_to_console(unsigned int vt, int alloc)
 		return -EIO;
 	}
 	release_console_sem();
+	tty_lock();
 	if (vt_waitactive(vt + 1)) {
 		pr_debug("Suspend: Can't switch VCs.");
+		tty_unlock();
 		return -EINTR;
 	}
+	tty_unlock();
 	return prev;
 }
 

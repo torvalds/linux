@@ -16,6 +16,7 @@
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
+#include <linux/slab.h>
 #include "offline_states.h"
 
 #include <asm/prom.h>
@@ -78,13 +79,12 @@ static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa)
 	 * prepend this to the full_name.
 	 */
 	name = (char *)ccwa + ccwa->name_offset;
-	dn->full_name = kmalloc(strlen(name) + 2, GFP_KERNEL);
+	dn->full_name = kasprintf(GFP_KERNEL, "/%s", name);
 	if (!dn->full_name) {
 		kfree(dn);
 		return NULL;
 	}
 
-	sprintf(dn->full_name, "/%s", name);
 	return dn;
 }
 
@@ -129,20 +129,35 @@ struct device_node *dlpar_configure_connector(u32 drc_index)
 	struct property *property;
 	struct property *last_property = NULL;
 	struct cc_workarea *ccwa;
+	char *data_buf;
 	int cc_token;
-	int rc;
+	int rc = -1;
 
 	cc_token = rtas_token("ibm,configure-connector");
 	if (cc_token == RTAS_UNKNOWN_SERVICE)
 		return NULL;
 
-	spin_lock(&rtas_data_buf_lock);
-	ccwa = (struct cc_workarea *)&rtas_data_buf[0];
+	data_buf = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
+	if (!data_buf)
+		return NULL;
+
+	ccwa = (struct cc_workarea *)&data_buf[0];
 	ccwa->drc_index = drc_index;
 	ccwa->zero = 0;
 
-	rc = rtas_call(cc_token, 2, 1, NULL, rtas_data_buf, NULL);
-	while (rc) {
+	do {
+		/* Since we release the rtas_data_buf lock between configure
+		 * connector calls we want to re-populate the rtas_data_buffer
+		 * with the contents of the previous call.
+		 */
+		spin_lock(&rtas_data_buf_lock);
+
+		memcpy(rtas_data_buf, data_buf, RTAS_DATA_BUF_SIZE);
+		rc = rtas_call(cc_token, 2, 1, NULL, rtas_data_buf, NULL);
+		memcpy(data_buf, rtas_data_buf, RTAS_DATA_BUF_SIZE);
+
+		spin_unlock(&rtas_data_buf_lock);
+
 		switch (rc) {
 		case NEXT_SIBLING:
 			dn = dlpar_parse_cc_node(ccwa);
@@ -197,18 +212,19 @@ struct device_node *dlpar_configure_connector(u32 drc_index)
 			       "returned from configure-connector\n", rc);
 			goto cc_error;
 		}
-
-		rc = rtas_call(cc_token, 2, 1, NULL, rtas_data_buf, NULL);
-	}
-
-	spin_unlock(&rtas_data_buf_lock);
-	return first_dn;
+	} while (rc);
 
 cc_error:
-	if (first_dn)
-		dlpar_free_cc_nodes(first_dn);
-	spin_unlock(&rtas_data_buf_lock);
-	return NULL;
+	kfree(data_buf);
+
+	if (rc) {
+		if (first_dn)
+			dlpar_free_cc_nodes(first_dn);
+
+		return NULL;
+	}
+
+	return first_dn;
 }
 
 static struct device_node *derive_parent(const char *path)
@@ -409,15 +425,13 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 	 * directory of the device tree.  CPUs actually live in the
 	 * cpus directory so we need to fixup the full_name.
 	 */
-	cpu_name = kzalloc(strlen(dn->full_name) + strlen("/cpus") + 1,
-			   GFP_KERNEL);
+	cpu_name = kasprintf(GFP_KERNEL, "/cpus%s", dn->full_name);
 	if (!cpu_name) {
 		dlpar_free_cc_nodes(dn);
 		rc = -ENOMEM;
 		goto out;
 	}
 
-	sprintf(cpu_name, "/cpus%s", dn->full_name);
 	kfree(dn->full_name);
 	dn->full_name = cpu_name;
 
@@ -432,6 +446,7 @@ static ssize_t dlpar_cpu_probe(const char *buf, size_t count)
 	if (rc) {
 		dlpar_release_drc(drc_index);
 		dlpar_free_cc_nodes(dn);
+		goto out;
 	}
 
 	rc = dlpar_online_cpu(dn);
@@ -464,6 +479,7 @@ static int dlpar_offline_cpu(struct device_node *dn)
 				break;
 
 			if (get_cpu_current_state(cpu) == CPU_STATE_ONLINE) {
+				set_preferred_offline_state(cpu, CPU_STATE_OFFLINE);
 				cpu_maps_update_done();
 				rc = cpu_down(cpu);
 				if (rc)

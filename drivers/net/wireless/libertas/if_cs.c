@@ -22,12 +22,12 @@
 */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
 #include <linux/netdevice.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -776,7 +776,7 @@ static void if_cs_release(struct pcmcia_device *p_dev)
 
 	lbs_deb_enter(LBS_DEB_CS);
 
-	free_irq(p_dev->irq.AssignedIRQ, card);
+	free_irq(p_dev->irq, card);
 	pcmcia_disable_device(p_dev);
 	if (card->iobase)
 		ioport_unmap(card->iobase);
@@ -801,13 +801,12 @@ static int if_cs_ioprobe(struct pcmcia_device *p_dev,
 			 unsigned int vcc,
 			 void *priv_data)
 {
-	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	p_dev->io.BasePort1 = cfg->io.win[0].base;
-	p_dev->io.NumPorts1 = cfg->io.win[0].len;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
+	p_dev->resource[0]->start = cfg->io.win[0].base;
+	p_dev->resource[0]->end = cfg->io.win[0].len;
 
 	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	if (cfg->io.nwin != 1) {
@@ -816,7 +815,7 @@ static int if_cs_ioprobe(struct pcmcia_device *p_dev,
 	}
 
 	/* This reserves IO space but doesn't actually enable it */
-	return pcmcia_request_io(p_dev, &p_dev->io);
+	return pcmcia_request_io(p_dev);
 }
 
 static int if_cs_probe(struct pcmcia_device *p_dev)
@@ -836,9 +835,6 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	card->p_dev = p_dev;
 	p_dev->priv = card;
 
-	p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	p_dev->irq.Handler = NULL;
-
 	p_dev->conf.Attributes = 0;
 	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -853,16 +849,12 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	 * a handler to the interrupt, unless the 'Handler' member of
 	 * the irq structure is initialized.
 	 */
-	if (p_dev->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(p_dev, &p_dev->irq);
-		if (ret) {
-			lbs_pr_err("error in pcmcia_request_irq\n");
-			goto out1;
-		}
-	}
+	if (!p_dev->irq)
+		goto out1;
 
 	/* Initialize io access */
-	card->iobase = ioport_map(p_dev->io.BasePort1, p_dev->io.NumPorts1);
+	card->iobase = ioport_map(p_dev->resource[0]->start,
+				resource_size(p_dev->resource[0]));
 	if (!card->iobase) {
 		lbs_pr_err("error in ioport_map\n");
 		ret = -EIO;
@@ -881,9 +873,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	}
 
 	/* Finally, report what we've done */
-	lbs_deb_cs("irq %d, io 0x%04x-0x%04x\n",
-	       p_dev->irq.AssignedIRQ, p_dev->io.BasePort1,
-	       p_dev->io.BasePort1 + p_dev->io.NumPorts1 - 1);
+	lbs_deb_cs("irq %d, io %pR", p_dev->irq, p_dev->resource[0]);
 
 	/*
 	 * Most of the libertas cards can do unaligned register access, but some
@@ -939,7 +929,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	priv->fw_ready = 1;
 
 	/* Now actually get the IRQ */
-	ret = request_irq(p_dev->irq.AssignedIRQ, if_cs_interrupt,
+	ret = request_irq(p_dev->irq, if_cs_interrupt,
 		IRQF_SHARED, DRV_NAME, card);
 	if (ret) {
 		lbs_pr_err("error in request_irq\n");

@@ -30,7 +30,6 @@
 #include <linux/ioport.h>
 #include <linux/scatterlist.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -519,7 +518,7 @@ static int sdricoh_pcmcia_suspend(struct pcmcia_device *link)
 {
 	struct mmc_host *mmc = link->priv;
 	dev_dbg(&link->dev, "suspend\n");
-	mmc_suspend_host(mmc, PMSG_SUSPEND);
+	mmc_suspend_host(mmc);
 	return 0;
 }
 

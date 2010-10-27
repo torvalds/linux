@@ -14,7 +14,6 @@
 #include <asm/uaccess.h>
 #include <asm/addrspace.h>
 #include <asm/page.h>
-#include <asm/sh_bios.h>
 
 /*
  * gzip declarations
@@ -62,29 +61,15 @@ static unsigned long free_mem_end_ptr;
 #include "../../../../lib/decompress_unlzma.c"
 #endif
 
-#ifdef CONFIG_SH_STANDARD_BIOS
-size_t strlen(const char *s)
-{
-	int i = 0;
+#ifdef CONFIG_KERNEL_LZO
+#include "../../../../lib/decompress_unlzo.c"
+#endif
 
-	while (*s++)
-		i++;
-	return i;
-}
-
-int puts(const char *s)
-{
-	int len = strlen(s);
-	sh_bios_console_write(s, len);
-	return len;
-}
-#else
 int puts(const char *s)
 {
 	/* This should be updated to use the sh-sci routines */
 	return 0;
 }
-#endif
 
 void* memset(void* s, int c, size_t n)
 {
@@ -132,7 +117,7 @@ void decompress_kernel(void)
 	output_addr = (CONFIG_MEMORY_START + 0x2000);
 #else
 	output_addr = __pa((unsigned long)&_text+PAGE_SIZE);
-#ifdef CONFIG_29BIT
+#if defined(CONFIG_29BIT)
 	output_addr |= P2SEG;
 #endif
 #endif

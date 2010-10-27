@@ -158,10 +158,6 @@
  * VPOM3430 was not working for Int controller
  */
 
-#define L4_WK_34XX_PHYS		L4_WK_34XX_BASE	/* 0x48300000 --> 0xfa300000 */
-#define L4_WK_34XX_VIRT		(L4_WK_34XX_PHYS + OMAP2_L4_IO_OFFSET)
-#define L4_WK_34XX_SIZE		SZ_1M
-
 #define L4_PER_34XX_PHYS	L4_PER_34XX_BASE
 						/* 0x49000000 --> 0xfb000000 */
 #define L4_PER_34XX_VIRT	(L4_PER_34XX_PHYS + OMAP2_L4_IO_OFFSET)
@@ -203,11 +199,6 @@
 #define L4_44XX_PHYS		L4_44XX_BASE	/* 0x4a000000 --> 0xfc000000 */
 #define L4_44XX_VIRT		(L4_44XX_PHYS + OMAP2_L4_IO_OFFSET)
 #define L4_44XX_SIZE		SZ_4M
-
-
-#define L4_WK_44XX_PHYS		L4_WK_44XX_BASE	/* 0x4a300000 --> 0xfc300000 */
-#define L4_WK_44XX_VIRT		(L4_WK_44XX_PHYS + OMAP2_L4_IO_OFFSET)
-#define L4_WK_44XX_SIZE		SZ_1M
 
 #define L4_PER_44XX_PHYS	L4_PER_44XX_BASE
 						/* 0x48000000 --> 0xfa000000 */
@@ -268,7 +259,38 @@ struct omap_sdrc_params;
 extern void omap1_map_common_io(void);
 extern void omap1_init_common_hw(void);
 
-extern void omap2_map_common_io(void);
+#ifdef CONFIG_ARCH_OMAP2420
+extern void omap242x_map_common_io(void);
+#else
+static inline void omap242x_map_common_io(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2430
+extern void omap243x_map_common_io(void);
+#else
+static inline void omap243x_map_common_io(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP3
+extern void omap34xx_map_common_io(void);
+#else
+static inline void omap34xx_map_common_io(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP4
+extern void omap44xx_map_common_io(void);
+#else
+static inline void omap44xx_map_common_io(void)
+{
+}
+#endif
+
 extern void omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 				 struct omap_sdrc_params *sdrc_cs1);
 

@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <linux/string.h>
+#include <linux/gfp.h>
 
 #include <asm/cache.h>
 #include <asm/io.h>
@@ -43,27 +44,39 @@ static inline int cpu_is_noncoherent_r10000(struct device *dev)
 
 static gfp_t massage_gfp_flags(const struct device *dev, gfp_t gfp)
 {
+	gfp_t dma_flag;
+
 	/* ignore region specifiers */
 	gfp &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM);
 
-#ifdef CONFIG_ZONE_DMA
+#ifdef CONFIG_ISA
 	if (dev == NULL)
-		gfp |= __GFP_DMA;
-	else if (dev->coherent_dma_mask < DMA_BIT_MASK(24))
-		gfp |= __GFP_DMA;
+		dma_flag = __GFP_DMA;
 	else
 #endif
-#ifdef CONFIG_ZONE_DMA32
+#if defined(CONFIG_ZONE_DMA32) && defined(CONFIG_ZONE_DMA)
 	     if (dev->coherent_dma_mask < DMA_BIT_MASK(32))
-		gfp |= __GFP_DMA32;
+			dma_flag = __GFP_DMA;
+	else if (dev->coherent_dma_mask < DMA_BIT_MASK(64))
+			dma_flag = __GFP_DMA32;
 	else
 #endif
-		;
+#if defined(CONFIG_ZONE_DMA32) && !defined(CONFIG_ZONE_DMA)
+	     if (dev->coherent_dma_mask < DMA_BIT_MASK(64))
+		dma_flag = __GFP_DMA32;
+	else
+#endif
+#if defined(CONFIG_ZONE_DMA) && !defined(CONFIG_ZONE_DMA32)
+	     if (dev->coherent_dma_mask < DMA_BIT_MASK(64))
+		dma_flag = __GFP_DMA;
+	else
+#endif
+		dma_flag = 0;
 
 	/* Don't invoke OOM killer */
 	gfp |= __GFP_NORETRY;
 
-	return gfp;
+	return gfp | dma_flag;
 }
 
 void *dma_alloc_noncoherent(struct device *dev, size_t size,
@@ -355,13 +368,6 @@ int dma_supported(struct device *dev, u64 mask)
 }
 
 EXPORT_SYMBOL(dma_supported);
-
-int dma_is_consistent(struct device *dev, dma_addr_t dma_addr)
-{
-	return plat_device_is_coherent(dev);
-}
-
-EXPORT_SYMBOL(dma_is_consistent);
 
 void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	       enum dma_data_direction direction)

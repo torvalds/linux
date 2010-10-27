@@ -259,41 +259,6 @@ int is_valid_key_string( char *s )
 
 
 /*******************************************************************************
- *	hexdigit2int()
- *******************************************************************************
- *
- *  DESCRIPTION:
- *
- *      Converts a hexadecimal digit character to an integer
- *
- *  PARAMETERS:
- *
- *      c   - the hexadecimal digit character
- *
- *  RETURNS:
- *
- *      the converted integer
- *
- ******************************************************************************/
-int hexdigit2int( char c )
-{
-   if( c >= '0' && c <= '9' )
-       return c - '0';
-
-   if( c >= 'A' && c <= 'F' )
-       return c - 'A' + 10;
-
-   if( c >= 'a' && c <= 'f' )
-       return c - 'a' + 10;
-
-   return 0;
-} // hexdigit2int
-/*============================================================================*/
-
-
-
-
-/*******************************************************************************
  *	key_string2key()
  *******************************************************************************
  *
@@ -328,7 +293,7 @@ void key_string2key( char *ks, KEY_STRCT *key )
         p = (char *)key->key;
 
         for( i = 2; i < l; i+=2 ) {
-           *p++ = ( hexdigit2int( ks[i] ) << 4 ) + hexdigit2int (ks[i+1] );
+			*p++ = (hex_to_bin(ks[i]) << 4) + hex_to_bin(ks[i+1]);
            n++;
         }
 
@@ -1535,53 +1500,4 @@ int wl_get_tallies(struct wl_private *lp,
 
     return ret;
 }
-
-/*******************************************************************************
- *	wl_atoi()
- *******************************************************************************
- *
- *  DESCRIPTION:
- *
- *      Believe it or not, we need our own implementation of atoi in the kernel.
- *
- *  PARAMETERS:
- *
- *      string  - the ASCII string to convert to an integer
- *
- *  RETURNS:
- *
- *      unsigned integer
- *
- ******************************************************************************/
-unsigned int wl_atoi( char *string )
-{
-unsigned int base = 10;				//default to decimal
-unsigned int value = 0;
-unsigned int c;
-int i = strlen( string );
-
-	if ( i > 2 && string[0] == '0' && ( string[1] | ('X'^'x') ) == 'x' ) {
-		base = 16;
-		string +=2;
-	}
-	while ( ( c = *string++ ) != '\0' ) {
-		if ( value > UINT_MAX / base ) {	//test for overrun
-			DBG_FUNC( "wl_atoi" );	//don't overload the log file with good messages
-			DBG_ENTER( DbgInfo );
-			DBG_ERROR( DbgInfo, "string \"%s\", lenght exceeds expectations\n", string );
-			printk( "<1>string \"%s\", lenght exceeds expectations\n", string );
-			DBG_LEAVE( DbgInfo );
-			break;
-		}
-		c -= '0';
-		if ( 0 <= c && c <= 9 ) value = base * value + c;
-		else if ( base == 16 ) {
-			c += '0';
-			c |= 'A'^'a';
-			c = c - 'a'+ 10;
-			if ( 10 <= c && c <= 15 ) value = base * value + c;
-		}
-	}
-	return value;
-} // wl_atoi
 

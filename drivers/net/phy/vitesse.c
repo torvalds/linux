@@ -191,3 +191,11 @@ static void __exit vsc82xx_exit(void)
 
 module_init(vsc82xx_init);
 module_exit(vsc82xx_exit);
+
+static struct mdio_device_id vitesse_tbl[] = {
+	{ PHY_ID_VSC8244, 0x000fffc0 },
+	{ PHY_ID_VSC8221, 0x000ffff0 },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(mdio, vitesse_tbl);

@@ -95,6 +95,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -130,7 +131,6 @@ struct ipip_net {
 	struct net_device *fb_tunnel_dev;
 };
 
-static void ipip_fb_tunnel_init(struct net_device *dev);
 static void ipip_tunnel_init(struct net_device *dev);
 static void ipip_tunnel_setup(struct net_device *dev);
 
@@ -374,11 +374,8 @@ static int ipip_rcv(struct sk_buff *skb)
 		skb->protocol = htons(ETH_P_IP);
 		skb->pkt_type = PACKET_HOST;
 
-		tunnel->dev->stats.rx_packets++;
-		tunnel->dev->stats.rx_bytes += skb->len;
-		skb->dev = tunnel->dev;
-		skb_dst_drop(skb);
-		nf_reset(skb);
+		skb_tunnel_rx(skb, tunnel->dev);
+
 		ipip_ecn_decapsulate(iph, skb);
 		netif_rx(skb);
 		rcu_read_unlock();
@@ -438,7 +435,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto tx_error_icmp;
 		}
 	}
-	tdev = rt->u.dst.dev;
+	tdev = rt->dst.dev;
 
 	if (tdev == dev) {
 		ip_rt_put(rt);
@@ -449,7 +446,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	df |= old_iph->frag_off & htons(IP_DF);
 
 	if (df) {
-		mtu = dst_mtu(&rt->u.dst) - sizeof(struct iphdr);
+		mtu = dst_mtu(&rt->dst) - sizeof(struct iphdr);
 
 		if (mtu < 68) {
 			stats->collisions++;
@@ -506,7 +503,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
 			      IPSKB_REROUTED);
 	skb_dst_drop(skb);
-	skb_dst_set(skb, &rt->u.dst);
+	skb_dst_set(skb, &rt->dst);
 
 	/*
 	 *	Push down and install the IPIP header.
@@ -555,7 +552,7 @@ static void ipip_tunnel_bind_dev(struct net_device *dev)
 				    .proto = IPPROTO_IPIP };
 		struct rtable *rt;
 		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
-			tdev = rt->u.dst.dev;
+			tdev = rt->dst.dev;
 			ip_rt_put(rt);
 		}
 		dev->flags |= IFF_POINTOPOINT;
@@ -730,7 +727,7 @@ static void ipip_tunnel_init(struct net_device *dev)
 	ipip_tunnel_bind_dev(dev);
 }
 
-static void ipip_fb_tunnel_init(struct net_device *dev)
+static void __net_init ipip_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
@@ -773,7 +770,7 @@ static void ipip_destroy_tunnels(struct ipip_net *ipn, struct list_head *head)
 	}
 }
 
-static int ipip_init_net(struct net *net)
+static int __net_init ipip_init_net(struct net *net)
 {
 	struct ipip_net *ipn = net_generic(net, ipip_net_id);
 	int err;
@@ -806,7 +803,7 @@ err_alloc_dev:
 	return err;
 }
 
-static void ipip_exit_net(struct net *net)
+static void __net_exit ipip_exit_net(struct net *net)
 {
 	struct ipip_net *ipn = net_generic(net, ipip_net_id);
 	LIST_HEAD(list);
@@ -831,15 +828,14 @@ static int __init ipip_init(void)
 
 	printk(banner);
 
-	if (xfrm4_tunnel_register(&ipip_handler, AF_INET)) {
-		printk(KERN_INFO "ipip init: can't register tunnel\n");
-		return -EAGAIN;
-	}
-
 	err = register_pernet_device(&ipip_net_ops);
-	if (err)
-		xfrm4_tunnel_deregister(&ipip_handler, AF_INET);
-
+	if (err < 0)
+		return err;
+	err = xfrm4_tunnel_register(&ipip_handler, AF_INET);
+	if (err < 0) {
+		unregister_pernet_device(&ipip_net_ops);
+		printk(KERN_INFO "ipip init: can't register tunnel\n");
+	}
 	return err;
 }
 

@@ -377,7 +377,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 static int anysee_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 buf[] = {CMD_GET_IR_CODE};
-	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	struct ir_scancode *keymap = d->props.rc.legacy.rc_key_map;
 	u8 ircode[2];
 	int i, ret;
 
@@ -388,10 +388,10 @@ static int anysee_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
 
-	for (i = 0; i < d->props.rc_key_map_size; i++) {
+	for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
 		if (rc5_custom(&keymap[i]) == ircode[0] &&
 		    rc5_data(&keymap[i]) == ircode[1]) {
-			*event = keymap[i].event;
+			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
 			return 0;
 		}
@@ -399,7 +399,7 @@ static int anysee_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	return 0;
 }
 
-static struct dvb_usb_rc_key anysee_rc_keys[] = {
+static struct ir_scancode ir_codes_anysee_table[] = {
 	{ 0x0100, KEY_0 },
 	{ 0x0101, KEY_1 },
 	{ 0x0102, KEY_2 },
@@ -463,6 +463,11 @@ static int anysee_probe(struct usb_interface *intf,
 	if (intf->num_altsetting < 1)
 		return -ENODEV;
 
+	/*
+	 * Anysee is always warm (its USB-bridge, Cypress FX2, uploads
+	 * firmware from eeprom).  If dvb_usb_device_init() succeeds that
+	 * means d is a valid pointer.
+	 */
 	ret = dvb_usb_device_init(intf, &anysee_properties, THIS_MODULE, &d,
 		adapter_nr);
 	if (ret)
@@ -479,10 +484,7 @@ static int anysee_probe(struct usb_interface *intf,
 	if (ret)
 		return ret;
 
-	if (d)
-		ret = anysee_init(d);
-
-	return ret;
+	return anysee_init(d);
 }
 
 static struct usb_device_id anysee_table[] = {
@@ -518,10 +520,12 @@ static struct dvb_usb_device_properties anysee_properties = {
 		}
 	},
 
-	.rc_key_map       = anysee_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(anysee_rc_keys),
-	.rc_query         = anysee_rc_query,
-	.rc_interval      = 200,  /* windows driver uses 500ms */
+	.rc.legacy = {
+		.rc_key_map       = ir_codes_anysee_table,
+		.rc_key_map_size  = ARRAY_SIZE(ir_codes_anysee_table),
+		.rc_query         = anysee_rc_query,
+		.rc_interval      = 200,  /* windows driver uses 500ms */
+	},
 
 	.i2c_algo         = &anysee_i2c_algo,
 

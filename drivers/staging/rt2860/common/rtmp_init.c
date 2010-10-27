@@ -2810,17 +2810,6 @@ void UserCfgInit(struct rt_rtmp_adapter *pAd)
 }
 
 /* IRQL = PASSIVE_LEVEL */
-u8 BtoH(char ch)
-{
-	if (ch >= '0' && ch <= '9')
-		return (ch - '0');	/* Handle numerals */
-	if (ch >= 'A' && ch <= 'F')
-		return (ch - 'A' + 0xA);	/* Handle capitol hex digits */
-	if (ch >= 'a' && ch <= 'f')
-		return (ch - 'a' + 0xA);	/* Handle small hex digits */
-	return (255);
-}
-
 /* */
 /*  FUNCTION: AtoH(char *, u8 *, int) */
 /* */
@@ -2847,8 +2836,8 @@ void AtoH(char *src, u8 *dest, int destlen)
 	destTemp = (u8 *)dest;
 
 	while (destlen--) {
-		*destTemp = BtoH(*srcptr++) << 4;	/* Put 1st ascii byte in upper nibble. */
-		*destTemp += BtoH(*srcptr++);	/* Add 2nd ascii byte to above. */
+		*destTemp = hex_to_bin(*srcptr++) << 4;	/* Put 1st ascii byte in upper nibble. */
+		*destTemp += hex_to_bin(*srcptr++);	/* Add 2nd ascii byte to above. */
 		destTemp++;
 	}
 }

@@ -511,6 +511,7 @@ static long restore_user_regs(struct pt_regs *regs,
 	if (!sig)
 		save_r2 = (unsigned int)regs->gpr[2];
 	err = restore_general_regs(regs, sr);
+	regs->trap = 0;
 	err |= __get_user(msr, &sr->mc_gregs[PT_MSR]);
 	if (!sig)
 		regs->gpr[2] = (unsigned long) save_r2;
@@ -884,7 +885,6 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 	regs->nip = (unsigned long) ka->sa.sa_handler;
 	/* enter the signal handler in big-endian mode */
 	regs->msr &= ~MSR_LE;
-	regs->trap = 0;
 	return 1;
 
 badframe:
@@ -1078,7 +1078,7 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 	int i;
 	unsigned char tmp;
 	unsigned long new_msr = regs->msr;
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	unsigned long new_dbcr0 = current->thread.dbcr0;
 #endif
 
@@ -1087,13 +1087,17 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 			return -EFAULT;
 		switch (op.dbg_type) {
 		case SIG_DBG_SINGLE_STEPPING:
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 			if (op.dbg_value) {
 				new_msr |= MSR_DE;
 				new_dbcr0 |= (DBCR0_IDM | DBCR0_IC);
 			} else {
-				new_msr &= ~MSR_DE;
-				new_dbcr0 &= ~(DBCR0_IDM | DBCR0_IC);
+				new_dbcr0 &= ~DBCR0_IC;
+				if (!DBCR_ACTIVE_EVENTS(new_dbcr0,
+						current->thread.dbcr1)) {
+					new_msr &= ~MSR_DE;
+					new_dbcr0 &= ~DBCR0_IDM;
+				}
 			}
 #else
 			if (op.dbg_value)
@@ -1103,7 +1107,7 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 #endif
 			break;
 		case SIG_DBG_BRANCH_TRACING:
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 			return -EINVAL;
 #else
 			if (op.dbg_value)
@@ -1124,7 +1128,7 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 	   failure is a problem, anyway, and it's very unlikely unless
 	   the user is really doing something wrong. */
 	regs->msr = new_msr;
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	current->thread.dbcr0 = new_dbcr0;
 #endif
 
@@ -1224,7 +1228,6 @@ int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 	regs->nip = (unsigned long) ka->sa.sa_handler;
 	/* enter the signal handler in big-endian mode */
 	regs->msr &= ~MSR_LE;
-	regs->trap = 0;
 
 	return 1;
 

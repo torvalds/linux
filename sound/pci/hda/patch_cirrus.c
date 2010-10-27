@@ -501,7 +501,8 @@ static int add_mute(struct hda_codec *codec, const char *name, int index,
 	knew.private_value = pval;
 	snprintf(tmp, sizeof(tmp), "%s %s Switch", name, dir_sfx[dir]);
 	*kctlp = snd_ctl_new1(&knew, codec);
-	return snd_hda_ctl_add(codec, get_amp_nid_(pval), *kctlp);
+	(*kctlp)->id.subdevice = HDA_SUBDEV_AMP_FLAG;
+	return snd_hda_ctl_add(codec, 0, *kctlp);
 }
 
 static int add_volume(struct hda_codec *codec, const char *name,
@@ -514,7 +515,8 @@ static int add_volume(struct hda_codec *codec, const char *name,
 	knew.private_value = pval;
 	snprintf(tmp, sizeof(tmp), "%s %s Volume", name, dir_sfx[dir]);
 	*kctlp = snd_ctl_new1(&knew, codec);
-	return snd_hda_ctl_add(codec, get_amp_nid_(pval), *kctlp);
+	(*kctlp)->id.subdevice = HDA_SUBDEV_AMP_FLAG;
+	return snd_hda_ctl_add(codec, 0, *kctlp);
 }
 
 static void fix_volume_caps(struct hda_codec *codec, hda_nid_t dac)
@@ -654,7 +656,7 @@ static int change_cur_input(struct hda_codec *codec, unsigned int idx,
 		return 0;
 	if (spec->cur_adc && spec->cur_adc != spec->adc_nid[idx]) {
 		/* stream is running, let's swap the current ADC */
-		snd_hda_codec_cleanup_stream(codec, spec->cur_adc);
+		__snd_hda_codec_cleanup_stream(codec, spec->cur_adc, 1);
 		spec->cur_adc = spec->adc_nid[idx];
 		snd_hda_codec_setup_stream(codec, spec->cur_adc,
 					   spec->cur_adc_stream_tag, 0,
@@ -751,6 +753,7 @@ static int build_input(struct hda_codec *codec)
 	spec->capture_bind[1] = make_bind_capture(codec, &snd_hda_bind_vol);
 	for (i = 0; i < 2; i++) {
 		struct snd_kcontrol *kctl;
+		int n;
 		if (!spec->capture_bind[i])
 			return -ENOMEM;
 		kctl = snd_ctl_new1(&cs_capture_ctls[i], codec);
@@ -760,6 +763,13 @@ static int build_input(struct hda_codec *codec)
 		err = snd_hda_ctl_add(codec, 0, kctl);
 		if (err < 0)
 			return err;
+		for (n = 0; n < AUTO_PIN_LAST; n++) {
+			if (!spec->adc_nid[n])
+				continue;
+			err = snd_hda_add_nid(codec, kctl, 0, spec->adc_nid[n]);
+			if (err < 0)
+				return err;
+		}
 	}
 	
 	if (spec->num_inputs > 1 && !spec->mic_detect) {
@@ -962,6 +972,53 @@ static struct hda_verb cs_coef_init_verbs[] = {
 	{} /* terminator */
 };
 
+/* Errata: CS4207 rev C0/C1/C2 Silicon
+ *
+ * http://www.cirrus.com/en/pubs/errata/ER880C3.pdf
+ *
+ * 6. At high temperature (TA > +85°C), the digital supply current (IVD)
+ * may be excessive (up to an additional 200 μA), which is most easily
+ * observed while the part is being held in reset (RESET# active low).
+ *
+ * Root Cause: At initial powerup of the device, the logic that drives
+ * the clock and write enable to the S/PDIF SRC RAMs is not properly
+ * initialized.
+ * Certain random patterns will cause a steady leakage current in those
+ * RAM cells. The issue will resolve once the SRCs are used (turned on).
+ *
+ * Workaround: The following verb sequence briefly turns on the S/PDIF SRC
+ * blocks, which will alleviate the issue.
+ */
+
+static struct hda_verb cs_errata_init_verbs[] = {
+	{0x01, AC_VERB_SET_POWER_STATE, 0x00}, /* AFG: D0 */
+	{0x11, AC_VERB_SET_PROC_STATE, 0x01},  /* VPW: processing on */
+
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0008},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x9999},
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0017},
+	{0x11, AC_VERB_SET_PROC_COEF, 0xa412},
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0001},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x0009},
+
+	{0x07, AC_VERB_SET_POWER_STATE, 0x00}, /* S/PDIF Rx: D0 */
+	{0x08, AC_VERB_SET_POWER_STATE, 0x00}, /* S/PDIF Tx: D0 */
+
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0017},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x2412},
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0008},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x0000},
+	{0x11, AC_VERB_SET_COEF_INDEX, 0x0001},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x0008},
+	{0x11, AC_VERB_SET_PROC_STATE, 0x00},
+
+	{0x07, AC_VERB_SET_POWER_STATE, 0x03}, /* S/PDIF Rx: D3 */
+	{0x08, AC_VERB_SET_POWER_STATE, 0x03}, /* S/PDIF Tx: D3 */
+	/*{0x01, AC_VERB_SET_POWER_STATE, 0x03},*/ /* AFG: D3 This is already handled */
+
+	{} /* terminator */
+};
+
 /* SPDIF setup */
 static void init_digital(struct hda_codec *codec)
 {
@@ -980,6 +1037,9 @@ static void init_digital(struct hda_codec *codec)
 static int cs_init(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
+
+	/* init_verb sequence for C0/C1/C2 errata*/
+	snd_hda_sequence_write(codec, cs_errata_init_verbs);
 
 	snd_hda_sequence_write(codec, cs_coef_init_verbs);
 

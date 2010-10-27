@@ -92,3 +92,35 @@ int tipc_addr_node_valid(u32 addr)
 	return (tipc_addr_domain_valid(addr) && tipc_node(addr));
 }
 
+int tipc_in_scope(u32 domain, u32 addr)
+{
+	if (!domain || (domain == addr))
+		return 1;
+	if (domain == (addr & 0xfffff000u)) /* domain <Z.C.0> */
+		return 1;
+	if (domain == (addr & 0xff000000u)) /* domain <Z.0.0> */
+		return 1;
+	return 0;
+}
+
+/**
+ * tipc_addr_scope - convert message lookup domain to a 2-bit scope value
+ */
+
+int tipc_addr_scope(u32 domain)
+{
+	if (likely(!domain))
+		return TIPC_ZONE_SCOPE;
+	if (tipc_node(domain))
+		return TIPC_NODE_SCOPE;
+	if (tipc_cluster(domain))
+		return TIPC_CLUSTER_SCOPE;
+	return TIPC_ZONE_SCOPE;
+}
+
+char *tipc_addr_string_fill(char *string, u32 addr)
+{
+	snprintf(string, 16, "<%u.%u.%u>",
+		 tipc_zone(addr), tipc_cluster(addr), tipc_node(addr));
+	return string;
+}

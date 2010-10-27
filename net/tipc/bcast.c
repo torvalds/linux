@@ -119,7 +119,7 @@ static struct bclink *bclink = NULL;
 static struct link *bcl = NULL;
 static DEFINE_SPINLOCK(bc_lock);
 
-const char tipc_bclink_name[] = "multicast-link";
+const char tipc_bclink_name[] = "broadcast-link";
 
 
 static u32 buf_seqno(struct sk_buff *buf)
@@ -275,7 +275,7 @@ static void bclink_send_nack(struct tipc_node *n_ptr)
 	buf = buf_acquire(INT_H_SIZE);
 	if (buf) {
 		msg = buf_msg(buf);
-		msg_init(msg, BCAST_PROTOCOL, STATE_MSG,
+		tipc_msg_init(msg, BCAST_PROTOCOL, STATE_MSG,
 			 INT_H_SIZE, n_ptr->addr);
 		msg_set_mc_netid(msg, tipc_net_id);
 		msg_set_bcast_ack(msg, mod(n_ptr->bclink.last_in));
@@ -558,10 +558,7 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 			      struct tipc_bearer *unused1,
 			      struct tipc_media_addr *unused2)
 {
-	static int send_count = 0;
-
 	int bp_index;
-	int swap_time;
 
 	/* Prepare buffer for broadcasting (if first time trying to send it) */
 
@@ -574,11 +571,6 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		msg_set_non_seq(msg, 1);
 		msg_set_mc_netid(msg, tipc_net_id);
 	}
-
-	/* Determine if bearer pairs should be swapped following this attempt */
-
-	if ((swap_time = (++send_count >= 10)))
-		send_count = 0;
 
 	/* Send buffer over bearers until all targets reached */
 
@@ -595,21 +587,22 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		if (bcbearer->remains_new.count == bcbearer->remains.count)
 			continue;	/* bearer pair doesn't add anything */
 
-		if (!p->publ.blocked &&
-		    !p->media->send_msg(buf, &p->publ, &p->media->bcast_addr)) {
-			if (swap_time && s && !s->publ.blocked)
-				goto swap;
-			else
-				goto update;
+		if (p->publ.blocked ||
+		    p->media->send_msg(buf, &p->publ, &p->media->bcast_addr)) {
+			/* unable to send on primary bearer */
+			if (!s || s->publ.blocked ||
+			    s->media->send_msg(buf, &s->publ,
+					       &s->media->bcast_addr)) {
+				/* unable to send on either bearer */
+				continue;
+			}
 		}
 
-		if (!s || s->publ.blocked ||
-		    s->media->send_msg(buf, &s->publ, &s->media->bcast_addr))
-			continue;	/* unable to send using bearer pair */
-swap:
-		bcbearer->bpairs[bp_index].primary = s;
-		bcbearer->bpairs[bp_index].secondary = p;
-update:
+		if (s) {
+			bcbearer->bpairs[bp_index].primary = s;
+			bcbearer->bpairs[bp_index].secondary = p;
+		}
+
 		if (bcbearer->remains_new.count == 0)
 			return 0;
 
@@ -827,5 +820,115 @@ void tipc_bclink_stop(void)
 		bcbearer = NULL;
 	}
 	spin_unlock_bh(&bc_lock);
+}
+
+
+/**
+ * tipc_nmap_add - add a node to a node map
+ */
+
+void tipc_nmap_add(struct tipc_node_map *nm_ptr, u32 node)
+{
+	int n = tipc_node(node);
+	int w = n / WSIZE;
+	u32 mask = (1 << (n % WSIZE));
+
+	if ((nm_ptr->map[w] & mask) == 0) {
+		nm_ptr->count++;
+		nm_ptr->map[w] |= mask;
+	}
+}
+
+/**
+ * tipc_nmap_remove - remove a node from a node map
+ */
+
+void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node)
+{
+	int n = tipc_node(node);
+	int w = n / WSIZE;
+	u32 mask = (1 << (n % WSIZE));
+
+	if ((nm_ptr->map[w] & mask) != 0) {
+		nm_ptr->map[w] &= ~mask;
+		nm_ptr->count--;
+	}
+}
+
+/**
+ * tipc_nmap_diff - find differences between node maps
+ * @nm_a: input node map A
+ * @nm_b: input node map B
+ * @nm_diff: output node map A-B (i.e. nodes of A that are not in B)
+ */
+
+void tipc_nmap_diff(struct tipc_node_map *nm_a, struct tipc_node_map *nm_b,
+				  struct tipc_node_map *nm_diff)
+{
+	int stop = ARRAY_SIZE(nm_a->map);
+	int w;
+	int b;
+	u32 map;
+
+	memset(nm_diff, 0, sizeof(*nm_diff));
+	for (w = 0; w < stop; w++) {
+		map = nm_a->map[w] ^ (nm_a->map[w] & nm_b->map[w]);
+		nm_diff->map[w] = map;
+		if (map != 0) {
+			for (b = 0 ; b < WSIZE; b++) {
+				if (map & (1 << b))
+					nm_diff->count++;
+			}
+		}
+	}
+}
+
+/**
+ * tipc_port_list_add - add a port to a port list, ensuring no duplicates
+ */
+
+void tipc_port_list_add(struct port_list *pl_ptr, u32 port)
+{
+	struct port_list *item = pl_ptr;
+	int i;
+	int item_sz = PLSIZE;
+	int cnt = pl_ptr->count;
+
+	for (; ; cnt -= item_sz, item = item->next) {
+		if (cnt < PLSIZE)
+			item_sz = cnt;
+		for (i = 0; i < item_sz; i++)
+			if (item->ports[i] == port)
+				return;
+		if (i < PLSIZE) {
+			item->ports[i] = port;
+			pl_ptr->count++;
+			return;
+		}
+		if (!item->next) {
+			item->next = kmalloc(sizeof(*item), GFP_ATOMIC);
+			if (!item->next) {
+				warn("Incomplete multicast delivery, no memory\n");
+				return;
+			}
+			item->next->next = NULL;
+		}
+	}
+}
+
+/**
+ * tipc_port_list_free - free dynamically created entries in port_list chain
+ *
+ */
+
+void tipc_port_list_free(struct port_list *pl_ptr)
+{
+	struct port_list *item;
+	struct port_list *next;
+
+	for (item = pl_ptr->next; item; item = next) {
+		next = item->next;
+		kfree(item);
+	}
 }
 

@@ -163,10 +163,8 @@ struct packet_iosched
 	atomic_t		attention;	/* Set to non-zero when queue processing is needed */
 	int			writing;	/* Non-zero when writing, zero when reading */
 	spinlock_t		lock;		/* Protecting read/write queue manipulations */
-	struct bio		*read_queue;
-	struct bio		*read_queue_tail;
-	struct bio		*write_queue;
-	struct bio		*write_queue_tail;
+	struct bio_list		read_queue;
+	struct bio_list		write_queue;
 	sector_t		last_write;	/* The sector where the last write ended */
 	int			successive_reads;
 };
@@ -206,8 +204,8 @@ struct packet_data
 	spinlock_t		lock;		/* Lock protecting state transitions and */
 						/* orig_bios list */
 
-	struct bio		*orig_bios;	/* Original bios passed to pkt_make_request */
-	struct bio		*orig_bios_tail;/* that will be handled by this packet */
+	struct bio_list		orig_bios;	/* Original bios passed to pkt_make_request */
+						/* that will be handled by this packet */
 	int			write_size;	/* Total size of all bios in the orig_bios */
 						/* list, measured in number of frames */
 

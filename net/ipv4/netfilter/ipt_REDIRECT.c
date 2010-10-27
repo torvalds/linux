@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/types.h>
 #include <linux/ip.h>
 #include <linux/timer.h>
@@ -26,23 +26,23 @@ MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("Xtables: Connection redirection to localhost");
 
 /* FIXME: Take multiple ranges --RR */
-static bool redirect_tg_check(const struct xt_tgchk_param *par)
+static int redirect_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 
 	if (mr->range[0].flags & IP_NAT_RANGE_MAP_IPS) {
-		pr_debug("redirect_check: bad MAP_IPS.\n");
-		return false;
+		pr_debug("bad MAP_IPS.\n");
+		return -EINVAL;
 	}
 	if (mr->rangesize != 1) {
-		pr_debug("redirect_check: bad rangesize %u.\n", mr->rangesize);
-		return false;
+		pr_debug("bad rangesize %u.\n", mr->rangesize);
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static unsigned int
-redirect_tg(struct sk_buff *skb, const struct xt_target_param *par)
+redirect_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;

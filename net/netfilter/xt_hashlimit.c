@@ -1,12 +1,13 @@
 /*
  *	xt_hashlimit - Netfilter module to limit the number of packets per time
- *	seperately for each hashbucket (sourceip/sourceport/dstip/dstport)
+ *	separately for each hashbucket (sourceip/sourceport/dstip/dstport)
  *
  *	(C) 2003-2004 by Harald Welte <laforge@netfilter.org>
  *	Copyright © CC Computer Consultants GmbH, 2007 - 2008
  *
  * Development of this code was funded by Astaro AG, http://www.astaro.com/
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/random.h>
@@ -26,6 +27,7 @@
 #endif
 
 #include <net/net_namespace.h>
+#include <net/netns/generic.h>
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
@@ -35,14 +37,24 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
-MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
+MODULE_AUTHOR("Jan Engelhardt <jengelh@medozas.de>");
 MODULE_DESCRIPTION("Xtables: per hash-bucket rate-limit match");
 MODULE_ALIAS("ipt_hashlimit");
 MODULE_ALIAS("ip6t_hashlimit");
 
+struct hashlimit_net {
+	struct hlist_head	htables;
+	struct proc_dir_entry	*ipt_hashlimit;
+	struct proc_dir_entry	*ip6t_hashlimit;
+};
+
+static int hashlimit_net_id;
+static inline struct hashlimit_net *hashlimit_pernet(struct net *net)
+{
+	return net_generic(net, hashlimit_net_id);
+}
+
 /* need to declare this at the top */
-static struct proc_dir_entry *hashlimit_procdir4;
-static struct proc_dir_entry *hashlimit_procdir6;
 static const struct file_operations dl_file_ops;
 
 /* hash table crap */
@@ -69,37 +81,38 @@ struct dsthash_ent {
 	struct dsthash_dst dst;
 
 	/* modified structure members in the end */
+	spinlock_t lock;
 	unsigned long expires;		/* precalculated expiry time */
 	struct {
 		unsigned long prev;	/* last modification */
 		u_int32_t credit;
 		u_int32_t credit_cap, cost;
 	} rateinfo;
+	struct rcu_head rcu;
 };
 
 struct xt_hashlimit_htable {
 	struct hlist_node node;		/* global list of all htables */
-	atomic_t use;
+	int use;
 	u_int8_t family;
+	bool rnd_initialized;
 
 	struct hashlimit_cfg1 cfg;	/* config */
 
 	/* used internally */
 	spinlock_t lock;		/* lock for list_head */
 	u_int32_t rnd;			/* random seed for hash */
-	int rnd_initialized;
 	unsigned int count;		/* number entries in table */
 	struct timer_list timer;	/* timer for gc */
 
 	/* seq_file stuff */
 	struct proc_dir_entry *pde;
+	struct net *net;
 
 	struct hlist_head hash[0];	/* hashtable itself */
 };
 
-static DEFINE_SPINLOCK(hashlimit_lock);	/* protects htables list */
-static DEFINE_MUTEX(hlimit_mutex);	/* additional checkentry protection */
-static HLIST_HEAD(hashlimit_htables);
+static DEFINE_MUTEX(hashlimit_mutex);	/* protects htables list */
 static struct kmem_cache *hashlimit_cachep __read_mostly;
 
 static inline bool dst_cmp(const struct dsthash_ent *ent,
@@ -132,9 +145,11 @@ dsthash_find(const struct xt_hashlimit_htable *ht,
 	u_int32_t hash = hash_dst(ht, dst);
 
 	if (!hlist_empty(&ht->hash[hash])) {
-		hlist_for_each_entry(ent, pos, &ht->hash[hash], node)
-			if (dst_cmp(ent, dst))
+		hlist_for_each_entry_rcu(ent, pos, &ht->hash[hash], node)
+			if (dst_cmp(ent, dst)) {
+				spin_lock(&ent->lock);
 				return ent;
+			}
 	}
 	return NULL;
 }
@@ -146,119 +161,56 @@ dsthash_alloc_init(struct xt_hashlimit_htable *ht,
 {
 	struct dsthash_ent *ent;
 
+	spin_lock(&ht->lock);
 	/* initialize hash with random val at the time we allocate
 	 * the first hashtable entry */
-	if (!ht->rnd_initialized) {
+	if (unlikely(!ht->rnd_initialized)) {
 		get_random_bytes(&ht->rnd, sizeof(ht->rnd));
-		ht->rnd_initialized = 1;
+		ht->rnd_initialized = true;
 	}
 
 	if (ht->cfg.max && ht->count >= ht->cfg.max) {
 		/* FIXME: do something. question is what.. */
 		if (net_ratelimit())
-			printk(KERN_WARNING
-				"xt_hashlimit: max count of %u reached\n",
-				ht->cfg.max);
-		return NULL;
-	}
-
-	ent = kmem_cache_alloc(hashlimit_cachep, GFP_ATOMIC);
+			pr_err("max count of %u reached\n", ht->cfg.max);
+		ent = NULL;
+	} else
+		ent = kmem_cache_alloc(hashlimit_cachep, GFP_ATOMIC);
 	if (!ent) {
 		if (net_ratelimit())
-			printk(KERN_ERR
-				"xt_hashlimit: can't allocate dsthash_ent\n");
-		return NULL;
-	}
-	memcpy(&ent->dst, dst, sizeof(ent->dst));
+			pr_err("cannot allocate dsthash_ent\n");
+	} else {
+		memcpy(&ent->dst, dst, sizeof(ent->dst));
+		spin_lock_init(&ent->lock);
 
-	hlist_add_head(&ent->node, &ht->hash[hash_dst(ht, dst)]);
-	ht->count++;
+		spin_lock(&ent->lock);
+		hlist_add_head_rcu(&ent->node, &ht->hash[hash_dst(ht, dst)]);
+		ht->count++;
+	}
+	spin_unlock(&ht->lock);
 	return ent;
+}
+
+static void dsthash_free_rcu(struct rcu_head *head)
+{
+	struct dsthash_ent *ent = container_of(head, struct dsthash_ent, rcu);
+
+	kmem_cache_free(hashlimit_cachep, ent);
 }
 
 static inline void
 dsthash_free(struct xt_hashlimit_htable *ht, struct dsthash_ent *ent)
 {
-	hlist_del(&ent->node);
-	kmem_cache_free(hashlimit_cachep, ent);
+	hlist_del_rcu(&ent->node);
+	call_rcu_bh(&ent->rcu, dsthash_free_rcu);
 	ht->count--;
 }
 static void htable_gc(unsigned long htlong);
 
-static int htable_create_v0(struct xt_hashlimit_info *minfo, u_int8_t family)
+static int htable_create(struct net *net, struct xt_hashlimit_mtinfo1 *minfo,
+			 u_int8_t family)
 {
-	struct xt_hashlimit_htable *hinfo;
-	unsigned int size;
-	unsigned int i;
-
-	if (minfo->cfg.size)
-		size = minfo->cfg.size;
-	else {
-		size = ((totalram_pages << PAGE_SHIFT) / 16384) /
-		       sizeof(struct list_head);
-		if (totalram_pages > (1024 * 1024 * 1024 / PAGE_SIZE))
-			size = 8192;
-		if (size < 16)
-			size = 16;
-	}
-	/* FIXME: don't use vmalloc() here or anywhere else -HW */
-	hinfo = vmalloc(sizeof(struct xt_hashlimit_htable) +
-			sizeof(struct list_head) * size);
-	if (!hinfo) {
-		printk(KERN_ERR "xt_hashlimit: unable to create hashtable\n");
-		return -1;
-	}
-	minfo->hinfo = hinfo;
-
-	/* copy match config into hashtable config */
-	hinfo->cfg.mode        = minfo->cfg.mode;
-	hinfo->cfg.avg         = minfo->cfg.avg;
-	hinfo->cfg.burst       = minfo->cfg.burst;
-	hinfo->cfg.max         = minfo->cfg.max;
-	hinfo->cfg.gc_interval = minfo->cfg.gc_interval;
-	hinfo->cfg.expire      = minfo->cfg.expire;
-
-	if (family == NFPROTO_IPV4)
-		hinfo->cfg.srcmask = hinfo->cfg.dstmask = 32;
-	else
-		hinfo->cfg.srcmask = hinfo->cfg.dstmask = 128;
-
-	hinfo->cfg.size = size;
-	if (!hinfo->cfg.max)
-		hinfo->cfg.max = 8 * hinfo->cfg.size;
-	else if (hinfo->cfg.max < hinfo->cfg.size)
-		hinfo->cfg.max = hinfo->cfg.size;
-
-	for (i = 0; i < hinfo->cfg.size; i++)
-		INIT_HLIST_HEAD(&hinfo->hash[i]);
-
-	atomic_set(&hinfo->use, 1);
-	hinfo->count = 0;
-	hinfo->family = family;
-	hinfo->rnd_initialized = 0;
-	spin_lock_init(&hinfo->lock);
-	hinfo->pde = proc_create_data(minfo->name, 0,
-		(family == NFPROTO_IPV4) ?
-		hashlimit_procdir4 : hashlimit_procdir6,
-		&dl_file_ops, hinfo);
-	if (!hinfo->pde) {
-		vfree(hinfo);
-		return -1;
-	}
-
-	setup_timer(&hinfo->timer, htable_gc, (unsigned long )hinfo);
-	hinfo->timer.expires = jiffies + msecs_to_jiffies(hinfo->cfg.gc_interval);
-	add_timer(&hinfo->timer);
-
-	spin_lock_bh(&hashlimit_lock);
-	hlist_add_head(&hinfo->node, &hashlimit_htables);
-	spin_unlock_bh(&hashlimit_lock);
-
-	return 0;
-}
-
-static int htable_create(struct xt_hashlimit_mtinfo1 *minfo, u_int8_t family)
-{
+	struct hashlimit_net *hashlimit_net = hashlimit_pernet(net);
 	struct xt_hashlimit_htable *hinfo;
 	unsigned int size;
 	unsigned int i;
@@ -276,10 +228,8 @@ static int htable_create(struct xt_hashlimit_mtinfo1 *minfo, u_int8_t family)
 	/* FIXME: don't use vmalloc() here or anywhere else -HW */
 	hinfo = vmalloc(sizeof(struct xt_hashlimit_htable) +
 	                sizeof(struct list_head) * size);
-	if (hinfo == NULL) {
-		printk(KERN_ERR "xt_hashlimit: unable to create hashtable\n");
-		return -1;
-	}
+	if (hinfo == NULL)
+		return -ENOMEM;
 	minfo->hinfo = hinfo;
 
 	/* copy match config into hashtable config */
@@ -293,28 +243,27 @@ static int htable_create(struct xt_hashlimit_mtinfo1 *minfo, u_int8_t family)
 	for (i = 0; i < hinfo->cfg.size; i++)
 		INIT_HLIST_HEAD(&hinfo->hash[i]);
 
-	atomic_set(&hinfo->use, 1);
+	hinfo->use = 1;
 	hinfo->count = 0;
 	hinfo->family = family;
-	hinfo->rnd_initialized = 0;
+	hinfo->rnd_initialized = false;
 	spin_lock_init(&hinfo->lock);
 
 	hinfo->pde = proc_create_data(minfo->name, 0,
 		(family == NFPROTO_IPV4) ?
-		hashlimit_procdir4 : hashlimit_procdir6,
+		hashlimit_net->ipt_hashlimit : hashlimit_net->ip6t_hashlimit,
 		&dl_file_ops, hinfo);
 	if (hinfo->pde == NULL) {
 		vfree(hinfo);
-		return -1;
+		return -ENOMEM;
 	}
+	hinfo->net = net;
 
 	setup_timer(&hinfo->timer, htable_gc, (unsigned long)hinfo);
 	hinfo->timer.expires = jiffies + msecs_to_jiffies(hinfo->cfg.gc_interval);
 	add_timer(&hinfo->timer);
 
-	spin_lock_bh(&hashlimit_lock);
-	hlist_add_head(&hinfo->node, &hashlimit_htables);
-	spin_unlock_bh(&hashlimit_lock);
+	hlist_add_head(&hinfo->node, &hashlimit_net->htables);
 
 	return 0;
 }
@@ -364,43 +313,46 @@ static void htable_gc(unsigned long htlong)
 
 static void htable_destroy(struct xt_hashlimit_htable *hinfo)
 {
+	struct hashlimit_net *hashlimit_net = hashlimit_pernet(hinfo->net);
+	struct proc_dir_entry *parent;
+
 	del_timer_sync(&hinfo->timer);
 
-	/* remove proc entry */
-	remove_proc_entry(hinfo->pde->name,
-			  hinfo->family == NFPROTO_IPV4 ? hashlimit_procdir4 :
-						     hashlimit_procdir6);
+	if (hinfo->family == NFPROTO_IPV4)
+		parent = hashlimit_net->ipt_hashlimit;
+	else
+		parent = hashlimit_net->ip6t_hashlimit;
+	remove_proc_entry(hinfo->pde->name, parent);
 	htable_selective_cleanup(hinfo, select_all);
 	vfree(hinfo);
 }
 
-static struct xt_hashlimit_htable *htable_find_get(const char *name,
+static struct xt_hashlimit_htable *htable_find_get(struct net *net,
+						   const char *name,
 						   u_int8_t family)
 {
+	struct hashlimit_net *hashlimit_net = hashlimit_pernet(net);
 	struct xt_hashlimit_htable *hinfo;
 	struct hlist_node *pos;
 
-	spin_lock_bh(&hashlimit_lock);
-	hlist_for_each_entry(hinfo, pos, &hashlimit_htables, node) {
+	hlist_for_each_entry(hinfo, pos, &hashlimit_net->htables, node) {
 		if (!strcmp(name, hinfo->pde->name) &&
 		    hinfo->family == family) {
-			atomic_inc(&hinfo->use);
-			spin_unlock_bh(&hashlimit_lock);
+			hinfo->use++;
 			return hinfo;
 		}
 	}
-	spin_unlock_bh(&hashlimit_lock);
 	return NULL;
 }
 
 static void htable_put(struct xt_hashlimit_htable *hinfo)
 {
-	if (atomic_dec_and_test(&hinfo->use)) {
-		spin_lock_bh(&hashlimit_lock);
+	mutex_lock(&hashlimit_mutex);
+	if (--hinfo->use == 0) {
 		hlist_del(&hinfo->node);
-		spin_unlock_bh(&hashlimit_lock);
 		htable_destroy(hinfo);
 	}
+	mutex_unlock(&hashlimit_mutex);
 }
 
 /* The algorithm used is the Simple Token Bucket Filter (TBF)
@@ -479,6 +431,7 @@ static void hashlimit_ipv6_mask(__be32 *i, unsigned int p)
 	case 64 ... 95:
 		i[2] = maskl(i[2], p - 64);
 		i[3] = 0;
+		break;
 	case 96 ... 127:
 		i[3] = maskl(i[3], p - 96);
 		break;
@@ -563,58 +516,7 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 }
 
 static bool
-hashlimit_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
-{
-	const struct xt_hashlimit_info *r = par->matchinfo;
-	struct xt_hashlimit_htable *hinfo = r->hinfo;
-	unsigned long now = jiffies;
-	struct dsthash_ent *dh;
-	struct dsthash_dst dst;
-
-	if (hashlimit_init_dst(hinfo, &dst, skb, par->thoff) < 0)
-		goto hotdrop;
-
-	spin_lock_bh(&hinfo->lock);
-	dh = dsthash_find(hinfo, &dst);
-	if (!dh) {
-		dh = dsthash_alloc_init(hinfo, &dst);
-		if (!dh) {
-			spin_unlock_bh(&hinfo->lock);
-			goto hotdrop;
-		}
-
-		dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
-		dh->rateinfo.prev = jiffies;
-		dh->rateinfo.credit = user2credits(hinfo->cfg.avg *
-						   hinfo->cfg.burst);
-		dh->rateinfo.credit_cap = user2credits(hinfo->cfg.avg *
-						       hinfo->cfg.burst);
-		dh->rateinfo.cost = user2credits(hinfo->cfg.avg);
-	} else {
-		/* update expiration timeout */
-		dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
-		rateinfo_recalc(dh, now);
-	}
-
-	if (dh->rateinfo.credit >= dh->rateinfo.cost) {
-		/* We're underlimit. */
-		dh->rateinfo.credit -= dh->rateinfo.cost;
-		spin_unlock_bh(&hinfo->lock);
-		return true;
-	}
-
-	spin_unlock_bh(&hinfo->lock);
-
-	/* default case: we're overlimit, thus don't match */
-	return false;
-
-hotdrop:
-	*par->hotdrop = true;
-	return false;
-}
-
-static bool
-hashlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+hashlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_hashlimit_mtinfo1 *info = par->matchinfo;
 	struct xt_hashlimit_htable *hinfo = info->hinfo;
@@ -625,15 +527,14 @@ hashlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	if (hashlimit_init_dst(hinfo, &dst, skb, par->thoff) < 0)
 		goto hotdrop;
 
-	spin_lock_bh(&hinfo->lock);
+	rcu_read_lock_bh();
 	dh = dsthash_find(hinfo, &dst);
 	if (dh == NULL) {
 		dh = dsthash_alloc_init(hinfo, &dst);
 		if (dh == NULL) {
-			spin_unlock_bh(&hinfo->lock);
+			rcu_read_unlock_bh();
 			goto hotdrop;
 		}
-
 		dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
 		dh->rateinfo.prev = jiffies;
 		dh->rateinfo.credit = user2credits(hinfo->cfg.avg *
@@ -650,106 +551,58 @@ hashlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	if (dh->rateinfo.credit >= dh->rateinfo.cost) {
 		/* below the limit */
 		dh->rateinfo.credit -= dh->rateinfo.cost;
-		spin_unlock_bh(&hinfo->lock);
+		spin_unlock(&dh->lock);
+		rcu_read_unlock_bh();
 		return !(info->cfg.mode & XT_HASHLIMIT_INVERT);
 	}
 
-	spin_unlock_bh(&hinfo->lock);
+	spin_unlock(&dh->lock);
+	rcu_read_unlock_bh();
 	/* default match is underlimit - so over the limit, we need to invert */
 	return info->cfg.mode & XT_HASHLIMIT_INVERT;
 
  hotdrop:
-	*par->hotdrop = true;
+	par->hotdrop = true;
 	return false;
 }
 
-static bool hashlimit_mt_check_v0(const struct xt_mtchk_param *par)
+static int hashlimit_mt_check(const struct xt_mtchk_param *par)
 {
-	struct xt_hashlimit_info *r = par->matchinfo;
-
-	/* Check for overflow. */
-	if (r->cfg.burst == 0 ||
-	    user2credits(r->cfg.avg * r->cfg.burst) < user2credits(r->cfg.avg)) {
-		printk(KERN_ERR "xt_hashlimit: overflow, try lower: %u/%u\n",
-		       r->cfg.avg, r->cfg.burst);
-		return false;
-	}
-	if (r->cfg.mode == 0 ||
-	    r->cfg.mode > (XT_HASHLIMIT_HASH_DPT |
-			   XT_HASHLIMIT_HASH_DIP |
-			   XT_HASHLIMIT_HASH_SIP |
-			   XT_HASHLIMIT_HASH_SPT))
-		return false;
-	if (!r->cfg.gc_interval)
-		return false;
-	if (!r->cfg.expire)
-		return false;
-	if (r->name[sizeof(r->name) - 1] != '\0')
-		return false;
-
-	/* This is the best we've got: We cannot release and re-grab lock,
-	 * since checkentry() is called before x_tables.c grabs xt_mutex.
-	 * We also cannot grab the hashtable spinlock, since htable_create will
-	 * call vmalloc, and that can sleep.  And we cannot just re-search
-	 * the list of htable's in htable_create(), since then we would
-	 * create duplicate proc files. -HW */
-	mutex_lock(&hlimit_mutex);
-	r->hinfo = htable_find_get(r->name, par->match->family);
-	if (!r->hinfo && htable_create_v0(r, par->match->family) != 0) {
-		mutex_unlock(&hlimit_mutex);
-		return false;
-	}
-	mutex_unlock(&hlimit_mutex);
-
-	return true;
-}
-
-static bool hashlimit_mt_check(const struct xt_mtchk_param *par)
-{
+	struct net *net = par->net;
 	struct xt_hashlimit_mtinfo1 *info = par->matchinfo;
+	int ret;
 
 	/* Check for overflow. */
 	if (info->cfg.burst == 0 ||
 	    user2credits(info->cfg.avg * info->cfg.burst) <
 	    user2credits(info->cfg.avg)) {
-		printk(KERN_ERR "xt_hashlimit: overflow, try lower: %u/%u\n",
-		       info->cfg.avg, info->cfg.burst);
-		return false;
+		pr_info("overflow, try lower: %u/%u\n",
+			info->cfg.avg, info->cfg.burst);
+		return -ERANGE;
 	}
 	if (info->cfg.gc_interval == 0 || info->cfg.expire == 0)
-		return false;
+		return -EINVAL;
 	if (info->name[sizeof(info->name)-1] != '\0')
-		return false;
-	if (par->match->family == NFPROTO_IPV4) {
+		return -EINVAL;
+	if (par->family == NFPROTO_IPV4) {
 		if (info->cfg.srcmask > 32 || info->cfg.dstmask > 32)
-			return false;
+			return -EINVAL;
 	} else {
 		if (info->cfg.srcmask > 128 || info->cfg.dstmask > 128)
-			return false;
+			return -EINVAL;
 	}
 
-	/* This is the best we've got: We cannot release and re-grab lock,
-	 * since checkentry() is called before x_tables.c grabs xt_mutex.
-	 * We also cannot grab the hashtable spinlock, since htable_create will
-	 * call vmalloc, and that can sleep.  And we cannot just re-search
-	 * the list of htable's in htable_create(), since then we would
-	 * create duplicate proc files. -HW */
-	mutex_lock(&hlimit_mutex);
-	info->hinfo = htable_find_get(info->name, par->match->family);
-	if (!info->hinfo && htable_create(info, par->match->family) != 0) {
-		mutex_unlock(&hlimit_mutex);
-		return false;
+	mutex_lock(&hashlimit_mutex);
+	info->hinfo = htable_find_get(net, info->name, par->family);
+	if (info->hinfo == NULL) {
+		ret = htable_create(net, info, par->family);
+		if (ret < 0) {
+			mutex_unlock(&hashlimit_mutex);
+			return ret;
+		}
 	}
-	mutex_unlock(&hlimit_mutex);
-	return true;
-}
-
-static void
-hashlimit_mt_destroy_v0(const struct xt_mtdtor_param *par)
-{
-	const struct xt_hashlimit_info *r = par->matchinfo;
-
-	htable_put(r->hinfo);
+	mutex_unlock(&hashlimit_mutex);
+	return 0;
 }
 
 static void hashlimit_mt_destroy(const struct xt_mtdtor_param *par)
@@ -759,46 +612,7 @@ static void hashlimit_mt_destroy(const struct xt_mtdtor_param *par)
 	htable_put(info->hinfo);
 }
 
-#ifdef CONFIG_COMPAT
-struct compat_xt_hashlimit_info {
-	char name[IFNAMSIZ];
-	struct hashlimit_cfg cfg;
-	compat_uptr_t hinfo;
-	compat_uptr_t master;
-};
-
-static void hashlimit_mt_compat_from_user(void *dst, void *src)
-{
-	int off = offsetof(struct compat_xt_hashlimit_info, hinfo);
-
-	memcpy(dst, src, off);
-	memset(dst + off, 0, sizeof(struct compat_xt_hashlimit_info) - off);
-}
-
-static int hashlimit_mt_compat_to_user(void __user *dst, void *src)
-{
-	int off = offsetof(struct compat_xt_hashlimit_info, hinfo);
-
-	return copy_to_user(dst, src, off) ? -EFAULT : 0;
-}
-#endif
-
 static struct xt_match hashlimit_mt_reg[] __read_mostly = {
-	{
-		.name		= "hashlimit",
-		.revision	= 0,
-		.family		= NFPROTO_IPV4,
-		.match		= hashlimit_mt_v0,
-		.matchsize	= sizeof(struct xt_hashlimit_info),
-#ifdef CONFIG_COMPAT
-		.compatsize	= sizeof(struct compat_xt_hashlimit_info),
-		.compat_from_user = hashlimit_mt_compat_from_user,
-		.compat_to_user	= hashlimit_mt_compat_to_user,
-#endif
-		.checkentry	= hashlimit_mt_check_v0,
-		.destroy	= hashlimit_mt_destroy_v0,
-		.me		= THIS_MODULE
-	},
 	{
 		.name           = "hashlimit",
 		.revision       = 1,
@@ -810,20 +624,6 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 		.me             = THIS_MODULE,
 	},
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
-	{
-		.name		= "hashlimit",
-		.family		= NFPROTO_IPV6,
-		.match		= hashlimit_mt_v0,
-		.matchsize	= sizeof(struct xt_hashlimit_info),
-#ifdef CONFIG_COMPAT
-		.compatsize	= sizeof(struct compat_xt_hashlimit_info),
-		.compat_from_user = hashlimit_mt_compat_from_user,
-		.compat_to_user	= hashlimit_mt_compat_to_user,
-#endif
-		.checkentry	= hashlimit_mt_check_v0,
-		.destroy	= hashlimit_mt_destroy_v0,
-		.me		= THIS_MODULE
-	},
 	{
 		.name           = "hashlimit",
 		.revision       = 1,
@@ -841,8 +641,7 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 static void *dl_seq_start(struct seq_file *s, loff_t *pos)
 	__acquires(htable->lock)
 {
-	struct proc_dir_entry *pde = s->private;
-	struct xt_hashlimit_htable *htable = pde->data;
+	struct xt_hashlimit_htable *htable = s->private;
 	unsigned int *bucket;
 
 	spin_lock_bh(&htable->lock);
@@ -859,8 +658,7 @@ static void *dl_seq_start(struct seq_file *s, loff_t *pos)
 
 static void *dl_seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
-	struct proc_dir_entry *pde = s->private;
-	struct xt_hashlimit_htable *htable = pde->data;
+	struct xt_hashlimit_htable *htable = s->private;
 	unsigned int *bucket = (unsigned int *)v;
 
 	*pos = ++(*bucket);
@@ -874,23 +672,26 @@ static void *dl_seq_next(struct seq_file *s, void *v, loff_t *pos)
 static void dl_seq_stop(struct seq_file *s, void *v)
 	__releases(htable->lock)
 {
-	struct proc_dir_entry *pde = s->private;
-	struct xt_hashlimit_htable *htable = pde->data;
+	struct xt_hashlimit_htable *htable = s->private;
 	unsigned int *bucket = (unsigned int *)v;
 
-	kfree(bucket);
+	if (!IS_ERR(bucket))
+		kfree(bucket);
 	spin_unlock_bh(&htable->lock);
 }
 
 static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 				   struct seq_file *s)
 {
+	int res;
+
+	spin_lock(&ent->lock);
 	/* recalculate to show accurate numbers */
 	rateinfo_recalc(ent, jiffies);
 
 	switch (family) {
 	case NFPROTO_IPV4:
-		return seq_printf(s, "%ld %pI4:%u->%pI4:%u %u %u %u\n",
+		res = seq_printf(s, "%ld %pI4:%u->%pI4:%u %u %u %u\n",
 				 (long)(ent->expires - jiffies)/HZ,
 				 &ent->dst.ip.src,
 				 ntohs(ent->dst.src_port),
@@ -898,9 +699,10 @@ static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 				 ntohs(ent->dst.dst_port),
 				 ent->rateinfo.credit, ent->rateinfo.credit_cap,
 				 ent->rateinfo.cost);
+		break;
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 	case NFPROTO_IPV6:
-		return seq_printf(s, "%ld %pI6:%u->%pI6:%u %u %u %u\n",
+		res = seq_printf(s, "%ld %pI6:%u->%pI6:%u %u %u %u\n",
 				 (long)(ent->expires - jiffies)/HZ,
 				 &ent->dst.ip6.src,
 				 ntohs(ent->dst.src_port),
@@ -908,17 +710,19 @@ static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 				 ntohs(ent->dst.dst_port),
 				 ent->rateinfo.credit, ent->rateinfo.credit_cap,
 				 ent->rateinfo.cost);
+		break;
 #endif
 	default:
 		BUG();
-		return 0;
+		res = 0;
 	}
+	spin_unlock(&ent->lock);
+	return res;
 }
 
 static int dl_seq_show(struct seq_file *s, void *v)
 {
-	struct proc_dir_entry *pde = s->private;
-	struct xt_hashlimit_htable *htable = pde->data;
+	struct xt_hashlimit_htable *htable = s->private;
 	unsigned int *bucket = (unsigned int *)v;
 	struct dsthash_ent *ent;
 	struct hlist_node *pos;
@@ -944,7 +748,7 @@ static int dl_proc_open(struct inode *inode, struct file *file)
 
 	if (!ret) {
 		struct seq_file *sf = file->private_data;
-		sf->private = PDE(inode);
+		sf->private = PDE(inode)->data;
 	}
 	return ret;
 }
@@ -957,10 +761,61 @@ static const struct file_operations dl_file_ops = {
 	.release = seq_release
 };
 
+static int __net_init hashlimit_proc_net_init(struct net *net)
+{
+	struct hashlimit_net *hashlimit_net = hashlimit_pernet(net);
+
+	hashlimit_net->ipt_hashlimit = proc_mkdir("ipt_hashlimit", net->proc_net);
+	if (!hashlimit_net->ipt_hashlimit)
+		return -ENOMEM;
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+	hashlimit_net->ip6t_hashlimit = proc_mkdir("ip6t_hashlimit", net->proc_net);
+	if (!hashlimit_net->ip6t_hashlimit) {
+		proc_net_remove(net, "ipt_hashlimit");
+		return -ENOMEM;
+	}
+#endif
+	return 0;
+}
+
+static void __net_exit hashlimit_proc_net_exit(struct net *net)
+{
+	proc_net_remove(net, "ipt_hashlimit");
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+	proc_net_remove(net, "ip6t_hashlimit");
+#endif
+}
+
+static int __net_init hashlimit_net_init(struct net *net)
+{
+	struct hashlimit_net *hashlimit_net = hashlimit_pernet(net);
+
+	INIT_HLIST_HEAD(&hashlimit_net->htables);
+	return hashlimit_proc_net_init(net);
+}
+
+static void __net_exit hashlimit_net_exit(struct net *net)
+{
+	struct hashlimit_net *hashlimit_net = hashlimit_pernet(net);
+
+	BUG_ON(!hlist_empty(&hashlimit_net->htables));
+	hashlimit_proc_net_exit(net);
+}
+
+static struct pernet_operations hashlimit_net_ops = {
+	.init	= hashlimit_net_init,
+	.exit	= hashlimit_net_exit,
+	.id	= &hashlimit_net_id,
+	.size	= sizeof(struct hashlimit_net),
+};
+
 static int __init hashlimit_mt_init(void)
 {
 	int err;
 
+	err = register_pernet_subsys(&hashlimit_net_ops);
+	if (err < 0)
+		return err;
 	err = xt_register_matches(hashlimit_mt_reg,
 	      ARRAY_SIZE(hashlimit_mt_reg));
 	if (err < 0)
@@ -971,44 +826,26 @@ static int __init hashlimit_mt_init(void)
 					    sizeof(struct dsthash_ent), 0, 0,
 					    NULL);
 	if (!hashlimit_cachep) {
-		printk(KERN_ERR "xt_hashlimit: unable to create slab cache\n");
+		pr_warning("unable to create slab cache\n");
 		goto err2;
 	}
-	hashlimit_procdir4 = proc_mkdir("ipt_hashlimit", init_net.proc_net);
-	if (!hashlimit_procdir4) {
-		printk(KERN_ERR "xt_hashlimit: unable to create proc dir "
-				"entry\n");
-		goto err3;
-	}
-	err = 0;
-#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
-	hashlimit_procdir6 = proc_mkdir("ip6t_hashlimit", init_net.proc_net);
-	if (!hashlimit_procdir6) {
-		printk(KERN_ERR "xt_hashlimit: unable to create proc dir "
-				"entry\n");
-		err = -ENOMEM;
-	}
-#endif
-	if (!err)
-		return 0;
-	remove_proc_entry("ipt_hashlimit", init_net.proc_net);
-err3:
-	kmem_cache_destroy(hashlimit_cachep);
+	return 0;
+
 err2:
 	xt_unregister_matches(hashlimit_mt_reg, ARRAY_SIZE(hashlimit_mt_reg));
 err1:
+	unregister_pernet_subsys(&hashlimit_net_ops);
 	return err;
 
 }
 
 static void __exit hashlimit_mt_exit(void)
 {
-	remove_proc_entry("ipt_hashlimit", init_net.proc_net);
-#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
-	remove_proc_entry("ip6t_hashlimit", init_net.proc_net);
-#endif
-	kmem_cache_destroy(hashlimit_cachep);
 	xt_unregister_matches(hashlimit_mt_reg, ARRAY_SIZE(hashlimit_mt_reg));
+	unregister_pernet_subsys(&hashlimit_net_ops);
+
+	rcu_barrier_bh();
+	kmem_cache_destroy(hashlimit_cachep);
 }
 
 module_init(hashlimit_mt_init);

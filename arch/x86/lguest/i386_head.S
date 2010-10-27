@@ -32,7 +32,7 @@ ENTRY(lguest_entry)
 	 */
 	movl $LHCALL_LGUEST_INIT, %eax
 	movl $lguest_data - __PAGE_OFFSET, %ebx
-	.byte 0x0f,0x01,0xc1 /* KVM_HYPERCALL */
+	int $LGUEST_TRAP_ENTRY
 
 	/* Set up the initial stack so we can run C code. */
 	movl $(init_thread_union+THREAD_SIZE),%esp

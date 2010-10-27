@@ -30,9 +30,11 @@
 #include <linux/init.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/proc_fs.h>
 #include <linux/dma-mapping.h>
 #include <linux/bcd.h>
 #include <linux/rtc.h>
+#include <linux/slab.h>
 
 #include <asm/time.h>
 #include <asm/uaccess.h>

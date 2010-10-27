@@ -59,6 +59,13 @@ static unsigned long common_pin_config[] __initdata = {
 	/* UART1 */
 	GPIO107_UART1_RXD,
 	GPIO108_UART1_TXD,
+
+	/* SSP1 */
+	GPIO113_I2S_MCLK,
+	GPIO114_I2S_FRM,
+	GPIO115_I2S_BCLK,
+	GPIO116_I2S_RXD,
+	GPIO117_I2S_TXD,
 };
 
 static struct smc91x_platdata smc91x_info = {
@@ -123,12 +130,18 @@ static struct pxa3xx_nand_platform_data aspenite_nand_info = {
 	.nr_parts	= ARRAY_SIZE(aspenite_nand_partitions),
 };
 
+static struct i2c_board_info aspenite_i2c_info[] __initdata = {
+	{ I2C_BOARD_INFO("wm8753", 0x1b), },
+};
+
 static void __init common_init(void)
 {
 	mfp_config(ARRAY_AND_SIZE(common_pin_config));
 
 	/* on-chip devices */
 	pxa168_add_uart(1);
+	pxa168_add_twsi(1, NULL, ARRAY_AND_SIZE(aspenite_i2c_info));
+	pxa168_add_ssp(1);
 	pxa168_add_nand(&aspenite_nand_info);
 
 	/* off-chip devices */
@@ -137,9 +150,8 @@ static void __init common_init(void)
 
 MACHINE_START(ASPENITE, "PXA168-based Aspenite Development Platform")
 	.phys_io        = APB_PHYS_BASE,
-	.boot_params    = 0x00000100,
 	.io_pg_offst    = (APB_VIRT_BASE >> 18) & 0xfffc,
-	.map_io		= pxa_map_io,
+	.map_io		= mmp_map_io,
 	.init_irq       = pxa168_init_irq,
 	.timer          = &pxa168_timer,
 	.init_machine   = common_init,
@@ -147,9 +159,8 @@ MACHINE_END
 
 MACHINE_START(ZYLONITE2, "PXA168-based Zylonite2 Development Platform")
 	.phys_io        = APB_PHYS_BASE,
-	.boot_params    = 0x00000100,
 	.io_pg_offst    = (APB_VIRT_BASE >> 18) & 0xfffc,
-	.map_io		= pxa_map_io,
+	.map_io		= mmp_map_io,
 	.init_irq       = pxa168_init_irq,
 	.timer          = &pxa168_timer,
 	.init_machine   = common_init,

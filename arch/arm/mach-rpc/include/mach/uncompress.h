@@ -109,8 +109,6 @@ static inline void flush(void)
 {
 }
 
-static void error(char *x);
-
 /*
  * Setup for decompression
  */

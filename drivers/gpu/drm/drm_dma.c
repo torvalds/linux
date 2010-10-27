@@ -47,11 +47,9 @@ int drm_dma_setup(struct drm_device *dev)
 {
 	int i;
 
-	dev->dma = kmalloc(sizeof(*dev->dma), GFP_KERNEL);
+	dev->dma = kzalloc(sizeof(*dev->dma), GFP_KERNEL);
 	if (!dev->dma)
 		return -ENOMEM;
-
-	memset(dev->dma, 0, sizeof(*dev->dma));
 
 	for (i = 0; i <= DRM_MAX_ORDER; i++)
 		memset(&dev->dma->bufs[i], 0, sizeof(dev->dma->bufs[0]));

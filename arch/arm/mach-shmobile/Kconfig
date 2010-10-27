@@ -1,0 +1,119 @@
+if ARCH_SHMOBILE
+
+comment "SH-Mobile System Type"
+
+config ARCH_SH7367
+	bool "SH-Mobile G3 (SH7367)"
+	select CPU_V6
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select SH_CLK_CPG
+	select GENERIC_CLOCKEVENTS
+
+config ARCH_SH7377
+	bool "SH-Mobile G4 (SH7377)"
+	select CPU_V7
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select SH_CLK_CPG
+	select GENERIC_CLOCKEVENTS
+
+config ARCH_SH7372
+	bool "SH-Mobile AP4 (SH7372)"
+	select CPU_V7
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select SH_CLK_CPG
+	select GENERIC_CLOCKEVENTS
+
+comment "SH-Mobile Board Type"
+
+config MACH_G3EVM
+	bool "G3EVM board"
+	depends on ARCH_SH7367
+	select ARCH_REQUIRE_GPIOLIB
+
+config MACH_G4EVM
+	bool "G4EVM board"
+	depends on ARCH_SH7377
+	select ARCH_REQUIRE_GPIOLIB
+
+config MACH_AP4EVB
+	bool "AP4EVB board"
+	depends on ARCH_SH7372
+	select ARCH_REQUIRE_GPIOLIB
+	select SH_LCD_MIPI_DSI
+
+choice
+	prompt "AP4EVB LCD panel selection"
+	default AP4EVB_QHD
+	depends on MACH_AP4EVB
+
+config AP4EVB_QHD
+	bool "MIPI-DSI QHD (960x540)"
+
+config AP4EVB_WVGA
+	bool "Parallel WVGA (800x480)"
+
+endchoice
+
+comment "SH-Mobile System Configuration"
+
+menu "Memory configuration"
+
+config MEMORY_START
+	hex "Physical memory start address"
+	default "0x50000000" if MACH_G3EVM
+	default "0x40000000" if MACH_G4EVM
+	default "0x40000000" if MACH_AP4EVB
+	default "0x00000000"
+	---help---
+	  Tweak this only when porting to a new machine which does not
+	  already have a defconfig. Changing it from the known correct
+	  value on any of the known systems will only lead to disaster.
+
+config MEMORY_SIZE
+	hex "Physical memory size"
+	default "0x08000000" if MACH_G3EVM
+	default "0x08000000" if MACH_G4EVM
+	default "0x10000000" if MACH_AP4EVB
+	default "0x04000000"
+	help
+	  This sets the default memory size assumed by your kernel. It can
+	  be overridden as normal by the 'mem=' argument on the kernel command
+	  line.
+
+endmenu
+
+menu "Timer and clock configuration"
+
+config SHMOBILE_TIMER_HZ
+	int "Kernel HZ (jiffies per second)"
+	range 32 1024
+	default "128"
+	help
+	  Allows the configuration of the timer frequency. It is customary
+	  to have the timer interrupt run at 1000 Hz or 100 Hz, but in the
+	  case of low timer frequencies other values may be more suitable.
+	  SH-Mobile systems using a 32768 Hz RCLK for clock events may want
+	  to select a HZ value such as 128 that can evenly divide RCLK.
+	  A HZ value that does not divide evenly may cause timer drift.
+
+config SH_TIMER_CMT
+	bool "CMT timer driver"
+	default y
+	help
+	  This enables build of the CMT timer driver.
+
+config SH_TIMER_TMU
+	bool "TMU timer driver"
+	default y
+	help
+	  This enables build of the TMU timer driver.
+
+endmenu
+
+config SH_CLK_CPG
+	bool
+
+endif

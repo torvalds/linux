@@ -211,6 +211,7 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 	cmd->body.cid = cpu_to_le32(res->id);
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_3d_resource_dec(dev_priv);
 }
 
 static int vmw_context_init(struct vmw_private *dev_priv,
@@ -247,6 +248,7 @@ static int vmw_context_init(struct vmw_private *dev_priv,
 	cmd->body.cid = cpu_to_le32(res->id);
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	(void) vmw_3d_resource_inc(dev_priv);
 	vmw_resource_activate(res, vmw_hw_context_destroy);
 	return 0;
 }
@@ -406,6 +408,7 @@ static void vmw_hw_surface_destroy(struct vmw_resource *res)
 	cmd->body.sid = cpu_to_le32(res->id);
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_3d_resource_dec(dev_priv);
 }
 
 void vmw_surface_res_free(struct vmw_resource *res)
@@ -473,6 +476,7 @@ int vmw_surface_init(struct vmw_private *dev_priv,
 	}
 
 	vmw_fifo_commit(dev_priv, submit_size);
+	(void) vmw_3d_resource_inc(dev_priv);
 	vmw_resource_activate(res, vmw_hw_surface_destroy);
 	return 0;
 }
@@ -574,6 +578,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	srf->flags = req->flags;
 	srf->format = req->format;
+	srf->scanout = req->scanout;
 	memcpy(srf->mip_levels, req->mip_levels, sizeof(srf->mip_levels));
 	srf->num_sizes = 0;
 	for (i = 0; i < DRM_VMW_MAX_SURFACE_FACES; ++i)
@@ -596,11 +601,12 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	ret = copy_from_user(srf->sizes, user_sizes,
 			     srf->num_sizes * sizeof(*srf->sizes));
-	if (unlikely(ret != 0))
+	if (unlikely(ret != 0)) {
+		ret = -EFAULT;
 		goto out_err1;
+	}
 
-
-	if (srf->flags & (1 << 9) &&
+	if (srf->scanout &&
 	    srf->num_sizes == 1 &&
 	    srf->sizes[0].width == 64 &&
 	    srf->sizes[0].height == 64 &&
@@ -697,9 +703,11 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 	if (user_sizes)
 		ret = copy_to_user(user_sizes, srf->sizes,
 				   srf->num_sizes * sizeof(*srf->sizes));
-	if (unlikely(ret != 0))
+	if (unlikely(ret != 0)) {
 		DRM_ERROR("copy_to_user failed %p %u\n",
 			  user_sizes, srf->num_sizes);
+		ret = -EFAULT;
+	}
 out_bad_resource:
 out_no_reference:
 	ttm_base_object_unref(&base);
@@ -1013,7 +1021,7 @@ int vmw_gmr_id_alloc(struct vmw_private *dev_priv, uint32_t *p_id)
 }
 
 /*
- * Stream managment
+ * Stream management
  */
 
 static void vmw_stream_destroy(struct vmw_resource *res)

@@ -356,7 +356,7 @@ static void dispatch_io(int rw, unsigned int num_regions,
 	BUG_ON(num_regions > DM_IO_MAX_REGIONS);
 
 	if (sync)
-		rw |= (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG);
+		rw |= REQ_SYNC | REQ_UNPLUG;
 
 	/*
 	 * For multiple regions we need to be careful to rewind
@@ -364,7 +364,7 @@ static void dispatch_io(int rw, unsigned int num_regions,
 	 */
 	for (i = 0; i < num_regions; i++) {
 		*dp = old_pages;
-		if (where[i].count || (rw & (1 << BIO_RW_BARRIER)))
+		if (where[i].count || (rw & REQ_HARDBARRIER))
 			do_region(rw, i, where + i, dp, io);
 	}
 
@@ -412,8 +412,8 @@ retry:
 	}
 	set_current_state(TASK_RUNNING);
 
-	if (io->eopnotsupp_bits && (rw & (1 << BIO_RW_BARRIER))) {
-		rw &= ~(1 << BIO_RW_BARRIER);
+	if (io->eopnotsupp_bits && (rw & REQ_HARDBARRIER)) {
+		rw &= ~REQ_HARDBARRIER;
 		goto retry;
 	}
 
@@ -479,8 +479,8 @@ static int dp_init(struct dm_io_request *io_req, struct dpages *dp)
  * New collapsed (a)synchronous interface.
  *
  * If the IO is asynchronous (i.e. it has notify.fn), you must either unplug
- * the queue with blk_unplug() some time later or set the BIO_RW_SYNC bit in
- * io_req->bi_rw. If you fail to do one of these, the IO will be submitted to
+ * the queue with blk_unplug() some time later or set REQ_SYNC in
+io_req->bi_rw. If you fail to do one of these, the IO will be submitted to
  * the disk after q->unplug_delay, which defaults to 3ms in blk-settings.c.
  */
 int dm_io(struct dm_io_request *io_req, unsigned num_regions,

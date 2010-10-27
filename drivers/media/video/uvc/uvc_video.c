@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
@@ -410,6 +411,8 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 	 * when the EOF bit is set to force synchronisation on the next packet.
 	 */
 	if (buf->state != UVC_BUF_STATE_ACTIVE) {
+		struct timespec ts;
+
 		if (fid == stream->last_fid) {
 			uvc_trace(UVC_TRACE_FRAME, "Dropping payload (out of "
 				"sync).\n");
@@ -418,6 +421,14 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 				stream->last_fid ^= UVC_STREAM_FID;
 			return -ENODATA;
 		}
+
+		if (uvc_clock_param == CLOCK_MONOTONIC)
+			ktime_get_ts(&ts);
+		else
+			ktime_get_real_ts(&ts);
+
+		buf->buf.timestamp.tv_sec = ts.tv_sec;
+		buf->buf.timestamp.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
 
 		/* TODO: Handle PTS and SCR. */
 		buf->state = UVC_BUF_STATE_ACTIVE;
@@ -544,6 +555,9 @@ static void uvc_video_decode_isoc(struct urb *urb, struct uvc_streaming *stream,
 		if (urb->iso_frame_desc[i].status < 0) {
 			uvc_trace(UVC_TRACE_FRAME, "USB isochronous frame "
 				"lost (%d).\n", urb->iso_frame_desc[i].status);
+			/* Mark the buffer as faulty. */
+			if (buf != NULL)
+				buf->error = 1;
 			continue;
 		}
 
@@ -568,8 +582,14 @@ static void uvc_video_decode_isoc(struct urb *urb, struct uvc_streaming *stream,
 		uvc_video_decode_end(stream, buf, mem,
 			urb->iso_frame_desc[i].actual_length);
 
-		if (buf->state == UVC_BUF_STATE_READY)
+		if (buf->state == UVC_BUF_STATE_READY) {
+			if (buf->buf.length != buf->buf.bytesused &&
+			    !(stream->cur_format->flags &
+			      UVC_FMT_FLAG_COMPRESSED))
+				buf->error = 1;
+
 			buf = uvc_queue_next_buffer(&stream->queue, buf);
+		}
 	}
 }
 
@@ -728,7 +748,7 @@ static void uvc_free_urb_buffers(struct uvc_streaming *stream)
 
 	for (i = 0; i < UVC_URBS; ++i) {
 		if (stream->urb_buffer[i]) {
-			usb_buffer_free(stream->dev->udev, stream->urb_size,
+			usb_free_coherent(stream->dev->udev, stream->urb_size,
 				stream->urb_buffer[i], stream->urb_dma[i]);
 			stream->urb_buffer[i] = NULL;
 		}
@@ -769,7 +789,7 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 	for (; npackets > 1; npackets /= 2) {
 		for (i = 0; i < UVC_URBS; ++i) {
 			stream->urb_size = psize * npackets;
-			stream->urb_buffer[i] = usb_buffer_alloc(
+			stream->urb_buffer[i] = usb_alloc_coherent(
 				stream->dev->udev, stream->urb_size,
 				gfp_flags | __GFP_NOWARN, &stream->urb_dma[i]);
 			if (!stream->urb_buffer[i]) {
@@ -1093,7 +1113,7 @@ int uvc_video_init(struct uvc_streaming *stream)
 	atomic_set(&stream->active, 0);
 
 	/* Initialize the video buffers queue. */
-	uvc_queue_init(&stream->queue, stream->type);
+	uvc_queue_init(&stream->queue, stream->type, !uvc_no_drop_param);
 
 	/* Alternate setting 0 should be the default, yet the XBox Live Vision
 	 * Cam (and possibly other devices) crash or otherwise misbehave if
@@ -1185,12 +1205,6 @@ int uvc_video_enable(struct uvc_streaming *stream, int enable)
 		uvc_queue_enable(&stream->queue, 0);
 		return 0;
 	}
-
-	if ((stream->cur_format->flags & UVC_FMT_FLAG_COMPRESSED) ||
-	    uvc_no_drop_param)
-		stream->queue.flags &= ~UVC_QUEUE_DROP_INCOMPLETE;
-	else
-		stream->queue.flags |= UVC_QUEUE_DROP_INCOMPLETE;
 
 	ret = uvc_queue_enable(&stream->queue, 1);
 	if (ret < 0)

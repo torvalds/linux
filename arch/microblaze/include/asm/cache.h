@@ -15,7 +15,7 @@
 
 #include <asm/registers.h>
 
-#define L1_CACHE_SHIFT	2
+#define L1_CACHE_SHIFT 5
 /* word-granular cache in microblaze */
 #define L1_CACHE_BYTES	(1 << L1_CACHE_SHIFT)
 

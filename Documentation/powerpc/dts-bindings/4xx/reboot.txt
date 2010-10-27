@@ -1,0 +1,18 @@
+Reboot property to control system reboot on PPC4xx systems:
+
+By setting "reset_type" to one of the following values, the default
+software reset mechanism may be overidden. Here the possible values of
+"reset_type":
+
+      1 - PPC4xx core reset
+      2 - PPC4xx chip reset
+      3 - PPC4xx system reset (default)
+
+Example:
+
+		cpu@0 {
+			device_type = "cpu";
+			model = "PowerPC,440SPe";
+			...
+			reset-type = <2>;	/* Use chip-reset */
+		};

@@ -18,6 +18,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/suspend.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -299,7 +300,7 @@ struct snd_soc_dai au1xpsc_i2s_dai = {
 };
 EXPORT_SYMBOL(au1xpsc_i2s_dai);
 
-static int __init au1xpsc_i2s_drvprobe(struct platform_device *pdev)
+static int __devinit au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 {
 	struct resource *r;
 	unsigned long sel;
@@ -320,12 +321,10 @@ static int __init au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 	}
 
 	ret = -EBUSY;
-	wd->ioarea = request_mem_region(r->start, r->end - r->start + 1,
-					"au1xpsc_i2s");
-	if (!wd->ioarea)
+	if (!request_mem_region(r->start, resource_size(r), pdev->name))
 		goto out0;
 
-	wd->mmio = ioremap(r->start, 0xffff);
+	wd->mmio = ioremap(r->start, resource_size(r));
 	if (!wd->mmio)
 		goto out1;
 
@@ -361,8 +360,7 @@ static int __init au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 
 	snd_soc_unregister_dai(&au1xpsc_i2s_dai);
 out1:
-	release_resource(wd->ioarea);
-	kfree(wd->ioarea);
+	release_mem_region(r->start, resource_size(r));
 out0:
 	kfree(wd);
 	return ret;
@@ -371,6 +369,7 @@ out0:
 static int __devexit au1xpsc_i2s_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *wd = platform_get_drvdata(pdev);
+	struct resource *r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	if (wd->dmapd)
 		au1xpsc_pcm_destroy(wd->dmapd);
@@ -383,8 +382,7 @@ static int __devexit au1xpsc_i2s_drvremove(struct platform_device *pdev)
 	au_sync();
 
 	iounmap(wd->mmio);
-	release_resource(wd->ioarea);
-	kfree(wd->ioarea);
+	release_mem_region(r->start, resource_size(r));
 	kfree(wd);
 
 	au1xpsc_i2s_workdata = NULL;	/* MDEV */

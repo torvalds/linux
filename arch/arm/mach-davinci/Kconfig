@@ -7,6 +7,7 @@ config CP_INTC
 	bool
 
 config ARCH_DAVINCI_DMx
+	select CPU_ARM926T
 	bool
 
 menu "TI DaVinci Implementations"
@@ -41,12 +42,18 @@ config ARCH_DAVINCI_DA850
 	select ARCH_HAS_CPUFREQ
 
 config ARCH_DAVINCI_DA8XX
+	select CPU_ARM926T
 	bool
 
 config ARCH_DAVINCI_DM365
 	bool "DaVinci 365 based system"
 	select AINTC
 	select ARCH_DAVINCI_DMx
+
+config ARCH_DAVINCI_TNETV107X
+	select CPU_V6
+	select CP_INTC
+	bool "TNETV107X based system"
 
 comment "DaVinci Board Type"
 
@@ -91,9 +98,13 @@ config MACH_DAVINCI_DM6467_EVM
 	bool "TI DM6467 EVM"
 	default ARCH_DAVINCI_DM646x
 	depends on ARCH_DAVINCI_DM646x
+	select MACH_DAVINCI_DM6467TEVM
 	help
 	  Configure this option to specify the whether the board used
 	  for development is a DM6467 EVM
+
+config MACH_DAVINCI_DM6467TEVM
+	bool
 
 config MACH_DAVINCI_DM365_EVM
 	bool "TI DM365 EVM"
@@ -166,6 +177,13 @@ config DA850_UI_RMII
 	  not be functional if RMII mode is selected.
 
 endchoice
+
+config MACH_TNETV107X
+	bool "TI TNETV107X Reference Platform"
+	default ARCH_DAVINCI_TNETV107X
+	depends on ARCH_DAVINCI_TNETV107X
+	help
+	  Say Y here to select the TI TNETV107X Evaluation Module.
 
 config DAVINCI_MUX
 	bool "DAVINCI multiplexing support"

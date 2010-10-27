@@ -30,6 +30,7 @@
 #define HD_PVR_PRODUCT_ID	0x4900
 #define HD_PVR_PRODUCT_ID1	0x4901
 #define HD_PVR_PRODUCT_ID2	0x4902
+#define HD_PVR_PRODUCT_ID3	0x4982
 
 #define UNSET    (-1U)
 
@@ -109,6 +110,11 @@ struct hdpvr_device {
 	struct mutex		usbc_mutex;
 	u8			*usbc_buf;
 };
+
+static inline struct hdpvr_device *to_hdpvr_dev(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct hdpvr_device, v4l2_dev);
+}
 
 
 /* buffer one bulk urb of data */

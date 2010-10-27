@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/agp_backend.h>
 #include <linux/log2.h>
+#include <linux/slab.h>
 
 #include <asm/acpi-ext.h>
 

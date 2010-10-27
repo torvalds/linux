@@ -17,6 +17,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mmc/host.h>
 #include <linux/proc_fs.h>
+#include <linux/gfp.h>
 
 #include <asm/cacheflush.h>
 #include <asm/dma.h>
@@ -115,7 +116,7 @@ static int sdh_setup_data(struct sdh_host *host, struct mmc_data *data)
 	unsigned int length;
 	unsigned int data_ctl;
 	unsigned int dma_cfg;
-	struct scatterlist *sg;
+	unsigned int cycle_ns, timeout;
 
 	dev_dbg(mmc_dev(host->mmc), "%s enter flags: 0x%x\n", __func__, data->flags);
 	host->data = data;
@@ -136,8 +137,11 @@ static int sdh_setup_data(struct sdh_host *host, struct mmc_data *data)
 	data_ctl |= ((ffs(data->blksz) - 1) << 4);
 
 	bfin_write_SDH_DATA_CTL(data_ctl);
-
-	bfin_write_SDH_DATA_TIMER(0xFFFF);
+	/* the time of a host clock period in ns */
+	cycle_ns = 1000000000 / (get_sclk() / (2 * (host->clk_div + 1)));
+	timeout = data->timeout_ns / cycle_ns;
+	timeout += data->timeout_clks;
+	bfin_write_SDH_DATA_TIMER(timeout);
 	SSYNC();
 
 	if (data->flags & MMC_DATA_READ) {
@@ -151,6 +155,7 @@ static int sdh_setup_data(struct sdh_host *host, struct mmc_data *data)
 #if defined(CONFIG_BF54x)
 	dma_cfg |= DMAFLOW_ARRAY | NDSIZE_5 | RESTART | WDSIZE_32 | DMAEN;
 	{
+		struct scatterlist *sg;
 		int i;
 		for_each_sg(data->sg, sg, host->dma_len, i) {
 			host->sg_cpu[i].start_addr = sg_dma_address(sg);
@@ -571,7 +576,7 @@ static int sdh_suspend(struct platform_device *dev, pm_message_t state)
 	int ret = 0;
 
 	if (mmc)
-		ret = mmc_suspend_host(mmc, state);
+		ret = mmc_suspend_host(mmc);
 
 	bfin_write_SDH_PWR_CTL(bfin_read_SDH_PWR_CTL() & ~PWR_ON);
 	peripheral_free_list(drv_data->pin_req);

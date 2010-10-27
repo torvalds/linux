@@ -13,6 +13,7 @@
 #include "matroxfb_base.h"
 #include "matroxfb_maven.h"
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/i2c-algo-bit.h>
 
 /* MGA-TVO I2C for G200, G400 */
@@ -190,7 +191,7 @@ static void* i2c_matroxfb_probe(struct matrox_fb_info* minfo) {
 			};
 
 			i2c_new_probed_device(&m2info->maven.adapter,
-					      &maven_info, addr_list);
+					      &maven_info, addr_list, NULL);
 		}
 	}
 	return m2info;

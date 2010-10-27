@@ -20,6 +20,8 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -32,12 +34,12 @@
 
 #include <plat/regs-serial.h>
 #include <plat/udc.h>
+#include <plat/mci.h>
 
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/regs-spi.h>
-
-#include <mach/ts.h>
+#include <plat/ts.h>
 
 /* Serial port registrations */
 
@@ -112,34 +114,6 @@ struct s3c24xx_uart_resources s3c2410_uart_resources[] __initdata = {
 	},
 };
 
-/* yart devices */
-
-static struct platform_device s3c24xx_uart_device0 = {
-	.id		= 0,
-};
-
-static struct platform_device s3c24xx_uart_device1 = {
-	.id		= 1,
-};
-
-static struct platform_device s3c24xx_uart_device2 = {
-	.id		= 2,
-};
-
-static struct platform_device s3c24xx_uart_device3 = {
-	.id		= 3,
-};
-
-struct platform_device *s3c24xx_uart_src[4] = {
-	&s3c24xx_uart_device0,
-	&s3c24xx_uart_device1,
-	&s3c24xx_uart_device2,
-	&s3c24xx_uart_device3,
-};
-
-struct platform_device *s3c24xx_uart_devs[4] = {
-};
-
 /* LCD Controller */
 
 static struct resource s3c_lcd_resource[] = {
@@ -175,19 +149,41 @@ void __init s3c24xx_fb_set_platdata(struct s3c2410fb_mach_info *pd)
 {
 	struct s3c2410fb_mach_info *npd;
 
-	npd = kmalloc(sizeof(*npd), GFP_KERNEL);
+	npd = kmemdup(pd, sizeof(*npd), GFP_KERNEL);
 	if (npd) {
-		memcpy(npd, pd, sizeof(*npd));
 		s3c_device_lcd.dev.platform_data = npd;
+		npd->displays = kmemdup(pd->displays,
+			sizeof(struct s3c2410fb_display) * npd->num_displays,
+			GFP_KERNEL);
+		if (!npd->displays)
+			printk(KERN_ERR "no memory for LCD display data\n");
 	} else {
 		printk(KERN_ERR "no memory for LCD platform data\n");
 	}
 }
 
 /* Touchscreen */
+
+static struct resource s3c_ts_resource[] = {
+	[0] = {
+		.start = S3C24XX_PA_ADC,
+		.end   = S3C24XX_PA_ADC + S3C24XX_SZ_ADC - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_TC,
+		.end   = IRQ_TC,
+		.flags = IORESOURCE_IRQ,
+	},
+
+};
+
 struct platform_device s3c_device_ts = {
 	.name		  = "s3c2410-ts",
 	.id		  = -1,
+	.dev.parent	= &s3c_device_adc.dev,
+	.num_resources	  = ARRAY_SIZE(s3c_ts_resource),
+	.resource	  = s3c_ts_resource,
 };
 EXPORT_SYMBOL(s3c_device_ts);
 
@@ -237,32 +233,6 @@ void __init s3c24xx_udc_set_platdata(struct s3c2410_udc_mach_info *pd)
 		printk(KERN_ERR "no memory for udc platform data\n");
 	}
 }
-
-
-/* Watchdog */
-
-static struct resource s3c_wdt_resource[] = {
-	[0] = {
-		.start = S3C24XX_PA_WATCHDOG,
-		.end   = S3C24XX_PA_WATCHDOG + S3C24XX_SZ_WATCHDOG - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_WDT,
-		.end   = IRQ_WDT,
-		.flags = IORESOURCE_IRQ,
-	}
-
-};
-
-struct platform_device s3c_device_wdt = {
-	.name		  = "s3c2410-wdt",
-	.id		  = -1,
-	.num_resources	  = ARRAY_SIZE(s3c_wdt_resource),
-	.resource	  = s3c_wdt_resource,
-};
-
-EXPORT_SYMBOL(s3c_device_wdt);
 
 /* IIS */
 
@@ -346,14 +316,6 @@ struct platform_device s3c_device_adc = {
 	.resource	  = s3c_adc_resource,
 };
 
-/* HWMON */
-
-struct platform_device s3c_device_hwmon = {
-	.name		= "s3c-hwmon",
-	.id		= -1,
-	.dev.parent	= &s3c_device_adc.dev,
-};
-
 /* SDI */
 
 static struct resource s3c_sdi_resource[] = {
@@ -378,6 +340,18 @@ struct platform_device s3c_device_sdi = {
 };
 
 EXPORT_SYMBOL(s3c_device_sdi);
+
+void __init s3c24xx_mci_set_platdata(struct s3c24xx_mci_pdata *pdata)
+{
+	struct s3c24xx_mci_pdata *npd;
+
+	npd = kmemdup(pdata, sizeof(struct s3c24xx_mci_pdata), GFP_KERNEL);
+	if (!npd)
+		printk(KERN_ERR "%s: no memory to copy pdata", __func__);
+
+	s3c_device_sdi.dev.platform_data = npd;
+}
+
 
 /* SPI (0) */
 

@@ -33,6 +33,15 @@
  * subject to backwards-compatibility constraints.
  */
 
+#ifdef __KERNEL__
+/* For use by IPS driver */
+extern unsigned long i915_read_mch_val(void);
+extern bool i915_gpu_raise(void);
+extern bool i915_gpu_lower(void);
+extern bool i915_gpu_busy(void);
+extern bool i915_gpu_turbo_disable(void);
+#endif
+
 /* Each region is a minimum of 16k, and there are at most 255 of them.
  */
 #define I915_NR_TEX_REGIONS 255	/* table size 2k - maximum due to use
@@ -206,6 +215,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_SET_VBLANK_PIPE	DRM_IOW( DRM_COMMAND_BASE + DRM_I915_SET_VBLANK_PIPE, drm_i915_vblank_pipe_t)
 #define DRM_IOCTL_I915_GET_VBLANK_PIPE	DRM_IOR( DRM_COMMAND_BASE + DRM_I915_GET_VBLANK_PIPE, drm_i915_vblank_pipe_t)
 #define DRM_IOCTL_I915_VBLANK_SWAP	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_VBLANK_SWAP, drm_i915_vblank_swap_t)
+#define DRM_IOCTL_I915_HWS_ADDR		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_HWS_ADDR, struct drm_i915_gem_init)
 #define DRM_IOCTL_I915_GEM_INIT		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_INIT, struct drm_i915_gem_init)
 #define DRM_IOCTL_I915_GEM_EXECBUFFER	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_EXECBUFFER, struct drm_i915_gem_execbuffer)
 #define DRM_IOCTL_I915_GEM_EXECBUFFER2	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_EXECBUFFER2, struct drm_i915_gem_execbuffer2)
@@ -275,6 +285,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_OVERLAY           7
 #define I915_PARAM_HAS_PAGEFLIPPING	 8
 #define I915_PARAM_HAS_EXECBUF2          9
+#define I915_PARAM_HAS_BSD		 10
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -616,7 +627,9 @@ struct drm_i915_gem_execbuffer2 {
 	__u32 num_cliprects;
 	/** This is a struct drm_clip_rect *cliprects */
 	__u64 cliprects_ptr;
-	__u64 flags; /* currently unused */
+#define I915_EXEC_RENDER                 (1<<0)
+#define I915_EXEC_BSD                    (1<<1)
+	__u64 flags;
 	__u64 rsvd1;
 	__u64 rsvd2;
 };

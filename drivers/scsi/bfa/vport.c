@@ -122,7 +122,7 @@ bfa_fcs_vport_sm_uninit(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -165,7 +165,7 @@ bfa_fcs_vport_sm_created(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -202,7 +202,7 @@ bfa_fcs_vport_sm_offline(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -218,9 +218,9 @@ bfa_fcs_vport_sm_fdisc(struct bfa_fcs_vport_s *vport,
 
 	switch (event) {
 	case BFA_FCS_VPORT_SM_DELETE:
-		bfa_sm_set_state(vport, bfa_fcs_vport_sm_logo);
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_cleanup);
 		bfa_lps_discard(vport->lps);
-		bfa_fcs_vport_do_logo(vport);
+		bfa_fcs_port_delete(&vport->lport);
 		break;
 
 	case BFA_FCS_VPORT_SM_OFFLINE:
@@ -249,7 +249,7 @@ bfa_fcs_vport_sm_fdisc(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -283,7 +283,7 @@ bfa_fcs_vport_sm_fdisc_retry(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -310,7 +310,7 @@ bfa_fcs_vport_sm_online(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -339,7 +339,7 @@ bfa_fcs_vport_sm_deleting(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -357,8 +357,9 @@ bfa_fcs_vport_sm_error(struct bfa_fcs_vport_s *vport,
 
 	switch (event) {
 	case BFA_FCS_VPORT_SM_DELETE:
-		bfa_sm_set_state(vport, bfa_fcs_vport_sm_uninit);
-		bfa_fcs_vport_free(vport);
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_cleanup);
+		bfa_fcs_port_delete(&vport->lport);
+
 		break;
 
 	default:
@@ -387,7 +388,7 @@ bfa_fcs_vport_sm_cleanup(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -419,7 +420,7 @@ bfa_fcs_vport_sm_logo(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -447,22 +448,8 @@ bfa_fcs_vport_aen_post(bfa_fcs_lport_t *port, enum bfa_lport_aen_event event)
 
 	bfa_assert(role <= BFA_PORT_ROLE_FCP_MAX);
 
-	switch (event) {
-	case BFA_LPORT_AEN_NPIV_DUP_WWN:
-		bfa_log(logmod, BFA_AEN_LPORT_NPIV_DUP_WWN, lpwwn_ptr,
-			role_str[role / 2]);
-		break;
-	case BFA_LPORT_AEN_NPIV_FABRIC_MAX:
-		bfa_log(logmod, BFA_AEN_LPORT_NPIV_FABRIC_MAX, lpwwn_ptr,
-			role_str[role / 2]);
-		break;
-	case BFA_LPORT_AEN_NPIV_UNKNOWN:
-		bfa_log(logmod, BFA_AEN_LPORT_NPIV_UNKNOWN, lpwwn_ptr,
-			role_str[role / 2]);
-		break;
-	default:
-		break;
-	}
+	bfa_log(logmod, BFA_LOG_CREATE_ID(BFA_AEN_CAT_LPORT, event), lpwwn_ptr,
+			role_str[role/2]);
 
 	aen_data.lport.vf_id = port->fabric->vf_id;
 	aen_data.lport.roles = role;
@@ -478,7 +465,7 @@ static void
 bfa_fcs_vport_do_fdisc(struct bfa_fcs_vport_s *vport)
 {
 	bfa_lps_fdisc(vport->lps, vport,
-		      bfa_pport_get_maxfrsize(__vport_bfa(vport)),
+		      bfa_fcport_get_maxfrsize(__vport_bfa(vport)),
 		      __vport_pwwn(vport), __vport_nwwn(vport));
 	vport->vport_stats.fdisc_sent++;
 }
@@ -608,6 +595,15 @@ bfa_fcs_vport_cleanup(struct bfa_fcs_vport_s *vport)
 }
 
 /**
+ * delete notification from fabric SM. To be invoked from within FCS.
+ */
+void
+bfa_fcs_vport_fcs_delete(struct bfa_fcs_vport_s *vport)
+{
+	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_DELETE);
+}
+
+/**
  * Delete completion callback from associated lport
  */
 void
@@ -615,38 +611,6 @@ bfa_fcs_vport_delete_comp(struct bfa_fcs_vport_s *vport)
 {
 	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_DELCOMP);
 }
-
-/**
- *   Module initialization
- */
-void
-bfa_fcs_vport_modinit(struct bfa_fcs_s *fcs)
-{
-}
-
-/**
- *   Module cleanup
- */
-void
-bfa_fcs_vport_modexit(struct bfa_fcs_s *fcs)
-{
-	bfa_fcs_modexit_comp(fcs);
-}
-
-u32
-bfa_fcs_vport_get_max(struct bfa_fcs_s *fcs)
-{
-	struct bfa_ioc_attr_s ioc_attr;
-
-	bfa_get_attr(fcs->bfa, &ioc_attr);
-
-	if (ioc_attr.pci_attr.device_id == BFA_PCI_DEVICE_ID_CT)
-		return BFA_FCS_MAX_VPORTS_SUPP_CT;
-	else
-		return BFA_FCS_MAX_VPORTS_SUPP_CB;
-}
-
-
 
 /**
  *  fcs_vport_api Virtual port API
@@ -684,7 +648,7 @@ bfa_fcs_vport_create(struct bfa_fcs_vport_s *vport, struct bfa_fcs_s *fcs,
 		return BFA_STATUS_VPORT_EXISTS;
 
 	if (bfa_fcs_fabric_vport_count(&fcs->fabric) ==
-	    bfa_fcs_vport_get_max(fcs))
+		bfa_lps_get_max_vport(fcs->bfa))
 		return BFA_STATUS_VPORT_MAX;
 
 	vport->lps = bfa_lps_alloc(fcs->bfa);
@@ -692,13 +656,45 @@ bfa_fcs_vport_create(struct bfa_fcs_vport_s *vport, struct bfa_fcs_s *fcs,
 		return BFA_STATUS_VPORT_MAX;
 
 	vport->vport_drv = vport_drv;
+	vport_cfg->preboot_vp = BFA_FALSE;
 	bfa_sm_set_state(vport, bfa_fcs_vport_sm_uninit);
 
-	bfa_fcs_lport_init(&vport->lport, fcs, vf_id, vport_cfg, vport);
+	bfa_fcs_lport_attach(&vport->lport, fcs, vf_id, vport);
+	bfa_fcs_lport_init(&vport->lport, vport_cfg);
 
 	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_CREATE);
 
 	return BFA_STATUS_OK;
+}
+
+/**
+ *      Use this function to instantiate a new FCS PBC vport object. This
+ *      function will not trigger any HW initialization process (which will be
+ *      done in vport_start() call)
+ *
+ *      param[in] vport        -       pointer to bfa_fcs_vport_t. This space
+ *                                      needs to be allocated by the driver.
+ *      param[in] fcs          -       FCS instance
+ *      param[in] vport_cfg    -       vport configuration
+ *      param[in] vf_id        -       VF_ID if vport is created within a VF.
+ *                                      FC_VF_ID_NULL to specify base fabric.
+ *      param[in] vport_drv    -       Opaque handle back to the driver's vport
+ *                                      structure
+ *
+ *      retval BFA_STATUS_OK - on success.
+ *      retval BFA_STATUS_FAILED - on failure.
+ */
+bfa_status_t
+bfa_fcs_pbc_vport_create(struct bfa_fcs_vport_s *vport, struct bfa_fcs_s *fcs,
+			uint16_t vf_id, struct bfa_port_cfg_s *vport_cfg,
+			struct bfad_vport_s *vport_drv)
+{
+	bfa_status_t rc;
+
+	rc = bfa_fcs_vport_create(vport, fcs, vf_id, vport_cfg, vport_drv);
+	vport->lport.port_cfg.preboot_vp = BFA_TRUE;
+
+	return rc;
 }
 
 /**
@@ -737,6 +733,8 @@ bfa_fcs_vport_stop(struct bfa_fcs_vport_s *vport)
  *  	Use this function to delete a vport object. Fabric object should
  * 		be stopped before this function call.
  *
+ *	Donot invoke this from within FCS
+ *
  * 	param[in] vport - pointer to bfa_fcs_vport_t.
  *
  * 	return     None
@@ -744,6 +742,9 @@ bfa_fcs_vport_stop(struct bfa_fcs_vport_s *vport)
 bfa_status_t
 bfa_fcs_vport_delete(struct bfa_fcs_vport_s *vport)
 {
+	if (vport->lport.port_cfg.preboot_vp)
+		return BFA_STATUS_PBC;
+
 	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_DELETE);
 
 	return BFA_STATUS_OK;
@@ -834,7 +835,7 @@ bfa_cb_lps_fdisc_comp(void *bfad, void *uarg, bfa_status_t status)
 	switch (status) {
 	case BFA_STATUS_OK:
 		/*
-		 * Initialiaze the V-Port fields
+		 * Initialize the V-Port fields
 		 */
 		__vport_fcid(vport) = bfa_lps_get_pid(vport->lps);
 		vport->vport_stats.fdisc_accepts++;
@@ -888,4 +889,15 @@ bfa_cb_lps_fdisclogo_comp(void *bfad, void *uarg)
 	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_RSP_OK);
 }
 
+/**
+ * Received clear virtual link
+ */
+void
+bfa_cb_lps_cvl_event(void *bfad, void *uarg)
+{
+	struct bfa_fcs_vport_s *vport = uarg;
 
+	/* Send an Offline followed by an ONLINE */
+	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_OFFLINE);
+	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_ONLINE);
+}

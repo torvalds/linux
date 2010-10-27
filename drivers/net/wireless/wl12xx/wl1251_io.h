@@ -48,6 +48,26 @@ static inline void wl1251_write32(struct wl1251 *wl, int addr, u32 val)
 	wl->if_ops->write(wl, addr, &val, sizeof(u32));
 }
 
+static inline u32 wl1251_read_elp(struct wl1251 *wl, int addr)
+{
+	u32 response;
+
+	if (wl->if_ops->read_elp)
+		wl->if_ops->read_elp(wl, addr, &response);
+	else
+		wl->if_ops->read(wl, addr, &response, sizeof(u32));
+
+	return response;
+}
+
+static inline void wl1251_write_elp(struct wl1251 *wl, int addr, u32 val)
+{
+	if (wl->if_ops->write_elp)
+		wl->if_ops->write_elp(wl, addr, val);
+	else
+		wl->if_ops->write(wl, addr, &val, sizeof(u32));
+}
+
 /* Memory target IO, address is translated to partition 0 */
 void wl1251_mem_read(struct wl1251 *wl, int addr, void *buf, size_t len);
 void wl1251_mem_write(struct wl1251 *wl, int addr, void *buf, size_t len);

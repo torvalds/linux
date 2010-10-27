@@ -66,7 +66,6 @@
 
 #include <linux/sched.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/timer.h>
@@ -84,17 +83,42 @@
 #include <linux/ioport.h>
 
 #include "et1310_phy.h"
-#include "et1310_pm.h"
-#include "et1310_jagcore.h"
-#include "et1310_eeprom.h"
-
 #include "et131x_adapter.h"
-#include "et131x_initpci.h"
-#include "et131x_isr.h"
+#include "et131x.h"
 
-#include "et1310_tx.h"
+/*
+ * EEPROM Defines
+ */
 
+/* LBCIF Register Groups (addressed via 32-bit offsets) */
+#define LBCIF_DWORD0_GROUP       0xAC
+#define LBCIF_DWORD1_GROUP       0xB0
 
+/* LBCIF Registers (addressed via 8-bit offsets) */
+#define LBCIF_ADDRESS_REGISTER   0xAC
+#define LBCIF_DATA_REGISTER      0xB0
+#define LBCIF_CONTROL_REGISTER   0xB1
+#define LBCIF_STATUS_REGISTER    0xB2
+
+/* LBCIF Control Register Bits */
+#define LBCIF_CONTROL_SEQUENTIAL_READ   0x01
+#define LBCIF_CONTROL_PAGE_WRITE        0x02
+#define LBCIF_CONTROL_EEPROM_RELOAD     0x08
+#define LBCIF_CONTROL_TWO_BYTE_ADDR     0x20
+#define LBCIF_CONTROL_I2C_WRITE         0x40
+#define LBCIF_CONTROL_LBCIF_ENABLE      0x80
+
+/* LBCIF Status Register Bits */
+#define LBCIF_STATUS_PHY_QUEUE_AVAIL    0x01
+#define LBCIF_STATUS_I2C_IDLE           0x02
+#define LBCIF_STATUS_ACK_ERROR          0x04
+#define LBCIF_STATUS_GENERAL_ERROR      0x08
+#define LBCIF_STATUS_CHECKSUM_ERROR     0x40
+#define LBCIF_STATUS_EEPROM_PRESENT     0x80
+
+/* Miscellaneous Constraints */
+#define MAX_NUM_REGISTER_POLLS          1000
+#define MAX_NUM_WRITE_RETRIES           2
 
 static int eeprom_wait_ready(struct pci_dev *pdev, u32 *status)
 {
@@ -278,7 +302,7 @@ static int eeprom_read(struct et131x_adapter *etdev, u32 addr, u8 *pdata)
 	err = eeprom_wait_ready(pdev, NULL);
 	if (err)
 		return err;
- 	/*
+	/*
 	 * Write to the LBCIF Control Register:  bit 7=1, bit 6=0, bit 3=0,
 	 * and bits 1:0 both =0.  Bit 5 should be set according to the type
 	 * of EEPROM being accessed (1=two byte addressing, 0=one byte
@@ -359,9 +383,9 @@ int et131x_init_eeprom(struct et131x_adapter *etdev)
 
 			/* This error could mean that there was an error
 			 * reading the eeprom or that the eeprom doesn't exist.
-			 * We will treat each case the same and not try to gather
-			 * additional information that normally would come from the
-			 * eeprom, like MAC Address
+			 * We will treat each case the same and not try to
+			 * gather additional information that normally would
+			 * come from the eeprom, like MAC Address
 			 */
 			etdev->has_eeprom = 0;
 			return -EIO;

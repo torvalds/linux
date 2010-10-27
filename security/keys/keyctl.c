@@ -33,7 +33,7 @@ static int key_get_type_from_user(char *type,
 	ret = strncpy_from_user(type, _type, len);
 
 	if (ret < 0)
-		return -EFAULT;
+		return ret;
 
 	if (ret == 0 || ret >= len)
 		return -EINVAL;
@@ -212,15 +212,15 @@ SYSCALL_DEFINE4(request_key, const char __user *, _type,
 	ret = key->serial;
 
  	key_put(key);
- error5:
+error5:
 	key_type_put(ktype);
- error4:
+error4:
 	key_ref_put(dest_ref);
- error3:
+error3:
 	kfree(callout_info);
- error2:
+error2:
 	kfree(description);
- error:
+error:
 	return ret;
 
 } /* end sys_request_key() */
@@ -246,7 +246,7 @@ long keyctl_get_keyring_ID(key_serial_t id, int create)
 
 	ret = key_ref_to_ptr(key_ref)->serial;
 	key_ref_put(key_ref);
- error:
+error:
 	return ret;
 
 } /* end keyctl_get_keyring_ID() */
@@ -275,7 +275,7 @@ long keyctl_join_session_keyring(const char __user *_name)
 	ret = join_session_keyring(name);
 	kfree(name);
 
- error:
+error:
 	return ret;
 
 } /* end keyctl_join_session_keyring() */
@@ -322,9 +322,9 @@ long keyctl_update_key(key_serial_t id,
 	ret = key_update(key_ref, payload, plen);
 
 	key_ref_put(key_ref);
- error2:
+error2:
 	kfree(payload);
- error:
+error:
 	return ret;
 
 } /* end keyctl_update_key() */
@@ -356,7 +356,7 @@ long keyctl_revoke_key(key_serial_t id)
 	ret = 0;
 
 	key_ref_put(key_ref);
- error:
+error:
 	return ret;
 
 } /* end keyctl_revoke_key() */
@@ -381,7 +381,7 @@ long keyctl_keyring_clear(key_serial_t ringid)
 	ret = keyring_clear(key_ref_to_ptr(keyring_ref));
 
 	key_ref_put(keyring_ref);
- error:
+error:
 	return ret;
 
 } /* end keyctl_keyring_clear() */
@@ -413,9 +413,9 @@ long keyctl_keyring_link(key_serial_t id, key_serial_t ringid)
 	ret = key_link(key_ref_to_ptr(keyring_ref), key_ref_to_ptr(key_ref));
 
 	key_ref_put(key_ref);
- error2:
+error2:
 	key_ref_put(keyring_ref);
- error:
+error:
 	return ret;
 
 } /* end keyctl_keyring_link() */
@@ -447,9 +447,9 @@ long keyctl_keyring_unlink(key_serial_t id, key_serial_t ringid)
 	ret = key_unlink(key_ref_to_ptr(keyring_ref), key_ref_to_ptr(key_ref));
 
 	key_ref_put(key_ref);
- error2:
+error2:
 	key_ref_put(keyring_ref);
- error:
+error:
 	return ret;
 
 } /* end keyctl_keyring_unlink() */
@@ -505,13 +505,11 @@ okay:
 
 	ret = snprintf(tmpbuf, PAGE_SIZE - 1,
 		       "%s;%d;%d;%08x;%s",
-		       key_ref_to_ptr(key_ref)->type->name,
-		       key_ref_to_ptr(key_ref)->uid,
-		       key_ref_to_ptr(key_ref)->gid,
-		       key_ref_to_ptr(key_ref)->perm,
-		       key_ref_to_ptr(key_ref)->description ?
-		       key_ref_to_ptr(key_ref)->description : ""
-		       );
+		       key->type->name,
+		       key->uid,
+		       key->gid,
+		       key->perm,
+		       key->description ?: "");
 
 	/* include a NUL char at the end of the data */
 	if (ret > PAGE_SIZE - 1)
@@ -529,9 +527,9 @@ okay:
 	}
 
 	kfree(tmpbuf);
- error2:
+error2:
 	key_ref_put(key_ref);
- error:
+error:
 	return ret;
 
 } /* end keyctl_describe_key() */
@@ -616,17 +614,17 @@ long keyctl_keyring_search(key_serial_t ringid,
 
 	ret = key_ref_to_ptr(key_ref)->serial;
 
- error6:
+error6:
 	key_ref_put(key_ref);
- error5:
+error5:
 	key_type_put(ktype);
- error4:
+error4:
 	key_ref_put(dest_ref);
- error3:
+error3:
 	key_ref_put(keyring_ref);
- error2:
+error2:
 	kfree(description);
- error:
+error:
 	return ret;
 
 } /* end keyctl_keyring_search() */
@@ -673,7 +671,7 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
 	}
 
 	/* the key is probably readable - now try to read it */
- can_read_key:
+can_read_key:
 	ret = key_validate(key);
 	if (ret == 0) {
 		ret = -EOPNOTSUPP;
@@ -686,9 +684,9 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
 		}
 	}
 
- error2:
+error2:
 	key_put(key);
- error:
+error:
 	return ret;
 
 } /* end keyctl_read_key() */
@@ -1080,7 +1078,7 @@ set:
 	return old_setting;
 error:
 	abort_creds(new);
-	return -EINVAL;
+	return ret;
 
 } /* end keyctl_set_reqkey_keyring() */
 
@@ -1091,7 +1089,7 @@ error:
 long keyctl_set_timeout(key_serial_t id, unsigned timeout)
 {
 	struct timespec now;
-	struct key *key;
+	struct key *key, *instkey;
 	key_ref_t key_ref;
 	time_t expiry;
 	long ret;
@@ -1099,10 +1097,25 @@ long keyctl_set_timeout(key_serial_t id, unsigned timeout)
 	key_ref = lookup_user_key(id, KEY_LOOKUP_CREATE | KEY_LOOKUP_PARTIAL,
 				  KEY_SETATTR);
 	if (IS_ERR(key_ref)) {
+		/* setting the timeout on a key under construction is permitted
+		 * if we have the authorisation token handy */
+		if (PTR_ERR(key_ref) == -EACCES) {
+			instkey = key_get_instantiation_authkey(id);
+			if (!IS_ERR(instkey)) {
+				key_put(instkey);
+				key_ref = lookup_user_key(id,
+							  KEY_LOOKUP_PARTIAL,
+							  0);
+				if (!IS_ERR(key_ref))
+					goto okay;
+			}
+		}
+
 		ret = PTR_ERR(key_ref);
 		goto error;
 	}
 
+okay:
 	key = key_ref_to_ptr(key_ref);
 
 	/* make the changes with the locks held to prevent races */
@@ -1259,6 +1272,7 @@ long keyctl_session_to_parent(void)
 	keyring_r = NULL;
 
 	me = current;
+	rcu_read_lock();
 	write_lock_irq(&tasklist_lock);
 
 	parent = me->real_parent;
@@ -1269,7 +1283,7 @@ long keyctl_session_to_parent(void)
 		goto not_permitted;
 
 	/* the parent must be single threaded */
-	if (atomic_read(&parent->signal->count) != 1)
+	if (!thread_group_empty(parent))
 		goto not_permitted;
 
 	/* the parent and the child must have different session keyrings or
@@ -1282,24 +1296,18 @@ long keyctl_session_to_parent(void)
 
 	/* the parent must have the same effective ownership and mustn't be
 	 * SUID/SGID */
-	if (pcred-> uid	!= mycred->euid	||
+	if (pcred->uid	!= mycred->euid	||
 	    pcred->euid	!= mycred->euid	||
 	    pcred->suid	!= mycred->euid	||
-	    pcred-> gid	!= mycred->egid	||
+	    pcred->gid	!= mycred->egid	||
 	    pcred->egid	!= mycred->egid	||
 	    pcred->sgid	!= mycred->egid)
 		goto not_permitted;
 
 	/* the keyrings must have the same UID */
-	if (pcred ->tgcred->session_keyring->uid != mycred->euid ||
+	if ((pcred->tgcred->session_keyring &&
+	     pcred->tgcred->session_keyring->uid != mycred->euid) ||
 	    mycred->tgcred->session_keyring->uid != mycred->euid)
-		goto not_permitted;
-
-	/* the LSM must permit the replacement of the parent's keyring with the
-	 * keyring from this process */
-	ret = security_key_session_to_parent(mycred, pcred,
-					     key_ref_to_ptr(keyring_r));
-	if (ret < 0)
 		goto not_permitted;
 
 	/* if there's an already pending keyring replacement, then we replace
@@ -1313,6 +1321,7 @@ long keyctl_session_to_parent(void)
 	set_ti_thread_flag(task_thread_info(parent), TIF_NOTIFY_RESUME);
 
 	write_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	if (oldcred)
 		put_cred(oldcred);
 	return 0;
@@ -1321,6 +1330,7 @@ already_same:
 	ret = 0;
 not_permitted:
 	write_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	put_cred(cred);
 	return ret;
 

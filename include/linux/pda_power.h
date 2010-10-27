@@ -24,6 +24,8 @@ struct pda_power_pdata {
 	int (*is_usb_online)(void);
 	void (*set_charge)(int flags);
 	void (*exit)(struct device *dev);
+	int (*suspend)(pm_message_t state);
+	int (*resume)(void);
 
 	char **supplied_to;
 	size_t num_supplicants;

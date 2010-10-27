@@ -19,11 +19,11 @@
 #include <asm/pgalloc.h>
 #include <asm/system.h>
 #include <asm/atomic.h>
+#include <asm/smp.h>
+
+void (*pm_idle)(void) = NULL;
 
 static int hlt_counter;
-void (*pm_idle)(void) = NULL;
-void (*pm_power_off)(void);
-EXPORT_SYMBOL(pm_power_off);
 
 static int __init nohlt_setup(char *__unused)
 {
@@ -90,9 +90,12 @@ void cpu_idle(void)
 	while (1) {
 		tick_nohz_stop_sched_tick(1);
 
-		while (!need_resched() && cpu_online(cpu)) {
+		while (!need_resched()) {
 			check_pgt_cache();
 			rmb();
+
+			if (cpu_is_offline(cpu))
+				play_dead();
 
 			local_irq_disable();
 			/* Don't trace irqs off for idle */
@@ -113,7 +116,7 @@ void cpu_idle(void)
 	}
 }
 
-void __cpuinit select_idle_routine(void)
+void __init select_idle_routine(void)
 {
 	/*
 	 * If a platform has set its own idle routine, leave it alone.
@@ -129,6 +132,15 @@ void __cpuinit select_idle_routine(void)
 
 static void do_nothing(void *unused)
 {
+}
+
+void stop_this_cpu(void *unused)
+{
+	local_irq_disable();
+	set_cpu_online(smp_processor_id(), false);
+
+	for (;;)
+		cpu_sleep();
 }
 
 /*

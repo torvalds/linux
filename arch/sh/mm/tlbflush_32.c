@@ -119,22 +119,3 @@ void local_flush_tlb_mm(struct mm_struct *mm)
 		local_irq_restore(flags);
 	}
 }
-
-void local_flush_tlb_all(void)
-{
-	unsigned long flags, status;
-
-	/*
-	 * Flush all the TLB.
-	 *
-	 * Write to the MMU control register's bit:
-	 *	TF-bit for SH-3, TI-bit for SH-4.
-	 *      It's same position, bit #2.
-	 */
-	local_irq_save(flags);
-	status = ctrl_inl(MMUCR);
-	status |= 0x04;
-	ctrl_outl(status, MMUCR);
-	ctrl_barrier();
-	local_irq_restore(flags);
-}

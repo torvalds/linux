@@ -33,6 +33,7 @@
 
 #include <asm/page.h>
 #include <linux/mlx4/cq.h>
+#include <linux/slab.h>
 #include <linux/mlx4/qp.h>
 #include <linux/skbuff.h>
 #include <linux/if_vlan.h>

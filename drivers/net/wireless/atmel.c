@@ -865,7 +865,6 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 
 	/* low bit of first byte of destination tells us if broadcast */
 	tx_update_descriptor(priv, *(skb->data) & 0x01, len + 18, buff, TX_PACKET_TYPE_DATA);
-	dev->trans_start = jiffies;
 	dev->stats.tx_bytes += len;
 
 	spin_unlock_irqrestore(&priv->irqlock, flags);

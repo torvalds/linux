@@ -22,6 +22,7 @@
 
 #include <linux/wireless.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 
 /*
  *  Function definitions
@@ -100,7 +101,7 @@ typedef struct {
 	u8 device_id;
 	u8 flags;
 	u32 length;
-} __attribute__ ((packed))
+} __packed
 pimfor_header_t;
 
 /* A received and interrupt-processed management frame, either for

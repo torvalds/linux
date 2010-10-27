@@ -140,7 +140,11 @@ static struct omap3_control_regs control_context;
 
 void __init omap2_set_globals_control(struct omap_globals *omap2_globals)
 {
-	omap2_ctrl_base = omap2_globals->ctrl;
+	/* Static mapping, never released */
+	if (omap2_globals->ctrl) {
+		omap2_ctrl_base = ioremap(omap2_globals->ctrl, SZ_4K);
+		WARN_ON(!omap2_ctrl_base);
+	}
 }
 
 void __iomem *omap_ctrl_base_get(void)
@@ -190,11 +194,12 @@ void omap3_clear_scratchpad_contents(void)
 	u32 offset = 0;
 	v_addr = OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD_ROM);
 	if (prm_read_mod_reg(OMAP3430_GR_MOD, OMAP3_PRM_RSTST_OFFSET) &
-		OMAP3430_GLOBAL_COLD_RST) {
+	    OMAP3430_GLOBAL_COLD_RST_MASK) {
 		for ( ; offset <= max_offset; offset += 0x4)
 			__raw_writel(0x0, (v_addr + offset));
-		prm_set_mod_reg_bits(OMAP3430_GLOBAL_COLD_RST, OMAP3430_GR_MOD,
-			OMAP3_PRM_RSTST_OFFSET);
+		prm_set_mod_reg_bits(OMAP3430_GLOBAL_COLD_RST_MASK,
+				     OMAP3430_GR_MOD,
+				     OMAP3_PRM_RSTST_OFFSET);
 	}
 }
 

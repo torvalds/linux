@@ -18,7 +18,6 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -26,6 +25,7 @@
 #include <linux/percpu.h>
 #include <linux/err.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -268,9 +268,9 @@ asmlinkage long sys_vfork(void)
 		       0, NULL, NULL);
 }
 
-asmlinkage long sys_execve(char __user *name,
-			   char __user * __user *argv,
-			   char __user * __user *envp)
+asmlinkage long sys_execve(const char __user *name,
+			   const char __user *const __user *argv,
+			   const char __user *const __user *envp)
 {
 	char *filename;
 	int error;

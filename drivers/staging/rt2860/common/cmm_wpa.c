@@ -427,7 +427,7 @@ void RTMPToWirelessSta(struct rt_rtmp_adapter *pAd,
 /*
     ==========================================================================
     Description:
-        This is a function to initilize 4-way handshake
+        This is a function to initialize 4-way handshake
 
     Return:
 
@@ -867,7 +867,7 @@ void PeerPairMsg3Action(struct rt_rtmp_adapter *pAd,
     ==========================================================================
     Description:
         When receiving the last packet of 4-way pairwisekey handshake.
-        Initilize 2-way groupkey handshake following.
+        Initialize 2-way groupkey handshake following.
     Return:
     ==========================================================================
 */
@@ -2928,25 +2928,23 @@ void WpaShowAllsuite(u8 *rsnie, u32 rsnie_len)
 	hex_dump("RSNIE", rsnie, rsnie_len);
 
 	/* group cipher */
-	if ((pSuite =
-	     GetSuiteFromRSNIE(rsnie, rsnie_len, GROUP_SUITE,
-			       &count)) != NULL) {
+	pSuite = GetSuiteFromRSNIE(rsnie, rsnie_len, GROUP_SUITE, &count);
+	if (pSuite != NULL) {
 		hex_dump("group cipher", pSuite, 4 * count);
 	}
 	/* pairwise cipher */
-	if ((pSuite =
-	     GetSuiteFromRSNIE(rsnie, rsnie_len, PAIRWISE_SUITE,
-			       &count)) != NULL) {
+	pSuite = GetSuiteFromRSNIE(rsnie, rsnie_len, PAIRWISE_SUITE, &count);
+	if (pSuite != NULL) {
 		hex_dump("pairwise cipher", pSuite, 4 * count);
 	}
 	/* AKM */
-	if ((pSuite =
-	     GetSuiteFromRSNIE(rsnie, rsnie_len, AKM_SUITE, &count)) != NULL) {
+	pSuite = GetSuiteFromRSNIE(rsnie, rsnie_len, AKM_SUITE, &count);
+	if (pSuite != NULL) {
 		hex_dump("AKM suite", pSuite, 4 * count);
 	}
 	/* PMKID */
-	if ((pSuite =
-	     GetSuiteFromRSNIE(rsnie, rsnie_len, PMKID_LIST, &count)) != NULL) {
+	pSuite = GetSuiteFromRSNIE(rsnie, rsnie_len, PMKID_LIST, &count);
+	if (pSuite != NULL) {
 		hex_dump("PMKID", pSuite, LEN_PMKID);
 	}
 

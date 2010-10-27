@@ -25,5 +25,4 @@ prom_putsegment(int ctx, unsigned long vaddr, int segment)
 	(*(romvec->pv_setctxt))(ctx, (char *) vaddr, segment);
 	restore_current();
 	spin_unlock_irqrestore(&prom_lock, flags);
-	return;
 }

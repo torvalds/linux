@@ -46,13 +46,7 @@
 
 pgm_check_handler_t *pgm_check_table[128];
 
-#ifdef CONFIG_SYSCTL
-#ifdef CONFIG_PROCESS_DEBUG
-int sysctl_userprocess_debug = 1;
-#else
-int sysctl_userprocess_debug = 0;
-#endif
-#endif
+int show_unhandled_signals;
 
 extern pgm_check_handler_t do_protection_exception;
 extern pgm_check_handler_t do_dat_exception;
@@ -315,18 +309,19 @@ void die(const char * str, struct pt_regs * regs, long err)
 	do_exit(SIGSEGV);
 }
 
-static void inline
-report_user_fault(long interruption_code, struct pt_regs *regs)
+static void inline report_user_fault(struct pt_regs *regs, long int_code,
+				     int signr)
 {
-#if defined(CONFIG_SYSCTL)
-	if (!sysctl_userprocess_debug)
+	if ((task_pid_nr(current) > 1) && !show_unhandled_signals)
 		return;
-#endif
-#if defined(CONFIG_SYSCTL) || defined(CONFIG_PROCESS_DEBUG)
-	printk("User process fault: interruption code 0x%lX\n",
-	       interruption_code);
+	if (!unhandled_signal(current, signr))
+		return;
+	if (!printk_ratelimit())
+		return;
+	printk("User process fault: interruption code 0x%lX ", int_code);
+	print_vma_addr("in ", regs->psw.addr & PSW_ADDR_INSN);
+	printk("\n");
 	show_regs(regs);
-#endif
 }
 
 int is_valid_bugaddr(unsigned long addr)
@@ -354,7 +349,7 @@ static void __kprobes inline do_trap(long interruption_code, int signr,
 
                 tsk->thread.trap_no = interruption_code & 0xffff;
 		force_sig_info(signr, info, tsk);
-		report_user_fault(interruption_code, regs);
+		report_user_fault(regs, interruption_code, signr);
         } else {
                 const struct exception_table_entry *fixup;
                 fixup = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
@@ -390,8 +385,8 @@ static void default_trap_handler(struct pt_regs * regs, long interruption_code)
 {
         if (regs->psw.mask & PSW_MASK_PSTATE) {
 		local_irq_enable();
+		report_user_fault(regs, interruption_code, SIGSEGV);
 		do_exit(SIGSEGV);
-		report_user_fault(interruption_code, regs);
 	} else
 		die("Unknown program exception", regs, interruption_code);
 }

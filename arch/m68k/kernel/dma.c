@@ -10,6 +10,7 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 #include <asm/pgalloc.h>

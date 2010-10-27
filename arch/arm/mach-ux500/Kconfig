@@ -1,15 +1,42 @@
-menu "ST-Ericsson platform type"
-	depends on ARCH_U8500
+if ARCH_U8500
 
-comment "ST-Ericsson Multicore Mobile Platforms"
-
-config MACH_U8500_MOP
-	bool "U8500 Early Development platform"
+config UX500_SOC_COMMON
+	bool
 	default y
 	select ARM_GIC
 	select HAS_MTU
+	select NOMADIK_GPIO
+
+config UX500_SOC_DB8500
+	bool
+
+config UX500_SOC_DB5500
+	bool
+
+choice
+	prompt "Ux500 target platform"
+	default MACH_U8500_MOP
+
+config MACH_U8500_MOP
+	bool "U8500 Development platform"
+	select UX500_SOC_DB8500
 	help
 	  Include support for mop500 development platform
 	  based on U8500 architecture. The platform is based
 	  on early drop silicon version of 8500.
-endmenu
+
+config MACH_U5500
+	bool "U5500 Development platform"
+	select UX500_SOC_DB5500
+	help
+	  Include support for the U5500 development platform.
+endchoice
+
+config UX500_DEBUG_UART
+	int "Ux500 UART to use for low-level debug"
+	default 2
+	help
+	  Choose the UART on which kernel low-level debug messages should be
+	  output.
+
+endif

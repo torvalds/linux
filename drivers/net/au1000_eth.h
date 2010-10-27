@@ -35,7 +35,7 @@
 #define NUM_TX_BUFFS 4
 #define MAX_BUF_SIZE 2048
 
-#define ETH_TX_TIMEOUT HZ/4
+#define ETH_TX_TIMEOUT (HZ/4)
 #define MAC_MIN_PKT_SIZE 64
 
 #define MULTICAST_FILTER_LIMIT 64
@@ -108,6 +108,15 @@ struct au1000_private {
 	struct phy_device *phy_dev;
 	struct mii_bus *mii_bus;
 
+	/* PHY configuration */
+	int phy_static_config;
+	int phy_search_highest_addr;
+	int phy1_search_mac0;
+
+	int phy_addr;
+	int phy_busid;
+	int phy_irq;
+
 	/* These variables are just for quick access to certain regs addresses. */
 	volatile mac_reg_t *mac;  /* mac registers                      */
 	volatile u32 *enable;     /* address of MAC Enable Register     */
@@ -116,4 +125,6 @@ struct au1000_private {
 	dma_addr_t dma_addr;      /* dma address of rx/tx buffers       */
 
 	spinlock_t lock;       /* Serialise access to device */
+
+	u32 msg_enable;
 };

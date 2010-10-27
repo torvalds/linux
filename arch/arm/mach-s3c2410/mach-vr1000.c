@@ -334,7 +334,7 @@ static struct i2c_board_info vr1000_i2c_devs[] __initdata = {
 /* devices for this board */
 
 static struct platform_device *vr1000_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
@@ -357,8 +357,7 @@ static struct clk *vr1000_clocks[] __initdata = {
 
 static void vr1000_power_off(void)
 {
-	s3c2410_gpio_cfgpin(S3C2410_GPB(9), S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_setpin(S3C2410_GPB(9), 1);
+	gpio_direction_output(S3C2410_GPB(9), 1);
 }
 
 static void __init vr1000_map_io(void)
@@ -395,6 +394,8 @@ static void __init vr1000_init(void)
 
 	nor_simtec_init();
 	simtec_audio_add(NULL, true, NULL);
+
+	WARN_ON(gpio_request(S3C2410_GPB(9), "power off"));
 }
 
 MACHINE_START(VR1000, "Thorcom-VR1000")

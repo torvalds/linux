@@ -54,17 +54,20 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <linux/fd.h>
 #include <linux/hdreg.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/smp_lock.h>
 #include <linux/amifdreg.h>
 #include <linux/amifd.h>
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
 #include <asm/setup.h>
 #include <asm/uaccess.h>
@@ -1421,7 +1424,7 @@ static int fd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int fd_ioctl(struct block_device *bdev, fmode_t mode,
+static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode,
 		    unsigned int cmd, unsigned long param)
 {
 	struct amiga_floppy_struct *p = bdev->bd_disk->private_data;
@@ -1498,6 +1501,18 @@ static int fd_ioctl(struct block_device *bdev, fmode_t mode,
 	return 0;
 }
 
+static int fd_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long param)
+{
+	int ret;
+
+	lock_kernel();
+	ret = fd_locked_ioctl(bdev, mode, cmd, param);
+	unlock_kernel();
+
+	return ret;
+}
+
 static void fd_probe(int dev)
 {
 	unsigned long code;
@@ -1540,10 +1555,13 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	int old_dev;
 	unsigned long flags;
 
+	lock_kernel();
 	old_dev = fd_device[drive];
 
-	if (fd_ref[drive] && old_dev != system)
+	if (fd_ref[drive] && old_dev != system) {
+		unlock_kernel();
 		return -EBUSY;
+	}
 
 	if (mode & (FMODE_READ|FMODE_WRITE)) {
 		check_disk_change(bdev);
@@ -1556,8 +1574,10 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 			fd_deselect (drive);
 			rel_fdc();
 
-			if (wrprot)
+			if (wrprot) {
+				unlock_kernel();
 				return -EROFS;
+			}
 		}
 	}
 
@@ -1574,6 +1594,7 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	printk(KERN_INFO "fd%d: accessing %s-disk with %s-layout\n",drive,
 	       unit[drive].type->name, data_types[system].name);
 
+	unlock_kernel();
 	return 0;
 }
 
@@ -1582,6 +1603,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 	struct amiga_floppy_struct *p = disk->private_data;
 	int drive = p - unit;
 
+	lock_kernel();
 	if (unit[drive].dirty == 1) {
 		del_timer (flush_track_timer + drive);
 		non_int_flush_track (drive);
@@ -1595,6 +1617,7 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 /* the mod_use counter is handled this way */
 	floppy_off (drive | 0x40000000);
 #endif
+	unlock_kernel();
 	return 0;
 }
 
@@ -1636,7 +1659,7 @@ static const struct block_device_operations floppy_fops = {
 	.owner		= THIS_MODULE,
 	.open		= floppy_open,
 	.release	= floppy_release,
-	.locked_ioctl	= fd_ioctl,
+	.ioctl		= fd_ioctl,
 	.getgeo		= fd_getgeo,
 	.media_changed	= amiga_floppy_change,
 };
@@ -1695,34 +1718,18 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 	return get_disk(unit[drive].gendisk);
 }
 
-static int __init amiga_floppy_init(void)
+static int __init amiga_floppy_probe(struct platform_device *pdev)
 {
 	int i, ret;
 
-	if (!MACH_IS_AMIGA)
-		return -ENODEV;
-
-	if (!AMIGAHW_PRESENT(AMI_FLOPPY))
-		return -ENODEV;
-
 	if (register_blkdev(FLOPPY_MAJOR,"fd"))
 		return -EBUSY;
-
-	/*
-	 *  We request DSKPTR, DSKLEN and DSKDATA only, because the other
-	 *  floppy registers are too spreaded over the custom register space
-	 */
-	ret = -EBUSY;
-	if (!request_mem_region(CUSTOM_PHYSADDR+0x20, 8, "amiflop [Paula]")) {
-		printk("fd: cannot get floppy registers\n");
-		goto out_blkdev;
-	}
 
 	ret = -ENOMEM;
 	if ((raw_buf = (char *)amiga_chip_alloc (RAW_BUF_SIZE, "Floppy")) ==
 	    NULL) {
 		printk("fd: cannot get chip mem buffer\n");
-		goto out_memregion;
+		goto out_blkdev;
 	}
 
 	ret = -EBUSY;
@@ -1791,18 +1798,13 @@ out_irq2:
 	free_irq(IRQ_AMIGA_DSKBLK, NULL);
 out_irq:
 	amiga_chip_free(raw_buf);
-out_memregion:
-	release_mem_region(CUSTOM_PHYSADDR+0x20, 8);
 out_blkdev:
 	unregister_blkdev(FLOPPY_MAJOR,"fd");
 	return ret;
 }
 
-module_init(amiga_floppy_init);
-#ifdef MODULE
-
 #if 0 /* not safe to unload */
-void cleanup_module(void)
+static int __exit amiga_floppy_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -1819,12 +1821,25 @@ void cleanup_module(void)
 	custom.dmacon = DMAF_DISK; /* disable DMA */
 	amiga_chip_free(raw_buf);
 	blk_cleanup_queue(floppy_queue);
-	release_mem_region(CUSTOM_PHYSADDR+0x20, 8);
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
 }
 #endif
 
-#else
+static struct platform_driver amiga_floppy_driver = {
+	.driver   = {
+		.name	= "amiga-floppy",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static int __init amiga_floppy_init(void)
+{
+	return platform_driver_probe(&amiga_floppy_driver, amiga_floppy_probe);
+}
+
+module_init(amiga_floppy_init);
+
+#ifndef MODULE
 static int __init amiga_floppy_setup (char *str)
 {
 	int n;
@@ -1839,3 +1854,5 @@ static int __init amiga_floppy_setup (char *str)
 
 __setup("floppy=", amiga_floppy_setup);
 #endif
+
+MODULE_ALIAS("platform:amiga-floppy");

@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/libata.h>
+#include <linux/slab.h>
 #include "libata.h"
 
 const struct ata_port_operations sata_pmp_port_ops = {
@@ -230,10 +231,14 @@ static const char *sata_pmp_spec_rev_str(const u32 *gscr)
 	return "<unknown>";
 }
 
+#define PMP_GSCR_SII_POL 129
+
 static int sata_pmp_configure(struct ata_device *dev, int print_info)
 {
 	struct ata_port *ap = dev->link->ap;
 	u32 *gscr = dev->gscr;
+	u16 vendor = sata_pmp_gscr_vendor(gscr);
+	u16 devid = sata_pmp_gscr_devid(gscr);
 	unsigned int err_mask = 0;
 	const char *reason;
 	int nr_ports, rc;
@@ -259,12 +264,34 @@ static int sata_pmp_configure(struct ata_device *dev, int print_info)
 		goto fail;
 	}
 
+	/* Disable sending Early R_OK.
+	 * With "cached read" HDD testing and multiple ports busy on a SATA
+	 * host controller, 3726 PMP will very rarely drop a deferred
+	 * R_OK that was intended for the host. Symptom will be all
+	 * 5 drives under test will timeout, get reset, and recover.
+	 */
+	if (vendor == 0x1095 && devid == 0x3726) {
+		u32 reg;
+
+		err_mask = sata_pmp_read(&ap->link, PMP_GSCR_SII_POL, &reg);
+		if (err_mask) {
+			rc = -EIO;
+			reason = "failed to read Sil3726 Private Register";
+			goto fail;
+		}
+		reg &= ~0x1;
+		err_mask = sata_pmp_write(&ap->link, PMP_GSCR_SII_POL, reg);
+		if (err_mask) {
+			rc = -EIO;
+			reason = "failed to write Sil3726 Private Register";
+			goto fail;
+		}
+	}
+
 	if (print_info) {
 		ata_dev_printk(dev, KERN_INFO, "Port Multiplier %s, "
 			       "0x%04x:0x%04x r%d, %d ports, feat 0x%x/0x%x\n",
-			       sata_pmp_spec_rev_str(gscr),
-			       sata_pmp_gscr_vendor(gscr),
-			       sata_pmp_gscr_devid(gscr),
+			       sata_pmp_spec_rev_str(gscr), vendor, devid,
 			       sata_pmp_gscr_rev(gscr),
 			       nr_ports, gscr[SATA_PMP_GSCR_FEAT_EN],
 			       gscr[SATA_PMP_GSCR_FEAT]);

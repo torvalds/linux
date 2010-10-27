@@ -39,6 +39,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/slab.h>
+
 #include <scsi/osd_initiator.h>
 #include <scsi/osd_sec.h>
 #include <scsi/osd_attributes.h>
@@ -714,7 +716,7 @@ static int _osd_req_list_objects(struct osd_request *or,
 		return PTR_ERR(bio);
 	}
 
-	bio->bi_rw &= ~(1 << BIO_RW);
+	bio->bi_rw &= ~REQ_WRITE;
 	or->in.bio = bio;
 	or->in.total_bytes = bio->bi_size;
 	return 0;
@@ -812,7 +814,7 @@ void osd_req_write(struct osd_request *or,
 {
 	_osd_req_encode_common(or, OSD_ACT_WRITE, obj, offset, len);
 	WARN_ON(or->out.bio || or->out.total_bytes);
-	WARN_ON(0 ==  bio_rw_flagged(bio, BIO_RW));
+	WARN_ON(0 == (bio->bi_rw & REQ_WRITE));
 	or->out.bio = bio;
 	or->out.total_bytes = len;
 }
@@ -827,7 +829,7 @@ int osd_req_write_kern(struct osd_request *or,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	bio->bi_rw |= (1 << BIO_RW); /* FIXME: bio_set_dir() */
+	bio->bi_rw |= REQ_WRITE; /* FIXME: bio_set_dir() */
 	osd_req_write(or, obj, offset, bio, len);
 	return 0;
 }
@@ -863,7 +865,7 @@ void osd_req_read(struct osd_request *or,
 {
 	_osd_req_encode_common(or, OSD_ACT_READ, obj, offset, len);
 	WARN_ON(or->in.bio || or->in.total_bytes);
-	WARN_ON(1 == bio_rw_flagged(bio, BIO_RW));
+	WARN_ON(bio->bi_rw & REQ_WRITE);
 	or->in.bio = bio;
 	or->in.total_bytes = len;
 }
@@ -1433,6 +1435,10 @@ int osd_finalize_request(struct osd_request *or,
 	cdbh->command_specific_options |= or->attributes_mode;
 	if (or->attributes_mode == OSD_CDB_GET_ATTR_PAGE_SET_ONE) {
 		ret = _osd_req_finalize_attr_page(or);
+		if (ret) {
+			OSD_DEBUG("_osd_req_finalize_attr_page failed\n");
+			return ret;
+		}
 	} else {
 		/* TODO: I think that for the GET_ATTR command these 2 should
 		 * be reversed to keep them in execution order (for embeded

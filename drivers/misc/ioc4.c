@@ -30,6 +30,7 @@
 #include <linux/pci.h>
 #include <linux/ioc4.h>
 #include <linux/ktime.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/time.h>
 #include <asm/io.h>

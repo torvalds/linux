@@ -23,6 +23,7 @@ extern unsigned long max_pfn;
 extern unsigned long saved_max_pfn;
 #endif
 
+#ifndef CONFIG_NO_BOOTMEM
 /*
  * node_bootmem_map is a map pointer - the bits represent all physical 
  * memory pages (including holes) on the node.
@@ -37,6 +38,7 @@ typedef struct bootmem_data {
 } bootmem_data_t;
 
 extern bootmem_data_t bootmem_node_data[];
+#endif
 
 extern unsigned long bootmem_bootmap_pages(unsigned long);
 
@@ -46,6 +48,7 @@ extern unsigned long init_bootmem_node(pg_data_t *pgdat,
 				       unsigned long endpfn);
 extern unsigned long init_bootmem(unsigned long addr, unsigned long memend);
 
+unsigned long free_all_memory_core_early(int nodeid);
 extern unsigned long free_all_bootmem_node(pg_data_t *pgdat);
 extern unsigned long free_all_bootmem(void);
 
@@ -81,6 +84,10 @@ extern void *__alloc_bootmem_nopanic(unsigned long size,
 				     unsigned long align,
 				     unsigned long goal);
 extern void *__alloc_bootmem_node(pg_data_t *pgdat,
+				  unsigned long size,
+				  unsigned long align,
+				  unsigned long goal);
+void *__alloc_bootmem_node_high(pg_data_t *pgdat,
 				  unsigned long size,
 				  unsigned long align,
 				  unsigned long goal);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -29,31 +29,30 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
+#include <linux/slab.h>
 
 #include "be_hw.h"
 
-#define DRV_VER			"2.101.346u"
+#define DRV_VER			"2.103.175u"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"ServerEngines BladeEngine2 10Gbps NIC"
 #define BE3_NAME		"ServerEngines BladeEngine3 10Gbps NIC"
 #define OC_NAME			"Emulex OneConnect 10Gbps NIC"
 #define OC_NAME1		"Emulex OneConnect 10Gbps NIC (be3)"
-#define DRV_DESC		BE_NAME "Driver"
+#define DRV_DESC		"ServerEngines BladeEngine 10Gbps NIC Driver"
 
 #define BE_VENDOR_ID 		0x19a2
 #define BE_DEVICE_ID1		0x211
 #define BE_DEVICE_ID2		0x221
 #define OC_DEVICE_ID1		0x700
-#define OC_DEVICE_ID2		0x701
-#define OC_DEVICE_ID3		0x710
+#define OC_DEVICE_ID2		0x710
 
 static inline char *nic_name(struct pci_dev *pdev)
 {
 	switch (pdev->device) {
 	case OC_DEVICE_ID1:
-	case OC_DEVICE_ID2:
 		return OC_NAME;
-	case OC_DEVICE_ID3:
+	case OC_DEVICE_ID2:
 		return OC_NAME1;
 	case BE_DEVICE_ID2:
 		return BE3_NAME;
@@ -84,6 +83,8 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define RX_FRAGS_REFILL_WM	(RX_Q_LEN - MAX_RX_POST)
 
 #define FW_VER_LEN		32
+
+#define BE_MAX_VF		32
 
 struct be_dma_mem {
 	void *va;
@@ -153,6 +154,7 @@ struct be_eq_obj {
 struct be_mcc_obj {
 	struct be_queue_info q;
 	struct be_queue_info cq;
+	bool rearm_cq;
 };
 
 struct be_drvr_stats {
@@ -165,6 +167,7 @@ struct be_drvr_stats {
 	ulong be_tx_jiffies;
 	u64 be_tx_bytes;
 	u64 be_tx_bytes_prev;
+	u64 be_tx_pkts;
 	u32 be_tx_rate;
 
 	u32 cache_barrier[16];
@@ -176,7 +179,9 @@ struct be_drvr_stats {
 	ulong be_rx_jiffies;
 	u64 be_rx_bytes;
 	u64 be_rx_bytes_prev;
+	u64 be_rx_pkts;
 	u32 be_rx_rate;
+	u32 be_rx_mcast_pkt;
 	/* number of non ether type II frames dropped where
 	 * frame len > length field of Mac Hdr */
 	u32 be_802_3_dropped_frames;
@@ -205,7 +210,7 @@ struct be_tx_obj {
 /* Struct to remember the pages posted for rx frags */
 struct be_rx_page_info {
 	struct page *page;
-	dma_addr_t bus;
+	DEFINE_DMA_UNMAP_ADDR(bus);
 	u16 page_offset;
 	bool last_page_user;
 };
@@ -216,7 +221,16 @@ struct be_rx_obj {
 	struct be_rx_page_info page_info_tbl[RX_Q_LEN];
 };
 
+struct be_vf_cfg {
+	unsigned char vf_mac_addr[ETH_ALEN];
+	u32 vf_if_handle;
+	u32 vf_pmac_id;
+	u16 vf_vlan_tag;
+	u32 vf_tx_rate;
+};
+
 #define BE_NUM_MSIX_VECTORS		2	/* 1 each for Tx and Rx */
+#define BE_INVALID_PMAC_ID		0xffffffff
 struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
@@ -252,7 +266,8 @@ struct be_adapter {
 	bool rx_post_starved;	/* Zero rx frags have been posted to BE */
 
 	struct vlan_group *vlan_grp;
-	u16 num_vlans;
+	u16 vlans_added;
+	u16 max_vlans;	/* Number of vlans supported */
 	u8 vlan_tag[VLAN_GROUP_ARRAY_LEN];
 	struct be_dma_mem mc_cmd_mem;
 
@@ -266,26 +281,39 @@ struct be_adapter {
 	u32 if_handle;		/* Used to configure filtering */
 	u32 pmac_id;		/* MAC addr handle used by BE card */
 
+	bool eeh_err;
 	bool link_up;
 	u32 port_num;
 	bool promiscuous;
 	bool wol;
-	u32 cap;
+	u32 function_mode;
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
+	bool ue_detected;
+	bool stats_ioctl_sent;
 	int link_speed;
 	u8 port_type;
 	u8 transceiver;
+	u8 autoneg;
+	u8 generation;		/* BladeEngine ASIC generation */
+	u32 flash_status;
+	struct completion flash_compl;
+
+	bool sriov_enabled;
+	struct be_vf_cfg vf_cfg[BE_MAX_VF];
+	u8 base_eq_id;
+	u8 is_virtfn;
 };
+
+#define be_physfn(adapter) (!adapter->is_virtfn)
+
+/* BladeEngine Generation numbers */
+#define BE_GEN2 2
+#define BE_GEN3 3
 
 extern const struct ethtool_ops be_ethtool_ops;
 
 #define drvr_stats(adapter)		(&adapter->stats.drvr_stats)
-
-static inline unsigned int be_pci_func(struct be_adapter *adapter)
-{
-	return PCI_FUNC(adapter->pdev->devfn);
-}
 
 #define BE_SET_NETDEV_OPS(netdev, ops)	(netdev->netdev_ops = ops)
 
@@ -375,6 +403,15 @@ static inline u8 is_udp_pkt(struct sk_buff *skb)
 		val = (ipv6_hdr(skb)->nexthdr == NEXTHDR_UDP);
 
 	return val;
+}
+
+static inline void be_check_sriov_fn_type(struct be_adapter *adapter)
+{
+	u8 data;
+
+	pci_write_config_byte(adapter->pdev, 0xFE, 0xAA);
+	pci_read_config_byte(adapter->pdev, 0xFE, &data);
+	adapter->is_virtfn = (data != 0xAA);
 }
 
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,

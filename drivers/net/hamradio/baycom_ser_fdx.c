@@ -429,7 +429,7 @@ static int ser12_open(struct net_device *dev)
 		return -EINVAL;
 	}
 	if (!request_region(dev->base_addr, SER12_EXTENT, "baycom_ser_fdx")) {
-		printk(KERN_WARNING "BAYCOM_SER_FSX: I/O port 0x%04lx busy \n", 
+		printk(KERN_WARNING "BAYCOM_SER_FSX: I/O port 0x%04lx busy\n",
 		       dev->base_addr);
 		return -EACCES;
 	}

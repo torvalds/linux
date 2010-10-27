@@ -32,6 +32,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/inet_hashtables.h>
 
 #include "rds.h"

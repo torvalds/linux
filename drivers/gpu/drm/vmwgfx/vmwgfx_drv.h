@@ -39,14 +39,15 @@
 #include "ttm/ttm_execbuf_util.h"
 #include "ttm/ttm_module.h"
 
-#define VMWGFX_DRIVER_DATE "20090724"
-#define VMWGFX_DRIVER_MAJOR 0
-#define VMWGFX_DRIVER_MINOR 1
-#define VMWGFX_DRIVER_PATCHLEVEL 2
+#define VMWGFX_DRIVER_DATE "20100209"
+#define VMWGFX_DRIVER_MAJOR 1
+#define VMWGFX_DRIVER_MINOR 2
+#define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
 #define VMWGFX_MAX_GMRS 2048
+#define VMWGFX_MAX_DISPLAYS 16
 
 struct vmw_fpriv {
 	struct drm_master *locked_master;
@@ -96,8 +97,17 @@ struct vmw_surface {
 	struct drm_vmw_size *sizes;
 	uint32_t num_sizes;
 
+	bool scanout;
+
 	/* TODO so far just a extra pointer */
 	struct vmw_cursor_snooper snooper;
+};
+
+struct vmw_fence_queue {
+	struct list_head head;
+	struct timespec lag;
+	struct timespec lag_time;
+	spinlock_t lock;
 };
 
 struct vmw_fifo_state {
@@ -111,7 +121,9 @@ struct vmw_fifo_state {
 	unsigned long static_buffer_size;
 	bool using_bounce_buffer;
 	uint32_t capabilities;
+	struct mutex fifo_mutex;
 	struct rw_semaphore rwsem;
+	struct vmw_fence_queue fence_queue;
 };
 
 struct vmw_relocation {
@@ -141,10 +153,18 @@ struct vmw_master {
 	struct ttm_lock lock;
 };
 
+struct vmw_vga_topology_state {
+	uint32_t width;
+	uint32_t height;
+	uint32_t primary;
+	uint32_t pos_x;
+	uint32_t pos_y;
+};
+
 struct vmw_private {
 	struct ttm_bo_device bdev;
 	struct ttm_bo_global_ref bo_global_ref;
-	struct ttm_global_reference mem_global_ref;
+	struct drm_global_reference mem_global_ref;
 
 	struct vmw_fifo_state fifo;
 
@@ -168,14 +188,19 @@ struct vmw_private {
 	 * VGA registers.
 	 */
 
+	struct vmw_vga_topology_state vga_save[VMWGFX_MAX_DISPLAYS];
 	uint32_t vga_width;
 	uint32_t vga_height;
 	uint32_t vga_depth;
 	uint32_t vga_bpp;
 	uint32_t vga_pseudo;
 	uint32_t vga_red_mask;
-	uint32_t vga_blue_mask;
 	uint32_t vga_green_mask;
+	uint32_t vga_blue_mask;
+	uint32_t vga_bpl;
+	uint32_t vga_pitchlock;
+
+	uint32_t num_displays;
 
 	/*
 	 * Framebuffer info.
@@ -211,7 +236,7 @@ struct vmw_private {
 	 * Fencing and IRQs.
 	 */
 
-	uint32_t fence_seq;
+	atomic_t fence_seq;
 	wait_queue_head_t fence_queue;
 	wait_queue_head_t fifo_queue;
 	atomic_t fence_queue_waiters;
@@ -252,6 +277,7 @@ struct vmw_private {
 
 	bool stealth;
 	bool is_opened;
+	bool enable_fb;
 
 	/**
 	 * Master management.
@@ -260,6 +286,9 @@ struct vmw_private {
 	struct vmw_master *active_master;
 	struct vmw_master fbdev_master;
 	struct notifier_block pm_nb;
+
+	struct mutex release_mutex;
+	uint32_t num_3d_resources;
 };
 
 static inline struct vmw_private *vmw_priv(struct drm_device *dev)
@@ -293,6 +322,9 @@ static inline uint32_t vmw_read(struct vmw_private *dev_priv,
 	val = inl(dev_priv->io_start + VMWGFX_VALUE_PORT);
 	return val;
 }
+
+int vmw_3d_resource_inc(struct vmw_private *dev_priv);
+void vmw_3d_resource_dec(struct vmw_private *dev_priv);
 
 /**
  * GMR utilities - vmwgfx_gmr.c
@@ -389,6 +421,8 @@ extern int vmw_fifo_send_fence(struct vmw_private *dev_priv,
 			       uint32_t *sequence);
 extern void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason);
 extern int vmw_fifo_mmap(struct file *filp, struct vm_area_struct *vma);
+extern bool vmw_fifo_have_3d(struct vmw_private *dev_priv);
+extern bool vmw_fifo_have_pitchlock(struct vmw_private *dev_priv);
 
 /**
  * TTM glue - vmwgfx_ttm_glue.c
@@ -437,6 +471,23 @@ extern int vmw_fallback_wait(struct vmw_private *dev_priv,
 			     uint32_t sequence,
 			     bool interruptible,
 			     unsigned long timeout);
+extern void vmw_update_sequence(struct vmw_private *dev_priv,
+				struct vmw_fifo_state *fifo_state);
+
+
+/**
+ * Rudimentary fence objects currently used only for throttling -
+ * vmwgfx_fence.c
+ */
+
+extern void vmw_fence_queue_init(struct vmw_fence_queue *queue);
+extern void vmw_fence_queue_takedown(struct vmw_fence_queue *queue);
+extern int vmw_fence_push(struct vmw_fence_queue *queue,
+			  uint32_t sequence);
+extern int vmw_fence_pull(struct vmw_fence_queue *queue,
+			  uint32_t signaled_sequence);
+extern int vmw_wait_lag(struct vmw_private *dev_priv,
+			struct vmw_fence_queue *queue, uint32_t us);
 
 /**
  * Kernel framebuffer - vmwgfx_fb.c
@@ -462,6 +513,12 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 			  struct ttm_object_file *tfile,
 			  struct ttm_buffer_object *bo,
 			  SVGA3dCmdHeader *header);
+void vmw_kms_write_svga(struct vmw_private *vmw_priv,
+			unsigned width, unsigned height, unsigned pitch,
+			unsigned bbp, unsigned depth);
+int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
+u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc);
 
 /**
  * Overlay control - vmwgfx_overlay.c

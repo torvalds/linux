@@ -11,7 +11,8 @@
 #ifndef __DMA_SH_H
 #define __DMA_SH_H
 
-#include <asm/dma.h>
+#include <asm/dma-register.h>
+#include <cpu/dma-register.h>
 #include <cpu/dma.h>
 
 /* DMAOR contorl: The DMAOR access size is different by CPU.*/
@@ -20,14 +21,14 @@
     defined(CONFIG_CPU_SUBTYPE_SH7780)	|| \
     defined(CONFIG_CPU_SUBTYPE_SH7785)
 #define dmaor_read_reg(n) \
-    (n ? ctrl_inw(SH_DMAC_BASE1 + DMAOR) \
-	: ctrl_inw(SH_DMAC_BASE0 + DMAOR))
+    (n ? __raw_readw(SH_DMAC_BASE1 + DMAOR) \
+	: __raw_readw(SH_DMAC_BASE0 + DMAOR))
 #define dmaor_write_reg(n, data) \
-    (n ? ctrl_outw(data, SH_DMAC_BASE1 + DMAOR) \
-    : ctrl_outw(data, SH_DMAC_BASE0 + DMAOR))
+    (n ? __raw_writew(data, SH_DMAC_BASE1 + DMAOR) \
+    : __raw_writew(data, SH_DMAC_BASE0 + DMAOR))
 #else /* Other CPU */
-#define dmaor_read_reg(n) ctrl_inw(SH_DMAC_BASE0 + DMAOR)
-#define dmaor_write_reg(n, data) ctrl_outw(data, SH_DMAC_BASE0 + DMAOR)
+#define dmaor_read_reg(n) __raw_readw(SH_DMAC_BASE0 + DMAOR)
+#define dmaor_write_reg(n, data) __raw_writew(data, SH_DMAC_BASE0 + DMAOR)
 #endif
 
 static int dmte_irq_map[] __maybe_unused = {
@@ -53,37 +54,11 @@ static int dmte_irq_map[] __maybe_unused = {
 #endif
 };
 
-/* Definitions for the SuperH DMAC */
-#define REQ_L	0x00000000
-#define REQ_E	0x00080000
-#define RACK_H	0x00000000
-#define RACK_L	0x00040000
-#define ACK_R	0x00000000
-#define ACK_W	0x00020000
-#define ACK_H	0x00000000
-#define ACK_L	0x00010000
-#define DM_INC	0x00004000
-#define DM_DEC	0x00008000
-#define SM_INC	0x00001000
-#define SM_DEC	0x00002000
-#define RS_IN	0x00000200
-#define RS_OUT	0x00000300
-#define TS_BLK	0x00000040
-#define TM_BUR	0x00000020
-#define CHCR_DE 0x00000001
-#define CHCR_TE 0x00000002
-#define CHCR_IE 0x00000004
-
-/* DMAOR definitions */
-#define DMAOR_AE	0x00000004
-#define DMAOR_NMIF	0x00000002
-#define DMAOR_DME	0x00000001
-
 /*
  * Define the default configuration for dual address memory-memory transfer.
  * The 0x400 value represents auto-request, external->external.
  */
-#define RS_DUAL	(DM_INC | SM_INC | 0x400 | TS_32)
+#define RS_DUAL	(DM_INC | SM_INC | 0x400 | TS_INDEX2VAL(XMIT_SZ_32BIT))
 
 /* DMA base address */
 static u32 dma_base_addr[] __maybe_unused = {
@@ -107,26 +82,6 @@ static u32 dma_base_addr[] __maybe_unused = {
 	SH_DMAC_BASE1 + 0x50,
 	SH_DMAC_BASE1 + 0x60, /* channel 11 */
 #endif
-};
-
-/* DMA register */
-#define SAR     0x00
-#define DAR     0x04
-#define TCR     0x08
-#define CHCR    0x0C
-#define DMAOR	0x40
-
-/*
- * for dma engine
- *
- * SuperH DMA mode
- */
-#define SHDMA_MIX_IRQ	(1 << 1)
-#define SHDMA_DMAOR1	(1 << 2)
-#define SHDMA_DMAE1		(1 << 3)
-
-struct sh_dmae_pdata {
-	unsigned int mode;
 };
 
 #endif /* __DMA_SH_H */

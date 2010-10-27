@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/slab.h>
 
 #include <sound/soc.h>
 
@@ -368,7 +369,7 @@ struct snd_soc_platform mpc5200_audio_dma_platform = {
 };
 EXPORT_SYMBOL_GPL(mpc5200_audio_dma_platform);
 
-int mpc5200_audio_dma_create(struct of_device *op)
+int mpc5200_audio_dma_create(struct platform_device *op)
 {
 	phys_addr_t fifo;
 	struct psc_dma *psc_dma;
@@ -379,8 +380,8 @@ int mpc5200_audio_dma_create(struct of_device *op)
 	int ret;
 
 	/* Fetch the registers and IRQ of the PSC */
-	irq = irq_of_parse_and_map(op->node, 0);
-	if (of_address_to_resource(op->node, 0, &res)) {
+	irq = irq_of_parse_and_map(op->dev.of_node, 0);
+	if (of_address_to_resource(op->dev.of_node, 0, &res)) {
 		dev_err(&op->dev, "Missing reg property\n");
 		return -ENODEV;
 	}
@@ -398,7 +399,7 @@ int mpc5200_audio_dma_create(struct of_device *op)
 	}
 
 	/* Get the PSC ID */
-	prop = of_get_property(op->node, "cell-index", &size);
+	prop = of_get_property(op->dev.of_node, "cell-index", &size);
 	if (!prop || size < sizeof *prop) {
 		ret = -ENODEV;
 		goto out_free;
@@ -487,7 +488,7 @@ out_unmap:
 }
 EXPORT_SYMBOL_GPL(mpc5200_audio_dma_create);
 
-int mpc5200_audio_dma_destroy(struct of_device *op)
+int mpc5200_audio_dma_destroy(struct platform_device *op)
 {
 	struct psc_dma *psc_dma = dev_get_drvdata(&op->dev);
 

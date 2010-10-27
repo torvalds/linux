@@ -36,11 +36,6 @@
 #include <asm/mmu_context.h>
 #include "internal.h"
 
-static inline __attribute__((format(printf, 1, 2)))
-void no_printk(const char *fmt, ...)
-{
-}
-
 #if 0
 #define kenter(FMT, ...) \
 	printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
@@ -162,7 +157,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		}
 		if (vmas)
 			vmas[i] = vma;
-		start += PAGE_SIZE;
+		start = (start + PAGE_SIZE) & PAGE_MASK;
 	}
 
 	return i;
@@ -609,7 +604,7 @@ static void protect_vma(struct vm_area_struct *vma, unsigned long flags)
  */
 static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
 {
-	struct vm_area_struct *pvma, **pp;
+	struct vm_area_struct *pvma, **pp, *next;
 	struct address_space *mapping;
 	struct rb_node **p, *parent;
 
@@ -669,8 +664,11 @@ static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
 			break;
 	}
 
-	vma->vm_next = *pp;
+	next = *pp;
 	*pp = vma;
+	vma->vm_next = next;
+	if (next)
+		next->vm_prev = vma;
 }
 
 /*
@@ -918,14 +916,6 @@ static int validate_mmap_request(struct file *file,
 			if (!(capabilities & BDI_CAP_MAP_DIRECT))
 				return -ENODEV;
 
-			if (((prot & PROT_READ)  && !(capabilities & BDI_CAP_READ_MAP))  ||
-			    ((prot & PROT_WRITE) && !(capabilities & BDI_CAP_WRITE_MAP)) ||
-			    ((prot & PROT_EXEC)  && !(capabilities & BDI_CAP_EXEC_MAP))
-			    ) {
-				printk("MAP_SHARED not completely supported on !MMU\n");
-				return -EINVAL;
-			}
-
 			/* we mustn't privatise shared mappings */
 			capabilities &= ~BDI_CAP_MAP_COPY;
 		}
@@ -939,6 +929,20 @@ static int validate_mmap_request(struct file *file,
 			 * shared with the backing device */
 			if (prot & PROT_WRITE)
 				capabilities &= ~BDI_CAP_MAP_DIRECT;
+		}
+
+		if (capabilities & BDI_CAP_MAP_DIRECT) {
+			if (((prot & PROT_READ)  && !(capabilities & BDI_CAP_READ_MAP))  ||
+			    ((prot & PROT_WRITE) && !(capabilities & BDI_CAP_WRITE_MAP)) ||
+			    ((prot & PROT_EXEC)  && !(capabilities & BDI_CAP_EXEC_MAP))
+			    ) {
+				capabilities &= ~BDI_CAP_MAP_DIRECT;
+				if (flags & MAP_SHARED) {
+					printk(KERN_WARNING
+					       "MAP_SHARED not completely supported on !MMU\n");
+					return -EINVAL;
+				}
+			}
 		}
 
 		/* handle executable mappings and implied executable
@@ -996,22 +1000,20 @@ static unsigned long determine_vm_flags(struct file *file,
 	unsigned long vm_flags;
 
 	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags);
-	vm_flags |= VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
 	/* vm_flags |= mm->def_flags; */
 
 	if (!(capabilities & BDI_CAP_MAP_DIRECT)) {
 		/* attempt to share read-only copies of mapped file chunks */
+		vm_flags |= VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
 		if (file && !(prot & PROT_WRITE))
 			vm_flags |= VM_MAYSHARE;
-	}
-	else {
+	} else {
 		/* overlay a shareable mapping on the backing device or inode
 		 * if possible - used for chardevs, ramfs/tmpfs/shmfs and
 		 * romfs/cramfs */
+		vm_flags |= VM_MAYSHARE | (capabilities & BDI_CAP_VMFLAGS);
 		if (flags & MAP_SHARED)
-			vm_flags |= VM_MAYSHARE | VM_SHARED;
-		else if ((((vm_flags & capabilities) ^ vm_flags) & BDI_CAP_VMFLAGS) == 0)
-			vm_flags |= VM_MAYSHARE;
+			vm_flags |= VM_SHARED;
 	}
 
 	/* refuse to let anyone share private mappings with this process if
@@ -1040,10 +1042,9 @@ static int do_mmap_shared_file(struct vm_area_struct *vma)
 	if (ret != -ENOSYS)
 		return ret;
 
-	/* getting an ENOSYS error indicates that direct mmap isn't
-	 * possible (as opposed to tried but failed) so we'll fall
-	 * through to making a private copy of the data and mapping
-	 * that if we can */
+	/* getting -ENOSYS indicates that direct mmap isn't possible (as
+	 * opposed to tried but failed) so we can only give a suitable error as
+	 * it's not possible to make a private copy if MAP_SHARED was given */
 	return -ENODEV;
 }
 
@@ -1209,7 +1210,7 @@ unsigned long do_mmap_pgoff(struct file *file,
 	region->vm_flags = vm_flags;
 	region->vm_pgoff = pgoff;
 
-	INIT_LIST_HEAD(&vma->anon_vma_node);
+	INIT_LIST_HEAD(&vma->anon_vma_chain);
 	vma->vm_flags = vm_flags;
 	vma->vm_pgoff = pgoff;
 
@@ -1427,6 +1428,30 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 out:
 	return retval;
 }
+
+#ifdef __ARCH_WANT_SYS_OLD_MMAP
+struct mmap_arg_struct {
+	unsigned long addr;
+	unsigned long len;
+	unsigned long prot;
+	unsigned long flags;
+	unsigned long fd;
+	unsigned long offset;
+};
+
+SYSCALL_DEFINE1(old_mmap, struct mmap_arg_struct __user *, arg)
+{
+	struct mmap_arg_struct a;
+
+	if (copy_from_user(&a, arg, sizeof(a)))
+		return -EFAULT;
+	if (a.offset & ~PAGE_MASK)
+		return -EINVAL;
+
+	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd,
+			      a.offset >> PAGE_SHIFT);
+}
+#endif /* __ARCH_WANT_SYS_OLD_MMAP */
 
 /*
  * split a vma into two pieces at address 'addr', a new vma is allocated either

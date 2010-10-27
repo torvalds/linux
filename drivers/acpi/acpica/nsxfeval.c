@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -562,25 +562,20 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 		return (AE_BAD_PARAMETER);
 	}
 
-	/* Run _STA to determine if device is present */
-
-	status = acpi_ut_execute_STA(node, &flags);
-	if (ACPI_FAILURE(status)) {
-		return (AE_CTRL_DEPTH);
-	}
-
-	if (!(flags & ACPI_STA_DEVICE_PRESENT) &&
-	    !(flags & ACPI_STA_DEVICE_FUNCTIONING)) {
-		/*
-		 * Don't examine the children of the device only when the
-		 * device is neither present nor functional. See ACPI spec,
-		 * description of _STA for more information.
-		 */
-		return (AE_CTRL_DEPTH);
-	}
-
-	/* Filter based on device HID & CID */
-
+	/*
+	 * First, filter based on the device HID and CID.
+	 *
+	 * 01/2010: For this case where a specific HID is requested, we don't
+	 * want to run _STA until we have an actual HID match. Thus, we will
+	 * not unnecessarily execute _STA on devices for which the caller
+	 * doesn't care about. Previously, _STA was executed unconditionally
+	 * on all devices found here.
+	 *
+	 * A side-effect of this change is that now we will continue to search
+	 * for a matching HID even under device trees where the parent device
+	 * would have returned a _STA that indicates it is not present or
+	 * not functioning (thus aborting the search on that branch).
+	 */
 	if (info->hid != NULL) {
 		status = acpi_ut_execute_HID(node, &hid);
 		if (status == AE_NOT_FOUND) {
@@ -619,6 +614,25 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 				return (AE_OK);
 		}
 	}
+
+	/* Run _STA to determine if device is present */
+
+	status = acpi_ut_execute_STA(node, &flags);
+	if (ACPI_FAILURE(status)) {
+		return (AE_CTRL_DEPTH);
+	}
+
+	if (!(flags & ACPI_STA_DEVICE_PRESENT) &&
+	    !(flags & ACPI_STA_DEVICE_FUNCTIONING)) {
+		/*
+		 * Don't examine the children of the device only when the
+		 * device is neither present nor functional. See ACPI spec,
+		 * description of _STA for more information.
+		 */
+		return (AE_CTRL_DEPTH);
+	}
+
+	/* We have a valid device, invoke the user function */
 
 	status = info->user_function(obj_handle, nesting_level, info->context,
 				     return_value);

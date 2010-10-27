@@ -7,6 +7,7 @@
  */
 
 #include <linux/smp_lock.h>
+#include <linux/slab.h>
 #include "hpfs_fn.h"
 
 static int hpfs_dir_release(struct inode *inode, struct file *filp)
@@ -59,7 +60,7 @@ static int hpfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	struct hpfs_dirent *de;
 	int lc;
 	long old_pos;
-	char *tempname;
+	unsigned char *tempname;
 	int c1, c2 = 0;
 	int ret = 0;
 
@@ -158,11 +159,11 @@ static int hpfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		tempname = hpfs_translate_name(inode->i_sb, de->name, de->namelen, lc, de->not_8x3);
 		if (filldir(dirent, tempname, de->namelen, old_pos, de->fnode, DT_UNKNOWN) < 0) {
 			filp->f_pos = old_pos;
-			if (tempname != (char *)de->name) kfree(tempname);
+			if (tempname != de->name) kfree(tempname);
 			hpfs_brelse4(&qbh);
 			goto out;
 		}
-		if (tempname != (char *)de->name) kfree(tempname);
+		if (tempname != de->name) kfree(tempname);
 		hpfs_brelse4(&qbh);
 	}
 out:
@@ -187,7 +188,7 @@ out:
 
 struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 {
-	const char *name = dentry->d_name.name;
+	const unsigned char *name = dentry->d_name.name;
 	unsigned len = dentry->d_name.len;
 	struct quad_buffer_head qbh;
 	struct hpfs_dirent *de;
@@ -197,7 +198,7 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, struct name
 	struct hpfs_inode_info *hpfs_result;
 
 	lock_kernel();
-	if ((err = hpfs_chk_name((char *)name, &len))) {
+	if ((err = hpfs_chk_name(name, &len))) {
 		if (err == -ENAMETOOLONG) {
 			unlock_kernel();
 			return ERR_PTR(-ENAMETOOLONG);
@@ -209,7 +210,7 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, struct name
 	 * '.' and '..' will never be passed here.
 	 */
 
-	de = map_dirent(dir, hpfs_i(dir)->i_dno, (char *) name, len, NULL, &qbh);
+	de = map_dirent(dir, hpfs_i(dir)->i_dno, name, len, NULL, &qbh);
 
 	/*
 	 * This is not really a bailout, just means file not found.
@@ -250,7 +251,7 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, struct name
 	hpfs_result = hpfs_i(result);
 	if (!de->directory) hpfs_result->i_parent_dir = dir->i_ino;
 
-	hpfs_decide_conv(result, (char *)name, len);
+	hpfs_decide_conv(result, name, len);
 
 	if (de->has_acl || de->has_xtd_perm) if (!(dir->i_sb->s_flags & MS_RDONLY)) {
 		hpfs_error(result->i_sb, "ACLs or XPERM found. This is probably HPFS386. This driver doesn't support it now. Send me some info on these structures");

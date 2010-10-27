@@ -85,6 +85,15 @@ bfa_hwct_reginit(struct bfa_s *bfa)
 }
 
 void
+bfa_hwct_reqq_ack(struct bfa_s *bfa, int reqq)
+{
+	u32 r32;
+
+	r32 = bfa_reg_read(bfa->iocfc.bfa_regs.cpe_q_ctrl[reqq]);
+	bfa_reg_write(bfa->iocfc.bfa_regs.cpe_q_ctrl[reqq], r32);
+}
+
+void
 bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq)
 {
 	u32	r32;
@@ -159,4 +168,9 @@ bfa_hwct_isr_mode_set(struct bfa_s *bfa, bfa_boolean_t msix)
 	bfa_ioc_isr_mode_set(&bfa->ioc, msix);
 }
 
-
+void
+bfa_hwct_msix_get_rme_range(struct bfa_s *bfa, u32 *start, u32 *end)
+{
+	*start = BFA_MSIX_RME_Q0;
+	*end = BFA_MSIX_RME_Q3;
+}

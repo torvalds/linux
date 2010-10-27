@@ -17,6 +17,7 @@
 #include <linux/nfs_fs_sb.h>
 #include <linux/in6.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include "internal.h"
 #include "iostat.h"
@@ -354,12 +355,11 @@ void nfs_fscache_reset_inode_cookie(struct inode *inode)
  */
 int nfs_fscache_release_page(struct page *page, gfp_t gfp)
 {
-	struct nfs_inode *nfsi = NFS_I(page->mapping->host);
-	struct fscache_cookie *cookie = nfsi->fscache;
-
-	BUG_ON(!cookie);
-
 	if (PageFsCache(page)) {
+		struct nfs_inode *nfsi = NFS_I(page->mapping->host);
+		struct fscache_cookie *cookie = nfsi->fscache;
+
+		BUG_ON(!cookie);
 		dfprintk(FSCACHE, "NFS: fscache releasepage (0x%p/0x%p/0x%p)\n",
 			 cookie, page, nfsi);
 
@@ -467,7 +467,8 @@ int __nfs_readpages_from_fscache(struct nfs_open_context *ctx,
 				 struct list_head *pages,
 				 unsigned *nr_pages)
 {
-	int ret, npages = *nr_pages;
+	unsigned npages = *nr_pages;
+	int ret;
 
 	dfprintk(FSCACHE, "NFS: nfs_getpages_from_fscache (0x%p/%u/0x%p)\n",
 		 NFS_I(inode)->fscache, npages, inode);

@@ -19,6 +19,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <sound/opl3.h>
 #include <sound/asound_fm.h>
 

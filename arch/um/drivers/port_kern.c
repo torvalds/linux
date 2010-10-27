@@ -7,6 +7,7 @@
 #include "linux/interrupt.h"
 #include "linux/list.h"
 #include "linux/mutex.h"
+#include "linux/slab.h"
 #include "linux/workqueue.h"
 #include "asm/atomic.h"
 #include "init.h"

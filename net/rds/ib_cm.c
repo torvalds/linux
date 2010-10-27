@@ -32,6 +32,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/in.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 #include "rds.h"
@@ -203,9 +204,10 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 		rdma_notify(ic->i_cm_id, IB_EVENT_COMM_EST);
 		break;
 	default:
-		rds_ib_conn_error(conn, "RDS/IB: Fatal QP Event %u "
+		rdsdebug("Fatal QP Event %u "
 			"- connection %pI4->%pI4, reconnecting\n",
 			event->event, &conn->c_laddr, &conn->c_faddr);
+		rds_conn_drop(conn);
 		break;
 	}
 }
@@ -473,6 +475,7 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 	err = rds_ib_setup_qp(conn);
 	if (err) {
 		rds_ib_conn_error(conn, "rds_ib_setup_qp failed (%d)\n", err);
+		mutex_unlock(&conn->c_cm_lock);
 		goto out;
 	}
 

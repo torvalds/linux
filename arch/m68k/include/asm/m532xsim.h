@@ -17,6 +17,7 @@
 #define MCFINT_UART0        26          /* Interrupt number for UART0 */
 #define MCFINT_UART1        27          /* Interrupt number for UART1 */
 #define MCFINT_UART2        28          /* Interrupt number for UART2 */
+#define MCFINT_QSPI         31          /* Interrupt number for QSPI */
 
 #define MCF_WTM_WCR	MCF_REG16(0xFC098000)
 

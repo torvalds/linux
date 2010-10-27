@@ -49,7 +49,7 @@ struct ieee80211_crypto_ops {
 	 * These can be NULL if full MSDU operations are not needed. */
 	int (*encrypt_msdu)(struct sk_buff *skb, int hdr_len, void *priv);
 	int (*decrypt_msdu)(struct sk_buff *skb, int keyidx, int hdr_len,
-			    void *priv);
+			    void *priv, struct ieee80211_device* ieee);
 
 	int (*set_key)(void *key, int len, u8 *seq, void *priv);
 	int (*get_key)(void *key, int len, u8 *seq, void *priv);

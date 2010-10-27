@@ -11,6 +11,7 @@
  * Written by: Anil Veerabhadrappa (anilgv@broadcom.com)
  */
 
+#include <linux/gfp.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/libiscsi.h>
 #include "bnx2i.h"
@@ -346,6 +347,7 @@ int bnx2i_send_iscsi_login(struct bnx2i_conn *bnx2i_conn,
 
 	login_wqe->cmd_sn = be32_to_cpu(login_hdr->cmdsn);
 	login_wqe->exp_stat_sn = be32_to_cpu(login_hdr->exp_statsn);
+	login_wqe->flags = ISCSI_LOGIN_REQUEST_UPDATE_EXP_STAT_SN;
 
 	login_wqe->resp_bd_list_addr_lo = (u32) bnx2i_conn->gen_pdu.resp_bd_dma;
 	login_wqe->resp_bd_list_addr_hi =
@@ -355,7 +357,6 @@ int bnx2i_send_iscsi_login(struct bnx2i_conn *bnx2i_conn,
 		 (bnx2i_conn->gen_pdu.resp_buf_size <<
 		  ISCSI_LOGIN_REQUEST_RESP_BUFFER_LENGTH_SHIFT));
 	login_wqe->resp_buffer = dword;
-	login_wqe->flags = 0;
 	login_wqe->bd_list_addr_lo = (u32) bnx2i_conn->gen_pdu.req_bd_dma;
 	login_wqe->bd_list_addr_hi =
 		(u32) ((u64) bnx2i_conn->gen_pdu.req_bd_dma >> 32);
@@ -560,6 +561,8 @@ int bnx2i_send_iscsi_logout(struct bnx2i_conn *bnx2i_conn,
 				((u64) bnx2i_conn->hba->mp_bd_dma >> 32);
 	logout_wqe->num_bds = 1;
 	logout_wqe->cq_index = 0; /* CQ# used for completion, 5771x only */
+
+	bnx2i_conn->ep->state = EP_STATE_LOGOUT_SENT;
 
 	bnx2i_ring_dbell_update_sq_params(bnx2i_conn, 1);
 	return 0;
@@ -1481,6 +1484,8 @@ static int bnx2i_process_logout_resp(struct iscsi_session *session,
 	resp_hdr->t2retain = cpu_to_be32(logout->time_to_retain);
 
 	__iscsi_complete_pdu(conn, (struct iscsi_hdr *)resp_hdr, NULL, 0);
+
+	bnx2i_conn->ep->state = EP_STATE_LOGOUT_RESP_RCVD;
 done:
 	spin_unlock(&session->lock);
 	return 0;

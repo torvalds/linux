@@ -328,7 +328,6 @@ e21_reset_8390(struct net_device *dev)
 	/* Set up the ASIC registers, just in case something changed them. */
 
 	if (ei_debug > 1) printk("reset done\n");
-	return;
 }
 
 /* Grab the 8390 specific header. We put the 2k window so the header page

@@ -225,7 +225,7 @@ static void __init smp_read_mpc_oem(struct mpc_table *mpc)
 
 	mpc_record = 0;
 	printk(KERN_INFO
-		"Found an OEM MPC table at %8p - parsing it ... \n", oemtable);
+		"Found an OEM MPC table at %8p - parsing it...\n", oemtable);
 
 	if (memcmp(oemtable->signature, MPC_OEM_SIGNATURE, 4)) {
 		printk(KERN_WARNING
@@ -277,6 +277,7 @@ static __init void early_check_numaq(void)
 		x86_init.mpparse.mpc_oem_pci_bus = mpc_oem_pci_bus;
 		x86_init.mpparse.mpc_oem_bus_info = mpc_oem_bus_info;
 		x86_init.timers.tsc_pre_init = numaq_tsc_init;
+		x86_init.pci.init = pci_numaq_init;
 	}
 }
 

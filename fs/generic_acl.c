@@ -7,6 +7,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/gfp.h>
 #include <linux/fs.h>
 #include <linux/generic_acl.h>
 #include <linux/posix_acl.h>
@@ -93,6 +94,7 @@ generic_acl_set(struct dentry *dentry, const char *name, const void *value,
 			if (error < 0)
 				goto failed;
 			inode->i_mode = mode;
+			inode->i_ctime = CURRENT_TIME;
 			if (error == 0) {
 				posix_acl_release(acl);
 				acl = NULL;
@@ -200,7 +202,7 @@ generic_check_acl(struct inode *inode, int mask)
 	return -EAGAIN;
 }
 
-struct xattr_handler generic_acl_access_handler = {
+const struct xattr_handler generic_acl_access_handler = {
 	.prefix = POSIX_ACL_XATTR_ACCESS,
 	.flags	= ACL_TYPE_ACCESS,
 	.list	= generic_acl_list,
@@ -208,7 +210,7 @@ struct xattr_handler generic_acl_access_handler = {
 	.set	= generic_acl_set,
 };
 
-struct xattr_handler generic_acl_default_handler = {
+const struct xattr_handler generic_acl_default_handler = {
 	.prefix = POSIX_ACL_XATTR_DEFAULT,
 	.flags	= ACL_TYPE_DEFAULT,
 	.list	= generic_acl_list,

@@ -49,6 +49,7 @@ unsigned int i915_lvds_downclock = 0;
 module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
 
 static struct drm_driver driver;
+extern int intel_agp_enabled;
 
 #define INTEL_VGA_DEVICE(id, info) {		\
 	.class = PCI_CLASS_DISPLAY_VGA << 8,	\
@@ -59,114 +60,128 @@ static struct drm_driver driver;
 	.subdevice = PCI_ANY_ID,		\
 	.driver_data = (unsigned long) info }
 
-const static struct intel_device_info intel_i830_info = {
-	.is_i8xx = 1, .is_mobile = 1, .cursor_needs_physical = 1,
+static const struct intel_device_info intel_i830_info = {
+	.gen = 2, .is_i8xx = 1, .is_mobile = 1, .cursor_needs_physical = 1,
 };
 
-const static struct intel_device_info intel_845g_info = {
-	.is_i8xx = 1,
+static const struct intel_device_info intel_845g_info = {
+	.gen = 2, .is_i8xx = 1,
 };
 
-const static struct intel_device_info intel_i85x_info = {
-	.is_i8xx = 1, .is_mobile = 1, .cursor_needs_physical = 1,
-};
-
-const static struct intel_device_info intel_i865g_info = {
-	.is_i8xx = 1,
-};
-
-const static struct intel_device_info intel_i915g_info = {
-	.is_i915g = 1, .is_i9xx = 1, .cursor_needs_physical = 1,
-};
-const static struct intel_device_info intel_i915gm_info = {
-	.is_i9xx = 1,  .is_mobile = 1, .has_fbc = 1,
+static const struct intel_device_info intel_i85x_info = {
+	.gen = 2, .is_i8xx = 1, .is_i85x = 1, .is_mobile = 1,
 	.cursor_needs_physical = 1,
 };
-const static struct intel_device_info intel_i945g_info = {
-	.is_i9xx = 1, .has_hotplug = 1, .cursor_needs_physical = 1,
+
+static const struct intel_device_info intel_i865g_info = {
+	.gen = 2, .is_i8xx = 1,
 };
-const static struct intel_device_info intel_i945gm_info = {
-	.is_i945gm = 1, .is_i9xx = 1, .is_mobile = 1, .has_fbc = 1,
+
+static const struct intel_device_info intel_i915g_info = {
+	.gen = 3, .is_i915g = 1, .is_i9xx = 1, .cursor_needs_physical = 1,
+};
+static const struct intel_device_info intel_i915gm_info = {
+	.gen = 3, .is_i9xx = 1,  .is_mobile = 1,
+	.cursor_needs_physical = 1,
+};
+static const struct intel_device_info intel_i945g_info = {
+	.gen = 3, .is_i9xx = 1, .has_hotplug = 1, .cursor_needs_physical = 1,
+};
+static const struct intel_device_info intel_i945gm_info = {
+	.gen = 3, .is_i945gm = 1, .is_i9xx = 1, .is_mobile = 1,
 	.has_hotplug = 1, .cursor_needs_physical = 1,
 };
 
-const static struct intel_device_info intel_i965g_info = {
-	.is_i965g = 1, .is_i9xx = 1, .has_hotplug = 1,
-};
-
-const static struct intel_device_info intel_i965gm_info = {
-	.is_i965g = 1, .is_mobile = 1, .is_i965gm = 1, .is_i9xx = 1,
-	.is_mobile = 1, .has_fbc = 1, .has_rc6 = 1,
+static const struct intel_device_info intel_i965g_info = {
+	.gen = 4, .is_broadwater = 1, .is_i965g = 1, .is_i9xx = 1,
 	.has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_g33_info = {
-	.is_g33 = 1, .is_i9xx = 1, .need_gfx_hws = 1,
-	.has_hotplug = 1,
+static const struct intel_device_info intel_i965gm_info = {
+	.gen = 4, .is_crestline = 1, .is_i965g = 1, .is_i965gm = 1, .is_i9xx = 1,
+	.is_mobile = 1, .has_fbc = 1, .has_rc6 = 1, .has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_g45_info = {
-	.is_i965g = 1, .is_g4x = 1, .is_i9xx = 1, .need_gfx_hws = 1,
-	.has_pipe_cxsr = 1,
-	.has_hotplug = 1,
+static const struct intel_device_info intel_g33_info = {
+	.gen = 3, .is_g33 = 1, .is_i9xx = 1,
+	.need_gfx_hws = 1, .has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_gm45_info = {
-	.is_i965g = 1, .is_mobile = 1, .is_g4x = 1, .is_i9xx = 1,
+static const struct intel_device_info intel_g45_info = {
+	.gen = 4, .is_i965g = 1, .is_g4x = 1, .is_i9xx = 1, .need_gfx_hws = 1,
+	.has_pipe_cxsr = 1, .has_hotplug = 1,
+};
+
+static const struct intel_device_info intel_gm45_info = {
+	.gen = 4, .is_i965g = 1, .is_g4x = 1, .is_i9xx = 1,
 	.is_mobile = 1, .need_gfx_hws = 1, .has_fbc = 1, .has_rc6 = 1,
-	.has_pipe_cxsr = 1,
-	.has_hotplug = 1,
+	.has_pipe_cxsr = 1, .has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_pineview_info = {
-	.is_g33 = 1, .is_pineview = 1, .is_mobile = 1, .is_i9xx = 1,
-	.has_pipe_cxsr = 1,
-	.has_hotplug = 1,
+static const struct intel_device_info intel_pineview_info = {
+	.gen = 3, .is_g33 = 1, .is_pineview = 1, .is_mobile = 1, .is_i9xx = 1,
+	.need_gfx_hws = 1, .has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_ironlake_d_info = {
-	.is_ironlake = 1, .is_i965g = 1, .is_i9xx = 1, .need_gfx_hws = 1,
-	.has_pipe_cxsr = 1,
-	.has_hotplug = 1,
+static const struct intel_device_info intel_ironlake_d_info = {
+	.gen = 5, .is_ironlake = 1, .is_i965g = 1, .is_i9xx = 1,
+	.need_gfx_hws = 1, .has_pipe_cxsr = 1, .has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_ironlake_m_info = {
-	.is_ironlake = 1, .is_mobile = 1, .is_i965g = 1, .is_i9xx = 1,
-	.need_gfx_hws = 1, .has_rc6 = 1,
-	.has_hotplug = 1,
+static const struct intel_device_info intel_ironlake_m_info = {
+	.gen = 5, .is_ironlake = 1, .is_mobile = 1, .is_i965g = 1, .is_i9xx = 1,
+	.need_gfx_hws = 1, .has_fbc = 1, .has_rc6 = 1, .has_hotplug = 1,
 };
 
-const static struct pci_device_id pciidlist[] = {
-	INTEL_VGA_DEVICE(0x3577, &intel_i830_info),
-	INTEL_VGA_DEVICE(0x2562, &intel_845g_info),
-	INTEL_VGA_DEVICE(0x3582, &intel_i85x_info),
-	INTEL_VGA_DEVICE(0x35e8, &intel_i85x_info),
-	INTEL_VGA_DEVICE(0x2572, &intel_i865g_info),
-	INTEL_VGA_DEVICE(0x2582, &intel_i915g_info),
-	INTEL_VGA_DEVICE(0x258a, &intel_i915g_info),
-	INTEL_VGA_DEVICE(0x2592, &intel_i915gm_info),
-	INTEL_VGA_DEVICE(0x2772, &intel_i945g_info),
-	INTEL_VGA_DEVICE(0x27a2, &intel_i945gm_info),
-	INTEL_VGA_DEVICE(0x27ae, &intel_i945gm_info),
-	INTEL_VGA_DEVICE(0x2972, &intel_i965g_info),
-	INTEL_VGA_DEVICE(0x2982, &intel_i965g_info),
-	INTEL_VGA_DEVICE(0x2992, &intel_i965g_info),
-	INTEL_VGA_DEVICE(0x29a2, &intel_i965g_info),
-	INTEL_VGA_DEVICE(0x29b2, &intel_g33_info),
-	INTEL_VGA_DEVICE(0x29c2, &intel_g33_info),
-	INTEL_VGA_DEVICE(0x29d2, &intel_g33_info),
-	INTEL_VGA_DEVICE(0x2a02, &intel_i965gm_info),
-	INTEL_VGA_DEVICE(0x2a12, &intel_i965gm_info),
-	INTEL_VGA_DEVICE(0x2a42, &intel_gm45_info),
-	INTEL_VGA_DEVICE(0x2e02, &intel_g45_info),
-	INTEL_VGA_DEVICE(0x2e12, &intel_g45_info),
-	INTEL_VGA_DEVICE(0x2e22, &intel_g45_info),
-	INTEL_VGA_DEVICE(0x2e32, &intel_g45_info),
-	INTEL_VGA_DEVICE(0x2e42, &intel_g45_info),
+static const struct intel_device_info intel_sandybridge_d_info = {
+	.gen = 6, .is_i965g = 1, .is_i9xx = 1,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+};
+
+static const struct intel_device_info intel_sandybridge_m_info = {
+	.gen = 6, .is_i965g = 1, .is_mobile = 1, .is_i9xx = 1,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+};
+
+static const struct pci_device_id pciidlist[] = {		/* aka */
+	INTEL_VGA_DEVICE(0x3577, &intel_i830_info),		/* I830_M */
+	INTEL_VGA_DEVICE(0x2562, &intel_845g_info),		/* 845_G */
+	INTEL_VGA_DEVICE(0x3582, &intel_i85x_info),		/* I855_GM */
+	INTEL_VGA_DEVICE(0x358e, &intel_i85x_info),
+	INTEL_VGA_DEVICE(0x2572, &intel_i865g_info),		/* I865_G */
+	INTEL_VGA_DEVICE(0x2582, &intel_i915g_info),		/* I915_G */
+	INTEL_VGA_DEVICE(0x258a, &intel_i915g_info),		/* E7221_G */
+	INTEL_VGA_DEVICE(0x2592, &intel_i915gm_info),		/* I915_GM */
+	INTEL_VGA_DEVICE(0x2772, &intel_i945g_info),		/* I945_G */
+	INTEL_VGA_DEVICE(0x27a2, &intel_i945gm_info),		/* I945_GM */
+	INTEL_VGA_DEVICE(0x27ae, &intel_i945gm_info),		/* I945_GME */
+	INTEL_VGA_DEVICE(0x2972, &intel_i965g_info),		/* I946_GZ */
+	INTEL_VGA_DEVICE(0x2982, &intel_i965g_info),		/* G35_G */
+	INTEL_VGA_DEVICE(0x2992, &intel_i965g_info),		/* I965_Q */
+	INTEL_VGA_DEVICE(0x29a2, &intel_i965g_info),		/* I965_G */
+	INTEL_VGA_DEVICE(0x29b2, &intel_g33_info),		/* Q35_G */
+	INTEL_VGA_DEVICE(0x29c2, &intel_g33_info),		/* G33_G */
+	INTEL_VGA_DEVICE(0x29d2, &intel_g33_info),		/* Q33_G */
+	INTEL_VGA_DEVICE(0x2a02, &intel_i965gm_info),		/* I965_GM */
+	INTEL_VGA_DEVICE(0x2a12, &intel_i965gm_info),		/* I965_GME */
+	INTEL_VGA_DEVICE(0x2a42, &intel_gm45_info),		/* GM45_G */
+	INTEL_VGA_DEVICE(0x2e02, &intel_g45_info),		/* IGD_E_G */
+	INTEL_VGA_DEVICE(0x2e12, &intel_g45_info),		/* Q45_G */
+	INTEL_VGA_DEVICE(0x2e22, &intel_g45_info),		/* G45_G */
+	INTEL_VGA_DEVICE(0x2e32, &intel_g45_info),		/* G41_G */
+	INTEL_VGA_DEVICE(0x2e42, &intel_g45_info),		/* B43_G */
+	INTEL_VGA_DEVICE(0x2e92, &intel_g45_info),		/* B43_G.1 */
 	INTEL_VGA_DEVICE(0xa001, &intel_pineview_info),
 	INTEL_VGA_DEVICE(0xa011, &intel_pineview_info),
 	INTEL_VGA_DEVICE(0x0042, &intel_ironlake_d_info),
 	INTEL_VGA_DEVICE(0x0046, &intel_ironlake_m_info),
+	INTEL_VGA_DEVICE(0x0102, &intel_sandybridge_d_info),
+	INTEL_VGA_DEVICE(0x0112, &intel_sandybridge_d_info),
+	INTEL_VGA_DEVICE(0x0122, &intel_sandybridge_d_info),
+	INTEL_VGA_DEVICE(0x0106, &intel_sandybridge_m_info),
+	INTEL_VGA_DEVICE(0x0116, &intel_sandybridge_m_info),
+	INTEL_VGA_DEVICE(0x0126, &intel_sandybridge_m_info),
+	INTEL_VGA_DEVICE(0x010A, &intel_sandybridge_d_info),
 	{0, 0, 0}
 };
 
@@ -174,26 +189,49 @@ const static struct pci_device_id pciidlist[] = {
 MODULE_DEVICE_TABLE(pci, pciidlist);
 #endif
 
-static int i915_suspend(struct drm_device *dev, pm_message_t state)
+#define INTEL_PCH_DEVICE_ID_MASK	0xff00
+#define INTEL_PCH_CPT_DEVICE_ID_TYPE	0x1c00
+
+void intel_detect_pch (struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct pci_dev *pch;
 
-	if (!dev || !dev_priv) {
-		DRM_ERROR("dev: %p, dev_priv: %p\n", dev, dev_priv);
-		DRM_ERROR("DRM not initialized, aborting suspend.\n");
-		return -ENODEV;
+	/*
+	 * The reason to probe ISA bridge instead of Dev31:Fun0 is to
+	 * make graphics device passthrough work easy for VMM, that only
+	 * need to expose ISA bridge to let driver know the real hardware
+	 * underneath. This is a requirement from virtualization team.
+	 */
+	pch = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, NULL);
+	if (pch) {
+		if (pch->vendor == PCI_VENDOR_ID_INTEL) {
+			int id;
+			id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
+
+			if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
+				dev_priv->pch_type = PCH_CPT;
+				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
+			}
+		}
+		pci_dev_put(pch);
 	}
+}
 
-	if (state.event == PM_EVENT_PRETHAW)
-		return 0;
+static int i915_drm_freeze(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	pci_save_state(dev->pdev);
 
 	/* If KMS is active, we do the leavevt stuff here */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		if (i915_gem_idle(dev))
+		int error = i915_gem_idle(dev);
+		if (error) {
 			dev_err(&dev->pdev->dev,
-				"GEM idle failed, resume may fail\n");
+				"GEM idle failed, resume might fail\n");
+			return error;
+		}
 		drm_irq_uninstall(dev);
 	}
 
@@ -201,26 +239,42 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 
 	intel_opregion_free(dev, 1);
 
-	if (state.event == PM_EVENT_SUSPEND) {
-		/* Shut down the device */
-		pci_disable_device(dev->pdev);
-		pci_set_power_state(dev->pdev, PCI_D3hot);
-	}
-
 	/* Modeset on resume, not lid events */
 	dev_priv->modeset_on_lid = 0;
 
 	return 0;
 }
 
-static int i915_resume(struct drm_device *dev)
+int i915_suspend(struct drm_device *dev, pm_message_t state)
+{
+	int error;
+
+	if (!dev || !dev->dev_private) {
+		DRM_ERROR("dev: %p\n", dev);
+		DRM_ERROR("DRM not initialized, aborting suspend.\n");
+		return -ENODEV;
+	}
+
+	if (state.event == PM_EVENT_PRETHAW)
+		return 0;
+
+	error = i915_drm_freeze(dev);
+	if (error)
+		return error;
+
+	if (state.event == PM_EVENT_SUSPEND) {
+		/* Shut down the device */
+		pci_disable_device(dev->pdev);
+		pci_set_power_state(dev->pdev, PCI_D3hot);
+	}
+
+	return 0;
+}
+
+static int i915_drm_thaw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret = 0;
-
-	if (pci_enable_device(dev->pdev))
-		return -1;
-	pci_set_master(dev->pdev);
+	int error = 0;
 
 	i915_restore_state(dev);
 
@@ -231,21 +285,28 @@ static int i915_resume(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		dev_priv->mm.suspended = 0;
 
-		ret = i915_gem_init_ringbuffer(dev);
-		if (ret != 0)
-			ret = -1;
+		error = i915_gem_init_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
 
 		drm_irq_install(dev);
-	}
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+
 		/* Resume the modeset for every activated CRTC */
 		drm_helper_resume_force_mode(dev);
 	}
 
 	dev_priv->modeset_on_lid = 0;
 
-	return ret;
+	return error;
+}
+
+int i915_resume(struct drm_device *dev)
+{
+	if (pci_enable_device(dev->pdev))
+		return -EIO;
+
+	pci_set_master(dev->pdev);
+
+	return i915_drm_thaw(dev);
 }
 
 /**
@@ -310,6 +371,7 @@ int i965_reset(struct drm_device *dev, u8 flags)
 		}
 	} else {
 		DRM_ERROR("Error occurred. Don't know how to reset this chip.\n");
+		mutex_unlock(&dev->struct_mutex);
 		return -ENODEV;
 	}
 
@@ -328,33 +390,10 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	 * switched away).
 	 */
 	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
-	    !dev_priv->mm.suspended) {
-		drm_i915_ring_buffer_t *ring = &dev_priv->ring;
-		struct drm_gem_object *obj = ring->ring_obj;
-		struct drm_i915_gem_object *obj_priv = obj->driver_private;
+			!dev_priv->mm.suspended) {
+		struct intel_ring_buffer *ring = &dev_priv->render_ring;
 		dev_priv->mm.suspended = 0;
-
-		/* Stop the ring if it's running. */
-		I915_WRITE(PRB0_CTL, 0);
-		I915_WRITE(PRB0_TAIL, 0);
-		I915_WRITE(PRB0_HEAD, 0);
-
-		/* Initialize the ring. */
-		I915_WRITE(PRB0_START, obj_priv->gtt_offset);
-		I915_WRITE(PRB0_CTL,
-			   ((obj->size - 4096) & RING_NR_PAGES) |
-			   RING_NO_REPORT |
-			   RING_VALID);
-		if (!drm_core_check_feature(dev, DRIVER_MODESET))
-			i915_kernel_lost_context(dev);
-		else {
-			ring->head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
-			ring->tail = I915_READ(PRB0_TAIL) & TAIL_ADDR;
-			ring->space = ring->head - (ring->tail + 8);
-			if (ring->space < 0)
-				ring->space += ring->Size;
-		}
-
+		ring->init(dev, ring);
 		mutex_unlock(&dev->struct_mutex);
 		drm_irq_uninstall(dev);
 		drm_irq_install(dev);
@@ -375,7 +414,7 @@ int i965_reset(struct drm_device *dev, u8 flags)
 static int __devinit
 i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	return drm_get_dev(pdev, ent, &driver);
+	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
 static void
@@ -386,66 +425,71 @@ i915_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
-static int
-i915_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int i915_pm_suspend(struct device *dev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	int error;
 
-	return i915_suspend(dev, state);
-}
+	if (!drm_dev || !drm_dev->dev_private) {
+		dev_err(dev, "DRM not initialized, aborting suspend.\n");
+		return -ENODEV;
+	}
 
-static int
-i915_pci_resume(struct pci_dev *pdev)
-{
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	error = i915_drm_freeze(drm_dev);
+	if (error)
+		return error;
 
-	return i915_resume(dev);
-}
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
 
-static int
-i915_pm_suspend(struct device *dev)
-{
-	return i915_pci_suspend(to_pci_dev(dev), PMSG_SUSPEND);
-}
-
-static int
-i915_pm_resume(struct device *dev)
-{
-	return i915_pci_resume(to_pci_dev(dev));
-}
-
-static int
-i915_pm_freeze(struct device *dev)
-{
-	return i915_pci_suspend(to_pci_dev(dev), PMSG_FREEZE);
-}
-
-static int
-i915_pm_thaw(struct device *dev)
-{
-	/* thaw during hibernate, do nothing! */
 	return 0;
 }
 
-static int
-i915_pm_poweroff(struct device *dev)
+static int i915_pm_resume(struct device *dev)
 {
-	return i915_pci_suspend(to_pci_dev(dev), PMSG_HIBERNATE);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return i915_resume(drm_dev);
 }
 
-static int
-i915_pm_restore(struct device *dev)
+static int i915_pm_freeze(struct device *dev)
 {
-	return i915_pci_resume(to_pci_dev(dev));
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	if (!drm_dev || !drm_dev->dev_private) {
+		dev_err(dev, "DRM not initialized, aborting suspend.\n");
+		return -ENODEV;
+	}
+
+	return i915_drm_freeze(drm_dev);
 }
 
-const struct dev_pm_ops i915_pm_ops = {
+static int i915_pm_thaw(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return i915_drm_thaw(drm_dev);
+}
+
+static int i915_pm_poweroff(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return i915_drm_freeze(drm_dev);
+}
+
+static const struct dev_pm_ops i915_pm_ops = {
      .suspend = i915_pm_suspend,
      .resume = i915_pm_resume,
      .freeze = i915_pm_freeze,
      .thaw = i915_pm_thaw,
      .poweroff = i915_pm_poweroff,
-     .restore = i915_pm_restore,
+     .restore = i915_pm_resume,
 };
 
 static struct vm_operations_struct i915_gem_vm_ops = {
@@ -524,6 +568,11 @@ static struct drm_driver driver = {
 
 static int __init i915_init(void)
 {
+	if (!intel_agp_enabled) {
+		DRM_ERROR("drm/i915 can't work without intel_agp module!\n");
+		return -ENODEV;
+	}
+
 	driver.num_ioctls = i915_max_ioctl;
 
 	i915_gem_shrinker_init();
@@ -548,6 +597,11 @@ static int __init i915_init(void)
 	if (vgacon_text_force() && i915_modeset == -1)
 		driver.driver_features &= ~DRIVER_MODESET;
 #endif
+
+	if (!(driver.driver_features & DRIVER_MODESET)) {
+		driver.suspend = i915_suspend;
+		driver.resume = i915_resume;
+	}
 
 	return drm_init(&driver);
 }

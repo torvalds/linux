@@ -13,6 +13,7 @@
  */
 
 #include <asm/processor.h>
+#include <asm/coprocessor.h>
 
 #include <linux/types.h>
 #include <linux/stddef.h>

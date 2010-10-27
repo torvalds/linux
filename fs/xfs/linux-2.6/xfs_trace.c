@@ -24,24 +24,19 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
 #include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_ialloc.h"
 #include "xfs_itable.h"
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_attr.h"
-#include "xfs_attr_sf.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_log_priv.h"
 #include "xfs_buf_item.h"
@@ -50,22 +45,8 @@
 #include "xfs_aops.h"
 #include "quota/xfs_dquot_item.h"
 #include "quota/xfs_dquot.h"
-
-/*
- * Format fsblock number into a static buffer & return it.
- */
-STATIC char *xfs_fmtfsblock(xfs_fsblock_t bno)
-{
-	static char rval[50];
-
-	if (bno == NULLFSBLOCK)
-		sprintf(rval, "NULLFSBLOCK");
-	else if (isnullstartblock(bno))
-		sprintf(rval, "NULLSTARTBLOCK(%lld)", startblockval(bno));
-	else
-		sprintf(rval, "%lld", (xfs_dfsbno_t)bno);
-	return rval;
-}
+#include "xfs_log_recover.h"
+#include "xfs_inode_item.h"
 
 /*
  * We include this last to have the helpers above available for the trace

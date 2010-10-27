@@ -167,6 +167,7 @@ static uch *high_buffer_start /* = (uch *)(((ulg)&end) + HEAP_SIZE)*/;
 static char *vidmem = (char *)0xb8000;
 static int lines, cols;
 
+#define BOOTLOADER_INFLATE
 #include "../../../../lib/inflate.c"
 
 static inline void scroll(void)

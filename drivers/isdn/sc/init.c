@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include "includes.h"
 #include "hardware.h"
 #include "card.h"

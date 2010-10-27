@@ -14,7 +14,6 @@
 #include <asm/ptrace.h>
 #include <asm/setup.h>
 #include <asm/registers.h>
-#include <asm/segment.h>
 #include <asm/entry.h>
 #include <asm/current.h>
 

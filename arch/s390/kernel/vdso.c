@@ -23,6 +23,7 @@
 #include <linux/security.h>
 #include <linux/bootmem.h>
 #include <linux/compat.h>
+#include <asm/asm-offsets.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
 #include <asm/processor.h>
@@ -101,11 +102,7 @@ static void vdso_init_per_cpu_data(int cpu, struct vdso_per_cpu_data *vpcd)
 /*
  * Allocate/free per cpu vdso data.
  */
-#ifdef CONFIG_64BIT
 #define SEGMENT_ORDER	2
-#else
-#define SEGMENT_ORDER	1
-#endif
 
 int vdso_alloc_per_cpu(int cpu, struct _lowcore *lowcore)
 {

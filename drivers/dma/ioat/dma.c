@@ -27,6 +27,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
@@ -71,7 +72,7 @@ static irqreturn_t ioat_dma_do_interrupt(int irq, void *data)
 	}
 
 	attnstatus = readl(instance->reg_base + IOAT_ATTNSTATUS_OFFSET);
-	for_each_bit(bit, &attnstatus, BITS_PER_LONG) {
+	for_each_set_bit(bit, &attnstatus, BITS_PER_LONG) {
 		chan = ioat_chan_by_index(instance, bit);
 		tasklet_schedule(&chan->cleanup_task);
 	}
@@ -94,16 +95,12 @@ static irqreturn_t ioat_dma_do_interrupt_msix(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void ioat1_cleanup_tasklet(unsigned long data);
-
 /* common channel initialization */
-void ioat_init_channel(struct ioatdma_device *device,
-		       struct ioat_chan_common *chan, int idx,
-		       void (*timer_fn)(unsigned long),
-		       void (*tasklet)(unsigned long),
-		       unsigned long ioat)
+void ioat_init_channel(struct ioatdma_device *device, struct ioat_chan_common *chan, int idx)
 {
 	struct dma_device *dma = &device->common;
+	struct dma_chan *c = &chan->common;
+	unsigned long data = (unsigned long) c;
 
 	chan->device = device;
 	chan->reg_base = device->reg_base + (0x80 * (idx + 1));
@@ -112,13 +109,11 @@ void ioat_init_channel(struct ioatdma_device *device,
 	list_add_tail(&chan->common.device_node, &dma->channels);
 	device->idx[idx] = chan;
 	init_timer(&chan->timer);
-	chan->timer.function = timer_fn;
-	chan->timer.data = ioat;
-	tasklet_init(&chan->cleanup_task, tasklet, ioat);
+	chan->timer.function = device->timer_fn;
+	chan->timer.data = data;
+	tasklet_init(&chan->cleanup_task, device->cleanup_fn, data);
 	tasklet_disable(&chan->cleanup_task);
 }
-
-static void ioat1_timer_event(unsigned long data);
 
 /**
  * ioat1_dma_enumerate_channels - find and initialize the device's channels
@@ -155,10 +150,7 @@ static int ioat1_enumerate_channels(struct ioatdma_device *device)
 		if (!ioat)
 			break;
 
-		ioat_init_channel(device, &ioat->base, i,
-				  ioat1_timer_event,
-				  ioat1_cleanup_tasklet,
-				  (unsigned long) ioat);
+		ioat_init_channel(device, &ioat->base, i);
 		ioat->xfercap = xfercap;
 		spin_lock_init(&ioat->desc_lock);
 		INIT_LIST_HEAD(&ioat->free_desc);
@@ -532,12 +524,12 @@ ioat1_dma_prep_memcpy(struct dma_chan *c, dma_addr_t dma_dest,
 	return &desc->txd;
 }
 
-static void ioat1_cleanup_tasklet(unsigned long data)
+static void ioat1_cleanup_event(unsigned long data)
 {
-	struct ioat_dma_chan *chan = (void *)data;
+	struct ioat_dma_chan *ioat = to_ioat_chan((void *) data);
 
-	ioat1_cleanup(chan);
-	writew(IOAT_CHANCTRL_RUN, chan->base.reg_base + IOAT_CHANCTRL_OFFSET);
+	ioat1_cleanup(ioat);
+	writew(IOAT_CHANCTRL_RUN, ioat->base.reg_base + IOAT_CHANCTRL_OFFSET);
 }
 
 void ioat_dma_unmap(struct ioat_chan_common *chan, enum dma_ctrl_flags flags,
@@ -687,7 +679,7 @@ static void ioat1_cleanup(struct ioat_dma_chan *ioat)
 
 static void ioat1_timer_event(unsigned long data)
 {
-	struct ioat_dma_chan *ioat = (void *) data;
+	struct ioat_dma_chan *ioat = to_ioat_chan((void *) data);
 	struct ioat_chan_common *chan = &ioat->base;
 
 	dev_dbg(to_dev(chan), "%s: state: %lx\n", __func__, chan->state);
@@ -734,18 +726,19 @@ static void ioat1_timer_event(unsigned long data)
 	spin_unlock_bh(&chan->cleanup_lock);
 }
 
-static enum dma_status
-ioat1_dma_is_complete(struct dma_chan *c, dma_cookie_t cookie,
-		      dma_cookie_t *done, dma_cookie_t *used)
+enum dma_status
+ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,
+		   struct dma_tx_state *txstate)
 {
-	struct ioat_dma_chan *ioat = to_ioat_chan(c);
+	struct ioat_chan_common *chan = to_chan_common(c);
+	struct ioatdma_device *device = chan->device;
 
-	if (ioat_is_complete(c, cookie, done, used) == DMA_SUCCESS)
+	if (ioat_tx_status(c, cookie, txstate) == DMA_SUCCESS)
 		return DMA_SUCCESS;
 
-	ioat1_cleanup(ioat);
+	device->cleanup_fn((unsigned long) c);
 
-	return ioat_is_complete(c, cookie, done, used);
+	return ioat_tx_status(c, cookie, txstate);
 }
 
 static void ioat1_dma_start_null_desc(struct ioat_dma_chan *ioat)
@@ -865,7 +858,7 @@ int __devinit ioat_dma_self_test(struct ioatdma_device *device)
 	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
 	if (tmo == 0 ||
-	    dma->device_is_tx_complete(dma_chan, cookie, NULL, NULL)
+	    dma->device_tx_status(dma_chan, cookie, NULL)
 					!= DMA_SUCCESS) {
 		dev_err(dev, "Self-test copy timed out, disabling\n");
 		err = -ENODEV;
@@ -1146,7 +1139,7 @@ ioat_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 	return entry->show(&chan->common, page);
 }
 
-struct sysfs_ops ioat_sysfs_ops = {
+const struct sysfs_ops ioat_sysfs_ops = {
 	.show	= ioat_attr_show,
 };
 
@@ -1199,12 +1192,14 @@ int __devinit ioat1_dma_probe(struct ioatdma_device *device, int dca)
 	device->intr_quirk = ioat1_intr_quirk;
 	device->enumerate_channels = ioat1_enumerate_channels;
 	device->self_test = ioat_dma_self_test;
+	device->timer_fn = ioat1_timer_event;
+	device->cleanup_fn = ioat1_cleanup_event;
 	dma = &device->common;
 	dma->device_prep_dma_memcpy = ioat1_dma_prep_memcpy;
 	dma->device_issue_pending = ioat1_dma_memcpy_issue_pending;
 	dma->device_alloc_chan_resources = ioat1_dma_alloc_chan_resources;
 	dma->device_free_chan_resources = ioat1_dma_free_chan_resources;
-	dma->device_is_tx_complete = ioat1_dma_is_complete;
+	dma->device_tx_status = ioat_dma_tx_status;
 
 	err = ioat_probe(device);
 	if (err)

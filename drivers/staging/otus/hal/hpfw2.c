@@ -1015,4 +1015,4 @@ const u32_t zcP2FwImage[] = {
 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 0x00000000, 0x00000000, 0x00000000, };
 
-const u32_t zcP2FwImageSize=15964;
+const u32_t zcP2FwImageSize = 15964;

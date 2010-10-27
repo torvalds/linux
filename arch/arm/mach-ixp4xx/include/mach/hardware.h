@@ -26,10 +26,7 @@
 #define PCIBIOS_MAX_MEM		0x4BFFFFFF
 #endif
 
-/*
- * We override the standard dma-mask routines for bouncing.
- */
-#define	HAVE_ARCH_PCI_SET_DMA_MASK
+#define ARCH_HAS_DMA_SET_COHERENT_MASK
 
 #define pcibios_assign_all_busses()	1
 

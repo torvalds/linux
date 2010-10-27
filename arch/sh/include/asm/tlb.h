@@ -11,6 +11,7 @@
 #ifdef CONFIG_MMU
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
+#include <asm/mmu_context.h>
 
 /*
  * TLB handling.  This allows us to remove pages from the page
@@ -96,6 +97,22 @@ tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
 #define pud_free_tlb(tlb, pudp, addr)	pud_free((tlb)->mm, pudp)
 
 #define tlb_migrate_finish(mm)		do { } while (0)
+
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_SUPERH64)
+extern void tlb_wire_entry(struct vm_area_struct *, unsigned long, pte_t);
+extern void tlb_unwire_entry(void);
+#else
+static inline void tlb_wire_entry(struct vm_area_struct *vma ,
+				  unsigned long addr, pte_t pte)
+{
+	BUG();
+}
+
+static inline void tlb_unwire_entry(void)
+{
+	BUG();
+}
+#endif
 
 #else /* CONFIG_MMU */
 

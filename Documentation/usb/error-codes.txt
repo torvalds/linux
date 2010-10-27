@@ -41,8 +41,8 @@ USB-specific:
 
 -EFBIG		Host controller driver can't schedule that many ISO frames.
 
--EPIPE		Specified endpoint is stalled.  For non-control endpoints,
-		reset this status with usb_clear_halt().
+-EPIPE		The pipe type specified in the URB doesn't match the
+		endpoint's actual type.
 
 -EMSGSIZE	(a) endpoint maxpacket size is zero; it is not usable
 		    in the current interface altsetting.
@@ -59,6 +59,8 @@ USB-specific:
 -EPERM		Submission failed because urb->reject was set.
 
 -EHOSTUNREACH	URB was rejected because the device is suspended.
+
+-ENOEXEC	A control URB doesn't contain a Setup packet.
 
 
 **************************************************************************

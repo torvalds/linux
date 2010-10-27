@@ -62,4 +62,4 @@ Links
 -----
 
 [1] http://ubuntuforums.org/showthread.php?t=840040
-[2] http://http://bitmath.org/code/
+[2] http://bitmath.org/code/

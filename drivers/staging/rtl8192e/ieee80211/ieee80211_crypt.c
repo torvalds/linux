@@ -109,11 +109,10 @@ int ieee80211_register_crypto_ops(struct ieee80211_crypto_ops *ops)
 	if (hcrypt == NULL)
 		return -1;
 
-	alg = kmalloc(sizeof(*alg), GFP_KERNEL);
+	alg = kzalloc(sizeof(*alg), GFP_KERNEL);
 	if (alg == NULL)
 		return -ENOMEM;
 
-	memset(alg, 0, sizeof(*alg));
 	alg->ops = ops;
 
 	spin_lock_irqsave(&hcrypt->lock, flags);
@@ -207,11 +206,10 @@ int __init ieee80211_crypto_init(void)
 {
 	int ret = -ENOMEM;
 
-	hcrypt = kmalloc(sizeof(*hcrypt), GFP_KERNEL);
+	hcrypt = kzalloc(sizeof(*hcrypt), GFP_KERNEL);
 	if (!hcrypt)
 		goto out;
 
-	memset(hcrypt, 0, sizeof(*hcrypt));
 	INIT_LIST_HEAD(&hcrypt->algs);
 	spin_lock_init(&hcrypt->lock);
 
@@ -225,7 +223,7 @@ out:
 }
 
 
-void __exit ieee80211_crypto_deinit(void)
+void ieee80211_crypto_deinit(void)
 {
 	struct list_head *ptr, *n;
 
@@ -245,23 +243,3 @@ void __exit ieee80211_crypto_deinit(void)
 	kfree(hcrypt);
 }
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
-//EXPORT_SYMBOL(ieee80211_crypt_deinit_entries);
-//EXPORT_SYMBOL(ieee80211_crypt_deinit_handler);
-//EXPORT_SYMBOL(ieee80211_crypt_delayed_deinit);
-
-//EXPORT_SYMBOL(ieee80211_register_crypto_ops);
-//EXPORT_SYMBOL(ieee80211_unregister_crypto_ops);
-//EXPORT_SYMBOL(ieee80211_get_crypto_ops);
-#else
-EXPORT_SYMBOL_NOVERS(ieee80211_crypt_deinit_entries);
-EXPORT_SYMBOL_NOVERS(ieee80211_crypt_deinit_handler);
-EXPORT_SYMBOL_NOVERS(ieee80211_crypt_delayed_deinit);
-
-EXPORT_SYMBOL_NOVERS(ieee80211_register_crypto_ops);
-EXPORT_SYMBOL_NOVERS(ieee80211_unregister_crypto_ops);
-EXPORT_SYMBOL_NOVERS(ieee80211_get_crypto_ops);
-#endif
-
-//module_init(ieee80211_crypto_init);
-//module_exit(ieee80211_crypto_deinit);

@@ -13,6 +13,7 @@
 #include <linux/time.h>
 #include <linux/mm.h>
 #include <linux/highuid.h>
+#include <linux/smp_lock.h>
 #include <linux/net.h>
 
 #include <linux/smb_fs.h>
@@ -22,14 +23,14 @@
 
 #include "proto.h"
 
-int
-smb_ioctl(struct inode *inode, struct file *filp,
-	  unsigned int cmd, unsigned long arg)
+long
+smb_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct smb_sb_info *server = server_from_inode(inode);
+	struct smb_sb_info *server = server_from_inode(filp->f_path.dentry->d_inode);
 	struct smb_conn_opt opt;
 	int result = -EINVAL;
 
+	lock_kernel();
 	switch (cmd) {
 		uid16_t uid16;
 		uid_t uid32;
@@ -62,6 +63,7 @@ smb_ioctl(struct inode *inode, struct file *filp,
 	default:
 		break;
 	}
+	unlock_kernel();
 
 	return result;
 }

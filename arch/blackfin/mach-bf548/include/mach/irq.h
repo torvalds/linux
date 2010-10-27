@@ -317,7 +317,8 @@ Events         (highest priority)  EMU         0
 
 #define GPIO_IRQ_BASE	IRQ_PA0
 
-#define NR_IRQS     (IRQ_PJ15+1)
+#define NR_MACH_IRQS	(IRQ_PJ15 + 1)
+#define NR_IRQS		(NR_MACH_IRQS + NR_SPARE_IRQS)
 
 /* For compatibility reasons with existing code */
 

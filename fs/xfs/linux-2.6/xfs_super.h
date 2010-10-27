@@ -56,12 +56,6 @@ extern void xfs_qm_exit(void);
 # define XFS_BIGFS_STRING
 #endif
 
-#ifdef CONFIG_XFS_DMAPI
-# define XFS_DMAPI_STRING	"dmapi support, "
-#else
-# define XFS_DMAPI_STRING
-#endif
-
 #ifdef DEBUG
 # define XFS_DBG_STRING		"debug"
 #else
@@ -72,7 +66,6 @@ extern void xfs_qm_exit(void);
 				XFS_SECURITY_STRING \
 				XFS_REALTIME_STRING \
 				XFS_BIGFS_STRING \
-				XFS_DMAPI_STRING \
 				XFS_DBG_STRING /* DBG must be last */
 
 struct xfs_inode;
@@ -85,7 +78,7 @@ extern __uint64_t xfs_max_file_offset(unsigned int);
 extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 
 extern const struct export_operations xfs_export_operations;
-extern struct xattr_handler *xfs_xattr_handlers[];
+extern const struct xattr_handler *xfs_xattr_handlers[];
 extern const struct quotactl_ops xfs_quotactl_operations;
 
 #define XFS_M(sb)		((struct xfs_mount *)((sb)->s_fs_info))

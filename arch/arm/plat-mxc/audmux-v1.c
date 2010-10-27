@@ -13,10 +13,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -50,8 +46,18 @@ EXPORT_SYMBOL_GPL(mxc_audmux_v1_configure_port);
 
 static int mxc_audmux_v1_init(void)
 {
-	if (cpu_is_mx27() || cpu_is_mx21())
-		audmux_base = IO_ADDRESS(AUDMUX_BASE_ADDR);
+#ifdef CONFIG_MACH_MX21
+	if (cpu_is_mx21())
+		audmux_base = MX21_IO_ADDRESS(MX21_AUDMUX_BASE_ADDR);
+	else
+#endif
+#ifdef CONFIG_MACH_MX27
+	if (cpu_is_mx27())
+		audmux_base = MX27_IO_ADDRESS(MX27_AUDMUX_BASE_ADDR);
+	else
+#endif
+		(void)0;
+	
 	return 0;
 }
 

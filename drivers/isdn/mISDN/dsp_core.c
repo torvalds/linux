@@ -154,6 +154,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gfp.h>
 #include <linux/mISDNif.h>
 #include <linux/mISDNdsp.h>
 #include <linux/module.h>
@@ -1114,7 +1115,7 @@ static struct Bprotocol DSP = {
 	.create = dspcreate
 };
 
-static int dsp_init(void)
+static int __init dsp_init(void)
 {
 	int err;
 	int tics;
@@ -1212,7 +1213,7 @@ static int dsp_init(void)
 }
 
 
-static void dsp_cleanup(void)
+static void __exit dsp_cleanup(void)
 {
 	mISDN_unregister_Bprotocol(&DSP);
 

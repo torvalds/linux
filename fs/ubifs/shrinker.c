@@ -277,7 +277,7 @@ static int kick_a_thread(void)
 	return 0;
 }
 
-int ubifs_shrinker(int nr, gfp_t gfp_mask)
+int ubifs_shrinker(struct shrinker *shrink, int nr, gfp_t gfp_mask)
 {
 	int freed, contention = 0;
 	long clean_zn_cnt = atomic_long_read(&ubifs_clean_zn_cnt);

@@ -18,18 +18,19 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/input.h>
 #include <linux/smc91x.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
 #include <plat/tc.h>
 #include <mach/gpio.h>
 #include <plat/mux.h>
+#include <plat/flash.h>
 #include <plat/fpga.h>
 #include <plat/keypad.h>
 #include <plat/common.h>
@@ -150,9 +151,9 @@ static struct mtd_partition nor_partitions[] = {
 	},
 };
 
-static struct flash_platform_data nor_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data nor_data = {
 	.width		= 2,
+	.set_vpp	= omap1_set_vpp,
 	.parts		= nor_partitions,
 	.nr_parts	= ARRAY_SIZE(nor_partitions),
 };
@@ -164,7 +165,7 @@ static struct resource nor_resource = {
 };
 
 static struct platform_device nor_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &nor_data,
@@ -291,6 +292,18 @@ static void __init omap_fsample_init(void)
 	omap_cfg_reg(L3_1610_FLASH_CS2B_OE);
 	omap_cfg_reg(M8_1610_FLASH_CS2B_WE);
 
+	/* Mux pins for keypad */
+	omap_cfg_reg(E2_7XX_KBR0);
+	omap_cfg_reg(J7_7XX_KBR1);
+	omap_cfg_reg(E1_7XX_KBR2);
+	omap_cfg_reg(F3_7XX_KBR3);
+	omap_cfg_reg(D2_7XX_KBR4);
+	omap_cfg_reg(C2_7XX_KBC0);
+	omap_cfg_reg(D3_7XX_KBC1);
+	omap_cfg_reg(E4_7XX_KBC2);
+	omap_cfg_reg(F4_7XX_KBC3);
+	omap_cfg_reg(E3_7XX_KBC4);
+
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	omap_board_config = fsample_config;
@@ -377,6 +390,7 @@ MACHINE_START(OMAP_FSAMPLE, "OMAP730 F-Sample")
 	.io_pg_offst	= ((0xfef00000) >> 18) & 0xfffc,
 	.boot_params	= 0x10000100,
 	.map_io		= omap_fsample_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= omap_fsample_init_irq,
 	.init_machine	= omap_fsample_init,
 	.timer		= &omap_timer,

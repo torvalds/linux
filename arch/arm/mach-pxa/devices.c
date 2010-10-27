@@ -4,6 +4,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
+#include <asm/pmu.h>
 #include <mach/udc.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
@@ -30,6 +31,19 @@ void __init pxa_register_device(struct platform_device *dev, void *data)
 	if (ret)
 		dev_err(&dev->dev, "unable to register device: %d\n", ret);
 }
+
+static struct resource pxa_resource_pmu = {
+	.start	= IRQ_PMU,
+	.end	= IRQ_PMU,
+	.flags	= IORESOURCE_IRQ,
+};
+
+struct platform_device pxa_device_pmu = {
+	.name		= "arm-pmu",
+	.id		= ARM_PMU_DEVICE_CPU,
+	.resource	= &pxa_resource_pmu,
+	.num_resources	= 1,
+};
 
 static struct resource pxamci_resources[] = {
 	[0] = {

@@ -351,13 +351,13 @@ static struct net_device_stats *am79c961_getstats (struct net_device *dev)
 	return &priv->stats;
 }
 
-static void am79c961_mc_hash(struct dev_mc_list *dmi, unsigned short *hash)
+static void am79c961_mc_hash(char *addr, unsigned short *hash)
 {
-	if (dmi->dmi_addrlen == ETH_ALEN && dmi->dmi_addr[0] & 0x01) {
+	if (addr[0] & 0x01) {
 		int idx, bit;
 		u32 crc;
 
-		crc = ether_crc_le(ETH_ALEN, dmi->dmi_addr);
+		crc = ether_crc_le(ETH_ALEN, addr);
 
 		idx = crc >> 30;
 		bit = (crc >> 26) & 15;
@@ -383,12 +383,12 @@ static void am79c961_setmulticastlist (struct net_device *dev)
 	} else if (dev->flags & IFF_ALLMULTI) {
 		memset(multi_hash, 0xff, sizeof(multi_hash));
 	} else {
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 
 		memset(multi_hash, 0x00, sizeof(multi_hash));
 
-		for (dmi = dev->mc_list; dmi; dmi = dmi->next)
-			am79c961_mc_hash(dmi, multi_hash);
+		netdev_for_each_mc_addr(ha, dev)
+			am79c961_mc_hash(ha->addr, multi_hash);
 	}
 
 	spin_lock_irqsave(&priv->chip_lock, flags);
@@ -469,7 +469,6 @@ am79c961_sendpacket(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&priv->chip_lock, flags);
 	write_rreg (dev->base_addr, CSR0, CSR0_TDMD|CSR0_IENA);
-	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&priv->chip_lock, flags);
 
 	/*
@@ -680,7 +679,7 @@ static const struct net_device_ops am79c961_netdev_ops = {
 #endif
 };
 
-static int __init am79c961_probe(struct platform_device *pdev)
+static int __devinit am79c961_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct net_device *dev;

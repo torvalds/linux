@@ -75,7 +75,7 @@ static struct at91_usbh_data __initdata cam60_usbh_data = {
  * SPI devices.
  */
 #if defined(CONFIG_MTD_DATAFLASH)
-static struct mtd_partition __initdata cam60_spi_partitions[] = {
+static struct mtd_partition cam60_spi_partitions[] = {
 	{
 		.name	= "BOOT1",
 		.offset	= 0,
@@ -98,14 +98,14 @@ static struct mtd_partition __initdata cam60_spi_partitions[] = {
 	},
 };
 
-static struct flash_platform_data __initdata cam60_spi_flash_platform_data = {
+static struct flash_platform_data cam60_spi_flash_platform_data = {
 	.name		= "spi_flash",
 	.parts		= cam60_spi_partitions,
 	.nr_parts	= ARRAY_SIZE(cam60_spi_partitions)
 };
 #endif
 
-static struct spi_board_info cam60_spi_devices[] = {
+static struct spi_board_info cam60_spi_devices[] __initdata = {
 #if defined(CONFIG_MTD_DATAFLASH)
 	{	/* DataFlash chip */
 		.modalias	= "mtd_dataflash",

@@ -28,11 +28,6 @@
 #define     VT3271_DEVICE_ID_REG        0x02
 #define     VT3271_DEVICE_ID            0x71
 
-#define     GET_LCD_SIZE_BY_SYSTEM_BIOS     0x01
-#define     GET_LCD_SIZE_BY_VGA_BIOS        0x02
-#define     GET_LCD_SZIE_BY_HW_STRAPPING    0x03
-#define     GET_LCD_SIZE_BY_USER_SETTING    0x04
-
 /* Definition DVI Panel ID*/
 /* Resolution: 640x480,   Channel: single, Dithering: Enable */
 #define     LCD_PANEL_ID0_640X480       0x00
@@ -60,6 +55,8 @@
 #define     LCD_PANEL_IDB_1360X768     0x0B
 /* Resolution: 480x640,  Channel: single, Dithering: Enable */
 #define     LCD_PANEL_IDC_480X640      0x0C
+/* Resolution: 1200x900,  Channel: single, Dithering: Disable */
+#define     LCD_PANEL_IDD_1200X900      0x0D
 
 
 extern int viafb_LCD2_ON;

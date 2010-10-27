@@ -54,10 +54,6 @@ generic functions like calibrations, resets, and vendor information can be
 requested from the userspace (And the drivers would handle the vendor specific
 tasks).
 
-ADDITIONAL INFORMATION/UPDATES/X CONFIGURATION EXAMPLE:
-
-http://groomlakelabs.com/grandamp/code/microtouch/
-
 TODO:
 
 Implement a control urb again to handle requests to and from the device
@@ -68,7 +64,7 @@ DISCLAIMER:
 I am not a MicroTouch/3M employee, nor have I ever been.  3M does not support 
 this driver!  If you want touch drivers only supported within X, please go to:
 
-http://www.3m.com/3MTouchSystems/downloads/
+http://www.3m.com/3MTouchSystems/
 
 THANKS:
 

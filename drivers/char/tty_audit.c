@@ -10,6 +10,7 @@
  */
 
 #include <linux/audit.h>
+#include <linux/slab.h>
 #include <linux/tty.h>
 
 struct tty_audit_buf {
@@ -148,7 +149,6 @@ void tty_audit_fork(struct signal_struct *sig)
 	spin_lock_irq(&current->sighand->siglock);
 	sig->audit_tty = current->signal->audit_tty;
 	spin_unlock_irq(&current->sighand->siglock);
-	sig->tty_audit_buf = NULL;
 }
 
 /**

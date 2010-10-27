@@ -5,7 +5,7 @@
  * Author : jlliu, liujl@lemote.com
  *
  * Copyright (C) 2009 Lemote, Inc.
- * Author: Wu Zhangjin, wuzj@lemote.com
+ * Author: Wu Zhangjin, wuzhangjin@gmail.com
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -49,6 +49,8 @@ void pci_ehci_write_reg(int reg, u32 value)
 			lo |= SOFT_BAR_EHCI_FLAG;
 			_wrmsr(GLCP_MSR_REG(GLCP_SOFT_COM), hi, lo);
 		} else if ((value & 0x01) == 0x00) {
+			_rdmsr(USB_MSR_REG(USB_EHCI), &hi, &lo);
+			lo = value;
 			_wrmsr(USB_MSR_REG(USB_EHCI), hi, lo);
 
 			value &= 0xfffffff0;

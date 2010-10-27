@@ -28,32 +28,7 @@
 #include "drm.h"
 #include "nouveau_drv.h"
 
-MODULE_FIRMWARE("nouveau/nv50.ctxprog");
-MODULE_FIRMWARE("nouveau/nv50.ctxvals");
-MODULE_FIRMWARE("nouveau/nv84.ctxprog");
-MODULE_FIRMWARE("nouveau/nv84.ctxvals");
-MODULE_FIRMWARE("nouveau/nv86.ctxprog");
-MODULE_FIRMWARE("nouveau/nv86.ctxvals");
-MODULE_FIRMWARE("nouveau/nv92.ctxprog");
-MODULE_FIRMWARE("nouveau/nv92.ctxvals");
-MODULE_FIRMWARE("nouveau/nv94.ctxprog");
-MODULE_FIRMWARE("nouveau/nv94.ctxvals");
-MODULE_FIRMWARE("nouveau/nv96.ctxprog");
-MODULE_FIRMWARE("nouveau/nv96.ctxvals");
-MODULE_FIRMWARE("nouveau/nv98.ctxprog");
-MODULE_FIRMWARE("nouveau/nv98.ctxvals");
-MODULE_FIRMWARE("nouveau/nva0.ctxprog");
-MODULE_FIRMWARE("nouveau/nva0.ctxvals");
-MODULE_FIRMWARE("nouveau/nva5.ctxprog");
-MODULE_FIRMWARE("nouveau/nva5.ctxvals");
-MODULE_FIRMWARE("nouveau/nva8.ctxprog");
-MODULE_FIRMWARE("nouveau/nva8.ctxvals");
-MODULE_FIRMWARE("nouveau/nvaa.ctxprog");
-MODULE_FIRMWARE("nouveau/nvaa.ctxvals");
-MODULE_FIRMWARE("nouveau/nvac.ctxprog");
-MODULE_FIRMWARE("nouveau/nvac.ctxvals");
-
-#define IS_G80 ((dev_priv->chipset & 0xf0) == 0x50)
+#include "nouveau_grctx.h"
 
 static void
 nv50_graph_init_reset(struct drm_device *dev)
@@ -79,6 +54,10 @@ nv50_graph_init_intr(struct drm_device *dev)
 static void
 nv50_graph_init_regs__nv(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	uint32_t units = nv_rd32(dev, 0x1540);
+	int i;
+
 	NV_DEBUG(dev, "\n");
 
 	nv_wr32(dev, 0x400804, 0xc0000000);
@@ -87,6 +66,20 @@ nv50_graph_init_regs__nv(struct drm_device *dev)
 	nv_wr32(dev, 0x401800, 0xc0000000);
 	nv_wr32(dev, 0x405018, 0xc0000000);
 	nv_wr32(dev, 0x402000, 0xc0000000);
+
+	for (i = 0; i < 16; i++) {
+		if (units & 1 << i) {
+			if (dev_priv->chipset < 0xa0) {
+				nv_wr32(dev, 0x408900 + (i << 12), 0xc0000000);
+				nv_wr32(dev, 0x408e08 + (i << 12), 0xc0000000);
+				nv_wr32(dev, 0x408314 + (i << 12), 0xc0000000);
+			} else {
+				nv_wr32(dev, 0x408600 + (i << 11), 0xc0000000);
+				nv_wr32(dev, 0x408708 + (i << 11), 0xc0000000);
+				nv_wr32(dev, 0x40831c + (i << 11), 0xc0000000);
+			}
+		}
+	}
 
 	nv_wr32(dev, 0x400108, 0xffffffff);
 
@@ -108,12 +101,33 @@ static int
 nv50_graph_init_ctxctl(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_grctx ctx = {};
+	uint32_t *cp;
+	int i;
 
 	NV_DEBUG(dev, "\n");
 
-	nouveau_grctx_prog_load(dev);
-	if (!dev_priv->engine.graph.ctxprog)
+	cp = kmalloc(512 * 4, GFP_KERNEL);
+	if (!cp) {
+		NV_ERROR(dev, "failed to allocate ctxprog\n");
 		dev_priv->engine.graph.accel_blocked = true;
+		return 0;
+	}
+
+	ctx.dev = dev;
+	ctx.mode = NOUVEAU_GRCTX_PROG;
+	ctx.data = cp;
+	ctx.ctxprog_max = 512;
+	if (!nv50_grctx_init(&ctx)) {
+		dev_priv->engine.graph.grctx_size = ctx.ctxvals_pos * 4;
+
+		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
+		for (i = 0; i < ctx.ctxprog_len; i++)
+			nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA, cp[i]);
+	} else {
+		dev_priv->engine.graph.accel_blocked = true;
+	}
+	kfree(cp);
 
 	nv_wr32(dev, 0x400320, 4);
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, 0);
@@ -144,7 +158,6 @@ void
 nv50_graph_takedown(struct drm_device *dev)
 {
 	NV_DEBUG(dev, "\n");
-	nouveau_grctx_fini(dev);
 }
 
 void
@@ -164,6 +177,12 @@ nv50_graph_channel(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t inst;
 	int i;
+
+	/* Be sure we're not in the middle of a context switch or bad things
+	 * will happen, such as unloading the wrong pgraph context.
+	 */
+	if (!nv_wait(0x400300, 0x00000001, 0x00000000))
+		NV_ERROR(dev, "Ctxprog is still running\n");
 
 	inst = nv_rd32(dev, NV50_PGRAPH_CTXCTL_CUR);
 	if (!(inst & NV50_PGRAPH_CTXCTL_CUR_LOADED))
@@ -186,39 +205,37 @@ nv50_graph_create_context(struct nouveau_channel *chan)
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *ramin = chan->ramin->gpuobj;
-	struct nouveau_gpuobj *ctx;
-	uint32_t grctx_size = 0x70000;
+	struct nouveau_gpuobj *obj;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
+	struct nouveau_grctx ctx = {};
 	int hdr, ret;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
-	ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, grctx_size, 0x1000,
-				     NVOBJ_FLAG_ZERO_ALLOC |
+	ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, pgraph->grctx_size,
+				     0x1000, NVOBJ_FLAG_ZERO_ALLOC |
 				     NVOBJ_FLAG_ZERO_FREE, &chan->ramin_grctx);
 	if (ret)
 		return ret;
-	ctx = chan->ramin_grctx->gpuobj;
+	obj = chan->ramin_grctx->gpuobj;
 
-	hdr = IS_G80 ? 0x200 : 0x20;
-	dev_priv->engine.instmem.prepare_access(dev, true);
+	hdr = (dev_priv->chipset == 0x50) ? 0x200 : 0x20;
 	nv_wo32(dev, ramin, (hdr + 0x00)/4, 0x00190002);
 	nv_wo32(dev, ramin, (hdr + 0x04)/4, chan->ramin_grctx->instance +
-					   grctx_size - 1);
+					   pgraph->grctx_size - 1);
 	nv_wo32(dev, ramin, (hdr + 0x08)/4, chan->ramin_grctx->instance);
 	nv_wo32(dev, ramin, (hdr + 0x0c)/4, 0);
 	nv_wo32(dev, ramin, (hdr + 0x10)/4, 0);
 	nv_wo32(dev, ramin, (hdr + 0x14)/4, 0x00010000);
-	dev_priv->engine.instmem.finish_access(dev);
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
-	nouveau_grctx_vals_load(dev, ctx);
-	nv_wo32(dev, ctx, 0x00000/4, chan->ramin->instance >> 12);
-	if ((dev_priv->chipset & 0xf0) == 0xa0)
-		nv_wo32(dev, ctx, 0x00004/4, 0x00000000);
-	else
-		nv_wo32(dev, ctx, 0x0011c/4, 0x00000000);
-	dev_priv->engine.instmem.finish_access(dev);
+	ctx.dev = chan->dev;
+	ctx.mode = NOUVEAU_GRCTX_VALS;
+	ctx.data = obj;
+	nv50_grctx_init(&ctx);
 
+	nv_wo32(dev, obj, 0x00000/4, chan->ramin->instance >> 12);
+
+	dev_priv->engine.instmem.flush(dev);
 	return 0;
 }
 
@@ -227,17 +244,16 @@ nv50_graph_destroy_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int i, hdr = IS_G80 ? 0x200 : 0x20;
+	int i, hdr = (dev_priv->chipset == 0x50) ? 0x200 : 0x20;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
 	if (!chan->ramin || !chan->ramin->gpuobj)
 		return;
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	for (i = hdr; i < hdr + 24; i += 4)
 		nv_wo32(dev, chan->ramin->gpuobj, i/4, 0);
-	dev_priv->engine.instmem.finish_access(dev);
+	dev_priv->engine.instmem.flush(dev);
 
 	nouveau_gpuobj_ref_del(dev, &chan->ramin_grctx);
 }
@@ -275,7 +291,7 @@ nv50_graph_load_context(struct nouveau_channel *chan)
 int
 nv50_graph_unload_context(struct drm_device *dev)
 {
-	uint32_t inst, fifo = nv_rd32(dev, 0x400500);
+	uint32_t inst;
 
 	inst  = nv_rd32(dev, NV50_PGRAPH_CTXCTL_CUR);
 	if (!(inst & NV50_PGRAPH_CTXCTL_CUR_LOADED))
@@ -283,12 +299,10 @@ nv50_graph_unload_context(struct drm_device *dev)
 	inst &= NV50_PGRAPH_CTXCTL_CUR_INSTANCE;
 
 	nouveau_wait_for_idle(dev);
-	nv_wr32(dev, 0x400500, fifo & ~1);
 	nv_wr32(dev, 0x400784, inst);
 	nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) | 0x20);
 	nv_wr32(dev, 0x400304, nv_rd32(dev, 0x400304) | 0x01);
 	nouveau_wait_for_idle(dev);
-	nv_wr32(dev, 0x400500, fifo);
 
 	nv_wr32(dev, NV50_PGRAPH_CTXCTL_CUR, inst);
 	return 0;
@@ -382,9 +396,10 @@ struct nouveau_pgraph_object_class nv50_graph_grclass[] = {
 	{ 0x5039, false, NULL }, /* m2mf */
 	{ 0x502d, false, NULL }, /* 2d */
 	{ 0x50c0, false, NULL }, /* compute */
+	{ 0x85c0, false, NULL }, /* compute (nva3, nva5, nva8) */
 	{ 0x5097, false, NULL }, /* tesla (nv50) */
-	{ 0x8297, false, NULL }, /* tesla (nv80/nv90) */
-	{ 0x8397, false, NULL }, /* tesla (nva0) */
-	{ 0x8597, false, NULL }, /* tesla (nva8) */
+	{ 0x8297, false, NULL }, /* tesla (nv8x/nv9x) */
+	{ 0x8397, false, NULL }, /* tesla (nva0, nvaa, nvac) */
+	{ 0x8597, false, NULL }, /* tesla (nva3, nva5, nva8) */
 	{}
 };

@@ -727,15 +727,12 @@ static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 	if (set == NULL)
 		return add_mtd_device(&mtd->mtd);
 
-	if (set->nr_partitions == 0) {
-		mtd->mtd.name = set->name;
-		nr_part = parse_mtd_partitions(&mtd->mtd, part_probes,
-						&part_info, 0);
-	} else {
-		if (set->nr_partitions > 0 && set->partitions != NULL) {
-			nr_part = set->nr_partitions;
-			part_info = set->partitions;
-		}
+	mtd->mtd.name = set->name;
+	nr_part = parse_mtd_partitions(&mtd->mtd, part_probes, &part_info, 0);
+
+	if (nr_part <= 0 && set->nr_partitions > 0) {
+		nr_part = set->nr_partitions;
+		part_info = set->partitions;
 	}
 
 	if (nr_part > 0 && part_info)
@@ -929,14 +926,13 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	pr_debug("s3c2410_nand_probe(%p)\n", pdev);
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
 		dev_err(&pdev->dev, "no memory for flash info\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}
 
-	memset(info, 0, sizeof(*info));
 	platform_set_drvdata(pdev, info);
 
 	spin_lock_init(&info->controller.lock);
@@ -957,7 +953,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	/* currently we assume we have the one resource */
 	res  = pdev->resource;
-	size = res->end - res->start + 1;
+	size = resource_size(res);
 
 	info->area = request_mem_region(res->start, size, pdev->name);
 
@@ -994,14 +990,12 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	/* allocate our information */
 
 	size = nr_sets * sizeof(*info->mtds);
-	info->mtds = kmalloc(size, GFP_KERNEL);
+	info->mtds = kzalloc(size, GFP_KERNEL);
 	if (info->mtds == NULL) {
 		dev_err(&pdev->dev, "failed to allocate mtd storage\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}
-
-	memset(info->mtds, 0, size);
 
 	/* initialise all possible chips */
 
@@ -1013,7 +1007,8 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 		s3c2410_nand_init_chip(info, nmtd, sets);
 
 		nmtd->scan_res = nand_scan_ident(&nmtd->mtd,
-						 (sets) ? sets->nr_chips : 1);
+						 (sets) ? sets->nr_chips : 1,
+						 NULL);
 
 		if (nmtd->scan_res == 0) {
 			s3c2410_nand_update_chip(info, nmtd);

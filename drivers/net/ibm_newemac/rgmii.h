@@ -51,20 +51,20 @@ struct rgmii_instance {
 	int				users;
 
 	/* OF device instance */
-	struct of_device		*ofdev;
+	struct platform_device		*ofdev;
 };
 
 #ifdef CONFIG_IBM_NEW_EMAC_RGMII
 
 extern int rgmii_init(void);
 extern void rgmii_exit(void);
-extern int rgmii_attach(struct of_device *ofdev, int input, int mode);
-extern void rgmii_detach(struct of_device *ofdev, int input);
-extern void rgmii_get_mdio(struct of_device *ofdev, int input);
-extern void rgmii_put_mdio(struct of_device *ofdev, int input);
-extern void rgmii_set_speed(struct of_device *ofdev, int input, int speed);
-extern int rgmii_get_regs_len(struct of_device *ofdev);
-extern void *rgmii_dump_regs(struct of_device *ofdev, void *buf);
+extern int rgmii_attach(struct platform_device *ofdev, int input, int mode);
+extern void rgmii_detach(struct platform_device *ofdev, int input);
+extern void rgmii_get_mdio(struct platform_device *ofdev, int input);
+extern void rgmii_put_mdio(struct platform_device *ofdev, int input);
+extern void rgmii_set_speed(struct platform_device *ofdev, int input, int speed);
+extern int rgmii_get_regs_len(struct platform_device *ofdev);
+extern void *rgmii_dump_regs(struct platform_device *ofdev, void *buf);
 
 #else
 

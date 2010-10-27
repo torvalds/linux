@@ -6,6 +6,7 @@
 typedef struct {
 #ifdef CONFIG_CPU_HAS_ASID
 	unsigned int id;
+	spinlock_t id_lock;
 #endif
 	unsigned int kvm_seq;
 } mm_context_t;

@@ -32,11 +32,11 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/interrupt.h>
 #include <linux/reboot.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -212,7 +212,10 @@ int copy_thread(unsigned long clone_flags,
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(char *name, char **argv, char **envp,int dummy,...)
+asmlinkage int sys_execve(const char *name,
+			  const char *const *argv,
+			  const char *const *envp,
+			  int dummy, ...)
 {
 	int error;
 	char * filename;

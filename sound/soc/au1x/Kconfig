@@ -22,11 +22,13 @@ config SND_SOC_AU1XPSC_AC97
 ##
 ## Boards
 ##
-config SND_SOC_SAMPLE_PSC_AC97
-	tristate "Sample Au12x0/Au1550 PSC AC97 sound machine"
+config SND_SOC_DB1200
+	tristate "DB1200 AC97+I2S audio support"
 	depends on SND_SOC_AU1XPSC
 	select SND_SOC_AU1XPSC_AC97
 	select SND_SOC_AC97_CODEC
+	select SND_SOC_AU1XPSC_I2S
+	select SND_SOC_WM8731
 	help
-	  This is a sample AC97 sound machine for use in Au12x0/Au1550
-	  based systems which have audio on PSC1 (e.g. Db1200 demoboard).
+	  Select this option to enable audio (AC97 or I2S) on the
+	  Alchemy/AMD/RMI DB1200 demoboard.

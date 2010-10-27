@@ -20,6 +20,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/watchdog.h>
@@ -188,6 +189,8 @@ static int __devinit twl4030_wdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, wdt);
 
 	twl4030_wdt_dev = pdev;
+
+	twl4030_wdt_disable(wdt);
 
 	ret = misc_register(&wdt->miscdev);
 	if (ret) {

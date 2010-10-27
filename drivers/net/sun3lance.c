@@ -28,7 +28,6 @@ static char *version = "sun3lance.c: v1.2 1/12/2001  Sam Creasey (sammy@sammy.ne
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -524,8 +523,8 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 
 	/* Transmitter timeout, serious problems. */
 	if (netif_queue_stopped(dev)) {
-		int tickssofar = jiffies - dev->trans_start;
-		if (tickssofar < 20)
+		int tickssofar = jiffies - dev_trans_start(dev);
+		if (tickssofar < HZ/5)
 			return NETDEV_TX_BUSY;
 
 		DPRINTK( 1, ( "%s: transmit timed out, status %04x, resetting.\n",
@@ -560,7 +559,6 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 		REGA( CSR0 ) = CSR0_INEA | CSR0_INIT | CSR0_STRT;
 
 		netif_start_queue(dev);
-		dev->trans_start = jiffies;
 
 		return NETDEV_TX_OK;
 	}
@@ -638,8 +636,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 	AREG = CSR0;
   	DPRINTK( 2, ( "%s: lance_start_xmit() exiting, csr0 %4.4x.\n",
   				  dev->name, DREG ));
-	dev->trans_start = jiffies;
-	dev_kfree_skb( skb );
+	dev_kfree_skb(skb);
 
 	lp->lock = 0;
 	if ((MEM->tx_head[(entry+1) & TX_RING_MOD_MASK].flag & TMD1_OWN) ==
@@ -917,7 +914,7 @@ static void set_multicast_list( struct net_device *dev )
 		REGA( CSR15 ) = 0x8000; /* Set promiscuous mode */
 	} else {
 		short multicast_table[4];
-		int num_addrs = dev->mc_count;
+		int num_addrs = netdev_mc_count(dev);
 		int i;
 		/* We don't use the multicast table, but rely on upper-layer
 		 * filtering. */

@@ -89,8 +89,9 @@
  * REGULATION_OUT Regulator output is out of regulation.
  * FAIL           Regulator output has failed.
  * OVER_TEMP      Regulator over temp.
- * FORCE_DISABLE  Regulator shut down by software.
+ * FORCE_DISABLE  Regulator forcibly shut down by software.
  * VOLTAGE_CHANGE Regulator voltage changed.
+ * DISABLE        Regulator was disabled.
  *
  * NOTE: These events can be OR'ed together when passed into handler.
  */
@@ -102,6 +103,7 @@
 #define REGULATOR_EVENT_OVER_TEMP		0x10
 #define REGULATOR_EVENT_FORCE_DISABLE		0x20
 #define REGULATOR_EVENT_VOLTAGE_CHANGE		0x40
+#define REGULATOR_EVENT_DISABLE 		0x80
 
 struct regulator;
 
@@ -181,9 +183,13 @@ static inline struct regulator *__must_check regulator_get(struct device *dev,
 {
 	/* Nothing except the stubbed out regulator API should be
 	 * looking at the value except to check if it is an error
-	 * value so the actual return value doesn't matter.
+	 * value. Drivers are free to handle NULL specifically by
+	 * skipping all regulator API calls, but they don't have to.
+	 * Drivers which don't, should make sure they properly handle
+	 * corner cases of the API, such as regulator_get_voltage()
+	 * returning 0.
 	 */
-	return (struct regulator *)id;
+	return NULL;
 }
 static inline void regulator_put(struct regulator *regulator)
 {

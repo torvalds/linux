@@ -5,8 +5,11 @@
 #include <linux/netdevice.h>
 #include <linux/of.h>
 #include <linux/spinlock.h>
+
+#ifdef CONFIG_PPC_DCR
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
+#endif
 
 /* packet size info */
 #define XTE_HDR_SIZE			14      /* size of Ethernet header */
@@ -290,10 +293,11 @@ This option defaults to enabled (set) */
 
 #define TX_CONTROL_CALC_CSUM_MASK   1
 
-#define XTE_ALIGN       32
-#define BUFFER_ALIGN(adr) ((XTE_ALIGN - ((u32) adr)) % XTE_ALIGN)
-
 #define MULTICAST_CAM_TABLE_NUM 4
+
+/* TEMAC Synthesis features */
+#define TEMAC_FEATURE_RX_CSUM  (1 << 0)
+#define TEMAC_FEATURE_TX_CSUM  (1 << 1)
 
 /* TX/RX CURDESC_PTR points to first descriptor */
 /* TX/RX TAILDESC_PTR points to last descriptor in linked list */
@@ -335,9 +339,15 @@ struct temac_local {
 	struct mii_bus *mii_bus;	/* MII bus reference */
 	int mdio_irqs[PHY_MAX_ADDR];	/* IRQs table for MDIO bus */
 
-	/* IO registers and IRQs */
+	/* IO registers, dma functions and IRQs */
 	void __iomem *regs;
+	void __iomem *sdma_regs;
+#ifdef CONFIG_PPC_DCR
 	dcr_host_t sdma_dcrs;
+#endif
+	u32 (*dma_in)(struct temac_local *, int);
+	void (*dma_out)(struct temac_local *, int, u32);
+
 	int tx_irq;
 	int rx_irq;
 	int emac_num;
@@ -347,6 +357,7 @@ struct temac_local {
 	struct mutex indirect_mutex;
 	u32 options;			/* Current options word */
 	int last_link;
+	unsigned int temac_features;
 
 	/* Buffer descriptors */
 	struct cdmac_bd *tx_bd_v;

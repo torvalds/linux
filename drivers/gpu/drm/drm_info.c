@@ -51,13 +51,24 @@ int drm_name_info(struct seq_file *m, void *data)
 	if (!master)
 		return 0;
 
-	if (master->unique) {
-		seq_printf(m, "%s %s %s\n",
-			   dev->driver->pci_driver.name,
-			   pci_name(dev->pdev), master->unique);
+	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE)) {
+		if (master->unique) {
+			seq_printf(m, "%s %s %s\n",
+					dev->driver->platform_device->name,
+					dev_name(dev->dev), master->unique);
+		} else {
+			seq_printf(m, "%s\n",
+				dev->driver->platform_device->name);
+		}
 	} else {
-		seq_printf(m, "%s %s\n", dev->driver->pci_driver.name,
-			   pci_name(dev->pdev));
+		if (master->unique) {
+			seq_printf(m, "%s %s %s\n",
+				dev->driver->pci_driver.name,
+				dev_name(dev->dev), master->unique);
+		} else {
+			seq_printf(m, "%s %s\n", dev->driver->pci_driver.name,
+				dev_name(dev->dev));
+		}
 	}
 
 	return 0;
@@ -244,7 +255,7 @@ int drm_gem_one_name_info(int id, void *ptr, void *data)
 
 	seq_printf(m, "%6d %8zd %7d %8d\n",
 		   obj->name, obj->size,
-		   atomic_read(&obj->handlecount.refcount),
+		   atomic_read(&obj->handle_count),
 		   atomic_read(&obj->refcount.refcount));
 	return 0;
 }

@@ -19,6 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/random.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 
 static DEFINE_MUTEX(crypto_default_rng_lock);

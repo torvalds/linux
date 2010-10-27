@@ -35,6 +35,7 @@ void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
 	struct ieee80211_tx_rate *txrate = &tx_info->control.rates[0];
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
 
 	if (tx_info->control.sta)
 		txdesc->mpdu_density =
@@ -43,11 +44,22 @@ void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
 		txdesc->mpdu_density = 0;
 
 	txdesc->ba_size = 7;	/* FIXME: What value is needed? */
-	txdesc->stbc = 0;	/* FIXME: What value is needed? */
 
-	txdesc->mcs = rt2x00_get_rate_mcs(hwrate->mcs);
-	if (txrate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
-		txdesc->mcs |= 0x08;
+	txdesc->stbc =
+	    (tx_info->flags & IEEE80211_TX_CTL_STBC) >> IEEE80211_TX_CTL_STBC_SHIFT;
+
+	/*
+	 * If IEEE80211_TX_RC_MCS is set txrate->idx just contains the
+	 * mcs rate to be used
+	 */
+	if (txrate->flags & IEEE80211_TX_RC_MCS) {
+		txdesc->mcs = txrate->idx;
+	} else {
+		txdesc->mcs = rt2x00_get_rate_mcs(hwrate->mcs);
+		if (txrate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
+			txdesc->mcs |= 0x08;
+	}
+
 
 	/*
 	 * Convert flags
@@ -66,4 +78,48 @@ void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
 		__set_bit(ENTRY_TXD_HT_BW_40, &txdesc->flags);
 	if (txrate->flags & IEEE80211_TX_RC_SHORT_GI)
 		__set_bit(ENTRY_TXD_HT_SHORT_GI, &txdesc->flags);
+
+	/*
+	 * Determine IFS values
+	 * - Use TXOP_BACKOFF for management frames
+	 * - Use TXOP_SIFS for fragment bursts
+	 * - Use TXOP_HTTXOP for everything else
+	 *
+	 * Note: rt2800 devices won't use CTS protection (if used)
+	 * for frames not transmitted with TXOP_HTTXOP
+	 */
+	if (ieee80211_is_mgmt(hdr->frame_control))
+		txdesc->txop = TXOP_BACKOFF;
+	else if (!(tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT))
+		txdesc->txop = TXOP_SIFS;
+	else
+		txdesc->txop = TXOP_HTTXOP;
+}
+
+u16 rt2x00ht_center_channel(struct rt2x00_dev *rt2x00dev,
+			    struct ieee80211_conf *conf)
+{
+	struct hw_mode_spec *spec = &rt2x00dev->spec;
+	int center_channel;
+	u16 i;
+
+	/*
+	 * Initialize center channel to current channel.
+	 */
+	center_channel = spec->channels[conf->channel->hw_value].channel;
+
+	/*
+	 * Adjust center channel to HT40+ and HT40- operation.
+	 */
+	if (conf_is_ht40_plus(conf))
+		center_channel += 2;
+	else if (conf_is_ht40_minus(conf))
+		center_channel -= (center_channel == 14) ? 1 : 2;
+
+	for (i = 0; i < spec->num_channels; i++)
+		if (spec->channels[i].channel == center_channel)
+			return i;
+
+	WARN_ON(1);
+	return conf->channel->hw_value;
 }

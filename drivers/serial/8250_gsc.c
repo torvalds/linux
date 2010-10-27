@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/serial_core.h>
 #include <linux/signal.h>
-#include <linux/slab.h>
 #include <linux/types.h>
 
 #include <asm/hardware.h>

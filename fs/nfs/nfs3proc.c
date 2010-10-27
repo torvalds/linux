@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/slab.h>
 #include <linux/nfs.h>
 #include <linux/nfs3.h>
 #include <linux/nfs_fs.h>
@@ -22,14 +23,14 @@
 
 #define NFSDBG_FACILITY		NFSDBG_PROC
 
-/* A wrapper to handle the EJUKEBOX error message */
+/* A wrapper to handle the EJUKEBOX and EKEYEXPIRED error messages */
 static int
 nfs3_rpc_wrapper(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 {
 	int res;
 	do {
 		res = rpc_call_sync(clnt, msg, flags);
-		if (res != -EJUKEBOX)
+		if (res != -EJUKEBOX && res != -EKEYEXPIRED)
 			break;
 		schedule_timeout_killable(NFS_JUKEBOX_RETRY_TIME);
 		res = -ERESTARTSYS;
@@ -42,9 +43,10 @@ nfs3_rpc_wrapper(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 static int
 nfs3_async_handle_jukebox(struct rpc_task *task, struct inode *inode)
 {
-	if (task->tk_status != -EJUKEBOX)
+	if (task->tk_status != -EJUKEBOX && task->tk_status != -EKEYEXPIRED)
 		return 0;
-	nfs_inc_stats(inode, NFSIOS_DELAY);
+	if (task->tk_status == -EJUKEBOX)
+		nfs_inc_stats(inode, NFSIOS_DELAY);
 	task->tk_status = 0;
 	rpc_restart_call(task);
 	rpc_delay(task, NFS_JUKEBOX_RETRY_TIME);
@@ -142,14 +144,12 @@ static int
 nfs3_proc_lookup(struct inode *dir, struct qstr *name,
 		 struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
-	struct nfs_fattr	dir_attr;
 	struct nfs3_diropargs	arg = {
 		.fh		= NFS_FH(dir),
 		.name		= name->name,
 		.len		= name->len
 	};
 	struct nfs3_diropres	res = {
-		.dir_attr	= &dir_attr,
 		.fh		= fhandle,
 		.fattr		= fattr
 	};
@@ -161,29 +161,30 @@ nfs3_proc_lookup(struct inode *dir, struct qstr *name,
 	int			status;
 
 	dprintk("NFS call  lookup %s\n", name->name);
-	nfs_fattr_init(&dir_attr);
+	res.dir_attr = nfs_alloc_fattr();
+	if (res.dir_attr == NULL)
+		return -ENOMEM;
+
 	nfs_fattr_init(fattr);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
-	nfs_refresh_inode(dir, &dir_attr);
+	nfs_refresh_inode(dir, res.dir_attr);
 	if (status >= 0 && !(fattr->valid & NFS_ATTR_FATTR)) {
 		msg.rpc_proc = &nfs3_procedures[NFS3PROC_GETATTR];
 		msg.rpc_argp = fhandle;
 		msg.rpc_resp = fattr;
 		status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	}
+	nfs_free_fattr(res.dir_attr);
 	dprintk("NFS reply lookup: %d\n", status);
 	return status;
 }
 
 static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 {
-	struct nfs_fattr	fattr;
 	struct nfs3_accessargs	arg = {
 		.fh		= NFS_FH(inode),
 	};
-	struct nfs3_accessres	res = {
-		.fattr		= &fattr,
-	};
+	struct nfs3_accessres	res;
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_ACCESS],
 		.rpc_argp	= &arg,
@@ -191,7 +192,7 @@ static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 		.rpc_cred	= entry->cred,
 	};
 	int mode = entry->mask;
-	int status;
+	int status = -ENOMEM;
 
 	dprintk("NFS call  access\n");
 
@@ -208,9 +209,13 @@ static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 		if (mode & MAY_EXEC)
 			arg.access |= NFS3_ACCESS_EXECUTE;
 	}
-	nfs_fattr_init(&fattr);
+
+	res.fattr = nfs_alloc_fattr();
+	if (res.fattr == NULL)
+		goto out;
+
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
-	nfs_refresh_inode(inode, &fattr);
+	nfs_refresh_inode(inode, res.fattr);
 	if (status == 0) {
 		entry->mask = 0;
 		if (res.access & NFS3_ACCESS_READ)
@@ -220,6 +225,8 @@ static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 		if (res.access & (NFS3_ACCESS_LOOKUP|NFS3_ACCESS_EXECUTE))
 			entry->mask |= MAY_EXEC;
 	}
+	nfs_free_fattr(res.fattr);
+out:
 	dprintk("NFS reply access: %d\n", status);
 	return status;
 }
@@ -227,7 +234,7 @@ static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 static int nfs3_proc_readlink(struct inode *inode, struct page *page,
 		unsigned int pgbase, unsigned int pglen)
 {
-	struct nfs_fattr	fattr;
+	struct nfs_fattr	*fattr;
 	struct nfs3_readlinkargs args = {
 		.fh		= NFS_FH(inode),
 		.pgbase		= pgbase,
@@ -237,14 +244,19 @@ static int nfs3_proc_readlink(struct inode *inode, struct page *page,
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_READLINK],
 		.rpc_argp	= &args,
-		.rpc_resp	= &fattr,
 	};
-	int			status;
+	int status = -ENOMEM;
 
 	dprintk("NFS call  readlink\n");
-	nfs_fattr_init(&fattr);
+	fattr = nfs_alloc_fattr();
+	if (fattr == NULL)
+		goto out;
+	msg.rpc_resp = fattr;
+
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
-	nfs_refresh_inode(inode, &fattr);
+	nfs_refresh_inode(inode, fattr);
+	nfs_free_fattr(fattr);
+out:
 	dprintk("NFS reply readlink: %d\n", status);
 	return status;
 }
@@ -394,12 +406,17 @@ nfs3_proc_remove(struct inode *dir, struct qstr *name)
 		.rpc_argp = &arg,
 		.rpc_resp = &res,
 	};
-	int			status;
+	int status = -ENOMEM;
 
 	dprintk("NFS call  remove %s\n", name->name);
-	nfs_fattr_init(&res.dir_attr);
+	res.dir_attr = nfs_alloc_fattr();
+	if (res.dir_attr == NULL)
+		goto out;
+
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
-	nfs_post_op_update_inode(dir, &res.dir_attr);
+	nfs_post_op_update_inode(dir, res.dir_attr);
+	nfs_free_fattr(res.dir_attr);
+out:
 	dprintk("NFS reply remove: %d\n", status);
 	return status;
 }
@@ -417,7 +434,7 @@ nfs3_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 	if (nfs3_async_handle_jukebox(task, dir))
 		return 0;
 	res = task->tk_msg.rpc_resp;
-	nfs_post_op_update_inode(dir, &res->dir_attr);
+	nfs_post_op_update_inode(dir, res->dir_attr);
 	return 1;
 }
 
@@ -425,7 +442,6 @@ static int
 nfs3_proc_rename(struct inode *old_dir, struct qstr *old_name,
 		 struct inode *new_dir, struct qstr *new_name)
 {
-	struct nfs_fattr	old_dir_attr, new_dir_attr;
 	struct nfs3_renameargs	arg = {
 		.fromfh		= NFS_FH(old_dir),
 		.fromname	= old_name->name,
@@ -434,23 +450,27 @@ nfs3_proc_rename(struct inode *old_dir, struct qstr *old_name,
 		.toname		= new_name->name,
 		.tolen		= new_name->len
 	};
-	struct nfs3_renameres	res = {
-		.fromattr	= &old_dir_attr,
-		.toattr		= &new_dir_attr
-	};
+	struct nfs3_renameres res;
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_RENAME],
 		.rpc_argp	= &arg,
 		.rpc_resp	= &res,
 	};
-	int			status;
+	int status = -ENOMEM;
 
 	dprintk("NFS call  rename %s -> %s\n", old_name->name, new_name->name);
-	nfs_fattr_init(&old_dir_attr);
-	nfs_fattr_init(&new_dir_attr);
+
+	res.fromattr = nfs_alloc_fattr();
+	res.toattr = nfs_alloc_fattr();
+	if (res.fromattr == NULL || res.toattr == NULL)
+		goto out;
+
 	status = rpc_call_sync(NFS_CLIENT(old_dir), &msg, 0);
-	nfs_post_op_update_inode(old_dir, &old_dir_attr);
-	nfs_post_op_update_inode(new_dir, &new_dir_attr);
+	nfs_post_op_update_inode(old_dir, res.fromattr);
+	nfs_post_op_update_inode(new_dir, res.toattr);
+out:
+	nfs_free_fattr(res.toattr);
+	nfs_free_fattr(res.fromattr);
 	dprintk("NFS reply rename: %d\n", status);
 	return status;
 }
@@ -458,30 +478,32 @@ nfs3_proc_rename(struct inode *old_dir, struct qstr *old_name,
 static int
 nfs3_proc_link(struct inode *inode, struct inode *dir, struct qstr *name)
 {
-	struct nfs_fattr	dir_attr, fattr;
 	struct nfs3_linkargs	arg = {
 		.fromfh		= NFS_FH(inode),
 		.tofh		= NFS_FH(dir),
 		.toname		= name->name,
 		.tolen		= name->len
 	};
-	struct nfs3_linkres	res = {
-		.dir_attr	= &dir_attr,
-		.fattr		= &fattr
-	};
+	struct nfs3_linkres	res;
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_LINK],
 		.rpc_argp	= &arg,
 		.rpc_resp	= &res,
 	};
-	int			status;
+	int status = -ENOMEM;
 
 	dprintk("NFS call  link %s\n", name->name);
-	nfs_fattr_init(&dir_attr);
-	nfs_fattr_init(&fattr);
+	res.fattr = nfs_alloc_fattr();
+	res.dir_attr = nfs_alloc_fattr();
+	if (res.fattr == NULL || res.dir_attr == NULL)
+		goto out;
+
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
-	nfs_post_op_update_inode(dir, &dir_attr);
-	nfs_post_op_update_inode(inode, &fattr);
+	nfs_post_op_update_inode(dir, res.dir_attr);
+	nfs_post_op_update_inode(inode, res.fattr);
+out:
+	nfs_free_fattr(res.dir_attr);
+	nfs_free_fattr(res.fattr);
 	dprintk("NFS reply link: %d\n", status);
 	return status;
 }
@@ -552,7 +574,7 @@ out:
 static int
 nfs3_proc_rmdir(struct inode *dir, struct qstr *name)
 {
-	struct nfs_fattr	dir_attr;
+	struct nfs_fattr	*dir_attr;
 	struct nfs3_diropargs	arg = {
 		.fh		= NFS_FH(dir),
 		.name		= name->name,
@@ -561,14 +583,19 @@ nfs3_proc_rmdir(struct inode *dir, struct qstr *name)
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_RMDIR],
 		.rpc_argp	= &arg,
-		.rpc_resp	= &dir_attr,
 	};
-	int			status;
+	int status = -ENOMEM;
 
 	dprintk("NFS call  rmdir %s\n", name->name);
-	nfs_fattr_init(&dir_attr);
+	dir_attr = nfs_alloc_fattr();
+	if (dir_attr == NULL)
+		goto out;
+
+	msg.rpc_resp = dir_attr;
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
-	nfs_post_op_update_inode(dir, &dir_attr);
+	nfs_post_op_update_inode(dir, dir_attr);
+	nfs_free_fattr(dir_attr);
+out:
 	dprintk("NFS reply rmdir: %d\n", status);
 	return status;
 }
@@ -587,7 +614,6 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		  u64 cookie, struct page *page, unsigned int count, int plus)
 {
 	struct inode		*dir = dentry->d_inode;
-	struct nfs_fattr	dir_attr;
 	__be32			*verf = NFS_COOKIEVERF(dir);
 	struct nfs3_readdirargs	arg = {
 		.fh		= NFS_FH(dir),
@@ -598,7 +624,6 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		.pages		= &page
 	};
 	struct nfs3_readdirres	res = {
-		.dir_attr	= &dir_attr,
 		.verf		= verf,
 		.plus		= plus
 	};
@@ -608,7 +633,7 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		.rpc_resp	= &res,
 		.rpc_cred	= cred
 	};
-	int			status;
+	int status = -ENOMEM;
 
 	if (plus)
 		msg.rpc_proc = &nfs3_procedures[NFS3PROC_READDIRPLUS];
@@ -616,12 +641,17 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 	dprintk("NFS call  readdir%s %d\n",
 			plus? "plus" : "", (unsigned int) cookie);
 
-	nfs_fattr_init(&dir_attr);
+	res.dir_attr = nfs_alloc_fattr();
+	if (res.dir_attr == NULL)
+		goto out;
+
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 
 	nfs_invalidate_atime(dir);
+	nfs_refresh_inode(dir, res.dir_attr);
 
-	nfs_refresh_inode(dir, &dir_attr);
+	nfs_free_fattr(res.dir_attr);
+out:
 	dprintk("NFS reply readdir: %d\n", status);
 	return status;
 }

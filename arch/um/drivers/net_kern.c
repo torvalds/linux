@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include "init.h"
 #include "irq_kern.h"
@@ -23,11 +24,6 @@
 #include "mconsole_kern.h"
 #include "net_kern.h"
 #include "net_user.h"
-
-static inline void set_ether_mac(struct net_device *dev, unsigned char *addr)
-{
-	memcpy(dev->dev_addr, addr, ETH_ALEN);
-}
 
 #define DRIVER_NAME "uml-netdev"
 
@@ -259,18 +255,6 @@ static void uml_net_tx_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
-static int uml_net_set_mac(struct net_device *dev, void *addr)
-{
-	struct uml_net_private *lp = netdev_priv(dev);
-	struct sockaddr *hwaddr = addr;
-
-	spin_lock_irq(&lp->lock);
-	set_ether_mac(dev, hwaddr->sa_data);
-	spin_unlock_irq(&lp->lock);
-
-	return 0;
-}
-
 static int uml_net_change_mtu(struct net_device *dev, int new_mtu)
 {
 	dev->mtu = new_mtu;
@@ -377,9 +361,8 @@ static const struct net_device_ops uml_netdev_ops = {
 	.ndo_start_xmit 	= uml_net_start_xmit,
 	.ndo_set_multicast_list = uml_net_set_multicast_list,
 	.ndo_tx_timeout 	= uml_net_tx_timeout,
-	.ndo_set_mac_address	= uml_net_set_mac,
+	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_change_mtu 	= uml_net_change_mtu,
-	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
@@ -477,7 +460,8 @@ static void eth_configure(int n, void *init, char *mac,
 	    ((*transport->user->init)(&lp->user, dev) != 0))
 		goto out_unregister;
 
-	set_ether_mac(dev, device->mac);
+	/* don't use eth_mac_addr, it will not work here */
+	memcpy(dev->dev_addr, device->mac, ETH_ALEN);
 	dev->mtu = transport->user->mtu;
 	dev->netdev_ops = &uml_netdev_ops;
 	dev->ethtool_ops = &uml_net_ethtool_ops;

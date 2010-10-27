@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -556,7 +557,7 @@ static int wm8510_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 	wm8510_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	wm8510_set_bias_level(codec, codec->suspend_bias_level);
+
 	return 0;
 }
 

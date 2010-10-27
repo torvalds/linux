@@ -5,16 +5,28 @@
 # error "please don't include this file directly"
 #endif
 
-typedef struct {
+#include <linux/types.h>
+
+#include <asm/byteorder.h>
+
+typedef union {
 	/*
-	 * bits  0..13: serving_now
-	 * bits 14    : junk data
-	 * bits 15..28: ticket
+	 * bits  0..15 : serving_now
+	 * bits 16..31 : ticket
 	 */
-	unsigned int lock;
+	u32 lock;
+	struct {
+#ifdef __BIG_ENDIAN
+		u16 ticket;
+		u16 serving_now;
+#else
+		u16 serving_now;
+		u16 ticket;
+#endif
+	} h;
 } arch_spinlock_t;
 
-#define __ARCH_SPIN_LOCK_UNLOCKED	{ 0 }
+#define __ARCH_SPIN_LOCK_UNLOCKED	{ .lock = 0 }
 
 typedef struct {
 	volatile unsigned int lock;

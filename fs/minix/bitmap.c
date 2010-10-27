@@ -200,13 +200,13 @@ void minix_free_inode(struct inode * inode)
 	ino = inode->i_ino;
 	if (ino < 1 || ino > sbi->s_ninodes) {
 		printk("minix_free_inode: inode 0 or nonexistent inode\n");
-		goto out;
+		return;
 	}
 	bit = ino & ((1<<k) - 1);
 	ino >>= k;
 	if (ino >= sbi->s_imap_blocks) {
 		printk("minix_free_inode: nonexistent imap in superblock\n");
-		goto out;
+		return;
 	}
 
 	minix_clear_inode(inode);	/* clear on-disk copy */
@@ -217,11 +217,9 @@ void minix_free_inode(struct inode * inode)
 		printk("minix_free_inode: bit %lu already cleared\n", bit);
 	spin_unlock(&bitmap_lock);
 	mark_buffer_dirty(bh);
- out:
-	clear_inode(inode);		/* clear in-memory copy */
 }
 
-struct inode * minix_new_inode(const struct inode * dir, int * error)
+struct inode *minix_new_inode(const struct inode *dir, int mode, int *error)
 {
 	struct super_block *sb = dir->i_sb;
 	struct minix_sb_info *sbi = minix_sb(sb);
@@ -263,8 +261,7 @@ struct inode * minix_new_inode(const struct inode * dir, int * error)
 		iput(inode);
 		return NULL;
 	}
-	inode->i_uid = current_fsuid();
-	inode->i_gid = (dir->i_mode & S_ISGID) ? dir->i_gid : current_fsgid();
+	inode_init_owner(inode, dir, mode);
 	inode->i_ino = j;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
 	inode->i_blocks = 0;

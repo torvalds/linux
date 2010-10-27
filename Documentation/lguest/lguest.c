@@ -34,20 +34,19 @@
 #include <sys/uio.h>
 #include <termios.h>
 #include <getopt.h>
-#include <zlib.h>
 #include <assert.h>
 #include <sched.h>
 #include <limits.h>
 #include <stddef.h>
 #include <signal.h>
-#include "linux/lguest_launcher.h"
-#include "linux/virtio_config.h"
-#include "linux/virtio_net.h"
-#include "linux/virtio_blk.h"
-#include "linux/virtio_console.h"
-#include "linux/virtio_rng.h"
-#include "linux/virtio_ring.h"
-#include "asm/bootparam.h"
+#include <linux/virtio_config.h>
+#include <linux/virtio_net.h>
+#include <linux/virtio_blk.h>
+#include <linux/virtio_console.h>
+#include <linux/virtio_rng.h>
+#include <linux/virtio_ring.h>
+#include <asm/bootparam.h>
+#include "../../include/linux/lguest_launcher.h"
 /*L:110
  * We can ignore the 42 include files we need for this program, but I do want
  * to draw attention to the use of kernel-style types.
@@ -264,7 +263,7 @@ static u8 *get_feature_bits(struct device *dev)
  * Launcher virtual with an offset.
  *
  * This can be tough to get your head around, but usually it just means that we
- * use these trivial conversion functions when the Guest gives us it's
+ * use these trivial conversion functions when the Guest gives us its
  * "physical" addresses:
  */
 static void *from_guest_phys(unsigned long addr)
@@ -1448,14 +1447,15 @@ static void add_to_bridge(int fd, const char *if_name, const char *br_name)
 static void configure_device(int fd, const char *tapif, u32 ipaddr)
 {
 	struct ifreq ifr;
-	struct sockaddr_in *sin = (struct sockaddr_in *)&ifr.ifr_addr;
+	struct sockaddr_in sin;
 
 	memset(&ifr, 0, sizeof(ifr));
 	strcpy(ifr.ifr_name, tapif);
 
 	/* Don't read these incantations.  Just cut & paste them like I did! */
-	sin->sin_family = AF_INET;
-	sin->sin_addr.s_addr = htonl(ipaddr);
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(ipaddr);
+	memcpy(&ifr.ifr_addr, &sin, sizeof(sin));
 	if (ioctl(fd, SIOCSIFADDR, &ifr) != 0)
 		err(1, "Setting %s interface address", tapif);
 	ifr.ifr_flags = IFF_UP;

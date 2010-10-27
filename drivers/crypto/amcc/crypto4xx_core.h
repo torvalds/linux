@@ -104,7 +104,7 @@ struct crypto4xx_device {
 
 struct crypto4xx_core_device {
 	struct device *device;
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 	struct crypto4xx_device *dev;
 	u32 int_status;
 	u32 irq;

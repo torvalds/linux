@@ -136,10 +136,7 @@ static int gfs2_writeback_writepage(struct page *page,
 	if (ret <= 0)
 		return ret;
 
-	ret = mpage_writepage(page, gfs2_get_block_noalloc, wbc);
-	if (ret == -EAGAIN)
-		ret = block_write_full_page(page, gfs2_get_block_noalloc, wbc);
-	return ret;
+	return nobh_writepage(page, gfs2_get_block_noalloc, wbc);
 }
 
 /**
@@ -418,6 +415,7 @@ static int gfs2_jdata_writepages(struct address_space *mapping,
 static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 {
 	struct buffer_head *dibh;
+	u64 dsize = i_size_read(&ip->i_inode);
 	void *kaddr;
 	int error;
 
@@ -437,9 +435,10 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 		return error;
 
 	kaddr = kmap_atomic(page, KM_USER0);
-	memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode),
-	       ip->i_disksize);
-	memset(kaddr + ip->i_disksize, 0, PAGE_CACHE_SIZE - ip->i_disksize);
+	if (dsize > (dibh->b_size - sizeof(struct gfs2_dinode)))
+		dsize = (dibh->b_size - sizeof(struct gfs2_dinode));
+	memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode), dsize);
+	memset(kaddr + dsize, 0, PAGE_CACHE_SIZE - dsize);
 	kunmap_atomic(kaddr, KM_USER0);
 	flush_dcache_page(page);
 	brelse(dibh);
@@ -635,9 +634,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 		}
 	}
 
-	error = gfs2_write_alloc_required(ip, pos, len, &alloc_required);
-	if (error)
-		goto out_unlock;
+	alloc_required = gfs2_write_alloc_required(ip, pos, len);
 
 	if (alloc_required || gfs2_is_jdata(ip))
 		gfs2_write_calc_reserv(ip, len, &data_blocks, &ind_blocks);
@@ -698,8 +695,14 @@ out:
 		return 0;
 
 	page_cache_release(page);
+
+	/*
+	 * XXX(truncate): the call below should probably be replaced with
+	 * a call to the gfs2-specific truncate blocks helper to actually
+	 * release disk blocks..
+	 */
 	if (pos + len > ip->i_inode.i_size)
-		vmtruncate(&ip->i_inode, ip->i_inode.i_size);
+		truncate_setsize(&ip->i_inode, ip->i_inode.i_size);
 out_endtrans:
 	gfs2_trans_end(sdp);
 out_trans_fail:
@@ -1039,9 +1042,9 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	if (rv != 1)
 		goto out; /* dio not valid, fall back to buffered i/o */
 
-	rv = blockdev_direct_IO_no_locking(rw, iocb, inode, inode->i_sb->s_bdev,
-					   iov, offset, nr_segs,
-					   gfs2_get_block_direct, NULL);
+	rv = __blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
+				  offset, nr_segs, gfs2_get_block_direct,
+				  NULL, NULL, 0);
 out:
 	gfs2_glock_dq_m(1, &gh);
 	gfs2_holder_uninit(&gh);
@@ -1061,8 +1064,8 @@ out:
 
 int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 {
-	struct inode *aspace = page->mapping->host;
-	struct gfs2_sbd *sdp = aspace->i_sb->s_fs_info;
+	struct address_space *mapping = page->mapping;
+	struct gfs2_sbd *sdp = gfs2_mapping2sbd(mapping);
 	struct buffer_head *bh, *head;
 	struct gfs2_bufdata *bd;
 

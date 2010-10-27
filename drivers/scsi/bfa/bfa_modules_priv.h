@@ -29,7 +29,7 @@
 
 
 struct bfa_modules_s {
-	struct bfa_pport_s	pport;	/*  physical port module	*/
+	struct bfa_fcport_s	fcport;	/*  fc port module	*/
 	struct bfa_fcxp_mod_s fcxp_mod; /*  fcxp module		*/
 	struct bfa_lps_mod_s lps_mod;   /*  fcxp module		*/
 	struct bfa_uf_mod_s uf_mod;	/*  unsolicited frame module	*/

@@ -42,7 +42,7 @@ bool atl1c_read_eeprom(struct atl1c_hw *hw, u32 offset, u32 *p_value);
 int atl1c_phy_init(struct atl1c_hw *hw);
 int atl1c_check_eeprom_exist(struct atl1c_hw *hw);
 int atl1c_restart_autoneg(struct atl1c_hw *hw);
-
+int atl1c_phy_power_saving(struct atl1c_hw *hw);
 /* register definition */
 #define REG_DEVICE_CAP              	0x5C
 #define DEVICE_CAP_MAX_PAYLOAD_MASK     0x7
@@ -57,6 +57,7 @@ int atl1c_restart_autoneg(struct atl1c_hw *hw);
 #define REG_LINK_CTRL			0x68
 #define LINK_CTRL_L0S_EN		0x01
 #define LINK_CTRL_L1_EN			0x02
+#define LINK_CTRL_EXT_SYNC		0x80
 
 #define REG_VPD_CAP			0x6C
 #define VPD_CAP_ID_MASK                 0xff
@@ -119,6 +120,12 @@ int atl1c_restart_autoneg(struct atl1c_hw *hw);
 #define REG_PCIE_PHYMISC	    	0x1000
 #define PCIE_PHYMISC_FORCE_RCV_DET	0x4
 
+#define REG_PCIE_PHYMISC2		0x1004
+#define PCIE_PHYMISC2_SERDES_CDR_MASK	0x3
+#define PCIE_PHYMISC2_SERDES_CDR_SHIFT	16
+#define PCIE_PHYMISC2_SERDES_TH_MASK	0x3
+#define PCIE_PHYMISC2_SERDES_TH_SHIFT	18
+
 #define REG_TWSI_DEBUG			0x1108
 #define TWSI_DEBUG_DEV_EXIST		0x20000000
 
@@ -149,22 +156,28 @@ int atl1c_restart_autoneg(struct atl1c_hw *hw);
 #define PM_CTRL_ASPM_L0S_EN		0x00001000
 #define PM_CTRL_CLK_SWH_L1		0x00002000
 #define PM_CTRL_CLK_PWM_VER1_1		0x00004000
-#define PM_CTRL_PCIE_RECV		0x00008000
+#define PM_CTRL_RCVR_WT_TIMER		0x00008000
 #define PM_CTRL_L1_ENTRY_TIMER_MASK	0xF
 #define PM_CTRL_L1_ENTRY_TIMER_SHIFT	16
 #define PM_CTRL_PM_REQ_TIMER_MASK	0xF
 #define PM_CTRL_PM_REQ_TIMER_SHIFT	20
-#define PM_CTRL_LCKDET_TIMER_MASK	0x3F
+#define PM_CTRL_LCKDET_TIMER_MASK	0xF
 #define PM_CTRL_LCKDET_TIMER_SHIFT	24
+#define PM_CTRL_EN_BUFS_RX_L0S		0x10000000
+#define PM_CTRL_SA_DLY_EN		0x20000000
 #define PM_CTRL_MAC_ASPM_CHK		0x40000000
 #define PM_CTRL_HOTRST			0x80000000
 
+#define REG_LTSSM_ID_CTRL		0x12FC
+#define LTSSM_ID_EN_WRO			0x1000
 /* Selene Master Control Register */
 #define REG_MASTER_CTRL			0x1400
 #define MASTER_CTRL_SOFT_RST            0x1
 #define MASTER_CTRL_TEST_MODE_MASK	0x3
 #define MASTER_CTRL_TEST_MODE_SHIFT	2
 #define MASTER_CTRL_BERT_START		0x10
+#define MASTER_CTRL_OOB_DIS_OFF		0x40
+#define MASTER_CTRL_SA_TIMER_EN		0x80
 #define MASTER_CTRL_MTIMER_EN           0x100
 #define MASTER_CTRL_MANUAL_INT          0x200
 #define MASTER_CTRL_TX_ITIMER_EN	0x400
@@ -217,6 +230,12 @@ int atl1c_restart_autoneg(struct atl1c_hw *hw);
 		GPHY_CTRL_PWDOWN_HW	|\
 		GPHY_CTRL_PHY_IDDQ)
 
+#define GPHY_CTRL_POWER_SAVING (	\
+		GPHY_CTRL_SEL_ANA_RST	|\
+		GPHY_CTRL_HIB_EN	|\
+		GPHY_CTRL_HIB_PULSE	|\
+		GPHY_CTRL_PWDOWN_HW	|\
+		GPHY_CTRL_PHY_IDDQ)
 /* Block IDLE Status Register */
 #define REG_IDLE_STATUS  		0x1410
 #define IDLE_STATUS_MASK		0x00FF
@@ -284,6 +303,14 @@ int atl1c_restart_autoneg(struct atl1c_hw *hw);
 #define SERDES_LOCK_DETECT          	0x1  /* SerDes lock detected. This signal
 					      * comes from Analog SerDes */
 #define SERDES_LOCK_DETECT_EN       	0x2  /* 1: Enable SerDes Lock detect function */
+#define SERDES_LOCK_STS_SELFB_PLL_SHIFT 0xE
+#define SERDES_LOCK_STS_SELFB_PLL_MASK  0x3
+#define SERDES_OVCLK_18_25		0x0
+#define SERDES_OVCLK_12_18		0x1
+#define SERDES_OVCLK_0_4		0x2
+#define SERDES_OVCLK_4_12		0x3
+#define SERDES_MAC_CLK_SLOWDOWN		0x20000
+#define SERDES_PYH_CLK_SLOWDOWN		0x40000
 
 /* MAC Control Register  */
 #define REG_MAC_CTRL         		0x1480
@@ -314,6 +341,8 @@ int atl1c_restart_autoneg(struct atl1c_hw *hw);
 #define MAC_CTRL_BC_EN              	0x4000000
 #define MAC_CTRL_DBG                	0x8000000
 #define MAC_CTRL_SINGLE_PAUSE_EN	0x10000000
+#define MAC_CTRL_HASH_ALG_CRC32		0x20000000
+#define MAC_CTRL_SPEED_MODE_SW		0x40000000
 
 /* MAC IPG/IFG Control Register  */
 #define REG_MAC_IPG_IFG             	0x1484
@@ -688,6 +717,21 @@ int atl1c_restart_autoneg(struct atl1c_hw *hw);
 #define REG_MAC_TX_STATUS_BIN 		0x1760
 #define REG_MAC_TX_STATUS_END 		0x17c0
 
+#define REG_CLK_GATING_CTRL		0x1814
+#define CLK_GATING_DMAW_EN		0x0001
+#define CLK_GATING_DMAR_EN		0x0002
+#define CLK_GATING_TXQ_EN		0x0004
+#define CLK_GATING_RXQ_EN		0x0008
+#define CLK_GATING_TXMAC_EN		0x0010
+#define CLK_GATING_RXMAC_EN		0x0020
+
+#define CLK_GATING_EN_ALL	(CLK_GATING_DMAW_EN |\
+				 CLK_GATING_DMAR_EN |\
+				 CLK_GATING_TXQ_EN  |\
+				 CLK_GATING_RXQ_EN  |\
+				 CLK_GATING_TXMAC_EN|\
+				 CLK_GATING_RXMAC_EN)
+
 /* DEBUG ADDR */
 #define REG_DEBUG_DATA0 		0x1900
 #define REG_DEBUG_DATA1 		0x1904
@@ -729,6 +773,10 @@ int atl1c_restart_autoneg(struct atl1c_hw *hw);
 
 #define MII_PHYSID1			0x02
 #define MII_PHYSID2			0x03
+#define L1D_MPW_PHYID1			0xD01C  /* V7 */
+#define L1D_MPW_PHYID2			0xD01D  /* V1-V6 */
+#define L1D_MPW_PHYID3			0xD01E  /* V8 */
+
 
 /* Autoneg Advertisement Register */
 #define MII_ADVERTISE			0x04

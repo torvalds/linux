@@ -110,7 +110,7 @@ typedef struct _legacy_mbr {
 } __attribute__ ((packed)) legacy_mbr;
 
 /* Functions */
-extern int efi_partition(struct parsed_partitions *state, struct block_device *bdev);
+extern int efi_partition(struct parsed_partitions *state);
 
 #endif
 

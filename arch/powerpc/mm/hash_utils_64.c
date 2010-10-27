@@ -31,7 +31,7 @@
 #include <linux/cache.h>
 #include <linux/init.h>
 #include <linux/signal.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/processor.h>
 #include <asm/pgtable.h>
@@ -384,8 +384,8 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 	printk(KERN_INFO "Huge page(16GB) memory: "
 			"addr = 0x%lX size = 0x%lX pages = %d\n",
 			phys_addr, block_size, expected_pages);
-	if (phys_addr + (16 * GB) <= lmb_end_of_DRAM()) {
-		lmb_reserve(phys_addr, block_size * expected_pages);
+	if (phys_addr + (16 * GB) <= memblock_end_of_DRAM()) {
+		memblock_reserve(phys_addr, block_size * expected_pages);
 		add_gpage(phys_addr, block_size, expected_pages);
 	}
 	return 0;
@@ -458,7 +458,7 @@ static void __init htab_init_page_sizes(void)
 	 * and we have at least 1G of RAM at boot
 	 */
 	if (mmu_psize_defs[MMU_PAGE_16M].shift &&
-	    lmb_phys_mem_size() >= 0x40000000)
+	    memblock_phys_mem_size() >= 0x40000000)
 		mmu_vmemmap_psize = MMU_PAGE_16M;
 	else if (mmu_psize_defs[MMU_PAGE_64K].shift)
 		mmu_vmemmap_psize = MMU_PAGE_64K;
@@ -520,7 +520,7 @@ static unsigned long __init htab_get_table_size(void)
 		return 1UL << ppc64_pft_size;
 
 	/* round mem_size up to next power of 2 */
-	mem_size = lmb_phys_mem_size();
+	mem_size = memblock_phys_mem_size();
 	rnd_mem_size = 1UL << __ilog2(mem_size);
 	if (rnd_mem_size < mem_size)
 		rnd_mem_size <<= 1;
@@ -627,7 +627,7 @@ static void __init htab_initialize(void)
 		else
 			limit = 0;
 
-		table = lmb_alloc_base(htab_size_bytes, htab_size_bytes, limit);
+		table = memblock_alloc_base(htab_size_bytes, htab_size_bytes, limit);
 
 		DBG("Hash table allocated at %lx, size: %lx\n", table,
 		    htab_size_bytes);
@@ -647,9 +647,9 @@ static void __init htab_initialize(void)
 	prot = pgprot_val(PAGE_KERNEL);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-	linear_map_hash_count = lmb_end_of_DRAM() >> PAGE_SHIFT;
-	linear_map_hash_slots = __va(lmb_alloc_base(linear_map_hash_count,
-						    1, lmb.rmo_size));
+	linear_map_hash_count = memblock_end_of_DRAM() >> PAGE_SHIFT;
+	linear_map_hash_slots = __va(memblock_alloc_base(linear_map_hash_count,
+						    1, memblock.rmo_size));
 	memset(linear_map_hash_slots, 0, linear_map_hash_count);
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
@@ -659,16 +659,16 @@ static void __init htab_initialize(void)
 	 */
 
 	/* create bolted the linear mapping in the hash table */
-	for (i=0; i < lmb.memory.cnt; i++) {
-		base = (unsigned long)__va(lmb.memory.region[i].base);
-		size = lmb.memory.region[i].size;
+	for (i=0; i < memblock.memory.cnt; i++) {
+		base = (unsigned long)__va(memblock.memory.region[i].base);
+		size = memblock.memory.region[i].size;
 
 		DBG("creating mapping for region: %lx..%lx (prot: %lx)\n",
 		    base, size, prot);
 
 #ifdef CONFIG_U3_DART
 		/* Do not map the DART space. Fortunately, it will be aligned
-		 * in such a way that it will not cross two lmb regions and
+		 * in such a way that it will not cross two memblock regions and
 		 * will fit within a single 16Mb page.
 		 * The DART space is assumed to be a full 16Mb region even if
 		 * we only use 2Mb of that space. We will use more of it later
@@ -871,6 +871,18 @@ static inline int subpage_protection(struct mm_struct *mm, unsigned long ea)
 }
 #endif
 
+void hash_failure_debug(unsigned long ea, unsigned long access,
+			unsigned long vsid, unsigned long trap,
+			int ssize, int psize, unsigned long pte)
+{
+	if (!printk_ratelimit())
+		return;
+	pr_info("mm: Hashing failure ! EA=0x%lx access=0x%lx current=%s\n",
+		ea, access, current->comm);
+	pr_info("    trap=0x%lx vsid=0x%lx ssize=%d psize=%d pte=0x%lx\n",
+		trap, vsid, ssize, psize, pte);
+}
+
 /* Result code is:
  *  0 - handled
  *  1 - normal page fault
@@ -955,6 +967,17 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		return 1;
 	}
 
+	/* Add _PAGE_PRESENT to the required access perm */
+	access |= _PAGE_PRESENT;
+
+	/* Pre-check access permissions (will be re-checked atomically
+	 * in __hash_page_XX but this pre-check is a fast path
+	 */
+	if (access & ~pte_val(*ptep)) {
+		DBG_LOW(" no access !\n");
+		return 1;
+	}
+
 #ifdef CONFIG_HUGETLB_PAGE
 	if (hugeshift)
 		return __hash_page_huge(ea, access, vsid, ptep, trap, local,
@@ -967,14 +990,6 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	DBG_LOW(" i-pte: %016lx %016lx\n", pte_val(*ptep),
 		pte_val(*(ptep + PTRS_PER_PTE)));
 #endif
-	/* Pre-check access permissions (will be re-checked atomically
-	 * in __hash_page_XX but this pre-check is a fast path
-	 */
-	if (access & ~pte_val(*ptep)) {
-		DBG_LOW(" no access !\n");
-		return 1;
-	}
-
 	/* Do actual hashing */
 #ifdef CONFIG_PPC_64K_PAGES
 	/* If _PAGE_4K_PFN is set, make sure this is a 4k segment */
@@ -1033,6 +1048,12 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 					    local, ssize, spp);
 	}
 
+	/* Dump some info in case of hash insertion failure, they should
+	 * never happen so it is really useful to know if/when they do
+	 */
+	if (rc == -1)
+		hash_failure_debug(ea, access, vsid, trap, ssize, psize,
+				   pte_val(*ptep));
 #ifndef CONFIG_PPC_64K_PAGES
 	DBG_LOW(" o-pte: %016lx\n", pte_val(*ptep));
 #else
@@ -1051,8 +1072,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	void *pgdir;
 	pte_t *ptep;
 	unsigned long flags;
-	int local = 0;
-	int ssize;
+	int rc, ssize, local = 0;
 
 	BUG_ON(REGION_ID(ea) != USER_REGION_ID);
 
@@ -1098,11 +1118,18 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	/* Hash it in */
 #ifdef CONFIG_PPC_HAS_HASH_64K
 	if (mm->context.user_psize == MMU_PAGE_64K)
-		__hash_page_64K(ea, access, vsid, ptep, trap, local, ssize);
+		rc = __hash_page_64K(ea, access, vsid, ptep, trap, local, ssize);
 	else
 #endif /* CONFIG_PPC_HAS_HASH_64K */
-		__hash_page_4K(ea, access, vsid, ptep, trap, local, ssize,
-			       subpage_protection(pgdir, ea));
+		rc = __hash_page_4K(ea, access, vsid, ptep, trap, local, ssize,
+				    subpage_protection(pgdir, ea));
+
+	/* Dump some info in case of hash insertion failure, they should
+	 * never happen so it is really useful to know if/when they do
+	 */
+	if (rc == -1)
+		hash_failure_debug(ea, access, vsid, trap, ssize,
+				   mm->context.user_psize, pte_val(*ptep));
 
 	local_irq_restore(flags);
 }

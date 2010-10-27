@@ -28,7 +28,7 @@ config CRYPTO_FIPS
 	  This options enables the fips boot option which is
 	  required if you want to system to operate in a FIPS 200
 	  certification.  You should say no unless you know what
-	  this is. Note that CRYPTO_ANSI_CPRNG is requred if this
+	  this is. Note that CRYPTO_ANSI_CPRNG is required if this
 	  option is selected
 
 config CRYPTO_ALGAPI
@@ -80,6 +80,11 @@ config CRYPTO_RNG2
 
 config CRYPTO_PCOMP
 	tristate
+	select CRYPTO_PCOMP2
+	select CRYPTO_ALGAPI
+
+config CRYPTO_PCOMP2
+	tristate
 	select CRYPTO_ALGAPI2
 
 config CRYPTO_MANAGER
@@ -94,7 +99,15 @@ config CRYPTO_MANAGER2
 	select CRYPTO_AEAD2
 	select CRYPTO_HASH2
 	select CRYPTO_BLKCIPHER2
-	select CRYPTO_PCOMP
+	select CRYPTO_PCOMP2
+
+config CRYPTO_MANAGER_DISABLE_TESTS
+	bool "Disable run-time self tests"
+	default y
+	depends on CRYPTO_MANAGER2
+	help
+	  Disable run-time self tests that normally take place at
+	  algorithm registration.
 
 config CRYPTO_GF128MUL
 	tristate "GF(2^128) multiplication functions (EXPERIMENTAL)"
@@ -113,6 +126,16 @@ config CRYPTO_NULL
 	select CRYPTO_HASH
 	help
 	  These are 'Null' algorithms, used by IPsec, which do nothing.
+
+config CRYPTO_PCRYPT
+	tristate "Parallel crypto engine (EXPERIMENTAL)"
+	depends on SMP && EXPERIMENTAL
+	select PADATA
+	select CRYPTO_MANAGER
+	select CRYPTO_AEAD
+	help
+	  This converts an arbitrary crypto algorithm into a parallel
+	  algorithm that executes in kernel threads.
 
 config CRYPTO_WORKQUEUE
        tristate
@@ -816,8 +839,8 @@ config CRYPTO_ANSI_CPRNG
 	help
 	  This option enables the generic pseudo random number generator
 	  for cryptographic modules.  Uses the Algorithm specified in
-	  ANSI X9.31 A.2.4. Not this option must be enabled if CRYPTO_FIPS 
-	  is selected
+	  ANSI X9.31 A.2.4. Note that this option must be enabled if
+	  CRYPTO_FIPS is selected
 
 source "drivers/crypto/Kconfig"
 

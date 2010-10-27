@@ -62,25 +62,22 @@ static int pci_card_data(struct pcilst_struct *amcc,
 /* build list of Inova cards in this system */
 static void pci_card_list_init(unsigned short pci_vendor, char display)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	struct pcilst_struct *inova, *last;
 	int i;
 
 	inova_devices = NULL;
 	last = NULL;
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for_each_pci_dev(pcidev) {
 		if (pcidev->vendor == pci_vendor) {
-			inova = kmalloc(sizeof(*inova), GFP_KERNEL);
+			inova = kzalloc(sizeof(*inova), GFP_KERNEL);
 			if (!inova) {
 				printk
 				    ("icp_multi: pci_card_list_init: allocation failed\n");
 				pci_dev_put(pcidev);
 				break;
 			}
-			memset(inova, 0, sizeof(*inova));
 
 			inova->pcidev = pci_dev_get(pcidev);
 			if (last) {

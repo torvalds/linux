@@ -64,15 +64,15 @@ static void xhci_hub_descriptor(struct xhci_hcd *xhci,
 static unsigned int xhci_port_speed(unsigned int port_status)
 {
 	if (DEV_LOWSPEED(port_status))
-		return 1 << USB_PORT_FEAT_LOWSPEED;
+		return USB_PORT_STAT_LOW_SPEED;
 	if (DEV_HIGHSPEED(port_status))
-		return 1 << USB_PORT_FEAT_HIGHSPEED;
+		return USB_PORT_STAT_HIGH_SPEED;
 	if (DEV_SUPERSPEED(port_status))
-		return 1 << USB_PORT_FEAT_SUPERSPEED;
+		return USB_PORT_STAT_SUPER_SPEED;
 	/*
 	 * FIXME: Yes, we should check for full speed, but the core uses that as
 	 * a default in portspeed() in usb/core/hub.c (which is the only place
-	 * USB_PORT_FEAT_*SPEED is used).
+	 * USB_PORT_STAT_*_SPEED is used).
 	 */
 	return 0;
 }
@@ -129,6 +129,50 @@ static u32 xhci_port_state_to_neutral(u32 state)
 	return (state & XHCI_PORT_RO) | (state & XHCI_PORT_RWS);
 }
 
+static void xhci_disable_port(struct xhci_hcd *xhci, u16 wIndex,
+		u32 __iomem *addr, u32 port_status)
+{
+	/* Write 1 to disable the port */
+	xhci_writel(xhci, port_status | PORT_PE, addr);
+	port_status = xhci_readl(xhci, addr);
+	xhci_dbg(xhci, "disable port, actual port %d status  = 0x%x\n",
+			wIndex, port_status);
+}
+
+static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
+		u16 wIndex, u32 __iomem *addr, u32 port_status)
+{
+	char *port_change_bit;
+	u32 status;
+
+	switch (wValue) {
+	case USB_PORT_FEAT_C_RESET:
+		status = PORT_RC;
+		port_change_bit = "reset";
+		break;
+	case USB_PORT_FEAT_C_CONNECTION:
+		status = PORT_CSC;
+		port_change_bit = "connect";
+		break;
+	case USB_PORT_FEAT_C_OVER_CURRENT:
+		status = PORT_OCC;
+		port_change_bit = "over-current";
+		break;
+	case USB_PORT_FEAT_C_ENABLE:
+		status = PORT_PEC;
+		port_change_bit = "enable/disable";
+		break;
+	default:
+		/* Should never happen */
+		return;
+	}
+	/* Change bits are all write 1 to clear */
+	xhci_writel(xhci, port_status | status, addr);
+	port_status = xhci_readl(xhci, addr);
+	xhci_dbg(xhci, "clear port %s change, actual port %d status  = 0x%x\n",
+			port_change_bit, wIndex, port_status);
+}
+
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		u16 wIndex, char *buf, u16 wLength)
 {
@@ -138,7 +182,6 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	u32 temp, status;
 	int retval = 0;
 	u32 __iomem *addr;
-	char *port_change_bit;
 
 	ports = HCS_MAX_PORTS(xhci->hcs_params1);
 
@@ -162,27 +205,27 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 		/* wPortChange bits */
 		if (temp & PORT_CSC)
-			status |= 1 << USB_PORT_FEAT_C_CONNECTION;
+			status |= USB_PORT_STAT_C_CONNECTION << 16;
 		if (temp & PORT_PEC)
-			status |= 1 << USB_PORT_FEAT_C_ENABLE;
+			status |= USB_PORT_STAT_C_ENABLE << 16;
 		if ((temp & PORT_OCC))
-			status |= 1 << USB_PORT_FEAT_C_OVER_CURRENT;
+			status |= USB_PORT_STAT_C_OVERCURRENT << 16;
 		/*
 		 * FIXME ignoring suspend, reset, and USB 2.1/3.0 specific
 		 * changes
 		 */
 		if (temp & PORT_CONNECT) {
-			status |= 1 << USB_PORT_FEAT_CONNECTION;
+			status |= USB_PORT_STAT_CONNECTION;
 			status |= xhci_port_speed(temp);
 		}
 		if (temp & PORT_PE)
-			status |= 1 << USB_PORT_FEAT_ENABLE;
+			status |= USB_PORT_STAT_ENABLE;
 		if (temp & PORT_OC)
-			status |= 1 << USB_PORT_FEAT_OVER_CURRENT;
+			status |= USB_PORT_STAT_OVERCURRENT;
 		if (temp & PORT_RESET)
-			status |= 1 << USB_PORT_FEAT_RESET;
+			status |= USB_PORT_STAT_RESET;
 		if (temp & PORT_POWER)
-			status |= 1 << USB_PORT_FEAT_POWER;
+			status |= USB_PORT_STAT_POWER;
 		xhci_dbg(xhci, "Get port status returned 0x%x\n", status);
 		put_unaligned(cpu_to_le32(status), (__le32 *) buf);
 		break;
@@ -229,26 +272,18 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		temp = xhci_port_state_to_neutral(temp);
 		switch (wValue) {
 		case USB_PORT_FEAT_C_RESET:
-			status = PORT_RC;
-			port_change_bit = "reset";
-			break;
 		case USB_PORT_FEAT_C_CONNECTION:
-			status = PORT_CSC;
-			port_change_bit = "connect";
-			break;
 		case USB_PORT_FEAT_C_OVER_CURRENT:
-			status = PORT_OCC;
-			port_change_bit = "over-current";
+		case USB_PORT_FEAT_C_ENABLE:
+			xhci_clear_port_change_bit(xhci, wValue, wIndex,
+					addr, temp);
+			break;
+		case USB_PORT_FEAT_ENABLE:
+			xhci_disable_port(xhci, wIndex, addr, temp);
 			break;
 		default:
 			goto error;
 		}
-		/* Change bits are all write 1 to clear */
-		xhci_writel(xhci, temp | status, addr);
-		temp = xhci_readl(xhci, addr);
-		xhci_dbg(xhci, "clear port %s change, actual port %d status  = 0x%x\n",
-				port_change_bit, wIndex, temp);
-		temp = xhci_readl(xhci, addr); /* unblock any posted writes */
 		break;
 	default:
 error:
@@ -263,7 +298,6 @@ error:
  * Returns 0 if the status hasn't changed, or the number of bytes in buf.
  * Ports are 0-indexed from the HCD point of view,
  * and 1-indexed from the USB core pointer of view.
- * xHCI instances can have up to 127 ports, so FIXME if you see more than 15.
  *
  * Note that the status change bits will be cleared as soon as a port status
  * change event is generated, so we use the saved status from that event.
@@ -280,14 +314,9 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	ports = HCS_MAX_PORTS(xhci->hcs_params1);
 
 	/* Initial status is no changes */
-	buf[0] = 0;
+	retval = (ports + 8) / 8;
+	memset(buf, 0, retval);
 	status = 0;
-	if (ports > 7) {
-		buf[1] = 0;
-		retval = 2;
-	} else {
-		retval = 1;
-	}
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* For each port, did anything change?  If so, set that bit in buf. */
@@ -296,10 +325,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 			NUM_PORT_REGS*i;
 		temp = xhci_readl(xhci, addr);
 		if (temp & (PORT_CSC | PORT_PEC | PORT_OCC)) {
-			if (i < 7)
-				buf[0] |= 1 << (i + 1);
-			else
-				buf[1] |= 1 << (i - 7);
+			buf[(i + 1) / 8] |= 1 << (i + 1) % 8;
 			status = 1;
 		}
 	}

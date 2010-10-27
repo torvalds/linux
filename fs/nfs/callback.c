@@ -45,7 +45,7 @@ unsigned short nfs_callback_tcpport;
 unsigned short nfs_callback_tcpport6;
 #define NFS_CALLBACK_MAXPORTNR (65535U)
 
-static int param_set_portnr(const char *val, struct kernel_param *kp)
+static int param_set_portnr(const char *val, const struct kernel_param *kp)
 {
 	unsigned long num;
 	int ret;
@@ -58,11 +58,10 @@ static int param_set_portnr(const char *val, struct kernel_param *kp)
 	*((unsigned int *)kp->arg) = num;
 	return 0;
 }
-
-static int param_get_portnr(char *buffer, struct kernel_param *kp)
-{
-	return param_get_uint(buffer, kp);
-}
+static struct kernel_param_ops param_ops_portnr = {
+	.set = param_set_portnr,
+	.get = param_get_uint,
+};
 #define param_check_portnr(name, p) __param_check(name, p, unsigned int);
 
 module_param_named(callback_tcpport, nfs_callback_set_tcpport, portnr, 0644);
@@ -118,7 +117,6 @@ nfs4_callback_up(struct svc_serv *serv)
 	dprintk("NFS: Callback listener port = %u (af %u)\n",
 			nfs_callback_tcpport, PF_INET);
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	ret = svc_create_xprt(serv, "tcp", PF_INET6,
 				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
 	if (ret > 0) {
@@ -129,7 +127,6 @@ nfs4_callback_up(struct svc_serv *serv)
 		ret = 0;
 	else
 		goto out_err;
-#endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
 
 	return svc_prepare_thread(serv, &serv->sv_pools[0]);
 

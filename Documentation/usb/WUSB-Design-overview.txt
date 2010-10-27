@@ -381,7 +381,7 @@ descriptor that gives us the status of the transfer, its identification
 we issue another URB to read into the destination buffer the chunk of
 data coming out of the remote endpoint. Done, wait for the next guy. The
 callbacks for the URBs issued from here are the ones that will declare
-the xfer complete at some point and call it's callback.
+the xfer complete at some point and call its callback.
 
 Seems simple, but the implementation is not trivial.
 

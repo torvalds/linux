@@ -115,7 +115,7 @@ show_speed(struct device *dev, struct device_attribute *attr, char *buf)
 	case USB_SPEED_HIGH:
 		speed = "480";
 		break;
-	case USB_SPEED_VARIABLE:
+	case USB_SPEED_WIRELESS:
 		speed = "480";
 		break;
 	case USB_SPEED_SUPER:
@@ -191,6 +191,36 @@ show_quirks(struct device *dev, struct device_attribute *attr, char *buf)
 static DEVICE_ATTR(quirks, S_IRUGO, show_quirks, NULL);
 
 static ssize_t
+show_avoid_reset_quirk(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev;
+
+	udev = to_usb_device(dev);
+	return sprintf(buf, "%d\n", !!(udev->quirks & USB_QUIRK_RESET_MORPHS));
+}
+
+static ssize_t
+set_avoid_reset_quirk(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct usb_device	*udev = to_usb_device(dev);
+	int			config;
+
+	if (sscanf(buf, "%d", &config) != 1 || config < 0 || config > 1)
+		return -EINVAL;
+	usb_lock_device(udev);
+	if (config)
+		udev->quirks |= USB_QUIRK_RESET_MORPHS;
+	else
+		udev->quirks &= ~USB_QUIRK_RESET_MORPHS;
+	usb_unlock_device(udev);
+	return count;
+}
+
+static DEVICE_ATTR(avoid_reset_quirk, S_IRUGO | S_IWUSR,
+		show_avoid_reset_quirk, set_avoid_reset_quirk);
+
+static ssize_t
 show_urbnum(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev;
@@ -226,9 +256,10 @@ set_persist(struct device *dev, struct device_attribute *attr,
 
 	if (sscanf(buf, "%d", &value) != 1)
 		return -EINVAL;
-	usb_pm_lock(udev);
+
+	usb_lock_device(udev);
 	udev->persist_enabled = !!value;
-	usb_pm_unlock(udev);
+	usb_unlock_device(udev);
 	return count;
 }
 
@@ -315,20 +346,34 @@ set_autosuspend(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct usb_device *udev = to_usb_device(dev);
-	int value;
+	int value, old_delay;
+	int rc;
 
 	if (sscanf(buf, "%d", &value) != 1 || value >= INT_MAX/HZ ||
 			value <= - INT_MAX/HZ)
 		return -EINVAL;
 	value *= HZ;
 
+	usb_lock_device(udev);
+	old_delay = udev->autosuspend_delay;
 	udev->autosuspend_delay = value;
-	if (value >= 0)
-		usb_try_autosuspend_device(udev);
-	else {
-		if (usb_autoresume_device(udev) == 0)
+
+	if (old_delay < 0) {	/* Autosuspend wasn't allowed */
+		if (value >= 0)
 			usb_autosuspend_device(udev);
+	} else {		/* Autosuspend was allowed */
+		if (value < 0) {
+			rc = usb_autoresume_device(udev);
+			if (rc < 0) {
+				count = rc;
+				udev->autosuspend_delay = old_delay;
+			}
+		} else {
+			usb_try_autosuspend_device(udev);
+		}
 	}
+
+	usb_unlock_device(udev);
 	return count;
 }
 
@@ -338,13 +383,24 @@ static DEVICE_ATTR(autosuspend, S_IRUGO | S_IWUSR,
 static const char on_string[] = "on";
 static const char auto_string[] = "auto";
 
+static void warn_level(void) {
+	static int level_warned;
+
+	if (!level_warned) {
+		level_warned = 1;
+		printk(KERN_WARNING "WARNING! power/level is deprecated; "
+				"use power/control instead\n");
+	}
+}
+
 static ssize_t
 show_level(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_device *udev = to_usb_device(dev);
 	const char *p = auto_string;
 
-	if (udev->state != USB_STATE_SUSPENDED && udev->autosuspend_disabled)
+	warn_level();
+	if (udev->state != USB_STATE_SUSPENDED && !udev->dev.power.runtime_auto)
 		p = on_string;
 	return sprintf(buf, "%s\n", p);
 }
@@ -356,36 +412,28 @@ set_level(struct device *dev, struct device_attribute *attr,
 	struct usb_device *udev = to_usb_device(dev);
 	int len = count;
 	char *cp;
-	int rc = 0;
-	int old_autosuspend_disabled;
+	int rc = count;
 
+	warn_level();
 	cp = memchr(buf, '\n', count);
 	if (cp)
 		len = cp - buf;
 
 	usb_lock_device(udev);
-	old_autosuspend_disabled = udev->autosuspend_disabled;
 
-	/* Setting the flags without calling usb_pm_lock is a subject to
-	 * races, but who cares...
-	 */
 	if (len == sizeof on_string - 1 &&
-			strncmp(buf, on_string, len) == 0) {
-		udev->autosuspend_disabled = 1;
-		rc = usb_external_resume_device(udev, PMSG_USER_RESUME);
+			strncmp(buf, on_string, len) == 0)
+		usb_disable_autosuspend(udev);
 
-	} else if (len == sizeof auto_string - 1 &&
-			strncmp(buf, auto_string, len) == 0) {
-		udev->autosuspend_disabled = 0;
-		rc = usb_external_resume_device(udev, PMSG_USER_RESUME);
+	else if (len == sizeof auto_string - 1 &&
+			strncmp(buf, auto_string, len) == 0)
+		usb_enable_autosuspend(udev);
 
-	} else
+	else
 		rc = -EINVAL;
 
-	if (rc)
-		udev->autosuspend_disabled = old_autosuspend_disabled;
 	usb_unlock_device(udev);
-	return (rc < 0 ? rc : count);
+	return rc;
 }
 
 static DEVICE_ATTR(level, S_IRUGO | S_IWUSR, show_level, set_level);
@@ -558,6 +606,7 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_version.attr,
 	&dev_attr_maxchild.attr,
 	&dev_attr_quirks.attr,
+	&dev_attr_avoid_reset_quirk.attr,
 	&dev_attr_authorized.attr,
 	&dev_attr_remove.attr,
 	NULL,
@@ -609,7 +658,8 @@ const struct attribute_group *usb_device_groups[] = {
 /* Binary descriptors */
 
 static ssize_t
-read_descriptors(struct kobject *kobj, struct bin_attribute *attr,
+read_descriptors(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr,
 		char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);

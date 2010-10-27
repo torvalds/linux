@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2009 Lemote Inc. & Insititute of Computing Technology
- * Author: Wu Zhangjin, wuzj@lemote.com
+ * Copyright (C) 2009 Lemote Inc.
+ * Author: Wu Zhangjin, wuzhangjin@gmail.com
  *
  * Copyright (c) 2009 Zhang Le <r0bertz@gentoo.org>
  *
@@ -24,7 +24,7 @@ static const char *system_types[] = {
 	[MACH_LEMOTE_FL2F]              "lemote-fuloong-2f-box",
 	[MACH_LEMOTE_ML2F7]             "lemote-mengloong-2f-7inches",
 	[MACH_LEMOTE_YL2F89]            "lemote-yeeloong-2f-8.9inches",
-	[MACH_DEXXON_GDIUM2F10]         "dexxon-gidum-2f-10inches",
+	[MACH_DEXXON_GDIUM2F10]         "dexxon-gdium-2f",
 	[MACH_LEMOTE_NAS]		"lemote-nas-2f",
 	[MACH_LEMOTE_LL2F]              "lemote-lynloong-2f",
 	[MACH_LOONGSON_END]             NULL,
@@ -35,6 +35,10 @@ const char *get_system_type(void)
 	return system_types[mips_machtype];
 }
 
+void __weak __init mach_prom_init_machtype(void)
+{
+}
+
 void __init prom_init_machtype(void)
 {
 	char *p, str[MACHTYPE_LEN];
@@ -43,8 +47,10 @@ void __init prom_init_machtype(void)
 	mips_machtype = LOONGSON_MACHTYPE;
 
 	p = strstr(arcs_cmdline, "machtype=");
-	if (!p)
+	if (!p) {
+		mach_prom_init_machtype();
 		return;
+	}
 	p += strlen("machtype=");
 	strncpy(str, p, MACHTYPE_LEN);
 	p = strstr(str, " ");

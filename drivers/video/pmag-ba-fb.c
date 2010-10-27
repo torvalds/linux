@@ -44,7 +44,7 @@ struct pmagbafb_par {
 };
 
 
-static struct fb_var_screeninfo pmagbafb_defined __initdata = {
+static struct fb_var_screeninfo pmagbafb_defined __devinitdata = {
 	.xres		= 1024,
 	.yres		= 864,
 	.xres_virtual	= 1024,
@@ -68,7 +68,7 @@ static struct fb_var_screeninfo pmagbafb_defined __initdata = {
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 
-static struct fb_fix_screeninfo pmagbafb_fix __initdata = {
+static struct fb_fix_screeninfo pmagbafb_fix __devinitdata = {
 	.id		= "PMAG-BA",
 	.smem_len	= (1024 * 1024),
 	.type		= FB_TYPE_PACKED_PIXELS,
@@ -142,7 +142,7 @@ static void __init pmagbafb_erase_cursor(struct fb_info *info)
 }
 
 
-static int __init pmagbafb_probe(struct device *dev)
+static int __devinit pmagbafb_probe(struct device *dev)
 {
 	struct tc_dev *tdev = to_tc_dev(dev);
 	resource_size_t start, len;

@@ -31,8 +31,9 @@ struct zsQueue* zfQueueCreate(zdev_t* dev, u16_t size)
 {
     struct zsQueue* q;
 
-    if ((q = (struct zsQueue*)zfwMemAllocate(dev, sizeof(struct zsQueue)
-            + (sizeof(struct zsQueueCell)*(size-1)))) != NULL)
+    q = (struct zsQueue*)zfwMemAllocate(dev, sizeof(struct zsQueue)
+            + (sizeof(struct zsQueueCell)*(size-1)));
+    if (q != NULL)
     {
         q->size = size;
         q->sizeMask = size-1;

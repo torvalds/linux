@@ -24,7 +24,7 @@
 #define CKIH_CLK_FREQ_27MHZ     27000000
 #define CKIL_CLK_FREQ           32768
 
-#define MXC_CCM_BASE		IO_ADDRESS(CCM_BASE_ADDR)
+#define MXC_CCM_BASE		MX31_IO_ADDRESS(MX31_CCM_BASE_ADDR)
 
 /* Register addresses */
 #define MXC_CCM_CCMR		(MXC_CCM_BASE + 0x00)

@@ -61,6 +61,7 @@ static const struct smb_to_posix_error mapping_table_ERRDOS[] = {
 	{ERRremcd, -EACCES},
 	{ERRdiffdevice, -EXDEV},
 	{ERRnofiles, -ENOENT},
+	{ERRwriteprot, -EROFS},
 	{ERRbadshare, -ETXTBSY},
 	{ERRlock, -EACCES},
 	{ERRunsup, -EINVAL},
@@ -139,17 +140,18 @@ static const struct smb_to_posix_error mapping_table_ERRHRD[] = {
  * Returns 0 on failure.
  */
 static int
-cifs_inet_pton(const int address_family, const char *cp, void *dst)
+cifs_inet_pton(const int address_family, const char *cp, int len, void *dst)
 {
 	int ret = 0;
 
 	/* calculate length by finding first slash or NULL */
 	if (address_family == AF_INET)
-		ret = in4_pton(cp, -1 /* len */, dst, '\\', NULL);
+		ret = in4_pton(cp, len, dst, '\\', NULL);
 	else if (address_family == AF_INET6)
-		ret = in6_pton(cp, -1 /* len */, dst , '\\', NULL);
+		ret = in6_pton(cp, len, dst , '\\', NULL);
 
-	cFYI(DBG2, ("address conversion returned %d for %s", ret, cp));
+	cFYI(DBG2, "address conversion returned %d for %*.*s",
+	     ret, len, len, cp);
 	if (ret > 0)
 		ret = 1;
 	return ret;
@@ -164,41 +166,68 @@ cifs_inet_pton(const int address_family, const char *cp, void *dst)
  * Returns 0 on failure.
  */
 int
-cifs_convert_address(char *src, void *dst)
+cifs_convert_address(struct sockaddr *dst, const char *src, int len)
 {
-	int rc;
-	char *pct, *endp;
+	int rc, alen, slen;
+	const char *pct;
+	char *endp, scope_id[13];
 	struct sockaddr_in *s4 = (struct sockaddr_in *) dst;
 	struct sockaddr_in6 *s6 = (struct sockaddr_in6 *) dst;
 
 	/* IPv4 address */
-	if (cifs_inet_pton(AF_INET, src, &s4->sin_addr.s_addr)) {
+	if (cifs_inet_pton(AF_INET, src, len, &s4->sin_addr.s_addr)) {
 		s4->sin_family = AF_INET;
 		return 1;
 	}
 
-	/* temporarily terminate string */
-	pct = strchr(src, '%');
-	if (pct)
-		*pct = '\0';
+	/* attempt to exclude the scope ID from the address part */
+	pct = memchr(src, '%', len);
+	alen = pct ? pct - src : len;
 
-	rc = cifs_inet_pton(AF_INET6, src, &s6->sin6_addr.s6_addr);
-
-	/* repair temp termination (if any) and make pct point to scopeid */
-	if (pct)
-		*pct++ = '%';
-
+	rc = cifs_inet_pton(AF_INET6, src, alen, &s6->sin6_addr.s6_addr);
 	if (!rc)
 		return rc;
 
 	s6->sin6_family = AF_INET6;
 	if (pct) {
+		/* grab the scope ID */
+		slen = len - (alen + 1);
+		if (slen <= 0 || slen > 12)
+			return 0;
+		memcpy(scope_id, pct + 1, slen);
+		scope_id[slen] = '\0';
+
 		s6->sin6_scope_id = (u32) simple_strtoul(pct, &endp, 0);
-		if (!*pct || *endp)
+		if (endp != scope_id + slen)
 			return 0;
 	}
 
 	return rc;
+}
+
+int
+cifs_set_port(struct sockaddr *addr, const unsigned short int port)
+{
+	switch (addr->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *)addr)->sin_port = htons(port);
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *)addr)->sin6_port = htons(port);
+		break;
+	default:
+		return 0;
+	}
+	return 1;
+}
+
+int
+cifs_fill_sockaddr(struct sockaddr *dst, const char *src, int len,
+		   const unsigned short int port)
+{
+	if (!cifs_convert_address(dst, src, len))
+		return 0;
+	return cifs_set_port(dst, port);
 }
 
 /*****************************************************************************
@@ -870,8 +899,8 @@ map_smb_to_linux_error(struct smb_hdr *smb, int logErr)
 	}
 	/* else ERRHRD class errors or junk  - return EIO */
 
-	cFYI(1, ("Mapping smb error code %d to POSIX err %d",
-		 smberrcode, rc));
+	cFYI(1, "Mapping smb error code %d to POSIX err %d",
+		 smberrcode, rc);
 
 	/* generic corrective action e.g. reconnect SMB session on
 	 * ERRbaduid could be added */
@@ -940,20 +969,20 @@ struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 	SMB_TIME *st = (SMB_TIME *)&time;
 	SMB_DATE *sd = (SMB_DATE *)&date;
 
-	cFYI(1, ("date %d time %d", date, time));
+	cFYI(1, "date %d time %d", date, time);
 
 	sec = 2 * st->TwoSeconds;
 	min = st->Minutes;
 	if ((sec > 59) || (min > 59))
-		cERROR(1, ("illegal time min %d sec %d", min, sec));
+		cERROR(1, "illegal time min %d sec %d", min, sec);
 	sec += (min * 60);
 	sec += 60 * 60 * st->Hours;
 	if (st->Hours > 24)
-		cERROR(1, ("illegal hours %d", st->Hours));
+		cERROR(1, "illegal hours %d", st->Hours);
 	days = sd->Day;
 	month = sd->Month;
 	if ((days > 31) || (month > 12)) {
-		cERROR(1, ("illegal date, month %d day: %d", month, days));
+		cERROR(1, "illegal date, month %d day: %d", month, days);
 		if (month > 12)
 			month = 12;
 	}
@@ -979,7 +1008,7 @@ struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 
 	ts.tv_sec = sec + offset;
 
-	/* cFYI(1,("sec after cnvrt dos to unix time %d",sec)); */
+	/* cFYI(1, "sec after cnvrt dos to unix time %d",sec); */
 
 	ts.tv_nsec = 0;
 	return ts;

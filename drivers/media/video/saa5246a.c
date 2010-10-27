@@ -43,6 +43,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/videotext.h>
 #include <linux/videodev2.h>

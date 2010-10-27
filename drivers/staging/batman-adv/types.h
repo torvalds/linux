@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -21,52 +21,76 @@
 
 
 
-
-
-#ifndef TYPES_H
-#define TYPES_H
+#ifndef _NET_BATMAN_ADV_TYPES_H_
+#define _NET_BATMAN_ADV_TYPES_H_
 
 #include "packet.h"
 #include "bitarray.h"
 
-#define BAT_HEADER_LEN (sizeof(struct ethhdr) + ((sizeof(struct unicast_packet) > sizeof(struct bcast_packet) ? sizeof(struct unicast_packet) : sizeof(struct bcast_packet))))
+#define BAT_HEADER_LEN (sizeof(struct ethhdr) + \
+	((sizeof(struct unicast_packet) > sizeof(struct bcast_packet) ? \
+	 sizeof(struct unicast_packet) : \
+	 sizeof(struct bcast_packet))))
 
 
 struct batman_if {
 	struct list_head list;
 	int16_t if_num;
 	char *dev;
-	char if_active;
+	char if_status;
 	char addr_str[ETH_STR_LEN];
 	struct net_device *net_dev;
-	struct socket *raw_sock;
 	atomic_t seqno;
 	unsigned char *packet_buff;
 	int packet_len;
+	struct kobject *hardif_obj;
 	struct rcu_head rcu;
 
 };
 
-struct orig_node {               /* structure for orig_list maintaining nodes of mesh */
+/**
+  *	orig_node - structure for orig_list maintaining nodes of mesh
+  *	@primary_addr: hosts primary interface address
+  *	@last_valid: when last packet from this node was received
+  *	@bcast_seqno_reset: time when the broadcast seqno window was reset
+  *	@batman_seqno_reset: time when the batman seqno window was reset
+  *	@flags: for now only VIS_SERVER flag
+  *	@last_real_seqno: last and best known squence number
+  *	@last_ttl: ttl of last received packet
+  *	@last_bcast_seqno: last broadcast sequence number received by this host
+  *
+  *	@candidates: how many candidates are available
+  *	@selected: next bonding candidate
+ */
+struct orig_node {
 	uint8_t orig[ETH_ALEN];
+	uint8_t primary_addr[ETH_ALEN];
 	struct neigh_node *router;
-	struct batman_if *batman_if;
 	TYPE_OF_WORD *bcast_own;
 	uint8_t *bcast_own_sum;
 	uint8_t tq_own;
 	int tq_asym_penalty;
-	unsigned long last_valid;        /* when last packet from this node was received */
-/*	uint8_t  gwflags;      * flags related to gateway functions: gateway class */
-	uint8_t  flags;    		/* for now only VIS_SERVER flag. */
+	unsigned long last_valid;
+	unsigned long bcast_seqno_reset;
+	unsigned long batman_seqno_reset;
+	uint8_t  flags;
 	unsigned char *hna_buff;
-	int16_t  hna_buff_len;
-	uint16_t last_real_seqno;   /* last and best known squence number */
-	uint8_t last_ttl;         /* ttl of last received packet */
+	int16_t hna_buff_len;
+	uint32_t last_real_seqno;
+	uint8_t last_ttl;
 	TYPE_OF_WORD bcast_bits[NUM_WORDS];
-	uint16_t last_bcast_seqno;  /* last broadcast sequence number received by this host */
+	uint32_t last_bcast_seqno;
 	struct list_head neigh_list;
+	struct {
+		uint8_t candidates;
+		struct neigh_node *selected;
+	} bond;
 };
 
+/**
+  *	neigh_node
+  *	@last_valid: when last packet via this neighbor was received
+ */
 struct neigh_node {
 	struct list_head list;
 	uint8_t addr[ETH_ALEN];
@@ -75,7 +99,8 @@ struct neigh_node {
 	uint8_t tq_index;
 	uint8_t tq_avg;
 	uint8_t last_ttl;
-	unsigned long last_valid;            /* when last packet via this neighbour was received */
+	struct neigh_node *next_bond_candidate;
+	unsigned long last_valid;
 	TYPE_OF_WORD real_bits[NUM_WORDS];
 	struct orig_node *orig_node;
 	struct batman_if *if_incoming;
@@ -83,19 +108,31 @@ struct neigh_node {
 
 struct bat_priv {
 	struct net_device_stats stats;
+	atomic_t aggregation_enabled;
+	atomic_t bonding_enabled;
+	atomic_t vis_mode;
+	atomic_t orig_interval;
+	atomic_t log_level;
+	char num_ifaces;
+	struct debug_log *debug_log;
+	struct batman_if *primary_if;
+	struct kobject *mesh_obj;
+	struct dentry *debug_dir;
 };
 
-struct device_client {
+struct socket_client {
 	struct list_head queue_list;
 	unsigned int queue_len;
 	unsigned char index;
 	spinlock_t lock;
 	wait_queue_head_t queue_wait;
+	struct bat_priv *bat_priv;
 };
 
-struct device_packet {
+struct socket_packet {
 	struct list_head list;
-	struct icmp_packet icmp_packet;
+	size_t icmp_len;
+	struct icmp_packet_rr icmp_packet;
 };
 
 struct hna_local_entry {
@@ -109,10 +146,15 @@ struct hna_global_entry {
 	struct orig_node *orig_node;
 };
 
-struct forw_packet {               /* structure for forw_list maintaining packets to be send/forwarded */
+/**
+  *	forw_packet - structure for forw_list maintaining packets to be
+  *	              send/forwarded
+ */
+struct forw_packet {
 	struct hlist_node list;
 	unsigned long send_time;
 	uint8_t own;
+	struct sk_buff *skb;
 	unsigned char *packet_buff;
 	uint16_t packet_len;
 	uint32_t direct_link_flags;
@@ -121,4 +163,22 @@ struct forw_packet {               /* structure for forw_list maintaining packet
 	struct batman_if *if_incoming;
 };
 
-#endif
+/* While scanning for vis-entries of a particular vis-originator
+ * this list collects its interfaces to create a subgraph/cluster
+ * out of them later
+ */
+struct if_list_entry {
+	uint8_t addr[ETH_ALEN];
+	bool primary;
+	struct hlist_node list;
+};
+
+struct debug_log {
+	char log_buff[LOG_BUF_LEN];
+	unsigned long log_start;
+	unsigned long log_end;
+	spinlock_t lock;
+	wait_queue_head_t queue_wait;
+};
+
+#endif /* _NET_BATMAN_ADV_TYPES_H_ */

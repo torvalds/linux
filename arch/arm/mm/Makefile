@@ -15,7 +15,6 @@ endif
 obj-$(CONFIG_MODULES)		+= proc-syms.o
 
 obj-$(CONFIG_ALIGNMENT_TRAP)	+= alignment.o
-obj-$(CONFIG_DISCONTIGMEM)	+= discontig.o
 obj-$(CONFIG_HIGHMEM)		+= highmem.o
 
 obj-$(CONFIG_CPU_ABRT_NOMMU)	+= abort-nommu.o

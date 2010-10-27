@@ -165,8 +165,8 @@ static int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_object_lookups),
 		   atomic_read(&fscache_n_object_lookups_negative),
 		   atomic_read(&fscache_n_object_lookups_positive),
-		   atomic_read(&fscache_n_object_lookups_timed_out),
-		   atomic_read(&fscache_n_object_created));
+		   atomic_read(&fscache_n_object_created),
+		   atomic_read(&fscache_n_object_lookups_timed_out));
 
 	seq_printf(m, "Updates: n=%u nul=%u run=%u\n",
 		   atomic_read(&fscache_n_updates),

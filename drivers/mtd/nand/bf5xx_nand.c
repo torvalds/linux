@@ -20,9 +20,6 @@
  *		- DMA supported in ECC_HW
  *		- YAFFS tested as rootfs in both ECC_HW and ECC_SW
  *
- * TODO:
- * 	Enable JFFS2 over NAND as rootfs
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -67,6 +64,27 @@
 #define DRV_VERSION	"1.2"
 #define DRV_AUTHOR	"Bryan Wu <bryan.wu@analog.com>"
 #define DRV_DESC	"BF5xx on-chip NAND FLash Controller Driver"
+
+/* NFC_STAT Masks */
+#define NBUSY       0x01  /* Not Busy */
+#define WB_FULL     0x02  /* Write Buffer Full */
+#define PG_WR_STAT  0x04  /* Page Write Pending */
+#define PG_RD_STAT  0x08  /* Page Read Pending */
+#define WB_EMPTY    0x10  /* Write Buffer Empty */
+
+/* NFC_IRQSTAT Masks */
+#define NBUSYIRQ    0x01  /* Not Busy IRQ */
+#define WB_OVF      0x02  /* Write Buffer Overflow */
+#define WB_EDGE     0x04  /* Write Buffer Edge Detect */
+#define RD_RDY      0x08  /* Read Data Ready */
+#define WR_DONE     0x10  /* Page Write Done */
+
+/* NFC_RST Masks */
+#define ECC_RST     0x01  /* ECC (and NFC counters) Reset */
+
+/* NFC_PGCTL Masks */
+#define PG_RD_START 0x01  /* Page Read Start */
+#define PG_WR_START 0x02  /* Page Write Start */
 
 #ifdef CONFIG_MTD_NAND_BF5XX_HWECC
 static int hardware_ecc = 1;
@@ -185,7 +203,7 @@ static void bf5xx_nand_hwcontrol(struct mtd_info *mtd, int cmd,
 
 	if (ctrl & NAND_CLE)
 		bfin_write_NFC_CMD(cmd);
-	else
+	else if (ctrl & NAND_ALE)
 		bfin_write_NFC_ADDR(cmd);
 	SSYNC();
 }
@@ -197,9 +215,9 @@ static void bf5xx_nand_hwcontrol(struct mtd_info *mtd, int cmd,
  */
 static int bf5xx_nand_devready(struct mtd_info *mtd)
 {
-	unsigned short val = bfin_read_NFC_IRQSTAT();
+	unsigned short val = bfin_read_NFC_STAT();
 
-	if ((val & NBUSYIRQ) == NBUSYIRQ)
+	if ((val & NBUSY) == NBUSY)
 		return 1;
 	else
 		return 0;
@@ -296,18 +314,16 @@ static int bf5xx_nand_correct_data_256(struct mtd_info *mtd, u_char *dat,
 static int bf5xx_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 					u_char *read_ecc, u_char *calc_ecc)
 {
-	struct bf5xx_nand_info *info = mtd_to_nand_info(mtd);
-	struct bf5xx_nand_platform *plat = info->platform;
-	unsigned short page_size = (plat->page_size ? 512 : 256);
+	struct nand_chip *chip = mtd->priv;
 	int ret;
 
 	ret = bf5xx_nand_correct_data_256(mtd, dat, read_ecc, calc_ecc);
 
-	/* If page size is 512, correct second 256 bytes */
-	if (page_size == 512) {
+	/* If ecc size is 512, correct second 256 bytes */
+	if (chip->ecc.size == 512) {
 		dat += 256;
-		read_ecc += 8;
-		calc_ecc += 8;
+		read_ecc += 3;
+		calc_ecc += 3;
 		ret |= bf5xx_nand_correct_data_256(mtd, dat, read_ecc, calc_ecc);
 	}
 
@@ -323,13 +339,12 @@ static int bf5xx_nand_calculate_ecc(struct mtd_info *mtd,
 		const u_char *dat, u_char *ecc_code)
 {
 	struct bf5xx_nand_info *info = mtd_to_nand_info(mtd);
-	struct bf5xx_nand_platform *plat = info->platform;
-	u16 page_size = (plat->page_size ? 512 : 256);
+	struct nand_chip *chip = mtd->priv;
 	u16 ecc0, ecc1;
 	u32 code[2];
 	u8 *p;
 
-	/* first 4 bytes ECC code for 256 page size */
+	/* first 3 bytes ECC code for 256 page size */
 	ecc0 = bfin_read_NFC_ECC0();
 	ecc1 = bfin_read_NFC_ECC1();
 
@@ -337,12 +352,11 @@ static int bf5xx_nand_calculate_ecc(struct mtd_info *mtd,
 
 	dev_dbg(info->device, "returning ecc 0x%08x\n", code[0]);
 
-	/* first 3 bytes in ecc_code for 256 page size */
 	p = (u8 *) code;
 	memcpy(ecc_code, p, 3);
 
-	/* second 4 bytes ECC code for 512 page size */
-	if (page_size == 512) {
+	/* second 3 bytes ECC code for 512 ecc size */
+	if (chip->ecc.size == 512) {
 		ecc0 = bfin_read_NFC_ECC2();
 		ecc1 = bfin_read_NFC_ECC3();
 		code[1] = (ecc0 & 0x7ff) | ((ecc1 & 0x7ff) << 11);
@@ -462,8 +476,7 @@ static void bf5xx_nand_dma_rw(struct mtd_info *mtd,
 				uint8_t *buf, int is_read)
 {
 	struct bf5xx_nand_info *info = mtd_to_nand_info(mtd);
-	struct bf5xx_nand_platform *plat = info->platform;
-	unsigned short page_size = (plat->page_size ? 512 : 256);
+	struct nand_chip *chip = mtd->priv;
 	unsigned short val;
 
 	dev_dbg(info->device, " mtd->%p, buf->%p, is_read %d\n",
@@ -477,18 +490,20 @@ static void bf5xx_nand_dma_rw(struct mtd_info *mtd,
 	 */
 	if (is_read)
 		invalidate_dcache_range((unsigned int)buf,
-				(unsigned int)(buf + page_size));
+				(unsigned int)(buf + chip->ecc.size));
 	else
 		flush_dcache_range((unsigned int)buf,
-				(unsigned int)(buf + page_size));
+				(unsigned int)(buf + chip->ecc.size));
 
 	/*
 	 * This register must be written before each page is
 	 * transferred to generate the correct ECC register
 	 * values.
 	 */
-	bfin_write_NFC_RST(0x1);
+	bfin_write_NFC_RST(ECC_RST);
 	SSYNC();
+	while (bfin_read_NFC_RST() & ECC_RST)
+		cpu_relax();
 
 	disable_dma(CH_NFC);
 	clear_dma_irqstat(CH_NFC);
@@ -497,15 +512,15 @@ static void bf5xx_nand_dma_rw(struct mtd_info *mtd,
 	set_dma_config(CH_NFC, 0x0);
 	set_dma_start_addr(CH_NFC, (unsigned long) buf);
 
-/* The DMAs have different size on BF52x and BF54x */
+	/* The DMAs have different size on BF52x and BF54x */
 #ifdef CONFIG_BF52x
-	set_dma_x_count(CH_NFC, (page_size >> 1));
+	set_dma_x_count(CH_NFC, (chip->ecc.size >> 1));
 	set_dma_x_modify(CH_NFC, 2);
 	val = DI_EN | WDSIZE_16;
 #endif
 
 #ifdef CONFIG_BF54x
-	set_dma_x_count(CH_NFC, (page_size >> 2));
+	set_dma_x_count(CH_NFC, (chip->ecc.size >> 2));
 	set_dma_x_modify(CH_NFC, 4);
 	val = DI_EN | WDSIZE_32;
 #endif
@@ -517,9 +532,9 @@ static void bf5xx_nand_dma_rw(struct mtd_info *mtd,
 
 	/* Start PAGE read/write operation */
 	if (is_read)
-		bfin_write_NFC_PGCTL(0x1);
+		bfin_write_NFC_PGCTL(PG_RD_START);
 	else
-		bfin_write_NFC_PGCTL(0x2);
+		bfin_write_NFC_PGCTL(PG_WR_START);
 	wait_for_completion(&info->dma_completion);
 }
 
@@ -527,12 +542,11 @@ static void bf5xx_nand_dma_read_buf(struct mtd_info *mtd,
 					uint8_t *buf, int len)
 {
 	struct bf5xx_nand_info *info = mtd_to_nand_info(mtd);
-	struct bf5xx_nand_platform *plat = info->platform;
-	unsigned short page_size = (plat->page_size ? 512 : 256);
+	struct nand_chip *chip = mtd->priv;
 
 	dev_dbg(info->device, "mtd->%p, buf->%p, int %d\n", mtd, buf, len);
 
-	if (len == page_size)
+	if (len == chip->ecc.size)
 		bf5xx_nand_dma_rw(mtd, buf, 1);
 	else
 		bf5xx_nand_read_buf(mtd, buf, len);
@@ -542,15 +556,30 @@ static void bf5xx_nand_dma_write_buf(struct mtd_info *mtd,
 				const uint8_t *buf, int len)
 {
 	struct bf5xx_nand_info *info = mtd_to_nand_info(mtd);
-	struct bf5xx_nand_platform *plat = info->platform;
-	unsigned short page_size = (plat->page_size ? 512 : 256);
+	struct nand_chip *chip = mtd->priv;
 
 	dev_dbg(info->device, "mtd->%p, buf->%p, len %d\n", mtd, buf, len);
 
-	if (len == page_size)
+	if (len == chip->ecc.size)
 		bf5xx_nand_dma_rw(mtd, (uint8_t *)buf, 0);
 	else
 		bf5xx_nand_write_buf(mtd, buf, len);
+}
+
+static int bf5xx_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
+		uint8_t *buf, int page)
+{
+	bf5xx_nand_read_buf(mtd, buf, mtd->writesize);
+	bf5xx_nand_read_buf(mtd, chip->oob_poi, mtd->oobsize);
+
+	return 0;
+}
+
+static void bf5xx_nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
+		const uint8_t *buf)
+{
+	bf5xx_nand_write_buf(mtd, buf, mtd->writesize);
+	bf5xx_nand_write_buf(mtd, chip->oob_poi, mtd->oobsize);
 }
 
 /*
@@ -606,15 +635,14 @@ static int bf5xx_nand_hw_init(struct bf5xx_nand_info *info)
 
 	/* setup NFC_CTL register */
 	dev_info(info->device,
-		"page_size=%d, data_width=%d, wr_dly=%d, rd_dly=%d\n",
-		(plat->page_size ? 512 : 256),
+		"data_width=%d, wr_dly=%d, rd_dly=%d\n",
 		(plat->data_width ? 16 : 8),
 		plat->wr_dly, plat->rd_dly);
 
-	val = (plat->page_size << NFC_PG_SIZE_OFFSET) |
+	val = (1 << NFC_PG_SIZE_OFFSET) |
 		(plat->data_width << NFC_NWIDTH_OFFSET) |
 		(plat->rd_dly << NFC_RDDLY_OFFSET) |
-		(plat->rd_dly << NFC_WRDLY_OFFSET);
+		(plat->wr_dly << NFC_WRDLY_OFFSET);
 	dev_dbg(info->device, "NFC_CTL is 0x%04x\n", val);
 
 	bfin_write_NFC_CTL(val);
@@ -654,7 +682,6 @@ static int __devinit bf5xx_nand_add_partition(struct bf5xx_nand_info *info)
 static int __devexit bf5xx_nand_remove(struct platform_device *pdev)
 {
 	struct bf5xx_nand_info *info = to_nand_info(pdev);
-	struct mtd_info *mtd = NULL;
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -662,11 +689,7 @@ static int __devexit bf5xx_nand_remove(struct platform_device *pdev)
 	 * and their partitions, then go through freeing the
 	 * resources used
 	 */
-	mtd = &info->mtd;
-	if (mtd) {
-		nand_release(mtd);
-		kfree(mtd);
-	}
+	nand_release(&info->mtd);
 
 	peripheral_free_list(bfin_nfc_pin_req);
 	bf5xx_nand_dma_remove(info);
@@ -675,6 +698,33 @@ static int __devexit bf5xx_nand_remove(struct platform_device *pdev)
 	kfree(info);
 
 	return 0;
+}
+
+static int bf5xx_nand_scan(struct mtd_info *mtd)
+{
+	struct nand_chip *chip = mtd->priv;
+	int ret;
+
+	ret = nand_scan_ident(mtd, 1, NULL);
+	if (ret)
+		return ret;
+
+	if (hardware_ecc) {
+		/*
+		 * for nand with page size > 512B, think it as several sections with 512B
+		 */
+		if (likely(mtd->writesize >= 512)) {
+			chip->ecc.size = 512;
+			chip->ecc.bytes = 6;
+		} else {
+			chip->ecc.size = 256;
+			chip->ecc.bytes = 3;
+			bfin_write_NFC_CTL(bfin_read_NFC_CTL() & ~(1 << NFC_PG_SIZE_OFFSET));
+			SSYNC();
+		}
+	}
+
+	return	nand_scan_tail(mtd);
 }
 
 /*
@@ -762,27 +812,20 @@ static int __devinit bf5xx_nand_probe(struct platform_device *pdev)
 		chip->badblock_pattern = &bootrom_bbt;
 		chip->ecc.layout = &bootrom_ecclayout;
 #endif
-
-		if (plat->page_size == NFC_PG_SIZE_256) {
-			chip->ecc.bytes = 3;
-			chip->ecc.size = 256;
-		} else if (plat->page_size == NFC_PG_SIZE_512) {
-			chip->ecc.bytes = 6;
-			chip->ecc.size = 512;
-		}
-
 		chip->read_buf      = bf5xx_nand_dma_read_buf;
 		chip->write_buf     = bf5xx_nand_dma_write_buf;
 		chip->ecc.calculate = bf5xx_nand_calculate_ecc;
 		chip->ecc.correct   = bf5xx_nand_correct_data;
 		chip->ecc.mode	    = NAND_ECC_HW;
 		chip->ecc.hwctl	    = bf5xx_nand_enable_hwecc;
+		chip->ecc.read_page_raw = bf5xx_nand_read_page_raw;
+		chip->ecc.write_page_raw = bf5xx_nand_write_page_raw;
 	} else {
 		chip->ecc.mode	    = NAND_ECC_SOFT;
 	}
 
 	/* scan hardware nand chip and setup mtd info data struct */
-	if (nand_scan(mtd, 1)) {
+	if (bf5xx_nand_scan(mtd)) {
 		err = -ENXIO;
 		goto out_err_nand_scan;
 	}

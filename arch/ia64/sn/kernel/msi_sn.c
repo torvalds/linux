@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <linux/cpumask.h>
 #include <linux/msi.h>
+#include <linux/slab.h>
 
 #include <asm/sn/addrs.h>
 #include <asm/sn/intr.h>
@@ -174,7 +175,7 @@ static int sn_set_msi_irq_affinity(unsigned int irq,
 	 * Release XIO resources for the old MSI PCI address
 	 */
 
-	read_msi_msg(irq, &msg);
+	get_cached_msi_msg(irq, &msg);
         sn_pdev = (struct pcidev_info *)sn_irq_info->irq_pciioinfo;
 	pdev = sn_pdev->pdi_linux_pcidev;
 	provider = SN_PCIDEV_BUSPROVIDER(pdev);

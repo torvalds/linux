@@ -275,16 +275,15 @@ vmxnet3_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
 	}
 }
 
-static u32
-vmxnet3_get_flags(struct net_device *netdev) {
-	return netdev->features;
-}
-
 static int
-vmxnet3_set_flags(struct net_device *netdev, u32 data) {
+vmxnet3_set_flags(struct net_device *netdev, u32 data)
+{
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	u8 lro_requested = (data & ETH_FLAG_LRO) == 0 ? 0 : 1;
 	u8 lro_present = (netdev->features & NETIF_F_LRO) == 0 ? 0 : 1;
+
+	if (data & ~ETH_FLAG_LRO)
+		return -EOPNOTSUPP;
 
 	if (lro_requested ^ lro_present) {
 		/* toggle the LRO feature*/
@@ -292,10 +291,11 @@ vmxnet3_set_flags(struct net_device *netdev, u32 data) {
 
 		/* update harware LRO capability accordingly */
 		if (lro_requested)
-			adapter->shared->devRead.misc.uptFeatures &= UPT1_F_LRO;
+			adapter->shared->devRead.misc.uptFeatures |=
+						cpu_to_le64(UPT1_F_LRO);
 		else
 			adapter->shared->devRead.misc.uptFeatures &=
-								~UPT1_F_LRO;
+						cpu_to_le64(~UPT1_F_LRO);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 				       VMXNET3_CMD_UPDATE_FEATURE);
 	}
@@ -554,7 +554,7 @@ static struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_tso           = ethtool_op_get_tso,
 	.set_tso           = ethtool_op_set_tso,
 	.get_strings       = vmxnet3_get_strings,
-	.get_flags	   = vmxnet3_get_flags,
+	.get_flags	   = ethtool_op_get_flags,
 	.set_flags	   = vmxnet3_set_flags,
 	.get_sset_count	   = vmxnet3_get_sset_count,
 	.get_ethtool_stats = vmxnet3_get_ethtool_stats,

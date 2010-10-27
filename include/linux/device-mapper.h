@@ -22,7 +22,7 @@ typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE } status_type_t;
 union map_info {
 	void *ptr;
 	unsigned long long ll;
-	unsigned flush_request;
+	unsigned target_request_nr;
 };
 
 /*
@@ -118,10 +118,9 @@ struct dm_dev {
 /*
  * Constructors should call these functions to ensure destination devices
  * are opened/closed correctly.
- * FIXME: too many arguments.
  */
-int dm_get_device(struct dm_target *ti, const char *path, sector_t start,
-		  sector_t len, fmode_t mode, struct dm_dev **result);
+int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
+						 struct dm_dev **result);
 void dm_put_device(struct dm_target *ti, struct dm_dev *d);
 
 /*
@@ -175,11 +174,17 @@ struct dm_target {
 	 * A number of zero-length barrier requests that will be submitted
 	 * to the target for the purpose of flushing cache.
 	 *
-	 * The request number will be placed in union map_info->flush_request.
+	 * The request number will be placed in union map_info->target_request_nr.
 	 * It is a responsibility of the target driver to remap these requests
 	 * to the real underlying devices.
 	 */
 	unsigned num_flush_requests;
+
+	/*
+	 * The number of discard requests that will be submitted to the
+	 * target.  map_info->request_nr is used just like num_flush_requests.
+	 */
+	unsigned num_discard_requests;
 
 	/* target specific data */
 	void *private;
@@ -392,6 +397,12 @@ void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
 
 #define dm_array_too_big(fixed, obj, num) \
 	((num) > (UINT_MAX - (fixed)) / (obj))
+
+/*
+ * Sector offset taken relative to the start of the target instead of
+ * relative to the start of the device.
+ */
+#define dm_target_offset(ti, sector) ((sector) - (ti)->begin)
 
 static inline sector_t to_sector(unsigned long n)
 {

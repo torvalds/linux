@@ -23,6 +23,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include "wl1271_init.h"
 #include "wl12xx_80211.h"
@@ -49,51 +50,66 @@ static int wl1271_init_hwenc_config(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_init_templates_config(struct wl1271 *wl)
+int wl1271_init_templates_config(struct wl1271 *wl)
 {
-	int ret;
+	int ret, i;
 
 	/* send empty templates for fw memory reservation */
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4, NULL,
-				      sizeof(struct wl12xx_probe_req_template));
+				      sizeof(struct wl12xx_probe_req_template),
+				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
 
 	if (wl1271_11a_enabled()) {
+		size_t size = sizeof(struct wl12xx_probe_req_template);
 		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
-				NULL,
-				sizeof(struct wl12xx_probe_req_template));
+					      NULL, size, 0,
+					      WL1271_RATE_AUTOMATIC);
 		if (ret < 0)
 			return ret;
 	}
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, NULL,
-				      sizeof(struct wl12xx_null_data_template));
+				      sizeof(struct wl12xx_null_data_template),
+				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_PS_POLL, NULL,
-				      sizeof(struct wl12xx_ps_poll_template));
+				      sizeof(struct wl12xx_ps_poll_template),
+				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, NULL,
 				      sizeof
-				      (struct wl12xx_qos_null_data_template));
+				      (struct wl12xx_qos_null_data_template),
+				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_PROBE_RESPONSE, NULL,
 				      sizeof
-				      (struct wl12xx_probe_resp_template));
+				      (struct wl12xx_probe_resp_template),
+				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_BEACON, NULL,
 				      sizeof
-				      (struct wl12xx_beacon_template));
+				      (struct wl12xx_beacon_template),
+				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
+
+	for (i = 0; i < CMD_TEMPL_KLV_IDX_MAX; i++) {
+		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_KLV, NULL,
+					      WL1271_CMD_TEMPL_MAX_SIZE, i,
+					      WL1271_RATE_AUTOMATIC);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
@@ -113,7 +129,7 @@ static int wl1271_init_rx_config(struct wl1271 *wl, u32 config, u32 filter)
 	return 0;
 }
 
-static int wl1271_init_phy_config(struct wl1271 *wl)
+int wl1271_init_phy_config(struct wl1271 *wl)
 {
 	int ret;
 
@@ -156,22 +172,22 @@ static int wl1271_init_beacon_filter(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_init_pta(struct wl1271 *wl)
+int wl1271_init_pta(struct wl1271 *wl)
 {
 	int ret;
 
-	ret = wl1271_acx_sg_enable(wl);
+	ret = wl1271_acx_sg_cfg(wl);
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_sg_cfg(wl);
+	ret = wl1271_acx_sg_enable(wl, wl->sg_enabled);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-static int wl1271_init_energy_detection(struct wl1271 *wl)
+int wl1271_init_energy_detection(struct wl1271 *wl)
 {
 	int ret;
 
@@ -195,7 +211,9 @@ static int wl1271_init_beacon_broadcast(struct wl1271 *wl)
 
 int wl1271_hw_init(struct wl1271 *wl)
 {
-	int ret;
+	struct conf_tx_ac_category *conf_ac;
+	struct conf_tx_tid *conf_tid;
+	int ret, i;
 
 	ret = wl1271_cmd_general_parms(wl);
 	if (ret < 0)
@@ -229,8 +247,12 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
+	ret = wl1271_acx_dco_itrim_params(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
 	/* Initialize connection monitoring thresholds */
-	ret = wl1271_acx_conn_monit_params(wl);
+	ret = wl1271_acx_conn_monit_params(wl, false);
 	if (ret < 0)
 		goto out_free_memmap;
 
@@ -270,22 +292,36 @@ int wl1271_hw_init(struct wl1271 *wl)
 		goto out_free_memmap;
 
 	/* Default TID configuration */
-	ret = wl1271_acx_tid_cfg(wl);
-	if (ret < 0)
-		goto out_free_memmap;
+	for (i = 0; i < wl->conf.tx.tid_conf_count; i++) {
+		conf_tid = &wl->conf.tx.tid_conf[i];
+		ret = wl1271_acx_tid_cfg(wl, conf_tid->queue_id,
+					 conf_tid->channel_type,
+					 conf_tid->tsid,
+					 conf_tid->ps_scheme,
+					 conf_tid->ack_policy,
+					 conf_tid->apsd_conf[0],
+					 conf_tid->apsd_conf[1]);
+		if (ret < 0)
+			goto out_free_memmap;
+	}
 
 	/* Default AC configuration */
-	ret = wl1271_acx_ac_cfg(wl);
-	if (ret < 0)
-		goto out_free_memmap;
+	for (i = 0; i < wl->conf.tx.ac_conf_count; i++) {
+		conf_ac = &wl->conf.tx.ac_conf[i];
+		ret = wl1271_acx_ac_cfg(wl, conf_ac->ac, conf_ac->cw_min,
+					conf_ac->cw_max, conf_ac->aifsn,
+					conf_ac->tx_op_limit);
+		if (ret < 0)
+			goto out_free_memmap;
+	}
 
 	/* Configure TX rate classes */
-	ret = wl1271_acx_rate_policies(wl, CONF_TX_RATE_MASK_ALL);
+	ret = wl1271_acx_rate_policies(wl);
 	if (ret < 0)
 		goto out_free_memmap;
 
 	/* Enable data path */
-	ret = wl1271_cmd_data_path(wl, wl->channel, 1);
+	ret = wl1271_cmd_data_path(wl, 1);
 	if (ret < 0)
 		goto out_free_memmap;
 
@@ -299,8 +335,26 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
-	/* Configure smart reflex */
-	ret = wl1271_acx_smart_reflex(wl);
+	/* configure PM */
+	ret = wl1271_acx_pm_config(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* disable all keep-alive templates */
+	for (i = 0; i < CMD_TEMPL_KLV_IDX_MAX; i++) {
+		ret = wl1271_acx_keep_alive_config(wl, i,
+						   ACX_KEEP_ALIVE_TPL_INVALID);
+		if (ret < 0)
+			goto out_free_memmap;
+	}
+
+	/* disable the keep-alive feature */
+	ret = wl1271_acx_keep_alive_mode(wl, false);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* Configure rssi/snr averaging weights */
+	ret = wl1271_acx_rssi_snr_avg_weights(wl);
 	if (ret < 0)
 		goto out_free_memmap;
 

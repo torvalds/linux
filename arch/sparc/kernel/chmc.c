@@ -392,7 +392,7 @@ static void __devinit jbusmc_construct_dimm_groups(struct jbusmc *p,
 	}
 }
 
-static int __devinit jbusmc_probe(struct of_device *op,
+static int __devinit jbusmc_probe(struct platform_device *op,
 				  const struct of_device_id *match)
 {
 	const struct linux_prom64_registers *mem_regs;
@@ -425,7 +425,7 @@ static int __devinit jbusmc_probe(struct of_device *op,
 	INIT_LIST_HEAD(&p->list);
 
 	err = -ENODEV;
-	prop = of_get_property(op->node, "portid", &len);
+	prop = of_get_property(op->dev.of_node, "portid", &len);
 	if (!prop || len != 4) {
 		printk(KERN_ERR PFX "Cannot find portid.\n");
 		goto out_free;
@@ -433,7 +433,7 @@ static int __devinit jbusmc_probe(struct of_device *op,
 
 	p->portid = *prop;
 
-	prop = of_get_property(op->node, "memory-control-register-1", &len);
+	prop = of_get_property(op->dev.of_node, "memory-control-register-1", &len);
 	if (!prop || len != 8) {
 		printk(KERN_ERR PFX "Cannot get memory control register 1.\n");
 		goto out_free;
@@ -449,7 +449,7 @@ static int __devinit jbusmc_probe(struct of_device *op,
 	}
 
 	err = -ENODEV;
-	ml = of_get_property(op->node, "memory-layout", &p->layout_len);
+	ml = of_get_property(op->dev.of_node, "memory-layout", &p->layout_len);
 	if (!ml) {
 		printk(KERN_ERR PFX "Cannot get memory layout property.\n");
 		goto out_iounmap;
@@ -466,7 +466,7 @@ static int __devinit jbusmc_probe(struct of_device *op,
 	mc_list_add(&p->list);
 
 	printk(KERN_INFO PFX "UltraSPARC-IIIi memory controller at %s\n",
-	       op->node->full_name);
+	       op->dev.of_node->full_name);
 
 	dev_set_drvdata(&op->dev, p);
 
@@ -690,10 +690,10 @@ static void chmc_fetch_decode_regs(struct chmc *p)
 				      chmc_read_mcreg(p, CHMCTRL_DECODE4));
 }
 
-static int __devinit chmc_probe(struct of_device *op,
+static int __devinit chmc_probe(struct platform_device *op,
 				const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	unsigned long ver;
 	const void *pval;
 	int len, portid;
@@ -765,7 +765,7 @@ out_free:
 	goto out;
 }
 
-static int __devinit us3mc_probe(struct of_device *op,
+static int __devinit us3mc_probe(struct platform_device *op,
 				const struct of_device_id *match)
 {
 	if (mc_type == MC_TYPE_SAFARI)
@@ -775,21 +775,21 @@ static int __devinit us3mc_probe(struct of_device *op,
 	return -ENODEV;
 }
 
-static void __devexit chmc_destroy(struct of_device *op, struct chmc *p)
+static void __devexit chmc_destroy(struct platform_device *op, struct chmc *p)
 {
 	list_del(&p->list);
 	of_iounmap(&op->resource[0], p->regs, 0x48);
 	kfree(p);
 }
 
-static void __devexit jbusmc_destroy(struct of_device *op, struct jbusmc *p)
+static void __devexit jbusmc_destroy(struct platform_device *op, struct jbusmc *p)
 {
 	mc_list_del(&p->list);
 	of_iounmap(&op->resource[0], p->regs, JBUSMC_REGS_SIZE);
 	kfree(p);
 }
 
-static int __devexit us3mc_remove(struct of_device *op)
+static int __devexit us3mc_remove(struct platform_device *op)
 {
 	void *p = dev_get_drvdata(&op->dev);
 
@@ -811,8 +811,11 @@ static const struct of_device_id us3mc_match[] = {
 MODULE_DEVICE_TABLE(of, us3mc_match);
 
 static struct of_platform_driver us3mc_driver = {
-	.name		= "us3mc",
-	.match_table	= us3mc_match,
+	.driver = {
+		.name = "us3mc",
+		.owner = THIS_MODULE,
+		.of_match_table = us3mc_match,
+	},
 	.probe		= us3mc_probe,
 	.remove		= __devexit_p(us3mc_remove),
 };
@@ -845,7 +848,7 @@ static int __init us3mc_init(void)
 	ret = register_dimm_printer(us3mc_dimm_printer);
 
 	if (!ret) {
-		ret = of_register_driver(&us3mc_driver, &of_bus_type);
+		ret = of_register_platform_driver(&us3mc_driver);
 		if (ret)
 			unregister_dimm_printer(us3mc_dimm_printer);
 	}
@@ -856,7 +859,7 @@ static void __exit us3mc_cleanup(void)
 {
 	if (us3mc_platform()) {
 		unregister_dimm_printer(us3mc_dimm_printer);
-		of_unregister_driver(&us3mc_driver);
+		of_unregister_platform_driver(&us3mc_driver);
 	}
 }
 

@@ -273,16 +273,13 @@ static int shm_release(struct inode *ino, struct file *file)
 	return 0;
 }
 
-static int shm_fsync(struct file *file, struct dentry *dentry, int datasync)
+static int shm_fsync(struct file *file, int datasync)
 {
-	int (*fsync) (struct file *, struct dentry *, int datasync);
 	struct shm_file_data *sfd = shm_file_data(file);
-	int ret = -EINVAL;
 
-	fsync = sfd->file->f_op->fsync;
-	if (fsync)
-		ret = fsync(sfd->file, sfd->file->f_path.dentry, datasync);
-	return ret;
+	if (!sfd->file->f_op->fsync)
+		return -EINVAL;
+	return sfd->file->f_op->fsync(sfd->file, datasync);
 }
 
 static unsigned long shm_get_unmapped_area(struct file *file,
@@ -764,8 +761,7 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 			if (euid != shp->shm_perm.uid &&
 			    euid != shp->shm_perm.cuid)
 				goto out_unlock;
-			if (cmd == SHM_LOCK &&
-			    !current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur)
+			if (cmd == SHM_LOCK && !rlimit(RLIMIT_MEMLOCK))
 				goto out_unlock;
 		}
 

@@ -50,6 +50,7 @@ struct thread_info {
 	struct restart_block	restart_block;
 	__u64			user_timer;
 	__u64			system_timer;
+	unsigned long		last_break;	/* last breaking-event-address. */
 };
 
 /*
@@ -73,7 +74,7 @@ struct thread_info {
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
 {
-	return (struct thread_info *)((*(unsigned long *) __LC_KERNEL_STACK)-THREAD_SIZE);
+	return (struct thread_info *)(S390_lowcore.kernel_stack - THREAD_SIZE);
 }
 
 #define THREAD_SIZE_ORDER THREAD_ORDER
@@ -96,7 +97,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_POLLING_NRFLAG	16	/* true if poll_idle() is polling
 					   TIF_NEED_RESCHED */
 #define TIF_31BIT		17	/* 32bit process */
-#define TIF_MEMDIE		18
+#define TIF_MEMDIE		18	/* is terminating due to OOM killer */
 #define TIF_RESTORE_SIGMASK	19	/* restore signal mask in do_signal() */
 #define TIF_FREEZE		20	/* thread is freezing for suspend */
 

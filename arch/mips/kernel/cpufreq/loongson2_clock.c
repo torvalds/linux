@@ -164,3 +164,7 @@ void loongson2_cpu_wait(void)
 	spin_unlock_irqrestore(&loongson2_wait_lock, flags);
 }
 EXPORT_SYMBOL_GPL(loongson2_cpu_wait);
+
+MODULE_AUTHOR("Yanhua <yanh@lemote.com>");
+MODULE_DESCRIPTION("cpufreq driver for Loongson 2F");
+MODULE_LICENSE("GPL");

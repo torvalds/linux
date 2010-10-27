@@ -88,6 +88,13 @@ __common_int_entry:
 #else
 	cli r1;
 #endif
+#ifdef CONFIG_TRACE_IRQFLAGS
+	[--sp] = r0;
+	sp += -12;
+	call _trace_hardirqs_off;
+	sp += 12;
+	r0 = [sp++];
+#endif
 	[--sp] = RETI;  /* orig_pc */
 	/* Clear all L registers.  */
 	r1 = 0 (x);
@@ -109,10 +116,10 @@ __common_int_entry:
 	cc = r0 == 0;
 	if cc jump .Lcommon_restore_context;
 #else /* CONFIG_IPIPE */
-	call _do_irq;
+	pseudo_long_call _do_irq, p2;
 	SP += 12;
 #endif /* CONFIG_IPIPE */
-	call _return_from_int;
+	pseudo_long_call _return_from_int, p2;
 .Lcommon_restore_context:
 	RESTORE_CONTEXT
 	rti;
@@ -168,7 +175,7 @@ ENTRY(_evt_ivhw)
 
 	r0 = sp;        /* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
-	call _trap_c;
+	pseudo_long_call _trap_c, p5;
 	SP += 12;
 
 #ifdef EBIU_ERRMST
@@ -179,7 +186,7 @@ ENTRY(_evt_ivhw)
 	w[p0] = r0.l;
 #endif
 
-	call _ret_from_exception;
+	pseudo_long_call _ret_from_exception, p2;
 
 .Lcommon_restore_all_sys:
 	RESTORE_ALL_SYS
@@ -187,12 +194,28 @@ ENTRY(_evt_ivhw)
 ENDPROC(_evt_ivhw)
 
 /* Interrupt routine for evt2 (NMI).
- * We don't actually use this, so just return.
  * For inner circle type details, please see:
  * http://docs.blackfin.uclinux.org/doku.php?id=linux-kernel:nmi
  */
 ENTRY(_evt_nmi)
+#ifndef CONFIG_NMI_WATCHDOG
 .weak _evt_nmi
+#else
+	/* Not take account of CPLBs, this handler will not return */
+	SAVE_ALL_SYS
+	r0 = sp;
+	r1 = retn;
+	[sp + PT_PC] = r1;
+	trace_buffer_save(p4,r5);
+
+	ANOMALY_283_315_WORKAROUND(p4, r5)
+
+	SP += -12;
+	call _do_nmi;
+	SP += 12;
+1:
+	jump 1b;
+#endif
 	rtn;
 ENDPROC(_evt_nmi)
 
@@ -223,7 +246,7 @@ ENTRY(_evt_system_call)
 #ifdef CONFIG_FRAME_POINTER
 	fp = 0;
 #endif
-	call _system_call;
+	pseudo_long_call _system_call, p2;
 	jump .Lcommon_restore_context;
 ENDPROC(_evt_system_call)
 

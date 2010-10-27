@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
 

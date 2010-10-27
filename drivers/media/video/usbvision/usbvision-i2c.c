@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <asm/uaccess.h>
 #include <linux/ioport.h>
@@ -245,6 +244,9 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 	switch (usbvision_device_data[usbvision->DevModel].Codec) {
 	case CODEC_SAA7113:
 	case CODEC_SAA7111:
+		/* Without this delay the detection of the saa711x is
+		   hit-and-miss. */
+		mdelay(10);
 		v4l2_i2c_new_subdev(&usbvision->v4l2_dev,
 				&usbvision->i2c_adap, "saa7115",
 				"saa7115_auto", 0, saa711x_addrs);

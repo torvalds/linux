@@ -118,16 +118,11 @@
 #define ZSP_DUET		'D'	/* one DUET zsp engine */
 #define ZSP_TRIAD		'T'	/* two TRIAD zsp engines */
 
-extern char *prom_getcmdline(void);
 extern char *prom_getenv(char *name);
 extern void prom_init_cmdline(void);
 extern void prom_meminit(void);
 extern void prom_fixup_mem_map(unsigned long start_mem,
 			       unsigned long end_mem);
-
-#ifdef CONFIG_MTD_PMC_MSP_RAMROOT
-extern bool get_ramroot(void **start, unsigned long *size);
-#endif
 
 extern int get_ethernet_addr(char *ethaddr_name, char *ethernet_addr);
 extern unsigned long get_deviceid(void);

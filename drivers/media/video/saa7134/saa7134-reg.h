@@ -112,17 +112,17 @@
 #define   SAA7134_IRQ1_INTE_RA0_0               (1 <<  0)
 
 #define SAA7134_IRQ2                            (0x2c8 >> 2)
-#define   SAA7134_IRQ2_INTE_GPIO23A             (1 << 17)
-#define   SAA7134_IRQ2_INTE_GPIO23              (1 << 16)
-#define   SAA7134_IRQ2_INTE_GPIO22A             (1 << 15)
-#define   SAA7134_IRQ2_INTE_GPIO22              (1 << 14)
-#define   SAA7134_IRQ2_INTE_GPIO18A             (1 << 13)
-#define   SAA7134_IRQ2_INTE_GPIO18              (1 << 12)
-#define   SAA7134_IRQ2_INTE_GPIO16              (1 << 11) /* not certain */
-#define   SAA7134_IRQ2_INTE_SC2                 (1 << 10)
-#define   SAA7134_IRQ2_INTE_SC1                 (1 <<  9)
-#define   SAA7134_IRQ2_INTE_SC0                 (1 <<  8)
-#define   SAA7134_IRQ2_INTE_DEC5                (1 <<  7)
+#define   SAA7134_IRQ2_INTE_GPIO23_N             (1 << 17)	/* negative edge */
+#define   SAA7134_IRQ2_INTE_GPIO23_P             (1 << 16)	/* positive edge */
+#define   SAA7134_IRQ2_INTE_GPIO22_N             (1 << 15)	/* negative edge */
+#define   SAA7134_IRQ2_INTE_GPIO22_P             (1 << 14)	/* positive edge */
+#define   SAA7134_IRQ2_INTE_GPIO18_N             (1 << 13)	/* negative edge */
+#define   SAA7134_IRQ2_INTE_GPIO18_P             (1 << 12)	/* positive edge */
+#define   SAA7134_IRQ2_INTE_GPIO16_N             (1 << 11)	/* negative edge */
+#define   SAA7134_IRQ2_INTE_GPIO16_P             (1 << 10)	/* positive edge */
+#define   SAA7134_IRQ2_INTE_SC2                 (1 <<  9)
+#define   SAA7134_IRQ2_INTE_SC1                 (1 <<  8)
+#define   SAA7134_IRQ2_INTE_SC0                 (1 <<  7)
 #define   SAA7134_IRQ2_INTE_DEC4                (1 <<  6)
 #define   SAA7134_IRQ2_INTE_DEC3                (1 <<  5)
 #define   SAA7134_IRQ2_INTE_DEC2                (1 <<  4)
@@ -135,7 +135,7 @@
 #define   SAA7134_IRQ_REPORT_GPIO23             (1 << 17)
 #define   SAA7134_IRQ_REPORT_GPIO22             (1 << 16)
 #define   SAA7134_IRQ_REPORT_GPIO18             (1 << 15)
-#define   SAA7134_IRQ_REPORT_GPIO16             (1 << 14) /* not certain */
+#define   SAA7134_IRQ_REPORT_GPIO16             (1 << 14)
 #define   SAA7134_IRQ_REPORT_LOAD_ERR           (1 << 13)
 #define   SAA7134_IRQ_REPORT_CONF_ERR           (1 << 12)
 #define   SAA7134_IRQ_REPORT_TRIG_ERR           (1 << 11)

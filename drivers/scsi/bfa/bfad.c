@@ -19,7 +19,9 @@
  *  bfad.c Linux driver PCI interface module.
  */
 
+#include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/kthread.h>
 #include "bfad_drv.h"
 #include "bfad_im.h"
 #include "bfad_tm.h"
@@ -31,7 +33,7 @@
 #include <fcb/bfa_fcb.h>
 
 BFA_TRC_FILE(LDRV, BFAD);
-static DEFINE_MUTEX(bfad_mutex);
+DEFINE_MUTEX(bfad_mutex);
 LIST_HEAD(bfad_list);
 static int      bfad_inst;
 int bfad_supported_fc4s;
@@ -52,29 +54,62 @@ static int      bfa_io_max_sge = BFAD_IO_MAX_SGE;
 static int      log_level = BFA_LOG_WARNING;
 static int      ioc_auto_recover = BFA_TRUE;
 static int      ipfc_enable = BFA_FALSE;
-static int      ipfc_mtu = -1;
+static int	fdmi_enable = BFA_TRUE;
 int 		bfa_lun_queue_depth = BFAD_LUN_QUEUE_DEPTH;
 int      	bfa_linkup_delay = -1;
+int		bfa_debugfs_enable = 1;
 
 module_param(os_name, charp, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(os_name, "OS name of the hba host machine");
 module_param(os_patch, charp, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(os_patch, "OS patch level of the hba host machine");
 module_param(host_name, charp, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(host_name, "Hostname of the hba host machine");
 module_param(num_rports, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_rports, "Max number of rports supported per port"
+		" (physical/logical), default=1024");
 module_param(num_ios, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_ios, "Max number of ioim requests, default=2000");
 module_param(num_tms, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_tms, "Max number of task im requests, default=128");
 module_param(num_fcxps, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_fcxps, "Max number of fcxp requests, default=64");
 module_param(num_ufbufs, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_ufbufs, "Max number of unsolicited frame buffers,"
+		" default=64");
 module_param(reqq_size, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(reqq_size, "Max number of request queue elements,"
+		" default=256");
 module_param(rspq_size, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(rspq_size, "Max number of response queue elements,"
+		" default=64");
 module_param(num_sgpgs, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_sgpgs, "Number of scatter/gather pages, default=2048");
 module_param(rport_del_timeout, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(rport_del_timeout, "Rport delete timeout, default=90 secs,"
+		" Range[>0]");
 module_param(bfa_lun_queue_depth, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_lun_queue_depth, "Lun queue depth, default=32,"
+		" Range[>0]");
 module_param(bfa_io_max_sge, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_io_max_sge, "Max io scatter/gather elements, default=255");
 module_param(log_level, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(log_level, "Driver log level, default=3,"
+		" Range[Critical:1|Error:2|Warning:3|Info:4]");
 module_param(ioc_auto_recover, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ioc_auto_recover, "IOC auto recovery, default=1,"
+		" Range[off:0|on:1]");
 module_param(ipfc_enable, int, S_IRUGO | S_IWUSR);
-module_param(ipfc_mtu, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ipfc_enable, "Enable IPoFC, default=0, Range[off:0|on:1]");
 module_param(bfa_linkup_delay, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_linkup_delay, "Link up delay, default=30 secs for boot"
+		" port. Otherwise Range[>0]");
+module_param(fdmi_enable, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(fdmi_enable, "Enables fdmi registration, default=1,"
+		" Range[false:0|true:1]");
+module_param(bfa_debugfs_enable, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_debugfs_enable, "Enables debugfs feature, default=1,"
+		" Range[false:0|true:1]");
 
 /*
  * Stores the module parm num_sgpgs value;
@@ -95,6 +130,8 @@ bfad_fc4_probe(struct bfad_s *bfad)
 
 	if (ipfc_enable)
 		bfad_ipfc_probe(bfad);
+
+	bfad->bfad_flags |= BFAD_FC4_PROBE_DONE;
 ext:
 	return rc;
 }
@@ -106,6 +143,7 @@ bfad_fc4_probe_undo(struct bfad_s *bfad)
 	bfad_tm_probe_undo(bfad);
 	if (ipfc_enable)
 		bfad_ipfc_probe_undo(bfad);
+	bfad->bfad_flags &= ~BFAD_FC4_PROBE_DONE;
 }
 
 static void
@@ -173,8 +211,18 @@ bfa_cb_init(void *drv, bfa_status_t init_status)
 {
 	struct bfad_s  *bfad = drv;
 
-	if (init_status == BFA_STATUS_OK)
+	if (init_status == BFA_STATUS_OK) {
 		bfad->bfad_flags |= BFAD_HAL_INIT_DONE;
+
+		/* If BFAD_HAL_INIT_FAIL flag is set:
+		 * Wake up the kernel thread to start
+		 * the bfad operations after HAL init done
+		 */
+		if ((bfad->bfad_flags & BFAD_HAL_INIT_FAIL)) {
+			bfad->bfad_flags &= ~BFAD_HAL_INIT_FAIL;
+			wake_up_process(bfad->bfad_tsk);
+		}
+	}
 
 	complete(&bfad->comp);
 }
@@ -282,8 +330,6 @@ bfa_fcb_vport_delete(struct bfad_vport_s *vport_drv)
 		complete(vport_drv->comp_del);
 		return;
 	}
-
-	kfree(vport_drv);
 }
 
 /**
@@ -307,7 +353,31 @@ ext:
 	return rc;
 }
 
+/**
+ * @brief
+ * FCS PBC VPORT Create
+ */
+void
+bfa_fcb_pbc_vport_create(struct bfad_s *bfad, struct bfi_pbc_vport_s pbc_vport)
+{
 
+	struct bfad_pcfg_s *pcfg;
+
+	pcfg = kzalloc(sizeof(struct bfad_pcfg_s), GFP_ATOMIC);
+	if (!pcfg) {
+		bfa_trc(bfad, 0);
+		return;
+	}
+
+	pcfg->port_cfg.roles = BFA_PORT_ROLE_FCP_IM;
+	pcfg->port_cfg.pwwn = pbc_vport.vp_pwwn;
+	pcfg->port_cfg.nwwn = pbc_vport.vp_nwwn;
+	pcfg->port_cfg.preboot_vp  = BFA_TRUE;
+
+	list_add_tail(&pcfg->list_entry, &bfad->pbc_pcfg_list);
+
+	return;
+}
 
 void
 bfad_hal_mem_release(struct bfad_s *bfad)
@@ -466,10 +536,10 @@ ext:
  */
 bfa_status_t
 bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
-		  struct bfa_port_cfg_s *port_cfg)
+			struct bfa_port_cfg_s *port_cfg, struct device *dev)
 {
 	struct bfad_vport_s *vport;
-	int             rc = BFA_STATUS_OK;
+	int rc = BFA_STATUS_OK;
 	unsigned long   flags;
 	struct completion fcomp;
 
@@ -481,15 +551,20 @@ bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
 
 	vport->drv_port.bfad = bfad;
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	rc = bfa_fcs_vport_create(&vport->fcs_vport, &bfad->bfa_fcs, vf_id,
-				  port_cfg, vport);
+	if (port_cfg->preboot_vp == BFA_TRUE)
+		rc = bfa_fcs_pbc_vport_create(&vport->fcs_vport,
+				&bfad->bfa_fcs, vf_id, port_cfg, vport);
+	else
+		rc = bfa_fcs_vport_create(&vport->fcs_vport,
+				&bfad->bfa_fcs, vf_id, port_cfg, vport);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	if (rc != BFA_STATUS_OK)
 		goto ext_free_vport;
 
 	if (port_cfg->roles & BFA_PORT_ROLE_FCP_IM) {
-		rc = bfad_im_scsi_host_alloc(bfad, vport->drv_port.im_port);
+		rc = bfad_im_scsi_host_alloc(bfad, vport->drv_port.im_port,
+							dev);
 		if (rc != BFA_STATUS_OK)
 			goto ext_free_fcs_vport;
 	}
@@ -574,7 +649,6 @@ bfad_init_timer(struct bfad_s *bfad)
 int
 bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 {
-	unsigned long   bar0_len;
 	int             rc = -ENODEV;
 
 	if (pci_enable_device(pdev)) {
@@ -594,9 +668,7 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 			goto out_release_region;
 		}
 
-	bfad->pci_bar0_map = pci_resource_start(pdev, 0);
-	bar0_len = pci_resource_len(pdev, 0);
-	bfad->pci_bar0_kva = ioremap(bfad->pci_bar0_map, bar0_len);
+	bfad->pci_bar0_kva = pci_iomap(pdev, 0, pci_resource_len(pdev, 0));
 
 	if (bfad->pci_bar0_kva == NULL) {
 		BFA_PRINTF(BFA_ERR, "Fail to map bar0\n");
@@ -629,11 +701,7 @@ out:
 void
 bfad_pci_uninit(struct pci_dev *pdev, struct bfad_s *bfad)
 {
-#if defined(__ia64__)
 	pci_iounmap(pdev, bfad->pci_bar0_kva);
-#else
-	iounmap(bfad->pci_bar0_kva);
-#endif
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
@@ -648,7 +716,7 @@ bfad_fcs_port_cfg(struct bfad_s *bfad)
 
 	sprintf(symname, "%s-%d", BFAD_DRIVER_NAME, bfad->inst_no);
 	memcpy(port_cfg.sym_name.symname, symname, strlen(symname));
-	bfa_pport_get_attr(&bfad->bfa, &attr);
+	bfa_fcport_get_attr(&bfad->bfa, &attr);
 	port_cfg.nwwn = attr.nwwn;
 	port_cfg.pwwn = attr.pwwn;
 
@@ -661,7 +729,6 @@ bfad_drv_init(struct bfad_s *bfad)
 	bfa_status_t    rc;
 	unsigned long   flags;
 	struct bfa_fcs_driver_info_s driver_info;
-	int             i;
 
 	bfad->cfg_data.rport_del_timeout = rport_del_timeout;
 	bfad->cfg_data.lun_queue_depth = bfa_lun_queue_depth;
@@ -681,12 +748,7 @@ bfad_drv_init(struct bfad_s *bfad)
 	bfa_init_log(&bfad->bfa, bfad->logmod);
 	bfa_init_trc(&bfad->bfa, bfad->trcmod);
 	bfa_init_aen(&bfad->bfa, bfad->aen);
-	INIT_LIST_HEAD(&bfad->file_q);
-	INIT_LIST_HEAD(&bfad->file_free_q);
-	for (i = 0; i < BFAD_AEN_MAX_APPS; i++) {
-		bfa_q_qe_init(&bfad->file_buf[i].qe);
-		list_add_tail(&bfad->file_buf[i].qe, &bfad->file_free_q);
-	}
+	memset(bfad->file_map, 0, sizeof(bfad->file_map));
 	bfa_init_plog(&bfad->bfa, &bfad->plog_buf);
 	bfa_plog_init(&bfad->plog_buf);
 	bfa_plog_str(&bfad->plog_buf, BFA_PL_MID_DRVR, BFA_PL_EID_DRIVER_START,
@@ -726,6 +788,7 @@ bfad_drv_init(struct bfad_s *bfad)
 	memset(&driver_info, 0, sizeof(driver_info));
 	strncpy(driver_info.version, BFAD_DRIVER_VERSION,
 		sizeof(driver_info.version) - 1);
+	__kernel_param_lock();
 	if (host_name)
 		strncpy(driver_info.host_machine_name, host_name,
 			sizeof(driver_info.host_machine_name) - 1);
@@ -735,6 +798,7 @@ bfad_drv_init(struct bfad_s *bfad)
 	if (os_patch)
 		strncpy(driver_info.host_os_patch, os_patch,
 			sizeof(driver_info.host_os_patch) - 1);
+	__kernel_param_unlock();
 
 	strncpy(driver_info.os_device_name, bfad->pci_name,
 		sizeof(driver_info.os_device_name - 1));
@@ -746,8 +810,16 @@ bfad_drv_init(struct bfad_s *bfad)
 	bfa_fcs_log_init(&bfad->bfa_fcs, bfad->logmod);
 	bfa_fcs_trc_init(&bfad->bfa_fcs, bfad->trcmod);
 	bfa_fcs_aen_init(&bfad->bfa_fcs, bfad->aen);
-	bfa_fcs_init(&bfad->bfa_fcs, &bfad->bfa, bfad, BFA_FALSE);
+	bfa_fcs_attach(&bfad->bfa_fcs, &bfad->bfa, bfad, BFA_FALSE);
+
+	/* Do FCS init only when HAL init is done */
+	if ((bfad->bfad_flags & BFAD_HAL_INIT_DONE)) {
+		bfa_fcs_init(&bfad->bfa_fcs);
+		bfad->bfad_flags |= BFAD_FCS_INIT_DONE;
+	}
+
 	bfa_fcs_driver_info_init(&bfad->bfa_fcs, &driver_info);
+	bfa_fcs_set_fdmi_param(&bfad->bfa_fcs, fdmi_enable);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	bfad->bfad_flags |= BFAD_DRV_INIT_DONE;
@@ -763,12 +835,21 @@ out_hal_mem_alloc_failure:
 void
 bfad_drv_uninit(struct bfad_s *bfad)
 {
+	unsigned long   flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	init_completion(&bfad->comp);
+	bfa_stop(&bfad->bfa);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	wait_for_completion(&bfad->comp);
+
 	del_timer_sync(&bfad->hal_tmo);
 	bfa_isr_disable(&bfad->bfa);
 	bfa_detach(&bfad->bfa);
 	bfad_remove_intr(bfad);
-	bfa_assert(list_empty(&bfad->file_q));
 	bfad_hal_mem_release(bfad);
+
+	bfad->bfad_flags &= ~BFAD_DRV_INIT_DONE;
 }
 
 void
@@ -820,12 +901,17 @@ bfad_cfg_pport(struct bfad_s *bfad, enum bfa_port_role role)
 			goto out;
 		}
 
-		rc = bfad_im_scsi_host_alloc(bfad, bfad->pport.im_port);
+		rc = bfad_im_scsi_host_alloc(bfad, bfad->pport.im_port,
+						&bfad->pcidev->dev);
 		if (rc != BFA_STATUS_OK)
 			goto out;
 
 		bfad->pport.roles |= BFA_PORT_ROLE_FCP_IM;
 	}
+
+	/* Setup the debugfs node for this scsi_host */
+	if (bfa_debugfs_enable)
+		bfad_debugfs_init(&bfad->pport);
 
 	bfad->bfad_flags |= BFAD_CFG_PPORT_DONE;
 
@@ -836,6 +922,10 @@ out:
 void
 bfad_uncfg_pport(struct bfad_s *bfad)
 {
+	 /* Remove the debugfs node for this scsi_host */
+	kfree(bfad->regdata);
+	bfad_debugfs_exit(&bfad->pport);
+
 	if ((bfad->pport.roles & BFA_PORT_ROLE_FCP_IPFC) && ipfc_enable) {
 		bfad_ipfc_port_delete(bfad, &bfad->pport);
 		bfad->pport.roles &= ~BFA_PORT_ROLE_FCP_IPFC;
@@ -859,6 +949,108 @@ bfad_drv_log_level_set(struct bfad_s *bfad)
 		bfa_log_set_level_all(&bfad->log_data, log_level);
 }
 
+bfa_status_t
+bfad_start_ops(struct bfad_s *bfad)
+{
+	int retval;
+	struct bfad_pcfg_s *pcfg, *pcfg_new;
+
+	/* PPORT FCS config */
+	bfad_fcs_port_cfg(bfad);
+
+	retval = bfad_cfg_pport(bfad, BFA_PORT_ROLE_FCP_IM);
+	if (retval != BFA_STATUS_OK)
+		goto out_cfg_pport_failure;
+
+	/* BFAD level FC4 (IM/TM/IPFC) specific resource allocation */
+	retval = bfad_fc4_probe(bfad);
+	if (retval != BFA_STATUS_OK) {
+		printk(KERN_WARNING "bfad_fc4_probe failed\n");
+		goto out_fc4_probe_failure;
+	}
+
+	bfad_drv_start(bfad);
+
+	/* pbc vport creation */
+	list_for_each_entry_safe(pcfg, pcfg_new,  &bfad->pbc_pcfg_list,
+					list_entry) {
+		struct fc_vport_identifiers vid;
+		struct fc_vport *fc_vport;
+
+		memset(&vid, 0, sizeof(vid));
+		vid.roles = FC_PORT_ROLE_FCP_INITIATOR;
+		vid.vport_type = FC_PORTTYPE_NPIV;
+		vid.disable = false;
+		vid.node_name = wwn_to_u64((u8 *)&pcfg->port_cfg.nwwn);
+		vid.port_name = wwn_to_u64((u8 *)&pcfg->port_cfg.pwwn);
+		fc_vport = fc_vport_create(bfad->pport.im_port->shost, 0, &vid);
+		if (!fc_vport)
+			printk(KERN_WARNING "bfad%d: failed to create pbc vport"
+				" %llx\n", bfad->inst_no, vid.port_name);
+		list_del(&pcfg->list_entry);
+		kfree(pcfg);
+
+	}
+
+	/*
+	 * If bfa_linkup_delay is set to -1 default; try to retrive the
+	 * value using the bfad_os_get_linkup_delay(); else use the
+	 * passed in module param value as the bfa_linkup_delay.
+	 */
+	if (bfa_linkup_delay < 0) {
+
+		bfa_linkup_delay = bfad_os_get_linkup_delay(bfad);
+		bfad_os_rport_online_wait(bfad);
+		bfa_linkup_delay = -1;
+
+	} else {
+		bfad_os_rport_online_wait(bfad);
+	}
+
+	bfa_log(bfad->logmod, BFA_LOG_LINUX_DEVICE_CLAIMED, bfad->pci_name);
+
+	return BFA_STATUS_OK;
+
+out_fc4_probe_failure:
+	bfad_fc4_probe_undo(bfad);
+	bfad_uncfg_pport(bfad);
+out_cfg_pport_failure:
+	return BFA_STATUS_FAILED;
+}
+
+int
+bfad_worker(void *ptr)
+{
+	struct bfad_s *bfad;
+	unsigned long   flags;
+
+	bfad = (struct bfad_s *)ptr;
+
+	while (!kthread_should_stop()) {
+
+		/* Check if the FCS init is done from bfad_drv_init;
+		 * if not done do FCS init and set the flag.
+		 */
+		if (!(bfad->bfad_flags & BFAD_FCS_INIT_DONE)) {
+			spin_lock_irqsave(&bfad->bfad_lock, flags);
+			bfa_fcs_init(&bfad->bfa_fcs);
+			bfad->bfad_flags |= BFAD_FCS_INIT_DONE;
+			spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		}
+
+		/* Start the bfad operations after HAL init done */
+		bfad_start_ops(bfad);
+
+		spin_lock_irqsave(&bfad->bfad_lock, flags);
+		bfad->bfad_tsk = NULL;
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+		break;
+	}
+
+	return 0;
+}
+
  /*
   *  PCI_entry PCI driver entries * {
   */
@@ -871,7 +1063,6 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
 	struct bfad_s  *bfad;
 	int             error = -ENODEV, retval;
-	char            buf[16];
 
 	/*
 	 * For single port cards - only claim function 0
@@ -902,8 +1093,7 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	bfa_trc(bfad, bfad_inst);
 
 	bfad->logmod = &bfad->log_data;
-	sprintf(buf, "%d", bfad_inst);
-	bfa_log_init(bfad->logmod, buf, bfa_os_printf);
+	bfa_log_init(bfad->logmod, (char *)pci_name(pdev), bfa_os_printf);
 
 	bfad_drv_log_level_set(bfad);
 
@@ -932,58 +1122,41 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	bfad->ref_count = 0;
 	bfad->pport.bfad = bfad;
+	INIT_LIST_HEAD(&bfad->pbc_pcfg_list);
+
+	bfad->bfad_tsk = kthread_create(bfad_worker, (void *) bfad, "%s",
+					"bfad_worker");
+	if (IS_ERR(bfad->bfad_tsk)) {
+		printk(KERN_INFO "bfad[%d]: Kernel thread"
+			" creation failed!\n",
+			bfad->inst_no);
+		goto out_kthread_create_failure;
+	}
 
 	retval = bfad_drv_init(bfad);
 	if (retval != BFA_STATUS_OK)
 		goto out_drv_init_failure;
 	if (!(bfad->bfad_flags & BFAD_HAL_INIT_DONE)) {
+		bfad->bfad_flags |= BFAD_HAL_INIT_FAIL;
 		printk(KERN_WARNING "bfad%d: hal init failed\n", bfad->inst_no);
 		goto ok;
 	}
 
-	/*
-	 * PPORT FCS config
-	 */
-	bfad_fcs_port_cfg(bfad);
-
-	retval = bfad_cfg_pport(bfad, BFA_PORT_ROLE_FCP_IM);
+	retval = bfad_start_ops(bfad);
 	if (retval != BFA_STATUS_OK)
-		goto out_cfg_pport_failure;
+		goto out_start_ops_failure;
 
-	/*
-	 * BFAD level FC4 (IM/TM/IPFC) specific resource allocation
-	 */
-	retval = bfad_fc4_probe(bfad);
-	if (retval != BFA_STATUS_OK) {
-		printk(KERN_WARNING "bfad_fc4_probe failed\n");
-		goto out_fc4_probe_failure;
-	}
+	kthread_stop(bfad->bfad_tsk);
+	bfad->bfad_tsk = NULL;
 
-	bfad_drv_start(bfad);
-
-	/*
-	 * If bfa_linkup_delay is set to -1 default; try to retrive the
-	 * value using the bfad_os_get_linkup_delay(); else use the
-	 * passed in module param value as the bfa_linkup_delay.
-	 */
-	if (bfa_linkup_delay < 0) {
-		bfa_linkup_delay = bfad_os_get_linkup_delay(bfad);
-		bfad_os_rport_online_wait(bfad);
-		bfa_linkup_delay = -1;
-	} else {
-		bfad_os_rport_online_wait(bfad);
-	}
-
-	bfa_log(bfad->logmod, BFA_LOG_LINUX_DEVICE_CLAIMED, bfad->pci_name);
 ok:
 	return 0;
 
-out_fc4_probe_failure:
-	bfad_fc4_probe_undo(bfad);
-	bfad_uncfg_pport(bfad);
-out_cfg_pport_failure:
+out_start_ops_failure:
 	bfad_drv_uninit(bfad);
 out_drv_init_failure:
+	kthread_stop(bfad->bfad_tsk);
+out_kthread_create_failure:
 	mutex_lock(&bfad_mutex);
 	bfad_inst--;
 	list_del(&bfad->list_entry);
@@ -1008,6 +1181,11 @@ bfad_pci_remove(struct pci_dev *pdev)
 
 	bfa_trc(bfad, bfad->inst_no);
 
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	if (bfad->bfad_tsk != NULL)
+		kthread_stop(bfad->bfad_tsk);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
 	if ((bfad->bfad_flags & BFAD_DRV_INIT_DONE)
 	    && !(bfad->bfad_flags & BFAD_HAL_INIT_DONE)) {
 
@@ -1024,13 +1202,25 @@ bfad_pci_remove(struct pci_dev *pdev)
 		goto remove_sysfs;
 	}
 
-	if (bfad->bfad_flags & BFAD_HAL_START_DONE)
+	if (bfad->bfad_flags & BFAD_HAL_START_DONE) {
 		bfad_drv_stop(bfad);
+	} else if (bfad->bfad_flags & BFAD_DRV_INIT_DONE) {
+		/* Invoking bfa_stop() before bfa_detach
+		 * when HAL and DRV init are success
+		 * but HAL start did not occur.
+		 */
+		spin_lock_irqsave(&bfad->bfad_lock, flags);
+		init_completion(&bfad->comp);
+		bfa_stop(&bfad->bfa);
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		wait_for_completion(&bfad->comp);
+	}
 
 	bfad_remove_intr(bfad);
-
 	del_timer_sync(&bfad->hal_tmo);
-	bfad_fc4_probe_undo(bfad);
+
+	if (bfad->bfad_flags & BFAD_FC4_PROBE_DONE)
+		bfad_fc4_probe_undo(bfad);
 
 	if (bfad->bfad_flags & BFAD_CFG_PPORT_DONE)
 		bfad_uncfg_pport(bfad);
@@ -1074,6 +1264,14 @@ static struct pci_device_id bfad_id_table[] = {
 	 .class = (PCI_CLASS_SERIAL_FIBER << 8),
 	 .class_mask = ~0,
 	 },
+	{
+	 .vendor = BFA_PCI_VENDOR_ID_BROCADE,
+	 .device = BFA_PCI_DEVICE_ID_CT_FC,
+	 .subvendor = PCI_ANY_ID,
+	 .subdevice = PCI_ANY_ID,
+	 .class = (PCI_CLASS_SERIAL_FIBER << 8),
+	 .class_mask = ~0,
+	},
 
 	{0, 0},
 };

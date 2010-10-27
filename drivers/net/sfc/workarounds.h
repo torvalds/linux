@@ -37,7 +37,7 @@
 /* Truncated IPv4 packets can confuse the TX packet parser */
 #define EFX_WORKAROUND_15592 EFX_WORKAROUND_FALCON_AB
 /* Legacy ISR read can return zero once */
-#define EFX_WORKAROUND_15783 EFX_WORKAROUND_SIENA
+#define EFX_WORKAROUND_15783 EFX_WORKAROUND_ALWAYS
 /* Legacy interrupt storm when interrupt fifo fills */
 #define EFX_WORKAROUND_17213 EFX_WORKAROUND_SIENA
 
@@ -54,7 +54,7 @@
 /* Increase filter depth to avoid RX_RESET */
 #define EFX_WORKAROUND_7244 EFX_WORKAROUND_FALCON_A
 /* Flushes may never complete */
-#define EFX_WORKAROUND_7803 EFX_WORKAROUND_FALCON_A
+#define EFX_WORKAROUND_7803 EFX_WORKAROUND_FALCON_AB
 /* Leak overlength packets rather than free */
 #define EFX_WORKAROUND_8071 EFX_WORKAROUND_FALCON_A
 

@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 
 #include "dvb_frontend.h"
 #include "mb86a16.h"
@@ -1832,7 +1833,6 @@ static struct dvb_frontend_ops mb86a16_ops = {
 
 	.get_frontend_algo		= mb86a16_frontend_algo,
 	.search				= mb86a16_search,
-	.read_status			= mb86a16_read_status,
 	.init				= mb86a16_init,
 	.sleep				= mb86a16_sleep,
 	.read_status			= mb86a16_read_status,

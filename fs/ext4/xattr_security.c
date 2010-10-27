@@ -7,6 +7,7 @@
 #include <linux/string.h>
 #include <linux/fs.h>
 #include <linux/security.h>
+#include <linux/slab.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include "xattr.h"
@@ -68,7 +69,7 @@ ext4_init_security(handle_t *handle, struct inode *inode, struct inode *dir)
 	return err;
 }
 
-struct xattr_handler ext4_xattr_security_handler = {
+const struct xattr_handler ext4_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
 	.list	= ext4_xattr_security_list,
 	.get	= ext4_xattr_security_get,

@@ -44,8 +44,10 @@
  */
 
 #include <linux/sched.h>
+#include <linux/gfp.h>
 #include <linux/errno.h>
-#include <linux/slab.h>
+
+#include <linux/usb/quirks.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_eh.h>
@@ -137,19 +139,15 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 
 	/* fill the common fields in the URB */
 	us->current_urb->context = &urb_done;
-	us->current_urb->actual_length = 0;
-	us->current_urb->error_count = 0;
-	us->current_urb->status = 0;
+	us->current_urb->transfer_flags = 0;
 
 	/* we assume that if transfer_buffer isn't us->iobuf then it
 	 * hasn't been mapped for DMA.  Yes, this is clunky, but it's
 	 * easier than always having the caller tell us whether the
 	 * transfer buffer has already been mapped. */
-	us->current_urb->transfer_flags = URB_NO_SETUP_DMA_MAP;
 	if (us->current_urb->transfer_buffer == us->iobuf)
 		us->current_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	us->current_urb->transfer_dma = us->iobuf_dma;
-	us->current_urb->setup_dma = us->cr_dma;
 
 	/* submit the URB */
 	status = usb_submit_urb(us->current_urb, GFP_NOIO);
@@ -1296,6 +1294,10 @@ EXPORT_SYMBOL_GPL(usb_stor_Bulk_reset);
 int usb_stor_port_reset(struct us_data *us)
 {
 	int result;
+
+	/*for these devices we must use the class specific method */
+	if (us->pusb_dev->quirks & USB_QUIRK_RESET_MORPHS)
+		return -EPERM;
 
 	result = usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
 	if (result < 0)
