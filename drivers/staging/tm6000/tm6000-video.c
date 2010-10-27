@@ -1032,6 +1032,7 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *norm)
 	struct tm6000_fh   *fh=priv;
 	struct tm6000_core *dev = fh->dev;
 
+	dev->norm = *norm;
 	rc = tm6000_init_analog_mode(dev);
 
 	fh->width  = dev->width;
