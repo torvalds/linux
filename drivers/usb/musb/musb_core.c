@@ -2243,7 +2243,6 @@ static int __exit musb_remove(struct platform_device *pdev)
 #endif
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	musb_platform_exit(musb);
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 
 	musb_free(musb);
 	iounmap(ctrl_base);
