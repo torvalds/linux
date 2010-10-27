@@ -1,4 +1,4 @@
-EXTRA_CFLAGS += -Idrivers/net/cxgb4
+ccflags-y := -Idrivers/net/cxgb4
 
 obj-$(CONFIG_INFINIBAND_CXGB4) += iw_cxgb4.o
 

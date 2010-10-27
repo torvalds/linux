@@ -52,6 +52,7 @@
 #define T4_STAG_UNSET 0xffffffff
 #define T4_FW_MAJ 0
 #define T4_EQ_STATUS_ENTRIES (L1_CACHE_BYTES > 64 ? 2 : 1)
+#define A_PCIE_MA_SYNC 0x30b4
 
 struct t4_status_page {
 	__be32 rsvd1;	/* flit 0 - hw owns */
@@ -65,7 +66,7 @@ struct t4_status_page {
 
 #define T4_EQ_ENTRY_SIZE 64
 
-#define T4_SQ_NUM_SLOTS 4
+#define T4_SQ_NUM_SLOTS 5
 #define T4_SQ_NUM_BYTES (T4_EQ_ENTRY_SIZE * T4_SQ_NUM_SLOTS)
 #define T4_MAX_SEND_SGE ((T4_SQ_NUM_BYTES - sizeof(struct fw_ri_send_wr) - \
 			sizeof(struct fw_ri_isgl)) / sizeof(struct fw_ri_sge))
@@ -78,7 +79,7 @@ struct t4_status_page {
 			sizeof(struct fw_ri_rdma_write_wr) - \
 			sizeof(struct fw_ri_isgl)) / sizeof(struct fw_ri_sge))
 #define T4_MAX_FR_IMMD ((T4_SQ_NUM_BYTES - sizeof(struct fw_ri_fr_nsmr_wr) - \
-			sizeof(struct fw_ri_immd)))
+			sizeof(struct fw_ri_immd)) & ~31UL)
 #define T4_MAX_FR_DEPTH (T4_MAX_FR_IMMD / sizeof(u64))
 
 #define T4_RQ_NUM_SLOTS 2
@@ -266,10 +267,36 @@ struct t4_swsqe {
 	u16			idx;
 };
 
+static inline pgprot_t t4_pgprot_wc(pgprot_t prot)
+{
+#if defined(__i386__) || defined(__x86_64__)
+	return pgprot_writecombine(prot);
+#elif defined(CONFIG_PPC64)
+	return __pgprot((pgprot_val(prot) | _PAGE_NO_CACHE) &
+			~(pgprot_t)_PAGE_GUARDED);
+#else
+	return pgprot_noncached(prot);
+#endif
+}
+
+static inline int t4_ocqp_supported(void)
+{
+#if defined(__i386__) || defined(__x86_64__) || defined(CONFIG_PPC64)
+	return 1;
+#else
+	return 0;
+#endif
+}
+
+enum {
+	T4_SQ_ONCHIP = (1<<0),
+};
+
 struct t4_sq {
 	union t4_wr *queue;
 	dma_addr_t dma_addr;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
+	unsigned long phys_addr;
 	struct t4_swsqe *sw_sq;
 	struct t4_swsqe *oldest_read;
 	u64 udb;
@@ -280,6 +307,7 @@ struct t4_sq {
 	u16 cidx;
 	u16 pidx;
 	u16 wq_pidx;
+	u16 flags;
 };
 
 struct t4_swrqe {
@@ -350,6 +378,11 @@ static inline void t4_rq_consume(struct t4_wq *wq)
 		wq->rq.cidx = 0;
 }
 
+static inline int t4_sq_onchip(struct t4_sq *sq)
+{
+	return sq->flags & T4_SQ_ONCHIP;
+}
+
 static inline int t4_sq_empty(struct t4_wq *wq)
 {
 	return wq->sq.in_use == 0;
@@ -396,30 +429,27 @@ static inline void t4_ring_rq_db(struct t4_wq *wq, u16 inc)
 
 static inline int t4_wq_in_error(struct t4_wq *wq)
 {
-	return wq->sq.queue[wq->sq.size].status.qp_err;
+	return wq->rq.queue[wq->rq.size].status.qp_err;
 }
 
 static inline void t4_set_wq_in_error(struct t4_wq *wq)
 {
-	wq->sq.queue[wq->sq.size].status.qp_err = 1;
 	wq->rq.queue[wq->rq.size].status.qp_err = 1;
 }
 
 static inline void t4_disable_wq_db(struct t4_wq *wq)
 {
-	wq->sq.queue[wq->sq.size].status.db_off = 1;
 	wq->rq.queue[wq->rq.size].status.db_off = 1;
 }
 
 static inline void t4_enable_wq_db(struct t4_wq *wq)
 {
-	wq->sq.queue[wq->sq.size].status.db_off = 0;
 	wq->rq.queue[wq->rq.size].status.db_off = 0;
 }
 
 static inline int t4_wq_db_enabled(struct t4_wq *wq)
 {
-	return !wq->sq.queue[wq->sq.size].status.db_off;
+	return !wq->rq.queue[wq->rq.size].status.db_off;
 }
 
 struct t4_cq {

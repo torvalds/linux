@@ -67,7 +67,8 @@ enum {
 	MLX4_DEV_CAP_FLAG_ATOMIC	= 1 << 18,
 	MLX4_DEV_CAP_FLAG_RAW_MCAST	= 1 << 19,
 	MLX4_DEV_CAP_FLAG_UD_AV_PORT	= 1 << 20,
-	MLX4_DEV_CAP_FLAG_UD_MCAST	= 1 << 21
+	MLX4_DEV_CAP_FLAG_UD_MCAST	= 1 << 21,
+	MLX4_DEV_CAP_FLAG_IBOE		= 1 << 30
 };
 
 enum {
@@ -169,6 +170,10 @@ enum mlx4_special_vlan_idx {
 
 enum {
 	MLX4_NUM_FEXCH          = 64 * 1024,
+};
+
+enum {
+	MLX4_MAX_FAST_REG_PAGES = 511,
 };
 
 static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
@@ -379,6 +384,27 @@ struct mlx4_av {
 	u8			dgid[16];
 };
 
+struct mlx4_eth_av {
+	__be32		port_pd;
+	u8		reserved1;
+	u8		smac_idx;
+	u16		reserved2;
+	u8		reserved3;
+	u8		gid_index;
+	u8		stat_rate;
+	u8		hop_limit;
+	__be32		sl_tclass_flowlabel;
+	u8		dgid[16];
+	u32		reserved4[2];
+	__be16		vlan;
+	u8		mac[6];
+};
+
+union mlx4_ext_av {
+	struct mlx4_av		ib;
+	struct mlx4_eth_av	eth;
+};
+
 struct mlx4_dev {
 	struct pci_dev	       *pdev;
 	unsigned long		flags;
@@ -406,6 +432,12 @@ struct mlx4_init_port_param {
 	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	\
 		if (((type) == MLX4_PORT_TYPE_IB ? (dev)->caps.port_mask : \
 		     ~(dev)->caps.port_mask) & 1 << ((port) - 1))
+
+#define mlx4_foreach_ib_transport_port(port, dev)			\
+	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	\
+		if (((dev)->caps.port_mask & 1 << ((port) - 1)) ||	\
+		    ((dev)->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
+
 
 int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 		   struct mlx4_buf *buf);
@@ -474,6 +506,7 @@ int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16]);
 int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *index);
 void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, int index);
 
+int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx);
 int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index);
 void mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index);
 

@@ -76,6 +76,14 @@ static void post_qp_event(struct iwch_dev *rnicp, struct iwch_cq *chp,
 	atomic_inc(&qhp->refcnt);
 	spin_unlock(&rnicp->lock);
 
+	if (qhp->attr.state == IWCH_QP_STATE_RTS) {
+		attrs.next_state = IWCH_QP_STATE_TERMINATE;
+		iwch_modify_qp(qhp->rhp, qhp, IWCH_QP_ATTR_NEXT_STATE,
+			       &attrs, 1);
+		if (send_term)
+			iwch_post_terminate(qhp, rsp_msg);
+	}
+
 	event.event = ib_event;
 	event.device = chp->ibcq.device;
 	if (ib_event == IB_EVENT_CQ_ERR)
@@ -86,13 +94,7 @@ static void post_qp_event(struct iwch_dev *rnicp, struct iwch_cq *chp,
 	if (qhp->ibqp.event_handler)
 		(*qhp->ibqp.event_handler)(&event, qhp->ibqp.qp_context);
 
-	if (qhp->attr.state == IWCH_QP_STATE_RTS) {
-		attrs.next_state = IWCH_QP_STATE_TERMINATE;
-		iwch_modify_qp(qhp->rhp, qhp, IWCH_QP_ATTR_NEXT_STATE,
-			       &attrs, 1);
-		if (send_term)
-			iwch_post_terminate(qhp, rsp_msg);
-	}
+	(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
 
 	if (atomic_dec_and_test(&qhp->refcnt))
 		wake_up(&qhp->wait);
@@ -179,7 +181,6 @@ void iwch_ev_dispatch(struct cxio_rdev *rdev_p, struct sk_buff *skb)
 	case TPT_ERR_BOUND:
 	case TPT_ERR_INVALIDATE_SHARED_MR:
 	case TPT_ERR_INVALIDATE_MR_WITH_MW_BOUND:
-		(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
 		post_qp_event(rnicp, chp, rsp_msg, IB_EVENT_QP_ACCESS_ERR, 1);
 		break;
 

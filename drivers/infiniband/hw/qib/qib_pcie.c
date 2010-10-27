@@ -103,16 +103,20 @@ int qib_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	} else
 		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (ret)
+	if (ret) {
 		qib_early_err(&pdev->dev,
 			      "Unable to set DMA consistent mask: %d\n", ret);
+		goto bail;
+	}
 
 	pci_set_master(pdev);
 	ret = pci_enable_pcie_error_reporting(pdev);
-	if (ret)
+	if (ret) {
 		qib_early_err(&pdev->dev,
 			      "Unable to enable pcie error reporting: %d\n",
 			      ret);
+		ret = 0;
+	}
 	goto done;
 
 bail:
