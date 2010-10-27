@@ -3104,6 +3104,39 @@ static void __free_extent_buffer(struct extent_buffer *eb)
 	kmem_cache_free(extent_buffer_cache, eb);
 }
 
+/*
+ * Helper for releasing extent buffer page.
+ */
+static void btrfs_release_extent_buffer_page(struct extent_buffer *eb,
+						unsigned long start_idx)
+{
+	unsigned long index;
+	struct page *page;
+
+	if (!eb->first_page)
+		return;
+
+	index = num_extent_pages(eb->start, eb->len);
+	if (start_idx >= index)
+		return;
+
+	do {
+		index--;
+		page = extent_buffer_page(eb, index);
+		if (page)
+			page_cache_release(page);
+	} while (index != start_idx);
+}
+
+/*
+ * Helper for releasing the extent buffer.
+ */
+static inline void btrfs_release_extent_buffer(struct extent_buffer *eb)
+{
+	btrfs_release_extent_buffer_page(eb, 0);
+	__free_extent_buffer(eb);
+}
+
 struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 					  u64 start, unsigned long len,
 					  struct page *page0,
@@ -3181,10 +3214,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 free_eb:
 	if (!atomic_dec_and_test(&eb->refs))
 		return exists;
-	for (index = 1; index < i; index++)
-		page_cache_release(extent_buffer_page(eb, index));
-	page_cache_release(extent_buffer_page(eb, 0));
-	__free_extent_buffer(eb);
+	btrfs_release_extent_buffer(eb);
 	return exists;
 }
 
@@ -3838,8 +3868,6 @@ int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page)
 	u64 start = page_offset(page);
 	struct extent_buffer *eb;
 	int ret = 1;
-	unsigned long i;
-	unsigned long num_pages;
 
 	spin_lock(&tree->buffer_lock);
 	eb = buffer_search(tree, start);
@@ -3854,12 +3882,10 @@ int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page)
 		ret = 0;
 		goto out;
 	}
-	/* at this point we can safely release the extent buffer */
-	num_pages = num_extent_pages(eb->start, eb->len);
-	for (i = 0; i < num_pages; i++)
-		page_cache_release(extent_buffer_page(eb, i));
+
 	rb_erase(&eb->rb_node, &tree->buffer);
-	__free_extent_buffer(eb);
+	/* at this point we can safely release the extent buffer */
+	btrfs_release_extent_buffer(eb);
 out:
 	spin_unlock(&tree->buffer_lock);
 	return ret;
