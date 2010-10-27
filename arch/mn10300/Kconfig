@@ -117,6 +117,7 @@ config MN10300_UNIT_ASB2305
 
 config MN10300_UNIT_ASB2364
 	bool "ASB2364"
+	select SMSC911X_ARCH_HOOKS if SMSC911X
 
 endchoice
 
