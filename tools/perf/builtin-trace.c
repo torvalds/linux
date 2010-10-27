@@ -625,12 +625,13 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 			dup2(live_pipe[1], 1);
 			close(live_pipe[0]);
 
-			__argv = malloc(5 * sizeof(const char *));
+			__argv = malloc(6 * sizeof(const char *));
 			__argv[0] = "/bin/sh";
 			__argv[1] = record_script_path;
-			__argv[2] = "-o";
-			__argv[3] = "-";
-			__argv[4] = NULL;
+			__argv[2] = "-q";
+			__argv[3] = "-o";
+			__argv[4] = "-";
+			__argv[5] = NULL;
 
 			execvp("/bin/sh", (char **)__argv);
 			exit(-1);

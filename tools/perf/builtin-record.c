@@ -353,7 +353,7 @@ try_again:
 		}
 
 		if (read(fd[nr_cpu][counter][thread_index], &read_data, sizeof(read_data)) == -1) {
-			perror("Unable to read perf file descriptor\n");
+			perror("Unable to read perf file descriptor");
 			exit(-1);
 		}
 
@@ -626,7 +626,7 @@ static int __cmd_record(int argc, const char **argv)
 
 	nr_cpus = read_cpu_map(cpu_list);
 	if (nr_cpus < 1) {
-		perror("failed to collect number of CPUs\n");
+		perror("failed to collect number of CPUs");
 		return -1;
 	}
 
@@ -761,6 +761,9 @@ static int __cmd_record(int argc, const char **argv)
 		}
 	}
 
+	if (quiet)
+		return 0;
+
 	fprintf(stderr, "[ perf record: Woken up %ld times to write data ]\n", waking);
 
 	/*
@@ -820,6 +823,7 @@ static const struct option options[] = {
 		    "do call-graph (stack chain/backtrace) recording"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
+	OPT_BOOLEAN('q', "quiet", &quiet, "don't print any message"),
 	OPT_BOOLEAN('s', "stat", &inherit_stat,
 		    "per thread counts"),
 	OPT_BOOLEAN('d', "data", &sample_address,

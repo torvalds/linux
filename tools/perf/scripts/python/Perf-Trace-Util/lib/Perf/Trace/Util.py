@@ -8,6 +8,12 @@
 
 import errno, os
 
+FUTEX_WAIT = 0
+FUTEX_WAKE = 1
+FUTEX_PRIVATE_FLAG = 128
+FUTEX_CLOCK_REALTIME = 256
+FUTEX_CMD_MASK = ~(FUTEX_PRIVATE_FLAG | FUTEX_CLOCK_REALTIME)
+
 NSECS_PER_SEC    = 1000000000
 
 def avg(total, n):
@@ -25,6 +31,18 @@ def nsecs_nsecs(nsecs):
 def nsecs_str(nsecs):
     str = "%5u.%09u" % (nsecs_secs(nsecs), nsecs_nsecs(nsecs)),
     return str
+
+def add_stats(dict, key, value):
+	if not dict.has_key(key):
+		dict[key] = (value, value, value, 1)
+	else:
+		min, max, avg, count = dict[key]
+		if value < min:
+			min = value
+		if value > max:
+			max = value
+		avg = (avg + value) / 2
+		dict[key] = (min, max, avg, count + 1)
 
 def clear_term():
     print("\x1b[H\x1b[2J")
