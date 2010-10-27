@@ -173,24 +173,25 @@ static int freezer_can_attach(struct cgroup_subsys *ss,
 
 	/*
 	 * Anything frozen can't move or be moved to/from.
-	 *
-	 * Since orig_freezer->state == FROZEN means that @task has been
-	 * frozen, so it's sufficient to check the latter condition.
 	 */
 
-	if (is_task_frozen_enough(task))
+	freezer = cgroup_freezer(new_cgroup);
+	if (freezer->state != CGROUP_THAWED)
 		return -EBUSY;
 
-	freezer = cgroup_freezer(new_cgroup);
-	if (freezer->state == CGROUP_FROZEN)
+	rcu_read_lock();
+	if (__cgroup_freezing_or_frozen(task)) {
+		rcu_read_unlock();
 		return -EBUSY;
+	}
+	rcu_read_unlock();
 
 	if (threadgroup) {
 		struct task_struct *c;
 
 		rcu_read_lock();
 		list_for_each_entry_rcu(c, &task->thread_group, thread_group) {
-			if (is_task_frozen_enough(c)) {
+			if (__cgroup_freezing_or_frozen(c)) {
 				rcu_read_unlock();
 				return -EBUSY;
 			}
