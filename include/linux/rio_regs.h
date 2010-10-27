@@ -161,6 +161,7 @@
 #define RIO_COMPONENT_TAG_CSR	0x6c	/* [III] Component Tag CSR */
 
 #define RIO_STD_RTE_CONF_DESTID_SEL_CSR	0x70
+#define  RIO_STD_RTE_CONF_EXTCFGEN		0x80000000
 #define RIO_STD_RTE_CONF_PORT_SEL_CSR	0x74
 #define RIO_STD_RTE_DEFAULT_PORT	0x78
 
@@ -265,6 +266,10 @@
 #define RIO_EM_EFB_HEADER	0x000	/* Error Management Extensions Block Header */
 #define RIO_EM_LTL_ERR_DETECT	0x008	/* Logical/Transport Layer Error Detect CSR */
 #define RIO_EM_LTL_ERR_EN	0x00c	/* Logical/Transport Layer Error Enable CSR */
+#define  REM_LTL_ERR_ILLTRAN		0x08000000 /* Illegal Transaction decode */
+#define  REM_LTL_ERR_UNSOLR		0x00800000 /* Unsolicited Response */
+#define  REM_LTL_ERR_UNSUPTR		0x00400000 /* Unsupported Transaction */
+#define  REM_LTL_ERR_IMPSPEC		0x000000ff /* Implementation Specific */
 #define RIO_EM_LTL_HIADDR_CAP	0x010	/* Logical/Transport Layer High Address Capture CSR */
 #define RIO_EM_LTL_ADDR_CAP	0x014	/* Logical/Transport Layer Address Capture CSR */
 #define RIO_EM_LTL_DEVID_CAP	0x018	/* Logical/Transport Layer Device ID Capture CSR */
