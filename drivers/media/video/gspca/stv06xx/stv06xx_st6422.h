@@ -49,6 +49,9 @@ static int st6422_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
 
 const struct stv06xx_sensor stv06xx_sensor_st6422 = {
 	.name = "ST6422",
+	/* No known way to lower framerate in case of less bandwidth */
+	.min_packet_size = { 300, 847 },
+	.max_packet_size = { 300, 847 },
 	.init = st6422_init,
 	.probe = st6422_probe,
 	.start = st6422_start,
