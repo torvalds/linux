@@ -762,6 +762,12 @@ static int __devinit rio_enum_peer(struct rio_net *net, struct rio_mport *port,
 	u16 destid;
 	int tmp;
 
+	if (rio_mport_chk_dev_access(port,
+			RIO_ANY_DESTID(port->sys_size), hopcount)) {
+		pr_debug("RIO: device access check failed\n");
+		return -1;
+	}
+
 	if (rio_get_host_deviceid_lock(port, hopcount) == port->host_deviceid) {
 		pr_debug("RIO: PE already discovered by this host\n");
 		/*

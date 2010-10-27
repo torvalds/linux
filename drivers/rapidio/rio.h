@@ -24,6 +24,8 @@ extern u32 rio_mport_get_physefb(struct rio_mport *port, int local,
 				 u16 destid, u8 hopcount);
 extern u32 rio_mport_get_efb(struct rio_mport *port, int local, u16 destid,
 			     u8 hopcount, u32 from);
+extern int rio_mport_chk_dev_access(struct rio_mport *mport, u16 destid,
+				    u8 hopcount);
 extern int rio_create_sysfs_dev_files(struct rio_dev *rdev);
 extern int rio_enum_mport(struct rio_mport *mport);
 extern int rio_disc_mport(struct rio_mport *mport);

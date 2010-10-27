@@ -546,7 +546,7 @@ err_out:
  * @destid: Device destination ID in network
  * @hopcount: Number of hops into the network
  */
-static int
+int
 rio_mport_chk_dev_access(struct rio_mport *mport, u16 destid, u8 hopcount)
 {
 	int i = 0;
