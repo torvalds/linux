@@ -23,6 +23,9 @@ struct wm_hubs_data {
 	int dcs_codes;
 	int dcs_readback_mode;
 	int hp_startup_mode;
+
+	bool class_w;
+	u16 class_w_dcs;
 };
 
 extern int wm_hubs_add_analogue_controls(struct snd_soc_codec *);
