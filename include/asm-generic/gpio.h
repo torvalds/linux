@@ -210,7 +210,7 @@ extern void gpio_unexport(unsigned gpio);
 
 #endif	/* CONFIG_GPIO_SYSFS */
 
-#else	/* !CONFIG_HAVE_GPIO_LIB */
+#else	/* !CONFIG_GPIOLIB */
 
 static inline int gpio_is_valid(int number)
 {
@@ -239,7 +239,7 @@ static inline void gpio_set_value_cansleep(unsigned gpio, int value)
 	gpio_set_value(gpio, value);
 }
 
-#endif /* !CONFIG_HAVE_GPIO_LIB */
+#endif /* !CONFIG_GPIOLIB */
 
 #ifndef CONFIG_GPIO_SYSFS
 
