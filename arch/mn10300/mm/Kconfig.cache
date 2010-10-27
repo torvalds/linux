@@ -37,7 +37,8 @@ config MN10300_CACHE_ENABLED
 
 choice
 	prompt "CPU cache flush/invalidate method"
-	default MN10300_CACHE_MANAGE_BY_TAG
+	default MN10300_CACHE_MANAGE_BY_TAG if !AM34_2
+	default MN10300_CACHE_MANAGE_BY_REG if AM34_2
 	depends on MN10300_CACHE_ENABLED
 	help
 	  This determines the method by which CPU cache flushing and
@@ -46,10 +47,20 @@ choice
 config MN10300_CACHE_MANAGE_BY_TAG
 	bool "Use the cache tag registers directly"
 
+config MN10300_CACHE_MANAGE_BY_REG
+	bool "Flush areas by way of automatic purge registers (AM34 only)"
+	depends on AM34_2
+
 endchoice
 
 config MN10300_CACHE_INV_BY_TAG
 	def_bool y if MN10300_CACHE_MANAGE_BY_TAG && MN10300_CACHE_ENABLED
 
+config MN10300_CACHE_INV_BY_REG
+	def_bool y if MN10300_CACHE_MANAGE_BY_REG && MN10300_CACHE_ENABLED
+
 config MN10300_CACHE_FLUSH_BY_TAG
 	def_bool y if MN10300_CACHE_MANAGE_BY_TAG && MN10300_CACHE_WBACK
+
+config MN10300_CACHE_FLUSH_BY_REG
+	def_bool y if MN10300_CACHE_MANAGE_BY_REG && MN10300_CACHE_WBACK
