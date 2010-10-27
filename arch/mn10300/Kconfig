@@ -9,8 +9,14 @@ config MN10300
 	def_bool y
 	select HAVE_OPROFILE
 
-config AM33
-	def_bool y
+config AM33_2
+	def_bool n
+
+config AM33_3
+	def_bool n
+
+config AM34_2
+	def_bool n
 
 config MMU
 	def_bool y
@@ -99,6 +105,7 @@ choice
 config MN10300_PROC_MN103E010
 	bool "MN103E010"
 	depends on MN10300_UNIT_ASB2303 || MN10300_UNIT_ASB2305
+	select AM33_2
 	select MN10300_PROC_HAS_TTYSM0
 	select MN10300_PROC_HAS_TTYSM1
 	select MN10300_PROC_HAS_TTYSM2
