@@ -2,7 +2,7 @@
  * Blackfin On-Chip Real Time Clock Driver
  *  Supports BF51x/BF52x/BF53[123]/BF53[467]/BF54x
  *
- * Copyright 2004-2009 Analog Devices Inc.
+ * Copyright 2004-2010 Analog Devices Inc.
  *
  * Enter bugs at http://blackfin.uclinux.org/
  *
@@ -427,9 +427,13 @@ static int __devexit bfin_rtc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int bfin_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	if (device_may_wakeup(&pdev->dev)) {
+	struct device *dev = &pdev->dev;
+
+	dev_dbg_stamp(dev);
+
+	if (device_may_wakeup(dev)) {
 		enable_irq_wake(IRQ_RTC);
-		bfin_rtc_sync_pending(&pdev->dev);
+		bfin_rtc_sync_pending(dev);
 	} else
 		bfin_rtc_int_clear(0);
 
@@ -438,7 +442,11 @@ static int bfin_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int bfin_rtc_resume(struct platform_device *pdev)
 {
-	if (device_may_wakeup(&pdev->dev))
+	struct device *dev = &pdev->dev;
+
+	dev_dbg_stamp(dev);
+
+	if (device_may_wakeup(dev))
 		disable_irq_wake(IRQ_RTC);
 
 	/*
