@@ -19,15 +19,12 @@ config XEN_PVHVM
 	depends on X86_LOCAL_APIC
 
 config XEN_MAX_DOMAIN_MEMORY
-       int "Maximum allowed size of a domain in gigabytes"
-       default 8 if X86_32
-       default 32 if X86_64
+       int
+       default 128
        depends on XEN
        help
-         The pseudo-physical to machine address array is sized
-         according to the maximum possible memory size of a Xen
-         domain.  This array uses 1 page per gigabyte, so there's no
-         need to be too stingy here.
+         This only affects the sizing of some bss arrays, the unused
+         portions of which are freed.
 
 config XEN_SAVE_RESTORE
        bool
