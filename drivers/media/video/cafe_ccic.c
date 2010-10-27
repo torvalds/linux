@@ -859,8 +859,6 @@ static int cafe_cam_configure(struct cafe_camera *cam)
 	struct v4l2_mbus_framefmt mbus_fmt;
 	int ret;
 
-	if (cam->state != S_IDLE)
-		return -EINVAL;
 	v4l2_fill_mbus_format(&mbus_fmt, &cam->pix_format, cam->mbus_code);
 	ret = sensor_call(cam, core, init, 0);
 	if (ret == 0)
@@ -2196,12 +2194,13 @@ static int cafe_pci_resume(struct pci_dev *pdev)
 		return ret;
 	}
 	cafe_ctlr_init(cam);
-	cafe_ctlr_power_down(cam);
 
 	mutex_lock(&cam->s_mutex);
 	if (cam->users > 0) {
 		cafe_ctlr_power_up(cam);
 		__cafe_cam_reset(cam);
+	} else {
+		cafe_ctlr_power_down(cam);
 	}
 	mutex_unlock(&cam->s_mutex);
 
