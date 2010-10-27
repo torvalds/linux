@@ -40,4 +40,35 @@
 #define ACR_CM		0x00000060	/* Cache mode mask */
 #define ACR_WPROTECT	0x00000004	/* Write protect */
 
+#ifndef __ASSEMBLY__
+
+static inline void __m54xx_flush_cache_all(void)
+{
+	/*
+	 *	Use cpushl to push and invalidate all cache lines.
+	 *	Gas doesn't seem to know how to generate the ColdFire
+	 *	cpushl instruction... Oh well, bit stuff it for now.
+	 */
+	__asm__ __volatile__ (
+		"nop\n\t"
+		"clrl	%%d0\n\t"
+		"1:\n\t"
+		"movel	%%d0,%%a0\n\t"
+		"2:\n\t"
+		".word	0xf468\n\t"
+		"addl	#0x10,%%a0\n\t"
+		"cmpl	#0x00000800,%%a0\n\t"
+		"blt	2b\n\t"
+		"addql	#1,%%d0\n\t"
+		"cmpil	#4,%%d0\n\t"
+		"bne	1b\n\t"
+		"movel	#0xb6088500,%%d0\n\t"
+		"movec	%%d0,%%CACR\n\t"
+		: : : "d0", "a0" );
+}
+
+#define __flush_cache_all() __m54xx_flush_cache_all()
+
+#endif /* __ASSEMBLY__ */
+
 #endif	/* m54xxacr_h */
