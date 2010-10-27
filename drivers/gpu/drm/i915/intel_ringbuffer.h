@@ -48,8 +48,8 @@ struct  intel_ring_buffer {
 	void		(*flush)(struct intel_ring_buffer *ring,
 				 u32	invalidate_domains,
 				 u32	flush_domains);
-	u32		(*add_request)(struct intel_ring_buffer *ring,
-				       u32 flush_domains);
+	int		(*add_request)(struct intel_ring_buffer *ring,
+				       u32 *seqno);
 	u32		(*get_seqno)(struct intel_ring_buffer *ring);
 	int		(*dispatch_execbuffer)(struct intel_ring_buffer *ring,
 					       struct drm_i915_gem_execbuffer2 *exec,

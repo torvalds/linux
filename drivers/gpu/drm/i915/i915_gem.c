@@ -1683,7 +1683,7 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 	}
 }
 
-uint32_t
+int
 i915_add_request(struct drm_device *dev,
 		 struct drm_file *file,
 		 struct drm_i915_gem_request *request,
@@ -1693,17 +1693,17 @@ i915_add_request(struct drm_device *dev,
 	struct drm_i915_file_private *file_priv = NULL;
 	uint32_t seqno;
 	int was_empty;
+	int ret;
+
+	BUG_ON(request == NULL);
 
 	if (file != NULL)
 		file_priv = file->driver_priv;
 
-	if (request == NULL) {
-		request = kzalloc(sizeof(*request), GFP_KERNEL);
-		if (request == NULL)
-			return 0;
-	}
+	ret = ring->add_request(ring, &seqno);
+	if (ret)
+	    return ret;
 
-	seqno = ring->add_request(ring, 0);
 	ring->outstanding_lazy_request = false;
 
 	request->seqno = seqno;
@@ -1727,7 +1727,7 @@ i915_add_request(struct drm_device *dev,
 			queue_delayed_work(dev_priv->wq,
 					   &dev_priv->mm.retire_work, HZ);
 	}
-	return seqno;
+	return 0;
 }
 
 /**
@@ -1964,9 +1964,19 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 		return -EAGAIN;
 
 	if (ring->outstanding_lazy_request) {
-		seqno = i915_add_request(dev, NULL, NULL, ring);
-		if (seqno == 0)
+		struct drm_i915_gem_request *request;
+
+		request = kzalloc(sizeof(*request), GFP_KERNEL);
+		if (request == NULL)
 			return -ENOMEM;
+
+		ret = i915_add_request(dev, NULL, request, ring);
+		if (ret) {
+			kfree(request);
+			return ret;
+		}
+
+		seqno = request->seqno;
 	}
 	BUG_ON(seqno == dev_priv->next_seqno);
 
@@ -3844,8 +3854,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 */
 	i915_retire_commands(dev, ring);
 
-	i915_add_request(dev, file, request, ring);
-	request = NULL;
+	if (i915_add_request(dev, file, request, ring))
+		ring->outstanding_lazy_request = true;
+	else
+		request = NULL;
 
 err:
 	for (i = 0; i < args->buffer_count; i++) {

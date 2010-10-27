@@ -234,28 +234,28 @@ do {									\
  *
  * Returned sequence numbers are nonzero on success.
  */
-static u32
+static int
 render_ring_add_request(struct intel_ring_buffer *ring,
-			u32 flush_domains)
+			u32 *result)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	u32 seqno;
-
-	seqno = i915_gem_get_seqno(dev);
+	u32 seqno = i915_gem_get_seqno(dev);
+	int ret;
 
 	if (IS_GEN6(dev)) {
-		if (intel_ring_begin(ring, 6) == 0) {
-			intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | 3);
-			intel_ring_emit(ring, PIPE_CONTROL_QW_WRITE |
-					PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_IS_FLUSH |
-					PIPE_CONTROL_NOTIFY);
-			intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
-			intel_ring_emit(ring, seqno);
-			intel_ring_emit(ring, 0);
-			intel_ring_emit(ring, 0);
-			intel_ring_advance(ring);
-		}
+		ret = intel_ring_begin(ring, 6);
+		if (ret)
+		    return ret;
+
+		intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | 3);
+		intel_ring_emit(ring, PIPE_CONTROL_QW_WRITE |
+				PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_IS_FLUSH |
+				PIPE_CONTROL_NOTIFY);
+		intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
+		intel_ring_emit(ring, seqno);
+		intel_ring_emit(ring, 0);
+		intel_ring_emit(ring, 0);
 	} else if (HAS_PIPE_CONTROL(dev)) {
 		u32 scratch_addr = dev_priv->seqno_gfx_addr + 128;
 
@@ -264,42 +264,47 @@ render_ring_add_request(struct intel_ring_buffer *ring,
 		 * PIPE_NOTIFY buffers out to memory before requesting
 		 * an interrupt.
 		 */
-		if (intel_ring_begin(ring, 32) == 0) {
-			intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
-					PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH);
-			intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
-			intel_ring_emit(ring, seqno);
-			intel_ring_emit(ring, 0);
-			PIPE_CONTROL_FLUSH(ring, scratch_addr);
-			scratch_addr += 128; /* write to separate cachelines */
-			PIPE_CONTROL_FLUSH(ring, scratch_addr);
-			scratch_addr += 128;
-			PIPE_CONTROL_FLUSH(ring, scratch_addr);
-			scratch_addr += 128;
-			PIPE_CONTROL_FLUSH(ring, scratch_addr);
-			scratch_addr += 128;
-			PIPE_CONTROL_FLUSH(ring, scratch_addr);
-			scratch_addr += 128;
-			PIPE_CONTROL_FLUSH(ring, scratch_addr);
-			intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
-					PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH |
-					PIPE_CONTROL_NOTIFY);
-			intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
-			intel_ring_emit(ring, seqno);
-			intel_ring_emit(ring, 0);
-			intel_ring_advance(ring);
-		}
-	} else {
-		if (intel_ring_begin(ring, 4) == 0) {
-			intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
-			intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-			intel_ring_emit(ring, seqno);
+		ret = intel_ring_begin(ring, 32);
+		if (ret)
+			return ret;
 
-			intel_ring_emit(ring, MI_USER_INTERRUPT);
-			intel_ring_advance(ring);
-		}
+		intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
+				PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH);
+		intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
+		intel_ring_emit(ring, seqno);
+		intel_ring_emit(ring, 0);
+		PIPE_CONTROL_FLUSH(ring, scratch_addr);
+		scratch_addr += 128; /* write to separate cachelines */
+		PIPE_CONTROL_FLUSH(ring, scratch_addr);
+		scratch_addr += 128;
+		PIPE_CONTROL_FLUSH(ring, scratch_addr);
+		scratch_addr += 128;
+		PIPE_CONTROL_FLUSH(ring, scratch_addr);
+		scratch_addr += 128;
+		PIPE_CONTROL_FLUSH(ring, scratch_addr);
+		scratch_addr += 128;
+		PIPE_CONTROL_FLUSH(ring, scratch_addr);
+		intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
+				PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH |
+				PIPE_CONTROL_NOTIFY);
+		intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
+		intel_ring_emit(ring, seqno);
+		intel_ring_emit(ring, 0);
+	} else {
+		ret = intel_ring_begin(ring, 4);
+		if (ret)
+		    return ret;
+
+		intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
+		intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
+		intel_ring_emit(ring, seqno);
+
+		intel_ring_emit(ring, MI_USER_INTERRUPT);
 	}
-	return seqno;
+
+	intel_ring_advance(ring);
+	*result = seqno;
+	return 0;
 }
 
 static u32
@@ -370,25 +375,28 @@ bsd_ring_flush(struct intel_ring_buffer *ring,
 	}
 }
 
-static u32
+static int
 ring_add_request(struct intel_ring_buffer *ring,
-		 u32 flush_domains)
+		 u32 *result)
 {
 	u32 seqno;
+	int ret;
+
+	ret = intel_ring_begin(ring, 4);
+	if (ret)
+		return ret;
 
 	seqno = i915_gem_get_seqno(ring->dev);
 
-	if (intel_ring_begin(ring, 4) == 0) {
-		intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
-		intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-		intel_ring_emit(ring, seqno);
-		intel_ring_emit(ring, MI_USER_INTERRUPT);
-		intel_ring_advance(ring);
-	}
+	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
+	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
+	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, MI_USER_INTERRUPT);
+	intel_ring_advance(ring);
 
 	DRM_DEBUG_DRIVER("%s %d\n", ring->name, seqno);
-
-	return seqno;
+	*result = seqno;
+	return 0;
 }
 
 static void
