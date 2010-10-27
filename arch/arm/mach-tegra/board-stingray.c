@@ -752,6 +752,14 @@ static int __init mot_usb_serial_num_setup(char *options)
 }
 __setup("androidboot.serialno=", mot_usb_serial_num_setup);
 
+static int mot_boot_recovery = 0;
+static int __init mot_bm_recovery_setup()
+{
+       mot_boot_recovery = 1;
+       return 1;
+}
+__setup("rec", mot_bm_recovery_setup);
+
 static void stingray_usb_init(void)
 {
 	char *src;
@@ -780,7 +788,8 @@ static void stingray_usb_init(void)
 	platform_device_register(&rndis_device);
 #endif
 
-	if (!strncmp(boot_mode, "factorycable", BOOT_MODE_MAX_LEN))
+	if (!strncmp(boot_mode, "factorycable", BOOT_MODE_MAX_LEN) &&
+            !mot_boot_recovery)
 	{
 		platform_data = &andusb_plat_factory;
 		platform_device_register(&usbnet_device);
