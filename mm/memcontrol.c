@@ -1591,7 +1591,8 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
  * small, we check MEM_CGROUP_ON_MOVE percpu value and detect there are
  * possibility of race condition. If there is, we take a lock.
  */
-void mem_cgroup_update_file_mapped(struct page *page, int val)
+
+static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
 {
 	struct mem_cgroup *mem;
 	struct page_cgroup *pc = lookup_page_cgroup(page);
@@ -1613,13 +1614,18 @@ void mem_cgroup_update_file_mapped(struct page *page, int val)
 		if (!mem || !PageCgroupUsed(pc))
 			goto out;
 	}
-	if (val > 0) {
-		this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-		SetPageCgroupFileMapped(pc);
-	} else {
-		this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-		if (!page_mapped(page)) /* for race between dec->inc counter */
+
+	this_cpu_add(mem->stat->count[idx], val);
+
+	switch (idx) {
+	case MEM_CGROUP_STAT_FILE_MAPPED:
+		if (val > 0)
+			SetPageCgroupFileMapped(pc);
+		else if (!page_mapped(page))
 			ClearPageCgroupFileMapped(pc);
+		break;
+	default:
+		BUG();
 	}
 
 out:
@@ -1627,6 +1633,11 @@ out:
 		unlock_page_cgroup(pc);
 	rcu_read_unlock();
 	return;
+}
+
+void mem_cgroup_update_file_mapped(struct page *page, int val)
+{
+	mem_cgroup_update_file_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, val);
 }
 
 /*
