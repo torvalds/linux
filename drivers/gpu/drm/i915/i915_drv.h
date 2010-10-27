@@ -609,16 +609,6 @@ typedef struct drm_i915_private {
 		struct delayed_work retire_work;
 
 		/**
-		 * Waiting sequence number, if any
-		 */
-		uint32_t waiting_gem_seqno;
-
-		/**
-		 * Last seq seen at irq time
-		 */
-		uint32_t irq_gem_seqno;
-
-		/**
 		 * Flag if the X Server, and thus DRM, is not currently in
 		 * control of the device.
 		 *

@@ -298,7 +298,7 @@ static void notify_ring(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 seqno = ring->get_seqno(ring);
-	ring->irq_gem_seqno = seqno;
+	ring->irq_seqno = seqno;
 	trace_i915_gem_request_complete(dev, seqno);
 	wake_up_all(&ring->irq_queue);
 	dev_priv->hangcheck_count = 0;
@@ -1319,10 +1319,10 @@ static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring, bool *err)
 	if (list_empty(&ring->request_list) ||
 	    i915_seqno_passed(ring->get_seqno(ring), ring_last_seqno(ring))) {
 		/* Issue a wake-up to catch stuck h/w. */
-		if (ring->waiting_gem_seqno && waitqueue_active(&ring->irq_queue)) {
+		if (ring->waiting_seqno && waitqueue_active(&ring->irq_queue)) {
 			DRM_ERROR("Hangcheck timer elapsed... %s idle [waiting on %d, at %d], missed IRQ?\n",
 				  ring->name,
-				  ring->waiting_gem_seqno,
+				  ring->waiting_seqno,
 				  ring->get_seqno(ring));
 			wake_up_all(&ring->irq_queue);
 			*err = true;

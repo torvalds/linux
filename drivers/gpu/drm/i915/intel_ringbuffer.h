@@ -35,8 +35,8 @@ struct  intel_ring_buffer {
 	int		size;
 	struct intel_hw_status_page status_page;
 
-	u32		irq_gem_seqno;		/* last seq seem at irq time */
-	u32		waiting_gem_seqno;
+	u32		irq_seqno;		/* last seq seem at irq time */
+	u32		waiting_seqno;
 	int		user_irq_refcount;
 	void		(*user_irq_get)(struct intel_ring_buffer *ring);
 	void		(*user_irq_put)(struct intel_ring_buffer *ring);

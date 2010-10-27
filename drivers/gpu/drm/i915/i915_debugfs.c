@@ -319,6 +319,19 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static void i915_ring_seqno_info(struct seq_file *m,
+				 struct intel_ring_buffer *ring)
+{
+	if (ring->get_seqno) {
+		seq_printf(m, "Current sequence (%s): %d\n",
+			   ring->name, ring->get_seqno(ring));
+		seq_printf(m, "Waiter sequence (%s):  %d\n",
+			   ring->name, ring->waiting_seqno);
+		seq_printf(m, "IRQ sequence (%s):     %d\n",
+			   ring->name, ring->irq_seqno);
+	}
+}
+
 static int i915_gem_seqno_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -330,15 +343,9 @@ static int i915_gem_seqno_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 
-	if (dev_priv->render_ring.status_page.page_addr != NULL) {
-		seq_printf(m, "Current sequence: %d\n",
-			   dev_priv->render_ring.get_seqno(&dev_priv->render_ring));
-	} else {
-		seq_printf(m, "Current sequence: hws uninitialized\n");
-	}
-	seq_printf(m, "Waiter sequence:  %d\n",
-			dev_priv->mm.waiting_gem_seqno);
-	seq_printf(m, "IRQ sequence:     %d\n", dev_priv->mm.irq_gem_seqno);
+	i915_ring_seqno_info(m, &dev_priv->render_ring);
+	i915_ring_seqno_info(m, &dev_priv->bsd_ring);
+	i915_ring_seqno_info(m, &dev_priv->blt_ring);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -390,22 +397,9 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	}
 	seq_printf(m, "Interrupts received: %d\n",
 		   atomic_read(&dev_priv->irq_received));
-	if (dev_priv->render_ring.get_seqno) {
-		seq_printf(m, "Current sequence (render):    %d\n",
-			   dev_priv->render_ring.get_seqno(&dev_priv->render_ring));
-	}
-	if (dev_priv->bsd_ring.get_seqno) {
-		seq_printf(m, "Current sequence (BSD):    %d\n",
-			   dev_priv->bsd_ring.get_seqno(&dev_priv->bsd_ring));
-	}
-	if (dev_priv->blt_ring.get_seqno) {
-		seq_printf(m, "Current sequence (BLT):    %d\n",
-			   dev_priv->blt_ring.get_seqno(&dev_priv->blt_ring));
-	}
-	seq_printf(m, "Waiter sequence:     %d\n",
-		   dev_priv->mm.waiting_gem_seqno);
-	seq_printf(m, "IRQ sequence:        %d\n",
-		   dev_priv->mm.irq_gem_seqno);
+	i915_ring_seqno_info(m, &dev_priv->render_ring);
+	i915_ring_seqno_info(m, &dev_priv->bsd_ring);
+	i915_ring_seqno_info(m, &dev_priv->blt_ring);
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
