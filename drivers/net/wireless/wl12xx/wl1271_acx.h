@@ -61,7 +61,8 @@
 					    WL1271_ACX_INTR_HW_AVAILABLE  | \
 					    WL1271_ACX_INTR_DATA)
 
-#define WL1271_INTR_MASK                   (WL1271_ACX_INTR_EVENT_A      | \
+#define WL1271_INTR_MASK                   (WL1271_ACX_INTR_WATCHDOG     | \
+					    WL1271_ACX_INTR_EVENT_A      | \
 					    WL1271_ACX_INTR_EVENT_B      | \
 					    WL1271_ACX_INTR_HW_AVAILABLE | \
 					    WL1271_ACX_INTR_DATA)

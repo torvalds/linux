@@ -529,6 +529,15 @@ static void wl1271_irq_work(struct work_struct *work)
 
 		intr &= WL1271_INTR_MASK;
 
+		if (unlikely(intr & WL1271_ACX_INTR_WATCHDOG)) {
+			wl1271_error("watchdog interrupt received! "
+				     "starting recovery.");
+			ieee80211_queue_work(wl->hw, &wl->recovery_work);
+
+			/* restarting the chip. ignore any other interrupt. */
+			goto out;
+		}
+
 		if (intr & WL1271_ACX_INTR_DATA) {
 			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_DATA");
 
