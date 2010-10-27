@@ -150,6 +150,7 @@ struct kvm_memory_slot {
 	unsigned long flags;
 	unsigned long *rmap;
 	unsigned long *dirty_bitmap;
+	unsigned long *dirty_bitmap_head;
 	struct {
 		unsigned long rmap_pde;
 		int write_count;

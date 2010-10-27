@@ -3208,18 +3208,15 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 		struct kvm_memslots *slots, *old_slots;
 		unsigned long *dirty_bitmap;
 
-		r = -ENOMEM;
-		dirty_bitmap = vmalloc(n);
-		if (!dirty_bitmap)
-			goto out;
+		dirty_bitmap = memslot->dirty_bitmap_head;
+		if (memslot->dirty_bitmap == dirty_bitmap)
+			dirty_bitmap += n / sizeof(long);
 		memset(dirty_bitmap, 0, n);
 
 		r = -ENOMEM;
 		slots = kzalloc(sizeof(struct kvm_memslots), GFP_KERNEL);
-		if (!slots) {
-			vfree(dirty_bitmap);
+		if (!slots)
 			goto out;
-		}
 		memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
 		slots->memslots[log->slot].dirty_bitmap = dirty_bitmap;
 		slots->generation++;
@@ -3235,11 +3232,8 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 		spin_unlock(&kvm->mmu_lock);
 
 		r = -EFAULT;
-		if (copy_to_user(log->dirty_bitmap, dirty_bitmap, n)) {
-			vfree(dirty_bitmap);
+		if (copy_to_user(log->dirty_bitmap, dirty_bitmap, n))
 			goto out;
-		}
-		vfree(dirty_bitmap);
 	} else {
 		r = -EFAULT;
 		if (clear_user(log->dirty_bitmap, n))

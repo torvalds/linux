@@ -449,8 +449,9 @@ static void kvm_destroy_dirty_bitmap(struct kvm_memory_slot *memslot)
 	if (!memslot->dirty_bitmap)
 		return;
 
-	vfree(memslot->dirty_bitmap);
+	vfree(memslot->dirty_bitmap_head);
 	memslot->dirty_bitmap = NULL;
+	memslot->dirty_bitmap_head = NULL;
 }
 
 /*
@@ -537,15 +538,21 @@ static int kvm_vm_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+/*
+ * Allocation size is twice as large as the actual dirty bitmap size.
+ * This makes it possible to do double buffering: see x86's
+ * kvm_vm_ioctl_get_dirty_log().
+ */
 static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 {
-	unsigned long dirty_bytes = kvm_dirty_bitmap_bytes(memslot);
+	unsigned long dirty_bytes = 2 * kvm_dirty_bitmap_bytes(memslot);
 
 	memslot->dirty_bitmap = vmalloc(dirty_bytes);
 	if (!memslot->dirty_bitmap)
 		return -ENOMEM;
 
 	memset(memslot->dirty_bitmap, 0, dirty_bytes);
+	memslot->dirty_bitmap_head = memslot->dirty_bitmap;
 	return 0;
 }
 
