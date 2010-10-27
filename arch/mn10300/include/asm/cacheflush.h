@@ -17,49 +17,7 @@
 #include <linux/mm.h>
 
 /*
- * virtually-indexed cache management (our cache is physically indexed)
- */
-#define flush_cache_all()			do {} while (0)
-#define flush_cache_mm(mm)			do {} while (0)
-#define flush_cache_dup_mm(mm)			do {} while (0)
-#define flush_cache_range(mm, start, end)	do {} while (0)
-#define flush_cache_page(vma, vmaddr, pfn)	do {} while (0)
-#define flush_cache_vmap(start, end)		do {} while (0)
-#define flush_cache_vunmap(start, end)		do {} while (0)
-#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
-#define flush_dcache_page(page)			do {} while (0)
-#define flush_dcache_mmap_lock(mapping)		do {} while (0)
-#define flush_dcache_mmap_unlock(mapping)	do {} while (0)
-
-/*
- * physically-indexed cache management
- */
-#ifdef CONFIG_MN10300_CACHE_ENABLED
-
-extern void flush_icache_range(unsigned long start, unsigned long end);
-extern void flush_icache_page(struct vm_area_struct *vma, struct page *pg);
-
-#else
-
-#define flush_icache_range(start, end)		do {} while (0)
-#define flush_icache_page(vma, pg)		do {} while (0)
-
-#endif
-
-#define flush_icache_user_range(vma, pg, adr, len) \
-	flush_icache_range(adr, adr + len)
-
-#define copy_to_user_page(vma, page, vaddr, dst, src, len) \
-	do {					\
-		memcpy(dst, src, len);		\
-		flush_icache_page(vma, page);	\
-	} while (0)
-
-#define copy_from_user_page(vma, page, vaddr, dst, src, len) \
-	memcpy(dst, src, len)
-
-/*
- * primitive routines
+ * Primitive routines
  */
 #ifdef CONFIG_MN10300_CACHE_ENABLED
 extern void mn10300_icache_inv(void);
@@ -106,7 +64,49 @@ extern void mn10300_dcache_flush_inv_range2(unsigned start, unsigned size);
 #endif /* CONFIG_MN10300_CACHE_ENABLED */
 
 /*
- * internal debugging function
+ * Virtually-indexed cache management (our cache is physically indexed)
+ */
+#define flush_cache_all()			do {} while (0)
+#define flush_cache_mm(mm)			do {} while (0)
+#define flush_cache_dup_mm(mm)			do {} while (0)
+#define flush_cache_range(mm, start, end)	do {} while (0)
+#define flush_cache_page(vma, vmaddr, pfn)	do {} while (0)
+#define flush_cache_vmap(start, end)		do {} while (0)
+#define flush_cache_vunmap(start, end)		do {} while (0)
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
+#define flush_dcache_page(page)			do {} while (0)
+#define flush_dcache_mmap_lock(mapping)		do {} while (0)
+#define flush_dcache_mmap_unlock(mapping)	do {} while (0)
+
+/*
+ * Physically-indexed cache management
+ */
+#ifdef CONFIG_MN10300_CACHE_ENABLED
+
+extern void flush_icache_range(unsigned long start, unsigned long end);
+extern void flush_icache_page(struct vm_area_struct *vma, struct page *pg);
+
+#else
+
+#define flush_icache_range(start, end)		do {} while (0)
+#define flush_icache_page(vma, pg)		do {} while (0)
+
+#endif
+
+#define flush_icache_user_range(vma, pg, adr, len) \
+	flush_icache_range(adr, adr + len)
+
+#define copy_to_user_page(vma, page, vaddr, dst, src, len) \
+	do {					\
+		memcpy(dst, src, len);		\
+		flush_icache_page(vma, page);	\
+	} while (0)
+
+#define copy_from_user_page(vma, page, vaddr, dst, src, len) \
+	memcpy(dst, src, len)
+
+/*
+ * Internal debugging function
  */
 #ifdef CONFIG_DEBUG_PAGEALLOC
 extern void kernel_map_pages(struct page *page, int numpages, int enable);
