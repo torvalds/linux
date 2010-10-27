@@ -3180,6 +3180,8 @@ static int r100_cs_track_texture_check(struct radeon_device *rdev,
 	for (u = 0; u < track->num_texture; u++) {
 		if (!track->textures[u].enabled)
 			continue;
+		if (track->textures[u].lookup_disable)
+			continue;
 		robj = track->textures[u].robj;
 		if (robj == NULL) {
 			DRM_ERROR("No texture bound to unit %u\n", u);
@@ -3414,6 +3416,7 @@ void r100_cs_track_clear(struct radeon_device *rdev, struct r100_cs_track *track
 		track->textures[i].robj = NULL;
 		/* CS IB emission code makes sure texture unit are disabled */
 		track->textures[i].enabled = false;
+		track->textures[i].lookup_disable = false;
 		track->textures[i].roundup_w = true;
 		track->textures[i].roundup_h = true;
 		if (track->separate_cube)
