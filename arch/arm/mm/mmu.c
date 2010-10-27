@@ -745,13 +745,11 @@ static int __init early_vmalloc(char *arg)
 }
 early_param("vmalloc", early_vmalloc);
 
-phys_addr_t lowmem_end_addr;
-
 static void __init sanity_check_meminfo(void)
 {
 	int i, j, highmem = 0;
 
-	lowmem_end_addr = __pa(vmalloc_min - 1) + 1;
+	memblock_set_current_limit(__pa(vmalloc_min - 1) + 1);
 
 	for (i = 0, j = 0; i < meminfo.nr_banks; i++) {
 		struct membank *bank = &meminfo.bank[j];
