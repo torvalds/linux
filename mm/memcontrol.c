@@ -1132,11 +1132,14 @@ static unsigned int get_swappiness(struct mem_cgroup *memcg)
 static void mem_cgroup_start_move(struct mem_cgroup *mem)
 {
 	int cpu;
-	/* Because this is for moving account, reuse mc.lock */
-	spin_lock(&mc.lock);
-	for_each_possible_cpu(cpu)
+
+	get_online_cpus();
+	spin_lock(&mem->pcp_counter_lock);
+	for_each_online_cpu(cpu)
 		per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) += 1;
-	spin_unlock(&mc.lock);
+	mem->nocpu_base.count[MEM_CGROUP_ON_MOVE] += 1;
+	spin_unlock(&mem->pcp_counter_lock);
+	put_online_cpus();
 
 	synchronize_rcu();
 }
@@ -1147,10 +1150,13 @@ static void mem_cgroup_end_move(struct mem_cgroup *mem)
 
 	if (!mem)
 		return;
-	spin_lock(&mc.lock);
-	for_each_possible_cpu(cpu)
+	get_online_cpus();
+	spin_lock(&mem->pcp_counter_lock);
+	for_each_online_cpu(cpu)
 		per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) -= 1;
-	spin_unlock(&mc.lock);
+	mem->nocpu_base.count[MEM_CGROUP_ON_MOVE] -= 1;
+	spin_unlock(&mem->pcp_counter_lock);
+	put_online_cpus();
 }
 /*
  * 2 routines for checking "mem" is under move_account() or not.
@@ -1751,6 +1757,17 @@ static void mem_cgroup_drain_pcp_counter(struct mem_cgroup *mem, int cpu)
 		per_cpu(mem->stat->count[i], cpu) = 0;
 		mem->nocpu_base.count[i] += x;
 	}
+	/* need to clear ON_MOVE value, works as a kind of lock. */
+	per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) = 0;
+	spin_unlock(&mem->pcp_counter_lock);
+}
+
+static void synchronize_mem_cgroup_on_move(struct mem_cgroup *mem, int cpu)
+{
+	int idx = MEM_CGROUP_ON_MOVE;
+
+	spin_lock(&mem->pcp_counter_lock);
+	per_cpu(mem->stat->count[idx], cpu) = mem->nocpu_base.count[idx];
 	spin_unlock(&mem->pcp_counter_lock);
 }
 
@@ -1761,6 +1778,12 @@ static int __cpuinit memcg_cpu_hotplug_callback(struct notifier_block *nb,
 	int cpu = (unsigned long)hcpu;
 	struct memcg_stock_pcp *stock;
 	struct mem_cgroup *iter;
+
+	if ((action == CPU_ONLINE)) {
+		for_each_mem_cgroup_all(iter)
+			synchronize_mem_cgroup_on_move(iter, cpu);
+		return NOTIFY_OK;
+	}
 
 	if ((action != CPU_DEAD) || action != CPU_DEAD_FROZEN)
 		return NOTIFY_OK;
