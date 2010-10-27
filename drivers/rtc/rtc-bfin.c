@@ -183,29 +183,33 @@ static irqreturn_t bfin_rtc_interrupt(int irq, void *dev_id)
 	struct bfin_rtc *rtc = dev_get_drvdata(dev);
 	unsigned long events = 0;
 	bool write_complete = false;
-	u16 rtc_istat, rtc_ictl;
+	u16 rtc_istat, rtc_istat_clear, rtc_ictl, bits;
 
 	dev_dbg_stamp(dev);
 
 	rtc_istat = bfin_read_RTC_ISTAT();
 	rtc_ictl = bfin_read_RTC_ICTL();
+	rtc_istat_clear = 0;
 
-	if (rtc_istat & RTC_ISTAT_WRITE_COMPLETE) {
-		bfin_write_RTC_ISTAT(RTC_ISTAT_WRITE_COMPLETE);
+	bits = RTC_ISTAT_WRITE_COMPLETE;
+	if (rtc_istat & bits) {
+		rtc_istat_clear |= bits;
 		write_complete = true;
 		complete(&bfin_write_complete);
 	}
 
-	if (rtc_ictl & (RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY)) {
-		if (rtc_istat & (RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY)) {
-			bfin_write_RTC_ISTAT(RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY);
+	bits = (RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY);
+	if (rtc_ictl & bits) {
+		if (rtc_istat & bits) {
+			rtc_istat_clear |= bits;
 			events |= RTC_AF | RTC_IRQF;
 		}
 	}
 
-	if (rtc_ictl & RTC_ISTAT_SEC) {
-		if (rtc_istat & RTC_ISTAT_SEC) {
-			bfin_write_RTC_ISTAT(RTC_ISTAT_SEC);
+	bits = RTC_ISTAT_SEC;
+	if (rtc_ictl & bits) {
+		if (rtc_istat & bits) {
+			rtc_istat_clear |= bits;
 			events |= RTC_UF | RTC_IRQF;
 		}
 	}
@@ -213,9 +217,10 @@ static irqreturn_t bfin_rtc_interrupt(int irq, void *dev_id)
 	if (events)
 		rtc_update_irq(rtc->rtc_dev, 1, events);
 
-	if (write_complete || events)
+	if (write_complete || events) {
+		bfin_write_RTC_ISTAT(rtc_istat_clear);
 		return IRQ_HANDLED;
-	else
+	} else
 		return IRQ_NONE;
 }
 
