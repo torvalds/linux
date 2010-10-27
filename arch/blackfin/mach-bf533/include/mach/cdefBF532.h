@@ -679,7 +679,4 @@
 #define bfin_read_PPI_FRAME()                bfin_read16(PPI_FRAME)
 #define bfin_write_PPI_FRAME(val)            bfin_write16(PPI_FRAME,val)
 
-/* These need to be last due to the cdef/linux inter-dependencies */
-#include <asm/irq.h>
-
 #endif				/* _CDEF_BF532_H */

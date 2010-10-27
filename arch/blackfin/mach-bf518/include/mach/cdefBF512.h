@@ -1040,7 +1040,4 @@
 #define bfin_read_SECURE_STATUS()		bfin_read16(SECURE_STATUS)
 #define bfin_write_SECURE_STATUS(val)		bfin_write16(SECURE_STATUS, val)
 
-/* These need to be last due to the cdef/linux inter-dependencies */
-#include <asm/irq.h>
-
 #endif /* _CDEF_BF512_H */

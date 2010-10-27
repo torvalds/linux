@@ -1733,7 +1733,4 @@
 #define bfin_read_HMDMA1_BCOUNT()            bfin_read16(HMDMA1_BCOUNT)
 #define bfin_write_HMDMA1_BCOUNT(val)        bfin_write16(HMDMA1_BCOUNT,val)
 
-/* These need to be last due to the cdef/linux inter-dependencies */
-#include <asm/irq.h>
-
 #endif				/* _CDEF_BF534_H */

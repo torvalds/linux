@@ -1957,7 +1957,4 @@
 #define bfin_read_CAN_MB31_ID1()       bfin_read16(CAN_MB31_ID1)
 #define bfin_write_CAN_MB31_ID1(val)   bfin_write16(CAN_MB31_ID1, val)
 
-/* These need to be last due to the cdef/linux inter-dependencies */
-#include <asm/irq.h>
-
 #endif

@@ -1092,7 +1092,4 @@
 #define bfin_read_NFC_DATA_RD()			bfin_read16(NFC_DATA_RD)
 #define bfin_write_NFC_DATA_RD(val)		bfin_write16(NFC_DATA_RD, val)
 
-/* These need to be last due to the cdef/linux inter-dependencies */
-#include <asm/irq.h>
-
 #endif /* _CDEF_BF522_H */

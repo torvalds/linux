@@ -2629,8 +2629,5 @@
 
 /* Handshake MDMA is not defined in the shared file because it is not available on the ADSP-BF542 bfin_read_()rocessor */
 
-/* These need to be last due to the cdef/linux inter-dependencies */
-#include <asm/irq.h>
-
 #endif /* _CDEF_BF54X_H */
 
