@@ -96,6 +96,12 @@ enum drbd_on_no_data {
 	OND_SUSPEND_IO
 };
 
+enum drbd_on_congestion {
+	OC_BLOCK,
+	OC_PULL_AHEAD,
+	OC_DISCONNECT,
+};
+
 /* KEEP the order, do not delete or insert. Only append. */
 enum drbd_ret_codes {
 	ERR_CODE_BASE		= 100,
@@ -146,6 +152,7 @@ enum drbd_ret_codes {
 	ERR_PERM		= 152,
 	ERR_NEED_APV_93		= 153,
 	ERR_STONITH_AND_PROT_A  = 154,
+	ERR_CONG_NOT_PROTO_A	= 155,
 
 	/* insert new ones above this line */
 	AFTER_LAST_ERR_CODE

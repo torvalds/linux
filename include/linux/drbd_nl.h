@@ -56,6 +56,9 @@ NL_PACKET(net_conf, 5,
 	NL_INTEGER(	39,	T_MAY_IGNORE,	rr_conflict)
 	NL_INTEGER(	40,	T_MAY_IGNORE,	ping_timeo)
 	NL_INTEGER(	67,	T_MAY_IGNORE,	rcvbuf_size)
+	NL_INTEGER(	81,	T_MAY_IGNORE,	on_congestion)
+	NL_INTEGER(	82,	T_MAY_IGNORE,	cong_fill)
+	NL_INTEGER(	83,	T_MAY_IGNORE,	cong_extents)
 	  /* 59 addr_family was available in GIT, never released */
 	NL_BIT(		60,	T_MANDATORY,	mind_af)
 	NL_BIT(		27,	T_MAY_IGNORE,	want_lose)
