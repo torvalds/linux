@@ -1217,6 +1217,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 		ah->imask |= ATH9K_INT_CST;
 
 	sc->sc_flags &= ~SC_OP_INVALID;
+	sc->sc_ah->is_monitoring = false;
 
 	/* Disable BMISS interrupt when we're not associated */
 	ah->imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
@@ -1493,8 +1494,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	ath9k_hw_set_interrupts(ah, ah->imask);
 
 	if (vif->type == NL80211_IFTYPE_AP    ||
-	    vif->type == NL80211_IFTYPE_ADHOC ||
-	    vif->type == NL80211_IFTYPE_MONITOR) {
+	    vif->type == NL80211_IFTYPE_ADHOC) {
 		sc->sc_flags |= SC_OP_ANI_RUN;
 		ath_start_ani(common);
 	}
@@ -1644,8 +1644,12 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		if (conf->flags & IEEE80211_CONF_MONITOR) {
 			ath_print(common, ATH_DBG_CONFIG,
-				  "HW opmode set to Monitor mode\n");
-			sc->sc_ah->opmode = NL80211_IFTYPE_MONITOR;
+				  "Monitor mode is enabled\n");
+			sc->sc_ah->is_monitoring = true;
+		} else {
+			ath_print(common, ATH_DBG_CONFIG,
+				  "Monitor mode is disabled\n");
+			sc->sc_ah->is_monitoring = false;
 		}
 	}
 
