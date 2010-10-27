@@ -849,6 +849,8 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_cflag & CMSPAR)
 		lcr |= STP;
 
+	spin_lock_irqsave(&uart->port.lock, flags);
+
 	port->read_status_mask = OE;
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= (FE | PE);
@@ -877,8 +879,6 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	/* If discipline is not IRDA, apply ANOMALY_05000230 */
 	if (termios->c_line != N_IRDA)
 		quot -= ANOMALY_05000230;
-
-	spin_lock_irqsave(&uart->port.lock, flags);
 
 	UART_SET_ANOMALY_THRESHOLD(uart, USEC_PER_SEC / baud * 15);
 
