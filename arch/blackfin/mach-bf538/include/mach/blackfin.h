@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2009 Analog Devices Inc.
+ * Copyright 2008-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -10,16 +10,24 @@
 #define BF538_FAMILY
 
 #include "bf538.h"
-#include "defBF539.h"
 #include "anomaly.h"
 
-
-#if !defined(__ASSEMBLY__)
-#include "cdefBF538.h"
-
-#if defined(CONFIG_BF539)
-#include "cdefBF539.h"
+#include <asm/def_LPBlackfin.h>
+#ifdef CONFIG_BF538
+# include "defBF538.h"
 #endif
+#ifdef CONFIG_BF539
+# include "defBF539.h"
+#endif
+
+#ifndef __ASSEMBLY__
+# include <asm/cdef_LPBlackfin.h>
+# ifdef CONFIG_BF538
+#  include "cdefBF538.h"
+# endif
+# ifdef CONFIG_BF539
+#  include "cdefBF539.h"
+# endif
 #endif
 
 #endif

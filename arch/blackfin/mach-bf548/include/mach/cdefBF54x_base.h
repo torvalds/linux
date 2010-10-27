@@ -1,15 +1,11 @@
 /*
- * Copyright 2007-2008 Analog Devices Inc.
+ * Copyright 2007-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
 
 #ifndef _CDEF_BF54X_H
 #define _CDEF_BF54X_H
-
-#include <asm/blackfin.h>
-
-#include "defBF54x_base.h"
 
 /* ************************************************************** */
 /* SYSTEM & MMR ADDRESS DEFINITIONS COMMON TO ALL ADSP-BF54x    */

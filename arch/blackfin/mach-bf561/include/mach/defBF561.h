@@ -1,18 +1,11 @@
 /*
- * Copyright 2005-2009 Analog Devices Inc.
+ * Copyright 2005-2010 Analog Devices Inc.
  *
  * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _DEF_BF561_H
 #define _DEF_BF561_H
-/*
-#if !defined(__ADSPBF561__)
-#warning defBF561.h should only be included for BF561 chip.
-#endif
-*/
-/* include all Core registers and bit definitions */
-#include <asm/def_LPBlackfin.h>
 
 /*********************************************************************************** */
 /* System MMR Register Map */

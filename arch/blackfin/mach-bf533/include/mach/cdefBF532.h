@@ -1,14 +1,11 @@
 /*
- * Copyright 2005-2008 Analog Devices Inc.
+ * Copyright 2005-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later
  */
 
 #ifndef _CDEF_BF532_H
 #define _CDEF_BF532_H
-
-/*include core specific register pointer definitions*/
-#include <asm/cdef_LPBlackfin.h>
 
 /* Clock and System Control (0xFFC0 0400-0xFFC0 07FF) */
 #define bfin_read_PLL_CTL()                  bfin_read16(PLL_CTL)

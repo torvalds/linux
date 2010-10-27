@@ -1,19 +1,11 @@
 /*
- * Copyright 2005-2009 Analog Devices Inc.
+ * Copyright 2005-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
 
 #ifndef _CDEF_BF561_H
 #define _CDEF_BF561_H
-
-#include <asm/blackfin.h>
-
-/* include all Core registers and bit definitions */
-#include "defBF561.h"
-
-/*include core specific register pointer definitions*/
-#include <asm/cdef_LPBlackfin.h>
 
 /*********************************************************************************** */
 /* System MMR Register Map */

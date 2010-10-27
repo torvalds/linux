@@ -1,19 +1,11 @@
 /*
- * Copyright 2008-2009 Analog Devices Inc.
+ * Copyright 2008-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
 
 #ifndef _CDEF_BF538_H
 #define _CDEF_BF538_H
-
-#include <asm/blackfin.h>
-
-/*include all Core registers and bit definitions*/
-#include "defBF539.h"
-
-/*include core specific register pointer definitions*/
-#include <asm/cdef_LPBlackfin.h>
 
 #define bfin_writePTR(addr, val) bfin_write32(addr, val)
 

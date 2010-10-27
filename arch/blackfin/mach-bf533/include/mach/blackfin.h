@@ -1,7 +1,7 @@
 /*
- * Copyright 2005-2009 Analog Devices Inc.
+ * Copyright 2005-2010 Analog Devices Inc.
  *
- * Licensed under the GPL-2 or later
+ * Licensed under the GPL-2 or later.
  */
 
 #ifndef _MACH_BLACKFIN_H_
@@ -10,11 +10,14 @@
 #define BF533_FAMILY
 
 #include "bf533.h"
-#include "defBF532.h"
 #include "anomaly.h"
 
-#if !defined(__ASSEMBLY__)
-#include "cdefBF532.h"
+#include <asm/def_LPBlackfin.h>
+#include "defBF532.h"
+
+#ifndef __ASSEMBLY__
+# include <asm/cdef_LPBlackfin.h>
+# include "cdefBF532.h"
 #endif
 
-#endif				/* _MACH_BLACKFIN_H_ */
+#endif

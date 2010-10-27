@@ -1,18 +1,11 @@
 /*
- * Copyright 2008 Analog Devices Inc.
+ * Copyright 2008-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later
  */
 
 #ifndef _CDEF_BF52X_H
 #define _CDEF_BF52X_H
-
-#include <asm/blackfin.h>
-
-#include "defBF51x_base.h"
-
-/* Include core specific register pointer definitions 								*/
-#include <asm/cdef_LPBlackfin.h>
 
 /* ==== begin from cdefBF534.h ==== */
 

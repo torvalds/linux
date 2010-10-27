@@ -1,14 +1,11 @@
 /*
- * Copyright 2005-2008 Analog Devices Inc.
+ * Copyright 2005-2010 Analog Devices Inc.
  *
  * Licensed under the ADI BSD license or the GPL-2 (or later)
  */
 
 #ifndef _DEF_BF534_H
 #define _DEF_BF534_H
-
-/* Include all Core registers and bit definitions */
-#include <asm/def_LPBlackfin.h>
 
 /************************************************************************************
 ** System MMR Register Map

@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2009 Analog Devices Inc.
+ * Copyright 2005-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -10,11 +10,14 @@
 #define BF561_FAMILY
 
 #include "bf561.h"
-#include "defBF561.h"
 #include "anomaly.h"
 
-#if !defined(__ASSEMBLY__)
-#include "cdefBF561.h"
+#include <asm/def_LPBlackfin.h>
+#include "defBF561.h"
+
+#ifndef __ASSEMBLY__
+# include <asm/cdef_LPBlackfin.h>
+# include "cdefBF561.h"
 #endif
 
 #define bfin_read_FIO_FLAG_D() bfin_read_FIO0_FLAG_D()
