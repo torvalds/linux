@@ -786,7 +786,6 @@ static int __devinit iTCO_wdt_init(struct pci_dev *pdev,
 		/* Something's wrong here, ACPIBASE has to be set */
 		printk(KERN_ERR PFX "failed to get TCOBASE address, "
 					"device disabled by hardware/BIOS\n");
-		pci_dev_put(pdev);
 		return -ENODEV;
 	}
 	iTCO_wdt_private.iTCO_version =
@@ -886,7 +885,6 @@ out_unmap:
 	if (iTCO_wdt_private.iTCO_version == 2)
 		iounmap(iTCO_wdt_private.gcs);
 out:
-	pci_dev_put(iTCO_wdt_private.pdev);
 	iTCO_wdt_private.ACPIBASE = 0;
 	return ret;
 }
