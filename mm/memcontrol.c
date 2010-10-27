@@ -1485,7 +1485,8 @@ void mem_cgroup_update_file_mapped(struct page *page, int val)
 		SetPageCgroupFileMapped(pc);
 	} else {
 		__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-		ClearPageCgroupFileMapped(pc);
+		if (!page_mapped(page)) /* for race between dec->inc counter */
+			ClearPageCgroupFileMapped(pc);
 	}
 
 done:
