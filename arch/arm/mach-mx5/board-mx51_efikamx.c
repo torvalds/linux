@@ -56,6 +56,10 @@
 #define EFIKAMX_SPI_CS0		(3*32 + 24)
 #define EFIKAMX_SPI_CS1		(3*32 + 25)
 
+/* board 1.1 doesn't have same reset gpio */
+#define EFIKAMX_RESET1_1	(2*32 + 2)
+#define EFIKAMX_RESET		(0*32 + 4)
+
 /* the pci ids pin have pull up. they're driven low according to board id */
 #define MX51_PAD_PCBID0	IOMUX_PAD(0x518, 0x130, 3, 0x0,   0, PAD_CTL_PUS_100K_UP)
 #define MX51_PAD_PCBID1	IOMUX_PAD(0x51C, 0x134, 3, 0x0,   0, PAD_CTL_PUS_100K_UP)
@@ -110,6 +114,10 @@ static iomux_v3_cfg_t mx51efikamx_pads[] = {
 	MX51_PAD_CSPI1_SS1__GPIO_4_25,
 	MX51_PAD_CSPI1_RDY__ECSPI1_RDY,
 	MX51_PAD_CSPI1_SCLK__ECSPI1_SCLK,
+
+	/* reset */
+	MX51_PAD_DI1_PIN13__GPIO_3_2,
+	MX51_PAD_GPIO_1_4__GPIO_1_4,
 };
 
 /* Serial ports */
@@ -296,6 +304,14 @@ static const struct spi_imx_master mx51_efikamx_spi_pdata __initconst = {
 	.num_chipselect = ARRAY_SIZE(mx51_efikamx_spi_cs),
 };
 
+void mx51_efikamx_reset(void)
+{
+	if (system_rev == 0x11)
+		gpio_direction_output(EFIKAMX_RESET1_1, 0);
+	else
+		gpio_direction_output(EFIKAMX_RESET, 0);
+}
+
 static void __init mxc_board_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx51efikamx_pads,
@@ -317,6 +333,14 @@ static void __init mxc_board_init(void)
 	spi_register_board_info(mx51_efikamx_spi_board_info,
 		ARRAY_SIZE(mx51_efikamx_spi_board_info));
 	imx51_add_ecspi(0, &mx51_efikamx_spi_pdata);
+
+	if (system_rev == 0x11) {
+		gpio_request(EFIKAMX_RESET1_1, "reset");
+		gpio_direction_output(EFIKAMX_RESET1_1, 1);
+	} else {
+		gpio_request(EFIKAMX_RESET, "reset");
+		gpio_direction_output(EFIKAMX_RESET, 1);
+	}
 }
 
 static void __init mx51_efikamx_timer_init(void)

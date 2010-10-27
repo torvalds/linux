@@ -50,5 +50,5 @@ extern void mxc_arch_reset_init(void __iomem *);
 extern void mxc91231_power_off(void);
 extern void mxc91231_arch_reset(int, const char *);
 extern void mxc91231_prepare_idle(void);
-
+extern void mx51_efikamx_reset(void);
 #endif
