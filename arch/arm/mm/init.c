@@ -148,14 +148,13 @@ static void __init find_limits(struct meminfo *mi,
 	}
 }
 
-static void __init arm_bootmem_init(struct meminfo *mi,
-	unsigned long start_pfn, unsigned long end_pfn)
+static void __init arm_bootmem_init(unsigned long start_pfn,
+	unsigned long end_pfn)
 {
 	struct memblock_region *reg;
 	unsigned int boot_pages;
 	phys_addr_t bitmap;
 	pg_data_t *pgdat;
-	int i;
 
 	/*
 	 * Allocate the bootmem bitmap page.  This must be in a region
@@ -173,22 +172,31 @@ static void __init arm_bootmem_init(struct meminfo *mi,
 	pgdat = NODE_DATA(0);
 	init_bootmem_node(pgdat, __phys_to_pfn(bitmap), start_pfn, end_pfn);
 
-	for_each_bank(i, mi) {
-		struct membank *bank = &mi->bank[i];
-		if (!bank->highmem)
-			free_bootmem(bank_phys_start(bank), bank_phys_size(bank));
+	/* Free the lowmem regions from memblock into bootmem. */
+	for_each_memblock(memory, reg) {
+		unsigned long start = memblock_region_memory_base_pfn(reg);
+		unsigned long end = memblock_region_memory_end_pfn(reg);
+
+		if (end >= end_pfn)
+			end = end_pfn;
+		if (start >= end)
+			break;
+
+		free_bootmem(__pfn_to_phys(start), (end - start) << PAGE_SHIFT);
 	}
 
-	/*
-	 * Reserve the memblock reserved regions in bootmem.
-	 */
+	/* Reserve the lowmem memblock reserved regions in bootmem. */
 	for_each_memblock(reserved, reg) {
-		phys_addr_t start = memblock_region_reserved_base_pfn(reg);
-		phys_addr_t end = memblock_region_reserved_end_pfn(reg);
-		if (start >= start_pfn && end <= end_pfn)
-			reserve_bootmem_node(pgdat, __pfn_to_phys(start),
-					     (end - start) << PAGE_SHIFT,
-					     BOOTMEM_DEFAULT);
+		unsigned long start = memblock_region_reserved_base_pfn(reg);
+		unsigned long end = memblock_region_reserved_end_pfn(reg);
+
+		if (end >= end_pfn)
+			end = end_pfn;
+		if (start >= end)
+			break;
+
+		reserve_bootmem(__pfn_to_phys(start),
+			        (end - start) << PAGE_SHIFT, BOOTMEM_DEFAULT);
 	}
 }
 
@@ -316,7 +324,7 @@ void __init bootmem_init(void)
 
 	find_limits(mi, &min, &max_low, &max_high);
 
-	arm_bootmem_init(mi, min, max_low);
+	arm_bootmem_init(min, max_low);
 
 	/*
 	 * Sparsemem tries to allocate bootmem in memory_present(),
