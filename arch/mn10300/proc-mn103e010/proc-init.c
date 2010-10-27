@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <asm/fpu.h>
 #include <asm/rtc.h>
+#include <asm/busctl-regs.h>
 
 /*
  * initialise the on-silicon processor peripherals
@@ -74,4 +75,38 @@ asmlinkage void __init processor_init(void)
 	TM11MD	= 0;
 
 	calibrate_clock();
+}
+
+/*
+ * determine the memory size and base from the memory controller regs
+ */
+void __init get_mem_info(unsigned long *mem_base, unsigned long *mem_size)
+{
+	unsigned long base, size;
+
+	*mem_base = 0;
+	*mem_size = 0;
+
+	base = SDBASE(0);
+	if (base & SDBASE_CE) {
+		size = (base & SDBASE_CBAM) << SDBASE_CBAM_SHIFT;
+		size = ~size + 1;
+		base &= SDBASE_CBA;
+
+		printk(KERN_INFO "SDRAM[0]: %luMb @%08lx\n", size >> 20, base);
+		*mem_size += size;
+		*mem_base = base;
+	}
+
+	base = SDBASE(1);
+	if (base & SDBASE_CE) {
+		size = (base & SDBASE_CBAM) << SDBASE_CBAM_SHIFT;
+		size = ~size + 1;
+		base &= SDBASE_CBA;
+
+		printk(KERN_INFO "SDRAM[1]: %luMb @%08lx\n", size >> 20, base);
+		*mem_size += size;
+		if (*mem_base == 0)
+			*mem_base = base;
+	}
 }

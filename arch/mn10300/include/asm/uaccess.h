@@ -377,7 +377,7 @@ unsigned long __generic_copy_to_user_nocheck(void *to, const void *from,
 
 
 #if 0
-#error don't use - these macros don't increment to & from pointers
+#error "don't use - these macros don't increment to & from pointers"
 /* Optimize just a little bit when we know the size of the move. */
 #define __constant_copy_user(to, from, size)	\
 do {						\

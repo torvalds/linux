@@ -13,6 +13,9 @@
 #define _ASM_IRQFLAGS_H
 
 #include <asm/cpu-regs.h>
+#ifndef __ASSEMBLY__
+#include <linux/smp.h>
+#endif
 
 /*
  * interrupt control
@@ -60,11 +63,12 @@ static inline unsigned long arch_local_irq_save(void)
 /*
  * we make sure arch_irq_enable() doesn't cause priority inversion
  */
-extern unsigned long __mn10300_irq_enabled_epsw;
+extern unsigned long __mn10300_irq_enabled_epsw[];
 
 static inline void arch_local_irq_enable(void)
 {
 	unsigned long tmp;
+	int cpu = raw_smp_processor_id();
 
 	asm volatile(
 		"	mov	epsw,%0		\n"
@@ -72,8 +76,8 @@ static inline void arch_local_irq_enable(void)
 		"	or	%2,%0		\n"
 		"	mov	%0,epsw		\n"
 		: "=&d"(tmp)
-		: "i"(~EPSW_IM), "r"(__mn10300_irq_enabled_epsw)
-		: "memory");
+		: "i"(~EPSW_IM), "r"(__mn10300_irq_enabled_epsw[cpu])
+		: "memory", "cc");
 }
 
 static inline void arch_local_irq_restore(unsigned long flags)
@@ -105,6 +109,9 @@ static inline bool arch_irqs_disabled(void)
  */
 static inline void arch_safe_halt(void)
 {
+#ifdef CONFIG_SMP
+	arch_local_irq_enable();
+#else
 	asm volatile(
 		"	or	%0,epsw	\n"
 		"	nop		\n"
@@ -113,7 +120,20 @@ static inline void arch_safe_halt(void)
 		:
 		: "i"(EPSW_IE|EPSW_IM), "n"(&CPUM), "i"(CPUM_SLEEP)
 		: "cc");
+#endif
 }
+
+#define __sleep_cpu()				\
+do {						\
+	asm volatile(				\
+		"	bset	%1,(%0)\n"	\
+		"1:	btst	%1,(%0)\n"	\
+		"	bne	1b\n"		\
+		:				\
+		: "i"(&CPUM), "i"(CPUM_SLEEP)	\
+		: "cc"				\
+		);				\
+} while (0)
 
 static inline void arch_local_cli(void)
 {

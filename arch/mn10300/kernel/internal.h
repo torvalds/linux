@@ -18,3 +18,15 @@ extern int kernel_thread_helper(int);
  * entry.S
  */
 extern void ret_from_fork(struct task_struct *) __attribute__((noreturn));
+
+/*
+ * smp-low.S
+ */
+#ifdef CONFIG_SMP
+extern void mn10300_low_ipi_handler(void);
+#endif
+
+/*
+ * time.c
+ */
+extern irqreturn_t local_timer_interrupt(void);

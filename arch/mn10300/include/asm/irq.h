@@ -22,7 +22,11 @@
 #define NO_IRQ		INT_MAX
 
 /* hardware irq numbers */
+#ifdef CONFIG_SMP
+#define NR_IRQS		GxICR_NUM_EXT_IRQS
+#else
 #define NR_IRQS		GxICR_NUM_IRQS
+#endif
 
 /* external hardware irq numbers */
 #define NR_XIRQS	GxICR_NUM_XIRQS

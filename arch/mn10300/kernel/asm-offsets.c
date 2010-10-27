@@ -66,7 +66,7 @@ void foo(void)
 	OFFSET(THREAD_SP,		thread_struct, sp);
 	OFFSET(THREAD_A3,		thread_struct, a3);
 	OFFSET(THREAD_USP,		thread_struct, usp);
-	OFFSET(THREAD_FRAME,		thread_struct, __frame);
+	OFFSET(THREAD_FRAME,		thread_struct, frame);
 #ifdef CONFIG_FPU
 	OFFSET(THREAD_FPU_FLAGS,	thread_struct, fpu_flags);
 	OFFSET(THREAD_FPU_STATE,	thread_struct, fpu_state);

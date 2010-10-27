@@ -33,6 +33,8 @@ struct mm_struct;
 	__pc;					\
 })
 
+extern void get_mem_info(unsigned long *mem_base, unsigned long *mem_size);
+
 extern void show_registers(struct pt_regs *regs);
 
 /*
@@ -43,17 +45,22 @@ extern void show_registers(struct pt_regs *regs);
 
 struct mn10300_cpuinfo {
 	int		type;
-	unsigned long	loops_per_sec;
+	unsigned long	loops_per_jiffy;
 	char		hard_math;
-	unsigned long	*pgd_quick;
-	unsigned long	*pte_quick;
-	unsigned long	pgtable_cache_sz;
 };
 
 extern struct mn10300_cpuinfo boot_cpu_data;
 
+#ifdef CONFIG_SMP
+#if CONFIG_NR_CPUS < 2 || CONFIG_NR_CPUS > 8
+# error Sorry, NR_CPUS should be 2 to 8
+#endif
+extern struct mn10300_cpuinfo cpu_data[];
+#define current_cpu_data cpu_data[smp_processor_id()]
+#else  /* CONFIG_SMP */
 #define cpu_data &boot_cpu_data
 #define current_cpu_data boot_cpu_data
+#endif /* CONFIG_SMP */
 
 extern void identify_cpu(struct mn10300_cpuinfo *);
 extern void print_cpu_info(struct mn10300_cpuinfo *);
@@ -92,21 +99,21 @@ struct thread_struct {
 	unsigned long		a3;		/* kernel FP */
 	unsigned long		wchan;
 	unsigned long		usp;
-	struct pt_regs		*__frame;
+	struct pt_regs		*frame;
 	unsigned long		fpu_flags;
 #define THREAD_USING_FPU	0x00000001	/* T if this task is using the FPU */
 #define THREAD_HAS_FPU		0x00000002	/* T if this task owns the FPU right now */
 	struct fpu_state_struct	fpu_state;
 };
 
-#define INIT_THREAD				\
-{						\
-	.uregs		= init_uregs,		\
-	.pc		= 0,			\
-	.sp		= 0,			\
-	.a3		= 0,			\
-	.wchan		= 0,			\
-	.__frame	= NULL,			\
+#define INIT_THREAD		\
+{				\
+	.uregs	= init_uregs,	\
+	.pc	= 0,		\
+	.sp	= 0,		\
+	.a3	= 0,		\
+	.wchan	= 0,		\
+	.frame	= NULL,		\
 }
 
 #define INIT_MMAP \
@@ -118,6 +125,19 @@ struct thread_struct {
  * - need to discard the frame stacked by the kernel thread invoking the execve
  *   syscall (see RESTORE_ALL macro)
  */
+#if defined(CONFIG_SMP) && defined(CONFIG_PREEMPT) /* FIXME */
+#define start_thread(regs, new_pc, new_sp) do {		\
+	int cpu;					\
+	preempt_disable();				\
+	cpu = CPUID;					\
+	set_fs(USER_DS);				\
+	___frame[cpu] = current->thread.uregs;		\
+	___frame[cpu]->epsw = EPSW_nSL | EPSW_IE | EPSW_IM;\
+	___frame[cpu]->pc = new_pc;			\
+	___frame[cpu]->sp = new_sp;			\
+	preempt_enable();				\
+} while (0)
+#else  /* CONFIG_SMP && CONFIG_PREEMPT */
 #define start_thread(regs, new_pc, new_sp) do {		\
 	set_fs(USER_DS);				\
 	__frame = current->thread.uregs;		\
@@ -125,6 +145,7 @@ struct thread_struct {
 	__frame->pc = new_pc;				\
 	__frame->sp = new_sp;				\
 } while (0)
+#endif /* CONFIG_SMP && CONFIG_PREEMPT */
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);

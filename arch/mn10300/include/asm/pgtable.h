@@ -90,9 +90,15 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
  * The vmalloc() routines also leaves a hole of 4kB between each vmalloced
  * area to catch addressing errors.
  */
+#ifndef __ASSEMBLY__
+#define VMALLOC_OFFSET	(8UL * 1024 * 1024)
+#define VMALLOC_START	(0x70000000UL)
+#define VMALLOC_END	(0x7C000000UL)
+#else
 #define VMALLOC_OFFSET	(8 * 1024 * 1024)
 #define VMALLOC_START	(0x70000000)
 #define VMALLOC_END	(0x7C000000)
+#endif
 
 #ifndef __ASSEMBLY__
 extern pte_t kernel_vmalloc_ptes[(VMALLOC_END - VMALLOC_START) / PAGE_SIZE];
@@ -329,11 +335,7 @@ static inline int pte_exec_kernel(pte_t pte)
 	return 1;
 }
 
-/*
- * Bits 0 and 1 are taken, split up the 29 bits of offset
- * into this range:
- */
-#define PTE_FILE_MAX_BITS	29
+#define PTE_FILE_MAX_BITS	30
 
 #define pte_to_pgoff(pte)	(pte_val(pte) >> 2)
 #define pgoff_to_pte(off)	__pte((off) << 2 | _PAGE_FILE)
@@ -379,8 +381,13 @@ static inline void ptep_mkdirty(pte_t *ptep)
  * Macro to mark a page protection value as "uncacheable".  On processors which
  * do not support it, this is a no-op.
  */
-#define pgprot_noncached(prot)	__pgprot(pgprot_val(prot) | _PAGE_CACHE)
+#define pgprot_noncached(prot)	__pgprot(pgprot_val(prot) & ~_PAGE_CACHE)
 
+/*
+ * Macro to mark a page protection value as "Write-Through".
+ * On processors which do not support it, this is a no-op.
+ */
+#define pgprot_through(prot)	__pgprot(pgprot_val(prot) | _PAGE_CACHE_WT)
 
 /*
  * Conversion functions: convert a page and protection to a page entry,

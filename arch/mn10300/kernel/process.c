@@ -57,6 +57,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
+#if !defined(CONFIG_SMP) || defined(CONFIG_HOTPLUG_CPU)
 /*
  * we use this if we don't have any better idle routine
  */
@@ -69,6 +70,35 @@ static void default_idle(void)
 		local_irq_enable();
 }
 
+#else /* !CONFIG_SMP || CONFIG_HOTPLUG_CPU  */
+/*
+ * On SMP it's slightly faster (but much more power-consuming!)
+ * to poll the ->work.need_resched flag instead of waiting for the
+ * cross-CPU IPI to arrive. Use this option with caution.
+ */
+static inline void poll_idle(void)
+{
+	int oldval;
+
+	local_irq_enable();
+
+	/*
+	 * Deal with another CPU just having chosen a thread to
+	 * run here:
+	 */
+	oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
+
+	if (!oldval) {
+		set_thread_flag(TIF_POLLING_NRFLAG);
+		while (!need_resched())
+			cpu_relax();
+		clear_thread_flag(TIF_POLLING_NRFLAG);
+	} else {
+		set_need_resched();
+	}
+}
+#endif /* !CONFIG_SMP || CONFIG_HOTPLUG_CPU */
+
 /*
  * the idle thread
  * - there's no useful work to be done, so just try to conserve power and have
@@ -77,8 +107,6 @@ static void default_idle(void)
  */
 void cpu_idle(void)
 {
-	int cpu = smp_processor_id();
-
 	/* endless idle loop with no priority at all */
 	for (;;) {
 		while (!need_resched()) {
@@ -86,8 +114,13 @@ void cpu_idle(void)
 
 			smp_rmb();
 			idle = pm_idle;
-			if (!idle)
+			if (!idle) {
+#if defined(CONFIG_SMP) && !defined(CONFIG_HOTPLUG_CPU)
+				idle = poll_idle;
+#else  /* CONFIG_SMP && !CONFIG_HOTPLUG_CPU */
 				idle = default_idle;
+#endif /* CONFIG_SMP && !CONFIG_HOTPLUG_CPU */
+			}
 			idle();
 		}
 
@@ -233,7 +266,7 @@ int copy_thread(unsigned long clone_flags,
 	}
 
 	/* set up things up so the scheduler can start the new task */
-	p->thread.__frame = c_kregs;
+	p->thread.frame = c_kregs;
 	p->thread.a3	= (unsigned long) c_kregs;
 	p->thread.sp	= c_ksp;
 	p->thread.pc	= (unsigned long) ret_from_fork;

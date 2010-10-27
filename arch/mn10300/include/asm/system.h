@@ -12,6 +12,7 @@
 #define _ASM_SYSTEM_H
 
 #include <asm/cpu-regs.h>
+#include <asm/intctl-regs.h>
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
@@ -57,8 +58,6 @@ do {									\
 
 #define nop() asm volatile ("nop")
 
-#endif /* !__ASSEMBLY__ */
-
 /*
  * Force strict CPU ordering.
  * And yes, this is required on UP too when we're talking
@@ -85,17 +84,19 @@ do {									\
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
 #define smp_wmb()	wmb()
-#else
+#define set_mb(var, value)  do { xchg(&var, value); } while (0)
+#else  /* CONFIG_SMP */
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()
 #define smp_wmb()	barrier()
-#endif
-
 #define set_mb(var, value)  do { var = value;  mb(); } while (0)
+#endif /* CONFIG_SMP */
+
 #define set_wmb(var, value) do { var = value; wmb(); } while (0)
 
 #define read_barrier_depends()		do {} while (0)
 #define smp_read_barrier_depends()	do {} while (0)
 
+#endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_SYSTEM_H */

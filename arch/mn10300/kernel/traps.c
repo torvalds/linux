@@ -45,8 +45,13 @@
 #error "INTERRUPT_VECTOR_BASE not aligned to 16MiB boundary!"
 #endif
 
+#ifdef CONFIG_SMP
+struct pt_regs *___frame[NR_CPUS]; /* current frame pointer */
+EXPORT_SYMBOL(___frame);
+#else  /* CONFIG_SMP */
 struct pt_regs *__frame; /* current frame pointer */
 EXPORT_SYMBOL(__frame);
+#endif /* CONFIG_SMP */
 
 int kstack_depth_to_print = 24;
 
@@ -221,11 +226,14 @@ void show_registers_only(struct pt_regs *regs)
 	printk(KERN_EMERG "threadinfo=%p task=%p)\n",
 	       current_thread_info(), current);
 
-	if ((unsigned long) current >= 0x90000000UL &&
-	    (unsigned long) current < 0x94000000UL)
+	if ((unsigned long) current >= PAGE_OFFSET &&
+	    (unsigned long) current < (unsigned long)high_memory)
 		printk(KERN_EMERG "Process %s (pid: %d)\n",
 		       current->comm, current->pid);
 
+#ifdef CONFIG_SMP
+	printk(KERN_EMERG "CPUID:  %08x\n", CPUID);
+#endif
 	printk(KERN_EMERG "CPUP:   %04hx\n", CPUP);
 	printk(KERN_EMERG "TBR:    %08x\n", TBR);
 	printk(KERN_EMERG "DEAR:   %08x\n", DEAR);
@@ -521,8 +529,12 @@ void __init set_intr_stub(enum exception_code code, void *handler)
 {
 	unsigned long addr;
 	u8 *vector = (u8 *)(CONFIG_INTERRUPT_VECTOR_BASE + code);
+	unsigned long flags;
 
 	addr = (unsigned long) handler - (unsigned long) vector;
+
+	flags = arch_local_cli_save();
+
 	vector[0] = 0xdc;		/* JMP handler */
 	vector[1] = addr;
 	vector[2] = addr >> 8;
@@ -531,6 +543,8 @@ void __init set_intr_stub(enum exception_code code, void *handler)
 	vector[5] = 0xcb;
 	vector[6] = 0xcb;
 	vector[7] = 0xcb;
+
+	arch_local_irq_restore(flags);
 
 #ifndef CONFIG_MN10300_CACHE_SNOOP
 	mn10300_dcache_flush_inv();

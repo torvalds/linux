@@ -22,12 +22,7 @@
 #include <asm/processor.h>
 #include <asm/intctl-regs.h>
 #include <asm/rtc.h>
-
-#ifdef CONFIG_MN10300_RTC
-unsigned long mn10300_ioclk;		/* system I/O clock frequency */
-unsigned long mn10300_iobclk;		/* system I/O clock frequency */
-unsigned long mn10300_tsc_per_HZ;	/* number of ioclks per jiffy */
-#endif /* CONFIG_MN10300_RTC */
+#include "internal.h"
 
 static unsigned long mn10300_last_tsc;	/* time-stamp counter at last time
 					 * interrupt occurred */
@@ -95,6 +90,19 @@ static void __init mn10300_sched_clock_init(void)
 		__muldiv64u(NSEC_PER_SEC, 1 << 16, MN10300_TSCCLK);
 }
 
+/**
+ * local_timer_interrupt - Local timer interrupt handler
+ *
+ * Handle local timer interrupts for this CPU.  They may have been propagated
+ * to this CPU from the CPU that actually gets them by way of an IPI.
+ */
+irqreturn_t local_timer_interrupt(void)
+{
+	profile_tick(CPU_PROFILING);
+	update_process_times(user_mode(get_irq_regs()));
+	return IRQ_HANDLED;
+}
+
 /*
  * advance the kernel's time keeping clocks (xtime and jiffies)
  * - we use Timer 0 & 1 cascaded as a clock to nudge us the next time
@@ -103,6 +111,7 @@ static void __init mn10300_sched_clock_init(void)
 static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	unsigned tsc, elapse;
+	irqreturn_t ret;
 
 	write_seqlock(&xtime_lock);
 
@@ -114,15 +123,16 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 		mn10300_last_tsc -= MN10300_TSC_PER_HZ;
 
 		/* advance the kernel's time tracking system */
-		profile_tick(CPU_PROFILING);
 		do_timer(1);
 	}
 
 	write_sequnlock(&xtime_lock);
 
-	update_process_times(user_mode(get_irq_regs()));
-
-	return IRQ_HANDLED;
+	ret = local_timer_interrupt();
+#ifdef CONFIG_SMP
+	send_IPI_allbutself(LOCAL_TIMER_IPI);
+#endif
+	return ret;
 }
 
 /*
@@ -148,7 +158,7 @@ void __init time_init(void)
 	/* use timer 0 & 1 cascaded to tick at as close to HZ as possible */
 	setup_irq(TMJCIRQ, &timer_irq);
 
-	set_intr_level(TMJCIRQ, TMJCICR_LEVEL);
+	set_intr_level(TMJCIRQ, NUM2GxICR_LEVEL(CONFIG_TIMER_IRQ_LEVEL));
 
 	startup_jiffies_counter();
 

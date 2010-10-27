@@ -15,10 +15,28 @@
 #include <linux/linkage.h>
 #include <asm/cpu-regs.h>
 #include <asm/cache.h>
+#ifdef CONFIG_SMP
+#include <proc/smp-regs.h>
+#endif
 
 	.globl startup_32
 startup_32:
-	# first save off parameters from bootloader
+#ifdef CONFIG_SMP
+	#
+	# Secondary CPUs jump directly to the kernel entry point
+	#
+	# Must save primary CPU's D0-D2 registers as they hold boot parameters
+	#
+	mov	(CPUID), d3
+	and	CPUID_MASK,d3
+	beq	startup_primary
+	mov	CONFIG_KERNEL_TEXT_ADDRESS,a0
+	jmp	(a0)
+
+startup_primary:
+#endif /* CONFIG_SMP */
+
+	# first save parameters from bootloader
 	mov	param_save_area,a0
 	mov	d0,(a0)
 	mov	d1,(4,a0)

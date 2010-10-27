@@ -16,8 +16,7 @@
 
 #define TICK_SIZE (tick_nsec / 1000)
 
-#define CLOCK_TICK_RATE 1193180 /* Underlying HZ - this should probably be set
-				 * to something appropriate, but what? */
+#define CLOCK_TICK_RATE MN10300_JCCLK /* Underlying HZ */
 
 extern cycles_t cacheflush_time;
 

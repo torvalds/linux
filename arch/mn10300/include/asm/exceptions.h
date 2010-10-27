@@ -114,6 +114,8 @@ extern void die(const char *, struct pt_regs *, enum exception_code)
 
 extern int die_if_no_fixup(const char *, struct pt_regs *, enum exception_code);
 
+#define NUM2EXCEP_IRQ_LEVEL(num)	(EXCEP_IRQ_LEVEL0 + (num) * 8)
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_EXCEPTIONS_H */

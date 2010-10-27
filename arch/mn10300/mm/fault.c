@@ -39,10 +39,6 @@ void bust_spinlocks(int yes)
 {
 	if (yes) {
 		oops_in_progress = 1;
-#ifdef CONFIG_SMP
-		/* Many serial drivers do __global_cli() */
-		global_irq_lock = 0;
-#endif
 	} else {
 		int loglevel_save = console_loglevel;
 #ifdef CONFIG_VT
@@ -334,10 +330,10 @@ no_context:
  */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	if ((fault_code & MMUFCR_xFC_ACCESS) != MMUFCR_xFC_ACCESS_USR)
-		goto no_context;
-	pagefault_out_of_memory();
-	return;
+	printk(KERN_ALERT "VM: killing process %s\n", tsk->comm);
+	if ((fault_code & MMUFCR_xFC_ACCESS) == MMUFCR_xFC_ACCESS_USR)
+		do_exit(SIGKILL);
+	goto no_context;
 
 do_sigbus:
 	up_read(&mm->mmap_sem);

@@ -48,7 +48,7 @@ config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
 config GENERIC_CMOS_UPDATE
-        def_bool y
+        def_bool n
 
 config GENERIC_FIND_NEXT_BIT
 	def_bool y
@@ -72,10 +72,6 @@ config GENERIC_HARDIRQS
 config HOTPLUG_CPU
 	def_bool n
 
-config HZ
-	int
-	default 1000
-
 mainmenu "Matsushita MN10300/AM33 Kernel Configuration"
 
 source "init/Kconfig"
@@ -98,6 +94,9 @@ config MN10300_UNIT_ASB2303
 config MN10300_UNIT_ASB2305
 	bool "ASB2305"
 
+config MN10300_UNIT_ASB2364
+	bool "ASB2364"
+
 endchoice
 
 choice
@@ -115,17 +114,13 @@ config MN10300_PROC_MN103E010
 	select MN10300_PROC_HAS_TTYSM1
 	select MN10300_PROC_HAS_TTYSM2
 
-endchoice
-
-choice
-	prompt "Processor core support"
-	default MN10300_CPU_AM33V2
-	help
-	  This option specifies the processor core for which the kernel will be
-	  compiled. It affects the instruction set used.
-
-config MN10300_CPU_AM33V2
-	bool "AM33v2"
+config MN10300_PROC_MN2WS0050
+	bool "MN2WS0050"
+	depends on MN10300_UNIT_ASB2364
+	select AM34_2
+	select MN10300_PROC_HAS_TTYSM0
+	select MN10300_PROC_HAS_TTYSM1
+	select MN10300_PROC_HAS_TTYSM2
 
 endchoice
 
@@ -138,7 +133,7 @@ config MN10300_HAS_ATOMIC_OPS_UNIT
 config FPU
 	bool "FPU present"
 	default y
-	depends on MN10300_PROC_MN103E010
+	depends on MN10300_PROC_MN103E010 || MN10300_PROC_MN2WS0050
 
 config LAZY_SAVE_FPU
 	bool "Save FPU state lazily"
@@ -179,24 +174,55 @@ config KERNEL_TEXT_ADDRESS
 
 config KERNEL_ZIMAGE_BASE_ADDRESS
 	hex "Base address of compressed vmlinux image"
-	default "0x90700000"
+	default "0x50700000"
 
+config BOOT_STACK_OFFSET
+	hex
+	default	"0xF00"	if SMP
+	default	"0xFF0" if !SMP
+
+config BOOT_STACK_SIZE
+	hex
+	depends on SMP
+	default	"0x100"
 endmenu
 
-config PREEMPT
-	bool "Preemptible Kernel"
-	help
-	  This option reduces the latency of the kernel when reacting to
-	  real-time or interactive events by allowing a low priority process to
-	  be preempted even if it is in kernel mode executing a system call.
-	  This allows applications to run more reliably even when the system is
-	  under load.
+config SMP
+	bool "Symmetric multi-processing support"
+	default y
+	depends on MN10300_PROC_MN2WS0038 || MN10300_PROC_MN2WS0050
+	---help---
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, like most personal computers, say N. If
+	  you have a system with more than one CPU, say Y.
 
-	  Say Y here if you are building a kernel for a desktop, embedded
-	  or real-time system.  Say N if you are unsure.
+	  If you say N here, the kernel will run on single and multiprocessor
+	  machines, but will use only one CPU of a multiprocessor machine. If
+	  you say Y here, the kernel will run on many, but not all,
+	  singleprocessor machines. On a singleprocessor machine, the kernel
+	  will run faster if you say N here.
+
+	  See also <file:Documentation/i386/IO-APIC.txt>,
+	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  If you don't know what to do here, say N.
+
+config NR_CPUS
+	int
+	depends on SMP
+	default "2"
+
+config USE_GENERIC_SMP_HELPERS
+	bool
+	depends on SMP
+	default y
+
+source "kernel/Kconfig.preempt"
 
 config MN10300_CURRENT_IN_E2
 	bool "Hold current task address in E2 register"
+	depends on !SMP
 	default y
 	help
 	  This option removes the E2/R2 register from the set available to gcc
@@ -218,12 +244,14 @@ config MN10300_USING_JTAG
 	  suppresses the use of certain hardware debugging features, such as
 	  single-stepping, which are taken over completely by the JTAG unit.
 
+source "kernel/Kconfig.hz"
+
 config MN10300_RTC
 	bool "Using MN10300 RTC"
-	depends on MN10300_PROC_MN103E010
+	depends on MN10300_PROC_MN103E010 || MN10300_PROC_MN2WS0050
+	select GENERIC_CMOS_UPDATE
 	default n
 	help
-
 	  This option enables support for the RTC, thus enabling time to be
 	  tracked, even when system is powered down. This is available on-chip
 	  on the MN103E010.
@@ -315,14 +343,23 @@ config MN10300_TTYSM1
 
 choice
 	prompt "Select the timer to supply the clock for SIF1"
-	default MN10300_TTYSM0_TIMER9
+	default MN10300_TTYSM1_TIMER12 \
+		if !(AM33_2 || AM33_3)
+	default MN10300_TTYSM1_TIMER9 \
+		if AM33_2 || AM33_3
 	depends on MN10300_TTYSM1
+
+config MN10300_TTYSM1_TIMER12
+	bool "Use timer 12 (16-bit)"
+	depends on !(AM33_2 || AM33_3)
 
 config MN10300_TTYSM1_TIMER9
 	bool "Use timer 9 (16-bit)"
+	depends on AM33_2 || AM33_3
 
 config MN10300_TTYSM1_TIMER3
 	bool "Use timer 3 (8-bit)"
+	depends on AM33_2 || AM33_3
 
 endchoice
 
@@ -337,17 +374,33 @@ config MN10300_TTYSM2
 
 choice
 	prompt "Select the timer to supply the clock for SIF2"
-	default MN10300_TTYSM0_TIMER10
+	default MN10300_TTYSM2_TIMER3 \
+		if !(AM33_2 || AM33_3)
+	default MN10300_TTYSM2_TIMER10 \
+		if AM33_2 || AM33_3
 	depends on MN10300_TTYSM2
+
+config MN10300_TTYSM2_TIMER9
+	bool "Use timer 9 (16-bit)"
+	depends on !(AM33_2 || AM33_3)
+
+config MN10300_TTYSM2_TIMER1
+	bool "Use timer 1 (8-bit)"
+	depends on !(AM33_2 || AM33_3)
+
+config MN10300_TTYSM2_TIMER3
+	bool "Use timer 3 (8-bit)"
+	depends on !(AM33_2 || AM33_3)
 
 config MN10300_TTYSM2_TIMER10
 	bool "Use timer 10 (16-bit)"
+	depends on AM33_2 || AM33_3
 
 endchoice
 
 config MN10300_TTYSM2_CTS
 	bool "Enable the use of the CTS line /dev/ttySM2"
-	depends on MN10300_TTYSM2
+	depends on MN10300_TTYSM2 && AM33_2
 
 endmenu
 
