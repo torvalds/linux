@@ -47,6 +47,7 @@ long arch_ptrace(struct task_struct *child, long request,
 {
 	int i, ret;
 	unsigned long __user *p = (void __user *)data;
+	void __user *vp = p;
 
 	switch (request) {
 	/* read word at location addr. */
@@ -108,24 +109,20 @@ long arch_ptrace(struct task_struct *child, long request,
 #endif
 #ifdef PTRACE_GETFPREGS
 	case PTRACE_GETFPREGS: /* Get the child FPU state. */
-		ret = get_fpregs((struct user_i387_struct __user *) data,
-				 child);
+		ret = get_fpregs(vp, child);
 		break;
 #endif
 #ifdef PTRACE_SETFPREGS
 	case PTRACE_SETFPREGS: /* Set the child FPU state. */
-	        ret = set_fpregs((struct user_i387_struct __user *) data,
-				 child);
+		ret = set_fpregs(vp, child);
 		break;
 #endif
 	case PTRACE_GET_THREAD_AREA:
-		ret = ptrace_get_thread_area(child, addr,
-					     (struct user_desc __user *) data);
+		ret = ptrace_get_thread_area(child, addr, vp);
 		break;
 
 	case PTRACE_SET_THREAD_AREA:
-		ret = ptrace_set_thread_area(child, addr,
-					     (struct user_desc __user *) data);
+		ret = ptrace_set_thread_area(child, addr, datavp);
 		break;
 
 	case PTRACE_FAULTINFO: {
@@ -135,7 +132,8 @@ long arch_ptrace(struct task_struct *child, long request,
 		 * On i386, ptrace_faultinfo is smaller!
 		 */
 		ret = copy_to_user(p, &child->thread.arch.faultinfo,
-				   sizeof(struct ptrace_faultinfo));
+				   sizeof(struct ptrace_faultinfo)) ?
+			-EIO : 0;
 		break;
 	}
 
@@ -159,7 +157,7 @@ long arch_ptrace(struct task_struct *child, long request,
 #ifdef PTRACE_ARCH_PRCTL
 	case PTRACE_ARCH_PRCTL:
 		/* XXX Calls ptrace on the host - needs some SMP thinking */
-		ret = arch_prctl(child, data, (void *) addr);
+		ret = arch_prctl(child, data, (void __user *) addr);
 		break;
 #endif
 	default:
