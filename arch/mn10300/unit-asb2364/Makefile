@@ -7,4 +7,4 @@
 #
 # Note 2! The CFLAGS definitions are now in the main makefile...
 
-obj-y   := unit-init.o leds.o
+obj-y   := unit-init.o leds.o irq-fpga.o

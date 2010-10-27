@@ -20,6 +20,7 @@
 #include <asm/processor.h>
 #include <asm/irq.h>
 #include <asm/intctl-regs.h>
+#include <unit/fpga-regs.h>
 
 /*
  * initialise some of the unit hardware before gdbstub is set up
@@ -82,4 +83,6 @@ void __init unit_init_IRQ(void)
 
 #define IRQCTL	__SYSREG(0xd5000090, u32)
 	IRQCTL |= 0x02;
+
+	irq_fpga_init();
 }

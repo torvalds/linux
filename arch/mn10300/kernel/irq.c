@@ -381,9 +381,16 @@ int show_interrupts(struct seq_file *p, void *v)
 			seq_printf(p, "%3d: ", i);
 			for_each_present_cpu(cpu)
 				seq_printf(p, "%10u ", kstat_irqs_cpu(i, cpu));
-			seq_printf(p, " %14s.%u", irq_desc[i].chip->name,
-				   (GxICR(i) & GxICR_LEVEL) >>
-				   GxICR_LEVEL_SHIFT);
+
+			if (i < NR_CPU_IRQS)
+				seq_printf(p, " %14s.%u",
+					   irq_desc[i].chip->name,
+					   (GxICR(i) & GxICR_LEVEL) >>
+					   GxICR_LEVEL_SHIFT);
+			else
+				seq_printf(p, " %14s",
+					   irq_desc[i].chip->name);
+
 			seq_printf(p, "  %s", action->name);
 
 			for (action = action->next;
