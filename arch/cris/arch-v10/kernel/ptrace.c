@@ -76,7 +76,8 @@ ptrace_disable(struct task_struct *child)
  * (in user space) where the result of the ptrace call is written (instead of
  * being returned).
  */
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	int ret;
 	unsigned long __user *datap = (unsigned long __user *)data;
@@ -141,7 +142,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 					break;
 				}
 				
-				data += sizeof(long);
+				data += sizeof(unsigned long);
 			}
 
 			break;
@@ -165,7 +166,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				}
 				
 				put_reg(child, i, tmp);
-				data += sizeof(long);
+				data += sizeof(unsigned long);
 			}
 			
 			break;

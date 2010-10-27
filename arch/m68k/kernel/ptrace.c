@@ -156,7 +156,8 @@ void user_disable_single_step(struct task_struct *child)
 	singlestep_disable(child);
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	unsigned long tmp;
 	int i, ret = 0;
@@ -200,7 +201,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			 * into internal fpu reg representation
 			 */
 			if (FPU_IS_EMU && (addr < 45) && !(addr % 3)) {
-				data = (unsigned long)data << 15;
+				data <<= 15;
 				data = (data & 0xffff0000) |
 				       ((data & 0x0000ffff) >> 1);
 			}
@@ -215,7 +216,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = put_user(tmp, (unsigned long *)data);
 			if (ret)
 				break;
-			data += sizeof(long);
+			data += sizeof(unsigned long);
 		}
 		break;
 
@@ -229,7 +230,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				tmp |= get_reg(child, PT_SR) & ~SR_MASK;
 			}
 			put_reg(child, i, tmp);
-			data += sizeof(long);
+			data += sizeof(unsigned long);
 		}
 		break;
 

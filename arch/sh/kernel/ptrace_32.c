@@ -365,7 +365,8 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 	return &user_sh_native_view;
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	struct user * dummy = NULL;
 	unsigned long __user *datap = (unsigned long __user *)data;
@@ -383,17 +384,17 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 		if (addr < sizeof(struct pt_regs))
 			tmp = get_stack_long(child, addr);
-		else if (addr >= (long) &dummy->fpu &&
-			 addr < (long) &dummy->u_fpvalid) {
+		else if (addr >= (unsigned long) &dummy->fpu &&
+			 addr < (unsigned long) &dummy->u_fpvalid) {
 			if (!tsk_used_math(child)) {
-				if (addr == (long)&dummy->fpu.fpscr)
+				if (addr == (unsigned long)&dummy->fpu.fpscr)
 					tmp = FPSCR_INIT;
 				else
 					tmp = 0;
 			} else
-				tmp = ((long *)child->thread.xstate)
+				tmp = ((unsigned long *)child->thread.xstate)
 					[(addr - (long)&dummy->fpu) >> 2];
-		} else if (addr == (long) &dummy->u_fpvalid)
+		} else if (addr == (unsigned long) &dummy->u_fpvalid)
 			tmp = !!tsk_used_math(child);
 		else if (addr == PT_TEXT_ADDR)
 			tmp = child->mm->start_code;
@@ -417,13 +418,13 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 		if (addr < sizeof(struct pt_regs))
 			ret = put_stack_long(child, addr, data);
-		else if (addr >= (long) &dummy->fpu &&
-			 addr < (long) &dummy->u_fpvalid) {
+		else if (addr >= (unsigned long) &dummy->fpu &&
+			 addr < (unsigned long) &dummy->u_fpvalid) {
 			set_stopped_child_used_math(child);
-			((long *)child->thread.xstate)
+			((unsigned long *)child->thread.xstate)
 				[(addr - (long)&dummy->fpu) >> 2] = data;
 			ret = 0;
-		} else if (addr == (long) &dummy->u_fpvalid) {
+		} else if (addr == (unsigned long) &dummy->u_fpvalid) {
 			conditional_stopped_child_used_math(data, child);
 			ret = 0;
 		}

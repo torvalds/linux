@@ -45,7 +45,8 @@ void ptrace_disable(struct task_struct *child)
 	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	unsigned long __user *datap = (long __user __force *)data;
 	unsigned long tmp;
@@ -98,7 +99,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		if (!access_ok(VERIFY_WRITE, datap, PTREGS_SIZE))
 			break;
 		childregs = (long *)task_pt_regs(child);
-		for (i = 0; i < sizeof(struct pt_regs)/sizeof(long); ++i) {
+		for (i = 0; i < sizeof(struct pt_regs)/sizeof(unsigned long);
+				++i) {
 			ret = __put_user(childregs[i], &datap[i]);
 			if (ret != 0)
 				break;
@@ -109,7 +111,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		if (!access_ok(VERIFY_READ, datap, PTREGS_SIZE))
 			break;
 		childregs = (long *)task_pt_regs(child);
-		for (i = 0; i < sizeof(struct pt_regs)/sizeof(long); ++i) {
+		for (i = 0; i < sizeof(struct pt_regs)/sizeof(unsigned long);
+				++i) {
 			ret = __get_user(childregs[i], &datap[i]);
 			if (ret != 0)
 				break;

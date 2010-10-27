@@ -801,7 +801,8 @@ void ptrace_disable(struct task_struct *child)
 static const struct user_regset_view user_x86_32_view; /* Initialized below. */
 #endif
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	int ret;
 	unsigned long __user *datap = (unsigned long __user *)data;
@@ -888,14 +889,14 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
 	case PTRACE_GET_THREAD_AREA:
-		if (addr < 0)
+		if ((int) addr < 0)
 			return -EIO;
 		ret = do_get_thread_area(child, addr,
 					 (struct user_desc __user *) data);
 		break;
 
 	case PTRACE_SET_THREAD_AREA:
-		if (addr < 0)
+		if ((int) addr < 0)
 			return -EIO;
 		ret = do_set_thread_area(child, addr,
 					 (struct user_desc __user *) data, 0);
