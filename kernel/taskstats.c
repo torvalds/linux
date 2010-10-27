@@ -360,6 +360,12 @@ static struct taskstats *mk_reply(struct sk_buff *skb, int type, u32 pid)
 	struct nlattr *na, *ret;
 	int aggr;
 
+	/* If we don't pad, we end up with alignment on a 4 byte boundary.
+	 * This causes lots of runtime warnings on systems requiring 8 byte
+	 * alignment */
+	u32 pids[2] = { pid, 0 };
+	int pid_size = ALIGN(sizeof(pid), sizeof(long));
+
 	aggr = (type == TASKSTATS_TYPE_PID)
 			? TASKSTATS_TYPE_AGGR_PID
 			: TASKSTATS_TYPE_AGGR_TGID;
@@ -367,7 +373,7 @@ static struct taskstats *mk_reply(struct sk_buff *skb, int type, u32 pid)
 	na = nla_nest_start(skb, aggr);
 	if (!na)
 		goto err;
-	if (nla_put(skb, type, sizeof(pid), &pid) < 0)
+	if (nla_put(skb, type, pid_size, pids) < 0)
 		goto err;
 	ret = nla_reserve(skb, TASKSTATS_TYPE_STATS, sizeof(struct taskstats));
 	if (!ret)
