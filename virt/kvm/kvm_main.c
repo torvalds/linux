@@ -1961,7 +1961,7 @@ static struct file_operations kvm_vm_fops = {
 
 static int kvm_dev_ioctl_create_vm(void)
 {
-	int fd, r;
+	int r;
 	struct kvm *kvm;
 
 	kvm = kvm_create_vm();
@@ -1974,11 +1974,11 @@ static int kvm_dev_ioctl_create_vm(void)
 		return r;
 	}
 #endif
-	fd = anon_inode_getfd("kvm-vm", &kvm_vm_fops, kvm, O_RDWR);
-	if (fd < 0)
+	r = anon_inode_getfd("kvm-vm", &kvm_vm_fops, kvm, O_RDWR);
+	if (r < 0)
 		kvm_put_kvm(kvm);
 
-	return fd;
+	return r;
 }
 
 static long kvm_dev_ioctl_check_extension_generic(long arg)
