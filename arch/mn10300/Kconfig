@@ -136,34 +136,7 @@ config FPU
 	default y
 	depends on MN10300_PROC_MN103E010
 
-choice
-	prompt "CPU Caching mode"
-	default MN10300_CACHE_WBACK
-	help
-	  This option determines the caching mode for the kernel.
-
-	  Write-Back caching mode involves the all reads and writes causing
-	  the affected cacheline to be read into the cache first before being
-	  operated upon. Memory is not then updated by a write until the cache
-	  is filled and a cacheline needs to be displaced from the cache to
-	  make room. Only at that point is it written back.
-
-	  Write-Through caching only fetches cachelines from memory on a
-	  read. Writes always get written directly to memory. If the affected
-	  cacheline is also in cache, it will be updated too.
-
-	  The final option is to turn of caching entirely.
-
-config MN10300_CACHE_WBACK
-	bool "Write-Back"
-
-config MN10300_CACHE_WTHRU
-	bool "Write-Through"
-
-config MN10300_CACHE_DISABLED
-	bool "Disabled"
-
-endchoice
+source "arch/mn10300/mm/Kconfig.cache"
 
 menu "Memory layout options"
 
