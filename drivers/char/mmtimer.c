@@ -176,9 +176,9 @@ static void mmtimer_setup_int_2(int cpu, u64 expires)
  * in order to insure that the setup succeeds in a deterministic time frame.
  * It will check if the interrupt setup succeeded.
  */
-static int mmtimer_setup(int cpu, int comparator, unsigned long expires)
+static int mmtimer_setup(int cpu, int comparator, unsigned long expires,
+	u64 *set_completion_time)
 {
-
 	switch (comparator) {
 	case 0:
 		mmtimer_setup_int_0(cpu, expires);
@@ -191,7 +191,8 @@ static int mmtimer_setup(int cpu, int comparator, unsigned long expires)
 		break;
 	}
 	/* We might've missed our expiration time */
-	if (rtc_time() <= expires)
+	*set_completion_time = rtc_time();
+	if (*set_completion_time <= expires)
 		return 1;
 
 	/*
@@ -227,6 +228,8 @@ static int mmtimer_disable_int(long nasid, int comparator)
 #define TIMER_OFF	0xbadcabLL	/* Timer is not setup */
 #define TIMER_SET	0		/* Comparator is set for this timer */
 
+#define MMTIMER_INTERVAL_RETRY_INCREMENT_DEFAULT 40
+
 /* There is one of these for each timer */
 struct mmtimer {
 	struct rb_node list;
@@ -242,6 +245,11 @@ struct mmtimer_node {
 };
 static struct mmtimer_node *timers;
 
+static unsigned mmtimer_interval_retry_increment =
+	MMTIMER_INTERVAL_RETRY_INCREMENT_DEFAULT;
+module_param(mmtimer_interval_retry_increment, uint, 0644);
+MODULE_PARM_DESC(mmtimer_interval_retry_increment,
+	"RTC ticks to add to expiration on interval retry (default 40)");
 
 /*
  * Add a new mmtimer struct to the node's mmtimer list.
@@ -289,7 +297,8 @@ static void mmtimer_set_next_timer(int nodeid)
 	struct mmtimer_node *n = &timers[nodeid];
 	struct mmtimer *x;
 	struct k_itimer *t;
-	int o;
+	u64 expires, exp, set_completion_time;
+	int i;
 
 restart:
 	if (n->next == NULL)
@@ -300,7 +309,8 @@ restart:
 	if (!t->it.mmtimer.incr) {
 		/* Not an interval timer */
 		if (!mmtimer_setup(x->cpu, COMPARATOR,
-					t->it.mmtimer.expires)) {
+					t->it.mmtimer.expires,
+					&set_completion_time)) {
 			/* Late setup, fire now */
 			tasklet_schedule(&n->tasklet);
 		}
@@ -308,34 +318,28 @@ restart:
 	}
 
 	/* Interval timer */
-	o = 0;
-	while (!mmtimer_setup(x->cpu, COMPARATOR, t->it.mmtimer.expires)) {
-		unsigned long e, e1;
-		struct rb_node *next;
-		t->it.mmtimer.expires += t->it.mmtimer.incr << o;
-		t->it_overrun += 1 << o;
-		o++;
-		if (o > 20) {
+	i = 0;
+	expires = exp = t->it.mmtimer.expires;
+	while (!mmtimer_setup(x->cpu, COMPARATOR, expires,
+				&set_completion_time)) {
+		int to;
+
+		i++;
+		expires = set_completion_time +
+				mmtimer_interval_retry_increment + (1 << i);
+		/* Calculate overruns as we go. */
+		to = ((u64)(expires - exp) / t->it.mmtimer.incr);
+		if (to) {
+			t->it_overrun += to;
+			t->it.mmtimer.expires += t->it.mmtimer.incr * to;
+			exp = t->it.mmtimer.expires;
+		}
+		if (i > 20) {
 			printk(KERN_ALERT "mmtimer: cannot reschedule timer\n");
 			t->it.mmtimer.clock = TIMER_OFF;
 			n->next = rb_next(&x->list);
 			rb_erase(&x->list, &n->timer_head);
 			kfree(x);
-			goto restart;
-		}
-
-		e = t->it.mmtimer.expires;
-		next = rb_next(&x->list);
-
-		if (next == NULL)
-			continue;
-
-		e1 = rb_entry(next, struct mmtimer, list)->
-			timer->it.mmtimer.expires;
-		if (e > e1) {
-			n->next = next;
-			rb_erase(&x->list, &n->timer_head);
-			mmtimer_add_list(x);
 			goto restart;
 		}
 	}
