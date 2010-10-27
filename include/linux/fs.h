@@ -1113,6 +1113,7 @@ extern int fcntl_getlease(struct file *filp);
 
 /* fs/locks.c */
 extern void locks_init_lock(struct file_lock *);
+extern struct file_lock * locks_alloc_lock(void);
 extern void locks_copy_lock(struct file_lock *, struct file_lock *);
 extern void __locks_copy_lock(struct file_lock *, const struct file_lock *);
 extern void locks_remove_posix(struct file *, fl_owner_t);
