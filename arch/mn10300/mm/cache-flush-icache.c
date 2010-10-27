@@ -1,0 +1,137 @@
+/* Flush dcache and invalidate icache when the dcache is in writeback mode
+ *
+ * Copyright (C) 2010 Red Hat, Inc. All Rights Reserved.
+ * Written by David Howells (dhowells@redhat.com)
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public Licence
+ * as published by the Free Software Foundation; either version
+ * 2 of the Licence, or (at your option) any later version.
+ */
+#include <linux/module.h>
+#include <linux/mm.h>
+#include <asm/cacheflush.h>
+/**
+ * flush_icache_page - Flush a page from the dcache and invalidate the icache
+ * @vma: The VMA the page is part of.
+ * @page: The page to be flushed.
+ *
+ * Write a page back from the dcache and invalidate the icache so that we can
+ * run code from it that we've just written into it
+ */
+void flush_icache_page(struct vm_area_struct *vma, struct page *page)
+{
+	unsigned long start = page_to_phys(page);
+
+	mn10300_dcache_flush_page(start);
+	mn10300_icache_inv_page(start);
+}
+EXPORT_SYMBOL(flush_icache_page);
+
+/**
+ * flush_icache_page_range - Flush dcache and invalidate icache for part of a
+ *				single page
+ * @start: The starting virtual address of the page part.
+ * @end: The ending virtual address of the page part.
+ *
+ * Flush the dcache and invalidate the icache for part of a single page, as
+ * determined by the virtual addresses given.  The page must be in the paged
+ * area.
+ */
+static void flush_icache_page_range(unsigned long start, unsigned long end)
+{
+	unsigned long addr, size, off;
+	struct page *page;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *ppte, pte;
+
+	/* work out how much of the page to flush */
+	off = start & ~PAGE_MASK;
+	size = end - start;
+
+	/* get the physical address the page is mapped to from the page
+	 * tables */
+	pgd = pgd_offset(current->mm, start);
+	if (!pgd || !pgd_val(*pgd))
+		return;
+
+	pud = pud_offset(pgd, start);
+	if (!pud || !pud_val(*pud))
+		return;
+
+	pmd = pmd_offset(pud, start);
+	if (!pmd || !pmd_val(*pmd))
+		return;
+
+	ppte = pte_offset_map(pmd, start);
+	if (!ppte)
+		return;
+	pte = *ppte;
+	pte_unmap(ppte);
+
+	if (pte_none(pte))
+		return;
+
+	page = pte_page(pte);
+	if (!page)
+		return;
+
+	addr = page_to_phys(page);
+
+	/* flush the dcache and invalidate the icache coverage on that
+	 * region */
+	mn10300_dcache_flush_range2(addr + off, size);
+	mn10300_icache_inv_range2(addr + off, size);
+}
+
+/**
+ * flush_icache_range - Globally flush dcache and invalidate icache for region
+ * @start: The starting virtual address of the region.
+ * @end: The ending virtual address of the region.
+ *
+ * This is used by the kernel to globally flush some code it has just written
+ * from the dcache back to RAM and then to globally invalidate the icache over
+ * that region so that that code can be run on all CPUs in the system.
+ */
+void flush_icache_range(unsigned long start, unsigned long end)
+{
+	unsigned long start_page, end_page;
+
+	if (end > 0x80000000UL) {
+		/* addresses above 0xa0000000 do not go through the cache */
+		if (end > 0xa0000000UL) {
+			end = 0xa0000000UL;
+			if (start >= end)
+				return;
+		}
+
+		/* kernel addresses between 0x80000000 and 0x9fffffff do not
+		 * require page tables, so we just map such addresses
+		 * directly */
+		start_page = (start >= 0x80000000UL) ? start : 0x80000000UL;
+		mn10300_dcache_flush_range(start_page, end);
+		mn10300_icache_inv_range(start_page, end);
+		if (start_page == start)
+			return;
+		end = start_page;
+	}
+
+	start_page = start & PAGE_MASK;
+	end_page = end & PAGE_MASK;
+
+	if (start_page == end_page) {
+		/* the first and last bytes are on the same page */
+		flush_icache_page_range(start, end);
+	} else if (start_page + 1 == end_page) {
+		/* split over two virtually contiguous pages */
+		flush_icache_page_range(start, end_page);
+		flush_icache_page_range(end_page, end);
+	} else {
+		/* more than 2 pages; just flush the entire cache */
+		mn10300_dcache_flush();
+		mn10300_icache_inv();
+	}
+}
+EXPORT_SYMBOL(flush_icache_range);

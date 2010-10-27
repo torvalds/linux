@@ -18,6 +18,7 @@ config AM33_3
 config AM34_2
 	def_bool n
 	select MN10300_HAS_ATOMIC_OPS_UNIT
+	select MN10300_HAS_CACHE_SNOOP
 
 config MMU
 	def_bool y

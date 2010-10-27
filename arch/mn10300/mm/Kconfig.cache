@@ -22,12 +22,26 @@ choice
 
 config MN10300_CACHE_WBACK
 	bool "Write-Back"
+	help
+	  The dcache operates in delayed write-back mode.  It must be manually
+	  flushed if writes are made that subsequently need to be executed or
+	  to be DMA'd by a device.
 
 config MN10300_CACHE_WTHRU
 	bool "Write-Through"
+	help
+	  The dcache operates in immediate write-through mode.  Writes are
+	  committed to RAM immediately in addition to being stored in the
+	  cache.  This means that the written data is immediately available for
+	  execution or DMA.
+
+	  This is not available for use with an SMP kernel if cache flushing
+	  and invalidation by automatic purge register is not selected.
 
 config MN10300_CACHE_DISABLED
 	bool "Disabled"
+	help
+	  The icache and dcache are disabled.
 
 endchoice
 
@@ -64,3 +78,23 @@ config MN10300_CACHE_FLUSH_BY_TAG
 
 config MN10300_CACHE_FLUSH_BY_REG
 	def_bool y if MN10300_CACHE_MANAGE_BY_REG && MN10300_CACHE_WBACK
+
+
+config MN10300_HAS_CACHE_SNOOP
+	def_bool n
+
+config MN10300_CACHE_SNOOP
+	bool "Use CPU Cache Snooping"
+	depends on MN10300_CACHE_ENABLED && MN10300_HAS_CACHE_SNOOP
+	default y
+
+config MN10300_CACHE_FLUSH_ICACHE
+	def_bool y if MN10300_CACHE_WBACK && !MN10300_CACHE_SNOOP
+	help
+	  Set if we need the dcache flushing before the icache is invalidated.
+
+config MN10300_CACHE_INV_ICACHE
+	def_bool y if MN10300_CACHE_WTHRU && !MN10300_CACHE_SNOOP
+	help
+	  Set if we need the icache to be invalidated, even if the dcache is in
+	  write-through mode and doesn't need flushing.

@@ -131,17 +131,21 @@ extern void mn10300_dcache_flush_inv_range2(unsigned long start, unsigned long s
 /*
  * Physically-indexed cache management
  */
-#ifdef CONFIG_MN10300_CACHE_ENABLED
-
+#if defined(CONFIG_MN10300_CACHE_FLUSH_ICACHE)
+extern void flush_icache_page(struct vm_area_struct *vma, struct page *page);
 extern void flush_icache_range(unsigned long start, unsigned long end);
-extern void flush_icache_page(struct vm_area_struct *vma, struct page *pg);
-
+#elif defined(CONFIG_MN10300_CACHE_INV_ICACHE)
+static inline void flush_icache_page(struct vm_area_struct *vma,
+				     struct page *page)
+{
+	mn10300_icache_inv_page(page_to_phys(page));
+}
+extern void flush_icache_range(unsigned long start, unsigned long end);
 #else
-
 #define flush_icache_range(start, end)		do {} while (0)
 #define flush_icache_page(vma, pg)		do {} while (0)
-
 #endif
+
 
 #define flush_icache_user_range(vma, pg, adr, len) \
 	flush_icache_range(adr, adr + len)

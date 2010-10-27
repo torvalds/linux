@@ -3,6 +3,8 @@
 #
 
 cacheflush-y	:= cache.o
+cacheflush-$(CONFIG_MN10300_CACHE_INV_ICACHE) += cache-inv-icache.o
+cacheflush-$(CONFIG_MN10300_CACHE_FLUSH_ICACHE) += cache-flush-icache.o
 cacheflush-$(CONFIG_MN10300_CACHE_INV_BY_TAG) += cache-inv-by-tag.o
 cacheflush-$(CONFIG_MN10300_CACHE_INV_BY_REG) += cache-inv-by-reg.o
 cacheflush-$(CONFIG_MN10300_CACHE_FLUSH_BY_TAG) += cache-flush-by-tag.o

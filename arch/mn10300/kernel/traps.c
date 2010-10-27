@@ -533,8 +533,10 @@ void __init set_intr_stub(enum exception_code code, void *handler)
 	vector[6] = 0xcb;
 	vector[7] = 0xcb;
 
+#ifndef CONFIG_MN10300_CACHE_SNOOP
 	mn10300_dcache_flush_inv();
 	mn10300_icache_inv();
+#endif
 }
 
 /*
