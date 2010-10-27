@@ -13,9 +13,10 @@
 
 extern void cpu_idle(void);
 
+typedef void (*smp_call_func_t)(void *info);
 struct call_single_data {
 	struct list_head list;
-	void (*func) (void *info);
+	smp_call_func_t func;
 	void *info;
 	u16 flags;
 	u16 priv;
@@ -24,8 +25,8 @@ struct call_single_data {
 /* total number of cpus in this system (may exceed NR_CPUS) */
 extern unsigned int total_cpus;
 
-int smp_call_function_single(int cpuid, void (*func) (void *info), void *info,
-				int wait);
+int smp_call_function_single(int cpuid, smp_call_func_t func, void *info,
+			     int wait);
 
 #ifdef CONFIG_SMP
 
@@ -69,15 +70,15 @@ extern void smp_cpus_done(unsigned int max_cpus);
 /*
  * Call a function on all other processors
  */
-int smp_call_function(void(*func)(void *info), void *info, int wait);
+int smp_call_function(smp_call_func_t func, void *info, int wait);
 void smp_call_function_many(const struct cpumask *mask,
-			    void (*func)(void *info), void *info, bool wait);
+			    smp_call_func_t func, void *info, bool wait);
 
 void __smp_call_function_single(int cpuid, struct call_single_data *data,
 				int wait);
 
 int smp_call_function_any(const struct cpumask *mask,
-			  void (*func)(void *info), void *info, int wait);
+			  smp_call_func_t func, void *info, int wait);
 
 /*
  * Generic and arch helpers
@@ -94,7 +95,7 @@ void ipi_call_unlock_irq(void);
 /*
  * Call a function on all processors
  */
-int on_each_cpu(void (*func) (void *info), void *info, int wait);
+int on_each_cpu(smp_call_func_t func, void *info, int wait);
 
 #define MSG_ALL_BUT_SELF	0x8000	/* Assume <32768 CPU's */
 #define MSG_ALL			0x8001
@@ -122,7 +123,7 @@ static inline void smp_send_stop(void) { }
  *	These macros fold the SMP functionality into a single CPU system
  */
 #define raw_smp_processor_id()			0
-static inline int up_smp_call_function(void (*func)(void *), void *info)
+static inline int up_smp_call_function(smp_call_func_t func, void *info)
 {
 	return 0;
 }
@@ -143,7 +144,7 @@ static inline void smp_send_reschedule(int cpu) { }
 static inline void init_call_single_data(void) { }
 
 static inline int
-smp_call_function_any(const struct cpumask *mask, void (*func)(void *info),
+smp_call_function_any(const struct cpumask *mask, smp_call_func_t func,
 		      void *info, int wait)
 {
 	return smp_call_function_single(0, func, info, wait);
