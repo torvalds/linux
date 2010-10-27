@@ -23,7 +23,6 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/switch.h>
 #include <linux/workqueue.h>
 
 #include <mach/clk.h>
@@ -53,8 +52,6 @@ struct tegra_dc_hdmi_data {
 
 	struct clk			*disp1_clk;
 	struct clk			*disp2_clk;
-
-	struct switch_dev		hpd_switch;
 };
 
 const struct fb_videomode tegra_dc_hdmi_supported_modes[] = {
@@ -437,12 +434,12 @@ static bool tegra_dc_hdmi_detect(struct tegra_dc *dc)
 	int err;
 
 	if (!tegra_dc_hdmi_hpd(dc))
-		goto fail;
+		return false;
 
 	err = tegra_edid_get_monspecs(hdmi->edid, &specs);
 	if (err < 0) {
 		dev_err(&dc->ndev->dev, "error reading edid\n");
-		goto fail;
+		return false;
 	}
 
 	/* monitors like to lie about these but they are still useful for
@@ -452,13 +449,8 @@ static bool tegra_dc_hdmi_detect(struct tegra_dc *dc)
 	dc->out->v_size = specs.max_y * 1000;
 
 	tegra_fb_update_monspecs(dc->fb, &specs, tegra_dc_hdmi_mode_filter);
-	switch_set_state(&hdmi->hpd_switch, 1);
 	dev_info(&dc->ndev->dev, "display detected\n");
 	return true;
-
-fail:
-	switch_set_state(&hdmi->hpd_switch, 0);
-	return false;
 }
 
 
@@ -570,9 +562,6 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 	hdmi->disp1_clk = disp1_clk;
 	hdmi->disp2_clk = disp2_clk;
 
-	hdmi->hpd_switch.name = "hdmi";
-	switch_dev_register(&hdmi->hpd_switch);
-
 	dc->out->depth = 24;
 
 	tegra_dc_set_outdata(dc, hdmi);
@@ -603,7 +592,6 @@ static void tegra_dc_hdmi_destroy(struct tegra_dc *dc)
 
 	free_irq(gpio_to_irq(dc->out->hotplug_gpio), dc);
 	cancel_delayed_work_sync(&hdmi->work);
-	switch_dev_unregister(&hdmi->hpd_switch);
 	iounmap(hdmi->base);
 	release_resource(hdmi->base_res);
 	clk_put(hdmi->clk);
