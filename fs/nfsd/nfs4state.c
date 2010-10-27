@@ -3081,9 +3081,10 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 		if (status)
 			goto out;
 		renew_client(dp->dl_client);
-		if (filpp)
+		if (filpp) {
 			*filpp = find_readable_file(dp->dl_file);
-		BUG_ON(!*filpp);
+			BUG_ON(!*filpp);
+		}
 	} else { /* open or lock stateid */
 		stp = find_stateid(stateid, flags);
 		if (!stp)
