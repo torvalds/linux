@@ -31,8 +31,12 @@
 #undef Elf_Rela
 #undef Elf_Sym
 #undef ELF_R_SYM
+#undef Elf_r_sym
 #undef ELF_R_INFO
+#undef Elf_r_info
 #undef ELF_ST_BIND
+#undef fn_ELF_R_SYM
+#undef fn_ELF_R_INFO
 #undef uint_t
 #undef _w
 #undef _align
@@ -52,8 +56,12 @@
 # define Elf_Rela		Elf64_Rela
 # define Elf_Sym		Elf64_Sym
 # define ELF_R_SYM		ELF64_R_SYM
+# define Elf_r_sym		Elf64_r_sym
 # define ELF_R_INFO		ELF64_R_INFO
+# define Elf_r_info		Elf64_r_info
 # define ELF_ST_BIND		ELF64_ST_BIND
+# define fn_ELF_R_SYM		fn_ELF64_R_SYM
+# define fn_ELF_R_INFO		fn_ELF64_R_INFO
 # define uint_t			uint64_t
 # define _w			w8
 # define _align			7u
@@ -72,13 +80,31 @@
 # define Elf_Rela		Elf32_Rela
 # define Elf_Sym		Elf32_Sym
 # define ELF_R_SYM		ELF32_R_SYM
+# define Elf_r_sym		Elf32_r_sym
 # define ELF_R_INFO		ELF32_R_INFO
+# define Elf_r_info		Elf32_r_info
 # define ELF_ST_BIND		ELF32_ST_BIND
+# define fn_ELF_R_SYM		fn_ELF32_R_SYM
+# define fn_ELF_R_INFO		fn_ELF32_R_INFO
 # define uint_t			uint32_t
 # define _w			w
 # define _align			3u
 # define _size			4
 #endif
+
+/* Functions and pointers that 64-bit EM_MIPS can override. */
+static uint_t fn_ELF_R_SYM(Elf_Rel const *rp)
+{
+	return ELF_R_SYM(_w(rp->r_info));
+}
+static uint_t (*Elf_r_sym)(Elf_Rel const *rp) = fn_ELF_R_SYM;
+
+static void fn_ELF_R_INFO(Elf_Rel *const rp, unsigned sym, unsigned type)
+{
+	rp->r_info = ELF_R_INFO(sym, type);
+}
+static void (*Elf_r_info)(Elf_Rel *const rp, unsigned sym, unsigned type) = fn_ELF_R_INFO;
+
 
 /* Append the new shstrtab, Elf_Shdr[], __mcount_loc and its relocations. */
 static void append_func(Elf_Ehdr *const ehdr,
@@ -197,22 +223,22 @@ static uint_t *sift_rel_mcount(uint_t *mlocp,
 	for (t = nrel; t; --t) {
 		if (!mcountsym) {
 			Elf_Sym const *const symp =
-				&sym0[ELF_R_SYM(_w(relp->r_info))];
+				&sym0[Elf_r_sym(relp)];
 			char const *symname = &str0[w(symp->st_name)];
 
 			if ('.' == symname[0])
 				++symname;  /* ppc64 hack */
 			if (0 == strcmp((('_' == gpfx) ? "_mcount" : "mcount"),
 					symname))
-				mcountsym = ELF_R_SYM(_w(relp->r_info));
+				mcountsym = Elf_r_sym(relp);
 		}
 
-		if (mcountsym == ELF_R_SYM(_w(relp->r_info))) {
+		if (mcountsym == Elf_r_sym(relp)) {
 			uint_t const addend = _w(_w(relp->r_offset) - recval);
 
 			mrelp->r_offset = _w(offbase
 				+ ((void *)mlocp - (void *)mloc0));
-			mrelp->r_info = _w(ELF_R_INFO(recsym, reltype));
+			Elf_r_info(mrelp, recsym, reltype);
 			if (sizeof(Elf_Rela) == rel_entsize) {
 				((Elf_Rela *)mrelp)->r_addend = addend;
 				*mlocp++ = 0;
