@@ -378,8 +378,6 @@ PTE_BIT_FUNC(low, mkold, &= ~_PAGE_ACCESSED);
 PTE_BIT_FUNC(low, mkyoung, |= _PAGE_ACCESSED);
 PTE_BIT_FUNC(low, mkspecial, |= _PAGE_SPECIAL);
 
-#define __HAVE_ARCH_PTE_SPECIAL
-
 /*
  * Macro and implementation to make a page protection as uncachable.
  */
