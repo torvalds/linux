@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
+#include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/fsl_devices.h>
@@ -48,10 +49,13 @@
 #define EFIKAMX_GREEN_LED	(2*32 + 14)
 #define EFIKAMX_RED_LED		(2*32 + 15)
 
+#define EFIKAMX_POWER_KEY	(1*32 + 31)
+
 /* the pci ids pin have pull up. they're driven low according to board id */
 #define MX51_PAD_PCBID0	IOMUX_PAD(0x518, 0x130, 3, 0x0,   0, PAD_CTL_PUS_100K_UP)
 #define MX51_PAD_PCBID1	IOMUX_PAD(0x51C, 0x134, 3, 0x0,   0, PAD_CTL_PUS_100K_UP)
 #define MX51_PAD_PCBID2	IOMUX_PAD(0x504, 0x128, 3, 0x0,   0, PAD_CTL_PUS_100K_UP)
+#define MX51_PAD_PWRKEY	IOMUX_PAD(0x48c, 0x0f8, 1, 0x0,   0, PAD_CTL_PUS_100K_UP | PAD_CTL_PKE)
 
 static iomux_v3_cfg_t mx51efikamx_pads[] = {
 	/* UART1 */
@@ -90,6 +94,9 @@ static iomux_v3_cfg_t mx51efikamx_pads[] = {
 	MX51_PAD_CSI1_D9__GPIO_3_13,
 	MX51_PAD_CSI1_VSYNC__GPIO_3_14,
 	MX51_PAD_CSI1_HSYNC__GPIO_3_15,
+
+	/* power key */
+	MX51_PAD_PWRKEY,
 };
 
 /* Serial ports */
@@ -219,6 +226,22 @@ static struct platform_device mx51_efikamx_leds_device = {
 	},
 };
 
+static struct gpio_keys_button mx51_efikamx_powerkey[] = {
+	{
+		.code = KEY_POWER,
+		.gpio = EFIKAMX_POWER_KEY,
+		.type = EV_PWR,
+		.desc = "Power Button (CM)",
+		.wakeup = 1,
+		.debounce_interval = 10, /* ms */
+	},
+};
+
+static const struct gpio_keys_platform_data mx51_efikamx_powerkey_data __initconst = {
+	.buttons = mx51_efikamx_powerkey,
+	.nbuttons = ARRAY_SIZE(mx51_efikamx_powerkey),
+};
+
 static void __init mxc_board_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx51efikamx_pads,
@@ -235,6 +258,7 @@ static void __init mxc_board_init(void)
 	}
 
 	platform_device_register(&mx51_efikamx_leds_device);
+	imx51_add_gpio_keys(&mx51_efikamx_powerkey_data);
 }
 
 static void __init mx51_efikamx_timer_init(void)
