@@ -976,10 +976,12 @@ long arch_ptrace(struct task_struct *child, long request,
 	unsigned long addr2 = task_pt_regs(current)->u_regs[UREG_I4];
 	struct pt_regs __user *pregs;
 	struct fps __user *fps;
+	void __user *addr2p;
 	int ret;
 
 	pregs = (struct pt_regs __user *) addr;
 	fps = (struct fps __user *) addr;
+	addr2p = (void __user *) addr2;
 
 	switch (request) {
 	case PTRACE_PEEKUSR:
@@ -1030,8 +1032,7 @@ long arch_ptrace(struct task_struct *child, long request,
 
 	case PTRACE_READTEXT:
 	case PTRACE_READDATA:
-		ret = ptrace_readdata(child, addr,
-				      (char __user *)addr2, data);
+		ret = ptrace_readdata(child, addr, addr2p, data);
 		if (ret == data)
 			ret = 0;
 		else if (ret >= 0)
@@ -1040,8 +1041,7 @@ long arch_ptrace(struct task_struct *child, long request,
 
 	case PTRACE_WRITETEXT:
 	case PTRACE_WRITEDATA:
-		ret = ptrace_writedata(child, (char __user *) addr2,
-				       addr, data);
+		ret = ptrace_writedata(child, addr2p, addr, data);
 		if (ret == data)
 			ret = 0;
 		else if (ret >= 0)
