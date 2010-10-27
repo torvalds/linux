@@ -478,6 +478,7 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 	}
 
 	rdev->dev.bus = &rio_bus_type;
+	rdev->dev.parent = &rio_bus;
 
 	device_initialize(&rdev->dev);
 	rdev->dev.release = rio_release_dev;
