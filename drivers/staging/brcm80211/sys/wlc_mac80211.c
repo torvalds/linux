@@ -27,7 +27,6 @@
 #include <pcicfg.h>
 #include <bcmsrom.h>
 #include <wlioctl.h>
-#include <epivers.h>
 #include <sbhndpio.h>
 #include <sbhnddma.h>
 #include <hnddma.h>
@@ -135,6 +134,8 @@ uint wl_msg_level =
 #define WLC_TEMPSENSE_PERIOD		10	/* 10 second timeout */
 
 #define SCAN_IN_PROGRESS(x)	0
+
+#define EPI_VERSION_NUM		0x054b0b00
 
 #ifdef BCMDBG
 /* pointer to most recently allocated wl/wlc */

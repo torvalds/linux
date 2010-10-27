@@ -29,7 +29,6 @@
 
 #include <wlc_cfg.h>
 #include <net/mac80211.h>
-#include <epivers.h>
 #ifndef WLC_HIGH_ONLY
 #include <phy_version.h>
 #endif
@@ -894,8 +893,8 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	wl_release_fw(wl);
 #endif
 	if (!wl->wlc) {
-		printf("%s: %s wlc_attach() failed with code %d\n",
-			KBUILD_MODNAME, EPI_VERSION_STR, err);
+		printf("%s: wlc_attach() failed with code %d\n",
+			KBUILD_MODNAME, err);
 		goto fail;
 	}
 	wl->pub = wlc_pub(wl->wlc);
@@ -962,10 +961,10 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	}
 #ifndef WLC_HIGH_ONLY
 	WL_ERROR(("wl%d: Broadcom BCM43xx 802.11 MAC80211 Driver "
-		  EPI_VERSION_STR " (" PHY_VERSION_STR ")", unit));
+		  " (" PHY_VERSION_STR ")", unit));
 #else
-	WL_ERROR(("wl%d: Broadcom BCM43xx 802.11 MAC80211 Driver "
-		  EPI_VERSION_STR, unit));
+	WL_ERROR(("wl%d: Broadcom BCM43xx 802.11 Splitmac MAC80211 Driver "
+		  , unit));
 #endif
 
 #ifdef BCMDBG
