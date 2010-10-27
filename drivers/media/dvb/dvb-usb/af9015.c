@@ -1131,7 +1131,7 @@ static struct qt1010_config af9015_qt1010_config = {
 
 static struct tda18271_config af9015_tda18271_config = {
 	.gate = TDA18271_GATE_DIGITAL,
-	.small_i2c = 1,
+	.small_i2c = TDA18271_16_BYTE_CHUNK_INIT,
 };
 
 static struct mxl5005s_config af9015_mxl5003_config = {
