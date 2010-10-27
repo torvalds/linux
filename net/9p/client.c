@@ -1286,16 +1286,13 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 
 	if (data) {
 		memmove(data, dataptr, count);
-	}
-
-	if (udata) {
+	} else {
 		err = copy_to_user(udata, dataptr, count);
 		if (err) {
 			err = -EFAULT;
 			goto free_and_error;
 		}
 	}
-
 	p9_free_req(clnt, req);
 	return count;
 
