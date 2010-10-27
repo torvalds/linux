@@ -22,18 +22,18 @@
 #ifdef CONFIG_MN10300_CACHE_ENABLED
 extern void mn10300_icache_inv(void);
 extern void mn10300_dcache_inv(void);
-extern void mn10300_dcache_inv_page(unsigned start);
-extern void mn10300_dcache_inv_range(unsigned start, unsigned end);
-extern void mn10300_dcache_inv_range2(unsigned start, unsigned size);
+extern void mn10300_dcache_inv_page(unsigned long start);
+extern void mn10300_dcache_inv_range(unsigned long start, unsigned long end);
+extern void mn10300_dcache_inv_range2(unsigned long start, unsigned long size);
 #ifdef CONFIG_MN10300_CACHE_WBACK
 extern void mn10300_dcache_flush(void);
-extern void mn10300_dcache_flush_page(unsigned start);
-extern void mn10300_dcache_flush_range(unsigned start, unsigned end);
-extern void mn10300_dcache_flush_range2(unsigned start, unsigned size);
+extern void mn10300_dcache_flush_page(unsigned long start);
+extern void mn10300_dcache_flush_range(unsigned long start, unsigned long end);
+extern void mn10300_dcache_flush_range2(unsigned long start, unsigned long size);
 extern void mn10300_dcache_flush_inv(void);
-extern void mn10300_dcache_flush_inv_page(unsigned start);
-extern void mn10300_dcache_flush_inv_range(unsigned start, unsigned end);
-extern void mn10300_dcache_flush_inv_range2(unsigned start, unsigned size);
+extern void mn10300_dcache_flush_inv_page(unsigned long start);
+extern void mn10300_dcache_flush_inv_range(unsigned long start, unsigned long end);
+extern void mn10300_dcache_flush_inv_range2(unsigned long start, unsigned long size);
 #else
 #define mn10300_dcache_flush()				do {} while (0)
 #define mn10300_dcache_flush_page(start)		do {} while (0)

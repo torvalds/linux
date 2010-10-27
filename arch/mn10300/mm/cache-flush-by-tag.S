@@ -62,9 +62,9 @@ mn10300_dcache_flush_end:
 
 ###############################################################################
 #
-# void mn10300_dcache_flush_page(unsigned start)
-# void mn10300_dcache_flush_range(unsigned start, unsigned end)
-# void mn10300_dcache_flush_range2(unsigned start, unsigned size)
+# void mn10300_dcache_flush_page(unsigned long start)
+# void mn10300_dcache_flush_range(unsigned long start, unsigned long end)
+# void mn10300_dcache_flush_range2(unsigned long start, unsigned long size)
 # Flush a range of addresses on a page in the dcache
 #
 ###############################################################################
@@ -142,9 +142,9 @@ mn10300_dcache_flush_inv_end:
 
 ###############################################################################
 #
-# void mn10300_dcache_flush_inv_page(unsigned start)
-# void mn10300_dcache_flush_inv_range(unsigned start, unsigned end)
-# void mn10300_dcache_flush_inv_range2(unsigned start, unsigned size)
+# void mn10300_dcache_flush_inv_page(unsigned long start)
+# void mn10300_dcache_flush_inv_range(unsigned long start, unsigned long end)
+# void mn10300_dcache_flush_inv_range2(unsigned long start, unsigned long size)
 # Flush and invalidate a range of addresses on a page in the dcache
 #
 ###############################################################################
