@@ -88,8 +88,6 @@ void cpu_idle(void)
 			idle = pm_idle;
 			if (!idle)
 				idle = default_idle;
-
-			irq_stat[cpu].idle_timestamp = jiffies;
 			idle();
 		}
 
