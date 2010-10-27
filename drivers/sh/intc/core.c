@@ -71,6 +71,7 @@ static void __init intc_register_irq(struct intc_desc *desc,
 				     unsigned int irq)
 {
 	struct intc_handle_int *hp;
+	struct irq_data *irq_data;
 	unsigned int data[2], primary;
 	unsigned long flags;
 
@@ -111,6 +112,8 @@ static void __init intc_register_irq(struct intc_desc *desc,
 
 	BUG_ON(!data[primary]); /* must have primary masking method */
 
+	irq_data = irq_get_irq_data(irq);
+
 	disable_irq_nosync(irq);
 	set_irq_chip_and_handler_name(irq, &d->chip,
 				      handle_level_irq, "level");
@@ -123,7 +126,7 @@ static void __init intc_register_irq(struct intc_desc *desc,
 
 	/* enable secondary masking method if present */
 	if (data[!primary])
-		_intc_enable(irq, data[!primary]);
+		_intc_enable(irq_data, data[!primary]);
 
 	/* add irq to d->prio list if priority is available */
 	if (data[1]) {
@@ -151,7 +154,7 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	}
 
 	/* irq should be disabled by default */
-	d->chip.mask(irq);
+	d->chip.irq_mask(irq_data);
 
 	intc_set_ack_handle(irq, desc, d, enum_id);
 	intc_set_dist_handle(irq, desc, d, enum_id);
@@ -284,7 +287,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 		for (i = 0; i < hw->nr_ack_regs; i++)
 			k += save_reg(d, k, hw->ack_regs[i].set_reg, 0);
 	else
-		d->chip.mask_ack = d->chip.disable;
+		d->chip.irq_mask_ack = d->chip.irq_disable;
 
 	/* disable bits matching force_disable before registering irqs */
 	if (desc->force_disable)
@@ -387,7 +390,9 @@ static SYSDEV_ATTR(name, S_IRUGO, show_intc_name, NULL);
 static int intc_suspend(struct sys_device *dev, pm_message_t state)
 {
 	struct intc_desc_int *d;
+	struct irq_data *data;
 	struct irq_desc *desc;
+	struct irq_chip *chip;
 	int irq;
 
 	/* get intc controller associated with this sysdev */
@@ -398,17 +403,24 @@ static int intc_suspend(struct sys_device *dev, pm_message_t state)
 		if (d->state.event != PM_EVENT_FREEZE)
 			break;
 
-		for_each_irq_desc(irq, desc) {
+		for_each_irq_nr(irq) {
+			desc = irq_to_desc(irq);
+			if (!desc)
+				continue;
+
+			data = irq_get_irq_data(irq);
+			chip = irq_data_get_irq_chip(data);
+
 			/*
 			 * This will catch the redirect and VIRQ cases
 			 * due to the dummy_irq_chip being inserted.
 			 */
-			if (desc->chip != &d->chip)
+			if (chip != &d->chip)
 				continue;
 			if (desc->status & IRQ_DISABLED)
-				desc->chip->disable(irq);
+				chip->irq_disable(data);
 			else
-				desc->chip->enable(irq);
+				chip->irq_enable(data);
 		}
 		break;
 	case PM_EVENT_FREEZE:
@@ -416,11 +428,18 @@ static int intc_suspend(struct sys_device *dev, pm_message_t state)
 		break;
 	case PM_EVENT_SUSPEND:
 		/* enable wakeup irqs belonging to this intc controller */
-		for_each_irq_desc(irq, desc) {
-			if (desc->chip != &d->chip)
+		for_each_irq_nr(irq) {
+			desc = irq_to_desc(irq);
+			if (!desc)
+				continue;
+
+			data = irq_get_irq_data(irq);
+			chip = irq_data_get_irq_chip(data);
+
+			if (chip != &d->chip)
 				continue;
 			if ((desc->status & IRQ_WAKEUP))
-				desc->chip->enable(irq);
+				chip->irq_enable(data);
 		}
 		break;
 	}

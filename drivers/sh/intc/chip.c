@@ -12,15 +12,16 @@
 #include <linux/io.h>
 #include "internals.h"
 
-void _intc_enable(unsigned int irq, unsigned long handle)
+void _intc_enable(struct irq_data *data, unsigned long handle)
 {
+	unsigned int irq = data->irq;
 	struct intc_desc_int *d = get_intc_desc(irq);
 	unsigned long addr;
 	unsigned int cpu;
 
 	for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_E(handle)); cpu++) {
 #ifdef CONFIG_SMP
-		if (!cpumask_test_cpu(cpu, irq_to_desc(irq)->affinity))
+		if (!cpumask_test_cpu(cpu, data->affinity))
 			continue;
 #endif
 		addr = INTC_REG(d, _INTC_ADDR_E(handle), cpu);
@@ -31,15 +32,16 @@ void _intc_enable(unsigned int irq, unsigned long handle)
 	intc_balancing_enable(irq);
 }
 
-static void intc_enable(unsigned int irq)
+static void intc_enable(struct irq_data *data)
 {
-	_intc_enable(irq, (unsigned long)get_irq_chip_data(irq));
+	_intc_enable(data, (unsigned long)irq_data_get_irq_chip_data(data));
 }
 
-static void intc_disable(unsigned int irq)
+static void intc_disable(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	struct intc_desc_int *d = get_intc_desc(irq);
-	unsigned long handle = (unsigned long)get_irq_chip_data(irq);
+	unsigned long handle = (unsigned long)irq_data_get_irq_chip_data(data);
 	unsigned long addr;
 	unsigned int cpu;
 
@@ -47,7 +49,7 @@ static void intc_disable(unsigned int irq)
 
 	for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_D(handle)); cpu++) {
 #ifdef CONFIG_SMP
-		if (!cpumask_test_cpu(cpu, irq_to_desc(irq)->affinity))
+		if (!cpumask_test_cpu(cpu, data->affinity))
 			continue;
 #endif
 		addr = INTC_REG(d, _INTC_ADDR_D(handle), cpu);
@@ -56,7 +58,7 @@ static void intc_disable(unsigned int irq)
 	}
 }
 
-static int intc_set_wake(unsigned int irq, unsigned int on)
+static int intc_set_wake(struct irq_data *data, unsigned int on)
 {
 	return 0; /* allow wakeup, but setup hardware in intc_suspend() */
 }
@@ -67,24 +69,27 @@ static int intc_set_wake(unsigned int irq, unsigned int on)
  * additional locking here at the intc desc level. The affinity mask is
  * later tested in the enable/disable paths.
  */
-static int intc_set_affinity(unsigned int irq, const struct cpumask *cpumask)
+static int intc_set_affinity(struct irq_data *data,
+			     const struct cpumask *cpumask,
+			     bool force)
 {
 	if (!cpumask_intersects(cpumask, cpu_online_mask))
 		return -1;
 
-	cpumask_copy(irq_to_desc(irq)->affinity, cpumask);
+	cpumask_copy(data->affinity, cpumask);
 
 	return 0;
 }
 #endif
 
-static void intc_mask_ack(unsigned int irq)
+static void intc_mask_ack(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	struct intc_desc_int *d = get_intc_desc(irq);
 	unsigned long handle = intc_get_ack_handle(irq);
 	unsigned long addr;
 
-	intc_disable(irq);
+	intc_disable(data);
 
 	/* read register and write zero only to the associated bit */
 	if (handle) {
@@ -144,6 +149,7 @@ static struct intc_handle_int *intc_find_irq(struct intc_handle_int *hp,
 int intc_set_priority(unsigned int irq, unsigned int prio)
 {
 	struct intc_desc_int *d = get_intc_desc(irq);
+	struct irq_data *data = irq_get_irq_data(irq);
 	struct intc_handle_int *ihp;
 
 	if (!intc_get_prio_level(irq) || prio <= 1)
@@ -162,7 +168,7 @@ int intc_set_priority(unsigned int irq, unsigned int prio)
 		 * priority level will be set during next enable()
 		 */
 		if (_INTC_FN(ihp->handle) != REG_FN_ERR)
-			_intc_enable(irq, ihp->handle);
+			_intc_enable(data, ihp->handle);
 	}
 	return 0;
 }
@@ -181,8 +187,9 @@ static unsigned char intc_irq_sense_table[IRQ_TYPE_SENSE_MASK + 1] = {
 #endif
 };
 
-static int intc_set_type(unsigned int irq, unsigned int type)
+static int intc_set_type(struct irq_data *data, unsigned int type)
 {
+	unsigned int irq = data->irq;
 	struct intc_desc_int *d = get_intc_desc(irq);
 	unsigned char value = intc_irq_sense_table[type & IRQ_TYPE_SENSE_MASK];
 	struct intc_handle_int *ihp;
@@ -201,15 +208,15 @@ static int intc_set_type(unsigned int irq, unsigned int type)
 }
 
 struct irq_chip intc_irq_chip	= {
-	.mask		= intc_disable,
-	.unmask		= intc_enable,
-	.mask_ack	= intc_mask_ack,
-	.enable		= intc_enable,
-	.disable	= intc_disable,
-	.shutdown	= intc_disable,
-	.set_type	= intc_set_type,
-	.set_wake	= intc_set_wake,
+	.irq_mask		= intc_disable,
+	.irq_unmask		= intc_enable,
+	.irq_mask_ack		= intc_mask_ack,
+	.irq_enable		= intc_enable,
+	.irq_disable		= intc_disable,
+	.irq_shutdown		= intc_disable,
+	.irq_set_type		= intc_set_type,
+	.irq_set_wake		= intc_set_wake,
 #ifdef CONFIG_SMP
-	.set_affinity	= intc_set_affinity,
+	.irq_set_affinity	= intc_set_affinity,
 #endif
 };
