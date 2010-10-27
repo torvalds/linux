@@ -158,36 +158,6 @@ extern void dma_insb(unsigned long port, void *addr, unsigned short count);
 extern void dma_insw(unsigned long port, void *addr, unsigned short count);
 extern void dma_insl(unsigned long port, void *addr, unsigned short count);
 
-static inline void readsl(const void __iomem *addr, void *buf, int len)
-{
-	insl((unsigned long)addr, buf, len);
-}
-
-static inline void readsw(const void __iomem *addr, void *buf, int len)
-{
-	insw((unsigned long)addr, buf, len);
-}
-
-static inline void readsb(const void __iomem *addr, void *buf, int len)
-{
-	insb((unsigned long)addr, buf, len);
-}
-
-static inline void writesl(const void __iomem *addr, const void *buf, int len)
-{
-	outsl((unsigned long)addr, buf, len);
-}
-
-static inline void writesw(const void __iomem *addr, const void *buf, int len)
-{
-	outsw((unsigned long)addr, buf, len);
-}
-
-static inline void writesb(const void __iomem *addr, const void *buf, int len)
-{
-	outsb((unsigned long)addr, buf, len);
-}
-
 /*
  * Map some physical address range into the kernel address space.
  */
