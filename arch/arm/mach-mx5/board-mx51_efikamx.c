@@ -58,6 +58,28 @@ static iomux_v3_cfg_t mx51efikamx_pads[] = {
 	MX51_PAD_PCBID0,
 	MX51_PAD_PCBID1,
 	MX51_PAD_PCBID2,
+
+	/* SD 1 */
+	MX51_PAD_SD1_CMD__SD1_CMD,
+	MX51_PAD_SD1_CLK__SD1_CLK,
+	MX51_PAD_SD1_DATA0__SD1_DATA0,
+	MX51_PAD_SD1_DATA1__SD1_DATA1,
+	MX51_PAD_SD1_DATA2__SD1_DATA2,
+	MX51_PAD_SD1_DATA3__SD1_DATA3,
+
+	/* SD 2 */
+	MX51_PAD_SD2_CMD__SD2_CMD,
+	MX51_PAD_SD2_CLK__SD2_CLK,
+	MX51_PAD_SD2_DATA0__SD2_DATA0,
+	MX51_PAD_SD2_DATA1__SD2_DATA1,
+	MX51_PAD_SD2_DATA2__SD2_DATA2,
+	MX51_PAD_SD2_DATA3__SD2_DATA3,
+
+	/* SD/MMC WP/CD */
+	MX51_PAD_GPIO_1_0__ESDHC1_CD,
+	MX51_PAD_GPIO_1_1__ESDHC1_WP,
+	MX51_PAD_GPIO_1_7__ESDHC2_WP,
+	MX51_PAD_GPIO_1_8__ESDHC2_CD,
 };
 
 /* Serial ports */
@@ -163,6 +185,11 @@ static void __init mxc_board_init(void)
 	mx51_efikamx_board_id();
 	mxc_register_device(&mxc_usbdr_host_device, &dr_utmi_config);
 	mxc_init_imx_uart();
+	imx51_add_esdhc(0, NULL);
+
+	/* on < 1.2 boards both SD controllers are used */
+	if (system_rev < 0x12)
+		imx51_add_esdhc(1, NULL);
 }
 
 static void __init mx51_efikamx_timer_init(void)

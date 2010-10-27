@@ -81,6 +81,7 @@ endchoice
 
 config MACH_MX51_EFIKAMX
 	bool "Support MX51 Genesi Efika MX nettop"
+	select IMX_HAVE_PLATFORM_ESDHC
 	select IMX_HAVE_PLATFORM_IMX_UART
 	help
 	  Include support for Genesi Efika MX nettop. This includes specific
