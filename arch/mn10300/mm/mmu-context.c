@@ -23,7 +23,7 @@ unsigned long mmu_context_cache[NR_CPUS] = {
 /*
  * flush the specified TLB entry
  */
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
+void local_flush_tlb_page(struct mm_struct *mm, unsigned long addr)
 {
 	unsigned long pteu, cnx, flags;
 
@@ -33,7 +33,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
 	 * interference from vmalloc'd regions */
 	local_irq_save(flags);
 
-	cnx = mm_context(vma->vm_mm);
+	cnx = mm_context(mm);
 
 	if (cnx != MMU_NO_CONTEXT) {
 		pteu = addr | (cnx & 0x000000ffUL);

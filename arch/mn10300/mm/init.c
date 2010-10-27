@@ -73,7 +73,7 @@ void __init paging_init(void)
 	/* pass the memory from the bootmem allocator to the main allocator */
 	free_area_init(zones_size);
 
-	__flush_tlb_all();
+	local_flush_tlb_all();
 }
 
 /*

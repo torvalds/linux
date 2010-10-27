@@ -58,7 +58,7 @@ static inline unsigned long allocate_mmu_context(struct mm_struct *mm)
 	if (!(mc & MMU_CONTEXT_TLBPID_MASK)) {
 		/* we exhausted the TLB PIDs of this version on this CPU, so we
 		 * flush this CPU's TLB in its entirety and start new cycle */
-		flush_tlb_all();
+		local_flush_tlb_all();
 
 		/* fix the TLB version if needed (we avoid version #0 so as to
 		 * distingush MMU_NO_CONTEXT) */
