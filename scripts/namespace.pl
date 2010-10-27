@@ -167,11 +167,11 @@ sub do_nm
 		printf STDERR "$fullname is not an object file\n";
 		return;
 	}
-	($source = $fullname) =~ s/\.o$//;
-	if (-e "$objtree$source.c" || -e "$objtree$source.S") {
-		$source = "$objtree$source";
+	($source = $basename) =~ s/\.o$//;
+	if (-e "$source.c" || -e "$source.S") {
+		$source = "$objtree$File::Find::dir/$source";
 	} else {
-		$source = "$srctree$source";
+		$source = "$srctree$File::Find::dir/$source";
 	}
 	if (! -e "$source.c" && ! -e "$source.S") {
 		# No obvious source, exclude the object if it is conglomerate
