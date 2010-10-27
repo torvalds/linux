@@ -33,3 +33,23 @@ endchoice
 
 config MN10300_CACHE_ENABLED
 	def_bool y if !MN10300_CACHE_DISABLED
+
+
+choice
+	prompt "CPU cache flush/invalidate method"
+	default MN10300_CACHE_MANAGE_BY_TAG
+	depends on MN10300_CACHE_ENABLED
+	help
+	  This determines the method by which CPU cache flushing and
+	  invalidation is performed.
+
+config MN10300_CACHE_MANAGE_BY_TAG
+	bool "Use the cache tag registers directly"
+
+endchoice
+
+config MN10300_CACHE_INV_BY_TAG
+	def_bool y if MN10300_CACHE_MANAGE_BY_TAG && MN10300_CACHE_ENABLED
+
+config MN10300_CACHE_FLUSH_BY_TAG
+	def_bool y if MN10300_CACHE_MANAGE_BY_TAG && MN10300_CACHE_WBACK

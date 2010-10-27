@@ -2,8 +2,9 @@
 # Makefile for the MN10300-specific memory management code
 #
 
-cacheflush-y	:= cache.o cache-mn10300.o
-cacheflush-$(CONFIG_MN10300_CACHE_WBACK) += cache-flush-mn10300.o
+cacheflush-y	:= cache.o
+cacheflush-$(CONFIG_MN10300_CACHE_INV_BY_TAG) += cache-inv-by-tag.o
+cacheflush-$(CONFIG_MN10300_CACHE_FLUSH_BY_TAG) += cache-flush-by-tag.o
 
 cacheflush-$(CONFIG_MN10300_CACHE_DISABLED) := cache-disabled.o
 
