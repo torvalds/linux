@@ -52,9 +52,7 @@ static int show_stat(struct seq_file *p, void *v)
 		guest = cputime64_add(guest, kstat_cpu(i).cpustat.guest);
 		guest_nice = cputime64_add(guest_nice,
 			kstat_cpu(i).cpustat.guest_nice);
-		for_each_irq_nr(j) {
-			sum += kstat_irqs_cpu(j, i);
-		}
+		sum += kstat_cpu_irqs_sum(i);
 		sum += arch_irq_stat_cpu(i);
 
 		for (j = 0; j < NR_SOFTIRQS; j++) {
