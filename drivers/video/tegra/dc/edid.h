@@ -21,13 +21,7 @@
 #include <linux/i2c.h>
 #include <linux/wait.h>
 
-struct tegra_edid {
-	struct i2c_client	*client;
-	struct i2c_board_info	info;
-
-	int			probed;
-	wait_queue_head_t	wq;
-};
+struct tegra_edid;
 
 struct tegra_edid *tegra_edid_create(int bus);
 void tegra_edid_destroy(struct tegra_edid *edid);
