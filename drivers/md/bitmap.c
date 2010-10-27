@@ -343,7 +343,7 @@ static void write_page(struct bitmap *bitmap, struct page *page, int wait)
 			atomic_inc(&bitmap->pending_writes);
 			set_buffer_locked(bh);
 			set_buffer_mapped(bh);
-			submit_bh(WRITE, bh);
+			submit_bh(WRITE | REQ_UNPLUG | REQ_SYNC, bh);
 			bh = bh->b_this_page;
 		}
 
