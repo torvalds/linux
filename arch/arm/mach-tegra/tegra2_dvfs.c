@@ -95,7 +95,6 @@ static struct dvfs dvfs_init[] = {
 	CORE_DVFS("pcie",    1, KHZ, 0,      0,      0,      250000, 250000),
 	CORE_DVFS("dsi",     1, KHZ, 100000, 100000, 100000, 500000, 500000),
 	CORE_DVFS("tvo",     1, KHZ, 0,      0,      0,      250000, 250000),
-	CORE_DVFS("hdmi",    1, KHZ, 0,      0,      0,      148500, 148500),
 
 	/*
 	 * The clock rate for the display controllers that determines the
@@ -105,6 +104,7 @@ static struct dvfs dvfs_init[] = {
 	 */
 	CORE_DVFS("disp1",   0, KHZ, 158000, 158000, 190000, 190000, 190000),
 	CORE_DVFS("disp2",   0, KHZ, 158000, 158000, 190000, 190000, 190000),
+	CORE_DVFS("hdmi",    0, KHZ, 0,      0,      0,      148500, 148500),
 
 	/*
 	 * These clocks technically depend on the core process id,
