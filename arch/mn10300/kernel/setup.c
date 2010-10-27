@@ -187,7 +187,7 @@ void __init cpu_init(void)
 	if (type > mn10300_known_cpus)
 		type = mn10300_known_cpus;
 
-	printk(KERN_INFO "Matsushita %s, rev %ld\n",
+	printk(KERN_INFO "Panasonic %s, rev %ld\n",
 	       mn10300_cputypes[type],
 	       (cpurev & CPUREV_REVISION) >> CPUREV_REVISION_S);
 
@@ -246,7 +246,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	seq_printf(m,
 		   "processor  : %ld\n"
-		   "vendor_id  : Matsushita\n"
+		   "vendor_id  : " PROCESSOR_VENDOR_NAME "\n"
 		   "cpu core   : %s\n"
 		   "cpu rev    : %lu\n"
 		   "model name : " PROCESSOR_MODEL_NAME		"\n"

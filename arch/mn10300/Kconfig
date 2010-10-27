@@ -93,14 +93,14 @@ config GENERIC_HARDIRQS
 config HOTPLUG_CPU
 	def_bool n
 
-mainmenu "Matsushita MN10300/AM33 Kernel Configuration"
+mainmenu "Panasonic MN10300/AM33 Kernel Configuration"
 
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
 
 
-menu "Matsushita MN10300 system setup"
+menu "Panasonic MN10300 system setup"
 
 choice
 	prompt "Unit type"
