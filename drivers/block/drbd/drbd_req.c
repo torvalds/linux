@@ -948,6 +948,29 @@ allocate_barrier:
 				? queue_for_net_write
 				: queue_for_net_read);
 	}
+
+	if (remote && mdev->net_conf->on_congestion != OC_BLOCK) {
+		int congested = 0;
+
+		if (mdev->net_conf->cong_fill &&
+		    atomic_read(&mdev->ap_in_flight) >= mdev->net_conf->cong_fill) {
+			dev_info(DEV, "Congestion-fill threshold reached\n");
+			congested = 1;
+		}
+
+		if (mdev->act_log->used >= mdev->net_conf->cong_extents) {
+			dev_info(DEV, "Congestion-extents threshold reached\n");
+			congested = 1;
+		}
+
+		if (congested) {
+			if (mdev->net_conf->on_congestion == OC_PULL_AHEAD)
+				_drbd_set_state(_NS(mdev, conn, C_AHEAD), 0, NULL);
+			else  /*mdev->net_conf->on_congestion == OC_DISCONNECT */
+				_drbd_set_state(_NS(mdev, conn, C_DISCONNECTING), 0, NULL);
+		}
+	}
+
 	spin_unlock_irq(&mdev->req_lock);
 	kfree(b); /* if someone else has beaten us to it... */
 

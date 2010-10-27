@@ -206,6 +206,10 @@ enum drbd_conns {
 	C_VERIFY_T,
 	C_PAUSED_SYNC_S,
 	C_PAUSED_SYNC_T,
+
+	C_AHEAD,
+	C_BEHIND,
+
 	C_MASK = 31
 };
 

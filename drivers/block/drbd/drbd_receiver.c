@@ -3179,6 +3179,9 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 	if (ns.conn == C_WF_REPORT_PARAMS)
 		ns.conn = C_CONNECTED;
 
+	if (peer_state.conn == C_AHEAD)
+		ns.conn = C_BEHIND;
+
 	if (mdev->p_uuid && peer_state.disk >= D_NEGOTIATING &&
 	    get_ldev_if_state(mdev, D_NEGOTIATING)) {
 		int cr; /* consider resync */

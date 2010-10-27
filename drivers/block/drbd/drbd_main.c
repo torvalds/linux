@@ -871,16 +871,19 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 
 	if (ns.conn >= C_CONNECTED &&
 	    ((ns.disk == D_CONSISTENT || ns.disk == D_OUTDATED) ||
-	     (ns.disk == D_NEGOTIATING && ns.conn == C_WF_BITMAP_T))) {
+	     (ns.disk == D_NEGOTIATING && ns.conn == C_WF_BITMAP_T) ||
+	     ns.conn >= C_AHEAD)) {
 		switch (ns.conn) {
 		case C_WF_BITMAP_T:
 		case C_PAUSED_SYNC_T:
+		case C_BEHIND:
 			ns.disk = D_OUTDATED;
 			break;
 		case C_CONNECTED:
 		case C_WF_BITMAP_S:
 		case C_SYNC_SOURCE:
 		case C_PAUSED_SYNC_S:
+		case C_AHEAD:
 			ns.disk = D_UP_TO_DATE;
 			break;
 		case C_SYNC_TARGET:
@@ -893,16 +896,18 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 	}
 
 	if (ns.conn >= C_CONNECTED &&
-	    (ns.pdsk == D_CONSISTENT || ns.pdsk == D_OUTDATED)) {
+	    (ns.pdsk == D_CONSISTENT || ns.pdsk == D_OUTDATED || ns.conn >= C_AHEAD)) {
 		switch (ns.conn) {
 		case C_CONNECTED:
 		case C_WF_BITMAP_T:
 		case C_PAUSED_SYNC_T:
 		case C_SYNC_TARGET:
+		case C_BEHIND:
 			ns.pdsk = D_UP_TO_DATE;
 			break;
 		case C_WF_BITMAP_S:
 		case C_PAUSED_SYNC_S:
+		case C_AHEAD:
 			/* remap any consistent state to D_OUTDATED,
 			 * but disallow "upgrade" of not even consistent states.
 			 */
@@ -1372,6 +1377,9 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	/* Make sure the peer gets informed about eventual state
 	   changes (ISP bits) while we were in WFReportParams. */
 	if (os.conn == C_WF_REPORT_PARAMS && ns.conn >= C_CONNECTED)
+		drbd_send_state(mdev);
+
+	if (os.conn != C_AHEAD && ns.conn == C_AHEAD)
 		drbd_send_state(mdev);
 
 	/* We are in the progress to start a full sync... */

@@ -2217,6 +2217,8 @@ static inline int drbd_state_is_stable(union drbd_state s)
 	case C_VERIFY_T:
 	case C_PAUSED_SYNC_S:
 	case C_PAUSED_SYNC_T:
+	case C_AHEAD:
+	case C_BEHIND:
 		/* maybe stable, look at the disk state */
 		break;
 
