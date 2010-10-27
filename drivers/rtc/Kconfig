@@ -952,4 +952,13 @@ config RTC_DRV_JZ4740
 	  This driver can also be buillt as a module. If so, the module
 	  will be called rtc-jz4740.
 
+config RTC_DRV_LPC32XX
+	depends on ARCH_LPC32XX
+	tristate "NXP LPC32XX RTC"
+	help
+	  This enables support for the NXP RTC in the LPC32XX
+
+	  This driver can also be buillt as a module. If so, the module
+	  will be called rtc-lpc32xx.
+
 endif # RTC_CLASS
