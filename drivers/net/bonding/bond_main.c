@@ -493,9 +493,9 @@ static void bond_vlan_rx_register(struct net_device *bond_dev,
 	struct slave *slave;
 	int i;
 
-	write_lock(&bond->lock);
+	write_lock_bh(&bond->lock);
 	bond->vlgrp = grp;
-	write_unlock(&bond->lock);
+	write_unlock_bh(&bond->lock);
 
 	bond_for_each_slave(bond, slave, i) {
 		struct net_device *slave_dev = slave->dev;
