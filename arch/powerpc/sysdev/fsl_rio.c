@@ -87,6 +87,9 @@
 #define RIO_IPWSR_PWD		0x00000008
 #define RIO_IPWSR_PWB		0x00000004
 
+#define RIO_EPWISR_PINT		0x80000000
+#define RIO_EPWISR_PW		0x00000001
+
 #define RIO_MSG_DESC_SIZE	32
 #define RIO_MSG_BUFFER_SIZE	4096
 #define RIO_MIN_TX_RING_SIZE	2
@@ -1082,18 +1085,12 @@ fsl_rio_port_write_handler(int irq, void *dev_instance)
 	struct rio_priv *priv = port->priv;
 	u32 epwisr, tmp;
 
+	epwisr = in_be32(priv->regs_win + RIO_EPWISR);
+	if (!(epwisr & RIO_EPWISR_PW))
+		goto pw_done;
+
 	ipwmr = in_be32(&priv->msg_regs->pwmr);
 	ipwsr = in_be32(&priv->msg_regs->pwsr);
-
-	epwisr = in_be32(priv->regs_win + RIO_EPWISR);
-	if (epwisr & 0x80000000) {
-		tmp = in_be32(priv->regs_win + RIO_LTLEDCSR);
-		pr_info("RIO_LTLEDCSR = 0x%x\n", tmp);
-		out_be32(priv->regs_win + RIO_LTLEDCSR, 0);
-	}
-
-	if (!(epwisr & 0x00000001))
-		return IRQ_HANDLED;
 
 #ifdef DEBUG_PW
 	pr_debug("PW Int->IPWMR: 0x%08x IPWSR: 0x%08x (", ipwmr, ipwsr);
@@ -1109,20 +1106,6 @@ fsl_rio_port_write_handler(int irq, void *dev_instance)
 		pr_debug(" PWB");
 	pr_debug(" )\n");
 #endif
-	out_be32(&priv->msg_regs->pwsr,
-		 ipwsr & (RIO_IPWSR_TE | RIO_IPWSR_QFI | RIO_IPWSR_PWD));
-
-	if ((ipwmr & RIO_IPWMR_EIE) && (ipwsr & RIO_IPWSR_TE)) {
-		priv->port_write_msg.err_count++;
-		pr_info("RIO: Port-Write Transaction Err (%d)\n",
-			 priv->port_write_msg.err_count);
-	}
-	if (ipwsr & RIO_IPWSR_PWD) {
-		priv->port_write_msg.discard_count++;
-		pr_info("RIO: Port Discarded Port-Write Msg(s) (%d)\n",
-			 priv->port_write_msg.discard_count);
-	}
-
 	/* Schedule deferred processing if PW was received */
 	if (ipwsr & RIO_IPWSR_QFI) {
 		/* Save PW message (if there is room in FIFO),
@@ -1134,16 +1117,43 @@ fsl_rio_port_write_handler(int irq, void *dev_instance)
 				 RIO_PW_MSG_SIZE);
 		} else {
 			priv->port_write_msg.discard_count++;
-			pr_info("RIO: ISR Discarded Port-Write Msg(s) (%d)\n",
+			pr_debug("RIO: ISR Discarded Port-Write Msg(s) (%d)\n",
 				 priv->port_write_msg.discard_count);
 		}
+		/* Clear interrupt and issue Clear Queue command. This allows
+		 * another port-write to be received.
+		 */
+		out_be32(&priv->msg_regs->pwsr,	RIO_IPWSR_QFI);
+		out_be32(&priv->msg_regs->pwmr, ipwmr | RIO_IPWMR_CQ);
+
 		schedule_work(&priv->pw_work);
 	}
 
-	/* Issue Clear Queue command. This allows another
-	 * port-write to be received.
-	 */
-	out_be32(&priv->msg_regs->pwmr, ipwmr | RIO_IPWMR_CQ);
+	if ((ipwmr & RIO_IPWMR_EIE) && (ipwsr & RIO_IPWSR_TE)) {
+		priv->port_write_msg.err_count++;
+		pr_debug("RIO: Port-Write Transaction Err (%d)\n",
+			 priv->port_write_msg.err_count);
+		/* Clear Transaction Error: port-write controller should be
+		 * disabled when clearing this error
+		 */
+		out_be32(&priv->msg_regs->pwmr, ipwmr & ~RIO_IPWMR_PWE);
+		out_be32(&priv->msg_regs->pwsr,	RIO_IPWSR_TE);
+		out_be32(&priv->msg_regs->pwmr, ipwmr);
+	}
+
+	if (ipwsr & RIO_IPWSR_PWD) {
+		priv->port_write_msg.discard_count++;
+		pr_debug("RIO: Port Discarded Port-Write Msg(s) (%d)\n",
+			 priv->port_write_msg.discard_count);
+		out_be32(&priv->msg_regs->pwsr, RIO_IPWSR_PWD);
+	}
+
+pw_done:
+	if (epwisr & RIO_EPWISR_PINT) {
+		tmp = in_be32(priv->regs_win + RIO_LTLEDCSR);
+		pr_debug("RIO_LTLEDCSR = 0x%x\n", tmp);
+		out_be32(priv->regs_win + RIO_LTLEDCSR, 0);
+	}
 
 	return IRQ_HANDLED;
 }
