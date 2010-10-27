@@ -56,6 +56,8 @@ struct tegra_dma_channel;
 #define TEGRA_DMA_REQ_SEL_OWR			25
 #define TEGRA_DMA_REQ_SEL_INVALID		31
 
+#define TEGRA_DMA_MAX_TRANSFER_SIZE		0x10000
+
 enum tegra_dma_mode {
 	TEGRA_DMA_SHARED = 1,
 	TEGRA_DMA_MODE_CONTINUOUS = 2,

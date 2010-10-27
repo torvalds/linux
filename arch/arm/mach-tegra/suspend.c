@@ -55,15 +55,21 @@
 #include "board.h"
 #include "power.h"
 
-/* NOTE: only add elements to the end of this structure, since the assembly
- * code uses hard-coded offsets */
-struct suspend_context
-{
+struct suspend_context {
+	/*
+	 * The next 7 values are referenced by offset in __restart_plls
+	 * in headsmp-t2.S, and should not be moved
+	 */
+	u32 pllx_misc;
+	u32 pllx_base;
+	u32 pllp_misc;
+	u32 pllp_base;
+	u32 pllp_outa;
+	u32 pllp_outb;
+	u32 pll_timeout;
+
 	u32 cpu_burst;
 	u32 clk_csite_src;
-	u32 pllx_base;
-	u32 pllx_misc;
-	u32 pllx_timeout;
 	u32 twd_ctrl;
 	u32 twd_load;
 	u32 cclk_divider;
@@ -103,6 +109,11 @@ static void __iomem *tmrus = IO_ADDRESS(TEGRA_TMRUS_BASE);
 #define CLK_RESET_PLLM_BASE	0x90
 #define CLK_RESET_PLLX_BASE	0xe0
 #define CLK_RESET_PLLX_MISC	0xe4
+#define CLK_RESET_PLLP_BASE	0xa0
+#define CLK_RESET_PLLP_OUTA	0xa4
+#define CLK_RESET_PLLP_OUTB	0xa8
+#define CLK_RESET_PLLP_MISC	0xac
+
 #define CLK_RESET_SOURCE_CSITE	0x1d4
 
 
@@ -258,7 +269,7 @@ static noinline void restore_cpu_complex(void)
 	BUG_ON(readl(clk_rst + CLK_RESET_PLLX_BASE) != tegra_sctx.pllx_base);
 
 	if (tegra_sctx.pllx_base & (1<<30)) {
-		while (readl(tmrus)-tegra_sctx.pllx_timeout >= 0x80000000UL)
+		while (readl(tmrus)-tegra_sctx.pll_timeout >= 0x80000000UL)
 			cpu_relax();
 	}
 	writel(tegra_sctx.cclk_divider, clk_rst + CLK_RESET_CCLK_DIVIDER);
@@ -297,6 +308,10 @@ static noinline void suspend_cpu_complex(void)
 	tegra_sctx.cpu_burst = readl(clk_rst + CLK_RESET_CCLK_BURST);
 	tegra_sctx.pllx_base = readl(clk_rst + CLK_RESET_PLLX_BASE);
 	tegra_sctx.pllx_misc = readl(clk_rst + CLK_RESET_PLLX_MISC);
+	tegra_sctx.pllp_base = readl(clk_rst + CLK_RESET_PLLP_BASE);
+	tegra_sctx.pllp_outa = readl(clk_rst + CLK_RESET_PLLP_OUTA);
+	tegra_sctx.pllp_outb = readl(clk_rst + CLK_RESET_PLLP_OUTB);
+	tegra_sctx.pllp_misc = readl(clk_rst + CLK_RESET_PLLP_MISC);
 	tegra_sctx.cclk_divider = readl(clk_rst + CLK_RESET_CCLK_DIVIDER);
 
 #ifdef CONFIG_HAVE_ARM_TWD

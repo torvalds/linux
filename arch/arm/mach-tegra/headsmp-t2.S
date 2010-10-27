@@ -41,6 +41,13 @@
 #define PMC_SCRATCH39	0x138
 #define RST_DEVICES_U	0xc
 
+#define CLK_RESET_PLLX_BASE     0xe0
+#define CLK_RESET_PLLX_MISC     0xe4
+#define CLK_RESET_PLLP_BASE     0xa0
+#define CLK_RESET_PLLP_OUTA     0xa4
+#define CLK_RESET_PLLP_OUTB     0xa8
+#define CLK_RESET_PLLP_MISC     0xac
+
 /*        .section ".cpuinit.text", "ax"*/
 
 .macro	poke_ev, val, tmp
@@ -66,26 +73,38 @@ ENDPROC(tegra_secondary_startup)
 #endif
 
 /*
- *	__restart_pllx
+ *	__restart_plls
  *
- *	  Loads the saved PLLX parameters from tegra_sctx into PLLX, to
- *	  allow it to stabilize while the rest of the CPU state is restored.
+ *	  Loads the saved PLLX and PLLP parameters into the PLLs, to
+ *	  allow them to stabilize while the rest of the CPU state is restored.
  *	  Should be called after the MMU is enabled. Jumps directly
  *	  to __cortex_a9_restore
  */
 	.align L1_CACHE_SHIFT
-__restart_pllx:
+__restart_plls:
 	mov32	r0, tegra_sctx
-	ldr	r1, [r0, #0x8]	@ pllx_base
-	ldr	r2, [r0, #0xC]	@ pllx_misc
 	mov32	r3, (TEGRA_CLK_RESET_BASE-IO_PPSB_PHYS+IO_PPSB_VIRT)
 	mov32	r4, (TEGRA_TMRUS_BASE-IO_PPSB_PHYS+IO_PPSB_VIRT)
-	str	r2, [r3, #0xe4]	@ pllx_misc
-	str	r1, [r3, #0xe0] @ pllx_base
-	/* record the time that PLLX will be stable */
+
+	ldr	r1, [r0, #0x0]	@ pllx_misc
+	ldr	r2, [r0, #0x4]	@ pllx_base
+	str	r1, [r3, #CLK_RESET_PLLX_MISC]
+	str	r2, [r3, #CLK_RESET_PLLX_BASE]
+
+	ldr	r1, [r0, #0x8]	@ pllp_misc
+	ldr	r2, [r0, #0xc]	@ pllp_base
+	str	r1, [r3, #CLK_RESET_PLLP_MISC]
+	str	r2, [r3, #CLK_RESET_PLLP_BASE]
+
+	ldr	r1, [r0, #0x10]	@ pllp_outa
+	ldr	r2, [r0, #0x14]	@ pllp_outb
+	str	r1, [r3, #CLK_RESET_PLLP_OUTA]
+	str	r2, [r3, #CLK_RESET_PLLP_OUTB]
+
+	/* record the time that PLLX and PLLP will be stable */
 	ldr	r1, [r4]
 	add	r1, r1, #300
-	str	r1, [r0, #0x10]
+	str	r1, [r0, #0x18]	@ pll_timeout
 	/* FIXME: need to record actual power transition here */
 	mov	r0, #0
 	b	__cortex_a9_l2x0_restart
@@ -156,7 +175,7 @@ ENDPROC(tegra_lp2_startup)
 __tegra_lp2_data:
 	.long	.
 	.long	tegra_pgd_phys
-	.long	__restart_pllx
+	.long	__restart_plls
 	.size	__tegra_lp2_data, . - __tegra_lp2_data
 
 #ifdef CONFIG_HOTPLUG_CPU

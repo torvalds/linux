@@ -30,10 +30,13 @@
 
 #define DRIVER_NAME    "sdhci-tegra"
 
+#define SDHCI_VENDOR_CLOCK_CNTRL       0x100
+
 struct tegra_sdhci_host {
 	struct sdhci_host *sdhci;
 	struct clk *clk;
 	struct tegra_sdhci_platform_data *plat;
+	int clk_enabled;
 };
 
 static irqreturn_t carddetect_irq(int irq, void *data)
@@ -77,8 +80,26 @@ static int tegra_sdhci_enable_dma(struct sdhci_host *host)
 	return 0;
 }
 
+static void tegra_sdhci_set_clock(struct sdhci_host *sdhci, unsigned int clock)
+{
+	struct tegra_sdhci_host *host = sdhci_priv(sdhci);
+	pr_info("tegra sdhci clock %s %u\n",
+		mmc_hostname(sdhci->mmc), clock);
+
+	if (clock && !host->clk_enabled) {
+		clk_enable(host->clk);
+		sdhci_writeb(sdhci, 1, SDHCI_VENDOR_CLOCK_CNTRL);
+		host->clk_enabled = 1;
+	} else if (!clock && host->clk_enabled) {
+		sdhci_writeb(sdhci, 0, SDHCI_VENDOR_CLOCK_CNTRL);
+		clk_disable(host->clk);
+		host->clk_enabled = 0;
+	}
+}
+
 static struct sdhci_ops tegra_sdhci_ops = {
 	.enable_dma = tegra_sdhci_enable_dma,
+	.set_clock = tegra_sdhci_set_clock,
 };
 
 static int __devinit tegra_sdhci_probe(struct platform_device *pdev)
@@ -136,6 +157,7 @@ static int __devinit tegra_sdhci_probe(struct platform_device *pdev)
 	if (rc != 0)
 		goto err_clkput;
 
+	host->clk_enabled = 1;
 	sdhci->hw_name = "tegra";
 	sdhci->ops = &tegra_sdhci_ops;
 	sdhci->irq = irq;
