@@ -215,6 +215,9 @@ static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 				 __func__, __LINE__, pitch);
 			return -EINVAL;
 		}
+		/* avoid breaking userspace */
+		if (height > 7)
+			height &= ~0x7;
 		if (!IS_ALIGNED(height, 8)) {
 			dev_warn(p->dev, "%s:%d cb height (%d) invalid\n",
 				 __func__, __LINE__, height);
