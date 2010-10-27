@@ -50,8 +50,7 @@ static inline void startup_jiffies_counter(void)
 			md = TM0MD_SRC_IOCLK_32;
 			rate = MN10300_JCCLK / 32 / HZ;
 
-			if (rate > TMJCBR_MAX)
-				BUG();
+			BUG_ON(rate > TMJCBR_MAX);
 		}
 	}
 

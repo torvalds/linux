@@ -449,8 +449,7 @@ found_opcode:
 	       regs->pc, opcode, pop->opcode, pop->params[0], pop->params[1]);
 
 	tmp = format_tbl[pop->format].opsz;
-	if (tmp > noc)
-		BUG(); /* match was less complete than it ought to have been */
+	BUG_ON(tmp > noc); /* match was less complete than it ought to have been */
 
 	if (tmp < noc) {
 		tmp = noc - tmp;

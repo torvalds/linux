@@ -159,8 +159,7 @@ asmlinkage void do_IRQ(void)
 	int irq;
 
 	sp = current_stack_pointer();
-	if (sp - (sp & ~(THREAD_SIZE - 1)) < STACK_WARN)
-		BUG();
+	BUG_ON(sp - (sp & ~(THREAD_SIZE - 1)) < STACK_WARN);
 
 	/* make sure local_irq_enable() doesn't muck up the interrupt priority
 	 * setting in EPSW */
