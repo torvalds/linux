@@ -813,8 +813,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		unsigned long tmp;
 
 		ret = -EIO;
-		if ((addr & (sizeof(data) - 1)) || addr < 0 ||
-		    addr >= sizeof(struct user))
+		if ((addr & (sizeof(data) - 1)) || addr >= sizeof(struct user))
 			break;
 
 		tmp = 0;  /* Default return condition */
@@ -831,8 +830,7 @@ long arch_ptrace(struct task_struct *child, long request,
 
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 		ret = -EIO;
-		if ((addr & (sizeof(data) - 1)) || addr < 0 ||
-		    addr >= sizeof(struct user))
+		if ((addr & (sizeof(data) - 1)) || addr >= sizeof(struct user))
 			break;
 
 		if (addr < sizeof(struct user_regs_struct))
@@ -892,14 +890,14 @@ long arch_ptrace(struct task_struct *child, long request,
 		if ((int) addr < 0)
 			return -EIO;
 		ret = do_get_thread_area(child, addr,
-					 (struct user_desc __user *) data);
+					(struct user_desc __user *)data);
 		break;
 
 	case PTRACE_SET_THREAD_AREA:
 		if ((int) addr < 0)
 			return -EIO;
 		ret = do_set_thread_area(child, addr,
-					 (struct user_desc __user *) data, 0);
+					(struct user_desc __user *)data, 0);
 		break;
 #endif
 
