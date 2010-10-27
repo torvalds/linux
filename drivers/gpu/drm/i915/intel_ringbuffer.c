@@ -112,10 +112,11 @@ render_ring_flush(struct intel_ring_buffer *ring,
 #if WATCH_EXEC
 		DRM_INFO("%s: queue flush %08x to ring\n", __func__, cmd);
 #endif
-		intel_ring_begin(ring, 2);
-		intel_ring_emit(ring, cmd);
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_advance(ring);
+		if (intel_ring_begin(ring, 2) == 0) {
+			intel_ring_emit(ring, cmd);
+			intel_ring_emit(ring, MI_NOOP);
+			intel_ring_advance(ring);
+		}
 	}
 }
 
@@ -244,16 +245,17 @@ render_ring_add_request(struct intel_ring_buffer *ring,
 	seqno = i915_gem_get_seqno(dev);
 
 	if (IS_GEN6(dev)) {
-		intel_ring_begin(ring, 6);
-		intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | 3);
-		intel_ring_emit(ring, PIPE_CONTROL_QW_WRITE |
-			 PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_IS_FLUSH |
-			 PIPE_CONTROL_NOTIFY);
-		intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
-		intel_ring_emit(ring, seqno);
-		intel_ring_emit(ring, 0);
-		intel_ring_emit(ring, 0);
-		intel_ring_advance(ring);
+		if (intel_ring_begin(ring, 6) == 0) {
+			intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | 3);
+			intel_ring_emit(ring, PIPE_CONTROL_QW_WRITE |
+					PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_IS_FLUSH |
+					PIPE_CONTROL_NOTIFY);
+			intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
+			intel_ring_emit(ring, seqno);
+			intel_ring_emit(ring, 0);
+			intel_ring_emit(ring, 0);
+			intel_ring_advance(ring);
+		}
 	} else if (HAS_PIPE_CONTROL(dev)) {
 		u32 scratch_addr = dev_priv->seqno_gfx_addr + 128;
 
@@ -262,38 +264,40 @@ render_ring_add_request(struct intel_ring_buffer *ring,
 		 * PIPE_NOTIFY buffers out to memory before requesting
 		 * an interrupt.
 		 */
-		intel_ring_begin(ring, 32);
-		intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
-			 PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH);
-		intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
-		intel_ring_emit(ring, seqno);
-		intel_ring_emit(ring, 0);
-		PIPE_CONTROL_FLUSH(ring, scratch_addr);
-		scratch_addr += 128; /* write to separate cachelines */
-		PIPE_CONTROL_FLUSH(ring, scratch_addr);
-		scratch_addr += 128;
-		PIPE_CONTROL_FLUSH(ring, scratch_addr);
-		scratch_addr += 128;
-		PIPE_CONTROL_FLUSH(ring, scratch_addr);
-		scratch_addr += 128;
-		PIPE_CONTROL_FLUSH(ring, scratch_addr);
-		scratch_addr += 128;
-		PIPE_CONTROL_FLUSH(ring, scratch_addr);
-		intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
-			 PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH |
-			 PIPE_CONTROL_NOTIFY);
-		intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
-		intel_ring_emit(ring, seqno);
-		intel_ring_emit(ring, 0);
-		intel_ring_advance(ring);
+		if (intel_ring_begin(ring, 32) == 0) {
+			intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
+					PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH);
+			intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
+			intel_ring_emit(ring, seqno);
+			intel_ring_emit(ring, 0);
+			PIPE_CONTROL_FLUSH(ring, scratch_addr);
+			scratch_addr += 128; /* write to separate cachelines */
+			PIPE_CONTROL_FLUSH(ring, scratch_addr);
+			scratch_addr += 128;
+			PIPE_CONTROL_FLUSH(ring, scratch_addr);
+			scratch_addr += 128;
+			PIPE_CONTROL_FLUSH(ring, scratch_addr);
+			scratch_addr += 128;
+			PIPE_CONTROL_FLUSH(ring, scratch_addr);
+			scratch_addr += 128;
+			PIPE_CONTROL_FLUSH(ring, scratch_addr);
+			intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
+					PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH |
+					PIPE_CONTROL_NOTIFY);
+			intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
+			intel_ring_emit(ring, seqno);
+			intel_ring_emit(ring, 0);
+			intel_ring_advance(ring);
+		}
 	} else {
-		intel_ring_begin(ring, 4);
-		intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
-		intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-		intel_ring_emit(ring, seqno);
+		if (intel_ring_begin(ring, 4) == 0) {
+			intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
+			intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
+			intel_ring_emit(ring, seqno);
 
-		intel_ring_emit(ring, MI_USER_INTERRUPT);
-		intel_ring_advance(ring);
+			intel_ring_emit(ring, MI_USER_INTERRUPT);
+			intel_ring_advance(ring);
+		}
 	}
 	return seqno;
 }
@@ -359,10 +363,11 @@ bsd_ring_flush(struct intel_ring_buffer *ring,
 	       u32     invalidate_domains,
 	       u32     flush_domains)
 {
-	intel_ring_begin(ring, 2);
-	intel_ring_emit(ring, MI_FLUSH);
-	intel_ring_emit(ring, MI_NOOP);
-	intel_ring_advance(ring);
+	if (intel_ring_begin(ring, 2) == 0) {
+		intel_ring_emit(ring, MI_FLUSH);
+		intel_ring_emit(ring, MI_NOOP);
+		intel_ring_advance(ring);
+	}
 }
 
 static u32
@@ -373,12 +378,13 @@ ring_add_request(struct intel_ring_buffer *ring,
 
 	seqno = i915_gem_get_seqno(ring->dev);
 
-	intel_ring_begin(ring, 4);
-	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
-	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, seqno);
-	intel_ring_emit(ring, MI_USER_INTERRUPT);
-	intel_ring_advance(ring);
+	if (intel_ring_begin(ring, 4) == 0) {
+		intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
+		intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
+		intel_ring_emit(ring, seqno);
+		intel_ring_emit(ring, MI_USER_INTERRUPT);
+		intel_ring_advance(ring);
+	}
 
 	DRM_DEBUG_DRIVER("%s %d\n", ring->name, seqno);
 
@@ -409,10 +415,14 @@ ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 			 uint64_t exec_offset)
 {
 	uint32_t exec_start;
+	int ret;
 
 	exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
 
-	intel_ring_begin(ring, 2);
+	ret = intel_ring_begin(ring, 2);
+	if (ret)
+		return ret;
+
 	intel_ring_emit(ring,
 			MI_BATCH_BUFFER_START |
 			(2 << 6) |
@@ -432,8 +442,8 @@ render_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int nbox = exec->num_cliprects;
-	int i = 0, count;
 	uint32_t exec_start, exec_len;
+	int i, count, ret;
 
 	exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
 	exec_len = (uint32_t) exec->batch_len;
@@ -441,23 +451,28 @@ render_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 	trace_i915_gem_request_submit(dev, dev_priv->next_seqno + 1);
 
 	count = nbox ? nbox : 1;
-
 	for (i = 0; i < count; i++) {
 		if (i < nbox) {
-			int ret = i915_emit_box(dev, cliprects, i,
-						exec->DR1, exec->DR4);
+			ret = i915_emit_box(dev, cliprects, i,
+					    exec->DR1, exec->DR4);
 			if (ret)
 				return ret;
 		}
 
 		if (IS_I830(dev) || IS_845G(dev)) {
-			intel_ring_begin(ring, 4);
+			ret = intel_ring_begin(ring, 4);
+			if (ret)
+				return ret;
+
 			intel_ring_emit(ring, MI_BATCH_BUFFER);
 			intel_ring_emit(ring, exec_start | MI_BATCH_NON_SECURE);
 			intel_ring_emit(ring, exec_start + exec_len - 4);
 			intel_ring_emit(ring, 0);
 		} else {
-			intel_ring_begin(ring, 2);
+			ret = intel_ring_begin(ring, 2);
+			if (ret)
+				return ret;
+
 			if (INTEL_INFO(dev)->gen >= 4) {
 				intel_ring_emit(ring,
 						MI_BATCH_BUFFER_START | (2 << 6)
@@ -474,12 +489,13 @@ render_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 	}
 
 	if (IS_G4X(dev) || IS_GEN5(dev)) {
-		intel_ring_begin(ring, 2);
-		intel_ring_emit(ring, MI_FLUSH |
-				MI_NO_WRITE_FLUSH |
-				MI_INVALIDATE_ISP );
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_advance(ring);
+		if (intel_ring_begin(ring, 2) == 0) {
+			intel_ring_emit(ring, MI_FLUSH |
+					MI_NO_WRITE_FLUSH |
+					MI_INVALIDATE_ISP );
+			intel_ring_emit(ring, MI_NOOP);
+			intel_ring_advance(ring);
+		}
 	}
 	/* XXX breadcrumb */
 
@@ -693,18 +709,26 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 	return -EBUSY;
 }
 
-void intel_ring_begin(struct intel_ring_buffer *ring,
-		      int num_dwords)
+int intel_ring_begin(struct intel_ring_buffer *ring,
+		     int num_dwords)
 {
 	int n = 4*num_dwords;
+	int ret;
 
-	if (unlikely(ring->tail + n > ring->size))
-		intel_wrap_ring_buffer(ring);
+	if (unlikely(ring->tail + n > ring->size)) {
+		ret = intel_wrap_ring_buffer(ring);
+		if (unlikely(ret))
+			return ret;
+	}
 
-	if (unlikely(ring->space < n))
-		intel_wait_ring_buffer(ring, n);
+	if (unlikely(ring->space < n)) {
+		ret = intel_wait_ring_buffer(ring, n);
+		if (unlikely(ret))
+			return ret;
+	}
 
 	ring->space -= n;
+	return 0;
 }
 
 void intel_ring_advance(struct intel_ring_buffer *ring)
@@ -772,12 +796,13 @@ static void gen6_ring_flush(struct intel_ring_buffer *ring,
 			    u32 invalidate_domains,
 			    u32 flush_domains)
 {
-       intel_ring_begin(ring, 4);
-       intel_ring_emit(ring, MI_FLUSH_DW);
-       intel_ring_emit(ring, 0);
-       intel_ring_emit(ring, 0);
-       intel_ring_emit(ring, 0);
-       intel_ring_advance(ring);
+	if (intel_ring_begin(ring, 4) == 0) {
+		intel_ring_emit(ring, MI_FLUSH_DW);
+		intel_ring_emit(ring, 0);
+		intel_ring_emit(ring, 0);
+		intel_ring_emit(ring, 0);
+		intel_ring_advance(ring);
+	}
 }
 
 static int
@@ -787,10 +812,14 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 			      uint64_t exec_offset)
 {
        uint32_t exec_start;
+       int ret;
 
        exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
 
-       intel_ring_begin(ring, 2);
+       ret = intel_ring_begin(ring, 2);
+       if (ret)
+	       return ret;
+
        intel_ring_emit(ring, MI_BATCH_BUFFER_START | MI_BATCH_NON_SECURE_I965);
        /* bit0-7 is the length on GEN6+ */
        intel_ring_emit(ring, exec_start);

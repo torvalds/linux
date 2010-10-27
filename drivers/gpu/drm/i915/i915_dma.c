@@ -263,7 +263,7 @@ static int i915_dma_init(struct drm_device *dev, void *data,
  * instruction detected will be given a size of zero, which is a
  * signal to abort the rest of the buffer.
  */
-static int do_validate_cmd(int cmd)
+static int validate_cmd(int cmd)
 {
 	switch (((cmd >> 29) & 0x7)) {
 	case 0x0:
@@ -321,40 +321,27 @@ static int do_validate_cmd(int cmd)
 	return 0;
 }
 
-static int validate_cmd(int cmd)
-{
-	int ret = do_validate_cmd(cmd);
-
-/*	printk("validate_cmd( %x ): %d\n", cmd, ret); */
-
-	return ret;
-}
-
 static int i915_emit_cmds(struct drm_device * dev, int *buffer, int dwords)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int i;
+	int i, ret;
 
 	if ((dwords+1) * sizeof(int) >= dev_priv->render_ring.size - 8)
 		return -EINVAL;
 
-	BEGIN_LP_RING((dwords+1)&~1);
-
 	for (i = 0; i < dwords;) {
-		int cmd, sz;
-
-		cmd = buffer[i];
-
-		if ((sz = validate_cmd(cmd)) == 0 || i + sz > dwords)
+		int sz = validate_cmd(buffer[i]);
+		if (sz == 0 || i + sz > dwords)
 			return -EINVAL;
-
-		OUT_RING(cmd);
-
-		while (++i, --sz) {
-			OUT_RING(buffer[i]);
-		}
+		i += sz;
 	}
 
+	ret = BEGIN_LP_RING((dwords+1)&~1);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < dwords; i++)
+		OUT_RING(buffer[i]);
 	if (dwords & 1)
 		OUT_RING(0);
 
@@ -368,7 +355,9 @@ i915_emit_box(struct drm_device *dev,
 	      struct drm_clip_rect *boxes,
 	      int i, int DR1, int DR4)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_clip_rect box = boxes[i];
+	int ret;
 
 	if (box.y2 <= box.y1 || box.x2 <= box.x1 || box.y2 <= 0 || box.x2 <= 0) {
 		DRM_ERROR("Bad box %d,%d..%d,%d\n",
@@ -377,22 +366,27 @@ i915_emit_box(struct drm_device *dev,
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
-		BEGIN_LP_RING(4);
+		ret = BEGIN_LP_RING(4);
+		if (ret)
+			return ret;
+
 		OUT_RING(GFX_OP_DRAWRECT_INFO_I965);
 		OUT_RING((box.x1 & 0xffff) | (box.y1 << 16));
 		OUT_RING(((box.x2 - 1) & 0xffff) | ((box.y2 - 1) << 16));
 		OUT_RING(DR4);
-		ADVANCE_LP_RING();
 	} else {
-		BEGIN_LP_RING(6);
+		ret = BEGIN_LP_RING(6);
+		if (ret)
+			return ret;
+
 		OUT_RING(GFX_OP_DRAWRECT_INFO);
 		OUT_RING(DR1);
 		OUT_RING((box.x1 & 0xffff) | (box.y1 << 16));
 		OUT_RING(((box.x2 - 1) & 0xffff) | ((box.y2 - 1) << 16));
 		OUT_RING(DR4);
 		OUT_RING(0);
-		ADVANCE_LP_RING();
 	}
+	ADVANCE_LP_RING();
 
 	return 0;
 }
@@ -412,12 +406,13 @@ static void i915_emit_breadcrumb(struct drm_device *dev)
 	if (master_priv->sarea_priv)
 		master_priv->sarea_priv->last_enqueue = dev_priv->counter;
 
-	BEGIN_LP_RING(4);
-	OUT_RING(MI_STORE_DWORD_INDEX);
-	OUT_RING(I915_BREADCRUMB_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	OUT_RING(dev_priv->counter);
-	OUT_RING(0);
-	ADVANCE_LP_RING();
+	if (BEGIN_LP_RING(4) == 0) {
+		OUT_RING(MI_STORE_DWORD_INDEX);
+		OUT_RING(I915_BREADCRUMB_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
+		OUT_RING(dev_priv->counter);
+		OUT_RING(0);
+		ADVANCE_LP_RING();
+	}
 }
 
 static int i915_dispatch_cmdbuffer(struct drm_device * dev,
@@ -458,8 +453,9 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 				     drm_i915_batchbuffer_t * batch,
 				     struct drm_clip_rect *cliprects)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int nbox = batch->num_cliprects;
-	int i = 0, count;
+	int i, count, ret;
 
 	if ((batch->start | batch->used) & 0x7) {
 		DRM_ERROR("alignment");
@@ -469,17 +465,19 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 	i915_kernel_lost_context(dev);
 
 	count = nbox ? nbox : 1;
-
 	for (i = 0; i < count; i++) {
 		if (i < nbox) {
-			int ret = i915_emit_box(dev, cliprects, i,
-						batch->DR1, batch->DR4);
+			ret = i915_emit_box(dev, cliprects, i,
+					    batch->DR1, batch->DR4);
 			if (ret)
 				return ret;
 		}
 
 		if (!IS_I830(dev) && !IS_845G(dev)) {
-			BEGIN_LP_RING(2);
+			ret = BEGIN_LP_RING(2);
+			if (ret)
+				return ret;
+
 			if (INTEL_INFO(dev)->gen >= 4) {
 				OUT_RING(MI_BATCH_BUFFER_START | (2 << 6) | MI_BATCH_NON_SECURE_I965);
 				OUT_RING(batch->start);
@@ -487,26 +485,29 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 				OUT_RING(MI_BATCH_BUFFER_START | (2 << 6));
 				OUT_RING(batch->start | MI_BATCH_NON_SECURE);
 			}
-			ADVANCE_LP_RING();
 		} else {
-			BEGIN_LP_RING(4);
+			ret = BEGIN_LP_RING(4);
+			if (ret)
+				return ret;
+
 			OUT_RING(MI_BATCH_BUFFER);
 			OUT_RING(batch->start | MI_BATCH_NON_SECURE);
 			OUT_RING(batch->start + batch->used - 4);
 			OUT_RING(0);
-			ADVANCE_LP_RING();
 		}
+		ADVANCE_LP_RING();
 	}
 
 
 	if (IS_G4X(dev) || IS_GEN5(dev)) {
-		BEGIN_LP_RING(2);
-		OUT_RING(MI_FLUSH | MI_NO_WRITE_FLUSH | MI_INVALIDATE_ISP);
-		OUT_RING(MI_NOOP);
-		ADVANCE_LP_RING();
+		if (BEGIN_LP_RING(2) == 0) {
+			OUT_RING(MI_FLUSH | MI_NO_WRITE_FLUSH | MI_INVALIDATE_ISP);
+			OUT_RING(MI_NOOP);
+			ADVANCE_LP_RING();
+		}
 	}
-	i915_emit_breadcrumb(dev);
 
+	i915_emit_breadcrumb(dev);
 	return 0;
 }
 
@@ -515,6 +516,7 @@ static int i915_dispatch_flip(struct drm_device * dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv =
 		dev->primary->master->driver_priv;
+	int ret;
 
 	if (!master_priv->sarea_priv)
 		return -EINVAL;
@@ -526,12 +528,13 @@ static int i915_dispatch_flip(struct drm_device * dev)
 
 	i915_kernel_lost_context(dev);
 
-	BEGIN_LP_RING(2);
+	ret = BEGIN_LP_RING(10);
+	if (ret)
+		return ret;
+
 	OUT_RING(MI_FLUSH | MI_READ_FLUSH);
 	OUT_RING(0);
-	ADVANCE_LP_RING();
 
-	BEGIN_LP_RING(6);
 	OUT_RING(CMD_OP_DISPLAYBUFFER_INFO | ASYNC_FLIP);
 	OUT_RING(0);
 	if (dev_priv->current_page == 0) {
@@ -542,21 +545,21 @@ static int i915_dispatch_flip(struct drm_device * dev)
 		dev_priv->current_page = 0;
 	}
 	OUT_RING(0);
-	ADVANCE_LP_RING();
 
-	BEGIN_LP_RING(2);
 	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_PLANE_A_FLIP);
 	OUT_RING(0);
+
 	ADVANCE_LP_RING();
 
 	master_priv->sarea_priv->last_enqueue = dev_priv->counter++;
 
-	BEGIN_LP_RING(4);
-	OUT_RING(MI_STORE_DWORD_INDEX);
-	OUT_RING(I915_BREADCRUMB_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	OUT_RING(dev_priv->counter);
-	OUT_RING(0);
-	ADVANCE_LP_RING();
+	if (BEGIN_LP_RING(4) == 0) {
+		OUT_RING(MI_STORE_DWORD_INDEX);
+		OUT_RING(I915_BREADCRUMB_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
+		OUT_RING(dev_priv->counter);
+		OUT_RING(0);
+		ADVANCE_LP_RING();
+	}
 
 	master_priv->sarea_priv->pf_current_page = dev_priv->current_page;
 	return 0;

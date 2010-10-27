@@ -3826,7 +3826,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			else
 				flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
 
-			intel_ring_begin(ring, 2);
+			ret = intel_ring_begin(ring, 2);
+			if (ret)
+				goto err;
+
 			intel_ring_emit(ring, MI_WAIT_FOR_EVENT | flip_mask);
 			intel_ring_emit(ring, MI_NOOP);
 			intel_ring_advance(ring);

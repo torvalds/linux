@@ -5090,22 +5090,16 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (ret)
 		goto cleanup_objs;
 
-	/* Block clients from rendering to the new back buffer until
-	 * the flip occurs and the object is no longer visible.
-	 */
-	atomic_add(1 << intel_crtc->plane,
-		   &to_intel_bo(work->old_fb_obj)->pending_flip);
-
-	work->pending_flip_obj = obj;
-	obj_priv = to_intel_bo(obj);
-
 	if (IS_GEN3(dev) || IS_GEN2(dev)) {
 		u32 flip_mask;
 
 		/* Can't queue multiple flips, so wait for the previous
 		 * one to finish before executing the next.
 		 */
-		BEGIN_LP_RING(2);
+		ret = BEGIN_LP_RING(2);
+		if (ret)
+			goto cleanup_objs;
+
 		if (intel_crtc->plane)
 			flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
 		else
@@ -5115,13 +5109,25 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		ADVANCE_LP_RING();
 	}
 
+	work->pending_flip_obj = obj;
+	obj_priv = to_intel_bo(obj);
+
 	work->enable_stall_check = true;
 
 	/* Offset into the new buffer for cases of shared fbs between CRTCs */
 	offset = crtc->y * fb->pitch + crtc->x * fb->bits_per_pixel/8;
 
-	BEGIN_LP_RING(4);
-	switch(INTEL_INFO(dev)->gen) {
+	ret = BEGIN_LP_RING(4);
+	if (ret)
+		goto cleanup_objs;
+
+	/* Block clients from rendering to the new back buffer until
+	 * the flip occurs and the object is no longer visible.
+	 */
+	atomic_add(1 << intel_crtc->plane,
+		   &to_intel_bo(work->old_fb_obj)->pending_flip);
+
+	switch (INTEL_INFO(dev)->gen) {
 	case 2:
 		OUT_RING(MI_DISPLAY_FLIP |
 			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
@@ -5850,16 +5856,17 @@ void intel_init_clock_gating(struct drm_device *dev)
 			struct drm_i915_gem_object *obj_priv;
 			obj_priv = to_intel_bo(dev_priv->renderctx);
 			if (obj_priv) {
-				BEGIN_LP_RING(4);
-				OUT_RING(MI_SET_CONTEXT);
-				OUT_RING(obj_priv->gtt_offset |
-						MI_MM_SPACE_GTT |
-						MI_SAVE_EXT_STATE_EN |
-						MI_RESTORE_EXT_STATE_EN |
-						MI_RESTORE_INHIBIT);
-				OUT_RING(MI_NOOP);
-				OUT_RING(MI_FLUSH);
-				ADVANCE_LP_RING();
+				if (BEGIN_LP_RING(4) == 0) {
+					OUT_RING(MI_SET_CONTEXT);
+					OUT_RING(obj_priv->gtt_offset |
+						 MI_MM_SPACE_GTT |
+						 MI_SAVE_EXT_STATE_EN |
+						 MI_RESTORE_EXT_STATE_EN |
+						 MI_RESTORE_INHIBIT);
+					OUT_RING(MI_NOOP);
+					OUT_RING(MI_FLUSH);
+					ADVANCE_LP_RING();
+				}
 			}
 		} else
 			DRM_DEBUG_KMS("Failed to allocate render context."

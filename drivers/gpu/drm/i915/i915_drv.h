@@ -1216,30 +1216,14 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 #define I915_DEBUG_DISABLE_IO() (dev_priv->debug_flags &= ~(I915_DEBUG_READ | \
 							    I915_DEBUG_WRITE))
 
-#define I915_VERBOSE 0
+#define BEGIN_LP_RING(n) \
+	intel_ring_begin(&dev_priv->render_ring, (n))
 
-#define BEGIN_LP_RING(n)  do { \
-	drm_i915_private_t *dev_priv__ = dev->dev_private;		\
-	if (I915_VERBOSE)						\
-		DRM_DEBUG("   BEGIN_LP_RING %x\n", (int)(n));		\
-	intel_ring_begin(&dev_priv__->render_ring, (n));		\
-} while (0)
+#define OUT_RING(x) \
+	intel_ring_emit(&dev_priv->render_ring, x)
 
-
-#define OUT_RING(x) do {						\
-	drm_i915_private_t *dev_priv__ = dev->dev_private;		\
-	if (I915_VERBOSE)						\
-		DRM_DEBUG("   OUT_RING %x\n", (int)(x));		\
-	intel_ring_emit(&dev_priv__->render_ring, x);			\
-} while (0)
-
-#define ADVANCE_LP_RING() do {						\
-	drm_i915_private_t *dev_priv__ = dev->dev_private;                \
-	if (I915_VERBOSE)						\
-		DRM_DEBUG("ADVANCE_LP_RING %x\n",			\
-				dev_priv__->render_ring.tail);		\
-	intel_ring_advance(&dev_priv__->render_ring);			\
-} while(0)
+#define ADVANCE_LP_RING() \
+	intel_ring_advance(&dev_priv->render_ring)
 
 /**
  * Reads a dword out of the status page, which is written to from the command

@@ -100,8 +100,8 @@ intel_read_status_page(struct intel_ring_buffer *ring,
 }
 
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
-int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n);
-void intel_ring_begin(struct intel_ring_buffer *ring, int n);
+int __must_check intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n);
+int __must_check intel_ring_begin(struct intel_ring_buffer *ring, int n);
 
 static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 				   u32 data)

@@ -289,6 +289,7 @@ i830_deactivate_pipe_a(struct drm_device *dev)
 static int intel_overlay_on(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_request *request;
 	int pipe_a_quirk = 0;
 	int ret;
@@ -308,7 +309,12 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 		goto out;
 	}
 
-	BEGIN_LP_RING(4);
+	ret = BEGIN_LP_RING(4);
+	if (ret) {
+		kfree(request);
+		goto out;
+	}
+
 	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_ON);
 	OUT_RING(overlay->flip_addr | OFC_UPDATE);
 	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
@@ -332,6 +338,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	struct drm_i915_gem_request *request;
 	u32 flip_addr = overlay->flip_addr;
 	u32 tmp;
+	int ret;
 
 	BUG_ON(!overlay->active);
 
@@ -347,7 +354,11 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	if (tmp & (1 << 17))
 		DRM_DEBUG("overlay underrun, DOVSTA: %x\n", tmp);
 
-	BEGIN_LP_RING(2);
+	ret = BEGIN_LP_RING(2);
+	if (ret) {
+		kfree(request);
+		return ret;
+	}
 	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
 	OUT_RING(flip_addr);
         ADVANCE_LP_RING();
@@ -389,8 +400,10 @@ static int intel_overlay_off(struct intel_overlay *overlay,
 			     bool interruptible)
 {
 	struct drm_device *dev = overlay->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 flip_addr = overlay->flip_addr;
 	struct drm_i915_gem_request *request;
+	int ret;
 
 	BUG_ON(!overlay->active);
 
@@ -404,7 +417,11 @@ static int intel_overlay_off(struct intel_overlay *overlay,
 	 * of the hw. Do it in both cases */
 	flip_addr |= OFC_UPDATE;
 
-	BEGIN_LP_RING(6);
+	ret = BEGIN_LP_RING(6);
+	if (ret) {
+		kfree(request);
+		return ret;
+	}
 	/* wait for overlay to go idle */
 	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
 	OUT_RING(flip_addr);
@@ -467,7 +484,12 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 		if (request == NULL)
 			return -ENOMEM;
 
-		BEGIN_LP_RING(2);
+		ret = BEGIN_LP_RING(2);
+		if (ret) {
+			kfree(request);
+			return ret;
+		}
+
 		OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
 		OUT_RING(MI_NOOP);
 		ADVANCE_LP_RING();
