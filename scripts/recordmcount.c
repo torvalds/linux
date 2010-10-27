@@ -325,8 +325,10 @@ do_file(char const *const fname)
 		}
 		if (EM_S390 == w2(ehdr->e_machine))
 			reltype = R_390_32;
-		if (EM_MIPS == w2(ehdr->e_machine))
+		if (EM_MIPS == w2(ehdr->e_machine)) {
 			reltype = R_MIPS_32;
+			is_fake_mcount32 = MIPS32_is_fake_mcount;
+		}
 		do32(ehdr, fname, reltype);
 	} break;
 	case ELFCLASS64: {
@@ -343,6 +345,7 @@ do_file(char const *const fname)
 			reltype = R_MIPS_64;
 			Elf64_r_sym = MIPS64_r_sym;
 			Elf64_r_info = MIPS64_r_info;
+			is_fake_mcount64 = MIPS64_is_fake_mcount;
 		}
 		do64(ghdr, fname, reltype);
 	} break;
