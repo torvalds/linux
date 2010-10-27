@@ -13,3 +13,4 @@ obj-$(CONFIG_XENFS)		+= xenfs/
 obj-$(CONFIG_XEN_SYS_HYPERVISOR)	+= sys-hypervisor.o
 obj-$(CONFIG_XEN_PLATFORM_PCI)	+= platform-pci.o
 obj-$(CONFIG_SWIOTLB_XEN)	+= swiotlb-xen.o
+obj-$(CONFIG_XEN_DOM0)		+= pci.o

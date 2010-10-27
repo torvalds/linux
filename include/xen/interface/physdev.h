@@ -136,6 +136,27 @@ struct physdev_unmap_pirq {
     int pirq;
 };
 
+#define PHYSDEVOP_manage_pci_add	15
+#define PHYSDEVOP_manage_pci_remove	16
+struct physdev_manage_pci {
+	/* IN */
+	uint8_t bus;
+	uint8_t devfn;
+};
+
+#define PHYSDEVOP_manage_pci_add_ext	20
+struct physdev_manage_pci_ext {
+	/* IN */
+	uint8_t bus;
+	uint8_t devfn;
+	unsigned is_extfn;
+	unsigned is_virtfn;
+	struct {
+		uint8_t bus;
+		uint8_t devfn;
+	} physfn;
+};
+
 /*
  * Argument to physdev_op_compat() hypercall. Superceded by new physdev_op()
  * hypercall since 0x00030202.
