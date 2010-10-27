@@ -387,6 +387,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		 unsigned long addr, unsigned long data)
 {
 	int ret;
+	unsigned long __user *datap = (unsigned long __user *) data;
 
 	switch (request) {
 	/* read the word at location addr in the USER area. */
@@ -401,13 +402,15 @@ long arch_ptrace(struct task_struct *child, long request,
 			tmp = get_stack_long(child, addr);
 		else if ((addr >= offsetof(struct user, fpu)) &&
 			 (addr <  offsetof(struct user, u_fpvalid))) {
-			tmp = get_fpu_long(child, addr - offsetof(struct user, fpu));
+			unsigned long index;
+			index = addr - offsetof(struct user, fpu);
+			tmp = get_fpu_long(child, index);
 		} else if (addr == offsetof(struct user, u_fpvalid)) {
 			tmp = !!tsk_used_math(child);
 		} else {
 			break;
 		}
-		ret = put_user(tmp, (unsigned long *)data);
+		ret = put_user(tmp, datap);
 		break;
 	}
 
@@ -438,7 +441,9 @@ long arch_ptrace(struct task_struct *child, long request,
 		}
 		else if ((addr >= offsetof(struct user, fpu)) &&
 			 (addr <  offsetof(struct user, u_fpvalid))) {
-			ret = put_fpu_long(child, addr - offsetof(struct user, fpu), data);
+			unsigned long index;
+			index = addr - offsetof(struct user, fpu);
+			ret = put_fpu_long(child, index, data);
 		}
 		break;
 
@@ -446,23 +451,23 @@ long arch_ptrace(struct task_struct *child, long request,
 		return copy_regset_to_user(child, &user_sh64_native_view,
 					   REGSET_GENERAL,
 					   0, sizeof(struct pt_regs),
-					   (void __user *)data);
+					   datap);
 	case PTRACE_SETREGS:
 		return copy_regset_from_user(child, &user_sh64_native_view,
 					     REGSET_GENERAL,
 					     0, sizeof(struct pt_regs),
-					     (const void __user *)data);
+					     datap);
 #ifdef CONFIG_SH_FPU
 	case PTRACE_GETFPREGS:
 		return copy_regset_to_user(child, &user_sh64_native_view,
 					   REGSET_FPU,
 					   0, sizeof(struct user_fpu_struct),
-					   (void __user *)data);
+					   datap);
 	case PTRACE_SETFPREGS:
 		return copy_regset_from_user(child, &user_sh64_native_view,
 					     REGSET_FPU,
 					     0, sizeof(struct user_fpu_struct),
-					     (const void __user *)data);
+					     datap);
 #endif
 	default:
 		ret = ptrace_request(child, request, addr, data);
