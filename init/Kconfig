@@ -766,21 +766,18 @@ config USER_NS
 	  If unsure, say N.
 
 config PID_NS
-	bool "PID Namespaces (EXPERIMENTAL)"
+	bool "PID Namespaces"
 	default n
-	depends on NAMESPACES && EXPERIMENTAL
+	depends on NAMESPACES
 	help
 	  Support process id namespaces.  This allows having multiple
 	  processes with the same pid as long as they are in different
 	  pid namespaces.  This is a building block of containers.
 
-	  Unless you want to work with an experimental feature
-	  say N here.
-
 config NET_NS
 	bool "Network namespace"
 	default n
-	depends on NAMESPACES && EXPERIMENTAL && NET
+	depends on NAMESPACES && NET
 	help
 	  Allow user space to create what appear to be multiple instances
 	  of the network stack.
