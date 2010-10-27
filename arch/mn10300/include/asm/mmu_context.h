@@ -36,6 +36,22 @@
 
 #define enter_lazy_tlb(mm, tsk)	do {} while (0)
 
+static inline void cpu_ran_vm(int cpu, struct mm_struct *mm)
+{
+#ifdef CONFIG_SMP
+	cpumask_set_cpu(cpu, mm_cpumask(mm));
+#endif
+}
+
+static inline bool cpu_maybe_ran_vm(int cpu, struct mm_struct *mm)
+{
+#ifdef CONFIG_SMP
+	return cpumask_test_and_set_cpu(cpu, mm_cpumask(mm));
+#else
+	return true;
+#endif
+}
+
 #ifdef CONFIG_MN10300_TLB_USE_PIDR
 extern unsigned long mmu_context_cache[NR_CPUS];
 #define mm_context(mm)	(mm->context.tlbpid[smp_processor_id()])
@@ -127,7 +143,13 @@ static inline void activate_context(struct mm_struct *mm)
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
 {
+	int cpu = smp_processor_id();
+
 	if (prev != next) {
+#ifdef CONFIG_SMP
+		per_cpu(cpu_tlbstate, cpu).active_mm = next;
+#endif
+		cpu_ran_vm(cpu, next);
 		PTBR = (unsigned long) next->pgd;
 		activate_context(next);
 	}

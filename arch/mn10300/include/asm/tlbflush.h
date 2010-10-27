@@ -11,6 +11,7 @@
 #ifndef _ASM_TLBFLUSH_H
 #define _ASM_TLBFLUSH_H
 
+#include <linux/mm.h>
 #include <asm/processor.h>
 
 struct tlb_state {
@@ -93,39 +94,61 @@ void local_flush_tlb_page(struct mm_struct *mm, unsigned long addr)
  *  - flush_tlb_range(mm, start, end) flushes a range of pages
  *  - flush_tlb_pgtables(mm, start, end) flushes a range of page tables
  */
-#define flush_tlb_all()				\
-do {						\
-	preempt_disable();			\
-	local_flush_tlb_all();			\
-	preempt_enable();			\
-} while (0)
+#ifdef CONFIG_SMP
 
-#define flush_tlb_mm(mm)			\
-do {						\
-	preempt_disable();			\
-	local_flush_tlb_all();			\
-	preempt_enable();			\
-} while (0)
+#include <asm/smp.h>
 
-#define flush_tlb_range(vma, start, end)			\
-do {								\
-	unsigned long __s __attribute__((unused)) = (start);	\
-	unsigned long __e __attribute__((unused)) = (end);	\
-	preempt_disable();					\
-	local_flush_tlb_all();					\
-	preempt_enable();					\
-} while (0)
+extern void flush_tlb_all(void);
+extern void flush_tlb_current_task(void);
+extern void flush_tlb_mm(struct mm_struct *);
+extern void flush_tlb_page(struct vm_area_struct *, unsigned long);
+
+#define flush_tlb()		flush_tlb_current_task()
+
+static inline void flush_tlb_range(struct vm_area_struct *vma,
+				   unsigned long start, unsigned long end)
+{
+	flush_tlb_mm(vma->vm_mm);
+}
+
+#else   /* CONFIG_SMP */
+
+static inline void flush_tlb_all(void)
+{
+	preempt_disable();
+	local_flush_tlb_all();
+	preempt_enable();
+}
+
+static inline void flush_tlb_mm(struct mm_struct *mm)
+{
+	preempt_disable();
+	local_flush_tlb_all();
+	preempt_enable();
+}
+
+static inline void flush_tlb_range(struct vm_area_struct *vma,
+				   unsigned long start, unsigned long end)
+{
+	preempt_disable();
+	local_flush_tlb_all();
+	preempt_enable();
+}
 
 #define flush_tlb_page(vma, addr)	local_flush_tlb_page((vma)->vm_mm, addr)
 #define flush_tlb()			flush_tlb_all()
 
-#define flush_tlb_kernel_range(start, end)			\
-do {								\
-	unsigned long __s __attribute__((unused)) = (start);	\
-	unsigned long __e __attribute__((unused)) = (end);	\
-	flush_tlb_all();					\
-} while (0)
+#endif /* CONFIG_SMP */
 
-#define flush_tlb_pgtables(mm, start, end)	do {} while (0)
+static inline void flush_tlb_kernel_range(unsigned long start,
+					  unsigned long end)
+{
+	flush_tlb_all();
+}
+
+static inline void flush_tlb_pgtables(struct mm_struct *mm,
+				      unsigned long start, unsigned long end)
+{
+}
 
 #endif /* _ASM_TLBFLUSH_H */
