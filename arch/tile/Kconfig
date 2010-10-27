@@ -58,6 +58,9 @@ config ARCH_SUPPORTS_OPTIMIZED_INLINING
 config ARCH_PHYS_ADDR_T_64BIT
 	def_bool y
 
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool y
+
 config LOCKDEP_SUPPORT
 	def_bool y
 
