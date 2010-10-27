@@ -17,20 +17,18 @@
 
 /* sta attributtes */
 
-#define STA_READ(name, buflen, field, format_string)			\
+#define STA_READ(name, field, format_string)				\
 static ssize_t sta_ ##name## _read(struct file *file,			\
 				   char __user *userbuf,		\
 				   size_t count, loff_t *ppos)		\
 {									\
-	int res;							\
 	struct sta_info *sta = file->private_data;			\
-	char buf[buflen];						\
-	res = scnprintf(buf, buflen, format_string, sta->field);	\
-	return simple_read_from_buffer(userbuf, count, ppos, buf, res);	\
+	return mac80211_format_buffer(userbuf, count, ppos, 		\
+				      format_string, sta->field);	\
 }
-#define STA_READ_D(name, field) STA_READ(name, 20, field, "%d\n")
-#define STA_READ_U(name, field) STA_READ(name, 20, field, "%u\n")
-#define STA_READ_S(name, field) STA_READ(name, 20, field, "%s\n")
+#define STA_READ_D(name, field) STA_READ(name, field, "%d\n")
+#define STA_READ_U(name, field) STA_READ(name, field, "%u\n")
+#define STA_READ_S(name, field) STA_READ(name, field, "%s\n")
 
 #define STA_OPS(name)							\
 static const struct file_operations sta_ ##name## _ops = {		\
@@ -79,22 +77,18 @@ static ssize_t sta_num_ps_buf_frames_read(struct file *file,
 					  char __user *userbuf,
 					  size_t count, loff_t *ppos)
 {
-	char buf[20];
 	struct sta_info *sta = file->private_data;
-	int res = scnprintf(buf, sizeof(buf), "%u\n",
-			    skb_queue_len(&sta->ps_tx_buf));
-	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
+	return mac80211_format_buffer(userbuf, count, ppos, "%u\n",
+				      skb_queue_len(&sta->ps_tx_buf));
 }
 STA_OPS(num_ps_buf_frames);
 
 static ssize_t sta_inactive_ms_read(struct file *file, char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	char buf[20];
 	struct sta_info *sta = file->private_data;
-	int res = scnprintf(buf, sizeof(buf), "%d\n",
-			    jiffies_to_msecs(jiffies - sta->last_rx));
-	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
+	return mac80211_format_buffer(userbuf, count, ppos, "%d\n",
+				      jiffies_to_msecs(jiffies - sta->last_rx));
 }
 STA_OPS(inactive_ms);
 
