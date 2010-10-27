@@ -1307,12 +1307,29 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 	return -EINVAL;
 }
 
-static struct drm_i915_gem_request *
-i915_get_tail_request(struct drm_device *dev)
+static u32
+ring_last_seqno(struct intel_ring_buffer *ring)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	return list_entry(dev_priv->render_ring.request_list.prev,
-			struct drm_i915_gem_request, list);
+	return list_entry(ring->request_list.prev,
+			  struct drm_i915_gem_request, list)->seqno;
+}
+
+static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring, bool *err)
+{
+	if (list_empty(&ring->request_list) ||
+	    i915_seqno_passed(ring->get_seqno(ring), ring_last_seqno(ring))) {
+		/* Issue a wake-up to catch stuck h/w. */
+		if (ring->waiting_gem_seqno && waitqueue_active(&ring->irq_queue)) {
+			DRM_ERROR("Hangcheck timer elapsed... %s idle [waiting on %d, at %d], missed IRQ?\n",
+				  ring->name,
+				  ring->waiting_gem_seqno,
+				  ring->get_seqno(ring));
+			wake_up_all(&ring->irq_queue);
+			*err = true;
+		}
+		return true;
+	}
+	return false;
 }
 
 /**
@@ -1326,6 +1343,17 @@ void i915_hangcheck_elapsed(unsigned long data)
 	struct drm_device *dev = (struct drm_device *)data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t acthd, instdone, instdone1;
+	bool err = false;
+
+	/* If all work is done then ACTHD clearly hasn't advanced. */
+	if (i915_hangcheck_ring_idle(&dev_priv->render_ring, &err) &&
+	    i915_hangcheck_ring_idle(&dev_priv->bsd_ring, &err) &&
+	    i915_hangcheck_ring_idle(&dev_priv->blt_ring, &err)) {
+		dev_priv->hangcheck_count = 0;
+		if (err)
+			goto repeat;
+		return;
+	}
 
 	if (INTEL_INFO(dev)->gen < 4) {
 		acthd = I915_READ(ACTHD);
@@ -1335,38 +1363,6 @@ void i915_hangcheck_elapsed(unsigned long data)
 		acthd = I915_READ(ACTHD_I965);
 		instdone = I915_READ(INSTDONE_I965);
 		instdone1 = I915_READ(INSTDONE1);
-	}
-
-	/* If all work is done then ACTHD clearly hasn't advanced. */
-	if (list_empty(&dev_priv->render_ring.request_list) ||
-		i915_seqno_passed(dev_priv->render_ring.get_seqno(&dev_priv->render_ring),
-				  i915_get_tail_request(dev)->seqno)) {
-		bool missed_wakeup = false;
-
-		dev_priv->hangcheck_count = 0;
-
-		/* Issue a wake-up to catch stuck h/w. */
-		if (dev_priv->render_ring.waiting_gem_seqno &&
-		    waitqueue_active(&dev_priv->render_ring.irq_queue)) {
-			wake_up_all(&dev_priv->render_ring.irq_queue);
-			missed_wakeup = true;
-		}
-
-		if (dev_priv->bsd_ring.waiting_gem_seqno &&
-		    waitqueue_active(&dev_priv->bsd_ring.irq_queue)) {
-			wake_up_all(&dev_priv->bsd_ring.irq_queue);
-			missed_wakeup = true;
-		}
-
-		if (dev_priv->blt_ring.waiting_gem_seqno &&
-		    waitqueue_active(&dev_priv->blt_ring.irq_queue)) {
-			wake_up_all(&dev_priv->blt_ring.irq_queue);
-			missed_wakeup = true;
-		}
-
-		if (missed_wakeup)
-			DRM_ERROR("Hangcheck timer elapsed... GPU idle, missed IRQ.\n");
-		return;
 	}
 
 	if (dev_priv->last_acthd == acthd &&
@@ -1385,7 +1381,7 @@ void i915_hangcheck_elapsed(unsigned long data)
 				if (tmp & RING_WAIT) {
 					I915_WRITE(PRB0_CTL, tmp);
 					POSTING_READ(PRB0_CTL);
-					goto out;
+					goto repeat;
 				}
 			}
 
@@ -1400,7 +1396,7 @@ void i915_hangcheck_elapsed(unsigned long data)
 		dev_priv->last_instdone1 = instdone1;
 	}
 
-out:
+repeat:
 	/* Reset timer case chip hangs without another request being added */
 	mod_timer(&dev_priv->hangcheck_timer,
 		  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
