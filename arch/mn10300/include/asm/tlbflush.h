@@ -13,6 +13,12 @@
 
 #include <asm/processor.h>
 
+struct tlb_state {
+	struct mm_struct	*active_mm;
+	int			state;
+};
+DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
+
 /**
  * local_flush_tlb - Flush the current MM's entries from the local CPU's TLBs
  */
@@ -31,20 +37,51 @@ static inline void local_flush_tlb(void)
 /**
  * local_flush_tlb_all - Flush all entries from the local CPU's TLBs
  */
-#define local_flush_tlb_all()		local_flush_tlb()
+static inline void local_flush_tlb_all(void)
+{
+	local_flush_tlb();
+}
 
 /**
  * local_flush_tlb_one - Flush one entry from the local CPU's TLBs
  */
-#define local_flush_tlb_one(addr)	local_flush_tlb()
+static inline void local_flush_tlb_one(unsigned long addr)
+{
+	local_flush_tlb();
+}
 
 /**
  * local_flush_tlb_page - Flush a page's entry from the local CPU's TLBs
  * @mm: The MM to flush for
  * @addr: The address of the target page in RAM (not its page struct)
  */
-extern void local_flush_tlb_page(struct mm_struct *mm, unsigned long addr);
+static inline
+void local_flush_tlb_page(struct mm_struct *mm, unsigned long addr)
+{
+	unsigned long pteu, flags, cnx;
 
+	addr &= PAGE_MASK;
+
+	local_irq_save(flags);
+
+	cnx = 1;
+#ifdef CONFIG_MN10300_TLB_USE_PIDR
+	cnx = mm->context.tlbpid[smp_processor_id()];
+#endif
+	if (cnx) {
+		pteu = addr;
+#ifdef CONFIG_MN10300_TLB_USE_PIDR
+		pteu |= cnx & xPTEU_PID;
+#endif
+		IPTEU = pteu;
+		DPTEU = pteu;
+		if (IPTEL & xPTEL_V)
+			IPTEL = 0;
+		if (DPTEL & xPTEL_V)
+			DPTEL = 0;
+	}
+	local_irq_restore(flags);
+}
 
 /*
  * TLB flushing:

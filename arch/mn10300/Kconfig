@@ -142,6 +142,9 @@ config FPU
 
 source "arch/mn10300/mm/Kconfig.cache"
 
+config MN10300_TLB_USE_PIDR
+	def_bool y
+
 menu "Memory layout options"
 
 config KERNEL_RAM_BASE_ADDRESS
