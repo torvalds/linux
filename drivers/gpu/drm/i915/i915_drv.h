@@ -1219,10 +1219,10 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 #define I915_VERBOSE 0
 
 #define BEGIN_LP_RING(n)  do { \
-	drm_i915_private_t *dev_priv__ = dev->dev_private;                \
+	drm_i915_private_t *dev_priv__ = dev->dev_private;		\
 	if (I915_VERBOSE)						\
 		DRM_DEBUG("   BEGIN_LP_RING %x\n", (int)(n));		\
-	intel_ring_begin(dev, &dev_priv__->render_ring, (n));		\
+	intel_ring_begin(&dev_priv__->render_ring, (n));		\
 } while (0)
 
 
@@ -1230,7 +1230,7 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 	drm_i915_private_t *dev_priv__ = dev->dev_private;		\
 	if (I915_VERBOSE)						\
 		DRM_DEBUG("   OUT_RING %x\n", (int)(x));		\
-	intel_ring_emit(dev, &dev_priv__->render_ring, x);		\
+	intel_ring_emit(&dev_priv__->render_ring, x);			\
 } while (0)
 
 #define ADVANCE_LP_RING() do {						\
@@ -1238,7 +1238,7 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 	if (I915_VERBOSE)						\
 		DRM_DEBUG("ADVANCE_LP_RING %x\n",			\
 				dev_priv__->render_ring.tail);		\
-	intel_ring_advance(dev, &dev_priv__->render_ring);		\
+	intel_ring_advance(&dev_priv__->render_ring);			\
 } while(0)
 
 /**

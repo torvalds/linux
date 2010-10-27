@@ -1703,7 +1703,7 @@ i915_add_request(struct drm_device *dev,
 			return 0;
 	}
 
-	seqno = ring->add_request(dev, ring, 0);
+	seqno = ring->add_request(ring, 0);
 	ring->outstanding_lazy_request = false;
 
 	request->seqno = seqno;
@@ -1745,8 +1745,7 @@ i915_retire_commands(struct drm_device *dev, struct intel_ring_buffer *ring)
 	if (INTEL_INFO(dev)->gen >= 4)
 		flush_domains |= I915_GEM_DOMAIN_SAMPLER;
 
-	ring->flush(dev, ring,
-			I915_GEM_DOMAIN_COMMAND, flush_domains);
+	ring->flush(ring, I915_GEM_DOMAIN_COMMAND, flush_domains);
 }
 
 static inline void
@@ -1853,7 +1852,7 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 
 	WARN_ON(i915_verify_lists(dev));
 
-	seqno = ring->get_seqno(dev, ring);
+	seqno = ring->get_seqno(ring);
 	while (!list_empty(&ring->request_list)) {
 		struct drm_i915_gem_request *request;
 
@@ -1894,7 +1893,7 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 
 	if (unlikely (dev_priv->trace_irq_seqno &&
 		      i915_seqno_passed(dev_priv->trace_irq_seqno, seqno))) {
-		ring->user_irq_put(dev, ring);
+		ring->user_irq_put(ring);
 		dev_priv->trace_irq_seqno = 0;
 	}
 
@@ -1971,7 +1970,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 	}
 	BUG_ON(seqno == dev_priv->next_seqno);
 
-	if (!i915_seqno_passed(ring->get_seqno(dev, ring), seqno)) {
+	if (!i915_seqno_passed(ring->get_seqno(ring), seqno)) {
 		if (HAS_PCH_SPLIT(dev))
 			ier = I915_READ(DEIER) | I915_READ(GTIER);
 		else
@@ -1986,19 +1985,17 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 		trace_i915_gem_request_wait_begin(dev, seqno);
 
 		ring->waiting_gem_seqno = seqno;
-		ring->user_irq_get(dev, ring);
+		ring->user_irq_get(ring);
 		if (interruptible)
 			ret = wait_event_interruptible(ring->irq_queue,
-				i915_seqno_passed(
-					ring->get_seqno(dev, ring), seqno)
+				i915_seqno_passed(ring->get_seqno(ring), seqno)
 				|| atomic_read(&dev_priv->mm.wedged));
 		else
 			wait_event(ring->irq_queue,
-				i915_seqno_passed(
-					ring->get_seqno(dev, ring), seqno)
+				i915_seqno_passed(ring->get_seqno(ring), seqno)
 				|| atomic_read(&dev_priv->mm.wedged));
 
-		ring->user_irq_put(dev, ring);
+		ring->user_irq_put(ring);
 		ring->waiting_gem_seqno = 0;
 
 		trace_i915_gem_request_wait_end(dev, seqno);
@@ -2008,7 +2005,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 
 	if (ret && ret != -ERESTARTSYS)
 		DRM_ERROR("%s returns %d (awaiting %d at %d, next %d)\n",
-			  __func__, ret, seqno, ring->get_seqno(dev, ring),
+			  __func__, ret, seqno, ring->get_seqno(ring),
 			  dev_priv->next_seqno);
 
 	/* Directly dispatch request retiring.  While we have the work queue
@@ -2040,7 +2037,7 @@ i915_gem_flush_ring(struct drm_device *dev,
 		    uint32_t invalidate_domains,
 		    uint32_t flush_domains)
 {
-	ring->flush(dev, ring, invalidate_domains, flush_domains);
+	ring->flush(ring, invalidate_domains, flush_domains);
 	i915_gem_process_flushing_list(dev, flush_domains, ring);
 }
 
@@ -3532,17 +3529,17 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 		return 0;
 
 	ret = 0;
-	if (!i915_seqno_passed(ring->get_seqno(dev, ring), seqno)) {
+	if (!i915_seqno_passed(ring->get_seqno(ring), seqno)) {
 		/* And wait for the seqno passing without holding any locks and
 		 * causing extra latency for others. This is safe as the irq
 		 * generation is designed to be run atomically and so is
 		 * lockless.
 		 */
-		ring->user_irq_get(dev, ring);
+		ring->user_irq_get(ring);
 		ret = wait_event_interruptible(ring->irq_queue,
-					       i915_seqno_passed(ring->get_seqno(dev, ring), seqno)
+					       i915_seqno_passed(ring->get_seqno(ring), seqno)
 					       || atomic_read(&dev_priv->mm.wedged));
-		ring->user_irq_put(dev, ring);
+		ring->user_irq_put(ring);
 
 		if (ret == 0 && atomic_read(&dev_priv->mm.wedged))
 			ret = -EIO;
@@ -3829,17 +3826,15 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			else
 				flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
 
-			intel_ring_begin(dev, ring, 2);
-			intel_ring_emit(dev, ring,
-					MI_WAIT_FOR_EVENT | flip_mask);
-			intel_ring_emit(dev, ring, MI_NOOP);
-			intel_ring_advance(dev, ring);
+			intel_ring_begin(ring, 2);
+			intel_ring_emit(ring, MI_WAIT_FOR_EVENT | flip_mask);
+			intel_ring_emit(ring, MI_NOOP);
+			intel_ring_advance(ring);
 		}
 	}
 
 	/* Exec the batchbuffer */
-	ret = ring->dispatch_gem_execbuffer(dev, ring, args,
-					    cliprects, exec_offset);
+	ret = ring->dispatch_execbuffer(ring, args, cliprects, exec_offset);
 	if (ret) {
 		DRM_ERROR("dispatch failed %d\n", ret);
 		goto err;
@@ -4520,9 +4515,9 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	return 0;
 
 cleanup_bsd_ring:
-	intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
+	intel_cleanup_ring_buffer(&dev_priv->bsd_ring);
 cleanup_render_ring:
-	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
+	intel_cleanup_ring_buffer(&dev_priv->render_ring);
 cleanup_pipe_control:
 	if (HAS_PIPE_CONTROL(dev))
 		i915_gem_cleanup_pipe_control(dev);
@@ -4534,9 +4529,9 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
-	intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
-	intel_cleanup_ring_buffer(dev, &dev_priv->blt_ring);
+	intel_cleanup_ring_buffer(&dev_priv->render_ring);
+	intel_cleanup_ring_buffer(&dev_priv->bsd_ring);
+	intel_cleanup_ring_buffer(&dev_priv->blt_ring);
 	if (HAS_PIPE_CONTROL(dev))
 		i915_gem_cleanup_pipe_control(dev);
 }

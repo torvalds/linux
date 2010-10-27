@@ -131,9 +131,9 @@ static int i915_dma_cleanup(struct drm_device * dev)
 		drm_irq_uninstall(dev);
 
 	mutex_lock(&dev->struct_mutex);
-	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
-	intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
-	intel_cleanup_ring_buffer(dev, &dev_priv->blt_ring);
+	intel_cleanup_ring_buffer(&dev_priv->render_ring);
+	intel_cleanup_ring_buffer(&dev_priv->bsd_ring);
+	intel_cleanup_ring_buffer(&dev_priv->blt_ring);
 	mutex_unlock(&dev->struct_mutex);
 
 	/* Clear the HWS virtual address at teardown */
@@ -221,7 +221,7 @@ static int i915_dma_resume(struct drm_device * dev)
 	DRM_DEBUG_DRIVER("hw status page @ %p\n",
 				ring->status_page.page_addr);
 	if (ring->status_page.gfx_addr != 0)
-		intel_ring_setup_status_page(dev, ring);
+		intel_ring_setup_status_page(ring);
 	else
 		I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
 
@@ -567,7 +567,7 @@ static int i915_quiescent(struct drm_device * dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	i915_kernel_lost_context(dev);
-	return intel_wait_ring_buffer(dev, &dev_priv->render_ring,
+	return intel_wait_ring_buffer(&dev_priv->render_ring,
 				      dev_priv->render_ring.size - 8);
 }
 

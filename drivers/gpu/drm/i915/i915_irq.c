@@ -297,7 +297,7 @@ static void notify_ring(struct drm_device *dev,
 			struct intel_ring_buffer *ring)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 seqno = ring->get_seqno(dev, ring);
+	u32 seqno = ring->get_seqno(ring);
 	ring->irq_gem_seqno = seqno;
 	trace_i915_gem_request_complete(dev, seqno);
 	wake_up_all(&ring->irq_queue);
@@ -586,7 +586,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	DRM_DEBUG_DRIVER("generating error event\n");
 
 	error->seqno =
-		dev_priv->render_ring.get_seqno(dev, &dev_priv->render_ring);
+		dev_priv->render_ring.get_seqno(&dev_priv->render_ring);
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
 	error->pipeastat = I915_READ(PIPEASTAT);
@@ -1117,7 +1117,7 @@ void i915_trace_irq_get(struct drm_device *dev, u32 seqno)
 	struct intel_ring_buffer *render_ring = &dev_priv->render_ring;
 
 	if (dev_priv->trace_irq_seqno == 0)
-		render_ring->user_irq_get(dev, render_ring);
+		render_ring->user_irq_get(render_ring);
 
 	dev_priv->trace_irq_seqno = seqno;
 }
@@ -1141,10 +1141,10 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 	if (master_priv->sarea_priv)
 		master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
 
-	render_ring->user_irq_get(dev, render_ring);
+	render_ring->user_irq_get(render_ring);
 	DRM_WAIT_ON(ret, dev_priv->render_ring.irq_queue, 3 * DRM_HZ,
 		    READ_BREADCRUMB(dev_priv) >= irq_nr);
-	render_ring->user_irq_put(dev, render_ring);
+	render_ring->user_irq_put(render_ring);
 
 	if (ret == -EBUSY) {
 		DRM_ERROR("EBUSY -- rec: %d emitted: %d\n",
@@ -1338,7 +1338,7 @@ void i915_hangcheck_elapsed(unsigned long data)
 
 	/* If all work is done then ACTHD clearly hasn't advanced. */
 	if (list_empty(&dev_priv->render_ring.request_list) ||
-		i915_seqno_passed(dev_priv->render_ring.get_seqno(dev, &dev_priv->render_ring),
+		i915_seqno_passed(dev_priv->render_ring.get_seqno(&dev_priv->render_ring),
 				  i915_get_tail_request(dev)->seqno)) {
 		bool missed_wakeup = false;
 
