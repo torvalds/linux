@@ -23,11 +23,7 @@
  *   - level 6 - timer interrupt
  * - "enabled":  run in IM7
  */
-#ifdef CONFIG_MN10300_TTYSM
-#define MN10300_CLI_LEVEL	EPSW_IM_2
-#else
-#define MN10300_CLI_LEVEL	EPSW_IM_1
-#endif
+#define MN10300_CLI_LEVEL	(CONFIG_LINUX_CLI_LEVEL << EPSW_IM_SHIFT)
 
 #ifndef __ASSEMBLY__
 
@@ -94,7 +90,7 @@ static inline void arch_local_irq_restore(unsigned long flags)
 
 static inline bool arch_irqs_disabled_flags(unsigned long flags)
 {
-	return (flags & EPSW_IM) <= MN10300_CLI_LEVEL;
+	return (flags & (EPSW_IE | EPSW_IM)) != (EPSW_IE | EPSW_IM_7);
 }
 
 static inline bool arch_irqs_disabled(void)

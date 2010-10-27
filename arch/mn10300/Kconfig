@@ -351,6 +351,80 @@ config MN10300_TTYSM2_CTS
 
 endmenu
 
+menu "Interrupt request priority options"
+
+comment "[!] NOTE: A lower number/level indicates a higher priority (0 is highest, 6 is lowest)"
+
+comment "____Non-maskable interrupt levels____"
+comment "The following must be set to a higher priority than local_irq_disable() and on-chip serial"
+
+config GDBSTUB_IRQ_LEVEL
+	int "GDBSTUB interrupt priority"
+	depends on GDBSTUB
+	range 0 1 if LINUX_CLI_LEVEL = 2
+	range 0 2 if LINUX_CLI_LEVEL = 3
+	range 0 3 if LINUX_CLI_LEVEL = 4
+	range 0 4 if LINUX_CLI_LEVEL = 5
+	range 0 5 if LINUX_CLI_LEVEL = 6
+	default 0
+
+comment "The following must be set to a higher priority than local_irq_disable()"
+
+config MN10300_SERIAL_IRQ_LEVEL
+	int "MN10300 on-chip serial interrupt priority"
+	depends on MN10300_TTYSM
+	range 1 1 if LINUX_CLI_LEVEL = 2
+	range 1 2 if LINUX_CLI_LEVEL = 3
+	range 1 3 if LINUX_CLI_LEVEL = 4
+	range 1 4 if LINUX_CLI_LEVEL = 5
+	range 1 5 if LINUX_CLI_LEVEL = 6
+	default 1
+
+comment "-"
+comment "____Maskable interrupt levels____"
+
+config LINUX_CLI_LEVEL
+	int "The highest interrupt priority excluded by local_irq_disable() (2-6)"
+	range 2 6
+	default 2
+	help
+	  local_irq_disable() doesn't actually disable maskable interrupts -
+	  what it does is restrict the levels of interrupt which are permitted
+	  (a lower level indicates a higher priority) by lowering the value in
+	  EPSW.IM from 7.  Any interrupt is permitted for which the level is
+	  lower than EPSW.IM.
+
+	  Certain interrupts, such as GDBSTUB and virtual MN10300 on-chip
+	  serial DMA interrupts are allowed to interrupt normal disabled
+	  sections.
+
+comment "The following must be set to a equal to or lower priority than LINUX_CLI_LEVEL"
+
+config TIMER_IRQ_LEVEL
+	int "Kernel timer interrupt priority"
+	range LINUX_CLI_LEVEL 6
+	default 4
+
+config PCI_IRQ_LEVEL
+	int "PCI interrupt priority"
+	depends on PCI
+	range LINUX_CLI_LEVEL 6
+	default 5
+
+config ETHERNET_IRQ_LEVEL
+	int "Ethernet interrupt priority"
+	depends on SMC91X || SMC911X || SMSC911X
+	range LINUX_CLI_LEVEL 6
+	default 6
+
+config EXT_SERIAL_IRQ_LEVEL
+	int "External serial port interrupt priority"
+	depends on SERIAL_8250
+	range LINUX_CLI_LEVEL 6
+	default 6
+
+endmenu
+
 source "mm/Kconfig"
 
 menu "Power management options"
