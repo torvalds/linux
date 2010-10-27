@@ -2343,8 +2343,11 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/*
 	 * CTS flow control flag and modem status interrupts
+	 * Only disable MSI if no threads are waiting in
+	 * serial_core::uart_wait_modem_status
 	 */
-	up->ier &= ~UART_IER_MSI;
+	if (!waitqueue_active(&up->port.state->port.delta_msr_wait))
+		up->ier &= ~UART_IER_MSI;
 	if (!(up->bugs & UART_BUG_NOMSR) &&
 			UART_ENABLE_MS(&up->port, termios->c_cflag))
 		up->ier |= UART_IER_MSI;
