@@ -36,7 +36,6 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/firmware.h>
-#include <linux/smp_lock.h>
 
 #include "vendorcmds.h"
 #include "pd-common.h"
@@ -485,15 +484,11 @@ static void poseidon_disconnect(struct usb_interface *interface)
 	/*unregister v4l2 device */
 	v4l2_device_unregister(&pd->v4l2_dev);
 
-	lock_kernel();
-	{
-		pd_dvb_usb_device_exit(pd);
-		poseidon_fm_exit(pd);
+	pd_dvb_usb_device_exit(pd);
+	poseidon_fm_exit(pd);
 
-		poseidon_audio_free(pd);
-		pd_video_exit(pd);
-	}
-	unlock_kernel();
+	poseidon_audio_free(pd);
+	pd_video_exit(pd);
 
 	usb_set_intfdata(interface, NULL);
 	kref_put(&pd->kref, poseidon_delete);
