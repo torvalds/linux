@@ -444,9 +444,9 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 
 	/* set up nfs_renamedata */
 	data->old_dir = old_dir;
-	atomic_inc(&old_dir->i_count);
+	ihold(old_dir);
 	data->new_dir = new_dir;
-	atomic_inc(&new_dir->i_count);
+	ihold(new_dir);
 	data->old_dentry = dget(old_dentry);
 	data->new_dentry = dget(new_dentry);
 	nfs_fattr_init(&data->old_fattr);
