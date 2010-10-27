@@ -20,6 +20,9 @@ config AM34_2
 	select MN10300_HAS_ATOMIC_OPS_UNIT
 	select MN10300_HAS_CACHE_SNOOP
 
+config ERRATUM_NEED_TO_RELOAD_MMUCTR
+	def_bool y if AM33_3 || AM34_2
+
 config MMU
 	def_bool y
 

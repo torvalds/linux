@@ -251,6 +251,10 @@ double_fault_loop:
 ENTRY(raw_bus_error)
 	add	-4,sp
 	mov	d0,(sp)
+#if defined(CONFIG_ERRATUM_NEED_TO_RELOAD_MMUCTR)
+	mov	(MMUCTR),d0
+	mov	d0,(MMUCTR)
+#endif
 	mov	(BCBERR),d0		# what
 	btst	BCBERR_BEMR_DMA,d0	# see if it was an external bus error
 	beq	__common_exception_aux	# it wasn't
@@ -282,6 +286,10 @@ ENTRY(nmi_handler)
 ENTRY(__common_exception)
 	add	-4,sp
 	mov	d0,(sp)
+#if defined(CONFIG_ERRATUM_NEED_TO_RELOAD_MMUCTR)
+	mov	(MMUCTR),d0
+	mov	d0,(MMUCTR)
+#endif
 
 __common_exception_aux:
 	mov	(TBR),d0

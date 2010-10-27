@@ -27,7 +27,6 @@
 ###############################################################################
 	.type	itlb_miss,@function
 ENTRY(itlb_miss)
-	and	~EPSW_NMID,epsw
 #ifdef CONFIG_GDBSTUB
 	movm	[d2,d3,a2],(sp)
 #else
@@ -38,6 +37,12 @@ ENTRY(itlb_miss)
 	nop
 #endif
 
+#if defined(CONFIG_ERRATUM_NEED_TO_RELOAD_MMUCTR)
+	mov	(MMUCTR),d2
+	mov	d2,(MMUCTR)
+#endif
+
+	and	~EPSW_NMID,epsw
 	mov	(IPTEU),d3
 	mov	(PTBR),a2
 	mov	d3,d2
@@ -79,7 +84,6 @@ itlb_miss_fault:
 ###############################################################################
 	.type	dtlb_miss,@function
 ENTRY(dtlb_miss)
-	and	~EPSW_NMID,epsw
 #ifdef CONFIG_GDBSTUB
 	movm	[d2,d3,a2],(sp)
 #else
@@ -90,6 +94,12 @@ ENTRY(dtlb_miss)
 	nop
 #endif
 
+#if defined(CONFIG_ERRATUM_NEED_TO_RELOAD_MMUCTR)
+	mov	(MMUCTR),d2
+	mov	d2,(MMUCTR)
+#endif
+
+	and	~EPSW_NMID,epsw
 	mov	(DPTEU),d3
 	mov	(PTBR),a2
 	mov	d3,d2
@@ -130,9 +140,15 @@ dtlb_miss_fault:
 ###############################################################################
 	.type	itlb_aerror,@function
 ENTRY(itlb_aerror)
-	and	~EPSW_NMID,epsw
 	add	-4,sp
 	SAVE_ALL
+
+#if defined(CONFIG_ERRATUM_NEED_TO_RELOAD_MMUCTR)
+	mov	(MMUCTR),d1
+	mov	d1,(MMUCTR)
+#endif
+
+	and	~EPSW_NMID,epsw
 	add	-4,sp				# need to pass three params
 
 	# calculate the fault code
@@ -148,7 +164,6 @@ ENTRY(itlb_aerror)
 	clr	d0
 	mov	d0,(IPTEL)
 
-	and	~EPSW_NMID,epsw
 	or	EPSW_IE,epsw
 	mov	fp,d0
 	call	do_page_fault[],0		# do_page_fault(regs,code,addr
@@ -163,10 +178,16 @@ ENTRY(itlb_aerror)
 ###############################################################################
 	.type	dtlb_aerror,@function
 ENTRY(dtlb_aerror)
-	and	~EPSW_NMID,epsw
 	add	-4,sp
 	SAVE_ALL
+
+#if defined(CONFIG_ERRATUM_NEED_TO_RELOAD_MMUCTR)
+	mov	(MMUCTR),d1
+	mov	d1,(MMUCTR)
+#endif
+
 	add	-4,sp				# need to pass three params
+	and	~EPSW_NMID,epsw
 
 	# calculate the fault code
 	movhu	(MMUFCR_DFC),d1
@@ -180,7 +201,6 @@ ENTRY(dtlb_aerror)
 	clr	d0
 	mov	d0,(DPTEL)
 
-	and	~EPSW_NMID,epsw
 	or	EPSW_IE,epsw
 	mov	fp,d0
 	call	do_page_fault[],0		# do_page_fault(regs,code,addr
