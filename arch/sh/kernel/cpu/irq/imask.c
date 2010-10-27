@@ -51,16 +51,20 @@ static inline void set_interrupt_registers(int ip)
 		     : "t");
 }
 
-static void mask_imask_irq(unsigned int irq)
+static void mask_imask_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
+
 	clear_bit(irq, imask_mask);
 	if (interrupt_priority < IMASK_PRIORITY - irq)
 		interrupt_priority = IMASK_PRIORITY - irq;
 	set_interrupt_registers(interrupt_priority);
 }
 
-static void unmask_imask_irq(unsigned int irq)
+static void unmask_imask_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
+
 	set_bit(irq, imask_mask);
 	interrupt_priority = IMASK_PRIORITY -
 		find_first_zero_bit(imask_mask, IMASK_PRIORITY);
@@ -69,9 +73,9 @@ static void unmask_imask_irq(unsigned int irq)
 
 static struct irq_chip imask_irq_chip = {
 	.name		= "SR.IMASK",
-	.mask		= mask_imask_irq,
-	.unmask		= unmask_imask_irq,
-	.mask_ack	= mask_imask_irq,
+	.irq_mask	= mask_imask_irq,
+	.irq_unmask	= unmask_imask_irq,
+	.irq_mask_ack	= mask_imask_irq,
 };
 
 void make_imask_irq(unsigned int irq)
