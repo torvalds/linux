@@ -23,6 +23,8 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/fsl_devices.h>
+#include <linux/spi/flash.h>
+#include <linux/spi/spi.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
@@ -50,6 +52,9 @@
 #define EFIKAMX_RED_LED		(2*32 + 15)
 
 #define EFIKAMX_POWER_KEY	(1*32 + 31)
+
+#define EFIKAMX_SPI_CS0		(3*32 + 24)
+#define EFIKAMX_SPI_CS1		(3*32 + 25)
 
 /* the pci ids pin have pull up. they're driven low according to board id */
 #define MX51_PAD_PCBID0	IOMUX_PAD(0x518, 0x130, 3, 0x0,   0, PAD_CTL_PUS_100K_UP)
@@ -97,6 +102,14 @@ static iomux_v3_cfg_t mx51efikamx_pads[] = {
 
 	/* power key */
 	MX51_PAD_PWRKEY,
+
+	/* spi */
+	MX51_PAD_CSPI1_MOSI__ECSPI1_MOSI,
+	MX51_PAD_CSPI1_MISO__ECSPI1_MISO,
+	MX51_PAD_CSPI1_SS0__GPIO_4_24,
+	MX51_PAD_CSPI1_SS1__GPIO_4_25,
+	MX51_PAD_CSPI1_RDY__ECSPI1_RDY,
+	MX51_PAD_CSPI1_SCLK__ECSPI1_SCLK,
 };
 
 /* Serial ports */
@@ -242,6 +255,47 @@ static const struct gpio_keys_platform_data mx51_efikamx_powerkey_data __initcon
 	.nbuttons = ARRAY_SIZE(mx51_efikamx_powerkey),
 };
 
+static struct mtd_partition mx51_efikamx_spi_nor_partitions[] = {
+	{
+	 .name = "u-boot",
+	 .offset = 0,
+	 .size = SZ_256K,
+	},
+	{
+	  .name = "config",
+	  .offset = MTDPART_OFS_APPEND,
+	  .size = SZ_64K,
+	},
+};
+
+static struct flash_platform_data mx51_efikamx_spi_flash_data = {
+	.name		= "spi_flash",
+	.parts		= mx51_efikamx_spi_nor_partitions,
+	.nr_parts	= ARRAY_SIZE(mx51_efikamx_spi_nor_partitions),
+	.type		= "sst25vf032b",
+};
+
+static struct spi_board_info mx51_efikamx_spi_board_info[] __initdata = {
+	{
+		.modalias = "m25p80",
+		.max_speed_hz = 25000000,
+		.bus_num = 0,
+		.chip_select = 1,
+		.platform_data = &mx51_efikamx_spi_flash_data,
+		.irq = -1,
+	},
+};
+
+static int mx51_efikamx_spi_cs[] = {
+	EFIKAMX_SPI_CS0,
+	EFIKAMX_SPI_CS1,
+};
+
+static const struct spi_imx_master mx51_efikamx_spi_pdata __initconst = {
+	.chipselect     = mx51_efikamx_spi_cs,
+	.num_chipselect = ARRAY_SIZE(mx51_efikamx_spi_cs),
+};
+
 static void __init mxc_board_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx51efikamx_pads,
@@ -259,6 +313,10 @@ static void __init mxc_board_init(void)
 
 	platform_device_register(&mx51_efikamx_leds_device);
 	imx51_add_gpio_keys(&mx51_efikamx_powerkey_data);
+
+	spi_register_board_info(mx51_efikamx_spi_board_info,
+		ARRAY_SIZE(mx51_efikamx_spi_board_info));
+	imx51_add_ecspi(0, &mx51_efikamx_spi_pdata);
 }
 
 static void __init mx51_efikamx_timer_init(void)
