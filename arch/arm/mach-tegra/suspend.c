@@ -680,7 +680,6 @@ void __init tegra_init_suspend(struct tegra_suspend_platform_data *plat)
 	}
 
 	tegra_context_area = kzalloc(CONTEXT_SIZE_BYTES * NR_CPUS, GFP_KERNEL);
-	pr_info("%s: %p\n", __func__, tegra_context_area);
 
 	if (tegra_context_area && create_suspend_pgtable()) {
 		kfree(tegra_context_area);
