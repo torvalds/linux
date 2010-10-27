@@ -1966,7 +1966,6 @@ static conf_t *setup_conf(mddev_t *mddev)
 	init_waitqueue_head(&conf->wait_barrier);
 
 	bio_list_init(&conf->pending_bio_list);
-	bio_list_init(&conf->flushing_bio_list);
 
 	conf->last_used = -1;
 	for (i = 0; i < conf->raid_disks; i++) {
