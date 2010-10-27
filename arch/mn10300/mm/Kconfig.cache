@@ -60,6 +60,7 @@ choice
 
 config MN10300_CACHE_MANAGE_BY_TAG
 	bool "Use the cache tag registers directly"
+	depends on !(SMP && MN10300_CACHE_WTHRU)
 
 config MN10300_CACHE_MANAGE_BY_REG
 	bool "Flush areas by way of automatic purge registers (AM34 only)"

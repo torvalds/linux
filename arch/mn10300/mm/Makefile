@@ -2,7 +2,10 @@
 # Makefile for the MN10300-specific memory management code
 #
 
+cache-smp-wback-$(CONFIG_MN10300_CACHE_WBACK) := cache-smp-flush.o
+
 cacheflush-y	:= cache.o
+cacheflush-$(CONFIG_SMP) += cache-smp.o cache-smp-inv.o $(cache-smp-wback-y)
 cacheflush-$(CONFIG_MN10300_CACHE_INV_ICACHE) += cache-inv-icache.o
 cacheflush-$(CONFIG_MN10300_CACHE_FLUSH_ICACHE) += cache-flush-icache.o
 cacheflush-$(CONFIG_MN10300_CACHE_INV_BY_TAG) += cache-inv-by-tag.o

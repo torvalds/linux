@@ -18,8 +18,13 @@
 #include <asm/cacheflush.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
+#include <asm/smp.h>
+#include "cache-smp.h"
 
 EXPORT_SYMBOL(mn10300_icache_inv);
+EXPORT_SYMBOL(mn10300_icache_inv_range);
+EXPORT_SYMBOL(mn10300_icache_inv_range2);
+EXPORT_SYMBOL(mn10300_icache_inv_page);
 EXPORT_SYMBOL(mn10300_dcache_inv);
 EXPORT_SYMBOL(mn10300_dcache_inv_range);
 EXPORT_SYMBOL(mn10300_dcache_inv_range2);
