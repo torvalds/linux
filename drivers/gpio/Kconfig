@@ -70,6 +70,11 @@ config GPIO_MAX730X
 
 comment "Memory mapped GPIO expanders:"
 
+config GPIO_BASIC_MMIO
+	tristate "Basic memory-mapped GPIO controllers support"
+	help
+	  Say yes here to support basic memory-mapped GPIO controllers.
+
 config GPIO_IT8761E
 	tristate "IT8761E GPIO support"
 	depends on GPIOLIB
