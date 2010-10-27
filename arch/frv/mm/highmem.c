@@ -68,7 +68,7 @@ EXPORT_SYMBOL(__kmap_atomic);
 
 void __kunmap_atomic(void *kvaddr)
 {
-	int type = kmap_atomic_idx_pop();
+	int type = kmap_atomic_idx();
 	switch (type) {
 	case 0:		__kunmap_atomic_primary(4, 6);	break;
 	case 1:		__kunmap_atomic_primary(5, 7);	break;
@@ -83,6 +83,7 @@ void __kunmap_atomic(void *kvaddr)
 	default:
 		BUG();
 	}
+	kmap_atomic_idx_pop();
 	pagefault_enable();
 }
 EXPORT_SYMBOL(__kunmap_atomic);

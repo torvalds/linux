@@ -88,6 +88,11 @@ static inline int kmap_atomic_idx_push(void)
 	return idx;
 }
 
+static inline int kmap_atomic_idx(void)
+{
+	return __get_cpu_var(__kmap_atomic_idx) - 1;
+}
+
 static inline int kmap_atomic_idx_pop(void)
 {
 	int idx = --__get_cpu_var(__kmap_atomic_idx);

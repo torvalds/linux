@@ -89,7 +89,7 @@ void __kunmap_atomic(void *kvaddr)
 	int idx, type;
 
 	if (kvaddr >= (void *)FIXADDR_START) {
-		type = kmap_atomic_idx_pop();
+		type = kmap_atomic_idx();
 		idx = type + KM_TYPE_NR * smp_processor_id();
 
 		if (cache_is_vivt())
@@ -101,6 +101,7 @@ void __kunmap_atomic(void *kvaddr)
 #else
 		(void) idx;  /* to kill a warning */
 #endif
+		kmap_atomic_idx_pop();
 	} else if (vaddr >= PKMAP_ADDR(0) && vaddr < PKMAP_ADDR(LAST_PKMAP)) {
 		/* this address was obtained through kmap_high_get() */
 		kunmap_high(pte_page(pkmap_page_table[PKMAP_NR(vaddr)]));

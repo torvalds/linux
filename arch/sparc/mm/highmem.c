@@ -75,7 +75,7 @@ void __kunmap_atomic(void *kvaddr)
 		return;
 	}
 
-	type = kmap_atomic_idx_pop();
+	type = kmap_atomic_idx();
 
 #ifdef CONFIG_DEBUG_HIGHMEM
 	{
@@ -104,6 +104,8 @@ void __kunmap_atomic(void *kvaddr)
 #endif
 	}
 #endif
+
+	kmap_atomic_idx_pop();
 	pagefault_enable();
 }
 EXPORT_SYMBOL(__kunmap_atomic);
