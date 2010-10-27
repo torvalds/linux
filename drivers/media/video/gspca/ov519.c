@@ -3912,7 +3912,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	   pressed while we weren't streaming */
 	sd->snapshot_needs_reset = 1;
 	sd_reset_snapshot(gspca_dev);
-	sd->snapshot_pressed = 0;
 
 	sd->first_frame = 3;
 
@@ -3940,6 +3939,15 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 
 	if (sd->bridge == BRIDGE_W9968CF)
 		w9968cf_stop0(sd);
+
+#ifdef CONFIG_INPUT
+	/* If the last button state is pressed, release it now! */
+	if (sd->snapshot_pressed) {
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+		input_sync(gspca_dev->input_dev);
+		sd->snapshot_pressed = 0;
+	}
+#endif
 }
 
 static void ov51x_handle_button(struct gspca_dev *gspca_dev, u8 state)
