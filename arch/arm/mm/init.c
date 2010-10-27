@@ -436,6 +436,22 @@ static void __init free_unused_memmap(struct meminfo *mi)
 	}
 }
 
+static void __init free_highpages(void)
+{
+#ifdef CONFIG_HIGHMEM
+	int i;
+
+	/* set highmem page free */
+	for_each_bank (i, &meminfo) {
+		unsigned long start = bank_pfn_start(&meminfo.bank[i]);
+		unsigned long end = bank_pfn_end(&meminfo.bank[i]);
+		if (start >= max_low_pfn + PHYS_PFN_OFFSET)
+			totalhigh_pages += free_area(start, end, NULL);
+	}
+	totalram_pages += totalhigh_pages;
+#endif
+}
+
 /*
  * mem_init() marks the free areas in the mem_map and tells us how much
  * memory is free.  This is done after various parts of the system have
@@ -465,16 +481,7 @@ void __init mem_init(void)
 				    __phys_to_pfn(__pa(swapper_pg_dir)), NULL);
 #endif
 
-#ifdef CONFIG_HIGHMEM
-	/* set highmem page free */
-	for_each_bank (i, &meminfo) {
-		unsigned long start = bank_pfn_start(&meminfo.bank[i]);
-		unsigned long end = bank_pfn_end(&meminfo.bank[i]);
-		if (start >= max_low_pfn + PHYS_PFN_OFFSET)
-			totalhigh_pages += free_area(start, end, NULL);
-	}
-	totalram_pages += totalhigh_pages;
-#endif
+	free_highpages();
 
 	reserved_pages = free_pages = 0;
 
