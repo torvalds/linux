@@ -542,7 +542,6 @@ config CGROUP_FREEZER
 
 config CGROUP_DEVICE
 	bool "Device controller for cgroups"
-	depends on EXPERIMENTAL
 	help
 	  Provides a cgroup implementing whitelists for devices which
 	  a process in the cgroup can mknod or open.
