@@ -1302,6 +1302,11 @@ struct fasync_struct {
 
 /* SMP safe fasync helpers: */
 extern int fasync_helper(int, struct file *, int, struct fasync_struct **);
+extern struct fasync_struct *fasync_insert_entry(int, struct file *, struct fasync_struct **, struct fasync_struct *);
+extern int fasync_remove_entry(struct file *, struct fasync_struct **);
+extern struct fasync_struct *fasync_alloc(void);
+extern void fasync_free(struct fasync_struct *);
+
 /* can be called from interrupts */
 extern void kill_fasync(struct fasync_struct **, int, int);
 

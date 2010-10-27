@@ -1505,6 +1505,7 @@ EXPORT_SYMBOL_GPL(vfs_setlease);
 int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 {
 	struct file_lock *fl;
+	struct fasync_struct *new;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	int error;
 
@@ -1512,12 +1513,25 @@ int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 	if (IS_ERR(fl))
 		return PTR_ERR(fl);
 
+	new = fasync_alloc();
+	if (!new) {
+		locks_free_lock(fl);
+		return -ENOMEM;
+	}
 	lock_flocks();
 	error = __vfs_setlease(filp, arg, &fl);
 	if (error || arg == F_UNLCK)
 		goto out_unlock;
 
-	error = fasync_helper(fd, filp, 1, &fl->fl_fasync);
+	/*
+	 * fasync_insert_entry() returns the old entry if any.
+	 * If there was no old entry, then it used 'new' and
+	 * inserted it into the fasync list. Clear new so that
+	 * we don't release it here.
+	 */
+	if (!fasync_insert_entry(fd, filp, &fl->fl_fasync, new))
+		new = NULL;
+
 	if (error < 0) {
 		/* remove lease just inserted by setlease */
 		fl->fl_type = F_UNLCK | F_INPROGRESS;
@@ -1529,6 +1543,8 @@ int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 	error = __f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
 out_unlock:
 	unlock_flocks();
+	if (new)
+		fasync_free(new);
 	return error;
 }
 
