@@ -1324,6 +1324,14 @@ struct console __init *bfin_earlyserial_init(unsigned int port,
 	struct bfin_serial_port *uart;
 	struct ktermios t;
 
+#ifdef CONFIG_SERIAL_BFIN_CONSOLE
+	/*
+	 * If we are using early serial, don't let the normal console rewind
+	 * log buffer, since that causes things to be printed multiple times
+	 */
+	bfin_serial_console.flags &= ~CON_PRINTBUFFER;
+#endif
+
 	if (port == -1 || port >= nr_active_ports)
 		port = 0;
 	bfin_serial_init_ports();
