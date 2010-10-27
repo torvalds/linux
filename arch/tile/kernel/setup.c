@@ -30,8 +30,6 @@
 #include <linux/timex.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
-#include <asm/sections.h>
-#include <asm/cacheflush.h>
 #include <asm/cacheflush.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>

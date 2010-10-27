@@ -29,7 +29,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
-#include <linux/interrupt.h>
 #include <asm/intel_scu_ipc.h>
 #include <linux/device.h>
 #include <linux/intel_pmic_gpio.h>
