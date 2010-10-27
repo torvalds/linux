@@ -249,7 +249,7 @@ static void dccp_write_xmitlet(unsigned long data)
 	if (sock_owned_by_user(sk))
 		sk_reset_timer(sk, &dccp_sk(sk)->dccps_xmit_timer, jiffies + 1);
 	else
-		dccp_write_xmit(sk, 0);
+		dccp_write_xmit(sk);
 	bh_unlock_sock(sk);
 }
 
