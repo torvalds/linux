@@ -1168,7 +1168,6 @@ static int tegra_uart_suspend(struct platform_device *pdev, pm_message_t state)
 	if (pdev->id < 0 || pdev->id > tegra_uart_driver.nr)
 		pr_err("Invalid Uart instance (%d)\n", pdev->id);
 
-	dev_err(t->uport.dev, "tegra_uart_suspend called\n");
 	u = &t->uport;
 	uart_suspend_port(&tegra_uart_driver, u);
 	return 0;
@@ -1183,7 +1182,6 @@ static int tegra_uart_resume(struct platform_device *pdev)
 		pr_err("Invalid Uart instance (%d)\n", pdev->id);
 
 	u = &t->uport;
-	dev_err(t->uport.dev, "tegra_uart_resume called\n");
 	uart_resume_port(&tegra_uart_driver, u);
 	return 0;
 }
