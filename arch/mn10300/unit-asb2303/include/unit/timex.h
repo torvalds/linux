@@ -1,6 +1,6 @@
 /* ASB2303-specific timer specifications
  *
- * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2007, 2010 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -24,10 +24,6 @@
  */
 
 #define	TMJCBR_MAX		0xffff
-#define	TMJCBC			TM01BC
-
-#define	TMJCMD			TM01MD
-#define	TMJCBR			TM01BR
 #define	TMJCIRQ			TM1IRQ
 #define	TMJCICR			TM1ICR
 
@@ -61,34 +57,32 @@
 #define MN10300_JC_PER_HZ	((MN10300_JCCLK + HZ / 2) / HZ)
 #define MN10300_TSC_PER_HZ	((MN10300_TSCCLK + HZ / 2) / HZ)
 
-static inline void startup_jiffies_counter(void)
+static inline void stop_jiffies_counter(void)
 {
-	u16 md, t16;
-
-	md = JC_TIMER_CLKSRC;
-	TMJCBR = MN10300_JC_PER_HZ - 1;
-	t16 = TMJCBR;
-
-	TMJCMD =
-		md |
-		TM1MD_SRC_TM0CASCADE << 8 |
-		TM0MD_INIT_COUNTER |
-		TM1MD_INIT_COUNTER << 8;
-
-	TMJCMD =
-		md |
-		TM1MD_SRC_TM0CASCADE << 8 |
-		TM0MD_COUNT_ENABLE |
-		TM1MD_COUNT_ENABLE << 8;
-
-	t16 = TMJCMD;
-
-	TMJCICR |= GxICR_ENABLE | GxICR_DETECT | GxICR_REQUEST;
-	t16 = TMJCICR;
+	u16 tmp;
+	TM01MD = JC_TIMER_CLKSRC | TM1MD_SRC_TM0CASCADE << 8;
+	tmp = TM01MD;
 }
 
-static inline void shutdown_jiffies_counter(void)
+static inline void reload_jiffies_counter(u32 cnt)
 {
+	u32 tmp;
+
+	TM01BR = cnt;
+	tmp = TM01BR;
+
+	TM01MD = JC_TIMER_CLKSRC |		\
+		 TM1MD_SRC_TM0CASCADE << 8 |	\
+		 TM0MD_INIT_COUNTER |		\
+		 TM1MD_INIT_COUNTER << 8;
+
+
+	TM01MD = JC_TIMER_CLKSRC |		\
+		 TM1MD_SRC_TM0CASCADE << 8 |	\
+		 TM0MD_COUNT_ENABLE |		\
+		 TM1MD_COUNT_ENABLE << 8;
+
+	tmp = TM01MD;
 }
 
 #endif /* !__ASSEMBLY__ */
@@ -148,7 +142,7 @@ typedef unsigned long cycles_t;
 
 static inline cycles_t read_timestamp_counter(void)
 {
-	return (cycles_t)TMTSCBC;
+	return (cycles_t)~TMTSCBC;
 }
 
 #endif /* !__ASSEMBLY__ */

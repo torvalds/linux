@@ -16,14 +16,6 @@
 #include <asm/setup.h>
 #include <asm/serial-regs.h>
 
-#ifdef CONFIG_SMP
-#undef  GxICR
-#define GxICR(X) CROSS_GxICR(X, irq_affinity_online[X])
-
-#undef  GxICR_u8
-#define GxICR_u8(X) CROSS_GxICR_u8(X, irq_affinity_online[X])
-#endif /* CONFIG_SMP */
-
 unsigned long __mn10300_irq_enabled_epsw[NR_CPUS] __cacheline_aligned_in_smp = {
 	[0 ... NR_CPUS - 1] = EPSW_IE | EPSW_IM_7
 };
@@ -92,9 +84,11 @@ static void mn10300_cpupic_mask_ack(unsigned int irq)
 		GxICR(irq) = (tmp & GxICR_LEVEL);
 		tmp2 = GxICR(irq);
 
-		irq_affinity_online[irq] = any_online_cpu(*irq_desc[irq].affinity);
-		GxICR(irq) = (tmp & (GxICR_LEVEL | GxICR_ENABLE)) | GxICR_DETECT;
-		tmp = GxICR(irq);
+		irq_affinity_online[irq] =
+			any_online_cpu(*irq_desc[irq].affinity);
+		CROSS_GxICR(irq, irq_affinity_online[irq]) =
+			(tmp & (GxICR_LEVEL | GxICR_ENABLE)) | GxICR_DETECT;
+		tmp = CROSS_GxICR(irq, irq_affinity_online[irq]);
 	}
 
 	arch_local_irq_restore(flags);
@@ -128,8 +122,8 @@ static void mn10300_cpupic_unmask_clear(unsigned int irq)
 		tmp = GxICR(irq);
 
 		irq_affinity_online[irq] = any_online_cpu(*irq_desc[irq].affinity);
-		GxICR(irq) = (tmp & GxICR_LEVEL) | GxICR_ENABLE | GxICR_DETECT;
-		tmp = GxICR(irq);
+		CROSS_GxICR(irq, irq_affinity_online[irq]) = (tmp & GxICR_LEVEL) | GxICR_ENABLE | GxICR_DETECT;
+		tmp = CROSS_GxICR(irq, irq_affinity_online[irq]);
 	}
 
 	arch_local_irq_restore(flags);
@@ -217,7 +211,7 @@ static struct irq_chip mn10300_cpu_pic_level = {
 	.unmask		= mn10300_cpupic_unmask_clear,
 #ifdef CONFIG_SMP
 	.set_affinity	= mn10300_cpupic_setaffinity,
-#endif /* CONFIG_SMP */
+#endif
 };
 
 /*
@@ -235,7 +229,7 @@ static struct irq_chip mn10300_cpu_pic_edge = {
 	.unmask		= mn10300_cpupic_unmask,
 #ifdef CONFIG_SMP
 	.set_affinity	= mn10300_cpupic_setaffinity,
-#endif /* CONFIG_SMP */
+#endif
 };
 
 /*
@@ -446,9 +440,9 @@ void migrate_irqs(void)
 		if (irq_affinity_online[irq] == self) {
 			u16 x, tmp;
 
-			x = CROSS_GxICR(irq, self);
-			CROSS_GxICR(irq, self) = x & GxICR_LEVEL;
-			tmp = CROSS_GxICR(irq, self);
+			x = GxICR(irq);
+			GxICR(irq) = x & GxICR_LEVEL;
+			tmp = GxICR(irq);
 
 			new = any_online_cpu(irq_desc[irq].affinity);
 			irq_affinity_online[irq] = new;
@@ -458,7 +452,7 @@ void migrate_irqs(void)
 			tmp = CROSS_GxICR(irq, new);
 
 			x &= GxICR_LEVEL | GxICR_ENABLE;
-			if (CROSS_GxICR(irq, self) & GxICR_REQUEST)
+			if (GxICR(irq) & GxICR_REQUEST) {
 				x |= GxICR_REQUEST | GxICR_DETECT;
 			CROSS_GxICR(irq, new) = x;
 			tmp = CROSS_GxICR(irq, new);

@@ -17,6 +17,8 @@
 #include <linux/smp.h>
 #include <linux/profile.h>
 #include <linux/cnt32_to_63.h>
+#include <linux/clocksource.h>
+#include <linux/clockchips.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
 #include <asm/processor.h>
@@ -26,14 +28,6 @@
 
 static unsigned long mn10300_last_tsc;	/* time-stamp counter at last time
 					 * interrupt occurred */
-
-static irqreturn_t timer_interrupt(int irq, void *dev_id);
-
-static struct irqaction timer_irq = {
-	.handler	= timer_interrupt,
-	.flags		= IRQF_DISABLED | IRQF_SHARED | IRQF_TIMER,
-	.name		= "timer",
-};
 
 static unsigned long sched_clock_multiplier;
 
@@ -54,7 +48,7 @@ unsigned long long sched_clock(void)
 
 	/* read the TSC value
 	 */
-	tsc = 0 - get_cycles(); /* get_cycles() counts down */
+	tsc = get_cycles();
 
 	/* expand to 64-bits.
 	 * - sched_clock() must be called once a minute or better or the
@@ -103,6 +97,7 @@ irqreturn_t local_timer_interrupt(void)
 	return IRQ_HANDLED;
 }
 
+#ifndef CONFIG_GENERIC_TIME
 /*
  * advance the kernel's time keeping clocks (xtime and jiffies)
  * - we use Timer 0 & 1 cascaded as a clock to nudge us the next time
@@ -116,11 +111,11 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	write_seqlock(&xtime_lock);
 
 	while (tsc = get_cycles(),
-	       elapse = mn10300_last_tsc - tsc, /* time elapsed since last
+	       elapse = tsc - mn10300_last_tsc, /* time elapsed since last
 						 * tick */
 	       elapse > MN10300_TSC_PER_HZ
 	       ) {
-		mn10300_last_tsc -= MN10300_TSC_PER_HZ;
+		mn10300_last_tsc += MN10300_TSC_PER_HZ;
 
 		/* advance the kernel's time tracking system */
 		do_timer(1);
@@ -135,6 +130,50 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	return ret;
 }
 
+static struct irqaction timer_irq = {
+	.handler	= timer_interrupt,
+	.flags		= IRQF_DISABLED | IRQF_SHARED | IRQF_TIMER,
+	.name		= "timer",
+};
+#endif /* CONFIG_GENERIC_TIME */
+
+#ifdef CONFIG_CSRC_MN10300
+void __init clocksource_set_clock(struct clocksource *cs, unsigned int clock)
+{
+	u64 temp;
+	u32 shift;
+
+	/* Find a shift value */
+	for (shift = 32; shift > 0; shift--) {
+		temp = (u64) NSEC_PER_SEC << shift;
+		do_div(temp, clock);
+		if ((temp >> 32) == 0)
+			break;
+	}
+	cs->shift = shift;
+	cs->mult = (u32) temp;
+}
+#endif
+
+#if CONFIG_CEVT_MN10300
+void __cpuinit clockevent_set_clock(struct clock_event_device *cd,
+				    unsigned int clock)
+{
+	u64 temp;
+	u32 shift;
+
+	/* Find a shift value */
+	for (shift = 32; shift > 0; shift--) {
+		temp = (u64) clock << shift;
+		do_div(temp, NSEC_PER_SEC);
+		if ((temp >> 32) == 0)
+			break;
+	}
+	cd->shift = shift;
+	cd->mult = (u32) temp;
+}
+#endif
+
 /*
  * initialise the various timers used by the main part of the kernel
  */
@@ -146,21 +185,25 @@ void __init time_init(void)
 	 */
 	TMPSCNT |= TMPSCNT_ENABLE;
 
+#ifdef CONFIG_GENERIC_TIME
+	init_clocksource();
+#else
 	startup_timestamp_counter();
+#endif
 
 	printk(KERN_INFO
 	       "timestamp counter I/O clock running at %lu.%02lu"
 	       " (calibrated against RTC)\n",
 	       MN10300_TSCCLK / 1000000, (MN10300_TSCCLK / 10000) % 100);
 
-	mn10300_last_tsc = TMTSCBC;
+	mn10300_last_tsc = read_timestamp_counter();
 
-	/* use timer 0 & 1 cascaded to tick at as close to HZ as possible */
-	setup_irq(TMJCIRQ, &timer_irq);
-
-	set_intr_level(TMJCIRQ, NUM2GxICR_LEVEL(CONFIG_TIMER_IRQ_LEVEL));
-
-	startup_jiffies_counter();
+#ifdef CONFIG_GENERIC_CLOCKEVENTS
+	init_clockevents();
+#else
+	reload_jiffies_counter(MN10300_JC_PER_HZ - 1);
+	setup_jiffies_interrupt(TMJCIRQ, &timer_irq, CONFIG_TIMER_IRQ_LEVEL);
+#endif
 
 #ifdef CONFIG_MN10300_WD_TIMER
 	/* start the watchdog timer */

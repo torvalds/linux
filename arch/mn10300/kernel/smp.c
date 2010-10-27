@@ -126,7 +126,6 @@ static struct irq_chip mn10300_ipi_type = {
 
 static irqreturn_t smp_reschedule_interrupt(int irq, void *dev_id);
 static irqreturn_t smp_call_function_interrupt(int irq, void *dev_id);
-static irqreturn_t smp_ipi_timer_interrupt(int irq, void *dev_id);
 
 static struct irqaction reschedule_ipi = {
 	.handler	= smp_reschedule_interrupt,
@@ -136,11 +135,15 @@ static struct irqaction call_function_ipi = {
 	.handler	= smp_call_function_interrupt,
 	.name		= "smp call function IPI"
 };
+
+#if !defined(CONFIG_GENERIC_CLOCKEVENTS) || defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)
+static irqreturn_t smp_ipi_timer_interrupt(int irq, void *dev_id);
 static struct irqaction local_timer_ipi = {
 	.handler	= smp_ipi_timer_interrupt,
 	.flags		= IRQF_DISABLED,
 	.name		= "smp local timer IPI"
 };
+#endif
 
 /**
  * init_ipi - Initialise the IPI mechanism
@@ -165,11 +168,14 @@ static void init_ipi(void)
 	mn10300_ipi_enable(CALL_FUNC_SINGLE_IPI);
 
 	/* set up the local timer IPI */
+#if !defined(CONFIG_GENERIC_CLOCKEVENTS) || \
+    defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)
 	set_irq_chip_and_handler(LOCAL_TIMER_IPI,
 				 &mn10300_ipi_type, handle_percpu_irq);
 	setup_irq(LOCAL_TIMER_IPI, &local_timer_ipi);
 	set_intr_level(LOCAL_TIMER_IPI, LOCAL_TIMER_GxICR_LV);
 	mn10300_ipi_enable(LOCAL_TIMER_IPI);
+#endif
 
 #ifdef CONFIG_MN10300_CACHE_ENABLED
 	/* set up the cache flush IPI */
@@ -505,6 +511,8 @@ void smp_nmi_call_function_interrupt(void)
 	}
 }
 
+#if !defined(CONFIG_GENERIC_CLOCKEVENTS) || \
+    defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)
 /**
  * smp_ipi_timer_interrupt - Local timer IPI handler
  * @irq: The interrupt number.
@@ -516,6 +524,7 @@ static irqreturn_t smp_ipi_timer_interrupt(int irq, void *dev_id)
 {
 	return local_timer_interrupt();
 }
+#endif
 
 void __init smp_init_cpus(void)
 {
@@ -620,7 +629,6 @@ void smp_prepare_cpu_init(void)
 int __init start_secondary(void *unused)
 {
 	smp_cpu_init();
-
 	smp_callin();
 	while (!cpu_isset(smp_processor_id(), smp_commenced_mask))
 		cpu_relax();
@@ -629,6 +637,9 @@ int __init start_secondary(void *unused)
 	preempt_disable();
 	smp_online();
 
+#ifdef CONFIG_GENERIC_CLOCKEVENTS
+	init_clockevents();
+#endif
 	cpu_idle();
 	return 0;
 }

@@ -1,6 +1,6 @@
 /* timex.h: MN2WS0038 architecture timer specifications
  *
- * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2002, 2010 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -24,12 +24,7 @@
  */
 
 #define	TMJCBR_MAX		0xffffff	/* 24bit */
-#define	TMJCBC			TMTBC
-
-#define	TMJCMD			TMTMD
-#define	TMJCBR			TMTBR
 #define	TMJCIRQ			TMTIRQ
-#define	TMJCICR			TMTICR
 
 #ifndef __ASSEMBLY__
 
@@ -50,25 +45,63 @@
 # error MTM tick timer interval value is overflow.
 #endif
 
-
-static inline void startup_jiffies_counter(void)
+static inline void stop_jiffies_counter(void)
 {
-	u32 sync;
-
-	TMJCBR = MN10300_JC_PER_HZ - 1;
-	sync = TMJCBR;
-
-	TMJCMD = TMTMD_TMTLDE;
-	TMJCMD = TMTMD_TMTCNE;
-	sync = TMJCMD;
-
-	TMJCICR |= GxICR_ENABLE | GxICR_DETECT | GxICR_REQUEST;
-	sync = TMJCICR;
+	u16 tmp;
+	TMTMD = 0;
+	tmp = TMTMD;
 }
 
-static inline void shutdown_jiffies_counter(void)
+static inline void reload_jiffies_counter(u32 cnt)
 {
+	u32 tmp;
+
+	TMTBR = cnt;
+	tmp = TMTBR;
+
+	TMTMD = TMTMD_TMTLDE;
+	TMTMD = TMTMD_TMTCNE;
+	tmp = TMTMD;
 }
+
+#if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_CLOCKEVENTS) && \
+    !defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)
+/*
+ * If we aren't using broadcasting, each core needs its own event timer.
+ * Since CPU0 uses the tick timer which is 24-bits, we use timer 4 & 5
+ * cascaded to 32-bits for CPU1 (but only really use 24-bits to match
+ * CPU0).
+ */
+
+#define	TMJC1IRQ		TM5IRQ
+
+static inline void stop_jiffies_counter1(void)
+{
+	u8 tmp;
+	TM4MD = 0;
+	TM5MD = 0;
+	tmp = TM4MD;
+	tmp = TM5MD;
+}
+
+static inline void reload_jiffies_counter1(u32 cnt)
+{
+	u32 tmp;
+
+	TM45BR = cnt;
+	tmp = TM45BR;
+
+	TM4MD = TM4MD_INIT_COUNTER;
+	tmp = TM4MD;
+
+	TM5MD = TM5MD_SRC_TM4CASCADE | TM5MD_INIT_COUNTER;
+	TM5MD = TM5MD_SRC_TM4CASCADE | TM5MD_COUNT_ENABLE;
+	tmp = TM5MD;
+
+	TM4MD = TM4MD_COUNT_ENABLE;
+	tmp = TM4MD;
+}
+#endif /* CONFIG_SMP&GENERIC_CLOCKEVENTS&!GENERIC_CLOCKEVENTS_BROADCAST */
 
 #endif /* !__ASSEMBLY__ */
 
@@ -76,14 +109,15 @@ static inline void shutdown_jiffies_counter(void)
 /*
  * timestamp counter specifications
  */
-
 #define	TMTSCBR_MAX	0xffffffff
+
+#ifndef __ASSEMBLY__
+
+/* Use 32-bit timestamp counter */
 #define	TMTSCMD		TMSMD
 #define	TMTSCBR		TMSBR
 #define	TMTSCBC		TMSBC
 #define	TMTSCICR	TMSICR
-
-#ifndef __ASSEMBLY__
 
 static inline void startup_timestamp_counter(void)
 {
@@ -117,7 +151,7 @@ typedef unsigned long cycles_t;
 
 static inline cycles_t read_timestamp_counter(void)
 {
-	return (cycles_t)TMTSCBC;
+	return (cycles_t)~TMTSCBC;
 }
 
 #endif /* !__ASSEMBLY__ */

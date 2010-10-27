@@ -9,6 +9,9 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
+struct clocksource;
+struct clock_event_device;
+
 /*
  * kthread.S
  */
@@ -30,3 +33,13 @@ extern void mn10300_low_ipi_handler(void);
  * time.c
  */
 extern irqreturn_t local_timer_interrupt(void);
+
+/*
+ * time.c
+ */
+#ifdef CONFIG_CEVT_MN10300
+extern void clockevent_set_clock(struct clock_event_device *, unsigned int);
+#endif
+#ifdef CONFIG_CSRC_MN10300
+extern void clocksource_set_clock(struct clocksource *, unsigned int);
+#endif

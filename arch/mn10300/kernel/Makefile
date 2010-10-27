@@ -28,3 +28,5 @@ obj-$(CONFIG_MN10300_RTC) += rtc.o
 obj-$(CONFIG_PROFILE) += profile.o profile-low.o
 obj-$(CONFIG_MODULES) += module.o
 obj-$(CONFIG_KPROBES) += kprobes.o
+obj-$(CONFIG_CSRC_MN10300) += csrc-mn10300.o
+obj-$(CONFIG_CEVT_MN10300) += cevt-mn10300.o
