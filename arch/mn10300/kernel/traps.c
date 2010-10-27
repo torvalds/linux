@@ -538,28 +538,6 @@ void __init set_intr_stub(enum exception_code code, void *handler)
 }
 
 /*
- * set an interrupt stub to invoke the JTAG unit and then jump to a handler
- */
-void __init set_jtag_stub(enum exception_code code, void *handler)
-{
-	unsigned long addr;
-	u8 *vector = (u8 *)(CONFIG_INTERRUPT_VECTOR_BASE + code);
-
-	addr = (unsigned long) handler - ((unsigned long) vector + 1);
-	vector[0] = 0xff;		/* PI to jump into JTAG debugger */
-	vector[1] = 0xdc;		/* jmp handler */
-	vector[2] = addr;
-	vector[3] = addr >> 8;
-	vector[4] = addr >> 16;
-	vector[5] = addr >> 24;
-	vector[6] = 0xcb;
-	vector[7] = 0xcb;
-
-	mn10300_dcache_flush_inv();
-	flush_icache_range((unsigned long) vector, (unsigned long) vector + 8);
-}
-
-/*
  * initialise the exception table
  */
 void __init trap_init(void)

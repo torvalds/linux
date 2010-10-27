@@ -15,8 +15,8 @@
 
 /*
  * define the breakpoint instruction opcode to use
- * - note that the JTAG unit steals 0xFF, so we want to avoid that if we can
- *   (can use 0xF7)
+ * - note that the JTAG unit steals 0xFF, so you can't use JTAG and GDBSTUB at
+ *   the same time.
  */
 #define GDBSTUB_BKPT		0xFF
 
@@ -90,7 +90,6 @@ enum exception_code {
 
 extern void __set_intr_stub(enum exception_code code, void *handler);
 extern void set_intr_stub(enum exception_code code, void *handler);
-extern void set_jtag_stub(enum exception_code code, void *handler);
 
 struct pt_regs;
 

@@ -216,31 +216,6 @@ ENTRY(irq_handler)
 
 ###############################################################################
 #
-# Monitor Signal handler entry point
-#
-###############################################################################
-ENTRY(monitor_signal)
-	movbu	(0xae000001),d1
-	cmp	1,d1
-	beq	monsignal
-	ret	[],0
-
-monsignal:
-	or	EPSW_NMID,epsw
-	mov	d0,a0
-	mov	a0,sp
-	mov	(REG_EPSW,fp),d1
-	and	~EPSW_nSL,d1
-	mov	d1,(REG_EPSW,fp)
-	movm	(sp),[d2,d3,a2,a3,exreg0,exreg1,exother]
-	mov	(sp),a1
-	mov	a1,usp
-	movm	(sp),[other]
-	add	4,sp
-here:	jmp	0x8e000008-here+0x8e000008
-
-###############################################################################
-#
 # Double Fault handler entry point
 # - note that there will not be a stack, D0/A0 will hold EPSW/PC as were
 #

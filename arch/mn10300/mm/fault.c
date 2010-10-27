@@ -100,8 +100,6 @@ static void print_pagetable_entries(pgd_t *pgdir, unsigned long address)
 }
 #endif
 
-asmlinkage void monitor_signal(struct pt_regs *);
-
 /*
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
@@ -279,7 +277,6 @@ good_area:
  */
 bad_area:
 	up_read(&mm->mmap_sem);
-	monitor_signal(regs);
 
 	/* User mode accesses just cause a SIGSEGV */
 	if ((fault_code & MMUFCR_xFC_ACCESS) == MMUFCR_xFC_ACCESS_USR) {
@@ -292,7 +289,6 @@ bad_area:
 	}
 
 no_context:
-	monitor_signal(regs);
 	/* Are we prepared to handle this kernel fault?  */
 	if (fixup_exception(regs))
 		return;
@@ -345,7 +341,6 @@ out_of_memory:
 
 do_sigbus:
 	up_read(&mm->mmap_sem);
-	monitor_signal(regs);
 
 	/*
 	 * Send a sigbus, regardless of whether we were in kernel
