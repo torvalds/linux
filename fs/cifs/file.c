@@ -1362,6 +1362,7 @@ static int cifs_writepages(struct address_space *mapping,
 	if (!experimEnabled && tcon->ses->server->secMode &
 			(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
 		cifsFileInfo_put(open_file);
+		kfree(iov);
 		return generic_writepages(mapping, wbc);
 	}
 	cifsFileInfo_put(open_file);
