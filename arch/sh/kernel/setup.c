@@ -41,6 +41,7 @@
 #include <asm/smp.h>
 #include <asm/mmu_context.h>
 #include <asm/mmzone.h>
+#include <asm/sparsemem.h>
 
 /*
  * Initialize loops_per_jiffy as 10000000 (1000MIPS).
