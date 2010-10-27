@@ -14,6 +14,8 @@
 #include <linux/list.h>
 #include <linux/rio.h>
 
+#define RIO_MAX_CHK_RETRY	3
+
 /* Functions internal to the RIO core code */
 
 extern u32 rio_mport_get_feature(struct rio_mport *mport, int local, u16 destid,

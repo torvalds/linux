@@ -495,6 +495,92 @@ int rio_set_port_lockout(struct rio_dev *rdev, u32 pnum, int lock)
 }
 
 /**
+ * rio_chk_dev_route - Validate route to the specified device.
+ * @rdev:  RIO device failed to respond
+ * @nrdev: Last active device on the route to rdev
+ * @npnum: nrdev's port number on the route to rdev
+ *
+ * Follows a route to the specified RIO device to determine the last available
+ * device (and corresponding RIO port) on the route.
+ */
+static int
+rio_chk_dev_route(struct rio_dev *rdev, struct rio_dev **nrdev, int *npnum)
+{
+	u32 result;
+	int p_port, rc = -EIO;
+	struct rio_dev *prev = NULL;
+
+	/* Find switch with failed RIO link */
+	while (rdev->prev && (rdev->prev->pef & RIO_PEF_SWITCH)) {
+		if (!rio_read_config_32(rdev->prev, RIO_DEV_ID_CAR, &result)) {
+			prev = rdev->prev;
+			break;
+		}
+		rdev = rdev->prev;
+	}
+
+	if (prev == NULL)
+		goto err_out;
+
+	/* Find port with failed RIO link */
+	for (p_port = 0;
+	     p_port < RIO_GET_TOTAL_PORTS(prev->swpinfo); p_port++)
+		if (prev->rswitch->nextdev[p_port] == rdev)
+			break;
+
+	if (p_port < RIO_GET_TOTAL_PORTS(prev->swpinfo)) {
+		pr_debug("RIO: link failed on [%s]-P%d\n",
+			 rio_name(prev), p_port);
+		*nrdev = prev;
+		*npnum = p_port;
+		rc = 0;
+	} else
+		pr_debug("RIO: failed to trace route to %s\n", rio_name(prev));
+err_out:
+	return rc;
+}
+
+/**
+ * rio_mport_chk_dev_access - Validate access to the specified device.
+ * @mport: Master port to send transactions
+ * @destid: Device destination ID in network
+ * @hopcount: Number of hops into the network
+ */
+static int
+rio_mport_chk_dev_access(struct rio_mport *mport, u16 destid, u8 hopcount)
+{
+	int i = 0;
+	u32 tmp;
+
+	while (rio_mport_read_config_32(mport, destid, hopcount,
+					RIO_DEV_ID_CAR, &tmp)) {
+		i++;
+		if (i == RIO_MAX_CHK_RETRY)
+			return -EIO;
+		mdelay(1);
+	}
+
+	return 0;
+}
+
+/**
+ * rio_chk_dev_access - Validate access to the specified device.
+ * @rdev: Pointer to RIO device control structure
+ */
+static int rio_chk_dev_access(struct rio_dev *rdev)
+{
+	u8 hopcount = 0xff;
+	u16 destid = rdev->destid;
+
+	if (rdev->rswitch) {
+		destid = rdev->rswitch->destid;
+		hopcount = rdev->rswitch->hopcount;
+	}
+
+	return rio_mport_chk_dev_access(rdev->net->hport, destid, hopcount);
+}
+
+/**
  * rio_get_input_status - Sends a Link-Request/Input-Status control symbol and
  *                        returns link-response (if requested).
  * @rdev: RIO devive to issue Input-status command
@@ -654,8 +740,8 @@ int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg)
 
 	rdev = rio_get_comptag(pw_msg->em.comptag, NULL);
 	if (rdev == NULL) {
-		/* Someting bad here (probably enumeration error) */
-		pr_err("RIO: %s No matching device for CTag 0x%08x\n",
+		/* Device removed or enumeration error */
+		pr_debug("RIO: %s No matching device for CTag 0x%08x\n",
 			__func__, pw_msg->em.comptag);
 		return -EIO;
 	}
@@ -686,6 +772,26 @@ int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg)
 			return 0;
 	}
 
+	portnum = pw_msg->em.is_port & 0xFF;
+
+	/* Check if device and route to it are functional:
+	 * Sometimes devices may send PW message(s) just before being
+	 * powered down (or link being lost).
+	 */
+	if (rio_chk_dev_access(rdev)) {
+		pr_debug("RIO: device access failed - get link partner\n");
+		/* Scan route to the device and identify failed link.
+		 * This will replace device and port reported in PW message.
+		 * PW message should not be used after this point.
+		 */
+		if (rio_chk_dev_route(rdev, &rdev, &portnum)) {
+			pr_err("RIO: Route trace for %s failed\n",
+				rio_name(rdev));
+			return -EIO;
+		}
+		pw_msg = NULL;
+	}
+
 	/* For End-point devices processing stops here */
 	if (!(rdev->pef & RIO_PEF_SWITCH))
 		return 0;
@@ -703,9 +809,6 @@ int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg)
 	/*
 	 * Process the port-write notification from switch
 	 */
-
-	portnum = pw_msg->em.is_port & 0xFF;
-
 	if (rdev->rswitch->em_handle)
 		rdev->rswitch->em_handle(rdev, portnum);
 
