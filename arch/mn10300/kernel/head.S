@@ -61,18 +61,18 @@ _start:
 	btst	CHCTR_ICBUSY|CHCTR_DCBUSY,d0		# wait till not busy
 	lne
 
-#ifndef CONFIG_MN10300_CACHE_DISABLED
+#ifdef CONFIG_MN10300_CACHE_ENABLED
 #ifdef CONFIG_MN10300_CACHE_WBACK
 #ifndef CONFIG_MN10300_CACHE_WBACK_NOWRALLOC
 	mov	CHCTR_ICEN|CHCTR_DCEN|CHCTR_DCWTMD_WRBACK,d0
 #else
 	mov	CHCTR_ICEN|CHCTR_DCEN|CHCTR_DCWTMD_WRBACK|CHCTR_DCALMD,d0
-#endif /* CACHE_DISABLED */
+#endif /* NOWRALLOC */
 #else
 	mov	CHCTR_ICEN|CHCTR_DCEN|CHCTR_DCWTMD_WRTHROUGH,d0
 #endif /* WBACK */
 	movhu	d0,(a0)					# enable
-#endif /* NOWRALLOC */
+#endif /* ENABLED */
 
 	# turn on RTS on the debug serial port if applicable
 #ifdef CONFIG_MN10300_UNIT_ASB2305

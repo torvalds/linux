@@ -34,7 +34,7 @@
 /*
  * physically-indexed cache management
  */
-#ifndef CONFIG_MN10300_CACHE_DISABLED
+#ifdef CONFIG_MN10300_CACHE_ENABLED
 
 extern void flush_icache_range(unsigned long start, unsigned long end);
 extern void flush_icache_page(struct vm_area_struct *vma, struct page *pg);
@@ -61,7 +61,7 @@ extern void flush_icache_page(struct vm_area_struct *vma, struct page *pg);
 /*
  * primitive routines
  */
-#ifndef CONFIG_MN10300_CACHE_DISABLED
+#ifdef CONFIG_MN10300_CACHE_ENABLED
 extern void mn10300_icache_inv(void);
 extern void mn10300_dcache_inv(void);
 extern void mn10300_dcache_inv_page(unsigned start);
@@ -103,7 +103,7 @@ extern void mn10300_dcache_flush_inv_range2(unsigned start, unsigned size);
 #define mn10300_dcache_flush_page(start)		do {} while (0)
 #define mn10300_dcache_flush_range(start, end)		do {} while (0)
 #define mn10300_dcache_flush_range2(start, size)	do {} while (0)
-#endif /* CONFIG_MN10300_CACHE_DISABLED */
+#endif /* CONFIG_MN10300_CACHE_ENABLED */
 
 /*
  * internal debugging function

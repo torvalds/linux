@@ -17,7 +17,7 @@ obj-$(CONFIG_GDBSTUB) += gdb-stub.o gdb-low.o
 obj-$(CONFIG_GDBSTUB_ON_TTYSx) += gdb-io-serial.o gdb-io-serial-low.o
 obj-$(CONFIG_GDBSTUB_ON_TTYSMx) += gdb-io-ttysm.o gdb-io-ttysm-low.o
 
-ifneq ($(CONFIG_MN10300_CACHE_DISABLED),y)
+ifeq ($(CONFIG_MN10300_CACHE_ENABLED),y)
 obj-$(CONFIG_GDBSTUB) += gdb-cache.o
 endif
 

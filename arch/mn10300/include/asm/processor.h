@@ -157,7 +157,7 @@ unsigned long get_wchan(struct task_struct *p);
 
 static inline void prefetch(const void *x)
 {
-#ifndef CONFIG_MN10300_CACHE_DISABLED
+#ifdef CONFIG_MN10300_CACHE_ENABLED
 #ifdef CONFIG_MN10300_PROC_MN103E010
 	asm volatile ("nop; nop; dcpf (%0)" : : "r"(x));
 #else
@@ -168,7 +168,7 @@ static inline void prefetch(const void *x)
 
 static inline void prefetchw(const void *x)
 {
-#ifndef CONFIG_MN10300_CACHE_DISABLED
+#ifdef CONFIG_MN10300_CACHE_ENABLED
 #ifdef CONFIG_MN10300_PROC_MN103E010
 	asm volatile ("nop; nop; dcpf (%0)" : : "r"(x));
 #else

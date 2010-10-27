@@ -30,3 +30,6 @@ config MN10300_CACHE_DISABLED
 	bool "Disabled"
 
 endchoice
+
+config MN10300_CACHE_ENABLED
+	def_bool y if !MN10300_CACHE_DISABLED
