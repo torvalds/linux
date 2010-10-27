@@ -95,6 +95,7 @@ struct thread_struct {
 	struct pt_regs		*__frame;
 	unsigned long		fpu_flags;
 #define THREAD_USING_FPU	0x00000001	/* T if this task is using the FPU */
+#define THREAD_HAS_FPU		0x00000002	/* T if this task owns the FPU right now */
 	struct fpu_state_struct	fpu_state;
 };
 

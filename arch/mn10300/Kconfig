@@ -140,6 +140,21 @@ config FPU
 	default y
 	depends on MN10300_PROC_MN103E010
 
+config LAZY_SAVE_FPU
+	bool "Save FPU state lazily"
+	default y
+	depends on FPU && !SMP
+	help
+	  Enable this to be lazy in the saving of the FPU state to the owning
+	  task's thread struct.  This is useful if most tasks on the system
+	  don't use the FPU as only those tasks that use it will pass it
+	  between them, and the state needn't be saved for a task that isn't
+	  using it.
+
+	  This can't be so easily used on SMP as the process that owns the FPU
+	  state on a CPU may be currently running on another CPU, so for the
+	  moment, it is disabled.
+
 source "arch/mn10300/mm/Kconfig.cache"
 
 config MN10300_TLB_USE_PIDR

@@ -101,7 +101,6 @@ DO_EINFO(SIGILL,  {}, "invalid opcode",		invalid_op,	ILL_ILLOPC);
 DO_EINFO(SIGILL,  {}, "invalid ex opcode",	invalid_exop,	ILL_ILLOPC);
 DO_EINFO(SIGBUS,  {}, "invalid address",	mem_error,	BUS_ADRERR);
 DO_EINFO(SIGBUS,  {}, "bus error",		bus_error,	BUS_ADRERR);
-DO_EINFO(SIGILL,  {}, "FPU invalid opcode", 	fpu_invalid_op,	ILL_COPROC);
 
 DO_ERROR(SIGTRAP,
 #ifndef CONFIG_MN10300_USING_JTAG
@@ -561,7 +560,6 @@ void __init trap_init(void)
 	set_excp_vector(EXCEP_PRIVINSACC,	insn_acc_error);
 	set_excp_vector(EXCEP_PRIVDATACC,	data_acc_error);
 	set_excp_vector(EXCEP_DATINSACC,	insn_acc_error);
-	set_excp_vector(EXCEP_FPU_DISABLED,	fpu_disabled);
 	set_excp_vector(EXCEP_FPU_UNIMPINS,	fpu_invalid_op);
 	set_excp_vector(EXCEP_FPU_OPERATION,	fpu_exception);
 

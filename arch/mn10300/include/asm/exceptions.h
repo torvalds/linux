@@ -101,7 +101,6 @@ extern asmlinkage void dtlb_aerror(void);
 extern asmlinkage void raw_bus_error(void);
 extern asmlinkage void double_fault(void);
 extern asmlinkage int  system_call(struct pt_regs *);
-extern asmlinkage void fpu_exception(struct pt_regs *, enum exception_code);
 extern asmlinkage void nmi(struct pt_regs *, enum exception_code);
 extern asmlinkage void uninitialised_exception(struct pt_regs *,
 					       enum exception_code);

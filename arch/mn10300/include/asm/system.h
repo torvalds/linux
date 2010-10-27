@@ -19,6 +19,21 @@
 #include <linux/kernel.h>
 #include <linux/irqflags.h>
 
+#if !defined(CONFIG_LAZY_SAVE_FPU)
+struct fpu_state_struct;
+extern asmlinkage void fpu_save(struct fpu_state_struct *);
+#define switch_fpu(prev, next)						\
+	do {								\
+		if ((prev)->thread.fpu_flags & THREAD_HAS_FPU) {	\
+			(prev)->thread.fpu_flags &= ~THREAD_HAS_FPU;	\
+			(prev)->thread.uregs->epsw &= ~EPSW_FE;		\
+			fpu_save(&(prev)->thread.fpu_state);		\
+		}							\
+	} while (0)
+#else
+#define switch_fpu(prev, next) do {} while (0)
+#endif
+
 struct task_struct;
 struct thread_struct;
 
@@ -30,6 +45,7 @@ struct task_struct *__switch_to(struct thread_struct *prev,
 /* context switching is now performed out-of-line in switch_to.S */
 #define switch_to(prev, next, last)					\
 do {									\
+	switch_fpu(prev, next);						\
 	current->thread.wchan = (u_long) __builtin_return_address(0);	\
 	(last) = __switch_to(&(prev)->thread, &(next)->thread, (prev));	\
 	mb();								\

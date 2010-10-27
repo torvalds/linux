@@ -3,13 +3,15 @@
 #
 extra-y := head.o init_task.o vmlinux.lds
 
-obj-y   := process.o signal.o entry.o fpu.o traps.o irq.o \
+fpu-obj-y := fpu-nofpu.o fpu-nofpu-low.o
+fpu-obj-$(CONFIG_FPU) := fpu.o fpu-low.o
+
+obj-y   := process.o signal.o entry.o traps.o irq.o \
 	   ptrace.o setup.o time.o sys_mn10300.o io.o kthread.o \
-	   switch_to.o mn10300_ksyms.o kernel_execve.o
+	   switch_to.o mn10300_ksyms.o kernel_execve.o $(fpu-obj-y)
 
 obj-$(CONFIG_MN10300_WD_TIMER) += mn10300-watchdog.o mn10300-watchdog-low.o
 
-obj-$(CONFIG_FPU) += fpu-low.o
 
 obj-$(CONFIG_MN10300_TTYSM) += mn10300-serial.o mn10300-serial-low.o \
 			       mn10300-debug.o

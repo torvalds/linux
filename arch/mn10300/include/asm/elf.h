@@ -47,8 +47,6 @@ typedef struct {
 	u_int32_t	fpcr;
 } elf_fpregset_t;
 
-extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
-
 /*
  * This is used to ensure we don't load something for the wrong architecture
  */

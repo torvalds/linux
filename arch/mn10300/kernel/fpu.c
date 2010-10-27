@@ -12,56 +12,19 @@
 #include <asm/fpu.h>
 #include <asm/elf.h>
 #include <asm/exceptions.h>
+#include <asm/system.h>
 
+#ifdef CONFIG_LAZY_SAVE_FPU
 struct task_struct *fpu_state_owner;
+#endif
 
 /*
- * handle an exception due to the FPU being disabled
+ * error functions in FPU disabled exception
  */
-asmlinkage void fpu_disabled(struct pt_regs *regs, enum exception_code code)
+asmlinkage void fpu_disabled_in_kernel(struct pt_regs *regs)
 {
-	struct task_struct *tsk = current;
-
-	if (!user_mode(regs))
-		die_if_no_fixup("An FPU Disabled exception happened in"
-				" kernel space\n",
-				regs, code);
-
-#ifdef CONFIG_FPU
-	preempt_disable();
-
-	/* transfer the last process's FPU state to memory */
-	if (fpu_state_owner) {
-		fpu_save(&fpu_state_owner->thread.fpu_state);
-		fpu_state_owner->thread.uregs->epsw &= ~EPSW_FE;
-	}
-
-	/* the current process now owns the FPU state */
-	fpu_state_owner = tsk;
-	regs->epsw |= EPSW_FE;
-
-	/* load the FPU with the current process's FPU state or invent a new
-	 * clean one if the process doesn't have one */
-	if (is_using_fpu(tsk)) {
-		fpu_restore(&tsk->thread.fpu_state);
-	} else {
-		fpu_init_state();
-		set_using_fpu(tsk);
-	}
-
-	preempt_enable();
-#else
-	{
-		siginfo_t info;
-
-		info.si_signo = SIGFPE;
-		info.si_errno = 0;
-		info.si_addr = (void *) tsk->thread.uregs->pc;
-		info.si_code = FPE_FLTINV;
-
-		force_sig_info(SIGFPE, &info, tsk);
-	}
-#endif  /* CONFIG_FPU */
+	die_if_no_fixup("An FPU Disabled exception happened in kernel space\n",
+			regs, EXCEP_FPU_DISABLED);
 }
 
 /*
@@ -71,15 +34,16 @@ asmlinkage void fpu_disabled(struct pt_regs *regs, enum exception_code code)
  */
 asmlinkage void fpu_exception(struct pt_regs *regs, enum exception_code code)
 {
-	struct task_struct *tsk = fpu_state_owner;
+	struct task_struct *tsk = current;
 	siginfo_t info;
+	u32 fpcr;
 
 	if (!user_mode(regs))
 		die_if_no_fixup("An FPU Operation exception happened in"
 				" kernel space\n",
 				regs, code);
 
-	if (!tsk)
+	if (!is_using_fpu(tsk))
 		die_if_no_fixup("An FPU Operation exception happened,"
 				" but the FPU is not in use",
 				regs, code);
@@ -89,40 +53,38 @@ asmlinkage void fpu_exception(struct pt_regs *regs, enum exception_code code)
 	info.si_addr = (void *) tsk->thread.uregs->pc;
 	info.si_code = FPE_FLTINV;
 
-#ifdef CONFIG_FPU
-	{
-		u32 fpcr;
+	unlazy_fpu(tsk);
 
-		/* get FPCR (we need to enable the FPU whilst we do this) */
-		asm volatile("	or	%1,epsw		\n"
-#ifdef CONFIG_MN10300_PROC_MN103E010
-			     "	nop			\n"
-			     "	nop			\n"
-			     "	nop			\n"
-#endif
-			     "	fmov	fpcr,%0		\n"
-#ifdef CONFIG_MN10300_PROC_MN103E010
-			     "	nop			\n"
-			     "	nop			\n"
-			     "	nop			\n"
-#endif
-			     "	and	%2,epsw		\n"
-			     : "=&d"(fpcr)
-			     : "i"(EPSW_FE), "i"(~EPSW_FE)
-			     );
+	fpcr = tsk->thread.fpu_state.fpcr;
 
-		if (fpcr & FPCR_EC_Z)
-			info.si_code = FPE_FLTDIV;
-		else if	(fpcr & FPCR_EC_O)
-			info.si_code = FPE_FLTOVF;
-		else if	(fpcr & FPCR_EC_U)
-			info.si_code = FPE_FLTUND;
-		else if	(fpcr & FPCR_EC_I)
-			info.si_code = FPE_FLTRES;
-	}
-#endif
+	if (fpcr & FPCR_EC_Z)
+		info.si_code = FPE_FLTDIV;
+	else if	(fpcr & FPCR_EC_O)
+		info.si_code = FPE_FLTOVF;
+	else if	(fpcr & FPCR_EC_U)
+		info.si_code = FPE_FLTUND;
+	else if	(fpcr & FPCR_EC_I)
+		info.si_code = FPE_FLTRES;
 
 	force_sig_info(SIGFPE, &info, tsk);
+}
+
+/*
+ * handle an FPU invalid_op exception
+ * - Derived from DO_EINFO() macro in arch/mn10300/kernel/traps.c
+ */
+asmlinkage void fpu_invalid_op(struct pt_regs *regs, enum exception_code code)
+{
+	siginfo_t info;
+
+	if (!user_mode(regs))
+		die_if_no_fixup("FPU invalid opcode", regs, code);
+
+	info.si_signo = SIGILL;
+	info.si_errno = 0;
+	info.si_code = ILL_COPROC;
+	info.si_addr = (void *) regs->pc;
+	force_sig_info(info.si_signo, &info, current);
 }
 
 /*
@@ -130,7 +92,6 @@ asmlinkage void fpu_exception(struct pt_regs *regs, enum exception_code code)
  */
 int fpu_setup_sigcontext(struct fpucontext *fpucontext)
 {
-#ifdef CONFIG_FPU
 	struct task_struct *tsk = current;
 
 	if (!is_using_fpu(tsk))
@@ -142,11 +103,19 @@ int fpu_setup_sigcontext(struct fpucontext *fpucontext)
 	 */
 	preempt_disable();
 
+#ifndef CONFIG_LAZY_SAVE_FPU
+	if (tsk->thread.fpu_flags & THREAD_HAS_FPU) {
+		fpu_save(&tsk->thread.fpu_state);
+		tsk->thread.uregs->epsw &= ~EPSW_FE;
+		tsk->thread.fpu_flags &= ~THREAD_HAS_FPU;
+	}
+#else /* !CONFIG_LAZY_SAVE_FPU */
 	if (fpu_state_owner == tsk) {
 		fpu_save(&tsk->thread.fpu_state);
 		fpu_state_owner->thread.uregs->epsw &= ~EPSW_FE;
 		fpu_state_owner = NULL;
 	}
+#endif /* !CONFIG_LAZY_SAVE_FPU */
 
 	preempt_enable();
 
@@ -161,9 +130,6 @@ int fpu_setup_sigcontext(struct fpucontext *fpucontext)
 		return -1;
 
 	return 1;
-#else
-	return 0;
-#endif
 }
 
 /*
@@ -171,17 +137,23 @@ int fpu_setup_sigcontext(struct fpucontext *fpucontext)
  */
 void fpu_kill_state(struct task_struct *tsk)
 {
-#ifdef CONFIG_FPU
 	/* disown anything left in the FPU */
 	preempt_disable();
 
+#ifndef CONFIG_LAZY_SAVE_FPU
+	if (tsk->thread.fpu_flags & THREAD_HAS_FPU) {
+		tsk->thread.uregs->epsw &= ~EPSW_FE;
+		tsk->thread.fpu_flags &= ~THREAD_HAS_FPU;
+	}
+#else /* !CONFIG_LAZY_SAVE_FPU */
 	if (fpu_state_owner == tsk) {
 		fpu_state_owner->thread.uregs->epsw &= ~EPSW_FE;
 		fpu_state_owner = NULL;
 	}
+#endif /* !CONFIG_LAZY_SAVE_FPU */
 
 	preempt_enable();
-#endif
+
 	/* we no longer have a valid current FPU state */
 	clear_using_fpu(tsk);
 }
@@ -195,8 +167,7 @@ int fpu_restore_sigcontext(struct fpucontext *fpucontext)
 	int ret;
 
 	/* load up the old FPU state */
-	ret = copy_from_user(&tsk->thread.fpu_state,
-			     fpucontext,
+	ret = copy_from_user(&tsk->thread.fpu_state, fpucontext,
 			     min(sizeof(struct fpu_state_struct),
 				 sizeof(struct fpucontext)));
 	if (!ret)

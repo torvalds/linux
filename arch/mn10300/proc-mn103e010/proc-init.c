@@ -9,6 +9,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 #include <linux/kernel.h>
+#include <asm/fpu.h>
 #include <asm/rtc.h>
 
 /*
@@ -28,6 +29,7 @@ asmlinkage void __init processor_init(void)
 	__set_intr_stub(EXCEP_DAERROR,		dtlb_aerror);
 	__set_intr_stub(EXCEP_BUSERROR,		raw_bus_error);
 	__set_intr_stub(EXCEP_DOUBLE_FAULT,	double_fault);
+	__set_intr_stub(EXCEP_FPU_DISABLED,	fpu_disabled);
 	__set_intr_stub(EXCEP_SYSCALL0,		system_call);
 
 	__set_intr_stub(EXCEP_NMI,		nmi_handler);
