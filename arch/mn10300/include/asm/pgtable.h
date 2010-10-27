@@ -182,6 +182,9 @@ extern pte_t kernel_vmalloc_ptes[(VMALLOC_END - VMALLOC_START) / PAGE_SIZE];
 #define PAGE_KERNEL_LARGE	__pgprot(__PAGE_KERNEL_LARGE)
 #define PAGE_KERNEL_LARGE_EXEC	__pgprot(__PAGE_KERNEL_LARGE_EXEC)
 
+#define __PAGE_USERIO		(__PAGE_KERNEL_BASE | _PAGE_PROT_WKWU | _PAGE_NX)
+#define PAGE_USERIO		__pgprot(__PAGE_USERIO)
+
 /*
  * Whilst the MN10300 can do page protection for execute (given separate data
  * and insn TLBs), we are not supporting it at the moment. Write permission,
