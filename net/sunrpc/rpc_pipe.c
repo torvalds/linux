@@ -445,6 +445,7 @@ rpc_get_inode(struct super_block *sb, umode_t mode)
 	struct inode *inode = new_inode(sb);
 	if (!inode)
 		return NULL;
+	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	switch(mode & S_IFMT) {

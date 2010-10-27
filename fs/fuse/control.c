@@ -222,6 +222,7 @@ static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 	if (!inode)
 		return NULL;
 
+	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_uid = fc->user_id;
 	inode->i_gid = fc->group_id;

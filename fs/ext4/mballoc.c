@@ -2373,6 +2373,7 @@ static int ext4_mb_init_backend(struct super_block *sb)
 		printk(KERN_ERR "EXT4-fs: can't get new inode\n");
 		goto err_freesgi;
 	}
+	sbi->s_buddy_cache->i_ino = get_next_ino();
 	EXT4_I(sbi->s_buddy_cache)->i_disksize = 0;
 	for (i = 0; i < ngroups; i++) {
 		desc = ext4_get_group_desc(sb, i, NULL);

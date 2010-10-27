@@ -10,8 +10,6 @@
 struct backing_dev_info;
 
 extern spinlock_t inode_lock;
-extern struct list_head inode_in_use;
-extern struct list_head inode_unused;
 
 /*
  * fs/fs-writeback.c

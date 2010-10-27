@@ -1580,6 +1580,7 @@ xfs_mapping_buftarg(
 			XFS_BUFTARG_NAME(btp));
 		return ENOMEM;
 	}
+	inode->i_ino = get_next_ino();
 	inode->i_mode = S_IFBLK;
 	inode->i_bdev = bdev;
 	inode->i_rdev = bdev->bd_dev;

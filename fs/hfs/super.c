@@ -382,7 +382,6 @@ static int hfs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 
 	sb->s_fs_info = sbi;
-	INIT_HLIST_HEAD(&sbi->rsrc_inodes);
 
 	res = -EINVAL;
 	if (!parse_options((char *)data, sbi)) {

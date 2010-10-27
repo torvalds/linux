@@ -462,9 +462,7 @@ int seq_path_root(struct seq_file *m, struct path *path, struct path *root,
 	if (size) {
 		char *p;
 
-		spin_lock(&dcache_lock);
 		p = __d_path(path, root, buf, size);
-		spin_unlock(&dcache_lock);
 		res = PTR_ERR(p);
 		if (!IS_ERR(p)) {
 			char *end = mangle_path(buf, p, esc);

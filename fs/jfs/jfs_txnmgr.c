@@ -1279,7 +1279,7 @@ int txCommit(tid_t tid,		/* transaction identifier */
 	 * lazy commit thread finishes processing
 	 */
 	if (tblk->xflag & COMMIT_DELETE) {
-		atomic_inc(&tblk->u.ip->i_count);
+		ihold(tblk->u.ip);
 		/*
 		 * Avoid a rare deadlock
 		 *

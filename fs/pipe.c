@@ -954,6 +954,8 @@ static struct inode * get_pipe_inode(void)
 	if (!inode)
 		goto fail_inode;
 
+	inode->i_ino = get_next_ino();
+
 	pipe = alloc_pipe_info(inode);
 	if (!pipe)
 		goto fail_iput;

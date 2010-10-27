@@ -111,10 +111,9 @@ struct file *anon_inode_getfile(const char *name,
 	path.mnt = mntget(anon_inode_mnt);
 	/*
 	 * We know the anon_inode inode count is always greater than zero,
-	 * so we can avoid doing an igrab() and we can use an open-coded
-	 * atomic_inc().
+	 * so ihold() is safe.
 	 */
-	atomic_inc(&anon_inode_inode->i_count);
+	ihold(anon_inode_inode);
 
 	path.dentry->d_op = &anon_inodefs_dentry_operations;
 	d_instantiate(path.dentry, anon_inode_inode);
@@ -194,6 +193,7 @@ static struct inode *anon_inode_mkinode(void)
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
+	inode->i_ino = get_next_ino();
 	inode->i_fop = &anon_inode_fops;
 
 	inode->i_mapping->a_ops = &anon_aops;

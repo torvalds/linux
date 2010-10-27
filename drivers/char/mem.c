@@ -876,6 +876,10 @@ static int memory_open(struct inode *inode, struct file *filp)
 	if (dev->dev_info)
 		filp->f_mapping->backing_dev_info = dev->dev_info;
 
+	/* Is /dev/mem or /dev/kmem ? */
+	if (dev->dev_info == &directly_mappable_cdev_bdi)
+		filp->f_mode |= FMODE_UNSIGNED_OFFSET;
+
 	if (dev->fops->open)
 		return dev->fops->open(inode, filp);
 

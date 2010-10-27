@@ -456,6 +456,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid,
 	inode = new_inode(sb);
 	if (inode) {
 		struct hugetlbfs_inode_info *info;
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_uid = uid;
 		inode->i_gid = gid;

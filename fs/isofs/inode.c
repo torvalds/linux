@@ -962,25 +962,23 @@ static int isofs_statfs (struct dentry *dentry, struct kstatfs *buf)
  * or getblk() if they are not.  Returns the number of blocks inserted
  * (-ve == error.)
  */
-int isofs_get_blocks(struct inode *inode, sector_t iblock_s,
+int isofs_get_blocks(struct inode *inode, sector_t iblock,
 		     struct buffer_head **bh, unsigned long nblocks)
 {
-	unsigned long b_off;
+	unsigned long b_off = iblock;
 	unsigned offset, sect_size;
 	unsigned int firstext;
 	unsigned long nextblk, nextoff;
-	long iblock = (long)iblock_s;
 	int section, rv, error;
 	struct iso_inode_info *ei = ISOFS_I(inode);
 
 	error = -EIO;
 	rv = 0;
-	if (iblock < 0 || iblock != iblock_s) {
+	if (iblock != b_off) {
 		printk(KERN_DEBUG "%s: block number too large\n", __func__);
 		goto abort;
 	}
 
-	b_off = iblock;
 
 	offset = 0;
 	firstext = ei->i_first_extent;
@@ -998,8 +996,9 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock_s,
 		 * I/O errors.
 		 */
 		if (b_off > ((inode->i_size + PAGE_CACHE_SIZE - 1) >> ISOFS_BUFFER_BITS(inode))) {
-			printk(KERN_DEBUG "%s: block >= EOF (%ld, %ld)\n",
-				__func__, iblock, (unsigned long) inode->i_size);
+			printk(KERN_DEBUG "%s: block >= EOF (%lu, %llu)\n",
+				__func__, b_off,
+				(unsigned long long)inode->i_size);
 			goto abort;
 		}
 
@@ -1025,9 +1024,9 @@ int isofs_get_blocks(struct inode *inode, sector_t iblock_s,
 			if (++section > 100) {
 				printk(KERN_DEBUG "%s: More than 100 file sections ?!?"
 					" aborting...\n", __func__);
-				printk(KERN_DEBUG "%s: block=%ld firstext=%u sect_size=%u "
+				printk(KERN_DEBUG "%s: block=%lu firstext=%u sect_size=%u "
 					"nextblk=%lu nextoff=%lu\n", __func__,
-					iblock, firstext, (unsigned) sect_size,
+					b_off, firstext, (unsigned) sect_size,
 					nextblk, nextoff);
 				goto abort;
 			}

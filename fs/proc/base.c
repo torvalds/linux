@@ -771,6 +771,8 @@ static const struct file_operations proc_single_file_operations = {
 static int mem_open(struct inode* inode, struct file* file)
 {
 	file->private_data = (void*)((long)current->self_exec_id);
+	/* OK to pass negative loff_t, we can catch out-of-range */
+	file->f_mode |= FMODE_UNSIGNED_OFFSET;
 	return 0;
 }
 
@@ -1646,6 +1648,7 @@ static struct inode *proc_pid_make_inode(struct super_block * sb, struct task_st
 
 	/* Common stuff */
 	ei = PROC_I(inode);
+	inode->i_ino = get_next_ino();
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	inode->i_op = &proc_def_inode_operations;
 
@@ -2592,6 +2595,7 @@ static struct dentry *proc_base_instantiate(struct inode *dir,
 
 	/* Initialize the inode */
 	ei = PROC_I(inode);
+	inode->i_ino = get_next_ino();
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 
 	/*

@@ -57,6 +57,7 @@ static int ipathfs_mknod(struct inode *dir, struct dentry *dentry,
 		goto bail;
 	}
 
+	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	inode->i_private = data;

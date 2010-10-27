@@ -276,6 +276,7 @@ static struct inode *usbfs_get_inode (struct super_block *sb, int mode, dev_t de
 	struct inode *inode = new_inode(sb);
 
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_uid = current_fsuid();
 		inode->i_gid = current_fsgid();
