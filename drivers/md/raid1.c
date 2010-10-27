@@ -1382,7 +1382,7 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 					 * active, and resync is currently active
 					 */
 					rdev = conf->mirrors[d].rdev;
-					if (sync_page_io(rdev->bdev,
+					if (sync_page_io(rdev,
 							 sect + rdev->data_offset,
 							 s<<9,
 							 bio->bi_io_vec[idx].bv_page,
@@ -1408,7 +1408,7 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 						continue;
 					rdev = conf->mirrors[d].rdev;
 					atomic_add(s, &rdev->corrected_errors);
-					if (sync_page_io(rdev->bdev,
+					if (sync_page_io(rdev,
 							 sect + rdev->data_offset,
 							 s<<9,
 							 bio->bi_io_vec[idx].bv_page,
@@ -1423,7 +1423,7 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 					if (r1_bio->bios[d]->bi_end_io != end_sync_read)
 						continue;
 					rdev = conf->mirrors[d].rdev;
-					if (sync_page_io(rdev->bdev,
+					if (sync_page_io(rdev,
 							 sect + rdev->data_offset,
 							 s<<9,
 							 bio->bi_io_vec[idx].bv_page,
@@ -1507,7 +1507,7 @@ static void fix_read_error(conf_t *conf, int read_disk,
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
 			    test_bit(In_sync, &rdev->flags) &&
-			    sync_page_io(rdev->bdev,
+			    sync_page_io(rdev,
 					 sect + rdev->data_offset,
 					 s<<9,
 					 conf->tmppage, READ))
@@ -1533,7 +1533,7 @@ static void fix_read_error(conf_t *conf, int read_disk,
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
 			    test_bit(In_sync, &rdev->flags)) {
-				if (sync_page_io(rdev->bdev,
+				if (sync_page_io(rdev,
 						 sect + rdev->data_offset,
 						 s<<9, conf->tmppage, WRITE)
 				    == 0)
@@ -1550,7 +1550,7 @@ static void fix_read_error(conf_t *conf, int read_disk,
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
 			    test_bit(In_sync, &rdev->flags)) {
-				if (sync_page_io(rdev->bdev,
+				if (sync_page_io(rdev,
 						 sect + rdev->data_offset,
 						 s<<9, conf->tmppage, READ)
 				    == 0)
