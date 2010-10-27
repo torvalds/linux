@@ -310,7 +310,7 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 	/* Check depth buffer */
 	if (G_028800_STENCIL_ENABLE(track->db_depth_control) ||
 		G_028800_Z_ENABLE(track->db_depth_control)) {
-		u32 nviews, bpe, ntiles, pitch, pitch_align, height, size;
+		u32 nviews, bpe, ntiles, pitch, pitch_align, height, size, slice_tile_max;
 		if (track->db_bo == NULL) {
 			dev_warn(p->dev, "z/stencil with no depth buffer\n");
 			return -EINVAL;
@@ -354,11 +354,11 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 		} else {
 			size = radeon_bo_size(track->db_bo);
 			pitch = G_028000_PITCH_TILE_MAX(track->db_depth_size) + 1;
-			height = size / (pitch * 8 * bpe);
-			height &= ~0x7;
-			if (!height)
-				height = 8;
-
+			slice_tile_max = G_028000_SLICE_TILE_MAX(track->db_depth_size) + 1;
+			slice_tile_max *= 64;
+			height = slice_tile_max / (pitch * 8);
+			if (height > 8192)
+				height = 8192;
 			switch (G_028010_ARRAY_MODE(track->db_depth_info)) {
 			case V_028010_ARRAY_1D_TILED_THIN1:
 				pitch_align = (max((u32)8, (u32)(track->group_size / (8 * bpe))) / 8);
@@ -367,6 +367,8 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 						 __func__, __LINE__, pitch);
 					return -EINVAL;
 				}
+				/* don't break userspace */
+				height &= ~0x7;
 				if (!IS_ALIGNED(height, 8)) {
 					dev_warn(p->dev, "%s:%d db height (%d) invalid\n",
 						 __func__, __LINE__, height);
