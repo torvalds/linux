@@ -871,15 +871,10 @@ int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg)
 			rdev->em_efptr + RIO_EM_LTL_ERR_DETECT, 0);
 	}
 
-	/* Clear remaining error bits */
+	/* Clear remaining error bits and Port-Write Pending bit */
 	rio_mport_write_config_32(mport, destid, hopcount,
 			rdev->phys_efptr + RIO_PORT_N_ERR_STS_CSR(portnum),
-			err_status & RIO_PORT_N_ERR_STS_CLR_MASK);
-
-	/* Clear Port-Write Pending bit */
-	rio_mport_write_config_32(mport, destid, hopcount,
-			rdev->phys_efptr + RIO_PORT_N_ERR_STS_CSR(portnum),
-			RIO_PORT_N_ERR_STS_PW_PEND);
+			err_status);
 
 	return 0;
 }
