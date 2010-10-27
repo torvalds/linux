@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
+#include <linux/leds.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/fsl_devices.h>
@@ -42,6 +43,10 @@
 #define EFIKAMX_PCBID0		(2*32 + 16)
 #define EFIKAMX_PCBID1		(2*32 + 17)
 #define EFIKAMX_PCBID2		(2*32 + 11)
+
+#define EFIKAMX_BLUE_LED	(2*32 + 13)
+#define EFIKAMX_GREEN_LED	(2*32 + 14)
+#define EFIKAMX_RED_LED		(2*32 + 15)
 
 /* the pci ids pin have pull up. they're driven low according to board id */
 #define MX51_PAD_PCBID0	IOMUX_PAD(0x518, 0x130, 3, 0x0,   0, PAD_CTL_PUS_100K_UP)
@@ -80,6 +85,11 @@ static iomux_v3_cfg_t mx51efikamx_pads[] = {
 	MX51_PAD_GPIO_1_1__ESDHC1_WP,
 	MX51_PAD_GPIO_1_7__ESDHC2_WP,
 	MX51_PAD_GPIO_1_8__ESDHC2_CD,
+
+	/* leds */
+	MX51_PAD_CSI1_D9__GPIO_3_13,
+	MX51_PAD_CSI1_VSYNC__GPIO_3_14,
+	MX51_PAD_CSI1_HSYNC__GPIO_3_15,
 };
 
 /* Serial ports */
@@ -178,6 +188,37 @@ static void __init mx51_efikamx_board_id(void)
 	}
 }
 
+static struct gpio_led mx51_efikamx_leds[] = {
+	{
+		.name = "efikamx:green",
+		.default_trigger = "default-on",
+		.gpio = EFIKAMX_GREEN_LED,
+	},
+	{
+		.name = "efikamx:red",
+		.default_trigger = "ide-disk",
+		.gpio = EFIKAMX_RED_LED,
+	},
+	{
+		.name = "efikamx:blue",
+		.default_trigger = "mmc0",
+		.gpio = EFIKAMX_BLUE_LED,
+	},
+};
+
+static struct gpio_led_platform_data mx51_efikamx_leds_data = {
+	.leds = mx51_efikamx_leds,
+	.num_leds = ARRAY_SIZE(mx51_efikamx_leds),
+};
+
+static struct platform_device mx51_efikamx_leds_device = {
+	.name = "leds-gpio",
+	.id = -1,
+	.dev = {
+		.platform_data = &mx51_efikamx_leds_data,
+	},
+};
+
 static void __init mxc_board_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx51efikamx_pads,
@@ -188,8 +229,12 @@ static void __init mxc_board_init(void)
 	imx51_add_esdhc(0, NULL);
 
 	/* on < 1.2 boards both SD controllers are used */
-	if (system_rev < 0x12)
+	if (system_rev < 0x12) {
 		imx51_add_esdhc(1, NULL);
+		mx51_efikamx_leds[2].default_trigger = "mmc1";
+	}
+
+	platform_device_register(&mx51_efikamx_leds_device);
 }
 
 static void __init mx51_efikamx_timer_init(void)
