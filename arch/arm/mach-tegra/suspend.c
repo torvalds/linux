@@ -583,6 +583,7 @@ static int tegra_suspend_enter(suspend_state_t state)
 		lp_state = 1;
 
 	local_irq_save(flags);
+	local_fiq_disable();
 
 	pr_info("Entering suspend state LP%d\n", lp_state);
 	if (do_lp0) {
@@ -645,6 +646,7 @@ static int tegra_suspend_enter(suspend_state_t state)
 
 	tegra_time_in_suspend[time_to_bin(secs)]++;
 
+	local_fiq_enable();
 	local_irq_restore(flags);
 
 	return 0;
