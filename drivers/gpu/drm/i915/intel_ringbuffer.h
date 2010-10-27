@@ -25,7 +25,6 @@ struct  intel_ring_buffer {
 		RING_BLT = 0x4,
 	} id;
 	u32		mmio_base;
-	unsigned long	size;
 	void		*virtual_start;
 	struct		drm_device *dev;
 	struct		drm_gem_object *gem_object;
@@ -33,6 +32,7 @@ struct  intel_ring_buffer {
 	unsigned int	head;
 	unsigned int	tail;
 	int		space;
+	int		size;
 	struct intel_hw_status_page status_page;
 
 	u32		irq_gem_seqno;		/* last seq seem at irq time */

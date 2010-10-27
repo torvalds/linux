@@ -48,6 +48,12 @@ enum {
 	DEFERRED_FREE_LIST,
 };
 
+enum {
+	RENDER_RING,
+	BSD_RING,
+	BLT_RING,
+};
+
 static const char *yesno(int v)
 {
 	return v ? "yes" : "no";
@@ -265,20 +271,50 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_request *gem_request;
-	int ret;
+	int ret, count;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
-	seq_printf(m, "Request:\n");
-	list_for_each_entry(gem_request, &dev_priv->render_ring.request_list,
-			list) {
-		seq_printf(m, "    %d @ %d\n",
-			   gem_request->seqno,
-			   (int) (jiffies - gem_request->emitted_jiffies));
+	count = 0;
+	if (!list_empty(&dev_priv->render_ring.request_list)) {
+		seq_printf(m, "Render requests:\n");
+		list_for_each_entry(gem_request,
+				    &dev_priv->render_ring.request_list,
+				    list) {
+			seq_printf(m, "    %d @ %d\n",
+				   gem_request->seqno,
+				   (int) (jiffies - gem_request->emitted_jiffies));
+		}
+		count++;
+	}
+	if (!list_empty(&dev_priv->bsd_ring.request_list)) {
+		seq_printf(m, "BSD requests:\n");
+		list_for_each_entry(gem_request,
+				    &dev_priv->bsd_ring.request_list,
+				    list) {
+			seq_printf(m, "    %d @ %d\n",
+				   gem_request->seqno,
+				   (int) (jiffies - gem_request->emitted_jiffies));
+		}
+		count++;
+	}
+	if (!list_empty(&dev_priv->blt_ring.request_list)) {
+		seq_printf(m, "BLT requests:\n");
+		list_for_each_entry(gem_request,
+				    &dev_priv->blt_ring.request_list,
+				    list) {
+			seq_printf(m, "    %d @ %d\n",
+				   gem_request->seqno,
+				   (int) (jiffies - gem_request->emitted_jiffies));
+		}
+		count++;
 	}
 	mutex_unlock(&dev->struct_mutex);
+
+	if (count == 0)
+		seq_printf(m, "No requests\n");
 
 	return 0;
 }
@@ -354,11 +390,17 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	}
 	seq_printf(m, "Interrupts received: %d\n",
 		   atomic_read(&dev_priv->irq_received));
-	if (dev_priv->render_ring.status_page.page_addr != NULL) {
-		seq_printf(m, "Current sequence:    %d\n",
+	if (dev_priv->render_ring.get_seqno) {
+		seq_printf(m, "Current sequence (render):    %d\n",
 			   dev_priv->render_ring.get_seqno(&dev_priv->render_ring));
-	} else {
-		seq_printf(m, "Current sequence:    hws uninitialized\n");
+	}
+	if (dev_priv->bsd_ring.get_seqno) {
+		seq_printf(m, "Current sequence (BSD):    %d\n",
+			   dev_priv->bsd_ring.get_seqno(&dev_priv->bsd_ring));
+	}
+	if (dev_priv->blt_ring.get_seqno) {
+		seq_printf(m, "Current sequence (BLT):    %d\n",
+			   dev_priv->blt_ring.get_seqno(&dev_priv->blt_ring));
 	}
 	seq_printf(m, "Waiter sequence:     %d\n",
 		   dev_priv->mm.waiting_gem_seqno);
@@ -385,24 +427,12 @@ static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_gem_object *obj = dev_priv->fence_regs[i].obj;
 
-		if (obj == NULL) {
-			seq_printf(m, "Fenced object[%2d] = unused\n", i);
-		} else {
-			struct drm_i915_gem_object *obj_priv;
-
-			obj_priv = to_intel_bo(obj);
-			seq_printf(m, "Fenced object[%2d] = %p: %s "
-				   "%08x %08zx %08x %s %08x %08x %d",
-				   i, obj, get_pin_flag(obj_priv),
-				   obj_priv->gtt_offset,
-				   obj->size, obj_priv->stride,
-				   get_tiling_flag(obj_priv),
-				   obj->read_domains, obj->write_domain,
-				   obj_priv->last_rendering_seqno);
-			if (obj->name)
-				seq_printf(m, " (name: %d)", obj->name);
-			seq_printf(m, "\n");
-		}
+		seq_printf(m, "Fenced object[%2d] = ", i);
+		if (obj == NULL)
+			seq_printf(m, "unused");
+		else
+			describe_obj(m, to_intel_bo(obj));
+		seq_printf(m, "\n");
 	}
 	mutex_unlock(&dev->struct_mutex);
 
@@ -477,19 +507,27 @@ static int i915_ringbuffer_data(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
 	int ret;
+
+	switch ((uintptr_t)node->info_ent->data) {
+	case RENDER_RING: ring = &dev_priv->render_ring; break;
+	case BSD_RING: ring = &dev_priv->bsd_ring; break;
+	case BLT_RING: ring = &dev_priv->blt_ring; break;
+	default: return -EINVAL;
+	}
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
-	if (!dev_priv->render_ring.gem_object) {
+	if (!ring->gem_object) {
 		seq_printf(m, "No ringbuffer setup\n");
 	} else {
-		u8 *virt = dev_priv->render_ring.virtual_start;
+		u8 *virt = ring->virtual_start;
 		uint32_t off;
 
-		for (off = 0; off < dev_priv->render_ring.size; off += 4) {
+		for (off = 0; off < ring->size; off += 4) {
 			uint32_t *ptr = (uint32_t *)(virt + off);
 			seq_printf(m, "%08x :  %08x\n", off, *ptr);
 		}
@@ -504,15 +542,25 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	unsigned int head, tail;
+	struct intel_ring_buffer *ring;
 
-	head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
-	tail = I915_READ(PRB0_TAIL) & TAIL_ADDR;
+	switch ((uintptr_t)node->info_ent->data) {
+	case RENDER_RING: ring = &dev_priv->render_ring; break;
+	case BSD_RING: ring = &dev_priv->bsd_ring; break;
+	case BLT_RING: ring = &dev_priv->blt_ring; break;
+	default: return -EINVAL;
+	}
 
-	seq_printf(m, "RingHead :  %08x\n", head);
-	seq_printf(m, "RingTail :  %08x\n", tail);
-	seq_printf(m, "RingSize :  %08lx\n", dev_priv->render_ring.size);
-	seq_printf(m, "Acthd :     %08x\n", I915_READ(INTEL_INFO(dev)->gen >= 4 ? ACTHD_I965 : ACTHD));
+	if (ring->size == 0)
+	    return 0;
+
+	seq_printf(m, "Ring %s:\n", ring->name);
+	seq_printf(m, "  Head :    %08x\n", I915_READ_HEAD(ring) & HEAD_ADDR);
+	seq_printf(m, "  Tail :    %08x\n", I915_READ_TAIL(ring) & TAIL_ADDR);
+	seq_printf(m, "  Size :    %08x\n", ring->size);
+	seq_printf(m, "  Active :  %08x\n", intel_ring_get_active_head(ring));
+	seq_printf(m, "  Control : %08x\n", I915_READ_CTL(ring));
+	seq_printf(m, "  Start :   %08x\n", I915_READ_START(ring));
 
 	return 0;
 }
@@ -1029,8 +1077,12 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
 	{"i915_gem_interrupt", i915_interrupt_info, 0},
 	{"i915_gem_hws", i915_hws_info, 0},
-	{"i915_ringbuffer_data", i915_ringbuffer_data, 0},
-	{"i915_ringbuffer_info", i915_ringbuffer_info, 0},
+	{"i915_ringbuffer_data", i915_ringbuffer_data, 0, (void *)RENDER_RING},
+	{"i915_ringbuffer_info", i915_ringbuffer_info, 0, (void *)RENDER_RING},
+	{"i915_bsd_ringbuffer_data", i915_ringbuffer_data, 0, (void *)BSD_RING},
+	{"i915_bsd_ringbuffer_info", i915_ringbuffer_info, 0, (void *)BSD_RING},
+	{"i915_blt_ringbuffer_data", i915_ringbuffer_data, 0, (void *)BLT_RING},
+	{"i915_blt_ringbuffer_info", i915_ringbuffer_info, 0, (void *)BLT_RING},
 	{"i915_batchbuffers", i915_batchbuffer_info, 0},
 	{"i915_error_state", i915_error_state, 0},
 	{"i915_rstdby_delays", i915_rstdby_delays, 0},
