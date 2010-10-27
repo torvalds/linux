@@ -140,6 +140,8 @@ struct adp5588_kpad_platform_data {
 	const struct adp5588_gpio_platform_data *gpio_data;
 };
 
+struct i2c_client; /* forward declaration */
+
 struct adp5588_gpio_platform_data {
 	int gpio_start;		/* GPIO Chip base # */
 	unsigned irq_base;	/* interrupt base # */
