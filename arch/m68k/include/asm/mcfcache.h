@@ -108,28 +108,30 @@
 #endif /* CONFIG_M532x */
 
 #if defined(CONFIG_M5407) || defined(CONFIG_M548x)
-/*
- *	Version 4 cores have a true harvard style separate instruction
- *	and data cache. Invalidate and enable cache, also enable write
- *	buffers and branch accelerator.
- */
+
+#include <asm/m54xxacr.h>
+
 .macro CACHE_ENABLE
-	movel	#0x01040100,%d0		/* invalidate whole cache */
+	/* invalidate whole cache */
+	movel	#(CACR_DCINVA+CACR_BCINVA+CACR_ICINVA),%d0
 	movec	%d0,%CACR
 	nop
-	movel	#0x000fc000,%d0		/* set SDRAM cached only */
+	/* addresses range for data cache : 0x00000000-0x0fffffff */
+	movel	#(0x000f0000+DATA_CACHE_MODE),%d0	/* set SDRAM cached */
 	movec	%d0, %ACR0
 	movel	#0x00000000,%d0		/* no other regions cached */
 	movec	%d0, %ACR1
-	movel	#0x000fc000,%d0		/* set SDRAM cached only */
+	/* addresses range for instruction cache : 0x00000000-0x0fffffff */
+	movel	#(0x000f0000+INSN_CACHE_MODE),%d0	/* set SDRAM cached */
 	movec	%d0, %ACR2
 	movel	#0x00000000,%d0		/* no other regions cached */
 	movec	%d0, %ACR3
-	movel	#0xb6088400,%d0		/* enable caches */
+	/* enable caches */
+	movel	#(CACHE_MODE),%d0
 	movec	%d0,%CACR
 	nop
 .endm
-#endif /* CONFIG_M5407 */
+#endif /* CONFIG_M5407 || CONFIG_M548x */
 
 #if defined(CONFIG_M520x)
 .macro CACHE_ENABLE

@@ -40,31 +40,75 @@
 #define ACR_CM		0x00000060	/* Cache mode mask */
 #define ACR_WPROTECT	0x00000004	/* Write protect */
 
+#if defined(CONFIG_M5407)
+
+#define ICACHE_SIZE 0x4000	/* instruction - 16k */
+#define DCACHE_SIZE 0x2000	/* data - 8k */
+
+#elif defined(CONFIG_M548x)
+
+#define ICACHE_SIZE 0x8000	/* instruction - 32k */
+#define DCACHE_SIZE 0x8000	/* data - 32k */
+
+#endif
+
+#define CACHE_LINE_SIZE 0x0010	/* 16 bytes */
+#define CACHE_WAYS 4		/* 4 ways */
+
+/*
+ *	Version 4 cores have a true harvard style separate instruction
+ *	and data cache. Enable data and instruction caches, also enable write
+ *	buffers and branch accelerator.
+ */
+/* attention : enabling CACR_DESB requires a "nop" to flush the store buffer */
+/* use '+' instead of '|' for assembler's sake */
+
+	/* Enable data cache */
+	/* Enable data store buffer */
+	/* outside ACRs : No cache, precise */
+	/* Enable instruction+branch caches */
+#define CACHE_MODE (CACR_DEC+CACR_DESB+CACR_DDCM_P+CACR_BEC+CACR_IEC)
+
+#define DATA_CACHE_MODE (ACR_ENABLE+ACR_ANY+ACR_CM_WT)
+
+#define INSN_CACHE_MODE (ACR_ENABLE+ACR_ANY)
+
 #ifndef __ASSEMBLY__
+
+#if ((DATA_CACHE_MODE & ACR_CM) == ACR_CM_WT)
+#define flush_dcache_range(a, l) do { asm("nop"); } while (0)
+#endif
 
 static inline void __m54xx_flush_cache_all(void)
 {
+	__asm__ __volatile__ (
+#if ((DATA_CACHE_MODE & ACR_CM) == ACR_CM_CP)
 	/*
 	 *	Use cpushl to push and invalidate all cache lines.
 	 *	Gas doesn't seem to know how to generate the ColdFire
 	 *	cpushl instruction... Oh well, bit stuff it for now.
 	 */
-	__asm__ __volatile__ (
-		"nop\n\t"
 		"clrl	%%d0\n\t"
 		"1:\n\t"
 		"movel	%%d0,%%a0\n\t"
 		"2:\n\t"
 		".word	0xf468\n\t"
-		"addl	#0x10,%%a0\n\t"
-		"cmpl	#0x00000800,%%a0\n\t"
+		"addl	%0,%%a0\n\t"
+		"cmpl	%1,%%a0\n\t"
 		"blt	2b\n\t"
 		"addql	#1,%%d0\n\t"
-		"cmpil	#4,%%d0\n\t"
+		"cmpil	%2,%%d0\n\t"
 		"bne	1b\n\t"
-		"movel	#0xb6088500,%%d0\n\t"
+#endif
+		"movel	%3,%%d0\n\t"
 		"movec	%%d0,%%CACR\n\t"
-		: : : "d0", "a0" );
+		"nop\n\t"	/* forces flush of Store Buffer */
+		: /* No output */
+		: "i" (CACHE_LINE_SIZE),
+		  "i" (DCACHE_SIZE / CACHE_WAYS),
+		  "i" (CACHE_WAYS),
+		  "i" (CACHE_MODE|CACR_DCINVA|CACR_BCINVA|CACR_ICINVA)
+		: "d0", "a0" );
 }
 
 #define __flush_cache_all() __m54xx_flush_cache_all()
