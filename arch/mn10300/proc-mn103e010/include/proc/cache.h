@@ -30,4 +30,13 @@
  */
 #define MN10300_DCACHE_INV_RANGE_INTR_LOG2_INTERVAL	4
 
+/*
+ * The size of range at which it becomes more economical to just flush the
+ * whole cache rather than trying to flush the specified range.
+ */
+#define MN10300_DCACHE_FLUSH_BORDER	\
+	+(L1_CACHE_NWAYS * L1_CACHE_NENTRIES * L1_CACHE_BYTES)
+#define MN10300_DCACHE_FLUSH_INV_BORDER	\
+	+(L1_CACHE_NWAYS * L1_CACHE_NENTRIES * L1_CACHE_BYTES)
+
 #endif /* _ASM_PROC_CACHE_H */

@@ -20,12 +20,31 @@
  * Primitive routines
  */
 #ifdef CONFIG_MN10300_CACHE_ENABLED
+extern void mn10300_local_icache_inv(void);
+extern void mn10300_local_icache_inv_page(unsigned long start);
+extern void mn10300_local_icache_inv_range(unsigned long start, unsigned long end);
+extern void mn10300_local_icache_inv_range2(unsigned long start, unsigned long size);
+extern void mn10300_local_dcache_inv(void);
+extern void mn10300_local_dcache_inv_page(unsigned long start);
+extern void mn10300_local_dcache_inv_range(unsigned long start, unsigned long end);
+extern void mn10300_local_dcache_inv_range2(unsigned long start, unsigned long size);
 extern void mn10300_icache_inv(void);
+extern void mn10300_icache_inv_page(unsigned long start);
+extern void mn10300_icache_inv_range(unsigned long start, unsigned long end);
+extern void mn10300_icache_inv_range2(unsigned long start, unsigned long size);
 extern void mn10300_dcache_inv(void);
 extern void mn10300_dcache_inv_page(unsigned long start);
 extern void mn10300_dcache_inv_range(unsigned long start, unsigned long end);
 extern void mn10300_dcache_inv_range2(unsigned long start, unsigned long size);
 #ifdef CONFIG_MN10300_CACHE_WBACK
+extern void mn10300_local_dcache_flush(void);
+extern void mn10300_local_dcache_flush_page(unsigned long start);
+extern void mn10300_local_dcache_flush_range(unsigned long start, unsigned long end);
+extern void mn10300_local_dcache_flush_range2(unsigned long start, unsigned long size);
+extern void mn10300_local_dcache_flush_inv(void);
+extern void mn10300_local_dcache_flush_inv_page(unsigned long start);
+extern void mn10300_local_dcache_flush_inv_range(unsigned long start, unsigned long end);
+extern void mn10300_local_dcache_flush_inv_range2(unsigned long start, unsigned long size);
 extern void mn10300_dcache_flush(void);
 extern void mn10300_dcache_flush_page(unsigned long start);
 extern void mn10300_dcache_flush_range(unsigned long start, unsigned long end);
@@ -35,6 +54,18 @@ extern void mn10300_dcache_flush_inv_page(unsigned long start);
 extern void mn10300_dcache_flush_inv_range(unsigned long start, unsigned long end);
 extern void mn10300_dcache_flush_inv_range2(unsigned long start, unsigned long size);
 #else
+#define mn10300_local_dcache_flush()			do {} while (0)
+#define mn10300_local_dcache_flush_page(start)		do {} while (0)
+#define mn10300_local_dcache_flush_range(start, end)	do {} while (0)
+#define mn10300_local_dcache_flush_range2(start, size)	do {} while (0)
+#define mn10300_local_dcache_flush_inv() \
+		mn10300_local_dcache_inv()
+#define mn10300_local_dcache_flush_inv_page(start) \
+		mn10300_local_dcache_inv_page(start)
+#define mn10300_local_dcache_flush_inv_range(start, end) \
+		mn10300_local_dcache_inv_range(start, end)
+#define mn10300_local_dcache_flush_inv_range2(start, size) \
+		mn10300_local_dcache_inv_range2(start, size)
 #define mn10300_dcache_flush()				do {} while (0)
 #define mn10300_dcache_flush_page(start)		do {} while (0)
 #define mn10300_dcache_flush_range(start, end)		do {} while (0)
@@ -48,7 +79,26 @@ extern void mn10300_dcache_flush_inv_range2(unsigned long start, unsigned long s
 	mn10300_dcache_inv_range2((start), (size))
 #endif /* CONFIG_MN10300_CACHE_WBACK */
 #else
+#define mn10300_local_icache_inv()			do {} while (0)
+#define mn10300_local_icache_inv_page(start)		do {} while (0)
+#define mn10300_local_icache_inv_range(start, end)	do {} while (0)
+#define mn10300_local_icache_inv_range2(start, size)	do {} while (0)
+#define mn10300_local_dcache_inv()			do {} while (0)
+#define mn10300_local_dcache_inv_page(start)		do {} while (0)
+#define mn10300_local_dcache_inv_range(start, end)	do {} while (0)
+#define mn10300_local_dcache_inv_range2(start, size)	do {} while (0)
+#define mn10300_local_dcache_flush()			do {} while (0)
+#define mn10300_local_dcache_flush_inv_page(start)	do {} while (0)
+#define mn10300_local_dcache_flush_inv()		do {} while (0)
+#define mn10300_local_dcache_flush_inv_range(start, end)do {} while (0)
+#define mn10300_local_dcache_flush_inv_range2(start, size) do {} while (0)
+#define mn10300_local_dcache_flush_page(start)		do {} while (0)
+#define mn10300_local_dcache_flush_range(start, end)	do {} while (0)
+#define mn10300_local_dcache_flush_range2(start, size)	do {} while (0)
 #define mn10300_icache_inv()				do {} while (0)
+#define mn10300_icache_inv_page(start)			do {} while (0)
+#define mn10300_icache_inv_range(start, end)		do {} while (0)
+#define mn10300_icache_inv_range2(start, size)		do {} while (0)
 #define mn10300_dcache_inv()				do {} while (0)
 #define mn10300_dcache_inv_page(start)			do {} while (0)
 #define mn10300_dcache_inv_range(start, end)		do {} while (0)
