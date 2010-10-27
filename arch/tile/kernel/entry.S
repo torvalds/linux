@@ -15,7 +15,9 @@
 #include <linux/linkage.h>
 #include <linux/unistd.h>
 #include <asm/irqflags.h>
+#include <asm/processor.h>
 #include <arch/abi.h>
+#include <arch/spr_def.h>
 
 #ifdef __tilegx__
 #define bnzt bnezt
@@ -24,28 +26,6 @@
 STD_ENTRY(current_text_addr)
 	{ move r0, lr; jrp lr }
 	STD_ENDPROC(current_text_addr)
-
-STD_ENTRY(_sim_syscall)
-	/*
-	 * Wait for r0-r9 to be ready (and lr on the off chance we
-	 * want the syscall to locate its caller), then make a magic
-	 * simulator syscall.
-	 *
-	 * We carefully stall until the registers are readable in case they
-	 * are the target of a slow load, etc. so that tile-sim will
-	 * definitely be able to read all of them inside the magic syscall.
-	 *
-	 * Technically this is wrong for r3-r9 and lr, since an interrupt
-	 * could come in and restore the registers with a slow load right
-	 * before executing the mtspr. We may need to modify tile-sim to
-	 * explicitly stall for this case, but we do not yet have
-	 * a way to implement such a stall.
-	 */
-	{ and zero, lr, r9 ; and zero, r8, r7 }
-	{ and zero, r6, r5 ; and zero, r4, r3 }
-	{ and zero, r2, r1 ; mtspr SIM_CONTROL, r0 }
-	{ jrp lr }
-	STD_ENDPROC(_sim_syscall)
 
 /*
  * Implement execve().  The i386 code has a note that forking from kernel
@@ -102,7 +82,7 @@ STD_ENTRY(KBacktraceIterator_init_current)
 STD_ENTRY(cpu_idle_on_new_stack)
 	{
 	 move sp, r1
-	 mtspr SYSTEM_SAVE_1_0, r2
+	 mtspr SPR_SYSTEM_SAVE_K_0, r2
 	}
 	jal free_thread_info
 	j cpu_idle
@@ -124,15 +104,15 @@ STD_ENTRY(smp_nap)
 STD_ENTRY(_cpu_idle)
 	{
 	 lnk r0
-	 movei r1, 1
+	 movei r1, KERNEL_PL
 	}
 	{
 	 addli r0, r0, _cpu_idle_nap - .
 	 mtspr INTERRUPT_CRITICAL_SECTION, r1
 	}
-	IRQ_ENABLE(r2, r3)         /* unmask, but still with ICS set */
-	mtspr EX_CONTEXT_1_1, r1   /* PL1, ICS clear */
-	mtspr EX_CONTEXT_1_0, r0
+	IRQ_ENABLE(r2, r3)             /* unmask, but still with ICS set */
+	mtspr SPR_EX_CONTEXT_K_1, r1   /* Kernel PL, ICS clear */
+	mtspr SPR_EX_CONTEXT_K_0, r0
 	iret
 	.global _cpu_idle_nap
 _cpu_idle_nap:

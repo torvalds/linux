@@ -41,8 +41,8 @@
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 
-long _sys_sigaltstack(const stack_t __user *uss,
-		      stack_t __user *uoss, struct pt_regs *regs)
+SYSCALL_DEFINE3(sigaltstack, const stack_t __user *, uss,
+		stack_t __user *, uoss, struct pt_regs *, regs)
 {
 	return do_sigaltstack(uss, uoss, regs->sp);
 }
@@ -78,7 +78,7 @@ int restore_sigcontext(struct pt_regs *regs,
 }
 
 /* sigreturn() returns long since it restores r0 in the interrupted code. */
-long _sys_rt_sigreturn(struct pt_regs *regs)
+SYSCALL_DEFINE1(rt_sigreturn, struct pt_regs *, regs)
 {
 	struct rt_sigframe __user *frame =
 		(struct rt_sigframe __user *)(regs->sp);

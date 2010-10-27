@@ -3,8 +3,8 @@
 #
 
 lib-y = cacheflush.o checksum.o cpumask.o delay.o \
-	mb_incoherent.o uaccess.o \
-	memcpy_$(BITS).o memchr_$(BITS).o memmove_$(BITS).o memset_$(BITS).o \
+	mb_incoherent.o uaccess.o memmove.o \
+	memcpy_$(BITS).o memchr_$(BITS).o memset_$(BITS).o \
 	strchr_$(BITS).o strlen_$(BITS).o
 
 ifeq ($(CONFIG_TILEGX),y)

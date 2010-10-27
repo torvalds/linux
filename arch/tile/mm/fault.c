@@ -66,10 +66,10 @@ static noinline void force_sig_info_fault(int si_signo, int si_code,
 #ifndef __tilegx__
 /*
  * Synthesize the fault a PL0 process would get by doing a word-load of
- * an unaligned address or a high kernel address.  Called indirectly
- * from sys_cmpxchg() in kernel/intvec.S.
+ * an unaligned address or a high kernel address.
  */
-int _sys_cmpxchg_badaddr(unsigned long address, struct pt_regs *regs)
+SYSCALL_DEFINE2(cmpxchg_badaddr, unsigned long, address,
+		struct pt_regs *, regs)
 {
 	if (address >= PAGE_OFFSET)
 		force_sig_info_fault(SIGSEGV, SEGV_MAPERR, address,
@@ -563,10 +563,10 @@ do_sigbus:
 /*
  * When we take an ITLB or DTLB fault or access violation in the
  * supervisor while the critical section bit is set, the hypervisor is
- * reluctant to write new values into the EX_CONTEXT_1_x registers,
+ * reluctant to write new values into the EX_CONTEXT_K_x registers,
  * since that might indicate we have not yet squirreled the SPR
  * contents away and can thus safely take a recursive interrupt.
- * Accordingly, the hypervisor passes us the PC via SYSTEM_SAVE_1_2.
+ * Accordingly, the hypervisor passes us the PC via SYSTEM_SAVE_K_2.
  *
  * Note that this routine is called before homecache_tlb_defer_enter(),
  * which means that we can properly unlock any atomics that might
@@ -610,7 +610,7 @@ struct intvec_state do_page_fault_ics(struct pt_regs *regs, int fault_num,
 	 * fault.  We didn't set up a kernel stack on initial entry to
 	 * sys_cmpxchg, but instead had one set up by the fault, which
 	 * (because sys_cmpxchg never releases ICS) came to us via the
-	 * SYSTEM_SAVE_1_2 mechanism, and thus EX_CONTEXT_1_[01] are
+	 * SYSTEM_SAVE_K_2 mechanism, and thus EX_CONTEXT_K_[01] are
 	 * still referencing the original user code.  We release the
 	 * atomic lock and rewrite pt_regs so that it appears that we
 	 * came from user-space directly, and after we finish the
