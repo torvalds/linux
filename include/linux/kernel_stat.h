@@ -86,6 +86,7 @@ static inline unsigned int kstat_softirqs_cpu(unsigned int irq, int cpu)
 /*
  * Number of interrupts per specific IRQ source, since bootup
  */
+#ifndef CONFIG_GENERIC_HARDIRQS
 static inline unsigned int kstat_irqs(unsigned int irq)
 {
 	unsigned int sum = 0;
@@ -96,6 +97,9 @@ static inline unsigned int kstat_irqs(unsigned int irq)
 
 	return sum;
 }
+#else
+extern unsigned int kstat_irqs(unsigned int irq);
+#endif
 
 /*
  * Number of interrupts per cpu, since bootup
