@@ -206,6 +206,19 @@ static inline void outsl(unsigned long addr, const void *buffer, int count)
 #define iowrite32_rep(p, src, count) \
 	outsl((unsigned long) (p), (src), (count))
 
+#define readsb(p, dst, count) \
+	insb((unsigned long) (p), (dst), (count))
+#define readsw(p, dst, count) \
+	insw((unsigned long) (p), (dst), (count))
+#define readsl(p, dst, count) \
+	insl((unsigned long) (p), (dst), (count))
+
+#define writesb(p, src, count) \
+	outsb((unsigned long) (p), (src), (count))
+#define writesw(p, src, count) \
+	outsw((unsigned long) (p), (src), (count))
+#define writesl(p, src, count) \
+	outsl((unsigned long) (p), (src), (count))
 
 #define IO_SPACE_LIMIT 0xffffffff
 
