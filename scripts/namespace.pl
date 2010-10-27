@@ -266,6 +266,7 @@ sub do_nm
 		# T global label/procedure
 		# U external reference
 		# W weak external reference to text that has been resolved
+		# V similar to W, but the value of the weak symbol becomes zero with no error.
 		# a assembler equate
 		# b static variable, uninitialised
 		# d static variable, initialised
@@ -274,8 +275,9 @@ sub do_nm
 		# s static variable, uninitialised, small bss
 		# t static label/procedures
 		# w weak external reference to text that has not been resolved
+		# v similar to w
 		# ? undefined type, used a lot by modules
-		if ($type !~ /^[ABCDGRSTUWabdgrstw?]$/) {
+		if ($type !~ /^[ABCDGRSTUWVabdgrstwv?]$/) {
 			printf STDERR "nm output for $fullname contains unknown type '$_'\n";
 		}
 		elsif ($name =~ /\./) {
@@ -286,7 +288,7 @@ sub do_nm
 			# binutils keeps changing the type for exported symbols, force it to R
 			$type = 'R' if ($name =~ /^__ksymtab/ || $name =~ /^__kstrtab/);
 			$name =~ s/_R[a-f0-9]{8}$//;	# module versions adds this
-			if ($type =~ /[ABCDGRSTW]/ &&
+			if ($type =~ /[ABCDGRSTWV]/ &&
 				$name ne 'init_module' &&
 				$name ne 'cleanup_module' &&
 				$name ne 'Using_Versions' &&
@@ -353,11 +355,12 @@ sub list_multiply_defined
 	foreach my $name (keys(%def)) {
 		if ($#{$def{$name}} > 0) {
 			# Special case for cond_syscall
-			if ($#{$def{$name}} == 1 && $name =~ /^sys_/ &&
-			    ($def{$name}[0] eq "kernel/sys.o" ||
-			     $def{$name}[1] eq "kernel/sys.o")) {
-				&drop_def("kernel/sys.o", $name);
-				next;
+			if ($#{$def{$name}} == 1 && $name =~ /^sys_/) {
+				if($def{$name}[0] eq "kernel/sys_ni.o" ||
+				   $def{$name}[1] eq "kernel/sys_ni.o") {
+					&drop_def("kernel/sys_ni.o", $name);
+					next;
+				}
 			}
 			# Special case for i386 entry code
 			if ($#{$def{$name}} == 1 && $name =~ /^__kernel_/ &&
