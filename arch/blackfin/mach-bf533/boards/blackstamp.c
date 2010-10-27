@@ -25,7 +25,6 @@
 #include <asm/bfin5xx_spi.h>
 #include <asm/portmux.h>
 #include <asm/dpmc.h>
-#include <mach/fio_flag.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -476,10 +475,16 @@ static int __init blackstamp_init(void)
 		return ret;
 
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
-	/* setup BF533_STAMP CPLD to route AMS3 to Ethernet MAC */
-	bfin_write_FIO_DIR(bfin_read_FIO_DIR() | PF0);
-	bfin_write_FIO_FLAG_S(PF0);
-	SSYNC();
+	/*
+	 * setup BF533_STAMP CPLD to route AMS3 to Ethernet MAC.
+	 * the bfin-async-map driver takes care of flipping between
+	 * flash and ethernet when necessary.
+	 */
+	ret = gpio_request(GPIO_PF0, "enet_cpld");
+	if (!ret) {
+		gpio_direction_output(GPIO_PF0, 1);
+		gpio_free(GPIO_PF0);
+	}
 #endif
 
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
