@@ -502,6 +502,13 @@ static int rds_rdma_pages(struct rds_rdma_args *args)
 			return -EINVAL;
 
 		tot_pages += nr_pages;
+
+		/*
+		 * nr_pages for one entry is limited to (UINT_MAX>>PAGE_SHIFT)+1,
+		 * so tot_pages cannot overflow without first going negative.
+		 */
+		if ((int)tot_pages < 0)
+			return -EINVAL;
 	}
 
 	return tot_pages;
