@@ -1,0 +1,11 @@
+#
+# IIO meter drivers configuration
+#
+comment "Active energy metering IC"
+
+config ADE7753
+	tristate "Analog Devices ADE7753/6 Single-Phase Multifunction Metering IC Driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices ADE7753 Single-Phase Multifunction
+	  Metering IC with di/dt Sensor Interface.

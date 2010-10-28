@@ -17,5 +17,6 @@ obj-y += dds/
 obj-y += gyro/
 obj-y += imu/
 obj-y += light/
-obj-y += trigger/
 obj-y += magnetometer/
+obj-y += meter/
+obj-y += trigger/
