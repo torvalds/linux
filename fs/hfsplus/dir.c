@@ -317,8 +317,10 @@ static int hfsplus_unlink(struct inode *dir, struct dentry *dentry)
 		res = hfsplus_rename_cat(inode->i_ino,
 					 dir, &dentry->d_name,
 					 sbi->hidden_dir, &str);
-		if (!res)
+		if (!res) {
 			inode->i_flags |= S_DEAD;
+			drop_nlink(inode);
+		}
 		goto out;
 	}
 	res = hfsplus_delete_cat(cnid, dir, &dentry->d_name);

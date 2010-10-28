@@ -92,7 +92,7 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 	mark_inode_dirty(inode);
 
 out_unlock_inode:
-	mutex_lock(&inode->i_mutex);
+	mutex_unlock(&inode->i_mutex);
 out_drop_write:
 	mnt_drop_write(file->f_path.mnt);
 out:
