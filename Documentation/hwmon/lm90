@@ -84,6 +84,17 @@ Supported chips:
     Addresses scanned: I2C 0x4c
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3500
+  * Maxim MAX6695
+    Prefix: 'max6695'
+    Addresses scanned: I2C 0x18
+    Datasheet: Publicly available at the Maxim website
+               http://www.maxim-ic.com/datasheet/index.mvp/id/4199
+  * Maxim MAX6696
+    Prefix: 'max6695'
+    Addresses scanned: I2C 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
+                           0x4c, 0x4d and 0x4e
+    Datasheet: Publicly available at the Maxim website
+               http://www.maxim-ic.com/datasheet/index.mvp/id/4199
   * Winbond/Nuvoton W83L771AWG/ASG
     Prefix: 'w83l771'
     Addresses scanned: I2C 0x4c
@@ -151,6 +162,12 @@ MAX6659:
 MAX6680 and MAX6681:
   * Selectable address
   * Remote sensor type selection
+
+MAX6695 and MAX6696:
+  * Better local resolution
+  * Selectable address (max6696)
+  * Second critical temperature limit
+  * Two remote sensors
 
 W83L771AWG/ASG
   * The AWG and ASG variants only differ in package format.
