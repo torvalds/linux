@@ -17,17 +17,19 @@ TRACE_EVENT(jbd2_checkpoint,
 	TP_ARGS(journal, result),
 
 	TP_STRUCT__entry(
-		__field(	dev_t,	dev			)
+		__field(	int,	dev_major		)
+		__field(	int,	dev_minor		)
 		__field(	int,	result			)
 	),
 
 	TP_fast_assign(
-		__entry->dev		= journal->j_fs_dev->bd_dev;
+		__entry->dev_major	= MAJOR(journal->j_fs_dev->bd_dev);
+		__entry->dev_minor	= MINOR(journal->j_fs_dev->bd_dev);
 		__entry->result		= result;
 	),
 
-	TP_printk("dev %s result %d",
-		  jbd2_dev_to_name(__entry->dev), __entry->result)
+	TP_printk("dev %d,%d result %d",
+		  __entry->dev_major, __entry->dev_minor, __entry->result)
 );
 
 DECLARE_EVENT_CLASS(jbd2_commit,
@@ -37,20 +39,22 @@ DECLARE_EVENT_CLASS(jbd2_commit,
 	TP_ARGS(journal, commit_transaction),
 
 	TP_STRUCT__entry(
-		__field(	dev_t,	dev			)
+		__field(	int,   dev_major                )
+		__field(	int,   dev_minor                )
 		__field(	char,	sync_commit		  )
 		__field(	int,	transaction		  )
 	),
 
 	TP_fast_assign(
-		__entry->dev		= journal->j_fs_dev->bd_dev;
+		__entry->dev_major	= MAJOR(journal->j_fs_dev->bd_dev);
+		__entry->dev_minor	= MINOR(journal->j_fs_dev->bd_dev);
 		__entry->sync_commit = commit_transaction->t_synchronous_commit;
 		__entry->transaction	= commit_transaction->t_tid;
 	),
 
-	TP_printk("dev %s transaction %d sync %d",
-		  jbd2_dev_to_name(__entry->dev), __entry->transaction,
-		  __entry->sync_commit)
+	TP_printk("dev %d,%d transaction %d sync %d",
+		  __entry->dev_major, __entry->dev_minor,
+		  __entry->transaction, __entry->sync_commit)
 );
 
 DEFINE_EVENT(jbd2_commit, jbd2_start_commit,
@@ -87,22 +91,24 @@ TRACE_EVENT(jbd2_end_commit,
 	TP_ARGS(journal, commit_transaction),
 
 	TP_STRUCT__entry(
-		__field(	dev_t,	dev			)
+		__field(	int,   dev_major                )
+		__field(	int,   dev_minor                )
 		__field(	char,	sync_commit		  )
 		__field(	int,	transaction		  )
 		__field(	int,	head		  	  )
 	),
 
 	TP_fast_assign(
-		__entry->dev		= journal->j_fs_dev->bd_dev;
+		__entry->dev_major	= MAJOR(journal->j_fs_dev->bd_dev);
+		__entry->dev_minor	= MINOR(journal->j_fs_dev->bd_dev);
 		__entry->sync_commit = commit_transaction->t_synchronous_commit;
 		__entry->transaction	= commit_transaction->t_tid;
 		__entry->head		= journal->j_tail_sequence;
 	),
 
-	TP_printk("dev %s transaction %d sync %d head %d",
-		  jbd2_dev_to_name(__entry->dev), __entry->transaction,
-		  __entry->sync_commit, __entry->head)
+	TP_printk("dev %d,%d transaction %d sync %d head %d",
+		  __entry->dev_major, __entry->dev_minor,
+		  __entry->transaction, __entry->sync_commit, __entry->head)
 );
 
 TRACE_EVENT(jbd2_submit_inode_data,
@@ -111,17 +117,20 @@ TRACE_EVENT(jbd2_submit_inode_data,
 	TP_ARGS(inode),
 
 	TP_STRUCT__entry(
-		__field(	dev_t,	dev			)
+		__field(	int,   dev_major                )
+		__field(	int,   dev_minor                )
 		__field(	ino_t,	ino			)
 	),
 
 	TP_fast_assign(
-		__entry->dev	= inode->i_sb->s_dev;
+		__entry->dev_major = MAJOR(inode->i_sb->s_dev);
+		__entry->dev_minor = MINOR(inode->i_sb->s_dev);
 		__entry->ino	= inode->i_ino;
 	),
 
-	TP_printk("dev %s ino %lu",
-		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino)
+	TP_printk("dev %d,%d ino %lu",
+		  __entry->dev_major, __entry->dev_minor,
+		  (unsigned long) __entry->ino)
 );
 
 TRACE_EVENT(jbd2_run_stats,
@@ -131,7 +140,8 @@ TRACE_EVENT(jbd2_run_stats,
 	TP_ARGS(dev, tid, stats),
 
 	TP_STRUCT__entry(
-		__field(		dev_t,	dev		)
+		__field(		  int,	dev_major	)
+		__field(		  int,	dev_minor	)
 		__field(	unsigned long,	tid		)
 		__field(	unsigned long,	wait		)
 		__field(	unsigned long,	running		)
@@ -144,7 +154,8 @@ TRACE_EVENT(jbd2_run_stats,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= dev;
+		__entry->dev_major	= MAJOR(dev);
+		__entry->dev_minor	= MINOR(dev);
 		__entry->tid		= tid;
 		__entry->wait		= stats->rs_wait;
 		__entry->running	= stats->rs_running;
@@ -156,9 +167,9 @@ TRACE_EVENT(jbd2_run_stats,
 		__entry->blocks_logged	= stats->rs_blocks_logged;
 	),
 
-	TP_printk("dev %s tid %lu wait %u running %u locked %u flushing %u "
+	TP_printk("dev %d,%d tid %lu wait %u running %u locked %u flushing %u "
 		  "logging %u handle_count %u blocks %u blocks_logged %u",
-		  jbd2_dev_to_name(__entry->dev), __entry->tid,
+		  __entry->dev_major, __entry->dev_minor, __entry->tid,
 		  jiffies_to_msecs(__entry->wait),
 		  jiffies_to_msecs(__entry->running),
 		  jiffies_to_msecs(__entry->locked),
@@ -175,7 +186,8 @@ TRACE_EVENT(jbd2_checkpoint_stats,
 	TP_ARGS(dev, tid, stats),
 
 	TP_STRUCT__entry(
-		__field(		dev_t,	dev		)
+		__field(		  int,	dev_major	)
+		__field(		  int,	dev_minor	)
 		__field(	unsigned long,	tid		)
 		__field(	unsigned long,	chp_time	)
 		__field(		__u32,	forced_to_close	)
@@ -184,7 +196,8 @@ TRACE_EVENT(jbd2_checkpoint_stats,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= dev;
+		__entry->dev_major	= MAJOR(dev);
+		__entry->dev_minor	= MINOR(dev);
 		__entry->tid		= tid;
 		__entry->chp_time	= stats->cs_chp_time;
 		__entry->forced_to_close= stats->cs_forced_to_close;
@@ -192,9 +205,9 @@ TRACE_EVENT(jbd2_checkpoint_stats,
 		__entry->dropped	= stats->cs_dropped;
 	),
 
-	TP_printk("dev %s tid %lu chp_time %u forced_to_close %u "
+	TP_printk("dev %d,%d tid %lu chp_time %u forced_to_close %u "
 		  "written %u dropped %u",
-		  jbd2_dev_to_name(__entry->dev), __entry->tid,
+		  __entry->dev_major, __entry->dev_minor, __entry->tid,
 		  jiffies_to_msecs(__entry->chp_time),
 		  __entry->forced_to_close, __entry->written, __entry->dropped)
 );
@@ -207,7 +220,8 @@ TRACE_EVENT(jbd2_cleanup_journal_tail,
 	TP_ARGS(journal, first_tid, block_nr, freed),
 
 	TP_STRUCT__entry(
-		__field(	dev_t,	dev			)
+		__field(	int,   dev_major                )
+		__field(	int,   dev_minor                )
 		__field(	tid_t,	tail_sequence		)
 		__field(	tid_t,	first_tid		)
 		__field(unsigned long,	block_nr		)
@@ -215,16 +229,18 @@ TRACE_EVENT(jbd2_cleanup_journal_tail,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= journal->j_fs_dev->bd_dev;
+		__entry->dev_major	= MAJOR(journal->j_fs_dev->bd_dev);
+		__entry->dev_minor	= MINOR(journal->j_fs_dev->bd_dev);
 		__entry->tail_sequence	= journal->j_tail_sequence;
 		__entry->first_tid	= first_tid;
 		__entry->block_nr	= block_nr;
 		__entry->freed		= freed;
 	),
 
-	TP_printk("dev %s from %u to %u offset %lu freed %lu",
-		  jbd2_dev_to_name(__entry->dev), __entry->tail_sequence,
-		  __entry->first_tid, __entry->block_nr, __entry->freed)
+	TP_printk("dev %d,%d from %u to %u offset %lu freed %lu",
+		  __entry->dev_major, __entry->dev_minor,
+		  __entry->tail_sequence, __entry->first_tid,
+		  __entry->block_nr, __entry->freed)
 );
 
 #endif /* _TRACE_JBD2_H */
