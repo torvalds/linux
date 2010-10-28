@@ -3347,6 +3347,7 @@ static void ixgbe_napi_disable_all(struct ixgbe_adapter *adapter)
 static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
+	int max_frame = adapter->netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	u32 txdctl;
 	int i, j;
 
@@ -3359,8 +3360,15 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		netif_set_gso_max_size(adapter->netdev, 32768);
 
-	ixgbe_dcb_calculate_tc_credits(&adapter->dcb_cfg, DCB_TX_CONFIG);
-	ixgbe_dcb_calculate_tc_credits(&adapter->dcb_cfg, DCB_RX_CONFIG);
+#ifdef CONFIG_FCOE
+	if (adapter->netdev->features & NETIF_F_FCOE_MTU)
+		max_frame = max(max_frame, IXGBE_FCOE_JUMBO_FRAME_SIZE);
+#endif
+
+	ixgbe_dcb_calculate_tc_credits(&adapter->dcb_cfg, max_frame,
+					DCB_TX_CONFIG);
+	ixgbe_dcb_calculate_tc_credits(&adapter->dcb_cfg, max_frame,
+					DCB_RX_CONFIG);
 
 	/* reconfigure the hardware */
 	ixgbe_dcb_hw_config(&adapter->hw, &adapter->dcb_cfg);
