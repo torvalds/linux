@@ -1541,13 +1541,13 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 		show_dts_mode, NULL, NOT_USED, index - 7),	\
 	SENSOR_ATTR_2(temp##index##_input, S_IRUGO, show_dts,		\
 		NULL, NOT_USED, index - 7),				\
-	SENSOR_ATTR_2(temp##index##_max, S_IRUGO | S_IWUSR, show_dts_ext, \
+	SENSOR_ATTR_2(temp##index##_crit, S_IRUGO | S_IWUSR, show_dts_ext, \
 		store_dts_ext, DTS_CRIT, NOT_USED),			\
-	SENSOR_ATTR_2(temp##index##_max_hyst, S_IRUGO | S_IWUSR,	\
+	SENSOR_ATTR_2(temp##index##_crit_hyst, S_IRUGO | S_IWUSR,	\
 		show_dts_ext, store_dts_ext, DTS_CRIT_HYST, NOT_USED),	\
-	SENSOR_ATTR_2(temp##index##_warn, S_IRUGO | S_IWUSR, show_dts_ext, \
+	SENSOR_ATTR_2(temp##index##_max, S_IRUGO | S_IWUSR, show_dts_ext, \
 		store_dts_ext, DTS_WARN, NOT_USED),			\
-	SENSOR_ATTR_2(temp##index##_warn_hyst, S_IRUGO | S_IWUSR,	\
+	SENSOR_ATTR_2(temp##index##_max_hyst, S_IRUGO | S_IWUSR,	\
 		show_dts_ext, store_dts_ext, DTS_WARN_HYST, NOT_USED),	\
 	SENSOR_ATTR_2(temp##index##_alarm, S_IRUGO,			\
 		show_alarm_beep, NULL, ALARM_STATUS, index + 17),	\
@@ -1559,13 +1559,13 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 		show_temp_mode, store_temp_mode, NOT_USED, index - 1),	\
 	SENSOR_ATTR_2(temp##index##_input, S_IRUGO, show_temp,		\
 		NULL, TEMP_READ, index - 1),				\
-	SENSOR_ATTR_2(temp##index##_max, S_IRUGO | S_IWUSR, show_temp,	\
+	SENSOR_ATTR_2(temp##index##_crit, S_IRUGO | S_IWUSR, show_temp,	\
 		store_temp, TEMP_CRIT, index - 1),			\
-	SENSOR_ATTR_2(temp##index##_max_hyst, S_IRUGO | S_IWUSR,	\
+	SENSOR_ATTR_2(temp##index##_crit_hyst, S_IRUGO | S_IWUSR,	\
 		show_temp, store_temp, TEMP_CRIT_HYST, index - 1),	\
-	SENSOR_ATTR_2(temp##index##_warn, S_IRUGO | S_IWUSR, show_temp,	\
+	SENSOR_ATTR_2(temp##index##_max, S_IRUGO | S_IWUSR, show_temp,	\
 		store_temp, TEMP_WARN, index - 1),			\
-	SENSOR_ATTR_2(temp##index##_warn_hyst, S_IRUGO | S_IWUSR,	\
+	SENSOR_ATTR_2(temp##index##_max_hyst, S_IRUGO | S_IWUSR,	\
 		show_temp, store_temp, TEMP_WARN_HYST, index - 1),	\
 	SENSOR_ATTR_2(temp##index##_alarm, S_IRUGO,			\
 		show_alarm_beep, NULL, ALARM_STATUS,			\
@@ -1583,9 +1583,9 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 		TEMP_PWM_FAN_MAP, index - 1),				\
 	SENSOR_ATTR_2(thermal_cruise##index, S_IWUSR | S_IRUGO,		\
 		show_temp_pwm, store_temp_pwm, TEMP_PWM_TTTI, index - 1), \
-	SENSOR_ATTR_2(temp##index##_crit, S_IWUSR | S_IRUGO,		\
+	SENSOR_ATTR_2(temp##index##_warn, S_IWUSR | S_IRUGO,		\
 		show_temp_pwm, store_temp_pwm, TEMP_PWM_CTFS, index - 1), \
-	SENSOR_ATTR_2(temp##index##_crit_hyst, S_IWUSR | S_IRUGO,	\
+	SENSOR_ATTR_2(temp##index##_warn_hyst, S_IWUSR | S_IRUGO,	\
 		show_temp_pwm, store_temp_pwm, TEMP_PWM_HCT, index - 1), \
 	SENSOR_ATTR_2(temp##index##_operation_hyst, S_IWUSR | S_IRUGO,	\
 		show_temp_pwm, store_temp_pwm, TEMP_PWM_HOT, index - 1), \
