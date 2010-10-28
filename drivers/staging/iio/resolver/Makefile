@@ -3,3 +3,4 @@
 #
 
 obj-$(CONFIG_AD2S90) += ad2s90.o
+obj-$(CONFIG_AD2S120X) += ad2s120x.o

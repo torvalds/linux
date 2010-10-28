@@ -9,3 +9,11 @@ config AD2S90
 	help
 	  Say yes here to build support for Analog Devices spi resolver
 	  to digital converters, ad2s90, provides direct access via sysfs.
+
+config AD2S120X
+	tristate "Analog Devices ad2s120x driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices spi resolver
+	  to digital converters, ad2s1200 and ad2s1205, provides direct access
+	  via sysfs.
