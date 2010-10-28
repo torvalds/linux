@@ -1265,8 +1265,7 @@ store_temp(struct device *dev, struct device_attribute *attr,
 static ssize_t
 show_dts_mode(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct w83795_data *data = i2c_get_clientdata(client);
+	struct w83795_data *data = dev_get_drvdata(dev);
 	int tmp;
 
 	if (data->enable_dts & 2)
@@ -1296,8 +1295,7 @@ show_dts_ext(struct device *dev, struct device_attribute *attr, char *buf)
 	struct sensor_device_attribute_2 *sensor_attr =
 	    to_sensor_dev_attr_2(attr);
 	int nr = sensor_attr->nr;
-	struct i2c_client *client = to_i2c_client(dev);
-	struct w83795_data *data = i2c_get_clientdata(client);
+	struct w83795_data *data = dev_get_drvdata(dev);
 	long temp = temp_from_reg(data->dts_ext[nr]);
 
 	return sprintf(buf, "%ld\n", temp);
@@ -1328,8 +1326,7 @@ store_dts_ext(struct device *dev, struct device_attribute *attr,
 static ssize_t
 show_temp_mode(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct w83795_data *data = i2c_get_clientdata(client);
+	struct w83795_data *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute_2 *sensor_attr =
 	    to_sensor_dev_attr_2(attr);
 	int index = sensor_attr->index;
