@@ -4994,7 +4994,7 @@ i915_gem_inactive_shrink(struct shrinker *shrinker,
 	int cnt;
 
 	if (!mutex_trylock(&dev->struct_mutex))
-		return nr_to_scan ? 0 : -1;
+		return 0;
 
 	/* "fast-path" to count number of available objects */
 	if (nr_to_scan == 0) {
