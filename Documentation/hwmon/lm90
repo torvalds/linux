@@ -63,8 +63,8 @@ Supported chips:
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
   * Maxim MAX6659
-    Prefix: 'max6657'
-    Addresses scanned: I2C 0x4c, 0x4d (unsupported 0x4e)
+    Prefix: 'max6659'
+    Addresses scanned: I2C 0x4c, 0x4d, 0x4e
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
   * Maxim MAX6680
