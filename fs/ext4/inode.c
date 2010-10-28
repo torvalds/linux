@@ -2424,9 +2424,9 @@ static int ext4_bh_delay_or_unwritten(handle_t *handle, struct buffer_head *bh)
  * The function finds extents of pages and scan them for all blocks.
  */
 static int __mpage_da_writepage(struct page *page,
-				struct writeback_control *wbc, void *data)
+				struct writeback_control *wbc,
+				struct mpage_da_data *mpd)
 {
-	struct mpage_da_data *mpd = data;
 	struct inode *inode = mpd->inode;
 	struct buffer_head *bh, *head;
 	sector_t logical;
