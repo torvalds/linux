@@ -3202,7 +3202,7 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		 * completed
 		 */
 		if (io)
-			io->flag = EXT4_IO_UNWRITTEN;
+			io->flag = EXT4_IO_END_UNWRITTEN;
 		else
 			ext4_set_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN);
 		if (ext4_should_dioread_nolock(inode))
@@ -3494,7 +3494,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 		 */
 		if ((flags & EXT4_GET_BLOCKS_PRE_IO)) {
 			if (io)
-				io->flag = EXT4_IO_UNWRITTEN;
+				io->flag = EXT4_IO_END_UNWRITTEN;
 			else
 				ext4_set_inode_state(inode,
 						     EXT4_STATE_DIO_UNWRITTEN);

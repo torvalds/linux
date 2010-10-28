@@ -168,7 +168,20 @@ struct mpage_da_data {
 	int pages_written;
 	int retval;
 };
-#define	EXT4_IO_UNWRITTEN	0x1
+
+/*
+ * Flags for ext4_io_end->flags
+ */
+#define	EXT4_IO_END_UNWRITTEN	0x0001
+#define EXT4_IO_END_ERROR	0x0002
+
+struct ext4_io_page {
+	struct page	*p_page;
+	int		p_count;
+};
+
+#define MAX_IO_PAGES 128
+
 typedef struct ext4_io_end {
 	struct list_head	list;		/* per-file finished IO list */
 	struct inode		*inode;		/* file being written to */
@@ -179,7 +192,17 @@ typedef struct ext4_io_end {
 	struct work_struct	work;		/* data work queue */
 	struct kiocb		*iocb;		/* iocb struct for AIO */
 	int			result;		/* error value for AIO */
+	int			num_io_pages;
+	struct ext4_io_page	*pages[MAX_IO_PAGES];
 } ext4_io_end_t;
+
+struct ext4_io_submit {
+	int			io_op;
+	struct bio		*io_bio;
+	ext4_io_end_t		*io_end;
+	struct ext4_io_page	*io_page;
+	sector_t		io_next_block;
+};
 
 /*
  * Special inodes numbers
@@ -2044,6 +2067,17 @@ extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			     __u64 start_orig, __u64 start_donor,
 			     __u64 len, __u64 *moved_len);
 
+/* page-io.c */
+extern int __init init_ext4_pageio(void);
+extern void exit_ext4_pageio(void);
+extern void ext4_free_io_end(ext4_io_end_t *io);
+extern ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags);
+extern int ext4_end_io_nolock(ext4_io_end_t *io);
+extern void ext4_io_submit(struct ext4_io_submit *io);
+extern int ext4_bio_write_page(struct ext4_io_submit *io,
+			       struct page *page,
+			       int len,
+			       struct writeback_control *wbc);
 
 /* BH_Uninit flag: blocks are allocated but uninitialized on disk */
 enum ext4_state_bits {

@@ -2016,8 +2016,10 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd,
 	struct buffer_head *bh, *page_bufs = NULL;
 	int journal_data = ext4_should_journal_data(inode);
 	sector_t pblock = 0, cur_logical = 0;
+	struct ext4_io_submit io_submit;
 
 	BUG_ON(mpd->next_page <= mpd->first_page);
+	memset(&io_submit, 0, sizeof(io_submit));
 	/*
 	 * We need to start from the first_page to the next_page - 1
 	 * to make sure we also write the mapped dirty buffer_heads.
@@ -2109,16 +2111,16 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd,
 				/* mark the buffer_heads as dirty & uptodate */
 				block_commit_write(page, 0, len);
 
-			if (journal_data && PageChecked(page))
+			/*
+			 * Delalloc doesn't support data journalling,
+			 * but eventually maybe we'll lift this
+			 * restriction.
+			 */
+			if (unlikely(journal_data && PageChecked(page)))
 				err = __ext4_journalled_writepage(page, len);
-			else if (buffer_uninit(page_bufs)) {
-				ext4_set_bh_endio(page_bufs, inode);
-				err = block_write_full_page_endio(page,
-					noalloc_get_block_write,
-					mpd->wbc, ext4_end_io_buffer_write);
-			} else
-				err = block_write_full_page(page,
-					    noalloc_get_block_write, mpd->wbc);
+			else
+				err = ext4_bio_write_page(&io_submit, page,
+							  len, mpd->wbc);
 
 			if (!err)
 				mpd->pages_written++;
@@ -2131,6 +2133,7 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd,
 		}
 		pagevec_release(&pvec);
 	}
+	ext4_io_submit(&io_submit);
 	return ret;
 }
 
@@ -3426,15 +3429,6 @@ ext4_readpages(struct file *file, struct address_space *mapping,
 	return mpage_readpages(mapping, pages, nr_pages, ext4_get_block);
 }
 
-static void ext4_free_io_end(ext4_io_end_t *io)
-{
-	BUG_ON(!io);
-	if (io->page)
-		put_page(io->page);
-	iput(io->inode);
-	kfree(io);
-}
-
 static void ext4_invalidatepage_free_endio(struct page *page, unsigned long offset)
 {
 	struct buffer_head *head, *bh;
@@ -3640,68 +3634,6 @@ static void dump_completed_IO(struct inode * inode)
 }
 
 /*
- * check a range of space and convert unwritten extents to written.
- */
-static int ext4_end_io_nolock(ext4_io_end_t *io)
-{
-	struct inode *inode = io->inode;
-	loff_t offset = io->offset;
-	ssize_t size = io->size;
-	int ret = 0;
-
-	ext4_debug("ext4_end_io_nolock: io 0x%p from inode %lu,list->next 0x%p,"
-		   "list->prev 0x%p\n",
-	           io, inode->i_ino, io->list.next, io->list.prev);
-
-	if (list_empty(&io->list))
-		return ret;
-
-	if (io->flag != EXT4_IO_UNWRITTEN)
-		return ret;
-
-	ret = ext4_convert_unwritten_extents(inode, offset, size);
-	if (ret < 0) {
-		printk(KERN_EMERG "%s: failed to convert unwritten"
-			"extents to written extents, error is %d"
-			" io is still on inode %lu aio dio list\n",
-                       __func__, ret, inode->i_ino);
-		return ret;
-	}
-
-	if (io->iocb)
-		aio_complete(io->iocb, io->result, 0);
-	/* clear the DIO AIO unwritten flag */
-	io->flag = 0;
-	return ret;
-}
-
-/*
- * work on completed aio dio IO, to convert unwritten extents to extents
- */
-static void ext4_end_io_work(struct work_struct *work)
-{
-	ext4_io_end_t		*io = container_of(work, ext4_io_end_t, work);
-	struct inode		*inode = io->inode;
-	struct ext4_inode_info	*ei = EXT4_I(inode);
-	unsigned long		flags;
-	int			ret;
-
-	mutex_lock(&inode->i_mutex);
-	ret = ext4_end_io_nolock(io);
-	if (ret < 0) {
-		mutex_unlock(&inode->i_mutex);
-		return;
-	}
-
-	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	if (!list_empty(&io->list))
-		list_del_init(&io->list);
-	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
-	mutex_unlock(&inode->i_mutex);
-	ext4_free_io_end(io);
-}
-
-/*
  * This function is called from ext4_sync_file().
  *
  * When IO is completed, the work to convert unwritten extents to
@@ -3756,28 +3688,6 @@ int flush_completed_IO(struct inode *inode)
 	return (ret2 < 0) ? ret2 : 0;
 }
 
-static ext4_io_end_t *ext4_init_io_end (struct inode *inode, gfp_t flags)
-{
-	ext4_io_end_t *io = NULL;
-
-	io = kmalloc(sizeof(*io), flags);
-
-	if (io) {
-		igrab(inode);
-		io->inode = inode;
-		io->flag = 0;
-		io->offset = 0;
-		io->size = 0;
-		io->page = NULL;
-		io->iocb = NULL;
-		io->result = 0;
-		INIT_WORK(&io->work, ext4_end_io_work);
-		INIT_LIST_HEAD(&io->list);
-	}
-
-	return io;
-}
-
 static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 			    ssize_t size, void *private, int ret,
 			    bool is_async)
@@ -3797,7 +3707,7 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 		  size);
 
 	/* if not aio dio with unwritten extents, just free io and return */
-	if (io_end->flag != EXT4_IO_UNWRITTEN){
+	if (!(io_end->flag & EXT4_IO_END_UNWRITTEN)) {
 		ext4_free_io_end(io_end);
 		iocb->private = NULL;
 out:
@@ -3842,7 +3752,7 @@ static void ext4_end_io_buffer_write(struct buffer_head *bh, int uptodate)
 		goto out;
 	}
 
-	io_end->flag = EXT4_IO_UNWRITTEN;
+	io_end->flag = EXT4_IO_END_UNWRITTEN;
 	inode = io_end->inode;
 
 	/* Add the io_end to per-inode completed io list*/

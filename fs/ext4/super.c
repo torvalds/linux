@@ -4769,9 +4769,12 @@ static int __init init_ext4_fs(void)
 	int err;
 
 	ext4_check_flag_values();
-	err = init_ext4_system_zone();
+	err = init_ext4_pageio();
 	if (err)
 		return err;
+	err = init_ext4_system_zone();
+	if (err)
+		goto out5;
 	ext4_kset = kset_create_and_add("ext4", NULL, fs_kobj);
 	if (!ext4_kset)
 		goto out4;
@@ -4812,6 +4815,8 @@ out3:
 	kset_unregister(ext4_kset);
 out4:
 	exit_ext4_system_zone();
+out5:
+	exit_ext4_pageio();
 	return err;
 }
 
@@ -4827,6 +4832,7 @@ static void __exit exit_ext4_fs(void)
 	remove_proc_entry("fs/ext4", NULL);
 	kset_unregister(ext4_kset);
 	exit_ext4_system_zone();
+	exit_ext4_pageio();
 }
 
 MODULE_AUTHOR("Remy Card, Stephen Tweedie, Andrew Morton, Andreas Dilger, Theodore Ts'o and others");
