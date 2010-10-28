@@ -120,3 +120,10 @@ config ADT75
 	help
 	  Say yes here to build support for Analog Devices ADT75
 	  temperature sensors.
+
+config ADT7310
+	tristate "Analog Devices ADT7310 temperature sensor driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices ADT7310
+	  temperature sensors.
