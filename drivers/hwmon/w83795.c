@@ -2,6 +2,7 @@
  *  w83795.c - Linux kernel driver for hardware monitoring
  *  Copyright (C) 2008 Nuvoton Technology Corp.
  *                Wei Song
+ *  Copyright (C) 2010 Jean Delvare <khali@linux-fr.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -2097,7 +2098,7 @@ static void __exit sensors_w83795_exit(void)
 	i2c_del_driver(&w83795_driver);
 }
 
-MODULE_AUTHOR("Wei Song");
+MODULE_AUTHOR("Wei Song, Jean Delvare <khali@linux-fr.org>");
 MODULE_DESCRIPTION("W83795G/ADG hardware monitoring driver");
 MODULE_LICENSE("GPL");
 

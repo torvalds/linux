@@ -6457,6 +6457,12 @@ S:	Maintained
 F:	Documentation/hwmon/w83793
 F:	drivers/hwmon/w83793.c
 
+W83795 HARDWARE MONITORING DRIVER
+M:	Jean Delvare <khali@linux-fr.org>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	drivers/hwmon/w83795.c
+
 W83L51xD SD/MMC CARD INTERFACE DRIVER
 M:	Pierre Ossman <pierre@ossman.eu>
 S:	Maintained
