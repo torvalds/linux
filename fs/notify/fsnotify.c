@@ -252,19 +252,22 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 
 		if (inode_group > vfsmount_group) {
 			/* handle inode */
-			send_to_group(to_tell, NULL, inode_mark, NULL, mask, data,
-				      data_is, cookie, file_name, &event);
+			ret = send_to_group(to_tell, NULL, inode_mark, NULL, mask, data,
+					    data_is, cookie, file_name, &event);
 			/* we didn't use the vfsmount_mark */
 			vfsmount_group = NULL;
 		} else if (vfsmount_group > inode_group) {
-			send_to_group(to_tell, mnt, NULL, vfsmount_mark, mask, data,
-				      data_is, cookie, file_name, &event);
+			ret = send_to_group(to_tell, mnt, NULL, vfsmount_mark, mask, data,
+					    data_is, cookie, file_name, &event);
 			inode_group = NULL;
 		} else {
-			send_to_group(to_tell, mnt, inode_mark, vfsmount_mark,
-				      mask, data, data_is, cookie, file_name,
-				      &event);
+			ret = send_to_group(to_tell, mnt, inode_mark, vfsmount_mark,
+					    mask, data, data_is, cookie, file_name,
+					    &event);
 		}
+
+		if (ret && (mask & ALL_FSNOTIFY_PERM_EVENTS))
+			goto out;
 
 		if (inode_group)
 			inode_node = srcu_dereference(inode_node->next,
@@ -273,7 +276,8 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 			vfsmount_node = srcu_dereference(vfsmount_node->next,
 							 &fsnotify_mark_srcu);
 	}
-
+	ret = 0;
+out:
 	srcu_read_unlock(&fsnotify_mark_srcu, idx);
 	/*
 	 * fsnotify_create_event() took a reference so the event can't be cleaned
