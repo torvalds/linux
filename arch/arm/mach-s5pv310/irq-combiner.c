@@ -66,11 +66,7 @@ static void combiner_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	if (status == 0)
 		goto out;
 
-	for (combiner_irq = 0; combiner_irq < 32; combiner_irq++) {
-		if (status & 0x1)
-			break;
-		status >>= 1;
-	}
+	combiner_irq = __ffs(status);
 
 	cascade_irq = combiner_irq + (chip_data->irq_offset & ~31);
 	if (unlikely(cascade_irq >= NR_IRQS))

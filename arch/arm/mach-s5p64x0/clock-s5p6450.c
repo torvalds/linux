@@ -80,13 +80,16 @@ static int s5p6450_epll_set_rate(struct clk *clk, unsigned long rate)
 	__raw_writel(epll_con, S5P64X0_EPLL_CON);
 	__raw_writel(epll_con_k, S5P64X0_EPLL_CON_K);
 
+	printk(KERN_WARNING "EPLL Rate changes from %lu to %lu\n",
+			clk->rate, rate);
+
 	clk->rate = rate;
 
 	return 0;
 }
 
 static struct clk_ops s5p6450_epll_ops = {
-	.get_rate = s5p64x0_epll_get_rate,
+	.get_rate = s5p_epll_get_rate,
 	.set_rate = s5p6450_epll_set_rate,
 };
 
@@ -186,6 +189,12 @@ static struct clk init_clocks_disable[] = {
 		.enable		= s5p64x0_hclk0_ctrl,
 		.ctrlbit	= (1 << 3),
 	}, {
+		.name		= "pdma",
+		.id		= -1,
+		.parent		= &clk_hclk_low.clk,
+		.enable		= s5p64x0_hclk0_ctrl,
+		.ctrlbit	= (1 << 12),
+	}, {
 		.name		= "hsmmc",
 		.id		= 0,
 		.parent		= &clk_hclk_low.clk,
@@ -282,12 +291,6 @@ static struct clk init_clocks[] = {
 		.parent		= &clk_hclk.clk,
 		.enable		= s5p64x0_hclk0_ctrl,
 		.ctrlbit	= (1 << 21),
-	}, {
-		.name		= "dma",
-		.id		= -1,
-		.parent		= &clk_hclk_low.clk,
-		.enable		= s5p64x0_hclk0_ctrl,
-		.ctrlbit	= (1 << 12),
 	}, {
 		.name		= "uart",
 		.id		= 0,
@@ -581,7 +584,7 @@ void __init_or_cpufreq s5p6450_setup_clocks(void)
 
 	/* Set S5P6450 functions for clk_fout_epll */
 
-	clk_fout_epll.enable = s5p64x0_epll_enable;
+	clk_fout_epll.enable = s5p_epll_enable;
 	clk_fout_epll.ops = &s5p6450_epll_ops;
 
 	clk_48m.enable = s5p64x0_clk48m_ctrl;

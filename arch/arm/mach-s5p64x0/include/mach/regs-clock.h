@@ -60,4 +60,6 @@
 #define ARM_DIV_RATIO_SHIFT		0
 #define ARM_DIV_MASK			(0xF << ARM_DIV_RATIO_SHIFT)
 
+#define S5P_EPLL_CON			S5P64X0_EPLL_CON
+
 #endif /* __ASM_ARCH_REGS_CLOCK_H */

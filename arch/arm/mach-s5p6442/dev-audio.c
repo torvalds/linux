@@ -21,22 +21,16 @@
 
 static int s5p6442_cfg_i2s(struct platform_device *pdev)
 {
+	unsigned int base;
+
 	/* configure GPIO for i2s port */
 	switch (pdev->id) {
 	case 1:
-		s3c_gpio_cfgpin(S5P6442_GPC1(0), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6442_GPC1(1), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6442_GPC1(2), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6442_GPC1(3), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6442_GPC1(4), S3C_GPIO_SFN(2));
+		base = S5P6442_GPC1(0);
 		break;
 
 	case -1:
-		s3c_gpio_cfgpin(S5P6442_GPC0(0), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6442_GPC0(1), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6442_GPC0(2), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6442_GPC0(3), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6442_GPC0(4), S3C_GPIO_SFN(2));
+		base = S5P6442_GPC0(0);
 		break;
 
 	default:
@@ -44,6 +38,7 @@ static int s5p6442_cfg_i2s(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	s3c_gpio_cfgpin_range(base, 5, S3C_GPIO_SFN(2));
 	return 0;
 }
 
@@ -111,21 +106,15 @@ struct platform_device s5p6442_device_iis1 = {
 
 static int s5p6442_pcm_cfg_gpio(struct platform_device *pdev)
 {
+	unsigned int base;
+
 	switch (pdev->id) {
 	case 0:
-		s3c_gpio_cfgpin(S5P6442_GPC0(0), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5P6442_GPC0(1), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5P6442_GPC0(2), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5P6442_GPC0(3), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5P6442_GPC0(4), S3C_GPIO_SFN(3));
+		base = S5P6442_GPC0(0);
 		break;
 
 	case 1:
-		s3c_gpio_cfgpin(S5P6442_GPC1(0), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5P6442_GPC1(1), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5P6442_GPC1(2), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5P6442_GPC1(3), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5P6442_GPC1(4), S3C_GPIO_SFN(3));
+		base = S5P6442_GPC1(0);
 		break;
 
 	default:
@@ -133,6 +122,7 @@ static int s5p6442_pcm_cfg_gpio(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	s3c_gpio_cfgpin_range(base, 5, S3C_GPIO_SFN(3));
 	return 0;
 }
 
