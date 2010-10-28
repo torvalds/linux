@@ -131,6 +131,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	BUILD_BUG_ON(FAN_Q_OVERFLOW != FS_Q_OVERFLOW);
 	BUILD_BUG_ON(FAN_OPEN_PERM != FS_OPEN_PERM);
 	BUILD_BUG_ON(FAN_ACCESS_PERM != FS_ACCESS_PERM);
+	BUILD_BUG_ON(FAN_ONDIR != FS_ISDIR);
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
@@ -194,6 +195,10 @@ static bool fanotify_should_send_event(struct fsnotify_group *group,
 	} else {
 		BUG();
 	}
+
+	if (S_ISDIR(path->dentry->d_inode->i_mode) &&
+	    (marks_ignored_mask & FS_ISDIR))
+		return false;
 
 	if (event_mask & marks_mask & ~marks_ignored_mask)
 		return true;

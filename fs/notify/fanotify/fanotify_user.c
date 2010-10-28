@@ -570,6 +570,12 @@ static __u32 fanotify_mark_add_to_mask(struct fsnotify_mark *fsn_mark,
 		if (flags & FAN_MARK_IGNORED_SURV_MODIFY)
 			fsn_mark->flags |= FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY;
 	}
+
+	if (!(flags & FAN_MARK_ONDIR)) {
+		__u32 tmask = fsn_mark->ignored_mask | FAN_ONDIR;
+		fsnotify_set_mark_ignored_mask_locked(fsn_mark, tmask);
+	}
+
 	spin_unlock(&fsn_mark->lock);
 
 	return mask & ~oldmask;
@@ -766,6 +772,12 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 	default:
 		return -EINVAL;
 	}
+
+	if (mask & FAN_ONDIR) {
+		flags |= FAN_MARK_ONDIR;
+		mask &= ~FAN_ONDIR;
+	}
+
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 	if (mask & ~(FAN_ALL_EVENTS | FAN_ALL_PERM_EVENTS | FAN_EVENT_ON_CHILD))
 #else

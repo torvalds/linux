@@ -10,12 +10,14 @@
 #define FAN_CLOSE_NOWRITE	0x00000010	/* Writtable file closed */
 #define FAN_OPEN		0x00000020	/* File was opened */
 
-#define FAN_EVENT_ON_CHILD	0x08000000	/* interested in child events */
-
 #define FAN_Q_OVERFLOW		0x00004000	/* Event queued overflowed */
 
 #define FAN_OPEN_PERM		0x00010000	/* File open in perm check */
 #define FAN_ACCESS_PERM		0x00020000	/* File accessed in perm check */
+
+#define FAN_ONDIR		0x40000000	/* event occurred against dir */
+
+#define FAN_EVENT_ON_CHILD	0x08000000	/* interested in child events */
 
 /* helper events */
 #define FAN_CLOSE		(FAN_CLOSE_WRITE | FAN_CLOSE_NOWRITE) /* close */
@@ -47,6 +49,10 @@
 #define FAN_MARK_IGNORED_MASK	0x00000020
 #define FAN_MARK_IGNORED_SURV_MODIFY	0x00000040
 #define FAN_MARK_FLUSH		0x00000080
+#ifdef __KERNEL__
+/* not valid from userspace, only kernel internal */
+#define FAN_MARK_ONDIR		0x00000100
+#endif
 
 #define FAN_ALL_MARK_FLAGS	(FAN_MARK_ADD |\
 				 FAN_MARK_REMOVE |\
