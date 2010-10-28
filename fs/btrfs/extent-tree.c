@@ -8200,6 +8200,8 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		need_clear = 1;
 	if (btrfs_test_opt(root, CLEAR_CACHE))
 		need_clear = 1;
+	if (!btrfs_test_opt(root, SPACE_CACHE) && cache_gen)
+		printk(KERN_INFO "btrfs: disk space caching is enabled\n");
 
 	while (1) {
 		ret = find_first_block_group(root, path, &key);
