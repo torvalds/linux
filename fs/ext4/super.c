@@ -2902,28 +2902,26 @@ static int ext4_register_li_request(struct super_block *sb,
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_li_request *elr;
 	ext4_group_t ngroups = EXT4_SB(sb)->s_groups_count;
-	int ret = 0;
+	int ret;
 
 	if (sbi->s_li_request != NULL)
-		goto out;
+		return 0;
 
 	if (first_not_zeroed == ngroups ||
 	    (sb->s_flags & MS_RDONLY) ||
 	    !test_opt(sb, INIT_INODE_TABLE)) {
 		sbi->s_li_request = NULL;
-		goto out;
+		return 0;
 	}
 
 	if (first_not_zeroed == ngroups) {
 		sbi->s_li_request = NULL;
-		goto out;
+		return 0;
 	}
 
 	elr = ext4_li_request_new(sb, first_not_zeroed);
-	if (!elr) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!elr)
+		return -ENOMEM;
 
 	mutex_lock(&ext4_li_mtx);
 
@@ -2944,14 +2942,10 @@ static int ext4_register_li_request(struct super_block *sb,
 		if (ret)
 			goto out;
 	}
-
-	mutex_unlock(&ext4_li_mtx);
-
 out:
-	if (ret) {
-		mutex_unlock(&ext4_li_mtx);
+	mutex_unlock(&ext4_li_mtx);
+	if (ret)
 		kfree(elr);
-	}
 	return ret;
 }
 
