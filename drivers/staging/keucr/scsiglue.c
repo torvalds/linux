@@ -30,7 +30,7 @@ static int slave_alloc(struct scsi_device *sdev)
 
 	blk_queue_update_dma_alignment(sdev->request_queue, (512 - 1));
 
-	if (us->subclass == US_SC_UFI)
+	if (us->subclass == USB_SC_UFI)
 		sdev->sdev_target->pdt_1f_for_no_lun = 1;
 
 	return 0;
@@ -55,7 +55,7 @@ static int slave_configure(struct scsi_device *sdev)
 
 	if (sdev->type == TYPE_DISK)
 	{
-		if (us->subclass != US_SC_SCSI && us->subclass != US_SC_CYP_ATACB)
+		if (us->subclass != USB_SC_SCSI && us->subclass != USB_SC_CYP_ATACB)
 			sdev->use_10_for_ms = 1;
 		sdev->use_192_bytes_for_3f = 1;
 		if (us->fflags & US_FL_NO_WP_DETECT)
@@ -76,7 +76,7 @@ static int slave_configure(struct scsi_device *sdev)
 		sdev->use_10_for_ms = 1;
 	}
 
-	if ((us->protocol == US_PR_CB || us->protocol == US_PR_CBI) && sdev->scsi_level == SCSI_UNKNOWN)
+	if ((us->protocol == USB_PR_CB || us->protocol == USB_PR_CBI) && sdev->scsi_level == SCSI_UNKNOWN)
 		us->max_lun = 0;
 
 	if (us->fflags & US_FL_NOT_LOCKABLE)

@@ -315,7 +315,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/* Determine if we need to auto-sense */
 	need_auto_sense = 0;
 
-	if ((us->protocol == US_PR_CB || us->protocol == US_PR_DPCM_USB) && srb->sc_data_direction != DMA_FROM_DEVICE)
+	if ((us->protocol == USB_PR_CB || us->protocol == USB_PR_DPCM_USB) && srb->sc_data_direction != DMA_FROM_DEVICE)
 	{
 		//printk("-- CB transport device requiring auto-sense\n");
 		need_auto_sense = 1;
@@ -338,7 +338,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 		scsi_eh_prep_cmnd(srb, &ses, NULL, 0, US_SENSE_SIZE);
 
 		/* we must do the protocol translation here */
-		if (us->subclass == US_SC_RBC || us->subclass == US_SC_SCSI || us->subclass == US_SC_CYP_ATACB)
+		if (us->subclass == USB_SC_RBC || us->subclass == USB_SC_SCSI || us->subclass == USB_SC_CYP_ATACB)
 			srb->cmd_len = 6;
 		else
 			srb->cmd_len = 12;

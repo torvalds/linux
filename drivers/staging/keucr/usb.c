@@ -343,7 +343,7 @@ static int get_transport(struct us_data *us)
 {
       printk("usb --- get_transport\n");
 	switch (us->protocol) {
-	case US_PR_BULK:
+	case USB_PR_BULK:
 		us->transport_name = "Bulk";
 		us->transport = usb_stor_Bulk_transport;
 		us->transport_reset = usb_stor_Bulk_reset;
@@ -367,7 +367,7 @@ static int get_protocol(struct us_data *us)
 	printk("us->pusb_dev->descriptor.idVendor = %x\n", us->pusb_dev->descriptor.idVendor);
 	printk("us->pusb_dev->descriptor.idProduct = %x\n", us->pusb_dev->descriptor.idProduct);
 	switch (us->subclass) {
-	case US_SC_SCSI:
+	case USB_SC_SCSI:
 		us->protocol_name = "Transparent SCSI";
 		if( (us->pusb_dev->descriptor.idVendor == 0x0CF2) && (us->pusb_dev->descriptor.idProduct == 0x6250) )
 			us->proto_handler = ENE_stor_invoke_transport;
@@ -418,7 +418,7 @@ static int get_pipes(struct us_data *us)
 		}
 	}
 
-	if (!ep_in || !ep_out || (us->protocol == US_PR_CBI && !ep_int))
+	if (!ep_in || !ep_out || (us->protocol == USB_PR_CBI && !ep_int))
 	{
 		printk("Endpoint sanity check failed! Rejecting dev.\n");
 		return -EIO;
@@ -564,7 +564,7 @@ static int usb_stor_scan_thread(void * __us)
 	if (!test_bit(US_FLIDX_DONT_SCAN, &us->dflags))
 	{
 		/* For bulk-only devices, determine the max LUN value */
-		if (us->protocol == US_PR_BULK && !(us->fflags & US_FL_SINGLE_LUN))
+		if (us->protocol == USB_PR_BULK && !(us->fflags & US_FL_SINGLE_LUN))
 		{
 			mutex_lock(&us->dev_mutex);
 			us->max_lun = usb_stor_Bulk_max_lun(us);
