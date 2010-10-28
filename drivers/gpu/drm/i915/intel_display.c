@@ -1681,6 +1681,37 @@ static void ironlake_set_pll_edp(struct drm_crtc *crtc, int clock)
 	udelay(500);
 }
 
+static void intel_fdi_normal_train(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	u32 reg, temp;
+
+	/* enable normal train */
+	reg = FDI_TX_CTL(pipe);
+	temp = I915_READ(reg);
+	temp &= ~FDI_LINK_TRAIN_NONE;
+	temp |= FDI_LINK_TRAIN_NONE | FDI_TX_ENHANCE_FRAME_ENABLE;
+	I915_WRITE(reg, temp);
+
+	reg = FDI_RX_CTL(pipe);
+	temp = I915_READ(reg);
+	if (HAS_PCH_CPT(dev)) {
+		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+		temp |= FDI_LINK_TRAIN_NORMAL_CPT;
+	} else {
+		temp &= ~FDI_LINK_TRAIN_NONE;
+		temp |= FDI_LINK_TRAIN_NONE;
+	}
+	I915_WRITE(reg, temp | FDI_RX_ENHANCE_FRAME_ENABLE);
+
+	/* wait one idle pattern time */
+	POSTING_READ(reg);
+	udelay(1000);
+}
+
 /* The FDI link training functions for ILK/Ibexpeak. */
 static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 {
@@ -1767,27 +1798,6 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 
 	DRM_DEBUG_KMS("FDI train done\n");
 
-	/* enable normal train */
-	reg = FDI_TX_CTL(pipe);
-	temp = I915_READ(reg);
-	temp &= ~FDI_LINK_TRAIN_NONE;
-	temp |= FDI_LINK_TRAIN_NONE | FDI_TX_ENHANCE_FRAME_ENABLE;
-	I915_WRITE(reg, temp);
-
-	reg = FDI_RX_CTL(pipe);
-	temp = I915_READ(reg);
-	if (HAS_PCH_CPT(dev)) {
-		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
-		temp |= FDI_LINK_TRAIN_NORMAL_CPT;
-	} else {
-		temp &= ~FDI_LINK_TRAIN_NONE;
-		temp |= FDI_LINK_TRAIN_NONE;
-	}
-	I915_WRITE(reg, temp | FDI_RX_ENHANCE_FRAME_ENABLE);
-
-	/* wait one idle pattern time */
-	POSTING_READ(reg);
-	udelay(1000);
 }
 
 static const int const snb_b_fdi_train_param [] = {
@@ -2089,6 +2099,8 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	I915_WRITE(TRANS_VTOTAL(pipe), I915_READ(VTOTAL(pipe)));
 	I915_WRITE(TRANS_VBLANK(pipe), I915_READ(VBLANK(pipe)));
 	I915_WRITE(TRANS_VSYNC(pipe),  I915_READ(VSYNC(pipe)));
+
+	intel_fdi_normal_train(crtc);
 
 	/* For PCH DP, enable TRANS_DP_CTL */
 	if (HAS_PCH_CPT(dev) &&
