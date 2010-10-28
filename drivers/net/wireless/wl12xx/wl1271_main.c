@@ -950,17 +950,18 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 	struct wiphy *wiphy = hw->wiphy;
 	int retries = WL1271_BOOT_RETRIES;
 	int ret = 0;
+	bool booted = false;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
 		     vif->type, vif->addr);
 
 	mutex_lock(&wl->mutex);
 	if (wl->vif) {
+		wl1271_debug(DEBUG_MAC80211,
+			     "multiple vifs are not supported yet");
 		ret = -EBUSY;
 		goto out;
 	}
-
-	wl->vif = vif;
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
@@ -999,15 +1000,8 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		if (ret < 0)
 			goto irq_disable;
 
-		wl->state = WL1271_STATE_ON;
-		wl1271_info("firmware booted (%s)", wl->chip.fw_ver);
-
-		/* update hw/fw version info in wiphy struct */
-		wiphy->hw_version = wl->chip.id;
-		strncpy(wiphy->fw_version, wl->chip.fw_ver,
-			sizeof(wiphy->fw_version));
-
-		goto out;
+		booted = true;
+		break;
 
 irq_disable:
 		wl1271_disable_interrupts(wl);
@@ -1025,8 +1019,21 @@ power_off:
 		wl1271_power_off(wl);
 	}
 
-	wl1271_error("firmware boot failed despite %d retries",
-		     WL1271_BOOT_RETRIES);
+	if (!booted) {
+		wl1271_error("firmware boot failed despite %d retries",
+			     WL1271_BOOT_RETRIES);
+		goto out;
+	}
+
+	wl->vif = vif;
+	wl->state = WL1271_STATE_ON;
+	wl1271_info("firmware booted (%s)", wl->chip.fw_ver);
+
+	/* update hw/fw version info in wiphy struct */
+	wiphy->hw_version = wl->chip.id;
+	strncpy(wiphy->fw_version, wl->chip.fw_ver,
+		sizeof(wiphy->fw_version));
+
 out:
 	mutex_unlock(&wl->mutex);
 
