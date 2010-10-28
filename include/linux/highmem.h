@@ -37,27 +37,6 @@ extern unsigned long totalhigh_pages;
 
 void kmap_flush_unused(void);
 
-DECLARE_PER_CPU(int, __kmap_atomic_idx);
-
-static inline int kmap_atomic_idx_push(void)
-{
-	int idx = __get_cpu_var(__kmap_atomic_idx)++;
-#ifdef CONFIG_DEBUG_HIGHMEM
-	WARN_ON_ONCE(in_irq() && !irqs_disabled());
-	BUG_ON(idx > KM_TYPE_NR);
-#endif
-	return idx;
-}
-
-static inline int kmap_atomic_idx_pop(void)
-{
-	int idx = --__get_cpu_var(__kmap_atomic_idx);
-#ifdef CONFIG_DEBUG_HIGHMEM
-	BUG_ON(idx < 0);
-#endif
-	return idx;
-}
-
 #else /* CONFIG_HIGHMEM */
 
 static inline unsigned int nr_free_highpages(void) { return 0; }
@@ -94,6 +73,36 @@ static inline void __kunmap_atomic(void *addr)
 #endif
 
 #endif /* CONFIG_HIGHMEM */
+
+#if defined(CONFIG_HIGHMEM) || defined(CONFIG_X86_32)
+
+DECLARE_PER_CPU(int, __kmap_atomic_idx);
+
+static inline int kmap_atomic_idx_push(void)
+{
+	int idx = __get_cpu_var(__kmap_atomic_idx)++;
+#ifdef CONFIG_DEBUG_HIGHMEM
+	WARN_ON_ONCE(in_irq() && !irqs_disabled());
+	BUG_ON(idx > KM_TYPE_NR);
+#endif
+	return idx;
+}
+
+static inline int kmap_atomic_idx(void)
+{
+	return __get_cpu_var(__kmap_atomic_idx) - 1;
+}
+
+static inline int kmap_atomic_idx_pop(void)
+{
+	int idx = --__get_cpu_var(__kmap_atomic_idx);
+#ifdef CONFIG_DEBUG_HIGHMEM
+	BUG_ON(idx < 0);
+#endif
+	return idx;
+}
+
+#endif
 
 /*
  * Make both: kmap_atomic(page, idx) and kmap_atomic(page) work.

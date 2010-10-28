@@ -101,7 +101,7 @@ static inline void __kunmap_atomic(unsigned long vaddr)
 		return;
 	}
 
-	type = kmap_atomic_idx_pop();
+	type = kmap_atomic_idx();
 
 #if HIGHMEM_DEBUG
 	{
@@ -119,6 +119,8 @@ static inline void __kunmap_atomic(unsigned long vaddr)
 		__flush_tlb_one(vaddr);
 	}
 #endif
+
+	kmap_atomic_idx_pop();
 	pagefault_enable();
 }
 #endif /* __KERNEL__ */

@@ -74,7 +74,7 @@ void __kunmap_atomic(void *kvaddr)
 		return;
 	}
 
-	type = kmap_atomic_idx_pop();
+	type = kmap_atomic_idx();
 #ifdef CONFIG_DEBUG_HIGHMEM
 	{
 		int idx = type + KM_TYPE_NR * smp_processor_id();
@@ -89,6 +89,7 @@ void __kunmap_atomic(void *kvaddr)
 		local_flush_tlb_one(vaddr);
 	}
 #endif
+	kmap_atomic_idx_pop();
 	pagefault_enable();
 }
 EXPORT_SYMBOL(__kunmap_atomic);

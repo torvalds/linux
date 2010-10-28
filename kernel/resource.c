@@ -453,6 +453,8 @@ static struct resource * __insert_resource(struct resource *parent, struct resou
 
 		if (first == parent)
 			return first;
+		if (WARN_ON(first == new))	/* duplicated insertion */
+			return first;
 
 		if ((first->start > new->start) || (first->end < new->end))
 			break;

@@ -241,7 +241,7 @@ void __kunmap_atomic(void *kvaddr)
 		pte_t pteval = *pte;
 		int idx, type;
 
-		type = kmap_atomic_idx_pop();
+		type = kmap_atomic_idx();
 		idx = type + KM_TYPE_NR*smp_processor_id();
 
 		/*
@@ -252,6 +252,7 @@ void __kunmap_atomic(void *kvaddr)
 		BUG_ON(!pte_present(pteval) && !pte_migrating(pteval));
 		kmap_atomic_unregister(pte_page(pteval), vaddr);
 		kpte_clear_flush(pte, vaddr);
+		kmap_atomic_idx_pop();
 	} else {
 		/* Must be a lowmem page */
 		BUG_ON(vaddr < PAGE_OFFSET);

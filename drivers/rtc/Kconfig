@@ -171,7 +171,8 @@ config RTC_DRV_DS3232
 	depends on RTC_CLASS && I2C
 	help
 	  If you say yes here you get support for Dallas Semiconductor
-	  DS3232 real-time clock chips.
+	  DS3232 real-time clock chips. If an interrupt is associated
+	  with the device, the alarm functionality is supported.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called rtc-ds3232.
@@ -951,5 +952,14 @@ config RTC_DRV_JZ4740
 
 	  This driver can also be buillt as a module. If so, the module
 	  will be called rtc-jz4740.
+
+config RTC_DRV_LPC32XX
+	depends on ARCH_LPC32XX
+	tristate "NXP LPC32XX RTC"
+	help
+	  This enables support for the NXP RTC in the LPC32XX
+
+	  This driver can also be buillt as a module. If so, the module
+	  will be called rtc-lpc32xx.
 
 endif # RTC_CLASS

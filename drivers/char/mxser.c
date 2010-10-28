@@ -303,6 +303,7 @@ static void mxser_enable_must_enchance_mode(unsigned long baseio)
 	outb(oldlcr, baseio + UART_LCR);
 }
 
+#ifdef	CONFIG_PCI
 static void mxser_disable_must_enchance_mode(unsigned long baseio)
 {
 	u8 oldlcr;
@@ -317,6 +318,7 @@ static void mxser_disable_must_enchance_mode(unsigned long baseio)
 	outb(efr, baseio + MOXA_MUST_EFR_REGISTER);
 	outb(oldlcr, baseio + UART_LCR);
 }
+#endif
 
 static void mxser_set_must_xon1_value(unsigned long baseio, u8 value)
 {
@@ -388,6 +390,7 @@ static void mxser_set_must_enum_value(unsigned long baseio, u8 value)
 	outb(oldlcr, baseio + UART_LCR);
 }
 
+#ifdef CONFIG_PCI
 static void mxser_get_must_hardware_id(unsigned long baseio, u8 *pId)
 {
 	u8 oldlcr;
@@ -404,6 +407,7 @@ static void mxser_get_must_hardware_id(unsigned long baseio, u8 *pId)
 	*pId = inb(baseio + MOXA_MUST_HWID_REGISTER);
 	outb(oldlcr, baseio + UART_LCR);
 }
+#endif
 
 static void SET_MOXA_MUST_NO_SOFTWARE_FLOW_CONTROL(unsigned long baseio)
 {

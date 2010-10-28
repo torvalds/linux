@@ -544,6 +544,34 @@ static unsigned int isofs_get_last_session(struct super_block *sb, s32 session)
 }
 
 /*
+ * Check if root directory is empty (has less than 3 files).
+ *
+ * Used to detect broken CDs where ISO root directory is empty but Joliet root
+ * directory is OK. If such CD has Rock Ridge extensions, they will be disabled
+ * (and Joliet used instead) or else no files would be visible.
+ */
+static bool rootdir_empty(struct super_block *sb, unsigned long block)
+{
+	int offset = 0, files = 0, de_len;
+	struct iso_directory_record *de;
+	struct buffer_head *bh;
+
+	bh = sb_bread(sb, block);
+	if (!bh)
+		return true;
+	while (files < 3) {
+		de = (struct iso_directory_record *) (bh->b_data + offset);
+		de_len = *(unsigned char *) de;
+		if (de_len == 0)
+			break;
+		files++;
+		offset += de_len;
+	}
+	brelse(bh);
+	return files < 3;
+}
+
+/*
  * Initialize the superblock and read the root inode.
  *
  * Note: a check_disk_change() has been done immediately prior
@@ -841,6 +869,18 @@ root_found:
 	inode = isofs_iget(s, sbi->s_firstdatazone, 0);
 	if (IS_ERR(inode))
 		goto out_no_root;
+
+	/*
+	 * Fix for broken CDs with Rock Ridge and empty ISO root directory but
+	 * correct Joliet root directory.
+	 */
+	if (sbi->s_rock == 1 && joliet_level &&
+				rootdir_empty(s, sbi->s_firstdatazone)) {
+		printk(KERN_NOTICE
+			"ISOFS: primary root directory is empty. "
+			"Disabling Rock Ridge and switching to Joliet.");
+		sbi->s_rock = 0;
+	}
 
 	/*
 	 * If this disk has both Rock Ridge and Joliet on it, then we

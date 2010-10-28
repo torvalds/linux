@@ -27,7 +27,6 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/completion.h>
-#include <linux/errno.h>
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/unistd.h>

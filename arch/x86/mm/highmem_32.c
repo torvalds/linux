@@ -74,7 +74,7 @@ void __kunmap_atomic(void *kvaddr)
 	    vaddr <= __fix_to_virt(FIX_KMAP_BEGIN)) {
 		int idx, type;
 
-		type = kmap_atomic_idx_pop();
+		type = kmap_atomic_idx();
 		idx = type + KM_TYPE_NR * smp_processor_id();
 
 #ifdef CONFIG_DEBUG_HIGHMEM
@@ -87,6 +87,7 @@ void __kunmap_atomic(void *kvaddr)
 		 * attributes or becomes a protected page in a hypervisor.
 		 */
 		kpte_clear_flush(kmap_pte-idx, vaddr);
+		kmap_atomic_idx_pop();
 	}
 #ifdef CONFIG_DEBUG_HIGHMEM
 	else {
