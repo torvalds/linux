@@ -491,7 +491,7 @@ static void w83795_update_limits(struct i2c_client *client)
 	}
 
 	/* Read the DTS limits */
-	if (data->enable_dts != 0) {
+	if (data->enable_dts) {
 		for (limit = DTS_CRIT; limit <= DTS_WARN_HYST; limit++)
 			data->dts_ext[limit] =
 				w83795_read(client, W83795_REG_DTS_EXT(limit));
@@ -544,7 +544,7 @@ static struct w83795_data *w83795_update_pwm_config(struct device *dev)
 		data->pwm_temp[i][TEMP_PWM_CTFS] =
 			w83795_read(client, W83795_REG_CTFS(i));
 		tmp = w83795_read(client, W83795_REG_HT(i));
-		data->pwm_temp[i][TEMP_PWM_HCT] = (tmp >> 4) & 0x0f;
+		data->pwm_temp[i][TEMP_PWM_HCT] = tmp >> 4;
 		data->pwm_temp[i][TEMP_PWM_HOT] = tmp & 0x0f;
 	}
 
@@ -618,8 +618,7 @@ static struct w83795_data *w83795_update_device(struct device *dev)
 		if (!(data->has_fan & (1 << i)))
 			continue;
 		data->fan[i] = w83795_read(client, W83795_REG_FAN(i)) << 4;
-		data->fan[i] |=
-		  (w83795_read(client, W83795_REG_VRLSB) >> 4) & 0x0F;
+		data->fan[i] |= w83795_read(client, W83795_REG_VRLSB) >> 4;
 	}
 
 	/* Update temperature */
@@ -631,7 +630,7 @@ static struct w83795_data *w83795_update_device(struct device *dev)
 	}
 
 	/* Update dts temperature */
-	if (data->enable_dts != 0) {
+	if (data->enable_dts) {
 		for (i = 0; i < ARRAY_SIZE(data->dts); i++) {
 			if (!(data->has_dts & (1 << i)))
 				continue;
@@ -677,11 +676,10 @@ show_alarm_beep(struct device *dev, struct device_attribute *attr, char *buf)
 	int bit = sensor_attr->index & 0x07;
 	u8 val;
 
-	if (ALARM_STATUS == nr) {
-		val = (data->alarms[index] >> (bit)) & 1;
-	} else {		/* BEEP_ENABLE */
-		val = (data->beeps[index] >> (bit)) & 1;
-	}
+	if (nr == ALARM_STATUS)
+		val = (data->alarms[index] >> bit) & 1;
+	else		/* BEEP_ENABLE */
+		val = (data->beeps[index] >> bit) & 1;
 
 	return sprintf(buf, "%u\n", val);
 }
@@ -744,7 +742,7 @@ show_fan(struct device *dev, struct device_attribute *attr, char *buf)
 	struct w83795_data *data = w83795_update_device(dev);
 	u16 val;
 
-	if (FAN_INPUT == nr)
+	if (nr == FAN_INPUT)
 		val = data->fan[index] & 0x0fff;
 	else
 		val = data->fan_min[index] & 0x0fff;
@@ -1011,7 +1009,7 @@ store_temp_pwm_enable(struct device *dev, struct device_attribute *attr,
 
 	switch (nr) {
 	case TEMP_PWM_ENABLE:
-		if ((tmp != 3) && (tmp != 4))
+		if (tmp != 3 && tmp != 4)
 			return -EINVAL;
 		tmp -= 3;
 		mutex_lock(&data->update_lock);
@@ -1074,7 +1072,7 @@ store_fanin(struct device *dev, struct device_attribute *attr,
 	switch (nr) {
 	case FANIN_TARGET:
 		val = fan_to_reg(SENSORS_LIMIT(val, 0, 0xfff));
-		w83795_write(client, W83795_REG_FTSH(index), (val >> 4) & 0xff);
+		w83795_write(client, W83795_REG_FTSH(index), val >> 4);
 		w83795_write(client, W83795_REG_FTSL(index), (val << 4) & 0xf0);
 		data->target_speed[index] = val;
 		break;
@@ -1234,7 +1232,7 @@ show_temp(struct device *dev, struct device_attribute *attr, char *buf)
 	struct w83795_data *data = w83795_update_device(dev);
 	long temp = temp_from_reg(data->temp[index][nr]);
 
-	if (TEMP_READ == nr)
+	if (nr == TEMP_READ)
 		temp += (data->temp_read_vrlsb[index] >> 6) * 250;
 	return sprintf(buf, "%ld\n", temp);
 }
@@ -1891,7 +1889,7 @@ static int w83795_handle_files(struct device *dev, int (*fn)(struct device *,
 		}
 	}
 
-	if (data->enable_dts != 0) {
+	if (data->enable_dts) {
 		for (i = 0; i < ARRAY_SIZE(w83795_dts); i++) {
 			if (!(data->has_dts & (1 << i)))
 				continue;
