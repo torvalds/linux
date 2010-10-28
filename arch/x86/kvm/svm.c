@@ -2111,7 +2111,7 @@ static int cpuid_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 static int iret_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	++svm->vcpu.stat.nmi_window_exits;
-	svm->vmcb->control.intercept &= ~(1UL << INTERCEPT_IRET);
+	svm->vmcb->control.intercept &= ~(1ULL << INTERCEPT_IRET);
 	svm->vcpu.arch.hflags |= HF_IRET_MASK;
 	return 1;
 }
@@ -2506,7 +2506,7 @@ static void svm_inject_nmi(struct kvm_vcpu *vcpu)
 
 	svm->vmcb->control.event_inj = SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_NMI;
 	vcpu->arch.hflags |= HF_NMI_MASK;
-	svm->vmcb->control.intercept |= (1UL << INTERCEPT_IRET);
+	svm->vmcb->control.intercept |= (1ULL << INTERCEPT_IRET);
 	++vcpu->stat.nmi_injections;
 }
 
