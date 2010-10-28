@@ -2143,7 +2143,9 @@ EXPORT_SYMBOL_GPL(usb_hcd_irq);
  *
  * This is called by bus glue to report a USB host controller that died
  * while operations may still have been pending.  It's called automatically
- * by the PCI glue, so only glue for non-PCI busses should need to call it. 
+ * by the PCI glue, so only glue for non-PCI busses should need to call it.
+ *
+ * Only call this function with the primary HCD.
  */
 void usb_hc_died (struct usb_hcd *hcd)
 {
@@ -2162,17 +2164,31 @@ void usb_hc_died (struct usb_hcd *hcd)
 				USB_STATE_NOTATTACHED);
 		usb_kick_khubd (hcd->self.root_hub);
 	}
+	if (usb_hcd_is_primary_hcd(hcd) && hcd->shared_hcd) {
+		hcd = hcd->shared_hcd;
+		if (hcd->rh_registered) {
+			clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
+
+			/* make khubd clean up old urbs and devices */
+			usb_set_device_state(hcd->self.root_hub,
+					USB_STATE_NOTATTACHED);
+			usb_kick_khubd(hcd->self.root_hub);
+		}
+	}
 	spin_unlock_irqrestore (&hcd_root_hub_lock, flags);
+	/* Make sure that the other roothub is also deallocated. */
 }
 EXPORT_SYMBOL_GPL (usb_hc_died);
 
 /*-------------------------------------------------------------------------*/
 
 /**
- * usb_create_hcd - create and initialize an HCD structure
+ * usb_create_shared_hcd - create and initialize an HCD structure
  * @driver: HC driver that will use this hcd
  * @dev: device for this HC, stored in hcd->self.controller
  * @bus_name: value to store in hcd->self.bus_name
+ * @primary_hcd: a pointer to the usb_hcd structure that is sharing the
+ *              PCI device.  Only allocate certain resources for the primary HCD
  * Context: !in_interrupt()
  *
  * Allocate a struct usb_hcd, with extra space at the end for the
@@ -2181,8 +2197,9 @@ EXPORT_SYMBOL_GPL (usb_hc_died);
  *
  * If memory is unavailable, returns NULL.
  */
-struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
-		struct device *dev, const char *bus_name)
+struct usb_hcd *usb_create_shared_hcd(const struct hc_driver *driver,
+		struct device *dev, const char *bus_name,
+		struct usb_hcd *primary_hcd)
 {
 	struct usb_hcd *hcd;
 
@@ -2191,16 +2208,24 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 		dev_dbg (dev, "hcd alloc failed\n");
 		return NULL;
 	}
-	hcd->bandwidth_mutex = kmalloc(sizeof(*hcd->bandwidth_mutex),
-			GFP_KERNEL);
-	if (!hcd->bandwidth_mutex) {
-		kfree(hcd);
-		dev_dbg(dev, "hcd bandwidth mutex alloc failed\n");
-		return NULL;
+	if (primary_hcd == NULL) {
+		hcd->bandwidth_mutex = kmalloc(sizeof(*hcd->bandwidth_mutex),
+				GFP_KERNEL);
+		if (!hcd->bandwidth_mutex) {
+			kfree(hcd);
+			dev_dbg(dev, "hcd bandwidth mutex alloc failed\n");
+			return NULL;
+		}
+		mutex_init(hcd->bandwidth_mutex);
+		dev_set_drvdata(dev, hcd);
+	} else {
+		hcd->bandwidth_mutex = primary_hcd->bandwidth_mutex;
+		hcd->primary_hcd = primary_hcd;
+		primary_hcd->primary_hcd = primary_hcd;
+		hcd->shared_hcd = primary_hcd;
+		primary_hcd->shared_hcd = hcd;
 	}
-	mutex_init(hcd->bandwidth_mutex);
 
-	dev_set_drvdata(dev, hcd);
 	kref_init(&hcd->kref);
 
 	usb_bus_init(&hcd->self);
@@ -2221,13 +2246,46 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 			"USB Host Controller";
 	return hcd;
 }
+EXPORT_SYMBOL_GPL(usb_create_shared_hcd);
+
+/**
+ * usb_create_hcd - create and initialize an HCD structure
+ * @driver: HC driver that will use this hcd
+ * @dev: device for this HC, stored in hcd->self.controller
+ * @bus_name: value to store in hcd->self.bus_name
+ * Context: !in_interrupt()
+ *
+ * Allocate a struct usb_hcd, with extra space at the end for the
+ * HC driver's private data.  Initialize the generic members of the
+ * hcd structure.
+ *
+ * If memory is unavailable, returns NULL.
+ */
+struct usb_hcd *usb_create_hcd(const struct hc_driver *driver,
+		struct device *dev, const char *bus_name)
+{
+	return usb_create_shared_hcd(driver, dev, bus_name, NULL);
+}
 EXPORT_SYMBOL_GPL(usb_create_hcd);
 
+/*
+ * Roothubs that share one PCI device must also share the bandwidth mutex.
+ * Don't deallocate the bandwidth_mutex until the last shared usb_hcd is
+ * deallocated.
+ *
+ * Make sure to only deallocate the bandwidth_mutex when the primary HCD is
+ * freed.  When hcd_release() is called for the non-primary HCD, set the
+ * primary_hcd's shared_hcd pointer to null (since the non-primary HCD will be
+ * freed shortly).
+ */
 static void hcd_release (struct kref *kref)
 {
 	struct usb_hcd *hcd = container_of (kref, struct usb_hcd, kref);
 
-	kfree(hcd->bandwidth_mutex);
+	if (usb_hcd_is_primary_hcd(hcd))
+		kfree(hcd->bandwidth_mutex);
+	else
+		hcd->shared_hcd->shared_hcd = NULL;
 	kfree(hcd);
 }
 
@@ -2245,6 +2303,14 @@ void usb_put_hcd (struct usb_hcd *hcd)
 		kref_put (&hcd->kref, hcd_release);
 }
 EXPORT_SYMBOL_GPL(usb_put_hcd);
+
+int usb_hcd_is_primary_hcd(struct usb_hcd *hcd)
+{
+	if (!hcd->primary_hcd)
+		return 1;
+	return hcd == hcd->primary_hcd;
+}
+EXPORT_SYMBOL_GPL(usb_hcd_is_primary_hcd);
 
 static int usb_hcd_request_irqs(struct usb_hcd *hcd,
 		unsigned int irqnum, unsigned long irqflags)
@@ -2367,9 +2433,11 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		dev_dbg(hcd->self.controller, "supports USB remote wakeup\n");
 
 	/* enable irqs just before we start the controller */
-	retval = usb_hcd_request_irqs(hcd, irqnum, irqflags);
-	if (retval)
-		goto err_request_irq;
+	if (usb_hcd_is_primary_hcd(hcd)) {
+		retval = usb_hcd_request_irqs(hcd, irqnum, irqflags);
+		if (retval)
+			goto err_request_irq;
+	}
 
 	hcd->state = HC_STATE_RUNNING;
 	retval = hcd->driver->start(hcd);
@@ -2416,7 +2484,7 @@ err_register_root_hub:
 	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	del_timer_sync(&hcd->rh_timer);
 err_hcd_driver_start:
-	if (hcd->irq >= 0)
+	if (usb_hcd_is_primary_hcd(hcd) && hcd->irq >= 0)
 		free_irq(irqnum, hcd);
 err_request_irq:
 err_hcd_driver_setup:
@@ -2480,8 +2548,10 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	del_timer_sync(&hcd->rh_timer);
 
-	if (hcd->irq >= 0)
-		free_irq(hcd->irq, hcd);
+	if (usb_hcd_is_primary_hcd(hcd)) {
+		if (hcd->irq >= 0)
+			free_irq(hcd->irq, hcd);
+	}
 
 	usb_put_dev(hcd->self.root_hub);
 	usb_deregister_bus(&hcd->self);

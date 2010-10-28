@@ -147,6 +147,8 @@ struct usb_hcd {
 	 * to the device, or resetting the bandwidth after a failed attempt.
 	 */
 	struct mutex		*bandwidth_mutex;
+	struct usb_hcd		*shared_hcd;
+	struct usb_hcd		*primary_hcd;
 
 
 #define HCD_BUFFER_POOLS	4
@@ -209,6 +211,7 @@ struct hc_driver {
 	int	flags;
 #define	HCD_MEMORY	0x0001		/* HC regs use memory (else I/O) */
 #define	HCD_LOCAL_MEM	0x0002		/* HC needs local memory */
+#define	HCD_SHARED	0x0004		/* Two (or more) usb_hcds share HW */
 #define	HCD_USB11	0x0010		/* USB 1.1 */
 #define	HCD_USB2	0x0020		/* USB 2.0 */
 #define	HCD_USB3	0x0040		/* USB 3.0 */
@@ -370,8 +373,12 @@ extern int usb_hcd_get_frame_number(struct usb_device *udev);
 
 extern struct usb_hcd *usb_create_hcd(const struct hc_driver *driver,
 		struct device *dev, const char *bus_name);
+extern struct usb_hcd *usb_create_shared_hcd(const struct hc_driver *driver,
+		struct device *dev, const char *bus_name,
+		struct usb_hcd *shared_hcd);
 extern struct usb_hcd *usb_get_hcd(struct usb_hcd *hcd);
 extern void usb_put_hcd(struct usb_hcd *hcd);
+extern int usb_hcd_is_primary_hcd(struct usb_hcd *hcd);
 extern int usb_add_hcd(struct usb_hcd *hcd,
 		unsigned int irqnum, unsigned long irqflags);
 extern void usb_remove_hcd(struct usb_hcd *hcd);
