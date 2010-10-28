@@ -376,11 +376,10 @@ static ssize_t fanotify_write(struct file *file, const char __user *buf, size_t 
 static int fanotify_release(struct inode *ignored, struct file *file)
 {
 	struct fsnotify_group *group = file->private_data;
-	struct fanotify_response_event *re, *lre;
-
-	pr_debug("%s: file=%p group=%p\n", __func__, file, group);
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	struct fanotify_response_event *re, *lre;
+
 	mutex_lock(&group->fanotify_data.access_mutex);
 
 	group->fanotify_data.bypass_perm = true;
