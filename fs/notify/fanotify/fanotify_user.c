@@ -558,15 +558,15 @@ static __u32 fanotify_mark_add_to_mask(struct fsnotify_mark *fsn_mark,
 				       __u32 mask,
 				       unsigned int flags)
 {
-	__u32 oldmask;
+	__u32 oldmask = -1;
 
 	spin_lock(&fsn_mark->lock);
 	if (!(flags & FAN_MARK_IGNORED_MASK)) {
 		oldmask = fsn_mark->mask;
 		fsnotify_set_mark_mask_locked(fsn_mark, (oldmask | mask));
 	} else {
-		oldmask = fsn_mark->ignored_mask;
-		fsnotify_set_mark_ignored_mask_locked(fsn_mark, (oldmask | mask));
+		__u32 tmask = fsn_mark->ignored_mask | mask;
+		fsnotify_set_mark_ignored_mask_locked(fsn_mark, tmask);
 		if (flags & FAN_MARK_IGNORED_SURV_MODIFY)
 			fsn_mark->flags |= FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY;
 	}
