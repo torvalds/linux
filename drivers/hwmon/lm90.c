@@ -387,8 +387,13 @@ static ssize_t set_temp8(struct device *dev, struct device_attribute *devattr,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm90_data *data = i2c_get_clientdata(client);
-	long val = simple_strtol(buf, NULL, 10);
 	int nr = attr->index;
+	long val;
+	int err;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err < 0)
+		return err;
 
 	/* +16 degrees offset for temp2 for the LM99 */
 	if (data->kind == lm99 && attr->index == 3)
@@ -442,8 +447,13 @@ static ssize_t set_temp11(struct device *dev, struct device_attribute *devattr,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm90_data *data = i2c_get_clientdata(client);
-	long val = simple_strtol(buf, NULL, 10);
 	int nr = attr->index;
+	long val;
+	int err;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err < 0)
+		return err;
 
 	/* +16 degrees offset for temp2 for the LM99 */
 	if (data->kind == lm99 && attr->index <= 2)
@@ -469,7 +479,8 @@ static ssize_t set_temp11(struct device *dev, struct device_attribute *devattr,
 	return count;
 }
 
-static ssize_t show_temphyst(struct device *dev, struct device_attribute *devattr,
+static ssize_t show_temphyst(struct device *dev,
+			     struct device_attribute *devattr,
 			     char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
@@ -495,8 +506,13 @@ static ssize_t set_temphyst(struct device *dev, struct device_attribute *dummy,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm90_data *data = i2c_get_clientdata(client);
-	long val = simple_strtol(buf, NULL, 10);
+	long val;
+	int err;
 	int temp;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err < 0)
+		return err;
 
 	mutex_lock(&data->update_lock);
 	if (data->kind == adt7461)
@@ -600,7 +616,12 @@ static ssize_t set_pec(struct device *dev, struct device_attribute *dummy,
 		       const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	long val = simple_strtol(buf, NULL, 10);
+	long val;
+	int err;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err < 0)
+		return err;
 
 	switch (val) {
 	case 0:
@@ -622,8 +643,10 @@ static DEVICE_ATTR(pec, S_IWUSR | S_IRUGO, show_pec, set_pec);
  * Real code
  */
 
-/* The ADM1032 supports PEC but not on write byte transactions, so we need
-   to explicitly ask for a transaction without PEC. */
+/*
+ * The ADM1032 supports PEC but not on write byte transactions, so we need
+ * to explicitly ask for a transaction without PEC.
+ */
 static inline s32 adm1032_write_byte(struct i2c_client *client, u8 value)
 {
 	return i2c_smbus_xfer(client->adapter, client->addr,
@@ -631,20 +654,22 @@ static inline s32 adm1032_write_byte(struct i2c_client *client, u8 value)
 			      I2C_SMBUS_WRITE, value, I2C_SMBUS_BYTE, NULL);
 }
 
-/* It is assumed that client->update_lock is held (unless we are in
-   detection or initialization steps). This matters when PEC is enabled,
-   because we don't want the address pointer to change between the write
-   byte and the read byte transactions. */
-static int lm90_read_reg(struct i2c_client* client, u8 reg, u8 *value)
+/*
+ * It is assumed that client->update_lock is held (unless we are in
+ * detection or initialization steps). This matters when PEC is enabled,
+ * because we don't want the address pointer to change between the write
+ * byte and the read byte transactions.
+ */
+static int lm90_read_reg(struct i2c_client *client, u8 reg, u8 *value)
 {
 	int err;
 
- 	if (client->flags & I2C_CLIENT_PEC) {
- 		err = adm1032_write_byte(client, reg);
- 		if (err >= 0)
- 			err = i2c_smbus_read_byte(client);
- 	} else
- 		err = i2c_smbus_read_byte_data(client, reg);
+	if (client->flags & I2C_CLIENT_PEC) {
+		err = adm1032_write_byte(client, reg);
+		if (err >= 0)
+			err = i2c_smbus_read_byte(client);
+	} else
+		err = i2c_smbus_read_byte_data(client, reg);
 
 	if (err < 0) {
 		dev_warn(&client->dev, "Register %#02x read failed (%d)\n",
@@ -826,16 +851,18 @@ static int lm90_probe(struct i2c_client *new_client,
 	lm90_init_client(new_client);
 
 	/* Register sysfs hooks */
-	if ((err = sysfs_create_group(&new_client->dev.kobj, &lm90_group)))
+	err = sysfs_create_group(&new_client->dev.kobj, &lm90_group);
+	if (err)
 		goto exit_free;
 	if (new_client->flags & I2C_CLIENT_PEC) {
-		if ((err = device_create_file(&new_client->dev,
-					      &dev_attr_pec)))
+		err = device_create_file(&new_client->dev, &dev_attr_pec);
+		if (err)
 			goto exit_remove_files;
 	}
 	if (data->kind != max6657 && data->kind != max6646) {
-		if ((err = device_create_file(&new_client->dev,
-				&sensor_dev_attr_temp2_offset.dev_attr)))
+		err = device_create_file(&new_client->dev,
+					&sensor_dev_attr_temp2_offset.dev_attr);
+		if (err)
 			goto exit_remove_files;
 	}
 
@@ -883,9 +910,8 @@ static void lm90_init_client(struct i2c_client *client)
 	 * 0.125 degree resolution) and range (0x08, extend range
 	 * to -64 degree) mode for the remote temperature sensor.
 	 */
-	if (data->kind == max6680) {
+	if (data->kind == max6680)
 		config |= 0x18;
-	}
 
 	config &= 0xBF;	/* run */
 	if (config != data->config_orig) /* Only write if changed */
