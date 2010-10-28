@@ -3034,8 +3034,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		}
 		bio->bi_sector = multi->stripes[dev_nr].physical >> 9;
 		dev = multi->stripes[dev_nr].dev;
-		BUG_ON(rw == WRITE && !dev->writeable);
-		if (dev && dev->bdev) {
+		if (dev && dev->bdev && (rw != WRITE || dev->writeable)) {
 			bio->bi_bdev = dev->bdev;
 			if (async_submit)
 				schedule_bio(root, dev, rw, bio);
