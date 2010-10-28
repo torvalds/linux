@@ -1021,11 +1021,6 @@ static irqreturn_t intel_mid_dma_interrupt(int irq, void *data)
 
 	/*DMA Interrupt*/
 	pr_debug("MDMA:Got an interrupt on irq %d\n", irq);
-	if (!mid) {
-		pr_err("ERR_MDMA:null pointer mid\n");
-		return -EINVAL;
-	}
-
 	pr_debug("MDMA: Status %x, Mask %x\n", tfr_status, mid->intr_mask);
 	tfr_status &= mid->intr_mask;
 	if (tfr_status) {
