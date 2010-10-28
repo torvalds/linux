@@ -101,6 +101,13 @@ Devices has confirmed this "bug". The ADT7463 is reported to work as
 described in the documentation. The current lm85 driver does not show the
 offset register.
 
+The ADT7468 has a high-frequency PWM mode, where all PWM outputs are
+driven by a 22.5 kHz clock. This is a global mode, not per-PWM output,
+which means that setting any PWM frequency above 11.3 kHz will switch
+all 3 PWM outputs to a 22.5 kHz frequency. Conversely, setting any PWM
+frequency below 11.3 kHz will switch all 3 PWM outputs to a frequency
+between 10 and 100 Hz, which can then be tuned separately.
+
 See the vendor datasheets for more information. There is application note
 from National (AN-1260) with some additional information about the LM85.
 The Analog Devices datasheet is very detailed and describes a procedure for
