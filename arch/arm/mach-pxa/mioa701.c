@@ -711,7 +711,6 @@ static struct soc_camera_link iclink = {
 	.bus_id		= 0, /* Match id in pxa27x_device_camera in device.c */
 	.board_info	= &mioa701_i2c_devices[0],
 	.i2c_adapter_id	= 0,
-	.module_name	= "mt9m111",
 };
 
 struct i2c_pxa_platform_data i2c_pdata = {

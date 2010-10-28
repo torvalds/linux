@@ -620,7 +620,6 @@ static struct soc_camera_link tw9910_link = {
 	.bus_id		= 1,
 	.power		= tw9910_power,
 	.board_info	= &i2c_camera[0],
-	.module_name	= "tw9910",
 	.priv		= &tw9910_info,
 };
 
@@ -644,7 +643,6 @@ static struct soc_camera_link mt9t112_link1 = {
 	.power		= mt9t112_power1,
 	.bus_id		= 0,
 	.board_info	= &i2c_camera[1],
-	.module_name	= "mt9t112",
 	.priv		= &mt9t112_info1,
 };
 
@@ -667,7 +665,6 @@ static struct soc_camera_link mt9t112_link2 = {
 	.power		= mt9t112_power2,
 	.bus_id		= 1,
 	.board_info	= &i2c_camera[2],
-	.module_name	= "mt9t112",
 	.priv		= &mt9t112_info2,
 };
 
@@ -793,7 +790,6 @@ static struct sh_vou_pdata sh_vou_pdata = {
 	.flags		= SH_VOU_HSYNC_LOW | SH_VOU_VSYNC_LOW,
 	.board_info	= &ak8813,
 	.i2c_adap	= 0,
-	.module_name	= "ak881x",
 };
 
 static struct resource sh_vou_resources[] = {

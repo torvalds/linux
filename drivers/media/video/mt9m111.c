@@ -100,14 +100,14 @@
 #define MT9M111_OUTFMT_BYPASS_IFP	(1 << 10)
 #define MT9M111_OUTFMT_INV_PIX_CLOCK	(1 << 9)
 #define MT9M111_OUTFMT_RGB		(1 << 8)
-#define MT9M111_OUTFMT_RGB565		(0x0 << 6)
-#define MT9M111_OUTFMT_RGB555		(0x1 << 6)
-#define MT9M111_OUTFMT_RGB444x		(0x2 << 6)
-#define MT9M111_OUTFMT_RGBx444		(0x3 << 6)
-#define MT9M111_OUTFMT_TST_RAMP_OFF	(0x0 << 4)
-#define MT9M111_OUTFMT_TST_RAMP_COL	(0x1 << 4)
-#define MT9M111_OUTFMT_TST_RAMP_ROW	(0x2 << 4)
-#define MT9M111_OUTFMT_TST_RAMP_FRAME	(0x3 << 4)
+#define MT9M111_OUTFMT_RGB565		(0 << 6)
+#define MT9M111_OUTFMT_RGB555		(1 << 6)
+#define MT9M111_OUTFMT_RGB444x		(2 << 6)
+#define MT9M111_OUTFMT_RGBx444		(3 << 6)
+#define MT9M111_OUTFMT_TST_RAMP_OFF	(0 << 4)
+#define MT9M111_OUTFMT_TST_RAMP_COL	(1 << 4)
+#define MT9M111_OUTFMT_TST_RAMP_ROW	(2 << 4)
+#define MT9M111_OUTFMT_TST_RAMP_FRAME	(3 << 4)
 #define MT9M111_OUTFMT_SHIFT_3_UP	(1 << 3)
 #define MT9M111_OUTFMT_AVG_CHROMA	(1 << 2)
 #define MT9M111_OUTFMT_SWAP_YCbCr_C_Y	(1 << 1)
@@ -124,7 +124,7 @@
 #define reg_clear(reg, val) mt9m111_reg_clear(client, MT9M111_##reg, (val))
 
 #define MT9M111_MIN_DARK_ROWS	8
-#define MT9M111_MIN_DARK_COLS	24
+#define MT9M111_MIN_DARK_COLS	26
 #define MT9M111_MAX_HEIGHT	1024
 #define MT9M111_MAX_WIDTH	1280
 
@@ -440,7 +440,7 @@ static int mt9m111_make_rect(struct i2c_client *client,
 static int mt9m111_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
 	struct v4l2_rect rect = a->c;
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret;
 
@@ -458,7 +458,7 @@ static int mt9m111_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 
 static int mt9m111_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 
 	a->c	= mt9m111->rect;
@@ -486,7 +486,7 @@ static int mt9m111_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 static int mt9m111_g_fmt(struct v4l2_subdev *sd,
 			 struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 
 	mf->width	= mt9m111->rect.width;
@@ -549,7 +549,7 @@ static int mt9m111_set_pixfmt(struct i2c_client *client,
 static int mt9m111_s_fmt(struct v4l2_subdev *sd,
 			 struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	const struct mt9m111_datafmt *fmt;
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	struct v4l2_rect rect = {
@@ -584,7 +584,7 @@ static int mt9m111_s_fmt(struct v4l2_subdev *sd,
 static int mt9m111_try_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	const struct mt9m111_datafmt *fmt;
 	bool bayer = mf->code == V4L2_MBUS_FMT_SBGGR8_1X8 ||
@@ -624,7 +624,7 @@ static int mt9m111_try_fmt(struct v4l2_subdev *sd,
 static int mt9m111_g_chip_ident(struct v4l2_subdev *sd,
 				struct v4l2_dbg_chip_ident *id)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 
 	if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
@@ -643,7 +643,7 @@ static int mt9m111_g_chip_ident(struct v4l2_subdev *sd,
 static int mt9m111_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int val;
 
 	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0x2ff)
@@ -664,7 +664,7 @@ static int mt9m111_g_register(struct v4l2_subdev *sd,
 static int mt9m111_s_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0x2ff)
 		return -EINVAL;
@@ -812,7 +812,7 @@ static int mt9m111_set_autowhitebalance(struct i2c_client *client, int on)
 
 static int mt9m111_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int data;
 
@@ -855,7 +855,7 @@ static int mt9m111_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 static int mt9m111_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	const struct v4l2_queryctrl *qctrl;
 	int ret;

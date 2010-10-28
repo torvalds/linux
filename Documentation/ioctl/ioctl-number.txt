@@ -278,7 +278,6 @@ Code  Seq#(hex)	Include File		Comments
 					<mailto:oe@port.de>
 'z'	10-4F	drivers/s390/crypto/zcrypt_api.h	conflict!
 0x80	00-1F	linux/fb.h
-0x81	00-1F	linux/videotext.h
 0x88	00-3F	media/ovcamchip.h
 0x89	00-06	arch/x86/include/asm/sockios.h
 0x89	0B-DF	linux/sockios.h

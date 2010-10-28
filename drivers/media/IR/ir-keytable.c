@@ -435,7 +435,7 @@ EXPORT_SYMBOL_GPL(ir_g_keycode_from_table);
  * This routine is used to signal that a key has been released on the
  * remote control. It reports a keyup input event via input_report_key().
  */
-static void ir_keyup(struct ir_input_dev *ir)
+void ir_keyup(struct ir_input_dev *ir)
 {
 	if (!ir->keypressed)
 		return;
@@ -445,6 +445,7 @@ static void ir_keyup(struct ir_input_dev *ir)
 	input_sync(ir->input_dev);
 	ir->keypressed = false;
 }
+EXPORT_SYMBOL_GPL(ir_keyup);
 
 /**
  * ir_timer_keyup() - generates a keyup event after a timeout
@@ -639,6 +640,10 @@ int __ir_input_register(struct input_dev *input_dev,
 			if (rc < 0)
 				goto out_event;
 		}
+
+	rc = ir_register_input(input_dev);
+	if (rc < 0)
+		goto out_event;
 
 	IR_dprintk(1, "Registered input device on %s for %s remote%s.\n",
 		   driver_name, rc_tab->name,

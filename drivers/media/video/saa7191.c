@@ -23,7 +23,6 @@
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 #include "saa7191.h"
 
@@ -647,9 +646,25 @@ static const struct i2c_device_id saa7191_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, saa7191_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "saa7191",
-	.probe = saa7191_probe,
-	.remove = saa7191_remove,
-	.id_table = saa7191_id,
+static struct i2c_driver saa7191_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "saa7191",
+	},
+	.probe		= saa7191_probe,
+	.remove		= saa7191_remove,
+	.id_table	= saa7191_id,
 };
+
+static __init int init_saa7191(void)
+{
+	return i2c_add_driver(&saa7191_driver);
+}
+
+static __exit void exit_saa7191(void)
+{
+	i2c_del_driver(&saa7191_driver);
+}
+
+module_init(init_saa7191);
+module_exit(exit_saa7191);

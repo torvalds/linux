@@ -217,7 +217,7 @@ cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf)
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 
 	BUG_ON(in_interrupt());
-	videobuf_waiton(&buf->vb,0,0);
+	videobuf_waiton(q, &buf->vb, 0, 0);
 	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
 	btcx_riscmem_free(to_pci_dev(q->dev), &buf->risc);
@@ -253,7 +253,7 @@ cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf)
  *    0x0c00 -           FIFOs
  */
 
-struct sram_channel cx88_sram_channels[] = {
+const struct sram_channel const cx88_sram_channels[] = {
 	[SRAM_CH21] = {
 		.name       = "video y / packed",
 		.cmds_start = 0x180040,
@@ -353,7 +353,7 @@ struct sram_channel cx88_sram_channels[] = {
 };
 
 int cx88_sram_channel_setup(struct cx88_core *core,
-			    struct sram_channel *ch,
+			    const struct sram_channel *ch,
 			    unsigned int bpl, u32 risc)
 {
 	unsigned int i,lines;
@@ -394,7 +394,7 @@ int cx88_sram_channel_setup(struct cx88_core *core,
 
 static int cx88_risc_decode(u32 risc)
 {
-	static char *instr[16] = {
+	static const char * const instr[16] = {
 		[ RISC_SYNC    >> 28 ] = "sync",
 		[ RISC_WRITE   >> 28 ] = "write",
 		[ RISC_WRITEC  >> 28 ] = "writec",
@@ -406,14 +406,14 @@ static int cx88_risc_decode(u32 risc)
 		[ RISC_WRITECM >> 28 ] = "writecm",
 		[ RISC_WRITECR >> 28 ] = "writecr",
 	};
-	static int incr[16] = {
+	static int const incr[16] = {
 		[ RISC_WRITE   >> 28 ] = 2,
 		[ RISC_JUMP    >> 28 ] = 2,
 		[ RISC_WRITERM >> 28 ] = 3,
 		[ RISC_WRITECM >> 28 ] = 3,
 		[ RISC_WRITECR >> 28 ] = 4,
 	};
-	static char *bits[] = {
+	static const char * const bits[] = {
 		"12",   "13",   "14",   "resync",
 		"cnt0", "cnt1", "18",   "19",
 		"20",   "21",   "22",   "23",
@@ -432,9 +432,9 @@ static int cx88_risc_decode(u32 risc)
 
 
 void cx88_sram_channel_dump(struct cx88_core *core,
-			    struct sram_channel *ch)
+			    const struct sram_channel *ch)
 {
-	static char *name[] = {
+	static const char * const name[] = {
 		"initial risc",
 		"cdt base",
 		"cdt size",
@@ -489,14 +489,14 @@ void cx88_sram_channel_dump(struct cx88_core *core,
 	       core->name,cx_read(ch->cnt2_reg));
 }
 
-static char *cx88_pci_irqs[32] = {
+static const char *cx88_pci_irqs[32] = {
 	"vid", "aud", "ts", "vip", "hst", "5", "6", "tm1",
 	"src_dma", "dst_dma", "risc_rd_err", "risc_wr_err",
 	"brdg_err", "src_dma_err", "dst_dma_err", "ipb_dma_err",
 	"i2c", "i2c_rack", "ir_smp", "gpio0", "gpio1"
 };
 
-void cx88_print_irqbits(char *name, char *tag, char **strings,
+void cx88_print_irqbits(const char *name, const char *tag, const char *strings[],
 			int len, u32 bits, u32 mask)
 {
 	unsigned int i;
@@ -770,7 +770,7 @@ static const u32 xtal = 28636363;
 
 static int set_pll(struct cx88_core *core, int prescale, u32 ofreq)
 {
-	static u32 pre[] = { 0, 0, 0, 3, 2, 1 };
+	static const u32 pre[] = { 0, 0, 0, 3, 2, 1 };
 	u64 pll;
 	u32 reg;
 	int i;
@@ -879,7 +879,7 @@ static int set_tvaudio(struct cx88_core *core)
 	} else {
 		printk("%s/0: tvaudio support needs work for this tv norm [%s], sorry\n",
 		       core->name, v4l2_norm_to_name(core->tvnorm));
-		core->tvaudio = 0;
+		core->tvaudio = WW_NONE;
 		return 0;
 	}
 
@@ -1020,15 +1020,15 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 
 struct video_device *cx88_vdev_init(struct cx88_core *core,
 				    struct pci_dev *pci,
-				    struct video_device *template,
-				    char *type)
+				    const struct video_device *template_,
+				    const char *type)
 {
 	struct video_device *vfd;
 
 	vfd = video_device_alloc();
 	if (NULL == vfd)
 		return NULL;
-	*vfd = *template;
+	*vfd = *template_;
 	vfd->v4l2_dev = &core->v4l2_dev;
 	vfd->parent = &pci->dev;
 	vfd->release = video_device_release;
