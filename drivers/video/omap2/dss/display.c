@@ -25,13 +25,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/jiffies.h>
-#include <linux/list.h>
 #include <linux/platform_device.h>
 
 #include <plat/display.h>
 #include "dss.h"
-
-static LIST_HEAD(display_list);
 
 static ssize_t display_enabled_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
