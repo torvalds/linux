@@ -2603,7 +2603,7 @@ int ext4_mb_release(struct super_block *sb)
 	return 0;
 }
 
-static inline void ext4_issue_discard(struct super_block *sb,
+static inline int ext4_issue_discard(struct super_block *sb,
 		ext4_group_t block_group, ext4_grpblk_t block, int count)
 {
 	int ret;
@@ -2617,6 +2617,7 @@ static inline void ext4_issue_discard(struct super_block *sb,
 		ext4_warning(sb, "discard not supported, disabling");
 		clear_opt(EXT4_SB(sb)->s_mount_opt, DISCARD);
 	}
+	return ret;
 }
 
 /*
