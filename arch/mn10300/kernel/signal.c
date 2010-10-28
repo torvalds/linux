@@ -91,7 +91,7 @@ asmlinkage long sys_sigaction(int sig,
  */
 asmlinkage long sys_sigaltstack(const stack_t __user *uss, stack_t *uoss)
 {
-	return do_sigaltstack(uss, uoss, __frame->sp);
+	return do_sigaltstack(uss, uoss, current_frame()->sp);
 }
 
 /*
@@ -156,10 +156,11 @@ badframe:
  */
 asmlinkage long sys_sigreturn(void)
 {
-	struct sigframe __user *frame = (struct sigframe __user *) __frame->sp;
+	struct sigframe __user *frame;
 	sigset_t set;
 	long d0;
 
+	frame = (struct sigframe __user *) current_frame()->sp;
 	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__get_user(set.sig[0], &frame->sc.oldmask))
@@ -176,7 +177,7 @@ asmlinkage long sys_sigreturn(void)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(__frame, &frame->sc, &d0))
+	if (restore_sigcontext(current_frame(), &frame->sc, &d0))
 		goto badframe;
 
 	return d0;
@@ -191,11 +192,11 @@ badframe:
  */
 asmlinkage long sys_rt_sigreturn(void)
 {
-	struct rt_sigframe __user *frame =
-		(struct rt_sigframe __user *) __frame->sp;
+	struct rt_sigframe __user *frame;
 	sigset_t set;
-	unsigned long d0;
+	long d0;
 
+	frame = (struct rt_sigframe __user *) current_frame()->sp;
 	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
@@ -207,10 +208,11 @@ asmlinkage long sys_rt_sigreturn(void)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(__frame, &frame->uc.uc_mcontext, &d0))
+	if (restore_sigcontext(current_frame(), &frame->uc.uc_mcontext, &d0))
 		goto badframe;
 
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, __frame->sp) == -EFAULT)
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL, current_frame()->sp) ==
+	    -EFAULT)
 		goto badframe;
 
 	return d0;
@@ -572,7 +574,7 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, u32 thread_info_flags)
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(__frame);
+		tracehook_notify_resume(current_frame());
 		if (current->replacement_session_keyring)
 			key_replace_session_keyring();
 	}
