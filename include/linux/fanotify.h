@@ -52,7 +52,8 @@
 				 FAN_MARK_ONLYDIR |\
 				 FAN_MARK_MOUNT |\
 				 FAN_MARK_IGNORED_MASK |\
-				 FAN_MARK_IGNORED_SURV_MODIFY)
+				 FAN_MARK_IGNORED_SURV_MODIFY |\
+				 FAN_MARK_FLUSH)
 
 /*
  * All of the events - we build the list by hand so that we can add flags in
