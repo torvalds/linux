@@ -41,6 +41,13 @@ config AD7152
 	  Say yes here to build support for Analog Devices capacitive sensors.
 	  (ad7152, ad7153) Provides direct access via sysfs.
 
+config AD7291
+	tristate "Analog Devices AD7291 temperature sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Analog Devices AD7291
+	  temperature sensors.
+
 config AD799X
 	tristate "Analog Devices AD799x ADC driver"
 	depends on I2C
