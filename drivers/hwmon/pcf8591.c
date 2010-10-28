@@ -23,6 +23,8 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
+#include <linux/err.h>
+#include <linux/hwmon.h>
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
@@ -71,6 +73,7 @@ MODULE_PARM_DESC(input_mode,
 #define REG_TO_SIGNED(reg)	(((reg) & 0x80)?((reg) - 256):(reg))
 
 struct pcf8591_data {
+	struct device *hwmon_dev;
 	struct mutex update_lock;
 
 	u8 control;
@@ -221,6 +224,12 @@ static int pcf8591_probe(struct i2c_client *client,
 			goto exit_sysfs_remove;
 	}
 
+	data->hwmon_dev = hwmon_device_register(&client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
+		goto exit_sysfs_remove;
+	}
+
 	return 0;
 
 exit_sysfs_remove:
@@ -234,6 +243,9 @@ exit:
 
 static int pcf8591_remove(struct i2c_client *client)
 {
+	struct pcf8591_data *data = i2c_get_clientdata(client);
+
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group_opt);
 	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group);
 	kfree(i2c_get_clientdata(client));
