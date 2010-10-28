@@ -189,8 +189,13 @@ int regulator_suspend_prepare(suspend_state_t state);
 
 #ifdef CONFIG_REGULATOR
 void regulator_has_full_constraints(void);
+void regulator_use_dummy_regulator(void);
 #else
 static inline void regulator_has_full_constraints(void)
+{
+}
+
+static inline void regulator_use_dummy_regulator(void)
 {
 }
 #endif

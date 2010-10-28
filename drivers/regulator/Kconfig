@@ -100,6 +100,14 @@ config REGULATOR_MAX8925
 	help
 	  Say y here to support the voltage regulaltor of Maxim MAX8925 PMIC.
 
+config REGULATOR_MAX8952
+	tristate "Maxim MAX8952 Power Management IC"
+	depends on I2C
+	help
+	  This driver controls a Maxim 8952 voltage output regulator
+	  via I2C bus. Maxim 8952 has one voltage output and supports 4 DVS
+	  modes ranging from 0.77V to 1.40V by 0.01V steps.
+
 config REGULATOR_MAX8998
 	tristate "Maxim 8998 voltage regulator"
 	depends on MFD_MAX8998
@@ -163,6 +171,13 @@ config REGULATOR_LP3971
 	help
 	 Say Y here to support the voltage regulators and convertors
 	 on National Semiconductors LP3971 PMIC
+
+config REGULATOR_LP3972
+	tristate "National Semiconductors LP3972 PMIC regulator driver"
+	depends on I2C
+	help
+	 Say Y here to support the voltage regulators and convertors
+	 on National Semiconductors LP3972 PMIC
 
 config REGULATOR_PCAP
 	tristate "PCAP2 regulator driver"
