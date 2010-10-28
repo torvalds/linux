@@ -1,0 +1,11 @@
+#
+# DAC drivers
+#
+comment "Digital to analog convertors"
+
+config AD5624R_SPI
+	tristate "Analog Devices AD5624/44/64R DAC spi driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD5624R, AD5644R and
+	  AD5664R convertors (DAC). This driver uses the common SPI interface.
