@@ -37,3 +37,10 @@ config AD9910
 	help
 	  Say yes here to build support for Analog Devices DDS chip
 	  ad9910, provides direct access via sysfs.
+
+config AD9951
+	tristate "Analog Devices ad9951 driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices DDS chip
+	  ad9951, provides direct access via sysfs.
