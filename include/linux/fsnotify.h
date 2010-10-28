@@ -26,12 +26,12 @@ static inline void fsnotify_d_instantiate(struct dentry *dentry,
 }
 
 /* Notify this dentry's parent about a child's events. */
-static inline void fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
+static inline int fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
 {
 	if (!dentry)
 		dentry = path->dentry;
 
-	__fsnotify_parent(path, dentry, mask);
+	return __fsnotify_parent(path, dentry, mask);
 }
 
 /* simple call site for access decisions */
@@ -40,6 +40,7 @@ static inline int fsnotify_perm(struct file *file, int mask)
 	struct path *path = &file->f_path;
 	struct inode *inode = path->dentry->d_inode;
 	__u32 fsnotify_mask = 0;
+	int ret;
 
 	if (file->f_mode & FMODE_NONOTIFY)
 		return 0;
@@ -51,6 +52,10 @@ static inline int fsnotify_perm(struct file *file, int mask)
 		fsnotify_mask = FS_ACCESS_PERM;
 	else
 		BUG();
+
+	ret = fsnotify_parent(path, NULL, fsnotify_mask);
+	if (ret)
+		return ret;
 
 	return fsnotify(inode, fsnotify_mask, path, FSNOTIFY_EVENT_PATH, NULL, 0);
 }
