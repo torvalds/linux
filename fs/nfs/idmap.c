@@ -123,7 +123,7 @@ static ssize_t nfs_idmap_get_desc(const char *name, size_t namelen,
 	size_t desclen = typelen + namelen + 2;
 
 	*desc = kmalloc(desclen, GFP_KERNEL);
-	if (!desc)
+	if (!*desc)
 		return -ENOMEM;
 
 	cp = *desc;
