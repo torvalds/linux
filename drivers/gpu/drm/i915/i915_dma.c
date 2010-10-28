@@ -1888,7 +1888,6 @@ EXPORT_SYMBOL_GPL(i915_gpu_turbo_disable);
 int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv;
-	resource_size_t base, size;
 	int ret = 0, mmio_bar;
 	uint32_t agp_size, prealloc_size;
 	/* i915 has 4 more counters */
@@ -1906,11 +1905,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->dev = dev;
 	dev_priv->info = (struct intel_device_info *) flags;
 
-	/* Add register map (needed for suspend/resume) */
-	mmio_bar = IS_GEN2(dev) ? 1 : 0;
-	base = pci_resource_start(dev->pdev, mmio_bar);
-	size = pci_resource_len(dev->pdev, mmio_bar);
-
 	if (i915_get_bridge_dev(dev)) {
 		ret = -EIO;
 		goto free_priv;
@@ -1919,6 +1913,14 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	/* overlay on gen2 is broken and can't address above 1G */
 	if (IS_GEN2(dev))
 		dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(30));
+
+	mmio_bar = IS_GEN2(dev) ? 1 : 0;
+	dev_priv->regs = pci_iomap(dev->pdev, mmio_bar, 0);
+	if (!dev_priv->regs) {
+		DRM_ERROR("failed to map registers\n");
+		ret = -EIO;
+		goto put_bridge;
+	}
 
 	dev_priv->mm.gtt = intel_gtt_get();
 	if (!dev_priv->mm.gtt) {
@@ -1929,13 +1931,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	prealloc_size = dev_priv->mm.gtt->gtt_stolen_entries << PAGE_SHIFT;
 	agp_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
-
-	dev_priv->regs = ioremap(base, size);
-	if (!dev_priv->regs) {
-		DRM_ERROR("failed to map registers\n");
-		ret = -EIO;
-		goto put_bridge;
-	}
 
         dev_priv->mm.gtt_mapping =
 		io_mapping_create_wc(dev->agp->base, agp_size);
