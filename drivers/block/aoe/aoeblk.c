@@ -4,12 +4,14 @@
  * block device routines
  */
 
+#include <linux/kernel.h>
 #include <linux/hdreg.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
 #include <linux/slab.h>
+#include <linux/ratelimit.h>
 #include <linux/genhd.h>
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
@@ -207,7 +209,7 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 	spin_lock_irqsave(&d->lock, flags);
 
 	if ((d->flags & DEVFL_UP) == 0) {
-		printk(KERN_INFO "aoe: device %ld.%d is not up\n",
+		pr_info_ratelimited("aoe: device %ld.%d is not up\n",
 			d->aoemajor, d->aoeminor);
 		spin_unlock_irqrestore(&d->lock, flags);
 		mempool_free(buf, d->bufpool);
