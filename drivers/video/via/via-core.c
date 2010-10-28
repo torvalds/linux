@@ -15,6 +15,8 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/list.h>
+#include <linux/pm.h>
 
 /*
  * The default port config.
@@ -563,6 +565,78 @@ static void via_teardown_subdevs(void)
 		}
 }
 
+/*
+ * Power management functions
+ */
+#ifdef CONFIG_PM
+static LIST_HEAD(viafb_pm_hooks);
+static DEFINE_MUTEX(viafb_pm_hooks_lock);
+
+void viafb_pm_register(struct viafb_pm_hooks *hooks)
+{
+	INIT_LIST_HEAD(&hooks->list);
+
+	mutex_lock(&viafb_pm_hooks_lock);
+	list_add_tail(&hooks->list, &viafb_pm_hooks);
+	mutex_unlock(&viafb_pm_hooks_lock);
+}
+EXPORT_SYMBOL_GPL(viafb_pm_register);
+
+void viafb_pm_unregister(struct viafb_pm_hooks *hooks)
+{
+	mutex_lock(&viafb_pm_hooks_lock);
+	list_del(&hooks->list);
+	mutex_unlock(&viafb_pm_hooks_lock);
+}
+EXPORT_SYMBOL_GPL(viafb_pm_unregister);
+
+static int via_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct viafb_pm_hooks *hooks;
+
+	if (state.event != PM_EVENT_SUSPEND)
+		return 0;
+	/*
+	 * "I've occasionally hit a few drivers that caused suspend
+	 * failures, and each and every time it was a driver bug, and
+	 * the right thing to do was to just ignore the error and suspend
+	 * anyway - returning an error code and trying to undo the suspend
+	 * is not what anybody ever really wants, even if our model
+	 *_allows_ for it."
+	 * -- Linus Torvalds, Dec. 7, 2009
+	 */
+	mutex_lock(&viafb_pm_hooks_lock);
+	list_for_each_entry_reverse(hooks, &viafb_pm_hooks, list)
+		hooks->suspend(hooks->private);
+	mutex_unlock(&viafb_pm_hooks_lock);
+
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	return 0;
+}
+
+static int via_resume(struct pci_dev *pdev)
+{
+	struct viafb_pm_hooks *hooks;
+
+	/* Get the bus side powered up */
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	if (pci_enable_device(pdev))
+		return 0;
+
+	pci_set_master(pdev);
+
+	/* Now bring back any subdevs */
+	mutex_lock(&viafb_pm_hooks_lock);
+	list_for_each_entry(hooks, &viafb_pm_hooks, list)
+		hooks->resume(hooks->private);
+	mutex_unlock(&viafb_pm_hooks_lock);
+
+	return 0;
+}
+#endif /* CONFIG_PM */
 
 static int __devinit via_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
@@ -572,6 +646,7 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	ret = pci_enable_device(pdev);
 	if (ret)
 		return ret;
+
 	/*
 	 * Global device initialization.
 	 */
@@ -651,8 +726,8 @@ static struct pci_driver via_driver = {
 	.probe		= via_pci_probe,
 	.remove		= __devexit_p(via_pci_remove),
 #ifdef CONFIG_PM
-	.suspend	= viafb_suspend,
-	.resume		= viafb_resume,
+	.suspend	= via_suspend,
+	.resume		= via_resume,
 #endif
 };
 
