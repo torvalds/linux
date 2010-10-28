@@ -160,18 +160,19 @@ static bool fanotify_should_send_event(struct fsnotify_group *group,
 				       __u32 event_mask, void *data, int data_type)
 {
 	__u32 marks_mask, marks_ignored_mask;
+	struct path *path = data;
 
 	pr_debug("%s: group=%p to_tell=%p inode_mark=%p vfsmnt_mark=%p "
 		 "mask=%x data=%p data_type=%d\n", __func__, group, to_tell,
 		 inode_mark, vfsmnt_mark, event_mask, data, data_type);
 
-	/* sorry, fanotify only gives a damn about files and dirs */
-	if (!S_ISREG(to_tell->i_mode) &&
-	    !S_ISDIR(to_tell->i_mode))
-		return false;
-
 	/* if we don't have enough info to send an event to userspace say no */
 	if (data_type != FSNOTIFY_EVENT_PATH)
+		return false;
+
+	/* sorry, fanotify only gives a damn about files and dirs */
+	if (!S_ISREG(path->dentry->d_inode->i_mode) &&
+	    !S_ISDIR(path->dentry->d_inode->i_mode))
 		return false;
 
 	if (inode_mark && vfsmnt_mark) {
