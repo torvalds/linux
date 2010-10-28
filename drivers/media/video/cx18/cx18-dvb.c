@@ -203,6 +203,14 @@ static struct zl10353_config yuan_mpc718_zl10353_demod = {
 	.disable_i2c_gate_ctrl = 1,         /* Disable the I2C gate */
 };
 
+static struct zl10353_config gotview_dvd3_zl10353_demod = {
+	.demod_address         = 0x1e >> 1, /* Datasheet suggested straps */
+	.if2                   = 45600,     /* 4.560 MHz IF from the XC3028 */
+	.parallel_ts           = 1,         /* Not a serial TS */
+	.no_tuner              = 1,         /* XC3028 is not behind the gate */
+	.disable_i2c_gate_ctrl = 1,         /* Disable the I2C gate */
+};
+
 static int dvb_register(struct cx18_stream *stream);
 
 /* Kernel DVB framework calls this when the feed needs to start.
@@ -247,6 +255,7 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 
 	case CX18_CARD_LEADTEK_DVR3100H:
 	case CX18_CARD_YUAN_MPC718:
+	case CX18_CARD_GOTVIEW_PCI_DVD3:
 	default:
 		/* Assumption - Parallel transport - Signalling
 		 * undefined or default.
@@ -475,6 +484,29 @@ static int dvb_register(struct cx18_stream *stream)
 		if (dvb->fe == NULL)
 			dvb->fe = dvb_attach(zl10353_attach,
 					     &yuan_mpc718_zl10353_demod,
+					     &cx->i2c_adap[1]);
+		if (dvb->fe != NULL) {
+			struct dvb_frontend *fe;
+			struct xc2028_config cfg = {
+				.i2c_adap = &cx->i2c_adap[1],
+				.i2c_addr = 0xc2 >> 1,
+				.ctrl = NULL,
+			};
+			static struct xc2028_ctrl ctrl = {
+				.fname   = XC2028_DEFAULT_FIRMWARE,
+				.max_len = 64,
+				.demod   = XC3028_FE_ZARLINK456,
+				.type    = XC2028_AUTO,
+			};
+
+			fe = dvb_attach(xc2028_attach, dvb->fe, &cfg);
+			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
+				fe->ops.tuner_ops.set_config(fe, &ctrl);
+		}
+		break;
+	case CX18_CARD_GOTVIEW_PCI_DVD3:
+			dvb->fe = dvb_attach(zl10353_attach,
+					     &gotview_dvd3_zl10353_demod,
 					     &cx->i2c_adap[1]);
 		if (dvb->fe != NULL) {
 			struct dvb_frontend *fe;
