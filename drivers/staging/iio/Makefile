@@ -19,4 +19,5 @@ obj-y += imu/
 obj-y += light/
 obj-y += magnetometer/
 obj-y += meter/
+obj-y += resolver/
 obj-y += trigger/
