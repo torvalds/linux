@@ -103,7 +103,12 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm75_data *data = i2c_get_clientdata(client);
 	int nr = attr->index;
-	long temp = simple_strtol(buf, NULL, 10);
+	long temp;
+	int error;
+
+	error = strict_strtol(buf, 10, &temp);
+	if (error)
+		return error;
 
 	mutex_lock(&data->update_lock);
 	data->temp[nr] = LM75_TEMP_TO_REG(temp);
