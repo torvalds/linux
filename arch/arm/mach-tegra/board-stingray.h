@@ -27,6 +27,7 @@ int stingray_sensors_init(void);
 int stingray_touch_init(void);
 int stingray_power_init(void);
 unsigned int stingray_revision(void);
+unsigned int stingray_powerup_reason (void);
 void stingray_gps_init(void);
 
 /* as defined in the bootloader*/

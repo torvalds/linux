@@ -720,6 +720,11 @@ static void stingray_w1_init(void)
 
 static unsigned int powerup_reason = PU_REASON_PWR_KEY_PRESS;
 
+unsigned int stingray_powerup_reason (void)
+{
+	return powerup_reason;
+}
+
 static int __init parse_tag_powerup_reason(const struct tag *tag)
 {
 	if (tag->hdr.size != ATAG_POWERUP_REASON_SIZE)
