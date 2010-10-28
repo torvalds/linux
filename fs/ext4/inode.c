@@ -2011,8 +2011,8 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd)
 	struct inode *inode = mpd->inode;
 	struct address_space *mapping = inode->i_mapping;
 	loff_t size = i_size_read(inode);
-	unsigned int len;
-	struct buffer_head *page_bufs = NULL;
+	unsigned int len, block_start;
+	struct buffer_head *bh, *page_bufs = NULL;
 	int journal_data = ext4_should_journal_data(inode);
 
 	BUG_ON(mpd->next_page <= mpd->first_page);
@@ -2064,15 +2064,17 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd)
 				}
 				commit_write = 1;
 			}
-			page_bufs = page_buffers(page);
-			if (walk_page_buffers(NULL, page_bufs, 0, len, NULL,
-					      ext4_bh_delay_or_unwritten)) {
-				/*
-				 * We couldn't do block allocation for
-				 * some reason.
-				 */
-				goto redirty_page;
-			}
+
+			bh = page_bufs = page_buffers(page);
+			block_start = 0;
+			do {
+				/* redirty page if block allocation undone */
+				if (!bh || buffer_delay(bh) ||
+				    buffer_unwritten(bh))
+					goto redirty_page;
+				bh = bh->b_this_page;
+				block_start += bh->b_size;
+			} while ((bh != page_bufs) && (block_start < len));
 
 			if (commit_write)
 				/* mark the buffer_heads as dirty & uptodate */
