@@ -176,9 +176,10 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 			((ring->gem_object->size - PAGE_SIZE) & RING_NR_PAGES)
 			| RING_NO_REPORT | RING_VALID);
 
-	head = I915_READ_HEAD(ring) & HEAD_ADDR;
 	/* If the head is still not zero, the ring is dead */
-	if (head != 0) {
+	if ((I915_READ_CTL(ring) & RING_VALID) == 0 ||
+	    I915_READ_START(ring) != obj_priv->gtt_offset ||
+	    (I915_READ_HEAD(ring) & HEAD_ADDR) != 0) {
 		DRM_ERROR("%s initialization failed "
 				"ctl %08x head %08x tail %08x start %08x\n",
 				ring->name,
