@@ -796,8 +796,9 @@ DECLARE_EVENT_CLASS(ext4__mballoc,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= ac->ac_inode->i_sb->s_dev;
-		__entry->ino		= ac->ac_inode->i_ino;
+		__entry->dev		= ac->ac_sb->s_dev;
+		__entry->ino		= ac->ac_inode ?
+						ac->ac_inode->i_ino : 0;
 		__entry->result_logical	= ac->ac_b_ex.fe_logical;
 		__entry->result_start	= ac->ac_b_ex.fe_start;
 		__entry->result_group	= ac->ac_b_ex.fe_group;
