@@ -202,56 +202,6 @@ static const u8 IT87_REG_FANX_MIN[]	= { 0x1b, 0x1c, 0x1d, 0x85, 0x87 };
 #define IT87_REG_AUTO_TEMP(nr, i) (0x60 + (nr) * 8 + (i))
 #define IT87_REG_AUTO_PWM(nr, i)  (0x65 + (nr) * 8 + (i))
 
-#define IN_TO_REG(val)  (SENSORS_LIMIT((((val) + 8)/16),0,255))
-#define IN_FROM_REG(val) ((val) * 16)
-
-static inline u8 FAN_TO_REG(long rpm, int div)
-{
-	if (rpm == 0)
-		return 255;
-	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1,
-			     254);
-}
-
-static inline u16 FAN16_TO_REG(long rpm)
-{
-	if (rpm == 0)
-		return 0xffff;
-	return SENSORS_LIMIT((1350000 + rpm) / (rpm * 2), 1, 0xfffe);
-}
-
-#define FAN_FROM_REG(val,div) ((val)==0?-1:(val)==255?0:1350000/((val)*(div)))
-/* The divider is fixed to 2 in 16-bit mode */
-#define FAN16_FROM_REG(val) ((val)==0?-1:(val)==0xffff?0:1350000/((val)*2))
-
-#define TEMP_TO_REG(val) (SENSORS_LIMIT(((val)<0?(((val)-500)/1000):\
-					((val)+500)/1000),-128,127))
-#define TEMP_FROM_REG(val) ((val) * 1000)
-
-#define PWM_TO_REG(val)   ((val) >> 1)
-#define PWM_FROM_REG(val) (((val)&0x7f) << 1)
-
-static int DIV_TO_REG(int val)
-{
-	int answer = 0;
-	while (answer < 7 && (val >>= 1))
-		answer++;
-	return answer;
-}
-#define DIV_FROM_REG(val) (1 << (val))
-
-static const unsigned int pwm_freq[8] = {
-	48000000 / 128,
-	24000000 / 128,
-	12000000 / 128,
-	8000000 / 128,
-	6000000 / 128,
-	3000000 / 128,
-	1500000 / 128,
-	750000 / 128,
-};
-
 
 struct it87_sio_data {
 	enum chips type;
@@ -308,6 +258,58 @@ struct it87_data {
 	/* Automatic fan speed control registers */
 	u8 auto_pwm[3][4];	/* [nr][3] is hard-coded */
 	s8 auto_temp[3][5];	/* [nr][0] is point1_temp_hyst */
+};
+
+#define IN_TO_REG(val)  (SENSORS_LIMIT((((val) + 8) / 16), 0, 255))
+#define IN_FROM_REG(val) ((val) * 16)
+
+static inline u8 FAN_TO_REG(long rpm, int div)
+{
+	if (rpm == 0)
+		return 255;
+	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
+	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1,
+			     254);
+}
+
+static inline u16 FAN16_TO_REG(long rpm)
+{
+	if (rpm == 0)
+		return 0xffff;
+	return SENSORS_LIMIT((1350000 + rpm) / (rpm * 2), 1, 0xfffe);
+}
+
+#define FAN_FROM_REG(val, div) ((val) == 0 ? -1 : (val) == 255 ? 0 : \
+				1350000 / ((val) * (div)))
+/* The divider is fixed to 2 in 16-bit mode */
+#define FAN16_FROM_REG(val) ((val) == 0 ? -1 : (val) == 0xffff ? 0 : \
+			     1350000 / ((val) * 2))
+
+#define TEMP_TO_REG(val) (SENSORS_LIMIT(((val) < 0 ? (((val) - 500) / 1000) : \
+					((val) + 500) / 1000), -128, 127))
+#define TEMP_FROM_REG(val) ((val) * 1000)
+
+#define PWM_TO_REG(val)   ((val) >> 1)
+#define PWM_FROM_REG(val) (((val) & 0x7f) << 1)
+
+static int DIV_TO_REG(int val)
+{
+	int answer = 0;
+	while (answer < 7 && (val >>= 1))
+		answer++;
+	return answer;
+}
+#define DIV_FROM_REG(val) (1 << (val))
+
+static const unsigned int pwm_freq[8] = {
+	48000000 / 128,
+	24000000 / 128,
+	12000000 / 128,
+	8000000 / 128,
+	6000000 / 128,
+	3000000 / 128,
+	1500000 / 128,
+	750000 / 128,
 };
 
 static inline int has_16bit_fans(const struct it87_data *data)
