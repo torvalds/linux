@@ -707,7 +707,14 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		group->max_events = FANOTIFY_DEFAULT_MAX_EVENTS;
 	}
 
-	group->fanotify_data.max_marks = FANOTIFY_DEFAULT_MAX_MARKS;
+	if (flags & FAN_UNLIMITED_MARKS) {
+		fd = -EPERM;
+		if (!capable(CAP_SYS_ADMIN))
+			goto out_put_group;
+		group->fanotify_data.max_marks = UINT_MAX;
+	} else {
+		group->fanotify_data.max_marks = FANOTIFY_DEFAULT_MAX_MARKS;
+	}
 
 	fd = anon_inode_getfd("[fanotify]", &fanotify_fops, group, f_flags);
 	if (fd < 0)
