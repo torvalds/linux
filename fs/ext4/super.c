@@ -3964,9 +3964,12 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 	else
 		es->s_kbytes_written =
 			cpu_to_le64(EXT4_SB(sb)->s_kbytes_written);
-	ext4_free_blocks_count_set(es, percpu_counter_sum_positive(
+	if (percpu_counter_initialized(&EXT4_SB(sb)->s_freeblocks_counter))
+		ext4_free_blocks_count_set(es, percpu_counter_sum_positive(
 					&EXT4_SB(sb)->s_freeblocks_counter));
-	es->s_free_inodes_count = cpu_to_le32(percpu_counter_sum_positive(
+	if (percpu_counter_initialized(&EXT4_SB(sb)->s_freeinodes_counter))
+		es->s_free_inodes_count =
+			cpu_to_le32(percpu_counter_sum_positive(
 					&EXT4_SB(sb)->s_freeinodes_counter));
 	sb->s_dirt = 0;
 	BUFFER_TRACE(sbh, "marking dirty");
