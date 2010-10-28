@@ -432,7 +432,7 @@ AMS (Apple Motion Sensor) DRIVER
 M:	Stelian Pop <stelian@popies.net>
 M:	Michael Hanselmann <linux-kernel@hansmi.ch>
 S:	Supported
-F:	drivers/hwmon/ams/
+F:	drivers/macintosh/ams/
 
 AMSO1100 RNIC DRIVER
 M:	Tom Tucker <tom@opengridcomputing.com>
