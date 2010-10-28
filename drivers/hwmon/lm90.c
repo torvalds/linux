@@ -28,9 +28,11 @@
  * This driver also supports the MAX6657, MAX6658 and MAX6659 sensor
  * chips made by Maxim. These chips are similar to the LM86.
  * Note that there is no easy way to differentiate between the three
- * variants. The extra address and features of the MAX6659 are not
- * supported by this driver. These chips lack the remote temperature
- * offset feature.
+ * variants. We use the device address to detect MAX6659, which will result
+ * in a detection as max6657 if it is on address 0x4c. The extra address
+ * and features of the MAX6659 are only supported if the chip is configured
+ * explicitly as max6659, or if its address is not 0x4c.
+ * These chips lack the remote temperature offset feature.
  *
  * This driver also supports the MAX6646, MAX6647, MAX6648, MAX6649 and
  * MAX6692 chips made by Maxim.  These are again similar to the LM86,
@@ -138,6 +140,10 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 /* MAX6646/6647/6649/6657/6658/6659 registers */
 
 #define MAX6657_REG_R_LOCAL_TEMPL	0x11
+#define MAX6659_REG_R_REMOTE_EMERG	0x16
+#define MAX6659_REG_W_REMOTE_EMERG	0x16
+#define MAX6659_REG_R_LOCAL_EMERG	0x17
+#define MAX6659_REG_W_LOCAL_EMERG	0x17
 
 /*
  * Device flags
@@ -147,6 +153,7 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 #define LM90_HAVE_OFFSET	(1 << 1) /* temperature offset register	*/
 #define LM90_HAVE_LOCAL_EXT	(1 << 2) /* extended local temperature	*/
 #define LM90_HAVE_REM_LIMIT_EXT	(1 << 3) /* extended remote limit	*/
+#define LM90_HAVE_EMERGENCY	(1 << 4) /* 3rd upper (emergency) limit	*/
 
 /*
  * Functions declaration
@@ -213,10 +220,12 @@ struct lm90_data {
 	u8 alert_alarms;	/* Which alarm bits trigger ALERT# */
 
 	/* registers values */
-	s8 temp8[4];	/* 0: local low limit
+	s8 temp8[6];	/* 0: local low limit
 			   1: local high limit
 			   2: local critical limit
-			   3: remote critical limit */
+			   3: remote critical limit
+			   4: local emergency limit (max6659 only)
+			   5: remote emergency limit (max6659 only) */
 	s16 temp11[5];	/* 0: remote input
 			   1: remote low limit
 			   2: remote high limit
@@ -381,11 +390,13 @@ static ssize_t show_temp8(struct device *dev, struct device_attribute *devattr,
 static ssize_t set_temp8(struct device *dev, struct device_attribute *devattr,
 			 const char *buf, size_t count)
 {
-	static const u8 reg[4] = {
+	static const u8 reg[6] = {
 		LM90_REG_W_LOCAL_LOW,
 		LM90_REG_W_LOCAL_HIGH,
 		LM90_REG_W_LOCAL_CRIT,
 		LM90_REG_W_REMOTE_CRIT,
+		MAX6659_REG_W_LOCAL_EMERG,
+		MAX6659_REG_W_REMOTE_EMERG,
 	};
 
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
@@ -608,6 +619,30 @@ static const struct attribute_group lm90_group = {
 	.attrs = lm90_attributes,
 };
 
+/*
+ * Additional attributes for devices with emergency sensors
+ */
+static SENSOR_DEVICE_ATTR(temp1_emergency, S_IWUSR | S_IRUGO, show_temp8,
+	set_temp8, 4);
+static SENSOR_DEVICE_ATTR(temp2_emergency, S_IWUSR | S_IRUGO, show_temp8,
+	set_temp8, 5);
+static SENSOR_DEVICE_ATTR(temp1_emergency_hyst, S_IRUGO, show_temphyst,
+			  NULL, 4);
+static SENSOR_DEVICE_ATTR(temp2_emergency_hyst, S_IRUGO, show_temphyst,
+			  NULL, 5);
+
+static struct attribute *lm90_emergency_attributes[] = {
+	&sensor_dev_attr_temp1_emergency.dev_attr.attr,
+	&sensor_dev_attr_temp2_emergency.dev_attr.attr,
+	&sensor_dev_attr_temp1_emergency_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp2_emergency_hyst.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group lm90_emergency_group = {
+	.attrs = lm90_emergency_attributes,
+};
+
 /* pec used for ADM1032 only */
 static ssize_t show_pec(struct device *dev, struct device_attribute *dummy,
 			char *buf)
@@ -826,6 +861,9 @@ static int lm90_detect(struct i2c_client *new_client,
 
 static void lm90_remove_files(struct i2c_client *client, struct lm90_data *data)
 {
+	if (data->flags & LM90_HAVE_EMERGENCY)
+		sysfs_remove_group(&client->dev.kobj,
+				   &lm90_emergency_group);
 	if (data->flags & LM90_HAVE_OFFSET)
 		device_remove_file(&client->dev,
 				   &sensor_dev_attr_temp2_offset.dev_attr);
@@ -881,6 +919,9 @@ static int lm90_probe(struct i2c_client *new_client,
 	    && data->kind != max6646 && data->kind != max6680)
 		data->flags |= LM90_HAVE_REM_LIMIT_EXT;
 
+	if (data->kind == max6659)
+		data->flags |= LM90_HAVE_EMERGENCY;
+
 	/* Initialize the LM90 chip */
 	lm90_init_client(new_client);
 
@@ -896,6 +937,12 @@ static int lm90_probe(struct i2c_client *new_client,
 	if (data->flags & LM90_HAVE_OFFSET) {
 		err = device_create_file(&new_client->dev,
 					&sensor_dev_attr_temp2_offset.dev_attr);
+		if (err)
+			goto exit_remove_files;
+	}
+	if (data->flags & LM90_HAVE_EMERGENCY) {
+		err = sysfs_create_group(&new_client->dev.kobj,
+					 &lm90_emergency_group);
 		if (err)
 			goto exit_remove_files;
 	}
@@ -1081,6 +1128,12 @@ static struct lm90_data *lm90_update_device(struct device *dev)
 			 && lm90_read_reg(client, LM90_REG_R_REMOTE_OFFSL,
 					  &l) == 0)
 				data->temp11[3] = (h << 8) | l;
+		}
+		if (data->flags & LM90_HAVE_EMERGENCY) {
+			lm90_read_reg(client, MAX6659_REG_R_LOCAL_EMERG,
+				      &data->temp8[4]);
+			lm90_read_reg(client, MAX6659_REG_R_REMOTE_EMERG,
+				      &data->temp8[5]);
 		}
 		lm90_read_reg(client, LM90_REG_R_STATUS, &data->alarms);
 
