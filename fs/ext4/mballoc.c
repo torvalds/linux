@@ -4685,3 +4685,188 @@ error_return:
 	ext4_std_error(sb, err);
 	return;
 }
+
+/**
+ * ext4_trim_extent -- function to TRIM one single free extent in the group
+ * @sb:		super block for the file system
+ * @start:	starting block of the free extent in the alloc. group
+ * @count:	number of blocks to TRIM
+ * @group:	alloc. group we are working with
+ * @e4b:	ext4 buddy for the group
+ *
+ * Trim "count" blocks starting at "start" in the "group". To assure that no
+ * one will allocate those blocks, mark it as used in buddy bitmap. This must
+ * be called with under the group lock.
+ */
+static int ext4_trim_extent(struct super_block *sb, int start, int count,
+		ext4_group_t group, struct ext4_buddy *e4b)
+{
+	struct ext4_free_extent ex;
+	int ret = 0;
+
+	assert_spin_locked(ext4_group_lock_ptr(sb, group));
+
+	ex.fe_start = start;
+	ex.fe_group = group;
+	ex.fe_len = count;
+
+	/*
+	 * Mark blocks used, so no one can reuse them while
+	 * being trimmed.
+	 */
+	mb_mark_used(e4b, &ex);
+	ext4_unlock_group(sb, group);
+
+	ret = ext4_issue_discard(sb, group, start, count);
+	if (ret)
+		ext4_std_error(sb, ret);
+
+	ext4_lock_group(sb, group);
+	mb_free_blocks(NULL, e4b, start, ex.fe_len);
+	return ret;
+}
+
+/**
+ * ext4_trim_all_free -- function to trim all free space in alloc. group
+ * @sb:			super block for file system
+ * @e4b:		ext4 buddy
+ * @start:		first group block to examine
+ * @max:		last group block to examine
+ * @minblocks:		minimum extent block count
+ *
+ * ext4_trim_all_free walks through group's buddy bitmap searching for free
+ * extents. When the free block is found, ext4_trim_extent is called to TRIM
+ * the extent.
+ *
+ *
+ * ext4_trim_all_free walks through group's block bitmap searching for free
+ * extents. When the free extent is found, mark it as used in group buddy
+ * bitmap. Then issue a TRIM command on this extent and free the extent in
+ * the group buddy bitmap. This is done until whole group is scanned.
+ */
+ext4_grpblk_t ext4_trim_all_free(struct super_block *sb, struct ext4_buddy *e4b,
+		ext4_grpblk_t start, ext4_grpblk_t max, ext4_grpblk_t minblocks)
+{
+	void *bitmap;
+	ext4_grpblk_t next, count = 0;
+	ext4_group_t group;
+	int ret = 0;
+
+	BUG_ON(e4b == NULL);
+
+	bitmap = e4b->bd_bitmap;
+	group = e4b->bd_group;
+	start = (e4b->bd_info->bb_first_free > start) ?
+		e4b->bd_info->bb_first_free : start;
+	ext4_lock_group(sb, group);
+
+	while (start < max) {
+		start = mb_find_next_zero_bit(bitmap, max, start);
+		if (start >= max)
+			break;
+		next = mb_find_next_bit(bitmap, max, start);
+
+		if ((next - start) >= minblocks) {
+			ret = ext4_trim_extent(sb, start,
+				next - start, group, e4b);
+			if (ret < 0)
+				break;
+			count += next - start;
+		}
+		start = next + 1;
+
+		if (fatal_signal_pending(current)) {
+			count = -ERESTARTSYS;
+			break;
+		}
+
+		if (need_resched()) {
+			ext4_unlock_group(sb, group);
+			cond_resched();
+			ext4_lock_group(sb, group);
+		}
+
+		if ((e4b->bd_info->bb_free - count) < minblocks)
+			break;
+	}
+	ext4_unlock_group(sb, group);
+
+	ext4_debug("trimmed %d blocks in the group %d\n",
+		count, group);
+
+	if (ret < 0)
+		count = ret;
+
+	return count;
+}
+
+/**
+ * ext4_trim_fs() -- trim ioctl handle function
+ * @sb:			superblock for filesystem
+ * @range:		fstrim_range structure
+ *
+ * start:	First Byte to trim
+ * len:		number of Bytes to trim from start
+ * minlen:	minimum extent length in Bytes
+ * ext4_trim_fs goes through all allocation groups containing Bytes from
+ * start to start+len. For each such a group ext4_trim_all_free function
+ * is invoked to trim all free space.
+ */
+int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
+{
+	struct ext4_buddy e4b;
+	ext4_group_t first_group, last_group;
+	ext4_group_t group, ngroups = ext4_get_groups_count(sb);
+	ext4_grpblk_t cnt = 0, first_block, last_block;
+	uint64_t start, len, minlen, trimmed;
+	int ret = 0;
+
+	start = range->start >> sb->s_blocksize_bits;
+	len = range->len >> sb->s_blocksize_bits;
+	minlen = range->minlen >> sb->s_blocksize_bits;
+	trimmed = 0;
+
+	if (unlikely(minlen > EXT4_BLOCKS_PER_GROUP(sb)))
+		return -EINVAL;
+
+	/* Determine first and last group to examine based on start and len */
+	ext4_get_group_no_and_offset(sb, (ext4_fsblk_t) start,
+				     &first_group, &first_block);
+	ext4_get_group_no_and_offset(sb, (ext4_fsblk_t) (start + len),
+				     &last_group, &last_block);
+	last_group = (last_group > ngroups - 1) ? ngroups - 1 : last_group;
+	last_block = EXT4_BLOCKS_PER_GROUP(sb);
+
+	if (first_group > last_group)
+		return -EINVAL;
+
+	for (group = first_group; group <= last_group; group++) {
+		ret = ext4_mb_load_buddy(sb, group, &e4b);
+		if (ret) {
+			ext4_error(sb, "Error in loading buddy "
+					"information for %u", group);
+			break;
+		}
+
+		if (len >= EXT4_BLOCKS_PER_GROUP(sb))
+			len -= (EXT4_BLOCKS_PER_GROUP(sb) - first_block);
+		else
+			last_block = len;
+
+		if (e4b.bd_info->bb_free >= minlen) {
+			cnt = ext4_trim_all_free(sb, &e4b, first_block,
+						last_block, minlen);
+			if (cnt < 0) {
+				ret = cnt;
+				ext4_mb_unload_buddy(&e4b);
+				break;
+			}
+		}
+		ext4_mb_unload_buddy(&e4b);
+		trimmed += cnt;
+		first_block = 0;
+	}
+	range->len = trimmed * sb->s_blocksize;
+
+	return ret;
+}
