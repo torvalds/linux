@@ -85,7 +85,7 @@ mext_next_extent(struct inode *inode, struct ext4_ext_path *path,
 	if (EXT_LAST_EXTENT(path[ppos].p_hdr) > path[ppos].p_ext) {
 		/* leaf block */
 		*extent = ++path[ppos].p_ext;
-		path[ppos].p_block = ext_pblock(path[ppos].p_ext);
+		path[ppos].p_block = ext4_ext_pblock(path[ppos].p_ext);
 		return 0;
 	}
 
@@ -96,7 +96,7 @@ mext_next_extent(struct inode *inode, struct ext4_ext_path *path,
 
 			/* index block */
 			path[ppos].p_idx++;
-			path[ppos].p_block = idx_pblock(path[ppos].p_idx);
+			path[ppos].p_block = ext4_idx_pblock(path[ppos].p_idx);
 			if (path[ppos+1].p_bh)
 				brelse(path[ppos+1].p_bh);
 			path[ppos+1].p_bh =
@@ -111,7 +111,7 @@ mext_next_extent(struct inode *inode, struct ext4_ext_path *path,
 				path[cur_ppos].p_idx =
 					EXT_FIRST_INDEX(path[cur_ppos].p_hdr);
 				path[cur_ppos].p_block =
-					idx_pblock(path[cur_ppos].p_idx);
+					ext4_idx_pblock(path[cur_ppos].p_idx);
 				if (path[cur_ppos+1].p_bh)
 					brelse(path[cur_ppos+1].p_bh);
 				path[cur_ppos+1].p_bh = sb_bread(inode->i_sb,
@@ -133,7 +133,7 @@ mext_next_extent(struct inode *inode, struct ext4_ext_path *path,
 			path[leaf_ppos].p_ext = *extent =
 				EXT_FIRST_EXTENT(path[leaf_ppos].p_hdr);
 			path[leaf_ppos].p_block =
-					ext_pblock(path[leaf_ppos].p_ext);
+					ext4_ext_pblock(path[leaf_ppos].p_ext);
 			return 0;
 		}
 	}
@@ -249,7 +249,7 @@ mext_insert_across_blocks(handle_t *handle, struct inode *orig_inode,
 			 */
 			o_end->ee_block = end_ext->ee_block;
 			o_end->ee_len = end_ext->ee_len;
-			ext4_ext_store_pblock(o_end, ext_pblock(end_ext));
+			ext4_ext_store_pblock(o_end, ext4_ext_pblock(end_ext));
 		}
 
 		o_start->ee_len = start_ext->ee_len;
@@ -276,7 +276,7 @@ mext_insert_across_blocks(handle_t *handle, struct inode *orig_inode,
 		 */
 		o_end->ee_block = end_ext->ee_block;
 		o_end->ee_len = end_ext->ee_len;
-		ext4_ext_store_pblock(o_end, ext_pblock(end_ext));
+		ext4_ext_store_pblock(o_end, ext4_ext_pblock(end_ext));
 
 		/*
 		 * Set 0 to the extent block if new_ext was
@@ -361,7 +361,7 @@ mext_insert_inside_block(struct ext4_extent *o_start,
 	/* Insert new entry */
 	if (new_ext->ee_len) {
 		o_start[i] = *new_ext;
-		ext4_ext_store_pblock(&o_start[i++], ext_pblock(new_ext));
+		ext4_ext_store_pblock(&o_start[i++], ext4_ext_pblock(new_ext));
 	}
 
 	/* Insert end entry */
@@ -488,7 +488,7 @@ mext_leaf_block(handle_t *handle, struct inode *orig_inode,
 	start_ext.ee_len = end_ext.ee_len = 0;
 
 	new_ext.ee_block = cpu_to_le32(*from);
-	ext4_ext_store_pblock(&new_ext, ext_pblock(dext));
+	ext4_ext_store_pblock(&new_ext, ext4_ext_pblock(dext));
 	new_ext.ee_len = dext->ee_len;
 	new_ext_alen = ext4_ext_get_actual_len(&new_ext);
 	new_ext_end = le32_to_cpu(new_ext.ee_block) + new_ext_alen - 1;
@@ -553,7 +553,7 @@ mext_leaf_block(handle_t *handle, struct inode *orig_inode,
 		copy_extent_status(oext, &end_ext);
 		end_ext_alen = ext4_ext_get_actual_len(&end_ext);
 		ext4_ext_store_pblock(&end_ext,
-			(ext_pblock(o_end) + oext_alen - end_ext_alen));
+			(ext4_ext_pblock(o_end) + oext_alen - end_ext_alen));
 		end_ext.ee_block =
 			cpu_to_le32(le32_to_cpu(o_end->ee_block) +
 			oext_alen - end_ext_alen);
@@ -604,7 +604,7 @@ mext_calc_swap_extents(struct ext4_extent *tmp_dext,
 	/* When tmp_dext is too large, pick up the target range. */
 	diff = donor_off - le32_to_cpu(tmp_dext->ee_block);
 
-	ext4_ext_store_pblock(tmp_dext, ext_pblock(tmp_dext) + diff);
+	ext4_ext_store_pblock(tmp_dext, ext4_ext_pblock(tmp_dext) + diff);
 	tmp_dext->ee_block =
 			cpu_to_le32(le32_to_cpu(tmp_dext->ee_block) + diff);
 	tmp_dext->ee_len = cpu_to_le16(le16_to_cpu(tmp_dext->ee_len) - diff);
@@ -613,7 +613,7 @@ mext_calc_swap_extents(struct ext4_extent *tmp_dext,
 		tmp_dext->ee_len = cpu_to_le16(max_count);
 
 	orig_diff = orig_off - le32_to_cpu(tmp_oext->ee_block);
-	ext4_ext_store_pblock(tmp_oext, ext_pblock(tmp_oext) + orig_diff);
+	ext4_ext_store_pblock(tmp_oext, ext4_ext_pblock(tmp_oext) + orig_diff);
 
 	/* Adjust extent length if donor extent is larger than orig */
 	if (ext4_ext_get_actual_len(tmp_dext) >
