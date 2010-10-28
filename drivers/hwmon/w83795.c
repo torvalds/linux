@@ -236,6 +236,7 @@ static const u8 IN_LSB_SHIFT_IDX[][2] = {
 #define W83795_REG_DTSC			0x301
 #define W83795_REG_DTSE			0x302
 #define W83795_REG_DTS(index)		(0x26 + (index))
+#define W83795_REG_PECI_TBASE(index)	(0x320 + (index))
 
 #define DTS_CRIT			0
 #define DTS_CRIT_HYST			1
@@ -1991,6 +1992,18 @@ static int w83795_probe(struct i2c_client *client,
 		if (1 & w83795_read(client, W83795_REG_DTSC))
 			data->enable_dts |= 2;
 		data->has_dts = w83795_read(client, W83795_REG_DTSE);
+	}
+
+	/* Report PECI Tbase values */
+	if (data->enable_dts == 1) {
+		for (i = 0; i < 8; i++) {
+			if (!(data->has_dts & (1 << i)))
+				continue;
+			tmp = w83795_read(client, W83795_REG_PECI_TBASE(i));
+			dev_info(&client->dev,
+				 "PECI agent %d Tbase temperature: %u\n",
+				 i + 1, (unsigned int)tmp & 0x7f);
+		}
 	}
 
 	/* First update the voltages measured value and limits */
