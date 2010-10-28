@@ -13,7 +13,7 @@
  *
  */
 
-#define DEBUG
+//#define DEBUG
 #define pr_fmt(fmt) "clock: %s: " fmt, __func__
 
 #include <linux/clk.h>
