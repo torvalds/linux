@@ -2706,26 +2706,20 @@ static void ext4_remove_debugfs_entry(void)
 
 int __init init_ext4_mballoc(void)
 {
-	ext4_pspace_cachep =
-		kmem_cache_create("ext4_prealloc_space",
-				     sizeof(struct ext4_prealloc_space),
-				     0, SLAB_RECLAIM_ACCOUNT, NULL);
+	ext4_pspace_cachep = KMEM_CACHE(ext4_prealloc_space,
+					SLAB_RECLAIM_ACCOUNT);
 	if (ext4_pspace_cachep == NULL)
 		return -ENOMEM;
 
-	ext4_ac_cachep =
-		kmem_cache_create("ext4_alloc_context",
-				     sizeof(struct ext4_allocation_context),
-				     0, SLAB_RECLAIM_ACCOUNT, NULL);
+	ext4_ac_cachep = KMEM_CACHE(ext4_allocation_context,
+				    SLAB_RECLAIM_ACCOUNT);
 	if (ext4_ac_cachep == NULL) {
 		kmem_cache_destroy(ext4_pspace_cachep);
 		return -ENOMEM;
 	}
 
-	ext4_free_ext_cachep =
-		kmem_cache_create("ext4_free_block_extents",
-				     sizeof(struct ext4_free_data),
-				     0, SLAB_RECLAIM_ACCOUNT, NULL);
+	ext4_free_ext_cachep = KMEM_CACHE(ext4_free_data,
+					  SLAB_RECLAIM_ACCOUNT);
 	if (ext4_free_ext_cachep == NULL) {
 		kmem_cache_destroy(ext4_pspace_cachep);
 		kmem_cache_destroy(ext4_ac_cachep);

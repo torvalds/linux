@@ -31,8 +31,7 @@ static struct kmem_cache *ext4_system_zone_cachep;
 
 int __init init_ext4_system_zone(void)
 {
-	ext4_system_zone_cachep = KMEM_CACHE(ext4_system_zone,
-					     SLAB_RECLAIM_ACCOUNT);
+	ext4_system_zone_cachep = KMEM_CACHE(ext4_system_zone, 0);
 	if (ext4_system_zone_cachep == NULL)
 		return -ENOMEM;
 	return 0;
