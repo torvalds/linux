@@ -2718,7 +2718,7 @@ static int ext4_writepage(struct page *page,
 	 * try to create them using __block_write_begin.  If this
 	 * fails, redirty the page and move on.
 	 */
-	if (!page_buffers(page)) {
+	if (!page_has_buffers(page)) {
 		if (__block_write_begin(page, 0, len,
 					noalloc_get_block_write)) {
 		redirty_page:
@@ -2732,12 +2732,10 @@ static int ext4_writepage(struct page *page,
 	if (walk_page_buffers(NULL, page_bufs, 0, len, NULL,
 			      ext4_bh_delay_or_unwritten)) {
 		/*
-		 * We don't want to do block allocation So redirty the
-		 * page and return We may reach here when we do a
-		 * journal commit via
-		 * journal_submit_inode_data_buffers.  If we don't
-		 * have mapping block we just ignore them. We can also
-		 * reach here via shrink_page_list
+		 * We don't want to do block allocation, so redirty
+		 * the page and return.  We may reach here when we do
+		 * a journal commit via journal_submit_inode_data_buffers.
+		 * We can also reach here via shrink_page_list
 		 */
 		goto redirty_page;
 	}
