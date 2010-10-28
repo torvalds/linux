@@ -178,7 +178,6 @@ int iwctl_siwscan(struct net_device *dev,
 			 struct iw_param *wrq,
              char *extra);
 
-//2008-0409-07, <Add> by Einsn Liu
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 int iwctl_siwauth(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -215,8 +214,6 @@ int iwctl_siwmlme(struct net_device *dev,
 			struct iw_point *wrq,
 			char *extra);
 #endif // #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-//End Add -- //2008-0409-07, <Add> by Einsn Liu
-
 
 extern const struct iw_handler_def	iwctl_handler_def;
 extern const struct iw_priv_args	iwctl_private_args;

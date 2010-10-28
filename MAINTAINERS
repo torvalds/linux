@@ -1391,6 +1391,14 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/tg3.*
 
+BROADCOM BRCM80211 IEEE802.11n WIRELESS DRIVER
+M:	Brett Rudley <brudley@broadcom.com>
+M:	Henry Ptasinski <henryp@broadcom.com>
+M:	Nohee Ko <noheek@broadcom.com>
+L:	linux-wireless@vger.kernel.org
+S:	Supported
+F:	drivers/staging/brcm80211/
+
 BROCADE BFA FC SCSI DRIVER
 M:	Jing Huang <huangj@brocade.com>
 L:	linux-scsi@vger.kernel.org
@@ -3383,8 +3391,8 @@ F:	Documentation/kdump/
 KERNEL AUTOMOUNTER (AUTOFS)
 M:	"H. Peter Anvin" <hpa@zytor.com>
 L:	autofs@linux.kernel.org
-S:	Odd Fixes
-F:	fs/autofs/
+S:	Obsolete
+F:	drivers/staging/autofs/
 
 KERNEL AUTOMOUNTER v4 (AUTOFS4)
 M:	Ian Kent <raven@themaw.net>
@@ -5667,7 +5675,7 @@ S:	Maintained
 
 STAGING SUBSYSTEM
 M:	Greg Kroah-Hartman <gregkh@suse.de>
-T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging-next-2.6.git
 L:	devel@driverdev.osuosl.org
 S:	Maintained
 F:	drivers/staging/

@@ -406,12 +406,14 @@ static int __devinit spi_adis16255_probe(struct spi_device *spi)
 
 	status = spi_adis16255_bringup(spiadis);
 	if (status != 0)
-		goto irq_err;
+		goto sysfs_err;
 
 	dev_info(&spi->dev, "spi_adis16255 driver added!\n");
 
 	return status;
 
+sysfs_err:
+	sysfs_remove_group(&spiadis->spi->dev.kobj, &adis16255_attr_group);
 irq_err:
 	free_irq(spiadis->irq, spiadis);
 gpio_err:

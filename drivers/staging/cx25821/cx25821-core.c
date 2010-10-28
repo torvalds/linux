@@ -962,7 +962,7 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 		       dev->pci->subsystem_device);
 
 		cx25821_devcount--;
-		return -ENODEV;
+		return -EBUSY;
 	}
 
 	/* PCIe stuff */
@@ -1412,9 +1412,12 @@ static int __devinit cx25821_initdev(struct pci_dev *pci_dev,
 
 	printk(KERN_INFO "cx25821 Athena pci enable !\n");
 
-	if (cx25821_dev_setup(dev) < 0) {
-		err = -EINVAL;
-		goto fail_unregister_device;
+	err = cx25821_dev_setup(dev);
+	if (err) {
+		if (err == -EBUSY)
+			goto fail_unregister_device;
+		else
+			goto fail_unregister_pci;
 	}
 
 	/* print pci info */
@@ -1448,6 +1451,8 @@ fail_irq:
 	printk(KERN_INFO "cx25821 cx25821_initdev() can't get IRQ !\n");
 	cx25821_dev_unregister(dev);
 
+fail_unregister_pci:
+	pci_disable_device(pci_dev);
 fail_unregister_device:
 	v4l2_device_unregister(&dev->v4l2_dev);
 

@@ -26,9 +26,6 @@
 /*  ----------------------------------- Trace & Debug */
 #include <dspbridge/dbc.h>
 
-/*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
-
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/dev.h>
 

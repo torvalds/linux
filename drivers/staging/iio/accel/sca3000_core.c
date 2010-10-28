@@ -721,8 +721,8 @@ error_ret:
 }
 static IIO_DEV_ATTR_TEMP_RAW(sca3000_read_temp);
 
-static IIO_CONST_ATTR(temp_scale, "0.555556");
-static IIO_CONST_ATTR(temp_offset, "-214.6");
+static IIO_CONST_ATTR_TEMP_SCALE("0.555556");
+static IIO_CONST_ATTR_TEMP_OFFSET("-214.6");
 
 /**
  * sca3000_show_thresh() sysfs query of a threshold
@@ -774,19 +774,19 @@ static ssize_t sca3000_write_thresh(struct device *dev,
 	return ret ? ret : len;
 }
 
-static IIO_DEVICE_ATTR(accel_x_mag_either_rising_value,
+static IIO_DEVICE_ATTR(accel_x_raw_mag_rising_value,
 		S_IRUGO | S_IWUSR,
 		sca3000_show_thresh,
 		sca3000_write_thresh,
 		SCA3000_REG_CTRL_SEL_MD_X_TH);
 
-static IIO_DEVICE_ATTR(accel_y_mag_either_rising_value,
+static IIO_DEVICE_ATTR(accel_y_raw_mag_rising_value,
 		S_IRUGO | S_IWUSR,
 		sca3000_show_thresh,
 		sca3000_write_thresh,
 		SCA3000_REG_CTRL_SEL_MD_Y_TH);
 
-static IIO_DEVICE_ATTR(accel_z_mag_either_rising_value,
+static IIO_DEVICE_ATTR(accel_z_raw_mag_rising_value,
 		S_IRUGO | S_IWUSR,
 		sca3000_show_thresh,
 		sca3000_write_thresh,
@@ -865,22 +865,38 @@ static void sca3000_interrupt_handler_bh(struct work_struct *work_s)
 
 	if (rx[1] & SCA3000_INT_STATUS_FREE_FALL)
 		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_FREE_FALL,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_X_AND_Y_AND_Z,
+						  IIO_EV_TYPE_MAG,
+						  IIO_EV_DIR_FALLING),
 			       st->last_timestamp);
 
 	if (rx[1] & SCA3000_INT_STATUS_Y_TRIGGER)
 		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_Y_HIGH,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Y,
+						  IIO_EV_TYPE_MAG,
+						  IIO_EV_DIR_RISING),
 			       st->last_timestamp);
 
 	if (rx[1] & SCA3000_INT_STATUS_X_TRIGGER)
 		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_X_HIGH,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_X,
+						  IIO_EV_TYPE_MAG,
+						  IIO_EV_DIR_RISING),
 			       st->last_timestamp);
 
 	if (rx[1] & SCA3000_INT_STATUS_Z_TRIGGER)
 		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_Z_HIGH,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Z,
+						  IIO_EV_TYPE_MAG,
+						  IIO_EV_DIR_RISING),
 			       st->last_timestamp);
 
 done:
@@ -1156,25 +1172,31 @@ exit_point:
 IIO_EVENT_SH(all, &sca3000_handler_th);
 
 /* Free fall detector related event attribute */
-IIO_EVENT_ATTR_FREE_FALL_DETECT_SH(iio_event_all,
-				   sca3000_query_free_fall_mode,
-				   sca3000_set_free_fall_mode,
-				   0)
+IIO_EVENT_ATTR_NAMED_SH(accel_xayaz_mag_falling_en,
+			accel_x&y&z_mag_falling_en,
+			iio_event_all,
+			sca3000_query_free_fall_mode,
+			sca3000_set_free_fall_mode,
+			0);
+
+IIO_CONST_ATTR_NAMED(accel_xayaz_mag_falling_period,
+		     accel_x&y&z_mag_falling_period,
+		     "0.226");
 
 /* Motion detector related event attributes */
-IIO_EVENT_ATTR_SH(accel_x_mag_either_rising_en,
+IIO_EVENT_ATTR_SH(accel_x_mag_rising_en,
 		  iio_event_all,
 		  sca3000_query_mo_det,
 		  sca3000_set_mo_det,
 		  SCA3000_MD_CTRL_OR_X);
 
-IIO_EVENT_ATTR_SH(accel_y_mag_either_rising_en,
+IIO_EVENT_ATTR_SH(accel_y_mag_rising_en,
 		  iio_event_all,
 		  sca3000_query_mo_det,
 		  sca3000_set_mo_det,
 		  SCA3000_MD_CTRL_OR_Y);
 
-IIO_EVENT_ATTR_SH(accel_z_mag_either_rising_en,
+IIO_EVENT_ATTR_SH(accel_z_mag_rising_en,
 		  iio_event_all,
 		  sca3000_query_mo_det,
 		  sca3000_set_mo_det,
@@ -1192,15 +1214,16 @@ IIO_EVENT_ATTR_RING_75_FULL_SH(iio_event_all,
 			       SCA3000_INT_MASK_RING_THREE_QUARTER);
 
 static struct attribute *sca3000_event_attributes[] = {
-	&iio_event_attr_free_fall.dev_attr.attr,
-	&iio_event_attr_accel_x_mag_either_rising_en.dev_attr.attr,
-	&iio_event_attr_accel_y_mag_either_rising_en.dev_attr.attr,
-	&iio_event_attr_accel_z_mag_either_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_xayaz_mag_falling_en.dev_attr.attr,
+	&iio_const_attr_accel_xayaz_mag_falling_period.dev_attr.attr,
+	&iio_event_attr_accel_x_mag_rising_en.dev_attr.attr,
+	&iio_dev_attr_accel_x_raw_mag_rising_value.dev_attr.attr,
+	&iio_event_attr_accel_y_mag_rising_en.dev_attr.attr,
+	&iio_dev_attr_accel_y_raw_mag_rising_value.dev_attr.attr,
+	&iio_event_attr_accel_z_mag_rising_en.dev_attr.attr,
+	&iio_dev_attr_accel_z_raw_mag_rising_value.dev_attr.attr,
 	&iio_event_attr_ring_50_full.dev_attr.attr,
 	&iio_event_attr_ring_75_full.dev_attr.attr,
-	&iio_dev_attr_accel_x_mag_either_rising_value.dev_attr.attr,
-	&iio_dev_attr_accel_y_mag_either_rising_value.dev_attr.attr,
-	&iio_dev_attr_accel_z_mag_either_rising_value.dev_attr.attr,
 	NULL,
 };
 
@@ -1358,7 +1381,7 @@ static int __devinit __sca3000_probe(struct spi_device *spi,
 		 * might be worthwhile.
 		 */
 		iio_add_event_to_list(
-			iio_event_attr_accel_z_mag_either_rising_en.listel,
+			iio_event_attr_accel_z_mag_rising_en.listel,
 			&st->indio_dev
 			->interrupts[0]->ev_list);
 	}

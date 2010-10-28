@@ -177,8 +177,6 @@ static int blkvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	struct driver_context *drv_ctx = &g_blkvsc_drv.drv_ctx;
 	int ret;
 
-	vmbus_get_interface(&storvsc_drv_obj->Base.VmbusChannelInterface);
-
 	storvsc_drv_obj->RingBufferSize = blkvsc_ringbuffer_size;
 
 	/* Callback to client driver to complete the initialization */

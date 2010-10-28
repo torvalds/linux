@@ -40,7 +40,6 @@
 #include <linux/delay.h>
 
 #include <linux/io.h>
-#include <linux/signal.h>
 #include <linux/irq.h>
 #include <linux/uaccess.h>
 #include <asm/div64.h>
