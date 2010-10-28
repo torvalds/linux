@@ -183,8 +183,6 @@ static const u8 IN_LSB_SHIFT_IDX[][2] = {
 #define W83795_REG_FAN_MIN_LSB(index)	(0xC4 + (index) / 2)
 #define W83795_REG_FAN_MIN_LSB_SHIFT(index) \
 	(((index) % 1) ? 4 : 0)
-#define W83795_REG_FAN_CTRL_SHIFT(index) \
-	(((index) > 7) ? ((index) - 8) : (index))
 
 #define W83795_REG_VID_CTRL		0x6A
 
@@ -793,9 +791,6 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 	}
 	mutex_unlock(&data->update_lock);
 	return count;
-
-	mutex_unlock(&data->update_lock);
-	return -EINVAL;
 }
 
 static ssize_t
@@ -2131,7 +2126,7 @@ static void __exit sensors_w83795_exit(void)
 }
 
 MODULE_AUTHOR("Wei Song");
-MODULE_DESCRIPTION("w83795 driver");
+MODULE_DESCRIPTION("W83795G/ADG hardware monitoring driver");
 MODULE_LICENSE("GPL");
 
 module_init(sensors_w83795_init);
