@@ -1986,6 +1986,9 @@ static int w83795_probe(struct i2c_client *client,
 		data->in[i][IN_READ] = tmp;
 	}
 	for (i = 0; i < IN_LSB_REG_NUM; i++) {
+		if ((i == 2 && data->chip_type == w83795adg) ||
+		    (i >= 4 && !(data->has_in & (1 << (i + 11)))))
+			continue;
 		data->in_lsb[i][IN_MAX] =
 			w83795_read(client, IN_LSB_REG(i, IN_MAX));
 		data->in_lsb[i][IN_LOW] =
@@ -1995,13 +1998,17 @@ static int w83795_probe(struct i2c_client *client,
 
 	/* First update fan and limits */
 	for (i = 0; i < ARRAY_SIZE(data->fan); i++) {
+		/* Each register contains LSB for 2 fans, but we want to
+		 * read it only once to save time */
+		if ((i & 1) == 0 && (data->has_fan & (3 << i)))
+			tmp = w83795_read(client, W83795_REG_FAN_MIN_LSB(i));
+
 		if (!(data->has_fan & (1 << i)))
 			continue;
 		data->fan_min[i] =
 			w83795_read(client, W83795_REG_FAN_MIN_HL(i)) << 4;
 		data->fan_min[i] |=
-		  (w83795_read(client, W83795_REG_FAN_MIN_LSB(i)) >>
-			W83795_REG_FAN_MIN_LSB_SHIFT(i)) & 0x0F;
+			(tmp >> W83795_REG_FAN_MIN_LSB_SHIFT(i)) & 0x0F;
 		data->fan[i] = w83795_read(client, W83795_REG_FAN(i)) << 4;
 		data->fan[i] |=
 		  (w83795_read(client, W83795_REG_VRLSB) >> 4) & 0x0F;
