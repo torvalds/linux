@@ -664,6 +664,20 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	init_waitqueue_head(&group->fanotify_data.access_waitq);
 	INIT_LIST_HEAD(&group->fanotify_data.access_list);
 #endif
+	switch (flags & FAN_ALL_CLASS_BITS) {
+	case FAN_CLASS_NOTIF:
+		group->priority = FS_PRIO_0;
+		break;
+	case FAN_CLASS_CONTENT:
+		group->priority = FS_PRIO_1;
+		break;
+	case FAN_CLASS_PRE_CONTENT:
+		group->priority = FS_PRIO_2;
+		break;
+	default:
+		fd = -EINVAL;
+		goto out_put_group;
+	}
 
 	fd = anon_inode_getfd("[fanotify]", &fanotify_fops, group, f_flags);
 	if (fd < 0)
@@ -719,6 +733,16 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 	ret = -EINVAL;
 	if (unlikely(filp->f_op != &fanotify_fops))
 		goto fput_and_out;
+	group = filp->private_data;
+
+	/*
+	 * group->priority == FS_PRIO_0 == FAN_CLASS_NOTIF.  These are not
+	 * allowed to set permissions events.
+	 */
+	ret = -EINVAL;
+	if (mask & FAN_ALL_PERM_EVENTS &&
+	    group->priority == FS_PRIO_0)
+		goto fput_and_out;
 
 	ret = fanotify_find_path(dfd, pathname, &path, flags);
 	if (ret)
@@ -729,7 +753,6 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 		inode = path.dentry->d_inode;
 	else
 		mnt = path.mnt;
-	group = filp->private_data;
 
 	/* create/update an inode mark */
 	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE | FAN_MARK_FLUSH)) {

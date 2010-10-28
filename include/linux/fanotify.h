@@ -25,7 +25,16 @@
 #define FAN_CLOEXEC		0x00000001
 #define FAN_NONBLOCK		0x00000002
 
-#define FAN_ALL_INIT_FLAGS	(FAN_CLOEXEC | FAN_NONBLOCK)
+/* These are NOT bitwise flags.  Both bits are used togther.  */
+#define FAN_CLASS_NOTIF		0x00000000
+#define FAN_CLASS_CONTENT	0x00000004
+#define FAN_CLASS_PRE_CONTENT	0x00000008
+
+#define FAN_ALL_CLASS_BITS	(FAN_CLASS_NOTIF | FAN_CLASS_CONTENT | \
+				 FAN_CLASS_PRE_CONTENT)
+
+#define FAN_ALL_INIT_FLAGS	(FAN_CLOEXEC | FAN_NONBLOCK | \
+				 FAN_ALL_CLASS_BITS)
 
 /* flags used for fanotify_modify_mark() */
 #define FAN_MARK_ADD		0x00000001
