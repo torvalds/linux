@@ -39,9 +39,8 @@ MODULE_DESCRIPTION("v4l2 driver module for cx25821 based TV cards");
 MODULE_AUTHOR("Hiep Huynh <hiep.huynh@conexant.com>");
 MODULE_LICENSE("GPL");
 
-static int _intr_msk =
-	FLD_AUD_SRC_RISCI1 | FLD_AUD_SRC_OF | FLD_AUD_SRC_SYNC |
-	FLD_AUD_SRC_OPC_ERR;
+static int _intr_msk = FLD_AUD_SRC_RISCI1 | FLD_AUD_SRC_OF |
+			FLD_AUD_SRC_SYNC | FLD_AUD_SRC_OPC_ERR;
 
 int cx25821_sram_channel_setup_upstream_audio(struct cx25821_dev *dev,
 					      struct sram_channel *ch,
@@ -608,8 +607,7 @@ static irqreturn_t cx25821_upstream_irq_audio(int irq, void *dev_id)
 	if (!dev)
 		return -1;
 
-	sram_ch = dev->channels[dev->_audio_upstream_channel_select].
-				       sram_channels;
+	sram_ch = dev->channels[dev->_audio_upstream_channel_select].sram_channels;
 
 	msk_stat = cx_read(sram_ch->int_mstat);
 	audio_status = cx_read(sram_ch->int_stat);

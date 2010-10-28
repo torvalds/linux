@@ -70,7 +70,7 @@ static int r8192_wx_set_rate(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -90,7 +90,7 @@ static int r8192_wx_set_rts(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -117,7 +117,7 @@ static int r8192_wx_set_power(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -144,7 +144,7 @@ static int r8192_wx_set_rawtx(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int ret;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -182,7 +182,7 @@ static int r8192_wx_set_crcmon(struct net_device *dev,
 	int enable = (parms[0] > 0);
 	short prev = priv->crcmon;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -212,7 +212,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	RT_RF_POWER_STATE	rtState;
 	int ret;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	rtState = priv->ieee80211->eRFPowerState;
@@ -383,7 +383,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	RT_RF_POWER_STATE	rtState;
 	int ret;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	rtState = priv->ieee80211->eRFPowerState;
@@ -452,7 +452,7 @@ static int r8192_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	if(!priv->up) return -ENETDOWN;
@@ -474,7 +474,7 @@ static int r8192_wx_set_essid(struct net_device *dev,
 	RT_RF_POWER_STATE	rtState;
 	int ret;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	rtState = priv->ieee80211->eRFPowerState;
@@ -518,7 +518,7 @@ static int r8192_wx_set_freq(struct net_device *dev, struct iw_request_info *a,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -544,7 +544,7 @@ static int r8192_wx_set_frag(struct net_device *dev,
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	if (wrqu->frag.disabled)
@@ -585,7 +585,7 @@ static int r8192_wx_set_wap(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 //        struct sockaddr *temp = (struct sockaddr *)awrq;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -641,7 +641,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 				{0x00,0x00,0x00,0x00,0x00,0x03} };
 	int i;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
        if(!priv->up) return -ENETDOWN;
@@ -786,7 +786,7 @@ static int r8192_wx_set_retry(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int err = 0;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -882,7 +882,7 @@ static int r8192_wx_set_sens(struct net_device *dev,
 
 	short err = 0;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -911,7 +911,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device* ieee = priv->ieee80211;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1016,7 +1016,7 @@ static int r8192_wx_set_auth(struct net_device *dev,
 	//printk("====>%s()\n", __FUNCTION__);
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1034,7 +1034,7 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 	int ret=0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1051,7 +1051,7 @@ static int r8192_wx_set_gen_ie(struct net_device *dev,
 	int ret=0;
         struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
         down(&priv->wx_sem);

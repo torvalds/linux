@@ -449,7 +449,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 		}while(!ieee->channel_map[ch]);
 #endif
 
-		/* this fuction can be called in two situations
+		/* this function can be called in two situations
 		 * 1- We have switched to ad-hoc mode and we are
 		 *    performing a complete syncro scan before conclude
 		 *    there are no interesting cell and to create a

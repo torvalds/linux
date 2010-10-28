@@ -19,6 +19,7 @@
 #include <plat/common.h>
 #include <plat/board.h>
 #include <plat/vram.h>
+#include <plat/dsp.h>
 
 
 #define NO_LENGTH_CHECK 0xffffffff
@@ -64,4 +65,5 @@ void __init omap_reserve(void)
 {
 	omapfb_reserve_sdram_memblock();
 	omap_vram_reserve_sdram_memblock();
+	omap_dsp_reserve_sdram_memblock();
 }

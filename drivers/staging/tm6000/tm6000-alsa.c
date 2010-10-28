@@ -456,7 +456,7 @@ int tm6000_audio_init(struct tm6000_core *dev)
 
 	rc = snd_pcm_new(card, "TM6000 Audio", 0, 0, 1, &pcm);
 	if (rc < 0)
-		goto error;
+		goto error_chip;
 
 	pcm->info_flags = 0;
 	pcm->private_data = chip;
@@ -467,12 +467,15 @@ int tm6000_audio_init(struct tm6000_core *dev)
 	INIT_WORK(&dev->wq_trigger, audio_trigger);
 	rc = snd_card_register(card);
 	if (rc < 0)
-		goto error;
+		goto error_chip;
 
 	dprintk(1,"Registered audio driver for %s\n", card->longname);
 
 	return 0;
 
+error_chip:
+	kfree(chip);
+	dev->adev = NULL;
 error:
 	snd_card_free(card);
 	return rc;

@@ -24,29 +24,6 @@
 
 #define VIS_TIMEOUT		200	/* timeout of vis packets in seconds */
 
-struct vis_info {
-	unsigned long       first_seen;
-	struct list_head    recv_list;
-			    /* list of server-neighbors we received a vis-packet
-			     * from.  we should not reply to them. */
-	struct list_head send_list;
-	struct kref refcount;
-	/* this packet might be part of the vis send queue. */
-	struct vis_packet packet;
-	/* vis_info may follow here*/
-} __attribute__((packed));
-
-struct vis_info_entry {
-	uint8_t  src[ETH_ALEN];
-	uint8_t  dest[ETH_ALEN];
-	uint8_t  quality;	/* quality = 0 means HNA */
-} __attribute__((packed));
-
-struct recvlist_node {
-	struct list_head list;
-	uint8_t mac[ETH_ALEN];
-};
-
 int vis_seq_print_text(struct seq_file *seq, void *offset);
 void receive_server_sync_packet(struct bat_priv *bat_priv,
 				struct vis_packet *vis_packet,
@@ -54,7 +31,7 @@ void receive_server_sync_packet(struct bat_priv *bat_priv,
 void receive_client_update_packet(struct bat_priv *bat_priv,
 				  struct vis_packet *vis_packet,
 				  int vis_info_len);
-int vis_init(void);
-void vis_quit(void);
+int vis_init(struct bat_priv *bat_priv);
+void vis_quit(struct bat_priv *bat_priv);
 
 #endif /* _NET_BATMAN_ADV_VIS_H_ */

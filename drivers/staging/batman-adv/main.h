@@ -30,7 +30,7 @@
 #define DRIVER_DESC   "B.A.T.M.A.N. advanced"
 #define DRIVER_DEVICE "batman-adv"
 
-#define SOURCE_VERSION "maint"
+#define SOURCE_VERSION "next"
 
 
 /* B.A.T.M.A.N. parameters */
@@ -58,7 +58,6 @@
 
 #define PACKBUFF_SIZE 2000
 #define LOG_BUF_LEN 8192	  /* has to be a power of 2 */
-#define ETH_STR_LEN 20
 
 #define VIS_INTERVAL 5000	/* 5 seconds */
 
@@ -76,9 +75,9 @@
 #define EXPECTED_SEQNO_RANGE	65536
 /* don't reset again within 30 seconds */
 
-#define MODULE_INACTIVE 0
-#define MODULE_ACTIVE 1
-#define MODULE_DEACTIVATING 2
+#define MESH_INACTIVE 0
+#define MESH_ACTIVE 1
+#define MESH_DEACTIVATING 2
 
 #define BCAST_QUEUE_LEN		256
 #define BATMAN_QUEUE_LEN	256
@@ -128,29 +127,14 @@
 #endif
 
 extern struct list_head if_list;
-extern struct hlist_head forw_bat_list;
-extern struct hlist_head forw_bcast_list;
-extern struct hashtable_t *orig_hash;
-
-extern spinlock_t orig_hash_lock;
-extern spinlock_t forw_bat_list_lock;
-extern spinlock_t forw_bcast_list_lock;
-
-extern atomic_t bcast_queue_left;
-extern atomic_t batman_queue_left;
-extern int16_t num_hna;
-
-extern struct net_device *soft_device;
 
 extern unsigned char broadcast_addr[];
-extern atomic_t module_state;
 extern struct workqueue_struct *bat_event_workqueue;
 
-void activate_module(void);
-void deactivate_module(void);
+int mesh_init(struct net_device *soft_iface);
+void mesh_free(struct net_device *soft_iface);
 void inc_module_count(void);
 void dec_module_count(void);
-int addr_to_string(char *buff, uint8_t *addr);
 int compare_orig(void *data1, void *data2);
 int choose_orig(void *data, int32_t size);
 int is_my_mac(uint8_t *addr);
@@ -158,7 +142,7 @@ int is_bcast(uint8_t *addr);
 int is_mcast(uint8_t *addr);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-extern int debug_log(struct bat_priv *bat_priv, char *fmt, ...);
+int debug_log(struct bat_priv *bat_priv, char *fmt, ...);
 
 #define bat_dbg(type, bat_priv, fmt, arg...)			\
 	do {							\

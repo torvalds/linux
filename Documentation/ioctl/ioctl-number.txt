@@ -259,7 +259,7 @@ Code  Seq#(hex)	Include File		Comments
 't'	00-7F	linux/if_ppp.h
 't'	80-8F	linux/isdn_ppp.h
 't'	90	linux/toshiba.h
-'u'	00-1F	linux/smb_fs.h
+'u'	00-1F	linux/smb_fs.h		gone
 'v'	all	linux/videodev.h	conflict!
 'v'	00-1F	linux/ext2_fs.h		conflict!
 'v'	00-1F	linux/fs.h		conflict!

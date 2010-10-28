@@ -1604,7 +1604,7 @@ static int get_l2_cache_blks(void)
 
 	for (n = 0; n < BLK_NUM_FOR_L2_CACHE; n++) {
 		blk = find_least_worn_blk_for_l2_cache();
-		if (blk > DeviceInfo.wDataBlockNum) {
+		if (blk >= DeviceInfo.wDataBlockNum) {
 			nand_dbg_print(NAND_DBG_WARN,
 				"find_least_worn_blk_for_l2_cache: "
 				"No enough free NAND blocks (n: %d) for L2 Cache!\n", n);
