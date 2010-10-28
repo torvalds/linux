@@ -936,11 +936,12 @@ config RTC_DRV_PCAP
 	  If you say Y here you will get support for the RTC found on
 	  the PCAP2 ASIC used on some Motorola phones.
 
-config RTC_DRV_MC13783
-	depends on MFD_MC13783
-	tristate "Freescale MC13783 RTC"
+config RTC_DRV_MC13XXX
+	depends on MFD_MC13XXX
+	tristate "Freescale MC13xxx RTC"
 	help
-	  This enables support for the Freescale MC13783 PMIC RTC
+	  This enables support for the RTCs found on Freescale's PMICs
+	  MC13783 and MC13892.
 
 config RTC_DRV_MPC5121
 	tristate "Freescale MPC5121 built-in RTC"
