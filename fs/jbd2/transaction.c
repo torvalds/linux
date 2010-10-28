@@ -156,6 +156,7 @@ alloc_transaction:
 	 */
 repeat:
 	read_lock(&journal->j_state_lock);
+	BUG_ON(journal->j_flags & JBD2_UNMOUNT);
 	if (is_journal_aborted(journal) ||
 	    (journal->j_errno != 0 && !(journal->j_flags & JBD2_ACK_ERR))) {
 		read_unlock(&journal->j_state_lock);
