@@ -169,6 +169,7 @@ struct fsnotify_group {
 			bool bypass_perm; /* protected by access_mutex */
 #endif /* CONFIG_FANOTIFY_ACCESS_PERMISSIONS */
 			int f_flags;
+			unsigned int max_marks;
 		} fanotify_data;
 #endif /* CONFIG_FANOTIFY */
 	};
