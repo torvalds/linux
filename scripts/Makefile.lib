@@ -120,7 +120,9 @@ _c_flags += $(if $(patsubst n%,, \
 endif
 
 ifdef CONFIG_SYMBOL_PREFIX
-_cpp_flags += -DSYMBOL_PREFIX=$(patsubst "%",%,$(CONFIG_SYMBOL_PREFIX))
+_sym_flags = -DSYMBOL_PREFIX=$(patsubst "%",%,$(CONFIG_SYMBOL_PREFIX))
+_cpp_flags += $(_sym_flags)
+_a_flags += $(_sym_flags)
 endif
 
 
