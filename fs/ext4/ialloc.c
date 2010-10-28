@@ -1274,6 +1274,16 @@ extern int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 			    ext4_itable_unused_count(sb, gdp)),
 			    sbi->s_inodes_per_block);
 
+	if ((used_blks < 0) || (used_blks > sbi->s_itb_per_group)) {
+		ext4_error(sb, "Something is wrong with group %u\n"
+			   "Used itable blocks: %d"
+			   "itable unused count: %u\n",
+			   group, used_blks,
+			   ext4_itable_unused_count(sb, gdp));
+		ret = 1;
+		goto out;
+	}
+
 	blk = ext4_inode_table(sb, gdp) + used_blks;
 	num = sbi->s_itb_per_group - used_blks;
 
@@ -1282,15 +1292,6 @@ extern int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 					    group_desc_bh);
 	if (ret)
 		goto err_out;
-
-	if (unlikely(num > EXT4_INODES_PER_GROUP(sb))) {
-		ext4_error(sb, "Something is wrong with group %u\n"
-			   "Used itable blocks: %d"
-			   "Itable blocks per group: %lu\n",
-			   group, used_blks, sbi->s_itb_per_group);
-		ret = 1;
-		goto err_out;
-	}
 
 	/*
 	 * Skip zeroout if the inode table is full. But we set the ZEROED
