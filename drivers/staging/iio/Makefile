@@ -11,6 +11,7 @@ obj-$(CONFIG_IIO_SW_RING) += ring_sw.o
 
 obj-y += accel/
 obj-y += adc/
+obj-y += addac/
 obj-y += gyro/
 obj-y += imu/
 obj-y += light/
