@@ -231,14 +231,41 @@ static struct platform_device usb1_common_device = {
 };
 
 /* LCDC */
+const static struct fb_videomode ecovec_lcd_modes[] = {
+	{
+		.name		= "Panel",
+		.xres		= 800,
+		.yres		= 480,
+		.left_margin	= 220,
+		.right_margin	= 110,
+		.hsync_len	= 70,
+		.upper_margin	= 20,
+		.lower_margin	= 5,
+		.vsync_len	= 5,
+		.sync		= 0, /* hsync and vsync are active low */
+	},
+};
+
+const static struct fb_videomode ecovec_dvi_modes[] = {
+	{
+		.name		= "DVI",
+		.xres		= 1280,
+		.yres		= 720,
+		.left_margin	= 220,
+		.right_margin	= 110,
+		.hsync_len	= 40,
+		.upper_margin	= 20,
+		.lower_margin	= 5,
+		.vsync_len	= 5,
+		.sync = 0, /* hsync and vsync are active low */
+	},
+};
+
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.ch[0] = {
 		.interface_type = RGB18,
 		.chan = LCDC_CHAN_MAINLCD,
 		.bpp = 16,
-		.lcd_cfg = {
-			.sync = 0, /* hsync and vsync are active low */
-		},
 		.lcd_size_cfg = { /* 7.0 inch */
 			.width = 152,
 			.height = 91,
@@ -1079,33 +1106,18 @@ static int __init arch_setup(void)
 	if (gpio_get_value(GPIO_PTE6)) {
 		/* DVI */
 		lcdc_info.clock_source			= LCDC_CLK_EXTERNAL;
-		lcdc_info.ch[0].clock_divider		= 1,
-		lcdc_info.ch[0].lcd_cfg.name		= "DVI";
-		lcdc_info.ch[0].lcd_cfg.xres		= 1280;
-		lcdc_info.ch[0].lcd_cfg.yres		= 720;
-		lcdc_info.ch[0].lcd_cfg.left_margin	= 220;
-		lcdc_info.ch[0].lcd_cfg.right_margin	= 110;
-		lcdc_info.ch[0].lcd_cfg.hsync_len	= 40;
-		lcdc_info.ch[0].lcd_cfg.upper_margin	= 20;
-		lcdc_info.ch[0].lcd_cfg.lower_margin	= 5;
-		lcdc_info.ch[0].lcd_cfg.vsync_len	= 5;
+		lcdc_info.ch[0].clock_divider		= 1;
+		lcdc_info.ch[0].lcd_cfg			= ecovec_dvi_modes;
+		lcdc_info.ch[0].num_cfg			= ARRAY_SIZE(ecovec_dvi_modes);
 
 		gpio_set_value(GPIO_PTA2, 1);
 		gpio_set_value(GPIO_PTU1, 1);
 	} else {
 		/* Panel */
-
 		lcdc_info.clock_source			= LCDC_CLK_PERIPHERAL;
-		lcdc_info.ch[0].clock_divider		= 2,
-		lcdc_info.ch[0].lcd_cfg.name		= "Panel";
-		lcdc_info.ch[0].lcd_cfg.xres		= 800;
-		lcdc_info.ch[0].lcd_cfg.yres		= 480;
-		lcdc_info.ch[0].lcd_cfg.left_margin	= 220;
-		lcdc_info.ch[0].lcd_cfg.right_margin	= 110;
-		lcdc_info.ch[0].lcd_cfg.hsync_len	= 70;
-		lcdc_info.ch[0].lcd_cfg.upper_margin	= 20;
-		lcdc_info.ch[0].lcd_cfg.lower_margin	= 5;
-		lcdc_info.ch[0].lcd_cfg.vsync_len	= 5;
+		lcdc_info.ch[0].clock_divider		= 2;
+		lcdc_info.ch[0].lcd_cfg			= ecovec_lcd_modes;
+		lcdc_info.ch[0].num_cfg			= ARRAY_SIZE(ecovec_lcd_modes);
 
 		gpio_set_value(GPIO_PTR1, 1);
 
