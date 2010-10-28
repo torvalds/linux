@@ -1335,7 +1335,7 @@ show_in(struct device *dev, struct device_attribute *attr, char *buf)
 	case IN_READ:
 		/* calculate this value again by sensors as sensors3.conf */
 		if ((index >= 17) &&
-		    ((data->has_gain >> (index - 17)) & 1))
+		    !((data->has_gain >> (index - 17)) & 1))
 			val *= 8;
 		break;
 	case IN_MAX:
@@ -1345,7 +1345,7 @@ show_in(struct device *dev, struct device_attribute *attr, char *buf)
 		val |= (data->in_lsb[lsb_idx][nr] >>
 			IN_LSB_SHIFT_IDX[lsb_idx][IN_LSB_SHIFT]) & 0x03;
 		if ((index >= 17) &&
-		    ((data->has_gain >> (index - 17)) & 1))
+		    !((data->has_gain >> (index - 17)) & 1))
 			val *= 8;
 		break;
 	}
@@ -1373,7 +1373,7 @@ store_in(struct device *dev, struct device_attribute *attr,
 	val = in_to_reg(index, val);
 
 	if ((index >= 17) &&
-	    ((data->has_gain >> (index - 17)) & 1))
+	    !((data->has_gain >> (index - 17)) & 1))
 		val /= 8;
 	val = SENSORS_LIMIT(val, 0, 0x3FF);
 	mutex_lock(&data->update_lock);
