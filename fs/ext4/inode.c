@@ -2800,12 +2800,13 @@ static int ext4_da_writepages_trans_blocks(struct inode *inode)
  */
 static int write_cache_pages_da(struct address_space *mapping,
 				struct writeback_control *wbc,
-				struct mpage_da_data *mpd)
+				struct mpage_da_data *mpd,
+				pgoff_t *done_index)
 {
 	int ret = 0;
 	int done = 0;
 	struct pagevec pvec;
-	int nr_pages;
+	unsigned nr_pages;
 	pgoff_t index;
 	pgoff_t end;		/* Inclusive */
 	long nr_to_write = wbc->nr_to_write;
@@ -2820,6 +2821,7 @@ static int write_cache_pages_da(struct address_space *mapping,
 	else
 		tag = PAGECACHE_TAG_DIRTY;
 
+	*done_index = index;
 	while (!done && (index <= end)) {
 		int i;
 
@@ -2842,6 +2844,8 @@ static int write_cache_pages_da(struct address_space *mapping,
 				done = 1;
 				break;
 			}
+
+			*done_index = page->index + 1;
 
 			lock_page(page);
 
@@ -2928,6 +2932,7 @@ static int ext4_da_writepages(struct address_space *mapping,
 	long desired_nr_to_write, nr_to_writebump = 0;
 	loff_t range_start = wbc->range_start;
 	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
+	pgoff_t done_index = 0;
 	pgoff_t end;
 
 	trace_ext4_da_writepages(inode, wbc);
@@ -3050,7 +3055,7 @@ retry:
 		mpd.io_done = 0;
 		mpd.pages_written = 0;
 		mpd.retval = 0;
-		ret = write_cache_pages_da(mapping, wbc, &mpd);
+		ret = write_cache_pages_da(mapping, wbc, &mpd, &done_index);
 		/*
 		 * If we have a contiguous extent of pages and we
 		 * haven't done the I/O yet, map the blocks and submit
@@ -3104,14 +3109,13 @@ retry:
 			 __func__, wbc->nr_to_write, ret);
 
 	/* Update index */
-	index += pages_written;
 	wbc->range_cyclic = range_cyclic;
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
 		/*
 		 * set the writeback_index so that range_cyclic
 		 * mode will write it back later
 		 */
-		mapping->writeback_index = index;
+		mapping->writeback_index = done_index;
 
 out_writepages:
 	wbc->nr_to_write -= nr_to_writebump;
