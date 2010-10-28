@@ -1392,7 +1392,6 @@ i915_gem_create_mmap_offset(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_gem_mm *mm = dev->mm_private;
-	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	struct drm_map_list *list;
 	struct drm_local_map *map;
 	int ret = 0;
@@ -1431,16 +1430,13 @@ i915_gem_create_mmap_offset(struct drm_gem_object *obj)
 		goto out_free_mm;
 	}
 
-	/* By now we should be all set, any drm_mmap request on the offset
-	 * below will get to our mmap & fault handler */
-	obj_priv->mmap_offset = ((uint64_t) list->hash.key) << PAGE_SHIFT;
-
 	return 0;
 
 out_free_mm:
 	drm_mm_put_block(list->file_offset_node);
 out_free_list:
 	kfree(list->map);
+	list->map = NULL;
 
 	return ret;
 }
@@ -1466,9 +1462,10 @@ i915_gem_release_mmap(struct drm_gem_object *obj)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
-	if (dev->dev_mapping)
+	if (unlikely(obj->map_list.map && dev->dev_mapping))
 		unmap_mapping_range(dev->dev_mapping,
-				    obj_priv->mmap_offset, obj->size, 1);
+				    (loff_t)obj->map_list.hash.key<<PAGE_SHIFT,
+				    obj->size, 1);
 
 	if (obj_priv->fault_mappable) {
 		obj_priv->fault_mappable = false;
@@ -1480,24 +1477,13 @@ static void
 i915_gem_free_mmap_offset(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	struct drm_gem_mm *mm = dev->mm_private;
-	struct drm_map_list *list;
+	struct drm_map_list *list = &obj->map_list;
 
-	list = &obj->map_list;
 	drm_ht_remove_item(&mm->offset_hash, &list->hash);
-
-	if (list->file_offset_node) {
-		drm_mm_put_block(list->file_offset_node);
-		list->file_offset_node = NULL;
-	}
-
-	if (list->map) {
-		kfree(list->map);
-		list->map = NULL;
-	}
-
-	obj_priv->mmap_offset = 0;
+	drm_mm_put_block(list->file_offset_node);
+	kfree(list->map);
+	list->map = NULL;
 }
 
 /**
@@ -1586,23 +1572,13 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	if (!obj_priv->mmap_offset) {
+	if (!obj->map_list.map) {
 		ret = i915_gem_create_mmap_offset(obj);
 		if (ret)
 			goto out;
 	}
 
-	args->offset = obj_priv->mmap_offset;
-
-	/*
-	 * Pull it into the GTT so that we have a page list (makes the
-	 * initial fault faster and any subsequent flushing possible).
-	 */
-	if (!obj_priv->agp_mem) {
-		ret = i915_gem_object_bind_to_gtt(obj, 0, true);
-		if (ret)
-			goto out;
-	}
+	args->offset = (u64)obj->map_list.hash.key << PAGE_SHIFT;
 
 out:
 	drm_gem_object_unreference(obj);
@@ -4477,7 +4453,7 @@ static void i915_gem_free_object_tail(struct drm_gem_object *obj)
 		return;
 	}
 
-	if (obj_priv->mmap_offset)
+	if (obj->map_list.map)
 		i915_gem_free_mmap_offset(obj);
 
 	drm_gem_object_release(obj);

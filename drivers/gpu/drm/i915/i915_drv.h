@@ -796,11 +796,6 @@ struct drm_i915_gem_object {
 	/* Which ring is refering to is this object */
 	struct intel_ring_buffer *ring;
 
-	/**
-	 * Fake offset for use by mmap(2)
-	 */
-	uint64_t mmap_offset;
-
 	/** Breadcrumb of last rendering to the buffer. */
 	uint32_t last_rendering_seqno;
 
