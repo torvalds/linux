@@ -2657,7 +2657,7 @@ static int fsg_main_thread(void *common_)
 		up_write(&common->filesem);
 	}
 
-	/* Let the unbind and cleanup routines know the thread has exited */
+	/* Let fsg_unbind() know the thread has exited */
 	complete_and_exit(&common->thread_notifier, 0);
 }
 
@@ -2906,9 +2906,6 @@ static void fsg_common_release(struct kref *ref)
 	if (common->state != FSG_STATE_TERMINATED) {
 		raise_exception(common, FSG_STATE_EXIT);
 		wait_for_completion(&common->thread_notifier);
-
-		/* The cleanup routine waits for this completion also */
-		complete(&common->thread_notifier);
 	}
 
 	if (likely(common->luns)) {
