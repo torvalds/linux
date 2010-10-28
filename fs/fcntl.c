@@ -684,6 +684,9 @@ void fasync_free(struct fasync_struct *new)
 /*
  * Insert a new entry into the fasync list.  Return the pointer to the
  * old one if we didn't use the new one.
+ *
+ * NOTE! It is very important that the FASYNC flag always
+ * match the state "is the filp on a fasync list".
  */
 struct fasync_struct *fasync_insert_entry(int fd, struct file *filp, struct fasync_struct **fapp, struct fasync_struct *new)
 {
@@ -718,9 +721,6 @@ out:
 /*
  * Add a fasync entry. Return negative on error, positive if
  * added, and zero if did nothing but change an existing one.
- *
- * NOTE! It is very important that the FASYNC flag always
- * match the state "is the filp on a fasync list".
  */
 static int fasync_add_entry(int fd, struct file *filp, struct fasync_struct **fapp)
 {
