@@ -157,3 +157,11 @@ __init void s3c_gpiolib_add(struct s3c_gpio_chip *chip)
 	if (ret >= 0)
 		s3c_gpiolib_track(chip);
 }
+
+int samsung_gpiolib_to_irq(struct gpio_chip *chip, unsigned int offset)
+{
+	struct s3c_gpio_chip *s3c_chip = container_of(chip,
+			struct s3c_gpio_chip, chip);
+
+	return s3c_chip->irq_base + offset;
+}
