@@ -3,6 +3,15 @@
 #
 comment "Accelerometers"
 
+config ADIS16201
+	tristate "Analog Devices ADIS16201 Dual-Axis Digital Inclinometer and Accelerometer"
+	depends on SPI
+	select IIO_TRIGGER if IIO_RING_BUFFER
+	select IIO_SW_RING if IIO_RING_BUFFER
+	help
+	  Say yes here to build support for Analog Devices adis16201 dual-axis
+	  digital inclinometer and accelerometer.
+
 config ADIS16209
 	tristate "Analog Devices ADIS16209 Dual-Axis Digital Inclinometer and Accelerometer"
 	depends on SPI
