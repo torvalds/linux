@@ -432,7 +432,6 @@ TRACE_EVENT(ext4_mb_release_group_pa,
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
-		__field(	ino_t,	ino			)
 		__field(	__u64,	pa_pstart		)
 		__field(	__u32,	pa_len			)
 
@@ -440,8 +439,6 @@ TRACE_EVENT(ext4_mb_release_group_pa,
 
 	TP_fast_assign(
 		__entry->dev		= sb->s_dev;
-		__entry->ino		= (ac && ac->ac_inode) ?
-						ac->ac_inode->i_ino : 0;
 		__entry->pa_pstart	= pa->pa_pstart;
 		__entry->pa_len		= pa->pa_len;
 	),
