@@ -2914,10 +2914,10 @@ remote_path_check:
 
 	spin_lock(&cifs_sb->tlink_tree_lock);
 	radix_tree_insert(&cifs_sb->tlink_tree, pSesInfo->linux_uid, tlink);
-	radix_tree_tag_set(&cifs_sb->tlink_tree, pSesInfo->linux_uid,
-			   CIFS_TLINK_MASTER_TAG);
 	spin_unlock(&cifs_sb->tlink_tree_lock);
 	radix_tree_preload_end();
+
+	cifs_sb->master_tlink = tlink;
 
 	queue_delayed_work(system_nrt_wq, &cifs_sb->prune_tlinks,
 				TLINK_IDLE_EXPIRE);
@@ -3271,22 +3271,10 @@ out:
 	return tcon;
 }
 
-static struct tcon_link *
+static inline struct tcon_link *
 cifs_sb_master_tlink(struct cifs_sb_info *cifs_sb)
 {
-	struct tcon_link *tlink;
-	unsigned int ret;
-
-	spin_lock(&cifs_sb->tlink_tree_lock);
-	ret = radix_tree_gang_lookup_tag(&cifs_sb->tlink_tree, (void **)&tlink,
-					0, 1, CIFS_TLINK_MASTER_TAG);
-	spin_unlock(&cifs_sb->tlink_tree_lock);
-
-	/* the master tcon should always be present */
-	if (ret == 0)
-		BUG();
-
-	return tlink;
+	return cifs_sb->master_tlink;
 }
 
 struct cifsTconInfo *

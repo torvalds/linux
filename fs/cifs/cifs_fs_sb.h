@@ -43,8 +43,8 @@
 
 struct cifs_sb_info {
 	struct radix_tree_root tlink_tree;
-#define CIFS_TLINK_MASTER_TAG		0	/* is "master" (mount) tcon */
 	spinlock_t tlink_tree_lock;
+	struct tcon_link *master_tlink;
 	struct nls_table *local_nls;
 	unsigned int rsize;
 	unsigned int wsize;
