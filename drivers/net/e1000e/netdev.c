@@ -4882,8 +4882,11 @@ static void e1000_reset_task(struct work_struct *work)
 	struct e1000_adapter *adapter;
 	adapter = container_of(work, struct e1000_adapter, reset_task);
 
-	e1000e_dump(adapter);
-	e_err("Reset adapter\n");
+	if (!((adapter->flags & FLAG_RX_NEEDS_RESTART) &&
+	      (adapter->flags & FLAG_RX_RESTART_NOW))) {
+		e1000e_dump(adapter);
+		e_err("Reset adapter\n");
+	}
 	e1000e_reinit_locked(adapter);
 }
 
