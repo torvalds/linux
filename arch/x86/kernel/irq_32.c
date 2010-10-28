@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <linux/percpu.h>
+#include <linux/mm.h>
 
 #include <asm/apic.h>
 
@@ -125,7 +126,9 @@ void __cpuinit irq_ctx_init(int cpu)
 	if (per_cpu(hardirq_ctx, cpu))
 		return;
 
-	irqctx = (union irq_ctx *)__get_free_pages(THREAD_FLAGS, THREAD_ORDER);
+	irqctx = page_address(alloc_pages_node(cpu_to_node(cpu),
+					       THREAD_FLAGS,
+					       THREAD_ORDER));
 	irqctx->tinfo.task		= NULL;
 	irqctx->tinfo.exec_domain	= NULL;
 	irqctx->tinfo.cpu		= cpu;
@@ -134,7 +137,9 @@ void __cpuinit irq_ctx_init(int cpu)
 
 	per_cpu(hardirq_ctx, cpu) = irqctx;
 
-	irqctx = (union irq_ctx *)__get_free_pages(THREAD_FLAGS, THREAD_ORDER);
+	irqctx = page_address(alloc_pages_node(cpu_to_node(cpu),
+					       THREAD_FLAGS,
+					       THREAD_ORDER));
 	irqctx->tinfo.task		= NULL;
 	irqctx->tinfo.exec_domain	= NULL;
 	irqctx->tinfo.cpu		= cpu;
