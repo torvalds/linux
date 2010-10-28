@@ -162,6 +162,7 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 #define LM90_HAVE_EMERGENCY	(1 << 4) /* 3rd upper (emergency) limit	*/
 #define LM90_HAVE_EMERGENCY_ALARM (1 << 5)/* emergency alarm		*/
 #define LM90_HAVE_TEMP3		(1 << 6) /* 3rd temperature sensor	*/
+#define LM90_HAVE_BROKEN_ALERT	(1 << 7) /* Broken alert		*/
 
 /*
  * Driver data (common to all clients)
@@ -200,11 +201,13 @@ struct lm90_params {
 
 static const struct lm90_params lm90_params[] = {
 	[adm1032] = {
-		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
+		  | LM90_HAVE_BROKEN_ALERT,
 		.alert_alarms = 0x7c,
 	},
 	[adt7461] = {
-		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
+		  | LM90_HAVE_BROKEN_ALERT,
 		.alert_alarms = 0x7c,
 	},
 	[lm86] = {
@@ -1361,7 +1364,7 @@ static void lm90_alert(struct i2c_client *client, unsigned int flag)
 		/* Disable ALERT# output, because these chips don't implement
 		  SMBus alert correctly; they should only hold the alert line
 		  low briefly. */
-		if ((data->kind == adm1032 || data->kind == adt7461)
+		if ((data->flags & LM90_HAVE_BROKEN_ALERT)
 		 && (alarms & data->alert_alarms)) {
 			dev_dbg(&client->dev, "Disabling ALERT#\n");
 			lm90_read_reg(client, LM90_REG_R_CONFIG1, &config);
