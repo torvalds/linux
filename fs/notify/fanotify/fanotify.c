@@ -200,10 +200,19 @@ static bool fanotify_should_send_event(struct fsnotify_group *group,
 	return false;
 }
 
+static void fanotify_free_group_priv(struct fsnotify_group *group)
+{
+	struct user_struct *user;
+
+	user = group->fanotify_data.user;
+	atomic_dec(&user->fanotify_listeners);
+	free_uid(user);
+}
+
 const struct fsnotify_ops fanotify_fsnotify_ops = {
 	.handle_event = fanotify_handle_event,
 	.should_send_event = fanotify_should_send_event,
-	.free_group_priv = NULL,
+	.free_group_priv = fanotify_free_group_priv,
 	.free_event_priv = NULL,
 	.freeing_mark = NULL,
 };

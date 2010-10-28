@@ -672,6 +672,9 @@ struct user_struct {
 	atomic_t inotify_watches; /* How many inotify watches does this user have? */
 	atomic_t inotify_devs;	/* How many inotify devs does this user have opened? */
 #endif
+#ifdef CONFIG_FANOTIFY
+	atomic_t fanotify_listeners;
+#endif
 #ifdef CONFIG_EPOLL
 	atomic_t epoll_watches;	/* The number of file descriptors currently watched */
 #endif

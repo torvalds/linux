@@ -170,6 +170,7 @@ struct fsnotify_group {
 #endif /* CONFIG_FANOTIFY_ACCESS_PERMISSIONS */
 			int f_flags;
 			unsigned int max_marks;
+			struct user_struct *user;
 		} fanotify_data;
 #endif /* CONFIG_FANOTIFY */
 	};

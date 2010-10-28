@@ -18,6 +18,7 @@
 
 #define FANOTIFY_DEFAULT_MAX_EVENTS	16384
 #define FANOTIFY_DEFAULT_MAX_MARKS	8192
+#define FANOTIFY_DEFAULT_MAX_LISTENERS	128
 
 extern const struct fsnotify_ops fanotify_fsnotify_ops;
 
@@ -656,6 +657,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 {
 	struct fsnotify_group *group;
 	int f_flags, fd;
+	struct user_struct *user;
 
 	pr_debug("%s: flags=%d event_f_flags=%d\n",
 		__func__, flags, event_f_flags);
@@ -665,6 +667,12 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 
 	if (flags & ~FAN_ALL_INIT_FLAGS)
 		return -EINVAL;
+
+	user = get_current_user();
+	if (atomic_read(&user->fanotify_listeners) > FANOTIFY_DEFAULT_MAX_LISTENERS) {
+		free_uid(user);
+		return -EMFILE;
+	}
 
 	f_flags = O_RDWR | FMODE_NONOTIFY;
 	if (flags & FAN_CLOEXEC)
@@ -676,6 +684,9 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	group = fsnotify_alloc_group(&fanotify_fsnotify_ops);
 	if (IS_ERR(group))
 		return PTR_ERR(group);
+
+	group->fanotify_data.user = user;
+	atomic_inc(&user->fanotify_listeners);
 
 	group->fanotify_data.f_flags = event_f_flags;
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
