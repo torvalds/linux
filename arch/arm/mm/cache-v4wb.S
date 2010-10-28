@@ -51,6 +51,17 @@ flush_base:
 	.text
 
 /*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(v4wb_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(v4wb_flush_icache_all)
+
+/*
  *	flush_user_cache_all()
  *
  *	Clean and invalidate all cache entries in a particular address
@@ -244,6 +255,7 @@ ENDPROC(v4wb_dma_unmap_area)
 
 	.type	v4wb_cache_fns, #object
 ENTRY(v4wb_cache_fns)
+	.long	v4wb_flush_icache_all
 	.long	v4wb_flush_kern_cache_all
 	.long	v4wb_flush_user_cache_all
 	.long	v4wb_flush_user_cache_range

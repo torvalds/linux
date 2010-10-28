@@ -13,6 +13,15 @@
 #include "proc-macros.S"
 
 /*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(v4_flush_icache_all)
+	mov	pc, lr
+ENDPROC(v4_flush_icache_all)
+
+/*
  *	flush_user_cache_all()
  *
  *	Invalidate all cache entries in a particular address
@@ -134,6 +143,7 @@ ENDPROC(v4_dma_map_area)
 
 	.type	v4_cache_fns, #object
 ENTRY(v4_cache_fns)
+	.long	v4_flush_icache_all
 	.long	v4_flush_kern_cache_all
 	.long	v4_flush_user_cache_all
 	.long	v4_flush_user_cache_range
