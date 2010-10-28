@@ -127,3 +127,10 @@ config ADT7310
 	help
 	  Say yes here to build support for Analog Devices ADT7310
 	  temperature sensors.
+
+config ADT7410
+	tristate "Analog Devices ADT7410 temperature sensor driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Analog Devices ADT7410
+	  temperature sensors.
