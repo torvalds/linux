@@ -692,16 +692,23 @@ static void start_transfer(struct fsg_dev *fsg, struct usb_ep *ep,
 	}
 }
 
-#define START_TRANSFER_OR(common, ep_name, req, pbusy, state)		\
-	if (fsg_is_set(common))						\
-		start_transfer((common)->fsg, (common)->fsg->ep_name,	\
-			       req, pbusy, state);			\
-	else
+static bool start_in_transfer(struct fsg_common *common, struct fsg_buffhd *bh)
+{
+	if (!fsg_is_set(common))
+		return false;
+	start_transfer(common->fsg, common->fsg->bulk_in,
+		       bh->inreq, &bh->inreq_busy, &bh->state);
+	return true;
+}
 
-#define START_TRANSFER(common, ep_name, req, pbusy, state)		\
-	START_TRANSFER_OR(common, ep_name, req, pbusy, state) (void)0
-
-
+static bool start_out_transfer(struct fsg_common *common, struct fsg_buffhd *bh)
+{
+	if (!fsg_is_set(common))
+		return false;
+	start_transfer(common->fsg, common->fsg->bulk_out,
+		       bh->outreq, &bh->outreq_busy, &bh->state);
+	return true;
+}
 
 static int sleep_thread(struct fsg_common *common)
 {
@@ -842,10 +849,8 @@ static int do_read(struct fsg_common *common)
 
 		/* Send this buffer and go read some more */
 		bh->inreq->zero = 0;
-		START_TRANSFER_OR(common, bulk_in, bh->inreq,
-			       &bh->inreq_busy, &bh->state)
-			/* Don't know what to do if
-			 * common->fsg is NULL */
+		if (!start_in_transfer(common, bh))
+			/* Don't know what to do if common->fsg is NULL */
 			return -EIO;
 		common->next_buffhd_to_fill = bh->next;
 	}
@@ -961,8 +966,7 @@ static int do_write(struct fsg_common *common)
 			bh->outreq->length = amount;
 			bh->bulk_out_intended_length = amount;
 			bh->outreq->short_not_ok = 1;
-			START_TRANSFER_OR(common, bulk_out, bh->outreq,
-					  &bh->outreq_busy, &bh->state)
+			if (!start_out_transfer(common, bh))
 				/* Don't know what to do if
 				 * common->fsg is NULL */
 				return -EIO;
@@ -1636,8 +1640,7 @@ static int throw_away_data(struct fsg_common *common)
 			bh->outreq->length = amount;
 			bh->bulk_out_intended_length = amount;
 			bh->outreq->short_not_ok = 1;
-			START_TRANSFER_OR(common, bulk_out, bh->outreq,
-					  &bh->outreq_busy, &bh->state)
+			if (!start_out_transfer(common, bh))
 				/* Don't know what to do if
 				 * common->fsg is NULL */
 				return -EIO;
@@ -1688,8 +1691,7 @@ static int finish_reply(struct fsg_common *common)
 		/* If there's no residue, simply send the last buffer */
 		} else if (common->residue == 0) {
 			bh->inreq->zero = 0;
-			START_TRANSFER_OR(common, bulk_in, bh->inreq,
-					  &bh->inreq_busy, &bh->state)
+			if (!start_in_transfer(common, bh))
 				return -EIO;
 			common->next_buffhd_to_fill = bh->next;
 
@@ -1698,8 +1700,7 @@ static int finish_reply(struct fsg_common *common)
 		 * stall, pad out the remaining data with 0's. */
 		} else if (common->can_stall) {
 			bh->inreq->zero = 1;
-			START_TRANSFER_OR(common, bulk_in, bh->inreq,
-					  &bh->inreq_busy, &bh->state)
+			if (!start_in_transfer(common, bh))
 				/* Don't know what to do if
 				 * common->fsg is NULL */
 				rc = -EIO;
@@ -1798,8 +1799,7 @@ static int send_status(struct fsg_common *common)
 
 	bh->inreq->length = USB_BULK_CS_WRAP_LEN;
 	bh->inreq->zero = 0;
-	START_TRANSFER_OR(common, bulk_in, bh->inreq,
-			  &bh->inreq_busy, &bh->state)
+	if (!start_in_transfer(common, bh))
 		/* Don't know what to do if common->fsg is NULL */
 		return -EIO;
 
@@ -2287,8 +2287,7 @@ static int get_next_command(struct fsg_common *common)
 	/* Queue a request to read a Bulk-only CBW */
 	set_bulk_out_req_length(common, bh, USB_BULK_CB_WRAP_LEN);
 	bh->outreq->short_not_ok = 1;
-	START_TRANSFER_OR(common, bulk_out, bh->outreq,
-			  &bh->outreq_busy, &bh->state)
+	if (!start_out_transfer(common, bh))
 		/* Don't know what to do if common->fsg is NULL */
 		return -EIO;
 
