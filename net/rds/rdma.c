@@ -664,13 +664,12 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	}
 	op->op_bytes = nr_bytes;
 
-	ret = 0;
 out:
 	kfree(pages);
 	if (ret)
 		rds_rdma_free_op(op);
-
-	rds_stats_inc(s_send_rdma);
+	else
+		rds_stats_inc(s_send_rdma);
 
 	return ret;
 }
