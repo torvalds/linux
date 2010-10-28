@@ -16,3 +16,4 @@ ad7476-$(CONFIG_IIO_RING_BUFFER) += ad7476_ring.o
 obj-$(CONFIG_AD7476) += ad7476.o
 
 obj-$(CONFIG_AD7150) += ad7150.o
+obj-$(CONFIG_AD7152) += ad7152.o
