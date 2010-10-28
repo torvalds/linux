@@ -272,7 +272,7 @@ static inline u16 in_to_reg(u8 index, u16 val)
 
 static inline unsigned long fan_from_reg(u16 val)
 {
-	if ((val >= 0xff0) || (val == 0))
+	if ((val == 0xfff) || (val == 0))
 		return 0;
 	return 1350000UL / val;
 }
@@ -456,7 +456,7 @@ static struct w83795_data *w83795_update_device(struct device *dev)
 			continue;
 		data->fan[i] = w83795_read(client, W83795_REG_FAN(i)) << 4;
 		data->fan[i] |=
-		  (w83795_read(client, W83795_REG_VRLSB >> 4)) & 0x0F;
+		  (w83795_read(client, W83795_REG_VRLSB) >> 4) & 0x0F;
 	}
 
 	/* Update temperature */
@@ -1940,11 +1940,11 @@ static int w83795_probe(struct i2c_client *client,
 		data->fan_min[i] =
 			w83795_read(client, W83795_REG_FAN_MIN_HL(i)) << 4;
 		data->fan_min[i] |=
-		  (w83795_read(client, W83795_REG_FAN_MIN_LSB(i) >>
-			W83795_REG_FAN_MIN_LSB_SHIFT(i))) & 0x0F;
+		  (w83795_read(client, W83795_REG_FAN_MIN_LSB(i)) >>
+			W83795_REG_FAN_MIN_LSB_SHIFT(i)) & 0x0F;
 		data->fan[i] = w83795_read(client, W83795_REG_FAN(i)) << 4;
 		data->fan[i] |=
-		  (w83795_read(client, W83795_REG_VRLSB >> 4)) & 0x0F;
+		  (w83795_read(client, W83795_REG_VRLSB) >> 4) & 0x0F;
 	}
 
 	/* temperature and limits */
