@@ -1405,7 +1405,7 @@ show_in(struct device *dev, struct device_attribute *attr, char *buf)
 		lsb_idx = IN_LSB_SHIFT_IDX[index][IN_LSB_IDX];
 		val <<= 2;
 		val |= (data->in_lsb[lsb_idx][nr] >>
-			IN_LSB_SHIFT_IDX[lsb_idx][IN_LSB_SHIFT]) & 0x03;
+			IN_LSB_SHIFT_IDX[index][IN_LSB_SHIFT]) & 0x03;
 		if ((index >= 17) &&
 		    !((data->has_gain >> (index - 17)) & 1))
 			val *= 8;
