@@ -2704,7 +2704,7 @@ static void ext4_end_io_buffer_write(struct buffer_head *bh, int uptodate);
 static int ext4_writepage(struct page *page,
 			  struct writeback_control *wbc)
 {
-	int ret = 0;
+	int ret = 0, commit_write = 0;
 	loff_t size;
 	unsigned int len;
 	struct buffer_head *page_bufs = NULL;
@@ -2717,60 +2717,37 @@ static int ext4_writepage(struct page *page,
 	else
 		len = PAGE_CACHE_SIZE;
 
-	if (page_has_buffers(page)) {
-		page_bufs = page_buffers(page);
-		if (walk_page_buffers(NULL, page_bufs, 0, len, NULL,
-					ext4_bh_delay_or_unwritten)) {
-			/*
-			 * We don't want to do  block allocation
-			 * So redirty the page and return
-			 * We may reach here when we do a journal commit
-			 * via journal_submit_inode_data_buffers.
-			 * If we don't have mapping block we just ignore
-			 * them. We can also reach here via shrink_page_list
-			 */
+	/*
+	 * If the page does not have buffers (for whatever reason),
+	 * try to create them using block_prepare_write.  If this
+	 * fails, redirty the page and move on.
+	 */
+	if (!page_buffers(page)) {
+		if (block_prepare_write(page, 0, len,
+					noalloc_get_block_write)) {
+		redirty_page:
 			redirty_page_for_writepage(wbc, page);
 			unlock_page(page);
 			return 0;
 		}
-	} else {
+		commit_write = 1;
+	}
+	page_bufs = page_buffers(page);
+	if (walk_page_buffers(NULL, page_bufs, 0, len, NULL,
+			      ext4_bh_delay_or_unwritten)) {
 		/*
-		 * The test for page_has_buffers() is subtle:
-		 * We know the page is dirty but it lost buffers. That means
-		 * that at some moment in time after write_begin()/write_end()
-		 * has been called all buffers have been clean and thus they
-		 * must have been written at least once. So they are all
-		 * mapped and we can happily proceed with mapping them
-		 * and writing the page.
-		 *
-		 * Try to initialize the buffer_heads and check whether
-		 * all are mapped and non delay. We don't want to
-		 * do block allocation here.
+		 * We don't want to do block allocation So redirty the
+		 * page and return We may reach here when we do a
+		 * journal commit via
+		 * journal_submit_inode_data_buffers.  If we don't
+		 * have mapping block we just ignore them. We can also
+		 * reach here via shrink_page_list
 		 */
-		ret = block_prepare_write(page, 0, len,
-					  noalloc_get_block_write);
-		if (!ret) {
-			page_bufs = page_buffers(page);
-			/* check whether all are mapped and non delay */
-			if (walk_page_buffers(NULL, page_bufs, 0, len, NULL,
-						ext4_bh_delay_or_unwritten)) {
-				redirty_page_for_writepage(wbc, page);
-				unlock_page(page);
-				return 0;
-			}
-		} else {
-			/*
-			 * We can't do block allocation here
-			 * so just redity the page and unlock
-			 * and return
-			 */
-			redirty_page_for_writepage(wbc, page);
-			unlock_page(page);
-			return 0;
-		}
+		goto redirty_page;
+	}
+	if (commit_write)
 		/* now mark the buffer_heads as dirty and uptodate */
 		block_commit_write(page, 0, len);
-	}
 
 	if (PageChecked(page) && ext4_should_journal_data(inode)) {
 		/*
@@ -2781,7 +2758,7 @@ static int ext4_writepage(struct page *page,
 		return __ext4_journalled_writepage(page, len);
 	}
 
-	if (page_bufs && buffer_uninit(page_bufs)) {
+	if (buffer_uninit(page_bufs)) {
 		ext4_set_bh_endio(page_bufs, inode);
 		ret = block_write_full_page_endio(page, noalloc_get_block_write,
 					    wbc, ext4_end_io_buffer_write);
