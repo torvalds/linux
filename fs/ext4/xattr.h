@@ -122,7 +122,7 @@ ext4_xattr_put_super(struct super_block *sb)
 }
 
 static __init inline int
-init_ext4_xattr(void)
+ext4_init_xattr(void)
 {
 	return 0;
 }
