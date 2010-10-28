@@ -183,7 +183,7 @@ static const u8 IN_LSB_SHIFT_IDX[][2] = {
 #define W83795_REG_FAN_MIN_HL(index)	(0xB6 + (index))
 #define W83795_REG_FAN_MIN_LSB(index)	(0xC4 + (index) / 2)
 #define W83795_REG_FAN_MIN_LSB_SHIFT(index) \
-	(((index) % 1) ? 4 : 0)
+	(((index) & 1) ? 4 : 0)
 
 #define W83795_REG_VID_CTRL		0x6A
 
@@ -670,7 +670,7 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 	data->fan_min[index] = val;
 	w83795_write(client, W83795_REG_FAN_MIN_HL(index), (val >> 4) & 0xff);
 	val &= 0x0f;
-	if (index % 1) {
+	if (index & 1) {
 		val <<= 4;
 		val |= w83795_read(client, W83795_REG_FAN_MIN_LSB(index))
 		       & 0x0f;
@@ -823,7 +823,7 @@ show_temp_src(struct device *dev, struct device_attribute *attr, char *buf)
 	u8 val = index / 2;
 	u8 tmp = data->temp_src[val];
 
-	if (index % 1)
+	if (index & 1)
 		val = 4;
 	else
 		val = 0;
@@ -850,7 +850,7 @@ store_temp_src(struct device *dev, struct device_attribute *attr,
 	tmp = SENSORS_LIMIT(tmp, 0, 15);
 
 	mutex_lock(&data->update_lock);
-	if (index % 1) {
+	if (index & 1) {
 		tmp <<= 4;
 		data->temp_src[val] &= 0x0f;
 	} else {
