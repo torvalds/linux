@@ -190,6 +190,63 @@ static const struct i2c_device_id lm90_id[] = {
 MODULE_DEVICE_TABLE(i2c, lm90_id);
 
 /*
+ * chip type specific parameters
+ */
+struct lm90_params {
+	u32 flags;		/* Capabilities */
+	u16 alert_alarms;	/* Which alarm bits trigger ALERT# */
+				/* Upper 8 bits for max6695/96 */
+};
+
+static const struct lm90_params lm90_params[] = {
+	[adm1032] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.alert_alarms = 0x7c,
+	},
+	[adt7461] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.alert_alarms = 0x7c,
+	},
+	[lm86] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.alert_alarms = 0x7b,
+	},
+	[lm90] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.alert_alarms = 0x7b,
+	},
+	[lm99] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.alert_alarms = 0x7b,
+	},
+	[max6646] = {
+		.flags = LM90_HAVE_LOCAL_EXT,
+		.alert_alarms = 0x7c,
+	},
+	[max6657] = {
+		.flags = LM90_HAVE_LOCAL_EXT,
+		.alert_alarms = 0x7c,
+	},
+	[max6659] = {
+		.flags = LM90_HAVE_LOCAL_EXT | LM90_HAVE_EMERGENCY,
+		.alert_alarms = 0x7c,
+	},
+	[max6680] = {
+		.flags = LM90_HAVE_OFFSET,
+		.alert_alarms = 0x7c,
+	},
+	[max6696] = {
+		.flags = LM90_HAVE_LOCAL_EXT | LM90_HAVE_EMERGENCY
+		  | LM90_HAVE_EMERGENCY_ALARM | LM90_HAVE_TEMP3,
+		.alert_alarms = 0x187c,
+	},
+	[w83l771] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
+		.alert_alarms = 0x7c,
+	},
+};
+
+/*
  * Client data (each client gets its own)
  */
 
@@ -199,7 +256,7 @@ struct lm90_data {
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 	int kind;
-	int flags;
+	u32 flags;
 
 	u8 config_orig;		/* Original configuration register value */
 	u16 alert_alarms;	/* Which alarm bits trigger ALERT# */
@@ -1201,39 +1258,10 @@ static int lm90_probe(struct i2c_client *new_client,
 
 	/* Different devices have different alarm bits triggering the
 	 * ALERT# output */
-	switch (data->kind) {
-	case lm90:
-	case lm99:
-	case lm86:
-		data->alert_alarms = 0x7b;
-		break;
-	case max6696:
-		data->alert_alarms = 0x187c;
-		break;
-	default:
-		data->alert_alarms = 0x7c;
-		break;
-	}
+	data->alert_alarms = lm90_params[data->kind].alert_alarms;
 
 	/* Set chip capabilities */
-	if (data->kind != max6657 && data->kind != max6659
-	    && data->kind != max6646 && data->kind != max6696)
-		data->flags |= LM90_HAVE_OFFSET;
-
-	if (data->kind == max6657 || data->kind == max6659
-	    || data->kind == max6646 || data->kind == max6696)
-		data->flags |= LM90_HAVE_LOCAL_EXT;
-
-	if (data->kind != max6657 && data->kind != max6659
-	    && data->kind != max6646 && data->kind != max6680
-	    && data->kind != max6696)
-		data->flags |= LM90_HAVE_REM_LIMIT_EXT;
-
-	if (data->kind == max6659 || data->kind == max6696)
-		data->flags |= LM90_HAVE_EMERGENCY;
-
-	if (data->kind == max6696)
-		data->flags |= LM90_HAVE_EMERGENCY_ALARM | LM90_HAVE_TEMP3;
+	data->flags = lm90_params[data->kind].flags;
 
 	/* Initialize the LM90 chip */
 	lm90_init_client(new_client);
