@@ -1777,6 +1777,35 @@ static int w83795_detect(struct i2c_client *client,
 	return 0;
 }
 
+static void w83795_remove_files(struct device *dev)
+{
+	struct w83795_data *data = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(w83795_in); i++)
+		device_remove_file(dev, &w83795_in[i].dev_attr);
+
+	for (i = 0; i < ARRAY_SIZE(w83795_fan); i++)
+		device_remove_file(dev, &w83795_fan[i].dev_attr);
+
+	for (i = 0; i < ARRAY_SIZE(sda_single_files); i++)
+		device_remove_file(dev, &sda_single_files[i].dev_attr);
+
+	if (data->chip_type == w83795g) {
+		for (i = 0; i < ARRAY_SIZE(w83795_left_reg); i++)
+			device_remove_file(dev, &w83795_left_reg[i].dev_attr);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(w83795_temp); i++)
+		device_remove_file(dev, &w83795_temp[i].dev_attr);
+
+	for (i = 0; i < ARRAY_SIZE(w83795_dts); i++)
+		device_remove_file(dev, &w83795_dts[i].dev_attr);
+
+	for (i = 0; i < ARRAY_SIZE(w83795_static); i++)
+		device_remove_file(dev, &w83795_static[i].dev_attr);
+}
+
 static int w83795_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -2065,31 +2094,8 @@ static int w83795_probe(struct i2c_client *client,
 
 	return 0;
 
-	/* Unregister sysfs hooks */
 exit_remove:
-	for (i = 0; i < ARRAY_SIZE(w83795_in); i++)
-		device_remove_file(dev, &w83795_in[i].dev_attr);
-
-	for (i = 0; i < ARRAY_SIZE(w83795_fan); i++)
-		device_remove_file(dev, &w83795_fan[i].dev_attr);
-
-	for (i = 0; i < ARRAY_SIZE(sda_single_files); i++)
-		device_remove_file(dev, &sda_single_files[i].dev_attr);
-
-	if (data->chip_type == w83795g) {
-		for (i = 0; i < ARRAY_SIZE(w83795_left_reg); i++)
-			device_remove_file(dev, &w83795_left_reg[i].dev_attr);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(w83795_temp); i++)
-		device_remove_file(dev, &w83795_temp[i].dev_attr);
-
-	for (i = 0; i < ARRAY_SIZE(w83795_dts); i++)
-		device_remove_file(dev, &w83795_dts[i].dev_attr);
-
-	for (i = 0; i < ARRAY_SIZE(w83795_static); i++)
-		device_remove_file(dev, &w83795_static[i].dev_attr);
-
+	w83795_remove_files(dev);
 	kfree(data);
 exit:
 	return err;
@@ -2098,34 +2104,9 @@ exit:
 static int w83795_remove(struct i2c_client *client)
 {
 	struct w83795_data *data = i2c_get_clientdata(client);
-	struct device *dev = &client->dev;
-	int i;
 
 	hwmon_device_unregister(data->hwmon_dev);
-
-	for (i = 0; i < ARRAY_SIZE(w83795_in); i++)
-		device_remove_file(dev, &w83795_in[i].dev_attr);
-
-	for (i = 0; i < ARRAY_SIZE(w83795_fan); i++)
-		device_remove_file(dev, &w83795_fan[i].dev_attr);
-
-	for (i = 0; i < ARRAY_SIZE(sda_single_files); i++)
-		device_remove_file(dev, &sda_single_files[i].dev_attr);
-
-	if (data->chip_type == w83795g) {
-		for (i = 0; i < ARRAY_SIZE(w83795_left_reg); i++)
-			device_remove_file(dev, &w83795_left_reg[i].dev_attr);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(w83795_temp); i++)
-		device_remove_file(dev, &w83795_temp[i].dev_attr);
-
-	for (i = 0; i < ARRAY_SIZE(w83795_dts); i++)
-		device_remove_file(dev, &w83795_dts[i].dev_attr);
-
-	for (i = 0; i < ARRAY_SIZE(w83795_static); i++)
-		device_remove_file(dev, &w83795_static[i].dev_attr);
-
+	w83795_remove_files(&client->dev);
 	kfree(data);
 
 	return 0;
