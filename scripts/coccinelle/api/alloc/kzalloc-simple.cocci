@@ -1,5 +1,9 @@
 ///
-/// kzalloc should be used rather than kmalloc followed by memset 0
+/// Use kzalloc rather than kmalloc followed by memset with 0
+///
+/// This considers some simple cases that are common and easy to validate
+/// Note in particular that there are no ...s in the rule, so all of the
+/// matched code has to be contiguous
 ///
 // Confidence: High
 // Copyright: (C) 2009-2010 Julia Lawall, Nicolas Palix, DIKU.  GPLv2.
