@@ -119,11 +119,12 @@ struct cifs_secmech {
 	struct sdesc *sdescmd5; /* ctxt to generate cifs/smb signature */
 };
 
-/* per smb connection structure/fields */
+/* per smb session structure/fields */
 struct ntlmssp_auth {
 	__u32 client_flags; /* sent by client in type 1 ntlmsssp exchange */
 	__u32 server_flags; /* sent by server in type 2 ntlmssp exchange */
 	unsigned char ciphertext[CIFS_CPHTXT_SIZE]; /* sent to server */
+	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlmssp */
 };
 
 struct cifs_cred {
@@ -241,12 +242,8 @@ struct cifsSesInfo {
 	char userName[MAX_USERNAME_SIZE + 1];
 	char *domainName;
 	char *password;
-	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlmssp */
 	struct session_key auth_key;
-	char ntlmv2_hash[16];
-	unsigned int tilen; /* length of the target info blob */
-	unsigned char *tiblob; /* target info blob in challenge response */
-	struct ntlmssp_auth ntlmssp; /* ciphertext, flags */
+	struct ntlmssp_auth *ntlmssp; /* ciphertext, flags, server challenge */
 	bool need_reconnect:1; /* connection reset, uid now invalid */
 };
 /* no more than one of the following three session flags may be set */

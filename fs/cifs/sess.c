@@ -399,23 +399,22 @@ static int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 		return -EINVAL;
 	}
 
-	memcpy(ses->cryptkey, pblob->Challenge, CIFS_CRYPTO_KEY_SIZE);
+	memcpy(ses->ntlmssp->cryptkey, pblob->Challenge, CIFS_CRYPTO_KEY_SIZE);
 	/* BB we could decode pblob->NegotiateFlags; some may be useful */
 	/* In particular we can examine sign flags */
 	/* BB spec says that if AvId field of MsvAvTimestamp is populated then
 		we must set the MIC field of the AUTHENTICATE_MESSAGE */
-	ses->ntlmssp.server_flags = le32_to_cpu(pblob->NegotiateFlags);
+	ses->ntlmssp->server_flags = le32_to_cpu(pblob->NegotiateFlags);
 	tioffset = cpu_to_le16(pblob->TargetInfoArray.BufferOffset);
 	tilen = cpu_to_le16(pblob->TargetInfoArray.Length);
-	ses->tilen = tilen;
-	if (ses->tilen) {
-		ses->tiblob = kmalloc(tilen, GFP_KERNEL);
-		if (!ses->tiblob) {
+	if (tilen) {
+		ses->auth_key.response = kmalloc(tilen, GFP_KERNEL);
+		if (!ses->auth_key.response) {
 			cERROR(1, "Challenge target info allocation failure");
-			ses->tilen = 0;
 			return -ENOMEM;
 		}
-		memcpy(ses->tiblob,  bcc_ptr + tioffset, ses->tilen);
+		memcpy(ses->auth_key.response, bcc_ptr + tioffset, tilen);
+		ses->auth_key.len = tilen;
 	}
 
 	return 0;
@@ -545,9 +544,9 @@ static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	sec_blob->WorkstationName.MaximumLength = 0;
 	tmp += 2;
 
-	if ((ses->ntlmssp.server_flags & NTLMSSP_NEGOTIATE_KEY_XCH) &&
+	if ((ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_KEY_XCH) &&
 			!calc_seckey(ses)) {
-		memcpy(tmp, ses->ntlmssp.ciphertext, CIFS_CPHTXT_SIZE);
+		memcpy(tmp, ses->ntlmssp->ciphertext, CIFS_CPHTXT_SIZE);
 		sec_blob->SessionKey.BufferOffset = cpu_to_le32(tmp - pbuffer);
 		sec_blob->SessionKey.Length = cpu_to_le16(CIFS_CPHTXT_SIZE);
 		sec_blob->SessionKey.MaximumLength =
@@ -601,8 +600,16 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses,
 		return -EINVAL;
 
 	type = ses->server->secType;
-
 	cFYI(1, "sess setup type %d", type);
+	if (type == RawNTLMSSP) {
+		/* if memory allocation is successful, caller of this function
+		 * frees it.
+		 */
+		ses->ntlmssp = kmalloc(sizeof(struct ntlmssp_auth), GFP_KERNEL);
+		if (!ses->ntlmssp)
+			return -ENOMEM;
+	}
+
 ssetup_ntlmssp_authenticate:
 	if (phase == NtLmChallenge)
 		phase = NtLmAuthenticate; /* if ntlmssp, now final phase */

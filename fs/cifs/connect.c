@@ -1818,8 +1818,6 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 	if (ses == NULL)
 		goto get_ses_fail;
 
-	ses->tilen = 0;
-	ses->tiblob = NULL;
 	/* new SMB session uses our server ref */
 	ses->server = server;
 	if (server->addr.sockAddr6.sin6_family == AF_INET6)
@@ -1840,10 +1838,9 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 			goto get_ses_fail;
 	}
 	if (volume_info->domainname) {
-		int len = strlen(volume_info->domainname);
-		ses->domainName = kmalloc(len + 1, GFP_KERNEL);
-		if (ses->domainName)
-			strcpy(ses->domainName, volume_info->domainname);
+		ses->domainName = kstrdup(volume_info->domainname, GFP_KERNEL);
+		if (!ses->domainName)
+			goto get_ses_fail;
 	}
 	ses->cred_uid = volume_info->cred_uid;
 	ses->linux_uid = volume_info->linux_uid;
@@ -3213,6 +3210,8 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *ses,
 	kfree(ses->auth_key.response);
 	ses->auth_key.response = NULL;
 	ses->auth_key.len = 0;
+	kfree(ses->ntlmssp);
+	ses->ntlmssp = NULL;
 
 	return rc;
 }

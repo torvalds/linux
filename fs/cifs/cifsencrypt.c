@@ -328,15 +328,15 @@ build_avpair_blob(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 	 * two times the unicode length of a server name +
 	 * size of a timestamp (which is 8 bytes).
 	 */
-	ses->tilen = size + 2 * (2 * dlen) + 2 * (2 * wlen) + 8;
-	ses->tiblob = kzalloc(ses->tilen, GFP_KERNEL);
-	if (!ses->tiblob) {
-		ses->tilen = 0;
+	ses->auth_key.len = size + 2 * (2 * dlen) + 2 * (2 * wlen) + 8;
+	ses->auth_key.response = kzalloc(ses->auth_key.len, GFP_KERNEL);
+	if (!ses->auth_key.response) {
+		ses->auth_key.len = 0;
 		cERROR(1, "Challenge target info allocation failure");
 		return -ENOMEM;
 	}
 
-	blobptr = ses->tiblob;
+	blobptr = ses->auth_key.response;
 	attrptr = (struct ntlmssp2_name *) blobptr;
 
 	attrptr->type = cpu_to_le16(NTLMSSP_AV_NB_DOMAIN_NAME);
@@ -400,11 +400,11 @@ find_domain_name(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 	unsigned char *blobend;
 	struct ntlmssp2_name *attrptr;
 
-	if (!ses->tilen || !ses->tiblob)
+	if (!ses->auth_key.len || !ses->auth_key.response)
 		return 0;
 
-	blobptr = ses->tiblob;
-	blobend = ses->tiblob + ses->tilen;
+	blobptr = ses->auth_key.response;
+	blobend = blobptr + ses->auth_key.len;
 
 	while (blobptr + onesize < blobend) {
 		attrptr = (struct ntlmssp2_name *) blobptr;
@@ -436,7 +436,7 @@ find_domain_name(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 	return 0;
 }
 
-static int calc_ntlmv2_hash(struct cifsSesInfo *ses,
+static int calc_ntlmv2_hash(struct cifsSesInfo *ses, char *ntlmv2_hash,
 			    const struct nls_table *nls_cp)
 {
 	int rc = 0;
@@ -509,7 +509,7 @@ static int calc_ntlmv2_hash(struct cifsSesInfo *ses,
 	}
 
 	rc = crypto_shash_final(&ses->server->secmech.sdeschmacmd5->shash,
-					ses->ntlmv2_hash);
+					ntlmv2_hash);
 
 calc_exit_1:
 	kfree(user);
@@ -518,7 +518,7 @@ calc_exit_2:
 }
 
 static int
-CalcNTLMv2_response(const struct cifsSesInfo *ses)
+CalcNTLMv2_response(const struct cifsSesInfo *ses, char *ntlmv2_hash)
 {
 	int rc;
 	unsigned int offset = CIFS_SESS_KEY_SIZE + 8;
@@ -529,7 +529,7 @@ CalcNTLMv2_response(const struct cifsSesInfo *ses)
 	}
 
 	crypto_shash_setkey(ses->server->secmech.hmacmd5,
-				ses->ntlmv2_hash, CIFS_HMAC_MD5_HASH_SIZE);
+				ntlmv2_hash, CIFS_HMAC_MD5_HASH_SIZE);
 
 	rc = crypto_shash_init(&ses->server->secmech.sdeschmacmd5->shash);
 	if (rc) {
@@ -539,7 +539,7 @@ CalcNTLMv2_response(const struct cifsSesInfo *ses)
 
 	if (ses->server->secType == RawNTLMSSP)
 		memcpy(ses->auth_key.response + offset,
-			ses->cryptkey, CIFS_SERVER_CHALLENGE_SIZE);
+			ses->ntlmssp->cryptkey, CIFS_SERVER_CHALLENGE_SIZE);
 	else
 		memcpy(ses->auth_key.response + offset,
 			ses->server->cryptkey, CIFS_SERVER_CHALLENGE_SIZE);
@@ -558,7 +558,10 @@ setup_ntlmv2_rsp(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 {
 	int rc;
 	int baselen;
+	unsigned int tilen;
 	struct ntlmv2_resp *buf;
+	char ntlmv2_hash[16];
+	unsigned char *tiblob = NULL; /* target info blob */
 
 	if (ses->server->secType == RawNTLMSSP) {
 		if (!ses->domainName) {
@@ -572,18 +575,22 @@ setup_ntlmv2_rsp(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 		rc = build_avpair_blob(ses, nls_cp);
 		if (rc) {
 			cERROR(1, "error %d building av pair blob", rc);
-			return rc;
+			goto setup_ntlmv2_rsp_ret;
 		}
 	}
 
 	baselen = CIFS_SESS_KEY_SIZE + sizeof(struct ntlmv2_resp);
-	ses->auth_key.len = baselen + ses->tilen;
-	ses->auth_key.response = kmalloc(ses->auth_key.len, GFP_KERNEL);
+	tilen = ses->auth_key.len;
+	tiblob = ses->auth_key.response;
+
+	ses->auth_key.response = kmalloc(baselen + tilen, GFP_KERNEL);
 	if (!ses->auth_key.response) {
 		rc = ENOMEM;
+		ses->auth_key.len = 0;
 		cERROR(1, "%s: Can't allocate auth blob", __func__);
 		goto setup_ntlmv2_rsp_ret;
 	}
+	ses->auth_key.len += baselen;
 
 	buf = (struct ntlmv2_resp *)
 			(ses->auth_key.response + CIFS_SESS_KEY_SIZE);
@@ -593,17 +600,17 @@ setup_ntlmv2_rsp(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 	get_random_bytes(&buf->client_chal, sizeof(buf->client_chal));
 	buf->reserved2 = 0;
 
-	memcpy(ses->auth_key.response + baselen, ses->tiblob, ses->tilen);
+	memcpy(ses->auth_key.response + baselen, tiblob, tilen);
 
 	/* calculate ntlmv2_hash */
-	rc = calc_ntlmv2_hash(ses, nls_cp);
+	rc = calc_ntlmv2_hash(ses, ntlmv2_hash, nls_cp);
 	if (rc) {
 		cERROR(1, "could not get v2 hash rc %d", rc);
 		goto setup_ntlmv2_rsp_ret;
 	}
 
 	/* calculate first part of the client response (CR1) */
-	rc = CalcNTLMv2_response(ses);
+	rc = CalcNTLMv2_response(ses, ntlmv2_hash);
 	if (rc) {
 		cERROR(1, "Could not calculate CR1  rc: %d", rc);
 		goto setup_ntlmv2_rsp_ret;
@@ -611,7 +618,7 @@ setup_ntlmv2_rsp(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 
 	/* now calculate the session key for NTLMv2 */
 	crypto_shash_setkey(ses->server->secmech.hmacmd5,
-		ses->ntlmv2_hash, CIFS_HMAC_MD5_HASH_SIZE);
+		ntlmv2_hash, CIFS_HMAC_MD5_HASH_SIZE);
 
 	rc = crypto_shash_init(&ses->server->secmech.sdeschmacmd5->shash);
 	if (rc) {
@@ -627,9 +634,7 @@ setup_ntlmv2_rsp(struct cifsSesInfo *ses, const struct nls_table *nls_cp)
 		ses->auth_key.response);
 
 setup_ntlmv2_rsp_ret:
-	kfree(ses->tiblob);
-	ses->tiblob = NULL;
-	ses->tilen = 0;
+	kfree(tiblob);
 
 	return rc;
 }
@@ -657,7 +662,7 @@ calc_seckey(struct cifsSesInfo *ses)
 					CIFS_SESS_KEY_SIZE);
 
 	sg_init_one(&sgin, sec_key, CIFS_SESS_KEY_SIZE);
-	sg_init_one(&sgout, ses->ntlmssp.ciphertext, CIFS_CPHTXT_SIZE);
+	sg_init_one(&sgout, ses->ntlmssp->ciphertext, CIFS_CPHTXT_SIZE);
 
 	rc = crypto_blkcipher_encrypt(&desc, &sgout, &sgin, CIFS_CPHTXT_SIZE);
 	if (rc) {
