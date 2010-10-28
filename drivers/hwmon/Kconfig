@@ -1041,6 +1041,23 @@ config SENSORS_W83795
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83795.
 
+config SENSORS_W83795_FANCTRL
+	boolean "Include fan control support (DANGEROUS)"
+	depends on SENSORS_W83795 && EXPERIMENTAL
+	default n
+	help
+	  If you say yes here, support for the both manual and automatic
+	  fan control features will be included in the driver.
+
+	  This part of the code wasn't carefully reviewed and tested yet,
+	  so enabling this option is strongly discouraged on production
+	  servers. Only developers and testers should enable it for the
+	  time being.
+
+	  Please also note that this option will create sysfs attribute
+	  files which may change in the future, so you shouldn't rely
+	  on them being stable.
+
 config SENSORS_W83L785TS
 	tristate "Winbond W83L785TS-S"
 	depends on I2C && EXPERIMENTAL

@@ -1455,6 +1455,7 @@ store_in(struct device *dev, struct device_attribute *attr,
 }
 
 
+#ifdef CONFIG_SENSORS_W83795_FANCTRL
 static ssize_t
 show_sf_setup(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -1506,6 +1507,7 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 	mutex_unlock(&data->update_lock);
 	return count;
 }
+#endif
 
 
 #define NOT_USED			-1
@@ -1711,6 +1713,7 @@ static const struct sensor_device_attribute_2 sda_single_files[] = {
 		      store_chassis_clear, ALARM_STATUS, 46),
 	SENSOR_ATTR_2(beep_enable, S_IWUSR | S_IRUGO, show_alarm_beep,
 		      store_beep, BEEP_ENABLE, 47),
+#ifdef CONFIG_SENSORS_W83795_FANCTRL
 	SENSOR_ATTR_2(speed_cruise_tolerance, S_IWUSR | S_IRUGO, show_fanin,
 		store_fanin, FANIN_TOL, NOT_USED),
 	SENSOR_ATTR_2(pwm_default, S_IWUSR | S_IRUGO, show_sf_setup,
@@ -1719,6 +1722,7 @@ static const struct sensor_device_attribute_2 sda_single_files[] = {
 		      store_sf_setup, SETUP_PWM_UPTIME, NOT_USED),
 	SENSOR_ATTR_2(pwm_downtime, S_IWUSR | S_IRUGO, show_sf_setup,
 		      store_sf_setup, SETUP_PWM_DOWNTIME, NOT_USED),
+#endif
 };
 
 /*
@@ -1872,6 +1876,7 @@ static int w83795_handle_files(struct device *dev, int (*fn)(struct device *,
 			return err;
 	}
 
+#ifdef CONFIG_SENSORS_W83795_FANCTRL
 	for (i = 0; i < data->has_pwm; i++) {
 		for (j = 0; j < ARRAY_SIZE(w83795_pwm[0]); j++) {
 			err = fn(dev, &w83795_pwm[i][j].dev_attr);
@@ -1879,11 +1884,16 @@ static int w83795_handle_files(struct device *dev, int (*fn)(struct device *,
 				return err;
 		}
 	}
+#endif
 
 	for (i = 0; i < ARRAY_SIZE(w83795_temp); i++) {
 		if (!(data->has_temp & (1 << i)))
 			continue;
+#ifdef CONFIG_SENSORS_W83795_FANCTRL
 		for (j = 0; j < ARRAY_SIZE(w83795_temp[0]); j++) {
+#else
+		for (j = 0; j < 8; j++) {
+#endif
 			err = fn(dev, &w83795_temp[i][j].dev_attr);
 			if (err)
 				return err;
