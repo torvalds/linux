@@ -237,6 +237,7 @@ struct x86_pmu {
 	 * Intel DebugStore bits
 	 */
 	int		bts, pebs;
+	int		bts_active, pebs_active;
 	int		pebs_record_size;
 	void		(*drain_pebs)(struct pt_regs *regs);
 	struct event_constraint *pebs_constraints;
@@ -380,7 +381,7 @@ static void release_pmc_hardware(void) {}
 
 #endif
 
-static int reserve_ds_buffers(void);
+static void reserve_ds_buffers(void);
 static void release_ds_buffers(void);
 
 static void hw_perf_event_destroy(struct perf_event *event)
@@ -477,7 +478,7 @@ static int x86_setup_perfctr(struct perf_event *event)
 	if ((attr->config == PERF_COUNT_HW_BRANCH_INSTRUCTIONS) &&
 	    (hwc->sample_period == 1)) {
 		/* BTS is not supported by this architecture. */
-		if (!x86_pmu.bts)
+		if (!x86_pmu.bts_active)
 			return -EOPNOTSUPP;
 
 		/* BTS is currently only allowed for user-mode. */
@@ -496,12 +497,13 @@ static int x86_pmu_hw_config(struct perf_event *event)
 		int precise = 0;
 
 		/* Support for constant skid */
-		if (x86_pmu.pebs)
+		if (x86_pmu.pebs_active) {
 			precise++;
 
-		/* Support for IP fixup */
-		if (x86_pmu.lbr_nr)
-			precise++;
+			/* Support for IP fixup */
+			if (x86_pmu.lbr_nr)
+				precise++;
+		}
 
 		if (event->attr.precise_ip > precise)
 			return -EOPNOTSUPP;
@@ -543,11 +545,8 @@ static int __x86_pmu_event_init(struct perf_event *event)
 		if (atomic_read(&active_events) == 0) {
 			if (!reserve_pmc_hardware())
 				err = -EBUSY;
-			else {
-				err = reserve_ds_buffers();
-				if (err)
-					release_pmc_hardware();
-			}
+			else
+				reserve_ds_buffers();
 		}
 		if (!err)
 			atomic_inc(&active_events);
