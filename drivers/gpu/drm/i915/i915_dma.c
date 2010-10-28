@@ -2096,6 +2096,9 @@ int i915_driver_unload(struct drm_device *dev)
 	i915_mch_dev = NULL;
 	spin_unlock(&mchdev_lock);
 
+	if (dev_priv->mm.inactive_shrinker.shrink)
+		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
+
 	mutex_lock(&dev->struct_mutex);
 	ret = i915_gpu_idle(dev);
 	if (ret)

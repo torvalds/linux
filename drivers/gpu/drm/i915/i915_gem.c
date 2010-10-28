@@ -65,8 +65,10 @@ i915_gem_object_get_pages(struct drm_gem_object *obj,
 static void
 i915_gem_object_put_pages(struct drm_gem_object *obj);
 
-static LIST_HEAD(shrink_list);
-static DEFINE_SPINLOCK(shrink_list_lock);
+static int i915_gem_inactive_shrink(struct shrinker *shrinker,
+				    int nr_to_scan,
+				    gfp_t gfp_mask);
+
 
 /* some bookkeeping */
 static void i915_gem_info_add_obj(struct drm_i915_private *dev_priv,
@@ -4765,9 +4767,6 @@ i915_gem_load(struct drm_device *dev)
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,
 			  i915_gem_retire_work_handler);
 	init_completion(&dev_priv->error_completion);
-	spin_lock(&shrink_list_lock);
-	list_add(&dev_priv->mm.shrink_list, &shrink_list);
-	spin_unlock(&shrink_list_lock);
 
 	/* On GEN3 we really need to make sure the ARB C3 LP bit is set */
 	if (IS_GEN3(dev)) {
@@ -4810,6 +4809,10 @@ i915_gem_load(struct drm_device *dev)
 	}
 	i915_gem_detect_bit_6_swizzle(dev);
 	init_waitqueue_head(&dev_priv->pending_flip_queue);
+
+	dev_priv->mm.inactive_shrinker.shrink = i915_gem_inactive_shrink;
+	dev_priv->mm.inactive_shrinker.seeks = DEFAULT_SEEKS;
+	register_shrinker(&dev_priv->mm.inactive_shrinker);
 }
 
 /*
@@ -5022,152 +5025,74 @@ i915_gpu_is_active(struct drm_device *dev)
 	int lists_empty;
 
 	lists_empty = list_empty(&dev_priv->mm.flushing_list) &&
-		      list_empty(&dev_priv->render_ring.active_list) &&
-		      list_empty(&dev_priv->bsd_ring.active_list) &&
-		      list_empty(&dev_priv->blt_ring.active_list);
+		      list_empty(&dev_priv->mm.active_list);
 
 	return !lists_empty;
 }
 
 static int
-i915_gem_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
+i915_gem_inactive_shrink(struct shrinker *shrinker,
+			 int nr_to_scan,
+			 gfp_t gfp_mask)
 {
-	drm_i915_private_t *dev_priv, *next_dev;
-	struct drm_i915_gem_object *obj_priv, *next_obj;
-	int cnt = 0;
-	int would_deadlock = 1;
+	struct drm_i915_private *dev_priv =
+		container_of(shrinker,
+			     struct drm_i915_private,
+			     mm.inactive_shrinker);
+	struct drm_device *dev = dev_priv->dev;
+	struct drm_i915_gem_object *obj, *next;
+	int cnt;
+
+	if (!mutex_trylock(&dev->struct_mutex))
+		return nr_to_scan ? 0 : -1;
 
 	/* "fast-path" to count number of available objects */
 	if (nr_to_scan == 0) {
-		spin_lock(&shrink_list_lock);
-		list_for_each_entry(dev_priv, &shrink_list, mm.shrink_list) {
-			struct drm_device *dev = dev_priv->dev;
-
-			if (mutex_trylock(&dev->struct_mutex)) {
-				list_for_each_entry(obj_priv,
-						    &dev_priv->mm.inactive_list,
-						    mm_list)
-					cnt++;
-				mutex_unlock(&dev->struct_mutex);
-			}
-		}
-		spin_unlock(&shrink_list_lock);
-
-		return (cnt / 100) * sysctl_vfs_cache_pressure;
+		cnt = 0;
+		list_for_each_entry(obj,
+				    &dev_priv->mm.inactive_list,
+				    mm_list)
+			cnt++;
+		mutex_unlock(&dev->struct_mutex);
+		return cnt / 100 * sysctl_vfs_cache_pressure;
 	}
-
-	spin_lock(&shrink_list_lock);
 
 rescan:
 	/* first scan for clean buffers */
-	list_for_each_entry_safe(dev_priv, next_dev,
-				 &shrink_list, mm.shrink_list) {
-		struct drm_device *dev = dev_priv->dev;
+	i915_gem_retire_requests(dev);
 
-		if (! mutex_trylock(&dev->struct_mutex))
-			continue;
-
-		spin_unlock(&shrink_list_lock);
-		i915_gem_retire_requests(dev);
-
-		list_for_each_entry_safe(obj_priv, next_obj,
-					 &dev_priv->mm.inactive_list,
-					 mm_list) {
-			if (i915_gem_object_is_purgeable(obj_priv)) {
-				i915_gem_object_unbind(&obj_priv->base);
-				if (--nr_to_scan <= 0)
-					break;
-			}
+	list_for_each_entry_safe(obj, next,
+				 &dev_priv->mm.inactive_list,
+				 mm_list) {
+		if (i915_gem_object_is_purgeable(obj)) {
+			i915_gem_object_unbind(&obj->base);
+			if (--nr_to_scan == 0)
+				break;
 		}
-
-		spin_lock(&shrink_list_lock);
-		mutex_unlock(&dev->struct_mutex);
-
-		would_deadlock = 0;
-
-		if (nr_to_scan <= 0)
-			break;
 	}
 
 	/* second pass, evict/count anything still on the inactive list */
-	list_for_each_entry_safe(dev_priv, next_dev,
-				 &shrink_list, mm.shrink_list) {
-		struct drm_device *dev = dev_priv->dev;
-
-		if (! mutex_trylock(&dev->struct_mutex))
-			continue;
-
-		spin_unlock(&shrink_list_lock);
-
-		list_for_each_entry_safe(obj_priv, next_obj,
-					 &dev_priv->mm.inactive_list,
-					 mm_list) {
-			if (nr_to_scan > 0) {
-				i915_gem_object_unbind(&obj_priv->base);
-				nr_to_scan--;
-			} else
-				cnt++;
-		}
-
-		spin_lock(&shrink_list_lock);
-		mutex_unlock(&dev->struct_mutex);
-
-		would_deadlock = 0;
+	cnt = 0;
+	list_for_each_entry_safe(obj, next,
+				 &dev_priv->mm.inactive_list,
+				 mm_list) {
+		if (nr_to_scan) {
+			i915_gem_object_unbind(&obj->base);
+			nr_to_scan--;
+		} else
+			cnt++;
 	}
 
-	if (nr_to_scan) {
-		int active = 0;
-
+	if (nr_to_scan && i915_gpu_is_active(dev)) {
 		/*
 		 * We are desperate for pages, so as a last resort, wait
 		 * for the GPU to finish and discard whatever we can.
 		 * This has a dramatic impact to reduce the number of
 		 * OOM-killer events whilst running the GPU aggressively.
 		 */
-		list_for_each_entry(dev_priv, &shrink_list, mm.shrink_list) {
-			struct drm_device *dev = dev_priv->dev;
-
-			if (!mutex_trylock(&dev->struct_mutex))
-				continue;
-
-			spin_unlock(&shrink_list_lock);
-
-			if (i915_gpu_is_active(dev)) {
-				i915_gpu_idle(dev);
-				active++;
-			}
-
-			spin_lock(&shrink_list_lock);
-			mutex_unlock(&dev->struct_mutex);
-		}
-
-		if (active)
+		if (i915_gpu_idle(dev) == 0)
 			goto rescan;
 	}
-
-	spin_unlock(&shrink_list_lock);
-
-	if (would_deadlock)
-		return -1;
-	else if (cnt > 0)
-		return (cnt / 100) * sysctl_vfs_cache_pressure;
-	else
-		return 0;
-}
-
-static struct shrinker shrinker = {
-	.shrink = i915_gem_shrink,
-	.seeks = DEFAULT_SEEKS,
-};
-
-__init void
-i915_gem_shrinker_init(void)
-{
-    register_shrinker(&shrinker);
-}
-
-__exit void
-i915_gem_shrinker_exit(void)
-{
-    unregister_shrinker(&shrinker);
+	mutex_unlock(&dev->struct_mutex);
+	return cnt / 100 * sysctl_vfs_cache_pressure;
 }

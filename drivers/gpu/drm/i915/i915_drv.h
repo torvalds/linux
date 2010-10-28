@@ -542,14 +542,7 @@ typedef struct drm_i915_private {
 		struct io_mapping *gtt_mapping;
 		int gtt_mtrr;
 
-		/**
-		 * Membership on list of all loaded devices, used to evict
-		 * inactive buffers under memory pressure.
-		 *
-		 * Modifications should only be done whilst holding the
-		 * shrink_list_lock spinlock.
-		 */
-		struct list_head shrink_list;
+		struct shrinker inactive_shrinker;
 
 		/**
 		 * List of objects currently involved in rendering.
@@ -1078,9 +1071,6 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 				 struct drm_gem_object *obj);
 void i915_gem_free_all_phys_object(struct drm_device *dev);
 void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
-
-void i915_gem_shrinker_init(void);
-void i915_gem_shrinker_exit(void);
 
 /* i915_gem_evict.c */
 int i915_gem_evict_something(struct drm_device *dev, int min_size,
