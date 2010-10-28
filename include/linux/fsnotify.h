@@ -98,8 +98,8 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 		old_dir_mask |= FS_DN_RENAME;
 
 	if (isdir) {
-		old_dir_mask |= FS_IN_ISDIR;
-		new_dir_mask |= FS_IN_ISDIR;
+		old_dir_mask |= FS_ISDIR;
+		new_dir_mask |= FS_ISDIR;
 	}
 
 	fsnotify(old_dir, old_dir_mask, old_dir, FSNOTIFY_EVENT_INODE, old_name, fs_cookie);
@@ -137,7 +137,7 @@ static inline void fsnotify_nameremove(struct dentry *dentry, int isdir)
 	__u32 mask = FS_DELETE;
 
 	if (isdir)
-		mask |= FS_IN_ISDIR;
+		mask |= FS_ISDIR;
 
 	fsnotify_parent(NULL, dentry, mask);
 }
@@ -179,7 +179,7 @@ static inline void fsnotify_link(struct inode *dir, struct inode *inode, struct 
  */
 static inline void fsnotify_mkdir(struct inode *inode, struct dentry *dentry)
 {
-	__u32 mask = (FS_CREATE | FS_IN_ISDIR);
+	__u32 mask = (FS_CREATE | FS_ISDIR);
 	struct inode *d_inode = dentry->d_inode;
 
 	audit_inode_child(dentry, inode);
@@ -197,7 +197,7 @@ static inline void fsnotify_access(struct file *file)
 	__u32 mask = FS_ACCESS;
 
 	if (S_ISDIR(inode->i_mode))
-		mask |= FS_IN_ISDIR;
+		mask |= FS_ISDIR;
 
 	if (!(file->f_mode & FMODE_NONOTIFY)) {
 		fsnotify_parent(path, NULL, mask);
@@ -215,7 +215,7 @@ static inline void fsnotify_modify(struct file *file)
 	__u32 mask = FS_MODIFY;
 
 	if (S_ISDIR(inode->i_mode))
-		mask |= FS_IN_ISDIR;
+		mask |= FS_ISDIR;
 
 	if (!(file->f_mode & FMODE_NONOTIFY)) {
 		fsnotify_parent(path, NULL, mask);
@@ -233,7 +233,7 @@ static inline void fsnotify_open(struct file *file)
 	__u32 mask = FS_OPEN;
 
 	if (S_ISDIR(inode->i_mode))
-		mask |= FS_IN_ISDIR;
+		mask |= FS_ISDIR;
 
 	if (!(file->f_mode & FMODE_NONOTIFY)) {
 		fsnotify_parent(path, NULL, mask);
@@ -252,7 +252,7 @@ static inline void fsnotify_close(struct file *file)
 	__u32 mask = (mode & FMODE_WRITE) ? FS_CLOSE_WRITE : FS_CLOSE_NOWRITE;
 
 	if (S_ISDIR(inode->i_mode))
-		mask |= FS_IN_ISDIR;
+		mask |= FS_ISDIR;
 
 	if (!(file->f_mode & FMODE_NONOTIFY)) {
 		fsnotify_parent(path, NULL, mask);
@@ -269,7 +269,7 @@ static inline void fsnotify_xattr(struct dentry *dentry)
 	__u32 mask = FS_ATTRIB;
 
 	if (S_ISDIR(inode->i_mode))
-		mask |= FS_IN_ISDIR;
+		mask |= FS_ISDIR;
 
 	fsnotify_parent(NULL, dentry, mask);
 	fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
@@ -304,7 +304,7 @@ static inline void fsnotify_change(struct dentry *dentry, unsigned int ia_valid)
 
 	if (mask) {
 		if (S_ISDIR(inode->i_mode))
-			mask |= FS_IN_ISDIR;
+			mask |= FS_ISDIR;
 
 		fsnotify_parent(NULL, dentry, mask);
 		fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE, NULL, 0);

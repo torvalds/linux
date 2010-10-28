@@ -45,7 +45,7 @@
 #define FS_ACCESS_PERM		0x00020000	/* access event in a permissions hook */
 
 #define FS_EXCL_UNLINK		0x04000000	/* do not send events if object is unlinked */
-#define FS_IN_ISDIR		0x40000000	/* event occurred against dir */
+#define FS_ISDIR		0x40000000	/* event occurred against dir */
 #define FS_IN_ONESHOT		0x80000000	/* only send event once */
 
 #define FS_DN_RENAME		0x10000000	/* file renamed */
@@ -72,7 +72,7 @@
 			     FS_DELETE | FS_DELETE_SELF | FS_MOVE_SELF | \
 			     FS_UNMOUNT | FS_Q_OVERFLOW | FS_IN_IGNORED | \
 			     FS_OPEN_PERM | FS_ACCESS_PERM | FS_EXCL_UNLINK | \
-			     FS_IN_ISDIR | FS_IN_ONESHOT | FS_DN_RENAME | \
+			     FS_ISDIR | FS_IN_ONESHOT | FS_DN_RENAME | \
 			     FS_DN_MULTISHOT | FS_EVENT_ON_CHILD)
 
 struct fsnotify_group;
