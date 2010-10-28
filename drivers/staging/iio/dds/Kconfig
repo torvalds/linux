@@ -9,3 +9,10 @@ config AD5930
 	help
 	  Say yes here to build support for Analog Devices DDS chip
 	  ad5930/ad5932, provides direct access via sysfs.
+
+config AD9832
+	tristate "Analog Devices ad9832/3/4/5 driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices DDS chip
+	  ad9832/3/4/5, provides direct access via sysfs.
