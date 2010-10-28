@@ -26,6 +26,11 @@
 #include <asm/cacheflush.h>
 #include <asm/dma.h>
 #include <asm/portmux.h>
+/* Some transitional glue */
+#include <linux/serial_core.h>
+#include <linux/circ_buf.h>
+#include <mach/bfin_serial_5xx.h>
+#undef DRIVER_NAME
 
 #ifdef CONFIG_SIR_BFIN_DMA
 struct dma_rx_buf {
