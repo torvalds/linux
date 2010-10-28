@@ -4770,15 +4770,15 @@ out:
 	return ret;
 }
 
-static int __init init_ext4_fs(void)
+static int __init ext4_init_fs(void)
 {
 	int err;
 
 	ext4_check_flag_values();
-	err = init_ext4_pageio();
+	err = ext4_init_pageio();
 	if (err)
 		return err;
-	err = init_ext4_system_zone();
+	err = ext4_init_system_zone();
 	if (err)
 		goto out5;
 	ext4_kset = kset_create_and_add("ext4", NULL, fs_kobj);
@@ -4788,11 +4788,11 @@ static int __init init_ext4_fs(void)
 
 	err = ext4_init_feat_adverts();
 
-	err = init_ext4_mballoc();
+	err = ext4_init_mballoc();
 	if (err)
 		goto out3;
 
-	err = init_ext4_xattr();
+	err = ext4_init_xattr();
 	if (err)
 		goto out2;
 	err = init_inodecache();
@@ -4812,37 +4812,37 @@ out:
 	unregister_as_ext3();
 	destroy_inodecache();
 out1:
-	exit_ext4_xattr();
+	ext4_exit_xattr();
 out2:
-	exit_ext4_mballoc();
+	ext4_exit_mballoc();
 out3:
 	kfree(ext4_feat);
 	remove_proc_entry("fs/ext4", NULL);
 	kset_unregister(ext4_kset);
 out4:
-	exit_ext4_system_zone();
+	ext4_exit_system_zone();
 out5:
-	exit_ext4_pageio();
+	ext4_exit_pageio();
 	return err;
 }
 
-static void __exit exit_ext4_fs(void)
+static void __exit ext4_exit_fs(void)
 {
 	ext4_destroy_lazyinit_thread();
 	unregister_as_ext2();
 	unregister_as_ext3();
 	unregister_filesystem(&ext4_fs_type);
 	destroy_inodecache();
-	exit_ext4_xattr();
-	exit_ext4_mballoc();
+	ext4_exit_xattr();
+	ext4_exit_mballoc();
 	remove_proc_entry("fs/ext4", NULL);
 	kset_unregister(ext4_kset);
-	exit_ext4_system_zone();
-	exit_ext4_pageio();
+	ext4_exit_system_zone();
+	ext4_exit_pageio();
 }
 
 MODULE_AUTHOR("Remy Card, Stephen Tweedie, Andrew Morton, Andreas Dilger, Theodore Ts'o and others");
 MODULE_DESCRIPTION("Fourth Extended Filesystem");
 MODULE_LICENSE("GPL");
-module_init(init_ext4_fs)
-module_exit(exit_ext4_fs)
+module_init(ext4_init_fs)
+module_exit(ext4_exit_fs)

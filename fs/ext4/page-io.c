@@ -32,7 +32,7 @@
 
 static struct kmem_cache *io_page_cachep, *io_end_cachep;
 
-int __init init_ext4_pageio(void)
+int __init ext4_init_pageio(void)
 {
 	io_page_cachep = KMEM_CACHE(ext4_io_page, SLAB_RECLAIM_ACCOUNT);
 	if (io_page_cachep == NULL)
@@ -46,7 +46,7 @@ int __init init_ext4_pageio(void)
 	return 0;
 }
 
-void exit_ext4_pageio(void)
+void ext4_exit_pageio(void)
 {
 	kmem_cache_destroy(io_end_cachep);
 	kmem_cache_destroy(io_page_cachep);

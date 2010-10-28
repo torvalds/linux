@@ -2705,7 +2705,7 @@ static void ext4_remove_debugfs_entry(void)
 
 #endif
 
-int __init init_ext4_mballoc(void)
+int __init ext4_init_mballoc(void)
 {
 	ext4_pspace_cachep = KMEM_CACHE(ext4_prealloc_space,
 					SLAB_RECLAIM_ACCOUNT);
@@ -2730,7 +2730,7 @@ int __init init_ext4_mballoc(void)
 	return 0;
 }
 
-void exit_ext4_mballoc(void)
+void ext4_exit_mballoc(void)
 {
 	int i;
 	/*

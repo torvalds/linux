@@ -29,7 +29,7 @@ struct ext4_system_zone {
 
 static struct kmem_cache *ext4_system_zone_cachep;
 
-int __init init_ext4_system_zone(void)
+int __init ext4_init_system_zone(void)
 {
 	ext4_system_zone_cachep = KMEM_CACHE(ext4_system_zone, 0);
 	if (ext4_system_zone_cachep == NULL)
@@ -37,7 +37,7 @@ int __init init_ext4_system_zone(void)
 	return 0;
 }
 
-void exit_ext4_system_zone(void)
+void ext4_exit_system_zone(void)
 {
 	kmem_cache_destroy(ext4_system_zone_cachep);
 }

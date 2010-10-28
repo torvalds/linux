@@ -1684,8 +1684,8 @@ extern ext4_fsblk_t ext4_mb_new_blocks(handle_t *,
 				struct ext4_allocation_request *, int *);
 extern int ext4_mb_reserve_blocks(struct super_block *, int);
 extern void ext4_discard_preallocations(struct inode *);
-extern int __init init_ext4_mballoc(void);
-extern void exit_ext4_mballoc(void);
+extern int __init ext4_init_mballoc(void);
+extern void ext4_exit_mballoc(void);
 extern void ext4_free_blocks(handle_t *handle, struct inode *inode,
 			     struct buffer_head *bh, ext4_fsblk_t block,
 			     unsigned long count, int flags);
@@ -2040,8 +2040,8 @@ extern const struct inode_operations ext4_fast_symlink_inode_operations;
 /* block_validity */
 extern void ext4_release_system_zone(struct super_block *sb);
 extern int ext4_setup_system_zone(struct super_block *sb);
-extern int __init init_ext4_system_zone(void);
-extern void exit_ext4_system_zone(void);
+extern int __init ext4_init_system_zone(void);
+extern void ext4_exit_system_zone(void);
 extern int ext4_data_block_valid(struct ext4_sb_info *sbi,
 				 ext4_fsblk_t start_blk,
 				 unsigned int count);
@@ -2070,8 +2070,8 @@ extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			     __u64 len, __u64 *moved_len);
 
 /* page-io.c */
-extern int __init init_ext4_pageio(void);
-extern void exit_ext4_pageio(void);
+extern int __init ext4_init_pageio(void);
+extern void ext4_exit_pageio(void);
 extern void ext4_free_io_end(ext4_io_end_t *io);
 extern ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags);
 extern int ext4_end_io_nolock(ext4_io_end_t *io);
