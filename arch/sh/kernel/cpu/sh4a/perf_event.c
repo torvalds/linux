@@ -259,7 +259,7 @@ static void sh4a_pmu_enable_all(void)
 }
 
 static struct sh_pmu sh4a_pmu = {
-	.name		= "SH-4A",
+	.name		= "sh4a",
 	.num_events	= 2,
 	.event_map	= sh4a_event_map,
 	.max_events	= ARRAY_SIZE(sh4a_general_events),

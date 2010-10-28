@@ -28,29 +28,29 @@ static void do_softint(struct work_struct *work)
 	u8 scpdr;
 	int touched = 0;
 
-	if (ctrl_inb(PHDR) & PHDR_TS_PEN_DOWN) {
-		scpdr = ctrl_inb(SCPDR);
+	if (__raw_readb(PHDR) & PHDR_TS_PEN_DOWN) {
+		scpdr = __raw_readb(SCPDR);
 		scpdr |= SCPDR_TS_SCAN_ENABLE;
 		scpdr &= ~SCPDR_TS_SCAN_Y;
-		ctrl_outb(scpdr, SCPDR);
+		__raw_writeb(scpdr, SCPDR);
 		udelay(30);
 
 		absy = adc_single(ADC_CHANNEL_TS_Y);
 
-		scpdr = ctrl_inb(SCPDR);
+		scpdr = __raw_readb(SCPDR);
 		scpdr |= SCPDR_TS_SCAN_Y;
 		scpdr &= ~SCPDR_TS_SCAN_X;
-		ctrl_outb(scpdr, SCPDR);
+		__raw_writeb(scpdr, SCPDR);
 		udelay(30);
 
 		absx = adc_single(ADC_CHANNEL_TS_X);
 
-		scpdr = ctrl_inb(SCPDR);
+		scpdr = __raw_readb(SCPDR);
 		scpdr |= SCPDR_TS_SCAN_X;
 		scpdr &= ~SCPDR_TS_SCAN_ENABLE;
-		ctrl_outb(scpdr, SCPDR);
+		__raw_writeb(scpdr, SCPDR);
 		udelay(100);
-		touched = ctrl_inb(PHDR) & PHDR_TS_PEN_DOWN;
+		touched = __raw_readb(PHDR) & PHDR_TS_PEN_DOWN;
 	}
 
 	if (touched) {
