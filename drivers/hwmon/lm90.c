@@ -88,8 +88,8 @@
  * Addresses to scan
  * Address is fully defined internally and cannot be changed except for
  * MAX6659, MAX6680 and MAX6681.
- * LM86, LM89, LM90, LM99, ADM1032, ADM1032-1, ADT7461, MAX6649, MAX6657
- * and MAX6658 have address 0x4c.
+ * LM86, LM89, LM90, LM99, ADM1032, ADM1032-1, ADT7461, MAX6649, MAX6657,
+ * MAX6658 and W83L771 have address 0x4c.
  * ADM1032-2, ADT7461-2, LM89-1, LM99-1 and MAX6646 have address 0x4d.
  * MAX6647 has address 0x4e.
  * MAX6659 can have address 0x4c, 0x4d or 0x4e.
@@ -1237,10 +1237,23 @@ static int lm90_detect(struct i2c_client *new_client,
 	} else
 	if (address == 0x4C
 	 && man_id == 0x5C) { /* Winbond/Nuvoton */
-		if ((chip_id & 0xFE) == 0x10 /* W83L771AWG/ASG */
-		 && (reg_config1 & 0x2A) == 0x00
-		 && reg_convrate <= 0x08) {
-			name = "w83l771";
+		int reg_config2;
+
+		reg_config2 = i2c_smbus_read_byte_data(new_client,
+						LM90_REG_R_CONFIG2);
+		if (reg_config2 < 0)
+			return -ENODEV;
+
+		if ((reg_config1 & 0x2A) == 0x00
+		 && (reg_config2 & 0xF8) == 0x00) {
+			if (chip_id == 0x01 /* W83L771W/G */
+			 && reg_convrate <= 0x09) {
+				name = "w83l771";
+			} else
+			if ((chip_id & 0xFE) == 0x10 /* W83L771AWG/ASG */
+			 && reg_convrate <= 0x08) {
+				name = "w83l771";
+			}
 		}
 	}
 

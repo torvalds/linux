@@ -95,6 +95,10 @@ Supported chips:
                            0x4c, 0x4d and 0x4e
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/datasheet/index.mvp/id/4199
+  * Winbond/Nuvoton W83L771W/G
+    Prefix: 'w83l771'
+    Addresses scanned: I2C 0x4c
+    Datasheet: No longer available
   * Winbond/Nuvoton W83L771AWG/ASG
     Prefix: 'w83l771'
     Addresses scanned: I2C 0x4c
@@ -169,11 +173,15 @@ MAX6695 and MAX6696:
   * Second critical temperature limit
   * Two remote sensors
 
-W83L771AWG/ASG
-  * The AWG and ASG variants only differ in package format.
+W83L771W/G
+  * The G variant is lead-free, otherwise similar to the W.
   * Filter and alert configuration register at 0xBF
-  * Diode ideality factor configuration (remote sensor) at 0xE3
   * Moving average (depending on conversion rate)
+
+W83L771AWG/ASG
+  * Successor of the W83L771W/G, same features.
+  * The AWG and ASG variants only differ in package format.
+  * Diode ideality factor configuration (remote sensor) at 0xE3
 
 All temperature values are given in degrees Celsius. Resolution
 is 1.0 degree for the local temperature, 0.125 degree for the remote
