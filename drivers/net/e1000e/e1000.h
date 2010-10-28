@@ -397,6 +397,7 @@ struct e1000_adapter {
 	struct work_struct print_hang_task;
 
 	bool idle_check;
+	int phy_hang_count;
 };
 
 struct e1000_info {
@@ -454,6 +455,7 @@ struct e1000_info {
 #define FLAG2_HAS_EEE                     (1 << 5)
 #define FLAG2_DMA_BURST                   (1 << 6)
 #define FLAG2_DISABLE_AIM                 (1 << 8)
+#define FLAG2_CHECK_PHY_HANG              (1 << 9)
 
 #define E1000_RX_DESC_PS(R, i)	    \
 	(&(((union e1000_rx_desc_packet_split *)((R).desc))[i]))
@@ -631,6 +633,7 @@ extern s32 e1000_get_phy_info_ife(struct e1000_hw *hw);
 extern s32 e1000_check_polarity_ife(struct e1000_hw *hw);
 extern s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw);
 extern s32 e1000_check_polarity_igp(struct e1000_hw *hw);
+extern bool e1000_check_phy_82574(struct e1000_hw *hw);
 
 static inline s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 {
