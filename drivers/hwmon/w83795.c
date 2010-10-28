@@ -178,15 +178,11 @@ static const u8 IN_LSB_SHIFT_IDX[][2] = {
 #define W83795_REG_TSS(index)		(0x209 + (index))
 
 #define PWM_OUTPUT			0
-#define PWM_START			1
-#define PWM_NONSTOP			2
-#define PWM_STOP_TIME			3
-#define PWM_FREQ			4
-#define W83795_REG_PWM(index, nr) \
-	(((nr) == 0 ? 0x210 : \
-	  (nr) == 1 ? 0x220 : \
-	  (nr) == 2 ? 0x228 : \
-	  (nr) == 3 ? 0x230 : 0x218) + (index))
+#define PWM_FREQ			1
+#define PWM_START			2
+#define PWM_NONSTOP			3
+#define PWM_STOP_TIME			4
+#define W83795_REG_PWM(index, nr)	(0x210 + (nr) * 8 + (index))
 
 #define W83795_REG_FTSH(index)		(0x240 + (index) * 2)
 #define W83795_REG_FTSL(index)		(0x241 + (index) * 2)
@@ -356,8 +352,8 @@ struct w83795_data {
 	u8 has_pwm;		/* 795g supports 8 pwm, 795adg only supports 2,
 				 * no config register, only affected by chip
 				 * type */
-	u8 pwm[8][5];		/* Register value, output, start, non stop, stop
-				 * time, freq */
+	u8 pwm[8][5];		/* Register value, output, freq, start,
+				 *  non stop, stop time */
 	u16 clkin;		/* CLKIN frequency in kHz */
 	u8 pwm_fcms[2];		/* Register value */
 	u8 pwm_tfmr[6];		/* Register value */
@@ -1979,7 +1975,7 @@ static int w83795_probe(struct i2c_client *client,
 		data->pwm_tfmr[i] = w83795_read(client, W83795_REG_TFMR(i));
 	data->pwm_fomc = w83795_read(client, W83795_REG_FOMC);
 	for (i = 0; i < data->has_pwm; i++) {
-		for (tmp = PWM_START; tmp <= PWM_FREQ; tmp++)
+		for (tmp = PWM_FREQ; tmp <= PWM_STOP_TIME; tmp++)
 			data->pwm[i][tmp] =
 				w83795_read(client, W83795_REG_PWM(i, tmp));
 	}
