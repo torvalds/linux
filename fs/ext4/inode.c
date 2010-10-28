@@ -2105,7 +2105,7 @@ static void mpage_put_bnr_to_bhs(struct mpage_da_data *mpd,
 			} while ((bh = bh->b_this_page) != head);
 
 			do {
-				if (cur_logical >= map->m_lblk + blocks)
+				if (cur_logical > map->m_lblk + (blocks - 1))
 					break;
 
 				if (buffer_delay(bh) || buffer_unwritten(bh)) {
