@@ -17,6 +17,7 @@
 
 #include <linux/android_alarm.h>
 #include <linux/debugfs.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
@@ -61,6 +62,15 @@ struct battery_status {
 
 
 #define TEMP_HOT	450 /* 45.0 degrees Celcius */
+
+/* On power up, a sanity check is performed on the reported capacity. If the
+ * capacity is less than THRES_PERCENT, but the battery voltage is above
+ * THRES_BATT (when battery powered) or THRES_CHRG (when on a charger), the
+ * ACR will be reset to a reasonable value.
+ */
+#define THRES_PERCENT   5
+#define THRES_BATT      7500000
+#define THRES_CHRG      7750000
 
 #define BATTERY_LOG_MAX 1024
 #define BATTERY_LOG_MASK (BATTERY_LOG_MAX - 1)
@@ -202,15 +212,19 @@ static int ds2781_battery_read_status(struct ds2781_device_info *di)
 	int ret;
 	int start;
 	int count;
+	char first_time;
+	struct battery_status *s = &di->status;
 
 	/* The first time we read the entire contents of SRAM/EEPROM,
 	 * but after that we just read the interesting bits that change. */
 	if (di->raw[DS2781_REG_RSNSP] == 0x00) {
 		start = DS2781_REG_STATUS;
 		count = DS2781_DATA_SIZE - start;
+		first_time = 1;
 	} else {
 		start = DS2781_REG_STATUS;
 		count = DS2781_REG_AGE_SCALAR - start + 1;
+		first_time = 0;
 	}
 
 	ret = w1_ds2781_read(di->w1_dev, di->raw + start, start, count);
@@ -220,18 +234,23 @@ static int ds2781_battery_read_status(struct ds2781_device_info *di)
 		return 1;
 	}
 
-	mutex_lock(&di->status_lock);
-	ds2781_parse_data(di->raw, &di->status);
+	ds2781_parse_data(di->raw, s);
 
-	if (battery_log_en)
-		pr_info("batt: %3d%%, %d mV, %d mA (%d avg), %d.%d C, %d mAh\n",
-			di->status.percentage,
-			di->status.voltage_uV / 1000,
-			di->status.current_uA / 1000,
-			di->status.current_avg_uA / 1000,
-			di->status.temp_C / 10, di->status.temp_C % 10,
-			di->status.charge_uAh / 1000);
-	mutex_unlock(&di->status_lock);
+	if (first_time && (s->percentage < THRES_PERCENT) &&
+	    (s->voltage_uV > (s->charge_source ? THRES_CHRG : THRES_BATT))) {
+		dev_err(di->dev, "Battery capacity is obviously wrong\n");
+		dev_err(di->dev, "Reset ACR registers to ~1300mAh\n");
+
+		di->raw[DS2781_REG_ACCUMULATE_CURR_MSB] = 0x08;
+		di->raw[DS2781_REG_ACCUMULATE_CURR_LSB] = 0x25;
+		w1_ds2781_write(di->w1_dev,
+				di->raw + DS2781_REG_ACCUMULATE_CURR_MSB,
+				DS2781_REG_ACCUMULATE_CURR_MSB, 2);
+
+		/* Give time for registers to update, then read again */
+		msleep(450);
+		return ds2781_battery_read_status(di);
+	}
 
 	return 0;
 }
@@ -306,7 +325,18 @@ static void ds2781_battery_update_status(struct ds2781_device_info *di)
 	u8 last_level;
 	last_level = di->status.percentage;
 
+	mutex_lock(&di->status_lock);
 	ds2781_battery_read_status(di);
+
+	if (battery_log_en)
+		pr_info("batt: %3d%%, %d mV, %d mA (%d avg), %d.%d C, %d mAh\n",
+			di->status.percentage,
+			di->status.voltage_uV / 1000,
+			di->status.current_uA / 1000,
+			di->status.current_avg_uA / 1000,
+			di->status.temp_C / 10, di->status.temp_C % 10,
+			di->status.charge_uAh / 1000);
+	mutex_unlock(&di->status_lock);
 
 	if ((last_level != di->status.percentage) ||
 	    (di->status.temp_C >= TEMP_HOT))
