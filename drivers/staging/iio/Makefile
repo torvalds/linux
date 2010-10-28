@@ -13,6 +13,7 @@ obj-y += accel/
 obj-y += adc/
 obj-y += addac/
 obj-y += dac/
+obj-y += dds/
 obj-y += gyro/
 obj-y += imu/
 obj-y += light/

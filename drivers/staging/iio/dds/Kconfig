@@ -1,0 +1,11 @@
+#
+# Direct Digital Synthesis drivers
+#
+comment "Direct Digital Synthesis"
+
+config AD5930
+	tristate "Analog Devices ad5930/5932 driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices DDS chip
+	  ad5930/ad5932, provides direct access via sysfs.
