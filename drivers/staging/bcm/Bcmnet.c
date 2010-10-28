@@ -22,17 +22,15 @@ static INT bcm_notify_event(struct notifier_block *nb, ULONG event, PVOID dev)
 			case NETDEV_REGISTER:
 				 /* Increment the Reference Count for "veth0" */
 				 BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Register RefCount: %x\n",
-									atomic_read(&ndev->refcnt));
-				 atomic_inc(&ndev->refcnt);
+									netdev_refcnt_read(ndev));
+				 dev_hold(ndev);
 				 break;
 
 			case NETDEV_UNREGISTER:
 				 /* Decrement the Reference Count for "veth0" */
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Unregister RefCnt: %x\n",
-									atomic_read(&ndev->refcnt));
-				atomic_dec(&ndev->refcnt);
-				if((int)atomic_read(&ndev->refcnt) < 0)
-					atomic_set(&ndev->refcnt, 0);
+									netdev_refcnt_read(ndev));
+				dev_put(ndev);
 				break;
 		};
 	}
