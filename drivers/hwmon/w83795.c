@@ -713,7 +713,7 @@ store_beep(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-/* Write any value to clear chassis alarm */
+/* Write 0 to clear chassis alarm */
 static ssize_t
 store_chassis_clear(struct device *dev,
 		    struct device_attribute *attr, const char *buf,
@@ -721,7 +721,10 @@ store_chassis_clear(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct w83795_data *data = i2c_get_clientdata(client);
-	u8 val;
+	unsigned long val;
+
+	if (strict_strtoul(buf, 10, &val) < 0 || val != 0)
+		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 	val = w83795_read(client, W83795_REG_CLR_CHASSIS);
@@ -1709,8 +1712,10 @@ static const struct sensor_device_attribute_2 w83795_pwm[][7] = {
 };
 
 static const struct sensor_device_attribute_2 sda_single_files[] = {
-	SENSOR_ATTR_2(chassis, S_IWUSR | S_IRUGO, show_alarm_beep,
+	SENSOR_ATTR_2(intrusion0_alarm, S_IWUSR | S_IRUGO, show_alarm_beep,
 		      store_chassis_clear, ALARM_STATUS, 46),
+	SENSOR_ATTR_2(intrusion0_beep, S_IWUSR | S_IRUGO, show_alarm_beep,
+		      store_beep, BEEP_ENABLE, 46),
 	SENSOR_ATTR_2(beep_enable, S_IWUSR | S_IRUGO, show_alarm_beep,
 		      store_beep, BEEP_ENABLE, 47),
 #ifdef CONFIG_SENSORS_W83795_FANCTRL
