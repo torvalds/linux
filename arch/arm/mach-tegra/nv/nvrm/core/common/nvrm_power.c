@@ -78,6 +78,10 @@ NvError NvRmPowerModuleClockControl(
     const char *bsea_names[] = { "bsea", NULL };
     const char *vde_names[] = { "vde", NULL };
     const char **names = NULL;
+    static struct clk *sclk = NULL;
+
+    if (!sclk)
+        sclk = clk_get_sys("tegra-avp", "sclk");
 
     if (is_vcp(ModuleId))
         names = vcp_names;
@@ -101,10 +105,15 @@ NvError NvRmPowerModuleClockControl(
             continue;
         }
 
-        if (Enable)
+        if (Enable) {
+            if (sclk)
+                clk_enable(sclk);
             clk_enable(clk);
-        else
+        } else {
+            if (sclk)
+                clk_disable(sclk);
             clk_disable(clk);
+        }
     }
 
     return NvSuccess;
