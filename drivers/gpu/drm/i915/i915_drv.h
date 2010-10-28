@@ -748,15 +748,6 @@ struct drm_i915_gem_object {
 	unsigned int madv : 2;
 
 	/**
-	 * Refcount for the pages array. With the current locking scheme, there
-	 * are at most two concurrent users: Binding a bo to the gtt and
-	 * pwrite/pread using physical addresses. So two bits for a maximum
-	 * of two users are enough.
-	 */
-	unsigned int pages_refcount : 2;
-#define DRM_I915_GEM_OBJECT_MAX_PAGES_REFCOUNT 0x3
-
-	/**
 	 * Current tiling mode for the object.
 	 */
 	unsigned int tiling_mode : 2;

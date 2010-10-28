@@ -58,13 +58,6 @@ static int i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *o
 				struct drm_file *file_priv);
 static void i915_gem_free_object_tail(struct drm_gem_object *obj);
 
-static int
-i915_gem_object_get_pages(struct drm_gem_object *obj,
-			  gfp_t gfpmask);
-
-static void
-i915_gem_object_put_pages(struct drm_gem_object *obj);
-
 static int i915_gem_inactive_shrink(struct shrinker *shrinker,
 				    int nr_to_scan,
 				    gfp_t gfp_mask);
@@ -326,22 +319,6 @@ i915_gem_object_cpu_accessible(struct drm_i915_gem_object *obj)
 		obj->gtt_offset + obj->base.size <= dev_priv->mm.gtt_mappable_end;
 }
 
-static inline int
-fast_shmem_read(struct page **pages,
-		loff_t page_base, int page_offset,
-		char __user *data,
-		int length)
-{
-	char *vaddr;
-	int ret;
-
-	vaddr = kmap_atomic(pages[page_base >> PAGE_SHIFT]);
-	ret = __copy_to_user_inatomic(data, vaddr + page_offset, length);
-	kunmap_atomic(vaddr);
-
-	return ret;
-}
-
 static int i915_gem_object_needs_bit17_swizzle(struct drm_gem_object *obj)
 {
 	drm_i915_private_t *dev_priv = obj->dev->dev_private;
@@ -429,8 +406,9 @@ i915_gem_shmem_pread_fast(struct drm_device *dev, struct drm_gem_object *obj,
 			  struct drm_file *file_priv)
 {
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+	struct address_space *mapping = obj->filp->f_path.dentry->d_inode->i_mapping;
 	ssize_t remain;
-	loff_t offset, page_base;
+	loff_t offset;
 	char __user *user_data;
 	int page_offset, page_length;
 
@@ -441,21 +419,34 @@ i915_gem_shmem_pread_fast(struct drm_device *dev, struct drm_gem_object *obj,
 	offset = args->offset;
 
 	while (remain > 0) {
+		struct page *page;
+		char *vaddr;
+		int ret;
+
 		/* Operation in this page
 		 *
-		 * page_base = page offset within aperture
 		 * page_offset = offset within page
 		 * page_length = bytes to copy for this page
 		 */
-		page_base = (offset & ~(PAGE_SIZE-1));
 		page_offset = offset & (PAGE_SIZE-1);
 		page_length = remain;
 		if ((page_offset + remain) > PAGE_SIZE)
 			page_length = PAGE_SIZE - page_offset;
 
-		if (fast_shmem_read(obj_priv->pages,
-				    page_base, page_offset,
-				    user_data, page_length))
+		page = read_cache_page_gfp(mapping, offset >> PAGE_SHIFT,
+					   GFP_HIGHUSER | __GFP_RECLAIMABLE);
+		if (IS_ERR(page))
+			return PTR_ERR(page);
+
+		vaddr = kmap_atomic(page);
+		ret = __copy_to_user_inatomic(user_data,
+					      vaddr + page_offset,
+					      page_length);
+		kunmap_atomic(vaddr);
+
+		mark_page_accessed(page);
+		page_cache_release(page);
+		if (ret)
 			return -EFAULT;
 
 		remain -= page_length;
@@ -464,31 +455,6 @@ i915_gem_shmem_pread_fast(struct drm_device *dev, struct drm_gem_object *obj,
 	}
 
 	return 0;
-}
-
-static int
-i915_gem_object_get_pages_or_evict(struct drm_gem_object *obj)
-{
-	int ret;
-
-	ret = i915_gem_object_get_pages(obj, __GFP_NORETRY | __GFP_NOWARN);
-
-	/* If we've insufficient memory to map in the pages, attempt
-	 * to make some space by throwing out some old buffers.
-	 */
-	if (ret == -ENOMEM) {
-		struct drm_device *dev = obj->dev;
-
-		ret = i915_gem_evict_something(dev, obj->size,
-					       i915_gem_get_gtt_alignment(obj),
-					       false);
-		if (ret)
-			return ret;
-
-		ret = i915_gem_object_get_pages(obj, 0);
-	}
-
-	return ret;
 }
 
 /**
@@ -502,14 +468,15 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 			  struct drm_i915_gem_pread *args,
 			  struct drm_file *file_priv)
 {
+	struct address_space *mapping = obj->filp->f_path.dentry->d_inode->i_mapping;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	struct mm_struct *mm = current->mm;
 	struct page **user_pages;
 	ssize_t remain;
 	loff_t offset, pinned_pages, i;
 	loff_t first_data_page, last_data_page, num_pages;
-	int shmem_page_index, shmem_page_offset;
-	int data_page_index,  data_page_offset;
+	int shmem_page_offset;
+	int data_page_index, data_page_offset;
 	int page_length;
 	int ret;
 	uint64_t data_ptr = args->data_ptr;
@@ -552,15 +519,15 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 	offset = args->offset;
 
 	while (remain > 0) {
+		struct page *page;
+
 		/* Operation in this page
 		 *
-		 * shmem_page_index = page number within shmem file
 		 * shmem_page_offset = offset within page in shmem file
 		 * data_page_index = page number in get_user_pages return
 		 * data_page_offset = offset with data_page_index page.
 		 * page_length = bytes to copy for this page
 		 */
-		shmem_page_index = offset / PAGE_SIZE;
 		shmem_page_offset = offset & ~PAGE_MASK;
 		data_page_index = data_ptr / PAGE_SIZE - first_data_page;
 		data_page_offset = data_ptr & ~PAGE_MASK;
@@ -571,8 +538,13 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 		if ((data_page_offset + page_length) > PAGE_SIZE)
 			page_length = PAGE_SIZE - data_page_offset;
 
+		page = read_cache_page_gfp(mapping, offset >> PAGE_SHIFT,
+					   GFP_HIGHUSER | __GFP_RECLAIMABLE);
+		if (IS_ERR(page))
+			return PTR_ERR(page);
+
 		if (do_bit17_swizzling) {
-			slow_shmem_bit17_copy(obj_priv->pages[shmem_page_index],
+			slow_shmem_bit17_copy(page,
 					      shmem_page_offset,
 					      user_pages[data_page_index],
 					      data_page_offset,
@@ -581,10 +553,13 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 		} else {
 			slow_shmem_copy(user_pages[data_page_index],
 					data_page_offset,
-					obj_priv->pages[shmem_page_index],
+					page,
 					shmem_page_offset,
 					page_length);
 		}
+
+		mark_page_accessed(page);
+		page_cache_release(page);
 
 		remain -= page_length;
 		data_ptr += page_length;
@@ -594,6 +569,7 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 out:
 	for (i = 0; i < pinned_pages; i++) {
 		SetPageDirty(user_pages[i]);
+		mark_page_accessed(user_pages[i]);
 		page_cache_release(user_pages[i]);
 	}
 	drm_free_large(user_pages);
@@ -649,15 +625,11 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	ret = i915_gem_object_get_pages_or_evict(obj);
-	if (ret)
-		goto out;
-
 	ret = i915_gem_object_set_cpu_read_domain_range(obj,
 							args->offset,
 							args->size);
 	if (ret)
-		goto out_put;
+		goto out;
 
 	ret = -EFAULT;
 	if (!i915_gem_object_needs_bit17_swizzle(obj))
@@ -665,8 +637,6 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	if (ret == -EFAULT)
 		ret = i915_gem_shmem_pread_slow(dev, obj, args, file_priv);
 
-out_put:
-	i915_gem_object_put_pages(obj);
 out:
 	drm_gem_object_unreference(obj);
 unlock:
@@ -716,22 +686,6 @@ slow_kernel_write(struct io_mapping *mapping,
 
 	kunmap(user_page);
 	io_mapping_unmap(dst_vaddr);
-}
-
-static inline int
-fast_shmem_write(struct page **pages,
-		 loff_t page_base, int page_offset,
-		 char __user *data,
-		 int length)
-{
-	char *vaddr;
-	int ret;
-
-	vaddr = kmap_atomic(pages[page_base >> PAGE_SHIFT]);
-	ret = __copy_from_user_inatomic(vaddr + page_offset, data, length);
-	kunmap_atomic(vaddr);
-
-	return ret;
 }
 
 /**
@@ -890,9 +844,10 @@ i915_gem_shmem_pwrite_fast(struct drm_device *dev, struct drm_gem_object *obj,
 			   struct drm_i915_gem_pwrite *args,
 			   struct drm_file *file_priv)
 {
+	struct address_space *mapping = obj->filp->f_path.dentry->d_inode->i_mapping;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	ssize_t remain;
-	loff_t offset, page_base;
+	loff_t offset;
 	char __user *user_data;
 	int page_offset, page_length;
 
@@ -904,21 +859,40 @@ i915_gem_shmem_pwrite_fast(struct drm_device *dev, struct drm_gem_object *obj,
 	obj_priv->dirty = 1;
 
 	while (remain > 0) {
+		struct page *page;
+		char *vaddr;
+		int ret;
+
 		/* Operation in this page
 		 *
-		 * page_base = page offset within aperture
 		 * page_offset = offset within page
 		 * page_length = bytes to copy for this page
 		 */
-		page_base = (offset & ~(PAGE_SIZE-1));
 		page_offset = offset & (PAGE_SIZE-1);
 		page_length = remain;
 		if ((page_offset + remain) > PAGE_SIZE)
 			page_length = PAGE_SIZE - page_offset;
 
-		if (fast_shmem_write(obj_priv->pages,
-				       page_base, page_offset,
-				       user_data, page_length))
+		page = read_cache_page_gfp(mapping, offset >> PAGE_SHIFT,
+					   GFP_HIGHUSER | __GFP_RECLAIMABLE);
+		if (IS_ERR(page))
+			return PTR_ERR(page);
+
+		vaddr = kmap_atomic(page, KM_USER0);
+		ret = __copy_from_user_inatomic(vaddr + page_offset,
+						user_data,
+						page_length);
+		kunmap_atomic(vaddr, KM_USER0);
+
+		set_page_dirty(page);
+		mark_page_accessed(page);
+		page_cache_release(page);
+
+		/* If we get a fault while copying data, then (presumably) our
+		 * source page isn't available.  Return the error and we'll
+		 * retry in the slow path.
+		 */
+		if (ret)
 			return -EFAULT;
 
 		remain -= page_length;
@@ -941,13 +915,14 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 			   struct drm_i915_gem_pwrite *args,
 			   struct drm_file *file_priv)
 {
+	struct address_space *mapping = obj->filp->f_path.dentry->d_inode->i_mapping;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	struct mm_struct *mm = current->mm;
 	struct page **user_pages;
 	ssize_t remain;
 	loff_t offset, pinned_pages, i;
 	loff_t first_data_page, last_data_page, num_pages;
-	int shmem_page_index, shmem_page_offset;
+	int shmem_page_offset;
 	int data_page_index,  data_page_offset;
 	int page_length;
 	int ret;
@@ -990,15 +965,15 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 	obj_priv->dirty = 1;
 
 	while (remain > 0) {
+		struct page *page;
+
 		/* Operation in this page
 		 *
-		 * shmem_page_index = page number within shmem file
 		 * shmem_page_offset = offset within page in shmem file
 		 * data_page_index = page number in get_user_pages return
 		 * data_page_offset = offset with data_page_index page.
 		 * page_length = bytes to copy for this page
 		 */
-		shmem_page_index = offset / PAGE_SIZE;
 		shmem_page_offset = offset & ~PAGE_MASK;
 		data_page_index = data_ptr / PAGE_SIZE - first_data_page;
 		data_page_offset = data_ptr & ~PAGE_MASK;
@@ -1009,20 +984,31 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 		if ((data_page_offset + page_length) > PAGE_SIZE)
 			page_length = PAGE_SIZE - data_page_offset;
 
+		page = read_cache_page_gfp(mapping, offset >> PAGE_SHIFT,
+					   GFP_HIGHUSER | __GFP_RECLAIMABLE);
+		if (IS_ERR(page)) {
+			ret = PTR_ERR(page);
+			goto out;
+		}
+
 		if (do_bit17_swizzling) {
-			slow_shmem_bit17_copy(obj_priv->pages[shmem_page_index],
+			slow_shmem_bit17_copy(page,
 					      shmem_page_offset,
 					      user_pages[data_page_index],
 					      data_page_offset,
 					      page_length,
 					      0);
 		} else {
-			slow_shmem_copy(obj_priv->pages[shmem_page_index],
+			slow_shmem_copy(page,
 					shmem_page_offset,
 					user_pages[data_page_index],
 					data_page_offset,
 					page_length);
 		}
+
+		set_page_dirty(page);
+		mark_page_accessed(page);
+		page_cache_release(page);
 
 		remain -= page_length;
 		data_ptr += page_length;
@@ -1112,22 +1098,15 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 out_unpin:
 		i915_gem_object_unpin(obj);
 	} else {
-		ret = i915_gem_object_get_pages_or_evict(obj);
-		if (ret)
-			goto out;
-
 		ret = i915_gem_object_set_to_cpu_domain(obj, 1);
 		if (ret)
-			goto out_put;
+			goto out;
 
 		ret = -EFAULT;
 		if (!i915_gem_object_needs_bit17_swizzle(obj))
 			ret = i915_gem_shmem_pwrite_fast(dev, obj, args, file);
 		if (ret == -EFAULT)
 			ret = i915_gem_shmem_pwrite_slow(dev, obj, args, file);
-
-out_put:
-		i915_gem_object_put_pages(obj);
 	}
 
 out:
@@ -1587,18 +1566,61 @@ unlock:
 	return ret;
 }
 
+static int
+i915_gem_object_get_pages_gtt(struct drm_gem_object *obj,
+			      gfp_t gfpmask)
+{
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+	int page_count, i;
+	struct address_space *mapping;
+	struct inode *inode;
+	struct page *page;
+
+	/* Get the list of pages out of our struct file.  They'll be pinned
+	 * at this point until we release them.
+	 */
+	page_count = obj->size / PAGE_SIZE;
+	BUG_ON(obj_priv->pages != NULL);
+	obj_priv->pages = drm_malloc_ab(page_count, sizeof(struct page *));
+	if (obj_priv->pages == NULL)
+		return -ENOMEM;
+
+	inode = obj->filp->f_path.dentry->d_inode;
+	mapping = inode->i_mapping;
+	for (i = 0; i < page_count; i++) {
+		page = read_cache_page_gfp(mapping, i,
+					   GFP_HIGHUSER |
+					   __GFP_COLD |
+					   __GFP_RECLAIMABLE |
+					   gfpmask);
+		if (IS_ERR(page))
+			goto err_pages;
+
+		obj_priv->pages[i] = page;
+	}
+
+	if (obj_priv->tiling_mode != I915_TILING_NONE)
+		i915_gem_object_do_bit_17_swizzle(obj);
+
+	return 0;
+
+err_pages:
+	while (i--)
+		page_cache_release(obj_priv->pages[i]);
+
+	drm_free_large(obj_priv->pages);
+	obj_priv->pages = NULL;
+	return PTR_ERR(page);
+}
+
 static void
-i915_gem_object_put_pages(struct drm_gem_object *obj)
+i915_gem_object_put_pages_gtt(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int page_count = obj->size / PAGE_SIZE;
 	int i;
 
-	BUG_ON(obj_priv->pages_refcount == 0);
 	BUG_ON(obj_priv->madv == __I915_MADV_PURGED);
-
-	if (--obj_priv->pages_refcount != 0)
-		return;
 
 	if (obj_priv->tiling_mode != I915_TILING_NONE)
 		i915_gem_object_save_bit_17_swizzle(obj);
@@ -2229,8 +2251,7 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	drm_unbind_agp(obj_priv->agp_mem);
 	drm_free_agp(obj_priv->agp_mem, obj->size / PAGE_SIZE);
 
-	i915_gem_object_put_pages(obj);
-	BUG_ON(obj_priv->pages_refcount);
+	i915_gem_object_put_pages_gtt(obj);
 
 	i915_gem_info_remove_gtt(dev_priv, obj);
 	list_del_init(&obj_priv->mm_list);
@@ -2288,62 +2309,6 @@ i915_gpu_idle(struct drm_device *dev)
 		return ret;
 
 	return 0;
-}
-
-static int
-i915_gem_object_get_pages(struct drm_gem_object *obj,
-			  gfp_t gfpmask)
-{
-	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
-	int page_count, i;
-	struct address_space *mapping;
-	struct inode *inode;
-	struct page *page;
-
-	BUG_ON(obj_priv->pages_refcount
-			== DRM_I915_GEM_OBJECT_MAX_PAGES_REFCOUNT);
-
-	if (obj_priv->pages_refcount++ != 0)
-		return 0;
-
-	/* Get the list of pages out of our struct file.  They'll be pinned
-	 * at this point until we release them.
-	 */
-	page_count = obj->size / PAGE_SIZE;
-	BUG_ON(obj_priv->pages != NULL);
-	obj_priv->pages = drm_calloc_large(page_count, sizeof(struct page *));
-	if (obj_priv->pages == NULL) {
-		obj_priv->pages_refcount--;
-		return -ENOMEM;
-	}
-
-	inode = obj->filp->f_path.dentry->d_inode;
-	mapping = inode->i_mapping;
-	for (i = 0; i < page_count; i++) {
-		page = read_cache_page_gfp(mapping, i,
-					   GFP_HIGHUSER |
-					   __GFP_COLD |
-					   __GFP_RECLAIMABLE |
-					   gfpmask);
-		if (IS_ERR(page))
-			goto err_pages;
-
-		obj_priv->pages[i] = page;
-	}
-
-	if (obj_priv->tiling_mode != I915_TILING_NONE)
-		i915_gem_object_do_bit_17_swizzle(obj);
-
-	return 0;
-
-err_pages:
-	while (i--)
-		page_cache_release(obj_priv->pages[i]);
-
-	drm_free_large(obj_priv->pages);
-	obj_priv->pages = NULL;
-	obj_priv->pages_refcount--;
-	return PTR_ERR(page);
 }
 
 static void sandybridge_write_fence_reg(struct drm_i915_fence_reg *reg)
@@ -2772,7 +2737,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 		goto search_free;
 	}
 
-	ret = i915_gem_object_get_pages(obj, gfpmask);
+	ret = i915_gem_object_get_pages_gtt(obj, gfpmask);
 	if (ret) {
 		drm_mm_put_block(obj_priv->gtt_space);
 		obj_priv->gtt_space = NULL;
@@ -2806,7 +2771,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 					       obj_priv->gtt_space->start,
 					       obj_priv->agp_type);
 	if (obj_priv->agp_mem == NULL) {
-		i915_gem_object_put_pages(obj);
+		i915_gem_object_put_pages_gtt(obj);
 		drm_mm_put_block(obj_priv->gtt_space);
 		obj_priv->gtt_space = NULL;
 
@@ -4860,33 +4825,35 @@ void i915_gem_free_all_phys_object(struct drm_device *dev)
 void i915_gem_detach_phys_object(struct drm_device *dev,
 				 struct drm_gem_object *obj)
 {
-	struct drm_i915_gem_object *obj_priv;
+	struct address_space *mapping = obj->filp->f_path.dentry->d_inode->i_mapping;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+	char *vaddr;
 	int i;
-	int ret;
 	int page_count;
 
-	obj_priv = to_intel_bo(obj);
 	if (!obj_priv->phys_obj)
 		return;
-
-	ret = i915_gem_object_get_pages(obj, 0);
-	if (ret)
-		goto out;
+	vaddr = obj_priv->phys_obj->handle->vaddr;
 
 	page_count = obj->size / PAGE_SIZE;
 
 	for (i = 0; i < page_count; i++) {
-		char *dst = kmap_atomic(obj_priv->pages[i]);
-		char *src = obj_priv->phys_obj->handle->vaddr + (i * PAGE_SIZE);
+		struct page *page = read_cache_page_gfp(mapping, i,
+							GFP_HIGHUSER | __GFP_RECLAIMABLE);
+		if (!IS_ERR(page)) {
+			char *dst = kmap_atomic(page);
+			memcpy(dst, vaddr + i*PAGE_SIZE, PAGE_SIZE);
+			kunmap_atomic(dst);
 
-		memcpy(dst, src, PAGE_SIZE);
-		kunmap_atomic(dst);
+			drm_clflush_pages(&page, 1);
+
+			set_page_dirty(page);
+			mark_page_accessed(page);
+			page_cache_release(page);
+		}
 	}
-	drm_clflush_pages(obj_priv->pages, page_count);
 	drm_agp_chipset_flush(dev);
 
-	i915_gem_object_put_pages(obj);
-out:
 	obj_priv->phys_obj->cur_obj = NULL;
 	obj_priv->phys_obj = NULL;
 }
@@ -4897,6 +4864,7 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 			    int id,
 			    int align)
 {
+	struct address_space *mapping = obj->filp->f_path.dentry->d_inode->i_mapping;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv;
 	int ret = 0;
@@ -4920,7 +4888,7 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 						obj->size, align);
 		if (ret) {
 			DRM_ERROR("failed to init phys object %d size: %zu\n", id, obj->size);
-			goto out;
+			return ret;
 		}
 	}
 
@@ -4928,27 +4896,27 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 	obj_priv->phys_obj = dev_priv->mm.phys_objs[id - 1];
 	obj_priv->phys_obj->cur_obj = obj;
 
-	ret = i915_gem_object_get_pages(obj, 0);
-	if (ret) {
-		DRM_ERROR("failed to get page list\n");
-		goto out;
-	}
-
 	page_count = obj->size / PAGE_SIZE;
 
 	for (i = 0; i < page_count; i++) {
-		char *src = kmap_atomic(obj_priv->pages[i]);
-		char *dst = obj_priv->phys_obj->handle->vaddr + (i * PAGE_SIZE);
+		struct page *page;
+		char *dst, *src;
 
+		page = read_cache_page_gfp(mapping, i,
+					   GFP_HIGHUSER | __GFP_RECLAIMABLE);
+		if (IS_ERR(page))
+			return PTR_ERR(page);
+
+		src = kmap_atomic(obj_priv->pages[i]);
+		dst = obj_priv->phys_obj->handle->vaddr + (i * PAGE_SIZE);
 		memcpy(dst, src, PAGE_SIZE);
 		kunmap_atomic(src);
+
+		mark_page_accessed(page);
+		page_cache_release(page);
 	}
 
-	i915_gem_object_put_pages(obj);
-
 	return 0;
-out:
-	return ret;
 }
 
 static int
