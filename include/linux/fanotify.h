@@ -6,8 +6,8 @@
 /* the following events that user-space can register for */
 #define FAN_ACCESS		0x00000001	/* File was accessed */
 #define FAN_MODIFY		0x00000002	/* File was modified */
-#define FAN_CLOSE_WRITE		0x00000008	/* Unwrittable file closed */
-#define FAN_CLOSE_NOWRITE	0x00000010	/* Writtable file closed */
+#define FAN_CLOSE_WRITE		0x00000008	/* Writtable file closed */
+#define FAN_CLOSE_NOWRITE	0x00000010	/* Unwrittable file closed */
 #define FAN_OPEN		0x00000020	/* File was opened */
 
 #define FAN_Q_OVERFLOW		0x00004000	/* Event queued overflowed */
