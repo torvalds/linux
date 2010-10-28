@@ -1,5 +1,5 @@
 /*
- * ADIS16260 Programmable Digital Gyroscope Sensor Driver
+ * ADIS16260/ADIS16265 Programmable Digital Gyroscope Sensor Driver
  *
  * Copyright 2010 Analog Devices Inc.
  *
