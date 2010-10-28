@@ -17,6 +17,13 @@
 #include "vxge-config.h"
 #include "vxge-main.h"
 
+static enum vxge_hw_status
+__vxge_hw_device_handle_error(struct __vxge_hw_device *hldev,
+			      u32 vp_id, enum vxge_hw_event type);
+static enum vxge_hw_status
+__vxge_hw_vpath_alarm_process(struct __vxge_hw_virtualpath *vpath,
+			      u32 skip_alarms);
+
 /*
  * vxge_hw_vpath_intr_enable - Enable vpath interrupts.
  * @vp: Virtual Path handle.
@@ -513,7 +520,7 @@ exit:
  * Link up indication handler. The function is invoked by HW when
  * Titan indicates that the link is up for programmable amount of time.
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 __vxge_hw_device_handle_link_up_ind(struct __vxge_hw_device *hldev)
 {
 	/*
@@ -538,7 +545,7 @@ exit:
  * Link down indication handler. The function is invoked by HW when
  * Titan indicates that the link is down.
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 __vxge_hw_device_handle_link_down_ind(struct __vxge_hw_device *hldev)
 {
 	/*
@@ -564,7 +571,7 @@ exit:
  *
  * Handle error.
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 __vxge_hw_device_handle_error(
 		struct __vxge_hw_device *hldev,
 		u32 vp_id,
@@ -646,7 +653,7 @@ void vxge_hw_device_clear_tx_rx(struct __vxge_hw_device *hldev)
  * it swaps the reserve and free arrays.
  *
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 vxge_hw_channel_dtr_alloc(struct __vxge_hw_channel *channel, void **dtrh)
 {
 	void **tmp_arr;
@@ -692,7 +699,8 @@ _alloc_after_swap:
  * Posts a dtr to work array.
  *
  */
-void vxge_hw_channel_dtr_post(struct __vxge_hw_channel *channel, void *dtrh)
+static void vxge_hw_channel_dtr_post(struct __vxge_hw_channel *channel,
+				     void *dtrh)
 {
 	vxge_assert(channel->work_arr[channel->post_index] == NULL);
 
@@ -1658,37 +1666,6 @@ exit:
 }
 
 /**
- * vxge_hw_vpath_vid_get_next - Get the next vid entry for this vpath
- *               from vlan id table.
- * @vp: Vpath handle.
- * @vid: Buffer to return vlan id
- *
- * Returns the next vlan id in the list for this vpath.
- * see also: vxge_hw_vpath_vid_get
- *
- */
-enum vxge_hw_status
-vxge_hw_vpath_vid_get_next(struct __vxge_hw_vpath_handle *vp, u64 *vid)
-{
-	u64 data;
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	if (vp == NULL) {
-		status = VXGE_HW_ERR_INVALID_HANDLE;
-		goto exit;
-	}
-
-	status = __vxge_hw_vpath_rts_table_get(vp,
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_LIST_NEXT_ENTRY,
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_VID,
-			0, vid, &data);
-
-	*vid = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_VLAN_ID(*vid);
-exit:
-	return status;
-}
-
-/**
  * vxge_hw_vpath_vid_delete - Delete the vlan id entry for this vpath
  *               to vlan id table.
  * @vp: Vpath handle.
@@ -1898,9 +1875,9 @@ exit:
  * Process vpath alarms.
  *
  */
-enum vxge_hw_status __vxge_hw_vpath_alarm_process(
-			struct __vxge_hw_virtualpath *vpath,
-			u32 skip_alarms)
+static enum vxge_hw_status
+__vxge_hw_vpath_alarm_process(struct __vxge_hw_virtualpath *vpath,
+			      u32 skip_alarms)
 {
 	u64 val64;
 	u64 alarm_status;
@@ -2265,36 +2242,6 @@ vxge_hw_vpath_msix_mask(struct __vxge_hw_vpath_handle *vp, int msix_id)
 }
 
 /**
- * vxge_hw_vpath_msix_clear - Clear MSIX Vector.
- * @vp: Virtual Path handle.
- * @msix_id:  MSI ID
- *
- * The function clears the msix interrupt for the given msix_id
- *
- * Returns: 0,
- * Otherwise, VXGE_HW_ERR_WRONG_IRQ if the msix index is out of range
- * status.
- * See also:
- */
-void
-vxge_hw_vpath_msix_clear(struct __vxge_hw_vpath_handle *vp, int msix_id)
-{
-	struct __vxge_hw_device *hldev = vp->vpath->hldev;
-	if (hldev->config.intr_mode ==
-			VXGE_HW_INTR_MODE_MSIX_ONE_SHOT) {
-		__vxge_hw_pio_mem_write32_upper(
-			(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
-				&hldev->common_reg->
-					clr_msix_one_shot_vec[msix_id%4]);
-	} else {
-		__vxge_hw_pio_mem_write32_upper(
-			(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
-				&hldev->common_reg->
-					clear_msix_mask_vect[msix_id%4]);
-	}
-}
-
-/**
  * vxge_hw_vpath_msix_unmask - Unmask the MSIX Vector.
  * @vp: Virtual Path handle.
  * @msix_id:  MSI ID
@@ -2313,22 +2260,6 @@ vxge_hw_vpath_msix_unmask(struct __vxge_hw_vpath_handle *vp, int msix_id)
 	__vxge_hw_pio_mem_write32_upper(
 			(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
 			&hldev->common_reg->clear_msix_mask_vect[msix_id%4]);
-}
-
-/**
- * vxge_hw_vpath_msix_mask_all - Mask all MSIX vectors for the vpath.
- * @vp: Virtual Path handle.
- *
- * The function masks all msix interrupt for the given vpath
- *
- */
-void
-vxge_hw_vpath_msix_mask_all(struct __vxge_hw_vpath_handle *vp)
-{
-
-	__vxge_hw_pio_mem_write32_upper(
-		(u32)vxge_bVALn(vxge_mBIT(vp->vpath->vp_id), 0, 32),
-		&vp->vpath->hldev->common_reg->set_msix_mask_all_vect);
 }
 
 /**

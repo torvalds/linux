@@ -992,13 +992,14 @@ static int __devexit flexcan_remove(struct platform_device *pdev)
 
 	unregister_flexcandev(dev);
 	platform_set_drvdata(pdev, NULL);
-	free_candev(dev);
 	iounmap(priv->base);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem->start, resource_size(mem));
 
 	clk_put(priv->clk);
+
+	free_candev(dev);
 
 	return 0;
 }

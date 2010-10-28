@@ -182,6 +182,9 @@ static void ath_update_survey_stats(struct ath_softc *sc)
 	struct ath_cycle_counters *cc = &common->cc_survey;
 	unsigned int div = common->clockrate * 1000;
 
+	if (!ah->curchan)
+		return;
+
 	if (ah->power_mode == ATH9K_PM_AWAKE)
 		ath_hw_cycle_counters_update(common);
 
@@ -577,7 +580,7 @@ void ath_hw_check(struct work_struct *work)
 
 		msleep(1);
 	}
-	ath_reset(sc, false);
+	ath_reset(sc, true);
 
 out:
 	ath9k_ps_restore(sc);
@@ -595,7 +598,7 @@ void ath9k_tasklet(unsigned long data)
 	ath9k_ps_wakeup(sc);
 
 	if (status & ATH9K_INT_FATAL) {
-		ath_reset(sc, false);
+		ath_reset(sc, true);
 		ath9k_ps_restore(sc);
 		return;
 	}

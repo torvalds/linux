@@ -14,27 +14,32 @@
 #include <net/protocol.h>
 #include <net/xfrm.h>
 
-static struct xfrm_tunnel *tunnel4_handlers __read_mostly;
-static struct xfrm_tunnel *tunnel64_handlers __read_mostly;
+static struct xfrm_tunnel __rcu *tunnel4_handlers __read_mostly;
+static struct xfrm_tunnel __rcu *tunnel64_handlers __read_mostly;
 static DEFINE_MUTEX(tunnel4_mutex);
 
-static inline struct xfrm_tunnel **fam_handlers(unsigned short family)
+static inline struct xfrm_tunnel __rcu **fam_handlers(unsigned short family)
 {
 	return (family == AF_INET) ? &tunnel4_handlers : &tunnel64_handlers;
 }
 
 int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family)
 {
-	struct xfrm_tunnel **pprev;
+	struct xfrm_tunnel __rcu **pprev;
+	struct xfrm_tunnel *t;
+
 	int ret = -EEXIST;
 	int priority = handler->priority;
 
 	mutex_lock(&tunnel4_mutex);
 
-	for (pprev = fam_handlers(family); *pprev; pprev = &(*pprev)->next) {
-		if ((*pprev)->priority > priority)
+	for (pprev = fam_handlers(family);
+	     (t = rcu_dereference_protected(*pprev,
+			lockdep_is_held(&tunnel4_mutex))) != NULL;
+	     pprev = &t->next) {
+		if (t->priority > priority)
 			break;
-		if ((*pprev)->priority == priority)
+		if (t->priority == priority)
 			goto err;
 	}
 
@@ -52,13 +57,17 @@ EXPORT_SYMBOL(xfrm4_tunnel_register);
 
 int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family)
 {
-	struct xfrm_tunnel **pprev;
+	struct xfrm_tunnel __rcu **pprev;
+	struct xfrm_tunnel *t;
 	int ret = -ENOENT;
 
 	mutex_lock(&tunnel4_mutex);
 
-	for (pprev = fam_handlers(family); *pprev; pprev = &(*pprev)->next) {
-		if (*pprev == handler) {
+	for (pprev = fam_handlers(family);
+	     (t = rcu_dereference_protected(*pprev,
+			lockdep_is_held(&tunnel4_mutex))) != NULL;
+	     pprev = &t->next) {
+		if (t == handler) {
 			*pprev = handler->next;
 			ret = 0;
 			break;

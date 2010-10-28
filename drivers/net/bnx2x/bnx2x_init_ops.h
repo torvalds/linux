@@ -16,7 +16,9 @@
 #define BNX2X_INIT_OPS_H
 
 static int bnx2x_gunzip(struct bnx2x *bp, const u8 *zbuf, int len);
-
+static void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val);
+static void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
+				      u32 addr, u32 len);
 
 static void bnx2x_init_str_wr(struct bnx2x *bp, u32 addr, const u32 *data,
 			      u32 len)
@@ -589,7 +591,7 @@ static int bnx2x_ilt_client_mem_op(struct bnx2x *bp, int cli_num, u8 memop)
 	return rc;
 }
 
-int bnx2x_ilt_mem_op(struct bnx2x *bp, u8 memop)
+static int bnx2x_ilt_mem_op(struct bnx2x *bp, u8 memop)
 {
 	int rc = bnx2x_ilt_client_mem_op(bp, ILT_CLIENT_CDU, memop);
 	if (!rc)
@@ -635,7 +637,7 @@ static void bnx2x_ilt_line_init_op(struct bnx2x *bp, struct bnx2x_ilt *ilt,
 	}
 }
 
-void bnx2x_ilt_boundry_init_op(struct bnx2x *bp,
+static void bnx2x_ilt_boundry_init_op(struct bnx2x *bp,
 				      struct ilt_client_info *ilt_cli,
 				      u32 ilt_start, u8 initop)
 {
@@ -688,8 +690,10 @@ void bnx2x_ilt_boundry_init_op(struct bnx2x *bp,
 	}
 }
 
-void bnx2x_ilt_client_init_op_ilt(struct bnx2x *bp, struct bnx2x_ilt *ilt,
-				  struct ilt_client_info *ilt_cli, u8 initop)
+static void bnx2x_ilt_client_init_op_ilt(struct bnx2x *bp,
+					 struct bnx2x_ilt *ilt,
+					 struct ilt_client_info *ilt_cli,
+					 u8 initop)
 {
 	int i;
 
@@ -703,8 +707,8 @@ void bnx2x_ilt_client_init_op_ilt(struct bnx2x *bp, struct bnx2x_ilt *ilt,
 	bnx2x_ilt_boundry_init_op(bp, ilt_cli, ilt->start_line, initop);
 }
 
-void bnx2x_ilt_client_init_op(struct bnx2x *bp,
-			      struct ilt_client_info *ilt_cli, u8 initop)
+static void bnx2x_ilt_client_init_op(struct bnx2x *bp,
+				     struct ilt_client_info *ilt_cli, u8 initop)
 {
 	struct bnx2x_ilt *ilt = BP_ILT(bp);
 
@@ -720,7 +724,7 @@ static void bnx2x_ilt_client_id_init_op(struct bnx2x *bp,
 	bnx2x_ilt_client_init_op(bp, ilt_cli, initop);
 }
 
-void bnx2x_ilt_init_op(struct bnx2x *bp, u8 initop)
+static void bnx2x_ilt_init_op(struct bnx2x *bp, u8 initop)
 {
 	bnx2x_ilt_client_id_init_op(bp, ILT_CLIENT_CDU, initop);
 	bnx2x_ilt_client_id_init_op(bp, ILT_CLIENT_QM, initop);
@@ -752,7 +756,7 @@ static void bnx2x_ilt_init_client_psz(struct bnx2x *bp, int cli_num,
  * called during init common stage, ilt clients should be initialized
  * prioir to calling this function
  */
-void bnx2x_ilt_init_page_size(struct bnx2x *bp, u8 initop)
+static void bnx2x_ilt_init_page_size(struct bnx2x *bp, u8 initop)
 {
 	bnx2x_ilt_init_client_psz(bp, ILT_CLIENT_CDU,
 				  PXP2_REG_RQ_CDU_P_SIZE, initop);
@@ -772,8 +776,8 @@ void bnx2x_ilt_init_page_size(struct bnx2x *bp, u8 initop)
 #define QM_INIT(cid_cnt)	(cid_cnt > QM_INIT_MIN_CID_COUNT)
 
 /* called during init port stage */
-void bnx2x_qm_init_cid_count(struct bnx2x *bp, int qm_cid_count,
-			     u8 initop)
+static void bnx2x_qm_init_cid_count(struct bnx2x *bp, int qm_cid_count,
+				    u8 initop)
 {
 	int port = BP_PORT(bp);
 
@@ -814,8 +818,8 @@ static void bnx2x_qm_set_ptr_table(struct bnx2x *bp, int qm_cid_count)
 }
 
 /* called during init common stage */
-void bnx2x_qm_init_ptr_table(struct bnx2x *bp, int qm_cid_count,
-			     u8 initop)
+static void bnx2x_qm_init_ptr_table(struct bnx2x *bp, int qm_cid_count,
+				    u8 initop)
 {
 	if (!QM_INIT(qm_cid_count))
 		return;
@@ -836,8 +840,8 @@ void bnx2x_qm_init_ptr_table(struct bnx2x *bp, int qm_cid_count,
 ****************************************************************************/
 
 /* called during init func stage */
-void bnx2x_src_init_t2(struct bnx2x *bp, struct src_ent *t2,
-		       dma_addr_t t2_mapping, int src_cid_count)
+static void bnx2x_src_init_t2(struct bnx2x *bp, struct src_ent *t2,
+			      dma_addr_t t2_mapping, int src_cid_count)
 {
 	int i;
 	int port = BP_PORT(bp);

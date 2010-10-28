@@ -181,6 +181,12 @@
 		(_bank + (_addr & 0xf)), \
 		_val)
 
+static u8 bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
+			  u8 devad, u16 reg, u16 *ret_val);
+
+static u8 bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
+			   u8 devad, u16 reg, u16 val);
+
 static u32 bnx2x_bits_en(struct bnx2x *bp, u32 reg, u32 bits)
 {
 	u32 val = REG_RD(bp, reg);
@@ -594,7 +600,7 @@ static u8 bnx2x_bmac2_enable(struct link_params *params,
 	return 0;
 }
 
-u8 bnx2x_bmac_enable(struct link_params *params,
+static u8 bnx2x_bmac_enable(struct link_params *params,
 			    struct link_vars *vars,
 			    u8 is_lb)
 {
@@ -2537,122 +2543,6 @@ static void bnx2x_set_xgxs_loopback(struct bnx2x_phy *phy,
 	}
 }
 
-/*
- *------------------------------------------------------------------------
- * bnx2x_override_led_value -
- *
- * Override the led value of the requested led
- *
- *------------------------------------------------------------------------
- */
-u8 bnx2x_override_led_value(struct bnx2x *bp, u8 port,
-			  u32 led_idx, u32 value)
-{
-	u32 reg_val;
-
-	/* If port 0 then use EMAC0, else use EMAC1*/
-	u32 emac_base = (port) ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
-
-	DP(NETIF_MSG_LINK,
-		 "bnx2x_override_led_value() port %x led_idx %d value %d\n",
-		 port, led_idx, value);
-
-	switch (led_idx) {
-	case 0: /* 10MB led */
-		/* Read the current value of the LED register in
-		the EMAC block */
-		reg_val = REG_RD(bp, emac_base + EMAC_REG_EMAC_LED);
-		/* Set the OVERRIDE bit to 1 */
-		reg_val |= EMAC_LED_OVERRIDE;
-		/* If value is 1, set the 10M_OVERRIDE bit,
-		otherwise reset it.*/
-		reg_val = (value == 1) ? (reg_val | EMAC_LED_10MB_OVERRIDE) :
-			(reg_val & ~EMAC_LED_10MB_OVERRIDE);
-		REG_WR(bp, emac_base + EMAC_REG_EMAC_LED, reg_val);
-		break;
-	case 1: /*100MB led    */
-		/*Read the current value of the LED register in
-		the EMAC block */
-		reg_val = REG_RD(bp, emac_base + EMAC_REG_EMAC_LED);
-		/*  Set the OVERRIDE bit to 1 */
-		reg_val |= EMAC_LED_OVERRIDE;
-		/*  If value is 1, set the 100M_OVERRIDE bit,
-		otherwise reset it.*/
-		reg_val = (value == 1) ? (reg_val | EMAC_LED_100MB_OVERRIDE) :
-			(reg_val & ~EMAC_LED_100MB_OVERRIDE);
-		REG_WR(bp, emac_base + EMAC_REG_EMAC_LED, reg_val);
-		break;
-	case 2: /* 1000MB led */
-		/* Read the current value of the LED register in the
-		EMAC block */
-		reg_val = REG_RD(bp, emac_base + EMAC_REG_EMAC_LED);
-		/* Set the OVERRIDE bit to 1 */
-		reg_val |= EMAC_LED_OVERRIDE;
-		/* If value is 1, set the 1000M_OVERRIDE bit, otherwise
-		reset it. */
-		reg_val = (value == 1) ? (reg_val | EMAC_LED_1000MB_OVERRIDE) :
-			(reg_val & ~EMAC_LED_1000MB_OVERRIDE);
-		REG_WR(bp, emac_base + EMAC_REG_EMAC_LED, reg_val);
-		break;
-	case 3: /* 2500MB led */
-		/*  Read the current value of the LED register in the
-		EMAC block*/
-		reg_val = REG_RD(bp, emac_base + EMAC_REG_EMAC_LED);
-		/* Set the OVERRIDE bit to 1 */
-		reg_val |= EMAC_LED_OVERRIDE;
-		/*  If value is 1, set the 2500M_OVERRIDE bit, otherwise
-		reset it.*/
-		reg_val = (value == 1) ? (reg_val | EMAC_LED_2500MB_OVERRIDE) :
-			(reg_val & ~EMAC_LED_2500MB_OVERRIDE);
-		REG_WR(bp, emac_base + EMAC_REG_EMAC_LED, reg_val);
-		break;
-	case 4: /*10G led */
-		if (port == 0) {
-			REG_WR(bp, NIG_REG_LED_10G_P0,
-				    value);
-		} else {
-			REG_WR(bp, NIG_REG_LED_10G_P1,
-				    value);
-		}
-		break;
-	case 5: /* TRAFFIC led */
-		/* Find if the traffic control is via BMAC or EMAC */
-		if (port == 0)
-			reg_val = REG_RD(bp, NIG_REG_NIG_EMAC0_EN);
-		else
-			reg_val = REG_RD(bp, NIG_REG_NIG_EMAC1_EN);
-
-		/*  Override the traffic led in the EMAC:*/
-		if (reg_val == 1) {
-			/* Read the current value of the LED register in
-			the EMAC block */
-			reg_val = REG_RD(bp, emac_base +
-					     EMAC_REG_EMAC_LED);
-			/* Set the TRAFFIC_OVERRIDE bit to 1 */
-			reg_val |= EMAC_LED_OVERRIDE;
-			/* If value is 1, set the TRAFFIC bit, otherwise
-			reset it.*/
-			reg_val = (value == 1) ? (reg_val | EMAC_LED_TRAFFIC) :
-				(reg_val & ~EMAC_LED_TRAFFIC);
-			REG_WR(bp, emac_base + EMAC_REG_EMAC_LED, reg_val);
-		} else { /* Override the traffic led in the BMAC: */
-			REG_WR(bp, NIG_REG_LED_CONTROL_OVERRIDE_TRAFFIC_P0
-				   + port*4, 1);
-			REG_WR(bp, NIG_REG_LED_CONTROL_TRAFFIC_P0 + port*4,
-				    value);
-		}
-		break;
-	default:
-		DP(NETIF_MSG_LINK,
-			 "bnx2x_override_led_value() unknown led index %d "
-			 "(should be 0-5)\n", led_idx);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-
 u8 bnx2x_set_led(struct link_params *params,
 		 struct link_vars *vars, u8 mode, u32 speed)
 {
@@ -4099,9 +3989,9 @@ static u8 bnx2x_8727_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 	return -EINVAL;
 }
 
-u8 bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
-				struct link_params *params, u16 addr,
-				     u8 byte_cnt, u8 *o_buf)
+static u8 bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
+				       struct link_params *params, u16 addr,
+				       u8 byte_cnt, u8 *o_buf)
 {
 	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726)
 		return bnx2x_8726_read_sfp_module_eeprom(phy, params, addr,
@@ -6816,13 +6706,6 @@ u8 bnx2x_phy_probe(struct link_params *params)
 	}
 
 	DP(NETIF_MSG_LINK, "End phy probe. #phys found %x\n", params->num_phys);
-	return 0;
-}
-
-u32 bnx2x_supported_attr(struct link_params *params, u8 phy_idx)
-{
-	if (phy_idx < params->num_phys)
-		return params->phy[phy_idx].supported;
 	return 0;
 }
 

@@ -1736,9 +1736,10 @@ static int __devinit eni_do_init(struct atm_dev *dev)
 		eprom = (base+EPROM_SIZE-sizeof(struct midway_eprom));
 		if (readl(&eprom->magic) != ENI155_MAGIC) {
 			printk("\n");
-			printk(KERN_ERR KERN_ERR DEV_LABEL "(itf %d): bad "
-			    "magic - expected 0x%x, got 0x%x\n",dev->number,
-			    ENI155_MAGIC,(unsigned) readl(&eprom->magic));
+			printk(KERN_ERR DEV_LABEL
+			       "(itf %d): bad magic - expected 0x%x, got 0x%x\n",
+			       dev->number, ENI155_MAGIC,
+			       (unsigned)readl(&eprom->magic));
 			error = -EINVAL;
 			goto unmap;
 		}

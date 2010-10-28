@@ -41,6 +41,10 @@
 
 #include "atlx.h"
 
+static s32 atlx_read_phy_reg(struct atl1_hw *hw, u16 reg_addr, u16 *phy_data);
+static u32 atlx_hash_mc_addr(struct atl1_hw *hw, u8 *mc_addr);
+static void atlx_set_mac_addr(struct atl1_hw *hw);
+
 static struct atlx_spi_flash_dev flash_table[] = {
 /*	MFR_NAME  WRSR  READ  PRGM  WREN  WRDI  RDSR  RDID  SEC_ERS CHIP_ERS */
 	{"Atmel", 0x00, 0x03, 0x02, 0x06, 0x04, 0x05, 0x15, 0x52,   0x62},

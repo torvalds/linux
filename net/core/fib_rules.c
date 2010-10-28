@@ -351,12 +351,12 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 		list_for_each_entry(r, &ops->rules_list, list) {
 			if (r->pref == rule->target) {
-				rule->ctarget = r;
+				RCU_INIT_POINTER(rule->ctarget, r);
 				break;
 			}
 		}
 
-		if (rule->ctarget == NULL)
+		if (rcu_dereference_protected(rule->ctarget, 1) == NULL)
 			unresolved = 1;
 	} else if (rule->action == FR_ACT_GOTO)
 		goto errout_free;
@@ -373,6 +373,11 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	fib_rule_get(rule);
 
+	if (last)
+		list_add_rcu(&rule->list, &last->list);
+	else
+		list_add_rcu(&rule->list, &ops->rules_list);
+
 	if (ops->unresolved_rules) {
 		/*
 		 * There are unresolved goto rules in the list, check if
@@ -381,7 +386,7 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		list_for_each_entry(r, &ops->rules_list, list) {
 			if (r->action == FR_ACT_GOTO &&
 			    r->target == rule->pref) {
-				BUG_ON(r->ctarget != NULL);
+				BUG_ON(rtnl_dereference(r->ctarget) != NULL);
 				rcu_assign_pointer(r->ctarget, rule);
 				if (--ops->unresolved_rules == 0)
 					break;
@@ -394,11 +399,6 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	if (unresolved)
 		ops->unresolved_rules++;
-
-	if (last)
-		list_add_rcu(&rule->list, &last->list);
-	else
-		list_add_rcu(&rule->list, &ops->rules_list);
 
 	notify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).pid);
 	flush_route_cache(ops);
@@ -487,7 +487,7 @@ static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		 */
 		if (ops->nr_goto_rules > 0) {
 			list_for_each_entry(tmp, &ops->rules_list, list) {
-				if (tmp->ctarget == rule) {
+				if (rtnl_dereference(tmp->ctarget) == rule) {
 					rcu_assign_pointer(tmp->ctarget, NULL);
 					ops->unresolved_rules++;
 				}
@@ -545,7 +545,8 @@ static int fib_nl_fill_rule(struct sk_buff *skb, struct fib_rule *rule,
 	frh->action = rule->action;
 	frh->flags = rule->flags;
 
-	if (rule->action == FR_ACT_GOTO && rule->ctarget == NULL)
+	if (rule->action == FR_ACT_GOTO &&
+	    rcu_dereference_raw(rule->ctarget) == NULL)
 		frh->flags |= FIB_RULE_UNRESOLVED;
 
 	if (rule->iifname[0]) {

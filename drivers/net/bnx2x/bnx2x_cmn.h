@@ -117,13 +117,6 @@ void bnx2x_setup_cnic_irq_info(struct bnx2x *bp);
 void bnx2x_int_enable(struct bnx2x *bp);
 
 /**
- * Disable HW interrupts.
- *
- * @param bp
- */
-void bnx2x_int_disable(struct bnx2x *bp);
-
-/**
  * Disable interrupts. This function ensures that there are no
  * ISRs or SP DPCs (sp_task) are running after it returns.
  *
@@ -192,17 +185,6 @@ int bnx2x_setup_client(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		       int is_leading);
 
 /**
- * Bring down an eth client.
- *
- * @param bp
- * @param p
- *
- * @return int
- */
-int bnx2x_stop_fw_client(struct bnx2x *bp,
-			 struct bnx2x_client_ramrod_params *p);
-
-/**
  * Set number of queues according to mode
  *
  * @param bp
@@ -249,34 +231,6 @@ int bnx2x_release_hw_lock(struct bnx2x *bp, u32 resource);
  * @param set
  */
 void bnx2x_set_eth_mac(struct bnx2x *bp, int set);
-
-#ifdef BCM_CNIC
-/**
- * Set iSCSI MAC(s) at the next enties in the CAM after the ETH
- * MAC(s). The function will wait until the ramrod completion
- * returns.
- *
- * @param bp driver handle
- * @param set set or clear the CAM entry
- *
- * @return 0 if cussess, -ENODEV if ramrod doesn't return.
- */
-int bnx2x_set_iscsi_eth_mac_addr(struct bnx2x *bp, int set);
-#endif
-
-/**
- * Initialize status block in FW and HW
- *
- * @param bp driver handle
- * @param dma_addr_t mapping
- * @param int sb_id
- * @param int vfid
- * @param u8 vf_valid
- * @param int fw_sb_id
- * @param int igu_sb_id
- */
-void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
-			  u8 vf_valid, int fw_sb_id, int igu_sb_id);
 
 /**
  * Set MAC filtering configurations.
@@ -326,7 +280,6 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe);
  * @return int
  */
 int bnx2x_func_start(struct bnx2x *bp);
-int bnx2x_func_stop(struct bnx2x *bp);
 
 /**
  * Prepare ILT configurations according to current driver
@@ -395,14 +348,6 @@ int bnx2x_enable_msix(struct bnx2x *bp);
  */
 int bnx2x_enable_msi(struct bnx2x *bp);
 
-/**
- * Request IRQ vectors from OS.
- *
- * @param bp
- *
- * @return int
- */
-int bnx2x_setup_irqs(struct bnx2x *bp);
 /**
  * NAPI callback
  *

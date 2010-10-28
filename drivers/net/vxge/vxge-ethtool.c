@@ -1142,7 +1142,7 @@ static const struct ethtool_ops vxge_ethtool_ops = {
 	.get_ethtool_stats	= vxge_get_ethtool_stats,
 };
 
-void initialize_ethtool_ops(struct net_device *ndev)
+void vxge_initialize_ethtool_ops(struct net_device *ndev)
 {
 	SET_ETHTOOL_OPS(ndev, &vxge_ethtool_ops);
 }

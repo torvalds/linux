@@ -576,7 +576,7 @@ out:
 	return copied;
 }
 
-struct proto l2tp_ip_prot = {
+static struct proto l2tp_ip_prot = {
 	.name		   = "L2TP/IP",
 	.owner		   = THIS_MODULE,
 	.init		   = l2tp_ip_open,
