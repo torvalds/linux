@@ -252,7 +252,8 @@ static int setup_new_group_blocks(struct super_block *sb,
 	if ((err = extend_or_restart_transaction(handle, 2, bh)))
 		goto exit_bh;
 
-	mark_bitmap_end(input->blocks_count, sb->s_blocksize * 8, bh->b_data);
+	ext4_mark_bitmap_end(input->blocks_count, sb->s_blocksize * 8,
+			     bh->b_data);
 	ext4_handle_dirty_metadata(handle, NULL, bh);
 	brelse(bh);
 	/* Mark unused entries in inode bitmap used */
@@ -263,8 +264,8 @@ static int setup_new_group_blocks(struct super_block *sb,
 		goto exit_journal;
 	}
 
-	mark_bitmap_end(EXT4_INODES_PER_GROUP(sb), sb->s_blocksize * 8,
-			bh->b_data);
+	ext4_mark_bitmap_end(EXT4_INODES_PER_GROUP(sb), sb->s_blocksize * 8,
+			     bh->b_data);
 	ext4_handle_dirty_metadata(handle, NULL, bh);
 exit_bh:
 	brelse(bh);
