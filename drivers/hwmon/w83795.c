@@ -1938,26 +1938,16 @@ static int w83795_probe(struct i2c_client *client,
 	for (i = 0; i < ARRAY_SIZE(data->temp); i++) {
 		if (!(data->has_temp & (1 << i)))
 			continue;
-		data->temp[i][TEMP_CRIT] =
-			w83795_read(client, W83795_REG_TEMP[i][TEMP_CRIT]);
-		data->temp[i][TEMP_CRIT_HYST] =
-			w83795_read(client, W83795_REG_TEMP[i][TEMP_CRIT_HYST]);
-		data->temp[i][TEMP_WARN] =
-			w83795_read(client, W83795_REG_TEMP[i][TEMP_WARN]);
-		data->temp[i][TEMP_WARN_HYST] =
-			w83795_read(client, W83795_REG_TEMP[i][TEMP_WARN_HYST]);
+		for (tmp = TEMP_CRIT; tmp <= TEMP_WARN_HYST; tmp++)
+			data->temp[i][tmp] =
+				w83795_read(client, W83795_REG_TEMP[i][tmp]);
 	}
 
 	/* Read the DTS limits */
 	if (data->enable_dts != 0) {
-		data->dts_ext[DTS_CRIT] =
-			w83795_read(client, W83795_REG_DTS_EXT(DTS_CRIT));
-		data->dts_ext[DTS_CRIT_HYST] =
-			w83795_read(client, W83795_REG_DTS_EXT(DTS_CRIT_HYST));
-		data->dts_ext[DTS_WARN] =
-			w83795_read(client, W83795_REG_DTS_EXT(DTS_WARN));
-		data->dts_ext[DTS_WARN_HYST] =
-			w83795_read(client, W83795_REG_DTS_EXT(DTS_WARN_HYST));
+		for (i = DTS_CRIT; i <= DTS_WARN_HYST; i++)
+			data->dts_ext[i] =
+				w83795_read(client, W83795_REG_DTS_EXT(i));
 	}
 
 	/* First update temp source selction */
