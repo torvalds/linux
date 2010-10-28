@@ -68,34 +68,13 @@ static int rk29_gpiolib_to_irq(struct gpio_chip *chip,unsigned offset);
 	}
 
 static struct rk29_gpio_chip rk29gpio_chip[] = {
-	RK29_GPIO_CHIP("GPIO0A", PIN_BASE + 0*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO0B", PIN_BASE + 1*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO0C", PIN_BASE + 2*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO0D", PIN_BASE + 3*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO1A", PIN_BASE + 4*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO1B", PIN_BASE + 5*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO1C", PIN_BASE + 6*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO1D", PIN_BASE + 7*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO2A", PIN_BASE + 8*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO2B", PIN_BASE + 9*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO2C", PIN_BASE + 10*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO2D", PIN_BASE + 11*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO3A", PIN_BASE + 12*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO3B", PIN_BASE + 13*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO3C", PIN_BASE + 14*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO3D", PIN_BASE + 15*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO4A", PIN_BASE + 16*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO4B", PIN_BASE + 17*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO4C", PIN_BASE + 18*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO4D", PIN_BASE + 19*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO5A", PIN_BASE + 20*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO5B", PIN_BASE + 21*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO5C", PIN_BASE + 22*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO5D", PIN_BASE + 23*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO6A", PIN_BASE + 24*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO6B", PIN_BASE + 25*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO6C", PIN_BASE + 26*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO6D", PIN_BASE + 27*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("GPIO0ABCD", PIN_BASE + 0*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("GPIO1ABCD", PIN_BASE + 1*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("GPIO2ABCD", PIN_BASE + 2*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("GPIO3ABCD", PIN_BASE + 3*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("GPIO4ABCD", PIN_BASE + 4*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("GPIO5ABCD", PIN_BASE + 5*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("GPIO6ABCD", PIN_BASE + 6*NUM_GROUP, NUM_GROUP),
 };
 
 static inline void rk29_gpio_write(unsigned char  __iomem	*regbase, unsigned int regOff,unsigned int val)
@@ -133,7 +112,7 @@ static inline  struct gpio_chip *pin_to_gpioChip(unsigned pin)
 	
 	pin -= PIN_BASE;
 	pin /= NUM_GROUP;
-	if (likely(pin < (MAX_BANK*4)))
+	if (likely(pin < MAX_BANK))
 		return &(rk29gpio_chip[pin].chip);
 	return NULL;
 }
@@ -143,12 +122,12 @@ static inline unsigned  pin_to_mask(unsigned pin)
 	if(pin < PIN_BASE)
 		return 0;
 	pin -= PIN_BASE;
-	return 1ul << (pin % (NUM_GROUP*4));
+	return 1ul << (pin % NUM_GROUP);
 }
 
 static inline unsigned  offset_to_mask(unsigned offset)
 {
-	return 1ul << (offset % (NUM_GROUP*4));
+	return 1ul << (offset % NUM_GROUP);
 }
 
 static int GPIOSetPinLevel(struct gpio_chip *chip, unsigned int mask,eGPIOPinLevel_t level)
@@ -249,7 +228,7 @@ static int GPIOSetIntrType(struct gpio_chip *chip, unsigned int mask, eGPIOIntTy
 static int gpio_irq_set_wake(unsigned irq, unsigned state)
 {	
 	unsigned int pin = irq_to_gpio(irq);
-	unsigned	bank = (pin - PIN_BASE) / (NUM_GROUP*4);
+	unsigned	bank = (pin - PIN_BASE) / NUM_GROUP;
 	unsigned int irq_number;
 
 	if (unlikely(bank >= MAX_BANK))
@@ -587,18 +566,13 @@ void __init rk29_gpio_irq_setup(void)
 	struct rk29_gpio_chip *this;
 	
 	this = rk29gpio_chip;
-	pin = NR_IRQS;
-
+	pin = NR_AIC_IRQS;
 	for(i=0;i<MAX_BANK;i++)
 	{
 		rk29_gpio_write(this->regbase,GPIO_INTEN,0);
 		for (j = 0; j < 32; j++) 
 		{
 			lockdep_set_class(&irq_desc[pin+j].lock, &gpio_lock_class);
-			/*
-			 * Can use the "simple" and not "edge" handler since it's
-			 * shorter, and the AIC handles interrupts sanely.
-			 */
 			set_irq_chip(pin+j, &rk29gpio_irqchip);
 			set_irq_handler(pin+j, handle_simple_irq);
 			set_irq_flags(pin+j, IRQF_VALID);
@@ -628,13 +602,11 @@ void __init rk29_gpio_irq_setup(void)
 				irq = IRQ_GPIO6;
 				break;		
 		}
-		
-		set_irq_chip_data(irq, this);
 		set_irq_chained_handler(irq, gpio_irq_handler);
-		this += 4; 
+		this += 1; 
 		pin += 32;
 	}
-	printk("rk2818_gpio_irq_setup: %d gpio irqs in 7 banks\n", pin - PIN_BASE);
+	printk("rk29_gpio_irq_setup: %d gpio irqs in 7 banks\n", pin - PIN_BASE);
 }
 
 void __init rk29_gpio_init(struct rk29_gpio_bank *data, int nr_banks)
