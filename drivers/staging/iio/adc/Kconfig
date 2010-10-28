@@ -55,6 +55,13 @@ config AD7298
 	  Say yes here to build support for Analog Devices AD7298
 	  temperature sensors and ADC.
 
+config AD7314
+	tristate "Analog Devices AD7314 temperature sensor driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD7314
+	  temperature sensors.
+
 config AD799X
 	tristate "Analog Devices AD799x ADC driver"
 	depends on I2C
