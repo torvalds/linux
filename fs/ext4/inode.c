@@ -2003,7 +2003,8 @@ static void ext4_da_page_release_reservation(struct page *page,
  *
  * As pages are already locked by write_cache_pages(), we can't use it
  */
-static int mpage_da_submit_io(struct mpage_da_data *mpd)
+static int mpage_da_submit_io(struct mpage_da_data *mpd,
+			      struct ext4_map_blocks *map)
 {
 	struct pagevec pvec;
 	unsigned long index, end;
@@ -2014,6 +2015,7 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd)
 	unsigned int len, block_start;
 	struct buffer_head *bh, *page_bufs = NULL;
 	int journal_data = ext4_should_journal_data(inode);
+	sector_t pblock = 0, cur_logical = 0;
 
 	BUG_ON(mpd->next_page <= mpd->first_page);
 	/*
@@ -2031,7 +2033,7 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd)
 		if (nr_pages == 0)
 			break;
 		for (i = 0; i < nr_pages; i++) {
-			int commit_write = 0;
+			int commit_write = 0, redirty_page = 0;
 			struct page *page = pvec.pages[i];
 
 			index = page->index;
@@ -2042,6 +2044,12 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd)
 				len = size & ~PAGE_CACHE_MASK;
 			else
 				len = PAGE_CACHE_SIZE;
+			if (map) {
+				cur_logical = index << (PAGE_CACHE_SHIFT -
+							inode->i_blkbits);
+				pblock = map->m_pblk + (cur_logical -
+							map->m_lblk);
+			}
 			index++;
 
 			BUG_ON(!PageLocked(page));
@@ -2068,13 +2076,34 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd)
 			bh = page_bufs = page_buffers(page);
 			block_start = 0;
 			do {
-				/* redirty page if block allocation undone */
-				if (!bh || buffer_delay(bh) ||
-				    buffer_unwritten(bh))
+				if (!bh)
 					goto redirty_page;
+				if (map && (cur_logical >= map->m_lblk) &&
+				    (cur_logical <= (map->m_lblk +
+						     (map->m_len - 1)))) {
+					if (buffer_delay(bh)) {
+						clear_buffer_delay(bh);
+						bh->b_blocknr = pblock;
+					}
+					if (buffer_unwritten(bh) ||
+					    buffer_mapped(bh))
+						BUG_ON(bh->b_blocknr != pblock);
+					if (map->m_flags & EXT4_MAP_UNINIT)
+						set_buffer_uninit(bh);
+					clear_buffer_unwritten(bh);
+				}
+
+				/* redirty page if block allocation undone */
+				if (buffer_delay(bh) || buffer_unwritten(bh))
+					redirty_page = 1;
 				bh = bh->b_this_page;
 				block_start += bh->b_size;
-			} while ((bh != page_bufs) && (block_start < len));
+				cur_logical++;
+				pblock++;
+			} while (bh != page_bufs);
+
+			if (redirty_page)
+				goto redirty_page;
 
 			if (commit_write)
 				/* mark the buffer_heads as dirty & uptodate */
@@ -2104,91 +2133,6 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd)
 	}
 	return ret;
 }
-
-/*
- * mpage_put_bnr_to_bhs - walk blocks and assign them actual numbers
- *
- * the function goes through all passed space and put actual disk
- * block numbers into buffer heads, dropping BH_Delay and BH_Unwritten
- */
-static void mpage_put_bnr_to_bhs(struct mpage_da_data *mpd,
-				 struct ext4_map_blocks *map)
-{
-	struct inode *inode = mpd->inode;
-	struct address_space *mapping = inode->i_mapping;
-	int blocks = map->m_len;
-	sector_t pblock = map->m_pblk, cur_logical;
-	struct buffer_head *head, *bh;
-	pgoff_t index, end;
-	struct pagevec pvec;
-	int nr_pages, i;
-
-	index = map->m_lblk >> (PAGE_CACHE_SHIFT - inode->i_blkbits);
-	end = (map->m_lblk + blocks - 1) >> (PAGE_CACHE_SHIFT - inode->i_blkbits);
-	cur_logical = index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
-
-	pagevec_init(&pvec, 0);
-
-	while (index <= end) {
-		/* XXX: optimize tail */
-		nr_pages = pagevec_lookup(&pvec, mapping, index, PAGEVEC_SIZE);
-		if (nr_pages == 0)
-			break;
-		for (i = 0; i < nr_pages; i++) {
-			struct page *page = pvec.pages[i];
-
-			index = page->index;
-			if (index > end)
-				break;
-			index++;
-
-			BUG_ON(!PageLocked(page));
-			BUG_ON(PageWriteback(page));
-			BUG_ON(!page_has_buffers(page));
-
-			bh = page_buffers(page);
-			head = bh;
-
-			/* skip blocks out of the range */
-			do {
-				if (cur_logical >= map->m_lblk)
-					break;
-				cur_logical++;
-			} while ((bh = bh->b_this_page) != head);
-
-			do {
-				if (cur_logical > map->m_lblk + (blocks - 1))
-					break;
-
-				if (buffer_delay(bh) || buffer_unwritten(bh)) {
-
-					BUG_ON(bh->b_bdev != inode->i_sb->s_bdev);
-
-					if (buffer_delay(bh)) {
-						clear_buffer_delay(bh);
-						bh->b_blocknr = pblock;
-					} else {
-						/*
-						 * unwritten already should have
-						 * blocknr assigned. Verify that
-						 */
-						clear_buffer_unwritten(bh);
-						BUG_ON(bh->b_blocknr != pblock);
-					}
-
-				} else if (buffer_mapped(bh))
-					BUG_ON(bh->b_blocknr != pblock);
-
-				if (map->m_flags & EXT4_MAP_UNINIT)
-					set_buffer_uninit(bh);
-				cur_logical++;
-				pblock++;
-			} while ((bh = bh->b_this_page) != head);
-		}
-		pagevec_release(&pvec);
-	}
-}
-
 
 static void ext4_da_block_invalidatepages(struct mpage_da_data *mpd,
 					sector_t logical, long blk_cnt)
@@ -2252,7 +2196,7 @@ static void ext4_print_free_blocks(struct inode *inode)
 static void mpage_da_map_and_submit(struct mpage_da_data *mpd)
 {
 	int err, blks, get_blocks_flags;
-	struct ext4_map_blocks map;
+	struct ext4_map_blocks map, *mapp = NULL;
 	sector_t next = mpd->b_blocknr;
 	unsigned max_blocks = mpd->b_size >> mpd->inode->i_blkbits;
 	loff_t disksize = EXT4_I(mpd->inode)->i_disksize;
@@ -2343,6 +2287,7 @@ static void mpage_da_map_and_submit(struct mpage_da_data *mpd)
 	}
 	BUG_ON(blks == 0);
 
+	mapp = &map;
 	if (map.m_flags & EXT4_MAP_NEW) {
 		struct block_device *bdev = mpd->inode->i_sb->s_bdev;
 		int i;
@@ -2350,14 +2295,6 @@ static void mpage_da_map_and_submit(struct mpage_da_data *mpd)
 		for (i = 0; i < map.m_len; i++)
 			unmap_underlying_metadata(bdev, map.m_pblk + i);
 	}
-
-	/*
-	 * If blocks are delayed marked, we need to
-	 * put actual blocknr and drop delayed bit
-	 */
-	if ((mpd->b_state & (1 << BH_Delay)) ||
-	    (mpd->b_state & (1 << BH_Unwritten)))
-		mpage_put_bnr_to_bhs(mpd, &map);
 
 	if (ext4_should_order_data(mpd->inode)) {
 		err = ext4_jbd2_file_inode(handle, mpd->inode);
@@ -2382,7 +2319,7 @@ static void mpage_da_map_and_submit(struct mpage_da_data *mpd)
 	}
 
 submit_io:
-	mpage_da_submit_io(mpd);
+	mpage_da_submit_io(mpd, mapp);
 	mpd->io_done = 1;
 }
 
