@@ -175,10 +175,6 @@ static const u8 IN_LSB_SHIFT_IDX[][2] = {
 };
 
 
-/* 3VDD, 3VSB, VBAT * 0.006 */
-#define REST_VLT_BEGIN			12  /* the 13th volt to 15th */
-#define REST_VLT_END			14  /* the 13th volt to 15th */
-
 #define W83795_REG_FAN(index)		(0x2E + (index))
 #define W83795_REG_FAN_MIN_HL(index)	(0xB6 + (index))
 #define W83795_REG_FAN_MIN_LSB(index)	(0xC4 + (index) / 2)
@@ -250,7 +246,8 @@ static const u8 IN_LSB_SHIFT_IDX[][2] = {
 
 static inline u16 in_from_reg(u8 index, u16 val)
 {
-	if ((index >= REST_VLT_BEGIN) && (index <= REST_VLT_END))
+	/* 3VDD, 3VSB and VBAT: 6 mV/bit; other inputs: 2 mV/bit */
+	if (index >= 12 && index <= 14)
 		return val * 6;
 	else
 		return val * 2;
@@ -258,7 +255,7 @@ static inline u16 in_from_reg(u8 index, u16 val)
 
 static inline u16 in_to_reg(u8 index, u16 val)
 {
-	if ((index >= REST_VLT_BEGIN) && (index <= REST_VLT_END))
+	if (index >= 12 && index <= 14)
 		return val / 6;
 	else
 		return val / 2;
