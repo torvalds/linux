@@ -47,7 +47,7 @@ struct wlc_eventq {
 	bool workpending;
 	struct wl_timer *timer;
 	wlc_eventq_cb_t cb;
-	u8 event_inds_mask[roundup(WLC_E_LAST, NBBY) / NBBY];
+	u8 event_inds_mask[broken_roundup(WLC_E_LAST, NBBY) / NBBY];
 };
 
 /*
