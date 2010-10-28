@@ -116,7 +116,7 @@ cifs_read_super(struct super_block *sb, void *data,
 		return -ENOMEM;
 
 	spin_lock_init(&cifs_sb->tlink_tree_lock);
-	INIT_RADIX_TREE(&cifs_sb->tlink_tree, GFP_KERNEL);
+	cifs_sb->tlink_tree = RB_ROOT;
 
 	rc = bdi_setup_and_register(&cifs_sb->bdi, "cifs", BDI_CAP_MAP_COPY);
 	if (rc) {
