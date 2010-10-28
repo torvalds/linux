@@ -371,6 +371,7 @@ struct w83795_data {
 	u8 beeps[6];		/* Register value */
 
 	char valid;
+	char valid_limits;
 };
 
 /*
@@ -498,6 +499,8 @@ static void w83795_update_limits(struct i2c_client *client)
 	/* Read beep settings */
 	for (i = 0; i < ARRAY_SIZE(data->beeps); i++)
 		data->beeps[i] = w83795_read(client, W83795_REG_BEEP(i));
+
+	data->valid_limits = 1;
 }
 
 static void w83795_update_pwm_config(struct i2c_client *client)
@@ -563,6 +566,9 @@ static struct w83795_data *w83795_update_device(struct device *dev)
 	int i;
 
 	mutex_lock(&data->update_lock);
+
+	if (!data->valid_limits)
+		w83795_update_limits(client);
 
 	if (!(time_after(jiffies, data->last_updated + HZ * 2)
 	      || !data->valid))
@@ -2017,7 +2023,6 @@ static int w83795_probe(struct i2c_client *client,
 	}
 
 	data->has_gain = w83795_read(client, W83795_REG_VMIGB_CTRL) & 0x0f;
-	w83795_update_limits(client);
 
 	/* pwm and smart fan */
 	if (data->chip_type == w83795g)
