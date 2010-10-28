@@ -942,13 +942,17 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 void
 nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
 {
-	spin_lock(&nvbo->bo.bdev->fence_lock);
-	__nouveau_fence_unref(&nvbo->bo.sync_obj);
+	struct nouveau_fence *old_fence;
 
 	if (likely(fence))
-		nvbo->bo.sync_obj = nouveau_fence_ref(fence);
+		nouveau_fence_ref(fence);
 
+	spin_lock(&nvbo->bo.bdev->fence_lock);
+	old_fence = nvbo->bo.sync_obj;
+	nvbo->bo.sync_obj = fence;
 	spin_unlock(&nvbo->bo.bdev->fence_lock);
+
+	nouveau_fence_unref(&old_fence);
 }
 
 struct ttm_bo_driver nouveau_bo_driver = {
