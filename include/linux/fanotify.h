@@ -12,7 +12,6 @@
 
 #define FAN_EVENT_ON_CHILD	0x08000000	/* interested in child events */
 
-/* FIXME currently Q's have no limit.... */
 #define FAN_Q_OVERFLOW		0x00004000	/* Event queued overflowed */
 
 #define FAN_OPEN_PERM		0x00010000	/* File open in perm check */
