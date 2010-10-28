@@ -303,6 +303,7 @@ static const struct file_operations proc_bus_pci_operations = {
 	.read		= proc_bus_pci_read,
 	.write		= proc_bus_pci_write,
 	.unlocked_ioctl	= proc_bus_pci_ioctl,
+	.compat_ioctl	= proc_bus_pci_ioctl,
 #ifdef HAVE_PCI_MMAP
 	.open		= proc_bus_pci_open,
 	.release	= proc_bus_pci_release,
