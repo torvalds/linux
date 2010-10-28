@@ -185,6 +185,7 @@ config SMDK6410_WM1192_EV1
 	select REGULATOR_WM831X
 	select S3C24XX_GPIO_EXTRA64
 	select MFD_WM831X
+	select MFD_WM831X_I2C
 	help
 	  The Wolfson Microelectronics 1192-EV1 is a WM831x based PMIC
 	  daughtercard for the Samsung SMDK6410 reference platform.

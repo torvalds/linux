@@ -138,7 +138,7 @@ enum {
 	PM8607_ID_RG_MAX,
 };
 
-#define PM8607_VERSION			(0x40)	/* 8607 chip ID */
+/* 8607 chip ID is 0x40 or 0x50 */
 #define PM8607_VERSION_MASK		(0xF0)	/* 8607 chip ID mask */
 
 /* Interrupt Registers */

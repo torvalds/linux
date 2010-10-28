@@ -196,6 +196,16 @@ config RTC_DRV_MAX8925
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max8925.
 
+config RTC_DRV_MAX8998
+	tristate "Maxim MAX8998"
+	depends on MFD_MAX8998
+	help
+	  If you say yes here you will get support for the
+	  RTC of Maxim MAX8998 PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max8998.
+
 config RTC_DRV_RS5C372
 	tristate "Ricoh R2025S/D, RS5C372A/B, RV5C386, RV5C387A"
 	help
@@ -926,11 +936,12 @@ config RTC_DRV_PCAP
 	  If you say Y here you will get support for the RTC found on
 	  the PCAP2 ASIC used on some Motorola phones.
 
-config RTC_DRV_MC13783
-	depends on MFD_MC13783
-	tristate "Freescale MC13783 RTC"
+config RTC_DRV_MC13XXX
+	depends on MFD_MC13XXX
+	tristate "Freescale MC13xxx RTC"
 	help
-	  This enables support for the Freescale MC13783 PMIC RTC
+	  This enables support for the RTCs found on Freescale's PMICs
+	  MC13783 and MC13892.
 
 config RTC_DRV_MPC5121
 	tristate "Freescale MPC5121 built-in RTC"
