@@ -403,11 +403,8 @@ static int intc_suspend(struct sys_device *dev, pm_message_t state)
 		if (d->state.event != PM_EVENT_FREEZE)
 			break;
 
-		for_each_irq_nr(irq) {
+		for_each_active_irq(irq) {
 			desc = irq_to_desc(irq);
-			if (!desc)
-				continue;
-
 			data = irq_get_irq_data(irq);
 			chip = irq_data_get_irq_chip(data);
 
@@ -428,11 +425,8 @@ static int intc_suspend(struct sys_device *dev, pm_message_t state)
 		break;
 	case PM_EVENT_SUSPEND:
 		/* enable wakeup irqs belonging to this intc controller */
-		for_each_irq_nr(irq) {
+		for_each_active_irq(irq) {
 			desc = irq_to_desc(irq);
-			if (!desc)
-				continue;
-
 			data = irq_get_irq_data(irq);
 			chip = irq_data_get_irq_chip(data);
 
