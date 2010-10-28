@@ -330,7 +330,7 @@ void do_signal(struct pt_regs *regs)
 			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 		}
 
-		return;
+		goto done;
 	}
 
 	/* Did we come from a system call? */
@@ -358,4 +358,8 @@ void do_signal(struct pt_regs *regs)
 		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
+
+done:
+	/* Avoid double syscall restart if there are nested signals. */
+	regs->faultnum = INT_SWINT_1_SIGRETURN;
 }
