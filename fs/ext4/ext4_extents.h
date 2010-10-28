@@ -237,19 +237,9 @@ extern int ext4_ext_calc_credits_for_single_extent(struct inode *inode,
 extern int ext4_can_extents_be_merged(struct inode *inode,
 				      struct ext4_extent *ex1,
 				      struct ext4_extent *ex2);
-extern int ext4_ext_try_to_merge(struct inode *inode,
-				 struct ext4_ext_path *path,
-				 struct ext4_extent *);
-extern unsigned int ext4_ext_check_overlap(struct inode *, struct ext4_extent *, struct ext4_ext_path *);
 extern int ext4_ext_insert_extent(handle_t *, struct inode *, struct ext4_ext_path *, struct ext4_extent *, int);
-extern int ext4_ext_walk_space(struct inode *, ext4_lblk_t, ext4_lblk_t,
-							ext_prepare_callback, void *);
 extern struct ext4_ext_path *ext4_ext_find_extent(struct inode *, ext4_lblk_t,
 							struct ext4_ext_path *);
-extern int ext4_ext_search_left(struct inode *, struct ext4_ext_path *,
-						ext4_lblk_t *, ext4_fsblk_t *);
-extern int ext4_ext_search_right(struct inode *, struct ext4_ext_path *,
-						ext4_lblk_t *, ext4_fsblk_t *);
 extern void ext4_ext_drop_refs(struct ext4_ext_path *);
 extern int ext4_ext_check_inode(struct inode *inode);
 #endif /* _EXT4_EXTENTS */

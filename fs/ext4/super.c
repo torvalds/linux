@@ -53,7 +53,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/ext4.h>
 
-struct proc_dir_entry *ext4_proc_root;
+static struct proc_dir_entry *ext4_proc_root;
 static struct kset *ext4_kset;
 struct ext4_lazy_init *ext4_li_info;
 struct mutex ext4_li_mtx;

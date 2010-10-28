@@ -739,9 +739,9 @@ err:
  * insert new index [@logical;@ptr] into the block at @curp;
  * check where to insert: before @curp or after @curp
  */
-int ext4_ext_insert_index(handle_t *handle, struct inode *inode,
-				struct ext4_ext_path *curp,
-				int logical, ext4_fsblk_t ptr)
+static int ext4_ext_insert_index(handle_t *handle, struct inode *inode,
+				 struct ext4_ext_path *curp,
+				 int logical, ext4_fsblk_t ptr)
 {
 	struct ext4_extent_idx *ix;
 	int len, err;
@@ -1232,9 +1232,9 @@ out:
  * returns 0 at @phys
  * return value contains 0 (success) or error code
  */
-int
-ext4_ext_search_left(struct inode *inode, struct ext4_ext_path *path,
-			ext4_lblk_t *logical, ext4_fsblk_t *phys)
+static int ext4_ext_search_left(struct inode *inode,
+				struct ext4_ext_path *path,
+				ext4_lblk_t *logical, ext4_fsblk_t *phys)
 {
 	struct ext4_extent_idx *ix;
 	struct ext4_extent *ex;
@@ -1297,9 +1297,9 @@ ext4_ext_search_left(struct inode *inode, struct ext4_ext_path *path,
  * returns 0 at @phys
  * return value contains 0 (success) or error code
  */
-int
-ext4_ext_search_right(struct inode *inode, struct ext4_ext_path *path,
-			ext4_lblk_t *logical, ext4_fsblk_t *phys)
+static int ext4_ext_search_right(struct inode *inode,
+				 struct ext4_ext_path *path,
+				 ext4_lblk_t *logical, ext4_fsblk_t *phys)
 {
 	struct buffer_head *bh = NULL;
 	struct ext4_extent_header *eh;
@@ -1585,9 +1585,9 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
  * Returns 0 if the extents (ex and ex+1) were _not_ merged and returns
  * 1 if they got merged.
  */
-int ext4_ext_try_to_merge(struct inode *inode,
-			  struct ext4_ext_path *path,
-			  struct ext4_extent *ex)
+static int ext4_ext_try_to_merge(struct inode *inode,
+				 struct ext4_ext_path *path,
+				 struct ext4_extent *ex)
 {
 	struct ext4_extent_header *eh;
 	unsigned int depth, len;
@@ -1632,9 +1632,9 @@ int ext4_ext_try_to_merge(struct inode *inode,
  * such that there will be no overlap, and then returns 1.
  * If there is no overlap found, it returns 0.
  */
-unsigned int ext4_ext_check_overlap(struct inode *inode,
-				    struct ext4_extent *newext,
-				    struct ext4_ext_path *path)
+static unsigned int ext4_ext_check_overlap(struct inode *inode,
+					   struct ext4_extent *newext,
+					   struct ext4_ext_path *path)
 {
 	ext4_lblk_t b1, b2;
 	unsigned int depth, len1;
@@ -1845,9 +1845,9 @@ cleanup:
 	return err;
 }
 
-int ext4_ext_walk_space(struct inode *inode, ext4_lblk_t block,
-			ext4_lblk_t num, ext_prepare_callback func,
-			void *cbdata)
+static int ext4_ext_walk_space(struct inode *inode, ext4_lblk_t block,
+			       ext4_lblk_t num, ext_prepare_callback func,
+			       void *cbdata)
 {
 	struct ext4_ext_path *path = NULL;
 	struct ext4_ext_cache cbex;

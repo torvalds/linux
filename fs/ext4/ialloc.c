@@ -65,9 +65,10 @@ void mark_bitmap_end(int start_bit, int end_bit, char *bitmap)
 }
 
 /* Initializes an uninitialized inode bitmap */
-unsigned ext4_init_inode_bitmap(struct super_block *sb, struct buffer_head *bh,
-				ext4_group_t block_group,
-				struct ext4_group_desc *gdp)
+static unsigned ext4_init_inode_bitmap(struct super_block *sb,
+				       struct buffer_head *bh,
+				       ext4_group_t block_group,
+				       struct ext4_group_desc *gdp)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
@@ -414,8 +415,8 @@ struct orlov_stats {
  * for a particular block group or flex_bg.  If flex_size is 1, then g
  * is a block group number; otherwise it is flex_bg number.
  */
-void get_orlov_stats(struct super_block *sb, ext4_group_t g,
-		       int flex_size, struct orlov_stats *stats)
+static void get_orlov_stats(struct super_block *sb, ext4_group_t g,
+			    int flex_size, struct orlov_stats *stats)
 {
 	struct ext4_group_desc *desc;
 	struct flex_groups *flex_group = EXT4_SB(sb)->s_flex_groups;
