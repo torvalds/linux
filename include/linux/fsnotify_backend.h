@@ -129,6 +129,14 @@ struct fsnotify_group {
 	wait_queue_head_t notification_waitq;	/* read() on the notification file blocks on this waitq */
 	unsigned int q_len;			/* events on the queue */
 	unsigned int max_events;		/* maximum events allowed on the list */
+	/*
+	 * Valid fsnotify group priorities.  Events are send in order from highest
+	 * priority to lowest priority.  We default to the lowest priority.
+	 */
+	#define FS_PRIO_0	0 /* normal notifiers, no permissions */
+	#define FS_PRIO_1	1 /* fanotify content based access control */
+	#define FS_PRIO_2	2 /* fanotify pre-content access */
+	unsigned int priority;
 
 	/* stores all fastpath marks assoc with this group so they can be cleaned on unregister */
 	spinlock_t mark_lock;		/* protect marks_list */
