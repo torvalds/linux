@@ -38,8 +38,6 @@
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f, I2C_CLIENT_END };
 
-enum chips { w83795 };
-
 
 static int reset;
 module_param(reset, bool, 0);
@@ -1686,6 +1684,7 @@ static int w83795_detect(struct i2c_client *client,
 	u8 tmp, bank;
 	struct i2c_adapter *adapter = client->adapter;
 	unsigned short address = client->addr;
+	const char *chip_name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
@@ -1718,18 +1717,21 @@ static int w83795_detect(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-#if 0
-	/* Check 795 chip type: 795G or 795ADG */
+	/* Check 795 chip type: 795G or 795ADG
+	   Usually we don't write to chips during detection, but here we don't
+	   quite have the choice; hopefully it's OK, we are about to return
+	   success anyway */
+	if ((bank & 0x07) != 0)
+		i2c_smbus_write_byte_data(client, W83795_REG_BANKSEL,
+					  bank & ~0x07);
 	if (W83795_REG_CONFIG_CONFIG48 &
-		  w83795_read(client, W83795_REG_CONFIG)) {
-		data->chip_type = w83795adg;
+		  i2c_smbus_read_byte_data(client, W83795_REG_CONFIG)) {
+		chip_name = "w83795adg";
 	} else {
-		data->chip_type = w83795g;
+		chip_name = "w83795g";
 	}
-#endif
 
-	/* Fill in the remaining client fields and put into the global list */
-	strlcpy(info->type, "w83795", I2C_NAME_SIZE);
+	strlcpy(info->type, chip_name, I2C_NAME_SIZE);
 
 	return 0;
 }
@@ -1750,19 +1752,12 @@ static int w83795_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, data);
+	data->chip_type = id->driver_data;
 	data->bank = i2c_smbus_read_byte_data(client, W83795_REG_BANKSEL);
 	mutex_init(&data->update_lock);
 
 	/* Initialize the chip */
 	w83795_init_client(client);
-
-	/* Check 795 chip type: 795G or 795ADG */
-	if (W83795_REG_CONFIG_CONFIG48 &
-		  w83795_read(client, W83795_REG_CONFIG)) {
-		data->chip_type = w83795adg;
-	} else {
-		data->chip_type = w83795g;
-	}
 
 	data->has_in = w83795_read(client, W83795_REG_VOLT_CTRL1);
 	data->has_in |= w83795_read(client, W83795_REG_VOLT_CTRL2) << 8;
@@ -2097,7 +2092,8 @@ static int w83795_remove(struct i2c_client *client)
 
 
 static const struct i2c_device_id w83795_id[] = {
-	{ "w83795", w83795 },
+	{ "w83795g", w83795g },
+	{ "w83795adg", w83795adg },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83795_id);
