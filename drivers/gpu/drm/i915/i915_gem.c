@@ -2847,21 +2847,15 @@ i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj,
 				       bool pipelined)
 {
 	struct drm_device *dev = obj->dev;
-	uint32_t old_write_domain;
 
 	if ((obj->write_domain & I915_GEM_GPU_DOMAINS) == 0)
 		return 0;
 
 	/* Queue the GPU write cache flushing we need. */
-	old_write_domain = obj->write_domain;
 	i915_gem_flush_ring(dev, NULL,
 			    to_intel_bo(obj)->ring,
 			    0, obj->write_domain);
 	BUG_ON(obj->write_domain);
-
-	trace_i915_gem_object_change_domain(obj,
-					    obj->read_domains,
-					    old_write_domain);
 
 	if (pipelined)
 		return 0;
