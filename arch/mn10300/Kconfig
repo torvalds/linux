@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux Kernel Configuration"
-
 config MN10300
 	def_bool y
 	select HAVE_OPROFILE
@@ -92,8 +85,6 @@ config GENERIC_HARDIRQS
 
 config HOTPLUG_CPU
 	def_bool n
-
-mainmenu "Panasonic MN10300/AM33 Kernel Configuration"
 
 source "init/Kconfig"
 

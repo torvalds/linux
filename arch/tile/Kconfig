@@ -117,8 +117,6 @@ config TILE
 #       config HUGETLB_PAGE_SIZE_VARIABLE
 
 
-mainmenu "Linux/TILE Kernel Configuration"
-
 # Please note: TILE-Gx support is not yet finalized; this is
 # the preliminary support.  TILE-Gx drivers are only provided
 # with the alpha or beta test versions for Tilera customers.

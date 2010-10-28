@@ -1,8 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
 config SCHED_MC
 	def_bool y
 	depends on SMP
@@ -77,8 +72,6 @@ config VIRT_CPU_ACCOUNTING
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
-
-mainmenu "Linux Kernel Configuration"
 
 config S390
 	def_bool y

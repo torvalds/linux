@@ -15,8 +15,6 @@ config MIPS
 	select RTC_LIB if !MACH_LOONGSON
 	select GENERIC_ATOMIC64 if !64BIT
 
-mainmenu "Linux/MIPS Kernel Configuration"
-
 menu "Machine selection"
 
 config ZONE_DMA

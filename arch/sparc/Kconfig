@@ -1,9 +1,3 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux/SPARC Kernel Configuration"
-
 config 64BIT
 	bool "64-bit kernel" if ARCH = "sparc"
 	default ARCH = "sparc64"
