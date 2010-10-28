@@ -299,6 +299,16 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
 		transaction->t_chp_stats.cs_forced_to_close++;
 		spin_unlock(&journal->j_list_lock);
 		jbd_unlock_bh_state(bh);
+		if (unlikely(journal->j_flags & JBD2_UNMOUNT))
+			/*
+			 * The journal thread is dead; so starting and
+			 * waiting for a commit to finish will cause
+			 * us to wait for a _very_ long time.
+			 */
+			printk(KERN_ERR "JBD2: %s: "
+			       "Waiting for Godot: block %llu\n",
+			       journal->j_devname,
+			       (unsigned long long) bh->b_blocknr);
 		jbd2_log_start_commit(journal, tid);
 		jbd2_log_wait_commit(journal, tid);
 		ret = 1;

@@ -1588,7 +1588,7 @@ static void ext4_xattr_rehash(struct ext4_xattr_header *header,
 #undef BLOCK_HASH_SHIFT
 
 int __init
-init_ext4_xattr(void)
+ext4_init_xattr(void)
 {
 	ext4_xattr_cache = mb_cache_create("ext4_xattr", 6);
 	if (!ext4_xattr_cache)
@@ -1597,7 +1597,7 @@ init_ext4_xattr(void)
 }
 
 void
-exit_ext4_xattr(void)
+ext4_exit_xattr(void)
 {
 	if (ext4_xattr_cache)
 		mb_cache_destroy(ext4_xattr_cache);

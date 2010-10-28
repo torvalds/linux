@@ -171,7 +171,8 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		 * less than the blocksize * 8 ( which is the size
 		 * of bitmap ), set rest of the block bitmap to 1
 		 */
-		mark_bitmap_end(group_blocks, sb->s_blocksize * 8, bh->b_data);
+		ext4_mark_bitmap_end(group_blocks, sb->s_blocksize * 8,
+				     bh->b_data);
 	}
 	return free_blocks - ext4_group_used_meta_blocks(sb, block_group, gdp);
 }
@@ -489,7 +490,7 @@ error_return:
  * Check if filesystem has nblocks free & available for allocation.
  * On success return 1, return 0 on failure.
  */
-int ext4_has_free_blocks(struct ext4_sb_info *sbi, s64 nblocks)
+static int ext4_has_free_blocks(struct ext4_sb_info *sbi, s64 nblocks)
 {
 	s64 free_blocks, dirty_blocks, root_blocks;
 	struct percpu_counter *fbc = &sbi->s_freeblocks_counter;
