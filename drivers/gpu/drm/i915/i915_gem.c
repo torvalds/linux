@@ -1314,11 +1314,11 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		ret = i915_gem_object_bind_to_gtt(obj, 0, true);
 		if (ret)
 			goto unlock;
-
-		ret = i915_gem_object_set_to_gtt_domain(obj, write);
-		if (ret)
-			goto unlock;
 	}
+
+	ret = i915_gem_object_set_to_gtt_domain(obj, write);
+	if (ret)
+		goto unlock;
 
 	if (!obj_priv->fault_mappable) {
 		obj_priv->fault_mappable = true;
@@ -2859,6 +2859,8 @@ i915_gem_object_flush_gtt_write_domain(struct drm_gem_object *obj)
 	 * to it immediately go to main memory as far as we know, so there's
 	 * no chipset flush.  It also doesn't land in render cache.
 	 */
+	i915_gem_release_mmap(obj);
+
 	old_write_domain = obj->write_domain;
 	obj->write_domain = 0;
 
@@ -3182,6 +3184,10 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
 	invalidate_domains |= obj->pending_read_domains & ~obj->read_domains;
 	if ((flush_domains | invalidate_domains) & I915_GEM_DOMAIN_CPU)
 		i915_gem_clflush_object(obj);
+
+	/* blow away mappings if mapped through GTT */
+	if ((flush_domains | invalidate_domains) & I915_GEM_DOMAIN_GTT)
+		i915_gem_release_mmap(obj);
 
 	/* The actual obj->write_domain will be updated with
 	 * pending_write_domain after we emit the accumulated flush for all
