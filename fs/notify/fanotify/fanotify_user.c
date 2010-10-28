@@ -610,6 +610,16 @@ static int fanotify_add_inode_mark(struct fsnotify_group *group,
 
 	pr_debug("%s: group=%p inode=%p\n", __func__, group, inode);
 
+	/*
+	 * If some other task has this inode open for write we should not add
+	 * an ignored mark, unless that ignored mark is supposed to survive
+	 * modification changes anyway.
+	 */
+	if ((flags & FAN_MARK_IGNORED_MASK) &&
+	    !(flags & FAN_MARK_IGNORED_SURV_MODIFY) &&
+	    (atomic_read(&inode->i_writecount) > 0))
+		return 0;
+
 	fsn_mark = fsnotify_find_inode_mark(group, inode);
 	if (!fsn_mark) {
 		int ret;
