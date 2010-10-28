@@ -554,8 +554,10 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	}
 
 	nr_pages = rds_rdma_pages(args);
-	if (nr_pages < 0)
+	if (nr_pages < 0) {
+		ret = -EINVAL;
 		goto out;
+	}
 
 	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages) {
