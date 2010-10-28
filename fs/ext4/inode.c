@@ -5281,6 +5281,7 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
 	int error, rc = 0;
+	int orphan = 0;
 	const unsigned int ia_valid = attr->ia_valid;
 
 	error = inode_change_ok(inode, attr);
@@ -5336,8 +5337,10 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 			error = PTR_ERR(handle);
 			goto err_out;
 		}
-
-		error = ext4_orphan_add(handle, inode);
+		if (ext4_handle_valid(handle)) {
+			error = ext4_orphan_add(handle, inode);
+			orphan = 1;
+		}
 		EXT4_I(inode)->i_disksize = attr->ia_size;
 		rc = ext4_mark_inode_dirty(handle, inode);
 		if (!error)
@@ -5355,6 +5358,7 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 					goto err_out;
 				}
 				ext4_orphan_del(handle, inode);
+				orphan = 0;
 				ext4_journal_stop(handle);
 				goto err_out;
 			}
@@ -5377,7 +5381,7 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 	 * If the call to ext4_truncate failed to get a transaction handle at
 	 * all, we need to clean up the in-core orphan list manually.
 	 */
-	if (inode->i_nlink)
+	if (orphan && inode->i_nlink)
 		ext4_orphan_del(NULL, inode);
 
 	if (!rc && (ia_valid & ATTR_MODE))
