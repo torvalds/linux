@@ -71,6 +71,9 @@ int restore_sigcontext(struct pt_regs *regs,
 	for (i = 0; i < sizeof(struct pt_regs)/sizeof(long); ++i)
 		err |= __get_user(regs->regs[i], &sc->gregs[i]);
 
+	/* Ensure that the PL is always set to USER_PL. */
+	regs->ex1 = PL_ICS_EX1(USER_PL, EX1_ICS(regs->ex1));
+
 	regs->faultnum = INT_SWINT_1_SIGRETURN;
 
 	err |= __get_user(*pr0, &sc->gregs[0]);
