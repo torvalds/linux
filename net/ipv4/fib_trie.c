@@ -1797,6 +1797,11 @@ int fib_table_flush(struct fib_table *tb)
 	return found;
 }
 
+void fib_free_table(struct fib_table *tb)
+{
+	kfree(tb);
+}
+
 void fib_table_select_default(struct fib_table *tb,
 			      const struct flowi *flp,
 			      struct fib_result *res)
