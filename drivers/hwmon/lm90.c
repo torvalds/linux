@@ -815,6 +815,15 @@ static int lm90_detect(struct i2c_client *new_client,
 	return 0;
 }
 
+static void lm90_remove_files(struct i2c_client *client, struct lm90_data *data)
+{
+	if (data->flags & LM90_HAVE_OFFSET)
+		device_remove_file(&client->dev,
+				   &sensor_dev_attr_temp2_offset.dev_attr);
+	device_remove_file(&client->dev, &dev_attr_pec);
+	sysfs_remove_group(&client->dev.kobj, &lm90_group);
+}
+
 static int lm90_probe(struct i2c_client *new_client,
 		      const struct i2c_device_id *id)
 {
@@ -889,8 +898,7 @@ static int lm90_probe(struct i2c_client *new_client,
 	return 0;
 
 exit_remove_files:
-	sysfs_remove_group(&new_client->dev.kobj, &lm90_group);
-	device_remove_file(&new_client->dev, &dev_attr_pec);
+	lm90_remove_files(new_client, data);
 exit_free:
 	kfree(data);
 exit:
@@ -937,11 +945,7 @@ static int lm90_remove(struct i2c_client *client)
 	struct lm90_data *data = i2c_get_clientdata(client);
 
 	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&client->dev.kobj, &lm90_group);
-	device_remove_file(&client->dev, &dev_attr_pec);
-	if (data->flags & LM90_HAVE_OFFSET)
-		device_remove_file(&client->dev,
-				   &sensor_dev_attr_temp2_offset.dev_attr);
+	lm90_remove_files(client, data);
 
 	/* Restore initial configuration */
 	i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
