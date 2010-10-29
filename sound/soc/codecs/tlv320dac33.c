@@ -1082,6 +1082,9 @@ static void dac33_calculate_times(struct snd_pcm_substream *substream)
 		/* Number of samples under i2c latency */
 		dac33->alarm_threshold = US_TO_SAMPLES(rate,
 						dac33->mode1_latency);
+		nsample_limit = DAC33_BUFFER_SIZE_SAMPLES -
+				dac33->alarm_threshold;
+
 		if (dac33->auto_fifo_config) {
 			if (period_size <= dac33->alarm_threshold)
 				/*
@@ -1092,6 +1095,8 @@ static void dac33_calculate_times(struct snd_pcm_substream *substream)
 				       ((dac33->alarm_threshold / period_size) +
 				       (dac33->alarm_threshold % period_size ?
 				       1 : 0));
+			else if (period_size > nsample_limit)
+				dac33->nsample = nsample_limit;
 			else
 				dac33->nsample = period_size;
 		} else {
@@ -1103,8 +1108,7 @@ static void dac33_calculate_times(struct snd_pcm_substream *substream)
 			 */
 			dac33->nsample_max = substream->runtime->buffer_size -
 						period_size;
-			nsample_limit = DAC33_BUFFER_SIZE_SAMPLES -
-					dac33->alarm_threshold;
+
 			if (dac33->nsample_max > nsample_limit)
 				dac33->nsample_max = nsample_limit;
 
