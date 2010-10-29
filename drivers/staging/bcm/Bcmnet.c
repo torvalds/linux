@@ -1,5 +1,9 @@
 #include "headers.h"
 
+#define DRV_DESCRIPTION "Beceem Communications Inc. WiMAX driver"
+#define DRV_VERSION	"5.2.7.3P1"
+#define DRV_COPYRIGHT	"Copyright 2010. Beceem Communications Inc"
+
 static INT bcm_notify_event(struct notifier_block *nb, ULONG event, PVOID dev)
 {
 	struct net_device *ndev = (struct net_device*)dev;
@@ -236,29 +240,22 @@ void bcm_unregister_networkdev(PMINI_ADAPTER Adapter)
 
 static int bcm_init(void)
 {
-	int result;
-   	result = InterfaceInitialize();
-	if(result)
-	{
- 		printk("Initialisation failed for usbbcm");
-	}
-	else
-	{
-		printk("Initialised usbbcm");
-	}
-	return result;
+	printk(KERN_INFO "%s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
+	printk(KERN_INFO "%s\n", DRV_COPYRIGHT);
+
+	return InterfaceInitialize();
 }
 
 
 static void bcm_exit(void)
 {
-    printk("%s %s Calling InterfaceExit\n",__FILE__, __FUNCTION__);
 	InterfaceExit();
-    printk("%s %s InterfaceExit returned\n",__FILE__, __FUNCTION__);
 }
 
 module_init(bcm_init);
 module_exit(bcm_exit);
-MODULE_LICENSE ("GPL");
 
+MODULE_DESCRIPTION(DRV_DESCRIPTION);
+MODULE_VERSION(DRV_VERSION);
+MODULE_LICENSE ("GPL");
 
