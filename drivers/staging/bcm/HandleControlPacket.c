@@ -185,9 +185,6 @@ int control_packet_handler  (PMINI_ADAPTER Adapter  /**< pointer to adapter obje
 			{
 				DEQUEUEPACKET(Adapter->RxControlHead,Adapter->RxControlTail);
 //				Adapter->RxControlHead=ctrl_packet->next;
-				((PLINUX_DEP_DATA)Adapter->pvOsDepData)->netstats.rx_packets++;
-				((PLINUX_DEP_DATA)Adapter->pvOsDepData)->netstats.rx_bytes+=
-				((PLEADER)ctrl_packet->data)->PLength;
 			}
 			#if 0  //Idle mode debug profiling...
 			if(*(PUSHORT)ctrl_packet->data == IDLE_MODE_STATUS)

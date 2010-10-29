@@ -43,17 +43,6 @@ typedef struct _BCM_CB BCM_CB,*PBCM_CB;
 typedef BCM_CB BCM_RCB, *PBCM_RCB;
 typedef BCM_CB BCM_TCB, *PBCM_TCB;
 
-/* This is to be stored in the "pvOsDepData" of ADAPTER */
-typedef struct LINUX_DEP_DATA
-{
-	struct net_device		*virtualdev;	/* Our Interface (veth0) */
-	struct net_device		*actualdev;	/* True Interface (eth0) */
-	struct net_device_stats netstats;	/* Net statistics */
-	struct fasync_struct	*async_queue;	/* For asynchronus notification */
-
-} LINUX_DEP_DATA, *PLINUX_DEP_DATA;
-
-
 struct _LEADER
 {
 	USHORT 	Vcid;
@@ -429,7 +418,7 @@ Driver adapter data structure
 struct _MINI_ADAPTER
 {
 	struct _MINI_ADAPTER *next;
-	PVOID			    pvOsDepData;
+
 	CHAR                *caDsxReqResp;
 	atomic_t			ApplicationRunning;
 	volatile INT		CtrlQueueLen;
@@ -629,6 +618,7 @@ struct _MINI_ADAPTER
 	struct semaphore	LowPowerModeSync;
 	ULONG	liDrainCalculated;
 	UINT gpioBitMap;
+
     S_BCM_DEBUG_STATE stDebugState;
 
 };

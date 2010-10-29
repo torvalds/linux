@@ -60,15 +60,6 @@ InitAdapter(PMINI_ADAPTER psAdapter)
     //init_waitqueue_head(&psAdapter->device_wake_queue);
     psAdapter->fw_download_done=FALSE;
 
-    psAdapter->pvOsDepData = (PLINUX_DEP_DATA) kmalloc(sizeof(LINUX_DEP_DATA),
-                 GFP_KERNEL);
-
-    if(psAdapter->pvOsDepData == NULL)
-	{
-        BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Linux Specific Data allocation failed");
-        return -ENOMEM;
-    }
-    memset(psAdapter->pvOsDepData, 0, sizeof(LINUX_DEP_DATA));
 
 	default_wimax_protocol_initialize(psAdapter);
 	for (i=0;i<MAX_CNTRL_PKTS;i++)
@@ -149,8 +140,7 @@ VOID AdapterFree(PMINI_ADAPTER Adapter)
 			bcm_kfree(Adapter->txctlpacket[count]);
 	}
 	FreeAdapterDsxBuffer(Adapter);
-	if(Adapter->pvOsDepData)
-		bcm_kfree (Adapter->pvOsDepData);
+
 	if(Adapter->pvInterfaceAdapter)
 		bcm_kfree(Adapter->pvInterfaceAdapter);
 
@@ -1969,9 +1959,7 @@ void update_per_sf_desc_cnts( PMINI_ADAPTER Adapter)
 void flush_queue(PMINI_ADAPTER Adapter, UINT iQIndex)
 {
 	struct sk_buff* 			PacketToDrop=NULL;
-	struct net_device_stats*		netstats=NULL;
-
-	netstats = &((PLINUX_DEP_DATA)Adapter->pvOsDepData)->netstats;
+	struct net_device_stats*		netstats = &Adapter->dev->stats;
 
 	spin_lock_bh(&Adapter->PackInfo[iQIndex].SFQueueLock);
 

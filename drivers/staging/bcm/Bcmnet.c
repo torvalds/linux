@@ -44,24 +44,21 @@ static INT bcm_close(struct net_device *dev)
 
 static struct net_device_stats *bcm_get_stats(struct net_device *dev)
 {
-    PLINUX_DEP_DATA pLinuxData=NULL;
-	PMINI_ADAPTER Adapter = NULL ;// gpadapter ;
-	Adapter = GET_BCM_ADAPTER(dev);
-    pLinuxData = (PLINUX_DEP_DATA)(Adapter->pvOsDepData);
+	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+	struct net_device_stats*  	netstats = &dev->stats;
 
-    //BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Dev = %p, pLinuxData = %p", dev, pLinuxData);
-	pLinuxData->netstats.rx_packets=atomic_read(&Adapter->RxRollOverCount)*64*1024+Adapter->PrevNumRecvDescs;
-	pLinuxData->netstats.rx_bytes=atomic_read(&Adapter->GoodRxByteCount)+atomic_read(&Adapter->BadRxByteCount);
-	pLinuxData->netstats.rx_dropped=atomic_read(&Adapter->RxPacketDroppedCount);
-	pLinuxData->netstats.rx_errors=atomic_read(&Adapter->RxPacketDroppedCount);
-	pLinuxData->netstats.rx_length_errors=0;
-	pLinuxData->netstats.rx_frame_errors=0;
-	pLinuxData->netstats.rx_crc_errors=0;
-	pLinuxData->netstats.tx_bytes=atomic_read(&Adapter->GoodTxByteCount);
-	pLinuxData->netstats.tx_packets=atomic_read(&Adapter->TxTotalPacketCount);
-	pLinuxData->netstats.tx_dropped=atomic_read(&Adapter->TxDroppedPacketCount);
+	netstats->rx_packets = atomic_read(&Adapter->RxRollOverCount)*64*1024
+		+ Adapter->PrevNumRecvDescs;
+	netstats->rx_bytes = atomic_read(&Adapter->GoodRxByteCount)
+		+ atomic_read(&Adapter->BadRxByteCount);
 
-    return &(pLinuxData->netstats);
+	netstats->rx_dropped = atomic_read(&Adapter->RxPacketDroppedCount);
+	netstats->rx_errors  = atomic_read(&Adapter->RxPacketDroppedCount);
+	netstats->tx_bytes   = atomic_read(&Adapter->GoodTxByteCount);
+	netstats->tx_packets = atomic_read(&Adapter->TxTotalPacketCount);
+	netstats->tx_dropped = atomic_read(&Adapter->TxDroppedPacketCount);
+
+	return netstats;
 }
 /**
 @ingroup init_functions

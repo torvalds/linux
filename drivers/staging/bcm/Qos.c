@@ -362,18 +362,18 @@ VOID PruneQueue(PMINI_ADAPTER Adapter,/**<Pointer to the driver control structur
 					)
 {
 	struct sk_buff* PacketToDrop=NULL;
-	struct net_device_stats*  netstats=NULL;
+	struct net_device_stats *netstats;
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, PRUNE_QUEUE, DBG_LVL_ALL, "=====> Index %d",iIndex);
 
    	if(iIndex == HiPriority)
-       	return;
+		return;
 
 	if(!Adapter || (iIndex < 0) || (iIndex > HiPriority))
 		return;
 
 	/* To Store the netdevice statistic */
-	netstats = &((PLINUX_DEP_DATA)Adapter->pvOsDepData)->netstats;
+	netstats = &Adapter->dev->stats;
 
 	spin_lock_bh(&Adapter->PackInfo[iIndex].SFQueueLock);
 
@@ -431,11 +431,9 @@ VOID flush_all_queues(PMINI_ADAPTER Adapter)
 	INT		iQIndex;
 	UINT	uiTotalPacketLength;
 	struct sk_buff*				PacketToDrop=NULL;
-	struct net_device_stats*  	netstats=NULL;
+	struct net_device_stats*  	netstats=&Adapter->dev->stats;
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "=====>");
-	/* To Store the netdevice statistic */
-	netstats = &((PLINUX_DEP_DATA)Adapter->pvOsDepData)->netstats;
 
 //	down(&Adapter->data_packet_queue_lock);
 	for(iQIndex=LowPriority; iQIndex<HiPriority; iQIndex++)

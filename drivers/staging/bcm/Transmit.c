@@ -212,9 +212,6 @@ INT SendControlPacket(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
 	Adapter->interface_transmit(Adapter->pvInterfaceAdapter,
 					pControlPacket, (PLeader->PLength + LEADER_SIZE));
 
-	((PLINUX_DEP_DATA)Adapter->pvOsDepData)->netstats.tx_packets++;
-	((PLINUX_DEP_DATA)Adapter->pvOsDepData)->netstats.tx_bytes+=
-			PLeader->PLength;
 	atomic_dec(&Adapter->CurrNumFreeTxDesc);
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "<=========");
 	return STATUS_SUCCESS;
