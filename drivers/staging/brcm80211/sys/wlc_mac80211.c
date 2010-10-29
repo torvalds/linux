@@ -669,7 +669,7 @@ bool wlc_ps_check(wlc_info_t *wlc)
 		 * may be either true or false due to the low level override.
 		 */
 		wake = STAY_AWAKE(wlc);
-		wake_ok = (wake && ((tmp & MCTL_WAKE) != 0)) || !wake;
+		wake_ok = ((tmp & MCTL_WAKE) != 0) || !wake;
 #endif
 		if (hps && !wake_ok) {
 			WL_ERROR(("wl%d: wake not sync, sw %d maccontrol 0x%x\n", wlc->pub->unit, wake, tmp));
