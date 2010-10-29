@@ -71,6 +71,7 @@ struct nvmap_handle {
 	size_t size;		/* padded (as-allocated) size */
 	size_t orig_size;	/* original (as-requested) size */
 	struct nvmap_client *owner;
+	struct nvmap_device *dev;
 	union {
 		struct nvmap_pgalloc pgalloc;
 		struct nvmap_heap_block *carveout;
@@ -79,6 +80,7 @@ struct nvmap_handle {
 	bool secure;		/* zap IOVMM area on unpin */
 	bool heap_pgalloc;	/* handle is page allocated (sysmem / iovmm) */
 	bool alloc;		/* handle has memory allocated */
+	struct mutex lock;
 };
 
 struct nvmap_share {
@@ -160,6 +162,8 @@ void nvmap_carveout_commit_add(struct nvmap_client *client,
 void nvmap_carveout_commit_subtract(struct nvmap_client *client,
 				    struct nvmap_carveout_node *node,
 				    size_t len);
+
+struct nvmap_share *nvmap_get_share_from_dev(struct nvmap_device *dev);
 
 struct nvmap_handle *nvmap_validate_get(struct nvmap_client *client,
 					unsigned long handle);

@@ -119,6 +119,11 @@ struct device *nvmap_client_to_device(struct nvmap_client *client)
 		return client->dev->dev_user.this_device;
 }
 
+struct nvmap_share *nvmap_get_share_from_dev(struct nvmap_device *dev)
+{
+	return &dev->iovmm_master;
+}
+
 /* allocates a PTE for the caller's use; returns the PTE pointer or
  * a negative errno. may be called from IRQs */
 pte_t **nvmap_alloc_pte_irq(struct nvmap_device *dev, void **vaddr)
@@ -289,6 +294,9 @@ void nvmap_carveout_commit_subtract(struct nvmap_client *client,
 				    struct nvmap_carveout_node *node,
 				    size_t len)
 {
+	if (!client)
+		return;
+
 	mutex_lock(&node->clients_mutex);
 	client->carveout_commit[node->index].commit -= len;
 	BUG_ON(client->carveout_commit[node->index].commit < 0);
@@ -471,6 +479,11 @@ static void destroy_client(struct nvmap_client *client)
 
 		smp_rmb();
 		pins = atomic_read(&ref->pin);
+
+		mutex_lock(&ref->handle->lock);
+		if (ref->handle->owner == client)
+		    ref->handle->owner = NULL;
+		mutex_unlock(&ref->handle->lock);
 
 		while (pins--)
 			nvmap_unpin_handles(client, &ref->handle, 1);
