@@ -309,11 +309,6 @@ INT buffDnldVerify(PMINI_ADAPTER Adapter, unsigned char *mappedbuffer, unsigned 
 VOID putUsbSuspend(struct work_struct *work);
 BOOLEAN IsReqGpioIsLedInNVM(PMINI_ADAPTER Adapter, UINT gpios);
 
-#ifdef BCM_SHM_INTERFACE
-INT beceem_virtual_device_init(void);
-VOID virtual_mail_box_interrupt(void);
-INT beceem_virtual_device_exit(void);
-#endif
 
 #endif
 

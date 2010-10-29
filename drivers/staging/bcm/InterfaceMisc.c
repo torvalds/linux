@@ -1,6 +1,5 @@
 #include "headers.h"
 
-#ifndef BCM_SHM_INTERFACE
 
 PS_INTERFACE_ADAPTER
 InterfaceAdapterGet(PMINI_ADAPTER psAdapter)
@@ -287,4 +286,3 @@ VOID putUsbSuspend(struct work_struct *work)
 
 }
 
-#endif

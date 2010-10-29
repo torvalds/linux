@@ -146,18 +146,6 @@ INT bcm_transmit(struct sk_buff *skb, 		/**< skb */
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL, "Pkt Len = %d, sec: %ld, usec: %ld\n",
 		(skb->len-ETH_HLEN), tv.tv_sec, tv.tv_usec);
 
-#ifdef BCM_SHM_INTERFACE
-		spin_lock(&Adapter->txtransmitlock);
-		if(Adapter->txtransmit_running == 0)
-		{
-			Adapter->txtransmit_running = 1;
-			calltransmit = 1;
-		}
-		else
-			calltransmit = 0;
-
-		spin_unlock(&Adapter->txtransmitlock);
-#endif
 		if(calltransmit == 1)
 			transmit_packets(Adapter);
 		else
@@ -165,9 +153,6 @@ INT bcm_transmit(struct sk_buff *skb, 		/**< skb */
 			if(!atomic_read(&Adapter->TxPktAvail))
 			{
 				atomic_set(&Adapter->TxPktAvail, 1);
-#ifdef BCM_SHM_INTERFACE
-				virtual_mail_box_interrupt();
-#endif
 				wake_up(&Adapter->tx_packet_wait_queue);
 			}
 		}
@@ -224,44 +209,8 @@ INT SendControlPacket(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Leader Length: %x",PLeader->PLength);
 	if(Adapter->device_removed)
 		return 0;
-#ifndef BCM_SHM_INTERFACE
 	Adapter->interface_transmit(Adapter->pvInterfaceAdapter,
 					pControlPacket, (PLeader->PLength + LEADER_SIZE));
-#else
-	tx_pkts_to_firmware(pControlPacket,(PLeader->PLength + LEADER_SIZE),1);
-
-	if(PLeader->Status==IDLE_MESSAGE)
-	{
-		if(((CONTROL_MESSAGE*)PLeader)->szData[0] == GO_TO_IDLE_MODE_PAYLOAD &&
-		((CONTROL_MESSAGE*)PLeader)->szData[1] == TARGET_CAN_GO_TO_IDLE_MODE)
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Idle Mode Ack Sent to the Device\n");
-        	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Host Entering into Idle Mode\n");
-			do_gettimeofday(&tv);
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "IdleMode Msg sent to f/w at time :%ld ms", tv.tv_sec *1000 + tv.tv_usec /1000);
-			if(Adapter->bDoSuspend != TRUE)
-			{
-				Adapter->IdleMode = TRUE;
-				Adapter->bPreparingForLowPowerMode = FALSE ;
-			}
-		}
-	}
-	if((PLeader->Status == LINK_UP_CONTROL_REQ) &&
-		((PUCHAR)pControlPacket)[sizeof(LEADER)] == LINK_UP_ACK &&
-		((PUCHAR)pControlPacket)[sizeof(LEADER)+1] ==
-								LINK_SHUTDOWN_REQ_FROM_FIRMWARE  &&
-		((PUCHAR)pControlPacket)[sizeof(LEADER)+2] == SHUTDOWN_ACK_FROM_DRIVER)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Shut Down ACK Sent and Host entering Shut State \n");
-		if(Adapter->bDoSuspend != TRUE)
-		{
-			Adapter->bShutStatus = TRUE;
-			Adapter->bPreparingForLowPowerMode = FALSE;
-			Adapter->bTriedToWakeUpFromlowPowerMode = FALSE;
-		}
-
-	}
-#endif
 
 	((PLINUX_DEP_DATA)Adapter->pvOsDepData)->netstats.tx_packets++;
 	((PLINUX_DEP_DATA)Adapter->pvOsDepData)->netstats.tx_bytes+=
@@ -282,9 +231,6 @@ INT SetupNextSend(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
 					USHORT Vcid)			/**<VCID for this packet*/
 {
 	int		status=0;
-#ifdef GDMA_INTERFACE
-	int dontfree = 0;
-#endif
 	BOOLEAN bHeaderSupressionEnabled = FALSE;
 	B_UINT16            uiClassifierRuleID;
 	int QueueIndex = NO_OF_QUEUES + 1;
@@ -361,12 +307,8 @@ INT SetupNextSend(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Packet->len = %d", Packet->len);
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Vcid = %d", Vcid);
 
-#ifndef BCM_SHM_INTERFACE
 	status = Adapter->interface_transmit(Adapter->pvInterfaceAdapter,
 			Packet->data, (Leader.PLength + LEADER_SIZE));
-#else
-	status = tx_pkts_to_firmware(Packet,Packet->len,0);
-#endif
 	if(status)
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Tx Failed..\n");
@@ -376,9 +318,6 @@ INT SetupNextSend(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
 		Adapter->PackInfo[QueueIndex].uiTotalTxBytes += Leader.PLength;
 		atomic_add(Leader.PLength, &Adapter->GoodTxByteCount);
 		atomic_inc(&Adapter->TxTotalPacketCount);
-#ifdef GDMA_INTERFACE
-    dontfree = 1;
-#endif
 	}
 
 	atomic_dec(&Adapter->CurrNumFreeTxDesc);
@@ -393,23 +332,11 @@ errExit:
 		Adapter->PackInfo[QueueIndex].NumOfPacketsSent++;
 
 		atomic_dec(&Adapter->PackInfo[QueueIndex].uiPerSFTxResourceCount);
-#ifdef BCM_SHM_INTERFACE
-		if(atomic_read(&Adapter->PackInfo[QueueIndex].uiPerSFTxResourceCount) < 0)
-		{
-			atomic_set(&Adapter->PackInfo[QueueIndex].uiPerSFTxResourceCount, 0);
-		}
-#endif
 		Adapter->PackInfo[QueueIndex].uiThisPeriodSentBytes += Leader.PLength;
 	}
 
 
-#ifdef GDMA_INTERFACE
-  if(!dontfree){
   	bcm_kfree_skb(Packet);
-  }
-#else
-  	bcm_kfree_skb(Packet);
-#endif
 	return status;
 }
 
@@ -420,9 +347,7 @@ Transmit thread
 int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
 				)
 {
-#ifndef BCM_SHM_INTERFACE
 	int status = 0;
-#endif
 
 	UINT calltransmit = 1;
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "Entring to wait for signal from the interrupt service thread!Adapter = %p",Adapter);
@@ -437,9 +362,7 @@ int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
 				atomic_read(&Adapter->CurrNumFreeTxDesc)) &&
 				(Adapter->device_removed == FALSE))) ||
 				(1 == Adapter->downloadDDR) || kthread_should_stop()
-#ifndef BCM_SHM_INTERFACE
 				|| (TRUE == Adapter->bEndPointHalted)
-#endif
 				, msecs_to_jiffies(10));
 		}
 		else{
@@ -449,9 +372,7 @@ int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
 				atomic_read(&Adapter->CurrNumFreeTxDesc)) &&
 				(Adapter->device_removed == FALSE))) ||
 				(1 == Adapter->downloadDDR) || kthread_should_stop()
-#ifndef BCM_SHM_INTERFACE
 				|| (TRUE == Adapter->bEndPointHalted)
-#endif
 				);
 		}
 
@@ -462,7 +383,6 @@ int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
 			return 0;
 		}
 
-#ifndef BCM_SHM_INTERFACE
 
 		if(Adapter->downloadDDR == 1)
 		{
@@ -489,7 +409,6 @@ int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
 				update_per_sf_desc_cnts(Adapter);
 			}
 		}
-#endif
 
 		if( atomic_read(&Adapter->CurrNumFreeTxDesc) &&
 			Adapter->LinkStatus == SYNC_UP_REQUEST &&
@@ -507,17 +426,6 @@ int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
 				wake_up(&Adapter->process_rx_cntrlpkt);
 		}
 
-#ifdef BCM_SHM_INTERFACE
-		spin_lock_bh(&Adapter->txtransmitlock);
-		if(Adapter->txtransmit_running == 0)
-		{
-			Adapter->txtransmit_running = 1;
-			calltransmit = 1;
-		}
-		else
-			calltransmit = 0;
-		spin_unlock_bh(&Adapter->txtransmitlock);
-#endif
 
 		if(calltransmit)
 			transmit_packets(Adapter);
@@ -527,29 +435,5 @@ int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
 	return 0;
 }
 
-#ifdef BCM_SHM_INTERFACE
-extern PMINI_ADAPTER psAdaptertest;
-void  virtual_mail_box_interrupt(void)
-{
-
-#ifndef GDMA_INTERFACE
-	PUINT ptr =  (PUINT)CPE_VIRTUAL_MAILBOX_REG;
-	UINT intval = (UINT)((*ptr & 0xFF00) >> 8);
-	if (intval != 0)
-	{
-		atomic_set(&psAdaptertest->CurrNumFreeTxDesc,	intval);
-		atomic_set (&psAdaptertest->uiMBupdate, TRUE);
-
-		//make it to 0
-		*ptr = *ptr & 0xffff00ff;
-	}
-#endif
-}
-unsigned int total_tx_pkts_pending(void)
-{
-	return atomic_read(&psAdaptertest->TotalPacketCount);
-}
-
-#endif
 
 

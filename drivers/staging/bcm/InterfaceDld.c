@@ -1,6 +1,5 @@
 #include "headers.h"
 
-#ifndef BCM_SHM_INTERFACE
 
 int InterfaceFileDownload( PVOID arg,
                         struct file *flp,
@@ -506,5 +505,4 @@ error:
 	return status;
 }
 
-#endif
 

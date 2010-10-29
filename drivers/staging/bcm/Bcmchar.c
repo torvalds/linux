@@ -329,9 +329,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			}
 
 			if(
-#if !defined(BCM_SHM_INTERFACE)
 				(((ULONG)sRdmBuffer.Register & 0x0F000000) != 0x0F000000) ||
-#endif
 					((ULONG)sRdmBuffer.Register & 0x3)
 			  )
 			{
@@ -385,10 +383,8 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				break;
 			}
 			if(
-#if !defined(BCM_SHM_INTERFACE)
 
 				(((ULONG)sWrmBuffer.Register & 0x0F000000) != 0x0F000000) ||
-#endif
 					((ULONG)sWrmBuffer.Register & 0x3)
 			 )
 			{
@@ -823,7 +819,6 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			bcm_kfree(pvBuffer);
 			break;
 		}
-#ifndef BCM_SHM_INTERFACE
 		case IOCTL_BCM_BUFFER_DOWNLOAD_START:
 		{
 			INT NVMAccess = down_trylock(&Adapter->NVMRdmWrmLock) ;
@@ -999,7 +994,6 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			up(&Adapter->NVMRdmWrmLock);
 			break;
 		}
-#endif
 		case IOCTL_BE_BUCKET_SIZE:
 			Adapter->BEBucketSize = *(PULONG)arg;
 			Status = STATUS_SUCCESS;

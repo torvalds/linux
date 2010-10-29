@@ -19,16 +19,12 @@ INT InterfaceInitialize(void);
 
 INT InterfaceExit(void);
 
-#ifndef BCM_SHM_INTERFACE
 INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER Adapter);
 
 INT usbbcm_worker_thread(PS_INTERFACE_ADAPTER psIntfAdapter);
 
 VOID InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter);
 
-#else
-INT InterfaceAdapterInit(PMINI_ADAPTER Adapter);
-#endif
 
 
 #if 0

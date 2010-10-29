@@ -50,9 +50,6 @@ static struct notifier_block bcm_notifier_block =
 struct net_device *gblpnetdev;
 /***************************************************************************************/
 /* proto-type of lower function */
-#ifdef BCM_SHM_INTERFACE
-const char *bcmVirtDeviceName="bcmeth";
-#endif
 
 static INT bcm_open(struct net_device *dev)
 {
@@ -155,7 +152,6 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 	Adapter->dev->hard_header_len    	= ETH_HLEN + LEADER_SIZE;
 #endif
 
-#ifndef BCM_SHM_INTERFACE
 	Adapter->dev->mtu					= MTU_SIZE; /* 1400 Bytes */
 	/* Read the MAC Address from EEPROM */
 	ReadMacAddressFromNVM(Adapter);
@@ -176,24 +172,6 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 		Adapter->bNetdeviceNotifierRegistered = TRUE;
 	}
 
-#else
-
-	Adapter->dev->mtu			= CPE_MTU_SIZE;
-
-#if 0
-	//for CPE - harcode the virtual mac address
-	Adapter->dev->dev_addr[0] =  MII_WIMAX_MACADDRESS[0];
-	Adapter->dev->dev_addr[1] =  MII_WIMAX_MACADDRESS[1];
-	Adapter->dev->dev_addr[2] =  MII_WIMAX_MACADDRESS[2];
-	Adapter->dev->dev_addr[3] =  MII_WIMAX_MACADDRESS[3];
-	Adapter->dev->dev_addr[4] =  MII_WIMAX_MACADDRESS[4];
-	Adapter->dev->dev_addr[5] =  MII_WIMAX_MACADDRESS[5];
-#else
-	ReadMacAddressFromNVM(Adapter);
-#endif
-	strcpy(Adapter->dev->name, bcmVirtDeviceName); //Copy the device name
-
-#endif
 
 	result = register_netdev(Adapter->dev);
 	if (!result)

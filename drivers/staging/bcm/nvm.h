@@ -323,15 +323,6 @@ typedef struct _ISO_HEADER
 
 
 
-#ifdef BCM_SHM_INTERFACE
-
-#define FLASH_ADDR_MASK                          0x1F000000
-extern int bcmflash_raw_read(unsigned int flash_id, unsigned int offset, unsigned char *inbuf, unsigned int len);
-extern int bcmflash_raw_write(unsigned int flash_id, unsigned int offset, unsigned char *outbuf, unsigned int len);
-extern int bcmflash_raw_writenoerase(unsigned int flash_id, unsigned int offset, unsigned char *outbuf, unsigned int len);
-
-
-#endif
 
 #define FLASH_CONTIGIOUS_START_ADDR_AFTER_INIT   0x1C000000
 #define FLASH_CONTIGIOUS_START_ADDR_BEFORE_INIT  0x1F000000

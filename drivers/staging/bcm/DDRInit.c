@@ -1,6 +1,5 @@
 #include "headers.h"
 
-#ifndef BCM_SHM_INTERFACE
 
 
 #define DDR_DUMP_INTERNAL_DEVICE_MEMORY 0xBFC02B00
@@ -1298,5 +1297,4 @@ int download_ddr_settings(PMINI_ADAPTER Adapter)
 	return retval;
 }
 
-#endif
 

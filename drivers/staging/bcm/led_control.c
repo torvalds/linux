@@ -497,12 +497,10 @@ static int ReadConfigFileStructure(PMINI_ADAPTER Adapter, BOOLEAN *bEnableThread
 {
 	int Status = STATUS_SUCCESS;
 	UCHAR GPIO_Array[NUM_OF_LEDS+1]; /*Array to store GPIO numbers from EEPROM*/
-#ifndef BCM_SHM_INTERFACE
 	UINT uiIndex = 0;
 	UINT uiNum_of_LED_Type = 0;
 	PUCHAR puCFGData	= NULL;
 	UCHAR bData = 0;
-#endif
 	memset(GPIO_Array, DISABLE_GPIO_NUM, NUM_OF_LEDS+1);
 
 	if(!Adapter->pstargetparams || IS_ERR(Adapter->pstargetparams))
@@ -524,10 +522,6 @@ static int ReadConfigFileStructure(PMINI_ADAPTER Adapter, BOOLEAN *bEnableThread
 		*bEnableThread = FALSE;
 		return Status;
 	}
-#ifdef BCM_SHM_INTERFACE
-	*bEnableThread = FALSE;
-	return Status ;
-#else
   /*
      * CONFIG file read successfully. Deallocate the memory of
      * uiFileNameBufferSize
@@ -578,7 +572,6 @@ static int ReadConfigFileStructure(PMINI_ADAPTER Adapter, BOOLEAN *bEnableThread
 	}
 	if(uiNum_of_LED_Type >= NUM_OF_LEDS)
 		*bEnableThread = FALSE;
-#endif
 
 #if 0
 	for(uiIndex=0; uiIndex<NUM_OF_LEDS; uiIndex++)

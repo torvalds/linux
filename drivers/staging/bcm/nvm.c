@@ -2642,20 +2642,8 @@ static INT BcmInitEEPROMQueues(PMINI_ADAPTER Adapter)
 
 INT BcmInitNVM(PMINI_ADAPTER ps_adapter)
 {
-#ifdef BCM_SHM_INTERFACE
-#ifdef FLASH_DIRECT_ACCESS
-	unsigned int data,data1,data2 = 1;
-	wrm(ps_adapter, PAD_SELECT_REGISTER, &data2, 4);
-	data1 = rdm(ps_adapter,SYS_CFG,&data,4);
-	data1 = rdm(ps_adapter,SYS_CFG,&data,4);
-	data2 = (data | 0x80 | 0x8000);
-	wrm(ps_adapter,SYS_CFG, &data2,4); // over-write as Flash boot mode
-#endif
-	ps_adapter->eNVMType = NVM_FLASH;
-#else
 	BcmValidateNvmType(ps_adapter);
 	BcmInitEEPROMQueues(ps_adapter);
-#endif
 
 	if(ps_adapter->eNVMType == NVM_AUTODETECT)
 	{
@@ -3070,7 +3058,6 @@ INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 	memset(Adapter->psFlashCSInfo, 0 ,sizeof(FLASH_CS_INFO));
 	memset(Adapter->psFlash2xCSInfo, 0 ,sizeof(FLASH2X_CS_INFO));
 
-#ifndef BCM_SHM_INTERFACE
 	if(!Adapter->bDDRInitDone)
 	{
 		{
@@ -3079,7 +3066,6 @@ INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 		}
 	}
 
-#endif
 
 	// Reading first 8 Bytes to get the Flash Layout
 	// MagicNumber(4 bytes) +FlashLayoutMinorVersion(2 Bytes) +FlashLayoutMajorVersion(2 Bytes)
@@ -3147,9 +3133,7 @@ INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 			return STATUS_FAILURE;
 		}
 		ConvertEndianOf2XCSStructure(Adapter->psFlash2xCSInfo);
-#ifndef BCM_SHM_INTERFACE
 		BcmDumpFlash2XCSStructure(Adapter->psFlash2xCSInfo,Adapter);
-#endif
 		if((FLASH_CONTROL_STRUCT_SIGNATURE == Adapter->psFlash2xCSInfo->MagicNumber) &&
 		   (SCSI_FIRMWARE_MINOR_VERSION <= MINOR_VERSION(Adapter->psFlash2xCSInfo->SCSIFirmwareVersion)) &&
 		   (FLASH_SECTOR_SIZE_SIG == Adapter->psFlash2xCSInfo->FlashSectorSizeSig) &&
@@ -3181,9 +3165,7 @@ INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 	Concerns: what if CS sector size does not match with this sector size ???
 	what is the indication of AccessBitMap  in CS in flash 2.x ????
 	*/
-#ifndef BCM_SHM_INTERFACE
 	Adapter->ulFlashID = BcmReadFlashRDID(Adapter);
-#endif
 
 	Adapter->uiFlashLayoutMajorVersion = uiFlashLayoutMajorVersion;
 

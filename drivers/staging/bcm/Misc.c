@@ -157,9 +157,7 @@ VOID AdapterFree(PMINI_ADAPTER Adapter)
 	//Free the PHS Interface
 	PhsCleanup(&Adapter->stBCMPhsContext);
 
-#ifndef BCM_SHM_INTERFACE
 	BcmDeAllocFlashCSStructure(Adapter);
-#endif
 
 	bcm_kfree (Adapter);
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "<========\n");
@@ -489,9 +487,6 @@ INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter,/**<Logical Adapter*/
 		atomic_inc(&Adapter->index_wr_txcntrlpkt);
 		BCM_DEBUG_PRINT( Adapter,DBG_TYPE_TX, TX_CONTROL,DBG_LVL_ALL, "Calling transmit_packets");
 		atomic_set(&Adapter->TxPktAvail, 1);
-#ifdef BCM_SHM_INTERFACE
-		virtual_mail_box_interrupt();
-#endif
 		wake_up(&Adapter->tx_packet_wait_queue);
 	}
 	else
@@ -787,12 +782,10 @@ void SendIdleModeResponse(PMINI_ADAPTER Adapter)
 			down(&Adapter->rdmwrmsync);
 			Adapter->bPreparingForLowPowerMode = TRUE;
 			up(&Adapter->rdmwrmsync);
-#ifndef BCM_SHM_INTERFACE
 			//Killing all URBS.
 			if(Adapter->bDoSuspend == TRUE)
 				Bcm_kill_all_URBs((PS_INTERFACE_ADAPTER)(Adapter->pvInterfaceAdapter));
 
-#endif
 		}
 		else
 		{
@@ -811,9 +804,7 @@ void SendIdleModeResponse(PMINI_ADAPTER Adapter)
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"fail to send the Idle mode Request \n");
 		Adapter->bPreparingForLowPowerMode = FALSE;
-#ifndef BCM_SHM_INTERFACE
 		StartInterruptUrb((PS_INTERFACE_ADAPTER)(Adapter->pvInterfaceAdapter));
-#endif
 	}
 	do_gettimeofday(&tv);
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "IdleMode Msg submitter to Q :%ld ms", tv.tv_sec *1000 + tv.tv_usec /1000);
@@ -985,7 +976,6 @@ __inline int reset_card_proc(PMINI_ADAPTER ps_adapter)
 {
 	int retval = STATUS_SUCCESS;
 
-#ifndef BCM_SHM_INTERFACE
     PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	PS_INTERFACE_ADAPTER psIntfAdapter = NULL;
 	unsigned int value = 0, uiResetValue = 0;
@@ -1006,11 +996,9 @@ __inline int reset_card_proc(PMINI_ADAPTER ps_adapter)
 		wrmalt(ps_adapter, SYS_CFG, &value, sizeof(value));
 	}
 
-#ifndef BCM_SHM_INTERFACE
 	//killing all submitted URBs.
 	psIntfAdapter->psAdapter->StopAllXaction = TRUE ;
 	Bcm_kill_all_URBs(psIntfAdapter);
-#endif
 	/* Reset the UMA-B Device */
 	if(ps_adapter->chip_id >= T3LPB)
 	{
@@ -1111,7 +1099,6 @@ __inline int reset_card_proc(PMINI_ADAPTER ps_adapter)
 
 err_exit :
 	psIntfAdapter->psAdapter->StopAllXaction = FALSE ;
-#endif
 	return retval;
 }
 
@@ -1148,9 +1135,6 @@ int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
 
 	UINT status = STATUS_SUCCESS;
 	UINT value = 0;
-#ifdef BCM_SHM_INTERFACE
-	unsigned char *pConfigFileAddr = (unsigned char *)CPE_MACXVI_CFG_ADDR;
-#endif
 	/*
  	 * Create the threads first and then download the
  	 * Firm/DDR Settings..
@@ -1169,7 +1153,6 @@ int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
 		return status;
 	}
 
-#ifndef BCM_SHM_INTERFACE
 	if(ps_adapter->chip_id >= T3LPB)
 	{
 		rdmalt(ps_adapter, SYS_CFG, &value, sizeof (value));
@@ -1299,61 +1282,12 @@ OUT:
 		wake_up(&ps_adapter->LEDInfo.notify_led_event);
 	}
 
-#else
-
-	ps_adapter->bDDRInitDone = TRUE;
-	//Initializing the NVM.
-	BcmInitNVM(ps_adapter);
-
-	//Propagating the cal param from Flash to DDR
-	value = 0;
-	wrmalt(ps_adapter, EEPROM_CAL_DATA_INTERNAL_LOC - 4, &value, sizeof(value));
-	wrmalt(ps_adapter, EEPROM_CAL_DATA_INTERNAL_LOC - 8, &value, sizeof(value));
-
-	if(ps_adapter->eNVMType == NVM_FLASH)
-	{
-		status = PropagateCalParamsFromFlashToMemory(ps_adapter);
-		if(status)
-		{
-			printk("\nPropogation of Cal param from flash to DDR failed ..\n" );
-		}
-	}
-
-	//Copy config file param to DDR.
-	memcpy(pConfigFileAddr,ps_adapter->pstargetparams, sizeof(STARGETPARAMS));
-
-	if(register_networkdev(ps_adapter))
-	{
-		BCM_DEBUG_PRINT(ps_adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Register Netdevice failed. Cleanup needs to be performed.");
-		return -EIO;
-	}
-
-
-	status = InitLedSettings (ps_adapter);
-	if(status)
-	{
-		BCM_DEBUG_PRINT(ps_adapter,DBG_TYPE_PRINTK, 0, 0,"INIT LED FAILED\n");
-		return status;
-	}
-
-
-	if(register_control_device_interface(ps_adapter) < 0)
-	{
-		BCM_DEBUG_PRINT(ps_adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Register Control Device failed. Cleanup needs to be performed.");
-		return -EIO;
-	}
-
-	ps_adapter->fw_download_done = TRUE;
-#endif
 	return status;
 }
 
 
 int bcm_parse_target_params(PMINI_ADAPTER Adapter)
 {
-#ifdef BCM_SHM_INTERFACE
-	extern void read_cfg_file(PMINI_ADAPTER Adapter);
-#endif
 	struct file 		*flp=NULL;
 	mm_segment_t 	oldfs={0};
 	char *buff = NULL;
@@ -1401,10 +1335,6 @@ int bcm_parse_target_params(PMINI_ADAPTER Adapter)
 	memcpy(Adapter->pstargetparams, buff, sizeof(STARGETPARAMS));
 	bcm_kfree (buff);
 	beceem_parse_target_struct(Adapter);
-#ifdef BCM_SHM_INTERFACE
-	read_cfg_file(Adapter);
-
-#endif
 	return STATUS_SUCCESS;
 }
 
@@ -1640,81 +1570,21 @@ int rdm(PMINI_ADAPTER Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
 {
 	INT uiRetVal =0;
 
-#ifndef BCM_SHM_INTERFACE
 	uiRetVal = Adapter->interface_rdm(Adapter->pvInterfaceAdapter,
 			uiAddress, pucBuff, sSize);
 
 	if(uiRetVal < 0)
 		return uiRetVal;
 
-#else
-	int indx;
-	uiRetVal = STATUS_SUCCESS;
-	if(uiAddress & 0x10000000) {
-			// DDR Memory Access
-		uiAddress |= CACHE_ADDRESS_MASK;
-		memcpy(pucBuff,(unsigned char *)uiAddress ,sSize);
-	}
-	else {
-		// Register, SPRAM, Flash
-		uiAddress |= UNCACHE_ADDRESS_MASK;
-    if ((uiAddress & FLASH_ADDR_MASK) == (FLASH_CONTIGIOUS_START_ADDR_BCS350 & FLASH_ADDR_MASK))
-	{
-		#if defined(FLASH_DIRECT_ACCESS)
-        	memcpy(pucBuff,(unsigned char *)uiAddress ,sSize);
-		#else
-			printk("\nInvalid GSPI ACCESS :Addr :%#X", uiAddress);
-			uiRetVal = STATUS_FAILURE;
-		#endif
-	}
-    else if(((unsigned int )uiAddress & 0x3) ||
-			((unsigned int )pucBuff & 0x3) ||
-			((unsigned int )sSize & 0x3)) {
-		  	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"rdmalt :unalligned register access uiAddress =  %x,pucBuff = %x  size = %x\n",(unsigned int )uiAddress,(unsigned int )pucBuff,(unsigned int )sSize);
-			 uiRetVal = STATUS_FAILURE;
-		}
-		else {
-		 	for (indx=0;indx<sSize;indx+=4){
-		   		*(PUINT)(pucBuff + indx) = *(PUINT)(uiAddress + indx);
-		  	}
-		}
-	}
-#endif
 	return uiRetVal;
 }
 int wrm(PMINI_ADAPTER Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
 {
 	int iRetVal;
 
-#ifndef BCM_SHM_INTERFACE
 	iRetVal = Adapter->interface_wrm(Adapter->pvInterfaceAdapter,
 			uiAddress, pucBuff, sSize);
 
-#else
-	int indx;
-	if(uiAddress & 0x10000000) {
-		// DDR Memory Access
-		uiAddress |= CACHE_ADDRESS_MASK;
-		memcpy((unsigned char *)(uiAddress),pucBuff,sSize);
-	}
-	else {
-		// Register, SPRAM, Flash
-		uiAddress |= UNCACHE_ADDRESS_MASK;
-
-		if(((unsigned int )uiAddress & 0x3) ||
-			((unsigned int )pucBuff & 0x3) ||
-			((unsigned int )sSize & 0x3)) {
-		  		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"wrmalt: unalligned register access uiAddress =  %x,pucBuff = %x  size = %x\n",(unsigned int )uiAddress,(unsigned int )pucBuff,(unsigned int )sSize);
-			 iRetVal = STATUS_FAILURE;
-		}
-		else {
-		 	for (indx=0;indx<sSize;indx+=4) {
-		  		*(PUINT)(uiAddress + indx) = *(PUINT)(pucBuff + indx);
-			}
-		}
-	}
-	iRetVal = STATUS_SUCCESS;
-#endif
 
 	return iRetVal;
 }
@@ -1921,10 +1791,8 @@ static VOID SendShutModeResponse(PMINI_ADAPTER Adapter)
 			Adapter->bPreparingForLowPowerMode = TRUE;
 			up(&Adapter->rdmwrmsync);
 			//Killing all URBS.
-#ifndef BCM_SHM_INTERFACE
 			if(Adapter->bDoSuspend == TRUE)
 				Bcm_kill_all_URBs((PS_INTERFACE_ADAPTER)(Adapter->pvInterfaceAdapter));
-#endif
 		}
 		else
 		{
@@ -1943,9 +1811,7 @@ static VOID SendShutModeResponse(PMINI_ADAPTER Adapter)
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL,"fail to send the Idle mode Request \n");
 		Adapter->bPreparingForLowPowerMode = FALSE;
 
-#ifndef BCM_SHM_INTERFACE
 		StartInterruptUrb((PS_INTERFACE_ADAPTER)(Adapter->pvInterfaceAdapter));
-#endif
 	}
 }
 
@@ -2077,11 +1943,7 @@ void update_per_sf_desc_cnts( PMINI_ADAPTER Adapter)
 	if(!atomic_read (&Adapter->uiMBupdate))
 		return;
 
-#ifdef BCM_SHM_INTERFACE
-	if(rdmalt(Adapter, TARGET_SFID_TXDESC_MAP_LOC, (PUINT)uibuff, sizeof(UINT) * MAX_TARGET_DSX_BUFFERS)<0)
-#else
 	if(rdmaltWithLock(Adapter, TARGET_SFID_TXDESC_MAP_LOC, (PUINT)uibuff, sizeof(UINT) * MAX_TARGET_DSX_BUFFERS)<0)
-#endif
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "rdm failed\n");
 		return;
@@ -2179,65 +2041,5 @@ void beceem_protocol_reset (PMINI_ADAPTER Adapter)
 
 
 
-#ifdef BCM_SHM_INTERFACE
-
-
-#define GET_GTB_DIFF(start, end)  \
-( (start) < (end) )? ( (end) - (start) ) : ( ~0x0 - ( (start) - (end)) +1 )
-
-void usdelay ( unsigned int a) {
-	unsigned int start= *(unsigned int *)0xaf8051b4;
-	unsigned int end  = start+1;
-	unsigned int diff = 0;
-
-	while(1) {
-		end = *(unsigned int *)0xaf8051b4;
-		diff = (GET_GTB_DIFF(start,end))/80;
-		if (diff >= a)
-			break;
-	}
-}
-void read_cfg_file(PMINI_ADAPTER Adapter) {
-
-
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Config File Version = 0x%x \n",Adapter->pstargetparams->m_u32CfgVersion );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Center Frequency =  0x%x \n",Adapter->pstargetparams->m_u32CenterFrequency );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Band A Scan = 0x%x \n",Adapter->pstargetparams->m_u32BandAScan );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Band B Scan = 0x%x \n",Adapter->pstargetparams->m_u32BandBScan );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Band C Scan = 0x%x \n",Adapter->pstargetparams->m_u32BandCScan );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"ERTPS Options = 0x%x \n",Adapter->pstargetparams->m_u32ErtpsOptions );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"PHS Enable = 0x%x \n",Adapter->pstargetparams->m_u32PHSEnable );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Handoff Enable = 0x%x \n",Adapter->pstargetparams->m_u32HoEnable );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"HO Reserved1 = 0x%x \n",Adapter->pstargetparams->m_u32HoReserved1 );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"HO Reserved2 = 0x%x \n",Adapter->pstargetparams->m_u32HoReserved2 );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"MIMO Enable = 0x%x \n",Adapter->pstargetparams->m_u32MimoEnable );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"PKMv2 Enable = 0x%x \n",Adapter->pstargetparams->m_u32SecurityEnable );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Powersaving Modes Enable = 0x%x \n",Adapter->pstargetparams->m_u32PowerSavingModesEnable );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Power Saving Mode Options = 0x%x \n",Adapter->pstargetparams->m_u32PowerSavingModeOptions );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"ARQ Enable = 0x%x \n",Adapter->pstargetparams->m_u32ArqEnable );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Harq Enable = 0x%x \n",Adapter->pstargetparams->m_u32HarqEnable );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"EEPROM Flag = 0x%x \n",Adapter->pstargetparams->m_u32EEPROMFlag );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Customize = 0x%x \n",Adapter->pstargetparams->m_u32Customize );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Bandwidth = 0x%x \n",Adapter->pstargetparams->m_u32ConfigBW );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"ShutDown Timer Value = 0x%x \n",Adapter->pstargetparams->m_u32ShutDownInitThresholdTimer );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"RadioParameter = 0x%x \n",Adapter->pstargetparams->m_u32RadioParameter );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"PhyParameter1 = 0x%x \n",Adapter->pstargetparams->m_u32PhyParameter1 );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"PhyParameter2 = 0x%x \n",Adapter->pstargetparams->m_u32PhyParameter2 );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"PhyParameter3 = 0x%x \n",Adapter->pstargetparams->m_u32PhyParameter3 );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"m_u32TestOptions = 0x%x \n",Adapter->pstargetparams->m_u32TestOptions );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"MaxMACDataperDLFrame = 0x%x \n",Adapter->pstargetparams->m_u32MaxMACDataperDLFrame );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"MaxMACDataperULFrame = 0x%x \n",Adapter->pstargetparams->m_u32MaxMACDataperULFrame );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Corr2MacFlags = 0x%x \n",Adapter->pstargetparams->m_u32Corr2MacFlags );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"HostDrvrConfig1 = 0x%x \n",Adapter->pstargetparams->HostDrvrConfig1 );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"HostDrvrConfig2 = 0x%x \n",Adapter->pstargetparams->HostDrvrConfig2 );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"HostDrvrConfig3 = 0x%x \n",Adapter->pstargetparams->HostDrvrConfig3 );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"HostDrvrConfig4 = 0x%x \n",Adapter->pstargetparams->HostDrvrConfig4 );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"HostDrvrConfig5 = 0x%x \n",Adapter->pstargetparams->HostDrvrConfig5 );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"HostDrvrConfig6 = 0x%x \n",Adapter->pstargetparams->HostDrvrConfig6 );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Segmented PUSC Enable = 0x%x \n",Adapter->pstargetparams->m_u32SegmentedPUSCenable );
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"BamcEnable = 0x%x \n",Adapter->pstargetparams->m_u32BandAMCEnable );
-}
-
-#endif
 
 

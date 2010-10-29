@@ -1,6 +1,5 @@
 #include "headers.h"
 
-#ifndef BCM_SHM_INTERFACE
 
 /*
 Function:				InterfaceTxDataPacket
@@ -255,5 +254,4 @@ int InterfaceTransmitPacket(PVOID arg, PVOID data, UINT len)
 	return TransmitTcb(psIntfAdapter, pTcb, data, len);
 }
 
-#endif
 

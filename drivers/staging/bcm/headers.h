@@ -41,21 +41,7 @@
 #endif
 #include <linux/tcp.h>
 #include <linux/udp.h>
-#ifndef BCM_SHM_INTERFACE
 #include <linux/usb.h>
-#endif
-#ifdef BECEEM_TARGET
-
-#include <mac_common.h>
-#include <msg_Dsa.h>
-#include <msg_Dsc.h>
-#include <msg_Dsd.h>
-#include <sch_definitions.h>
-using namespace Beceem;
-#ifdef ENABLE_CORRIGENDUM2_UPDATE
-extern B_UINT32 g_u32Corr2MacFlags;
-#endif
-#endif
 
 #include "Typedefs.h"
 #include "Version.h"
@@ -80,7 +66,6 @@ extern B_UINT32 g_u32Corr2MacFlags;
 #include "Queue.h"
 #include "vendorspecificextn.h"
 
-#ifndef BCM_SHM_INTERFACE
 
 #include "InterfaceMacros.h"
 #include "InterfaceAdapter.h"
@@ -89,21 +74,8 @@ extern B_UINT32 g_u32Corr2MacFlags;
 #include "InterfaceMisc.h"
 #include "InterfaceRx.h"
 #include "InterfaceTx.h"
-#endif
 #include "InterfaceIdleMode.h"
 #include "InterfaceInit.h"
 
-#ifdef BCM_SHM_INTERFACE
-#include <linux/cpe_config.h>
-
-#ifdef GDMA_INTERFACE
-#include "GdmaInterface.h"
-#include "symphony.h"
-#else
-#include "virtual_interface.h"
-
-#endif
-
-#endif
 
 #endif

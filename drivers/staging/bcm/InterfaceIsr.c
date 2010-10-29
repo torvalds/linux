@@ -1,6 +1,5 @@
 #include "headers.h"
 
-#ifndef BCM_SHM_INTERFACE
 
 static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 {
@@ -199,5 +198,4 @@ void InterfaceDisableInterrupt(PMINI_ADAPTER Adapter)
 
 }
 
-#endif
 

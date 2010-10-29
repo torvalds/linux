@@ -21,19 +21,6 @@ typedef enum _BASE_TYPE
 int bcm_print_buffer( UINT debug_level, const char *function_name,
 				  char *file_name, int line_number, unsigned char *buffer, int bufferlen, BASE_TYPE base);
 
-#ifdef BCM_SHM_INTERFACE
-#define CPE_VIRTUAL_ERROR_CODE_BASE_ADDR		(0xBFC02E00 + 0x4C)
-// ERROR codes for debugging
-extern unsigned char u32ErrorCounter ;
-#define ERROR_DEVICE_REMOVED  0x1
-#define ERROR_LEADER_LENGTH_ZERO  0x2
-#define ERROR_LEADER_LENGTH_CORRUPTED  0x3
-#define ERROR_NO_SKBUFF  0x4
-
-#define ERROR_DL_MODULE 0xaa000000
-extern void  CPE_ERROR_LOG(unsigned int module,unsigned int code);
-
-#endif
 
 
 
