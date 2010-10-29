@@ -616,21 +616,28 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	seq_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
 		   error->time.tv_usec);
 	seq_printf(m, "PCI ID: 0x%04x\n", dev->pci_device);
+	seq_printf(m, "EIR: 0x%08x\n", error->eir);
+	seq_printf(m, "PGTBL_ER: 0x%08x\n", error->pgtbl_er);
 	if (INTEL_INFO(dev)->gen >= 6) {
 		seq_printf(m, "ERROR: 0x%08x\n", error->error);
+		seq_printf(m, "Blitter command stream:\n");
+		seq_printf(m, "  ACTHD:    0x%08x\n", error->bcs_acthd);
+		seq_printf(m, "  IPEHR:    0x%08x\n", error->bcs_ipehr);
+		seq_printf(m, "  IPEIR:    0x%08x\n", error->bcs_ipeir);
+		seq_printf(m, "  INSTDONE: 0x%08x\n", error->bcs_instdone);
+		seq_printf(m, "  seqno:    0x%08x\n", error->bcs_seqno);
 	}
-	seq_printf(m, "EIR: 0x%08x\n", error->eir);
-	seq_printf(m, "  PGTBL_ER: 0x%08x\n", error->pgtbl_er);
-	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm);
+	seq_printf(m, "Render command stream:\n");
+	seq_printf(m, "  ACTHD: 0x%08x\n", error->acthd);
 	seq_printf(m, "  IPEIR: 0x%08x\n", error->ipeir);
 	seq_printf(m, "  IPEHR: 0x%08x\n", error->ipehr);
 	seq_printf(m, "  INSTDONE: 0x%08x\n", error->instdone);
-	seq_printf(m, "  ACTHD: 0x%08x\n", error->acthd);
 	if (INTEL_INFO(dev)->gen >= 4) {
-		seq_printf(m, "  INSTPS: 0x%08x\n", error->instps);
 		seq_printf(m, "  INSTDONE1: 0x%08x\n", error->instdone1);
+		seq_printf(m, "  INSTPS: 0x%08x\n", error->instps);
 	}
-	seq_printf(m, "seqno: 0x%08x\n", error->seqno);
+	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm);
+	seq_printf(m, "  seqno: 0x%08x\n", error->seqno);
 
 	if (error->active_bo_count) {
 		seq_printf(m, "Buffers [%d]:\n", error->active_bo_count);

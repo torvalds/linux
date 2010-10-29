@@ -595,6 +595,13 @@ static void i915_capture_error_state(struct drm_device *dev)
 	error->error = 0;
 	if (INTEL_INFO(dev)->gen >= 6) {
 		error->error = I915_READ(ERROR_GEN6);
+		error->bcs_acthd = I915_READ(BCS_ACTHD);
+		error->bcs_ipehr = I915_READ(BCS_IPEHR);
+		error->bcs_ipeir = I915_READ(BCS_IPEIR);
+		error->bcs_instdone = I915_READ(BCS_INSTDONE);
+		error->bcs_seqno = 0;
+		if (dev_priv->blt_ring.get_seqno)
+			error->bcs_seqno = dev_priv->blt_ring.get_seqno(&dev_priv->blt_ring);
 	}
 	if (INTEL_INFO(dev)->gen >= 4) {
 		error->ipeir = I915_READ(IPEIR_I965);

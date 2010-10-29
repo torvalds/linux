@@ -305,6 +305,10 @@
 #define INSTDONE	0x02090
 #define NOPID		0x02094
 #define HWSTAM		0x02098
+#define BCS_INSTDONE	0x2206C
+#define BCS_IPEIR	0x22064
+#define BCS_IPEHR	0x22068
+#define BCS_ACTHD	0x22074
 
 #define ERROR_GEN6	0x040a0
 

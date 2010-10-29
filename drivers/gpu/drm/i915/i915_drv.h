@@ -142,13 +142,18 @@ struct sdvo_device_mapping {
 struct drm_i915_error_state {
 	u32 eir;
 	u32 pgtbl_er;
-	u32 error; /* gen6+ */
 	u32 pipeastat;
 	u32 pipebstat;
 	u32 ipeir;
 	u32 ipehr;
 	u32 instdone;
 	u32 acthd;
+	u32 error; /* gen6+ */
+	u32 bcs_acthd; /* gen6+ blt engine */
+	u32 bcs_ipehr;
+	u32 bcs_ipeir;
+	u32 bcs_instdone;
+	u32 bcs_seqno;
 	u32 instpm;
 	u32 instps;
 	u32 instdone1;
