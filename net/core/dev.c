@@ -1976,15 +1976,20 @@ static inline void skb_orphan_try(struct sk_buff *skb)
 static inline int skb_needs_linearize(struct sk_buff *skb,
 				      struct net_device *dev)
 {
-	int features = dev->features;
+	if (skb_is_nonlinear(skb)) {
+		int features = dev->features;
 
-	if (skb->protocol == htons(ETH_P_8021Q) || vlan_tx_tag_present(skb))
-		features &= dev->vlan_features;
+		if (vlan_tx_tag_present(skb))
+			features &= dev->vlan_features;
 
-	return skb_is_nonlinear(skb) &&
-	       ((skb_has_frag_list(skb) && !(features & NETIF_F_FRAGLIST)) ||
-		(skb_shinfo(skb)->nr_frags && (!(features & NETIF_F_SG) ||
-					      illegal_highdma(dev, skb))));
+		return (skb_has_frag_list(skb) &&
+			!(features & NETIF_F_FRAGLIST)) ||
+			(skb_shinfo(skb)->nr_frags &&
+			(!(features & NETIF_F_SG) ||
+			illegal_highdma(dev, skb)));
+	}
+
+	return 0;
 }
 
 int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
