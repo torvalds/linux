@@ -814,25 +814,12 @@ static int InterfaceResume (struct usb_interface *intf)
 	return 0;
 }
 
-static int InterfacePreReset(struct usb_interface *intf)
-{
-    printk("====================>");
-	return STATUS_SUCCESS;
-}
-
-static int InterfacePostReset(struct usb_interface *intf)
-{
-    printk("Do Post chip reset setting here if it is required");
-   	return STATUS_SUCCESS;
-}
 static struct usb_driver usbbcm_driver = {
     .name = "usbbcm",
     .probe = usbbcm_device_probe,
     .disconnect = usbbcm_disconnect,
     .suspend = InterfaceSuspend,
     .resume = InterfaceResume,
-	.pre_reset=InterfacePreReset,
-	.post_reset=InterfacePostReset,
     .id_table = InterfaceUsbtable,
     .supports_autosuspend = 1,
 };
