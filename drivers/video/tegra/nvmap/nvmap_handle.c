@@ -71,19 +71,21 @@ static inline void altfree(void *ptr, size_t len)
 
 void _nvmap_handle_free(struct nvmap_handle *h)
 {
-	struct nvmap_client *client = h->owner;
+	struct nvmap_device *dev = h->dev;
 	unsigned int i, nr_page;
 
-	if (nvmap_handle_remove(client->dev, h) != 0)
+	if (nvmap_handle_remove(dev, h) != 0)
 		return;
 
 	if (!h->alloc)
 		goto out;
 
 	if (!h->heap_pgalloc) {
-		nvmap_carveout_commit_subtract(client,
+		mutex_lock(&h->lock);
+		nvmap_carveout_commit_subtract(h->owner,
 			nvmap_heap_to_arg(nvmap_block_to_heap(h->carveout)),
 			h->size);
+		mutex_unlock(&h->lock);
 		nvmap_heap_free(h->carveout);
 		goto out;
 	}
@@ -93,7 +95,8 @@ void _nvmap_handle_free(struct nvmap_handle *h)
 	BUG_ON(h->size & ~PAGE_MASK);
 	BUG_ON(!h->pgalloc.pages);
 
-	nvmap_mru_remove(client->share, h);
+	nvmap_mru_remove(nvmap_get_share_from_dev(dev), h);
+
 	if (h->pgalloc.area)
 		tegra_iovmm_free_vm(h->pgalloc.area);
 
@@ -104,7 +107,6 @@ void _nvmap_handle_free(struct nvmap_handle *h)
 
 out:
 	kfree(h);
-	nvmap_client_put(client);
 }
 
 extern void __flush_dcache_page(struct address_space *, struct page *);
@@ -423,10 +425,12 @@ struct nvmap_handle_ref *nvmap_create_handle(struct nvmap_client *client,
 
 	atomic_set(&h->ref, 1);
 	atomic_set(&h->pin, 0);
-	h->owner = nvmap_client_get(client);
+	h->owner = client;
+	h->dev = client->dev;
 	BUG_ON(!h->owner);
 	h->size = h->orig_size = size;
 	h->flags = NVMAP_HANDLE_WRITE_COMBINE;
+	mutex_init(&h->lock);
 
 	nvmap_handle_add(client->dev, h);
 
