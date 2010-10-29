@@ -183,13 +183,13 @@ radeon_connector_analog_encoder_conflict_solve(struct drm_connector *connector,
 					continue;
 
 				if (priority == true) {
-					DRM_INFO("1: conflicting encoders switching off %s\n", drm_get_connector_name(conflict));
-					DRM_INFO("in favor of %s\n", drm_get_connector_name(connector));
+					DRM_DEBUG_KMS("1: conflicting encoders switching off %s\n", drm_get_connector_name(conflict));
+					DRM_DEBUG_KMS("in favor of %s\n", drm_get_connector_name(connector));
 					conflict->status = connector_status_disconnected;
 					radeon_connector_update_scratch_regs(conflict, connector_status_disconnected);
 				} else {
-					DRM_INFO("2: conflicting encoders switching off %s\n", drm_get_connector_name(connector));
-					DRM_INFO("in favor of %s\n", drm_get_connector_name(conflict));
+					DRM_DEBUG_KMS("2: conflicting encoders switching off %s\n", drm_get_connector_name(connector));
+					DRM_DEBUG_KMS("in favor of %s\n", drm_get_connector_name(conflict));
 					current_status = connector_status_disconnected;
 				}
 				break;
@@ -432,13 +432,13 @@ static void radeon_fixup_lvds_native_mode(struct drm_encoder *encoder,
 			    mode->vdisplay == native_mode->vdisplay) {
 				*native_mode = *mode;
 				drm_mode_set_crtcinfo(native_mode, CRTC_INTERLACE_HALVE_V);
-				DRM_INFO("Determined LVDS native mode details from EDID\n");
+				DRM_DEBUG_KMS("Determined LVDS native mode details from EDID\n");
 				break;
 			}
 		}
 	}
 	if (!native_mode->clock) {
-		DRM_INFO("No LVDS native mode details, disabling RMX\n");
+		DRM_DEBUG_KMS("No LVDS native mode details, disabling RMX\n");
 		radeon_encoder->rmx_type = RMX_OFF;
 	}
 }
