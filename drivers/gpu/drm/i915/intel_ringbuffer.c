@@ -651,8 +651,16 @@ err_hws:
 
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 {
+	struct drm_i915_private *dev_priv;
+	int ret;
+
 	if (ring->gem_object == NULL)
 		return;
+
+	/* Disable the ring buffer. The ring must be idle at this point */
+	dev_priv = ring->dev->dev_private;
+	ret = intel_wait_ring_buffer(ring, ring->size - 8);
+	I915_WRITE_CTL(ring, 0);
 
 	drm_core_ioremapfree(&ring->map, ring->dev);
 
