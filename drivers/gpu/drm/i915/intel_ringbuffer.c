@@ -578,7 +578,6 @@ err:
 int intel_init_ring_buffer(struct drm_device *dev,
 			   struct intel_ring_buffer *ring)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv;
 	struct drm_gem_object *obj;
 	int ret;
@@ -626,16 +625,7 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	if (ret)
 		goto err_unmap;
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		i915_kernel_lost_context(dev);
-	else {
-		ring->head = I915_READ_HEAD(ring) & HEAD_ADDR;
-		ring->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
-		ring->space = ring->head - (ring->tail + 8);
-		if (ring->space < 0)
-			ring->space += ring->size;
-	}
-	return ret;
+	return 0;
 
 err_unmap:
 	drm_core_ioremapfree(&ring->map, dev);
