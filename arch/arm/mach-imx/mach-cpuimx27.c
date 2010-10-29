@@ -158,7 +158,6 @@ cpuimx27_nand_board_info __initconst = {
 static struct platform_device *platform_devices[] __initdata = {
 	&eukrea_cpuimx27_nor_mtd_device,
 	&mxc_wdt,
-	&mxc_w1_master_device,
 };
 
 static const struct imxi2c_platform_data cpuimx27_i2c1_data __initconst = {
@@ -262,6 +261,7 @@ static void __init eukrea_cpuimx27_init(void)
 
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx27_add_mxc_w1(NULL);
 
 #if defined(CONFIG_MACH_EUKREA_CPUIMX27_USESDHC2)
 	/* SDHC2 can be used for Wifi */

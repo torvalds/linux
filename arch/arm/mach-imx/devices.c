@@ -270,21 +270,6 @@ struct platform_device mxc_wdt = {
 	.resource = mxc_wdt_resources,
 };
 
-static struct resource mxc_w1_master_resources[] = {
-	{
-		.start = MX2x_OWIRE_BASE_ADDR,
-		.end = MX2x_OWIRE_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-};
-
-struct platform_device mxc_w1_master_device = {
-	.name = "mxc_w1",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_w1_master_resources),
-	.resource = mxc_w1_master_resources,
-};
-
 /*
  * lcdc:
  * - i.MX1: the basic controller

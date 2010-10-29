@@ -284,7 +284,6 @@ static struct imxmmc_platform_data sdhc2_pdata = {
 
 static struct platform_device *platform_devices[] __initdata = {
 	&mx27ads_nor_mtd_device,
-	&mxc_w1_master_device,
 };
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
@@ -314,6 +313,7 @@ static void __init mx27ads_board_init(void)
 
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx27_add_mxc_w1(NULL);
 }
 
 static void __init mx27ads_timer_init(void)

@@ -35,6 +35,10 @@ extern const struct imx_mxc_nand_data imx27_mxc_nand_data __initconst;
 #define imx27_add_mxc_nand(pdata)	\
 	imx_add_mxc_nand(&imx27_mxc_nand_data, pdata)
 
+extern const struct imx_mxc_w1_data imx27_mxc_w1_data __initconst;
+#define imx27_add_mxc_w1(pdata)	\
+	imx_add_mxc_w1(&imx27_mxc_w1_data)
+
 extern const struct imx_spi_imx_data imx27_cspi_data[] __initconst;
 #define imx27_add_cspi(id, pdata)	\
 	imx_add_spi_imx(&imx27_cspi_data[id], pdata)

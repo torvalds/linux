@@ -614,7 +614,7 @@ static void __init mxc_board_init(void)
 	imx31_add_imx_uart1(&uart_pdata);
 	imx31_add_imx_uart2(&uart_pdata);
 
-	mxc_register_device(&mxc_w1_master_device, NULL);
+	imx31_add_mxc_w1(NULL);
 
 	/* LAN9217 IRQ pin */
 	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1), "lan9217-irq");

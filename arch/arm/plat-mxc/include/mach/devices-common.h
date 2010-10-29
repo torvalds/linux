@@ -99,6 +99,12 @@ struct platform_device *__init imx_add_mxc_nand(
 		const struct imx_mxc_nand_data *data,
 		const struct mxc_nand_platform_data *pdata);
 
+struct imx_mxc_w1_data {
+	resource_size_t iobase;
+};
+struct platform_device *__init imx_add_mxc_w1(
+		const struct imx_mxc_w1_data *data);
+
 #include <mach/spi.h>
 struct imx_spi_imx_data {
 	const char *devid;

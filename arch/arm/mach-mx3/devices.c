@@ -54,21 +54,6 @@ int __init imx3x_register_gpios(void)
 	return mxc_gpio_init(imx_gpio_ports, ARRAY_SIZE(imx_gpio_ports));
 }
 
-static struct resource mxc_w1_master_resources[] = {
-	{
-		.start = MX3x_OWIRE_BASE_ADDR,
-		.end = MX3x_OWIRE_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-};
-
-struct platform_device mxc_w1_master_device = {
-	.name = "mxc_w1",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_w1_master_resources),
-	.resource = mxc_w1_master_resources,
-};
-
 #ifdef CONFIG_ARCH_MX31
 static struct resource mxcsdhc0_resources[] = {
 	{

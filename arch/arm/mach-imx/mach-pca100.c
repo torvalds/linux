@@ -172,7 +172,6 @@ pca100_nand_board_info __initconst = {
 };
 
 static struct platform_device *platform_devices[] __initdata = {
-	&mxc_w1_master_device,
 	&mxc_wdt,
 };
 
@@ -434,6 +433,7 @@ static void __init pca100_init(void)
 
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx27_add_mxc_w1(NULL);
 }
 
 static void __init pca100_timer_init(void)
