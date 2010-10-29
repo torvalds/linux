@@ -445,10 +445,18 @@ static int i915_hws_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int i;
+	struct intel_ring_buffer *ring;
 	volatile u32 *hws;
+	int i;
 
-	hws = (volatile u32 *)dev_priv->render_ring.status_page.page_addr;
+	switch ((uintptr_t)node->info_ent->data) {
+	case RENDER_RING: ring = &dev_priv->render_ring; break;
+	case BSD_RING: ring = &dev_priv->bsd_ring; break;
+	case BLT_RING: ring = &dev_priv->blt_ring; break;
+	default: return -EINVAL;
+	}
+
+	hws = (volatile u32 *)ring->status_page.page_addr;
 	if (hws == NULL)
 		return 0;
 
@@ -1087,7 +1095,9 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_seqno", i915_gem_seqno_info, 0},
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
 	{"i915_gem_interrupt", i915_interrupt_info, 0},
-	{"i915_gem_hws", i915_hws_info, 0},
+	{"i915_gem_hws", i915_hws_info, 0, (void *)RENDER_RING},
+	{"i915_gem_hws_blt", i915_hws_info, 0, (void *)BLT_RING},
+	{"i915_gem_hws_bsd", i915_hws_info, 0, (void *)BSD_RING},
 	{"i915_ringbuffer_data", i915_ringbuffer_data, 0, (void *)RENDER_RING},
 	{"i915_ringbuffer_info", i915_ringbuffer_info, 0, (void *)RENDER_RING},
 	{"i915_bsd_ringbuffer_data", i915_ringbuffer_data, 0, (void *)BSD_RING},
