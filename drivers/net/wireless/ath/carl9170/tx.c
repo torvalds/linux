@@ -524,6 +524,59 @@ next:
 	}
 }
 
+static void carl9170_tx_ampdu_timeout(struct ar9170 *ar)
+{
+	struct carl9170_sta_tid *iter;
+	struct sk_buff *skb;
+	struct ieee80211_tx_info *txinfo;
+	struct carl9170_tx_info *arinfo;
+	struct _carl9170_tx_superframe *super;
+	struct ieee80211_sta *sta;
+	struct ieee80211_vif *vif;
+	struct ieee80211_hdr *hdr;
+	unsigned int vif_id;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(iter, &ar->tx_ampdu_list, list) {
+		if (iter->state < CARL9170_TID_STATE_IDLE)
+			continue;
+
+		spin_lock_bh(&iter->lock);
+		skb = skb_peek(&iter->queue);
+		if (!skb)
+			goto unlock;
+
+		txinfo = IEEE80211_SKB_CB(skb);
+		arinfo = (void *)txinfo->rate_driver_data;
+		if (time_is_after_jiffies(arinfo->timeout +
+		    msecs_to_jiffies(CARL9170_QUEUE_TIMEOUT)))
+			goto unlock;
+
+		super = (void *) skb->data;
+		hdr = (void *) super->frame_data;
+
+		vif_id = (super->s.misc & CARL9170_TX_SUPER_MISC_VIF_ID) >>
+			 CARL9170_TX_SUPER_MISC_VIF_ID_S;
+
+		if (WARN_ON(vif_id >= AR9170_MAX_VIRTUAL_MAC))
+			goto unlock;
+
+		vif = rcu_dereference(ar->vif_priv[vif_id].vif);
+		if (WARN_ON(!vif))
+			goto unlock;
+
+		sta = ieee80211_find_sta(vif, hdr->addr1);
+		if (WARN_ON(!sta))
+			goto unlock;
+
+		ieee80211_stop_tx_ba_session(sta, iter->tid);
+unlock:
+		spin_unlock_bh(&iter->lock);
+
+	}
+	rcu_read_unlock();
+}
+
 void carl9170_tx_janitor(struct work_struct *work)
 {
 	struct ar9170 *ar = container_of(work, struct ar9170,
@@ -534,6 +587,7 @@ void carl9170_tx_janitor(struct work_struct *work)
 	ar->tx_janitor_last_run = jiffies;
 
 	carl9170_check_queue_stop_timeout(ar);
+	carl9170_tx_ampdu_timeout(ar);
 
 	if (!atomic_read(&ar->tx_total_queued))
 		return;
