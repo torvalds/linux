@@ -212,4 +212,23 @@ static inline void ir_raw_event_reset(struct input_dev *input_dev)
 	ir_raw_event_handle(input_dev);
 }
 
+
+/* extract mask bits out of data and pack them into the result */
+static inline u32 ir_extract_bits(u32 data, u32 mask)
+{
+	u32 vbit = 1, value = 0;
+
+	do {
+	    if (mask & 1) {
+		if (data & 1)
+			value |= vbit;
+		vbit <<= 1;
+	    }
+	    data >>= 1;
+	} while (mask >>= 1);
+
+	return value;
+}
+
+
 #endif /* _IR_CORE */

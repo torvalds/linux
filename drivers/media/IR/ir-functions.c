@@ -31,25 +31,6 @@
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
-/* -------------------------------------------------------------------------- */
-/* extract mask bits out of data and pack them into the result */
-u32 ir_extract_bits(u32 data, u32 mask)
-{
-	u32 vbit = 1, value = 0;
-
-	do {
-	    if (mask&1) {
-		if (data&1)
-			value |= vbit;
-		vbit<<=1;
-	    }
-	    data>>=1;
-	} while (mask>>=1);
-
-	return value;
-}
-EXPORT_SYMBOL_GPL(ir_extract_bits);
-
 /* RC5 decoding stuff, moved from bttv-input.c to share it with
  * saa7134 */
 

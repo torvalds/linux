@@ -73,7 +73,6 @@ struct card_ir {
 };
 
 /* Routines from ir-functions.c */
-u32  ir_extract_bits(u32 data, u32 mask);
 void ir_rc5_timer_end(unsigned long data);
 
 #endif

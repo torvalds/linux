@@ -10,7 +10,7 @@ menuconfig IR_CORE
 	  if you don't need IR, as otherwise, you may not be able to
 	  compile the driver for your adapter.
 
-config VIDEO_IR
+config IR_LEGACY
 	tristate
 	depends on IR_CORE
 	default IR_CORE

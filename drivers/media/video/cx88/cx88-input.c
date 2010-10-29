@@ -31,7 +31,6 @@
 
 #include "cx88.h"
 #include <media/ir-core.h>
-#include <media/ir-common.h>
 
 #define MODULE_NAME "cx88xx"
 
