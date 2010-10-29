@@ -1,7 +1,7 @@
 /*
- *
- * some common structs and functions to handle infrared remotes via
- * input layer ...
+ * some common functions to handle infrared remote protocol decoding for
+ * drivers which have not yet been (or can't be) converted to use the
+ * regular protocol decoders...
  *
  * (c) 2003 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
  *
@@ -33,30 +33,17 @@
 #define RC5_ADDR(x)	(((x)>>6)&31)
 #define RC5_INSTR(x)	((x)&63)
 
-struct ir_input_state {
-	/* configuration */
-	u64      ir_type;
-
-	/* key info */
-	u32                ir_key;      /* ir scancode */
-	u32                keycode;     /* linux key code */
-	int                keypressed;  /* current state */
-};
-
 /* this was saa7134_ir and bttv_ir, moved here for
  * rc5 decoding. */
 struct card_ir {
 	struct input_dev        *dev;
-	struct ir_input_state   ir;
 	char                    name[32];
 	char                    phys[32];
 	int			users;
-
 	u32			running:1;
 	struct ir_dev_props	props;
 
 	/* Usual gpio signalling */
-
 	u32                     mask_keycode;
 	u32                     mask_keydown;
 	u32                     mask_keyup;
@@ -65,7 +52,6 @@ struct card_ir {
 	int			shift_by;
 	int			start; // What should RC5_START() be
 	int			addr; // What RC5_ADDR() should be.
-	int			rc5_key_timeout;
 	int			rc5_remote_gap;
 	struct work_struct      work;
 	struct timer_list       timer;
@@ -73,8 +59,6 @@ struct card_ir {
 	/* RC5 gpio */
 	u32 rc5_gpio;
 	struct timer_list timer_end;	/* timer_end for code completion */
-	struct timer_list timer_keyup;	/* timer_end for key release */
-	u32 last_rc5;			/* last good rc5 code */
 	u32 last_bit;			/* last raw bit seen */
 	u32 code;			/* raw code under construction */
 	struct timeval base_time;	/* time of last seen code */
@@ -89,16 +73,7 @@ struct card_ir {
 };
 
 /* Routines from ir-functions.c */
-
-int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
-		   const u64 ir_type);
-void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir);
-void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
-		      u32 ir_key);
 u32  ir_extract_bits(u32 data, u32 mask);
-u32  ir_rc5_decode(unsigned int code);
-
 void ir_rc5_timer_end(unsigned long data);
-void ir_rc5_timer_keyup(unsigned long data);
 
 #endif

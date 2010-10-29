@@ -25,7 +25,6 @@
 #include <linux/usb.h>
 
 #include <media/ir-core.h>
-#include <media/ir-common.h>
 
 #include "tm6000.h"
 #include "tm6000-regs.h"
@@ -52,7 +51,6 @@ struct tm6000_ir_poll_result {
 struct tm6000_IR {
 	struct tm6000_core	*dev;
 	struct ir_input_dev	*input;
-	struct ir_input_state	ir;
 	char			name[32];
 	char			phys[32];
 
@@ -67,6 +65,7 @@ struct tm6000_IR {
 	int (*get_key) (struct tm6000_IR *, struct tm6000_ir_poll_result *);
 
 	/* IR device properties */
+	u64			ir_type;
 	struct ir_dev_props	props;
 };
 
@@ -145,7 +144,7 @@ static int default_polling_getkey(struct tm6000_IR *ir,
 		return 0;
 
 	if (&dev->int_in) {
-		if (ir->ir.ir_type == IR_TYPE_RC5)
+		if (ir->ir_type == IR_TYPE_RC5)
 			poll_result->rc_data = ir->urb_data[0];
 		else
 			poll_result->rc_data = ir->urb_data[0] | ir->urb_data[1] << 8;
@@ -155,7 +154,7 @@ static int default_polling_getkey(struct tm6000_IR *ir,
 		tm6000_set_reg(dev, REQ_04_EN_DISABLE_MCU_INT, 2, 1);
 		msleep(10);
 
-		if (ir->ir.ir_type == IR_TYPE_RC5) {
+		if (ir->ir_type == IR_TYPE_RC5) {
 			rc = tm6000_read_write_usb(dev, USB_DIR_IN |
 				USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				REQ_02_GET_IR_CODE, 0, 0, buf, 1);
@@ -201,10 +200,7 @@ static void tm6000_ir_handle_key(struct tm6000_IR *ir)
 	dprintk("ir->get_key result data=%04x\n", poll_result.rc_data);
 
 	if (ir->key) {
-		ir_input_keydown(ir->input->input_dev, &ir->ir,
-				(u32)poll_result.rc_data);
-
-		ir_input_nokey(ir->input->input_dev, &ir->ir);
+		ir_keydown(ir->input->input_dev, poll_result.rc_data, 0);
 		ir->key = 0;
 	}
 	return;
@@ -291,9 +287,6 @@ int tm6000_ir_init(struct tm6000_core *dev)
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
 	tm6000_ir_change_protocol(ir, IR_TYPE_UNKNOWN);
-	err = ir_input_init(ir_input_dev->input_dev, &ir->ir, IR_TYPE_OTHER);
-	if (err < 0)
-		goto err_out_free;
 
 	ir_input_dev->input_dev->name = ir->name;
 	ir_input_dev->input_dev->phys = ir->phys;

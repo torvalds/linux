@@ -12,8 +12,7 @@ struct IR_i2c {
 
 	struct i2c_client      *c;
 	struct input_dev       *input;
-	struct ir_input_state  ir;
-	u64                    ir_type;
+
 	/* Used to avoid fast repeating */
 	unsigned char          old;
 
@@ -41,6 +40,7 @@ struct IR_i2c_init_data {
 	const char		*name;
 	u64			type; /* IR_TYPE_RC5, etc */
 	u32			polling_interval; /* 0 means DEFAULT_POLLING_INTERVAL */
+
 	/*
 	 * Specify either a function pointer or a value indicating one of
 	 * ir_kbd_i2c's internal get_key functions

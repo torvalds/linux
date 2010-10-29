@@ -131,16 +131,21 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 	} else if (ir->mask_keydown) {
 		/* bit set on keydown */
 		if (gpio & ir->mask_keydown)
-			ir_keydown(ir->input, data, 0);
+			ir_keydown_notimeout(ir->input, data, 0);
+		else
+			ir_keyup(ir->input);
 
 	} else if (ir->mask_keyup) {
 		/* bit cleared on keydown */
 		if (0 == (gpio & ir->mask_keyup))
-			ir_keydown(ir->input, data, 0);
+			ir_keydown_notimeout(ir->input, data, 0);
+		else
+			ir_keyup(ir->input);
 
 	} else {
 		/* can't distinguish keydown/up :-/ */
-		ir_keydown(ir->input, data, 0);
+		ir_keydown_notimeout(ir->input, data, 0);
+		ir_keyup(ir->input);
 	}
 }
 

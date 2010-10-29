@@ -38,8 +38,6 @@ module_param(repeat_period, int, 0644);
 
 static int ir_rc5_remote_gap = 885;
 module_param(ir_rc5_remote_gap, int, 0644);
-static int ir_rc5_key_timeout = 200;
-module_param(ir_rc5_key_timeout, int, 0644);
 
 #undef dprintk
 #define dprintk(arg...) do {	\
@@ -74,18 +72,17 @@ static void ir_handle_key(struct bttv *btv)
 		(gpio & ir->mask_keydown) ? " down" : "",
 		(gpio & ir->mask_keyup)   ? " up"   : "");
 
-	if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
-	    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-		ir_input_keydown(ir->dev, &ir->ir, data);
+	if ((ir->mask_keydown && (gpio & ir->mask_keydown)) ||
+	    (ir->mask_keyup   && !(gpio & ir->mask_keyup))) {
+		ir_keydown_notimeout(ir->dev, data, 0);
 	} else {
 		/* HACK: Probably, ir->mask_keydown is missing
 		   for this board */
 		if (btv->c.type == BTTV_BOARD_WINFAST2000)
-			ir_input_keydown(ir->dev, &ir->ir, data);
+			ir_keydown_notimeout(ir->dev, data, 0);
 
-		ir_input_nokey(ir->dev,&ir->ir);
+		ir_keyup(ir->dev);
 	}
-
 }
 
 static void ir_enltv_handle_key(struct bttv *btv)
@@ -107,9 +104,9 @@ static void ir_enltv_handle_key(struct bttv *btv)
 			gpio, data,
 			(gpio & ir->mask_keyup) ? " up" : "up/down");
 
-		ir_input_keydown(ir->dev, &ir->ir, data);
+		ir_keydown_notimeout(ir->dev, data, 0);
 		if (keyup)
-			ir_input_nokey(ir->dev, &ir->ir);
+			ir_keyup(ir->dev);
 	} else {
 		if ((ir->last_gpio & 1 << 31) == keyup)
 			return;
@@ -119,9 +116,9 @@ static void ir_enltv_handle_key(struct bttv *btv)
 			(gpio & ir->mask_keyup) ? " up" : "down");
 
 		if (keyup)
-			ir_input_nokey(ir->dev, &ir->ir);
+			ir_keyup(ir->dev);
 		else
-			ir_input_keydown(ir->dev, &ir->ir, data);
+			ir_keydown_notimeout(ir->dev, data, 0);
 	}
 
 	ir->last_gpio = data | keyup;
@@ -215,14 +212,9 @@ static void bttv_ir_start(struct bttv *btv, struct card_ir *ir)
 		init_timer(&ir->timer_end);
 		ir->timer_end.function = ir_rc5_timer_end;
 		ir->timer_end.data = (unsigned long)ir;
-
-		init_timer(&ir->timer_keyup);
-		ir->timer_keyup.function = ir_rc5_timer_keyup;
-		ir->timer_keyup.data = (unsigned long)ir;
 		ir->shift_by = 1;
 		ir->start = 3;
 		ir->addr = 0x0;
-		ir->rc5_key_timeout = ir_rc5_key_timeout;
 		ir->rc5_remote_gap = ir_rc5_remote_gap;
 	}
 }
@@ -290,7 +282,6 @@ void __devinit init_bttv_i2c_ir(struct bttv *btv)
 		btv->init_data.name = "PV951";
 		btv->init_data.get_key = get_key_pv951;
 		btv->init_data.ir_codes = RC_MAP_PV951;
-		btv->init_data.type = IR_TYPE_OTHER;
 		info.addr = 0x4b;
 		break;
 	default:
@@ -327,7 +318,6 @@ int bttv_input_init(struct bttv *btv)
 	struct card_ir *ir;
 	char *ir_codes = NULL;
 	struct input_dev *input_dev;
-	u64 ir_type = IR_TYPE_OTHER;
 	int err = -ENOMEM;
 
 	if (!btv->has_remote)
@@ -447,10 +437,6 @@ int bttv_input_init(struct bttv *btv)
 		 btv->c.type);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(btv->c.pci));
-
-	err = ir_input_init(input_dev, &ir->ir, ir_type);
-	if (err < 0)
-		goto err_out_free;
 
 	input_dev->name = ir->name;
 	input_dev->phys = ir->phys;

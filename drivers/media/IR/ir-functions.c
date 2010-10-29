@@ -1,7 +1,7 @@
 /*
- *
- * some common structs and functions to handle infrared remotes via
- * input layer ...
+ * some common functions to handle infrared remote protocol decoding for
+ * drivers which have not yet been (or can't be) converted to use the
+ * regular protocol decoders...
  *
  * (c) 2003 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
  *
@@ -31,67 +31,6 @@
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
-static int repeat = 1;
-module_param(repeat, int, 0444);
-MODULE_PARM_DESC(repeat,"auto-repeat for IR keys (default: on)");
-
-/* -------------------------------------------------------------------------- */
-
-static void ir_input_key_event(struct input_dev *dev, struct ir_input_state *ir)
-{
-	if (KEY_RESERVED == ir->keycode) {
-		printk(KERN_INFO "%s: unknown key: key=0x%02x down=%d\n",
-		       dev->name, ir->ir_key, ir->keypressed);
-		return;
-	}
-	IR_dprintk(1,"%s: key event code=%d down=%d\n",
-		dev->name,ir->keycode,ir->keypressed);
-	input_report_key(dev,ir->keycode,ir->keypressed);
-	input_sync(dev);
-}
-
-/* -------------------------------------------------------------------------- */
-
-int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
-		  const u64 ir_type)
-{
-	ir->ir_type = ir_type;
-
-	if (repeat)
-		set_bit(EV_REP, dev->evbit);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ir_input_init);
-
-
-void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir)
-{
-	if (ir->keypressed) {
-		ir->keypressed = 0;
-		ir_input_key_event(dev,ir);
-	}
-}
-EXPORT_SYMBOL_GPL(ir_input_nokey);
-
-void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
-		      u32 ir_key)
-{
-	u32 keycode = ir_g_keycode_from_table(dev, ir_key);
-
-	if (ir->keypressed && ir->keycode != keycode) {
-		ir->keypressed = 0;
-		ir_input_key_event(dev,ir);
-	}
-	if (!ir->keypressed) {
-		ir->ir_key  = ir_key;
-		ir->keycode = keycode;
-		ir->keypressed = 1;
-		ir_input_key_event(dev,ir);
-	}
-}
-EXPORT_SYMBOL_GPL(ir_input_keydown);
-
 /* -------------------------------------------------------------------------- */
 /* extract mask bits out of data and pack them into the result */
 u32 ir_extract_bits(u32 data, u32 mask)
@@ -115,7 +54,7 @@ EXPORT_SYMBOL_GPL(ir_extract_bits);
  * saa7134 */
 
 /* decode raw bit pattern to RC5 code */
-u32 ir_rc5_decode(unsigned int code)
+static u32 ir_rc5_decode(unsigned int code)
 {
 	unsigned int org_code = code;
 	unsigned int pair;
@@ -144,13 +83,12 @@ u32 ir_rc5_decode(unsigned int code)
 		RC5_TOGGLE(rc5), RC5_ADDR(rc5), RC5_INSTR(rc5));
 	return rc5;
 }
-EXPORT_SYMBOL_GPL(ir_rc5_decode);
 
 void ir_rc5_timer_end(unsigned long data)
 {
 	struct card_ir *ir = (struct card_ir *)data;
 	struct timeval tv;
-	unsigned long current_jiffies, timeout;
+	unsigned long current_jiffies;
 	u32 gap;
 	u32 rc5 = 0;
 
@@ -191,32 +129,11 @@ void ir_rc5_timer_end(unsigned long data)
 			u32 toggle = RC5_TOGGLE(rc5);
 			u32 instr = RC5_INSTR(rc5);
 
-			/* Good code, decide if repeat/repress */
-			if (toggle != RC5_TOGGLE(ir->last_rc5) ||
-			    instr != RC5_INSTR(ir->last_rc5)) {
-				IR_dprintk(1, "ir-common: instruction %x, toggle %x\n", instr,
-					toggle);
-				ir_input_nokey(ir->dev, &ir->ir);
-				ir_input_keydown(ir->dev, &ir->ir, instr);
-			}
-
-			/* Set/reset key-up timer */
-			timeout = current_jiffies +
-				  msecs_to_jiffies(ir->rc5_key_timeout);
-			mod_timer(&ir->timer_keyup, timeout);
-
-			/* Save code for repeat test */
-			ir->last_rc5 = rc5;
+			/* Good code */
+			ir_keydown(ir->dev, instr, toggle);
+			IR_dprintk(1, "ir-common: instruction %x, toggle %x\n",
+				   instr, toggle);
 		}
 	}
 }
 EXPORT_SYMBOL_GPL(ir_rc5_timer_end);
-
-void ir_rc5_timer_keyup(unsigned long data)
-{
-	struct card_ir *ir = (struct card_ir *)data;
-
-	IR_dprintk(1, "ir-common: key released\n");
-	ir_input_nokey(ir->dev, &ir->ir);
-}
-EXPORT_SYMBOL_GPL(ir_rc5_timer_keyup);

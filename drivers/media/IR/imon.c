@@ -1479,16 +1479,11 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	bool norelease = false;
 	int i;
 	u64 scancode;
-	struct input_dev *rdev = NULL;
-	struct ir_input_dev *irdev = NULL;
 	int press_type = 0;
 	int msec;
 	struct timeval t;
 	static struct timeval prev_time = { 0, 0 };
 	u8 ktype;
-
-	rdev = ictx->rdev;
-	irdev = input_get_drvdata(rdev);
 
 	/* filter out junk data on the older 0xffdc imon devices */
 	if ((buf[0] == 0xff) && (buf[1] == 0xff) && (buf[2] == 0xff))
@@ -1570,9 +1565,9 @@ static void imon_incoming_packet(struct imon_context *ictx,
 
 	if (ktype != IMON_KEY_PANEL) {
 		if (press_type == 0)
-			ir_keyup(irdev);
+			ir_keyup(ictx->rdev);
 		else {
-			ir_keydown(rdev, ictx->rc_scancode, ictx->rc_toggle);
+			ir_keydown(ictx->rdev, ictx->rc_scancode, ictx->rc_toggle);
 			spin_lock_irqsave(&ictx->kc_lock, flags);
 			ictx->last_keycode = ictx->kc;
 			spin_unlock_irqrestore(&ictx->kc_lock, flags);

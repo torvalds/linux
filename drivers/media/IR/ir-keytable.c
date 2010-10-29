@@ -431,13 +431,13 @@ u32 ir_g_keycode_from_table(struct input_dev *dev, u32 scancode)
 EXPORT_SYMBOL_GPL(ir_g_keycode_from_table);
 
 /**
- * ir_keyup() - generates input event to cleanup a key press
+ * ir_do_keyup() - internal function to signal the release of a keypress
  * @ir:         the struct ir_input_dev descriptor of the device
  *
- * This routine is used to signal that a key has been released on the
- * remote control. It reports a keyup input event via input_report_key().
+ * This function is used internally to release a keypress, it must be
+ * called with keylock held.
  */
-void ir_keyup(struct ir_input_dev *ir)
+static void ir_do_keyup(struct ir_input_dev *ir)
 {
 	if (!ir->keypressed)
 		return;
@@ -446,6 +446,23 @@ void ir_keyup(struct ir_input_dev *ir)
 	input_report_key(ir->input_dev, ir->last_keycode, 0);
 	input_sync(ir->input_dev);
 	ir->keypressed = false;
+}
+
+/**
+ * ir_keyup() - generates input event to signal the release of a keypress
+ * @dev:        the struct input_dev descriptor of the device
+ *
+ * This routine is used to signal that a key has been released on the
+ * remote control.
+ */
+void ir_keyup(struct input_dev *dev)
+{
+	unsigned long flags;
+	struct ir_input_dev *ir = input_get_drvdata(dev);
+
+	spin_lock_irqsave(&ir->keylock, flags);
+	ir_do_keyup(ir);
+	spin_unlock_irqrestore(&ir->keylock, flags);
 }
 EXPORT_SYMBOL_GPL(ir_keyup);
 
@@ -473,7 +490,7 @@ static void ir_timer_keyup(unsigned long cookie)
 	 */
 	spin_lock_irqsave(&ir->keylock, flags);
 	if (time_is_before_eq_jiffies(ir->keyup_jiffies))
-		ir_keyup(ir);
+		ir_do_keyup(ir);
 	spin_unlock_irqrestore(&ir->keylock, flags);
 }
 
@@ -506,6 +523,47 @@ out:
 EXPORT_SYMBOL_GPL(ir_repeat);
 
 /**
+ * ir_do_keydown() - internal function to process a keypress
+ * @dev:        the struct input_dev descriptor of the device
+ * @scancode:   the scancode of the keypress
+ * @keycode:    the keycode of the keypress
+ * @toggle:     the toggle value of the keypress
+ *
+ * This function is used internally to register a keypress, it must be
+ * called with keylock held.
+ */
+static void ir_do_keydown(struct input_dev *dev, int scancode,
+			  u32 keycode, u8 toggle)
+{
+	struct ir_input_dev *ir = input_get_drvdata(dev);
+
+	input_event(dev, EV_MSC, MSC_SCAN, scancode);
+
+	/* Repeat event? */
+	if (ir->keypressed &&
+	    ir->last_scancode == scancode &&
+	    ir->last_toggle == toggle)
+		return;
+
+	/* Release old keypress */
+	ir_do_keyup(ir);
+
+	ir->last_scancode = scancode;
+	ir->last_toggle = toggle;
+	ir->last_keycode = keycode;
+
+	if (keycode == KEY_RESERVED)
+		return;
+
+	/* Register a keypress */
+	ir->keypressed = true;
+	IR_dprintk(1, "%s: key down event, key 0x%04x, scancode 0x%04x\n",
+		   dev->name, keycode, scancode);
+	input_report_key(dev, ir->last_keycode, 1);
+	input_sync(dev);
+}
+
+/**
  * ir_keydown() - generates input event for a key press
  * @dev:        the struct input_dev descriptor of the device
  * @scancode:   the scancode that we're seeking
@@ -520,45 +578,43 @@ void ir_keydown(struct input_dev *dev, int scancode, u8 toggle)
 {
 	unsigned long flags;
 	struct ir_input_dev *ir = input_get_drvdata(dev);
-
 	u32 keycode = ir_g_keycode_from_table(dev, scancode);
 
 	spin_lock_irqsave(&ir->keylock, flags);
+	ir_do_keydown(dev, scancode, keycode, toggle);
 
-	input_event(dev, EV_MSC, MSC_SCAN, scancode);
-
-	/* Repeat event? */
-	if (ir->keypressed &&
-	    ir->last_scancode == scancode &&
-	    ir->last_toggle == toggle)
-		goto set_timer;
-
-	/* Release old keypress */
-	ir_keyup(ir);
-
-	ir->last_scancode = scancode;
-	ir->last_toggle = toggle;
-	ir->last_keycode = keycode;
-
-
-	if (keycode == KEY_RESERVED)
-		goto out;
-
-
-	/* Register a keypress */
-	ir->keypressed = true;
-	IR_dprintk(1, "%s: key down event, key 0x%04x, scancode 0x%04x\n",
-		   dev->name, keycode, scancode);
-	input_report_key(dev, ir->last_keycode, 1);
-	input_sync(dev);
-
-set_timer:
-	ir->keyup_jiffies = jiffies + msecs_to_jiffies(IR_KEYPRESS_TIMEOUT);
-	mod_timer(&ir->timer_keyup, ir->keyup_jiffies);
-out:
+	if (ir->keypressed) {
+		ir->keyup_jiffies = jiffies + msecs_to_jiffies(IR_KEYPRESS_TIMEOUT);
+		mod_timer(&ir->timer_keyup, ir->keyup_jiffies);
+	}
 	spin_unlock_irqrestore(&ir->keylock, flags);
 }
 EXPORT_SYMBOL_GPL(ir_keydown);
+
+/**
+ * ir_keydown_notimeout() - generates input event for a key press without
+ *                          an automatic keyup event at a later time
+ * @dev:        the struct input_dev descriptor of the device
+ * @scancode:   the scancode that we're seeking
+ * @toggle:     the toggle value (protocol dependent, if the protocol doesn't
+ *              support toggle values, this should be set to zero)
+ *
+ * This routine is used by the input routines when a key is pressed at the
+ * IR. It gets the keycode for a scancode and reports an input event via
+ * input_report_key(). The driver must manually call ir_keyup() at a later
+ * stage.
+ */
+void ir_keydown_notimeout(struct input_dev *dev, int scancode, u8 toggle)
+{
+	unsigned long flags;
+	struct ir_input_dev *ir = input_get_drvdata(dev);
+	u32 keycode = ir_g_keycode_from_table(dev, scancode);
+
+	spin_lock_irqsave(&ir->keylock, flags);
+	ir_do_keydown(dev, scancode, keycode, toggle);
+	spin_unlock_irqrestore(&ir->keylock, flags);
+}
+EXPORT_SYMBOL_GPL(ir_keydown_notimeout);
 
 static int ir_open(struct input_dev *input_dev)
 {
