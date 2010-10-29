@@ -1574,6 +1574,7 @@ static struct file *finish_open(struct nameidata *nd,
 	 */
 	if (will_truncate)
 		mnt_drop_write(nd->path.mnt);
+	path_put(&nd->path);
 	return filp;
 
 exit:
@@ -1675,6 +1676,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		}
 		filp = nameidata_to_filp(nd);
 		mnt_drop_write(nd->path.mnt);
+		path_put(&nd->path);
 		if (!IS_ERR(filp)) {
 			error = ima_file_check(filp, acc_mode);
 			if (error) {
