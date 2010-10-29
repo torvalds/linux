@@ -3607,18 +3607,14 @@ struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_root *root)
 {
 	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	u64 alloc_target;
 
 	block_rsv = kmalloc(sizeof(*block_rsv), GFP_NOFS);
 	if (!block_rsv)
 		return NULL;
 
 	btrfs_init_block_rsv(block_rsv);
-
-	alloc_target = btrfs_get_alloc_profile(root, 0);
 	block_rsv->space_info = __find_space_info(fs_info,
 						  BTRFS_BLOCK_GROUP_METADATA);
-
 	return block_rsv;
 }
 
