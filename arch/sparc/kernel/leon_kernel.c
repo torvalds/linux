@@ -114,7 +114,7 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 	if (leon3_gptimer_regs && leon3_irqctrl_regs) {
 		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[0].val, 0);
 		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[0].rld,
-				      (((1000000 / 100) - 1)));
+				      (((1000000 / HZ) - 1)));
 		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[0].ctrl, 0);
 
 #ifdef CONFIG_SMP
@@ -128,7 +128,7 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 		}
 
 		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[1].val, 0);
-		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[1].rld, (((1000000/100) - 1)));
+		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[1].rld, (((1000000/HZ) - 1)));
 		LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[1].ctrl, 0);
 # endif
 
