@@ -37,4 +37,3 @@ void bcm_print_buffer(UINT debug_level, const char *function_name,
 		printk("\n");
 	}
 }
-

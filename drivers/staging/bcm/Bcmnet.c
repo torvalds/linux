@@ -4,48 +4,6 @@
 #define DRV_VERSION	"5.2.7.3P1"
 #define DRV_COPYRIGHT	"Copyright 2010. Beceem Communications Inc"
 
-static INT bcm_notify_event(struct notifier_block *nb, ULONG event, PVOID dev)
-{
-	struct net_device *ndev = (struct net_device*)dev;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
-	//PMINI_ADAPTER 	Adapter = (PMINI_ADAPTER)ndev->priv;
-	if(strncmp(ndev->name,gblpnetdev->name,5)==0)
-	{
-		switch(event)
-		{
-			case NETDEV_CHANGEADDR:
-			case NETDEV_GOING_DOWN:
-				/*ignore this */
-					break;
-			case NETDEV_DOWN:
-				break;
-
-			case NETDEV_UP:
-				break;
-
-			case NETDEV_REGISTER:
-				 /* Increment the Reference Count for "veth0" */
-				 BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Register RefCount: %x\n",
-									netdev_refcnt_read(ndev));
-				 dev_hold(ndev);
-				 break;
-
-			case NETDEV_UNREGISTER:
-				 /* Decrement the Reference Count for "veth0" */
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Unregister RefCnt: %x\n",
-									netdev_refcnt_read(ndev));
-				dev_put(ndev);
-				break;
-		};
-	}
-	return NOTIFY_DONE;
-}
-
-/* Notifier block to receive netdevice events */
-static struct notifier_block bcm_notifier_block =
-{
-	.notifier_call = bcm_notify_event,
-};
 
 struct net_device *gblpnetdev;
 /***************************************************************************************/
@@ -156,23 +114,6 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 	/* Read the MAC Address from EEPROM */
 	ReadMacAddressFromNVM(Adapter);
 
-
-	/* Register the notifier block for getting netdevice events */
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Registering netdevice notifier\n");
-	result = register_netdevice_notifier(&bcm_notifier_block);
-	if(result)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "BCM Notifier Block did not get registered");
-		Adapter->bNetdeviceNotifierRegistered = FALSE;
-		return result;
-	}
-	else
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "BCM Notifier got Registered");
-		Adapter->bNetdeviceNotifierRegistered = TRUE;
-	}
-
-
 	result = register_netdev(Adapter->dev);
 	if (!result)
 	{
@@ -209,11 +150,6 @@ void bcm_unregister_networkdev(PMINI_ADAPTER Adapter)
 	if(Adapter->dev && !IS_ERR(Adapter->dev) && Adapter->bNetworkInterfaceRegistered)
 		unregister_netdev(Adapter->dev);
 		/* Unregister the notifier block */
-	if(Adapter->bNetdeviceNotifierRegistered == TRUE)
-	{
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Unregistering netdevice notifier\n");
-			unregister_netdevice_notifier(&bcm_notifier_block);
-  }
 }
 
 static int bcm_init(void)

@@ -22,7 +22,6 @@
 #include <linux/etherdevice.h>
 #include <net/ip.h>
 #include <linux/wait.h>
-#include <linux/notifier.h>
 #include <linux/proc_fs.h>
 #include <linux/interrupt.h>
 
