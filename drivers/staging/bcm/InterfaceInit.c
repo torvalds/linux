@@ -11,6 +11,11 @@ static struct usb_device_id InterfaceUsbtable[] = {
 };
 MODULE_DEVICE_TABLE(usb, InterfaceUsbtable);
 
+static unsigned int debug_level = DBG_LVL_CURR;
+module_param(debug_level, uint, 0644);
+MODULE_PARM_DESC(debug_level, "Debug level (0=none,...,7=all)");
+
+
 VOID InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
 {
 	INT i = 0;
@@ -198,7 +203,7 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
     /* Init default driver debug state */
 
-    psAdapter->stDebugState.debug_level = DBG_LVL_CURR;
+	psAdapter->stDebugState.debug_level = debug_level;
 	psAdapter->stDebugState.type = DBG_TYPE_INITEXIT;
 	memset (psAdapter->stDebugState.subtype, 0, sizeof (psAdapter->stDebugState.subtype));
 

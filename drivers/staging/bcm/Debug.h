@@ -18,11 +18,9 @@ typedef enum _BASE_TYPE
 	BCM_BASE_TYPE_NONE,
 } BASE_TYPE, *PBASE_TYPE;
 
-int bcm_print_buffer( UINT debug_level, const char *function_name,
-				  char *file_name, int line_number, unsigned char *buffer, int bufferlen, BASE_TYPE base);
-
-
-
+void bcm_print_buffer(UINT debug_level, const char *function_name,
+		      const char *file_name, int line_number,
+		      const unsigned char *buffer, int bufferlen, BASE_TYPE base);
 
 
 //--------------------------------------------------------------------------------
@@ -229,43 +227,31 @@ typedef struct _S_BCM_DEBUG_STATE {
 
 //--- Only for direct printk's; "hidden" to API.
 #define DBG_TYPE_PRINTK		3
-#define PRINTKS_ON			1	// "hidden" from API, set to 0 to turn off all printk's
 
-#define BCM_DEBUG_PRINT(Adapter, Type, SubType, dbg_level, string, args...) do { \
-	if ((DBG_TYPE_PRINTK == Type) && (PRINTKS_ON)) {	\
-		printk ("%s:" string, __FUNCTION__, ##args);	\
-		printk("\n");	\
-	} else if (!Adapter)			\
-		;							\
-	else {							\
-		if (((dbg_level & DBG_LVL_BITMASK) <= Adapter->stDebugState.debug_level) &&	\
-		   ((Type & Adapter->stDebugState.type) && (SubType & Adapter->stDebugState.subtype[Type]))) { \
-		   		if (dbg_level & DBG_NO_FUNC_PRINT)		\
-					printk (string, ##args);						\
-				else	\
-					{												\
-					printk ("%s:" string, __FUNCTION__, ##args);	\
-					printk("\n"); \
-					} \
-		}	\
-		}	\
-} while (0)
+#define BCM_DEBUG_PRINT(Adapter, Type, SubType, dbg_level, string, args...) \
+	do {								\
+		if (DBG_TYPE_PRINTK == Type)				\
+			pr_info("%s:" string "\n", __func__, ##args);	\
+		else if (Adapter &&					\
+			 (dbg_level & DBG_LVL_BITMASK) <= Adapter->stDebugState.debug_level && \
+			 (Type & Adapter->stDebugState.type) &&		\
+			 (SubType & Adapter->stDebugState.subtype[Type])) { \
+			if (dbg_level & DBG_NO_FUNC_PRINT)		\
+				printk(KERN_DEBUG string, ##args);	\
+			else						\
+				printk(KERN_DEBUG "%s:" string "\n", __func__, ##args);	\
+		}							\
+	} while (0)
 
 #define BCM_DEBUG_PRINT_BUFFER(Adapter, Type, SubType, dbg_level,  buffer, bufferlen) do { \
-		if ((DBG_TYPE_PRINTK == Type) && (PRINTKS_ON)) {	\
-			bcm_print_buffer( dbg_level, __FUNCTION__, __FILE__, __LINE__, buffer, bufferlen, BCM_BASE_TYPE_HEX);	\
-		} else if (!Adapter)			\
-			;							\
-		else {							\
-			if (((dbg_level & DBG_LVL_BITMASK) <= Adapter->stDebugState.debug_level)  && \
-			   ((Type & Adapter->stDebugState.type) && (SubType & Adapter->stDebugState.subtype[Type]))) { \
-					if (dbg_level & DBG_NO_FUNC_PRINT)		\
-						bcm_print_buffer( dbg_level, NULL, NULL, __LINE__, buffer, bufferlen, BCM_BASE_TYPE_HEX);						\
-					else												\
-						bcm_print_buffer( dbg_level, __FUNCTION__, __FILE__, __LINE__, buffer, bufferlen, BCM_BASE_TYPE_HEX);	\
-			}	\
-		}	\
-	} while (0)
+	if (DBG_TYPE_PRINTK == Type ||					\
+	    (Adapter &&							\
+	     (dbg_level & DBG_LVL_BITMASK) <= Adapter->stDebugState.debug_level  && \
+	     (Type & Adapter->stDebugState.type) &&			\
+	     (SubType & Adapter->stDebugState.subtype[Type])))		\
+		bcm_print_buffer(dbg_level, __func__, __FILE__, __LINE__, \
+				 buffer, bufferlen, BCM_BASE_TYPE_HEX);	\
+} while(0)
 
 
 #define BCM_SHOW_DEBUG_BITMAP(Adapter)	do { \
