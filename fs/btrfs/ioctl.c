@@ -409,6 +409,76 @@ fail:
 	return ret;
 }
 
+/*  copy of check_sticky in fs/namei.c()
+* It's inline, so penalty for filesystems that don't use sticky bit is
+* minimal.
+*/
+static inline int btrfs_check_sticky(struct inode *dir, struct inode *inode)
+{
+	uid_t fsuid = current_fsuid();
+
+	if (!(dir->i_mode & S_ISVTX))
+		return 0;
+	if (inode->i_uid == fsuid)
+		return 0;
+	if (dir->i_uid == fsuid)
+		return 0;
+	return !capable(CAP_FOWNER);
+}
+
+/*  copy of may_delete in fs/namei.c()
+ *	Check whether we can remove a link victim from directory dir, check
+ *  whether the type of victim is right.
+ *  1. We can't do it if dir is read-only (done in permission())
+ *  2. We should have write and exec permissions on dir
+ *  3. We can't remove anything from append-only dir
+ *  4. We can't do anything with immutable dir (done in permission())
+ *  5. If the sticky bit on dir is set we should either
+ *	a. be owner of dir, or
+ *	b. be owner of victim, or
+ *	c. have CAP_FOWNER capability
+ *  6. If the victim is append-only or immutable we can't do antyhing with
+ *     links pointing to it.
+ *  7. If we were asked to remove a directory and victim isn't one - ENOTDIR.
+ *  8. If we were asked to remove a non-directory and victim isn't one - EISDIR.
+ *  9. We can't remove a root or mountpoint.
+ * 10. We don't allow removal of NFS sillyrenamed files; it's handled by
+ *     nfs_async_unlink().
+ */
+
+static int btrfs_may_delete(struct inode *dir,struct dentry *victim,int isdir)
+{
+	int error;
+
+	if (!victim->d_inode)
+		return -ENOENT;
+
+	BUG_ON(victim->d_parent->d_inode != dir);
+	audit_inode_child(victim, dir);
+
+	error = inode_permission(dir, MAY_WRITE | MAY_EXEC);
+	if (error)
+		return error;
+	if (IS_APPEND(dir))
+		return -EPERM;
+	if (btrfs_check_sticky(dir, victim->d_inode)||
+		IS_APPEND(victim->d_inode)||
+	    IS_IMMUTABLE(victim->d_inode) || IS_SWAPFILE(victim->d_inode))
+		return -EPERM;
+	if (isdir) {
+		if (!S_ISDIR(victim->d_inode->i_mode))
+			return -ENOTDIR;
+		if (IS_ROOT(victim))
+			return -EBUSY;
+	} else if (S_ISDIR(victim->d_inode->i_mode))
+		return -EISDIR;
+	if (IS_DEADDIR(dir))
+		return -ENOENT;
+	if (victim->d_flags & DCACHE_NFSFS_RENAMED)
+		return -EBUSY;
+	return 0;
+}
+
 /* copy of may_create in fs/namei.c() */
 static inline int btrfs_may_create(struct inode *dir, struct dentry *child)
 {
@@ -1274,9 +1344,6 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	int ret;
 	int err = 0;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	vol_args = memdup_user(arg, sizeof(*vol_args));
 	if (IS_ERR(vol_args))
 		return PTR_ERR(vol_args);
@@ -1306,12 +1373,50 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	}
 
 	inode = dentry->d_inode;
+	dest = BTRFS_I(inode)->root;
+	if (!capable(CAP_SYS_ADMIN)){
+		/*
+		 * Regular user.  Only allow this with a special mount
+		 * option, when the user has write+exec access to the
+		 * subvol root, and when rmdir(2) would have been
+		 * allowed.
+		 *
+		 * Note that this is _not_ check that the subvol is
+		 * empty or doesn't contain data that we wouldn't
+		 * otherwise be able to delete.
+		 *
+		 * Users who want to delete empty subvols should try
+		 * rmdir(2).
+		 */
+		err = -EPERM;
+		if (!btrfs_test_opt(root, USER_SUBVOL_RM_ALLOWED))
+			goto out_dput;
+
+		/*
+		 * Do not allow deletion if the parent dir is the same
+		 * as the dir to be deleted.  That means the ioctl
+		 * must be called on the dentry referencing the root
+		 * of the subvol, not a random directory contained
+		 * within it.
+		 */
+		err = -EINVAL;
+		if (root == dest)
+			goto out_dput;
+
+		err = inode_permission(inode, MAY_WRITE | MAY_EXEC);
+		if (err)
+			goto out_dput;
+
+		/* check if subvolume may be deleted by a non-root user */
+		err = btrfs_may_delete(dir, dentry, 1);
+		if (err)
+			goto out_dput;
+	}
+
 	if (inode->i_ino != BTRFS_FIRST_FREE_OBJECTID) {
 		err = -EINVAL;
 		goto out_dput;
 	}
-
-	dest = BTRFS_I(inode)->root;
 
 	mutex_lock(&inode->i_mutex);
 	err = d_invalidate(dentry);
