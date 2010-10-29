@@ -21,9 +21,9 @@ __kernel_clock_gettime:
 	.cfi_startproc
 	basr	%r5,0
 0:	al	%r5,21f-0b(%r5)			/* get &_vdso_data */
-	chi	%r2,CLOCK_REALTIME
+	chi	%r2,__CLOCK_REALTIME
 	je	10f
-	chi	%r2,CLOCK_MONOTONIC
+	chi	%r2,__CLOCK_MONOTONIC
 	jne	19f
 
 	/* CLOCK_MONOTONIC */

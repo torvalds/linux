@@ -106,11 +106,13 @@ static int stsi_15_1_x(struct sysinfo_15_1_x *info, char *page, int len)
 	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
 		len += sprintf(page + len, " %d", info->mag[i]);
 	len += sprintf(page + len, "\n");
+#ifdef CONFIG_SCHED_MC
 	store_topology(info);
 	len += sprintf(page + len, "CPU Topology SW:     ");
 	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
 		len += sprintf(page + len, " %d", info->mag[i]);
 	len += sprintf(page + len, "\n");
+#endif
 	return len;
 }
 

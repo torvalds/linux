@@ -638,18 +638,21 @@ __init int hypfs_diag_init(void)
 		pr_err("The hardware system does not support hypfs\n");
 		return -ENODATA;
 	}
-	rc = diag224_get_name_table();
-	if (rc) {
-		diag204_free_buffer();
-		pr_err("The hardware system does not provide all "
-		       "functions required by hypfs\n");
-	}
 	if (diag204_info_type == INFO_EXT) {
 		rc = hypfs_dbfs_init();
 		if (rc)
-			diag204_free_buffer();
+			return rc;
 	}
-	return rc;
+	if (MACHINE_IS_LPAR) {
+		rc = diag224_get_name_table();
+		if (rc) {
+			pr_err("The hardware system does not provide all "
+			       "functions required by hypfs\n");
+			debugfs_remove(dbfs_d204_file);
+			return rc;
+		}
+	}
+	return 0;
 }
 
 void hypfs_diag_exit(void)
