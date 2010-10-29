@@ -349,7 +349,7 @@ static void stv06xx_pkt_scan(struct gspca_dev *gspca_dev,
 		}
 
 		/* First byte seem to be 02=data 2nd byte is unknown??? */
-		if (sd->bridge == BRIDGE_ST6422 && (id & 0xFF00) == 0x0200)
+		if (sd->bridge == BRIDGE_ST6422 && (id & 0xff00) == 0x0200)
 			goto frame_data;
 
 		switch (id) {
