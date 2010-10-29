@@ -1492,11 +1492,11 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	path->reada = 2;
 
 	if (inode < src) {
-		mutex_lock(&inode->i_mutex);
-		mutex_lock(&src->i_mutex);
+		mutex_lock_nested(&inode->i_mutex, I_MUTEX_PARENT);
+		mutex_lock_nested(&src->i_mutex, I_MUTEX_CHILD);
 	} else {
-		mutex_lock(&src->i_mutex);
-		mutex_lock(&inode->i_mutex);
+		mutex_lock_nested(&src->i_mutex, I_MUTEX_PARENT);
+		mutex_lock_nested(&inode->i_mutex, I_MUTEX_CHILD);
 	}
 
 	/* determine range to clone */
