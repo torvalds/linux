@@ -583,6 +583,7 @@ static int tegra_suspend_enter(suspend_state_t state)
 		lp_state = 1;
 
 	local_irq_save(flags);
+	local_fiq_disable();
 
 	pr_info("Entering suspend state LP%d\n", lp_state);
 	if (do_lp0) {
@@ -645,6 +646,7 @@ static int tegra_suspend_enter(suspend_state_t state)
 
 	tegra_time_in_suspend[time_to_bin(secs)]++;
 
+	local_fiq_enable();
 	local_irq_restore(flags);
 
 	return 0;
@@ -678,7 +680,6 @@ void __init tegra_init_suspend(struct tegra_suspend_platform_data *plat)
 	}
 
 	tegra_context_area = kzalloc(CONTEXT_SIZE_BYTES * NR_CPUS, GFP_KERNEL);
-	pr_info("%s: %p\n", __func__, tegra_context_area);
 
 	if (tegra_context_area && create_suspend_pgtable()) {
 		kfree(tegra_context_area);

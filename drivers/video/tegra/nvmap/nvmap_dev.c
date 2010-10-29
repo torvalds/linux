@@ -44,9 +44,11 @@
 #define NVMAP_NUM_PTES		64
 
 struct nvmap_carveout_node {
-	struct list_head	heap_list;
 	unsigned int		heap_bit;
 	struct nvmap_heap	*carveout;
+	int			index;
+	struct list_head	clients;
+	struct mutex		clients_mutex;
 };
 
 struct nvmap_device {
@@ -61,7 +63,8 @@ struct nvmap_device {
 	wait_queue_head_t pte_wait;
 	struct miscdevice dev_super;
 	struct miscdevice dev_user;
-	struct list_head heaps;
+	struct nvmap_carveout_node *heaps;
+	int nr_carveouts;
 	struct nvmap_share iovmm_master;
 };
 
@@ -220,8 +223,10 @@ unsigned long nvmap_carveout_usage(struct nvmap_client *c,
 {
 	struct nvmap_heap *h = nvmap_block_to_heap(b);
 	struct nvmap_carveout_node *n;
+	int i;
 
-	list_for_each_entry(n, &c->dev->heaps, heap_list) {
+	for (i = 0; i < c->dev->nr_carveouts; i++) {
+		n = &c->dev->heaps[i];
 		if (n->carveout == h)
 			return n->heap_bit;
 	}
@@ -261,6 +266,47 @@ static int nvmap_flush_heap_block(struct nvmap_client *client,
 	return 0;
 }
 
+void nvmap_carveout_commit_add(struct nvmap_client *client,
+			       struct nvmap_carveout_node *node,
+			       size_t len)
+{
+	mutex_lock(&node->clients_mutex);
+
+	BUG_ON(list_empty(&client->carveout_commit[node->index].list) &&
+	       client->carveout_commit[node->index].commit != 0);
+
+	client->carveout_commit[node->index].commit += len;
+	/* if this client isn't already on the list of nodes for this heap,
+	   add it */
+	if (list_empty(&client->carveout_commit[node->index].list)) {
+		list_add(&client->carveout_commit[node->index].list,
+			 &node->clients);
+	}
+	mutex_unlock(&node->clients_mutex);
+}
+
+void nvmap_carveout_commit_subtract(struct nvmap_client *client,
+				    struct nvmap_carveout_node *node,
+				    size_t len)
+{
+	mutex_lock(&node->clients_mutex);
+	client->carveout_commit[node->index].commit -= len;
+	BUG_ON(client->carveout_commit[node->index].commit < 0);
+	/* if no more allocation in this carveout for this node, delete it */
+	if (!client->carveout_commit[node->index].commit)
+		list_del_init(&client->carveout_commit[node->index].list);
+	mutex_unlock(&node->clients_mutex);
+}
+
+static struct nvmap_client* get_client_from_carveout_commit(
+	struct nvmap_carveout_node *node, struct nvmap_carveout_commit *commit)
+{
+	struct nvmap_carveout_commit *first_commit = commit - node->index;
+	return (void *)first_commit - offsetof(struct nvmap_client,
+					       carveout_commit);
+}
+
+
 struct nvmap_heap_block *nvmap_carveout_alloc(struct nvmap_client *client,
 					      size_t len, size_t align,
 					      unsigned long usage,
@@ -268,9 +314,11 @@ struct nvmap_heap_block *nvmap_carveout_alloc(struct nvmap_client *client,
 {
 	struct nvmap_carveout_node *co_heap;
 	struct nvmap_device *dev = client->dev;
+	int i;
 
-	list_for_each_entry(co_heap, &dev->heaps, heap_list) {
+	for (i = 0; i < dev->nr_carveouts; i++) {
 		struct nvmap_heap_block *block;
+		co_heap = &dev->heaps[i];
 
 		if (!(co_heap->heap_bit & usage))
 			continue;
@@ -283,8 +331,10 @@ struct nvmap_heap_block *nvmap_carveout_alloc(struct nvmap_client *client,
 			if (nvmap_flush_heap_block(client, block, len)) {
 				nvmap_heap_free(block);
 				return NULL;
-			} else
+			} else {
+				nvmap_carveout_commit_add(client, co_heap, len);
 				return block;
+			}
 		}
 	}
 
@@ -370,11 +420,13 @@ struct nvmap_handle *nvmap_validate_get(struct nvmap_client *client,
 struct nvmap_client *nvmap_create_client(struct nvmap_device *dev)
 {
 	struct nvmap_client *client;
+	int i;
 
 	if (WARN_ON(!dev))
 		return NULL;
 
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc(sizeof(*client) + (sizeof(struct nvmap_carveout_commit)
+			 * dev->nr_carveouts), GFP_KERNEL);
 	if (!client)
 		return NULL;
 
@@ -388,6 +440,14 @@ struct nvmap_client *nvmap_create_client(struct nvmap_device *dev)
 
 	client->iovm_limit = nvmap_mru_vm_size(client->share->iovmm);
 
+	for (i = 0; i < dev->nr_carveouts; i++) {
+		INIT_LIST_HEAD(&client->carveout_commit[i].list);
+		client->carveout_commit[i].commit = 0;
+	}
+
+	get_task_struct(current);
+	client->task = current;
+
 	spin_lock_init(&client->ref_lock);
 	atomic_set(&client->count, 1);
 
@@ -397,6 +457,7 @@ struct nvmap_client *nvmap_create_client(struct nvmap_device *dev)
 static void destroy_client(struct nvmap_client *client)
 {
 	struct rb_node *n;
+	int i;
 
 	if (!client)
 		return;
@@ -420,6 +481,12 @@ static void destroy_client(struct nvmap_client *client)
 
 		kfree(ref);
 	}
+
+	for (i = 0; i < client->dev->nr_carveouts; i++)
+		list_del(&client->carveout_commit[i].list);
+
+	if (client->task)
+		put_task_struct(client->task);
 
 	kfree(client);
 }
@@ -657,11 +724,35 @@ static ssize_t attr_show_usage(struct device *dev,
 	return sprintf(buf, "%08x\n", node->heap_bit);
 }
 
+static ssize_t attr_show_clients(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct nvmap_carveout_node *node = nvmap_heap_device_to_arg(dev);
+	struct nvmap_carveout_commit *commit;
+	char *orig_buf = buf;
+
+	mutex_lock(&node->clients_mutex);
+	list_for_each_entry(commit, &node->clients, list) {
+		struct nvmap_client *client =
+			get_client_from_carveout_commit(node, commit);
+		char task_comm[sizeof(client->task->comm)];
+		get_task_comm(task_comm, client->task);
+		buf += sprintf(buf, "%16s %8u %8u\n", task_comm,
+			       client->task->pid, commit->commit);
+	}
+	mutex_unlock(&node->clients_mutex);
+	return buf - orig_buf;
+}
+
 static struct device_attribute heap_attr_show_usage =
 	__ATTR(usage, S_IRUGO, attr_show_usage, NULL);
 
+static struct device_attribute heap_attr_show_clients =
+	__ATTR(clients, S_IRUGO, attr_show_clients, NULL);
+
 static struct attribute *heap_extra_attrs[] = {
 	&heap_attr_show_usage.attr,
+	&heap_attr_show_clients.attr,
 	NULL,
 };
 
@@ -729,7 +820,6 @@ static int nvmap_probe(struct platform_device *pdev)
 
 	spin_lock_init(&dev->ptelock);
 	spin_lock_init(&dev->handle_lock);
-	INIT_LIST_HEAD(&dev->heaps);
 
 	for (i = 0; i < NVMAP_NUM_PTES; i++) {
 		unsigned long addr;
@@ -773,24 +863,30 @@ static int nvmap_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	dev->nr_carveouts = 0;
+	dev->heaps = kzalloc(sizeof(struct nvmap_carveout_node) *
+			     plat->nr_carveouts, GFP_KERNEL);
+	if (!dev->heaps) {
+		e = -ENOMEM;
+		dev_err(&pdev->dev, "couldn't allocate carveout memory\n");
+		goto fail;
+	}
+
 	for (i = 0; i < plat->nr_carveouts; i++) {
-		struct nvmap_carveout_node *node;
+		struct nvmap_carveout_node *node = &dev->heaps[i];
 		const struct nvmap_platform_carveout *co = &plat->carveouts[i];
-		node = kzalloc(sizeof(*node), GFP_KERNEL);
-		if (!node) {
-			e = -ENOMEM;
-			dev_err(&pdev->dev, "couldn't allocate %s\n", co->name);
-			goto fail;
-		}
 		node->carveout = nvmap_heap_create(dev->dev_user.this_device,
 				   co->name, co->base, co->size,
 				   co->buddy_size, node);
 		if (!node->carveout) {
 			e = -ENOMEM;
-			kfree(node);
 			dev_err(&pdev->dev, "couldn't create %s\n", co->name);
-			goto fail;
+			goto fail_heaps;
 		}
+		dev->nr_carveouts++;
+		mutex_init(&node->clients_mutex);
+		node->index = i;
+		INIT_LIST_HEAD(&node->clients);
 		node->heap_bit = co->usage_mask;
 		if (nvmap_heap_create_group(node->carveout,
 					    &heap_extra_attr_group))
@@ -798,24 +894,18 @@ static int nvmap_probe(struct platform_device *pdev)
 
 		dev_info(&pdev->dev, "created carveout %s (%uKiB)\n",
 			 co->name, co->size / 1024);
-		list_add_tail(&node->heap_list, &dev->heaps);
 	}
-	/*  FIXME: walk platform data and create heaps  */
-
 	platform_set_drvdata(pdev, dev);
 	nvmap_dev = dev;
 	return 0;
-fail:
-	while (!list_empty(&dev->heaps)) {
-		struct nvmap_carveout_node *node;
-
-		node = list_first_entry(&dev->heaps,
-					struct nvmap_carveout_node, heap_list);
-		list_del(&node->heap_list);
+fail_heaps:
+	for (i = 0; i < dev->nr_carveouts; i++) {
+		struct nvmap_carveout_node *node = &dev->heaps[i];
 		nvmap_heap_remove_group(node->carveout, &heap_extra_attr_group);
 		nvmap_heap_destroy(node->carveout);
-		kfree(node);
 	}
+fail:
+	kfree(dev->heaps);
 	nvmap_mru_destroy(&dev->iovmm_master);
 	if (dev->dev_super.minor != MISC_DYNAMIC_MINOR)
 		misc_deregister(&dev->dev_super);
@@ -835,6 +925,7 @@ static int nvmap_remove(struct platform_device *pdev)
 	struct nvmap_device *dev = platform_get_drvdata(pdev);
 	struct rb_node *n;
 	struct nvmap_handle *h;
+	int i;
 
 	misc_deregister(&dev->dev_super);
 	misc_deregister(&dev->dev_user);
@@ -850,16 +941,12 @@ static int nvmap_remove(struct platform_device *pdev)
 
 	nvmap_mru_destroy(&dev->iovmm_master);
 
-	while (!list_empty(&dev->heaps)) {
-		struct nvmap_carveout_node *node;
-
-		node = list_first_entry(&dev->heaps,
-					struct nvmap_carveout_node, heap_list);
-		list_del(&node->heap_list);
+	for (i = 0; i < dev->nr_carveouts; i++) {
+		struct nvmap_carveout_node *node = &dev->heaps[i];
 		nvmap_heap_remove_group(node->carveout, &heap_extra_attr_group);
 		nvmap_heap_destroy(node->carveout);
-		kfree(node);
 	}
+	kfree(dev->heaps);
 
 	free_vm_area(dev->vm_rgn);
 	kfree(dev);
