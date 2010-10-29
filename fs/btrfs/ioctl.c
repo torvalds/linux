@@ -1351,7 +1351,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		BUG_ON(ret);
 	}
 
-	ret = btrfs_commit_transaction(trans, root);
+	ret = btrfs_end_transaction(trans, root);
 	BUG_ON(ret);
 	inode->i_flags |= S_DEAD;
 out_up_write:
