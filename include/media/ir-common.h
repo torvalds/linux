@@ -96,9 +96,6 @@ void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir);
 void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
 		      u32 ir_key);
 u32  ir_extract_bits(u32 data, u32 mask);
-int  ir_dump_samples(u32 *samples, int count);
-int  ir_decode_biphase(u32 *samples, int count, int low, int high);
-int  ir_decode_pulsedistance(u32 *samples, int count, int low, int high);
 u32  ir_rc5_decode(unsigned int code);
 
 void ir_rc5_timer_end(unsigned long data);
