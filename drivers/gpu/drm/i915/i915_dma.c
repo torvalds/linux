@@ -2082,7 +2082,7 @@ out_workqueue_free:
 out_iomapfree:
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 out_rmmap:
-	iounmap(dev_priv->regs);
+	pci_iounmap(dev->pdev, dev_priv->regs);
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 free_priv:
@@ -2168,7 +2168,7 @@ int i915_driver_unload(struct drm_device *dev)
 	}
 
 	if (dev_priv->regs != NULL)
-		iounmap(dev_priv->regs);
+		pci_iounmap(dev->pdev, dev_priv->regs);
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
