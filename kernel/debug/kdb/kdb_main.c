@@ -1127,7 +1127,7 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		/* special case below */
 	} else {
 		kdb_printf("\nEntering kdb (current=0x%p, pid %d) ",
-			   kdb_current, kdb_current->pid);
+			   kdb_current, kdb_current ? kdb_current->pid : 0);
 #if defined(CONFIG_SMP)
 		kdb_printf("on processor %d ", raw_smp_processor_id());
 #endif
