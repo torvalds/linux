@@ -4128,12 +4128,7 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment,
 			return ret;
 	}
 
-	obj_priv->pin_count++;
-
-	/* If the object is not active and not pending a flush,
-	 * remove it from the inactive list
-	 */
-	if (obj_priv->pin_count == 1) {
+	if (obj_priv->pin_count++ == 0) {
 		i915_gem_info_add_pin(dev_priv, obj, mappable);
 		if (!obj_priv->active)
 			list_move_tail(&obj_priv->mm_list,
@@ -4153,15 +4148,10 @@ i915_gem_object_unpin(struct drm_gem_object *obj)
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
 	WARN_ON(i915_verify_lists(dev));
-	obj_priv->pin_count--;
-	BUG_ON(obj_priv->pin_count < 0);
+	BUG_ON(obj_priv->pin_count == 0);
 	BUG_ON(obj_priv->gtt_space == NULL);
 
-	/* If the object is no longer pinned, and is
-	 * neither active nor being flushed, then stick it on
-	 * the inactive list
-	 */
-	if (obj_priv->pin_count == 0) {
+	if (--obj_priv->pin_count == 0) {
 		if (!obj_priv->active)
 			list_move_tail(&obj_priv->mm_list,
 				       &dev_priv->mm.inactive_list);
