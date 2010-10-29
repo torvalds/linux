@@ -922,10 +922,11 @@ static void i830_write_entry(dma_addr_t addr, unsigned int entry,
 	writel(addr | pte_flags, intel_private.gtt + entry);
 }
 
-static void intel_enable_gtt(void)
+static bool intel_enable_gtt(void)
 {
 	u32 gma_addr;
 	u16 gmch_ctrl;
+	u8 __iomem *reg;
 
 	if (INTEL_GTT_GEN == 2)
 		pci_read_config_dword(intel_private.pcidev, I810_GMADDR,
@@ -936,13 +937,34 @@ static void intel_enable_gtt(void)
 
 	intel_private.gma_bus_addr = (gma_addr & PCI_BASE_ADDRESS_MEM_MASK);
 
-	pci_read_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, &gmch_ctrl);
-	gmch_ctrl |= I830_GMCH_ENABLED;
-	pci_write_config_word(intel_private.bridge_dev, I830_GMCH_CTRL, gmch_ctrl);
+	if (INTEL_GTT_GEN >= 6)
+	    return true;
 
-	writel(intel_private.PGETBL_save|I810_PGETBL_ENABLED,
-	       intel_private.registers+I810_PGETBL_CTL);
-	readl(intel_private.registers+I810_PGETBL_CTL);	/* PCI Posting. */
+	pci_read_config_word(intel_private.bridge_dev,
+			     I830_GMCH_CTRL, &gmch_ctrl);
+	gmch_ctrl |= I830_GMCH_ENABLED;
+	pci_write_config_word(intel_private.bridge_dev,
+			      I830_GMCH_CTRL, gmch_ctrl);
+
+	pci_read_config_word(intel_private.bridge_dev,
+			     I830_GMCH_CTRL, &gmch_ctrl);
+	if ((gmch_ctrl & I830_GMCH_ENABLED) == 0) {
+		dev_err(&intel_private.pcidev->dev,
+			"failed to enable the GTT: GMCH_CTRL=%x\n",
+			gmch_ctrl);
+		return false;
+	}
+
+	reg = intel_private.registers+I810_PGETBL_CTL;
+	writel(intel_private.PGETBL_save|I810_PGETBL_ENABLED, reg);
+	if ((readl(reg) & I810_PGETBL_ENABLED) == 0) {
+		dev_err(&intel_private.pcidev->dev,
+			"failed to enable the GTT: PGETBL=%x [expected %x|1]\n",
+			readl(reg), intel_private.PGETBL_save);
+		return false;
+	}
+
+	return true;
 }
 
 static int i830_setup(void)
@@ -981,7 +1003,8 @@ static int intel_fake_agp_configure(void)
 {
 	int i;
 
-	intel_enable_gtt();
+	if (!intel_enable_gtt())
+	    return -EIO;
 
 	agp_bridge->gart_bus_addr = intel_private.gma_bus_addr;
 
