@@ -557,6 +557,7 @@ pgm_svcper:
 # per was called from kernel, must be kprobes
 #
 kernel_per:
+	REENABLE_IRQS
 	mvi	SP_SVCNR(%r15),0xff	# set trap indication to pgm check
 	mvi	SP_SVCNR+1(%r15),0xff
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area

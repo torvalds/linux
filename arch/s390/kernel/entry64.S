@@ -568,6 +568,7 @@ pgm_svcper:
 # per was called from kernel, must be kprobes
 #
 kernel_per:
+	REENABLE_IRQS
 	xc	SP_SVCNR(2,%r15),SP_SVCNR(%r15)	# clear svc number
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	brasl	%r14,do_single_step
