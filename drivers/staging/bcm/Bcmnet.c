@@ -115,41 +115,21 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 	ReadMacAddressFromNVM(Adapter);
 
 	result = register_netdev(Adapter->dev);
-	if (!result)
-	{
-		Adapter->bNetworkInterfaceRegistered = TRUE ;
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Beceem Network device name is %s!", Adapter->dev->name);
-	}
-	else
-	{
-    	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Network device can not be registered!");
-		Adapter->bNetworkInterfaceRegistered = FALSE ;
-		return result;
+	if (!result) {
+		free_netdev(Adapter->dev);
+		Adapter->dev = NULL;
 	}
 
-#if 0
- Adapter->stDebugState.debug_level = DBG_LVL_CURR;
- Adapter->stDebugState.type =(UINT)0xffffffff;
- Adapter->stDebugState.subtype[DBG_TYPE_OTHERS] = 0xffffffff;
- Adapter->stDebugState.subtype[DBG_TYPE_RX] = 0xffffffff;
- Adapter->stDebugState.subtype[DBG_TYPE_TX] = 0xffffffff;
- Adapter->stDebugState.subtype[DBG_TYPE_INITEXIT] = 0xffffffff;
-
- printk("-------ps_adapter->stDebugState.type=%x\n",Adapter->stDebugState.type);
- printk("-------ps_adapter->stDebugState.subtype[DBG_TYPE_OTHERS]=%x\n",Adapter->stDebugState.subtype[DBG_TYPE_OTHERS]);
- printk("-------ps_adapter->stDebugState.subtype[DBG_TYPE_RX]=%x\n",Adapter->stDebugState.subtype[DBG_TYPE_RX]);
- printk("-------ps_adapter->stDebugState.subtype[DBG_TYPE_TX]=%x\n",Adapter->stDebugState.subtype[DBG_TYPE_TX]);
-#endif
-
-	return 0;
+	return result;
 }
 
 void bcm_unregister_networkdev(PMINI_ADAPTER Adapter)
 {
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Unregistering the Net Dev...\n");
-	if(Adapter->dev && !IS_ERR(Adapter->dev) && Adapter->bNetworkInterfaceRegistered)
+	if(Adapter->dev) {
 		unregister_netdev(Adapter->dev);
-		/* Unregister the notifier block */
+		Adapter->dev = NULL;
+	}
 }
 
 static int bcm_init(void)

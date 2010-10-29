@@ -599,7 +599,6 @@ struct _MINI_ADAPTER
 
 
 	struct semaphore	NVMRdmWrmLock;
-	BOOLEAN			bNetworkInterfaceRegistered;
 
 	struct device *pstCreatedClassDevice;
 	BOOLEAN			bUsbClassDriverRegistered;
