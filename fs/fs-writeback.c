@@ -1069,32 +1069,43 @@ static void wait_sb_inodes(struct super_block *sb)
 }
 
 /**
- * writeback_inodes_sb	-	writeback dirty inodes from given super_block
+ * writeback_inodes_sb_nr -	writeback dirty inodes from given super_block
  * @sb: the superblock
+ * @nr: the number of pages to write
  *
  * Start writeback on some inodes on this super_block. No guarantees are made
  * on how many (if any) will be written, and this function does not wait
- * for IO completion of submitted IO. The number of pages submitted is
- * returned.
+ * for IO completion of submitted IO.
  */
-void writeback_inodes_sb(struct super_block *sb)
+void writeback_inodes_sb_nr(struct super_block *sb, unsigned long nr)
 {
-	unsigned long nr_dirty = global_page_state(NR_FILE_DIRTY);
-	unsigned long nr_unstable = global_page_state(NR_UNSTABLE_NFS);
 	DECLARE_COMPLETION_ONSTACK(done);
 	struct wb_writeback_work work = {
 		.sb		= sb,
 		.sync_mode	= WB_SYNC_NONE,
 		.done		= &done,
+		.nr_pages	= nr,
 	};
 
 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
-
-	work.nr_pages = nr_dirty + nr_unstable +
-			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
-
 	bdi_queue_work(sb->s_bdi, &work);
 	wait_for_completion(&done);
+}
+EXPORT_SYMBOL(writeback_inodes_sb_nr);
+
+/**
+ * writeback_inodes_sb	-	writeback dirty inodes from given super_block
+ * @sb: the superblock
+ *
+ * Start writeback on some inodes on this super_block. No guarantees are made
+ * on how many (if any) will be written, and this function does not wait
+ * for IO completion of submitted IO.
+ */
+void writeback_inodes_sb(struct super_block *sb)
+{
+	return writeback_inodes_sb_nr(sb, global_page_state(NR_FILE_DIRTY) +
+			      global_page_state(NR_UNSTABLE_NFS) +
+			      (inodes_stat.nr_inodes - inodes_stat.nr_unused));
 }
 EXPORT_SYMBOL(writeback_inodes_sb);
 
@@ -1116,6 +1127,27 @@ int writeback_inodes_sb_if_idle(struct super_block *sb)
 		return 0;
 }
 EXPORT_SYMBOL(writeback_inodes_sb_if_idle);
+
+/**
+ * writeback_inodes_sb_if_idle	-	start writeback if none underway
+ * @sb: the superblock
+ * @nr: the number of pages to write
+ *
+ * Invoke writeback_inodes_sb if no writeback is currently underway.
+ * Returns 1 if writeback was started, 0 if not.
+ */
+int writeback_inodes_sb_nr_if_idle(struct super_block *sb,
+				   unsigned long nr)
+{
+	if (!writeback_in_progress(sb->s_bdi)) {
+		down_read(&sb->s_umount);
+		writeback_inodes_sb_nr(sb, nr);
+		up_read(&sb->s_umount);
+		return 1;
+	} else
+		return 0;
+}
+EXPORT_SYMBOL(writeback_inodes_sb_nr_if_idle);
 
 /**
  * sync_inodes_sb	-	sync sb inode pages
