@@ -174,9 +174,9 @@ sub read_kconfig {
 	}
 
 	# configs found
-	if (/^\s*config\s+(\S+)\s*$/) {
+	if (/^\s*(menu)?config\s+(\S+)\s*$/) {
 	    $state = "NEW";
-	    $config = $1;
+	    $config = $2;
 
 	    for (my $i = 0; $i < $iflevel; $i++) {
 		if ($i) {
