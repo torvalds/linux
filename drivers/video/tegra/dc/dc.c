@@ -226,6 +226,7 @@ static void _dump_regs(struct tegra_dc *dc, void *data,
 		DUMP_REG(DC_WINBUF_START_ADDR);
 		DUMP_REG(DC_WINBUF_ADDR_H_OFFSET);
 		DUMP_REG(DC_WINBUF_ADDR_V_OFFSET);
+		DUMP_REG(DC_WINBUF_UFLOW_STATUS);
 	}
 
 	tegra_dc_io_end(dc);
