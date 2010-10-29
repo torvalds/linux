@@ -74,6 +74,7 @@ config XEN_PLATFORM_PCI
 
 config SWIOTLB_XEN
 	def_bool y
-	depends on SWIOTLB
+	depends on PCI
+	select SWIOTLB
 
 endmenu
