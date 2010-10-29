@@ -577,7 +577,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				 * cifs_oplock_break_put() can't be called
 				 * from here.  Get reference after queueing
 				 * succeeded.  cifs_oplock_break() will
-				 * synchronize using GlobalSMSSeslock.
+				 * synchronize using cifs_file_list_lock.
 				 */
 				if (queue_work(system_nrt_wq,
 					       &netfile->oplock_break))
