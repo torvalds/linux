@@ -296,8 +296,10 @@ static void free_tx_desc(struct adapter *adapter, struct sge_txq *q,
 		if (d->skb) {	/* an SGL is present */
 			if (need_unmap)
 				unmap_skb(d->skb, q, cidx, pdev);
-			if (d->eop)
+			if (d->eop) {
 				kfree_skb(d->skb);
+				d->skb = NULL;
+			}
 		}
 		++d;
 		if (++cidx == q->size) {

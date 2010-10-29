@@ -2541,6 +2541,7 @@ source "drivers/net/stmmac/Kconfig"
 config PCH_GBE
 	tristate "PCH Gigabit Ethernet"
 	depends on PCI
+	select MII
 	---help---
 	  This is a gigabit ethernet driver for Topcliff PCH.
 	  Topcliff PCH is the platform controller hub that is used in Intel's
