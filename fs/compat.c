@@ -606,14 +606,14 @@ ssize_t compat_rw_copy_check_uvector(int type,
 	/*
 	 * Single unix specification:
 	 * We should -EINVAL if an element length is not >= 0 and fitting an
-	 * ssize_t.  The total length is fitting an ssize_t
+	 * ssize_t.
 	 *
-	 * Be careful here because iov_len is a size_t not an ssize_t
+	 * In Linux, the total length is limited to MAX_RW_COUNT, there is
+	 * no overflow possibility.
 	 */
 	tot_len = 0;
 	ret = -EINVAL;
 	for (seg = 0; seg < nr_segs; seg++) {
-		compat_ssize_t tmp = tot_len;
 		compat_uptr_t buf;
 		compat_ssize_t len;
 
@@ -624,13 +624,13 @@ ssize_t compat_rw_copy_check_uvector(int type,
 		}
 		if (len < 0)	/* size_t not fitting in compat_ssize_t .. */
 			goto out;
-		tot_len += len;
-		if (tot_len < tmp) /* maths overflow on the compat_ssize_t */
-			goto out;
 		if (!access_ok(vrfy_dir(type), compat_ptr(buf), len)) {
 			ret = -EFAULT;
 			goto out;
 		}
+		if (len > MAX_RW_COUNT - tot_len)
+			len = MAX_RW_COUNT - tot_len;
+		tot_len += len;
 		iov->iov_base = compat_ptr(buf);
 		iov->iov_len = (compat_size_t) len;
 		uvector++;
