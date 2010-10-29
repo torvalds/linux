@@ -25,23 +25,5 @@ INT usbbcm_worker_thread(PS_INTERFACE_ADAPTER psIntfAdapter);
 
 VOID InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter);
 
-
-
-#if 0
-
-ULONG InterfaceClaimAdapter(PMINI_ADAPTER Adapter);
-
-VOID InterfaceDDRControllerInit(PMINI_ADAPTER Adapter);
-
-ULONG InterfaceReset(PMINI_ADAPTER Adapter);
-
-ULONG InterfaceRegisterResources(PMINI_ADAPTER Adapter);
-
-VOID InterfaceUnRegisterResources(PMINI_ADAPTER Adapter);
-
-ULONG InterfaceFirmwareDownload(PMINI_ADAPTER Adapter);
-
-#endif
-
 #endif
 

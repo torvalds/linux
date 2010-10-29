@@ -188,11 +188,6 @@ typedef struct _stServiceFlowParamSI{
 
 	 /**  16bit ARQ Purge timeout */
     B_UINT16                        u16ARQRxPurgeTimeOut;
-#if 0 //def ENABLE_CORRIGENDUM2_UPDATE
-/* IEEE Comment #627 / MTG Comment #426 */
-    /// \brief Size of an ARQ block, changed from 2 bytes to 1
-    B_UINT8                        u8ARQBlockSize;
-#endif
 //TODO::Remove this once we move to a new CORR2 driver
     /// \brief Size of an ARQ block
     B_UINT16                        u16ARQBlockSize;
