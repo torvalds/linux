@@ -402,6 +402,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	WARN_ON(cur_trans->num_writers < 1);
 	cur_trans->num_writers--;
 
+	smp_mb();
 	if (waitqueue_active(&cur_trans->writer_wait))
 		wake_up(&cur_trans->writer_wait);
 	put_transaction(cur_trans);
@@ -1010,7 +1011,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root)
 {
 	unsigned long joined = 0;
-	unsigned long timeout = 1;
 	struct btrfs_transaction *cur_trans;
 	struct btrfs_transaction *prev_trans = NULL;
 	DEFINE_WAIT(wait);
@@ -1081,11 +1081,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			snap_pending = 1;
 
 		WARN_ON(cur_trans != trans->transaction);
-		if (cur_trans->num_writers > 1)
-			timeout = MAX_SCHEDULE_TIMEOUT;
-		else if (should_grow)
-			timeout = 1;
-
 		mutex_unlock(&root->fs_info->trans_mutex);
 
 		if (flush_on_commit || snap_pending) {
@@ -1107,8 +1102,10 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 				TASK_UNINTERRUPTIBLE);
 
 		smp_mb();
-		if (cur_trans->num_writers > 1 || should_grow)
-			schedule_timeout(timeout);
+		if (cur_trans->num_writers > 1)
+			schedule_timeout(MAX_SCHEDULE_TIMEOUT);
+		else if (should_grow)
+			schedule_timeout(1);
 
 		mutex_lock(&root->fs_info->trans_mutex);
 		finish_wait(&cur_trans->writer_wait, &wait);
