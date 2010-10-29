@@ -310,8 +310,7 @@ struct cx23885_kernel_ir {
 	char			*name;
 	char			*phys;
 
-	struct input_dev	*inp_dev;
-	struct ir_dev_props	props;
+	struct rc_dev		*rc;
 };
 
 struct cx23885_dev {

@@ -34,7 +34,6 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
 #include <media/ir-core.h>
@@ -86,13 +85,11 @@ enum StreamzapDecoderState {
 
 /* structure to hold our device specific stuff */
 struct streamzap_ir {
-
 	/* ir-core */
-	struct ir_dev_props *props;
+	struct rc_dev *rdev;
 
 	/* core device info */
 	struct device *dev;
-	struct input_dev *idev;
 
 	/* usb */
 	struct usb_device	*usbdev;
@@ -143,7 +140,7 @@ static void sz_push(struct streamzap_ir *sz, struct ir_raw_event rawir)
 {
 	dev_dbg(sz->dev, "Storing %s with duration %u us\n",
 		(rawir.pulse ? "pulse" : "space"), rawir.duration);
-	ir_raw_event_store_with_filter(sz->idev, &rawir);
+	ir_raw_event_store_with_filter(sz->rdev, &rawir);
 }
 
 static void sz_push_full_pulse(struct streamzap_ir *sz,
@@ -271,11 +268,11 @@ static void streamzap_callback(struct urb *urb)
 				DEFINE_IR_RAW_EVENT(rawir);
 
 				rawir.pulse = false;
-				rawir.duration = sz->props->timeout;
+				rawir.duration = sz->rdev->timeout;
 				sz->idle = true;
 				if (sz->timeout_enabled)
 					sz_push(sz, rawir);
-				ir_raw_event_handle(sz->idev);
+				ir_raw_event_handle(sz->rdev);
 			} else {
 				sz_push_full_space(sz, sz->buf_in[i]);
 			}
@@ -298,57 +295,43 @@ static void streamzap_callback(struct urb *urb)
 	return;
 }
 
-static struct input_dev *streamzap_init_input_dev(struct streamzap_ir *sz)
+static struct rc_dev *streamzap_init_rc_dev(struct streamzap_ir *sz)
 {
-	struct input_dev *idev;
-	struct ir_dev_props *props;
+	struct rc_dev *rdev;
 	struct device *dev = sz->dev;
 	int ret;
 
-	idev = input_allocate_device();
-	if (!idev) {
-		dev_err(dev, "remote input dev allocation failed\n");
-		goto idev_alloc_failed;
-	}
-
-	props = kzalloc(sizeof(struct ir_dev_props), GFP_KERNEL);
-	if (!props) {
-		dev_err(dev, "remote ir dev props allocation failed\n");
-		goto props_alloc_failed;
+	rdev = rc_allocate_device();
+	if (!rdev) {
+		dev_err(dev, "remote dev allocation failed\n");
+		goto out;
 	}
 
 	snprintf(sz->name, sizeof(sz->name), "Streamzap PC Remote Infrared "
 		 "Receiver (%04x:%04x)",
 		 le16_to_cpu(sz->usbdev->descriptor.idVendor),
 		 le16_to_cpu(sz->usbdev->descriptor.idProduct));
-
-	idev->name = sz->name;
 	usb_make_path(sz->usbdev, sz->phys, sizeof(sz->phys));
 	strlcat(sz->phys, "/input0", sizeof(sz->phys));
-	idev->phys = sz->phys;
 
-	props->priv = sz;
-	props->driver_type = RC_DRIVER_IR_RAW;
-	props->allowed_protos = IR_TYPE_ALL;
+	rdev->input_name = sz->name;
+	rdev->input_phys = sz->phys;
+	rdev->priv = sz;
+	rdev->driver_type = RC_DRIVER_IR_RAW;
+	rdev->allowed_protos = IR_TYPE_ALL;
+	rdev->driver_name = DRIVER_NAME;
+	rdev->map_name = RC_MAP_STREAMZAP;
 
-	sz->props = props;
-
-	usb_to_input_id(sz->usbdev, &idev->id);
-	idev->dev.parent = sz->dev;
-
-	ret = ir_input_register(idev, RC_MAP_STREAMZAP, props, DRIVER_NAME);
+	ret = rc_register_device(rdev);
 	if (ret < 0) {
 		dev_err(dev, "remote input device register failed\n");
-		goto irdev_failed;
+		goto out;
 	}
 
-	return idev;
+	return rdev;
 
-irdev_failed:
-	kfree(props);
-props_alloc_failed:
-	input_free_device(idev);
-idev_alloc_failed:
+out:
+	rc_free_device(rdev);
 	return NULL;
 }
 
@@ -437,15 +420,15 @@ static int __devinit streamzap_probe(struct usb_interface *intf,
 		snprintf(name + strlen(name), sizeof(name) - strlen(name),
 			 " %s", buf);
 
-	sz->idev = streamzap_init_input_dev(sz);
-	if (!sz->idev)
-		goto input_dev_fail;
+	sz->rdev = streamzap_init_rc_dev(sz);
+	if (!sz->rdev)
+		goto rc_dev_fail;
 
 	sz->idle = true;
 	sz->decoder_state = PulseSpace;
 	/* FIXME: don't yet have a way to set this */
 	sz->timeout_enabled = true;
-	sz->props->timeout = (((SZ_TIMEOUT * SZ_RESOLUTION * 1000) &
+	sz->rdev->timeout = (((SZ_TIMEOUT * SZ_RESOLUTION * 1000) &
 				IR_MAX_DURATION) | 0x03000000);
 	#if 0
 	/* not yet supported, depends on patches from maxim */
@@ -476,7 +459,7 @@ static int __devinit streamzap_probe(struct usb_interface *intf,
 
 	return 0;
 
-input_dev_fail:
+rc_dev_fail:
 	usb_free_urb(sz->urb_in);
 free_buf_in:
 	usb_free_coherent(usbdev, maxp, sz->buf_in, sz->dma_in);
@@ -507,7 +490,7 @@ static void streamzap_disconnect(struct usb_interface *interface)
 		return;
 
 	sz->usbdev = NULL;
-	ir_input_unregister(sz->idev);
+	rc_unregister_device(sz->rdev);
 	usb_kill_urb(sz->urb_in);
 	usb_free_urb(sz->urb_in);
 	usb_free_coherent(usbdev, sz->buf_in_len, sz->buf_in, sz->dma_in);

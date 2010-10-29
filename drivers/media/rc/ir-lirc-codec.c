@@ -24,21 +24,20 @@
 /**
  * ir_lirc_decode() - Send raw IR data to lirc_dev to be relayed to the
  *		      lircd userspace daemon for decoding.
- * @input_dev:	the struct input_dev descriptor of the device
+ * @input_dev:	the struct rc_dev descriptor of the device
  * @duration:	the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the lirc interfaces aren't wired up.
  */
-static int ir_lirc_decode(struct input_dev *input_dev, struct ir_raw_event ev)
+static int ir_lirc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 {
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	struct lirc_codec *lirc = &ir_dev->raw->lirc;
+	struct lirc_codec *lirc = &dev->raw->lirc;
 	int sample;
 
-	if (!(ir_dev->raw->enabled_protocols & IR_TYPE_LIRC))
+	if (!(dev->raw->enabled_protocols & IR_TYPE_LIRC))
 		return 0;
 
-	if (!ir_dev->raw->lirc.drv || !ir_dev->raw->lirc.drv->rbuf)
+	if (!dev->raw->lirc.drv || !dev->raw->lirc.drv->rbuf)
 		return -EINVAL;
 
 	/* Packet start */
@@ -79,7 +78,7 @@ static int ir_lirc_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 							(u64)LIRC_VALUE_MASK);
 
 			gap_sample = LIRC_SPACE(lirc->gap_duration);
-			lirc_buffer_write(ir_dev->raw->lirc.drv->rbuf,
+			lirc_buffer_write(dev->raw->lirc.drv->rbuf,
 						(unsigned char *) &gap_sample);
 			lirc->gap = false;
 		}
@@ -88,9 +87,9 @@ static int ir_lirc_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 					LIRC_SPACE(ev.duration / 1000);
 	}
 
-	lirc_buffer_write(ir_dev->raw->lirc.drv->rbuf,
+	lirc_buffer_write(dev->raw->lirc.drv->rbuf,
 			  (unsigned char *) &sample);
-	wake_up(&ir_dev->raw->lirc.drv->rbuf->wait_poll);
+	wake_up(&dev->raw->lirc.drv->rbuf->wait_poll);
 
 	return 0;
 }
@@ -99,7 +98,7 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char *buf,
 				   size_t n, loff_t *ppos)
 {
 	struct lirc_codec *lirc;
-	struct ir_input_dev *ir_dev;
+	struct rc_dev *dev;
 	int *txbuf; /* buffer with values to transmit */
 	int ret = 0, count;
 
@@ -118,14 +117,14 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char *buf,
 	if (IS_ERR(txbuf))
 		return PTR_ERR(txbuf);
 
-	ir_dev = lirc->ir_dev;
-	if (!ir_dev) {
+	dev = lirc->dev;
+	if (!dev) {
 		ret = -EFAULT;
 		goto out;
 	}
 
-	if (ir_dev->props && ir_dev->props->tx_ir)
-		ret = ir_dev->props->tx_ir(ir_dev->props->priv, txbuf, (u32)n);
+	if (dev->tx_ir)
+		ret = dev->tx_ir(dev, txbuf, (u32)n);
 
 out:
 	kfree(txbuf);
@@ -136,20 +135,17 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 			unsigned long __user arg)
 {
 	struct lirc_codec *lirc;
-	struct ir_input_dev *ir_dev;
+	struct rc_dev *dev;
 	int ret = 0;
-	void *drv_data;
 	__u32 val = 0, tmp;
 
 	lirc = lirc_get_pdata(filep);
 	if (!lirc)
 		return -EFAULT;
 
-	ir_dev = lirc->ir_dev;
-	if (!ir_dev || !ir_dev->props || !ir_dev->props->priv)
+	dev = lirc->dev;
+	if (!dev)
 		return -EFAULT;
-
-	drv_data = ir_dev->props->priv;
 
 	if (_IOC_DIR(cmd) & _IOC_WRITE) {
 		ret = get_user(val, (__u32 *)arg);
@@ -171,84 +167,85 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 
 	/* TX settings */
 	case LIRC_SET_TRANSMITTER_MASK:
-		if (!ir_dev->props->s_tx_mask)
+		if (!dev->s_tx_mask)
 			return -EINVAL;
 
-		return ir_dev->props->s_tx_mask(drv_data, val);
+		return dev->s_tx_mask(dev, val);
 
 	case LIRC_SET_SEND_CARRIER:
-		if (!ir_dev->props->s_tx_carrier)
+		if (!dev->s_tx_carrier)
 			return -EINVAL;
 
-		return ir_dev->props->s_tx_carrier(drv_data, val);
+		return dev->s_tx_carrier(dev, val);
 
 	case LIRC_SET_SEND_DUTY_CYCLE:
-		if (!ir_dev->props->s_tx_duty_cycle)
+		if (!dev->s_tx_duty_cycle)
 			return -ENOSYS;
 
 		if (val <= 0 || val >= 100)
 			return -EINVAL;
 
-		return ir_dev->props->s_tx_duty_cycle(drv_data, val);
+		return dev->s_tx_duty_cycle(dev, val);
 
 	/* RX settings */
 	case LIRC_SET_REC_CARRIER:
-		if (!ir_dev->props->s_rx_carrier_range)
+		if (!dev->s_rx_carrier_range)
 			return -ENOSYS;
 
 		if (val <= 0)
 			return -EINVAL;
 
-		return ir_dev->props->s_rx_carrier_range(drv_data,
-			ir_dev->raw->lirc.carrier_low, val);
+		return dev->s_rx_carrier_range(dev,
+					       dev->raw->lirc.carrier_low,
+					       val);
 
 	case LIRC_SET_REC_CARRIER_RANGE:
 		if (val <= 0)
 			return -EINVAL;
 
-		ir_dev->raw->lirc.carrier_low = val;
+		dev->raw->lirc.carrier_low = val;
 		return 0;
 
 	case LIRC_GET_REC_RESOLUTION:
-		val = ir_dev->props->rx_resolution;
+		val = dev->rx_resolution;
 		break;
 
 	case LIRC_SET_WIDEBAND_RECEIVER:
-		if (!ir_dev->props->s_learning_mode)
+		if (!dev->s_learning_mode)
 			return -ENOSYS;
 
-		return ir_dev->props->s_learning_mode(drv_data, !!val);
+		return dev->s_learning_mode(dev, !!val);
 
 	case LIRC_SET_MEASURE_CARRIER_MODE:
-		if (!ir_dev->props->s_carrier_report)
+		if (!dev->s_carrier_report)
 			return -ENOSYS;
 
-		return ir_dev->props->s_carrier_report(drv_data, !!val);
+		return dev->s_carrier_report(dev, !!val);
 
 	/* Generic timeout support */
 	case LIRC_GET_MIN_TIMEOUT:
-		if (!ir_dev->props->max_timeout)
+		if (!dev->max_timeout)
 			return -ENOSYS;
-		val = ir_dev->props->min_timeout / 1000;
+		val = dev->min_timeout / 1000;
 		break;
 
 	case LIRC_GET_MAX_TIMEOUT:
-		if (!ir_dev->props->max_timeout)
+		if (!dev->max_timeout)
 			return -ENOSYS;
-		val = ir_dev->props->max_timeout / 1000;
+		val = dev->max_timeout / 1000;
 		break;
 
 	case LIRC_SET_REC_TIMEOUT:
-		if (!ir_dev->props->max_timeout)
+		if (!dev->max_timeout)
 			return -ENOSYS;
 
 		tmp = val * 1000;
 
-		if (tmp < ir_dev->props->min_timeout ||
-			tmp > ir_dev->props->max_timeout)
+		if (tmp < dev->min_timeout ||
+		    tmp > dev->max_timeout)
 				return -EINVAL;
 
-		ir_dev->props->timeout = tmp;
+		dev->timeout = tmp;
 		break;
 
 	case LIRC_SET_REC_TIMEOUT_REPORTS:
@@ -289,9 +286,8 @@ static struct file_operations lirc_fops = {
 	.llseek		= no_llseek,
 };
 
-static int ir_lirc_register(struct input_dev *input_dev)
+static int ir_lirc_register(struct rc_dev *dev)
 {
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 	struct lirc_driver *drv;
 	struct lirc_buffer *rbuf;
 	int rc = -ENOMEM;
@@ -310,44 +306,40 @@ static int ir_lirc_register(struct input_dev *input_dev)
 		goto rbuf_init_failed;
 
 	features = LIRC_CAN_REC_MODE2;
-	if (ir_dev->props->tx_ir) {
-
+	if (dev->tx_ir) {
 		features |= LIRC_CAN_SEND_PULSE;
-		if (ir_dev->props->s_tx_mask)
+		if (dev->s_tx_mask)
 			features |= LIRC_CAN_SET_TRANSMITTER_MASK;
-		if (ir_dev->props->s_tx_carrier)
+		if (dev->s_tx_carrier)
 			features |= LIRC_CAN_SET_SEND_CARRIER;
-
-		if (ir_dev->props->s_tx_duty_cycle)
+		if (dev->s_tx_duty_cycle)
 			features |= LIRC_CAN_SET_SEND_DUTY_CYCLE;
 	}
 
-	if (ir_dev->props->s_rx_carrier_range)
+	if (dev->s_rx_carrier_range)
 		features |= LIRC_CAN_SET_REC_CARRIER |
 			LIRC_CAN_SET_REC_CARRIER_RANGE;
 
-	if (ir_dev->props->s_learning_mode)
+	if (dev->s_learning_mode)
 		features |= LIRC_CAN_USE_WIDEBAND_RECEIVER;
 
-	if (ir_dev->props->s_carrier_report)
+	if (dev->s_carrier_report)
 		features |= LIRC_CAN_MEASURE_CARRIER;
 
-
-	if (ir_dev->props->max_timeout)
+	if (dev->max_timeout)
 		features |= LIRC_CAN_SET_REC_TIMEOUT;
 
-
 	snprintf(drv->name, sizeof(drv->name), "ir-lirc-codec (%s)",
-		 ir_dev->driver_name);
+		 dev->driver_name);
 	drv->minor = -1;
 	drv->features = features;
-	drv->data = &ir_dev->raw->lirc;
+	drv->data = &dev->raw->lirc;
 	drv->rbuf = rbuf;
 	drv->set_use_inc = &ir_lirc_open;
 	drv->set_use_dec = &ir_lirc_close;
 	drv->code_length = sizeof(struct ir_raw_event) * 8;
 	drv->fops = &lirc_fops;
-	drv->dev = &ir_dev->dev;
+	drv->dev = &dev->dev;
 	drv->owner = THIS_MODULE;
 
 	drv->minor = lirc_register_driver(drv);
@@ -356,8 +348,8 @@ static int ir_lirc_register(struct input_dev *input_dev)
 		goto lirc_register_failed;
 	}
 
-	ir_dev->raw->lirc.drv = drv;
-	ir_dev->raw->lirc.ir_dev = ir_dev;
+	dev->raw->lirc.drv = drv;
+	dev->raw->lirc.dev = dev;
 	return 0;
 
 lirc_register_failed:
@@ -369,10 +361,9 @@ rbuf_alloc_failed:
 	return rc;
 }
 
-static int ir_lirc_unregister(struct input_dev *input_dev)
+static int ir_lirc_unregister(struct rc_dev *dev)
 {
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	struct lirc_codec *lirc = &ir_dev->raw->lirc;
+	struct lirc_codec *lirc = &dev->raw->lirc;
 
 	lirc_unregister_driver(lirc->drv->minor);
 	lirc_buffer_free(lirc->drv->rbuf);

@@ -37,9 +37,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/input.h>
 #include <media/ir-core.h>
-#include <media/ir-common.h>
 #include "ene_ir.h"
 
 static int sample_period;
@@ -357,7 +355,7 @@ void ene_rx_sense_carrier(struct ene_device *dev)
 		ev.carrier_report = true;
 		ev.carrier = carrier;
 		ev.duty_cycle = duty_cycle;
-		ir_raw_event_store(dev->idev, &ev);
+		ir_raw_event_store(dev->rdev, &ev);
 	}
 }
 
@@ -448,32 +446,32 @@ static void ene_rx_setup(struct ene_device *dev)
 
 select_timeout:
 	if (dev->rx_fan_input_inuse) {
-		dev->props->rx_resolution = MS_TO_NS(ENE_FW_SAMPLE_PERIOD_FAN);
+		dev->rdev->rx_resolution = MS_TO_NS(ENE_FW_SAMPLE_PERIOD_FAN);
 
 		/* Fan input doesn't support timeouts, it just ends the
 			input with a maximum sample */
-		dev->props->min_timeout = dev->props->max_timeout =
+		dev->rdev->min_timeout = dev->rdev->max_timeout =
 			MS_TO_NS(ENE_FW_SMPL_BUF_FAN_MSK *
 				ENE_FW_SAMPLE_PERIOD_FAN);
 	} else {
-		dev->props->rx_resolution = MS_TO_NS(sample_period);
+		dev->rdev->rx_resolution = MS_TO_NS(sample_period);
 
 		/* Theoreticly timeout is unlimited, but we cap it
 		 * because it was seen that on one device, it
 		 * would stop sending spaces after around 250 msec.
 		 * Besides, this is close to 2^32 anyway and timeout is u32.
 		 */
-		dev->props->min_timeout = MS_TO_NS(127 * sample_period);
-		dev->props->max_timeout = MS_TO_NS(200000);
+		dev->rdev->min_timeout = MS_TO_NS(127 * sample_period);
+		dev->rdev->max_timeout = MS_TO_NS(200000);
 	}
 
 	if (dev->hw_learning_and_tx_capable)
-		dev->props->tx_resolution = MS_TO_NS(sample_period);
+		dev->rdev->tx_resolution = MS_TO_NS(sample_period);
 
-	if (dev->props->timeout > dev->props->max_timeout)
-		dev->props->timeout = dev->props->max_timeout;
-	if (dev->props->timeout < dev->props->min_timeout)
-		dev->props->timeout = dev->props->min_timeout;
+	if (dev->rdev->timeout > dev->rdev->max_timeout)
+		dev->rdev->timeout = dev->rdev->max_timeout;
+	if (dev->rdev->timeout < dev->rdev->min_timeout)
+		dev->rdev->timeout = dev->rdev->min_timeout;
 }
 
 /* Enable the device for receive */
@@ -504,7 +502,7 @@ static void ene_rx_enable(struct ene_device *dev)
 	ene_set_reg_mask(dev, ENE_FW1, ENE_FW1_ENABLE | ENE_FW1_IRQ);
 
 	/* enter idle mode */
-	ir_raw_event_set_idle(dev->idev, true);
+	ir_raw_event_set_idle(dev->rdev, true);
 	dev->rx_enabled = true;
 }
 
@@ -518,7 +516,7 @@ static void ene_rx_disable(struct ene_device *dev)
 	/* disable hardware IRQ and firmware flag */
 	ene_clear_reg_mask(dev, ENE_FW1, ENE_FW1_ENABLE | ENE_FW1_IRQ);
 
-	ir_raw_event_set_idle(dev->idev, true);
+	ir_raw_event_set_idle(dev->rdev, true);
 	dev->rx_enabled = false;
 }
 
@@ -805,10 +803,10 @@ static irqreturn_t ene_isr(int irq, void *data)
 
 		ev.duration = MS_TO_NS(hw_sample);
 		ev.pulse = pulse;
-		ir_raw_event_store_with_filter(dev->idev, &ev);
+		ir_raw_event_store_with_filter(dev->rdev, &ev);
 	}
 
-	ir_raw_event_handle(dev->idev);
+	ir_raw_event_handle(dev->rdev);
 unlock:
 	spin_unlock_irqrestore(&dev->hw_lock, flags);
 	return retval;
@@ -823,7 +821,7 @@ static void ene_setup_default_settings(struct ene_device *dev)
 	dev->learning_mode_enabled = learning_mode_force;
 
 	/* Set reasonable default timeout */
-	dev->props->timeout = MS_TO_NS(150000);
+	dev->rdev->timeout = MS_TO_NS(150000);
 }
 
 /* Upload all hardware settings at once. Used at load and resume time */
@@ -838,9 +836,9 @@ static void ene_setup_hw_settings(struct ene_device *dev)
 }
 
 /* outside interface: called on first open*/
-static int ene_open(void *data)
+static int ene_open(struct rc_dev *rdev)
 {
-	struct ene_device *dev = (struct ene_device *)data;
+	struct ene_device *dev = rdev->priv;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->hw_lock, flags);
@@ -850,9 +848,9 @@ static int ene_open(void *data)
 }
 
 /* outside interface: called on device close*/
-static void ene_close(void *data)
+static void ene_close(struct rc_dev *rdev)
 {
-	struct ene_device *dev = (struct ene_device *)data;
+	struct ene_device *dev = rdev->priv;
 	unsigned long flags;
 	spin_lock_irqsave(&dev->hw_lock, flags);
 
@@ -861,9 +859,9 @@ static void ene_close(void *data)
 }
 
 /* outside interface: set transmitter mask */
-static int ene_set_tx_mask(void *data, u32 tx_mask)
+static int ene_set_tx_mask(struct rc_dev *rdev, u32 tx_mask)
 {
-	struct ene_device *dev = (struct ene_device *)data;
+	struct ene_device *dev = rdev->priv;
 	dbg("TX: attempt to set transmitter mask %02x", tx_mask);
 
 	/* invalid txmask */
@@ -879,9 +877,9 @@ static int ene_set_tx_mask(void *data, u32 tx_mask)
 }
 
 /* outside interface : set tx carrier */
-static int ene_set_tx_carrier(void *data, u32 carrier)
+static int ene_set_tx_carrier(struct rc_dev *rdev, u32 carrier)
 {
-	struct ene_device *dev = (struct ene_device *)data;
+	struct ene_device *dev = rdev->priv;
 	u32 period = 2000000 / carrier;
 
 	dbg("TX: attempt to set tx carrier to %d kHz", carrier);
@@ -900,9 +898,9 @@ static int ene_set_tx_carrier(void *data, u32 carrier)
 }
 
 /*outside interface : set tx duty cycle */
-static int ene_set_tx_duty_cycle(void *data, u32 duty_cycle)
+static int ene_set_tx_duty_cycle(struct rc_dev *rdev, u32 duty_cycle)
 {
-	struct ene_device *dev = (struct ene_device *)data;
+	struct ene_device *dev = rdev->priv;
 	dbg("TX: setting duty cycle to %d%%", duty_cycle);
 	dev->tx_duty_cycle = duty_cycle;
 	ene_tx_set_carrier(dev);
@@ -910,9 +908,9 @@ static int ene_set_tx_duty_cycle(void *data, u32 duty_cycle)
 }
 
 /* outside interface: enable learning mode */
-static int ene_set_learning_mode(void *data, int enable)
+static int ene_set_learning_mode(struct rc_dev *rdev, int enable)
 {
-	struct ene_device *dev = (struct ene_device *)data;
+	struct ene_device *dev = rdev->priv;
 	unsigned long flags;
 	if (enable == dev->learning_mode_enabled)
 		return 0;
@@ -926,9 +924,9 @@ static int ene_set_learning_mode(void *data, int enable)
 	return 0;
 }
 
-static int ene_set_carrier_report(void *data, int enable)
+static int ene_set_carrier_report(struct rc_dev *rdev, int enable)
 {
-	struct ene_device *dev = (struct ene_device *)data;
+	struct ene_device *dev = rdev->priv;
 	unsigned long flags;
 
 	if (enable == dev->carrier_detect_enabled)
@@ -944,18 +942,20 @@ static int ene_set_carrier_report(void *data, int enable)
 }
 
 /* outside interface: enable or disable idle mode */
-static void ene_set_idle(void *data, bool idle)
+static void ene_set_idle(struct rc_dev *rdev, bool idle)
 {
+	struct ene_device *dev = rdev->priv;
+
 	if (idle) {
-		ene_rx_reset((struct ene_device *)data);
+		ene_rx_reset(dev);
 		dbg("RX: end of data");
 	}
 }
 
 /* outside interface: transmit */
-static int ene_transmit(void *data, int *buf, u32 n)
+static int ene_transmit(struct rc_dev *rdev, int *buf, u32 n)
 {
-	struct ene_device *dev = (struct ene_device *)data;
+	struct ene_device *dev = rdev->priv;
 	unsigned long flags;
 
 	dev->tx_buffer = buf;
@@ -992,16 +992,13 @@ static int ene_transmit(void *data, int *buf, u32 n)
 static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 {
 	int error = -ENOMEM;
-	struct ir_dev_props *ir_props;
-	struct input_dev *input_dev;
+	struct rc_dev *rdev;
 	struct ene_device *dev;
 
 	/* allocate memory */
-	input_dev = input_allocate_device();
-	ir_props = kzalloc(sizeof(struct ir_dev_props), GFP_KERNEL);
 	dev = kzalloc(sizeof(struct ene_device), GFP_KERNEL);
-
-	if (!input_dev || !ir_props || !dev)
+	rdev = rc_allocate_device();
+	if (!dev || !rdev)
 		goto error1;
 
 	/* validate resources */
@@ -1054,24 +1051,25 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	if (!dev->hw_learning_and_tx_capable)
 		learning_mode_force = false;
 
-	ir_props->driver_type = RC_DRIVER_IR_RAW;
-	ir_props->allowed_protos = IR_TYPE_ALL;
-	ir_props->priv = dev;
-	ir_props->open = ene_open;
-	ir_props->close = ene_close;
-	ir_props->s_idle = ene_set_idle;
-
-	dev->props = ir_props;
-	dev->idev = input_dev;
+	rdev->driver_type = RC_DRIVER_IR_RAW;
+	rdev->allowed_protos = IR_TYPE_ALL;
+	rdev->priv = dev;
+	rdev->open = ene_open;
+	rdev->close = ene_close;
+	rdev->s_idle = ene_set_idle;
+	rdev->driver_name = ENE_DRIVER_NAME;
+	rdev->map_name = RC_MAP_RC6_MCE;
+	rdev->input_name = "ENE eHome Infrared Remote Receiver";
 
 	if (dev->hw_learning_and_tx_capable) {
-		ir_props->s_learning_mode = ene_set_learning_mode;
+		rdev->s_learning_mode = ene_set_learning_mode;
 		init_completion(&dev->tx_complete);
-		ir_props->tx_ir = ene_transmit;
-		ir_props->s_tx_mask = ene_set_tx_mask;
-		ir_props->s_tx_carrier = ene_set_tx_carrier;
-		ir_props->s_tx_duty_cycle = ene_set_tx_duty_cycle;
-		ir_props->s_carrier_report = ene_set_carrier_report;
+		rdev->tx_ir = ene_transmit;
+		rdev->s_tx_mask = ene_set_tx_mask;
+		rdev->s_tx_carrier = ene_set_tx_carrier;
+		rdev->s_tx_duty_cycle = ene_set_tx_duty_cycle;
+		rdev->s_carrier_report = ene_set_carrier_report;
+		rdev->input_name = "ENE eHome Infrared Remote Transceiver";
 	}
 
 	ene_rx_setup_hw_buffer(dev);
@@ -1081,16 +1079,11 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	device_set_wakeup_capable(&pnp_dev->dev, true);
 	device_set_wakeup_enable(&pnp_dev->dev, true);
 
-	if (dev->hw_learning_and_tx_capable)
-		input_dev->name = "ENE eHome Infrared Remote Transceiver";
-	else
-		input_dev->name = "ENE eHome Infrared Remote Receiver";
-
-	error = -ENODEV;
-	if (ir_input_register(input_dev, RC_MAP_RC6_MCE, ir_props,
-							ENE_DRIVER_NAME))
+	error = rc_register_device(rdev);
+	if (error < 0)
 		goto error;
 
+	dev->rdev = rdev;
 	ene_notice("driver has been succesfully loaded");
 	return 0;
 error:
@@ -1099,8 +1092,7 @@ error:
 	if (dev && dev->hw_io >= 0)
 		release_region(dev->hw_io, ENE_IO_SIZE);
 error1:
-	input_free_device(input_dev);
-	kfree(ir_props);
+	rc_free_device(rdev);
 	kfree(dev);
 	return error;
 }
@@ -1118,8 +1110,7 @@ static void ene_remove(struct pnp_dev *pnp_dev)
 
 	free_irq(dev->irq, dev);
 	release_region(dev->hw_io, ENE_IO_SIZE);
-	ir_input_unregister(dev->idev);
-	kfree(dev->props);
+	rc_unregister_device(dev->rdev);
 	kfree(dev);
 }
 

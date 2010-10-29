@@ -252,7 +252,7 @@ static void ir_key_poll(struct IR_i2c *ir)
 	}
 
 	if (rc)
-		ir_keydown(ir->input, ir_key, 0);
+		ir_keydown(ir->rc, ir_key, 0);
 }
 
 static void ir_work(struct work_struct *work)
@@ -271,20 +271,20 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	const char *name = NULL;
 	u64 ir_type = IR_TYPE_UNKNOWN;
 	struct IR_i2c *ir;
-	struct input_dev *input_dev;
+	struct rc_dev *rc;
 	struct i2c_adapter *adap = client->adapter;
 	unsigned short addr = client->addr;
 	int err;
 
 	ir = kzalloc(sizeof(struct IR_i2c),GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!ir || !input_dev) {
+	rc = rc_allocate_device();
+	if (!ir || !rc) {
 		err = -ENOMEM;
 		goto err_out_free;
 	}
 
 	ir->c = client;
-	ir->input = input_dev;
+	ir->rc = rc;
 	ir->polling_interval = DEFAULT_POLLING_INTERVAL;
 	i2c_set_clientdata(client, ir);
 
@@ -383,16 +383,18 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 dev_name(&client->dev));
 
 	/* init + register input device */
-	input_dev->id.bustype = BUS_I2C;
-	input_dev->name       = ir->name;
-	input_dev->phys       = ir->phys;
+	rc->input_id.bustype = BUS_I2C;
+	rc->input_name       = ir->name;
+	rc->input_phys       = ir->phys;
+	rc->map_name         = ir->ir_codes;
+	rc->driver_name      = MODULE_NAME;
 
-	err = ir_input_register(ir->input, ir->ir_codes, NULL, MODULE_NAME);
+	err = rc_register_device(rc);
 	if (err)
 		goto err_out_free;
 
 	printk(MODULE_NAME ": %s detected at %s [%s]\n",
-	       ir->input->name, ir->input->phys, adap->name);
+	       ir->name, ir->phys, adap->name);
 
 	/* start polling via eventd */
 	INIT_DELAYED_WORK(&ir->work, ir_work);
@@ -401,6 +403,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 
  err_out_free:
+	rc_free_device(rc);
 	kfree(ir);
 	return err;
 }
@@ -413,7 +416,7 @@ static int ir_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&ir->work);
 
 	/* unregister device */
-	ir_input_unregister(ir->input);
+	rc_unregister_device(ir->rc);
 
 	/* free memory */
 	kfree(ir);

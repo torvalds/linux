@@ -70,19 +70,18 @@ static enum rc6_mode rc6_mode(struct rc6_dec *data)
 
 /**
  * ir_rc6_decode() - Decode one RC6 pulse or space
- * @input_dev:	the struct input_dev descriptor of the device
+ * @dev:	the struct rc_dev descriptor of the device
  * @ev:		the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
-static int ir_rc6_decode(struct input_dev *input_dev, struct ir_raw_event ev)
+static int ir_rc6_decode(struct rc_dev *dev, struct ir_raw_event ev)
 {
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	struct rc6_dec *data = &ir_dev->raw->rc6;
+	struct rc6_dec *data = &dev->raw->rc6;
 	u32 scancode;
 	u8 toggle;
 
-	if (!(ir_dev->raw->enabled_protocols & IR_TYPE_RC6))
+	if (!(dev->raw->enabled_protocols & IR_TYPE_RC6))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -139,7 +138,7 @@ again:
 		return 0;
 
 	case STATE_HEADER_BIT_END:
-		if (!is_transition(&ev, &ir_dev->raw->prev_ev))
+		if (!is_transition(&ev, &dev->raw->prev_ev))
 			break;
 
 		if (data->count == RC6_HEADER_NBITS)
@@ -159,7 +158,7 @@ again:
 		return 0;
 
 	case STATE_TOGGLE_END:
-		if (!is_transition(&ev, &ir_dev->raw->prev_ev) ||
+		if (!is_transition(&ev, &dev->raw->prev_ev) ||
 		    !geq_margin(ev.duration, RC6_TOGGLE_END, RC6_UNIT / 2))
 			break;
 
@@ -204,7 +203,7 @@ again:
 		return 0;
 
 	case STATE_BODY_BIT_END:
-		if (!is_transition(&ev, &ir_dev->raw->prev_ev))
+		if (!is_transition(&ev, &dev->raw->prev_ev))
 			break;
 
 		if (data->count == data->wanted_bits)
@@ -243,7 +242,7 @@ again:
 			goto out;
 		}
 
-		ir_keydown(input_dev, scancode, toggle);
+		ir_keydown(dev, scancode, toggle);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}

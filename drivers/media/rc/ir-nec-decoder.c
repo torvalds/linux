@@ -39,19 +39,18 @@ enum nec_state {
 
 /**
  * ir_nec_decode() - Decode one NEC pulse or space
- * @input_dev:	the struct input_dev descriptor of the device
+ * @dev:	the struct rc_dev descriptor of the device
  * @duration:	the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
-static int ir_nec_decode(struct input_dev *input_dev, struct ir_raw_event ev)
+static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 {
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	struct nec_dec *data = &ir_dev->raw->nec;
+	struct nec_dec *data = &dev->raw->nec;
 	u32 scancode;
 	u8 address, not_address, command, not_command;
 
-	if (!(ir_dev->raw->enabled_protocols & IR_TYPE_NEC))
+	if (!(dev->raw->enabled_protocols & IR_TYPE_NEC))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -89,7 +88,7 @@ static int ir_nec_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 			data->state = STATE_BIT_PULSE;
 			return 0;
 		} else if (eq_margin(ev.duration, NEC_REPEAT_SPACE, NEC_UNIT / 2)) {
-			ir_repeat(input_dev);
+			ir_repeat(dev);
 			IR_dprintk(1, "Repeat last key\n");
 			data->state = STATE_TRAILER_PULSE;
 			return 0;
@@ -115,7 +114,7 @@ static int ir_nec_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 			geq_margin(ev.duration,
 			NEC_TRAILER_SPACE, NEC_UNIT / 2)) {
 				IR_dprintk(1, "Repeat last key\n");
-				ir_repeat(input_dev);
+				ir_repeat(dev);
 				data->state = STATE_INACTIVE;
 				return 0;
 
@@ -179,7 +178,7 @@ static int ir_nec_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 		if (data->is_nec_x)
 			data->necx_repeat = true;
 
-		ir_keydown(input_dev, scancode, 0);
+		ir_keydown(dev, scancode, 0);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}

@@ -24,7 +24,6 @@
 
 #include <linux/init.h>
 #include <linux/hrtimer.h>
-#include <linux/input.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -38,8 +37,7 @@
 
 struct cx88_IR {
 	struct cx88_core *core;
-	struct input_dev *input;
-	struct ir_dev_props props;
+	struct rc_dev *dev;
 
 	int users;
 
@@ -125,26 +123,26 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 
 		data = (data << 4) | ((gpio_key & 0xf0) >> 4);
 
-		ir_keydown(ir->input, data, 0);
+		ir_keydown(ir->dev, data, 0);
 
 	} else if (ir->mask_keydown) {
 		/* bit set on keydown */
 		if (gpio & ir->mask_keydown)
-			ir_keydown_notimeout(ir->input, data, 0);
+			ir_keydown_notimeout(ir->dev, data, 0);
 		else
-			ir_keyup(ir->input);
+			ir_keyup(ir->dev);
 
 	} else if (ir->mask_keyup) {
 		/* bit cleared on keydown */
 		if (0 == (gpio & ir->mask_keyup))
-			ir_keydown_notimeout(ir->input, data, 0);
+			ir_keydown_notimeout(ir->dev, data, 0);
 		else
-			ir_keyup(ir->input);
+			ir_keyup(ir->dev);
 
 	} else {
 		/* can't distinguish keydown/up :-/ */
-		ir_keydown_notimeout(ir->input, data, 0);
-		ir_keyup(ir->input);
+		ir_keydown_notimeout(ir->dev, data, 0);
+		ir_keyup(ir->dev);
 	}
 }
 
@@ -219,17 +217,17 @@ void cx88_ir_stop(struct cx88_core *core)
 		__cx88_ir_stop(core);
 }
 
-static int cx88_ir_open(void *priv)
+static int cx88_ir_open(struct rc_dev *rc)
 {
-	struct cx88_core *core = priv;
+	struct cx88_core *core = rc->priv;
 
 	core->ir->users++;
 	return __cx88_ir_start(core);
 }
 
-static void cx88_ir_close(void *priv)
+static void cx88_ir_close(struct rc_dev *rc)
 {
-	struct cx88_core *core = priv;
+	struct cx88_core *core = rc->priv;
 
 	core->ir->users--;
 	if (!core->ir->users)
@@ -241,7 +239,7 @@ static void cx88_ir_close(void *priv)
 int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 {
 	struct cx88_IR *ir;
-	struct input_dev *input_dev;
+	struct rc_dev *dev;
 	char *ir_codes = NULL;
 	u64 ir_type = IR_TYPE_OTHER;
 	int err = -ENOMEM;
@@ -250,11 +248,11 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 				 */
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!ir || !input_dev)
+	dev = rc_allocate_device();
+	if (!ir || !dev)
 		goto err_out_free;
 
-	ir->input = input_dev;
+	ir->dev = dev;
 
 	/* detect & configure */
 	switch (core->boardnr) {
@@ -435,43 +433,45 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	snprintf(ir->name, sizeof(ir->name), "cx88 IR (%s)", core->board.name);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0", pci_name(pci));
 
-	input_dev->name = ir->name;
-	input_dev->phys = ir->phys;
-	input_dev->id.bustype = BUS_PCI;
-	input_dev->id.version = 1;
+	dev->input_name = ir->name;
+	dev->input_phys = ir->phys;
+	dev->input_id.bustype = BUS_PCI;
+	dev->input_id.version = 1;
 	if (pci->subsystem_vendor) {
-		input_dev->id.vendor = pci->subsystem_vendor;
-		input_dev->id.product = pci->subsystem_device;
+		dev->input_id.vendor = pci->subsystem_vendor;
+		dev->input_id.product = pci->subsystem_device;
 	} else {
-		input_dev->id.vendor = pci->vendor;
-		input_dev->id.product = pci->device;
+		dev->input_id.vendor = pci->vendor;
+		dev->input_id.product = pci->device;
 	}
-	input_dev->dev.parent = &pci->dev;
-	/* record handles to ourself */
+	dev->dev.parent = &pci->dev;
+	dev->map_name = ir_codes;
+	dev->driver_name = MODULE_NAME;
+	dev->priv = core;
+	dev->open = cx88_ir_open;
+	dev->close = cx88_ir_close;
+	dev->scanmask = hardware_mask;
+
+	if (ir->sampling) {
+		dev->driver_type = RC_DRIVER_IR_RAW;
+		dev->timeout = 10 * 1000 * 1000; /* 10 ms */
+	} else {
+		dev->driver_type = RC_DRIVER_SCANCODE;
+		dev->allowed_protos = ir_type;
+	}
+
 	ir->core = core;
 	core->ir = ir;
 
-	if (ir->sampling) {
-		ir_type = IR_TYPE_ALL;
-		ir->props.driver_type = RC_DRIVER_IR_RAW;
-		ir->props.timeout = 10 * 1000 * 1000; /* 10 ms */
-	} else
-		ir->props.driver_type = RC_DRIVER_SCANCODE;
-
-	ir->props.priv = core;
-	ir->props.open = cx88_ir_open;
-	ir->props.close = cx88_ir_close;
-	ir->props.scanmask = hardware_mask;
-	ir->props.allowed_protos = ir_type;
-
 	/* all done */
-	err = ir_input_register(ir->input, ir_codes, &ir->props, MODULE_NAME);
+	err = rc_register_device(dev);
 	if (err)
 		goto err_out_free;
 
 	return 0;
 
- err_out_free:
+err_out_free:
+	rc_free_device(dev);
 	core->ir = NULL;
 	kfree(ir);
 	return err;
@@ -486,7 +486,7 @@ int cx88_ir_fini(struct cx88_core *core)
 		return 0;
 
 	cx88_ir_stop(core);
-	ir_input_unregister(ir->input);
+	rc_unregister_device(ir->dev);
 	kfree(ir);
 
 	/* done */
@@ -502,7 +502,6 @@ void cx88_ir_irq(struct cx88_core *core)
 	u32 samples;
 	unsigned todo, bits;
 	struct ir_raw_event ev;
-	struct ir_input_dev *irdev;
 
 	if (!ir || !ir->sampling)
 		return;
@@ -513,9 +512,8 @@ void cx88_ir_irq(struct cx88_core *core)
 	 * represents a pulse.
 	 */
 	samples = cx_read(MO_SAMPLE_IO);
-       	irdev = input_get_drvdata(ir->input);
 
-	if (samples == 0xff && irdev->idle)
+	if (samples == 0xff && ir->dev->idle)
 		return;
 
 	init_ir_raw_event(&ev);
@@ -523,10 +521,10 @@ void cx88_ir_irq(struct cx88_core *core)
 		ev.pulse = samples & 0x80000000 ? false : true;
 		bits = min(todo, 32U - fls(ev.pulse ? samples : ~samples));
 		ev.duration = (bits * NSEC_PER_SEC) / (1000 * ir_samplerate);
-		ir_raw_event_store_with_filter(ir->input, &ev);
+		ir_raw_event_store_with_filter(ir->dev, &ev);
 		samples <<= bits;
 	}
-	ir_raw_event_handle(ir->input);
+	ir_raw_event_handle(ir->dev);
 }
 
 void cx88_i2c_init_ir(struct cx88_core *core)

@@ -31,10 +31,6 @@
 
 static int ir_debug;
 module_param(ir_debug, int, 0644);
-static int repeat_delay = 500;
-module_param(repeat_delay, int, 0644);
-static int repeat_period = 33;
-module_param(repeat_period, int, 0644);
 
 static int ir_rc5_remote_gap = 885;
 module_param(ir_rc5_remote_gap, int, 0644);
@@ -317,15 +313,15 @@ int bttv_input_init(struct bttv *btv)
 {
 	struct card_ir *ir;
 	char *ir_codes = NULL;
-	struct input_dev *input_dev;
+	struct rc_dev *rc;
 	int err = -ENOMEM;
 
 	if (!btv->has_remote)
 		return -ENODEV;
 
 	ir = kzalloc(sizeof(*ir),GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!ir || !input_dev)
+	rc = rc_allocate_device();
+	if (!ir || !rc)
 		goto err_out_free;
 
 	/* detect & configure */
@@ -431,37 +427,35 @@ int bttv_input_init(struct bttv *btv)
 	}
 
 	/* init input device */
-	ir->dev = input_dev;
+	ir->dev = rc;
 
 	snprintf(ir->name, sizeof(ir->name), "bttv IR (card=%d)",
 		 btv->c.type);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(btv->c.pci));
 
-	input_dev->name = ir->name;
-	input_dev->phys = ir->phys;
-	input_dev->id.bustype = BUS_PCI;
-	input_dev->id.version = 1;
+	rc->input_name = ir->name;
+	rc->input_phys = ir->phys;
+	rc->input_id.bustype = BUS_PCI;
+	rc->input_id.version = 1;
 	if (btv->c.pci->subsystem_vendor) {
-		input_dev->id.vendor  = btv->c.pci->subsystem_vendor;
-		input_dev->id.product = btv->c.pci->subsystem_device;
+		rc->input_id.vendor  = btv->c.pci->subsystem_vendor;
+		rc->input_id.product = btv->c.pci->subsystem_device;
 	} else {
-		input_dev->id.vendor  = btv->c.pci->vendor;
-		input_dev->id.product = btv->c.pci->device;
+		rc->input_id.vendor  = btv->c.pci->vendor;
+		rc->input_id.product = btv->c.pci->device;
 	}
-	input_dev->dev.parent = &btv->c.pci->dev;
+	rc->dev.parent = &btv->c.pci->dev;
+	rc->map_name = ir_codes;
+	rc->driver_name = MODULE_NAME;
 
 	btv->remote = ir;
 	bttv_ir_start(btv, ir);
 
 	/* all done */
-	err = ir_input_register(btv->remote->dev, ir_codes, NULL, MODULE_NAME);
+	err = rc_register_device(rc);
 	if (err)
 		goto err_out_stop;
-
-	/* the remote isn't as bouncy as a keyboard */
-	ir->dev->rep[REP_DELAY] = repeat_delay;
-	ir->dev->rep[REP_PERIOD] = repeat_period;
 
 	return 0;
 
@@ -469,6 +463,7 @@ int bttv_input_init(struct bttv *btv)
 	bttv_ir_stop(btv);
 	btv->remote = NULL;
  err_out_free:
+	rc_free_device(rc);
 	kfree(ir);
 	return err;
 }
@@ -479,7 +474,7 @@ void bttv_input_fini(struct bttv *btv)
 		return;
 
 	bttv_ir_stop(btv);
-	ir_input_unregister(btv->remote->dev);
+	rc_unregister_device(btv->remote->dev);
 	kfree(btv->remote);
 	btv->remote = NULL;
 }

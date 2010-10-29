@@ -9,9 +9,8 @@ struct IR_i2c;
 
 struct IR_i2c {
 	char		       *ir_codes;
-
 	struct i2c_client      *c;
-	struct input_dev       *input;
+	struct rc_dev          *rc;
 
 	/* Used to avoid fast repeating */
 	unsigned char          old;

@@ -36,12 +36,11 @@
 /* this was saa7134_ir and bttv_ir, moved here for
  * rc5 decoding. */
 struct card_ir {
-	struct input_dev        *dev;
+	struct rc_dev		*dev;
 	char                    name[32];
 	char                    phys[32];
 	int			users;
 	u32			running:1;
-	struct ir_dev_props	props;
 
 	/* Usual gpio signalling */
 	u32                     mask_keycode;

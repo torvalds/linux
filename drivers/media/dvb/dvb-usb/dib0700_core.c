@@ -471,9 +471,9 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return dib0700_ctrl_wr(adap->dev, b, 4);
 }
 
-int dib0700_change_protocol(void *priv, u64 ir_type)
+int dib0700_change_protocol(struct rc_dev *rc, u64 ir_type)
 {
-	struct dvb_usb_device *d = priv;
+	struct dvb_usb_device *d = rc->priv;
 	struct dib0700_state *st = d->priv;
 	u8 rc_setup[3] = { REQUEST_SET_RC, 0, 0 };
 	int new_proto, ret;
@@ -535,7 +535,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 	if (d == NULL)
 		return;
 
-	if (d->rc_input_dev == NULL) {
+	if (d->rc_dev == NULL) {
 		/* This will occur if disable_rc_polling=1 */
 		usb_free_urb(purb);
 		return;
@@ -600,7 +600,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		goto resubmit;
 	}
 
-	ir_keydown(d->rc_input_dev, keycode, toggle);
+	ir_keydown(d->rc_dev, keycode, toggle);
 
 resubmit:
 	/* Clean the buffer before we requeue */

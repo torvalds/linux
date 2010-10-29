@@ -24,11 +24,11 @@ struct ir_raw_handler {
 	struct list_head list;
 
 	u64 protocols; /* which are handled by this handler */
-	int (*decode)(struct input_dev *input_dev, struct ir_raw_event event);
+	int (*decode)(struct rc_dev *dev, struct ir_raw_event event);
 
 	/* These two should only be used by the lirc decoder */
-	int (*raw_register)(struct input_dev *input_dev);
-	int (*raw_unregister)(struct input_dev *input_dev);
+	int (*raw_register)(struct rc_dev *dev);
+	int (*raw_unregister)(struct rc_dev *dev);
 };
 
 struct ir_raw_event_ctrl {
@@ -38,7 +38,7 @@ struct ir_raw_event_ctrl {
 	struct kfifo			kfifo;		/* fifo for the pulse/space durations */
 	ktime_t				last_event;	/* when last event occurred */
 	enum raw_event_type		last_type;	/* last event type */
-	struct input_dev		*input_dev;	/* pointer to the parent input_dev */
+	struct rc_dev			*dev;		/* pointer to the parent rc_dev */
 	u64				enabled_protocols; /* enabled raw protocol decoders */
 
 	/* raw decoder state follows */
@@ -85,7 +85,7 @@ struct ir_raw_event_ctrl {
 		unsigned wanted_bits;
 	} rc5_sz;
 	struct lirc_codec {
-		struct ir_input_dev *ir_dev;
+		struct rc_dev *dev;
 		struct lirc_driver *drv;
 		int carrier_low;
 
@@ -131,11 +131,11 @@ static inline bool is_timing_event(struct ir_raw_event ev)
 #define TO_STR(is_pulse)		((is_pulse) ? "pulse" : "space")
 
 /*
- * Routines from ir-raw-event.c to be used internally and by decoders
+ * Routines from rc-raw.c to be used internally and by decoders
  */
 u64 ir_raw_get_allowed_protocols(void);
-int ir_raw_event_register(struct input_dev *input_dev);
-void ir_raw_event_unregister(struct input_dev *input_dev);
+int ir_raw_event_register(struct rc_dev *dev);
+void ir_raw_event_unregister(struct rc_dev *dev);
 int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler);
 void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler);
 void ir_raw_init(void);

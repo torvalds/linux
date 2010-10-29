@@ -40,19 +40,18 @@ enum rc5_state {
 
 /**
  * ir_rc5_decode() - Decode one RC-5 pulse or space
- * @input_dev:	the struct input_dev descriptor of the device
+ * @dev:	the struct rc_dev descriptor of the device
  * @ev:		the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
-static int ir_rc5_decode(struct input_dev *input_dev, struct ir_raw_event ev)
+static int ir_rc5_decode(struct rc_dev *dev, struct ir_raw_event ev)
 {
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	struct rc5_dec *data = &ir_dev->raw->rc5;
+	struct rc5_dec *data = &dev->raw->rc5;
 	u8 toggle;
 	u32 scancode;
 
-        if (!(ir_dev->raw->enabled_protocols & IR_TYPE_RC5))
+        if (!(dev->raw->enabled_protocols & IR_TYPE_RC5))
                 return 0;
 
 	if (!is_timing_event(ev)) {
@@ -96,7 +95,7 @@ again:
 		return 0;
 
 	case STATE_BIT_END:
-		if (!is_transition(&ev, &ir_dev->raw->prev_ev))
+		if (!is_transition(&ev, &dev->raw->prev_ev))
 			break;
 
 		if (data->count == data->wanted_bits)
@@ -151,7 +150,7 @@ again:
 				   scancode, toggle);
 		}
 
-		ir_keydown(input_dev, scancode, toggle);
+		ir_keydown(dev, scancode, toggle);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}

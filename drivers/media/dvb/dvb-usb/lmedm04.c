@@ -198,7 +198,7 @@ static int lme2510_remote_keypress(struct dvb_usb_adapter *adap, u16 keypress)
 	deb_info(1, "INT Key Keypress =%04x", keypress);
 
 	if (keypress > 0)
-		ir_keydown(d->rc_input_dev, keypress, 0);
+		ir_keydown(d->rc_dev, keypress, 0);
 
 	return 0;
 }
@@ -555,42 +555,39 @@ static int lme2510_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 static int lme2510_int_service(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *d = adap->dev;
-	struct input_dev *input_dev;
-	char *ir_codes = RC_MAP_LME2510;
-	int ret = 0;
+	struct rc_dev *rc;
+	int ret;
 
 	info("STA Configuring Remote");
 
-	usb_make_path(d->udev, d->rc_phys, sizeof(d->rc_phys));
-
-	strlcat(d->rc_phys, "/ir0", sizeof(d->rc_phys));
-
-	input_dev = input_allocate_device();
-	if (!input_dev)
+	rc = rc_allocate_device();
+	if (!rc)
 		return -ENOMEM;
 
-	input_dev->name = "LME2510 Remote Control";
-	input_dev->phys = d->rc_phys;
+	usb_make_path(d->udev, d->rc_phys, sizeof(d->rc_phys));
+	strlcat(d->rc_phys, "/ir0", sizeof(d->rc_phys));
 
-	usb_to_input_id(d->udev, &input_dev->id);
+	rc->input_name = "LME2510 Remote Control";
+	rc->input_phys = d->rc_phys;
+	rc->map_name = RC_MAP_LME2510;
+	rc->driver_name = "LME 2510";
+	usb_to_input_id(d->udev, &rc->input_id);
 
-	ret |= ir_input_register(input_dev, ir_codes, NULL, "LME 2510");
-
+	ret = rc_register_device(rc);
 	if (ret) {
-		input_free_device(input_dev);
+		rc_free_device(rc);
 		return ret;
 	}
+	d->rc_dev = rc;
 
-	d->rc_input_dev = input_dev;
 	/* Start the Interupt */
 	ret = lme2510_int_read(adap);
-
 	if (ret < 0) {
-		ir_input_unregister(input_dev);
-		input_free_device(input_dev);
+		rc_unregister_device(rc);
+		return -ENODEV;
 	}
 
-	return (ret < 0) ? -ENODEV : 0;
+	return 0;
 }
 
 static u8 check_sum(u8 *p, u8 len)
@@ -1025,7 +1022,7 @@ void *lme2510_exit_int(struct dvb_usb_device *d)
 		usb_free_coherent(d->udev, 5000, st->buffer,
 				  st->lme_urb->transfer_dma);
 		info("Interupt Service Stopped");
-		ir_input_unregister(d->rc_input_dev);
+		rc_unregister_device(d->rc_dev);
 		info("Remote Stopped");
 	}
 	return buffer;

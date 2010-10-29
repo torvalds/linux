@@ -607,7 +607,15 @@ struct cx231xx_ir_t {
 	char name[40];
 	char phys[32];
 
+#if 0	
+	/*
+	 * Due to a Kconfig change, cx231xx-input is not being compiled.
+	 * This structure disappeared, but other fixes are also needed.
+	 * So, as a workaround, let's just comment this struct and let a
+	 * latter patch fix it.
+	 */
 	struct ir_dev_props props;
+#endif
 
 	/* I2C keyboard data */
 	struct IR_i2c_init_data    init_data;

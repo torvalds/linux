@@ -180,18 +180,20 @@ struct dvb_rc_legacy {
  * struct dvb_rc properties of remote controller, using rc-core
  * @rc_codes: name of rc codes table
  * @protocol: type of protocol(s) currently used by the driver
+ * @allowed_protos: protocol(s) supported by the driver
+ * @change_protocol: callback to change protocol
  * @rc_query: called to query an event event.
  * @rc_interval: time in ms between two queries.
- * @rc_props: remote controller properties
  * @bulk_mode: device supports bulk mode for RC (disable polling mode)
  */
 struct dvb_rc {
 	char *rc_codes;
 	u64 protocol;
+	u64 allowed_protos;
+	int (*change_protocol)(struct rc_dev *dev, u64 ir_type);
 	char *module_name;
 	int (*rc_query) (struct dvb_usb_device *d);
 	int rc_interval;
-	struct ir_dev_props rc_props;
 	bool bulk_mode;				/* uses bulk mode */
 };
 
@@ -385,7 +387,8 @@ struct dvb_usb_adapter {
  *
  * @i2c_adap: device's i2c_adapter if it uses I2CoverUSB
  *
- * @rc_input_dev: input device for the remote control.
+ * @rc_dev: rc device for the remote control (rc-core mode)
+ * @input_dev: input device for the remote control (legacy mode)
  * @rc_query_work: struct work_struct frequent rc queries
  * @last_event: last triggered event
  * @last_state: last state (no, pressed, repeat)
@@ -418,7 +421,8 @@ struct dvb_usb_device {
 	struct dvb_usb_adapter adapter[MAX_NO_OF_ADAPTER_PER_DEVICE];
 
 	/* remote control */
-	struct input_dev *rc_input_dev;
+	struct rc_dev *rc_dev;
+	struct input_dev *input_dev;
 	char rc_phys[64];
 	struct delayed_work rc_query_work;
 	u32 last_event;

@@ -205,8 +205,7 @@
 
 struct ene_device {
 	struct pnp_dev *pnp_dev;
-	struct input_dev *idev;
-	struct ir_dev_props *props;
+	struct rc_dev *rdev;
 
 	/* hw IO settings */
 	long hw_io;

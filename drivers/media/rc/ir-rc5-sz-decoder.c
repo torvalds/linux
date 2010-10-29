@@ -36,19 +36,18 @@ enum rc5_sz_state {
 
 /**
  * ir_rc5_sz_decode() - Decode one RC-5 Streamzap pulse or space
- * @input_dev:	the struct input_dev descriptor of the device
+ * @dev:	the struct rc_dev descriptor of the device
  * @ev:		the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
-static int ir_rc5_sz_decode(struct input_dev *input_dev, struct ir_raw_event ev)
+static int ir_rc5_sz_decode(struct rc_dev *dev, struct ir_raw_event ev)
 {
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	struct rc5_sz_dec *data = &ir_dev->raw->rc5_sz;
+	struct rc5_sz_dec *data = &dev->raw->rc5_sz;
 	u8 toggle, command, system;
 	u32 scancode;
 
-        if (!(ir_dev->raw->enabled_protocols & IR_TYPE_RC5_SZ))
+        if (!(dev->raw->enabled_protocols & IR_TYPE_RC5_SZ))
                 return 0;
 
 	if (!is_timing_event(ev)) {
@@ -91,7 +90,7 @@ again:
 		return 0;
 
 	case STATE_BIT_END:
-		if (!is_transition(&ev, &ir_dev->raw->prev_ev))
+		if (!is_transition(&ev, &dev->raw->prev_ev))
 			break;
 
 		if (data->count == data->wanted_bits)
@@ -115,7 +114,7 @@ again:
 		IR_dprintk(1, "RC5-sz scancode 0x%04x (toggle: %u)\n",
 			   scancode, toggle);
 
-		ir_keydown(input_dev, scancode, toggle);
+		ir_keydown(dev, scancode, toggle);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}

@@ -32,21 +32,38 @@ enum rc_driver_type {
 };
 
 /**
- * struct ir_dev_props - Allow caller drivers to set special properties
- * @driver_type: specifies if the driver or hardware have already a decoder,
- *	or if it needs to use the IR raw event decoders to produce a scancode
+ * struct rc_dev - represents a remote control device
+ * @dev: driver model's view of this device
+ * @input_name: name of the input child device
+ * @input_phys: physical path to the input child device
+ * @input_id: id of the input child device (struct input_id)
+ * @driver_name: name of the hardware driver which registered this device
+ * @map_name: name of the default keymap
+ * @rc_tab: current scan/key table
+ * @devno: unique remote control device number
+ * @raw: additional data for raw pulse/space devices
+ * @input_dev: the input child device used to communicate events to userspace
+ * @driver_type: specifies if protocol decoding is done in hardware or software 
+ * @idle: used to keep track of RX state
  * @allowed_protos: bitmask with the supported IR_TYPE_* protocols
  * @scanmask: some hardware decoders are not capable of providing the full
  *	scancode to the application. As this is a hardware limit, we can't do
  *	anything with it. Yet, as the same keycode table can be used with other
  *	devices, a mask is provided to allow its usage. Drivers should generally
  *	leave this field in blank
+ * @priv: driver-specific data
+ * @keylock: protects the remaining members of the struct
+ * @keypressed: whether a key is currently pressed
+ * @keyup_jiffies: time (in jiffies) when the current keypress should be released
+ * @timer_keyup: timer for releasing a keypress
+ * @last_keycode: keycode of last keypress
+ * @last_scancode: scancode of last keypress
+ * @last_toggle: toggle value of last command
  * @timeout: optional time after which device stops sending data
  * @min_timeout: minimum timeout supported by device
  * @max_timeout: maximum timeout supported by device
  * @rx_resolution : resolution (in ns) of input sampler
  * @tx_resolution: resolution (in ns) of output sampler
- * @priv: driver-specific data, to be used on the callbacks
  * @change_protocol: allow changing the protocol used on hardware decoders
  * @open: callback to allow drivers to enable polling/irq when IR input device
  *	is opened.
@@ -57,55 +74,50 @@ enum rc_driver_type {
  * @s_tx_duty_cycle: set transmit duty cycle (0% - 100%)
  * @s_rx_carrier: inform driver about carrier it is expected to handle
  * @tx_ir: transmit IR
- * @s_idle: optional: enable/disable hardware idle mode, upon which,
-	device doesn't interrupt host until it sees IR pulses
+ * @s_idle: enable/disable hardware idle mode, upon which,
+ *	device doesn't interrupt host until it sees IR pulses
  * @s_learning_mode: enable wide band receiver used for learning
  * @s_carrier_report: enable carrier reports
  */
-struct ir_dev_props {
-	enum rc_driver_type	driver_type;
-	unsigned long		allowed_protos;
-	u32			scanmask;
-
-	u32			timeout;
-	u32			min_timeout;
-	u32			max_timeout;
-
-	u32			rx_resolution;
-	u32			tx_resolution;
-
-	void			*priv;
-	int			(*change_protocol)(void *priv, u64 ir_type);
-	int			(*open)(void *priv);
-	void			(*close)(void *priv);
-	int			(*s_tx_mask)(void *priv, u32 mask);
-	int			(*s_tx_carrier)(void *priv, u32 carrier);
-	int			(*s_tx_duty_cycle)(void *priv, u32 duty_cycle);
-	int			(*s_rx_carrier_range)(void *priv, u32 min, u32 max);
-	int			(*tx_ir)(void *priv, int *txbuf, u32 n);
-	void			(*s_idle)(void *priv, bool enable);
-	int			(*s_learning_mode)(void *priv, int enable);
-	int			(*s_carrier_report) (void *priv, int enable);
-};
-
-struct ir_input_dev {
-	struct device			dev;		/* device */
-	char				*driver_name;	/* Name of the driver module */
-	struct ir_scancode_table	rc_tab;		/* scan/key table */
-	unsigned long			devno;		/* device number */
-	struct ir_dev_props		*props;		/* Device properties */
-	struct ir_raw_event_ctrl	*raw;		/* for raw pulse/space events */
-	struct input_dev		*input_dev;	/* the input device associated with this device */
+struct rc_dev {
+	struct device			dev;
+	const char			*input_name;
+	const char			*input_phys;
+	struct input_id			input_id;
+	char				*driver_name;
+	const char			*map_name;
+	struct ir_scancode_table	rc_tab;
+	unsigned long			devno;
+	struct ir_raw_event_ctrl	*raw;
+	struct input_dev		*input_dev;
+	enum rc_driver_type		driver_type;
 	bool				idle;
-
-	/* key info - needed by IR keycode handlers */
-	spinlock_t			keylock;	/* protects the below members */
-	bool				keypressed;	/* current state */
-	unsigned long			keyup_jiffies;	/* when should the current keypress be released? */
-	struct timer_list		timer_keyup;	/* timer for releasing a keypress */
-	u32				last_keycode;	/* keycode of last command */
-	u32				last_scancode;	/* scancode of last command */
-	u8				last_toggle;	/* toggle of last command */
+	u64				allowed_protos;
+	u32				scanmask;
+	void				*priv;
+	spinlock_t			keylock;
+	bool				keypressed;
+	unsigned long			keyup_jiffies;
+	struct timer_list		timer_keyup;
+	u32				last_keycode;
+	u32				last_scancode;
+	u8				last_toggle;
+	u32				timeout;
+	u32				min_timeout;
+	u32				max_timeout;
+	u32				rx_resolution;
+	u32				tx_resolution;
+	int				(*change_protocol)(struct rc_dev *dev, u64 ir_type);
+	int				(*open)(struct rc_dev *dev);
+	void				(*close)(struct rc_dev *dev);
+	int				(*s_tx_mask)(struct rc_dev *dev, u32 mask);
+	int				(*s_tx_carrier)(struct rc_dev *dev, u32 carrier);
+	int				(*s_tx_duty_cycle)(struct rc_dev *dev, u32 duty_cycle);
+	int				(*s_rx_carrier_range)(struct rc_dev *dev, u32 min, u32 max);
+	int				(*tx_ir)(struct rc_dev *dev, int *txbuf, u32 n);
+	void				(*s_idle)(struct rc_dev *dev, bool enable);
+	int				(*s_learning_mode)(struct rc_dev *dev, int enable);
+	int				(*s_carrier_report) (struct rc_dev *dev, int enable);
 };
 
 enum raw_event_type {
@@ -115,52 +127,14 @@ enum raw_event_type {
 	IR_STOP_EVENT   = (1 << 3),
 };
 
-#define to_ir_input_dev(_attr) container_of(_attr, struct ir_input_dev, attr)
+#define to_rc_dev(d) container_of(d, struct rc_dev, dev)
 
-int __ir_input_register(struct input_dev *dev,
-		      const struct ir_scancode_table *ir_codes,
-		      struct ir_dev_props *props,
-		      const char *driver_name);
 
-static inline int ir_input_register(struct input_dev *dev,
-		      const char *map_name,
-		      struct ir_dev_props *props,
-		      const char *driver_name) {
-	struct ir_scancode_table *ir_codes;
-	struct ir_input_dev *ir_dev;
-	int rc;
-
-	if (!map_name)
-		return -EINVAL;
-
-	ir_codes = get_rc_map(map_name);
-	if (!ir_codes) {
-		ir_codes = get_rc_map(RC_MAP_EMPTY);
-
-		if (!ir_codes)
-			return -EINVAL;
-	}
-
-	rc = __ir_input_register(dev, ir_codes, props, driver_name);
-	if (rc < 0)
-		return -EINVAL;
-
-	ir_dev = input_get_drvdata(dev);
-
-	if (!rc && ir_dev->props && ir_dev->props->change_protocol)
-		rc = ir_dev->props->change_protocol(ir_dev->props->priv,
-						    ir_codes->ir_type);
-
-	return rc;
-}
-
-void ir_input_unregister(struct input_dev *input_dev);
-
-void ir_repeat(struct input_dev *dev);
-void ir_keydown(struct input_dev *dev, int scancode, u8 toggle);
-void ir_keydown_notimeout(struct input_dev *dev, int scancode, u8 toggle);
-void ir_keyup(struct input_dev *dev);
-u32 ir_g_keycode_from_table(struct input_dev *input_dev, u32 scancode);
+void ir_repeat(struct rc_dev *dev);
+void ir_keydown(struct rc_dev *dev, int scancode, u8 toggle);
+void ir_keydown_notimeout(struct rc_dev *dev, int scancode, u8 toggle);
+void ir_keyup(struct rc_dev *dev);
+u32 ir_g_keycode_from_table(struct rc_dev *dev, u32 scancode);
 
 /* From ir-raw-event.c */
 struct ir_raw_event {
@@ -194,20 +168,25 @@ static inline void init_ir_raw_event(struct ir_raw_event *ev)
 
 #define IR_MAX_DURATION         0xFFFFFFFF      /* a bit more than 4 seconds */
 
-void ir_raw_event_handle(struct input_dev *input_dev);
-int ir_raw_event_store(struct input_dev *input_dev, struct ir_raw_event *ev);
-int ir_raw_event_store_edge(struct input_dev *input_dev, enum raw_event_type type);
-int ir_raw_event_store_with_filter(struct input_dev *input_dev,
-				struct ir_raw_event *ev);
-void ir_raw_event_set_idle(struct input_dev *input_dev, bool idle);
+struct rc_dev *rc_allocate_device(void);
+void rc_free_device(struct rc_dev *dev);
+int rc_register_device(struct rc_dev *dev);
+void rc_unregister_device(struct rc_dev *dev);
 
-static inline void ir_raw_event_reset(struct input_dev *input_dev)
+void ir_raw_event_handle(struct rc_dev *dev);
+int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev);
+int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type);
+int ir_raw_event_store_with_filter(struct rc_dev *dev,
+				struct ir_raw_event *ev);
+void ir_raw_event_set_idle(struct rc_dev *dev, bool idle);
+
+static inline void ir_raw_event_reset(struct rc_dev *dev)
 {
 	DEFINE_IR_RAW_EVENT(ev);
 	ev.reset = true;
 
-	ir_raw_event_store(input_dev, &ev);
-	ir_raw_event_handle(input_dev);
+	ir_raw_event_store(dev, &ev);
+	ir_raw_event_handle(dev);
 }
 
 

@@ -88,7 +88,6 @@ static ssize_t lcd_write(struct file *file, const char *buf,
 
 struct imon_context {
 	struct device *dev;
-	struct ir_dev_props *props;
 	/* Newer devices have two interfaces */
 	struct usb_device *usbdev_intf0;
 	struct usb_device *usbdev_intf1;
@@ -123,7 +122,7 @@ struct imon_context {
 	u16 vendor;			/* usb vendor ID */
 	u16 product;			/* usb product ID */
 
-	struct input_dev *rdev;		/* input device for remote */
+	struct rc_dev *rdev;		/* rc-core device for remote */
 	struct input_dev *idev;		/* input device for panel & IR mouse */
 	struct input_dev *touch;	/* input device for touchscreen */
 
@@ -984,16 +983,16 @@ static void imon_touch_display_timeout(unsigned long data)
  * really just RC-6), but only one or the other at a time, as the signals
  * are decoded onboard the receiver.
  */
-int imon_ir_change_protocol(void *priv, u64 ir_type)
+static int imon_ir_change_protocol(struct rc_dev *rc, u64 ir_type)
 {
 	int retval;
-	struct imon_context *ictx = priv;
+	struct imon_context *ictx = rc->priv;
 	struct device *dev = ictx->dev;
 	bool pad_mouse;
 	unsigned char ir_proto_packet[] = {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x86 };
 
-	if (ir_type && !(ir_type & ictx->props->allowed_protos))
+	if (ir_type && !(ir_type & rc->allowed_protos))
 		dev_warn(dev, "Looks like you're trying to use an IR protocol "
 			 "this device does not support\n");
 
@@ -1757,7 +1756,7 @@ static void imon_get_ffdc_type(struct imon_context *ictx)
 	printk(KERN_CONT " (id 0x%02x)\n", ffdc_cfg_byte);
 
 	ictx->display_type = detected_display_type;
-	ictx->props->allowed_protos = allowed_protos;
+	ictx->rdev->allowed_protos = allowed_protos;
 	ictx->ir_type = allowed_protos;
 }
 
@@ -1811,18 +1810,15 @@ static void imon_set_display_type(struct imon_context *ictx)
 	ictx->display_type = configured_display_type;
 }
 
-static struct input_dev *imon_init_rdev(struct imon_context *ictx)
+static struct rc_dev *imon_init_rdev(struct imon_context *ictx)
 {
-	struct input_dev *rdev;
-	struct ir_dev_props *props;
+	struct rc_dev *rdev;
 	int ret;
-	char *ir_codes = NULL;
 	const unsigned char fp_packet[] = { 0x40, 0x00, 0x00, 0x00,
 					    0x00, 0x00, 0x00, 0x88 };
 
-	rdev = input_allocate_device();
-	props = kzalloc(sizeof(*props), GFP_KERNEL);
-	if (!rdev || !props) {
+	rdev = rc_allocate_device();
+	if (!rdev) {
 		dev_err(ictx->dev, "remote control dev allocation failed\n");
 		goto out;
 	}
@@ -1833,18 +1829,20 @@ static struct input_dev *imon_init_rdev(struct imon_context *ictx)
 		      sizeof(ictx->phys_rdev));
 	strlcat(ictx->phys_rdev, "/input0", sizeof(ictx->phys_rdev));
 
-	rdev->name = ictx->name_rdev;
-	rdev->phys = ictx->phys_rdev;
-	usb_to_input_id(ictx->usbdev_intf0, &rdev->id);
+	rdev->input_name = ictx->name_rdev;
+	rdev->input_phys = ictx->phys_rdev;
+	usb_to_input_id(ictx->usbdev_intf0, &rdev->input_id);
 	rdev->dev.parent = ictx->dev;
-	rdev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
-	input_set_drvdata(rdev, ictx);
 
-	props->priv = ictx;
-	props->driver_type = RC_DRIVER_SCANCODE;
-	props->allowed_protos = IR_TYPE_OTHER | IR_TYPE_RC6; /* iMON PAD or MCE */
-	props->change_protocol = imon_ir_change_protocol;
-	ictx->props = props;
+	rdev->priv = ictx;
+	rdev->driver_type = RC_DRIVER_SCANCODE;
+	rdev->allowed_protos = IR_TYPE_OTHER | IR_TYPE_RC6; /* iMON PAD or MCE */
+	rdev->change_protocol = imon_ir_change_protocol;
+	rdev->driver_name = MOD_NAME;
+	if (ictx->ir_type == IR_TYPE_RC6)
+		rdev->map_name = RC_MAP_IMON_MCE;
+	else
+		rdev->map_name = RC_MAP_IMON_PAD;
 
 	/* Enable front-panel buttons and/or knobs */
 	memcpy(ictx->usb_tx_buf, &fp_packet, sizeof(fp_packet));
@@ -1858,12 +1856,7 @@ static struct input_dev *imon_init_rdev(struct imon_context *ictx)
 
 	imon_set_display_type(ictx);
 
-	if (ictx->ir_type == IR_TYPE_RC6)
-		ir_codes = RC_MAP_IMON_MCE;
-	else
-		ir_codes = RC_MAP_IMON_PAD;
-
-	ret = ir_input_register(rdev, ir_codes, props, MOD_NAME);
+	ret = rc_register_device(rdev);
 	if (ret < 0) {
 		dev_err(ictx->dev, "remote input dev register failed\n");
 		goto out;
@@ -1872,8 +1865,7 @@ static struct input_dev *imon_init_rdev(struct imon_context *ictx)
 	return rdev;
 
 out:
-	kfree(props);
-	input_free_device(rdev);
+	rc_free_device(rdev);
 	return NULL;
 }
 
@@ -2144,7 +2136,7 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 	return ictx;
 
 urb_submit_failed:
-	ir_input_unregister(ictx->rdev);
+	rc_unregister_device(ictx->rdev);
 rdev_setup_failed:
 	input_unregister_device(ictx->idev);
 idev_setup_failed:
@@ -2371,7 +2363,7 @@ static void __devexit imon_disconnect(struct usb_interface *interface)
 		ictx->dev_present_intf0 = false;
 		usb_kill_urb(ictx->rx_urb_intf0);
 		input_unregister_device(ictx->idev);
-		ir_input_unregister(ictx->rdev);
+		rc_unregister_device(ictx->rdev);
 		if (ictx->display_supported) {
 			if (ictx->display_type == IMON_DISPLAY_TYPE_LCD)
 				usb_deregister_dev(interface, &imon_lcd_class);

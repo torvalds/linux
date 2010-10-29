@@ -1041,13 +1041,13 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 				priv->rc_keycode = buf[12] << 16 |
 					buf[13] << 8 | buf[14];
 			}
-			ir_keydown(d->rc_input_dev, priv->rc_keycode, 0);
+			ir_keydown(d->rc_dev, priv->rc_keycode, 0);
 		} else {
 			priv->rc_keycode = 0; /* clear just for sure */
 		}
 	} else if (priv->rc_repeat != buf[6] || buf[0]) {
 		deb_rc("%s: key repeated\n", __func__);
-		ir_keydown(d->rc_input_dev, priv->rc_keycode, 0);
+		ir_keydown(d->rc_dev, priv->rc_keycode, 0);
 	} else {
 		deb_rc("%s: no key press\n", __func__);
 	}
@@ -1348,9 +1348,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			.module_name      = "af9015",
 			.rc_query         = af9015_rc_query,
 			.rc_interval      = AF9015_RC_INTERVAL,
-			.rc_props = {
-				.allowed_protos = IR_TYPE_NEC,
-			},
+			.allowed_protos   = IR_TYPE_NEC,
 		},
 
 		.i2c_algo = &af9015_i2c_algo,
@@ -1478,9 +1476,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			.module_name      = "af9015",
 			.rc_query         = af9015_rc_query,
 			.rc_interval      = AF9015_RC_INTERVAL,
-			.rc_props = {
-				.allowed_protos = IR_TYPE_NEC,
-			},
+			.allowed_protos   = IR_TYPE_NEC,
 		},
 
 		.i2c_algo = &af9015_i2c_algo,
@@ -1592,9 +1588,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			.module_name      = "af9015",
 			.rc_query         = af9015_rc_query,
 			.rc_interval      = AF9015_RC_INTERVAL,
-			.rc_props = {
-				.allowed_protos = IR_TYPE_NEC,
-			},
+			.allowed_protos   = IR_TYPE_NEC,
 		},
 
 		.i2c_algo = &af9015_i2c_algo,

@@ -33,19 +33,18 @@ enum sony_state {
 
 /**
  * ir_sony_decode() - Decode one Sony pulse or space
- * @input_dev:	the struct input_dev descriptor of the device
+ * @dev:	the struct rc_dev descriptor of the device
  * @ev:         the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
-static int ir_sony_decode(struct input_dev *input_dev, struct ir_raw_event ev)
+static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 {
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	struct sony_dec *data = &ir_dev->raw->sony;
+	struct sony_dec *data = &dev->raw->sony;
 	u32 scancode;
 	u8 device, subdevice, function;
 
-	if (!(ir_dev->raw->enabled_protocols & IR_TYPE_SONY))
+	if (!(dev->raw->enabled_protocols & IR_TYPE_SONY))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -144,7 +143,7 @@ static int ir_sony_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 
 		scancode = device << 16 | subdevice << 8 | function;
 		IR_dprintk(1, "Sony(%u) scancode 0x%05x\n", data->count, scancode);
-		ir_keydown(input_dev, scancode, 0);
+		ir_keydown(dev, scancode, 0);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}

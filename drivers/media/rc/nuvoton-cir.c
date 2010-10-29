@@ -32,7 +32,6 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/input.h>
 #include <media/ir-core.h>
 #include <linux/pci_ids.h>
 
@@ -476,9 +475,9 @@ static u32 nvt_rx_carrier_detect(struct nvt_dev *nvt)
  * always set CP as 0x81
  * set CC by SPEC, CC = 3MHz/carrier - 1
  */
-static int nvt_set_tx_carrier(void *data, u32 carrier)
+static int nvt_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 {
-	struct nvt_dev *nvt = data;
+	struct nvt_dev *nvt = dev->priv;
 	u16 val;
 
 	nvt_cir_reg_write(nvt, 1, CIR_CP);
@@ -509,9 +508,9 @@ static int nvt_set_tx_carrier(void *data, u32 carrier)
  * number may larger than TXFCONT (0xff). So in interrupt_handler, it has to
  * set TXFCONT as 0xff, until buf_count less than 0xff.
  */
-static int nvt_tx_ir(void *priv, int *txbuf, u32 n)
+static int nvt_tx_ir(struct rc_dev *dev, int *txbuf, u32 n)
 {
-	struct nvt_dev *nvt = priv;
+	struct nvt_dev *nvt = dev->priv;
 	unsigned long flags;
 	size_t cur_count;
 	unsigned int i;
@@ -948,9 +947,9 @@ static void nvt_disable_cir(struct nvt_dev *nvt)
 	nvt_efm_disable(nvt);
 }
 
-static int nvt_open(void *data)
+static int nvt_open(struct rc_dev *dev)
 {
-	struct nvt_dev *nvt = (struct nvt_dev *)data;
+	struct nvt_dev *nvt = dev->priv;
 	unsigned long flags;
 
 	spin_lock_irqsave(&nvt->nvt_lock, flags);
@@ -961,9 +960,9 @@ static int nvt_open(void *data)
 	return 0;
 }
 
-static void nvt_close(void *data)
+static void nvt_close(struct rc_dev *dev)
 {
-	struct nvt_dev *nvt = (struct nvt_dev *)data;
+	struct nvt_dev *nvt = dev->priv;
 	unsigned long flags;
 
 	spin_lock_irqsave(&nvt->nvt_lock, flags);
@@ -975,21 +974,16 @@ static void nvt_close(void *data)
 /* Allocate memory, probe hardware, and initialize everything */
 static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 {
-	struct nvt_dev *nvt = NULL;
-	struct input_dev *rdev = NULL;
-	struct ir_dev_props *props = NULL;
+	struct nvt_dev *nvt;
+	struct rc_dev *rdev;
 	int ret = -ENOMEM;
 
 	nvt = kzalloc(sizeof(struct nvt_dev), GFP_KERNEL);
 	if (!nvt)
 		return ret;
 
-	props = kzalloc(sizeof(struct ir_dev_props), GFP_KERNEL);
-	if (!props)
-		goto failure;
-
 	/* input device for IR remote (and tx) */
-	rdev = input_allocate_device();
+	rdev = rc_allocate_device();
 	if (!rdev)
 		goto failure;
 
@@ -1063,41 +1057,38 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	nvt_cir_regs_init(nvt);
 	nvt_cir_wake_regs_init(nvt);
 
-	/* Set up ir-core props */
-	props->priv = nvt;
-	props->driver_type = RC_DRIVER_IR_RAW;
-	props->allowed_protos = IR_TYPE_ALL;
-	props->open = nvt_open;
-	props->close = nvt_close;
+	/* Set up the rc device */
+	rdev->priv = nvt;
+	rdev->driver_type = RC_DRIVER_IR_RAW;
+	rdev->allowed_protos = IR_TYPE_ALL;
+	rdev->open = nvt_open;
+	rdev->close = nvt_close;
+	rdev->tx_ir = nvt_tx_ir;
+	rdev->s_tx_carrier = nvt_set_tx_carrier;
+	rdev->input_name = "Nuvoton w836x7hg Infrared Remote Transceiver";
+	rdev->input_id.bustype = BUS_HOST;
+	rdev->input_id.vendor = PCI_VENDOR_ID_WINBOND2;
+	rdev->input_id.product = nvt->chip_major;
+	rdev->input_id.version = nvt->chip_minor;
+	rdev->driver_name = NVT_DRIVER_NAME;
+	rdev->map_name = RC_MAP_RC6_MCE;
 #if 0
-	props->min_timeout = XYZ;
-	props->max_timeout = XYZ;
-	props->timeout = XYZ;
+	rdev->min_timeout = XYZ;
+	rdev->max_timeout = XYZ;
+	rdev->timeout = XYZ;
 	/* rx resolution is hardwired to 50us atm, 1, 25, 100 also possible */
-	props->rx_resolution = XYZ;
-
+	rdev->rx_resolution = XYZ;
 	/* tx bits */
-	props->tx_resolution = XYZ;
+	rdev->tx_resolution = XYZ;
 #endif
-	props->tx_ir = nvt_tx_ir;
-	props->s_tx_carrier = nvt_set_tx_carrier;
 
-	rdev->name = "Nuvoton w836x7hg Infrared Remote Transceiver";
-	rdev->id.bustype = BUS_HOST;
-	rdev->id.vendor = PCI_VENDOR_ID_WINBOND2;
-	rdev->id.product = nvt->chip_major;
-	rdev->id.version = nvt->chip_minor;
-
-	nvt->props = props;
-	nvt->rdev = rdev;
-
-	device_set_wakeup_capable(&pdev->dev, 1);
-	device_set_wakeup_enable(&pdev->dev, 1);
-
-	ret = ir_input_register(rdev, RC_MAP_RC6_MCE, props, NVT_DRIVER_NAME);
+	ret = rc_register_device(rdev);
 	if (ret)
 		goto failure;
 
+	device_set_wakeup_capable(&pdev->dev, 1);
+	device_set_wakeup_enable(&pdev->dev, 1);
+	nvt->rdev = rdev;
 	nvt_pr(KERN_NOTICE, "driver has been successfully loaded\n");
 	if (debug) {
 		cir_dump_regs(nvt);
@@ -1117,8 +1108,7 @@ failure:
 	if (nvt->cir_wake_addr)
 		release_region(nvt->cir_wake_addr, CIR_IOREG_LENGTH);
 
-	input_free_device(rdev);
-	kfree(props);
+	rc_free_device(rdev);
 	kfree(nvt);
 
 	return ret;
@@ -1143,9 +1133,8 @@ static void __devexit nvt_remove(struct pnp_dev *pdev)
 	release_region(nvt->cir_addr, CIR_IOREG_LENGTH);
 	release_region(nvt->cir_wake_addr, CIR_IOREG_LENGTH);
 
-	ir_input_unregister(nvt->rdev);
+	rc_unregister_device(nvt->rdev);
 
-	kfree(nvt->props);
 	kfree(nvt);
 }
 

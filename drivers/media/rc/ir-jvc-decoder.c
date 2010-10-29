@@ -37,17 +37,16 @@ enum jvc_state {
 
 /**
  * ir_jvc_decode() - Decode one JVC pulse or space
- * @input_dev:	the struct input_dev descriptor of the device
+ * @dev:	the struct rc_dev descriptor of the device
  * @duration:   the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
-static int ir_jvc_decode(struct input_dev *input_dev, struct ir_raw_event ev)
+static int ir_jvc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 {
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	struct jvc_dec *data = &ir_dev->raw->jvc;
+	struct jvc_dec *data = &dev->raw->jvc;
 
-	if (!(ir_dev->raw->enabled_protocols & IR_TYPE_JVC))
+	if (!(dev->raw->enabled_protocols & IR_TYPE_JVC))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -140,12 +139,12 @@ again:
 			scancode = (bitrev8((data->bits >> 8) & 0xff) << 8) |
 				   (bitrev8((data->bits >> 0) & 0xff) << 0);
 			IR_dprintk(1, "JVC scancode 0x%04x\n", scancode);
-			ir_keydown(input_dev, scancode, data->toggle);
+			ir_keydown(dev, scancode, data->toggle);
 			data->first = false;
 			data->old_bits = data->bits;
 		} else if (data->bits == data->old_bits) {
 			IR_dprintk(1, "JVC repeat\n");
-			ir_repeat(input_dev);
+			ir_repeat(dev);
 		} else {
 			IR_dprintk(1, "JVC invalid repeat msg\n");
 			break;

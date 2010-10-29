@@ -50,7 +50,7 @@ struct tm6000_ir_poll_result {
 
 struct tm6000_IR {
 	struct tm6000_core	*dev;
-	struct ir_input_dev	*input;
+	struct rc_dev		*rc;
 	char			name[32];
 	char			phys[32];
 
@@ -66,7 +66,6 @@ struct tm6000_IR {
 
 	/* IR device properties */
 	u64			ir_type;
-	struct ir_dev_props	props;
 };
 
 
@@ -200,7 +199,7 @@ static void tm6000_ir_handle_key(struct tm6000_IR *ir)
 	dprintk("ir->get_key result data=%04x\n", poll_result.rc_data);
 
 	if (ir->key) {
-		ir_keydown(ir->input->input_dev, poll_result.rc_data, 0);
+		ir_keydown(ir->rc, poll_result.rc_data, 0);
 		ir->key = 0;
 	}
 	return;
@@ -214,9 +213,9 @@ static void tm6000_ir_work(struct work_struct *work)
 	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling));
 }
 
-static int tm6000_ir_start(void *priv)
+static int tm6000_ir_start(struct rc_dev *rc)
 {
-	struct tm6000_IR *ir = priv;
+	struct tm6000_IR *ir = rc->priv;
 
 	INIT_DELAYED_WORK(&ir->work, tm6000_ir_work);
 	schedule_delayed_work(&ir->work, 0);
@@ -224,16 +223,16 @@ static int tm6000_ir_start(void *priv)
 	return 0;
 }
 
-static void tm6000_ir_stop(void *priv)
+static void tm6000_ir_stop(struct rc_dev *rc)
 {
-	struct tm6000_IR *ir = priv;
+	struct tm6000_IR *ir = rc->priv;
 
 	cancel_delayed_work_sync(&ir->work);
 }
 
-int tm6000_ir_change_protocol(void *priv, u64 ir_type)
+int tm6000_ir_change_protocol(struct rc_dev *rc, u64 ir_type)
 {
-	struct tm6000_IR *ir = priv;
+	struct tm6000_IR *ir = rc->priv;
 
 	ir->get_key = default_polling_getkey;
 
@@ -245,9 +244,9 @@ int tm6000_ir_change_protocol(void *priv, u64 ir_type)
 int tm6000_ir_init(struct tm6000_core *dev)
 {
 	struct tm6000_IR *ir;
-	struct ir_input_dev *ir_input_dev;
+	struct rc_dev *rc;
 	int err = -ENOMEM;
-	int pipe, size, rc;
+	int pipe, size;
 
 	if (!enable_ir)
 		return -ENODEV;
@@ -259,24 +258,22 @@ int tm6000_ir_init(struct tm6000_core *dev)
 		return 0;
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
-	ir_input_dev = kzalloc(sizeof(*ir_input_dev), GFP_KERNEL);
-	ir_input_dev->input_dev = input_allocate_device();
-	if (!ir || !ir_input_dev || !ir_input_dev->input_dev)
-		goto err_out_free;
+	rc = rc_allocate_device();
+	if (!ir | !rc)
+		goto out;
 
 	/* record handles to ourself */
 	ir->dev = dev;
 	dev->ir = ir;
-
-	ir->input = ir_input_dev;
+	ir->rc = rc;
 
 	/* input einrichten */
-	ir->props.allowed_protos = IR_TYPE_RC5 | IR_TYPE_NEC;
-	ir->props.priv = ir;
-	ir->props.change_protocol = tm6000_ir_change_protocol;
-	ir->props.open = tm6000_ir_start;
-	ir->props.close = tm6000_ir_stop;
-	ir->props.driver_type = RC_DRIVER_SCANCODE;
+	rc->allowed_protos = IR_TYPE_RC5 | IR_TYPE_NEC;
+	rc->priv = ir;
+	rc->change_protocol = tm6000_ir_change_protocol;
+	rc->open = tm6000_ir_start;
+	rc->close = tm6000_ir_stop;
+	rc->driver_type = RC_DRIVER_SCANCODE;
 
 	ir->polling = 50;
 
@@ -286,16 +283,17 @@ int tm6000_ir_init(struct tm6000_core *dev)
 	usb_make_path(dev->udev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
-	tm6000_ir_change_protocol(ir, IR_TYPE_UNKNOWN);
+	tm6000_ir_change_protocol(rc, IR_TYPE_UNKNOWN);
 
-	ir_input_dev->input_dev->name = ir->name;
-	ir_input_dev->input_dev->phys = ir->phys;
-	ir_input_dev->input_dev->id.bustype = BUS_USB;
-	ir_input_dev->input_dev->id.version = 1;
-	ir_input_dev->input_dev->id.vendor = le16_to_cpu(dev->udev->descriptor.idVendor);
-	ir_input_dev->input_dev->id.product = le16_to_cpu(dev->udev->descriptor.idProduct);
-
-	ir_input_dev->input_dev->dev.parent = &dev->udev->dev;
+	rc->input_name = ir->name;
+	rc->input_phys = ir->phys;
+	rc->input_id.bustype = BUS_USB;
+	rc->input_id.version = 1;
+	rc->input_id.vendor = le16_to_cpu(dev->udev->descriptor.idVendor);
+	rc->input_id.product = le16_to_cpu(dev->udev->descriptor.idProduct);
+	rc->map_name = dev->ir_codes;
+	rc->driver_name = "tm6000";
+	rc->dev.parent = &dev->udev->dev;
 
 	if (&dev->int_in) {
 		dprintk("IR over int\n");
@@ -312,35 +310,32 @@ int tm6000_ir_init(struct tm6000_core *dev)
 		ir->int_urb->transfer_buffer = kzalloc(size, GFP_KERNEL);
 		if (ir->int_urb->transfer_buffer == NULL) {
 			usb_free_urb(ir->int_urb);
-			goto err_out_stop;
+			goto out;
 		}
 		dprintk("int interval: %d\n", dev->int_in.endp->desc.bInterval);
 		usb_fill_int_urb(ir->int_urb, dev->udev, pipe,
 			ir->int_urb->transfer_buffer, size,
 			tm6000_ir_urb_received, dev,
 			dev->int_in.endp->desc.bInterval);
-		rc = usb_submit_urb(ir->int_urb, GFP_KERNEL);
-		if (rc) {
+		err = usb_submit_urb(ir->int_urb, GFP_KERNEL);
+		if (err) {
 			kfree(ir->int_urb->transfer_buffer);
 			usb_free_urb(ir->int_urb);
-			err = rc;
-			goto err_out_stop;
+			goto out;
 		}
 		ir->urb_data = kzalloc(size, GFP_KERNEL);
 	}
 
 	/* ir register */
-	err = ir_input_register(ir->input->input_dev, dev->ir_codes,
-		&ir->props, "tm6000");
+	err = rc_register_device(rc);
 	if (err)
-		goto err_out_stop;
+		goto out;
 
 	return 0;
 
-err_out_stop:
+out:
 	dev->ir = NULL;
-err_out_free:
-	kfree(ir_input_dev);
+	rc_free_device(rc);
 	kfree(ir);
 	return err;
 }
@@ -354,7 +349,7 @@ int tm6000_ir_fini(struct tm6000_core *dev)
 	if (!ir)
 		return 0;
 
-	ir_input_unregister(ir->input->input_dev);
+	rc_unregister_device(ir->rc);
 
 	if (ir->int_urb) {
 		usb_kill_urb(ir->int_urb);
@@ -365,8 +360,6 @@ int tm6000_ir_fini(struct tm6000_core *dev)
 		ir->urb_data = NULL;
 	}
 
-	kfree(ir->input);
-	ir->input = NULL;
 	kfree(ir);
 	dev->ir = NULL;
 
