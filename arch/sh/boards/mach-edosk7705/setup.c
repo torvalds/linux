@@ -10,14 +10,64 @@
  */
 #include <linux/init.h>
 #include <linux/irq.h>
-#include <asm/machvec.h>
+#include <linux/platform_device.h>
+#include <linux/interrupt.h>
+#include <linux/smc91x.h>
 #include <mach/edosk7705.h>
+#include <asm/machvec.h>
+#include <asm/sizes.h>
+
+#define SMC_IOBASE	0xA2000000
+#define SMC_IO_OFFSET	0x300
+#define SMC_IOADDR	(SMC_IOBASE + SMC_IO_OFFSET)
+
+#define ETHERNET_IRQ	0x09
 
 static void __init sh_edosk7705_init_irq(void)
 {
-	/* This is the Ethernet interrupt */
-	make_imask_irq(0x09);
+	make_imask_irq(ETHERNET_IRQ);
 }
+
+/* eth initialization functions */
+static struct smc91x_platdata smc91x_info = {
+	.flags = SMC91X_USE_16BIT | SMC91X_IO_SHIFT_1 | IORESOURCE_IRQ_LOWLEVEL,
+};
+
+static struct resource smc91x_res[] = {
+	[0] = {
+		.start	= SMC_IOADDR,
+		.end	= SMC_IOADDR + SZ_32 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= ETHERNET_IRQ,
+		.end	= ETHERNET_IRQ,
+		.flags	= IORESOURCE_IRQ ,
+	}
+};
+
+static struct platform_device smc91x_dev = {
+	.name		= "smc91x",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(smc91x_res),
+	.resource	= smc91x_res,
+
+	.dev	= {
+		.platform_data	= &smc91x_info,
+	},
+};
+
+/* platform init code */
+static struct platform_device *edosk7705_devices[] __initdata = {
+	&smc91x_dev,
+};
+
+static int __init init_edosk7705_devices(void)
+{
+	return platform_add_devices(edosk7705_devices,
+				    ARRAY_SIZE(edosk7705_devices));
+}
+__initcall(init_edosk7705_devices);
 
 /*
  * The Machine Vector
@@ -25,12 +75,5 @@ static void __init sh_edosk7705_init_irq(void)
 static struct sh_machine_vector mv_edosk7705 __initmv = {
 	.mv_name		= "EDOSK7705",
 	.mv_nr_irqs		= 80,
-
-	.mv_inb			= sh_edosk7705_inb,
-	.mv_outb		= sh_edosk7705_outb,
-
-	.mv_insb		= sh_edosk7705_insb,
-	.mv_outsb		= sh_edosk7705_outsb,
-
 	.mv_init_irq		= sh_edosk7705_init_irq,
 };
