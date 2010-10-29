@@ -270,6 +270,13 @@ out:
 	return conflict;
 }
 
+/*
+ * Not all archs need this.
+ */
+void __weak arch_jump_label_text_poke_early(jump_label_t addr)
+{
+}
+
 static __init int init_jump_label(void)
 {
 	int ret;
