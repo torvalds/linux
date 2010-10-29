@@ -1968,6 +1968,22 @@ static inline void skb_orphan_try(struct sk_buff *skb)
 	}
 }
 
+int netif_get_vlan_features(struct sk_buff *skb, struct net_device *dev)
+{
+	__be16 protocol = skb->protocol;
+
+	if (protocol == htons(ETH_P_8021Q)) {
+		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
+		protocol = veh->h_vlan_encapsulated_proto;
+	} else if (!skb->vlan_tci)
+		return dev->features;
+
+	if (protocol != htons(ETH_P_8021Q))
+		return dev->features & dev->vlan_features;
+	else
+		return 0;
+}
+
 /*
  * Returns true if either:
  *	1. skb has frag_list and the device doesn't support FRAGLIST, or
