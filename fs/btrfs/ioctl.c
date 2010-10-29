@@ -1597,7 +1597,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			}
 			btrfs_release_path(root, path);
 
-			if (key.offset + datal < off ||
+			if (key.offset + datal <= off ||
 			    key.offset >= off+len)
 				goto next;
 
