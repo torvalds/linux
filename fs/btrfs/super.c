@@ -389,7 +389,7 @@ static struct dentry *get_default_root(struct super_block *sb,
 find_root:
 	new_root = btrfs_read_fs_root_no_name(root->fs_info, &location);
 	if (IS_ERR(new_root))
-		return ERR_PTR(PTR_ERR(new_root));
+		return ERR_CAST(new_root);
 
 	if (btrfs_root_refs(&new_root->root_item) == 0)
 		return ERR_PTR(-ENOENT);
