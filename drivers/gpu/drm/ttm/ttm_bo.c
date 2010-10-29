@@ -37,6 +37,7 @@
 #include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/module.h>
+#include <asm/atomic.h>
 
 #define TTM_ASSERT_LOCKED(param)
 #define TTM_DEBUG(fmt, arg...)
@@ -444,6 +445,11 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 	ttm_bo_mem_put(bo, &bo->mem);
 
 	atomic_set(&bo->reserved, 0);
+
+	/*
+	 * Make processes trying to reserve really pick it up.
+	 */
+	smp_mb__after_atomic_dec();
 	wake_up_all(&bo->event_queue);
 }
 
