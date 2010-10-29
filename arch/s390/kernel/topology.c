@@ -53,8 +53,10 @@ static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 	cpumask_t mask;
 
 	cpus_clear(mask);
-	if (!topology_enabled || !MACHINE_HAS_TOPOLOGY)
-		return cpu_possible_map;
+	if (!topology_enabled || !MACHINE_HAS_TOPOLOGY) {
+		cpumask_copy(&mask, cpumask_of(cpu));
+		return mask;
+	}
 	while (info) {
 		if (cpu_isset(cpu, info->mask)) {
 			mask = info->mask;
