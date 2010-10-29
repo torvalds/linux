@@ -68,6 +68,16 @@ int amd_cache_northbridges(void)
 	    boot_cpu_data.x86 == 0x15)
 		amd_northbridges.flags |= AMD_NB_GART;
 
+	/*
+	 * Some CPU families support L3 Cache Index Disable. There are some
+	 * limitations because of E382 and E388 on family 0x10.
+	 */
+	if (boot_cpu_data.x86 == 0x10 &&
+	    boot_cpu_data.x86_model >= 0x8 &&
+	    (boot_cpu_data.x86_model > 0x9 ||
+	     boot_cpu_data.x86_mask >= 0x1))
+		amd_northbridges.flags |= AMD_NB_L3_INDEX_DISABLE;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(amd_cache_northbridges);

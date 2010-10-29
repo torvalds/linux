@@ -25,6 +25,7 @@ struct amd_northbridge_info {
 extern struct amd_northbridge_info amd_northbridges;
 
 #define AMD_NB_GART			0x1
+#define AMD_NB_L3_INDEX_DISABLE		0x2
 
 #ifdef CONFIG_AMD_NB
 
