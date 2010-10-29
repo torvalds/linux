@@ -125,7 +125,6 @@ my %selects;
 my %prompts;
 my %objects;
 my $var;
-my $cont = 0;
 my $iflevel = 0;
 my @ifdeps;
 
@@ -138,6 +137,9 @@ sub read_kconfig {
     my $state = "NONE";
     my $config;
     my @kconfigs;
+
+    my $cont = 0;
+    my $line;
 
     my $source = "$ksource/$kconfig";
     my $last_source = "";
@@ -152,6 +154,19 @@ sub read_kconfig {
     open(KIN, "$source") || die "Can't open $kconfig";
     while (<KIN>) {
 	chomp;
+
+	# Make sure that lines ending with \ continue
+	if ($cont) {
+	    $_ = $line . " " . $_;
+	}
+
+	if (s/\\$//) {
+	    $cont = 1;
+	    $line = $_;
+	    next;
+	}
+
+	$cont = 0;
 
 	# collect any Kconfig sources
 	if (/^source\s*"(.*)"/) {
@@ -229,6 +244,8 @@ if ($kconfig) {
 
 # Read all Makefiles to map the configs to the objects
 foreach my $makefile (@makefiles) {
+
+    my $cont = 0;
 
     open(MIN,$makefile) || die "Can't open $makefile";
     while (<MIN>) {
