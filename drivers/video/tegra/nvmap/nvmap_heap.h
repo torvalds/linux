@@ -42,6 +42,8 @@ void nvmap_heap_destroy(struct nvmap_heap *heap);
 
 void *nvmap_heap_device_to_arg(struct device *dev);
 
+void *nvmap_heap_to_arg(struct nvmap_heap *heap);
+
 struct nvmap_heap_block *nvmap_heap_alloc(struct nvmap_heap *heap, size_t len,
 					  size_t align, unsigned int prot);
 

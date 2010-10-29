@@ -40,6 +40,7 @@
 #include <linux/serial_8250.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 #include <mach/dma.h>
 #include <mach/clk.h>
 
@@ -103,11 +104,12 @@ struct tegra_uart_port {
 
 	dma_addr_t		xmit_dma_addr;
 
-	/* Rm DMA handles */
+	/* TX DMA */
 	struct tegra_dma_req	tx_dma_req;
 	struct tegra_dma_channel *tx_dma;
+	struct work_struct	tx_work;
 
-	/* DMA requests */
+	/* RX DMA */
 	struct tegra_dma_req	rx_dma_req;
 	struct tegra_dma_channel *rx_dma;
 
@@ -409,9 +411,11 @@ static void do_handle_tx_pio(struct tegra_uart_port *t)
 	return;
 }
 
-static void tegra_tx_dma_complete_callback(struct tegra_dma_req *req)
+static void tegra_tx_dma_complete_work(struct work_struct *work)
 {
-	struct tegra_uart_port *t = req->dev;
+	struct tegra_uart_port *t =
+			container_of(work, struct tegra_uart_port, tx_work);
+	struct tegra_dma_req *req = &t->tx_dma_req;
 	struct circ_buf *xmit = &t->uport.state->xmit;
 	int count = req->bytes_transferred;
 	unsigned long flags;
@@ -440,6 +444,12 @@ static void tegra_tx_dma_complete_callback(struct tegra_dma_req *req)
 		tegra_start_next_tx(t);
 
 	spin_unlock_irqrestore(&t->uport.lock, flags);
+}
+
+static void tegra_tx_dma_complete_callback(struct tegra_dma_req *req)
+{
+	struct tegra_uart_port *t = req->dev;
+	schedule_work(&t->tx_work);
 }
 
 static irqreturn_t tegra_uart_isr(int irq, void *data)
@@ -937,8 +947,10 @@ static void tegra_stop_tx(struct uart_port *u)
 
 	t = container_of(u, struct tegra_uart_port, uport);
 
-	if (t->use_tx_dma)
+	if (t->use_tx_dma) {
 		tegra_dma_dequeue_req(t->tx_dma, &t->tx_dma_req);
+		flush_work(&t->tx_work);
+	}
 	t->tx_in_progress  = 0;
 	return;
 }
@@ -1082,7 +1094,7 @@ static void tegra_flush_buffer(struct uart_port *u)
 {
 	struct tegra_uart_port *t;
 
-	dev_vdbg(u->dev, "tegra_flush_buffer called");
+	dev_vdbg(u->dev, "%s called", __func__);
 
 	t = container_of(u, struct tegra_uart_port, uport);
 
@@ -1156,7 +1168,6 @@ static int tegra_uart_suspend(struct platform_device *pdev, pm_message_t state)
 	if (pdev->id < 0 || pdev->id > tegra_uart_driver.nr)
 		pr_err("Invalid Uart instance (%d)\n", pdev->id);
 
-	dev_err(t->uport.dev, "tegra_uart_suspend called\n");
 	u = &t->uport;
 	uart_suspend_port(&tegra_uart_driver, u);
 	return 0;
@@ -1171,7 +1182,6 @@ static int tegra_uart_resume(struct platform_device *pdev)
 		pr_err("Invalid Uart instance (%d)\n", pdev->id);
 
 	u = &t->uport;
-	dev_err(t->uport.dev, "tegra_uart_resume called\n");
 	uart_resume_port(&tegra_uart_driver, u);
 	return 0;
 }
@@ -1245,6 +1255,7 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	pr_info("Registered UART port %s%d\n",
 		tegra_uart_driver.dev_name, u->line);
 
+	INIT_WORK(&t->tx_work, tegra_tx_dma_complete_work);
 	return ret;
 fail:
 	kfree(t);

@@ -734,6 +734,11 @@ void *nvmap_heap_device_to_arg(struct device *dev)
 	return heap->arg;
 }
 
+void *nvmap_heap_to_arg(struct nvmap_heap *heap)
+{
+	return heap->arg;
+}
+
 /* nvmap_heap_destroy: frees all resources in heap */
 void nvmap_heap_destroy(struct nvmap_heap *heap)
 {
