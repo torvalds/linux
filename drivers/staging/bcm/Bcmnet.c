@@ -11,8 +11,8 @@ struct net_device *gblpnetdev;
 
 static INT bcm_open(struct net_device *dev)
 {
-    PMINI_ADAPTER Adapter = NULL ; //(PMINI_ADAPTER)dev->priv;
-	Adapter = GET_BCM_ADAPTER(dev);
+    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "======>");
     if(Adapter->fw_download_done==FALSE)
         return -EINVAL;
@@ -30,8 +30,8 @@ static INT bcm_open(struct net_device *dev)
 
 static INT bcm_close(struct net_device *dev)
 {
-   PMINI_ADAPTER Adapter = NULL ;//gpadapter ;
-   Adapter = GET_BCM_ADAPTER(dev);
+   PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "=====>");
 	Adapter->if_up=0;
 	if(!netif_queue_stopped(dev)) {
@@ -60,12 +60,12 @@ static struct net_device_stats *bcm_get_stats(struct net_device *dev)
 
 	return netstats;
 }
+
 /**
 @ingroup init_functions
 Register other driver entry points with the kernel
 */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
-static struct net_device_ops bcmNetDevOps = {
+static const struct net_device_ops bcmNetDevOps = {
     .ndo_open		= bcm_open,
     .ndo_stop 		= bcm_close,
     .ndo_get_stats 	= bcm_get_stats,
@@ -74,47 +74,44 @@ static struct net_device_ops bcmNetDevOps = {
     .ndo_set_mac_address = eth_mac_addr,
     .ndo_validate_addr	= eth_validate_addr,
 };
-#endif
+
+static struct device_type wimax_type = {
+	.name	= "wimax",
+};
 
 int register_networkdev(PMINI_ADAPTER Adapter)
 {
-	int result=0;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-	void **temp = NULL; /* actually we're *allocating* the device in alloc_etherdev */
-#endif
-	Adapter->dev = alloc_etherdev(sizeof(PMINI_ADAPTER));
-	if(!Adapter->dev)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "ERR: No Dev");
+	struct net_device *net;
+	PMINI_ADAPTER *temp;
+	PS_INTERFACE_ADAPTER psIntfAdapter = Adapter->pvInterfaceAdapter;
+	struct usb_interface *uintf = psIntfAdapter->interface;
+	int result;
+
+	net = alloc_etherdev(sizeof(PMINI_ADAPTER));
+	if(!net) {
+		pr_notice("bcmnet: no memory for device\n");
 		return -ENOMEM;
 	}
-	gblpnetdev							= Adapter->dev;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	Adapter->dev->priv      			= Adapter;
-#else
-	temp = netdev_priv(Adapter->dev);
-	*temp = (void *)Adapter;
-#endif
-	//BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "init adapterptr: %x %x\n", (UINT)Adapter, temp);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
-        Adapter->dev->netdev_ops                = &bcmNetDevOps;
-#else
-	Adapter->dev->open      			= bcm_open;
-	Adapter->dev->stop               	= bcm_close;
-	Adapter->dev->get_stats          	= bcm_get_stats;
-	Adapter->dev->hard_start_xmit    	= bcm_transmit;
-	Adapter->dev->hard_header_len    	= ETH_HLEN + LEADER_SIZE;
-#endif
+	Adapter->dev = net;	/* FIXME - only allows one adapter! */
+	temp = netdev_priv(net);
+	*temp = Adapter;
 
-	Adapter->dev->mtu					= MTU_SIZE; /* 1400 Bytes */
+        net->netdev_ops = &bcmNetDevOps;
+	net->mtu        = MTU_SIZE; /* 1400 Bytes */
+
+	SET_NETDEV_DEV(net, &uintf->dev);
+	SET_NETDEV_DEVTYPE(net, &wimax_type);
+
 	/* Read the MAC Address from EEPROM */
 	ReadMacAddressFromNVM(Adapter);
 
-	result = register_netdev(Adapter->dev);
-	if (!result) {
-		free_netdev(Adapter->dev);
+	result = register_netdev(net);
+	if (result == 0)
+		gblpnetdev = Adapter->dev = net;
+	else {
 		Adapter->dev = NULL;
+		free_netdev(net);
 	}
 
 	return result;
