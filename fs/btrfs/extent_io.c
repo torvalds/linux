@@ -2779,6 +2779,8 @@ int extent_prepare_write(struct extent_io_tree *tree,
 					 NULL, 1,
 					 end_bio_extent_preparewrite, 0,
 					 0, 0);
+			if (ret && !err)
+				err = ret;
 			iocount++;
 			block_start = block_start + iosize;
 		} else {

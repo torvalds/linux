@@ -427,5 +427,5 @@ int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
 		ret = btrfs_truncate_item(trans, root, path,
 					  item_len - sub_item_len, 1);
 	}
-	return 0;
+	return ret;
 }

@@ -1389,7 +1389,7 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 
 	if (map_length < length + size)
 		return 1;
-	return 0;
+	return ret;
 }
 
 /*
@@ -2709,8 +2709,8 @@ static int check_path_shared(struct btrfs_root *root,
 {
 	struct extent_buffer *eb;
 	int level;
-	int ret;
 	u64 refs = 1;
+	int uninitialized_var(ret);
 
 	for (level = 0; level < BTRFS_MAX_LEVEL; level++) {
 		if (!path->nodes[level])
@@ -2723,7 +2723,7 @@ static int check_path_shared(struct btrfs_root *root,
 		if (refs > 1)
 			return 1;
 	}
-	return 0;
+	return ret; /* XXX callers? */
 }
 
 /*

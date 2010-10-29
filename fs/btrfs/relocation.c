@@ -3094,6 +3094,8 @@ static int add_tree_block(struct reloc_control *rc,
 		BUG_ON(item_size != sizeof(struct btrfs_extent_item_v0));
 		ret = get_ref_objectid_v0(rc, path, extent_key,
 					  &ref_owner, NULL);
+		if (ret < 0)
+			return ret;
 		BUG_ON(ref_owner >= BTRFS_MAX_LEVEL);
 		level = (int)ref_owner;
 		/* FIXME: get real generation */
@@ -4218,7 +4220,7 @@ int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
 		btrfs_add_ordered_sum(inode, ordered, sums);
 	}
 	btrfs_put_ordered_extent(ordered);
-	return 0;
+	return ret;
 }
 
 void btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
