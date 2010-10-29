@@ -1,18 +1,9 @@
 #ifdef CONFIG_ARCH_MX1
 extern struct platform_device imx1_camera_device;
-extern struct platform_device imx_rtc_device;
-extern struct platform_device imx_wdt_device;
 extern struct platform_device imx_usb_device;
 #endif
 
 #if defined(CONFIG_MACH_MX21) || defined(CONFIG_MACH_MX27)
-extern struct platform_device mxc_gpt1;
-extern struct platform_device mxc_gpt2;
-#ifdef CONFIG_MACH_MX27
-extern struct platform_device mxc_gpt3;
-extern struct platform_device mxc_gpt4;
-extern struct platform_device mxc_gpt5;
-#endif
 extern struct platform_device mxc_wdt;
 extern struct platform_device mxc_fb_device;
 extern struct platform_device mxc_pwm_device;
