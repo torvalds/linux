@@ -610,10 +610,12 @@ static void dn_fib_del_ifaddr(struct dn_ifaddr *ifa)
 	/* Scan device list */
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, dev) {
-		dn_db = dev->dn_ptr;
+		dn_db = rcu_dereference(dev->dn_ptr);
 		if (dn_db == NULL)
 			continue;
-		for(ifa2 = dn_db->ifa_list; ifa2; ifa2 = ifa2->ifa_next) {
+		for (ifa2 = rcu_dereference(dn_db->ifa_list);
+		     ifa2 != NULL;
+		     ifa2 = rcu_dereference(ifa2->ifa_next)) {
 			if (ifa2->ifa_local == ifa->ifa_local) {
 				found_it = 1;
 				break;
