@@ -634,6 +634,12 @@ static int i915_error_state(struct seq_file *m, void *unused)
 		seq_printf(m, "  IPEIR:    0x%08x\n", error->bcs_ipeir);
 		seq_printf(m, "  INSTDONE: 0x%08x\n", error->bcs_instdone);
 		seq_printf(m, "  seqno:    0x%08x\n", error->bcs_seqno);
+		seq_printf(m, "Video (BSD) command stream:\n");
+		seq_printf(m, "  ACTHD:    0x%08x\n", error->vcs_acthd);
+		seq_printf(m, "  IPEHR:    0x%08x\n", error->vcs_ipehr);
+		seq_printf(m, "  IPEIR:    0x%08x\n", error->vcs_ipeir);
+		seq_printf(m, "  INSTDONE: 0x%08x\n", error->vcs_instdone);
+		seq_printf(m, "  seqno:    0x%08x\n", error->vcs_seqno);
 	}
 	seq_printf(m, "Render command stream:\n");
 	seq_printf(m, "  ACTHD: 0x%08x\n", error->acthd);

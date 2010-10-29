@@ -154,6 +154,11 @@ struct drm_i915_error_state {
 	u32 bcs_ipeir;
 	u32 bcs_instdone;
 	u32 bcs_seqno;
+	u32 vcs_acthd; /* gen6+ bsd engine */
+	u32 vcs_ipehr;
+	u32 vcs_ipeir;
+	u32 vcs_instdone;
+	u32 vcs_seqno;
 	u32 instpm;
 	u32 instps;
 	u32 instdone1;
