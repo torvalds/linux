@@ -1354,18 +1354,9 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 	int ret = -EINVAL;
 	struct ttm_mem_type_manager *man;
 
-	if (type >= TTM_NUM_MEM_TYPES) {
-		printk(KERN_ERR TTM_PFX "Illegal memory type %d\n", type);
-		return ret;
-	}
-
+	BUG_ON(type >= TTM_NUM_MEM_TYPES);
 	man = &bdev->man[type];
-	if (man->has_type) {
-		printk(KERN_ERR TTM_PFX
-		       "Memory manager already initialized for type %d\n",
-		       type);
-		return ret;
-	}
+	BUG_ON(man->has_type);
 
 	ret = bdev->driver->init_mem_type(bdev, type, man);
 	if (ret)
@@ -1374,13 +1365,6 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 
 	ret = 0;
 	if (type != TTM_PL_SYSTEM) {
-		if (!p_size) {
-			printk(KERN_ERR TTM_PFX
-			       "Zero size memory manager type %d\n",
-			       type);
-			return ret;
-		}
-
 		ret = (*man->func->init)(man, p_size);
 		if (ret)
 			return ret;
