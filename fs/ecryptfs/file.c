@@ -47,7 +47,7 @@ static ssize_t ecryptfs_read_update_atime(struct kiocb *iocb,
 				const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos)
 {
-	int rc;
+	ssize_t rc;
 	struct dentry *lower_dentry;
 	struct vfsmount *lower_vfsmount;
 	struct file *file = iocb->ki_filp;
