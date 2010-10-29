@@ -757,7 +757,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 			}
 		} else {		/* bulk */
 			urb->pipe = usb_rcvbulkpipe(gspca_dev->dev,
-						ep->desc.bEndpointAddress),
+						ep->desc.bEndpointAddress);
 			urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 			urb->complete = bulk_irq;
 		}
