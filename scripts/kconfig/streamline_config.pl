@@ -137,7 +137,17 @@ sub read_kconfig {
     my $config;
     my @kconfigs;
 
-    open(KIN, "$ksource/$kconfig") || die "Can't open $kconfig";
+    my $source = "$ksource/$kconfig";
+    my $last_source = "";
+
+    # Check for any environment variables used
+    while ($source =~ /\$(\w+)/ && $last_source ne $source) {
+	my $env = $1;
+	$last_source = $source;
+	$source =~ s/\$$env/$ENV{$env}/;
+    }
+
+    open(KIN, "$source") || die "Can't open $kconfig";
     while (<KIN>) {
 	chomp;
 
