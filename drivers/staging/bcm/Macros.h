@@ -4,10 +4,6 @@
 #ifndef	__MACROS_H__
 #define __MACROS_H__
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-#define kthread_run(threadfn,data,datafmt)(struct task_struct *)kernel_thread(threadfn,data,0)
-#endif
-
 #define TX_TIMER_PERIOD 10	//10 msec
 #define MAX_CLASSIFIERS 100
 //#define MAX_CLASSIFIERS_PER_SF  20
@@ -350,12 +346,7 @@ typedef enum ePMU_MODES
 	HYBRID_MODE_6   = 2
 }PMU_MODE;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,30)
-#define MAX_RDM_WRM_RETIRES 16
-#else
 #define MAX_RDM_WRM_RETIRES 1
-#endif
-
 
 enum eAbortPattern {
 	ABORT_SHUTDOWN_MODE = 1,
@@ -364,27 +355,7 @@ enum eAbortPattern {
 	ABORT_IDLE_SYNCDOWN = 3
 };
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	#define GET_BCM_ADAPTER(net_dev)  ({\
-    PMINI_ADAPTER __Adapter = NULL;	\
-    if (net_dev)    {   \
-         __Adapter = (PMINI_ADAPTER)(net_dev->priv); \
-    } \
-    else    {   \
-         __Adapter = NULL;  \
-    }__Adapter;} )
-#else
-	#define GET_BCM_ADAPTER(net_dev) ({\
-    PMINI_ADAPTER __Adapter = NULL;	\
-    if (net_dev)    {   \
-         __Adapter = (PMINI_ADAPTER)(*((unsigned long *)netdev_priv(net_dev)));  \
-    } \
-    else    {   \
-         __Adapter = NULL;  \
-    }__Adapter;})
-
-
-#endif
+#define GET_BCM_ADAPTER(net_dev) (net_dev ? netdev_priv(net_dev) : NULL)
 
 /* Offsets used by driver in skb cb variable */
 #define SKB_CB_CLASSIFICATION_OFFSET    0
