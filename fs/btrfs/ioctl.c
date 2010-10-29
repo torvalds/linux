@@ -2028,6 +2028,36 @@ long btrfs_ioctl_trans_end(struct file *file)
 	return 0;
 }
 
+static noinline long btrfs_ioctl_start_sync(struct file *file, void __user *argp)
+{
+	struct btrfs_root *root = BTRFS_I(file->f_dentry->d_inode)->root;
+	struct btrfs_trans_handle *trans;
+	u64 transid;
+
+	trans = btrfs_start_transaction(root, 0);
+	transid = trans->transid;
+	btrfs_commit_transaction_async(trans, root, 0);
+
+	if (argp)
+		if (copy_to_user(argp, &transid, sizeof(transid)))
+			return -EFAULT;
+	return 0;
+}
+
+static noinline long btrfs_ioctl_wait_sync(struct file *file, void __user *argp)
+{
+	struct btrfs_root *root = BTRFS_I(file->f_dentry->d_inode)->root;
+	u64 transid;
+
+	if (argp) {
+		if (copy_from_user(&transid, argp, sizeof(transid)))
+			return -EFAULT;
+	} else {
+		transid = 0;  /* current trans */
+	}
+	return btrfs_wait_for_commit(root, transid);
+}
+
 long btrfs_ioctl(struct file *file, unsigned int
 		cmd, unsigned long arg)
 {
@@ -2078,6 +2108,10 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case BTRFS_IOC_SYNC:
 		btrfs_sync_fs(file->f_dentry->d_sb, 1);
 		return 0;
+	case BTRFS_IOC_START_SYNC:
+		return btrfs_ioctl_start_sync(file, argp);
+	case BTRFS_IOC_WAIT_SYNC:
+		return btrfs_ioctl_wait_sync(file, argp);
 	}
 
 	return -ENOTTY;

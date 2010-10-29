@@ -279,6 +279,58 @@ static noinline int wait_for_commit(struct btrfs_root *root,
 	return 0;
 }
 
+int btrfs_wait_for_commit(struct btrfs_root *root, u64 transid)
+{
+	struct btrfs_transaction *cur_trans = NULL, *t;
+	int ret;
+
+	mutex_lock(&root->fs_info->trans_mutex);
+
+	ret = 0;
+	if (transid) {
+		if (transid <= root->fs_info->last_trans_committed)
+			goto out_unlock;
+
+		/* find specified transaction */
+		list_for_each_entry(t, &root->fs_info->trans_list, list) {
+			if (t->transid == transid) {
+				cur_trans = t;
+				break;
+			}
+			if (t->transid > transid)
+				break;
+		}
+		ret = -EINVAL;
+		if (!cur_trans)
+			goto out_unlock;  /* bad transid */
+	} else {
+		/* find newest transaction that is committing | committed */
+		list_for_each_entry_reverse(t, &root->fs_info->trans_list,
+					    list) {
+			if (t->in_commit) {
+				if (t->commit_done)
+					goto out_unlock;
+				cur_trans = t;
+				break;
+			}
+		}
+		if (!cur_trans)
+			goto out_unlock;  /* nothing committing|committed */
+	}
+
+	cur_trans->use_count++;
+	mutex_unlock(&root->fs_info->trans_mutex);
+
+	wait_for_commit(root, cur_trans);
+
+	mutex_lock(&root->fs_info->trans_mutex);
+	put_transaction(cur_trans);
+	ret = 0;
+out_unlock:
+	mutex_unlock(&root->fs_info->trans_mutex);
+	return ret;
+}
+
 #if 0
 /*
  * rate limit against the drop_snapshot code.  This helps to slow down new
