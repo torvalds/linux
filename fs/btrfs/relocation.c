@@ -179,8 +179,6 @@ struct reloc_control {
 	u64 search_start;
 	u64 extents_found;
 
-	int block_rsv_retries;
-
 	unsigned int stage:8;
 	unsigned int create_reloc_tree:1;
 	unsigned int merge_reloc_tree:1;
@@ -2134,7 +2132,6 @@ int prepare_to_merge(struct reloc_control *rc, int err)
 	LIST_HEAD(reloc_roots);
 	u64 num_bytes = 0;
 	int ret;
-	int retries = 0;
 
 	mutex_lock(&root->fs_info->trans_mutex);
 	rc->merging_rsv_size += root->nodesize * (BTRFS_MAX_LEVEL - 1) * 2;
@@ -2144,7 +2141,7 @@ again:
 	if (!err) {
 		num_bytes = rc->merging_rsv_size;
 		ret = btrfs_block_rsv_add(NULL, root, rc->block_rsv,
-					  num_bytes, &retries);
+					  num_bytes);
 		if (ret)
 			err = ret;
 	}
@@ -2156,7 +2153,6 @@ again:
 			btrfs_end_transaction(trans, rc->extent_root);
 			btrfs_block_rsv_release(rc->extent_root,
 						rc->block_rsv, num_bytes);
-			retries = 0;
 			goto again;
 		}
 	}
@@ -2406,15 +2402,13 @@ static int reserve_metadata_space(struct btrfs_trans_handle *trans,
 	num_bytes = calcu_metadata_size(rc, node, 1) * 2;
 
 	trans->block_rsv = rc->block_rsv;
-	ret = btrfs_block_rsv_add(trans, root, rc->block_rsv, num_bytes,
-				  &rc->block_rsv_retries);
+	ret = btrfs_block_rsv_add(trans, root, rc->block_rsv, num_bytes);
 	if (ret) {
 		if (ret == -EAGAIN)
 			rc->commit_transaction = 1;
 		return ret;
 	}
 
-	rc->block_rsv_retries = 0;
 	return 0;
 }
 
@@ -3615,8 +3609,7 @@ int prepare_to_relocate(struct reloc_control *rc)
 	 * is no reservation in transaction handle.
 	 */
 	ret = btrfs_block_rsv_add(NULL, rc->extent_root, rc->block_rsv,
-				  rc->extent_root->nodesize * 256,
-				  &rc->block_rsv_retries);
+				  rc->extent_root->nodesize * 256);
 	if (ret)
 		return ret;
 
@@ -3628,7 +3621,6 @@ int prepare_to_relocate(struct reloc_control *rc)
 	rc->extents_found = 0;
 	rc->nodes_relocated = 0;
 	rc->merging_rsv_size = 0;
-	rc->block_rsv_retries = 0;
 
 	rc->create_reloc_tree = 1;
 	set_reloc_control(rc);

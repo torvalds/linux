@@ -698,7 +698,8 @@ struct btrfs_block_group_item {
 struct btrfs_space_info {
 	u64 flags;
 
-	u64 total_bytes;	/* total bytes in the space */
+	u64 total_bytes;	/* total bytes in the space,
+				   this doesn't take mirrors into account */
 	u64 bytes_used;		/* total bytes used,
 				   this does't take mirrors into account */
 	u64 bytes_pinned;	/* total bytes pinned, will be freed when the
@@ -710,6 +711,8 @@ struct btrfs_space_info {
 	u64 bytes_may_use;	/* number of bytes that may be used for
 				   delalloc/allocations */
 	u64 disk_used;		/* total bytes used on disk */
+	u64 disk_total;		/* total bytes on disk, takes mirrors into
+				   account */
 
 	int full;		/* indicates that we cannot allocate any more
 				   chunks for this space */
@@ -2146,7 +2149,7 @@ int btrfs_check_data_free_space(struct inode *inode, u64 bytes);
 void btrfs_free_reserved_data_space(struct inode *inode, u64 bytes);
 int btrfs_trans_reserve_metadata(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
-				int num_items, int *retries);
+				int num_items);
 void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root);
 int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
@@ -2167,7 +2170,7 @@ void btrfs_add_durable_block_rsv(struct btrfs_fs_info *fs_info,
 int btrfs_block_rsv_add(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root,
 			struct btrfs_block_rsv *block_rsv,
-			u64 num_bytes, int *retries);
+			u64 num_bytes);
 int btrfs_block_rsv_check(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root,
 			  struct btrfs_block_rsv *block_rsv,
@@ -2441,7 +2444,8 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 			       u32 min_type);
 
 int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput);
-int btrfs_start_one_delalloc_inode(struct btrfs_root *root, int delay_iput);
+int btrfs_start_one_delalloc_inode(struct btrfs_root *root, int delay_iput,
+				   int sync);
 int btrfs_set_extent_delalloc(struct inode *inode, u64 start, u64 end,
 			      struct extent_state **cached_state);
 int btrfs_writepages(struct address_space *mapping,

@@ -6681,7 +6681,8 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 	return 0;
 }
 
-int btrfs_start_one_delalloc_inode(struct btrfs_root *root, int delay_iput)
+int btrfs_start_one_delalloc_inode(struct btrfs_root *root, int delay_iput,
+				   int sync)
 {
 	struct btrfs_inode *binode;
 	struct inode *inode = NULL;
@@ -6703,7 +6704,26 @@ int btrfs_start_one_delalloc_inode(struct btrfs_root *root, int delay_iput)
 	spin_unlock(&root->fs_info->delalloc_lock);
 
 	if (inode) {
-		write_inode_now(inode, 0);
+		if (sync) {
+			filemap_write_and_wait(inode->i_mapping);
+			/*
+			 * We have to do this because compression doesn't
+			 * actually set PG_writeback until it submits the pages
+			 * for IO, which happens in an async thread, so we could
+			 * race and not actually wait for any writeback pages
+			 * because they've not been submitted yet.  Technically
+			 * this could still be the case for the ordered stuff
+			 * since the async thread may not have started to do its
+			 * work yet.  If this becomes the case then we need to
+			 * figure out a way to make sure that in writepage we
+			 * wait for any async pages to be submitted before
+			 * returning so that fdatawait does what its supposed to
+			 * do.
+			 */
+			btrfs_wait_ordered_range(inode, 0, (u64)-1);
+		} else {
+			filemap_flush(inode->i_mapping);
+		}
 		if (delay_iput)
 			btrfs_add_delayed_iput(inode);
 		else
