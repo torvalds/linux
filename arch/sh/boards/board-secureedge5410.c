@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <asm/machvec.h>
-#include <mach/snapgear.h>
+#include <mach/secureedge5410.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <cpu/timer.h>
