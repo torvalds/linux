@@ -1141,16 +1141,16 @@ config NUMA
 comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
 	depends on X86_32 && X86_SUMMIT && (!HIGHMEM64G || !ACPI)
 
-config K8_NUMA
+config AMD_NUMA
 	def_bool y
 	prompt "Old style AMD Opteron NUMA detection"
 	depends on X86_64 && NUMA && PCI
 	---help---
-	  Enable K8 NUMA node topology detection.  You should say Y here if
-	  you have a multi processor AMD K8 system. This uses an old
-	  method to read the NUMA configuration directly from the builtin
-	  Northbridge of Opteron. It is recommended to use X86_64_ACPI_NUMA
-	  instead, which also takes priority if both are compiled in.
+	  Enable AMD NUMA node topology detection.  You should say Y here if
+	  you have a multi processor AMD system. This uses an old method to
+	  read the NUMA configuration directly from the builtin Northbridge
+	  of Opteron. It is recommended to use X86_64_ACPI_NUMA instead,
+	  which also takes priority if both are compiled in.
 
 config X86_64_ACPI_NUMA
 	def_bool y

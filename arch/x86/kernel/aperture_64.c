@@ -206,7 +206,7 @@ static u32 __init read_agp(int bus, int slot, int func, int cap, u32 *order)
  * Do an PCI bus scan by hand because we're running before the PCI
  * subsystem.
  *
- * All K8 AGP bridges are AGPv3 compliant, so we can do this scan
+ * All AMD AGP bridges are AGPv3 compliant, so we can do this scan
  * generically. It's probably overkill to always scan all slots because
  * the AGP bridges should be always an own bus on the HT hierarchy,
  * but do it here for future safety.
@@ -303,7 +303,7 @@ void __init early_gart_iommu_check(void)
 		dev_limit = bus_dev_ranges[i].dev_limit;
 
 		for (slot = dev_base; slot < dev_limit; slot++) {
-			if (!early_is_k8_nb(read_pci_config(bus, slot, 3, 0x00)))
+			if (!early_is_amd_nb(read_pci_config(bus, slot, 3, 0x00)))
 				continue;
 
 			ctl = read_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL);
@@ -358,7 +358,7 @@ void __init early_gart_iommu_check(void)
 		dev_limit = bus_dev_ranges[i].dev_limit;
 
 		for (slot = dev_base; slot < dev_limit; slot++) {
-			if (!early_is_k8_nb(read_pci_config(bus, slot, 3, 0x00)))
+			if (!early_is_amd_nb(read_pci_config(bus, slot, 3, 0x00)))
 				continue;
 
 			ctl = read_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL);
@@ -400,7 +400,7 @@ int __init gart_iommu_hole_init(void)
 		dev_limit = bus_dev_ranges[i].dev_limit;
 
 		for (slot = dev_base; slot < dev_limit; slot++) {
-			if (!early_is_k8_nb(read_pci_config(bus, slot, 3, 0x00)))
+			if (!early_is_amd_nb(read_pci_config(bus, slot, 3, 0x00)))
 				continue;
 
 			iommu_detected = 1;
@@ -518,7 +518,7 @@ out:
 		dev_base = bus_dev_ranges[i].dev_base;
 		dev_limit = bus_dev_ranges[i].dev_limit;
 		for (slot = dev_base; slot < dev_limit; slot++) {
-			if (!early_is_k8_nb(read_pci_config(bus, slot, 3, 0x00)))
+			if (!early_is_amd_nb(read_pci_config(bus, slot, 3, 0x00)))
 				continue;
 
 			write_pci_config(bus, slot, 3, AMD64_GARTAPERTURECTL, ctl);

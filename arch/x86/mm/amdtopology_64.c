@@ -1,8 +1,8 @@
 /*
- * AMD K8 NUMA support.
+ * AMD NUMA support.
  * Discover the memory map and associated nodes.
  *
- * This version reads it directly from the K8 northbridge.
+ * This version reads it directly from the AMD northbridge.
  *
  * Copyright 2002,2003 Andi Kleen, SuSE Labs.
  */
@@ -57,7 +57,7 @@ static __init void early_get_boot_cpu_id(void)
 {
 	/*
 	 * need to get the APIC ID of the BSP so can use that to
-	 * create apicid_to_node in k8_scan_nodes()
+	 * create apicid_to_node in amd_scan_nodes()
 	 */
 #ifdef CONFIG_X86_MPPARSE
 	/*
@@ -69,7 +69,7 @@ static __init void early_get_boot_cpu_id(void)
 	early_init_lapic_mapping();
 }
 
-int __init k8_get_nodes(struct bootnode *physnodes)
+int __init amd_get_nodes(struct bootnode *physnodes)
 {
 	int i;
 	int ret = 0;
@@ -82,7 +82,7 @@ int __init k8_get_nodes(struct bootnode *physnodes)
 	return ret;
 }
 
-int __init k8_numa_init(unsigned long start_pfn, unsigned long end_pfn)
+int __init amd_numa_init(unsigned long start_pfn, unsigned long end_pfn)
 {
 	unsigned long start = PFN_PHYS(start_pfn);
 	unsigned long end = PFN_PHYS(end_pfn);
@@ -194,7 +194,7 @@ int __init k8_numa_init(unsigned long start_pfn, unsigned long end_pfn)
 	return 0;
 }
 
-int __init k8_scan_nodes(void)
+int __init amd_scan_nodes(void)
 {
 	unsigned int bits;
 	unsigned int cores;
