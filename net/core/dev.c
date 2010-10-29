@@ -1794,16 +1794,18 @@ struct sk_buff *skb_gso_segment(struct sk_buff *skb, int features)
 	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
 	struct packet_type *ptype;
 	__be16 type = skb->protocol;
+	int vlan_depth = ETH_HLEN;
 	int err;
 
-	if (type == htons(ETH_P_8021Q)) {
-		struct vlan_ethhdr *veh;
+	while (type == htons(ETH_P_8021Q)) {
+		struct vlan_hdr *vh;
 
-		if (unlikely(!pskb_may_pull(skb, VLAN_ETH_HLEN)))
+		if (unlikely(!pskb_may_pull(skb, vlan_depth + VLAN_HLEN)))
 			return ERR_PTR(-EINVAL);
 
-		veh = (struct vlan_ethhdr *)skb->data;
-		type = veh->h_vlan_encapsulated_proto;
+		vh = (struct vlan_hdr *)(skb->data + vlan_depth);
+		type = vh->h_vlan_encapsulated_proto;
+		vlan_depth += VLAN_HLEN;
 	}
 
 	skb_reset_mac_header(skb);
