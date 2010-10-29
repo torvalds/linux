@@ -174,7 +174,7 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 
 	I915_WRITE_CTL(ring,
 			((ring->gem_object->size - PAGE_SIZE) & RING_NR_PAGES)
-			| RING_NO_REPORT | RING_VALID);
+			| RING_REPORT_64K | RING_VALID);
 
 	/* If the head is still not zero, the ring is dead */
 	if ((I915_READ_CTL(ring) & RING_VALID) == 0 ||
@@ -691,6 +691,17 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	unsigned long end;
+	u32 head;
+
+	head = intel_read_status_page(ring, 4);
+	if (head) {
+		ring->head = head & HEAD_ADDR;
+		ring->space = ring->head - (ring->tail + 8);
+		if (ring->space < 0)
+			ring->space += ring->size;
+		if (ring->space >= n)
+			return 0;
+	}
 
 	trace_i915_ring_wait_begin (dev);
 	end = jiffies + 3 * HZ;
