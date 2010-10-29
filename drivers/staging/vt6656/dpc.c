@@ -1608,8 +1608,8 @@ void RXvMngWorkItem(void *Context)
         }
     }
 
-    pDevice->bIsRxMngWorkItemQueued = FALSE;
-    spin_unlock_irq(&pDevice->lock);
+	pDevice->bIsRxMngWorkItemQueued = FALSE;
+	spin_unlock_irq(&pDevice->lock);
 
 }
 
