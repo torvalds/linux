@@ -146,6 +146,7 @@ enum mceusb_model_type {
 	MCE_GEN3,
 	MCE_GEN2_TX_INV,
 	POLARIS_EVK,
+	CX_HYBRID_TV,
 };
 
 struct mceusb_model {
@@ -154,6 +155,7 @@ struct mceusb_model {
 	u32 mce_gen3:1;
 	u32 tx_mask_inverted:1;
 	u32 is_polaris:1;
+	u32 no_tx:1;
 
 	const char *rc_map;	/* Allow specify a per-board map */
 	const char *name;	/* per-board name */
@@ -183,7 +185,12 @@ static const struct mceusb_model mceusb_model[] = {
 		 * to allow testing it
 		 */
 		.rc_map = RC_MAP_RC5_HAUPPAUGE_NEW,
-		.name = "cx231xx MCE IR",
+		.name = "Conexant Hybrid TV (cx231xx) MCE IR",
+	},
+	[CX_HYBRID_TV] = {
+		.is_polaris = 1,
+		.no_tx = 1, /* tx isn't wired up at all */
+		.name = "Conexant Hybrid TV (cx231xx) MCE IR",
 	},
 };
 
@@ -292,9 +299,12 @@ static struct usb_device_id mceusb_dev_table[] = {
 	{ USB_DEVICE(VENDOR_NORTHSTAR, 0xe004) },
 	/* TiVo PC IR Receiver */
 	{ USB_DEVICE(VENDOR_TIVO, 0x2000) },
-	/* Conexant SDK */
+	/* Conexant Hybrid TV "Shelby" Polaris SDK */
 	{ USB_DEVICE(VENDOR_CONEXANT, 0x58a1),
 	  .driver_info = POLARIS_EVK },
+	/* Conexant Hybrid TV RDU253S Polaris */
+	{ USB_DEVICE(VENDOR_CONEXANT, 0x58a5),
+	  .driver_info = CX_HYBRID_TV },
 	/* Terminating entry */
 	{ }
 };
@@ -334,6 +344,7 @@ struct mceusb_dev {
 		u32 connected:1;
 		u32 tx_mask_inverted:1;
 		u32 microsoft_gen1:1;
+		u32 no_tx:1;
 	} flags;
 
 	/* transmit support */
@@ -724,7 +735,7 @@ out:
 	return ret ? ret : n;
 }
 
-/* Sets active IR outputs -- mce devices typically (all?) have two */
+/* Sets active IR outputs -- mce devices typically have two */
 static int mceusb_set_tx_mask(void *priv, u32 mask)
 {
 	struct mceusb_dev *ir = priv;
@@ -984,9 +995,11 @@ static void mceusb_get_parameters(struct mceusb_dev *ir)
 	mce_async_out(ir, GET_CARRIER_FREQ, sizeof(GET_CARRIER_FREQ));
 	mce_sync_in(ir, NULL, maxp);
 
-	/* get the transmitter bitmask */
-	mce_async_out(ir, GET_TX_BITMASK, sizeof(GET_TX_BITMASK));
-	mce_sync_in(ir, NULL, maxp);
+	if (!ir->flags.no_tx) {
+		/* get the transmitter bitmask */
+		mce_async_out(ir, GET_TX_BITMASK, sizeof(GET_TX_BITMASK));
+		mce_sync_in(ir, NULL, maxp);
+	}
 
 	/* get receiver timeout value */
 	mce_async_out(ir, GET_RX_TIMEOUT, sizeof(GET_RX_TIMEOUT));
@@ -1035,9 +1048,11 @@ static struct input_dev *mceusb_init_input_dev(struct mceusb_dev *ir)
 	props->priv = ir;
 	props->driver_type = RC_DRIVER_IR_RAW;
 	props->allowed_protos = IR_TYPE_ALL;
-	props->s_tx_mask = mceusb_set_tx_mask;
-	props->s_tx_carrier = mceusb_set_tx_carrier;
-	props->tx_ir = mceusb_tx_ir;
+	if (!ir->flags.no_tx) {
+		props->s_tx_mask = mceusb_set_tx_mask;
+		props->s_tx_carrier = mceusb_set_tx_carrier;
+		props->tx_ir = mceusb_tx_ir;
+	}
 
 	ir->props = props;
 
@@ -1151,6 +1166,7 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	ir->len_in = maxp;
 	ir->flags.microsoft_gen1 = is_microsoft_gen1;
 	ir->flags.tx_mask_inverted = tx_mask_inverted;
+	ir->flags.no_tx = mceusb_model[model].no_tx;
 	ir->model = model;
 
 	init_ir_raw_event(&ir->rawir);
@@ -1191,7 +1207,8 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 
 	mceusb_get_parameters(ir);
 
-	mceusb_set_tx_mask(ir, MCE_DEFAULT_TX_MASK);
+	if (!ir->flags.no_tx)
+		mceusb_set_tx_mask(ir, MCE_DEFAULT_TX_MASK);
 
 	usb_set_intfdata(intf, ir);
 
