@@ -13,7 +13,6 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/smc91x.h>
-#include <mach/edosk7705.h>
 #include <asm/machvec.h>
 #include <asm/sizes.h>
 
