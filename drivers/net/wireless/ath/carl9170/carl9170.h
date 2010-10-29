@@ -215,7 +215,7 @@ enum carl9170_restart_reasons {
 	CARL9170_RR_TOO_MANY_FIRMWARE_ERRORS,
 	CARL9170_RR_WATCHDOG,
 	CARL9170_RR_STUCK_TX,
-	CARL9170_RR_SLOW_SYSTEM,
+	CARL9170_RR_UNRESPONSIVE_DEVICE,
 	CARL9170_RR_COMMAND_TIMEOUT,
 	CARL9170_RR_TOO_MANY_PHY_ERRORS,
 	CARL9170_RR_LOST_RSP,
@@ -287,6 +287,7 @@ struct ar9170 {
 
 	/* reset / stuck frames/queue detection */
 	struct work_struct restart_work;
+	struct work_struct ping_work;
 	unsigned int restart_counter;
 	unsigned long queue_stop_timeout[__AR9170_NUM_TXQ];
 	unsigned long max_queue_stop_timeout[__AR9170_NUM_TXQ];
