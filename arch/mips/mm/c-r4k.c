@@ -42,6 +42,7 @@
  *  o collapses to normal function call on UP kernels
  *  o collapses to normal function call on systems with a single shared
  *    primary cache.
+ *  o doesn't disable interrupts on the local CPU
  */
 static inline void r4k_on_each_cpu(void (*func) (void *info), void *info,
                                    int wait)
