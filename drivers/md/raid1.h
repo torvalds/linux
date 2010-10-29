@@ -35,8 +35,6 @@ struct r1_private_data_s {
 	struct list_head	retry_list;
 	/* queue pending writes and submit them on unplug */
 	struct bio_list		pending_bio_list;
-	/* queue of writes that have been unplugged */
-	struct bio_list		flushing_bio_list;
 
 	/* for use when syncing mirrors: */
 
