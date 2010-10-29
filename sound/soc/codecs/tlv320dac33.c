@@ -58,7 +58,7 @@
 	(1000000000 / ((rate * 1000) / samples))
 
 #define US_TO_SAMPLES(rate, us) \
-	(rate / (1000000 / us))
+	(rate / (1000000 / (us < 1000000 ? us : 1000000)))
 
 #define UTHR_FROM_PERIOD_SIZE(samples, playrate, burstrate) \
 	((samples * 5000) / ((burstrate * 5000) / (burstrate - playrate)))
