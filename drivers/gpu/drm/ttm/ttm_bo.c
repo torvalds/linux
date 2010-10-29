@@ -27,14 +27,6 @@
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
-/* Notes:
- *
- * We store bo pointer in drm_mm_node struct so we know which bo own a
- * specific node. There is no protection on the pointer, thus to make
- * sure things don't go berserk you have to access this pointer while
- * holding the global lru lock and make sure anytime you free a node you
- * reset the pointer to NULL.
- */
 
 #include "ttm/ttm_module.h"
 #include "ttm/ttm_bo_driver.h"
