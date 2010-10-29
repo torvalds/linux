@@ -711,6 +711,8 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 		}
 
 		msleep(1);
+		if (atomic_read(&dev_priv->mm.wedged))
+			return -EAGAIN;
 	} while (!time_after(jiffies, end));
 	trace_i915_ring_wait_end (dev);
 	return -EBUSY;
