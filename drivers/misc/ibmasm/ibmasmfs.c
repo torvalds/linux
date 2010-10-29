@@ -91,11 +91,10 @@ static void ibmasmfs_create_files (struct super_block *sb, struct dentry *root);
 static int ibmasmfs_fill_super (struct super_block *sb, void *data, int silent);
 
 
-static int ibmasmfs_get_super(struct file_system_type *fst,
-			int flags, const char *name, void *data,
-			struct vfsmount *mnt)
+static struct dentry *ibmasmfs_mount(struct file_system_type *fst,
+			int flags, const char *name, void *data)
 {
-	return get_sb_single(fst, flags, data, ibmasmfs_fill_super, mnt);
+	return mount_single(fst, flags, data, ibmasmfs_fill_super);
 }
 
 static const struct super_operations ibmasmfs_s_ops = {
@@ -108,7 +107,7 @@ static const struct file_operations *ibmasmfs_dir_ops = &simple_dir_operations;
 static struct file_system_type ibmasmfs_type = {
 	.owner          = THIS_MODULE,
 	.name           = "ibmasmfs",
-	.get_sb         = ibmasmfs_get_super,
+	.mount          = ibmasmfs_mount,
 	.kill_sb        = kill_litter_super,
 };
 

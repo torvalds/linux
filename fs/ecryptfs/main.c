@@ -540,9 +540,8 @@ out:
  *                        ecryptfs_interpose to perform most of the linking
  * ecryptfs_interpose(): links the lower filesystem into ecryptfs (inode.c)
  */
-static int ecryptfs_get_sb(struct file_system_type *fs_type, int flags,
-			const char *dev_name, void *raw_data,
-			struct vfsmount *mnt)
+static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags,
+			const char *dev_name, void *raw_data)
 {
 	struct super_block *s;
 	struct ecryptfs_sb_info *sbi;
@@ -607,8 +606,7 @@ static int ecryptfs_get_sb(struct file_system_type *fs_type, int flags,
 		err = "Reading sb failed";
 		goto out;
 	}
-	simple_set_mnt(mnt, s);
-	return 0;
+	return dget(s->s_root);
 
 out:
 	if (sbi) {
@@ -616,7 +614,7 @@ out:
 		kmem_cache_free(ecryptfs_sb_info_cache, sbi);
 	}
 	printk(KERN_ERR "%s; rc = [%d]\n", err, rc);
-	return rc;
+	return ERR_PTR(rc);
 }
 
 /**
@@ -639,7 +637,7 @@ static void ecryptfs_kill_block_super(struct super_block *sb)
 static struct file_system_type ecryptfs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "ecryptfs",
-	.get_sb = ecryptfs_get_sb,
+	.mount = ecryptfs_mount,
 	.kill_sb = ecryptfs_kill_block_super,
 	.fs_flags = 0
 };

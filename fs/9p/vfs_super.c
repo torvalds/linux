@@ -68,7 +68,7 @@ static int v9fs_set_super(struct super_block *s, void *data)
  * v9fs_fill_super - populate superblock with info
  * @sb: superblock
  * @v9ses: session information
- * @flags: flags propagated from v9fs_get_sb()
+ * @flags: flags propagated from v9fs_mount()
  *
  */
 
@@ -99,18 +99,16 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 }
 
 /**
- * v9fs_get_sb - mount a superblock
+ * v9fs_mount - mount a superblock
  * @fs_type: file system type
  * @flags: mount flags
  * @dev_name: device name that was mounted
  * @data: mount options
- * @mnt: mountpoint record to be instantiated
  *
  */
 
-static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
-		       const char *dev_name, void *data,
-		       struct vfsmount *mnt)
+static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
+		       const char *dev_name, void *data)
 {
 	struct super_block *sb = NULL;
 	struct inode *inode = NULL;
@@ -124,7 +122,7 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 
 	v9ses = kzalloc(sizeof(struct v9fs_session_info), GFP_KERNEL);
 	if (!v9ses)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	fid = v9fs_session_init(v9ses, dev_name, data);
 	if (IS_ERR(fid)) {
@@ -186,15 +184,15 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 	v9fs_fid_add(root, fid);
 
 	P9_DPRINTK(P9_DEBUG_VFS, " simple set mount, return 0\n");
-	simple_set_mnt(mnt, sb);
-	return 0;
+	return dget(sb->s_root);
 
 clunk_fid:
 	p9_client_clunk(fid);
 close_session:
 	v9fs_session_close(v9ses);
 	kfree(v9ses);
-	return retval;
+	return ERR_PTR(retval);
+
 release_sb:
 	/*
 	 * we will do the session_close and root dentry release
@@ -204,7 +202,7 @@ release_sb:
 	 */
 	p9_client_clunk(fid);
 	deactivate_locked_super(sb);
-	return retval;
+	return ERR_PTR(retval);
 }
 
 /**
@@ -300,7 +298,7 @@ static const struct super_operations v9fs_super_ops_dotl = {
 
 struct file_system_type v9fs_fs_type = {
 	.name = "9p",
-	.get_sb = v9fs_get_sb,
+	.mount = v9fs_mount,
 	.kill_sb = v9fs_kill_super,
 	.owner = THIS_MODULE,
 	.fs_flags = FS_RENAME_DOES_D_MOVE,

@@ -106,5 +106,5 @@ extern void release_open_intent(struct nameidata *);
  * inode.c
  */
 extern int get_nr_dirty_inodes(void);
-extern int evict_inodes(struct super_block *);
+extern void evict_inodes(struct super_block *);
 extern int invalidate_inodes(struct super_block *);

@@ -1609,16 +1609,14 @@ xfs_fs_fill_super(
 	goto out_free_sb;
 }
 
-STATIC int
-xfs_fs_get_sb(
+STATIC struct dentry *
+xfs_fs_mount(
 	struct file_system_type	*fs_type,
 	int			flags,
 	const char		*dev_name,
-	void			*data,
-	struct vfsmount		*mnt)
+	void			*data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, xfs_fs_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, xfs_fs_fill_super);
 }
 
 static const struct super_operations xfs_super_operations = {
@@ -1639,7 +1637,7 @@ static const struct super_operations xfs_super_operations = {
 static struct file_system_type xfs_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "xfs",
-	.get_sb			= xfs_fs_get_sb,
+	.mount			= xfs_fs_mount,
 	.kill_sb		= kill_block_super,
 	.fs_flags		= FS_REQUIRES_DEV,
 };
