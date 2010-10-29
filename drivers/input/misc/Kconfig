@@ -294,24 +294,6 @@ config INPUT_SGI_BTNS
 	  To compile this driver as a module, choose M here: the
 	  module will be called sgi_btns.
 
-config INPUT_WINBOND_CIR
-	tristate "Winbond IR remote control"
-	depends on X86 && PNP
-	select NEW_LEDS
-	select LEDS_CLASS
-	select LEDS_TRIGGERS
-	select BITREVERSE
-	help
-	  Say Y here if you want to use the IR remote functionality found
-	  in some Winbond SuperI/O chips. Currently only the WPCD376I
-	  chip is supported (included in some Intel Media series motherboards).
-
-	  IR Receive and wake-on-IR from suspend and power-off is currently
-	  supported.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called winbond_cir.
-
 config HP_SDC_RTC
 	tristate "HP SDC Real Time Clock"
 	depends on (GSC || HP300) && SERIO
