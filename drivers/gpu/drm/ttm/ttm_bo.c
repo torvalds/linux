@@ -814,7 +814,6 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 					bool no_wait_gpu)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_global *glob = bdev->glob;
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
 	int ret;
 
@@ -824,12 +823,6 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 			return ret;
 		if (mem->mm_node)
 			break;
-		spin_lock(&glob->lru_lock);
-		if (list_empty(&man->lru)) {
-			spin_unlock(&glob->lru_lock);
-			break;
-		}
-		spin_unlock(&glob->lru_lock);
 		ret = ttm_mem_evict_first(bdev, mem_type, interruptible,
 						no_wait_reserve, no_wait_gpu);
 		if (unlikely(ret != 0))
