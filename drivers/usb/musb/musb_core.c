@@ -552,7 +552,8 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 	if (int_usb & MUSB_INTR_SESSREQ) {
 		void __iomem *mbase = musb->mregs;
 
-		if (devctl & MUSB_DEVCTL_BDEVICE) {
+		if ((devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS
+				&& (devctl & MUSB_DEVCTL_BDEVICE)) {
 			DBG(3, "SessReq while on B state\n");
 			return IRQ_HANDLED;
 		}
