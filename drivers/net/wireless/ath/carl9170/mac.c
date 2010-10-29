@@ -205,8 +205,8 @@ int carl9170_init_mac(struct ar9170 *ar)
 	carl9170_regwrite(AR9170_MAC_REG_BACKOFF_PROTECT, 0x105);
 
 	/* Aggregation MAX number and timeout */
-	carl9170_regwrite(AR9170_MAC_REG_AMPDU_FACTOR, 0xa);
-	carl9170_regwrite(AR9170_MAC_REG_AMPDU_DENSITY, 0x140a00);
+	carl9170_regwrite(AR9170_MAC_REG_AMPDU_FACTOR, 0x8000a);
+	carl9170_regwrite(AR9170_MAC_REG_AMPDU_DENSITY, 0x140a07);
 
 	carl9170_regwrite(AR9170_MAC_REG_FRAMETYPE_FILTER,
 			  AR9170_MAC_FTF_DEFAULTS);
