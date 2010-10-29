@@ -61,6 +61,8 @@ static void btrfs_put_super(struct super_block *sb)
 
 	ret = close_ctree(root);
 	sb->s_fs_info = NULL;
+
+	(void)ret; /* FIXME: need to fix VFS to return error? */
 }
 
 enum {
@@ -445,7 +447,6 @@ static int btrfs_fill_super(struct super_block *sb,
 {
 	struct inode *inode;
 	struct dentry *root_dentry;
-	struct btrfs_super_block *disk_super;
 	struct btrfs_root *tree_root;
 	struct btrfs_key key;
 	int err;
@@ -467,7 +468,6 @@ static int btrfs_fill_super(struct super_block *sb,
 		return PTR_ERR(tree_root);
 	}
 	sb->s_fs_info = tree_root;
-	disk_super = &tree_root->fs_info->super_copy;
 
 	key.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	key.type = BTRFS_INODE_ITEM_KEY;
@@ -580,7 +580,6 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 	char *subvol_name = NULL;
 	u64 subvol_objectid = 0;
 	int error = 0;
-	int found = 0;
 
 	if (!(flags & MS_RDONLY))
 		mode |= FMODE_WRITE;
@@ -616,7 +615,6 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 			goto error_close_devices;
 		}
 
-		found = 1;
 		btrfs_close_devices(fs_devices);
 	} else {
 		char b[BDEVNAME_SIZE];

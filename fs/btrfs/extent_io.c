@@ -1857,10 +1857,8 @@ static int submit_one_bio(int rw, struct bio *bio, int mirror_num,
 	struct page *page = bvec->bv_page;
 	struct extent_io_tree *tree = bio->bi_private;
 	u64 start;
-	u64 end;
 
 	start = ((u64)page->index << PAGE_CACHE_SHIFT) + bvec->bv_offset;
-	end = start + bvec->bv_len - 1;
 
 	bio->bi_private = NULL;
 
@@ -2160,7 +2158,6 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	u64 last_byte = i_size_read(inode);
 	u64 block_start;
 	u64 iosize;
-	u64 unlock_start;
 	sector_t sector;
 	struct extent_state *cached_state = NULL;
 	struct extent_map *em;
@@ -2285,7 +2282,6 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		if (tree->ops && tree->ops->writepage_end_io_hook)
 			tree->ops->writepage_end_io_hook(page, start,
 							 page_end, NULL, 1);
-		unlock_start = page_end + 1;
 		goto done;
 	}
 
@@ -2296,7 +2292,6 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			if (tree->ops && tree->ops->writepage_end_io_hook)
 				tree->ops->writepage_end_io_hook(page, cur,
 							 page_end, NULL, 1);
-			unlock_start = page_end + 1;
 			break;
 		}
 		em = epd->get_extent(inode, page, pg_offset, cur,
@@ -2343,7 +2338,6 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 
 			cur += iosize;
 			pg_offset += iosize;
-			unlock_start = cur;
 			continue;
 		}
 		/* leave this out until we have a page_mkwrite call */
@@ -2429,7 +2423,6 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 	pgoff_t index;
 	pgoff_t end;		/* Inclusive */
 	int scanned = 0;
-	int range_whole = 0;
 
 	pagevec_init(&pvec, 0);
 	if (wbc->range_cyclic) {
@@ -2438,8 +2431,6 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 	} else {
 		index = wbc->range_start >> PAGE_CACHE_SHIFT;
 		end = wbc->range_end >> PAGE_CACHE_SHIFT;
-		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
-			range_whole = 1;
 		scanned = 1;
 	}
 retry:

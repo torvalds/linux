@@ -1901,7 +1901,6 @@ int btrfs_balance(struct btrfs_root *dev_root)
 	u64 size_to_free;
 	struct btrfs_path *path;
 	struct btrfs_key key;
-	struct btrfs_chunk *chunk;
 	struct btrfs_root *chunk_root = dev_root->fs_info->chunk_root;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_key found_key;
@@ -1965,9 +1964,6 @@ int btrfs_balance(struct btrfs_root *dev_root)
 		if (found_key.objectid != key.objectid)
 			break;
 
-		chunk = btrfs_item_ptr(path->nodes[0],
-				       path->slots[0],
-				       struct btrfs_chunk);
 		/* chunk zero is special */
 		if (found_key.offset == 0)
 			break;

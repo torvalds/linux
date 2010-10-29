@@ -708,7 +708,6 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 	char *sizestr;
 	char *devstr = NULL;
 	int ret = 0;
-	int namelen;
 	int mod = 0;
 
 	if (root->fs_info->sb->s_flags & MS_RDONLY)
@@ -722,7 +721,6 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 		return PTR_ERR(vol_args);
 
 	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
-	namelen = strlen(vol_args->name);
 
 	mutex_lock(&root->fs_info->volume_mutex);
 	sizestr = vol_args->name;

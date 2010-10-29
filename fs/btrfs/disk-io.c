@@ -338,7 +338,6 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	struct extent_io_tree *tree;
 	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 found_start;
-	int found_level;
 	unsigned long len;
 	struct extent_buffer *eb;
 	int ret;
@@ -369,8 +368,6 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 		WARN_ON(1);
 		goto err;
 	}
-	found_level = btrfs_header_level(eb);
-
 	csum_tree_block(root, eb, 0);
 err:
 	free_extent_buffer(eb);
@@ -543,11 +540,9 @@ int btrfs_congested_async(struct btrfs_fs_info *info, int iodone)
 
 static void run_one_async_start(struct btrfs_work *work)
 {
-	struct btrfs_fs_info *fs_info;
 	struct async_submit_bio *async;
 
 	async = container_of(work, struct  async_submit_bio, work);
-	fs_info = BTRFS_I(async->inode)->root->fs_info;
 	async->submit_bio_start(async->inode, async->rw, async->bio,
 			       async->mirror_num, async->bio_flags,
 			       async->bio_offset);
@@ -860,11 +855,7 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 				      u32 blocksize, u64 parent_transid)
 {
 	struct extent_buffer *buf = NULL;
-	struct inode *btree_inode = root->fs_info->btree_inode;
-	struct extent_io_tree *io_tree;
 	int ret;
-
-	io_tree = &BTRFS_I(btree_inode)->io_tree;
 
 	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
 	if (!buf)
@@ -1387,7 +1378,6 @@ static int bio_ready_for_csum(struct bio *bio)
 	u64 start = 0;
 	struct page *page;
 	struct extent_io_tree *io_tree = NULL;
-	struct btrfs_fs_info *info = NULL;
 	struct bio_vec *bvec;
 	int i;
 	int ret;
@@ -1406,7 +1396,6 @@ static int bio_ready_for_csum(struct bio *bio)
 		buf_len = page->private >> 2;
 		start = page_offset(page) + bvec->bv_offset;
 		io_tree = &BTRFS_I(page->mapping->host)->io_tree;
-		info = BTRFS_I(page->mapping->host)->root->fs_info;
 	}
 	/* are we fully contained in this bio? */
 	if (buf_len <= length)

@@ -319,8 +319,6 @@ static noinline int compress_file_range(struct inode *inode,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	u64 num_bytes;
-	u64 orig_start;
-	u64 disk_num_bytes;
 	u64 blocksize = root->sectorsize;
 	u64 actual_end;
 	u64 isize = i_size_read(inode);
@@ -334,8 +332,6 @@ static noinline int compress_file_range(struct inode *inode,
 	unsigned long max_uncompressed = 128 * 1024;
 	int i;
 	int will_compress;
-
-	orig_start = start;
 
 	actual_end = min_t(u64, isize, end + 1);
 again:
@@ -371,7 +367,6 @@ again:
 	total_compressed = min(total_compressed, max_uncompressed);
 	num_bytes = (end - start + blocksize) & ~(blocksize - 1);
 	num_bytes = max(blocksize,  num_bytes);
-	disk_num_bytes = num_bytes;
 	total_in = 0;
 	ret = 0;
 
@@ -467,7 +462,6 @@ again:
 		if (total_compressed >= total_in) {
 			will_compress = 0;
 		} else {
-			disk_num_bytes = total_compressed;
 			num_bytes = total_in;
 		}
 	}
@@ -757,8 +751,6 @@ static noinline int cow_file_range(struct inode *inode,
 	u64 disk_num_bytes;
 	u64 cur_alloc_size;
 	u64 blocksize = root->sectorsize;
-	u64 actual_end;
-	u64 isize = i_size_read(inode);
 	struct btrfs_key ins;
 	struct extent_map *em;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
@@ -769,8 +761,6 @@ static noinline int cow_file_range(struct inode *inode,
 	BUG_ON(!trans);
 	btrfs_set_trans_block_group(trans, inode);
 	trans->block_rsv = &root->fs_info->delalloc_block_rsv;
-
-	actual_end = min_t(u64, isize, end + 1);
 
 	num_bytes = (end - start + blocksize) & ~(blocksize - 1);
 	num_bytes = max(blocksize,  num_bytes);
@@ -2274,7 +2264,6 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 {
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
-	struct btrfs_item *item;
 	struct btrfs_key key, found_key;
 	struct btrfs_trans_handle *trans;
 	struct inode *inode;
@@ -2312,7 +2301,6 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 
 		/* pull out the item */
 		leaf = path->nodes[0];
-		item = btrfs_item_nr(leaf, path->slots[0]);
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 
 		/* make sure the item matches what we want */
@@ -5701,7 +5689,6 @@ static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_dio_private *dip;
 	struct bio_vec *bvec = bio->bi_io_vec;
-	u64 start;
 	int skip_sum;
 	int write = rw & REQ_WRITE;
 	int ret = 0;
@@ -5727,7 +5714,6 @@ static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 	dip->inode = inode;
 	dip->logical_offset = file_offset;
 
-	start = dip->logical_offset;
 	dip->bytes = 0;
 	do {
 		dip->bytes += bvec->bv_len;
