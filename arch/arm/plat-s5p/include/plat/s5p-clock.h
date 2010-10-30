@@ -43,4 +43,8 @@ extern struct clksrc_sources clk_src_dpll;
 
 extern int s5p_gatectrl(void __iomem *reg, struct clk *clk, int enable);
 
+/* Common EPLL operations for S5P platform */
+extern int s5p_epll_enable(struct clk *clk, int enable);
+extern unsigned long s5p_epll_get_rate(struct clk *clk);
+
 #endif /* __ASM_PLAT_S5P_CLOCK_H */

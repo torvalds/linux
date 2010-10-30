@@ -108,6 +108,19 @@ extern int s3c_gpio_cfgpin(unsigned int pin, unsigned int to);
  */
 extern unsigned s3c_gpio_getcfg(unsigned int pin);
 
+/**
+ * s3c_gpio_cfgpin_range() - Change the GPIO function for configuring pin range
+ * @start: The pin number to start at
+ * @nr: The number of pins to configure from @start.
+ * @cfg: The configuration for the pin's function
+ *
+ * Call s3c_gpio_cfgpin() for the @nr pins starting at @start.
+ *
+ * @sa s3c_gpio_cfgpin.
+ */
+extern int s3c_gpio_cfgpin_range(unsigned int start, unsigned int nr,
+				 unsigned int cfg);
+
 /* Define values for the pull-{up,down} available for each gpio pin.
  *
  * These values control the state of the weak pull-{up,down} resistors
@@ -140,6 +153,31 @@ extern int s3c_gpio_setpull(unsigned int pin, s3c_gpio_pull_t pull);
 */
 extern s3c_gpio_pull_t s3c_gpio_getpull(unsigned int pin);
 
+/* configure `all` aspects of an gpio */
+
+/**
+ * s3c_gpio_cfgall_range() - configure range of gpio functtion and pull.
+ * @start: The gpio number to start at.
+ * @nr: The number of gpio to configure from @start.
+ * @cfg: The configuration to use
+ * @pull: The pull setting to use.
+ *
+ * Run s3c_gpio_cfgpin() and s3c_gpio_setpull() over the gpio range starting
+ * @gpio and running for @size.
+ *
+ * @sa s3c_gpio_cfgpin
+ * @sa s3c_gpio_setpull
+ * @sa s3c_gpio_cfgpin_range
+ */
+extern int s3c_gpio_cfgall_range(unsigned int start, unsigned int nr,
+				 unsigned int cfg, s3c_gpio_pull_t pull);
+
+static inline int s3c_gpio_cfgrange_nopull(unsigned int pin, unsigned int size,
+					   unsigned int cfg)
+{
+	return s3c_gpio_cfgall_range(pin, size, cfg, S3C_GPIO_PULL_NONE);
+}
+
 /* Define values for the drvstr available for each gpio pin.
  *
  * These values control the value of the output signal driver strength,
@@ -168,5 +206,23 @@ extern s5p_gpio_drvstr_t s5p_gpio_get_drvstr(unsigned int pin);
  * cannot support the requested setting.
 */
 extern int s5p_gpio_set_drvstr(unsigned int pin, s5p_gpio_drvstr_t drvstr);
+
+/**
+ * s5p_register_gpio_interrupt() - register interrupt support for a gpio group
+ * @pin: The pin number from the group to be registered
+ *
+ * This function registers gpio interrupt support for the group that the
+ * specified pin belongs to.
+ *
+ * The total number of gpio pins is quite large ob s5p series. Registering
+ * irq support for all of them would be a resource waste. Because of that the
+ * interrupt support for standard gpio pins is registered dynamically.
+ *
+ * It will return the irq number of the interrupt that has been registered
+ * or -ENOMEM if no more gpio interrupts can be registered. It is allowed
+ * to call this function more than once for the same gpio group (the group
+ * will be registered only once).
+ */
+extern int s5p_register_gpio_interrupt(int pin);
 
 #endif /* __PLAT_GPIO_CFG_H */

@@ -720,9 +720,11 @@ config ARCH_S5PC100
 config ARCH_S5PV210
 	bool "Samsung S5PV210/S5PC110"
 	select CPU_V7
+	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARM_L1_CACHE_SHIFT_6
+	select ARCH_HAS_CPUFREQ
 	select ARCH_USES_GETTIMEOFFSET
 	select HAVE_S3C2410_I2C
 	select HAVE_S3C_RTC
@@ -733,9 +735,13 @@ config ARCH_S5PV210
 config ARCH_S5PV310
 	bool "Samsung S5PV310/S5PC210"
 	select CPU_V7
+	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select GENERIC_CLOCKEVENTS
+	select HAVE_S3C_RTC
+	select HAVE_S3C2410_I2C
+	select HAVE_S3C2410_WATCHDOG
 	help
 	  Samsung S5PV310 series based systems
 
@@ -1661,6 +1667,12 @@ menu "CPU Power Management"
 if ARCH_HAS_CPUFREQ
 
 source "drivers/cpufreq/Kconfig"
+
+config CPU_FREQ_IMX
+	tristate "CPUfreq driver for i.MX CPUs"
+	depends on ARCH_MXC && CPU_FREQ
+	help
+	  This enables the CPUfreq driver for i.MX CPUs.
 
 config CPU_FREQ_SA1100
 	bool
