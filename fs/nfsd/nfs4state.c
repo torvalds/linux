@@ -2296,23 +2296,6 @@ void nfsd_break_deleg_cb(struct file_lock *fl)
 }
 
 /*
- * The file_lock is being reapd.
- *
- * Called by locks_free_lock() with lock_flocks() held.
- */
-static
-void nfsd_release_deleg_cb(struct file_lock *fl)
-{
-	struct nfs4_delegation *dp = (struct nfs4_delegation *)fl->fl_owner;
-
-	dprintk("NFSD nfsd_release_deleg_cb: fl %p dp %p dl_count %d\n", fl,dp, atomic_read(&dp->dl_count));
-
-	if (!(fl->fl_flags & FL_LEASE) || !dp)
-		return;
-	dp->dl_flock = NULL;
-}
-
-/*
  * Called from setlease() with lock_flocks() held
  */
 static
@@ -2341,7 +2324,6 @@ int nfsd_change_deleg_cb(struct file_lock **onlist, int arg)
 
 static const struct lock_manager_operations nfsd_lease_mng_ops = {
 	.fl_break = nfsd_break_deleg_cb,
-	.fl_release_private = nfsd_release_deleg_cb,
 	.fl_mylease = nfsd_same_client_deleg_cb,
 	.fl_change = nfsd_change_deleg_cb,
 };
