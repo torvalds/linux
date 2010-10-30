@@ -156,10 +156,12 @@ VOID AdapterFree(PMINI_ADAPTER Adapter)
 
 int create_worker_threads(PMINI_ADAPTER psAdapter)
 {
+	const char *name = psAdapter->dev->name;
+
 	BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Init Threads...");
 	// Rx Control Packets Processing
 	psAdapter->control_packet_handler = kthread_run((int (*)(void *))
-			control_packet_handler, psAdapter, "CtrlPktHdlr");
+							control_packet_handler, psAdapter, "%s-rx", name);
 	if(IS_ERR(psAdapter->control_packet_handler))
 	{
 		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "No Kernel Thread, but still returning success\n");
@@ -167,7 +169,7 @@ int create_worker_threads(PMINI_ADAPTER psAdapter)
 	}
 	// Tx Thread
 	psAdapter->transmit_packet_thread = kthread_run((int (*)(void *))
-		tx_pkt_handler, psAdapter, "TxPktThread");
+							tx_pkt_handler, psAdapter, "%s-tx", name);
 	if(IS_ERR (psAdapter->transmit_packet_thread))
 	{
 		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "No Kernel Thread, but still returning success");
