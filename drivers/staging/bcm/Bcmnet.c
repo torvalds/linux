@@ -143,7 +143,8 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 
         net->netdev_ops = &bcmNetDevOps;
 	net->ethtool_ops = &bcm_ethtool_ops;
-	net->mtu        = MTU_SIZE; /* 1400 Bytes */
+	net->mtu          = MTU_SIZE; /* 1400 Bytes */
+	net->tx_queue_len = TX_QLEN;
 
 	SET_NETDEV_DEV(net, &uintf->dev);
 	SET_NETDEV_DEVTYPE(net, &wimax_type);

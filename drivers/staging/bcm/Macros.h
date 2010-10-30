@@ -13,10 +13,9 @@
 #define MAX_DATA_PKTS 		200
 #define MAX_ETH_SIZE 		1536
 #define MAX_CNTL_PKT_SIZE 2048
-/* TIMER RELATED */
-#define JIFFIES_2_QUADPART()	(ULONG)(jiffies * 10000) // jiffies(1msec) to Quadpart(100nsec)
 
 #define MTU_SIZE 1400
+#define TX_QLEN  5
 
 #define MAC_ADDR_REGISTER 0xbf60d000
 
