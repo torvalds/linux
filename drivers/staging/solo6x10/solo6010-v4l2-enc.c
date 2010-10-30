@@ -184,7 +184,7 @@ static void solo_update_mode(struct solo_enc_dev *solo_enc)
 		solo_enc->bw_weight <<= 2;
 		break;
 	default:
-		WARN(1, "mode is unknown");
+		WARN(1, "mode is unknown\n");
 	}
 }
 
