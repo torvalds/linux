@@ -1,49 +1,5 @@
 #include "headers.h"
 
-
-/*
-Function:				InterfaceTxDataPacket
-
-Description:			This is the hardware specific Function for Transmitting
-						data packet to the device.
-
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
-						PVOID Packet				-  Packet Containing the data to be transmitted
-						USHORT usVcid			   - VCID on which data packet is to be sent
-
-
-Return:				BCM_STATUS_SUCCESS - If Tx was successful.
-						Other           - If an error occured.
-*/
-
-ULONG InterfaceTxDataPacket(PMINI_ADAPTER Adapter,PVOID Packet,USHORT usVcid)
-{
-	ULONG	Status = 0;
-	return Status;
-}
-
-/*
-Function:				InterfaceTxControlPacket
-
-Description:			This is the hardware specific Function for Transmitting
-						control packet to the device.
-
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
-						PVOID pvBuffer			   - Buffer containg control packet
-						UINT uiBufferLength		   - Buffer Length
-
-Return:				BCM_STATUS_SUCCESS - If control packet transmit was successful.
-						Other           - If an error occured.
-*/
-
-ULONG InterfaceTxControlPacket(PMINI_ADAPTER Adapter,PVOID pvBuffer,UINT uiBufferLength)
-{
-	ULONG	Status = 0;
-
-
-
-	return Status;
-}
 /*this is transmit call-back(BULK OUT)*/
 static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 {
