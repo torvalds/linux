@@ -1441,7 +1441,8 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	return 0;
 
 out:
-	locks_free_lock(lease);
+	if (arg != F_UNLCK)
+		locks_free_lock(lease);
 	return error;
 }
 EXPORT_SYMBOL(generic_setlease);
@@ -1493,17 +1494,16 @@ int vfs_setlease(struct file *filp, long arg, struct file_lock **lease)
 }
 EXPORT_SYMBOL_GPL(vfs_setlease);
 
-/**
- *	fcntl_setlease	-	sets a lease on an open file
- *	@fd: open file descriptor
- *	@filp: file pointer
- *	@arg: type of lease to obtain
- *
- *	Call this fcntl to establish a lease on the file.
- *	Note that you also need to call %F_SETSIG to
- *	receive a signal when the lease is broken.
- */
-int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
+static int do_fcntl_delete_lease(struct file *filp)
+{
+	struct file_lock fl, *flp = &fl;
+
+	lease_init(filp, F_UNLCK, flp);
+
+	return vfs_setlease(filp, F_UNLCK, &flp);
+}
+
+static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 {
 	struct file_lock *fl;
 	struct fasync_struct *new;
@@ -1521,7 +1521,7 @@ int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 	}
 	lock_flocks();
 	error = __vfs_setlease(filp, arg, &fl);
-	if (error || arg == F_UNLCK)
+	if (error)
 		goto out_unlock;
 
 	/*
@@ -1547,6 +1547,23 @@ out_unlock:
 	if (new)
 		fasync_free(new);
 	return error;
+}
+
+/**
+ *	fcntl_setlease	-	sets a lease on an open file
+ *	@fd: open file descriptor
+ *	@filp: file pointer
+ *	@arg: type of lease to obtain
+ *
+ *	Call this fcntl to establish a lease on the file.
+ *	Note that you also need to call %F_SETSIG to
+ *	receive a signal when the lease is broken.
+ */
+int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
+{
+	if (arg == F_UNLCK)
+		return do_fcntl_delete_lease(filp);
+	return do_fcntl_add_lease(fd, filp, arg);
 }
 
 /**
