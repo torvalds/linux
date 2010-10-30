@@ -78,25 +78,50 @@ void *of_fdt_get_property(struct boot_param_header *blob,
  * @blob: A device tree blob
  * @node: node to test
  * @compat: compatible string to compare with compatible list.
+ *
+ * On match, returns a non-zero value with smaller values returned for more
+ * specific compatible values.
  */
 int of_fdt_is_compatible(struct boot_param_header *blob,
 		      unsigned long node, const char *compat)
 {
 	const char *cp;
-	unsigned long cplen, l;
+	unsigned long cplen, l, score = 0;
 
 	cp = of_fdt_get_property(blob, node, "compatible", &cplen);
 	if (cp == NULL)
 		return 0;
 	while (cplen > 0) {
+		score++;
 		if (of_compat_cmp(cp, compat, strlen(compat)) == 0)
-			return 1;
+			return score;
 		l = strlen(cp) + 1;
 		cp += l;
 		cplen -= l;
 	}
 
 	return 0;
+}
+
+/**
+ * of_fdt_match - Return true if node matches a list of compatible values
+ */
+int of_fdt_match(struct boot_param_header *blob, unsigned long node,
+                 const char **compat)
+{
+	unsigned int tmp, score = 0;
+
+	if (!compat)
+		return 0;
+
+	while (*compat) {
+		tmp = of_fdt_is_compatible(blob, node, *compat);
+		if (tmp && (score == 0 || (tmp < score)))
+			score = tmp;
+		compat++;
+	}
+
+	return score;
 }
 
 static void *unflatten_dt_alloc(unsigned long *mem, unsigned long size,
@@ -509,6 +534,14 @@ void *__init of_get_flat_dt_prop(unsigned long node, const char *name,
 int __init of_flat_dt_is_compatible(unsigned long node, const char *compat)
 {
 	return of_fdt_is_compatible(initial_boot_params, node, compat);
+}
+
+/**
+ * of_flat_dt_match - Return true if node matches a list of compatible values
+ */
+int __init of_flat_dt_match(unsigned long node, const char **compat)
+{
+	return of_fdt_match(initial_boot_params, node, compat);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
