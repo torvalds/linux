@@ -1314,7 +1314,7 @@ static int __init acer_wmi_init(void)
 		AMW0_find_mailled();
 
 	if (!interface) {
-		printk(ACER_ERR "No or unsupported WMI interface, unable to "
+		printk(ACER_INFO "No or unsupported WMI interface, unable to "
 				"load\n");
 		return -ENODEV;
 	}

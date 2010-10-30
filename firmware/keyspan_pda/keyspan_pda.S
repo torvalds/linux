@@ -74,7 +74,7 @@
  *  recognizes the new device ID and glues it to the real serial driver code.
  *
  * USEFUL DOCS:
- *  EzUSB Technical Reference Manual: <http://www.anchorchips.com>
+ *  EzUSB Technical Reference Manual: <http://www.cypress.com/>
  *  8051 manuals: everywhere, but try www.dalsemi.com because the EzUSB is
  *   basically the Dallas enhanced 8051 code. Remember that the EzUSB IO ports
  *   use totally different registers!

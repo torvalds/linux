@@ -149,26 +149,8 @@ struct ixgbe_dcb_config {
 
 /* DCB driver APIs */
 
-/* DCB rule checking function.*/
-s32 ixgbe_dcb_check_config(struct ixgbe_dcb_config *config);
-
 /* DCB credits calculation */
 s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_dcb_config *, u8);
-
-/* DCB PFC functions */
-s32 ixgbe_dcb_config_pfc(struct ixgbe_hw *, struct ixgbe_dcb_config *g);
-s32 ixgbe_dcb_get_pfc_stats(struct ixgbe_hw *, struct ixgbe_hw_stats *, u8);
-
-/* DCB traffic class stats */
-s32 ixgbe_dcb_config_tc_stats(struct ixgbe_hw *);
-s32 ixgbe_dcb_get_tc_stats(struct ixgbe_hw *, struct ixgbe_hw_stats *, u8);
-
-/* DCB config arbiters */
-s32 ixgbe_dcb_config_tx_desc_arbiter(struct ixgbe_hw *,
-                                     struct ixgbe_dcb_config *);
-s32 ixgbe_dcb_config_tx_data_arbiter(struct ixgbe_hw *,
-                                     struct ixgbe_dcb_config *);
-s32 ixgbe_dcb_config_rx_arbiter(struct ixgbe_hw *, struct ixgbe_dcb_config *);
 
 /* DCB hw initialization */
 s32 ixgbe_dcb_hw_config(struct ixgbe_hw *, struct ixgbe_dcb_config *);

@@ -39,4 +39,10 @@ extern struct platform_device pxa3xx_device_i2c_power;
 
 extern struct platform_device pxa3xx_device_gcu;
 
+extern struct platform_device pxa_device_asoc_platform;
+extern struct platform_device pxa_device_asoc_ssp1;
+extern struct platform_device pxa_device_asoc_ssp2;
+extern struct platform_device pxa_device_asoc_ssp3;
+extern struct platform_device pxa_device_asoc_ssp4;
+
 void __init pxa_register_device(struct platform_device *dev, void *data);

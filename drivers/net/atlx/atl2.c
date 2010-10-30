@@ -51,10 +51,10 @@
 
 #define ATL2_DRV_VERSION "2.2.3"
 
-static char atl2_driver_name[] = "atl2";
+static const char atl2_driver_name[] = "atl2";
 static const char atl2_driver_string[] = "Atheros(R) L2 Ethernet Driver";
-static char atl2_copyright[] = "Copyright (c) 2007 Atheros Corporation.";
-static char atl2_driver_version[] = ATL2_DRV_VERSION;
+static const char atl2_copyright[] = "Copyright (c) 2007 Atheros Corporation.";
+static const char atl2_driver_version[] = ATL2_DRV_VERSION;
 
 MODULE_AUTHOR("Atheros Corporation <xiong.huang@atheros.com>, Chris Snook <csnook@redhat.com>");
 MODULE_DESCRIPTION("Atheros Fast Ethernet Network Driver");
@@ -870,7 +870,7 @@ static netdev_tx_t atl2_xmit_frame(struct sk_buff *skb,
 		offset = ((u32)(skb->len-copy_len + 3) & ~3);
 	}
 #ifdef NETIF_F_HW_VLAN_TX
-	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		u16 vlan_tag = vlan_tx_tag_get(skb);
 		vlan_tag = (vlan_tag << 4) |
 			(vlan_tag >> 13) |
@@ -1444,11 +1444,11 @@ static int __devinit atl2_probe(struct pci_dev *pdev,
 	atl2_check_options(adapter);
 
 	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = &atl2_watchdog;
+	adapter->watchdog_timer.function = atl2_watchdog;
 	adapter->watchdog_timer.data = (unsigned long) adapter;
 
 	init_timer(&adapter->phy_config_timer);
-	adapter->phy_config_timer.function = &atl2_phy_config;
+	adapter->phy_config_timer.function = atl2_phy_config;
 	adapter->phy_config_timer.data = (unsigned long) adapter;
 
 	INIT_WORK(&adapter->reset_task, atl2_reset_task);

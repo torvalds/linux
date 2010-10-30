@@ -32,16 +32,6 @@
 
 #ifdef __ASSEMBLY__
 
-/* process bits for task_struct.flags */
-PF_TRACESYS_OFF = 3
-PF_TRACESYS_BIT = 5
-PF_PTRACED_OFF = 3
-PF_PTRACED_BIT = 4
-PF_DTRACE_OFF = 1
-PF_DTRACE_BIT = 5
-
-LENOSYS = 38
-
 #define SWITCH_STACK_SIZE (6*4+4)	/* Includes return address */
 
 /*

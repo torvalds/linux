@@ -137,6 +137,7 @@ const struct file_operations anslcd_fops = {
 	.write		= anslcd_write,
 	.unlocked_ioctl	= anslcd_ioctl,
 	.open		= anslcd_open,
+	.llseek		= default_llseek,
 };
 
 static struct miscdevice anslcd_dev = {

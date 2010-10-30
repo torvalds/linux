@@ -151,8 +151,11 @@ struct ccw_device_private {
 	struct subchannel_id schid;	/* subchannel number */
 	struct ccw_request req;		/* internal I/O request */
 	int iretry;
-	u8 pgid_valid_mask;		/* mask of valid PGIDs */
-	u8 pgid_todo_mask;		/* mask of PGIDs to be adjusted */
+	u8 pgid_valid_mask;	/* mask of valid PGIDs */
+	u8 pgid_todo_mask;	/* mask of PGIDs to be adjusted */
+	u8 pgid_reset_mask;	/* mask of PGIDs which were reset */
+	u8 path_gone_mask;	/* mask of paths, that became unavailable */
+	u8 path_new_mask;	/* mask of paths, that became available */
 	struct {
 		unsigned int fast:1;	/* post with "channel end" */
 		unsigned int repall:1;	/* report every interrupt status */

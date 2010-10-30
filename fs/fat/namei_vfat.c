@@ -1055,15 +1055,19 @@ static int vfat_fill_super(struct super_block *sb, void *data, int silent)
 {
 	int res;
 
+	lock_super(sb);
 	res = fat_fill_super(sb, data, silent, &vfat_dir_inode_operations, 1);
-	if (res)
+	if (res) {
+		unlock_super(sb);
 		return res;
+	}
 
 	if (MSDOS_SB(sb)->options.name_check != 's')
 		sb->s_root->d_op = &vfat_ci_dentry_ops;
 	else
 		sb->s_root->d_op = &vfat_dentry_ops;
 
+	unlock_super(sb);
 	return 0;
 }
 

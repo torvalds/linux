@@ -10,7 +10,6 @@
  *  Author:    Mikko Ala-Fossi            <maf@iki.fi>
  *             Jan Evert van Grootheest   <j.e.van.grootheest@caiway.nl>
  *
- *  Try:  http://www.maf.iki.fi/~maf/ht6560b/
  */
 
 #define DRV_NAME	"ht6560b"

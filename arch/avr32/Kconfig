@@ -146,7 +146,7 @@ config BOARD_HAMMERHEAD
 	  will cover even the most exceptional need of memory bandwidth. Together with the onboard
 	  video decoder the board is ready for video processing.
 
-	  For more information see: http://www.miromico.com/hammerhead
+	  For more information see: http://www.miromico.ch/index.php/hammerhead.html 
 
 config BOARD_FAVR_32
 	bool "Favr-32 LCD-board"

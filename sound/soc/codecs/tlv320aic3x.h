@@ -81,50 +81,63 @@
 /* DAC Digital control registers */
 #define LDAC_VOL			43
 #define RDAC_VOL			44
-/* High Power Output control registers */
+/* Left High Power Output control registers */
 #define LINE2L_2_HPLOUT_VOL		45
-#define LINE2R_2_HPROUT_VOL		62
 #define PGAL_2_HPLOUT_VOL		46
-#define PGAL_2_HPROUT_VOL		60
-#define PGAR_2_HPLOUT_VOL		49
-#define PGAR_2_HPROUT_VOL		63
 #define DACL1_2_HPLOUT_VOL		47
-#define DACR1_2_HPROUT_VOL		64
+#define LINE2R_2_HPLOUT_VOL		48
+#define PGAR_2_HPLOUT_VOL		49
+#define DACR1_2_HPLOUT_VOL		50
 #define HPLOUT_CTRL			51
-#define HPROUT_CTRL			65
-/* High Power COM control registers */
+/* Left High Power COM control registers */
 #define LINE2L_2_HPLCOM_VOL		52
-#define LINE2R_2_HPRCOM_VOL		69
 #define PGAL_2_HPLCOM_VOL		53
-#define PGAR_2_HPLCOM_VOL		56
-#define PGAL_2_HPRCOM_VOL		67
-#define PGAR_2_HPRCOM_VOL		70
 #define DACL1_2_HPLCOM_VOL		54
-#define DACR1_2_HPRCOM_VOL		71
+#define LINE2R_2_HPLCOM_VOL		55
+#define PGAR_2_HPLCOM_VOL		56
+#define DACR1_2_HPLCOM_VOL		57
 #define HPLCOM_CTRL			58
+/* Right High Power Output control registers */
+#define LINE2L_2_HPROUT_VOL		59
+#define PGAL_2_HPROUT_VOL		60
+#define DACL1_2_HPROUT_VOL		61
+#define LINE2R_2_HPROUT_VOL		62
+#define PGAR_2_HPROUT_VOL		63
+#define DACR1_2_HPROUT_VOL		64
+#define HPROUT_CTRL			65
+/* Right High Power COM control registers */
+#define LINE2L_2_HPRCOM_VOL		66
+#define PGAL_2_HPRCOM_VOL		67
+#define DACL1_2_HPRCOM_VOL		68
+#define LINE2R_2_HPRCOM_VOL		69
+#define PGAR_2_HPRCOM_VOL		70
+#define DACR1_2_HPRCOM_VOL		71
 #define HPRCOM_CTRL			72
 /* Mono Line Output Plus/Minus control registers */
 #define LINE2L_2_MONOLOPM_VOL		73
-#define LINE2R_2_MONOLOPM_VOL		76
 #define PGAL_2_MONOLOPM_VOL		74
-#define PGAR_2_MONOLOPM_VOL		77
 #define DACL1_2_MONOLOPM_VOL		75
+#define LINE2R_2_MONOLOPM_VOL		76
+#define PGAR_2_MONOLOPM_VOL		77
 #define DACR1_2_MONOLOPM_VOL		78
 #define MONOLOPM_CTRL			79
-/* Line Output Plus/Minus control registers */
+/* Class-D speaker driver on tlv320aic3007 */
+#define CLASSD_CTRL			73
+/* Left Line Output Plus/Minus control registers */
 #define LINE2L_2_LLOPM_VOL		80
-#define LINE2L_2_RLOPM_VOL		87
-#define LINE2R_2_LLOPM_VOL		83
-#define LINE2R_2_RLOPM_VOL		90
 #define PGAL_2_LLOPM_VOL		81
-#define PGAL_2_RLOPM_VOL		88
-#define PGAR_2_LLOPM_VOL		84
-#define PGAR_2_RLOPM_VOL		91
 #define DACL1_2_LLOPM_VOL		82
-#define DACL1_2_RLOPM_VOL		89
-#define DACR1_2_RLOPM_VOL		92
+#define LINE2R_2_LLOPM_VOL		83
+#define PGAR_2_LLOPM_VOL		84
 #define DACR1_2_LLOPM_VOL		85
 #define LLOPM_CTRL			86
+/* Right Line Output Plus/Minus control registers */
+#define LINE2L_2_RLOPM_VOL		87
+#define PGAL_2_RLOPM_VOL		88
+#define DACL1_2_RLOPM_VOL		89
+#define LINE2R_2_RLOPM_VOL		90
+#define PGAR_2_RLOPM_VOL		91
+#define DACR1_2_RLOPM_VOL		92
 #define RLOPM_CTRL			93
 /* GPIO/IRQ registers */
 #define AIC3X_STICKY_IRQ_FLAGS_REG	96
@@ -199,42 +212,6 @@
 /* Default input volume */
 #define DEFAULT_GAIN    0x20
 
-/* GPIO API */
-enum {
-	AIC3X_GPIO1_FUNC_DISABLED		= 0,
-	AIC3X_GPIO1_FUNC_AUDIO_WORDCLK_ADC	= 1,
-	AIC3X_GPIO1_FUNC_CLOCK_MUX		= 2,
-	AIC3X_GPIO1_FUNC_CLOCK_MUX_DIV2		= 3,
-	AIC3X_GPIO1_FUNC_CLOCK_MUX_DIV4		= 4,
-	AIC3X_GPIO1_FUNC_CLOCK_MUX_DIV8		= 5,
-	AIC3X_GPIO1_FUNC_SHORT_CIRCUIT_IRQ	= 6,
-	AIC3X_GPIO1_FUNC_AGC_NOISE_IRQ		= 7,
-	AIC3X_GPIO1_FUNC_INPUT			= 8,
-	AIC3X_GPIO1_FUNC_OUTPUT			= 9,
-	AIC3X_GPIO1_FUNC_DIGITAL_MIC_MODCLK	= 10,
-	AIC3X_GPIO1_FUNC_AUDIO_WORDCLK		= 11,
-	AIC3X_GPIO1_FUNC_BUTTON_IRQ		= 12,
-	AIC3X_GPIO1_FUNC_HEADSET_DETECT_IRQ	= 13,
-	AIC3X_GPIO1_FUNC_HEADSET_DETECT_OR_BUTTON_IRQ	= 14,
-	AIC3X_GPIO1_FUNC_ALL_IRQ		= 16
-};
-
-enum {
-	AIC3X_GPIO2_FUNC_DISABLED		= 0,
-	AIC3X_GPIO2_FUNC_HEADSET_DETECT_IRQ	= 2,
-	AIC3X_GPIO2_FUNC_INPUT			= 3,
-	AIC3X_GPIO2_FUNC_OUTPUT			= 4,
-	AIC3X_GPIO2_FUNC_DIGITAL_MIC_INPUT	= 5,
-	AIC3X_GPIO2_FUNC_AUDIO_BITCLK		= 8,
-	AIC3X_GPIO2_FUNC_HEADSET_DETECT_OR_BUTTON_IRQ = 9,
-	AIC3X_GPIO2_FUNC_ALL_IRQ		= 10,
-	AIC3X_GPIO2_FUNC_SHORT_CIRCUIT_OR_AGC_IRQ = 11,
-	AIC3X_GPIO2_FUNC_HEADSET_OR_BUTTON_PRESS_OR_SHORT_CIRCUIT_IRQ = 12,
-	AIC3X_GPIO2_FUNC_SHORT_CIRCUIT_IRQ	= 13,
-	AIC3X_GPIO2_FUNC_AGC_NOISE_IRQ		= 14,
-	AIC3X_GPIO2_FUNC_BUTTON_PRESS_IRQ	= 15
-};
-
 void aic3x_set_gpio(struct snd_soc_codec *codec, int gpio, int state);
 int aic3x_get_gpio(struct snd_soc_codec *codec, int gpio);
 
@@ -280,12 +257,5 @@ void aic3x_set_headset_detection(struct snd_soc_codec *codec, int detect,
 				 int headset_debounce, int button_debounce);
 int aic3x_headset_detected(struct snd_soc_codec *codec);
 int aic3x_button_pressed(struct snd_soc_codec *codec);
-
-struct aic3x_setup_data {
-	unsigned int gpio_func[2];
-};
-
-extern struct snd_soc_dai aic3x_dai;
-extern struct snd_soc_codec_device soc_codec_dev_aic3x;
 
 #endif /* _AIC3X_H */

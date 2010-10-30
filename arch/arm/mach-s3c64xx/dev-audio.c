@@ -43,8 +43,10 @@ static int s3c64xx_i2sv3_cfg_gpio(struct platform_device *pdev)
 		s3c_gpio_cfgpin(S3C64XX_GPE(2), S3C64XX_GPE2_I2S1_LRCLK);
 		s3c_gpio_cfgpin(S3C64XX_GPE(3), S3C64XX_GPE3_I2S1_DI);
 		s3c_gpio_cfgpin(S3C64XX_GPE(4), S3C64XX_GPE4_I2S1_D0);
+		break;
 	default:
-		printk(KERN_DEBUG "Invalid I2S Controller number!");
+		printk(KERN_DEBUG "Invalid I2S Controller number: %d\n",
+			pdev->id);
 		return -EINVAL;
 	}
 
@@ -184,7 +186,8 @@ static int s3c64xx_pcm_cfg_gpio(struct platform_device *pdev)
 		s3c_gpio_cfgpin(S3C64XX_GPE(4), S3C64XX_GPE4_PCM1_SOUT);
 		break;
 	default:
-		printk(KERN_DEBUG "Invalid PCM Controller number!");
+		printk(KERN_DEBUG "Invalid PCM Controller number: %d\n",
+			pdev->id);
 		return -EINVAL;
 	}
 
@@ -333,3 +336,16 @@ void __init s3c64xx_ac97_setup_gpio(int num)
 	else
 		s3c_ac97_pdata.cfg_gpio = s3c64xx_ac97_cfg_gpe;
 }
+
+static u64 s3c_device_audio_dmamask = 0xffffffffUL;
+
+struct platform_device s3c_device_pcm = {
+	.name		  = "s3c24xx-pcm-audio",
+	.id		  = -1,
+	.dev              = {
+		.dma_mask = &s3c_device_audio_dmamask,
+		.coherent_dma_mask = 0xffffffffUL
+	}
+};
+EXPORT_SYMBOL(s3c_device_pcm);
+

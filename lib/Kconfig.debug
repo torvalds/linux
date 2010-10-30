@@ -317,6 +317,14 @@ config DEBUG_OBJECTS_RCU_HEAD
 	help
 	  Enable this to turn on debugging of RCU list heads (call_rcu() usage).
 
+config DEBUG_OBJECTS_PERCPU_COUNTER
+	bool "Debug percpu counter objects"
+	depends on DEBUG_OBJECTS
+	help
+	  If you say Y here, additional code will be inserted into the
+	  percpu counter routines to track the life time of percpu counter
+	  objects and validate the percpu counter operations.
+
 config DEBUG_OBJECTS_ENABLE_DEFAULT
 	int "debug_objects bootup default value (0-1)"
         range 0 1
@@ -353,7 +361,7 @@ config SLUB_DEBUG_ON
 config SLUB_STATS
 	default n
 	bool "Enable SLUB performance statistics"
-	depends on SLUB && SLUB_DEBUG && SYSFS
+	depends on SLUB && SYSFS
 	help
 	  SLUB statistics are useful to debug SLUBs allocation behavior in
 	  order find ways to optimize the allocator. This should never be
@@ -366,7 +374,7 @@ config SLUB_STATS
 config DEBUG_KMEMLEAK
 	bool "Kernel memory leak detector"
 	depends on DEBUG_KERNEL && EXPERIMENTAL && !MEMORY_HOTPLUG && \
-		(X86 || ARM || PPC || S390 || SPARC64 || SUPERH || MICROBLAZE)
+		(X86 || ARM || PPC || S390 || SPARC64 || SUPERH || MICROBLAZE || TILE)
 
 	select DEBUG_FS if SYSFS
 	select STACKTRACE if STACKTRACE_SUPPORT
@@ -460,6 +468,15 @@ config DEBUG_MUTEXES
 	help
 	 This feature allows mutex semantics violations to be detected and
 	 reported.
+
+config BKL
+	bool "Big Kernel Lock" if (SMP || PREEMPT)
+	default y
+	help
+	  This is the traditional lock that is used in old code instead
+	  of proper locking. All drivers that use the BKL should depend
+	  on this symbol.
+	  Say Y here unless you are working on removing the BKL.
 
 config DEBUG_LOCK_ALLOC
 	bool "Lock debugging: detect incorrect freeing of live locks"
@@ -728,6 +745,15 @@ config DEBUG_LIST
 	help
 	  Enable this to turn on extended checks in the linked-list
 	  walking routines.
+
+	  If unsure, say N.
+
+config TEST_LIST_SORT
+	bool "Linked list sorting test"
+	depends on DEBUG_KERNEL
+	help
+	  Enable this to turn on 'list_sort()' function test. This test is
+	  executed only once during system boot, so affects only boot time.
 
 	  If unsure, say N.
 
@@ -1188,6 +1214,19 @@ config ATOMIC64_SELFTEST
 	bool "Perform an atomic64_t self-test at boot"
 	help
 	  Enable this option to test the atomic64_t functions at boot.
+
+	  If unsure, say N.
+
+config ASYNC_RAID6_TEST
+	tristate "Self test for hardware accelerated raid6 recovery"
+	depends on ASYNC_RAID6_RECOV
+	select ASYNC_MEMCPY
+	---help---
+	  This is a one-shot self test that permutes through the
+	  recovery of all the possible two disk failure scenarios for a
+	  N-disk array.  Recovery is performed with the asynchronous
+	  raid6 recovery routines, and will optionally use an offload
+	  engine if one is available.
 
 	  If unsure, say N.
 

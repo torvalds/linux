@@ -1963,7 +1963,7 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 }
 #endif /* HAVE_SET_RESTORE_SIGMASK */
 
-#if defined(CONFIG_NFSD) || defined(CONFIG_NFSD_MODULE)
+#if (defined(CONFIG_NFSD) || defined(CONFIG_NFSD_MODULE)) && !defined(CONFIG_NFSD_DEPRECATED)
 /* Stuff for NFS server syscalls... */
 struct compat_nfsctl_svc {
 	u16			svc32_port;

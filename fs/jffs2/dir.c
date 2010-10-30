@@ -289,7 +289,7 @@ static int jffs2_link (struct dentry *old_dentry, struct inode *dir_i, struct de
 		mutex_unlock(&f->sem);
 		d_instantiate(dentry, old_dentry->d_inode);
 		dir_i->i_mtime = dir_i->i_ctime = ITIME(now);
-		atomic_inc(&old_dentry->d_inode->i_count);
+		ihold(old_dentry->d_inode);
 	}
 	return ret;
 }
@@ -864,7 +864,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 		printk(KERN_NOTICE "jffs2_rename(): Link succeeded, unlink failed (err %d). You now have a hard link\n", ret);
 		/* Might as well let the VFS know */
 		d_instantiate(new_dentry, old_dentry->d_inode);
-		atomic_inc(&old_dentry->d_inode->i_count);
+		ihold(old_dentry->d_inode);
 		new_dir_i->i_mtime = new_dir_i->i_ctime = ITIME(now);
 		return ret;
 	}

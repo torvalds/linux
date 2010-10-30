@@ -24,6 +24,7 @@ config SUPERH
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
 	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_REGS_AND_STACK_ACCESS_API
 	select RTC_LIB
 	select GENERIC_ATOMIC64
 	help
@@ -46,7 +47,7 @@ config SUPERH32
 	select HAVE_ARCH_KGDB
 	select HAVE_HW_BREAKPOINT
 	select HAVE_MIXED_BREAKPOINTS_REGS
-	select PERF_EVENTS if HAVE_HW_BREAKPOINT
+	select PERF_EVENTS
 	select ARCH_HIBERNATION_POSSIBLE if MMU
 
 config SUPERH64
@@ -471,6 +472,7 @@ config CPU_SUBTYPE_SHX3
 	select CPU_SH4A
 	select CPU_SHX3
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select ARCH_REQUIRE_GPIOLIB
 
 # SH4AL-DSP Processor Support
 
@@ -575,7 +577,7 @@ config SH_CLK_CPG
 config SH_CLK_CPG_LEGACY
 	depends on SH_CLK_CPG
 	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE && \
-		      !CPU_SUBTYPE_SH7786
+		      !CPU_SHX3 && !CPU_SUBTYPE_SH7757
 
 config SH_CLK_MD
 	int "CPU Mode Pin Setting"

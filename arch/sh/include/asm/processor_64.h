@@ -17,7 +17,6 @@
 #include <linux/compiler.h>
 #include <asm/page.h>
 #include <asm/types.h>
-#include <asm/ptrace.h>
 #include <cpu/registers.h>
 
 /*
@@ -230,8 +229,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)  ((tsk)->thread.pc)
 #define KSTK_ESP(tsk)  ((tsk)->thread.sp)
-
-#define user_stack_pointer(_regs)	((_regs)->regs[15])
 
 #endif	/* __ASSEMBLY__ */
 #endif /* __ASM_SH_PROCESSOR_64_H */

@@ -495,6 +495,7 @@ static struct inode *bm_get_inode(struct super_block *sb, int mode)
 	struct inode * inode = new_inode(sb);
 
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_atime = inode->i_mtime = inode->i_ctime =
 			current_fs_time(inode->i_sb);
@@ -576,6 +577,7 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 static const struct file_operations bm_entry_operations = {
 	.read		= bm_entry_read,
 	.write		= bm_entry_write,
+	.llseek		= default_llseek,
 };
 
 /* /register */
@@ -643,6 +645,7 @@ out:
 
 static const struct file_operations bm_register_operations = {
 	.write		= bm_register_write,
+	.llseek		= noop_llseek,
 };
 
 /* /status */
@@ -680,6 +683,7 @@ static ssize_t bm_status_write(struct file * file, const char __user * buffer,
 static const struct file_operations bm_status_operations = {
 	.read		= bm_status_read,
 	.write		= bm_status_write,
+	.llseek		= default_llseek,
 };
 
 /* Superblock handling */

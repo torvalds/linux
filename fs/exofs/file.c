@@ -46,10 +46,6 @@ static int exofs_file_fsync(struct file *filp, int datasync)
 {
 	int ret;
 	struct inode *inode = filp->f_mapping->host;
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = 0, /* metadata-only; caller takes care of data */
-	};
 	struct super_block *sb;
 
 	if (!(inode->i_state & I_DIRTY))
@@ -57,7 +53,7 @@ static int exofs_file_fsync(struct file *filp, int datasync)
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
 		return 0;
 
-	ret = sync_inode(inode, &wbc);
+	ret = sync_inode_metadata(inode, 1);
 
 	/* This is a good place to write the sb */
 	/* TODO: Sechedule an sb-sync on create */

@@ -118,9 +118,6 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	ah->ah_turbo = false;
 	ah->ah_txpower.txp_tpc = AR5K_TUNE_TPC_TXPOWER;
 	ah->ah_imr = 0;
-	ah->ah_atim_window = 0;
-	ah->ah_aifs = AR5K_TUNE_AIFS;
-	ah->ah_cw_min = AR5K_TUNE_CWMIN;
 	ah->ah_limit_tx_retries = AR5K_INIT_TX_RETRY;
 	ah->ah_software_retry = false;
 	ah->ah_ant_mode = AR5K_ANTMODE_DEFAULT;
@@ -139,12 +136,12 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	else
 		ah->ah_version = AR5K_AR5212;
 
-	/*Fill the ath5k_hw struct with the needed functions*/
+	/* Fill the ath5k_hw struct with the needed functions */
 	ret = ath5k_hw_init_desc_functions(ah);
 	if (ret)
 		goto err_free;
 
-	/* Bring device out of sleep and reset it's units */
+	/* Bring device out of sleep and reset its units */
 	ret = ath5k_hw_nic_wakeup(ah, 0, true);
 	if (ret)
 		goto err_free;
@@ -158,7 +155,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 			CHANNEL_5GHZ);
 	ah->ah_phy = AR5K_PHY(0);
 
-	/* Try to identify radio chip based on it's srev */
+	/* Try to identify radio chip based on its srev */
 	switch (ah->ah_radio_5ghz_revision & 0xf0) {
 	case AR5K_SREV_RAD_5111:
 		ah->ah_radio = AR5K_RF5111;
@@ -314,12 +311,16 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	}
 
 	/* Crypto settings */
-	ah->ah_aes_support = srev >= AR5K_SREV_AR5212_V4 &&
-		(ee->ee_version >= AR5K_EEPROM_VERSION_5_0 &&
-		 !AR5K_EEPROM_AES_DIS(ee->ee_misc5));
+	common->keymax = (sc->ah->ah_version == AR5K_AR5210 ?
+			  AR5K_KEYTABLE_SIZE_5210 : AR5K_KEYTABLE_SIZE_5211);
+
+	if (srev >= AR5K_SREV_AR5212_V4 &&
+	    (ee->ee_version >= AR5K_EEPROM_VERSION_5_0 &&
+	    !AR5K_EEPROM_AES_DIS(ee->ee_misc5)))
+		common->crypt_caps |= ATH_CRYPT_CAP_CIPHER_AESCCM;
 
 	if (srev >= AR5K_SREV_AR2414) {
-		ah->ah_combined_mic = true;
+		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
 		AR5K_REG_ENABLE_BITS(ah, AR5K_MISC_MODE,
 			AR5K_MISC_MODE_COMBINED_MIC);
 	}
@@ -329,7 +330,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 
 	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for now */
 	memcpy(common->curbssid, ath_bcast_mac, ETH_ALEN);
-	ath5k_hw_set_associd(ah);
+	ath5k_hw_set_bssid(ah);
 	ath5k_hw_set_opmode(ah, sc->opmode);
 
 	ath5k_hw_rfgain_opt_init(ah);

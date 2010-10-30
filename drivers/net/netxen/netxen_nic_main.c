@@ -95,6 +95,8 @@ static irqreturn_t netxen_msi_intr(int irq, void *data);
 static irqreturn_t netxen_msix_intr(int irq, void *data);
 
 static void netxen_config_indev_addr(struct net_device *dev, unsigned long);
+static struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev);
+static int netxen_nic_set_mac(struct net_device *netdev, void *p);
 
 /*  PCI Device ID Table  */
 #define ENTRY(device) \
@@ -125,11 +127,6 @@ netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
 		struct nx_host_tx_ring *tx_ring)
 {
 	NXWRIO(adapter, tx_ring->crb_cmd_producer, tx_ring->producer);
-
-	if (netxen_tx_avail(tx_ring) <= TX_STOP_THRESH) {
-		netif_stop_queue(adapter->netdev);
-		smp_mb();
-	}
 }
 
 static uint32_t crb_cmd_consumer[4] = {
@@ -177,7 +174,7 @@ netxen_alloc_sds_rings(struct netxen_recv_context *recv_ctx, int count)
 
 	recv_ctx->sds_rings = kzalloc(size, GFP_KERNEL);
 
-	return (recv_ctx->sds_rings == NULL);
+	return recv_ctx->sds_rings == NULL;
 }
 
 static void
@@ -460,7 +457,7 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 	return 0;
 }
 
-int netxen_nic_set_mac(struct net_device *netdev, void *p)
+static int netxen_nic_set_mac(struct net_device *netdev, void *p)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct sockaddr *addr = p;
@@ -1209,7 +1206,7 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 		adapter->max_mc_count = 16;
 
 	netdev->netdev_ops	   = &netxen_netdev_ops;
-	netdev->watchdog_timeo     = 2*HZ;
+	netdev->watchdog_timeo     = 5*HZ;
 
 	netxen_nic_change_mtu(netdev, netdev->mtu);
 
@@ -1253,6 +1250,28 @@ netxen_setup_netdev(struct netxen_adapter *adapter,
 
 	return 0;
 }
+
+#ifdef CONFIG_PCIEAER
+static void netxen_mask_aer_correctable(struct netxen_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct pci_dev *root = pdev->bus->self;
+	u32 aer_pos;
+
+	if (adapter->ahw.board_type != NETXEN_BRDTYPE_P3_4_GB_MM &&
+		adapter->ahw.board_type != NETXEN_BRDTYPE_P3_10G_TP)
+		return;
+
+	if (root->pcie_type != PCI_EXP_TYPE_ROOT_PORT)
+		return;
+
+	aer_pos = pci_find_ext_capability(root, PCI_EXT_CAP_ID_ERR);
+	if (!aer_pos)
+		return;
+
+	pci_write_config_dword(root, aer_pos + PCI_ERR_COR_MASK, 0xffff);
+}
+#endif
 
 static int __devinit
 netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -1321,6 +1340,10 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Error getting board config info.\n");
 		goto err_out_iounmap;
 	}
+
+#ifdef CONFIG_PCIEAER
+	netxen_mask_aer_correctable(adapter);
+#endif
 
 	/* Mezz cards have PCI function 0,2,3 enabled */
 	switch (adapter->ahw.board_type) {
@@ -1825,9 +1848,13 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	/* 4 fragments per cmd des */
 	no_of_desc = (frag_count + 3) >> 2;
 
-	if (unlikely(no_of_desc + 2 > netxen_tx_avail(tx_ring))) {
+	if (unlikely(netxen_tx_avail(tx_ring) <= TX_STOP_THRESH)) {
 		netif_stop_queue(netdev);
-		return NETDEV_TX_BUSY;
+		smp_mb();
+		if (netxen_tx_avail(tx_ring) > TX_STOP_THRESH)
+			netif_start_queue(netdev);
+		else
+			return NETDEV_TX_BUSY;
 	}
 
 	producer = tx_ring->producer;
@@ -2027,7 +2054,7 @@ request_reset:
 	clear_bit(__NX_RESETTING, &adapter->state);
 }
 
-struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
+static struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct net_device_stats *stats = &netdev->stats;

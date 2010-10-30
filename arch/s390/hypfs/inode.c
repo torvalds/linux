@@ -449,6 +449,7 @@ static const struct file_operations hypfs_file_ops = {
 	.write		= do_sync_write,
 	.aio_read	= hypfs_aio_read,
 	.aio_write	= hypfs_aio_write,
+	.llseek		= no_llseek,
 };
 
 static struct file_system_type hypfs_type = {

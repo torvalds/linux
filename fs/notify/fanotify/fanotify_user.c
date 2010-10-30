@@ -433,6 +433,7 @@ static const struct file_operations fanotify_fops = {
 	.release	= fanotify_release,
 	.unlocked_ioctl	= fanotify_ioctl,
 	.compat_ioctl	= fanotify_ioctl,
+	.llseek		= noop_llseek,
 };
 
 static void fanotify_free_mark(struct fsnotify_mark *fsn_mark)

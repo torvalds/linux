@@ -660,7 +660,7 @@ static const struct dev_pm_ops adp5588_dev_pm_ops = {
 #endif
 
 static const struct i2c_device_id adp5588_id[] = {
-	{ KBUILD_MODNAME, 0 },
+	{ "adp5588-keys", 0 },
 	{ "adp5587-keys", 0 },
 	{ }
 };

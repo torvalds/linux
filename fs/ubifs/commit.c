@@ -63,7 +63,9 @@ static int do_commit(struct ubifs_info *c)
 	struct ubifs_lp_stats lst;
 
 	dbg_cmt("start");
-	if (c->ro_media) {
+	ubifs_assert(!c->ro_media && !c->ro_mount);
+
+	if (c->ro_error) {
 		err = -EROFS;
 		goto out_up;
 	}

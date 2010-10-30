@@ -193,7 +193,7 @@ int drm_agp_enable_ioctl(struct drm_device *dev, void *data,
  * \return zero on success or a negative number on failure.
  *
  * Verifies the AGP device is present and has been acquired, allocates the
- * memory via alloc_agp() and creates a drm_agp_mem entry for it.
+ * memory via agp_allocate_memory() and creates a drm_agp_mem entry for it.
  */
 int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 {
@@ -211,7 +211,7 @@ int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 
 	pages = (request->size + PAGE_SIZE - 1) / PAGE_SIZE;
 	type = (u32) request->type;
-	if (!(memory = drm_alloc_agp(dev, pages, type))) {
+	if (!(memory = agp_allocate_memory(dev->agp->bridge, pages, type))) {
 		kfree(entry);
 		return -ENOMEM;
 	}
@@ -423,38 +423,6 @@ struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 	return head;
 }
 
-/** Calls agp_allocate_memory() */
-DRM_AGP_MEM *drm_agp_allocate_memory(struct agp_bridge_data * bridge,
-				     size_t pages, u32 type)
-{
-	return agp_allocate_memory(bridge, pages, type);
-}
-
-/** Calls agp_free_memory() */
-int drm_agp_free_memory(DRM_AGP_MEM * handle)
-{
-	if (!handle)
-		return 0;
-	agp_free_memory(handle);
-	return 1;
-}
-
-/** Calls agp_bind_memory() */
-int drm_agp_bind_memory(DRM_AGP_MEM * handle, off_t start)
-{
-	if (!handle)
-		return -EINVAL;
-	return agp_bind_memory(handle, start);
-}
-
-/** Calls agp_unbind_memory() */
-int drm_agp_unbind_memory(DRM_AGP_MEM * handle)
-{
-	if (!handle)
-		return -EINVAL;
-	return agp_unbind_memory(handle);
-}
-
 /**
  * Binds a collection of pages into AGP memory at the given offset, returning
  * the AGP memory structure containing them.
@@ -474,7 +442,7 @@ drm_agp_bind_pages(struct drm_device *dev,
 
 	DRM_DEBUG("\n");
 
-	mem = drm_agp_allocate_memory(dev->agp->bridge, num_pages,
+	mem = agp_allocate_memory(dev->agp->bridge, num_pages,
 				      type);
 	if (mem == NULL) {
 		DRM_ERROR("Failed to allocate memory for %ld pages\n",
@@ -487,7 +455,7 @@ drm_agp_bind_pages(struct drm_device *dev,
 	mem->page_count = num_pages;
 
 	mem->is_flushed = true;
-	ret = drm_agp_bind_memory(mem, gtt_offset / PAGE_SIZE);
+	ret = agp_bind_memory(mem, gtt_offset / PAGE_SIZE);
 	if (ret != 0) {
 		DRM_ERROR("Failed to bind AGP memory: %d\n", ret);
 		agp_free_memory(mem);

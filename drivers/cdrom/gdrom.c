@@ -34,7 +34,7 @@
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
@@ -81,6 +81,7 @@
 
 #define GDROM_DEFAULT_TIMEOUT	(HZ * 7)
 
+static DEFINE_MUTEX(gdrom_mutex);
 static const struct {
 	int sense_key;
 	const char * const text;
@@ -494,17 +495,17 @@ static struct cdrom_device_ops gdrom_ops = {
 static int gdrom_bdops_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
-	lock_kernel();
+	mutex_lock(&gdrom_mutex);
 	ret = cdrom_open(gd.cd_info, bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&gdrom_mutex);
 	return ret;
 }
 
 static int gdrom_bdops_release(struct gendisk *disk, fmode_t mode)
 {
-	lock_kernel();
+	mutex_lock(&gdrom_mutex);
 	cdrom_release(gd.cd_info, mode);
-	unlock_kernel();
+	mutex_unlock(&gdrom_mutex);
 	return 0;
 }
 
@@ -518,9 +519,9 @@ static int gdrom_bdops_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&gdrom_mutex);
 	ret = cdrom_ioctl(gd.cd_info, bdev, mode, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&gdrom_mutex);
 
 	return ret;
 }

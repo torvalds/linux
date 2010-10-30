@@ -66,6 +66,8 @@ struct s3c_i2sv2_info {
 	u32		 suspend_iismod;
 	u32		 suspend_iiscon;
 	u32		 suspend_iispsr;
+
+	unsigned long	base;
 };
 
 extern struct clk *s3c_i2sv2_get_clock(struct snd_soc_dai *cpu_dai);
@@ -81,23 +83,24 @@ extern int s3c_i2sv2_iis_calc_rate(struct s3c_i2sv2_rate_calc *info,
 
 /**
  * s3c_i2sv2_probe - probe for i2s device helper
- * @pdev: The platform device supplied to the original probe.
  * @dai: The ASoC DAI structure supplied to the original probe.
  * @i2s: Our local i2s structure to fill in.
  * @base: The base address for the registers.
  */
-extern int s3c_i2sv2_probe(struct platform_device *pdev,
-			   struct snd_soc_dai *dai,
+extern int s3c_i2sv2_probe(struct snd_soc_dai *dai,
 			   struct s3c_i2sv2_info *i2s,
 			   unsigned long base);
 
 /**
  * s3c_i2sv2_register_dai - register dai with soc core
- * @dai: The snd_soc_dai structure to register
+ * @dev: DAI device
+ * @id: DAI ID
+ * @drv: The driver structure to register
  *
  * Fill in any missing fields and then register the given dai with the
  * soc core.
  */
-extern int s3c_i2sv2_register_dai(struct snd_soc_dai *dai);
+extern int s3c_i2sv2_register_dai(struct device *dev, int id,
+		struct snd_soc_dai_driver *drv);
 
 #endif /* __SND_SOC_S3C24XX_S3C_I2SV2_I2S_H */

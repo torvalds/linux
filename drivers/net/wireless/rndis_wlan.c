@@ -540,11 +540,11 @@ static int rndis_set_channel(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_channel *chan, enum nl80211_channel_type channel_type);
 
 static int rndis_add_key(struct wiphy *wiphy, struct net_device *netdev,
-					u8 key_index, const u8 *mac_addr,
-					struct key_params *params);
+			 u8 key_index, bool pairwise, const u8 *mac_addr,
+			 struct key_params *params);
 
 static int rndis_del_key(struct wiphy *wiphy, struct net_device *netdev,
-					u8 key_index, const u8 *mac_addr);
+			 u8 key_index, bool pairwise, const u8 *mac_addr);
 
 static int rndis_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 								u8 key_index);
@@ -2308,8 +2308,8 @@ static int rndis_set_channel(struct wiphy *wiphy, struct net_device *netdev,
 }
 
 static int rndis_add_key(struct wiphy *wiphy, struct net_device *netdev,
-					u8 key_index, const u8 *mac_addr,
-					struct key_params *params)
+			 u8 key_index, bool pairwise, const u8 *mac_addr,
+			 struct key_params *params)
 {
 	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
 	struct usbnet *usbdev = priv->usbdev;
@@ -2344,7 +2344,7 @@ static int rndis_add_key(struct wiphy *wiphy, struct net_device *netdev,
 }
 
 static int rndis_del_key(struct wiphy *wiphy, struct net_device *netdev,
-					u8 key_index, const u8 *mac_addr)
+			 u8 key_index, bool pairwise, const u8 *mac_addr)
 {
 	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
 	struct usbnet *usbdev = priv->usbdev;

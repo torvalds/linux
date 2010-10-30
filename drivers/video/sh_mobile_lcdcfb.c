@@ -1243,8 +1243,10 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 		if (priv->ch[i].sglist)
 			vfree(priv->ch[i].sglist);
 
-		dma_free_coherent(&pdev->dev, info->fix.smem_len,
-				  info->screen_base, priv->ch[i].dma_handle);
+		if (info->screen_base)
+			dma_free_coherent(&pdev->dev, info->fix.smem_len,
+					  info->screen_base,
+					  priv->ch[i].dma_handle);
 		fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
 	}

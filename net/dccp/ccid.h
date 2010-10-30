@@ -62,22 +62,18 @@ struct ccid_operations {
 	void		(*ccid_hc_tx_exit)(struct sock *sk);
 	void		(*ccid_hc_rx_packet_recv)(struct sock *sk,
 						  struct sk_buff *skb);
-	int		(*ccid_hc_rx_parse_options)(struct sock *sk,
-						    unsigned char option,
-						    unsigned char len, u16 idx,
-						    unsigned char* value);
+	int		(*ccid_hc_rx_parse_options)(struct sock *sk, u8 pkt,
+						    u8 opt, u8 *val, u8 len);
 	int		(*ccid_hc_rx_insert_options)(struct sock *sk,
 						     struct sk_buff *skb);
 	void		(*ccid_hc_tx_packet_recv)(struct sock *sk,
 						  struct sk_buff *skb);
-	int		(*ccid_hc_tx_parse_options)(struct sock *sk,
-						    unsigned char option,
-						    unsigned char len, u16 idx,
-						    unsigned char* value);
+	int		(*ccid_hc_tx_parse_options)(struct sock *sk, u8 pkt,
+						    u8 opt, u8 *val, u8 len);
 	int		(*ccid_hc_tx_send_packet)(struct sock *sk,
 						  struct sk_buff *skb);
 	void		(*ccid_hc_tx_packet_sent)(struct sock *sk,
-						  int more, unsigned int len);
+						  unsigned int len);
 	void		(*ccid_hc_rx_get_info)(struct sock *sk,
 					       struct tcp_info *info);
 	void		(*ccid_hc_tx_get_info)(struct sock *sk,
@@ -148,10 +144,10 @@ static inline int ccid_hc_tx_send_packet(struct ccid *ccid, struct sock *sk,
 }
 
 static inline void ccid_hc_tx_packet_sent(struct ccid *ccid, struct sock *sk,
-					  int more, unsigned int len)
+					  unsigned int len)
 {
 	if (ccid->ccid_ops->ccid_hc_tx_packet_sent != NULL)
-		ccid->ccid_ops->ccid_hc_tx_packet_sent(sk, more, len);
+		ccid->ccid_ops->ccid_hc_tx_packet_sent(sk, len);
 }
 
 static inline void ccid_hc_rx_packet_recv(struct ccid *ccid, struct sock *sk,
@@ -168,27 +164,31 @@ static inline void ccid_hc_tx_packet_recv(struct ccid *ccid, struct sock *sk,
 		ccid->ccid_ops->ccid_hc_tx_packet_recv(sk, skb);
 }
 
+/**
+ * ccid_hc_tx_parse_options  -  Parse CCID-specific options sent by the receiver
+ * @pkt: type of packet that @opt appears on (RFC 4340, 5.1)
+ * @opt: the CCID-specific option type (RFC 4340, 5.8 and 10.3)
+ * @val: value of @opt
+ * @len: length of @val in bytes
+ */
 static inline int ccid_hc_tx_parse_options(struct ccid *ccid, struct sock *sk,
-					   unsigned char option,
-					   unsigned char len, u16 idx,
-					   unsigned char* value)
+					   u8 pkt, u8 opt, u8 *val, u8 len)
 {
-	int rc = 0;
-	if (ccid->ccid_ops->ccid_hc_tx_parse_options != NULL)
-		rc = ccid->ccid_ops->ccid_hc_tx_parse_options(sk, option, len, idx,
-						    value);
-	return rc;
+	if (ccid->ccid_ops->ccid_hc_tx_parse_options == NULL)
+		return 0;
+	return ccid->ccid_ops->ccid_hc_tx_parse_options(sk, pkt, opt, val, len);
 }
 
+/**
+ * ccid_hc_rx_parse_options  -  Parse CCID-specific options sent by the sender
+ * Arguments are analogous to ccid_hc_tx_parse_options()
+ */
 static inline int ccid_hc_rx_parse_options(struct ccid *ccid, struct sock *sk,
-					   unsigned char option,
-					   unsigned char len, u16 idx,
-					   unsigned char* value)
+					   u8 pkt, u8 opt, u8 *val, u8 len)
 {
-	int rc = 0;
-	if (ccid->ccid_ops->ccid_hc_rx_parse_options != NULL)
-		rc = ccid->ccid_ops->ccid_hc_rx_parse_options(sk, option, len, idx, value);
-	return rc;
+	if (ccid->ccid_ops->ccid_hc_rx_parse_options == NULL)
+		return 0;
+	return ccid->ccid_ops->ccid_hc_rx_parse_options(sk, pkt, opt, val, len);
 }
 
 static inline int ccid_hc_rx_insert_options(struct ccid *ccid, struct sock *sk,

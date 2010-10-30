@@ -496,7 +496,6 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 static void dio700_config(struct pcmcia_device *link)
 {
-	win_req_t req;
 	int ret;
 
 	printk(KERN_INFO "ni_daq_700:  cs-config\n");

@@ -87,7 +87,7 @@ exit:
 	return status;
 }
 
-int ql_soft_reset_mpi_risc(struct ql_adapter *qdev)
+static int ql_soft_reset_mpi_risc(struct ql_adapter *qdev)
 {
 	int status;
 	status = ql_write_mpi_reg(qdev, 0x00001010, 1);
@@ -681,7 +681,7 @@ int ql_mb_get_fw_state(struct ql_adapter *qdev)
 /* Send and ACK mailbox command to the firmware to
  * let it continue with the change.
  */
-int ql_mb_idc_ack(struct ql_adapter *qdev)
+static int ql_mb_idc_ack(struct ql_adapter *qdev)
 {
 	struct mbox_params mbc;
 	struct mbox_params *mbcp = &mbc;
@@ -744,7 +744,7 @@ int ql_mb_set_port_cfg(struct ql_adapter *qdev)
 	return status;
 }
 
-int ql_mb_dump_ram(struct ql_adapter *qdev, u64 req_dma, u32 addr,
+static int ql_mb_dump_ram(struct ql_adapter *qdev, u64 req_dma, u32 addr,
 	u32 size)
 {
 	int status = 0;

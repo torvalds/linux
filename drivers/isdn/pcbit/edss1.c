@@ -33,7 +33,7 @@
 #include "callbacks.h"
 
 
-char * isdn_state_table[] = {
+const char * const isdn_state_table[] = {
   "Closed",
   "Call initiated",
   "Overlap sending",

@@ -212,8 +212,6 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 #endif /* HAVE_PCI_MMAP */
 	int ret = 0;
 
-	lock_kernel();
-
 	switch (cmd) {
 	case PCIIOC_CONTROLLER:
 		ret = pci_domain_nr(dev->bus);
@@ -242,7 +240,6 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 		break;
 	};
 
-	unlock_kernel();
 	return ret;
 }
 

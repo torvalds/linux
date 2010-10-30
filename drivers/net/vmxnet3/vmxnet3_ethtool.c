@@ -50,13 +50,11 @@ vmxnet3_set_rx_csum(struct net_device *netdev, u32 val)
 		adapter->rxcsum = val;
 		if (netif_running(netdev)) {
 			if (val)
-				set_flag_le64(
-				&adapter->shared->devRead.misc.uptFeatures,
-				UPT1_F_RXCSUM);
+				adapter->shared->devRead.misc.uptFeatures |=
+				UPT1_F_RXCSUM;
 			else
-				reset_flag_le64(
-				&adapter->shared->devRead.misc.uptFeatures,
-				UPT1_F_RXCSUM);
+				adapter->shared->devRead.misc.uptFeatures &=
+				~UPT1_F_RXCSUM;
 
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 					       VMXNET3_CMD_UPDATE_FEATURE);
@@ -292,10 +290,10 @@ vmxnet3_set_flags(struct net_device *netdev, u32 data)
 		/* update harware LRO capability accordingly */
 		if (lro_requested)
 			adapter->shared->devRead.misc.uptFeatures |=
-						cpu_to_le64(UPT1_F_LRO);
+							UPT1_F_LRO;
 		else
 			adapter->shared->devRead.misc.uptFeatures &=
-						cpu_to_le64(~UPT1_F_LRO);
+							~UPT1_F_LRO;
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 				       VMXNET3_CMD_UPDATE_FEATURE);
 	}

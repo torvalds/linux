@@ -101,12 +101,12 @@ struct cami2c {
 
 static inline void OUT32(struct cami2c *cam, int reg, unsigned long val)
 {
-	ctrl_outl(val, (unsigned long)cam->iobase + reg);
+	__raw_writel(val, (unsigned long)cam->iobase + reg);
 }
 
 static inline unsigned long IN32(struct cami2c *cam, int reg)
 {
-	return ctrl_inl((unsigned long)cam->iobase + reg);
+	return __raw_readl((unsigned long)cam->iobase + reg);
 }
 
 static irqreturn_t sh7760_i2c_irq(int irq, void *ptr)

@@ -541,6 +541,12 @@ enum ibmvfc_async_event {
 	IBMVFC_AE_ADAPTER_FAILED	= 0x1000,
 };
 
+struct ibmvfc_async_desc {
+	enum ibmvfc_async_event ae;
+	const char *desc;
+	int log_level;
+};
+
 struct ibmvfc_crq {
 	volatile u8 valid;
 	volatile u8 format;

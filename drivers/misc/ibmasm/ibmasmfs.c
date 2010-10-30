@@ -146,6 +146,7 @@ static struct inode *ibmasmfs_make_inode(struct super_block *sb, int mode)
 	struct inode *ret = new_inode(sb);
 
 	if (ret) {
+		ret->i_ino = get_next_ino();
 		ret->i_mode = mode;
 		ret->i_atime = ret->i_mtime = ret->i_ctime = CURRENT_TIME;
 	}
@@ -584,6 +585,7 @@ static const struct file_operations command_fops = {
 	.release =	command_file_close,
 	.read =		command_file_read,
 	.write =	command_file_write,
+	.llseek =	generic_file_llseek,
 };
 
 static const struct file_operations event_fops = {
@@ -591,6 +593,7 @@ static const struct file_operations event_fops = {
 	.release =	event_file_close,
 	.read =		event_file_read,
 	.write =	event_file_write,
+	.llseek =	generic_file_llseek,
 };
 
 static const struct file_operations r_heartbeat_fops = {
@@ -598,6 +601,7 @@ static const struct file_operations r_heartbeat_fops = {
 	.release =	r_heartbeat_file_close,
 	.read =		r_heartbeat_file_read,
 	.write =	r_heartbeat_file_write,
+	.llseek =	generic_file_llseek,
 };
 
 static const struct file_operations remote_settings_fops = {
@@ -605,6 +609,7 @@ static const struct file_operations remote_settings_fops = {
 	.release =	remote_settings_file_close,
 	.read =		remote_settings_file_read,
 	.write =	remote_settings_file_write,
+	.llseek =	generic_file_llseek,
 };
 
 

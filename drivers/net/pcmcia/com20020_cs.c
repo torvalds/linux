@@ -51,23 +51,23 @@
 
 #define VERSION "arcnet: COM20020 PCMCIA support loaded.\n"
 
-#ifdef DEBUG
 
 static void regdump(struct net_device *dev)
 {
+#ifdef DEBUG
     int ioaddr = dev->base_addr;
     int count;
     
-    printk("com20020 register dump:\n");
+    netdev_dbg(dev, "register dump:\n");
     for (count = ioaddr; count < ioaddr + 16; count++)
     {
 	if (!(count % 16))
-	    printk("\n%04X: ", count);
-	printk("%02X ", inb(count));
+	    pr_cont("%04X:", count);
+	pr_cont(" %02X", inb(count));
     }
-    printk("\n");
+    pr_cont("\n");
     
-    printk("buffer0 dump:\n");
+    netdev_dbg(dev, "buffer0 dump:\n");
 	/* set up the address register */
         count = 0;
 	outb((count >> 8) | RDDATAflag | AUTOINCflag, _ADDR_HI);
@@ -76,19 +76,15 @@ static void regdump(struct net_device *dev)
     for (count = 0; count < 256+32; count++)
     {
 	if (!(count % 16))
-	    printk("\n%04X: ", count);
+	    pr_cont("%04X:", count);
 	
 	/* copy the data */
-	printk("%02X ", inb(_MEMDATA));
+	pr_cont(" %02X", inb(_MEMDATA));
     }
-    printk("\n");
+    pr_cont("\n");
+#endif
 }
 
-#else
-
-static inline void regdump(struct net_device *dev) { }
-
-#endif
 
 
 /*====================================================================*/
@@ -274,13 +270,13 @@ static int com20020_config(struct pcmcia_device *link)
     i = com20020_found(dev, 0);	/* calls register_netdev */
     
     if (i != 0) {
-	dev_printk(KERN_NOTICE, &link->dev,
-		"com20020_cs: com20020_found() failed\n");
+	dev_notice(&link->dev,
+		   "com20020_found() failed\n");
 	goto failed;
     }
 
-    dev_dbg(&link->dev,KERN_INFO "%s: port %#3lx, irq %d\n",
-           dev->name, dev->base_addr, dev->irq);
+    netdev_dbg(dev, "port %#3lx, irq %d\n",
+	       dev->base_addr, dev->irq);
     return 0;
 
 failed:

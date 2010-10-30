@@ -758,7 +758,6 @@ static int hidp_setup_hid(struct hidp_session *session,
 				struct hidp_connadd_req *req)
 {
 	struct hid_device *hid;
-	bdaddr_t src, dst;
 	int err;
 
 	session->rd_data = kzalloc(req->rd_size, GFP_KERNEL);
@@ -781,9 +780,6 @@ static int hidp_setup_hid(struct hidp_session *session,
 
 	hid->driver_data = session;
 
-	baswap(&src, &bt_sk(session->ctrl_sock->sk)->src);
-	baswap(&dst, &bt_sk(session->ctrl_sock->sk)->dst);
-
 	hid->bus     = BUS_BLUETOOTH;
 	hid->vendor  = req->vendor;
 	hid->product = req->product;
@@ -791,8 +787,8 @@ static int hidp_setup_hid(struct hidp_session *session,
 	hid->country = req->country;
 
 	strncpy(hid->name, req->name, 128);
-	strncpy(hid->phys, batostr(&src), 64);
-	strncpy(hid->uniq, batostr(&dst), 64);
+	strncpy(hid->phys, batostr(&bt_sk(session->ctrl_sock->sk)->src), 64);
+	strncpy(hid->uniq, batostr(&bt_sk(session->ctrl_sock->sk)->dst), 64);
 
 	hid->dev.parent = hidp_get_device(session);
 	hid->ll_driver = &hidp_hid_driver;

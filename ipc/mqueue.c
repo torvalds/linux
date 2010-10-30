@@ -116,6 +116,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 
 	inode = new_inode(sb);
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_uid = current_fsuid();
 		inode->i_gid = current_fsgid();
@@ -769,7 +770,7 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 
 	inode = dentry->d_inode;
 	if (inode)
-		atomic_inc(&inode->i_count);
+		ihold(inode);
 	err = mnt_want_write(ipc_ns->mq_mnt);
 	if (err)
 		goto out_err;
@@ -1219,6 +1220,7 @@ static const struct file_operations mqueue_file_operations = {
 	.flush = mqueue_flush_file,
 	.poll = mqueue_poll_file,
 	.read = mqueue_read_file,
+	.llseek = default_llseek,
 };
 
 static const struct super_operations mqueue_super_ops = {

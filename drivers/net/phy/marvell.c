@@ -196,20 +196,27 @@ static int m88e1121_config_aneg(struct phy_device *phydev)
 			MII_88E1121_PHY_MSCR_PAGE);
 	if (err < 0)
 		return err;
-	mscr = phy_read(phydev, MII_88E1121_PHY_MSCR_REG) &
-		MII_88E1121_PHY_MSCR_DELAY_MASK;
 
-	if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
-		mscr |= (MII_88E1121_PHY_MSCR_RX_DELAY |
-			 MII_88E1121_PHY_MSCR_TX_DELAY);
-	else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID)
-		mscr |= MII_88E1121_PHY_MSCR_RX_DELAY;
-	else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
-		mscr |= MII_88E1121_PHY_MSCR_TX_DELAY;
+	if ((phydev->interface == PHY_INTERFACE_MODE_RGMII) ||
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) ||
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)) {
 
-	err = phy_write(phydev, MII_88E1121_PHY_MSCR_REG, mscr);
-	if (err < 0)
-		return err;
+		mscr = phy_read(phydev, MII_88E1121_PHY_MSCR_REG) &
+			MII_88E1121_PHY_MSCR_DELAY_MASK;
+
+		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)
+			mscr |= (MII_88E1121_PHY_MSCR_RX_DELAY |
+				 MII_88E1121_PHY_MSCR_TX_DELAY);
+		else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID)
+			mscr |= MII_88E1121_PHY_MSCR_RX_DELAY;
+		else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
+			mscr |= MII_88E1121_PHY_MSCR_TX_DELAY;
+
+		err = phy_write(phydev, MII_88E1121_PHY_MSCR_REG, mscr);
+		if (err < 0)
+			return err;
+	}
 
 	phy_write(phydev, MII_88E1121_PHY_PAGE, oldpage);
 
@@ -721,7 +728,7 @@ static void __exit marvell_exit(void)
 module_init(marvell_init);
 module_exit(marvell_exit);
 
-static struct mdio_device_id marvell_tbl[] = {
+static struct mdio_device_id __maybe_unused marvell_tbl[] = {
 	{ 0x01410c60, 0xfffffff0 },
 	{ 0x01410c90, 0xfffffff0 },
 	{ 0x01410cc0, 0xfffffff0 },

@@ -79,6 +79,11 @@ static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
 	return sb->s_bdi;
 }
 
+static inline struct inode *wb_inode(struct list_head *head)
+{
+	return list_entry(head, struct inode, i_wb_list);
+}
+
 static void bdi_queue_work(struct backing_dev_info *bdi,
 		struct wb_writeback_work *work)
 {
@@ -172,11 +177,11 @@ static void redirty_tail(struct inode *inode)
 	if (!list_empty(&wb->b_dirty)) {
 		struct inode *tail;
 
-		tail = list_entry(wb->b_dirty.next, struct inode, i_list);
+		tail = wb_inode(wb->b_dirty.next);
 		if (time_before(inode->dirtied_when, tail->dirtied_when))
 			inode->dirtied_when = jiffies;
 	}
-	list_move(&inode->i_list, &wb->b_dirty);
+	list_move(&inode->i_wb_list, &wb->b_dirty);
 }
 
 /*
@@ -186,7 +191,7 @@ static void requeue_io(struct inode *inode)
 {
 	struct bdi_writeback *wb = &inode_to_bdi(inode)->wb;
 
-	list_move(&inode->i_list, &wb->b_more_io);
+	list_move(&inode->i_wb_list, &wb->b_more_io);
 }
 
 static void inode_sync_complete(struct inode *inode)
@@ -227,14 +232,14 @@ static void move_expired_inodes(struct list_head *delaying_queue,
 	int do_sb_sort = 0;
 
 	while (!list_empty(delaying_queue)) {
-		inode = list_entry(delaying_queue->prev, struct inode, i_list);
+		inode = wb_inode(delaying_queue->prev);
 		if (older_than_this &&
 		    inode_dirtied_after(inode, *older_than_this))
 			break;
 		if (sb && sb != inode->i_sb)
 			do_sb_sort = 1;
 		sb = inode->i_sb;
-		list_move(&inode->i_list, &tmp);
+		list_move(&inode->i_wb_list, &tmp);
 	}
 
 	/* just one sb in list, splice to dispatch_queue and we're done */
@@ -245,12 +250,11 @@ static void move_expired_inodes(struct list_head *delaying_queue,
 
 	/* Move inodes from one superblock together */
 	while (!list_empty(&tmp)) {
-		inode = list_entry(tmp.prev, struct inode, i_list);
-		sb = inode->i_sb;
+		sb = wb_inode(tmp.prev)->i_sb;
 		list_for_each_prev_safe(pos, node, &tmp) {
-			inode = list_entry(pos, struct inode, i_list);
+			inode = wb_inode(pos);
 			if (inode->i_sb == sb)
-				list_move(&inode->i_list, dispatch_queue);
+				list_move(&inode->i_wb_list, dispatch_queue);
 		}
 	}
 }
@@ -408,16 +412,13 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 			 * completion.
 			 */
 			redirty_tail(inode);
-		} else if (atomic_read(&inode->i_count)) {
-			/*
-			 * The inode is clean, inuse
-			 */
-			list_move(&inode->i_list, &inode_in_use);
 		} else {
 			/*
-			 * The inode is clean, unused
+			 * The inode is clean.  At this point we either have
+			 * a reference to the inode or it's on it's way out.
+			 * No need to add it back to the LRU.
 			 */
-			list_move(&inode->i_list, &inode_unused);
+			list_del_init(&inode->i_wb_list);
 		}
 	}
 	inode_sync_complete(inode);
@@ -465,8 +466,7 @@ static int writeback_sb_inodes(struct super_block *sb, struct bdi_writeback *wb,
 {
 	while (!list_empty(&wb->b_io)) {
 		long pages_skipped;
-		struct inode *inode = list_entry(wb->b_io.prev,
-						 struct inode, i_list);
+		struct inode *inode = wb_inode(wb->b_io.prev);
 
 		if (inode->i_sb != sb) {
 			if (only_this_sb) {
@@ -487,10 +487,16 @@ static int writeback_sb_inodes(struct super_block *sb, struct bdi_writeback *wb,
 			return 0;
 		}
 
-		if (inode->i_state & (I_NEW | I_WILL_FREE)) {
+		/*
+		 * Don't bother with new inodes or inodes beeing freed, first
+		 * kind does not need peridic writeout yet, and for the latter
+		 * kind writeout is handled by the freer.
+		 */
+		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
 			requeue_io(inode);
 			continue;
 		}
+
 		/*
 		 * Was this inode dirtied after sync_sb_inodes was called?
 		 * This keeps sync from extra jobs and livelock.
@@ -498,7 +504,6 @@ static int writeback_sb_inodes(struct super_block *sb, struct bdi_writeback *wb,
 		if (inode_dirtied_after(inode, wbc->wb_start))
 			return 1;
 
-		BUG_ON(inode->i_state & I_FREEING);
 		__iget(inode);
 		pages_skipped = wbc->pages_skipped;
 		writeback_single_inode(inode, wbc);
@@ -536,8 +541,7 @@ void writeback_inodes_wb(struct bdi_writeback *wb,
 		queue_io(wb, wbc->older_than_this);
 
 	while (!list_empty(&wb->b_io)) {
-		struct inode *inode = list_entry(wb->b_io.prev,
-						 struct inode, i_list);
+		struct inode *inode = wb_inode(wb->b_io.prev);
 		struct super_block *sb = inode->i_sb;
 
 		if (!pin_sb_for_writeback(sb)) {
@@ -582,7 +586,7 @@ static inline bool over_bground_thresh(void)
 	global_dirty_limits(&background_thresh, &dirty_thresh);
 
 	return (global_page_state(NR_FILE_DIRTY) +
-		global_page_state(NR_UNSTABLE_NFS) >= background_thresh);
+		global_page_state(NR_UNSTABLE_NFS) > background_thresh);
 }
 
 /*
@@ -675,8 +679,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 		 */
 		spin_lock(&inode_lock);
 		if (!list_empty(&wb->b_more_io))  {
-			inode = list_entry(wb->b_more_io.prev,
-						struct inode, i_list);
+			inode = wb_inode(wb->b_more_io.prev);
 			trace_wbc_writeback_wait(&wbc, wb->bdi);
 			inode_wait_for_writeback(inode);
 		}
@@ -721,9 +724,13 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
 		return 0;
 
 	wb->last_old_flush = jiffies;
+	/*
+	 * Add in the number of potentially dirty inodes, because each inode
+	 * write can dirty pagecache in the underlying blockdev.
+	 */
 	nr_pages = global_page_state(NR_FILE_DIRTY) +
 			global_page_state(NR_UNSTABLE_NFS) +
-			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
+			get_nr_dirty_inodes();
 
 	if (nr_pages) {
 		struct wb_writeback_work work = {
@@ -790,7 +797,7 @@ int bdi_writeback_thread(void *data)
 	struct backing_dev_info *bdi = wb->bdi;
 	long pages_written;
 
-	current->flags |= PF_FLUSHER | PF_SWAPWRITE;
+	current->flags |= PF_SWAPWRITE;
 	set_freezable();
 	wb->last_active = jiffies;
 
@@ -962,7 +969,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 		 * dirty list.  Add blockdev inodes as well.
 		 */
 		if (!S_ISBLK(inode->i_mode)) {
-			if (hlist_unhashed(&inode->i_hash))
+			if (inode_unhashed(inode))
 				goto out;
 		}
 		if (inode->i_state & I_FREEING)
@@ -990,7 +997,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 			}
 
 			inode->dirtied_when = jiffies;
-			list_move(&inode->i_list, &bdi->wb.b_dirty);
+			list_move(&inode->i_wb_list, &bdi->wb.b_dirty);
 		}
 	}
 out:
@@ -1090,8 +1097,7 @@ void writeback_inodes_sb(struct super_block *sb)
 
 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
 
-	work.nr_pages = nr_dirty + nr_unstable +
-			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
+	work.nr_pages = nr_dirty + nr_unstable + get_nr_dirty_inodes();
 
 	bdi_queue_work(sb->s_bdi, &work);
 	wait_for_completion(&done);
@@ -1198,3 +1204,23 @@ int sync_inode(struct inode *inode, struct writeback_control *wbc)
 	return ret;
 }
 EXPORT_SYMBOL(sync_inode);
+
+/**
+ * sync_inode - write an inode to disk
+ * @inode: the inode to sync
+ * @wait: wait for I/O to complete.
+ *
+ * Write an inode to disk and adjust it's dirty state after completion.
+ *
+ * Note: only writes the actual inode, no associated data or other metadata.
+ */
+int sync_inode_metadata(struct inode *inode, int wait)
+{
+	struct writeback_control wbc = {
+		.sync_mode = wait ? WB_SYNC_ALL : WB_SYNC_NONE,
+		.nr_to_write = 0, /* metadata-only */
+	};
+
+	return sync_inode(inode, &wbc);
+}
+EXPORT_SYMBOL(sync_inode_metadata);

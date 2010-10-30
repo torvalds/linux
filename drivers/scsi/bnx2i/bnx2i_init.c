@@ -17,15 +17,17 @@ static struct list_head adapter_list = LIST_HEAD_INIT(adapter_list);
 static u32 adapter_count;
 
 #define DRV_MODULE_NAME		"bnx2i"
-#define DRV_MODULE_VERSION	"2.1.2"
-#define DRV_MODULE_RELDATE	"Jun 28, 2010"
+#define DRV_MODULE_VERSION	"2.1.3"
+#define DRV_MODULE_RELDATE	"Aug 10, 2010"
 
 static char version[] __devinitdata =
 		"Broadcom NetXtreme II iSCSI Driver " DRV_MODULE_NAME \
 		" v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 
-MODULE_AUTHOR("Anil Veerabhadrappa <anilgv@broadcom.com>");
+MODULE_AUTHOR("Anil Veerabhadrappa <anilgv@broadcom.com> and "
+	      "Eddie Wai <eddie.wai@broadcom.com>");
+
 MODULE_DESCRIPTION("Broadcom NetXtreme II BCM5706/5708/5709/57710/57711"
 		   " iSCSI Driver");
 MODULE_LICENSE("GPL");
@@ -167,6 +169,38 @@ void bnx2i_start(void *handle)
 
 
 /**
+ * bnx2i_chip_cleanup - local routine to handle chip cleanup
+ * @hba:	Adapter instance to register
+ *
+ * Driver checks if adapter still has any active connections before
+ *	executing the cleanup process
+ */
+static void bnx2i_chip_cleanup(struct bnx2i_hba *hba)
+{
+	struct bnx2i_endpoint *bnx2i_ep;
+	struct list_head *pos, *tmp;
+
+	if (hba->ofld_conns_active) {
+		/* Stage to force the disconnection
+		 * This is the case where the daemon is either slow or
+		 * not present
+		 */
+		printk(KERN_ALERT "bnx2i: (%s) chip cleanup for %d active "
+			"connections\n", hba->netdev->name,
+			hba->ofld_conns_active);
+		mutex_lock(&hba->net_dev_lock);
+		list_for_each_safe(pos, tmp, &hba->ep_active_list) {
+			bnx2i_ep = list_entry(pos, struct bnx2i_endpoint, link);
+			/* Clean up the chip only */
+			bnx2i_hw_ep_disconnect(bnx2i_ep);
+			bnx2i_ep->cm_sk = NULL;
+		}
+		mutex_unlock(&hba->net_dev_lock);
+	}
+}
+
+
+/**
  * bnx2i_stop - cnic callback to shutdown adapter instance
  * @handle:	transparent handle pointing to adapter structure
  *
@@ -176,8 +210,6 @@ void bnx2i_start(void *handle)
 void bnx2i_stop(void *handle)
 {
 	struct bnx2i_hba *hba = handle;
-	struct list_head *pos, *tmp;
-	struct bnx2i_endpoint *bnx2i_ep;
 	int conns_active;
 
 	/* check if cleanup happened in GOING_DOWN context */
@@ -198,24 +230,7 @@ void bnx2i_stop(void *handle)
 		if (hba->ofld_conns_active == conns_active)
 			break;
 	}
-	if (hba->ofld_conns_active) {
-		/* Stage to force the disconnection
-		 * This is the case where the daemon is either slow or
-		 * not present
-		 */
-		printk(KERN_ALERT "bnx2i: Wait timeout, force all eps "
-			"to disconnect (%d)\n", hba->ofld_conns_active);
-		mutex_lock(&hba->net_dev_lock);
-		list_for_each_safe(pos, tmp, &hba->ep_active_list) {
-			bnx2i_ep = list_entry(pos, struct bnx2i_endpoint, link);
-			/* Clean up the chip only */
-			bnx2i_hw_ep_disconnect(bnx2i_ep);
-		}
-		mutex_unlock(&hba->net_dev_lock);
-		if (hba->ofld_conns_active)
-			printk(KERN_ERR "bnx2i: EP disconnect timeout (%d)!\n",
-				hba->ofld_conns_active);
-	}
+	bnx2i_chip_cleanup(hba);
 
 	/* This flag should be cleared last so that ep_disconnect() gracefully
 	 * cleans up connection context
@@ -457,6 +472,7 @@ static void __exit bnx2i_mod_exit(void)
 		adapter_count--;
 
 		if (test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
+			bnx2i_chip_cleanup(hba);
 			hba->cnic->unregister_device(hba->cnic, CNIC_ULP_ISCSI);
 			clear_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
 		}

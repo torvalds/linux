@@ -21,8 +21,8 @@
 #define __module_cat(a,b) ___module_cat(a,b)
 #define __MODULE_INFO(tag, name, info)					  \
 static const char __module_cat(name,__LINE__)[]				  \
-  __used								  \
-  __attribute__((section(".modinfo"),unused)) = __stringify(tag) "=" info
+  __used __attribute__((section(".modinfo"), unused, aligned(1)))	  \
+  = __stringify(tag) "=" info
 #else  /* !MODULE */
 #define __MODULE_INFO(tag, name, info)
 #endif

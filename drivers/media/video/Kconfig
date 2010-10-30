@@ -978,7 +978,7 @@ config USB_STKWEBCAM
 	  Supported devices are typically found in some Asus laptops,
 	  with USB id 174f:a311 and 05e1:0501. Other Syntek cameras
 	  may be supported by the stk11xx driver, from which this is
-	  derived, see http://stk11xx.sourceforge.net
+	  derived, see <http://sourceforge.net/projects/syntekdriver/> 
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called stkwebcam.

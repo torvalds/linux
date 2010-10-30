@@ -221,7 +221,8 @@ struct drm_framebuffer_funcs {
 	 * the semantics and arguments have a one to one mapping
 	 * on this function.
 	 */
-	int (*dirty)(struct drm_framebuffer *framebuffer, unsigned flags,
+	int (*dirty)(struct drm_framebuffer *framebuffer,
+		     struct drm_file *file_priv, unsigned flags,
 		     unsigned color, struct drm_clip_rect *clips,
 		     unsigned num_clips);
 };
@@ -762,6 +763,7 @@ extern int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern bool drm_detect_hdmi_monitor(struct edid *edid);
+extern bool drm_detect_monitor_audio(struct edid *edid);
 extern int drm_mode_page_flip_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,

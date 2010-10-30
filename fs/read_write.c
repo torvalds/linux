@@ -31,6 +31,20 @@ const struct file_operations generic_ro_fops = {
 
 EXPORT_SYMBOL(generic_ro_fops);
 
+static int
+__negative_fpos_check(struct file *file, loff_t pos, size_t count)
+{
+	/*
+	 * pos or pos+count is negative here, check overflow.
+	 * too big "count" will be caught in rw_verify_area().
+	 */
+	if ((pos < 0) && (pos + count < pos))
+		return -EOVERFLOW;
+	if (file->f_mode & FMODE_UNSIGNED_OFFSET)
+		return 0;
+	return -EINVAL;
+}
+
 /**
  * generic_file_llseek_unlocked - lockless generic llseek implementation
  * @file:	file structure to seek on
@@ -62,7 +76,9 @@ generic_file_llseek_unlocked(struct file *file, loff_t offset, int origin)
 		break;
 	}
 
-	if (offset < 0 || offset > inode->i_sb->s_maxbytes)
+	if (offset < 0 && __negative_fpos_check(file, offset, 0))
+		return -EINVAL;
+	if (offset > inode->i_sb->s_maxbytes)
 		return -EINVAL;
 
 	/* Special lock needed here? */
@@ -124,7 +140,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 {
 	loff_t retval;
 
-	lock_kernel();
+	mutex_lock(&file->f_dentry->d_inode->i_mutex);
 	switch (origin) {
 		case SEEK_END:
 			offset += i_size_read(file->f_path.dentry->d_inode);
@@ -137,7 +153,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 			offset += file->f_pos;
 	}
 	retval = -EINVAL;
-	if (offset >= 0) {
+	if (offset >= 0 || !__negative_fpos_check(file, offset, 0)) {
 		if (offset != file->f_pos) {
 			file->f_pos = offset;
 			file->f_version = 0;
@@ -145,7 +161,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 		retval = offset;
 	}
 out:
-	unlock_kernel();
+	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
 	return retval;
 }
 EXPORT_SYMBOL(default_llseek);
@@ -156,7 +172,6 @@ loff_t vfs_llseek(struct file *file, loff_t offset, int origin)
 
 	fn = no_llseek;
 	if (file->f_mode & FMODE_LSEEK) {
-		fn = default_llseek;
 		if (file->f_op && file->f_op->llseek)
 			fn = file->f_op->llseek;
 	}
@@ -222,6 +237,7 @@ bad:
 }
 #endif
 
+
 /*
  * rw_verify_area doesn't like huge counts. We limit
  * them to something that fits in "int" so that others
@@ -239,8 +255,11 @@ int rw_verify_area(int read_write, struct file *file, loff_t *ppos, size_t count
 	if (unlikely((ssize_t) count < 0))
 		return retval;
 	pos = *ppos;
-	if (unlikely((pos < 0) || (loff_t) (pos + count) < 0))
-		return retval;
+	if (unlikely((pos < 0) || (loff_t) (pos + count) < 0)) {
+		retval = __negative_fpos_check(file, pos, count);
+		if (retval)
+			return retval;
+	}
 
 	if (unlikely(inode->i_flock && mandatory_lock(inode))) {
 		retval = locks_mandatory_area(

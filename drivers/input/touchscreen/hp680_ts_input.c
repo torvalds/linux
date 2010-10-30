@@ -107,8 +107,7 @@ static int __init hp680_ts_init(void)
 	return 0;
 
  fail2:	free_irq(HP680_TS_IRQ, NULL);
-	cancel_delayed_work(&work);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&work);
  fail1:	input_free_device(hp680_ts_dev);
 	return err;
 }
@@ -116,8 +115,7 @@ static int __init hp680_ts_init(void)
 static void __exit hp680_ts_exit(void)
 {
 	free_irq(HP680_TS_IRQ, NULL);
-	cancel_delayed_work(&work);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&work);
 	input_unregister_device(hp680_ts_dev);
 }
 

@@ -162,7 +162,7 @@ static int __devinit snd_card_ad1816a_probe(int dev, struct pnp_card_link *pcard
 				sizeof(struct snd_card_ad1816a), &card);
 	if (error < 0)
 		return error;
-	acard = (struct snd_card_ad1816a *)card->private_data;
+	acard = card->private_data;
 
 	if ((error = snd_card_ad1816a_pnp(dev, acard, pcard, pid))) {
 		snd_card_free(card);

@@ -38,7 +38,7 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
  * types on sparc64.  However, it requires that the device
  * can drive enough of the 64 bits.
  */
-#define PCI64_REQUIRED_MASK	(~(dma64_addr_t)0)
+#define PCI64_REQUIRED_MASK	(~(u64)0)
 #define PCI64_ADDR_BASE		0xfffc000000000000UL
 
 #ifdef CONFIG_PCI

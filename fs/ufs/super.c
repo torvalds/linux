@@ -696,6 +696,8 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned maxsymlen;
 	int ret = -EINVAL;
 
+	lock_kernel();
+
 	uspi = NULL;
 	ubh = NULL;
 	flags = 0;
@@ -1163,6 +1165,7 @@ magic_found:
 			goto failed;
 
 	UFSD("EXIT\n");
+	unlock_kernel();
 	return 0;
 
 dalloc_failed:
@@ -1174,10 +1177,12 @@ failed:
 	kfree(sbi);
 	sb->s_fs_info = NULL;
 	UFSD("EXIT (FAILED)\n");
+	unlock_kernel();
 	return ret;
 
 failed_nomem:
 	UFSD("EXIT (NOMEM)\n");
+	unlock_kernel();
 	return -ENOMEM;
 }
 

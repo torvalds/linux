@@ -742,7 +742,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 		goto out_commit;
 	}
 
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 	dentry->d_op = &ocfs2_dentry_ops;
 	d_instantiate(dentry, inode);
 

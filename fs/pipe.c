@@ -382,7 +382,7 @@ pipe_read(struct kiocb *iocb, const struct iovec *_iov,
 			error = ops->confirm(pipe, buf);
 			if (error) {
 				if (!ret)
-					error = ret;
+					ret = error;
 				break;
 			}
 
@@ -953,6 +953,8 @@ static struct inode * get_pipe_inode(void)
 
 	if (!inode)
 		goto fail_inode;
+
+	inode->i_ino = get_next_ino();
 
 	pipe = alloc_pipe_info(inode);
 	if (!pipe)

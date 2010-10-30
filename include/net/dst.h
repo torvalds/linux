@@ -43,10 +43,11 @@ struct dst_entry {
 	short			error;
 	short			obsolete;
 	int			flags;
-#define DST_HOST		1
-#define DST_NOXFRM		2
-#define DST_NOPOLICY		4
-#define DST_NOHASH		8
+#define DST_HOST		0x0001
+#define DST_NOXFRM		0x0002
+#define DST_NOPOLICY		0x0004
+#define DST_NOHASH		0x0008
+#define DST_NOCACHE		0x0010
 	unsigned long		expires;
 
 	unsigned short		header_len;	/* more space at head required */
@@ -94,7 +95,7 @@ struct dst_entry {
 	unsigned long		lastuse;
 	union {
 		struct dst_entry *next;
-		struct rtable    *rt_next;
+		struct rtable __rcu *rt_next;
 		struct rt6_info   *rt6_next;
 		struct dn_route  *dn_next;
 	};
@@ -228,23 +229,37 @@ static inline void skb_dst_force(struct sk_buff *skb)
 
 
 /**
+ *	__skb_tunnel_rx - prepare skb for rx reinsert
+ *	@skb: buffer
+ *	@dev: tunnel device
+ *
+ *	After decapsulation, packet is going to re-enter (netif_rx()) our stack,
+ *	so make some cleanups. (no accounting done)
+ */
+static inline void __skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
+{
+	skb->dev = dev;
+	skb->rxhash = 0;
+	skb_set_queue_mapping(skb, 0);
+	skb_dst_drop(skb);
+	nf_reset(skb);
+}
+
+/**
  *	skb_tunnel_rx - prepare skb for rx reinsert
  *	@skb: buffer
  *	@dev: tunnel device
  *
  *	After decapsulation, packet is going to re-enter (netif_rx()) our stack,
  *	so make some cleanups, and perform accounting.
+ *	Note: this accounting is not SMP safe.
  */
 static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
 {
-	skb->dev = dev;
 	/* TODO : stats should be SMP safe */
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
-	skb->rxhash = 0;
-	skb_set_queue_mapping(skb, 0);
-	skb_dst_drop(skb);
-	nf_reset(skb);
+	__skb_tunnel_rx(skb, dev);
 }
 
 /* Children define the path of the packet through the

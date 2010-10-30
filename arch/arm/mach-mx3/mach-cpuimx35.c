@@ -131,6 +131,7 @@ static struct mxc_usbh_platform_data __maybe_unused usbh1_pdata = {
 static struct fsl_usb2_platform_data otg_device_pdata = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI,
+	.workaround	= FLS_USB2_WORKAROUND_ENGCM09152,
 };
 
 static int otg_mode_host;

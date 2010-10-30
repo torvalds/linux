@@ -1524,7 +1524,7 @@ static void veth_receive(struct veth_lpar_connection *cnx,
 
 		skb_put(skb, length);
 		skb->protocol = eth_type_trans(skb, dev);
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 		netif_rx(skb);	/* send it up */
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += length;

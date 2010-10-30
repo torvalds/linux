@@ -503,7 +503,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	 * the resume will actually succeed.
 	 */
 	if (dev->power.no_callbacks && !parent && dev->parent) {
-		spin_lock(&dev->parent->power.lock);
+		spin_lock_nested(&dev->parent->power.lock, SINGLE_DEPTH_NESTING);
 		if (dev->parent->power.disable_depth > 0
 		    || dev->parent->power.ignore_children
 		    || dev->parent->power.runtime_status == RPM_ACTIVE) {

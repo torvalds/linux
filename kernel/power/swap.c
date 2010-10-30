@@ -251,7 +251,7 @@ static int write_page(void *buf, sector_t offset, struct bio **bio_chain)
 	if (bio_chain) {
 		src = (void *)__get_free_page(__GFP_WAIT | __GFP_HIGH);
 		if (src) {
-			memcpy(src, buf, PAGE_SIZE);
+			copy_page(src, buf);
 		} else {
 			WARN_ON_ONCE(1);
 			bio_chain = NULL;	/* Go synchronous */
@@ -325,7 +325,7 @@ static int swap_write_page(struct swap_map_handle *handle, void *buf,
 		error = write_page(handle->cur, handle->cur_swap, NULL);
 		if (error)
 			goto out;
-		memset(handle->cur, 0, PAGE_SIZE);
+		clear_page(handle->cur);
 		handle->cur_swap = offset;
 		handle->k = 0;
 	}
@@ -910,7 +910,7 @@ int swsusp_check(void)
 	hib_resume_bdev = open_by_devnum(swsusp_resume_device, FMODE_READ);
 	if (!IS_ERR(hib_resume_bdev)) {
 		set_blocksize(hib_resume_bdev, PAGE_SIZE);
-		memset(swsusp_header, 0, PAGE_SIZE);
+		clear_page(swsusp_header);
 		error = hib_bio_read_page(swsusp_resume_block,
 					swsusp_header, NULL);
 		if (error)

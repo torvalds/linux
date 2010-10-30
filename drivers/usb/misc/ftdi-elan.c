@@ -456,7 +456,6 @@ static void ftdi_elan_cancel_targets(struct usb_ftdi *ftdi)
 static void ftdi_elan_kick_command_queue(struct usb_ftdi *ftdi)
 {
         ftdi_command_queue_work(ftdi, 0);
-        return;
 }
 
 static void ftdi_elan_command_work(struct work_struct *work)
@@ -483,7 +482,6 @@ static void ftdi_elan_command_work(struct work_struct *work)
 static void ftdi_elan_kick_respond_queue(struct usb_ftdi *ftdi)
 {
         ftdi_respond_queue_work(ftdi, 0);
-        return;
 }
 
 static void ftdi_elan_respond_work(struct work_struct *work)
@@ -2769,7 +2767,7 @@ static int ftdi_elan_probe(struct usb_interface *interface,
         ftdi->sequence_num = ++ftdi_instances;
         mutex_unlock(&ftdi_module_lock);
         ftdi_elan_init_kref(ftdi);
-        init_MUTEX(&ftdi->sw_lock);
+	sema_init(&ftdi->sw_lock, 1);
         ftdi->udev = usb_get_dev(interface_to_usbdev(interface));
         ftdi->interface = interface;
         mutex_init(&ftdi->u132_lock);

@@ -172,7 +172,13 @@ struct kfifo_rec_ptr_2 __STRUCT_KFIFO_PTR(unsigned char, 2, void);
 
 
 static inline unsigned int __must_check
-__kfifo_must_check_helper(unsigned int val)
+__kfifo_uint_must_check_helper(unsigned int val)
+{
+	return val;
+}
+
+static inline int __must_check
+__kfifo_int_must_check_helper(int val)
 {
 	return val;
 }
@@ -267,7 +273,7 @@ __kfifo_must_check_helper(unsigned int val)
  * @fifo: address of the fifo to be used
  */
 #define	kfifo_avail(fifo) \
-__kfifo_must_check_helper( \
+__kfifo_uint_must_check_helper( \
 ({ \
 	typeof((fifo) + 1) __tmpq = (fifo); \
 	const size_t __recsize = sizeof(*__tmpq->rectype); \
@@ -300,7 +306,7 @@ __kfifo_must_check_helper( \
  * This function returns the size of the next fifo record in number of bytes.
  */
 #define kfifo_peek_len(fifo) \
-__kfifo_must_check_helper( \
+__kfifo_uint_must_check_helper( \
 ({ \
 	typeof((fifo) + 1) __tmp = (fifo); \
 	const size_t __recsize = sizeof(*__tmp->rectype); \
@@ -323,7 +329,7 @@ __kfifo_must_check_helper( \
  * Return 0 if no error, otherwise an error code.
  */
 #define kfifo_alloc(fifo, size, gfp_mask) \
-__kfifo_must_check_helper( \
+__kfifo_int_must_check_helper( \
 ({ \
 	typeof((fifo) + 1) __tmp = (fifo); \
 	struct __kfifo *__kfifo = &__tmp->kfifo; \
@@ -419,7 +425,7 @@ __kfifo_must_check_helper( \
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_get(fifo, val) \
-__kfifo_must_check_helper( \
+__kfifo_uint_must_check_helper( \
 ({ \
 	typeof((fifo) + 1) __tmp = (fifo); \
 	typeof((val) + 1) __val = (val); \
@@ -460,7 +466,7 @@ __kfifo_must_check_helper( \
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_peek(fifo, val) \
-__kfifo_must_check_helper( \
+__kfifo_uint_must_check_helper( \
 ({ \
 	typeof((fifo) + 1) __tmp = (fifo); \
 	typeof((val) + 1) __val = (val); \
@@ -552,7 +558,7 @@ __kfifo_must_check_helper( \
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_out(fifo, buf, n) \
-__kfifo_must_check_helper( \
+__kfifo_uint_must_check_helper( \
 ({ \
 	typeof((fifo) + 1) __tmp = (fifo); \
 	typeof((buf) + 1) __buf = (buf); \
@@ -580,7 +586,7 @@ __kfifo_must_check_helper( \
  * copied.
  */
 #define	kfifo_out_spinlocked(fifo, buf, n, lock) \
-__kfifo_must_check_helper( \
+__kfifo_uint_must_check_helper( \
 ({ \
 	unsigned long __flags; \
 	unsigned int __ret; \
@@ -609,7 +615,7 @@ __kfifo_must_check_helper( \
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_from_user(fifo, from, len, copied) \
-__kfifo_must_check_helper( \
+__kfifo_uint_must_check_helper( \
 ({ \
 	typeof((fifo) + 1) __tmp = (fifo); \
 	const void __user *__from = (from); \
@@ -637,7 +643,7 @@ __kfifo_must_check_helper( \
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_to_user(fifo, to, len, copied) \
-__kfifo_must_check_helper( \
+__kfifo_uint_must_check_helper( \
 ({ \
 	typeof((fifo) + 1) __tmp = (fifo); \
 	void __user *__to = (to); \
@@ -764,7 +770,7 @@ __kfifo_must_check_helper( \
  * writer, you don't need extra locking to use these macro.
  */
 #define	kfifo_out_peek(fifo, buf, n) \
-__kfifo_must_check_helper( \
+__kfifo_uint_must_check_helper( \
 ({ \
 	typeof((fifo) + 1) __tmp = (fifo); \
 	typeof((buf) + 1) __buf = (buf); \

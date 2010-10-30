@@ -1254,10 +1254,9 @@ qla24xx_iidma(struct fc_bsg_job *bsg_job)
 		return -EINVAL;
 	}
 
-	if (fcport->loop_id == FC_NO_LOOP_ID) {
-		DEBUG2(printk(KERN_ERR "%s(%ld): Invalid port loop id, "
-			"loop_id = 0x%x\n",
-			__func__, vha->host_no, fcport->loop_id));
+	if (atomic_read(&fcport->state) != FCS_ONLINE) {
+		DEBUG2(printk(KERN_ERR "%s(%ld): Port not online\n",
+			__func__, vha->host_no));
 		return -EINVAL;
 	}
 

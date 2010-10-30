@@ -383,8 +383,11 @@
 #define __NR_rt_tgsigqueueinfo	365 /* new */
 #define __NR_perf_event_open	366 /* new */
 #define __NR_recvmmsg		367 /* new */
+#define __NR_fanotify_init	368
+#define __NR_fanotify_mark	369
+#define __NR_prlimit64		370
 
-#define __NR_syscalls		368
+#define __NR_syscalls		371
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__

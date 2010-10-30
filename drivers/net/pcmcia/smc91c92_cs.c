@@ -25,6 +25,8 @@
 
 ======================================================================*/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -293,7 +295,7 @@ static const struct net_device_ops smc_netdev_ops = {
 	.ndo_tx_timeout 	= smc_tx_timeout,
 	.ndo_set_config 	= s9k_config,
 	.ndo_set_multicast_list = set_rx_mode,
-	.ndo_do_ioctl		= &smc_ioctl,
+	.ndo_do_ioctl		= smc_ioctl,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -788,11 +790,11 @@ static int check_sig(struct pcmcia_device *link)
 	((s >> 8) != (s & 0xff))) {
 	SMC_SELECT_BANK(3);
 	s = inw(ioaddr + REVISION);
-	return (s & 0xff);
+	return s & 0xff;
     }
 
     if (width) {
-	    printk(KERN_INFO "smc91c92_cs: using 8-bit IO window.\n");
+	    pr_info("using 8-bit IO window\n");
 
 	    smc91c92_suspend(link);
 	    pcmcia_fixup_iowidth(link);
@@ -845,7 +847,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     if ((if_port >= 0) && (if_port <= 2))
 	dev->if_port = if_port;
     else
-	printk(KERN_NOTICE "smc91c92_cs: invalid if_port requested\n");
+	dev_notice(&link->dev, "invalid if_port requested\n");
 
     switch (smc->manfid) {
     case MANFID_OSITECH:
@@ -863,7 +865,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     }
 
     if (i != 0) {
-	printk(KERN_NOTICE "smc91c92_cs: Unable to find hardware address.\n");
+	dev_notice(&link->dev, "Unable to find hardware address.\n");
 	goto config_failed;
     }
 
@@ -916,30 +918,28 @@ static int smc91c92_config(struct pcmcia_device *link)
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
-	printk(KERN_ERR "smc91c92_cs: register_netdev() failed\n");
+	dev_err(&link->dev, "register_netdev() failed\n");
 	goto config_undo;
     }
 
-    printk(KERN_INFO "%s: smc91c%s rev %d: io %#3lx, irq %d, "
-	   "hw_addr %pM\n",
-	   dev->name, name, (rev & 0x0f), dev->base_addr, dev->irq,
-	   dev->dev_addr);
+    netdev_info(dev, "smc91c%s rev %d: io %#3lx, irq %d, hw_addr %pM\n",
+		name, (rev & 0x0f), dev->base_addr, dev->irq, dev->dev_addr);
 
     if (rev > 0) {
 	if (mir & 0x3ff)
-	    printk(KERN_INFO "  %lu byte", mir);
+	    netdev_info(dev, "  %lu byte", mir);
 	else
-	    printk(KERN_INFO "  %lu kb", mir>>10);
-	printk(" buffer, %s xcvr\n", (smc->cfg & CFG_MII_SELECT) ?
-	       "MII" : if_names[dev->if_port]);
+	    netdev_info(dev, "  %lu kb", mir>>10);
+	pr_cont(" buffer, %s xcvr\n",
+		(smc->cfg & CFG_MII_SELECT) ? "MII" : if_names[dev->if_port]);
     }
 
     if (smc->cfg & CFG_MII_SELECT) {
 	if (smc->mii_if.phy_id != -1) {
-	    dev_dbg(&link->dev, "  MII transceiver at index %d, status %x.\n",
-		  smc->mii_if.phy_id, j);
+	    netdev_dbg(dev, "  MII transceiver at index %d, status %x\n",
+		       smc->mii_if.phy_id, j);
 	} else {
-    	    printk(KERN_NOTICE "  No MII transceivers found!\n");
+	    netdev_notice(dev, "  No MII transceivers found!\n");
 	}
     }
     return 0;
@@ -1037,10 +1037,10 @@ static void smc_dump(struct net_device *dev)
     save = inw(ioaddr + BANK_SELECT);
     for (w = 0; w < 4; w++) {
 	SMC_SELECT_BANK(w);
-	printk(KERN_DEBUG "bank %d: ", w);
+	netdev_printk(KERN_DEBUG, dev, "bank %d: ", w);
 	for (i = 0; i < 14; i += 2)
-	    printk(" %04x", inw(ioaddr + i));
-	printk("\n");
+	    pr_cont(" %04x", inw(ioaddr + i));
+	pr_cont("\n");
     }
     outw(save, ioaddr + BANK_SELECT);
 }
@@ -1062,7 +1062,7 @@ static int smc_open(struct net_device *dev)
 	return -ENODEV;
     /* Physical device present signature. */
     if (check_sig(link) < 0) {
-	printk("smc91c92_cs: Yikes!  Bad chip signature!\n");
+	netdev_info(dev, "Yikes!  Bad chip signature!\n");
 	return -ENODEV;
     }
     link->open++;
@@ -1073,7 +1073,7 @@ static int smc_open(struct net_device *dev)
 
     smc_reset(dev);
     init_timer(&smc->media);
-    smc->media.function = &media_check;
+    smc->media.function = media_check;
     smc->media.data = (u_long) dev;
     smc->media.expires = jiffies + HZ;
     add_timer(&smc->media);
@@ -1128,7 +1128,7 @@ static void smc_hardware_send_packet(struct net_device * dev)
     u_char packet_no;
 
     if (!skb) {
-	printk(KERN_ERR "%s: In XMIT with no packet to send.\n", dev->name);
+	netdev_err(dev, "In XMIT with no packet to send\n");
 	return;
     }
 
@@ -1136,8 +1136,8 @@ static void smc_hardware_send_packet(struct net_device * dev)
     packet_no = inw(ioaddr + PNR_ARR) >> 8;
     if (packet_no & 0x80) {
 	/* If not, there is a hardware problem!  Likely an ejected card. */
-	printk(KERN_WARNING "%s: 91c92 hardware Tx buffer allocation"
-	       " failed, status %#2.2x.\n", dev->name, packet_no);
+	netdev_warn(dev, "hardware Tx buffer allocation failed, status %#2.2x\n",
+		    packet_no);
 	dev_kfree_skb_irq(skb);
 	smc->saved_skb = NULL;
 	netif_start_queue(dev);
@@ -1156,8 +1156,7 @@ static void smc_hardware_send_packet(struct net_device * dev)
 	u_char *buf = skb->data;
 	u_int length = skb->len; /* The chip will pad to ethernet min. */
 
-	pr_debug("%s: Trying to xmit packet of length %d.\n",
-	      dev->name, length);
+	netdev_dbg(dev, "Trying to xmit packet of length %d\n", length);
 	
 	/* send the packet length: +6 for status word, length, and ctl */
 	outw(0, ioaddr + DATA_1);
@@ -1189,9 +1188,8 @@ static void smc_tx_timeout(struct net_device *dev)
     struct smc_private *smc = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
 
-    printk(KERN_NOTICE "%s: SMC91c92 transmit timed out, "
-	   "Tx_status %2.2x status %4.4x.\n",
-	   dev->name, inw(ioaddr)&0xff, inw(ioaddr + 2));
+    netdev_notice(dev, "transmit timed out, Tx_status %2.2x status %4.4x.\n",
+		  inw(ioaddr)&0xff, inw(ioaddr + 2));
     dev->stats.tx_errors++;
     smc_reset(dev);
     dev->trans_start = jiffies; /* prevent tx timeout */
@@ -1210,14 +1208,14 @@ static netdev_tx_t smc_start_xmit(struct sk_buff *skb,
 
     netif_stop_queue(dev);
 
-    pr_debug("%s: smc_start_xmit(length = %d) called,"
-	  " status %4.4x.\n", dev->name, skb->len, inw(ioaddr + 2));
+    netdev_dbg(dev, "smc_start_xmit(length = %d) called, status %04x\n",
+	       skb->len, inw(ioaddr + 2));
 
     if (smc->saved_skb) {
 	/* THIS SHOULD NEVER HAPPEN. */
 	dev->stats.tx_aborted_errors++;
-	printk(KERN_DEBUG "%s: Internal error -- sent packet while busy.\n",
-	       dev->name);
+	netdev_printk(KERN_DEBUG, dev,
+		      "Internal error -- sent packet while busy\n");
 	return NETDEV_TX_BUSY;
     }
     smc->saved_skb = skb;
@@ -1225,7 +1223,7 @@ static netdev_tx_t smc_start_xmit(struct sk_buff *skb,
     num_pages = skb->len >> 8;
 
     if (num_pages > 7) {
-	printk(KERN_ERR "%s: Far too big packet error.\n", dev->name);
+	netdev_err(dev, "Far too big packet error: %d pages\n", num_pages);
 	dev_kfree_skb (skb);
 	smc->saved_skb = NULL;
 	dev->stats.tx_dropped++;
@@ -1295,8 +1293,7 @@ static void smc_tx_err(struct net_device * dev)
     }
 
     if (tx_status & TS_SUCCESS) {
-	printk(KERN_NOTICE "%s: Successful packet caused error "
-	       "interrupt?\n", dev->name);
+	netdev_notice(dev, "Successful packet caused error interrupt?\n");
     }
     /* re-enable transmit */
     SMC_SELECT_BANK(0);
@@ -1486,8 +1483,7 @@ static void smc_rx(struct net_device *dev)
     /* Assertion: we are in Window 2. */
 
     if (inw(ioaddr + FIFO_PORTS) & FP_RXEMPTY) {
-	printk(KERN_ERR "%s: smc_rx() with nothing on Rx FIFO.\n",
-	       dev->name);
+	netdev_err(dev, "smc_rx() with nothing on Rx FIFO\n");
 	return;
     }
 
@@ -1602,8 +1598,7 @@ static int s9k_config(struct net_device *dev, struct ifmap *map)
 	else if (map->port > 2)
 	    return -EINVAL;
 	dev->if_port = map->port;
-	printk(KERN_INFO "%s: switched to %s port\n",
-	       dev->name, if_names[dev->if_port]);
+	netdev_info(dev, "switched to %s port\n", if_names[dev->if_port]);
 	smc_reset(dev);
     }
     return 0;
@@ -1754,7 +1749,7 @@ static void media_check(u_long arg)
        this, we can limp along even if the interrupt is blocked */
     if (smc->watchdog++ && ((i>>8) & i)) {
 	if (!smc->fast_poll)
-	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
+	    netdev_info(dev, "interrupt(s) dropped!\n");
 	local_irq_save(flags);
 	smc_interrupt(dev->irq, dev);
 	local_irq_restore(flags);
@@ -1778,7 +1773,7 @@ static void media_check(u_long arg)
 	SMC_SELECT_BANK(3);
 	link = mdio_read(dev, smc->mii_if.phy_id, 1);
 	if (!link || (link == 0xffff)) {
-  	    printk(KERN_INFO "%s: MII is missing!\n", dev->name);
+	    netdev_info(dev, "MII is missing!\n");
 	    smc->mii_if.phy_id = -1;
 	    goto reschedule;
 	}
@@ -1786,15 +1781,13 @@ static void media_check(u_long arg)
 	link &= 0x0004;
 	if (link != smc->link_status) {
 	    u_short p = mdio_read(dev, smc->mii_if.phy_id, 5);
-	    printk(KERN_INFO "%s: %s link beat\n", dev->name,
-		(link) ? "found" : "lost");
+	    netdev_info(dev, "%s link beat\n", link ? "found" : "lost");
 	    smc->duplex = (((p & 0x0100) || ((p & 0x1c0) == 0x40))
 			   ? TCR_FDUPLX : 0);
 	    if (link) {
-	        printk(KERN_INFO "%s: autonegotiation complete: "
-		       "%sbaseT-%cD selected\n", dev->name,
-		       ((p & 0x0180) ? "100" : "10"),
-		       (smc->duplex ? 'F' : 'H'));
+		netdev_info(dev, "autonegotiation complete: "
+			    "%dbaseT-%cD selected\n",
+			    (p & 0x0180) ? 100 : 10, smc->duplex ? 'F' : 'H');
 	    }
 	    SMC_SELECT_BANK(0);
 	    outw(inw(ioaddr + TCR) | smc->duplex, ioaddr + TCR);
@@ -1813,25 +1806,23 @@ static void media_check(u_long arg)
     if (media != smc->media_status) {
 	if ((media & smc->media_status & 1) &&
 	    ((smc->media_status ^ media) & EPH_LINK_OK))
-	    printk(KERN_INFO "%s: %s link beat\n", dev->name,
-		   (smc->media_status & EPH_LINK_OK ? "lost" : "found"));
+	    netdev_info(dev, "%s link beat\n",
+			smc->media_status & EPH_LINK_OK ? "lost" : "found");
 	else if ((media & smc->media_status & 2) &&
 		 ((smc->media_status ^ media) & EPH_16COL))
-	    printk(KERN_INFO "%s: coax cable %s\n", dev->name,
-		   (media & EPH_16COL ? "problem" : "ok"));
+	    netdev_info(dev, "coax cable %s\n",
+			media & EPH_16COL ? "problem" : "ok");
 	if (dev->if_port == 0) {
 	    if (media & 1) {
 		if (media & EPH_LINK_OK)
-		    printk(KERN_INFO "%s: flipped to 10baseT\n",
-			   dev->name);
+		    netdev_info(dev, "flipped to 10baseT\n");
 		else
 		    smc_set_xcvr(dev, 2);
 	    } else {
 		if (media & EPH_16COL)
 		    smc_set_xcvr(dev, 1);
 		else
-		    printk(KERN_INFO "%s: flipped to 10base2\n",
-			   dev->name);
+		    netdev_info(dev, "flipped to 10base2\n");
 	    }
 	}
 	smc->media_status = media;

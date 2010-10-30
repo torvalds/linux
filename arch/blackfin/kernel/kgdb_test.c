@@ -88,6 +88,7 @@ static const struct file_operations kgdb_test_proc_fops = {
 	.owner = THIS_MODULE,
 	.read  = kgdb_test_proc_read,
 	.write = kgdb_test_proc_write,
+	.llseek = noop_llseek,
 };
 
 static int __init kgdbtest_init(void)

@@ -921,12 +921,14 @@ static struct file_operations audio_fops = {
 	.read		= audio_in_read,
 	.write		= audio_in_write,
 	.unlocked_ioctl	= audio_in_ioctl,
+	.llseek		= noop_llseek,
 };
 
 static struct file_operations audpre_fops = {
 	.owner          = THIS_MODULE,
 	.open           = audpre_open,
 	.unlocked_ioctl = audpre_ioctl,
+	.llseek		= noop_llseek,
 };
 
 struct miscdevice audio_in_misc = {

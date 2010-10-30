@@ -33,11 +33,6 @@
 
 #include "ad1980.h"
 
-static unsigned int ac97_read(struct snd_soc_codec *codec,
-	unsigned int reg);
-static int ac97_write(struct snd_soc_codec *codec,
-	unsigned int reg, unsigned int val);
-
 /*
  * AD1980 register cache
  */
@@ -138,8 +133,8 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 	return 0;
 }
 
-struct snd_soc_dai ad1980_dai = {
-	.name = "AC97",
+static struct snd_soc_dai_driver ad1980_dai = {
+	.name = "ad1980-hifi",
 	.ac97_control = 1,
 	.playback = {
 		.stream_name = "Playback",
@@ -185,52 +180,19 @@ err:
 	return -EIO;
 }
 
-static int ad1980_soc_probe(struct platform_device *pdev)
+static int ad1980_soc_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	int ret = 0;
+	int ret;
 	u16 vendor_id2;
 	u16 ext_status;
 
 	printk(KERN_INFO "AD1980 SoC Audio Codec\n");
 
-	socdev->card->codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (socdev->card->codec == NULL)
-		return -ENOMEM;
-	codec = socdev->card->codec;
-	mutex_init(&codec->mutex);
-
-	codec->reg_cache =
-		kzalloc(sizeof(u16) * ARRAY_SIZE(ad1980_reg), GFP_KERNEL);
-	if (codec->reg_cache == NULL) {
-		ret = -ENOMEM;
-		goto cache_err;
-	}
-	memcpy(codec->reg_cache, ad1980_reg, sizeof(u16) * \
-			ARRAY_SIZE(ad1980_reg));
-	codec->reg_cache_size = sizeof(u16) * ARRAY_SIZE(ad1980_reg);
-	codec->reg_cache_step = 2;
-	codec->name = "AD1980";
-	codec->owner = THIS_MODULE;
-	codec->dai = &ad1980_dai;
-	codec->num_dai = 1;
-	codec->write = ac97_write;
-	codec->read = ac97_read;
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
 	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
 	if (ret < 0) {
 		printk(KERN_ERR "ad1980: failed to register AC97 codec\n");
-		goto codec_err;
+		return ret;
 	}
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0)
-		goto pcm_err;
-
 
 	ret = ad1980_reset(codec, 0);
 	if (ret < 0) {
@@ -270,41 +232,60 @@ static int ad1980_soc_probe(struct platform_device *pdev)
 	return 0;
 
 reset_err:
-	snd_soc_free_pcms(socdev);
-
-pcm_err:
 	snd_soc_free_ac97_codec(codec);
-
-codec_err:
-	kfree(codec->reg_cache);
-
-cache_err:
-	kfree(socdev->card->codec);
-	socdev->card->codec = NULL;
 	return ret;
 }
 
-static int ad1980_soc_remove(struct platform_device *pdev)
+static int ad1980_soc_remove(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	if (codec == NULL)
-		return 0;
-
-	snd_soc_dapm_free(socdev);
-	snd_soc_free_pcms(socdev);
 	snd_soc_free_ac97_codec(codec);
-	kfree(codec->reg_cache);
-	kfree(codec);
 	return 0;
 }
 
-struct snd_soc_codec_device soc_codec_dev_ad1980 = {
+static struct snd_soc_codec_driver soc_codec_dev_ad1980 = {
 	.probe = 	ad1980_soc_probe,
 	.remove = 	ad1980_soc_remove,
+	.reg_cache_size = ARRAY_SIZE(ad1980_reg),
+	.reg_word_size = sizeof(u16),
+	.reg_cache_default = ad1980_reg,
+	.reg_cache_step = 2,
+	.write = ac97_write,
+	.read = ac97_read,
 };
-EXPORT_SYMBOL_GPL(soc_codec_dev_ad1980);
+
+static __devinit int ad1980_probe(struct platform_device *pdev)
+{
+	return snd_soc_register_codec(&pdev->dev,
+			&soc_codec_dev_ad1980, &ad1980_dai, 1);
+}
+
+static int __devexit ad1980_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_codec(&pdev->dev);
+	return 0;
+}
+
+static struct platform_driver ad1980_codec_driver = {
+	.driver = {
+			.name = "ad1980-codec",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = ad1980_probe,
+	.remove = __devexit_p(ad1980_remove),
+};
+
+static int __init ad1980_init(void)
+{
+	return platform_driver_register(&ad1980_codec_driver);
+}
+module_init(ad1980_init);
+
+static void __exit ad1980_exit(void)
+{
+	platform_driver_unregister(&ad1980_codec_driver);
+}
+module_exit(ad1980_exit);
 
 MODULE_DESCRIPTION("ASoC ad1980 driver (Obsolete)");
 MODULE_AUTHOR("Roy Huang, Cliff Cai");

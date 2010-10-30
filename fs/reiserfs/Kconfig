@@ -10,7 +10,8 @@ config REISERFS_FS
 
 	  In general, ReiserFS is as fast as ext2, but is very efficient with
 	  large directories and small files.  Additional patches are needed
-	  for NFS and quotas, please see <http://www.namesys.com/> for links.
+	  for NFS and quotas, please see 
+	  <https://reiser4.wiki.kernel.org/index.php/Main_Page> for links.
 
 	  It is more easily extended to have features currently found in
 	  database and keyword search systems than block allocation based file
@@ -18,7 +19,8 @@ config REISERFS_FS
 	  plugins consistent with our motto ``It takes more than a license to
 	  make source code open.''
 
-	  Read <http://www.namesys.com/> to learn more about reiserfs.
+	  Read <https://reiser4.wiki.kernel.org/index.php/Main_Page> 
+	  to learn more about reiserfs.
 
 	  Sponsored by Threshold Networks, Emusic.com, and Bigstorage.com.
 

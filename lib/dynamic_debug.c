@@ -393,6 +393,40 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 	return 0;
 }
 
+static int ddebug_exec_query(char *query_string)
+{
+	unsigned int flags = 0, mask = 0;
+	struct ddebug_query query;
+#define MAXWORDS 9
+	int nwords;
+	char *words[MAXWORDS];
+
+	nwords = ddebug_tokenize(query_string, words, MAXWORDS);
+	if (nwords <= 0)
+		return -EINVAL;
+	if (ddebug_parse_query(words, nwords-1, &query))
+		return -EINVAL;
+	if (ddebug_parse_flags(words[nwords-1], &flags, &mask))
+		return -EINVAL;
+
+	/* actually go and implement the change */
+	ddebug_change(&query, flags, mask);
+	return 0;
+}
+
+static __initdata char ddebug_setup_string[1024];
+static __init int ddebug_setup_query(char *str)
+{
+	if (strlen(str) >= 1024) {
+		pr_warning("ddebug boot param string too large\n");
+		return 0;
+	}
+	strcpy(ddebug_setup_string, str);
+	return 1;
+}
+
+__setup("ddebug_query=", ddebug_setup_query);
+
 /*
  * File_ops->write method for <debugfs>/dynamic_debug/conrol.  Gathers the
  * command text from userspace, parses and executes it.
@@ -400,12 +434,8 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 				  size_t len, loff_t *offp)
 {
-	unsigned int flags = 0, mask = 0;
-	struct ddebug_query query;
-#define MAXWORDS 9
-	int nwords;
-	char *words[MAXWORDS];
 	char tmpbuf[256];
+	int ret;
 
 	if (len == 0)
 		return 0;
@@ -419,16 +449,9 @@ static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 		printk(KERN_INFO "%s: read %d bytes from userspace\n",
 			__func__, (int)len);
 
-	nwords = ddebug_tokenize(tmpbuf, words, MAXWORDS);
-	if (nwords <= 0)
-		return -EINVAL;
-	if (ddebug_parse_query(words, nwords-1, &query))
-		return -EINVAL;
-	if (ddebug_parse_flags(words[nwords-1], &flags, &mask))
-		return -EINVAL;
-
-	/* actually go and implement the change */
-	ddebug_change(&query, flags, mask);
+	ret = ddebug_exec_query(tmpbuf);
+	if (ret)
+		return ret;
 
 	*offp += len;
 	return len;
@@ -689,13 +712,14 @@ static void ddebug_remove_all_tables(void)
 	mutex_unlock(&ddebug_lock);
 }
 
-static int __init dynamic_debug_init(void)
+static __initdata int ddebug_init_success;
+
+static int __init dynamic_debug_init_debugfs(void)
 {
 	struct dentry *dir, *file;
-	struct _ddebug *iter, *iter_start;
-	const char *modname = NULL;
-	int ret = 0;
-	int n = 0;
+
+	if (!ddebug_init_success)
+		return -ENODEV;
 
 	dir = debugfs_create_dir("dynamic_debug", NULL);
 	if (!dir)
@@ -706,6 +730,16 @@ static int __init dynamic_debug_init(void)
 		debugfs_remove(dir);
 		return -ENOMEM;
 	}
+	return 0;
+}
+
+static int __init dynamic_debug_init(void)
+{
+	struct _ddebug *iter, *iter_start;
+	const char *modname = NULL;
+	int ret = 0;
+	int n = 0;
+
 	if (__start___verbose != __stop___verbose) {
 		iter = __start___verbose;
 		modname = iter->modname;
@@ -723,12 +757,26 @@ static int __init dynamic_debug_init(void)
 		}
 		ret = ddebug_add_module(iter_start, n, modname);
 	}
-out_free:
-	if (ret) {
-		ddebug_remove_all_tables();
-		debugfs_remove(dir);
-		debugfs_remove(file);
+
+	/* ddebug_query boot param got passed -> set it up */
+	if (ddebug_setup_string[0] != '\0') {
+		ret = ddebug_exec_query(ddebug_setup_string);
+		if (ret)
+			pr_warning("Invalid ddebug boot param %s",
+				   ddebug_setup_string);
+		else
+			pr_info("ddebug initialized with string %s",
+				ddebug_setup_string);
 	}
+
+out_free:
+	if (ret)
+		ddebug_remove_all_tables();
+	else
+		ddebug_init_success = 1;
 	return 0;
 }
-module_init(dynamic_debug_init);
+/* Allow early initialization for boot messages via boot param */
+arch_initcall(dynamic_debug_init);
+/* Debugfs setup must be done later */
+module_init(dynamic_debug_init_debugfs);

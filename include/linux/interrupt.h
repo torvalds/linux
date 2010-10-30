@@ -416,7 +416,6 @@ static inline void __raise_softirq_irqoff(unsigned int nr)
 
 extern void raise_softirq_irqoff(unsigned int nr);
 extern void raise_softirq(unsigned int nr);
-extern void wakeup_softirqd(void);
 
 /* This is the worklist that queues up per-cpu softirq work.
  *

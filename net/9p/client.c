@@ -61,13 +61,13 @@ static const match_table_t tokens = {
 
 inline int p9_is_proto_dotl(struct p9_client *clnt)
 {
-	return (clnt->proto_version == p9_proto_2000L);
+	return clnt->proto_version == p9_proto_2000L;
 }
 EXPORT_SYMBOL(p9_is_proto_dotl);
 
 inline int p9_is_proto_dotu(struct p9_client *clnt)
 {
-	return (clnt->proto_version == p9_proto_2000u);
+	return clnt->proto_version == p9_proto_2000u;
 }
 EXPORT_SYMBOL(p9_is_proto_dotu);
 
@@ -671,7 +671,7 @@ static void p9_fid_destroy(struct p9_fid *fid)
 	kfree(fid);
 }
 
-int p9_client_version(struct p9_client *c)
+static int p9_client_version(struct p9_client *c)
 {
 	int err = 0;
 	struct p9_req_t *req;
@@ -730,7 +730,6 @@ error:
 
 	return err;
 }
-EXPORT_SYMBOL(p9_client_version);
 
 struct p9_client *p9_client_create(const char *dev_name, char *options)
 {
@@ -886,54 +885,6 @@ error:
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(p9_client_attach);
-
-struct p9_fid *
-p9_client_auth(struct p9_client *clnt, char *uname, u32 n_uname, char *aname)
-{
-	int err;
-	struct p9_req_t *req;
-	struct p9_qid qid;
-	struct p9_fid *afid;
-
-	P9_DPRINTK(P9_DEBUG_9P, ">>> TAUTH uname %s aname %s\n", uname, aname);
-	err = 0;
-
-	afid = p9_fid_create(clnt);
-	if (IS_ERR(afid)) {
-		err = PTR_ERR(afid);
-		afid = NULL;
-		goto error;
-	}
-
-	req = p9_client_rpc(clnt, P9_TAUTH, "dss?d",
-			afid ? afid->fid : P9_NOFID, uname, aname, n_uname);
-	if (IS_ERR(req)) {
-		err = PTR_ERR(req);
-		goto error;
-	}
-
-	err = p9pdu_readf(req->rc, clnt->proto_version, "Q", &qid);
-	if (err) {
-		p9pdu_dump(1, req->rc);
-		p9_free_req(clnt, req);
-		goto error;
-	}
-
-	P9_DPRINTK(P9_DEBUG_9P, "<<< RAUTH qid %x.%llx.%x\n",
-					qid.type,
-					(unsigned long long)qid.path,
-					qid.version);
-
-	memmove(&afid->qid, &qid, sizeof(struct p9_qid));
-	p9_free_req(clnt, req);
-	return afid;
-
-error:
-	if (afid)
-		p9_fid_destroy(afid);
-	return ERR_PTR(err);
-}
-EXPORT_SYMBOL(p9_client_auth);
 
 struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
 	int clone)

@@ -24,7 +24,6 @@
 #include <linux/module.h>
 
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>

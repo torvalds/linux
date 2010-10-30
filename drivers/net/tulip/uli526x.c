@@ -480,7 +480,7 @@ static int uli526x_open(struct net_device *dev)
 	init_timer(&db->timer);
 	db->timer.expires = ULI526X_TIMER_WUT + HZ * 2;
 	db->timer.data = (unsigned long)dev;
-	db->timer.function = &uli526x_timer;
+	db->timer.function = uli526x_timer;
 	add_timer(&db->timer);
 
 	return 0;
@@ -1747,7 +1747,7 @@ static u16 phy_readby_cr10(unsigned long iobase, u8 phy_addr, u8 offset)
 		if(cr10_value&0x10000000)
 			break;
 	}
-	return (cr10_value&0x0ffff);
+	return cr10_value & 0x0ffff;
 }
 
 static void phy_writeby_cr10(unsigned long iobase, u8 phy_addr, u8 offset, u16 phy_data)

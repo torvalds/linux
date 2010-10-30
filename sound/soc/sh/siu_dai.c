@@ -71,6 +71,8 @@ struct port_flag {
 	struct format_flag	capture;
 };
 
+struct siu_info *siu_i2s_data;
+
 static struct port_flag siu_flags[SIU_PORT_NUM] = {
 	[SIU_PORT_A] = {
 		.playback = {
@@ -104,13 +106,13 @@ static struct port_flag siu_flags[SIU_PORT_NUM] = {
 
 static void siu_dai_start(struct siu_port *port_info)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	u32 __iomem *base = info->reg;
 
 	dev_dbg(port_info->pcm->card->dev, "%s\n", __func__);
 
 	/* Turn on SIU clock */
-	pm_runtime_get_sync(siu_i2s_dai.dev);
+	pm_runtime_get_sync(info->dev);
 
 	/* Issue software reset to siu */
 	siu_write32(base + SIU_SRCTL, 0);
@@ -148,21 +150,21 @@ static void siu_dai_start(struct siu_port *port_info)
 	siu_write32(base + SIU_SBDVCB, port_info->capture.volume);
 }
 
-static void siu_dai_stop(void)
+static void siu_dai_stop(struct siu_port *port_info)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	u32 __iomem *base = info->reg;
 
 	/* SIU software reset */
 	siu_write32(base + SIU_SRCTL, 0);
 
 	/* Turn off SIU clock */
-	pm_runtime_put_sync(siu_i2s_dai.dev);
+	pm_runtime_put_sync(info->dev);
 }
 
 static void siu_dai_spbAselect(struct siu_port *port_info)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	struct siu_firmware *fw = &info->fw;
 	u32 *ydef = fw->yram0;
 	u32 idx;
@@ -187,7 +189,7 @@ static void siu_dai_spbAselect(struct siu_port *port_info)
 
 static void siu_dai_spbBselect(struct siu_port *port_info)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	struct siu_firmware *fw = &info->fw;
 	u32 *ydef = fw->yram0;
 	u32 idx;
@@ -207,7 +209,7 @@ static void siu_dai_spbBselect(struct siu_port *port_info)
 
 static void siu_dai_open(struct siu_stream *siu_stream)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	u32 __iomem *base = info->reg;
 	u32 srctl, ifctl;
 
@@ -238,7 +240,7 @@ static void siu_dai_open(struct siu_stream *siu_stream)
  */
 static void siu_dai_pcmdatapack(struct siu_stream *siu_stream)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	u32 __iomem *base = info->reg;
 	u32 dpak;
 
@@ -258,7 +260,7 @@ static void siu_dai_pcmdatapack(struct siu_stream *siu_stream)
 
 static int siu_dai_spbstart(struct siu_port *port_info)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	u32 __iomem *base = info->reg;
 	struct siu_firmware *fw = &info->fw;
 	u32 *ydef = fw->yram0;
@@ -323,7 +325,7 @@ static int siu_dai_spbstart(struct siu_port *port_info)
 
 static void siu_dai_spbstop(struct siu_port *port_info)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	u32 __iomem *base = info->reg;
 
 	siu_write32(base + SIU_SBACTIV, 0);
@@ -402,7 +404,7 @@ static int siu_dai_put_volume(struct snd_kcontrol *kctrl,
 {
 	struct siu_port *port_info = snd_kcontrol_chip(kctrl);
 	struct device *dev = port_info->pcm->card->dev;
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = siu_i2s_data;
 	u32 __iomem *base = info->reg;
 	u32 new_vol;
 	u32 cur_vol;
@@ -510,7 +512,7 @@ void siu_free_port(struct siu_port *port_info)
 static int siu_dai_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = snd_soc_dai_get_drvdata(dai);
 	struct snd_pcm_runtime *rt = substream->runtime;
 	struct siu_port	*port_info = siu_port_info(substream);
 	int ret;
@@ -532,7 +534,7 @@ static int siu_dai_startup(struct snd_pcm_substream *substream,
 static void siu_dai_shutdown(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = snd_soc_dai_get_drvdata(dai);
 	struct siu_port	*port_info = siu_port_info(substream);
 
 	dev_dbg(substream->pcm->card->dev, "%s: port=%d@%p\n", __func__,
@@ -548,7 +550,7 @@ static void siu_dai_shutdown(struct snd_pcm_substream *substream,
 		/* during stmread or stmwrite ? */
 		BUG_ON(port_info->playback.rw_flg || port_info->capture.rw_flg);
 		siu_dai_spbstop(port_info);
-		siu_dai_stop();
+		siu_dai_stop(port_info);
 	}
 }
 
@@ -556,7 +558,7 @@ static void siu_dai_shutdown(struct snd_pcm_substream *substream,
 static int siu_dai_prepare(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = snd_soc_dai_get_drvdata(dai);
 	struct snd_pcm_runtime *rt = substream->runtime;
 	struct siu_port *port_info = siu_port_info(substream);
 	struct siu_stream *siu_stream;
@@ -605,7 +607,7 @@ fail:
 static int siu_dai_set_fmt(struct snd_soc_dai *dai,
 			   unsigned int fmt)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = snd_soc_dai_get_drvdata(dai);
 	u32 __iomem *base = info->reg;
 	u32 ifctl;
 
@@ -671,21 +673,37 @@ static int siu_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		return -EINVAL;
 	}
 
-	siu_clk = clk_get(siu_i2s_dai.dev, siu_name);
-	if (IS_ERR(siu_clk))
+	siu_clk = clk_get(dai->dev, siu_name);
+	if (IS_ERR(siu_clk)) {
+		dev_err(dai->dev, "%s: cannot get a SIU clock: %ld\n", __func__,
+			PTR_ERR(siu_clk));
 		return PTR_ERR(siu_clk);
-
-	parent_clk = clk_get(siu_i2s_dai.dev, parent_name);
-	if (!IS_ERR(parent_clk)) {
-		ret = clk_set_parent(siu_clk, parent_clk);
-		if (!ret)
-			clk_set_rate(siu_clk, freq);
-		clk_put(parent_clk);
 	}
 
+	parent_clk = clk_get(dai->dev, parent_name);
+	if (IS_ERR(parent_clk)) {
+		ret = PTR_ERR(parent_clk);
+		dev_err(dai->dev, "cannot get a SIU clock parent: %d\n", ret);
+		goto epclkget;
+	}
+
+	ret = clk_set_parent(siu_clk, parent_clk);
+	if (ret < 0) {
+		dev_err(dai->dev, "cannot reparent the SIU clock: %d\n", ret);
+		goto eclksetp;
+	}
+
+	ret = clk_set_rate(siu_clk, freq);
+	if (ret < 0)
+		dev_err(dai->dev, "cannot set SIU clock rate: %d\n", ret);
+
+	/* TODO: when clkdev gets reference counting we'll move these to siu_dai_shutdown() */
+eclksetp:
+	clk_put(parent_clk);
+epclkget:
 	clk_put(siu_clk);
 
-	return 0;
+	return ret;
 }
 
 static struct snd_soc_dai_ops siu_dai_ops = {
@@ -696,9 +714,8 @@ static struct snd_soc_dai_ops siu_dai_ops = {
 	.set_fmt	= siu_dai_set_fmt,
 };
 
-struct snd_soc_dai siu_i2s_dai = {
-	.name = "sh-siu",
-	.id = 0,
+static struct snd_soc_dai_driver siu_i2s_dai = {
+	.name	= "siu-i2s-dai",
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -713,7 +730,6 @@ struct snd_soc_dai siu_i2s_dai = {
 	 },
 	.ops = &siu_dai_ops,
 };
-EXPORT_SYMBOL_GPL(siu_i2s_dai);
 
 static int __devinit siu_probe(struct platform_device *pdev)
 {
@@ -725,6 +741,8 @@ static int __devinit siu_probe(struct platform_device *pdev)
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
+	siu_i2s_data = info;
+	info->dev = &pdev->dev;
 
 	ret = request_firmware(&fw_entry, "siu_spb.bin", &pdev->dev);
 	if (ret)
@@ -767,14 +785,14 @@ static int __devinit siu_probe(struct platform_device *pdev)
 	if (!info->reg)
 		goto emapreg;
 
-	siu_i2s_dai.dev = &pdev->dev;
-	siu_i2s_dai.private_data = info;
+	dev_set_drvdata(&pdev->dev, info);
 
-	ret = snd_soc_register_dais(&siu_i2s_dai, 1);
+	/* register using ARRAY version so we can keep dai name */
+	ret = snd_soc_register_dais(&pdev->dev, &siu_i2s_dai, 1);
 	if (ret < 0)
 		goto edaiinit;
 
-	ret = snd_soc_register_platform(&siu_platform);
+	ret = snd_soc_register_platform(&pdev->dev, &siu_platform);
 	if (ret < 0)
 		goto esocregp;
 
@@ -783,7 +801,7 @@ static int __devinit siu_probe(struct platform_device *pdev)
 	return ret;
 
 esocregp:
-	snd_soc_unregister_dais(&siu_i2s_dai, 1);
+	snd_soc_unregister_dai(&pdev->dev);
 edaiinit:
 	iounmap(info->reg);
 emapreg:
@@ -804,13 +822,13 @@ ereqfw:
 
 static int __devexit siu_remove(struct platform_device *pdev)
 {
-	struct siu_info *info = siu_i2s_dai.private_data;
+	struct siu_info *info = dev_get_drvdata(&pdev->dev);
 	struct resource *res;
 
 	pm_runtime_disable(&pdev->dev);
 
-	snd_soc_unregister_platform(&siu_platform);
-	snd_soc_unregister_dais(&siu_i2s_dai, 1);
+	snd_soc_unregister_platform(&pdev->dev);
+	snd_soc_unregister_dai(&pdev->dev);
 
 	iounmap(info->reg);
 	iounmap(info->yram);
@@ -826,7 +844,8 @@ static int __devexit siu_remove(struct platform_device *pdev)
 
 static struct platform_driver siu_driver = {
 	.driver 	= {
-		.name	= "sh_siu",
+		.owner	= THIS_MODULE,
+		.name	= "siu-pcm-audio",
 	},
 	.probe		= siu_probe,
 	.remove		= __devexit_p(siu_remove),

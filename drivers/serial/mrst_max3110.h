@@ -56,4 +56,5 @@
 #define WC_BAUD_DR192		(0xE)
 #define WC_BAUD_DR384		(0xF)
 
+#define M3110_RX_FIFO_DEPTH	8
 #endif

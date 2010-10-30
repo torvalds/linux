@@ -344,6 +344,7 @@ static const struct file_operations inotify_fops = {
 	.release	= inotify_release,
 	.unlocked_ioctl	= inotify_ioctl,
 	.compat_ioctl	= inotify_ioctl,
+	.llseek		= noop_llseek,
 };
 
 

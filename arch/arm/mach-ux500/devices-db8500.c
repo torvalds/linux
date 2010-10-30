@@ -208,35 +208,25 @@ static struct resource dma40_resources[] = {
 
 /* Default configuration for physcial memcpy */
 struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
-	.channel_type = (STEDMA40_CHANNEL_IN_PHY_MODE |
-			 STEDMA40_LOW_PRIORITY_CHANNEL |
-			 STEDMA40_PCHAN_BASIC_MODE),
+	.mode = STEDMA40_MODE_PHYSICAL,
 	.dir = STEDMA40_MEM_TO_MEM,
 
-	.src_info.endianess = STEDMA40_LITTLE_ENDIAN,
 	.src_info.data_width = STEDMA40_BYTE_WIDTH,
 	.src_info.psize = STEDMA40_PSIZE_PHY_1,
 	.src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 
-	.dst_info.endianess = STEDMA40_LITTLE_ENDIAN,
 	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
 	.dst_info.psize = STEDMA40_PSIZE_PHY_1,
 	.dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 };
 /* Default configuration for logical memcpy */
 struct stedma40_chan_cfg dma40_memcpy_conf_log = {
-	.channel_type = (STEDMA40_CHANNEL_IN_LOG_MODE |
-			 STEDMA40_LOW_PRIORITY_CHANNEL |
-			 STEDMA40_LCHAN_SRC_LOG_DST_LOG |
-			 STEDMA40_NO_TIM_FOR_LINK),
 	.dir = STEDMA40_MEM_TO_MEM,
 
-	.src_info.endianess = STEDMA40_LITTLE_ENDIAN,
 	.src_info.data_width = STEDMA40_BYTE_WIDTH,
 	.src_info.psize = STEDMA40_PSIZE_LOG_1,
 	.src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 
-	.dst_info.endianess = STEDMA40_LITTLE_ENDIAN,
 	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
 	.dst_info.psize = STEDMA40_PSIZE_LOG_1,
 	.dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
@@ -269,7 +259,6 @@ static struct stedma40_platform_data dma40_plat_data = {
 	.memcpy_len = ARRAY_SIZE(dma40_memcpy_event),
 	.memcpy_conf_phy = &dma40_memcpy_conf_phy,
 	.memcpy_conf_log = &dma40_memcpy_conf_log,
-	.llis_per_log = 8,
 	.disabled_channels = {-1},
 };
 
@@ -292,3 +281,23 @@ void dma40_u8500ed_fixup(void)
 	dma40_resources[1].start = U8500_DMA_LCPA_BASE_ED;
 	dma40_resources[1].end = U8500_DMA_LCPA_BASE_ED + 2 * SZ_1K - 1;
 }
+
+struct resource keypad_resources[] = {
+	[0] = {
+		.start = U8500_SKE_BASE,
+		.end = U8500_SKE_BASE + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_DB8500_KB,
+		.end = IRQ_DB8500_KB,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device ux500_ske_keypad_device = {
+	.name = "nmk-ske-keypad",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(keypad_resources),
+	.resource = keypad_resources,
+};

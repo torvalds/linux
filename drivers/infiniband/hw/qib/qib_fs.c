@@ -58,6 +58,7 @@ static int qibfs_mknod(struct inode *dir, struct dentry *dentry,
 		goto bail;
 	}
 
+	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_uid = 0;
 	inode->i_gid = 0;
@@ -367,6 +368,7 @@ bail:
 static const struct file_operations flash_ops = {
 	.read = flash_read,
 	.write = flash_write,
+	.llseek = default_llseek,
 };
 
 static int add_cntr_files(struct super_block *sb, struct qib_devdata *dd)

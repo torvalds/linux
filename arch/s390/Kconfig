@@ -60,6 +60,9 @@ config NO_IOMEM
 config NO_DMA
 	def_bool y
 
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool 64BIT
+
 config GENERIC_LOCKBREAK
 	bool
 	default y
@@ -101,6 +104,7 @@ config S390
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
+	select HAVE_GET_USER_PAGES_FAST
 	select ARCH_INLINE_SPIN_TRYLOCK
 	select ARCH_INLINE_SPIN_TRYLOCK_BH
 	select ARCH_INLINE_SPIN_LOCK
@@ -285,6 +289,14 @@ config MARCH_Z10
 	  kernel will be slightly faster but will not work on older
 	  machines such as the z990, z890, z900, z800, z9-109, z9-ec
 	  and z9-bc.
+
+config MARCH_Z196
+	bool "IBM zEnterprise 196"
+	help
+	  Select this to enable optimizations for IBM zEnterprise 196.
+	  The kernel will be slightly faster but will not work on older
+	  machines such as the z990, z890, z900, z800, z9-109, z9-ec,
+	  z9-bc, z10-ec and z10-bc.
 
 endchoice
 

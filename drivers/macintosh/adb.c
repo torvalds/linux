@@ -24,7 +24,6 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>
 #include <linux/pmu.h>
@@ -55,6 +54,7 @@ extern struct adb_driver adb_iop_driver;
 extern struct adb_driver via_pmu_driver;
 extern struct adb_driver macio_adb_driver;
 
+static DEFINE_MUTEX(adb_mutex);
 static struct adb_driver *adb_driver_list[] = {
 #ifdef CONFIG_ADB_MACII
 	&via_macii_driver,
@@ -647,7 +647,7 @@ static int adb_open(struct inode *inode, struct file *file)
 	struct adbdev_state *state;
 	int ret = 0;
 
-	lock_kernel();
+	mutex_lock(&adb_mutex);
 	if (iminor(inode) > 0 || adb_controller == NULL) {
 		ret = -ENXIO;
 		goto out;
@@ -665,7 +665,7 @@ static int adb_open(struct inode *inode, struct file *file)
 	state->inuse = 1;
 
 out:
-	unlock_kernel();
+	mutex_unlock(&adb_mutex);
 	return ret;
 }
 
@@ -674,7 +674,7 @@ static int adb_release(struct inode *inode, struct file *file)
 	struct adbdev_state *state = file->private_data;
 	unsigned long flags;
 
-	lock_kernel();
+	mutex_lock(&adb_mutex);
 	if (state) {
 		file->private_data = NULL;
 		spin_lock_irqsave(&state->lock, flags);
@@ -687,7 +687,7 @@ static int adb_release(struct inode *inode, struct file *file)
 			spin_unlock_irqrestore(&state->lock, flags);
 		}
 	}
-	unlock_kernel();
+	mutex_unlock(&adb_mutex);
 	return 0;
 }
 

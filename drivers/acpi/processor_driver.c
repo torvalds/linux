@@ -40,8 +40,10 @@
 #include <linux/pm.h>
 #include <linux/cpufreq.h>
 #include <linux/cpu.h>
+#ifdef CONFIG_ACPI_PROCFS
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#endif
 #include <linux/dmi.h>
 #include <linux/moduleparam.h>
 #include <linux/cpuidle.h>
@@ -244,6 +246,7 @@ static int acpi_processor_errata(struct acpi_processor *pr)
 	return result;
 }
 
+#ifdef CONFIG_ACPI_PROCFS
 static struct proc_dir_entry *acpi_processor_dir = NULL;
 
 static int __cpuinit acpi_processor_add_fs(struct acpi_device *device)
@@ -280,7 +283,16 @@ static int acpi_processor_remove_fs(struct acpi_device *device)
 
 	return 0;
 }
-
+#else
+static inline int acpi_processor_add_fs(struct acpi_device *device)
+{
+	return 0;
+}
+static inline int acpi_processor_remove_fs(struct acpi_device *device)
+{
+	return 0;
+}
+#endif
 /* --------------------------------------------------------------------------
                                  Driver Interface
    -------------------------------------------------------------------------- */
@@ -842,9 +854,11 @@ static int __init acpi_processor_init(void)
 
 	memset(&errata, 0, sizeof(errata));
 
+#ifdef CONFIG_ACPI_PROCFS
 	acpi_processor_dir = proc_mkdir(ACPI_PROCESSOR_CLASS, acpi_root_dir);
 	if (!acpi_processor_dir)
 		return -ENOMEM;
+#endif
 
 	if (!cpuidle_register_driver(&acpi_idle_driver)) {
 		printk(KERN_DEBUG "ACPI: %s registered with cpuidle\n",
@@ -871,7 +885,9 @@ static int __init acpi_processor_init(void)
 out_cpuidle:
 	cpuidle_unregister_driver(&acpi_idle_driver);
 
+#ifdef CONFIG_ACPI_PROCFS
 	remove_proc_entry(ACPI_PROCESSOR_CLASS, acpi_root_dir);
+#endif
 
 	return result;
 }
@@ -891,14 +907,14 @@ static void __exit acpi_processor_exit(void)
 
 	cpuidle_unregister_driver(&acpi_idle_driver);
 
+#ifdef CONFIG_ACPI_PROCFS
 	remove_proc_entry(ACPI_PROCESSOR_CLASS, acpi_root_dir);
+#endif
 
 	return;
 }
 
 module_init(acpi_processor_init);
 module_exit(acpi_processor_exit);
-
-EXPORT_SYMBOL(acpi_processor_set_thermal_limit);
 
 MODULE_ALIAS("processor");

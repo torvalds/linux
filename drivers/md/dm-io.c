@@ -31,7 +31,6 @@ struct dm_io_client {
  */
 struct io {
 	unsigned long error_bits;
-	unsigned long eopnotsupp_bits;
 	atomic_t count;
 	struct task_struct *sleeper;
 	struct dm_io_client *client;
@@ -130,11 +129,8 @@ static void retrieve_io_and_region_from_bio(struct bio *bio, struct io **io,
  *---------------------------------------------------------------*/
 static void dec_count(struct io *io, unsigned int region, int error)
 {
-	if (error) {
+	if (error)
 		set_bit(region, &io->error_bits);
-		if (error == -EOPNOTSUPP)
-			set_bit(region, &io->eopnotsupp_bits);
-	}
 
 	if (atomic_dec_and_test(&io->count)) {
 		if (io->sleeper)
@@ -310,8 +306,8 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 	sector_t remaining = where->count;
 
 	/*
-	 * where->count may be zero if rw holds a write barrier and we
-	 * need to send a zero-sized barrier.
+	 * where->count may be zero if rw holds a flush and we need to
+	 * send a zero-sized flush.
 	 */
 	do {
 		/*
@@ -364,7 +360,7 @@ static void dispatch_io(int rw, unsigned int num_regions,
 	 */
 	for (i = 0; i < num_regions; i++) {
 		*dp = old_pages;
-		if (where[i].count || (rw & REQ_HARDBARRIER))
+		if (where[i].count || (rw & REQ_FLUSH))
 			do_region(rw, i, where + i, dp, io);
 	}
 
@@ -393,9 +389,7 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 		return -EIO;
 	}
 
-retry:
 	io->error_bits = 0;
-	io->eopnotsupp_bits = 0;
 	atomic_set(&io->count, 1); /* see dispatch_io() */
 	io->sleeper = current;
 	io->client = client;
@@ -411,11 +405,6 @@ retry:
 		io_schedule();
 	}
 	set_current_state(TASK_RUNNING);
-
-	if (io->eopnotsupp_bits && (rw & REQ_HARDBARRIER)) {
-		rw &= ~REQ_HARDBARRIER;
-		goto retry;
-	}
 
 	if (error_bits)
 		*error_bits = io->error_bits;
@@ -437,7 +426,6 @@ static int async_io(struct dm_io_client *client, unsigned int num_regions,
 
 	io = mempool_alloc(client->pool, GFP_NOIO);
 	io->error_bits = 0;
-	io->eopnotsupp_bits = 0;
 	atomic_set(&io->count, 1); /* see dispatch_io() */
 	io->sleeper = NULL;
 	io->client = client;

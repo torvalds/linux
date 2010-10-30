@@ -1074,10 +1074,10 @@ uart_wait_modem_status(struct uart_state *state, unsigned long arg)
  * NB: both 1->0 and 0->1 transitions are counted except for
  *     RI where only 0->1 is counted.
  */
-static int uart_get_count(struct uart_state *state,
-			  struct serial_icounter_struct __user *icnt)
+static int uart_get_icount(struct tty_struct *tty,
+			  struct serial_icounter_struct *icount)
 {
-	struct serial_icounter_struct icount;
+	struct uart_state *state = tty->driver_data;
 	struct uart_icount cnow;
 	struct uart_port *uport = state->uart_port;
 
@@ -1085,19 +1085,19 @@ static int uart_get_count(struct uart_state *state,
 	memcpy(&cnow, &uport->icount, sizeof(struct uart_icount));
 	spin_unlock_irq(&uport->lock);
 
-	icount.cts         = cnow.cts;
-	icount.dsr         = cnow.dsr;
-	icount.rng         = cnow.rng;
-	icount.dcd         = cnow.dcd;
-	icount.rx          = cnow.rx;
-	icount.tx          = cnow.tx;
-	icount.frame       = cnow.frame;
-	icount.overrun     = cnow.overrun;
-	icount.parity      = cnow.parity;
-	icount.brk         = cnow.brk;
-	icount.buf_overrun = cnow.buf_overrun;
+	icount->cts         = cnow.cts;
+	icount->dsr         = cnow.dsr;
+	icount->rng         = cnow.rng;
+	icount->dcd         = cnow.dcd;
+	icount->rx          = cnow.rx;
+	icount->tx          = cnow.tx;
+	icount->frame       = cnow.frame;
+	icount->overrun     = cnow.overrun;
+	icount->parity      = cnow.parity;
+	icount->brk         = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
 
-	return copy_to_user(icnt, &icount, sizeof(icount)) ? -EFAULT : 0;
+	return 0;
 }
 
 /*
@@ -1149,10 +1149,6 @@ uart_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case TIOCMIWAIT:
 		ret = uart_wait_modem_status(state, arg);
-		break;
-
-	case TIOCGICOUNT:
-		ret = uart_get_count(state, uarg);
 		break;
 	}
 
@@ -2065,7 +2061,19 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 	/*
 	 * Re-enable the console device after suspending.
 	 */
-	if (uart_console(uport)) {
+	if (console_suspend_enabled && uart_console(uport)) {
+		/*
+		 * First try to use the console cflag setting.
+		 */
+		memset(&termios, 0, sizeof(struct ktermios));
+		termios.c_cflag = uport->cons->cflag;
+
+		/*
+		 * If that's unset, use the tty termios setting.
+		 */
+		if (port->tty && port->tty->termios && termios.c_cflag == 0)
+			termios = *(port->tty->termios);
+
 		uart_change_pm(state, 0);
 		uport->ops->set_termios(uport, &termios, NULL);
 		console_start(uport->cons);
@@ -2283,6 +2291,7 @@ static const struct tty_operations uart_ops = {
 #endif
 	.tiocmget	= uart_tiocmget,
 	.tiocmset	= uart_tiocmset,
+	.get_icount	= uart_get_icount,
 #ifdef CONFIG_CONSOLE_POLL
 	.poll_init	= uart_poll_init,
 	.poll_get_char	= uart_poll_get_char,

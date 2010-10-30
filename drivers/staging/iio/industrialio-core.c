@@ -349,6 +349,7 @@ static const struct file_operations iio_event_chrdev_fileops = {
 	.release = iio_event_chrdev_release,
 	.open = iio_event_chrdev_open,
 	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
 };
 
 static void iio_event_dev_release(struct device *dev)

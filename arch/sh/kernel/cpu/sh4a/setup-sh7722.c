@@ -551,7 +551,7 @@ static struct resource siu_resources[] = {
 };
 
 static struct platform_device siu_device = {
-	.name		= "sh_siu",
+	.name		= "siu-pcm-audio",
 	.id		= -1,
 	.dev = {
 		.platform_data	= &siu_platform_data,

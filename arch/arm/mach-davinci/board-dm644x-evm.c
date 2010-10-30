@@ -37,10 +37,9 @@
 #include <mach/nand.h>
 #include <mach/mmc.h>
 #include <mach/usb.h>
+#include <mach/aemif.h>
 
-#define DM644X_EVM_PHY_MASK		(0x2)
-#define DM644X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
-
+#define DM644X_EVM_PHY_ID		"0:01"
 #define LXT971_PHY_ID	(0x001378e2)
 #define LXT971_PHY_MASK	(0xfffffff0)
 
@@ -137,11 +136,22 @@ static struct mtd_partition davinci_evm_nandflash_partition[] = {
 	 */
 };
 
+static struct davinci_aemif_timing davinci_evm_nandflash_timing = {
+	.wsetup		= 20,
+	.wstrobe	= 40,
+	.whold		= 20,
+	.rsetup		= 10,
+	.rstrobe	= 40,
+	.rhold		= 10,
+	.ta		= 40,
+};
+
 static struct davinci_nand_pdata davinci_evm_nandflash_data = {
 	.parts		= davinci_evm_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_evm_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
 	.options	= NAND_USE_FLASH_BBT,
+	.timing		= &davinci_evm_nandflash_timing,
 };
 
 static struct resource davinci_evm_nandflash_resource[] = {
@@ -695,9 +705,7 @@ static __init void davinci_evm_init(void)
 	davinci_serial_init(&uart_config);
 	dm644x_init_asp(&dm644x_evm_snd_data);
 
-	soc_info->emac_pdata->phy_mask = DM644X_EVM_PHY_MASK;
-	soc_info->emac_pdata->mdio_max_freq = DM644X_EVM_MDIO_FREQUENCY;
-
+	soc_info->emac_pdata->phy_id = DM644X_EVM_PHY_ID;
 	/* Register the fixup for PHY on DaVinci */
 	phy_register_fixup_for_uid(LXT971_PHY_ID, LXT971_PHY_MASK,
 					davinci_phy_fixup);

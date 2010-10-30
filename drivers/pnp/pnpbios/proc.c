@@ -11,7 +11,6 @@
  *
  * The .../escd file is utilized by the lsescd utility written by
  * Gunther Mayer.
- *     http://home.t-online.de/home/gunther.mayer/lsescd
  *
  * The .../legacy_device_resources file is not used yet.
  *

@@ -583,6 +583,7 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 static const struct file_operations ab3100_get_set_reg_fops = {
 	.open = ab3100_get_set_reg_open_file,
 	.write = ab3100_get_set_reg,
+	.llseek = noop_llseek,
 };
 
 static struct dentry *ab3100_dir;

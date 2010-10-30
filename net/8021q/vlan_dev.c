@@ -158,7 +158,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	vlan_id = vlan_tci & VLAN_VID_MASK;
 
 	rcu_read_lock();
-	vlan_dev = __find_vlan_dev(dev, vlan_id);
+	vlan_dev = vlan_find_dev(dev, vlan_id);
 
 	/* If the VLAN device is defined, we use it.
 	 * If not, and the VID is 0, it is a 802.1p packet (not
@@ -177,8 +177,8 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	} else {
 		skb->dev = vlan_dev;
 
-		rx_stats = per_cpu_ptr(vlan_dev_info(skb->dev)->vlan_rx_stats,
-					smp_processor_id());
+		rx_stats = this_cpu_ptr(vlan_dev_info(skb->dev)->vlan_rx_stats);
+
 		u64_stats_update_begin(&rx_stats->syncp);
 		rx_stats->rx_packets++;
 		rx_stats->rx_bytes += skb->len;
@@ -226,12 +226,14 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	netif_rx(skb);
+
 	rcu_read_unlock();
 	return NET_RX_SUCCESS;
 
 err_unlock:
 	rcu_read_unlock();
 err_free:
+	atomic_long_inc(&dev->rx_dropped);
 	kfree_skb(skb);
 	return NET_RX_DROP;
 }
@@ -843,7 +845,7 @@ static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, st
 			accum.rx_packets += rxpackets;
 			accum.rx_bytes   += rxbytes;
 			accum.rx_multicast += rxmulticast;
-			/* rx_errors is an ulong, not protected by syncp */
+			/* rx_errors is ulong, not protected by syncp */
 			accum.rx_errors  += p->rx_errors;
 		}
 		stats->rx_packets = accum.rx_packets;

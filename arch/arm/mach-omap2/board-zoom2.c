@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
+#include <linux/i2c/twl.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -23,6 +24,7 @@
 
 #include <mach/board-zoom.h>
 
+#include "board-flash.h"
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 
@@ -33,41 +35,6 @@ static void __init omap_zoom2_init_irq(void)
 	omap_init_irq();
 	omap_gpio_init();
 }
-
-/* REVISIT: These audio entries can be removed once MFD code is merged */
-#if 0
-
-static struct twl4030_madc_platform_data zoom2_madc_data = {
-	.irq_line	= 1,
-};
-
-static struct twl4030_codec_audio_data zoom2_audio_data = {
-	.audio_mclk = 26000000,
-};
-
-static struct twl4030_codec_data zoom2_codec_data = {
-	.audio_mclk = 26000000,
-	.audio = &zoom2_audio_data,
-};
-
-static struct twl4030_platform_data zoom2_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
-
-	/* platform_data for children goes here */
-	.bci		= &zoom2_bci_data,
-	.madc		= &zoom2_madc_data,
-	.usb		= &zoom2_usb_data,
-	.gpio		= &zoom2_gpio_data,
-	.keypad		= &zoom2_kp_twl4030_data,
-	.codec		= &zoom2_codec_data,
-	.vmmc1          = &zoom2_vmmc1,
-	.vmmc2          = &zoom2_vmmc2,
-	.vsim           = &zoom2_vsim,
-
-};
-
-#endif
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {

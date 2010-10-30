@@ -297,7 +297,7 @@ static inline int crypt_s390_func_available(int func)
 	int ret;
 
 	/* check if CPACF facility (bit 17) is available */
-	if (!(stfl() & 1ULL << (31 - 17)))
+	if (!test_facility(17))
 		return 0;
 
 	switch (func & CRYPT_S390_OP_MASK) {

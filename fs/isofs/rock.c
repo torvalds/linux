@@ -8,7 +8,6 @@
 
 #include <linux/slab.h>
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 
 #include "isofs.h"
 #include "rock.h"
@@ -661,6 +660,7 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
 	struct iso_inode_info *ei = ISOFS_I(inode);
+	struct isofs_sb_info *sbi = ISOFS_SB(inode->i_sb);
 	char *link = kmap(page);
 	unsigned long bufsize = ISOFS_BUFFER_SIZE(inode);
 	struct buffer_head *bh;
@@ -673,12 +673,12 @@ static int rock_ridge_symlink_readpage(struct file *file, struct page *page)
 	struct rock_state rs;
 	int ret;
 
-	if (!ISOFS_SB(inode->i_sb)->s_rock)
+	if (!sbi->s_rock)
 		goto error;
 
 	init_rock_state(&rs, inode);
 	block = ei->i_iget5_block;
-	lock_kernel();
+	mutex_lock(&sbi->s_mutex);
 	bh = sb_bread(inode->i_sb, block);
 	if (!bh)
 		goto out_noread;
@@ -748,7 +748,7 @@ repeat:
 		goto fail;
 	brelse(bh);
 	*rpnt = '\0';
-	unlock_kernel();
+	mutex_unlock(&sbi->s_mutex);
 	SetPageUptodate(page);
 	kunmap(page);
 	unlock_page(page);
@@ -765,7 +765,7 @@ out_bad_span:
 	printk("symlink spans iso9660 blocks\n");
 fail:
 	brelse(bh);
-	unlock_kernel();
+	mutex_unlock(&sbi->s_mutex);
 error:
 	SetPageError(page);
 	kunmap(page);

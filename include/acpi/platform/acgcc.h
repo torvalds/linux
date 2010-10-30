@@ -44,6 +44,8 @@
 #ifndef __ACGCC_H__
 #define __ACGCC_H__
 
+#define ACPI_INLINE             __inline__
+
 /* Function name is used for debug output. Non-ANSI, compiler-dependent */
 
 #define ACPI_GET_FUNCTION_NAME          __func__

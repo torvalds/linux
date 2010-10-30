@@ -1588,7 +1588,7 @@ static int __devinit bfin_atapi_probe(struct platform_device *pdev)
 	host->ports[0]->ioaddr.ctl_addr = (void *)res->start;
 
 	if (peripheral_request_list(atapi_io_port, "atapi-io-port")) {
-		dev_err(&pdev->dev, "Requesting Peripherals faild\n");
+		dev_err(&pdev->dev, "Requesting Peripherals failed\n");
 		return -EFAULT;
 	}
 

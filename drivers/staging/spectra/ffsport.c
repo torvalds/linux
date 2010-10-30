@@ -27,7 +27,6 @@
 #include <linux/kthread.h>
 #include <linux/log2.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 
 /**** Helper functions used for Div, Remainder operation on u64 ****/
@@ -590,14 +589,16 @@ int GLOB_SBD_ioctl(struct block_device *bdev, fmode_t mode,
 	return -ENOTTY;
 }
 
+static DEFINE_MUTEX(ffsport_mutex);
+
 int GLOB_SBD_unlocked_ioctl(struct block_device *bdev, fmode_t mode,
 		unsigned int cmd, unsigned long arg)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&ffsport_mutex);
 	ret = GLOB_SBD_ioctl(bdev, mode, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&ffsport_mutex);
 
 	return ret;
 }

@@ -15,8 +15,6 @@ struct wm8940_setup_data {
 #define WM8940_VROI_30K 1
 	unsigned int vroi:1;
 };
-extern struct snd_soc_dai wm8940_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8940;
 
 /* WM8940 register space */
 #define WM8940_SOFTRESET	0x00

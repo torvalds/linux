@@ -373,7 +373,7 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 
 static inline int rawv6_rcv_skb(struct sock * sk, struct sk_buff * skb)
 {
-	if ((raw6_sk(sk)->checksum || sk->sk_filter) &&
+	if ((raw6_sk(sk)->checksum || rcu_dereference_raw(sk->sk_filter)) &&
 	    skb_checksum_complete(skb)) {
 		atomic_inc(&sk->sk_drops);
 		kfree_skb(skb);
@@ -764,7 +764,7 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 			return -EINVAL;
 
 		if (sin6->sin6_family && sin6->sin6_family != AF_INET6)
-			return(-EAFNOSUPPORT);
+			return -EAFNOSUPPORT;
 
 		/* port is the proto value [0..255] carried in nexthdr */
 		proto = ntohs(sin6->sin6_port);
@@ -772,10 +772,10 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		if (!proto)
 			proto = inet->inet_num;
 		else if (proto != inet->inet_num)
-			return(-EINVAL);
+			return -EINVAL;
 
 		if (proto > 255)
-			return(-EINVAL);
+			return -EINVAL;
 
 		daddr = &sin6->sin6_addr;
 		if (np->sndflow) {
@@ -985,7 +985,7 @@ static int do_rawv6_setsockopt(struct sock *sk, int level, int optname,
 			/* You may get strange result with a positive odd offset;
 			   RFC2292bis agrees with me. */
 			if (val > 0 && (val&1))
-				return(-EINVAL);
+				return -EINVAL;
 			if (val < 0) {
 				rp->checksum = 0;
 			} else {
@@ -997,7 +997,7 @@ static int do_rawv6_setsockopt(struct sock *sk, int level, int optname,
 			break;
 
 		default:
-			return(-ENOPROTOOPT);
+			return -ENOPROTOOPT;
 	}
 }
 
@@ -1190,7 +1190,7 @@ static int rawv6_init_sk(struct sock *sk)
 	default:
 		break;
 	}
-	return(0);
+	return 0;
 }
 
 struct proto rawv6_prot = {

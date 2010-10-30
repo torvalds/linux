@@ -165,8 +165,10 @@ enum {
 	DCCPO_TIMESTAMP_ECHO = 42,
 	DCCPO_ELAPSED_TIME = 43,
 	DCCPO_MAX = 45,
-	DCCPO_MIN_CCID_SPECIFIC = 128,
-	DCCPO_MAX_CCID_SPECIFIC = 255,
+	DCCPO_MIN_RX_CCID_SPECIFIC = 128,	/* from sender to receiver */
+	DCCPO_MAX_RX_CCID_SPECIFIC = 191,
+	DCCPO_MIN_TX_CCID_SPECIFIC = 192,	/* from receiver to sender */
+	DCCPO_MAX_TX_CCID_SPECIFIC = 255,
 };
 /* maximum size of a single TLV-encoded DCCP option (sans type/len bytes) */
 #define DCCP_SINGLE_OPT_MAXLEN	253

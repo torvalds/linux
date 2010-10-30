@@ -24,7 +24,9 @@
 #include <linux/input.h>
 #include <linux/leds.h>
 #include <linux/clk.h>
+#include <linux/atmel-mci.h>
 
+#include <mach/hardware.h>
 #include <video/atmel_lcdc.h>
 
 #include <asm/setup.h>
@@ -93,6 +95,25 @@ static struct spi_board_info ek_spi_devices[] = {
 		.chip_select	= 0,
 		.max_speed_hz	= 15 * 1000 * 1000,
 		.bus_num	= 0,
+	},
+};
+
+
+/*
+ * MCI (SD/MMC)
+ */
+static struct mci_platform_data __initdata mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PD10,
+	},
+};
+
+static struct mci_platform_data __initdata mci1_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PD11,
+		.wp_pin		= AT91_PIN_PD29,
 	},
 };
 
@@ -380,6 +401,9 @@ static void __init ek_board_init(void)
 	at91_add_device_usba(&ek_usba_udc_data);
 	/* SPI */
 	at91_add_device_spi(ek_spi_devices, ARRAY_SIZE(ek_spi_devices));
+	/* MMC */
+	at91_add_device_mci(0, &mci0_data);
+	at91_add_device_mci(1, &mci1_data);
 	/* Ethernet */
 	at91_add_device_eth(&ek_macb_data);
 	/* NAND */

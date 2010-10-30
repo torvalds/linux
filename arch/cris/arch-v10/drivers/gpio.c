@@ -745,6 +745,7 @@ static const struct file_operations gpio_fops = {
 	.write          = gpio_write,
 	.open           = gpio_open,
 	.release        = gpio_release,
+	.llseek		= noop_llseek,
 };
 
 static void ioif_watcher(const unsigned int gpio_in_available,

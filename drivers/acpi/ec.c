@@ -83,6 +83,11 @@ enum {
 	EC_FLAGS_BLOCKED,		/* Transactions are blocked */
 };
 
+/* ec.c is compiled in acpi namespace so this shows up as acpi.ec_delay param */
+static unsigned int ec_delay __read_mostly = ACPI_EC_DELAY;
+module_param(ec_delay, uint, 0644);
+MODULE_PARM_DESC(ec_delay, "Timeout(ms) waited until an EC command completes");
+
 /* If we find an EC via the ECDT, we need to keep a ptr to its context */
 /* External interfaces use first EC only, so remember */
 typedef int (*acpi_ec_query_func) (void *data);
@@ -210,7 +215,7 @@ static int ec_poll(struct acpi_ec *ec)
 	int repeat = 2; /* number of command restarts */
 	while (repeat--) {
 		unsigned long delay = jiffies +
-			msecs_to_jiffies(ACPI_EC_DELAY);
+			msecs_to_jiffies(ec_delay);
 		do {
 			/* don't sleep with disabled interrupts */
 			if (EC_FLAGS_MSI || irqs_disabled()) {
@@ -265,7 +270,7 @@ static int ec_check_ibf0(struct acpi_ec *ec)
 
 static int ec_wait_ibf0(struct acpi_ec *ec)
 {
-	unsigned long delay = jiffies + msecs_to_jiffies(ACPI_EC_DELAY);
+	unsigned long delay = jiffies + msecs_to_jiffies(ec_delay);
 	/* interrupt wait manually if GPE mode is not active */
 	while (time_before(jiffies, delay))
 		if (wait_event_timeout(ec->wait, ec_check_ibf0(ec),

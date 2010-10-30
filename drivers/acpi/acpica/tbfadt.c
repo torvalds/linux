@@ -49,7 +49,7 @@
 ACPI_MODULE_NAME("tbfadt")
 
 /* Local prototypes */
-static inline void
+static ACPI_INLINE void
 acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
 			     u8 space_id, u8 byte_width, u64 address);
 
@@ -181,7 +181,7 @@ static struct acpi_fadt_pm_info fadt_pm_info_table[] = {
  *
  ******************************************************************************/
 
-static inline void
+static ACPI_INLINE void
 acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
 			     u8 space_id, u8 byte_width, u64 address)
 {

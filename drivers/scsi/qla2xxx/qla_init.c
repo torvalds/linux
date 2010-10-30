@@ -954,6 +954,19 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
 }
 
 /**
+ * qla81xx_reset_mpi() - Reset's MPI FW via Write MPI Register MBC.
+ *
+ * Returns 0 on success.
+ */
+int
+qla81xx_reset_mpi(scsi_qla_host_t *vha)
+{
+	uint16_t mb[4] = {0x1010, 0, 1, 0};
+
+	return qla81xx_write_mpi_register(vha, mb);
+}
+
+/**
  * qla24xx_reset_risc() - Perform full reset of ISP24xx RISC.
  * @ha: HA context
  *
@@ -967,6 +980,7 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	uint32_t cnt, d2;
 	uint16_t wd;
+	static int abts_cnt; /* ISP abort retry counts */
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
@@ -998,6 +1012,23 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 		udelay(5);
 		d2 = RD_REG_DWORD(&reg->ctrl_status);
 		barrier();
+	}
+
+	/* If required, do an MPI FW reset now */
+	if (test_and_clear_bit(MPI_RESET_NEEDED, &vha->dpc_flags)) {
+		if (qla81xx_reset_mpi(vha) != QLA_SUCCESS) {
+			if (++abts_cnt < 5) {
+				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+				set_bit(MPI_RESET_NEEDED, &vha->dpc_flags);
+			} else {
+				/*
+				 * We exhausted the ISP abort retries. We have to
+				 * set the board offline.
+				 */
+				abts_cnt = 0;
+				vha->flags.online = 0;
+			}
+		}
 	}
 
 	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_RESET);
@@ -2799,6 +2830,9 @@ qla2x00_iidma_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (!IS_IIDMA_CAPABLE(ha))
 		return;
 
+	if (atomic_read(&fcport->state) != FCS_ONLINE)
+		return;
+
 	if (fcport->fp_speed == PORT_SPEED_UNKNOWN ||
 	    fcport->fp_speed > ha->link_data_rate)
 		return;
@@ -3878,17 +3912,19 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 			    LOOP_DOWN_TIME);
 	}
 
-	/* Make sure for ISP 82XX IO DMA is complete */
-	if (IS_QLA82XX(ha)) {
-		if (qla2x00_eh_wait_for_pending_commands(vha, 0, 0,
-			WAIT_HOST) == QLA_SUCCESS) {
-			DEBUG2(qla_printk(KERN_INFO, ha,
-			"Done wait for pending commands\n"));
+	if (!ha->flags.eeh_busy) {
+		/* Make sure for ISP 82XX IO DMA is complete */
+		if (IS_QLA82XX(ha)) {
+			if (qla2x00_eh_wait_for_pending_commands(vha, 0, 0,
+				WAIT_HOST) == QLA_SUCCESS) {
+				DEBUG2(qla_printk(KERN_INFO, ha,
+				"Done wait for pending commands\n"));
+			}
 		}
-	}
 
-	/* Requeue all commands in outstanding command list. */
-	qla2x00_abort_all_cmds(vha, DID_RESET << 16);
+		/* Requeue all commands in outstanding command list. */
+		qla2x00_abort_all_cmds(vha, DID_RESET << 16);
+	}
 }
 
 /*

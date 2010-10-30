@@ -1177,7 +1177,7 @@ static int setup_window(struct zoran_fh *fh, int x, int y, int width, int height
 	if (height > BUZ_MAX_HEIGHT)
 		height = BUZ_MAX_HEIGHT;
 
-	/* Check for vaild parameters */
+	/* Check for invalid parameters */
 	if (width < BUZ_MIN_WIDTH || height < BUZ_MIN_HEIGHT ||
 	    width > BUZ_MAX_WIDTH || height > BUZ_MAX_HEIGHT) {
 		dprintk(1,

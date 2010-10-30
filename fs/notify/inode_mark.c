@@ -240,6 +240,7 @@ void fsnotify_unmount_inodes(struct list_head *list)
 {
 	struct inode *inode, *next_i, *need_iput = NULL;
 
+	spin_lock(&inode_lock);
 	list_for_each_entry_safe(inode, next_i, list, i_sb_list) {
 		struct inode *need_iput_tmp;
 
@@ -297,4 +298,5 @@ void fsnotify_unmount_inodes(struct list_head *list)
 
 		spin_lock(&inode_lock);
 	}
+	spin_unlock(&inode_lock);
 }

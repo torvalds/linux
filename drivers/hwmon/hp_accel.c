@@ -146,7 +146,7 @@ int lis3lv02d_acpi_write(struct lis3lv02d *lis3, int reg, u8 val)
 
 static int lis3lv02d_dmi_matched(const struct dmi_system_id *dmi)
 {
-	lis3_dev.ac = *((struct axis_conversion *)dmi->driver_data);
+	lis3_dev.ac = *((union axis_conversion *)dmi->driver_data);
 	printk(KERN_INFO DRIVER_NAME ": hardware type %s found.\n", dmi->ident);
 
 	return 1;
@@ -154,16 +154,19 @@ static int lis3lv02d_dmi_matched(const struct dmi_system_id *dmi)
 
 /* Represents, for each axis seen by userspace, the corresponding hw axis (+1).
  * If the value is negative, the opposite of the hw value is used. */
-static struct axis_conversion lis3lv02d_axis_normal = {1, 2, 3};
-static struct axis_conversion lis3lv02d_axis_y_inverted = {1, -2, 3};
-static struct axis_conversion lis3lv02d_axis_x_inverted = {-1, 2, 3};
-static struct axis_conversion lis3lv02d_axis_z_inverted = {1, 2, -3};
-static struct axis_conversion lis3lv02d_axis_xy_swap = {2, 1, 3};
-static struct axis_conversion lis3lv02d_axis_xy_rotated_left = {-2, 1, 3};
-static struct axis_conversion lis3lv02d_axis_xy_rotated_left_usd = {-2, 1, -3};
-static struct axis_conversion lis3lv02d_axis_xy_swap_inverted = {-2, -1, 3};
-static struct axis_conversion lis3lv02d_axis_xy_rotated_right = {2, -1, 3};
-static struct axis_conversion lis3lv02d_axis_xy_swap_yz_inverted = {2, -1, -3};
+#define DEFINE_CONV(name, x, y, z)			      \
+	static union axis_conversion lis3lv02d_axis_##name = \
+		{ .as_array = { x, y, z } }
+DEFINE_CONV(normal, 1, 2, 3);
+DEFINE_CONV(y_inverted, 1, -2, 3);
+DEFINE_CONV(x_inverted, -1, 2, 3);
+DEFINE_CONV(z_inverted, 1, 2, -3);
+DEFINE_CONV(xy_swap, 2, 1, 3);
+DEFINE_CONV(xy_rotated_left, -2, 1, 3);
+DEFINE_CONV(xy_rotated_left_usd, -2, 1, -3);
+DEFINE_CONV(xy_swap_inverted, -2, -1, 3);
+DEFINE_CONV(xy_rotated_right, 2, -1, 3);
+DEFINE_CONV(xy_swap_yz_inverted, 2, -1, -3);
 
 #define AXIS_DMI_MATCH(_ident, _name, _axis) {		\
 	.ident = _ident,				\
@@ -222,7 +225,7 @@ static struct dmi_system_id lis3lv02d_dmi_ids[] = {
 	AXIS_DMI_MATCH("HPB452x", "HP ProBook 452", y_inverted),
 	AXIS_DMI_MATCH("HPB522x", "HP ProBook 522", xy_swap),
 	AXIS_DMI_MATCH("HPB532x", "HP ProBook 532", y_inverted),
-	AXIS_DMI_MATCH("Mini5102", "HP Mini 5102", xy_rotated_left_usd),
+	AXIS_DMI_MATCH("Mini510x", "HP Mini 510", xy_rotated_left_usd),
 	{ NULL, }
 /* Laptop models without axis info (yet):
  * "NC6910" "HP Compaq 6910"
@@ -299,7 +302,10 @@ static int lis3lv02d_add(struct acpi_device *device)
 	lis3lv02d_enum_resources(device);
 
 	/* If possible use a "standard" axes order */
-	if (dmi_check_system(lis3lv02d_dmi_ids) == 0) {
+	if (lis3_dev.ac.x && lis3_dev.ac.y && lis3_dev.ac.z) {
+		printk(KERN_INFO DRIVER_NAME ": Using custom axes %d,%d,%d\n",
+		       lis3_dev.ac.x, lis3_dev.ac.y, lis3_dev.ac.z);
+	} else if (dmi_check_system(lis3lv02d_dmi_ids) == 0) {
 		printk(KERN_INFO DRIVER_NAME ": laptop model unknown, "
 				 "using default axes configuration\n");
 		lis3_dev.ac = lis3lv02d_axis_normal;

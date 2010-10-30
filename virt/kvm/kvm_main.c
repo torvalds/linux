@@ -5,7 +5,7 @@
  * machines without emulation or binary translation.
  *
  * Copyright (C) 2006 Qumranet, Inc.
- * Copyright 2010 Red Hat, Inc. and/or its affilates.
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Authors:
  *   Avi Kivity   <avi@qumranet.com>
@@ -705,14 +705,12 @@ skip_lpage:
 	if (r)
 		goto out_free;
 
-#ifdef CONFIG_DMAR
 	/* map the pages in iommu page table */
 	if (npages) {
 		r = kvm_iommu_map_pages(kvm, &new);
 		if (r)
 			goto out_free;
 	}
-#endif
 
 	r = -ENOMEM;
 	slots = kzalloc(sizeof(struct kvm_memslots), GFP_KERNEL);
@@ -927,34 +925,45 @@ int memslot_id(struct kvm *kvm, gfn_t gfn)
 	return memslot - slots->memslots;
 }
 
-static unsigned long gfn_to_hva_memslot(struct kvm_memory_slot *slot, gfn_t gfn)
-{
-	return slot->userspace_addr + (gfn - slot->base_gfn) * PAGE_SIZE;
-}
-
-unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
+static unsigned long gfn_to_hva_many(struct kvm *kvm, gfn_t gfn,
+				     gfn_t *nr_pages)
 {
 	struct kvm_memory_slot *slot;
 
 	slot = gfn_to_memslot(kvm, gfn);
 	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
 		return bad_hva();
+
+	if (nr_pages)
+		*nr_pages = slot->npages - (gfn - slot->base_gfn);
+
 	return gfn_to_hva_memslot(slot, gfn);
+}
+
+unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
+{
+	return gfn_to_hva_many(kvm, gfn, NULL);
 }
 EXPORT_SYMBOL_GPL(gfn_to_hva);
 
-static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr)
+static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr, bool atomic)
 {
 	struct page *page[1];
 	int npages;
 	pfn_t pfn;
 
-	might_sleep();
-
-	npages = get_user_pages_fast(addr, 1, 1, page);
+	if (atomic)
+		npages = __get_user_pages_fast(addr, 1, 1, page);
+	else {
+		might_sleep();
+		npages = get_user_pages_fast(addr, 1, 1, page);
+	}
 
 	if (unlikely(npages != 1)) {
 		struct vm_area_struct *vma;
+
+		if (atomic)
+			goto return_fault_page;
 
 		down_read(&current->mm->mmap_sem);
 		if (is_hwpoison_address(addr)) {
@@ -968,6 +977,7 @@ static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr)
 		if (vma == NULL || addr < vma->vm_start ||
 		    !(vma->vm_flags & VM_PFNMAP)) {
 			up_read(&current->mm->mmap_sem);
+return_fault_page:
 			get_page(fault_page);
 			return page_to_pfn(fault_page);
 		}
@@ -981,7 +991,13 @@ static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr)
 	return pfn;
 }
 
-pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
+pfn_t hva_to_pfn_atomic(struct kvm *kvm, unsigned long addr)
+{
+	return hva_to_pfn(kvm, addr, true);
+}
+EXPORT_SYMBOL_GPL(hva_to_pfn_atomic);
+
+static pfn_t __gfn_to_pfn(struct kvm *kvm, gfn_t gfn, bool atomic)
 {
 	unsigned long addr;
 
@@ -991,7 +1007,18 @@ pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 		return page_to_pfn(bad_page);
 	}
 
-	return hva_to_pfn(kvm, addr);
+	return hva_to_pfn(kvm, addr, atomic);
+}
+
+pfn_t gfn_to_pfn_atomic(struct kvm *kvm, gfn_t gfn)
+{
+	return __gfn_to_pfn(kvm, gfn, true);
+}
+EXPORT_SYMBOL_GPL(gfn_to_pfn_atomic);
+
+pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
+{
+	return __gfn_to_pfn(kvm, gfn, false);
 }
 EXPORT_SYMBOL_GPL(gfn_to_pfn);
 
@@ -999,8 +1026,25 @@ pfn_t gfn_to_pfn_memslot(struct kvm *kvm,
 			 struct kvm_memory_slot *slot, gfn_t gfn)
 {
 	unsigned long addr = gfn_to_hva_memslot(slot, gfn);
-	return hva_to_pfn(kvm, addr);
+	return hva_to_pfn(kvm, addr, false);
 }
+
+int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
+								  int nr_pages)
+{
+	unsigned long addr;
+	gfn_t entry;
+
+	addr = gfn_to_hva_many(kvm, gfn, &entry);
+	if (kvm_is_error_hva(addr))
+		return -1;
+
+	if (entry < nr_pages)
+		return 0;
+
+	return __get_user_pages_fast(addr, nr_pages, 1, pages);
+}
+EXPORT_SYMBOL_GPL(gfn_to_page_many_atomic);
 
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
@@ -1305,6 +1349,7 @@ static struct file_operations kvm_vcpu_fops = {
 	.unlocked_ioctl = kvm_vcpu_ioctl,
 	.compat_ioctl   = kvm_vcpu_ioctl,
 	.mmap           = kvm_vcpu_mmap,
+	.llseek		= noop_llseek,
 };
 
 /*
@@ -1774,6 +1819,7 @@ static struct file_operations kvm_vm_fops = {
 	.compat_ioctl   = kvm_vm_compat_ioctl,
 #endif
 	.mmap           = kvm_vm_mmap,
+	.llseek		= noop_llseek,
 };
 
 static int kvm_dev_ioctl_create_vm(void)
@@ -1867,6 +1913,7 @@ out:
 static struct file_operations kvm_chardev_ops = {
 	.unlocked_ioctl = kvm_dev_ioctl,
 	.compat_ioctl   = kvm_dev_ioctl,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice kvm_dev = {
@@ -1961,7 +2008,9 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 	case CPU_STARTING:
 		printk(KERN_INFO "kvm: enabling virtualization on CPU%d\n",
 		       cpu);
+		spin_lock(&kvm_lock);
 		hardware_enable(NULL);
+		spin_unlock(&kvm_lock);
 		break;
 	}
 	return NOTIFY_OK;
@@ -1974,7 +2023,7 @@ asmlinkage void kvm_handle_fault_on_reboot(void)
 		/* spin while reset goes on */
 		local_irq_enable();
 		while (true)
-			;
+			cpu_relax();
 	}
 	/* Fault while not rebooting.  We want the trace. */
 	BUG();
@@ -2168,8 +2217,10 @@ static int kvm_suspend(struct sys_device *dev, pm_message_t state)
 
 static int kvm_resume(struct sys_device *dev)
 {
-	if (kvm_usage_count)
+	if (kvm_usage_count) {
+		WARN_ON(spin_is_locked(&kvm_lock));
 		hardware_enable(NULL);
+	}
 	return 0;
 }
 

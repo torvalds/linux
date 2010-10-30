@@ -1176,13 +1176,12 @@ static void rtl8187_bss_info_changed(struct ieee80211_hw *dev,
 		else
 			reg = 0;
 
-		if (is_valid_ether_addr(info->bssid)) {
+		if (is_valid_ether_addr(info->bssid))
 			reg |= RTL818X_MSR_INFRA;
-			rtl818x_iowrite8(priv, &priv->map->MSR, reg);
-		} else {
+		else
 			reg |= RTL818X_MSR_NO_LINK;
-			rtl818x_iowrite8(priv, &priv->map->MSR, reg);
-		}
+
+		rtl818x_iowrite8(priv, &priv->map->MSR, reg);
 
 		mutex_unlock(&priv->conf_mutex);
 	}

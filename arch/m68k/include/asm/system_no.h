@@ -59,17 +59,10 @@ asmlinkage void resume(void);
 #define wmb()  asm volatile (""   : : :"memory")
 #define set_mb(var, value)	({ (var) = (value); wmb(); })
 
-#ifdef CONFIG_SMP
-#define smp_mb()	mb()
-#define smp_rmb()	rmb()
-#define smp_wmb()	wmb()
-#define smp_read_barrier_depends()	read_barrier_depends()
-#else
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()
 #define smp_wmb()	barrier()
 #define smp_read_barrier_depends()	do { } while(0)
-#endif
 
 #define read_barrier_depends()  ((void)0)
 
@@ -152,9 +145,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 			(unsigned long)(n), sizeof(*(ptr))))
 #define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
 
-#ifndef CONFIG_SMP
 #include <asm-generic/cmpxchg.h>
-#endif
 
 #define arch_align_stack(x) (x)
 

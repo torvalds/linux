@@ -32,10 +32,14 @@
 #include <linux/dma-mapping.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/xilinxfb.h>
 #include <linux/slab.h>
+
+#ifdef CONFIG_PPC_DCR
 #include <asm/dcr.h>
+#endif
 
 #define DRIVER_NAME		"xilinxfb"
 
@@ -123,10 +127,10 @@ struct xilinxfb_drvdata {
 						registers */
 	void __iomem	*regs;		/* virt. address of the control
 						registers */
-
+#ifdef CONFIG_PPC_DCR
 	dcr_host_t      dcr_host;
 	unsigned int    dcr_len;
-
+#endif
 	void		*fb_virt;	/* virt. address of the frame buffer */
 	dma_addr_t	fb_phys;	/* phys. address of the frame buffer */
 	int		fb_alloced;	/* Flag, was the fb memory alloced? */
@@ -152,9 +156,10 @@ static void xilinx_fb_out_be32(struct xilinxfb_drvdata *drvdata, u32 offset,
 {
 	if (drvdata->flags & PLB_ACCESS_FLAG)
 		out_be32(drvdata->regs + (offset << 2), val);
+#ifdef CONFIG_PPC_DCR
 	else
 		dcr_write(drvdata->dcr_host, offset, val);
-
+#endif
 }
 
 static int
@@ -383,8 +388,11 @@ static int xilinxfb_release(struct device *dev)
 	if (drvdata->flags & PLB_ACCESS_FLAG) {
 		iounmap(drvdata->regs);
 		release_mem_region(drvdata->regs_phys, 8);
-	} else
+	}
+#ifdef CONFIG_PPC_DCR
+	else
 		dcr_unmap(drvdata->dcr_host, drvdata->dcr_len);
+#endif
 
 	kfree(drvdata);
 	dev_set_drvdata(dev, NULL);
@@ -404,7 +412,7 @@ xilinxfb_of_probe(struct platform_device *op, const struct of_device_id *match)
 	u32 tft_access;
 	struct xilinxfb_platform_data pdata;
 	struct resource res;
-	int size, rc, start;
+	int size, rc;
 	struct xilinxfb_drvdata *drvdata;
 
 	/* Copy with the default pdata (not a ptr reference!) */
@@ -437,7 +445,10 @@ xilinxfb_of_probe(struct platform_device *op, const struct of_device_id *match)
 			dev_err(&op->dev, "invalid address\n");
 			goto err;
 		}
-	} else {
+	}
+#ifdef CONFIG_PPC_DCR
+	else {
+		int start;
 		res.start = 0;
 		start = dcr_resource_start(op->dev.of_node, 0);
 		drvdata->dcr_len = dcr_resource_len(op->dev.of_node, 0);
@@ -447,6 +458,7 @@ xilinxfb_of_probe(struct platform_device *op, const struct of_device_id *match)
 			goto err;
 		}
 	}
+#endif
 
 	prop = of_get_property(op->dev.of_node, "phys-size", &size);
 	if ((prop) && (size >= sizeof(u32)*2)) {

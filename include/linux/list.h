@@ -636,6 +636,12 @@ static inline void hlist_add_after(struct hlist_node *n,
 		next->next->pprev  = &next->next;
 }
 
+/* after that we'll appear to be on some hlist and hlist_del will work */
+static inline void hlist_add_fake(struct hlist_node *n)
+{
+	n->pprev = &n->next;
+}
+
 /*
  * Move a list from one list head to another. Fixup the pprev
  * reference of the first entry if it exists.

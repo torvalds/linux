@@ -231,7 +231,7 @@ MODULE_DESCRIPTION("Micrel PHY driver");
 MODULE_AUTHOR("David J. Choi");
 MODULE_LICENSE("GPL");
 
-static struct mdio_device_id micrel_tbl[] = {
+static struct mdio_device_id __maybe_unused micrel_tbl[] = {
 	{ PHY_ID_KSZ9021, 0x000fff10 },
 	{ PHY_ID_KS8001, 0x00fffff0 },
 	{ PHY_ID_KS8737, 0x00fffff0 },

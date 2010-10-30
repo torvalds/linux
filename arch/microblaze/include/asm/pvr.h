@@ -30,7 +30,9 @@ struct pvr_s {
 #define PVR0_USE_EXC_MASK		0x04000000
 #define PVR0_USE_ICACHE_MASK		0x02000000
 #define PVR0_USE_DCACHE_MASK		0x01000000
-#define PVR0_USE_MMU			0x00800000	/* new */
+#define PVR0_USE_MMU			0x00800000
+#define PVR0_USE_BTC			0x00400000
+#define PVR0_ENDI			0x00200000
 #define PVR0_VERSION_MASK		0x0000FF00
 #define PVR0_USER1_MASK			0x000000FF
 
@@ -38,9 +40,9 @@ struct pvr_s {
 #define PVR1_USER2_MASK			0xFFFFFFFF
 
 /* Configuration PVR masks */
-#define PVR2_D_OPB_MASK			0x80000000
+#define PVR2_D_OPB_MASK			0x80000000 /* or AXI */
 #define PVR2_D_LMB_MASK			0x40000000
-#define PVR2_I_OPB_MASK			0x20000000
+#define PVR2_I_OPB_MASK			0x20000000 /* or AXI */
 #define PVR2_I_LMB_MASK			0x10000000
 #define PVR2_INTERRUPT_IS_EDGE_MASK	0x08000000
 #define PVR2_EDGE_IS_POSITIVE_MASK	0x04000000
@@ -63,8 +65,8 @@ struct pvr_s {
 #define PVR2_OPCODE_0x0_ILL_MASK	0x00000040
 #define PVR2_UNALIGNED_EXC_MASK		0x00000020
 #define PVR2_ILL_OPCODE_EXC_MASK	0x00000010
-#define PVR2_IOPB_BUS_EXC_MASK		0x00000008
-#define PVR2_DOPB_BUS_EXC_MASK		0x00000004
+#define PVR2_IOPB_BUS_EXC_MASK		0x00000008 /* or AXI */
+#define PVR2_DOPB_BUS_EXC_MASK		0x00000004 /* or AXI */
 #define PVR2_DIV_ZERO_EXC_MASK		0x00000002
 #define PVR2_FPU_EXC_MASK		0x00000001
 
@@ -208,6 +210,8 @@ struct pvr_s {
 #define PVR_MMU_TLB_ACCESS(pvr)	(pvr.pvr[11] & PVR11_MMU_TLB_ACCESS)
 #define PVR_MMU_ZONES(pvr)	(pvr.pvr[11] & PVR11_MMU_ZONES)
 
+/* endian */
+#define PVR_ENDIAN(pvr)	(pvr.pvr[0] & PVR0_ENDI)
 
 int cpu_has_pvr(void);
 void get_pvr(struct pvr_s *pvr);

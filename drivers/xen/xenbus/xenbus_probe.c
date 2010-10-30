@@ -64,9 +64,11 @@
 
 
 int xen_store_evtchn;
-EXPORT_SYMBOL(xen_store_evtchn);
+EXPORT_SYMBOL_GPL(xen_store_evtchn);
 
 struct xenstore_domain_interface *xen_store_interface;
+EXPORT_SYMBOL_GPL(xen_store_interface);
+
 static unsigned long xen_store_mfn;
 
 static BLOCKING_NOTIFIER_HEAD(xenstore_chain);

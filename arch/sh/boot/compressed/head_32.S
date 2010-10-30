@@ -91,7 +91,9 @@ bss_start_addr:
 end_addr:
 	.long	_end
 init_sr:
-	.long	0x400000F0	/* Privileged mode, Bank=0, Block=0, IMASK=0xF */
+	.long	0x500000F0	/* Privileged mode, Bank=0, Block=1, IMASK=0xF */
+kexec_magic:
+	.long	0x400000F0	/* magic used by kexec to parse zImage format */
 init_stack_addr:
 	.long	stack_start
 decompress_kernel_addr:

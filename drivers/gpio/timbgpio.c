@@ -47,6 +47,7 @@ struct timbgpio {
 	spinlock_t		lock; /* mutual exclusion */
 	struct gpio_chip	gpio;
 	int			irq_base;
+	unsigned long		last_ier;
 };
 
 static int timbgpio_update_bit(struct gpio_chip *gpio, unsigned index,
@@ -112,16 +113,24 @@ static void timbgpio_irq_disable(unsigned irq)
 {
 	struct timbgpio *tgpio = get_irq_chip_data(irq);
 	int offset = irq - tgpio->irq_base;
+	unsigned long flags;
 
-	timbgpio_update_bit(&tgpio->gpio, offset, TGPIO_IER, 0);
+	spin_lock_irqsave(&tgpio->lock, flags);
+	tgpio->last_ier &= ~(1 << offset);
+	iowrite32(tgpio->last_ier, tgpio->membase + TGPIO_IER);
+	spin_unlock_irqrestore(&tgpio->lock, flags);
 }
 
 static void timbgpio_irq_enable(unsigned irq)
 {
 	struct timbgpio *tgpio = get_irq_chip_data(irq);
 	int offset = irq - tgpio->irq_base;
+	unsigned long flags;
 
-	timbgpio_update_bit(&tgpio->gpio, offset, TGPIO_IER, 1);
+	spin_lock_irqsave(&tgpio->lock, flags);
+	tgpio->last_ier |= 1 << offset;
+	iowrite32(tgpio->last_ier, tgpio->membase + TGPIO_IER);
+	spin_unlock_irqrestore(&tgpio->lock, flags);
 }
 
 static int timbgpio_irq_type(unsigned irq, unsigned trigger)
@@ -194,8 +203,16 @@ static void timbgpio_irq(unsigned int irq, struct irq_desc *desc)
 	ipr = ioread32(tgpio->membase + TGPIO_IPR);
 	iowrite32(ipr, tgpio->membase + TGPIO_ICR);
 
+	/*
+	 * Some versions of the hardware trash the IER register if more than
+	 * one interrupt is received simultaneously.
+	 */
+	iowrite32(0, tgpio->membase + TGPIO_IER);
+
 	for_each_set_bit(offset, &ipr, tgpio->gpio.ngpio)
 		generic_handle_irq(timbgpio_to_irq(&tgpio->gpio, offset));
+
+	iowrite32(tgpio->last_ier, tgpio->membase + TGPIO_IER);
 }
 
 static struct irq_chip timbgpio_irqchip = {

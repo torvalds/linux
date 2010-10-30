@@ -488,7 +488,9 @@ startup:
 	.align 16
 2:	.long	0x000a0000,0x8badcccc
 #if defined(CONFIG_64BIT)
-#if defined(CONFIG_MARCH_Z10)
+#if defined(CONFIG_MARCH_Z196)
+	.long 0xc100efe3, 0xf46c0000
+#elif defined(CONFIG_MARCH_Z10)
 	.long 0xc100efe3, 0xf0680000
 #elif defined(CONFIG_MARCH_Z9_109)
 	.long 0xc100efc3, 0x00000000
@@ -498,7 +500,9 @@ startup:
 	.long 0xc0000000, 0x00000000
 #endif
 #else
-#if defined(CONFIG_MARCH_Z10)
+#if defined(CONFIG_MARCH_Z196)
+	.long 0x8100c880, 0x00000000
+#elif defined(CONFIG_MARCH_Z10)
 	.long 0x8100c880, 0x00000000
 #elif defined(CONFIG_MARCH_Z9_109)
 	.long 0x8100c880, 0x00000000

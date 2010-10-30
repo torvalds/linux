@@ -31,6 +31,7 @@
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
+#include <plat/mcbsp.h>
 
 #include <asm/mach-types.h>
 
@@ -76,7 +77,7 @@ static int rx51_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 
 	snd_pcm_hw_constraint_minmax(runtime,
 				     SNDRV_PCM_HW_PARAM_CHANNELS, 2, 2);
@@ -89,8 +90,8 @@ static int rx51_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int err;
 
 	/* Set codec DAI configuration */
@@ -145,9 +146,9 @@ static int rx51_spk_event(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *k, int event)
 {
 	if (SND_SOC_DAPM_EVENT_ON(event))
-		gpio_set_value(RX51_SPEAKER_AMP_TWL_GPIO, 1);
+		gpio_set_value_cansleep(RX51_SPEAKER_AMP_TWL_GPIO, 1);
 	else
-		gpio_set_value(RX51_SPEAKER_AMP_TWL_GPIO, 0);
+		gpio_set_value_cansleep(RX51_SPEAKER_AMP_TWL_GPIO, 0);
 
 	return 0;
 }
@@ -240,9 +241,9 @@ static const struct snd_kcontrol_new aic34_rx51_controls[] = {
 		     rx51_get_jack, rx51_set_jack),
 };
 
-static int rx51_aic34_init(struct snd_soc_codec *codec)
+static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_card *card = codec->socdev->card;
+	struct snd_soc_codec *codec = rtd->codec;
 	int err;
 
 	/* Set up NC codec pins */
@@ -266,7 +267,7 @@ static int rx51_aic34_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_sync(codec);
 
 	/* AV jack detection */
-	err = snd_soc_jack_new(card, "AV Jack",
+	err = snd_soc_jack_new(codec, "AV Jack",
 			       SND_JACK_VIDEOOUT, &rx51_av_jack);
 	if (err)
 		return err;
@@ -282,17 +283,13 @@ static struct snd_soc_dai_link rx51_dai[] = {
 	{
 		.name = "TLV320AIC34",
 		.stream_name = "AIC34",
-		.cpu_dai = &omap_mcbsp_dai[0],
-		.codec_dai = &aic3x_dai,
+		.cpu_dai_name = "omap-mcbsp-dai.1",
+		.codec_dai_name = "tlv320aic3x-hifi",
+		.platform_name = "omap-pcm-audio",
+		.codec_name = "tlv320aic3x-codec.2-0018",
 		.init = rx51_aic34_init,
 		.ops = &rx51_ops,
 	},
-};
-
-/* Audio private data */
-static struct aic3x_setup_data rx51_aic34_setup = {
-	.gpio_func[0] = AIC3X_GPIO1_FUNC_DISABLED,
-	.gpio_func[1] = AIC3X_GPIO2_FUNC_DIGITAL_MIC_INPUT,
 };
 
 /* Audio card */
@@ -300,14 +297,6 @@ static struct snd_soc_card rx51_sound_card = {
 	.name = "RX-51",
 	.dai_link = rx51_dai,
 	.num_links = ARRAY_SIZE(rx51_dai),
-	.platform = &omap_soc_platform,
-};
-
-/* Audio subsystem */
-static struct snd_soc_device rx51_snd_devdata = {
-	.card = &rx51_sound_card,
-	.codec_dev = &soc_codec_dev_aic3x,
-	.codec_data = &rx51_aic34_setup,
 };
 
 static struct platform_device *rx51_snd_device;
@@ -330,9 +319,7 @@ static int __init rx51_soc_init(void)
 		goto err1;
 	}
 
-	platform_set_drvdata(rx51_snd_device, &rx51_snd_devdata);
-	rx51_snd_devdata.dev = &rx51_snd_device->dev;
-	*(unsigned int *)rx51_dai[0].cpu_dai->private_data = 1; /* McBSP2 */
+	platform_set_drvdata(rx51_snd_device, &rx51_sound_card);
 
 	err = platform_device_add(rx51_snd_device);
 	if (err)

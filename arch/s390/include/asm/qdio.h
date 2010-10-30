@@ -360,6 +360,7 @@ struct qdio_initialize {
 	unsigned int no_output_qs;
 	qdio_handler_t *input_handler;
 	qdio_handler_t *output_handler;
+	void (*queue_start_poll) (struct ccw_device *, int, unsigned long);
 	unsigned long int_parm;
 	void **input_sbal_addr_array;
 	void **output_sbal_addr_array;
@@ -377,11 +378,13 @@ struct qdio_initialize {
 extern int qdio_allocate(struct qdio_initialize *);
 extern int qdio_establish(struct qdio_initialize *);
 extern int qdio_activate(struct ccw_device *);
-
-extern int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
-		   int q_nr, unsigned int bufnr, unsigned int count);
-extern int qdio_shutdown(struct ccw_device*, int);
+extern int do_QDIO(struct ccw_device *, unsigned int, int, unsigned int,
+		   unsigned int);
+extern int qdio_start_irq(struct ccw_device *, int);
+extern int qdio_stop_irq(struct ccw_device *, int);
+extern int qdio_get_next_buffers(struct ccw_device *, int, int *, int *);
+extern int qdio_shutdown(struct ccw_device *, int);
 extern int qdio_free(struct ccw_device *);
-extern int qdio_get_ssqd_desc(struct ccw_device *dev, struct qdio_ssqd_desc*);
+extern int qdio_get_ssqd_desc(struct ccw_device *, struct qdio_ssqd_desc *);
 
 #endif /* __QDIO_H__ */

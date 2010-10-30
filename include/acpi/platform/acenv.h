@@ -193,6 +193,12 @@
 #define ACPI_MUTEX_TYPE             ACPI_BINARY_SEMAPHORE
 #endif
 
+/* "inline" keywords - configurable since inline is not standardized */
+
+#ifndef ACPI_INLINE
+#define ACPI_INLINE
+#endif
+
 /*
  * Debugger threading model
  * Use single threaded if the entire subsystem is contained in an application

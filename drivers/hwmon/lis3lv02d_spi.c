@@ -50,11 +50,12 @@ static int lis3_spi_init(struct lis3lv02d *lis3)
 	if (ret < 0)
 		return ret;
 
-	reg |= CTRL1_PD0;
+	reg |= CTRL1_PD0 | CTRL1_Xen | CTRL1_Yen | CTRL1_Zen;
 	return lis3->write(lis3, CTRL_REG1, reg);
 }
 
-static struct axis_conversion lis3lv02d_axis_normal = { 1, 2, 3 };
+static union axis_conversion lis3lv02d_axis_normal =
+	{ .as_array = { 1, 2, 3 } };
 
 static int __devinit lis302dl_spi_probe(struct spi_device *spi)
 {

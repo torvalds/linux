@@ -41,6 +41,27 @@
 #define BIT_STU_SENDOVER    0x0001
 #define BIT_STU_RECVFULL    0x0020
 
+/*
+ * All Blackfin system MMRs are padded to 32bits even if the register
+ * itself is only 16bits.  So use a helper macro to streamline this.
+ */
+#define __BFP(m) u16 m; u16 __pad_##m
+
+/*
+ * bfin spi registers layout
+ */
+struct bfin_spi_regs {
+	__BFP(ctl);
+	__BFP(flg);
+	__BFP(stat);
+	__BFP(tdbr);
+	__BFP(rdbr);
+	__BFP(baud);
+	__BFP(shadow);
+};
+
+#undef __BFP
+
 #define MAX_CTRL_CS          8  /* cs in spi controller */
 
 /* device.platform_data for SSP controller devices */

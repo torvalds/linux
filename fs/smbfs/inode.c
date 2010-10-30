@@ -229,7 +229,6 @@ smb_invalidate_inodes(struct smb_sb_info *server)
 {
 	VERBOSE("\n");
 	shrink_dcache_sb(SB_of(server));
-	invalidate_inodes(SB_of(server));
 }
 
 /*
@@ -501,6 +500,8 @@ static int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 	void *mem;
 	static int warn_count;
 
+	lock_kernel();
+
 	if (warn_count < 5) {
 		warn_count++;
 		printk(KERN_EMERG "smbfs is deprecated and will be removed"
@@ -621,6 +622,7 @@ static int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 
 	smb_new_dentry(sb->s_root);
 
+	unlock_kernel();
 	return 0;
 
 out_no_root:
@@ -643,9 +645,11 @@ out_wrong_data:
 out_no_data:
 	printk(KERN_ERR "smb_fill_super: missing data argument\n");
 out_fail:
+	unlock_kernel();
 	return -EINVAL;
 out_no_server:
 	printk(KERN_ERR "smb_fill_super: cannot allocate struct smb_sb_info\n");
+	unlock_kernel();
 	return -ENOMEM;
 }
 

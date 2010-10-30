@@ -1078,11 +1078,9 @@ static int bnx2i_iscsi_send_generic_request(struct iscsi_task *task)
 		buf = bnx2i_conn->gen_pdu.req_buf;
 		if (data_len)
 			rc = bnx2i_send_iscsi_nopout(bnx2i_conn, task,
-						     RESERVED_ITT,
 						     buf, data_len, 1);
 		else
 			rc = bnx2i_send_iscsi_nopout(bnx2i_conn, task,
-						     RESERVED_ITT,
 						     NULL, 0, 1);
 		break;
 	case ISCSI_OP_LOGOUT:
@@ -1955,6 +1953,9 @@ int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
 	if (!cnic)
 		return 0;
 
+	if (bnx2i_ep->state == EP_STATE_IDLE)
+		return 0;
+
 	if (!bnx2i_ep_tcp_conn_active(bnx2i_ep))
 		goto destroy_conn;
 
@@ -1998,11 +1999,13 @@ int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
 	else
 		close_ret = cnic->cm_abort(bnx2i_ep->cm_sk);
 
+	/* No longer allow CFC delete if cm_close/abort fails the request */
 	if (close_ret)
-		bnx2i_ep->state = EP_STATE_DISCONN_COMPL;
-
-	/* wait for option-2 conn teardown */
-	wait_event_interruptible(bnx2i_ep->ofld_wait,
+		printk(KERN_ALERT "bnx2i: %s close/abort(%d) returned %d\n",
+			bnx2i_ep->hba->netdev->name, close, close_ret);
+	else
+		/* wait for option-2 conn teardown */
+		wait_event_interruptible(bnx2i_ep->ofld_wait,
 				 bnx2i_ep->state != EP_STATE_DISCONN_START);
 
 	if (signal_pending(current))

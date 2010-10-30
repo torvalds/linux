@@ -212,6 +212,7 @@ static int debug_open(struct inode *inode, struct file *file)
 static const struct file_operations debug_ops = {
 	.read = debug_read,
 	.open = debug_open,
+	.llseek = default_llseek,
 };
 
 static void debug_create(const char *name, mode_t mode,

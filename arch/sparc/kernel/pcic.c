@@ -284,7 +284,7 @@ int __init pcic_probe(void)
 	struct linux_prom_registers regs[PROMREG_MAX];
 	struct linux_pbm_info* pbm;
 	char namebuf[64];
-	int node;
+	phandle node;
 	int err;
 
 	if (pcic0_up) {
@@ -440,7 +440,7 @@ static int __devinit pdev_to_pnode(struct linux_pbm_info *pbm,
 {
 	struct linux_prom_pci_registers regs[PROMREG_MAX];
 	int err;
-	int node = prom_getchild(pbm->prom_node);
+	phandle node = prom_getchild(pbm->prom_node);
 
 	while(node) {
 		err = prom_getproperty(node, "reg", 

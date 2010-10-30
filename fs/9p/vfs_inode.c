@@ -1789,9 +1789,10 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 		kfree(st);
 	} else {
 		/* Caching disabled. No need to get upto date stat info.
-		 * This dentry will be released immediately. So, just i_count++
+		 * This dentry will be released immediately. So, just hold the
+		 * inode
 		 */
-		atomic_inc(&old_dentry->d_inode->i_count);
+		ihold(old_dentry->d_inode);
 	}
 
 	dentry->d_op = old_dentry->d_op;

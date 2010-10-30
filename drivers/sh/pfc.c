@@ -7,6 +7,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -559,10 +561,8 @@ static int sh_gpio_get_value(struct pinmux_info *gpioc, unsigned gpio)
 	struct pinmux_data_reg *dr = NULL;
 	int bit = 0;
 
-	if (!gpioc || get_data_reg(gpioc, gpio, &dr, &bit) != 0) {
-		BUG();
-		return 0;
-	}
+	if (!gpioc || get_data_reg(gpioc, gpio, &dr, &bit) != 0)
+		return -EINVAL;
 
 	return gpio_read_reg(dr->reg, dr->reg_width, 1, bit);
 }
@@ -581,7 +581,7 @@ int register_pinmux(struct pinmux_info *pip)
 {
 	struct gpio_chip *chip = &pip->chip;
 
-	pr_info("sh pinmux: %s handling gpio %d -> %d\n",
+	pr_info("%s handling gpio %d -> %d\n",
 		pip->name, pip->first_gpio, pip->last_gpio);
 
 	setup_data_regs(pip);
@@ -601,4 +601,11 @@ int register_pinmux(struct pinmux_info *pip)
 	chip->ngpio = (pip->last_gpio - pip->first_gpio) + 1;
 
 	return gpiochip_add(chip);
+}
+
+int unregister_pinmux(struct pinmux_info *pip)
+{
+	pr_info("%s deregistering\n", pip->name);
+
+	return gpiochip_remove(&pip->chip);
 }

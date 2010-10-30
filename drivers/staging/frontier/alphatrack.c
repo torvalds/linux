@@ -641,6 +641,7 @@ static const struct file_operations usb_alphatrack_fops = {
 	.open = usb_alphatrack_open,
 	.release = usb_alphatrack_release,
 	.poll = usb_alphatrack_poll,
+	.llseek = no_llseek,
 };
 
 /*

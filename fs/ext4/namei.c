@@ -2312,7 +2312,7 @@ retry:
 
 	inode->i_ctime = ext4_current_time(inode);
 	ext4_inc_count(handle, inode);
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 
 	err = ext4_add_entry(handle, dentry, inode);
 	if (!err) {
