@@ -919,7 +919,7 @@ int r600_pcie_gart_init(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->gart.table.vram.robj) {
-		WARN(1, "R600 PCIE GART already initialized.\n");
+		WARN(1, "R600 PCIE GART already initialized\n");
 		return 0;
 	}
 	/* Initialize common gart structure */
@@ -2995,7 +2995,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 hdmi1, hdmi2;
 
 	if (!rdev->irq.installed) {
-		WARN(1, "Can't enable IRQ/MSI because no handler is installed.\n");
+		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
 		return -EINVAL;
 	}
 	/* don't enable anything if the ih is disabled */

@@ -2033,7 +2033,7 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	u32 grbm_int_cntl = 0;
 
 	if (!rdev->irq.installed) {
-		WARN(1, "Can't enable IRQ/MSI because no handler is installed.\n");
+		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
 		return -EINVAL;
 	}
 	/* don't enable anything if the ih is disabled */
