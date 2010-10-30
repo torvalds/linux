@@ -34,6 +34,7 @@
 #include <mach/clk.h>
 #include <mach/dc.h>
 #include <mach/fb.h>
+#include <mach/mc.h>
 #include <mach/nvhost.h>
 
 #include "dc_reg.h"
@@ -816,9 +817,31 @@ static void tegra_dc_init(struct tegra_dc *dc)
 	if (dc->ndev->id == 0) {
 		disp_syncpt = NVSYNCPT_DISP0;
 		vblank_syncpt = NVSYNCPT_VBLANK0;
+
+		tegra_mc_set_priority(TEGRA_MC_CLIENT_DISPLAY0A,
+				      TEGRA_MC_PRIO_MED);
+		tegra_mc_set_priority(TEGRA_MC_CLIENT_DISPLAY0B,
+				      TEGRA_MC_PRIO_MED);
+		tegra_mc_set_priority(TEGRA_MC_CLIENT_DISPLAY0C,
+				      TEGRA_MC_PRIO_MED);
+		tegra_mc_set_priority(TEGRA_MC_CLIENT_DISPLAY1B,
+				      TEGRA_MC_PRIO_MED);
+		tegra_mc_set_priority(TEGRA_MC_CLIENT_DISPLAYHC,
+				      TEGRA_MC_PRIO_HIGH);
 	} else if (dc->ndev->id == 1) {
 		disp_syncpt = NVSYNCPT_DISP1;
 		vblank_syncpt = NVSYNCPT_VBLANK1;
+
+		tegra_mc_set_priority(TEGRA_MC_CLIENT_DISPLAY0AB,
+				      TEGRA_MC_PRIO_MED);
+		tegra_mc_set_priority(TEGRA_MC_CLIENT_DISPLAY0BB,
+				      TEGRA_MC_PRIO_MED);
+		tegra_mc_set_priority(TEGRA_MC_CLIENT_DISPLAY0CB,
+				      TEGRA_MC_PRIO_MED);
+		tegra_mc_set_priority(TEGRA_MC_CLIENT_DISPLAY1BB,
+				      TEGRA_MC_PRIO_MED);
+		tegra_mc_set_priority(TEGRA_MC_CLIENT_DISPLAYHCB,
+				      TEGRA_MC_PRIO_HIGH);
 	}
 	tegra_dc_writel(dc, 0x00000100 | vblank_syncpt, DC_CMD_CONT_SYNCPT_VSYNC);
 	tegra_dc_writel(dc, 0x00004700, DC_CMD_INT_TYPE);
