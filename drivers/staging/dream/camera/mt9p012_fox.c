@@ -123,7 +123,7 @@ struct mt9p012_ctrl {
 
 static struct mt9p012_ctrl *mt9p012_ctrl;
 static DECLARE_WAIT_QUEUE_HEAD(mt9p012_wait_queue);
-DECLARE_MUTEX(mt9p012_sem);
+DEFINE_SEMAPHORE(mt9p012_sem);
 
 /*=============================================================
 	EXTERNAL DECLARATIONS

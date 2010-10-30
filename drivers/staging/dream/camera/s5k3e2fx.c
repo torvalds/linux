@@ -313,7 +313,7 @@ struct s5k3e2fx_i2c_reg_conf {
 
 static struct s5k3e2fx_ctrl *s5k3e2fx_ctrl;
 static DECLARE_WAIT_QUEUE_HEAD(s5k3e2fx_wait_queue);
-DECLARE_MUTEX(s5k3e2fx_sem);
+DEFINE_SEMAPHORE(s5k3e2fx_sem);
 
 static int s5k3e2fx_i2c_rxdata(unsigned short saddr, unsigned char *rxdata,
 	int length)

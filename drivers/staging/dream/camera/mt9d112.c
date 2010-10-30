@@ -37,7 +37,7 @@ struct mt9d112_ctrl {
 static struct mt9d112_ctrl *mt9d112_ctrl;
 
 static DECLARE_WAIT_QUEUE_HEAD(mt9d112_wait_queue);
-DECLARE_MUTEX(mt9d112_sem);
+DEFINE_SEMAPHORE(mt9d112_sem);
 
 
 /*=============================================================
