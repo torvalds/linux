@@ -928,7 +928,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 			nr_parts = data->nr_parts;
 		}
 
-#ifdef CONFIG_OF
+#ifdef CONFIG_MTD_OF_PARTS
 		if (nr_parts <= 0 && spi->dev.of_node) {
 			nr_parts = of_mtd_parse_partitions(&spi->dev,
 					spi->dev.of_node, &parts);
