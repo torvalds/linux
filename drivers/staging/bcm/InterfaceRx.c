@@ -148,7 +148,7 @@ static void read_bulk_callback(struct urb *urb)
 		atomic_add(pLeader->PLength, &Adapter->GoodRxByteCount);
         BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "Recived Data pkt of len :0x%X", pLeader->PLength);
 
-		if(Adapter->if_up)
+		if(netif_running(Adapter->dev))
 		{
 			/* Moving ahead by ETH_HLEN to the data ptr as received from FW */
 			skb_pull(skb, ETH_HLEN);

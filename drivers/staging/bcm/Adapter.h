@@ -498,7 +498,6 @@ struct _MINI_ADAPTER
 	int 				irq;
 	unsigned long 		chip_id;
 	unsigned int		bFlashBoot;
-	unsigned int 		if_up;
 //	spinlock_t			sleeper_lock;
 	atomic_t			rdm_wrm_access;
 	atomic_t			tx_rx_access;

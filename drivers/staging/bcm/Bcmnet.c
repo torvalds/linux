@@ -17,7 +17,6 @@ static INT bcm_open(struct net_device *dev)
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "======>");
     if(Adapter->fw_download_done==FALSE)
         return -EINVAL;
-	Adapter->if_up=1;
 	if(Adapter->LinkUpStatus == 1){
 		if(netif_queue_stopped(Adapter->dev)){
 			netif_carrier_on(Adapter->dev);
@@ -34,7 +33,6 @@ static INT bcm_close(struct net_device *dev)
    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
 
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "=====>");
-	Adapter->if_up=0;
 	if(!netif_queue_stopped(dev)) {
 		netif_carrier_off(dev);
 	    netif_stop_queue(dev);
@@ -145,6 +143,7 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 	net->ethtool_ops = &bcm_ethtool_ops;
 	net->mtu          = MTU_SIZE; /* 1400 Bytes */
 	net->tx_queue_len = TX_QLEN;
+	netif_carrier_off(net);
 
 	SET_NETDEV_DEV(net, &uintf->dev);
 	SET_NETDEV_DEVTYPE(net, &wimax_type);
