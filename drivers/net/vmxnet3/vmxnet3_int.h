@@ -330,14 +330,14 @@ struct vmxnet3_adapter {
 };
 
 #define VMXNET3_WRITE_BAR0_REG(adapter, reg, val)  \
-	writel(cpu_to_le32(val), (adapter)->hw_addr0 + (reg))
+	writel((val), (adapter)->hw_addr0 + (reg))
 #define VMXNET3_READ_BAR0_REG(adapter, reg)        \
-	le32_to_cpu(readl((adapter)->hw_addr0 + (reg)))
+	readl((adapter)->hw_addr0 + (reg))
 
 #define VMXNET3_WRITE_BAR1_REG(adapter, reg, val)  \
-	writel(cpu_to_le32(val), (adapter)->hw_addr1 + (reg))
+	writel((val), (adapter)->hw_addr1 + (reg))
 #define VMXNET3_READ_BAR1_REG(adapter, reg)        \
-	le32_to_cpu(readl((adapter)->hw_addr1 + (reg)))
+	readl((adapter)->hw_addr1 + (reg))
 
 #define VMXNET3_WAKE_QUEUE_THRESHOLD(tq)  (5)
 #define VMXNET3_RX_ALLOC_THRESHOLD(rq, ring_idx, adapter) \
