@@ -2310,22 +2310,6 @@ void nfsd_release_deleg_cb(struct file_lock *fl)
 }
 
 /*
- * Set the delegation file_lock back pointer.
- *
- * Called from setlease() with lock_kernel() held.
- */
-static
-void nfsd_copy_lock_deleg_cb(struct file_lock *new, struct file_lock *fl)
-{
-	struct nfs4_delegation *dp = (struct nfs4_delegation *)new->fl_owner;
-
-	dprintk("NFSD: nfsd_copy_lock_deleg_cb: new fl %p dp %p\n", new, dp);
-	if (!dp)
-		return;
-	dp->dl_flock = new;
-}
-
-/*
  * Called from setlease() with lock_kernel() held
  */
 static
@@ -2355,7 +2339,6 @@ int nfsd_change_deleg_cb(struct file_lock **onlist, int arg)
 static const struct lock_manager_operations nfsd_lease_mng_ops = {
 	.fl_break = nfsd_break_deleg_cb,
 	.fl_release_private = nfsd_release_deleg_cb,
-	.fl_copy_lock = nfsd_copy_lock_deleg_cb,
 	.fl_mylease = nfsd_same_client_deleg_cb,
 	.fl_change = nfsd_change_deleg_cb,
 };
@@ -2661,12 +2644,14 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 	fl->fl_file = find_readable_file(stp->st_file);
 	BUG_ON(!fl->fl_file);
 	fl->fl_pid = current->tgid;
+	dp->dl_flock = fl;
 
 	/* vfs_setlease checks to see if delegation should be handed out.
 	 * the lock_manager callbacks fl_mylease and fl_change are used
 	 */
 	if ((status = vfs_setlease(fl->fl_file, fl->fl_type, &fl))) {
 		dprintk("NFSD: setlease failed [%d], no delegation\n", status);
+		dp->dl_flock = NULL;
 		unhash_delegation(dp);
 		flag = NFS4_OPEN_DELEGATE_NONE;
 		goto out;
