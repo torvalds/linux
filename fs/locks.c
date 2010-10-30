@@ -1371,19 +1371,21 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	struct inode *inode = dentry->d_inode;
 	int error, rdlease_count = 0, wrlease_count = 0;
 
+	lease = *flp;
+
+	error = -EACCES;
 	if ((current_fsuid() != inode->i_uid) && !capable(CAP_LEASE))
-		return -EACCES;
+		goto out;
+	error = -EINVAL;
 	if (!S_ISREG(inode->i_mode))
-		return -EINVAL;
+		goto out;
 	error = security_file_lock(filp, arg);
 	if (error)
-		return error;
+		goto out;
 
 	time_out_leases(inode);
 
 	BUG_ON(!(*flp)->fl_lmops->fl_break);
-
-	lease = *flp;
 
 	if (arg != F_UNLCK) {
 		error = -EAGAIN;
