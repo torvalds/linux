@@ -1437,7 +1437,7 @@ probe_exit_endev:
 	return rc;
 }
 
-static struct pci_driver pch_can_pcidev = {
+static struct pci_driver pch_can_pci_driver = {
 	.name = "pch_can",
 	.id_table = pch_pci_tbl,
 	.probe = pch_can_probe,
@@ -1448,13 +1448,13 @@ static struct pci_driver pch_can_pcidev = {
 
 static int __init pch_can_pci_init(void)
 {
-	return pci_register_driver(&pch_can_pcidev);
+	return pci_register_driver(&pch_can_pci_driver);
 }
 module_init(pch_can_pci_init);
 
 static void __exit pch_can_pci_exit(void)
 {
-	pci_unregister_driver(&pch_can_pcidev);
+	pci_unregister_driver(&pch_can_pci_driver);
 }
 module_exit(pch_can_pci_exit);
 
