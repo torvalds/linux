@@ -199,8 +199,7 @@ static void pcap_isr_work(struct work_struct *work)
 			if (service & 1) {
 				struct irq_desc *desc = irq_to_desc(irq);
 
-				if (WARN(!desc, KERN_WARNING
-						"Invalid PCAP IRQ %d\n", irq))
+				if (WARN(!desc, "Invalid PCAP IRQ %d\n", irq))
 					break;
 
 				if (desc->status & IRQ_DISABLED)
@@ -282,7 +281,7 @@ static irqreturn_t pcap_adc_irq(int irq, void *_pcap)
 	mutex_lock(&pcap->adc_mutex);
 	req = pcap->adc_queue[pcap->adc_head];
 
-	if (WARN(!req, KERN_WARNING "adc irq without pending request\n")) {
+	if (WARN(!req, "adc irq without pending request\n")) {
 		mutex_unlock(&pcap->adc_mutex);
 		return IRQ_HANDLED;
 	}
