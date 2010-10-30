@@ -1,7 +1,8 @@
 #include "headers.h"
 
-#define DRV_DESCRIPTION "Beceem Communications Inc. WiMAX driver"
+#define DRV_NAME	"beceem"
 #define DRV_VERSION	"5.2.7.3P1"
+#define DRV_DESCRIPTION "Beceem Communications Inc. WiMAX driver"
 #define DRV_COPYRIGHT	"Copyright 2010. Beceem Communications Inc"
 
 
@@ -79,6 +80,49 @@ static struct device_type wimax_type = {
 	.name	= "wimax",
 };
 
+static int bcm_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	cmd->supported		= 0;
+	cmd->advertising	= 0;
+	cmd->speed		= SPEED_10000;
+	cmd->duplex		= DUPLEX_FULL;
+	cmd->port		= PORT_TP;
+	cmd->phy_address	= 0;
+	cmd->transceiver	= XCVR_INTERNAL;
+	cmd->autoneg		= AUTONEG_DISABLE;
+	cmd->maxtxpkt		= 0;
+	cmd->maxrxpkt		= 0;
+	return 0;
+}
+
+static void bcm_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
+{
+	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+	PS_INTERFACE_ADAPTER psIntfAdapter = Adapter->pvInterfaceAdapter;
+	struct usb_device *udev = interface_to_usbdev(psIntfAdapter->interface);
+
+	strcpy(info->driver, DRV_NAME);
+	strcpy(info->version, DRV_VERSION);
+	snprintf(info->fw_version, sizeof(info->fw_version), "%u.%u",
+		 Adapter->uiFlashLayoutMajorVersion,
+		 Adapter->uiFlashLayoutMinorVersion);
+
+	usb_make_path(udev, info->bus_info, sizeof(info->bus_info));
+}
+
+static u32 bcm_get_link(struct net_device *dev)
+{
+	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+
+	return Adapter->LinkUpStatus;
+}
+
+static const struct ethtool_ops bcm_ethtool_ops = {
+	.get_settings	= bcm_get_settings,
+	.get_drvinfo	= bcm_get_drvinfo,
+	.get_link 	= bcm_get_link,
+};
+
 int register_networkdev(PMINI_ADAPTER Adapter)
 {
 	struct net_device *net;
@@ -98,6 +142,7 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 	*temp = Adapter;
 
         net->netdev_ops = &bcmNetDevOps;
+	net->ethtool_ops = &bcm_ethtool_ops;
 	net->mtu        = MTU_SIZE; /* 1400 Bytes */
 
 	SET_NETDEV_DEV(net, &uintf->dev);
