@@ -44,7 +44,7 @@ int __devinit of_mtd_parse_partitions(struct device *dev,
 	pp = NULL;
 	i = 0;
 	while ((pp = of_get_next_child(node, pp))) {
-		const u32 *reg;
+		const __be32 *reg;
 		int len;
 
 		reg = of_get_property(pp, "reg", &len);

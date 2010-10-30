@@ -640,10 +640,6 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	}
 	dev_info(&dev->p_dev->dev, "mtd%d: %s\n", mtd->index, mtd->name);
 	return 0;
-
-	dev_err(&dev->p_dev->dev, "CS Error, exiting\n");
-	pcmciamtd_release(link);
-	return -ENODEV;
 }
 
 
