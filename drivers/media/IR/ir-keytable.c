@@ -325,9 +325,9 @@ static int ir_setkeytable(struct ir_input_dev *ir_dev,
 static unsigned int ir_lookup_by_scancode(const struct ir_scancode_table *rc_tab,
 					  unsigned int scancode)
 {
-	unsigned int start = 0;
-	unsigned int end = rc_tab->len - 1;
-	unsigned int mid;
+	int start = 0;
+	int end = rc_tab->len - 1;
+	int mid;
 
 	while (start <= end) {
 		mid = (start + end) / 2;
