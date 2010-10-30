@@ -2621,7 +2621,7 @@ static irqreturn_t prism2_interrupt(int irq, void *dev_id)
 	iface = netdev_priv(dev);
 	local = iface->local;
 
-	/* Detect early interrupt before driver is fully configued */
+	/* Detect early interrupt before driver is fully configured */
 	spin_lock(&local->irq_init_lock);
 	if (!dev->base_addr) {
 		if (net_ratelimit()) {

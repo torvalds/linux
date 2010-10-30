@@ -1117,6 +1117,7 @@ static const struct file_operations dev_fileops = {
 	.unlocked_ioctl	= dev_ioctl,
 	.open		= dev_open,
 	.release	= dev_release,
+	.llseek		= noop_llseek,
 };
 
 static int reset_dsp(void)

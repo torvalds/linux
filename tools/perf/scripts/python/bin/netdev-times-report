@@ -1,0 +1,5 @@
+#!/bin/bash
+# description: display a process of packet and processing time
+# args: [tx] [rx] [dev=] [debug]
+
+perf trace -s ~/libexec/perf-core/scripts/python/netdev-times.py $@

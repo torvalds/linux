@@ -1,10 +1,9 @@
 #
 # Makefile for the SuperH specific drivers.
 #
-obj-y	:= clk.o intc.o
+obj-y	:= intc/
 
-obj-$(CONFIG_SUPERHYWAY)	+= superhyway/
+obj-$(CONFIG_HAVE_CLK)		+= clk/
 obj-$(CONFIG_MAPLE)		+= maple/
-
+obj-$(CONFIG_SUPERHYWAY)	+= superhyway/
 obj-$(CONFIG_GENERIC_GPIO)	+= pfc.o
-obj-$(CONFIG_SH_CLK_CPG)	+= clk-cpg.o

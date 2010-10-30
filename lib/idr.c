@@ -284,7 +284,7 @@ static int idr_get_new_above_int(struct idr *idp, void *ptr, int starting_id)
  * idr_get_new_above - allocate new idr entry above or equal to a start id
  * @idp: idr handle
  * @ptr: pointer you want associated with the id
- * @start_id: id to start search at
+ * @starting_id: id to start search at
  * @id: pointer to the allocated handle
  *
  * This is the allocate id function.  It should be called with any
@@ -479,7 +479,7 @@ EXPORT_SYMBOL(idr_remove_all);
 
 /**
  * idr_destroy - release all cached layers within an idr tree
- * idp: idr handle
+ * @idp: idr handle
  */
 void idr_destroy(struct idr *idp)
 {
@@ -586,10 +586,11 @@ EXPORT_SYMBOL(idr_for_each);
 /**
  * idr_get_next - lookup next object of id to given id.
  * @idp: idr handle
- * @id:  pointer to lookup key
+ * @nextidp:  pointer to lookup key
  *
  * Returns pointer to registered object with id, which is next number to
- * given id.
+ * given id. After being looked up, *@nextidp will be updated for the next
+ * iteration.
  */
 
 void *idr_get_next(struct idr *idp, int *nextidp)
@@ -758,7 +759,7 @@ EXPORT_SYMBOL(ida_pre_get);
 /**
  * ida_get_new_above - allocate new ID above or equal to a start id
  * @ida:	ida handle
- * @staring_id:	id to start search at
+ * @starting_id: id to start search at
  * @p_id:	pointer to the allocated handle
  *
  * Allocate new ID above or equal to @ida.  It should be called with
@@ -912,7 +913,7 @@ EXPORT_SYMBOL(ida_remove);
 
 /**
  * ida_destroy - release all cached layers within an ida tree
- * ida:		ida handle
+ * @ida:		ida handle
  */
 void ida_destroy(struct ida *ida)
 {

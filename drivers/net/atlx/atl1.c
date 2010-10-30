@@ -1811,7 +1811,7 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 	 * the higher layers and let it be sorted out there.
 	 */
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 
 	if (unlikely(rrd->pkt_flg & PACKET_FLAG_ERR)) {
 		if (rrd->err_flg & (ERR_FLAG_CRC | ERR_FLAG_TRUNC |
@@ -2100,9 +2100,9 @@ static u16 atl1_tpd_avail(struct atl1_tpd_ring *tpd_ring)
 {
 	u16 next_to_clean = atomic_read(&tpd_ring->next_to_clean);
 	u16 next_to_use = atomic_read(&tpd_ring->next_to_use);
-	return ((next_to_clean > next_to_use) ?
+	return (next_to_clean > next_to_use) ?
 		next_to_clean - next_to_use - 1 :
-		tpd_ring->count + next_to_clean - next_to_use - 1);
+		tpd_ring->count + next_to_clean - next_to_use - 1;
 }
 
 static int atl1_tso(struct atl1_adapter *adapter, struct sk_buff *skb,
@@ -2408,7 +2408,7 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 		(u16) atomic_read(&tpd_ring->next_to_use));
 	memset(ptpd, 0, sizeof(struct tx_packet_desc));
 
-	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		vlan_tag = vlan_tx_tag_get(skb);
 		vlan_tag = (vlan_tag << 4) | (vlan_tag >> 13) |
 			((vlan_tag >> 9) & 0x8);
@@ -3043,7 +3043,7 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
-	setup_timer(&adapter->phy_config_timer, &atl1_phy_config,
+	setup_timer(&adapter->phy_config_timer, atl1_phy_config,
 		    (unsigned long)adapter);
 	adapter->phy_timer_pending = false;
 

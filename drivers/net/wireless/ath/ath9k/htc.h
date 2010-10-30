@@ -316,17 +316,32 @@ struct htc_beacon_config {
 	u8 dtim_count;
 };
 
-#define OP_INVALID        BIT(0)
-#define OP_SCANNING       BIT(1)
-#define OP_FULL_RESET     BIT(2)
-#define OP_LED_ASSOCIATED BIT(3)
-#define OP_LED_ON         BIT(4)
-#define OP_PREAMBLE_SHORT BIT(5)
-#define OP_PROTECT_ENABLE BIT(6)
-#define OP_ASSOCIATED     BIT(7)
-#define OP_ENABLE_BEACON  BIT(8)
-#define OP_LED_DEINIT     BIT(9)
-#define OP_UNPLUGGED      BIT(10)
+struct ath_btcoex {
+	u32 bt_priority_cnt;
+	unsigned long bt_priority_time;
+	int bt_stomp_type; /* Types of BT stomping */
+	u32 btcoex_no_stomp;
+	u32 btcoex_period;
+	u32 btscan_no_stomp;
+};
+
+void ath_htc_init_btcoex_work(struct ath9k_htc_priv *priv);
+void ath_htc_resume_btcoex_work(struct ath9k_htc_priv *priv);
+void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv);
+
+#define OP_INVALID		   BIT(0)
+#define OP_SCANNING		   BIT(1)
+#define OP_FULL_RESET		   BIT(2)
+#define OP_LED_ASSOCIATED	   BIT(3)
+#define OP_LED_ON		   BIT(4)
+#define OP_PREAMBLE_SHORT	   BIT(5)
+#define OP_PROTECT_ENABLE	   BIT(6)
+#define OP_ASSOCIATED		   BIT(7)
+#define OP_ENABLE_BEACON	   BIT(8)
+#define OP_LED_DEINIT		   BIT(9)
+#define OP_UNPLUGGED		   BIT(10)
+#define OP_BT_PRIORITY_DETECTED	   BIT(11)
+#define OP_BT_SCAN		   BIT(12)
 
 struct ath9k_htc_priv {
 	struct device *dev;
@@ -391,6 +406,9 @@ struct ath9k_htc_priv {
 	int cabq;
 	int hwq_map[WME_NUM_AC];
 
+	struct ath_btcoex btcoex;
+	struct delayed_work coex_period_work;
+	struct delayed_work duty_cycle_work;
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
 	struct ath9k_debug debug;
 #endif
@@ -443,7 +461,7 @@ void ath9k_init_leds(struct ath9k_htc_priv *priv);
 void ath9k_deinit_leds(struct ath9k_htc_priv *priv);
 
 int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
-			   u16 devid);
+			   u16 devid, char *product);
 void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug);
 #ifdef CONFIG_PM
 int ath9k_htc_resume(struct htc_target *htc_handle);

@@ -46,7 +46,6 @@ struct wl1271_static_data {
 /* delay between retries */
 #define INIT_LOOP_DELAY 50
 
-#define REF_CLOCK            2
 #define WU_COUNTER_PAUSE_VAL 0x3FF
 #define WELP_ARM_COMMAND_VAL 0x4
 

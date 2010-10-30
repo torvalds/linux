@@ -132,7 +132,8 @@ static inline int ubifs_leb_unmap(const struct ubifs_info *c, int lnum)
 {
 	int err;
 
-	if (c->ro_media)
+	ubifs_assert(!c->ro_media && !c->ro_mount);
+	if (c->ro_error)
 		return -EROFS;
 	err = ubi_leb_unmap(c->ubi, lnum);
 	if (err) {
@@ -159,7 +160,8 @@ static inline int ubifs_leb_write(const struct ubifs_info *c, int lnum,
 {
 	int err;
 
-	if (c->ro_media)
+	ubifs_assert(!c->ro_media && !c->ro_mount);
+	if (c->ro_error)
 		return -EROFS;
 	err = ubi_leb_write(c->ubi, lnum, buf, offs, len, dtype);
 	if (err) {
@@ -186,7 +188,8 @@ static inline int ubifs_leb_change(const struct ubifs_info *c, int lnum,
 {
 	int err;
 
-	if (c->ro_media)
+	ubifs_assert(!c->ro_media && !c->ro_mount);
+	if (c->ro_error)
 		return -EROFS;
 	err = ubi_leb_change(c->ubi, lnum, buf, len, dtype);
 	if (err) {

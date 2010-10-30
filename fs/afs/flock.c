@@ -9,7 +9,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/smp_lock.h>
 #include "internal.h"
 
 #define AFS_LOCK_GRANTED	0
@@ -274,7 +273,7 @@ static int afs_do_setlk(struct file *file, struct file_lock *fl)
 
 	type = (fl->fl_type == F_RDLCK) ? AFS_LOCK_READ : AFS_LOCK_WRITE;
 
-	lock_kernel();
+	lock_flocks();
 
 	/* make sure we've got a callback on this file and that our view of the
 	 * data version is up to date */
@@ -421,7 +420,7 @@ given_lock:
 	afs_vnode_fetch_status(vnode, NULL, key);
 
 error:
-	unlock_kernel();
+	unlock_flocks();
 	_leave(" = %d", ret);
 	return ret;
 

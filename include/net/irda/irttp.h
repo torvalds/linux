@@ -204,7 +204,7 @@ static inline int irttp_is_primary(struct tsap_cb *self)
 	    (self->lsap->lap == NULL) ||
 	    (self->lsap->lap->irlap == NULL))
 		return -2;
-	return(irlap_is_primary(self->lsap->lap->irlap));
+	return irlap_is_primary(self->lsap->lap->irlap);
 }
 
 #endif /* IRTTP_H */

@@ -5,6 +5,7 @@
 
 #include <asm/xen/hypervisor.h>
 #include <xen/xen.h>
+#include <asm/iommu_table.h>
 
 int xen_swiotlb __read_mostly;
 
@@ -56,3 +57,7 @@ void __init pci_xen_swiotlb_init(void)
 		dma_ops = &xen_swiotlb_dma_ops;
 	}
 }
+IOMMU_INIT_FINISH(pci_xen_swiotlb_detect,
+		  0,
+		  pci_xen_swiotlb_init,
+		  0);

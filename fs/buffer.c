@@ -156,7 +156,7 @@ void end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 	if (uptodate) {
 		set_buffer_uptodate(bh);
 	} else {
-		if (!buffer_eopnotsupp(bh) && !quiet_error(bh)) {
+		if (!quiet_error(bh)) {
 			buffer_io_error(bh);
 			printk(KERN_WARNING "lost page write due to "
 					"I/O error on %s\n",
@@ -2891,7 +2891,6 @@ static void end_bio_bh_io_sync(struct bio *bio, int err)
 
 	if (err == -EOPNOTSUPP) {
 		set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
-		set_bit(BH_Eopnotsupp, &bh->b_state);
 	}
 
 	if (unlikely (test_bit(BIO_QUIET,&bio->bi_flags)))
@@ -3031,10 +3030,6 @@ int __sync_dirty_buffer(struct buffer_head *bh, int rw)
 		bh->b_end_io = end_buffer_write_sync;
 		ret = submit_bh(rw, bh);
 		wait_on_buffer(bh);
-		if (buffer_eopnotsupp(bh)) {
-			clear_buffer_eopnotsupp(bh);
-			ret = -EOPNOTSUPP;
-		}
 		if (!ret && !buffer_uptodate(bh))
 			ret = -EIO;
 	} else {

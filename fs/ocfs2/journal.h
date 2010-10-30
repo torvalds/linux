@@ -67,11 +67,12 @@ struct ocfs2_journal {
 	struct buffer_head        *j_bh;      /* Journal disk inode block */
 	atomic_t                  j_num_trans; /* Number of transactions
 					        * currently in the system. */
+	spinlock_t                j_lock;
 	unsigned long             j_trans_id;
 	struct rw_semaphore       j_trans_barrier;
 	wait_queue_head_t         j_checkpointed;
 
-	spinlock_t                j_lock;
+	/* both fields protected by j_lock*/
 	struct list_head          j_la_cleanups;
 	struct work_struct        j_recovery_work;
 };

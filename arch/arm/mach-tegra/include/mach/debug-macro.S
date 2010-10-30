@@ -20,24 +20,28 @@
 
 #include <mach/io.h>
 
-	.macro  addruart,rx, tmp
-        mrc     p15, 0, \rx, c1, c0
-        tst     \rx, #1                 @ MMU enabled?
-        ldreq   \rx, =IO_APB_PHYS       @ physical
-        ldrne   \rx, =IO_APB_VIRT        @ virtual
+	.macro  addruart, rp, rv
+        ldreq   \rp, =IO_APB_PHYS       @ physical
+        ldrne   \rv, =IO_APB_VIRT        @ virtual
 #if defined(CONFIG_TEGRA_DEBUG_UART_NONE)
 #error "A debug UART must be selected in the kernel config to use DEBUG_LL"
 #elif defined(CONFIG_TEGRA_DEBUG_UARTA)
-        orr     \rx, \rx, #0x6000
+        orr     \rp, \rp, #0x6000
+        orr     \rv, \rv, #0x6000
 #elif defined(CONFIG_TEGRA_DEBUG_UARTB)
-	ldr	\tmp, =0x6040
-        orr     \rx, \rx, \tmp
+        orr     \rp, \rp, #0x6000
+	orr	\rp, \rp, #0x40
+        orr     \rv, \rv, #0x6000
+	orr	\rv, \rv, #0x40
 #elif defined(CONFIG_TEGRA_DEBUG_UARTC)
-        orr     \rx, \rx, #0x6200
+        orr     \rp, \rp, #0x6200
+        orr     \rv, \rv, #0x6200
 #elif defined(CONFIG_TEGRA_DEBUG_UARTD)
-        orr     \rx, \rx, #0x6300
+        orr     \rp, \rp, #0x6300
+        orr     \rv, \rv, #0x6300
 #elif defined(CONFIG_TEGRA_DEBUG_UARTE)
-        orr     \rx, \rx, #0x6400
+        orr     \rp, \rp, #0x6400
+        orr     \rv, \rv, #0x6400
 #endif
 	.endm
 

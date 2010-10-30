@@ -1152,6 +1152,8 @@ done:
 	if (ret < 0) {
 		if (sync)
 			iounmap(sync);
+
+		otg_put_transceiver(musb->xceiv);
 		usb_nop_xceiv_unregister();
 	}
 	return ret;
@@ -1166,6 +1168,8 @@ int musb_platform_exit(struct musb *musb)
 		musb->board_set_power(0);
 
 	iounmap(musb->sync_va);
+
+	otg_put_transceiver(musb->xceiv);
 	usb_nop_xceiv_unregister();
 	return 0;
 }

@@ -38,14 +38,6 @@
 #define DO 0
 #define UNDO 1
 
-static const u32 gfs2_old_fs_formats[] = {
-        0
-};
-
-static const u32 gfs2_old_multihost_formats[] = {
-        0
-};
-
 /**
  * gfs2_tune_init - Fill a gfs2_tune structure with default values
  * @gt: tune
@@ -135,8 +127,6 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 static int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb_host *sb, int silent)
 {
-	unsigned int x;
-
 	if (sb->sb_magic != GFS2_MAGIC ||
 	    sb->sb_type != GFS2_METATYPE_SB) {
 		if (!silent)
@@ -150,55 +140,9 @@ static int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb_host *sb, int sile
 	    sb->sb_multihost_format == GFS2_FORMAT_MULTI)
 		return 0;
 
-	if (sb->sb_fs_format != GFS2_FORMAT_FS) {
-		for (x = 0; gfs2_old_fs_formats[x]; x++)
-			if (gfs2_old_fs_formats[x] == sb->sb_fs_format)
-				break;
+	fs_warn(sdp, "Unknown on-disk format, unable to mount\n");
 
-		if (!gfs2_old_fs_formats[x]) {
-			printk(KERN_WARNING
-			       "GFS2: code version (%u, %u) is incompatible "
-			       "with ondisk format (%u, %u)\n",
-			       GFS2_FORMAT_FS, GFS2_FORMAT_MULTI,
-			       sb->sb_fs_format, sb->sb_multihost_format);
-			printk(KERN_WARNING
-			       "GFS2: I don't know how to upgrade this FS\n");
-			return -EINVAL;
-		}
-	}
-
-	if (sb->sb_multihost_format != GFS2_FORMAT_MULTI) {
-		for (x = 0; gfs2_old_multihost_formats[x]; x++)
-			if (gfs2_old_multihost_formats[x] ==
-			    sb->sb_multihost_format)
-				break;
-
-		if (!gfs2_old_multihost_formats[x]) {
-			printk(KERN_WARNING
-			       "GFS2: code version (%u, %u) is incompatible "
-			       "with ondisk format (%u, %u)\n",
-			       GFS2_FORMAT_FS, GFS2_FORMAT_MULTI,
-			       sb->sb_fs_format, sb->sb_multihost_format);
-			printk(KERN_WARNING
-			       "GFS2: I don't know how to upgrade this FS\n");
-			return -EINVAL;
-		}
-	}
-
-	if (!sdp->sd_args.ar_upgrade) {
-		printk(KERN_WARNING
-		       "GFS2: code version (%u, %u) is incompatible "
-		       "with ondisk format (%u, %u)\n",
-		       GFS2_FORMAT_FS, GFS2_FORMAT_MULTI,
-		       sb->sb_fs_format, sb->sb_multihost_format);
-		printk(KERN_INFO
-		       "GFS2: Use the \"upgrade\" mount option to upgrade "
-		       "the FS\n");
-		printk(KERN_INFO "GFS2: See the manual for more details\n");
-		return -EINVAL;
-	}
-
-	return 0;
+	return -EINVAL;
 }
 
 static void end_bio_io_page(struct bio *bio, int error)
@@ -586,7 +530,7 @@ static int map_journal_extents(struct gfs2_sbd *sdp)
 
 	prev_db = 0;
 
-	for (lb = 0; lb < ip->i_disksize >> sdp->sd_sb.sb_bsize_shift; lb++) {
+	for (lb = 0; lb < i_size_read(jd->jd_inode) >> sdp->sd_sb.sb_bsize_shift; lb++) {
 		bh.b_state = 0;
 		bh.b_blocknr = 0;
 		bh.b_size = 1 << ip->i_inode.i_blkbits;
@@ -1022,7 +966,6 @@ static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 	if (!strcmp("lock_nolock", proto)) {
 		lm = &nolock_ops;
 		sdp->sd_args.ar_localflocks = 1;
-		sdp->sd_args.ar_localcaching = 1;
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM
 	} else if (!strcmp("lock_dlm", proto)) {
 		lm = &gfs2_dlm_ops;
@@ -1113,8 +1056,6 @@ static int gfs2_journalid_wait(void *word)
 
 static int wait_on_journal(struct gfs2_sbd *sdp)
 {
-	if (sdp->sd_args.ar_spectator)
-		return 0;
 	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL)
 		return 0;
 
@@ -1216,6 +1157,20 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	error = wait_on_journal(sdp);
 	if (error)
 		goto fail_sb;
+
+	/*
+	 * If user space has failed to join the cluster or some similar
+	 * failure has occurred, then the journal id will contain a
+	 * negative (error) number. This will then be returned to the
+	 * caller (of the mount syscall). We do this even for spectator
+	 * mounts (which just write a jid of 0 to indicate "ok" even though
+	 * the jid is unused in the spectator case)
+	 */
+	if (sdp->sd_lockstruct.ls_jid < 0) {
+		error = sdp->sd_lockstruct.ls_jid;
+		sdp->sd_lockstruct.ls_jid = 0;
+		goto fail_sb;
+	}
 
 	error = init_inodes(sdp, DO);
 	if (error)

@@ -582,6 +582,7 @@ static struct file_operations adsp_fops = {
 	.open = adsp_open,
 	.unlocked_ioctl = adsp_ioctl,
 	.release = adsp_release,
+	.llseek = no_llseek,
 };
 
 static void adsp_create(struct adsp_device *adev, const char *name,

@@ -1573,7 +1573,7 @@ pfm_read(struct file *filp, char __user *buf, size_t size, loff_t *ppos)
 		return -EINVAL;
 	}
 
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_read: NULL ctx [%d]\n", task_pid_nr(current));
 		return -EINVAL;
@@ -1673,7 +1673,7 @@ pfm_poll(struct file *filp, poll_table * wait)
 		return 0;
 	}
 
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_poll: NULL ctx [%d]\n", task_pid_nr(current));
 		return 0;
@@ -1733,7 +1733,7 @@ pfm_fasync(int fd, struct file *filp, int on)
 		return -EBADF;
 	}
 
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_fasync NULL ctx [%d]\n", task_pid_nr(current));
 		return -EBADF;
@@ -1841,7 +1841,7 @@ pfm_flush(struct file *filp, fl_owner_t id)
 		return -EBADF;
 	}
 
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_flush: NULL ctx [%d]\n", task_pid_nr(current));
 		return -EBADF;
@@ -1984,7 +1984,7 @@ pfm_close(struct inode *inode, struct file *filp)
 		return -EBADF;
 	}
 	
-	ctx = (pfm_context_t *)filp->private_data;
+	ctx = filp->private_data;
 	if (ctx == NULL) {
 		printk(KERN_ERR "perfmon: pfm_close: NULL ctx [%d]\n", task_pid_nr(current));
 		return -EBADF;
@@ -4907,7 +4907,7 @@ restart_args:
 		goto error_args;
 	}
 
-	ctx = (pfm_context_t *)file->private_data;
+	ctx = file->private_data;
 	if (unlikely(ctx == NULL)) {
 		DPRINT(("no context for fd %d\n", fd));
 		goto error_args;

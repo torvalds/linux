@@ -2,6 +2,7 @@
 #define LINUX_B43_PHY_COMMON_H_
 
 #include <linux/types.h>
+#include <linux/nl80211.h>
 
 struct b43_wldev;
 
@@ -250,8 +251,10 @@ struct b43_phy {
 	 * check is needed. */
 	unsigned long next_txpwr_check_time;
 
-	/* current channel */
+	/* Current channel */
 	unsigned int channel;
+	u16 channel_freq;
+	enum nl80211_channel_type channel_type;
 
 	/* PHY TX errors counter. */
 	atomic_t txerr_cnt;

@@ -350,7 +350,10 @@ struct module
 	struct tracepoint *tracepoints;
 	unsigned int num_tracepoints;
 #endif
-
+#ifdef HAVE_JUMP_LABEL
+	struct jump_entry *jump_entries;
+	unsigned int num_jump_entries;
+#endif
 #ifdef CONFIG_TRACING
 	const char **trace_bprintk_fmt_start;
 	unsigned int num_trace_bprintk_fmt;
@@ -686,17 +689,16 @@ extern int module_sysfs_initialized;
 
 
 #ifdef CONFIG_GENERIC_BUG
-int  module_bug_finalize(const Elf_Ehdr *, const Elf_Shdr *,
+void module_bug_finalize(const Elf_Ehdr *, const Elf_Shdr *,
 			 struct module *);
 void module_bug_cleanup(struct module *);
 
 #else	/* !CONFIG_GENERIC_BUG */
 
-static inline int  module_bug_finalize(const Elf_Ehdr *hdr,
+static inline void module_bug_finalize(const Elf_Ehdr *hdr,
 					const Elf_Shdr *sechdrs,
 					struct module *mod)
 {
-	return 0;
 }
 static inline void module_bug_cleanup(struct module *mod) {}
 #endif	/* CONFIG_GENERIC_BUG */

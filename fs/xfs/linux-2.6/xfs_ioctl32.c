@@ -164,7 +164,8 @@ xfs_ioctl32_bstat_copyin(
 	    get_user(bstat->bs_extsize,	&bstat32->bs_extsize)	||
 	    get_user(bstat->bs_extents,	&bstat32->bs_extents)	||
 	    get_user(bstat->bs_gen,	&bstat32->bs_gen)	||
-	    get_user(bstat->bs_projid,	&bstat32->bs_projid)	||
+	    get_user(bstat->bs_projid_lo, &bstat32->bs_projid_lo) ||
+	    get_user(bstat->bs_projid_hi, &bstat32->bs_projid_hi) ||
 	    get_user(bstat->bs_dmevmask, &bstat32->bs_dmevmask)	||
 	    get_user(bstat->bs_dmstate,	&bstat32->bs_dmstate)	||
 	    get_user(bstat->bs_aextents, &bstat32->bs_aextents))
@@ -218,6 +219,7 @@ xfs_bulkstat_one_fmt_compat(
 	    put_user(buffer->bs_extents,  &p32->bs_extents)	||
 	    put_user(buffer->bs_gen,	  &p32->bs_gen)		||
 	    put_user(buffer->bs_projid,	  &p32->bs_projid)	||
+	    put_user(buffer->bs_projid_hi,	&p32->bs_projid_hi)	||
 	    put_user(buffer->bs_dmevmask, &p32->bs_dmevmask)	||
 	    put_user(buffer->bs_dmstate,  &p32->bs_dmstate)	||
 	    put_user(buffer->bs_aextents, &p32->bs_aextents))
@@ -574,6 +576,7 @@ xfs_file_compat_ioctl(
 	case XFS_IOC_FSGEOMETRY_V1:
 	case XFS_IOC_FSGROWFSDATA:
 	case XFS_IOC_FSGROWFSRT:
+	case XFS_IOC_ZERO_RANGE:
 		return xfs_file_ioctl(filp, cmd, p);
 #else
 	case XFS_IOC_ALLOCSP_32:

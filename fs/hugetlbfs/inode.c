@@ -674,6 +674,7 @@ const struct file_operations hugetlbfs_file_operations = {
 	.mmap			= hugetlbfs_file_mmap,
 	.fsync			= noop_fsync,
 	.get_unmapped_area	= hugetlb_get_unmapped_area,
+	.llseek		= default_llseek,
 };
 
 static const struct inode_operations hugetlbfs_dir_inode_operations = {

@@ -95,6 +95,7 @@ config S390
 	select HAVE_KVM if 64BIT
 	select HAVE_ARCH_TRACEHOOK
 	select INIT_ALL_POSSIBLE
+	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
@@ -197,6 +198,13 @@ config HOTPLUG_CPU
 	  Say Y here to be able to turn CPUs off and on. CPUs
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
+
+config SCHED_BOOK
+	bool "Book scheduler support"
+	depends on SMP
+	help
+	  Book scheduler support improves the CPU scheduler's decision making
+	  when dealing with machines that have several books.
 
 config MATHEMU
 	bool "IEEE FPU emulation"

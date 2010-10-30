@@ -1030,6 +1030,7 @@ static struct file_operations audio_aac_fops = {
 	.read = audio_read,
 	.write = audio_write,
 	.unlocked_ioctl = audio_ioctl,
+	.llseek = noop_llseek,
 };
 
 struct miscdevice audio_aac_misc = {

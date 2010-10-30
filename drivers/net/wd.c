@@ -342,10 +342,10 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	printk(" %s, IRQ %d, shared memory at %#lx-%#lx.\n",
 		   model_name, dev->irq, dev->mem_start, dev->mem_end-1);
 
-	ei_status.reset_8390 = &wd_reset_8390;
-	ei_status.block_input = &wd_block_input;
-	ei_status.block_output = &wd_block_output;
-	ei_status.get_8390_hdr = &wd_get_8390_hdr;
+	ei_status.reset_8390 = wd_reset_8390;
+	ei_status.block_input = wd_block_input;
+	ei_status.block_output = wd_block_output;
+	ei_status.get_8390_hdr = wd_get_8390_hdr;
 
 	dev->netdev_ops = &wd_netdev_ops;
 	NS8390_init(dev, 0);

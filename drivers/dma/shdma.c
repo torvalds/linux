@@ -580,7 +580,6 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 
 	sh_chan = to_sh_chan(chan);
 	param = chan->private;
-	slave_addr = param->config->addr;
 
 	/* Someone calling slave DMA on a public channel? */
 	if (!param || !sg_len) {
@@ -588,6 +587,8 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 			 __func__, param, sg_len, param ? param->slave_id : -1);
 		return NULL;
 	}
+
+	slave_addr = param->config->addr;
 
 	/*
 	 * if (param != NULL), this is a successfully requested slave channel,

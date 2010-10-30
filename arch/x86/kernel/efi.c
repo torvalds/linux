@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/efi.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/time.h>
@@ -275,7 +276,7 @@ static void __init do_add_efi_memmap(void)
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 }
 
-void __init efi_reserve_early(void)
+void __init efi_memblock_x86_reserve_range(void)
 {
 	unsigned long pmap;
 
@@ -290,7 +291,7 @@ void __init efi_reserve_early(void)
 		boot_params.efi_info.efi_memdesc_size;
 	memmap.desc_version = boot_params.efi_info.efi_memdesc_version;
 	memmap.desc_size = boot_params.efi_info.efi_memdesc_size;
-	reserve_early(pmap, pmap + memmap.nr_map * memmap.desc_size,
+	memblock_x86_reserve_range(pmap, pmap + memmap.nr_map * memmap.desc_size,
 		      "EFI memmap");
 }
 

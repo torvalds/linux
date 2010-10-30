@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2009 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
  * All rights reserved
  * www.brocade.com
  *
@@ -15,9 +15,8 @@
  * General Public License for more details.
  */
 
-#include <bfa_priv.h>
-#include <bfi/bfi_ctreg.h>
-#include <bfa_ioc.h>
+#include "bfa_modules.h"
+#include "bfi_ctreg.h"
 
 BFA_TRC_FILE(HAL, IOCFC_CT);
 
@@ -53,7 +52,7 @@ bfa_hwct_reginit(struct bfa_s *bfa)
 {
 	struct bfa_iocfc_regs_s	*bfa_regs = &bfa->iocfc.bfa_regs;
 	bfa_os_addr_t		kva = bfa_ioc_bar0(&bfa->ioc);
-	int             	i, q, fn = bfa_ioc_pcifn(&bfa->ioc);
+	int			i, q, fn = bfa_ioc_pcifn(&bfa->ioc);
 
 	if (fn == 0) {
 		bfa_regs->intr_status = (kva + HOSTFN0_INT_STATUS);
@@ -87,7 +86,7 @@ bfa_hwct_reginit(struct bfa_s *bfa)
 void
 bfa_hwct_reqq_ack(struct bfa_s *bfa, int reqq)
 {
-	u32 r32;
+	u32	r32;
 
 	r32 = bfa_reg_read(bfa->iocfc.bfa_regs.cpe_q_ctrl[reqq]);
 	bfa_reg_write(bfa->iocfc.bfa_regs.cpe_q_ctrl[reqq], r32);

@@ -312,7 +312,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* SPI (0) */
 static struct bfin5xx_spi_master bfin_spi0_info = {
-	.num_chipselect = 5,
+	.num_chipselect = 6,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
@@ -347,7 +347,7 @@ static struct platform_device bfin_spi0_device = {
 
 /* SPI (1) */
 static struct bfin5xx_spi_master bfin_spi1_info = {
-	.num_chipselect = 5,
+	.num_chipselect = 6,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI1_SCK, P_SPI1_MISO, P_SPI1_MOSI, 0},
 };
@@ -525,6 +525,14 @@ static struct platform_device bfin_sir1_device = {
 #endif
 #endif
 
+#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
+static struct platform_device bfin_i2s = {
+	.name = "bfin-i2s",
+	.id = CONFIG_SND_BF5XX_SPORT_NUM,
+	/* TODO: add platform data here */
+};
+#endif
+
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
 static struct resource bfin_twi0_resource[] = {
 	[0] = {
@@ -557,6 +565,11 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("pcf8574_keypad", 0x27),
 		.irq = IRQ_PF8,
+	},
+#endif
+#if defined(CONFIG_SND_SOC_SSM2602) || defined(CONFIG_SND_SOC_SSM2602_MODULE)
+	{
+		I2C_BOARD_INFO("ssm2602", 0x1b),
 	},
 #endif
 };
@@ -734,6 +747,10 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
 	&i2c_bfin_twi_device,
+#endif
+
+#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
+	&bfin_i2s,
 #endif
 
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)

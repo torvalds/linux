@@ -298,6 +298,7 @@ static const struct file_operations shm_file_operations = {
 #ifndef CONFIG_MMU
 	.get_unmapped_area	= shm_get_unmapped_area,
 #endif
+	.llseek		= noop_llseek,
 };
 
 static const struct file_operations shm_file_operations_huge = {
@@ -305,6 +306,7 @@ static const struct file_operations shm_file_operations_huge = {
 	.fsync		= shm_fsync,
 	.release	= shm_release,
 	.get_unmapped_area	= shm_get_unmapped_area,
+	.llseek		= noop_llseek,
 };
 
 int is_file_shm_hugepages(struct file *file)

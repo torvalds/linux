@@ -1747,6 +1747,8 @@ static struct snd_pci_quirk stac92hd71bxx_cfg_tbl[] = {
 		      "HP dv6", STAC_HP_DV5),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3061,
 		      "HP dv6", STAC_HP_DV5), /* HP dv6-1110ax */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x363e,
+		      "HP DV6", STAC_HP_DV5),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x7010,
 		      "HP", STAC_HP_DV5),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0233,

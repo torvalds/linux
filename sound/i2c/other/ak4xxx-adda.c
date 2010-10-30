@@ -900,7 +900,7 @@ static int proc_init(struct snd_akm4xxx *ak)
 	return 0;
 }
 #else /* !CONFIG_PROC_FS */
-static int proc_init(struct snd_akm4xxx *ak) {}
+static int proc_init(struct snd_akm4xxx *ak) { return 0; }
 #endif
 
 int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)

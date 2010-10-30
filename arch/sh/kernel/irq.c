@@ -283,6 +283,8 @@ void __init init_IRQ(void)
 	if (sh_mv.mv_init_irq)
 		sh_mv.mv_init_irq();
 
+	intc_finalize();
+
 	irq_ctx_init(smp_processor_id());
 }
 
@@ -290,7 +292,7 @@ void __init init_IRQ(void)
 int __init arch_probe_nr_irqs(void)
 {
 	nr_irqs = sh_mv.mv_nr_irqs;
-	return 0;
+	return NR_IRQS_LEGACY;
 }
 #endif
 

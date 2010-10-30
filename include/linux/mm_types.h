@@ -299,7 +299,7 @@ struct mm_struct {
 	 * new_owner->mm == mm
 	 * new_owner->alloc_lock is held
 	 */
-	struct task_struct *owner;
+	struct task_struct __rcu *owner;
 #endif
 
 #ifdef CONFIG_PROC_FS

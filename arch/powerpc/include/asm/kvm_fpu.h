@@ -82,7 +82,7 @@ FPD_THREE_IN(fmadd)
 FPD_THREE_IN(fnmsub)
 FPD_THREE_IN(fnmadd)
 
-extern void kvm_cvt_fd(u32 *from, u64 *to, u64 *fpscr);
-extern void kvm_cvt_df(u64 *from, u32 *to, u64 *fpscr);
+extern void kvm_cvt_fd(u32 *from, u64 *to);
+extern void kvm_cvt_df(u64 *from, u32 *to);
 
 #endif

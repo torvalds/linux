@@ -82,11 +82,17 @@ extern struct group_info init_groups;
 # define CAP_INIT_BSET  CAP_FULL_SET
 
 #ifdef CONFIG_TREE_PREEMPT_RCU
+#define INIT_TASK_RCU_TREE_PREEMPT()					\
+	.rcu_blocked_node = NULL,
+#else
+#define INIT_TASK_RCU_TREE_PREEMPT(tsk)
+#endif
+#ifdef CONFIG_PREEMPT_RCU
 #define INIT_TASK_RCU_PREEMPT(tsk)					\
 	.rcu_read_lock_nesting = 0,					\
 	.rcu_read_unlock_special = 0,					\
-	.rcu_blocked_node = NULL,					\
-	.rcu_node_entry = LIST_HEAD_INIT(tsk.rcu_node_entry),
+	.rcu_node_entry = LIST_HEAD_INIT(tsk.rcu_node_entry),		\
+	INIT_TASK_RCU_TREE_PREEMPT()
 #else
 #define INIT_TASK_RCU_PREEMPT(tsk)
 #endif
@@ -137,8 +143,8 @@ extern struct cred init_cred;
 	.children	= LIST_HEAD_INIT(tsk.children),			\
 	.sibling	= LIST_HEAD_INIT(tsk.sibling),			\
 	.group_leader	= &tsk,						\
-	.real_cred	= &init_cred,					\
-	.cred		= &init_cred,					\
+	RCU_INIT_POINTER(.real_cred, &init_cred),			\
+	RCU_INIT_POINTER(.cred, &init_cred),				\
 	.cred_guard_mutex =						\
 		 __MUTEX_INITIALIZER(tsk.cred_guard_mutex),		\
 	.comm		= "swapper",					\

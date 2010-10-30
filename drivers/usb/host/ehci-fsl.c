@@ -116,13 +116,33 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 		goto err3;
 	}
 
-	/* Enable USB controller */
-	temp = in_be32(hcd->regs + 0x500);
-	out_be32(hcd->regs + 0x500, temp | 0x4);
+	pdata->regs = hcd->regs;
 
-	/* Set to Host mode */
-	temp = in_le32(hcd->regs + 0x1a8);
-	out_le32(hcd->regs + 0x1a8, temp | 0x3);
+	/*
+	 * do platform specific init: check the clock, grab/config pins, etc.
+	 */
+	if (pdata->init && pdata->init(pdev)) {
+		retval = -ENODEV;
+		goto err3;
+	}
+
+	/*
+	 * Check if it is MPC5121 SoC, otherwise set pdata->have_sysif_regs
+	 * flag for 83xx or 8536 system interface registers.
+	 */
+	if (pdata->big_endian_mmio)
+		temp = in_be32(hcd->regs + FSL_SOC_USB_ID);
+	else
+		temp = in_le32(hcd->regs + FSL_SOC_USB_ID);
+
+	if ((temp & ID_MSK) != (~((temp & NID_MSK) >> 8) & ID_MSK))
+		pdata->have_sysif_regs = 1;
+
+	/* Enable USB controller, 83xx or 8536 */
+	if (pdata->have_sysif_regs)
+		setbits32(hcd->regs + FSL_SOC_USB_CTRL, 0x4);
+
+	/* Don't need to set host mode here. It will be done by tdi_reset() */
 
 	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
 	if (retval != 0)
@@ -137,6 +157,8 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	usb_put_hcd(hcd);
       err1:
 	dev_err(&pdev->dev, "init %s fail, %d\n", dev_name(&pdev->dev), retval);
+	if (pdata->exit)
+		pdata->exit(pdev);
 	return retval;
 }
 
@@ -154,17 +176,30 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
 			       struct platform_device *pdev)
 {
+	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
+
 	usb_remove_hcd(hcd);
+
+	/*
+	 * do platform specific un-initialization:
+	 * release iomux pins, disable clock, etc.
+	 */
+	if (pdata->exit)
+		pdata->exit(pdev);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 }
 
-static void mpc83xx_setup_phy(struct ehci_hcd *ehci,
-			      enum fsl_usb2_phy_modes phy_mode,
-			      unsigned int port_offset)
+static void ehci_fsl_setup_phy(struct ehci_hcd *ehci,
+			       enum fsl_usb2_phy_modes phy_mode,
+			       unsigned int port_offset)
 {
-	u32 portsc = 0;
+	u32 portsc;
+
+	portsc = ehci_readl(ehci, &ehci->regs->port_status[port_offset]);
+	portsc &= ~(PORT_PTS_MSK | PORT_PTS_PTW);
+
 	switch (phy_mode) {
 	case FSL_USB2_PHY_ULPI:
 		portsc |= PORT_PTS_ULPI;
@@ -184,20 +219,21 @@ static void mpc83xx_setup_phy(struct ehci_hcd *ehci,
 	ehci_writel(ehci, portsc, &ehci->regs->port_status[port_offset]);
 }
 
-static void mpc83xx_usb_setup(struct usb_hcd *hcd)
+static void ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 {
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	struct usb_hcd *hcd = ehci_to_hcd(ehci);
 	struct fsl_usb2_platform_data *pdata;
 	void __iomem *non_ehci = hcd->regs;
 	u32 temp;
 
-	pdata =
-	    (struct fsl_usb2_platform_data *)hcd->self.controller->
-	    platform_data;
+	pdata = hcd->self.controller->platform_data;
+
 	/* Enable PHY interface in the control reg. */
-	temp = in_be32(non_ehci + FSL_SOC_USB_CTRL);
-	out_be32(non_ehci + FSL_SOC_USB_CTRL, temp | 0x00000004);
-	out_be32(non_ehci + FSL_SOC_USB_SNOOP1, 0x0000001b);
+	if (pdata->have_sysif_regs) {
+		temp = in_be32(non_ehci + FSL_SOC_USB_CTRL);
+		out_be32(non_ehci + FSL_SOC_USB_CTRL, temp | 0x00000004);
+		out_be32(non_ehci + FSL_SOC_USB_SNOOP1, 0x0000001b);
+	}
 
 #if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
 	/*
@@ -214,7 +250,7 @@ static void mpc83xx_usb_setup(struct usb_hcd *hcd)
 
 	if ((pdata->operating_mode == FSL_USB2_DR_HOST) ||
 			(pdata->operating_mode == FSL_USB2_DR_OTG))
-		mpc83xx_setup_phy(ehci, pdata->phy_mode, 0);
+		ehci_fsl_setup_phy(ehci, pdata->phy_mode, 0);
 
 	if (pdata->operating_mode == FSL_USB2_MPH_HOST) {
 		unsigned int chip, rev, svr;
@@ -228,27 +264,27 @@ static void mpc83xx_usb_setup(struct usb_hcd *hcd)
 			ehci->has_fsl_port_bug = 1;
 
 		if (pdata->port_enables & FSL_USB2_PORT0_ENABLED)
-			mpc83xx_setup_phy(ehci, pdata->phy_mode, 0);
+			ehci_fsl_setup_phy(ehci, pdata->phy_mode, 0);
 		if (pdata->port_enables & FSL_USB2_PORT1_ENABLED)
-			mpc83xx_setup_phy(ehci, pdata->phy_mode, 1);
+			ehci_fsl_setup_phy(ehci, pdata->phy_mode, 1);
 	}
 
-	/* put controller in host mode. */
-	ehci_writel(ehci, 0x00000003, non_ehci + FSL_SOC_USB_USBMODE);
+	if (pdata->have_sysif_regs) {
 #ifdef CONFIG_PPC_85xx
-	out_be32(non_ehci + FSL_SOC_USB_PRICTRL, 0x00000008);
-	out_be32(non_ehci + FSL_SOC_USB_AGECNTTHRSH, 0x00000080);
+		out_be32(non_ehci + FSL_SOC_USB_PRICTRL, 0x00000008);
+		out_be32(non_ehci + FSL_SOC_USB_AGECNTTHRSH, 0x00000080);
 #else
-	out_be32(non_ehci + FSL_SOC_USB_PRICTRL, 0x0000000c);
-	out_be32(non_ehci + FSL_SOC_USB_AGECNTTHRSH, 0x00000040);
+		out_be32(non_ehci + FSL_SOC_USB_PRICTRL, 0x0000000c);
+		out_be32(non_ehci + FSL_SOC_USB_AGECNTTHRSH, 0x00000040);
 #endif
-	out_be32(non_ehci + FSL_SOC_USB_SICTRL, 0x00000001);
+		out_be32(non_ehci + FSL_SOC_USB_SICTRL, 0x00000001);
+	}
 }
 
 /* called after powerup, by probe or system-pm "wakeup" */
 static int ehci_fsl_reinit(struct ehci_hcd *ehci)
 {
-	mpc83xx_usb_setup(ehci_to_hcd(ehci));
+	ehci_fsl_usb_setup(ehci);
 	ehci_port_power(ehci, 0);
 
 	return 0;
@@ -259,6 +295,11 @@ static int ehci_fsl_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
+	struct fsl_usb2_platform_data *pdata;
+
+	pdata = hcd->self.controller->platform_data;
+	ehci->big_endian_desc = pdata->big_endian_desc;
+	ehci->big_endian_mmio = pdata->big_endian_mmio;
 
 	/* EHCI registers start at offset 0x100 */
 	ehci->caps = hcd->regs + 0x100;
@@ -270,6 +311,8 @@ static int ehci_fsl_setup(struct usb_hcd *hcd)
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
+	hcd->has_tt = 1;
+
 	retval = ehci_halt(ehci);
 	if (retval)
 		return retval;
@@ -278,8 +321,6 @@ static int ehci_fsl_setup(struct usb_hcd *hcd)
 	retval = ehci_init(hcd);
 	if (retval)
 		return retval;
-
-	hcd->has_tt = 1;
 
 	ehci->sbrn = 0x20;
 
@@ -372,7 +413,7 @@ static const struct hc_driver ehci_fsl_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq = ehci_irq,
-	.flags = HCD_USB2,
+	.flags = HCD_USB2 | HCD_MEMORY,
 
 	/*
 	 * basic lifecycle operations

@@ -201,11 +201,11 @@ int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 		return r;
 	}
 	r = drm_gem_handle_create(filp, gobj, &handle);
+	/* drop reference from allocate - handle holds it now */
+	drm_gem_object_unreference_unlocked(gobj);
 	if (r) {
-		drm_gem_object_unreference_unlocked(gobj);
 		return r;
 	}
-	drm_gem_object_handle_unreference_unlocked(gobj);
 	args->handle = handle;
 	return 0;
 }

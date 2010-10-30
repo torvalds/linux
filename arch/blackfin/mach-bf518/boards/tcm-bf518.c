@@ -291,7 +291,7 @@ static struct platform_device bfin_spi0_device = {
 
 /* SPI (1) */
 static struct bfin5xx_spi_master bfin_spi1_info = {
-	.num_chipselect = 5,
+	.num_chipselect = 6,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI1_SCK, P_SPI1_MISO, P_SPI1_MOSI, 0},
 };

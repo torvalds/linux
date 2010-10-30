@@ -9,7 +9,7 @@
  *    (c) 2005-2006 Mauro Carvalho Chehab <mchehab@infradead.org>
  *        - video_ioctl2 conversion
  *
- *  Includes parts from the ivtv driver( http://ivtv.sourceforge.net/),
+ *  Includes parts from the ivtv driver <http://sourceforge.net/projects/ivtv/>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

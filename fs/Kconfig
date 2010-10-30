@@ -50,6 +50,7 @@ endif # BLOCK
 config FILE_LOCKING
 	bool "Enable POSIX file locking API" if EMBEDDED
 	default y
+	select BKL # while lockd still uses it.
 	help
 	  This option enables standard file locking support, required
           for filesystems like NFS and for the flock() system

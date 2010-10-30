@@ -555,8 +555,6 @@ static void __init trizeps4_map_io(void)
 
 MACHINE_START(TRIZEPS4, "Keith und Koep Trizeps IV module")
 	/* MAINTAINER("Jürgen Schindele") */
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= TRIZEPS4_SDRAM_BASE + 0x100,
 	.init_machine	= trizeps4_init,
 	.map_io		= trizeps4_map_io,
@@ -566,8 +564,6 @@ MACHINE_END
 
 MACHINE_START(TRIZEPS4WL, "Keith und Koep Trizeps IV-WL module")
 	/* MAINTAINER("Jürgen Schindele") */
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= TRIZEPS4_SDRAM_BASE + 0x100,
 	.init_machine	= trizeps4_init,
 	.map_io		= trizeps4_map_io,

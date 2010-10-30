@@ -301,7 +301,7 @@ config ATM_IA
 	  control memory (128K-1KVC, 512K-4KVC), the size of the packet
 	  memory (128K, 512K, 1M), and the PHY type (Single/Multi mode OC3,
 	  UTP155, UTP25, DS3 and E3). Go to:
-	  	<http://www.iphase.com/products/ClassSheet.cfm?ClassID=ATM>
+	  	<http://www.iphase.com/>
 	  for more info about the cards. Say Y (or M to compile as a module
 	  named iphase) here if you have one of these cards.
 

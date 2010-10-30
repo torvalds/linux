@@ -137,34 +137,10 @@ static int journal_write_commit_record(journal_t *journal,
 	JBUFFER_TRACE(descriptor, "write commit block");
 	set_buffer_dirty(bh);
 
-	if (journal->j_flags & JFS_BARRIER) {
-		ret = __sync_dirty_buffer(bh, WRITE_SYNC | WRITE_BARRIER);
-
-		/*
-		 * Is it possible for another commit to fail at roughly
-		 * the same time as this one?  If so, we don't want to
-		 * trust the barrier flag in the super, but instead want
-		 * to remember if we sent a barrier request
-		 */
-		if (ret == -EOPNOTSUPP) {
-			char b[BDEVNAME_SIZE];
-
-			printk(KERN_WARNING
-				"JBD: barrier-based sync failed on %s - "
-				"disabling barriers\n",
-				bdevname(journal->j_dev, b));
-			spin_lock(&journal->j_state_lock);
-			journal->j_flags &= ~JFS_BARRIER;
-			spin_unlock(&journal->j_state_lock);
-
-			/* And try again, without the barrier */
-			set_buffer_uptodate(bh);
-			set_buffer_dirty(bh);
-			ret = sync_dirty_buffer(bh);
-		}
-	} else {
+	if (journal->j_flags & JFS_BARRIER)
+		ret = __sync_dirty_buffer(bh, WRITE_SYNC | WRITE_FLUSH_FUA);
+	else
 		ret = sync_dirty_buffer(bh);
-	}
 
 	put_bh(bh);		/* One for getblk() */
 	journal_put_journal_head(descriptor);
@@ -318,7 +294,7 @@ void journal_commit_transaction(journal_t *journal)
 	int first_tag = 0;
 	int tag_flag;
 	int i;
-	int write_op = WRITE;
+	int write_op = WRITE_SYNC;
 
 	/*
 	 * First job: lock down the current transaction and wait for

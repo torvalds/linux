@@ -91,7 +91,7 @@ static void smp_iSeries_kick_cpu(int nr)
 	BUG_ON((nr < 0) || (nr >= NR_CPUS));
 
 	/* Verify that our partition has a processor nr */
-	if (lppaca[nr].dyn_proc_status >= 2)
+	if (lppaca_of(nr).dyn_proc_status >= 2)
 		return;
 
 	/* The processor is currently spinning, waiting

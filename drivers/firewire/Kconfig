@@ -3,9 +3,6 @@ menu "IEEE 1394 (FireWire) support"
 	# firewire-core does not depend on PCI but is
 	# not useful without PCI controller driver
 
-comment "You can enable one or both FireWire driver stacks."
-comment "The newer stack is recommended."
-
 config FIREWIRE
 	tristate "FireWire driver stack"
 	select CRC_ITU_T
@@ -63,8 +60,6 @@ config FIREWIRE_NET
 
 	  To compile this driver as a module, say M here:  The module will be
 	  called firewire-net.
-
-source "drivers/ieee1394/Kconfig"
 
 config FIREWIRE_NOSY
 	tristate "Nosy - a FireWire traffic sniffer for PCILynx cards"

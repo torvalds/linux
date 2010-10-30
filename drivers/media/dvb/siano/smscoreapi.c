@@ -1098,33 +1098,26 @@ EXPORT_SYMBOL_GPL(smscore_onresponse);
  *
  * @return pointer to descriptor on success, NULL on error.
  */
-struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *coredev)
+
+struct smscore_buffer_t *get_entry(struct smscore_device_t *coredev)
 {
 	struct smscore_buffer_t *cb = NULL;
 	unsigned long flags;
 
-	DEFINE_WAIT(wait);
-
 	spin_lock_irqsave(&coredev->bufferslock, flags);
-
-	/* This function must return a valid buffer, since the buffer list is
-	 * finite, we check that there is an available buffer, if not, we wait
-	 * until such buffer become available.
-	 */
-
-	prepare_to_wait(&coredev->buffer_mng_waitq, &wait, TASK_INTERRUPTIBLE);
-	if (list_empty(&coredev->buffers)) {
-		spin_unlock_irqrestore(&coredev->bufferslock, flags);
-		schedule();
-		spin_lock_irqsave(&coredev->bufferslock, flags);
+	if (!list_empty(&coredev->buffers)) {
+		cb = (struct smscore_buffer_t *) coredev->buffers.next;
+		list_del(&cb->entry);
 	}
-
-	finish_wait(&coredev->buffer_mng_waitq, &wait);
-
-	cb = (struct smscore_buffer_t *) coredev->buffers.next;
-	list_del(&cb->entry);
-
 	spin_unlock_irqrestore(&coredev->bufferslock, flags);
+	return cb;
+}
+
+struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *coredev)
+{
+	struct smscore_buffer_t *cb = NULL;
+
+	wait_event(coredev->buffer_mng_waitq, (cb = get_entry(coredev)));
 
 	return cb;
 }

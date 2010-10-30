@@ -807,7 +807,6 @@ static void read_rxcmd_callback(struct urb *urb)
 			  iuu_uart_read_callback, port);
 	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 	dbg("%s - submit result = %d", __func__, result);
-	return;
 }
 
 static int iuu_uart_on(struct usb_serial_port *port)

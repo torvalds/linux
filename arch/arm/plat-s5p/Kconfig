@@ -7,7 +7,7 @@
 
 config PLAT_S5P
 	bool
-	depends on (ARCH_S5P6440 || ARCH_S5P6442 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5PV310)
+	depends on (ARCH_S5P64X0 || ARCH_S5P6442 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5PV310)
 	default y
 	select ARM_VIC if !ARCH_S5PV310
 	select ARM_GIC if ARCH_S5PV310
@@ -30,7 +30,7 @@ config S5P_EXT_INT
 	bool
 	help
 	  Use the external interrupts (other than GPIO interrupts.)
-	  Note: Do not choose this for S5P6440.
+	  Note: Do not choose this for S5P6440 and S5P6450.
 
 config S5P_DEV_FIMC0
 	bool
@@ -46,3 +46,8 @@ config S5P_DEV_FIMC2
 	bool
 	help
 	  Compile in platform device definitions for FIMC controller 2
+
+config S5P_DEV_ONENAND
+	bool
+	help
+	  Compile in platform device definition for OneNAND controller

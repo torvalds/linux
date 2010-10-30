@@ -53,6 +53,7 @@ struct cpuidle_state {
 #define CPUIDLE_FLAG_BALANCED	(0x40) /* medium latency, moderate savings */
 #define CPUIDLE_FLAG_DEEP	(0x80) /* high latency, large savings */
 #define CPUIDLE_FLAG_IGNORE	(0x100) /* ignore during this idle period */
+#define CPUIDLE_FLAG_TLB_FLUSHED (0x200) /* tlb will be flushed */
 
 #define CPUIDLE_DRIVER_FLAGS_MASK (0xFFFF0000)
 

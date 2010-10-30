@@ -93,8 +93,9 @@ NESTED(handle_sys, PT_SIZE, sp)
 	sd	t0, PT_R7(sp)		# set error flag
 	beqz	t0, 1f
 
+	ld	t1, PT_R2(sp)		# syscall number
 	dnegu	v0			# error
-	sd	v0, PT_R0(sp)		# flag for syscall restarting
+	sd	t1, PT_R0(sp)		# save it for syscall restarting
 1:	sd	v0, PT_R2(sp)		# result
 
 o32_syscall_exit:
@@ -142,8 +143,9 @@ trace_a_syscall:
 	sd	t0, PT_R7(sp)		# set error flag
 	beqz	t0, 1f
 
+	ld	t1, PT_R2(sp)		# syscall number
 	dnegu	v0			# error
-	sd	v0, PT_R0(sp)		# set flag for syscall restarting
+	sd	t1, PT_R0(sp)		# save it for syscall restarting
 1:	sd	v0, PT_R2(sp)		# result
 
 	j	syscall_exit
@@ -154,8 +156,7 @@ trace_a_syscall:
 	 * The stackpointer for a call with more than 4 arguments is bad.
 	 */
 bad_stack:
-	dnegu	v0			# error
-	sd	v0, PT_R0(sp)
+	li	v0, EFAULT
 	sd	v0, PT_R2(sp)
 	li	t0, 1			# set error flag
 	sd	t0, PT_R7(sp)
@@ -444,10 +445,10 @@ sys_call_table:
 	PTR	compat_sys_futex
 	PTR	compat_sys_sched_setaffinity
 	PTR	compat_sys_sched_getaffinity	/* 4240 */
-	PTR	sys_io_setup
+	PTR	compat_sys_io_setup
 	PTR	sys_io_destroy
-	PTR	sys_io_getevents
-	PTR	sys_io_submit
+	PTR	compat_sys_io_getevents
+	PTR	compat_sys_io_submit
 	PTR	sys_io_cancel			/* 4245 */
 	PTR	sys_exit_group
 	PTR	sys32_lookup_dcookie
@@ -538,5 +539,8 @@ sys_call_table:
 	PTR	compat_sys_rt_tgsigqueueinfo
 	PTR	sys_perf_event_open
 	PTR	sys_accept4
-	PTR     compat_sys_recvmmsg
+	PTR	compat_sys_recvmmsg		/* 4335 */
+	PTR	sys_fanotify_init
+	PTR	sys_32_fanotify_mark
+	PTR	sys_prlimit64
 	.size	sys_call_table,.-sys_call_table

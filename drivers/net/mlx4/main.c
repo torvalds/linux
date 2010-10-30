@@ -184,6 +184,10 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev->caps.eth_mtu_cap[i]    = dev_cap->eth_mtu[i];
 		dev->caps.def_mac[i]        = dev_cap->def_mac[i];
 		dev->caps.supported_type[i] = dev_cap->supported_port_types[i];
+		dev->caps.trans_type[i]	    = dev_cap->trans_type[i];
+		dev->caps.vendor_oui[i]     = dev_cap->vendor_oui[i];
+		dev->caps.wavelength[i]     = dev_cap->wavelength[i];
+		dev->caps.trans_code[i]     = dev_cap->trans_code[i];
 	}
 
 	dev->caps.num_uars	     = dev_cap->uar_size / PAGE_SIZE;
@@ -221,6 +225,8 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.bmme_flags	     = dev_cap->bmme_flags;
 	dev->caps.reserved_lkey	     = dev_cap->reserved_lkey;
 	dev->caps.stat_rate_support  = dev_cap->stat_rate_support;
+	dev->caps.udp_rss	     = dev_cap->udp_rss;
+	dev->caps.loopback_support   = dev_cap->loopback_support;
 	dev->caps.max_gso_sz	     = dev_cap->max_gso_sz;
 
 	dev->caps.log_num_macs  = log_num_mac;

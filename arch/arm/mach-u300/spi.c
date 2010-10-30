@@ -30,8 +30,6 @@ static void select_dummy_chip(u32 chipselect)
 }
 
 struct pl022_config_chip dummy_chip_info = {
-	/* Nominally this is LOOPBACK_DISABLED, but this is our dummy chip! */
-	.lbm = LOOPBACK_ENABLED,
 	/*
 	 * available POLLING_TRANSFER and INTERRUPT_TRANSFER,
 	 * DMA_TRANSFER does not work
@@ -42,14 +40,8 @@ struct pl022_config_chip dummy_chip_info = {
 	.hierarchy = SSP_MASTER,
 	/* 0 = drive TX even as slave, 1 = do not drive TX as slave */
 	.slave_tx_disable = 0,
-	/* LSB first */
-	.endian_tx = SSP_TX_LSB,
-	.endian_rx = SSP_RX_LSB,
-	.data_size = SSP_DATA_BITS_8, /* used to be 12 in some default */
 	.rx_lev_trig = SSP_RX_1_OR_MORE_ELEM,
 	.tx_lev_trig = SSP_TX_1_OR_MORE_EMPTY_LOC,
-	.clk_phase = SSP_CLK_SECOND_EDGE,
-	.clk_pol = SSP_CLK_POL_IDLE_LOW,
 	.ctrl_len = SSP_BITS_12,
 	.wait_state = SSP_MWIRE_WAIT_ZERO,
 	.duplex = SSP_MICROWIRE_CHANNEL_FULL_DUPLEX,
@@ -75,7 +67,7 @@ static struct spi_board_info u300_spi_devices[] = {
 		.bus_num        = 0, /* Only one bus on this chip */
 		.chip_select    = 0,
 		/* Means SPI_CS_HIGH, change if e.g low CS */
-		.mode           = 0,
+		.mode           = SPI_MODE_1 | SPI_LSB_FIRST | SPI_LOOP,
 	},
 #endif
 };

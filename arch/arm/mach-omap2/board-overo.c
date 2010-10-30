@@ -501,8 +501,6 @@ static void __init overo_init(void)
 }
 
 MACHINE_START(OVERO, "Gumstix Overo")
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,

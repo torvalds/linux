@@ -1,4 +1,4 @@
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <linux/backing-dev.h>
 #include <linux/fs.h>
@@ -10,7 +10,8 @@
 #include <linux/task_io_accounting_ops.h>
 
 #include "super.h"
-#include "osd_client.h"
+#include "mds_client.h"
+#include <linux/ceph/osd_client.h>
 
 /*
  * Ceph address space ops.
@@ -193,7 +194,8 @@ static int readpage_nounlock(struct file *filp, struct page *page)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_osd_client *osdc = &ceph_inode_to_client(inode)->osdc;
+	struct ceph_osd_client *osdc = 
+		&ceph_inode_to_client(inode)->client->osdc;
 	int err = 0;
 	u64 len = PAGE_CACHE_SIZE;
 
@@ -265,7 +267,8 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_osd_client *osdc = &ceph_inode_to_client(inode)->osdc;
+	struct ceph_osd_client *osdc =
+		&ceph_inode_to_client(inode)->client->osdc;
 	int rc = 0;
 	struct page **pages;
 	loff_t offset;
@@ -365,7 +368,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 {
 	struct inode *inode;
 	struct ceph_inode_info *ci;
-	struct ceph_client *client;
+	struct ceph_fs_client *fsc;
 	struct ceph_osd_client *osdc;
 	loff_t page_off = page->index << PAGE_CACHE_SHIFT;
 	int len = PAGE_CACHE_SIZE;
@@ -383,8 +386,8 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	}
 	inode = page->mapping->host;
 	ci = ceph_inode(inode);
-	client = ceph_inode_to_client(inode);
-	osdc = &client->osdc;
+	fsc = ceph_inode_to_client(inode);
+	osdc = &fsc->client->osdc;
 
 	/* verify this is a writeable snap context */
 	snapc = (void *)page->private;
@@ -414,10 +417,10 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	dout("writepage %p page %p index %lu on %llu~%u snapc %p\n",
 	     inode, page, page->index, page_off, len, snapc);
 
-	writeback_stat = atomic_long_inc_return(&client->writeback_count);
+	writeback_stat = atomic_long_inc_return(&fsc->writeback_count);
 	if (writeback_stat >
-	    CONGESTION_ON_THRESH(client->mount_args->congestion_kb))
-		set_bdi_congested(&client->backing_dev_info, BLK_RW_ASYNC);
+	    CONGESTION_ON_THRESH(fsc->mount_options->congestion_kb))
+		set_bdi_congested(&fsc->backing_dev_info, BLK_RW_ASYNC);
 
 	set_page_writeback(page);
 	err = ceph_osdc_writepages(osdc, ceph_vino(inode),
@@ -496,7 +499,7 @@ static void writepages_finish(struct ceph_osd_request *req,
 	struct address_space *mapping = inode->i_mapping;
 	__s32 rc = -EIO;
 	u64 bytes = 0;
-	struct ceph_client *client = ceph_inode_to_client(inode);
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	long writeback_stat;
 	unsigned issued = ceph_caps_issued(ci);
 
@@ -529,10 +532,10 @@ static void writepages_finish(struct ceph_osd_request *req,
 		WARN_ON(!PageUptodate(page));
 
 		writeback_stat =
-			atomic_long_dec_return(&client->writeback_count);
+			atomic_long_dec_return(&fsc->writeback_count);
 		if (writeback_stat <
-		    CONGESTION_OFF_THRESH(client->mount_args->congestion_kb))
-			clear_bdi_congested(&client->backing_dev_info,
+		    CONGESTION_OFF_THRESH(fsc->mount_options->congestion_kb))
+			clear_bdi_congested(&fsc->backing_dev_info,
 					    BLK_RW_ASYNC);
 
 		ceph_put_snap_context((void *)page->private);
@@ -569,13 +572,13 @@ static void writepages_finish(struct ceph_osd_request *req,
  * mempool.  we avoid the mempool if we can because req->r_num_pages
  * may be less than the maximum write size.
  */
-static void alloc_page_vec(struct ceph_client *client,
+static void alloc_page_vec(struct ceph_fs_client *fsc,
 			   struct ceph_osd_request *req)
 {
 	req->r_pages = kmalloc(sizeof(struct page *) * req->r_num_pages,
 			       GFP_NOFS);
 	if (!req->r_pages) {
-		req->r_pages = mempool_alloc(client->wb_pagevec_pool, GFP_NOFS);
+		req->r_pages = mempool_alloc(fsc->wb_pagevec_pool, GFP_NOFS);
 		req->r_pages_from_pool = 1;
 		WARN_ON(!req->r_pages);
 	}
@@ -590,7 +593,7 @@ static int ceph_writepages_start(struct address_space *mapping,
 	struct inode *inode = mapping->host;
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_client *client;
+	struct ceph_fs_client *fsc;
 	pgoff_t index, start, end;
 	int range_whole = 0;
 	int should_loop = 1;
@@ -617,13 +620,13 @@ static int ceph_writepages_start(struct address_space *mapping,
 	     wbc->sync_mode == WB_SYNC_NONE ? "NONE" :
 	     (wbc->sync_mode == WB_SYNC_ALL ? "ALL" : "HOLD"));
 
-	client = ceph_inode_to_client(inode);
-	if (client->mount_state == CEPH_MOUNT_SHUTDOWN) {
+	fsc = ceph_inode_to_client(inode);
+	if (fsc->mount_state == CEPH_MOUNT_SHUTDOWN) {
 		pr_warning("writepage_start %p on forced umount\n", inode);
 		return -EIO; /* we're in a forced umount, don't write! */
 	}
-	if (client->mount_args->wsize && client->mount_args->wsize < wsize)
-		wsize = client->mount_args->wsize;
+	if (fsc->mount_options->wsize && fsc->mount_options->wsize < wsize)
+		wsize = fsc->mount_options->wsize;
 	if (wsize < PAGE_CACHE_SIZE)
 		wsize = PAGE_CACHE_SIZE;
 	max_pages_ever = wsize >> PAGE_CACHE_SHIFT;
@@ -769,7 +772,7 @@ get_more_pages:
 				offset = (unsigned long long)page->index
 					<< PAGE_CACHE_SHIFT;
 				len = wsize;
-				req = ceph_osdc_new_request(&client->osdc,
+				req = ceph_osdc_new_request(&fsc->client->osdc,
 					    &ci->i_layout,
 					    ceph_vino(inode),
 					    offset, &len,
@@ -782,7 +785,7 @@ get_more_pages:
 					    &inode->i_mtime, true, 1);
 				max_pages = req->r_num_pages;
 
-				alloc_page_vec(client, req);
+				alloc_page_vec(fsc, req);
 				req->r_callback = writepages_finish;
 				req->r_inode = inode;
 			}
@@ -794,10 +797,10 @@ get_more_pages:
 			     inode, page, page->index);
 
 			writeback_stat =
-			       atomic_long_inc_return(&client->writeback_count);
+			       atomic_long_inc_return(&fsc->writeback_count);
 			if (writeback_stat > CONGESTION_ON_THRESH(
-				    client->mount_args->congestion_kb)) {
-				set_bdi_congested(&client->backing_dev_info,
+				    fsc->mount_options->congestion_kb)) {
+				set_bdi_congested(&fsc->backing_dev_info,
 						  BLK_RW_ASYNC);
 			}
 
@@ -846,7 +849,7 @@ get_more_pages:
 		op->payload_len = cpu_to_le32(len);
 		req->r_request->hdr.data_len = cpu_to_le32(len);
 
-		ceph_osdc_start_request(&client->osdc, req, true);
+		ceph_osdc_start_request(&fsc->client->osdc, req, true);
 		req = NULL;
 
 		/* continue? */
@@ -915,7 +918,7 @@ static int ceph_update_writeable_page(struct file *file,
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_mds_client *mdsc = &ceph_inode_to_client(inode)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
 	loff_t page_off = pos & PAGE_CACHE_MASK;
 	int pos_in_page = pos & ~PAGE_CACHE_MASK;
 	int end_in_page = pos_in_page + len;
@@ -1053,8 +1056,8 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 			  struct page *page, void *fsdata)
 {
 	struct inode *inode = file->f_dentry->d_inode;
-	struct ceph_client *client = ceph_inode_to_client(inode);
-	struct ceph_mds_client *mdsc = &client->mdsc;
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct ceph_mds_client *mdsc = fsc->mdsc;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
 	int check_cap = 0;
 
@@ -1123,7 +1126,7 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct inode *inode = vma->vm_file->f_dentry->d_inode;
 	struct page *page = vmf->page;
-	struct ceph_mds_client *mdsc = &ceph_inode_to_client(inode)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
 	loff_t off = page->index << PAGE_CACHE_SHIFT;
 	loff_t size, len;
 	int ret;

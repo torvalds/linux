@@ -329,8 +329,8 @@ static unsigned int get_conntrack_index(const struct tcphdr *tcph)
 /* TCP connection tracking based on 'Real Stateful TCP Packet Filtering
    in IP Filter' by Guido van Rooij.
 
-   http://www.nluug.nl/events/sane2000/papers.html
-   http://www.iae.nl/users/guido/papers/tcp_filtering.ps.gz
+   http://www.sane.nl/events/sane2000/papers.html
+   http://www.darkart.com/mirrors/www.obfuscation.org/ipf/
 
    The boundaries and the conditions are changed according to RFC793:
    the packet must intersect the window (i.e. segments may be

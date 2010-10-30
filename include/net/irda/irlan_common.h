@@ -171,7 +171,6 @@ struct irlan_cb {
 	int    magic;
 	struct list_head  dev_list;
 	struct net_device *dev;        /* Ethernet device structure*/
-	struct net_device_stats stats;
 
 	__u32 saddr;               /* Source device address */
 	__u32 daddr;               /* Destination device address */

@@ -18,9 +18,9 @@ specialized stacks contain no useful data.  The main CPU stacks are:
   Used for external hardware interrupts.  If this is the first external
   hardware interrupt (i.e. not a nested hardware interrupt) then the
   kernel switches from the current task to the interrupt stack.  Like
-  the split thread and interrupt stacks on i386 (with CONFIG_4KSTACKS),
-  this gives more room for kernel interrupt processing without having
-  to increase the size of every per thread stack.
+  the split thread and interrupt stacks on i386, this gives more room
+  for kernel interrupt processing without having to increase the size
+  of every per thread stack.
 
   The interrupt stack is also used when processing a softirq.
 

@@ -338,30 +338,29 @@ static void unmask_evtchn(int port)
 
 static int find_unbound_irq(void)
 {
-	int irq;
-	struct irq_desc *desc;
+	struct irq_data *data;
+	int irq, res;
 
 	for (irq = 0; irq < nr_irqs; irq++) {
-		desc = irq_to_desc(irq);
+		data = irq_get_irq_data(irq);
 		/* only 0->15 have init'd desc; handle irq > 16 */
-		if (desc == NULL)
+		if (!data)
 			break;
-		if (desc->chip == &no_irq_chip)
+		if (data->chip == &no_irq_chip)
 			break;
-		if (desc->chip != &xen_dynamic_chip)
+		if (data->chip != &xen_dynamic_chip)
 			continue;
 		if (irq_info[irq].type == IRQT_UNBOUND)
-			break;
+			return irq;
 	}
 
 	if (irq == nr_irqs)
 		panic("No available IRQ to bind to: increase nr_irqs!\n");
 
-	desc = irq_to_desc_alloc_node(irq, 0);
-	if (WARN_ON(desc == NULL))
-		return -1;
+	res = irq_alloc_desc_at(irq, 0);
 
-	dynamic_irq_init_keep_chip_data(irq);
+	if (WARN_ON(res != irq))
+		return -1;
 
 	return irq;
 }
@@ -495,7 +494,7 @@ static void unbind_from_irq(unsigned int irq)
 	if (irq_info[irq].type != IRQT_UNBOUND) {
 		irq_info[irq] = mk_unbound_info();
 
-		dynamic_irq_cleanup(irq);
+		irq_free_desc(irq);
 	}
 
 	spin_unlock(&irq_mapping_update_lock);

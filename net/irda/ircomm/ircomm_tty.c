@@ -449,8 +449,8 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 		}
 
 #ifdef SERIAL_DO_RESTART
-		return ((self->flags & ASYNC_HUP_NOTIFY) ?
-			-EAGAIN : -ERESTARTSYS);
+		return (self->flags & ASYNC_HUP_NOTIFY) ?
+			-EAGAIN : -ERESTARTSYS;
 #else
 		return -EAGAIN;
 #endif

@@ -46,7 +46,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #endif
-		seq_printf(p, " %14s", irq_desc[i].chip->typename);
+		seq_printf(p, " %14s", irq_desc[i].chip->name);
 		seq_printf(p, "  %s", action->name);
 
 		for (action=action->next; action; action = action->next)
@@ -369,7 +369,7 @@ static void dummy(unsigned int irq)
 
 /* This is used for everything else than the timer. */
 static struct irq_chip normal_irq_type = {
-	.typename = "SIGIO",
+	.name = "SIGIO",
 	.release = free_irq_by_irq_and_dev,
 	.disable = dummy,
 	.enable = dummy,
@@ -378,7 +378,7 @@ static struct irq_chip normal_irq_type = {
 };
 
 static struct irq_chip SIGVTALRM_irq_type = {
-	.typename = "SIGVTALRM",
+	.name = "SIGVTALRM",
 	.release = free_irq_by_irq_and_dev,
 	.shutdown = dummy, /* never called */
 	.disable = dummy,

@@ -111,7 +111,7 @@ acm_iad_descriptor = {
 	.bInterfaceCount = 	2,	// control + data
 	.bFunctionClass =	USB_CLASS_COMM,
 	.bFunctionSubClass =	USB_CDC_SUBCLASS_ACM,
-	.bFunctionProtocol =	USB_CDC_PROTO_NONE,
+	.bFunctionProtocol =	USB_CDC_ACM_PROTO_AT_V25TER,
 	/* .iFunction =		DYNAMIC */
 };
 

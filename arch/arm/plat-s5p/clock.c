@@ -74,6 +74,13 @@ struct clk clk_fout_epll = {
 	.ctrlbit	= (1 << 31),
 };
 
+/* DPLL clock output */
+struct clk clk_fout_dpll = {
+	.name		= "fout_dpll",
+	.id		= -1,
+	.ctrlbit	= (1 << 31),
+};
+
 /* VPLL clock output */
 struct clk clk_fout_vpll = {
 	.name		= "fout_vpll",
@@ -122,6 +129,17 @@ struct clksrc_sources clk_src_epll = {
 	.nr_sources	= ARRAY_SIZE(clk_src_epll_list),
 };
 
+/* Possible clock sources for DPLL Mux */
+static struct clk *clk_src_dpll_list[] = {
+	[0] = &clk_fin_dpll,
+	[1] = &clk_fout_dpll,
+};
+
+struct clksrc_sources clk_src_dpll = {
+	.sources	= clk_src_dpll_list,
+	.nr_sources	= ARRAY_SIZE(clk_src_dpll_list),
+};
+
 struct clk clk_vpll = {
 	.name		= "vpll",
 	.id		= -1,
@@ -145,6 +163,7 @@ static struct clk *s5p_clks[] __initdata = {
 	&clk_fout_apll,
 	&clk_fout_mpll,
 	&clk_fout_epll,
+	&clk_fout_dpll,
 	&clk_fout_vpll,
 	&clk_arm,
 	&clk_vpll,

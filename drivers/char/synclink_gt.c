@@ -1032,9 +1032,6 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 		 unsigned int cmd, unsigned long arg)
 {
 	struct slgt_info *info = tty->driver_data;
-	struct mgsl_icount cnow;	/* kernel counter temps */
-	struct serial_icounter_struct __user *p_cuser;	/* user space */
-	unsigned long flags;
 	void __user *argp = (void __user *)arg;
 	int ret;
 
@@ -1043,7 +1040,7 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 	DBGINFO(("%s ioctl() cmd=%08X\n", info->device_name, cmd));
 
 	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
-	    (cmd != TIOCMIWAIT) && (cmd != TIOCGICOUNT)) {
+	    (cmd != TIOCMIWAIT)) {
 		if (tty->flags & (1 << TTY_IO_ERROR))
 		    return -EIO;
 	}
@@ -1053,24 +1050,6 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 		return wait_mgsl_event(info, argp);
 	case TIOCMIWAIT:
 		return modem_input_wait(info,(int)arg);
-	case TIOCGICOUNT:
-		spin_lock_irqsave(&info->lock,flags);
-		cnow = info->icount;
-		spin_unlock_irqrestore(&info->lock,flags);
-		p_cuser = argp;
-		if (put_user(cnow.cts, &p_cuser->cts) ||
-		    put_user(cnow.dsr, &p_cuser->dsr) ||
-		    put_user(cnow.rng, &p_cuser->rng) ||
-		    put_user(cnow.dcd, &p_cuser->dcd) ||
-		    put_user(cnow.rx, &p_cuser->rx) ||
-		    put_user(cnow.tx, &p_cuser->tx) ||
-		    put_user(cnow.frame, &p_cuser->frame) ||
-		    put_user(cnow.overrun, &p_cuser->overrun) ||
-		    put_user(cnow.parity, &p_cuser->parity) ||
-		    put_user(cnow.brk, &p_cuser->brk) ||
-		    put_user(cnow.buf_overrun, &p_cuser->buf_overrun))
-			return -EFAULT;
-		return 0;
 	case MGSL_IOCSGPIO:
 		return set_gpio(info, argp);
 	case MGSL_IOCGGPIO:
@@ -1115,6 +1094,33 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 	}
 	mutex_unlock(&info->port.mutex);
 	return ret;
+}
+
+static int get_icount(struct tty_struct *tty,
+				struct serial_icounter_struct *icount)
+
+{
+	struct slgt_info *info = tty->driver_data;
+	struct mgsl_icount cnow;	/* kernel counter temps */
+	unsigned long flags;
+
+	spin_lock_irqsave(&info->lock,flags);
+	cnow = info->icount;
+	spin_unlock_irqrestore(&info->lock,flags);
+
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+
+	return 0;
 }
 
 /*
@@ -1206,10 +1212,6 @@ static long slgt_compat_ioctl(struct tty_struct *tty, struct file *file,
 	case MGSL_IOCSGPIO:
 	case MGSL_IOCGGPIO:
 	case MGSL_IOCWAITGPIO:
-	case TIOCGICOUNT:
-		rc = ioctl(tty, file, cmd, (unsigned long)(compat_ptr(arg)));
-		break;
-
 	case MGSL_IOCSTXIDLE:
 	case MGSL_IOCTXENABLE:
 	case MGSL_IOCRXENABLE:
@@ -3642,6 +3644,7 @@ static const struct tty_operations ops = {
 	.hangup = hangup,
 	.tiocmget = tiocmget,
 	.tiocmset = tiocmset,
+	.get_icount = get_icount,
 	.proc_fops = &synclink_gt_proc_fops,
 };
 

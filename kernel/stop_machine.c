@@ -287,11 +287,12 @@ repeat:
 	goto repeat;
 }
 
+extern void sched_set_stop_task(int cpu, struct task_struct *stop);
+
 /* manage stopper for a cpu, mostly lifted from sched migration thread mgmt */
 static int __cpuinit cpu_stop_cpu_callback(struct notifier_block *nfb,
 					   unsigned long action, void *hcpu)
 {
-	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 	unsigned int cpu = (unsigned long)hcpu;
 	struct cpu_stopper *stopper = &per_cpu(cpu_stopper, cpu);
 	struct task_struct *p;
@@ -304,13 +305,13 @@ static int __cpuinit cpu_stop_cpu_callback(struct notifier_block *nfb,
 				   cpu);
 		if (IS_ERR(p))
 			return NOTIFY_BAD;
-		sched_setscheduler_nocheck(p, SCHED_FIFO, &param);
 		get_task_struct(p);
+		kthread_bind(p, cpu);
+		sched_set_stop_task(cpu, p);
 		stopper->thread = p;
 		break;
 
 	case CPU_ONLINE:
-		kthread_bind(stopper->thread, cpu);
 		/* strictly unnecessary, as first user will wake it */
 		wake_up_process(stopper->thread);
 		/* mark enabled */
@@ -325,6 +326,7 @@ static int __cpuinit cpu_stop_cpu_callback(struct notifier_block *nfb,
 	{
 		struct cpu_stop_work *work;
 
+		sched_set_stop_task(cpu, NULL);
 		/* kill the stopper */
 		kthread_stop(stopper->thread);
 		/* drain remaining works */

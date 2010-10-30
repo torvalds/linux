@@ -33,6 +33,9 @@
 extern void cmx255_init(void);
 extern void cmx270_init(void);
 
+/* reserve IRQs for IT8152 */
+#define CMX2XX_NR_IRQS		(IRQ_BOARD_START + 40)
+
 /* virtual addresses for statically mapped regions */
 #define CMX2XX_VIRT_BASE	(0xe8000000)
 #define CMX2XX_IT8152_VIRT	(CMX2XX_VIRT_BASE)
@@ -511,9 +514,8 @@ static void __init cmx2xx_map_io(void)
 
 MACHINE_START(ARMCORE, "Compulab CM-X2XX")
 	.boot_params	= 0xa0000100,
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= cmx2xx_map_io,
+	.nr_irqs	= CMX2XX_NR_IRQS,
 	.init_irq	= cmx2xx_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= cmx2xx_init,

@@ -288,6 +288,16 @@ void ip_vs_sync_conn(struct ip_vs_conn *cp)
 		ip_vs_sync_conn(cp->control);
 }
 
+static inline int
+ip_vs_conn_fill_param_sync(int af, int protocol,
+			   const union nf_inet_addr *caddr, __be16 cport,
+			   const union nf_inet_addr *vaddr, __be16 vport,
+			   struct ip_vs_conn_param *p)
+{
+	/* XXX: Need to take into account persistence engine */
+	ip_vs_conn_fill_param(af, protocol, caddr, cport, vaddr, vport, p);
+	return 0;
+}
 
 /*
  *      Process received multicast message and create the corresponding
@@ -301,6 +311,7 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_dest *dest;
+	struct ip_vs_conn_param param;
 	char *p;
 	int i;
 
@@ -370,18 +381,20 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 			}
 		}
 
-		if (!(flags & IP_VS_CONN_F_TEMPLATE))
-			cp = ip_vs_conn_in_get(AF_INET, s->protocol,
-					       (union nf_inet_addr *)&s->caddr,
-					       s->cport,
-					       (union nf_inet_addr *)&s->vaddr,
-					       s->vport);
-		else
-			cp = ip_vs_ct_in_get(AF_INET, s->protocol,
-					     (union nf_inet_addr *)&s->caddr,
-					     s->cport,
-					     (union nf_inet_addr *)&s->vaddr,
-					     s->vport);
+		{
+			if (ip_vs_conn_fill_param_sync(AF_INET, s->protocol,
+					      (union nf_inet_addr *)&s->caddr,
+					      s->cport,
+					      (union nf_inet_addr *)&s->vaddr,
+					      s->vport, &param)) {
+				pr_err("ip_vs_conn_fill_param_sync failed");
+				return;
+			}
+			if (!(flags & IP_VS_CONN_F_TEMPLATE))
+				cp = ip_vs_conn_in_get(&param);
+			else
+				cp = ip_vs_ct_in_get(&param);
+		}
 		if (!cp) {
 			/*
 			 * Find the appropriate destination for the connection.
@@ -406,14 +419,9 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 				else
 					flags &= ~IP_VS_CONN_F_INACTIVE;
 			}
-			cp = ip_vs_conn_new(AF_INET, s->protocol,
-					    (union nf_inet_addr *)&s->caddr,
-					    s->cport,
-					    (union nf_inet_addr *)&s->vaddr,
-					    s->vport,
+			cp = ip_vs_conn_new(&param,
 					    (union nf_inet_addr *)&s->daddr,
-					    s->dport,
-					    flags, dest);
+					    s->dport, flags, dest);
 			if (dest)
 				atomic_dec(&dest->refcnt);
 			if (!cp) {

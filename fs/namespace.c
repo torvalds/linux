@@ -1744,9 +1744,7 @@ static int do_new_mount(struct path *path, char *type, int flags,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	lock_kernel();
 	mnt = do_kern_mount(type, flags, name, data);
-	unlock_kernel();
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 

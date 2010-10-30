@@ -402,9 +402,6 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd,
 		if (mt9v022->model != V4L2_IDENT_MT9V022IX7ATC)
 			return -EINVAL;
 		break;
-	case 0:
-		/* No format change, only geometry */
-		break;
 	default:
 		return -EINVAL;
 	}

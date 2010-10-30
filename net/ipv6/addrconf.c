@@ -243,7 +243,7 @@ static inline bool addrconf_qdisc_ok(const struct net_device *dev)
 /* Check if a route is valid prefix route */
 static inline int addrconf_is_prefix_route(const struct rt6_info *rt)
 {
-	return ((rt->rt6i_flags & (RTF_GATEWAY | RTF_DEFAULT)) == 0);
+	return (rt->rt6i_flags & (RTF_GATEWAY | RTF_DEFAULT)) == 0;
 }
 
 static void addrconf_del_timer(struct inet6_ifaddr *ifp)
@@ -1544,7 +1544,7 @@ static int addrconf_ifid_infiniband(u8 *eui, struct net_device *dev)
 	return 0;
 }
 
-int __ipv6_isatap_ifid(u8 *eui, __be32 addr)
+static int __ipv6_isatap_ifid(u8 *eui, __be32 addr)
 {
 	if (addr == 0)
 		return -1;
@@ -1560,7 +1560,6 @@ int __ipv6_isatap_ifid(u8 *eui, __be32 addr)
 	memcpy(eui + 4, &addr, 4);
 	return 0;
 }
-EXPORT_SYMBOL(__ipv6_isatap_ifid);
 
 static int addrconf_ifid_sit(u8 *eui, struct net_device *dev)
 {
@@ -2964,7 +2963,8 @@ static void addrconf_dad_completed(struct inet6_ifaddr *ifp)
 	   start sending router solicitations.
 	 */
 
-	if (ifp->idev->cnf.forwarding == 0 &&
+	if ((ifp->idev->cnf.forwarding == 0 ||
+	     ifp->idev->cnf.forwarding == 2) &&
 	    ifp->idev->cnf.rtr_solicits > 0 &&
 	    (dev->flags&IFF_LOOPBACK) == 0 &&
 	    (ipv6_addr_type(&ifp->addr) & IPV6_ADDR_LINKLOCAL)) {

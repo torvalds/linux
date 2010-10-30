@@ -230,9 +230,6 @@ static int recover_probed_instruction(kprobe_opcode_t *buf, unsigned long addr)
 	return 0;
 }
 
-/* Dummy buffers for kallsyms_lookup */
-static char __dummy_buf[KSYM_NAME_LEN];
-
 /* Check if paddr is at an instruction boundary */
 static int __kprobes can_probe(unsigned long paddr)
 {
@@ -241,7 +238,7 @@ static int __kprobes can_probe(unsigned long paddr)
 	struct insn insn;
 	kprobe_opcode_t buf[MAX_INSN_SIZE];
 
-	if (!kallsyms_lookup(paddr, NULL, &offset, NULL, __dummy_buf))
+	if (!kallsyms_lookup_size_offset(paddr, NULL, &offset))
 		return 0;
 
 	/* Decode instructions */
@@ -1129,7 +1126,7 @@ static void __kprobes synthesize_set_arg1(kprobe_opcode_t *addr,
 	*(unsigned long *)addr = val;
 }
 
-void __kprobes kprobes_optinsn_template_holder(void)
+static void __used __kprobes kprobes_optinsn_template_holder(void)
 {
 	asm volatile (
 			".global optprobe_template_entry\n"
@@ -1221,7 +1218,8 @@ static int __kprobes copy_optimized_instructions(u8 *dest, u8 *src)
 	}
 	/* Check whether the address range is reserved */
 	if (ftrace_text_reserved(src, src + len - 1) ||
-	    alternatives_text_reserved(src, src + len - 1))
+	    alternatives_text_reserved(src, src + len - 1) ||
+	    jump_label_text_reserved(src, src + len - 1))
 		return -EBUSY;
 
 	return len;
@@ -1269,11 +1267,9 @@ static int __kprobes can_optimize(unsigned long paddr)
 	unsigned long addr, size = 0, offset = 0;
 	struct insn insn;
 	kprobe_opcode_t buf[MAX_INSN_SIZE];
-	/* Dummy buffers for lookup_symbol_attrs */
-	static char __dummy_buf[KSYM_NAME_LEN];
 
 	/* Lookup symbol including addr */
-	if (!kallsyms_lookup(paddr, &size, &offset, NULL, __dummy_buf))
+	if (!kallsyms_lookup_size_offset(paddr, &size, &offset))
 		return 0;
 
 	/* Check there is enough space for a relative jump. */

@@ -59,17 +59,10 @@
 #include <linux/hrtimer.h>	/* ktime_get_real() */
 #include <trace/events/power.h>
 #include <linux/sched.h>
+#include <asm/mwait.h>
 
 #define INTEL_IDLE_VERSION "0.4"
 #define PREFIX "intel_idle: "
-
-#define MWAIT_SUBSTATE_MASK	(0xf)
-#define MWAIT_CSTATE_MASK	(0xf)
-#define MWAIT_SUBSTATE_SIZE	(4)
-#define MWAIT_MAX_NUM_CSTATES	8
-#define CPUID_MWAIT_LEAF (5)
-#define CPUID5_ECX_EXTENSIONS_SUPPORTED (0x1)
-#define CPUID5_ECX_INTERRUPT_BREAK	(0x2)
 
 static struct cpuidle_driver intel_idle_driver = {
 	.name = "intel_idle",
@@ -83,7 +76,7 @@ static unsigned int mwait_substates;
 /* Reliable LAPIC Timer States, bit 1 for C1 etc.  */
 static unsigned int lapic_timer_reliable_states;
 
-static struct cpuidle_device *intel_idle_cpuidle_devices;
+static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
 static int intel_idle(struct cpuidle_device *dev, struct cpuidle_state *state);
 
 static struct cpuidle_state *cpuidle_state_table;
@@ -108,7 +101,7 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.name = "NHM-C3",
 		.desc = "MWAIT 0x10",
 		.driver_data = (void *) 0x10,
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 20,
 		.power_usage = 500,
 		.target_residency = 80,
@@ -117,7 +110,7 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.name = "NHM-C6",
 		.desc = "MWAIT 0x20",
 		.driver_data = (void *) 0x20,
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 200,
 		.power_usage = 350,
 		.target_residency = 800,
@@ -149,7 +142,7 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.name = "ATM-C4",
 		.desc = "MWAIT 0x30",
 		.driver_data = (void *) 0x30,
-		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 100,
 		.power_usage = 250,
 		.target_residency = 400,
@@ -157,13 +150,13 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 	{ /* MWAIT C5 */ },
 	{ /* MWAIT C6 */
 		.name = "ATM-C6",
-		.desc = "MWAIT 0x40",
-		.driver_data = (void *) 0x40,
-		.flags = CPUIDLE_FLAG_TIME_VALID,
-		.exit_latency = 200,
+		.desc = "MWAIT 0x52",
+		.driver_data = (void *) 0x52,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 140,
 		.power_usage = 150,
-		.target_residency = 800,
-		.enter = NULL },	/* disabled */
+		.target_residency = 560,
+		.enter = &intel_idle },
 };
 
 /**
@@ -184,6 +177,16 @@ static int intel_idle(struct cpuidle_device *dev, struct cpuidle_state *state)
 	cstate = (((eax) >> MWAIT_SUBSTATE_SIZE) & MWAIT_CSTATE_MASK) + 1;
 
 	local_irq_disable();
+
+	/*
+	 * If the state flag indicates that the TLB will be flushed or if this
+	 * is the deepest c-state supported, do a voluntary leave mm to avoid
+	 * costly and mostly unnecessary wakeups for flushing the user TLB's
+	 * associated with the active mm.
+	 */
+	if (state->flags & CPUIDLE_FLAG_TLB_FLUSHED ||
+	    (&dev->states[dev->state_count - 1] == state))
+		leave_mm(cpu);
 
 	if (!(lapic_timer_reliable_states & (1 << (cstate))))
 		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);

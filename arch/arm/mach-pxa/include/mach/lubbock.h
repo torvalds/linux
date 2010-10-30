@@ -45,6 +45,9 @@
 #define LUBBOCK_USB_DISC_IRQ	LUBBOCK_IRQ(6)  /* usb disconnect */
 #define LUBBOCK_LAST_IRQ	LUBBOCK_IRQ(6)
 
+#define LUBBOCK_SA1111_IRQ_BASE	(IRQ_BOARD_START + 16)
+#define LUBBOCK_NR_IRQS		(IRQ_BOARD_START + 16 + 55)
+
 #ifndef __ASSEMBLY__
 extern void lubbock_set_misc_wr(unsigned int mask, unsigned int set);
 #endif

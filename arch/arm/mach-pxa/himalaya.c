@@ -159,8 +159,6 @@ static void __init himalaya_init(void)
 
 
 MACHINE_START(HIMALAYA, "HTC Himalaya")
-	.phys_io = 0x40000000,
-	.io_pg_offst = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params = 0xa0000100,
 	.map_io = pxa_map_io,
 	.init_irq = pxa25x_init_irq,

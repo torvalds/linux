@@ -413,7 +413,7 @@ static inline int omap_nand_dma_transfer(struct mtd_info *mtd, void *addr,
 		prefetch_status = gpmc_read_status(GPMC_PREFETCH_COUNT);
 	} while (prefetch_status);
 	/* disable and stop the PFPW engine */
-	gpmc_prefetch_reset();
+	gpmc_prefetch_reset(info->gpmc_cs);
 
 	dma_unmap_single(&info->pdev->dev, dma_addr, len, dir);
 	return 0;

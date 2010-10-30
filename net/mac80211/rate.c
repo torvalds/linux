@@ -145,6 +145,7 @@ static ssize_t rcname_read(struct file *file, char __user *userbuf,
 static const struct file_operations rcname_ops = {
 	.read = rcname_read,
 	.open = mac80211_open_file_generic,
+	.llseek = default_llseek,
 };
 #endif
 
@@ -207,7 +208,7 @@ static bool rc_no_data_or_no_ack(struct ieee80211_tx_rate_control *txrc)
 
 	fc = hdr->frame_control;
 
-	return ((info->flags & IEEE80211_TX_CTL_NO_ACK) || !ieee80211_is_data(fc));
+	return (info->flags & IEEE80211_TX_CTL_NO_ACK) || !ieee80211_is_data(fc);
 }
 
 static void rc_send_low_broadcast(s8 *idx, u32 basic_rates, u8 max_rate_idx)
@@ -368,8 +369,8 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 
 	ref = rate_control_alloc(name, local);
 	if (!ref) {
-		printk(KERN_WARNING "%s: Failed to select rate control "
-		       "algorithm\n", wiphy_name(local->hw.wiphy));
+		wiphy_warn(local->hw.wiphy,
+			   "Failed to select rate control algorithm\n");
 		return -ENOENT;
 	}
 
@@ -380,9 +381,8 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 		sta_info_flush(local, NULL);
 	}
 
-	printk(KERN_DEBUG "%s: Selected rate control "
-	       "algorithm '%s'\n", wiphy_name(local->hw.wiphy),
-	       ref->ops->name);
+	wiphy_debug(local->hw.wiphy, "Selected rate control algorithm '%s'\n",
+		    ref->ops->name);
 
 	return 0;
 }

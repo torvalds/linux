@@ -78,13 +78,11 @@ long sys_execve(const char __user *file, const char __user *const __user *argv,
 	long error;
 	char *filename;
 
-	lock_kernel();
 	filename = getname(file);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename)) goto out;
 	error = execve1(filename, argv, env);
 	putname(filename);
  out:
-	unlock_kernel();
 	return error;
 }

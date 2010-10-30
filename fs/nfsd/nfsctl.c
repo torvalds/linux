@@ -137,6 +137,7 @@ static const struct file_operations transaction_ops = {
 	.write		= nfsctl_transaction_write,
 	.read		= nfsctl_transaction_read,
 	.release	= simple_transaction_release,
+	.llseek		= default_llseek,
 };
 
 static int exports_open(struct inode *inode, struct file *file)

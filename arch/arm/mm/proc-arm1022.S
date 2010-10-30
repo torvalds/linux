@@ -394,7 +394,7 @@ ENTRY(cpu_arm1022_set_pte_ext)
 #endif /* CONFIG_MMU */
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__arm1022_setup, #function
 __arm1022_setup:

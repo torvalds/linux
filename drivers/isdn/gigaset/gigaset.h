@@ -70,7 +70,6 @@ enum debuglevel {
 	DEBUG_STREAM_DUMP = 0x00080, /* application data stream content */
 	DEBUG_LLDATA	  = 0x00100, /* sent/received LL data */
 	DEBUG_EVENT	  = 0x00200, /* event processing */
-	DEBUG_DRIVER	  = 0x00400, /* driver structure */
 	DEBUG_HDLC	  = 0x00800, /* M10x HDLC processing */
 	DEBUG_CHANNEL	  = 0x01000, /* channel allocation/deallocation */
 	DEBUG_TRANSCMD	  = 0x02000, /* AT-COMMANDS+RESPONSES */
@@ -727,7 +726,7 @@ struct gigaset_driver *gigaset_initdriver(unsigned minor, unsigned minors,
 
 /* Deallocate driver structure. */
 void gigaset_freedriver(struct gigaset_driver *drv);
-void gigaset_debugdrivers(void);
+
 struct cardstate *gigaset_get_cs_by_tty(struct tty_struct *tty);
 struct cardstate *gigaset_get_cs_by_id(int id);
 void gigaset_blockdriver(struct gigaset_driver *drv);

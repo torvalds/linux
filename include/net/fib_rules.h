@@ -31,6 +31,8 @@ struct fib_lookup_arg {
 	void			*lookup_ptr;
 	void			*result;
 	struct fib_rule		*rule;
+	int			flags;
+#define FIB_LOOKUP_NOREF	1
 };
 
 struct fib_rules_ops {
@@ -106,7 +108,6 @@ static inline u32 frh_get_table(struct fib_rule_hdr *frh, struct nlattr **nla)
 
 extern struct fib_rules_ops *fib_rules_register(const struct fib_rules_ops *, struct net *);
 extern void fib_rules_unregister(struct fib_rules_ops *);
-extern void                     fib_rules_cleanup_ops(struct fib_rules_ops *);
 
 extern int			fib_rules_lookup(struct fib_rules_ops *,
 						 struct flowi *, int flags,

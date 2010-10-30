@@ -60,11 +60,14 @@ static LIST_HEAD(adapter_list);
 static const unsigned int MAX_ATIDS = 64 * 1024;
 static const unsigned int ATID_BASE = 0x10000;
 
+static void cxgb_neigh_update(struct neighbour *neigh);
+static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new);
+
 static inline int offload_activated(struct t3cdev *tdev)
 {
 	const struct adapter *adapter = tdev2adap(tdev);
 
-	return (test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map));
+	return test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map);
 }
 
 /**
@@ -1015,7 +1018,7 @@ EXPORT_SYMBOL(t3_register_cpl_handler);
 /*
  * T3CDEV's receive method.
  */
-int process_rx(struct t3cdev *dev, struct sk_buff **skbs, int n)
+static int process_rx(struct t3cdev *dev, struct sk_buff **skbs, int n)
 {
 	while (n--) {
 		struct sk_buff *skb = *skbs++;
@@ -1070,7 +1073,7 @@ static int is_offloading(struct net_device *dev)
 	return 0;
 }
 
-void cxgb_neigh_update(struct neighbour *neigh)
+static void cxgb_neigh_update(struct neighbour *neigh)
 {
 	struct net_device *dev = neigh->dev;
 
@@ -1104,7 +1107,7 @@ static void set_l2t_ix(struct t3cdev *tdev, u32 tid, struct l2t_entry *e)
 	tdev->send(tdev, skb);
 }
 
-void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
+static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
 {
 	struct net_device *olddev, *newdev;
 	struct tid_info *ti;

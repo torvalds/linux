@@ -152,6 +152,7 @@ static const struct file_operations prng_fops = {
 	.open		= &prng_open,
 	.release	= NULL,
 	.read		= &prng_read,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice prng_dev = {

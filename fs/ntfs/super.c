@@ -30,7 +30,6 @@
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
 #include <linux/moduleparam.h>
-#include <linux/smp_lock.h>
 #include <linux/bitmap.h>
 
 #include "sysctl.h"
@@ -445,7 +444,6 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 
 	ntfs_debug("Entering with remount options string: %s", opt);
 
-	lock_kernel();
 #ifndef NTFS_RW
 	/* For read-only compiled driver, enforce read-only flag. */
 	*flags |= MS_RDONLY;
@@ -469,18 +467,15 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 		if (NVolErrors(vol)) {
 			ntfs_error(sb, "Volume has errors and is read-only%s",
 					es);
-			unlock_kernel();
 			return -EROFS;
 		}
 		if (vol->vol_flags & VOLUME_IS_DIRTY) {
 			ntfs_error(sb, "Volume is dirty and read-only%s", es);
-			unlock_kernel();
 			return -EROFS;
 		}
 		if (vol->vol_flags & VOLUME_MODIFIED_BY_CHKDSK) {
 			ntfs_error(sb, "Volume has been modified by chkdsk "
 					"and is read-only%s", es);
-			unlock_kernel();
 			return -EROFS;
 		}
 		if (vol->vol_flags & VOLUME_MUST_MOUNT_RO_MASK) {
@@ -488,13 +483,11 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 					"(0x%x) and is read-only%s",
 					(unsigned)le16_to_cpu(vol->vol_flags),
 					es);
-			unlock_kernel();
 			return -EROFS;
 		}
 		if (ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY)) {
 			ntfs_error(sb, "Failed to set dirty bit in volume "
 					"information flags%s", es);
-			unlock_kernel();
 			return -EROFS;
 		}
 #if 0
@@ -514,21 +507,18 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 			ntfs_error(sb, "Failed to empty journal $LogFile%s",
 					es);
 			NVolSetErrors(vol);
-			unlock_kernel();
 			return -EROFS;
 		}
 		if (!ntfs_mark_quotas_out_of_date(vol)) {
 			ntfs_error(sb, "Failed to mark quotas out of date%s",
 					es);
 			NVolSetErrors(vol);
-			unlock_kernel();
 			return -EROFS;
 		}
 		if (!ntfs_stamp_usnjrnl(vol)) {
 			ntfs_error(sb, "Failed to stamp transation log "
 					"($UsnJrnl)%s", es);
 			NVolSetErrors(vol);
-			unlock_kernel();
 			return -EROFS;
 		}
 	} else if (!(sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY)) {
@@ -544,11 +534,9 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 
 	// TODO: Deal with *flags.
 
-	if (!parse_options(vol, opt)) {
-		unlock_kernel();
+	if (!parse_options(vol, opt))
 		return -EINVAL;
-	}
-	unlock_kernel();
+
 	ntfs_debug("Done.");
 	return 0;
 }
@@ -2261,8 +2249,6 @@ static void ntfs_put_super(struct super_block *sb)
 
 	ntfs_debug("Entering.");
 
-	lock_kernel();
-
 #ifdef NTFS_RW
 	/*
 	 * Commit all inodes while they are still open in case some of them
@@ -2433,8 +2419,6 @@ static void ntfs_put_super(struct super_block *sb)
 
 	sb->s_fs_info = NULL;
 	kfree(vol);
-
-	unlock_kernel();
 }
 
 /**
@@ -2772,8 +2756,6 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	init_rwsem(&vol->mftbmp_lock);
 	init_rwsem(&vol->lcnbmp_lock);
 
-	unlock_kernel();
-
 	/* By default, enable sparse support. */
 	NVolSetSparseEnabled(vol);
 
@@ -2940,7 +2922,6 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		}
 		mutex_unlock(&ntfs_lock);
 		sb->s_export_op = &ntfs_export_ops;
-		lock_kernel();
 		lockdep_on();
 		return 0;
 	}
@@ -3057,7 +3038,6 @@ iput_tmp_ino_err_out_now:
 	}
 	/* Errors at this stage are irrelevant. */
 err_out_now:
-	lock_kernel();
 	sb->s_fs_info = NULL;
 	kfree(vol);
 	ntfs_debug("Failed, returning -EINVAL.");

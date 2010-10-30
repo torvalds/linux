@@ -313,8 +313,6 @@ __setup("force_ep80219", force_ep80219_setup);
 
 MACHINE_START(IQ31244, "Intel IQ31244")
 	/* Maintainer: Intel Corp. */
-	.phys_io	= IQ31244_UART,
-	.io_pg_offst	= ((IQ31244_UART) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= iq31244_map_io,
 	.init_irq	= iop32x_init_irq,
@@ -329,8 +327,6 @@ MACHINE_END
  */
 MACHINE_START(EP80219, "Intel EP80219")
 	/* Maintainer: Intel Corp. */
-	.phys_io	= IQ31244_UART,
-	.io_pg_offst	= ((IQ31244_UART) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= iq31244_map_io,
 	.init_irq	= iop32x_init_irq,

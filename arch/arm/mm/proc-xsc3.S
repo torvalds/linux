@@ -404,7 +404,7 @@ ENTRY(cpu_xsc3_set_pte_ext)
 
 	.align
 
-	__INIT
+	__CPUINIT
 
 	.type	__xsc3_setup, #function
 __xsc3_setup:

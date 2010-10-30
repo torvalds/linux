@@ -174,6 +174,7 @@ static const struct file_operations debug_file_ops = {
 	.write   = debug_input,
 	.open    = debug_open,
 	.release = debug_close,
+	.llseek  = no_llseek,
 };
 
 static struct dentry *debug_debugfs_root_entry;

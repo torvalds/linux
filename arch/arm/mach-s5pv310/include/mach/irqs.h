@@ -68,6 +68,8 @@
 
 #define IRQ_IIC			COMBINER_IRQ(27, 0)
 
+#define IRQ_ONENAND_AUDI	COMBINER_IRQ(34, 0)
+
 /* Set the default NR_IRQS */
 
 #define NR_IRQS			COMBINER_IRQ(MAX_COMBINER_NR, 0)

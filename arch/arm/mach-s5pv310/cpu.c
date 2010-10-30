@@ -31,21 +31,6 @@ extern void combiner_cascade_irq(unsigned int combiner_nr, unsigned int irq);
 /* Initial IO mappings */
 static struct map_desc s5pv310_iodesc[] __initdata = {
 	{
-		.virtual	= (unsigned long)S5P_VA_COREPERI_BASE,
-		.pfn		= __phys_to_pfn(S5PV310_PA_COREPERI),
-		.length		= SZ_8K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= (unsigned long)S5P_VA_COMBINER_BASE,
-		.pfn		= __phys_to_pfn(S5PV310_PA_COMBINER),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= (unsigned long)S5P_VA_L2CC,
-		.pfn		= __phys_to_pfn(S5PV310_PA_L2CC),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	}, {
 		.virtual	= (unsigned long)S5P_VA_SYSRAM,
 		.pfn		= __phys_to_pfn(S5PV310_PA_SYSRAM),
 		.length		= SZ_4K,
@@ -54,6 +39,31 @@ static struct map_desc s5pv310_iodesc[] __initdata = {
 		.virtual	= (unsigned long)S5P_VA_CMU,
 		.pfn		= __phys_to_pfn(S5PV310_PA_CMU),
 		.length		= SZ_128K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_COMBINER_BASE,
+		.pfn		= __phys_to_pfn(S5PV310_PA_COMBINER),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_COREPERI_BASE,
+		.pfn		= __phys_to_pfn(S5PV310_PA_COREPERI),
+		.length		= SZ_8K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_L2CC,
+		.pfn		= __phys_to_pfn(S5PV310_PA_L2CC),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_GPIO,
+		.pfn		= __phys_to_pfn(S5PV310_PA_GPIO1),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_UART,
+		.pfn		= __phys_to_pfn(S3C_PA_UART),
+		.length		= SZ_512K,
 		.type		= MT_DEVICE,
 	},
 };

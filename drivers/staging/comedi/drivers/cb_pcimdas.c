@@ -37,7 +37,7 @@ Configuration Options:
 Developed from cb_pcidas and skel by Richard Bytheway (mocelet@sucs.org).
 Only supports DIO, AO and simple AI in it's present form.
 No interrupts, multi channel or FIFO AI, although the card looks like it could support this.
-See http://www.measurementcomputing.com/PDFManuals/pcim-das1602_16.pdf for more details.
+See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 */
 
 #include "../comedidev.h"

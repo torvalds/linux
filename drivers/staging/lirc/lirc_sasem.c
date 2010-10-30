@@ -125,6 +125,7 @@ static const struct file_operations vfd_fops = {
 	.write		= &vfd_write,
 	.unlocked_ioctl	= &vfd_ioctl,
 	.release	= &vfd_close,
+	.llseek		= noop_llseek,
 };
 
 /* USB Device ID for Sasem USB Control Board */

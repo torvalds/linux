@@ -506,7 +506,7 @@ ENTRY(cpu_xscale_set_pte_ext)
 
 	.align
 
-	__INIT
+	__CPUINIT
 
 	.type	__xscale_setup, #function
 __xscale_setup:

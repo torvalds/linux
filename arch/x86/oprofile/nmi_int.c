@@ -674,6 +674,7 @@ static int __init ppro_init(char **cpu_type)
 	case 0x0f:
 	case 0x16:
 	case 0x17:
+	case 0x1d:
 		*cpu_type = "i386/core_2";
 		break;
 	case 0x1a:
@@ -694,17 +695,12 @@ static int __init ppro_init(char **cpu_type)
 	return 1;
 }
 
-/* in order to get sysfs right */
-static int using_nmi;
-
 int __init op_nmi_init(struct oprofile_operations *ops)
 {
 	__u8 vendor = boot_cpu_data.x86_vendor;
 	__u8 family = boot_cpu_data.x86;
 	char *cpu_type = NULL;
 	int ret = 0;
-
-	using_nmi = 0;
 
 	if (!cpu_has_apic)
 		return -ENODEV;
@@ -789,13 +785,11 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	if (ret)
 		return ret;
 
-	using_nmi = 1;
 	printk(KERN_INFO "oprofile: using NMI interrupt.\n");
 	return 0;
 }
 
 void op_nmi_exit(void)
 {
-	if (using_nmi)
-		exit_sysfs();
+	exit_sysfs();
 }

@@ -24,56 +24,19 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/physmap.h>
-#include <linux/spi/flash.h>
-#include <linux/spi/spi.h>
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
-#include <linux/i2c.h>
-#include <linux/i2c/at24.h>
 #include <linux/input.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/leds.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
 #include <mach/kirkwood.h>
 #include <mach/leds-ns2.h>
-#include <plat/time.h>
 #include "common.h"
 #include "mpp.h"
-
-/*****************************************************************************
- * 512KB SPI Flash on Boot Device (MACRONIX MX25L4005)
- ****************************************************************************/
-
-static struct mtd_partition netspace_v2_flash_parts[] = {
-	{
-		.name = "u-boot",
-		.size = MTDPART_SIZ_FULL,
-		.offset = 0,
-		.mask_flags = MTD_WRITEABLE, /* force read-only */
-	},
-};
-
-static const struct flash_platform_data netspace_v2_flash = {
-	.type		= "mx25l4005a",
-	.name		= "spi_flash",
-	.parts		= netspace_v2_flash_parts,
-	.nr_parts	= ARRAY_SIZE(netspace_v2_flash_parts),
-};
-
-static struct spi_board_info __initdata netspace_v2_spi_slave_info[] = {
-	{
-		.modalias	= "m25p80",
-		.platform_data	= &netspace_v2_flash,
-		.irq		= -1,
-		.max_speed_hz	= 20000000,
-		.bus_num	= 0,
-		.chip_select	= 0,
-	},
-};
+#include "lacie_v2-common.h"
 
 /*****************************************************************************
  * Ethernet
@@ -84,62 +47,12 @@ static struct mv643xx_eth_platform_data netspace_v2_ge00_data = {
 };
 
 /*****************************************************************************
- * I2C devices
- ****************************************************************************/
-
-static struct at24_platform_data at24c04 = {
-	.byte_len	= SZ_4K / 8,
-	.page_size	= 16,
-};
-
-/*
- * i2c addr | chip         | description
- * 0x50     | HT24LC04     | eeprom (512B)
- */
-
-static struct i2c_board_info __initdata netspace_v2_i2c_info[] = {
-	{
-		I2C_BOARD_INFO("24c04", 0x50),
-		.platform_data  = &at24c04,
-	}
-};
-
-/*****************************************************************************
  * SATA
  ****************************************************************************/
 
 static struct mv_sata_platform_data netspace_v2_sata_data = {
 	.n_ports	= 2,
 };
-
-#define NETSPACE_V2_GPIO_SATA0_POWER	16
-#define NETSPACE_V2_GPIO_SATA1_POWER	17
-
-static void __init netspace_v2_sata_power_init(void)
-{
-	int err;
-
-	err = gpio_request(NETSPACE_V2_GPIO_SATA0_POWER, "SATA0 power");
-	if (err == 0) {
-		err = gpio_direction_output(NETSPACE_V2_GPIO_SATA0_POWER, 1);
-		if (err)
-			gpio_free(NETSPACE_V2_GPIO_SATA0_POWER);
-	}
-	if (err)
-		pr_err("netspace_v2: failed to setup SATA0 power\n");
-
-	if (machine_is_netspace_max_v2()) {
-		err = gpio_request(NETSPACE_V2_GPIO_SATA1_POWER, "SATA1 power");
-		if (err == 0) {
-			err = gpio_direction_output(
-					NETSPACE_V2_GPIO_SATA1_POWER, 1);
-			if (err)
-				gpio_free(NETSPACE_V2_GPIO_SATA1_POWER);
-		}
-		if (err)
-			pr_err("netspace_v2: failed to setup SATA1 power\n");
-	}
-}
 
 /*****************************************************************************
  * GPIO keys
@@ -224,20 +137,6 @@ static struct platform_device netspace_v2_leds = {
 };
 
 /*****************************************************************************
- * Timer
- ****************************************************************************/
-
-static void netspace_v2_timer_init(void)
-{
-	kirkwood_tclk = 166666667;
-	orion_time_init(IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);
-}
-
-struct sys_timer netspace_v2_timer = {
-	.init = netspace_v2_timer_init,
-};
-
-/*****************************************************************************
  * General Setup
  ****************************************************************************/
 
@@ -291,18 +190,17 @@ static void __init netspace_v2_init(void)
 	kirkwood_init();
 	kirkwood_mpp_conf(netspace_v2_mpp_config);
 
-	netspace_v2_sata_power_init();
+	if (machine_is_netspace_max_v2())
+		lacie_v2_hdd_power_init(2);
+	else
+		lacie_v2_hdd_power_init(1);
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&netspace_v2_ge00_data);
 	kirkwood_sata_init(&netspace_v2_sata_data);
 	kirkwood_uart0_init();
-	spi_register_board_info(netspace_v2_spi_slave_info,
-				ARRAY_SIZE(netspace_v2_spi_slave_info));
-	kirkwood_spi_init();
-	kirkwood_i2c_init();
-	i2c_register_board_info(0, netspace_v2_i2c_info,
-				ARRAY_SIZE(netspace_v2_i2c_info));
+	lacie_v2_register_flash();
+	lacie_v2_register_i2c_devices();
 
 	platform_device_register(&netspace_v2_leds);
 	platform_device_register(&netspace_v2_gpio_leds);
@@ -317,36 +215,30 @@ static void __init netspace_v2_init(void)
 
 #ifdef CONFIG_MACH_NETSPACE_V2
 MACHINE_START(NETSPACE_V2, "LaCie Network Space v2")
-	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
-	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= netspace_v2_init,
 	.map_io		= kirkwood_map_io,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &netspace_v2_timer,
+	.timer		= &lacie_v2_timer,
 MACHINE_END
 #endif
 
 #ifdef CONFIG_MACH_INETSPACE_V2
 MACHINE_START(INETSPACE_V2, "LaCie Internet Space v2")
-	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
-	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= netspace_v2_init,
 	.map_io		= kirkwood_map_io,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &netspace_v2_timer,
+	.timer		= &lacie_v2_timer,
 MACHINE_END
 #endif
 
 #ifdef CONFIG_MACH_NETSPACE_MAX_V2
 MACHINE_START(NETSPACE_MAX_V2, "LaCie Network Space Max v2")
-	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
-	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= netspace_v2_init,
 	.map_io		= kirkwood_map_io,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &netspace_v2_timer,
+	.timer		= &lacie_v2_timer,
 MACHINE_END
 #endif

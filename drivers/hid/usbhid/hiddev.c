@@ -67,8 +67,6 @@ struct hiddev_list {
 	struct mutex thread_lock;
 };
 
-static struct usb_driver hiddev_driver;
-
 /*
  * Find a report, given the report's type and ID.  The ID can be specified
  * indirectly by REPORT_ID_FIRST (which returns the first report of the given
@@ -847,6 +845,7 @@ static const struct file_operations hiddev_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= hiddev_compat_ioctl,
 #endif
+	.llseek		= noop_llseek,
 };
 
 static char *hiddev_devnode(struct device *dev, mode_t *mode)
@@ -924,42 +923,4 @@ void hiddev_disconnect(struct hid_device *hid)
 	} else {
 		kfree(hiddev);
 	}
-}
-
-/* Currently this driver is a USB driver.  It's not a conventional one in
- * the sense that it doesn't probe at the USB level.  Instead it waits to
- * be connected by HID through the hiddev_connect / hiddev_disconnect
- * routines.  The reason to register as a USB device is to gain part of the
- * minor number space from the USB major.
- *
- * In theory, should the HID code be generalized to more than one physical
- * medium (say, IEEE 1384), this driver will probably need to register its
- * own major number, and in doing so, no longer need to register with USB.
- * At that point the probe routine and hiddev_driver struct below will no
- * longer be useful.
- */
-
-
-/* We never attach in this manner, and rely on HID to connect us.  This
- * is why there is no disconnect routine defined in the usb_driver either.
- */
-static int hiddev_usbd_probe(struct usb_interface *intf,
-			     const struct usb_device_id *hiddev_info)
-{
-	return -ENODEV;
-}
-
-static /* const */ struct usb_driver hiddev_driver = {
-	.name =		"hiddev",
-	.probe =	hiddev_usbd_probe,
-};
-
-int __init hiddev_init(void)
-{
-	return usb_register(&hiddev_driver);
-}
-
-void hiddev_exit(void)
-{
-	usb_deregister(&hiddev_driver);
 }

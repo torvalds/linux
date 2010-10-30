@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/poll.h>
 #include <linux/ioctl.h>
 #include <linux/wait.h>
@@ -1088,13 +1087,7 @@ static int dvb_demux_do_ioctl(struct file *file,
 static long dvb_demux_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
-	int ret;
-
-	lock_kernel();
-	ret = dvb_usercopy(file, cmd, arg, dvb_demux_do_ioctl);
-	unlock_kernel();
-
-	return ret;
+	return dvb_usercopy(file, cmd, arg, dvb_demux_do_ioctl);
 }
 
 static unsigned int dvb_demux_poll(struct file *file, poll_table *wait)
@@ -1150,6 +1143,7 @@ static const struct file_operations dvb_demux_fops = {
 	.open = dvb_demux_open,
 	.release = dvb_demux_release,
 	.poll = dvb_demux_poll,
+	.llseek = default_llseek,
 };
 
 static struct dvb_device dvbdev_demux = {
@@ -1186,13 +1180,7 @@ static int dvb_dvr_do_ioctl(struct file *file,
 static long dvb_dvr_ioctl(struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
-	int ret;
-
-	lock_kernel();
-	ret = dvb_usercopy(file, cmd, arg, dvb_dvr_do_ioctl);
-	unlock_kernel();
-
-	return ret;
+	return dvb_usercopy(file, cmd, arg, dvb_dvr_do_ioctl);
 }
 
 static unsigned int dvb_dvr_poll(struct file *file, poll_table *wait)
@@ -1225,6 +1213,7 @@ static const struct file_operations dvb_dvr_fops = {
 	.open = dvb_dvr_open,
 	.release = dvb_dvr_release,
 	.poll = dvb_dvr_poll,
+	.llseek = default_llseek,
 };
 
 static struct dvb_device dvbdev_dvr = {

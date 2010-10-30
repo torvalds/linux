@@ -181,8 +181,6 @@ static void __init xcep_init(void)
 }
 
 MACHINE_START(XCEP, "Iskratel XCEP")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.init_machine	= xcep_init,
 	.map_io		= pxa_map_io,

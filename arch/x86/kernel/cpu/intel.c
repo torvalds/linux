@@ -39,6 +39,7 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 			misc_enable &= ~MSR_IA32_MISC_ENABLE_LIMIT_CPUID;
 			wrmsrl(MSR_IA32_MISC_ENABLE, misc_enable);
 			c->cpuid_level = cpuid_eax(0);
+			get_cpu_cap(c);
 		}
 	}
 
@@ -169,7 +170,7 @@ static void __cpuinit intel_smp_check(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	/* calling is from identify_secondary_cpu() ? */
-	if (c->cpu_index == boot_cpu_id)
+	if (!c->cpu_index)
 		return;
 
 	/*
@@ -283,9 +284,7 @@ static void __cpuinit srat_detect_node(struct cpuinfo_x86 *c)
 	/* Don't do the funky fallback heuristics the AMD version employs
 	   for now. */
 	node = apicid_to_node[apicid];
-	if (node == NUMA_NO_NODE)
-		node = first_node(node_online_map);
-	else if (!node_online(node)) {
+	if (node == NUMA_NO_NODE || !node_online(node)) {
 		/* reuse the value from init_cpu_to_node() */
 		node = cpu_to_node(cpu);
 	}

@@ -170,12 +170,6 @@ extern int restore_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries);
 
 extern void probe_nr_irqs_gsi(void);
 
-extern int setup_ioapic_entry(int apic, int irq,
-			      struct IO_APIC_route_entry *entry,
-			      unsigned int destination, int trigger,
-			      int polarity, int vector, int pin);
-extern void ioapic_write_entry(int apic, int pin,
-			       struct IO_APIC_route_entry e);
 extern void setup_ioapic_ids_from_mpc(void);
 
 struct mp_ioapic_gsi{

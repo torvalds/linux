@@ -258,6 +258,7 @@ static const struct file_operations omap_wdt_fops = {
 	.unlocked_ioctl = omap_wdt_ioctl,
 	.open = omap_wdt_open,
 	.release = omap_wdt_release,
+	.llseek = no_llseek,
 };
 
 static int __devinit omap_wdt_probe(struct platform_device *pdev)

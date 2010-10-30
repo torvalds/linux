@@ -37,7 +37,7 @@ boards has not
 yet been added to the driver, mainly due to the fact that
 I don't know the device id numbers.  If you have one
 of these boards,
-please file a bug report at https://bugs.comedi.org/
+please file a bug report at http://comedi.org/ 
 so I can get the necessary information from you.
 
 The 1200 series boards have onboard calibration dacs for correcting

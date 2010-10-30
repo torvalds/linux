@@ -32,11 +32,13 @@
 #include <mach/ohci.h>
 #include <plat/i2c.h>
 #include <mach/hardware.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <mach/camera.h>
 
 #include "devices.h"
 #include "generic.h"
+
+#define EZX_NR_IRQS			(IRQ_BOARD_START + 24)
 
 #define GPIO12_A780_FLIP_LID 		12
 #define GPIO15_A1200_FLIP_LID 		15
@@ -796,10 +798,9 @@ static void __init a780_init(void)
 }
 
 MACHINE_START(EZX_A780, "Motorola EZX A780")
-	.phys_io        = 0x40000000,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
+	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = a780_init,
@@ -862,10 +863,9 @@ static void __init e680_init(void)
 }
 
 MACHINE_START(EZX_E680, "Motorola EZX E680")
-	.phys_io        = 0x40000000,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
+	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = e680_init,
@@ -928,10 +928,9 @@ static void __init a1200_init(void)
 }
 
 MACHINE_START(EZX_A1200, "Motorola EZX A1200")
-	.phys_io        = 0x40000000,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
+	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = a1200_init,
@@ -1120,10 +1119,9 @@ static void __init a910_init(void)
 }
 
 MACHINE_START(EZX_A910, "Motorola EZX A910")
-	.phys_io        = 0x40000000,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
+	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = a910_init,
@@ -1186,10 +1184,9 @@ static void __init e6_init(void)
 }
 
 MACHINE_START(EZX_E6, "Motorola EZX E6")
-	.phys_io        = 0x40000000,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
+	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = e6_init,
@@ -1226,10 +1223,9 @@ static void __init e2_init(void)
 }
 
 MACHINE_START(EZX_E2, "Motorola EZX E2")
-	.phys_io        = 0x40000000,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params    = 0xa0000100,
 	.map_io         = pxa_map_io,
+	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = e2_init,

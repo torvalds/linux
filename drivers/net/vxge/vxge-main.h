@@ -172,7 +172,6 @@ struct vxge_msix_entry {
 
 struct vxge_sw_stats {
 	/* Network Stats (interface stats) */
-	struct net_device_stats net_stats;
 
 	/* Tx */
 	u64 tx_frms;

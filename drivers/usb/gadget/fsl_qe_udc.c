@@ -2302,9 +2302,10 @@ static irqreturn_t qe_udc_irq(int irq, void *_udc)
 }
 
 /*-------------------------------------------------------------------------
-	Gadget driver register and unregister.
+	Gadget driver probe and unregister.
  --------------------------------------------------------------------------*/
-int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	int retval;
 	unsigned long flags = 0;
@@ -2315,8 +2316,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 
 	if (!driver || (driver->speed != USB_SPEED_FULL
 			&& driver->speed != USB_SPEED_HIGH)
-			|| !driver->bind || !driver->disconnect
-			|| !driver->setup)
+			|| !bind || !driver->disconnect || !driver->setup)
 		return -EINVAL;
 
 	if (udc_controller->driver)
@@ -2332,7 +2332,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	udc_controller->gadget.speed = (enum usb_device_speed)(driver->speed);
 	spin_unlock_irqrestore(&udc_controller->lock, flags);
 
-	retval = driver->bind(&udc_controller->gadget);
+	retval = bind(&udc_controller->gadget);
 	if (retval) {
 		dev_err(udc_controller->dev, "bind to %s --> %d",
 				driver->driver.name, retval);
@@ -2353,7 +2353,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		udc_controller->gadget.name, driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {

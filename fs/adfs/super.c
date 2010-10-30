@@ -352,11 +352,15 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct adfs_sb_info *asb;
 	struct inode *root;
 
+	lock_kernel();
+
 	sb->s_flags |= MS_NODIRATIME;
 
 	asb = kzalloc(sizeof(*asb), GFP_KERNEL);
-	if (!asb)
+	if (!asb) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	sb->s_fs_info = asb;
 
 	/* set default options */
@@ -474,6 +478,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto error;
 	} else
 		sb->s_root->d_op = &adfs_dentry_operations;
+	unlock_kernel();
 	return 0;
 
 error_free_bh:
@@ -481,6 +486,7 @@ error_free_bh:
 error:
 	sb->s_fs_info = NULL;
 	kfree(asb);
+	unlock_kernel();
 	return -EINVAL;
 }
 

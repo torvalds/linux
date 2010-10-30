@@ -317,8 +317,6 @@ static void f_audio_playback_work(struct work_struct *data)
 
 	u_audio_playback(&audio->card, play_buf->buf, play_buf->actual);
 	f_audio_buffer_free(play_buf);
-
-	return;
 }
 
 static int f_audio_out_ep_complete(struct usb_ep *ep, struct usb_request *req)

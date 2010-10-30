@@ -2840,7 +2840,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
 			       const struct pci_device_id *ent)
 {
 	struct fw_ohci *ohci;
-	u32 bus_options, max_receive, link_speed, version, link_enh;
+	u32 bus_options, max_receive, link_speed, version;
 	u64 guid;
 	int i, err, n_ir, n_it;
 	size_t size;
@@ -2893,23 +2893,6 @@ static int __devinit pci_probe(struct pci_dev *dev,
 		}
 	if (param_quirks)
 		ohci->quirks = param_quirks;
-
-	/* TI OHCI-Lynx and compatible: set recommended configuration bits. */
-	if (dev->vendor == PCI_VENDOR_ID_TI) {
-		pci_read_config_dword(dev, PCI_CFG_TI_LinkEnh, &link_enh);
-
-		/* adjust latency of ATx FIFO: use 1.7 KB threshold */
-		link_enh &= ~TI_LinkEnh_atx_thresh_mask;
-		link_enh |= TI_LinkEnh_atx_thresh_1_7K;
-
-		/* use priority arbitration for asynchronous responses */
-		link_enh |= TI_LinkEnh_enab_unfair;
-
-		/* required for aPhyEnhanceEnable to work */
-		link_enh |= TI_LinkEnh_enab_accel;
-
-		pci_write_config_dword(dev, PCI_CFG_TI_LinkEnh, link_enh);
-	}
 
 	ar_context_init(&ohci->ar_request_ctx, ohci,
 			OHCI1394_AsReqRcvContextControlSet);

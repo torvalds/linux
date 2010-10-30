@@ -49,20 +49,19 @@ static inline int check_stack_overflow(void) { return 0; }
 static inline void print_stack_overflow(void) { }
 #endif
 
-#ifdef CONFIG_4KSTACKS
 /*
  * per-CPU IRQ handling contexts (thread information and stack)
  */
 union irq_ctx {
 	struct thread_info      tinfo;
 	u32                     stack[THREAD_SIZE/sizeof(u32)];
-} __attribute__((aligned(PAGE_SIZE)));
+} __attribute__((aligned(THREAD_SIZE)));
 
 static DEFINE_PER_CPU(union irq_ctx *, hardirq_ctx);
 static DEFINE_PER_CPU(union irq_ctx *, softirq_ctx);
 
-static DEFINE_PER_CPU_PAGE_ALIGNED(union irq_ctx, hardirq_stack);
-static DEFINE_PER_CPU_PAGE_ALIGNED(union irq_ctx, softirq_stack);
+static DEFINE_PER_CPU_MULTIPAGE_ALIGNED(union irq_ctx, hardirq_stack, THREAD_SIZE);
+static DEFINE_PER_CPU_MULTIPAGE_ALIGNED(union irq_ctx, softirq_stack, THREAD_SIZE);
 
 static void call_on_stack(void *func, void *stack)
 {
@@ -186,11 +185,6 @@ asmlinkage void do_softirq(void)
 
 	local_irq_restore(flags);
 }
-
-#else
-static inline int
-execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq) { return 0; }
-#endif
 
 bool handle_irq(unsigned irq, struct pt_regs *regs)
 {

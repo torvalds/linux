@@ -40,7 +40,6 @@ int __compute_return_epc(struct pt_regs *regs)
 		return -EFAULT;
 	}
 
-	regs->regs[0] = 0;
 	switch (insn.i_format.opcode) {
 	/*
 	 * jr and jalr are in r_format format.

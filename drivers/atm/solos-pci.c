@@ -444,6 +444,7 @@ static ssize_t console_show(struct device *dev, struct device_attribute *attr,
 	struct atm_dev *atmdev = container_of(dev, struct atm_dev, class_dev);
 	struct solos_card *card = atmdev->dev_data;
 	struct sk_buff *skb;
+	unsigned int len;
 
 	spin_lock(&card->cli_queue_lock);
 	skb = skb_dequeue(&card->cli_queue[SOLOS_CHAN(atmdev)]);
@@ -451,11 +452,12 @@ static ssize_t console_show(struct device *dev, struct device_attribute *attr,
 	if(skb == NULL)
 		return sprintf(buf, "No data.\n");
 
-	memcpy(buf, skb->data, skb->len);
-	dev_dbg(&card->dev->dev, "len: %d\n", skb->len);
+	len = skb->len;
+	memcpy(buf, skb->data, len);
+	dev_dbg(&card->dev->dev, "len: %d\n", len);
 
 	kfree_skb(skb);
-	return skb->len;
+	return len;
 }
 
 static int send_command(struct solos_card *card, int dev, const char *buf, size_t size)

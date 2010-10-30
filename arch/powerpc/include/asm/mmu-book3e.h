@@ -114,6 +114,17 @@
 
 #define MAS7_RPN		0xFFFFFFFF
 
+/* Bit definitions for MMUCFG */
+#define MMUCFG_MAVN	0x00000003	/* MMU Architecture Version Number */
+#define MMUCFG_MAVN_V1	0x00000000	/* v1.0 */
+#define MMUCFG_MAVN_V2	0x00000001	/* v2.0 */
+#define MMUCFG_NTLBS	0x0000000c	/* Number of TLBs */
+#define MMUCFG_PIDSIZE	0x000007c0	/* PID Reg Size */
+#define MMUCFG_TWC	0x00008000	/* TLB Write Conditional (v2.0) */
+#define MMUCFG_LRAT	0x00010000	/* LRAT Supported (v2.0) */
+#define MMUCFG_RASIZE	0x00fe0000	/* Real Addr Size */
+#define MMUCFG_LPIDSIZE	0x0f000000	/* LPID Reg Size */
+
 /* Bit definitions for MMUCSR0 */
 #define MMUCSR0_TLB1FI	0x00000002	/* TLB1 Flash invalidate */
 #define MMUCSR0_TLB0FI	0x00000004	/* TLB0 Flash invalidate */
@@ -133,6 +144,10 @@
 #define TLBnCFG_GTWE		0x00010000	/* Guest can write */
 #define TLBnCFG_IND		0x00020000	/* IND entries supported */
 #define TLBnCFG_PT		0x00040000	/* Can load from page table */
+#define TLBnCFG_MINSIZE		0x00f00000	/* Minimum Page Size (v1.0) */
+#define TLBnCFG_MINSIZE_SHIFT	20
+#define TLBnCFG_MAXSIZE		0x000f0000	/* Maximum Page Size (v1.0) */
+#define TLBnCFG_MAXSIZE_SHIFT	16
 #define TLBnCFG_ASSOC		0xff000000	/* Associativity */
 
 /* TLBnPS encoding */

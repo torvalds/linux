@@ -251,8 +251,6 @@ static void __init edmini_v2_init(void)
 /* Warning: LaCie use a wrong mach-type (0x20e=526) in their bootloader. */
 MACHINE_START(EDMINI_V2, "LaCie Ethernet Disk mini V2")
 	/* Maintainer: Christopher Moore <moore@free.fr> */
-	.phys_io	= ORION5X_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= edmini_v2_init,
 	.map_io		= orion5x_map_io,

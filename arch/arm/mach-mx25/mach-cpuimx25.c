@@ -23,7 +23,6 @@
 #include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
-#include <linux/fec.h>
 #include <linux/platform_device.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
@@ -41,7 +40,6 @@
 #include <mach/mxc_nand.h>
 #include <mach/imxfb.h>
 #include <mach/mxc_ehci.h>
-#include <mach/ulpi.h>
 #include <mach/iomux-mx25.h>
 
 #include "devices-imx25.h"
@@ -67,7 +65,7 @@ static struct pad_desc eukrea_cpuimx25_pads[] = {
 	MX25_PAD_I2C1_DAT__I2C1_DAT,
 };
 
-static struct fec_platform_data mx25_fec_pdata = {
+static const struct fec_platform_data mx25_fec_pdata __initconst = {
 	.phy	= PHY_INTERFACE_MODE_RMII,
 };
 
@@ -129,23 +127,18 @@ static void __init eukrea_cpuimx25_init(void)
 	imx25_add_imx_uart0(&uart_pdata);
 	imx25_add_mxc_nand(&eukrea_cpuimx25_nand_board_info);
 	mxc_register_device(&mx25_rtc_device, NULL);
-	mxc_register_device(&mx25_fec_device, &mx25_fec_pdata);
+	imx25_add_fec(&mx25_fec_pdata);
 
 	i2c_register_board_info(0, eukrea_cpuimx25_i2c_devices,
 				ARRAY_SIZE(eukrea_cpuimx25_i2c_devices));
 	imx25_add_imx_i2c0(&eukrea_cpuimx25_i2c0_data);
 
-#if defined(CONFIG_USB_ULPI)
-	if (otg_mode_host) {
-		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-
+	if (otg_mode_host)
 		mxc_register_device(&mxc_otg, &otg_pdata);
-	}
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
-#endif
-	if (!otg_mode_host)
+	else
 		mxc_register_device(&otg_udc_device, &otg_device_pdata);
+
+	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
 
 #ifdef CONFIG_MACH_EUKREA_MBIMXSD25_BASEBOARD
 	eukrea_mbimxsd25_baseboard_init();
@@ -163,8 +156,6 @@ static struct sys_timer eukrea_cpuimx25_timer = {
 
 MACHINE_START(EUKREA_CPUIMX25, "Eukrea CPUIMX25")
 	/* Maintainer: Eukrea Electromatique */
-	.phys_io	= MX25_AIPS1_BASE_ADDR,
-	.io_pg_offst	= ((MX25_AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = MX25_PHYS_OFFSET + 0x100,
 	.map_io         = mx25_map_io,
 	.init_irq       = mx25_init_irq,

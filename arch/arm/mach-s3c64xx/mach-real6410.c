@@ -141,8 +141,6 @@ static void __init real6410_machine_init(void)
 
 MACHINE_START(REAL6410, "REAL6410")
 	/* Maintainer: Darius Augulis <augulis.darius@gmail.com> */
-	.phys_io	= S3C_PA_UART & 0xfff00000,
-	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
 
 	.init_irq	= s3c6410_init_irq,

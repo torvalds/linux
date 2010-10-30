@@ -1,5 +1,6 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/smp.h>
 #include <linux/time.h>
 #include <linux/clockchips.h>

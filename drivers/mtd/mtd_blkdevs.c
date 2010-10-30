@@ -29,7 +29,6 @@
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/hdreg.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
@@ -38,6 +37,7 @@
 
 #include "mtdcore.h"
 
+static DEFINE_MUTEX(mtd_blkdevs_mutex);
 static LIST_HEAD(blktrans_majors);
 static DEFINE_MUTEX(blktrans_ref_mutex);
 
@@ -185,6 +185,7 @@ static int blktrans_open(struct block_device *bdev, fmode_t mode)
 	if (!dev)
 		return -ERESTARTSYS; /* FIXME: busy loop! -arnd*/
 
+	mutex_lock(&mtd_blkdevs_mutex);
 	mutex_lock(&dev->lock);
 
 	if (dev->open++)
@@ -201,6 +202,7 @@ static int blktrans_open(struct block_device *bdev, fmode_t mode)
 unlock:
 	mutex_unlock(&dev->lock);
 	blktrans_dev_put(dev);
+	mutex_unlock(&mtd_blkdevs_mutex);
 	return ret;
 }
 
@@ -212,6 +214,7 @@ static int blktrans_release(struct gendisk *disk, fmode_t mode)
 	if (!dev)
 		return ret;
 
+	mutex_lock(&mtd_blkdevs_mutex);
 	mutex_lock(&dev->lock);
 
 	if (--dev->open)
@@ -227,6 +230,7 @@ static int blktrans_release(struct gendisk *disk, fmode_t mode)
 unlock:
 	mutex_unlock(&dev->lock);
 	blktrans_dev_put(dev);
+	mutex_unlock(&mtd_blkdevs_mutex);
 	return ret;
 }
 
@@ -259,6 +263,7 @@ static int blktrans_ioctl(struct block_device *bdev, fmode_t mode,
 	if (!dev)
 		return ret;
 
+	mutex_lock(&mtd_blkdevs_mutex);
 	mutex_lock(&dev->lock);
 
 	if (!dev->mtd)
@@ -273,6 +278,7 @@ static int blktrans_ioctl(struct block_device *bdev, fmode_t mode,
 	}
 unlock:
 	mutex_unlock(&dev->lock);
+	mutex_unlock(&mtd_blkdevs_mutex);
 	blktrans_dev_put(dev);
 	return ret;
 }

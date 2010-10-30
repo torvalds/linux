@@ -308,7 +308,7 @@ out_no_read:
  *
  *  Initializes the hw->mbx struct to correct values for vf mailbox
  */
-s32 ixgbevf_init_mbx_params_vf(struct ixgbe_hw *hw)
+static s32 ixgbevf_init_mbx_params_vf(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 

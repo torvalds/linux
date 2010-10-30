@@ -37,9 +37,4 @@ union vnic_rss_cpu {
 	u64 raw[32];
 };
 
-void vnic_set_rss_key(union vnic_rss_key *rss_key, u8 *key);
-void vnic_set_rss_cpu(union vnic_rss_cpu *rss_cpu, u8 *cpu);
-void vnic_get_rss_key(union vnic_rss_key *rss_key, u8 *key);
-void vnic_get_rss_cpu(union vnic_rss_cpu *rss_cpu, u8 *cpu);
-
 #endif /* _VNIC_RSS_H_ */

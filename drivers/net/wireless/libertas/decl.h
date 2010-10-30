@@ -8,7 +8,14 @@
 #define _LBS_DECL_H_
 
 #include <linux/netdevice.h>
+#include <linux/firmware.h>
 
+/* Should be terminated by a NULL entry */
+struct lbs_fw_table {
+	int model;
+	const char *helper;
+	const char *fwname;
+};
 
 struct lbs_private;
 struct sk_buff;
@@ -52,5 +59,11 @@ int lbs_exit_auto_deep_sleep(struct lbs_private *priv);
 
 u32 lbs_fw_index_to_data_rate(u8 index);
 u8 lbs_data_rate_to_fw_index(u32 rate);
+
+int lbs_get_firmware(struct device *dev, const char *user_helper,
+			const char *user_mainfw, u32 card_model,
+			const struct lbs_fw_table *fw_table,
+			const struct firmware **helper,
+			const struct firmware **mainfw);
 
 #endif

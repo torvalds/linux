@@ -1681,7 +1681,7 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 
 	if (unlikely(current->audit_context)) {
 #ifdef CONFIG_PPC64
-		if (!test_thread_flag(TIF_32BIT))
+		if (!is_32bit_task())
 			audit_syscall_entry(AUDIT_ARCH_PPC64,
 					    regs->gpr[0],
 					    regs->gpr[3], regs->gpr[4],

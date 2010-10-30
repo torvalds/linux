@@ -118,9 +118,10 @@ static int i830_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
 static const struct file_operations i830_buffer_fops = {
 	.open = drm_open,
 	.release = drm_release,
-	.unlocked_ioctl = drm_ioctl,
+	.unlocked_ioctl = i830_ioctl,
 	.mmap = i830_mmap_buffers,
 	.fasync = drm_fasync,
+	.llseek = noop_llseek,
 };
 
 static int i830_map_buffer(struct drm_buf *buf, struct drm_file *file_priv)

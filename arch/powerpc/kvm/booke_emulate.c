@@ -31,8 +31,8 @@
 
 static void kvmppc_emul_rfi(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.pc = vcpu->arch.srr0;
-	kvmppc_set_msr(vcpu, vcpu->arch.srr1);
+	vcpu->arch.pc = vcpu->arch.shared->srr0;
+	kvmppc_set_msr(vcpu, vcpu->arch.shared->srr1);
 }
 
 int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
@@ -62,7 +62,7 @@ int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 		case OP_31_XOP_MFMSR:
 			rt = get_rt(inst);
-			kvmppc_set_gpr(vcpu, rt, vcpu->arch.msr);
+			kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->msr);
 			kvmppc_set_exit_type(vcpu, EMULATED_MFMSR_EXITS);
 			break;
 
@@ -74,13 +74,13 @@ int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 		case OP_31_XOP_WRTEE:
 			rs = get_rs(inst);
-			vcpu->arch.msr = (vcpu->arch.msr & ~MSR_EE)
+			vcpu->arch.shared->msr = (vcpu->arch.shared->msr & ~MSR_EE)
 					| (kvmppc_get_gpr(vcpu, rs) & MSR_EE);
 			kvmppc_set_exit_type(vcpu, EMULATED_WRTEE_EXITS);
 			break;
 
 		case OP_31_XOP_WRTEEI:
-			vcpu->arch.msr = (vcpu->arch.msr & ~MSR_EE)
+			vcpu->arch.shared->msr = (vcpu->arch.shared->msr & ~MSR_EE)
 							 | (inst & MSR_EE);
 			kvmppc_set_exit_type(vcpu, EMULATED_WRTEE_EXITS);
 			break;
@@ -105,7 +105,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 
 	switch (sprn) {
 	case SPRN_DEAR:
-		vcpu->arch.dear = spr_val; break;
+		vcpu->arch.shared->dar = spr_val; break;
 	case SPRN_ESR:
 		vcpu->arch.esr = spr_val; break;
 	case SPRN_DBCR0:
@@ -200,7 +200,7 @@ int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 	case SPRN_IVPR:
 		kvmppc_set_gpr(vcpu, rt, vcpu->arch.ivpr); break;
 	case SPRN_DEAR:
-		kvmppc_set_gpr(vcpu, rt, vcpu->arch.dear); break;
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->dar); break;
 	case SPRN_ESR:
 		kvmppc_set_gpr(vcpu, rt, vcpu->arch.esr); break;
 	case SPRN_DBCR0:

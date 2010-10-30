@@ -92,7 +92,8 @@ xfs_bulkstat_one_int(
 	 * further change.
 	 */
 	buf->bs_nlink = dic->di_nlink;
-	buf->bs_projid = dic->di_projid;
+	buf->bs_projid_lo = dic->di_projid_lo;
+	buf->bs_projid_hi = dic->di_projid_hi;
 	buf->bs_ino = ino;
 	buf->bs_mode = dic->di_mode;
 	buf->bs_uid = dic->di_uid;

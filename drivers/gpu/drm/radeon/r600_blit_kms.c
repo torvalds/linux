@@ -532,6 +532,7 @@ int r600_blit_init(struct radeon_device *rdev)
 	memcpy(ptr + rdev->r600_blit.ps_offset, r6xx_ps, r6xx_ps_size * 4);
 	radeon_bo_kunmap(rdev->r600_blit.shader_obj);
 	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+	rdev->mc.active_vram_size = rdev->mc.real_vram_size;
 	return 0;
 }
 
@@ -539,6 +540,7 @@ void r600_blit_fini(struct radeon_device *rdev)
 {
 	int r;
 
+	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	if (rdev->r600_blit.shader_obj == NULL)
 		return;
 	/* If we can't reserve the bo, unref should be enough to destroy

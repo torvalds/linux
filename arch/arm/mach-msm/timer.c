@@ -28,7 +28,6 @@
 #ifndef MSM_DGT_BASE
 #define MSM_DGT_BASE (MSM_GPT_BASE + 0x10)
 #endif
-#define MSM_DGT_SHIFT (5)
 
 #define TIMER_MATCH_VAL         0x0000
 #define TIMER_COUNT_VAL         0x0004
@@ -36,12 +35,28 @@
 #define TIMER_ENABLE_CLR_ON_MATCH_EN    2
 #define TIMER_ENABLE_EN                 1
 #define TIMER_CLEAR             0x000C
-
+#define DGT_CLK_CTL             0x0034
+enum {
+	DGT_CLK_CTL_DIV_1 = 0,
+	DGT_CLK_CTL_DIV_2 = 1,
+	DGT_CLK_CTL_DIV_3 = 2,
+	DGT_CLK_CTL_DIV_4 = 3,
+};
 #define CSR_PROTECTION          0x0020
 #define CSR_PROTECTION_EN               1
 
 #define GPT_HZ 32768
+
+#if defined(CONFIG_ARCH_QSD8X50)
+#define DGT_HZ (19200000 / 4) /* 19.2 MHz / 4 by default */
+#define MSM_DGT_SHIFT (0)
+#elif defined(CONFIG_ARCH_MSM7X30) || defined(CONFIG_ARCH_MSM8X60)
+#define DGT_HZ (24576000 / 4) /* 24.576 MHz (LPXO) / 4 by default */
+#define MSM_DGT_SHIFT (0)
+#else
 #define DGT_HZ 19200000 /* 19.2 MHz or 600 KHz after shift */
+#define MSM_DGT_SHIFT (5)
+#endif
 
 struct msm_clock {
 	struct clock_event_device   clockevent;
@@ -169,6 +184,10 @@ static void __init msm_timer_init(void)
 {
 	int i;
 	int res;
+
+#ifdef CONFIG_ARCH_MSM8X60
+	writel(DGT_CLK_CTL_DIV_4, MSM_TMR_BASE + DGT_CLK_CTL);
+#endif
 
 	for (i = 0; i < ARRAY_SIZE(msm_clocks); i++) {
 		struct msm_clock *clock = &msm_clocks[i];

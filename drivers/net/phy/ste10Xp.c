@@ -132,7 +132,7 @@ static void __exit ste10Xp_exit(void)
 module_init(ste10Xp_init);
 module_exit(ste10Xp_exit);
 
-static struct mdio_device_id ste10Xp_tbl[] = {
+static struct mdio_device_id __maybe_unused ste10Xp_tbl[] = {
 	{ STE101P_PHY_ID, 0xfffffff0 },
 	{ STE100P_PHY_ID, 0xffffffff },
 	{ }

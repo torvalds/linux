@@ -1801,7 +1801,8 @@ struct e1000_info e1000_82571_info = {
 				  | FLAG_RESET_OVERWRITES_LAA /* errata */
 				  | FLAG_TARC_SPEED_MODE_BIT /* errata */
 				  | FLAG_APME_CHECK_PORT_B,
-	.flags2			= FLAG2_DISABLE_ASPM_L1, /* errata 13 */
+	.flags2			= FLAG2_DISABLE_ASPM_L1 /* errata 13 */
+				  | FLAG2_DMA_BURST,
 	.pba			= 38,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
@@ -1819,7 +1820,8 @@ struct e1000_info e1000_82572_info = {
 				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_CTRLEXT_ON_LOAD
 				  | FLAG_TARC_SPEED_MODE_BIT, /* errata */
-	.flags2			= FLAG2_DISABLE_ASPM_L1, /* errata 13 */
+	.flags2			= FLAG2_DISABLE_ASPM_L1 /* errata 13 */
+				  | FLAG2_DMA_BURST,
 	.pba			= 38,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,

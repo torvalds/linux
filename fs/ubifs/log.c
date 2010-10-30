@@ -159,7 +159,7 @@ void ubifs_add_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 		jhead = &c->jheads[bud->jhead];
 		list_add_tail(&bud->list, &jhead->buds_list);
 	} else
-		ubifs_assert(c->replaying && (c->vfs_sb->s_flags & MS_RDONLY));
+		ubifs_assert(c->replaying && c->ro_mount);
 
 	/*
 	 * Note, although this is a new bud, we anyway account this space now,
@@ -223,8 +223,8 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	}
 
 	mutex_lock(&c->log_mutex);
-
-	if (c->ro_media) {
+	ubifs_assert(!c->ro_media && !c->ro_mount);
+	if (c->ro_error) {
 		err = -EROFS;
 		goto out_unlock;
 	}

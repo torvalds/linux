@@ -27,6 +27,7 @@
 #include <asm/fixed_code.h>
 #include <asm/cacheflush.h>
 #include <asm/mem_map.h>
+#include <asm/mmu_context.h>
 
 /*
  * does not yet catch signals sent when the child dies.
@@ -113,8 +114,8 @@ put_reg(struct task_struct *task, long regno, unsigned long data)
 /*
  * check that an address falls within the bounds of the target process's memory mappings
  */
-static inline int is_user_addr_valid(struct task_struct *child,
-				     unsigned long start, unsigned long len)
+int
+is_user_addr_valid(struct task_struct *child, unsigned long start, unsigned long len)
 {
 	struct vm_area_struct *vma;
 	struct sram_list_struct *sraml;
@@ -134,6 +135,13 @@ static inline int is_user_addr_valid(struct task_struct *child,
 
 	if (start >= FIXED_CODE_START && start + len < FIXED_CODE_END)
 		return 0;
+
+#ifdef CONFIG_APP_STACK_L1
+	if (child->mm->context.l1_stack_save)
+		if (start >= (unsigned long)l1_stack_base &&
+			start + len < (unsigned long)l1_stack_base + l1_stack_len)
+			return 0;
+#endif
 
 	return -EIO;
 }

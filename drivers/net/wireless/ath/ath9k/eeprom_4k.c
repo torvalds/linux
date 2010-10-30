@@ -179,6 +179,9 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 	struct ar5416_eeprom_4k *eep = &ah->eeprom.map4k;
 	struct modal_eep_4k_header *pModal = &eep->modalHeader;
 	struct base_eep_header_4k *pBase = &eep->baseEepHeader;
+	u16 ver_minor;
+
+	ver_minor = pBase->version & AR5416_EEP_VER_MINOR_MASK;
 
 	switch (param) {
 	case EEP_NFTHRESH_2:
@@ -204,7 +207,7 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 	case EEP_DB_2:
 		return pModal->db1_1;
 	case EEP_MINOR_REV:
-		return pBase->version & AR5416_EEP_VER_MINOR_MASK;
+		return ver_minor;
 	case EEP_TX_MASK:
 		return pBase->txMask;
 	case EEP_RX_MASK:
@@ -213,6 +216,15 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 		return 0;
 	case EEP_PWR_TABLE_OFFSET:
 		return AR5416_PWR_TABLE_OFFSET_DB;
+	case EEP_MODAL_VER:
+		return pModal->version;
+	case EEP_ANT_DIV_CTL1:
+		return pModal->antdiv_ctl1;
+	case EEP_TXGAIN_TYPE:
+		if (ver_minor >= AR5416_EEP_MINOR_VER_19)
+			return pBase->txGainType;
+		else
+			return AR5416_EEP_TXGAIN_ORIGINAL;
 	default:
 		return 0;
 	}
@@ -329,7 +341,7 @@ static void ath9k_hw_get_4k_gain_boundaries_pdadcs(struct ath_hw *ah,
 		}
 
 		if (i == 0) {
-			if (AR_SREV_9280_10_OR_LATER(ah))
+			if (AR_SREV_9280_20_OR_LATER(ah))
 				ss = (int16_t)(0 - (minPwrT4[i] / 2));
 			else
 				ss = 0;
@@ -496,7 +508,6 @@ static void ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 			}
 
 			REGWRITE_BUFFER_FLUSH(ah);
-			DISABLE_REGWRITE_BUFFER(ah);
 		}
 	}
 
@@ -757,7 +768,7 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 
 	regulatory->max_power_level = ratesArray[i];
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
+	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		for (i = 0; i < Ar5416RateSize; i++)
 			ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
 	}
@@ -828,7 +839,6 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 	}
 
 	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 static void ath9k_hw_4k_set_addac(struct ath_hw *ah,
@@ -905,9 +915,6 @@ static void ath9k_hw_4k_set_gain(struct ath_hw *ah,
 		      AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
 	REG_RMW_FIELD(ah, AR_PHY_RXGAIN + 0x1000,
 		      AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[0]);
-
-	if (AR_SREV_9285_11(ah))
-		REG_WRITE(ah, AR9285_AN_TOP4, (AR9285_AN_TOP4_DEFAULT | 0x14));
 }
 
 /*
@@ -1105,9 +1112,6 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 	}
 
 
-	if (AR_SREV_9285_11(ah))
-		REG_WRITE(ah, AR9285_AN_TOP4, AR9285_AN_TOP4_DEFAULT);
-
 	REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH,
 		      pModal->switchSettling);
 	REG_RMW_FIELD(ah, AR_PHY_DESIRED_SZ, AR_PHY_DESIRED_SZ_ADC,
@@ -1157,7 +1161,7 @@ static u32 ath9k_hw_4k_get_eeprom_antenna_cfg(struct ath_hw *ah,
 }
 
 static u8 ath9k_hw_4k_get_num_ant_config(struct ath_hw *ah,
-					 enum ieee80211_band freq_band)
+					 enum ath9k_hal_freq_band freq_band)
 {
 	return 1;
 }

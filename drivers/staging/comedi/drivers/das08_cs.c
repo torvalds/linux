@@ -48,7 +48,6 @@ Command support does not exist, but could be added for this board.
 #include "das08.h"
 
 /* pcmcia includes */
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -115,39 +114,14 @@ static void das08_pcmcia_release(struct pcmcia_device *link);
 static int das08_pcmcia_suspend(struct pcmcia_device *p_dev);
 static int das08_pcmcia_resume(struct pcmcia_device *p_dev);
 
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
 static int das08_pcmcia_attach(struct pcmcia_device *);
 static void das08_pcmcia_detach(struct pcmcia_device *);
-
-/*
-   You'll also need to prototype all the functions that will actually
-   be used to talk to your device.  See 'memory_cs' for a good example
-   of a fully self-sufficient driver; the other drivers rely more or
-   less on other parts of the kernel.
-*/
 
 struct local_info_t {
 	struct pcmcia_device *link;
 	int stop;
 	struct bus_operations *bus;
 };
-
-/*======================================================================
-
-    das08_pcmcia_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-    The dev_link structure is initialized, but we don't actually
-    configure the card at this point -- we wait until we receive a
-    card insertion event.
-
-======================================================================*/
 
 static int das08_pcmcia_attach(struct pcmcia_device *link)
 {
@@ -162,31 +136,12 @@ static int das08_pcmcia_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
-	/*
-	   General socket configuration defaults can go here.  In this
-	   client, we assume very little, and rely on the CIS for almost
-	   everything.  In most clients, many details (i.e., number, sizes,
-	   and attributes of IO windows) are fixed by the nature of the
-	   device, and can be hard-wired here.
-	 */
-	link->conf.Attributes = 0;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-
 	cur_dev = link;
 
 	das08_pcmcia_config(link);
 
 	return 0;
 }				/* das08_pcmcia_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void das08_pcmcia_detach(struct pcmcia_device *link)
 {
@@ -203,52 +158,21 @@ static void das08_pcmcia_detach(struct pcmcia_device *link)
 
 
 static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				cistpl_cftable_entry_t *cfg,
-				cistpl_cftable_entry_t *dflt,
-				unsigned int vcc,
 				void *priv_data)
 {
-	if (cfg->index == 0)
-		return -ENODEV;
+	if (p_dev->config_index == 0)
+		return -EINVAL;
 
-	/* Do we need to allocate an interrupt? */
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
-
-	/* IO window settings */
-	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
-		p_dev->resource[0]->flags |=
-			pcmcia_io_cfg_data_width(io->flags);
-		p_dev->resource[0]->start = io->win[0].base;
-		p_dev->resource[0]->end = io->win[0].len;
-		if (io->nwin > 1) {
-			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
-			p_dev->resource[1]->start = io->win[1].base;
-			p_dev->resource[1]->end = io->win[1].len;
-		}
-		/* This reserves IO space but doesn't actually enable it */
-		return pcmcia_request_io(p_dev);
-	}
-	return 0;
+	return pcmcia_request_io(p_dev);
 }
-
-
-/*======================================================================
-
-    das08_pcmcia_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-
-======================================================================*/
 
 static void das08_pcmcia_config(struct pcmcia_device *link)
 {
 	int ret;
 
 	dev_dbg(&link->dev, "das08_pcmcia_config\n");
+
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	ret = pcmcia_loop_config(link, das08_pcmcia_config_loop, NULL);
 	if (ret) {
@@ -259,24 +183,9 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	if (!link->irq)
 		goto failed;
 
-	/*
-	   This actually configures the PCMCIA socket -- setting up
-	   the I/O windows and the interrupt mapping, and putting the
-	   card and host interface into "Memory and IO" mode.
-	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
-
-	/* Finally, report what we've done */
-	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u", link->irq);
-	if (link->resource[0])
-		printk(", io %pR", link->resource[0]);
-	if (link->resource[1])
-		printk(" & %pR", link->resource[1]);
-	printk("\n");
 
 	return;
 
@@ -285,31 +194,11 @@ failed:
 
 }				/* das08_pcmcia_config */
 
-/*======================================================================
-
-    After a card is removed, das08_pcmcia_release() will unregister the
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
-
 static void das08_pcmcia_release(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "das08_pcmcia_release\n");
 	pcmcia_disable_device(link);
 }				/* das08_pcmcia_release */
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.
-
-    When a CARD_REMOVAL event is received, we immediately set a
-    private flag to block future accesses to this device.  All the
-    functions that actually access the device should check this flag
-    to make sure the card is still present.
-
-======================================================================*/
 
 static int das08_pcmcia_suspend(struct pcmcia_device *link)
 {
@@ -348,9 +237,7 @@ struct pcmcia_driver das08_cs_driver = {
 	.resume = das08_pcmcia_resume,
 	.id_table = das08_cs_id_table,
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "pcm-das08",
-		},
+	.name = "pcm-das08",
 };
 
 static int __init init_das08_pcmcia_cs(void)

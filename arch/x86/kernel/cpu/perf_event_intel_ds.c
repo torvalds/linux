@@ -214,7 +214,7 @@ static void intel_pmu_disable_bts(void)
 	update_debugctlmsr(debugctlmsr);
 }
 
-static void intel_pmu_drain_bts_buffer(void)
+static int intel_pmu_drain_bts_buffer(void)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct debug_store *ds = cpuc->ds;
@@ -231,16 +231,16 @@ static void intel_pmu_drain_bts_buffer(void)
 	struct pt_regs regs;
 
 	if (!event)
-		return;
+		return 0;
 
 	if (!ds)
-		return;
+		return 0;
 
 	at  = (struct bts_record *)(unsigned long)ds->bts_buffer_base;
 	top = (struct bts_record *)(unsigned long)ds->bts_index;
 
 	if (top <= at)
-		return;
+		return 0;
 
 	ds->bts_index = ds->bts_buffer_base;
 
@@ -256,7 +256,7 @@ static void intel_pmu_drain_bts_buffer(void)
 	perf_prepare_sample(&header, &data, event, &regs);
 
 	if (perf_output_begin(&handle, event, header.size * (top - at), 1, 1))
-		return;
+		return 1;
 
 	for (; at < top; at++) {
 		data.ip		= at->from;
@@ -270,6 +270,7 @@ static void intel_pmu_drain_bts_buffer(void)
 	/* There's new data available. */
 	event->hw.interrupts++;
 	event->pending_kill = POLL_IN;
+	return 1;
 }
 
 /*
@@ -491,7 +492,7 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 		regs.flags &= ~PERF_EFLAGS_EXACT;
 
 	if (perf_event_overflow(event, 1, &data, &regs))
-		x86_pmu_stop(event);
+		x86_pmu_stop(event, 0);
 }
 
 static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)

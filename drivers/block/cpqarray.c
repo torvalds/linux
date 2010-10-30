@@ -35,7 +35,7 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/hdreg.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/genhd.h>
@@ -68,6 +68,7 @@ MODULE_LICENSE("GPL");
 
 #define CPQARRAY_DMA_MASK	0xFFFFFFFF	/* 32 bit DMA */
 
+static DEFINE_MUTEX(cpqarray_mutex);
 static int nr_ctlr;
 static ctlr_info_t *hba[MAX_CTLR];
 
@@ -845,9 +846,9 @@ static int ida_unlocked_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&cpqarray_mutex);
 	ret = ida_open(bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&cpqarray_mutex);
 
 	return ret;
 }
@@ -859,10 +860,10 @@ static int ida_release(struct gendisk *disk, fmode_t mode)
 {
 	ctlr_info_t *host;
 
-	lock_kernel();
+	mutex_lock(&cpqarray_mutex);
 	host = get_host(disk);
 	host->usage_count--;
-	unlock_kernel();
+	mutex_unlock(&cpqarray_mutex);
 
 	return 0;
 }
@@ -1217,9 +1218,9 @@ static int ida_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&cpqarray_mutex);
 	ret = ida_locked_ioctl(bdev, mode, cmd, param);
-	unlock_kernel();
+	mutex_unlock(&cpqarray_mutex);
 
 	return ret;
 }

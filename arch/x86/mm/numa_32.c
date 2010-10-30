@@ -24,6 +24,7 @@
 
 #include <linux/mm.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/highmem.h>
 #include <linux/initrd.h>
@@ -120,7 +121,7 @@ int __init get_memcfg_numa_flat(void)
 
 	node_start_pfn[0] = 0;
 	node_end_pfn[0] = max_pfn;
-	e820_register_active_regions(0, 0, max_pfn);
+	memblock_x86_register_active_regions(0, 0, max_pfn);
 	memory_present(0, 0, max_pfn);
 	node_remap_size[0] = node_memmap_size_bytes(0, 0, max_pfn);
 
@@ -161,14 +162,14 @@ static void __init allocate_pgdat(int nid)
 		NODE_DATA(nid) = (pg_data_t *)node_remap_start_vaddr[nid];
 	else {
 		unsigned long pgdat_phys;
-		pgdat_phys = find_e820_area(min_low_pfn<<PAGE_SHIFT,
+		pgdat_phys = memblock_find_in_range(min_low_pfn<<PAGE_SHIFT,
 				 max_pfn_mapped<<PAGE_SHIFT,
 				 sizeof(pg_data_t),
 				 PAGE_SIZE);
 		NODE_DATA(nid) = (pg_data_t *)(pfn_to_kaddr(pgdat_phys>>PAGE_SHIFT));
 		memset(buf, 0, sizeof(buf));
 		sprintf(buf, "NODE_DATA %d",  nid);
-		reserve_early(pgdat_phys, pgdat_phys + sizeof(pg_data_t), buf);
+		memblock_x86_reserve_range(pgdat_phys, pgdat_phys + sizeof(pg_data_t), buf);
 	}
 	printk(KERN_DEBUG "allocate_pgdat: node %d NODE_DATA %08lx\n",
 		nid, (unsigned long)NODE_DATA(nid));
@@ -291,15 +292,15 @@ static __init unsigned long calculate_numa_remap_pages(void)
 						 PTRS_PER_PTE);
 		node_kva_target <<= PAGE_SHIFT;
 		do {
-			node_kva_final = find_e820_area(node_kva_target,
+			node_kva_final = memblock_find_in_range(node_kva_target,
 					((u64)node_end_pfn[nid])<<PAGE_SHIFT,
 						((u64)size)<<PAGE_SHIFT,
 						LARGE_PAGE_BYTES);
 			node_kva_target -= LARGE_PAGE_BYTES;
-		} while (node_kva_final == -1ULL &&
+		} while (node_kva_final == MEMBLOCK_ERROR &&
 			 (node_kva_target>>PAGE_SHIFT) > (node_start_pfn[nid]));
 
-		if (node_kva_final == -1ULL)
+		if (node_kva_final == MEMBLOCK_ERROR)
 			panic("Can not get kva ram\n");
 
 		node_remap_size[nid] = size;
@@ -318,15 +319,13 @@ static __init unsigned long calculate_numa_remap_pages(void)
 		 *  but we could have some hole in high memory, and it will only
 		 *  check page_is_ram(pfn) && !page_is_reserved_early(pfn) to decide
 		 *  to use it as free.
-		 *  So reserve_early here, hope we don't run out of that array
+		 *  So memblock_x86_reserve_range here, hope we don't run out of that array
 		 */
-		reserve_early(node_kva_final,
+		memblock_x86_reserve_range(node_kva_final,
 			      node_kva_final+(((u64)size)<<PAGE_SHIFT),
 			      "KVA RAM");
 
 		node_remap_start_pfn[nid] = node_kva_final>>PAGE_SHIFT;
-		remove_active_range(nid, node_remap_start_pfn[nid],
-					 node_remap_start_pfn[nid] + size);
 	}
 	printk(KERN_INFO "Reserving total of %lx pages for numa KVA remap\n",
 			reserve_pages);
@@ -367,14 +366,14 @@ void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn,
 
 	kva_target_pfn = round_down(max_low_pfn - kva_pages, PTRS_PER_PTE);
 	do {
-		kva_start_pfn = find_e820_area(kva_target_pfn<<PAGE_SHIFT,
+		kva_start_pfn = memblock_find_in_range(kva_target_pfn<<PAGE_SHIFT,
 					max_low_pfn<<PAGE_SHIFT,
 					kva_pages<<PAGE_SHIFT,
 					PTRS_PER_PTE<<PAGE_SHIFT) >> PAGE_SHIFT;
 		kva_target_pfn -= PTRS_PER_PTE;
-	} while (kva_start_pfn == -1UL && kva_target_pfn > min_low_pfn);
+	} while (kva_start_pfn == MEMBLOCK_ERROR && kva_target_pfn > min_low_pfn);
 
-	if (kva_start_pfn == -1UL)
+	if (kva_start_pfn == MEMBLOCK_ERROR)
 		panic("Can not get kva space\n");
 
 	printk(KERN_INFO "kva_start_pfn ~ %lx max_low_pfn ~ %lx\n",
@@ -382,7 +381,7 @@ void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn,
 	printk(KERN_INFO "max_pfn = %lx\n", max_pfn);
 
 	/* avoid clash with initrd */
-	reserve_early(kva_start_pfn<<PAGE_SHIFT,
+	memblock_x86_reserve_range(kva_start_pfn<<PAGE_SHIFT,
 		      (kva_start_pfn + kva_pages)<<PAGE_SHIFT,
 		     "KVA PG");
 #ifdef CONFIG_HIGHMEM
@@ -419,9 +418,6 @@ void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn,
 	for_each_online_node(nid) {
 		memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
 		NODE_DATA(nid)->node_id = nid;
-#ifndef CONFIG_NO_BOOTMEM
-		NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
-#endif
 	}
 
 	setup_bootmem_allocator();

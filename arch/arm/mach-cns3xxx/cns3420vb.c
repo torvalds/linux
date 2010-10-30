@@ -142,8 +142,6 @@ static void __init cns3420_map_io(void)
 }
 
 MACHINE_START(CNS3420VB, "Cavium Networks CNS3420 Validation Board")
-	.phys_io	= CNS3XXX_UART0_BASE,
-	.io_pg_offst	= (CNS3XXX_UART0_BASE_VIRT >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.map_io		= cns3420_map_io,
 	.init_irq	= cns3xxx_init_irq,

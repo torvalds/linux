@@ -83,6 +83,11 @@ static int __devinit ab8500_spi_probe(struct spi_device *spi)
 	struct ab8500 *ab8500;
 	int ret;
 
+	spi->bits_per_word = 24;
+	ret = spi_setup(spi);
+	if (ret < 0)
+		return ret;
+
 	ab8500 = kzalloc(sizeof *ab8500, GFP_KERNEL);
 	if (!ab8500)
 		return -ENOMEM;

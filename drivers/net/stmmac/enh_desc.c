@@ -25,7 +25,7 @@
 #include "common.h"
 
 static int enh_desc_get_tx_status(void *data, struct stmmac_extra_stats *x,
-				  struct dma_desc *p, unsigned long ioaddr)
+				  struct dma_desc *p, void __iomem *ioaddr)
 {
 	int ret = 0;
 	struct net_device_stats *stats = (struct net_device_stats *)data;
@@ -284,7 +284,7 @@ static void enh_desc_release_tx_desc(struct dma_desc *p)
 {
 	int ter = p->des01.etx.end_ring;
 
-	memset(p, 0, sizeof(struct dma_desc));
+	memset(p, 0, offsetof(struct dma_desc, des2));
 	p->des01.etx.end_ring = ter;
 }
 
@@ -318,7 +318,7 @@ static int enh_desc_get_rx_frame_len(struct dma_desc *p)
 	return p->des01.erx.frame_length;
 }
 
-struct stmmac_desc_ops enh_desc_ops = {
+const struct stmmac_desc_ops enh_desc_ops = {
 	.tx_status = enh_desc_get_tx_status,
 	.rx_status = enh_desc_get_rx_status,
 	.get_tx_len = enh_desc_get_tx_len,

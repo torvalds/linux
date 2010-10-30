@@ -114,9 +114,9 @@
 #define X86_PLATFORM_IPI_VECTOR		0xed
 
 /*
- * Performance monitoring pending work vector:
+ * IRQ work vector:
  */
-#define LOCAL_PENDING_VECTOR		0xec
+#define IRQ_WORK_VECTOR			0xec
 
 #define UV_BAU_MESSAGE			0xea
 

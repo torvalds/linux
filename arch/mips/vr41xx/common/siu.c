@@ -22,6 +22,7 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
+#include <linux/irq.h>
 
 #include <asm/cpu.h>
 #include <asm/vr41xx/siu.h>

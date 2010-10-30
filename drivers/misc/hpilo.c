@@ -1,5 +1,5 @@
 /*
- * Driver for HP iLO/iLO2 management processor.
+ * Driver for the HP iLO management processor.
  *
  * Copyright (C) 2008 Hewlett-Packard Development Company, L.P.
  *	David Altobelli <david.altobelli@hp.com>
@@ -640,6 +640,7 @@ static const struct file_operations ilo_fops = {
 	.poll		= ilo_poll,
 	.open 		= ilo_open,
 	.release 	= ilo_close,
+	.llseek		= noop_llseek,
 };
 
 static irqreturn_t ilo_isr(int irq, void *data)

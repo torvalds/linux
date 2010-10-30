@@ -21,7 +21,6 @@
 #include <linux/hdreg.h>
 #include <linux/async.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 
 #include <asm/ccwdev.h>
 #include <asm/ebcdic.h>
@@ -2197,7 +2196,6 @@ static void dasd_setup_queue(struct dasd_block *block)
 	 */
 	blk_queue_max_segment_size(block->request_queue, PAGE_SIZE);
 	blk_queue_segment_boundary(block->request_queue, PAGE_SIZE - 1);
-	blk_queue_ordered(block->request_queue, QUEUE_ORDERED_DRAIN);
 }
 
 /*
@@ -2236,7 +2234,6 @@ static int dasd_open(struct block_device *bdev, fmode_t mode)
 	if (!block)
 		return -ENODEV;
 
-	lock_kernel();
 	base = block->base;
 	atomic_inc(&block->open_count);
 	if (test_bit(DASD_FLAG_OFFLINE, &base->flags)) {
@@ -2271,14 +2268,12 @@ static int dasd_open(struct block_device *bdev, fmode_t mode)
 		goto out;
 	}
 
-	unlock_kernel();
 	return 0;
 
 out:
 	module_put(base->discipline->owner);
 unlock:
 	atomic_dec(&block->open_count);
-	unlock_kernel();
 	return rc;
 }
 
@@ -2286,10 +2281,8 @@ static int dasd_release(struct gendisk *disk, fmode_t mode)
 {
 	struct dasd_block *block = disk->private_data;
 
-	lock_kernel();
 	atomic_dec(&block->open_count);
 	module_put(block->base->discipline->owner);
-	unlock_kernel();
 	return 0;
 }
 

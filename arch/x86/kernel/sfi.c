@@ -34,7 +34,7 @@
 #ifdef CONFIG_X86_LOCAL_APIC
 static unsigned long sfi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
 
-void __init mp_sfi_register_lapic_address(unsigned long address)
+static void __init mp_sfi_register_lapic_address(unsigned long address)
 {
 	mp_lapic_addr = address;
 
@@ -46,7 +46,7 @@ void __init mp_sfi_register_lapic_address(unsigned long address)
 }
 
 /* All CPUs enumerated by SFI must be present and enabled */
-void __cpuinit mp_sfi_register_lapic(u8 id)
+static void __cpuinit mp_sfi_register_lapic(u8 id)
 {
 	if (MAX_APICS - id <= 0) {
 		pr_warning("Processor #%d invalid (max %d)\n",

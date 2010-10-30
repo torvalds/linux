@@ -307,7 +307,7 @@ again:
 			     new_raw_count) != prev_raw_count)
 		goto again;
 
-	delta = (new_raw_count  - (prev_raw_count & alpha_pmu->pmc_count_mask[idx])) + ovf;
+	delta = (new_raw_count - (prev_raw_count & alpha_pmu->pmc_count_mask[idx])) + ovf;
 
 	/* It is possible on very rare occasions that the PMC has overflowed
 	 * but the interrupt is yet to come.  Detect and fix this situation.
@@ -402,14 +402,13 @@ static void maybe_change_configuration(struct cpu_hw_events *cpuc)
 		struct hw_perf_event *hwc = &pe->hw;
 		int idx = hwc->idx;
 
-		if (cpuc->current_idx[j] != PMC_NO_INDEX) {
-			cpuc->idx_mask |= (1<<cpuc->current_idx[j]);
-			continue;
+		if (cpuc->current_idx[j] == PMC_NO_INDEX) {
+			alpha_perf_event_set_period(pe, hwc, idx);
+			cpuc->current_idx[j] = idx;
 		}
 
-		alpha_perf_event_set_period(pe, hwc, idx);
-		cpuc->current_idx[j] = idx;
-		cpuc->idx_mask |= (1<<cpuc->current_idx[j]);
+		if (!(hwc->state & PERF_HES_STOPPED))
+			cpuc->idx_mask |= (1<<cpuc->current_idx[j]);
 	}
 	cpuc->config = cpuc->event[0]->hw.config_base;
 }
@@ -420,12 +419,13 @@ static void maybe_change_configuration(struct cpu_hw_events *cpuc)
  *  - this function is called from outside this module via the pmu struct
  *    returned from perf event initialisation.
  */
-static int alpha_pmu_enable(struct perf_event *event)
+static int alpha_pmu_add(struct perf_event *event, int flags)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct hw_perf_event *hwc = &event->hw;
 	int n0;
 	int ret;
-	unsigned long flags;
+	unsigned long irq_flags;
 
 	/*
 	 * The Sparc code has the IRQ disable first followed by the perf
@@ -435,8 +435,8 @@ static int alpha_pmu_enable(struct perf_event *event)
 	 * nevertheless we disable the PMCs first to enable a potential
 	 * final PMI to occur before we disable interrupts.
 	 */
-	perf_disable();
-	local_irq_save(flags);
+	perf_pmu_disable(event->pmu);
+	local_irq_save(irq_flags);
 
 	/* Default to error to be returned */
 	ret = -EAGAIN;
@@ -455,8 +455,12 @@ static int alpha_pmu_enable(struct perf_event *event)
 		}
 	}
 
-	local_irq_restore(flags);
-	perf_enable();
+	hwc->state = PERF_HES_UPTODATE;
+	if (!(flags & PERF_EF_START))
+		hwc->state |= PERF_HES_STOPPED;
+
+	local_irq_restore(irq_flags);
+	perf_pmu_enable(event->pmu);
 
 	return ret;
 }
@@ -467,15 +471,15 @@ static int alpha_pmu_enable(struct perf_event *event)
  *  - this function is called from outside this module via the pmu struct
  *    returned from perf event initialisation.
  */
-static void alpha_pmu_disable(struct perf_event *event)
+static void alpha_pmu_del(struct perf_event *event, int flags)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
-	unsigned long flags;
+	unsigned long irq_flags;
 	int j;
 
-	perf_disable();
-	local_irq_save(flags);
+	perf_pmu_disable(event->pmu);
+	local_irq_save(irq_flags);
 
 	for (j = 0; j < cpuc->n_events; j++) {
 		if (event == cpuc->event[j]) {
@@ -501,8 +505,8 @@ static void alpha_pmu_disable(struct perf_event *event)
 		}
 	}
 
-	local_irq_restore(flags);
-	perf_enable();
+	local_irq_restore(irq_flags);
+	perf_pmu_enable(event->pmu);
 }
 
 
@@ -514,13 +518,44 @@ static void alpha_pmu_read(struct perf_event *event)
 }
 
 
-static void alpha_pmu_unthrottle(struct perf_event *event)
+static void alpha_pmu_stop(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
+	if (!(hwc->state & PERF_HES_STOPPED)) {
+		cpuc->idx_mask &= ~(1UL<<hwc->idx);
+		hwc->state |= PERF_HES_STOPPED;
+	}
+
+	if ((flags & PERF_EF_UPDATE) && !(hwc->state & PERF_HES_UPTODATE)) {
+		alpha_perf_event_update(event, hwc, hwc->idx, 0);
+		hwc->state |= PERF_HES_UPTODATE;
+	}
+
+	if (cpuc->enabled)
+		wrperfmon(PERFMON_CMD_DISABLE, (1UL<<hwc->idx));
+}
+
+
+static void alpha_pmu_start(struct perf_event *event, int flags)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+
+	if (WARN_ON_ONCE(!(hwc->state & PERF_HES_STOPPED)))
+		return;
+
+	if (flags & PERF_EF_RELOAD) {
+		WARN_ON_ONCE(!(hwc->state & PERF_HES_UPTODATE));
+		alpha_perf_event_set_period(event, hwc, hwc->idx);
+	}
+
+	hwc->state = 0;
+
 	cpuc->idx_mask |= 1UL<<hwc->idx;
-	wrperfmon(PERFMON_CMD_ENABLE, (1UL<<hwc->idx));
+	if (cpuc->enabled)
+		wrperfmon(PERFMON_CMD_ENABLE, (1UL<<hwc->idx));
 }
 
 
@@ -642,39 +677,36 @@ static int __hw_perf_event_init(struct perf_event *event)
 	return 0;
 }
 
-static const struct pmu pmu = {
-	.enable		= alpha_pmu_enable,
-	.disable	= alpha_pmu_disable,
-	.read		= alpha_pmu_read,
-	.unthrottle	= alpha_pmu_unthrottle,
-};
-
-
 /*
  * Main entry point to initialise a HW performance event.
  */
-const struct pmu *hw_perf_event_init(struct perf_event *event)
+static int alpha_pmu_event_init(struct perf_event *event)
 {
 	int err;
 
+	switch (event->attr.type) {
+	case PERF_TYPE_RAW:
+	case PERF_TYPE_HARDWARE:
+	case PERF_TYPE_HW_CACHE:
+		break;
+
+	default:
+		return -ENOENT;
+	}
+
 	if (!alpha_pmu)
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
 	/* Do the real initialisation work. */
 	err = __hw_perf_event_init(event);
 
-	if (err)
-		return ERR_PTR(err);
-
-	return &pmu;
+	return err;
 }
-
-
 
 /*
  * Main entry point - enable HW performance counters.
  */
-void hw_perf_enable(void)
+static void alpha_pmu_enable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -700,7 +732,7 @@ void hw_perf_enable(void)
  * Main entry point - disable HW performance counters.
  */
 
-void hw_perf_disable(void)
+static void alpha_pmu_disable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -712,6 +744,17 @@ void hw_perf_disable(void)
 
 	wrperfmon(PERFMON_CMD_DISABLE, cpuc->idx_mask);
 }
+
+static struct pmu pmu = {
+	.pmu_enable	= alpha_pmu_enable,
+	.pmu_disable	= alpha_pmu_disable,
+	.event_init	= alpha_pmu_event_init,
+	.add		= alpha_pmu_add,
+	.del		= alpha_pmu_del,
+	.start		= alpha_pmu_start,
+	.stop		= alpha_pmu_stop,
+	.read		= alpha_pmu_read,
+};
 
 
 /*
@@ -766,7 +809,7 @@ static void alpha_perf_event_irq_handler(unsigned long la_ptr,
 	wrperfmon(PERFMON_CMD_DISABLE, cpuc->idx_mask);
 
 	/* la_ptr is the counter that overflowed. */
-	if (unlikely(la_ptr >= perf_max_events)) {
+	if (unlikely(la_ptr >= alpha_pmu->num_pmcs)) {
 		/* This should never occur! */
 		irq_err_count++;
 		pr_warning("PMI: silly index %ld\n", la_ptr);
@@ -807,7 +850,7 @@ static void alpha_perf_event_irq_handler(unsigned long la_ptr,
 			/* Interrupts coming too quickly; "throttle" the
 			 * counter, i.e., disable it for a little while.
 			 */
-			cpuc->idx_mask &= ~(1UL<<idx);
+			alpha_pmu_stop(event, 0);
 		}
 	}
 	wrperfmon(PERFMON_CMD_ENABLE, cpuc->idx_mask);
@@ -837,6 +880,7 @@ void __init init_hw_perf_events(void)
 
 	/* And set up PMU specification */
 	alpha_pmu = &ev67_pmu;
-	perf_max_events = alpha_pmu->num_pmcs;
+
+	perf_pmu_register(&pmu);
 }
 

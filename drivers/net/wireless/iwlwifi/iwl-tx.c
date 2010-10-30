@@ -134,7 +134,7 @@ EXPORT_SYMBOL(iwl_tx_queue_free);
  */
 void iwl_cmd_queue_free(struct iwl_priv *priv)
 {
-	struct iwl_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
+	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
 	struct iwl_queue *q = &txq->q;
 	struct device *dev = &priv->pci_dev->dev;
 	int i;
@@ -271,7 +271,7 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 
 	/* Driver private data, only for Tx (not command) queues,
 	 * not shared with device. */
-	if (id != IWL_CMD_QUEUE_NUM) {
+	if (id != priv->cmd_queue) {
 		txq->txb = kzalloc(sizeof(txq->txb[0]) *
 				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
 		if (!txq->txb) {
@@ -314,13 +314,13 @@ int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 
 	/*
 	 * Alloc buffer array for commands (Tx or other types of commands).
-	 * For the command queue (#4), allocate command space + one big
+	 * For the command queue (#4/#9), allocate command space + one big
 	 * command for scan, since scan command is very huge; the system will
 	 * not have two scans at the same time, so only one is needed.
 	 * For normal Tx queues (all other queues), no super-size command
 	 * space is needed.
 	 */
-	if (txq_id == IWL_CMD_QUEUE_NUM)
+	if (txq_id == priv->cmd_queue)
 		actual_slots++;
 
 	txq->meta = kzalloc(sizeof(struct iwl_cmd_meta) * actual_slots,
@@ -355,7 +355,7 @@ int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	 * need an swq_id so don't set one to catch errors, all others can
 	 * be set up to the identity mapping.
 	 */
-	if (txq_id != IWL_CMD_QUEUE_NUM)
+	if (txq_id != priv->cmd_queue)
 		txq->swq_id = txq_id;
 
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
@@ -385,7 +385,7 @@ void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 {
 	int actual_slots = slots_num;
 
-	if (txq_id == IWL_CMD_QUEUE_NUM)
+	if (txq_id == priv->cmd_queue)
 		actual_slots++;
 
 	memset(txq->meta, 0, sizeof(struct iwl_cmd_meta) * actual_slots);
@@ -413,7 +413,7 @@ EXPORT_SYMBOL(iwl_tx_queue_reset);
  */
 int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
-	struct iwl_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
+	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
 	struct iwl_queue *q = &txq->q;
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
@@ -422,6 +422,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	int len;
 	u32 idx;
 	u16 fix_size;
+	bool is_ct_kill = false;
 
 	cmd->len = priv->cfg->ops->utils->get_hcmd_size(cmd->id, cmd->len);
 	fix_size = (u16)(cmd->len + sizeof(out_cmd->hdr));
@@ -443,9 +444,11 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	if (iwl_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
 		IWL_ERR(priv, "No space in command queue\n");
-		if (iwl_within_ct_kill_margin(priv))
-			iwl_tt_enter_ct_kill(priv);
-		else {
+		if (priv->cfg->ops->lib->tt_ops.ct_kill_check) {
+			is_ct_kill =
+				priv->cfg->ops->lib->tt_ops.ct_kill_check(priv);
+		}
+		if (!is_ct_kill) {
 			IWL_ERR(priv, "Restarting adapter due to queue full\n");
 			queue_work(priv->workqueue, &priv->restart);
 		}
@@ -480,7 +483,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	 * information */
 
 	out_cmd->hdr.flags = 0;
-	out_cmd->hdr.sequence = cpu_to_le16(QUEUE_TO_SEQ(IWL_CMD_QUEUE_NUM) |
+	out_cmd->hdr.sequence = cpu_to_le16(QUEUE_TO_SEQ(priv->cmd_queue) |
 			INDEX_TO_SEQ(q->write_ptr));
 	if (cmd->flags & CMD_SIZE_HUGE)
 		out_cmd->hdr.sequence |= SEQ_HUGE_FRAME;
@@ -497,15 +500,15 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 				get_cmd_string(out_cmd->hdr.cmd),
 				out_cmd->hdr.cmd,
 				le16_to_cpu(out_cmd->hdr.sequence), fix_size,
-				q->write_ptr, idx, IWL_CMD_QUEUE_NUM);
-				break;
+				q->write_ptr, idx, priv->cmd_queue);
+		break;
 	default:
 		IWL_DEBUG_HC(priv, "Sending command %s (#%x), seq: 0x%04X, "
 				"%d bytes at %d[%d]:%d\n",
 				get_cmd_string(out_cmd->hdr.cmd),
 				out_cmd->hdr.cmd,
 				le16_to_cpu(out_cmd->hdr.sequence), fix_size,
-				q->write_ptr, idx, IWL_CMD_QUEUE_NUM);
+				q->write_ptr, idx, priv->cmd_queue);
 	}
 #endif
 	txq->need_update = 1;
@@ -584,16 +587,16 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	bool huge = !!(pkt->hdr.sequence & SEQ_HUGE_FRAME);
 	struct iwl_device_cmd *cmd;
 	struct iwl_cmd_meta *meta;
-	struct iwl_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
+	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
 
 	/* If a Tx command is being handled and it isn't in the actual
 	 * command queue then there a command routing bug has been introduced
 	 * in the queue management code. */
-	if (WARN(txq_id != IWL_CMD_QUEUE_NUM,
-		 "wrong command queue %d, sequence 0x%X readp=%d writep=%d\n",
-		  txq_id, sequence,
-		  priv->txq[IWL_CMD_QUEUE_NUM].q.read_ptr,
-		  priv->txq[IWL_CMD_QUEUE_NUM].q.write_ptr)) {
+	if (WARN(txq_id != priv->cmd_queue,
+		 "wrong command queue %d (should be %d), sequence 0x%X readp=%d writep=%d\n",
+		  txq_id, priv->cmd_queue, sequence,
+		  priv->txq[priv->cmd_queue].q.read_ptr,
+		  priv->txq[priv->cmd_queue].q.write_ptr)) {
 		iwl_print_hex_error(priv, pkt, 32);
 		return;
 	}
@@ -633,41 +636,3 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	meta->flags = 0;
 }
 EXPORT_SYMBOL(iwl_tx_cmd_complete);
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-#define TX_STATUS_FAIL(x) case TX_STATUS_FAIL_ ## x: return #x
-#define TX_STATUS_POSTPONE(x) case TX_STATUS_POSTPONE_ ## x: return #x
-
-const char *iwl_get_tx_fail_reason(u32 status)
-{
-	switch (status & TX_STATUS_MSK) {
-	case TX_STATUS_SUCCESS:
-		return "SUCCESS";
-		TX_STATUS_POSTPONE(DELAY);
-		TX_STATUS_POSTPONE(FEW_BYTES);
-		TX_STATUS_POSTPONE(BT_PRIO);
-		TX_STATUS_POSTPONE(QUIET_PERIOD);
-		TX_STATUS_POSTPONE(CALC_TTAK);
-		TX_STATUS_FAIL(INTERNAL_CROSSED_RETRY);
-		TX_STATUS_FAIL(SHORT_LIMIT);
-		TX_STATUS_FAIL(LONG_LIMIT);
-		TX_STATUS_FAIL(FIFO_UNDERRUN);
-		TX_STATUS_FAIL(DRAIN_FLOW);
-		TX_STATUS_FAIL(RFKILL_FLUSH);
-		TX_STATUS_FAIL(LIFE_EXPIRE);
-		TX_STATUS_FAIL(DEST_PS);
-		TX_STATUS_FAIL(HOST_ABORTED);
-		TX_STATUS_FAIL(BT_RETRY);
-		TX_STATUS_FAIL(STA_INVALID);
-		TX_STATUS_FAIL(FRAG_DROPPED);
-		TX_STATUS_FAIL(TID_DISABLE);
-		TX_STATUS_FAIL(FIFO_FLUSHED);
-		TX_STATUS_FAIL(INSUFFICIENT_CF_POLL);
-		TX_STATUS_FAIL(FW_DROP);
-		TX_STATUS_FAIL(STA_COLOR_MISMATCH_DROP);
-	}
-
-	return "UNKNOWN";
-}
-EXPORT_SYMBOL(iwl_get_tx_fail_reason);
-#endif /* CONFIG_IWLWIFI_DEBUG */

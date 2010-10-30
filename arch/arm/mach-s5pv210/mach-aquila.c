@@ -477,7 +477,7 @@ static struct platform_device *aquila_devices[] __initdata = {
 	&aquila_i2c_gpio_pmic,
 	&aquila_device_gpiokeys,
 	&s3c_device_fb,
-	&s5pc110_device_onenand,
+	&s5p_device_onenand,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
@@ -516,8 +516,6 @@ MACHINE_START(AQUILA, "Aquila")
 	/* Maintainers:
 	   Marek Szyprowski <m.szyprowski@samsung.com>
 	   Kyungmin Park <kyungmin.park@samsung.com> */
-	.phys_io	= S3C_PA_UART & 0xfff00000,
-	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S5P_PA_SDRAM + 0x100,
 	.init_irq	= s5pv210_init_irq,
 	.map_io		= aquila_map_io,

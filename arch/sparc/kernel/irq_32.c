@@ -57,7 +57,7 @@
 #define SMP_NOP2
 #define SMP_NOP3
 #endif /* SMP */
-unsigned long __raw_local_irq_save(void)
+unsigned long arch_local_irq_save(void)
 {
 	unsigned long retval;
 	unsigned long tmp;
@@ -74,8 +74,9 @@ unsigned long __raw_local_irq_save(void)
 
 	return retval;
 }
+EXPORT_SYMBOL(arch_local_irq_save);
 
-void raw_local_irq_enable(void)
+void arch_local_irq_enable(void)
 {
 	unsigned long tmp;
 
@@ -89,8 +90,9 @@ void raw_local_irq_enable(void)
 		: "i" (PSR_PIL)
 		: "memory");
 }
+EXPORT_SYMBOL(arch_local_irq_enable);
 
-void raw_local_irq_restore(unsigned long old_psr)
+void arch_local_irq_restore(unsigned long old_psr)
 {
 	unsigned long tmp;
 
@@ -105,10 +107,7 @@ void raw_local_irq_restore(unsigned long old_psr)
 		: "i" (PSR_PIL), "r" (old_psr)
 		: "memory");
 }
-
-EXPORT_SYMBOL(__raw_local_irq_save);
-EXPORT_SYMBOL(raw_local_irq_enable);
-EXPORT_SYMBOL(raw_local_irq_restore);
+EXPORT_SYMBOL(arch_local_irq_restore);
 
 /*
  * Dave Redman (djhr@tadpole.co.uk)

@@ -5,7 +5,7 @@
  *  SuperH version: Copyright (C) 1999 Niibe Yutaka
  *                  Copyright (C) 2000 Philipp Rumpf
  *                  Copyright (C) 2000 David Howells
- *                  Copyright (C) 2002 - 2007 Paul Mundt
+ *                  Copyright (C) 2002 - 2010 Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -26,6 +26,7 @@
 #include <linux/limits.h>
 #include <linux/sysfs.h>
 #include <linux/uaccess.h>
+#include <linux/perf_event.h>
 #include <asm/system.h>
 #include <asm/alignment.h>
 #include <asm/fpu.h>
@@ -369,7 +370,8 @@ static inline int handle_delayslot(struct pt_regs *regs,
 #define SH_PC_12BIT_OFFSET(instr) ((((signed short)(instr<<4))>>3) + 4)
 
 int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
-			    struct mem_access *ma, int expected)
+			    struct mem_access *ma, int expected,
+			    unsigned long address)
 {
 	u_int rm;
 	int ret, index;
@@ -383,9 +385,18 @@ int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 	index = (instruction>>8)&15;	/* 0x0F00 */
 	rm = regs->regs[index];
 
-	/* shout about fixups */
-	if (!expected)
+	/*
+	 * Log the unexpected fixups, and then pass them on to perf.
+	 *
+	 * We intentionally don't report the expected cases to perf as
+	 * otherwise the trapped I/O case will skew the results too much
+	 * to be useful.
+	 */
+	if (!expected) {
 		unaligned_fixups_notify(current, instruction, regs);
+		perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, 0,
+			      regs, address);
+	}
 
 	ret = -EFAULT;
 	switch (instruction&0xF000) {
@@ -574,7 +585,8 @@ fixup:
 
 		set_fs(USER_DS);
 		tmp = handle_unaligned_access(instruction, regs,
-					      &user_mem_access, 0);
+					      &user_mem_access, 0,
+					      address);
 		set_fs(oldfs);
 
 		if (tmp == 0)
@@ -607,8 +619,8 @@ uspace_segv:
 
 		unaligned_fixups_notify(current, instruction, regs);
 
-		handle_unaligned_access(instruction, regs,
-					&user_mem_access, 0);
+		handle_unaligned_access(instruction, regs, &user_mem_access,
+					0, address);
 		set_fs(oldfs);
 	}
 }
@@ -802,6 +814,9 @@ void __cpuinit per_cpu_trap_init(void)
 		     : /* no output */
 		     : "r" (&vbr_base)
 		     : "memory");
+
+	/* disable exception blocking now when the vbr has been setup */
+	clear_bl_bit();
 }
 
 void *set_exception_table_vec(unsigned int vec, void *handler)

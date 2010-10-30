@@ -483,6 +483,9 @@ static int joydev_handle_JSIOCSAXMAP(struct joydev *joydev,
 
 	memcpy(joydev->abspam, abspam, len);
 
+	for (i = 0; i < joydev->nabs; i++)
+		joydev->absmap[joydev->abspam[i]] = i;
+
  out:
 	kfree(abspam);
 	return retval;
@@ -736,6 +739,7 @@ static const struct file_operations joydev_fops = {
 	.compat_ioctl	= joydev_compat_ioctl,
 #endif
 	.fasync		= joydev_fasync,
+	.llseek		= no_llseek,
 };
 
 static int joydev_install_chrdev(struct joydev *joydev)

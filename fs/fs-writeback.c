@@ -72,22 +72,11 @@ int writeback_in_progress(struct backing_dev_info *bdi)
 static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
-	struct backing_dev_info *bdi = inode->i_mapping->backing_dev_info;
 
-	/*
-	 * For inodes on standard filesystems, we use superblock's bdi. For
-	 * inodes on virtual filesystems, we want to use inode mapping's bdi
-	 * because they can possibly point to something useful (think about
-	 * block_dev filesystem).
-	 */
-	if (sb->s_bdi && sb->s_bdi != &noop_backing_dev_info) {
-		/* Some device inodes could play dirty tricks. Catch them... */
-		WARN(bdi != sb->s_bdi && bdi_cap_writeback_dirty(bdi),
-			"Dirtiable inode bdi %s != sb bdi %s\n",
-			bdi->name, sb->s_bdi->name);
-		return sb->s_bdi;
-	}
-	return bdi;
+	if (strcmp(sb->s_type->name, "bdev") == 0)
+		return inode->i_mapping->backing_dev_info;
+
+	return sb->s_bdi;
 }
 
 static void bdi_queue_work(struct backing_dev_info *bdi,

@@ -148,6 +148,17 @@
 				label = "reserved-nand";
 			};
 		};
+
+		board-control@3,0 {
+			compatible = "fsl,p1022ds-pixis";
+			reg = <3 0 0x30>;
+			interrupt-parent = <&mpic>;
+			/*
+			 * IRQ8 is generated if the "EVENT" switch is pressed
+			 * and PX_CTL[EVESEL] is set to 00.
+			 */
+			interrupts = <8 8>;
+		};
 	};
 
 	soc@fffe00000 {

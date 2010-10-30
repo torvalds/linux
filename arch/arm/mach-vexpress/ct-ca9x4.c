@@ -68,7 +68,7 @@ static void __init ct_ca9x4_init_irq(void)
 }
 
 #if 0
-static void ct_ca9x4_timer_init(void)
+static void __init ct_ca9x4_timer_init(void)
 {
 	writel(0, MMIO_P2V(CT_CA9X4_TIMER0) + TIMER_CTRL);
 	writel(0, MMIO_P2V(CT_CA9X4_TIMER1) + TIMER_CTRL);
@@ -222,7 +222,7 @@ static struct platform_device pmu_device = {
 	.resource	= pmu_resources,
 };
 
-static void ct_ca9x4_init(void)
+static void __init ct_ca9x4_init(void)
 {
 	int i;
 
@@ -245,8 +245,6 @@ static void ct_ca9x4_init(void)
 }
 
 MACHINE_START(VEXPRESS, "ARM-Versatile Express CA9x4")
-	.phys_io	= V2M_UART0 & SECTION_MASK,
-	.io_pg_offst	= (__MMIO_P2V(V2M_UART0) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.map_io		= ct_ca9x4_map_io,
 	.init_irq	= ct_ca9x4_init_irq,

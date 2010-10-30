@@ -45,6 +45,7 @@
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/gfp.h>
+#include <linux/memblock.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -55,6 +56,7 @@
 #include <asm/e820.h>
 #include <asm/linkage.h>
 #include <asm/page.h>
+#include <asm/init.h>
 
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
@@ -359,7 +361,8 @@ void make_lowmem_page_readonly(void *vaddr)
 	unsigned int level;
 
 	pte = lookup_address(address, &level);
-	BUG_ON(pte == NULL);
+	if (pte == NULL)
+		return;		/* vaddr missing */
 
 	ptev = pte_wrprotect(*pte);
 
@@ -374,7 +377,8 @@ void make_lowmem_page_readwrite(void *vaddr)
 	unsigned int level;
 
 	pte = lookup_address(address, &level);
-	BUG_ON(pte == NULL);
+	if (pte == NULL)
+		return;		/* vaddr missing */
 
 	ptev = pte_mkwrite(*pte);
 
@@ -1508,13 +1512,25 @@ static void xen_pgd_free(struct mm_struct *mm, pgd_t *pgd)
 #endif
 }
 
-#ifdef CONFIG_X86_32
 static __init pte_t mask_rw_pte(pte_t *ptep, pte_t pte)
 {
+	unsigned long pfn = pte_pfn(pte);
+
+#ifdef CONFIG_X86_32
 	/* If there's an existing pte, then don't allow _PAGE_RW to be set */
 	if (pte_val_ma(*ptep) & _PAGE_PRESENT)
 		pte = __pte_ma(((pte_val_ma(*ptep) & _PAGE_RW) | ~_PAGE_RW) &
 			       pte_val_ma(pte));
+#endif
+
+	/*
+	 * If the new pfn is within the range of the newly allocated
+	 * kernel pagetable, and it isn't being mapped into an
+	 * early_ioremap fixmap slot, make sure it is RO.
+	 */
+	if (!is_early_ioremap_ptep(ptep) &&
+	    pfn >= e820_table_start && pfn < e820_table_end)
+		pte = pte_wrprotect(pte);
 
 	return pte;
 }
@@ -1527,7 +1543,6 @@ static __init void xen_set_pte_init(pte_t *ptep, pte_t pte)
 
 	xen_set_pte(ptep, pte);
 }
-#endif
 
 static void pin_pagetable_pfn(unsigned cmd, unsigned long pfn)
 {
@@ -1814,7 +1829,7 @@ __init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd,
 	__xen_write_cr3(true, __pa(pgd));
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
 
-	reserve_early(__pa(xen_start_info->pt_base),
+	memblock_x86_reserve_range(__pa(xen_start_info->pt_base),
 		      __pa(xen_start_info->pt_base +
 			   xen_start_info->nr_pt_frames * PAGE_SIZE),
 		      "XEN PAGETABLES");
@@ -1852,7 +1867,7 @@ __init pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd,
 
 	pin_pagetable_pfn(MMUEXT_PIN_L3_TABLE, PFN_DOWN(__pa(swapper_pg_dir)));
 
-	reserve_early(__pa(xen_start_info->pt_base),
+	memblock_x86_reserve_range(__pa(xen_start_info->pt_base),
 		      __pa(xen_start_info->pt_base +
 			   xen_start_info->nr_pt_frames * PAGE_SIZE),
 		      "XEN PAGETABLES");
@@ -1969,14 +1984,9 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.alloc_pte = xen_alloc_pte_init,
 	.release_pte = xen_release_pte_init,
 	.alloc_pmd = xen_alloc_pmd_init,
-	.alloc_pmd_clone = paravirt_nop,
 	.release_pmd = xen_release_pmd_init,
 
-#ifdef CONFIG_X86_64
-	.set_pte = xen_set_pte,
-#else
 	.set_pte = xen_set_pte_init,
-#endif
 	.set_pte_at = xen_set_pte_at,
 	.set_pmd = xen_set_pmd_hyper,
 

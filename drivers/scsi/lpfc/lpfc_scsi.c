@@ -599,6 +599,7 @@ lpfc_new_scsi_buf_s3(struct lpfc_vport *vport, int num_to_alloc)
 		iocb->ulpClass = CLASS3;
 		psb->status = IOSTAT_SUCCESS;
 		/* Put it back into the SCSI buffer list */
+		psb->cur_iocbq.context1  = psb;
 		lpfc_release_scsi_buf_s3(phba, psb);
 
 	}
@@ -849,6 +850,7 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 		iocb->ulpBdeCount = 1;
 		iocb->ulpLe = 1;
 		iocb->ulpClass = CLASS3;
+		psb->cur_iocbq.context1  = psb;
 		if (phba->cfg_sg_dma_buf_size > SGL_PAGE_SIZE)
 			pdma_phys_bpl1 = pdma_phys_bpl + SGL_PAGE_SIZE;
 		else
@@ -2276,15 +2278,24 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	 * Check SLI validation that all the transfer was actually done
 	 * (fcpi_parm should be zero). Apply check only to reads.
 	 */
-	} else if ((scsi_status == SAM_STAT_GOOD) && fcpi_parm &&
-			(cmnd->sc_data_direction == DMA_FROM_DEVICE)) {
+	} else if (fcpi_parm && (cmnd->sc_data_direction == DMA_FROM_DEVICE)) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP | LOG_FCP_ERROR,
 				 "9029 FCP Read Check Error Data: "
-				 "x%x x%x x%x x%x\n",
+				 "x%x x%x x%x x%x x%x\n",
 				 be32_to_cpu(fcpcmd->fcpDl),
 				 be32_to_cpu(fcprsp->rspResId),
-				 fcpi_parm, cmnd->cmnd[0]);
-		host_status = DID_ERROR;
+				 fcpi_parm, cmnd->cmnd[0], scsi_status);
+		switch (scsi_status) {
+		case SAM_STAT_GOOD:
+		case SAM_STAT_CHECK_CONDITION:
+			/* Fabric dropped a data frame. Fail any successful
+			 * command in which we detected dropped frames.
+			 * A status of good or some check conditions could
+			 * be considered a successful command.
+			 */
+			host_status = DID_ERROR;
+			break;
+		}
 		scsi_set_resid(cmnd, scsi_bufflen(cmnd));
 	}
 
@@ -3072,7 +3083,14 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	if (ret)
 		return ret;
 	lpfc_cmd = (struct lpfc_scsi_buf *)cmnd->host_scribble;
-	BUG_ON(!lpfc_cmd);
+	if (!lpfc_cmd) {
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
+			 "2873 SCSI Layer I/O Abort Request IO CMPL Status "
+			 "x%x ID %d "
+			 "LUN %d snum %#lx\n", ret, cmnd->device->id,
+			 cmnd->device->lun, cmnd->serial_number);
+		return SUCCESS;
+	}
 
 	/*
 	 * If pCmd field of the corresponding lpfc_scsi_buf structure
@@ -3656,7 +3674,6 @@ lpfc_slave_alloc(struct scsi_device *sdev)
  *
  * This routine configures following items
  *   - Tag command queuing support for @sdev if supported.
- *   - Dev loss time out value of fc_rport.
  *   - Enable SLI polling for fcp ring if ENABLE_FCP_RING_POLLING flag is set.
  *
  * Return codes:
@@ -3667,20 +3684,11 @@ lpfc_slave_configure(struct scsi_device *sdev)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
-	struct fc_rport   *rport = starget_to_rport(sdev->sdev_target);
 
 	if (sdev->tagged_supported)
 		scsi_activate_tcq(sdev, vport->cfg_lun_queue_depth);
 	else
 		scsi_deactivate_tcq(sdev, vport->cfg_lun_queue_depth);
-
-	/*
-	 * Initialize the fc transport attributes for the target
-	 * containing this scsi device.  Also note that the driver's
-	 * target pointer is stored in the starget_data for the
-	 * driver's sysfs entry point functions.
-	 */
-	rport->dev_loss_tmo = vport->cfg_devloss_tmo;
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
 		lpfc_sli_handle_fast_ring_event(phba,

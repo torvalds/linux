@@ -559,7 +559,6 @@ struct atl1c_adapter {
 	struct napi_struct  napi;
 	struct atl1c_hw        hw;
 	struct atl1c_hw_stats  hw_stats;
-	struct net_device_stats net_stats;
 	struct mii_if_info  mii;    /* MII interface info */
 	u16 rx_buffer_len;
 

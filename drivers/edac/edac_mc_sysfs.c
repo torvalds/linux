@@ -11,6 +11,7 @@
 
 #include <linux/ctype.h>
 #include <linux/slab.h>
+#include <linux/edac.h>
 #include <linux/bug.h>
 
 #include "edac_core.h"
@@ -1011,13 +1012,13 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
  */
 int edac_sysfs_setup_mc_kset(void)
 {
-	int err = 0;
+	int err = -EINVAL;
 	struct sysdev_class *edac_class;
 
 	debugf1("%s()\n", __func__);
 
 	/* get the /sys/devices/system/edac class reference */
-	edac_class = edac_get_edac_class();
+	edac_class = edac_get_sysfs_class();
 	if (edac_class == NULL) {
 		debugf1("%s() no edac_class error=%d\n", __func__, err);
 		goto fail_out;
@@ -1028,15 +1029,16 @@ int edac_sysfs_setup_mc_kset(void)
 	if (!mc_kset) {
 		err = -ENOMEM;
 		debugf1("%s() Failed to register '.../edac/mc'\n", __func__);
-		goto fail_out;
+		goto fail_kset;
 	}
 
 	debugf1("%s() Registered '.../edac/mc' kobject\n", __func__);
 
 	return 0;
 
+fail_kset:
+	edac_put_sysfs_class();
 
-	/* error unwind stack */
 fail_out:
 	return err;
 }
@@ -1049,5 +1051,6 @@ fail_out:
 void edac_sysfs_teardown_mc_kset(void)
 {
 	kset_unregister(mc_kset);
+	edac_put_sysfs_class();
 }
 

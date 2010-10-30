@@ -137,8 +137,12 @@ static struct platform_device ezbrd_flash_device = {
 #if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
 static struct mtd_partition partition_info[] = {
 	{
-		.name = "linux kernel(nand)",
+		.name = "bootloader(nand)",
 		.offset = 0,
+		.size = 0x40000,
+	}, {
+		.name = "linux kernel(nand)",
+		.offset = MTDPART_OFS_APPEND,
 		.size = 4 * 1024 * 1024,
 	},
 	{

@@ -7,6 +7,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/ctype.h>
 #include <linux/module.h>
@@ -18,7 +19,7 @@
 #include <asm/dma.h>
 #include <asm/numa.h>
 #include <asm/acpi.h>
-#include <asm/k8.h>
+#include <asm/amd_nb.h>
 
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
@@ -86,16 +87,16 @@ static int __init allocate_cachealigned_memnodemap(void)
 
 	addr = 0x8000;
 	nodemap_size = roundup(sizeof(s16) * memnodemapsize, L1_CACHE_BYTES);
-	nodemap_addr = find_e820_area(addr, max_pfn<<PAGE_SHIFT,
+	nodemap_addr = memblock_find_in_range(addr, max_pfn<<PAGE_SHIFT,
 				      nodemap_size, L1_CACHE_BYTES);
-	if (nodemap_addr == -1UL) {
+	if (nodemap_addr == MEMBLOCK_ERROR) {
 		printk(KERN_ERR
 		       "NUMA: Unable to allocate Memory to Node hash map\n");
 		nodemap_addr = nodemap_size = 0;
 		return -1;
 	}
 	memnodemap = phys_to_virt(nodemap_addr);
-	reserve_early(nodemap_addr, nodemap_addr + nodemap_size, "MEMNODEMAP");
+	memblock_x86_reserve_range(nodemap_addr, nodemap_addr + nodemap_size, "MEMNODEMAP");
 
 	printk(KERN_DEBUG "NUMA: Allocated memnodemap from %lx - %lx\n",
 	       nodemap_addr, nodemap_addr + nodemap_size);
@@ -171,8 +172,8 @@ static void * __init early_node_mem(int nodeid, unsigned long start,
 	if (start < (MAX_DMA32_PFN<<PAGE_SHIFT) &&
 	    end > (MAX_DMA32_PFN<<PAGE_SHIFT))
 		start = MAX_DMA32_PFN<<PAGE_SHIFT;
-	mem = find_e820_area(start, end, size, align);
-	if (mem != -1L)
+	mem = memblock_x86_find_in_range_node(nodeid, start, end, size, align);
+	if (mem != MEMBLOCK_ERROR)
 		return __va(mem);
 
 	/* extend the search scope */
@@ -181,8 +182,8 @@ static void * __init early_node_mem(int nodeid, unsigned long start,
 		start = MAX_DMA32_PFN<<PAGE_SHIFT;
 	else
 		start = MAX_DMA_PFN<<PAGE_SHIFT;
-	mem = find_e820_area(start, end, size, align);
-	if (mem != -1L)
+	mem = memblock_x86_find_in_range_node(nodeid, start, end, size, align);
+	if (mem != MEMBLOCK_ERROR)
 		return __va(mem);
 
 	printk(KERN_ERR "Cannot find %lu bytes in node %d\n",
@@ -198,10 +199,6 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 	unsigned long start_pfn, last_pfn, nodedata_phys;
 	const int pgdat_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
 	int nid;
-#ifndef CONFIG_NO_BOOTMEM
-	unsigned long bootmap_start, bootmap_pages, bootmap_size;
-	void *bootmap;
-#endif
 
 	if (!end)
 		return;
@@ -226,7 +223,7 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 	if (node_data[nodeid] == NULL)
 		return;
 	nodedata_phys = __pa(node_data[nodeid]);
-	reserve_early(nodedata_phys, nodedata_phys + pgdat_size, "NODE_DATA");
+	memblock_x86_reserve_range(nodedata_phys, nodedata_phys + pgdat_size, "NODE_DATA");
 	printk(KERN_INFO "  NODE_DATA [%016lx - %016lx]\n", nodedata_phys,
 		nodedata_phys + pgdat_size - 1);
 	nid = phys_to_nid(nodedata_phys);
@@ -237,47 +234,6 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 	NODE_DATA(nodeid)->node_id = nodeid;
 	NODE_DATA(nodeid)->node_start_pfn = start_pfn;
 	NODE_DATA(nodeid)->node_spanned_pages = last_pfn - start_pfn;
-
-#ifndef CONFIG_NO_BOOTMEM
-	NODE_DATA(nodeid)->bdata = &bootmem_node_data[nodeid];
-
-	/*
-	 * Find a place for the bootmem map
-	 * nodedata_phys could be on other nodes by alloc_bootmem,
-	 * so need to sure bootmap_start not to be small, otherwise
-	 * early_node_mem will get that with find_e820_area instead
-	 * of alloc_bootmem, that could clash with reserved range
-	 */
-	bootmap_pages = bootmem_bootmap_pages(last_pfn - start_pfn);
-	bootmap_start = roundup(nodedata_phys + pgdat_size, PAGE_SIZE);
-	/*
-	 * SMP_CACHE_BYTES could be enough, but init_bootmem_node like
-	 * to use that to align to PAGE_SIZE
-	 */
-	bootmap = early_node_mem(nodeid, bootmap_start, end,
-				 bootmap_pages<<PAGE_SHIFT, PAGE_SIZE);
-	if (bootmap == NULL)  {
-		free_early(nodedata_phys, nodedata_phys + pgdat_size);
-		node_data[nodeid] = NULL;
-		return;
-	}
-	bootmap_start = __pa(bootmap);
-	reserve_early(bootmap_start, bootmap_start+(bootmap_pages<<PAGE_SHIFT),
-			"BOOTMAP");
-
-	bootmap_size = init_bootmem_node(NODE_DATA(nodeid),
-					 bootmap_start >> PAGE_SHIFT,
-					 start_pfn, last_pfn);
-
-	printk(KERN_INFO "  bootmap [%016lx -  %016lx] pages %lx\n",
-		 bootmap_start, bootmap_start + bootmap_size - 1,
-		 bootmap_pages);
-	nid = phys_to_nid(bootmap_start);
-	if (nid != nodeid)
-		printk(KERN_INFO "    bootmap(%d) on node %d\n", nodeid, nid);
-
-	free_bootmem_with_active_regions(nodeid, end);
-#endif
 
 	node_set_online(nodeid);
 }
@@ -416,7 +372,7 @@ static int __init split_nodes_interleave(u64 addr, u64 max_addr,
 		nr_nodes = MAX_NUMNODES;
 	}
 
-	size = (max_addr - addr - e820_hole_size(addr, max_addr)) / nr_nodes;
+	size = (max_addr - addr - memblock_x86_hole_size(addr, max_addr)) / nr_nodes;
 	/*
 	 * Calculate the number of big nodes that can be allocated as a result
 	 * of consolidating the remainder.
@@ -452,7 +408,7 @@ static int __init split_nodes_interleave(u64 addr, u64 max_addr,
 			 * non-reserved memory is less than the per-node size.
 			 */
 			while (end - physnodes[i].start -
-				e820_hole_size(physnodes[i].start, end) < size) {
+				memblock_x86_hole_size(physnodes[i].start, end) < size) {
 				end += FAKE_NODE_MIN_SIZE;
 				if (end > physnodes[i].end) {
 					end = physnodes[i].end;
@@ -466,7 +422,7 @@ static int __init split_nodes_interleave(u64 addr, u64 max_addr,
 			 * this one must extend to the boundary.
 			 */
 			if (end < dma32_end && dma32_end - end -
-			    e820_hole_size(end, dma32_end) < FAKE_NODE_MIN_SIZE)
+			    memblock_x86_hole_size(end, dma32_end) < FAKE_NODE_MIN_SIZE)
 				end = dma32_end;
 
 			/*
@@ -475,7 +431,7 @@ static int __init split_nodes_interleave(u64 addr, u64 max_addr,
 			 * physical node.
 			 */
 			if (physnodes[i].end - end -
-			    e820_hole_size(end, physnodes[i].end) < size)
+			    memblock_x86_hole_size(end, physnodes[i].end) < size)
 				end = physnodes[i].end;
 
 			/*
@@ -503,7 +459,7 @@ static u64 __init find_end_of_node(u64 start, u64 max_addr, u64 size)
 {
 	u64 end = start + size;
 
-	while (end - start - e820_hole_size(start, end) < size) {
+	while (end - start - memblock_x86_hole_size(start, end) < size) {
 		end += FAKE_NODE_MIN_SIZE;
 		if (end > max_addr) {
 			end = max_addr;
@@ -532,7 +488,7 @@ static int __init split_nodes_size_interleave(u64 addr, u64 max_addr, u64 size)
 	 * creates a uniform distribution of node sizes across the entire
 	 * machine (but not necessarily over physical nodes).
 	 */
-	min_size = (max_addr - addr - e820_hole_size(addr, max_addr)) /
+	min_size = (max_addr - addr - memblock_x86_hole_size(addr, max_addr)) /
 						MAX_NUMNODES;
 	min_size = max(min_size, FAKE_NODE_MIN_SIZE);
 	if ((min_size & FAKE_NODE_MIN_HASH_MASK) < min_size)
@@ -565,7 +521,7 @@ static int __init split_nodes_size_interleave(u64 addr, u64 max_addr, u64 size)
 			 * this one must extend to the boundary.
 			 */
 			if (end < dma32_end && dma32_end - end -
-			    e820_hole_size(end, dma32_end) < FAKE_NODE_MIN_SIZE)
+			    memblock_x86_hole_size(end, dma32_end) < FAKE_NODE_MIN_SIZE)
 				end = dma32_end;
 
 			/*
@@ -574,7 +530,7 @@ static int __init split_nodes_size_interleave(u64 addr, u64 max_addr, u64 size)
 			 * physical node.
 			 */
 			if (physnodes[i].end - end -
-			    e820_hole_size(end, physnodes[i].end) < size)
+			    memblock_x86_hole_size(end, physnodes[i].end) < size)
 				end = physnodes[i].end;
 
 			/*
@@ -638,7 +594,7 @@ static int __init numa_emulation(unsigned long start_pfn,
 	 */
 	remove_all_active_ranges();
 	for_each_node_mask(i, node_possible_map) {
-		e820_register_active_regions(i, nodes[i].start >> PAGE_SHIFT,
+		memblock_x86_register_active_regions(i, nodes[i].start >> PAGE_SHIFT,
 						nodes[i].end >> PAGE_SHIFT);
 		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
 	}
@@ -691,7 +647,7 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
 	node_set(0, node_possible_map);
 	for (i = 0; i < nr_cpu_ids; i++)
 		numa_set_node(i, 0);
-	e820_register_active_regions(0, start_pfn, last_pfn);
+	memblock_x86_register_active_regions(0, start_pfn, last_pfn);
 	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT);
 }
 
@@ -703,9 +659,7 @@ unsigned long __init numa_free_all_bootmem(void)
 	for_each_online_node(i)
 		pages += free_all_bootmem_node(NODE_DATA(i));
 
-#ifdef CONFIG_NO_BOOTMEM
 	pages += free_all_memory_core_early(MAX_NUMNODES);
-#endif
 
 	return pages;
 }

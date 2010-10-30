@@ -9,6 +9,7 @@ config ARCH_MX35
 	bool
 	select ARCH_MXC_IOMUX_V3
 	select ARCH_MXC_AUDMUX_V2
+	select HAVE_EPIT
 
 comment "MX3 platforms:"
 
@@ -16,6 +17,7 @@ config MACH_MX31ADS
 	bool "Support MX31ADS platforms"
 	select ARCH_MX31
 	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_SSI
 	select IMX_HAVE_PLATFORM_IMX_UART
 	default y
 	help
@@ -117,9 +119,11 @@ config MACH_PCM043
 	bool "Support Phytec pcm043 (i.MX35) platforms"
 	select ARCH_MX35
 	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_SSI
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_FLEXCAN
+	select IMX_HAVE_PLATFORM_ESDHC
 	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for Phytec pcm043 platform. This includes
@@ -140,6 +144,7 @@ config MACH_MX35_3DS
 	bool "Support MX35PDK platform"
 	select ARCH_MX35
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_NAND
 	default n
 	help
 	  Include support for MX35PDK platform. This includes specific
@@ -159,6 +164,8 @@ config MACH_EUKREA_CPUIMX35
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_MXC_NAND
+	select IMX_HAVE_PLATFORM_FLEXCAN
+	select IMX_HAVE_PLATFORM_ESDHC
 	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for Eukrea CPUIMX35 platform. This includes
@@ -170,8 +177,8 @@ choice
 	default MACH_EUKREA_MBIMXSD35_BASEBOARD
 
 config MACH_EUKREA_MBIMXSD35_BASEBOARD
-	prompt "Eukrea MBIMXSD development board"
-	bool
+	bool "Eukrea MBIMXSD development board"
+	select IMX_HAVE_PLATFORM_IMX_SSI
 	help
 	  This adds board specific devices that can be found on Eukrea's
 	  MBIMXSD evaluation board.

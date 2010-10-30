@@ -426,13 +426,13 @@ struct xfs_cil {
 };
 
 /*
- * The amount of log space we should the CIL to aggregate is difficult to size.
- * Whatever we chose we have to make we can get a reservation for the log space
- * effectively, that it is large enough to capture sufficient relogging to
- * reduce log buffer IO significantly, but it is not too large for the log or
- * induces too much latency when writing out through the iclogs. We track both
- * space consumed and the number of vectors in the checkpoint context, so we
- * need to decide which to use for limiting.
+ * The amount of log space we allow the CIL to aggregate is difficult to size.
+ * Whatever we choose, we have to make sure we can get a reservation for the
+ * log space effectively, that it is large enough to capture sufficient
+ * relogging to reduce log buffer IO significantly, but it is not too large for
+ * the log or induces too much latency when writing out through the iclogs. We
+ * track both space consumed and the number of vectors in the checkpoint
+ * context, so we need to decide which to use for limiting.
  *
  * Every log buffer we write out during a push needs a header reserved, which
  * is at least one sector and more for v2 logs. Hence we need a reservation of
@@ -459,16 +459,21 @@ struct xfs_cil {
  * checkpoint transaction ticket is specific to the checkpoint context, rather
  * than the CIL itself.
  *
- * With dynamic reservations, we can basically make up arbitrary limits for the
- * checkpoint size so long as they don't violate any other size rules.  Hence
- * the initial maximum size for the checkpoint transaction will be set to a
- * quarter of the log or 8MB, which ever is smaller. 8MB is an arbitrary limit
- * right now based on the latency of writing out a large amount of data through
- * the circular iclog buffers.
+ * With dynamic reservations, we can effectively make up arbitrary limits for
+ * the checkpoint size so long as they don't violate any other size rules.
+ * Recovery imposes a rule that no transaction exceed half the log, so we are
+ * limited by that.  Furthermore, the log transaction reservation subsystem
+ * tries to keep 25% of the log free, so we need to keep below that limit or we
+ * risk running out of free log space to start any new transactions.
+ *
+ * In order to keep background CIL push efficient, we will set a lower
+ * threshold at which background pushing is attempted without blocking current
+ * transaction commits.  A separate, higher bound defines when CIL pushes are
+ * enforced to ensure we stay within our maximum checkpoint size bounds.
+ * threshold, yet give us plenty of space for aggregation on large logs.
  */
-
-#define XLOG_CIL_SPACE_LIMIT(log)	\
-	(min((log->l_logsize >> 2), (8 * 1024 * 1024)))
+#define XLOG_CIL_SPACE_LIMIT(log)	(log->l_logsize >> 3)
+#define XLOG_CIL_HARD_SPACE_LIMIT(log)	(3 * (log->l_logsize >> 4))
 
 /*
  * The reservation head lsn is not made up of a cycle number and block number.

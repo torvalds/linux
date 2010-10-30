@@ -6,7 +6,7 @@
 
     Chip details at:
 
-    <http://www.analog.com/UploadedFiles/Data_Sheets/779263102ADM1026_a.pdf>
+    <http://www.onsemi.com/PowerSolutions/product.do?id=ADM1026>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

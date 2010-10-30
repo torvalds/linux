@@ -1397,7 +1397,7 @@ static int cpuset_can_attach(struct cgroup_subsys *ss, struct cgroup *cont,
 	if (tsk->flags & PF_THREAD_BOUND)
 		return -EINVAL;
 
-	ret = security_task_setscheduler(tsk, 0, NULL);
+	ret = security_task_setscheduler(tsk);
 	if (ret)
 		return ret;
 	if (threadgroup) {
@@ -1405,7 +1405,7 @@ static int cpuset_can_attach(struct cgroup_subsys *ss, struct cgroup *cont,
 
 		rcu_read_lock();
 		list_for_each_entry_rcu(c, &tsk->thread_group, thread_group) {
-			ret = security_task_setscheduler(c, 0, NULL);
+			ret = security_task_setscheduler(c);
 			if (ret) {
 				rcu_read_unlock();
 				return ret;

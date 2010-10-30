@@ -282,6 +282,7 @@ error:
 static const struct file_operations romfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= romfs_readdir,
+	.llseek		= default_llseek,
 };
 
 static const struct inode_operations romfs_dir_inode_operations = {

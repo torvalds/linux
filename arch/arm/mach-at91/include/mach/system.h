@@ -28,17 +28,20 @@
 
 static inline void arch_idle(void)
 {
-#ifndef CONFIG_DEBUG_KERNEL
 	/*
 	 * Disable the processor clock.  The processor will be automatically
 	 * re-enabled by an interrupt or by a reset.
 	 */
-	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_PCK);
+#ifdef AT91_PS
+	at91_sys_write(AT91_PS_CR, AT91_PS_CR_CPU);
 #else
+	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_PCK);
+#endif
+#ifndef CONFIG_CPU_ARM920T
 	/*
 	 * Set the processor (CP15) into 'Wait for Interrupt' mode.
-	 * Unlike disabling the processor clock via the PMC (above)
-	 *  this allows the processor to be woken via JTAG.
+	 * Post-RM9200 processors need this in conjunction with the above
+	 * to save power when idle.
 	 */
 	cpu_do_idle();
 #endif

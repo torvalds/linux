@@ -52,7 +52,6 @@
 #include <linux/cgroupstats.h>
 #include <linux/hash.h>
 #include <linux/namei.h>
-#include <linux/smp_lock.h>
 #include <linux/pid_namespace.h>
 #include <linux/idr.h>
 #include <linux/vmalloc.h> /* TODO: replace with more sophisticated array */
@@ -138,7 +137,7 @@ struct css_id {
 	 * is called after synchronize_rcu(). But for safe use, css_is_removed()
 	 * css_tryget() should be used for avoiding race.
 	 */
-	struct cgroup_subsys_state *css;
+	struct cgroup_subsys_state __rcu *css;
 	/*
 	 * ID of this css.
 	 */
@@ -1222,7 +1221,6 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 	struct cgroup *cgrp = &root->top_cgroup;
 	struct cgroup_sb_opts opts;
 
-	lock_kernel();
 	mutex_lock(&cgrp->dentry->d_inode->i_mutex);
 	mutex_lock(&cgroup_mutex);
 
@@ -1255,7 +1253,6 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 	kfree(opts.name);
 	mutex_unlock(&cgroup_mutex);
 	mutex_unlock(&cgrp->dentry->d_inode->i_mutex);
-	unlock_kernel();
 	return ret;
 }
 
@@ -1568,7 +1565,6 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
  out_err:
 	kfree(opts.release_agent);
 	kfree(opts.name);
-
 	return ret;
 }
 

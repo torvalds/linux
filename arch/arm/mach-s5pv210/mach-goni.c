@@ -456,7 +456,7 @@ static void goni_setup_sdhci(void)
 
 static struct platform_device *goni_devices[] __initdata = {
 	&s3c_device_fb,
-	&s5pc110_device_onenand,
+	&s5p_device_onenand,
 	&goni_i2c_gpio_pmic,
 	&goni_device_gpiokeys,
 	&s5p_device_fimc0,
@@ -491,8 +491,6 @@ static void __init goni_machine_init(void)
 
 MACHINE_START(GONI, "GONI")
 	/* Maintainers: Kyungmin Park <kyungmin.park@samsung.com> */
-	.phys_io	= S3C_PA_UART & 0xfff00000,
-	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S5P_PA_SDRAM + 0x100,
 	.init_irq	= s5pv210_init_irq,
 	.map_io		= goni_map_io,

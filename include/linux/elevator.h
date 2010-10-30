@@ -93,6 +93,7 @@ struct elevator_queue
 	struct elevator_type *elevator_type;
 	struct mutex sysfs_lock;
 	struct hlist_head *hash;
+	unsigned int registered:1;
 };
 
 /*

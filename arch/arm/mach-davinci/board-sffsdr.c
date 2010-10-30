@@ -154,8 +154,6 @@ static __init void davinci_sffsdr_init(void)
 
 MACHINE_START(SFFSDR, "Lyrtech SFFSDR")
 	/* Maintainer: Hugo Villeneuve hugo.villeneuve@lyrtech.com */
-	.phys_io      = IO_PHYS,
-	.io_pg_offst  = (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params  = (DAVINCI_DDR_BASE + 0x100),
 	.map_io	      = davinci_sffsdr_map_io,
 	.init_irq     = davinci_irq_init,

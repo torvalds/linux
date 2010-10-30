@@ -331,7 +331,7 @@ gss_delete_sec_context(struct gss_ctx	**context_handle)
 			*context_handle);
 
 	if (!*context_handle)
-		return(GSS_S_NO_CONTEXT);
+		return GSS_S_NO_CONTEXT;
 	if ((*context_handle)->internal_ctx_id)
 		(*context_handle)->mech_type->gm_ops
 			->gss_delete_sec_context((*context_handle)
