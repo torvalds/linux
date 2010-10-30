@@ -707,6 +707,17 @@ get_next_work_item(struct backing_dev_info *bdi)
 	return work;
 }
 
+/*
+ * Add in the number of potentially dirty inodes, because each inode
+ * write can dirty pagecache in the underlying blockdev.
+ */
+static unsigned long get_nr_dirty_pages(void)
+{
+	return global_page_state(NR_FILE_DIRTY) +
+		global_page_state(NR_UNSTABLE_NFS) +
+		get_nr_dirty_inodes();
+}
+
 static long wb_check_old_data_flush(struct bdi_writeback *wb)
 {
 	unsigned long expired;
@@ -724,13 +735,7 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
 		return 0;
 
 	wb->last_old_flush = jiffies;
-	/*
-	 * Add in the number of potentially dirty inodes, because each inode
-	 * write can dirty pagecache in the underlying blockdev.
-	 */
-	nr_pages = global_page_state(NR_FILE_DIRTY) +
-			global_page_state(NR_UNSTABLE_NFS) +
-			get_nr_dirty_inodes();
+	nr_pages = get_nr_dirty_pages();
 
 	if (nr_pages) {
 		struct wb_writeback_work work = {
@@ -1086,8 +1091,6 @@ static void wait_sb_inodes(struct super_block *sb)
  */
 void writeback_inodes_sb(struct super_block *sb)
 {
-	unsigned long nr_dirty = global_page_state(NR_FILE_DIRTY);
-	unsigned long nr_unstable = global_page_state(NR_UNSTABLE_NFS);
 	DECLARE_COMPLETION_ONSTACK(done);
 	struct wb_writeback_work work = {
 		.sb		= sb,
@@ -1097,7 +1100,7 @@ void writeback_inodes_sb(struct super_block *sb)
 
 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
 
-	work.nr_pages = nr_dirty + nr_unstable + get_nr_dirty_inodes();
+	work.nr_pages = get_nr_dirty_pages();
 
 	bdi_queue_work(sb->s_bdi, &work);
 	wait_for_completion(&done);
