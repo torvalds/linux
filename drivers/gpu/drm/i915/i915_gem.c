@@ -4925,7 +4925,7 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
-		src = kmap_atomic(obj_priv->pages[i]);
+		src = kmap_atomic(page);
 		dst = obj_priv->phys_obj->handle->vaddr + (i * PAGE_SIZE);
 		memcpy(dst, src, PAGE_SIZE);
 		kunmap_atomic(src);
