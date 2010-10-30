@@ -2676,7 +2676,8 @@ int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_del_dir_entries_in_log(trans, root, name, name_len,
 					   dir, index);
-	BUG_ON(ret);
+	if (ret == -ENOENT)
+		ret = 0;
 err:
 	btrfs_free_path(path);
 	if (ret)
