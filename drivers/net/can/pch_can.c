@@ -213,12 +213,12 @@ static DEFINE_PCI_DEVICE_TABLE(pch_pci_tbl) = {
 };
 MODULE_DEVICE_TABLE(pci, pch_pci_tbl);
 
-static inline void pch_can_bit_set(u32 *addr, u32 mask)
+static inline void pch_can_bit_set(void __iomem *addr, u32 mask)
 {
 	iowrite32(ioread32(addr) | mask, addr);
 }
 
-static inline void pch_can_bit_clear(u32 *addr, u32 mask)
+static inline void pch_can_bit_clear(void __iomem *addr, u32 mask)
 {
 	iowrite32(ioread32(addr) & ~mask, addr);
 }
