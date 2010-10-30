@@ -12,12 +12,18 @@
 
 # ifdef __KERNEL__
 
-# include <linux/unaligned/be_struct.h>
+# include <linux/unaligned/be_byteshift.h>
 # include <linux/unaligned/le_byteshift.h>
 # include <linux/unaligned/generic.h>
 
-# define get_unaligned	__get_unaligned_be
-# define put_unaligned	__put_unaligned_be
+
+#  ifdef __MICROBLAZEEL__
+#   define get_unaligned	__get_unaligned_le
+#   define put_unaligned	__put_unaligned_le
+#  else
+#   define get_unaligned	__get_unaligned_be
+#   define put_unaligned	__put_unaligned_be
+#  endif
 
 # endif	/* __KERNEL__ */
 #endif /* _ASM_MICROBLAZE_UNALIGNED_H */

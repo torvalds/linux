@@ -2964,7 +2964,7 @@ static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 					(2 - i));
 		}
 
-		for (j = 0; i < 4; j++) {
+		for (j = 0; j < 4; j++) {
 			if (j < 3) {
 				cur_lna = lna[j];
 				cur_hpf1 = hpf1[j];

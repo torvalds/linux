@@ -4,7 +4,7 @@ config VIDEO_GO7007
 	depends on BKL # please fix
 	depends on SND
 	select VIDEOBUF_DMA_SG
-	select VIDEO_IR
+	depends on VIDEO_IR
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select SND_PCM

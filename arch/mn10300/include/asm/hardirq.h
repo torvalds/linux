@@ -19,9 +19,10 @@
 /* assembly code in softirq.h is sensitive to the offsets of these fields */
 typedef struct {
 	unsigned int	__softirq_pending;
-	unsigned long	idle_timestamp;
+#ifdef CONFIG_MN10300_WD_TIMER
 	unsigned int	__nmi_count;	/* arch dependent */
 	unsigned int	__irq_count;	/* arch dependent */
+#endif
 } ____cacheline_aligned irq_cpustat_t;
 
 #include <linux/irq_cpustat.h>	/* Standard mappings for irq_cpustat_t above */

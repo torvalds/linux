@@ -468,7 +468,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 			value, 0, gspca_dev->usb_buf, len,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r %04x failed %d", value, ret);
+		err("reg_r %04x failed %d", value, ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -488,7 +488,7 @@ static void reg_w(struct gspca_dev *gspca_dev, u16 value, u16 index)
 			500);
 	msleep(30);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w %04x %04x failed %d", value, index, ret);
+		err("reg_w %04x %04x failed %d", value, index, ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -511,7 +511,7 @@ static void reg_wb(struct gspca_dev *gspca_dev, u16 value, u16 index,
 			1000);
 	msleep(30);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_wb %04x %04x failed %d", value, index, ret);
+		err("reg_wb %04x %04x failed %d", value, index, ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -556,7 +556,7 @@ static void i2c_write(struct sd *sd,
 			gspca_dev->usb_buf, buf - gspca_dev->usb_buf,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "i2c_write failed %d", ret);
+		err("i2c_write failed %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -612,7 +612,7 @@ static void ucbus_write(struct gspca_dev *gspca_dev,
 				gspca_dev->usb_buf, buf - gspca_dev->usb_buf,
 				500);
 		if (ret < 0) {
-			PDEBUG(D_ERR, "ucbus_write failed %d", ret);
+			err("ucbus_write failed %d", ret);
 			gspca_dev->usb_err = ret;
 			return;
 		}
@@ -688,7 +688,7 @@ static void cmos_probe(struct gspca_dev *gspca_dev)
 			break;
 	}
 	if (i >= ARRAY_SIZE(probe_order))
-		PDEBUG(D_PROBE, "Unknown sensor");
+		err("Unknown sensor");
 	else
 		sd->sensor = probe_order[i];
 }
@@ -1079,7 +1079,7 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 	gspca_dev->cam.bulk_nurbs = 1;
 	ret = usb_submit_urb(gspca_dev->urb[0], GFP_ATOMIC);
 	if (ret < 0)
-		PDEBUG(D_ERR|D_PACK, "sd_dq_callback() err %d", ret);
+		err("sd_dq_callback() err %d", ret);
 
 	/* wait a little time, otherwise the webcam crashes */
 	msleep(100);
@@ -1185,18 +1185,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	info("registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	info("deregistered");
 }
 
 module_init(sd_mod_init);

@@ -89,6 +89,7 @@ struct sh_cpuinfo {
 	struct task_struct *idle;
 #endif
 
+	unsigned int phys_bits;
 	unsigned long flags;
 } __attribute__ ((aligned(L1_CACHE_BYTES)));
 

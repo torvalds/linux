@@ -19,20 +19,17 @@
 #define WM8580_PLLB  2
 
 #define WM8580_MCLK       1
-#define WM8580_DAC_CLKSEL 2
-#define WM8580_CLKOUTSRC  3
+#define WM8580_CLKOUTSRC  2
 
-#define WM8580_CLKSRC_MCLK 1
-#define WM8580_CLKSRC_PLLA 2
-#define WM8580_CLKSRC_PLLB 3
-#define WM8580_CLKSRC_OSC  4
-#define WM8580_CLKSRC_NONE 5
+#define WM8580_CLKSRC_MCLK    1
+#define WM8580_CLKSRC_PLLA    2
+#define WM8580_CLKSRC_PLLB    3
+#define WM8580_CLKSRC_OSC     4
+#define WM8580_CLKSRC_NONE    5
+#define WM8580_CLKSRC_ADCMCLK 6
 
 #define WM8580_DAI_PAIFRX 0
 #define WM8580_DAI_PAIFTX 1
-
-extern struct snd_soc_dai wm8580_dai[];
-extern struct snd_soc_codec_device soc_codec_dev_wm8580;
 
 #endif
 

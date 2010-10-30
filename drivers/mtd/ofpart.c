@@ -44,7 +44,7 @@ int __devinit of_mtd_parse_partitions(struct device *dev,
 	pp = NULL;
 	i = 0;
 	while ((pp = of_get_next_child(node, pp))) {
-		const u32 *reg;
+		const __be32 *reg;
 		int len;
 
 		reg = of_get_property(pp, "reg", &len);
@@ -53,8 +53,8 @@ int __devinit of_mtd_parse_partitions(struct device *dev,
 			continue;
 		}
 
-		(*pparts)[i].offset = reg[0];
-		(*pparts)[i].size = reg[1];
+		(*pparts)[i].offset = be32_to_cpu(reg[0]);
+		(*pparts)[i].size = be32_to_cpu(reg[1]);
 
 		partname = of_get_property(pp, "label", &len);
 		if (!partname)

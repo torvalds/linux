@@ -17,8 +17,6 @@
 #include <linux/spi/spi.h>
 #include <sound/asoundef.h>
 
-#include "ak4104.h"
-
 /* AK4104 registers addresses */
 #define AK4104_REG_CONTROL1		0x00
 #define AK4104_REG_RESERVED		0x01
@@ -45,11 +43,11 @@
 #define AK4104_TX_TXE			(1 << 0)
 #define AK4104_TX_V			(1 << 1)
 
-#define DRV_NAME "ak4104"
+#define DRV_NAME "ak4104-codec"
 
 struct ak4104_private {
-	struct snd_soc_codec codec;
-	u8 reg_cache[AK4104_NUM_REGS];
+	enum snd_soc_control_type control_type;
+	void *control_data;
 };
 
 static int ak4104_fill_cache(struct snd_soc_codec *codec)
@@ -58,7 +56,7 @@ static int ak4104_fill_cache(struct snd_soc_codec *codec)
 	u8 *reg_cache = codec->reg_cache;
 	struct spi_device *spi = codec->control_data;
 
-	for (i = 0; i < codec->reg_cache_size; i++) {
+	for (i = 0; i < codec->driver->reg_cache_size; i++) {
 		int ret = spi_w8r8(spi, i | AK4104_READ);
 		if (ret < 0) {
 			dev_err(&spi->dev, "SPI write failure\n");
@@ -76,7 +74,7 @@ static unsigned int ak4104_read_reg_cache(struct snd_soc_codec *codec,
 {
 	u8 *reg_cache = codec->reg_cache;
 
-	if (reg >= codec->reg_cache_size)
+	if (reg >= codec->driver->reg_cache_size)
 		return -EINVAL;
 
 	return reg_cache[reg];
@@ -88,7 +86,7 @@ static int ak4104_spi_write(struct snd_soc_codec *codec, unsigned int reg,
 	u8 *cache = codec->reg_cache;
 	struct spi_device *spi = codec->control_data;
 
-	if (reg >= codec->reg_cache_size)
+	if (reg >= codec->driver->reg_cache_size)
 		return -EINVAL;
 
 	/* only write to the hardware if value has changed */
@@ -145,8 +143,7 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 	int val = 0;
 
 	/* set the IEC958 bits: consumer mode, no copyright bit */
@@ -178,8 +175,8 @@ static struct snd_soc_dai_ops ak4101_dai_ops = {
 	.set_fmt = ak4104_set_dai_fmt,
 };
 
-struct snd_soc_dai ak4104_dai = {
-	.name = DRV_NAME,
+static struct snd_soc_dai_driver ak4104_dai = {
+	.name = "ak4104-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
@@ -192,13 +189,71 @@ struct snd_soc_dai ak4104_dai = {
 	.ops = &ak4101_dai_ops,
 };
 
-static struct snd_soc_codec *ak4104_codec;
+static int ak4104_probe(struct snd_soc_codec *codec)
+{
+	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
+	int ret, val;
+
+	codec->control_data = ak4104->control_data;
+
+	/* read all regs and fill the cache */
+	ret = ak4104_fill_cache(codec);
+	if (ret < 0) {
+		dev_err(codec->dev, "failed to fill register cache\n");
+		return ret;
+	}
+
+	/* read the 'reserved' register - according to the datasheet, it
+	 * should contain 0x5b. Not a good way to verify the presence of
+	 * the device, but there is no hardware ID register. */
+	if (ak4104_read_reg_cache(codec, AK4104_REG_RESERVED) !=
+					 AK4104_RESERVED_VAL)
+		return -ENODEV;
+
+	/* set power-up and non-reset bits */
+	val = ak4104_read_reg_cache(codec, AK4104_REG_CONTROL1);
+	val |= AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN;
+	ret = ak4104_spi_write(codec, AK4104_REG_CONTROL1, val);
+	if (ret < 0)
+		return ret;
+
+	/* enable transmitter */
+	val = ak4104_read_reg_cache(codec, AK4104_REG_TX);
+	val |= AK4104_TX_TXE;
+	ret = ak4104_spi_write(codec, AK4104_REG_TX, val);
+	if (ret < 0)
+		return ret;
+
+	dev_info(codec->dev, "SPI device initialized\n");
+	return 0;
+}
+
+static int ak4104_remove(struct snd_soc_codec *codec)
+{
+	int val, ret;
+
+	val = ak4104_read_reg_cache(codec, AK4104_REG_CONTROL1);
+	if (val < 0)
+		return val;
+
+	/* clear power-up and non-reset bits */
+	val &= ~(AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN);
+	ret = ak4104_spi_write(codec, AK4104_REG_CONTROL1, val);
+
+	return ret;
+}
+
+static struct snd_soc_codec_driver soc_codec_device_ak4104 = {
+	.probe =	ak4104_probe,
+	.remove =	ak4104_remove,
+	.reg_cache_size = AK4104_NUM_REGS,
+	.reg_word_size = sizeof(u16),
+};
 
 static int ak4104_spi_probe(struct spi_device *spi)
 {
-	struct snd_soc_codec *codec;
 	struct ak4104_private *ak4104;
-	int ret, val;
+	int ret;
 
 	spi->bits_per_word = 8;
 	spi->mode = SPI_MODE_0;
@@ -207,124 +262,26 @@ static int ak4104_spi_probe(struct spi_device *spi)
 		return ret;
 
 	ak4104 = kzalloc(sizeof(struct ak4104_private), GFP_KERNEL);
-	if (!ak4104) {
-		dev_err(&spi->dev, "could not allocate codec\n");
+	if (ak4104 == NULL)
 		return -ENOMEM;
-	}
 
-	codec = &ak4104->codec;
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	codec->dev = &spi->dev;
-	codec->name = DRV_NAME;
-	codec->owner = THIS_MODULE;
-	codec->dai = &ak4104_dai;
-	codec->num_dai = 1;
-	snd_soc_codec_set_drvdata(codec, ak4104);
-	codec->control_data = spi;
-	codec->reg_cache = ak4104->reg_cache;
-	codec->reg_cache_size = AK4104_NUM_REGS;
-
-	/* read all regs and fill the cache */
-	ret = ak4104_fill_cache(codec);
-	if (ret < 0) {
-		dev_err(&spi->dev, "failed to fill register cache\n");
-		return ret;
-	}
-
-	/* read the 'reserved' register - according to the datasheet, it
-	 * should contain 0x5b. Not a good way to verify the presence of
-	 * the device, but there is no hardware ID register. */
-	if (ak4104_read_reg_cache(codec, AK4104_REG_RESERVED) !=
-					 AK4104_RESERVED_VAL) {
-		ret = -ENODEV;
-		goto error_free_codec;
-	}
-
-	/* set power-up and non-reset bits */
-	val = ak4104_read_reg_cache(codec, AK4104_REG_CONTROL1);
-	val |= AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN;
-	ret = ak4104_spi_write(codec, AK4104_REG_CONTROL1, val);
-	if (ret < 0)
-		goto error_free_codec;
-
-	/* enable transmitter */
-	val = ak4104_read_reg_cache(codec, AK4104_REG_TX);
-	val |= AK4104_TX_TXE;
-	ret = ak4104_spi_write(codec, AK4104_REG_TX, val);
-	if (ret < 0)
-		goto error_free_codec;
-
-	ak4104_codec = codec;
-	ret = snd_soc_register_dai(&ak4104_dai);
-	if (ret < 0) {
-		dev_err(&spi->dev, "failed to register DAI\n");
-		goto error_free_codec;
-	}
-
+	ak4104->control_data = spi;
+	ak4104->control_type = SND_SOC_SPI;
 	spi_set_drvdata(spi, ak4104);
-	dev_info(&spi->dev, "SPI device initialized\n");
-	return 0;
 
-error_free_codec:
-	kfree(ak4104);
-	ak4104_dai.dev = NULL;
+	ret = snd_soc_register_codec(&spi->dev,
+			&soc_codec_device_ak4104, &ak4104_dai, 1);
+	if (ret < 0)
+		kfree(ak4104);
 	return ret;
 }
 
 static int __devexit ak4104_spi_remove(struct spi_device *spi)
 {
-	int ret, val;
-	struct ak4104_private *ak4104 = spi_get_drvdata(spi);
-
-	val = ak4104_read_reg_cache(&ak4104->codec, AK4104_REG_CONTROL1);
-	if (val < 0)
-		return val;
-
-	/* clear power-up and non-reset bits */
-	val &= ~(AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN);
-	ret = ak4104_spi_write(&ak4104->codec, AK4104_REG_CONTROL1, val);
-	if (ret < 0)
-		return ret;
-
-	ak4104_codec = NULL;
-	kfree(ak4104);
+	snd_soc_unregister_codec(&spi->dev);
+	kfree(spi_get_drvdata(spi));
 	return 0;
 }
-
-static int ak4104_probe(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = ak4104_codec;
-	int ret;
-
-	/* Connect the codec to the socdev.  snd_soc_new_pcms() needs this. */
-	socdev->card->codec = codec;
-
-	/* Register PCMs */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to create pcms\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static int ak4104_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	snd_soc_free_pcms(socdev);
-	return 0;
-};
-
-struct snd_soc_codec_device soc_codec_device_ak4104 = {
-	.probe = 	ak4104_probe,
-	.remove = 	ak4104_remove
-};
-EXPORT_SYMBOL_GPL(soc_codec_device_ak4104);
 
 static struct spi_driver ak4104_spi_driver = {
 	.driver  = {

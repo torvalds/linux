@@ -1,4 +1,3 @@
-#include <slang.h>
 #include "libslang.h"
 #include <linux/compiler.h>
 #include <linux/list.h>

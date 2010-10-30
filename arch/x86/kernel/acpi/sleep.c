@@ -15,7 +15,6 @@
 
 #ifdef CONFIG_X86_32
 #include <asm/pgtable.h>
-#include <asm/pgtable_32.h>
 #endif
 
 #include "realmode/wakeup.h"

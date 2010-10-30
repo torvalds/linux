@@ -23,6 +23,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/mmc/host.h>
+#include <sound/tlv320aic3x.h>
 
 #include <plat/mcspi.h>
 #include <plat/board.h>
@@ -31,6 +32,8 @@
 #include <plat/gpmc.h>
 #include <plat/onenand.h>
 #include <plat/gpmc-smc91x.h>
+
+#include <mach/board-rx51.h>
 
 #include <sound/tlv320aic3x.h>
 #include <sound/tpa6130a2-plat.h>
@@ -102,6 +105,10 @@ static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
 		.controller_data	= &tsc2005_mcspi_config,
 		/* .platform_data = &tsc2005_config,*/
 	},
+};
+
+static struct platform_device rx51_charger_device = {
+	.name = "isp1704_charger",
 };
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
@@ -184,7 +191,7 @@ static void __init rx51_add_gpio_keys(void)
 }
 #endif /* CONFIG_KEYBOARD_GPIO || CONFIG_KEYBOARD_GPIO_MODULE */
 
-static int board_keymap[] = {
+static uint32_t board_keymap[] = {
 	/*
 	 * Note that KEY(x, 8, KEY_XXX) entries represent "entrire row
 	 * connected to the ground" matrix state.
@@ -302,7 +309,7 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.name		= "external",
 		.mmc		= 1,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.cover_only	= true,
 		.gpio_cd	= 160,
 		.gpio_wp	= -EINVAL,
@@ -311,7 +318,8 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.name		= "internal",
 		.mmc		= 2,
-		.wires		= 8, /* See also rx51_mmc2_remux */
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
+						/* See also rx51_mmc2_remux */
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 		.nonremovable	= true,
@@ -689,7 +697,6 @@ static struct twl4030_power_data rx51_t2scripts_data __initdata = {
 };
 
 
-
 static struct twl4030_platform_data rx51_twldata __initdata = {
 	.irq_base		= TWL4030_IRQ_BASE,
 	.irq_end		= TWL4030_IRQ_END,
@@ -710,10 +717,6 @@ static struct twl4030_platform_data rx51_twldata __initdata = {
 	.vio			= &rx51_vio,
 };
 
-static struct aic3x_pdata rx51_aic3x_data __initdata = {
-	.gpio_reset		= 60,
-};
-
 static struct tpa6130a2_platform_data rx51_tpa6130a2_data __initdata = {
 	.id			= TPA6130A2,
 	.power_gpio		= 98,
@@ -726,6 +729,17 @@ static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_1[] = {
 		.irq = INT_34XX_SYS_NIRQ,
 		.platform_data = &rx51_twldata,
 	},
+};
+
+/* Audio setup data */
+static struct aic3x_setup_data rx51_aic34_setup = {
+	.gpio_func[0] = AIC3X_GPIO1_FUNC_DISABLED,
+	.gpio_func[1] = AIC3X_GPIO2_FUNC_DIGITAL_MIC_INPUT,
+};
+
+static struct aic3x_pdata rx51_aic3x_data = {
+	.setup = &rx51_aic34_setup,
+	.gpio_reset = 60,
 };
 
 static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {
@@ -909,5 +923,6 @@ void __init rx51_peripherals_init(void)
 	spi_register_board_info(rx51_peripherals_spi_board_info,
 				ARRAY_SIZE(rx51_peripherals_spi_board_info));
 	omap2_hsmmc_init(mmc);
+	platform_device_register(&rx51_charger_device);
 }
 

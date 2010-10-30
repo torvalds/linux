@@ -3,26 +3,25 @@
  * Released under the terms of the GNU GPL v2.0.
  */
 
+#if QT_VERSION < 0x040000
 #include <qlistview.h>
-#if QT_VERSION >= 300
-#include <qsettings.h>
 #else
-class QSettings {
-public:
-	void beginGroup(const QString& group) { }
-	void endGroup(void) { }
-	bool readBoolEntry(const QString& key, bool def = FALSE, bool* ok = 0) const
-	{ if (ok) *ok = FALSE; return def; }
-	int readNumEntry(const QString& key, int def = 0, bool* ok = 0) const
-	{ if (ok) *ok = FALSE; return def; }
-	QString readEntry(const QString& key, const QString& def = QString::null, bool* ok = 0) const
-	{ if (ok) *ok = FALSE; return def; }
-	QStringList readListEntry(const QString& key, bool* ok = 0) const
-	{ if (ok) *ok = FALSE; return QStringList(); }
-	template <class t>
-	bool writeEntry(const QString& key, t value)
-	{ return TRUE; }
-};
+#include <q3listview.h>
+#endif
+#include <qsettings.h>
+
+#if QT_VERSION < 0x040000
+#define Q3ValueList             QValueList
+#define Q3PopupMenu             QPopupMenu
+#define Q3ListView              QListView
+#define Q3ListViewItem          QListViewItem
+#define Q3VBox                  QVBox
+#define Q3TextBrowser           QTextBrowser
+#define Q3MainWindow            QMainWindow
+#define Q3Action                QAction
+#define Q3ToolBar               QToolBar
+#define Q3ListViewItemIterator  QListViewItemIterator
+#define Q3FileDialog            QFileDialog
 #endif
 
 class ConfigView;
@@ -31,11 +30,10 @@ class ConfigItem;
 class ConfigLineEdit;
 class ConfigMainWindow;
 
-
 class ConfigSettings : public QSettings {
 public:
-	QValueList<int> readSizes(const QString& key, bool *ok);
-	bool writeSizes(const QString& key, const QValueList<int>& value);
+	Q3ValueList<int> readSizes(const QString& key, bool *ok);
+	bool writeSizes(const QString& key, const Q3ValueList<int>& value);
 };
 
 enum colIdx {
@@ -48,9 +46,9 @@ enum optionMode {
 	normalOpt = 0, allOpt, promptOpt
 };
 
-class ConfigList : public QListView {
+class ConfigList : public Q3ListView {
 	Q_OBJECT
-	typedef class QListView Parent;
+	typedef class Q3ListView Parent;
 public:
 	ConfigList(ConfigView* p, const char *name = 0);
 	void reinit(void);
@@ -135,17 +133,17 @@ public:
 	struct menu *rootEntry;
 	QColorGroup disabledColorGroup;
 	QColorGroup inactivedColorGroup;
-	QPopupMenu* headerPopup;
+	Q3PopupMenu* headerPopup;
 
 private:
 	int colMap[colNr];
 	int colRevMap[colNr];
 };
 
-class ConfigItem : public QListViewItem {
-	typedef class QListViewItem Parent;
+class ConfigItem : public Q3ListViewItem {
+	typedef class Q3ListViewItem Parent;
 public:
-	ConfigItem(QListView *parent, ConfigItem *after, struct menu *m, bool v)
+	ConfigItem(Q3ListView *parent, ConfigItem *after, struct menu *m, bool v)
 	: Parent(parent, after), menu(m), visible(v), goParent(false)
 	{
 		init();
@@ -155,16 +153,14 @@ public:
 	{
 		init();
 	}
-	ConfigItem(QListView *parent, ConfigItem *after, bool v)
+	ConfigItem(Q3ListView *parent, ConfigItem *after, bool v)
 	: Parent(parent, after), menu(0), visible(v), goParent(true)
 	{
 		init();
 	}
 	~ConfigItem(void);
 	void init(void);
-#if QT_VERSION >= 300
 	void okRename(int col);
-#endif
 	void updateMenu(void);
 	void testUpdateMenu(bool v);
 	ConfigList* listView() const
@@ -219,9 +215,9 @@ public:
 	ConfigItem *item;
 };
 
-class ConfigView : public QVBox {
+class ConfigView : public Q3VBox {
 	Q_OBJECT
-	typedef class QVBox Parent;
+	typedef class Q3VBox Parent;
 public:
 	ConfigView(QWidget* parent, const char *name = 0);
 	~ConfigView(void);
@@ -252,9 +248,9 @@ public:
 	static QAction *showPromptAction;
 };
 
-class ConfigInfoView : public QTextBrowser {
+class ConfigInfoView : public Q3TextBrowser {
 	Q_OBJECT
-	typedef class QTextBrowser Parent;
+	typedef class Q3TextBrowser Parent;
 public:
 	ConfigInfoView(QWidget* parent, const char *name = 0);
 	bool showDebug(void) const { return _showDebug; }
@@ -274,11 +270,11 @@ protected:
 	QString debug_info(struct symbol *sym);
 	static QString print_filter(const QString &str);
 	static void expr_print_help(void *data, struct symbol *sym, const char *str);
-	QPopupMenu* createPopupMenu(const QPoint& pos);
+	Q3PopupMenu* createPopupMenu(const QPoint& pos);
 	void contentsContextMenuEvent(QContextMenuEvent *e);
 
 	struct symbol *sym;
-	struct menu *menu;
+	struct menu *_menu;
 	bool _showDebug;
 };
 
@@ -302,10 +298,10 @@ protected:
 	struct symbol **result;
 };
 
-class ConfigMainWindow : public QMainWindow {
+class ConfigMainWindow : public Q3MainWindow {
 	Q_OBJECT
 
-	static QAction *saveAction;
+	static Q3Action *saveAction;
 	static void conf_changed(void);
 public:
 	ConfigMainWindow(void);
@@ -334,8 +330,8 @@ protected:
 	ConfigView *configView;
 	ConfigList *configList;
 	ConfigInfoView *helpText;
-	QToolBar *toolBar;
-	QAction *backAction;
+	Q3ToolBar *toolBar;
+	Q3Action *backAction;
 	QSplitter* split1;
 	QSplitter* split2;
 };

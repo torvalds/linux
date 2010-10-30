@@ -1,8 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
 config SCHED_MC
 	def_bool y
 	depends on SMP
@@ -60,6 +55,9 @@ config NO_IOMEM
 config NO_DMA
 	def_bool y
 
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool 64BIT
+
 config GENERIC_LOCKBREAK
 	bool
 	default y
@@ -75,8 +73,6 @@ config VIRT_CPU_ACCOUNTING
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
-mainmenu "Linux Kernel Configuration"
-
 config S390
 	def_bool y
 	select USE_GENERIC_SMP_HELPERS if SMP
@@ -84,6 +80,7 @@ config S390
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_C_RECORDMCOUNT
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -101,6 +98,7 @@ config S390
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
+	select HAVE_GET_USER_PAGES_FAST
 	select ARCH_INLINE_SPIN_TRYLOCK
 	select ARCH_INLINE_SPIN_TRYLOCK_BH
 	select ARCH_INLINE_SPIN_LOCK
@@ -147,7 +145,7 @@ source "kernel/time/Kconfig"
 config 64BIT
 	bool "64 bit kernel"
 	help
-	  Select this option if you have a 64 bit IBM zSeries machine
+	  Select this option if you have an IBM z/Architecture machine
 	  and want to use the 64 bit addressing mode.
 
 config 32BIT
@@ -199,9 +197,18 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
+config SCHED_MC
+	def_bool y
+	prompt "Multi-core scheduler support"
+	depends on SMP
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places.
+
 config SCHED_BOOK
 	bool "Book scheduler support"
-	depends on SMP
+	depends on SMP && SCHED_MC
 	help
 	  Book scheduler support improves the CPU scheduler's decision making
 	  when dealing with machines that have several books.
@@ -211,7 +218,7 @@ config MATHEMU
 	depends on MARCH_G5
 	help
 	  This option is required for IEEE compliant floating point arithmetic
-	  on older S/390 machines. Say Y unless you know your machine doesn't
+	  on older ESA/390 machines. Say Y unless you know your machine doesn't
 	  need this.
 
 config COMPAT
@@ -240,8 +247,8 @@ config S390_EXEC_PROTECT
 	  space programs and it also selects the addressing mode option above.
 	  The kernel parameter noexec=on will enable this feature and also
 	  switch the addressing modes, default is disabled. Enabling this (via
-	  kernel parameter) on machines earlier than IBM System z9-109 EC/BC
-	  will reduce system performance.
+	  kernel parameter) on machines earlier than IBM System z9 this will
+	  reduce system performance.
 
 comment "Code generation options"
 
@@ -250,41 +257,46 @@ choice
 	default MARCH_G5
 
 config MARCH_G5
-	bool "S/390 model G5 and G6"
+	bool "System/390 model G5 and G6"
 	depends on !64BIT
 	help
 	  Select this to build a 31 bit kernel that works
-	  on all S/390 and zSeries machines.
+	  on all ESA/390 and z/Architecture machines.
 
 config MARCH_Z900
-	bool "IBM eServer zSeries model z800 and z900"
+	bool "IBM zSeries model z800 and z900"
 	help
-	  Select this to optimize for zSeries machines. This
-	  will enable some optimizations that are not available
-	  on older 31 bit only CPUs.
+	  Select this to enable optimizations for model z800/z900 (2064 and
+	  2066 series). This will enable some optimizations that are not
+	  available on older ESA/390 (31 Bit) only CPUs.
 
 config MARCH_Z990
-	bool "IBM eServer zSeries model z890 and z990"
+	bool "IBM zSeries model z890 and z990"
 	help
-	  Select this enable optimizations for model z890/z990.
-	  This will be slightly faster but does not work on
-	  older machines such as the z900.
+	  Select this to enable optimizations for model z890/z990 (2084 and
+	  2086 series). The kernel will be slightly faster but will not work
+	  on older machines.
 
 config MARCH_Z9_109
 	bool "IBM System z9"
 	help
-	  Select this to enable optimizations for IBM System z9-109, IBM
-	  System z9 Enterprise Class (z9 EC), and IBM System z9 Business
-	  Class (z9 BC). The kernel will be slightly faster but will not
-	  work on older machines such as the z990, z890, z900, and z800.
+	  Select this to enable optimizations for IBM System z9 (2094 and
+	  2096 series). The kernel will be slightly faster but will not work
+	  on older machines.
 
 config MARCH_Z10
 	bool "IBM System z10"
 	help
-	  Select this to enable optimizations for IBM System z10. The
-	  kernel will be slightly faster but will not work on older
-	  machines such as the z990, z890, z900, z800, z9-109, z9-ec
-	  and z9-bc.
+	  Select this to enable optimizations for IBM System z10 (2097 and
+	  2098 series). The kernel will be slightly faster but will not work
+	  on older machines.
+
+config MARCH_Z196
+	bool "IBM zEnterprise 196"
+	help
+	  Select this to enable optimizations for IBM zEnterprise 196
+	  (2817 series). The kernel will be slightly faster but will not work
+	  on older machines.
 
 endchoice
 

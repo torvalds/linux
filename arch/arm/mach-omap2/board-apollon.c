@@ -39,9 +39,9 @@
 #include <plat/board.h>
 #include <plat/common.h>
 #include <plat/gpmc.h>
-#include <plat/control.h>
 
 #include "mux.h"
+#include "control.h"
 
 /* LED & Switch macros */
 #define LED0_GPIO13		13

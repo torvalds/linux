@@ -281,23 +281,13 @@ commit_metadata(struct svc_fh *fhp)
 {
 	struct inode *inode = fhp->fh_dentry->d_inode;
 	const struct export_operations *export_ops = inode->i_sb->s_export_op;
-	int error = 0;
 
 	if (!EX_ISSYNC(fhp->fh_export))
 		return 0;
 
-	if (export_ops->commit_metadata) {
-		error = export_ops->commit_metadata(inode);
-	} else {
-		struct writeback_control wbc = {
-			.sync_mode = WB_SYNC_ALL,
-			.nr_to_write = 0, /* metadata only */
-		};
-
-		error = sync_inode(inode, &wbc);
-	}
-
-	return error;
+	if (export_ops->commit_metadata)
+		return export_ops->commit_metadata(inode);
+	return sync_inode_metadata(inode, 1);
 }
 
 /*

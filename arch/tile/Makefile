@@ -26,8 +26,9 @@ $(error Set TILERA_ROOT or CROSS_COMPILE when building $(ARCH) on $(HOST_ARCH))
   endif
 endif
 
-
+ifneq ($(CONFIG_DEBUG_EXTRA_FLAGS),"")
 KBUILD_CFLAGS   += $(CONFIG_DEBUG_EXTRA_FLAGS)
+endif
 
 LIBGCC_PATH     := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
@@ -49,6 +50,20 @@ head-y		:= arch/tile/kernel/head_$(BITS).o
 libs-y		+= arch/tile/lib/
 libs-y		+= $(LIBGCC_PATH)
 
-
 # See arch/tile/Kbuild for content of core part of the kernel
 core-y		+= arch/tile/
+
+core-$(CONFIG_KVM) += arch/tile/kvm/
+
+ifdef TILERA_ROOT
+INSTALL_PATH ?= $(TILERA_ROOT)/tile/boot
+endif
+
+install:
+	install -D -m 755 vmlinux $(INSTALL_PATH)/vmlinux-$(KERNELRELEASE)
+	install -D -m 644 .config $(INSTALL_PATH)/config-$(KERNELRELEASE)
+	install -D -m 644 System.map $(INSTALL_PATH)/System.map-$(KERNELRELEASE)
+
+define archhelp
+	echo '  install         - install kernel into $(INSTALL_PATH)'
+endef

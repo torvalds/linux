@@ -1,0 +1,9 @@
+TODO:
+	- checkpatch.pl cleanups
+	- coding style
+	- sparse fixes
+	- adapt to latest usb and pcmcia api changes
+	- change firmware loading for usb driver to proper kernel method (request_firmware)
+
+Please send patches to Greg Kroah-Hartman <greg@kroah.com> and
+Cc: Marek Belisko <marek.belisko@gmail.com>

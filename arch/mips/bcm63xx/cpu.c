@@ -10,7 +10,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
+#include <asm/cpu.h>
 #include <asm/cpu-info.h>
+#include <asm/mipsregs.h>
 #include <bcm63xx_cpu.h>
 #include <bcm63xx_regs.h>
 #include <bcm63xx_io.h>
@@ -296,26 +298,24 @@ void __init bcm63xx_cpu_init(void)
 	expected_cpu_id = 0;
 
 	switch (c->cputype) {
-	/*
-	 * BCM6338 as the same PrId as BCM3302 see arch/mips/kernel/cpu-probe.c
-	 */
-	case CPU_BCM3302:
-		__cpu_name[cpu] = "Broadcom BCM6338";
-		expected_cpu_id = BCM6338_CPU_ID;
-		bcm63xx_regs_base = bcm96338_regs_base;
-		bcm63xx_irqs = bcm96338_irqs;
+	case CPU_BMIPS3300:
+		if ((read_c0_prid() & 0xff00) == PRID_IMP_BMIPS3300_ALT) {
+			expected_cpu_id = BCM6348_CPU_ID;
+			bcm63xx_regs_base = bcm96348_regs_base;
+			bcm63xx_irqs = bcm96348_irqs;
+		} else {
+			__cpu_name[cpu] = "Broadcom BCM6338";
+			expected_cpu_id = BCM6338_CPU_ID;
+			bcm63xx_regs_base = bcm96338_regs_base;
+			bcm63xx_irqs = bcm96338_irqs;
+		}
 		break;
-	case CPU_BCM6345:
+	case CPU_BMIPS32:
 		expected_cpu_id = BCM6345_CPU_ID;
 		bcm63xx_regs_base = bcm96345_regs_base;
 		bcm63xx_irqs = bcm96345_irqs;
 		break;
-	case CPU_BCM6348:
-		expected_cpu_id = BCM6348_CPU_ID;
-		bcm63xx_regs_base = bcm96348_regs_base;
-		bcm63xx_irqs = bcm96348_irqs;
-		break;
-	case CPU_BCM6358:
+	case CPU_BMIPS4350:
 		expected_cpu_id = BCM6358_CPU_ID;
 		bcm63xx_regs_base = bcm96358_regs_base;
 		bcm63xx_irqs = bcm96358_irqs;

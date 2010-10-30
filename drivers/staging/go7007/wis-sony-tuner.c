@@ -692,6 +692,7 @@ static const struct i2c_device_id wis_sony_tuner_id[] = {
 	{ "wis_sony_tuner", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, wis_sony_tuner_id);
 
 static struct i2c_driver wis_sony_tuner_driver = {
 	.driver = {

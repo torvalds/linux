@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux Kernel Configuration"
-
 config ARM
 	bool
 	default y
@@ -573,6 +566,7 @@ config ARCH_TEGRA
 	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ARCH_HAS_BARRIERS if CACHE_L2X0
+	select ARCH_HAS_CPUFREQ
 	help
 	  This enables support for NVIDIA Tegra based systems (Tegra APX,
 	  Tegra 6xx and Tegra 2 series).
@@ -726,9 +720,11 @@ config ARCH_S5PC100
 config ARCH_S5PV210
 	bool "Samsung S5PV210/S5PC110"
 	select CPU_V7
+	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARM_L1_CACHE_SHIFT_6
+	select ARCH_HAS_CPUFREQ
 	select ARCH_USES_GETTIMEOFFSET
 	select HAVE_S3C2410_I2C
 	select HAVE_S3C_RTC
@@ -739,9 +735,13 @@ config ARCH_S5PV210
 config ARCH_S5PV310
 	bool "Samsung S5PV310/S5PC210"
 	select CPU_V7
+	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select GENERIC_CLOCKEVENTS
+	select HAVE_S3C_RTC
+	select HAVE_S3C2410_I2C
+	select HAVE_S3C2410_WATCHDOG
 	help
 	  Samsung S5PV310 series based systems
 
@@ -831,7 +831,7 @@ config ARCH_OMAP
 	select GENERIC_CLOCKEVENTS
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	help
-	  Support for TI's OMAP platform (OMAP1 and OMAP2).
+	  Support for TI's OMAP platform (OMAP1/2/3/4).
 
 config PLAT_SPEAR
 	bool "ST SPEAr"
@@ -1667,6 +1667,12 @@ menu "CPU Power Management"
 if ARCH_HAS_CPUFREQ
 
 source "drivers/cpufreq/Kconfig"
+
+config CPU_FREQ_IMX
+	tristate "CPUfreq driver for i.MX CPUs"
+	depends on ARCH_MXC && CPU_FREQ
+	help
+	  This enables the CPUfreq driver for i.MX CPUs.
 
 config CPU_FREQ_SA1100
 	bool

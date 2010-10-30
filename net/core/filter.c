@@ -89,8 +89,8 @@ int sk_filter(struct sock *sk, struct sk_buff *skb)
 	rcu_read_lock_bh();
 	filter = rcu_dereference_bh(sk->sk_filter);
 	if (filter) {
-		unsigned int pkt_len = sk_run_filter(skb, filter->insns,
-				filter->len);
+		unsigned int pkt_len = sk_run_filter(skb, filter->insns, filter->len);
+
 		err = pkt_len ? pskb_trim(skb, pkt_len) : -EPERM;
 	}
 	rcu_read_unlock_bh();

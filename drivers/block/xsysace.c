@@ -1225,7 +1225,8 @@ ace_of_probe(struct platform_device *op, const struct of_device_id *match)
 		bus_width = ACE_BUS_WIDTH_8;
 
 	/* Call the bus-independant setup code */
-	return ace_alloc(&op->dev, id ? *id : 0, physaddr, irq, bus_width);
+	return ace_alloc(&op->dev, id ? be32_to_cpup(id) : 0,
+						physaddr, irq, bus_width);
 }
 
 static int __devexit ace_of_remove(struct platform_device *op)

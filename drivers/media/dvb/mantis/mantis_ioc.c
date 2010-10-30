@@ -68,14 +68,7 @@ int mantis_get_mac(struct mantis_pci *mantis)
 		return err;
 	}
 
-	dprintk(MANTIS_ERROR, 0,
-		"    MAC Address=[%02x:%02x:%02x:%02x:%02x:%02x]\n",
-		mac_addr[0],
-		mac_addr[1],
-		mac_addr[2],
-		mac_addr[3],
-		mac_addr[4],
-		mac_addr[5]);
+	dprintk(MANTIS_ERROR, 0, "    MAC Address=[%pM]\n", mac_addr);
 
 	return 0;
 }

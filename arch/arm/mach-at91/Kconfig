@@ -375,6 +375,12 @@ config MACH_STAMP9G20
 	  evaluation board.
 	  <http://www.taskit.de/en/>
 
+config MACH_PCONTROL_G20
+	bool "PControl G20 CPU module"
+	help
+	  Select this if you are using taskit's Stamp9G20 CPU module on this
+	  carrier board, beeing the decentralized unit of a building automation
+	  system; featuring nvram, eth-switch, iso-rs485, display, io
 endif
 
 if (ARCH_AT91SAM9260 || ARCH_AT91SAM9G20)

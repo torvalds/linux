@@ -726,7 +726,7 @@ static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 	/* Initialize link state */
 	et131x_link_detection_handler((unsigned long)adapter);
 
-	/* Intialize variable for counting how long we do not have
+	/* Initialize variable for counting how long we do not have
 							link status */
 	adapter->PoMgmt.TransPhyComaModeOnBoot = 0;
 

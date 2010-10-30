@@ -181,7 +181,6 @@ int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root
 int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid)
 {
 	struct btrfs_root *dead_root;
-	struct btrfs_item *item;
 	struct btrfs_root_item *ri;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
@@ -214,7 +213,6 @@ again:
 			nritems = btrfs_header_nritems(leaf);
 			slot = path->slots[0];
 		}
-		item = btrfs_item_nr(leaf, slot);
 		btrfs_item_key_to_cpu(leaf, &key, slot);
 		if (btrfs_key_type(&key) != BTRFS_ROOT_ITEM_KEY)
 			goto next;

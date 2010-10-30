@@ -32,9 +32,6 @@
 #include <linux/slab.h>
 #include "cifs_spnego.h"
 
-extern void SMBNTencrypt(unsigned char *passwd, unsigned char *c8,
-			 unsigned char *p24);
-
 /*
  * Checks if this is the first smb session to be reconnected after
  * the socket has been reestablished (so we know whether to use vc 0).
@@ -402,23 +399,22 @@ static int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 		return -EINVAL;
 	}
 
-	memcpy(ses->cryptKey, pblob->Challenge, CIFS_CRYPTO_KEY_SIZE);
+	memcpy(ses->ntlmssp->cryptkey, pblob->Challenge, CIFS_CRYPTO_KEY_SIZE);
 	/* BB we could decode pblob->NegotiateFlags; some may be useful */
 	/* In particular we can examine sign flags */
 	/* BB spec says that if AvId field of MsvAvTimestamp is populated then
 		we must set the MIC field of the AUTHENTICATE_MESSAGE */
-
+	ses->ntlmssp->server_flags = le32_to_cpu(pblob->NegotiateFlags);
 	tioffset = cpu_to_le16(pblob->TargetInfoArray.BufferOffset);
 	tilen = cpu_to_le16(pblob->TargetInfoArray.Length);
-	ses->tilen = tilen;
-	if (ses->tilen) {
-		ses->tiblob = kmalloc(tilen, GFP_KERNEL);
-		if (!ses->tiblob) {
+	if (tilen) {
+		ses->auth_key.response = kmalloc(tilen, GFP_KERNEL);
+		if (!ses->auth_key.response) {
 			cERROR(1, "Challenge target info allocation failure");
-			ses->tilen = 0;
 			return -ENOMEM;
 		}
-		memcpy(ses->tiblob,  bcc_ptr + tioffset, ses->tilen);
+		memcpy(ses->auth_key.response, bcc_ptr + tioffset, tilen);
+		ses->auth_key.len = tilen;
 	}
 
 	return 0;
@@ -443,10 +439,12 @@ static void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 		NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_UNICODE |
 		NTLMSSP_NEGOTIATE_NTLM;
 	if (ses->server->secMode &
-	   (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
+			(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
-	if (ses->server->secMode & SECMODE_SIGN_REQUIRED)
-		flags |= NTLMSSP_NEGOTIATE_ALWAYS_SIGN;
+		if (!ses->server->session_estab)
+			flags |= NTLMSSP_NEGOTIATE_KEY_XCH |
+				NTLMSSP_NEGOTIATE_EXTENDED_SEC;
+	}
 
 	sec_blob->NegotiateFlags |= cpu_to_le32(flags);
 
@@ -469,11 +467,9 @@ static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 				   const struct nls_table *nls_cp)
 {
 	int rc;
-	unsigned int size;
 	AUTHENTICATE_MESSAGE *sec_blob = (AUTHENTICATE_MESSAGE *)pbuffer;
 	__u32 flags;
 	unsigned char *tmp;
-	struct ntlmv2_resp ntlmv2_response = {};
 
 	memcpy(sec_blob->Signature, NTLMSSP_SIGNATURE, 8);
 	sec_blob->MessageType = NtLmAuthenticate;
@@ -497,25 +493,19 @@ static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	sec_blob->LmChallengeResponse.MaximumLength = 0;
 
 	sec_blob->NtChallengeResponse.BufferOffset = cpu_to_le32(tmp - pbuffer);
-	rc = setup_ntlmv2_rsp(ses, (char *)&ntlmv2_response, nls_cp);
+	rc = setup_ntlmv2_rsp(ses, nls_cp);
 	if (rc) {
 		cERROR(1, "Error %d during NTLMSSP authentication", rc);
 		goto setup_ntlmv2_ret;
 	}
-	size =  sizeof(struct ntlmv2_resp);
-	memcpy(tmp, (char *)&ntlmv2_response, size);
-	tmp += size;
-	if (ses->tilen > 0) {
-		memcpy(tmp, ses->tiblob, ses->tilen);
-		tmp += ses->tilen;
-	}
+	memcpy(tmp, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
+			ses->auth_key.len - CIFS_SESS_KEY_SIZE);
+	tmp += ses->auth_key.len - CIFS_SESS_KEY_SIZE;
 
-	sec_blob->NtChallengeResponse.Length = cpu_to_le16(size + ses->tilen);
+	sec_blob->NtChallengeResponse.Length =
+			cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
 	sec_blob->NtChallengeResponse.MaximumLength =
-				cpu_to_le16(size + ses->tilen);
-	kfree(ses->tiblob);
-	ses->tiblob = NULL;
-	ses->tilen = 0;
+			cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
 
 	if (ses->domainName == NULL) {
 		sec_blob->DomainName.BufferOffset = cpu_to_le32(tmp - pbuffer);
@@ -554,9 +544,19 @@ static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	sec_blob->WorkstationName.MaximumLength = 0;
 	tmp += 2;
 
-	sec_blob->SessionKey.BufferOffset = cpu_to_le32(tmp - pbuffer);
-	sec_blob->SessionKey.Length = 0;
-	sec_blob->SessionKey.MaximumLength = 0;
+	if ((ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_KEY_XCH) &&
+			!calc_seckey(ses)) {
+		memcpy(tmp, ses->ntlmssp->ciphertext, CIFS_CPHTXT_SIZE);
+		sec_blob->SessionKey.BufferOffset = cpu_to_le32(tmp - pbuffer);
+		sec_blob->SessionKey.Length = cpu_to_le16(CIFS_CPHTXT_SIZE);
+		sec_blob->SessionKey.MaximumLength =
+				cpu_to_le16(CIFS_CPHTXT_SIZE);
+		tmp += CIFS_CPHTXT_SIZE;
+	} else {
+		sec_blob->SessionKey.BufferOffset = cpu_to_le32(tmp - pbuffer);
+		sec_blob->SessionKey.Length = 0;
+		sec_blob->SessionKey.MaximumLength = 0;
+	}
 
 setup_ntlmv2_ret:
 	*buflen = tmp - pbuffer;
@@ -600,8 +600,16 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses,
 		return -EINVAL;
 
 	type = ses->server->secType;
-
 	cFYI(1, "sess setup type %d", type);
+	if (type == RawNTLMSSP) {
+		/* if memory allocation is successful, caller of this function
+		 * frees it.
+		 */
+		ses->ntlmssp = kmalloc(sizeof(struct ntlmssp_auth), GFP_KERNEL);
+		if (!ses->ntlmssp)
+			return -ENOMEM;
+	}
+
 ssetup_ntlmssp_authenticate:
 	if (phase == NtLmChallenge)
 		phase = NtLmAuthenticate; /* if ntlmssp, now final phase */
@@ -666,10 +674,14 @@ ssetup_ntlmssp_authenticate:
 		/* no capabilities flags in old lanman negotiation */
 
 		pSMB->old_req.PasswordLength = cpu_to_le16(CIFS_SESS_KEY_SIZE);
-		/* BB calculate hash with password */
-		/* and copy into bcc */
 
-		calc_lanman_hash(ses->password, ses->cryptKey,
+		/* Calculate hash with password and copy into bcc_ptr.
+		 * Encryption Key (stored as in cryptkey) gets used if the
+		 * security mode bit in Negottiate Protocol response states
+		 * to use challenge/response method (i.e. Password bit is 1).
+		 */
+
+		calc_lanman_hash(ses->password, ses->server->cryptkey,
 				 ses->server->secMode & SECMODE_PW_ENCRYPT ?
 					true : false, lnm_session_key);
 
@@ -687,24 +699,27 @@ ssetup_ntlmssp_authenticate:
 		ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
 #endif
 	} else if (type == NTLM) {
-		char ntlm_session_key[CIFS_SESS_KEY_SIZE];
-
 		pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
 		pSMB->req_no_secext.CaseInsensitivePasswordLength =
-			cpu_to_le16(CIFS_SESS_KEY_SIZE);
+			cpu_to_le16(CIFS_AUTH_RESP_SIZE);
 		pSMB->req_no_secext.CaseSensitivePasswordLength =
-			cpu_to_le16(CIFS_SESS_KEY_SIZE);
+			cpu_to_le16(CIFS_AUTH_RESP_SIZE);
 
-		/* calculate session key */
-		SMBNTencrypt(ses->password, ses->cryptKey, ntlm_session_key);
+		/* calculate ntlm response and session key */
+		rc = setup_ntlm_response(ses);
+		if (rc) {
+			cERROR(1, "Error %d during NTLM authentication", rc);
+			goto ssetup_exit;
+		}
 
-		cifs_calculate_session_key(&ses->auth_key,
-					ntlm_session_key, ses->password);
-		/* copy session key */
-		memcpy(bcc_ptr, (char *)ntlm_session_key, CIFS_SESS_KEY_SIZE);
-		bcc_ptr += CIFS_SESS_KEY_SIZE;
-		memcpy(bcc_ptr, (char *)ntlm_session_key, CIFS_SESS_KEY_SIZE);
-		bcc_ptr += CIFS_SESS_KEY_SIZE;
+		/* copy ntlm response */
+		memcpy(bcc_ptr, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
+				CIFS_AUTH_RESP_SIZE);
+		bcc_ptr += CIFS_AUTH_RESP_SIZE;
+		memcpy(bcc_ptr, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
+				CIFS_AUTH_RESP_SIZE);
+		bcc_ptr += CIFS_AUTH_RESP_SIZE;
+
 		if (ses->capabilities & CAP_UNICODE) {
 			/* unicode strings must be word aligned */
 			if (iov[0].iov_len % 2) {
@@ -715,47 +730,26 @@ ssetup_ntlmssp_authenticate:
 		} else
 			ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
 	} else if (type == NTLMv2) {
-		char *v2_sess_key =
-			kmalloc(sizeof(struct ntlmv2_resp), GFP_KERNEL);
-
-		/* BB FIXME change all users of v2_sess_key to
-		   struct ntlmv2_resp */
-
-		if (v2_sess_key == NULL) {
-			rc = -ENOMEM;
-			goto ssetup_exit;
-		}
-
 		pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
 
 		/* LM2 password would be here if we supported it */
 		pSMB->req_no_secext.CaseInsensitivePasswordLength = 0;
-		/*	cpu_to_le16(LM2_SESS_KEY_SIZE); */
 
-		/* calculate session key */
-		rc = setup_ntlmv2_rsp(ses, v2_sess_key, nls_cp);
+		/* calculate nlmv2 response and session key */
+		rc = setup_ntlmv2_rsp(ses, nls_cp);
 		if (rc) {
 			cERROR(1, "Error %d during NTLMv2 authentication", rc);
-			kfree(v2_sess_key);
 			goto ssetup_exit;
 		}
-		memcpy(bcc_ptr, (char *)v2_sess_key,
-				sizeof(struct ntlmv2_resp));
-		bcc_ptr += sizeof(struct ntlmv2_resp);
-		kfree(v2_sess_key);
+		memcpy(bcc_ptr, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
+				ses->auth_key.len - CIFS_SESS_KEY_SIZE);
+		bcc_ptr += ses->auth_key.len - CIFS_SESS_KEY_SIZE;
+
 		/* set case sensitive password length after tilen may get
 		 * assigned, tilen is 0 otherwise.
 		 */
 		pSMB->req_no_secext.CaseSensitivePasswordLength =
-			cpu_to_le16(sizeof(struct ntlmv2_resp) + ses->tilen);
-		if (ses->tilen > 0) {
-			memcpy(bcc_ptr, ses->tiblob, ses->tilen);
-			bcc_ptr += ses->tilen;
-			/* we never did allocate ses->domainName to free */
-			kfree(ses->tiblob);
-			ses->tiblob = NULL;
-			ses->tilen = 0;
-		}
+			cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
 
 		if (ses->capabilities & CAP_UNICODE) {
 			if (iov[0].iov_len % 2) {
@@ -768,6 +762,7 @@ ssetup_ntlmssp_authenticate:
 	} else if (type == Kerberos) {
 #ifdef CONFIG_CIFS_UPCALL
 		struct cifs_spnego_msg *msg;
+
 		spnego_key = cifs_get_spnego_key(ses);
 		if (IS_ERR(spnego_key)) {
 			rc = PTR_ERR(spnego_key);
@@ -785,16 +780,17 @@ ssetup_ntlmssp_authenticate:
 			rc = -EKEYREJECTED;
 			goto ssetup_exit;
 		}
-		/* bail out if key is too long */
-		if (msg->sesskey_len >
-		    sizeof(ses->auth_key.data.krb5)) {
-			cERROR(1, "Kerberos signing key too long (%u bytes)",
-				msg->sesskey_len);
-			rc = -EOVERFLOW;
+
+		ses->auth_key.response = kmalloc(msg->sesskey_len, GFP_KERNEL);
+		if (!ses->auth_key.response) {
+			cERROR(1, "Kerberos can't allocate (%u bytes) memory",
+					msg->sesskey_len);
+			rc = -ENOMEM;
 			goto ssetup_exit;
 		}
+		memcpy(ses->auth_key.response, msg->data, msg->sesskey_len);
 		ses->auth_key.len = msg->sesskey_len;
-		memcpy(ses->auth_key.data.krb5, msg->data, msg->sesskey_len);
+
 		pSMB->req.hdr.Flags2 |= SMBFLG2_EXT_SEC;
 		capabilities |= CAP_EXTENDED_SECURITY;
 		pSMB->req.Capabilities = cpu_to_le32(capabilities);
@@ -896,8 +892,6 @@ ssetup_ntlmssp_authenticate:
 	rc = SendReceive2(xid, ses, iov, 3 /* num_iovecs */, &resp_buf_type,
 			  CIFS_STD_OP /* not long */ | CIFS_LOG_ERROR);
 	/* SMB request buf freed in SendReceive2 */
-
-	cFYI(1, "ssetup rc from sendrecv2 is %d", rc);
 
 	pSMB = (SESSION_SETUP_ANDX *)iov[0].iov_base;
 	smb_buf = (struct smb_hdr *)iov[0].iov_base;

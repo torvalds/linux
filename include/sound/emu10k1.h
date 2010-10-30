@@ -438,6 +438,8 @@
 #define CCCA_CURRADDR_MASK	0x00ffffff	/* Current address of the selected channel		*/
 #define CCCA_CURRADDR		0x18000008
 
+/* undefine CCR to avoid conflict with the definition for SH */
+#undef CCR
 #define CCR			0x09		/* Cache control register				*/
 #define CCR_CACHEINVALIDSIZE	0x07190009
 #define CCR_CACHEINVALIDSIZE_MASK	0xfe000000	/* Number of invalid samples cache for this channel    	*/

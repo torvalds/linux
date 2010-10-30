@@ -298,9 +298,9 @@ static int bdev_write_sb(struct super_block *sb, struct page *page)
 	return sync_request(page, bdev, WRITE);
 }
 
-static void bdev_put_device(struct super_block *sb)
+static void bdev_put_device(struct logfs_super *s)
 {
-	close_bdev_exclusive(logfs_super(sb)->s_bdev, FMODE_READ|FMODE_WRITE);
+	close_bdev_exclusive(s->s_bdev, FMODE_READ|FMODE_WRITE);
 }
 
 static int bdev_can_write_buf(struct super_block *sb, u64 ofs)
@@ -320,8 +320,8 @@ static const struct logfs_device_ops bd_devops = {
 	.put_device	= bdev_put_device,
 };
 
-int logfs_get_sb_bdev(struct file_system_type *type, int flags,
-		const char *devname, struct vfsmount *mnt)
+int logfs_get_sb_bdev(struct logfs_super *p, struct file_system_type *type,
+		const char *devname)
 {
 	struct block_device *bdev;
 
@@ -332,8 +332,11 @@ int logfs_get_sb_bdev(struct file_system_type *type, int flags,
 	if (MAJOR(bdev->bd_dev) == MTD_BLOCK_MAJOR) {
 		int mtdnr = MINOR(bdev->bd_dev);
 		close_bdev_exclusive(bdev, FMODE_READ|FMODE_WRITE);
-		return logfs_get_sb_mtd(type, flags, mtdnr, mnt);
+		return logfs_get_sb_mtd(p, mtdnr);
 	}
 
-	return logfs_get_sb_device(type, flags, NULL, bdev, &bd_devops, mnt);
+	p->s_bdev = bdev;
+	p->s_mtd = NULL;
+	p->s_devops = &bd_devops;
+	return 0;
 }

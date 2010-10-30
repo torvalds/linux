@@ -400,13 +400,6 @@ config MTD_NAND_PXA3xx
 	  This enables the driver for the NAND flash device found on
 	  PXA3xx processors
 
-config MTD_NAND_PXA3xx_BUILTIN
-	bool "Use builtin definitions for some NAND chips (deprecated)"
-	depends on MTD_NAND_PXA3xx
-	help
-	  This enables builtin definitions for some NAND chips. This
-	  is deprecated in favor of platform specific data.
-
 config MTD_NAND_CM_X270
 	tristate "Support for NAND Flash on CM-X270 modules"
 	depends on MACH_ARMCORE
@@ -458,6 +451,7 @@ config MTD_NAND_ORION
 config MTD_NAND_FSL_ELBC
 	tristate "NAND support for Freescale eLBC controllers"
 	depends on PPC_OF
+	select FSL_LBC
 	help
 	  Various Freescale chips, including the 8313, include a NAND Flash
 	  Controller Module with built-in hardware ECC capabilities.
@@ -530,5 +524,12 @@ config MTD_NAND_JZ4740
 	depends on MACH_JZ4740
 	help
 		Enables support for NAND Flash on JZ4740 SoC based boards.
+
+config MTD_NAND_FSMC
+	tristate "Support for NAND on ST Micros FSMC"
+	depends on PLAT_SPEAR || PLAT_NOMADIK || MACH_U300
+	help
+	  Enables support for NAND Flash chips on the ST Microelectronics
+	  Flexible Static Memory Controller (FSMC)
 
 endif # MTD_NAND

@@ -30,7 +30,7 @@
 #include <linux/mmc/host.h>
 
 #include <linux/io.h>
-#include <linux/sdhci-pltfm.h>
+#include <linux/mmc/sdhci-pltfm.h>
 
 #include "sdhci.h"
 #include "sdhci-pltfm.h"
@@ -52,14 +52,17 @@ static struct sdhci_ops sdhci_pltfm_ops = {
 
 static int __devinit sdhci_pltfm_probe(struct platform_device *pdev)
 {
-	struct sdhci_pltfm_data *pdata = pdev->dev.platform_data;
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
+	struct sdhci_pltfm_data *pdata;
 	struct sdhci_host *host;
+	struct sdhci_pltfm_host *pltfm_host;
 	struct resource *iomem;
 	int ret;
 
-	if (!pdata && platid && platid->driver_data)
+	if (platid && platid->driver_data)
 		pdata = (void *)platid->driver_data;
+	else
+		pdata = pdev->dev.platform_data;
 
 	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!iomem) {
@@ -71,15 +74,18 @@ static int __devinit sdhci_pltfm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Invalid iomem size. You may "
 			"experience problems.\n");
 
-	if (pdev->dev.parent)
-		host = sdhci_alloc_host(pdev->dev.parent, 0);
+	/* Some PCI-based MFD need the parent here */
+	if (pdev->dev.parent != &platform_bus)
+		host = sdhci_alloc_host(pdev->dev.parent, sizeof(*pltfm_host));
 	else
-		host = sdhci_alloc_host(&pdev->dev, 0);
+		host = sdhci_alloc_host(&pdev->dev, sizeof(*pltfm_host));
 
 	if (IS_ERR(host)) {
 		ret = PTR_ERR(host);
 		goto err;
 	}
+
+	pltfm_host = sdhci_priv(host);
 
 	host->hw_name = "platform";
 	if (pdata && pdata->ops)
@@ -105,7 +111,7 @@ static int __devinit sdhci_pltfm_probe(struct platform_device *pdev)
 	}
 
 	if (pdata && pdata->init) {
-		ret = pdata->init(host);
+		ret = pdata->init(host, pdata);
 		if (ret)
 			goto err_plat_init;
 	}
@@ -161,9 +167,31 @@ static const struct platform_device_id sdhci_pltfm_ids[] = {
 #ifdef CONFIG_MMC_SDHCI_CNS3XXX
 	{ "sdhci-cns3xxx", (kernel_ulong_t)&sdhci_cns3xxx_pdata },
 #endif
+#ifdef CONFIG_MMC_SDHCI_ESDHC_IMX
+	{ "sdhci-esdhc-imx", (kernel_ulong_t)&sdhci_esdhc_imx_pdata },
+#endif
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, sdhci_pltfm_ids);
+
+#ifdef CONFIG_PM
+static int sdhci_pltfm_suspend(struct platform_device *dev, pm_message_t state)
+{
+	struct sdhci_host *host = platform_get_drvdata(dev);
+
+	return sdhci_suspend_host(host, state);
+}
+
+static int sdhci_pltfm_resume(struct platform_device *dev)
+{
+	struct sdhci_host *host = platform_get_drvdata(dev);
+
+	return sdhci_resume_host(host);
+}
+#else
+#define sdhci_pltfm_suspend	NULL
+#define sdhci_pltfm_resume	NULL
+#endif	/* CONFIG_PM */
 
 static struct platform_driver sdhci_pltfm_driver = {
 	.driver = {
@@ -173,6 +201,8 @@ static struct platform_driver sdhci_pltfm_driver = {
 	.probe		= sdhci_pltfm_probe,
 	.remove		= __devexit_p(sdhci_pltfm_remove),
 	.id_table	= sdhci_pltfm_ids,
+	.suspend	= sdhci_pltfm_suspend,
+	.resume		= sdhci_pltfm_resume,
 };
 
 /*****************************************************************************\

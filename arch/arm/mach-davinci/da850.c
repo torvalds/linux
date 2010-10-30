@@ -86,6 +86,8 @@ static struct clk pll0_sysclk3 = {
 	.parent		= &pll0_clk,
 	.flags		= CLK_PLL,
 	.div_reg	= PLLDIV3,
+	.set_rate	= davinci_set_sysclk_rate,
+	.maxrate	= 100000000,
 };
 
 static struct clk pll0_sysclk4 = {
@@ -323,10 +325,17 @@ static struct clk lcdc_clk = {
 	.gpsc		= 1,
 };
 
-static struct clk mmcsd_clk = {
-	.name		= "mmcsd",
+static struct clk mmcsd0_clk = {
+	.name		= "mmcsd0",
 	.parent		= &pll0_sysclk2,
 	.lpsc		= DA8XX_LPSC0_MMC_SD,
+};
+
+static struct clk mmcsd1_clk = {
+	.name		= "mmcsd1",
+	.parent		= &pll0_sysclk2,
+	.lpsc		= DA850_LPSC1_MMC_SD1,
+	.gpsc		= 1,
 };
 
 static struct clk aemif_clk = {
@@ -375,7 +384,8 @@ static struct clk_lookup da850_clks[] = {
 	CLK("davinci_emac.1",	NULL,		&emac_clk),
 	CLK("davinci-mcasp.0",	NULL,		&mcasp_clk),
 	CLK("da8xx_lcdc.0",	NULL,		&lcdc_clk),
-	CLK("davinci_mmc.0",	NULL,		&mmcsd_clk),
+	CLK("davinci_mmc.0",	NULL,		&mmcsd0_clk),
+	CLK("davinci_mmc.1",	NULL,		&mmcsd1_clk),
 	CLK(NULL,		"aemif",	&aemif_clk),
 	CLK(NULL,		NULL,		NULL),
 };
@@ -572,15 +582,9 @@ const short da850_cpgmac_pins[] __initdata = {
 	DA850_MII_TXD_2, DA850_MII_TXD_1, DA850_MII_TXD_0, DA850_MII_RXER,
 	DA850_MII_CRS, DA850_MII_RXCLK, DA850_MII_RXDV, DA850_MII_RXD_3,
 	DA850_MII_RXD_2, DA850_MII_RXD_1, DA850_MII_RXD_0, DA850_MDIO_CLK,
-	DA850_MDIO_D,
-	-1
-};
-
-const short da850_rmii_pins[] __initdata = {
-	DA850_RMII_TXD_0, DA850_RMII_TXD_1, DA850_RMII_TXEN,
-	DA850_RMII_CRS_DV, DA850_RMII_RXD_0, DA850_RMII_RXD_1,
-	DA850_RMII_RXER, DA850_RMII_MHZ_50_CLK, DA850_MDIO_CLK,
-	DA850_MDIO_D,
+	DA850_MDIO_D, DA850_RMII_TXD_0, DA850_RMII_TXD_1, DA850_RMII_TXEN,
+	DA850_RMII_CRS_DV, DA850_RMII_RXD_0, DA850_RMII_RXD_1, DA850_RMII_RXER,
+	DA850_RMII_MHZ_50_CLK,
 	-1
 };
 
@@ -607,27 +611,19 @@ const short da850_mmcsd0_pins[] __initdata = {
 	-1
 };
 
-const short da850_nand_pins[] __initdata = {
-	DA850_EMA_D_7, DA850_EMA_D_6, DA850_EMA_D_5, DA850_EMA_D_4,
-	DA850_EMA_D_3, DA850_EMA_D_2, DA850_EMA_D_1, DA850_EMA_D_0,
-	DA850_EMA_A_1, DA850_EMA_A_2, DA850_NEMA_CS_3, DA850_NEMA_CS_4,
-	DA850_NEMA_WE, DA850_NEMA_OE,
-	-1
-};
-
-const short da850_nor_pins[] __initdata = {
+const short da850_emif25_pins[] __initdata = {
 	DA850_EMA_BA_1, DA850_EMA_CLK, DA850_EMA_WAIT_1, DA850_NEMA_CS_2,
-	DA850_NEMA_WE, DA850_NEMA_OE, DA850_EMA_D_0, DA850_EMA_D_1,
-	DA850_EMA_D_2, DA850_EMA_D_3, DA850_EMA_D_4, DA850_EMA_D_5,
-	DA850_EMA_D_6, DA850_EMA_D_7, DA850_EMA_D_8, DA850_EMA_D_9,
-	DA850_EMA_D_10, DA850_EMA_D_11, DA850_EMA_D_12, DA850_EMA_D_13,
-	DA850_EMA_D_14, DA850_EMA_D_15, DA850_EMA_A_0, DA850_EMA_A_1,
-	DA850_EMA_A_2, DA850_EMA_A_3, DA850_EMA_A_4, DA850_EMA_A_5,
-	DA850_EMA_A_6, DA850_EMA_A_7, DA850_EMA_A_8, DA850_EMA_A_9,
-	DA850_EMA_A_10, DA850_EMA_A_11, DA850_EMA_A_12, DA850_EMA_A_13,
-	DA850_EMA_A_14, DA850_EMA_A_15, DA850_EMA_A_16, DA850_EMA_A_17,
-	DA850_EMA_A_18, DA850_EMA_A_19, DA850_EMA_A_20, DA850_EMA_A_21,
-	DA850_EMA_A_22, DA850_EMA_A_23,
+	DA850_NEMA_CS_3, DA850_NEMA_CS_4, DA850_NEMA_WE, DA850_NEMA_OE,
+	DA850_EMA_D_0, DA850_EMA_D_1, DA850_EMA_D_2, DA850_EMA_D_3,
+	DA850_EMA_D_4, DA850_EMA_D_5, DA850_EMA_D_6, DA850_EMA_D_7,
+	DA850_EMA_D_8, DA850_EMA_D_9, DA850_EMA_D_10, DA850_EMA_D_11,
+	DA850_EMA_D_12, DA850_EMA_D_13, DA850_EMA_D_14, DA850_EMA_D_15,
+	DA850_EMA_A_0, DA850_EMA_A_1, DA850_EMA_A_2, DA850_EMA_A_3,
+	DA850_EMA_A_4, DA850_EMA_A_5, DA850_EMA_A_6, DA850_EMA_A_7,
+	DA850_EMA_A_8, DA850_EMA_A_9, DA850_EMA_A_10, DA850_EMA_A_11,
+	DA850_EMA_A_12, DA850_EMA_A_13, DA850_EMA_A_14, DA850_EMA_A_15,
+	DA850_EMA_A_16, DA850_EMA_A_17, DA850_EMA_A_18, DA850_EMA_A_19,
+	DA850_EMA_A_20, DA850_EMA_A_21, DA850_EMA_A_22, DA850_EMA_A_23,
 	-1
 };
 
@@ -851,7 +847,7 @@ static const struct da850_opp da850_opp_300 = {
 	.prediv		= 1,
 	.mult		= 25,
 	.postdiv	= 2,
-	.cvdd_min	= 1140000,
+	.cvdd_min	= 1200000,
 	.cvdd_max	= 1320000,
 };
 
@@ -860,7 +856,7 @@ static const struct da850_opp da850_opp_200 = {
 	.prediv		= 1,
 	.mult		= 25,
 	.postdiv	= 3,
-	.cvdd_min	= 1050000,
+	.cvdd_min	= 1100000,
 	.cvdd_max	= 1160000,
 };
 
@@ -869,7 +865,7 @@ static const struct da850_opp da850_opp_96 = {
 	.prediv		= 1,
 	.mult		= 20,
 	.postdiv	= 5,
-	.cvdd_min	= 950000,
+	.cvdd_min	= 1000000,
 	.cvdd_max	= 1050000,
 };
 
@@ -929,10 +925,16 @@ static struct platform_device da850_cpufreq_device = {
 	.dev = {
 		.platform_data	= &cpufreq_info,
 	},
+	.id = -1,
 };
 
-int __init da850_register_cpufreq(void)
+int __init da850_register_cpufreq(char *async_clk)
 {
+	/* cpufreq driver can help keep an "async" clock constant */
+	if (async_clk)
+		clk_add_alias("async", da850_cpufreq_device.name,
+							async_clk, NULL);
+
 	return platform_device_register(&da850_cpufreq_device);
 }
 
@@ -983,7 +985,7 @@ static int da850_set_pll0rate(struct clk *clk, unsigned long index)
 	return 0;
 }
 #else
-int __init da850_register_cpufreq(void)
+int __init da850_register_cpufreq(char *async_clk)
 {
 	return 0;
 }

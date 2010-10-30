@@ -961,8 +961,8 @@ int pci_setup_device(struct pci_dev *dev)
 	dev->class = class;
 	class >>= 8;
 
-	dev_dbg(&dev->dev, "found [%04x:%04x] class %06x header type %02x\n",
-		 dev->vendor, dev->device, class, dev->hdr_type);
+	dev_printk(KERN_DEBUG, &dev->dev, "[%04x:%04x] type %d class %#08x\n",
+		   dev->vendor, dev->device, dev->hdr_type, class);
 
 	/* need to have dev->class ready */
 	dev->cfg_size = pci_cfg_space_size(dev);

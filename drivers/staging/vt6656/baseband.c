@@ -1010,11 +1010,9 @@ BOOL BBbVT3184Init(PSDevice pDevice)
     }
 
 
-    //20080215-01,<Add> by Mike Liu
 //    if ((pDevice->abyEEPROM[EEP_OFS_RADIOCTL]&0x06)==0x04)
 //        return FALSE;
 
-//20080804-01,<Add> by Mike Liu
 //zonetype initial
  pDevice->byOriginalZonetype = pDevice->abyEEPROM[EEP_OFS_ZONETYPE];
  if(pDevice->config_file.ZoneType >= 0) {         //read zonetype file ok!

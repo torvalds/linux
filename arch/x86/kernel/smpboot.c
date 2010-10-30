@@ -747,7 +747,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 		.done	= COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
 	};
 
-	INIT_WORK_ON_STACK(&c_idle.work, do_fork_idle);
+	INIT_WORK_ONSTACK(&c_idle.work, do_fork_idle);
 
 	alternatives_smp_switch(1);
 
@@ -1373,7 +1373,6 @@ void play_dead_common(void)
 {
 	idle_task_exit();
 	reset_lazy_tlbstate();
-	irq_ctx_exit(raw_smp_processor_id());
 	c1e_remove_cpu(raw_smp_processor_id());
 
 	mb();

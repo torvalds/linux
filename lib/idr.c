@@ -106,16 +106,17 @@ static void idr_mark_full(struct idr_layer **pa, int id)
 }
 
 /**
- * idr_pre_get - reserver resources for idr allocation
+ * idr_pre_get - reserve resources for idr allocation
  * @idp:	idr handle
  * @gfp_mask:	memory allocation flags
  *
- * This function should be called prior to locking and calling the
- * idr_get_new* functions. It preallocates enough memory to satisfy
- * the worst possible allocation.
+ * This function should be called prior to calling the idr_get_new* functions.
+ * It preallocates enough memory to satisfy the worst possible allocation. The
+ * caller should pass in GFP_KERNEL if possible.  This of course requires that
+ * no spinning locks be held.
  *
- * If the system is REALLY out of memory this function returns 0,
- * otherwise 1.
+ * If the system is REALLY out of memory this function returns %0,
+ * otherwise %1.
  */
 int idr_pre_get(struct idr *idp, gfp_t gfp_mask)
 {
@@ -290,11 +291,13 @@ static int idr_get_new_above_int(struct idr *idp, void *ptr, int starting_id)
  * This is the allocate id function.  It should be called with any
  * required locks.
  *
- * If memory is required, it will return -EAGAIN, you should unlock
- * and go back to the idr_pre_get() call.  If the idr is full, it will
- * return -ENOSPC.
+ * If allocation from IDR's private freelist fails, idr_get_new_above() will
+ * return %-EAGAIN.  The caller should retry the idr_pre_get() call to refill
+ * IDR's preallocation and then retry the idr_get_new_above() call.
  *
- * @id returns a value in the range @starting_id ... 0x7fffffff
+ * If the idr is full idr_get_new_above() will return %-ENOSPC.
+ *
+ * @id returns a value in the range @starting_id ... %0x7fffffff
  */
 int idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id)
 {
@@ -318,14 +321,13 @@ EXPORT_SYMBOL(idr_get_new_above);
  * @ptr: pointer you want associated with the id
  * @id: pointer to the allocated handle
  *
- * This is the allocate id function.  It should be called with any
- * required locks.
+ * If allocation from IDR's private freelist fails, idr_get_new_above() will
+ * return %-EAGAIN.  The caller should retry the idr_pre_get() call to refill
+ * IDR's preallocation and then retry the idr_get_new_above() call.
  *
- * If memory is required, it will return -EAGAIN, you should unlock
- * and go back to the idr_pre_get() call.  If the idr is full, it will
- * return -ENOSPC.
+ * If the idr is full idr_get_new_above() will return %-ENOSPC.
  *
- * @id returns a value in the range 0 ... 0x7fffffff
+ * @id returns a value in the range %0 ... %0x7fffffff
  */
 int idr_get_new(struct idr *idp, void *ptr, int *id)
 {
@@ -388,7 +390,7 @@ static void sub_remove(struct idr *idp, int shift, int id)
 }
 
 /**
- * idr_remove - remove the given id and free it's slot
+ * idr_remove - remove the given id and free its slot
  * @idp: idr handle
  * @id: unique key
  */
@@ -437,7 +439,7 @@ EXPORT_SYMBOL(idr_remove);
  * function will remove all id mappings and leave all idp_layers
  * unused.
  *
- * A typical clean-up sequence for objects stored in an idr tree, will
+ * A typical clean-up sequence for objects stored in an idr tree will
  * use idr_for_each() to free all objects, if necessay, then
  * idr_remove_all() to remove all ids, and idr_destroy() to free
  * up the cached idr_layers.
@@ -542,7 +544,7 @@ EXPORT_SYMBOL(idr_find);
  * not allowed.
  *
  * We check the return of @fn each time. If it returns anything other
- * than 0, we break out and return that value.
+ * than %0, we break out and return that value.
  *
  * The caller must serialize idr_for_each() vs idr_get_new() and idr_remove().
  */
@@ -637,8 +639,8 @@ EXPORT_SYMBOL(idr_get_next);
  * @id: lookup key
  *
  * Replace the pointer registered with an id and return the old value.
- * A -ENOENT return indicates that @id was not found.
- * A -EINVAL return indicates that @id was not within valid constraints.
+ * A %-ENOENT return indicates that @id was not found.
+ * A %-EINVAL return indicates that @id was not within valid constraints.
  *
  * The caller must serialize with writers.
  */
@@ -696,10 +698,11 @@ void idr_init(struct idr *idp)
 EXPORT_SYMBOL(idr_init);
 
 
-/*
+/**
+ * DOC: IDA description
  * IDA - IDR based ID allocator
  *
- * this is id allocator without id -> pointer translation.  Memory
+ * This is id allocator without id -> pointer translation.  Memory
  * usage is much lower than full blown idr because each id only
  * occupies a bit.  ida uses a custom leaf node which contains
  * IDA_BITMAP_BITS slots.
@@ -732,8 +735,8 @@ static void free_bitmap(struct ida *ida, struct ida_bitmap *bitmap)
  * following function.  It preallocates enough memory to satisfy the
  * worst possible allocation.
  *
- * If the system is REALLY out of memory this function returns 0,
- * otherwise 1.
+ * If the system is REALLY out of memory this function returns %0,
+ * otherwise %1.
  */
 int ida_pre_get(struct ida *ida, gfp_t gfp_mask)
 {
@@ -765,11 +768,11 @@ EXPORT_SYMBOL(ida_pre_get);
  * Allocate new ID above or equal to @ida.  It should be called with
  * any required locks.
  *
- * If memory is required, it will return -EAGAIN, you should unlock
+ * If memory is required, it will return %-EAGAIN, you should unlock
  * and go back to the ida_pre_get() call.  If the ida is full, it will
- * return -ENOSPC.
+ * return %-ENOSPC.
  *
- * @p_id returns a value in the range @starting_id ... 0x7fffffff.
+ * @p_id returns a value in the range @starting_id ... %0x7fffffff.
  */
 int ida_get_new_above(struct ida *ida, int starting_id, int *p_id)
 {
@@ -851,11 +854,11 @@ EXPORT_SYMBOL(ida_get_new_above);
  *
  * Allocate new ID.  It should be called with any required locks.
  *
- * If memory is required, it will return -EAGAIN, you should unlock
+ * If memory is required, it will return %-EAGAIN, you should unlock
  * and go back to the idr_pre_get() call.  If the idr is full, it will
- * return -ENOSPC.
+ * return %-ENOSPC.
  *
- * @id returns a value in the range 0 ... 0x7fffffff.
+ * @id returns a value in the range %0 ... %0x7fffffff.
  */
 int ida_get_new(struct ida *ida, int *p_id)
 {

@@ -785,7 +785,7 @@ static int snapper_set_capture_source(struct pmac_tumbler *mix)
 	if (! mix->i2c.client)
 		return -ENODEV;
 	if (mix->capture_source)
-		mix->acs = mix->acs |= 2;
+		mix->acs |= 2;
 	else
 		mix->acs &= ~2;
 	return i2c_smbus_write_byte_data(mix->i2c.client, TAS_REG_ACS, mix->acs);

@@ -33,6 +33,7 @@ static DEFINE_MUTEX(regulator_list_mutex);
 static LIST_HEAD(regulator_list);
 static LIST_HEAD(regulator_map_list);
 static int has_full_constraints;
+static bool board_wants_dummy_regulator;
 
 /*
  * struct regulator_map
@@ -63,7 +64,8 @@ struct regulator {
 };
 
 static int _regulator_is_enabled(struct regulator_dev *rdev);
-static int _regulator_disable(struct regulator_dev *rdev);
+static int _regulator_disable(struct regulator_dev *rdev,
+		struct regulator_dev **supply_rdev_ptr);
 static int _regulator_get_voltage(struct regulator_dev *rdev);
 static int _regulator_get_current_limit(struct regulator_dev *rdev);
 static unsigned int _regulator_get_mode(struct regulator_dev *rdev);
@@ -1108,6 +1110,11 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 		}
 	}
 
+	if (board_wants_dummy_regulator) {
+		rdev = dummy_regulator_rdev;
+		goto found;
+	}
+
 #ifdef CONFIG_REGULATOR_DUMMY
 	if (!devname)
 		devname = "deviceless";
@@ -1348,7 +1355,8 @@ int regulator_enable(struct regulator *regulator)
 EXPORT_SYMBOL_GPL(regulator_enable);
 
 /* locks held by regulator_disable() */
-static int _regulator_disable(struct regulator_dev *rdev)
+static int _regulator_disable(struct regulator_dev *rdev,
+		struct regulator_dev **supply_rdev_ptr)
 {
 	int ret = 0;
 
@@ -1376,8 +1384,7 @@ static int _regulator_disable(struct regulator_dev *rdev)
 		}
 
 		/* decrease our supplies ref count and disable if required */
-		if (rdev->supply)
-			_regulator_disable(rdev->supply);
+		*supply_rdev_ptr = rdev->supply;
 
 		rdev->use_count = 0;
 	} else if (rdev->use_count > 1) {
@@ -1407,17 +1414,29 @@ static int _regulator_disable(struct regulator_dev *rdev)
 int regulator_disable(struct regulator *regulator)
 {
 	struct regulator_dev *rdev = regulator->rdev;
+	struct regulator_dev *supply_rdev = NULL;
 	int ret = 0;
 
 	mutex_lock(&rdev->mutex);
-	ret = _regulator_disable(rdev);
+	ret = _regulator_disable(rdev, &supply_rdev);
 	mutex_unlock(&rdev->mutex);
+
+	/* decrease our supplies ref count and disable if required */
+	while (supply_rdev != NULL) {
+		rdev = supply_rdev;
+
+		mutex_lock(&rdev->mutex);
+		_regulator_disable(rdev, &supply_rdev);
+		mutex_unlock(&rdev->mutex);
+	}
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_disable);
 
 /* locks held by regulator_force_disable() */
-static int _regulator_force_disable(struct regulator_dev *rdev)
+static int _regulator_force_disable(struct regulator_dev *rdev,
+		struct regulator_dev **supply_rdev_ptr)
 {
 	int ret = 0;
 
@@ -1436,8 +1455,7 @@ static int _regulator_force_disable(struct regulator_dev *rdev)
 	}
 
 	/* decrease our supplies ref count and disable if required */
-	if (rdev->supply)
-		_regulator_disable(rdev->supply);
+	*supply_rdev_ptr = rdev->supply;
 
 	rdev->use_count = 0;
 	return ret;
@@ -1454,12 +1472,17 @@ static int _regulator_force_disable(struct regulator_dev *rdev)
  */
 int regulator_force_disable(struct regulator *regulator)
 {
+	struct regulator_dev *supply_rdev = NULL;
 	int ret;
 
 	mutex_lock(&regulator->rdev->mutex);
 	regulator->uA_load = 0;
-	ret = _regulator_force_disable(regulator->rdev);
+	ret = _regulator_force_disable(regulator->rdev, &supply_rdev);
 	mutex_unlock(&regulator->rdev->mutex);
+
+	if (supply_rdev)
+		regulator_disable(get_device_regulator(rdev_get_dev(supply_rdev)));
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_force_disable);
@@ -2461,6 +2484,22 @@ void regulator_has_full_constraints(void)
 	has_full_constraints = 1;
 }
 EXPORT_SYMBOL_GPL(regulator_has_full_constraints);
+
+/**
+ * regulator_use_dummy_regulator - Provide a dummy regulator when none is found
+ *
+ * Calling this function will cause the regulator API to provide a
+ * dummy regulator to consumers if no physical regulator is found,
+ * allowing most consumers to proceed as though a regulator were
+ * configured.  This allows systems such as those with software
+ * controllable regulators for the CPU core only to be brought up more
+ * readily.
+ */
+void regulator_use_dummy_regulator(void)
+{
+	board_wants_dummy_regulator = true;
+}
+EXPORT_SYMBOL_GPL(regulator_use_dummy_regulator);
 
 /**
  * rdev_get_drvdata - get rdev regulator driver data

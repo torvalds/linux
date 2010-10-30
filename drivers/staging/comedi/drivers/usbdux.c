@@ -649,7 +649,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 
 	/* normal operation: executing a command in this subdevice */
 	this_usbduxsub->ao_counter--;
-	if (this_usbduxsub->ao_counter <= 0) {
+	if ((int)this_usbduxsub->ao_counter <= 0) {
 		/* timer zero */
 		this_usbduxsub->ao_counter = this_usbduxsub->ao_timer;
 

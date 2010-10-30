@@ -118,6 +118,8 @@
 #define S3C2443_SCLKCON_UARTCLK		(1<<8)
 #define S3C2443_SCLKCON_USBHOST		(1<<1)
 
+#define S3C2443_PWRCFG_SLEEP		(1<<15)
+
 #include <asm/div64.h>
 
 static inline unsigned int

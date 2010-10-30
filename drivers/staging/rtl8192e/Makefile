@@ -1,13 +1,13 @@
 NIC_SELECT = RTL8192E
 
-EXTRA_CFLAGS += -DRTL8192E
-EXTRA_CFLAGS += -std=gnu89
-EXTRA_CFLAGS += -O2
-EXTRA_CFLAGS += -DTHOMAS_TURBO
-EXTRA_CFLAGS += -DENABLE_DOT11D
+ccflags-y := -DRTL8192E
+ccflags-y += -std=gnu89
+ccflags-y += -O2
+ccflags-y += -DTHOMAS_TURBO
+ccflags-y += -DENABLE_DOT11D
 
-EXTRA_CFLAGS += -DENABLE_IPS
-EXTRA_CFLAGS += -DENABLE_LPS
+ccflags-y += -DENABLE_IPS
+ccflags-y += -DENABLE_LPS
 
 r8192e_pci-objs :=		\
 	r8192E_core.o		\

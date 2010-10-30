@@ -801,10 +801,16 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 	}
 	kfree(buf);
 
-	if ((hif_dev->device_id == 0x7010) || (hif_dev->device_id == 0x7015))
+	switch (hif_dev->device_id) {
+	case 0x7010:
+	case 0x7015:
+	case 0x9018:
 		firm_offset = AR7010_FIRMWARE_TEXT;
-	else
+		break;
+	default:
 		firm_offset = AR9271_FIRMWARE_TEXT;
+		break;
+	}
 
 	/*
 	 * Issue FW download complete command to firmware.

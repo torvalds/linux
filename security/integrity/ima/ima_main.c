@@ -85,50 +85,6 @@ out:
 	return found;
 }
 
-/* ima_read_write_check - reflect possible reading/writing errors in the PCR.
- *
- * When opening a file for read, if the file is already open for write,
- * the file could change, resulting in a file measurement error.
- *
- * Opening a file for write, if the file is already open for read, results
- * in a time of measure, time of use (ToMToU) error.
- *
- * In either case invalidate the PCR.
- */
-enum iint_pcr_error { TOMTOU, OPEN_WRITERS };
-static void ima_read_write_check(enum iint_pcr_error error,
-				 struct ima_iint_cache *iint,
-				 struct inode *inode,
-				 const unsigned char *filename)
-{
-	switch (error) {
-	case TOMTOU:
-		if (iint->readcount > 0)
-			ima_add_violation(inode, filename, "invalid_pcr",
-					  "ToMToU");
-		break;
-	case OPEN_WRITERS:
-		if (iint->writecount > 0)
-			ima_add_violation(inode, filename, "invalid_pcr",
-					  "open_writers");
-		break;
-	}
-}
-
-/*
- * Update the counts given an fmode_t
- */
-static void ima_inc_counts(struct ima_iint_cache *iint, fmode_t mode)
-{
-	BUG_ON(!mutex_is_locked(&iint->mutex));
-
-	iint->opencount++;
-	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
-		iint->readcount++;
-	if (mode & FMODE_WRITE)
-		iint->writecount++;
-}
-
 /*
  * ima_counts_get - increment file counts
  *
@@ -145,62 +101,101 @@ void ima_counts_get(struct file *file)
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	fmode_t mode = file->f_mode;
-	struct ima_iint_cache *iint;
 	int rc;
+	bool send_tomtou = false, send_writers = false;
 
-	if (!iint_initialized || !S_ISREG(inode->i_mode))
+	if (!S_ISREG(inode->i_mode))
 		return;
-	iint = ima_iint_find_get(inode);
-	if (!iint)
-		return;
-	mutex_lock(&iint->mutex);
+
+	spin_lock(&inode->i_lock);
+
 	if (!ima_initialized)
-		goto out;
-	rc = ima_must_measure(iint, inode, MAY_READ, FILE_CHECK);
-	if (rc < 0)
 		goto out;
 
 	if (mode & FMODE_WRITE) {
-		ima_read_write_check(TOMTOU, iint, inode, dentry->d_name.name);
+		if (inode->i_readcount && IS_IMA(inode))
+			send_tomtou = true;
 		goto out;
 	}
-	ima_read_write_check(OPEN_WRITERS, iint, inode, dentry->d_name.name);
-out:
-	ima_inc_counts(iint, file->f_mode);
-	mutex_unlock(&iint->mutex);
 
-	kref_put(&iint->refcount, iint_free);
+	rc = ima_must_measure(NULL, inode, MAY_READ, FILE_CHECK);
+	if (rc < 0)
+		goto out;
+
+	if (atomic_read(&inode->i_writecount) > 0)
+		send_writers = true;
+out:
+	/* remember the vfs deals with i_writecount */
+	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
+		inode->i_readcount++;
+
+	spin_unlock(&inode->i_lock);
+
+	if (send_tomtou)
+		ima_add_violation(inode, dentry->d_name.name, "invalid_pcr",
+				  "ToMToU");
+	if (send_writers)
+		ima_add_violation(inode, dentry->d_name.name, "invalid_pcr",
+				  "open_writers");
 }
 
 /*
  * Decrement ima counts
  */
-static void ima_dec_counts(struct ima_iint_cache *iint, struct inode *inode,
-			   struct file *file)
+static void ima_dec_counts(struct inode *inode, struct file *file)
 {
 	mode_t mode = file->f_mode;
-	BUG_ON(!mutex_is_locked(&iint->mutex));
 
-	iint->opencount--;
-	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
-		iint->readcount--;
-	if (mode & FMODE_WRITE) {
-		iint->writecount--;
-		if (iint->writecount == 0) {
-			if (iint->version != inode->i_version)
-				iint->flags &= ~IMA_MEASURED;
+	assert_spin_locked(&inode->i_lock);
+
+	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ) {
+		if (unlikely(inode->i_readcount == 0)) {
+			if (!ima_limit_imbalance(file)) {
+				printk(KERN_INFO "%s: open/free imbalance (r:%u)\n",
+				       __func__, inode->i_readcount);
+				dump_stack();
+			}
+			return;
 		}
+		inode->i_readcount--;
 	}
+}
 
-	if (((iint->opencount < 0) ||
-	     (iint->readcount < 0) ||
-	     (iint->writecount < 0)) &&
-	    !ima_limit_imbalance(file)) {
-		printk(KERN_INFO "%s: open/free imbalance (r:%ld w:%ld o:%ld)\n",
-		       __func__, iint->readcount, iint->writecount,
-		       iint->opencount);
-		dump_stack();
-	}
+static void ima_check_last_writer(struct ima_iint_cache *iint,
+				  struct inode *inode,
+				  struct file *file)
+{
+	mode_t mode = file->f_mode;
+
+	BUG_ON(!mutex_is_locked(&iint->mutex));
+	assert_spin_locked(&inode->i_lock);
+
+	if (mode & FMODE_WRITE &&
+	    atomic_read(&inode->i_writecount) == 1 &&
+	    iint->version != inode->i_version)
+		iint->flags &= ~IMA_MEASURED;
+}
+
+static void ima_file_free_iint(struct ima_iint_cache *iint, struct inode *inode,
+			       struct file *file)
+{
+	mutex_lock(&iint->mutex);
+	spin_lock(&inode->i_lock);
+
+	ima_dec_counts(inode, file);
+	ima_check_last_writer(iint, inode, file);
+
+	spin_unlock(&inode->i_lock);
+	mutex_unlock(&iint->mutex);
+}
+
+static void ima_file_free_noiint(struct inode *inode, struct file *file)
+{
+	spin_lock(&inode->i_lock);
+
+	ima_dec_counts(inode, file);
+
+	spin_unlock(&inode->i_lock);
 }
 
 /**
@@ -208,7 +203,7 @@ static void ima_dec_counts(struct ima_iint_cache *iint, struct inode *inode,
  * @file: pointer to file structure being freed
  *
  * Flag files that changed, based on i_version;
- * and decrement the iint readcount/writecount.
+ * and decrement the i_readcount.
  */
 void ima_file_free(struct file *file)
 {
@@ -217,14 +212,14 @@ void ima_file_free(struct file *file)
 
 	if (!iint_initialized || !S_ISREG(inode->i_mode))
 		return;
-	iint = ima_iint_find_get(inode);
-	if (!iint)
-		return;
 
-	mutex_lock(&iint->mutex);
-	ima_dec_counts(iint, inode, file);
-	mutex_unlock(&iint->mutex);
-	kref_put(&iint->refcount, iint_free);
+	iint = ima_iint_find(inode);
+
+	if (iint)
+		ima_file_free_iint(iint, inode, file);
+	else
+		ima_file_free_noiint(inode, file);
+
 }
 
 static int process_measurement(struct file *file, const unsigned char *filename,
@@ -236,11 +231,21 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 
 	if (!ima_initialized || !S_ISREG(inode->i_mode))
 		return 0;
-	iint = ima_iint_find_get(inode);
-	if (!iint)
-		return -ENOMEM;
+
+	rc = ima_must_measure(NULL, inode, mask, function);
+	if (rc != 0)
+		return rc;
+retry:
+	iint = ima_iint_find(inode);
+	if (!iint) {
+		rc = ima_inode_alloc(inode);
+		if (!rc || rc == -EEXIST)
+			goto retry;
+		return rc;
+	}
 
 	mutex_lock(&iint->mutex);
+
 	rc = ima_must_measure(iint, inode, mask, function);
 	if (rc != 0)
 		goto out;
@@ -250,7 +255,6 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 		ima_store_measurement(iint, file, filename);
 out:
 	mutex_unlock(&iint->mutex);
-	kref_put(&iint->refcount, iint_free);
 	return rc;
 }
 

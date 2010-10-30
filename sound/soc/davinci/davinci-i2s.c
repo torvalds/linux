@@ -183,8 +183,7 @@ static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
 		struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_platform *platform = socdev->card->platform;
+	struct snd_soc_platform *platform = rtd->platform;
 	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 	u32 spcr;
 	u32 mask = playback ? DAVINCI_MCBSP_SPCR_XRST : DAVINCI_MCBSP_SPCR_RRST;
@@ -205,8 +204,8 @@ static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
 	if (playback) {
 		/* Stop the DMA to avoid data loss */
 		/* while the transmitter is out of reset to handle XSYNCERR */
-		if (platform->pcm_ops->trigger) {
-			int ret = platform->pcm_ops->trigger(substream,
+		if (platform->driver->ops->trigger) {
+			int ret = platform->driver->ops->trigger(substream,
 				SNDRV_PCM_TRIGGER_STOP);
 			if (ret < 0)
 				printk(KERN_DEBUG "Playback DMA stop failed\n");
@@ -227,8 +226,8 @@ static void davinci_mcbsp_start(struct davinci_mcbsp_dev *dev,
 		toggle_clock(dev, playback);
 
 		/* Restart the DMA */
-		if (platform->pcm_ops->trigger) {
-			int ret = platform->pcm_ops->trigger(substream,
+		if (platform->driver->ops->trigger) {
+			int ret = platform->driver->ops->trigger(substream,
 				SNDRV_PCM_TRIGGER_START);
 			if (ret < 0)
 				printk(KERN_DEBUG "Playback DMA start failed\n");
@@ -263,7 +262,7 @@ static void davinci_mcbsp_stop(struct davinci_mcbsp_dev *dev, int playback)
 static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 				   unsigned int fmt)
 {
-	struct davinci_mcbsp_dev *dev = cpu_dai->private_data;
+	struct davinci_mcbsp_dev *dev = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned int pcr;
 	unsigned int srgr;
 	/* Attention srgr is updated by hw_params! */
@@ -404,7 +403,7 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 static int davinci_i2s_dai_set_clkdiv(struct snd_soc_dai *cpu_dai,
 				int div_id, int div)
 {
-	struct davinci_mcbsp_dev *dev = cpu_dai->private_data;
+	struct davinci_mcbsp_dev *dev = snd_soc_dai_get_drvdata(cpu_dai);
 
 	if (div_id != DAVINCI_MCBSP_CLKGDV)
 		return -ENODEV;
@@ -417,7 +416,7 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
-	struct davinci_mcbsp_dev *dev = dai->private_data;
+	struct davinci_mcbsp_dev *dev = snd_soc_dai_get_drvdata(dai);
 	struct davinci_pcm_dma_params *dma_params =
 					&dev->dma_params[substream->stream];
 	struct snd_interval *i = NULL;
@@ -426,6 +425,9 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 	u32 spcr;
 	snd_pcm_format_t fmt;
 	unsigned element_cnt = 1;
+
+	dai->capture_dma_data = dev->dma_params;
+	dai->playback_dma_data = dev->dma_params;
 
 	/* general line settings */
 	spcr = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
@@ -569,24 +571,18 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 static int davinci_i2s_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct davinci_mcbsp_dev *dev = dai->private_data;
+	struct davinci_mcbsp_dev *dev = snd_soc_dai_get_drvdata(dai);
 	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 	davinci_mcbsp_stop(dev, playback);
-	if ((dev->pcr & DAVINCI_MCBSP_PCR_FSXM) == 0) {
-		/* codec is master */
-		davinci_mcbsp_start(dev, substream);
-	}
 	return 0;
 }
 
 static int davinci_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			       struct snd_soc_dai *dai)
 {
-	struct davinci_mcbsp_dev *dev = dai->private_data;
+	struct davinci_mcbsp_dev *dev = snd_soc_dai_get_drvdata(dai);
 	int ret = 0;
 	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
-	if ((dev->pcr & DAVINCI_MCBSP_PCR_FSXM) == 0)
-		return 0;	/* return if codec is master */
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -608,7 +604,7 @@ static int davinci_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 static void davinci_i2s_shutdown(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct davinci_mcbsp_dev *dev = dai->private_data;
+	struct davinci_mcbsp_dev *dev = snd_soc_dai_get_drvdata(dai);
 	int playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 	davinci_mcbsp_stop(dev, playback);
 }
@@ -625,9 +621,7 @@ static struct snd_soc_dai_ops davinci_i2s_dai_ops = {
 
 };
 
-struct snd_soc_dai davinci_i2s_dai = {
-	.name = "davinci-i2s",
-	.id = 0,
+static struct snd_soc_dai_driver davinci_i2s_dai = {
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -641,7 +635,6 @@ struct snd_soc_dai davinci_i2s_dai = {
 	.ops = &davinci_i2s_dai_ops,
 
 };
-EXPORT_SYMBOL_GPL(davinci_i2s_dai);
 
 static int davinci_i2s_probe(struct platform_device *pdev)
 {
@@ -720,10 +713,9 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	dev->dma_params[SNDRV_PCM_STREAM_CAPTURE].channel = res->start;
 	dev->dev = &pdev->dev;
 
-	davinci_i2s_dai.private_data = dev;
-	davinci_i2s_dai.capture.dma_data = dev->dma_params;
-	davinci_i2s_dai.playback.dma_data = dev->dma_params;
-	ret = snd_soc_register_dai(&davinci_i2s_dai);
+	dev_set_drvdata(&pdev->dev, dev);
+
+	ret = snd_soc_register_dai(&pdev->dev, &davinci_i2s_dai);
 	if (ret != 0)
 		goto err_free_mem;
 
@@ -739,10 +731,10 @@ err_release_region:
 
 static int davinci_i2s_remove(struct platform_device *pdev)
 {
-	struct davinci_mcbsp_dev *dev = davinci_i2s_dai.private_data;
+	struct davinci_mcbsp_dev *dev = dev_get_drvdata(&pdev->dev);
 	struct resource *mem;
 
-	snd_soc_unregister_dai(&davinci_i2s_dai);
+	snd_soc_unregister_dai(&pdev->dev);
 	clk_disable(dev->clk);
 	clk_put(dev->clk);
 	dev->clk = NULL;
@@ -757,7 +749,7 @@ static struct platform_driver davinci_mcbsp_driver = {
 	.probe		= davinci_i2s_probe,
 	.remove		= davinci_i2s_remove,
 	.driver		= {
-		.name	= "davinci-asp",
+		.name	= "davinci-i2s",
 		.owner	= THIS_MODULE,
 	},
 };

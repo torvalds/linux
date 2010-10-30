@@ -652,9 +652,7 @@ static inline int pte_special(pte_t pte)
 	 ((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)))
 #define pte_offset_kernel		pte_index
 #define pte_offset_map			pte_index
-#define pte_offset_map_nested		pte_index
 #define pte_unmap(pte)			do { } while (0)
-#define pte_unmap_nested(pte)		do { } while (0)
 
 /* Actual page table PTE updates.  */
 extern void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr, pte_t *ptep, pte_t orig);

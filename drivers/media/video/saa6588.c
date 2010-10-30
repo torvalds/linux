@@ -34,7 +34,6 @@
 #include <media/rds.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 
 /* insmod options */
@@ -430,7 +429,7 @@ static int saa6588_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 {
 	struct saa6588 *s = to_saa6588(sd);
 
-	vt->capability |= V4L2_TUNER_CAP_RDS;
+	vt->capability |= V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_BLOCK_IO;
 	if (s->sync)
 		vt->rxsubchans |= V4L2_TUNER_SUB_RDS;
 	return 0;
@@ -530,9 +529,25 @@ static const struct i2c_device_id saa6588_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, saa6588_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "saa6588",
-	.probe = saa6588_probe,
-	.remove = saa6588_remove,
-	.id_table = saa6588_id,
+static struct i2c_driver saa6588_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "saa6588",
+	},
+	.probe		= saa6588_probe,
+	.remove		= saa6588_remove,
+	.id_table	= saa6588_id,
 };
+
+static __init int init_saa6588(void)
+{
+	return i2c_add_driver(&saa6588_driver);
+}
+
+static __exit void exit_saa6588(void)
+{
+	i2c_del_driver(&saa6588_driver);
+}
+
+module_init(init_saa6588);
+module_exit(exit_saa6588);

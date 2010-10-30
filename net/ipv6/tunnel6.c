@@ -30,23 +30,26 @@
 #include <net/protocol.h>
 #include <net/xfrm.h>
 
-static struct xfrm6_tunnel *tunnel6_handlers __read_mostly;
-static struct xfrm6_tunnel *tunnel46_handlers __read_mostly;
+static struct xfrm6_tunnel __rcu *tunnel6_handlers __read_mostly;
+static struct xfrm6_tunnel __rcu *tunnel46_handlers __read_mostly;
 static DEFINE_MUTEX(tunnel6_mutex);
 
 int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family)
 {
-	struct xfrm6_tunnel **pprev;
+	struct xfrm6_tunnel __rcu **pprev;
+	struct xfrm6_tunnel *t;
 	int ret = -EEXIST;
 	int priority = handler->priority;
 
 	mutex_lock(&tunnel6_mutex);
 
 	for (pprev = (family == AF_INET6) ? &tunnel6_handlers : &tunnel46_handlers;
-	     *pprev; pprev = &(*pprev)->next) {
-		if ((*pprev)->priority > priority)
+	     (t = rcu_dereference_protected(*pprev,
+			lockdep_is_held(&tunnel6_mutex))) != NULL;
+	     pprev = &t->next) {
+		if (t->priority > priority)
 			break;
-		if ((*pprev)->priority == priority)
+		if (t->priority == priority)
 			goto err;
 	}
 
@@ -65,14 +68,17 @@ EXPORT_SYMBOL(xfrm6_tunnel_register);
 
 int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family)
 {
-	struct xfrm6_tunnel **pprev;
+	struct xfrm6_tunnel __rcu **pprev;
+	struct xfrm6_tunnel *t;
 	int ret = -ENOENT;
 
 	mutex_lock(&tunnel6_mutex);
 
 	for (pprev = (family == AF_INET6) ? &tunnel6_handlers : &tunnel46_handlers;
-	     *pprev; pprev = &(*pprev)->next) {
-		if (*pprev == handler) {
+	     (t = rcu_dereference_protected(*pprev,
+			lockdep_is_held(&tunnel6_mutex))) != NULL;
+	     pprev = &t->next) {
+		if (t == handler) {
 			*pprev = handler->next;
 			ret = 0;
 			break;

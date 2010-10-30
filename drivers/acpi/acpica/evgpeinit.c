@@ -210,8 +210,7 @@ acpi_status acpi_ev_gpe_initialize(void)
  *
  * DESCRIPTION: Check for new GPE methods (_Lxx/_Exx) made available as a
  *              result of a Load() or load_table() operation. If new GPE
- *              methods have been installed, register the new methods and
- *              enable and runtime GPEs that are associated with them.
+ *              methods have been installed, register the new methods.
  *
  ******************************************************************************/
 
@@ -239,7 +238,6 @@ void acpi_ev_update_gpes(acpi_owner_id table_owner_id)
 	walk_info.owner_id = table_owner_id;
 	walk_info.execute_by_owner_id = TRUE;
 	walk_info.count = 0;
-	walk_info.enable_this_gpe = TRUE;
 
 	/* Walk the interrupt level descriptor list */
 
@@ -301,8 +299,6 @@ void acpi_ev_update_gpes(acpi_owner_id table_owner_id)
  *
  * If walk_info->execute_by_owner_id is TRUE, we only execute examine GPE methods
  *    with that owner.
- * If walk_info->enable_this_gpe is TRUE, the GPE that is referred to by a GPE
- *    method is immediately enabled (Used for Load/load_table operators)
  *
  ******************************************************************************/
 
@@ -315,8 +311,6 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	struct acpi_gpe_walk_info *walk_info =
 	    ACPI_CAST_PTR(struct acpi_gpe_walk_info, context);
 	struct acpi_gpe_event_info *gpe_event_info;
-	struct acpi_namespace_node *gpe_device;
-	acpi_status status;
 	u32 gpe_number;
 	char name[ACPI_NAME_SIZE + 1];
 	u8 type;
@@ -420,29 +414,6 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	 */
 	gpe_event_info->flags |= (u8)(type | ACPI_GPE_DISPATCH_METHOD);
 	gpe_event_info->dispatch.method_node = method_node;
-
-	/*
-	 * Enable this GPE if requested. This only happens when during the
-	 * execution of a Load or load_table operator. We have found a new
-	 * GPE method and want to immediately enable the GPE if it is a
-	 * runtime GPE.
-	 */
-	if (walk_info->enable_this_gpe) {
-
-		walk_info->count++;
-		gpe_device = walk_info->gpe_device;
-
-		if (gpe_device == acpi_gbl_fadt_gpe_device) {
-			gpe_device = NULL;
-		}
-
-		status = acpi_enable_gpe(gpe_device, gpe_number);
-		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not enable GPE 0x%02X",
-					gpe_number));
-		}
-	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
 			  "Registered GPE method %s as GPE number 0x%.2X\n",

@@ -583,11 +583,10 @@ static int jfs_unfreeze(struct super_block *sb)
 	return 0;
 }
 
-static int jfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *jfs_do_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, jfs_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, jfs_fill_super);
 }
 
 static int jfs_sync_fs(struct super_block *sb, int wait)
@@ -770,7 +769,7 @@ static const struct export_operations jfs_export_operations = {
 static struct file_system_type jfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "jfs",
-	.get_sb		= jfs_get_sb,
+	.mount		= jfs_do_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

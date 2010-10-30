@@ -148,18 +148,6 @@
 	DEFINE_PER_CPU_SECTION(type, name, "..readmostly")
 
 /*
- * Declaration/definition used for large per-CPU variables that must be
- * aligned to something larger than the pagesize.
- */
-#define DECLARE_PER_CPU_MULTIPAGE_ALIGNED(type, name, size)		\
-	DECLARE_PER_CPU_SECTION(type, name, "..page_aligned")		\
-	__aligned(size)
-
-#define DEFINE_PER_CPU_MULTIPAGE_ALIGNED(type, name, size)		\
-	DEFINE_PER_CPU_SECTION(type, name, "..page_aligned")		\
-	__aligned(size)
-
-/*
  * Intermodule exports for per-CPU variables.  sparse forgets about
  * address space across EXPORT_SYMBOL(), change EXPORT_SYMBOL() to
  * noop if __CHECKER__.

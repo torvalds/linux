@@ -165,5 +165,7 @@ extern void __init xilinx_pci_init(void);
 static inline void __init xilinx_pci_init(void) { return; }
 #endif
 
+#include <asm-generic/pci-dma-compat.h>
+
 #endif	/* __KERNEL__ */
 #endif /* __ASM_MICROBLAZE_PCI_H */

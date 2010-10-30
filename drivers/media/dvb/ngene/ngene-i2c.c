@@ -165,7 +165,6 @@ int ngene_i2c_init(struct ngene *dev, int dev_nr)
 	struct i2c_adapter *adap = &(dev->channel[dev_nr].i2c_adapter);
 
 	i2c_set_adapdata(adap, &(dev->channel[dev_nr]));
-	adap->class = I2C_CLASS_TV_DIGITAL | I2C_CLASS_TV_ANALOG;
 
 	strcpy(adap->name, "nGene");
 

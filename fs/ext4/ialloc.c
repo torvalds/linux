@@ -50,7 +50,7 @@
  * need to use it within a single byte (to ensure we get endianness right).
  * We can use memset for the rest of the bitmap as there are no other users.
  */
-void mark_bitmap_end(int start_bit, int end_bit, char *bitmap)
+void ext4_mark_bitmap_end(int start_bit, int end_bit, char *bitmap)
 {
 	int i;
 
@@ -65,9 +65,10 @@ void mark_bitmap_end(int start_bit, int end_bit, char *bitmap)
 }
 
 /* Initializes an uninitialized inode bitmap */
-unsigned ext4_init_inode_bitmap(struct super_block *sb, struct buffer_head *bh,
-				ext4_group_t block_group,
-				struct ext4_group_desc *gdp)
+static unsigned ext4_init_inode_bitmap(struct super_block *sb,
+				       struct buffer_head *bh,
+				       ext4_group_t block_group,
+				       struct ext4_group_desc *gdp)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
@@ -85,7 +86,7 @@ unsigned ext4_init_inode_bitmap(struct super_block *sb, struct buffer_head *bh,
 	}
 
 	memset(bh->b_data, 0, (EXT4_INODES_PER_GROUP(sb) + 7) / 8);
-	mark_bitmap_end(EXT4_INODES_PER_GROUP(sb), sb->s_blocksize * 8,
+	ext4_mark_bitmap_end(EXT4_INODES_PER_GROUP(sb), sb->s_blocksize * 8,
 			bh->b_data);
 
 	return EXT4_INODES_PER_GROUP(sb);
@@ -107,6 +108,7 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 	desc = ext4_get_group_desc(sb, block_group, NULL);
 	if (!desc)
 		return NULL;
+
 	bitmap_blk = ext4_inode_bitmap(sb, desc);
 	bh = sb_getblk(sb, bitmap_blk);
 	if (unlikely(!bh)) {
@@ -123,6 +125,7 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 		unlock_buffer(bh);
 		return bh;
 	}
+
 	ext4_lock_group(sb, block_group);
 	if (desc->bg_flags & cpu_to_le16(EXT4_BG_INODE_UNINIT)) {
 		ext4_init_inode_bitmap(sb, bh, block_group, desc);
@@ -133,6 +136,7 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 		return bh;
 	}
 	ext4_unlock_group(sb, block_group);
+
 	if (buffer_uptodate(bh)) {
 		/*
 		 * if not uninit if bh is uptodate,
@@ -411,8 +415,8 @@ struct orlov_stats {
  * for a particular block group or flex_bg.  If flex_size is 1, then g
  * is a block group number; otherwise it is flex_bg number.
  */
-void get_orlov_stats(struct super_block *sb, ext4_group_t g,
-		       int flex_size, struct orlov_stats *stats)
+static void get_orlov_stats(struct super_block *sb, ext4_group_t g,
+			    int flex_size, struct orlov_stats *stats)
 {
 	struct ext4_group_desc *desc;
 	struct flex_groups *flex_group = EXT4_SB(sb)->s_flex_groups;
@@ -712,8 +716,17 @@ static int ext4_claim_inode(struct super_block *sb,
 {
 	int free = 0, retval = 0, count;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_group_info *grp = ext4_get_group_info(sb, group);
 	struct ext4_group_desc *gdp = ext4_get_group_desc(sb, group, NULL);
 
+	/*
+	 * We have to be sure that new inode allocation does not race with
+	 * inode table initialization, because otherwise we may end up
+	 * allocating and writing new inode right before sb_issue_zeroout
+	 * takes place and overwriting our new inode with zeroes. So we
+	 * take alloc_sem to prevent it.
+	 */
+	down_read(&grp->alloc_sem);
 	ext4_lock_group(sb, group);
 	if (ext4_set_bit(ino, inode_bitmap_bh->b_data)) {
 		/* not a free inode */
@@ -724,6 +737,7 @@ static int ext4_claim_inode(struct super_block *sb,
 	if ((group == 0 && ino < EXT4_FIRST_INO(sb)) ||
 			ino > EXT4_INODES_PER_GROUP(sb)) {
 		ext4_unlock_group(sb, group);
+		up_read(&grp->alloc_sem);
 		ext4_error(sb, "reserved inode or inode > inodes count - "
 			   "block_group = %u, inode=%lu", group,
 			   ino + group * EXT4_INODES_PER_GROUP(sb));
@@ -772,6 +786,7 @@ static int ext4_claim_inode(struct super_block *sb,
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, group, gdp);
 err_ret:
 	ext4_unlock_group(sb, group);
+	up_read(&grp->alloc_sem);
 	return retval;
 }
 
@@ -1204,4 +1219,110 @@ unsigned long ext4_count_dirs(struct super_block * sb)
 		count += ext4_used_dirs_count(sb, gdp);
 	}
 	return count;
+}
+
+/*
+ * Zeroes not yet zeroed inode table - just write zeroes through the whole
+ * inode table. Must be called without any spinlock held. The only place
+ * where it is called from on active part of filesystem is ext4lazyinit
+ * thread, so we do not need any special locks, however we have to prevent
+ * inode allocation from the current group, so we take alloc_sem lock, to
+ * block ext4_claim_inode until we are finished.
+ */
+extern int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
+				 int barrier)
+{
+	struct ext4_group_info *grp = ext4_get_group_info(sb, group);
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_group_desc *gdp = NULL;
+	struct buffer_head *group_desc_bh;
+	handle_t *handle;
+	ext4_fsblk_t blk;
+	int num, ret = 0, used_blks = 0;
+
+	/* This should not happen, but just to be sure check this */
+	if (sb->s_flags & MS_RDONLY) {
+		ret = 1;
+		goto out;
+	}
+
+	gdp = ext4_get_group_desc(sb, group, &group_desc_bh);
+	if (!gdp)
+		goto out;
+
+	/*
+	 * We do not need to lock this, because we are the only one
+	 * handling this flag.
+	 */
+	if (gdp->bg_flags & cpu_to_le16(EXT4_BG_INODE_ZEROED))
+		goto out;
+
+	handle = ext4_journal_start_sb(sb, 1);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		goto out;
+	}
+
+	down_write(&grp->alloc_sem);
+	/*
+	 * If inode bitmap was already initialized there may be some
+	 * used inodes so we need to skip blocks with used inodes in
+	 * inode table.
+	 */
+	if (!(gdp->bg_flags & cpu_to_le16(EXT4_BG_INODE_UNINIT)))
+		used_blks = DIV_ROUND_UP((EXT4_INODES_PER_GROUP(sb) -
+			    ext4_itable_unused_count(sb, gdp)),
+			    sbi->s_inodes_per_block);
+
+	if ((used_blks < 0) || (used_blks > sbi->s_itb_per_group)) {
+		ext4_error(sb, "Something is wrong with group %u\n"
+			   "Used itable blocks: %d"
+			   "itable unused count: %u\n",
+			   group, used_blks,
+			   ext4_itable_unused_count(sb, gdp));
+		ret = 1;
+		goto out;
+	}
+
+	blk = ext4_inode_table(sb, gdp) + used_blks;
+	num = sbi->s_itb_per_group - used_blks;
+
+	BUFFER_TRACE(group_desc_bh, "get_write_access");
+	ret = ext4_journal_get_write_access(handle,
+					    group_desc_bh);
+	if (ret)
+		goto err_out;
+
+	/*
+	 * Skip zeroout if the inode table is full. But we set the ZEROED
+	 * flag anyway, because obviously, when it is full it does not need
+	 * further zeroing.
+	 */
+	if (unlikely(num == 0))
+		goto skip_zeroout;
+
+	ext4_debug("going to zero out inode table in group %d\n",
+		   group);
+	ret = sb_issue_zeroout(sb, blk, num, GFP_NOFS);
+	if (ret < 0)
+		goto err_out;
+	if (barrier)
+		blkdev_issue_flush(sb->s_bdev, GFP_NOFS, NULL);
+
+skip_zeroout:
+	ext4_lock_group(sb, group);
+	gdp->bg_flags |= cpu_to_le16(EXT4_BG_INODE_ZEROED);
+	gdp->bg_checksum = ext4_group_desc_csum(sbi, group, gdp);
+	ext4_unlock_group(sb, group);
+
+	BUFFER_TRACE(group_desc_bh,
+		     "call ext4_handle_dirty_metadata");
+	ret = ext4_handle_dirty_metadata(handle, NULL,
+					 group_desc_bh);
+
+err_out:
+	up_write(&grp->alloc_sem);
+	ext4_journal_stop(handle);
+out:
+	return ret;
 }

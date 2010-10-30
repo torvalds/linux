@@ -3,6 +3,17 @@ config CAVIUM_OCTEON_SPECIFIC_OPTIONS
 	depends on CPU_CAVIUM_OCTEON
 	default "y"
 
+config CAVIUM_CN63XXP1
+	bool "Enable CN63XXP1 errata worarounds"
+	depends on CAVIUM_OCTEON_SPECIFIC_OPTIONS
+	default "n"
+	help
+	  The CN63XXP1 chip requires build time workarounds to
+	  function reliably, select this option to enable them.  These
+	  workarounds will cause a slight decrease in performance on
+	  non-CN63XXP1 hardware, so it is recommended to select "n"
+	  unless it is known the workarounds are needed.
+
 config CAVIUM_OCTEON_2ND_KERNEL
 	bool "Build the kernel to be used as a 2nd kernel on the same chip"
 	depends on CAVIUM_OCTEON_SPECIFIC_OPTIONS
@@ -87,3 +98,15 @@ config ARCH_SPARSEMEM_ENABLE
 config CAVIUM_OCTEON_HELPER
 	def_bool y
 	depends on OCTEON_ETHERNET || PCI
+
+config IOMMU_HELPER
+	bool
+
+config NEED_SG_DMA_LENGTH
+	bool
+
+config SWIOTLB
+	def_bool y
+	depends on CPU_CAVIUM_OCTEON
+	select IOMMU_HELPER
+	select NEED_SG_DMA_LENGTH

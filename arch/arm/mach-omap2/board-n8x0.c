@@ -20,6 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/musb.h>
+#include <sound/tlv320aic3x.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -383,15 +384,6 @@ static void n8x0_mmc_callback(void *data, u8 card_mask)
 	omap_mmc_notify_cover_event(mmc_device, index, *openp);
 }
 
-void n8x0_mmc_slot1_cover_handler(void *arg, int closed_state)
-{
-	if (mmc_device == NULL)
-		return;
-
-	slot1_cover_open = !closed_state;
-	omap_mmc_notify_cover_event(mmc_device, 0, closed_state);
-}
-
 static int n8x0_mmc_late_init(struct device *dev)
 {
 	int r, bit, *openp;
@@ -511,7 +503,7 @@ static struct omap_mmc_platform_data mmc1_data = {
 
 static struct omap_mmc_platform_data *mmc_data[OMAP24XX_NR_MMC];
 
-void __init n8x0_mmc_init(void)
+static void __init n8x0_mmc_init(void)
 
 {
 	int err;
@@ -560,11 +552,6 @@ void __init n8x0_mmc_init(void)
 void __init n8x0_mmc_init(void)
 {
 }
-
-void n8x0_mmc_slot1_cover_handler(void *arg, int state)
-{
-}
-
 #endif	/* CONFIG_MMC_OMAP */
 
 #ifdef CONFIG_MENELAUS
@@ -614,29 +601,35 @@ static int n8x0_menelaus_late_init(struct device *dev)
 	return 0;
 }
 
-static struct i2c_board_info __initdata n8x0_i2c_board_info_1[] = {
-	{
-		I2C_BOARD_INFO("menelaus", 0x72),
-		.irq = INT_24XX_SYS_NIRQ,
-	},
-};
+#else
+static int n8x0_menelaus_late_init(struct device *dev)
+{
+	return 0;
+}
+#endif
 
-static struct menelaus_platform_data n8x0_menelaus_platform_data = {
+static struct menelaus_platform_data n8x0_menelaus_platform_data __initdata = {
 	.late_init = n8x0_menelaus_late_init,
 };
 
-static void __init n8x0_menelaus_init(void)
-{
-	n8x0_i2c_board_info_1[0].platform_data = &n8x0_menelaus_platform_data;
-	omap_register_i2c_bus(1, 400, n8x0_i2c_board_info_1,
-			      ARRAY_SIZE(n8x0_i2c_board_info_1));
-}
+static struct i2c_board_info __initdata n8x0_i2c_board_info_1[] __initdata = {
+	{
+		I2C_BOARD_INFO("menelaus", 0x72),
+		.irq = INT_24XX_SYS_NIRQ,
+		.platform_data = &n8x0_menelaus_platform_data,
+	},
+};
 
-#else
-static inline void __init n8x0_menelaus_init(void)
-{
-}
-#endif
+static struct aic3x_pdata n810_aic33_data __initdata = {
+	.gpio_reset = 118,
+};
+
+static struct i2c_board_info n810_i2c_board_info_2[] __initdata = {
+	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x18),
+		.platform_data = &n810_aic33_data,
+	},
+};
 
 static void __init n8x0_map_io(void)
 {
@@ -653,6 +646,11 @@ static void __init n8x0_init_irq(void)
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
+	/* I2S codec port pins for McBSP block */
+	OMAP2420_MUX(EAC_AC_SCLK, OMAP_MUX_MODE1 | OMAP_PIN_INPUT),
+	OMAP2420_MUX(EAC_AC_FS, OMAP_MUX_MODE1 | OMAP_PIN_INPUT),
+	OMAP2420_MUX(EAC_AC_DIN, OMAP_MUX_MODE1 | OMAP_PIN_INPUT),
+	OMAP2420_MUX(EAC_AC_DOUT, OMAP_MUX_MODE1 | OMAP_PIN_OUTPUT),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #else
@@ -665,9 +663,14 @@ static void __init n8x0_init_machine(void)
 	/* FIXME: add n810 spi devices */
 	spi_register_board_info(n800_spi_board_info,
 				ARRAY_SIZE(n800_spi_board_info));
+	omap_register_i2c_bus(1, 400, n8x0_i2c_board_info_1,
+			      ARRAY_SIZE(n8x0_i2c_board_info_1));
+	omap_register_i2c_bus(2, 400, NULL, 0);
+	if (machine_is_nokia_n810())
+		i2c_register_board_info(2, n810_i2c_board_info_2,
+					ARRAY_SIZE(n810_i2c_board_info_2));
 
 	omap_serial_init();
-	n8x0_menelaus_init();
 	n8x0_onenand_init();
 	n8x0_mmc_init();
 	n8x0_usb_init();

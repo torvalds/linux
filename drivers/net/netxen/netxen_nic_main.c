@@ -1356,6 +1356,13 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
+	if (reset_devices) {
+		if (adapter->portnum == 0) {
+			NXWR32(adapter, NX_CRB_DEV_REF_COUNT, 0);
+			adapter->need_fw_reset = 1;
+		}
+	}
+
 	err = netxen_start_firmware(adapter);
 	if (err)
 		goto err_out_decr_ref;

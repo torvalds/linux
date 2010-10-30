@@ -786,11 +786,11 @@ struct file *nameidata_to_filp(struct nameidata *nd)
 	/* Pick up the filp from the open intent */
 	filp = nd->intent.open.file;
 	/* Has the filesystem initialised the file for us? */
-	if (filp->f_path.dentry == NULL)
+	if (filp->f_path.dentry == NULL) {
+		path_get(&nd->path);
 		filp = __dentry_open(nd->path.dentry, nd->path.mnt, filp,
 				     NULL, cred);
-	else
-		path_put(&nd->path);
+	}
 	return filp;
 }
 

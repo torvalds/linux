@@ -70,15 +70,16 @@ static inline void kunmap(struct page *page)
  * be used in IRQ contexts, so in some (very limited) cases we need
  * it.
  */
-static inline unsigned long kmap_atomic(struct page *page, enum km_type type)
+static inline unsigned long __kmap_atomic(struct page *page)
 {
-	enum fixed_addresses idx;
 	unsigned long vaddr;
+	int idx, type;
 
+	pagefault_disable();
 	if (page < highmem_start_page)
 		return page_address(page);
 
-	debug_kmap_atomic(type);
+	type = kmap_atomic_idx_push();
 	idx = type + KM_TYPE_NR * smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 #if HIGHMEM_DEBUG
@@ -86,31 +87,42 @@ static inline unsigned long kmap_atomic(struct page *page, enum km_type type)
 		BUG();
 #endif
 	set_pte(kmap_pte - idx, mk_pte(page, kmap_prot));
-	__flush_tlb_one(vaddr);
+	local_flush_tlb_one(vaddr);
 
 	return vaddr;
 }
 
-static inline void kunmap_atomic_notypecheck(unsigned long vaddr, enum km_type type)
+static inline void __kunmap_atomic(unsigned long vaddr)
 {
-#if HIGHMEM_DEBUG
-	enum fixed_addresses idx = type + KM_TYPE_NR * smp_processor_id();
+	int type;
 
-	if (vaddr < FIXADDR_START) /* FIXME */
+	if (vaddr < FIXADDR_START) { /* FIXME */
+		pagefault_enable();
 		return;
+	}
 
-	if (vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx))
-		BUG();
+	type = kmap_atomic_idx();
 
-	/*
-	 * force other mappings to Oops if they'll try to access
-	 * this pte without first remap it
-	 */
-	pte_clear(kmap_pte - idx);
-	__flush_tlb_one(vaddr);
+#if HIGHMEM_DEBUG
+	{
+		unsigned int idx;
+		idx = type + KM_TYPE_NR * smp_processor_id();
+
+		if (vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx))
+			BUG();
+
+		/*
+		 * force other mappings to Oops if they'll try to access
+		 * this pte without first remap it
+		 */
+		pte_clear(kmap_pte - idx);
+		local_flush_tlb_one(vaddr);
+	}
 #endif
-}
 
+	kmap_atomic_idx_pop();
+	pagefault_enable();
+}
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_HIGHMEM_H */

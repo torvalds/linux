@@ -20,6 +20,7 @@
 #include <linux/usb/otg.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c/twl.h>
+#include <linux/gpio_keys.h>
 #include <linux/regulator/machine.h>
 #include <linux/leds.h>
 
@@ -31,15 +32,18 @@
 
 #include <plat/board.h>
 #include <plat/common.h>
-#include <plat/control.h>
-#include <plat/timer-gp.h>
 #include <plat/usb.h>
 #include <plat/mmc.h>
+
 #include "hsmmc.h"
+#include "timer-gp.h"
+#include "control.h"
 
 #define ETH_KS8851_IRQ			34
 #define ETH_KS8851_POWER_ON		48
 #define ETH_KS8851_QUART		138
+#define OMAP4_SFH7741_SENSOR_OUTPUT_GPIO	184
+#define OMAP4_SFH7741_ENABLE_GPIO		188
 
 static struct gpio_led sdp4430_gpio_leds[] = {
 	{
@@ -77,9 +81,45 @@ static struct gpio_led sdp4430_gpio_leds[] = {
 
 };
 
+static struct gpio_keys_button sdp4430_gpio_keys[] = {
+	{
+		.desc			= "Proximity Sensor",
+		.type			= EV_SW,
+		.code			= SW_FRONT_PROXIMITY,
+		.gpio			= OMAP4_SFH7741_SENSOR_OUTPUT_GPIO,
+		.active_low		= 0,
+	}
+};
+
 static struct gpio_led_platform_data sdp4430_led_data = {
 	.leds	= sdp4430_gpio_leds,
 	.num_leds	= ARRAY_SIZE(sdp4430_gpio_leds),
+};
+
+static int omap_prox_activate(struct device *dev)
+{
+	gpio_set_value(OMAP4_SFH7741_ENABLE_GPIO , 1);
+	return 0;
+}
+
+static void omap_prox_deactivate(struct device *dev)
+{
+	gpio_set_value(OMAP4_SFH7741_ENABLE_GPIO , 0);
+}
+
+static struct gpio_keys_platform_data sdp4430_gpio_keys_data = {
+	.buttons	= sdp4430_gpio_keys,
+	.nbuttons	= ARRAY_SIZE(sdp4430_gpio_keys),
+	.enable		= omap_prox_activate,
+	.disable	= omap_prox_deactivate,
+};
+
+static struct platform_device sdp4430_gpio_keys_device = {
+	.name	= "gpio-keys",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &sdp4430_gpio_keys_data,
+	},
 };
 
 static struct platform_device sdp4430_leds_gpio = {
@@ -161,6 +201,7 @@ static struct platform_device sdp4430_lcd_device = {
 
 static struct platform_device *sdp4430_devices[] __initdata = {
 	&sdp4430_lcd_device,
+	&sdp4430_gpio_keys_device,
 	&sdp4430_leds_gpio,
 };
 
@@ -193,15 +234,16 @@ static struct omap_musb_board_data musb_board_data = {
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
-		.wires		= 8,
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
 		.gpio_wp	= -EINVAL,
 	},
 	{
 		.mmc		= 2,
-		.wires		= 8,
+		.caps		=  MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 		.nonremovable   = true,
+		.ocr_mask	= MMC_VDD_29_30,
 	},
 	{}	/* Terminator */
 };
@@ -227,16 +269,27 @@ static int omap4_twl6030_hsmmc_late_init(struct device *dev)
 	struct omap_mmc_platform_data *pdata = dev->platform_data;
 
 	/* Setting MMC1 Card detect Irq */
-	if (pdev->id == 0)
+	if (pdev->id == 0) {
+		ret = twl6030_mmc_card_detect_config();
+		if (ret)
+			pr_err("Failed configuring MMC1 card detect\n");
 		pdata->slots[0].card_detect_irq = TWL6030_IRQ_BASE +
 						MMCDETECT_INTR_OFFSET;
+		pdata->slots[0].card_detect = twl6030_mmc_card_detect;
+	}
 	return ret;
 }
 
 static __init void omap4_twl6030_hsmmc_set_late_init(struct device *dev)
 {
-	struct omap_mmc_platform_data *pdata = dev->platform_data;
+	struct omap_mmc_platform_data *pdata;
 
+	/* dev can be null if CONFIG_MMC_OMAP_HS is not set */
+	if (!dev) {
+		pr_err("Failed %s\n", __func__);
+		return;
+	}
+	pdata = dev->platform_data;
 	pdata->init =	omap4_twl6030_hsmmc_late_init;
 }
 
@@ -412,6 +465,11 @@ static struct i2c_board_info __initdata sdp4430_i2c_3_boardinfo[] = {
 		I2C_BOARD_INFO("tmp105", 0x48),
 	},
 };
+static struct i2c_board_info __initdata sdp4430_i2c_4_boardinfo[] = {
+	{
+		I2C_BOARD_INFO("hmc5843", 0x1e),
+	},
+};
 static int __init omap4_i2c_init(void)
 {
 	/*
@@ -423,14 +481,36 @@ static int __init omap4_i2c_init(void)
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, sdp4430_i2c_3_boardinfo,
 				ARRAY_SIZE(sdp4430_i2c_3_boardinfo));
-	omap_register_i2c_bus(4, 400, NULL, 0);
+	omap_register_i2c_bus(4, 400, sdp4430_i2c_4_boardinfo,
+				ARRAY_SIZE(sdp4430_i2c_4_boardinfo));
 	return 0;
 }
+
+static void __init omap_sfh7741prox_init(void)
+{
+	int  error;
+
+	error = gpio_request(OMAP4_SFH7741_ENABLE_GPIO, "sfh7741");
+	if (error < 0) {
+		pr_err("%s:failed to request GPIO %d, error %d\n",
+			__func__, OMAP4_SFH7741_ENABLE_GPIO, error);
+		return;
+	}
+
+	error = gpio_direction_output(OMAP4_SFH7741_ENABLE_GPIO , 0);
+	if (error < 0) {
+		pr_err("%s: GPIO configuration failed: GPIO %d,error %d\n",
+			 __func__, OMAP4_SFH7741_ENABLE_GPIO, error);
+		gpio_free(OMAP4_SFH7741_ENABLE_GPIO);
+	}
+}
+
 static void __init omap_4430sdp_init(void)
 {
 	int status;
 
 	omap4_i2c_init();
+	omap_sfh7741prox_init();
 	platform_add_devices(sdp4430_devices, ARRAY_SIZE(sdp4430_devices));
 	omap_serial_init();
 	omap4_twl6030_hsmmc_init(mmc);

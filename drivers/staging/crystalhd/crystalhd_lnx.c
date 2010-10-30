@@ -571,6 +571,7 @@ static int __devinit chd_dec_pci_probe(struct pci_dev *pdev,
 	rc = chd_pci_reserve_mem(pinfo);
 	if (rc) {
 		BCMLOG_ERR("Failed to setup memory regions.\n");
+		pci_disable_device(pdev);
 		return -ENOMEM;
 	}
 

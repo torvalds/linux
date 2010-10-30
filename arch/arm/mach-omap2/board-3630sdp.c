@@ -21,8 +21,8 @@
 #include <plat/usb.h>
 
 #include <mach/board-zoom.h>
-#include <mach/board-flash.h>
 
+#include "board-flash.h"
 #include "mux.h"
 #include "sdram-hynix-h8mbx00u0mer-0em.h"
 
@@ -208,7 +208,6 @@ static struct flash_partitions sdp_flash_partitions[] = {
 static void __init omap_sdp_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
-	omap_serial_init();
 	zoom_peripherals_init();
 	board_smc91x_init();
 	board_flash_init(sdp_flash_partitions, chip_sel_sdp);

@@ -30,8 +30,6 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
-#include "ak4642.h"
-
 #define AK4642_VERSION "0.0.1"
 
 #define PW_MGMT1	0x00
@@ -74,6 +72,12 @@
 
 #define AK4642_CACHEREGNUM 	0x25
 
+/* PW_MGMT1*/
+#define PMVCM		(1 << 6) /* VCOM Power Management */
+#define PMMIN		(1 << 5) /* MIN Input Power Management */
+#define PMDAC		(1 << 2) /* DAC Power Management */
+#define PMADL		(1 << 0) /* MIC Amp Lch and ADC Lch Power Management */
+
 /* PW_MGMT2 */
 #define HPMTN		(1 << 6)
 #define PMHPL		(1 << 5)
@@ -84,6 +88,23 @@
 
 #define PMHP_MASK	(PMHPL | PMHPR)
 #define PMHP		PMHP_MASK
+
+/* PW_MGMT3 */
+#define PMADR		(1 << 0) /* MIC L / ADC R Power Management */
+
+/* SG_SL1 */
+#define MINS		(1 << 6) /* Switch from MIN to Speaker */
+#define DACL		(1 << 4) /* Switch from DAC to Stereo or Receiver */
+#define PMMP		(1 << 2) /* MPWR pin Power Management */
+#define MGAIN0		(1 << 0) /* MIC amp gain*/
+
+/* TIMER */
+#define ZTM(param)	((param & 0x3) << 4) /* ALC Zoro Crossing TimeOut */
+#define WTM(param)	(((param & 0x4) << 4) | ((param & 0x3) << 2))
+
+/* ALC_CTL1 */
+#define ALC		(1 << 5) /* ALC Enable */
+#define LMTH0		(1 << 0) /* ALC Limiter / Recovery Level */
 
 /* MD_CTL1 */
 #define PLL3		(1 << 7)
@@ -102,7 +123,11 @@
 #define FS3		(1 << 5)
 #define FS_MASK		(FS0 | FS1 | FS2 | FS3)
 
-struct snd_soc_codec_device soc_codec_dev_ak4642;
+/* MD_CTL3 */
+#define BST1		(1 << 3)
+
+/* MD_CTL4 */
+#define DACH		(1 << 0)
 
 /*
  * Playback Volume (table 39)
@@ -123,10 +148,10 @@ static const struct snd_kcontrol_new ak4642_snd_controls[] = {
 
 /* codec private data */
 struct ak4642_priv {
-	struct snd_soc_codec codec;
+	unsigned int sysclk;
+	enum snd_soc_control_type control_type;
+	void *control_data;
 };
-
-static struct snd_soc_codec *ak4642_codec;
 
 /*
  * ak4642 register cache
@@ -219,11 +244,12 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		 * This operation came from example code of
 		 * "ASAHI KASEI AK4642" (japanese) manual p97.
 		 */
-		ak4642_write(codec, 0x0f, 0x09);
-		ak4642_write(codec, 0x0e, 0x19);
-		ak4642_write(codec, 0x09, 0x91);
-		ak4642_write(codec, 0x0c, 0x91);
-		ak4642_write(codec, 0x00, 0x64);
+		snd_soc_update_bits(codec, MD_CTL4, DACH, DACH);
+		snd_soc_update_bits(codec, MD_CTL3, BST1, BST1);
+		ak4642_write(codec, L_IVC, 0x91); /* volume */
+		ak4642_write(codec, R_IVC, 0x91); /* volume */
+		snd_soc_update_bits(codec, PW_MGMT1, PMVCM | PMMIN | PMDAC,
+						     PMVCM | PMMIN | PMDAC);
 		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	PMHP);
 		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	HPMTN);
 	} else {
@@ -240,13 +266,12 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		 * This operation came from example code of
 		 * "ASAHI KASEI AK4642" (japanese) manual p94.
 		 */
-		ak4642_write(codec, 0x02, 0x05);
-		ak4642_write(codec, 0x06, 0x3c);
-		ak4642_write(codec, 0x08, 0xe1);
-		ak4642_write(codec, 0x0b, 0x00);
-		ak4642_write(codec, 0x07, 0x21);
-		ak4642_write(codec, 0x00, 0x41);
-		ak4642_write(codec, 0x10, 0x01);
+		ak4642_write(codec, SG_SL1, PMMP | MGAIN0);
+		ak4642_write(codec, TIMER, ZTM(0x3) | WTM(0x3));
+		ak4642_write(codec, ALC_CTL1, ALC | LMTH0);
+		snd_soc_update_bits(codec, PW_MGMT1, PMVCM | PMADL,
+						     PMVCM | PMADL);
+		snd_soc_update_bits(codec, PW_MGMT3, PMADR, PMADR);
 	}
 
 	return 0;
@@ -262,14 +287,14 @@ static void ak4642_dai_shutdown(struct snd_pcm_substream *substream,
 		/* stop headphone output */
 		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	0);
 		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	0);
-		ak4642_write(codec, 0x00, 0x40);
-		ak4642_write(codec, 0x0e, 0x11);
-		ak4642_write(codec, 0x0f, 0x08);
+		snd_soc_update_bits(codec, PW_MGMT1, PMMIN | PMDAC, 0);
+		snd_soc_update_bits(codec, MD_CTL3, BST1, 0);
+		snd_soc_update_bits(codec, MD_CTL4, DACH, 0);
 	} else {
 		/* stop stereo input */
-		ak4642_write(codec, 0x00, 0x40);
-		ak4642_write(codec, 0x10, 0x00);
-		ak4642_write(codec, 0x07, 0x01);
+		snd_soc_update_bits(codec, PW_MGMT1, PMADL, 0);
+		snd_soc_update_bits(codec, PW_MGMT3, PMADR, 0);
+		snd_soc_update_bits(codec, ALC_CTL1, ALC, 0);
 	}
 }
 
@@ -393,8 +418,8 @@ static struct snd_soc_dai_ops ak4642_dai_ops = {
 	.hw_params	= ak4642_dai_hw_params,
 };
 
-struct snd_soc_dai ak4642_dai = {
-	.name = "AK4642",
+static struct snd_soc_dai_driver ak4642_dai = {
+	.name = "ak4642-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
@@ -410,112 +435,65 @@ struct snd_soc_dai ak4642_dai = {
 	.ops = &ak4642_dai_ops,
 	.symmetric_rates = 1,
 };
-EXPORT_SYMBOL_GPL(ak4642_dai);
 
-static int ak4642_resume(struct platform_device *pdev)
+static int ak4642_resume(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
 	ak4642_sync(codec);
 	return 0;
 }
 
-/*
- * initialise the AK4642 driver
- * register the mixer and dsp interfaces with the kernel
- */
-static int ak4642_init(struct ak4642_priv *ak4642)
+
+static int ak4642_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_codec *codec = &ak4642->codec;
-	int ret = 0;
+	struct ak4642_priv *ak4642 = snd_soc_codec_get_drvdata(codec);
 
-	if (ak4642_codec) {
-		dev_err(codec->dev, "Another ak4642 is registered\n");
-		return -EINVAL;
-	}
+	dev_info(codec->dev, "AK4642 Audio Codec %s", AK4642_VERSION);
 
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	snd_soc_codec_set_drvdata(codec, ak4642);
-	codec->name		= "AK4642";
-	codec->owner		= THIS_MODULE;
-	codec->read		= ak4642_read_reg_cache;
-	codec->write		= ak4642_write;
-	codec->dai		= &ak4642_dai;
-	codec->num_dai		= 1;
 	codec->hw_write		= (hw_write_t)i2c_master_send;
-	codec->reg_cache_size	= ARRAY_SIZE(ak4642_reg);
-	codec->reg_cache	= kmemdup(ak4642_reg,
-					  sizeof(ak4642_reg), GFP_KERNEL);
+	codec->control_data	= ak4642->control_data;
 
-	if (!codec->reg_cache)
-		return -ENOMEM;
+	snd_soc_add_controls(codec, ak4642_snd_controls,
+			     ARRAY_SIZE(ak4642_snd_controls));
 
-	ak4642_dai.dev = codec->dev;
-	ak4642_codec = codec;
-
-	ret = snd_soc_register_codec(codec);
-	if (ret) {
-		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-		goto reg_cache_err;
-	}
-
-	ret = snd_soc_register_dai(&ak4642_dai);
-	if (ret) {
-		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		snd_soc_unregister_codec(codec);
-		goto reg_cache_err;
-	}
-
-	return ret;
-
-reg_cache_err:
-	kfree(codec->reg_cache);
-	codec->reg_cache = NULL;
-
-	return ret;
+	return 0;
 }
 
+static struct snd_soc_codec_driver soc_codec_dev_ak4642 = {
+	.probe			= ak4642_probe,
+	.resume			= ak4642_resume,
+	.read			= ak4642_read_reg_cache,
+	.write			= ak4642_write,
+	.reg_cache_size		= ARRAY_SIZE(ak4642_reg),
+	.reg_word_size		= sizeof(u8),
+	.reg_cache_default	= ak4642_reg,
+};
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static int ak4642_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static __devinit int ak4642_i2c_probe(struct i2c_client *i2c,
+				      const struct i2c_device_id *id)
 {
 	struct ak4642_priv *ak4642;
-	struct snd_soc_codec *codec;
 	int ret;
 
 	ak4642 = kzalloc(sizeof(struct ak4642_priv), GFP_KERNEL);
 	if (!ak4642)
 		return -ENOMEM;
 
-	codec = &ak4642->codec;
-	codec->dev = &i2c->dev;
-
 	i2c_set_clientdata(i2c, ak4642);
-	codec->control_data = i2c;
+	ak4642->control_data = i2c;
+	ak4642->control_type = SND_SOC_I2C;
 
-	ret = ak4642_init(ak4642);
-	if (ret < 0) {
-		printk(KERN_ERR "failed to initialise AK4642\n");
+	ret =  snd_soc_register_codec(&i2c->dev,
+			&soc_codec_dev_ak4642, &ak4642_dai, 1);
+	if (ret < 0)
 		kfree(ak4642);
-	}
-
 	return ret;
 }
 
-static int ak4642_i2c_remove(struct i2c_client *client)
+static __devexit int ak4642_i2c_remove(struct i2c_client *client)
 {
-	struct ak4642_priv *ak4642 = i2c_get_clientdata(client);
-
-	snd_soc_unregister_dai(&ak4642_dai);
-	snd_soc_unregister_codec(&ak4642->codec);
-	kfree(ak4642->codec.reg_cache);
-	kfree(ak4642);
-	ak4642_codec = NULL;
-
+	snd_soc_unregister_codec(&client->dev);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
@@ -528,63 +506,14 @@ MODULE_DEVICE_TABLE(i2c, ak4642_i2c_id);
 
 static struct i2c_driver ak4642_i2c_driver = {
 	.driver = {
-		.name = "AK4642 I2C Codec",
+		.name = "ak4642-codec",
 		.owner = THIS_MODULE,
 	},
 	.probe		= ak4642_i2c_probe,
-	.remove		= ak4642_i2c_remove,
+	.remove		= __devexit_p(ak4642_i2c_remove),
 	.id_table	= ak4642_i2c_id,
 };
-
 #endif
-
-static int ak4642_probe(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	int ret;
-
-	if (!ak4642_codec) {
-		dev_err(&pdev->dev, "Codec device not registered\n");
-		return -ENODEV;
-	}
-
-	socdev->card->codec = ak4642_codec;
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		printk(KERN_ERR "ak4642: failed to create pcms\n");
-		goto pcm_err;
-	}
-
-	snd_soc_add_controls(ak4642_codec, ak4642_snd_controls,
-			     ARRAY_SIZE(ak4642_snd_controls));
-
-	dev_info(&pdev->dev, "AK4642 Audio Codec %s", AK4642_VERSION);
-	return ret;
-
-pcm_err:
-	return ret;
-
-}
-
-/* power down chip */
-static int ak4642_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-
-	return 0;
-}
-
-struct snd_soc_codec_device soc_codec_dev_ak4642 = {
-	.probe =	ak4642_probe,
-	.remove =	ak4642_remove,
-	.resume =	ak4642_resume,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_ak4642);
 
 static int __init ak4642_modinit(void)
 {

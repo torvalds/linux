@@ -613,6 +613,7 @@ static int pp_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case PPGETTIME:
 		to_jiffies = pp->pdev->timeout;
+		memset(&par_timeout, 0, sizeof(par_timeout));
 		par_timeout.tv_sec = to_jiffies / HZ;
 		par_timeout.tv_usec = (to_jiffies % (long)HZ) * (1000000/HZ);
 		if (copy_to_user (argp, &par_timeout, sizeof(struct timeval)))

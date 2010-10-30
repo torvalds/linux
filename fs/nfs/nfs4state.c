@@ -46,6 +46,7 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/random.h>
+#include <linux/ratelimit.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
 
@@ -53,6 +54,7 @@
 #include "callback.h"
 #include "delegation.h"
 #include "internal.h"
+#include "pnfs.h"
 
 #define OPENOWNER_POOL_SIZE	8
 
@@ -1063,6 +1065,14 @@ restart:
 				/* Mark the file as being 'closed' */
 				state->state = 0;
 				break;
+			case -EKEYEXPIRED:
+				/*
+				 * User RPCSEC_GSS context has expired.
+				 * We cannot recover this stateid now, so
+				 * skip it and allow recovery thread to
+				 * proceed.
+				 */
+				break;
 			case -NFS4ERR_ADMIN_REVOKED:
 			case -NFS4ERR_STALE_STATEID:
 			case -NFS4ERR_BAD_STATEID:
@@ -1138,16 +1148,14 @@ static void nfs4_reclaim_complete(struct nfs_client *clp,
 		(void)ops->reclaim_complete(clp);
 }
 
-static void nfs4_state_end_reclaim_reboot(struct nfs_client *clp)
+static int nfs4_state_clear_reclaim_reboot(struct nfs_client *clp)
 {
 	struct nfs4_state_owner *sp;
 	struct rb_node *pos;
 	struct nfs4_state *state;
 
 	if (!test_and_clear_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state))
-		return;
-
-	nfs4_reclaim_complete(clp, clp->cl_mvops->reboot_recovery_ops);
+		return 0;
 
 	for (pos = rb_first(&clp->cl_state_owners); pos != NULL; pos = rb_next(pos)) {
 		sp = rb_entry(pos, struct nfs4_state_owner, so_client_node);
@@ -1161,6 +1169,14 @@ static void nfs4_state_end_reclaim_reboot(struct nfs_client *clp)
 	}
 
 	nfs_delegation_reap_unclaimed(clp);
+	return 1;
+}
+
+static void nfs4_state_end_reclaim_reboot(struct nfs_client *clp)
+{
+	if (!nfs4_state_clear_reclaim_reboot(clp))
+		return;
+	nfs4_reclaim_complete(clp, clp->cl_mvops->reboot_recovery_ops);
 }
 
 static void nfs_delegation_clear_all(struct nfs_client *clp)
@@ -1175,6 +1191,14 @@ static void nfs4_state_start_reclaim_nograce(struct nfs_client *clp)
 	nfs4_state_mark_reclaim_helper(clp, nfs4_state_mark_reclaim_nograce);
 }
 
+static void nfs4_warn_keyexpired(const char *s)
+{
+	printk_ratelimited(KERN_WARNING "Error: state manager"
+			" encountered RPCSEC_GSS session"
+			" expired against NFSv4 server %s.\n",
+			s);
+}
+
 static int nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 {
 	switch (error) {
@@ -1187,7 +1211,7 @@ static int nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_LEASE_MOVED:
 			set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
-			nfs4_state_end_reclaim_reboot(clp);
+			nfs4_state_clear_reclaim_reboot(clp);
 			nfs4_state_start_reclaim_reboot(clp);
 			break;
 		case -NFS4ERR_EXPIRED:
@@ -1203,6 +1227,10 @@ static int nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 		case -NFS4ERR_SEQ_MISORDERED:
 			set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
 			/* Zero session reset errors */
+			return 0;
+		case -EKEYEXPIRED:
+			/* Nothing we can do */
+			nfs4_warn_keyexpired(clp->cl_hostname);
 			return 0;
 	}
 	return error;
@@ -1414,9 +1442,10 @@ static void nfs4_set_lease_expired(struct nfs_client *clp, int status)
 		case -NFS4ERR_DELAY:
 		case -NFS4ERR_CLID_INUSE:
 		case -EAGAIN:
-		case -EKEYEXPIRED:
 			break;
 
+		case -EKEYEXPIRED:
+			nfs4_warn_keyexpired(clp->cl_hostname);
 		case -NFS4ERR_NOT_SAME: /* FixMe: implement recovery
 					 * in nfs4_exchange_id */
 		default:
@@ -1447,6 +1476,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			}
 			clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
 			set_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state);
+			pnfs_destroy_all_layouts(clp);
 		}
 
 		if (test_and_clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state)) {

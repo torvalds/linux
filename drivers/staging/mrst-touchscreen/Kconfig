@@ -1,7 +1,0 @@
-config TOUCHSCREEN_INTEL_MID
-	tristate "Intel MID platform resistive touchscreen"
-	depends on INTEL_SCU_IPC
-	default y
-	help
-	  Say Y here if you have a Intel MID based touchscreen
-	  If unsure, say N.

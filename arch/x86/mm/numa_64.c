@@ -178,11 +178,8 @@ static void * __init early_node_mem(int nodeid, unsigned long start,
 
 	/* extend the search scope */
 	end = max_pfn_mapped << PAGE_SHIFT;
-	if (end > (MAX_DMA32_PFN<<PAGE_SHIFT))
-		start = MAX_DMA32_PFN<<PAGE_SHIFT;
-	else
-		start = MAX_DMA_PFN<<PAGE_SHIFT;
-	mem = memblock_x86_find_in_range_node(nodeid, start, end, size, align);
+	start = MAX_DMA_PFN << PAGE_SHIFT;
+	mem = memblock_find_in_range(start, end, size, align);
 	if (mem != MEMBLOCK_ERROR)
 		return __va(mem);
 

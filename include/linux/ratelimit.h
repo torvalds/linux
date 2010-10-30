@@ -36,6 +36,8 @@ static inline void ratelimit_state_init(struct ratelimit_state *rs,
 	rs->begin = 0;
 }
 
+extern struct ratelimit_state printk_ratelimit_state;
+
 extern int ___ratelimit(struct ratelimit_state *rs, const char *func);
 #define __ratelimit(state) ___ratelimit(state, __func__)
 

@@ -68,7 +68,7 @@ void arch_release_hugepage(struct page *page)
 	ptep = (pte_t *) page[1].index;
 	if (!ptep)
 		return;
-	pte_free(&init_mm, ptep);
+	page_table_free(&init_mm, (unsigned long *) ptep);
 	page[1].index = 0;
 }
 

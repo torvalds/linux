@@ -26,6 +26,7 @@
 
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
+#include <linux/mmc/host.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -38,7 +39,6 @@
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/usb.h>
-#include <plat/timer-gp.h>
 #include <plat/display.h>
 
 #include <plat/mcspi.h>
@@ -52,6 +52,7 @@
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mux.h"
 #include "hsmmc.h"
+#include "timer-gp.h"
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 #define OMAP3STALKER_ETHR_START	0x2c000000
@@ -275,7 +276,7 @@ static struct regulator_init_data omap3stalker_vsim = {
 static struct omap2_hsmmc_info mmc[] = {
 	{
 	 .mmc		= 1,
-	 .wires		= 4,
+	 .caps		= MMC_CAP_4_BIT_DATA,
 	 .gpio_cd	= -EINVAL,
 	 .gpio_wp	= 23,
 	 },
@@ -389,7 +390,7 @@ static struct twl4030_usb_data omap3stalker_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
-static int board_keymap[] = {
+static uint32_t board_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
 	KEY(0, 1, KEY_DOWN),
 	KEY(0, 2, KEY_ENTER),
@@ -564,7 +565,7 @@ static struct omap2_mcspi_device_config ads7846_mcspi_config = {
 	.single_channel		= 1,	/* 0: slave, 1: master */
 };
 
-struct spi_board_info omap3stalker_spi_board_info[] = {
+static struct spi_board_info omap3stalker_spi_board_info[] = {
 	[0] = {
 	       .modalias	= "ads7846",
 	       .bus_num		= 1,

@@ -1072,6 +1072,7 @@ ipgre_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 					break;
 				}
 				ipgre_tunnel_unlink(ign, t);
+				synchronize_net();
 				t->parms.iph.saddr = p.iph.saddr;
 				t->parms.iph.daddr = p.iph.daddr;
 				t->parms.i_key = p.i_key;

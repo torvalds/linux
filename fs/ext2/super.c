@@ -1221,9 +1221,7 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 	}
 
 	es = sbi->s_es;
-	if (((sbi->s_mount_opt & EXT2_MOUNT_XIP) !=
-	    (old_mount_opt & EXT2_MOUNT_XIP)) &&
-	    invalidate_inodes(sb)) {
+	if ((sbi->s_mount_opt ^ old_mount_opt) & EXT2_MOUNT_XIP) {
 		ext2_msg(sb, KERN_WARNING, "warning: refusing change of "
 			 "xip flag with busy inodes while remounting");
 		sbi->s_mount_opt &= ~EXT2_MOUNT_XIP;
@@ -1358,10 +1356,10 @@ static int ext2_statfs (struct dentry * dentry, struct kstatfs * buf)
 	return 0;
 }
 
-static int ext2_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *ext2_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, ext2_fill_super, mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, ext2_fill_super);
 }
 
 #ifdef CONFIG_QUOTA
@@ -1475,7 +1473,7 @@ out:
 static struct file_system_type ext2_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ext2",
-	.get_sb		= ext2_get_sb,
+	.mount		= ext2_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

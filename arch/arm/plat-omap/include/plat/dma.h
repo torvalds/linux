@@ -319,6 +319,8 @@
 #define OMAP34XX_DMA_USIM_TX		79	/* S_DMA_78 */
 #define OMAP34XX_DMA_USIM_RX		80	/* S_DMA_79 */
 
+#define OMAP36XX_DMA_UART4_TX		81	/* S_DMA_80 */
+#define OMAP36XX_DMA_UART4_RX		82	/* S_DMA_81 */
 /*----------------------------------------------------------------------------*/
 
 #define OMAP1_DMA_TOUT_IRQ		(1 << 0)
@@ -335,6 +337,10 @@
 #define OMAP2_DMA_MISALIGNED_ERR_IRQ	(1 << 11)
 
 #define OMAP_DMA_CCR_EN			(1 << 7)
+#define OMAP_DMA_CCR_RD_ACTIVE		(1 << 9)
+#define OMAP_DMA_CCR_WR_ACTIVE		(1 << 10)
+#define OMAP_DMA_CCR_SEL_SRC_DST_SYNC	(1 << 24)
+#define OMAP_DMA_CCR_BUFFERING_DISABLE	(1 << 25)
 
 #define OMAP_DMA_DATA_TYPE_S8		0x00
 #define OMAP_DMA_DATA_TYPE_S16		0x01

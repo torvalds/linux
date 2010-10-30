@@ -50,8 +50,6 @@ struct ac97_frame {
 #define TAG_PCM_SR		0x0080
 #define TAG_PCM_LFE		0x0040
 
-extern struct snd_soc_dai bfin_ac97_dai;
-
 void bf5xx_pcm_to_ac97(struct ac97_frame *dst, const __u16 *src, \
 		size_t count, unsigned int chan_mask);
 

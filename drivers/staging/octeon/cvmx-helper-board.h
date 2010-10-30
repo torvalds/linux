@@ -37,13 +37,6 @@
 #include "cvmx-helper.h"
 
 typedef enum {
-	USB_CLOCK_TYPE_REF_12,
-	USB_CLOCK_TYPE_REF_24,
-	USB_CLOCK_TYPE_REF_48,
-	USB_CLOCK_TYPE_CRYSTAL_12,
-} cvmx_helper_board_usb_clock_types_t;
-
-typedef enum {
 	set_phy_link_flags_autoneg = 0x1,
 	set_phy_link_flags_flow_control_dont_touch = 0x0 << 1,
 	set_phy_link_flags_flow_control_enable = 0x1 << 1,
@@ -154,27 +147,5 @@ extern int __cvmx_helper_board_interface_probe(int interface,
  * Returns Zero on success, negative on failure
  */
 extern int __cvmx_helper_board_hardware_enable(int interface);
-
-/**
- * Gets the clock type used for the USB block based on board type.
- * Used by the USB code for auto configuration of clock type.
- *
- * Returns USB clock type enumeration
- */
-cvmx_helper_board_usb_clock_types_t
-__cvmx_helper_board_usb_get_clock_type(void);
-
-/**
- * Adjusts the number of available USB ports on Octeon based on board
- * specifics.
- *
- * @supported_ports: expected number of ports based on chip type;
- *
- *
- * Returns number of available usb ports, based on board specifics.
- *         Return value is supported_ports if function does not
- *         override.
- */
-int __cvmx_helper_board_usb_get_num_ports(int supported_ports);
 
 #endif /* __CVMX_HELPER_BOARD_H__ */

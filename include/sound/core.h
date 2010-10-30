@@ -177,7 +177,7 @@ int snd_power_wait(struct snd_card *card, unsigned int power_state);
 #define snd_power_lock(card)		do { (void)(card); } while (0)
 #define snd_power_unlock(card)		do { (void)(card); } while (0)
 static inline int snd_power_wait(struct snd_card *card, unsigned int state) { return 0; }
-#define snd_power_get_state(card)	SNDRV_CTL_POWER_D0
+#define snd_power_get_state(card)	({ (void)(card); SNDRV_CTL_POWER_D0; })
 #define snd_power_change_state(card, state)	do { (void)(card); } while (0)
 
 #endif /* CONFIG_PM */

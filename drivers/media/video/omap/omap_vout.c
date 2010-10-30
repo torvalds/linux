@@ -1341,7 +1341,7 @@ static int omap_vout_open(struct file *file)
 
 	videobuf_queue_dma_contig_init(q, &video_vbq_ops, q->dev,
 			&vout->vbq_lock, vout->type, V4L2_FIELD_NONE,
-			sizeof(struct videobuf_buffer), vout);
+			sizeof(struct videobuf_buffer), vout, NULL);
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Exiting %s\n", __func__);
 	return 0;

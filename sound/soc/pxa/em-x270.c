@@ -32,34 +32,31 @@
 #include <mach/audio.h>
 
 #include "../codecs/wm9712.h"
-#include "pxa2xx-pcm.h"
 #include "pxa2xx-ac97.h"
 
 static struct snd_soc_dai_link em_x270_dai[] = {
 	{
 		.name = "AC97",
 		.stream_name = "AC97 HiFi",
-		.cpu_dai = &pxa_ac97_dai[PXA2XX_DAI_AC97_HIFI],
-		.codec_dai = &wm9712_dai[WM9712_DAI_AC97_HIFI],
+		.cpu_dai_name = "pxa-ac97.0",
+		.codec_dai_name = "wm9712-hifi",
+		.platform_name = "pxa-pcm-audio",
+		.codec_name = "wm9712-codec",
 	},
 	{
 		.name = "AC97 Aux",
 		.stream_name = "AC97 Aux",
-		.cpu_dai = &pxa_ac97_dai[PXA2XX_DAI_AC97_AUX],
-		.codec_dai = &wm9712_dai[WM9712_DAI_AC97_AUX],
+		.cpu_dai_name = "pxa-ac97.1",
+		.codec_dai_name ="wm9712-aux",
+		.platform_name = "pxa-pcm-audio",
+		.codec_name = "wm9712-codec",
 	},
 };
 
 static struct snd_soc_card em_x270 = {
 	.name = "EM-X270",
-	.platform = &pxa2xx_soc_platform,
 	.dai_link = em_x270_dai,
 	.num_links = ARRAY_SIZE(em_x270_dai),
-};
-
-static struct snd_soc_device em_x270_snd_devdata = {
-	.card = &em_x270,
-	.codec_dev = &soc_codec_dev_wm9712,
 };
 
 static struct platform_device *em_x270_snd_device;
@@ -76,8 +73,7 @@ static int __init em_x270_init(void)
 	if (!em_x270_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(em_x270_snd_device, &em_x270_snd_devdata);
-	em_x270_snd_devdata.dev = &em_x270_snd_device->dev;
+	platform_set_drvdata(em_x270_snd_device, &em_x270);
 	ret = platform_device_add(em_x270_snd_device);
 
 	if (ret)

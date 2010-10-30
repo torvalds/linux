@@ -141,6 +141,17 @@ ENTRY(cpu_xsc3_do_idle)
 /* ================================= CACHE ================================ */
 
 /*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(xsc3_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(xsc3_flush_icache_all)
+
+/*
  *	flush_user_cache_all()
  *
  *	Invalidate all cache entries in a particular address
@@ -325,6 +336,7 @@ ENTRY(xsc3_dma_unmap_area)
 ENDPROC(xsc3_dma_unmap_area)
 
 ENTRY(xsc3_cache_fns)
+	.long	xsc3_flush_icache_all
 	.long	xsc3_flush_kern_cache_all
 	.long	xsc3_flush_user_cache_all
 	.long	xsc3_flush_user_cache_range

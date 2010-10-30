@@ -24,18 +24,18 @@
  *                                                                       *
  *************************************************************************
 
-    Module Name:
-    ap.h
+Module Name:
+ap.h
 
-    Abstract:
-    Miniport generic portion header file
+Abstract:
+Miniport generic portion header file
 
-    Revision History:
-    Who         When          What
-    --------    ----------    ----------------------------------------------
-    Paul Lin    08-01-2002    created
-    James Tan   09-06-2002    modified (Revise NTCRegTable)
-    John Chang  12-22-2004    modified for RT2561/2661. merge with STA driver
+Revision History:
+Who         When          What
+--------    ----------    ----------------------------------------------
+Paul Lin    08-01-2002    created
+James Tan   09-06-2002    modified (Revise NTCRegTable)
+John Chang  12-22-2004    modified for RT2561/2661. merge with STA driver
 */
 #ifndef __AP_H__
 #define __AP_H__

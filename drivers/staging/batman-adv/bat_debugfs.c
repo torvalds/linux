@@ -90,6 +90,7 @@ int debug_log(struct bat_priv *bat_priv, char *fmt, ...)
 
 static int log_open(struct inode *inode, struct file *file)
 {
+	nonseekable_open(inode, file);
 	file->private_data = inode->i_private;
 	inc_module_count();
 	return 0;
@@ -174,6 +175,7 @@ static const struct file_operations log_fops = {
 	.release        = log_release,
 	.read           = log_read,
 	.poll           = log_poll,
+	.llseek         = no_llseek,
 };
 
 static int debug_log_setup(struct bat_priv *bat_priv)

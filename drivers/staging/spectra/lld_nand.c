@@ -2411,13 +2411,15 @@ static int nand_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	csr_base = pci_resource_start(dev, 0);
 	if (!csr_base) {
 		printk(KERN_ERR "Spectra: pci_resource_start failed!\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto failed_req_csr;
 	}
 
 	csr_len = pci_resource_len(dev, 0);
 	if (!csr_len) {
 		printk(KERN_ERR "Spectra: pci_resource_len failed!\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto failed_req_csr;
 	}
 
 	ret = pci_request_regions(dev, SPECTRA_NAND_NAME);
@@ -2464,6 +2466,7 @@ static int nand_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 failed_remap_csr:
 	pci_release_regions(dev);
 failed_req_csr:
+	pci_disable_device(dev);
 
 	return ret;
 }

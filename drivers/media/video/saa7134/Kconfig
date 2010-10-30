@@ -1,8 +1,7 @@
 config VIDEO_SAA7134
 	tristate "Philips SAA7134 support"
-	depends on VIDEO_DEV && PCI && I2C && INPUT
+	depends on VIDEO_DEV && PCI && I2C
 	select VIDEOBUF_DMA_SG
-	depends on VIDEO_IR
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select CRC32
@@ -24,6 +23,14 @@ config VIDEO_SAA7134_ALSA
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7134-alsa.
+
+config VIDEO_SAA7134_RC
+	bool "Philips SAA7134 Remote Controller support"
+	depends on VIDEO_IR
+	depends on VIDEO_SAA7134
+	default y
+	---help---
+	  Enables Remote Controller support on saa7134 driver.
 
 config VIDEO_SAA7134_DVB
 	tristate "DVB/ATSC Support for saa7134 based TV cards"

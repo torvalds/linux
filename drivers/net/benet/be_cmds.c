@@ -1471,42 +1471,6 @@ err:
 	return status;
 }
 
-/* Uses sync mcc */
-int be_cmd_read_port_type(struct be_adapter *adapter, u32 port,
-				u8 *connector)
-{
-	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_port_type *req;
-	int status;
-
-	spin_lock_bh(&adapter->mcc_lock);
-
-	wrb = wrb_from_mccq(adapter);
-	if (!wrb) {
-		status = -EBUSY;
-		goto err;
-	}
-	req = embedded_payload(wrb);
-
-	be_wrb_hdr_prepare(wrb, sizeof(struct be_cmd_resp_port_type), true, 0,
-			OPCODE_COMMON_READ_TRANSRECV_DATA);
-
-	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-		OPCODE_COMMON_READ_TRANSRECV_DATA, sizeof(*req));
-
-	req->port = cpu_to_le32(port);
-	req->page_num = cpu_to_le32(TR_PAGE_A0);
-	status = be_mcc_notify_wait(adapter);
-	if (!status) {
-		struct be_cmd_resp_port_type *resp = embedded_payload(wrb);
-			*connector = resp->data.connector;
-	}
-
-err:
-	spin_unlock_bh(&adapter->mcc_lock);
-	return status;
-}
-
 int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			u32 flash_type, u32 flash_opcode, u32 buf_size)
 {

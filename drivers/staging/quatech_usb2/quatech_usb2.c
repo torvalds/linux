@@ -577,7 +577,7 @@ int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 			port0->bulk_in_buffer,
 			port0->bulk_in_size,
 			qt2_read_bulk_callback, serial);
-		dbg("port0 bulk in URB intialised");
+		dbg("port0 bulk in URB initialised");
 
 		/* submit URB, i.e. start reading from device (async) */
 		dev_extra->ReadBulkStopped = false;

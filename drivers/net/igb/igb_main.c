@@ -4107,7 +4107,6 @@ static inline int igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
 netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 				    struct igb_ring *tx_ring)
 {
-	struct igb_adapter *adapter = netdev_priv(tx_ring->netdev);
 	int tso = 0, count;
 	u32 tx_flags = 0;
 	u16 first;

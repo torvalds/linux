@@ -495,6 +495,7 @@ static struct inode *bm_get_inode(struct super_block *sb, int mode)
 	struct inode * inode = new_inode(sb);
 
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_atime = inode->i_mtime = inode->i_ctime =
 			current_fs_time(inode->i_sb);
@@ -705,10 +706,10 @@ static int bm_fill_super(struct super_block * sb, void * data, int silent)
 	return err;
 }
 
-static int bm_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *bm_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_single(fs_type, flags, data, bm_fill_super, mnt);
+	return mount_single(fs_type, flags, data, bm_fill_super);
 }
 
 static struct linux_binfmt misc_format = {
@@ -719,7 +720,7 @@ static struct linux_binfmt misc_format = {
 static struct file_system_type bm_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "binfmt_misc",
-	.get_sb		= bm_get_sb,
+	.mount		= bm_mount,
 	.kill_sb	= kill_litter_super,
 };
 

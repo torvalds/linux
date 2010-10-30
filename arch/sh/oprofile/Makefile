@@ -1,5 +1,7 @@
 obj-$(CONFIG_OPROFILE) += oprofile.o
 
+CFLAGS_common.o	+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
+
 DRIVER_OBJS = $(addprefix ../../../drivers/oprofile/, \
 		oprof.o cpu_buffer.o buffer_sync.o \
 		event_buffer.o oprofile_files.o \

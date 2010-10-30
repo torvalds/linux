@@ -196,6 +196,9 @@
 /* High Speed UART for Medfield */
 #define PORT_MFD	95
 
+/* TI OMAP-UART */
+#define PORT_OMAP	96
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

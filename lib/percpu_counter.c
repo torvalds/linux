@@ -8,9 +8,52 @@
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
+#include <linux/debugobjects.h>
 
 static LIST_HEAD(percpu_counters);
 static DEFINE_MUTEX(percpu_counters_lock);
+
+#ifdef CONFIG_DEBUG_OBJECTS_PERCPU_COUNTER
+
+static struct debug_obj_descr percpu_counter_debug_descr;
+
+static int percpu_counter_fixup_free(void *addr, enum debug_obj_state state)
+{
+	struct percpu_counter *fbc = addr;
+
+	switch (state) {
+	case ODEBUG_STATE_ACTIVE:
+		percpu_counter_destroy(fbc);
+		debug_object_free(fbc, &percpu_counter_debug_descr);
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+static struct debug_obj_descr percpu_counter_debug_descr = {
+	.name		= "percpu_counter",
+	.fixup_free	= percpu_counter_fixup_free,
+};
+
+static inline void debug_percpu_counter_activate(struct percpu_counter *fbc)
+{
+	debug_object_init(fbc, &percpu_counter_debug_descr);
+	debug_object_activate(fbc, &percpu_counter_debug_descr);
+}
+
+static inline void debug_percpu_counter_deactivate(struct percpu_counter *fbc)
+{
+	debug_object_deactivate(fbc, &percpu_counter_debug_descr);
+	debug_object_free(fbc, &percpu_counter_debug_descr);
+}
+
+#else	/* CONFIG_DEBUG_OBJECTS_PERCPU_COUNTER */
+static inline void debug_percpu_counter_activate(struct percpu_counter *fbc)
+{ }
+static inline void debug_percpu_counter_deactivate(struct percpu_counter *fbc)
+{ }
+#endif	/* CONFIG_DEBUG_OBJECTS_PERCPU_COUNTER */
 
 void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
 {
@@ -30,9 +73,9 @@ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
 {
 	s64 count;
 	s32 *pcount;
-	int cpu = get_cpu();
 
-	pcount = per_cpu_ptr(fbc->counters, cpu);
+	preempt_disable();
+	pcount = this_cpu_ptr(fbc->counters);
 	count = *pcount + amount;
 	if (count >= batch || count <= -batch) {
 		spin_lock(&fbc->lock);
@@ -42,7 +85,7 @@ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
 	} else {
 		*pcount = count;
 	}
-	put_cpu();
+	preempt_enable();
 }
 EXPORT_SYMBOL(__percpu_counter_add);
 
@@ -75,7 +118,11 @@ int __percpu_counter_init(struct percpu_counter *fbc, s64 amount,
 	fbc->counters = alloc_percpu(s32);
 	if (!fbc->counters)
 		return -ENOMEM;
+
+	debug_percpu_counter_activate(fbc);
+
 #ifdef CONFIG_HOTPLUG_CPU
+	INIT_LIST_HEAD(&fbc->list);
 	mutex_lock(&percpu_counters_lock);
 	list_add(&fbc->list, &percpu_counters);
 	mutex_unlock(&percpu_counters_lock);
@@ -88,6 +135,8 @@ void percpu_counter_destroy(struct percpu_counter *fbc)
 {
 	if (!fbc->counters)
 		return;
+
+	debug_percpu_counter_deactivate(fbc);
 
 #ifdef CONFIG_HOTPLUG_CPU
 	mutex_lock(&percpu_counters_lock);

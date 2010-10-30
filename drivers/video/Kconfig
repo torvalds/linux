@@ -17,6 +17,8 @@ source "drivers/gpu/vga/Kconfig"
 
 source "drivers/gpu/drm/Kconfig"
 
+source "drivers/gpu/stub/Kconfig"
+
 config VGASTATE
        tristate
        default n
@@ -1919,6 +1921,9 @@ config FB_SH_MOBILE_HDMI
 	tristate "SuperH Mobile HDMI controller support"
 	depends on FB_SH_MOBILE_LCDC
 	select FB_MODE_HELPERS
+	select SOUND
+	select SND
+	select SND_SOC
 	---help---
 	  Driver for the on-chip SH-Mobile HDMI controller.
 

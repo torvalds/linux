@@ -47,11 +47,10 @@ void setup_heartbeat(void)
 	struct device_node *gpio = NULL;
 	int *prop;
 	int j;
-	char *gpio_list[] = {
-				"xlnx,xps-gpio-1.00.a",
-				"xlnx,opb-gpio-1.00.a",
-				NULL
-			};
+	const char * const gpio_list[] = {
+		"xlnx,xps-gpio-1.00.a",
+		NULL
+	};
 
 	for (j = 0; gpio_list[j] != NULL; j++) {
 		gpio = of_find_compatible_node(NULL, NULL, gpio_list[j]);
@@ -60,7 +59,7 @@ void setup_heartbeat(void)
 	}
 
 	if (gpio) {
-		base_addr = *(int *) of_get_property(gpio, "reg", NULL);
+		base_addr = be32_to_cpup(of_get_property(gpio, "reg", NULL));
 		base_addr = (unsigned long) ioremap(base_addr, PAGE_SIZE);
 		printk(KERN_NOTICE "Heartbeat GPIO at 0x%x\n", base_addr);
 

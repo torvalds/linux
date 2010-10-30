@@ -84,9 +84,7 @@ static __inline__ void set_pte(pte_t *pteptr, pte_t pteval)
 		((pte_t *) ((pmd_val(*(dir))) & PAGE_MASK) + pte_index((addr)))
 
 #define pte_offset_map(dir,addr)	pte_offset_kernel(dir, addr)
-#define pte_offset_map_nested(dir,addr)	pte_offset_kernel(dir, addr)
 #define pte_unmap(pte)		do { } while (0)
-#define pte_unmap_nested(pte)	do { } while (0)
 
 #ifndef __ASSEMBLY__
 #define IOBASE_VADDR	0xff000000
@@ -132,6 +130,7 @@ static __inline__ void set_pte(pte_t *pteptr, pte_t pteval)
  * anything above the PPN field.
  */
 #define _PAGE_WIRED	_PAGE_EXT(0x001) /* software: wire the tlb entry */
+#define _PAGE_SPECIAL	_PAGE_EXT(0x002)
 
 #define _PAGE_CLEAR_FLAGS	(_PAGE_PRESENT | _PAGE_FILE | _PAGE_SHARED | \
 				 _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_WIRED)
@@ -175,7 +174,8 @@ static __inline__ void set_pte(pte_t *pteptr, pte_t pteval)
 /* Default flags for a User page */
 #define _PAGE_TABLE	(_KERNPG_TABLE | _PAGE_USER)
 
-#define _PAGE_CHG_MASK	(PTE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
+#define _PAGE_CHG_MASK	(PTE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY | \
+			 _PAGE_SPECIAL)
 
 /*
  * We have full permissions (Read/Write/Execute/Shared).
@@ -265,7 +265,7 @@ static inline int pte_dirty(pte_t pte)  { return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)  { return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_file(pte_t pte)   { return pte_val(pte) & _PAGE_FILE; }
 static inline int pte_write(pte_t pte)  { return pte_val(pte) & _PAGE_WRITE; }
-static inline int pte_special(pte_t pte){ return 0; }
+static inline int pte_special(pte_t pte){ return pte_val(pte) & _PAGE_SPECIAL; }
 
 static inline pte_t pte_wrprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_WRITE)); return pte; }
 static inline pte_t pte_mkclean(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_DIRTY)); return pte; }
@@ -274,8 +274,7 @@ static inline pte_t pte_mkwrite(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | 
 static inline pte_t pte_mkdirty(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_DIRTY)); return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_ACCESSED)); return pte; }
 static inline pte_t pte_mkhuge(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_SZHUGE)); return pte; }
-static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
-
+static inline pte_t pte_mkspecial(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_SPECIAL)); return pte; }
 
 /*
  * Conversion functions: convert a page and protection to a page entry.

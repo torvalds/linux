@@ -60,6 +60,8 @@ struct bfin_spi_regs {
 	__BFP(shadow);
 };
 
+#undef __BFP
+
 #define MAX_CTRL_CS          8  /* cs in spi controller */
 
 /* device.platform_data for SSP controller devices */

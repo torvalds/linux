@@ -42,12 +42,14 @@
 #include <linux/log2.h>
 #include <linux/vmalloc.h>
 #include <linux/backing-dev.h>
+#include <linux/bitops.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/jbd2.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
+#include <asm/system.h>
 
 EXPORT_SYMBOL(jbd2_journal_extend);
 EXPORT_SYMBOL(jbd2_journal_stop);
@@ -478,7 +480,7 @@ int __jbd2_log_start_commit(journal_t *journal, tid_t target)
 	 */
 	if (!tid_geq(journal->j_commit_request, target)) {
 		/*
-		 * We want a new commit: OK, mark the request and wakup the
+		 * We want a new commit: OK, mark the request and wakeup the
 		 * commit thread.  We do _not_ do the commit ourselves.
 		 */
 
@@ -2210,7 +2212,7 @@ void jbd2_journal_release_jbd_inode(journal_t *journal,
 restart:
 	spin_lock(&journal->j_list_lock);
 	/* Is commit writing out inode - we have to wait */
-	if (jinode->i_flags & JI_COMMIT_RUNNING) {
+	if (test_bit(__JI_COMMIT_RUNNING, &jinode->i_flags)) {
 		wait_queue_head_t *wq;
 		DEFINE_WAIT_BIT(wait, &jinode->i_flags, __JI_COMMIT_RUNNING);
 		wq = bit_waitqueue(&jinode->i_flags, __JI_COMMIT_RUNNING);

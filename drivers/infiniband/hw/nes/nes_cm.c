@@ -1424,7 +1424,6 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 {
 
 	int	reset = 0;	/* whether to send reset in case of err.. */
-	int	passive_state;
 	atomic_inc(&cm_resets_recvd);
 	nes_debug(NES_DBG_CM, "Received Reset, cm_node = %p, state = %u."
 			" refcnt=%d\n", cm_node, cm_node->state,
@@ -1439,7 +1438,7 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		active_open_err(cm_node, skb, reset);
 		break;
 	case NES_CM_STATE_MPAREQ_RCVD:
-		passive_state = atomic_add_return(1, &cm_node->passive_state);
+		atomic_inc(&cm_node->passive_state);
 		dev_kfree_skb_any(skb);
 		break;
 	case NES_CM_STATE_ESTABLISHED:

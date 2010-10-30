@@ -803,7 +803,7 @@ nv10_graph_context_switch(struct drm_device *dev)
 	/* Load context for next channel */
 	chid = (nv_rd32(dev, NV04_PGRAPH_TRAPPED_ADDR) >> 20) & 0x1f;
 	chan = dev_priv->fifos[chid];
-	if (chan)
+	if (chan && chan->pgraph_ctx)
 		nv10_graph_load_context(chan);
 
 	pgraph->fifo_access(dev, true);

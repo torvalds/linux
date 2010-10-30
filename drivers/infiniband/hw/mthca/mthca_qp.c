@@ -1493,7 +1493,7 @@ static int build_mlx_header(struct mthca_dev *dev, struct mthca_sqp *sqp,
 	int err;
 	u16 pkey;
 
-	ib_ud_header_init(256, /* assume a MAD */
+	ib_ud_header_init(256, /* assume a MAD */ 1, 0, 0,
 			  mthca_ah_grh_present(to_mah(wr->wr.ud.ah)), 0,
 			  &sqp->ud_header);
 

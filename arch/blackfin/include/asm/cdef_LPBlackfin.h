@@ -179,7 +179,7 @@
 #define bfin_write_ITEST_DATA0(val)          bfin_write32(ITEST_DATA0,val)
 #define bfin_write_ITEST_DATA1(val)          bfin_write32(ITEST_DATA1,val)
 
-#if ANOMALY_05000481
+#if !ANOMALY_05000481
 #define bfin_read_ITEST_COMMAND()            bfin_read32(ITEST_COMMAND)
 #define bfin_read_ITEST_DATA0()              bfin_read32(ITEST_DATA0)
 #define bfin_read_ITEST_DATA1()              bfin_read32(ITEST_DATA1)

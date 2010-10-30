@@ -3580,6 +3580,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	common->ah = sc->ah;
 	common->hw = hw;
 	common->cachelsz = csz << 2; /* convert to bytes */
+	spin_lock_init(&common->cc_lock);
 
 	/* Initialize device */
 	ret = ath5k_hw_attach(sc);

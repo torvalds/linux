@@ -1,6 +1,7 @@
- * Use hweight* for hamming weight calculation
- * Save/cache packets direktly as skb instead of using a normal memory region
-   and copying it in a skb using send_raw_packet and similar functions
+ * remove own list functionality from hash
+ * use hlist_head, hlist_node in hash
+ * don't use callbacks for compare+choose in hash
+ * think about more efficient ways instead of abstraction of hash
  * Request a new review
  * Process the comments from the review
  * Move into mainline proper
@@ -9,5 +10,5 @@ Please send all patches to:
 	Marek Lindner <lindner_marek@yahoo.de>
 	Simon Wunderlich <siwu@hrz.tu-chemnitz.de>
 	Andrew Lunn <andrew@lunn.ch>
-	b.a.t.m.a.n@lists.open-mesh.net
+	b.a.t.m.a.n@lists.open-mesh.org
 	Greg Kroah-Hartman <gregkh@suse.de>

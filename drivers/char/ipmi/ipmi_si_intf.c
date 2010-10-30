@@ -1665,6 +1665,17 @@ static int check_hotmod_int_op(const char *curr, const char *option,
 	return 0;
 }
 
+static struct smi_info *smi_info_alloc(void)
+{
+	struct smi_info *info = kzalloc(sizeof(*info), GFP_KERNEL);
+
+	if (info) {
+		spin_lock_init(&info->si_lock);
+		spin_lock_init(&info->msg_lock);
+	}
+	return info;
+}
+
 static int hotmod_handler(const char *val, struct kernel_param *kp)
 {
 	char *str = kstrdup(val, GFP_KERNEL);
@@ -1779,7 +1790,7 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 		}
 
 		if (op == HM_ADD) {
-			info = kzalloc(sizeof(*info), GFP_KERNEL);
+			info = smi_info_alloc();
 			if (!info) {
 				rv = -ENOMEM;
 				goto out;
@@ -1835,7 +1846,7 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 	return rv;
 }
 
-static __devinit void hardcode_find_bmc(void)
+static void __devinit hardcode_find_bmc(void)
 {
 	int             i;
 	struct smi_info *info;
@@ -1844,7 +1855,7 @@ static __devinit void hardcode_find_bmc(void)
 		if (!ports[i] && !addrs[i])
 			continue;
 
-		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		info = smi_info_alloc();
 		if (!info)
 			return;
 
@@ -2018,7 +2029,7 @@ struct SPMITable {
 	s8      spmi_id[1]; /* A '\0' terminated array starts here. */
 };
 
-static __devinit int try_init_spmi(struct SPMITable *spmi)
+static int __devinit try_init_spmi(struct SPMITable *spmi)
 {
 	struct smi_info  *info;
 
@@ -2027,7 +2038,7 @@ static __devinit int try_init_spmi(struct SPMITable *spmi)
 		return -ENODEV;
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = smi_info_alloc();
 	if (!info) {
 		printk(KERN_ERR PFX "Could not allocate SI data (3)\n");
 		return -ENOMEM;
@@ -2101,7 +2112,7 @@ static __devinit int try_init_spmi(struct SPMITable *spmi)
 	return 0;
 }
 
-static __devinit void spmi_find_bmc(void)
+static void __devinit spmi_find_bmc(void)
 {
 	acpi_status      status;
 	struct SPMITable *spmi;
@@ -2137,7 +2148,7 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 	if (!acpi_dev)
 		return -ENODEV;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = smi_info_alloc();
 	if (!info)
 		return -ENOMEM;
 
@@ -2314,11 +2325,11 @@ static int __devinit decode_dmi(const struct dmi_header *dm,
 	return 0;
 }
 
-static __devinit void try_init_dmi(struct dmi_ipmi_data *ipmi_data)
+static void __devinit try_init_dmi(struct dmi_ipmi_data *ipmi_data)
 {
 	struct smi_info *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = smi_info_alloc();
 	if (!info) {
 		printk(KERN_ERR PFX "Could not allocate SI data\n");
 		return;
@@ -2425,7 +2436,7 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 	int class_type = pdev->class & PCI_ERMC_CLASSCODE_TYPE_MASK;
 	struct smi_info *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = smi_info_alloc();
 	if (!info)
 		return -ENOMEM;
 
@@ -2566,7 +2577,7 @@ static int __devinit ipmi_of_probe(struct platform_device *dev,
 		return -EINVAL;
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = smi_info_alloc();
 
 	if (!info) {
 		dev_err(&dev->dev,
@@ -3001,7 +3012,7 @@ static __devinitdata struct ipmi_default_vals
 	{ .port = 0 }
 };
 
-static __devinit void default_find_bmc(void)
+static void __devinit default_find_bmc(void)
 {
 	struct smi_info *info;
 	int             i;
@@ -3013,7 +3024,7 @@ static __devinit void default_find_bmc(void)
 		if (check_legacy_ioport(ipmi_defaults[i].port))
 			continue;
 #endif
-		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		info = smi_info_alloc();
 		if (!info)
 			return;
 
@@ -3137,9 +3148,6 @@ static int try_smi_init(struct smi_info *new_smi)
 		printk(KERN_ERR PFX "Could not set up I/O space\n");
 		goto out_err;
 	}
-
-	spin_lock_init(&(new_smi->si_lock));
-	spin_lock_init(&(new_smi->msg_lock));
 
 	/* Do low-level detection first. */
 	if (new_smi->handlers->detect(new_smi->si_sm)) {
@@ -3304,7 +3312,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	return rv;
 }
 
-static __devinit int init_ipmi_si(void)
+static int __devinit init_ipmi_si(void)
 {
 	int  i;
 	char *str;
@@ -3517,7 +3525,7 @@ static void cleanup_one_si(struct smi_info *to_clean)
 	kfree(to_clean);
 }
 
-static __exit void cleanup_ipmi_si(void)
+static void __exit cleanup_ipmi_si(void)
 {
 	struct smi_info *e, *tmp_e;
 

@@ -482,7 +482,7 @@ static s32 pm121_correct(s32 new_setpoint,
 	new_min += correction->offset;
 	new_min = (new_min >> 16) + min;
 
-	return max(new_setpoint, max(new_min, 0));
+	return max3(new_setpoint, new_min, 0);
 }
 
 static s32 pm121_connect(unsigned int control_id, s32 setpoint)

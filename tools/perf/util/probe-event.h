@@ -90,6 +90,12 @@ struct line_range {
 	struct list_head	line_list;	/* Visible lines */
 };
 
+/* List of variables */
+struct variable_list {
+	struct probe_trace_point	point;	/* Actual probepoint */
+	struct strlist			*vars;	/* Available variables */
+};
+
 /* Command string to events */
 extern int parse_perf_probe_command(const char *cmd,
 				    struct perf_probe_event *pev);
@@ -109,12 +115,18 @@ extern void clear_perf_probe_event(struct perf_probe_event *pev);
 /* Command string to line-range */
 extern int parse_line_range_desc(const char *cmd, struct line_range *lr);
 
+/* Internal use: Return kernel/module path */
+extern const char *kernel_get_module_path(const char *module);
 
 extern int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
-				 bool force_add, int max_probe_points);
+				 int max_probe_points, const char *module,
+				 bool force_add);
 extern int del_perf_probe_events(struct strlist *dellist);
 extern int show_perf_probe_events(void);
-extern int show_line_range(struct line_range *lr);
+extern int show_line_range(struct line_range *lr, const char *module);
+extern int show_available_vars(struct perf_probe_event *pevs, int npevs,
+			       int max_probe_points, const char *module,
+			       bool externs);
 
 
 /* Maximum index number of event-name postfix */

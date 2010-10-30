@@ -1099,16 +1099,30 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	cqr = (struct dasd_ccw_req *) intparm;
 	if (!cqr || ((scsw_cc(&irb->scsw) == 1) &&
 		     (scsw_fctl(&irb->scsw) & SCSW_FCTL_START_FUNC) &&
-		     (scsw_stctl(&irb->scsw) & SCSW_STCTL_STATUS_PEND))) {
+		     ((scsw_stctl(&irb->scsw) == SCSW_STCTL_STATUS_PEND) ||
+		      (scsw_stctl(&irb->scsw) == (SCSW_STCTL_STATUS_PEND |
+						  SCSW_STCTL_ALERT_STATUS))))) {
 		if (cqr && cqr->status == DASD_CQR_IN_IO)
 			cqr->status = DASD_CQR_QUEUED;
+		if (cqr)
+			memcpy(&cqr->irb, irb, sizeof(*irb));
 		device = dasd_device_from_cdev_locked(cdev);
-		if (!IS_ERR(device)) {
-			dasd_device_clear_timer(device);
-			device->discipline->handle_unsolicited_interrupt(device,
-									 irb);
+		if (IS_ERR(device))
+			return;
+		/* ignore unsolicited interrupts for DIAG discipline */
+		if (device->discipline == dasd_diag_discipline_pointer) {
 			dasd_put_device(device);
+			return;
 		}
+		device->discipline->dump_sense_dbf(device, irb,
+						   "unsolicited");
+		if ((device->features & DASD_FEATURE_ERPLOG))
+			device->discipline->dump_sense(device, cqr,
+						       irb);
+		dasd_device_clear_timer(device);
+		device->discipline->handle_unsolicited_interrupt(device,
+								 irb);
+		dasd_put_device(device);
 		return;
 	}
 

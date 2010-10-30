@@ -11,6 +11,7 @@
 #include <linux/kprobes.h>		/* __kprobes, ...		*/
 #include <linux/mmiotrace.h>		/* kmmio_handler, ...		*/
 #include <linux/perf_event.h>		/* perf_sw_event		*/
+#include <linux/hugetlb.h>		/* hstate_index_to_shift	*/
 
 #include <asm/traps.h>			/* dotraplinkage, ...		*/
 #include <asm/pgalloc.h>		/* pgd_*(), ...			*/
@@ -160,15 +161,20 @@ is_prefetch(struct pt_regs *regs, unsigned long error_code, unsigned long addr)
 
 static void
 force_sig_info_fault(int si_signo, int si_code, unsigned long address,
-		     struct task_struct *tsk)
+		     struct task_struct *tsk, int fault)
 {
+	unsigned lsb = 0;
 	siginfo_t info;
 
 	info.si_signo	= si_signo;
 	info.si_errno	= 0;
 	info.si_code	= si_code;
 	info.si_addr	= (void __user *)address;
-	info.si_addr_lsb = si_code == BUS_MCEERR_AR ? PAGE_SHIFT : 0;
+	if (fault & VM_FAULT_HWPOISON_LARGE)
+		lsb = hstate_index_to_shift(VM_FAULT_GET_HINDEX(fault)); 
+	if (fault & VM_FAULT_HWPOISON)
+		lsb = PAGE_SHIFT;
+	info.si_addr_lsb = lsb;
 
 	force_sig_info(si_signo, &info, tsk);
 }
@@ -722,7 +728,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 		tsk->thread.error_code	= error_code | (address >= TASK_SIZE);
 		tsk->thread.trap_no	= 14;
 
-		force_sig_info_fault(SIGSEGV, si_code, address, tsk);
+		force_sig_info_fault(SIGSEGV, si_code, address, tsk, 0);
 
 		return;
 	}
@@ -807,14 +813,14 @@ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
 	tsk->thread.trap_no	= 14;
 
 #ifdef CONFIG_MEMORY_FAILURE
-	if (fault & VM_FAULT_HWPOISON) {
+	if (fault & (VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE)) {
 		printk(KERN_ERR
 	"MCE: Killing %s:%d due to hardware memory corruption fault at %lx\n",
 			tsk->comm, tsk->pid, address);
 		code = BUS_MCEERR_AR;
 	}
 #endif
-	force_sig_info_fault(SIGBUS, code, address, tsk);
+	force_sig_info_fault(SIGBUS, code, address, tsk, fault);
 }
 
 static noinline void
@@ -824,7 +830,8 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 	if (fault & VM_FAULT_OOM) {
 		out_of_memory(regs, error_code, address);
 	} else {
-		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON))
+		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
+			     VM_FAULT_HWPOISON_LARGE))
 			do_sigbus(regs, error_code, address, fault);
 		else
 			BUG();
@@ -912,9 +919,9 @@ spurious_fault(unsigned long error_code, unsigned long address)
 int show_unhandled_signals = 1;
 
 static inline int
-access_error(unsigned long error_code, int write, struct vm_area_struct *vma)
+access_error(unsigned long error_code, struct vm_area_struct *vma)
 {
-	if (write) {
+	if (error_code & PF_WRITE) {
 		/* write, present and write, not present: */
 		if (unlikely(!(vma->vm_flags & VM_WRITE)))
 			return 1;
@@ -949,8 +956,10 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	struct task_struct *tsk;
 	unsigned long address;
 	struct mm_struct *mm;
-	int write;
 	int fault;
+	int write = error_code & PF_WRITE;
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY |
+					(write ? FAULT_FLAG_WRITE : 0);
 
 	tsk = current;
 	mm = tsk->mm;
@@ -1061,6 +1070,7 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
 			bad_area_nosemaphore(regs, error_code, address);
 			return;
 		}
+retry:
 		down_read(&mm->mmap_sem);
 	} else {
 		/*
@@ -1104,9 +1114,7 @@ do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 * we can handle it..
 	 */
 good_area:
-	write = error_code & PF_WRITE;
-
-	if (unlikely(access_error(error_code, write, vma))) {
+	if (unlikely(access_error(error_code, vma))) {
 		bad_area_access_error(regs, error_code, address);
 		return;
 	}
@@ -1116,21 +1124,34 @@ good_area:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault:
 	 */
-	fault = handle_mm_fault(mm, vma, address, write ? FAULT_FLAG_WRITE : 0);
+	fault = handle_mm_fault(mm, vma, address, flags);
 
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		mm_fault_error(regs, error_code, address, fault);
 		return;
 	}
 
-	if (fault & VM_FAULT_MAJOR) {
-		tsk->maj_flt++;
-		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
-				     regs, address);
-	} else {
-		tsk->min_flt++;
-		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
-				     regs, address);
+	/*
+	 * Major/minor page fault accounting is only done on the
+	 * initial attempt. If we go through a retry, it is extremely
+	 * likely that the page will be found in page cache at that point.
+	 */
+	if (flags & FAULT_FLAG_ALLOW_RETRY) {
+		if (fault & VM_FAULT_MAJOR) {
+			tsk->maj_flt++;
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+				      regs, address);
+		} else {
+			tsk->min_flt++;
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+				      regs, address);
+		}
+		if (fault & VM_FAULT_RETRY) {
+			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
+			 * of starvation. */
+			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			goto retry;
+		}
 	}
 
 	check_v8086_mode(regs, address, tsk);

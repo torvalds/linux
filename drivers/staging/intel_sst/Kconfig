@@ -1,0 +1,18 @@
+config SND_INTEL_SST
+	tristate "Intel SST (LPE) Driver"
+	depends on X86 && INTEL_SCU_IPC
+	default n
+	help
+	  Say Y here to include support for the Intel(R) MID SST DSP driver
+	  On other PC platforms if you are unsure answer 'N'
+
+config SND_INTELMID
+	tristate "Intel MID sound card driver"
+	select SND_PCM
+	select SND_SEQUENCER
+	select SND_JACK
+	depends on SND_INTEL_SST
+	default n
+	help
+	  Say Y here to include support for the Intel(R) MID sound card driver
+	  On other PC platforms if you are unsure answer 'N'

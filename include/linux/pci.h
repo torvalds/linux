@@ -541,7 +541,7 @@ struct pci_error_handlers {
 struct module;
 struct pci_driver {
 	struct list_head node;
-	char *name;
+	const char *name;
 	const struct pci_device_id *id_table;	/* must be non-NULL for probe to be called */
 	int  (*probe)  (struct pci_dev *dev, const struct pci_device_id *id);	/* New device inserted */
 	void (*remove) (struct pci_dev *dev);	/* Device removed (NULL if not a hot-plug capable driver) */
@@ -819,6 +819,9 @@ pci_power_t pci_target_state(struct pci_dev *dev);
 int pci_prepare_to_sleep(struct pci_dev *dev);
 int pci_back_from_sleep(struct pci_dev *dev);
 bool pci_dev_run_wake(struct pci_dev *dev);
+bool pci_check_pme_status(struct pci_dev *dev);
+void pci_wakeup_event(struct pci_dev *dev);
+void pci_pme_wakeup_bus(struct pci_bus *bus);
 
 static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state,
 				  bool enable)

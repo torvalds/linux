@@ -4,18 +4,21 @@ config MIPS
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
 	select HAVE_ARCH_KGDB
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_C_RECORDMCOUNT
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select RTC_LIB if !MACH_LOONGSON
 	select GENERIC_ATOMIC64 if !64BIT
-
-mainmenu "Linux/MIPS Kernel Configuration"
+	select HAVE_DMA_ATTRS
+	select HAVE_DMA_API_DEBUG
 
 menu "Machine selection"
 
@@ -693,6 +696,9 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 	select SWAP_IO_SPACE
 	select HW_HAS_PCI
 	select ARCH_SUPPORTS_MSI
+	select ZONE_DMA32
+	select USB_ARCH_HAS_OHCI
+	select USB_ARCH_HAS_EHCI
 	help
 	  This option supports all of the Octeon reference boards from Cavium
 	  Networks. It builds a kernel that dynamically determines the Octeon
@@ -1336,6 +1342,57 @@ config CPU_CAVIUM_OCTEON
 	  can have up to 16 Mips64v2 cores and 8 integrated gigabit ethernets.
 	  Full details can be found at http://www.caviumnetworks.com.
 
+config CPU_BMIPS3300
+	bool "BMIPS3300"
+	depends on SYS_HAS_CPU_BMIPS3300
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select WEAK_ORDERING
+	help
+	  Broadcom BMIPS3300 processors.
+
+config CPU_BMIPS4350
+	bool "BMIPS4350"
+	depends on SYS_HAS_CPU_BMIPS4350
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
+	select WEAK_ORDERING
+	help
+	  Broadcom BMIPS4350 ("VIPER") processors.
+
+config CPU_BMIPS4380
+	bool "BMIPS4380"
+	depends on SYS_HAS_CPU_BMIPS4380
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
+	select WEAK_ORDERING
+	help
+	  Broadcom BMIPS4380 processors.
+
+config CPU_BMIPS5000
+	bool "BMIPS5000"
+	depends on SYS_HAS_CPU_BMIPS5000
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
+	select WEAK_ORDERING
+	help
+	  Broadcom BMIPS5000 processors.
+
 endchoice
 
 if CPU_LOONGSON2F
@@ -1452,6 +1509,18 @@ config SYS_HAS_CPU_SB1
 	bool
 
 config SYS_HAS_CPU_CAVIUM_OCTEON
+	bool
+
+config SYS_HAS_CPU_BMIPS3300
+	bool
+
+config SYS_HAS_CPU_BMIPS4350
+	bool
+
+config SYS_HAS_CPU_BMIPS4380
+	bool
+
+config SYS_HAS_CPU_BMIPS5000
 	bool
 
 #
@@ -1930,6 +1999,14 @@ config NODES_SHIFT
 	default "6"
 	depends on NEED_MULTIPLE_NODES
 
+config HW_PERF_EVENTS
+	bool "Enable hardware performance counter support for perf events"
+	depends on PERF_EVENTS && !MIPS_MT_SMTC && OPROFILE=n && CPU_MIPS32
+	default y
+	help
+	  Enable hardware performance counter support for perf events. If
+	  disabled, perf events will use software events only.
+
 source "mm/Kconfig"
 
 config SMP
@@ -2127,6 +2204,13 @@ config SECCOMP
 	  defined by each seccomp mode.
 
 	  If unsure, say Y. Only embedded should say N here.
+
+config USE_OF
+	bool "Flattened Device Tree support"
+	select OF
+	select OF_FLATTREE
+	help
+	  Include support for flattened device tree machine descriptions.
 
 endmenu
 

@@ -545,11 +545,3 @@ config SOUND_KAHLUA
 
 endif	# SOUND_OSS
 
-config SOUND_SH_DAC_AUDIO
-	tristate "SuperH DAC audio support"
-	depends on CPU_SH3 && HIGH_RES_TIMERS
-
-config SOUND_SH_DAC_AUDIO_CHANNEL
-	int "DAC channel"
-	default "1"
-	depends on SOUND_SH_DAC_AUDIO

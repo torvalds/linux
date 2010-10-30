@@ -2226,7 +2226,6 @@ int ql_dump_risc_ram_area(struct ql_adapter *qdev, void *buf,
 int ql_core_dump(struct ql_adapter *qdev,
 		struct ql_mpi_coredump *mpi_coredump);
 int ql_mb_about_fw(struct ql_adapter *qdev);
-int ql_wol(struct ql_adapter *qdev);
 int ql_mb_wol_set_magic(struct ql_adapter *qdev, u32 enable_wol);
 int ql_mb_wol_mode(struct ql_adapter *qdev, u32 wol);
 int ql_mb_set_led_cfg(struct ql_adapter *qdev, u32 led_config);
@@ -2243,16 +2242,13 @@ netdev_tx_t ql_lb_send(struct sk_buff *skb, struct net_device *ndev);
 void ql_check_lb_frame(struct ql_adapter *, struct sk_buff *);
 int ql_own_firmware(struct ql_adapter *qdev);
 int ql_clean_lb_rx_ring(struct rx_ring *rx_ring, int budget);
-void qlge_set_multicast_list(struct net_device *ndev);
 
-#if 1
-#define QL_ALL_DUMP
-#define QL_REG_DUMP
-#define QL_DEV_DUMP
-#define QL_CB_DUMP
+/* #define QL_ALL_DUMP */
+/* #define QL_REG_DUMP */
+/* #define QL_DEV_DUMP */
+/* #define QL_CB_DUMP */
 /* #define QL_IB_DUMP */
 /* #define QL_OB_DUMP */
-#endif
 
 #ifdef QL_REG_DUMP
 extern void ql_dump_xgmac_control_regs(struct ql_adapter *qdev);

@@ -302,12 +302,14 @@ sonixj		0c45:60fb	Surfer NoName
 sonixj		0c45:60fc	LG-LIC300
 sonixj		0c45:60fe	Microdia Audio
 sonixj		0c45:6100	PC Camera (SN9C128)
+sonixj		0c45:6102	PC Camera (SN9C128)
 sonixj		0c45:610a	PC Camera (SN9C128)
 sonixj		0c45:610b	PC Camera (SN9C128)
 sonixj		0c45:610c	PC Camera (SN9C128)
 sonixj		0c45:610e	PC Camera (SN9C128)
 sonixj		0c45:6128	Microdia/Sonix SNP325
 sonixj		0c45:612a	Avant Camera
+sonixj		0c45:612b	Speed-Link REFLECT2
 sonixj		0c45:612c	Typhoon Rasy Cam 1.3MPix
 sonixj		0c45:6130	Sonix Pccam
 sonixj		0c45:6138	Sn9c120 Mo4000

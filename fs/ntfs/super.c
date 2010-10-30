@@ -2911,8 +2911,8 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		goto unl_upcase_iput_tmp_ino_err_out_now;
 	}
 	if ((sb->s_root = d_alloc_root(vol->root_ino))) {
-		/* We increment i_count simulating an ntfs_iget(). */
-		atomic_inc(&vol->root_ino->i_count);
+		/* We grab a reference, simulating an ntfs_iget(). */
+		ihold(vol->root_ino);
 		ntfs_debug("Exiting, status successful.");
 		/* Release the default upcase if it has no users. */
 		mutex_lock(&ntfs_lock);
@@ -3021,21 +3021,6 @@ iput_tmp_ino_err_out_now:
 	if (vol->mft_ino && vol->mft_ino != tmp_ino)
 		iput(vol->mft_ino);
 	vol->mft_ino = NULL;
-	/*
-	 * This is needed to get ntfs_clear_extent_inode() called for each
-	 * inode we have ever called ntfs_iget()/iput() on, otherwise we A)
-	 * leak resources and B) a subsequent mount fails automatically due to
-	 * ntfs_iget() never calling down into our ntfs_read_locked_inode()
-	 * method again... FIXME: Do we need to do this twice now because of
-	 * attribute inodes? I think not, so leave as is for now... (AIA)
-	 */
-	if (invalidate_inodes(sb)) {
-		ntfs_error(sb, "Busy inodes left. This is most likely a NTFS "
-				"driver bug.");
-		/* Copied from fs/super.c. I just love this message. (-; */
-		printk("NTFS: Busy inodes after umount. Self-destruct in 5 "
-				"seconds.  Have a nice day...\n");
-	}
 	/* Errors at this stage are irrelevant. */
 err_out_now:
 	sb->s_fs_info = NULL;
@@ -3074,17 +3059,16 @@ struct kmem_cache *ntfs_index_ctx_cache;
 /* Driver wide mutex. */
 DEFINE_MUTEX(ntfs_lock);
 
-static int ntfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *ntfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, ntfs_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, ntfs_fill_super);
 }
 
 static struct file_system_type ntfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ntfs",
-	.get_sb		= ntfs_get_sb,
+	.mount		= ntfs_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

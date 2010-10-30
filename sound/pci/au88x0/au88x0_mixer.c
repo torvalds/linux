@@ -23,7 +23,7 @@ static int __devinit snd_vortex_mixer(vortex_t * vortex)
 	if ((err = snd_ac97_bus(vortex->card, 0, &ops, NULL, &pbus)) < 0)
 		return err;
 	memset(&ac97, 0, sizeof(ac97));
-	// Intialize AC97 codec stuff.
+	// Initialize AC97 codec stuff.
 	ac97.private_data = vortex;
 	ac97.scaps = AC97_SCAP_NO_SPDIF;
 	err = snd_ac97_mixer(pbus, &ac97, &vortex->codec);

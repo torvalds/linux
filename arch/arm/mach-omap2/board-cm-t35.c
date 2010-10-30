@@ -31,6 +31,7 @@
 #include <linux/i2c/at24.h>
 #include <linux/i2c/twl.h>
 #include <linux/regulator/machine.h>
+#include <linux/mmc/host.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/tdo24m.h>
@@ -236,8 +237,6 @@ static inline void cm_t35_init_nand(void) {}
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
 	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
 #include <linux/spi/ads7846.h>
-
-#include <plat/mcspi.h>
 
 static struct omap2_mcspi_device_config ads7846_mcspi_config = {
 	.turbo_mode	= 0,
@@ -558,7 +557,7 @@ static struct twl4030_usb_data cm_t35_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
-static int cm_t35_keymap[] = {
+static uint32_t cm_t35_keymap[] = {
 	KEY(0, 0, KEY_A),	KEY(0, 1, KEY_B),	KEY(0, 2, KEY_LEFT),
 	KEY(1, 0, KEY_UP),	KEY(1, 1, KEY_ENTER),	KEY(1, 2, KEY_DOWN),
 	KEY(2, 0, KEY_RIGHT),	KEY(2, 1, KEY_C),	KEY(2, 2, KEY_D),
@@ -579,14 +578,14 @@ static struct twl4030_keypad_data cm_t35_kp_data = {
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 
 	},
 	{
 		.mmc		= 2,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.transceiver	= 1,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,

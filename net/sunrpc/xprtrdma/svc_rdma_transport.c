@@ -45,6 +45,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/workqueue.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 #include <linux/sunrpc/svc_rdma.h>
@@ -52,6 +53,7 @@
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
 static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
+					struct net *net,
 					struct sockaddr *sa, int salen,
 					int flags);
 static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt);
@@ -89,6 +91,9 @@ struct svc_xprt_class svc_rdma_class = {
 /* WR context cache. Created in svc_rdma.c  */
 extern struct kmem_cache *svc_rdma_ctxt_cachep;
 
+/* Workqueue created in svc_rdma.c */
+extern struct workqueue_struct *svc_rdma_wq;
+
 struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 {
 	struct svc_rdma_op_ctxt *ctxt;
@@ -120,7 +125,7 @@ void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt)
 		 */
 		if (ctxt->sge[i].lkey == xprt->sc_dma_lkey) {
 			atomic_dec(&xprt->sc_dma_used);
-			ib_dma_unmap_single(xprt->sc_cm_id->device,
+			ib_dma_unmap_page(xprt->sc_cm_id->device,
 					    ctxt->sge[i].addr,
 					    ctxt->sge[i].length,
 					    ctxt->direction);
@@ -502,8 +507,8 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 		BUG_ON(sge_no >= xprt->sc_max_sge);
 		page = svc_rdma_get_page();
 		ctxt->pages[sge_no] = page;
-		pa = ib_dma_map_single(xprt->sc_cm_id->device,
-				     page_address(page), PAGE_SIZE,
+		pa = ib_dma_map_page(xprt->sc_cm_id->device,
+				     page, 0, PAGE_SIZE,
 				     DMA_FROM_DEVICE);
 		if (ib_dma_mapping_error(xprt->sc_cm_id->device, pa))
 			goto err_put_ctxt;
@@ -511,9 +516,9 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 		ctxt->sge[sge_no].addr = pa;
 		ctxt->sge[sge_no].length = PAGE_SIZE;
 		ctxt->sge[sge_no].lkey = xprt->sc_dma_lkey;
+		ctxt->count = sge_no + 1;
 		buflen += PAGE_SIZE;
 	}
-	ctxt->count = sge_no;
 	recv_wr.next = NULL;
 	recv_wr.sg_list = &ctxt->sge[0];
 	recv_wr.num_sge = ctxt->count;
@@ -529,6 +534,7 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 	return ret;
 
  err_put_ctxt:
+	svc_rdma_unmap_dma(ctxt);
 	svc_rdma_put_context(ctxt, 1);
 	return -ENOMEM;
 }
@@ -670,6 +676,7 @@ static int rdma_cma_handler(struct rdma_cm_id *cma_id,
  * Create a listening RDMA service endpoint.
  */
 static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
+					struct net *net,
 					struct sockaddr *sa, int salen,
 					int flags)
 {
@@ -798,8 +805,8 @@ static void frmr_unmap_dma(struct svcxprt_rdma *xprt,
 		if (ib_dma_mapping_error(frmr->mr->device, addr))
 			continue;
 		atomic_dec(&xprt->sc_dma_used);
-		ib_dma_unmap_single(frmr->mr->device, addr, PAGE_SIZE,
-				    frmr->direction);
+		ib_dma_unmap_page(frmr->mr->device, addr, PAGE_SIZE,
+				  frmr->direction);
 	}
 }
 
@@ -1184,7 +1191,7 @@ static void svc_rdma_free(struct svc_xprt *xprt)
 	struct svcxprt_rdma *rdma =
 		container_of(xprt, struct svcxprt_rdma, sc_xprt);
 	INIT_WORK(&rdma->sc_work, __svc_rdma_free);
-	schedule_work(&rdma->sc_work);
+	queue_work(svc_rdma_wq, &rdma->sc_work);
 }
 
 static int svc_rdma_has_wspace(struct svc_xprt *xprt)
@@ -1274,7 +1281,7 @@ int svc_rdma_send(struct svcxprt_rdma *xprt, struct ib_send_wr *wr)
 				   atomic_read(&xprt->sc_sq_count) <
 				   xprt->sc_sq_depth);
 			if (test_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags))
-				return 0;
+				return -ENOTCONN;
 			continue;
 		}
 		/* Take a transport ref for each WR posted */
@@ -1306,7 +1313,6 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 			 enum rpcrdma_errcode err)
 {
 	struct ib_send_wr err_wr;
-	struct ib_sge sge;
 	struct page *p;
 	struct svc_rdma_op_ctxt *ctxt;
 	u32 *va;
@@ -1319,26 +1325,27 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 	/* XDR encode error */
 	length = svc_rdma_xdr_encode_error(xprt, rmsgp, err, va);
 
+	ctxt = svc_rdma_get_context(xprt);
+	ctxt->direction = DMA_FROM_DEVICE;
+	ctxt->count = 1;
+	ctxt->pages[0] = p;
+
 	/* Prepare SGE for local address */
-	sge.addr = ib_dma_map_single(xprt->sc_cm_id->device,
-				   page_address(p), PAGE_SIZE, DMA_FROM_DEVICE);
-	if (ib_dma_mapping_error(xprt->sc_cm_id->device, sge.addr)) {
+	ctxt->sge[0].addr = ib_dma_map_page(xprt->sc_cm_id->device,
+					    p, 0, length, DMA_FROM_DEVICE);
+	if (ib_dma_mapping_error(xprt->sc_cm_id->device, ctxt->sge[0].addr)) {
 		put_page(p);
 		return;
 	}
 	atomic_inc(&xprt->sc_dma_used);
-	sge.lkey = xprt->sc_dma_lkey;
-	sge.length = length;
-
-	ctxt = svc_rdma_get_context(xprt);
-	ctxt->count = 1;
-	ctxt->pages[0] = p;
+	ctxt->sge[0].lkey = xprt->sc_dma_lkey;
+	ctxt->sge[0].length = length;
 
 	/* Prepare SEND WR */
 	memset(&err_wr, 0, sizeof err_wr);
 	ctxt->wr_op = IB_WR_SEND;
 	err_wr.wr_id = (unsigned long)ctxt;
-	err_wr.sg_list = &sge;
+	err_wr.sg_list = ctxt->sge;
 	err_wr.num_sge = 1;
 	err_wr.opcode = IB_WR_SEND;
 	err_wr.send_flags = IB_SEND_SIGNALED;
@@ -1348,9 +1355,7 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 	if (ret) {
 		dprintk("svcrdma: Error %d posting send for protocol error\n",
 			ret);
-		ib_dma_unmap_single(xprt->sc_cm_id->device,
-				  sge.addr, PAGE_SIZE,
-				  DMA_FROM_DEVICE);
+		svc_rdma_unmap_dma(ctxt);
 		svc_rdma_put_context(ctxt, 1);
 	}
 }

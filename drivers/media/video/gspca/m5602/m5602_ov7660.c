@@ -54,13 +54,13 @@ static const struct ctrl ov7660_ctrls[] = {
 #define AUTO_WHITE_BALANCE_IDX 4
 	{
 		{
-			.id 		= V4L2_CID_AUTO_WHITE_BALANCE,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "auto white balance",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 1
+			.id		= V4L2_CID_AUTO_WHITE_BALANCE,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "auto white balance",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 1
 		},
 		.set = ov7660_set_auto_white_balance,
 		.get = ov7660_get_auto_white_balance
@@ -68,13 +68,13 @@ static const struct ctrl ov7660_ctrls[] = {
 #define AUTO_GAIN_CTRL_IDX 5
 	{
 		{
-			.id 		= V4L2_CID_AUTOGAIN,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "auto gain control",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 1
+			.id		= V4L2_CID_AUTOGAIN,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "auto gain control",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 1
 		},
 		.set = ov7660_set_auto_gain,
 		.get = ov7660_get_auto_gain
@@ -82,13 +82,13 @@ static const struct ctrl ov7660_ctrls[] = {
 #define AUTO_EXPOSURE_IDX 6
 	{
 		{
-			.id 		= V4L2_CID_EXPOSURE_AUTO,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "auto exposure",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 1
+			.id		= V4L2_CID_EXPOSURE_AUTO,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "auto exposure",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 1
 		},
 		.set = ov7660_set_auto_exposure,
 		.get = ov7660_get_auto_exposure
@@ -96,13 +96,13 @@ static const struct ctrl ov7660_ctrls[] = {
 #define HFLIP_IDX 7
 	{
 		{
-			.id 		= V4L2_CID_HFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "horizontal flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
+			.id		= V4L2_CID_HFLIP,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "horizontal flip",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 0
 		},
 		.set = ov7660_set_hflip,
 		.get = ov7660_get_hflip
@@ -110,13 +110,13 @@ static const struct ctrl ov7660_ctrls[] = {
 #define VFLIP_IDX 8
 	{
 		{
-			.id 		= V4L2_CID_VFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "vertical flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
+			.id		= V4L2_CID_VFLIP,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "vertical flip",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 0
 		},
 		.set = ov7660_set_vflip,
 		.get = ov7660_get_vflip

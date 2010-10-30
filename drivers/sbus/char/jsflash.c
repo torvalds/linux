@@ -461,7 +461,7 @@ static int jsflash_init(void)
 {
 	int rc;
 	struct jsflash *jsf;
-	int node;
+	phandle node;
 	char banner[128];
 	struct linux_prom_registers reg0;
 

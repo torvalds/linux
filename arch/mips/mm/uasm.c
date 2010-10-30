@@ -405,7 +405,6 @@ I_u1u2u3(_mfc0)
 I_u1u2u3(_mtc0)
 I_u2u1u3(_ori)
 I_u3u1u2(_or)
-I_u2s3u1(_pref)
 I_0(_rfe)
 I_u2s3u1(_sc)
 I_u2s3u1(_scd)
@@ -426,6 +425,25 @@ I_u2u1msbu3(_dins);
 I_u1(_syscall);
 I_u1u2s3(_bbit0);
 I_u1u2s3(_bbit1);
+
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
+#include <asm/octeon/octeon.h>
+void __uasminit uasm_i_pref(u32 **buf, unsigned int a, signed int b,
+			    unsigned int c)
+{
+	if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X) && a <= 24 && a != 5)
+		/*
+		 * As per erratum Core-14449, replace prefetches 0-4,
+		 * 6-24 with 'pref 28'.
+		 */
+		build_insn(buf, insn_pref, c, 28, b);
+	else
+		build_insn(buf, insn_pref, c, a, b);
+}
+UASM_EXPORT_SYMBOL(uasm_i_pref);
+#else
+I_u2s3u1(_pref)
+#endif
 
 /* Handle labels. */
 void __uasminit uasm_build_label(struct uasm_label **lab, u32 *addr, int lid)

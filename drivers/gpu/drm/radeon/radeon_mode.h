@@ -35,6 +35,7 @@
 #include <drm_edid.h>
 #include <drm_dp_helper.h>
 #include <drm_fixed.h>
+#include <drm_crtc_helper.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
@@ -149,12 +150,6 @@ struct radeon_tmds_pll {
 #define RADEON_PLL_USE_POST_DIV         (1 << 12)
 #define RADEON_PLL_IS_LCD               (1 << 13)
 
-/* pll algo */
-enum radeon_pll_algo {
-	PLL_ALGO_LEGACY,
-	PLL_ALGO_NEW
-};
-
 struct radeon_pll {
 	/* reference frequency */
 	uint32_t reference_freq;
@@ -187,8 +182,6 @@ struct radeon_pll {
 
 	/* pll id */
 	uint32_t id;
-	/* pll algo */
-	enum radeon_pll_algo algo;
 };
 
 struct radeon_i2c_chan {
@@ -240,6 +233,8 @@ struct radeon_mode_info {
 	struct drm_property *tmds_pll_property;
 	/* underscan */
 	struct drm_property *underscan_property;
+	struct drm_property *underscan_hborder_property;
+	struct drm_property *underscan_vborder_property;
 	/* hardcoded DFP edid from BIOS */
 	struct edid *bios_hardcoded_edid;
 
@@ -335,22 +330,24 @@ struct radeon_encoder_ext_tmds {
 struct radeon_atom_ss {
 	uint16_t percentage;
 	uint8_t type;
-	uint8_t step;
+	uint16_t step;
 	uint8_t delay;
 	uint8_t range;
 	uint8_t refdiv;
+	/* asic_ss */
+	uint16_t rate;
+	uint16_t amount;
 };
 
 struct radeon_encoder_atom_dig {
 	bool linkb;
 	/* atom dig */
 	bool coherent_mode;
-	int dig_encoder; /* -1 disabled, 0 DIGA, 1 DIGB */
-	/* atom lvds */
-	uint32_t lvds_misc;
+	int dig_encoder; /* -1 disabled, 0 DIGA, 1 DIGB, etc. */
+	/* atom lvds/edp */
+	uint32_t lcd_misc;
 	uint16_t panel_pwr_delay;
-	enum radeon_pll_algo pll_algo;
-	struct radeon_atom_ss *ss;
+	uint32_t lcd_ss_id;
 	/* panel mode */
 	struct drm_display_mode native_mode;
 };
@@ -369,6 +366,8 @@ struct radeon_encoder {
 	uint32_t pixel_clock;
 	enum radeon_rmx_type rmx_type;
 	enum radeon_underscan_type underscan_type;
+	uint32_t underscan_hborder;
+	uint32_t underscan_vborder;
 	struct drm_display_mode native_mode;
 	void *enc_priv;
 	int audio_polling_active;
@@ -435,6 +434,11 @@ struct radeon_framebuffer {
 	struct drm_gem_object *obj;
 };
 
+/* radeon_get_crtc_scanoutpos() return flags */
+#define RADEON_SCANOUTPOS_VALID        (1 << 0)
+#define RADEON_SCANOUTPOS_INVBL        (1 << 1)
+#define RADEON_SCANOUTPOS_ACCURATE     (1 << 2)
+
 extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
 extern enum radeon_tv_std
@@ -490,6 +494,13 @@ extern int radeon_ddc_get_modes(struct radeon_connector *radeon_connector);
 
 extern struct drm_encoder *radeon_best_encoder(struct drm_connector *connector);
 
+extern bool radeon_atombios_get_ppll_ss_info(struct radeon_device *rdev,
+					     struct radeon_atom_ss *ss,
+					     int id);
+extern bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
+					     struct radeon_atom_ss *ss,
+					     int id, u32 clock);
+
 extern void radeon_compute_pll(struct radeon_pll *pll,
 			       uint64_t freq,
 			       uint32_t *dot_clock_p,
@@ -513,6 +524,10 @@ extern void radeon_encoder_set_active_device(struct drm_encoder *encoder);
 extern void radeon_crtc_load_lut(struct drm_crtc *crtc);
 extern int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 				   struct drm_framebuffer *old_fb);
+extern int atombios_crtc_set_base_atomic(struct drm_crtc *crtc,
+					 struct drm_framebuffer *fb,
+					 int x, int y,
+					 enum mode_set_atomic state);
 extern int atombios_crtc_mode_set(struct drm_crtc *crtc,
 				   struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode,
@@ -522,7 +537,13 @@ extern void atombios_crtc_dpms(struct drm_crtc *crtc, int mode);
 
 extern int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 				 struct drm_framebuffer *old_fb);
-
+extern int radeon_crtc_set_base_atomic(struct drm_crtc *crtc,
+				       struct drm_framebuffer *fb,
+				       int x, int y,
+				       enum mode_set_atomic state);
+extern int radeon_crtc_do_set_base(struct drm_crtc *crtc,
+				   struct drm_framebuffer *fb,
+				   int x, int y, int atomic);
 extern int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 				  struct drm_file *file_priv,
 				  uint32_t handle,
@@ -530,6 +551,8 @@ extern int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 				  uint32_t height);
 extern int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 				   int x, int y);
+
+extern int radeon_get_crtc_scanoutpos(struct radeon_device *rdev, int crtc, int *vpos, int *hpos);
 
 extern bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev);
 extern struct edid *

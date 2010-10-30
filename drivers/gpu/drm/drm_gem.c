@@ -92,12 +92,6 @@ drm_gem_init(struct drm_device *dev)
 
 	spin_lock_init(&dev->object_name_lock);
 	idr_init(&dev->object_name_idr);
-	atomic_set(&dev->object_count, 0);
-	atomic_set(&dev->object_memory, 0);
-	atomic_set(&dev->pin_count, 0);
-	atomic_set(&dev->pin_memory, 0);
-	atomic_set(&dev->gtt_count, 0);
-	atomic_set(&dev->gtt_memory, 0);
 
 	mm = kzalloc(sizeof(struct drm_gem_mm), GFP_KERNEL);
 	if (!mm) {
@@ -151,9 +145,6 @@ int drm_gem_object_init(struct drm_device *dev,
 	atomic_set(&obj->handle_count, 0);
 	obj->size = size;
 
-	atomic_inc(&dev->object_count);
-	atomic_add(obj->size, &dev->object_memory);
-
 	return 0;
 }
 EXPORT_SYMBOL(drm_gem_object_init);
@@ -180,8 +171,6 @@ drm_gem_object_alloc(struct drm_device *dev, size_t size)
 	return obj;
 fput:
 	/* Object_init mangles the global counters - readjust them. */
-	atomic_dec(&dev->object_count);
-	atomic_sub(obj->size, &dev->object_memory);
 	fput(obj->filp);
 free:
 	kfree(obj);
@@ -436,10 +425,7 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 void
 drm_gem_object_release(struct drm_gem_object *obj)
 {
-	struct drm_device *dev = obj->dev;
 	fput(obj->filp);
-	atomic_dec(&dev->object_count);
-	atomic_sub(obj->size, &dev->object_memory);
 }
 EXPORT_SYMBOL(drm_gem_object_release);
 

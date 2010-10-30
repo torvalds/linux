@@ -64,15 +64,13 @@ static void drive_stat_acct(struct request *rq, int new_io)
 		return;
 
 	cpu = part_stat_lock();
+	part = disk_map_sector_rcu(rq->rq_disk, blk_rq_pos(rq));
 
-	if (!new_io) {
-		part = rq->part;
+	if (!new_io)
 		part_stat_inc(cpu, part, merges[rw]);
-	} else {
-		part = disk_map_sector_rcu(rq->rq_disk, blk_rq_pos(rq));
+	else {
 		part_round_stats(cpu, part);
 		part_inc_in_flight(part, rw);
-		rq->part = part;
 	}
 
 	part_stat_unlock();
@@ -130,7 +128,6 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->ref_count = 1;
 	rq->start_time = jiffies;
 	set_start_time_ns(rq);
-	rq->part = NULL;
 }
 EXPORT_SYMBOL(blk_rq_init);
 
@@ -805,16 +802,11 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 	rl->starved[is_sync] = 0;
 
 	priv = !test_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
-	if (priv) {
+	if (priv)
 		rl->elvpriv++;
 
-		/*
-		 * Don't do stats for non-priv requests
-		 */
-		if (blk_queue_io_stat(q))
-			rw_flags |= REQ_IO_STAT;
-	}
-
+	if (blk_queue_io_stat(q))
+		rw_flags |= REQ_IO_STAT;
 	spin_unlock_irq(q->queue_lock);
 
 	rq = blk_alloc_request(q, rw_flags, priv, gfp_mask);
@@ -1791,7 +1783,7 @@ static void blk_account_io_completion(struct request *req, unsigned int bytes)
 		int cpu;
 
 		cpu = part_stat_lock();
-		part = req->part;
+		part = disk_map_sector_rcu(req->rq_disk, blk_rq_pos(req));
 		part_stat_add(cpu, part, sectors[rw], bytes >> 9);
 		part_stat_unlock();
 	}
@@ -1811,7 +1803,7 @@ static void blk_account_io_done(struct request *req)
 		int cpu;
 
 		cpu = part_stat_lock();
-		part = req->part;
+		part = disk_map_sector_rcu(req->rq_disk, blk_rq_pos(req));
 
 		part_stat_inc(cpu, part, ios[rw]);
 		part_stat_add(cpu, part, ticks[rw], duration);

@@ -291,7 +291,7 @@ static int __init do_mount_root(char *name, char *fs, int flags, void *data)
 	if (err)
 		return err;
 
-	sys_chdir("/root");
+	sys_chdir((const char __user __force *)"/root");
 	ROOT_DEV = current->fs->pwd.mnt->mnt_sb->s_dev;
 	printk("VFS: Mounted root (%s filesystem)%s on device %u:%u.\n",
 	       current->fs->pwd.mnt->mnt_sb->s_type->name,
@@ -361,13 +361,13 @@ out:
 #ifdef CONFIG_ROOT_NFS
 static int __init mount_nfs_root(void)
 {
-	void *data = nfs_root_data();
+	char *root_dev, *root_data;
 
-	create_dev("/dev/root", ROOT_DEV);
-	if (data &&
-	    do_mount_root("/dev/root", "nfs", root_mountflags, data) == 0)
-		return 1;
-	return 0;
+	if (nfs_root_data(&root_dev, &root_data) != 0)
+		return 0;
+	if (do_mount_root(root_dev, "nfs", root_mountflags, root_data) != 0)
+		return 0;
+	return 1;
 }
 #endif
 
@@ -488,5 +488,5 @@ void __init prepare_namespace(void)
 out:
 	devtmpfs_mount("dev");
 	sys_mount(".", "/", NULL, MS_MOVE, NULL);
-	sys_chroot(".");
+	sys_chroot((const char __user __force *)".");
 }

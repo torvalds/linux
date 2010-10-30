@@ -1467,7 +1467,7 @@ static int ablkcipher_add(unsigned int *drestp, struct scatterlist *dst,
 		return -EINVAL;
 
 	while (size) {
-		copy = min(drest, min(size, dst->length));
+		copy = min3(drest, size, dst->length);
 
 		size -= copy;
 		drest -= copy;
@@ -1729,7 +1729,7 @@ static int ablkcipher_get(void *saddr, unsigned int *srestp, unsigned int offset
 		return -EINVAL;
 
 	while (size) {
-		copy = min(srest, min(dst->length, size));
+		copy = min3(srest, dst->length, size);
 
 		daddr = kmap_atomic(sg_page(dst), KM_IRQ0);
 		memcpy(daddr + dst->offset + offset, saddr, copy);
