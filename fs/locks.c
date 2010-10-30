@@ -186,7 +186,7 @@ void locks_release_private(struct file_lock *fl)
 EXPORT_SYMBOL_GPL(locks_release_private);
 
 /* Free a lock which is not in use. */
-static void locks_free_lock(struct file_lock *fl)
+void locks_free_lock(struct file_lock *fl)
 {
 	BUG_ON(waitqueue_active(&fl->fl_wait));
 	BUG_ON(!list_empty(&fl->fl_block));
@@ -195,6 +195,7 @@ static void locks_free_lock(struct file_lock *fl)
 	locks_release_private(fl);
 	kmem_cache_free(filelock_cache, fl);
 }
+EXPORT_SYMBOL(locks_free_lock);
 
 void locks_init_lock(struct file_lock *fl)
 {

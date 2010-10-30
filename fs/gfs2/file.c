@@ -629,6 +629,8 @@ static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 
 static int gfs2_setlease(struct file *file, long arg, struct file_lock **fl)
 {
+	if (arg != F_UNLCK)
+		locks_free_lock(*fl);
 	return -EINVAL;
 }
 
