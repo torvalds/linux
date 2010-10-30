@@ -9,19 +9,6 @@
 #include <linux/string.h>
 #define NONE 0xFFFF
 
-typedef enum _BASE_TYPE
-{
-	BCM_BASE_TYPE_DEC,
-	BCM_BASE_TYPE_OCT,
-	BCM_BASE_TYPE_BIN,
-	BCM_BASE_TYPE_HEX,
-	BCM_BASE_TYPE_NONE,
-} BASE_TYPE, *PBASE_TYPE;
-
-void bcm_print_buffer(UINT debug_level, const char *function_name,
-		      const char *file_name, int line_number,
-		      const unsigned char *buffer, int bufferlen, BASE_TYPE base);
-
 
 //--------------------------------------------------------------------------------
 
@@ -231,7 +218,7 @@ typedef struct _S_BCM_DEBUG_STATE {
 #define BCM_DEBUG_PRINT(Adapter, Type, SubType, dbg_level, string, args...) \
 	do {								\
 		if (DBG_TYPE_PRINTK == Type)				\
-			pr_info("%s:" string "\n", __func__, ##args);	\
+			pr_info("%s:" string, __func__, ##args);	\
 		else if (Adapter &&					\
 			 (dbg_level & DBG_LVL_BITMASK) <= Adapter->stDebugState.debug_level && \
 			 (Type & Adapter->stDebugState.type) &&		\
@@ -239,7 +226,7 @@ typedef struct _S_BCM_DEBUG_STATE {
 			if (dbg_level & DBG_NO_FUNC_PRINT)		\
 				printk(KERN_DEBUG string, ##args);	\
 			else						\
-				printk(KERN_DEBUG "%s:" string "\n", __func__, ##args);	\
+				printk(KERN_DEBUG "%s:" string, __func__, ##args);	\
 		}							\
 	} while (0)
 
@@ -248,9 +235,11 @@ typedef struct _S_BCM_DEBUG_STATE {
 	    (Adapter &&							\
 	     (dbg_level & DBG_LVL_BITMASK) <= Adapter->stDebugState.debug_level  && \
 	     (Type & Adapter->stDebugState.type) &&			\
-	     (SubType & Adapter->stDebugState.subtype[Type])))		\
-		bcm_print_buffer(dbg_level, __func__, __FILE__, __LINE__, \
-				 buffer, bufferlen, BCM_BASE_TYPE_HEX);	\
+	     (SubType & Adapter->stDebugState.subtype[Type]))) {	\
+		printk(KERN_DEBUG "%s:\n", __func__);			\
+		print_hex_dump(KERN_DEBUG, " ", DUMP_PREFIX_OFFSET,	\
+			       16, 1, buffer, bufferlen, false);	\
+	}								\
 } while(0)
 
 
