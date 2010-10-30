@@ -250,7 +250,7 @@ static void fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 		break;
 
 	default:
-		WARN(1, "wrong tcode %d", tcode);
+		WARN(1, "wrong tcode %d\n", tcode);
 	}
  common:
 	packet->speed = speed;
@@ -638,7 +638,7 @@ int fw_get_response_length(struct fw_request *r)
 		}
 
 	default:
-		WARN(1, "wrong tcode %d", tcode);
+		WARN(1, "wrong tcode %d\n", tcode);
 		return 0;
 	}
 }
@@ -694,7 +694,7 @@ void fw_fill_response(struct fw_packet *response, u32 *request_header,
 		break;
 
 	default:
-		WARN(1, "wrong tcode %d", tcode);
+		WARN(1, "wrong tcode %d\n", tcode);
 	}
 
 	response->payload_mapped = false;
