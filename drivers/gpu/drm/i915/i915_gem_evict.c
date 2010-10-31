@@ -42,7 +42,7 @@ mark_free(struct drm_i915_gem_object *obj_priv,
 
 int
 i915_gem_evict_something(struct drm_device *dev, int min_size,
-	 		 unsigned alignment, bool mappable)
+			 unsigned alignment, bool mappable)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct list_head eviction_list, unwind_list;
@@ -54,7 +54,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 	/* Re-check for free space after retiring requests */
 	if (mappable) {
 		if (drm_mm_search_free_in_range(&dev_priv->mm.gtt_space,
-				  		min_size, alignment, 0,
+						min_size, alignment, 0,
 						dev_priv->mm.gtt_mappable_end,
 						0))
 			return 0;
@@ -171,7 +171,7 @@ found:
 }
 
 int
-i915_gem_evict_everything(struct drm_device *dev)
+i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
@@ -192,38 +192,22 @@ i915_gem_evict_everything(struct drm_device *dev)
 
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 
-	ret = i915_gem_evict_inactive(dev);
-	if (ret)
-		return ret;
-
-	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
-		       list_empty(&dev_priv->mm.flushing_list) &&
-		       list_empty(&dev_priv->render_ring.active_list) &&
-		       list_empty(&dev_priv->bsd_ring.active_list) &&
-		       list_empty(&dev_priv->blt_ring.active_list));
-	BUG_ON(!lists_empty);
-
-	return 0;
+	return i915_gem_evict_inactive(dev, purgeable_only);
 }
 
 /** Unbinds all inactive objects. */
 int
-i915_gem_evict_inactive(struct drm_device *dev)
+i915_gem_evict_inactive(struct drm_device *dev, bool purgeable_only)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj, *next;
 
-	while (!list_empty(&dev_priv->mm.inactive_list)) {
-		struct drm_gem_object *obj;
-		int ret;
-
-		obj = &list_first_entry(&dev_priv->mm.inactive_list,
-					struct drm_i915_gem_object,
-					mm_list)->base;
-
-		ret = i915_gem_object_unbind(obj);
-		if (ret != 0) {
-			DRM_ERROR("Error unbinding object: %d\n", ret);
-			return ret;
+	list_for_each_entry_safe(obj, next,
+				 &dev_priv->mm.inactive_list, mm_list) {
+		if (!purgeable_only || obj->madv != I915_MADV_WILLNEED) {
+			int ret = i915_gem_object_unbind(&obj->base);
+			if (ret)
+				return ret;
 		}
 	}
 

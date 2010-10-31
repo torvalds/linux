@@ -3519,7 +3519,8 @@ i915_gem_execbuffer_pin(struct drm_device *dev,
 	int ret, i, retry;
 
 	/* attempt to pin all of the buffers into the GTT */
-	for (retry = 0; retry < 2; retry++) {
+	retry = 0;
+	do {
 		ret = 0;
 		for (i = 0; i < count; i++) {
 			struct drm_i915_gem_exec_object2 *entry = &exec_list[i];
@@ -3567,18 +3568,18 @@ i915_gem_execbuffer_pin(struct drm_device *dev,
 		while (i--)
 			i915_gem_object_unpin(object_list[i]);
 
-		if (ret == 0)
-			break;
-
-		if (ret != -ENOSPC || retry)
+		if (ret != -ENOSPC || retry > 1)
 			return ret;
 
-		ret = i915_gem_evict_everything(dev);
+		/* First attempt, just clear anything that is purgeable.
+		 * Second attempt, clear the entire GTT.
+		 */
+		ret = i915_gem_evict_everything(dev, retry == 0);
 		if (ret)
 			return ret;
-	}
 
-	return 0;
+		retry++;
+	} while (1);
 }
 
 /* Throttle our rendering by waiting until the ring has completed our requests
@@ -4484,7 +4485,7 @@ i915_gem_idle(struct drm_device *dev)
 
 	/* Under UMS, be paranoid and evict. */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = i915_gem_evict_inactive(dev);
+		ret = i915_gem_evict_inactive(dev, false);
 		if (ret) {
 			mutex_unlock(&dev->struct_mutex);
 			return ret;

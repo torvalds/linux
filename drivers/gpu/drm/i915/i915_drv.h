@@ -1073,8 +1073,8 @@ void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
 /* i915_gem_evict.c */
 int i915_gem_evict_something(struct drm_device *dev, int min_size,
 			     unsigned alignment, bool mappable);
-int i915_gem_evict_everything(struct drm_device *dev);
-int i915_gem_evict_inactive(struct drm_device *dev);
+int i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only);
+int i915_gem_evict_inactive(struct drm_device *dev, bool purgeable_only);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
