@@ -1090,12 +1090,6 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	if (priv->psstate != PS_STATE_FULL_POWER)
 		return -1;
 
-	if (priv->wol_criteria == EHS_REMOVE_WAKEUP) {
-		lbs_pr_info("Suspend attempt without "
-						"configuring wake params!\n");
-		return -ENOSYS;
-	}
-
 	ret = lbs_suspend(priv);
 	if (ret)
 		goto out;
