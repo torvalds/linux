@@ -67,6 +67,12 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
+#ifdef CONFIG_NFS_V3
+#define NFS_DEFAULT_VERSION 3
+#else
+#define NFS_DEFAULT_VERSION 2
+#endif
+
 enum {
 	/* Mount options that take no arguments */
 	Opt_soft, Opt_hard,
@@ -2277,7 +2283,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	};
 	int error = -ENOMEM;
 
-	data = nfs_alloc_parsed_mount_data(3);
+	data = nfs_alloc_parsed_mount_data(NFS_DEFAULT_VERSION);
 	mntfh = nfs_alloc_fhandle();
 	if (data == NULL || mntfh == NULL)
 		goto out_free_fh;
