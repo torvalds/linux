@@ -1654,12 +1654,6 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
 	int scale = cfs_rq->nr_running >= sched_nr_latency;
 
-	if (unlikely(rt_prio(p->prio)))
-		goto preempt;
-
-	if (unlikely(p->sched_class != &fair_sched_class))
-		return;
-
 	if (unlikely(se == pse))
 		return;
 
