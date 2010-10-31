@@ -320,7 +320,6 @@ static struct i2c_algorithm tm6000_algo = {
 
 static struct i2c_adapter tm6000_adap_template = {
 	.owner = THIS_MODULE,
-	.class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
 	.name = "tm6000",
 	.algo = &tm6000_algo,
 };
