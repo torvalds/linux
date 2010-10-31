@@ -74,6 +74,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-real-audio-220-32-keys.o \
 			rc-streamzap.o \
 			rc-tbs-nec.o \
+			rc-technisat-usb2.o \
 			rc-terratec-cinergy-xs.o \
 			rc-terratec-slim.o \
 			rc-tevii-nec.o \

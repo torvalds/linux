@@ -181,6 +181,7 @@ struct dvb_rc_legacy {
  * @rc_codes: name of rc codes table
  * @protocol: type of protocol(s) currently used by the driver
  * @allowed_protos: protocol(s) supported by the driver
+ * @driver_type: Used to point if a device supports raw mode
  * @change_protocol: callback to change protocol
  * @rc_query: called to query an event event.
  * @rc_interval: time in ms between two queries.
@@ -190,6 +191,7 @@ struct dvb_rc {
 	char *rc_codes;
 	u64 protocol;
 	u64 allowed_protos;
+	enum rc_driver_type driver_type;
 	int (*change_protocol)(struct rc_dev *dev, u64 rc_type);
 	char *module_name;
 	int (*rc_query) (struct dvb_usb_device *d);
