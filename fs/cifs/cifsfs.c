@@ -625,11 +625,8 @@ static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 		   knows that the file won't be changed on the server
 		   by anyone else */
 		return generic_setlease(file, arg, lease);
-	else {
-		if (arg != F_UNLCK)
-			locks_free_lock(*lease);
+	else
 		return -EAGAIN;
-	}
 }
 
 struct file_system_type cifs_fs_type = {

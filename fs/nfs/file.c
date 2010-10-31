@@ -884,7 +884,5 @@ static int nfs_setlease(struct file *file, long arg, struct file_lock **fl)
 	dprintk("NFS: setlease(%s/%s, arg=%ld)\n",
 			file->f_path.dentry->d_parent->d_name.name,
 			file->f_path.dentry->d_name.name, arg);
-	if (arg != F_UNLCK)
-		locks_free_lock(*fl);
 	return -EINVAL;
 }
