@@ -46,6 +46,9 @@
   5/3400 Series (PCH)   0x3b30     32     hard     yes     yes     yes
   Cougar Point (PCH)    0x1c22     32     hard     yes     yes     yes
   Patsburg (PCH)        0x1d22     32     hard     yes     yes     yes
+  Patsburg (PCH) IDF    0x1d70     32     hard     yes     yes     yes
+  Patsburg (PCH) IDF    0x1d71     32     hard     yes     yes     yes
+  Patsburg (PCH) IDF    0x1d72     32     hard     yes     yes     yes
 
   Features supported by this driver:
   Software PEC                     no
@@ -53,6 +56,7 @@
   Block buffer                     yes
   Block process call transaction   no
   I2C block read transaction       yes  (doesn't use the block buffer)
+  Slave mode                       no
 
   See the file Documentation/i2c/busses/i2c-i801 for details.
 */
@@ -127,6 +131,11 @@
 #define STATUS_FLAGS		(SMBHSTSTS_BYTE_DONE | SMBHSTSTS_FAILED | \
 				 SMBHSTSTS_BUS_ERR | SMBHSTSTS_DEV_ERR | \
 				 SMBHSTSTS_INTR)
+
+/* Patsburg also has three 'Integrated Device Function' SMBus controllers */
+#define PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF0	0x1d70
+#define PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF1	0x1d71
+#define PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF2	0x1d72
 
 struct i801_priv {
 	struct i2c_adapter adapter;
@@ -608,6 +617,9 @@ static const struct pci_device_id i801_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5_3400_SERIES_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_COUGARPOINT_SMBUS) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF0) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF1) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF2) },
 	{ 0, }
 };
 
