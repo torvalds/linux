@@ -188,7 +188,7 @@ retry:
 			return UBI_IO_BITFLIPS;
 		}
 
-		if (read != len && retries++ < UBI_IO_RETRIES) {
+		if (retries++ < UBI_IO_RETRIES) {
 			dbg_io("error %d%s while reading %d bytes from PEB %d:%d,"
 			       " read only %zd bytes, retry",
 			       err, errstr, len, pnum, offset, read);
