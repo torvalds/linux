@@ -2074,13 +2074,12 @@ static unsigned int unix_dgram_poll(struct file *file, struct socket *sock,
 	if (sk->sk_err || !skb_queue_empty(&sk->sk_error_queue))
 		mask |= POLLERR;
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
-		mask |= POLLRDHUP;
+		mask |= POLLRDHUP | POLLIN | POLLRDNORM;
 	if (sk->sk_shutdown == SHUTDOWN_MASK)
 		mask |= POLLHUP;
 
 	/* readable? */
-	if (!skb_queue_empty(&sk->sk_receive_queue) ||
-	    (sk->sk_shutdown & RCV_SHUTDOWN))
+	if (!skb_queue_empty(&sk->sk_receive_queue))
 		mask |= POLLIN | POLLRDNORM;
 
 	/* Connection-based need to check for termination and startup */
@@ -2092,20 +2091,15 @@ static unsigned int unix_dgram_poll(struct file *file, struct socket *sock,
 			return mask;
 	}
 
-	/* writable? */
 	writable = unix_writable(sk);
-	if (writable) {
-		other = unix_peer_get(sk);
-		if (other) {
-			if (unix_peer(other) != sk) {
-				sock_poll_wait(file, &unix_sk(other)->peer_wait,
-					  wait);
-				if (unix_recvq_full(other))
-					writable = 0;
-			}
-
-			sock_put(other);
+	other = unix_peer_get(sk);
+	if (other) {
+		if (unix_peer(other) != sk) {
+			sock_poll_wait(file, &unix_sk(other)->peer_wait, wait);
+			if (unix_recvq_full(other))
+				writable = 0;
 		}
+		sock_put(other);
 	}
 
 	if (writable)
