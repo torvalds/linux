@@ -73,6 +73,7 @@ struct intel_gtt_driver {
 	unsigned int is_g33 : 1;
 	unsigned int is_pineview : 1;
 	unsigned int is_ironlake : 1;
+	unsigned int has_pgtbl_enable : 1;
 	unsigned int dma_mask_size : 8;
 	/* Chipset specific GTT setup */
 	int (*setup)(void);
@@ -113,6 +114,7 @@ static struct _intel_private {
 #define IS_G33		intel_private.driver->is_g33
 #define IS_PINEVIEW	intel_private.driver->is_pineview
 #define IS_IRONLAKE	intel_private.driver->is_ironlake
+#define HAS_PGTBL_EN	intel_private.driver->has_pgtbl_enable
 
 static void intel_agp_free_sglist(struct agp_memory *mem)
 {
@@ -803,6 +805,9 @@ static int intel_gtt_init(void)
 	intel_private.PGETBL_save =
 		readl(intel_private.registers+I810_PGETBL_CTL)
 			& ~I810_PGETBL_ENABLED;
+	/* we only ever restore the register when enabling the PGTBL... */
+	if (HAS_PGTBL_EN)
+		intel_private.PGETBL_save |= I810_PGETBL_ENABLED;
 
 	dev_info(&intel_private.bridge_dev->dev,
 			"detected gtt size: %dK total, %dK mappable\n",
@@ -925,7 +930,6 @@ static void i830_write_entry(dma_addr_t addr, unsigned int entry,
 static bool intel_enable_gtt(void)
 {
 	u32 gma_addr;
-	u16 gmch_ctrl;
 	u8 __iomem *reg;
 
 	if (INTEL_GTT_GEN == 2)
@@ -940,26 +944,30 @@ static bool intel_enable_gtt(void)
 	if (INTEL_GTT_GEN >= 6)
 	    return true;
 
-	pci_read_config_word(intel_private.bridge_dev,
-			     I830_GMCH_CTRL, &gmch_ctrl);
-	gmch_ctrl |= I830_GMCH_ENABLED;
-	pci_write_config_word(intel_private.bridge_dev,
-			      I830_GMCH_CTRL, gmch_ctrl);
+	if (INTEL_GTT_GEN == 2) {
+		u16 gmch_ctrl;
 
-	pci_read_config_word(intel_private.bridge_dev,
-			     I830_GMCH_CTRL, &gmch_ctrl);
-	if ((gmch_ctrl & I830_GMCH_ENABLED) == 0) {
-		dev_err(&intel_private.pcidev->dev,
-			"failed to enable the GTT: GMCH_CTRL=%x\n",
-			gmch_ctrl);
-		return false;
+		pci_read_config_word(intel_private.bridge_dev,
+				     I830_GMCH_CTRL, &gmch_ctrl);
+		gmch_ctrl |= I830_GMCH_ENABLED;
+		pci_write_config_word(intel_private.bridge_dev,
+				      I830_GMCH_CTRL, gmch_ctrl);
+
+		pci_read_config_word(intel_private.bridge_dev,
+				     I830_GMCH_CTRL, &gmch_ctrl);
+		if ((gmch_ctrl & I830_GMCH_ENABLED) == 0) {
+			dev_err(&intel_private.pcidev->dev,
+				"failed to enable the GTT: GMCH_CTRL=%x\n",
+				gmch_ctrl);
+			return false;
+		}
 	}
 
 	reg = intel_private.registers+I810_PGETBL_CTL;
-	writel(intel_private.PGETBL_save|I810_PGETBL_ENABLED, reg);
-	if ((readl(reg) & I810_PGETBL_ENABLED) == 0) {
+	writel(intel_private.PGETBL_save, reg);
+	if (HAS_PGTBL_EN && (readl(reg) & I810_PGETBL_ENABLED) == 0) {
 		dev_err(&intel_private.pcidev->dev,
-			"failed to enable the GTT: PGETBL=%x [expected %x|1]\n",
+			"failed to enable the GTT: PGETBL=%x [expected %x]\n",
 			readl(reg), intel_private.PGETBL_save);
 		return false;
 	}
@@ -1395,6 +1403,7 @@ static const struct intel_gtt_driver i81x_gtt_driver = {
 };
 static const struct intel_gtt_driver i8xx_gtt_driver = {
 	.gen = 2,
+	.has_pgtbl_enable = 1,
 	.setup = i830_setup,
 	.cleanup = i830_cleanup,
 	.write_entry = i830_write_entry,
@@ -1404,6 +1413,7 @@ static const struct intel_gtt_driver i8xx_gtt_driver = {
 };
 static const struct intel_gtt_driver i915_gtt_driver = {
 	.gen = 3,
+	.has_pgtbl_enable = 1,
 	.setup = i9xx_setup,
 	.cleanup = i9xx_cleanup,
 	/* i945 is the last gpu to need phys mem (for overlay and cursors). */
@@ -1434,6 +1444,7 @@ static const struct intel_gtt_driver pineview_gtt_driver = {
 };
 static const struct intel_gtt_driver i965_gtt_driver = {
 	.gen = 4,
+	.has_pgtbl_enable = 1,
 	.setup = i9xx_setup,
 	.cleanup = i9xx_cleanup,
 	.write_entry = i965_write_entry,
