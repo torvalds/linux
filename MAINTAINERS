@@ -6613,7 +6613,7 @@ F:	drivers/xen/*swiotlb*
 XEN HYPERVISOR INTERFACE
 M:	Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-L:	xen-devel@lists.xen.org
+L:	xen-devel@lists.xensource.com
 L:	virtualization@lists.osdl.org
 S:	Supported
 F:	arch/x86/xen/
