@@ -389,6 +389,8 @@ static int ir_getkeycode(struct input_dev *dev,
 	ke->len = sizeof(entry->scancode);
 	memcpy(ke->scancode, &entry->scancode, sizeof(entry->scancode));
 
+	retval = 0;
+
 out:
 	spin_unlock_irqrestore(&rc_tab->lock, flags);
 	return retval;
