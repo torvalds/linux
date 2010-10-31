@@ -81,6 +81,7 @@ struct nfs4_delegation {
 	atomic_t		dl_count;       /* ref count */
 	struct nfs4_client	*dl_client;
 	struct nfs4_file	*dl_file;
+	struct file		*dl_vfs_file;
 	struct file_lock	*dl_flock;
 	u32			dl_type;
 	time_t			dl_time;

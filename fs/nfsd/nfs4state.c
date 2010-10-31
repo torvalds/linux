@@ -230,7 +230,8 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 	dp->dl_client = clp;
 	get_nfs4_file(fp);
 	dp->dl_file = fp;
-	nfs4_file_get_access(fp, O_RDONLY);
+	dp->dl_vfs_file = find_readable_file(fp);
+	get_file(dp->dl_vfs_file);
 	dp->dl_flock = NULL;
 	dp->dl_type = type;
 	dp->dl_stateid.si_boot = boot_time;
@@ -252,6 +253,7 @@ nfs4_put_delegation(struct nfs4_delegation *dp)
 	if (atomic_dec_and_test(&dp->dl_count)) {
 		dprintk("NFSD: freeing dp %p\n",dp);
 		put_nfs4_file(dp->dl_file);
+		fput(dp->dl_vfs_file);
 		kmem_cache_free(deleg_slab, dp);
 		num_delegations--;
 	}
@@ -265,12 +267,10 @@ nfs4_put_delegation(struct nfs4_delegation *dp)
 static void
 nfs4_close_delegation(struct nfs4_delegation *dp)
 {
-	struct file *filp = find_readable_file(dp->dl_file);
-
 	dprintk("NFSD: close_delegation dp %p\n",dp);
+	/* XXX: do we even need this check?: */
 	if (dp->dl_flock)
-		vfs_setlease(filp, F_UNLCK, &dp->dl_flock);
-	nfs4_file_put_access(dp->dl_file, O_RDONLY);
+		vfs_setlease(dp->dl_vfs_file, F_UNLCK, &dp->dl_flock);
 }
 
 /* Called under the state lock. */
