@@ -557,7 +557,7 @@ int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv)
 		return -EINVAL;
 	}
 
-	dev_priv->ldu_priv = kmalloc(GFP_KERNEL, sizeof(*dev_priv->ldu_priv));
+	dev_priv->ldu_priv = kmalloc(sizeof(*dev_priv->ldu_priv), GFP_KERNEL);
 
 	if (!dev_priv->ldu_priv)
 		return -ENOMEM;
