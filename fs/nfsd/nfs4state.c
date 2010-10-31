@@ -2295,24 +2295,6 @@ void nfsd_break_deleg_cb(struct file_lock *fl)
 	nfsd4_cb_recall(dp);
 }
 
-/*
- * Called from setlease() with lock_flocks() held
- */
-static
-int nfsd_same_client_deleg_cb(struct file_lock *onlist, struct file_lock *try)
-{
-	struct nfs4_delegation *onlistd =
-		(struct nfs4_delegation *)onlist->fl_owner;
-	struct nfs4_delegation *tryd =
-		(struct nfs4_delegation *)try->fl_owner;
-
-	if (onlist->fl_lmops != try->fl_lmops)
-		return 0;
-
-	return onlistd->dl_client == tryd->dl_client;
-}
-
-
 static
 int nfsd_change_deleg_cb(struct file_lock **onlist, int arg)
 {
@@ -2324,7 +2306,6 @@ int nfsd_change_deleg_cb(struct file_lock **onlist, int arg)
 
 static const struct lock_manager_operations nfsd_lease_mng_ops = {
 	.fl_break = nfsd_break_deleg_cb,
-	.fl_mylease = nfsd_same_client_deleg_cb,
 	.fl_change = nfsd_change_deleg_cb,
 };
 
@@ -2630,7 +2611,7 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 	dp->dl_flock = fl;
 
 	/* vfs_setlease checks to see if delegation should be handed out.
-	 * the lock_manager callbacks fl_mylease and fl_change are used
+	 * the lock_manager callback fl_change is used
 	 */
 	if ((status = vfs_setlease(fl->fl_file, fl->fl_type, &fl))) {
 		dprintk("NFSD: setlease failed [%d], no delegation\n", status);

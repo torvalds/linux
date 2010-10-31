@@ -444,15 +444,9 @@ static void lease_release_private_callback(struct file_lock *fl)
 	fl->fl_file->f_owner.signum = 0;
 }
 
-static int lease_mylease_callback(struct file_lock *fl, struct file_lock *try)
-{
-	return fl->fl_file == try->fl_file;
-}
-
 static const struct lock_manager_operations lease_manager_ops = {
 	.fl_break = lease_break_callback,
 	.fl_release_private = lease_release_private_callback,
-	.fl_mylease = lease_mylease_callback,
 	.fl_change = lease_modify,
 };
 
@@ -1405,7 +1399,7 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	for (before = &inode->i_flock;
 			((fl = *before) != NULL) && IS_LEASE(fl);
 			before = &fl->fl_next) {
-		if (lease->fl_lmops->fl_mylease(fl, lease))
+		if (fl->fl_file == lease->fl_file)
 			my_before = before;
 		else if (fl->fl_type == (F_INPROGRESS | F_UNLCK))
 			/*
