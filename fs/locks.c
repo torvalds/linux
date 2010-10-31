@@ -1399,7 +1399,7 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	for (before = &inode->i_flock;
 			((fl = *before) != NULL) && IS_LEASE(fl);
 			before = &fl->fl_next) {
-		if (fl->fl_file == lease->fl_file)
+		if (fl->fl_file == filp)
 			my_before = before;
 		else if (fl->fl_type == (F_INPROGRESS | F_UNLCK))
 			/*
