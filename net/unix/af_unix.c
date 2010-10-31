@@ -2091,6 +2091,10 @@ static unsigned int unix_dgram_poll(struct file *file, struct socket *sock,
 			return mask;
 	}
 
+	/* No write status requested, avoid expensive OUT tests. */
+	if (wait && !(wait->key & (POLLWRBAND | POLLWRNORM | POLLOUT)))
+		return mask;
+
 	writable = unix_writable(sk);
 	other = unix_peer_get(sk);
 	if (other) {
