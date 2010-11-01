@@ -244,7 +244,14 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 
 	u16 xgxs_config_tx[4];				    /* 0x1A0 */
 
-	u32 Reserved1[57];				    /* 0x1A8 */
+	u32 Reserved1[56];				    /* 0x1A8 */
+	u32 default_cfg;				    /* 0x288 */
+	/*  Enable BAM on KR */
+#define PORT_HW_CFG_ENABLE_BAM_ON_KR_MASK		      0x00100000
+#define PORT_HW_CFG_ENABLE_BAM_ON_KR_SHIFT		      20
+#define PORT_HW_CFG_ENABLE_BAM_ON_KR_DISABLED		      0x00000000
+#define PORT_HW_CFG_ENABLE_BAM_ON_KR_ENABLED		      0x00100000
+
 	u32 speed_capability_mask2;			    /* 0x28C */
 #define PORT_HW_CFG_SPEED_CAPABILITY2_D3_MASK		      0x0000FFFF
 #define PORT_HW_CFG_SPEED_CAPABILITY2_D3_SHIFT		      0

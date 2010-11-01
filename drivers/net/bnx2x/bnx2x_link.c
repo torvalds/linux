@@ -3525,13 +3525,19 @@ static u8 bnx2x_8073_config_init(struct bnx2x_phy *phy,
 	DP(NETIF_MSG_LINK, "Before rom RX_ALARM(port1): 0x%x\n", tmp1);
 
 	/* Enable CL37 BAM */
-	bnx2x_cl45_read(bp, phy,
-			MDIO_AN_DEVAD,
-			MDIO_AN_REG_8073_BAM, &val);
-	bnx2x_cl45_write(bp, phy,
-			 MDIO_AN_DEVAD,
-			 MDIO_AN_REG_8073_BAM, val | 1);
+	if (REG_RD(bp, params->shmem_base +
+			 offsetof(struct shmem_region, dev_info.
+				  port_hw_config[params->port].default_cfg)) &
+	    PORT_HW_CFG_ENABLE_BAM_ON_KR_ENABLED) {
 
+		bnx2x_cl45_read(bp, phy,
+				MDIO_AN_DEVAD,
+				MDIO_AN_REG_8073_BAM, &val);
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_AN_DEVAD,
+				 MDIO_AN_REG_8073_BAM, val | 1);
+		DP(NETIF_MSG_LINK, "Enable CL37 BAM on KR\n");
+	}
 	if (params->loopback_mode == LOOPBACK_EXT) {
 		bnx2x_807x_force_10G(bp, phy);
 		DP(NETIF_MSG_LINK, "Forced speed 10G on 807X\n");
