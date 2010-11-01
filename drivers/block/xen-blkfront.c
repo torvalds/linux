@@ -245,14 +245,11 @@ static int blkif_ioctl(struct block_device *bdev, fmode_t mode,
 }
 
 /*
- * blkif_queue_request
+ * Generate a Xen blkfront IO request from a blk layer request.  Reads
+ * and writes are handled as expected.  Since we lack a loose flush
+ * request, we map flushes into a full ordered barrier.
  *
- * request block io
- *
- * id: for guest use only.
- * operation: BLKIF_OP_{READ,WRITE,PROBE}
- * buffer: buffer to read/write into. this should be a
- *   virtual address in the guest os.
+ * @req: a request struct
  */
 static int blkif_queue_request(struct request *req)
 {
@@ -289,7 +286,7 @@ static int blkif_queue_request(struct request *req)
 
 	ring_req->operation = rq_data_dir(req) ?
 		BLKIF_OP_WRITE : BLKIF_OP_READ;
-	if (req->cmd_flags & REQ_HARDBARRIER)
+	if (req->cmd_flags & REQ_FLUSH)
 		ring_req->operation = BLKIF_OP_WRITE_BARRIER;
 
 	ring_req->nr_segments = blk_rq_map_sg(req->q, req, info->sg);
@@ -1069,14 +1066,8 @@ static void blkfront_connect(struct blkfront_info *info)
 	 */
 	info->feature_flush = 0;
 
-	/*
-	 * The driver doesn't properly handled empty flushes, so
-	 * lets disable barrier support for now.
-	 */
-#if 0
 	if (!err && barrier)
 		info->feature_flush = REQ_FLUSH;
-#endif
 
 	err = xlvbd_alloc_gendisk(sectors, info, binfo, sector_size);
 	if (err) {
