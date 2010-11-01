@@ -351,6 +351,8 @@ typedef enum cust_gpio_modes {
 } cust_gpio_modes_t;
 extern int wl_iw_iscan_set_scan_broadcast_prep(struct net_device *dev, uint flag);
 extern int wl_iw_send_priv_event(struct net_device *dev, char *flag);
+extern int net_os_send_hang_message(struct net_device *dev);
+
 /*
  * Insmod parameters for debug/test
  */
@@ -399,6 +401,10 @@ extern uint dhd_sdiod_drive_strength;
 
 /* Override to force tx queueing all the time */
 extern uint dhd_force_tx_queueing;
+
+/* Default KEEP_ALIVE Period is 55 sec to prevent AP from sending Keep Alive probe frame */
+#define KEEP_ALIVE_PERIOD 55000
+#define NULL_PKT_STR	"null_pkt"
 
 #ifdef SDTEST
 /* Echo packet generator (SDIO), pkts/s */

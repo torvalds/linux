@@ -97,7 +97,7 @@ typedef const struct si_pub  si_t;
 #define WL_SOFTAP(x) printk x
 static struct net_device *priv_dev;
 static bool ap_cfg_running = FALSE;
-static bool ap_fw_loaded = FALSE;
+bool ap_fw_loaded = FALSE;
 struct net_device *ap_net_dev = NULL;
 struct semaphore  ap_eth_sema;
 static int wl_iw_set_ap_security(struct net_device *dev, struct ap_profile *ap);
@@ -1468,7 +1468,7 @@ wl_control_wl_start(struct net_device *dev)
 		sdioh_start(NULL, 0);
 #endif
 
-		dhd_dev_reset(dev, 0);
+		ret = dhd_dev_reset(dev, 0);
 
 #if defined(BCMLXSDMMC)
 		sdioh_start(NULL, 1);
@@ -1558,7 +1558,15 @@ wl_iw_control_wl_on(
 
 	WL_TRACE(("Enter %s \n", __FUNCTION__));
 
-	ret = wl_control_wl_start(dev);
+	if ((ret = wl_control_wl_start(dev)) == BCME_SDIO_ERROR) {
+		WL_ERROR(("%s failed first attemp\n", __FUNCTION__));
+		bcm_mdelay(100);
+		if ((ret = wl_control_wl_start(dev)) == BCME_SDIO_ERROR) {
+			WL_ERROR(("%s failed second attemp\n", __FUNCTION__));
+			net_os_send_hang_message(dev);
+			return ret;
+		}
+	}
 
 	wl_iw_send_priv_event(dev, "START");
 
