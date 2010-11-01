@@ -8,7 +8,6 @@ static INT bcm_open(struct net_device *dev)
 {
     PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
 
-    BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "======>");
     if(Adapter->fw_download_done==FALSE)
         return -EINVAL;
 	if(Adapter->LinkUpStatus == 1){
@@ -18,7 +17,6 @@ static INT bcm_open(struct net_device *dev)
 		}
 	}
 
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "<======");
     return 0;
 }
 
@@ -26,12 +24,10 @@ static INT bcm_close(struct net_device *dev)
 {
    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
 
-    BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "=====>");
 	if(!netif_queue_stopped(dev)) {
 		netif_carrier_off(dev);
 	    netif_stop_queue(dev);
 	}
-    BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,"<=====");
     return 0;
 }
 
