@@ -63,29 +63,6 @@ VOID InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
 	AdapterFree(psIntfAdapter->psAdapter);
 }
 
-
-
-static int usbbcm_open(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-static int usbbcm_release(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-static ssize_t usbbcm_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
-{
-	return 0;
-}
-
-static ssize_t usbbcm_write(struct file *file, const char __user *user_buffer, size_t count, loff_t *ppos)
-{
-	return 0;
-}
-
-
 VOID ConfigureEndPointTypesThroughEEPROM(PMINI_ADAPTER Adapter)
 {
 	ULONG ulReg = 0;
@@ -163,21 +140,6 @@ VOID ConfigureEndPointTypesThroughEEPROM(PMINI_ADAPTER Adapter)
 	BeceemEEPROMBulkWrite(Adapter,(PUCHAR)&ulReg,0x1C2,4,TRUE);
 
 }
-
-static struct file_operations usbbcm_fops = {
-    .open    =  usbbcm_open,
-    .release =  usbbcm_release,
-    .read    =  usbbcm_read,
-    .write   =  usbbcm_write,
-    .owner   =  THIS_MODULE,
-	.llseek = no_llseek,
-};
-
-static struct usb_class_driver usbbcm_class = {
-    .name =     	"usbbcm",
-    .fops =     	&usbbcm_fops,
-    .minor_base =   BCM_USB_MINOR_BASE,
-};
 
 static int
 usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -259,8 +221,6 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		usb_set_intfdata(intf, NULL);
 		udev = interface_to_usbdev (intf);
 		usb_put_dev(udev);
-		if(psAdapter->bUsbClassDriverRegistered == TRUE)
-				usb_deregister_dev (intf, &usbbcm_class);
 		InterfaceAdapterFree(psIntfAdapter);
 		return retval ;
 	}
@@ -339,9 +299,7 @@ static void usbbcm_disconnect (struct usb_interface *intf)
 	InterfaceAdapterFree(psIntfAdapter);
 	udev = interface_to_usbdev (intf);
 	usb_put_dev(udev);
-	usb_deregister_dev (intf, &usbbcm_class);
 }
-
 
 static int AllocUsbCb(PS_INTERFACE_ADAPTER psIntfAdapter)
 {
@@ -701,18 +659,6 @@ INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
     }
 	}
     usb_set_intfdata(psIntfAdapter->interface, psIntfAdapter);
-    retval = usb_register_dev(psIntfAdapter->interface, &usbbcm_class);
-	if(retval)
-	{
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_PRINTK, 0, 0, "usb register dev failed = %d", retval);
-		psIntfAdapter->psAdapter->bUsbClassDriverRegistered = FALSE;
-		return retval;
-	}
-	else
-	{
-		psIntfAdapter->psAdapter->bUsbClassDriverRegistered = TRUE;
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_PRINTK, 0, 0, "usb dev registered");
-	}
 
 	psIntfAdapter->psAdapter->bcm_file_download = InterfaceFileDownload;
 	psIntfAdapter->psAdapter->bcm_file_readback_from_chip =
@@ -734,14 +680,7 @@ INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 	}
 
 
-	retval = device_run(psIntfAdapter);
-	if(retval)
-	{
-		return retval;
-	}
-
-
-	return 0;
+	return device_run(psIntfAdapter);
 }
 
 static int InterfaceSuspend (struct usb_interface *intf, pm_message_t message)

@@ -553,7 +553,7 @@ struct _MINI_ADAPTER
 	struct semaphore	NVMRdmWrmLock;
 
 	struct device *pstCreatedClassDevice;
-	BOOLEAN			bUsbClassDriverRegistered;
+
 //	BOOLEAN				InterfaceUpStatus;
 	PFLASH2X_CS_INFO psFlash2xCSInfo;
 	PFLASH_CS_INFO psFlashCSInfo ;
