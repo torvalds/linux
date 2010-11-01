@@ -1075,7 +1075,7 @@ static int aic3x_regulator_event(struct notifier_block *nb,
 		 * Put codec to reset and require cache sync as at least one
 		 * of the supplies was disabled
 		 */
-		if (aic3x->gpio_reset >= 0)
+		if (gpio_is_valid(aic3x->gpio_reset))
 			gpio_set_value(aic3x->gpio_reset, 0);
 		aic3x->codec->cache_sync = 1;
 	}
@@ -1102,7 +1102,7 @@ static int aic3x_set_power(struct snd_soc_codec *codec, int power)
 		if (!codec->cache_sync)
 			goto out;
 
-		if (aic3x->gpio_reset >= 0) {
+		if (gpio_is_valid(aic3x->gpio_reset)) {
 			udelay(1);
 			gpio_set_value(aic3x->gpio_reset, 1);
 		}
@@ -1359,7 +1359,7 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	if (aic3x->gpio_reset >= 0) {
+	if (gpio_is_valid(aic3x->gpio_reset)) {
 		ret = gpio_request(aic3x->gpio_reset, "tlv320aic3x reset");
 		if (ret != 0)
 			goto err_gpio;
@@ -1414,7 +1414,7 @@ err_notif:
 					      &aic3x->disable_nb[i].nb);
 	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
 err_get:
-	if (aic3x->gpio_reset >= 0)
+	if (gpio_is_valid(aic3x->gpio_reset))
 		gpio_free(aic3x->gpio_reset);
 err_gpio:
 	kfree(aic3x);
@@ -1427,7 +1427,7 @@ static int aic3x_remove(struct snd_soc_codec *codec)
 	int i;
 
 	aic3x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	if (aic3x->gpio_reset >= 0) {
+	if (gpio_is_valid(aic3x->gpio_reset)) {
 		gpio_set_value(aic3x->gpio_reset, 0);
 		gpio_free(aic3x->gpio_reset);
 	}
