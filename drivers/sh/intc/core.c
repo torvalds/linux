@@ -79,7 +79,7 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	 * Register the IRQ position with the global IRQ map, then insert
 	 * it in to the radix tree.
 	 */
-	irq_reserve_irqs(irq, 1);
+	irq_reserve_irq(irq);
 
 	raw_spin_lock_irqsave(&intc_big_lock, flags);
 	radix_tree_insert(&d->tree, enum_id, intc_irq_xlate_get(irq));
