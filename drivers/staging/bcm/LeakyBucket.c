@@ -82,7 +82,7 @@ static ULONG GetSFTokenCount(PMINI_ADAPTER Adapter, PacketInfo *psSF)
 	if(NULL == Adapter || (psSF < Adapter->PackInfo &&
 		(uintptr_t)psSF > (uintptr_t) &Adapter->PackInfo[HiPriority]))
 	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL, "IPAFF: Got wrong Parameters:Adapter: %p, QIndex: %ld\n", Adapter, (psSF-Adapter->PackInfo));
+		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL, "IPAFF: Got wrong Parameters:Adapter: %p, QIndex: %zd\n", Adapter, (psSF-Adapter->PackInfo));
 		return 0;
 	}
 
@@ -94,14 +94,14 @@ static ULONG GetSFTokenCount(PMINI_ADAPTER Adapter, PacketInfo *psSF)
 		}
 		else
 		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL, "Not enough tokens in queue %ld Available %u\n",
+			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL, "Not enough tokens in queue %zd Available %u\n",
 				psSF-Adapter->PackInfo, psSF->uiCurrentTokenCount);
 			psSF->uiPendedLast = 1;
 		}
 	}
 	else
 	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL, "IPAFF: Queue %ld not valid\n", psSF-Adapter->PackInfo);
+		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL, "IPAFF: Queue %zd not valid\n", psSF-Adapter->PackInfo);
 	}
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL, "IsPacketAllowedForFlow <===");
 	return 0;
@@ -164,7 +164,7 @@ static VOID CheckAndSendPacketFromIndex(PMINI_ADAPTER Adapter, PacketInfo *psSF)
 	int				iPacketLen=0;
 
 
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "%ld ====>", (psSF-Adapter->PackInfo));
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "%zd ====>", (psSF-Adapter->PackInfo));
 	if((psSF != &Adapter->PackInfo[HiPriority]) && Adapter->LinkUpStatus && atomic_read(&psSF->uiPerSFTxResourceCount))//Get data packet
   	{
 		if(!psSF->ucDirection )
@@ -212,7 +212,7 @@ static VOID CheckAndSendPacketFromIndex(PMINI_ADAPTER Adapter, PacketInfo *psSF)
 			}
 			else
 			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "For Queue: %ld\n", psSF-Adapter->PackInfo);
+				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "For Queue: %zd\n", psSF-Adapter->PackInfo);
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "\nAvailable Tokens = %d required = %d\n",
 					psSF->uiCurrentTokenCount, iPacketLen);
 				//this part indicates that becuase of non-availability of the tokens
