@@ -7152,7 +7152,7 @@ static u8 bnx2x_8726_common_init_phy(struct bnx2x *bp,
 		(1<<(MISC_REGISTERS_GPIO_3 + MISC_REGISTERS_GPIO_PORT_SHIFT)));
 	REG_WR(bp, MISC_REG_GPIO_EVENT_EN, val);
 
-	bnx2x_ext_phy_hw_reset(bp, 1);
+	bnx2x_ext_phy_hw_reset(bp, 0);
 	msleep(5);
 	for (port = 0; port < PORT_MAX; port++) {
 		u32 shmem_base, shmem2_base;
