@@ -768,13 +768,13 @@ static int hardwall_release(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations dev_hardwall_fops = {
+	.open           = nonseekable_open,
 	.unlocked_ioctl = hardwall_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = hardwall_compat_ioctl,
 #endif
 	.flush          = hardwall_flush,
 	.release        = hardwall_release,
-	.llseek		= noop_llseek,
 };
 
 static struct cdev hardwall_dev;
