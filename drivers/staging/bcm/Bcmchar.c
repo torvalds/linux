@@ -139,7 +139,7 @@ static ssize_t bcm_char_read(struct file *filp, char __user *buf, size_t size, l
 	if(Packet)
 	{
 		PktLen = Packet->len;
-		if(copy_to_user(buf, Packet->data, PktLen))
+		if(copy_to_user(buf, Packet->data, min_t(size_t, PktLen, size)))
 		{
 			dev_kfree_skb(Packet);
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "\nReturning from copy to user failure \n");
