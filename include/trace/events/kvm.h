@@ -218,18 +218,20 @@ TRACE_EVENT(kvm_age_page,
 #ifdef CONFIG_KVM_ASYNC_PF
 TRACE_EVENT(
 	kvm_try_async_get_page,
-	TP_PROTO(bool async, u64 pfn),
-	TP_ARGS(async, pfn),
+	TP_PROTO(u64 gva, u64 gfn),
+	TP_ARGS(gva, gfn),
 
 	TP_STRUCT__entry(
-		__field(__u64, pfn)
+		__field(u64, gva)
+		__field(u64, gfn)
 		),
 
 	TP_fast_assign(
-		__entry->pfn = (!async) ? pfn : (u64)-1;
+		__entry->gva = gva;
+		__entry->gfn = gfn;
 		),
 
-	TP_printk("pfn %#llx", __entry->pfn)
+	TP_printk("gva = %#llx, gfn = %#llx", __entry->gva, __entry->gfn)
 );
 
 TRACE_EVENT(
