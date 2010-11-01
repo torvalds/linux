@@ -41,19 +41,10 @@ SendPacketFromQueue->SetupNextSend->bcm_cmd53
 This function dispatches control packet to the h/w interface
 @return zero(success) or -ve value(failure)
 */
-INT SendControlPacket(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
-							char *pControlPacket/**<Control Packet*/
-							)
+INT SendControlPacket(PMINI_ADAPTER Adapter, char *pControlPacket)
 {
-	PLEADER PLeader = NULL;
-	struct timeval tv;
-	memset(&tv, 0, sizeof(tv));
+	PLEADER PLeader = (PLEADER)pControlPacket;
 
-
-
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "========>");
-
-	PLeader=(PLEADER)pControlPacket;
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Tx");
 	if(!pControlPacket || !Adapter)
 	{
@@ -87,27 +78,21 @@ INT SendControlPacket(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "<=========");
 	return STATUS_SUCCESS;
 }
-static	LEADER Leader={0};
+
 /**
 @ingroup tx_functions
 This function despatches the IP packets with the given vcid
 to the target via the host h/w interface.
 @return  zero(success) or -ve value(failure)
 */
-INT SetupNextSend(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
-					struct sk_buff *Packet, /**<data buffer*/
-					USHORT Vcid)			/**<VCID for this packet*/
+INT SetupNextSend(PMINI_ADAPTER Adapter,  struct sk_buff *Packet, USHORT Vcid)
 {
 	int		status=0;
 	BOOLEAN bHeaderSupressionEnabled = FALSE;
 	B_UINT16            uiClassifierRuleID;
 	int QueueIndex = NO_OF_QUEUES + 1;
+	LEADER Leader={0};
 
-	if(!Adapter || !Packet)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Got NULL Adapter or Packet");
-		return -EINVAL;
-	}
 	if(Packet->len > MAX_DEVICE_DESC_SIZE)
 	{
 		status = STATUS_FAILURE;
@@ -141,15 +126,10 @@ INT SetupNextSend(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
 
 	Leader.Vcid	= Vcid;
 
-    if(TCP_ACK == *((UINT32*) (Packet->cb) + SKB_CB_TCPACK_OFFSET ))
-	{
-        BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Sending TCP ACK\n");
+	if(TCP_ACK == *((UINT32*) (Packet->cb) + SKB_CB_TCPACK_OFFSET ))
 		Leader.Status = LEADER_STATUS_TCP_ACK;
-	}
 	else
-	{
 		Leader.Status = LEADER_STATUS;
-	}
 
 	if(Adapter->PackInfo[QueueIndex].bEthCSSupport)
 	{
@@ -165,35 +145,26 @@ INT SetupNextSend(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
 		skb_push(Packet, LEADER_SIZE);
 		memcpy(Packet->data, &Leader, LEADER_SIZE);
 	}
-
 	else
 	{
 		Leader.PLength = Packet->len - ETH_HLEN;
 		memcpy((LEADER*)skb_pull(Packet, (ETH_HLEN - LEADER_SIZE)), &Leader, LEADER_SIZE);
 	}
 
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Packet->len = %d", Packet->len);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Vcid = %d", Vcid);
-
 	status = Adapter->interface_transmit(Adapter->pvInterfaceAdapter,
 			Packet->data, (Leader.PLength + LEADER_SIZE));
 	if(status)
 	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Tx Failed..\n");
+		++Adapter->dev->stats.tx_errors;
+		if (netif_msg_tx_err(Adapter))
+			pr_info(PFX "%s: transmit error %d\n", Adapter->dev->name,
+				status);
 	}
 	else
 	{
 		Adapter->PackInfo[QueueIndex].uiTotalTxBytes += Leader.PLength;
-		atomic_add(Leader.PLength, &Adapter->GoodTxByteCount);
-		atomic_inc(&Adapter->TxTotalPacketCount);
-	}
-
-	atomic_dec(&Adapter->CurrNumFreeTxDesc);
-
-errExit:
-
-	if(STATUS_SUCCESS == status)
-	{
+		Adapter->dev->stats.tx_bytes += Leader.PLength;
+		++Adapter->dev->stats.tx_packets;
 		Adapter->PackInfo[QueueIndex].uiCurrentTokenCount -= Leader.PLength << 3;
 		Adapter->PackInfo[QueueIndex].uiSentBytes += (Packet->len);
 		Adapter->PackInfo[QueueIndex].uiSentPackets++;
@@ -203,6 +174,9 @@ errExit:
 		Adapter->PackInfo[QueueIndex].uiThisPeriodSentBytes += Leader.PLength;
 	}
 
+	atomic_dec(&Adapter->CurrNumFreeTxDesc);
+
+errExit:
 
 	dev_kfree_skb(Packet);
 	return status;
@@ -238,11 +212,10 @@ int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
 
 		if(Adapter->downloadDDR == 1)
 		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "Downloading DDR Settings\n");
 			Adapter->downloadDDR +=1;
 			status = download_ddr_settings(Adapter);
 			if(status)
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "DDR DOWNLOAD FAILED!\n");
+				pr_err(PFX "DDR DOWNLOAD FAILED! %d\n", status);
 			continue;
 		}
 
@@ -278,7 +251,6 @@ int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
 				wake_up(&Adapter->process_rx_cntrlpkt);
 		}
 
-
 		transmit_packets(Adapter);
 
 		atomic_set(&Adapter->TxPktAvail, 0);
@@ -288,6 +260,3 @@ int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
 	Adapter->transmit_packet_thread = NULL;
 	return 0;
 }
-
-
-
