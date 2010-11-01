@@ -12,7 +12,7 @@
 *
 * Returns	  - Zero(Success)
 ****************************************************************/
-static struct class *bcm_class = NULL;
+
 static int bcm_char_open(struct inode *inode, struct file * filp)
 {
 	PMINI_ADAPTER 		Adapter = NULL;
@@ -2093,59 +2093,37 @@ static struct file_operations bcm_fops = {
 	.llseek = no_llseek,
 };
 
+extern struct class *bcm_class;
 
 int register_control_device_interface(PMINI_ADAPTER Adapter)
 {
+
 	if(Adapter->major>0)
-    	return Adapter->major;
-    Adapter->major = register_chrdev(0, "tarang", &bcm_fops);
-    if(Adapter->major < 0)
-    {
-    	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "register_chrdev:Failed to registering WiMax control char device!");
-        return Adapter->major;
-    }
+		return Adapter->major;
 
-	bcm_class = NULL;
-	bcm_class = class_create (THIS_MODULE, "tarang");
-	if(IS_ERR (bcm_class))
-	{
-    	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Unable to create class\n");
-        unregister_chrdev(Adapter->major, "tarang");
-		Adapter->major = 0;
-		return -ENODEV;
+	Adapter->major = register_chrdev(0, DEV_NAME, &bcm_fops);
+	if(Adapter->major < 0) {
+		pr_err(DRV_NAME ": could not created character device\n");
+		return Adapter->major;
 	}
+
 	Adapter->pstCreatedClassDevice = device_create (bcm_class, NULL,
-								MKDEV(Adapter->major, 0),
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
-								NULL	,
-#endif
-								"tarang");
+							MKDEV(Adapter->major, 0), Adapter,
+							DEV_NAME);
 
-	if(IS_ERR(Adapter->pstCreatedClassDevice))
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "class device did not get created : %ld", PTR_ERR(Adapter->pstCreatedClassDevice) );
+	if(IS_ERR(Adapter->pstCreatedClassDevice)) {
+		pr_err(DRV_NAME ": class device create failed\n");
+		unregister_chrdev(Adapter->major, DEV_NAME);
+		return PTR_ERR(Adapter->pstCreatedClassDevice);
 	}
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Got Major No: %d", Adapter->major);
-    return 0;
+			
+	return 0;
 }
 
 void unregister_control_device_interface(PMINI_ADAPTER Adapter)
 {
-	if(Adapter->major > 0)
-	{
-        BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "destroying class device");
+	if(Adapter->major > 0) {
 		device_destroy (bcm_class, MKDEV(Adapter->major, 0));
+		unregister_chrdev(Adapter->major, DEV_NAME);
 	}
-    if(!IS_ERR(bcm_class))
-	{
-        BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "destroying created class ");
-        class_destroy (bcm_class);
-		bcm_class = NULL;
-	}
-	if(Adapter->major > 0)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,"unregistering character interface");
-        unregister_chrdev(Adapter->major, "tarang");
-	}
-
 }

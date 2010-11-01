@@ -738,6 +738,7 @@ static struct usb_driver usbbcm_driver = {
     .supports_autosuspend = 1,
 };
 
+struct class *bcm_class;
 
 /*
 Function:				InterfaceInitialize
@@ -755,16 +756,17 @@ Return:					BCM_STATUS_SUCCESS - If Initialization of the
 */
 INT InterfaceInitialize(void)
 {
-//	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Registering Usb driver!!");
+	bcm_class = class_create(THIS_MODULE, DRV_NAME);
+	if (IS_ERR(bcm_class)) {
+		printk(KERN_ERR DRV_NAME ": could not create class\n");
+		return PTR_ERR(bcm_class);
+	}
 	return usb_register(&usbbcm_driver);
 }
 
 INT InterfaceExit(void)
 {
-	//PMINI_ADAPTER psAdapter = NULL;
-	int status = 0;
-
-	//BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Deregistering Usb driver!!");
+        class_destroy (bcm_class);
 	usb_deregister(&usbbcm_driver);
-	return status;
+	return 0;
 }
