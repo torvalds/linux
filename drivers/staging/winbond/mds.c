@@ -2,7 +2,7 @@
 #include "mlmetxrx_f.h"
 #include "mto.h"
 #include "sysdef.h"
-#include "wbhal_s.h"
+#include "wbhal.h"
 #include "wblinux_f.h"
 #include "wb35tx_f.h"
 

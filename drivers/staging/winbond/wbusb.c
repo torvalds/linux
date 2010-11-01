@@ -16,7 +16,7 @@
 #include "mds_f.h"
 #include "mlmetxrx_f.h"
 #include "mto.h"
-#include "wbhal_s.h"
+#include "wbhal.h"
 #include "wb35reg_f.h"
 #include "wb35tx_f.h"
 #include "wb35rx_f.h"

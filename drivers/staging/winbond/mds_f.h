@@ -1,7 +1,7 @@
 #ifndef __WINBOND_MDS_F_H
 #define __WINBOND_MDS_F_H
 
-#include "wbhal_s.h"
+#include "wbhal.h"
 #include "core.h"
 
 unsigned char Mds_initial(struct wbsoft_priv *adapter);

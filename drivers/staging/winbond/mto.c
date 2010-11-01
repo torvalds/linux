@@ -19,7 +19,7 @@
 
 #include "sysdef.h"
 #include "sme_api.h"
-#include "wbhal_s.h"
+#include "wbhal.h"
 #include "wb35reg_f.h"
 #include "core.h"
 

@@ -12,7 +12,7 @@
 /****************** INCLUDE FILES SECTION ***********************************/
 #include "sysdef.h"
 #include "phy_calibration.h"
-#include "wbhal_s.h"
+#include "wbhal.h"
 #include "wb35reg_f.h"
 #include "core.h"
 
