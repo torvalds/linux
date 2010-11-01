@@ -1,50 +1,5 @@
 #include "headers.h"
 
-#ifndef BCM_SHM_INTERFACE
-
-/*
-Function:				InterfaceTxDataPacket
-
-Description:			This is the hardware specific Function for Transmitting
-						data packet to the device.
-
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
-						PVOID Packet				-  Packet Containing the data to be transmitted
-						USHORT usVcid			   - VCID on which data packet is to be sent
-
-
-Return:				BCM_STATUS_SUCCESS - If Tx was successful.
-						Other           - If an error occured.
-*/
-
-ULONG InterfaceTxDataPacket(PMINI_ADAPTER Adapter,PVOID Packet,USHORT usVcid)
-{
-	ULONG	Status = 0;
-	return Status;
-}
-
-/*
-Function:				InterfaceTxControlPacket
-
-Description:			This is the hardware specific Function for Transmitting
-						control packet to the device.
-
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
-						PVOID pvBuffer			   - Buffer containg control packet
-						UINT uiBufferLength		   - Buffer Length
-
-Return:				BCM_STATUS_SUCCESS - If control packet transmit was successful.
-						Other           - If an error occured.
-*/
-
-ULONG InterfaceTxControlPacket(PMINI_ADAPTER Adapter,PVOID pvBuffer,UINT uiBufferLength)
-{
-	ULONG	Status = 0;
-
-
-
-	return Status;
-}
 /*this is transmit call-back(BULK OUT)*/
 static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 {
@@ -54,10 +9,10 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 	PMINI_ADAPTER psAdapter = psIntfAdapter->psAdapter ;
 	BOOLEAN bpowerDownMsg = FALSE ;
     PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
-#if 0
-	struct timeval tv;
-	UINT time_ms = 0;
-#endif
+
+    if (unlikely(netif_msg_tx_done(Adapter)))
+	    pr_info(PFX "%s: transmit status %d\n", Adapter->dev->name, urb->status);
+
 	if(urb->status != STATUS_SUCCESS)
 	{
 		if(urb->status == -EPIPE)
@@ -78,11 +33,6 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 
 	if(TRUE == psAdapter->bPreparingForLowPowerMode)
 	{
-		#if 0
-		do_gettimeofday(&tv);
-		time_ms = tv.tv_sec *1000 + tv.tv_usec/1000;
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, " %s Idle Mode ACK_Sent got from device at time :0x%x", __FUNCTION__, time_ms);
-		#endif
 
 		if(((pControlMsg->szData[0] == GO_TO_IDLE_MODE_PAYLOAD) &&
 			(pControlMsg->szData[1] == TARGET_CAN_GO_TO_IDLE_MODE)))
@@ -162,7 +112,7 @@ err_exit :
 }
 
 
-static __inline PUSB_TCB GetBulkOutTcb(PS_INTERFACE_ADAPTER psIntfAdapter)
+static PUSB_TCB GetBulkOutTcb(PS_INTERFACE_ADAPTER psIntfAdapter)
 {
 	PUSB_TCB pTcb = NULL;
 	UINT index = 0;
@@ -183,7 +133,7 @@ static __inline PUSB_TCB GetBulkOutTcb(PS_INTERFACE_ADAPTER psIntfAdapter)
 	return pTcb;
 }
 
-static __inline int TransmitTcb(PS_INTERFACE_ADAPTER psIntfAdapter, PUSB_TCB pTcb, PVOID data, int len)
+static int TransmitTcb(PS_INTERFACE_ADAPTER psIntfAdapter, PUSB_TCB pTcb, PVOID data, int len)
 {
 
 	struct urb *urb = pTcb->urb;
@@ -255,5 +205,4 @@ int InterfaceTransmitPacket(PVOID arg, PVOID data, UINT len)
 	return TransmitTcb(psIntfAdapter, pTcb, data, len);
 }
 
-#endif
 
