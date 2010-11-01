@@ -183,16 +183,17 @@ get_next_ucode(const u8 *buf, unsigned int size, unsigned int *mc_size)
 		return NULL;
 	}
 
-	mc = vmalloc(UCODE_MAX_SIZE);
-	if (mc) {
-		memset(mc, 0, UCODE_MAX_SIZE);
-		if (get_ucode_data(mc, buf + UCODE_CONTAINER_SECTION_HDR,
-				   total_size)) {
-			vfree(mc);
-			mc = NULL;
-		} else
-			*mc_size = total_size + UCODE_CONTAINER_SECTION_HDR;
+	mc = vzalloc(UCODE_MAX_SIZE);
+	if (!mc)
+		return NULL;
+
+	if (get_ucode_data(mc, buf + UCODE_CONTAINER_SECTION_HDR, total_size)) {
+		vfree(mc);
+		mc = NULL;
+	} else {
+		*mc_size = total_size + UCODE_CONTAINER_SECTION_HDR;
 	}
+
 	return mc;
 }
 
