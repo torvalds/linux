@@ -3,8 +3,6 @@
 #define IN
 #define OUT
 
-void DumpDataPacketHeader(PUCHAR pPkt);
-
 /*
 Function:				PHSTransmit
 
@@ -80,8 +78,6 @@ int PHSTransmit(PMINI_ADAPTER Adapter,
 		(unPHSPktHdrBytesCopied <= MAX_PHS_LENGTHS))
 	{
 
-
-		//DumpDataPacketHeader(pucPHSPktHdrInBuf);
 
 		// Step 2 Supress Header using PHS and fill into intermediate ucaPHSPktHdrOutBuf.
 	// Suppress only if IP Header and PHS Enabled For the Service Flow
@@ -227,17 +223,6 @@ int PHSRecieve(PMINI_ADAPTER Adapter,
 	}
 
 	return STATUS_SUCCESS;
-}
-
-void DumpDataPacketHeader(PUCHAR pPkt)
-{
-	struct iphdr *iphd = (struct iphdr*)pPkt;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL,"Phs Send/Recieve : IP Packet Hdr \n");
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL,"TOS : %x \n",iphd->tos);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL,"Src  IP : %x \n",iphd->saddr);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_SEND, DBG_LVL_ALL,"Dest IP : %x \n \n",iphd->daddr);
-
 }
 
 void DumpFullPacket(UCHAR *pBuf,UINT nPktLen)
@@ -1299,22 +1284,6 @@ BOOLEAN DerefPhsRule(IN B_UINT16  uiClsId,S_CLASSIFIER_TABLE *psaClassifiertable
 		return FALSE;
 	}
 }
-
-static void DumpBuffer(PVOID BuffVAddress, int xferSize)
-{
-	int i;
-	int iPrintLength;
-	PUCHAR temp=(PUCHAR)BuffVAddress;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
-	iPrintLength=(xferSize<32?xferSize:32);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "\n");
-
-	for (i=0;i < iPrintLength;i++) {
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "%x|",temp[i]);
-	}
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, PHS_DISPATCH, DBG_LVL_ALL, "\n");
-}
-
 
 void DumpPhsRules(PPHS_DEVICE_EXTENSION pDeviceExtension)
 {
