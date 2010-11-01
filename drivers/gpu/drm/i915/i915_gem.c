@@ -2291,7 +2291,7 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 static int i915_ring_idle(struct drm_device *dev,
 			  struct intel_ring_buffer *ring)
 {
-	if (list_empty(&ring->gpu_write_list))
+	if (list_empty(&ring->gpu_write_list) && list_empty(&ring->active_list))
 		return 0;
 
 	i915_gem_flush_ring(dev, NULL, ring,
@@ -2309,9 +2309,7 @@ i915_gpu_idle(struct drm_device *dev)
 	int ret;
 
 	lists_empty = (list_empty(&dev_priv->mm.flushing_list) &&
-		       list_empty(&dev_priv->render_ring.active_list) &&
-		       list_empty(&dev_priv->bsd_ring.active_list) &&
-		       list_empty(&dev_priv->blt_ring.active_list));
+		       list_empty(&dev_priv->mm.active_list));
 	if (lists_empty)
 		return 0;
 
