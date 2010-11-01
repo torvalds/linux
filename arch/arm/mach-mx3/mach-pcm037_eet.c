@@ -171,7 +171,7 @@ static struct platform_device pcm037_gpio_keys_device = {
 	},
 };
 
-static int eet_init_devices(void)
+static int __init eet_init_devices(void)
 {
 	if (!machine_is_pcm037() || pcm037_variant() != PCM037_EET)
 		return 0;
