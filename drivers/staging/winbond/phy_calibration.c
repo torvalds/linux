@@ -12,7 +12,9 @@
 /****************** INCLUDE FILES SECTION ***********************************/
 #include "sysdef.h"
 #include "phy_calibration.h"
-#include "wbhal_f.h"
+#include "wbhal_s.h"
+#include "wb35reg_f.h"
+#include "core.h"
 
 
 /****************** DEBUG CONSTANT AND MACRO SECTION ************************/

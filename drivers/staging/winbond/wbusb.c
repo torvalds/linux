@@ -16,7 +16,10 @@
 #include "mds_f.h"
 #include "mlmetxrx_f.h"
 #include "mto.h"
-#include "wbhal_f.h"
+#include "wbhal_s.h"
+#include "wb35reg_f.h"
+#include "wb35tx_f.h"
+#include "wb35rx_f.h"
 #include "wblinux_f.h"
 
 MODULE_DESCRIPTION("IS89C35 802.11bg WLAN USB Driver");

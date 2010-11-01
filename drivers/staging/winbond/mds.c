@@ -2,8 +2,9 @@
 #include "mlmetxrx_f.h"
 #include "mto.h"
 #include "sysdef.h"
-#include "wbhal_f.h"
+#include "wbhal_s.h"
 #include "wblinux_f.h"
+#include "wb35tx_f.h"
 
 unsigned char
 Mds_initial(struct wbsoft_priv *adapter)

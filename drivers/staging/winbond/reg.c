@@ -1,5 +1,7 @@
 #include "sysdef.h"
-#include "wbhal_f.h"
+#include "wbhal_s.h"
+#include "wb35reg_f.h"
+#include "core.h"
 
 /*
  * ====================================================
