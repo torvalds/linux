@@ -2355,10 +2355,8 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			break;
 
 		default:
-            BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "wrong input %x",cmd);
-			BCM_DEBUG_PRINT (Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "In default ioctl %d\n", cmd);
-			 Status = STATUS_FAILURE;
-
+			pr_info(DRV_NAME ": unknown ioctl cmd=%#x\n", cmd);
+			Status = STATUS_FAILURE;
 			break;
 	}
 	return Status;
