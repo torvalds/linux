@@ -1,3 +1,5 @@
+source "drivers/media/video/tegra/avp/Kconfig"
+
 config TEGRA_CAMERA
         bool "Enable support for tegra camera/isp hardware"
         depends on ARCH_TEGRA
@@ -6,6 +8,3 @@ config TEGRA_CAMERA
           Enables support for the Tegra camera interface
 
           If unsure, say Y
-
-
-source "drivers/media/video/tegra/avp/Kconfig"
