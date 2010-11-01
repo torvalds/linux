@@ -16,17 +16,17 @@ static INT bcm_open(struct net_device *dev)
 	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
 
 	if (Adapter->fw_download_done == FALSE) {
-		pr_notice(DRV_NAME "%s: link up failed (download in progress)\n",
-			  dev->name);
+		pr_notice(PFX "%s: link up failed (download in progress)\n",
+ 			  dev->name);
 		return -EBUSY;
 	}
 
 	if (netif_msg_ifup(Adapter))
-		pr_info(DRV_NAME "%s: enabling interface\n", dev->name);
+		pr_info(PFX "%s: enabling interface\n", dev->name);
 
 	if (Adapter->LinkUpStatus) {
 		if (netif_msg_link(Adapter))
-			pr_info(DRV_NAME "%s: link up\n", dev->name);
+			pr_info(PFX "%s: link up\n", dev->name);
 
 		netif_carrier_on(Adapter->dev);
 		netif_start_queue(Adapter->dev);
@@ -40,7 +40,7 @@ static INT bcm_close(struct net_device *dev)
 	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
 
 	if (netif_msg_ifdown(Adapter))
-		pr_info(DRV_NAME "%s: disabling interface\n", dev->name);
+		pr_info(PFX "%s: disabling interface\n", dev->name);
 
 	netif_carrier_off(dev);
 	netif_stop_queue(dev);
@@ -106,7 +106,7 @@ static netdev_tx_t bcm_transmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Now Enqueue the packet */
 	if (netif_msg_tx_queued(Adapter))
-		pr_info(DRV_NAME "%s: enqueueing packet to queue %d\n",
+		pr_info(PFX "%s: enqueueing packet to queue %d\n",
 			dev->name, qindex);
 
 	spin_lock(&Adapter->PackInfo[qindex].SFQueueLock);

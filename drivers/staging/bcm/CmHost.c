@@ -2138,7 +2138,7 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /**<Pointer to the Adap
 								netif_start_queue(Adapter->dev);
 								Adapter->LinkUpStatus = 1;
 								if (netif_msg_link(Adapter))
-									pr_info(DRV_NAME "%s: link up\n", Adapter->dev->name);
+									pr_info(PFX "%s: link up\n", Adapter->dev->name);
 								atomic_set(&Adapter->TxPktAvail, 1);
 								wake_up(&Adapter->tx_packet_wait_queue);
 								Adapter->liTimeSinceLastNetEntry = get_seconds();

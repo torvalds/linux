@@ -7,6 +7,10 @@ static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)urb->context;
 	PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter ;
 
+	if (netif_msg_intr(Adapter))
+		pr_info(PFX "%s: interrupt status %d\n",
+			Adapter->dev->name, status);
+
 	if(Adapter->device_removed == TRUE)
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, INTF_INIT, DBG_LVL_ALL,"Device has Got Removed.");

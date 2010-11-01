@@ -38,7 +38,9 @@ static void read_bulk_callback(struct urb *urb)
 	PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter;
 	PLEADER pLeader = urb->transfer_buffer;
 
-
+	if (unlikely(netif_msg_rx_status(Adapter)))
+		pr_info(PFX "%s: rx urb status %d length %d\n",
+			Adapter->dev->name, urb->status, urb->actual_length);
 
 	if((Adapter->device_removed == TRUE)  ||
 		(TRUE == Adapter->bEndPointHalted) ||
@@ -83,8 +85,9 @@ static void read_bulk_callback(struct urb *urb)
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "Leader Status:0x%hX, Length:0x%hX, VCID:0x%hX", pLeader->Status,pLeader->PLength,pLeader->Vcid);
 	if(MAX_CNTL_PKT_SIZE < pLeader->PLength)
 	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Corrupted leader length...%d\n",
-					pLeader->PLength);
+		if (netif_msg_rx_err(Adapter))
+			pr_info(PFX "%s: corrupted leader length...%d\n",
+				Adapter->dev->name, pLeader->PLength);
 		atomic_inc(&Adapter->RxPacketDroppedCount);
 		atomic_add(pLeader->PLength, &Adapter->BadRxByteCount);
 		atomic_dec(&psIntfAdapter->uNumRcbUsed);

@@ -356,8 +356,11 @@ VOID PruneQueue(PMINI_ADAPTER Adapter,/**<Pointer to the driver control structur
 
 		if(PacketToDrop)
 		{
-			if(netstats)
-				netstats->tx_dropped++;
+			if (netif_msg_tx_err(Adapter))
+				pr_info(PFX "%s: tx queue %d overlimit\n", 
+					Adapter->dev->name, iIndex);
+
+			netstats->tx_dropped++;
 			atomic_inc(&Adapter->TxDroppedPacketCount);
 			DEQUEUEPACKET(Adapter->PackInfo[iIndex].FirstTxQueue,
 						Adapter->PackInfo[iIndex].LastTxQueue);

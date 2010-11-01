@@ -1896,7 +1896,7 @@ void beceem_protocol_reset (PMINI_ADAPTER Adapter)
 	int i;
 
 	if (netif_msg_link(Adapter))
-		pr_notice(DRV_NAME "%s: protocol reset\n", Adapter->dev->name);
+		pr_notice(PFX "%s: protocol reset\n", Adapter->dev->name);
 
 	netif_carrier_off(Adapter->dev);
 	netif_stop_queue(Adapter->dev);

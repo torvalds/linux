@@ -9,6 +9,10 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 	PMINI_ADAPTER psAdapter = psIntfAdapter->psAdapter ;
 	BOOLEAN bpowerDownMsg = FALSE ;
     PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+
+    if (unlikely(netif_msg_tx_done(Adapter)))
+	    pr_info(PFX "%s: transmit status %d\n", Adapter->dev->name, urb->status);
+
 	if(urb->status != STATUS_SUCCESS)
 	{
 		if(urb->status == -EPIPE)
