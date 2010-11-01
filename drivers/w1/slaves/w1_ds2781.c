@@ -55,6 +55,8 @@ static int w1_ds2781_io(struct device *dev, char *buf, int addr, size_t count,
 			w1_write_block(sl->master, buf, count);
 			/* XXX w1_write_block returns void, not n_written */
 		}
+	} else {
+		count = 0;
 	}
 
 out:
