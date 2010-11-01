@@ -449,7 +449,11 @@ static void kvm_destroy_dirty_bitmap(struct kvm_memory_slot *memslot)
 	if (!memslot->dirty_bitmap)
 		return;
 
-	vfree(memslot->dirty_bitmap_head);
+	if (2 * kvm_dirty_bitmap_bytes(memslot) > PAGE_SIZE)
+		vfree(memslot->dirty_bitmap_head);
+	else
+		kfree(memslot->dirty_bitmap_head);
+
 	memslot->dirty_bitmap = NULL;
 	memslot->dirty_bitmap_head = NULL;
 }
@@ -547,11 +551,14 @@ static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 {
 	unsigned long dirty_bytes = 2 * kvm_dirty_bitmap_bytes(memslot);
 
-	memslot->dirty_bitmap = vmalloc(dirty_bytes);
+	if (dirty_bytes > PAGE_SIZE)
+		memslot->dirty_bitmap = vzalloc(dirty_bytes);
+	else
+		memslot->dirty_bitmap = kzalloc(dirty_bytes, GFP_KERNEL);
+
 	if (!memslot->dirty_bitmap)
 		return -ENOMEM;
 
-	memset(memslot->dirty_bitmap, 0, dirty_bytes);
 	memslot->dirty_bitmap_head = memslot->dirty_bitmap;
 	return 0;
 }
