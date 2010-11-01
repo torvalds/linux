@@ -293,7 +293,7 @@ static INT ValidateDSDParamsChecksum(
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,"LED Thread:ValidateDSDParamsChecksum: 0x%lx 0x%X",ulParamOffset, usParamLen);
 
-	puBuffer = OsalMemAlloc(usParamLen,"!MEM");
+	puBuffer = kmalloc(usParamLen, GFP_KERNEL);
 	if(!puBuffer)
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,"LED Thread: ValidateDSDParamsChecksum Allocation failed");
@@ -341,10 +341,7 @@ static INT ValidateDSDParamsChecksum(
 	}
 
 exit:
-	if(puBuffer)
-	{
-		OsalMemFree(puBuffer, usParamLen);
-	}
+	kfree(puBuffer);
 	return Status;
 }
 

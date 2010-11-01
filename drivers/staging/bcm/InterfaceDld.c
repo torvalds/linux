@@ -48,7 +48,7 @@ int InterfaceFileDownload( PVOID arg,
         on_chip_loc+=MAX_TRANSFER_CTRL_BYTE_USB;
 	}/* End of for(;;)*/
 
-	bcm_kfree(buff);
+	kfree(buff);
     return errno;
 }
 
@@ -69,8 +69,8 @@ int InterfaceFileReadbackFromChip( PVOID arg,
     buff_readback=(PCHAR)kmalloc(MAX_TRANSFER_CTRL_BYTE_USB , GFP_DMA);
     if(!buff || !buff_readback)
     {
-        bcm_kfree(buff);
-        bcm_kfree(buff_readback);
+        kfree(buff);
+        kfree(buff_readback);
 
         return -ENOMEM;
     }
@@ -137,8 +137,8 @@ int InterfaceFileReadbackFromChip( PVOID arg,
         on_chip_loc+=MAX_TRANSFER_CTRL_BYTE_USB;
     }/* End of while(1)*/
 exit:
-    bcm_kfree(buff);
-    bcm_kfree(buff_readback);
+    kfree(buff);
+    kfree(buff_readback);
 	return Status;
 }
 
@@ -164,7 +164,7 @@ static int bcm_download_config_file(PMINI_ADAPTER Adapter,
 			psFwInfo->pvMappedFirmwareAddress, psFwInfo->u32FirmwareLength);
 	if(retval)
 	{
-		bcm_kfree (Adapter->pstargetparams);
+		kfree(Adapter->pstargetparams);
 		Adapter->pstargetparams = NULL;
 		return -EFAULT;
 	}
@@ -261,7 +261,7 @@ static int bcm_download_buffer(PMINI_ADAPTER Adapter,
 		u32FirmwareLength  	-= len;
 		mappedbuffer	   	+=len;
 	}
-	bcm_kfree(buff);
+	kfree(buff);
 	return retval;
 }
 #endif
@@ -313,7 +313,7 @@ static int bcm_buffer_readback(PMINI_ADAPTER Adapter,
 					GFP_KERNEL);
 	if(NULL == readbackbuff)
 	{
-		bcm_kfree(buff);
+		kfree(buff);
 		return -ENOMEM;
 	}
 	while (u32FirmwareLength && !retval)
@@ -343,8 +343,8 @@ static int bcm_buffer_readback(PMINI_ADAPTER Adapter,
 		u32FirmwareLength  	-= len;
 		mappedbuffer	   	+=len;
 	}/* end of while (u32FirmwareLength && !retval) */
-	bcm_kfree(buff);
-	bcm_kfree(readbackbuff);
+	kfree(buff);
+	kfree(readbackbuff);
 	return retval;
 }
 #endif
@@ -416,7 +416,7 @@ int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
 		}
 	}
 error:
-	bcm_kfree(buff);
+	kfree(buff);
 	return retval;
 }
 
@@ -479,7 +479,7 @@ static INT buffRdbkVerify(PMINI_ADAPTER Adapter,
 		u32FirmwareLength  	-= len;
 		mappedbuffer	   	+=len;
 	}/* end of while (u32FirmwareLength && !retval) */
-	bcm_kfree(readbackbuff);
+	kfree(readbackbuff);
 	return retval;
 }
 

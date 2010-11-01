@@ -173,7 +173,7 @@ static void read_bulk_callback(struct urb *urb)
 		else
 		{
 		    BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "i/f not up hance freeing SKB...");
-			bcm_kfree_skb(skb);
+			dev_kfree_skb(skb);
 		}
 		atomic_inc(&Adapter->GoodRxPktCount);
 		for(uiIndex = 0 ; uiIndex < MIBS_MAX_HIST_ENTRIES ; uiIndex++)

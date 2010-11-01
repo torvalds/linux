@@ -407,7 +407,7 @@ VOID PruneQueue(PMINI_ADAPTER Adapter,/**<Pointer to the driver control structur
 			/// update dropped bytes and packets counts
 			Adapter->PackInfo[iIndex].uiDroppedCountBytes += PacketToDrop->len;
 			Adapter->PackInfo[iIndex].uiDroppedCountPackets++;
-			bcm_kfree_skb(PacketToDrop);
+			dev_kfree_skb(PacketToDrop);
 
 		}
 
@@ -455,7 +455,7 @@ VOID flush_all_queues(PMINI_ADAPTER Adapter)
 						Adapter->PackInfo[iQIndex].LastTxQueue);
 
 			/* Free the skb */
-			bcm_kfree_skb(PacketToDrop);
+			dev_kfree_skb(PacketToDrop);
 
 			/// update current bytes and packets count
 			Adapter->PackInfo[iQIndex].uiCurrentBytesOnHost -= uiTotalPacketLength;

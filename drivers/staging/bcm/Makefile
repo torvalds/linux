@@ -9,4 +9,4 @@ bcm_wimax-y :=  InterfaceDld.o InterfaceIdleMode.o InterfaceInit.o InterfaceRx.o
 		Arp.o CmHost.o IPv6Protocol.o Qos.o Transmit.o\
 		Bcmnet.o DDRInit.o HandleControlPacket.o\
 		LeakyBucket.o Misc.o sort.o Bcmchar.o hostmibs.o PHSModule.o\
-	 	Osal_Misc.o led_control.o nvm.o vendorspecificextn.o
+		led_control.o nvm.o vendorspecificextn.o

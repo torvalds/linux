@@ -55,7 +55,7 @@ VOID InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
 	{
 		if (psIntfAdapter->asUsbRcb[i].urb != NULL)
 		{
-			bcm_kfree(psIntfAdapter->asUsbRcb[i].urb->transfer_buffer);
+			kfree(psIntfAdapter->asUsbRcb[i].urb->transfer_buffer);
 			usb_free_urb(psIntfAdapter->asUsbRcb[i].urb);
 			psIntfAdapter->asUsbRcb[i].urb = NULL;
 		}

@@ -54,7 +54,7 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter,
 	{
 	if(Adapter->PackInfo[nSfIndex].bValid)
 	{
-			OsalMemMove((PVOID)&pstHostMibs->astSFtable[nSfIndex],(PVOID)&Adapter->PackInfo[nSfIndex],sizeof(S_MIBS_SERVICEFLOW_TABLE));
+			memcpy((PVOID)&pstHostMibs->astSFtable[nSfIndex],(PVOID)&Adapter->PackInfo[nSfIndex],sizeof(S_MIBS_SERVICEFLOW_TABLE));
 	}
 	else
 	{
@@ -83,7 +83,7 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter,
 
 			pstHostMibs->astPhsRulesTable[nPhsTableIndex].ulSFID = Adapter->PackInfo[nSfIndex].ulSFID;
 
-			OsalMemMove(&pstHostMibs->astPhsRulesTable[nPhsTableIndex].u8PHSI,
+			memcpy(&pstHostMibs->astPhsRulesTable[nPhsTableIndex].u8PHSI,
 						&pstPhsRule->u8PHSI,
 						sizeof(S_PHS_RULE));
 				nPhsTableIndex++;

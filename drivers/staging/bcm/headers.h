@@ -58,7 +58,6 @@
 #include "Debug.h"
 #include "HostMibs.h"
 #include "IPv6ProtocolHdr.h"
-#include "osal_misc.h"
 #include "PHSModule.h"
 #include "Protocol.h"
 #include "Prototypes.h"

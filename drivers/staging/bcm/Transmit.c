@@ -117,7 +117,7 @@ INT bcm_transmit(struct sk_buff *skb, 		/**< skb */
                 BCM_DEBUG_PRINT (Adapter, DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL,
     			"Invalid queue index, dropping pkt\n");
 
-				bcm_kfree_skb(skb);
+				dev_kfree_skb(skb);
 			}
 			return STATUS_SUCCESS;
         }
@@ -125,7 +125,7 @@ INT bcm_transmit(struct sk_buff *skb, 		/**< skb */
 		if(Adapter->PackInfo[qindex].uiCurrentPacketsOnHost >= SF_MAX_ALLOWED_PACKETS_TO_BACKUP)
 		{
 			atomic_inc(&Adapter->TxDroppedPacketCount);
-			bcm_kfree_skb(skb);
+			dev_kfree_skb(skb);
 			return STATUS_SUCCESS;
 		}
 
@@ -159,7 +159,7 @@ INT bcm_transmit(struct sk_buff *skb, 		/**< skb */
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL, "<====");
 	}
 	else
-		bcm_kfree_skb(skb);
+		dev_kfree_skb(skb);
 
   return STATUS_SUCCESS;
 }
@@ -333,7 +333,7 @@ errExit:
 	}
 
 
-  	bcm_kfree_skb(Packet);
+	dev_kfree_skb(Packet);
 	return status;
 }
 

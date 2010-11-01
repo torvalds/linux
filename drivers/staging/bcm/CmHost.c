@@ -985,7 +985,7 @@ static VOID CopyToAdapter( register PMINI_ADAPTER Adapter,		/**<Pointer to the A
 
 	if(Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication)
 	{
-		bcm_kfree(Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication);
+		kfree(Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication);
 		Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication = NULL;
 	}
 	Adapter->PackInfo[uiSearchRuleIndex].pstSFIndication = pstAddIndication;
@@ -1844,7 +1844,7 @@ ULONG StoreCmControlResponseMessage(PMINI_ADAPTER Adapter,PVOID pvBuffer,UINT *p
 
 	(*puBufferLength) = sizeof(stLocalSFAddIndication);
 	*(stLocalSFAddIndication *)pvBuffer = *pstAddIndication;
-	bcm_kfree(pstAddIndication);
+	kfree(pstAddIndication);
 	return 1;
 }
 
@@ -1931,7 +1931,7 @@ static inline stLocalSFAddIndicationAlt
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "============================================================");
 	return pstAddIndicationDest;
 failed_restore_sf_param:
-	bcm_kfree(pstAddIndicationDest);
+	kfree(pstAddIndicationDest);
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "<=====" );
 	return NULL;
 }
@@ -2049,7 +2049,7 @@ INT FreeAdapterDsxBuffer(PMINI_ADAPTER Adapter)
 {
 	if(Adapter->caDsxReqResp)
 	{
-		bcm_kfree(Adapter->caDsxReqResp);
+		kfree(Adapter->caDsxReqResp);
 	}
 	return 0;
 
@@ -2102,7 +2102,7 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /**<Pointer to the Adap
 
 			BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  " VCID = %x", ntohs(pstAddIndication->u16VCID));
 			CopyBufferToControlPacket(Adapter,(PVOID)Adapter->caDsxReqResp);
-			bcm_kfree(pstAddIndication);
+			kfree(pstAddIndication);
 		}
 		break;
 		case DSA_RSP:
@@ -2169,7 +2169,7 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /**<Pointer to the Adap
 					Adapter->PackInfo[uiSearchRuleIndex].bActive=FALSE;
                     Adapter->PackInfo[uiSearchRuleIndex].bValid=FALSE;
 					Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value=0;
-					bcm_kfree(pstAddIndication);
+					kfree(pstAddIndication);
 				}
 
 				else if(psfLocalSet->bValid && (pstAddIndication->u8CC == 0))
@@ -2218,13 +2218,13 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /**<Pointer to the Adap
 					Adapter->PackInfo[uiSearchRuleIndex].bActive=FALSE;
                     Adapter->PackInfo[uiSearchRuleIndex].bValid=FALSE;
 					Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value=0;
-					bcm_kfree(pstAddIndication);
+					kfree(pstAddIndication);
 				}
 			}
 			else
 			{
 				BCM_DEBUG_PRINT( Adapter,DBG_TYPE_PRINTK, 0, 0, "DSA ACK did not get valid SFID");
-				bcm_kfree(pstAddIndication);
+				kfree(pstAddIndication);
 				return FALSE;
 			}
 		}
@@ -2239,7 +2239,7 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /**<Pointer to the Adap
 			((stLocalSFChangeIndicationAlt*)&(Adapter->caDsxReqResp[LEADER_SIZE]))->u8Type = DSC_RSP;
 
 			CopyBufferToControlPacket(Adapter,(PVOID)Adapter->caDsxReqResp);
-			bcm_kfree(pstAddIndication);
+			kfree(pstAddIndication);
 		}
 		break;
 		case DSC_RSP:
@@ -2312,13 +2312,13 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /**<Pointer to the Adap
 				else if(pstChangeIndication->u8CC == 6)
 				{
 					deleteSFBySfid(Adapter,uiSearchRuleIndex);
-					bcm_kfree(pstAddIndication);
+					kfree(pstAddIndication);
 				}
 			}
 			else
 			{
 				BCM_DEBUG_PRINT( Adapter,DBG_TYPE_PRINTK, 0, 0, "DSC ACK did not get valid SFID");
-				bcm_kfree(pstAddIndication);
+				kfree(pstAddIndication);
 				return FALSE;
 			}
 		}
@@ -2355,7 +2355,7 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /**<Pointer to the Adap
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "DSD ACK Rcd, let App handle it\n");
 			break;
 	default:
-		bcm_kfree(pstAddIndication);
+		kfree(pstAddIndication);
 		return FALSE ;
 	}
 	return TRUE;

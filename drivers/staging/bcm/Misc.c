@@ -132,24 +132,24 @@ VOID AdapterFree(PMINI_ADAPTER Adapter)
 		free_netdev(Adapter->dev);
 	if(Adapter->pstargetparams != NULL)
 	{
-		bcm_kfree(Adapter->pstargetparams);
+		kfree(Adapter->pstargetparams);
 	}
 	for (count =0;count < MAX_CNTRL_PKTS;count++)
 	{
 		if(Adapter->txctlpacket[count])
-			bcm_kfree(Adapter->txctlpacket[count]);
+			kfree(Adapter->txctlpacket[count]);
 	}
 	FreeAdapterDsxBuffer(Adapter);
 
 	if(Adapter->pvInterfaceAdapter)
-		bcm_kfree(Adapter->pvInterfaceAdapter);
+		kfree(Adapter->pvInterfaceAdapter);
 
 	//Free the PHS Interface
 	PhsCleanup(&Adapter->stBCMPhsContext);
 
 	BcmDeAllocFlashCSStructure(Adapter);
 
-	bcm_kfree (Adapter);
+	kfree(Adapter);
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "<========\n");
 }
 
@@ -257,25 +257,6 @@ exit_download:
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "file download done at %lx", ((tv.tv_sec * 1000) +
                             (tv.tv_usec/1000)));
     return errorno;
-}
-
-
-void bcm_kfree_skb(struct sk_buff *skb)
-{
-	if(skb)
-    {
-    	kfree_skb(skb);
-    }
-	skb = NULL ;
-}
-
-VOID bcm_kfree(VOID *ptr)
-{
-	if(ptr)
-	{
-		kfree(ptr);
-	}
-	ptr = NULL ;
 }
 
 /**
@@ -579,7 +560,7 @@ __inline VOID LinkMessage(PMINI_ADAPTER Adapter)
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "Calling CopyBufferToControlPacket");
 		CopyBufferToControlPacket(Adapter, pstLinkRequest);
-		bcm_kfree(pstLinkRequest);
+		kfree(pstLinkRequest);
 	}
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "LinkMessage <=====");
 	return;
@@ -1292,14 +1273,14 @@ int bcm_parse_target_params(PMINI_ADAPTER Adapter)
 	if((Adapter->pstargetparams =
 		kmalloc(sizeof(STARGETPARAMS), GFP_KERNEL)) == NULL)
 	{
-		bcm_kfree(buff);
+		kfree(buff);
 		return -ENOMEM;
 	}
 	flp=open_firmware_file(Adapter, CFG_FILE);
 	if(!flp) {
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "NOT ABLE TO OPEN THE %s FILE \n", CFG_FILE);
-		bcm_kfree(buff);
-		bcm_kfree(Adapter->pstargetparams);
+		kfree(buff);
+		kfree(Adapter->pstargetparams);
 		Adapter->pstargetparams = NULL;
 		return -ENOENT;
 	}
@@ -1310,8 +1291,8 @@ int bcm_parse_target_params(PMINI_ADAPTER Adapter)
 	if(len != sizeof(STARGETPARAMS))
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL,"Mismatch in Target Param Structure!\n");
-		bcm_kfree(buff);
-		bcm_kfree(Adapter->pstargetparams);
+		kfree(buff);
+		kfree(Adapter->pstargetparams);
 		Adapter->pstargetparams = NULL;
 		filp_close(flp, current->files);
 		return -ENOENT;
@@ -1323,7 +1304,7 @@ int bcm_parse_target_params(PMINI_ADAPTER Adapter)
 	 * Values in Adapter->pstargetparams are in network byte order
 	 */
 	memcpy(Adapter->pstargetparams, buff, sizeof(STARGETPARAMS));
-	bcm_kfree (buff);
+	kfree (buff);
 	beceem_parse_target_struct(Adapter);
 	return STATUS_SUCCESS;
 }
@@ -1478,7 +1459,7 @@ static unsigned char *ReadMacAddrEEPROM(PMINI_ADAPTER Adapter, ulong dwAddress)
 	if(status != STATUS_SUCCESS)
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "wrm Failed..\n");
-		bcm_kfree(pucmacaddr);
+		kfree(pucmacaddr);
 		pucmacaddr = NULL;
 		goto OUT;
 	}
@@ -1488,7 +1469,7 @@ static unsigned char *ReadMacAddrEEPROM(PMINI_ADAPTER Adapter, ulong dwAddress)
 		if(status != STATUS_SUCCESS)
 		{
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "rdm Failed..\n");
-			bcm_kfree(pucmacaddr);
+			kfree(pucmacaddr);
 			pucmacaddr = NULL;
 			goto OUT;
 		}
@@ -1522,7 +1503,7 @@ INT ReadMacAddressFromEEPROM(PMINI_ADAPTER Adapter)
 			puMacAddr[4] == 0xFF && puMacAddr[5] == 0xFF))
 		{
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Invalid Mac Address\n");
-			bcm_kfree(puMacAddr);
+			kfree(puMacAddr);
 			return STATUS_FAILURE;
 		}
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "The Mac Address received is: \n");
@@ -1532,7 +1513,7 @@ INT ReadMacAddressFromEEPROM(PMINI_ADAPTER Adapter)
             BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"%02x ", Adapter->dev->dev_addr[i]);
         }
         BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"\n");
-		bcm_kfree(puMacAddr);
+		kfree(puMacAddr);
 	}
 	return STATUS_SUCCESS;
 }
@@ -1980,7 +1961,7 @@ void flush_queue(PMINI_ADAPTER Adapter, UINT iQIndex)
 			Adapter->PackInfo[iQIndex].uiDroppedCountBytes += PacketToDrop->len;
 			Adapter->PackInfo[iQIndex].uiDroppedCountPackets++;
 
-			bcm_kfree_skb(PacketToDrop);
+			dev_kfree_skb(PacketToDrop);
 			atomic_dec(&Adapter->TotalPacketCount);
 			atomic_inc(&Adapter->TxDroppedPacketCount);
 

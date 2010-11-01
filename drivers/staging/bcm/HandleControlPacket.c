@@ -134,7 +134,7 @@ VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, 	/**<Pointer to the Adapter
     }
 	up(&Adapter->RxAppControlQueuelock);
     wake_up(&Adapter->process_read_wait_queue);
-    bcm_kfree_skb(skb);
+    dev_kfree_skb(skb);
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "After wake_up_interruptible");
 }
 
@@ -231,7 +231,7 @@ INT flushAllAppQ(void)
 		{
 			PacketToDrop=pTarang->RxAppControlHead;
 			DEQUEUEPACKET(pTarang->RxAppControlHead,pTarang->RxAppControlTail);
-			bcm_kfree_skb(PacketToDrop);
+			dev_kfree_skb(PacketToDrop);
 		}
 		pTarang->AppCtrlQueueLen = 0;
 		//dropped contrl packet statistics also should be reset.

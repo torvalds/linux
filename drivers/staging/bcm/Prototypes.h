@@ -11,10 +11,6 @@ VOID StatisticsResponse(PMINI_ADAPTER Adapter,PVOID pvBuffer);
 
 VOID IdleModeResponse(PMINI_ADAPTER Adapter,PUINT puiBuffer);
 
-void bcm_kfree_skb(struct sk_buff *skb);
-VOID bcm_kfree(VOID *ptr);
-
-
 VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, 	/**<Pointer to the Adapter structure*/
 								struct sk_buff *skb);				/**<Pointer to the socket buffer*/
 

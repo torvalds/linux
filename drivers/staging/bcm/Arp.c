@@ -50,7 +50,7 @@ reply_to_arp_request(struct sk_buff *skb)
 	{
 		if(memcmp(pethhdr->h_source, Adapter->dev->dev_addr, ETH_ALEN))
 		{
-			bcm_kfree_skb(skb);
+			dev_kfree_skb(skb);
 			return;
 		}
 	}

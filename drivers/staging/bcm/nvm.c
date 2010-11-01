@@ -228,7 +228,7 @@ INT ReadBeceemEEPROM( PMINI_ADAPTER Adapter,
 		ReadBeceemEEPROMBulk(Adapter, uiTempOffset + MAX_RW_SIZE, (PUINT)&uiData[4], 4);
 	}
 
-	OsalMemMove( (PUCHAR) pBuffer, ( ((PUCHAR)&uiData[0]) + uiByteOffset ), 4);
+	memcpy( (PUCHAR) pBuffer, ( ((PUCHAR)&uiData[0]) + uiByteOffset ), 4);
 
 	return STATUS_SUCCESS;
 } /* ReadBeceemEEPROM() */
@@ -476,7 +476,7 @@ INT BeceemEEPROMBulkRead(
 		ReadBeceemEEPROMBulk(Adapter,uiTempOffset,(PUINT)&uiData[0],4);
 		if(uiBytesRemaining >= (MAX_RW_SIZE - uiExtraBytes))
 		{
-			OsalMemMove(pBuffer,(((PUCHAR)&uiData[0])+uiExtraBytes),MAX_RW_SIZE - uiExtraBytes);
+			memcpy(pBuffer,(((PUCHAR)&uiData[0])+uiExtraBytes),MAX_RW_SIZE - uiExtraBytes);
 
 			uiBytesRemaining -= (MAX_RW_SIZE - uiExtraBytes);
 			uiIndex += (MAX_RW_SIZE - uiExtraBytes);
@@ -484,7 +484,7 @@ INT BeceemEEPROMBulkRead(
 		}
 		else
 		{
-			OsalMemMove(pBuffer,(((PUCHAR)&uiData[0])+uiExtraBytes),uiBytesRemaining);
+			memcpy(pBuffer,(((PUCHAR)&uiData[0])+uiExtraBytes),uiBytesRemaining);
 			uiIndex += uiBytesRemaining;
 			uiOffset += uiBytesRemaining;
 			uiBytesRemaining = 0;
@@ -508,7 +508,7 @@ INT BeceemEEPROMBulkRead(
 			 * We read 4 Dwords of data */
 			if(0 == ReadBeceemEEPROMBulk(Adapter,uiOffset,&uiData[0],4))
 			{
-				OsalMemMove(pcBuff+uiIndex,&uiData[0],MAX_RW_SIZE);
+				memcpy(pcBuff+uiIndex,&uiData[0],MAX_RW_SIZE);
 				uiOffset += MAX_RW_SIZE;
 				uiBytesRemaining -= MAX_RW_SIZE;
 				uiIndex += MAX_RW_SIZE;
@@ -523,7 +523,7 @@ INT BeceemEEPROMBulkRead(
 		{
 			if(0 == ReadBeceemEEPROM(Adapter,uiOffset,&uiData[0]))
 			{
-				OsalMemMove(pcBuff+uiIndex,&uiData[0],4);
+				memcpy(pcBuff+uiIndex,&uiData[0],4);
 				uiOffset += 4;
 				uiBytesRemaining -= 4;
 				uiIndex +=4;
@@ -540,7 +540,7 @@ INT BeceemEEPROMBulkRead(
 			pCharBuff += uiIndex;
 			if(0 == ReadBeceemEEPROM(Adapter,uiOffset,&uiData[0]))
 			{
-				OsalMemMove(pCharBuff,&uiData[0],uiBytesRemaining);//copy only bytes requested.
+				memcpy(pCharBuff,&uiData[0],uiBytesRemaining);//copy only bytes requested.
 				uiBytesRemaining = 0;
 			}
 			else
@@ -973,7 +973,7 @@ static INT flashWrite(
 // need not write 0xFFFFFFFF because write requires an erase and erase will
 // make whole sector 0xFFFFFFFF.
 //
-	if (!OsalMemCompare(pData, uiErasePattern, MAX_RW_SIZE))
+	if (!memcmp(pData, uiErasePattern, MAX_RW_SIZE))
 	{
 		return 0;
 	}
@@ -1138,7 +1138,7 @@ static INT flashWriteStatus(
 // need not write 0xFFFFFFFF because write requires an erase and erase will
 // make whole sector 0xFFFFFFFF.
 //
-	if (!OsalMemCompare(pData,uiErasePattern,MAX_RW_SIZE))
+	if (!memcmp(pData,uiErasePattern,MAX_RW_SIZE))
 	{
 		return 0;
 	}
@@ -1377,12 +1377,9 @@ INT BeceemFlashBulkWrite(
 	uiCurrSectOffsetAddr	= uiOffset & (Adapter->uiSectorSize - 1);
 	uiSectBoundary	  		= uiSectAlignAddr + Adapter->uiSectorSize;
 
-	//pTempBuff = OsalMemAlloc(MAX_SECTOR_SIZE,'!MVN');
-	pTempBuff = OsalMemAlloc(Adapter->uiSectorSize ,"!MVN");
+	pTempBuff = kmalloc(Adapter->uiSectorSize, GFP_KERNEL);
 	if(NULL == pTempBuff)
-	{
 		goto BeceemFlashBulkWrite_EXIT;
-	}
 //
 // check if the data to be written is overlapped accross sectors
 //
@@ -1448,13 +1445,13 @@ INT BeceemFlashBulkWrite(
 		if(uiNumSectTobeRead > 1)
 		{
 
-			OsalMemMove(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr));
+			memcpy(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr));
 			pcBuffer += ((uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr)));
 			uiNumBytes -= (uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr));
 		}
 		else
 		{
-				OsalMemMove(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiNumBytes);
+				memcpy(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiNumBytes);
 		}
 
 		if(IsFlash2x(Adapter))
@@ -1503,7 +1500,7 @@ INT BeceemFlashBulkWrite(
 				}
 				else
 				{
-					if(OsalMemCompare(ucReadBk,&pTempBuff[uiIndex],MAX_RW_SIZE))
+					if(memcmp(ucReadBk,&pTempBuff[uiIndex],MAX_RW_SIZE))
 					{
 						if(STATUS_SUCCESS != (*Adapter->fpFlashWriteWithStatusCheck)(Adapter,uiPartOffset+uiIndex,&pTempBuff[uiIndex]))
 						{
@@ -1541,10 +1538,8 @@ BeceemFlashBulkWrite_EXIT:
 	{
 		BcmRestoreBlockProtectStatus(Adapter,ulStatus);
 	}
-	if(pTempBuff)
-	{
-		OsalMemFree(pTempBuff,Adapter->uiSectorSize);
-	}
+	
+	kfree(pTempBuff);
 
 	Adapter->SelectedChip = RESET_CHIP_SELECT;
 	return Status;
@@ -1599,14 +1594,10 @@ static INT BeceemFlashBulkWriteStatus(
 	uiCurrSectOffsetAddr	= uiOffset & (Adapter->uiSectorSize - 1);
 	uiSectBoundary			= uiSectAlignAddr + Adapter->uiSectorSize;
 
-
-
-//	pTempBuff = OsalMemAlloc(MAX_SECTOR_SIZE,'!MVN');
-	pTempBuff = OsalMemAlloc(Adapter->uiSectorSize,"!MVN");
+	pTempBuff = kmalloc(Adapter->uiSectorSize, GFP_KERNEL);
 	if(NULL == pTempBuff)
-	{
 		goto BeceemFlashBulkWriteStatus_EXIT;
-	}
+
 //
 // check if the data to be written is overlapped accross sectors
 //
@@ -1662,13 +1653,13 @@ static INT BeceemFlashBulkWriteStatus(
 		if(uiNumSectTobeRead > 1)
 		{
 
-			OsalMemMove(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr));
+			memcpy(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr));
 			pcBuffer += ((uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr)));
 			uiNumBytes -= (uiSectBoundary-(uiSectAlignAddr+uiCurrSectOffsetAddr));
 		}
 		else
 		{
-			OsalMemMove(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiNumBytes);
+			memcpy(&pTempBuff[uiCurrSectOffsetAddr],pcBuffer,uiNumBytes);
 		}
 
 		if(IsFlash2x(Adapter))
@@ -1716,7 +1707,7 @@ static INT BeceemFlashBulkWriteStatus(
 
 				if(STATUS_SUCCESS == BeceemFlashBulkRead(Adapter,(PUINT)ucReadBk,uiOffsetFromSectStart+uiIndex,MAX_RW_SIZE))
 				{
-					if(OsalMemCompare(ucReadBk,&pTempBuff[uiIndex],MAX_RW_SIZE))
+					if(memcmp(ucReadBk,&pTempBuff[uiIndex],MAX_RW_SIZE))
 					{
 						Status = STATUS_FAILURE;
 						goto BeceemFlashBulkWriteStatus_EXIT;
@@ -1747,10 +1738,8 @@ BeceemFlashBulkWriteStatus_EXIT:
 	{
 		BcmRestoreBlockProtectStatus(Adapter,ulStatus);
 	}
-	if(pTempBuff)
-	{
-		OsalMemFree(pTempBuff,Adapter->uiSectorSize);
-	}
+
+	kfree(pTempBuff);
 	Adapter->SelectedChip = RESET_CHIP_SELECT;
 	return Status;
 
@@ -1771,7 +1760,7 @@ BeceemFlashBulkWriteStatus_EXIT:
 
 INT PropagateCalParamsFromEEPROMToMemory(PMINI_ADAPTER Adapter)
 {
-	PCHAR pBuff = OsalMemAlloc(BUFFER_4K,"3MVN");
+	PCHAR pBuff = kmalloc(BUFFER_4K, GFP_KERNEL);
 	UINT uiEepromSize = 0;
 	UINT uiIndex = 0;
 	UINT uiBytesToCopy = 0;
@@ -1787,14 +1776,14 @@ INT PropagateCalParamsFromEEPROMToMemory(PMINI_ADAPTER Adapter)
 	if(0 != BeceemEEPROMBulkRead(Adapter,&uiEepromSize,EEPROM_SIZE_OFFSET,4))
 	{
 
-		OsalMemFree(pBuff,BUFFER_4K);
+		kfree(pBuff);
 		return -1;
 	}
 
 	uiEepromSize >>= 16;
 	if(uiEepromSize > 1024*1024)
 	{
-		OsalMemFree(pBuff,BUFFER_4K);
+		kfree(pBuff);
 		return -1;
 	}
 
@@ -1820,7 +1809,7 @@ INT PropagateCalParamsFromEEPROMToMemory(PMINI_ADAPTER Adapter)
 	wrmalt(Adapter, EEPROM_CAL_DATA_INTERNAL_LOC-4,&value, sizeof(value));
 	value = 0xbeadbead;
 	wrmalt(Adapter, EEPROM_CAL_DATA_INTERNAL_LOC-8,&value, sizeof(value));
-	OsalMemFree(pBuff,MAX_RW_SIZE);
+	kfree(pBuff);
 
 	return Status;
 
@@ -1873,7 +1862,7 @@ INT PropagateCalParamsFromFlashToMemory(PMINI_ADAPTER Adapter)
 		return -1;
 	}
 
-	pBuff = OsalMemAlloc(uiEepromSize, 0);
+	pBuff = kmalloc(uiEepromSize, GFP_KERNEL);
 
 	if ( pBuff == NULL )
 	{
@@ -1882,7 +1871,7 @@ INT PropagateCalParamsFromFlashToMemory(PMINI_ADAPTER Adapter)
 
 	if(0 != BeceemNVMRead(Adapter,(PUINT)pBuff,uiCalStartAddr, uiEepromSize))
 	{
-		OsalMemFree(pBuff, 0);
+		kfree(pBuff);
 		return -1;
 	}
 
@@ -1905,7 +1894,7 @@ INT PropagateCalParamsFromFlashToMemory(PMINI_ADAPTER Adapter)
 		uiBytesToCopy = MIN(BUFFER_4K,uiEepromSize);
 	}
 
-	OsalMemFree(pBuff, 0);
+	kfree(pBuff);
 	return Status;
 
 }
@@ -1947,14 +1936,14 @@ static INT BeceemEEPROMReadBackandVerify(
 		{// for the requests more than or equal to MAX_RW_SIZE bytes, use bulk read function to make the access faster.
 			BeceemEEPROMBulkRead(Adapter,&auiData[0],uiOffset,MAX_RW_SIZE);
 
-			if(OsalMemCompare(&pBuffer[uiIndex],&auiData[0],MAX_RW_SIZE))
+			if(memcmp(&pBuffer[uiIndex],&auiData[0],MAX_RW_SIZE))
 			{
 				// re-write
 				BeceemEEPROMBulkWrite(Adapter,(PUCHAR)(pBuffer+uiIndex),uiOffset,MAX_RW_SIZE,FALSE);
 				mdelay(3);
 				BeceemEEPROMBulkRead(Adapter,&auiData[0],uiOffset,MAX_RW_SIZE);
 
-				if(OsalMemCompare(&pBuffer[uiIndex],&auiData[0],MAX_RW_SIZE))
+				if(memcmp(&pBuffer[uiIndex],&auiData[0],MAX_RW_SIZE))
 				{
 					return -1;
 				}
@@ -1986,7 +1975,7 @@ static INT BeceemEEPROMReadBackandVerify(
 		else
 		{ // Handle the reads less than 4 bytes...
 			uiData = 0;
-			OsalMemMove(&uiData,((PUCHAR)pBuffer)+(uiIndex*sizeof(UINT)),uiNumBytes);
+			memcpy(&uiData,((PUCHAR)pBuffer)+(uiIndex*sizeof(UINT)),uiNumBytes);
 			BeceemEEPROMBulkRead(Adapter,&uiRdbk,uiOffset,4);
 
 			if(memcmp(&uiData, &uiRdbk, uiNumBytes))
@@ -2186,7 +2175,7 @@ INT BeceemEEPROMBulkWrite(
 
 		if(uiBytesToCopy >= (16 -uiExtraBytes))
 		{
-			OsalMemMove((((PUCHAR)&uiData[0])+uiExtraBytes),pBuffer,MAX_RW_SIZE- uiExtraBytes);
+			memcpy((((PUCHAR)&uiData[0])+uiExtraBytes),pBuffer,MAX_RW_SIZE- uiExtraBytes);
 
 			if ( STATUS_FAILURE == BeceemEEPROMWritePage( Adapter, uiData, uiTempOffset ) )
 					return STATUS_FAILURE;
@@ -2197,7 +2186,7 @@ INT BeceemEEPROMBulkWrite(
 		}
 		else
 		{
-			OsalMemMove((((PUCHAR)&uiData[0])+uiExtraBytes),pBuffer,uiBytesToCopy);
+			memcpy((((PUCHAR)&uiData[0])+uiExtraBytes),pBuffer,uiBytesToCopy);
 
 			if ( STATUS_FAILURE == BeceemEEPROMWritePage( Adapter, uiData, uiTempOffset ) )
 					return STATUS_FAILURE;
@@ -2233,7 +2222,7 @@ INT BeceemEEPROMBulkWrite(
 	// To program non 16byte aligned data, read 16byte and then update.
 	//
 			BeceemEEPROMBulkRead(Adapter,&uiData[0],uiOffset,16);
-			OsalMemMove(&uiData[0],pBuffer+uiIndex,uiBytesToCopy);
+			memcpy(&uiData[0],pBuffer+uiIndex,uiBytesToCopy);
 
 
 			if ( STATUS_FAILURE == BeceemEEPROMWritePage( Adapter, uiData, uiOffset ) )
@@ -2763,7 +2752,7 @@ INT BcmAllocFlashCSStructure(PMINI_ADAPTER psAdapter)
 	if(psAdapter->psFlash2xCSInfo == NULL)
 	{
 		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_PRINTK, 0, 0,"Can't Allocate memory for Flash 2.x");
-		bcm_kfree(psAdapter->psFlashCSInfo);
+		kfree(psAdapter->psFlashCSInfo);
 		return -ENOMEM;
 	}
 
@@ -2771,8 +2760,8 @@ INT BcmAllocFlashCSStructure(PMINI_ADAPTER psAdapter)
 	if(psAdapter->psFlash2xVendorInfo == NULL)
 	{
 		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_PRINTK, 0, 0,"Can't Allocate Vendor Info Memory for Flash 2.x");
-		bcm_kfree(psAdapter->psFlashCSInfo);
-		bcm_kfree(psAdapter->psFlash2xCSInfo);
+		kfree(psAdapter->psFlashCSInfo);
+		kfree(psAdapter->psFlash2xCSInfo);
 		return -ENOMEM;
 	}
 
@@ -2786,9 +2775,9 @@ INT BcmDeAllocFlashCSStructure(PMINI_ADAPTER psAdapter)
 		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_PRINTK, 0, 0," Adapter structure point is NULL");
 		return -EINVAL;
 	}
-	bcm_kfree(psAdapter->psFlashCSInfo);
-	bcm_kfree(psAdapter->psFlash2xCSInfo);
-	bcm_kfree(psAdapter->psFlash2xVendorInfo);
+	kfree(psAdapter->psFlashCSInfo);
+	kfree(psAdapter->psFlash2xCSInfo);
+	kfree(psAdapter->psFlash2xVendorInfo);
 	return STATUS_SUCCESS ;
 }
 
@@ -4570,7 +4559,7 @@ INT BcmCopyISO(PMINI_ADAPTER Adapter, FLASH2X_COPY_SECTION sCopySectStrut)
 
 	}
 
-	bcm_kfree(Buff);
+	kfree(Buff);
 
 	return Status;
 }
@@ -4936,7 +4925,7 @@ INT	BcmCopySection(PMINI_ADAPTER Adapter,
 				BytesToBeCopied = numOfBytes;
 		}
 	}while(numOfBytes > 0) ;
-	bcm_kfree(pBuff);
+	kfree(pBuff);
 	Adapter->bHeaderChangeAllowed = FALSE ;
 	return Status;
 }
@@ -5006,7 +4995,7 @@ INT SaveHeaderIfPresent(PMINI_ADAPTER Adapter, PUCHAR pBuff, UINT uiOffset)
 		//Replace Buffer content with Header
 		memcpy(pBuff +offsetToProtect,pTempBuff,HeaderSizeToProtect);
 
-		bcm_kfree(pTempBuff);
+		kfree(pTempBuff);
 	}
 	if(bHasHeader && Adapter->bSigCorrupted)
 	{
@@ -5525,11 +5514,11 @@ INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 	else
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"BCM Signature is not present in header");
-		bcm_kfree(pBuff);
+		kfree(pBuff);
 		return STATUS_FAILURE;
 	}
 
-	bcm_kfree(pBuff);
+	kfree(pBuff);
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Corrupted the signature");
 	return STATUS_SUCCESS ;
 }
@@ -5575,14 +5564,14 @@ INT CorruptISOSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 	else
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"BCM Signature is not present in header");
-		bcm_kfree(pBuff);
+		kfree(pBuff);
 		return STATUS_FAILURE;
 	}
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Corrupted the signature");
 	BCM_DEBUG_PRINT_BUFFER(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,pBuff,MAX_RW_SIZE);
 
-	bcm_kfree(pBuff);
+	kfree(pBuff);
 	return STATUS_SUCCESS ;
 }
 

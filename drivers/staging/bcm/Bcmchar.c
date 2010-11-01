@@ -93,7 +93,7 @@ static int bcm_char_release(struct inode *inode, struct file *filp)
     /*Stop Queuing the control response Packets*/
     atomic_dec(&Adapter->ApplicationRunning);
 
-    bcm_kfree(pTarang);
+    kfree(pTarang);
 
 	/* remove this filp from the asynchronously notified filp's */
     filp->private_data = NULL;
@@ -141,12 +141,12 @@ static ssize_t bcm_char_read(struct file *filp, char __user *buf, size_t size, l
 		PktLen = Packet->len;
 		if(copy_to_user(buf, Packet->data, PktLen))
 		{
-			bcm_kfree_skb(Packet);
+			dev_kfree_skb(Packet);
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "\nReturning from copy to user failure \n");
 			return -EFAULT;
 		}
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Read %d Bytes From Adapter packet = 0x%p by process %d!\n", PktLen, Packet, current->pid);
-		bcm_kfree_skb(Packet);
+		dev_kfree_skb(Packet);
 	}
 
     BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "<====\n");
@@ -239,7 +239,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 					(PUINT)temp_buff, Bufflen);
 			if(Status != STATUS_SUCCESS)
 			{
-				bcm_kfree(temp_buff);
+				kfree(temp_buff);
 				return Status;
 			}
 			if(copy_to_user(IoBuffer.OutputBuffer,
@@ -247,7 +247,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			{
 				Status = -EFAULT;
 			}
-			bcm_kfree(temp_buff);
+			kfree(temp_buff);
 			break;
 		}
 		case IOCTL_BCM_REGISTER_WRITE_PRIVATE:
@@ -344,7 +344,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 						(PUINT)temp_buff, IoBuffer.OutputLength);
 			if(Status != STATUS_SUCCESS)
 			{
-				bcm_kfree(temp_buff);
+				kfree(temp_buff);
 				return Status;
 			}
 			if(copy_to_user(IoBuffer.OutputBuffer,
@@ -352,7 +352,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			{
 				Status = -EFAULT;
 			}
-			bcm_kfree(temp_buff);
+			kfree(temp_buff);
 			break;
 		}
 		case IOCTL_BCM_REGISTER_WRITE:
@@ -796,7 +796,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 					IoBuffer.InputLength))
 			{
 				Status = -EFAULT;
-				bcm_kfree(pvBuffer);
+				kfree(pvBuffer);
 				break;
 			}
 
@@ -816,7 +816,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			Status = CopyBufferToControlPacket(Adapter, (PVOID)pvBuffer);
 		cntrlEnd:
 			up(&Adapter->LowPowerModeSync);
-			bcm_kfree(pvBuffer);
+			kfree(pvBuffer);
 			break;
 		}
 		case IOCTL_BCM_BUFFER_DOWNLOAD_START:
@@ -924,7 +924,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			  if(Status != STATUS_SUCCESS)
 					up(&Adapter->fw_download_sema);
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, OSAL_DBG, DBG_LVL_ALL, "IOCTL: Firmware File Uploaded\n");
-				bcm_kfree(psFwInfo);
+				kfree(psFwInfo);
 				break;
 			}
 		case IOCTL_BCM_BUFFER_DOWNLOAD_STOP:
@@ -1193,11 +1193,11 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				sizeof(S_MIBS_HOST_STATS_MIBS)))
 			{
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Copy to user failed\n");
-				bcm_kfree(temp_buff);
+				kfree(temp_buff);
 				return -EFAULT;
 			}
 
-			bcm_kfree(temp_buff);
+			kfree(temp_buff);
 			break;
 		}
 
@@ -1246,7 +1246,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				/* Get WrmBuffer structure */
                 if(copy_from_user(pvBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
 				{
-					bcm_kfree(pvBuffer);
+					kfree(pvBuffer);
 					Status = -EFAULT;
 					break;
 				}
@@ -1256,7 +1256,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				if(((ULONG)pBulkBuffer->Register & 0x0F000000) != 0x0F000000 ||
 					((ULONG)pBulkBuffer->Register & 0x3))
 				{
-					bcm_kfree(pvBuffer);
+					kfree(pvBuffer);
                     BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0,"WRM Done On invalid Address : %x Access Denied.\n",(int)pBulkBuffer->Register);
 					Status = -EINVAL;
 					break;
@@ -1271,7 +1271,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 					(uiTempVar == EEPROM_REJECT_REG_4)) &&
 					(cmd == IOCTL_BCM_REGISTER_WRITE))
 				{
-					bcm_kfree(pvBuffer);
+					kfree(pvBuffer);
                     BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0,"EEPROM Access Denied, not in VSG Mode\n");
 					Status = -EFAULT;
 					break;
@@ -1287,7 +1287,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "WRM Failed\n");
 				}
 
-				bcm_kfree(pvBuffer);
+				kfree(pvBuffer);
 				break;
 			}
 
@@ -1486,7 +1486,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 							stNVMReadWrite.uiNumBytes))
 				{
 					Status = -EFAULT;
-					bcm_kfree(pReadData);
+					kfree(pReadData);
 					break;
 				}
 
@@ -1501,7 +1501,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 					{
 						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
 						up(&Adapter->NVMRdmWrmLock);
-						bcm_kfree(pReadData);
+						kfree(pReadData);
 						return -EACCES;
 					}
 
@@ -1512,13 +1512,13 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 
 					if(Status != STATUS_SUCCESS)
 						{
-							bcm_kfree(pReadData);
+							kfree(pReadData);
 							return Status;
 						}
 					if(copy_to_user(stNVMReadWrite.pBuffer,
 							pReadData, (UINT)stNVMReadWrite.uiNumBytes))
 						{
-							bcm_kfree(pReadData);
+							kfree(pReadData);
 							Status = -EFAULT;
 						}
 				}
@@ -1533,7 +1533,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 					{
 						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
 						up(&Adapter->NVMRdmWrmLock);
-						bcm_kfree(pReadData);
+						kfree(pReadData);
 						return -EACCES;
 					}
 
@@ -1561,7 +1561,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 							{
 								BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"DSD Sig is present neither in Flash nor User provided Input..");
 								up(&Adapter->NVMRdmWrmLock);
-								bcm_kfree(pReadData);
+								kfree(pReadData);
 								return Status;
 							}
 
@@ -1570,7 +1570,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 							{
 								BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"DSD Sig is present neither in Flash nor User provided Input..");
 								up(&Adapter->NVMRdmWrmLock);
-								bcm_kfree(pReadData);
+								kfree(pReadData);
 								return Status;
 							}
 						}
@@ -1587,7 +1587,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 
 					if(Status != STATUS_SUCCESS)
 					{
-						bcm_kfree(pReadData);
+						kfree(pReadData);
 						return Status;
 					}
 				}
@@ -1595,7 +1595,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, " timetaken by Write/read :%ld msec\n",(tv1.tv_sec - tv0.tv_sec)*1000 +(tv1.tv_usec - tv0.tv_usec)/1000);
 
 
-				bcm_kfree(pReadData);
+				kfree(pReadData);
 				Status = STATUS_SUCCESS;
 			}
 			break;
@@ -1666,7 +1666,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				{
 					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
 					up(&Adapter->NVMRdmWrmLock);
-					bcm_kfree(pReadBuff);
+					kfree(pReadBuff);
 					return -EACCES;
 				}
 
@@ -1706,7 +1706,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 
 				}
 				up(&Adapter->NVMRdmWrmLock);
-				bcm_kfree(pReadBuff);
+				kfree(pReadBuff);
 
 			 }
 			 break ;
@@ -1799,7 +1799,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				{
 					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
 					up(&Adapter->NVMRdmWrmLock);
-					bcm_kfree(pWriteBuff);
+					kfree(pWriteBuff);
 					return -EACCES;
 				}
 
@@ -1838,7 +1838,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				}	while(NOB > 0);
 				BcmFlash2xWriteSig(Adapter,sFlash2xWrite.Section);
 				up(&Adapter->NVMRdmWrmLock);
-				bcm_kfree(pWriteBuff);
+				kfree(pWriteBuff);
 			 }
 			 break ;
 		case IOCTL_BCM_GET_FLASH2X_SECTION_BITMAP :
@@ -1874,7 +1874,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				{
 					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
 					up(&Adapter->NVMRdmWrmLock);
-					bcm_kfree(psFlash2xBitMap);
+					kfree(psFlash2xBitMap);
 					return -EACCES;
 				}
 
@@ -1884,10 +1884,10 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				if(Status)
 				{
 					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "copying Flash2x bitMap failed");
-					bcm_kfree(psFlash2xBitMap);
+					kfree(psFlash2xBitMap);
 					return -EFAULT;
 				}
-				bcm_kfree(psFlash2xBitMap);
+				kfree(psFlash2xBitMap);
 			 }
 			 break ;
 		case IOCTL_BCM_SET_ACTIVE_SECTION :
@@ -2214,7 +2214,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 					(Adapter->bPreparingForLowPowerMode ==TRUE))
 				{
 					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
-					bcm_kfree(pReadBuff);
+					kfree(pReadBuff);
 					up(&Adapter->NVMRdmWrmLock);
 					return -EACCES;
 				}
@@ -2254,7 +2254,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				}
 				Adapter->bFlashRawRead = FALSE ;
 				up(&Adapter->NVMRdmWrmLock);
-				bcm_kfree(pReadBuff);
+				kfree(pReadBuff);
 				break ;
 			 }
 
