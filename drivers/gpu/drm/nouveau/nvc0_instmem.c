@@ -26,67 +26,89 @@
 
 #include "nouveau_drv.h"
 
+struct nvc0_gpuobj_node {
+	struct nouveau_bo *vram;
+	struct drm_mm_node *ramin;
+	u32 align;
+};
+
 int
-nvc0_instmem_populate(struct drm_device *dev, struct nouveau_gpuobj *gpuobj,
-		      u32 *size, u32 align)
+nvc0_instmem_get(struct nouveau_gpuobj *gpuobj, u32 size, u32 align)
 {
+	struct drm_device *dev = gpuobj->dev;
+	struct nvc0_gpuobj_node *node = NULL;
 	int ret;
 
-	*size = ALIGN(*size, 4096);
-	if (*size == 0)
-		return -EINVAL;
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return -ENOMEM;
+	node->align = align;
 
-	ret = nouveau_bo_new(dev, NULL, *size, align, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, true, false, &gpuobj->im_backing);
+	ret = nouveau_bo_new(dev, NULL, size, align, TTM_PL_FLAG_VRAM,
+			     0, 0x0000, true, false, &node->vram);
 	if (ret) {
 		NV_ERROR(dev, "error getting PRAMIN backing pages: %d\n", ret);
 		return ret;
 	}
 
-	ret = nouveau_bo_pin(gpuobj->im_backing, TTM_PL_FLAG_VRAM);
+	ret = nouveau_bo_pin(node->vram, TTM_PL_FLAG_VRAM);
 	if (ret) {
 		NV_ERROR(dev, "error pinning PRAMIN backing VRAM: %d\n", ret);
-		nouveau_bo_ref(NULL, &gpuobj->im_backing);
+		nouveau_bo_ref(NULL, &node->vram);
 		return ret;
 	}
 
-	gpuobj->vinst = gpuobj->im_backing->bo.mem.start << PAGE_SHIFT;
+	gpuobj->vinst = node->vram->bo.mem.start << PAGE_SHIFT;
+	gpuobj->size  = node->vram->bo.mem.num_pages << PAGE_SHIFT;
+	gpuobj->node  = node;
 	return 0;
 }
 
 void
-nvc0_instmem_clear(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
+nvc0_instmem_put(struct nouveau_gpuobj *gpuobj)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvc0_gpuobj_node *node;
 
-	if (gpuobj && gpuobj->im_backing) {
-		if (gpuobj->im_bound)
-			dev_priv->engine.instmem.unbind(dev, gpuobj);
-		nouveau_bo_unpin(gpuobj->im_backing);
-		nouveau_bo_ref(NULL, &gpuobj->im_backing);
-		gpuobj->im_backing = NULL;
-	}
+	node = gpuobj->node;
+	gpuobj->node = NULL;
+
+	nouveau_bo_unpin(node->vram);
+	nouveau_bo_ref(NULL, &node->vram);
+	kfree(node);
 }
 
 int
-nvc0_instmem_bind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
+nvc0_instmem_map(struct nouveau_gpuobj *gpuobj)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t pte, pte_end;
-	uint64_t vram;
+	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
+	struct nvc0_gpuobj_node *node = gpuobj->node;
+	struct drm_device *dev = gpuobj->dev;
+	struct drm_mm_node *ramin = NULL;
+	u32 pte, pte_end;
+	u64 vram;
 
-	if (!gpuobj->im_backing || !gpuobj->im_pramin || gpuobj->im_bound)
-		return -EINVAL;
+	do {
+		if (drm_mm_pre_get(&dev_priv->ramin_heap))
+			return -ENOMEM;
 
-	NV_DEBUG(dev, "st=0x%lx sz=0x%lx\n",
-		 gpuobj->im_pramin->start, gpuobj->im_pramin->size);
+		spin_lock(&dev_priv->ramin_lock);
+		ramin = drm_mm_search_free(&dev_priv->ramin_heap, gpuobj->size,
+					   node->align, 0);
+		if (ramin == NULL) {
+			spin_unlock(&dev_priv->ramin_lock);
+			return -ENOMEM;
+		}
 
-	pte     = gpuobj->im_pramin->start >> 12;
-	pte_end = (gpuobj->im_pramin->size >> 12) + pte;
+		ramin = drm_mm_get_block_atomic(ramin, gpuobj->size, node->align);
+		spin_unlock(&dev_priv->ramin_lock);
+	} while (ramin == NULL);
+
+	pte     = (ramin->start >> 12) << 1;
+	pte_end = ((ramin->size >> 12) << 1) + pte;
 	vram    = gpuobj->vinst;
 
 	NV_DEBUG(dev, "pramin=0x%lx, pte=%d, pte_end=%d\n",
-		 gpuobj->im_pramin->start, pte, pte_end);
+		 ramin->start, pte, pte_end);
 	NV_DEBUG(dev, "first vram page: 0x%010llx\n", gpuobj->vinst);
 
 	while (pte < pte_end) {
@@ -103,30 +125,35 @@ nvc0_instmem_bind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 		nv_wr32(dev, 0x100cbc, 0x80000005);
 	}
 
-	gpuobj->im_bound = 1;
+	node->ramin   = ramin;
+	gpuobj->pinst = ramin->start;
 	return 0;
 }
 
-int
-nvc0_instmem_unbind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
+void
+nvc0_instmem_unmap(struct nouveau_gpuobj *gpuobj)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t pte, pte_end;
+	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
+	struct nvc0_gpuobj_node *node = gpuobj->node;
+	u32 pte, pte_end;
 
-	if (gpuobj->im_bound == 0)
-		return -EINVAL;
+	if (!node->ramin || !dev_priv->ramin_available)
+		return;
 
-	pte     = gpuobj->im_pramin->start >> 12;
-	pte_end = (gpuobj->im_pramin->size >> 12) + pte;
+	pte     = (node->ramin->start >> 12) << 1;
+	pte_end = ((node->ramin->size >> 12) << 1) + pte;
+
 	while (pte < pte_end) {
-		nv_wr32(dev, 0x702000 + (pte * 8), 0);
-		nv_wr32(dev, 0x702004 + (pte * 8), 0);
+		nv_wr32(gpuobj->dev, 0x702000 + (pte * 8), 0);
+		nv_wr32(gpuobj->dev, 0x702004 + (pte * 8), 0);
 		pte++;
 	}
-	dev_priv->engine.instmem.flush(dev);
+	dev_priv->engine.instmem.flush(gpuobj->dev);
 
-	gpuobj->im_bound = 0;
-	return 0;
+	spin_lock(&dev_priv->ramin_lock);
+	drm_mm_put_block(node->ramin);
+	node->ramin = NULL;
+	spin_unlock(&dev_priv->ramin_lock);
 }
 
 void

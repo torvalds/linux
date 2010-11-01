@@ -168,16 +168,13 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 		   struct nouveau_gpuobj **gpuobj_ret)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_engine *engine = &dev_priv->engine;
+	struct nouveau_instmem_engine *instmem = &dev_priv->engine.instmem;
 	struct nouveau_gpuobj *gpuobj;
 	struct drm_mm_node *ramin = NULL;
-	int ret;
+	int ret, i;
 
 	NV_DEBUG(dev, "ch%d size=%u align=%d flags=0x%08x\n",
 		 chan ? chan->id : -1, size, align, flags);
-
-	if (!dev_priv || !gpuobj_ret || *gpuobj_ret != NULL)
-		return -EINVAL;
 
 	gpuobj = kzalloc(sizeof(*gpuobj), GFP_KERNEL);
 	if (!gpuobj)
@@ -193,88 +190,45 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 	spin_unlock(&dev_priv->ramin_lock);
 
 	if (chan) {
-		NV_DEBUG(dev, "channel heap\n");
-
 		ramin = drm_mm_search_free(&chan->ramin_heap, size, align, 0);
 		if (ramin)
 			ramin = drm_mm_get_block(ramin, size, align);
-
 		if (!ramin) {
 			nouveau_gpuobj_ref(NULL, &gpuobj);
 			return -ENOMEM;
 		}
-	} else {
-		NV_DEBUG(dev, "global heap\n");
 
-		/* allocate backing pages, sets vinst */
-		ret = engine->instmem.populate(dev, gpuobj, &size, align);
-		if (ret) {
-			nouveau_gpuobj_ref(NULL, &gpuobj);
-			return ret;
-		}
-
-		/* try and get aperture space */
-		do {
-			if (drm_mm_pre_get(&dev_priv->ramin_heap))
-				return -ENOMEM;
-
-			spin_lock(&dev_priv->ramin_lock);
-			ramin = drm_mm_search_free(&dev_priv->ramin_heap, size,
-						   align, 0);
-			if (ramin == NULL) {
-				spin_unlock(&dev_priv->ramin_lock);
-				nouveau_gpuobj_ref(NULL, &gpuobj);
-				return -ENOMEM;
-			}
-
-			ramin = drm_mm_get_block_atomic(ramin, size, align);
-			spin_unlock(&dev_priv->ramin_lock);
-		} while (ramin == NULL);
-
-		/* on nv50 it's ok to fail, we have a fallback path */
-		if (!ramin && dev_priv->card_type < NV_50) {
-			nouveau_gpuobj_ref(NULL, &gpuobj);
-			return -ENOMEM;
-		}
-	}
-
-	/* if we got a chunk of the aperture, map pages into it */
-	gpuobj->im_pramin = ramin;
-	if (!chan && gpuobj->im_pramin && dev_priv->ramin_available) {
-		ret = engine->instmem.bind(dev, gpuobj);
-		if (ret) {
-			nouveau_gpuobj_ref(NULL, &gpuobj);
-			return ret;
-		}
-	}
-
-	/* calculate the various different addresses for the object */
-	if (chan) {
 		gpuobj->pinst = chan->ramin->pinst;
 		if (gpuobj->pinst != ~0)
-			gpuobj->pinst += gpuobj->im_pramin->start;
+			gpuobj->pinst += ramin->start;
 
-		if (dev_priv->card_type < NV_50) {
+		if (dev_priv->card_type < NV_50)
 			gpuobj->cinst = gpuobj->pinst;
-		} else {
-			gpuobj->cinst = gpuobj->im_pramin->start;
-			gpuobj->vinst = gpuobj->im_pramin->start +
-					chan->ramin->vinst;
-		}
-	} else {
-		if (gpuobj->im_pramin)
-			gpuobj->pinst = gpuobj->im_pramin->start;
 		else
+			gpuobj->cinst = ramin->start;
+
+		gpuobj->vinst = ramin->start + chan->ramin->vinst;
+		gpuobj->node  = ramin;
+	} else {
+		ret = instmem->get(gpuobj, size, align);
+		if (ret) {
+			nouveau_gpuobj_ref(NULL, &gpuobj);
+			return ret;
+		}
+
+		ret = -ENOSYS;
+		if (dev_priv->ramin_available)
+			ret = instmem->map(gpuobj);
+		if (ret)
 			gpuobj->pinst = ~0;
-		gpuobj->cinst = 0xdeadbeef;
+
+		gpuobj->cinst = NVOBJ_CINST_GLOBAL;
 	}
 
 	if (gpuobj->flags & NVOBJ_FLAG_ZERO_ALLOC) {
-		int i;
-
 		for (i = 0; i < gpuobj->size; i += 4)
 			nv_wo32(gpuobj, i, 0);
-		engine->instmem.flush(dev);
+		instmem->flush(dev);
 	}
 
 
@@ -326,26 +280,34 @@ nouveau_gpuobj_del(struct kref *ref)
 		container_of(ref, struct nouveau_gpuobj, refcount);
 	struct drm_device *dev = gpuobj->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_engine *engine = &dev_priv->engine;
+	struct nouveau_instmem_engine *instmem = &dev_priv->engine.instmem;
 	int i;
 
 	NV_DEBUG(dev, "gpuobj %p\n", gpuobj);
 
-	if (gpuobj->im_pramin && (gpuobj->flags & NVOBJ_FLAG_ZERO_FREE)) {
+	if (gpuobj->node && (gpuobj->flags & NVOBJ_FLAG_ZERO_FREE)) {
 		for (i = 0; i < gpuobj->size; i += 4)
 			nv_wo32(gpuobj, i, 0);
-		engine->instmem.flush(dev);
+		instmem->flush(dev);
 	}
 
 	if (gpuobj->dtor)
 		gpuobj->dtor(dev, gpuobj);
 
-	if (gpuobj->im_backing)
-		engine->instmem.clear(dev, gpuobj);
+	if (gpuobj->cinst == NVOBJ_CINST_GLOBAL) {
+		if (gpuobj->node) {
+			instmem->unmap(gpuobj);
+			instmem->put(gpuobj);
+		}
+	} else {
+		if (gpuobj->node) {
+			spin_lock(&dev_priv->ramin_lock);
+			drm_mm_put_block(gpuobj->node);
+			spin_unlock(&dev_priv->ramin_lock);
+		}
+	}
 
 	spin_lock(&dev_priv->ramin_lock);
-	if (gpuobj->im_pramin)
-		drm_mm_put_block(gpuobj->im_pramin);
 	list_del(&gpuobj->list);
 	spin_unlock(&dev_priv->ramin_lock);
 
@@ -385,7 +347,7 @@ nouveau_gpuobj_new_fake(struct drm_device *dev, u32 pinst, u64 vinst,
 	kref_init(&gpuobj->refcount);
 	gpuobj->size  = size;
 	gpuobj->pinst = pinst;
-	gpuobj->cinst = 0xdeadbeef;
+	gpuobj->cinst = NVOBJ_CINST_GLOBAL;
 	gpuobj->vinst = vinst;
 
 	if (gpuobj->flags & NVOBJ_FLAG_ZERO_ALLOC) {
@@ -935,7 +897,7 @@ nouveau_gpuobj_suspend(struct drm_device *dev)
 	int i;
 
 	list_for_each_entry(gpuobj, &dev_priv->gpuobj_list, list) {
-		if (gpuobj->cinst != 0xdeadbeef)
+		if (gpuobj->cinst != NVOBJ_CINST_GLOBAL)
 			continue;
 
 		gpuobj->suspend = vmalloc(gpuobj->size);

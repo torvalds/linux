@@ -146,15 +146,16 @@ enum nouveau_flags {
 
 #define NVOBJ_FLAG_ZERO_ALLOC		(1 << 1)
 #define NVOBJ_FLAG_ZERO_FREE		(1 << 2)
+
+#define NVOBJ_CINST_GLOBAL	0xdeadbeef
+
 struct nouveau_gpuobj {
 	struct drm_device *dev;
 	struct kref refcount;
 	struct list_head list;
 
-	struct drm_mm_node *im_pramin;
-	struct nouveau_bo *im_backing;
+	void *node;
 	u32 *suspend;
-	int im_bound;
 
 	uint32_t flags;
 
@@ -288,11 +289,11 @@ struct nouveau_instmem_engine {
 	int	(*suspend)(struct drm_device *dev);
 	void	(*resume)(struct drm_device *dev);
 
-	int	(*populate)(struct drm_device *, struct nouveau_gpuobj *,
-			    u32 *size, u32 align);
-	void	(*clear)(struct drm_device *, struct nouveau_gpuobj *);
-	int	(*bind)(struct drm_device *, struct nouveau_gpuobj *);
-	int	(*unbind)(struct drm_device *, struct nouveau_gpuobj *);
+	int	(*get)(struct nouveau_gpuobj *, u32 size, u32 align);
+	void	(*put)(struct nouveau_gpuobj *);
+	int	(*map)(struct nouveau_gpuobj *);
+	void	(*unmap)(struct nouveau_gpuobj *);
+
 	void	(*flush)(struct drm_device *);
 };
 
@@ -1182,11 +1183,10 @@ extern int  nv04_instmem_init(struct drm_device *);
 extern void nv04_instmem_takedown(struct drm_device *);
 extern int  nv04_instmem_suspend(struct drm_device *);
 extern void nv04_instmem_resume(struct drm_device *);
-extern int  nv04_instmem_populate(struct drm_device *, struct nouveau_gpuobj *,
-				  u32 *size, u32 align);
-extern void nv04_instmem_clear(struct drm_device *, struct nouveau_gpuobj *);
-extern int  nv04_instmem_bind(struct drm_device *, struct nouveau_gpuobj *);
-extern int  nv04_instmem_unbind(struct drm_device *, struct nouveau_gpuobj *);
+extern int  nv04_instmem_get(struct nouveau_gpuobj *, u32 size, u32 align);
+extern void nv04_instmem_put(struct nouveau_gpuobj *);
+extern int  nv04_instmem_map(struct nouveau_gpuobj *);
+extern void nv04_instmem_unmap(struct nouveau_gpuobj *);
 extern void nv04_instmem_flush(struct drm_device *);
 
 /* nv50_instmem.c */
@@ -1194,11 +1194,10 @@ extern int  nv50_instmem_init(struct drm_device *);
 extern void nv50_instmem_takedown(struct drm_device *);
 extern int  nv50_instmem_suspend(struct drm_device *);
 extern void nv50_instmem_resume(struct drm_device *);
-extern int  nv50_instmem_populate(struct drm_device *, struct nouveau_gpuobj *,
-				  u32 *size, u32 align);
-extern void nv50_instmem_clear(struct drm_device *, struct nouveau_gpuobj *);
-extern int  nv50_instmem_bind(struct drm_device *, struct nouveau_gpuobj *);
-extern int  nv50_instmem_unbind(struct drm_device *, struct nouveau_gpuobj *);
+extern int  nv50_instmem_get(struct nouveau_gpuobj *, u32 size, u32 align);
+extern void nv50_instmem_put(struct nouveau_gpuobj *);
+extern int  nv50_instmem_map(struct nouveau_gpuobj *);
+extern void nv50_instmem_unmap(struct nouveau_gpuobj *);
 extern void nv50_instmem_flush(struct drm_device *);
 extern void nv84_instmem_flush(struct drm_device *);
 extern void nv50_vm_flush(struct drm_device *, int engine);
@@ -1208,11 +1207,10 @@ extern int  nvc0_instmem_init(struct drm_device *);
 extern void nvc0_instmem_takedown(struct drm_device *);
 extern int  nvc0_instmem_suspend(struct drm_device *);
 extern void nvc0_instmem_resume(struct drm_device *);
-extern int  nvc0_instmem_populate(struct drm_device *, struct nouveau_gpuobj *,
-				  u32 *size, u32 align);
-extern void nvc0_instmem_clear(struct drm_device *, struct nouveau_gpuobj *);
-extern int  nvc0_instmem_bind(struct drm_device *, struct nouveau_gpuobj *);
-extern int  nvc0_instmem_unbind(struct drm_device *, struct nouveau_gpuobj *);
+extern int  nvc0_instmem_get(struct nouveau_gpuobj *, u32 size, u32 align);
+extern void nvc0_instmem_put(struct nouveau_gpuobj *);
+extern int  nvc0_instmem_map(struct nouveau_gpuobj *);
+extern void nvc0_instmem_unmap(struct nouveau_gpuobj *);
 extern void nvc0_instmem_flush(struct drm_device *);
 
 /* nv04_mc.c */
