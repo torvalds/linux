@@ -39,7 +39,7 @@ SendPacketFromQueue->SetupNextSend->bcm_cmd53
 * Function    -	bcm_transmit()
 *
 * Description - This is the main transmit function for our virtual
-*				interface(veth0). It handles the ARP packets. It
+*				interface(eth0). It handles the ARP packets. It
 *				clones this packet and then Queue it to a suitable
 * 		 		Queue. Then calls the transmit_packet().
 *
@@ -50,118 +50,59 @@ SendPacketFromQueue->SetupNextSend->bcm_cmd53
 *
 *********************************************************************/
 
-INT bcm_transmit(struct sk_buff *skb, 		/**< skb */
-					struct net_device *dev 	/**< net device pointer */
-					)
+netdev_tx_t bcm_transmit(struct sk_buff *skb, struct net_device *dev)
 {
-	PMINI_ADAPTER      	Adapter = NULL;
-	USHORT				qindex=0;
-	struct timeval tv;
-	UINT		pkt_type = 0;
-	UINT 		calltransmit = 0;
+	PMINI_ADAPTER      	Adapter = GET_BCM_ADAPTER(dev);
+	SHORT qindex;
 
-	BCM_DEBUG_PRINT (Adapter, DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL, "\n%s====>\n",__FUNCTION__);
+	if (Adapter->device_removed || !Adapter->LinkUpStatus)
+		goto drop;
 
-	memset(&tv, 0, sizeof(tv));
-	/* Check for valid parameters */
-	if(skb == NULL || dev==NULL)
-	{
-	    BCM_DEBUG_PRINT (Adapter, DBG_TYPE_TX,TX_OSAL_DBG, DBG_LVL_ALL, "Got NULL skb or dev\n");
-		return -EINVAL;
+	if (Adapter->TransferMode != IP_PACKET_ONLY_MODE )
+		goto drop;
+
+	qindex = GetPacketQueueIndex(Adapter, skb);
+
+	if (INVALID_QUEUE_INDEX==qindex)	{
+		if (ntohs(eth_hdr(skb)->h_proto) != ETH_ARP_FRAME)
+			goto drop;
+
+		/*
+		  Reply directly to ARP request packet
+		  ARP Spoofing only if NO ETH CS rule matches for it
+		*/
+		reply_to_arp_request(skb);
+		return NETDEV_TX_OK;
 	}
 
-	Adapter = GET_BCM_ADAPTER(dev);
-	if(!Adapter)
-	{
-		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL, "Got Invalid Adapter\n");
-  		return -EINVAL;
+	if (Adapter->PackInfo[qindex].uiCurrentPacketsOnHost >= SF_MAX_ALLOWED_PACKETS_TO_BACKUP)
+		return NETDEV_TX_BUSY;
+
+	/* Now Enqueue the packet */
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL,
+			"bcm_transmit Enqueueing the Packet To Queue %d",qindex);
+	spin_lock(&Adapter->PackInfo[qindex].SFQueueLock);
+	Adapter->PackInfo[qindex].uiCurrentBytesOnHost += skb->len;
+	Adapter->PackInfo[qindex].uiCurrentPacketsOnHost++;
+
+	*((B_UINT32 *)skb->cb + SKB_CB_LATENCY_OFFSET ) = jiffies;
+	ENQUEUEPACKET(Adapter->PackInfo[qindex].FirstTxQueue,
+		      Adapter->PackInfo[qindex].LastTxQueue, skb);
+	atomic_inc(&Adapter->TotalPacketCount);
+	spin_unlock(&Adapter->PackInfo[qindex].SFQueueLock);
+
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL,"ENQ: \n");
+
+	/* FIXME - this is racy and incorrect, replace with work queue */
+	if (!atomic_read(&Adapter->TxPktAvail)) {
+		atomic_set(&Adapter->TxPktAvail, 1);
+		wake_up(&Adapter->tx_packet_wait_queue);
 	}
-	if(Adapter->device_removed == TRUE || !Adapter->LinkUpStatus)
-	{
-		if(!netif_queue_stopped(dev)) {
-				netif_carrier_off(dev);
-				netif_stop_queue(dev);
-		}
-		return STATUS_FAILURE;
-	}
-	BCM_DEBUG_PRINT (Adapter, DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL, "Packet size : %d\n", skb->len);
+	return NETDEV_TX_OK;
 
-	/*Add Ethernet CS check here*/
-	if(Adapter->TransferMode == IP_PACKET_ONLY_MODE )
-	{
-        pkt_type = ntohs(*(PUSHORT)(skb->data + 12));
-		/* Get the queue index where the packet is to be queued */
-		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL, "Getting the Queue Index.....");
-
-		qindex = GetPacketQueueIndex(Adapter,skb);
-
-		if((SHORT)INVALID_QUEUE_INDEX==(SHORT)qindex)
-		{
-			if(pkt_type == ETH_ARP_FRAME)
-			{
-				/*
-				Reply directly to ARP request packet
-				ARP Spoofing only if NO ETH CS rule matches for it
-				*/
-				BCM_DEBUG_PRINT (Adapter,DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL,"ARP OPCODE = %02x",
-
-                (*(PUCHAR)(skb->data + 21)));
-
-                reply_to_arp_request(skb);
-
-                BCM_DEBUG_PRINT (Adapter, DBG_TYPE_TX,TX_OSAL_DBG, DBG_LVL_ALL,"After reply_to_arp_request \n");
-
-			}
-			else
-			{
-                BCM_DEBUG_PRINT (Adapter, DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL,
-    			"Invalid queue index, dropping pkt\n");
-
-				dev_kfree_skb(skb);
-			}
-			return STATUS_SUCCESS;
-        }
-
-		if(Adapter->PackInfo[qindex].uiCurrentPacketsOnHost >= SF_MAX_ALLOWED_PACKETS_TO_BACKUP)
-		{
-			atomic_inc(&Adapter->TxDroppedPacketCount);
-			dev_kfree_skb(skb);
-			return STATUS_SUCCESS;
-		}
-
-		/* Now Enqueue the packet */
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "bcm_transmit Enqueueing the Packet To Queue %d",qindex);
-		spin_lock(&Adapter->PackInfo[qindex].SFQueueLock);
-		Adapter->PackInfo[qindex].uiCurrentBytesOnHost += skb->len;
-		Adapter->PackInfo[qindex].uiCurrentPacketsOnHost++;
-
-		*((B_UINT32 *)skb->cb + SKB_CB_LATENCY_OFFSET ) = jiffies;
-		ENQUEUEPACKET(Adapter->PackInfo[qindex].FirstTxQueue,
-  	                  Adapter->PackInfo[qindex].LastTxQueue, skb);
-		atomic_inc(&Adapter->TotalPacketCount);
-		spin_unlock(&Adapter->PackInfo[qindex].SFQueueLock);
-		do_gettimeofday(&tv);
-
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL,"ENQ: \n");
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL, "Pkt Len = %d, sec: %ld, usec: %ld\n",
-		(skb->len-ETH_HLEN), tv.tv_sec, tv.tv_usec);
-
-		if(calltransmit == 1)
-			transmit_packets(Adapter);
-		else
-		{
-			if(!atomic_read(&Adapter->TxPktAvail))
-			{
-				atomic_set(&Adapter->TxPktAvail, 1);
-				wake_up(&Adapter->tx_packet_wait_queue);
-			}
-		}
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL, "<====");
-	}
-	else
-		dev_kfree_skb(skb);
-
-  return STATUS_SUCCESS;
+ drop:
+	dev_kfree_skb(skb);
+	return NETDEV_TX_OK;
 }
 
 
@@ -337,6 +278,13 @@ errExit:
 	return status;
 }
 
+static int tx_pending(PMINI_ADAPTER Adapter)
+{
+	return (atomic_read(&Adapter->TxPktAvail)
+		&& MINIMUM_PENDING_DESCRIPTORS < atomic_read(&Adapter->CurrNumFreeTxDesc))
+		|| Adapter->device_removed || (1 == Adapter->downloadDDR);
+}
+
 /**
 @ingroup tx_functions
 Transmit thread
@@ -346,40 +294,17 @@ int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
 {
 	int status = 0;
 
-	UINT calltransmit = 1;
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "Entring to wait for signal from the interrupt service thread!Adapter = %p",Adapter);
-
-
-	while(1)
-	{
-		if(Adapter->LinkUpStatus){
+	while(! kthread_should_stop()) {
+		/* FIXME - the timeout looks like workaround for racey usage of TxPktAvail */
+		if(Adapter->LinkUpStatus)
 			wait_event_timeout(Adapter->tx_packet_wait_queue,
-				((atomic_read(&Adapter->TxPktAvail) &&
-				(MINIMUM_PENDING_DESCRIPTORS <
-				atomic_read(&Adapter->CurrNumFreeTxDesc)) &&
-				(Adapter->device_removed == FALSE))) ||
-				(1 == Adapter->downloadDDR) || kthread_should_stop()
-				|| (TRUE == Adapter->bEndPointHalted)
-				, msecs_to_jiffies(10));
-		}
-		else{
-			wait_event(Adapter->tx_packet_wait_queue,
-				((atomic_read(&Adapter->TxPktAvail) &&
-				(MINIMUM_PENDING_DESCRIPTORS <
-				atomic_read(&Adapter->CurrNumFreeTxDesc)) &&
-				(Adapter->device_removed == FALSE))) ||
-				(1 == Adapter->downloadDDR) || kthread_should_stop()
-				|| (TRUE == Adapter->bEndPointHalted)
-				);
-		}
+					   tx_pending(Adapter), msecs_to_jiffies(10));
+		else
+			wait_event_interruptible(Adapter->tx_packet_wait_queue,
+						 tx_pending(Adapter));
 
-		if(kthread_should_stop() || Adapter->device_removed)
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "Exiting the tx thread..\n");
-			Adapter->transmit_packet_thread = NULL;
-			return 0;
-		}
-
+		if (Adapter->device_removed)
+			break;
 
 		if(Adapter->downloadDDR == 1)
 		{
@@ -424,11 +349,13 @@ int tx_pkt_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
 		}
 
 
-		if(calltransmit)
-			transmit_packets(Adapter);
+		transmit_packets(Adapter);
 
 		atomic_set(&Adapter->TxPktAvail, 0);
 	}
+
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "Exiting the tx thread..\n");
+	Adapter->transmit_packet_thread = NULL;
 	return 0;
 }
 
