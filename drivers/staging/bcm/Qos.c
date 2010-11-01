@@ -384,7 +384,6 @@ static VOID PruneQueue(PMINI_ADAPTER Adapter, INT iIndex)
 			Adapter->PackInfo[iIndex].uiDroppedCountPackets);
 
 		atomic_dec(&Adapter->TotalPacketCount);
-		Adapter->bcm_jiffies = jiffies;
 	}
 
 	spin_unlock_bh(&Adapter->PackInfo[iIndex].SFQueueLock);

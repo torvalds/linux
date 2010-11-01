@@ -172,10 +172,8 @@ static VOID CheckAndSendPacketFromIndex(PMINI_ADAPTER Adapter, PacketInfo *psSF)
 
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "UpdateTokenCount ");
 		if(Adapter->IdleMode || Adapter->bPreparingForLowPowerMode)
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Device is in Idle Mode..Hence blocking Data Packets..\n");
-			return;
-		}
+			return;	/* in idle mode */
+
 		// Check for Free Descriptors
 		if(atomic_read(&Adapter->CurrNumFreeTxDesc) <= MINIMUM_PENDING_DESCRIPTORS)
 		{
@@ -262,17 +260,6 @@ static VOID CheckAndSendPacketFromIndex(PMINI_ADAPTER Adapter, PacketInfo *psSF)
 			}
 	   	}
 	}
-
-	if(Status != STATUS_SUCCESS)	//Tx of data packet to device Failed
-	{
-		if(Adapter->bcm_jiffies == 0)
-			Adapter->bcm_jiffies = jiffies;
-	}
-	else
-	{
-		Adapter->bcm_jiffies = 0;
-	}
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "<=====");
 }
 
 
@@ -359,12 +346,7 @@ VOID transmit_packets(PMINI_ADAPTER Adapter)
 		if(exit_flag == TRUE )
 		    break ;
 	}/* end of inner while loop */
-	if(Adapter->bcm_jiffies == 0 &&
-		atomic_read(&Adapter->TotalPacketCount) != 0 &&
-	   	uiPrevTotalCount == atomic_read(&Adapter->TotalPacketCount))
-	{
-		Adapter->bcm_jiffies = jiffies;
-	}
+
 	update_per_cid_rx  (Adapter);
 	Adapter->txtransmit_running = 0;
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "<======");

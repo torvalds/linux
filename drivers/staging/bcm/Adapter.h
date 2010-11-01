@@ -404,7 +404,6 @@ struct _MINI_ADAPTER
 	PPER_TARANG_DATA    pTarangs;
 	spinlock_t			control_queue_lock;
 	wait_queue_head_t	process_read_wait_queue;
-	ULONG		    	bcm_jiffies;	/* Store Jiffies value */
 
 	// the pointer to the first packet we have queued in send
 	// deserialized miniport support variables

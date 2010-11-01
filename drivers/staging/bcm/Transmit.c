@@ -55,12 +55,6 @@ INT SendControlPacket(PMINI_ADAPTER Adapter, char *pControlPacket)
 		((PLeader->PLength-1)/MAX_DEVICE_DESC_SIZE)+1))
     {
     	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "NO FREE DESCRIPTORS TO SEND CONTROL PACKET");
-       	if(Adapter->bcm_jiffies == 0)
-        {
-        	Adapter->bcm_jiffies = jiffies;
-            BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "UPDATED TIME(hex): %lu",
-				Adapter->bcm_jiffies);
-        }
         return STATUS_FAILURE;
     }
 
