@@ -1,14 +1,5 @@
 #include "headers.h"
 
-static int debug = -1;
-module_param(debug, uint, 0600);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
-
-static const u32 default_msg =
-    NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK
-    | NETIF_MSG_TIMER | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR
-    | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN;
-
 struct net_device *gblpnetdev;
 
 static INT bcm_open(struct net_device *dev)
@@ -194,6 +185,10 @@ static const struct ethtool_ops bcm_ethtool_ops = {
 int register_networkdev(PMINI_ADAPTER Adapter)
 {
 	struct net_device *net = Adapter->dev;
+	PS_INTERFACE_ADAPTER IntfAdapter = Adapter->pvInterfaceAdapter;
+	struct usb_interface *udev = IntfAdapter->interface;
+	struct usb_device *xdev = IntfAdapter->udev;
+
 	int result;
 
 	net->netdev_ops = &bcmNetDevOps;
@@ -201,22 +196,43 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 	net->mtu = MTU_SIZE;	/* 1400 Bytes */
 	net->tx_queue_len = TX_QLEN;
 	net->flags |= IFF_NOARP;
-	Adapter->msg_enable = netif_msg_init(debug, default_msg);
 
 	netif_carrier_off(net);
 
 	SET_NETDEV_DEVTYPE(net, &wimax_type);
 
 	/* Read the MAC Address from EEPROM */
-	ReadMacAddressFromNVM(Adapter);
-
-	result = register_netdev(net);
-	if (result == 0)
-		gblpnetdev = Adapter->dev = net;
-	else {
-		Adapter->dev = NULL;
-		free_netdev(net);
+	result = ReadMacAddressFromNVM(Adapter);
+	if (result != STATUS_SUCCESS) {
+		dev_err(&udev->dev,
+			PFX "Error in Reading the mac Address: %d", result);
+ 		return -EIO;
 	}
 
-	return result;
+	result = register_netdev(net);
+	if (result)
+		return result;
+
+	gblpnetdev = Adapter->dev;
+
+	if (netif_msg_probe(Adapter))
+		dev_info(&udev->dev, PFX "%s: register usb-%s-%s %pM\n",
+			 net->name, xdev->bus->bus_name, xdev->devpath,
+			 net->dev_addr);
+
+	return 0;
+}
+
+void unregister_networkdev(PMINI_ADAPTER Adapter)
+{
+	struct net_device *net = Adapter->dev;
+	PS_INTERFACE_ADAPTER IntfAdapter = Adapter->pvInterfaceAdapter;
+	struct usb_interface *udev = IntfAdapter->interface;
+	struct usb_device *xdev = IntfAdapter->udev;
+
+	if (netif_msg_probe(Adapter))
+		dev_info(&udev->dev, PFX "%s: unregister usb-%s%s\n",
+			 net->name, xdev->bus->bus_name, xdev->devpath);
+ 
+	unregister_netdev(Adapter->dev);
 }

@@ -132,7 +132,7 @@ VOID AdapterFree(PMINI_ADAPTER Adapter)
 	if(Adapter->LEDInfo.led_thread_running & (BCM_LED_THREAD_RUNNING_ACTIVELY | BCM_LED_THREAD_RUNNING_INACTIVELY))
 		kthread_stop (Adapter->LEDInfo.led_cntrl_threadid);
 
-	unregister_netdev(Adapter->dev);
+	unregister_networkdev(Adapter);
 
 	/* FIXME: use proper wait_event and refcounting */
 	while(atomic_read(&Adapter->ApplicationRunning))

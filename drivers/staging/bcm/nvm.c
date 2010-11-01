@@ -287,42 +287,18 @@ INT ReadBeceemEEPROM( PMINI_ADAPTER Adapter,
 
 INT ReadMacAddressFromNVM(PMINI_ADAPTER Adapter)
 {
-	INT Status=0, i;
-	unsigned char puMacAddr[6] = {0};
-	INT AllZeroMac = 0;
-	INT AllFFMac = 0;
+	INT Status;
+	unsigned char puMacAddr[6];
 
 	Status = BeceemNVMRead(Adapter,
 			(PUINT)&puMacAddr[0],
 			INIT_PARAMS_1_MACADDRESS_ADDRESS,
 			MAC_ADDRESS_SIZE);
 
-	if(Status != STATUS_SUCCESS)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Error in Reading the mac Addres with status :%d", Status);
-		return Status;
-	}
-
-	memcpy(Adapter->dev->dev_addr, puMacAddr, MAC_ADDRESS_SIZE);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Modem MAC Addr :");
-    BCM_DEBUG_PRINT_BUFFER(Adapter,DBG_TYPE_PRINTK, 0, DBG_LVL_ALL,&Adapter->dev->dev_addr[0],MAC_ADDRESS_SIZE);
-	for(i=0;i<MAC_ADDRESS_SIZE;i++)
-	{
-
-		if(Adapter->dev->dev_addr[i] == 0x00)
-			AllZeroMac++;
-		if(Adapter->dev->dev_addr[i] == 0xFF)
-			AllFFMac++;
-
-	}
-	//BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "\n");
-	if(AllZeroMac == MAC_ADDRESS_SIZE)
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Warning :: MAC Address has all 00's");
-	if(AllFFMac == MAC_ADDRESS_SIZE)
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Warning :: MAC Address has all FF's");
+	if(Status == STATUS_SUCCESS)
+		memcpy(Adapter->dev->dev_addr, puMacAddr, MAC_ADDRESS_SIZE);
 
 	return Status;
-
 }
 
 //-----------------------------------------------------------------------------

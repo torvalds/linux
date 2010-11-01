@@ -11,6 +11,15 @@ static struct usb_device_id InterfaceUsbtable[] = {
 };
 MODULE_DEVICE_TABLE(usb, InterfaceUsbtable);
 
+static int debug = -1;
+module_param(debug, uint, 0600);
+MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+
+static const u32 default_msg =
+    NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK
+    | NETIF_MSG_TIMER | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR
+    | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN;
+
 static INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER Adapter);
 
 static VOID InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
@@ -158,6 +167,7 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	psAdapter = netdev_priv(ndev);
 	psAdapter->dev = ndev;
+	psAdapter->msg_enable = netif_msg_init(debug, default_msg);
 
     /* Init default driver debug state */
 
@@ -269,32 +279,22 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 static void usbbcm_disconnect (struct usb_interface *intf)
 {
-	PS_INTERFACE_ADAPTER psIntfAdapter = NULL;
-	PMINI_ADAPTER psAdapter = NULL;
-	struct usb_device       *udev = NULL;
-    PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	PS_INTERFACE_ADAPTER psIntfAdapter = usb_get_intfdata(intf);
+	PMINI_ADAPTER psAdapter;
+	struct usb_device  *udev = interface_to_usbdev (intf);
 
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Usb disconnected");
-	if(intf == NULL)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "intf pointer is NULL");
-		return;
-	}
-	psIntfAdapter = usb_get_intfdata(intf);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "psIntfAdapter 0x%p",psIntfAdapter);
 	if(psIntfAdapter == NULL)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "InterfaceAdapter pointer is NULL");
 		return;
-	}
+
 	psAdapter = psIntfAdapter->psAdapter;
+	netif_device_detach(psAdapter->dev);
+
 	if(psAdapter->bDoSuspend)
 		intf->needs_remote_wakeup = 0;
 
 	psAdapter->device_removed = TRUE ;
 	usb_set_intfdata(intf, NULL);
 	InterfaceAdapterFree(psIntfAdapter);
-	udev = interface_to_usbdev (intf);
 	usb_put_dev(udev);
 }
 

@@ -52,6 +52,7 @@ INT SendControlPacket(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
 
 
 int register_networkdev(PMINI_ADAPTER Adapter);
+void unregister_networkdev(PMINI_ADAPTER Adapter);
 
 INT AllocAdapterDsxBuffer(PMINI_ADAPTER Adapter);
 
