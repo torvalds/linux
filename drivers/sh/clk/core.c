@@ -90,8 +90,8 @@ struct clk_rate_round_data {
 static long clk_rate_round_helper(struct clk_rate_round_data *rounder)
 {
 	unsigned long rate_error, rate_error_prev = ~0UL;
-	unsigned long rate_best_fit = rounder->rate;
 	unsigned long highest, lowest, freq;
+	long rate_best_fit = -ENOENT;
 	int i;
 
 	highest = 0;
@@ -146,7 +146,7 @@ long clk_rate_table_round(struct clk *clk,
 	};
 
 	if (clk->nr_freqs < 1)
-		return 0;
+		return -ENOSYS;
 
 	return clk_rate_round_helper(&table_round);
 }
