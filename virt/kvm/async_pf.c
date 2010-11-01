@@ -196,7 +196,7 @@ int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu)
 {
 	struct kvm_async_pf *work;
 
-	if (!list_empty(&vcpu->async_pf.done))
+	if (!list_empty_careful(&vcpu->async_pf.done))
 		return 0;
 
 	work = kmem_cache_zalloc(async_pf_cache, GFP_ATOMIC);
@@ -207,7 +207,10 @@ int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu)
 	get_page(bad_page);
 	INIT_LIST_HEAD(&work->queue); /* for list_del to work */
 
+	spin_lock(&vcpu->async_pf.lock);
 	list_add_tail(&work->link, &vcpu->async_pf.done);
+	spin_unlock(&vcpu->async_pf.lock);
+
 	vcpu->async_pf.queued++;
 	return 0;
 }
