@@ -159,6 +159,13 @@ static int egalax_event(struct hid_device *hid, struct hid_field *field,
 {
 	struct egalax_data *td = hid_get_drvdata(hid);
 
+	/* Note, eGalax has two product lines: the first is resistive and
+	 * uses a standard parallel multitouch protocol (product ID ==
+	 * 48xx).  The second is capacitive and uses an unusual "serial"
+	 * protocol with a different message for each multitouch finger
+	 * (product ID == 72xx).  We do not yet generate a correct event
+	 * sequence for the capacitive/serial protocol.
+	 */
 	if (hid->claimed & HID_CLAIMED_INPUT) {
 		struct input_dev *input = field->hidinput->input;
 
@@ -246,6 +253,8 @@ static void egalax_remove(struct hid_device *hdev)
 static const struct hid_device_id egalax_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
 			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH1) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, egalax_devices);

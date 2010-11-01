@@ -59,6 +59,7 @@ void device_pm_init(struct device *dev)
 {
 	dev->power.status = DPM_ON;
 	init_completion(&dev->power.completion);
+	complete_all(&dev->power.completion);
 	dev->power.wakeup_count = 0;
 	pm_runtime_init(dev);
 }

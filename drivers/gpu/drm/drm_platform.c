@@ -53,6 +53,8 @@ int drm_get_platform_dev(struct platform_device *platdev,
 	dev->platformdev = platdev;
 	dev->dev = &platdev->dev;
 
+	mutex_lock(&drm_global_mutex);
+
 	ret = drm_fill_in_dev(dev, NULL, driver);
 
 	if (ret) {
@@ -87,6 +89,8 @@ int drm_get_platform_dev(struct platform_device *platdev,
 
 	list_add_tail(&dev->driver_item, &driver->device_list);
 
+	mutex_unlock(&drm_global_mutex);
+
 	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
 		 driver->name, driver->major, driver->minor, driver->patchlevel,
 		 driver->date, dev->primary->index);
@@ -100,6 +104,7 @@ err_g2:
 		drm_put_minor(&dev->control);
 err_g1:
 	kfree(dev);
+	mutex_unlock(&drm_global_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(drm_get_platform_dev);

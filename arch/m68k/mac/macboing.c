@@ -162,7 +162,7 @@ static void mac_init_asc( void )
 void mac_mksound( unsigned int freq, unsigned int length )
 {
 	__u32 cfreq = ( freq << 5 ) / 468;
-	__u32 flags;
+	unsigned long flags;
 	int i;
 
 	if ( mac_special_bell == NULL )
@@ -224,7 +224,7 @@ static void mac_nosound( unsigned long ignored )
  */
 static void mac_quadra_start_bell( unsigned int freq, unsigned int length, unsigned int volume )
 {
-	__u32 flags;
+	unsigned long flags;
 
 	/* if the bell is already ringing, ring longer */
 	if ( mac_bell_duration > 0 )
@@ -271,7 +271,7 @@ static void mac_quadra_start_bell( unsigned int freq, unsigned int length, unsig
 static void mac_quadra_ring_bell( unsigned long ignored )
 {
 	int	i, count = mac_asc_samplespersec / HZ;
-	__u32 flags;
+	unsigned long flags;
 
 	/*
 	 * we neither want a sound buffer overflow nor underflow, so we need to match

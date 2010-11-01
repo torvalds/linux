@@ -217,7 +217,7 @@ source "net/dns_resolver/Kconfig"
 
 config RPS
 	boolean
-	depends on SMP && SYSFS
+	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
 	default y
 
 menu "Network testing"

@@ -932,7 +932,7 @@ int gfs2_logd(void *data)
 
 		do {
 			prepare_to_wait(&sdp->sd_logd_waitq, &wait,
-					TASK_UNINTERRUPTIBLE);
+					TASK_INTERRUPTIBLE);
 			if (!gfs2_ail_flush_reqd(sdp) &&
 			    !gfs2_jrnl_flush_reqd(sdp) &&
 			    !kthread_should_stop())

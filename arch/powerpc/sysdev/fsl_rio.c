@@ -240,12 +240,13 @@ struct rio_priv {
 
 static void __iomem *rio_regs_win;
 
+#ifdef CONFIG_E500
 static int (*saved_mcheck_exception)(struct pt_regs *regs);
 
 static int fsl_rio_mcheck_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *entry = NULL;
-	unsigned long reason = (mfspr(SPRN_MCSR) & MCSR_MASK);
+	unsigned long reason = mfspr(SPRN_MCSR);
 
 	if (reason & MCSR_BUS_RBERR) {
 		reason = in_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR));
@@ -269,6 +270,7 @@ static int fsl_rio_mcheck_exception(struct pt_regs *regs)
 	else
 		return cur_cpu_spec->machine_check(regs);
 }
+#endif
 
 /**
  * fsl_rio_doorbell_send - Send a MPC85xx doorbell message
@@ -1517,8 +1519,10 @@ int fsl_rio_setup(struct platform_device *dev)
 	fsl_rio_doorbell_init(port);
 	fsl_rio_port_write_init(port);
 
+#ifdef CONFIG_E500
 	saved_mcheck_exception = ppc_md.machine_check_exception;
 	ppc_md.machine_check_exception = fsl_rio_mcheck_exception;
+#endif
 	/* Ensure that RFXE is set */
 	mtspr(SPRN_HID1, (mfspr(SPRN_HID1) | 0x20000));
 

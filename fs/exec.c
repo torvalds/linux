@@ -361,13 +361,13 @@ err:
 /*
  * count() counts the number of strings in array ARGV.
  */
-static int count(char __user * __user * argv, int max)
+static int count(const char __user * const __user * argv, int max)
 {
 	int i = 0;
 
 	if (argv != NULL) {
 		for (;;) {
-			char __user * p;
+			const char __user * p;
 
 			if (get_user(p, argv))
 				return -EFAULT;
@@ -376,6 +376,9 @@ static int count(char __user * __user * argv, int max)
 			argv++;
 			if (i++ >= max)
 				return -E2BIG;
+
+			if (fatal_signal_pending(current))
+				return -ERESTARTNOHAND;
 			cond_resched();
 		}
 	}
@@ -387,7 +390,7 @@ static int count(char __user * __user * argv, int max)
  * processes's memory to the new process's stack.  The call to get_user_pages()
  * ensures the destination page is created and not swapped out.
  */
-static int copy_strings(int argc, char __user * __user * argv,
+static int copy_strings(int argc, const char __user *const __user *argv,
 			struct linux_binprm *bprm)
 {
 	struct page *kmapped_page = NULL;
@@ -396,7 +399,7 @@ static int copy_strings(int argc, char __user * __user * argv,
 	int ret;
 
 	while (argc-- > 0) {
-		char __user *str;
+		const char __user *str;
 		int len;
 		unsigned long pos;
 
@@ -418,6 +421,12 @@ static int copy_strings(int argc, char __user * __user * argv,
 
 		while (len > 0) {
 			int offset, bytes_to_copy;
+
+			if (fatal_signal_pending(current)) {
+				ret = -ERESTARTNOHAND;
+				goto out;
+			}
+			cond_resched();
 
 			offset = pos % PAGE_SIZE;
 			if (offset == 0)
@@ -470,12 +479,13 @@ out:
 /*
  * Like copy_strings, but get argv and its values from kernel memory.
  */
-int copy_strings_kernel(int argc,char ** argv, struct linux_binprm *bprm)
+int copy_strings_kernel(int argc, const char *const *argv,
+			struct linux_binprm *bprm)
 {
 	int r;
 	mm_segment_t oldfs = get_fs();
 	set_fs(KERNEL_DS);
-	r = copy_strings(argc, (char __user * __user *)argv, bprm);
+	r = copy_strings(argc, (const char __user *const  __user *)argv, bprm);
 	set_fs(oldfs);
 	return r;
 }
@@ -593,6 +603,11 @@ int setup_arg_pages(struct linux_binprm *bprm,
 #else
 	stack_top = arch_align_stack(stack_top);
 	stack_top = PAGE_ALIGN(stack_top);
+
+	if (unlikely(stack_top < mmap_min_addr) ||
+	    unlikely(vma->vm_end - vma->vm_start >= stack_top - mmap_min_addr))
+		return -ENOMEM;
+
 	stack_shift = vma->vm_end - stack_top;
 
 	bprm->p -= stack_shift;
@@ -997,7 +1012,7 @@ EXPORT_SYMBOL(flush_old_exec);
 void setup_new_exec(struct linux_binprm * bprm)
 {
 	int i, ch;
-	char * name;
+	const char *name;
 	char tcomm[sizeof(current->comm)];
 
 	arch_pick_mmap_layout(current->mm);
@@ -1117,7 +1132,7 @@ int check_unsafe_exec(struct linux_binprm *bprm)
 	bprm->unsafe = tracehook_unsafe_exec(p);
 
 	n_fs = 1;
-	write_lock(&p->fs->lock);
+	spin_lock(&p->fs->lock);
 	rcu_read_lock();
 	for (t = next_thread(p); t != p; t = next_thread(t)) {
 		if (t->fs == p->fs)
@@ -1134,7 +1149,7 @@ int check_unsafe_exec(struct linux_binprm *bprm)
 			res = 1;
 		}
 	}
-	write_unlock(&p->fs->lock);
+	spin_unlock(&p->fs->lock);
 
 	return res;
 }
@@ -1316,9 +1331,9 @@ EXPORT_SYMBOL(search_binary_handler);
 /*
  * sys_execve() executes a new program.
  */
-int do_execve(char * filename,
-	char __user *__user *argv,
-	char __user *__user *envp,
+int do_execve(const char * filename,
+	const char __user *const __user *argv,
+	const char __user *const __user *envp,
 	struct pt_regs * regs)
 {
 	struct linux_binprm *bprm;
@@ -1999,3 +2014,43 @@ fail_creds:
 fail:
 	return;
 }
+
+/*
+ * Core dumping helper functions.  These are the only things you should
+ * do on a core-file: use only these functions to write out all the
+ * necessary info.
+ */
+int dump_write(struct file *file, const void *addr, int nr)
+{
+	return access_ok(VERIFY_READ, addr, nr) && file->f_op->write(file, addr, nr, &file->f_pos) == nr;
+}
+EXPORT_SYMBOL(dump_write);
+
+int dump_seek(struct file *file, loff_t off)
+{
+	int ret = 1;
+
+	if (file->f_op->llseek && file->f_op->llseek != no_llseek) {
+		if (file->f_op->llseek(file, off, SEEK_CUR) < 0)
+			return 0;
+	} else {
+		char *buf = (char *)get_zeroed_page(GFP_KERNEL);
+
+		if (!buf)
+			return 0;
+		while (off > 0) {
+			unsigned long n = off;
+
+			if (n > PAGE_SIZE)
+				n = PAGE_SIZE;
+			if (!dump_write(file, buf, n)) {
+				ret = 0;
+				break;
+			}
+			off -= n;
+		}
+		free_page((unsigned long)buf);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(dump_seek);

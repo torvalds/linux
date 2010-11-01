@@ -35,9 +35,10 @@
  *	in any case.
  */
 
-int verify_iovec(struct msghdr *m, struct iovec *iov, struct sockaddr *address, int mode)
+long verify_iovec(struct msghdr *m, struct iovec *iov, struct sockaddr *address, int mode)
 {
-	int size, err, ct;
+	int size, ct;
+	long err;
 
 	if (m->msg_namelen) {
 		if (mode == VERIFY_READ) {

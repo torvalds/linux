@@ -583,6 +583,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	sf->gprs[9] = (unsigned long) sf;
 	cpu_lowcore->save_area[15] = (unsigned long) sf;
 	__ctl_store(cpu_lowcore->cregs_save_area, 0, 15);
+	atomic_inc(&init_mm.context.attach_count);
 	asm volatile(
 		"	stam	0,15,0(%0)"
 		: : "a" (&cpu_lowcore->access_regs_save_area) : "memory");
@@ -659,6 +660,7 @@ void __cpu_die(unsigned int cpu)
 	while (sigp_p(0, cpu, sigp_set_prefix) == sigp_busy)
 		udelay(10);
 	smp_free_lowcore(cpu);
+	atomic_dec(&init_mm.context.attach_count);
 	pr_info("Processor %d stopped\n", cpu);
 }
 

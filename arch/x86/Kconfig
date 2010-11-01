@@ -245,6 +245,11 @@ config ARCH_HWEIGHT_CFLAGS
 
 config KTIME_SCALAR
 	def_bool X86_32
+
+config ARCH_CPU_PROBE_RELEASE
+	def_bool y
+	depends on HOTPLUG_CPU
+
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 
@@ -749,11 +754,11 @@ config IOMMU_API
 	def_bool (AMD_IOMMU || DMAR)
 
 config MAXSMP
-	bool "Configure Maximum number of SMP Processors and NUMA Nodes"
+	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
 	depends on X86_64 && SMP && DEBUG_KERNEL && EXPERIMENTAL
 	select CPUMASK_OFFSTACK
 	---help---
-	  Configure maximum number of CPUS and NUMA Nodes for this architecture.
+	  Enable maximum number of CPUS and NUMA Nodes for this architecture.
 	  If unsure, say N.
 
 config NR_CPUS

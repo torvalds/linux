@@ -32,6 +32,20 @@
 #include "drm_crtc.h"
 
 #include "drm_crtc_helper.h"
+
+#define wait_for(COND, MS, W) ({ \
+	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);	\
+	int ret__ = 0;							\
+	while (! (COND)) {						\
+		if (time_after(jiffies, timeout__)) {			\
+			ret__ = -ETIMEDOUT;				\
+			break;						\
+		}							\
+		if (W) msleep(W);					\
+	}								\
+	ret__;								\
+})
+
 /*
  * Display related stuff
  */
@@ -102,7 +116,6 @@ struct intel_encoder {
 	struct i2c_adapter *ddc_bus;
 	bool load_detect_temp;
 	bool needs_tv_clock;
-	void *dev_priv;
 	void (*hot_plug)(struct intel_encoder *);
 	int crtc_mask;
 	int clone_mask;
@@ -110,7 +123,6 @@ struct intel_encoder {
 
 struct intel_connector {
 	struct drm_connector base;
-	void *dev_priv;
 };
 
 struct intel_crtc;
@@ -156,13 +168,23 @@ struct intel_crtc {
 	uint32_t cursor_addr;
 	int16_t cursor_x, cursor_y;
 	int16_t cursor_width, cursor_height;
-	bool cursor_visble;
+	bool cursor_visible, cursor_on;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
 #define to_intel_connector(x) container_of(x, struct intel_connector, base)
 #define enc_to_intel_encoder(x) container_of(x, struct intel_encoder, enc)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
+
+struct intel_unpin_work {
+	struct work_struct work;
+	struct drm_device *dev;
+	struct drm_gem_object *old_fb_obj;
+	struct drm_gem_object *pending_flip_obj;
+	struct drm_pending_vblank_event *event;
+	int pending;
+	bool enable_stall_check;
+};
 
 struct i2c_adapter *intel_i2c_create(struct drm_device *dev, const u32 reg,
 				     const char *name);
@@ -188,10 +210,18 @@ extern bool intel_dpd_is_edp(struct drm_device *dev);
 extern void intel_edp_link_config (struct intel_encoder *, int *, int *);
 
 
+extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
+				   struct drm_display_mode *adjusted_mode);
+extern void intel_pch_panel_fitting(struct drm_device *dev,
+				    int fitting_mode,
+				    struct drm_display_mode *mode,
+				    struct drm_display_mode *adjusted_mode);
+
 extern int intel_panel_fitter_pipe (struct drm_device *dev);
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_encoder_prepare (struct drm_encoder *encoder);
 extern void intel_encoder_commit (struct drm_encoder *encoder);
+extern void intel_encoder_destroy(struct drm_encoder *encoder);
 
 extern struct drm_encoder *intel_attached_encoder(struct drm_connector *connector);
 
@@ -199,7 +229,7 @@ extern struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 						    struct drm_crtc *crtc);
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
-extern void intel_wait_for_vblank(struct drm_device *dev);
+extern void intel_wait_for_vblank(struct drm_device *dev, int pipe);
 extern struct drm_crtc *intel_get_crtc_from_pipe(struct drm_device *dev, int pipe);
 extern struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 						   struct drm_connector *connector,

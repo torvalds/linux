@@ -852,8 +852,8 @@ xfs_convert_page(
 		SetPageUptodate(page);
 
 	if (count) {
-		wbc->nr_to_write--;
-		if (wbc->nr_to_write <= 0)
+		if (--wbc->nr_to_write <= 0 &&
+		    wbc->sync_mode == WB_SYNC_NONE)
 			done = 1;
 	}
 	xfs_start_page_writeback(page, !page_dirty, count);
@@ -1068,7 +1068,7 @@ xfs_vm_writepage(
 	 * by themselves.
 	 */
 	if ((current->flags & (PF_MEMALLOC|PF_KSWAPD)) == PF_MEMALLOC)
-		goto out_fail;
+		goto redirty;
 
 	/*
 	 * We need a transaction if there are delalloc or unwritten buffers
@@ -1080,7 +1080,7 @@ xfs_vm_writepage(
 	 */
 	xfs_count_page_state(page, &delalloc, &unwritten);
 	if ((current->flags & PF_FSTRANS) && (delalloc || unwritten))
-		goto out_fail;
+		goto redirty;
 
 	/* Is this page beyond the end of the file? */
 	offset = i_size_read(inode);
@@ -1245,12 +1245,15 @@ error:
 	if (iohead)
 		xfs_cancel_ioend(iohead);
 
+	if (err == -EAGAIN)
+		goto redirty;
+
 	xfs_aops_discard_page(page);
 	ClearPageUptodate(page);
 	unlock_page(page);
 	return err;
 
-out_fail:
+redirty:
 	redirty_page_for_writepage(wbc, page);
 	unlock_page(page);
 	return 0;

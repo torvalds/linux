@@ -344,6 +344,7 @@ struct radeon_mc {
 	 * about vram size near mc fb location */
 	u64			mc_vram_size;
 	u64			visible_vram_size;
+	u64			active_vram_size;
 	u64			gtt_size;
 	u64			gtt_start;
 	u64			gtt_end;
@@ -1013,6 +1014,11 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
 
+/* VRAM scratch page for HDP bug */
+struct r700_vram_scratch {
+	struct radeon_bo		*robj;
+	volatile uint32_t		*ptr;
+};
 
 /*
  * Core structure, functions and helpers.
@@ -1079,6 +1085,7 @@ struct radeon_device {
 	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */
 	const struct firmware *rlc_fw;	/* r6/700 RLC firmware */
 	struct r600_blit r600_blit;
+	struct r700_vram_scratch vram_scratch;
 	int msi_enabled; /* msi enabled */
 	struct r600_ih ih; /* r6/700 interrupt ring */
 	struct workqueue_struct *wq;
@@ -1333,8 +1340,6 @@ extern bool radeon_card_posted(struct radeon_device *rdev);
 extern void radeon_update_bandwidth_info(struct radeon_device *rdev);
 extern void radeon_update_display_priority(struct radeon_device *rdev);
 extern bool radeon_boot_test_post_card(struct radeon_device *rdev);
-extern int radeon_clocks_init(struct radeon_device *rdev);
-extern void radeon_clocks_fini(struct radeon_device *rdev);
 extern void radeon_scratch_init(struct radeon_device *rdev);
 extern void radeon_surface_init(struct radeon_device *rdev);
 extern int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data);

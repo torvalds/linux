@@ -175,24 +175,24 @@ static int nilfs_sync_super(struct nilfs_sb_info *sbi, int flag)
 {
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 	int err;
-	int barrier_done = 0;
 
-	if (nilfs_test_opt(sbi, BARRIER)) {
-		set_buffer_ordered(nilfs->ns_sbh[0]);
-		barrier_done = 1;
-	}
  retry:
 	set_buffer_dirty(nilfs->ns_sbh[0]);
-	err = sync_dirty_buffer(nilfs->ns_sbh[0]);
-	if (err == -EOPNOTSUPP && barrier_done) {
-		nilfs_warning(sbi->s_super, __func__,
-			      "barrier-based sync failed. "
-			      "disabling barriers\n");
-		nilfs_clear_opt(sbi, BARRIER);
-		barrier_done = 0;
-		clear_buffer_ordered(nilfs->ns_sbh[0]);
-		goto retry;
+
+	if (nilfs_test_opt(sbi, BARRIER)) {
+		err = __sync_dirty_buffer(nilfs->ns_sbh[0],
+					  WRITE_SYNC | WRITE_BARRIER);
+		if (err == -EOPNOTSUPP) {
+			nilfs_warning(sbi->s_super, __func__,
+				      "barrier-based sync failed. "
+				      "disabling barriers\n");
+			nilfs_clear_opt(sbi, BARRIER);
+			goto retry;
+		}
+	} else {
+		err = sync_dirty_buffer(nilfs->ns_sbh[0]);
 	}
+
 	if (unlikely(err)) {
 		printk(KERN_ERR
 		       "NILFS: unable to write superblock (err=%d)\n", err);
@@ -400,9 +400,10 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno)
 	list_add(&sbi->s_list, &nilfs->ns_supers);
 	up_write(&nilfs->ns_super_sem);
 
+	err = -ENOMEM;
 	sbi->s_ifile = nilfs_ifile_new(sbi, nilfs->ns_inode_size);
 	if (!sbi->s_ifile)
-		return -ENOMEM;
+		goto delist;
 
 	down_read(&nilfs->ns_segctor_sem);
 	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, cno, 0, &raw_cp,
@@ -433,6 +434,7 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno)
 	nilfs_mdt_destroy(sbi->s_ifile);
 	sbi->s_ifile = NULL;
 
+ delist:
 	down_write(&nilfs->ns_super_sem);
 	list_del_init(&sbi->s_list);
 	up_write(&nilfs->ns_super_sem);

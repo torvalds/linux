@@ -37,10 +37,16 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
-struct intel_hdmi_priv {
+struct intel_hdmi {
+	struct intel_encoder base;
 	u32 sdvox_reg;
 	bool has_hdmi_sink;
 };
+
+static struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder)
+{
+	return container_of(enc_to_intel_encoder(encoder), struct intel_hdmi, base);
+}
 
 static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
@@ -50,8 +56,7 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
-	struct intel_hdmi_priv *hdmi_priv = intel_encoder->dev_priv;
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	u32 sdvox;
 
 	sdvox = SDVO_ENCODING_HDMI | SDVO_BORDER_ENABLE;
@@ -60,7 +65,7 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		sdvox |= SDVO_HSYNC_ACTIVE_HIGH;
 
-	if (hdmi_priv->has_hdmi_sink) {
+	if (intel_hdmi->has_hdmi_sink) {
 		sdvox |= SDVO_AUDIO_ENABLE;
 		if (HAS_PCH_CPT(dev))
 			sdvox |= HDMI_MODE_SELECT;
@@ -73,26 +78,25 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 			sdvox |= SDVO_PIPE_B_SELECT;
 	}
 
-	I915_WRITE(hdmi_priv->sdvox_reg, sdvox);
-	POSTING_READ(hdmi_priv->sdvox_reg);
+	I915_WRITE(intel_hdmi->sdvox_reg, sdvox);
+	POSTING_READ(intel_hdmi->sdvox_reg);
 }
 
 static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
-	struct intel_hdmi_priv *hdmi_priv = intel_encoder->dev_priv;
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	u32 temp;
 
-	temp = I915_READ(hdmi_priv->sdvox_reg);
+	temp = I915_READ(intel_hdmi->sdvox_reg);
 
 	/* HW workaround, need to toggle enable bit off and on for 12bpc, but
 	 * we do this anyway which shows more stable in testing.
 	 */
 	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(hdmi_priv->sdvox_reg, temp & ~SDVO_ENABLE);
-		POSTING_READ(hdmi_priv->sdvox_reg);
+		I915_WRITE(intel_hdmi->sdvox_reg, temp & ~SDVO_ENABLE);
+		POSTING_READ(intel_hdmi->sdvox_reg);
 	}
 
 	if (mode != DRM_MODE_DPMS_ON) {
@@ -101,15 +105,15 @@ static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
 		temp |= SDVO_ENABLE;
 	}
 
-	I915_WRITE(hdmi_priv->sdvox_reg, temp);
-	POSTING_READ(hdmi_priv->sdvox_reg);
+	I915_WRITE(intel_hdmi->sdvox_reg, temp);
+	POSTING_READ(intel_hdmi->sdvox_reg);
 
 	/* HW workaround, need to write this twice for issue that may result
 	 * in first write getting masked.
 	 */
 	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(hdmi_priv->sdvox_reg, temp);
-		POSTING_READ(hdmi_priv->sdvox_reg);
+		I915_WRITE(intel_hdmi->sdvox_reg, temp);
+		POSTING_READ(intel_hdmi->sdvox_reg);
 	}
 }
 
@@ -135,22 +139,20 @@ static bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 }
 
 static enum drm_connector_status
-intel_hdmi_detect(struct drm_connector *connector)
+intel_hdmi_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
-	struct intel_hdmi_priv *hdmi_priv = intel_encoder->dev_priv;
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	struct edid *edid = NULL;
 	enum drm_connector_status status = connector_status_disconnected;
 
-	hdmi_priv->has_hdmi_sink = false;
-	edid = drm_get_edid(connector,
-			    intel_encoder->ddc_bus);
+	intel_hdmi->has_hdmi_sink = false;
+	edid = drm_get_edid(connector, intel_hdmi->base.ddc_bus);
 
 	if (edid) {
 		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
 			status = connector_status_connected;
-			hdmi_priv->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
+			intel_hdmi->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
 		}
 		connector->display_info.raw_edid = NULL;
 		kfree(edid);
@@ -162,13 +164,13 @@ intel_hdmi_detect(struct drm_connector *connector)
 static int intel_hdmi_get_modes(struct drm_connector *connector)
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 
 	/* We should parse the EDID data and find out if it's an HDMI sink so
 	 * we can send audio to it.
 	 */
 
-	return intel_ddc_get_modes(connector, intel_encoder->ddc_bus);
+	return intel_ddc_get_modes(connector, intel_hdmi->base.ddc_bus);
 }
 
 static void intel_hdmi_destroy(struct drm_connector *connector)
@@ -199,18 +201,8 @@ static const struct drm_connector_helper_funcs intel_hdmi_connector_helper_funcs
 	.best_encoder = intel_attached_encoder,
 };
 
-static void intel_hdmi_enc_destroy(struct drm_encoder *encoder)
-{
-	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
-
-	if (intel_encoder->i2c_bus)
-		intel_i2c_destroy(intel_encoder->i2c_bus);
-	drm_encoder_cleanup(encoder);
-	kfree(intel_encoder);
-}
-
 static const struct drm_encoder_funcs intel_hdmi_enc_funcs = {
-	.destroy = intel_hdmi_enc_destroy,
+	.destroy = intel_encoder_destroy,
 };
 
 void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
@@ -219,21 +211,19 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	struct drm_connector *connector;
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
-	struct intel_hdmi_priv *hdmi_priv;
+	struct intel_hdmi *intel_hdmi;
 
-	intel_encoder = kcalloc(sizeof(struct intel_encoder) +
-			       sizeof(struct intel_hdmi_priv), 1, GFP_KERNEL);
-	if (!intel_encoder)
+	intel_hdmi = kzalloc(sizeof(struct intel_hdmi), GFP_KERNEL);
+	if (!intel_hdmi)
 		return;
 
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
-		kfree(intel_encoder);
+		kfree(intel_hdmi);
 		return;
 	}
 
-	hdmi_priv = (struct intel_hdmi_priv *)(intel_encoder + 1);
-
+	intel_encoder = &intel_hdmi->base;
 	connector = &intel_connector->base;
 	drm_connector_init(dev, connector, &intel_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
@@ -274,8 +264,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	if (!intel_encoder->ddc_bus)
 		goto err_connector;
 
-	hdmi_priv->sdvox_reg = sdvox_reg;
-	intel_encoder->dev_priv = hdmi_priv;
+	intel_hdmi->sdvox_reg = sdvox_reg;
 
 	drm_encoder_init(dev, &intel_encoder->enc, &intel_hdmi_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);
@@ -298,7 +287,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 
 err_connector:
 	drm_connector_cleanup(connector);
-	kfree(intel_encoder);
+	kfree(intel_hdmi);
 	kfree(intel_connector);
 
 	return;

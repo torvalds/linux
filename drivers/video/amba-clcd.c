@@ -80,7 +80,10 @@ static void clcdfb_disable(struct clcd_fb *fb)
 	/*
 	 * Disable CLCD clock source.
 	 */
-	clk_disable(fb->clk);
+	if (fb->clk_enabled) {
+		fb->clk_enabled = false;
+		clk_disable(fb->clk);
+	}
 }
 
 static void clcdfb_enable(struct clcd_fb *fb, u32 cntl)
@@ -88,7 +91,10 @@ static void clcdfb_enable(struct clcd_fb *fb, u32 cntl)
 	/*
 	 * Enable the CLCD clock source.
 	 */
-	clk_enable(fb->clk);
+	if (!fb->clk_enabled) {
+		fb->clk_enabled = true;
+		clk_enable(fb->clk);
+	}
 
 	/*
 	 * Bring up by first enabling..

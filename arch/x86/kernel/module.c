@@ -239,11 +239,10 @@ int module_finalize(const Elf_Ehdr *hdr,
 		apply_paravirt(pseg, pseg + para->sh_size);
 	}
 
-	return module_bug_finalize(hdr, sechdrs, me);
+	return 0;
 }
 
 void module_arch_cleanup(struct module *mod)
 {
 	alternatives_smp_module_del(mod);
-	module_bug_cleanup(mod);
 }

@@ -489,8 +489,9 @@ static void xen_hvm_setup_cpu_clockevents(void)
 __init void xen_hvm_init_time_ops(void)
 {
 	/* vector callback is needed otherwise we cannot receive interrupts
-	 * on cpu > 0 */
-	if (!xen_have_vector_callback && num_present_cpus() > 1)
+	 * on cpu > 0 and at this point we don't know how many cpus are
+	 * available */
+	if (!xen_have_vector_callback)
 		return;
 	if (!xen_feature(XENFEAT_hvm_safe_pvclock)) {
 		printk(KERN_INFO "Xen doesn't support pvclock on HVM,"

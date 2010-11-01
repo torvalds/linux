@@ -93,6 +93,7 @@ struct elevator_queue
 	struct elevator_type *elevator_type;
 	struct mutex sysfs_lock;
 	struct hlist_head *hash;
+	unsigned int registered:1;
 };
 
 /*
@@ -136,6 +137,7 @@ extern ssize_t elv_iosched_store(struct request_queue *, const char *, size_t);
 
 extern int elevator_init(struct request_queue *, char *);
 extern void elevator_exit(struct elevator_queue *);
+extern int elevator_change(struct request_queue *, const char *);
 extern int elv_rq_merge_ok(struct request *, struct bio *);
 
 /*

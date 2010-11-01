@@ -242,6 +242,7 @@ static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
 	skb->rxhash = 0;
+	skb_set_queue_mapping(skb, 0);
 	skb_dst_drop(skb);
 	nf_reset(skb);
 }

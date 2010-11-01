@@ -214,6 +214,7 @@ int
 nouveau_sgdma_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct pci_dev *pdev = dev->pdev;
 	struct nouveau_gpuobj *gpuobj = NULL;
 	uint32_t aper_size, obj_size;
 	int i, ret;
@@ -239,10 +240,19 @@ nouveau_sgdma_init(struct drm_device *dev)
 
 	dev_priv->gart_info.sg_dummy_page =
 		alloc_page(GFP_KERNEL|__GFP_DMA32);
+	if (!dev_priv->gart_info.sg_dummy_page) {
+		nouveau_gpuobj_del(dev, &gpuobj);
+		return -ENOMEM;
+	}
+
 	set_bit(PG_locked, &dev_priv->gart_info.sg_dummy_page->flags);
 	dev_priv->gart_info.sg_dummy_bus =
-		pci_map_page(dev->pdev, dev_priv->gart_info.sg_dummy_page, 0,
+		pci_map_page(pdev, dev_priv->gart_info.sg_dummy_page, 0,
 			     PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+	if (pci_dma_mapping_error(pdev, dev_priv->gart_info.sg_dummy_bus)) {
+		nouveau_gpuobj_del(dev, &gpuobj);
+		return -EFAULT;
+	}
 
 	if (dev_priv->card_type < NV_50) {
 		/* Maybe use NV_DMA_TARGET_AGP for PCIE? NVIDIA do this, and

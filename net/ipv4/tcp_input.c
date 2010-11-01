@@ -2545,7 +2545,8 @@ static void tcp_mark_head_lost(struct sock *sk, int packets)
 			cnt += tcp_skb_pcount(skb);
 
 		if (cnt > packets) {
-			if (tcp_is_sack(tp) || (oldcnt >= packets))
+			if ((tcp_is_sack(tp) && !tcp_is_fack(tp)) ||
+			    (oldcnt >= packets))
 				break;
 
 			mss = skb_shinfo(skb)->gso_size;
@@ -4048,6 +4049,8 @@ static void tcp_reset(struct sock *sk)
 	default:
 		sk->sk_err = ECONNRESET;
 	}
+	/* This barrier is coupled with smp_rmb() in tcp_poll() */
+	smp_wmb();
 
 	if (!sock_flag(sk, SOCK_DEAD))
 		sk->sk_error_report(sk);

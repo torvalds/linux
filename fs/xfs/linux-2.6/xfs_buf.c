@@ -440,12 +440,7 @@ _xfs_buf_find(
 		ASSERT(btp == bp->b_target);
 		if (bp->b_file_offset == range_base &&
 		    bp->b_buffer_length == range_length) {
-			/*
-			 * If we look at something, bring it to the
-			 * front of the list for next time.
-			 */
 			atomic_inc(&bp->b_hold);
-			list_move(&bp->b_hash_list, &hash->bh_list);
 			goto found;
 		}
 	}
@@ -1443,8 +1438,7 @@ xfs_alloc_bufhash(
 {
 	unsigned int		i;
 
-	btp->bt_hashshift = external ? 3 : 8;	/* 8 or 256 buckets */
-	btp->bt_hashmask = (1 << btp->bt_hashshift) - 1;
+	btp->bt_hashshift = external ? 3 : 12;	/* 8 or 4096 buckets */
 	btp->bt_hash = kmem_zalloc_large((1 << btp->bt_hashshift) *
 					 sizeof(xfs_bufhash_t));
 	for (i = 0; i < (1 << btp->bt_hashshift); i++) {
@@ -1938,7 +1932,8 @@ xfs_buf_init(void)
 	if (!xfs_buf_zone)
 		goto out;
 
-	xfslogd_workqueue = create_workqueue("xfslogd");
+	xfslogd_workqueue = alloc_workqueue("xfslogd",
+					WQ_RESCUER | WQ_HIGHPRI, 1);
 	if (!xfslogd_workqueue)
 		goto out_free_buf_zone;
 

@@ -40,7 +40,7 @@
  *
  * Warn if that happens, once per boot.
  */
-static void warn_setuid_and_fcaps_mixed(char *fname)
+static void warn_setuid_and_fcaps_mixed(const char *fname)
 {
 	static int warned;
 	if (!warned) {

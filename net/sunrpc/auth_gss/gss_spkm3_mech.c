@@ -100,6 +100,7 @@ gss_import_sec_context_spkm3(const void *p, size_t len,
 	if (version != 1) {
 		dprintk("RPC:       unknown spkm3 token format: "
 				"obsolete nfs-utils?\n");
+		p = ERR_PTR(-EINVAL);
 		goto out_err_free_ctx;
 	}
 
@@ -135,8 +136,10 @@ gss_import_sec_context_spkm3(const void *p, size_t len,
 	if (IS_ERR(p))
 		goto out_err_free_intg_alg;
 
-	if (p != end)
+	if (p != end) {
+		p = ERR_PTR(-EFAULT);
 		goto out_err_free_intg_key;
+	}
 
 	ctx_id->internal_ctx_id = ctx;
 

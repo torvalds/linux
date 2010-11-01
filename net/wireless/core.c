@@ -475,12 +475,10 @@ int wiphy_register(struct wiphy *wiphy)
 	mutex_lock(&cfg80211_mutex);
 
 	res = device_add(&rdev->wiphy.dev);
-	if (res)
-		goto out_unlock;
-
-	res = rfkill_register(rdev->rfkill);
-	if (res)
-		goto out_rm_dev;
+	if (res) {
+		mutex_unlock(&cfg80211_mutex);
+		return res;
+	}
 
 	/* set up regulatory info */
 	wiphy_update_regulatory(wiphy, NL80211_REGDOM_SET_BY_CORE);
@@ -509,13 +507,18 @@ int wiphy_register(struct wiphy *wiphy)
 	cfg80211_debugfs_rdev_add(rdev);
 	mutex_unlock(&cfg80211_mutex);
 
+	/*
+	 * due to a locking dependency this has to be outside of the
+	 * cfg80211_mutex lock
+	 */
+	res = rfkill_register(rdev->rfkill);
+	if (res)
+		goto out_rm_dev;
+
 	return 0;
 
 out_rm_dev:
 	device_del(&rdev->wiphy.dev);
-
-out_unlock:
-	mutex_unlock(&cfg80211_mutex);
 	return res;
 }
 EXPORT_SYMBOL(wiphy_register);

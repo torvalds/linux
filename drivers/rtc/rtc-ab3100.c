@@ -235,6 +235,7 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 		err = PTR_ERR(rtc);
 		return err;
 	}
+	platform_set_drvdata(pdev, rtc);
 
 	return 0;
 }
@@ -244,6 +245,7 @@ static int __exit ab3100_rtc_remove(struct platform_device *pdev)
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
 
 	rtc_device_unregister(rtc);
+	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

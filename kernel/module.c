@@ -1537,6 +1537,7 @@ static int __unlink_module(void *_mod)
 {
 	struct module *mod = _mod;
 	list_del(&mod->list);
+	module_bug_cleanup(mod);
 	return 0;
 }
 
@@ -2625,6 +2626,7 @@ static struct module *load_module(void __user *umod,
 	if (err < 0)
 		goto ddebug;
 
+	module_bug_finalize(info.hdr, info.sechdrs, mod);
 	list_add_rcu(&mod->list, &modules);
 	mutex_unlock(&module_mutex);
 
@@ -2650,6 +2652,8 @@ static struct module *load_module(void __user *umod,
 	mutex_lock(&module_mutex);
 	/* Unlink carefully: kallsyms could be walking list. */
 	list_del_rcu(&mod->list);
+	module_bug_cleanup(mod);
+
  ddebug:
 	if (!mod->taints)
 		dynamic_debug_remove(info.debug);

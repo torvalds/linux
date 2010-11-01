@@ -785,6 +785,8 @@ xfs_ioc_fsgetxattr(
 {
 	struct fsxattr		fa;
 
+	memset(&fa, 0, sizeof(struct fsxattr));
+
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	fa.fsx_xflags = xfs_ip2xflags(ip);
 	fa.fsx_extsize = ip->i_d.di_extsize << ip->i_mount->m_sb.sb_blocklog;
@@ -905,6 +907,13 @@ xfs_ioctl_setattr(
 		return XFS_ERROR(EROFS);
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
+
+	/*
+	 * Disallow 32bit project ids because on-disk structure
+	 * is 16bit only.
+	 */
+	if ((mask & FSX_PROJID) && (fa->fsx_projid > (__uint16_t)-1))
+		return XFS_ERROR(EINVAL);
 
 	/*
 	 * If disk quotas is on, we make sure that the dquots do exist on disk,

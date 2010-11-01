@@ -621,6 +621,7 @@
 #define E1000_FLASH_UPDATES  2000
 
 /* NVM Word Offsets */
+#define NVM_COMPAT                 0x0003
 #define NVM_ID_LED_SETTINGS        0x0004
 #define NVM_INIT_CONTROL2_REG      0x000F
 #define NVM_INIT_CONTROL3_PORT_B   0x0014
@@ -642,6 +643,9 @@
 
 /* Mask bits for fields in Word 0x1a of the NVM */
 #define NVM_WORD1A_ASPM_MASK  0x000C
+
+/* Mask bits for fields in Word 0x03 of the EEPROM */
+#define NVM_COMPAT_LOM    0x0800
 
 /* For checksumming, the sum of all words in the NVM should equal 0xBABA. */
 #define NVM_SUM                    0xBABA

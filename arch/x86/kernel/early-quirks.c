@@ -18,7 +18,6 @@
 #include <asm/apic.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
-#include <asm/hpet.h>
 
 static void __init fix_hypertransport_config(int num, int slot, int func)
 {
@@ -192,21 +191,6 @@ static void __init ati_bugs_contd(int num, int slot, int func)
 }
 #endif
 
-/*
- * Force the read back of the CMP register in hpet_next_event()
- * to work around the problem that the CMP register write seems to be
- * delayed. See hpet_next_event() for details.
- *
- * We do this on all SMBUS incarnations for now until we have more
- * information about the affected chipsets.
- */
-static void __init ati_hpet_bugs(int num, int slot, int func)
-{
-#ifdef CONFIG_HPET_TIMER
-	hpet_readback_cmp = 1;
-#endif
-}
-
 #define QFLAG_APPLY_ONCE 	0x1
 #define QFLAG_APPLIED		0x2
 #define QFLAG_DONE		(QFLAG_APPLY_ONCE|QFLAG_APPLIED)
@@ -236,8 +220,6 @@ static struct chipset early_qrk[] __initdata = {
 	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_bugs },
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS,
 	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_bugs_contd },
-	{ PCI_VENDOR_ID_ATI, PCI_ANY_ID,
-	  PCI_CLASS_SERIAL_SMBUS, PCI_ANY_ID, 0, ati_hpet_bugs },
 	{}
 };
 

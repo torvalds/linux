@@ -828,6 +828,7 @@ static int usbhid_output_raw_report(struct hid_device *hid, __u8 *buf, size_t co
 		}
 	} else {
 		int skipped_report_id = 0;
+		int report_id = buf[0];
 		if (buf[0] == 0x0) {
 			/* Don't send the Report ID */
 			buf++;
@@ -837,7 +838,7 @@ static int usbhid_output_raw_report(struct hid_device *hid, __u8 *buf, size_t co
 		ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			HID_REQ_SET_REPORT,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			((report_type + 1) << 8) | *buf,
+			((report_type + 1) << 8) | report_id,
 			interface->desc.bInterfaceNumber, buf, count,
 			USB_CTRL_SET_TIMEOUT);
 		/* count also the report id, if this was a numbered report. */
@@ -1444,6 +1445,11 @@ static const struct hid_device_id hid_usb_table[] = {
 	{ HID_USB_DEVICE(HID_ANY_ID, HID_ANY_ID) },
 	{ }
 };
+
+struct usb_interface *usbhid_find_interface(int minor)
+{
+	return usb_find_interface(&hid_driver, minor);
+}
 
 static struct hid_driver hid_usb_driver = {
 	.name = "generic-usb",

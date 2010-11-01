@@ -393,7 +393,9 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)
 		goto out_unlock;
 
 	old_size = chunk->map_alloc * sizeof(chunk->map[0]);
-	memcpy(new, chunk->map, old_size);
+	old = chunk->map;
+
+	memcpy(new, old, old_size);
 
 	chunk->map_alloc = new_alloc;
 	chunk->map = new;
@@ -1162,7 +1164,7 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 		}
 
 		/*
-		 * Don't accept if wastage is over 25%.  The
+		 * Don't accept if wastage is over 1/3.  The
 		 * greater-than comparison ensures upa==1 always
 		 * passes the following check.
 		 */
@@ -1399,9 +1401,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 			if (pcpu_first_unit_cpu == NR_CPUS)
 				pcpu_first_unit_cpu = cpu;
+			pcpu_last_unit_cpu = cpu;
 		}
 	}
-	pcpu_last_unit_cpu = cpu;
 	pcpu_nr_units = unit;
 
 	for_each_possible_cpu(cpu)

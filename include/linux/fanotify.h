@@ -65,14 +65,14 @@
 				 FAN_ALL_PERM_EVENTS |\
 				 FAN_Q_OVERFLOW)
 
-#define FANOTIFY_METADATA_VERSION	1
+#define FANOTIFY_METADATA_VERSION	2
 
 struct fanotify_event_metadata {
 	__u32 event_len;
 	__u32 vers;
-	__s32 fd;
 	__u64 mask;
-	__s64 pid;
+	__s32 fd;
+	__s32 pid;
 } __attribute__ ((packed));
 
 struct fanotify_response {
@@ -95,11 +95,4 @@ struct fanotify_response {
 				(long)(meta)->event_len >= (long)FAN_EVENT_METADATA_LEN && \
 				(long)(meta)->event_len <= (long)(len))
 
-#ifdef __KERNEL__
-
-struct fanotify_wait {
-	struct fsnotify_event *event;
-	__s32 fd;
-};
-#endif /* __KERNEL__ */
 #endif /* _LINUX_FANOTIFY_H */

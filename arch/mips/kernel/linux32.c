@@ -341,3 +341,10 @@ asmlinkage long sys32_lookup_dcookie(u32 a0, u32 a1, char __user *buf,
 {
 	return sys_lookup_dcookie(merge_64(a0, a1), buf, len);
 }
+
+SYSCALL_DEFINE6(32_fanotify_mark, int, fanotify_fd, unsigned int, flags,
+		u64, a3, u64, a4, int, dfd, const char  __user *, pathname)
+{
+	return sys_fanotify_mark(fanotify_fd, flags, merge_64(a3, a4),
+				 dfd, pathname);
+}

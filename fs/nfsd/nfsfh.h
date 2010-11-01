@@ -196,8 +196,6 @@ fh_lock(struct svc_fh *fhp)
 static inline void
 fh_unlock(struct svc_fh *fhp)
 {
-	BUG_ON(!fhp->fh_dentry);
-
 	if (fhp->fh_locked) {
 		fill_post_wcc(fhp);
 		mutex_unlock(&fhp->fh_dentry->d_inode->i_mutex);

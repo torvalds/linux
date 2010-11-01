@@ -928,6 +928,16 @@ config SMC91X
 	  The module will be called smc91x.  If you want to compile it as a
 	  module, say M here and read <file:Documentation/kbuild/modules.txt>.
 
+config PXA168_ETH
+	tristate "Marvell pxa168 ethernet support"
+	depends on CPU_PXA168
+	select PHYLIB
+	help
+	  This driver supports the pxa168 Ethernet ports.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called pxa168_eth.
+
 config NET_NETX
 	tristate "NetX Ethernet support"
 	select MII
@@ -2418,7 +2428,7 @@ config UGETH_TX_ON_DEMAND
 
 config MV643XX_ETH
 	tristate "Marvell Discovery (643XX) and Orion ethernet support"
-	depends on MV64X60 || PPC32 || PLAT_ORION
+	depends on (MV64X60 || PPC32 || PLAT_ORION) && INET
 	select INET_LRO
 	select PHYLIB
 	help
@@ -2793,7 +2803,7 @@ config NIU
 
 config PASEMI_MAC
 	tristate "PA Semi 1/10Gbit MAC"
-	depends on PPC_PASEMI && PCI
+	depends on PPC_PASEMI && PCI && INET
 	select PHYLIB
 	select INET_LRO
 	help

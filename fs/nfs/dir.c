@@ -140,6 +140,13 @@ nfs_opendir(struct inode *inode, struct file *filp)
 
 	/* Call generic open code in order to cache credentials */
 	res = nfs_open(inode, filp);
+	if (filp->f_path.dentry == filp->f_path.mnt->mnt_root) {
+		/* This is a mountpoint, so d_revalidate will never
+		 * have been called, so we need to refresh the
+		 * inode (for close-open consistency) ourselves.
+		 */
+		__nfs_revalidate_inode(NFS_SERVER(inode), inode);
+	}
 	return res;
 }
 
@@ -1103,7 +1110,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	if ((openflags & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL))
 		goto no_open_dput;
 	/* We can't create new files, or truncate existing ones here */
-	openflags &= ~(O_CREAT|O_TRUNC);
+	openflags &= ~(O_CREAT|O_EXCL|O_TRUNC);
 
 	/*
 	 * Note: we're not holding inode->i_mutex and so may be racing with

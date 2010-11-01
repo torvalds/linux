@@ -70,11 +70,16 @@ extern void setup_per_cpu_areas(void);
 
 #else /* ! SMP */
 
-#define per_cpu(var, cpu)			(*((void)(cpu), &(var)))
-#define __get_cpu_var(var)			(var)
-#define __raw_get_cpu_var(var)			(var)
-#define this_cpu_ptr(ptr) per_cpu_ptr(ptr, 0)
-#define __this_cpu_ptr(ptr) this_cpu_ptr(ptr)
+#define VERIFY_PERCPU_PTR(__p) ({			\
+	__verify_pcpu_ptr((__p));			\
+	(typeof(*(__p)) __kernel __force *)(__p);	\
+})
+
+#define per_cpu(var, cpu)	(*((void)(cpu), VERIFY_PERCPU_PTR(&(var))))
+#define __get_cpu_var(var)	(*VERIFY_PERCPU_PTR(&(var)))
+#define __raw_get_cpu_var(var)	(*VERIFY_PERCPU_PTR(&(var)))
+#define this_cpu_ptr(ptr)	per_cpu_ptr(ptr, 0)
+#define __this_cpu_ptr(ptr)	this_cpu_ptr(ptr)
 
 #endif	/* SMP */
 

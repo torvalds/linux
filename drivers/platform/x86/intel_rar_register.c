@@ -145,7 +145,7 @@ static void free_rar_device(struct rar_device *rar)
  */
 static struct rar_device *_rar_to_device(int rar, int *off)
 {
-	if (rar >= 0 && rar <= 3) {
+	if (rar >= 0 && rar < MRST_NUM_RAR) {
 		*off = rar;
 		return &my_rar_device;
 	}

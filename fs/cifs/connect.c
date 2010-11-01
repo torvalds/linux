@@ -400,7 +400,9 @@ incomplete_rcv:
 			cFYI(1, "call to reconnect done");
 			csocket = server->ssocket;
 			continue;
-		} else if ((length == -ERESTARTSYS) || (length == -EAGAIN)) {
+		} else if (length == -ERESTARTSYS ||
+			   length == -EAGAIN ||
+			   length == -EINTR) {
 			msleep(1); /* minimum sleep to prevent looping
 				allowing socket to clear and app threads to set
 				tcpStatus CifsNeedReconnect if server hung */
@@ -414,18 +416,6 @@ incomplete_rcv:
 			} else
 				continue;
 		} else if (length <= 0) {
-			if (server->tcpStatus == CifsNew) {
-				cFYI(1, "tcp session abend after SMBnegprot");
-				/* some servers kill the TCP session rather than
-				   returning an SMB negprot error, in which
-				   case reconnecting here is not going to help,
-				   and so simply return error to mount */
-				break;
-			}
-			if (!try_to_freeze() && (length == -EINTR)) {
-				cFYI(1, "cifsd thread killed");
-				break;
-			}
 			cFYI(1, "Reconnect after unexpected peek error %d",
 				length);
 			cifs_reconnect(server);
@@ -466,27 +456,19 @@ incomplete_rcv:
 			   an error on SMB negprot response */
 			cFYI(1, "Negative RFC1002 Session Response Error 0x%x)",
 				pdu_length);
-			if (server->tcpStatus == CifsNew) {
-				/* if nack on negprot (rather than
-				ret of smb negprot error) reconnecting
-				not going to help, ret error to mount */
-				break;
-			} else {
-				/* give server a second to
-				clean up before reconnect attempt */
-				msleep(1000);
-				/* always try 445 first on reconnect
-				since we get NACK on some if we ever
-				connected to port 139 (the NACK is
-				since we do not begin with RFC1001
-				session initialize frame) */
-				server->addr.sockAddr.sin_port =
-					htons(CIFS_PORT);
-				cifs_reconnect(server);
-				csocket = server->ssocket;
-				wake_up(&server->response_q);
-				continue;
-			}
+			/* give server a second to clean up  */
+			msleep(1000);
+			/* always try 445 first on reconnect since we get NACK
+			 * on some if we ever connected to port 139 (the NACK
+			 * is since we do not begin with RFC1001 session
+			 * initialize frame)
+			 */
+			cifs_set_port((struct sockaddr *)
+					&server->addr.sockAddr, CIFS_PORT);
+			cifs_reconnect(server);
+			csocket = server->ssocket;
+			wake_up(&server->response_q);
+			continue;
 		} else if (temp != (char) 0) {
 			cERROR(1, "Unknown RFC 1002 frame");
 			cifs_dump_mem(" Received Data: ", (char *)smb_buffer,
@@ -522,8 +504,7 @@ incomplete_rcv:
 		     total_read += length) {
 			length = kernel_recvmsg(csocket, &smb_msg, &iov, 1,
 						pdu_length - total_read, 0);
-			if ((server->tcpStatus == CifsExiting) ||
-			    (length == -EINTR)) {
+			if (server->tcpStatus == CifsExiting) {
 				/* then will exit */
 				reconnect = 2;
 				break;
@@ -534,8 +515,9 @@ incomplete_rcv:
 				/* Now we will reread sock */
 				reconnect = 1;
 				break;
-			} else if ((length == -ERESTARTSYS) ||
-				   (length == -EAGAIN)) {
+			} else if (length == -ERESTARTSYS ||
+				   length == -EAGAIN ||
+				   length == -EINTR) {
 				msleep(1); /* minimum sleep to prevent looping,
 					      allowing socket to clear and app
 					      threads to set tcpStatus
@@ -1673,7 +1655,9 @@ cifs_find_smb_ses(struct TCP_Server_Info *server, struct smb_vol *vol)
 				    MAX_USERNAME_SIZE))
 				continue;
 			if (strlen(vol->username) != 0 &&
-			    strncmp(ses->password, vol->password,
+			    ses->password != NULL &&
+			    strncmp(ses->password,
+				    vol->password ? vol->password : "",
 				    MAX_PASSWORD_SIZE))
 				continue;
 		}
@@ -1722,9 +1706,6 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 	if (ses) {
 		cFYI(1, "Existing smb sess found (status=%d)", ses->status);
 
-		/* existing SMB ses has a server reference already */
-		cifs_put_tcp_session(server);
-
 		mutex_lock(&ses->session_mutex);
 		rc = cifs_negotiate_protocol(xid, ses);
 		if (rc) {
@@ -1747,6 +1728,9 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 			}
 		}
 		mutex_unlock(&ses->session_mutex);
+
+		/* existing SMB ses has a server reference already */
+		cifs_put_tcp_session(server);
 		FreeXid(xid);
 		return ses;
 	}

@@ -372,9 +372,6 @@ int iwl_set_decrypted_flag(struct iwl_priv *priv,
 			   u32 decrypt_res,
 			   struct ieee80211_rx_status *stats);
 void iwl_irq_handle_error(struct iwl_priv *priv);
-void iwl_configure_filter(struct ieee80211_hw *hw,
-			  unsigned int changed_flags,
-			  unsigned int *total_flags, u64 multicast);
 int iwl_set_hw_params(struct iwl_priv *priv);
 void iwl_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif);
 void iwl_bss_info_changed(struct ieee80211_hw *hw,

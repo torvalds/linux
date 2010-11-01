@@ -3284,7 +3284,7 @@ static int snd_hdsp_create_controls(struct snd_card *card, struct hdsp *hdsp)
 static void
 snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
-	struct hdsp *hdsp = (struct hdsp *) entry->private_data;
+	struct hdsp *hdsp = entry->private_data;
 	unsigned int status;
 	unsigned int status2;
 	char *pref_sync_ref;
@@ -4566,7 +4566,7 @@ static int hdsp_get_peak(struct hdsp *hdsp, struct hdsp_peak_rms __user *peak_rm
 
 static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct hdsp *hdsp = (struct hdsp *)hw->private_data;
+	struct hdsp *hdsp = hw->private_data;
 	void __user *argp = (void __user *)arg;
 	int err;
 
@@ -4609,6 +4609,7 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 		if (err < 0)
 			return err;
 
+		memset(&info, 0, sizeof(info));
 		spin_lock_irqsave(&hdsp->lock, flags);
 		info.pref_sync_ref = (unsigned char)hdsp_pref_sync_ref(hdsp);
 		info.wordclock_sync_check = (unsigned char)hdsp_wc_sync_check(hdsp);
@@ -5155,7 +5156,7 @@ static int snd_hdsp_free(struct hdsp *hdsp)
 
 static void snd_hdsp_card_free(struct snd_card *card)
 {
-	struct hdsp *hdsp = (struct hdsp *) card->private_data;
+	struct hdsp *hdsp = card->private_data;
 
 	if (hdsp)
 		snd_hdsp_free(hdsp);
@@ -5181,7 +5182,7 @@ static int __devinit snd_hdsp_probe(struct pci_dev *pci,
 	if (err < 0)
 		return err;
 
-	hdsp = (struct hdsp *) card->private_data;
+	hdsp = card->private_data;
 	card->private_free = snd_hdsp_card_free;
 	hdsp->dev = dev;
 	hdsp->pci = pci;

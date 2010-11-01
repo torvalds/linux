@@ -365,11 +365,10 @@ static int amd_decode_mce(struct notifier_block *nb, unsigned long val,
 
 	pr_emerg("MC%d_STATUS: ", m->bank);
 
-	pr_cont("%sorrected error, report: %s, MiscV: %svalid, "
+	pr_cont("%sorrected error, other errors lost: %s, "
 		 "CPU context corrupt: %s",
 		 ((m->status & MCI_STATUS_UC) ? "Unc"  : "C"),
-		 ((m->status & MCI_STATUS_EN) ? "yes"  : "no"),
-		 ((m->status & MCI_STATUS_MISCV) ? ""  : "in"),
+		 ((m->status & MCI_STATUS_OVER) ? "yes"  : "no"),
 		 ((m->status & MCI_STATUS_PCC) ? "yes" : "no"));
 
 	/* do the two bits[14:13] together */
@@ -426,11 +425,15 @@ static struct notifier_block amd_mce_dec_nb = {
 static int __init mce_amd_init(void)
 {
 	/*
-	 * We can decode MCEs for Opteron and later CPUs:
+	 * We can decode MCEs for K8, F10h and F11h CPUs:
 	 */
-	if ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) &&
-	    (boot_cpu_data.x86 >= 0xf))
-		atomic_notifier_chain_register(&x86_mce_decoder_chain, &amd_mce_dec_nb);
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+		return 0;
+
+	if (boot_cpu_data.x86 < 0xf || boot_cpu_data.x86 > 0x11)
+		return 0;
+
+	atomic_notifier_chain_register(&x86_mce_decoder_chain, &amd_mce_dec_nb);
 
 	return 0;
 }

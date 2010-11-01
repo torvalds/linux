@@ -484,7 +484,7 @@ int wl1251_cmd_trigger_scan_to(struct wl1251 *wl, u32 timeout)
 
 	cmd->timeout = timeout;
 
-	ret = wl1251_cmd_send(wl, CMD_SCAN, cmd, sizeof(*cmd));
+	ret = wl1251_cmd_send(wl, CMD_TRIGGER_SCAN_TO, cmd, sizeof(*cmd));
 	if (ret < 0) {
 		wl1251_error("cmd trigger scan to failed: %d", ret);
 		goto out;

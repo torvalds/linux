@@ -349,8 +349,8 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 }
 #endif
 
-static void
-ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp)
+void
+ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp, int outin)
 {
 	struct nf_conn *ct = (struct nf_conn *)skb->nfct;
 	struct nf_conntrack_tuple new_tuple;
@@ -365,11 +365,17 @@ ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp)
 	 * real-server we will see RIP->DIP.
 	 */
 	new_tuple = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
-	new_tuple.src.u3 = cp->daddr;
+	if (outin)
+		new_tuple.src.u3 = cp->daddr;
+	else
+		new_tuple.dst.u3 = cp->vaddr;
 	/*
 	 * This will also take care of UDP and other protocols.
 	 */
-	new_tuple.src.u.tcp.port = cp->dport;
+	if (outin)
+		new_tuple.src.u.tcp.port = cp->dport;
+	else
+		new_tuple.dst.u.tcp.port = cp->vport;
 	nf_conntrack_alter_reply(ct, &new_tuple);
 }
 
@@ -428,7 +434,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	IP_VS_DBG_PKT(10, pp, skb, 0, "After DNAT");
 
-	ip_vs_update_conntrack(skb, cp);
+	ip_vs_update_conntrack(skb, cp, 1);
 
 	/* FIXME: when application helper enlarges the packet and the length
 	   is larger than the MTU of outgoing device, there will be still
@@ -506,7 +512,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	IP_VS_DBG_PKT(10, pp, skb, 0, "After DNAT");
 
-	ip_vs_update_conntrack(skb, cp);
+	ip_vs_update_conntrack(skb, cp, 1);
 
 	/* FIXME: when application helper enlarges the packet and the length
 	   is larger than the MTU of outgoing device, there will be still

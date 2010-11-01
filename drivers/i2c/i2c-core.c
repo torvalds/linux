@@ -32,7 +32,6 @@
 #include <linux/init.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>
-#include <linux/of_i2c.h>
 #include <linux/of_device.h>
 #include <linux/completion.h>
 #include <linux/hardirq.h>
@@ -197,11 +196,12 @@ static int i2c_device_pm_suspend(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
-	if (pm_runtime_suspended(dev))
-		return 0;
-
-	if (pm)
-		return pm->suspend ? pm->suspend(dev) : 0;
+	if (pm) {
+		if (pm_runtime_suspended(dev))
+			return 0;
+		else
+			return pm->suspend ? pm->suspend(dev) : 0;
+	}
 
 	return i2c_legacy_suspend(dev, PMSG_SUSPEND);
 }
@@ -216,12 +216,6 @@ static int i2c_device_pm_resume(struct device *dev)
 	else
 		ret = i2c_legacy_resume(dev);
 
-	if (!ret) {
-		pm_runtime_disable(dev);
-		pm_runtime_set_active(dev);
-		pm_runtime_enable(dev);
-	}
-
 	return ret;
 }
 
@@ -229,11 +223,12 @@ static int i2c_device_pm_freeze(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
-	if (pm_runtime_suspended(dev))
-		return 0;
-
-	if (pm)
-		return pm->freeze ? pm->freeze(dev) : 0;
+	if (pm) {
+		if (pm_runtime_suspended(dev))
+			return 0;
+		else
+			return pm->freeze ? pm->freeze(dev) : 0;
+	}
 
 	return i2c_legacy_suspend(dev, PMSG_FREEZE);
 }
@@ -242,11 +237,12 @@ static int i2c_device_pm_thaw(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
-	if (pm_runtime_suspended(dev))
-		return 0;
-
-	if (pm)
-		return pm->thaw ? pm->thaw(dev) : 0;
+	if (pm) {
+		if (pm_runtime_suspended(dev))
+			return 0;
+		else
+			return pm->thaw ? pm->thaw(dev) : 0;
+	}
 
 	return i2c_legacy_resume(dev);
 }
@@ -255,11 +251,12 @@ static int i2c_device_pm_poweroff(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
-	if (pm_runtime_suspended(dev))
-		return 0;
-
-	if (pm)
-		return pm->poweroff ? pm->poweroff(dev) : 0;
+	if (pm) {
+		if (pm_runtime_suspended(dev))
+			return 0;
+		else
+			return pm->poweroff ? pm->poweroff(dev) : 0;
+	}
 
 	return i2c_legacy_suspend(dev, PMSG_HIBERNATE);
 }
@@ -875,9 +872,6 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	/* create pre-declared device nodes */
 	if (adap->nr < __i2c_first_dynamic_bus_num)
 		i2c_scan_static_board_info(adap);
-
-	/* Register devices from the device tree */
-	of_i2c_register_devices(adap);
 
 	/* Notify drivers */
 	mutex_lock(&core_lock);

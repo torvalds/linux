@@ -25,7 +25,8 @@ struct xfs_trans;
 
 void	xfs_trans_add_item(struct xfs_trans *, struct xfs_log_item *);
 void	xfs_trans_del_item(struct xfs_log_item *);
-
+void	xfs_trans_free_items(struct xfs_trans *tp, xfs_lsn_t commit_lsn,
+				int flags);
 void	xfs_trans_item_committed(struct xfs_log_item *lip,
 				xfs_lsn_t commit_lsn, int aborted);
 void	xfs_trans_unreserve_and_mod_sb(struct xfs_trans *tp);

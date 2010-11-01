@@ -167,8 +167,11 @@
 #define FLASH_FCoE_BIOS_START_g3           (13631488)
 #define FLASH_REDBOOT_START_g3             (262144)
 
-
-
+/************* Rx Packet Type Encoding **************/
+#define BE_UNICAST_PACKET		0
+#define BE_MULTICAST_PACKET		1
+#define BE_BROADCAST_PACKET		2
+#define BE_RSVD_PACKET			3
 
 /*
  * BE descriptors: host memory data structures whose formats

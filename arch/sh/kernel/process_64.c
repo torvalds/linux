@@ -497,8 +497,8 @@ asmlinkage int sys_execve(const char *ufilename, char **uargv,
 		goto out;
 
 	error = do_execve(filename,
-			  (char __user * __user *)uargv,
-			  (char __user * __user *)uenvp,
+			  (const char __user *const __user *)uargv,
+			  (const char __user *const __user *)uenvp,
 			  pregs);
 	putname(filename);
 out:

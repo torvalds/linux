@@ -165,8 +165,11 @@ static ssize_t pmdown_time_set(struct device *dev,
 {
 	struct snd_soc_pcm_runtime *rtd =
 			container_of(dev, struct snd_soc_pcm_runtime, dev);
+	int ret;
 
-	strict_strtol(buf, 10, &rtd->pmdown_time);
+	ret = strict_strtol(buf, 10, &rtd->pmdown_time);
+	if (ret)
+		return ret;
 
 	return count;
 }

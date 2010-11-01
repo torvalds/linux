@@ -32,11 +32,11 @@
 
 /* from radeon_encoder.c */
 extern uint32_t
-radeon_get_encoder_id(struct drm_device *dev, uint32_t supported_device,
-		      uint8_t dac);
+radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device,
+			uint8_t dac);
 extern void radeon_link_encoder_connector(struct drm_device *dev);
 extern void
-radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id,
+radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum,
 			uint32_t supported_device);
 
 /* from radeon_connector.c */
@@ -46,14 +46,14 @@ radeon_add_atom_connector(struct drm_device *dev,
 			  uint32_t supported_device,
 			  int connector_type,
 			  struct radeon_i2c_bus_rec *i2c_bus,
-			  bool linkb, uint32_t igp_lane_info,
+			  uint32_t igp_lane_info,
 			  uint16_t connector_object_id,
 			  struct radeon_hpd *hpd,
 			  struct radeon_router *router);
 
 /* from radeon_legacy_encoder.c */
 extern void
-radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_id,
+radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_enum,
 			  uint32_t supported_device);
 
 union atom_supported_devices {
@@ -84,6 +84,19 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_dev
 
 		for (i = 0; i < num_indices; i++) {
 			gpio = &i2c_info->asGPIO_Info[i];
+
+			/* some evergreen boards have bad data for this entry */
+			if (ASIC_IS_DCE4(rdev)) {
+				if ((i == 7) &&
+				    (gpio->usClkMaskRegisterIndex == 0x1936) &&
+				    (gpio->sucI2cId.ucAccess == 0)) {
+					gpio->sucI2cId.ucAccess = 0x97;
+					gpio->ucDataMaskShift = 8;
+					gpio->ucDataEnShift = 8;
+					gpio->ucDataY_Shift = 8;
+					gpio->ucDataA_Shift = 8;
+				}
+			}
 
 			if (gpio->sucI2cId.ucAccess == id) {
 				i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
@@ -147,6 +160,20 @@ void radeon_atombios_i2c_init(struct radeon_device *rdev)
 		for (i = 0; i < num_indices; i++) {
 			gpio = &i2c_info->asGPIO_Info[i];
 			i2c.valid = false;
+
+			/* some evergreen boards have bad data for this entry */
+			if (ASIC_IS_DCE4(rdev)) {
+				if ((i == 7) &&
+				    (gpio->usClkMaskRegisterIndex == 0x1936) &&
+				    (gpio->sucI2cId.ucAccess == 0)) {
+					gpio->sucI2cId.ucAccess = 0x97;
+					gpio->ucDataMaskShift = 8;
+					gpio->ucDataEnShift = 8;
+					gpio->ucDataY_Shift = 8;
+					gpio->ucDataA_Shift = 8;
+				}
+			}
+
 			i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
 			i2c.mask_data_reg = le16_to_cpu(gpio->usDataMaskRegisterIndex) * 4;
 			i2c.en_clk_reg = le16_to_cpu(gpio->usClkEnRegisterIndex) * 4;
@@ -226,6 +253,8 @@ static struct radeon_hpd radeon_atom_get_hpd_info_from_gpio(struct radeon_device
 	struct radeon_hpd hpd;
 	u32 reg;
 
+	memset(&hpd, 0, sizeof(struct radeon_hpd));
+
 	if (ASIC_IS_DCE4(rdev))
 		reg = EVERGREEN_DC_GPIO_HPD_A;
 	else
@@ -286,6 +315,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		if ((*connector_type == DRM_MODE_CONNECTOR_HDMIA) &&
 		    (supported_device == ATOM_DEVICE_DFP3_SUPPORT))
 			*connector_type = DRM_MODE_CONNECTOR_DVID;
+	}
+
+	/* MSI K9A2GM V2/V3 board has no HDMI or DVI */
+	if ((dev->pdev->device == 0x796e) &&
+	    (dev->pdev->subsystem_vendor == 0x1462) &&
+	    (dev->pdev->subsystem_device == 0x7302)) {
+		if ((supported_device == ATOM_DEVICE_DFP2_SUPPORT) ||
+		    (supported_device == ATOM_DEVICE_DFP3_SUPPORT))
+			return false;
 	}
 
 	/* a-bit f-i90hd - ciaranm on #radeonhd - this board has no DVI */
@@ -477,7 +515,6 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	int i, j, k, path_size, device_support;
 	int connector_type;
 	u16 igp_lane_info, conn_id, connector_object_id;
-	bool linkb;
 	struct radeon_i2c_bus_rec ddc_bus;
 	struct radeon_router router;
 	struct radeon_gpio_rec gpio;
@@ -510,7 +547,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 		addr += path_size;
 		path = (ATOM_DISPLAY_OBJECT_PATH *) addr;
 		path_size += le16_to_cpu(path->usSize);
-		linkb = false;
+
 		if (device_support & le16_to_cpu(path->usDeviceTag)) {
 			uint8_t con_obj_id, con_obj_num, con_obj_type;
 
@@ -601,13 +638,10 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 				     OBJECT_TYPE_MASK) >> OBJECT_TYPE_SHIFT;
 
 				if (grph_obj_type == GRAPH_OBJECT_TYPE_ENCODER) {
-					if (grph_obj_num == 2)
-						linkb = true;
-					else
-						linkb = false;
+					u16 encoder_obj = le16_to_cpu(path->usGraphicObjIds[j]);
 
 					radeon_add_atom_encoder(dev,
-								grph_obj_id,
+								encoder_obj,
 								le16_to_cpu
 								(path->
 								 usDeviceTag));
@@ -744,7 +778,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 						  le16_to_cpu(path->
 							      usDeviceTag),
 						  connector_type, &ddc_bus,
-						  linkb, igp_lane_info,
+						  igp_lane_info,
 						  connector_object_id,
 						  &hpd,
 						  &router);
@@ -933,13 +967,13 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 
 		if (ASIC_IS_AVIVO(rdev) || radeon_r4xx_atom)
 			radeon_add_atom_encoder(dev,
-						radeon_get_encoder_id(dev,
+						radeon_get_encoder_enum(dev,
 								      (1 << i),
 								      dac),
 						(1 << i));
 		else
 			radeon_add_legacy_encoder(dev,
-						  radeon_get_encoder_id(dev,
+						  radeon_get_encoder_enum(dev,
 									(1 << i),
 									dac),
 						  (1 << i));
@@ -996,7 +1030,7 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 						  bios_connectors[i].
 						  connector_type,
 						  &bios_connectors[i].ddc_bus,
-						  false, 0,
+						  0,
 						  connector_object_id,
 						  &bios_connectors[i].hpd,
 						  &router);
@@ -1183,7 +1217,7 @@ bool radeon_atombios_sideport_present(struct radeon_device *rdev)
 				return true;
 			break;
 		case 2:
-			if (igp_info->info_2.ucMemoryType & 0x0f)
+			if (igp_info->info_2.ulBootUpSidePortClock)
 				return true;
 			break;
 		default:
@@ -1305,6 +1339,7 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 	union lvds_info *lvds_info;
 	uint8_t frev, crev;
 	struct radeon_encoder_atom_dig *lvds = NULL;
+	int encoder_enum = (encoder->encoder_enum & ENUM_ID_MASK) >> ENUM_ID_SHIFT;
 
 	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
 				   &frev, &crev, &data_offset)) {
@@ -1368,6 +1403,12 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 		}
 
 		encoder->native_mode = lvds->native_mode;
+
+		if (encoder_enum == 2)
+			lvds->linkb = true;
+		else
+			lvds->linkb = false;
+
 	}
 	return lvds;
 }
@@ -1517,39 +1558,39 @@ radeon_atombios_get_tv_info(struct radeon_device *rdev)
 		switch (tv_info->ucTV_BootUpDefaultStandard) {
 		case ATOM_TV_NTSC:
 			tv_std = TV_STD_NTSC;
-			DRM_INFO("Default TV standard: NTSC\n");
+			DRM_DEBUG_KMS("Default TV standard: NTSC\n");
 			break;
 		case ATOM_TV_NTSCJ:
 			tv_std = TV_STD_NTSC_J;
-			DRM_INFO("Default TV standard: NTSC-J\n");
+			DRM_DEBUG_KMS("Default TV standard: NTSC-J\n");
 			break;
 		case ATOM_TV_PAL:
 			tv_std = TV_STD_PAL;
-			DRM_INFO("Default TV standard: PAL\n");
+			DRM_DEBUG_KMS("Default TV standard: PAL\n");
 			break;
 		case ATOM_TV_PALM:
 			tv_std = TV_STD_PAL_M;
-			DRM_INFO("Default TV standard: PAL-M\n");
+			DRM_DEBUG_KMS("Default TV standard: PAL-M\n");
 			break;
 		case ATOM_TV_PALN:
 			tv_std = TV_STD_PAL_N;
-			DRM_INFO("Default TV standard: PAL-N\n");
+			DRM_DEBUG_KMS("Default TV standard: PAL-N\n");
 			break;
 		case ATOM_TV_PALCN:
 			tv_std = TV_STD_PAL_CN;
-			DRM_INFO("Default TV standard: PAL-CN\n");
+			DRM_DEBUG_KMS("Default TV standard: PAL-CN\n");
 			break;
 		case ATOM_TV_PAL60:
 			tv_std = TV_STD_PAL_60;
-			DRM_INFO("Default TV standard: PAL-60\n");
+			DRM_DEBUG_KMS("Default TV standard: PAL-60\n");
 			break;
 		case ATOM_TV_SECAM:
 			tv_std = TV_STD_SECAM;
-			DRM_INFO("Default TV standard: SECAM\n");
+			DRM_DEBUG_KMS("Default TV standard: SECAM\n");
 			break;
 		default:
 			tv_std = TV_STD_NTSC;
-			DRM_INFO("Unknown TV standard; defaulting to NTSC\n");
+			DRM_DEBUG_KMS("Unknown TV standard; defaulting to NTSC\n");
 			break;
 		}
 	}

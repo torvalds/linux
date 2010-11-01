@@ -241,20 +241,20 @@ static inline unsigned long alpha_read_pmc(int idx)
 static int alpha_perf_event_set_period(struct perf_event *event,
 				struct hw_perf_event *hwc, int idx)
 {
-	long left = atomic64_read(&hwc->period_left);
+	long left = local64_read(&hwc->period_left);
 	long period = hwc->sample_period;
 	int ret = 0;
 
 	if (unlikely(left <= -period)) {
 		left = period;
-		atomic64_set(&hwc->period_left, left);
+		local64_set(&hwc->period_left, left);
 		hwc->last_period = period;
 		ret = 1;
 	}
 
 	if (unlikely(left <= 0)) {
 		left += period;
-		atomic64_set(&hwc->period_left, left);
+		local64_set(&hwc->period_left, left);
 		hwc->last_period = period;
 		ret = 1;
 	}
@@ -269,7 +269,7 @@ static int alpha_perf_event_set_period(struct perf_event *event,
 	if (left > (long)alpha_pmu->pmc_max_period[idx])
 		left = alpha_pmu->pmc_max_period[idx];
 
-	atomic64_set(&hwc->prev_count, (unsigned long)(-left));
+	local64_set(&hwc->prev_count, (unsigned long)(-left));
 
 	alpha_write_pmc(idx, (unsigned long)(-left));
 
@@ -300,10 +300,10 @@ static unsigned long alpha_perf_event_update(struct perf_event *event,
 	long delta;
 
 again:
-	prev_raw_count = atomic64_read(&hwc->prev_count);
+	prev_raw_count = local64_read(&hwc->prev_count);
 	new_raw_count = alpha_read_pmc(idx);
 
-	if (atomic64_cmpxchg(&hwc->prev_count, prev_raw_count,
+	if (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
 			     new_raw_count) != prev_raw_count)
 		goto again;
 
@@ -316,8 +316,8 @@ again:
 		delta += alpha_pmu->pmc_max_period[idx] + 1;
 	}
 
-	atomic64_add(delta, &event->count);
-	atomic64_sub(delta, &hwc->period_left);
+	local64_add(delta, &event->count);
+	local64_sub(delta, &hwc->period_left);
 
 	return new_raw_count;
 }
@@ -636,7 +636,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if (!hwc->sample_period) {
 		hwc->sample_period = alpha_pmu->pmc_max_period[0];
 		hwc->last_period = hwc->sample_period;
-		atomic64_set(&hwc->period_left, hwc->sample_period);
+		local64_set(&hwc->period_left, hwc->sample_period);
 	}
 
 	return 0;

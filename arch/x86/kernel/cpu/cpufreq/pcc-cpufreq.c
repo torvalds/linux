@@ -368,16 +368,22 @@ static int __init pcc_cpufreq_do_osc(acpi_handle *handle)
 		return -ENODEV;
 
 	out_obj = output.pointer;
-	if (out_obj->type != ACPI_TYPE_BUFFER)
-		return -ENODEV;
+	if (out_obj->type != ACPI_TYPE_BUFFER) {
+		ret = -ENODEV;
+		goto out_free;
+	}
 
 	errors = *((u32 *)out_obj->buffer.pointer) & ~(1 << 0);
-	if (errors)
-		return -ENODEV;
+	if (errors) {
+		ret = -ENODEV;
+		goto out_free;
+	}
 
 	supported = *((u32 *)(out_obj->buffer.pointer + 4));
-	if (!(supported & 0x1))
-		return -ENODEV;
+	if (!(supported & 0x1)) {
+		ret = -ENODEV;
+		goto out_free;
+	}
 
 out_free:
 	kfree(output.pointer);

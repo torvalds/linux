@@ -269,8 +269,8 @@ asmlinkage long sys_vfork(void)
 }
 
 asmlinkage long sys_execve(const char __user *name,
-			   char __user * __user *argv,
-			   char __user * __user *envp)
+			   const char __user *const __user *argv,
+			   const char __user *const __user *envp)
 {
 	char *filename;
 	int error;

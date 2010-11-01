@@ -549,7 +549,7 @@ static void __unregister_request(struct ceph_osd_client *osdc,
  */
 static void __cancel_request(struct ceph_osd_request *req)
 {
-	if (req->r_sent) {
+	if (req->r_sent && req->r_osd) {
 		ceph_con_revoke(&req->r_osd->o_con, req->r_request);
 		req->r_sent = 0;
 	}
@@ -661,7 +661,7 @@ static int __send_request(struct ceph_osd_client *osdc,
 	reqhead->reassert_version = req->r_reassert_version;
 
 	req->r_stamp = jiffies;
-	list_move_tail(&osdc->req_lru, &req->r_req_lru_item);
+	list_move_tail(&req->r_req_lru_item, &osdc->req_lru);
 
 	ceph_msg_get(req->r_request); /* send consumes a ref */
 	ceph_con_send(&req->r_osd->o_con, req->r_request);

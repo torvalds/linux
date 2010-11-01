@@ -445,7 +445,7 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 					     &priv->rx_ring_dma);
 
 	if (!priv->rx_ring || (unsigned long)priv->rx_ring & 0xFF) {
-		wiphy_err(dev->wiphy, "cannot allocate rx ring\n");
+		wiphy_err(dev->wiphy, "Cannot allocate RX ring\n");
 		return -ENOMEM;
 	}
 
@@ -502,7 +502,7 @@ static int rtl8180_init_tx_ring(struct ieee80211_hw *dev,
 
 	ring = pci_alloc_consistent(priv->pdev, sizeof(*ring) * entries, &dma);
 	if (!ring || (unsigned long)ring & 0xFF) {
-		wiphy_err(dev->wiphy, "cannot allocate tx ring (prio = %d)\n",
+		wiphy_err(dev->wiphy, "Cannot allocate TX ring (prio = %d)\n",
 			  prio);
 		return -ENOMEM;
 	}
@@ -568,7 +568,7 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	ret = request_irq(priv->pdev->irq, rtl8180_interrupt,
 			  IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret) {
-		wiphy_err(dev->wiphy, "failed to register irq handler\n");
+		wiphy_err(dev->wiphy, "failed to register IRQ handler\n");
 		goto err_free_rings;
 	}
 

@@ -41,8 +41,10 @@ int hpux_execve(struct pt_regs *regs)
 	if (IS_ERR(filename))
 		goto out;
 
-	error = do_execve(filename, (char __user * __user *) regs->gr[25],
-		(char __user * __user *) regs->gr[24], regs);
+	error = do_execve(filename,
+			  (const char __user *const __user *) regs->gr[25],
+			  (const char __user *const __user *) regs->gr[24],
+			  regs);
 
 	putname(filename);
 

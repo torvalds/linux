@@ -194,7 +194,7 @@ static struct hw_breakpoint {
 	unsigned long		addr;
 	int			len;
 	int			type;
-	struct perf_event	**pev;
+	struct perf_event	* __percpu *pev;
 } breakinfo[HBP_NUM];
 
 static unsigned long early_dr7;

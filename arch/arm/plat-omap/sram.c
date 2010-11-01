@@ -220,20 +220,7 @@ void __init omap_map_sram(void)
 	if (omap_sram_size == 0)
 		return;
 
-	if (cpu_is_omap24xx()) {
-		omap_sram_io_desc[0].virtual = OMAP2_SRAM_VA;
-
-		base = OMAP2_SRAM_PA;
-		base = ROUND_DOWN(base, PAGE_SIZE);
-		omap_sram_io_desc[0].pfn = __phys_to_pfn(base);
-	}
-
 	if (cpu_is_omap34xx()) {
-		omap_sram_io_desc[0].virtual = OMAP3_SRAM_VA;
-		base = OMAP3_SRAM_PA;
-		base = ROUND_DOWN(base, PAGE_SIZE);
-		omap_sram_io_desc[0].pfn = __phys_to_pfn(base);
-
 		/*
 		 * SRAM must be marked as non-cached on OMAP3 since the
 		 * CORE DPLL M2 divider change code (in SRAM) runs with the
@@ -244,13 +231,11 @@ void __init omap_map_sram(void)
 		omap_sram_io_desc[0].type = MT_MEMORY_NONCACHED;
 	}
 
-	if (cpu_is_omap44xx()) {
-		omap_sram_io_desc[0].virtual = OMAP4_SRAM_VA;
-		base = OMAP4_SRAM_PA;
-		base = ROUND_DOWN(base, PAGE_SIZE);
-		omap_sram_io_desc[0].pfn = __phys_to_pfn(base);
-	}
-	omap_sram_io_desc[0].length = 1024 * 1024;	/* Use section desc */
+	omap_sram_io_desc[0].virtual = omap_sram_base;
+	base = omap_sram_start;
+	base = ROUND_DOWN(base, PAGE_SIZE);
+	omap_sram_io_desc[0].pfn = __phys_to_pfn(base);
+	omap_sram_io_desc[0].length = ROUND_DOWN(omap_sram_size, PAGE_SIZE);
 	iotable_init(omap_sram_io_desc, ARRAY_SIZE(omap_sram_io_desc));
 
 	printk(KERN_INFO "SRAM: Mapped pa 0x%08lx to va 0x%08lx size: 0x%lx\n",

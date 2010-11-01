@@ -263,6 +263,7 @@ static const struct {
 	{PCI_VENDOR_ID_JMICRON,	PCI_DEVICE_ID_JMICRON_JMB38X_FW, QUIRK_NO_MSI},
 	{PCI_VENDOR_ID_NEC,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
 	{PCI_VENDOR_ID_VIA,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
+	{PCI_VENDOR_ID_RICOH,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
 	{PCI_VENDOR_ID_APPLE,	PCI_DEVICE_ID_APPLE_UNI_N_FW, QUIRK_BE_HEADERS},
 };
 
@@ -694,7 +695,15 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	log_ar_at_event('R', p.speed, p.header, evt);
 
 	/*
-	 * The OHCI bus reset handler synthesizes a phy packet with
+	 * Several controllers, notably from NEC and VIA, forget to
+	 * write ack_complete status at PHY packet reception.
+	 */
+	if (evt == OHCI1394_evt_no_status &&
+	    (p.header[0] & 0xff) == (OHCI1394_phy_tcode << 4))
+		p.ack = ACK_COMPLETE;
+
+	/*
+	 * The OHCI bus reset handler synthesizes a PHY packet with
 	 * the new generation number when a bus reset happens (see
 	 * section 8.4.2.3).  This helps us determine when a request
 	 * was received and make sure we send the response in the same
@@ -2831,7 +2840,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
 			       const struct pci_device_id *ent)
 {
 	struct fw_ohci *ohci;
-	u32 bus_options, max_receive, link_speed, version, link_enh;
+	u32 bus_options, max_receive, link_speed, version;
 	u64 guid;
 	int i, err, n_ir, n_it;
 	size_t size;
@@ -2884,23 +2893,6 @@ static int __devinit pci_probe(struct pci_dev *dev,
 		}
 	if (param_quirks)
 		ohci->quirks = param_quirks;
-
-	/* TI OHCI-Lynx and compatible: set recommended configuration bits. */
-	if (dev->vendor == PCI_VENDOR_ID_TI) {
-		pci_read_config_dword(dev, PCI_CFG_TI_LinkEnh, &link_enh);
-
-		/* adjust latency of ATx FIFO: use 1.7 KB threshold */
-		link_enh &= ~TI_LinkEnh_atx_thresh_mask;
-		link_enh |= TI_LinkEnh_atx_thresh_1_7K;
-
-		/* use priority arbitration for asynchronous responses */
-		link_enh |= TI_LinkEnh_enab_unfair;
-
-		/* required for aPhyEnhanceEnable to work */
-		link_enh |= TI_LinkEnh_enab_accel;
-
-		pci_write_config_dword(dev, PCI_CFG_TI_LinkEnh, link_enh);
-	}
 
 	ar_context_init(&ohci->ar_request_ctx, ohci,
 			OHCI1394_AsReqRcvContextControlSet);

@@ -787,8 +787,8 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 	struct bio_list bl;
 	struct page **behind_pages = NULL;
 	const int rw = bio_data_dir(bio);
-	const bool do_sync = (bio->bi_rw & REQ_SYNC);
-	bool do_barriers;
+	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
+	unsigned long do_barriers;
 	mdk_rdev_t *blocked_rdev;
 
 	/*
@@ -1120,6 +1120,8 @@ static int raid1_spare_active(mddev_t *mddev)
 {
 	int i;
 	conf_t *conf = mddev->private;
+	int count = 0;
+	unsigned long flags;
 
 	/*
 	 * Find all failed disks within the RAID1 configuration 
@@ -1131,15 +1133,16 @@ static int raid1_spare_active(mddev_t *mddev)
 		if (rdev
 		    && !test_bit(Faulty, &rdev->flags)
 		    && !test_and_set_bit(In_sync, &rdev->flags)) {
-			unsigned long flags;
-			spin_lock_irqsave(&conf->device_lock, flags);
-			mddev->degraded--;
-			spin_unlock_irqrestore(&conf->device_lock, flags);
+			count++;
+			sysfs_notify_dirent(rdev->sysfs_state);
 		}
 	}
+	spin_lock_irqsave(&conf->device_lock, flags);
+	mddev->degraded -= count;
+	spin_unlock_irqrestore(&conf->device_lock, flags);
 
 	print_conf(conf);
-	return 0;
+	return count;
 }
 
 
@@ -1640,7 +1643,7 @@ static void raid1d(mddev_t *mddev)
 			 * We already have a nr_pending reference on these rdevs.
 			 */
 			int i;
-			const bool do_sync = (r1_bio->master_bio->bi_rw & REQ_SYNC);
+			const unsigned long do_sync = (r1_bio->master_bio->bi_rw & REQ_SYNC);
 			clear_bit(R1BIO_BarrierRetry, &r1_bio->state);
 			clear_bit(R1BIO_Barrier, &r1_bio->state);
 			for (i=0; i < conf->raid_disks; i++)
@@ -1696,7 +1699,7 @@ static void raid1d(mddev_t *mddev)
 				       (unsigned long long)r1_bio->sector);
 				raid_end_bio_io(r1_bio);
 			} else {
-				const bool do_sync = r1_bio->master_bio->bi_rw & REQ_SYNC;
+				const unsigned long do_sync = r1_bio->master_bio->bi_rw & REQ_SYNC;
 				r1_bio->bios[r1_bio->read_disk] =
 					mddev->ro ? IO_BLOCKED : NULL;
 				r1_bio->read_disk = disk;
@@ -1836,7 +1839,9 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 
 		/* take from bio_init */
 		bio->bi_next = NULL;
+		bio->bi_flags &= ~(BIO_POOL_MASK-1);
 		bio->bi_flags |= 1 << BIO_UPTODATE;
+		bio->bi_comp_cpu = -1;
 		bio->bi_rw = READ;
 		bio->bi_vcnt = 0;
 		bio->bi_idx = 0;
@@ -1909,7 +1914,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 			    !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
 				break;
 			BUG_ON(sync_blocks < (PAGE_SIZE>>9));
-			if (len > (sync_blocks<<9))
+			if ((len >> 9) > sync_blocks)
 				len = sync_blocks<<9;
 		}
 

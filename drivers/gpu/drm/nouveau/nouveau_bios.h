@@ -95,6 +95,7 @@ enum dcb_type {
 	OUTPUT_TMDS = 2,
 	OUTPUT_LVDS = 3,
 	OUTPUT_DP = 6,
+	OUTPUT_EOL = 14, /* DCB 4.0+, appears to be end-of-list */
 	OUTPUT_ANY = -1
 };
 

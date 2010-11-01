@@ -203,6 +203,7 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_device *rdev = crtc->dev->dev_private;
 	int xorigin = 0, yorigin = 0;
+	int w = radeon_crtc->cursor_width;
 
 	if (x < 0)
 		xorigin = -x + 1;
@@ -213,22 +214,7 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 	if (yorigin >= CURSOR_HEIGHT)
 		yorigin = CURSOR_HEIGHT - 1;
 
-	radeon_lock_cursor(crtc, true);
-	if (ASIC_IS_DCE4(rdev)) {
-		/* cursors are offset into the total surface */
-		x += crtc->x;
-		y += crtc->y;
-		DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
-
-		/* XXX: check if evergreen has the same issues as avivo chips */
-		WREG32(EVERGREEN_CUR_POSITION + radeon_crtc->crtc_offset,
-		       ((xorigin ? 0 : x) << 16) |
-		       (yorigin ? 0 : y));
-		WREG32(EVERGREEN_CUR_HOT_SPOT + radeon_crtc->crtc_offset, (xorigin << 16) | yorigin);
-		WREG32(EVERGREEN_CUR_SIZE + radeon_crtc->crtc_offset,
-		       ((radeon_crtc->cursor_width - 1) << 16) | (radeon_crtc->cursor_height - 1));
-	} else if (ASIC_IS_AVIVO(rdev)) {
-		int w = radeon_crtc->cursor_width;
+	if (ASIC_IS_AVIVO(rdev)) {
 		int i = 0;
 		struct drm_crtc *crtc_p;
 
@@ -260,7 +246,17 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 			if (w <= 0)
 				w = 1;
 		}
+	}
 
+	radeon_lock_cursor(crtc, true);
+	if (ASIC_IS_DCE4(rdev)) {
+		WREG32(EVERGREEN_CUR_POSITION + radeon_crtc->crtc_offset,
+		       ((xorigin ? 0 : x) << 16) |
+		       (yorigin ? 0 : y));
+		WREG32(EVERGREEN_CUR_HOT_SPOT + radeon_crtc->crtc_offset, (xorigin << 16) | yorigin);
+		WREG32(EVERGREEN_CUR_SIZE + radeon_crtc->crtc_offset,
+		       ((w - 1) << 16) | (radeon_crtc->cursor_height - 1));
+	} else if (ASIC_IS_AVIVO(rdev)) {
 		WREG32(AVIVO_D1CUR_POSITION + radeon_crtc->crtc_offset,
 			     ((xorigin ? 0 : x) << 16) |
 			     (yorigin ? 0 : y));

@@ -222,7 +222,6 @@ static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
 		p_dev->resource[0]->flags |=
 			pcmcia_io_cfg_data_width(io->flags);
-		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
 		p_dev->resource[0]->start = io->win[0].base;
 		p_dev->resource[0]->end = io->win[0].len;
 		if (io->nwin > 1) {

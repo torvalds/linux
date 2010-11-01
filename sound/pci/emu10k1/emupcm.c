@@ -332,7 +332,7 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 		evoice->epcm->ccca_start_addr = start_addr + ccis;
 		if (extra) {
 			start_addr += ccis;
-			end_addr += ccis;
+			end_addr += ccis + emu->delay_pcm_irq;
 		}
 		if (stereo && !extra) {
 			snd_emu10k1_ptr_write(emu, CPF, voice, CPF_STEREO_MASK);
@@ -360,7 +360,9 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 	/* Assumption that PT is already 0 so no harm overwriting */
 	snd_emu10k1_ptr_write(emu, PTRX, voice, (send_amount[0] << 8) | send_amount[1]);
 	snd_emu10k1_ptr_write(emu, DSL, voice, end_addr | (send_amount[3] << 24));
-	snd_emu10k1_ptr_write(emu, PSST, voice, start_addr | (send_amount[2] << 24));
+	snd_emu10k1_ptr_write(emu, PSST, voice,
+			(start_addr + (extra ? emu->delay_pcm_irq : 0)) |
+			(send_amount[2] << 24));
 	if (emu->card_capabilities->emu_model)
 		pitch_target = PITCH_48000; /* Disable interpolators on emu1010 card */
 	else 
@@ -732,6 +734,23 @@ static void snd_emu10k1_playback_stop_voice(struct snd_emu10k1 *emu, struct snd_
 	snd_emu10k1_ptr_write(emu, IP, voice, 0);
 }
 
+static inline void snd_emu10k1_playback_mangle_extra(struct snd_emu10k1 *emu,
+		struct snd_emu10k1_pcm *epcm,
+		struct snd_pcm_substream *substream,
+		struct snd_pcm_runtime *runtime)
+{
+	unsigned int ptr, period_pos;
+
+	/* try to sychronize the current position for the interrupt
+	   source voice */
+	period_pos = runtime->status->hw_ptr - runtime->hw_ptr_interrupt;
+	period_pos %= runtime->period_size;
+	ptr = snd_emu10k1_ptr_read(emu, CCCA, epcm->extra->number);
+	ptr &= ~0x00ffffff;
+	ptr |= epcm->ccca_start_addr + period_pos;
+	snd_emu10k1_ptr_write(emu, CCCA, epcm->extra->number, ptr);
+}
+
 static int snd_emu10k1_playback_trigger(struct snd_pcm_substream *substream,
 				        int cmd)
 {
@@ -753,6 +772,8 @@ static int snd_emu10k1_playback_trigger(struct snd_pcm_substream *substream,
 		/* follow thru */
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
+		if (cmd == SNDRV_PCM_TRIGGER_PAUSE_RELEASE)
+			snd_emu10k1_playback_mangle_extra(emu, epcm, substream, runtime);
 		mix = &emu->pcm_mixer[substream->number];
 		snd_emu10k1_playback_prepare_voice(emu, epcm->voices[0], 1, 0, mix);
 		snd_emu10k1_playback_prepare_voice(emu, epcm->voices[1], 0, 0, mix);
@@ -869,8 +890,9 @@ static snd_pcm_uframes_t snd_emu10k1_playback_pointer(struct snd_pcm_substream *
 #endif
 	/*
 	printk(KERN_DEBUG
-	       "ptr = 0x%x, buffer_size = 0x%x, period_size = 0x%x\n",
-	       ptr, runtime->buffer_size, runtime->period_size);
+	       "ptr = 0x%lx, buffer_size = 0x%lx, period_size = 0x%lx\n",
+	       (long)ptr, (long)runtime->buffer_size,
+	       (long)runtime->period_size);
 	*/
 	return ptr;
 }

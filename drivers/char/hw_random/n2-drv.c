@@ -387,7 +387,7 @@ static int n2rng_init_control(struct n2rng *np)
 
 static int n2rng_data_read(struct hwrng *rng, u32 *data)
 {
-	struct n2rng *np = rng->priv;
+	struct n2rng *np = (struct n2rng *) rng->priv;
 	unsigned long ra = __pa(&np->test_data);
 	int len;
 

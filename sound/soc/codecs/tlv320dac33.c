@@ -524,6 +524,22 @@ static const struct soc_enum dac33_fifo_mode_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(dac33_fifo_mode_texts),
 			    dac33_fifo_mode_texts);
 
+/* L/R Line Output Gain */
+static const char *lr_lineout_gain_texts[] = {
+	"Line -12dB DAC 0dB", "Line -6dB DAC 6dB",
+	"Line 0dB DAC 12dB", "Line 6dB DAC 18dB",
+};
+
+static const struct soc_enum l_lineout_gain_enum =
+	SOC_ENUM_SINGLE(DAC33_LDAC_PWR_CTRL, 0,
+			ARRAY_SIZE(lr_lineout_gain_texts),
+			lr_lineout_gain_texts);
+
+static const struct soc_enum r_lineout_gain_enum =
+	SOC_ENUM_SINGLE(DAC33_RDAC_PWR_CTRL, 0,
+			ARRAY_SIZE(lr_lineout_gain_texts),
+			lr_lineout_gain_texts);
+
 /*
  * DACL/R digital volume control:
  * from 0 dB to -63.5 in 0.5 dB steps
@@ -541,6 +557,8 @@ static const struct snd_kcontrol_new dac33_snd_controls[] = {
 		 DAC33_LDAC_DIG_VOL_CTRL, DAC33_RDAC_DIG_VOL_CTRL, 7, 1, 1),
 	SOC_DOUBLE_R("Line to Line Out Volume",
 		 DAC33_LINEL_TO_LLO_VOL, DAC33_LINER_TO_RLO_VOL, 0, 127, 1),
+	SOC_ENUM("Left Line Output Gain", l_lineout_gain_enum),
+	SOC_ENUM("Right Line Output Gain", r_lineout_gain_enum),
 };
 
 static const struct snd_kcontrol_new dac33_mode_snd_controls[] = {
@@ -651,6 +669,7 @@ static int dac33_set_bias_level(struct snd_soc_codec *codec,
 static inline void dac33_prefill_handler(struct tlv320dac33_priv *dac33)
 {
 	struct snd_soc_codec *codec = dac33->codec;
+	unsigned int delay;
 
 	switch (dac33->fifo_mode) {
 	case DAC33_FIFO_MODE1:
@@ -666,8 +685,9 @@ static inline void dac33_prefill_handler(struct tlv320dac33_priv *dac33)
 		dac33_write16(codec, DAC33_PREFILL_MSB,
 				DAC33_THRREG(dac33->alarm_threshold));
 		/* Enable Alarm Threshold IRQ with a delay */
-		udelay(SAMPLES_TO_US(dac33->burst_rate,
-				     dac33->alarm_threshold));
+		delay = SAMPLES_TO_US(dac33->burst_rate,
+				     dac33->alarm_threshold) + 1000;
+		usleep_range(delay, delay + 500);
 		dac33_write(codec, DAC33_FIFO_IRQ_MASK, DAC33_MAT);
 		break;
 	case DAC33_FIFO_MODE7:
@@ -767,11 +787,11 @@ static irqreturn_t dac33_interrupt_handler(int irq, void *dev)
 
 static void dac33_oscwait(struct snd_soc_codec *codec)
 {
-	int timeout = 20;
+	int timeout = 60;
 	u8 reg;
 
 	do {
-		msleep(1);
+		usleep_range(1000, 2000);
 		dac33_read(codec, DAC33_INT_OSC_STATUS, &reg);
 	} while (((reg & 0x03) != DAC33_OSCSTATUS_NORMAL) && timeout--);
 	if ((reg & 0x03) != DAC33_OSCSTATUS_NORMAL)

@@ -1713,10 +1713,7 @@ static __init int sysctl_init(void)
 {
 	sysctl_set_parent(NULL, root_table);
 #ifdef CONFIG_SYSCTL_SYSCALL_CHECK
-	{
-		int err;
-		err = sysctl_check_table(current->nsproxy, root_table);
-	}
+	sysctl_check_table(current->nsproxy, root_table);
 #endif
 	return 0;
 }
@@ -2488,7 +2485,7 @@ static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table, int 
 		kbuf[left] = 0;
 	}
 
-	for (; left && vleft--; i++, min++, max++, first=0) {
+	for (; left && vleft--; i++, first = 0) {
 		unsigned long val;
 
 		if (write) {

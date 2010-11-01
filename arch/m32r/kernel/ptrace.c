@@ -592,16 +592,17 @@ void user_enable_single_step(struct task_struct *child)
 
 	if (access_process_vm(child, pc&~3, &insn, sizeof(insn), 0)
 	    != sizeof(insn))
-		break;
+		return -EIO;
 
 	compute_next_pc(insn, pc, &next_pc, child);
 	if (next_pc & 0x80000000)
-		break;
+		return -EIO;
 
 	if (embed_debug_trap(child, next_pc))
-		break;
+		return -EIO;
 
 	invalidate_cache();
+	return 0;
 }
 
 void user_disable_single_step(struct task_struct *child)

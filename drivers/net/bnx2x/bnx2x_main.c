@@ -4328,10 +4328,12 @@ static int bnx2x_init_port(struct bnx2x *bp)
 		val |= aeu_gpio_mask;
 		REG_WR(bp, offset, val);
 		}
+		bp->port.need_hw_lock = 1;
 		break;
 
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
+		bp->port.need_hw_lock = 1;
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 		/* add SPIO 5 to group 0 */
 		{
 		u32 reg_addr = (port ? MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0 :
@@ -4341,7 +4343,10 @@ static int bnx2x_init_port(struct bnx2x *bp)
 		REG_WR(bp, reg_addr, val);
 		}
 		break;
-
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
+		bp->port.need_hw_lock = 1;
+		break;
 	default:
 		break;
 	}

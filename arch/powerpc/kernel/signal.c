@@ -138,6 +138,7 @@ static int do_signal_pending(sigset_t *oldset, struct pt_regs *regs)
 			ti->local_flags &= ~_TLF_RESTORE_SIGMASK;
 			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 		}
+		regs->trap = 0;
 		return 0;               /* no signals delivered */
 	}
 
@@ -164,6 +165,7 @@ static int do_signal_pending(sigset_t *oldset, struct pt_regs *regs)
 		ret = handle_rt_signal64(signr, &ka, &info, oldset, regs);
 	}
 
+	regs->trap = 0;
 	if (ret) {
 		spin_lock_irq(&current->sighand->siglock);
 		sigorsets(&current->blocked, &current->blocked,

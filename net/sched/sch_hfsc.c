@@ -761,8 +761,8 @@ init_vf(struct hfsc_class *cl, unsigned int len)
 		if (f != cl->cl_f) {
 			cl->cl_f = f;
 			cftree_update(cl);
-			update_cfmin(cl->cl_parent);
 		}
+		update_cfmin(cl->cl_parent);
 	}
 }
 

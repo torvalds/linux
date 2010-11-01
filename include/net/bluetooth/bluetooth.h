@@ -161,12 +161,30 @@ static inline struct sk_buff *bt_skb_send_alloc(struct sock *sk, unsigned long l
 {
 	struct sk_buff *skb;
 
+	release_sock(sk);
 	if ((skb = sock_alloc_send_skb(sk, len + BT_SKB_RESERVE, nb, err))) {
 		skb_reserve(skb, BT_SKB_RESERVE);
 		bt_cb(skb)->incoming  = 0;
 	}
+	lock_sock(sk);
+
+	if (!skb && *err)
+		return NULL;
+
+	*err = sock_error(sk);
+	if (*err)
+		goto out;
+
+	if (sk->sk_shutdown) {
+		*err = -ECONNRESET;
+		goto out;
+	}
 
 	return skb;
+
+out:
+	kfree_skb(skb);
+	return NULL;
 }
 
 int bt_err(__u16 code);

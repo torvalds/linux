@@ -157,7 +157,7 @@ static int ab8500_list_voltage(struct regulator_dev *rdev, unsigned selector)
 	if (info->fixed_uV)
 		return info->fixed_uV;
 
-	if (selector > info->voltages_len)
+	if (selector >= info->voltages_len)
 		return -EINVAL;
 
 	return info->supported_voltages[selector];
@@ -344,13 +344,14 @@ static inline struct ab8500_regulator_info *find_regulator_info(int id)
 static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
-	struct ab8500_platform_data *pdata = dev_get_platdata(ab8500->dev);
+	struct ab8500_platform_data *pdata;
 	int i, err;
 
 	if (!ab8500) {
 		dev_err(&pdev->dev, "null mfd parent\n");
 		return -EINVAL;
 	}
+	pdata = dev_get_platdata(ab8500->dev);
 
 	/* register all regulators */
 	for (i = 0; i < ARRAY_SIZE(ab8500_regulator_info); i++) {
@@ -368,11 +369,9 @@ static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "failed to register regulator %s\n",
 					info->desc.name);
 			/* when we fail, un-register all earlier regulators */
-			i--;
-			while (i > 0) {
+			while (--i >= 0) {
 				info = &ab8500_regulator_info[i];
 				regulator_unregister(info->regulator);
-				i--;
 			}
 			return err;
 		}

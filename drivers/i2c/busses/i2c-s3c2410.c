@@ -662,8 +662,8 @@ static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
 		unsigned long sda_delay;
 
 		if (pdata->sda_delay) {
-			sda_delay = (freq / 1000) * pdata->sda_delay;
-			sda_delay /= 1000000;
+			sda_delay = clkin * pdata->sda_delay;
+			sda_delay = DIV_ROUND_UP(sda_delay, 1000000);
 			sda_delay = DIV_ROUND_UP(sda_delay, 5);
 			if (sda_delay > 3)
 				sda_delay = 3;

@@ -243,10 +243,8 @@ static int ufs_trunc_indirect(struct inode *inode, u64 offset, void *p)
 		ubh_bforget(ind_ubh);
 		ind_ubh = NULL;
 	}
-	if (IS_SYNC(inode) && ind_ubh && ubh_buffer_dirty(ind_ubh)) {
-		ubh_ll_rw_block(SWRITE, ind_ubh);
-		ubh_wait_on_buffer (ind_ubh);
-	}
+	if (IS_SYNC(inode) && ind_ubh && ubh_buffer_dirty(ind_ubh))
+		ubh_sync_block(ind_ubh);
 	ubh_brelse (ind_ubh);
 	
 	UFSD("EXIT: ino %lu\n", inode->i_ino);
@@ -307,10 +305,8 @@ static int ufs_trunc_dindirect(struct inode *inode, u64 offset, void *p)
 		ubh_bforget(dind_bh);
 		dind_bh = NULL;
 	}
-	if (IS_SYNC(inode) && dind_bh && ubh_buffer_dirty(dind_bh)) {
-		ubh_ll_rw_block(SWRITE, dind_bh);
-		ubh_wait_on_buffer (dind_bh);
-	}
+	if (IS_SYNC(inode) && dind_bh && ubh_buffer_dirty(dind_bh))
+		ubh_sync_block(dind_bh);
 	ubh_brelse (dind_bh);
 	
 	UFSD("EXIT: ino %lu\n", inode->i_ino);
@@ -367,10 +363,8 @@ static int ufs_trunc_tindirect(struct inode *inode)
 		ubh_bforget(tind_bh);
 		tind_bh = NULL;
 	}
-	if (IS_SYNC(inode) && tind_bh && ubh_buffer_dirty(tind_bh)) {
-		ubh_ll_rw_block(SWRITE, tind_bh);
-		ubh_wait_on_buffer (tind_bh);
-	}
+	if (IS_SYNC(inode) && tind_bh && ubh_buffer_dirty(tind_bh))
+		ubh_sync_block(tind_bh);
 	ubh_brelse (tind_bh);
 	
 	UFSD("EXIT: ino %lu\n", inode->i_ino);

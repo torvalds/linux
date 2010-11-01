@@ -7,7 +7,6 @@
 #include <asm/io.h>
 #include <asm/gic.h>
 #include <asm/gcmpregs.h>
-#include <asm/mips-boards/maltaint.h>
 #include <asm/irq.h>
 #include <linux/hardirq.h>
 #include <asm-generic/bitops/find.h>
@@ -131,7 +130,7 @@ static int gic_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 	int		i;
 
 	irq -= _irqbase;
-	pr_debug(KERN_DEBUG "%s(%d) called\n", __func__, irq);
+	pr_debug("%s(%d) called\n", __func__, irq);
 	cpumask_and(&tmp, cpumask, cpu_online_mask);
 	if (cpus_empty(tmp))
 		return -1;
@@ -222,7 +221,7 @@ static void __init gic_basic_init(int numintrs, int numvpes,
 	/* Setup specifics */
 	for (i = 0; i < mapsize; i++) {
 		cpu = intrmap[i].cpunum;
-		if (cpu == X)
+		if (cpu == GIC_UNUSED)
 			continue;
 		if (cpu == 0 && i != 0 && intrmap[i].flags == 0)
 			continue;

@@ -778,7 +778,7 @@ static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb)
 	eg->packets_rcvd++;
 	mpc->eg_ops->put(eg);
 
-	memset(ATM_SKB(skb), 0, sizeof(struct atm_skb_data));
+	memset(ATM_SKB(new_skb), 0, sizeof(struct atm_skb_data));
 	netif_rx(new_skb);
 }
 

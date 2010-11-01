@@ -80,7 +80,7 @@ static struct inode *get_cramfs_inode(struct super_block *sb,
 		}
 	} else {
 		inode = iget_locked(sb, CRAMINO(cramfs_inode));
-		if (inode) {
+		if (inode && (inode->i_state & I_NEW)) {
 			setup_inode(inode, cramfs_inode);
 			unlock_new_inode(inode);
 		}

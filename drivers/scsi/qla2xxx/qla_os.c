@@ -2341,16 +2341,28 @@ probe_out:
 static void
 qla2x00_remove_one(struct pci_dev *pdev)
 {
-	scsi_qla_host_t *base_vha, *vha, *temp;
+	scsi_qla_host_t *base_vha, *vha;
 	struct qla_hw_data  *ha;
+	unsigned long flags;
 
 	base_vha = pci_get_drvdata(pdev);
 	ha = base_vha->hw;
 
-	list_for_each_entry_safe(vha, temp, &ha->vp_list, list) {
-		if (vha && vha->fc_vport)
+	spin_lock_irqsave(&ha->vport_slock, flags);
+	list_for_each_entry(vha, &ha->vp_list, list) {
+		atomic_inc(&vha->vref_count);
+
+		if (vha && vha->fc_vport) {
+			spin_unlock_irqrestore(&ha->vport_slock, flags);
+
 			fc_vport_terminate(vha->fc_vport);
+
+			spin_lock_irqsave(&ha->vport_slock, flags);
+		}
+
+		atomic_dec(&vha->vref_count);
 	}
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
 
 	set_bit(UNLOADING, &base_vha->dpc_flags);
 
@@ -2975,10 +2987,17 @@ static struct qla_work_evt *
 qla2x00_alloc_work(struct scsi_qla_host *vha, enum qla_work_type type)
 {
 	struct qla_work_evt *e;
+	uint8_t bail;
+
+	QLA_VHA_MARK_BUSY(vha, bail);
+	if (bail)
+		return NULL;
 
 	e = kzalloc(sizeof(struct qla_work_evt), GFP_ATOMIC);
-	if (!e)
+	if (!e) {
+		QLA_VHA_MARK_NOT_BUSY(vha);
 		return NULL;
+	}
 
 	INIT_LIST_HEAD(&e->list);
 	e->type = type;
@@ -3135,6 +3154,9 @@ qla2x00_do_work(struct scsi_qla_host *vha)
 		}
 		if (e->flags & QLA_EVT_FLAG_FREE)
 			kfree(e);
+
+		/* For each work completed decrement vha ref count */
+		QLA_VHA_MARK_NOT_BUSY(vha);
 	}
 }
 

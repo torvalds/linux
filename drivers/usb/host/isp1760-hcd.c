@@ -829,6 +829,7 @@ static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	 * almost immediately. With ISP1761, this register requires a delay of
 	 * 195ns between a write and subsequent read (see section 15.1.1.3).
 	 */
+	mmiowb();
 	ndelay(195);
 	skip_map = isp1760_readl(hcd->regs + HC_ATL_PTD_SKIPMAP_REG);
 
@@ -870,6 +871,7 @@ static void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	 * almost immediately. With ISP1761, this register requires a delay of
 	 * 195ns between a write and subsequent read (see section 15.1.1.3).
 	 */
+	mmiowb();
 	ndelay(195);
 	skip_map = isp1760_readl(hcd->regs + HC_INT_PTD_SKIPMAP_REG);
 

@@ -246,9 +246,11 @@ struct ttm_buffer_object {
 
 	atomic_t reserved;
 
-
 	/**
 	 * Members protected by the bo::lock
+	 * In addition, setting sync_obj to anything else
+	 * than NULL requires bo::reserved to be held. This allows for
+	 * checking NULL while reserved but not holding bo::lock.
 	 */
 
 	void *sync_obj_arg;

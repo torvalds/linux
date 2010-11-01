@@ -865,7 +865,7 @@ void osd_req_read(struct osd_request *or,
 {
 	_osd_req_encode_common(or, OSD_ACT_READ, obj, offset, len);
 	WARN_ON(or->in.bio || or->in.total_bytes);
-	WARN_ON(1 == (bio->bi_rw & REQ_WRITE));
+	WARN_ON(bio->bi_rw & REQ_WRITE);
 	or->in.bio = bio;
 	or->in.total_bytes = len;
 }

@@ -36,12 +36,13 @@ config ISDN_DRV_AVMB1_T1ISA
 
 config ISDN_DRV_AVMB1_B1PCMCIA
 	tristate "AVM B1/M1/M2 PCMCIA support"
+	depends on PCMCIA
 	help
 	  Enable support for the PCMCIA version of the AVM B1 card.
 
 config ISDN_DRV_AVMB1_AVM_CS
 	tristate "AVM B1/M1/M2 PCMCIA cs module"
-	depends on ISDN_DRV_AVMB1_B1PCMCIA && PCMCIA
+	depends on ISDN_DRV_AVMB1_B1PCMCIA
 	help
 	  Enable the PCMCIA client driver for the AVM B1/M1/M2
 	  PCMCIA cards.

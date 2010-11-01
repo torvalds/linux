@@ -159,7 +159,7 @@ static ssize_t status_show(struct device *device,
 	struct drm_connector *connector = to_drm_connector(device);
 	enum drm_connector_status status;
 
-	status = connector->funcs->detect(connector);
+	status = connector->funcs->detect(connector, true);
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 			drm_get_connector_status_name(status));
 }

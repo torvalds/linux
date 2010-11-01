@@ -339,6 +339,9 @@ static void edac_mc_workq_teardown(struct mem_ctl_info *mci)
 {
 	int status;
 
+	if (mci->op_state != OP_RUNNING_POLL)
+		return;
+
 	status = cancel_delayed_work(&mci->work);
 	if (status == 0) {
 		debugf0("%s() not canceled, flush the queue\n",

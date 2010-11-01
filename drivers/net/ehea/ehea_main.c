@@ -533,8 +533,15 @@ static inline void ehea_fill_skb(struct net_device *dev,
 	int length = cqe->num_bytes_transfered - 4;	/*remove CRC */
 
 	skb_put(skb, length);
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb->protocol = eth_type_trans(skb, dev);
+
+	/* The packet was not an IPV4 packet so a complemented checksum was
+	   calculated. The value is found in the Internet Checksum field. */
+	if (cqe->status & EHEA_CQE_BLIND_CKSUM) {
+		skb->ip_summed = CHECKSUM_COMPLETE;
+		skb->csum = csum_unfold(~cqe->inet_checksum_value);
+	} else
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
 static inline struct sk_buff *get_skb_by_index(struct sk_buff **skb_array,
@@ -776,6 +783,53 @@ static int ehea_proc_rwqes(struct net_device *dev,
 	return processed;
 }
 
+#define SWQE_RESTART_CHECK 0xdeadbeaff00d0000ull
+
+static void reset_sq_restart_flag(struct ehea_port *port)
+{
+	int i;
+
+	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++) {
+		struct ehea_port_res *pr = &port->port_res[i];
+		pr->sq_restart_flag = 0;
+	}
+}
+
+static void check_sqs(struct ehea_port *port)
+{
+	struct ehea_swqe *swqe;
+	int swqe_index;
+	int i, k;
+
+	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++) {
+		struct ehea_port_res *pr = &port->port_res[i];
+		k = 0;
+		swqe = ehea_get_swqe(pr->qp, &swqe_index);
+		memset(swqe, 0, SWQE_HEADER_SIZE);
+		atomic_dec(&pr->swqe_avail);
+
+		swqe->tx_control |= EHEA_SWQE_PURGE;
+		swqe->wr_id = SWQE_RESTART_CHECK;
+		swqe->tx_control |= EHEA_SWQE_SIGNALLED_COMPLETION;
+		swqe->tx_control |= EHEA_SWQE_IMM_DATA_PRESENT;
+		swqe->immediate_data_length = 80;
+
+		ehea_post_swqe(pr->qp, swqe);
+
+		while (pr->sq_restart_flag == 0) {
+			msleep(5);
+			if (++k == 100) {
+				ehea_error("HW/SW queues out of sync");
+				ehea_schedule_port_reset(pr->port);
+				return;
+			}
+		}
+	}
+
+	return;
+}
+
+
 static struct ehea_cqe *ehea_proc_cqes(struct ehea_port_res *pr, int my_quota)
 {
 	struct sk_buff *skb;
@@ -793,6 +847,13 @@ static struct ehea_cqe *ehea_proc_cqes(struct ehea_port_res *pr, int my_quota)
 
 		cqe_counter++;
 		rmb();
+
+		if (cqe->wr_id == SWQE_RESTART_CHECK) {
+			pr->sq_restart_flag = 1;
+			swqe_av++;
+			break;
+		}
+
 		if (cqe->status & EHEA_CQE_STAT_ERR_MASK) {
 			ehea_error("Bad send completion status=0x%04X",
 				   cqe->status);
@@ -2675,8 +2736,10 @@ static void ehea_flush_sq(struct ehea_port *port)
 		int k = 0;
 		while (atomic_read(&pr->swqe_avail) < swqe_max) {
 			msleep(5);
-			if (++k == 20)
+			if (++k == 20) {
+				ehea_error("WARNING: sq not flushed completely");
 				break;
+			}
 		}
 	}
 }
@@ -2917,6 +2980,7 @@ static void ehea_rereg_mrs(struct work_struct *work)
 					port_napi_disable(port);
 					mutex_unlock(&port->port_lock);
 				}
+				reset_sq_restart_flag(port);
 			}
 
 			/* Unregister old memory region */
@@ -2951,6 +3015,7 @@ static void ehea_rereg_mrs(struct work_struct *work)
 						mutex_lock(&port->port_lock);
 						port_napi_enable(port);
 						ret = ehea_restart_qps(dev);
+						check_sqs(port);
 						if (!ret)
 							netif_wake_queue(dev);
 						mutex_unlock(&port->port_lock);

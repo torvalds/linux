@@ -136,10 +136,10 @@ sector_t alloc_swapdev_block(int swap)
 {
 	unsigned long offset;
 
-	offset = swp_offset(get_swap_for_hibernation(swap));
+	offset = swp_offset(get_swap_page_of_type(swap));
 	if (offset) {
 		if (swsusp_extents_insert(offset))
-			swap_free_for_hibernation(swp_entry(swap, offset));
+			swap_free(swp_entry(swap, offset));
 		else
 			return swapdev_block(swap, offset);
 	}
@@ -163,7 +163,7 @@ void free_all_swap_pages(int swap)
 		ext = container_of(node, struct swsusp_extent, node);
 		rb_erase(node, &swsusp_extents);
 		for (offset = ext->start; offset <= ext->end; offset++)
-			swap_free_for_hibernation(swp_entry(swap, offset));
+			swap_free(swp_entry(swap, offset));
 
 		kfree(ext);
 	}

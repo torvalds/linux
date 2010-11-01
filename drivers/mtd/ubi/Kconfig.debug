@@ -6,7 +6,7 @@ config MTD_UBI_DEBUG
 	depends on SYSFS
 	depends on MTD_UBI
 	select DEBUG_FS
-	select KALLSYMS_ALL
+	select KALLSYMS_ALL if KALLSYMS && DEBUG_KERNEL
 	help
 	  This option enables UBI debugging.
 

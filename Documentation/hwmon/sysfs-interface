@@ -91,12 +91,11 @@ name		The chip name.
 		I2C devices get this attribute created automatically.
 		RO
 
-update_rate	The rate at which the chip will update readings.
+update_interval	The interval at which the chip will update readings.
 		Unit: millisecond
 		RW
-		Some devices have a variable update rate. This attribute
-		can be used to change the update rate to the desired
-		frequency.
+		Some devices have a variable update rate or interval.
+		This attribute can be used to change it to the desired value.
 
 
 ************

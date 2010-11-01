@@ -773,7 +773,7 @@ int hists__browse(struct hists *self, const char *helpline, const char *ev_name)
 
 			switch (key) {
 			case 'a':
-				if (browser->selection->map == NULL &&
+				if (browser->selection->map == NULL ||
 				    browser->selection->map->dso->annotate_warned)
 					continue;
 				goto do_annotate;

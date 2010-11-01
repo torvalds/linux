@@ -324,9 +324,8 @@ static void lguest_load_gdt(const struct desc_ptr *desc)
 }
 
 /*
- * For a single GDT entry which changes, we do the lazy thing: alter our GDT,
- * then tell the Host to reload the entire thing.  This operation is so rare
- * that this naive implementation is reasonable.
+ * For a single GDT entry which changes, we simply change our copy and
+ * then tell the host about it.
  */
 static void lguest_write_gdt_entry(struct desc_struct *dt, int entrynum,
 				   const void *desc, int type)
@@ -338,9 +337,13 @@ static void lguest_write_gdt_entry(struct desc_struct *dt, int entrynum,
 }
 
 /*
- * OK, I lied.  There are three "thread local storage" GDT entries which change
+ * There are three "thread local storage" GDT entries which change
  * on every context switch (these three entries are how glibc implements
- * __thread variables).  So we have a hypercall specifically for this case.
+ * __thread variables).  As an optimization, we have a hypercall
+ * specifically for this case.
+ *
+ * Wouldn't it be nicer to have a general LOAD_GDT_ENTRIES hypercall
+ * which took a range of entries?
  */
 static void lguest_load_tls(struct thread_struct *t, unsigned int cpu)
 {

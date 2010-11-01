@@ -103,10 +103,8 @@ static int __init omap2evm_soc_init(void)
 {
 	int ret;
 
-	if (!machine_is_omap2evm()) {
-		pr_debug("Not omap2evm!\n");
+	if (!machine_is_omap2evm())
 		return -ENODEV;
-	}
 	printk(KERN_INFO "omap2evm SoC init\n");
 
 	omap2evm_snd_device = platform_device_alloc("soc-audio", -1);

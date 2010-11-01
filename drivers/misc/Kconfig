@@ -368,7 +368,7 @@ config VMWARE_BALLOON
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called vmware_balloon.
+	  module will be called vmw_balloon.
 
 config ARM_CHARLCD
 	bool "ARM Ltd. Character LCD Driver"

@@ -797,7 +797,7 @@ static bool ar9300_uncompress_block(struct ath_hw *ah,
 		length = block[it+1];
 		length &= 0xff;
 
-		if (length > 0 && spot >= 0 && spot+length < mdataSize) {
+		if (length > 0 && spot >= 0 && spot+length <= mdataSize) {
 			ath_print(common, ATH_DBG_EEPROM,
 				  "Restore at %d: spot=%d "
 				  "offset=%d length=%d\n",

@@ -691,8 +691,10 @@ static int open(struct tty_struct *tty, struct file *filp)
 	if (info->port.count == 1) {
 		/* 1st open on this device, init hardware */
 		retval = startup(info);
-		if (retval < 0)
+		if (retval < 0) {
+			mutex_unlock(&info->port.mutex);
 			goto cleanup;
+		}
 	}
 	mutex_unlock(&info->port.mutex);
 	retval = block_til_ready(tty, filp, info);

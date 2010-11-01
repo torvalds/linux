@@ -267,6 +267,10 @@ static ssize_t store_log_level(struct kobject *kobj, struct attribute *attr,
 	if (atomic_read(&bat_priv->log_level) == log_level_tmp)
 		return count;
 
+	bat_info(net_dev, "Changing log level from: %i to: %li\n",
+		 atomic_read(&bat_priv->log_level),
+		 log_level_tmp);
+
 	atomic_set(&bat_priv->log_level, (unsigned)log_level_tmp);
 	return count;
 }

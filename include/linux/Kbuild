@@ -118,7 +118,6 @@ header-y += eventpoll.h
 header-y += ext2_fs.h
 header-y += fadvise.h
 header-y += falloc.h
-header-y += fanotify.h
 header-y += fb.h
 header-y += fcntl.h
 header-y += fd.h

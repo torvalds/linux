@@ -64,6 +64,9 @@ static void pic_unlock(struct kvm_pic *s)
 		if (!found)
 			found = s->kvm->bsp_vcpu;
 
+		if (!found)
+			return;
+
 		kvm_vcpu_kick(found);
 	}
 }

@@ -1539,6 +1539,7 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 		goto error;
 	}
 	tev->point.offset = pev->point.offset;
+	tev->point.retprobe = pev->point.retprobe;
 	tev->nargs = pev->nargs;
 	if (tev->nargs) {
 		tev->args = zalloc(sizeof(struct probe_trace_arg)

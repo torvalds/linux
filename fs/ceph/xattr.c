@@ -485,6 +485,7 @@ void __ceph_build_xattrs_blob(struct ceph_inode_info *ci)
 		ci->i_xattrs.blob = ci->i_xattrs.prealloc_blob;
 		ci->i_xattrs.prealloc_blob = NULL;
 		ci->i_xattrs.dirty = false;
+		ci->i_xattrs.version++;
 	}
 }
 

@@ -15,13 +15,21 @@
 #ifndef _ASM_TILE_SIGCONTEXT_H
 #define _ASM_TILE_SIGCONTEXT_H
 
-/* NOTE: we can't include <linux/ptrace.h> due to #include dependencies. */
-#include <asm/ptrace.h>
+#include <arch/abi.h>
 
-/* Must track <sys/ucontext.h> */
-
+/*
+ * struct sigcontext has the same shape as struct pt_regs,
+ * but is simplified since we know the fault is from userspace.
+ */
 struct sigcontext {
-	struct pt_regs regs;
+	uint_reg_t gregs[53];	/* General-purpose registers.  */
+	uint_reg_t tp;		/* Aliases gregs[TREG_TP].  */
+	uint_reg_t sp;		/* Aliases gregs[TREG_SP].  */
+	uint_reg_t lr;		/* Aliases gregs[TREG_LR].  */
+	uint_reg_t pc;		/* Program counter.  */
+	uint_reg_t ics;		/* In Interrupt Critical Section?  */
+	uint_reg_t faultnum;	/* Fault number.  */
+	uint_reg_t pad[5];
 };
 
 #endif /* _ASM_TILE_SIGCONTEXT_H */

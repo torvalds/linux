@@ -454,9 +454,20 @@ L:	linux-rdma@vger.kernel.org
 S:	Maintained
 F:	drivers/infiniband/hw/amso1100/
 
+ANALOG DEVICES INC ASOC DRIVERS
+L:	uclinux-dist-devel@blackfin.uclinux.org
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+W:	http://blackfin.uclinux.org/
+S:	Supported
+F:	sound/soc/blackfin/*
+F:	sound/soc/codecs/ad1*
+F:	sound/soc/codecs/adau*
+F:	sound/soc/codecs/adav*
+F:	sound/soc/codecs/ssm*
+
 AOA (Apple Onboard Audio) ALSA DRIVER
 M:	Johannes Berg <johannes@sipsolutions.net>
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	sound/aoa/
@@ -951,6 +962,23 @@ W:	http://www.fluff.org/ben/linux/
 S:	Maintained
 F:	arch/arm/mach-s3c6410/
 
+ARM/S5P ARM ARCHITECTURES
+M:	Kukjin Kim <kgene.kim@samsung.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-s5p*/
+
+ARM/SAMSUNG S5P SERIES FIMC SUPPORT
+M:	Kyungmin Park <kyungmin.park@samsung.com>
+M:	Sylwester Nawrocki <s.nawrocki@samsung.com>
+L:	linux-arm-kernel@lists.infradead.org
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	arch/arm/plat-s5p/dev-fimc*
+F:	arch/arm/plat-samsung/include/plat/*fimc*
+F:	drivers/media/video/s5p-fimc/
+
 ARM/SHMOBILE ARM ARCHITECTURE
 M:	Paul Mundt <lethal@linux-sh.org>
 M:	Magnus Damm <magnus.damm@gmail.com>
@@ -1124,7 +1152,7 @@ ATLX ETHERNET DRIVERS
 M:	Jay Cliburn <jcliburn@gmail.com>
 M:	Chris Snook <chris.snook@gmail.com>
 M:	Jie Yang <jie.yang@atheros.com>
-L:	atl1-devel@lists.sourceforge.net
+L:	netdev@vger.kernel.org
 W:	http://sourceforge.net/projects/atl1
 W:	http://atl1.sourceforge.net
 S:	Maintained
@@ -1209,7 +1237,7 @@ F:	drivers/auxdisplay/
 F:	include/linux/cfag12864b.h
 
 AVR32 ARCHITECTURE
-M:	Haavard Skinnemoen <hskinnemoen@atmel.com>
+M:	Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>
 W:	http://www.atmel.com/products/AVR32/
 W:	http://avr32linux.org/
 W:	http://avrfreaks.net/
@@ -1217,7 +1245,7 @@ S:	Supported
 F:	arch/avr32/
 
 AVR32/AT32AP MACHINE SUPPORT
-M:	Haavard Skinnemoen <hskinnemoen@atmel.com>
+M:	Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>
 S:	Supported
 F:	arch/avr32/mach-at32ap/
 
@@ -1434,6 +1462,16 @@ S:	Maintained
 F:	Documentation/video4linux/cafe_ccic
 F:	drivers/media/video/cafe_ccic*
 
+CAIF NETWORK LAYER
+M:	Sjur Braendeland <sjur.brandeland@stericsson.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	Documentation/networking/caif/
+F:	drivers/net/caif/
+F:	include/linux/caif/
+F:	include/net/caif/
+F:	net/caif/
+
 CALGARY x86-64 IOMMU
 M:	Muli Ben-Yehuda <muli@il.ibm.com>
 M:	"Jon D. Mason" <jdmason@kudzu.us>
@@ -1472,8 +1510,8 @@ F:	include/linux/can/platform/
 
 CELL BROADBAND ENGINE ARCHITECTURE
 M:	Arnd Bergmann <arnd@arndb.de>
-L:	linuxppc-dev@ozlabs.org
-L:	cbe-oss-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
+L:	cbe-oss-dev@lists.ozlabs.org
 W:	http://www.ibm.com/developerworks/power/cell/
 S:	Supported
 F:	arch/powerpc/include/asm/cell*.h
@@ -1665,8 +1703,7 @@ F:	kernel/cgroup*
 F:	mm/*cgroup*
 
 CORETEMP HARDWARE MONITORING DRIVER
-M:	Rudolf Marek <r.marek@assembler.cz>
-M:	Huaxu Wan <huaxu.wan@intel.com>
+M:	Fenghua Yu <fenghua.yu@intel.com>
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/coretemp
@@ -2179,6 +2216,12 @@ W:	http://acpi4asus.sf.net
 S:	Maintained
 F:	drivers/platform/x86/eeepc-laptop.c
 
+EFIFB FRAMEBUFFER DRIVER
+L:	linux-fbdev@vger.kernel.org
+M:	Peter Jones <pjones@redhat.com>
+S:	Maintained
+F:	drivers/video/efifb.c
+
 EFS FILESYSTEM
 W:	http://aeschi.ch.eu.org/efs/
 S:	Orphan
@@ -2190,6 +2233,12 @@ M:	Christoph Raisch <raisch@de.ibm.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/ehca/
+
+EHEA (IBM pSeries eHEA 10Gb ethernet adapter) DRIVER
+M:	Breno Leitao <leitao@linux.vnet.ibm.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ehea/
 
 EMBEDDED LINUX
 M:	Paul Gortmaker <paul.gortmaker@windriver.com>
@@ -2286,6 +2335,12 @@ S:	Maintained
 F:	Documentation/hwmon/f71805f
 F:	drivers/hwmon/f71805f.c
 
+FANOTIFY
+M:	Eric Paris <eparis@redhat.com>
+S:	Maintained
+F:	fs/notify/fanotify/
+F:	include/linux/fanotify.h
+
 FARSYNC SYNCHRONOUS DRIVER
 M:	Kevin Curtis <kevin.curtis@farsite.co.uk>
 W:	http://www.farsite.co.uk/
@@ -2371,13 +2426,13 @@ F:	include/linux/fb.h
 FREESCALE DMA DRIVER
 M:	Li Yang <leoli@freescale.com>
 M:	Zhang Wei <zw@zh-kernel.org>
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	drivers/dma/fsldma.*
 
 FREESCALE I2C CPM DRIVER
 M:	Jochen Friedrich <jochen@scram.de>
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/busses/i2c-cpm.c
@@ -2393,7 +2448,7 @@ F:	drivers/video/imxfb.c
 FREESCALE SOC FS_ENET DRIVER
 M:	Pantelis Antoniou <pantelis.antoniou@gmail.com>
 M:	Vitaly Bordug <vbordug@ru.mvista.com>
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/fs_enet/
@@ -2401,7 +2456,7 @@ F:	include/linux/fs_enet_pd.h
 
 FREESCALE QUICC ENGINE LIBRARY
 M:	Timur Tabi <timur@freescale.com>
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 S:	Supported
 F:	arch/powerpc/sysdev/qe_lib/
 F:	arch/powerpc/include/asm/*qe.h
@@ -2409,27 +2464,27 @@ F:	arch/powerpc/include/asm/*qe.h
 FREESCALE USB PERIPHERAL DRIVERS
 M:	Li Yang <leoli@freescale.com>
 L:	linux-usb@vger.kernel.org
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	drivers/usb/gadget/fsl*
 
 FREESCALE QUICC ENGINE UCC ETHERNET DRIVER
 M:	Li Yang <leoli@freescale.com>
 L:	netdev@vger.kernel.org
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	drivers/net/ucc_geth*
 
 FREESCALE QUICC ENGINE UCC UART DRIVER
 M:	Timur Tabi <timur@freescale.com>
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 S:	Supported
 F:	drivers/serial/ucc_uart.c
 
 FREESCALE SOC SOUND DRIVERS
 M:	Timur Tabi <timur@freescale.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 S:	Supported
 F:	sound/soc/fsl/fsl*
 F:	sound/soc/fsl/mpc8610_hpcd.c
@@ -2490,7 +2545,7 @@ S:	Supported
 F:	drivers/scsi/gdt*
 
 GENERIC GPIO I2C DRIVER
-M:	Haavard Skinnemoen <hskinnemoen@atmel.com>
+M:	Haavard Skinnemoen <hskinnemoen@gmail.com>
 S:	Supported
 F:	drivers/i2c/busses/i2c-gpio.c
 F:	include/linux/i2c-gpio.h
@@ -2564,7 +2619,7 @@ F:	mm/memory-failure.c
 F:	mm/hwpoison-inject.c
 
 HYPERVISOR VIRTUAL CONSOLE DRIVER
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 S:	Odd Fixes
 F:	drivers/char/hvc_*
 
@@ -2625,9 +2680,14 @@ S:	Maintained
 F:	drivers/media/video/gspca/
 
 HARDWARE MONITORING
+M:	Jean Delvare <khali@linux-fr.org>
+M:	Guenter Roeck <guenter.roeck@ericsson.com>
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
-S:	Orphan
+T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-hwmon/
+T:	quilt kernel.org/pub/linux/kernel/people/groeck/linux-staging/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
+S:	Maintained
 F:	Documentation/hwmon/
 F:	drivers/hwmon/
 F:	include/linux/hwmon*.h
@@ -2764,11 +2824,6 @@ M:	"Venkatesh Pallipadi (Venki)" <venki@google.com>
 S:	Maintained
 F:	arch/x86/kernel/hpet.c
 F:	arch/x86/include/asm/hpet.h
-
-HPET:	ACPI
-M:	Bob Picco <bob.picco@hp.com>
-S:	Maintained
-F:	drivers/char/hpet.c
 
 HPFS FILESYSTEM
 M:	Mikulas Patocka <mikulas@artax.karlin.mff.cuni.cz>
@@ -3018,16 +3073,27 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ixp2000/
 
-INTEL ETHERNET DRIVERS (e100/e1000/e1000e/igb/igbvf/ixgb/ixgbe)
+INTEL ETHERNET DRIVERS (e100/e1000/e1000e/igb/igbvf/ixgb/ixgbe/ixgbevf)
 M:	Jeff Kirsher <jeffrey.t.kirsher@intel.com>
 M:	Jesse Brandeburg <jesse.brandeburg@intel.com>
 M:	Bruce Allan <bruce.w.allan@intel.com>
-M:	Alex Duyck <alexander.h.duyck@intel.com>
+M:	Carolyn Wyborny <carolyn.wyborny@intel.com>
+M:	Don Skidmore <donald.c.skidmore@intel.com>
+M:	Greg Rose <gregory.v.rose@intel.com>
 M:	PJ Waskiewicz <peter.p.waskiewicz.jr@intel.com>
+M:	Alex Duyck <alexander.h.duyck@intel.com>
 M:	John Ronciak <john.ronciak@intel.com>
 L:	e1000-devel@lists.sourceforge.net
 W:	http://e1000.sourceforge.net/
 S:	Supported
+F:	Documentation/networking/e100.txt
+F:	Documentation/networking/e1000.txt
+F:	Documentation/networking/e1000e.txt
+F:	Documentation/networking/igb.txt
+F:	Documentation/networking/igbvf.txt
+F:	Documentation/networking/ixgb.txt
+F:	Documentation/networking/ixgbe.txt
+F:	Documentation/networking/ixgbevf.txt
 F:	drivers/net/e100.c
 F:	drivers/net/e1000/
 F:	drivers/net/e1000e/
@@ -3035,6 +3101,7 @@ F:	drivers/net/igb/
 F:	drivers/net/igbvf/
 F:	drivers/net/ixgb/
 F:	drivers/net/ixgbe/
+F:	drivers/net/ixgbevf/
 
 INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
 L:	linux-wireless@vger.kernel.org
@@ -3095,7 +3162,7 @@ F:	drivers/net/ioc3-eth.c
 
 IOC3 SERIAL DRIVER
 M:	Pat Gefre <pfg@sgi.com>
-L:	linux-mips@linux-mips.org
+L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/serial/ioc3_serial.c
 
@@ -3382,7 +3449,7 @@ F:	drivers/s390/kvm/
 
 KEXEC
 M:	Eric Biederman <ebiederm@xmission.com>
-W:	http://ftp.kernel.org/pub/linux/kernel/people/horms/kexec-tools/
+W:	http://kernel.org/pub/linux/utils/kernel/kexec/
 L:	kexec@lists.infradead.org
 S:	Maintained
 F:	include/linux/kexec.h
@@ -3476,9 +3543,9 @@ F:	drivers/usb/misc/legousbtower.c
 
 LGUEST
 M:	Rusty Russell <rusty@rustcorp.com.au>
-L:	lguest@ozlabs.org
+L:	lguest@lists.ozlabs.org
 W:	http://lguest.ozlabs.org/
-S:	Maintained
+S:	Odd Fixes
 F:	Documentation/lguest/
 F:	arch/x86/lguest/
 F:	drivers/lguest/
@@ -3495,7 +3562,7 @@ LINUX FOR POWERPC (32-BIT AND 64-BIT)
 M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
 M:	Paul Mackerras <paulus@samba.org>
 W:	http://www.penguinppc.org/
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 Q:	http://patchwork.ozlabs.org/project/linuxppc-dev/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/benh/powerpc.git
 S:	Supported
@@ -3505,14 +3572,14 @@ F:	arch/powerpc/
 LINUX FOR POWER MACINTOSH
 M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
 W:	http://www.penguinppc.org/
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	arch/powerpc/platforms/powermac/
 F:	drivers/macintosh/
 
 LINUX FOR POWERPC EMBEDDED MPC5XXX
 M:	Grant Likely <grant.likely@secretlab.ca>
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
 F:	arch/powerpc/platforms/512x/
@@ -3522,7 +3589,7 @@ LINUX FOR POWERPC EMBEDDED PPC4XX
 M:	Josh Boyer <jwboyer@linux.vnet.ibm.com>
 M:	Matt Porter <mporter@kernel.crashing.org>
 W:	http://www.penguinppc.org/
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jwboyer/powerpc-4xx.git
 S:	Maintained
 F:	arch/powerpc/platforms/40x/
@@ -3531,7 +3598,7 @@ F:	arch/powerpc/platforms/44x/
 LINUX FOR POWERPC EMBEDDED XILINX VIRTEX
 M:	Grant Likely <grant.likely@secretlab.ca>
 W:	http://wiki.secretlab.ca/index.php/Linux_on_Xilinx_Virtex
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
 F:	arch/powerpc/*/*virtex*
@@ -3541,20 +3608,20 @@ LINUX FOR POWERPC EMBEDDED PPC8XX
 M:	Vitaly Bordug <vitb@kernel.crashing.org>
 M:	Marcelo Tosatti <marcelo@kvack.org>
 W:	http://www.penguinppc.org/
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	arch/powerpc/platforms/8xx/
 
 LINUX FOR POWERPC EMBEDDED PPC83XX AND PPC85XX
 M:	Kumar Gala <galak@kernel.crashing.org>
 W:	http://www.penguinppc.org/
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	arch/powerpc/platforms/83xx/
 
 LINUX FOR POWERPC PA SEMI PWRFICIENT
 M:	Olof Johansson <olof@lixom.net>
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	arch/powerpc/platforms/pasemi/
 F:	drivers/*/*pasemi*
@@ -3743,9 +3810,8 @@ W:	http://www.syskonnect.com
 S:	Supported
 
 MATROX FRAMEBUFFER DRIVER
-M:	Petr Vandrovec <vandrove@vc.cvut.cz>
 L:	linux-fbdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/video/matrox/matroxfb_*
 F:	include/linux/matroxfb.h
 
@@ -3869,10 +3935,8 @@ F:	Documentation/serial/moxa-smartio
 F:	drivers/char/mxser.*
 
 MSI LAPTOP SUPPORT
-M:	Lennart Poettering <mzxreary@0pointer.de>
+M:	Lee, Chun-Yi <jlee@novell.com>
 L:	platform-driver-x86@vger.kernel.org
-W:	https://tango.0pointer.de/mailman/listinfo/s270-linux
-W:	http://0pointer.de/lennart/tchibo.html
 S:	Maintained
 F:	drivers/platform/x86/msi-laptop.c
 
@@ -3889,8 +3953,10 @@ S:	Supported
 F:	drivers/mfd/
 
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
-S:	Orphan
+M:	Chris Ball <cjb@laptop.org>
 L:	linux-mmc@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cjb/mmc.git
+S:	Maintained
 F:	drivers/mmc/
 F:	include/linux/mmc/
 
@@ -3907,13 +3973,12 @@ F:	Documentation/sound/oss/MultiSound
 F:	sound/oss/msnd*
 
 MULTITECH MULTIPORT CARD (ISICOM)
-M:	Jiri Slaby <jirislaby@gmail.com>
-S:	Maintained
+S:	Orphan
 F:	drivers/char/isicom.c
 F:	include/linux/isicom.h
 
 MUSB MULTIPOINT HIGH SPEED DUAL-ROLE CONTROLLER
-M:	Felipe Balbi <felipe.balbi@nokia.com>
+M:	Felipe Balbi <balbi@ti.com>
 L:	linux-usb@vger.kernel.org
 T:	git git://gitorious.org/usb/usb.git
 S:	Maintained
@@ -3933,8 +3998,8 @@ S:	Maintained
 F:	drivers/net/natsemi.c
 
 NCP FILESYSTEM
-M:	Petr Vandrovec <vandrove@vc.cvut.cz>
-S:	Maintained
+M:	Petr Vandrovec <petr@vandrovec.name>
+S:	Odd Fixes
 F:	fs/ncpfs/
 
 NCR DUAL 700 SCSI DRIVER (MICROCHANNEL)
@@ -4211,7 +4276,7 @@ S:	Maintained
 F:	drivers/char/hw_random/omap-rng.c
 
 OMAP USB SUPPORT
-M:	Felipe Balbi <felipe.balbi@nokia.com>
+M:	Felipe Balbi <balbi@ti.com>
 M:	David Brownell <dbrownell@users.sourceforge.net>
 L:	linux-usb@vger.kernel.org
 L:	linux-omap@vger.kernel.org
@@ -4588,7 +4653,7 @@ F:	include/linux/preempt.h
 PRISM54 WIRELESS DRIVER
 M:	"Luis R. Rodriguez" <mcgrof@gmail.com>
 L:	linux-wireless@vger.kernel.org
-W:	http://prism54.org
+W:	http://wireless.kernel.org/en/users/Drivers/p54
 S:	Obsolete
 F:	drivers/net/wireless/prism54/
 
@@ -4601,14 +4666,14 @@ F:	drivers/ata/sata_promise.*
 PS3 NETWORK SUPPORT
 M:	Geoff Levand <geoff@infradead.org>
 L:	netdev@vger.kernel.org
-L:	cbe-oss-dev@ozlabs.org
+L:	cbe-oss-dev@lists.ozlabs.org
 S:	Maintained
 F:	drivers/net/ps3_gelic_net.*
 
 PS3 PLATFORM SUPPORT
 M:	Geoff Levand <geoff@infradead.org>
-L:	linuxppc-dev@ozlabs.org
-L:	cbe-oss-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
+L:	cbe-oss-dev@lists.ozlabs.org
 S:	Maintained
 F:	arch/powerpc/boot/ps3*
 F:	arch/powerpc/include/asm/lv1call.h
@@ -4622,7 +4687,7 @@ F:	sound/ppc/snd_ps3*
 
 PS3VRAM DRIVER
 M:	Jim Paris <jim@jtan.com>
-L:	cbe-oss-dev@ozlabs.org
+L:	cbe-oss-dev@lists.ozlabs.org
 S:	Maintained
 F:	drivers/block/ps3vram.c
 
@@ -4789,6 +4854,7 @@ RCUTORTURE MODULE
 M:	Josh Triplett <josh@freedesktop.org>
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 S:	Supported
+T:	git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-2.6-rcu.git
 F:	Documentation/RCU/torture.txt
 F:	kernel/rcutorture.c
 
@@ -4813,6 +4879,7 @@ M:	Dipankar Sarma <dipankar@in.ibm.com>
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 W:	http://www.rdrop.com/users/paulmck/rclock/
 S:	Supported
+T:	git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-2.6-rcu.git
 F:	Documentation/RCU/
 F:	include/linux/rcu*
 F:	include/linux/srcu*
@@ -4820,12 +4887,10 @@ F:	kernel/rcu*
 F:	kernel/srcu*
 X:	kernel/rcutorture.c
 
-REAL TIME CLOCK DRIVER
+REAL TIME CLOCK DRIVER (LEGACY)
 M:	Paul Gortmaker <p_gortmaker@yahoo.com>
 S:	Maintained
-F:	Documentation/rtc.txt
-F:	drivers/rtc/
-F:	include/linux/rtc.h
+F:	drivers/char/rtc.c
 
 REAL TIME CLOCK (RTC) SUBSYSTEM
 M:	Alessandro Zummo <a.zummo@towertech.it>
@@ -5068,13 +5133,15 @@ S:	Maintained
 F:	drivers/mmc/host/sdricoh_cs.c
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
-S:	Orphan
+M:	Chris Ball <cjb@laptop.org>
 L:	linux-mmc@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cjb/mmc.git
+S:	Maintained
 F:	drivers/mmc/host/sdhci.*
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE, OPEN FIRMWARE BINDINGS (SDHCI-OF)
 M:	Anton Vorontsov <avorontsov@ru.mvista.com>
-L:	linuxppc-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
 L:	linux-mmc@vger.kernel.org
 S:	Maintained
 F:	drivers/mmc/host/sdhci-of.*
@@ -5491,8 +5558,8 @@ F:	drivers/net/spider_net*
 
 SPU FILE SYSTEM
 M:	Jeremy Kerr <jk@ozlabs.org>
-L:	linuxppc-dev@ozlabs.org
-L:	cbe-oss-dev@ozlabs.org
+L:	linuxppc-dev@lists.ozlabs.org
+L:	cbe-oss-dev@lists.ozlabs.org
 W:	http://www.ibm.com/developerworks/power/cell/
 S:	Supported
 F:	Documentation/filesystems/spufs.txt

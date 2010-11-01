@@ -102,6 +102,7 @@ static int op_create_counter(int cpu, int event)
 	if (IS_ERR(pevent)) {
 		ret = PTR_ERR(pevent);
 	} else if (pevent->state != PERF_EVENT_STATE_ACTIVE) {
+		perf_event_release_kernel(pevent);
 		pr_warning("oprofile: failed to enable event %d "
 				"on CPU %d\n", event, cpu);
 		ret = -EBUSY;
@@ -365,6 +366,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	ret = init_driverfs();
 	if (ret) {
 		kfree(counter_config);
+		counter_config = NULL;
 		return ret;
 	}
 
@@ -402,7 +404,6 @@ void oprofile_arch_exit(void)
 	struct perf_event *event;
 
 	if (*perf_events) {
-		exit_driverfs();
 		for_each_possible_cpu(cpu) {
 			for (id = 0; id < perf_num_counters; ++id) {
 				event = perf_events[cpu][id];
@@ -413,8 +414,10 @@ void oprofile_arch_exit(void)
 		}
 	}
 
-	if (counter_config)
+	if (counter_config) {
 		kfree(counter_config);
+		exit_driverfs();
+	}
 }
 #else
 int __init oprofile_arch_init(struct oprofile_operations *ops)

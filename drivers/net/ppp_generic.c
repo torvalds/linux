@@ -1314,8 +1314,13 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 	hdrlen = (ppp->flags & SC_MP_XSHORTSEQ)? MPHDRLEN_SSN: MPHDRLEN;
 	i = 0;
 	list_for_each_entry(pch, &ppp->channels, clist) {
-		navail += pch->avail = (pch->chan != NULL);
-		pch->speed = pch->chan->speed;
+		if (pch->chan) {
+			pch->avail = 1;
+			navail++;
+			pch->speed = pch->chan->speed;
+		} else {
+			pch->avail = 0;
+		}
 		if (pch->avail) {
 			if (skb_queue_empty(&pch->file.xq) ||
 				!pch->had_frag) {

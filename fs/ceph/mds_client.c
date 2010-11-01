@@ -560,6 +560,13 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
  *
  * Called under mdsc->mutex.
  */
+struct dentry *get_nonsnap_parent(struct dentry *dentry)
+{
+	while (!IS_ROOT(dentry) && ceph_snap(dentry->d_inode) != CEPH_NOSNAP)
+		dentry = dentry->d_parent;
+	return dentry;
+}
+
 static int __choose_mds(struct ceph_mds_client *mdsc,
 			struct ceph_mds_request *req)
 {
@@ -590,14 +597,29 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 	if (req->r_inode) {
 		inode = req->r_inode;
 	} else if (req->r_dentry) {
-		if (req->r_dentry->d_inode) {
+		struct inode *dir = req->r_dentry->d_parent->d_inode;
+
+		if (dir->i_sb != mdsc->client->sb) {
+			/* not this fs! */
+			inode = req->r_dentry->d_inode;
+		} else if (ceph_snap(dir) != CEPH_NOSNAP) {
+			/* direct snapped/virtual snapdir requests
+			 * based on parent dir inode */
+			struct dentry *dn =
+				get_nonsnap_parent(req->r_dentry->d_parent);
+			inode = dn->d_inode;
+			dout("__choose_mds using nonsnap parent %p\n", inode);
+		} else if (req->r_dentry->d_inode) {
+			/* dentry target */
 			inode = req->r_dentry->d_inode;
 		} else {
-			inode = req->r_dentry->d_parent->d_inode;
+			/* dir + name */
+			inode = dir;
 			hash = req->r_dentry->d_name.hash;
 			is_hash = true;
 		}
 	}
+
 	dout("__choose_mds %p is_hash=%d (%d) mode %d\n", inode, (int)is_hash,
 	     (int)hash, mode);
 	if (!inode)
@@ -2208,7 +2230,7 @@ static void handle_session(struct ceph_mds_session *session,
 			pr_info("mds%d reconnect denied\n", session->s_mds);
 		remove_session_caps(session);
 		wake = 1; /* for good measure */
-		complete_all(&mdsc->session_close_waiters);
+		wake_up_all(&mdsc->session_close_wq);
 		kick_requests(mdsc, mds);
 		break;
 
@@ -2302,7 +2324,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		path = ceph_mdsc_build_path(dentry, &pathlen, &pathbase, 0);
 		if (IS_ERR(path)) {
 			err = PTR_ERR(path);
-			BUG_ON(err);
+			goto out_dput;
 		}
 	} else {
 		path = NULL;
@@ -2310,7 +2332,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	}
 	err = ceph_pagelist_encode_string(pagelist, path, pathlen);
 	if (err)
-		goto out;
+		goto out_free;
 
 	spin_lock(&inode->i_lock);
 	cap->seq = 0;        /* reset cap seq */
@@ -2352,10 +2374,13 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 						num_fcntl_locks,
 						num_flock_locks);
 		unlock_kernel();
+	} else {
+		err = ceph_pagelist_append(pagelist, &rec, reclen);
 	}
 
-out:
+out_free:
 	kfree(path);
+out_dput:
 	dput(dentry);
 	return err;
 }
@@ -2876,7 +2901,7 @@ int ceph_mdsc_init(struct ceph_mds_client *mdsc, struct ceph_client *client)
 		return -ENOMEM;
 
 	init_completion(&mdsc->safe_umount_waiters);
-	init_completion(&mdsc->session_close_waiters);
+	init_waitqueue_head(&mdsc->session_close_wq);
 	INIT_LIST_HEAD(&mdsc->waiting_for_map);
 	mdsc->sessions = NULL;
 	mdsc->max_sessions = 0;
@@ -3021,6 +3046,23 @@ void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
 	wait_event(mdsc->cap_flushing_wq, check_cap_flush(mdsc, want_flush));
 }
 
+/*
+ * true if all sessions are closed, or we force unmount
+ */
+bool done_closing_sessions(struct ceph_mds_client *mdsc)
+{
+	int i, n = 0;
+
+	if (mdsc->client->mount_state == CEPH_MOUNT_SHUTDOWN)
+		return true;
+
+	mutex_lock(&mdsc->mutex);
+	for (i = 0; i < mdsc->max_sessions; i++)
+		if (mdsc->sessions[i])
+			n++;
+	mutex_unlock(&mdsc->mutex);
+	return n == 0;
+}
 
 /*
  * called after sb is ro.
@@ -3029,45 +3071,32 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 {
 	struct ceph_mds_session *session;
 	int i;
-	int n;
 	struct ceph_client *client = mdsc->client;
-	unsigned long started, timeout = client->mount_args->mount_timeout * HZ;
+	unsigned long timeout = client->mount_args->mount_timeout * HZ;
 
 	dout("close_sessions\n");
 
-	mutex_lock(&mdsc->mutex);
-
 	/* close sessions */
-	started = jiffies;
-	while (time_before(jiffies, started + timeout)) {
-		dout("closing sessions\n");
-		n = 0;
-		for (i = 0; i < mdsc->max_sessions; i++) {
-			session = __ceph_lookup_mds_session(mdsc, i);
-			if (!session)
-				continue;
-			mutex_unlock(&mdsc->mutex);
-			mutex_lock(&session->s_mutex);
-			__close_session(mdsc, session);
-			mutex_unlock(&session->s_mutex);
-			ceph_put_mds_session(session);
-			mutex_lock(&mdsc->mutex);
-			n++;
-		}
-		if (n == 0)
-			break;
-
-		if (client->mount_state == CEPH_MOUNT_SHUTDOWN)
-			break;
-
-		dout("waiting for sessions to close\n");
+	mutex_lock(&mdsc->mutex);
+	for (i = 0; i < mdsc->max_sessions; i++) {
+		session = __ceph_lookup_mds_session(mdsc, i);
+		if (!session)
+			continue;
 		mutex_unlock(&mdsc->mutex);
-		wait_for_completion_timeout(&mdsc->session_close_waiters,
-					    timeout);
+		mutex_lock(&session->s_mutex);
+		__close_session(mdsc, session);
+		mutex_unlock(&session->s_mutex);
+		ceph_put_mds_session(session);
 		mutex_lock(&mdsc->mutex);
 	}
+	mutex_unlock(&mdsc->mutex);
+
+	dout("waiting for sessions to close\n");
+	wait_event_timeout(mdsc->session_close_wq, done_closing_sessions(mdsc),
+			   timeout);
 
 	/* tear down remaining sessions */
+	mutex_lock(&mdsc->mutex);
 	for (i = 0; i < mdsc->max_sessions; i++) {
 		if (mdsc->sessions[i]) {
 			session = get_session(mdsc->sessions[i]);
@@ -3080,9 +3109,7 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 			mutex_lock(&mdsc->mutex);
 		}
 	}
-
 	WARN_ON(!list_empty(&mdsc->cap_delay_list));
-
 	mutex_unlock(&mdsc->mutex);
 
 	ceph_cleanup_empty_realms(mdsc);

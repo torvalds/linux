@@ -216,7 +216,7 @@ struct imx_ssi_platform_data eukrea_mbimxsd_ssi_pdata = {
  * Add platform devices present on this baseboard and init
  * them from CPU side as far as required to use them later on
  */
-void __init eukrea_mbimxsd_baseboard_init(void)
+void __init eukrea_mbimxsd35_baseboard_init(void)
 {
 	if (mxc_iomux_v3_setup_multiple_pads(eukrea_mbimxsd_pads,
 			ARRAY_SIZE(eukrea_mbimxsd_pads)))

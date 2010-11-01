@@ -113,14 +113,6 @@ static void nf_skb_free(struct sk_buff *skb)
 		kfree_skb(NFCT_FRAG6_CB(skb)->orig);
 }
 
-/* Memory Tracking Functions. */
-static void frag_kfree_skb(struct sk_buff *skb)
-{
-	atomic_sub(skb->truesize, &nf_init_frags.mem);
-	nf_skb_free(skb);
-	kfree_skb(skb);
-}
-
 /* Destruction primitives. */
 
 static __inline__ void fq_put(struct nf_ct_frag6_queue *fq)
@@ -282,66 +274,22 @@ static int nf_ct_frag6_queue(struct nf_ct_frag6_queue *fq, struct sk_buff *skb,
 	}
 
 found:
-	/* We found where to put this one.  Check for overlap with
-	 * preceding fragment, and, if needed, align things so that
-	 * any overlaps are eliminated.
+	/* RFC5722, Section 4:
+	 *                                  When reassembling an IPv6 datagram, if
+	 *   one or more its constituent fragments is determined to be an
+	 *   overlapping fragment, the entire datagram (and any constituent
+	 *   fragments, including those not yet received) MUST be silently
+	 *   discarded.
 	 */
-	if (prev) {
-		int i = (NFCT_FRAG6_CB(prev)->offset + prev->len) - offset;
 
-		if (i > 0) {
-			offset += i;
-			if (end <= offset) {
-				pr_debug("overlap\n");
-				goto err;
-			}
-			if (!pskb_pull(skb, i)) {
-				pr_debug("Can't pull\n");
-				goto err;
-			}
-			if (skb->ip_summed != CHECKSUM_UNNECESSARY)
-				skb->ip_summed = CHECKSUM_NONE;
-		}
-	}
+	/* Check for overlap with preceding fragment. */
+	if (prev &&
+	    (NFCT_FRAG6_CB(prev)->offset + prev->len) - offset > 0)
+		goto discard_fq;
 
-	/* Look for overlap with succeeding segments.
-	 * If we can merge fragments, do it.
-	 */
-	while (next && NFCT_FRAG6_CB(next)->offset < end) {
-		/* overlap is 'i' bytes */
-		int i = end - NFCT_FRAG6_CB(next)->offset;
-
-		if (i < next->len) {
-			/* Eat head of the next overlapped fragment
-			 * and leave the loop. The next ones cannot overlap.
-			 */
-			pr_debug("Eat head of the overlapped parts.: %d", i);
-			if (!pskb_pull(next, i))
-				goto err;
-
-			/* next fragment */
-			NFCT_FRAG6_CB(next)->offset += i;
-			fq->q.meat -= i;
-			if (next->ip_summed != CHECKSUM_UNNECESSARY)
-				next->ip_summed = CHECKSUM_NONE;
-			break;
-		} else {
-			struct sk_buff *free_it = next;
-
-			/* Old fragmnet is completely overridden with
-			 * new one drop it.
-			 */
-			next = next->next;
-
-			if (prev)
-				prev->next = next;
-			else
-				fq->q.fragments = next;
-
-			fq->q.meat -= free_it->len;
-			frag_kfree_skb(free_it);
-		}
-	}
+	/* Look for overlap with succeeding segment. */
+	if (next && NFCT_FRAG6_CB(next)->offset < end)
+		goto discard_fq;
 
 	NFCT_FRAG6_CB(skb)->offset = offset;
 
@@ -371,6 +319,8 @@ found:
 	write_unlock(&nf_frags.lock);
 	return 0;
 
+discard_fq:
+	fq_kill(fq);
 err:
 	return -1;
 }

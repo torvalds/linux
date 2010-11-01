@@ -1506,13 +1506,6 @@ handle_ill:
 	}
 	STD_ENDPROC(handle_ill)
 
-	.pushsection .rodata, "a"
-	.align  8
-bpt_code:
-	bpt
-	ENDPROC(bpt_code)
-	.popsection
-
 /* Various stub interrupt handlers and syscall handlers */
 
 STD_ENTRY_LOCAL(_kernel_double_fault)

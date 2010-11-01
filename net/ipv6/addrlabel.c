@@ -393,6 +393,11 @@ int __init ipv6_addr_label_init(void)
 	return register_pernet_subsys(&ipv6_addr_label_ops);
 }
 
+void ipv6_addr_label_cleanup(void)
+{
+	unregister_pernet_subsys(&ipv6_addr_label_ops);
+}
+
 static const struct nla_policy ifal_policy[IFAL_MAX+1] = {
 	[IFAL_ADDRESS]		= { .len = sizeof(struct in6_addr), },
 	[IFAL_LABEL]		= { .len = sizeof(u32), },

@@ -92,7 +92,7 @@ static int lis3lv02d_spi_suspend(struct spi_device *spi, pm_message_t mesg)
 {
 	struct lis3lv02d *lis3 = spi_get_drvdata(spi);
 
-	if (!lis3->pdata->wakeup_flags)
+	if (!lis3->pdata || !lis3->pdata->wakeup_flags)
 		lis3lv02d_poweroff(&lis3_dev);
 
 	return 0;
@@ -102,7 +102,7 @@ static int lis3lv02d_spi_resume(struct spi_device *spi)
 {
 	struct lis3lv02d *lis3 = spi_get_drvdata(spi);
 
-	if (!lis3->pdata->wakeup_flags)
+	if (!lis3->pdata || !lis3->pdata->wakeup_flags)
 		lis3lv02d_poweron(lis3);
 
 	return 0;

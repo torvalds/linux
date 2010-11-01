@@ -2731,7 +2731,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.led_compensation = 64,
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
-	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
 	.max_event_log_size = 512,
 	.tx_power_by_driver = true,
 };
@@ -2752,7 +2752,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.led_compensation = 64,
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
-	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
 	.max_event_log_size = 512,
 	.tx_power_by_driver = true,
 };

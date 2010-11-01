@@ -79,7 +79,9 @@
 #endif /* CONFIG_PPC_STD_MMU_64 */
 
 phys_addr_t memstart_addr = ~0;
+EXPORT_SYMBOL_GPL(memstart_addr);
 phys_addr_t kernstart_addr;
+EXPORT_SYMBOL_GPL(kernstart_addr);
 
 void free_initmem(void)
 {

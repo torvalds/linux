@@ -109,17 +109,19 @@ use numbers 2000-2063 to identify GPIOs in a bank of I2C GPIO expanders.
 
 If you want to initialize a structure with an invalid GPIO number, use
 some negative number (perhaps "-EINVAL"); that will never be valid.  To
-test if a number could reference a GPIO, you may use this predicate:
+test if such number from such a structure could reference a GPIO, you
+may use this predicate:
 
 	int gpio_is_valid(int number);
 
 A number that's not valid will be rejected by calls which may request
 or free GPIOs (see below).  Other numbers may also be rejected; for
-example, a number might be valid but unused on a given board.
+example, a number might be valid but temporarily unused on a given board.
 
-Whether a platform supports multiple GPIO controllers is currently a
-platform-specific implementation issue.
-
+Whether a platform supports multiple GPIO controllers is a platform-specific
+implementation issue, as are whether that support can leave "holes" in the space
+of GPIO numbers, and whether new controllers can be added at runtime.  Such issues
+can affect things including whether adjacent GPIO numbers are both valid.
 
 Using GPIOs
 -----------
@@ -480,12 +482,16 @@ To support this framework, a platform's Kconfig will "select" either
 ARCH_REQUIRE_GPIOLIB or ARCH_WANT_OPTIONAL_GPIOLIB
 and arrange that its <asm/gpio.h> includes <asm-generic/gpio.h> and defines
 three functions: gpio_get_value(), gpio_set_value(), and gpio_cansleep().
-They may also want to provide a custom value for ARCH_NR_GPIOS.
 
-ARCH_REQUIRE_GPIOLIB means that the gpio-lib code will always get compiled
+It may also provide a custom value for ARCH_NR_GPIOS, so that it better
+reflects the number of GPIOs in actual use on that platform, without
+wasting static table space.  (It should count both built-in/SoC GPIOs and
+also ones on GPIO expanders.
+
+ARCH_REQUIRE_GPIOLIB means that the gpiolib code will always get compiled
 into the kernel on that architecture.
 
-ARCH_WANT_OPTIONAL_GPIOLIB means the gpio-lib code defaults to off and the user
+ARCH_WANT_OPTIONAL_GPIOLIB means the gpiolib code defaults to off and the user
 can enable it and build it into the kernel optionally.
 
 If neither of these options are selected, the platform does not support

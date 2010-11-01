@@ -1127,6 +1127,7 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 {
 	struct cxacru_data *instance;
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
+	struct usb_host_endpoint *cmd_ep = usb_dev->ep_in[CXACRU_EP_CMD];
 	int ret;
 
 	/* instance init */
@@ -1171,15 +1172,34 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 		goto fail;
 	}
 
-	usb_fill_int_urb(instance->rcv_urb,
+	if (!cmd_ep) {
+		dbg("cxacru_bind: no command endpoint");
+		ret = -ENODEV;
+		goto fail;
+	}
+
+	if ((cmd_ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+			== USB_ENDPOINT_XFER_INT) {
+		usb_fill_int_urb(instance->rcv_urb,
 			usb_dev, usb_rcvintpipe(usb_dev, CXACRU_EP_CMD),
 			instance->rcv_buf, PAGE_SIZE,
 			cxacru_blocking_completion, &instance->rcv_done, 1);
 
-	usb_fill_int_urb(instance->snd_urb,
+		usb_fill_int_urb(instance->snd_urb,
 			usb_dev, usb_sndintpipe(usb_dev, CXACRU_EP_CMD),
 			instance->snd_buf, PAGE_SIZE,
 			cxacru_blocking_completion, &instance->snd_done, 4);
+	} else {
+		usb_fill_bulk_urb(instance->rcv_urb,
+			usb_dev, usb_rcvbulkpipe(usb_dev, CXACRU_EP_CMD),
+			instance->rcv_buf, PAGE_SIZE,
+			cxacru_blocking_completion, &instance->rcv_done);
+
+		usb_fill_bulk_urb(instance->snd_urb,
+			usb_dev, usb_sndbulkpipe(usb_dev, CXACRU_EP_CMD),
+			instance->snd_buf, PAGE_SIZE,
+			cxacru_blocking_completion, &instance->snd_done);
+	}
 
 	mutex_init(&instance->cm_serialize);
 

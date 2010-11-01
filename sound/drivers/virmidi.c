@@ -94,7 +94,7 @@ static int __devinit snd_virmidi_probe(struct platform_device *devptr)
 			      sizeof(struct snd_card_virmidi), &card);
 	if (err < 0)
 		return err;
-	vmidi = (struct snd_card_virmidi *)card->private_data;
+	vmidi = card->private_data;
 	vmidi->card = card;
 
 	if (midi_devs[dev] > MAX_MIDI_DEVICES) {

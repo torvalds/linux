@@ -232,7 +232,7 @@ int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 	est->last_packets = bstats->packets;
 	est->avpps = rate_est->pps<<10;
 
-	spin_lock(&est_tree_lock);
+	spin_lock_bh(&est_tree_lock);
 	if (!elist[idx].timer.function) {
 		INIT_LIST_HEAD(&elist[idx].list);
 		setup_timer(&elist[idx].timer, est_timer, idx);
@@ -243,7 +243,7 @@ int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 
 	list_add_rcu(&est->list, &elist[idx].list);
 	gen_add_node(est);
-	spin_unlock(&est_tree_lock);
+	spin_unlock_bh(&est_tree_lock);
 
 	return 0;
 }
@@ -270,7 +270,7 @@ void gen_kill_estimator(struct gnet_stats_basic_packed *bstats,
 {
 	struct gen_estimator *e;
 
-	spin_lock(&est_tree_lock);
+	spin_lock_bh(&est_tree_lock);
 	while ((e = gen_find_node(bstats, rate_est))) {
 		rb_erase(&e->node, &est_root);
 
@@ -281,7 +281,7 @@ void gen_kill_estimator(struct gnet_stats_basic_packed *bstats,
 		list_del_rcu(&e->list);
 		call_rcu(&e->e_rcu, __gen_kill_estimator);
 	}
-	spin_unlock(&est_tree_lock);
+	spin_unlock_bh(&est_tree_lock);
 }
 EXPORT_SYMBOL(gen_kill_estimator);
 
@@ -320,9 +320,9 @@ bool gen_estimator_active(const struct gnet_stats_basic_packed *bstats,
 
 	ASSERT_RTNL();
 
-	spin_lock(&est_tree_lock);
+	spin_lock_bh(&est_tree_lock);
 	res = gen_find_node(bstats, rate_est) != NULL;
-	spin_unlock(&est_tree_lock);
+	spin_unlock_bh(&est_tree_lock);
 
 	return res;
 }

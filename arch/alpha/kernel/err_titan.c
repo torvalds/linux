@@ -75,8 +75,12 @@ titan_parse_p_serror(int which, u64 serror, int print)
 	int status = MCHK_DISPOSITION_REPORT;
 
 #ifdef CONFIG_VERBOSE_MCHECK
-	char *serror_src[] = {"GPCI", "APCI", "AGP HP", "AGP LP"};
-	char *serror_cmd[] = {"DMA Read", "DMA RMW", "SGTE Read", "Reserved"};
+	static const char * const serror_src[] = {
+		"GPCI", "APCI", "AGP HP", "AGP LP"
+	};
+	static const char * const serror_cmd[] = {
+		"DMA Read", "DMA RMW", "SGTE Read", "Reserved"
+	};
 #endif /* CONFIG_VERBOSE_MCHECK */
 
 #define TITAN__PCHIP_SERROR__LOST_UECC	(1UL << 0)
@@ -140,14 +144,15 @@ titan_parse_p_perror(int which, int port, u64 perror, int print)
 	int status = MCHK_DISPOSITION_REPORT;
 
 #ifdef CONFIG_VERBOSE_MCHECK
-	char *perror_cmd[] = { "Interrupt Acknowledge", "Special Cycle",
-			       "I/O Read",	       	"I/O Write",
-			       "Reserved",	       	"Reserved",
-			       "Memory Read",		"Memory Write",
-			       "Reserved",		"Reserved",
-			       "Configuration Read",	"Configuration Write",
-			       "Memory Read Multiple",	"Dual Address Cycle",
-			       "Memory Read Line","Memory Write and Invalidate"
+	static const char * const perror_cmd[] = {
+		"Interrupt Acknowledge", "Special Cycle",
+		"I/O Read",		"I/O Write",
+		"Reserved",		"Reserved",
+		"Memory Read",		"Memory Write",
+		"Reserved",		"Reserved",
+		"Configuration Read",	"Configuration Write",
+		"Memory Read Multiple",	"Dual Address Cycle",
+		"Memory Read Line",	"Memory Write and Invalidate"
 	};
 #endif /* CONFIG_VERBOSE_MCHECK */
 
@@ -273,11 +278,11 @@ titan_parse_p_agperror(int which, u64 agperror, int print)
 	int cmd, len;
 	unsigned long addr;
 
-	char *agperror_cmd[] = { "Read (low-priority)",	"Read (high-priority)",
-				 "Write (low-priority)",
-				 "Write (high-priority)",
-				 "Reserved",		"Reserved",
-				 "Flush",		"Fence"
+	static const char * const agperror_cmd[] = {
+		"Read (low-priority)",	"Read (high-priority)",
+		"Write (low-priority)",	"Write (high-priority)",
+		"Reserved",		"Reserved",
+		"Flush",		"Fence"
 	};
 #endif /* CONFIG_VERBOSE_MCHECK */
 

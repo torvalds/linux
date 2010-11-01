@@ -316,7 +316,7 @@ void __init anon_vma_init(void)
  */
 struct anon_vma *page_lock_anon_vma(struct page *page)
 {
-	struct anon_vma *anon_vma;
+	struct anon_vma *anon_vma, *root_anon_vma;
 	unsigned long anon_mapping;
 
 	rcu_read_lock();
@@ -327,8 +327,21 @@ struct anon_vma *page_lock_anon_vma(struct page *page)
 		goto out;
 
 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-	anon_vma_lock(anon_vma);
-	return anon_vma;
+	root_anon_vma = ACCESS_ONCE(anon_vma->root);
+	spin_lock(&root_anon_vma->lock);
+
+	/*
+	 * If this page is still mapped, then its anon_vma cannot have been
+	 * freed.  But if it has been unmapped, we have no security against
+	 * the anon_vma structure being freed and reused (for another anon_vma:
+	 * SLAB_DESTROY_BY_RCU guarantees that - so the spin_lock above cannot
+	 * corrupt): with anon_vma_prepare() or anon_vma_fork() redirecting
+	 * anon_vma->root before page_unlock_anon_vma() is called to unlock.
+	 */
+	if (page_mapped(page))
+		return anon_vma;
+
+	spin_unlock(&root_anon_vma->lock);
 out:
 	rcu_read_unlock();
 	return NULL;
@@ -368,7 +381,13 @@ vma_address(struct page *page, struct vm_area_struct *vma)
 unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 {
 	if (PageAnon(page)) {
-		if (vma->anon_vma->root != page_anon_vma(page)->root)
+		struct anon_vma *page__anon_vma = page_anon_vma(page);
+		/*
+		 * Note: swapoff's unuse_vma() is more efficient with this
+		 * check, and needs it to match anon_vma when KSM is active.
+		 */
+		if (!vma->anon_vma || !page__anon_vma ||
+		    vma->anon_vma->root != page__anon_vma->root)
 			return -EFAULT;
 	} else if (page->mapping && !(vma->vm_flags & VM_NONLINEAR)) {
 		if (!vma->vm_file ||
@@ -1551,13 +1570,14 @@ static void __hugepage_set_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address, int exclusive)
 {
 	struct anon_vma *anon_vma = vma->anon_vma;
+
 	BUG_ON(!anon_vma);
-	if (!exclusive) {
-		struct anon_vma_chain *avc;
-		avc = list_entry(vma->anon_vma_chain.prev,
-				 struct anon_vma_chain, same_vma);
-		anon_vma = avc->anon_vma;
-	}
+
+	if (PageAnon(page))
+		return;
+	if (!exclusive)
+		anon_vma = anon_vma->root;
+
 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
 	page->mapping = (struct address_space *) anon_vma;
 	page->index = linear_page_index(vma, address);
@@ -1568,6 +1588,8 @@ void hugepage_add_anon_rmap(struct page *page,
 {
 	struct anon_vma *anon_vma = vma->anon_vma;
 	int first;
+
+	BUG_ON(!PageLocked(page));
 	BUG_ON(!anon_vma);
 	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
 	first = atomic_inc_and_test(&page->_mapcount);

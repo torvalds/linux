@@ -200,6 +200,9 @@ static void flush_fifo(struct s3c64xx_spi_driver_data *sdd)
 		val = readl(regs + S3C64XX_SPI_STATUS);
 	} while (TX_FIFO_LVL(val, sci) && loops--);
 
+	if (loops == 0)
+		dev_warn(&sdd->pdev->dev, "Timed out flushing TX FIFO\n");
+
 	/* Flush RxFIFO*/
 	loops = msecs_to_loops(1);
 	do {
@@ -209,6 +212,9 @@ static void flush_fifo(struct s3c64xx_spi_driver_data *sdd)
 		else
 			break;
 	} while (loops--);
+
+	if (loops == 0)
+		dev_warn(&sdd->pdev->dev, "Timed out flushing RX FIFO\n");
 
 	val = readl(regs + S3C64XX_SPI_CH_CFG);
 	val &= ~S3C64XX_SPI_CH_SW_RST;
@@ -320,16 +326,17 @@ static int wait_for_xfer(struct s3c64xx_spi_driver_data *sdd,
 
 	/* millisecs to xfer 'len' bytes @ 'cur_speed' */
 	ms = xfer->len * 8 * 1000 / sdd->cur_speed;
-	ms += 5; /* some tolerance */
+	ms += 10; /* some tolerance */
 
 	if (dma_mode) {
 		val = msecs_to_jiffies(ms) + 10;
 		val = wait_for_completion_timeout(&sdd->xfer_completion, val);
 	} else {
+		u32 status;
 		val = msecs_to_loops(ms);
 		do {
-			val = readl(regs + S3C64XX_SPI_STATUS);
-		} while (RX_FIFO_LVL(val, sci) < xfer->len && --val);
+			status = readl(regs + S3C64XX_SPI_STATUS);
+		} while (RX_FIFO_LVL(status, sci) < xfer->len && --val);
 	}
 
 	if (!val)
@@ -447,8 +454,8 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 	writel(val, regs + S3C64XX_SPI_CLK_CFG);
 }
 
-void s3c64xx_spi_dma_rxcb(struct s3c2410_dma_chan *chan, void *buf_id,
-				int size, enum s3c2410_dma_buffresult res)
+static void s3c64xx_spi_dma_rxcb(struct s3c2410_dma_chan *chan, void *buf_id,
+				 int size, enum s3c2410_dma_buffresult res)
 {
 	struct s3c64xx_spi_driver_data *sdd = buf_id;
 	unsigned long flags;
@@ -467,8 +474,8 @@ void s3c64xx_spi_dma_rxcb(struct s3c2410_dma_chan *chan, void *buf_id,
 	spin_unlock_irqrestore(&sdd->lock, flags);
 }
 
-void s3c64xx_spi_dma_txcb(struct s3c2410_dma_chan *chan, void *buf_id,
-				int size, enum s3c2410_dma_buffresult res)
+static void s3c64xx_spi_dma_txcb(struct s3c2410_dma_chan *chan, void *buf_id,
+				 int size, enum s3c2410_dma_buffresult res)
 {
 	struct s3c64xx_spi_driver_data *sdd = buf_id;
 	unsigned long flags;
@@ -508,8 +515,9 @@ static int s3c64xx_spi_map_mssg(struct s3c64xx_spi_driver_data *sdd,
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 
 		if (xfer->tx_buf != NULL) {
-			xfer->tx_dma = dma_map_single(dev, xfer->tx_buf,
-						xfer->len, DMA_TO_DEVICE);
+			xfer->tx_dma = dma_map_single(dev,
+					(void *)xfer->tx_buf, xfer->len,
+					DMA_TO_DEVICE);
 			if (dma_mapping_error(dev, xfer->tx_dma)) {
 				dev_err(dev, "dma_map_single Tx failed\n");
 				xfer->tx_dma = XFER_DMAADDR_INVALID;
@@ -919,6 +927,13 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	sci = pdev->dev.platform_data;
+	if (!sci->src_clk_name) {
+		dev_err(&pdev->dev,
+			"Board init must call s3c64xx_spi_set_info()\n");
+		return -EINVAL;
+	}
+
 	/* Check for availability of necessary resource */
 
 	dmatx_res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
@@ -945,8 +960,6 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Unable to allocate SPI Master\n");
 		return -ENOMEM;
 	}
-
-	sci = pdev->dev.platform_data;
 
 	platform_set_drvdata(pdev, master);
 
@@ -1170,7 +1183,7 @@ static int __init s3c64xx_spi_init(void)
 {
 	return platform_driver_probe(&s3c64xx_spi_driver, s3c64xx_spi_probe);
 }
-module_init(s3c64xx_spi_init);
+subsys_initcall(s3c64xx_spi_init);
 
 static void __exit s3c64xx_spi_exit(void)
 {

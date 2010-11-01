@@ -87,7 +87,7 @@ static int ceph_set_page_dirty(struct page *page)
 
 	/* dirty the head */
 	spin_lock(&inode->i_lock);
-	if (ci->i_wrbuffer_ref_head == 0)
+	if (ci->i_head_snapc == NULL)
 		ci->i_head_snapc = ceph_get_snap_context(snapc);
 	++ci->i_wrbuffer_ref_head;
 	if (ci->i_wrbuffer_ref == 0)
@@ -105,13 +105,7 @@ static int ceph_set_page_dirty(struct page *page)
 	spin_lock_irq(&mapping->tree_lock);
 	if (page->mapping) {	/* Race with truncate? */
 		WARN_ON_ONCE(!PageUptodate(page));
-
-		if (mapping_cap_account_dirty(mapping)) {
-			__inc_zone_page_state(page, NR_FILE_DIRTY);
-			__inc_bdi_stat(mapping->backing_dev_info,
-					BDI_RECLAIMABLE);
-			task_io_account_write(PAGE_CACHE_SIZE);
-		}
+		account_page_dirtied(page, page->mapping);
 		radix_tree_tag_set(&mapping->page_tree,
 				page_index(page), PAGECACHE_TAG_DIRTY);
 
@@ -352,7 +346,7 @@ static struct ceph_snap_context *get_oldest_context(struct inode *inode,
 			break;
 		}
 	}
-	if (!snapc && ci->i_head_snapc) {
+	if (!snapc && ci->i_wrbuffer_ref_head) {
 		snapc = ceph_get_snap_context(ci->i_head_snapc);
 		dout(" head snapc %p has %d dirty pages\n",
 		     snapc, ci->i_wrbuffer_ref_head);
@@ -417,8 +411,8 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	if (i_size < page_off + len)
 		len = i_size - page_off;
 
-	dout("writepage %p page %p index %lu on %llu~%u\n",
-	     inode, page, page->index, page_off, len);
+	dout("writepage %p page %p index %lu on %llu~%u snapc %p\n",
+	     inode, page, page->index, page_off, len, snapc);
 
 	writeback_stat = atomic_long_inc_return(&client->writeback_count);
 	if (writeback_stat >
@@ -772,7 +766,8 @@ get_more_pages:
 			/* ok */
 			if (locked_pages == 0) {
 				/* prepare async write request */
-				offset = page->index << PAGE_CACHE_SHIFT;
+				offset = (unsigned long long)page->index
+					<< PAGE_CACHE_SHIFT;
 				len = wsize;
 				req = ceph_osdc_new_request(&client->osdc,
 					    &ci->i_layout,

@@ -67,6 +67,7 @@
 #include <asm/machdep.h>
 #include <asm/udbg.h>
 #include <asm/dbell.h>
+#include <asm/smp.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
@@ -446,22 +447,23 @@ struct thread_info *mcheckirq_ctx[NR_CPUS] __read_mostly;
 void exc_lvl_ctx_init(void)
 {
 	struct thread_info *tp;
-	int i;
+	int i, hw_cpu;
 
 	for_each_possible_cpu(i) {
-		memset((void *)critirq_ctx[i], 0, THREAD_SIZE);
-		tp = critirq_ctx[i];
+		hw_cpu = get_hard_smp_processor_id(i);
+		memset((void *)critirq_ctx[hw_cpu], 0, THREAD_SIZE);
+		tp = critirq_ctx[hw_cpu];
 		tp->cpu = i;
 		tp->preempt_count = 0;
 
 #ifdef CONFIG_BOOKE
-		memset((void *)dbgirq_ctx[i], 0, THREAD_SIZE);
-		tp = dbgirq_ctx[i];
+		memset((void *)dbgirq_ctx[hw_cpu], 0, THREAD_SIZE);
+		tp = dbgirq_ctx[hw_cpu];
 		tp->cpu = i;
 		tp->preempt_count = 0;
 
-		memset((void *)mcheckirq_ctx[i], 0, THREAD_SIZE);
-		tp = mcheckirq_ctx[i];
+		memset((void *)mcheckirq_ctx[hw_cpu], 0, THREAD_SIZE);
+		tp = mcheckirq_ctx[hw_cpu];
 		tp->cpu = i;
 		tp->preempt_count = HARDIRQ_OFFSET;
 #endif

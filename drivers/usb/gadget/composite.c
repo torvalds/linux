@@ -723,12 +723,12 @@ int usb_string_ids_tab(struct usb_composite_dev *cdev, struct usb_string *str)
 
 /**
  * usb_string_ids_n() - allocate unused string IDs in batch
- * @cdev: the device whose string descriptor IDs are being allocated
+ * @c: the device whose string descriptor IDs are being allocated
  * @n: number of string IDs to allocate
  * Context: single threaded during gadget setup
  *
  * Returns the first requested ID.  This ID and next @n-1 IDs are now
- * valid IDs.  At least providind that @n is non zore because if it
+ * valid IDs.  At least provided that @n is non-zero because if it
  * is, returns last requested ID which is now very useful information.
  *
  * @usb_string_ids_n() is called from bind() callbacks to allocate

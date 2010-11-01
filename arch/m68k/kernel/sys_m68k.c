@@ -459,7 +459,9 @@ asmlinkage int sys_getpagesize(void)
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	register long __res asm ("%d0") = __NR_execve;
 	register long __a asm ("%d1") = (long)(filename);

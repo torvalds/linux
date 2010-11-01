@@ -315,7 +315,9 @@ EXPORT_SYMBOL(dump_fpu);
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage int sys_execve(const char __user *name, char __user * __user *argv, char __user * __user *envp)
+asmlinkage int sys_execve(const char __user *name,
+			  const char __user *const __user *argv,
+			  const char __user *const __user *envp)
 {
 	int error;
 	char * filename;

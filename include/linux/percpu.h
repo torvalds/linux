@@ -149,7 +149,7 @@ extern void __init percpu_init_late(void);
 
 #else /* CONFIG_SMP */
 
-#define per_cpu_ptr(ptr, cpu) ({ (void)(cpu); (ptr); })
+#define per_cpu_ptr(ptr, cpu) ({ (void)(cpu); VERIFY_PERCPU_PTR((ptr)); })
 
 /* can't distinguish from other static vars, always false */
 static inline bool is_kernel_percpu_address(unsigned long addr)

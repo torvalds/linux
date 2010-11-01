@@ -243,10 +243,10 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 			if (features->type == WACOM_G4 ||
 					features->type == WACOM_MO) {
 				input_report_abs(input, ABS_DISTANCE, data[6] & 0x3f);
-				rw = (signed)(data[7] & 0x04) - (data[7] & 0x03);
+				rw = (data[7] & 0x04) - (data[7] & 0x03);
 			} else {
 				input_report_abs(input, ABS_DISTANCE, data[7] & 0x3f);
-				rw = -(signed)data[6];
+				rw = -(signed char)data[6];
 			}
 			input_report_rel(input, REL_WHEEL, rw);
 		}
@@ -442,8 +442,10 @@ static void wacom_intuos_general(struct wacom_wac *wacom)
 	/* general pen packet */
 	if ((data[1] & 0xb8) == 0xa0) {
 		t = (data[6] << 2) | ((data[7] >> 6) & 3);
-		if (features->type >= INTUOS4S && features->type <= INTUOS4L)
+		if ((features->type >= INTUOS4S && features->type <= INTUOS4L) ||
+		    features->type == WACOM_21UX2) {
 			t = (t << 1) | (data[1] & 1);
+		}
 		input_report_abs(input, ABS_PRESSURE, t);
 		input_report_abs(input, ABS_TILT_X,
 				((data[7] << 1) & 0x7e) | (data[8] >> 7));

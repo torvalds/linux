@@ -101,13 +101,13 @@ config CRYPTO_MANAGER2
 	select CRYPTO_BLKCIPHER2
 	select CRYPTO_PCOMP2
 
-config CRYPTO_MANAGER_TESTS
-	bool "Run algolithms' self-tests"
+config CRYPTO_MANAGER_DISABLE_TESTS
+	bool "Disable run-time self tests"
 	default y
 	depends on CRYPTO_MANAGER2
 	help
-	  Run cryptomanager's tests for the new crypto algorithms being
-	  registered.
+	  Disable run-time self tests that normally take place at
+	  algorithm registration.
 
 config CRYPTO_GF128MUL
 	tristate "GF(2^128) multiplication functions (EXPERIMENTAL)"

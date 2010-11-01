@@ -880,7 +880,8 @@ static inline void ptep_invalidate(struct mm_struct *mm,
 #define ptep_get_and_clear(__mm, __address, __ptep)			\
 ({									\
 	pte_t __pte = *(__ptep);					\
-	if (atomic_read(&(__mm)->mm_users) > 1 ||			\
+	(__mm)->context.flush_mm = 1;					\
+	if (atomic_read(&(__mm)->context.attach_count) > 1 ||		\
 	    (__mm) != current->active_mm)				\
 		ptep_invalidate(__mm, __address, __ptep);		\
 	else								\
@@ -923,7 +924,8 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 ({									\
 	pte_t __pte = *(__ptep);					\
 	if (pte_write(__pte)) {						\
-		if (atomic_read(&(__mm)->mm_users) > 1 ||		\
+		(__mm)->context.flush_mm = 1;				\
+		if (atomic_read(&(__mm)->context.attach_count) > 1 ||	\
 		    (__mm) != current->active_mm)			\
 			ptep_invalidate(__mm, __addr, __ptep);		\
 		set_pte_at(__mm, __addr, __ptep, pte_wrprotect(__pte));	\

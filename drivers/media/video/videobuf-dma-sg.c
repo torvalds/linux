@@ -94,7 +94,7 @@ err:
  * must free the memory.
  */
 static struct scatterlist *videobuf_pages_to_sg(struct page **pages,
-						int nr_pages, int offset)
+					int nr_pages, int offset, size_t size)
 {
 	struct scatterlist *sglist;
 	int i;
@@ -110,12 +110,14 @@ static struct scatterlist *videobuf_pages_to_sg(struct page **pages,
 		/* DMA to highmem pages might not work */
 		goto highmem;
 	sg_set_page(&sglist[0], pages[0], PAGE_SIZE - offset, offset);
+	size -= PAGE_SIZE - offset;
 	for (i = 1; i < nr_pages; i++) {
 		if (NULL == pages[i])
 			goto nopage;
 		if (PageHighMem(pages[i]))
 			goto highmem;
-		sg_set_page(&sglist[i], pages[i], PAGE_SIZE, 0);
+		sg_set_page(&sglist[i], pages[i], min(PAGE_SIZE, size), 0);
+		size -= min(PAGE_SIZE, size);
 	}
 	return sglist;
 
@@ -170,7 +172,8 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
 
 	first = (data          & PAGE_MASK) >> PAGE_SHIFT;
 	last  = ((data+size-1) & PAGE_MASK) >> PAGE_SHIFT;
-	dma->offset   = data & ~PAGE_MASK;
+	dma->offset = data & ~PAGE_MASK;
+	dma->size = size;
 	dma->nr_pages = last-first+1;
 	dma->pages = kmalloc(dma->nr_pages * sizeof(struct page *), GFP_KERNEL);
 	if (NULL == dma->pages)
@@ -252,7 +255,7 @@ int videobuf_dma_map(struct device *dev, struct videobuf_dmabuf *dma)
 
 	if (dma->pages) {
 		dma->sglist = videobuf_pages_to_sg(dma->pages, dma->nr_pages,
-						   dma->offset);
+						   dma->offset, dma->size);
 	}
 	if (dma->vaddr) {
 		dma->sglist = videobuf_vmalloc_to_sg(dma->vaddr,

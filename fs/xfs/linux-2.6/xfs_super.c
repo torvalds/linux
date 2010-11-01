@@ -1226,6 +1226,7 @@ xfs_fs_statfs(
 	struct xfs_inode	*ip = XFS_I(dentry->d_inode);
 	__uint64_t		fakeinos, id;
 	xfs_extlen_t		lsize;
+	__int64_t		ffree;
 
 	statp->f_type = XFS_SB_MAGIC;
 	statp->f_namelen = MAXNAMELEN - 1;
@@ -1249,7 +1250,11 @@ xfs_fs_statfs(
 		statp->f_files = min_t(typeof(statp->f_files),
 					statp->f_files,
 					mp->m_maxicount);
-	statp->f_ffree = statp->f_files - (sbp->sb_icount - sbp->sb_ifree);
+
+	/* make sure statp->f_ffree does not underflow */
+	ffree = statp->f_files - (sbp->sb_icount - sbp->sb_ifree);
+	statp->f_ffree = max_t(__int64_t, ffree, 0);
+
 	spin_unlock(&mp->m_sb_lock);
 
 	if ((ip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) ||
@@ -1402,7 +1407,7 @@ xfs_fs_freeze(
 
 	xfs_save_resvblks(mp);
 	xfs_quiesce_attr(mp);
-	return -xfs_fs_log_dummy(mp);
+	return -xfs_fs_log_dummy(mp, SYNC_WAIT);
 }
 
 STATIC int

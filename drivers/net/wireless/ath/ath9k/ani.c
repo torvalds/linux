@@ -543,7 +543,7 @@ static u8 ath9k_hw_chan_2_clockrate_mhz(struct ath_hw *ah)
 	if (conf_is_ht40(conf))
 		return clockrate * 2;
 
-	return clockrate * 2;
+	return clockrate;
 }
 
 static int32_t ath9k_hw_ani_get_listen_time(struct ath_hw *ah)

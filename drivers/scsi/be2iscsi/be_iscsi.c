@@ -300,8 +300,7 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 			   enum iscsi_host_param param, char *buf)
 {
 	struct beiscsi_hba *phba = (struct beiscsi_hba *)iscsi_host_priv(shost);
-	int len = 0;
-	int status;
+	int status = 0;
 
 	SE_DEBUG(DBG_LVL_8, "In beiscsi_get_host_param, param= %d\n", param);
 	switch (param) {
@@ -315,7 +314,7 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 	default:
 		return iscsi_host_get_param(shost, param, buf);
 	}
-	return len;
+	return status;
 }
 
 int beiscsi_get_macaddr(char *buf, struct beiscsi_hba *phba)

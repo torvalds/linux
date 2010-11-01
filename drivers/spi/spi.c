@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/cache.h>
 #include <linux/mutex.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
@@ -85,6 +86,10 @@ static int spi_match_device(struct device *dev, struct device_driver *drv)
 {
 	const struct spi_device	*spi = to_spi_device(dev);
 	const struct spi_driver	*sdrv = to_spi_driver(drv);
+
+	/* Attempt an OF style match */
+	if (of_driver_match_device(dev, drv))
+		return 1;
 
 	if (sdrv->id_table)
 		return !!spi_match_id(sdrv->id_table, spi);
@@ -554,11 +559,9 @@ done:
 EXPORT_SYMBOL_GPL(spi_register_master);
 
 
-static int __unregister(struct device *dev, void *master_dev)
+static int __unregister(struct device *dev, void *null)
 {
-	/* note: before about 2.6.14-rc1 this would corrupt memory: */
-	if (dev != master_dev)
-		spi_unregister_device(to_spi_device(dev));
+	spi_unregister_device(to_spi_device(dev));
 	return 0;
 }
 
@@ -576,8 +579,7 @@ void spi_unregister_master(struct spi_master *master)
 {
 	int dummy;
 
-	dummy = device_for_each_child(master->dev.parent, &master->dev,
-					__unregister);
+	dummy = device_for_each_child(&master->dev, NULL, __unregister);
 	device_unregister(&master->dev);
 }
 EXPORT_SYMBOL_GPL(spi_unregister_master);

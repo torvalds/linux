@@ -293,9 +293,13 @@ gen_ndis_query_resp (int configNr, u32 OID, u8 *buf, unsigned buf_len,
 	/* mandatory */
 	case OID_GEN_VENDOR_DESCRIPTION:
 		pr_debug("%s: OID_GEN_VENDOR_DESCRIPTION\n", __func__);
-		length = strlen (rndis_per_dev_params [configNr].vendorDescr);
-		memcpy (outbuf,
-			rndis_per_dev_params [configNr].vendorDescr, length);
+		if ( rndis_per_dev_params [configNr].vendorDescr ) {
+			length = strlen (rndis_per_dev_params [configNr].vendorDescr);
+			memcpy (outbuf,
+				rndis_per_dev_params [configNr].vendorDescr, length);
+		} else {
+			outbuf[0] = 0;
+		}
 		retval = 0;
 		break;
 
@@ -1148,7 +1152,7 @@ static struct proc_dir_entry *rndis_connect_state [RNDIS_MAX_CONFIGS];
 #endif	/* CONFIG_USB_GADGET_DEBUG_FILES */
 
 
-int __init rndis_init (void)
+int rndis_init(void)
 {
 	u8 i;
 
