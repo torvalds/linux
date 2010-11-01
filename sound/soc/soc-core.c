@@ -1877,6 +1877,25 @@ void snd_soc_free_ac97_codec(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(snd_soc_free_ac97_codec);
 
+unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg)
+{
+	unsigned int ret;
+
+	ret = codec->driver->read(codec, reg);
+	dev_dbg(codec->dev, "read %x => %x\n", reg, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_read);
+
+unsigned int snd_soc_write(struct snd_soc_codec *codec,
+			   unsigned int reg, unsigned int val)
+{
+	dev_dbg(codec->dev, "write %x = %x\n", reg, val);
+	return codec->driver->write(codec, reg, val);
+}
+EXPORT_SYMBOL_GPL(snd_soc_write);
+
 /**
  * snd_soc_update_bits - update codec register bits
  * @codec: audio codec

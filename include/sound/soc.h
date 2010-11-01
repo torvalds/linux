@@ -639,17 +639,9 @@ struct soc_enum {
 };
 
 /* codec IO */
-static inline unsigned int snd_soc_read(struct snd_soc_codec *codec,
-					unsigned int reg)
-{
-	return codec->driver->read(codec, reg);
-}
-
-static inline unsigned int snd_soc_write(struct snd_soc_codec *codec,
-					 unsigned int reg, unsigned int val)
-{
-	return codec->driver->write(codec, reg, val);
-}
+unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg);
+unsigned int snd_soc_write(struct snd_soc_codec *codec,
+			   unsigned int reg, unsigned int val);
 
 /* device driver data */
 
