@@ -7024,6 +7024,7 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp,
 	s8 port;
 	s8 port_of_path = 0;
 
+	bnx2x_ext_phy_hw_reset(bp, 0);
 	/* PART1 - Reset both phys */
 	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
 		u32 shmem_base, shmem2_base;
