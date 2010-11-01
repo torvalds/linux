@@ -3349,6 +3349,11 @@ static int handle_vmx_insn(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+static int handle_invd(struct kvm_vcpu *vcpu)
+{
+	return emulate_instruction(vcpu, 0, 0, 0) == EMULATE_DONE;
+}
+
 static int handle_invlpg(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
@@ -3649,6 +3654,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_MSR_WRITE]               = handle_wrmsr,
 	[EXIT_REASON_PENDING_INTERRUPT]       = handle_interrupt_window,
 	[EXIT_REASON_HLT]                     = handle_halt,
+	[EXIT_REASON_INVD]		      = handle_invd,
 	[EXIT_REASON_INVLPG]		      = handle_invlpg,
 	[EXIT_REASON_VMCALL]                  = handle_vmcall,
 	[EXIT_REASON_VMCLEAR]	              = handle_vmx_insn,

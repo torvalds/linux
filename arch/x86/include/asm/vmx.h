@@ -239,6 +239,7 @@ enum vmcs_field {
 #define EXIT_REASON_TASK_SWITCH         9
 #define EXIT_REASON_CPUID               10
 #define EXIT_REASON_HLT                 12
+#define EXIT_REASON_INVD                13
 #define EXIT_REASON_INVLPG              14
 #define EXIT_REASON_RDPMC               15
 #define EXIT_REASON_RDTSC               16
