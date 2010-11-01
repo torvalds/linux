@@ -32,6 +32,7 @@
 #include "drmP.h"
 #include "drm.h"
 #include "intel_drv.h"
+#include "intel_ringbuffer.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
 
@@ -46,12 +47,6 @@ enum {
 	INACTIVE_LIST,
 	PINNED_LIST,
 	DEFERRED_FREE_LIST,
-};
-
-enum {
-	RENDER_RING,
-	BSD_RING,
-	BLT_RING,
 };
 
 static const char *yesno(int v)
@@ -450,9 +445,9 @@ static int i915_hws_info(struct seq_file *m, void *data)
 	int i;
 
 	switch ((uintptr_t)node->info_ent->data) {
-	case RENDER_RING: ring = &dev_priv->render_ring; break;
-	case BSD_RING: ring = &dev_priv->bsd_ring; break;
-	case BLT_RING: ring = &dev_priv->blt_ring; break;
+	case RING_RENDER: ring = &dev_priv->render_ring; break;
+	case RING_BSD: ring = &dev_priv->bsd_ring; break;
+	case RING_BLT: ring = &dev_priv->blt_ring; break;
 	default: return -EINVAL;
 	}
 
@@ -520,9 +515,9 @@ static int i915_ringbuffer_data(struct seq_file *m, void *data)
 	int ret;
 
 	switch ((uintptr_t)node->info_ent->data) {
-	case RENDER_RING: ring = &dev_priv->render_ring; break;
-	case BSD_RING: ring = &dev_priv->bsd_ring; break;
-	case BLT_RING: ring = &dev_priv->blt_ring; break;
+	case RING_RENDER: ring = &dev_priv->render_ring; break;
+	case RING_BSD: ring = &dev_priv->bsd_ring; break;
+	case RING_BLT: ring = &dev_priv->blt_ring; break;
 	default: return -EINVAL;
 	}
 
@@ -554,9 +549,9 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 	struct intel_ring_buffer *ring;
 
 	switch ((uintptr_t)node->info_ent->data) {
-	case RENDER_RING: ring = &dev_priv->render_ring; break;
-	case BSD_RING: ring = &dev_priv->bsd_ring; break;
-	case BLT_RING: ring = &dev_priv->blt_ring; break;
+	case RING_RENDER: ring = &dev_priv->render_ring; break;
+	case RING_BSD: ring = &dev_priv->bsd_ring; break;
+	case RING_BLT: ring = &dev_priv->blt_ring; break;
 	default: return -EINVAL;
 	}
 
@@ -572,6 +567,16 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 	seq_printf(m, "  Start :   %08x\n", I915_READ_START(ring));
 
 	return 0;
+}
+
+static const char *ring_str(int ring)
+{
+	switch (ring) {
+	case RING_RENDER: return "render";
+	case RING_BSD: return "bsd";
+	case RING_BLT: return "blt";
+	default: return "";
+	}
 }
 
 static const char *pin_flag(int pinned)
@@ -630,14 +635,14 @@ static int i915_error_state(struct seq_file *m, void *unused)
 		seq_printf(m, "ERROR: 0x%08x\n", error->error);
 		seq_printf(m, "Blitter command stream:\n");
 		seq_printf(m, "  ACTHD:    0x%08x\n", error->bcs_acthd);
-		seq_printf(m, "  IPEHR:    0x%08x\n", error->bcs_ipehr);
 		seq_printf(m, "  IPEIR:    0x%08x\n", error->bcs_ipeir);
+		seq_printf(m, "  IPEHR:    0x%08x\n", error->bcs_ipehr);
 		seq_printf(m, "  INSTDONE: 0x%08x\n", error->bcs_instdone);
 		seq_printf(m, "  seqno:    0x%08x\n", error->bcs_seqno);
 		seq_printf(m, "Video (BSD) command stream:\n");
 		seq_printf(m, "  ACTHD:    0x%08x\n", error->vcs_acthd);
-		seq_printf(m, "  IPEHR:    0x%08x\n", error->vcs_ipehr);
 		seq_printf(m, "  IPEIR:    0x%08x\n", error->vcs_ipeir);
+		seq_printf(m, "  IPEHR:    0x%08x\n", error->vcs_ipehr);
 		seq_printf(m, "  INSTDONE: 0x%08x\n", error->vcs_instdone);
 		seq_printf(m, "  seqno:    0x%08x\n", error->vcs_seqno);
 	}
@@ -657,7 +662,7 @@ static int i915_error_state(struct seq_file *m, void *unused)
 		seq_printf(m, "Buffers [%d]:\n", error->active_bo_count);
 
 		for (i = 0; i < error->active_bo_count; i++) {
-			seq_printf(m, "  %08x %8zd %08x %08x %08x%s%s%s%s",
+			seq_printf(m, "  %08x %8zd %08x %08x %08x%s%s%s%s %s",
 				   error->active_bo[i].gtt_offset,
 				   error->active_bo[i].size,
 				   error->active_bo[i].read_domains,
@@ -666,7 +671,8 @@ static int i915_error_state(struct seq_file *m, void *unused)
 				   pin_flag(error->active_bo[i].pinned),
 				   tiling_flag(error->active_bo[i].tiling),
 				   dirty_flag(error->active_bo[i].dirty),
-				   purgeable_flag(error->active_bo[i].purgeable));
+				   purgeable_flag(error->active_bo[i].purgeable),
+				   ring_str(error->active_bo[i].ring));
 
 			if (error->active_bo[i].name)
 				seq_printf(m, " (name: %d)", error->active_bo[i].name);
@@ -1101,15 +1107,15 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_seqno", i915_gem_seqno_info, 0},
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
 	{"i915_gem_interrupt", i915_interrupt_info, 0},
-	{"i915_gem_hws", i915_hws_info, 0, (void *)RENDER_RING},
-	{"i915_gem_hws_blt", i915_hws_info, 0, (void *)BLT_RING},
-	{"i915_gem_hws_bsd", i915_hws_info, 0, (void *)BSD_RING},
-	{"i915_ringbuffer_data", i915_ringbuffer_data, 0, (void *)RENDER_RING},
-	{"i915_ringbuffer_info", i915_ringbuffer_info, 0, (void *)RENDER_RING},
-	{"i915_bsd_ringbuffer_data", i915_ringbuffer_data, 0, (void *)BSD_RING},
-	{"i915_bsd_ringbuffer_info", i915_ringbuffer_info, 0, (void *)BSD_RING},
-	{"i915_blt_ringbuffer_data", i915_ringbuffer_data, 0, (void *)BLT_RING},
-	{"i915_blt_ringbuffer_info", i915_ringbuffer_info, 0, (void *)BLT_RING},
+	{"i915_gem_hws", i915_hws_info, 0, (void *)RING_RENDER},
+	{"i915_gem_hws_blt", i915_hws_info, 0, (void *)RING_BLT},
+	{"i915_gem_hws_bsd", i915_hws_info, 0, (void *)RING_BSD},
+	{"i915_ringbuffer_data", i915_ringbuffer_data, 0, (void *)RING_RENDER},
+	{"i915_ringbuffer_info", i915_ringbuffer_info, 0, (void *)RING_RENDER},
+	{"i915_bsd_ringbuffer_data", i915_ringbuffer_data, 0, (void *)RING_BSD},
+	{"i915_bsd_ringbuffer_info", i915_ringbuffer_info, 0, (void *)RING_BSD},
+	{"i915_blt_ringbuffer_data", i915_ringbuffer_data, 0, (void *)RING_BLT},
+	{"i915_blt_ringbuffer_info", i915_ringbuffer_info, 0, (void *)RING_BLT},
 	{"i915_batchbuffers", i915_batchbuffer_info, 0},
 	{"i915_error_state", i915_error_state, 0},
 	{"i915_rstdby_delays", i915_rstdby_delays, 0},

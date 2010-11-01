@@ -728,6 +728,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 			error->active_bo[i].tiling = obj_priv->tiling_mode;
 			error->active_bo[i].dirty = obj_priv->dirty;
 			error->active_bo[i].purgeable = obj_priv->madv != I915_MADV_WILLNEED;
+			error->active_bo[i].ring = obj_priv->ring->id;
 
 			if (++i == count)
 				break;
