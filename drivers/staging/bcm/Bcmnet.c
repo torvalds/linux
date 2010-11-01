@@ -221,7 +221,6 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 	net->mtu = MTU_SIZE;	/* 1400 Bytes */
 	net->tx_queue_len = TX_QLEN;
 	net->flags |= IFF_NOARP;
-	net->flags &= ~(IFF_BROADCAST | IFF_MULTICAST);
 	Adapter->msg_enable = netif_msg_init(debug, default_msg);
 
 	netif_carrier_off(net);
