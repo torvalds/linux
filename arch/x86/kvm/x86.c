@@ -6283,6 +6283,7 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 		vcpu->arch.fault.address = work->arch.token;
 		kvm_inject_page_fault(vcpu);
 	}
+	vcpu->arch.apf.halted = false;
 }
 
 bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu)
