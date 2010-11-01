@@ -956,6 +956,7 @@ cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
 ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 	size_t write_size, loff_t *poffset)
 {
+	struct inode *inode = file->f_path.dentry->d_inode;
 	int rc = 0;
 	unsigned int bytes_written = 0;
 	unsigned int total_written;
@@ -963,7 +964,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 	struct cifsTconInfo *pTcon;
 	int xid, long_op;
 	struct cifsFileInfo *open_file;
-	struct cifsInodeInfo *cifsi = CIFS_I(file->f_path.dentry->d_inode);
+	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 
@@ -1029,21 +1030,17 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 
 	cifs_stats_bytes_written(pTcon, total_written);
 
-	/* since the write may have blocked check these pointers again */
-	if ((file->f_path.dentry) && (file->f_path.dentry->d_inode)) {
-		struct inode *inode = file->f_path.dentry->d_inode;
 /* Do not update local mtime - server will set its actual value on write
- *		inode->i_ctime = inode->i_mtime =
- * 			current_fs_time(inode->i_sb);*/
-		if (total_written > 0) {
-			spin_lock(&inode->i_lock);
-			if (*poffset > file->f_path.dentry->d_inode->i_size)
-				i_size_write(file->f_path.dentry->d_inode,
-					*poffset);
-			spin_unlock(&inode->i_lock);
-		}
-		mark_inode_dirty_sync(file->f_path.dentry->d_inode);
+ *	inode->i_ctime = inode->i_mtime =
+ * 		current_fs_time(inode->i_sb);*/
+	if (total_written > 0) {
+		spin_lock(&inode->i_lock);
+		if (*poffset > inode->i_size)
+			i_size_write(inode, *poffset);
+		spin_unlock(&inode->i_lock);
 	}
+	mark_inode_dirty_sync(inode);
+
 	FreeXid(xid);
 	return total_written;
 }

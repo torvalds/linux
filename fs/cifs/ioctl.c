@@ -63,8 +63,6 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 #ifdef CONFIG_CIFS_POSIX
 		case FS_IOC_GETFLAGS:
 			if (CIFS_UNIX_EXTATTR_CAP & caps) {
-				if (pSMBFile == NULL)
-					break;
 				rc = CIFSGetExtAttr(xid, tcon, pSMBFile->netfid,
 					&ExtAttrBits, &ExtAttrMask);
 				if (rc == 0)
@@ -80,8 +78,6 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 					rc = -EFAULT;
 					break;
 				}
-				if (pSMBFile == NULL)
-					break;
 				/* rc= CIFSGetExtAttr(xid,tcon,pSMBFile->netfid,
 					extAttrBits, &ExtAttrMask);*/
 			}
