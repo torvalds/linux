@@ -610,7 +610,7 @@ static u8 bnx2x_bmac_enable(struct link_params *params,
 	/* reset and unreset the BigMac */
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR,
 		     (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port));
-	udelay(10);
+	msleep(1);
 
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET,
 		     (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port));
