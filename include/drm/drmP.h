@@ -1041,8 +1041,6 @@ struct drm_device {
 	/*@{ */
 	spinlock_t object_name_lock;
 	struct idr object_name_idr;
-	uint32_t invalidate_domains;    /* domains pending invalidation */
-	uint32_t flush_domains;         /* domains pending flush */
 	/*@} */
 
 };

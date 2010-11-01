@@ -36,6 +36,12 @@
 #include <linux/pci.h>
 #include <linux/intel-gtt.h>
 
+struct change_domains {
+	uint32_t invalidate_domains;
+	uint32_t flush_domains;
+	uint32_t flush_rings;
+};
+
 static uint32_t i915_gem_get_gtt_alignment(struct drm_i915_gem_object *obj_priv);
 static uint32_t i915_gem_get_gtt_size(struct drm_i915_gem_object *obj_priv);
 
@@ -3167,10 +3173,9 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
  */
 static void
 i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
-				  struct intel_ring_buffer *ring)
+				  struct intel_ring_buffer *ring,
+				  struct change_domains *cd)
 {
-	struct drm_device		*dev = obj->dev;
-	struct drm_i915_private		*dev_priv = dev->dev_private;
 	struct drm_i915_gem_object	*obj_priv = to_intel_bo(obj);
 	uint32_t			invalidate_domains = 0;
 	uint32_t			flush_domains = 0;
@@ -3216,12 +3221,12 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
 	if (flush_domains == 0 && obj->pending_write_domain == 0)
 		obj->pending_write_domain = obj->write_domain;
 
-	dev->invalidate_domains |= invalidate_domains;
-	dev->flush_domains |= flush_domains;
+	cd->invalidate_domains |= invalidate_domains;
+	cd->flush_domains |= flush_domains;
 	if (flush_domains & I915_GEM_GPU_DOMAINS)
-		dev_priv->mm.flush_rings |= obj_priv->ring->id;
+		cd->flush_rings |= obj_priv->ring->id;
 	if (invalidate_domains & I915_GEM_GPU_DOMAINS)
-		dev_priv->mm.flush_rings |= ring->id;
+		cd->flush_rings |= ring->id;
 }
 
 /**
@@ -3590,30 +3595,26 @@ i915_gem_execbuffer_move_to_gpu(struct drm_device *dev,
 				struct drm_gem_object **objects,
 				int count)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct change_domains cd;
 	int ret, i;
 
-	/* Zero the global flush/invalidate flags. These
-	 * will be modified as new domains are computed
-	 * for each object
-	 */
-	dev->invalidate_domains = 0;
-	dev->flush_domains = 0;
-	dev_priv->mm.flush_rings = 0;
+	cd.invalidate_domains = 0;
+	cd.flush_domains = 0;
+	cd.flush_rings = 0;
 	for (i = 0; i < count; i++)
-		i915_gem_object_set_to_gpu_domain(objects[i], ring);
+		i915_gem_object_set_to_gpu_domain(objects[i], ring, &cd);
 
-	if (dev->invalidate_domains | dev->flush_domains) {
+	if (cd.invalidate_domains | cd.flush_domains) {
 #if WATCH_EXEC
 		DRM_INFO("%s: invalidate_domains %08x flush_domains %08x\n",
 			  __func__,
-			 dev->invalidate_domains,
-			 dev->flush_domains);
+			 cd.invalidate_domains,
+			 cd.flush_domains);
 #endif
 		i915_gem_flush(dev, file,
-			       dev->invalidate_domains,
-			       dev->flush_domains,
-			       dev_priv->mm.flush_rings);
+			       cd.invalidate_domains,
+			       cd.flush_domains,
+			       cd.flush_rings);
 	}
 
 	for (i = 0; i < count; i++) {

@@ -642,8 +642,6 @@ typedef struct drm_i915_private {
 		/* storage for physical objects */
 		struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
 
-		uint32_t flush_rings;
-
 		/* accounting, useful for userland debugging */
 		size_t object_memory;
 		size_t pin_memory;
