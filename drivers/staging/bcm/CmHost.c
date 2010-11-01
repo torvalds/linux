@@ -2053,7 +2053,7 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /**<Pointer to the Adap
 		case DSA_ACK:
 		{
 			UINT uiSearchRuleIndex=0;
-			struct timeval tv = {0};
+
 			BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "VCID:0x%X",
 				ntohs(pstAddIndication->u16VCID));
             uiSearchRuleIndex=SearchFreeSfid(Adapter);
@@ -2139,12 +2139,9 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /**<Pointer to the Adap
 								Adapter->LinkUpStatus = 1;
 								if (netif_msg_link(Adapter))
 									pr_info(DRV_NAME "%s: link up\n", Adapter->dev->name);
-								do_gettimeofday(&tv);
-
 								atomic_set(&Adapter->TxPktAvail, 1);
 								wake_up(&Adapter->tx_packet_wait_queue);
-								Adapter->liTimeSinceLastNetEntry = tv.tv_sec;
-								BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "============Tx Service Flow Created!");
+								Adapter->liTimeSinceLastNetEntry = get_seconds();
 							}
 						}
 					}
