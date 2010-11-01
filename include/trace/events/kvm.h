@@ -216,59 +216,71 @@ TRACE_EVENT(kvm_age_page,
 );
 
 #ifdef CONFIG_KVM_ASYNC_PF
-TRACE_EVENT(
-	kvm_try_async_get_page,
+DECLARE_EVENT_CLASS(kvm_async_get_page_class,
+
 	TP_PROTO(u64 gva, u64 gfn),
+
 	TP_ARGS(gva, gfn),
 
 	TP_STRUCT__entry(
-		__field(u64, gva)
+		__field(__u64, gva)
 		__field(u64, gfn)
-		),
+	),
 
 	TP_fast_assign(
 		__entry->gva = gva;
 		__entry->gfn = gfn;
-		),
+	),
 
 	TP_printk("gva = %#llx, gfn = %#llx", __entry->gva, __entry->gfn)
 );
 
-TRACE_EVENT(
-	kvm_async_pf_not_present,
-	TP_PROTO(u64 token, u64 gva),
-	TP_ARGS(token, gva),
+DEFINE_EVENT(kvm_async_get_page_class, kvm_try_async_get_page,
 
-	TP_STRUCT__entry(
-		__field(__u64, token)
-		__field(__u64, gva)
-		),
+	TP_PROTO(u64 gva, u64 gfn),
 
-	TP_fast_assign(
-		__entry->token = token;
-		__entry->gva = gva;
-		),
-
-	TP_printk("token %#llx gva %#llx not present", __entry->token,
-		  __entry->gva)
+	TP_ARGS(gva, gfn)
 );
 
-TRACE_EVENT(
-	kvm_async_pf_ready,
+DEFINE_EVENT(kvm_async_get_page_class, kvm_async_pf_doublefault,
+
+	TP_PROTO(u64 gva, u64 gfn),
+
+	TP_ARGS(gva, gfn)
+);
+
+DECLARE_EVENT_CLASS(kvm_async_pf_nopresent_ready,
+
 	TP_PROTO(u64 token, u64 gva),
+
 	TP_ARGS(token, gva),
 
 	TP_STRUCT__entry(
 		__field(__u64, token)
 		__field(__u64, gva)
-		),
+	),
 
 	TP_fast_assign(
 		__entry->token = token;
 		__entry->gva = gva;
-		),
+	),
 
-	TP_printk("token %#llx gva %#llx ready", __entry->token, __entry->gva)
+	TP_printk("token %#llx gva %#llx", __entry->token, __entry->gva)
+
+);
+
+DEFINE_EVENT(kvm_async_pf_nopresent_ready, kvm_async_pf_not_present,
+
+	TP_PROTO(u64 token, u64 gva),
+
+	TP_ARGS(token, gva)
+);
+
+DEFINE_EVENT(kvm_async_pf_nopresent_ready, kvm_async_pf_ready,
+
+	TP_PROTO(u64 token, u64 gva),
+
+	TP_ARGS(token, gva)
 );
 
 TRACE_EVENT(
@@ -290,24 +302,6 @@ TRACE_EVENT(
 
 	TP_printk("gva %#llx address %#lx pfn %#llx",  __entry->gva,
 		  __entry->address, __entry->pfn)
-);
-
-TRACE_EVENT(
-	kvm_async_pf_doublefault,
-	TP_PROTO(u64 gva, u64 gfn),
-	TP_ARGS(gva, gfn),
-
-	TP_STRUCT__entry(
-		__field(u64, gva)
-		__field(u64, gfn)
-		),
-
-	TP_fast_assign(
-		__entry->gva = gva;
-		__entry->gfn = gfn;
-		),
-
-	TP_printk("gva = %#llx, gfn = %#llx", __entry->gva, __entry->gfn)
 );
 
 #endif
