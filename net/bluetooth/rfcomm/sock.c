@@ -140,10 +140,12 @@ static struct sock *__rfcomm_get_sock_by_addr(u8 channel, bdaddr_t *src)
 /* Find socket with channel and source bdaddr.
  * Returns closest match.
  */
-static struct sock *__rfcomm_get_sock_by_channel(int state, u8 channel, bdaddr_t *src)
+static struct sock *rfcomm_get_sock_by_channel(int state, u8 channel, bdaddr_t *src)
 {
 	struct sock *sk = NULL, *sk1 = NULL;
 	struct hlist_node *node;
+
+	read_lock(&rfcomm_sk_list.lock);
 
 	sk_for_each(sk, node, &rfcomm_sk_list.head) {
 		if (state && sk->sk_state != state)
@@ -159,19 +161,10 @@ static struct sock *__rfcomm_get_sock_by_channel(int state, u8 channel, bdaddr_t
 				sk1 = sk;
 		}
 	}
-	return node ? sk : sk1;
-}
 
-/* Find socket with given address (channel, src).
- * Returns locked socket */
-static inline struct sock *rfcomm_get_sock_by_channel(int state, u8 channel, bdaddr_t *src)
-{
-	struct sock *s;
-	read_lock(&rfcomm_sk_list.lock);
-	s = __rfcomm_get_sock_by_channel(state, channel, src);
-	if (s) bh_lock_sock(s);
 	read_unlock(&rfcomm_sk_list.lock);
-	return s;
+
+	return node ? sk : sk1;
 }
 
 static void rfcomm_sock_destruct(struct sock *sk)
@@ -944,6 +937,8 @@ int rfcomm_connect_ind(struct rfcomm_session *s, u8 channel, struct rfcomm_dlc *
 	parent = rfcomm_get_sock_by_channel(BT_LISTEN, channel, &src);
 	if (!parent)
 		return 0;
+
+	bh_lock_sock(parent);
 
 	/* Check for backlog size */
 	if (sk_acceptq_is_full(parent)) {
