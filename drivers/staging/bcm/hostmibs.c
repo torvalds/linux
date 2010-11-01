@@ -10,12 +10,8 @@
  */
 #include "headers.h"
 
-INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter,
-						  PVOID ioBuffer,
-						  ULONG inputBufferLength)
+INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter, S_MIBS_HOST_STATS_MIBS *pstHostMibs)
 {
-
-	S_MIBS_HOST_STATS_MIBS *pstHostMibs         = NULL;
 	S_SERVICEFLOW_ENTRY    *pstServiceFlowEntry = NULL;
 	S_PHS_RULE             *pstPhsRule          = NULL;
 	S_CLASSIFIER_TABLE     *pstClassifierTable  = NULL;
@@ -29,15 +25,6 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter,
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, HOST_MIBS, DBG_LVL_ALL, "Invalid Device Extension\n");
 		return STATUS_FAILURE;
 	}
-
-	if(ioBuffer == NULL)
-	{
-		return -EINVAL;
-	}
-	memset(ioBuffer,0,sizeof(S_MIBS_HOST_STATS_MIBS));
-
-	pstHostMibs = (S_MIBS_HOST_STATS_MIBS *)ioBuffer;
-
 
 	//Copy the classifier Table
 	for(nClassifierIndex=0; nClassifierIndex < MAX_CLASSIFIERS;
@@ -115,13 +102,10 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter,
 }
 
 
-INT GetDroppedAppCntrlPktMibs(PVOID ioBuffer, PPER_TARANG_DATA pTarang)
+VOID GetDroppedAppCntrlPktMibs(S_MIBS_HOST_STATS_MIBS *pstHostMibs, const PPER_TARANG_DATA pTarang)
 {
-	S_MIBS_HOST_STATS_MIBS *pstHostMibs = (S_MIBS_HOST_STATS_MIBS *)ioBuffer;
-
-	memcpy((PVOID)&(pstHostMibs->stDroppedAppCntrlMsgs),(PVOID)&(pTarang->stDroppedAppCntrlMsgs),sizeof(S_MIBS_DROPPED_APP_CNTRL_MESSAGES));
-
-	return STATUS_SUCCESS ;
+	memcpy(&(pstHostMibs->stDroppedAppCntrlMsgs),
+	       &(pTarang->stDroppedAppCntrlMsgs),sizeof(S_MIBS_DROPPED_APP_CNTRL_MESSAGES));
 }
 
 

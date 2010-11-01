@@ -108,10 +108,8 @@ void SendIdleModeResponse(PMINI_ADAPTER Adapter);
 
 void HandleShutDownModeRequest(PMINI_ADAPTER Adapter,PUCHAR pucBuffer);
 
-int  ProcessGetHostMibs(PMINI_ADAPTER Adapter, PVOID ioBuffer,
-	ULONG inputBufferLength);
-
-int GetDroppedAppCntrlPktMibs(PVOID ioBuffer, PPER_TARANG_DATA pTarang);
+int  ProcessGetHostMibs(PMINI_ADAPTER Adapter, S_MIBS_HOST_STATS_MIBS *buf);
+void GetDroppedAppCntrlPktMibs(S_MIBS_HOST_STATS_MIBS *ioBuffer, PPER_TARANG_DATA pTarang);
 void beceem_parse_target_struct(PMINI_ADAPTER Adapter);
 
 void doPowerAutoCorrection(PMINI_ADAPTER psAdapter);

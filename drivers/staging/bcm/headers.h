@@ -56,7 +56,6 @@
 #include "CmHost.h"
 #include "DDRInit.h"
 #include "Debug.h"
-#include "HostMibs.h"
 #include "IPv6ProtocolHdr.h"
 #include "PHSModule.h"
 #include "Protocol.h"
