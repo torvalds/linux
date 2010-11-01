@@ -18,11 +18,6 @@ Mds_initial(struct wbsoft_priv *adapter)
 	return hal_get_tx_buffer(&adapter->sHwData, &pMds->pTxBuffer);
 }
 
-void
-Mds_Destroy(struct wbsoft_priv *adapter)
-{
-}
-
 static void Mds_DurationSet(struct wbsoft_priv *adapter,  struct wb35_descriptor *pDes,  u8 *buffer)
 {
 	struct T00_descriptor *pT00;

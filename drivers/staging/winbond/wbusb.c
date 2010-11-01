@@ -863,8 +863,6 @@ static void hal_halt(struct hw_data *pHwData)
 
 static void wb35_hw_halt(struct wbsoft_priv *adapter)
 {
-	Mds_Destroy(adapter);
-
 	/* Turn off Rx and Tx hardware ability */
 	hal_stop(&adapter->sHwData);
 #ifdef _PE_USB_INI_DUMP_
