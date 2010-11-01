@@ -574,8 +574,8 @@ VOID LinkMessage(PMINI_ADAPTER Adapter)
 VOID StatisticsResponse(PMINI_ADAPTER Adapter,PVOID pvBuffer)
 {
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "%s====>",__FUNCTION__);
-	Adapter->StatisticsPointer = ntohl(*(PULONG)pvBuffer);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "Stats at %lx", Adapter->StatisticsPointer);
+	Adapter->StatisticsPointer = ntohl(*(__be32 *)pvBuffer);
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "Stats at %x", (UINT)Adapter->StatisticsPointer);
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "%s <====",__FUNCTION__);
 	return;
 }
