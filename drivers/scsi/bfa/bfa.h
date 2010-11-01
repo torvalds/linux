@@ -29,13 +29,13 @@ struct bfa_s;
 typedef void (*bfa_isr_func_t) (struct bfa_s *bfa, struct bfi_msg_s *m);
 typedef void    (*bfa_cb_cbfn_t) (void *cbarg, bfa_boolean_t complete);
 
-/**
+/*
  * Interrupt message handlers
  */
 void bfa_isr_unhandled(struct bfa_s *bfa, struct bfi_msg_s *m);
 void bfa_isr_bind(enum bfi_mclass mc, bfa_isr_func_t isr_func);
 
-/**
+/*
  * Request and response queue related defines
  */
 #define BFA_REQQ_NELEMS_MIN	(4)
@@ -58,9 +58,9 @@ void bfa_isr_bind(enum bfi_mclass mc, bfa_isr_func_t isr_func);
 #define bfa_reqq_produce(__bfa, __reqq)	do {				\
 		(__bfa)->iocfc.req_cq_pi[__reqq]++;			\
 		(__bfa)->iocfc.req_cq_pi[__reqq] &=			\
-			((__bfa)->iocfc.cfg.drvcfg.num_reqq_elems - 1);      \
-		bfa_reg_write((__bfa)->iocfc.bfa_regs.cpe_q_pi[__reqq],	\
-			      (__bfa)->iocfc.req_cq_pi[__reqq]);      \
+			((__bfa)->iocfc.cfg.drvcfg.num_reqq_elems - 1); \
+		writel((__bfa)->iocfc.req_cq_pi[__reqq],		\
+			(__bfa)->iocfc.bfa_regs.cpe_q_pi[__reqq]);	\
 		mmiowb();      \
 	} while (0)
 
@@ -76,7 +76,7 @@ void bfa_isr_bind(enum bfi_mclass mc, bfa_isr_func_t isr_func);
 	(__index) &= ((__size) - 1);			\
 } while (0)
 
-/**
+/*
  * Queue element to wait for room in request queue. FIFO order is
  * maintained when fullfilling requests.
  */
@@ -86,7 +86,7 @@ struct bfa_reqq_wait_s {
 	void		*cbarg;
 };
 
-/**
+/*
  * Circular queue usage assignments
  */
 enum {
@@ -113,7 +113,7 @@ bfa_reqq_winit(struct bfa_reqq_wait_s *wqe, void (*qresume) (void *cbarg),
 
 #define bfa_reqq(__bfa, __reqq)	(&(__bfa)->reqq_waitq[__reqq])
 
-/**
+/*
  * static inline void
  * bfa_reqq_wait(struct bfa_s *bfa, int reqq, struct bfa_reqq_wait_s *wqe)
  */
@@ -130,7 +130,7 @@ bfa_reqq_winit(struct bfa_reqq_wait_s *wqe, void (*qresume) (void *cbarg),
 #define bfa_reqq_wcancel(__wqe)	list_del(&(__wqe)->qe)
 
 
-/**
+/*
  * Generic BFA callback element.
  */
 struct bfa_cb_qe_s {
@@ -163,7 +163,7 @@ struct bfa_cb_qe_s {
 	} while (0)
 
 
-/**
+/*
  * PCI devices supported by the current BFA
  */
 struct bfa_pciid_s {
@@ -173,7 +173,7 @@ struct bfa_pciid_s {
 
 extern char     bfa_version[];
 
-/**
+/*
  * BFA memory resources
  */
 enum bfa_mem_type {
@@ -202,19 +202,19 @@ struct bfa_meminfo_s {
 	((_m)->meminfo[BFA_MEM_TYPE_DMA - 1].dma_curp)
 
 struct bfa_iocfc_regs_s {
-	bfa_os_addr_t   intr_status;
-	bfa_os_addr_t   intr_mask;
-	bfa_os_addr_t   cpe_q_pi[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   cpe_q_ci[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   cpe_q_depth[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   cpe_q_ctrl[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   rme_q_ci[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   rme_q_pi[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   rme_q_depth[BFI_IOC_MAX_CQS];
-	bfa_os_addr_t   rme_q_ctrl[BFI_IOC_MAX_CQS];
+	void __iomem	*intr_status;
+	void __iomem	*intr_mask;
+	void __iomem	*cpe_q_pi[BFI_IOC_MAX_CQS];
+	void __iomem	*cpe_q_ci[BFI_IOC_MAX_CQS];
+	void __iomem	*cpe_q_depth[BFI_IOC_MAX_CQS];
+	void __iomem	*cpe_q_ctrl[BFI_IOC_MAX_CQS];
+	void __iomem	*rme_q_ci[BFI_IOC_MAX_CQS];
+	void __iomem	*rme_q_pi[BFI_IOC_MAX_CQS];
+	void __iomem	*rme_q_depth[BFI_IOC_MAX_CQS];
+	void __iomem	*rme_q_ctrl[BFI_IOC_MAX_CQS];
 };
 
-/**
+/*
  * MSIX vector handlers
  */
 #define BFA_MSIX_MAX_VECTORS	22
@@ -224,7 +224,7 @@ struct bfa_msix_s {
 	bfa_msix_handler_t handler[BFA_MSIX_MAX_VECTORS];
 };
 
-/**
+/*
  * Chip specific interfaces
  */
 struct bfa_hwif_s {
@@ -343,7 +343,7 @@ int bfa_iocfc_get_pbc_vports(struct bfa_s *bfa,
 				struct bfi_pbc_vport_s *pbc_vport);
 
 
-/**
+/*
  *----------------------------------------------------------------------
  *		BFA public interfaces
  *----------------------------------------------------------------------

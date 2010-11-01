@@ -15,7 +15,7 @@
  * General Public License for more details.
  */
 
-/**
+/*
  *  bfad.c Linux driver PCI interface module.
  */
 #include <linux/module.h>
@@ -151,7 +151,7 @@ bfad_sm_failed(struct bfad_s *bfad, enum bfad_sm_event event);
 static void
 bfad_sm_fcs_exit(struct bfad_s *bfad, enum bfad_sm_event event);
 
-/**
+/*
  * Beginning state for the driver instance, awaiting the pci_probe event
  */
 static void
@@ -181,7 +181,7 @@ bfad_sm_uninit(struct bfad_s *bfad, enum bfad_sm_event event)
 	}
 }
 
-/**
+/*
  * Driver Instance is created, awaiting event INIT to initialize the bfad
  */
 static void
@@ -364,7 +364,7 @@ bfad_sm_stopping(struct bfad_s *bfad, enum bfad_sm_event event)
 	}
 }
 
-/**
+/*
  *  BFA callbacks
  */
 void
@@ -376,7 +376,7 @@ bfad_hcb_comp(void *arg, bfa_status_t status)
 	complete(&fcomp->comp);
 }
 
-/**
+/*
  * bfa_init callback
  */
 void
@@ -401,7 +401,7 @@ bfa_cb_init(void *drv, bfa_status_t init_status)
 	complete(&bfad->comp);
 }
 
-/**
+/*
  *  BFA_FCS callbacks
  */
 struct bfad_port_s *
@@ -457,7 +457,7 @@ bfa_fcb_lport_delete(struct bfad_s *bfad, enum bfa_lport_role roles,
 	}
 }
 
-/**
+/*
  * FCS RPORT alloc callback, after successful PLOGI by FCS
  */
 bfa_status_t
@@ -478,7 +478,7 @@ ext:
 	return rc;
 }
 
-/**
+/*
  * FCS PBC VPORT Create
  */
 void
@@ -663,7 +663,7 @@ ext:
 	return rc;
 }
 
-/**
+/*
  * Create a vport under a vf.
  */
 bfa_status_t
@@ -712,30 +712,6 @@ ext_free_fcs_vport:
 	wait_for_completion(vport->comp_del);
 ext_free_vport:
 	kfree(vport);
-ext:
-	return rc;
-}
-
-/**
- * Create a vf and its base vport implicitely.
- */
-bfa_status_t
-bfad_vf_create(struct bfad_s *bfad, u16 vf_id,
-	       struct bfa_lport_cfg_s *port_cfg)
-{
-	struct bfad_vf_s      *vf;
-	int		rc = BFA_STATUS_OK;
-
-	vf = kzalloc(sizeof(struct bfad_vf_s), GFP_KERNEL);
-	if (!vf) {
-		rc = BFA_STATUS_FAILED;
-		goto ext;
-	}
-
-	rc = bfa_fcs_vf_create(&vf->fcs_vf, &bfad->bfa_fcs, vf_id, port_cfg,
-			       vf);
-	if (rc != BFA_STATUS_OK)
-		kfree(vf);
 ext:
 	return rc;
 }
@@ -883,20 +859,6 @@ bfad_pci_uninit(struct pci_dev *pdev, struct bfad_s *bfad)
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
-}
-
-void
-bfad_fcs_port_cfg(struct bfad_s *bfad)
-{
-	struct bfa_lport_cfg_s  port_cfg;
-	struct bfa_port_attr_s attr;
-	char		symname[BFA_SYMNAME_MAXLEN];
-
-	sprintf(symname, "%s-%d", BFAD_DRIVER_NAME, bfad->inst_no);
-	memcpy(port_cfg.sym_name.symname, symname, strlen(symname));
-	bfa_fcport_get_attr(&bfad->bfa, &attr);
-	port_cfg.nwwn = attr.nwwn;
-	port_cfg.pwwn = attr.pwwn;
 }
 
 bfa_status_t
@@ -1089,9 +1051,6 @@ bfad_start_ops(struct bfad_s *bfad) {
 	bfa_fcs_init(&bfad->bfa_fcs);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
-	/* PPORT FCS config */
-	bfad_fcs_port_cfg(bfad);
-
 	retval = bfad_cfg_pport(bfad, BFA_LPORT_ROLE_FCP_IM);
 	if (retval != BFA_STATUS_OK) {
 		if (bfa_sm_cmp_state(bfad, bfad_sm_initializing))
@@ -1181,7 +1140,7 @@ bfad_worker(void *ptr)
 	return 0;
 }
 
-/**
+/*
  *  BFA driver interrupt functions
  */
 irqreturn_t
@@ -1240,7 +1199,7 @@ bfad_msix(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/**
+/*
  * Initialize the MSIX entry table.
  */
 static void
@@ -1293,7 +1252,7 @@ bfad_install_msix_handler(struct bfad_s *bfad)
 	return 0;
 }
 
-/**
+/*
  * Setup MSIX based interrupt.
  */
 int
@@ -1374,7 +1333,7 @@ bfad_remove_intr(struct bfad_s *bfad)
 	}
 }
 
-/**
+/*
  * PCI probe entry.
  */
 int
@@ -1460,7 +1419,7 @@ out:
 	return error;
 }
 
-/**
+/*
  * PCI remove entry.
  */
 void
@@ -1541,7 +1500,7 @@ static struct pci_driver bfad_pci_driver = {
 	.remove = __devexit_p(bfad_pci_remove),
 };
 
-/**
+/*
  * Driver module init.
  */
 static int __init
@@ -1581,7 +1540,7 @@ ext:
 	return error;
 }
 
-/**
+/*
  * Driver module exit.
  */
 static void __exit

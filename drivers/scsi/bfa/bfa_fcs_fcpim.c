@@ -15,7 +15,7 @@
  * General Public License for more details.
  */
 
-/**
+/*
  *  fcpim.c - FCP initiator mode i-t nexus state machine
  */
 
@@ -38,7 +38,7 @@ static void	bfa_fcs_itnim_prli_response(void *fcsarg,
 			    bfa_status_t req_status, u32 rsp_len,
 			    u32 resid_len, struct fchs_s *rsp_fchs);
 
-/**
+/*
  *  fcs_itnim_sm FCS itnim state machine events
  */
 
@@ -84,7 +84,7 @@ static struct bfa_sm_table_s itnim_sm_table[] = {
 	{BFA_SM(bfa_fcs_itnim_sm_initiator), BFA_ITNIM_INITIATIOR},
 };
 
-/**
+/*
  *  fcs_itnim_sm FCS itnim state machine
  */
 
@@ -494,11 +494,11 @@ bfa_fcs_itnim_free(struct bfa_fcs_itnim_s *itnim)
 
 
 
-/**
+/*
  *  itnim_public FCS ITNIM public interfaces
  */
 
-/**
+/*
  *	Called by rport when a new rport is created.
  *
  * @param[in] rport	-  remote port.
@@ -554,7 +554,7 @@ bfa_fcs_itnim_create(struct bfa_fcs_rport_s *rport)
 	return itnim;
 }
 
-/**
+/*
  *	Called by rport to delete  the instance of FCPIM.
  *
  * @param[in] rport	-  remote port.
@@ -566,7 +566,7 @@ bfa_fcs_itnim_delete(struct bfa_fcs_itnim_s *itnim)
 	bfa_sm_send_event(itnim, BFA_FCS_ITNIM_SM_DELETE);
 }
 
-/**
+/*
  * Notification from rport that PLOGI is complete to initiate FC-4 session.
  */
 void
@@ -586,7 +586,7 @@ bfa_fcs_itnim_rport_online(struct bfa_fcs_itnim_s *itnim)
 	}
 }
 
-/**
+/*
  * Called by rport to handle a remote device offline.
  */
 void
@@ -596,7 +596,7 @@ bfa_fcs_itnim_rport_offline(struct bfa_fcs_itnim_s *itnim)
 	bfa_sm_send_event(itnim, BFA_FCS_ITNIM_SM_OFFLINE);
 }
 
-/**
+/*
  * Called by rport when remote port is known to be an initiator from
  * PRLI received.
  */
@@ -608,7 +608,7 @@ bfa_fcs_itnim_is_initiator(struct bfa_fcs_itnim_s *itnim)
 	bfa_sm_send_event(itnim, BFA_FCS_ITNIM_SM_INITIATOR);
 }
 
-/**
+/*
  * Called by rport to check if the itnim is online.
  */
 bfa_status_t
@@ -625,7 +625,7 @@ bfa_fcs_itnim_get_online_state(struct bfa_fcs_itnim_s *itnim)
 	}
 }
 
-/**
+/*
  * BFA completion callback for bfa_itnim_online().
  */
 void
@@ -637,7 +637,7 @@ bfa_cb_itnim_online(void *cbarg)
 	bfa_sm_send_event(itnim, BFA_FCS_ITNIM_SM_HCB_ONLINE);
 }
 
-/**
+/*
  * BFA completion callback for bfa_itnim_offline().
  */
 void
@@ -649,7 +649,7 @@ bfa_cb_itnim_offline(void *cb_arg)
 	bfa_sm_send_event(itnim, BFA_FCS_ITNIM_SM_HCB_OFFLINE);
 }
 
-/**
+/*
  * Mark the beginning of PATH TOV handling. IO completion callbacks
  * are still pending.
  */
@@ -661,7 +661,7 @@ bfa_cb_itnim_tov_begin(void *cb_arg)
 	bfa_trc(itnim->fcs, itnim->rport->pwwn);
 }
 
-/**
+/*
  * Mark the end of PATH TOV handling. All pending IOs are already cleaned up.
  */
 void
@@ -674,7 +674,7 @@ bfa_cb_itnim_tov(void *cb_arg)
 	itnim_drv->state = ITNIM_STATE_TIMEOUT;
 }
 
-/**
+/*
  *		BFA notification to FCS/driver for second level error recovery.
  *
  * Atleast one I/O request has timedout and target is unresponsive to
@@ -736,7 +736,7 @@ bfa_fcs_itnim_stats_get(struct bfa_fcs_lport_s *port, wwn_t rpwwn,
 	if (itnim == NULL)
 		return BFA_STATUS_NO_FCPIM_NEXUS;
 
-	bfa_os_memcpy(stats, &itnim->stats, sizeof(struct bfa_itnim_stats_s));
+	memcpy(stats, &itnim->stats, sizeof(struct bfa_itnim_stats_s));
 
 	return BFA_STATUS_OK;
 }
@@ -753,7 +753,7 @@ bfa_fcs_itnim_stats_clear(struct bfa_fcs_lport_s *port, wwn_t rpwwn)
 	if (itnim == NULL)
 		return BFA_STATUS_NO_FCPIM_NEXUS;
 
-	bfa_os_memset(&itnim->stats, 0, sizeof(struct bfa_itnim_stats_s));
+	memset(&itnim->stats, 0, sizeof(struct bfa_itnim_stats_s));
 	return BFA_STATUS_OK;
 }
 

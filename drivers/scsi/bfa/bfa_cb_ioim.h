@@ -37,18 +37,18 @@ bfad_int_to_lun(u32 luno)
 	} lun;
 
 	lun.bfa_lun     = 0;
-	lun.scsi_lun[0] = bfa_os_htons(luno);
+	lun.scsi_lun[0] = cpu_to_be16(luno);
 
 	return lun.bfa_lun;
 }
 
-/**
+/*
  * Get LUN for the I/O request
  */
 #define bfa_cb_ioim_get_lun(__dio)	\
 	bfad_int_to_lun(((struct scsi_cmnd *)__dio)->device->lun)
 
-/**
+/*
  * Get CDB for the I/O request
  */
 static inline u8 *
@@ -59,7 +59,7 @@ bfa_cb_ioim_get_cdb(struct bfad_ioim_s *dio)
 	return (u8 *) cmnd->cmnd;
 }
 
-/**
+/*
  * Get I/O direction (read/write) for the I/O request
  */
 static inline enum fcp_iodir
@@ -77,7 +77,7 @@ bfa_cb_ioim_get_iodir(struct bfad_ioim_s *dio)
 		return FCP_IODIR_NONE;
 }
 
-/**
+/*
  * Get IO size in bytes for the I/O request
  */
 static inline u32
@@ -88,7 +88,7 @@ bfa_cb_ioim_get_size(struct bfad_ioim_s *dio)
 	return scsi_bufflen(cmnd);
 }
 
-/**
+/*
  * Get timeout for the I/O request
  */
 static inline u8
@@ -104,7 +104,7 @@ bfa_cb_ioim_get_timeout(struct bfad_ioim_s *dio)
 	return 0;
 }
 
-/**
+/*
  * Get Command Reference Number for the I/O request. 0 if none.
  */
 static inline u8
@@ -113,7 +113,7 @@ bfa_cb_ioim_get_crn(struct bfad_ioim_s *dio)
 	return 0;
 }
 
-/**
+/*
  * Get SAM-3 priority for the I/O request. 0 is default.
  */
 static inline u8
@@ -122,7 +122,7 @@ bfa_cb_ioim_get_priority(struct bfad_ioim_s *dio)
 	return 0;
 }
 
-/**
+/*
  * Get task attributes for the I/O request. Default is FCP_TASK_ATTR_SIMPLE(0).
  */
 static inline u8
@@ -148,7 +148,7 @@ bfa_cb_ioim_get_taskattr(struct bfad_ioim_s *dio)
 	return task_attr;
 }
 
-/**
+/*
  * Get CDB length in bytes for the I/O request. Default is FCP_CMND_CDB_LEN(16).
  */
 static inline u8
@@ -159,7 +159,7 @@ bfa_cb_ioim_get_cdblen(struct bfad_ioim_s *dio)
 	return cmnd->cmd_len;
 }
 
-/**
+/*
  * Assign queue to be used for the I/O request. This value depends on whether
  * the driver wants to use the queues via any specific algorithm. Currently,
  * this is not supported.

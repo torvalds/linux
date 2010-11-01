@@ -15,7 +15,7 @@
  * General Public License for more details.
  */
 
-/**
+/*
  *  rport.c Remote port implementation.
  */
 
@@ -75,7 +75,7 @@ static void	bfa_fcs_rport_send_ls_rjt(struct bfa_fcs_rport_s *rport,
 static void	bfa_fcs_rport_process_adisc(struct bfa_fcs_rport_s *rport,
 				struct fchs_s *rx_fchs, u16 len);
 static void bfa_fcs_rport_send_prlo_acc(struct bfa_fcs_rport_s *rport);
-/**
+/*
  *  fcs_rport_sm FCS rport state machine events
  */
 
@@ -172,7 +172,7 @@ static struct bfa_sm_table_s rport_sm_table[] = {
 	{BFA_SM(bfa_fcs_rport_sm_nsdisc_sent), BFA_RPORT_NSDISC},
 };
 
-/**
+/*
  *		Beginning state.
  */
 static void
@@ -210,7 +210,7 @@ bfa_fcs_rport_sm_uninit(struct bfa_fcs_rport_s *rport, enum rport_event event)
 	}
 }
 
-/**
+/*
  *		PLOGI is being sent.
  */
 static void
@@ -262,7 +262,7 @@ bfa_fcs_rport_sm_plogi_sending(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *		PLOGI is being sent.
  */
 static void
@@ -287,7 +287,7 @@ bfa_fcs_rport_sm_plogiacc_sending(struct bfa_fcs_rport_s *rport,
 
 	case RPSM_EVENT_PLOGI_RCVD:
 	case RPSM_EVENT_SCN:
-		/**
+		/*
 		 * Ignore, SCN is possibly online notification.
 		 */
 		break;
@@ -309,7 +309,7 @@ bfa_fcs_rport_sm_plogiacc_sending(struct bfa_fcs_rport_s *rport,
 		break;
 
 	case RPSM_EVENT_HCB_OFFLINE:
-		/**
+		/*
 		 * Ignore BFA callback, on a PLOGI receive we call bfa offline.
 		 */
 		break;
@@ -319,7 +319,7 @@ bfa_fcs_rport_sm_plogiacc_sending(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *		PLOGI is sent.
  */
 static void
@@ -380,7 +380,7 @@ bfa_fcs_rport_sm_plogi_retry(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *		PLOGI is sent.
  */
 static void
@@ -475,7 +475,7 @@ bfa_fcs_rport_sm_plogi(struct bfa_fcs_rport_s *rport, enum rport_event event)
 	}
 }
 
-/**
+/*
  *		PLOGI is complete. Awaiting BFA rport online callback. FC-4s
  *		are offline.
  */
@@ -519,7 +519,7 @@ bfa_fcs_rport_sm_hal_online(struct bfa_fcs_rport_s *rport,
 		break;
 
 	case RPSM_EVENT_SCN:
-		/**
+		/*
 		 * @todo
 		 * Ignore SCN - PLOGI just completed, FC-4 login should detect
 		 * device failures.
@@ -531,7 +531,7 @@ bfa_fcs_rport_sm_hal_online(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *		Rport is ONLINE. FC-4s active.
  */
 static void
@@ -580,7 +580,7 @@ bfa_fcs_rport_sm_online(struct bfa_fcs_rport_s *rport, enum rport_event event)
 	}
 }
 
-/**
+/*
  *		An SCN event is received in ONLINE state. NS query is being sent
  *		prior to ADISC authentication with rport. FC-4s are paused.
  */
@@ -604,7 +604,7 @@ bfa_fcs_rport_sm_nsquery_sending(struct bfa_fcs_rport_s *rport,
 		break;
 
 	case RPSM_EVENT_SCN:
-		/**
+		/*
 		 * ignore SCN, wait for response to query itself
 		 */
 		break;
@@ -638,7 +638,7 @@ bfa_fcs_rport_sm_nsquery_sending(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *	An SCN event is received in ONLINE state. NS query is sent to rport.
  *	FC-4s are paused.
  */
@@ -697,7 +697,7 @@ bfa_fcs_rport_sm_nsquery(struct bfa_fcs_rport_s *rport, enum rport_event event)
 	}
 }
 
-/**
+/*
  *	An SCN event is received in ONLINE state. ADISC is being sent for
  *	authenticating with rport. FC-4s are paused.
  */
@@ -748,7 +748,7 @@ bfa_fcs_rport_sm_adisc_sending(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *		An SCN event is received in ONLINE state. ADISC is to rport.
  *		FC-4s are paused.
  */
@@ -765,7 +765,7 @@ bfa_fcs_rport_sm_adisc(struct bfa_fcs_rport_s *rport, enum rport_event event)
 		break;
 
 	case RPSM_EVENT_PLOGI_RCVD:
-		/**
+		/*
 		 * Too complex to cleanup FC-4 & rport and then acc to PLOGI.
 		 * At least go offline when a PLOGI is received.
 		 */
@@ -787,7 +787,7 @@ bfa_fcs_rport_sm_adisc(struct bfa_fcs_rport_s *rport, enum rport_event event)
 		break;
 
 	case RPSM_EVENT_SCN:
-		/**
+		/*
 		 * already processing RSCN
 		 */
 		break;
@@ -810,7 +810,7 @@ bfa_fcs_rport_sm_adisc(struct bfa_fcs_rport_s *rport, enum rport_event event)
 	}
 }
 
-/**
+/*
  *		Rport has sent LOGO. Awaiting FC-4 offline completion callback.
  */
 static void
@@ -841,7 +841,7 @@ bfa_fcs_rport_sm_fc4_logorcv(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *		LOGO needs to be sent to rport. Awaiting FC-4 offline completion
  *		callback.
  */
@@ -864,7 +864,7 @@ bfa_fcs_rport_sm_fc4_logosend(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *	Rport is going offline. Awaiting FC-4 offline completion callback.
  */
 static void
@@ -886,7 +886,7 @@ bfa_fcs_rport_sm_fc4_offline(struct bfa_fcs_rport_s *rport,
 	case RPSM_EVENT_LOGO_RCVD:
 	case RPSM_EVENT_PRLO_RCVD:
 	case RPSM_EVENT_ADDRESS_CHANGE:
-		/**
+		/*
 		 * rport is already going offline.
 		 * SCN - ignore and wait till transitioning to offline state
 		 */
@@ -901,7 +901,7 @@ bfa_fcs_rport_sm_fc4_offline(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *		Rport is offline. FC-4s are offline. Awaiting BFA rport offline
  *		callback.
  */
@@ -945,7 +945,7 @@ bfa_fcs_rport_sm_hcb_offline(struct bfa_fcs_rport_s *rport,
 	case RPSM_EVENT_SCN:
 	case RPSM_EVENT_LOGO_RCVD:
 	case RPSM_EVENT_PRLO_RCVD:
-		/**
+		/*
 		 * Ignore, already offline.
 		 */
 		break;
@@ -955,7 +955,7 @@ bfa_fcs_rport_sm_hcb_offline(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *		Rport is offline. FC-4s are offline. Awaiting BFA rport offline
  *		callback to send LOGO accept.
  */
@@ -1009,7 +1009,7 @@ bfa_fcs_rport_sm_hcb_logorcv(struct bfa_fcs_rport_s *rport,
 
 	case RPSM_EVENT_LOGO_RCVD:
 	case RPSM_EVENT_PRLO_RCVD:
-		/**
+		/*
 		 * Ignore - already processing a LOGO.
 		 */
 		break;
@@ -1019,7 +1019,7 @@ bfa_fcs_rport_sm_hcb_logorcv(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *		Rport is being deleted. FC-4s are offline.
  *  Awaiting BFA rport offline
  *		callback to send LOGO.
@@ -1048,7 +1048,7 @@ bfa_fcs_rport_sm_hcb_logosend(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *		Rport is being deleted. FC-4s are offline. LOGO is being sent.
  */
 static void
@@ -1082,7 +1082,7 @@ bfa_fcs_rport_sm_logo_sending(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *		Rport is offline. FC-4s are offline. BFA rport is offline.
  *		Timer active to delete stale rport.
  */
@@ -1142,7 +1142,7 @@ bfa_fcs_rport_sm_offline(struct bfa_fcs_rport_s *rport, enum rport_event event)
 	}
 }
 
-/**
+/*
  *	Rport address has changed. Nameserver discovery request is being sent.
  */
 static void
@@ -1199,7 +1199,7 @@ bfa_fcs_rport_sm_nsdisc_sending(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *		Nameserver discovery failed. Waiting for timeout to retry.
  */
 static void
@@ -1263,7 +1263,7 @@ bfa_fcs_rport_sm_nsdisc_retry(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *		Rport address has changed. Nameserver discovery request is sent.
  */
 static void
@@ -1329,13 +1329,13 @@ bfa_fcs_rport_sm_nsdisc_sent(struct bfa_fcs_rport_s *rport,
 		bfa_fcs_rport_send_prlo_acc(rport);
 		break;
 	case RPSM_EVENT_SCN:
-		/**
+		/*
 		 * ignore, wait for NS query response
 		 */
 		break;
 
 	case RPSM_EVENT_LOGO_RCVD:
-		/**
+		/*
 		 * Not logged-in yet. Accept LOGO.
 		 */
 		bfa_fcs_rport_send_logo_acc(rport);
@@ -1354,7 +1354,7 @@ bfa_fcs_rport_sm_nsdisc_sent(struct bfa_fcs_rport_s *rport,
 
 
 
-/**
+/*
  *  fcs_rport_private FCS RPORT provate functions
  */
 
@@ -1415,7 +1415,7 @@ bfa_fcs_rport_plogi_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 
 	plogi_rsp = (struct fc_logi_s *) BFA_FCXP_RSP_PLD(fcxp);
 
-	/**
+	/*
 	 * Check for failure first.
 	 */
 	if (plogi_rsp->els_cmd.els_code != FC_ELS_ACC) {
@@ -1436,7 +1436,7 @@ bfa_fcs_rport_plogi_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 		return;
 	}
 
-	/**
+	/*
 	 * PLOGI is complete. Make sure this device is not one of the known
 	 * device with a new FC port address.
 	 */
@@ -1468,7 +1468,7 @@ bfa_fcs_rport_plogi_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 		}
 	}
 
-	/**
+	/*
 	 * Normal login path -- no evil twins.
 	 */
 	rport->stats.plogi_accs++;
@@ -1621,7 +1621,7 @@ bfa_fcs_rport_gidpn_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 	bfa_trc(rport->fcs, rport->pwwn);
 
 	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
-	cthdr->cmd_rsp_code = bfa_os_ntohs(cthdr->cmd_rsp_code);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
 
 	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
 		/* Check if the pid is the same as before. */
@@ -1691,7 +1691,7 @@ bfa_fcs_rport_gpnid_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 	bfa_trc(rport->fcs, rport->pwwn);
 
 	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
-	cthdr->cmd_rsp_code = bfa_os_ntohs(cthdr->cmd_rsp_code);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
 
 	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
 		bfa_sm_send_event(rport, RPSM_EVENT_ACCEPTED);
@@ -1722,7 +1722,7 @@ bfa_fcs_rport_gpnid_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 	}
 }
 
-/**
+/*
  *	Called to send a logout to the rport.
  */
 static void
@@ -1759,7 +1759,7 @@ bfa_fcs_rport_send_logo(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	bfa_sm_send_event(rport, RPSM_EVENT_FCXP_SENT);
 }
 
-/**
+/*
  *	Send ACC for a LOGO received.
  */
 static void
@@ -1788,7 +1788,7 @@ bfa_fcs_rport_send_logo_acc(void *rport_cbarg)
 			FC_CLASS_3, len, &fchs, NULL, NULL, FC_MAX_PDUSZ, 0);
 }
 
-/**
+/*
  *	brief
  *	This routine will be called by bfa_timer on timer timeouts.
  *
@@ -1961,7 +1961,7 @@ bfa_fcs_rport_alloc(struct bfa_fcs_lport_s *port, wwn_t pwwn, u32 rpid)
 	struct bfa_fcs_rport_s *rport;
 	struct bfad_rport_s	*rport_drv;
 
-	/**
+	/*
 	 * allocate rport
 	 */
 	if (bfa_fcb_rport_alloc(fcs->bfad, &rport, &rport_drv)
@@ -1979,7 +1979,7 @@ bfa_fcs_rport_alloc(struct bfa_fcs_lport_s *port, wwn_t pwwn, u32 rpid)
 	rport->pid = rpid;
 	rport->pwwn = pwwn;
 
-	/**
+	/*
 	 * allocate BFA rport
 	 */
 	rport->bfa_rport = bfa_rport_create(port->fcs->bfa, rport);
@@ -1989,7 +1989,7 @@ bfa_fcs_rport_alloc(struct bfa_fcs_lport_s *port, wwn_t pwwn, u32 rpid)
 		return NULL;
 	}
 
-	/**
+	/*
 	 * allocate FC-4s
 	 */
 	bfa_assert(bfa_fcs_lport_is_initiator(port));
@@ -2021,7 +2021,7 @@ bfa_fcs_rport_free(struct bfa_fcs_rport_s *rport)
 {
 	struct bfa_fcs_lport_s *port = rport->port;
 
-	/**
+	/*
 	 * - delete FC-4s
 	 * - delete BFA rport
 	 * - remove from queue of rports
@@ -2093,7 +2093,7 @@ bfa_fcs_rport_offline_action(struct bfa_fcs_rport_s *rport)
 	}
 }
 
-/**
+/*
  * Update rport parameters from PLOGI or PLOGI accept.
  */
 static void
@@ -2101,14 +2101,14 @@ bfa_fcs_rport_update(struct bfa_fcs_rport_s *rport, struct fc_logi_s *plogi)
 {
 	bfa_fcs_lport_t *port = rport->port;
 
-	/**
+	/*
 	 * - port name
 	 * - node name
 	 */
 	rport->pwwn = plogi->port_name;
 	rport->nwwn = plogi->node_name;
 
-	/**
+	/*
 	 * - class of service
 	 */
 	rport->fc_cos = 0;
@@ -2118,16 +2118,16 @@ bfa_fcs_rport_update(struct bfa_fcs_rport_s *rport, struct fc_logi_s *plogi)
 	if (plogi->class2.class_valid)
 		rport->fc_cos |= FC_CLASS_2;
 
-	/**
+	/*
 	 * - CISC
 	 * - MAX receive frame size
 	 */
 	rport->cisc = plogi->csp.cisc;
-	rport->maxfrsize = bfa_os_ntohs(plogi->class3.rxsz);
+	rport->maxfrsize = be16_to_cpu(plogi->class3.rxsz);
 
-	bfa_trc(port->fcs, bfa_os_ntohs(plogi->csp.bbcred));
+	bfa_trc(port->fcs, be16_to_cpu(plogi->csp.bbcred));
 	bfa_trc(port->fcs, port->fabric->bb_credit);
-	/**
+	/*
 	 * Direct Attach P2P mode :
 	 * This is to handle a bug (233476) in IBM targets in Direct Attach
 	 *  Mode. Basically, in FLOGI Accept the target would have
@@ -2136,19 +2136,19 @@ bfa_fcs_rport_update(struct bfa_fcs_rport_s *rport, struct fc_logi_s *plogi)
 	 * in PLOGI.
 	 */
 	if ((!bfa_fcs_fabric_is_switched(port->fabric))	 &&
-		(bfa_os_ntohs(plogi->csp.bbcred) < port->fabric->bb_credit)) {
+		(be16_to_cpu(plogi->csp.bbcred) < port->fabric->bb_credit)) {
 
-		bfa_trc(port->fcs, bfa_os_ntohs(plogi->csp.bbcred));
+		bfa_trc(port->fcs, be16_to_cpu(plogi->csp.bbcred));
 		bfa_trc(port->fcs, port->fabric->bb_credit);
 
-		port->fabric->bb_credit = bfa_os_ntohs(plogi->csp.bbcred);
+		port->fabric->bb_credit = be16_to_cpu(plogi->csp.bbcred);
 		bfa_fcport_set_tx_bbcredit(port->fcs->bfa,
 					  port->fabric->bb_credit);
 	}
 
 }
 
-/**
+/*
  *	Called to handle LOGO received from an existing remote port.
  */
 static void
@@ -2164,11 +2164,11 @@ bfa_fcs_rport_process_logo(struct bfa_fcs_rport_s *rport, struct fchs_s *fchs)
 
 
 
-/**
+/*
  *  fcs_rport_public FCS rport public interfaces
  */
 
-/**
+/*
  *	Called by bport/vport to create a remote port instance for a discovered
  *	remote device.
  *
@@ -2191,7 +2191,7 @@ bfa_fcs_rport_create(struct bfa_fcs_lport_s *port, u32 rpid)
 	return rport;
 }
 
-/**
+/*
  * Called to create a rport for which only the wwn is known.
  *
  * @param[in] port	- base port
@@ -2211,7 +2211,7 @@ bfa_fcs_rport_create_by_wwn(struct bfa_fcs_lport_s *port, wwn_t rpwwn)
 	bfa_sm_send_event(rport, RPSM_EVENT_ADDRESS_DISC);
 	return rport;
 }
-/**
+/*
  * Called by bport in private loop topology to indicate that a
  * rport has been discovered and plogi has been completed.
  *
@@ -2233,7 +2233,7 @@ bfa_fcs_rport_start(struct bfa_fcs_lport_s *port, struct fchs_s *fchs,
 	bfa_sm_send_event(rport, RPSM_EVENT_PLOGI_COMP);
 }
 
-/**
+/*
  *	Called by bport/vport to handle PLOGI received from a new remote port.
  *	If an existing rport does a plogi, it will be handled separately.
  */
@@ -2272,7 +2272,7 @@ wwn_compare(wwn_t wwn1, wwn_t wwn2)
 	return 0;
 }
 
-/**
+/*
  *	Called by bport/vport to handle PLOGI received from an existing
  *	 remote port.
  */
@@ -2280,7 +2280,7 @@ void
 bfa_fcs_rport_plogi(struct bfa_fcs_rport_s *rport, struct fchs_s *rx_fchs,
 			struct fc_logi_s *plogi)
 {
-	/**
+	/*
 	 * @todo Handle P2P and initiator-initiator.
 	 */
 
@@ -2289,7 +2289,7 @@ bfa_fcs_rport_plogi(struct bfa_fcs_rport_s *rport, struct fchs_s *rx_fchs,
 	rport->reply_oxid = rx_fchs->ox_id;
 	bfa_trc(rport->fcs, rport->reply_oxid);
 
-	/**
+	/*
 	 * In Switched fabric topology,
 	 * PLOGI to each other. If our pwwn is smaller, ignore it,
 	 * if it is not a well known address.
@@ -2307,7 +2307,7 @@ bfa_fcs_rport_plogi(struct bfa_fcs_rport_s *rport, struct fchs_s *rx_fchs,
 	bfa_sm_send_event(rport, RPSM_EVENT_PLOGI_RCVD);
 }
 
-/**
+/*
  * Called by bport/vport to delete a remote port instance.
  *
  * Rport delete is called under the following conditions:
@@ -2321,7 +2321,7 @@ bfa_fcs_rport_delete(struct bfa_fcs_rport_s *rport)
 	bfa_sm_send_event(rport, RPSM_EVENT_DELETE);
 }
 
-/**
+/*
  * Called by bport/vport to  when a target goes offline.
  *
  */
@@ -2331,7 +2331,7 @@ bfa_fcs_rport_offline(struct bfa_fcs_rport_s *rport)
 	bfa_sm_send_event(rport, RPSM_EVENT_LOGO_IMP);
 }
 
-/**
+/*
  * Called by bport in n2n when a target (attached port) becomes online.
  *
  */
@@ -2340,7 +2340,7 @@ bfa_fcs_rport_online(struct bfa_fcs_rport_s *rport)
 {
 	bfa_sm_send_event(rport, RPSM_EVENT_PLOGI_SEND);
 }
-/**
+/*
  *	Called by bport/vport to notify SCN for the remote port
  */
 void
@@ -2350,7 +2350,7 @@ bfa_fcs_rport_scn(struct bfa_fcs_rport_s *rport)
 	bfa_sm_send_event(rport, RPSM_EVENT_SCN);
 }
 
-/**
+/*
  *	Called by	fcpim to notify that the ITN cleanup is done.
  */
 void
@@ -2359,7 +2359,7 @@ bfa_fcs_rport_itnim_ack(struct bfa_fcs_rport_s *rport)
 	bfa_sm_send_event(rport, RPSM_EVENT_FC4_OFFLINE);
 }
 
-/**
+/*
  *	Called by fcptm to notify that the ITN cleanup is done.
  */
 void
@@ -2368,7 +2368,7 @@ bfa_fcs_rport_tin_ack(struct bfa_fcs_rport_s *rport)
 	bfa_sm_send_event(rport, RPSM_EVENT_FC4_OFFLINE);
 }
 
-/**
+/*
  *	brief
  *	This routine BFA callback for bfa_rport_online() call.
  *
@@ -2391,7 +2391,7 @@ bfa_cb_rport_online(void *cbarg)
 	bfa_sm_send_event(rport, RPSM_EVENT_HCB_ONLINE);
 }
 
-/**
+/*
  *	brief
  *	This routine BFA callback for bfa_rport_offline() call.
  *
@@ -2413,7 +2413,7 @@ bfa_cb_rport_offline(void *cbarg)
 	bfa_sm_send_event(rport, RPSM_EVENT_HCB_OFFLINE);
 }
 
-/**
+/*
  *	brief
  *	This routine is a static BFA callback when there is a QoS flow_id
  *	change notification
@@ -2437,7 +2437,7 @@ bfa_cb_rport_qos_scn_flowid(void *cbarg,
 	bfa_trc(rport->fcs, rport->pwwn);
 }
 
-/**
+/*
  *	brief
  *	This routine is a static BFA callback when there is a QoS priority
  *	change notification
@@ -2461,7 +2461,7 @@ bfa_cb_rport_qos_scn_prio(void *cbarg,
 	bfa_trc(rport->fcs, rport->pwwn);
 }
 
-/**
+/*
  *		Called to process any unsolicted frames from this remote port
  */
 void
@@ -2470,7 +2470,7 @@ bfa_fcs_rport_logo_imp(struct bfa_fcs_rport_s *rport)
 	bfa_sm_send_event(rport, RPSM_EVENT_LOGO_IMP);
 }
 
-/**
+/*
  *		Called to process any unsolicted frames from this remote port
  */
 void
@@ -2577,7 +2577,7 @@ bfa_fcs_rport_send_ls_rjt(struct bfa_fcs_rport_s *rport, struct fchs_s *rx_fchs,
 			FC_MAX_PDUSZ, 0);
 }
 
-/**
+/*
  * Return state of rport.
  */
 int
@@ -2586,7 +2586,7 @@ bfa_fcs_rport_get_state(struct bfa_fcs_rport_s *rport)
 	return bfa_sm_to_state(rport_sm_table, rport->sm);
 }
 
-/**
+/*
  *	brief
  *		 Called by the Driver to set rport delete/ageout timeout
  *
@@ -2613,15 +2613,15 @@ bfa_fcs_rport_prlo(struct bfa_fcs_rport_s *rport, u16 ox_id)
 
 
 
-/**
+/*
  * Remote port implementation.
  */
 
-/**
+/*
  *  fcs_rport_api FCS rport API.
  */
 
-/**
+/*
  *	Direct API to add a target by port wwn. This interface is used, for
  *	example, by bios when target pwwn is known from boot lun configuration.
  */
@@ -2634,7 +2634,7 @@ bfa_fcs_rport_add(struct bfa_fcs_lport_s *port, wwn_t *pwwn,
 	return BFA_STATUS_OK;
 }
 
-/**
+/*
  *	Direct API to remove a target and its associated resources. This
  *	interface is used, for example, by driver to remove target
  *	ports from the target list for a VM.
@@ -2663,7 +2663,7 @@ bfa_fcs_rport_remove(struct bfa_fcs_rport_s *rport_in)
 
 }
 
-/**
+/*
  *	Remote device status for display/debug.
  */
 void
@@ -2674,7 +2674,7 @@ bfa_fcs_rport_get_attr(struct bfa_fcs_rport_s *rport,
 	bfa_fcs_lport_t *port = rport->port;
 	bfa_port_speed_t rport_speed = rport->rpf.rpsc_speed;
 
-	bfa_os_memset(rport_attr, 0, sizeof(struct bfa_rport_attr_s));
+	memset(rport_attr, 0, sizeof(struct bfa_rport_attr_s));
 
 	rport_attr->pid = rport->pid;
 	rport_attr->pwwn = rport->pwwn;
@@ -2704,7 +2704,7 @@ bfa_fcs_rport_get_attr(struct bfa_fcs_rport_s *rport,
 	}
 }
 
-/**
+/*
  *	Per remote device statistics.
  */
 void
@@ -2717,7 +2717,7 @@ bfa_fcs_rport_get_stats(struct bfa_fcs_rport_s *rport,
 void
 bfa_fcs_rport_clear_stats(struct bfa_fcs_rport_s *rport)
 {
-	bfa_os_memset((char *)&rport->stats, 0,
+	memset((char *)&rport->stats, 0,
 			sizeof(struct bfa_rport_stats_s));
 }
 
@@ -2767,7 +2767,7 @@ bfa_fcs_rport_set_speed(struct bfa_fcs_rport_s *rport, bfa_port_speed_t speed)
 
 
 
-/**
+/*
  * Remote port features (RPF) implementation.
  */
 
@@ -2786,7 +2786,7 @@ static void     bfa_fcs_rpf_rpsc2_response(void *fcsarg,
 
 static void     bfa_fcs_rpf_timeout(void *arg);
 
-/**
+/*
  *  fcs_rport_ftrs_sm FCS rport state machine events
  */
 
@@ -2981,7 +2981,7 @@ bfa_fcs_rpf_sm_offline(struct bfa_fcs_rpf_s *rpf, enum rpf_event event)
 		bfa_sm_fault(rport->fcs, event);
 	}
 }
-/**
+/*
  * Called when Rport is created.
  */
 void
@@ -2995,7 +2995,7 @@ bfa_fcs_rpf_init(struct bfa_fcs_rport_s *rport)
 	bfa_sm_set_state(rpf, bfa_fcs_rpf_sm_uninit);
 }
 
-/**
+/*
  * Called when Rport becomes online
  */
 void
@@ -3010,7 +3010,7 @@ bfa_fcs_rpf_rport_online(struct bfa_fcs_rport_s *rport)
 		bfa_sm_send_event(&rport->rpf, RPFSM_EVENT_RPORT_ONLINE);
 }
 
-/**
+/*
  * Called when Rport becomes offline
  */
 void
@@ -3090,16 +3090,16 @@ bfa_fcs_rpf_rpsc2_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 	rpsc2_acc = (struct fc_rpsc2_acc_s *) BFA_FCXP_RSP_PLD(fcxp);
 	if (rpsc2_acc->els_cmd == FC_ELS_ACC) {
 		rport->stats.rpsc_accs++;
-		num_ents = bfa_os_ntohs(rpsc2_acc->num_pids);
+		num_ents = be16_to_cpu(rpsc2_acc->num_pids);
 		bfa_trc(rport->fcs, num_ents);
 		if (num_ents > 0) {
 			bfa_assert(rpsc2_acc->port_info[0].pid != rport->pid);
 			bfa_trc(rport->fcs,
-				bfa_os_ntohs(rpsc2_acc->port_info[0].pid));
+				be16_to_cpu(rpsc2_acc->port_info[0].pid));
 			bfa_trc(rport->fcs,
-				bfa_os_ntohs(rpsc2_acc->port_info[0].speed));
+				be16_to_cpu(rpsc2_acc->port_info[0].speed));
 			bfa_trc(rport->fcs,
-				bfa_os_ntohs(rpsc2_acc->port_info[0].index));
+				be16_to_cpu(rpsc2_acc->port_info[0].index));
 			bfa_trc(rport->fcs,
 				rpsc2_acc->port_info[0].type);
 
@@ -3109,7 +3109,7 @@ bfa_fcs_rpf_rpsc2_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 			}
 
 			rpf->rpsc_speed = fc_rpsc_operspeed_to_bfa_speed(
-				bfa_os_ntohs(rpsc2_acc->port_info[0].speed));
+				be16_to_cpu(rpsc2_acc->port_info[0].speed));
 
 			bfa_sm_send_event(rpf, RPFSM_EVENT_RPSC_COMP);
 		}

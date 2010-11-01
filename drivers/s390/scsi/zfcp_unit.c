@@ -142,6 +142,8 @@ int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 		return -ENOMEM;
 	}
 
+	get_device(&port->dev);
+
 	if (device_register(&unit->dev)) {
 		put_device(&unit->dev);
 		return -ENOMEM;
@@ -151,8 +153,6 @@ int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 		device_unregister(&unit->dev);
 		return -EINVAL;
 	}
-
-	get_device(&port->dev);
 
 	write_lock_irq(&port->unit_list_lock);
 	list_add_tail(&unit->list, &port->unit_list);

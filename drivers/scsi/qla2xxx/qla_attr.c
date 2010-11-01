@@ -1538,6 +1538,10 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 	if (!fcport)
 		return;
 
+	/* Now that the rport has been deleted, set the fcport state to
+	   FCS_DEVICE_DEAD */
+	atomic_set(&fcport->state, FCS_DEVICE_DEAD);
+
 	/*
 	 * Transport has effectively 'deleted' the rport, clear
 	 * all local references.

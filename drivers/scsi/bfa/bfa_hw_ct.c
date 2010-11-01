@@ -31,15 +31,15 @@ static void
 bfa_hwct_msix_lpu_err_set(struct bfa_s *bfa, bfa_boolean_t msix, int vec)
 {
 	int fn = bfa_ioc_pcifn(&bfa->ioc);
-	bfa_os_addr_t kva = bfa_ioc_bar0(&bfa->ioc);
+	void __iomem *kva = bfa_ioc_bar0(&bfa->ioc);
 
 	if (msix)
-		bfa_reg_write(kva + __ct_msix_err_vec_reg[fn], vec);
+		writel(vec, kva + __ct_msix_err_vec_reg[fn]);
 	else
-		bfa_reg_write(kva + __ct_msix_err_vec_reg[fn], 0);
+		writel(0, kva + __ct_msix_err_vec_reg[fn]);
 }
 
-/**
+/*
  * Dummy interrupt handler for handling spurious interrupt during chip-reinit.
  */
 static void
@@ -51,7 +51,7 @@ void
 bfa_hwct_reginit(struct bfa_s *bfa)
 {
 	struct bfa_iocfc_regs_s	*bfa_regs = &bfa->iocfc.bfa_regs;
-	bfa_os_addr_t		kva = bfa_ioc_bar0(&bfa->ioc);
+	void __iomem *kva = bfa_ioc_bar0(&bfa->ioc);
 	int			i, q, fn = bfa_ioc_pcifn(&bfa->ioc);
 
 	if (fn == 0) {
@@ -88,8 +88,8 @@ bfa_hwct_reqq_ack(struct bfa_s *bfa, int reqq)
 {
 	u32	r32;
 
-	r32 = bfa_reg_read(bfa->iocfc.bfa_regs.cpe_q_ctrl[reqq]);
-	bfa_reg_write(bfa->iocfc.bfa_regs.cpe_q_ctrl[reqq], r32);
+	r32 = readl(bfa->iocfc.bfa_regs.cpe_q_ctrl[reqq]);
+	writel(r32, bfa->iocfc.bfa_regs.cpe_q_ctrl[reqq]);
 }
 
 void
@@ -97,8 +97,8 @@ bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq)
 {
 	u32	r32;
 
-	r32 = bfa_reg_read(bfa->iocfc.bfa_regs.rme_q_ctrl[rspq]);
-	bfa_reg_write(bfa->iocfc.bfa_regs.rme_q_ctrl[rspq], r32);
+	r32 = readl(bfa->iocfc.bfa_regs.rme_q_ctrl[rspq]);
+	writel(r32, bfa->iocfc.bfa_regs.rme_q_ctrl[rspq]);
 }
 
 void
@@ -110,7 +110,7 @@ bfa_hwct_msix_getvecs(struct bfa_s *bfa, u32 *msix_vecs_bmap,
 	*num_vecs = BFA_MSIX_CT_MAX;
 }
 
-/**
+/*
  * Setup MSI-X vector for catapult
  */
 void
@@ -156,7 +156,7 @@ bfa_hwct_msix_uninstall(struct bfa_s *bfa)
 		bfa->msix.handler[i] = bfa_hwct_msix_dummy;
 }
 
-/**
+/*
  * Enable MSI-X vectors
  */
 void

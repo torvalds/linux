@@ -15,7 +15,7 @@
  * General Public License for more details.
  */
 
-/**
+/*
  *  bfa_modules.h BFA modules
  */
 
@@ -52,7 +52,7 @@ enum {
 };
 
 
-/**
+/*
  * Macro to define a new BFA module
  */
 #define BFA_MODULE(__mod)						\
@@ -80,7 +80,7 @@ enum {
 
 #define BFA_CACHELINE_SZ	(256)
 
-/**
+/*
  * Structure used to interact between different BFA sub modules
  *
  * Each sub module needs to implement only the entry points relevant to it (and

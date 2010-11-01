@@ -15,14 +15,14 @@
  * General Public License for more details.
  */
 
-/**
+/*
  *  bfa_attr.c Linux driver configuration interface module.
  */
 
 #include "bfad_drv.h"
 #include "bfad_im.h"
 
-/**
+/*
  * FC transport template entry, get SCSI target port ID.
  */
 void
@@ -48,7 +48,7 @@ bfad_im_get_starget_port_id(struct scsi_target *starget)
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 }
 
-/**
+/*
  * FC transport template entry, get SCSI target nwwn.
  */
 void
@@ -70,11 +70,11 @@ bfad_im_get_starget_node_name(struct scsi_target *starget)
 	if (itnim)
 		node_name = bfa_fcs_itnim_get_nwwn(&itnim->fcs_itnim);
 
-	fc_starget_node_name(starget) = bfa_os_htonll(node_name);
+	fc_starget_node_name(starget) = cpu_to_be64(node_name);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 }
 
-/**
+/*
  * FC transport template entry, get SCSI target pwwn.
  */
 void
@@ -96,11 +96,11 @@ bfad_im_get_starget_port_name(struct scsi_target *starget)
 	if (itnim)
 		port_name = bfa_fcs_itnim_get_pwwn(&itnim->fcs_itnim);
 
-	fc_starget_port_name(starget) = bfa_os_htonll(port_name);
+	fc_starget_port_name(starget) = cpu_to_be64(port_name);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 }
 
-/**
+/*
  * FC transport template entry, get SCSI host port ID.
  */
 void
@@ -114,7 +114,7 @@ bfad_im_get_host_port_id(struct Scsi_Host *shost)
 			bfa_os_hton3b(bfa_fcs_lport_get_fcid(port->fcs_port));
 }
 
-/**
+/*
  * FC transport template entry, get SCSI host port type.
  */
 static void
@@ -146,7 +146,7 @@ bfad_im_get_host_port_type(struct Scsi_Host *shost)
 	}
 }
 
-/**
+/*
  * FC transport template entry, get SCSI host port state.
  */
 static void
@@ -183,7 +183,7 @@ bfad_im_get_host_port_state(struct Scsi_Host *shost)
 	}
 }
 
-/**
+/*
  * FC transport template entry, get SCSI host active fc4s.
  */
 static void
@@ -202,7 +202,7 @@ bfad_im_get_host_active_fc4s(struct Scsi_Host *shost)
 	fc_host_active_fc4s(shost)[7] = 1;
 }
 
-/**
+/*
  * FC transport template entry, get SCSI host link speed.
  */
 static void
@@ -236,7 +236,7 @@ bfad_im_get_host_speed(struct Scsi_Host *shost)
 	}
 }
 
-/**
+/*
  * FC transport template entry, get SCSI host port type.
  */
 static void
@@ -249,11 +249,11 @@ bfad_im_get_host_fabric_name(struct Scsi_Host *shost)
 
 	fabric_nwwn = bfa_fcs_lport_get_fabric_name(port->fcs_port);
 
-	fc_host_fabric_name(shost) = bfa_os_htonll(fabric_nwwn);
+	fc_host_fabric_name(shost) = cpu_to_be64(fabric_nwwn);
 
 }
 
-/**
+/*
  * FC transport template entry, get BFAD statistics.
  */
 static struct fc_host_statistics *
@@ -304,7 +304,7 @@ bfad_im_get_stats(struct Scsi_Host *shost)
 	return hstats;
 }
 
-/**
+/*
  * FC transport template entry, reset BFAD statistics.
  */
 static void
@@ -331,7 +331,7 @@ bfad_im_reset_stats(struct Scsi_Host *shost)
 	return;
 }
 
-/**
+/*
  * FC transport template entry, get rport loss timeout.
  */
 static void
@@ -347,7 +347,7 @@ bfad_im_get_rport_loss_tmo(struct fc_rport *rport)
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 }
 
-/**
+/*
  * FC transport template entry, set rport loss timeout.
  */
 static void
@@ -633,7 +633,7 @@ struct fc_function_template bfad_im_vport_fc_function_template = {
 	.set_rport_dev_loss_tmo = bfad_im_set_rport_loss_tmo,
 };
 
-/**
+/*
  *  Scsi_Host_attrs SCSI host attributes
  */
 static ssize_t
@@ -733,7 +733,7 @@ bfad_im_node_name_show(struct device *dev, struct device_attribute *attr,
 	u64        nwwn;
 
 	nwwn = bfa_fcs_lport_get_nwwn(port->fcs_port);
-	return snprintf(buf, PAGE_SIZE, "0x%llx\n", bfa_os_htonll(nwwn));
+	return snprintf(buf, PAGE_SIZE, "0x%llx\n", cpu_to_be64(nwwn));
 }
 
 static ssize_t

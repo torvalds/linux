@@ -58,8 +58,7 @@ struct kmem_cache *scsi_pkt_cachep;
 #define FC_SRB_WRITE		(1 << 0)
 
 /*
- * The SCp.ptr should be tested and set under the host lock. NULL indicates
- * that the command has been retruned to the scsi layer.
+ * The SCp.ptr should be tested and set under the scsi_pkt_queue lock
  */
 #define CMD_SP(Cmnd)		    ((struct fc_fcp_pkt *)(Cmnd)->SCp.ptr)
 #define CMD_ENTRY_STATUS(Cmnd)	    ((Cmnd)->SCp.have_data_in)
@@ -1880,8 +1879,6 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 
 	lport = fsp->lp;
 	si = fc_get_scsi_internal(lport);
-	if (!fsp->cmd)
-		return;
 
 	/*
 	 * if can_queue ramp down is done then try can_queue ramp up
@@ -1891,11 +1888,6 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		fc_fcp_can_queue_ramp_up(lport);
 
 	sc_cmd = fsp->cmd;
-	fsp->cmd = NULL;
-
-	if (!sc_cmd->SCp.ptr)
-		return;
-
 	CMD_SCSI_STATUS(sc_cmd) = fsp->cdb_status;
 	switch (fsp->status_code) {
 	case FC_COMPLETE:
@@ -1971,15 +1963,13 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		break;
 	}
 
-	if (lport->state != LPORT_ST_READY && fsp->status_code != FC_COMPLETE) {
-		sc_cmd->result = (DID_REQUEUE << 16);
-		FC_FCP_DBG(fsp, "Returning DID_REQUEUE to scsi-ml\n");
-	}
+	if (lport->state != LPORT_ST_READY && fsp->status_code != FC_COMPLETE)
+		sc_cmd->result = (DID_TRANSPORT_DISRUPTED << 16);
 
 	spin_lock_irqsave(&si->scsi_queue_lock, flags);
 	list_del(&fsp->list);
-	spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 	sc_cmd->SCp.ptr = NULL;
+	spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 	sc_cmd->scsi_done(sc_cmd);
 
 	/* release ref from initial allocation in queue command */
@@ -1997,6 +1987,7 @@ int fc_eh_abort(struct scsi_cmnd *sc_cmd)
 {
 	struct fc_fcp_pkt *fsp;
 	struct fc_lport *lport;
+	struct fc_fcp_internal *si;
 	int rc = FAILED;
 	unsigned long flags;
 
@@ -2006,7 +1997,8 @@ int fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	else if (!lport->link_up)
 		return rc;
 
-	spin_lock_irqsave(lport->host->host_lock, flags);
+	si = fc_get_scsi_internal(lport);
+	spin_lock_irqsave(&si->scsi_queue_lock, flags);
 	fsp = CMD_SP(sc_cmd);
 	if (!fsp) {
 		/* command completed while scsi eh was setting up */
@@ -2015,7 +2007,7 @@ int fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	}
 	/* grab a ref so the fsp and sc_cmd cannot be relased from under us */
 	fc_fcp_pkt_hold(fsp);
-	spin_unlock_irqrestore(lport->host->host_lock, flags);
+	spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 
 	if (fc_fcp_lock_pkt(fsp)) {
 		/* completed while we were waiting for timer to be deleted */
