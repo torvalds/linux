@@ -74,8 +74,6 @@ VOID AdapterFree(PMINI_ADAPTER Adapter);
 
 INT FreeAdapterDsxBuffer(PMINI_ADAPTER Adapter);
 
-int create_worker_threads(PMINI_ADAPTER psAdapter);
-
 int tx_pkt_handler(PMINI_ADAPTER Adapter);
 
 int  reset_card_proc(PMINI_ADAPTER Adapter );

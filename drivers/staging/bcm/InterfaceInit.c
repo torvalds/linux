@@ -338,13 +338,11 @@ static int device_run(PS_INTERFACE_ADAPTER psIntfAdapter)
 	status = InitCardAndDownloadFirmware(psIntfAdapter->psAdapter);
 	if(status != STATUS_SUCCESS)
 	{
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_PRINTK, 0, 0, "InitCardAndDownloadFirmware failed.\n");
+		pr_err(DRV_NAME "InitCardAndDownloadFirmware failed.\n");
 		return status;
 	}
 	if(TRUE == psIntfAdapter->psAdapter->fw_download_done)
 	{
-
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Sending first interrupt URB down......");
 		if(StartInterruptUrb(psIntfAdapter))
 		{
 			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Cannot send interrupt in URB");
@@ -357,16 +355,11 @@ static int device_run(PS_INTERFACE_ADAPTER psIntfAdapter)
 					psIntfAdapter->psAdapter->waiting_to_fw_download_done, 5*HZ);
 
 		if(value == 0)
-		{
-			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,"Mailbox Interrupt has not reached to Driver..");
-		}
-		else
-		{
-			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,"Got the mailbox interrupt ...Registering control interface...\n ");
-		}
+			pr_err(DRV_NAME ": Mailbox Interrupt has not reached to Driver..\n");
+
 		if(register_control_device_interface(psIntfAdapter->psAdapter) < 0)
 		{
-			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_PRINTK, 0, 0, "Register Control Device failed...");
+			pr_err(DRV_NAME ": Register Control Device failed...\n");
 			return -EIO;
 		}
 	}
@@ -460,20 +453,9 @@ INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 	UINT uiData = 0;
 
 	/* Store the usb dev into interface adapter */
-	psIntfAdapter->udev = usb_get_dev(interface_to_usbdev(
-								psIntfAdapter->interface));
+	psIntfAdapter->udev = usb_get_dev(interface_to_usbdev(psIntfAdapter->interface));
 
-	if((psIntfAdapter->udev->speed == USB_SPEED_HIGH))
-	{
-		psIntfAdapter->bHighSpeedDevice = TRUE ;
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "MODEM IS CONFIGURED TO HIGH_SPEED ");
-	}
-	else
-	{
-		psIntfAdapter->bHighSpeedDevice = FALSE ;
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "MODEM IS CONFIGURED TO FULL_SPEED ");
-	}
-
+	psIntfAdapter->bHighSpeedDevice = (psIntfAdapter->udev->speed == USB_SPEED_HIGH);
 	psIntfAdapter->psAdapter->interface_rdm = BcmRDM;
 	psIntfAdapter->psAdapter->interface_wrm = BcmWRM;
 
@@ -482,28 +464,27 @@ INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_PRINTK, 0, 0, "CHIP ID Read Failed\n");
 		return STATUS_FAILURE;
 	}
-    if(0xbece3200==(psIntfAdapter->psAdapter->chip_id&~(0xF0)))
-	{
-		psIntfAdapter->psAdapter->chip_id=(psIntfAdapter->psAdapter->chip_id&~(0xF0));
-	}
 
-	BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "First RDM Chip ID 0x%lx\n", psIntfAdapter->psAdapter->chip_id);
+	if(0xbece3200==(psIntfAdapter->psAdapter->chip_id&~(0xF0)))
+		psIntfAdapter->psAdapter->chip_id &= ~0xF0;
 
-    iface_desc = psIntfAdapter->interface->cur_altsetting;
-	//print_usb_interface_desc(&(iface_desc->desc));
+	dev_info(&psIntfAdapter->udev->dev, "RDM Chip ID 0x%lx\n",
+		 psIntfAdapter->psAdapter->chip_id);
+
+	iface_desc = psIntfAdapter->interface->cur_altsetting;
 
 	if(psIntfAdapter->psAdapter->chip_id == T3B)
 	{
-
 		//
 		//T3B device will have EEPROM,check if EEPROM is proper and BCM16 can be done or not.
 		//
 		BeceemEEPROMBulkRead(psIntfAdapter->psAdapter,&uiData,0x0,4);
 		if(uiData == BECM)
-		{
 			bBcm16 = TRUE;
-		}
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Number of Altsetting aviailable for This Modem 0x%x\n", psIntfAdapter->interface->num_altsetting);
+
+		dev_info(&psIntfAdapter->udev->dev, "number of alternate setting %d\n",
+			 psIntfAdapter->interface->num_altsetting);
+
 		if(bBcm16 == TRUE)
 		{
 			//selecting alternate setting one as a default setting for High Speed  modem.
@@ -574,12 +555,10 @@ INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 	}
 
 	iface_desc = psIntfAdapter->interface->cur_altsetting;
-	//print_usb_interface_desc(&(iface_desc->desc));
-   	BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_PRINTK, 0, 0, "Current number of endpoints :%x \n", iface_desc->desc.bNumEndpoints);
-    for (value = 0; value < iface_desc->desc.bNumEndpoints; ++value)
+
+	for (value = 0; value < iface_desc->desc.bNumEndpoints; ++value)
 	{
-        endpoint = &iface_desc->endpoint[value].desc;
-		//print_usb_endpoint_descriptor(endpoint);
+		endpoint = &iface_desc->endpoint[value].desc;
 
         if (!psIntfAdapter->sBulkIn.bulk_in_endpointAddr && bcm_usb_endpoint_is_bulk_in(endpoint))
         {
@@ -612,10 +591,10 @@ INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
             psIntfAdapter->sIntrIn.int_in_buffer =
 						kmalloc(buffer_size, GFP_KERNEL);
             if (!psIntfAdapter->sIntrIn.int_in_buffer) {
-                BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Could not allocate interrupt_in_buffer");
+		    dev_err(&psIntfAdapter->udev->dev,
+			    "could not allocate interrupt_in_buffer\n");
                 return -EINVAL;
             }
-			//psIntfAdapter->sIntrIn.int_in_pipe =
         }
 
         if (!psIntfAdapter->sIntrOut.int_out_endpointAddr && bcm_usb_endpoint_is_int_out(endpoint))
@@ -646,10 +625,11 @@ INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 	            psIntfAdapter->sIntrOut.int_out_buffer= kmalloc(buffer_size,
 														GFP_KERNEL);
 	            	if (!psIntfAdapter->sIntrOut.int_out_buffer)
-					{
-	                BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Could not allocate interrupt_out_buffer");
-	                return -EINVAL;
-            }
+			{
+				dev_err(&psIntfAdapter->udev->dev,
+					"could not allocate interrupt_out_buffer\n");
+					return -EINVAL;
+			}
         }
     }
 	}
@@ -681,8 +661,7 @@ INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 static int InterfaceSuspend (struct usb_interface *intf, pm_message_t message)
 {
 	PS_INTERFACE_ADAPTER  psIntfAdapter = usb_get_intfdata(intf);
-	BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "=================================\n");
-	//Bcm_kill_all_URBs(psIntfAdapter);
+
 	psIntfAdapter->bSuspended = TRUE;
 
 	if(TRUE == psIntfAdapter->bPreparingForBusSuspend)
@@ -735,33 +714,31 @@ static struct usb_driver usbbcm_driver = {
 
 struct class *bcm_class;
 
-/*
-Function:				InterfaceInitialize
 
-Description:			This is the hardware specific initialization Function.
-						Registering the driver with NDIS , other device specific NDIS
-						and hardware initializations are done here.
-
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
-
-
-Return:					BCM_STATUS_SUCCESS - If Initialization of the
-						HW Interface was successful.
-						Other           - If an error occured.
-*/
-INT InterfaceInitialize(void)
+static __init int bcm_init(void)
 {
+	printk(KERN_INFO "%s: %s, %s\n", DRV_NAME, DRV_DESCRIPTION, DRV_VERSION);
+	printk(KERN_INFO "%s\n", DRV_COPYRIGHT);
+
 	bcm_class = class_create(THIS_MODULE, DRV_NAME);
 	if (IS_ERR(bcm_class)) {
 		printk(KERN_ERR DRV_NAME ": could not create class\n");
 		return PTR_ERR(bcm_class);
 	}
+
 	return usb_register(&usbbcm_driver);
 }
 
-INT InterfaceExit(void)
+static __exit void bcm_exit(void)
 {
         class_destroy (bcm_class);
+
 	usb_deregister(&usbbcm_driver);
-	return 0;
 }
+
+module_init(bcm_init);
+module_exit(bcm_exit);
+
+MODULE_DESCRIPTION(DRV_DESCRIPTION);
+MODULE_VERSION(DRV_VERSION);
+MODULE_LICENSE ("GPL");

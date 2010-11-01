@@ -152,34 +152,30 @@ VOID AdapterFree(PMINI_ADAPTER Adapter)
 	free_netdev(Adapter->dev);
 }
 
-
-int create_worker_threads(PMINI_ADAPTER psAdapter)
+static int create_worker_threads(PMINI_ADAPTER psAdapter)
 {
-	const char *name = psAdapter->dev->name;
-
-	BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Init Threads...");
 	// Rx Control Packets Processing
 	psAdapter->control_packet_handler = kthread_run((int (*)(void *))
-							control_packet_handler, psAdapter, "%s-rx", name);
+							control_packet_handler, psAdapter, "%s-rx", DRV_NAME);
 	if(IS_ERR(psAdapter->control_packet_handler))
 	{
-		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "No Kernel Thread, but still returning success\n");
+		pr_notice(DRV_NAME ": could not create control thread\n");
 		return PTR_ERR(psAdapter->control_packet_handler);
 	}
+
 	// Tx Thread
 	psAdapter->transmit_packet_thread = kthread_run((int (*)(void *))
-							tx_pkt_handler, psAdapter, "%s-tx", name);
+							tx_pkt_handler, psAdapter, "%s-tx", DRV_NAME);
 	if(IS_ERR (psAdapter->transmit_packet_thread))
 	{
-		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "No Kernel Thread, but still returning success");
+		pr_notice(DRV_NAME ": could not creat transmit thread\n");
 		kthread_stop(psAdapter->control_packet_handler);
 		return PTR_ERR(psAdapter->transmit_packet_thread);
 	}
 	return 0;
 }
 
-
-static inline struct file *open_firmware_file(PMINI_ADAPTER Adapter, char *path)
+static struct file *open_firmware_file(PMINI_ADAPTER Adapter, char *path)
 {
     struct file             *flp=NULL;
     mm_segment_t        oldfs;
@@ -189,19 +185,13 @@ static inline struct file *open_firmware_file(PMINI_ADAPTER Adapter, char *path)
     set_fs(oldfs);
     if(IS_ERR(flp))
     {
-        BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Unable To Open File %s, err  %lx",
-				path, PTR_ERR(flp));
-		flp = NULL;
+	    pr_err(DRV_NAME "Unable To Open File %s, err %ld",
+		   path, PTR_ERR(flp));
+	    flp = NULL;
     }
-    else
-    {
-        BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Got file descriptor pointer of %s!",
-			path);
-    }
-	if(Adapter->device_removed)
-	{
-		flp = NULL;
-	}
+
+    if(Adapter->device_removed)
+	    flp = NULL;
 
     return flp;
 }
@@ -254,9 +244,7 @@ exit_download:
 	if(flp && !(IS_ERR(flp)))
     	filp_close(flp, current->files);
     set_fs(oldfs);
-    do_gettimeofday(&tv);
-    BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "file download done at %lx", ((tv.tv_sec * 1000) +
-                            (tv.tv_usec/1000)));
+
     return errorno;
 }
 
@@ -1104,11 +1092,10 @@ int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
  	 * Firm/DDR Settings..
  	 */
 
-	if((status = create_worker_threads(ps_adapter))<0)
-	{
-		BCM_DEBUG_PRINT(ps_adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Cannot create thread");
+	status = create_worker_threads(ps_adapter);
+	if (status<0)
 		return status;
-	}
+
 	/*
  	 * For Downloading the Firm, parse the cfg file first.
  	 */
@@ -1134,7 +1121,7 @@ int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
 	status = ddr_init(ps_adapter);
 	if(status)
 	{
-		BCM_DEBUG_PRINT (ps_adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "ddr_init Failed\n");
+		pr_err(DRV_NAME "ddr_init Failed\n");
 		return status;
 	}
 
@@ -1148,7 +1135,6 @@ int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
 		BCM_DEBUG_PRINT(ps_adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Error downloading CFG file");
 		goto OUT;
 	}
-	BCM_DEBUG_PRINT(ps_adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "CFG file downloaded");
 
 	if(register_networkdev(ps_adapter))
 	{
@@ -1221,7 +1207,6 @@ int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
 		goto OUT;
 	}
 
-	BCM_DEBUG_PRINT(ps_adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "BIN file downloaded");
 	status = run_card_proc(ps_adapter);
 	if(status)
 	{
@@ -1302,22 +1287,23 @@ void beceem_parse_target_struct(PMINI_ADAPTER Adapter)
 
 	if(ntohl(Adapter->pstargetparams->m_u32PhyParameter2) & AUTO_SYNC_DISABLE)
 	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "AutoSyncup is Disabled\n");
+		pr_info(DRV_NAME ": AutoSyncup is Disabled\n");
 		Adapter->AutoSyncup = FALSE;
 	}
 	else
 	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "AutoSyncup is Enabled\n");
+		pr_info(DRV_NAME ": AutoSyncup is Enabled\n");
 		Adapter->AutoSyncup	= TRUE;
 	}
+
 	if(ntohl(Adapter->pstargetparams->HostDrvrConfig6) & AUTO_LINKUP_ENABLE)
 	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Enabling autolink up");
+		pr_info(DRV_NAME ": Enabling autolink up");
 		Adapter->AutoLinkUp = TRUE;
 	}
 	else
 	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Disabling autolink up");
+		pr_info(DRV_NAME ": Disabling autolink up");
 		Adapter->AutoLinkUp = FALSE;
 	}
 	// Setting the DDR Setting..
@@ -1326,51 +1312,46 @@ void beceem_parse_target_struct(PMINI_ADAPTER Adapter)
 	Adapter->ulPowerSaveMode =
 			(ntohl(Adapter->pstargetparams->HostDrvrConfig6)>>12)&0x0F;
 
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "DDR Setting: %x\n", Adapter->DDRSetting);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT,DBG_LVL_ALL, "Power Save Mode: %lx\n",
-							Adapter->ulPowerSaveMode);
+	pr_info(DRV_NAME ": DDR Setting: %x\n", Adapter->DDRSetting);
+	pr_info(DRV_NAME ": Power Save Mode: %lx\n", Adapter->ulPowerSaveMode);
 	if(ntohl(Adapter->pstargetparams->HostDrvrConfig6) & AUTO_FIRM_DOWNLOAD)
     {
-        BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Enabling Auto Firmware Download\n");
+        pr_info(DRV_NAME ": Enabling Auto Firmware Download\n");
         Adapter->AutoFirmDld = TRUE;
     }
     else
     {
-        BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Disabling Auto Firmware Download\n");
+        pr_info(DRV_NAME ": Disabling Auto Firmware Download\n");
         Adapter->AutoFirmDld = FALSE;
     }
 	uiHostDrvrCfg6 = ntohl(Adapter->pstargetparams->HostDrvrConfig6);
 	Adapter->bMipsConfig = (uiHostDrvrCfg6>>20)&0x01;
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL,"MIPSConfig   : 0x%X\n",Adapter->bMipsConfig);
+	pr_info(DRV_NAME ": MIPSConfig   : 0x%X\n",Adapter->bMipsConfig);
 	//used for backward compatibility.
 	Adapter->bDPLLConfig = (uiHostDrvrCfg6>>19)&0x01;
 
 	Adapter->PmuMode= (uiHostDrvrCfg6 >> 24 ) & 0x03;
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "PMU MODE: %x", Adapter->PmuMode);
+	pr_info(DRV_NAME ": PMU MODE: %x", Adapter->PmuMode);
 
     if((uiHostDrvrCfg6 >> HOST_BUS_SUSPEND_BIT ) & (0x01))
     {
         Adapter->bDoSuspend = TRUE;
-        BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Making DoSuspend TRUE as per configFile");
+        pr_info(DRV_NAME ": Making DoSuspend TRUE as per configFile");
     }
 
 	uiEEPROMFlag = ntohl(Adapter->pstargetparams->m_u32EEPROMFlag);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "uiEEPROMFlag  : 0x%X\n",uiEEPROMFlag);
+	pr_info(DRV_NAME ": uiEEPROMFlag  : 0x%X\n",uiEEPROMFlag);
 	Adapter->eNVMType = (NVM_TYPE)((uiEEPROMFlag>>4)&0x3);
 
-
 	Adapter->bStatusWrite = (uiEEPROMFlag>>6)&0x1;
-	//printk(("bStatusWrite   : 0x%X\n", Adapter->bStatusWrite));
 
 	Adapter->uiSectorSizeInCFG = 1024*(0xFFFF & ntohl(Adapter->pstargetparams->HostDrvrConfig4));
-	//printk(("uiSectorSize   : 0x%X\n", Adapter->uiSectorSizeInCFG));
 
 	Adapter->bSectorSizeOverride =(bool) ((ntohl(Adapter->pstargetparams->HostDrvrConfig4))>>16)&0x1;
-	//printk(MP_INIT,("bSectorSizeOverride   : 0x%X\n",Adapter->bSectorSizeOverride));
 
 	if(ntohl(Adapter->pstargetparams->m_u32PowerSavingModeOptions) &0x01)
 		Adapter->ulPowerSaveMode = DEVICE_POWERSAVE_MODE_AS_PROTOCOL_IDLE_MODE;
-	//autocorrection part
+
 	if(Adapter->ulPowerSaveMode != DEVICE_POWERSAVE_MODE_AS_PROTOCOL_IDLE_MODE)
 		doPowerAutoCorrection(Adapter);
 
@@ -1378,7 +1359,7 @@ void beceem_parse_target_struct(PMINI_ADAPTER Adapter)
 
 VOID doPowerAutoCorrection(PMINI_ADAPTER psAdapter)
 {
-	UINT reporting_mode = 0;
+	UINT reporting_mode;
 
 	reporting_mode = ntohl(psAdapter->pstargetparams->m_u32PowerSavingModeOptions) &0x02 ;
 	psAdapter->bIsAutoCorrectEnabled = !((char)(psAdapter->ulPowerSaveMode >> 3) & 0x1);
@@ -1395,7 +1376,6 @@ VOID doPowerAutoCorrection(PMINI_ADAPTER psAdapter)
 		{
 			psAdapter->ulPowerSaveMode = DEVICE_POWERSAVE_MODE_AS_PMU_CLOCK_GATING;
 			psAdapter->bDoSuspend =FALSE;
-			BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL,"PMC selected..");
 
 		}
 

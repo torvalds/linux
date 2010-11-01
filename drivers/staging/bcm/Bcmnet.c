@@ -241,25 +241,3 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 
 	return result;
 }
-
-static int bcm_init(void)
-{
-	printk(KERN_INFO "%s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
-	printk(KERN_INFO "%s\n", DRV_COPYRIGHT);
-
-	return InterfaceInitialize();
-}
-
-
-static void bcm_exit(void)
-{
-	InterfaceExit();
-}
-
-module_init(bcm_init);
-module_exit(bcm_exit);
-
-MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_VERSION(DRV_VERSION);
-MODULE_LICENSE ("GPL");
-
