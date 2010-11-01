@@ -137,8 +137,6 @@ struct ds2781_device_info {
 
 #define psy_to_dev_info(x) container_of((x), struct ds2781_device_info, bat)
 
-static struct wake_lock vbus_wake_lock;
-
 static enum power_supply_property battery_properties[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -368,16 +366,9 @@ static void battery_ext_power_changed(struct power_supply *psy)
 		di->status.charge_source = 1;
 		if (is_ac_charge_complete())
 			di->status.battery_full = 1;
-
-		wake_lock(&vbus_wake_lock);
 	} else {
 		di->status.charge_source = 0;
 		di->status.battery_full = 0;
-
-		/* give userspace some time to see the uevent and update
-		 * LED state or whatnot...
-		 */
-		wake_lock_timeout(&vbus_wake_lock, HZ / 2);
 	}
 	mutex_unlock(&di->status_lock);
 
@@ -497,7 +488,6 @@ static struct file_operations battery_log_fops = {
 static int __init ds2781_battery_init(void)
 {
 	debugfs_create_file("battery_log", 0444, NULL, NULL, &battery_log_fops);
-	wake_lock_init(&vbus_wake_lock, WAKE_LOCK_SUSPEND, "vbus_present");
 	return platform_driver_register(&ds2781_battery_driver);
 }
 
