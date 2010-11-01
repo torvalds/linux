@@ -384,17 +384,18 @@ struct _MINI_ADAPTER
 	struct _MINI_ADAPTER *next;
 
 	CHAR                *caDsxReqResp;
-	atomic_t			ApplicationRunning;
+	atomic_t		ApplicationRunning;
 	volatile INT		CtrlQueueLen;
-	atomic_t            AppCtrlQueueLen;
-	BOOLEAN             AppCtrlQueueOverFlow;
-	atomic_t			CurrentApplicationCount;
-	atomic_t 			RegisteredApplicationCount;
-	BOOLEAN			    TimerActive;
-	ULONG				StatisticsPointer;
+	atomic_t            	AppCtrlQueueLen;
+	BOOLEAN             	AppCtrlQueueOverFlow;
+	atomic_t		CurrentApplicationCount;
+	atomic_t 		RegisteredApplicationCount;
+	BOOLEAN		  	LinkUpStatus;
+	BOOLEAN		    	TimerActive;
+	u32			StatisticsPointer;
 	struct sk_buff		*RxControlHead;
 	struct sk_buff		*RxControlTail;
-//	spinlock_t			RxControlQueuelock;
+
 	struct semaphore	RxAppControlQueuelock;
 	struct semaphore	fw_download_sema;
 
@@ -421,14 +422,14 @@ struct _MINI_ADAPTER
 	atomic_t			GoodTxByteCount;
 	atomic_t			TxTotalPacketCount;
 	atomic_t			TxDroppedPacketCount;
-	ULONG			   	LinkUpStatus;
-	BOOLEAN			    TransferMode;
+
 	UINT				u32TotalDSD;
 	PacketInfo		    PackInfo[NO_OF_QUEUES];
 	S_CLASSIFIER_RULE	astClassifierTable[MAX_CLASSIFIERS];
+	BOOLEAN			    TransferMode;
 
 	/*************** qos ******************/
-	UINT				bETHCSEnabled;
+	BOOLEAN			    bETHCSEnabled;
 
 	ULONG			    BEBucketSize;
 	ULONG			    rtPSBucketSize;
@@ -444,8 +445,6 @@ struct _MINI_ADAPTER
 	atomic_t			process_waiting;
 	BOOLEAN 			fw_download_done;
 
-	unsigned int		ctrlpkt_present;
-	BOOLEAN 			packets_given_to_all;
 	char 				*txctlpacket[MAX_CNTRL_PKTS];
 	atomic_t			cntrlpktCnt ;
 	atomic_t			index_app_read_cntrlpkt;
@@ -455,33 +454,30 @@ struct _MINI_ADAPTER
 	struct semaphore 	rdmwrmsync;
 
 	STTARGETDSXBUFFER	astTargetDsxBuffer[MAX_TARGET_DSX_BUFFERS];
-	ULONG				ulFreeTargetBufferCnt;
+	ULONG			ulFreeTargetBufferCnt;
 	ULONG              	ulCurrentTargetBuffer;
 	ULONG              	ulTotalTargetBuffersAvailable;
-	unsigned int		timeout;
-	int 				irq;
+
 	unsigned long 		chip_id;
-	unsigned int		bFlashBoot;
-//	spinlock_t			sleeper_lock;
-	atomic_t			rdm_wrm_access;
-	atomic_t			tx_rx_access;
+
 	wait_queue_head_t 	lowpower_mode_wait_queue;
-	atomic_t			bAbortedByHost;
-	BOOLEAN				bBinDownloaded;
-	BOOLEAN				bCfgDownloaded;
-	USHORT				usBestEffortQueueIndex;
-	BOOLEAN				bSyncUpRequestSent;
-//	struct semaphore 	data_packet_queue_lock;
+
+	BOOLEAN			bFlashBoot;
+	BOOLEAN			bBinDownloaded;
+	BOOLEAN			bCfgDownloaded;
+	BOOLEAN			bSyncUpRequestSent;
+	USHORT			usBestEffortQueueIndex;
+
 	wait_queue_head_t 	ioctl_fw_dnld_wait_queue;
 	BOOLEAN				waiting_to_fw_download_done;
 	pid_t				fw_download_process_pid;
 	PSTARGETPARAMS		pstargetparams;
 	BOOLEAN				device_removed;
 	BOOLEAN				DeviceAccess;
-	INT					DDRSetting;
-	BOOLEAN				bDDRInitDone;
-	ULONG				ulPowerSaveMode;
 	BOOLEAN				bIsAutoCorrectEnabled;
+	BOOLEAN				bDDRInitDone;
+	INT				DDRSetting;
+	ULONG				ulPowerSaveMode;
 	spinlock_t			txtransmitlock;
 	B_UINT8				txtransmit_running;
 	/* Thread for control packet handling */
@@ -525,7 +521,7 @@ struct _MINI_ADAPTER
 	S_HDR_SUPRESSION_CONTEXTINFO	stPhsTxContextInfo;
 	uint8_t			ucaPHSPktRestoreBuf[2048];
 	uint8_t			bPHSEnabled;
-	int 			AutoFirmDld;
+	BOOLEAN			AutoFirmDld;
 	BOOLEAN         bMipsConfig;
 	BOOLEAN         bDPLLConfig;
 	UINT32			aTxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
