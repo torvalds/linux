@@ -47,6 +47,7 @@
 #include <mach/clk.h>
 #include <mach/usb_phy.h>
 #include <mach/i2s.h>
+#include <mach/spdif.h>
 #include <mach/audio.h>
 #include <mach/cpcap_audio.h>
 #include <mach/suspend.h>
@@ -299,6 +300,14 @@ static struct tegra_audio_platform_data tegra_audio2_pdata = {
 	.dsp_bus_width = 16,
 	.mask		= TEGRA_AUDIO_ENABLE_TX | TEGRA_AUDIO_ENABLE_RX,
 };
+
+static struct tegra_audio_platform_data tegra_spdif_pdata = {
+	.dma_on		= true,  /* use dma by default */
+	.i2s_clk_rate	= 5644800,
+	.mode		= SPDIF_BIT_MODE_MODE16BIT,
+	.fifo_fmt	= 0,
+};
+
 
 static char *usb_functions_mtp[] = { "mtp" };
 static char *usb_functions_mtp_adb[] = { "mtp", "adb" };
@@ -611,6 +620,7 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&tegra_i2s_device1,
 	&tegra_i2s_device2,
 	&mdm6600_modem,
+	&tegra_spdif_device,
 };
 
 extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
@@ -653,13 +663,14 @@ static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 	{ "emc",	"pll_m",	600000000,	false},*/
 	{ "pll_m",	NULL,		600000000,	true},
 	{ "mpe",	"pll_m",	250000000,	false},
-	{ "pll_a",	NULL,		24000000,	false},
+	{ "pll_a",	NULL,		11289600,	false},
 	{ "pll_a_out0",	NULL,		24000000,	false},
 	{ "i2s1",	"pll_a_out0",	24000000,	false},
 	{ "i2s2",	"pll_a_out0",	24000000,	false},
 	{ "audio",	"pll_a_out0",	24000000,	false},
 	{ "audio_2x",	"audio",	48000000,	false},
 	{ "sdmmc2",	"pll_m",	50000000,	false},
+	{ "spdif_out",	"pll_a_out0",	5644800,	false},
 	{ NULL,		NULL,		0,		0},
 };
 
@@ -1017,6 +1028,7 @@ static void __init tegra_stingray_init(void)
 	tegra_i2s_device1.dev.platform_data = &tegra_audio_pdata;
 	tegra_i2s_device2.dev.platform_data = &tegra_audio2_pdata;
 	cpcap_device_register(&cpcap_audio_device);
+	tegra_spdif_device.dev.platform_data = &tegra_spdif_pdata;
 
 	tegra_ehci1_device.dev.platform_data = &tegra_ehci_pdata[0];
 
