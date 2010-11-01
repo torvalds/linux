@@ -318,7 +318,7 @@ static void mc5_dbgi_mode_disable(const struct mc5 *mc5)
 
 /*
  * Initialization that requires the OS and protocol layers to already
- * be intialized goes here.
+ * be initialized goes here.
  */
 int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,
 		unsigned int nroutes)

@@ -29,7 +29,7 @@ struct isac_hw {
 	u32			type;
 	u32			off;		/* offset to isac regs */
 	char			*name;
-	spinlock_t		*hwlock;	/* lock HW acccess */
+	spinlock_t		*hwlock;	/* lock HW access */
 	read_reg_func		*read_reg;
 	write_reg_func		*write_reg;
 	fifo_func		*read_fifo;
@@ -70,7 +70,7 @@ struct ipac_hw {
 	struct hscx_hw		hscx[2];
 	char			*name;
 	void			*hw;
-	spinlock_t		*hwlock;	/* lock HW acccess */
+	spinlock_t		*hwlock;	/* lock HW access */
 	struct module		*owner;
 	u32			type;
 	read_reg_func		*read_reg;

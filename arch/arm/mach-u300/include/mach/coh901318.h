@@ -24,7 +24,7 @@
  * @src_addr: transfer source address
  * @dst_addr: transfer destination address
  * @link_addr:  physical address to next lli
- * @virt_link_addr: virtual addres of next lli (only used by pool_free)
+ * @virt_link_addr: virtual address of next lli (only used by pool_free)
  * @phy_this: physical address of current lli (only used by pool_free)
  */
 struct coh901318_lli {
@@ -90,7 +90,7 @@ struct powersave {
  * struct coh901318_platform - platform arch structure
  * @chans_slave: specifying dma slave channels
  * @chans_memcpy: specifying dma memcpy channels
- * @access_memory_state: requesting DMA memeory access (on / off)
+ * @access_memory_state: requesting DMA memory access (on / off)
  * @chan_conf: dma channel configurations
  * @max_channels: max number of dma chanenls
  */

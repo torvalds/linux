@@ -39,7 +39,7 @@ struct mfd_cell {
 	size_t			data_size;
 
 	/*
-	 * This resources can be specified relatievly to the parent device.
+	 * This resources can be specified relatively to the parent device.
 	 * For accessing device you should use resources from device
 	 */
 	int			num_resources;

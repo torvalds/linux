@@ -577,7 +577,7 @@ struct ext4_mount_options {
 #endif
 };
 
-/* Max physical block we can addres w/o extents */
+/* Max physical block we can address w/o extents */
 #define EXT4_MAX_BLOCK_FILE_PHYS	0xFFFFFFFF
 
 /*

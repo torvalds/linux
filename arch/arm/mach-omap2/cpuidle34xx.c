@@ -252,7 +252,7 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 	 * FIXME: we currently manage device-specific idle states
 	 *        for PER and CORE in combination with CPU-specific
 	 *        idle states.  This is wrong, and device-specific
-	 *        idle managment needs to be separated out into 
+	 *        idle management needs to be separated out into 
 	 *        its own code.
 	 */
 

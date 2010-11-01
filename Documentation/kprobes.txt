@@ -598,7 +598,7 @@ a 5-byte jump instruction. So there are several limitations.
 a) The instructions in DCR must be relocatable.
 b) The instructions in DCR must not include a call instruction.
 c) JTPR must not be targeted by any jump or call instruction.
-d) DCR must not straddle the border betweeen functions.
+d) DCR must not straddle the border between functions.
 
 Anyway, these limitations are checked by the in-kernel instruction
 decoder, so you don't need to worry about that.

@@ -35,7 +35,7 @@ typedef struct {
 
 /* Data type representing DMA channel registers */
 typedef struct {
-	dmacHw_REG64_t ChannelSar;	/*  Source Adress Register. 64 bits (upper 32 bits are reserved)
+	dmacHw_REG64_t ChannelSar;	/*  Source Address Register. 64 bits (upper 32 bits are reserved)
 					   Address must be aligned to CTLx.SRC_TR_WIDTH.
 					 */
 	dmacHw_REG64_t ChannelDar;	/*  Destination Address Register.64 bits (upper 32 bits are reserved)

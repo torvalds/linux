@@ -745,7 +745,7 @@ static void set_out_format(struct saa7146 *saa, int mode)
 	}
 }
 
-/* Intialize bitmangler to map from a byte value to the mangled word that
+/* Initialize bitmangler to map from a byte value to the mangled word that
  * must be output to program the Xilinx part through the DEBI port.
  * Xilinx Data Bit->DEBI Bit: 0->15 1->7 2->6 3->12 4->11 5->2 6->1 7->0
  * transfer FPGA code, init IBM chip, transfer IBM microcode

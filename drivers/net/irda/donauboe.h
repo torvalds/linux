@@ -30,7 +30,7 @@
  *     or the type-DO IR port.
  *
  * IrDA chip set list from Toshiba Computer Engineering Corp.
- * model			method	maker	controler		Version 
+ * model			method	maker	controller		Version 
  * Portege 320CT	FIR,SIR Toshiba Oboe(Triangle) 
  * Portege 3010CT	FIR,SIR Toshiba Oboe(Sydney) 
  * Portege 3015CT	FIR,SIR Toshiba Oboe(Sydney) 

@@ -95,7 +95,7 @@ struct zoran_params {
 
 	int quality;		/* Measure for quality of compressed images.
 				 * Scales linearly with the size of the compressed images.
-				 * Must be beetween 0 and 100, 100 is a compression
+				 * Must be between 0 and 100, 100 is a compression
 				 * ratio of 1:4 */
 
 	int odd_even;		/* Which field should come first ??? */

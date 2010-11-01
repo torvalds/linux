@@ -434,7 +434,7 @@ static int read_i2c(struct nmk_i2c_dev *dev)
 	}
 
 	if (timeout == 0) {
-		/* controler has timedout, re-init the h/w */
+		/* controller has timedout, re-init the h/w */
 		dev_err(&dev->pdev->dev, "controller timed out, re-init h/w\n");
 		(void) init_hw(dev);
 		status = -ETIMEDOUT;
@@ -498,7 +498,7 @@ static int write_i2c(struct nmk_i2c_dev *dev)
 	}
 
 	if (timeout == 0) {
-		/* controler has timedout, re-init the h/w */
+		/* controller has timedout, re-init the h/w */
 		dev_err(&dev->pdev->dev, "controller timed out, re-init h/w\n");
 		(void) init_hw(dev);
 		status = -ETIMEDOUT;

@@ -843,7 +843,7 @@ void __init omap_serial_init_port(int port)
 }
 
 /**
- * omap_serial_init() - intialize all supported serial ports
+ * omap_serial_init() - initialize all supported serial ports
  *
  * Initializes all available UARTs as serial ports. Platforms
  * can call this function when they want to have default behaviour

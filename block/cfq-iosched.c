@@ -1030,7 +1030,7 @@ cfq_find_alloc_cfqg(struct cfq_data *cfqd, struct cgroup *cgroup, int create)
 
 	/*
 	 * Add group onto cgroup list. It might happen that bdi->dev is
-	 * not initiliazed yet. Initialize this new group without major
+	 * not initialized yet. Initialize this new group without major
 	 * and minor info and this info will be filled in once a new thread
 	 * comes for IO. See code above.
 	 */

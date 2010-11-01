@@ -1178,7 +1178,7 @@ notFound:
 /*
  * Retrieve an SCB by SCBID first searching the disconnected list falling
  * back to DMA'ing the SCB down from the host.  This routine assumes that
- * ARG_1 is the SCBID of interrest and that SINDEX is the position in the
+ * ARG_1 is the SCBID of interest and that SINDEX is the position in the
  * disconnected list to start the search from.  If SINDEX is SCB_LIST_NULL,
  * we go directly to the host for the SCB.
  */

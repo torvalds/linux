@@ -22,7 +22,7 @@
 #include <mach/spear.h>
 
 /* Add spear3xx machines common devices here */
-/* gpio device registeration */
+/* gpio device registration */
 static struct pl061_platform_data gpio_plat_data = {
 	.gpio_base	= 0,
 	.irq_base	= SPEAR_GPIO_INT_BASE,
@@ -41,7 +41,7 @@ struct amba_device gpio_device = {
 	.irq = {IRQ_BASIC_GPIO, NO_IRQ},
 };
 
-/* uart device registeration */
+/* uart device registration */
 struct amba_device uart_device = {
 	.dev = {
 		.init_name = "uart",
@@ -543,6 +543,6 @@ void spear_pmx_init(struct pmx_driver *pmx_driver, uint base, uint size)
 
 pmx_fail:
 	if (ret)
-		printk(KERN_ERR "padmux: registeration failed. err no: %d\n",
+		printk(KERN_ERR "padmux: registration failed. err no: %d\n",
 				ret);
 }

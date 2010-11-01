@@ -313,7 +313,7 @@ static int __init charlcd_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&lcd->init_work, charlcd_init_work);
 	schedule_delayed_work(&lcd->init_work, 0);
 
-	dev_info(&pdev->dev, "initalized ARM character LCD at %08x\n",
+	dev_info(&pdev->dev, "initialized ARM character LCD at %08x\n",
 		lcd->phybase);
 
 	return 0;

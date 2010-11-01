@@ -266,7 +266,7 @@ void __init spear310_init(void)
 	/* call spear3xx family common init function */
 	spear3xx_init();
 
-	/* shared irq registeration */
+	/* shared irq registration */
 	base = ioremap(SPEAR310_SOC_CONFIG_BASE, SPEAR310_SOC_CONFIG_SIZE);
 	if (base) {
 		/* shirq 1 */

@@ -698,7 +698,7 @@ enum i2400m_bm_cmd_flags {
  * @I2400M_BRI_MAC_REINIT: We need to reinitialize the boot
  *     rom after reading the MAC address. This is quite a dirty hack,
  *     if you ask me -- the device requires the bootrom to be
- *     intialized after reading the MAC address.
+ *     initialized after reading the MAC address.
  */
 enum i2400m_bri {
 	I2400M_BRI_SOFT       = 1 << 1,

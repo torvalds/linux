@@ -2185,7 +2185,7 @@
 #define	SADD_LEN	0x0002		/* Slave Address Length */
 #define	STDVAL		0x0004		/* Slave Transmit Data Valid */
 #define	NAK			0x0008		/* NAK/ACK* Generated At Conclusion Of Transfer */
-#define	GEN			0x0010		/* General Call	Adrress	Matching Enabled */
+#define	GEN			0x0010		/* General Call	Address	Matching Enabled */
 
 /* TWIx_SLAVE_STAT Masks								 */
 #define	SDIR		0x0001		/* Slave Transfer Direction (Transmit/Receive*) */

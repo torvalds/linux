@@ -70,7 +70,7 @@ static inline struct vic_device *to_vic(struct sys_device *sys)
  * vic_init2 - common initialisation code
  * @base: Base of the VIC.
  *
- * Common initialisation code for registeration
+ * Common initialisation code for registration
  * and resume.
 */
 static void vic_init2(void __iomem *base)
