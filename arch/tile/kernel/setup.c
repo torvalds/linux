@@ -868,14 +868,14 @@ void __cpuinit setup_cpu(int boot)
 
 	/* Allow asynchronous TLB interrupts. */
 #if CHIP_HAS_TILE_DMA()
-	raw_local_irq_unmask(INT_DMATLB_MISS);
-	raw_local_irq_unmask(INT_DMATLB_ACCESS);
+	arch_local_irq_unmask(INT_DMATLB_MISS);
+	arch_local_irq_unmask(INT_DMATLB_ACCESS);
 #endif
 #if CHIP_HAS_SN_PROC()
-	raw_local_irq_unmask(INT_SNITLB_MISS);
+	arch_local_irq_unmask(INT_SNITLB_MISS);
 #endif
 #ifdef __tilegx__
-	raw_local_irq_unmask(INT_SINGLE_STEP_K);
+	arch_local_irq_unmask(INT_SINGLE_STEP_K);
 #endif
 
 	/*
