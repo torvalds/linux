@@ -623,6 +623,7 @@ struct _MINI_ADAPTER
 };
 typedef struct _MINI_ADAPTER MINI_ADAPTER, *PMINI_ADAPTER;
 
+#define GET_BCM_ADAPTER(net_dev)	netdev_priv(net_dev)
 
 typedef struct _DEVICE_EXTENSION
 {

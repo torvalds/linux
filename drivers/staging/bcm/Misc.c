@@ -108,7 +108,7 @@ InitAdapter(PMINI_ADAPTER psAdapter)
 
 VOID AdapterFree(PMINI_ADAPTER Adapter)
 {
-	INT count = 0;
+	int count;
 
 	beceem_protocol_reset(Adapter);
 
@@ -116,41 +116,40 @@ VOID AdapterFree(PMINI_ADAPTER Adapter)
 
 	if(Adapter->control_packet_handler && !IS_ERR(Adapter->control_packet_handler))
 	  	kthread_stop (Adapter->control_packet_handler);
+
 	if(Adapter->transmit_packet_thread && !IS_ERR(Adapter->transmit_packet_thread))
-    	kthread_stop (Adapter->transmit_packet_thread);
-    wake_up(&Adapter->process_read_wait_queue);
+		kthread_stop (Adapter->transmit_packet_thread);
+
+	wake_up(&Adapter->process_read_wait_queue);
+
 	if(Adapter->LEDInfo.led_thread_running & (BCM_LED_THREAD_RUNNING_ACTIVELY | BCM_LED_THREAD_RUNNING_INACTIVELY))
 		kthread_stop (Adapter->LEDInfo.led_cntrl_threadid);
+
 	bcm_unregister_networkdev(Adapter);
+
+	/* FIXME: use proper wait_event and refcounting */
 	while(atomic_read(&Adapter->ApplicationRunning))
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Waiting for Application to close.. %d\n",atomic_read(&Adapter->ApplicationRunning));
 		msleep(100);
 	}
 	unregister_control_device_interface(Adapter);
-	if(Adapter->dev && !IS_ERR(Adapter->dev))
-		free_netdev(Adapter->dev);
-	if(Adapter->pstargetparams != NULL)
-	{
-		kfree(Adapter->pstargetparams);
-	}
+
+	kfree(Adapter->pstargetparams);
+
 	for (count =0;count < MAX_CNTRL_PKTS;count++)
-	{
-		if(Adapter->txctlpacket[count])
-			kfree(Adapter->txctlpacket[count]);
-	}
+		kfree(Adapter->txctlpacket[count]);
+
 	FreeAdapterDsxBuffer(Adapter);
 
-	if(Adapter->pvInterfaceAdapter)
-		kfree(Adapter->pvInterfaceAdapter);
+	kfree(Adapter->pvInterfaceAdapter);
 
 	//Free the PHS Interface
 	PhsCleanup(&Adapter->stBCMPhsContext);
 
 	BcmDeAllocFlashCSStructure(Adapter);
 
-	kfree(Adapter);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "<========\n");
+	free_netdev(Adapter->dev);
 }
 
 

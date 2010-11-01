@@ -1,16 +1,5 @@
 #include "headers.h"
 
-
-PS_INTERFACE_ADAPTER
-InterfaceAdapterGet(PMINI_ADAPTER psAdapter)
-{
-	if(psAdapter == NULL)
-	{
-		return NULL;
-	}
-	return (PS_INTERFACE_ADAPTER)(psAdapter->pvInterfaceAdapter);
-}
-
 INT
 InterfaceRDM(PS_INTERFACE_ADAPTER psIntfAdapter,
             UINT addr,

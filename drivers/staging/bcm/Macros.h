@@ -354,7 +354,6 @@ enum eAbortPattern {
 	ABORT_IDLE_SYNCDOWN = 3
 };
 
-#define GET_BCM_ADAPTER(net_dev) (net_dev ? netdev_priv(net_dev) : NULL)
 
 /* Offsets used by driver in skb cb variable */
 #define SKB_CB_CLASSIFICATION_OFFSET    0

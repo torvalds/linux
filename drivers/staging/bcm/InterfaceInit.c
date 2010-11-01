@@ -182,30 +182,27 @@ static struct usb_class_driver usbbcm_class = {
 static int
 usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
-	int retval =0 ;
-   	PMINI_ADAPTER psAdapter = NULL;
-	PS_INTERFACE_ADAPTER psIntfAdapter = NULL;
-	struct usb_device      *udev = NULL;
+	struct usb_device *udev = interface_to_usbdev (intf);
+	int retval;
+	PMINI_ADAPTER psAdapter;
+	PS_INTERFACE_ADAPTER psIntfAdapter;
+	struct net_device *ndev;
 
-//	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Usbbcm probe!!");
-	if((intf == NULL) || (id == NULL))
-	{
-	//	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "intf or id is NULL");
-		return -EINVAL;
-	}
-
-	/* Allocate Adapter structure */
-	if((psAdapter = kzalloc(sizeof(MINI_ADAPTER), GFP_KERNEL)) == NULL)
-	{
-		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_PRINTK, 0, 0, "Out of memory");
+	ndev = alloc_etherdev(sizeof(MINI_ADAPTER));
+	if(ndev == NULL) {
+		dev_err(&udev->dev, DRV_NAME ": no memory for device\n");
 		return -ENOMEM;
 	}
+
+	SET_NETDEV_DEV(ndev, &intf->dev);
+
+	psAdapter = netdev_priv(ndev);
+	psAdapter->dev = ndev;
 
     /* Init default driver debug state */
 
 	psAdapter->stDebugState.debug_level = debug_level;
 	psAdapter->stDebugState.type = DBG_TYPE_INITEXIT;
-	memset (psAdapter->stDebugState.subtype, 0, sizeof (psAdapter->stDebugState.subtype));
 
     /* Technically, one can start using BCM_DEBUG_PRINT after this point.
 	 * However, realize that by default the Type/Subtype bitmaps are all zero now;
@@ -224,22 +221,21 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	retval = InitAdapter(psAdapter);
 	if(retval)
 	{
-		BCM_DEBUG_PRINT (psAdapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "InitAdapter Failed\n");
+		dev_err(&udev->dev, DRV_NAME ": InitAdapter Failed\n");
 		AdapterFree(psAdapter);
 		return retval;
 	}
 
 	/* Allocate interface adapter structure */
-	if((psAdapter->pvInterfaceAdapter =
-		kmalloc(sizeof(S_INTERFACE_ADAPTER), GFP_KERNEL)) == NULL)
+	psIntfAdapter = kzalloc(sizeof(S_INTERFACE_ADAPTER), GFP_KERNEL);
+	if (psIntfAdapter == NULL)
 	{
-		BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_PRINTK, 0, 0, "Out of memory");
+		dev_err(&udev->dev, DRV_NAME ": no memory for Interface adapter\n");
 		AdapterFree (psAdapter);
 		return -ENOMEM;
 	}
-	memset(psAdapter->pvInterfaceAdapter, 0, sizeof(S_INTERFACE_ADAPTER));
 
-	psIntfAdapter = InterfaceAdapterGet(psAdapter);
+	psAdapter->pvInterfaceAdapter = psIntfAdapter;
 	psIntfAdapter->psAdapter = psAdapter;
 
 	/* Store usb interface in Interface Adapter */
@@ -276,7 +272,6 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		}
 	}
 
-	udev = interface_to_usbdev (intf);
 	/* Check whether the USB-Device Supports remote Wake-Up */
 	if(USB_CONFIG_ATT_WAKEUP & udev->actconfig->desc.bmAttributes)
 	{

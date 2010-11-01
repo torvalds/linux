@@ -1,11 +1,5 @@
 #include "headers.h"
 
-#define DRV_NAME	"beceem"
-#define DRV_VERSION	"5.2.7.3P1"
-#define DRV_DESCRIPTION "Beceem Communications Inc. WiMAX driver"
-#define DRV_COPYRIGHT	"Copyright 2010. Beceem Communications Inc"
-
-
 struct net_device *gblpnetdev;
 /***************************************************************************************/
 /* proto-type of lower function */
@@ -123,21 +117,8 @@ static const struct ethtool_ops bcm_ethtool_ops = {
 
 int register_networkdev(PMINI_ADAPTER Adapter)
 {
-	struct net_device *net;
-	PMINI_ADAPTER *temp;
-	PS_INTERFACE_ADAPTER psIntfAdapter = Adapter->pvInterfaceAdapter;
-	struct usb_interface *uintf = psIntfAdapter->interface;
+	struct net_device *net = Adapter->dev;
 	int result;
-
-	net = alloc_etherdev(sizeof(PMINI_ADAPTER));
-	if(!net) {
-		pr_notice("bcmnet: no memory for device\n");
-		return -ENOMEM;
-	}
-
-	Adapter->dev = net;	/* FIXME - only allows one adapter! */
-	temp = netdev_priv(net);
-	*temp = Adapter;
 
         net->netdev_ops = &bcmNetDevOps;
 	net->ethtool_ops = &bcm_ethtool_ops;
@@ -145,7 +126,6 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 	net->tx_queue_len = TX_QLEN;
 	netif_carrier_off(net);
 
-	SET_NETDEV_DEV(net, &uintf->dev);
 	SET_NETDEV_DEVTYPE(net, &wimax_type);
 
 	/* Read the MAC Address from EEPROM */
