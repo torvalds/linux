@@ -1,0 +1,8 @@
+config TEGRA_CAMERA
+        bool "Enable support for tegra camera/isp hardware"
+        depends on ARCH_TEGRA
+        default y
+        help
+          Enables support for the Tegra camera interface
+
+          If unsure, say Y
