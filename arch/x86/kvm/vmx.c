@@ -2787,6 +2787,10 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 		return;
 	}
 
+	if (vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & GUEST_INTR_STATE_STI) {
+		enable_irq_window(vcpu);
+		return;
+	}
 	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
 	cpu_based_vm_exec_control |= CPU_BASED_VIRTUAL_NMI_PENDING;
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
@@ -2849,7 +2853,8 @@ static int vmx_nmi_allowed(struct kvm_vcpu *vcpu)
 		return 0;
 
 	return	!(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) &
-			(GUEST_INTR_STATE_MOV_SS | GUEST_INTR_STATE_NMI));
+		  (GUEST_INTR_STATE_MOV_SS | GUEST_INTR_STATE_STI
+		   | GUEST_INTR_STATE_NMI));
 }
 
 static bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu)
