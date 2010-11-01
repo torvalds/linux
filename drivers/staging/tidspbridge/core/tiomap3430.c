@@ -1036,15 +1036,12 @@ static int bridge_dev_destroy(struct bridge_dev_context *dev_ctxt)
 			iounmap((void *)host_res->dw_per_pm_base);
 		if (host_res->dw_core_pm_base)
 			iounmap((void *)host_res->dw_core_pm_base);
-		if (host_res->dw_sys_ctrl_base)
-			iounmap(host_res->dw_sys_ctrl_base);
 
 		host_res->dw_mem_base[0] = (u32) NULL;
 		host_res->dw_mem_base[2] = (u32) NULL;
 		host_res->dw_mem_base[3] = (u32) NULL;
 		host_res->dw_mem_base[4] = (u32) NULL;
 		host_res->dw_dmmu_base = NULL;
-		host_res->dw_sys_ctrl_base = NULL;
 
 		kfree(host_res);
 	}

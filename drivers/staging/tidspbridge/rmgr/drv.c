@@ -740,7 +740,6 @@ static int request_bridge_resources(struct cfg_hostres *res)
 	host_res->num_mem_windows = 2;
 
 	/* First window is for DSP internal memory */
-	host_res->dw_sys_ctrl_base = ioremap(OMAP_SYSC_BASE, OMAP_SYSC_SIZE);
 	dev_dbg(bridge, "dw_mem_base[0] 0x%x\n", host_res->dw_mem_base[0]);
 	dev_dbg(bridge, "dw_mem_base[3] 0x%x\n", host_res->dw_mem_base[3]);
 	dev_dbg(bridge, "dw_dmmu_base %p\n", host_res->dw_dmmu_base);
