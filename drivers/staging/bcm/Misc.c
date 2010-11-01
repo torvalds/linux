@@ -1913,13 +1913,13 @@ void flush_queue(PMINI_ADAPTER Adapter, UINT iQIndex)
 
 void beceem_protocol_reset (PMINI_ADAPTER Adapter)
 {
-	int i =0;
+	int i;
 
-	if(NULL != Adapter->dev)
-	{
-		netif_carrier_off(Adapter->dev);
-		netif_stop_queue(Adapter->dev);
-	}
+	if (netif_msg_link(Adapter))
+		pr_notice(DRV_NAME "%s: protocol reset\n", Adapter->dev->name);
+
+	netif_carrier_off(Adapter->dev);
+	netif_stop_queue(Adapter->dev);
 
 	Adapter->IdleMode = FALSE;
 	Adapter->LinkUpStatus = FALSE;
@@ -1937,14 +1937,14 @@ void beceem_protocol_reset (PMINI_ADAPTER Adapter)
 		Adapter->TimerActive = FALSE;
 
 	memset(Adapter->astFragmentedPktClassifierTable, 0,
-			sizeof(S_FRAGMENTED_PACKET_INFO) *
-			MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES);
+	       sizeof(S_FRAGMENTED_PACKET_INFO) * MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES);
 
 	for(i = 0;i<HiPriority;i++)
 	{
 		//resetting only the first size (S_MIBS_SERVICEFLOW_TABLE) for the SF.
 		// It is same between MIBs and SF.
-		memset((PVOID)&Adapter->PackInfo[i],0,sizeof(S_MIBS_SERVICEFLOW_TABLE));
+		memset(&Adapter->PackInfo[i].stMibsExtServiceFlowTable,
+		       0, sizeof(S_MIBS_EXTSERVICEFLOW_PARAMETERS));
 	}
 }
 

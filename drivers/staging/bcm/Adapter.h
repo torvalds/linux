@@ -382,6 +382,8 @@ Driver adapter data structure
 struct _MINI_ADAPTER
 {
 	struct _MINI_ADAPTER *next;
+	struct net_device	*dev;
+	u32			msg_enable;
 
 	CHAR                *caDsxReqResp;
 	atomic_t		ApplicationRunning;
@@ -437,7 +439,6 @@ struct _MINI_ADAPTER
 	BOOLEAN			    AutoLinkUp;
 	BOOLEAN			    AutoSyncup;
 
-	struct net_device	*dev;
 	int				major;
 	int				minor;
 	wait_queue_head_t 	tx_packet_wait_queue;

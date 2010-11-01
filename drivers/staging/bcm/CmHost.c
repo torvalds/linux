@@ -2135,8 +2135,10 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /**<Pointer to the Adap
 							if(!Adapter->LinkUpStatus)
 							{
 								netif_carrier_on(Adapter->dev);
-    							netif_start_queue(Adapter->dev);
+								netif_start_queue(Adapter->dev);
 								Adapter->LinkUpStatus = 1;
+								if (netif_msg_link(Adapter))
+									pr_info(DRV_NAME "%s: link up\n", Adapter->dev->name);
 								do_gettimeofday(&tv);
 
 								atomic_set(&Adapter->TxPktAvail, 1);

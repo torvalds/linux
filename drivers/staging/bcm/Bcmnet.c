@@ -1,19 +1,35 @@
 #include "headers.h"
 
+static int debug = -1;
+module_param(debug, uint, 0600);
+MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+
+static const u32 default_msg =
+    NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK
+    | NETIF_MSG_TIMER | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR
+    | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN;
+
 struct net_device *gblpnetdev;
 
 static INT bcm_open(struct net_device *dev)
 {
 	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
 
-	if (Adapter->fw_download_done == FALSE)
-		return -EINVAL;
+	if (Adapter->fw_download_done == FALSE) {
+		pr_notice(DRV_NAME "%s: link up failed (download in progress)\n",
+			  dev->name);
+		return -EBUSY;
+	}
 
-	if (Adapter->LinkUpStatus == 1) {
-		if (netif_queue_stopped(Adapter->dev)) {
-			netif_carrier_on(Adapter->dev);
-			netif_start_queue(Adapter->dev);
-		}
+	if (netif_msg_ifup(Adapter))
+		pr_info(DRV_NAME "%s: enabling interface\n", dev->name);
+
+	if (Adapter->LinkUpStatus) {
+		if (netif_msg_link(Adapter))
+			pr_info(DRV_NAME "%s: link up\n", dev->name);
+
+		netif_carrier_on(Adapter->dev);
+		netif_start_queue(Adapter->dev);
 	}
 
 	return 0;
@@ -21,10 +37,14 @@ static INT bcm_open(struct net_device *dev)
 
 static INT bcm_close(struct net_device *dev)
 {
-	if (!netif_queue_stopped(dev)) {
-		netif_carrier_off(dev);
-		netif_stop_queue(dev);
-	}
+	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+
+	if (netif_msg_ifdown(Adapter))
+		pr_info(DRV_NAME "%s: disabling interface\n", dev->name);
+
+	netif_carrier_off(dev);
+	netif_stop_queue(dev);
+
 	return 0;
 }
 
@@ -70,6 +90,7 @@ static netdev_tx_t bcm_transmit(struct sk_buff *skb, struct net_device *dev)
 	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
 	u16 qindex = skb_get_queue_mapping(skb);
 
+
 	if (Adapter->device_removed || !Adapter->LinkUpStatus)
 		goto drop;
 
@@ -84,9 +105,9 @@ static netdev_tx_t bcm_transmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 
 	/* Now Enqueue the packet */
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL,
-			"bcm_transmit Enqueueing the Packet To Queue %d",
-			qindex);
+	if (netif_msg_tx_queued(Adapter))
+		pr_info(DRV_NAME "%s: enqueueing packet to queue %d\n",
+			dev->name, qindex);
 
 	spin_lock(&Adapter->PackInfo[qindex].SFQueueLock);
 	Adapter->PackInfo[qindex].uiCurrentBytesOnHost += skb->len;
@@ -168,10 +189,26 @@ static u32 bcm_get_link(struct net_device *dev)
 	return Adapter->LinkUpStatus;
 }
 
+static u32 bcm_get_msglevel (struct net_device *dev)
+{
+	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+
+	return Adapter->msg_enable;
+}
+
+static void bcm_set_msglevel (struct net_device *dev, u32 level)
+{
+	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
+
+	Adapter->msg_enable = level;
+}
+
 static const struct ethtool_ops bcm_ethtool_ops = {
 	.get_settings	= bcm_get_settings,
 	.get_drvinfo	= bcm_get_drvinfo,
 	.get_link 	= bcm_get_link,
+	.get_msglevel	= bcm_get_msglevel,
+	.set_msglevel	= bcm_set_msglevel,
 };
 
 int register_networkdev(PMINI_ADAPTER Adapter)
@@ -185,6 +222,7 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 	net->tx_queue_len = TX_QLEN;
 	net->flags |= IFF_NOARP;
 	net->flags &= ~(IFF_BROADCAST | IFF_MULTICAST);
+	Adapter->msg_enable = netif_msg_init(debug, default_msg);
 
 	netif_carrier_off(net);
 
