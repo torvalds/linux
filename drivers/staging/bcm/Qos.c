@@ -524,12 +524,6 @@ USHORT ClassifyPacket(PMINI_ADAPTER Adapter,struct sk_buff* skb)
 
 	for(uiLoopIndex = MAX_CLASSIFIERS - 1; uiLoopIndex >= 0; uiLoopIndex--)
 	{
-		if (Adapter->device_removed)
-		{
-			bClassificationSucceed = FALSE;
-			break;
-		}
-
 		if(bClassificationSucceed)
 			break;
 		//Iterate through all classifiers which are already in order of priority
