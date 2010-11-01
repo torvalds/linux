@@ -1532,14 +1532,13 @@ static int read_partial_message(struct ceph_connection *con)
 	/* verify seq# */
 	seq = le64_to_cpu(con->in_hdr.seq);
 	if ((s64)seq - (s64)con->in_seq < 1) {
-		pr_info("skipping %s%lld %s seq %lld, expected %lld\n",
+		pr_info("skipping %s%lld %s seq %lld expected %lld\n",
 			ENTITY_NAME(con->peer_name),
 			ceph_pr_addr(&con->peer_addr.in_addr),
 			seq, con->in_seq + 1);
 		con->in_base_pos = -front_len - middle_len - data_len -
 			sizeof(m->footer);
 		con->in_tag = CEPH_MSGR_TAG_READY;
-		con->in_seq++;
 		return 0;
 	} else if ((s64)seq - (s64)con->in_seq > 1) {
 		pr_err("read_partial_message bad seq %lld expected %lld\n",
