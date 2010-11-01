@@ -6,3 +6,6 @@ config TEGRA_CAMERA
           Enables support for the Tegra camera interface
 
           If unsure, say Y
+
+
+source "drivers/media/video/tegra/avp/Kconfig"
