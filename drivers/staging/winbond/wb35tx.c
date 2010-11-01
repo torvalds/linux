@@ -41,7 +41,7 @@ static void Wb35Tx_complete(struct urb * pUrb)
 	pWb35Tx->TxSendIndex++;
 	pWb35Tx->TxSendIndex %= MAX_USB_TX_BUFFER_NUMBER;
 
-	if (pHwData->SurpriseRemove || pHwData->HwStop) // Let WbWlanHalt to handle surprise remove
+	if (pHwData->SurpriseRemove) // Let WbWlanHalt to handle surprise remove
 		goto error;
 
 	if (pWb35Tx->tx_halt)
@@ -74,7 +74,7 @@ static void Wb35Tx(struct wbsoft_priv *adapter)
 	u32		SendIndex;
 
 
-	if (pHwData->SurpriseRemove || pHwData->HwStop)
+	if (pHwData->SurpriseRemove)
 		goto cleanup;
 
 	if (pWb35Tx->tx_halt)
@@ -222,7 +222,7 @@ static void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 	pWb35Tx->EP2VM_status = pUrb->status;
 
 	// For Linux 2.4. Interrupt will always trigger
-	if (pHwData->SurpriseRemove || pHwData->HwStop) // Let WbWlanHalt to handle surprise remove
+	if (pHwData->SurpriseRemove) // Let WbWlanHalt to handle surprise remove
 		goto error;
 
 	if (pWb35Tx->tx_halt)
@@ -263,7 +263,7 @@ static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter)
 	u32 *	pltmp = (u32 *)pWb35Tx->EP2_buf;
 	int		retv;
 
-	if (pHwData->SurpriseRemove || pHwData->HwStop)
+	if (pHwData->SurpriseRemove)
 		goto error;
 
 	if (pWb35Tx->tx_halt)

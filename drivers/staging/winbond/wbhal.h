@@ -511,9 +511,6 @@ struct hw_data {
 
 	/* For global timer */
 	u32		time_count;	/* TICK_TIME_100ms 1 = 100ms */
-
-	/* For error recover */
-	u32		HwStop;
 };
 
 #endif

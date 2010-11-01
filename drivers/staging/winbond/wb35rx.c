@@ -174,7 +174,7 @@ static void Wb35Rx_Complete(struct urb *urb)
 	/* The IRP is completed */
 	pWb35Rx->EP3vm_state = VM_COMPLETED;
 
-	if (pHwData->SurpriseRemove || pHwData->HwStop) /* Must be here, or RxBufferId is invalid */
+	if (pHwData->SurpriseRemove) /* Must be here, or RxBufferId is invalid */
 		goto error;
 
 	if (pWb35Rx->rx_halt)
@@ -239,7 +239,7 @@ static void Wb35Rx(struct ieee80211_hw *hw)
 	u32			RxBufferId;
 
 	/* Issuing URB */
-	if (pHwData->SurpriseRemove || pHwData->HwStop)
+	if (pHwData->SurpriseRemove)
 		goto error;
 
 	if (pWb35Rx->rx_halt)
