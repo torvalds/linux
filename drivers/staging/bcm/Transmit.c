@@ -6,7 +6,7 @@
 digraph transmit1 {
 node[shape=box]
 edge[weight=5;color=red]
-bcm_transmit->reply_to_arp_request[label="ARP"]
+
 bcm_transmit->GetPacketQueueIndex[label="IP Packet"]
 GetPacketQueueIndex->IpVersion4[label="IPV4"]
 GetPacketQueueIndex->IpVersion6[label="IPV6"]
@@ -63,17 +63,8 @@ netdev_tx_t bcm_transmit(struct sk_buff *skb, struct net_device *dev)
 
 	qindex = GetPacketQueueIndex(Adapter, skb);
 
-	if (INVALID_QUEUE_INDEX==qindex)	{
-		if (ntohs(eth_hdr(skb)->h_proto) != ETH_ARP_FRAME)
-			goto drop;
-
-		/*
-		  Reply directly to ARP request packet
-		  ARP Spoofing only if NO ETH CS rule matches for it
-		*/
-		reply_to_arp_request(skb);
-		return NETDEV_TX_OK;
-	}
+	if (INVALID_QUEUE_INDEX==qindex)
+		goto drop;
 
 	if (Adapter->PackInfo[qindex].uiCurrentPacketsOnHost >= SF_MAX_ALLOWED_PACKETS_TO_BACKUP)
 		return NETDEV_TX_BUSY;

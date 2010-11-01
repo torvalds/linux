@@ -124,6 +124,9 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 	net->ethtool_ops = &bcm_ethtool_ops;
 	net->mtu          = MTU_SIZE; /* 1400 Bytes */
 	net->tx_queue_len = TX_QLEN;
+	net->flags |= IFF_NOARP;
+	net->flags &= ~(IFF_BROADCAST|IFF_MULTICAST);
+
 	netif_carrier_off(net);
 
 	SET_NETDEV_DEVTYPE(net, &wimax_type);
