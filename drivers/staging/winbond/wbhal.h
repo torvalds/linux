@@ -507,8 +507,6 @@ struct hw_data {
 	u32		RxByteCountLast;
 	u32		TxByteCountLast;
 
-	atomic_t	SurpriseRemoveCount;
-
 	/* For global timer */
 	u32		time_count;	/* TICK_TIME_100ms 1 = 100ms */
 };
