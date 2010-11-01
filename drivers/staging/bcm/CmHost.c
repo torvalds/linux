@@ -1648,12 +1648,8 @@ static inline ULONG RestoreSFParam(PMINI_ADAPTER Adapter, ULONG ulAddrSFParamSet
 		return 0;
 	}
 	ulAddrSFParamSet = ntohl(ulAddrSFParamSet);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  " RestoreSFParam: Total Words of DSX Message To Read: 0x%zx  From Target At : 0x%lx ",
-				nBytesToRead/sizeof(ULONG),ulAddrSFParamSet);
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "sizeof(stServiceFlowParamSI) = %zx", sizeof(stServiceFlowParamSI));
 
 	//Read out the SF Param Set At the indicated Location
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "nBytesToRead = %x", nBytesToRead);
 	if(rdm(Adapter, ulAddrSFParamSet, (PUCHAR)pucDestBuffer, nBytesToRead) < 0)
 		return STATUS_FAILURE;
 
@@ -1670,9 +1666,6 @@ static ULONG StoreSFParam(PMINI_ADAPTER Adapter,PUCHAR pucSrcBuffer,ULONG  ulAdd
 	{
 		return 0;
 	}
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  " StoreSFParam: Total Words of DSX Message To Write: 0x%zX  To Target At : 0x%lX ",(nBytesToWrite/sizeof(ULONG)),ulAddrSFParamSet);
-
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "WRM  with %x bytes",nBytesToWrite);
 
 	uiRetVal = wrm(Adapter,ulAddrSFParamSet,(PUCHAR)pucSrcBuffer, nBytesToWrite);
 	if(uiRetVal < 0) {
