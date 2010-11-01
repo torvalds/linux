@@ -5302,7 +5302,7 @@ static u8 bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 {
 	struct bnx2x *bp = params->bp;
 	u16 autoneg_val, an_1000_val, an_10_100_val;
-	bnx2x_wait_reset_complete(bp, phy);
+
 	bnx2x_bits_en(bp, NIG_REG_LATCH_BC_0 + params->port*4,
 		      1 << NIG_LATCH_BC_ENABLE_MI_INT);
 
@@ -5431,6 +5431,7 @@ static u8 bnx2x_8481_config_init(struct bnx2x_phy *phy,
 
 	/* HW reset */
 	bnx2x_ext_phy_hw_reset(bp, params->port);
+	bnx2x_wait_reset_complete(bp, phy);
 
 	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, MDIO_PMA_REG_CTRL, 1<<15);
 	return bnx2x_848xx_cmn_config_init(phy, params, vars);
@@ -5453,8 +5454,9 @@ static u8 bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
 		       MISC_REGISTERS_GPIO_OUTPUT_HIGH,
 		       port);
-	msleep(200); /* 100 is not enough */
-
+	bnx2x_wait_reset_complete(bp, phy);
+	/* Wait for GPHY to come out of reset */
+	msleep(50);
 	/* BCM84823 requires that XGXS links up first @ 10G for normal
 	behavior */
 	temp = vars->line_speed;
