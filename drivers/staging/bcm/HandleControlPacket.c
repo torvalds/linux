@@ -19,8 +19,10 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 	CHAR cntrl_msg_mask_bit = 0;
 	BOOLEAN drop_pkt_flag = TRUE ;
 	USHORT usStatus = *(PUSHORT)(skb->data);
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "=====>");
-	/* Get the Leader field */
+
+	if (netif_msg_pktdata(Adapter))
+		print_hex_dump(KERN_DEBUG, PFX "rx control: ", DUMP_PREFIX_NONE,
+			       16, 1, skb->data, skb->len, 0);
 
 	switch(usStatus)
 	{

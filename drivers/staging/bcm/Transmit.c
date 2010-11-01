@@ -65,6 +65,11 @@ INT SendControlPacket(PMINI_ADAPTER Adapter, char *pControlPacket)
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Leader Length: %x",PLeader->PLength);
 	if(Adapter->device_removed)
 		return 0;
+
+	if (netif_msg_pktdata(Adapter))
+		print_hex_dump(KERN_DEBUG, PFX "tx control: ", DUMP_PREFIX_NONE,
+			       16, 1, pControlPacket, PLeader->PLength + LEADER_SIZE, 0);
+
 	Adapter->interface_transmit(Adapter->pvInterfaceAdapter,
 					pControlPacket, (PLeader->PLength + LEADER_SIZE));
 
