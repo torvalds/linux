@@ -342,9 +342,6 @@ struct wb35_descriptor { /* Skip length = 8 DWORD */
 	void	*buffer_address[MAX_DESCRIPTOR_BUFFER_INDEX];
 };
 
-
-#define DEFAULT_NULL_PACKET_COUNT	180000	/* 180 seconds */
-
 #define MAX_TXVGA_EEPROM		9	/* How many word(u16) of EEPROM will be used for TxVGA */
 #define MAX_RF_PARAMETER		32
 
@@ -517,9 +514,6 @@ struct hw_data {
 
 	/* For error recover */
 	u32		HwStop;
-
-	/* For avoid AP disconnect */
-	u32		NullPacketCount;
 };
 
 #endif

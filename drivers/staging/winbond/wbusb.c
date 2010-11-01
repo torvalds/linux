@@ -611,15 +611,6 @@ static void hal_led_control(unsigned long data)
 			}
 			break;
 		}
-
-		/* Active send null packet to avoid AP disconnect */
-		if (pHwData->LED_LinkOn) {
-			pHwData->NullPacketCount += TimeInterval;
-			if (pHwData->NullPacketCount >=
-			    DEFAULT_NULL_PACKET_COUNT) {
-				pHwData->NullPacketCount = 0;
-			}
-		}
 	}
 
 	pHwData->time_count += TimeInterval;
