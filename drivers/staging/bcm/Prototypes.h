@@ -122,8 +122,6 @@ void doPowerAutoCorrection(PMINI_ADAPTER psAdapter);
 
 int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo);
 
-void bcm_unregister_networkdev(PMINI_ADAPTER Adapter);
-
 int SearchVcid(PMINI_ADAPTER Adapter,unsigned short usVcid);
 
 void CopyMIBSExtendedSFParameters(PMINI_ADAPTER Adapter,

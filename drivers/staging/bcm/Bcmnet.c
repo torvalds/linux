@@ -145,15 +145,6 @@ int register_networkdev(PMINI_ADAPTER Adapter)
 	return result;
 }
 
-void bcm_unregister_networkdev(PMINI_ADAPTER Adapter)
-{
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Unregistering the Net Dev...\n");
-	if(Adapter->dev) {
-		unregister_netdev(Adapter->dev);
-		Adapter->dev = NULL;
-	}
-}
-
 static int bcm_init(void)
 {
 	printk(KERN_INFO "%s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
