@@ -359,12 +359,13 @@ static VOID PruneQueue(PMINI_ADAPTER Adapter, INT iIndex)
 
 		if(PacketToDrop)
 		{
+			struct netdev_queue *txq = netdev_get_tx_queue(Adapter->dev, iIndex);
 			if (netif_msg_tx_err(Adapter))
 				pr_info(PFX "%s: tx queue %d overlimit\n", 
 					Adapter->dev->name, iIndex);
 
-			netstats->tx_dropped++;
-			atomic_inc(&Adapter->TxDroppedPacketCount);
+			txq->tx_dropped++;
+
 			DEQUEUEPACKET(Adapter->PackInfo[iIndex].FirstTxQueue,
 						Adapter->PackInfo[iIndex].LastTxQueue);
 			/// update current bytes and packets count
@@ -397,14 +398,15 @@ VOID flush_all_queues(PMINI_ADAPTER Adapter)
 {
 	INT		iQIndex;
 	UINT	uiTotalPacketLength;
-	struct sk_buff*				PacketToDrop=NULL;
-	struct net_device_stats*  	netstats=&Adapter->dev->stats;
+	struct sk_buff*			PacketToDrop=NULL;
 
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "=====>");
 
 //	down(&Adapter->data_packet_queue_lock);
 	for(iQIndex=LowPriority; iQIndex<HiPriority; iQIndex++)
 	{
+		struct netdev_queue *txq = netdev_get_tx_queue(Adapter->dev, iQIndex);
+
 		spin_lock_bh(&Adapter->PackInfo[iQIndex].SFQueueLock);
 		while(Adapter->PackInfo[iQIndex].FirstTxQueue)
 		{
@@ -412,8 +414,7 @@ VOID flush_all_queues(PMINI_ADAPTER Adapter)
 			if(PacketToDrop)
 			{
 				uiTotalPacketLength = PacketToDrop->len;
-				netstats->tx_dropped++;
-				atomic_inc(&Adapter->TxDroppedPacketCount);
+				txq->tx_dropped++;
 			}
 			else
 				uiTotalPacketLength = 0;

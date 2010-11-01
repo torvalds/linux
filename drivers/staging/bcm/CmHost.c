@@ -58,18 +58,6 @@ static INT SearchFreeSfid(PMINI_ADAPTER Adapter)
 	return NO_OF_QUEUES+1;
 }
 
-int SearchVcid(PMINI_ADAPTER Adapter,unsigned short usVcid)
-{
-	int iIndex=0;
-
-	for(iIndex=(NO_OF_QUEUES-1);iIndex>=0;iIndex--)
-		if(Adapter->PackInfo[iIndex].usVCID_Value == usVcid)
-			return iIndex;
-	return NO_OF_QUEUES+1;
-
-}
-
-
 /*
 Function:				SearchClsid
 Description:			This routinue would search Classifier  having specified ClassifierID as input parameter

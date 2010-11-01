@@ -414,17 +414,8 @@ struct _MINI_ADAPTER
 	// this to keep track of the Tx and Rx MailBox Registers.
 	atomic_t		    CurrNumFreeTxDesc;
 	// to keep track the no of byte recieved
-	atomic_t			RxRollOverCount;
 	USHORT				PrevNumRecvDescs;
 	USHORT				CurrNumRecvDescs;
-	atomic_t			GoodRxByteCount;
-	atomic_t			GoodRxPktCount;
-	atomic_t			BadRxByteCount;
-	atomic_t			RxPacketDroppedCount;
-	atomic_t			GoodTxByteCount;
-	atomic_t			TxTotalPacketCount;
-	atomic_t			TxDroppedPacketCount;
-
 	UINT				u32TotalDSD;
 	PacketInfo		    PackInfo[NO_OF_QUEUES];
 	S_CLASSIFIER_RULE	astClassifierTable[MAX_CLASSIFIERS];

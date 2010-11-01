@@ -82,12 +82,9 @@ INT  ProcessGetHostMibs(PMINI_ADAPTER Adapter, S_MIBS_HOST_STATS_MIBS *pstHostMi
 	}
 
 
-
 	//copy other Host Statistics parameters
-	pstHostMibs->stHostInfo.GoodTransmits =
-				atomic_read(&Adapter->TxTotalPacketCount);
-	pstHostMibs->stHostInfo.GoodReceives =
-				atomic_read(&Adapter->GoodRxPktCount);
+	pstHostMibs->stHostInfo.GoodTransmits = Adapter->dev->stats.tx_packets;
+	pstHostMibs->stHostInfo.GoodReceives = Adapter->dev->stats.rx_packets;
 	pstHostMibs->stHostInfo.CurrNumFreeDesc =
 			atomic_read(&Adapter->CurrNumFreeTxDesc);
 	pstHostMibs->stHostInfo.BEBucketSize = Adapter->BEBucketSize;

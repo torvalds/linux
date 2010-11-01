@@ -90,7 +90,7 @@ INT SetupNextSend(PMINI_ADAPTER Adapter,  struct sk_buff *Packet, USHORT Vcid)
 	int		status=0;
 	BOOLEAN bHeaderSupressionEnabled = FALSE;
 	B_UINT16            uiClassifierRuleID;
-	int QueueIndex = NO_OF_QUEUES + 1;
+	u16	QueueIndex = skb_get_queue_mapping(Packet);
 	LEADER Leader={0};
 
 	if(Packet->len > MAX_DEVICE_DESC_SIZE)
@@ -101,14 +101,10 @@ INT SetupNextSend(PMINI_ADAPTER Adapter,  struct sk_buff *Packet, USHORT Vcid)
 
 	/* Get the Classifier Rule ID */
 	uiClassifierRuleID = *((UINT32*) (Packet->cb)+SKB_CB_CLASSIFICATION_OFFSET);
-	QueueIndex = SearchVcid( Adapter,Vcid);
-	if(QueueIndex < NO_OF_QUEUES)
-	{
-		bHeaderSupressionEnabled =
-			Adapter->PackInfo[QueueIndex].bHeaderSuppressionEnabled;
-		bHeaderSupressionEnabled =
-			bHeaderSupressionEnabled & Adapter->bPHSEnabled;
-	}
+
+	bHeaderSupressionEnabled = Adapter->PackInfo[QueueIndex].bHeaderSuppressionEnabled
+		& Adapter->bPHSEnabled;
+
 	if(Adapter->device_removed)
 		{
 		status = STATUS_FAILURE;
@@ -162,9 +158,12 @@ INT SetupNextSend(PMINI_ADAPTER Adapter,  struct sk_buff *Packet, USHORT Vcid)
 	}
 	else
 	{
+		struct netdev_queue *txq = netdev_get_tx_queue(Adapter->dev, QueueIndex);
 		Adapter->PackInfo[QueueIndex].uiTotalTxBytes += Leader.PLength;
-		Adapter->dev->stats.tx_bytes += Leader.PLength;
-		++Adapter->dev->stats.tx_packets;
+
+		txq->tx_bytes += Leader.PLength;
+		++txq->tx_packets;
+
 		Adapter->PackInfo[QueueIndex].uiCurrentTokenCount -= Leader.PLength << 3;
 		Adapter->PackInfo[QueueIndex].uiSentBytes += (Packet->len);
 		Adapter->PackInfo[QueueIndex].uiSentPackets++;

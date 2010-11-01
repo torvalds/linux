@@ -108,8 +108,9 @@ static INT LED_Proportional_Blink(PMINI_ADAPTER Adapter, UCHAR GPIO_Num_tx,
 	ulong timeout = 0;
 
 	/*Read initial value of packets sent/received */
-	Initial_num_of_packts_tx = atomic_read(&Adapter->TxTotalPacketCount);
-	Initial_num_of_packts_rx = atomic_read(&Adapter->GoodRxPktCount);
+	Initial_num_of_packts_tx = Adapter->dev->stats.tx_packets;
+	Initial_num_of_packts_rx = Adapter->dev->stats.rx_packets;
+
 	/*Scale the rate of transfer to no of blinks.*/
 	num_of_time_tx= ScaleRateofTransfer((ULONG)rate_of_transfer_tx);
 	num_of_time_rx= ScaleRateofTransfer((ULONG)rate_of_transfer_rx);
@@ -212,9 +213,10 @@ static INT LED_Proportional_Blink(PMINI_ADAPTER Adapter, UCHAR GPIO_Num_tx,
  		 * Read the Tx & Rx packets transmission after 1 second and
  		 * calculate rate of transfer
  		 */
-		Final_num_of_packts_tx = atomic_read(&Adapter->TxTotalPacketCount);
+		Final_num_of_packts_tx = Adapter->dev->stats.tx_packets;
+		Final_num_of_packts_rx = Adapter->dev->stats.rx_packets;
+
 		rate_of_transfer_tx = Final_num_of_packts_tx - Initial_num_of_packts_tx;
-		Final_num_of_packts_rx = atomic_read(&Adapter->GoodRxPktCount);
 		rate_of_transfer_rx = Final_num_of_packts_rx - Initial_num_of_packts_rx;
 
 		/*Read initial value of packets sent/received */

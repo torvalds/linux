@@ -48,25 +48,6 @@ static INT bcm_close(struct net_device *dev)
 	return 0;
 }
 
-static struct net_device_stats *bcm_get_stats(struct net_device *dev)
-{
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(dev);
-	struct net_device_stats*  	netstats = &dev->stats;
-
-	netstats->rx_packets = atomic_read(&Adapter->RxRollOverCount)*64*1024
-		+ Adapter->PrevNumRecvDescs;
-	netstats->rx_bytes = atomic_read(&Adapter->GoodRxByteCount)
-		+ atomic_read(&Adapter->BadRxByteCount);
-
-	netstats->rx_dropped = atomic_read(&Adapter->RxPacketDroppedCount);
-	netstats->rx_errors  = atomic_read(&Adapter->RxPacketDroppedCount);
-	netstats->tx_bytes   = atomic_read(&Adapter->GoodTxByteCount);
-	netstats->tx_packets = atomic_read(&Adapter->TxTotalPacketCount);
-	netstats->tx_dropped = atomic_read(&Adapter->TxDroppedPacketCount);
-
-	return netstats;
-}
-
 static u16 bcm_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
 	return ClassifyPacket(netdev_priv(dev), skb);
@@ -140,7 +121,6 @@ Register other driver entry points with the kernel
 static const struct net_device_ops bcmNetDevOps = {
     .ndo_open		= bcm_open,
     .ndo_stop 		= bcm_close,
-    .ndo_get_stats 	= bcm_get_stats,
     .ndo_start_xmit	= bcm_transmit,
     .ndo_change_mtu	= eth_change_mtu,
     .ndo_set_mac_address = eth_mac_addr,

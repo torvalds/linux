@@ -1859,8 +1859,6 @@ void flush_queue(PMINI_ADAPTER Adapter, UINT iQIndex)
 
 			dev_kfree_skb(PacketToDrop);
 			atomic_dec(&Adapter->TotalPacketCount);
-			atomic_inc(&Adapter->TxDroppedPacketCount);
-
 		}
 	}
 	spin_unlock_bh(&Adapter->PackInfo[iQIndex].SFQueueLock);

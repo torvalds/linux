@@ -1,5 +1,15 @@
 #include "headers.h"
-extern int SearchVcid(PMINI_ADAPTER , unsigned short);
+
+static int SearchVcid(PMINI_ADAPTER Adapter,unsigned short usVcid)
+{
+	int iIndex=0;
+
+	for(iIndex=(NO_OF_QUEUES-1);iIndex>=0;iIndex--)
+		if(Adapter->PackInfo[iIndex].usVCID_Value == usVcid)
+			return iIndex;
+	return NO_OF_QUEUES+1;
+
+}
 
 
 static PUSB_RCB
@@ -88,8 +98,7 @@ static void read_bulk_callback(struct urb *urb)
 		if (netif_msg_rx_err(Adapter))
 			pr_info(PFX "%s: corrupted leader length...%d\n",
 				Adapter->dev->name, pLeader->PLength);
-		atomic_inc(&Adapter->RxPacketDroppedCount);
-		atomic_add(pLeader->PLength, &Adapter->BadRxByteCount);
+		++Adapter->dev->stats.rx_dropped;
 		atomic_dec(&psIntfAdapter->uNumRcbUsed);
 		return;
 	}
@@ -142,7 +151,6 @@ static void read_bulk_callback(struct urb *urb)
 		skb_put (skb, pLeader->PLength + ETH_HLEN);
 		Adapter->PackInfo[QueueIndex].uiTotalRxBytes+=pLeader->PLength;
 		Adapter->PackInfo[QueueIndex].uiThisPeriodRxBytes+= pLeader->PLength;
-		atomic_add(pLeader->PLength, &Adapter->GoodRxByteCount);
         BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "Recived Data pkt of len :0x%X", pLeader->PLength);
 
 		if(netif_running(Adapter->dev))
@@ -172,7 +180,10 @@ static void read_bulk_callback(struct urb *urb)
 		    BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_RX, RX_DATA, DBG_LVL_ALL, "i/f not up hance freeing SKB...");
 			dev_kfree_skb(skb);
 		}
-		atomic_inc(&Adapter->GoodRxPktCount);
+
+		++Adapter->dev->stats.rx_packets;
+		Adapter->dev->stats.rx_bytes += pLeader->PLength;
+
 		for(uiIndex = 0 ; uiIndex < MIBS_MAX_HIST_ENTRIES ; uiIndex++)
 		{
 			if((pLeader->PLength <= MIBS_PKTSIZEHIST_RANGE*(uiIndex+1))

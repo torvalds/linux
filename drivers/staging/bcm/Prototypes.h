@@ -93,8 +93,6 @@ void beceem_parse_target_struct(PMINI_ADAPTER Adapter);
 
 int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo);
 
-int SearchVcid(PMINI_ADAPTER Adapter,unsigned short usVcid);
-
 void CopyMIBSExtendedSFParameters(PMINI_ADAPTER Adapter,
 		CServiceFlowParamSI *psfLocalSet, UINT uiSearchRuleIndex);
 
