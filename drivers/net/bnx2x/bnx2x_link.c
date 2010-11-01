@@ -5442,7 +5442,7 @@ static u8 bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 				  struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
-	u8 port = params->port, initialize = 1;
+	u8 port, initialize = 1;
 	u16 val;
 	u16 temp;
 	u32 actual_phy_selection;
@@ -5451,6 +5451,10 @@ static u8 bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 	/* This is just for MDIO_CTL_REG_84823_MEDIA register. */
 
 	msleep(1);
+	if (CHIP_IS_E2(bp))
+		port = BP_PATH(bp);
+	else
+		port = params->port;
 	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
 		       MISC_REGISTERS_GPIO_OUTPUT_HIGH,
 		       port);
@@ -5627,7 +5631,11 @@ static void bnx2x_848x3_link_reset(struct bnx2x_phy *phy,
 				   struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
-	u8 port = params->port;
+	u8 port;
+	if (CHIP_IS_E2(bp))
+		port = BP_PATH(bp);
+	else
+		port = params->port;
 	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
 			    MISC_REGISTERS_GPIO_OUTPUT_LOW,
 			    port);
@@ -7023,7 +7031,8 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp,
 			return -EINVAL;
 		}
 		/* disable attentions */
-		bnx2x_bits_dis(bp, NIG_REG_MASK_INTERRUPT_PORT0 + port*4,
+		bnx2x_bits_dis(bp, NIG_REG_MASK_INTERRUPT_PORT0 +
+			       port_of_path*4,
 			     (NIG_MASK_XGXS0_LINK_STATUS |
 			      NIG_MASK_XGXS0_LINK10G |
 			      NIG_MASK_SERDES0_LINK_STATUS |
