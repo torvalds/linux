@@ -28,7 +28,7 @@ typedef enum _E_CLASSIFIER_ACTION
 * Returns	  - Queue index for this SFID(If matched)
 				Else Invalid Queue Index(If Not matched)
 ************************************************************/
-__inline INT SearchSfid(PMINI_ADAPTER Adapter,UINT uiSfid)
+INT SearchSfid(PMINI_ADAPTER Adapter,UINT uiSfid)
 {
 	INT 	iIndex=0;
 	for(iIndex=(NO_OF_QUEUES-1); iIndex>=0; iIndex--)
@@ -47,18 +47,20 @@ __inline INT SearchSfid(PMINI_ADAPTER Adapter,UINT uiSfid)
 * Returns	  - Queue index for the free SFID
 *				Else returns Invalid Index.
 ****************************************************************/
-__inline INT SearchFreeSfid(PMINI_ADAPTER Adapter)
+static INT SearchFreeSfid(PMINI_ADAPTER Adapter)
 {
 	UINT 	uiIndex=0;
+
 	for(uiIndex=0; uiIndex < (NO_OF_QUEUES-1); uiIndex++)
 		if(Adapter->PackInfo[uiIndex].ulSFID==0)
 			return uiIndex;
 	return NO_OF_QUEUES+1;
 }
 
-__inline int SearchVcid(PMINI_ADAPTER Adapter,unsigned short usVcid)
+int SearchVcid(PMINI_ADAPTER Adapter,unsigned short usVcid)
 {
-	 int iIndex=0;
+	int iIndex=0;
+
 	for(iIndex=(NO_OF_QUEUES-1);iIndex>=0;iIndex--)
 		if(Adapter->PackInfo[iIndex].usVCID_Value == usVcid)
 			return iIndex;
@@ -76,7 +78,7 @@ Input parameters:		PMINI_ADAPTER Adapter - Adapter Context
 Return:					int :Classifier table index of matching entry
 */
 
-__inline int SearchClsid(PMINI_ADAPTER Adapter,ULONG ulSFID,B_UINT16  uiClassifierID)
+static int SearchClsid(PMINI_ADAPTER Adapter,ULONG ulSFID,B_UINT16  uiClassifierID)
 {
 	unsigned int uiClassifierIndex = 0;
 	for(uiClassifierIndex=0;uiClassifierIndex<MAX_CLASSIFIERS;uiClassifierIndex++)
@@ -94,7 +96,7 @@ __inline int SearchClsid(PMINI_ADAPTER Adapter,ULONG ulSFID,B_UINT16  uiClassifi
 This routinue would search Free available Classifier entry in classifier table.
 @return free Classifier Entry index in classifier table for specified SF
 */
-static __inline int SearchFreeClsid(PMINI_ADAPTER Adapter /**Adapter Context*/
+static int SearchFreeClsid(PMINI_ADAPTER Adapter /**Adapter Context*/
 						)
 {
 	unsigned int uiClassifierIndex = 0;
@@ -1719,7 +1721,7 @@ static inline ULONG RestoreSFParam(PMINI_ADAPTER Adapter, ULONG ulAddrSFParamSet
 }
 
 
-static __inline ULONG StoreSFParam(PMINI_ADAPTER Adapter,PUCHAR pucSrcBuffer,ULONG  ulAddrSFParamSet)
+static ULONG StoreSFParam(PMINI_ADAPTER Adapter,PUCHAR pucSrcBuffer,ULONG  ulAddrSFParamSet)
 {
     UINT	nBytesToWrite = sizeof(stServiceFlowParamSI);
 	UINT 	uiRetVal =0;

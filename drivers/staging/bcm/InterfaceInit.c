@@ -342,7 +342,7 @@ static void usbbcm_disconnect (struct usb_interface *intf)
 }
 
 
-static __inline int AllocUsbCb(PS_INTERFACE_ADAPTER psIntfAdapter)
+static int AllocUsbCb(PS_INTERFACE_ADAPTER psIntfAdapter)
 {
 	int i = 0;
 	for(i = 0; i < MAXIMUM_USB_TCB; i++)

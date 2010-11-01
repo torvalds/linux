@@ -75,7 +75,7 @@ static VOID UpdateTokenCount(register PMINI_ADAPTER Adapter)
 * Returns     - The number of bytes allowed for transmission.
 *
 ***********************************************************************/
-static __inline ULONG GetSFTokenCount(PMINI_ADAPTER Adapter, PacketInfo *psSF)
+static ULONG GetSFTokenCount(PMINI_ADAPTER Adapter, PacketInfo *psSF)
 {
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL, "IsPacketAllowedForFlow ===>");
 	/* Validate the parameters */
@@ -107,38 +107,14 @@ static __inline ULONG GetSFTokenCount(PMINI_ADAPTER Adapter, PacketInfo *psSF)
 	return 0;
 }
 
-static __inline void RemovePacketFromQueue(PacketInfo *pPackInfo , struct sk_buff *Packet)
-{
-	struct sk_buff *psQueueCurrent=NULL, *psLastQueueNode=NULL;
-	psQueueCurrent = pPackInfo->FirstTxQueue;
-	while(psQueueCurrent)
-	{
-		if(Packet == psQueueCurrent)
-		{
-			if(psQueueCurrent == pPackInfo->FirstTxQueue)
-			{
-				pPackInfo->FirstTxQueue=psQueueCurrent->next;
-				if(psQueueCurrent==pPackInfo->LastTxQueue)
-					pPackInfo->LastTxQueue=NULL;
-			}
-			else
-			{
-				psLastQueueNode->next=psQueueCurrent->next;
-			}
-			break;
-		}
-		psLastQueueNode = psQueueCurrent;
-		psQueueCurrent=psQueueCurrent->next;
-	}
-}
 /**
 @ingroup tx_functions
 This function despatches packet from the specified queue.
 @return Zero(success) or Negative value(failure)
 */
-static __inline INT SendPacketFromQueue(PMINI_ADAPTER Adapter,/**<Logical Adapter*/
-								PacketInfo *psSF,		/**<Queue identifier*/
-								struct sk_buff*  Packet)	/**<Pointer to the packet to be sent*/
+static INT SendPacketFromQueue(PMINI_ADAPTER Adapter,/**<Logical Adapter*/
+			       PacketInfo *psSF,		/**<Queue identifier*/
+			       struct sk_buff*  Packet)	/**<Pointer to the packet to be sent*/
 {
 	INT  	Status=STATUS_FAILURE;
 	UINT uiIndex =0,PktLen = 0;
@@ -180,8 +156,7 @@ static __inline INT SendPacketFromQueue(PMINI_ADAPTER Adapter,/**<Logical Adapte
 * Returns     - None.
 *
 ****************************************************************************/
-static __inline VOID CheckAndSendPacketFromIndex
-(PMINI_ADAPTER Adapter, PacketInfo *psSF)
+static VOID CheckAndSendPacketFromIndex(PMINI_ADAPTER Adapter, PacketInfo *psSF)
 {
 	struct sk_buff	*QueuePacket=NULL;
 	char 			*pControlPacket = NULL;

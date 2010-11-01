@@ -519,7 +519,7 @@ void SendLinkDown(PMINI_ADAPTER Adapter)
 *
 * Returns     - None.
 *******************************************************************/
-__inline VOID LinkMessage(PMINI_ADAPTER Adapter)
+VOID LinkMessage(PMINI_ADAPTER Adapter)
 {
 	PLINK_REQUEST	pstLinkRequest=NULL;
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, LINK_UP_MSG, DBG_LVL_ALL, "=====>");
@@ -943,8 +943,7 @@ VOID DumpPackInfo(PMINI_ADAPTER Adapter)
 
 }
 
-
-__inline int reset_card_proc(PMINI_ADAPTER ps_adapter)
+int reset_card_proc(PMINI_ADAPTER ps_adapter)
 {
 	int retval = STATUS_SUCCESS;
 
@@ -1074,7 +1073,7 @@ err_exit :
 	return retval;
 }
 
-__inline int run_card_proc(PMINI_ADAPTER ps_adapter )
+int run_card_proc(PMINI_ADAPTER ps_adapter )
 {
 	unsigned int value=0;
 	{

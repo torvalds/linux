@@ -117,7 +117,7 @@ err_exit :
 }
 
 
-static __inline PUSB_TCB GetBulkOutTcb(PS_INTERFACE_ADAPTER psIntfAdapter)
+static PUSB_TCB GetBulkOutTcb(PS_INTERFACE_ADAPTER psIntfAdapter)
 {
 	PUSB_TCB pTcb = NULL;
 	UINT index = 0;
@@ -138,7 +138,7 @@ static __inline PUSB_TCB GetBulkOutTcb(PS_INTERFACE_ADAPTER psIntfAdapter)
 	return pTcb;
 }
 
-static __inline int TransmitTcb(PS_INTERFACE_ADAPTER psIntfAdapter, PUSB_TCB pTcb, PVOID data, int len)
+static int TransmitTcb(PS_INTERFACE_ADAPTER psIntfAdapter, PUSB_TCB pTcb, PVOID data, int len)
 {
 
 	struct urb *urb = pTcb->urb;
