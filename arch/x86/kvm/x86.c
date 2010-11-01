@@ -3978,8 +3978,10 @@ int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu)
 		return X86EMUL_CONTINUE;
 
 	if (kvm_x86_ops->has_wbinvd_exit()) {
+		preempt_disable();
 		smp_call_function_many(vcpu->arch.wbinvd_dirty_mask,
 				wbinvd_ipi, NULL, 1);
+		preempt_enable();
 		cpumask_clear(vcpu->arch.wbinvd_dirty_mask);
 	}
 	wbinvd();
