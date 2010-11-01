@@ -274,6 +274,7 @@ config CPU_SUBTYPE_SH7203
 	select CPU_HAS_FPU
 	select SYS_SUPPORTS_CMT
 	select SYS_SUPPORTS_MTU2
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config CPU_SUBTYPE_SH7206
 	bool "Support SH7206 processor"
@@ -345,6 +346,7 @@ config CPU_SUBTYPE_SH7720
 	select CPU_SH3
 	select CPU_HAS_DSP
 	select SYS_SUPPORTS_CMT
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Select SH7720 if you have a SH3-DSP SH7720 CPU.
 
@@ -407,6 +409,7 @@ config CPU_SUBTYPE_SH7723
 	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_CMT
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Select SH7723 if you have an SH-MobileR2 CPU.
 
@@ -417,6 +420,7 @@ config CPU_SUBTYPE_SH7724
 	select ARCH_SHMOBILE
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_CMT
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Select SH7724 if you have an SH-MobileR2R CPU.
 
@@ -424,6 +428,7 @@ config CPU_SUBTYPE_SH7757
 	bool "Support SH7757 processor"
 	select CPU_SH4A
 	select CPU_SHX2
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  Select SH7757 if you have a SH4A SH7757 CPU.
 
@@ -447,6 +452,7 @@ config CPU_SUBTYPE_SH7785
 	select CPU_SHX2
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config CPU_SUBTYPE_SH7786
 	bool "Support SH7786 processor"
@@ -454,6 +460,7 @@ config CPU_SUBTYPE_SH7786
 	select CPU_SHX3
 	select CPU_HAS_PTEAEX
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config CPU_SUBTYPE_SHX3
 	bool "Support SH-X3 processor"
@@ -478,6 +485,7 @@ config CPU_SUBTYPE_SH7722
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_CMT
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config CPU_SUBTYPE_SH7366
 	bool "Support SH7366 processor"
