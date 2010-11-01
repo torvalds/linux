@@ -5828,6 +5828,7 @@ W:	http://www.tilera.com/scm/
 S:	Supported
 F:	arch/tile/
 F:	drivers/char/hvc_tile.c
+F:	drivers/net/tile/
 
 TLAN NETWORK DRIVER
 M:	Samuel Chessman <chessman@tux.org>
