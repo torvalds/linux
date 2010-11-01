@@ -188,7 +188,7 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	PS_INTERFACE_ADAPTER psIntfAdapter;
 	struct net_device *ndev;
 
-	ndev = alloc_etherdev(sizeof(MINI_ADAPTER));
+	ndev = alloc_etherdev_mq(sizeof(MINI_ADAPTER), NO_OF_QUEUES);
 	if(ndev == NULL) {
 		dev_err(&udev->dev, DRV_NAME ": no memory for device\n");
 		return -ENOMEM;

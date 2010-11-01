@@ -46,13 +46,12 @@ VOID PruneQueueAllSF(PMINI_ADAPTER Adapter);
 
 INT SearchSfid(PMINI_ADAPTER Adapter,UINT uiSfid);
 
-USHORT GetPacketQueueIndex(PMINI_ADAPTER Adapter, /**<Pointer to the driver control structure */
-								struct sk_buff* Packet /**< Pointer to the Packet to be sent*/
-								);
+USHORT ClassifyPacket(PMINI_ADAPTER Adapter,struct sk_buff* skb);
 
-VOID
-reply_to_arp_request(struct sk_buff *skb  /**<sk_buff of ARP request*/
-						);
+BOOLEAN MatchSrcPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushSrcPort);
+BOOLEAN MatchDestPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushSrcPort);
+BOOLEAN MatchProtocol(S_CLASSIFIER_RULE *pstClassifierRule,UCHAR ucProtocol);
+
 
 INT SetupNextSend(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
 					struct sk_buff *Packet, /**<data buffer*/
@@ -66,9 +65,6 @@ INT SendControlPacket(PMINI_ADAPTER Adapter, /**<Logical Adapter*/
 							char *pControlPacket/**<Control Packet*/
 							);
 
-INT bcm_transmit(struct sk_buff *skb, 		/**< skb */
-					struct net_device *dev 	/**< net device pointer */
-					);
 
 int register_networkdev(PMINI_ADAPTER Adapter);
 

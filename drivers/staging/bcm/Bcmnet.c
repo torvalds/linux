@@ -54,6 +54,71 @@ static struct net_device_stats *bcm_get_stats(struct net_device *dev)
 	return netstats;
 }
 
+static u16 bcm_select_queue(struct net_device *dev, struct sk_buff *skb)
+{
+	return ClassifyPacket(netdev_priv(dev), skb);
+}
+
+
+/*******************************************************************
+* Function    -	bcm_transmit()
+*
+* Description - This is the main transmit function for our virtual
+*				interface(eth0). It handles the ARP packets. It
+*				clones this packet and then Queue it to a suitable
+* 		 		Queue. Then calls the transmit_packet().
+*
+* Parameter   -	 skb - Pointer to the socket buffer structure
+*				 dev - Pointer to the virtual net device structure
+*
+*********************************************************************/
+
+static netdev_tx_t bcm_transmit(struct sk_buff *skb, struct net_device *dev)
+{
+	PMINI_ADAPTER      Adapter = GET_BCM_ADAPTER(dev);
+	u16 qindex = skb_get_queue_mapping(skb);
+
+	if (Adapter->device_removed || !Adapter->LinkUpStatus)
+		goto drop;
+
+	if (Adapter->TransferMode != IP_PACKET_ONLY_MODE )
+		goto drop;
+
+	if (INVALID_QUEUE_INDEX==qindex)
+		goto drop;
+
+	if (Adapter->PackInfo[qindex].uiCurrentPacketsOnHost >= SF_MAX_ALLOWED_PACKETS_TO_BACKUP)
+		return NETDEV_TX_BUSY;
+
+	/* Now Enqueue the packet */
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL,
+			"bcm_transmit Enqueueing the Packet To Queue %d",qindex);
+	spin_lock(&Adapter->PackInfo[qindex].SFQueueLock);
+	Adapter->PackInfo[qindex].uiCurrentBytesOnHost += skb->len;
+	Adapter->PackInfo[qindex].uiCurrentPacketsOnHost++;
+
+	*((B_UINT32 *)skb->cb + SKB_CB_LATENCY_OFFSET ) = jiffies;
+	ENQUEUEPACKET(Adapter->PackInfo[qindex].FirstTxQueue,
+		      Adapter->PackInfo[qindex].LastTxQueue, skb);
+	atomic_inc(&Adapter->TotalPacketCount);
+	spin_unlock(&Adapter->PackInfo[qindex].SFQueueLock);
+
+	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, TX_OSAL_DBG, DBG_LVL_ALL,"ENQ: \n");
+
+	/* FIXME - this is racy and incorrect, replace with work queue */
+	if (!atomic_read(&Adapter->TxPktAvail)) {
+		atomic_set(&Adapter->TxPktAvail, 1);
+		wake_up(&Adapter->tx_packet_wait_queue);
+	}
+	return NETDEV_TX_OK;
+
+ drop:
+	dev_kfree_skb(skb);
+	return NETDEV_TX_OK;
+}
+
+
+
 /**
 @ingroup init_functions
 Register other driver entry points with the kernel
@@ -66,6 +131,7 @@ static const struct net_device_ops bcmNetDevOps = {
     .ndo_change_mtu	= eth_change_mtu,
     .ndo_set_mac_address = eth_mac_addr,
     .ndo_validate_addr	= eth_validate_addr,
+    .ndo_select_queue	= bcm_select_queue,
 };
 
 static struct device_type wimax_type = {

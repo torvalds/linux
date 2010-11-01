@@ -4,13 +4,6 @@ This file contains the routines related to Quality of Service.
 */
 #include "headers.h"
 
-BOOLEAN MatchSrcIpAddress(S_CLASSIFIER_RULE *pstClassifierRule,ULONG ulSrcIP);
-BOOLEAN MatchTos(S_CLASSIFIER_RULE *pstClassifierRule,UCHAR ucTypeOfService);
-BOOLEAN MatchSrcPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushSrcPort);
-BOOLEAN MatchDestPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushDestPort);
-BOOLEAN MatchProtocol(S_CLASSIFIER_RULE *pstClassifierRule,UCHAR ucProtocol);
-BOOLEAN MatchDestIpAddress(S_CLASSIFIER_RULE *pstClassifierRule,ULONG ulDestIP);
-USHORT ClassifyPacket(PMINI_ADAPTER Adapter,struct sk_buff* skb);
 void EThCSGetPktInfo(PMINI_ADAPTER Adapter,PVOID pvEthPayload,PS_ETHCS_PKT_INFO pstEthCsPktInfo);
 BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo,S_CLASSIFIER_RULE *pstClassifierRule, B_UINT8 EthCSCupport);
 
@@ -311,29 +304,6 @@ USHORT	IpVersion4(PMINI_ADAPTER Adapter, /**< Pointer to the driver control stru
 	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "IpVersion4 <==========");
 
 	return bClassificationSucceed;
-}
-/**
-@ingroup tx_functions
-@return  Queue Index based on priority.
-*/
-USHORT GetPacketQueueIndex(PMINI_ADAPTER Adapter, /**<Pointer to the driver control structure */
-								struct sk_buff* Packet /**< Pointer to the Packet to be sent*/
-								)
-{
-	USHORT			usIndex=-1;
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, QUEUE_INDEX, DBG_LVL_ALL, "=====>");
-
-	if(NULL==Adapter || NULL==Packet)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, QUEUE_INDEX, DBG_LVL_ALL, "Got NULL Values<======");
-		return -1;
-	}
-
-	usIndex = ClassifyPacket(Adapter,Packet);
-
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, QUEUE_INDEX, DBG_LVL_ALL, "Got Queue Index %x",usIndex);
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, QUEUE_INDEX, DBG_LVL_ALL, "GetPacketQueueIndex <==============");
-	return usIndex;
 }
 
 VOID PruneQueueAllSF(PMINI_ADAPTER Adapter)
