@@ -567,15 +567,6 @@ config SH_CLK_CPG_LEGACY
 	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE && \
 		      !CPU_SHX3 && !CPU_SUBTYPE_SH7757
 
-config SH_CLK_MD
-	int "CPU Mode Pin Setting"
-	depends on CPU_SH2
-	default 6 if CPU_SUBTYPE_SH7206
-	default 5 if CPU_SUBTYPE_SH7619
-	default 0
-	help
-	  MD2 - MD0 pin setting.
-
 source "kernel/time/Kconfig"
 
 endmenu
