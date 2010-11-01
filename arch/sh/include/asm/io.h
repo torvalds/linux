@@ -1,5 +1,6 @@
 #ifndef __ASM_SH_IO_H
 #define __ASM_SH_IO_H
+
 /*
  * Convention:
  *    read{b,w,l,q}/write{b,w,l,q} are for PCI,
@@ -15,12 +16,6 @@
  * SuperH specific I/O (raw I/O to on-chip CPU peripherals). In practice
  * these have the same semantics as the __raw variants, and as such, all
  * new code should be using the __raw versions.
- *
- * All ISA I/O routines are wrapped through the machine vector. If a
- * board does not provide overrides, a generic set that are copied in
- * from the default machine vector are used instead. These are largely
- * for old compat code for I/O offseting to SuperIOs, all of which are
- * better handled through the machvec ioport mapping routines these days.
  */
 #include <linux/errno.h>
 #include <asm/cache.h>
@@ -31,38 +26,9 @@
 #include <asm-generic/iomap.h>
 
 #ifdef __KERNEL__
-/*
- * Depending on which platform we are running on, we need different
- * I/O functions.
- */
-#define __IO_PREFIX	generic
+#define __IO_PREFIX     generic
 #include <asm/io_generic.h>
 #include <asm/io_trapped.h>
-
-#ifdef CONFIG_HAS_IOPORT
-
-#define inb(p)			sh_mv.mv_inb((p))
-#define inw(p)			sh_mv.mv_inw((p))
-#define inl(p)			sh_mv.mv_inl((p))
-#define outb(x,p)		sh_mv.mv_outb((x),(p))
-#define outw(x,p)		sh_mv.mv_outw((x),(p))
-#define outl(x,p)		sh_mv.mv_outl((x),(p))
-
-#define inb_p(p)		sh_mv.mv_inb_p((p))
-#define inw_p(p)		sh_mv.mv_inw_p((p))
-#define inl_p(p)		sh_mv.mv_inl_p((p))
-#define outb_p(x,p)		sh_mv.mv_outb_p((x),(p))
-#define outw_p(x,p)		sh_mv.mv_outw_p((x),(p))
-#define outl_p(x,p)		sh_mv.mv_outl_p((x),(p))
-
-#define insb(p,b,c)		sh_mv.mv_insb((p), (b), (c))
-#define insw(p,b,c)		sh_mv.mv_insw((p), (b), (c))
-#define insl(p,b,c)		sh_mv.mv_insl((p), (b), (c))
-#define outsb(p,b,c)		sh_mv.mv_outsb((p), (b), (c))
-#define outsw(p,b,c)		sh_mv.mv_outsw((p), (b), (c))
-#define outsl(p,b,c)		sh_mv.mv_outsl((p), (b), (c))
-
-#endif
 
 #define __raw_writeb(v,a)	(__chk_io_ptr(a), *(volatile u8  __force *)(a) = (v))
 #define __raw_writew(v,a)	(__chk_io_ptr(a), *(volatile u16 __force *)(a) = (v))
@@ -74,15 +40,196 @@
 #define __raw_readl(a)		(__chk_io_ptr(a), *(volatile u32 __force *)(a))
 #define __raw_readq(a)		(__chk_io_ptr(a), *(volatile u64 __force *)(a))
 
-#define readb(a)		({ u8  r_ = __raw_readb(a); mb(); r_; })
-#define readw(a)		({ u16 r_ = __raw_readw(a); mb(); r_; })
-#define readl(a)		({ u32 r_ = __raw_readl(a); mb(); r_; })
-#define readq(a)		({ u64 r_ = __raw_readq(a); mb(); r_; })
+#define readb_relaxed(c)	({ u8  __v = __raw_readb(c); __v; })
+#define readw_relaxed(c)	({ u16 __v = le16_to_cpu((__force __le16) \
+					__raw_readw(c)); __v; })
+#define readl_relaxed(c)	({ u32 __v = le32_to_cpu((__force __le32) \
+					__raw_readl(c)); __v; })
+#define readq_relaxed(c)	({ u64 __v = le64_to_cpu((__force __le64) \
+					__raw_readq(c)); __v; })
 
-#define writeb(v,a)		({ __raw_writeb((v),(a)); mb(); })
-#define writew(v,a)		({ __raw_writew((v),(a)); mb(); })
-#define writel(v,a)		({ __raw_writel((v),(a)); mb(); })
-#define writeq(v,a)		({ __raw_writeq((v),(a)); mb(); })
+#define writeb_relaxed(v,c)	((void)__raw_writeb(v,c))
+#define writew_relaxed(v,c)	((void)__raw_writew((__force u16) \
+					cpu_to_le16(v),c))
+#define writel_relaxed(v,c)	((void)__raw_writel((__force u32) \
+					cpu_to_le32(v),c))
+#define writeq_relaxed(v,c)	((void)__raw_writeq((__force u64) \
+					cpu_to_le64(v),c))
+
+#define readb(a)		({ u8  r_ = readb_relaxed(a); rmb(); r_; })
+#define readw(a)		({ u16 r_ = readw_relaxed(a); rmb(); r_; })
+#define readl(a)		({ u32 r_ = readl_relaxed(a); rmb(); r_; })
+#define readq(a)		({ u64 r_ = readq_relaxed(a); rmb(); r_; })
+
+#define writeb(v,a)		({ wmb(); writeb_relaxed((v),(a)); })
+#define writew(v,a)		({ wmb(); writew_relaxed((v),(a)); })
+#define writel(v,a)		({ wmb(); writel_relaxed((v),(a)); })
+#define writeq(v,a)		({ wmb(); writeq_relaxed((v),(a)); })
+
+#define readsb(p,d,l)		__raw_readsb(p,d,l)
+#define readsw(p,d,l)		__raw_readsw(p,d,l)
+#define readsl(p,d,l)		__raw_readsl(p,d,l)
+
+#define writesb(p,d,l)		__raw_writesb(p,d,l)
+#define writesw(p,d,l)		__raw_writesw(p,d,l)
+#define writesl(p,d,l)		__raw_writesl(p,d,l)
+
+#define __BUILD_UNCACHED_IO(bwlq, type)					\
+static inline type read##bwlq##_uncached(unsigned long addr)		\
+{									\
+	type ret;							\
+	jump_to_uncached();						\
+	ret = __raw_read##bwlq(addr);					\
+	back_to_cached();						\
+	return ret;							\
+}									\
+									\
+static inline void write##bwlq##_uncached(type v, unsigned long addr)	\
+{									\
+	jump_to_uncached();						\
+	__raw_write##bwlq(v, addr);					\
+	back_to_cached();						\
+}
+
+__BUILD_UNCACHED_IO(b, u8)
+__BUILD_UNCACHED_IO(w, u16)
+__BUILD_UNCACHED_IO(l, u32)
+__BUILD_UNCACHED_IO(q, u64)
+
+#define __BUILD_MEMORY_STRING(pfx, bwlq, type)				\
+									\
+static inline void							\
+pfx##writes##bwlq(volatile void __iomem *mem, const void *addr,		\
+		  unsigned int count)					\
+{									\
+	const volatile type *__addr = addr;				\
+									\
+	while (count--) {						\
+		__raw_write##bwlq(*__addr, mem);			\
+		__addr++;						\
+	}								\
+}									\
+									\
+static inline void pfx##reads##bwlq(volatile void __iomem *mem,		\
+				    void *addr, unsigned int count)	\
+{									\
+	volatile type *__addr = addr;					\
+									\
+	while (count--) {						\
+		*__addr = __raw_read##bwlq(mem);			\
+		__addr++;						\
+	}								\
+}
+
+__BUILD_MEMORY_STRING(__raw_, b, u8)
+__BUILD_MEMORY_STRING(__raw_, w, u16)
+
+#ifdef CONFIG_SUPERH32
+void __raw_writesl(void __iomem *addr, const void *data, int longlen);
+void __raw_readsl(const void __iomem *addr, void *data, int longlen);
+#else
+__BUILD_MEMORY_STRING(__raw_, l, u32)
+#endif
+
+__BUILD_MEMORY_STRING(__raw_, q, u64)
+
+#ifdef CONFIG_HAS_IOPORT
+
+/*
+ * Slowdown I/O port space accesses for antique hardware.
+ */
+#undef CONF_SLOWDOWN_IO
+
+/*
+ * On SuperH I/O ports are memory mapped, so we access them using normal
+ * load/store instructions. sh_io_port_base is the virtual address to
+ * which all ports are being mapped.
+ */
+extern const unsigned long sh_io_port_base;
+
+static inline void __set_io_port_base(unsigned long pbase)
+{
+	*(unsigned long *)&sh_io_port_base = pbase;
+	barrier();
+}
+
+#ifdef CONFIG_GENERIC_IOMAP
+#define __ioport_map ioport_map
+#else
+extern void __iomem *__ioport_map(unsigned long addr, unsigned int size);
+#endif
+
+#ifdef CONF_SLOWDOWN_IO
+#define SLOW_DOWN_IO __raw_readw(sh_io_port_base)
+#else
+#define SLOW_DOWN_IO
+#endif
+
+#define __BUILD_IOPORT_SINGLE(pfx, bwlq, type, p, slow)			\
+									\
+static inline void pfx##out##bwlq##p(type val, unsigned long port)	\
+{									\
+	volatile type *__addr;						\
+									\
+	__addr = __ioport_map(port, sizeof(type));			\
+	*__addr = val;							\
+	slow;								\
+}									\
+									\
+static inline type pfx##in##bwlq##p(unsigned long port)			\
+{									\
+	volatile type *__addr;						\
+	type __val;							\
+									\
+	__addr = __ioport_map(port, sizeof(type));			\
+	__val = *__addr;						\
+	slow;								\
+									\
+	return __val;							\
+}
+
+#define __BUILD_IOPORT_PFX(bus, bwlq, type)				\
+	__BUILD_IOPORT_SINGLE(bus, bwlq, type, ,)			\
+	__BUILD_IOPORT_SINGLE(bus, bwlq, type, _p, SLOW_DOWN_IO)
+
+#define BUILDIO_IOPORT(bwlq, type)					\
+	__BUILD_IOPORT_PFX(, bwlq, type)
+
+BUILDIO_IOPORT(b, u8)
+BUILDIO_IOPORT(w, u16)
+BUILDIO_IOPORT(l, u32)
+BUILDIO_IOPORT(q, u64)
+
+#define __BUILD_IOPORT_STRING(bwlq, type)				\
+									\
+static inline void outs##bwlq(unsigned long port, const void *addr,	\
+			      unsigned int count)			\
+{									\
+	const volatile type *__addr = addr;				\
+									\
+	while (count--) {						\
+		out##bwlq(*__addr, port);				\
+		__addr++;						\
+	}								\
+}									\
+									\
+static inline void ins##bwlq(unsigned long port, void *addr,		\
+			     unsigned int count)			\
+{									\
+	volatile type *__addr = addr;					\
+									\
+	while (count--) {						\
+		*__addr = in##bwlq(port);				\
+		__addr++;						\
+	}								\
+}
+
+__BUILD_IOPORT_STRING(b, u8)
+__BUILD_IOPORT_STRING(w, u16)
+__BUILD_IOPORT_STRING(l, u32)
+__BUILD_IOPORT_STRING(q, u64)
+
+#endif
 
 /*
  * Legacy SuperH on-chip I/O functions
@@ -130,138 +277,10 @@ static inline void __deprecated ctrl_outq(u64 v, unsigned long addr)
 	__raw_writeq(v, addr);
 }
 
-extern unsigned long generic_io_base;
-
-static inline void ctrl_delay(void)
-{
-	__raw_readw(generic_io_base);
-}
-
-#define __BUILD_UNCACHED_IO(bwlq, type)					\
-static inline type read##bwlq##_uncached(unsigned long addr)		\
-{									\
-	type ret;							\
-	jump_to_uncached();						\
-	ret = __raw_read##bwlq(addr);					\
-	back_to_cached();						\
-	return ret;							\
-}									\
-									\
-static inline void write##bwlq##_uncached(type v, unsigned long addr)	\
-{									\
-	jump_to_uncached();						\
-	__raw_write##bwlq(v, addr);					\
-	back_to_cached();						\
-}
-
-__BUILD_UNCACHED_IO(b, u8)
-__BUILD_UNCACHED_IO(w, u16)
-__BUILD_UNCACHED_IO(l, u32)
-__BUILD_UNCACHED_IO(q, u64)
-
-#define __BUILD_MEMORY_STRING(bwlq, type)				\
-									\
-static inline void __raw_writes##bwlq(volatile void __iomem *mem,	\
-				const void *addr, unsigned int count)	\
-{									\
-	const volatile type *__addr = addr;				\
-									\
-	while (count--) {						\
-		__raw_write##bwlq(*__addr, mem);			\
-		__addr++;						\
-	}								\
-}									\
-									\
-static inline void __raw_reads##bwlq(volatile void __iomem *mem,	\
-			       void *addr, unsigned int count)		\
-{									\
-	volatile type *__addr = addr;					\
-									\
-	while (count--) {						\
-		*__addr = __raw_read##bwlq(mem);			\
-		__addr++;						\
-	}								\
-}
-
-__BUILD_MEMORY_STRING(b, u8)
-__BUILD_MEMORY_STRING(w, u16)
-
-#ifdef CONFIG_SUPERH32
-void __raw_writesl(void __iomem *addr, const void *data, int longlen);
-void __raw_readsl(const void __iomem *addr, void *data, int longlen);
-#else
-__BUILD_MEMORY_STRING(l, u32)
-#endif
-
-__BUILD_MEMORY_STRING(q, u64)
-
-#define writesb			__raw_writesb
-#define writesw			__raw_writesw
-#define writesl			__raw_writesl
-
-#define readsb			__raw_readsb
-#define readsw			__raw_readsw
-#define readsl			__raw_readsl
-
-#define readb_relaxed(a)	readb(a)
-#define readw_relaxed(a)	readw(a)
-#define readl_relaxed(a)	readl(a)
-#define readq_relaxed(a)	readq(a)
-
-#ifndef CONFIG_GENERIC_IOMAP
-/* Simple MMIO */
-#define ioread8(a)		__raw_readb(a)
-#define ioread16(a)		__raw_readw(a)
-#define ioread16be(a)		be16_to_cpu(__raw_readw((a)))
-#define ioread32(a)		__raw_readl(a)
-#define ioread32be(a)		be32_to_cpu(__raw_readl((a)))
-
-#define iowrite8(v,a)		__raw_writeb((v),(a))
-#define iowrite16(v,a)		__raw_writew((v),(a))
-#define iowrite16be(v,a)	__raw_writew(cpu_to_be16((v)),(a))
-#define iowrite32(v,a)		__raw_writel((v),(a))
-#define iowrite32be(v,a)	__raw_writel(cpu_to_be32((v)),(a))
-
-#define ioread8_rep(a, d, c)	__raw_readsb((a), (d), (c))
-#define ioread16_rep(a, d, c)	__raw_readsw((a), (d), (c))
-#define ioread32_rep(a, d, c)	__raw_readsl((a), (d), (c))
-
-#define iowrite8_rep(a, s, c)	__raw_writesb((a), (s), (c))
-#define iowrite16_rep(a, s, c)	__raw_writesw((a), (s), (c))
-#define iowrite32_rep(a, s, c)	__raw_writesl((a), (s), (c))
-#endif
-
-#define mmio_insb(p,d,c)	__raw_readsb(p,d,c)
-#define mmio_insw(p,d,c)	__raw_readsw(p,d,c)
-#define mmio_insl(p,d,c)	__raw_readsl(p,d,c)
-
-#define mmio_outsb(p,s,c)	__raw_writesb(p,s,c)
-#define mmio_outsw(p,s,c)	__raw_writesw(p,s,c)
-#define mmio_outsl(p,s,c)	__raw_writesl(p,s,c)
+#define IO_SPACE_LIMIT 0xffffffff
 
 /* synco on SH-4A, otherwise a nop */
 #define mmiowb()		wmb()
-
-#define IO_SPACE_LIMIT 0xffffffff
-
-#ifdef CONFIG_HAS_IOPORT
-
-/*
- * This function provides a method for the generic case where a
- * board-specific ioport_map simply needs to return the port + some
- * arbitrary port base.
- *
- * We use this at board setup time to implicitly set the port base, and
- * as a result, we can use the generic ioport_map.
- */
-static inline void __set_io_port_base(unsigned long pbase)
-{
-	generic_io_base = pbase;
-}
-
-#define __ioport_map(p, n) sh_mv.mv_ioport_map((p), (n))
-
-#endif
 
 /* We really want to try and get these to memcpy etc */
 void memcpy_fromio(void *, const volatile void __iomem *, unsigned long);
@@ -394,10 +413,6 @@ static inline int iounmap_fixed(void __iomem *addr) { return -EINVAL; }
 
 #define ioremap_nocache	ioremap
 #define iounmap		__iounmap
-
-#define maybebadio(port) \
-	printk(KERN_ERR "bad PC-like io %s:%u for port 0x%lx at 0x%08x\n", \
-	       __func__, __LINE__, (port), (u32)__builtin_return_address(0))
 
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
