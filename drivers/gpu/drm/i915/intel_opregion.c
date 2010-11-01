@@ -512,6 +512,6 @@ int intel_opregion_setup(struct drm_device *dev)
 	return 0;
 
 err_out:
-	iounmap(opregion->header);
+	iounmap(base);
 	return err;
 }
