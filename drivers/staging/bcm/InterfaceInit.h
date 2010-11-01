@@ -19,11 +19,7 @@ INT InterfaceInitialize(void);
 
 INT InterfaceExit(void);
 
-INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER Adapter);
-
 INT usbbcm_worker_thread(PS_INTERFACE_ADAPTER psIntfAdapter);
-
-VOID InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter);
 
 #endif
 

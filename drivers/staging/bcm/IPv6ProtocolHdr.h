@@ -101,15 +101,12 @@ typedef enum _E_IPADDR_CONTEXT
 
 
 //Function Prototypes
-BOOLEAN MatchSrcIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,IPV6Header *pstIpv6Header);
-BOOLEAN MatchDestIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,IPV6Header *pstIpv6Header);
 
 USHORT	IpVersion6(PMINI_ADAPTER Adapter, /**< Pointer to the driver control structure */
 					PVOID pcIpHeader, /**<Pointer to the IP Hdr of the packet*/
 					S_CLASSIFIER_RULE *pstClassifierRule );
 
 VOID DumpIpv6Address(ULONG *puIpv6Address);
-VOID DumpIpv6Header(IPV6Header *pstIpv6Header);
 
 extern BOOLEAN MatchSrcPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushSrcPort);
 extern BOOLEAN MatchDestPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushSrcPort);

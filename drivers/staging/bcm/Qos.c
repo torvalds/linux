@@ -4,8 +4,14 @@ This file contains the routines related to Quality of Service.
 */
 #include "headers.h"
 
-void EThCSGetPktInfo(PMINI_ADAPTER Adapter,PVOID pvEthPayload,PS_ETHCS_PKT_INFO pstEthCsPktInfo);
-BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo,S_CLASSIFIER_RULE *pstClassifierRule, B_UINT8 EthCSCupport);
+static void EThCSGetPktInfo(PMINI_ADAPTER Adapter,PVOID pvEthPayload,PS_ETHCS_PKT_INFO pstEthCsPktInfo);
+static BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo,S_CLASSIFIER_RULE *pstClassifierRule, B_UINT8 EthCSCupport);
+
+static USHORT	IpVersion4(PMINI_ADAPTER Adapter, struct iphdr *iphd,
+			   S_CLASSIFIER_RULE *pstClassifierRule );
+
+static VOID PruneQueue(PMINI_ADAPTER Adapter, INT iIndex);
+
 
 /*******************************************************************
 * Function    - MatchSrcIpAddress()
@@ -198,11 +204,10 @@ BOOLEAN MatchDestPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushDestPort)
 Compares IPV4 Ip address and port number
 @return Queue Index.
 */
-USHORT	IpVersion4(PMINI_ADAPTER Adapter, /**< Pointer to the driver control structure */
-					struct iphdr *iphd, /**<Pointer to the IP Hdr of the packet*/
-					S_CLASSIFIER_RULE *pstClassifierRule )
+static USHORT	IpVersion4(PMINI_ADAPTER Adapter,
+			   struct iphdr *iphd,
+			   S_CLASSIFIER_RULE *pstClassifierRule )
 {
-	//IPHeaderFormat 		*pIpHeader=NULL;
 	xporthdr     		*xprt_hdr=NULL;
 	BOOLEAN	bClassificationSucceed=FALSE;
 
@@ -318,9 +323,7 @@ is less than number of bytes in the queue. If so -
 drops packets from the Head till the number of bytes is
 less than or equal to max queue size for the queue.
 */
-VOID PruneQueue(PMINI_ADAPTER Adapter,/**<Pointer to the driver control structure*/
-					INT iIndex/**<Queue Index*/
-					)
+static VOID PruneQueue(PMINI_ADAPTER Adapter, INT iIndex)
 {
 	struct sk_buff* PacketToDrop=NULL;
 	struct net_device_stats *netstats;
@@ -772,7 +775,10 @@ static BOOLEAN EthCSMatchVLANRules(S_CLASSIFIER_RULE *pstClassifierRule,struct s
 }
 
 
-BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,PS_ETHCS_PKT_INFO pstEthCsPktInfo,S_CLASSIFIER_RULE *pstClassifierRule, B_UINT8 EthCSCupport)
+static BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,
+				PS_ETHCS_PKT_INFO pstEthCsPktInfo,
+				S_CLASSIFIER_RULE *pstClassifierRule,
+				B_UINT8 EthCSCupport)
 {
 	BOOLEAN bClassificationSucceed = FALSE;
 	bClassificationSucceed = EthCSMatchSrcMACAddress(pstClassifierRule,((ETH_HEADER_STRUC *)(skb->data))->au8SourceAddress);
@@ -802,9 +808,11 @@ BOOLEAN EThCSClassifyPkt(PMINI_ADAPTER Adapter,struct sk_buff* skb,PS_ETHCS_PKT_
 	return bClassificationSucceed;
 }
 
-void EThCSGetPktInfo(PMINI_ADAPTER Adapter,PVOID pvEthPayload,PS_ETHCS_PKT_INFO pstEthCsPktInfo)
+static void EThCSGetPktInfo(PMINI_ADAPTER Adapter,PVOID pvEthPayload,
+			    PS_ETHCS_PKT_INFO pstEthCsPktInfo)
 {
 	USHORT u16Etype = ntohs(((ETH_HEADER_STRUC*)pvEthPayload)->u16Etype);
+
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL,  "EthCSGetPktInfo : Eth Hdr Type : %X\n",u16Etype);
 	if(u16Etype > 0x5dc)
 	{

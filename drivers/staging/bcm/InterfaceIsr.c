@@ -167,39 +167,3 @@ INT StartInterruptUrb(PS_INTERFACE_ADAPTER psIntfAdapter)
 	return status;
 }
 
-/*
-Function:				InterfaceEnableInterrupt
-
-Description:			This is the hardware specific Function for configuring
-						and enabling the interrupts on the device.
-
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
-
-
-Return:				BCM_STATUS_SUCCESS - If configuring the interrupts was successful.
-						Other           - If an error occured.
-*/
-
-void InterfaceEnableInterrupt(PMINI_ADAPTER Adapter)
-{
-
-}
-
-/*
-Function:				InterfaceDisableInterrupt
-
-Description:			This is the hardware specific Function for disabling the interrupts on the device.
-
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
-
-
-Return:				BCM_STATUS_SUCCESS - If disabling the interrupts was successful.
-						Other           - If an error occured.
-*/
-
-void InterfaceDisableInterrupt(PMINI_ADAPTER Adapter)
-{
-
-}
-
-

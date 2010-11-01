@@ -146,17 +146,7 @@ int InterfaceIdleModeRespond(PMINI_ADAPTER Adapter, unsigned int* puiBuffer)
 	return status;
 }
 
-
-VOID InterfaceWriteIdleModeWakePattern(PMINI_ADAPTER Adapter)
-{
-/*	BeceemWriteMemoryUshort(Adapter, Host2CPU_Mailbox_Low, 0x1d1e);
-	BeceemWriteMemoryUshort(Adapter, Host2CPU_Mailbox_Low, 0x1d1e);
-	BeceemWriteMemoryUshort(Adapter, Host2CPU_Mailbox_Upp, 0xd0ea);
-	BeceemWriteMemoryUshort(Adapter, Host2CPU_Mailbox_Upp, 0xd0ea);*/
-	return;
-}
-
-int InterfaceAbortIdlemode(PMINI_ADAPTER Adapter, unsigned int Pattern)
+static int InterfaceAbortIdlemode(PMINI_ADAPTER Adapter, unsigned int Pattern)
 {
 	int 	status = STATUS_SUCCESS;
 	unsigned int value;

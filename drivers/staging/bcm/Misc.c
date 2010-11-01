@@ -1,5 +1,12 @@
 #include "headers.h"
 
+static int BcmFileDownload(PMINI_ADAPTER Adapter, const char *path,
+                        unsigned int loc);
+static VOID doPowerAutoCorrection(PMINI_ADAPTER psAdapter);
+static void HandleShutDownModeRequest(PMINI_ADAPTER Adapter,PUCHAR pucBuffer);
+static int bcm_parse_target_params(PMINI_ADAPTER Adapter);
+static void beceem_protocol_reset (PMINI_ADAPTER Adapter);
+
 static VOID default_wimax_protocol_initialize(PMINI_ADAPTER Adapter)
 {
 
@@ -175,7 +182,7 @@ static int create_worker_threads(PMINI_ADAPTER psAdapter)
 	return 0;
 }
 
-static struct file *open_firmware_file(PMINI_ADAPTER Adapter, char *path)
+static struct file *open_firmware_file(PMINI_ADAPTER Adapter, const char *path)
 {
     struct file             *flp=NULL;
     mm_segment_t        oldfs;
@@ -197,8 +204,8 @@ static struct file *open_firmware_file(PMINI_ADAPTER Adapter, char *path)
 }
 
 
-int BcmFileDownload(PMINI_ADAPTER Adapter,/**< Logical Adapter */
-                        char *path,     /**< path to image file */
+static int BcmFileDownload(PMINI_ADAPTER Adapter,/**< Logical Adapter */
+                        const char *path,     /**< path to image file */
                         unsigned int loc    /**< Download Address on the chip*/
                         )
 {
@@ -477,18 +484,6 @@ static VOID SendStatisticsPointerRequest(PMINI_ADAPTER Adapter,
 }
 #endif
 
-
-void SendLinkDown(PMINI_ADAPTER Adapter)
-{
-	LINK_REQUEST	stLinkDownRequest;
-	memset(&stLinkDownRequest, 0, sizeof(LINK_REQUEST));
-	stLinkDownRequest.Leader.Status=LINK_UP_CONTROL_REQ;
-	stLinkDownRequest.Leader.PLength=sizeof(ULONG);//minimum 4 bytes
-	stLinkDownRequest.szData[0]=LINK_DOWN_REQ_PAYLOAD;
-	Adapter->bLinkDownRequested = TRUE;
-
-	CopyBufferToControlPacket(Adapter,&stLinkDownRequest);
-}
 
 /******************************************************************
 * Function    - LinkMessage()
@@ -1229,7 +1224,7 @@ OUT:
 }
 
 
-int bcm_parse_target_params(PMINI_ADAPTER Adapter)
+static int bcm_parse_target_params(PMINI_ADAPTER Adapter)
 {
 	struct file 		*flp=NULL;
 	mm_segment_t 	oldfs={0};
@@ -1357,7 +1352,7 @@ void beceem_parse_target_struct(PMINI_ADAPTER Adapter)
 
 }
 
-VOID doPowerAutoCorrection(PMINI_ADAPTER psAdapter)
+static VOID doPowerAutoCorrection(PMINI_ADAPTER psAdapter)
 {
 	UINT reporting_mode;
 
@@ -1496,26 +1491,7 @@ int rdmalt (PMINI_ADAPTER Adapter, UINT uiAddress, PUINT pucBuff, size_t size)
 	return uiRetVal;
 }
 
-int rdmWithLock(PMINI_ADAPTER Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
-{
 
-	INT status = STATUS_SUCCESS ;
-	down(&Adapter->rdmwrmsync);
-
-	if((Adapter->IdleMode == TRUE) ||
-		(Adapter->bShutStatus ==TRUE) ||
-		(Adapter->bPreparingForLowPowerMode ==TRUE))
-	{
-		status = -EACCES;
-		goto exit;
-	}
-
-	status = rdm(Adapter, uiAddress, pucBuff, sSize);
-
-exit:
-	up(&Adapter->rdmwrmsync);
-	return status ;
-}
 int wrmWithLock(PMINI_ADAPTER Adapter, UINT uiAddress, PCHAR pucBuff, size_t sSize)
 {
 	INT status = STATUS_SUCCESS ;
@@ -1707,7 +1683,7 @@ static VOID SendShutModeResponse(PMINI_ADAPTER Adapter)
 }
 
 
-void HandleShutDownModeRequest(PMINI_ADAPTER Adapter,PUCHAR pucBuffer)
+static void HandleShutDownModeRequest(PMINI_ADAPTER Adapter,PUCHAR pucBuffer)
 {
 	B_UINT32 uiResetValue = 0;
 
@@ -1891,7 +1867,7 @@ void flush_queue(PMINI_ADAPTER Adapter, UINT iQIndex)
 
 }
 
-void beceem_protocol_reset (PMINI_ADAPTER Adapter)
+static void beceem_protocol_reset (PMINI_ADAPTER Adapter)
 {
 	int i;
 

@@ -11,7 +11,9 @@ static struct usb_device_id InterfaceUsbtable[] = {
 };
 MODULE_DEVICE_TABLE(usb, InterfaceUsbtable);
 
-VOID InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
+static INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER Adapter);
+
+static VOID InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
 {
 	INT i = 0;
 	// Wake up the wait_queue...
@@ -58,7 +60,7 @@ VOID InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
 	AdapterFree(psIntfAdapter->psAdapter);
 }
 
-VOID ConfigureEndPointTypesThroughEEPROM(PMINI_ADAPTER Adapter)
+static VOID ConfigureEndPointTypesThroughEEPROM(PMINI_ADAPTER Adapter)
 {
 	ULONG ulReg = 0;
 
@@ -441,7 +443,7 @@ static inline int bcm_usb_endpoint_is_isoc_out(const struct usb_endpoint_descrip
 	return (bcm_usb_endpoint_xfer_isoc(epd) && bcm_usb_endpoint_dir_out(epd));
 }
 
-INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
+static INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 {
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;

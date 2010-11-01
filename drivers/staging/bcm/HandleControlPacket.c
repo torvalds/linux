@@ -11,8 +11,7 @@ When a control packet is received, analyze the
 Enqueue the control packet for Application.
 @return None
 */
-VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, 	/**<Pointer to the Adapter structure*/
-								struct sk_buff *skb)				/**<Pointer to the socket buffer*/
+static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 {
 	PPER_TARANG_DATA	pTarang = NULL;
 	BOOLEAN HighPriorityMessage = FALSE;

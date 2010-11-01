@@ -1,6 +1,56 @@
 #include "headers.h"
 
 #define DWORD unsigned int
+
+static INT BcmDoChipSelect(PMINI_ADAPTER Adapter, UINT offset);
+static INT BcmGetActiveDSD(PMINI_ADAPTER Adapter);
+static INT BcmGetActiveISO(PMINI_ADAPTER Adapter);
+static UINT BcmGetEEPROMSize(PMINI_ADAPTER Adapter);
+static INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter);
+static UINT BcmGetFlashSectorSize(PMINI_ADAPTER Adapter, UINT FlashSectorSizeSig, UINT FlashSectorSize);
+
+static VOID BcmValidateNvmType(PMINI_ADAPTER Adapter);
+static INT BcmGetNvmSize(PMINI_ADAPTER Adapter);
+static UINT BcmGetFlashSize(PMINI_ADAPTER Adapter);
+static NVM_TYPE BcmGetNvmType(PMINI_ADAPTER Adapter);
+
+static INT BcmGetSectionValEndOffset(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
+
+static B_UINT8 IsOffsetWritable(PMINI_ADAPTER Adapter, UINT uiOffset);
+static INT IsSectionWritable(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL Section);
+static INT IsSectionExistInVendorInfo(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL section);
+
+static INT ReadDSDPriority(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL dsd);
+static INT ReadDSDSignature(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL dsd);
+static INT ReadISOPriority(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL iso);
+static INT ReadISOSignature(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL iso);
+
+static INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
+static INT CorruptISOSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
+static INT SaveHeaderIfPresent(PMINI_ADAPTER Adapter, PUCHAR pBuff, UINT uiSectAlignAddr);
+static INT WriteToFlashWithoutSectorErase(PMINI_ADAPTER Adapter, PUINT pBuff,
+					  FLASH2X_SECTION_VAL eFlash2xSectionVal,
+					  UINT uiOffset, UINT uiNumBytes);
+static FLASH2X_SECTION_VAL getHighestPriDSD(PMINI_ADAPTER Adapter);
+static FLASH2X_SECTION_VAL getHighestPriISO(PMINI_ADAPTER Adapter);
+
+static INT BeceemFlashBulkRead(
+	PMINI_ADAPTER Adapter,
+	PUINT pBuffer,
+	UINT uiOffset,
+	UINT uiNumBytes);
+
+static INT BeceemFlashBulkWrite(
+	PMINI_ADAPTER Adapter,
+	PUINT pBuffer,
+	UINT uiOffset,
+	UINT uiNumBytes,
+	BOOLEAN bVerify);
+
+static INT GetFlashBaseAddr(PMINI_ADAPTER Adapter);
+
+static INT ReadBeceemEEPROMBulk(PMINI_ADAPTER Adapter,UINT dwAddress, UINT *pdwData, UINT dwNumData);
+
 // Procedure:	ReadEEPROMStatusRegister
 //
 // Description: Reads the standard EEPROM Status Register.
@@ -409,7 +459,7 @@ INT BeceemEEPROMBulkRead(
 //		<FAILURE>			- if failed.
 //-----------------------------------------------------------------------------
 
-INT BeceemFlashBulkRead(
+static INT BeceemFlashBulkRead(
 	PMINI_ADAPTER Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
@@ -491,7 +541,7 @@ INT BeceemFlashBulkRead(
 //
 //-----------------------------------------------------------------------------
 
-UINT BcmGetFlashSize(PMINI_ADAPTER Adapter)
+static UINT BcmGetFlashSize(PMINI_ADAPTER Adapter)
 {
 	if(IsFlash2x(Adapter))
 		return 	(Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(DSD_HEADER));
@@ -514,7 +564,7 @@ UINT BcmGetFlashSize(PMINI_ADAPTER Adapter)
 //
 //-----------------------------------------------------------------------------
 
-UINT BcmGetEEPROMSize(PMINI_ADAPTER Adapter)
+static UINT BcmGetEEPROMSize(PMINI_ADAPTER Adapter)
 {
 	UINT uiData = 0;
 	UINT uiIndex = 0;
@@ -1108,7 +1158,7 @@ static ULONG BcmFlashUnProtectBlock(PMINI_ADAPTER Adapter,UINT uiOffset, UINT ui
 //
 //-----------------------------------------------------------------------------
 
-INT BeceemFlashBulkWrite(
+static INT BeceemFlashBulkWrite(
 	PMINI_ADAPTER Adapter,
 	PUINT pBuffer,
 	UINT uiOffset,
@@ -1613,11 +1663,8 @@ INT PropagateCalParamsFromFlashToMemory(PMINI_ADAPTER Adapter)
 	}
 
 	pBuff = kmalloc(uiEepromSize, GFP_KERNEL);
-
 	if ( pBuff == NULL )
-	{
 		return -1;
-	}
 
 	if(0 != BeceemNVMRead(Adapter,(PUINT)pBuff,uiCalStartAddr, uiEepromSize))
 	{
@@ -2274,7 +2321,7 @@ INT BcmUpdateSectorSize(PMINI_ADAPTER Adapter,UINT uiSectorSize)
 //
 //-----------------------------------------------------------------------------
 
-UINT BcmGetFlashSectorSize(PMINI_ADAPTER Adapter, UINT FlashSectorSizeSig, UINT FlashSectorSize)
+static UINT BcmGetFlashSectorSize(PMINI_ADAPTER Adapter, UINT FlashSectorSizeSig, UINT FlashSectorSize)
 {
 	UINT uiSectorSize = 0;
 	UINT uiSectorSig = 0;
@@ -2411,7 +2458,7 @@ INT BcmInitNVM(PMINI_ADAPTER ps_adapter)
 */
 /***************************************************************************/
 
-INT BcmGetNvmSize(PMINI_ADAPTER Adapter)
+static INT BcmGetNvmSize(PMINI_ADAPTER Adapter)
 {
 	if(Adapter->eNVMType == NVM_EEPROM)
 	{
@@ -2435,7 +2482,7 @@ INT BcmGetNvmSize(PMINI_ADAPTER Adapter)
 // Returns:
 //		<VOID>
 //-----------------------------------------------------------------------------
-VOID BcmValidateNvmType(PMINI_ADAPTER Adapter)
+static VOID BcmValidateNvmType(PMINI_ADAPTER Adapter)
 {
 
 	//
@@ -2681,7 +2728,7 @@ static INT	ConvertEndianOfCSStructure(PFLASH_CS_INFO psFlashCSInfo)
 	return STATUS_SUCCESS;
 }
 
-INT IsSectionExistInVendorInfo(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL section)
+static INT IsSectionExistInVendorInfo(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL section)
 {
  	return ( Adapter->uiVendorExtnFlag &&
  		(Adapter->psFlash2xVendorInfo->VendorSection[section].AccessFlags & FLASH2X_SECTION_PRESENT) &&
@@ -2779,7 +2826,7 @@ static VOID UpdateVendorInfo(PMINI_ADAPTER Adapter)
 //		<VOID>
 //-----------------------------------------------------------------------------
 
-INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
+static INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 {
 	//FLASH_CS_INFO sFlashCsInfo = {0};
 
@@ -2926,7 +2973,7 @@ INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 //
 //-----------------------------------------------------------------------------
 
-NVM_TYPE BcmGetNvmType(PMINI_ADAPTER Adapter)
+static NVM_TYPE BcmGetNvmType(PMINI_ADAPTER Adapter)
 {
 	UINT uiData = 0;
 
@@ -3281,39 +3328,6 @@ INT BcmFlash2xBulkWrite(
 }
 
 /**
-*	ReadDSDHeader : Read the DSD map for the DSD Section val provided in Argument.
-*	@Adapter : Beceem Private Data Structure
-*	@psDSDHeader :Pointer of the buffer where header has to be read
-*	@dsd :value of the Dyanmic DSD like DSD0 of DSD1 or DSD2
-*
-*	Return Value:-
-*		if suceeds return STATUS_SUCCESS or negative error code.
-**/
-INT ReadDSDHeader(PMINI_ADAPTER Adapter, PDSD_HEADER psDSDHeader, FLASH2X_SECTION_VAL dsd)
-{
-	INT Status = STATUS_SUCCESS;
-
-	Status =BcmFlash2xBulkRead(Adapter,
-						    (PUINT)psDSDHeader,
-							dsd,
-							Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader,
-							sizeof(DSD_HEADER));
-	if(Status == STATUS_SUCCESS)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "DSDImageMagicNumber :0X%x", ntohl(psDSDHeader->DSDImageMagicNumber));
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "DSDImageSize :0X%x ",ntohl(psDSDHeader->DSDImageSize));
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "DSDImageCRC :0X%x",ntohl(psDSDHeader->DSDImageCRC));
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "DSDImagePriority :0X%x",ntohl(psDSDHeader->DSDImagePriority));
-	}
-	else
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"DSD Header read is failed with status :%d", Status);
-	}
-
-	return Status;
-}
-
-/**
 *	BcmGetActiveDSD : Set the Active DSD in Adapter Structure which has to be dumped in DDR
 *	@Adapter :-Drivers private Data Structure
 *
@@ -3321,7 +3335,7 @@ INT ReadDSDHeader(PMINI_ADAPTER Adapter, PDSD_HEADER psDSDHeader, FLASH2X_SECTIO
 *		Return STATUS_SUCESS if get sucess in setting the right DSD else negaive error code
 *
 **/
-INT BcmGetActiveDSD(PMINI_ADAPTER Adapter)
+static INT BcmGetActiveDSD(PMINI_ADAPTER Adapter)
 {
 	FLASH2X_SECTION_VAL uiHighestPriDSD = 0 ;
 
@@ -3359,39 +3373,6 @@ INT BcmGetActiveDSD(PMINI_ADAPTER Adapter)
 	return STATUS_SUCCESS;
 }
 
-/**
-*	ReadISOUnReservedBytes : Read the ISO map for the ISO Section val provided in Argument.
-*	@Adapter : Driver Private Data Structure
-*	@psISOHeader :Pointer of the location where header has to be read
-*	@IsoImage :value of the Dyanmic ISO like ISO_IMAGE1 of ISO_IMAGE2
-*
-*	Return Value:-
-*		if suceeds return STATUS_SUCCESS or negative error code.
-**/
-
-INT ReadISOHeader(PMINI_ADAPTER Adapter, PISO_HEADER psISOHeader, FLASH2X_SECTION_VAL IsoImage)
-{
-	INT Status = STATUS_SUCCESS;
-
-	Status = BcmFlash2xBulkRead(Adapter,
-					    (PUINT)psISOHeader,
-						IsoImage,
-						0,
-						sizeof(ISO_HEADER));
-
-	if(Status == STATUS_SUCCESS)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "ISOImageMagicNumber :0X%x", ntohl(psISOHeader->ISOImageMagicNumber));
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "ISOImageSize :0X%x ",ntohl(psISOHeader->ISOImageSize));
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "ISOImageCRC :0X%x",ntohl(psISOHeader->ISOImageCRC));
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "ISOImagePriority :0X%x",ntohl(psISOHeader->ISOImagePriority));
-	}
-	else
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "ISO Header Read failed");
-	}
-	return Status;
-}
 
 /**
 *	BcmGetActiveISO :- Set the Active ISO in Adapter Data Structue
@@ -3403,7 +3384,7 @@ INT ReadISOHeader(PMINI_ADAPTER Adapter, PISO_HEADER psISOHeader, FLASH2X_SECTIO
 *
 **/
 
-INT BcmGetActiveISO(PMINI_ADAPTER Adapter)
+static INT BcmGetActiveISO(PMINI_ADAPTER Adapter)
 {
 
 	INT HighestPriISO = 0 ;
@@ -4501,7 +4482,7 @@ Return Value:-
 	Success :- Base Address of the Flash
 **/
 
-INT GetFlashBaseAddr(PMINI_ADAPTER Adapter)
+static INT GetFlashBaseAddr(PMINI_ADAPTER Adapter)
 {
 
 	UINT uiBaseAddr = 0;
@@ -4734,29 +4715,7 @@ INT SaveHeaderIfPresent(PMINI_ADAPTER Adapter, PUCHAR pBuff, UINT uiOffset)
 
 	return STATUS_SUCCESS ;
 }
-INT BcmMakeFlashCSActive(PMINI_ADAPTER Adapter, UINT offset)
-{
-	UINT GPIOConfig = 0 ;
 
-
-	if(Adapter->bFlashRawRead == FALSE)
-	{
-		//Applicable for Flash2.x
-		if(IsFlash2x(Adapter) == FALSE)
-			return STATUS_SUCCESS;
-	}
-
-	if(offset/FLASH_PART_SIZE)
-	{
-		//bit[14..12] -> will select make Active CS1, CS2 or CS3
-		// Select CS1, CS2 and CS3 (CS0 is dedicated pin)
-		rdmalt(Adapter,FLASH_GPIO_CONFIG_REG, &GPIOConfig, 4);
-		GPIOConfig |= (7 << 12);
-		wrmalt(Adapter,FLASH_GPIO_CONFIG_REG, &GPIOConfig, 4);
-	}
-
-	return STATUS_SUCCESS ;
-}
 /**
 BcmDoChipSelect : This will selcet the appropriate chip for writing.
 @Adapater :- Bcm Driver Private Data Structure
@@ -4764,7 +4723,7 @@ BcmDoChipSelect : This will selcet the appropriate chip for writing.
 OutPut:-
 	Select the Appropriate chip and retrn status Sucess
 **/
-INT BcmDoChipSelect(PMINI_ADAPTER Adapter, UINT offset)
+static INT BcmDoChipSelect(PMINI_ADAPTER Adapter, UINT offset)
 {
 	UINT FlashConfig = 0;
 	INT ChipNum = 0;
@@ -5136,7 +5095,7 @@ INT IsSectionWritable(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL Section)
 		return Status ;
 }
 
-INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
+static INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 {
 
 	PUCHAR pBuff = NULL;
@@ -5209,7 +5168,7 @@ INT CorruptDSDSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 	return STATUS_SUCCESS ;
 }
 
-INT CorruptISOSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
+static INT CorruptISOSig(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal)
 {
 
 	PUCHAR pBuff = NULL;

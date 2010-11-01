@@ -15,6 +15,7 @@ typedef enum _E_CLASSIFIER_ACTION
 	eDeleteClassifier
 }E_CLASSIFIER_ACTION;
 
+static ULONG GetNextTargetBufferLocation(PMINI_ADAPTER Adapter,B_UINT16 tid);
 
 /************************************************************
 * Function	  -	SearchSfid
@@ -108,7 +109,7 @@ static int SearchFreeClsid(PMINI_ADAPTER Adapter /**Adapter Context*/
 	return MAX_CLASSIFIERS+1;
 }
 
-VOID deleteSFBySfid(PMINI_ADAPTER Adapter, UINT uiSearchRuleIndex)
+static VOID deleteSFBySfid(PMINI_ADAPTER Adapter, UINT uiSearchRuleIndex)
 {
 	//deleting all the packet held in the SF
 	flush_queue(Adapter,uiSearchRuleIndex);
@@ -1923,7 +1924,7 @@ ULONG SetUpTargetDsxBuffers(PMINI_ADAPTER Adapter)
 	return 1;
 }
 
-ULONG GetNextTargetBufferLocation(PMINI_ADAPTER Adapter,B_UINT16 tid)
+static ULONG GetNextTargetBufferLocation(PMINI_ADAPTER Adapter,B_UINT16 tid)
 {
 	ULONG  ulTargetDSXBufferAddress;
 	ULONG  ulTargetDsxBufferIndexToUse,ulMaxTry;
