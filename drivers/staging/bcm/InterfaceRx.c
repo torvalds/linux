@@ -39,12 +39,6 @@ static void read_bulk_callback(struct urb *urb)
 	PLEADER pLeader = urb->transfer_buffer;
 
 
-	#if 0
-	int *puiBuffer = NULL;
-	struct timeval tv;
-	memset(&tv, 0, sizeof(tv));
-	do_gettimeofday(&tv);
-	#endif
 
 	if((Adapter->device_removed == TRUE)  ||
 		(TRUE == Adapter->bEndPointHalted) ||

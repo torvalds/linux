@@ -254,15 +254,6 @@ USHORT	IpVersion4(PMINI_ADAPTER Adapter, /**< Pointer to the driver control stru
 		//if protocol is not TCP or UDP then no need of comparing source port and destination port
 		if(iphd->protocol!=TCP && iphd->protocol!=UDP)
 			break;
-#if 0
-		//check if memory is available of src and Dest port
-		if(ETH_AND_IP_HEADER_LEN + L4_SRC_PORT_LEN + L4_DEST_PORT_LEN > Packet->len)
-		{
-			//This is not an erroneous condition and pkt will be checked for next classification.
-			bClassificationSucceed = FALSE;
-			break;
-		}
-#endif
 		//******************Checking Transport Layer Header field if present *****************//
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, IPV4_DBG, DBG_LVL_ALL, "Source Port %04x",
 			(iphd->protocol==UDP)?xprt_hdr->uhdr.source:xprt_hdr->thdr.source);

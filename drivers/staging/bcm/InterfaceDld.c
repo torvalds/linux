@@ -230,41 +230,6 @@ static int bcm_download_config_file(PMINI_ADAPTER Adapter,
 
 	return retval;
 }
-#if 0
-static int bcm_download_buffer(PMINI_ADAPTER Adapter,
-	unsigned char *mappedbuffer, unsigned int u32FirmwareLength,
-	unsigned long u32StartingAddress)
-{
-    char            *buff=NULL;
-    unsigned int    len = 0;
-	int 			retval = STATUS_SUCCESS;
-	buff = kzalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
-
-	len = u32FirmwareLength;
-
-	while(u32FirmwareLength)
-	{
-		len = MIN_VAL (u32FirmwareLength, MAX_TRANSFER_CTRL_BYTE_USB);
-		if(STATUS_SUCCESS != (retval = copy_from_user(buff,
-				(unsigned char *)mappedbuffer, len)))
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "copy_from_user failed\n");
-			break;
-		}
-		retval = wrm (Adapter, u32StartingAddress, buff, len);
-		if(retval)
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "wrm failed\n");
-			break;
-		}
-		u32StartingAddress 	+= len;
-		u32FirmwareLength  	-= len;
-		mappedbuffer	   	+=len;
-	}
-	kfree(buff);
-	return retval;
-}
-#endif
 static int bcm_compare_buff_contents(unsigned char *readbackbuff,
 	unsigned char *buff,unsigned int len)
 {
@@ -296,58 +261,6 @@ static int bcm_compare_buff_contents(unsigned char *readbackbuff,
 	}
 	return retval;
 }
-#if 0
-static int bcm_buffer_readback(PMINI_ADAPTER Adapter,
-	unsigned char *mappedbuffer, unsigned int u32FirmwareLength,
-	unsigned long u32StartingAddress)
-{
-	unsigned char *buff = NULL;
-	unsigned char *readbackbuff = NULL;
-	unsigned int  len = u32FirmwareLength;
-	int retval = STATUS_SUCCESS;
-
-    buff=(unsigned char *)kzalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
-	if(NULL == buff)
-		return -ENOMEM;
-	readbackbuff =  (unsigned char *)kzalloc(MAX_TRANSFER_CTRL_BYTE_USB,
-					GFP_KERNEL);
-	if(NULL == readbackbuff)
-	{
-		kfree(buff);
-		return -ENOMEM;
-	}
-	while (u32FirmwareLength && !retval)
-	{
-		len = MIN_VAL (u32FirmwareLength, MAX_TRANSFER_CTRL_BYTE_USB);
-
-		/* read from the appl buff and then read from the target, compare */
-		if(STATUS_SUCCESS != (retval = copy_from_user(buff,
-				(unsigned char *)mappedbuffer, len)))
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "copy_from_user failed\n");
-			break;
-		}
-		retval = rdm (Adapter, u32StartingAddress, readbackbuff, len);
-		if(retval)
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "rdm failed\n");
-			break;
-		}
-
-		if (STATUS_SUCCESS !=
-			(retval = bcm_compare_buff_contents (readbackbuff, buff, len)))
-		{
-			break;
-		}
-		u32StartingAddress 	+= len;
-		u32FirmwareLength  	-= len;
-		mappedbuffer	   	+=len;
-	}/* end of while (u32FirmwareLength && !retval) */
-	kfree(buff);
-	kfree(readbackbuff);
-	return retval;
-}
-#endif
 int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
 {
 	int retval = STATUS_SUCCESS;
@@ -388,23 +301,6 @@ int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
 			goto error ;
 		}
 
-		#if 0
-		retval = bcm_download_buffer(Adapter,
-				(unsigned char *)psFwInfo->pvMappedFirmwareAddress,
-				psFwInfo->u32FirmwareLength, psFwInfo->u32StartingAddress);
-		if(retval != STATUS_SUCCESS)
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "User space buffer download fails....");
-		}
-		retval = bcm_buffer_readback (Adapter,
-				(unsigned char *)psFwInfo->pvMappedFirmwareAddress,
-				psFwInfo->u32FirmwareLength, psFwInfo->u32StartingAddress);
-
-		if(retval != STATUS_SUCCESS)
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "read back verifier failed ....");
-		}
-		#endif
 		retval = buffDnldVerify(Adapter,
 					buff,
 					psFwInfo->u32FirmwareLength,

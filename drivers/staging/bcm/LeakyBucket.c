@@ -183,9 +183,6 @@ static VOID CheckAndSendPacketFromIndex(PMINI_ADAPTER Adapter, PacketInfo *psSF)
 			return ;
 		}
 
-#if 0
-		PruneQueue(Adapter,(psSF-Adapter->PackInfo));
-#endif
 		spin_lock_bh(&psSF->SFQueueLock);
 		QueuePacket=psSF->FirstTxQueue;
 

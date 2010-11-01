@@ -186,29 +186,6 @@ int control_packet_handler  (PMINI_ADAPTER Adapter  /**< pointer to adapter obje
 				DEQUEUEPACKET(Adapter->RxControlHead,Adapter->RxControlTail);
 //				Adapter->RxControlHead=ctrl_packet->next;
 			}
-			#if 0  //Idle mode debug profiling...
-			if(*(PUSHORT)ctrl_packet->data == IDLE_MODE_STATUS)
-			{
-				puiBuffer = (PUINT)(ctrl_packet->data +sizeof(USHORT));
-				if((ntohl(*puiBuffer) == GO_TO_IDLE_MODE_PAYLOAD))
-				{
-					memset(&tv, 0, sizeof(tv));
-					do_gettimeofday(&tv);
-					if((ntohl(*(puiBuffer+1)) == 0))
-					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "IdleMode Wake-up Msg from f/w at time :%ld ms", tv.tv_sec *1000 + tv.tv_usec /1000);
-					}
-					else
-					{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "IdleMode req Msg from f/w at time :%ld ms", tv.tv_sec *1000 + tv.tv_usec /1000);
-					}
-				}
-				else if((ntohl(*puiBuffer) == IDLE_MODE_SF_UPDATE_MSG))
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "GOT IDLE_MODE_SF_UPDATE MSG at time :%ld ms", tv.tv_sec *1000 + tv.tv_usec /1000);
-				}
-			}
-			#endif
 
 			spin_unlock_irqrestore (&Adapter->control_queue_lock, flags);
 		 	handle_rx_control_packet(Adapter, ctrl_packet);

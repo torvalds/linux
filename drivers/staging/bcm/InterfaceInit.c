@@ -419,32 +419,6 @@ static int device_run(PS_INTERFACE_ADAPTER psIntfAdapter)
 	return 0;
 }
 
-#if 0
-static void	print_usb_interface_desc(struct usb_interface_descriptor *usb_intf_desc)
-{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "**************** INTERFACE DESCRIPTOR *********************");
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "bLength: %x", usb_intf_desc->bLength);
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "bDescriptorType: %x", usb_intf_desc->bDescriptorType);
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "bInterfaceNumber: %x", usb_intf_desc->bInterfaceNumber);
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "bAlternateSetting: %x", usb_intf_desc->bAlternateSetting);
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "bNumEndpoints: %x", usb_intf_desc->bNumEndpoints);
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "bInterfaceClass: %x", usb_intf_desc->bInterfaceClass);
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "bInterfaceSubClass: %x", usb_intf_desc->bInterfaceSubClass);
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "bInterfaceProtocol: %x", usb_intf_desc->bInterfaceProtocol);
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "iInterface :%x\n",usb_intf_desc->iInterface);
-}
-static void	print_usb_endpoint_descriptor(struct usb_endpoint_descriptor *usb_ep_desc)
-{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "**************** ENDPOINT DESCRIPTOR *********************");
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "bLength  :%x ", usb_ep_desc->bLength);
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "bDescriptorType  :%x ", usb_ep_desc->bDescriptorType);
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "bEndpointAddress  :%x ", usb_ep_desc->bEndpointAddress);
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "bmAttributes  :%x ", usb_ep_desc->bmAttributes);
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "wMaxPacketSize  :%x ",usb_ep_desc->wMaxPacketSize);
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "bInterval  :%x ",usb_ep_desc->bInterval);
-}
-
-#endif
 
 static inline int bcm_usb_endpoint_num(const struct usb_endpoint_descriptor *epd)
 {

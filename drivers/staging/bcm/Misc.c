@@ -365,13 +365,6 @@ INT CopyBufferToControlPacket(PMINI_ADAPTER Adapter,/**<Logical Adapter*/
 			/*Setting bIdleMode_tx_from_host to TRUE to indicate LED control thread to represent
 			  the wake up from idlemode is from host*/
 			//Adapter->LEDInfo.bIdleMode_tx_from_host = TRUE;
-#if 0
-			if(STATUS_SUCCESS != InterfaceIdleModeWakeup(Adapter))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Idle Mode Wake up Failed\n");
-				return STATUS_FAILURE;
-			}
-#endif
 			Adapter->bWakeUpDevice = TRUE;
 			wake_up(&Adapter->process_rx_cntrlpkt);
 
@@ -1220,12 +1213,6 @@ int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
 			goto OUT;
 		}
 	}
-#if 0
-	else if(psAdapter->eNVMType == NVM_EEPROM)
-	{
-		PropagateCalParamsFromEEPROMToMemory();
-	}
-#endif
 
 	/* Download Firmare */
 	if ((status = BcmFileDownload( ps_adapter, BIN_FILE, FIRMWARE_BEGIN_ADDR)))
@@ -1405,16 +1392,6 @@ VOID doPowerAutoCorrection(PMINI_ADAPTER psAdapter)
 	if (psAdapter->bIsAutoCorrectEnabled && (psAdapter->chip_id >= T3LPB))
 	{
 		//If reporting mode is enable, switch PMU to PMC
-		#if 0
-		if(reporting_mode == FALSE)
-		{
-			psAdapter->ulPowerSaveMode = DEVICE_POWERSAVE_MODE_AS_PMU_SHUTDOWN;
-			psAdapter->bDoSuspend = TRUE;
-			BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL,"PMU selected ....");
-
-		}
-		else
-		#endif
 		{
 			psAdapter->ulPowerSaveMode = DEVICE_POWERSAVE_MODE_AS_PMU_CLOCK_GATING;
 			psAdapter->bDoSuspend =FALSE;
@@ -1481,43 +1458,6 @@ OUT:
 }
 #endif
 
-#if 0
-INT ReadMacAddressFromEEPROM(PMINI_ADAPTER Adapter)
-{
-	unsigned char *puMacAddr = NULL;
-	int i =0;
-
-	puMacAddr = ReadMacAddrEEPROM(Adapter,0x200);
-	if(!puMacAddr)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Couldn't retrieve the Mac Address\n");
-		return STATUS_FAILURE;
-	}
-	else
-	{
-		if((puMacAddr[0] == 0x0  && puMacAddr[1] == 0x0  &&
-			puMacAddr[2] == 0x0  && puMacAddr[3] == 0x0  &&
-			puMacAddr[4] == 0x0  && puMacAddr[5] == 0x0) ||
-		   (puMacAddr[0] == 0xFF && puMacAddr[1] == 0xFF &&
-			puMacAddr[2] == 0xFF && puMacAddr[3] == 0xFF &&
-			puMacAddr[4] == 0xFF && puMacAddr[5] == 0xFF))
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "Invalid Mac Address\n");
-			kfree(puMacAddr);
-			return STATUS_FAILURE;
-		}
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "The Mac Address received is: \n");
-		memcpy(Adapter->dev->dev_addr, puMacAddr, MAC_ADDRESS_SIZE);
-        for(i=0;i<MAC_ADDRESS_SIZE;i++)
-        {
-            BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"%02x ", Adapter->dev->dev_addr[i]);
-        }
-        BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"\n");
-		kfree(puMacAddr);
-	}
-	return STATUS_SUCCESS;
-}
-#endif
 
 static void convertEndian(B_UINT8 rwFlag, PUINT puiBuffer, UINT uiByteCount)
 {

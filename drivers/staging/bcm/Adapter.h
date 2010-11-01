@@ -7,42 +7,6 @@
 #define MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES 256
 #include "Debug.h"
 
-typedef struct _LIST_ENTRY{
-	struct _LIST_ENTRY 	*next;
-	struct _LIST_ENTRY 	*prev;
-} LIST_ENTRY, *PLIST_ENTRY;
-
-typedef struct _BCM_LIST_ENTRY {
-
-    LIST_ENTRY  		Link;
-
-} BCM_LIST_ENTRY, *PBCM_LIST_ENTRY;
-
-typedef enum _RCB_STATUS
-{
-	DRIVER_PROCESSED=1,
-	APPLICATION_PROCESSED
-} RCB_STATUS, *PRCB_STATUS;
-
-#define fFILLED 1
-#define fEMPTY 0
-
-struct _BCM_CB
-{
-	// The network packet that this RCB is receiving
-	PVOID      			pv_packet;
-	// Describes the length of the packet .
-	UINT                ui_packet_length;
-	// Pointer to the first buffer in the packet (only one buffer for Rx)
-	PUCHAR				buffer;
-	atomic_t	        status;
-	UINT	            filled;
-} __attribute__((packed));
-typedef struct _BCM_CB BCM_CB,*PBCM_CB;
-
-typedef BCM_CB BCM_RCB, *PBCM_RCB;
-typedef BCM_CB BCM_TCB, *PBCM_TCB;
-
 struct _LEADER
 {
 	USHORT 	Vcid;
@@ -555,7 +519,7 @@ struct _MINI_ADAPTER
 	unsigned int	usIdleModePattern;
 	//BOOLEAN			bTriedToWakeUpFromShutdown;
 	BOOLEAN			bLinkDownRequested;
-	unsigned int	check_for_hang;
+
 	int 			downloadDDR;
 	PHS_DEVICE_EXTENSION stBCMPhsContext;
 	S_HDR_SUPRESSION_CONTEXTINFO	stPhsTxContextInfo;
@@ -624,12 +588,6 @@ struct _MINI_ADAPTER
 typedef struct _MINI_ADAPTER MINI_ADAPTER, *PMINI_ADAPTER;
 
 #define GET_BCM_ADAPTER(net_dev)	netdev_priv(net_dev)
-
-typedef struct _DEVICE_EXTENSION
-{
-	PMINI_ADAPTER pAdapt;
-}DEVICE_EXTENSION,*PDEVICE_EXTENSION;
-
 
 struct _ETH_HEADER_STRUC {
     UCHAR       au8DestinationAddress[6];

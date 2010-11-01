@@ -1063,12 +1063,6 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 		pstAddIndication->sfAuthorizedSet.u32MaxTrafficBurst);
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u32MinReservedTrafficRate	: 0x%X",
 		pstAddIndication->sfAuthorizedSet.u32MinReservedTrafficRate);
-#if 0
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u32MinimumTolerableTrafficRate	: 0x%X",
-		pstAddIndication->sfAuthorizedSet.u32MinimumTolerableTrafficRate);
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u32RequesttransmissionPolicy	: 0x%X",
-		pstAddIndication->sfAuthorizedSet.u32RequesttransmissionPolicy);
-#endif
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8VendorSpecificQoSParamLength	: 0x%X",
 		pstAddIndication->sfAuthorizedSet.u8VendorSpecificQoSParamLength);
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8VendorSpecificQoSParam		: 0x%X",
@@ -1116,13 +1110,6 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 		pstAddIndication->sfAuthorizedSet.u8PagingPreference);
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u16UnsolicitedPollingInterval		: 0x%X",
 		pstAddIndication->sfAuthorizedSet.u16UnsolicitedPollingInterval);
-#if 0
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "MBSZoneIdentifierassignmentLength	: 0x%X",
-		pstAddIndication->sfAuthorizedSet.MBSZoneIdentifierassignmentLength);
-	for(uiLoopIndex=0; uiLoopIndex < MAX_STRING_LEN; uiLoopIndex++)
-		BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "MBSZoneIdentifierassignment : 0x%X",
-			pstAddIndication->sfAuthorizedSet.MBSZoneIdentifierassignment[uiLoopIndex]);
-#endif
 
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "sfAuthorizedSet.u8HARQChannelMapping %x  %x %x ",
 				*(unsigned int*)pstAddIndication->sfAuthorizedSet.u8HARQChannelMapping,
@@ -1160,11 +1147,6 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 			psfCSType->cCPacketClassificationRule.u8IPTypeOfService[0],
 			psfCSType->cCPacketClassificationRule.u8IPTypeOfService[1],
 			psfCSType->cCPacketClassificationRule.u8IPTypeOfService[2]);
-#if 0
-
-		BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "u8ProtocolLength				:0x%X ",
-			psfCSType->cCPacketClassificationRule.u8ProtocolLength);
-#endif
 
 		for(uiLoopIndex=0; uiLoopIndex < 1; uiLoopIndex++)
 			BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u8Protocol : 0x%02X ",
@@ -1280,14 +1262,6 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 			pstAddIndication->sfAdmittedSet.u8QosParamSet);
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u8TrafficPriority			: 0x%02X",
 			pstAddIndication->sfAdmittedSet.u8TrafficPriority);
-#if 0
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "u32MaxSustainedTrafficRate	: 0x%02X",
-			ntohl(pstAddIndication->sfAdmittedSet.u32MaxSustainedTrafficRate));
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "u32MinimumTolerableTrafficRate	: 0x%X",
-		pstAddIndication->sfAdmittedSet.u32MinimumTolerableTrafficRate);
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "u32RequesttransmissionPolicy	: 0x%X",
-		pstAddIndication->sfAdmittedSet.u32RequesttransmissionPolicy);
-#endif
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u32MaxTrafficBurst			: 0x%X",
 			pstAddIndication->sfAdmittedSet.u32MaxTrafficBurst);
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u32MinReservedTrafficRate	: 0x%X",
@@ -1341,13 +1315,6 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 		pstAddIndication->sfAdmittedSet.u16TimeBase);
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u8PagingPreference		: 0x%X",
 		pstAddIndication->sfAdmittedSet.u8PagingPreference);
-#if 0
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "MBSZoneIdentifierassignmentLength	: 0x%X",
-		pstAddIndication->sfAdmittedSet.MBSZoneIdentifierassignmentLength);
-	for(uiLoopIndex=0; uiLoopIndex < MAX_STRING_LEN; uiLoopIndex++)
-		BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "MBSZoneIdentifierassignment : 0x%X",
-	pstAddIndication->sfAdmittedSet.MBSZoneIdentifierassignment[uiLoopIndex]);
-#endif
 
 
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u8TrafficIndicationPreference	: 0x%02X",
@@ -1380,11 +1347,6 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 			psfCSType->cCPacketClassificationRule.u8IPTypeOfService[0],
 			psfCSType->cCPacketClassificationRule.u8IPTypeOfService[1],
 			psfCSType->cCPacketClassificationRule.u8IPTypeOfService[2]);
-#if 0
-
-		BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u8ProtocolLength			:0x%02X ",
-			psfCSType->cCPacketClassificationRule.u8ProtocolLength);
-#endif
 		for(uiLoopIndex=0; uiLoopIndex < 1; uiLoopIndex++)
 			BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u8Protocol: 0x%02X ",
 			psfCSType->cCPacketClassificationRule.u8Protocol);
@@ -1499,20 +1461,10 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 		pstAddIndication->sfActiveSet.u8QosParamSet);
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u8TrafficPriority			: 0x%02X",
 		pstAddIndication->sfActiveSet.u8TrafficPriority);
-#if 0
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "u32MaxSustainedTrafficRate	: 0x%02X",
-		ntohl(pstAddIndication->sfActiveSet.u32MaxSustainedTrafficRate));
-#endif
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u32MaxTrafficBurst			: 0x%X",
 		pstAddIndication->sfActiveSet.u32MaxTrafficBurst);
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u32MinReservedTrafficRate	: 0x%X",
 		pstAddIndication->sfActiveSet.u32MinReservedTrafficRate);
-#if 0
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "u32MinimumTolerableTrafficRate	: 0x%X",
-		pstAddIndication->sfActiveSet.u32MinimumTolerableTrafficRate);
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "u32RequesttransmissionPolicy	: 0x%X",
-		pstAddIndication->sfActiveSet.u32RequesttransmissionPolicy);
-#endif
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u8VendorSpecificQoSParamLength	: 0x%02X",
 		pstAddIndication->sfActiveSet.u8VendorSpecificQoSParamLength);
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  "u8VendorSpecificQoSParam		: 0x%02X",
@@ -1560,13 +1512,6 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 		pstAddIndication->sfActiveSet.u16TimeBase);
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  " u8PagingPreference		: 0x%X",
 		pstAddIndication->sfActiveSet.u8PagingPreference);
-#if 0
-	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  " MBSZoneIdentifierassignmentLength	: 0x%X",
-		pstAddIndication->sfActiveSet.MBSZoneIdentifierassignmentLength);
-	for(uiLoopIndex=0; uiLoopIndex < MAX_STRING_LEN; uiLoopIndex++)
-		BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  " MBSZoneIdentifierassignment : 0x%X",
-		pstAddIndication->sfActiveSet.MBSZoneIdentifierassignment[uiLoopIndex]);
-#endif
 
 
 	BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  " u8TrafficIndicationPreference	: 0x%X",
@@ -1599,11 +1544,6 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 			psfCSType->cCPacketClassificationRule.u8IPTypeOfService[0],
 			psfCSType->cCPacketClassificationRule.u8IPTypeOfService[1],
 			psfCSType->cCPacketClassificationRule.u8IPTypeOfService[2]);
-#if 0
-
-		BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  " u8ProtocolLength				:0x%X ",
-			psfCSType->cCPacketClassificationRule.u8ProtocolLength);
-#endif
 		for(uiLoopIndex=0; uiLoopIndex < 1; uiLoopIndex++)
 			BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,  " u8Protocol	: 0x%X ",
 			psfCSType->cCPacketClassificationRule.u8Protocol);

@@ -1207,10 +1207,6 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				Adapter->usIdleModePattern = ABORT_IDLE_MODE;
 				Adapter->bWakeUpDevice = TRUE;
 				wake_up(&Adapter->process_rx_cntrlpkt);
-				#if 0
-				Adapter->bTriedToWakeUpFromlowPowerMode = TRUE;
-				InterfaceAbortIdlemode (Adapter, Adapter->usIdleModePattern);
-				#endif
 			}
 			Status = STATUS_SUCCESS;
 			break;
@@ -1750,14 +1746,6 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\nsFlash2xRead.offset :%d" ,sFlash2xWrite.offset);
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\nsFlash2xRead.numOfBytes :%x" ,sFlash2xWrite.numOfBytes);
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\nsFlash2xRead.bVerify :%x\n" ,sFlash2xWrite.bVerify);
-				#if 0
-				if((sFlash2xWrite.Section == ISO_IMAGE1) ||(sFlash2xWrite.Section == ISO_IMAGE2) ||
-					(sFlash2xWrite.Section == DSD0) || (sFlash2xWrite.Section == DSD1) || (sFlash2xWrite.Section == DSD2))
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"ISO/DSD Image write is not allowed....  ");
-					return STATUS_FAILURE ;
-				}
-				#endif
 				if((sFlash2xWrite.Section != VSA0) && (sFlash2xWrite.Section != VSA1) &&
 					(sFlash2xWrite.Section != VSA2) )
 				{
@@ -1940,29 +1928,6 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				Adapter->bAllDSDWriteAllow = FALSE ;
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"IOCTL_BCM_IDENTIFY_ACTIVE_SECTION called");
 
-				#if 0
-				SECTION_TYPE section = 0 ;
-
-
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_IDENTIFY_ACTIVE_SECTION Called");
-				Status = copy_from_user((PCHAR)&IoBuffer, (PCHAR)arg, sizeof(IOCTL_BUFFER));
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Copy of IOCTL BUFFER failed");
-					return -EFAULT;
-				}
-				Status = copy_from_user((PCHAR)section,(PCHAR)&IoBuffer, sizeof(INT));
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Copy of section type failed failed");
-					return -EFAULT;
-				}
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Read Section :%d", section);
-			 	if(section == DSD)
-					Adapter->ulFlashCalStart = Adapter->uiActiveDSDOffsetAtFwDld ;
-				else
-					Status = STATUS_FAILURE ;
-				#endif
 				Status = STATUS_SUCCESS ;
 			 }
 			 break ;

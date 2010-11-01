@@ -234,168 +234,6 @@ INT ReadBeceemEEPROM( PMINI_ADAPTER Adapter,
 } /* ReadBeceemEEPROM() */
 
 
-#if 0
-//-----------------------------------------------------------------------------
-// Procedure:	IsEEPROMWriteDone
-//
-// Description: Reads the SPI status to see the status of previous write.
-//
-// Arguments:
-//		Adapter    - ptr to Adapter object instance
-//
-// Returns:
-//		BOOLEAN - TRUE  - write went through
-//              - FALSE - Write Failed.
-//-----------------------------------------------------------------------------
-
-BOOLEAN IsEEPROMWriteDone(PMINI_ADAPTER Adapter)
-{
-	UINT uiRetries = 16;
-	//UINT uiStatus  = 0;
-	UINT value;
-
-	//sleep for 1.2ms ..worst case EEPROM write can take up to 1.2ms.
-	mdelay(2);
-
-	value = 0;
-	rdmalt(Adapter, EEPROM_SPI_Q_STATUS1_REG, &value, sizeof(value));
-
-	while(((value >> 14) & 1) == 1)
-	{
-		// EEPROM_SPI_Q_STATUS1_REG will be cleared only if write back to that.
-		value = (0x1 << 14);
-		wrmalt(Adapter, EEPROM_SPI_Q_STATUS1_REG,&value, sizeof(value));
-		udelay(1000);
-		uiRetries--;
-		if(uiRetries == 0)
-		{
-			return FALSE;
-		}
-		value = 0;
-		rdmalt(Adapter, EEPROM_SPI_Q_STATUS1_REG, &value, sizeof(value));
-	}
-	return TRUE;
-
-
-}
-
-
-//-----------------------------------------------------------------------------
-// Procedure:	ReadBeceemEEPROMBulk
-//
-// Description: This routine reads 16Byte data from EEPROM
-//
-// Arguments:
-//		Adapter     - ptr to Adapter object instance
-//          dwAddress - EEPROM Offset to read the data from.
-//          pdwData    - Pointer to double word where data needs to be stored in.
-//
-// Returns:
-//		OSAL_STATUS_CODE:
-//-----------------------------------------------------------------------------
-
-INT ReadBeceemEEPROMBulk(PMINI_ADAPTER Adapter,DWORD dwAddress, DWORD *pdwData)
-{
-	DWORD dwRetries = 16;
-	DWORD dwIndex = 0;
-	UINT value, tmpVal;
-
-
-	value = 0;
-	rdmalt (Adapter, 0x0f003008, &value, sizeof(value));
-
-	//read 0x0f003020 untill  bit 1 of 0x0f003008 is set.
-	while(((value >> 1) & 1) == 0)
-	{
-
-		rdmalt (Adapter, 0x0f003020, &tmpVal, sizeof(tmpVal));
-		dwRetries--;
-		if(dwRetries == 0)
-		{
-			return -1;
-		}
-		value = 0;
-		rdmalt (Adapter, 0x0f003008, &value, sizeof(value));
-	}
-
-	value = dwAddress | 0xfb000000;
-	wrmalt (Adapter, 0x0f003018, &value, sizeof(value));
-
-	udelay(1000);
-	value = 0;
-	for(dwIndex = 0;dwIndex < 4 ; dwIndex++)
-	{
-		value = 0;
-		rdmalt (Adapter, 0x0f003020, &value, sizeof(value));
-		pdwData[dwIndex] = value;
-
-		value = 0;
-		rdmalt (Adapter, 0x0f003020, &value, sizeof(value));
-		pdwData[dwIndex] |= (value << 8);
-
-		value = 0;
-		rdmalt (Adapter, 0x0f003020, &value, sizeof(value));
-		pdwData[dwIndex] |= (value << 16);
-
-		value = 0;
-		rdmalt (Adapter, 0x0f003020, &value, sizeof(value));
-		pdwData[dwIndex] |= (value << 24);
-
-	}
-	return 0;
-}
-
-//-----------------------------------------------------------------------------
-// Procedure:	ReadBeceemEEPROM
-//
-// Description: This routine reads 4Byte data from EEPROM
-//
-// Arguments:
-//		Adapter     - ptr to Adapter object instance
-//          dwAddress - EEPROM Offset to read the data from.
-//          pdwData    - Pointer to double word where data needs to be stored in.
-//
-// Returns:
-//		OSAL_STATUS_CODE:
-//-----------------------------------------------------------------------------
-
-INT ReadBeceemEEPROM(PMINI_ADAPTER Adapter,DWORD dwAddress, DWORD *pdwData)
-{
-
-	DWORD dwReadValue = 0;
-	DWORD dwRetries = 16, dwCompleteWord = 0;
-	UINT	value, tmpVal;
-
-	rdmalt(Adapter, 0x0f003008, &value, sizeof(value));
-	while (((value >> 1) & 1) == 0) {
-		rdmalt(Adapter, 0x0f003020, &tmpVal, sizeof(tmpVal));
-
-		if (dwRetries == 0) {
-			return -1;
-		}
-		rdmalt(Adapter, 0x0f003008, &value, sizeof(value));
-	}
-
-
-	//wrm (0x0f003018, 0xNbXXXXXX)      // N is the number of bytes u want to read  (0 means 1, f means 16,   b is the opcode for page read)
-	//     Follow it up by N executions of  rdm(0x0f003020) to read the rxed bytes from rx queue.
-	dwAddress |= 0x3b000000;
-	wrmalt(Adapter, 0x0f003018,&dwAddress,4);
-	mdelay(10);
-	rdmalt(Adapter, 0x0f003020,&dwReadValue,4);
-	dwCompleteWord=dwReadValue;
-	rdmalt(Adapter, 0x0f003020,&dwReadValue,4);
-	dwCompleteWord|=(dwReadValue<<8);
-	rdmalt(Adapter, 0x0f003020,&dwReadValue,4);
-	dwCompleteWord|=(dwReadValue<<16);
-	rdmalt(Adapter, 0x0f003020,&dwReadValue,4);
-	dwCompleteWord|=(dwReadValue<<24);
-
-	*pdwData = dwCompleteWord;
-
-	return 0;
-}
-#endif
 
 INT ReadMacAddressFromNVM(PMINI_ADAPTER Adapter)
 {
@@ -655,14 +493,6 @@ INT BeceemFlashBulkRead(
 
 UINT BcmGetFlashSize(PMINI_ADAPTER Adapter)
 {
-#if 0
-	if(Adapter->bDDRInitDone)
-	{
-		return rdm(Adapter,FLASH_CONTIGIOUS_START_ADDR_AFTER_INIT|FLASH_SIZE_ADDR);
-	}
-
-	return rdm(Adapter,FLASH_CONTIGIOUS_START_ADDR_BEFORE_INIT|FLASH_SIZE_ADDR);
-#endif
 	if(IsFlash2x(Adapter))
 		return 	(Adapter->psFlash2xCSInfo->OffsetFromDSDStartForDSDHeader + sizeof(DSD_HEADER));
 	else
@@ -733,60 +563,6 @@ UINT BcmGetEEPROMSize(PMINI_ADAPTER Adapter)
 	return 0;
 }
 
-#if 0
-/***********************************************************************************/
-//
-//  WriteBeceemEEPROM: Writes 4 byte data to EEPROM offset.
-//
-//                     uiEEPROMOffset - Offset to be written to.
-//                     uiData         - Data to be written.
-//
-/***********************************************************************************/
-
-INT WriteBeceemEEPROM(PMINI_ADAPTER Adapter,UINT uiEEPROMOffset, UINT uiData)
-{
-	INT Status = 0;
-	ULONG ulRdBk = 0;
-	ULONG ulRetryCount = 3;
-	UINT value;
-
-	if(uiEEPROMOffset > EEPROM_END)
-	{
-
-		return -1;
-	}
-
-	uiData = htonl(uiData);
-	while(ulRetryCount--)
-	{
-		value = 0x06000000;
-		wrmalt(Adapter, 0x0F003018,&value, sizeof(value));//flush the EEPROM FIFO.
-		wrmalt(Adapter, 0x0F00301C,&uiData, sizeof(uiData));
-		value = 0x3A000000 | uiEEPROMOffset;
-		wrmalt(Adapter, 0x0F003018,&value, sizeof(value));
-		__udelay(100000);
-		//read back and verify.
-		Status = ReadBeceemEEPROM(Adapter,uiEEPROMOffset,(UINT *)&ulRdBk);
-		if(Status == 0)
-		{
-			if(ulRdBk == uiData)
-			{
-				return Status;
-			}
-			else
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "WriteBeceemEEPROM: Readback does not match\n");
-			}
-		}
-		else
-		{
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "WriteBeceemEEPROM: Readback failed\n");
-		}
-	}
-
-	return 0;
-}
-#endif
 
 //-----------------------------------------------------------------------------
 // Procedure:	FlashSectorErase
@@ -1353,15 +1129,6 @@ INT BeceemFlashBulkWrite(
 	UINT uiTemp 				= 0;
 	UINT index 					= 0;
 	UINT uiPartOffset 			= 0;
-	#if 0
-	struct timeval tv1 = {0};
-	struct timeval tv2 = {0};
-
-	struct timeval tr = {0};
-	struct timeval te = {0};
-	struct timeval tw = {0};
-	struct timeval twv = {0};
-	#endif
 
 #if defined(BCM_SHM_INTERFACE) && !defined(FLASH_DIRECT_ACCESS)
   Status = bcmflash_raw_write((uiOffset/FLASH_PART_SIZE),(uiOffset % FLASH_PART_SIZE),( unsigned char *)pBuffer,uiNumBytes);
@@ -1396,7 +1163,6 @@ INT BeceemFlashBulkWrite(
 			uiNumSectTobeRead++;
 		}
 	}
-	#if 1
 	//Check whether Requested sector is writable or not in case of flash2x write. But if  write call is
 	// for DSD calibration, allow it without checking of sector permission
 
@@ -1417,7 +1183,6 @@ INT BeceemFlashBulkWrite(
 			 index = index + 1 ;
 		}
 	}
-	#endif
 	Adapter->SelectedChip = RESET_CHIP_SELECT;
 	while(uiNumSectTobeRead)
 	{
@@ -1689,21 +1454,6 @@ static INT BeceemFlashBulkWriteStatus(
 		{
 			for(uiIndex = 0;uiIndex < Adapter->uiSectorSize;uiIndex += MAX_RW_SIZE)
 			{
-#if 0
-				if(0 == BeceemFlashBulkRead(Adapter,uiReadBk,uiOffsetFromSectStart+uiIndex + Adapter->ulFlashCalStart ,MAX_RW_SIZE))
-				{
-					for(uiReadIndex = 0;uiReadIndex < 4; uiReadIndex++)
-					{
-						if(*((PUINT)&pTempBuff[uiIndex+uiReadIndex*4]) != uiReadBk[uiReadIndex])
-						{
-							Status = -1;
-							goto BeceemFlashBulkWriteStatus_EXIT;
-
-						}
-					}
-
-				}
-#endif
 
 				if(STATUS_SUCCESS == BeceemFlashBulkRead(Adapter,(PUINT)ucReadBk,uiOffsetFromSectStart+uiIndex,MAX_RW_SIZE))
 				{
@@ -3158,15 +2908,6 @@ INT BcmGetFlashCSInfo(PMINI_ADAPTER Adapter)
 
 	Adapter->uiFlashLayoutMajorVersion = uiFlashLayoutMajorVersion;
 
-	#if 0
-	if(FLASH_PART_SST25VF080B == Adapter->ulFlashID)
-	{
-	//
-	// 1MB flash has been selected. we have to use 64K as sector size no matter what is kept in FLASH_CS.
-	//
-		Adapter->uiSectorSize = 0x10000;
-	}
-	#endif
 
 	return STATUS_SUCCESS ;
 }
@@ -4837,20 +4578,6 @@ INT	BcmCopySection(PMINI_ADAPTER Adapter,
 		return  -EINVAL;
 	}
 
-	#if 0
-	else
-	{
-		if((SrcSection == VSA0) || (SrcSection == VSA1) || (SrcSection == VSA2))
-		{
-			if((DstSection != VSA0) && (DstSection != VSA1) && (DstSection != VSA2))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Source and Destion secton is not of same type");
-				return -EINVAL;
-			}
-		}
-
-	}
-	#endif
 	//if offset zero means have to copy complete secton
 
 	if(numOfBytes == 0)
@@ -4950,14 +4677,6 @@ INT SaveHeaderIfPresent(PMINI_ADAPTER Adapter, PUCHAR pBuff, UINT uiOffset)
 	UINT uiSectAlignAddr = 0;
 	UINT sig = 0;
 
-	#if 0
-	//if Chenges in Header is allowed, Return back
-	if(Adapter->bHeaderChangeAllowed == TRUE)
-	{
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL, "Header Change is allowed");
-		return STATUS_SUCCESS ;
-	}
-	#endif
 	//making the offset sector alligned
 	uiSectAlignAddr = uiOffset & ~(Adapter->uiSectorSize - 1);
 
@@ -5336,39 +5055,6 @@ INT WriteToFlashWithoutSectorErase(PMINI_ADAPTER Adapter,
 	return Status;
 }
 
-#if 0
-UINT getNumOfSubSectionWithWRPermisson(PMINI_ADAPTER Adapter, SECTION_TYPE secType)
-{
-
-	UINT numOfWRSubSec = 0;
-	switch(secType)
-	{
-		case ISO :
-			if(IsSectionWritable(Adapter,ISO_IMAGE1))
-				numOfWRSubSec = numOfWRSubSec + 1;
-			if(IsSectionWritable(Adapter,ISO_IMAGE2))
-				numOfWRSubSec = numOfWRSubSec + 1;
-			break;
-
-		case DSD :
-			if(IsSectionWritable(Adapter,DSD2))
-				numOfWRSubSec = numOfWRSubSec + 1;
-			if(IsSectionWritable(Adapter,DSD1))
-				numOfWRSubSec = numOfWRSubSec + 1;
-			if(IsSectionWritable(Adapter,DSD0))
-				numOfWRSubSec = numOfWRSubSec + 1;
-			break ;
-
-		case VSA :
-				//for VSA Add code Here
-		 default :
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, NVM_RW, DBG_LVL_ALL,"Invalid secton<%d> is passed", secType);\
-			numOfWRSubSec = 0;
-
-	}
-	return numOfWRSubSec;
-}
-#endif
 BOOLEAN IsSectionExistInFlash(PMINI_ADAPTER Adapter, FLASH2X_SECTION_VAL section)
 {
 

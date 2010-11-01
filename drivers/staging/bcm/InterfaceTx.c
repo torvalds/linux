@@ -9,10 +9,6 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 	PMINI_ADAPTER psAdapter = psIntfAdapter->psAdapter ;
 	BOOLEAN bpowerDownMsg = FALSE ;
     PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
-#if 0
-	struct timeval tv;
-	UINT time_ms = 0;
-#endif
 	if(urb->status != STATUS_SUCCESS)
 	{
 		if(urb->status == -EPIPE)
@@ -33,11 +29,6 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 
 	if(TRUE == psAdapter->bPreparingForLowPowerMode)
 	{
-		#if 0
-		do_gettimeofday(&tv);
-		time_ms = tv.tv_sec *1000 + tv.tv_usec/1000;
-		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, " %s Idle Mode ACK_Sent got from device at time :0x%x", __FUNCTION__, time_ms);
-		#endif
 
 		if(((pControlMsg->szData[0] == GO_TO_IDLE_MODE_PAYLOAD) &&
 			(pControlMsg->szData[1] == TARGET_CAN_GO_TO_IDLE_MODE)))
