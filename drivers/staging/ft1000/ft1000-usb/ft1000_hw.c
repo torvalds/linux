@@ -874,10 +874,7 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
     pInfo->fCondResetPend = 0;
 	pInfo->usbboot = 0;
 	pInfo->dspalive = 0;
-	for (i=0;i<32 ;i++ )
-	{
-		pInfo->tempbuf[i] = 0;
-	}
+	memset(&pInfo->tempbuf[0], 0, sizeof(pInfo->tempbuf));
 
     INIT_LIST_HEAD(&pInfo->prov_list);
 
