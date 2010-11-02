@@ -5410,9 +5410,7 @@ int ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	 * will return the blocks that include the delayed allocation
 	 * blocks for this file.
 	 */
-	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
 	delalloc_blocks = EXT4_I(inode)->i_reserved_data_blocks;
-	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 
 	stat->blocks += (delalloc_blocks << inode->i_sb->s_blocksize_bits)>>9;
 	return 0;
