@@ -4043,9 +4043,8 @@ F:	drivers/scsi/NCR_D700.*
 
 NETEFFECT IWARP RNIC DRIVER (IW_NES)
 M:	Faisal Latif <faisal.latif@intel.com>
-M:	Chien Tung <chien.tin.tung@intel.com>
 L:	linux-rdma@vger.kernel.org
-W:	http://www.neteffect.com
+W:	http://www.intel.com/Products/Server/Adapters/Server-Cluster/Server-Cluster-overview.htm
 S:	Supported
 F:	drivers/infiniband/hw/nes/
 
