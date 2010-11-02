@@ -1083,30 +1083,10 @@ static int tegra2_audio_sync_clk_set_parent(struct clk *c, struct clk *p)
 	return -EINVAL;
 }
 
-static int tegra2_audio_sync_clk_set_rate(struct clk *c, unsigned long rate)
-{
-	unsigned long parent_rate;
-	if (!c->parent) {
-		pr_err("%s: clock has no parent\n", __func__);
-		return -EINVAL;
-	}
-	parent_rate = c->parent->rate;
-	if (rate != parent_rate) {
-		pr_err("%s: %s/%ld differs from parent %s/%ld\n",
-			__func__,
-			c->name, rate,
-			c->parent->name, parent_rate);
-		return -EINVAL;
-	}
-	c->rate = parent_rate;
-	return 0;
-}
-
 static struct clk_ops tegra_audio_sync_clk_ops = {
 	.init       = tegra2_audio_sync_clk_init,
 	.enable     = tegra2_audio_sync_clk_enable,
 	.disable    = tegra2_audio_sync_clk_disable,
-	.set_rate   = tegra2_audio_sync_clk_set_rate,
 	.set_parent = tegra2_audio_sync_clk_set_parent,
 };
 
