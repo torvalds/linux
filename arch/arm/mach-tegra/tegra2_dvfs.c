@@ -81,10 +81,20 @@ static struct dvfs dvfs_init[] = {
 	CPU_DVFS("cpu", 3, MHZ, 730, 760, 845, 845, 1000),
 
 	/* Core voltages (mV):       950,    1000,   1100,   1200,   1275 */
+
+#if 0
+	/*
+	 * The sdhci core calls the clock ops with a spinlock held, which
+	 * conflicts with the sleeping dvfs api.
+	 * For now, boards must ensure that the core voltage does not drop
+	 * below 1V, or that the sdmmc busses are set to 44 MHz or less.
+	 */
 	CORE_DVFS("sdmmc1",  1, KHZ, 44000,  52000,  52000,  52000,  52000),
 	CORE_DVFS("sdmmc2",  1, KHZ, 44000,  52000,  52000,  52000,  52000),
 	CORE_DVFS("sdmmc3",  1, KHZ, 44000,  52000,  52000,  52000,  52000),
 	CORE_DVFS("sdmmc4",  1, KHZ, 44000,  52000,  52000,  52000,  52000),
+#endif
+
 	CORE_DVFS("ndflash", 1, KHZ, 130000, 150000, 158000, 164000, 164000),
 	CORE_DVFS("nor",     1, KHZ, 0,      92000,  92000,  92000,  92000),
 	CORE_DVFS("ide",     1, KHZ, 0,      0,      100000, 100000, 100000),
