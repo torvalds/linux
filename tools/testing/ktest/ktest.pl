@@ -19,8 +19,10 @@ $opt{"TIMEOUT"}			= 50;
 $opt{"TMP_DIR"}			= "/tmp/autotest";
 $opt{"SLEEP_TIME"}		= 60;	# sleep time between tests
 $opt{"BUILD_NOCLEAN"}		= 0;
+$opt{"REBOOT_ON_ERROR"}		= 0;
 $opt{"POWEROFF_ON_ERROR"}	= 0;
 $opt{"POWEROFF_ON_SUCCESS"}	= 0;
+$opt{"BUILD_OPTIONS"}		= "";
 
 my $version;
 my $install_mods;
@@ -63,10 +65,15 @@ sub doprint {
 sub dodie {
     doprint "CRITICAL FAILURE... ", @_;
 
-    if ($opt{"POWEROFF_ON_ERROR"} && defined($opt{"POWER_OFF"})) {
+    if ($opt{"REBOOT_ON_ERROR"}) {
+	doprint "REBOOTING\n";
+	`$opt{"POWER_CYCLE"}`;
+
+    } elsif ($opt{"POWEROFF_ON_ERROR"} && defined($opt{"POWER_OFF"})) {
 	doprint "POWERING OFF\n";
 	`$opt{"POWER_OFF"}`;
     }
+
     die @_;
 }
 
@@ -125,7 +132,7 @@ sub wait_for_input
     return $line;
 }
 
-sub reboot {
+sub reboot_to {
     run_command "ssh $target '(echo \"savedefault --default=$grub_number --once\" | grub --batch; reboot)'";
 }
 
@@ -138,7 +145,7 @@ sub monitor {
     my $skip_call_trace = 0;
 
     if ($doopen2) {
-	$pid = open2(\*IN, \*OUT, $opt{CONSOLE});
+	$pid = open2(\*IN, \*OUT, $opt{"CONSOLE"});
 	if ($pid < 0) {
 	    dodie "Failed to connect to the console";
 	}
@@ -161,7 +168,7 @@ sub monitor {
 	$line = wait_for_input(\*IN, 5);
     } while (defined($line));
 
-    reboot;
+    reboot_to;
 
     for (;;) {
 
@@ -229,7 +236,7 @@ sub install {
 	}
 
 	# would be nice if scp -r did not follow symbolic links
-	if (run_command "cd $opt{TMP_DIR}; tar -cjf $modtar lib/modules/$version") {
+	if (run_command "cd $opt{TMP_DIR} && tar -cjf $modtar lib/modules/$version") {
 	    dodie "making tarball";
 	}
 
@@ -253,9 +260,20 @@ sub build {
     my $defconfig = "";
     my $append = "";
 
+    if ($type =~ /^useconfig:(.*)/) {
+	if (run_command "cp $1 $opt{OUTPUT_DIR}/.config") {
+	    dodie "could not copy $1 to .config";
+	}
+	$type = "oldconfig";
+    }
+
     # old config can ask questions
     if ($type eq "oldconfig") {
 	$append = "yes ''|";
+
+	# allow for empty configs
+	run_command "touch $opt{OUTPUT_DIR}/.config";
+
 	if (run_command "mv $opt{OUTPUT_DIR}/.config $opt{OUTPUT_DIR}/config_temp") {
 	    dodie "moving .config";
 	}
@@ -293,6 +311,21 @@ sub build {
     }
 }
 
+sub reboot {
+    # try to reboot normally
+    if (run_command "ssh $target reboot") {
+	# nope? power cycle it.
+	run_command "$opt{POWER_CYCLE}";
+    }
+}
+
+sub halt {
+    if ((run_command "ssh $target halt") or defined($opt{"POWER_OFF"})) {
+	# nope? the zap it!
+	run_command "$opt{POWER_OFF}";
+    }
+}
+
 read_config $ARGV[0];
 
 # mandatory configs
@@ -301,6 +334,7 @@ die "SSH_USER not defined\n"		if (!defined($opt{"SSH_USER"}));
 die "BUILD_DIR not defined\n"		if (!defined($opt{"BUILD_DIR"}));
 die "OUTPUT_DIR not defined\n"		if (!defined($opt{"OUTPUT_DIR"}));
 die "BUILD_TARGET not defined\n"	if (!defined($opt{"BUILD_TARGET"}));
+die "TARGET_IMAGE not defined\n"	if (!defined($opt{"TARGET_IMAGE"}));
 die "POWER_CYCLE not defined\n"		if (!defined($opt{"POWER_CYCLE"}));
 die "CONSOLE not defined\n"		if (!defined($opt{"CONSOLE"}));
 die "LOCALVERSION not defined\n"	if (!defined($opt{"LOCALVERSION"}));
@@ -388,20 +422,16 @@ for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
     doprint     "*******************************************\n";
     doprint     "*******************************************\n";
 
-    # try to reboot normally
-
-    if (run_command "ssh $target reboot") {
-	# nope? power cycle it.
-	run_command "$opt{POWER_CYCLE}";
+    if ($i != $opt{"NUM_BUILDS"}) {
+	reboot;
+	sleep "$opt{SLEEP_TIME}";
     }
-
-    sleep "$opt{SLEEP_TIME}";
 }
 
 if ($opt{"POWEROFF_ON_SUCCESS"}) {
-    if (run_command "ssh $target halt" && defined($opt{"POWER_OFF"})) {
-	# nope? the zap it!
-	run_command "$opt{POWER_OFF}";
-    }
+    halt;
+} else {
+    reboot;
 }
+
 exit 0;
