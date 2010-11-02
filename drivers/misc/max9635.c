@@ -173,11 +173,6 @@ static int max9635_init_registers(struct max9635_data *als_data)
 	if (max9635_write_reg(als_data, buf, 1))
 		goto init_failed;
 
-	buf[0] = (AUTO_INCREMENT | MAX9635_INT_EN);
-	buf[1] = 0x01;
-	if (max9635_write_reg(als_data, buf, 1))
-		goto init_failed;
-
 	return 0;
 
 init_failed:
@@ -479,6 +474,7 @@ static int max9635_probe(struct i2c_client *client,
 
 	als_data->client = client;
 	als_data->als_pdata = pdata;
+	max9635_misc_data = als_data;
 
 	als_data->idev = input_allocate_device();
 	if (!als_data->idev) {
@@ -537,8 +533,6 @@ static int max9635_probe(struct i2c_client *client,
 		goto err_create_registers_file_failed;
 	}
 #endif
-	max9635_irq_enable(als_data, 0);
-	schedule_delayed_work(&als_data->working_queue, 0);
 
 	return 0;
 
@@ -582,9 +576,6 @@ static int max9635_suspend(struct i2c_client *client, pm_message_t mesg)
 	max9635_irq_enable(als_data, 0);
 	cancel_delayed_work_sync(&als_data->working_queue);
 
-	if (atomic_read(&als_data->enabled) == 1)
-		max9635_disable(als_data);
-
 	return 0;
 }
 
@@ -595,12 +586,7 @@ static int max9635_resume(struct i2c_client *client)
 	if (max9635_debug)
 		pr_info("%s: Resuming\n", __func__);
 
-	if (atomic_read(&als_data->enabled) == 0)
-		max9635_enable(als_data);
-
-	/* Allow the ALS sensor to read the zone */
-	schedule_delayed_work(&als_data->working_queue,
-		msecs_to_jiffies(100));
+	max9635_irq_enable(als_data, 1);
 
 	return 0;
 }
