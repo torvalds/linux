@@ -18,12 +18,16 @@ $opt{"MAKE_CMD"}		= "make";
 $opt{"TIMEOUT"}			= 50;
 $opt{"TMP_DIR"}			= "/tmp/autotest";
 $opt{"SLEEP_TIME"}		= 60;	# sleep time between tests
+$opt{"BUILD_NOCLEAN"}		= 0;
+$opt{"POWEROFF_ON_ERROR"}	= 0;
+$opt{"POWEROFF_ON_SUCCESS"}	= 0;
 
 my $version;
 my $install_mods;
 my $grub_number;
 my $target;
 my $make;
+my $noclean;
 
 sub read_config {
     my ($config) = @_;
@@ -54,6 +58,16 @@ sub doprint {
 	print OUT @_;
 	close(OUT);
     }
+}
+
+sub dodie {
+    doprint "CRITICAL FAILURE... ", @_;
+
+    if ($opt{"POWEROFF_ON_ERROR"} && defined($opt{"POWER_OFF"})) {
+	doprint "POWERING OFF\n";
+	`$opt{"POWER_OFF"}`;
+    }
+    die @_;
 }
 
 sub run_command {
@@ -121,21 +135,22 @@ sub monitor {
     my $bug = 0;
     my $pid;
     my $doopen2 = 0;
+    my $skip_call_trace = 0;
 
     if ($doopen2) {
 	$pid = open2(\*IN, \*OUT, $opt{CONSOLE});
 	if ($pid < 0) {
-	    die "Failed to connect to the console";
+	    dodie "Failed to connect to the console";
 	}
     } else {
 	$pid = open(IN, "$opt{CONSOLE} |");
     }
 
     $flags = fcntl(IN, F_GETFL, 0) or
-	die "Can't get flags for the socket: $!\n";
+	dodie "Can't get flags for the socket: $!\n";
 
     $flags = fcntl(IN, F_SETFL, $flags | O_NONBLOCK) or
-	die "Can't set flags for the socket: $!\n";
+	dodie "Can't set flags for the socket: $!\n";
 
     my $line;
     my $full_line = "";
@@ -163,7 +178,19 @@ sub monitor {
 	    $booted = 1;
 	}
 
+	if ($full_line =~ /\[ backtrace testing \]/) {
+	    $skip_call_trace = 1;
+	}
+
 	if ($full_line =~ /call trace:/i) {
+	    $bug = 1 if (!$skip_call_trace);
+	}
+
+	if ($full_line =~ /\[ end of backtrace testing \]/) {
+	    $skip_call_trace = 0;
+	}
+
+	if ($full_line =~ /Kernel panic -/) {
 	    $bug = 1;
 	}
 
@@ -179,57 +206,90 @@ sub monitor {
     close(IN);
 
     if (!$booted) {
-	die "failed - never got a boot prompt.\n";
+	dodie "failed - never got a boot prompt.\n";
     }
 
     if ($bug) {
-	die "failed - got a bug report\n";
+	dodie "failed - got a bug report\n";
     }
 }
 
 sub install {
 
     if (run_command "scp $opt{OUTPUT_DIR}/$opt{BUILD_TARGET} $target:$opt{TARGET_IMAGE}") {
-	die "failed to copy image";
+	dodie "failed to copy image";
     }
 
     if ($install_mods) {
 	my $modlib = "/lib/modules/$version";
+	my $modtar = "autotest-mods.tar.bz2";
 
 	if (run_command "ssh $target rm -rf $modlib") {
-	    die "failed to remove old mods: $modlib";
+	    dodie "failed to remove old mods: $modlib";
 	}
 
-	if (run_command "scp -r $opt{TMP_DIR}/lib $target:/lib/modules/$version") {
-	    die "failed to copy modules";
+	# would be nice if scp -r did not follow symbolic links
+	if (run_command "cd $opt{TMP_DIR}; tar -cjf $modtar lib/modules/$version") {
+	    dodie "making tarball";
 	}
+
+	if (run_command "scp $opt{TMP_DIR}/$modtar $target:/tmp") {
+	    dodie "failed to copy modules";
+	}
+
+	unlink "$opt{TMP_DIR}/$modtar";
+
+	if (run_command "ssh $target '(cd / && tar xf /tmp/$modtar)'") {
+	    dodie "failed to tar modules";
+	}
+
+	run_command "ssh $target rm -f /tmp/$modtar";
     }
 
 }
 
 sub build {
     my ($type) = @_;
+    my $defconfig = "";
+    my $append = "";
 
-    unlink "$opt{OUTPUT_DIR}/.config";
+    # old config can ask questions
+    if ($type eq "oldconfig") {
+	$append = "yes ''|";
+	if (run_command "mv $opt{OUTPUT_DIR}/.config $opt{OUTPUT_DIR}/config_temp") {
+	    dodie "moving .config";
+	}
 
-    run_command "$make mrproper";
+	if (!$noclean && run_command "$make mrproper") {
+	    dodie "make mrproper";
+	}
+
+	if (run_command "mv $opt{OUTPUT_DIR}/config_temp $opt{OUTPUT_DIR}/.config") {
+	    dodie "moving config_temp";
+	}
+
+    } elsif (!$noclean) {
+	unlink "$opt{OUTPUT_DIR}/.config";
+	if (run_command "$make mrproper") {
+	    dodie "make mrproper";
+	}
+    }
 
     # add something to distinguish this build
-    open(OUT, "> $opt{OUTPUT_DIR}/localversion") or die("Can't make localversion file");
+    open(OUT, "> $opt{OUTPUT_DIR}/localversion") or dodie("Can't make localversion file");
     print OUT "$opt{LOCALVERSION}\n";
     close(OUT);
 
-    if (run_command "$make $opt{$type}") {
-	die "failed make config";
+    if (defined($opt{"MIN_CONFIG"})) {
+	$defconfig = "KCONFIG_ALLCONFIG=$opt{MIN_CONFIG}";
     }
 
-    if (defined($opt{"MIN_CONFIG"})) {
-	run_command "cat $opt{MIN_CONFIG} >> $opt{OUTPUT_DIR}/.config";
-	run_command "yes '' | $make oldconfig";
+    if (run_command "$defconfig $append $make $type") {
+	dodie "failed make config";
     }
 
     if (run_command "$make $opt{BUILD_OPTIONS}") {
-	die "failed build";
+	dodie "failed build";
     }
 }
 
@@ -275,6 +335,13 @@ $make = "$opt{MAKE_CMD} O=$opt{OUTPUT_DIR}";
 for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
     my $type = "BUILD_TYPE[$i]";
 
+    if (defined($opt{"BUILD_NOCLEAN[$i]"}) &&
+	$opt{"BUILD_NOCLEAN[$i]"} != 0) {
+	$noclean = 1;
+    } else {
+	$noclean = $opt{"BUILD_NOCLEAN"};
+    }
+
     if (!defined($opt{$type})) {
 	$opt{$type} = $opt{"DEFAULT_BUILD_TYPE"};
     }
@@ -283,7 +350,7 @@ for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
     doprint "RUNNING TEST $i of $opt{NUM_BUILDS} with option $opt{$type}\n\n";
 
     if ($opt{$type} ne "nobuild") {
-	build $type;
+	build $opt{$type};
     }
 
     # get the release name
@@ -294,7 +361,7 @@ for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
 
     # should we process modules?
     $install_mods = 0;
-    open(IN, "$opt{OUTPUT_DIR}/.config") or die("Can't read config file");
+    open(IN, "$opt{OUTPUT_DIR}/.config") or dodie("Can't read config file");
     while (<IN>) {
 	if (/CONFIG_MODULES(=y)?/) {
 	    $install_mods = 1 if (defined($1));
@@ -305,7 +372,7 @@ for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
 
     if ($install_mods) {
 	if (run_command "$make INSTALL_MOD_PATH=$opt{TMP_DIR} modules_install") {
-	    die "Failed to install modules";
+	    dodie "Failed to install modules";
 	}
     } else {
 	doprint "No modules needed\n";
@@ -331,4 +398,10 @@ for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
     sleep "$opt{SLEEP_TIME}";
 }
 
+if ($opt{"POWEROFF_ON_SUCCESS"}) {
+    if (run_command "ssh $target halt" && defined($opt{"POWER_OFF"})) {
+	# nope? the zap it!
+	run_command "$opt{POWER_OFF}";
+    }
+}
 exit 0;
