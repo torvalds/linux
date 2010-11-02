@@ -11,7 +11,9 @@ use File::Path qw(mkpath);
 use File::Copy qw(cp);
 use FileHandle;
 
-$#ARGV >= 0 || die "usage: ktest.pl config-file\n";
+my $VERSION = "0.2";
+
+$#ARGV >= 0 || die "ktest.pl version: $VERSION\n   usage: ktest.pl config-file\n";
 
 $| = 1;
 
@@ -40,9 +42,13 @@ $default{"CLEAR_LOG"}		= 0;
 $default{"SUCCESS_LINE"}	= "login:";
 $default{"BOOTED_TIMEOUT"}	= 1;
 $default{"DIE_ON_FAILURE"}	= 1;
+$default{"SSH_EXEC"}		= "ssh \$SSH_USER\@\$MACHINE \$SSH_COMMAND";
+$default{"SCP_TO_TARGET"}	= "scp \$SRC_FILE \$SSH_USER\@\$MACHINE:\$DST_FILE";
+$default{"REBOOT"}		= "ssh \$SSH_USER\@\$MACHINE reboot";
 
 my $version;
 my $machine;
+my $ssh_user;
 my $tmpdir;
 my $builddir;
 my $outputdir;
@@ -53,11 +59,14 @@ my $build_options;
 my $reboot_type;
 my $reboot_script;
 my $power_cycle;
+my $reboot;
 my $reboot_on_error;
 my $poweroff_on_error;
 my $die_on_failure;
 my $powercycle_after_reboot;
 my $poweroff_after_halt;
+my $ssh_exec;
+my $scp_to_target;
 my $power_off;
 my $grub_menu;
 my $grub_number;
@@ -89,6 +98,7 @@ my $build_target;
 my $target_image;
 my $localversion;
 my $iteration = 0;
+my $successes = 0;
 
 sub set_value {
     my ($lvalue, $rvalue) = @_;
@@ -133,6 +143,7 @@ sub read_config {
 	    }
 
 	    my $old_test_num = $test_num;
+	    my $old_repeat = $repeat;
 
 	    $test_num += $repeat;
 	    $default = 0;
@@ -162,7 +173,7 @@ sub read_config {
 
 	    if ($skip) {
 		$test_num = $old_test_num;
-		$repeat = 1;
+		$repeat = $old_repeat;
 	    }
 
 	} elsif (/^\s*DEFAULTS(.*)$/) {
@@ -261,7 +272,7 @@ sub run_command;
 
 sub reboot {
     # try to reboot normally
-    if (run_command "ssh $target reboot") {
+    if (run_command $reboot) {
 	if (defined($powercycle_after_reboot)) {
 	    sleep $powercycle_after_reboot;
 	    run_command "$power_cycle";
@@ -419,6 +430,9 @@ sub run_command {
     my $dord = 0;
     my $pid;
 
+    $command =~ s/\$SSH_USER/$ssh_user/g;
+    $command =~ s/\$MACHINE/$machine/g;
+
     doprint("$command ... ");
 
     $pid = open(CMD, "$command 2>&1 |") or
@@ -457,6 +471,24 @@ sub run_command {
     return !$failed;
 }
 
+sub run_ssh {
+    my ($cmd) = @_;
+    my $cp_exec = $ssh_exec;
+
+    $cp_exec =~ s/\$SSH_COMMAND/$cmd/g;
+    return run_command "$cp_exec";
+}
+
+sub run_scp {
+    my ($src, $dst) = @_;
+    my $cp_scp = $scp_to_target;
+
+    $cp_scp =~ s/\$SRC_FILE/$src/g;
+    $cp_scp =~ s/\$DST_FILE/$dst/g;
+
+    return run_command "$cp_scp";
+}
+
 sub get_grub_index {
 
     if ($reboot_type ne "grub") {
@@ -466,8 +498,13 @@ sub get_grub_index {
 
     doprint "Find grub menu ... ";
     $grub_number = -1;
-    open(IN, "ssh $target cat /boot/grub/menu.lst |")
+
+    my $ssh_grub = $ssh_exec;
+    $ssh_grub =~ s,\$SSH_COMMAND,cat /boot/grub/menu.lst,g;
+
+    open(IN, "$ssh_grub |")
 	or die "unable to get menu.lst";
+
     while (<IN>) {
 	if (/^\s*title\s+$grub_menu\s*$/) {
 	    $grub_number++;
@@ -516,7 +553,7 @@ sub wait_for_input
 
 sub reboot_to {
     if ($reboot_type eq "grub") {
-	run_command "ssh $target '(echo \"savedefault --default=$grub_number --once\" | grub --batch; reboot)'";
+	run_command "$ssh_exec '(echo \"savedefault --default=$grub_number --once\" | grub --batch; reboot)'";
 	return;
     }
 
@@ -618,7 +655,7 @@ sub monitor {
 
 sub install {
 
-    run_command "scp $outputdir/$build_target $target:$target_image" or
+    run_scp "$outputdir/$build_target", "$target_image" or
 	dodie "failed to copy image";
 
     my $install_mods = 0;
@@ -645,32 +682,29 @@ sub install {
     my $modlib = "/lib/modules/$version";
     my $modtar = "ktest-mods.tar.bz2";
 
-    run_command "ssh $target rm -rf $modlib" or
+    run_ssh "rm -rf $modlib" or
 	dodie "failed to remove old mods: $modlib";
 
     # would be nice if scp -r did not follow symbolic links
     run_command "cd $tmpdir && tar -cjf $modtar lib/modules/$version" or
 	dodie "making tarball";
 
-    run_command "scp $tmpdir/$modtar $target:/tmp" or
+    run_scp "$tmpdir/$modtar", "/tmp" or
 	dodie "failed to copy modules";
 
     unlink "$tmpdir/$modtar";
 
-    run_command "ssh $target '(cd / && tar xf /tmp/$modtar)'" or
+    run_ssh "'(cd / && tar xf /tmp/$modtar)'" or
 	dodie "failed to tar modules";
 
-    run_command "ssh $target rm -f /tmp/$modtar";
+    run_ssh "rm -f /tmp/$modtar";
 
     return if (!defined($post_install));
 
-    my $save_env = $ENV{KERNEL_VERSION};
-
-    $ENV{KERNEL_VERSION} = $version;
-    run_command "$post_install" or
+    my $cp_post_install = $post_install;
+    $cp_post_install = s/\$KERNEL_VERSION/$version/g;
+    run_command "$cp_post_install" or
 	dodie "Failed to run post install";
-
-    $ENV{KERNEL_VERSION} = $save_env;
 }
 
 sub check_buildlog {
@@ -766,7 +800,7 @@ sub build {
 }
 
 sub halt {
-    if (!run_command "ssh $target halt" or defined($power_off)) {
+    if (!run_ssh "halt" or defined($power_off)) {
 	if (defined($poweroff_after_halt)) {
 	    sleep $poweroff_after_halt;
 	    run_command "$power_off";
@@ -779,6 +813,8 @@ sub halt {
 
 sub success {
     my ($i) = @_;
+
+    $successes++;
 
     doprint "\n\n*******************************************\n";
     doprint     "*******************************************\n";
@@ -1250,10 +1286,10 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     $iteration = $i;
 
-    my $ssh_user = set_test_option("SSH_USER", $i);
     my $makecmd = set_test_option("MAKE_CMD", $i);
 
     $machine = set_test_option("MACHINE", $i);
+    $ssh_user = set_test_option("SSH_USER", $i);
     $tmpdir = set_test_option("TMP_DIR", $i);
     $outputdir = set_test_option("OUTPUT_DIR", $i);
     $builddir = set_test_option("BUILD_DIR", $i);
@@ -1261,6 +1297,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $build_type = set_test_option("BUILD_TYPE", $i);
     $build_options = set_test_option("BUILD_OPTIONS", $i);
     $power_cycle = set_test_option("POWER_CYCLE", $i);
+    $reboot = set_test_option("REBOOT", $i);
     $noclean = set_test_option("BUILD_NOCLEAN", $i);
     $minconfig = set_test_option("MIN_CONFIG", $i);
     $run_test = set_test_option("TEST", $i);
@@ -1283,6 +1320,8 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $console = set_test_option("CONSOLE", $i);
     $success_line = set_test_option("SUCCESS_LINE", $i);
     $build_target = set_test_option("BUILD_TARGET", $i);
+    $ssh_exec = set_test_option("SSH_EXEC", $i);
+    $scp_to_target = set_test_option("SCP_TO_TARGET", $i);
     $target_image = set_test_option("TARGET_IMAGE", $i);
     $localversion = set_test_option("LOCALVERSION", $i);
 
@@ -1293,11 +1332,15 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	    die "can't create $tmpdir";
     }
 
+    $ENV{"SSH_USER"} = $ssh_user;
+    $ENV{"MACHINE"} = $machine;
+
     $target = "$ssh_user\@$machine";
 
     $buildlog = "$tmpdir/buildlog-$machine";
     $dmesg = "$tmpdir/dmesg-$machine";
     $make = "$makecmd O=$outputdir";
+    $output_config = "$outputdir/.config";
     $output_config = "$outputdir/.config";
 
     if ($reboot_type eq "grub") {
@@ -1375,5 +1418,7 @@ if ($opt{"POWEROFF_ON_SUCCESS"}) {
 } elsif ($opt{"REBOOT_ON_SUCCESS"} && !do_not_reboot) {
     reboot;
 }
+
+doprint "\n    $successes of $opt{NUM_TESTS} tests were successful\n\n";
 
 exit 0;
