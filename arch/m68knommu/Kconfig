@@ -168,6 +168,11 @@ config M5407
 	help
 	  Motorola ColdFire 5407 processor support.
 
+config M547x
+	bool "MCF547x"
+	help
+	  Freescale ColdFire 5470/5471/5472/5473/5474/5475 processor support.
+
 config M548x
 	bool "MCF548x"
 	help
@@ -183,7 +188,7 @@ config M527x
 
 config M54xx
 	bool
-	depends on M548x
+	depends on (M548x || M547x)
 	default y
 
 config COLDFIRE
