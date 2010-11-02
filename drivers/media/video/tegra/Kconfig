@@ -1,3 +1,12 @@
+config TEGRA_CAMERA
+        bool "Enable support for tegra camera/isp hardware"
+        depends on ARCH_TEGRA
+        default y
+        help
+          Enables support for the Tegra camera interface
+
+          If unsure, say Y
+
 config VIDEO_OV5650
         tristate "OV5650 camera sensor support"
         depends on I2C && ARCH_TEGRA
@@ -17,4 +26,3 @@ config VIDEO_DW9714L
         depends on I2C && ARCH_TEGRA
         ---help---
           This is a driver for the the dw9714l focuser.
-
