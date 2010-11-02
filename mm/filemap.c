@@ -1563,8 +1563,10 @@ retry_find:
 			goto no_cached_page;
 	}
 
-	if (!lock_page_or_retry(page, vma->vm_mm, vmf->flags))
+	if (!lock_page_or_retry(page, vma->vm_mm, vmf->flags)) {
+		page_cache_release(page);
 		return ret | VM_FAULT_RETRY;
+	}
 
 	/* Did it get truncated? */
 	if (unlikely(page->mapping != mapping)) {
