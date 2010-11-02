@@ -1347,6 +1347,7 @@ static int ft1000_open (struct net_device *dev)
 {
 	struct ft1000_info *pInfo = (struct ft1000_info *)netdev_priv(dev);
     struct timeval tv; //mbelian
+	int ret;
 
     DEBUG("ft1000_open is called for card %d\n", pInfo->CardNumber);
     //DEBUG("ft1000_open: dev->addr=%x, dev->addr_len=%d\n", dev->addr, dev->addr_len);
@@ -1364,8 +1365,9 @@ static int ft1000_open (struct net_device *dev)
 
     netif_carrier_on(dev); //mbelian
 
-    ft1000_submit_rx_urb(pInfo);
-    return 0;
+	ret = ft1000_submit_rx_urb(pInfo);
+
+	return ret;
 }
 
 //---------------------------------------------------------------------------
