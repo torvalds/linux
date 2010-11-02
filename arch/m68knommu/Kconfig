@@ -181,9 +181,14 @@ config M527x
 	select GENERIC_CLOCKEVENTS
 	default y
 
+config M54xx
+	bool
+	depends on M548x
+	default y
+
 config COLDFIRE
 	bool
-	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M532x || M5407 || M548x)
+	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M532x || M5407 || M54xx)
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	default y

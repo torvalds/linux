@@ -5,7 +5,7 @@
  * (C) Copyright 2000-2004, Greg Ungerer <gerg@snapgear.com>
  */
 #include <linux/mm.h>
-#if defined(CONFIG_M5407) || defined(CONFIG_M548x)
+#if defined(CONFIG_M5407) || defined(CONFIG_M54xx)
 #include <asm/m54xxacr.h>
 #endif
 

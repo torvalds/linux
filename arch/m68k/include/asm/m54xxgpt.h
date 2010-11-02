@@ -1,13 +1,13 @@
 /*
- * File:	m548xgpt.h
- * Purpose:	Register and bit definitions for the MCF548X
+ * File:	m54xxgpt.h
+ * Purpose:	Register and bit definitions for the MCF54XX
  *
  * Notes:
  *
  */
 
-#ifndef m548xgpt_h
-#define m548xgpt_h
+#ifndef m54xxgpt_h
+#define m54xxgpt_h
 
 /*********************************************************************
 *
@@ -85,4 +85,4 @@
 
 /********************************************************************/
 
-#endif /* m548xgpt_h */
+#endif /* m54xxgpt_h */

@@ -47,11 +47,11 @@
 #define MCFUART_BASE1		0xfc060000	/* Base address of UART1 */
 #define MCFUART_BASE2		0xfc064000	/* Base address of UART2 */
 #define MCFUART_BASE3		0xfc068000	/* Base address of UART3 */
-#elif defined(CONFIG_M548x)
-#define MCFUART_BASE1		0x8600		/* on M548x */
-#define MCFUART_BASE2		0x8700		/* on M548x */
-#define MCFUART_BASE3		0x8800		/* on M548x */
-#define MCFUART_BASE4		0x8900		/* on M548x */
+#elif defined(CONFIG_M54xx)
+#define MCFUART_BASE1		0x8600		/* on M54xx */
+#define MCFUART_BASE2		0x8700		/* on M54xx */
+#define MCFUART_BASE3		0x8800		/* on M54xx */
+#define MCFUART_BASE4		0x8900		/* on M54xx */
 #endif
 
 
@@ -217,7 +217,7 @@ struct mcf_platform_uart {
 #define	MCFUART_URF_RXS		0xc0		/* Receiver status */
 #endif
 
-#if defined(CONFIG_M548x)
+#if defined(CONFIG_M54xx)
 #define MCFUART_TXFIFOSIZE	512
 #elif defined(CONFIG_M5272)
 #define MCFUART_TXFIFOSIZE	25

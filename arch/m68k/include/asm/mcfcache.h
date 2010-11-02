@@ -107,7 +107,7 @@
 .endm
 #endif /* CONFIG_M532x */
 
-#if defined(CONFIG_M5407) || defined(CONFIG_M548x)
+#if defined(CONFIG_M5407) || defined(CONFIG_M54xx)
 
 #include <asm/m54xxacr.h>
 
@@ -131,7 +131,7 @@
 	movec	%d0,%CACR
 	nop
 .endm
-#endif /* CONFIG_M5407 || CONFIG_M548x */
+#endif /* CONFIG_M5407 || CONFIG_M54xx */
 
 #if defined(CONFIG_M520x)
 .macro CACHE_ENABLE

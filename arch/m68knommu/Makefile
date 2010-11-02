@@ -25,7 +25,7 @@ platform-$(CONFIG_M528x)	:= 528x
 platform-$(CONFIG_M5307)	:= 5307
 platform-$(CONFIG_M532x)	:= 532x
 platform-$(CONFIG_M5407)	:= 5407
-platform-$(CONFIG_M548x)	:= 548x
+platform-$(CONFIG_M54xx)	:= 54xx
 PLATFORM := $(platform-y)
 
 board-$(CONFIG_PILOT)		:= pilot
@@ -74,7 +74,7 @@ cpuclass-$(CONFIG_M528x)	:= coldfire
 cpuclass-$(CONFIG_M5307)	:= coldfire
 cpuclass-$(CONFIG_M532x)	:= coldfire
 cpuclass-$(CONFIG_M5407)	:= coldfire
-cpuclass-$(CONFIG_M548x)	:= coldfire
+cpuclass-$(CONFIG_M54xx)	:= coldfire
 cpuclass-$(CONFIG_M68328)	:= 68328
 cpuclass-$(CONFIG_M68EZ328)	:= 68328
 cpuclass-$(CONFIG_M68VZ328)	:= 68328
@@ -102,7 +102,7 @@ cflags-$(CONFIG_M528x)		:= $(call cc-option,-m528x,-m5307)
 cflags-$(CONFIG_M5307)		:= $(call cc-option,-m5307,-m5200)
 cflags-$(CONFIG_M532x)		:= $(call cc-option,-mcpu=532x,-m5307)
 cflags-$(CONFIG_M5407)		:= $(call cc-option,-m5407,-m5200)
-cflags-$(CONFIG_M548x)		:= $(call cc-option,-m5407,-m5200)
+cflags-$(CONFIG_M54xx)		:= $(call cc-option,-m5407,-m5200)
 cflags-$(CONFIG_M68328)		:= -m68000
 cflags-$(CONFIG_M68EZ328)	:= -m68000
 cflags-$(CONFIG_M68VZ328)	:= -m68000

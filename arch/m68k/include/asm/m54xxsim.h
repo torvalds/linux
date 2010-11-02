@@ -1,9 +1,9 @@
 /*
- *	m548xsim.h -- ColdFire 547x/548x System Integration Unit support.
+ *	m54xxsim.h -- ColdFire 547x/548x System Integration Unit support.
  */
 
-#ifndef	m548xsim_h
-#define m548xsim_h
+#ifndef	m54xxsim_h
+#define m54xxsim_h
 
 #define MCFINT_VECBASE      64
 
@@ -52,4 +52,4 @@
 #define MCF_PAR_PSC_RTS_RTS	(0x30)
 #define MCF_PAR_PSC_CANRX	(0x40)
 
-#endif	/* m548xsim_h */
+#endif	/* m54xxsim_h */
