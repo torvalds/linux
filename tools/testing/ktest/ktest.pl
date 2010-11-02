@@ -58,6 +58,7 @@ my $grub_menu;
 my $grub_number;
 my $target;
 my $make;
+my $post_install;
 my $noclean;
 my $minconfig;
 my $addconfig;
@@ -489,6 +490,15 @@ sub install {
 	dodie "failed to tar modules";
 
     run_command "ssh $target rm -f /tmp/$modtar";
+
+    return if (!defined($post_install));
+
+    my $save_env = $ENV{KERNEL_VERSION};
+
+    $ENV{KERNEL_VERSION} = $version;
+    run_command "$post_install";
+
+    $ENV{KERNEL_VERSION} = $save_env;
 }
 
 sub check_buildlog {
@@ -1055,6 +1065,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $addconfig = set_test_option("ADD_CONFIG", $i);
     $reboot_type = set_test_option("REBOOT_TYPE", $i);
     $grub_menu = set_test_option("GRUB_MENU", $i);
+    $post_install = set_test_option("POST_INSTALL", $i);
     $reboot_script = set_test_option("REBOOT_SCRIPT", $i);
     $reboot_on_error = set_test_option("REBOOT_ON_ERROR", $i);
     $poweroff_on_error = set_test_option("POWEROFF_ON_ERROR", $i);
