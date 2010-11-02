@@ -45,31 +45,6 @@
 #include "devices.h"
 
 #if defined(CONFIG_ARCH_MX1)
-static struct resource imx1_camera_resources[] = {
-	{
-		.start  = 0x00224000,
-		.end    = 0x00224010,
-		.flags  = IORESOURCE_MEM,
-	}, {
-		.start  = MX1_CSI_INT,
-		.end    = MX1_CSI_INT,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-static u64 imx1_camera_dmamask = DMA_BIT_MASK(32);
-
-struct platform_device imx1_camera_device = {
-	.name           = "mx1-camera",
-	.id             = 0, /* This is used to put cameras on this interface */
-	.dev		= {
-		.dma_mask = &imx1_camera_dmamask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-	},
-	.resource       = imx1_camera_resources,
-	.num_resources  = ARRAY_SIZE(imx1_camera_resources),
-};
-
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {
 	{

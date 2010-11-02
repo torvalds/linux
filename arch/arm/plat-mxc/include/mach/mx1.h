@@ -77,7 +77,7 @@
 
 /* fixed interrput numbers */
 #define MX1_INT_SOFTINT		0
-#define MX1_CSI_INT		6
+#define MX1_INT_CSI		6
 #define MX1_DSPA_MAC_INT	7
 #define MX1_DSPA_INT		8
 #define MX1_COMP_INT		9

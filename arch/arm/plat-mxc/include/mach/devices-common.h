@@ -108,6 +108,16 @@ struct platform_device *__init imx_add_imx_udc(
 		const struct imx_imx_udc_data *data,
 		const struct imxusb_platform_data *pdata);
 
+#include <mach/mx1_camera.h>
+struct imx_mx1_camera_data {
+	resource_size_t iobase;
+	resource_size_t iosize;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_mx1_camera(
+		const struct imx_mx1_camera_data *data,
+		const struct mx1_camera_pdata *pdata);
+
 #include <mach/mxc_nand.h>
 struct imx_mxc_nand_data {
 	/*
