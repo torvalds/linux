@@ -91,8 +91,6 @@ typedef struct {
 
 #define BUS_SWAP32(v)		(v)
 
-#define	DMA_CONSISTENT_ALIGN	osl_dma_consistent_align()
-extern uint osl_dma_consistent_align(void);
 extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, u16 align,
 				      uint *tot, unsigned long *pap);
 

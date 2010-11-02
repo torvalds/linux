@@ -285,11 +285,6 @@ uint osl_pci_slot(osl_t *osh)
 	return PCI_SLOT(((struct pci_dev *)osh->pdev)->devfn);
 }
 
-uint osl_dma_consistent_align(void)
-{
-	return PAGE_SIZE;
-}
-
 void *osl_dma_alloc_consistent(osl_t *osh, uint size, u16 align_bits,
 			       uint *alloced, unsigned long *pap)
 {
@@ -297,7 +292,7 @@ void *osl_dma_alloc_consistent(osl_t *osh, uint size, u16 align_bits,
 
 	if (align_bits) {
 		u16 align = (1 << align_bits);
-		if (!IS_ALIGNED(DMA_CONSISTENT_ALIGN, align))
+		if (!IS_ALIGNED(PAGE_SIZE, align))
 			size += align;
 		*alloced = size;
 	}
