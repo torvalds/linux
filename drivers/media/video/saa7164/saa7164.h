@@ -447,7 +447,7 @@ struct saa7164_dev {
 	int	nr;
 	int	hwrevision;
 	u32	board;
-	char	name[32];
+	char	name[16];
 
 	/* firmware status */
 	struct saa7164_fw_status	fw_status;

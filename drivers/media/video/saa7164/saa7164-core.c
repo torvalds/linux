@@ -1001,7 +1001,7 @@ static int saa7164_dev_setup(struct saa7164_dev *dev)
 	atomic_inc(&dev->refcount);
 	dev->nr = saa7164_devcount++;
 
-	sprintf(dev->name, "saa7164[%d]", dev->nr);
+	snprintf(dev->name, sizeof(dev->name), "saa7164[%d]", dev->nr);
 
 	mutex_lock(&devlist);
 	list_add_tail(&dev->devlist, &saa7164_devlist);
