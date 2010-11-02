@@ -2740,7 +2740,8 @@ cont_thread:
 		if (freezing(current))
 			refrigerator();
 
-		if (time_after_eq(jiffies, next_wakeup)) {
+		if ((time_after_eq(jiffies, next_wakeup)) ||
+		    (MAX_JIFFY_OFFSET == next_wakeup)) {
 			cond_resched();
 			continue;
 		}
