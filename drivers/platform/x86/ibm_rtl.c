@@ -220,32 +220,13 @@ static void rtl_teardown_sysfs(void) {
 	sysdev_class_unregister(&class_rtl);
 }
 
-static int dmi_check_cb(const struct dmi_system_id *id)
-{
-	RTL_DEBUG("found IBM server '%s'\n", id->ident);
-	return 0;
-}
-
-#define ibm_dmi_entry(NAME, TYPE)                  \
-{                                                  \
-	.ident = NAME,                             \
-	.matches = {                               \
-		DMI_MATCH(DMI_SYS_VENDOR, "IBM"),  \
-		DMI_MATCH(DMI_PRODUCT_NAME, TYPE), \
-	},                                         \
-	.callback = dmi_check_cb                   \
-}
 
 static struct dmi_system_id __initdata ibm_rtl_dmi_table[] = {
-	ibm_dmi_entry("BladeCenter LS21", "7971"),
-	ibm_dmi_entry("BladeCenter LS22", "7901"),
-	ibm_dmi_entry("BladeCenter HS21 XM", "7995"),
-	ibm_dmi_entry("BladeCenter HS22", "7870"),
-	ibm_dmi_entry("BladeCenter HS22V", "7871"),
-	ibm_dmi_entry("System x3550 M2", "7946"),
-	ibm_dmi_entry("System x3650 M2", "7947"),
-	ibm_dmi_entry("System x3550 M3", "7944"),
-	ibm_dmi_entry("System x3650 M3", "7945"),
+	{                                                  \
+		.matches = {                               \
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),  \
+		},                                         \
+	},
 	{ }
 };
 
