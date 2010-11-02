@@ -18,6 +18,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/string.h>
 
 #include "clock.h"
@@ -132,7 +133,7 @@ static struct dvfs dvfs_init[] = {
 	CORE_DVFS("NVRM_DEVID_CLK_SRC", 1, MHZ, 480, 600, 800, 1067, 1067),
 };
 
-void tegra2_init_dvfs(void)
+void __init tegra2_init_dvfs(void)
 {
 	int i;
 	struct clk *c;

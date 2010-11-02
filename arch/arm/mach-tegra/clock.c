@@ -568,6 +568,7 @@ int __init tegra_disable_boot_clocks(void)
 
 int __init tegra_late_init_clock(void)
 {
+	tegra_dvfs_late_init();
 	tegra_disable_boot_clocks();
 	tegra_clk_set_dvfs_rates();
 	return 0;
