@@ -383,6 +383,22 @@ static void ds2781_battery_alarm(struct alarm *alarm)
 	queue_work(di->monitor_wqueue, &di->monitor_work);
 }
 
+static void ds2781_reset_if_necessary(struct ds2781_device_info *di)
+{
+	if (di->status.percentage < 100) {
+		dev_err(di->dev, "Charge complete before 100 percent.\n");
+		dev_err(di->dev, "Resetting ACR registers to Full 40 value.\n");
+
+		di->raw[DS2781_REG_ACCUMULATE_CURR_MSB] =
+			di->raw[DS2781_REG_FULL_40_MSB];
+		di->raw[DS2781_REG_ACCUMULATE_CURR_LSB] =
+			di->raw[DS2781_REG_FULL_40_LSB];
+		w1_ds2781_write(di->w1_dev,
+				di->raw + DS2781_REG_ACCUMULATE_CURR_MSB,
+				DS2781_REG_ACCUMULATE_CURR_MSB, 2);
+	}
+}
+
 static void battery_ext_power_changed(struct power_supply *psy)
 {
 	struct ds2781_device_info *di;
@@ -394,8 +410,10 @@ static void battery_ext_power_changed(struct power_supply *psy)
 	mutex_lock(&di->status_lock);
 	if (got_power) {
 		di->status.charge_source = 1;
-		if (is_ac_charge_complete())
+		if (is_ac_charge_complete()) {
 			di->status.battery_full = 1;
+			ds2781_reset_if_necessary(di);
+		}
 	} else {
 		di->status.charge_source = 0;
 		di->status.battery_full = 0;
