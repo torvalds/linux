@@ -754,12 +754,6 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	tcon = tlink_tcon(((struct cifsFileInfo *)file->private_data)->tlink);
-
-	if (file->private_data == NULL) {
-		rc = -EBADF;
-		FreeXid(xid);
-		return rc;
-	}
 	netfid = ((struct cifsFileInfo *)file->private_data)->netfid;
 
 	if ((tcon->ses->capabilities & CAP_UNIX) &&
@@ -1154,7 +1148,7 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode,
 					bool fsuid_only)
 {
 	struct cifsFileInfo *open_file;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(cifs_inode->vfs_inode.i_sb);
+	struct cifs_sb_info *cifs_sb;
 	bool any_available = false;
 	int rc;
 
@@ -1167,6 +1161,8 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode,
 		dump_stack();
 		return NULL;
 	}
+
+	cifs_sb = CIFS_SB(cifs_inode->vfs_inode.i_sb);
 
 	/* only filter by fsuid on multiuser mounts */
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER))
