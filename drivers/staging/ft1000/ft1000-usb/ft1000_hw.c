@@ -1306,7 +1306,7 @@ static int ft1000_submit_rx_urb(struct ft1000_info *info)
     {
         DEBUG("network driver is closed, return\n");
         //usb_kill_urb(pFt1000Dev->rx_urb); //mbelian
-        return STATUS_SUCCESS;
+	return -ENODEV;
     }
 
     usb_fill_bulk_urb(pFt1000Dev->rx_urb,
@@ -1321,12 +1321,12 @@ static int ft1000_submit_rx_urb(struct ft1000_info *info)
     if((result = usb_submit_urb(pFt1000Dev->rx_urb, GFP_ATOMIC)))
     {
         printk("ft1000_submit_rx_urb: submitting rx_urb %d failed\n", result);
-        return STATUS_FAILURE;
+	return result;
     }
 
     //DEBUG("ft1000_submit_rx_urb exit: result=%d\n", result);
 
-    return STATUS_SUCCESS;
+	return 0;
 }
 
 //---------------------------------------------------------------------------
