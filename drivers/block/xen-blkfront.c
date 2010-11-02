@@ -656,6 +656,16 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				printk(KERN_WARNING "blkfront: %s: write barrier op failed\n",
 				       info->gd->disk_name);
 				error = -EOPNOTSUPP;
+			}
+			if (unlikely(bret->status == BLKIF_RSP_ERROR &&
+				     info->shadow[id].req.nr_segments == 0)) {
+				printk(KERN_WARNING "blkfront: %s: empty write barrier op failed\n",
+				       info->gd->disk_name);
+				error = -EOPNOTSUPP;
+			}
+			if (unlikely(error)) {
+				if (error == -EOPNOTSUPP)
+					error = 0;
 				info->feature_flush = 0;
 				xlvbd_flush(info);
 			}
