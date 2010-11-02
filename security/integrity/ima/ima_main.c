@@ -86,17 +86,16 @@ out:
 }
 
 /*
- * ima_counts_get - increment file counts
+ * ima_rdwr_violation_check
  *
- * Maintain read/write counters for all files, but only
- * invalidate the PCR for measured files:
+ * Only invalidate the PCR for measured files:
  * 	- Opening a file for write when already open for read,
  *	  results in a time of measure, time of use (ToMToU) error.
  *	- Opening a file for read when already open for write,
  * 	  could result in a file measurement error.
  *
  */
-void ima_counts_get(struct file *file)
+static void ima_rdwr_violation_check(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
@@ -104,13 +103,10 @@ void ima_counts_get(struct file *file)
 	int rc;
 	bool send_tomtou = false, send_writers = false;
 
-	if (!S_ISREG(inode->i_mode))
+	if (!S_ISREG(inode->i_mode) || !ima_initialized)
 		return;
 
-	spin_lock(&inode->i_lock);
-
-	if (!ima_initialized)
-		goto out;
+	mutex_lock(&inode->i_mutex);	/* file metadata: permissions, xattr */
 
 	if (mode & FMODE_WRITE) {
 		if (atomic_read(&inode->i_readcount) && IS_IMA(inode))
@@ -125,11 +121,7 @@ void ima_counts_get(struct file *file)
 	if (atomic_read(&inode->i_writecount) > 0)
 		send_writers = true;
 out:
-	/* remember the vfs deals with i_writecount */
-	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
-		atomic_inc(&inode->i_readcount);
-
-	spin_unlock(&inode->i_lock);
+	mutex_unlock(&inode->i_mutex);
 
 	if (send_tomtou)
 		ima_add_violation(inode, dentry->d_name.name, "invalid_pcr",
@@ -158,7 +150,6 @@ static void ima_dec_counts(struct inode *inode, struct file *file)
 			}
 			return;
 		}
-		atomic_dec(&inode->i_readcount);
 	}
 }
 
@@ -203,8 +194,7 @@ static void ima_file_free_noiint(struct inode *inode, struct file *file)
  * ima_file_free - called on __fput()
  * @file: pointer to file structure being freed
  *
- * Flag files that changed, based on i_version;
- * and decrement the i_readcount.
+ * Flag files that changed, based on i_version
  */
 void ima_file_free(struct file *file)
 {
@@ -318,6 +308,7 @@ int ima_file_check(struct file *file, int mask)
 {
 	int rc;
 
+	ima_rdwr_violation_check(file);
 	rc = process_measurement(file, file->f_dentry->d_name.name,
 				 mask & (MAY_READ | MAY_WRITE | MAY_EXEC),
 				 FILE_CHECK);

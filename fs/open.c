@@ -688,7 +688,8 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 		if (error)
 			goto cleanup_all;
 	}
-	ima_counts_get(f);
+	if ((f->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
+		i_readcount_inc(inode);
 
 	f->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
 
