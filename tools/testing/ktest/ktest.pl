@@ -53,6 +53,8 @@ my $power_cycle;
 my $reboot_on_error;
 my $poweroff_on_error;
 my $die_on_failure;
+my $powercycle_after_reboot;
+my $poweroff_after_halt;
 my $power_off;
 my $grub_menu;
 my $grub_number;
@@ -83,6 +85,7 @@ my $success_line;
 my $build_target;
 my $target_image;
 my $localversion;
+my $iteration = 0;
 
 sub read_config {
     my ($config) = @_;
@@ -133,16 +136,32 @@ sub run_command;
 
 sub reboot {
     # try to reboot normally
-    if (!run_command "ssh $target reboot") {
+    if (run_command "ssh $target reboot") {
+	if (defined($powercycle_after_reboot)) {
+	    sleep $powercycle_after_reboot;
+	    run_command "$power_cycle";
+	}
+    } else {
 	# nope? power cycle it.
 	run_command "$power_cycle";
     }
 }
 
+sub do_not_reboot {
+    my $i = $iteration;
+
+    return $test_type eq "build" ||
+	($test_type eq "patchcheck" && $opt{"PATCHCHECK_TYPE[$i]"} eq "build") ||
+	($test_type eq "bisect" && $opt{"BISECT_TYPE[$i]"} eq "build");
+}
+
 sub dodie {
     doprint "CRITICAL FAILURE... ", @_, "\n";
 
-    if ($reboot_on_error && $test_type ne "build") {
+    my $i = $iteration;
+
+    if ($reboot_on_error && !do_not_reboot) {
+
 	doprint "REBOOTING\n";
 	reboot;
 
@@ -151,7 +170,7 @@ sub dodie {
 	`$power_off`;
     }
 
-    die @_;
+    die @_, "\n";
 }
 
 sub open_console {
@@ -163,9 +182,9 @@ sub open_console {
 	dodie "Can't open console $console";
 
     $flags = fcntl($fp, F_GETFL, 0) or
-	dodie "Can't get flags for the socket: $!\n";
+	dodie "Can't get flags for the socket: $!";
     $flags = fcntl($fp, F_SETFL, $flags | O_NONBLOCK) or
-	dodie "Can't set flags for the socket: $!\n";
+	dodie "Can't set flags for the socket: $!";
 
     return $pid;
 }
@@ -221,8 +240,10 @@ sub fail {
 
 	doprint "FAILED\n";
 
+	my $i = $iteration;
+
 	# no need to reboot for just building.
-	if ($test_type ne "build") {
+	if (!do_not_reboot) {
 	    doprint "REBOOTING\n";
 	    reboot;
 	    start_monitor;
@@ -230,7 +251,11 @@ sub fail {
 	    end_monitor;
 	}
 
+	doprint "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
+	doprint "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
 	doprint "**** Failed: ", @_, " ****\n";
+	doprint "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
+	doprint "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
 
 	return 1 if (!defined($store_failures));
 
@@ -434,12 +459,12 @@ sub monitor {
 
     if ($bug) {
 	return 0 if ($in_bisect);
-	fail "failed - got a bug report\n" and return 0;
+	fail "failed - got a bug report" and return 0;
     }
 
     if (!$booted) {
 	return 0 if ($in_bisect);
-	fail "failed - never got a boot prompt.\n" and return 0;
+	fail "failed - never got a boot prompt." and return 0;
     }
 
     return 1;
@@ -496,7 +521,8 @@ sub install {
     my $save_env = $ENV{KERNEL_VERSION};
 
     $ENV{KERNEL_VERSION} = $version;
-    run_command "$post_install";
+    run_command "$post_install" or
+	dodie "Failed to run post install";
 
     $ENV{KERNEL_VERSION} = $save_env;
 }
@@ -596,6 +622,11 @@ sub build {
 
 sub halt {
     if (!run_command "ssh $target halt" or defined($power_off)) {
+	if (defined($poweroff_after_halt)) {
+	    sleep $poweroff_after_halt;
+	    run_command "$power_off";
+	}
+    } else {
 	# nope? the zap it!
 	run_command "$power_off";
     }
@@ -610,9 +641,7 @@ sub success {
     doprint     "*******************************************\n";
     doprint     "*******************************************\n";
 
-    if ($i != $opt{"NUM_TESTS"} && $test_type ne "build" &&
-	!($test_type eq "patchcheck" && $opt{"PATCHCHECK_TYPE[$i]"} eq "build") &&
-	!($test_type eq "bisect" && $opt{"BISECT_TYPE[$i]"} eq "build")) {
+    if ($i != $opt{"NUM_TESTS"} && !do_not_reboot) {
 	doprint "Reboot and wait $sleep_time seconds\n";
 	reboot;
 	start_monitor;
@@ -1048,6 +1077,8 @@ sub set_test_option {
 # First we need to do is the builds
 for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
+    $iteration = $i;
+
     my $ssh_user = set_test_option("SSH_USER", $i);
     my $makecmd = set_test_option("MAKE_CMD", $i);
 
@@ -1071,6 +1102,8 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $poweroff_on_error = set_test_option("POWEROFF_ON_ERROR", $i);
     $die_on_failure = set_test_option("DIE_ON_FAILURE", $i);
     $power_off = set_test_option("POWER_OFF", $i);
+    $powercycle_after_reboot = set_test_option("POWERCYCLE_AFTER_REBOOT", $i);
+    $poweroff_after_halt = set_test_option("POWEROFF_AFTER_HALT", $i);
     $sleep_time = set_test_option("SLEEP_TIME", $i);
     $bisect_sleep_time = set_test_option("BISECT_SLEEP_TIME", $i);
     $store_failures = set_test_option("STORE_FAILURES", $i);
@@ -1096,9 +1129,9 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $make = "$makecmd O=$outputdir";
 
     if ($reboot_type eq "grub") {
-	dodie "GRUB_MENU not defined\n" if (!defined($grub_menu));
+	dodie "GRUB_MENU not defined" if (!defined($grub_menu));
     } elsif (!defined($reboot_script)) {
-	dodie "REBOOT_SCRIPT not defined\n"
+	dodie "REBOOT_SCRIPT not defined"
     }
 
     my $run_type = $build_type;
@@ -1167,7 +1200,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
 if ($opt{"POWEROFF_ON_SUCCESS"}) {
     halt;
-} elsif ($opt{"REBOOT_ON_SUCCESS"} && $test_type ne "build") {
+} elsif ($opt{"REBOOT_ON_SUCCESS"} && !do_not_reboot) {
     reboot;
 }
 
