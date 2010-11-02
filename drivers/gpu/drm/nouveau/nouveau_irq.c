@@ -1216,8 +1216,9 @@ nouveau_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *)arg;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t status;
 	unsigned long flags;
+	u32 status;
+	int i;
 
 	status = nv_rd32(dev, NV03_PMC_INTR_0);
 	if (!status)
@@ -1267,6 +1268,14 @@ nouveau_irq_handler(DRM_IRQ_ARGS)
 			    NV_PMC_INTR_0_NV50_I2C_PENDING);
 	}
 
+	for (i = 0; i < 32 && status; i++) {
+		if (!(status & (1 << i)) || !dev_priv->irq_handler[i])
+			continue;
+
+		dev_priv->irq_handler[i](dev);
+		status &= ~(1 << i);
+	}
+
 	if (status)
 		NV_ERROR(dev, "Unhandled PMC INTR status bits 0x%08x\n", status);
 
@@ -1303,4 +1312,27 @@ nouveau_irq_fini(struct drm_device *dev)
 	drm_irq_uninstall(dev);
 	if (dev_priv->msi_enabled)
 		pci_disable_msi(dev->pdev);
+}
+
+void
+nouveau_irq_register(struct drm_device *dev, int status_bit,
+		     void (*handler)(struct drm_device *))
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	dev_priv->irq_handler[status_bit] = handler;
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
+}
+
+void
+nouveau_irq_unregister(struct drm_device *dev, int status_bit)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	dev_priv->irq_handler[status_bit] = NULL;
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 }

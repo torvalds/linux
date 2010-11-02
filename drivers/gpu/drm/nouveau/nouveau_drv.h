@@ -614,6 +614,7 @@ struct drm_nouveau_private {
 	struct nouveau_bo *vga_ram;
 
 	/* interrupt handling */
+	void (*irq_handler[32])(struct drm_device *);
 	bool msi_enabled;
 	struct workqueue_struct *wq;
 	struct work_struct irq_work;
@@ -900,6 +901,9 @@ extern int nouveau_ioctl_gpuobj_free(struct drm_device *, void *data,
 extern int         nouveau_irq_init(struct drm_device *);
 extern void        nouveau_irq_fini(struct drm_device *);
 extern irqreturn_t nouveau_irq_handler(DRM_IRQ_ARGS);
+extern void        nouveau_irq_register(struct drm_device *, int status_bit,
+					void (*)(struct drm_device *));
+extern void        nouveau_irq_unregister(struct drm_device *, int status_bit);
 extern void        nouveau_irq_preinstall(struct drm_device *);
 extern int         nouveau_irq_postinstall(struct drm_device *);
 extern void        nouveau_irq_uninstall(struct drm_device *);
