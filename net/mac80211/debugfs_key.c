@@ -32,6 +32,7 @@ static ssize_t key_##name##_read(struct file *file,			\
 static const struct file_operations key_ ##name## _ops = {		\
 	.read = key_##name##_read,					\
 	.open = mac80211_open_file_generic,				\
+	.llseek = generic_file_llseek,					\
 }
 
 #define KEY_FILE(name, format)						\
@@ -46,6 +47,7 @@ static const struct file_operations key_ ##name## _ops = {		\
 static const struct file_operations key_ ##name## _ops = {		\
 	.read = key_conf_##name##_read,					\
 	.open = mac80211_open_file_generic,				\
+	.llseek = generic_file_llseek,					\
 }
 
 #define KEY_CONF_FILE(name, format)					\
@@ -64,26 +66,13 @@ static ssize_t key_algorithm_read(struct file *file,
 				  char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	char *alg;
+	char buf[15];
 	struct ieee80211_key *key = file->private_data;
+	u32 c = key->conf.cipher;
 
-	switch (key->conf.alg) {
-	case ALG_WEP:
-		alg = "WEP\n";
-		break;
-	case ALG_TKIP:
-		alg = "TKIP\n";
-		break;
-	case ALG_CCMP:
-		alg = "CCMP\n";
-		break;
-	case ALG_AES_CMAC:
-		alg = "AES-128-CMAC\n";
-		break;
-	default:
-		return 0;
-	}
-	return simple_read_from_buffer(userbuf, count, ppos, alg, strlen(alg));
+	sprintf(buf, "%.2x-%.2x-%.2x:%d\n",
+		c >> 24, (c >> 16) & 0xff, (c >> 8) & 0xff, c & 0xff);
+	return simple_read_from_buffer(userbuf, count, ppos, buf, strlen(buf));
 }
 KEY_OPS(algorithm);
 
@@ -95,21 +84,22 @@ static ssize_t key_tx_spec_read(struct file *file, char __user *userbuf,
 	int len;
 	struct ieee80211_key *key = file->private_data;
 
-	switch (key->conf.alg) {
-	case ALG_WEP:
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 		len = scnprintf(buf, sizeof(buf), "\n");
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		len = scnprintf(buf, sizeof(buf), "%08x %04x\n",
 				key->u.tkip.tx.iv32,
 				key->u.tkip.tx.iv16);
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		tpn = key->u.ccmp.tx_pn;
 		len = scnprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x\n",
 				tpn[0], tpn[1], tpn[2], tpn[3], tpn[4], tpn[5]);
 		break;
-	case ALG_AES_CMAC:
+	case WLAN_CIPHER_SUITE_AES_CMAC:
 		tpn = key->u.aes_cmac.tx_pn;
 		len = scnprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x\n",
 				tpn[0], tpn[1], tpn[2], tpn[3], tpn[4],
@@ -130,11 +120,12 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 	int i, len;
 	const u8 *rpn;
 
-	switch (key->conf.alg) {
-	case ALG_WEP:
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 		len = scnprintf(buf, sizeof(buf), "\n");
 		break;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
 			p += scnprintf(p, sizeof(buf)+buf-p,
 				       "%08x %04x\n",
@@ -142,7 +133,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 				       key->u.tkip.rx[i].iv16);
 		len = p - buf;
 		break;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		for (i = 0; i < NUM_RX_DATA_QUEUES + 1; i++) {
 			rpn = key->u.ccmp.rx_pn[i];
 			p += scnprintf(p, sizeof(buf)+buf-p,
@@ -152,7 +143,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 		}
 		len = p - buf;
 		break;
-	case ALG_AES_CMAC:
+	case WLAN_CIPHER_SUITE_AES_CMAC:
 		rpn = key->u.aes_cmac.rx_pn;
 		p += scnprintf(p, sizeof(buf)+buf-p,
 			       "%02x%02x%02x%02x%02x%02x\n",
@@ -174,11 +165,11 @@ static ssize_t key_replays_read(struct file *file, char __user *userbuf,
 	char buf[20];
 	int len;
 
-	switch (key->conf.alg) {
-	case ALG_CCMP:
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
 		len = scnprintf(buf, sizeof(buf), "%u\n", key->u.ccmp.replays);
 		break;
-	case ALG_AES_CMAC:
+	case WLAN_CIPHER_SUITE_AES_CMAC:
 		len = scnprintf(buf, sizeof(buf), "%u\n",
 				key->u.aes_cmac.replays);
 		break;
@@ -196,8 +187,8 @@ static ssize_t key_icverrors_read(struct file *file, char __user *userbuf,
 	char buf[20];
 	int len;
 
-	switch (key->conf.alg) {
-	case ALG_AES_CMAC:
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_AES_CMAC:
 		len = scnprintf(buf, sizeof(buf), "%u\n",
 				key->u.aes_cmac.icverrors);
 		break;
@@ -212,9 +203,13 @@ static ssize_t key_key_read(struct file *file, char __user *userbuf,
 			    size_t count, loff_t *ppos)
 {
 	struct ieee80211_key *key = file->private_data;
-	int i, res, bufsize = 2 * key->conf.keylen + 2;
+	int i, bufsize = 2 * key->conf.keylen + 2;
 	char *buf = kmalloc(bufsize, GFP_KERNEL);
 	char *p = buf;
+	ssize_t res;
+
+	if (!buf)
+		return -ENOMEM;
 
 	for (i = 0; i < key->conf.keylen; i++)
 		p += scnprintf(p, bufsize + buf - p, "%02x", key->conf.key[i]);

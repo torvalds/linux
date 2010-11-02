@@ -96,8 +96,8 @@ static void opticon_bulk_callback(struct urb *urb)
 			/* real data, send it to the tty layer */
 			tty = tty_port_tty_get(&port->port);
 			if (tty) {
-				tty_insert_flip_string(tty, data,
-							       data_length);
+				tty_insert_flip_string(tty, data + 2,
+						       data_length);
 				tty_flip_buffer_push(tty);
 				tty_kref_put(tty);
 			}
@@ -108,10 +108,10 @@ static void opticon_bulk_callback(struct urb *urb)
 				else
 					priv->rts = true;
 			} else {
-			dev_dbg(&priv->udev->dev,
-				"Unknown data packet received from the device:"
-				" %2x %2x\n",
-				data[0], data[1]);
+				dev_dbg(&priv->udev->dev,
+					"Unknown data packet received from the device:"
+					" %2x %2x\n",
+					data[0], data[1]);
 			}
 		}
 	} else {
@@ -130,7 +130,7 @@ exit:
 						  priv->bulk_address),
 				  priv->bulk_in_buffer, priv->buffer_size,
 				  opticon_bulk_callback, priv);
-		result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+		result = usb_submit_urb(priv->bulk_read_urb, GFP_ATOMIC);
 		if (result)
 			dev_err(&port->dev,
 			    "%s - failed resubmitting read urb, error %d\n",
@@ -187,6 +187,9 @@ static void opticon_write_bulk_callback(struct urb *urb)
 	/* free up the transfer buffer, as usb_free_urb() does not do this */
 	kfree(urb->transfer_buffer);
 
+	/* setup packet may be set if we're using it for writing */
+	kfree(urb->setup_packet);
+
 	if (status)
 		dbg("%s - nonzero write bulk status received: %d",
 		    __func__, status);
@@ -237,10 +240,29 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	usb_serial_debug_data(debug, &port->dev, __func__, count, buffer);
 
-	usb_fill_bulk_urb(urb, serial->dev,
-			  usb_sndbulkpipe(serial->dev,
-					  port->bulk_out_endpointAddress),
-			  buffer, count, opticon_write_bulk_callback, priv);
+	if (port->bulk_out_endpointAddress) {
+		usb_fill_bulk_urb(urb, serial->dev,
+				  usb_sndbulkpipe(serial->dev,
+						  port->bulk_out_endpointAddress),
+				  buffer, count, opticon_write_bulk_callback, priv);
+	} else {
+		struct usb_ctrlrequest *dr;
+
+		dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_NOIO);
+		if (!dr)
+			return -ENOMEM;
+
+		dr->bRequestType = USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT;
+		dr->bRequest = 0x01;
+		dr->wValue = 0;
+		dr->wIndex = 0;
+		dr->wLength = cpu_to_le16(count);
+
+		usb_fill_control_urb(urb, serial->dev,
+			usb_sndctrlpipe(serial->dev, 0),
+			(unsigned char *)dr, buffer, count,
+			opticon_write_bulk_callback, priv);
+	}
 
 	/* send it down the pipe */
 	status = usb_submit_urb(urb, GFP_ATOMIC);

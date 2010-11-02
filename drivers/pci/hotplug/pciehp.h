@@ -36,6 +36,7 @@
 #include <linux/sched.h>		/* signal_pending() */
 #include <linux/pcieport_if.h>
 #include <linux/mutex.h>
+#include <linux/workqueue.h>
 
 #define MY_NAME	"pciehp"
 
@@ -44,6 +45,7 @@ extern int pciehp_poll_time;
 extern int pciehp_debug;
 extern int pciehp_force;
 extern struct workqueue_struct *pciehp_wq;
+extern struct workqueue_struct *pciehp_ordered_wq;
 
 #define dbg(format, arg...)						\
 do {									\

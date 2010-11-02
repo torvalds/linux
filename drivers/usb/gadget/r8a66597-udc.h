@@ -136,7 +136,7 @@ static inline void r8a66597_read_fifo(struct r8a66597 *r8a66597,
 				      int len)
 {
 	void __iomem *fifoaddr = r8a66597->reg + offset;
-	unsigned int data;
+	unsigned int data = 0;
 	int i;
 
 	if (r8a66597->pdata->on_chip) {

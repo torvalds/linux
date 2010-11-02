@@ -53,6 +53,7 @@ static int wl1271_init_hwenc_config(struct wl1271 *wl)
 int wl1271_init_templates_config(struct wl1271 *wl)
 {
 	int ret, i;
+	size_t size;
 
 	/* send empty templates for fw memory reservation */
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4, NULL,
@@ -61,14 +62,12 @@ int wl1271_init_templates_config(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	if (wl1271_11a_enabled()) {
-		size_t size = sizeof(struct wl12xx_probe_req_template);
-		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
-					      NULL, size, 0,
-					      WL1271_RATE_AUTOMATIC);
-		if (ret < 0)
-			return ret;
-	}
+	size = sizeof(struct wl12xx_probe_req_template);
+	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
+				      NULL, size, 0,
+				      WL1271_RATE_AUTOMATIC);
+	if (ret < 0)
+		return ret;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, NULL,
 				      sizeof(struct wl12xx_null_data_template),
@@ -223,6 +222,10 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
+	ret = wl1271_cmd_ext_radio_parms(wl);
+	if (ret < 0)
+		return ret;
+
 	/* Template settings */
 	ret = wl1271_init_templates_config(wl);
 	if (ret < 0)
@@ -291,8 +294,16 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
-	/* Default TID configuration */
+	/* Default TID/AC configuration */
+	BUG_ON(wl->conf.tx.tid_conf_count != wl->conf.tx.ac_conf_count);
 	for (i = 0; i < wl->conf.tx.tid_conf_count; i++) {
+		conf_ac = &wl->conf.tx.ac_conf[i];
+		ret = wl1271_acx_ac_cfg(wl, conf_ac->ac, conf_ac->cw_min,
+					conf_ac->cw_max, conf_ac->aifsn,
+					conf_ac->tx_op_limit);
+		if (ret < 0)
+			goto out_free_memmap;
+
 		conf_tid = &wl->conf.tx.tid_conf[i];
 		ret = wl1271_acx_tid_cfg(wl, conf_tid->queue_id,
 					 conf_tid->channel_type,
@@ -301,16 +312,6 @@ int wl1271_hw_init(struct wl1271 *wl)
 					 conf_tid->ack_policy,
 					 conf_tid->apsd_conf[0],
 					 conf_tid->apsd_conf[1]);
-		if (ret < 0)
-			goto out_free_memmap;
-	}
-
-	/* Default AC configuration */
-	for (i = 0; i < wl->conf.tx.ac_conf_count; i++) {
-		conf_ac = &wl->conf.tx.ac_conf[i];
-		ret = wl1271_acx_ac_cfg(wl, conf_ac->ac, conf_ac->cw_min,
-					conf_ac->cw_max, conf_ac->aifsn,
-					conf_ac->tx_op_limit);
 		if (ret < 0)
 			goto out_free_memmap;
 	}

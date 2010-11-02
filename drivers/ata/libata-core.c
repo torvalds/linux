@@ -68,7 +68,7 @@
 #include <linux/ratelimit.h>
 
 #include "libata.h"
-
+#include "libata-transport.h"
 
 /* debounce timing parameters in msecs { interval, duration, timeout } */
 const unsigned long sata_deb_timing_normal[]		= {   5,  100, 2000 };
@@ -91,8 +91,6 @@ const struct ata_port_operations sata_port_ops = {
 static unsigned int ata_dev_init_params(struct ata_device *dev,
 					u16 heads, u16 sectors);
 static unsigned int ata_dev_set_xfermode(struct ata_device *dev);
-static unsigned int ata_dev_set_feature(struct ata_device *dev,
-					u8 enable, u8 feature);
 static void ata_dev_xfermask(struct ata_device *dev);
 static unsigned long ata_dev_blacklisted(const struct ata_device *dev);
 
@@ -1017,7 +1015,7 @@ const char *ata_mode_string(unsigned long xfer_mask)
 	return "<n/a>";
 }
 
-static const char *sata_spd_string(unsigned int spd)
+const char *sata_spd_string(unsigned int spd)
 {
 	static const char * const spd_str[] = {
 		"1.5 Gbps",
@@ -1029,182 +1027,6 @@ static const char *sata_spd_string(unsigned int spd)
 		return "<unknown>";
 	return spd_str[spd - 1];
 }
-
-static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
-{
-	struct ata_link *link = dev->link;
-	struct ata_port *ap = link->ap;
-	u32 scontrol;
-	unsigned int err_mask;
-	int rc;
-
-	/*
-	 * disallow DIPM for drivers which haven't set
-	 * ATA_FLAG_IPM.  This is because when DIPM is enabled,
-	 * phy ready will be set in the interrupt status on
-	 * state changes, which will cause some drivers to
-	 * think there are errors - additionally drivers will
-	 * need to disable hot plug.
-	 */
-	if (!(ap->flags & ATA_FLAG_IPM) || !ata_dev_enabled(dev)) {
-		ap->pm_policy = NOT_AVAILABLE;
-		return -EINVAL;
-	}
-
-	/*
-	 * For DIPM, we will only enable it for the
-	 * min_power setting.
-	 *
-	 * Why?  Because Disks are too stupid to know that
-	 * If the host rejects a request to go to SLUMBER
-	 * they should retry at PARTIAL, and instead it
-	 * just would give up.  So, for medium_power to
-	 * work at all, we need to only allow HIPM.
-	 */
-	rc = sata_scr_read(link, SCR_CONTROL, &scontrol);
-	if (rc)
-		return rc;
-
-	switch (policy) {
-	case MIN_POWER:
-		/* no restrictions on IPM transitions */
-		scontrol &= ~(0x3 << 8);
-		rc = sata_scr_write(link, SCR_CONTROL, scontrol);
-		if (rc)
-			return rc;
-
-		/* enable DIPM */
-		if (dev->flags & ATA_DFLAG_DIPM)
-			err_mask = ata_dev_set_feature(dev,
-					SETFEATURES_SATA_ENABLE, SATA_DIPM);
-		break;
-	case MEDIUM_POWER:
-		/* allow IPM to PARTIAL */
-		scontrol &= ~(0x1 << 8);
-		scontrol |= (0x2 << 8);
-		rc = sata_scr_write(link, SCR_CONTROL, scontrol);
-		if (rc)
-			return rc;
-
-		/*
-		 * we don't have to disable DIPM since IPM flags
-		 * disallow transitions to SLUMBER, which effectively
-		 * disable DIPM if it does not support PARTIAL
-		 */
-		break;
-	case NOT_AVAILABLE:
-	case MAX_PERFORMANCE:
-		/* disable all IPM transitions */
-		scontrol |= (0x3 << 8);
-		rc = sata_scr_write(link, SCR_CONTROL, scontrol);
-		if (rc)
-			return rc;
-
-		/*
-		 * we don't have to disable DIPM since IPM flags
-		 * disallow all transitions which effectively
-		 * disable DIPM anyway.
-		 */
-		break;
-	}
-
-	/* FIXME: handle SET FEATURES failure */
-	(void) err_mask;
-
-	return 0;
-}
-
-/**
- *	ata_dev_enable_pm - enable SATA interface power management
- *	@dev:  device to enable power management
- *	@policy: the link power management policy
- *
- *	Enable SATA Interface power management.  This will enable
- *	Device Interface Power Management (DIPM) for min_power
- * 	policy, and then call driver specific callbacks for
- *	enabling Host Initiated Power management.
- *
- *	Locking: Caller.
- *	Returns: -EINVAL if IPM is not supported, 0 otherwise.
- */
-void ata_dev_enable_pm(struct ata_device *dev, enum link_pm policy)
-{
-	int rc = 0;
-	struct ata_port *ap = dev->link->ap;
-
-	/* set HIPM first, then DIPM */
-	if (ap->ops->enable_pm)
-		rc = ap->ops->enable_pm(ap, policy);
-	if (rc)
-		goto enable_pm_out;
-	rc = ata_dev_set_dipm(dev, policy);
-
-enable_pm_out:
-	if (rc)
-		ap->pm_policy = MAX_PERFORMANCE;
-	else
-		ap->pm_policy = policy;
-	return /* rc */;	/* hopefully we can use 'rc' eventually */
-}
-
-#ifdef CONFIG_PM
-/**
- *	ata_dev_disable_pm - disable SATA interface power management
- *	@dev: device to disable power management
- *
- *	Disable SATA Interface power management.  This will disable
- *	Device Interface Power Management (DIPM) without changing
- * 	policy,  call driver specific callbacks for disabling Host
- * 	Initiated Power management.
- *
- *	Locking: Caller.
- *	Returns: void
- */
-static void ata_dev_disable_pm(struct ata_device *dev)
-{
-	struct ata_port *ap = dev->link->ap;
-
-	ata_dev_set_dipm(dev, MAX_PERFORMANCE);
-	if (ap->ops->disable_pm)
-		ap->ops->disable_pm(ap);
-}
-#endif	/* CONFIG_PM */
-
-void ata_lpm_schedule(struct ata_port *ap, enum link_pm policy)
-{
-	ap->pm_policy = policy;
-	ap->link.eh_info.action |= ATA_EH_LPM;
-	ap->link.eh_info.flags |= ATA_EHI_NO_AUTOPSY;
-	ata_port_schedule_eh(ap);
-}
-
-#ifdef CONFIG_PM
-static void ata_lpm_enable(struct ata_host *host)
-{
-	struct ata_link *link;
-	struct ata_port *ap;
-	struct ata_device *dev;
-	int i;
-
-	for (i = 0; i < host->n_ports; i++) {
-		ap = host->ports[i];
-		ata_for_each_link(link, ap, EDGE) {
-			ata_for_each_dev(dev, link, ALL)
-				ata_dev_disable_pm(dev);
-		}
-	}
-}
-
-static void ata_lpm_disable(struct ata_host *host)
-{
-	int i;
-
-	for (i = 0; i < host->n_ports; i++) {
-		struct ata_port *ap = host->ports[i];
-		ata_lpm_schedule(ap, ap->pm_policy);
-	}
-}
-#endif	/* CONFIG_PM */
 
 /**
  *	ata_dev_classify - determine device type based on ATA-spec signature
@@ -1806,7 +1628,13 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		}
 	}
 
+	if (ap->ops->error_handler)
+		ata_eh_release(ap);
+
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+
+	if (ap->ops->error_handler)
+		ata_eh_acquire(ap);
 
 	ata_sff_flush_pio_task(ap);
 
@@ -2564,13 +2392,6 @@ int ata_dev_configure(struct ata_device *dev)
 	if (dev->flags & ATA_DFLAG_LBA48)
 		dev->max_sectors = ATA_MAX_SECTORS_LBA48;
 
-	if (!(dev->horkage & ATA_HORKAGE_IPM)) {
-		if (ata_id_has_hipm(dev->id))
-			dev->flags |= ATA_DFLAG_HIPM;
-		if (ata_id_has_dipm(dev->id))
-			dev->flags |= ATA_DFLAG_DIPM;
-	}
-
 	/* Limit PATA drive on SATA cable bridge transfers to udma5,
 	   200 sectors */
 	if (ata_dev_knobble(dev)) {
@@ -2590,13 +2411,6 @@ int ata_dev_configure(struct ata_device *dev)
 	if (dev->horkage & ATA_HORKAGE_MAX_SEC_128)
 		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_128,
 					 dev->max_sectors);
-
-	if (ata_dev_blacklisted(dev) & ATA_HORKAGE_IPM) {
-		dev->horkage |= ATA_HORKAGE_IPM;
-
-		/* reset link pm_policy for this port to no pm */
-		ap->pm_policy = MAX_PERFORMANCE;
-	}
 
 	if (ap->ops->dev_config)
 		ap->ops->dev_config(dev);
@@ -3596,7 +3410,7 @@ int ata_wait_ready(struct ata_link *link, unsigned long deadline,
 			warned = 1;
 		}
 
-		msleep(50);
+		ata_msleep(link->ap, 50);
 	}
 }
 
@@ -3617,7 +3431,7 @@ int ata_wait_ready(struct ata_link *link, unsigned long deadline,
 int ata_wait_after_reset(struct ata_link *link, unsigned long deadline,
 				int (*check_ready)(struct ata_link *link))
 {
-	msleep(ATA_WAIT_AFTER_RESET);
+	ata_msleep(link->ap, ATA_WAIT_AFTER_RESET);
 
 	return ata_wait_ready(link, deadline, check_ready);
 }
@@ -3628,7 +3442,7 @@ int ata_wait_after_reset(struct ata_link *link, unsigned long deadline,
  *	@params: timing parameters { interval, duratinon, timeout } in msec
  *	@deadline: deadline jiffies for the operation
  *
-*	Make sure SStatus of @link reaches stable state, determined by
+ *	Make sure SStatus of @link reaches stable state, determined by
  *	holding the same value where DET is not 1 for @duration polled
  *	every @interval, before @timeout.  Timeout constraints the
  *	beginning of the stable state.  Because DET gets stuck at 1 on
@@ -3665,7 +3479,7 @@ int sata_link_debounce(struct ata_link *link, const unsigned long *params,
 	last_jiffies = jiffies;
 
 	while (1) {
-		msleep(interval);
+		ata_msleep(link->ap, interval);
 		if ((rc = sata_scr_read(link, SCR_STATUS, &cur)))
 			return rc;
 		cur &= 0xf;
@@ -3730,7 +3544,7 @@ int sata_link_resume(struct ata_link *link, const unsigned long *params,
 		 * immediately after resuming.  Delay 200ms before
 		 * debouncing.
 		 */
-		msleep(200);
+		ata_msleep(link->ap, 200);
 
 		/* is SControl restored correctly? */
 		if ((rc = sata_scr_read(link, SCR_CONTROL, &scontrol)))
@@ -3757,6 +3571,72 @@ int sata_link_resume(struct ata_link *link, const unsigned long *params,
 		rc = sata_scr_write(link, SCR_ERROR, serror);
 
 	return rc != -EINVAL ? rc : 0;
+}
+
+/**
+ *	sata_link_scr_lpm - manipulate SControl IPM and SPM fields
+ *	@link: ATA link to manipulate SControl for
+ *	@policy: LPM policy to configure
+ *	@spm_wakeup: initiate LPM transition to active state
+ *
+ *	Manipulate the IPM field of the SControl register of @link
+ *	according to @policy.  If @policy is ATA_LPM_MAX_POWER and
+ *	@spm_wakeup is %true, the SPM field is manipulated to wake up
+ *	the link.  This function also clears PHYRDY_CHG before
+ *	returning.
+ *
+ *	LOCKING:
+ *	EH context.
+ *
+ *	RETURNS:
+ *	0 on succes, -errno otherwise.
+ */
+int sata_link_scr_lpm(struct ata_link *link, enum ata_lpm_policy policy,
+		      bool spm_wakeup)
+{
+	struct ata_eh_context *ehc = &link->eh_context;
+	bool woken_up = false;
+	u32 scontrol;
+	int rc;
+
+	rc = sata_scr_read(link, SCR_CONTROL, &scontrol);
+	if (rc)
+		return rc;
+
+	switch (policy) {
+	case ATA_LPM_MAX_POWER:
+		/* disable all LPM transitions */
+		scontrol |= (0x3 << 8);
+		/* initiate transition to active state */
+		if (spm_wakeup) {
+			scontrol |= (0x4 << 12);
+			woken_up = true;
+		}
+		break;
+	case ATA_LPM_MED_POWER:
+		/* allow LPM to PARTIAL */
+		scontrol &= ~(0x1 << 8);
+		scontrol |= (0x2 << 8);
+		break;
+	case ATA_LPM_MIN_POWER:
+		/* no restrictions on LPM transitions */
+		scontrol &= ~(0x3 << 8);
+		break;
+	default:
+		WARN_ON(1);
+	}
+
+	rc = sata_scr_write(link, SCR_CONTROL, scontrol);
+	if (rc)
+		return rc;
+
+	/* give the link time to transit out of LPM state */
+	if (woken_up)
+		msleep(10);
+
+	/* clear PHYRDY_CHG from SError */
+	ehc->i.serror &= ~SERR_PHYRDY_CHG;
+	return sata_scr_write(link, SCR_ERROR, SERR_PHYRDY_CHG);
 }
 
 /**
@@ -3868,7 +3748,7 @@ int sata_link_hardreset(struct ata_link *link, const unsigned long *timing,
 	/* Couldn't find anything in SATA I/II specs, but AHCI-1.1
 	 * 10.4.2 says at least 1 ms.
 	 */
-	msleep(1);
+	ata_msleep(link->ap, 1);
 
 	/* bring link back */
 	rc = sata_link_resume(link, timing, deadline);
@@ -4551,6 +4431,7 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
 }
+
 /**
  *	ata_dev_set_feature - Issue SET FEATURES - SATA FEATURES
  *	@dev: Device to which command will be sent
@@ -4566,8 +4447,7 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
  *	RETURNS:
  *	0 on success, AC_ERR_* mask otherwise.
  */
-static unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable,
-					u8 feature)
+unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable, u8 feature)
 {
 	struct ata_taskfile tf;
 	unsigned int err_mask;
@@ -4943,8 +4823,13 @@ static void ata_verify_xfer(struct ata_queued_cmd *qc)
  *	ata_qc_complete - Complete an active ATA command
  *	@qc: Command to complete
  *
- *	Indicate to the mid and upper layers that an ATA
- *	command has completed, with either an ok or not-ok status.
+ *	Indicate to the mid and upper layers that an ATA command has
+ *	completed, with either an ok or not-ok status.
+ *
+ *	Refrain from calling this function multiple times when
+ *	successfully completing multiple NCQ commands.
+ *	ata_qc_complete_multiple() should be used instead, which will
+ *	properly update IRQ expect state.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
@@ -5036,6 +4921,10 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
  *	called from low-level driver's interrupt routine to complete
  *	requests normally.  ap->qc_active and @qc_active is compared
  *	and commands are completed accordingly.
+ *
+ *	Always use this function when completing multiple NCQ commands
+ *	from IRQ handlers instead of calling ata_qc_complete()
+ *	multiple times to keep IRQ expect status properly in sync.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
@@ -5422,12 +5311,6 @@ int ata_host_suspend(struct ata_host *host, pm_message_t mesg)
 	int rc;
 
 	/*
-	 * disable link pm on all ports before requesting
-	 * any pm activity
-	 */
-	ata_lpm_enable(host);
-
-	/*
 	 * On some hardware, device fails to respond after spun down
 	 * for suspend.  As the device won't be used before being
 	 * resumed, we don't need to touch the device.  Ask EH to skip
@@ -5460,9 +5343,6 @@ void ata_host_resume(struct ata_host *host)
 	ata_host_request_pm(host, PMSG_ON, ATA_EH_RESET,
 			    ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET, 0);
 	host->dev->power.power_state = PMSG_ON;
-
-	/* reenable link pm */
-	ata_lpm_disable(host);
 }
 #endif
 
@@ -5517,7 +5397,8 @@ void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
 	int i;
 
 	/* clear everything except for devices */
-	memset(link, 0, offsetof(struct ata_link, device[0]));
+	memset((void *)link + ATA_LINK_CLEAR_BEGIN, 0,
+	       ATA_LINK_CLEAR_END - ATA_LINK_CLEAR_BEGIN);
 
 	link->ap = ap;
 	link->pmp = pmp;
@@ -5591,7 +5472,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
 	if (!ap)
 		return NULL;
-
+	
 	ap->pflags |= ATA_PFLAG_INITIALIZING;
 	ap->lock = &host->lock;
 	ap->print_id = -1;
@@ -5695,6 +5576,7 @@ struct ata_host *ata_host_alloc(struct device *dev, int max_ports)
 	dev_set_drvdata(dev, host);
 
 	spin_lock_init(&host->lock);
+	mutex_init(&host->eh_mutex);
 	host->dev = dev;
 	host->n_ports = max_ports;
 
@@ -5992,6 +5874,7 @@ void ata_host_init(struct ata_host *host, struct device *dev,
 		   unsigned long flags, struct ata_port_operations *ops)
 {
 	spin_lock_init(&host->lock);
+	mutex_init(&host->eh_mutex);
 	host->dev = dev;
 	host->flags = flags;
 	host->ops = ops;
@@ -6022,7 +5905,7 @@ static void async_port_probe(void *data, async_cookie_t cookie)
 		spin_lock_irqsave(ap->lock, flags);
 
 		ehi->probe_mask |= ATA_ALL_DEVICES;
-		ehi->action |= ATA_EH_RESET | ATA_EH_LPM;
+		ehi->action |= ATA_EH_RESET;
 		ehi->flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET;
 
 		ap->pflags &= ~ATA_PFLAG_INITIALIZING;
@@ -6093,9 +5976,18 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 	for (i = 0; i < host->n_ports; i++)
 		host->ports[i]->print_id = ata_print_id++;
 
+	
+	/* Create associated sysfs transport objects  */
+	for (i = 0; i < host->n_ports; i++) {
+		rc = ata_tport_add(host->dev,host->ports[i]);
+		if (rc) {
+			goto err_tadd;
+		}
+	}
+
 	rc = ata_scsi_add_hosts(host, sht);
 	if (rc)
-		return rc;
+		goto err_tadd;
 
 	/* associate with ACPI nodes */
 	ata_acpi_associate(host);
@@ -6136,6 +6028,13 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 	}
 
 	return 0;
+
+ err_tadd:
+	while (--i >= 0) {
+		ata_tport_delete(host->ports[i]);
+	}
+	return rc;
+
 }
 
 /**
@@ -6226,6 +6125,13 @@ static void ata_port_detach(struct ata_port *ap)
 	cancel_rearming_delayed_work(&ap->hotplug_task);
 
  skip_eh:
+	if (ap->pmp_link) {
+		int i;
+		for (i = 0; i < SATA_PMP_MAX_PORTS; i++)
+			ata_tlink_delete(&ap->pmp_link[i]);
+	}
+	ata_tport_delete(ap);
+
 	/* remove the associated SCSI host */
 	scsi_remove_host(ap->scsi_host);
 }
@@ -6542,7 +6448,7 @@ static void __init ata_parse_force_param(void)
 
 static int __init ata_init(void)
 {
-	int rc = -ENOMEM;
+	int rc;
 
 	ata_parse_force_param();
 
@@ -6552,12 +6458,25 @@ static int __init ata_init(void)
 		return rc;
 	}
 
+	libata_transport_init();
+	ata_scsi_transport_template = ata_attach_transport();
+	if (!ata_scsi_transport_template) {
+		ata_sff_exit();
+		rc = -ENOMEM;
+		goto err_out;
+	}		
+
 	printk(KERN_DEBUG "libata version " DRV_VERSION " loaded.\n");
 	return 0;
+
+err_out:
+	return rc;
 }
 
 static void __exit ata_exit(void)
 {
+	ata_release_transport(ata_scsi_transport_template);
+	libata_transport_exit();
 	ata_sff_exit();
 	kfree(ata_force_tbl);
 }
@@ -6573,7 +6492,35 @@ int ata_ratelimit(void)
 }
 
 /**
+ *	ata_msleep - ATA EH owner aware msleep
+ *	@ap: ATA port to attribute the sleep to
+ *	@msecs: duration to sleep in milliseconds
+ *
+ *	Sleeps @msecs.  If the current task is owner of @ap's EH, the
+ *	ownership is released before going to sleep and reacquired
+ *	after the sleep is complete.  IOW, other ports sharing the
+ *	@ap->host will be allowed to own the EH while this task is
+ *	sleeping.
+ *
+ *	LOCKING:
+ *	Might sleep.
+ */
+void ata_msleep(struct ata_port *ap, unsigned int msecs)
+{
+	bool owns_eh = ap && ap->host->eh_owner == current;
+
+	if (owns_eh)
+		ata_eh_release(ap);
+
+	msleep(msecs);
+
+	if (owns_eh)
+		ata_eh_acquire(ap);
+}
+
+/**
  *	ata_wait_register - wait until register value changes
+ *	@ap: ATA port to wait register for, can be NULL
  *	@reg: IO-mapped register
  *	@mask: Mask to apply to read register value
  *	@val: Wait condition
@@ -6595,7 +6542,7 @@ int ata_ratelimit(void)
  *	RETURNS:
  *	The final register value.
  */
-u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
+u32 ata_wait_register(struct ata_port *ap, void __iomem *reg, u32 mask, u32 val,
 		      unsigned long interval, unsigned long timeout)
 {
 	unsigned long deadline;
@@ -6610,7 +6557,7 @@ u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
 	deadline = ata_deadline(jiffies, timeout);
 
 	while ((tmp & mask) == val && time_before(jiffies, deadline)) {
-		msleep(interval);
+		ata_msleep(ap, interval);
 		tmp = ioread32(reg);
 	}
 
@@ -6686,6 +6633,7 @@ EXPORT_SYMBOL_GPL(sata_set_spd);
 EXPORT_SYMBOL_GPL(ata_wait_after_reset);
 EXPORT_SYMBOL_GPL(sata_link_debounce);
 EXPORT_SYMBOL_GPL(sata_link_resume);
+EXPORT_SYMBOL_GPL(sata_link_scr_lpm);
 EXPORT_SYMBOL_GPL(ata_std_prereset);
 EXPORT_SYMBOL_GPL(sata_link_hardreset);
 EXPORT_SYMBOL_GPL(sata_std_hardreset);
@@ -6693,6 +6641,7 @@ EXPORT_SYMBOL_GPL(ata_std_postreset);
 EXPORT_SYMBOL_GPL(ata_dev_classify);
 EXPORT_SYMBOL_GPL(ata_dev_pair);
 EXPORT_SYMBOL_GPL(ata_ratelimit);
+EXPORT_SYMBOL_GPL(ata_msleep);
 EXPORT_SYMBOL_GPL(ata_wait_register);
 EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
 EXPORT_SYMBOL_GPL(ata_scsi_slave_config);

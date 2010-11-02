@@ -96,13 +96,8 @@ int tipc_net_id;
 int tipc_remote_management;
 
 
-int tipc_get_mode(void)
-{
-	return tipc_mode;
-}
-
 /**
- * buf_acquire - creates a TIPC message buffer
+ * tipc_buf_acquire - creates a TIPC message buffer
  * @size: message size (including TIPC header)
  *
  * Returns a new buffer with data pointers set to the specified size.
@@ -111,7 +106,7 @@ int tipc_get_mode(void)
  *       There may also be unrequested tailroom present at the buffer's end.
  */
 
-struct sk_buff *buf_acquire(u32 size)
+struct sk_buff *tipc_buf_acquire(u32 size)
 {
 	struct sk_buff *skb;
 	unsigned int buf_size = (BUF_HEADROOM + size + 3) & ~3u;
@@ -129,7 +124,7 @@ struct sk_buff *buf_acquire(u32 size)
  * tipc_core_stop_net - shut down TIPC networking sub-systems
  */
 
-void tipc_core_stop_net(void)
+static void tipc_core_stop_net(void)
 {
 	tipc_eth_media_stop();
 	tipc_net_stop();
@@ -154,7 +149,7 @@ int tipc_core_start_net(unsigned long addr)
  * tipc_core_stop - switch TIPC from SINGLE NODE to NOT RUNNING mode
  */
 
-void tipc_core_stop(void)
+static void tipc_core_stop(void)
 {
 	if (tipc_mode != TIPC_NODE_MODE)
 		return;
@@ -169,13 +164,14 @@ void tipc_core_stop(void)
 	tipc_nametbl_stop();
 	tipc_ref_table_stop();
 	tipc_socket_stop();
+	tipc_log_resize(0);
 }
 
 /**
  * tipc_core_start - switch TIPC from NOT RUNNING to SINGLE NODE mode
  */
 
-int tipc_core_start(void)
+static int tipc_core_start(void)
 {
 	int res;
 
@@ -203,7 +199,9 @@ static int __init tipc_init(void)
 {
 	int res;
 
-	tipc_log_resize(CONFIG_TIPC_LOG);
+	if (tipc_log_resize(CONFIG_TIPC_LOG) != 0)
+		warn("Unable to create log buffer\n");
+
 	info("Activated (version " TIPC_MOD_VER
 	     " compiled " __DATE__ " " __TIME__ ")\n");
 
@@ -230,7 +228,6 @@ static void __exit tipc_exit(void)
 	tipc_core_stop_net();
 	tipc_core_stop();
 	info("Deactivated\n");
-	tipc_log_resize(0);
 }
 
 module_init(tipc_init);
@@ -244,8 +241,6 @@ MODULE_VERSION(TIPC_MOD_VER);
 
 EXPORT_SYMBOL(tipc_attach);
 EXPORT_SYMBOL(tipc_detach);
-EXPORT_SYMBOL(tipc_get_addr);
-EXPORT_SYMBOL(tipc_get_mode);
 EXPORT_SYMBOL(tipc_createport);
 EXPORT_SYMBOL(tipc_deleteport);
 EXPORT_SYMBOL(tipc_ownidentity);
@@ -260,23 +255,10 @@ EXPORT_SYMBOL(tipc_withdraw);
 EXPORT_SYMBOL(tipc_connect2port);
 EXPORT_SYMBOL(tipc_disconnect);
 EXPORT_SYMBOL(tipc_shutdown);
-EXPORT_SYMBOL(tipc_isconnected);
-EXPORT_SYMBOL(tipc_peer);
-EXPORT_SYMBOL(tipc_ref_valid);
 EXPORT_SYMBOL(tipc_send);
-EXPORT_SYMBOL(tipc_send_buf);
 EXPORT_SYMBOL(tipc_send2name);
-EXPORT_SYMBOL(tipc_forward2name);
-EXPORT_SYMBOL(tipc_send_buf2name);
-EXPORT_SYMBOL(tipc_forward_buf2name);
 EXPORT_SYMBOL(tipc_send2port);
-EXPORT_SYMBOL(tipc_forward2port);
-EXPORT_SYMBOL(tipc_send_buf2port);
-EXPORT_SYMBOL(tipc_forward_buf2port);
 EXPORT_SYMBOL(tipc_multicast);
-/* EXPORT_SYMBOL(tipc_multicast_buf); not available yet */
-EXPORT_SYMBOL(tipc_ispublished);
-EXPORT_SYMBOL(tipc_available_nodes);
 
 /* TIPC API for external bearers (see tipc_bearer.h) */
 
@@ -293,6 +275,4 @@ EXPORT_SYMBOL(tipc_createport_raw);
 EXPORT_SYMBOL(tipc_reject_msg);
 EXPORT_SYMBOL(tipc_send_buf_fast);
 EXPORT_SYMBOL(tipc_acknowledge);
-EXPORT_SYMBOL(tipc_get_port);
-EXPORT_SYMBOL(tipc_get_handle);
 

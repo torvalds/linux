@@ -11,8 +11,6 @@
 #include "helpline.h"
 #include "util.h"
 
-newtComponent newt_form__new(void);
-
 static void newt_form__set_exit_keys(newtComponent self)
 {
 	newtFormAddHotKey(self, NEWT_KEY_LEFT);
@@ -22,7 +20,7 @@ static void newt_form__set_exit_keys(newtComponent self)
 	newtFormAddHotKey(self, CTRL('c'));
 }
 
-newtComponent newt_form__new(void)
+static newtComponent newt_form__new(void)
 {
 	newtComponent self = newtForm(NULL, NULL, 0);
 	if (self)

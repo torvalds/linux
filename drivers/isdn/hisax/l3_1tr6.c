@@ -164,11 +164,9 @@ l3_1tr6_setup(struct l3_process *pc, u_char pr, void *arg)
 	char tmp[80];
 	struct sk_buff *skb = arg;
 
-	p = skb->data;
-
 	/* Channel Identification */
-	p = skb->data;
-	if ((p = findie(p, skb->len, WE0_chanID, 0))) {
+	p = findie(skb->data, skb->len, WE0_chanID, 0);
+	if (p) {
 		if (p[1] != 1) {
 			l3_1tr6_error(pc, "setup wrong chanID len", skb);
 			return;

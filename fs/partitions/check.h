@@ -1,5 +1,6 @@
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
+#include <linux/genhd.h>
 
 /*
  * add_gd_partition adds a partitions details to the devices partition
@@ -12,6 +13,8 @@ struct parsed_partitions {
 		sector_t from;
 		sector_t size;
 		int flags;
+		bool has_info;
+		struct partition_meta_info info;
 	} parts[DISK_MAX_PARTS];
 	int next;
 	int limit;

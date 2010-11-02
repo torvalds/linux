@@ -378,6 +378,8 @@ struct v4l2_subdev *v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
 
 	if (module_name)
 		request_module(module_name);
+	else
+		request_module(I2C_MODULE_PREFIX "%s", info->type);
 
 	/* Create the i2c client */
 	if (info->addr == 0 && probe_addrs)
@@ -676,3 +678,28 @@ int v4l_fill_dv_preset_info(u32 preset, struct v4l2_dv_enum_preset *info)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l_fill_dv_preset_info);
+
+const struct v4l2_frmsize_discrete *v4l2_find_nearest_format(
+		const struct v4l2_discrete_probe *probe,
+		s32 width, s32 height)
+{
+	int i;
+	u32 error, min_error = UINT_MAX;
+	const struct v4l2_frmsize_discrete *size, *best = NULL;
+
+	if (!probe)
+		return best;
+
+	for (i = 0, size = probe->sizes; i < probe->num_sizes; i++, size++) {
+		error = abs(size->width - width) + abs(size->height - height);
+		if (error < min_error) {
+			min_error = error;
+			best = size;
+		}
+		if (!error)
+			break;
+	}
+
+	return best;
+}
+EXPORT_SYMBOL_GPL(v4l2_find_nearest_format);

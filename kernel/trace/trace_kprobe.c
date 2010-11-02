@@ -31,7 +31,6 @@
 #include <linux/perf_event.h>
 #include <linux/stringify.h>
 #include <linux/limits.h>
-#include <linux/uaccess.h>
 #include <asm/bitsperlong.h>
 
 #include "trace.h"
@@ -648,7 +647,7 @@ static int register_trace_probe(struct trace_probe *tp)
 	}
 	ret = register_probe_event(tp);
 	if (ret) {
-		pr_warning("Faild to register probe event(%d)\n", ret);
+		pr_warning("Failed to register probe event(%d)\n", ret);
 		goto end;
 	}
 

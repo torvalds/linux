@@ -35,16 +35,6 @@ struct pt_regs;
  */
 extern int kgdb_skipexception(int exception, struct pt_regs *regs);
 
-/**
- *	kgdb_disable_hw_debug - (optional) Disable hardware debugging hook
- *	@regs: Current &struct pt_regs.
- *
- *	This function will be called if the particular architecture must
- *	disable hardware debugging while it is processing gdb packets or
- *	handling exception.
- */
-extern void kgdb_disable_hw_debug(struct pt_regs *regs);
-
 struct tasklet_struct;
 struct task_struct;
 struct uart_port;
@@ -243,6 +233,8 @@ extern void kgdb_arch_late(void);
  * breakpoint.
  * @remove_hw_breakpoint: Allow an architecture to specify how to remove a
  * hardware breakpoint.
+ * @disable_hw_break: Allow an architecture to specify how to disable
+ * hardware breakpoints for a single cpu.
  * @remove_all_hw_break: Allow an architecture to specify how to remove all
  * hardware breakpoints.
  * @correct_hw_break: Allow an architecture to specify how to correct the
@@ -256,6 +248,7 @@ struct kgdb_arch {
 	int	(*remove_breakpoint)(unsigned long, char *);
 	int	(*set_hw_breakpoint)(unsigned long, int, enum kgdb_bptype);
 	int	(*remove_hw_breakpoint)(unsigned long, int, enum kgdb_bptype);
+	void	(*disable_hw_break)(struct pt_regs *regs);
 	void	(*remove_all_hw_break)(void);
 	void	(*correct_hw_break)(void);
 };

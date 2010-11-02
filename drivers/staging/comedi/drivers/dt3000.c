@@ -165,15 +165,14 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 #define this_board ((const struct dt3k_boardtype *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(dt3k_pci_table) = {
-	{
-	PCI_VENDOR_ID_DT, 0x0022, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_DT, 0x0027, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_DT, 0x0023, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_DT, 0x0024, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_DT, 0x0028, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_DT, 0x0025, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_DT, 0x0026, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0022) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0027) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0023) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0024) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0028) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0025) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0026) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, dt3k_pci_table);

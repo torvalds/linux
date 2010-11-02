@@ -82,7 +82,12 @@ struct be_mcc_compl {
  */
 #define ASYNC_TRAILER_EVENT_CODE_SHIFT	8	/* bits 8 - 15 */
 #define ASYNC_TRAILER_EVENT_CODE_MASK	0xFF
+#define ASYNC_TRAILER_EVENT_TYPE_SHIFT	16
+#define ASYNC_TRAILER_EVENT_TYPE_MASK	0xFF
 #define ASYNC_EVENT_CODE_LINK_STATE	0x1
+#define ASYNC_EVENT_CODE_GRP_5		0x5
+#define ASYNC_EVENT_QOS_SPEED		0x1
+#define ASYNC_EVENT_COS_PRIORITY	0x2
 struct be_async_event_trailer {
 	u32 code;
 };
@@ -105,6 +110,30 @@ struct be_async_event_link_state {
 	struct be_async_event_trailer trailer;
 } __packed;
 
+/* When the event code of an async trailer is GRP-5 and event_type is QOS_SPEED
+ * the mcc_compl must be interpreted as follows
+ */
+struct be_async_event_grp5_qos_link_speed {
+	u8 physical_port;
+	u8 rsvd[5];
+	u16 qos_link_speed;
+	u32 event_tag;
+	struct be_async_event_trailer trailer;
+} __packed;
+
+/* When the event code of an async trailer is GRP5 and event type is
+ * CoS-Priority, the mcc_compl must be interpreted as follows
+ */
+struct be_async_event_grp5_cos_priority {
+	u8 physical_port;
+	u8 available_priority_bmap;
+	u8 reco_default_priority;
+	u8 valid;
+	u8 rsvd0;
+	u8 event_tag;
+	struct be_async_event_trailer trailer;
+} __packed;
+
 struct be_mcc_mailbox {
 	struct be_mcc_wrb wrb;
 	struct be_mcc_compl compl;
@@ -123,8 +152,9 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_WRITE_FLASHROM			7
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
-#define OPCODE_COMMON_MCC_CREATE        		21
+#define OPCODE_COMMON_MCC_CREATE			21
 #define OPCODE_COMMON_SET_QOS				28
+#define OPCODE_COMMON_MCC_CREATE_EXT			90
 #define OPCODE_COMMON_SEEPROM_READ			30
 #define OPCODE_COMMON_NTWK_RX_FILTER    		34
 #define OPCODE_COMMON_GET_FW_VERSION			35
@@ -147,6 +177,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_READ_TRANSRECV_DATA		73
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
 
+#define OPCODE_ETH_RSS_CONFIG				1
 #define OPCODE_ETH_ACPI_CONFIG				2
 #define OPCODE_ETH_PROMISCUOUS				3
 #define OPCODE_ETH_GET_STATISTICS			4
@@ -337,6 +368,7 @@ struct be_cmd_req_mcc_create {
 	struct be_cmd_req_hdr hdr;
 	u16 num_pages;
 	u16 rsvd0;
+	u32 async_event_bitmap[1];
 	u8 context[sizeof(struct amap_mcc_context) / 8];
 	struct phys_addr pages[8];
 } __packed;
@@ -409,7 +441,7 @@ struct be_cmd_req_eth_rx_create {
 struct be_cmd_resp_eth_rx_create {
 	struct be_cmd_resp_hdr hdr;
 	u16 id;
-	u8 cpu_id;
+	u8 rss_id;
 	u8 rsvd0;
 } __packed;
 
@@ -739,9 +771,10 @@ struct be_cmd_resp_modify_eq_delay {
 } __packed;
 
 /******************** Get FW Config *******************/
+#define BE_FUNCTION_CAPS_RSS			0x2
 struct be_cmd_req_query_fw_cfg {
 	struct be_cmd_req_hdr hdr;
-	u32 rsvd[30];
+	u32 rsvd[31];
 };
 
 struct be_cmd_resp_query_fw_cfg {
@@ -751,6 +784,26 @@ struct be_cmd_resp_query_fw_cfg {
 	u32 phys_port;
 	u32 function_mode;
 	u32 rsvd[26];
+	u32 function_caps;
+};
+
+/******************** RSS Config *******************/
+/* RSS types */
+#define RSS_ENABLE_NONE				0x0
+#define RSS_ENABLE_IPV4				0x1
+#define RSS_ENABLE_TCP_IPV4			0x2
+#define RSS_ENABLE_IPV6				0x4
+#define RSS_ENABLE_TCP_IPV6			0x8
+
+struct be_cmd_req_rss_config {
+	struct be_cmd_req_hdr hdr;
+	u32 if_id;
+	u16 enable_rss;
+	u16 cpu_table_size_log2;
+	u32 hash[10];
+	u8 cpu_table[128];
+	u8 flush;
+	u8 rsvd0[3];
 };
 
 /******************** Port Beacon ***************************/
@@ -937,7 +990,7 @@ extern int be_cmd_txq_create(struct be_adapter *adapter,
 extern int be_cmd_rxq_create(struct be_adapter *adapter,
 			struct be_queue_info *rxq, u16 cq_id,
 			u16 frag_size, u16 max_frame_size, u32 if_id,
-			u32 rss);
+			u32 rss, u8 *rss_id);
 extern int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 			int type);
 extern int be_cmd_link_status_query(struct be_adapter *adapter,
@@ -960,15 +1013,15 @@ extern int be_cmd_set_flow_control(struct be_adapter *adapter,
 extern int be_cmd_get_flow_control(struct be_adapter *adapter,
 			u32 *tx_fc, u32 *rx_fc);
 extern int be_cmd_query_fw_cfg(struct be_adapter *adapter,
-			u32 *port_num, u32 *cap);
+			u32 *port_num, u32 *function_mode, u32 *function_caps);
 extern int be_cmd_reset_function(struct be_adapter *adapter);
+extern int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
+			u16 table_size);
 extern int be_process_mcc(struct be_adapter *adapter, int *status);
 extern int be_cmd_set_beacon_state(struct be_adapter *adapter,
 			u8 port_num, u8 beacon, u8 status, u8 state);
 extern int be_cmd_get_beacon_state(struct be_adapter *adapter,
 			u8 port_num, u32 *state);
-extern int be_cmd_read_port_type(struct be_adapter *adapter, u32 port,
-					u8 *connector);
 extern int be_cmd_write_flashrom(struct be_adapter *adapter,
 			struct be_dma_mem *cmd, u32 flash_oper,
 			u32 flash_opcode, u32 buf_size);

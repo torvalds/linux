@@ -99,8 +99,37 @@ Description:
 
 		dmesg -s 1000000 | grep 'hash matches'
 
+		If you do not get any matches (or they appear to be false
+		positives), it is possible that the last PM event point
+		referred to a device created by a loadable kernel module.  In
+		this case cat /sys/power/pm_trace_dev_match (see below) after
+		your system is started up and the kernel modules are loaded.
+
 		CAUTION: Using it will cause your machine's real-time (CMOS)
 		clock to be set to a random invalid time after a resume.
+
+What;		/sys/power/pm_trace_dev_match
+Date:		October 2010
+Contact:	James Hogan <james@albanarts.com>
+Description:
+		The /sys/power/pm_trace_dev_match file contains the name of the
+		device associated with the last PM event point saved in the RTC
+		across reboots when pm_trace has been used.  More precisely it
+		contains the list of current devices (including those
+		registered by loadable kernel modules since boot) which match
+		the device hash in the RTC at boot, with a newline after each
+		one.
+
+		The advantage of this file over the hash matches printed to the
+		kernel log (see /sys/power/pm_trace), is that it includes
+		devices created after boot by loadable kernel modules.
+
+		Due to the small hash size necessary to fit in the RTC, it is
+		possible that more than one device matches the hash, in which
+		case further investigation is required to determine which
+		device is causing the problem.  Note that genuine RTC clock
+		values (such as when pm_trace has not been used), can still
+		match a device and output it's name here.
 
 What:		/sys/power/pm_async
 Date:		January 2009

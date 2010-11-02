@@ -236,10 +236,14 @@ struct kvm_pio_request {
  */
 struct kvm_mmu {
 	void (*new_cr3)(struct kvm_vcpu *vcpu);
+	void (*set_cr3)(struct kvm_vcpu *vcpu, unsigned long root);
+	unsigned long (*get_cr3)(struct kvm_vcpu *vcpu);
 	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err);
+	void (*inject_page_fault)(struct kvm_vcpu *vcpu);
 	void (*free)(struct kvm_vcpu *vcpu);
 	gpa_t (*gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t gva, u32 access,
 			    u32 *error);
+	gpa_t (*translate_gpa)(struct kvm_vcpu *vcpu, gpa_t gpa, u32 access);
 	void (*prefetch_page)(struct kvm_vcpu *vcpu,
 			      struct kvm_mmu_page *page);
 	int (*sync_page)(struct kvm_vcpu *vcpu,
@@ -249,13 +253,18 @@ struct kvm_mmu {
 	int root_level;
 	int shadow_root_level;
 	union kvm_mmu_page_role base_role;
+	bool direct_map;
 
 	u64 *pae_root;
+	u64 *lm_root;
 	u64 rsvd_bits_mask[2][4];
+
+	bool nx;
+
+	u64 pdptrs[4]; /* pae */
 };
 
 struct kvm_vcpu_arch {
-	u64 host_tsc;
 	/*
 	 * rip and regs accesses must go through
 	 * kvm_{register,rip}_{read,write} functions.
@@ -272,7 +281,6 @@ struct kvm_vcpu_arch {
 	unsigned long cr4_guest_owned_bits;
 	unsigned long cr8;
 	u32 hflags;
-	u64 pdptrs[4]; /* pae */
 	u64 efer;
 	u64 apic_base;
 	struct kvm_lapic *apic;    /* kernel irqchip context */
@@ -282,7 +290,41 @@ struct kvm_vcpu_arch {
 	u64 ia32_misc_enable_msr;
 	bool tpr_access_reporting;
 
+	/*
+	 * Paging state of the vcpu
+	 *
+	 * If the vcpu runs in guest mode with two level paging this still saves
+	 * the paging mode of the l1 guest. This context is always used to
+	 * handle faults.
+	 */
 	struct kvm_mmu mmu;
+
+	/*
+	 * Paging state of an L2 guest (used for nested npt)
+	 *
+	 * This context will save all necessary information to walk page tables
+	 * of the an L2 guest. This context is only initialized for page table
+	 * walking and not for faulting since we never handle l2 page faults on
+	 * the host.
+	 */
+	struct kvm_mmu nested_mmu;
+
+	/*
+	 * Pointer to the mmu context currently used for
+	 * gva_to_gpa translations.
+	 */
+	struct kvm_mmu *walk_mmu;
+
+	/*
+	 * This struct is filled with the necessary information to propagate a
+	 * page fault into the guest
+	 */
+	struct {
+		u64      address;
+		unsigned error_code;
+		bool     nested;
+	} fault;
+
 	/* only needed in kvm_pv_mmu_op() path, but it's hot so
 	 * put it here to avoid allocation */
 	struct kvm_pv_mmu_op_buffer mmu_op_buffer;
@@ -336,9 +378,15 @@ struct kvm_vcpu_arch {
 
 	gpa_t time;
 	struct pvclock_vcpu_time_info hv_clock;
-	unsigned int hv_clock_tsc_khz;
+	unsigned int hw_tsc_khz;
 	unsigned int time_offset;
 	struct page *time_page;
+	u64 last_host_tsc;
+	u64 last_guest_tsc;
+	u64 last_kernel_ns;
+	u64 last_tsc_nsec;
+	u64 last_tsc_write;
+	bool tsc_catchup;
 
 	bool nmi_pending;
 	bool nmi_injected;
@@ -367,9 +415,9 @@ struct kvm_vcpu_arch {
 };
 
 struct kvm_arch {
-	unsigned int n_free_mmu_pages;
+	unsigned int n_used_mmu_pages;
 	unsigned int n_requested_mmu_pages;
-	unsigned int n_alloc_mmu_pages;
+	unsigned int n_max_mmu_pages;
 	atomic_t invlpg_counter;
 	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
 	/*
@@ -394,8 +442,14 @@ struct kvm_arch {
 	gpa_t ept_identity_map_addr;
 
 	unsigned long irq_sources_bitmap;
-	u64 vm_init_tsc;
 	s64 kvmclock_offset;
+	spinlock_t tsc_write_lock;
+	u64 last_tsc_nsec;
+	u64 last_tsc_offset;
+	u64 last_tsc_write;
+	u32 virtual_tsc_khz;
+	u32 virtual_tsc_mult;
+	s8 virtual_tsc_shift;
 
 	struct kvm_xen_hvm_config xen_hvm_config;
 
@@ -505,6 +559,7 @@ struct kvm_x86_ops {
 	void (*queue_exception)(struct kvm_vcpu *vcpu, unsigned nr,
 				bool has_error_code, u32 error_code,
 				bool reinject);
+	void (*cancel_injection)(struct kvm_vcpu *vcpu);
 	int (*interrupt_allowed)(struct kvm_vcpu *vcpu);
 	int (*nmi_allowed)(struct kvm_vcpu *vcpu);
 	bool (*get_nmi_mask)(struct kvm_vcpu *vcpu);
@@ -517,10 +572,15 @@ struct kvm_x86_ops {
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
 	int (*get_lpage_level)(void);
 	bool (*rdtscp_supported)(void);
+	void (*adjust_tsc_offset)(struct kvm_vcpu *vcpu, s64 adjustment);
+
+	void (*set_tdp_cr3)(struct kvm_vcpu *vcpu, unsigned long cr3);
 
 	void (*set_supported_cpuid)(u32 func, struct kvm_cpuid_entry2 *entry);
 
 	bool (*has_wbinvd_exit)(void);
+
+	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 
 	const struct trace_print_flags *exit_reasons_str;
 };
@@ -544,7 +604,7 @@ void kvm_mmu_zap_all(struct kvm *kvm);
 unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm);
 void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages);
 
-int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3);
+int load_pdptrs(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu, unsigned long cr3);
 
 int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 			  const void *val, int bytes);
@@ -608,8 +668,11 @@ void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr);
 void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
 void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned nr);
 void kvm_requeue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
-void kvm_inject_page_fault(struct kvm_vcpu *vcpu, unsigned long cr2,
-			   u32 error_code);
+void kvm_inject_page_fault(struct kvm_vcpu *vcpu);
+int kvm_read_guest_page_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+			    gfn_t gfn, void *data, int offset, int len,
+			    u32 access);
+void kvm_propagate_fault(struct kvm_vcpu *vcpu);
 bool kvm_require_cpl(struct kvm_vcpu *vcpu, int required_cpl);
 
 int kvm_pic_set_irq(void *opaque, int irq, int level);

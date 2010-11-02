@@ -570,6 +570,8 @@ static struct serio_device_id hil_dev_ids[] = {
 	{ 0 }
 };
 
+MODULE_DEVICE_TABLE(serio, hil_dev_ids);
+
 static struct serio_driver hil_serio_drv = {
 	.driver		= {
 		.name	= "hil_dev",

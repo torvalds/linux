@@ -1055,30 +1055,33 @@ static int vfat_fill_super(struct super_block *sb, void *data, int silent)
 {
 	int res;
 
+	lock_super(sb);
 	res = fat_fill_super(sb, data, silent, &vfat_dir_inode_operations, 1);
-	if (res)
+	if (res) {
+		unlock_super(sb);
 		return res;
+	}
 
 	if (MSDOS_SB(sb)->options.name_check != 's')
 		sb->s_root->d_op = &vfat_ci_dentry_ops;
 	else
 		sb->s_root->d_op = &vfat_dentry_ops;
 
+	unlock_super(sb);
 	return 0;
 }
 
-static int vfat_get_sb(struct file_system_type *fs_type,
+static struct dentry *vfat_mount(struct file_system_type *fs_type,
 		       int flags, const char *dev_name,
-		       void *data, struct vfsmount *mnt)
+		       void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, vfat_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, vfat_fill_super);
 }
 
 static struct file_system_type vfat_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "vfat",
-	.get_sb		= vfat_get_sb,
+	.mount		= vfat_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

@@ -20,6 +20,8 @@
 #include <plat/vram.h>
 #include <plat/mcspi.h>
 
+#include <mach/board-rx51.h>
+
 #include "mux.h"
 
 #define RX51_LCD_RESET_GPIO	90

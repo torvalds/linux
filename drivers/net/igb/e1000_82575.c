@@ -132,6 +132,8 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	case E1000_DEV_ID_82580_SERDES:
 	case E1000_DEV_ID_82580_SGMII:
 	case E1000_DEV_ID_82580_COPPER_DUAL:
+	case E1000_DEV_ID_DH89XXCC_SGMII:
+	case E1000_DEV_ID_DH89XXCC_SERDES:
 		mac->type = e1000_82580;
 		break;
 	case E1000_DEV_ID_I350_COPPER:
@@ -282,10 +284,18 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 
 	/* Verify phy id and set remaining function pointers */
 	switch (phy->id) {
+	case I347AT4_E_PHY_ID:
+	case M88E1112_E_PHY_ID:
 	case M88E1111_I_PHY_ID:
 		phy->type                   = e1000_phy_m88;
 		phy->ops.get_phy_info       = igb_get_phy_info_m88;
-		phy->ops.get_cable_length   = igb_get_cable_length_m88;
+
+		if (phy->id == I347AT4_E_PHY_ID ||
+		    phy->id == M88E1112_E_PHY_ID)
+			phy->ops.get_cable_length = igb_get_cable_length_m88_gen2;
+		else
+			phy->ops.get_cable_length = igb_get_cable_length_m88;
+
 		phy->ops.force_speed_duplex = igb_phy_force_speed_duplex_m88;
 		break;
 	case IGP03E1000_E_PHY_ID:
@@ -1058,7 +1068,11 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 	}
 	switch (hw->phy.type) {
 	case e1000_phy_m88:
-		ret_val = igb_copper_link_setup_m88(hw);
+		if (hw->phy.id == I347AT4_E_PHY_ID ||
+		    hw->phy.id == M88E1112_E_PHY_ID)
+			ret_val = igb_copper_link_setup_m88_gen2(hw);
+		else
+			ret_val = igb_copper_link_setup_m88(hw);
 		break;
 	case e1000_phy_igp_3:
 		ret_val = igb_copper_link_setup_igp(hw);

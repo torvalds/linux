@@ -222,10 +222,8 @@
 #define IRQ_GPIO_NUM			192
 #define IRQ_GPIO(x)			(IRQ_GPIO_START + (x))
 
-/* Board IRQ - 64 by default, increase if not enough */
 #define IRQ_BOARD_START			(IRQ_GPIO_START + IRQ_GPIO_NUM)
-#define IRQ_BOARD_END			(IRQ_BOARD_START + 64)
 
-#define NR_IRQS				(IRQ_BOARD_END)
+#define NR_IRQS				(IRQ_BOARD_START)
 
 #endif /* __ASM_MACH_IRQS_H */

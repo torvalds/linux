@@ -27,7 +27,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/ldr.h>
 #include <dspbridge/list.h>
 
@@ -35,7 +34,6 @@
 #include <dspbridge/cod.h>
 #include <dspbridge/drv.h>
 #include <dspbridge/proc.h>
-#include <dspbridge/dmm.h>
 
 /*  ----------------------------------- Resource Manager */
 #include <dspbridge/mgr.h>
@@ -76,13 +74,17 @@ struct dev_object {
 	struct msg_mgr *hmsg_mgr;	/* Message manager. */
 	struct io_mgr *hio_mgr;	/* IO manager (CHNL, msg_ctrl) */
 	struct cmm_object *hcmm_mgr;	/* SM memory manager. */
-	struct dmm_object *dmm_mgr;	/* Dynamic memory manager. */
 	struct ldr_module *module_obj;	/* Bridge Module handle. */
 	u32 word_size;		/* DSP word size: quick access. */
 	struct drv_object *hdrv_obj;	/* Driver Object */
 	struct lst_list *proc_list;	/* List of Proceeosr attached to
 					 * this device */
 	struct node_mgr *hnode_mgr;
+};
+
+struct drv_ext {
+	struct list_head link;
+	char sz_string[MAXREGPATHLENGTH];
 };
 
 /*  ----------------------------------- Globals */
@@ -143,6 +145,7 @@ int dev_create_device(struct dev_object **device_obj,
 	struct io_attrs io_mgr_attrs;
 	u32 num_windows;
 	struct drv_object *hdrv_obj = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 	int status = 0;
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(device_obj != NULL);
@@ -158,10 +161,15 @@ int dev_create_device(struct dev_object **device_obj,
 
 	/*  Get the Bridge driver interface functions */
 	bridge_drv_entry(&drv_fxns, driver_file_name);
-	if (cfg_get_object((u32 *) &hdrv_obj, REG_DRV_OBJECT)) {
-		/* don't propogate CFG errors from this PROC function */
+
+	/* Retrieve the Object handle from the driver data */
+	if (drv_datap && drv_datap->drv_object) {
+		hdrv_obj = drv_datap->drv_object;
+	} else {
 		status = -EPERM;
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 	}
+
 	/* Create the device object, and pass a handle to the Bridge driver for
 	 * storage. */
 	if (!status) {
@@ -240,9 +248,6 @@ int dev_create_device(struct dev_object **device_obj,
 			/* Instantiate the DEH module */
 			status = bridge_deh_create(&dev_obj->hdeh_mgr, dev_obj);
 		}
-		/* Create DMM mgr . */
-		status = dmm_create(&dev_obj->dmm_mgr,
-				    (struct dev_object *)dev_obj, NULL);
 	}
 	/* Add the new DEV_Object to the global list: */
 	if (!status) {
@@ -268,8 +273,6 @@ leave:
 			kfree(dev_obj->proc_list);
 			if (dev_obj->cod_mgr)
 				cod_delete(dev_obj->cod_mgr);
-			if (dev_obj->dmm_mgr)
-				dmm_destroy(dev_obj->dmm_mgr);
 			kfree(dev_obj);
 		}
 
@@ -379,11 +382,6 @@ int dev_destroy_device(struct dev_object *hdev_obj)
 			dev_obj->hcmm_mgr = NULL;
 		}
 
-		if (dev_obj->dmm_mgr) {
-			dmm_destroy(dev_obj->dmm_mgr);
-			dev_obj->dmm_mgr = NULL;
-		}
-
 		/* Call the driver's bridge_dev_destroy() function: */
 		/* Require of DevDestroy */
 		if (dev_obj->hbridge_context) {
@@ -454,32 +452,6 @@ int dev_get_cmm_mgr(struct dev_object *hdev_obj,
 
 	if (hdev_obj) {
 		*mgr = dev_obj->hcmm_mgr;
-	} else {
-		*mgr = NULL;
-		status = -EFAULT;
-	}
-
-	DBC_ENSURE(!status || (mgr != NULL && *mgr == NULL));
-	return status;
-}
-
-/*
- *  ======== dev_get_dmm_mgr ========
- *  Purpose:
- *      Retrieve the handle to the dynamic memory manager created for this
- *      device.
- */
-int dev_get_dmm_mgr(struct dev_object *hdev_obj,
-			   struct dmm_object **mgr)
-{
-	int status = 0;
-	struct dev_object *dev_obj = hdev_obj;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(mgr != NULL);
-
-	if (hdev_obj) {
-		*mgr = dev_obj->dmm_mgr;
 	} else {
 		*mgr = NULL;
 		status = -EFAULT;
@@ -741,10 +713,8 @@ void dev_exit(void)
 
 	refs--;
 
-	if (refs == 0) {
+	if (refs == 0)
 		cmm_exit();
-		dmm_exit();
-	}
 
 	DBC_ENSURE(refs >= 0);
 }
@@ -756,25 +726,12 @@ void dev_exit(void)
  */
 bool dev_init(void)
 {
-	bool cmm_ret, dmm_ret, ret = true;
+	bool ret = true;
 
 	DBC_REQUIRE(refs >= 0);
 
-	if (refs == 0) {
-		cmm_ret = cmm_init();
-		dmm_ret = dmm_init();
-
-		ret = cmm_ret && dmm_ret;
-
-		if (!ret) {
-			if (cmm_ret)
-				cmm_exit();
-
-			if (dmm_ret)
-				dmm_exit();
-
-		}
-	}
+	if (refs == 0)
+		ret = cmm_init();
 
 	if (ret)
 		refs++;
@@ -812,17 +769,30 @@ int dev_remove_device(struct cfg_devnode *dev_node_obj)
 {
 	struct dev_object *hdev_obj;	/* handle to device object */
 	int status = 0;
-	struct dev_object *dev_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
+
+	if (!drv_datap)
+		status = -ENODATA;
+
+	if (!dev_node_obj)
+		status = -EFAULT;
 
 	/* Retrieve the device object handle originaly stored with
 	 * the dev_node: */
-	status = cfg_get_dev_object(dev_node_obj, (u32 *) &hdev_obj);
 	if (!status) {
-		/* Remove the Processor List */
-		dev_obj = (struct dev_object *)hdev_obj;
-		/* Destroy the device object. */
-		status = dev_destroy_device(hdev_obj);
+		/* check the device string and then store dev object */
+		if (!strcmp((char *)((struct drv_ext *)dev_node_obj)->sz_string,
+								"TIOMAP1510")) {
+			hdev_obj = drv_datap->dev_object;
+			/* Destroy the device object. */
+			status = dev_destroy_device(hdev_obj);
+		} else {
+			status = -EPERM;
+		}
 	}
+
+	if (status)
+		pr_err("%s: Failed, status 0x%x\n", __func__, status);
 
 	return status;
 }
@@ -874,6 +844,7 @@ int dev_start_device(struct cfg_devnode *dev_node_obj)
 	char bridge_file_name[CFG_MAXSEARCHPATHLEN] = "UMA";
 	int status;
 	struct mgr_object *hmgr_obj = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(refs > 0);
 
@@ -882,23 +853,26 @@ int dev_start_device(struct cfg_devnode *dev_node_obj)
 				   dev_node_obj);
 	if (!status) {
 		/* Store away the hdev_obj with the DEVNODE */
-		status = cfg_set_dev_object(dev_node_obj, (u32) hdev_obj);
+		if (!drv_datap || !dev_node_obj) {
+			status = -EFAULT;
+			pr_err("%s: Failed, status 0x%x\n", __func__, status);
+		} else if (!(strcmp((char *)dev_node_obj, "TIOMAP1510"))) {
+			drv_datap->dev_object = (void *) hdev_obj;
+		}
+		if (!status) {
+			/* Create the Manager Object */
+			status = mgr_create(&hmgr_obj, dev_node_obj);
+			if (status && !(strcmp((char *)dev_node_obj,
+							"TIOMAP1510"))) {
+				/* Ensure the device extension is NULL */
+				drv_datap->dev_object = NULL;
+			}
+		}
 		if (status) {
 			/* Clean up */
 			dev_destroy_device(hdev_obj);
 			hdev_obj = NULL;
 		}
-	}
-	if (!status) {
-		/* Create the Manager Object */
-		status = mgr_create(&hmgr_obj, dev_node_obj);
-	}
-	if (status) {
-		if (hdev_obj)
-			dev_destroy_device(hdev_obj);
-
-		/* Ensure the device extension is NULL */
-		cfg_set_dev_object(dev_node_obj, 0L);
 	}
 
 	return status;
@@ -1091,8 +1065,6 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
 		STORE_FXN(fxn_brd_setstate, pfn_brd_set_state);
 		STORE_FXN(fxn_brd_memcopy, pfn_brd_mem_copy);
 		STORE_FXN(fxn_brd_memwrite, pfn_brd_mem_write);
-		STORE_FXN(fxn_brd_memmap, pfn_brd_mem_map);
-		STORE_FXN(fxn_brd_memunmap, pfn_brd_mem_un_map);
 		STORE_FXN(fxn_chnl_create, pfn_chnl_create);
 		STORE_FXN(fxn_chnl_destroy, pfn_chnl_destroy);
 		STORE_FXN(fxn_chnl_open, pfn_chnl_open);

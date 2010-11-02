@@ -2,6 +2,7 @@
 #define _H8300_SYSTEM_H
 
 #include <linux/linkage.h>
+#include <linux/irqflags.h>
 
 struct pt_regs;
 
@@ -51,30 +52,7 @@ asmlinkage void resume(void);
   (last) = _last; 					    \
 }
 
-#define __sti() asm volatile ("andc #0x7f,ccr")
-#define __cli() asm volatile ("orc  #0x80,ccr")
-
-#define __save_flags(x) \
-       asm volatile ("stc ccr,%w0":"=r" (x))
-
-#define __restore_flags(x) \
-       asm volatile ("ldc %w0,ccr": :"r" (x))
-
-#define	irqs_disabled()			\
-({					\
-	unsigned char flags;		\
-	__save_flags(flags);	        \
-	((flags & 0x80) == 0x80);	\
-})
-
 #define iret() __asm__ __volatile__ ("rte": : :"memory", "sp", "cc")
-
-/* For spinlocks etc */
-#define local_irq_disable()	__cli()
-#define local_irq_enable()      __sti()
-#define local_irq_save(x)	({ __save_flags(x); local_irq_disable(); })
-#define local_irq_restore(x)	__restore_flags(x)
-#define local_save_flags(x)     __save_flags(x)
 
 /*
  * Force strict CPU ordering.

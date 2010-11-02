@@ -91,7 +91,7 @@
 #define SCA3000_INT_STATUS_X_TRIGGER		0x02
 #define SCA3000_INT_STATUS_Z_TRIGGER		0x01
 
-/* Used to allow accesss to multiplexed registers */
+/* Used to allow access to multiplexed registers */
 #define SCA3000_REG_ADDR_CTRL_SEL		0x18
 /* Only available for SCA3000-D03 and SCA3000-D01 */
 #define SCA3000_REG_CTRL_SEL_I2C_DISABLE	0x01

@@ -11,7 +11,6 @@
 #ifndef __ARCH_ARM_OMAP_SRAM_H
 #define __ARCH_ARM_OMAP_SRAM_H
 
-extern int __init omap_sram_init(void);
 extern void * omap_sram_push(void * start, unsigned long size);
 extern void omap_sram_reprogram_clock(u32 dpllctl, u32 ckctl);
 

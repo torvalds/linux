@@ -52,7 +52,7 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/workqueue.h>
 
 #include <asm/uaccess.h>
@@ -66,6 +66,7 @@
  *	ioctls.
  */
 
+static DEFINE_MUTEX(gen_rtc_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(gen_rtc_wait);
 
 /*
@@ -337,9 +338,9 @@ static long gen_rtc_unlocked_ioctl(struct file *file, unsigned int cmd,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&gen_rtc_mutex);
 	ret = gen_rtc_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&gen_rtc_mutex);
 
 	return ret;
 }
@@ -352,16 +353,16 @@ static long gen_rtc_unlocked_ioctl(struct file *file, unsigned int cmd,
 
 static int gen_rtc_open(struct inode *inode, struct file *file)
 {
-	lock_kernel();
+	mutex_lock(&gen_rtc_mutex);
 	if (gen_rtc_status & RTC_IS_OPEN) {
-		unlock_kernel();
+		mutex_unlock(&gen_rtc_mutex);
 		return -EBUSY;
 	}
 
 	gen_rtc_status |= RTC_IS_OPEN;
 	gen_rtc_irq_data = 0;
 	irq_active = 0;
-	unlock_kernel();
+	mutex_unlock(&gen_rtc_mutex);
 
 	return 0;
 }
@@ -497,6 +498,7 @@ static const struct file_operations gen_rtc_fops = {
 	.unlocked_ioctl	= gen_rtc_unlocked_ioctl,
 	.open		= gen_rtc_open,
 	.release	= gen_rtc_release,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice rtc_gen_dev =

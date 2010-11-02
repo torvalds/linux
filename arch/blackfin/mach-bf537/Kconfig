@@ -14,8 +14,8 @@ config IRQ_DMA_ERROR
 	int "IRQ_DMA_ERROR Generic"
 	default 7
 config IRQ_ERROR
-	int "IRQ_ERROR: CAN MAC SPORT0 SPORT1 SPI UART0 UART1"
-	default 7
+	int "IRQ_ERROR: PPI CAN MAC SPORT0 SPORT1 SPI UART0 UART1"
+	default 11
 config IRQ_RTC
 	int "IRQ_RTC"
 	default 8

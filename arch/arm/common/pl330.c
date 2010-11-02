@@ -146,8 +146,7 @@
 #define DESIGNER	0x41
 #define REVISION	0x0
 #define INTEG_CFG	0x0
-#define PERIPH_ID_VAL	((PART << 0) | (DESIGNER << 12) \
-			  | (REVISION << 20) | (INTEG_CFG << 24))
+#define PERIPH_ID_VAL	((PART << 0) | (DESIGNER << 12))
 
 #define PCELL_ID_VAL	0xb105f00d
 
@@ -1859,10 +1858,10 @@ int pl330_add(struct pl330_info *pi)
 	regs = pi->base;
 
 	/* Check if we can handle this DMAC */
-	if (get_id(pi, PERIPH_ID) != PERIPH_ID_VAL
+	if ((get_id(pi, PERIPH_ID) & 0xfffff) != PERIPH_ID_VAL
 	   || get_id(pi, PCELL_ID) != PCELL_ID_VAL) {
 		dev_err(pi->dev, "PERIPH_ID 0x%x, PCELL_ID 0x%x !\n",
-			readl(regs + PERIPH_ID), readl(regs + PCELL_ID));
+			get_id(pi, PERIPH_ID), get_id(pi, PCELL_ID));
 		return -EINVAL;
 	}
 

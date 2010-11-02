@@ -22,6 +22,7 @@
  */
 enum {
 	NFSD_Root = 1,
+#ifdef CONFIG_NFSD_DEPRECATED
 	NFSD_Svc,
 	NFSD_Add,
 	NFSD_Del,
@@ -29,6 +30,7 @@ enum {
 	NFSD_Unexport,
 	NFSD_Getfd,
 	NFSD_Getfs,
+#endif
 	NFSD_List,
 	NFSD_Export_features,
 	NFSD_Fh,
@@ -54,6 +56,7 @@ enum {
 /*
  * write() for these nodes.
  */
+#ifdef CONFIG_NFSD_DEPRECATED
 static ssize_t write_svc(struct file *file, char *buf, size_t size);
 static ssize_t write_add(struct file *file, char *buf, size_t size);
 static ssize_t write_del(struct file *file, char *buf, size_t size);
@@ -61,6 +64,7 @@ static ssize_t write_export(struct file *file, char *buf, size_t size);
 static ssize_t write_unexport(struct file *file, char *buf, size_t size);
 static ssize_t write_getfd(struct file *file, char *buf, size_t size);
 static ssize_t write_getfs(struct file *file, char *buf, size_t size);
+#endif
 static ssize_t write_filehandle(struct file *file, char *buf, size_t size);
 static ssize_t write_unlock_ip(struct file *file, char *buf, size_t size);
 static ssize_t write_unlock_fs(struct file *file, char *buf, size_t size);
@@ -76,6 +80,7 @@ static ssize_t write_recoverydir(struct file *file, char *buf, size_t size);
 #endif
 
 static ssize_t (*write_op[])(struct file *, char *, size_t) = {
+#ifdef CONFIG_NFSD_DEPRECATED
 	[NFSD_Svc] = write_svc,
 	[NFSD_Add] = write_add,
 	[NFSD_Del] = write_del,
@@ -83,6 +88,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[NFSD_Unexport] = write_unexport,
 	[NFSD_Getfd] = write_getfd,
 	[NFSD_Getfs] = write_getfs,
+#endif
 	[NFSD_Fh] = write_filehandle,
 	[NFSD_FO_UnlockIP] = write_unlock_ip,
 	[NFSD_FO_UnlockFS] = write_unlock_fs,
@@ -121,6 +127,14 @@ static ssize_t nfsctl_transaction_write(struct file *file, const char __user *bu
 
 static ssize_t nfsctl_transaction_read(struct file *file, char __user *buf, size_t size, loff_t *pos)
 {
+	static int warned;
+	if (file->f_dentry->d_name.name[0] == '.' && !warned) {
+		printk(KERN_INFO
+		       "Warning: \"%s\" uses deprecated NFSD interface: %s."
+		       "  This will be removed in 2.6.40\n",
+		       current->comm, file->f_dentry->d_name.name);
+		warned = 1;
+	}
 	if (! file->private_data) {
 		/* An attempt to read a transaction file without writing
 		 * causes a 0-byte write so that the file can return
@@ -137,6 +151,7 @@ static const struct file_operations transaction_ops = {
 	.write		= nfsctl_transaction_write,
 	.read		= nfsctl_transaction_read,
 	.release	= simple_transaction_release,
+	.llseek		= default_llseek,
 };
 
 static int exports_open(struct inode *inode, struct file *file)
@@ -186,6 +201,7 @@ static const struct file_operations pool_stats_operations = {
  * payload - write methods
  */
 
+#ifdef CONFIG_NFSD_DEPRECATED
 /**
  * write_svc - Start kernel's NFSD server
  *
@@ -401,7 +417,7 @@ static ssize_t write_getfs(struct file *file, char *buf, size_t size)
 
 	ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &in6);
 
-	clp = auth_unix_lookup(&in6);
+	clp = auth_unix_lookup(&init_net, &in6);
 	if (!clp)
 		err = -EPERM;
 	else {
@@ -464,7 +480,7 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
 
 	ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &in6);
 
-	clp = auth_unix_lookup(&in6);
+	clp = auth_unix_lookup(&init_net, &in6);
 	if (!clp)
 		err = -EPERM;
 	else {
@@ -481,6 +497,7 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
  out:
 	return err;
 }
+#endif /* CONFIG_NFSD_DEPRECATED */
 
 /**
  * write_unlock_ip - Release all locks used by a client
@@ -999,12 +1016,12 @@ static ssize_t __write_ports_addxprt(char *buf)
 	if (err != 0)
 		return err;
 
-	err = svc_create_xprt(nfsd_serv, transport,
+	err = svc_create_xprt(nfsd_serv, transport, &init_net,
 				PF_INET, port, SVC_SOCK_ANONYMOUS);
 	if (err < 0)
 		goto out_err;
 
-	err = svc_create_xprt(nfsd_serv, transport,
+	err = svc_create_xprt(nfsd_serv, transport, &init_net,
 				PF_INET6, port, SVC_SOCK_ANONYMOUS);
 	if (err < 0 && err != -EAFNOSUPPORT)
 		goto out_close;
@@ -1355,6 +1372,7 @@ static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
 static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 {
 	static struct tree_descr nfsd_files[] = {
+#ifdef CONFIG_NFSD_DEPRECATED
 		[NFSD_Svc] = {".svc", &transaction_ops, S_IWUSR},
 		[NFSD_Add] = {".add", &transaction_ops, S_IWUSR},
 		[NFSD_Del] = {".del", &transaction_ops, S_IWUSR},
@@ -1362,6 +1380,7 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_Unexport] = {".unexport", &transaction_ops, S_IWUSR},
 		[NFSD_Getfd] = {".getfd", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Getfs] = {".getfs", &transaction_ops, S_IWUSR|S_IRUSR},
+#endif
 		[NFSD_List] = {"exports", &exports_operations, S_IRUGO},
 		[NFSD_Export_features] = {"export_features",
 					&export_features_operations, S_IRUGO},
@@ -1386,16 +1405,16 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 	return simple_fill_super(sb, 0x6e667364, nfsd_files);
 }
 
-static int nfsd_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *nfsd_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_single(fs_type, flags, data, nfsd_fill_super, mnt);
+	return mount_single(fs_type, flags, data, nfsd_fill_super);
 }
 
 static struct file_system_type nfsd_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfsd",
-	.get_sb		= nfsd_get_sb,
+	.mount		= nfsd_mount,
 	.kill_sb	= kill_litter_super,
 };
 

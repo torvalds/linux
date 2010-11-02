@@ -1,5 +1,5 @@
 /*
- * max8698.c - mfd core driver for the Maxim 8998
+ * max8998.c - mfd core driver for the Maxim 8998
  *
  *  Copyright (C) 2009-2010 Samsung Electronics
  *  Kyungmin Park <kyungmin.park@samsung.com>
@@ -30,19 +30,23 @@
 #include <linux/mfd/max8998.h>
 #include <linux/mfd/max8998-private.h>
 
+#define RTC_I2C_ADDR		(0x0c >> 1)
+
 static struct mfd_cell max8998_devs[] = {
 	{
 		.name = "max8998-pmic",
-	}
+	}, {
+		.name = "max8998-rtc",
+	},
 };
 
-static int max8998_i2c_device_read(struct max8998_dev *max8998, u8 reg, u8 *dest)
+int max8998_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
 {
-	struct i2c_client *client = max8998->i2c_client;
+	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 	int ret;
 
 	mutex_lock(&max8998->iolock);
-	ret = i2c_smbus_read_byte_data(client, reg);
+	ret = i2c_smbus_read_byte_data(i2c, reg);
 	mutex_unlock(&max8998->iolock);
 	if (ret < 0)
 		return ret;
@@ -51,40 +55,71 @@ static int max8998_i2c_device_read(struct max8998_dev *max8998, u8 reg, u8 *dest
 	*dest = ret;
 	return 0;
 }
+EXPORT_SYMBOL(max8998_read_reg);
 
-static int max8998_i2c_device_write(struct max8998_dev *max8998, u8 reg, u8 value)
+int max8998_bulk_read(struct i2c_client *i2c, u8 reg, int count, u8 *buf)
 {
-	struct i2c_client *client = max8998->i2c_client;
+	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 	int ret;
 
 	mutex_lock(&max8998->iolock);
-	ret = i2c_smbus_write_byte_data(client, reg, value);
+	ret = i2c_smbus_read_i2c_block_data(i2c, reg, count, buf);
+	mutex_unlock(&max8998->iolock);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(max8998_bulk_read);
+
+int max8998_write_reg(struct i2c_client *i2c, u8 reg, u8 value)
+{
+	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
+	int ret;
+
+	mutex_lock(&max8998->iolock);
+	ret = i2c_smbus_write_byte_data(i2c, reg, value);
 	mutex_unlock(&max8998->iolock);
 	return ret;
 }
+EXPORT_SYMBOL(max8998_write_reg);
 
-static int max8998_i2c_device_update(struct max8998_dev *max8998, u8 reg,
-				     u8 val, u8 mask)
+int max8998_bulk_write(struct i2c_client *i2c, u8 reg, int count, u8 *buf)
 {
-	struct i2c_client *client = max8998->i2c_client;
+	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 	int ret;
 
 	mutex_lock(&max8998->iolock);
-	ret = i2c_smbus_read_byte_data(client, reg);
+	ret = i2c_smbus_write_i2c_block_data(i2c, reg, count, buf);
+	mutex_unlock(&max8998->iolock);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(max8998_bulk_write);
+
+int max8998_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask)
+{
+	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
+	int ret;
+
+	mutex_lock(&max8998->iolock);
+	ret = i2c_smbus_read_byte_data(i2c, reg);
 	if (ret >= 0) {
 		u8 old_val = ret & 0xff;
 		u8 new_val = (val & mask) | (old_val & (~mask));
-		ret = i2c_smbus_write_byte_data(client, reg, new_val);
-		if (ret >= 0)
-			ret = 0;
+		ret = i2c_smbus_write_byte_data(i2c, reg, new_val);
 	}
 	mutex_unlock(&max8998->iolock);
 	return ret;
 }
+EXPORT_SYMBOL(max8998_update_reg);
 
 static int max8998_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
+	struct max8998_platform_data *pdata = i2c->dev.platform_data;
 	struct max8998_dev *max8998;
 	int ret = 0;
 
@@ -94,11 +129,19 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, max8998);
 	max8998->dev = &i2c->dev;
-	max8998->i2c_client = i2c;
-	max8998->dev_read = max8998_i2c_device_read;
-	max8998->dev_write = max8998_i2c_device_write;
-	max8998->dev_update = max8998_i2c_device_update;
+	max8998->i2c = i2c;
+	max8998->irq = i2c->irq;
+	max8998->type = id->driver_data;
+	if (pdata) {
+		max8998->ono = pdata->ono;
+		max8998->irq_base = pdata->irq_base;
+	}
 	mutex_init(&max8998->iolock);
+
+	max8998->rtc = i2c_new_dummy(i2c->adapter, RTC_I2C_ADDR);
+	i2c_set_clientdata(max8998->rtc, max8998);
+
+	max8998_irq_init(max8998);
 
 	ret = mfd_add_devices(max8998->dev, -1,
 			      max8998_devs, ARRAY_SIZE(max8998_devs),
@@ -110,6 +153,8 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 
 err:
 	mfd_remove_devices(max8998->dev);
+	max8998_irq_exit(max8998);
+	i2c_unregister_device(max8998->rtc);
 	kfree(max8998);
 	return ret;
 }
@@ -119,14 +164,17 @@ static int max8998_i2c_remove(struct i2c_client *i2c)
 	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 
 	mfd_remove_devices(max8998->dev);
+	max8998_irq_exit(max8998);
+	i2c_unregister_device(max8998->rtc);
 	kfree(max8998);
 
 	return 0;
 }
 
 static const struct i2c_device_id max8998_i2c_id[] = {
-       { "max8998", 0 },
-       { }
+	{ "max8998", TYPE_MAX8998 },
+	{ "lp3974", TYPE_LP3974},
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max8998_i2c_id);
 

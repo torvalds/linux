@@ -320,7 +320,7 @@ static void bfin_correct_hw_break(void)
 	}
 }
 
-void kgdb_disable_hw_debug(struct pt_regs *regs)
+static void bfin_disable_hw_debug(struct pt_regs *regs)
 {
 	/* Disable hardware debugging while we are in kgdb */
 	bfin_write_WPIACTL(0);
@@ -406,6 +406,7 @@ struct kgdb_arch arch_kgdb_ops = {
 #endif
 	.set_hw_breakpoint = bfin_set_hw_break,
 	.remove_hw_breakpoint = bfin_remove_hw_break,
+	.disable_hw_break = bfin_disable_hw_debug,
 	.remove_all_hw_break = bfin_remove_all_hw_break,
 	.correct_hw_break = bfin_correct_hw_break,
 };

@@ -42,7 +42,7 @@
 #include <linux/module.h>
 #include <linux/completion.h>
 #include <linux/proc_fs.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/seq_file.h>
 #include <linux/scatterlist.h>
 
@@ -61,6 +61,7 @@
  */
 #define VIOCD_MAX_CD	HVMAXARCHITECTEDVIRTUALCDROMS
 
+static DEFINE_MUTEX(viocd_mutex);
 static const struct vio_error_entry viocd_err_table[] = {
 	{0x0201, EINVAL, "Invalid Range"},
 	{0x0202, EINVAL, "Invalid Token"},
@@ -156,9 +157,9 @@ static int viocd_blk_open(struct block_device *bdev, fmode_t mode)
 	struct disk_info *di = bdev->bd_disk->private_data;
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&viocd_mutex);
 	ret = cdrom_open(&di->viocd_info, bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&viocd_mutex);
 
 	return ret;
 }
@@ -166,9 +167,9 @@ static int viocd_blk_open(struct block_device *bdev, fmode_t mode)
 static int viocd_blk_release(struct gendisk *disk, fmode_t mode)
 {
 	struct disk_info *di = disk->private_data;
-	lock_kernel();
+	mutex_lock(&viocd_mutex);
 	cdrom_release(&di->viocd_info, mode);
-	unlock_kernel();
+	mutex_unlock(&viocd_mutex);
 	return 0;
 }
 
@@ -178,9 +179,9 @@ static int viocd_blk_ioctl(struct block_device *bdev, fmode_t mode,
 	struct disk_info *di = bdev->bd_disk->private_data;
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&viocd_mutex);
 	ret = cdrom_ioctl(&di->viocd_info, bdev, mode, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&viocd_mutex);
 
 	return ret;
 }

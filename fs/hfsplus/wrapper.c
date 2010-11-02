@@ -65,8 +65,8 @@ static int hfsplus_get_last_session(struct super_block *sb,
 	*start = 0;
 	*size = sb->s_bdev->bd_inode->i_size >> 9;
 
-	if (HFSPLUS_SB(sb).session >= 0) {
-		te.cdte_track = HFSPLUS_SB(sb).session;
+	if (HFSPLUS_SB(sb)->session >= 0) {
+		te.cdte_track = HFSPLUS_SB(sb)->session;
 		te.cdte_format = CDROM_LBA;
 		res = ioctl_by_bdev(sb->s_bdev, CDROMREADTOCENTRY, (unsigned long)&te);
 		if (!res && (te.cdte_ctrl & CDROM_DATA_TRACK) == 4) {
@@ -87,6 +87,7 @@ static int hfsplus_get_last_session(struct super_block *sb,
 /* Takes in super block, returns true if good data read */
 int hfsplus_read_wrapper(struct super_block *sb)
 {
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 	struct buffer_head *bh;
 	struct hfsplus_vh *vhdr;
 	struct hfsplus_wd wd;
@@ -122,7 +123,7 @@ int hfsplus_read_wrapper(struct super_block *sb)
 		if (vhdr->signature == cpu_to_be16(HFSPLUS_VOLHEAD_SIG))
 			break;
 		if (vhdr->signature == cpu_to_be16(HFSPLUS_VOLHEAD_SIGX)) {
-			HFSPLUS_SB(sb).flags |= HFSPLUS_SB_HFSX;
+			set_bit(HFSPLUS_SB_HFSX, &sbi->flags);
 			break;
 		}
 		brelse(bh);
@@ -143,11 +144,11 @@ int hfsplus_read_wrapper(struct super_block *sb)
 	if (blocksize < HFSPLUS_SECTOR_SIZE ||
 	    ((blocksize - 1) & blocksize))
 		return -EINVAL;
-	HFSPLUS_SB(sb).alloc_blksz = blocksize;
-	HFSPLUS_SB(sb).alloc_blksz_shift = 0;
+	sbi->alloc_blksz = blocksize;
+	sbi->alloc_blksz_shift = 0;
 	while ((blocksize >>= 1) != 0)
-		HFSPLUS_SB(sb).alloc_blksz_shift++;
-	blocksize = min(HFSPLUS_SB(sb).alloc_blksz, (u32)PAGE_SIZE);
+		sbi->alloc_blksz_shift++;
+	blocksize = min(sbi->alloc_blksz, (u32)PAGE_SIZE);
 
 	/* align block size to block offset */
 	while (part_start & ((blocksize >> HFSPLUS_SECTOR_SHIFT) - 1))
@@ -158,23 +159,26 @@ int hfsplus_read_wrapper(struct super_block *sb)
 		return -EINVAL;
 	}
 
-	HFSPLUS_SB(sb).blockoffset = part_start >>
-			(sb->s_blocksize_bits - HFSPLUS_SECTOR_SHIFT);
-	HFSPLUS_SB(sb).sect_count = part_size;
-	HFSPLUS_SB(sb).fs_shift = HFSPLUS_SB(sb).alloc_blksz_shift -
-			sb->s_blocksize_bits;
+	sbi->blockoffset =
+		part_start >> (sb->s_blocksize_bits - HFSPLUS_SECTOR_SHIFT);
+	sbi->sect_count = part_size;
+	sbi->fs_shift = sbi->alloc_blksz_shift - sb->s_blocksize_bits;
 
 	bh = sb_bread512(sb, part_start + HFSPLUS_VOLHEAD_SECTOR, vhdr);
 	if (!bh)
 		return -EIO;
 
 	/* should still be the same... */
-	if (vhdr->signature != (HFSPLUS_SB(sb).flags & HFSPLUS_SB_HFSX ?
-				cpu_to_be16(HFSPLUS_VOLHEAD_SIGX) :
-				cpu_to_be16(HFSPLUS_VOLHEAD_SIG)))
-		goto error;
-	HFSPLUS_SB(sb).s_vhbh = bh;
-	HFSPLUS_SB(sb).s_vhdr = vhdr;
+	if (test_bit(HFSPLUS_SB_HFSX, &sbi->flags)) {
+		if (vhdr->signature != cpu_to_be16(HFSPLUS_VOLHEAD_SIGX))
+			goto error;
+	} else {
+		if (vhdr->signature != cpu_to_be16(HFSPLUS_VOLHEAD_SIG))
+			goto error;
+	}
+
+	sbi->s_vhbh = bh;
+	sbi->s_vhdr = vhdr;
 
 	return 0;
  error:

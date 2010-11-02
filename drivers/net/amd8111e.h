@@ -787,7 +787,6 @@ struct amd8111e_priv{
 	struct vlan_group		*vlgrp;
 #endif
 	char opened;
-	struct net_device_stats stats;
 	unsigned int drv_rx_errors;
 	struct amd8111e_coalesce_conf coal_conf;
 

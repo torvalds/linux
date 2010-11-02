@@ -1388,7 +1388,7 @@ static void sge_rx(struct sge *sge, struct freelQ *fl, unsigned int len)
 		++st->rx_cso_good;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 
 	if (unlikely(adapter->vlan_grp && p->vlan_valid)) {
 		st->vlan_xtract++;
@@ -1551,7 +1551,7 @@ static inline int responses_pending(const struct adapter *adapter)
 	const struct respQ *Q = &adapter->sge->respQ;
 	const struct respQ_e *e = &Q->entries[Q->cidx];
 
-	return (e->GenerationBit == Q->genbit);
+	return e->GenerationBit == Q->genbit;
 }
 
 /*
@@ -1870,7 +1870,7 @@ netdev_tx_t t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	cpl->iff = dev->if_port;
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-	if (adapter->vlan_grp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		cpl->vlan_valid = 1;
 		cpl->vlan = htons(vlan_tx_tag_get(skb));
 		st->vlan_insert++;

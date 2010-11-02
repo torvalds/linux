@@ -430,8 +430,8 @@ static u16 xemaclite_recv_data(struct net_local *drvdata, u8 *data)
 	}
 
 	/* Get the protocol type of the ethernet frame that arrived */
-	proto_type = ((in_be32(addr + XEL_HEADER_OFFSET +
-			XEL_RXBUFF_OFFSET) >> XEL_HEADER_SHIFT) &
+	proto_type = ((ntohl(in_be32(addr + XEL_HEADER_OFFSET +
+			XEL_RXBUFF_OFFSET)) >> XEL_HEADER_SHIFT) &
 			XEL_RPLR_LENGTH_MASK);
 
 	/* Check if received ethernet frame is a raw ethernet frame
@@ -439,9 +439,9 @@ static u16 xemaclite_recv_data(struct net_local *drvdata, u8 *data)
 	if (proto_type > (ETH_FRAME_LEN + ETH_FCS_LEN)) {
 
 		if (proto_type == ETH_P_IP) {
-			length = ((in_be32(addr +
+			length = ((ntohl(in_be32(addr +
 					XEL_HEADER_IP_LENGTH_OFFSET +
-					XEL_RXBUFF_OFFSET) >>
+					XEL_RXBUFF_OFFSET)) >>
 					XEL_HEADER_SHIFT) &
 					XEL_RPLR_LENGTH_MASK);
 			length += ETH_HLEN + ETH_FCS_LEN;
@@ -641,7 +641,7 @@ static void xemaclite_rx_handler(struct net_device *dev)
 	skb_put(skb, len);	/* Tell the skb how much data we got */
 
 	skb->protocol = eth_type_trans(skb, dev);
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += len;
@@ -1269,6 +1269,16 @@ static int __devexit xemaclite_of_remove(struct platform_device *of_dev)
 	return 0;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void
+xemaclite_poll_controller(struct net_device *ndev)
+{
+	disable_irq(ndev->irq);
+	xemaclite_interrupt(ndev->irq, ndev);
+	enable_irq(ndev->irq);
+}
+#endif
+
 static struct net_device_ops xemaclite_netdev_ops = {
 	.ndo_open		= xemaclite_open,
 	.ndo_stop		= xemaclite_close,
@@ -1276,6 +1286,9 @@ static struct net_device_ops xemaclite_netdev_ops = {
 	.ndo_set_mac_address	= xemaclite_set_mac_address,
 	.ndo_tx_timeout		= xemaclite_tx_timeout,
 	.ndo_get_stats		= xemaclite_get_stats,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller = xemaclite_poll_controller,
+#endif
 };
 
 /* Match table for OF platform binding */

@@ -534,7 +534,7 @@ _base_display_event_data(struct MPT2SAS_ADAPTER *ioc,
 		if (event_data->DiscoveryStatus)
 			printk("discovery_status(0x%08x)",
 			    le32_to_cpu(event_data->DiscoveryStatus));
-			printk("\n");
+		printk("\n");
 		return;
 	}
 	case MPI2_EVENT_SAS_BROADCAST_PRIMITIVE:

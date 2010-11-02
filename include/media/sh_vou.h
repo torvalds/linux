@@ -28,7 +28,6 @@ struct sh_vou_pdata {
 	int i2c_adap;
 	struct i2c_board_info *board_info;
 	unsigned long flags;
-	char *module_name;
 };
 
 #endif

@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux Kernel Configuration"
-
 config ARM
 	bool
 	default y
@@ -19,13 +12,17 @@ config ARM
 	select HAVE_KPROBES if (!XIP_KERNEL)
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	select HAVE_FUNCTION_TRACER if (!XIP_KERNEL)
+	select HAVE_FTRACE_MCOUNT_RECORD if (!XIP_KERNEL)
+	select HAVE_DYNAMIC_FTRACE if (!XIP_KERNEL)
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZO
 	select HAVE_KERNEL_LZMA
+	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_HW_BREAKPOINT if (PERF_EVENTS && (CPU_V6 || CPU_V7))
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -144,6 +141,9 @@ config ARCH_HAS_CPUFREQ
 	  Internal node to signify that the ARCH has CPUFREQ support
 	  and that the relevant menu configurations are displayed for
 	  it.
+
+config ARCH_HAS_CPU_IDLE_WAIT
+       def_bool y
 
 config GENERIC_HWEIGHT
 	bool
@@ -510,6 +510,7 @@ config ARCH_MMP
 	select GENERIC_CLOCKEVENTS
 	select TICK_ONESHOT
 	select PLAT_PXA
+	select SPARSE_IRQ
 	help
 	  Support for Marvell's PXA168/PXA910(MMP) and MMP2 processor line.
 
@@ -565,6 +566,7 @@ config ARCH_TEGRA
 	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ARCH_HAS_BARRIERS if CACHE_L2X0
+	select ARCH_HAS_CPUFREQ
 	help
 	  This enables support for NVIDIA Tegra based systems (Tegra APX,
 	  Tegra 6xx and Tegra 2 series).
@@ -587,6 +589,7 @@ config ARCH_PXA
 	select GENERIC_CLOCKEVENTS
 	select TICK_ONESHOT
 	select PLAT_PXA
+	select SPARSE_IRQ
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
@@ -678,8 +681,8 @@ config ARCH_S3C64XX
 	help
 	  Samsung S3C64XX series based systems
 
-config ARCH_S5P6440
-	bool "Samsung S5P6440"
+config ARCH_S5P64X0
+	bool "Samsung S5P6440 S5P6450"
 	select CPU_V6
 	select GENERIC_GPIO
 	select HAVE_CLK
@@ -688,7 +691,8 @@ config ARCH_S5P6440
 	select HAVE_S3C2410_I2C
 	select HAVE_S3C_RTC
 	help
-	  Samsung S5P6440 CPU based systems
+	  Samsung S5P64X0 CPU based systems, such as the Samsung SMDK6440,
+	  SMDK6450.
 
 config ARCH_S5P6442
 	bool "Samsung S5P6442"
@@ -716,9 +720,11 @@ config ARCH_S5PC100
 config ARCH_S5PV210
 	bool "Samsung S5PV210/S5PC110"
 	select CPU_V7
+	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARM_L1_CACHE_SHIFT_6
+	select ARCH_HAS_CPUFREQ
 	select ARCH_USES_GETTIMEOFFSET
 	select HAVE_S3C2410_I2C
 	select HAVE_S3C_RTC
@@ -729,9 +735,13 @@ config ARCH_S5PV210
 config ARCH_S5PV310
 	bool "Samsung S5PV310/S5PC210"
 	select CPU_V7
+	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select GENERIC_CLOCKEVENTS
+	select HAVE_S3C_RTC
+	select HAVE_S3C2410_I2C
+	select HAVE_S3C2410_WATCHDOG
 	help
 	  Samsung S5PV310 series based systems
 
@@ -746,6 +756,15 @@ config ARCH_SHARK
 	help
 	  Support for the StrongARM based Digital DNARD machine, also known
 	  as "Shark" (<http://www.shark-linux.de/shark.html>).
+
+config ARCH_TCC_926
+	bool "Telechips TCC ARM926-based systems"
+	select CPU_ARM926T
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for Telechips TCC ARM926-based systems.
 
 config ARCH_LH7A40X
 	bool "Sharp LH7A40X"
@@ -812,7 +831,7 @@ config ARCH_OMAP
 	select GENERIC_CLOCKEVENTS
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	help
-	  Support for TI's OMAP platform (OMAP1 and OMAP2).
+	  Support for TI's OMAP platform (OMAP1/2/3/4).
 
 config PLAT_SPEAR
 	bool "ST SPEAr"
@@ -915,6 +934,8 @@ source "arch/arm/plat-s5p/Kconfig"
 
 source "arch/arm/plat-spear/Kconfig"
 
+source "arch/arm/plat-tcc/Kconfig"
+
 if ARCH_S3C2410
 source "arch/arm/mach-s3c2400/Kconfig"
 source "arch/arm/mach-s3c2410/Kconfig"
@@ -928,7 +949,7 @@ if ARCH_S3C64XX
 source "arch/arm/mach-s3c64xx/Kconfig"
 endif
 
-source "arch/arm/mach-s5p6440/Kconfig"
+source "arch/arm/mach-s5p64x0/Kconfig"
 
 source "arch/arm/mach-s5p6442/Kconfig"
 
@@ -1002,7 +1023,7 @@ endif
 
 config ARM_ERRATA_411920
 	bool "ARM errata: Invalidation of the Instruction Cache operation can fail"
-	depends on CPU_V6 && !SMP
+	depends on CPU_V6
 	help
 	  Invalidation of the Instruction Cache operation can
 	  fail. This erratum is present in 1136 (before r1p4), 1156 and 1176.
@@ -1181,13 +1202,13 @@ source "kernel/time/Kconfig"
 
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && (REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP ||\
-		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4 ||\
-		 ARCH_S5PV310 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4)
+	depends on EXPERIMENTAL
 	depends on GENERIC_CLOCKEVENTS
+	depends on REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP || \
+		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4 ||\
+		 ARCH_S5PV310 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4
 	select USE_GENERIC_SMP_HELPERS
-	select HAVE_ARM_SCU if ARCH_REALVIEW || ARCH_OMAP4 || ARCH_S5PV310 ||\
-		 ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4
+	select HAVE_ARM_SCU
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -1201,9 +1222,22 @@ config SMP
 
 	  See also <file:Documentation/i386/IO-APIC.txt>,
 	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
-	  <http://www.linuxdoc.org/docs.html#howto>.
+	  <http://tldp.org/HOWTO/SMP-HOWTO.html>.
 
 	  If you don't know what to do here, say N.
+
+config SMP_ON_UP
+	bool "Allow booting SMP kernel on uniprocessor systems (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on SMP && !XIP && !THUMB2_KERNEL
+	default y
+	help
+	  SMP kernels contain instructions which fail on non-SMP processors.
+	  Enabling this option allows the kernel to modify itself to make
+	  these instructions safe.  Disabling it allows about 1K of space
+	  savings.
+
+	  If you don't know what to do here, say Y.
 
 config HAVE_ARM_SCU
 	bool
@@ -1255,12 +1289,9 @@ config HOTPLUG_CPU
 
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
-	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || \
-		REALVIEW_EB_A9MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || \
-		ARCH_S5PV310 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4)
+	depends on SMP
 	default y
-	select HAVE_ARM_TWD if ARCH_REALVIEW || ARCH_OMAP4 || ARCH_S5PV310 || \
-		ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS
+	select HAVE_ARM_TWD
 	help
 	  Enable support for local timers on SMP platforms, rather then the
 	  legacy IPI broadcast method.  Local timers allows the system
@@ -1271,7 +1302,7 @@ source kernel/Kconfig.preempt
 
 config HZ
 	int
-	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P6440 || \
+	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P64X0 || \
 		ARCH_S5P6442 || ARCH_S5PV210 || ARCH_S5PV310
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
@@ -1477,6 +1508,20 @@ config UACCESS_WITH_MEMCPY
 	  However, if the CPU data cache is using a write-allocate mode,
 	  this option is unlikely to provide any performance gain.
 
+config SECCOMP
+	bool
+	prompt "Enable seccomp to safely compute untrusted bytecode"
+	---help---
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via prctl(PR_SET_SECCOMP), it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
 config CC_STACKPROTECTOR
 	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
 	help
@@ -1622,6 +1667,12 @@ menu "CPU Power Management"
 if ARCH_HAS_CPUFREQ
 
 source "drivers/cpufreq/Kconfig"
+
+config CPU_FREQ_IMX
+	tristate "CPUfreq driver for i.MX CPUs"
+	depends on ARCH_MXC && CPU_FREQ
+	help
+	  This enables the CPUfreq driver for i.MX CPUs.
 
 config CPU_FREQ_SA1100
 	bool

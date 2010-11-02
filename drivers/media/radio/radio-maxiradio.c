@@ -13,7 +13,7 @@
  * anybody does please mail me.
  *
  * For the pdf file see:
- * http://www.semiconductors.philips.com/pip/TEA5757H/V1
+ * http://www.nxp.com/acrobat_download2/expired_datasheets/TEA5757_5759_3.pdf 
  *
  *
  * CHANGES:

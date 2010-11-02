@@ -240,13 +240,15 @@ static ssize_t dbgfs_frame(struct file *file, char __user *user_buf,
 static const struct file_operations dbgfs_state_fops = {
 	.open = dbgfs_open,
 	.read = dbgfs_state,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 static const struct file_operations dbgfs_frame_fops = {
 	.open = dbgfs_open,
 	.read = dbgfs_frame,
-	.owner = THIS_MODULE
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
 };
 
 static inline void dev_debugfs_add(struct cfspi *cfspi)

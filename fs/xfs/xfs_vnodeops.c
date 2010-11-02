@@ -114,7 +114,7 @@ xfs_setattr(
 		 */
 		ASSERT(udqp == NULL);
 		ASSERT(gdqp == NULL);
-		code = xfs_qm_vop_dqalloc(ip, uid, gid, ip->i_d.di_projid,
+		code = xfs_qm_vop_dqalloc(ip, uid, gid, xfs_get_projid(ip),
 					 qflags, &udqp, &gdqp);
 		if (code)
 			return code;
@@ -184,8 +184,11 @@ xfs_setattr(
 		    ip->i_size == 0 && ip->i_d.di_nextents == 0) {
 			xfs_iunlock(ip, XFS_ILOCK_EXCL);
 			lock_flags &= ~XFS_ILOCK_EXCL;
-			if (mask & ATTR_CTIME)
-				xfs_ichgtime(ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+			if (mask & ATTR_CTIME) {
+				inode->i_mtime = inode->i_ctime =
+						current_fs_time(inode->i_sb);
+				xfs_mark_inode_dirty_sync(ip);
+			}
 			code = 0;
 			goto error_return;
 		}
@@ -1253,8 +1256,7 @@ xfs_create(
 	struct xfs_name		*name,
 	mode_t			mode,
 	xfs_dev_t		rdev,
-	xfs_inode_t		**ipp,
-	cred_t			*credp)
+	xfs_inode_t		**ipp)
 {
 	int			is_dir = S_ISDIR(mode);
 	struct xfs_mount	*mp = dp->i_mount;
@@ -1266,7 +1268,7 @@ xfs_create(
 	boolean_t		unlock_dp_on_error = B_FALSE;
 	uint			cancel_flags;
 	int			committed;
-	xfs_prid_t		prid;
+	prid_t			prid;
 	struct xfs_dquot	*udqp = NULL;
 	struct xfs_dquot	*gdqp = NULL;
 	uint			resblks;
@@ -1279,9 +1281,9 @@ xfs_create(
 		return XFS_ERROR(EIO);
 
 	if (dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
-		prid = dp->i_d.di_projid;
+		prid = xfs_get_projid(dp);
 	else
-		prid = dfltprid;
+		prid = XFS_PROJID_DEFAULT;
 
 	/*
 	 * Make sure that we have allocated dquot(s) on disk.
@@ -1360,7 +1362,7 @@ xfs_create(
 	 * entry pointing to them, but a directory also the "." entry
 	 * pointing to itself.
 	 */
-	error = xfs_dir_ialloc(&tp, dp, mode, is_dir ? 2 : 1, rdev, credp,
+	error = xfs_dir_ialloc(&tp, dp, mode, is_dir ? 2 : 1, rdev,
 			       prid, resblks > 0, &ip, &committed);
 	if (error) {
 		if (error == ENOSPC)
@@ -1391,7 +1393,7 @@ xfs_create(
 		ASSERT(error != ENOSPC);
 		goto out_trans_abort;
 	}
-	xfs_ichgtime(dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+	xfs_trans_ichgtime(tp, dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
 
 	if (is_dir) {
@@ -1742,7 +1744,7 @@ xfs_remove(
 		ASSERT(error != ENOENT);
 		goto out_bmap_cancel;
 	}
-	xfs_ichgtime(dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+	xfs_trans_ichgtime(tp, dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 
 	if (is_dir) {
 		/*
@@ -1880,7 +1882,7 @@ xfs_link(
 	 * the tree quota mechanism could be circumvented.
 	 */
 	if (unlikely((tdp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
-		     (tdp->i_d.di_projid != sip->i_d.di_projid))) {
+		     (xfs_get_projid(tdp) != xfs_get_projid(sip)))) {
 		error = XFS_ERROR(EXDEV);
 		goto error_return;
 	}
@@ -1895,7 +1897,7 @@ xfs_link(
 					&first_block, &free_list, resblks);
 	if (error)
 		goto abort_return;
-	xfs_ichgtime(tdp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+	xfs_trans_ichgtime(tp, tdp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	xfs_trans_log_inode(tp, tdp, XFS_ILOG_CORE);
 
 	error = xfs_bumplink(tp, sip);
@@ -1933,8 +1935,7 @@ xfs_symlink(
 	struct xfs_name		*link_name,
 	const char		*target_path,
 	mode_t			mode,
-	xfs_inode_t		**ipp,
-	cred_t			*credp)
+	xfs_inode_t		**ipp)
 {
 	xfs_mount_t		*mp = dp->i_mount;
 	xfs_trans_t		*tp;
@@ -1955,7 +1956,7 @@ xfs_symlink(
 	int			byte_cnt;
 	int			n;
 	xfs_buf_t		*bp;
-	xfs_prid_t		prid;
+	prid_t			prid;
 	struct xfs_dquot	*udqp, *gdqp;
 	uint			resblks;
 
@@ -1978,9 +1979,9 @@ xfs_symlink(
 
 	udqp = gdqp = NULL;
 	if (dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
-		prid = dp->i_d.di_projid;
+		prid = xfs_get_projid(dp);
 	else
-		prid = (xfs_prid_t)dfltprid;
+		prid = XFS_PROJID_DEFAULT;
 
 	/*
 	 * Make sure that we have allocated dquot(s) on disk.
@@ -2046,8 +2047,8 @@ xfs_symlink(
 	/*
 	 * Allocate an inode for the symlink.
 	 */
-	error = xfs_dir_ialloc(&tp, dp, S_IFLNK | (mode & ~S_IFMT),
-			       1, 0, credp, prid, resblks > 0, &ip, NULL);
+	error = xfs_dir_ialloc(&tp, dp, S_IFLNK | (mode & ~S_IFMT), 1, 0,
+			       prid, resblks > 0, &ip, NULL);
 	if (error) {
 		if (error == ENOSPC)
 			goto error_return;
@@ -2129,7 +2130,7 @@ xfs_symlink(
 					&first_block, &free_list, resblks);
 	if (error)
 		goto error1;
-	xfs_ichgtime(dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+	xfs_trans_ichgtime(tp, dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
 
 	/*
@@ -2272,7 +2273,7 @@ xfs_alloc_file_space(
 	count = len;
 	imapp = &imaps[0];
 	nimaps = 1;
-	bmapi_flag = XFS_BMAPI_WRITE | (alloc_type ? XFS_BMAPI_PREALLOC : 0);
+	bmapi_flag = XFS_BMAPI_WRITE | alloc_type;
 	startoffset_fsb	= XFS_B_TO_FSBT(mp, offset);
 	allocatesize_fsb = XFS_B_TO_FSB(mp, count);
 
@@ -2431,9 +2432,9 @@ xfs_zero_remaining_bytes(
 	if (endoff > ip->i_size)
 		endoff = ip->i_size;
 
-	bp = xfs_buf_get_noaddr(mp->m_sb.sb_blocksize,
-				XFS_IS_REALTIME_INODE(ip) ?
-				mp->m_rtdev_targp : mp->m_ddev_targp);
+	bp = xfs_buf_get_uncached(XFS_IS_REALTIME_INODE(ip) ?
+					mp->m_rtdev_targp : mp->m_ddev_targp,
+				mp->m_sb.sb_blocksize, XBF_DONT_BLOCK);
 	if (!bp)
 		return XFS_ERROR(ENOMEM);
 
@@ -2459,7 +2460,7 @@ xfs_zero_remaining_bytes(
 		XFS_BUF_READ(bp);
 		XFS_BUF_SET_ADDR(bp, xfs_fsb_to_db(ip, imap.br_startblock));
 		xfsbdstrat(mp, bp);
-		error = xfs_iowait(bp);
+		error = xfs_buf_iowait(bp);
 		if (error) {
 			xfs_ioerror_alert("xfs_zero_remaining_bytes(read)",
 					  mp, bp, XFS_BUF_ADDR(bp));
@@ -2472,7 +2473,7 @@ xfs_zero_remaining_bytes(
 		XFS_BUF_UNREAD(bp);
 		XFS_BUF_WRITE(bp);
 		xfsbdstrat(mp, bp);
-		error = xfs_iowait(bp);
+		error = xfs_buf_iowait(bp);
 		if (error) {
 			xfs_ioerror_alert("xfs_zero_remaining_bytes(write)",
 					  mp, bp, XFS_BUF_ADDR(bp));
@@ -2711,6 +2712,7 @@ xfs_change_file_space(
 	xfs_off_t	llen;
 	xfs_trans_t	*tp;
 	struct iattr	iattr;
+	int		prealloc_type;
 
 	if (!S_ISREG(ip->i_d.di_mode))
 		return XFS_ERROR(EINVAL);
@@ -2753,12 +2755,17 @@ xfs_change_file_space(
 	 * size to be changed.
 	 */
 	setprealloc = clrprealloc = 0;
+	prealloc_type = XFS_BMAPI_PREALLOC;
 
 	switch (cmd) {
+	case XFS_IOC_ZERO_RANGE:
+		prealloc_type |= XFS_BMAPI_CONVERT;
+		xfs_tosspages(ip, startoffset, startoffset + bf->l_len, 0);
+		/* FALLTHRU */
 	case XFS_IOC_RESVSP:
 	case XFS_IOC_RESVSP64:
 		error = xfs_alloc_file_space(ip, startoffset, bf->l_len,
-								1, attr_flags);
+						prealloc_type, attr_flags);
 		if (error)
 			return error;
 		setprealloc = 1;
@@ -2827,7 +2834,7 @@ xfs_change_file_space(
 		if (ip->i_d.di_mode & S_IXGRP)
 			ip->i_d.di_mode &= ~S_ISGID;
 
-		xfs_ichgtime(ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+		xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	}
 	if (setprealloc)
 		ip->i_d.di_flags |= XFS_DIFLAG_PREALLOC;

@@ -1,6 +1,8 @@
 /*
  * intc-simr.c
  *
+ * Interrupt controller code for the ColdFire 5208, 5207 & 532x parts.
+ *
  * (C) Copyright 2009, Greg Ungerer <gerg@snapgear.com>
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -68,11 +70,9 @@ void __init init_IRQ(void)
 		__raw_writeb(0xff, MCFINTC1_SIMR);
 
 	for (irq = 0; (irq < NR_IRQS); irq++) {
-		irq_desc[irq].status = IRQ_DISABLED;
-		irq_desc[irq].action = NULL;
-		irq_desc[irq].depth = 1;
-		irq_desc[irq].chip = &intc_irq_chip;
-		intc_irq_set_type(irq, 0);
+		set_irq_chip(irq, &intc_irq_chip);
+		set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
+		set_irq_handler(irq, handle_level_irq);
 	}
 }
 

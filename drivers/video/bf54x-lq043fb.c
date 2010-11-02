@@ -241,12 +241,12 @@ static int request_ports(struct bfin_bf54xfb_info *fbi)
 	u16 disp = fbi->mach_info->disp;
 
 	if (gpio_request(disp, DRIVER_NAME)) {
-		printk(KERN_ERR "Requesting GPIO %d faild\n", disp);
+		printk(KERN_ERR "Requesting GPIO %d failed\n", disp);
 		return -EFAULT;
 	}
 
 	if (peripheral_request_list(eppi_req_18, DRIVER_NAME)) {
-		printk(KERN_ERR "Requesting Peripherals faild\n");
+		printk(KERN_ERR "Requesting Peripherals failed\n");
 		gpio_free(disp);
 		return -EFAULT;
 	}
@@ -256,7 +256,7 @@ static int request_ports(struct bfin_bf54xfb_info *fbi)
 		u16 eppi_req_24[] = EPPI0_24;
 
 		if (peripheral_request_list(eppi_req_24, DRIVER_NAME)) {
-			printk(KERN_ERR "Requesting Peripherals faild\n");
+			printk(KERN_ERR "Requesting Peripherals failed\n");
 			peripheral_free_list(eppi_req_18);
 			gpio_free(disp);
 			return -EFAULT;

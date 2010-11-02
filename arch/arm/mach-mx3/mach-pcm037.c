@@ -311,7 +311,6 @@ static struct soc_camera_link iclink_mt9v022 = {
 	.bus_id		= 0,		/* Must match with the camera ID */
 	.board_info	= &pcm037_i2c_camera[1],
 	.i2c_adapter_id	= 2,
-	.module_name	= "mt9v022",
 };
 
 static struct soc_camera_link iclink_mt9t031 = {
@@ -319,7 +318,6 @@ static struct soc_camera_link iclink_mt9t031 = {
 	.power		= pcm037_camera_power,
 	.board_info	= &pcm037_i2c_camera[0],
 	.i2c_adapter_id	= 2,
-	.module_name	= "mt9t031",
 };
 
 static struct i2c_board_info pcm037_i2c_devices[] = {
@@ -680,8 +678,6 @@ struct sys_timer pcm037_timer = {
 
 MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	/* Maintainer: Pengutronix */
-	.phys_io	= MX31_AIPS1_BASE_ADDR,
-	.io_pg_offst	= (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
 	.map_io         = mx31_map_io,
 	.init_irq       = mx31_init_irq,

@@ -4,9 +4,7 @@
 
 subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
-ifeq ($(CONFIG_PPC64),y)
-EXTRA_CFLAGS		+= -mno-minimal-toc
-endif
+ccflags-$(CONFIG_PPC64)	:= -mno-minimal-toc
 
 CFLAGS_REMOVE_code-patching.o = -pg
 CFLAGS_REMOVE_feature-fixups.o = -pg
@@ -17,7 +15,8 @@ obj-$(CONFIG_PPC32)	+= div64.o copy_32.o
 obj-$(CONFIG_HAS_IOMEM)	+= devres.o
 
 obj-$(CONFIG_PPC64)	+= copypage_64.o copyuser_64.o \
-			   memcpy_64.o usercopy_64.o mem_64.o string.o
+			   memcpy_64.o usercopy_64.o mem_64.o string.o \
+			   checksum_wrappers_64.o
 obj-$(CONFIG_XMON)	+= sstep.o ldstfp.o
 obj-$(CONFIG_KPROBES)	+= sstep.o ldstfp.o
 obj-$(CONFIG_HAVE_HW_BREAKPOINT)	+= sstep.o ldstfp.o

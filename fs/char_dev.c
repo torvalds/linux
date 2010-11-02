@@ -456,6 +456,7 @@ static void cdev_purge(struct cdev *cdev)
  */
 const struct file_operations def_chr_fops = {
 	.open = chrdev_open,
+	.llseek = noop_llseek,
 };
 
 static struct kobject *exact_match(dev_t dev, int *part, void *data)

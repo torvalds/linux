@@ -79,6 +79,18 @@ config IR_SONY_DECODER
 	   Enable this option if you have an infrared remote control which
 	   uses the Sony protocol, and you need software decoding support.
 
+config IR_RC5_SZ_DECODER
+	tristate "Enable IR raw decoder for the RC-5 (streamzap) protocol"
+	depends on IR_CORE
+	select BITREVERSE
+	default y
+
+	---help---
+	   Enable this option if you have IR with RC-5 (streamzap) protocol,
+	   and if the IR is decoded in software. (The Streamzap PC Remote
+	   uses an IR protocol that is almost standard RC-5, but not quite,
+	   as it uses an additional bit).
+
 config IR_LIRC_CODEC
 	tristate "Enable IR to LIRC bridge"
 	depends on IR_CORE
@@ -88,6 +100,20 @@ config IR_LIRC_CODEC
 	---help---
 	   Enable this option to pass raw IR to and from userspace via
 	   the LIRC interface.
+
+config IR_ENE
+	tristate "ENE eHome Receiver/Transceiver (pnp id: ENE0100/ENE02xxx)"
+	depends on PNP
+	depends on IR_CORE
+	---help---
+	   Say Y here to enable support for integrated infrared receiver
+	   /transceiver made by ENE.
+
+	   You can see if you have it by looking at lspnp output.
+	   Output should include ENE0100 ENE0200 or something similar.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called ene_ir.
 
 config IR_IMON
 	tristate "SoundGraph iMON Receiver and Display"
@@ -113,19 +139,18 @@ config IR_MCEUSB
 	   To compile this driver as a module, choose M here: the
 	   module will be called mceusb.
 
-config IR_ENE
-	tristate "ENE eHome Receiver/Transciever (pnp id: ENE0100/ENE02xxx)"
+config IR_NUVOTON
+	tristate "Nuvoton w836x7hg Consumer Infrared Transceiver"
 	depends on PNP
 	depends on IR_CORE
 	---help---
 	   Say Y here to enable support for integrated infrared receiver
-	   /transciever made by ENE.
-
-	   You can see if you have it by looking at lspnp output.
-	   Output should include ENE0100 ENE0200 or something similiar.
+	   /transciever made by Nuvoton (formerly Winbond). This chip is
+	   found in the ASRock ION 330HT, as well as assorted Intel
+	   DP55-series motherboards (and of course, possibly others).
 
 	   To compile this driver as a module, choose M here: the
-	   module will be called ene_ir.
+	   module will be called nuvoton-cir.
 
 config IR_STREAMZAP
 	tristate "Streamzap PC Remote IR Receiver"

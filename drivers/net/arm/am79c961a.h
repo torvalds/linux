@@ -130,7 +130,6 @@
 #define ISALED0_LNKST	0x8000
 
 struct dev_priv {
-    struct net_device_stats stats;
     unsigned long	rxbuffer[RX_BUFFERS];
     unsigned long	txbuffer[TX_BUFFERS];
     unsigned char	txhead;

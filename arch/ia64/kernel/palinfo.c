@@ -434,7 +434,7 @@ register_info(char *page)
 	unsigned long phys_stacked;
 	pal_hints_u_t hints;
 	unsigned long iregs, dregs;
-	char *info_type[]={
+	static const char * const info_type[] = {
 		"Implemented AR(s)",
 		"AR(s) with read side-effects",
 		"Implemented CR(s)",

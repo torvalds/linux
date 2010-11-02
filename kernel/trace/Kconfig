@@ -49,6 +49,11 @@ config HAVE_SYSCALL_TRACEPOINTS
 	help
 	  See Documentation/trace/ftrace-design.txt
 
+config HAVE_C_RECORDMCOUNT
+	bool
+	help
+	  C version of recordmcount available?
+
 config TRACER_MAX_TRACE
 	bool
 
@@ -121,7 +126,7 @@ if FTRACE
 config FUNCTION_TRACER
 	bool "Kernel Function Tracer"
 	depends on HAVE_FUNCTION_TRACER
-	select FRAME_POINTER
+	select FRAME_POINTER if (!ARM_UNWIND)
 	select KALLSYMS
 	select GENERIC_TRACER
 	select CONTEXT_SWITCH_TRACER

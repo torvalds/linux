@@ -250,6 +250,25 @@ struct sockaddr_in {
 
 #ifdef __KERNEL__
 
+#include <linux/errno.h>
+
+static inline int proto_ports_offset(int proto)
+{
+	switch (proto) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+	case IPPROTO_DCCP:
+	case IPPROTO_ESP:	/* SPI */
+	case IPPROTO_SCTP:
+	case IPPROTO_UDPLITE:
+		return 0;
+	case IPPROTO_AH:	/* SPI */
+		return 4;
+	default:
+		return -EINVAL;
+	}
+}
+
 static inline bool ipv4_is_loopback(__be32 addr)
 {
 	return (addr & htonl(0xff000000)) == htonl(0x7f000000);

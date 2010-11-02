@@ -28,13 +28,6 @@
  * gcinodes), and this file provides lookup function of the dummy
  * inodes and their buffer read function.
  *
- * Since NILFS2 keeps up multiple checkpoints/snapshots across GC, it
- * has to treat blocks that belong to a same file but have different
- * checkpoint numbers.  To avoid interference among generations, dummy
- * inodes are managed separately from actual inodes, and their lookup
- * function (nilfs_gc_iget) is designed to be specified with a
- * checkpoint number argument as well as an inode number.
- *
  * Buffers and pages held by the dummy inodes will be released each
  * time after they are copied to a new log.  Dirty blocks made on the
  * current generation and the blocks to be moved by GC never overlap
@@ -175,125 +168,46 @@ int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *bh)
 		}
 		nilfs_btnode_mark_dirty(bh);
 	} else {
-		nilfs_mdt_mark_buffer_dirty(bh);
+		nilfs_mark_buffer_dirty(bh);
 	}
 	return 0;
 }
 
-/*
- * nilfs_init_gccache() - allocate and initialize gc_inode hash table
- * @nilfs - the_nilfs
- *
- * Return Value: On success, 0.
- * On error, a negative error code is returned.
- */
-int nilfs_init_gccache(struct the_nilfs *nilfs)
+int nilfs_init_gcinode(struct inode *inode)
 {
-	int loop;
+	struct nilfs_inode_info *ii = NILFS_I(inode);
+	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
 
-	BUG_ON(nilfs->ns_gc_inodes_h);
-
-	INIT_LIST_HEAD(&nilfs->ns_gc_inodes);
-
-	nilfs->ns_gc_inodes_h =
-		kmalloc(sizeof(struct hlist_head) * NILFS_GCINODE_HASH_SIZE,
-			GFP_NOFS);
-	if (nilfs->ns_gc_inodes_h == NULL)
-		return -ENOMEM;
-
-	for (loop = 0; loop < NILFS_GCINODE_HASH_SIZE; loop++)
-		INIT_HLIST_HEAD(&nilfs->ns_gc_inodes_h[loop]);
-	return 0;
-}
-
-/*
- * nilfs_destroy_gccache() - free gc_inode hash table
- * @nilfs - the nilfs
- */
-void nilfs_destroy_gccache(struct the_nilfs *nilfs)
-{
-	if (nilfs->ns_gc_inodes_h) {
-		nilfs_remove_all_gcinode(nilfs);
-		kfree(nilfs->ns_gc_inodes_h);
-		nilfs->ns_gc_inodes_h = NULL;
-	}
-}
-
-static struct inode *alloc_gcinode(struct the_nilfs *nilfs, ino_t ino,
-				   __u64 cno)
-{
-	struct inode *inode;
-	struct nilfs_inode_info *ii;
-
-	inode = nilfs_mdt_new_common(nilfs, NULL, ino, GFP_NOFS, 0);
-	if (!inode)
-		return NULL;
-
-	inode->i_op = NULL;
-	inode->i_fop = NULL;
+	inode->i_mode = S_IFREG;
+	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
 	inode->i_mapping->a_ops = &def_gcinode_aops;
+	inode->i_mapping->backing_dev_info = inode->i_sb->s_bdi;
 
-	ii = NILFS_I(inode);
-	ii->i_cno = cno;
 	ii->i_flags = 0;
-	ii->i_state = 1 << NILFS_I_GCINODE;
-	ii->i_bh = NULL;
 	nilfs_bmap_init_gc(ii->i_bmap);
 
-	return inode;
+	/*
+	 * Add the inode to GC inode list. Garbage Collection
+	 * is serialized and no two processes manipulate the
+	 * list simultaneously.
+	 */
+	igrab(inode);
+	list_add(&NILFS_I(inode)->i_dirty, &nilfs->ns_gc_inodes);
+
+	return 0;
 }
 
-static unsigned long ihash(ino_t ino, __u64 cno)
-{
-	return hash_long((unsigned long)((ino << 2) + cno),
-			 NILFS_GCINODE_HASH_BITS);
-}
-
-/*
- * nilfs_gc_iget() - find or create gc inode with specified (ino,cno)
+/**
+ * nilfs_remove_all_gcinodes() - remove all unprocessed gc inodes
  */
-struct inode *nilfs_gc_iget(struct the_nilfs *nilfs, ino_t ino, __u64 cno)
+void nilfs_remove_all_gcinodes(struct the_nilfs *nilfs)
 {
-	struct hlist_head *head = nilfs->ns_gc_inodes_h + ihash(ino, cno);
-	struct hlist_node *node;
-	struct inode *inode;
+	struct list_head *head = &nilfs->ns_gc_inodes;
+	struct nilfs_inode_info *ii;
 
-	hlist_for_each_entry(inode, node, head, i_hash) {
-		if (inode->i_ino == ino && NILFS_I(inode)->i_cno == cno)
-			return inode;
-	}
-
-	inode = alloc_gcinode(nilfs, ino, cno);
-	if (likely(inode)) {
-		hlist_add_head(&inode->i_hash, head);
-		list_add(&NILFS_I(inode)->i_dirty, &nilfs->ns_gc_inodes);
-	}
-	return inode;
-}
-
-/*
- * nilfs_clear_gcinode() - clear and free a gc inode
- */
-void nilfs_clear_gcinode(struct inode *inode)
-{
-	nilfs_mdt_destroy(inode);
-}
-
-/*
- * nilfs_remove_all_gcinode() - remove all inodes from the_nilfs
- */
-void nilfs_remove_all_gcinode(struct the_nilfs *nilfs)
-{
-	struct hlist_head *head = nilfs->ns_gc_inodes_h;
-	struct hlist_node *node, *n;
-	struct inode *inode;
-	int loop;
-
-	for (loop = 0; loop < NILFS_GCINODE_HASH_SIZE; loop++, head++) {
-		hlist_for_each_entry_safe(inode, node, n, head, i_hash) {
-			hlist_del_init(&inode->i_hash);
-			list_del_init(&NILFS_I(inode)->i_dirty);
-			nilfs_clear_gcinode(inode); /* might sleep */
-		}
+	while (!list_empty(head)) {
+		ii = list_first_entry(head, struct nilfs_inode_info, i_dirty);
+		list_del_init(&ii->i_dirty);
+		iput(&ii->vfs_inode);
 	}
 }

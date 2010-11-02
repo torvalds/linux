@@ -1434,7 +1434,7 @@ static int pd_video_open(struct file *file)
 				V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				V4L2_FIELD_INTERLACED,/* video is interlacd */
 				sizeof(struct videobuf_buffer),/*it's enough*/
-				front);
+				front, NULL);
 	} else if (vfd->vfl_type == VFL_TYPE_VBI
 		&& !(pd->state & POSEIDON_STATE_VBI)) {
 		front = kzalloc(sizeof(struct front_face), GFP_KERNEL);
@@ -1451,7 +1451,7 @@ static int pd_video_open(struct file *file)
 				V4L2_BUF_TYPE_VBI_CAPTURE,
 				V4L2_FIELD_NONE, /* vbi is NONE mode */
 				sizeof(struct videobuf_buffer),
-				front);
+				front, NULL);
 	} else {
 		/* maybe add FM support here */
 		log("other ");

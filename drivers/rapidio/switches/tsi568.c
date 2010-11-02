@@ -29,7 +29,7 @@
 #define SPP_ROUTE_CFG_DESTID(n)	(0x11070 + 0x100*n)
 #define SPP_ROUTE_CFG_PORT(n)	(0x11074 + 0x100*n)
 
-#define TSI568_SP_MODE_BC	0x10004
+#define TSI568_SP_MODE(n)	(0x11004 + 0x100*n)
 #define  TSI568_SP_MODE_PW_DIS	0x08000000
 
 static int
@@ -117,14 +117,19 @@ tsi568_em_init(struct rio_dev *rdev)
 	u16 destid = rdev->rswitch->destid;
 	u8 hopcount = rdev->rswitch->hopcount;
 	u32 regval;
+	int portnum;
 
 	pr_debug("TSI568 %s [%d:%d]\n", __func__, destid, hopcount);
 
 	/* Make sure that Port-Writes are disabled (for all ports) */
-	rio_mport_read_config_32(mport, destid, hopcount,
-			TSI568_SP_MODE_BC, &regval);
-	rio_mport_write_config_32(mport, destid, hopcount,
-			TSI568_SP_MODE_BC, regval | TSI568_SP_MODE_PW_DIS);
+	for (portnum = 0;
+	     portnum < RIO_GET_TOTAL_PORTS(rdev->swpinfo); portnum++) {
+		rio_mport_read_config_32(mport, destid, hopcount,
+				TSI568_SP_MODE(portnum), &regval);
+		rio_mport_write_config_32(mport, destid, hopcount,
+				TSI568_SP_MODE(portnum),
+				regval | TSI568_SP_MODE_PW_DIS);
+	}
 
 	return 0;
 }

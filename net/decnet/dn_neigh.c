@@ -48,7 +48,6 @@
 #include <net/dn_neigh.h>
 #include <net/dn_route.h>
 
-static u32 dn_neigh_hash(const void *pkey, const struct net_device *dev);
 static int dn_neigh_construct(struct neighbour *);
 static void dn_long_error_report(struct neighbour *, struct sk_buff *);
 static void dn_short_error_report(struct neighbour *, struct sk_buff *);
@@ -93,6 +92,13 @@ static const struct neigh_ops dn_phase3_ops = {
 	.queue_xmit =		dev_queue_xmit
 };
 
+static u32 dn_neigh_hash(const void *pkey,
+			 const struct net_device *dev,
+			 __u32 hash_rnd)
+{
+	return jhash_2words(*(__u16 *)pkey, 0, hash_rnd);
+}
+
 struct neigh_table dn_neigh_table = {
 	.family =			PF_DECnet,
 	.entry_size =			sizeof(struct dn_neigh),
@@ -121,11 +127,6 @@ struct neigh_table dn_neigh_table = {
 	.gc_thresh2 =			512,
 	.gc_thresh3 =			1024,
 };
-
-static u32 dn_neigh_hash(const void *pkey, const struct net_device *dev)
-{
-	return jhash_2words(*(__u16 *)pkey, 0, dn_neigh_table.hash_rnd);
-}
 
 static int dn_neigh_construct(struct neighbour *neigh)
 {

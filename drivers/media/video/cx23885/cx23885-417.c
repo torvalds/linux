@@ -7,7 +7,7 @@
  *    (c) 2008 Steven Toth <stoth@linuxtv.org>
  *      - CX23885/7/8 support
  *
- *  Includes parts from the ivtv driver( http://ivtv.sourceforge.net/),
+ *  Includes parts from the ivtv driver <http://sourceforge.net/projects/ivtv/>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -1591,7 +1591,7 @@ static int mpeg_open(struct file *file)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx23885_buffer),
-			    fh);
+			    fh, NULL);
 	unlock_kernel();
 
 	return 0;

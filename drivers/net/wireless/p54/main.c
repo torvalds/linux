@@ -429,8 +429,8 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 
 	mutex_lock(&priv->conf_mutex);
 	if (cmd == SET_KEY) {
-		switch (key->alg) {
-		case ALG_TKIP:
+		switch (key->cipher) {
+		case WLAN_CIPHER_SUITE_TKIP:
 			if (!(priv->privacy_caps & (BR_DESC_PRIV_CAP_MICHAEL |
 			      BR_DESC_PRIV_CAP_TKIP))) {
 				ret = -EOPNOTSUPP;
@@ -439,7 +439,8 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 			algo = P54_CRYPTO_TKIPMICHAEL;
 			break;
-		case ALG_WEP:
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
 			if (!(priv->privacy_caps & BR_DESC_PRIV_CAP_WEP)) {
 				ret = -EOPNOTSUPP;
 				goto out_unlock;
@@ -447,7 +448,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 			algo = P54_CRYPTO_WEP;
 			break;
-		case ALG_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP:
 			if (!(priv->privacy_caps & BR_DESC_PRIV_CAP_AESCCMP)) {
 				ret = -EOPNOTSUPP;
 				goto out_unlock;

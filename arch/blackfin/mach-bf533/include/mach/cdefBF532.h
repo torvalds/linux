@@ -7,11 +7,6 @@
 #ifndef _CDEF_BF532_H
 #define _CDEF_BF532_H
 
-#include <asm/blackfin.h>
-
-/*include all Core registers and bit definitions*/
-#include "defBF532.h"
-
 /*include core specific register pointer definitions*/
 #include <asm/cdef_LPBlackfin.h>
 
@@ -654,91 +649,5 @@
 
 /* These need to be last due to the cdef/linux inter-dependencies */
 #include <asm/irq.h>
-
-#if ANOMALY_05000311
-#define BFIN_WRITE_FIO_FLAG(name) \
-static inline void bfin_write_FIO_FLAG_##name(unsigned short val) \
-{ \
-	unsigned long flags; \
-	local_irq_save_hw(flags); \
-	bfin_write16(FIO_FLAG_##name, val); \
-	bfin_read_CHIPID(); \
-	local_irq_restore_hw(flags); \
-}
-BFIN_WRITE_FIO_FLAG(D)
-BFIN_WRITE_FIO_FLAG(C)
-BFIN_WRITE_FIO_FLAG(S)
-BFIN_WRITE_FIO_FLAG(T)
-
-#define BFIN_READ_FIO_FLAG(name) \
-static inline u16 bfin_read_FIO_FLAG_##name(void) \
-{ \
-	unsigned long flags; \
-	u16 ret; \
-	local_irq_save_hw(flags); \
-	ret = bfin_read16(FIO_FLAG_##name); \
-	bfin_read_CHIPID(); \
-	local_irq_restore_hw(flags); \
-	return ret; \
-}
-BFIN_READ_FIO_FLAG(D)
-BFIN_READ_FIO_FLAG(C)
-BFIN_READ_FIO_FLAG(S)
-BFIN_READ_FIO_FLAG(T)
-
-#else
-#define bfin_write_FIO_FLAG_D(val)           bfin_write16(FIO_FLAG_D, val)
-#define bfin_write_FIO_FLAG_C(val)           bfin_write16(FIO_FLAG_C, val)
-#define bfin_write_FIO_FLAG_S(val)           bfin_write16(FIO_FLAG_S, val)
-#define bfin_write_FIO_FLAG_T(val)           bfin_write16(FIO_FLAG_T, val)
-#define bfin_read_FIO_FLAG_T()               bfin_read16(FIO_FLAG_T)
-#define bfin_read_FIO_FLAG_C()               bfin_read16(FIO_FLAG_C)
-#define bfin_read_FIO_FLAG_S()               bfin_read16(FIO_FLAG_S)
-#define bfin_read_FIO_FLAG_D()               bfin_read16(FIO_FLAG_D)
-#endif
-
-/* Writing to PLL_CTL initiates a PLL relock sequence. */
-static __inline__ void bfin_write_PLL_CTL(unsigned int val)
-{
-	unsigned long flags, iwr;
-
-	if (val == bfin_read_PLL_CTL())
-		return;
-
-	local_irq_save_hw(flags);
-	/* Enable the PLL Wakeup bit in SIC IWR */
-	iwr = bfin_read32(SIC_IWR);
-	/* Only allow PPL Wakeup) */
-	bfin_write32(SIC_IWR, IWR_ENABLE(0));
-
-	bfin_write16(PLL_CTL, val);
-	SSYNC();
-	asm("IDLE;");
-
-	bfin_write32(SIC_IWR, iwr);
-	local_irq_restore_hw(flags);
-}
-
-/* Writing to VR_CTL initiates a PLL relock sequence. */
-static __inline__ void bfin_write_VR_CTL(unsigned int val)
-{
-	unsigned long flags, iwr;
-
-	if (val == bfin_read_VR_CTL())
-		return;
-
-	local_irq_save_hw(flags);
-	/* Enable the PLL Wakeup bit in SIC IWR */
-	iwr = bfin_read32(SIC_IWR);
-	/* Only allow PPL Wakeup) */
-	bfin_write32(SIC_IWR, IWR_ENABLE(0));
-
-	bfin_write16(VR_CTL, val);
-	SSYNC();
-	asm("IDLE;");
-
-	bfin_write32(SIC_IWR, iwr);
-	local_irq_restore_hw(flags);
-}
 
 #endif				/* _CDEF_BF532_H */

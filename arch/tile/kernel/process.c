@@ -214,9 +214,10 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	/*
 	 * Copy the callee-saved registers from the passed pt_regs struct
 	 * into the context-switch callee-saved registers area.
-	 * We have to restore the callee-saved registers since we may
-	 * be cloning a userspace task with userspace register state,
-	 * and we won't be unwinding the same kernel frames to restore them.
+	 * This way when we start the interrupt-return sequence, the
+	 * callee-save registers will be correctly in registers, which
+	 * is how we assume the compiler leaves them as we start doing
+	 * the normal return-from-interrupt path after calling C code.
 	 * Zero out the C ABI save area to mark the top of the stack.
 	 */
 	ksp = (unsigned long) childregs;
@@ -304,15 +305,25 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 /* Allow user processes to access the DMA SPRs */
 void grant_dma_mpls(void)
 {
+#if CONFIG_KERNEL_PL == 2
+	__insn_mtspr(SPR_MPL_DMA_CPL_SET_1, 1);
+	__insn_mtspr(SPR_MPL_DMA_NOTIFY_SET_1, 1);
+#else
 	__insn_mtspr(SPR_MPL_DMA_CPL_SET_0, 1);
 	__insn_mtspr(SPR_MPL_DMA_NOTIFY_SET_0, 1);
+#endif
 }
 
 /* Forbid user processes from accessing the DMA SPRs */
 void restrict_dma_mpls(void)
 {
+#if CONFIG_KERNEL_PL == 2
+	__insn_mtspr(SPR_MPL_DMA_CPL_SET_2, 1);
+	__insn_mtspr(SPR_MPL_DMA_NOTIFY_SET_2, 1);
+#else
 	__insn_mtspr(SPR_MPL_DMA_CPL_SET_1, 1);
 	__insn_mtspr(SPR_MPL_DMA_NOTIFY_SET_1, 1);
+#endif
 }
 
 /* Pause the DMA engine, then save off its state registers. */
@@ -523,19 +534,14 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 	 * Switch kernel SP, PC, and callee-saved registers.
 	 * In the context of the new task, return the old task pointer
 	 * (i.e. the task that actually called __switch_to).
-	 * Pass the value to use for SYSTEM_SAVE_1_0 when we reset our sp.
+	 * Pass the value to use for SYSTEM_SAVE_K_0 when we reset our sp.
 	 */
 	return __switch_to(prev, next, next_current_ksp0(next));
 }
 
-long _sys_fork(struct pt_regs *regs)
-{
-	return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
-}
-
-long _sys_clone(unsigned long clone_flags, unsigned long newsp,
-		void __user *parent_tidptr, void __user *child_tidptr,
-		struct pt_regs *regs)
+SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
+		void __user *, parent_tidptr, void __user *, child_tidptr,
+		struct pt_regs *, regs)
 {
 	if (!newsp)
 		newsp = regs->sp;
@@ -543,18 +549,13 @@ long _sys_clone(unsigned long clone_flags, unsigned long newsp,
 		       parent_tidptr, child_tidptr);
 }
 
-long _sys_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp,
-		       regs, 0, NULL, NULL);
-}
-
 /*
  * sys_execve() executes a new program.
  */
-long _sys_execve(const char __user *path,
-		 const char __user *const __user *argv,
-		 const char __user *const __user *envp, struct pt_regs *regs)
+SYSCALL_DEFINE4(execve, const char __user *, path,
+		const char __user *const __user *, argv,
+		const char __user *const __user *, envp,
+		struct pt_regs *, regs)
 {
 	long error;
 	char *filename;
@@ -570,9 +571,10 @@ out:
 }
 
 #ifdef CONFIG_COMPAT
-long _compat_sys_execve(const char __user *path,
-			const compat_uptr_t __user *argv,
-			const compat_uptr_t __user *envp, struct pt_regs *regs)
+long compat_sys_execve(const char __user *path,
+		       const compat_uptr_t __user *argv,
+		       const compat_uptr_t __user *envp,
+		       struct pt_regs *regs)
 {
 	long error;
 	char *filename;

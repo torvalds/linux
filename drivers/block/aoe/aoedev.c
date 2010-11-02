@@ -102,6 +102,7 @@ aoedev_freedev(struct aoedev *d)
 {
 	struct aoetgt **t, **e;
 
+	cancel_work_sync(&d->work);
 	if (d->gd) {
 		aoedisk_rm_sysfs(d);
 		del_gendisk(d->gd);
@@ -135,7 +136,6 @@ aoedev_flush(const char __user *str, size_t cnt)
 		all = !strncmp(buf, "all", 3);
 	}
 
-	flush_scheduled_work();
 	spin_lock_irqsave(&devlist_lock, flags);
 	dd = &devlist;
 	while ((d = *dd)) {
@@ -256,8 +256,6 @@ aoedev_exit(void)
 {
 	struct aoedev *d;
 	ulong flags;
-
-	flush_scheduled_work();
 
 	while ((d = devlist)) {
 		devlist = d->next;

@@ -92,10 +92,10 @@ static int hif_usb_send_regout(struct hif_device_usb *hif_dev,
 	cmd->skb = skb;
 	cmd->hif_dev = hif_dev;
 
-	usb_fill_int_urb(urb, hif_dev->udev,
-			 usb_sndintpipe(hif_dev->udev, USB_REG_OUT_PIPE),
+	usb_fill_bulk_urb(urb, hif_dev->udev,
+			 usb_sndbulkpipe(hif_dev->udev, USB_REG_OUT_PIPE),
 			 skb->data, skb->len,
-			 hif_usb_regout_cb, cmd, 1);
+			 hif_usb_regout_cb, cmd);
 
 	usb_anchor_urb(urb, &hif_dev->regout_submitted);
 	ret = usb_submit_urb(urb, GFP_KERNEL);
@@ -541,7 +541,8 @@ static void ath9k_hif_usb_reg_in_cb(struct urb *urb)
 		}
 
 		usb_fill_int_urb(urb, hif_dev->udev,
-				 usb_rcvintpipe(hif_dev->udev, USB_REG_IN_PIPE),
+				 usb_rcvbulkpipe(hif_dev->udev,
+						 USB_REG_IN_PIPE),
 				 nskb->data, MAX_REG_IN_BUF_SIZE,
 				 ath9k_hif_usb_reg_in_cb, nskb, 1);
 
@@ -720,7 +721,8 @@ static int ath9k_hif_usb_alloc_reg_in_urb(struct hif_device_usb *hif_dev)
 		goto err;
 
 	usb_fill_int_urb(hif_dev->reg_in_urb, hif_dev->udev,
-			 usb_rcvintpipe(hif_dev->udev, USB_REG_IN_PIPE),
+			 usb_rcvbulkpipe(hif_dev->udev,
+					 USB_REG_IN_PIPE),
 			 skb->data, MAX_REG_IN_BUF_SIZE,
 			 ath9k_hif_usb_reg_in_cb, skb, 1);
 
@@ -799,10 +801,16 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 	}
 	kfree(buf);
 
-	if ((hif_dev->device_id == 0x7010) || (hif_dev->device_id == 0x7015))
+	switch (hif_dev->device_id) {
+	case 0x7010:
+	case 0x7015:
+	case 0x9018:
 		firm_offset = AR7010_FIRMWARE_TEXT;
-	else
+		break;
+	default:
 		firm_offset = AR9271_FIRMWARE_TEXT;
+		break;
+	}
 
 	/*
 	 * Issue FW download complete command to firmware.
@@ -822,7 +830,9 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 
 static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev)
 {
-	int ret;
+	int ret, idx;
+	struct usb_host_interface *alt = &hif_dev->interface->altsetting[0];
+	struct usb_endpoint_descriptor *endp;
 
 	/* Request firmware */
 	ret = request_firmware(&hif_dev->firmware, hif_dev->fw_name,
@@ -848,6 +858,22 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev)
 			"ath9k_htc: Firmware - %s download failed\n",
 			hif_dev->fw_name);
 		goto err_fw_download;
+	}
+
+	/* On downloading the firmware to the target, the USB descriptor of EP4
+	 * is 'patched' to change the type of the endpoint to Bulk. This will
+	 * bring down CPU usage during the scan period.
+	 */
+	for (idx = 0; idx < alt->desc.bNumEndpoints; idx++) {
+		endp = &alt->endpoint[idx].desc;
+		if (((endp->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK)
+				== 0x04) &&
+		    ((endp->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+				== USB_ENDPOINT_XFER_INT)) {
+			endp->bmAttributes &= ~USB_ENDPOINT_XFERTYPE_MASK;
+			endp->bmAttributes |= USB_ENDPOINT_XFER_BULK;
+			endp->bInterval = 0;
+		}
 	}
 
 	return 0;
@@ -920,7 +946,8 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 	}
 
 	ret = ath9k_htc_hw_init(hif_dev->htc_handle,
-				&hif_dev->udev->dev, hif_dev->device_id);
+				&hif_dev->udev->dev, hif_dev->device_id,
+				hif_dev->udev->product);
 	if (ret) {
 		ret = -EINVAL;
 		goto err_htc_hw_init;

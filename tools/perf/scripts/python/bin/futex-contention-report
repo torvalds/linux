@@ -1,0 +1,4 @@
+#!/bin/bash
+# description: futext contention measurement
+
+perf trace $@ -s "$PERF_EXEC_PATH"/scripts/python/futex-contention.py

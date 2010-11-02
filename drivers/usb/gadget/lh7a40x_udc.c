@@ -408,7 +408,8 @@ static void udc_enable(struct lh7a40x_udc *dev)
 /*
   Register entry point for the peripheral controller driver.
 */
-int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	struct lh7a40x_udc *dev = the_controller;
 	int retval;
@@ -417,7 +418,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 
 	if (!driver
 			|| driver->speed != USB_SPEED_FULL
-			|| !driver->bind
+			|| !bind
 			|| !driver->disconnect
 			|| !driver->setup)
 		return -EINVAL;
@@ -431,7 +432,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	dev->gadget.dev.driver = &driver->driver;
 
 	device_add(&dev->gadget.dev);
-	retval = driver->bind(&dev->gadget);
+	retval = bind(&dev->gadget);
 	if (retval) {
 		printk(KERN_WARNING "%s: bind to driver %s --> error %d\n",
 		       dev->gadget.name, driver->driver.name, retval);
@@ -453,8 +454,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 
 	return 0;
 }
-
-EXPORT_SYMBOL(usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 /*
   Unregister entry point for the peripheral controller driver.

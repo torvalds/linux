@@ -170,6 +170,7 @@ static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	struct r600_cs_track *track = p->track;
 	u32 bpe = 0, pitch, slice_tile_max, size, tmp, height, pitch_align;
 	volatile u32 *ib = p->ib->ptr;
+	unsigned array_mode;
 
 	if (G_0280A0_TILE_MODE(track->cb_color_info[i])) {
 		dev_warn(p->dev, "FMASK or CMASK buffer are not supported by this kernel\n");
@@ -185,12 +186,12 @@ static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	/* pitch is the number of 8x8 tiles per row */
 	pitch = G_028060_PITCH_TILE_MAX(track->cb_color_size[i]) + 1;
 	slice_tile_max = G_028060_SLICE_TILE_MAX(track->cb_color_size[i]) + 1;
-	height = size / (pitch * 8 * bpe);
+	slice_tile_max *= 64;
+	height = slice_tile_max / (pitch * 8);
 	if (height > 8192)
 		height = 8192;
-	if (height > 7)
-		height &= ~0x7;
-	switch (G_0280A0_ARRAY_MODE(track->cb_color_info[i])) {
+	array_mode = G_0280A0_ARRAY_MODE(track->cb_color_info[i]);
+	switch (array_mode) {
 	case V_0280A0_ARRAY_LINEAR_GENERAL:
 		/* technically height & 0x7 */
 		break;
@@ -214,6 +215,9 @@ static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 				 __func__, __LINE__, pitch);
 			return -EINVAL;
 		}
+		/* avoid breaking userspace */
+		if (height > 7)
+			height &= ~0x7;
 		if (!IS_ALIGNED(height, 8)) {
 			dev_warn(p->dev, "%s:%d cb height (%d) invalid\n",
 				 __func__, __LINE__, height);
@@ -222,13 +226,13 @@ static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 		break;
 	case V_0280A0_ARRAY_2D_TILED_THIN1:
 		pitch_align = max((u32)track->nbanks,
-				  (u32)(((track->group_size / 8) / (bpe * track->nsamples)) * track->nbanks));
+				  (u32)(((track->group_size / 8) / (bpe * track->nsamples)) * track->nbanks)) / 8;
 		if (!IS_ALIGNED(pitch, pitch_align)) {
 			dev_warn(p->dev, "%s:%d cb pitch (%d) invalid\n",
 				__func__, __LINE__, pitch);
 			return -EINVAL;
 		}
-		if (!IS_ALIGNED((height / 8), track->nbanks)) {
+		if (!IS_ALIGNED((height / 8), track->npipes)) {
 			dev_warn(p->dev, "%s:%d cb height (%d) invalid\n",
 				 __func__, __LINE__, height);
 			return -EINVAL;
@@ -243,8 +247,18 @@ static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	/* check offset */
 	tmp = height * pitch * 8 * bpe;
 	if ((tmp + track->cb_color_bo_offset[i]) > radeon_bo_size(track->cb_color_bo[i])) {
-		dev_warn(p->dev, "%s offset[%d] %d too big\n", __func__, i, track->cb_color_bo_offset[i]);
-		return -EINVAL;
+		if (array_mode == V_0280A0_ARRAY_LINEAR_GENERAL) {
+			/* the initial DDX does bad things with the CB size occasionally */
+			/* it rounds up height too far for slice tile max but the BO is smaller */
+			tmp = (height - 7) * 8 * bpe;
+			if ((tmp + track->cb_color_bo_offset[i]) > radeon_bo_size(track->cb_color_bo[i])) {
+				dev_warn(p->dev, "%s offset[%d] %d %d %lu too big\n", __func__, i, track->cb_color_bo_offset[i], tmp, radeon_bo_size(track->cb_color_bo[i]));
+				return -EINVAL;
+			}
+		} else {
+			dev_warn(p->dev, "%s offset[%d] %d %d %lu too big\n", __func__, i, track->cb_color_bo_offset[i], tmp, radeon_bo_size(track->cb_color_bo[i]));
+			return -EINVAL;
+		}
 	}
 	if (!IS_ALIGNED(track->cb_color_bo_offset[i], track->group_size)) {
 		dev_warn(p->dev, "%s offset[%d] %d not aligned\n", __func__, i, track->cb_color_bo_offset[i]);
@@ -296,7 +310,7 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 	/* Check depth buffer */
 	if (G_028800_STENCIL_ENABLE(track->db_depth_control) ||
 		G_028800_Z_ENABLE(track->db_depth_control)) {
-		u32 nviews, bpe, ntiles, pitch, pitch_align, height, size;
+		u32 nviews, bpe, ntiles, pitch, pitch_align, height, size, slice_tile_max;
 		if (track->db_bo == NULL) {
 			dev_warn(p->dev, "z/stencil with no depth buffer\n");
 			return -EINVAL;
@@ -340,11 +354,11 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 		} else {
 			size = radeon_bo_size(track->db_bo);
 			pitch = G_028000_PITCH_TILE_MAX(track->db_depth_size) + 1;
-			height = size / (pitch * 8 * bpe);
-			height &= ~0x7;
-			if (!height)
-				height = 8;
-
+			slice_tile_max = G_028000_SLICE_TILE_MAX(track->db_depth_size) + 1;
+			slice_tile_max *= 64;
+			height = slice_tile_max / (pitch * 8);
+			if (height > 8192)
+				height = 8192;
 			switch (G_028010_ARRAY_MODE(track->db_depth_info)) {
 			case V_028010_ARRAY_1D_TILED_THIN1:
 				pitch_align = (max((u32)8, (u32)(track->group_size / (8 * bpe))) / 8);
@@ -353,6 +367,8 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 						 __func__, __LINE__, pitch);
 					return -EINVAL;
 				}
+				/* don't break userspace */
+				height &= ~0x7;
 				if (!IS_ALIGNED(height, 8)) {
 					dev_warn(p->dev, "%s:%d db height (%d) invalid\n",
 						 __func__, __LINE__, height);
@@ -361,13 +377,13 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 				break;
 			case V_028010_ARRAY_2D_TILED_THIN1:
 				pitch_align = max((u32)track->nbanks,
-						  (u32)(((track->group_size / 8) / bpe) * track->nbanks));
+						  (u32)(((track->group_size / 8) / bpe) * track->nbanks)) / 8;
 				if (!IS_ALIGNED(pitch, pitch_align)) {
 					dev_warn(p->dev, "%s:%d db pitch (%d) invalid\n",
 						 __func__, __LINE__, pitch);
 					return -EINVAL;
 				}
-				if ((height / 8) & (track->nbanks - 1)) {
+				if (!IS_ALIGNED((height / 8), track->npipes)) {
 					dev_warn(p->dev, "%s:%d db height (%d) invalid\n",
 						 __func__, __LINE__, height);
 					return -EINVAL;
@@ -1138,7 +1154,7 @@ static inline int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 i
 		break;
 	case V_038000_ARRAY_2D_TILED_THIN1:
 		pitch_align = max((u32)track->nbanks,
-				  (u32)(((track->group_size / 8) / bpe) * track->nbanks));
+				  (u32)(((track->group_size / 8) / bpe) * track->nbanks)) / 8;
 		if (!IS_ALIGNED(pitch, pitch_align)) {
 			dev_warn(p->dev, "%s:%d tex pitch (%d) invalid\n",
 				__func__, __LINE__, pitch);

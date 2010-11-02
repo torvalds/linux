@@ -227,7 +227,7 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 
 /*
  * These two macros will sometime replace ptep_clear_flush.
- * ptep_clear_flush is impleemnted as macro itself, so this also is
+ * ptep_clear_flush is implemented as macro itself, so this also is
  * implemented as a macro until ptep_clear_flush will converted to an
  * inline function, to diminish the risk of compilation failure. The
  * invalidate_page method over time can be moved outside the PT lock

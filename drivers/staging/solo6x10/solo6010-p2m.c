@@ -188,7 +188,7 @@ int solo_p2m_init(struct solo6010_dev *solo_dev)
 	for (i = 0; i < SOLO_NR_P2M; i++) {
 		p2m_dev = &solo_dev->p2m_dev[i];
 
-		init_MUTEX(&p2m_dev->sem);
+		sema_init(&p2m_dev->sem, 1);
 		init_completion(&p2m_dev->completion);
 
 		solo_reg_write(solo_dev, SOLO_P2M_DES_ADR(i),

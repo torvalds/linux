@@ -34,6 +34,212 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef CONFIG_NFS_USE_NEW_IDMAPPER
+
+#include <linux/slab.h>
+#include <linux/cred.h>
+#include <linux/nfs_idmap.h>
+#include <linux/keyctl.h>
+#include <linux/key-type.h>
+#include <linux/rcupdate.h>
+#include <linux/kernel.h>
+#include <linux/err.h>
+
+#include <keys/user-type.h>
+
+#define NFS_UINT_MAXLEN 11
+
+const struct cred *id_resolver_cache;
+
+struct key_type key_type_id_resolver = {
+	.name		= "id_resolver",
+	.instantiate	= user_instantiate,
+	.match		= user_match,
+	.revoke		= user_revoke,
+	.destroy	= user_destroy,
+	.describe	= user_describe,
+	.read		= user_read,
+};
+
+int nfs_idmap_init(void)
+{
+	struct cred *cred;
+	struct key *keyring;
+	int ret = 0;
+
+	printk(KERN_NOTICE "Registering the %s key type\n", key_type_id_resolver.name);
+
+	cred = prepare_kernel_cred(NULL);
+	if (!cred)
+		return -ENOMEM;
+
+	keyring = key_alloc(&key_type_keyring, ".id_resolver", 0, 0, cred,
+			     (KEY_POS_ALL & ~KEY_POS_SETATTR) |
+			     KEY_USR_VIEW | KEY_USR_READ,
+			     KEY_ALLOC_NOT_IN_QUOTA);
+	if (IS_ERR(keyring)) {
+		ret = PTR_ERR(keyring);
+		goto failed_put_cred;
+	}
+
+	ret = key_instantiate_and_link(keyring, NULL, 0, NULL, NULL);
+	if (ret < 0)
+		goto failed_put_key;
+
+	ret = register_key_type(&key_type_id_resolver);
+	if (ret < 0)
+		goto failed_put_key;
+
+	cred->thread_keyring = keyring;
+	cred->jit_keyring = KEY_REQKEY_DEFL_THREAD_KEYRING;
+	id_resolver_cache = cred;
+	return 0;
+
+failed_put_key:
+	key_put(keyring);
+failed_put_cred:
+	put_cred(cred);
+	return ret;
+}
+
+void nfs_idmap_quit(void)
+{
+	key_revoke(id_resolver_cache->thread_keyring);
+	unregister_key_type(&key_type_id_resolver);
+	put_cred(id_resolver_cache);
+}
+
+/*
+ * Assemble the description to pass to request_key()
+ * This function will allocate a new string and update dest to point
+ * at it.  The caller is responsible for freeing dest.
+ *
+ * On error 0 is returned.  Otherwise, the length of dest is returned.
+ */
+static ssize_t nfs_idmap_get_desc(const char *name, size_t namelen,
+				const char *type, size_t typelen, char **desc)
+{
+	char *cp;
+	size_t desclen = typelen + namelen + 2;
+
+	*desc = kmalloc(desclen, GFP_KERNEL);
+	if (!*desc)
+		return -ENOMEM;
+
+	cp = *desc;
+	memcpy(cp, type, typelen);
+	cp += typelen;
+	*cp++ = ':';
+
+	memcpy(cp, name, namelen);
+	cp += namelen;
+	*cp = '\0';
+	return desclen;
+}
+
+static ssize_t nfs_idmap_request_key(const char *name, size_t namelen,
+		const char *type, void *data, size_t data_size)
+{
+	const struct cred *saved_cred;
+	struct key *rkey;
+	char *desc;
+	struct user_key_payload *payload;
+	ssize_t ret;
+
+	ret = nfs_idmap_get_desc(name, namelen, type, strlen(type), &desc);
+	if (ret <= 0)
+		goto out;
+
+	saved_cred = override_creds(id_resolver_cache);
+	rkey = request_key(&key_type_id_resolver, desc, "");
+	revert_creds(saved_cred);
+	kfree(desc);
+	if (IS_ERR(rkey)) {
+		ret = PTR_ERR(rkey);
+		goto out;
+	}
+
+	rcu_read_lock();
+	rkey->perm |= KEY_USR_VIEW;
+
+	ret = key_validate(rkey);
+	if (ret < 0)
+		goto out_up;
+
+	payload = rcu_dereference(rkey->payload.data);
+	if (IS_ERR_OR_NULL(payload)) {
+		ret = PTR_ERR(payload);
+		goto out_up;
+	}
+
+	ret = payload->datalen;
+	if (ret > 0 && ret <= data_size)
+		memcpy(data, payload->data, ret);
+	else
+		ret = -EINVAL;
+
+out_up:
+	rcu_read_unlock();
+	key_put(rkey);
+out:
+	return ret;
+}
+
+
+/* ID -> Name */
+static ssize_t nfs_idmap_lookup_name(__u32 id, const char *type, char *buf, size_t buflen)
+{
+	char id_str[NFS_UINT_MAXLEN];
+	int id_len;
+	ssize_t ret;
+
+	id_len = snprintf(id_str, sizeof(id_str), "%u", id);
+	ret = nfs_idmap_request_key(id_str, id_len, type, buf, buflen);
+	if (ret < 0)
+		return -EINVAL;
+	return ret;
+}
+
+/* Name -> ID */
+static int nfs_idmap_lookup_id(const char *name, size_t namelen,
+				const char *type, __u32 *id)
+{
+	char id_str[NFS_UINT_MAXLEN];
+	long id_long;
+	ssize_t data_size;
+	int ret = 0;
+
+	data_size = nfs_idmap_request_key(name, namelen, type, id_str, NFS_UINT_MAXLEN);
+	if (data_size <= 0) {
+		ret = -EINVAL;
+	} else {
+		ret = strict_strtol(id_str, 10, &id_long);
+		*id = (__u32)id_long;
+	}
+	return ret;
+}
+
+int nfs_map_name_to_uid(struct nfs_client *clp, const char *name, size_t namelen, __u32 *uid)
+{
+	return nfs_idmap_lookup_id(name, namelen, "uid", uid);
+}
+
+int nfs_map_group_to_gid(struct nfs_client *clp, const char *name, size_t namelen, __u32 *gid)
+{
+	return nfs_idmap_lookup_id(name, namelen, "gid", gid);
+}
+
+int nfs_map_uid_to_name(struct nfs_client *clp, __u32 uid, char *buf, size_t buflen)
+{
+	return nfs_idmap_lookup_name(uid, "user", buf, buflen);
+}
+int nfs_map_gid_to_group(struct nfs_client *clp, __u32 gid, char *buf, size_t buflen)
+{
+	return nfs_idmap_lookup_name(gid, "group", buf, buflen);
+}
+
+#else  /* CONFIG_NFS_USE_IDMAPPER not defined */
+
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
@@ -503,16 +709,17 @@ int nfs_map_group_to_gid(struct nfs_client *clp, const char *name, size_t namele
 	return nfs_idmap_id(idmap, &idmap->idmap_group_hash, name, namelen, uid);
 }
 
-int nfs_map_uid_to_name(struct nfs_client *clp, __u32 uid, char *buf)
+int nfs_map_uid_to_name(struct nfs_client *clp, __u32 uid, char *buf, size_t buflen)
 {
 	struct idmap *idmap = clp->cl_idmap;
 
 	return nfs_idmap_name(idmap, &idmap->idmap_user_hash, uid, buf);
 }
-int nfs_map_gid_to_group(struct nfs_client *clp, __u32 uid, char *buf)
+int nfs_map_gid_to_group(struct nfs_client *clp, __u32 uid, char *buf, size_t buflen)
 {
 	struct idmap *idmap = clp->cl_idmap;
 
 	return nfs_idmap_name(idmap, &idmap->idmap_group_hash, uid, buf);
 }
 
+#endif /* CONFIG_NFS_USE_NEW_IDMAPPER */

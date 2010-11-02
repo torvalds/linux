@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/crc7.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/wl12xx.h>
+#include <linux/wl12xx.h>
 #include <linux/slab.h>
 
 #include "wl1271.h"
@@ -62,6 +62,11 @@
 #define HW_ACCESS_WSPI_FIXED_BUSY_LEN \
 		((WL1271_BUSY_WORD_LEN - 4) / sizeof(u32))
 #define HW_ACCESS_WSPI_INIT_CMD_MASK  0
+
+/* HW limitation: maximum possible chunk size is 4095 bytes */
+#define WSPI_MAX_CHUNK_SIZE    4092
+
+#define WSPI_MAX_NUM_OF_CHUNKS (WL1271_AGGR_BUFFER_SIZE / WSPI_MAX_CHUNK_SIZE)
 
 static inline struct spi_device *wl_to_spi(struct wl1271 *wl)
 {
@@ -202,90 +207,117 @@ static int wl1271_spi_read_busy(struct wl1271 *wl)
 static void wl1271_spi_raw_read(struct wl1271 *wl, int addr, void *buf,
 				size_t len, bool fixed)
 {
-	struct spi_transfer t[3];
+	struct spi_transfer t[2];
 	struct spi_message m;
 	u32 *busy_buf;
 	u32 *cmd;
+	u32 chunk_len;
 
-	cmd = &wl->buffer_cmd;
-	busy_buf = wl->buffer_busyword;
+	while (len > 0) {
+		chunk_len = min((size_t)WSPI_MAX_CHUNK_SIZE, len);
 
-	*cmd = 0;
-	*cmd |= WSPI_CMD_READ;
-	*cmd |= (len << WSPI_CMD_BYTE_LENGTH_OFFSET) & WSPI_CMD_BYTE_LENGTH;
-	*cmd |= addr & WSPI_CMD_BYTE_ADDR;
+		cmd = &wl->buffer_cmd;
+		busy_buf = wl->buffer_busyword;
 
-	if (fixed)
-		*cmd |= WSPI_CMD_FIXED;
+		*cmd = 0;
+		*cmd |= WSPI_CMD_READ;
+		*cmd |= (chunk_len << WSPI_CMD_BYTE_LENGTH_OFFSET) &
+			WSPI_CMD_BYTE_LENGTH;
+		*cmd |= addr & WSPI_CMD_BYTE_ADDR;
 
-	spi_message_init(&m);
-	memset(t, 0, sizeof(t));
+		if (fixed)
+			*cmd |= WSPI_CMD_FIXED;
 
-	t[0].tx_buf = cmd;
-	t[0].len = 4;
-	t[0].cs_change = true;
-	spi_message_add_tail(&t[0], &m);
+		spi_message_init(&m);
+		memset(t, 0, sizeof(t));
 
-	/* Busy and non busy words read */
-	t[1].rx_buf = busy_buf;
-	t[1].len = WL1271_BUSY_WORD_LEN;
-	t[1].cs_change = true;
-	spi_message_add_tail(&t[1], &m);
+		t[0].tx_buf = cmd;
+		t[0].len = 4;
+		t[0].cs_change = true;
+		spi_message_add_tail(&t[0], &m);
 
-	spi_sync(wl_to_spi(wl), &m);
+		/* Busy and non busy words read */
+		t[1].rx_buf = busy_buf;
+		t[1].len = WL1271_BUSY_WORD_LEN;
+		t[1].cs_change = true;
+		spi_message_add_tail(&t[1], &m);
 
-	if (!(busy_buf[WL1271_BUSY_WORD_CNT - 1] & 0x1) &&
-	    wl1271_spi_read_busy(wl)) {
-		memset(buf, 0, len);
-		return;
+		spi_sync(wl_to_spi(wl), &m);
+
+		if (!(busy_buf[WL1271_BUSY_WORD_CNT - 1] & 0x1) &&
+		    wl1271_spi_read_busy(wl)) {
+			memset(buf, 0, chunk_len);
+			return;
+		}
+
+		spi_message_init(&m);
+		memset(t, 0, sizeof(t));
+
+		t[0].rx_buf = buf;
+		t[0].len = chunk_len;
+		t[0].cs_change = true;
+		spi_message_add_tail(&t[0], &m);
+
+		spi_sync(wl_to_spi(wl), &m);
+
+		wl1271_dump(DEBUG_SPI, "spi_read cmd -> ", cmd, sizeof(*cmd));
+		wl1271_dump(DEBUG_SPI, "spi_read buf <- ", buf, chunk_len);
+
+		if (!fixed)
+			addr += chunk_len;
+		buf += chunk_len;
+		len -= chunk_len;
 	}
-
-	spi_message_init(&m);
-	memset(t, 0, sizeof(t));
-
-	t[0].rx_buf = buf;
-	t[0].len = len;
-	t[0].cs_change = true;
-	spi_message_add_tail(&t[0], &m);
-
-	spi_sync(wl_to_spi(wl), &m);
-
-	wl1271_dump(DEBUG_SPI, "spi_read cmd -> ", cmd, sizeof(*cmd));
-	wl1271_dump(DEBUG_SPI, "spi_read buf <- ", buf, len);
 }
 
 static void wl1271_spi_raw_write(struct wl1271 *wl, int addr, void *buf,
 			  size_t len, bool fixed)
 {
-	struct spi_transfer t[2];
+	struct spi_transfer t[2 * WSPI_MAX_NUM_OF_CHUNKS];
 	struct spi_message m;
+	u32 commands[WSPI_MAX_NUM_OF_CHUNKS];
 	u32 *cmd;
+	u32 chunk_len;
+	int i;
 
-	cmd = &wl->buffer_cmd;
-
-	*cmd = 0;
-	*cmd |= WSPI_CMD_WRITE;
-	*cmd |= (len << WSPI_CMD_BYTE_LENGTH_OFFSET) & WSPI_CMD_BYTE_LENGTH;
-	*cmd |= addr & WSPI_CMD_BYTE_ADDR;
-
-	if (fixed)
-		*cmd |= WSPI_CMD_FIXED;
+	WARN_ON(len > WL1271_AGGR_BUFFER_SIZE);
 
 	spi_message_init(&m);
 	memset(t, 0, sizeof(t));
 
-	t[0].tx_buf = cmd;
-	t[0].len = sizeof(*cmd);
-	spi_message_add_tail(&t[0], &m);
+	cmd = &commands[0];
+	i = 0;
+	while (len > 0) {
+		chunk_len = min((size_t)WSPI_MAX_CHUNK_SIZE, len);
 
-	t[1].tx_buf = buf;
-	t[1].len = len;
-	spi_message_add_tail(&t[1], &m);
+		*cmd = 0;
+		*cmd |= WSPI_CMD_WRITE;
+		*cmd |= (chunk_len << WSPI_CMD_BYTE_LENGTH_OFFSET) &
+			WSPI_CMD_BYTE_LENGTH;
+		*cmd |= addr & WSPI_CMD_BYTE_ADDR;
+
+		if (fixed)
+			*cmd |= WSPI_CMD_FIXED;
+
+		t[i].tx_buf = cmd;
+		t[i].len = sizeof(*cmd);
+		spi_message_add_tail(&t[i++], &m);
+
+		t[i].tx_buf = buf;
+		t[i].len = chunk_len;
+		spi_message_add_tail(&t[i++], &m);
+
+		wl1271_dump(DEBUG_SPI, "spi_write cmd -> ", cmd, sizeof(*cmd));
+		wl1271_dump(DEBUG_SPI, "spi_write buf -> ", buf, chunk_len);
+
+		if (!fixed)
+			addr += chunk_len;
+		buf += chunk_len;
+		len -= chunk_len;
+		cmd++;
+	}
 
 	spi_sync(wl_to_spi(wl), &m);
-
-	wl1271_dump(DEBUG_SPI, "spi_write cmd -> ", cmd, sizeof(*cmd));
-	wl1271_dump(DEBUG_SPI, "spi_write buf -> ", buf, len);
 }
 
 static irqreturn_t wl1271_irq(int irq, void *cookie)
@@ -312,10 +344,12 @@ static irqreturn_t wl1271_irq(int irq, void *cookie)
 	return IRQ_HANDLED;
 }
 
-static void wl1271_spi_set_power(struct wl1271 *wl, bool enable)
+static int wl1271_spi_set_power(struct wl1271 *wl, bool enable)
 {
 	if (wl->set_power)
 		wl->set_power(enable);
+
+	return 0;
 }
 
 static struct wl1271_if_operations spi_ops = {
@@ -370,6 +404,8 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 		goto out_free;
 	}
 
+	wl->ref_clock = pdata->board_ref_clock;
+
 	wl->irq = spi->irq;
 	if (wl->irq < 0) {
 		wl1271_error("irq missing in platform data");
@@ -412,9 +448,8 @@ static int __devexit wl1271_remove(struct spi_device *spi)
 {
 	struct wl1271 *wl = dev_get_drvdata(&spi->dev);
 
-	free_irq(wl->irq, wl);
-
 	wl1271_unregister_hw(wl);
+	free_irq(wl->irq, wl);
 	wl1271_free_hw(wl);
 
 	return 0;

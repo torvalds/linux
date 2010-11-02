@@ -186,7 +186,7 @@ static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
 	if (!flash_np)
 		return -ENODEV;
 
-	fun->mtd.name = kasprintf(GFP_KERNEL, "%x.%s", io_res->start,
+	fun->mtd.name = kasprintf(GFP_KERNEL, "0x%llx.%s", (u64)io_res->start,
 				  flash_np->name);
 	if (!fun->mtd.name) {
 		ret = -ENOMEM;
@@ -222,7 +222,7 @@ static int __devinit fun_probe(struct platform_device *ofdev,
 {
 	struct fsl_upm_nand *fun;
 	struct resource io_res;
-	const uint32_t *prop;
+	const __be32 *prop;
 	int rnb_gpio;
 	int ret;
 	int size;
@@ -270,7 +270,7 @@ static int __devinit fun_probe(struct platform_device *ofdev,
 			goto err1;
 		}
 		for (i = 0; i < fun->mchip_count; i++)
-			fun->mchip_offsets[i] = prop[i];
+			fun->mchip_offsets[i] = be32_to_cpu(prop[i]);
 	} else {
 		fun->mchip_count = 1;
 	}
@@ -295,13 +295,13 @@ static int __devinit fun_probe(struct platform_device *ofdev,
 
 	prop = of_get_property(ofdev->dev.of_node, "chip-delay", NULL);
 	if (prop)
-		fun->chip_delay = *prop;
+		fun->chip_delay = be32_to_cpup(prop);
 	else
 		fun->chip_delay = 50;
 
 	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-wait-flags", &size);
 	if (prop && size == sizeof(uint32_t))
-		fun->wait_flags = *prop;
+		fun->wait_flags = be32_to_cpup(prop);
 	else
 		fun->wait_flags = FSL_UPM_WAIT_RUN_PATTERN |
 				  FSL_UPM_WAIT_WRITE_BYTE;

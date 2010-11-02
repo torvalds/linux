@@ -48,6 +48,7 @@
 #include "internal.h"
 #include "fscache.h"
 #include "dns_resolve.h"
+#include "pnfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
@@ -234,9 +235,6 @@ nfs_init_locked(struct inode *inode, void *opaque)
 	return 0;
 }
 
-/* Don't use READDIRPLUS on directories that we believe are too large */
-#define NFS_LIMIT_READDIRPLUS (8*PAGE_SIZE)
-
 /*
  * This is our front-end to iget that looks up inodes by file handle
  * instead of inode number.
@@ -291,8 +289,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 		} else if (S_ISDIR(inode->i_mode)) {
 			inode->i_op = NFS_SB(sb)->nfs_client->rpc_ops->dir_inode_ops;
 			inode->i_fop = &nfs_dir_operations;
-			if (nfs_server_capable(inode, NFS_CAP_READDIRPLUS)
-			    && fattr->size <= NFS_LIMIT_READDIRPLUS)
+			if (nfs_server_capable(inode, NFS_CAP_READDIRPLUS))
 				set_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(inode)->flags);
 			/* Deal with crossing mountpoints */
 			if ((fattr->valid & NFS_ATTR_FATTR_FSID)
@@ -623,7 +620,7 @@ void nfs_close_context(struct nfs_open_context *ctx, int is_sync)
 	nfs_revalidate_inode(server, inode);
 }
 
-static struct nfs_open_context *alloc_nfs_open_context(struct path *path, struct rpc_cred *cred)
+struct nfs_open_context *alloc_nfs_open_context(struct path *path, struct rpc_cred *cred, fmode_t f_mode)
 {
 	struct nfs_open_context *ctx;
 
@@ -633,11 +630,13 @@ static struct nfs_open_context *alloc_nfs_open_context(struct path *path, struct
 		path_get(&ctx->path);
 		ctx->cred = get_rpccred(cred);
 		ctx->state = NULL;
+		ctx->mode = f_mode;
 		ctx->flags = 0;
 		ctx->error = 0;
 		ctx->dir_cookie = 0;
 		nfs_init_lock_context(&ctx->lock_context);
 		ctx->lock_context.open_context = ctx;
+		INIT_LIST_HEAD(&ctx->list);
 	}
 	return ctx;
 }
@@ -653,11 +652,15 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 {
 	struct inode *inode = ctx->path.dentry->d_inode;
 
-	if (!atomic_dec_and_lock(&ctx->lock_context.count, &inode->i_lock))
+	if (!list_empty(&ctx->list)) {
+		if (!atomic_dec_and_lock(&ctx->lock_context.count, &inode->i_lock))
+			return;
+		list_del(&ctx->list);
+		spin_unlock(&inode->i_lock);
+	} else if (!atomic_dec_and_test(&ctx->lock_context.count))
 		return;
-	list_del(&ctx->list);
-	spin_unlock(&inode->i_lock);
-	NFS_PROTO(inode)->close_context(ctx, is_sync);
+	if (inode != NULL)
+		NFS_PROTO(inode)->close_context(ctx, is_sync);
 	if (ctx->cred != NULL)
 		put_rpccred(ctx->cred);
 	path_put(&ctx->path);
@@ -673,7 +676,7 @@ void put_nfs_open_context(struct nfs_open_context *ctx)
  * Ensure that mmap has a recent RPC credential for use when writing out
  * shared pages
  */
-static void nfs_file_set_open_context(struct file *filp, struct nfs_open_context *ctx)
+void nfs_file_set_open_context(struct file *filp, struct nfs_open_context *ctx)
 {
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct nfs_inode *nfsi = NFS_I(inode);
@@ -730,11 +733,10 @@ int nfs_open(struct inode *inode, struct file *filp)
 	cred = rpc_lookup_cred();
 	if (IS_ERR(cred))
 		return PTR_ERR(cred);
-	ctx = alloc_nfs_open_context(&filp->f_path, cred);
+	ctx = alloc_nfs_open_context(&filp->f_path, cred, filp->f_mode);
 	put_rpccred(cred);
 	if (ctx == NULL)
 		return -ENOMEM;
-	ctx->mode = filp->f_mode;
 	nfs_file_set_open_context(filp, ctx);
 	put_nfs_open_context(ctx);
 	nfs_fscache_set_inode_cookie(inode, filp);
@@ -1409,6 +1411,7 @@ void nfs4_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
 	end_writeback(inode);
+	pnfs_destroy_layout(NFS_I(inode));
 	/* If we are holding a delegation, return it! */
 	nfs_inode_return_delegation_noreclaim(inode);
 	/* First call standard NFS clear_inode() code */
@@ -1446,6 +1449,7 @@ static inline void nfs4_init_once(struct nfs_inode *nfsi)
 	nfsi->delegation = NULL;
 	nfsi->delegation_state = 0;
 	init_rwsem(&nfsi->rwsem);
+	nfsi->layout = NULL;
 #endif
 }
 
@@ -1493,7 +1497,7 @@ static int nfsiod_start(void)
 {
 	struct workqueue_struct *wq;
 	dprintk("RPC:       creating workqueue nfsiod\n");
-	wq = create_singlethread_workqueue("nfsiod");
+	wq = alloc_workqueue("nfsiod", WQ_RESCUER, 0);
 	if (wq == NULL)
 		return -ENOMEM;
 	nfsiod_workqueue = wq;
@@ -1520,6 +1524,10 @@ static void nfsiod_stop(void)
 static int __init init_nfs_fs(void)
 {
 	int err;
+
+	err = nfs_idmap_init();
+	if (err < 0)
+		goto out9;
 
 	err = nfs_dns_resolver_init();
 	if (err < 0)
@@ -1585,6 +1593,8 @@ out6:
 out7:
 	nfs_dns_resolver_destroy();
 out8:
+	nfs_idmap_quit();
+out9:
 	return err;
 }
 
@@ -1597,6 +1607,7 @@ static void __exit exit_nfs_fs(void)
 	nfs_destroy_nfspagecache();
 	nfs_fscache_unregister();
 	nfs_dns_resolver_destroy();
+	nfs_idmap_quit();
 #ifdef CONFIG_PROC_FS
 	rpc_proc_unregister("nfs");
 #endif

@@ -1467,7 +1467,7 @@ static int ablkcipher_add(unsigned int *drestp, struct scatterlist *dst,
 		return -EINVAL;
 
 	while (size) {
-		copy = min(drest, min(size, dst->length));
+		copy = min3(drest, size, dst->length);
 
 		size -= copy;
 		drest -= copy;
@@ -1729,7 +1729,7 @@ static int ablkcipher_get(void *saddr, unsigned int *srestp, unsigned int offset
 		return -EINVAL;
 
 	while (size) {
-		copy = min(srest, min(dst->length, size));
+		copy = min3(srest, dst->length, size);
 
 		daddr = kmap_atomic(sg_page(dst), KM_IRQ0);
 		memcpy(daddr + dst->offset + offset, saddr, copy);
@@ -2700,8 +2700,7 @@ static void __devexit hifn_remove(struct pci_dev *pdev)
 	dev = pci_get_drvdata(pdev);
 
 	if (dev) {
-		cancel_delayed_work(&dev->work);
-		flush_scheduled_work();
+		cancel_delayed_work_sync(&dev->work);
 
 		hifn_unregister_rng(dev);
 		hifn_unregister_alg(dev);

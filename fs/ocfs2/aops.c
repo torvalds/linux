@@ -165,7 +165,7 @@ int ocfs2_get_block(struct inode *inode, sector_t iblock,
 	 * ocfs2 never allocates in this function - the only time we
 	 * need to use BH_New is when we're extending i_size on a file
 	 * system which doesn't support holes, in which case BH_New
-	 * allows block_prepare_write() to zero.
+	 * allows __block_write_begin() to zero.
 	 *
 	 * If we see this on a sparse file system, then a truncate has
 	 * raced us and removed the cluster. In this case, we clear
@@ -403,21 +403,6 @@ static int ocfs2_writepage(struct page *page, struct writeback_control *wbc)
 	ret = block_write_full_page(page, ocfs2_get_block, wbc);
 
 	mlog_exit(ret);
-
-	return ret;
-}
-
-/*
- * This is called from ocfs2_write_zero_page() which has handled it's
- * own cluster locking and has ensured allocation exists for those
- * blocks to be written.
- */
-int ocfs2_prepare_write_nolock(struct inode *inode, struct page *page,
-			       unsigned from, unsigned to)
-{
-	int ret;
-
-	ret = block_prepare_write(page, from, to, ocfs2_get_block);
 
 	return ret;
 }
@@ -732,7 +717,7 @@ static int ocfs2_should_read_blk(struct inode *inode, struct page *page,
 }
 
 /*
- * Some of this taken from block_prepare_write(). We already have our
+ * Some of this taken from __block_write_begin(). We already have our
  * mapping by now though, and the entire write will be allocating or
  * it won't, so not much need to use BH_New.
  *
@@ -883,8 +868,8 @@ struct ocfs2_write_ctxt {
 	 * out in so that future reads from that region will get
 	 * zero's.
 	 */
-	struct page			*w_pages[OCFS2_MAX_CTXT_PAGES];
 	unsigned int			w_num_pages;
+	struct page			*w_pages[OCFS2_MAX_CTXT_PAGES];
 	struct page			*w_target_page;
 
 	/*
@@ -1642,7 +1627,8 @@ static int ocfs2_zero_tail(struct inode *inode, struct buffer_head *di_bh,
 	return ret;
 }
 
-int ocfs2_write_begin_nolock(struct address_space *mapping,
+int ocfs2_write_begin_nolock(struct file *filp,
+			     struct address_space *mapping,
 			     loff_t pos, unsigned len, unsigned flags,
 			     struct page **pagep, void **fsdata,
 			     struct buffer_head *di_bh, struct page *mmap_page)
@@ -1692,7 +1678,7 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 		mlog_errno(ret);
 		goto out;
 	} else if (ret == 1) {
-		ret = ocfs2_refcount_cow(inode, di_bh,
+		ret = ocfs2_refcount_cow(inode, filp, di_bh,
 					 wc->w_cpos, wc->w_clen, UINT_MAX);
 		if (ret) {
 			mlog_errno(ret);
@@ -1854,7 +1840,7 @@ static int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 	 */
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
-	ret = ocfs2_write_begin_nolock(mapping, pos, len, flags, pagep,
+	ret = ocfs2_write_begin_nolock(file, mapping, pos, len, flags, pagep,
 				       fsdata, di_bh, NULL);
 	if (ret) {
 		mlog_errno(ret);

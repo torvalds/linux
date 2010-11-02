@@ -27,6 +27,7 @@
 
 /* Other Prototypes */
 extern int early_uartlite_console(void);
+extern int early_uart16550_console(void);
 
 #ifdef CONFIG_PCI
 /*

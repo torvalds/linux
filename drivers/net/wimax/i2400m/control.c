@@ -98,7 +98,7 @@ MODULE_PARM_DESC(power_save_disabled,
 		 "False by default (so the device is told to do power "
 		 "saving).");
 
-int i2400m_passive_mode;	/* 0 (passive mode disabled) by default */
+static int i2400m_passive_mode;	/* 0 (passive mode disabled) by default */
 module_param_named(passive_mode, i2400m_passive_mode, int, 0644);
 MODULE_PARM_DESC(passive_mode,
 		 "If true, the driver will not do any device setup "
@@ -558,8 +558,9 @@ void i2400m_report_hook(struct i2400m *i2400m,
  * processing should be done in the function that calls the
  * command. This is here for some cases where it can't happen...
  */
-void i2400m_msg_ack_hook(struct i2400m *i2400m,
-			 const struct i2400m_l3l4_hdr *l3l4_hdr, size_t size)
+static void i2400m_msg_ack_hook(struct i2400m *i2400m,
+				 const struct i2400m_l3l4_hdr *l3l4_hdr,
+				 size_t size)
 {
 	int result;
 	struct device *dev = i2400m_dev(i2400m);
@@ -1135,7 +1136,7 @@ error_alloc:
  * i2400m_report_state_hook() to parse the answer. This will set the
  * carrier state, as well as the RF Kill switches state.
  */
-int i2400m_cmd_get_state(struct i2400m *i2400m)
+static int i2400m_cmd_get_state(struct i2400m *i2400m)
 {
 	int result;
 	struct device *dev = i2400m_dev(i2400m);
@@ -1177,8 +1178,6 @@ error_msg_to_dev:
 error_alloc:
 	return result;
 }
-EXPORT_SYMBOL_GPL(i2400m_cmd_get_state);
-
 
 /**
  * Set basic configuration settings
@@ -1190,8 +1189,9 @@ EXPORT_SYMBOL_GPL(i2400m_cmd_get_state);
  *     right endianess (LE).
  * @arg_size: number of pointers in the @args array
  */
-int i2400m_set_init_config(struct i2400m *i2400m,
-			   const struct i2400m_tlv_hdr **arg, size_t args)
+static int i2400m_set_init_config(struct i2400m *i2400m,
+				  const struct i2400m_tlv_hdr **arg,
+				  size_t args)
 {
 	int result;
 	struct device *dev = i2400m_dev(i2400m);
@@ -1258,8 +1258,6 @@ none:
 	return result;
 
 }
-EXPORT_SYMBOL_GPL(i2400m_set_init_config);
-
 
 /**
  * i2400m_set_idle_timeout - Set the device's idle mode timeout

@@ -32,7 +32,6 @@
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
 MODULE_DESCRIPTION("tda9840 driver");
@@ -199,9 +198,25 @@ static const struct i2c_device_id tda9840_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tda9840_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "tda9840",
-	.probe = tda9840_probe,
-	.remove = tda9840_remove,
-	.id_table = tda9840_id,
+static struct i2c_driver tda9840_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tda9840",
+	},
+	.probe		= tda9840_probe,
+	.remove		= tda9840_remove,
+	.id_table	= tda9840_id,
 };
+
+static __init int init_tda9840(void)
+{
+	return i2c_add_driver(&tda9840_driver);
+}
+
+static __exit void exit_tda9840(void)
+{
+	i2c_del_driver(&tda9840_driver);
+}
+
+module_init(init_tda9840);
+module_exit(exit_tda9840);

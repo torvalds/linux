@@ -23,6 +23,8 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 	if (!inode)
 		goto out;
 
+	inode->i_ino = get_next_ino();
+
 	sysctl_head_get(head);
 	ei = PROC_I(inode);
 	ei->sysctl = head;
@@ -364,6 +366,7 @@ static int proc_sys_getattr(struct vfsmount *mnt, struct dentry *dentry, struct 
 static const struct file_operations proc_sys_file_operations = {
 	.read		= proc_sys_read,
 	.write		= proc_sys_write,
+	.llseek		= default_llseek,
 };
 
 static const struct file_operations proc_sys_dir_file_operations = {

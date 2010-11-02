@@ -64,6 +64,49 @@ void pci_bus_remove_resources(struct pci_bus *bus)
 	}
 }
 
+/*
+ * Find the highest-address bus resource below the cursor "res".  If the
+ * cursor is NULL, return the highest resource.
+ */
+static struct resource *pci_bus_find_resource_prev(struct pci_bus *bus,
+						   unsigned int type,
+						   struct resource *res)
+{
+	struct resource *r, *prev = NULL;
+	int i;
+
+	pci_bus_for_each_resource(bus, r, i) {
+		if (!r)
+			continue;
+
+		if ((r->flags & IORESOURCE_TYPE_BITS) != type)
+			continue;
+
+		/* If this resource is at or past the cursor, skip it */
+		if (res) {
+			if (r == res)
+				continue;
+			if (r->end > res->end)
+				continue;
+			if (r->end == res->end && r->start > res->start)
+				continue;
+		}
+
+		if (!prev)
+			prev = r;
+
+		/*
+		 * A small resource is higher than a large one that ends at
+		 * the same address.
+		 */
+		if (r->end > prev->end ||
+		    (r->end == prev->end && r->start > prev->start))
+			prev = r;
+	}
+
+	return prev;
+}
+
 /**
  * pci_bus_alloc_resource - allocate a resource from a parent bus
  * @bus: PCI bus
@@ -89,9 +132,10 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 					  resource_size_t),
 		void *alignf_data)
 {
-	int i, ret = -ENOMEM;
+	int ret = -ENOMEM;
 	struct resource *r;
 	resource_size_t max = -1;
+	unsigned int type = res->flags & IORESOURCE_TYPE_BITS;
 
 	type_mask |= IORESOURCE_IO | IORESOURCE_MEM;
 
@@ -99,10 +143,9 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 	if (!(res->flags & IORESOURCE_MEM_64))
 		max = PCIBIOS_MAX_MEM_32;
 
-	pci_bus_for_each_resource(bus, r, i) {
-		if (!r)
-			continue;
-
+	/* Look for space at highest addresses first */
+	r = pci_bus_find_resource_prev(bus, type, NULL);
+	for ( ; r; r = pci_bus_find_resource_prev(bus, type, r)) {
 		/* type_mask must match */
 		if ((res->flags ^ r->flags) & type_mask)
 			continue;
@@ -299,6 +342,7 @@ void pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
 	}
 	up_read(&pci_bus_sem);
 }
+EXPORT_SYMBOL_GPL(pci_walk_bus);
 
 EXPORT_SYMBOL(pci_bus_alloc_resource);
 EXPORT_SYMBOL_GPL(pci_bus_add_device);

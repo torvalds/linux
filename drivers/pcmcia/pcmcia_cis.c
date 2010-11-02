@@ -6,7 +6,7 @@
  * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  *
  * Copyright (C) 1999	     David A. Hinds
- * Copyright (C) 2004-2009   Dominik Brodowski
+ * Copyright (C) 2004-2010   Dominik Brodowski
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -22,7 +22,6 @@
 #include <pcmcia/cisreg.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ss.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/ds.h>
 #include "cs_internal.h"
 
@@ -126,14 +125,24 @@ next_entry:
 	return ret;
 }
 
+
+/**
+ * pcmcia_io_cfg_data_width() - convert cfgtable to data path width parameter
+ */
+static int pcmcia_io_cfg_data_width(unsigned int flags)
+{
+	if (!(flags & CISTPL_IO_8BIT))
+		return IO_DATA_PATH_WIDTH_16;
+	if (!(flags & CISTPL_IO_16BIT))
+		return IO_DATA_PATH_WIDTH_8;
+	return IO_DATA_PATH_WIDTH_AUTO;
+}
+
+
 struct pcmcia_cfg_mem {
 	struct pcmcia_device *p_dev;
+	int (*conf_check) (struct pcmcia_device *p_dev, void *priv_data);
 	void *priv_data;
-	int (*conf_check) (struct pcmcia_device *p_dev,
-			   cistpl_cftable_entry_t *cfg,
-			   cistpl_cftable_entry_t *dflt,
-			   unsigned int vcc,
-			   void *priv_data);
 	cisparse_t parse;
 	cistpl_cftable_entry_t dflt;
 };
@@ -147,25 +156,102 @@ struct pcmcia_cfg_mem {
  */
 static int pcmcia_do_loop_config(tuple_t *tuple, cisparse_t *parse, void *priv)
 {
-	cistpl_cftable_entry_t *cfg = &parse->cftable_entry;
 	struct pcmcia_cfg_mem *cfg_mem = priv;
+	struct pcmcia_device *p_dev = cfg_mem->p_dev;
+	cistpl_cftable_entry_t *cfg = &parse->cftable_entry;
+	cistpl_cftable_entry_t *dflt = &cfg_mem->dflt;
+	unsigned int flags = p_dev->config_flags;
+	unsigned int vcc = p_dev->socket->socket.Vcc;
+
+	dev_dbg(&p_dev->dev, "testing configuration %x, autoconf %x\n",
+		cfg->index, flags);
 
 	/* default values */
-	cfg_mem->p_dev->conf.ConfigIndex = cfg->index;
+	cfg_mem->p_dev->config_index = cfg->index;
 	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
 		cfg_mem->dflt = *cfg;
 
-	return cfg_mem->conf_check(cfg_mem->p_dev, cfg, &cfg_mem->dflt,
-				   cfg_mem->p_dev->socket->socket.Vcc,
-				   cfg_mem->priv_data);
+	/* check for matching Vcc? */
+	if (flags & CONF_AUTO_CHECK_VCC) {
+		if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
+			if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
+				return -ENODEV;
+		} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
+			if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000)
+				return -ENODEV;
+		}
+	}
+
+	/* set Vpp? */
+	if (flags & CONF_AUTO_SET_VPP) {
+		if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
+			p_dev->vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+		else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
+			p_dev->vpp =
+				dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+	}
+
+	/* enable audio? */
+	if ((flags & CONF_AUTO_AUDIO) && (cfg->flags & CISTPL_CFTABLE_AUDIO))
+		p_dev->config_flags |= CONF_ENABLE_SPKR;
+
+
+	/* IO window settings? */
+	if (flags & CONF_AUTO_SET_IO) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		int i = 0;
+
+		p_dev->resource[0]->start = p_dev->resource[0]->end = 0;
+		p_dev->resource[1]->start = p_dev->resource[1]->end = 0;
+		if (io->nwin == 0)
+			return -ENODEV;
+
+		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+		p_dev->resource[0]->flags |=
+					pcmcia_io_cfg_data_width(io->flags);
+		if (io->nwin > 1) {
+			/* For multifunction cards, by convention, we
+			 * configure the network function with window 0,
+			 * and serial with window 1 */
+			i = (io->win[1].len > io->win[0].len);
+			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
+			p_dev->resource[1]->start = io->win[1-i].base;
+			p_dev->resource[1]->end = io->win[1-i].len;
+		}
+		p_dev->resource[0]->start = io->win[i].base;
+		p_dev->resource[0]->end = io->win[i].len;
+		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
+	}
+
+	/* MEM window settings? */
+	if (flags & CONF_AUTO_SET_IOMEM) {
+		/* so far, we only set one memory window */
+		cistpl_mem_t *mem = (cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
+
+		p_dev->resource[2]->start = p_dev->resource[2]->end = 0;
+		if (mem->nwin == 0)
+			return -ENODEV;
+
+		p_dev->resource[2]->start = mem->win[0].host_addr;
+		p_dev->resource[2]->end = mem->win[0].len;
+		if (p_dev->resource[2]->end < 0x1000)
+			p_dev->resource[2]->end = 0x1000;
+		p_dev->card_addr = mem->win[0].card_addr;
+	}
+
+	dev_dbg(&p_dev->dev,
+		"checking configuration %x: %pr %pr %pr (%d lines)\n",
+		p_dev->config_index, p_dev->resource[0], p_dev->resource[1],
+		p_dev->resource[2], p_dev->io_lines);
+
+	return cfg_mem->conf_check(p_dev, cfg_mem->priv_data);
 }
 
 /**
  * pcmcia_loop_config() - loop over configuration options
  * @p_dev:	the struct pcmcia_device which we need to loop for.
  * @conf_check:	function to call for each configuration option.
- *		It gets passed the struct pcmcia_device, the CIS data
- *		describing the configuration option, and private data
+ *		It gets passed the struct pcmcia_device and private data
  *		being passed to pcmcia_loop_config()
  * @priv_data:	private data to be passed to the conf_check function.
  *
@@ -175,9 +261,6 @@ static int pcmcia_do_loop_config(tuple_t *tuple, cisparse_t *parse, void *priv)
  */
 int pcmcia_loop_config(struct pcmcia_device *p_dev,
 		       int	(*conf_check)	(struct pcmcia_device *p_dev,
-						 cistpl_cftable_entry_t *cfg,
-						 cistpl_cftable_entry_t *dflt,
-						 unsigned int vcc,
 						 void *priv_data),
 		       void *priv_data)
 {

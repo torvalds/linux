@@ -481,40 +481,6 @@ void t4_l2t_update(struct adapter *adap, struct neighbour *neigh)
 		handle_failed_resolution(adap, arpq);
 }
 
-/*
- * Allocate an L2T entry for use by a switching rule.  Such entries need to be
- * explicitly freed and while busy they are not on any hash chain, so normal
- * address resolution updates do not see them.
- */
-struct l2t_entry *t4_l2t_alloc_switching(struct l2t_data *d)
-{
-	struct l2t_entry *e;
-
-	write_lock_bh(&d->lock);
-	e = alloc_l2e(d);
-	if (e) {
-		spin_lock(&e->lock);          /* avoid race with t4_l2t_free */
-		e->state = L2T_STATE_SWITCHING;
-		atomic_set(&e->refcnt, 1);
-		spin_unlock(&e->lock);
-	}
-	write_unlock_bh(&d->lock);
-	return e;
-}
-
-/*
- * Sets/updates the contents of a switching L2T entry that has been allocated
- * with an earlier call to @t4_l2t_alloc_switching.
- */
-int t4_l2t_set_switching(struct adapter *adap, struct l2t_entry *e, u16 vlan,
-			 u8 port, u8 *eth_addr)
-{
-	e->vlan = vlan;
-	e->lport = port;
-	memcpy(e->dmac, eth_addr, ETH_ALEN);
-	return write_l2e(adap, e, 0);
-}
-
 struct l2t_data *t4_init_l2t(void)
 {
 	int i;

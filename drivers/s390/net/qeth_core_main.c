@@ -2911,6 +2911,27 @@ static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 	}
 }
 
+void qeth_qdio_start_poll(struct ccw_device *ccwdev, int queue,
+		unsigned long card_ptr)
+{
+	struct qeth_card *card = (struct qeth_card *)card_ptr;
+
+	if (card->dev)
+		napi_schedule(&card->napi);
+}
+EXPORT_SYMBOL_GPL(qeth_qdio_start_poll);
+
+void qeth_qdio_input_handler(struct ccw_device *ccwdev, unsigned int qdio_err,
+		unsigned int queue, int first_element, int count,
+		unsigned long card_ptr)
+{
+	struct qeth_card *card = (struct qeth_card *)card_ptr;
+
+	if (qdio_err)
+		qeth_schedule_recovery(card);
+}
+EXPORT_SYMBOL_GPL(qeth_qdio_input_handler);
+
 void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 		unsigned int qdio_error, int __queue, int first_element,
 		int count, unsigned long card_ptr)
@@ -3843,6 +3864,7 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	init_data.no_output_qs           = card->qdio.no_out_queues;
 	init_data.input_handler          = card->discipline.input_handler;
 	init_data.output_handler         = card->discipline.output_handler;
+	init_data.queue_start_poll	 = card->discipline.start_poll;
 	init_data.int_parm               = (unsigned long) card;
 	init_data.input_sbal_addr_array  = (void **) in_sbal_ptrs;
 	init_data.output_sbal_addr_array = (void **) out_sbal_ptrs;
@@ -4513,8 +4535,8 @@ static struct {
 /* 20 */{"queue 1 buffer usage"},
 	{"queue 2 buffer usage"},
 	{"queue 3 buffer usage"},
-	{"rx handler time"},
-	{"rx handler count"},
+	{"rx poll time"},
+	{"rx poll count"},
 	{"rx do_QDIO time"},
 	{"rx do_QDIO count"},
 	{"tx handler time"},

@@ -789,7 +789,8 @@ static int wireless_get_ap_list (struct net_device *dev, struct iw_request_info 
 				memcpy( hwa[count].sa_data,
 						(*p)/*lp->scan_results*/.APTable[count].bssid, ETH_ALEN );
 #else  //;?why use BSSID and bssid as names in seemingly very comparable situations
-				DBG_PRINT( "BSSID: %s\n", DbgHwAddr( (*p)/*lp->probe_results*/.ProbeTable[count].BSSID ));
+				DBG_PRINT("BSSID: %pM\n",
+						(*p).ProbeTable[count].BSSID);
 				memcpy( hwa[count].sa_data,
 						(*p)/*lp->probe_results*/.ProbeTable[count].BSSID, ETH_ALEN );
 #endif // WARP
@@ -3937,9 +3938,9 @@ void wl_wext_event_mic_failed( struct net_device *dev )
 			 a problem in future versions of the supplicant, if they ever
 			 actually parse these parameters */
 #if DBG
-	sprintf( msg, "MLME-MICHAELMICFAILURE.indication(keyid=%d %scast addr="
-			 "%s)", key_idx, addr1[0] & 0x01 ? "broad" : "uni",
-			 DbgHwAddr( addr2 ));
+	sprintf(msg, "MLME-MICHAELMICFAILURE.indication(keyid=%d %scast "
+			"addr=%pM)", key_idx, addr1[0] & 0x01 ? "broad" : "uni",
+			addr2);
 #endif
 	wrqu.data.length = strlen( msg );
 	wireless_send_event( dev, IWEVCUSTOM, &wrqu, msg );

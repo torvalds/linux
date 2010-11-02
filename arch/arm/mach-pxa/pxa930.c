@@ -192,7 +192,7 @@ static struct mfp_addr_map pxa935_mfp_addr_map[] __initdata = {
 
 static int __init pxa930_init(void)
 {
-	if (cpu_is_pxa930() || cpu_is_pxa935()) {
+	if (cpu_is_pxa930() || cpu_is_pxa935() || cpu_is_pxa950()) {
 		mfp_init_base(io_p2v(MFPR_BASE));
 		mfp_init_addr(pxa930_mfp_addr_map);
 	}

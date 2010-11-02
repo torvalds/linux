@@ -1084,6 +1084,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 static const struct file_operations dapm_widget_power_fops = {
 	.open = dapm_widget_power_open_file,
 	.read = dapm_widget_power_read_file,
+	.llseek = default_llseek,
 };
 
 void snd_soc_dapm_debugfs_init(struct snd_soc_codec *codec)

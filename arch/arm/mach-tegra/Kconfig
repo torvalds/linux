@@ -16,6 +16,10 @@ config ARCH_TEGRA_2x_SOC
 
 endchoice
 
+config TEGRA_PCI
+	bool "PCI Express support"
+	select PCI
+
 comment "Tegra board type"
 
 config MACH_HARMONY
@@ -46,5 +50,12 @@ config TEGRA_DEBUG_UARTE
         bool "UART-E"
 
 endchoice
+
+config TEGRA_SYSTEM_DMA
+	bool "Enable system DMA driver for NVIDIA Tegra SoCs"
+	default y
+	help
+	  Adds system DMA functionality for NVIDIA Tegra SoCs, used by
+	  several Tegra device drivers
 
 endif

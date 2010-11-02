@@ -79,8 +79,8 @@ struct buffer_head *nilfs_grab_buffer(struct inode *inode,
 {
 	int blkbits = inode->i_blkbits;
 	pgoff_t index = blkoff >> (PAGE_CACHE_SHIFT - blkbits);
-	struct page *page, *opage;
-	struct buffer_head *bh, *obh;
+	struct page *page;
+	struct buffer_head *bh;
 
 	page = grab_cache_page(mapping, index);
 	if (unlikely(!page))
@@ -91,30 +91,6 @@ struct buffer_head *nilfs_grab_buffer(struct inode *inode,
 		unlock_page(page);
 		page_cache_release(page);
 		return NULL;
-	}
-	if (!buffer_uptodate(bh) && mapping->assoc_mapping != NULL) {
-		/*
-		 * Shadow page cache uses assoc_mapping to point its original
-		 * page cache.  The following code tries the original cache
-		 * if the given cache is a shadow and it didn't hit.
-		 */
-		opage = find_lock_page(mapping->assoc_mapping, index);
-		if (!opage)
-			return bh;
-
-		obh = __nilfs_get_page_block(opage, blkoff, index, blkbits,
-					     b_state);
-		if (buffer_uptodate(obh)) {
-			nilfs_copy_buffer(bh, obh);
-			if (buffer_dirty(obh)) {
-				nilfs_mark_buffer_dirty(bh);
-				if (!buffer_nilfs_node(bh) && NILFS_MDT(inode))
-					nilfs_mdt_mark_dirty(inode);
-			}
-		}
-		brelse(obh);
-		unlock_page(opage);
-		page_cache_release(opage);
 	}
 	return bh;
 }
@@ -131,6 +107,7 @@ void nilfs_forget_buffer(struct buffer_head *bh)
 	lock_buffer(bh);
 	clear_buffer_nilfs_volatile(bh);
 	clear_buffer_nilfs_checked(bh);
+	clear_buffer_nilfs_redirected(bh);
 	clear_buffer_dirty(bh);
 	if (nilfs_page_buffers_clean(page))
 		__nilfs_clear_page_dirty(page);
@@ -483,6 +460,7 @@ void nilfs_clear_dirty_pages(struct address_space *mapping)
 				clear_buffer_dirty(bh);
 				clear_buffer_nilfs_volatile(bh);
 				clear_buffer_nilfs_checked(bh);
+				clear_buffer_nilfs_redirected(bh);
 				clear_buffer_uptodate(bh);
 				clear_buffer_mapped(bh);
 				unlock_buffer(bh);
@@ -512,6 +490,31 @@ unsigned nilfs_page_count_clean_buffers(struct page *page,
 			nc++;
 	}
 	return nc;
+}
+ 
+void nilfs_mapping_init_once(struct address_space *mapping)
+{
+	memset(mapping, 0, sizeof(*mapping));
+	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
+	spin_lock_init(&mapping->tree_lock);
+	INIT_LIST_HEAD(&mapping->private_list);
+	spin_lock_init(&mapping->private_lock);
+
+	spin_lock_init(&mapping->i_mmap_lock);
+	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
+	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
+}
+
+void nilfs_mapping_init(struct address_space *mapping,
+			struct backing_dev_info *bdi,
+			const struct address_space_operations *aops)
+{
+	mapping->host = NULL;
+	mapping->flags = 0;
+	mapping_set_gfp_mask(mapping, GFP_NOFS);
+	mapping->assoc_mapping = NULL;
+	mapping->backing_dev_info = bdi;
+	mapping->a_ops = aops;
 }
 
 /*

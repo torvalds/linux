@@ -65,16 +65,21 @@ pcibios_align_resource(void *data, const struct resource *res,
 			resource_size_t size, resource_size_t align)
 {
 	struct pci_dev *dev = data;
-	resource_size_t start = res->start;
+	resource_size_t start = round_down(res->end - size + 1, align);
 
 	if (res->flags & IORESOURCE_IO) {
-		if (skip_isa_ioresource_align(dev))
-			return start;
-		if (start & 0x300)
-			start = (start + 0x3ff) & ~0x3ff;
+
+		/*
+		 * If we're avoiding ISA aliases, the largest contiguous I/O
+		 * port space is 256 bytes.  Clearing bits 9 and 10 preserves
+		 * all 256-byte and smaller alignments, so the result will
+		 * still be correctly aligned.
+		 */
+		if (!skip_isa_ioresource_align(dev))
+			start &= ~0x300;
 	} else if (res->flags & IORESOURCE_MEM) {
 		if (start < BIOS_END)
-			start = BIOS_END;
+			start = res->end;	/* fail; no space */
 	}
 	return start;
 }
@@ -310,6 +315,8 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		 * aswell.
 		 */
 		prot |= _PAGE_CACHE_UC_MINUS;
+
+	prot |= _PAGE_IOMAP;	/* creating a mapping for IO */
 
 	vma->vm_page_prot = __pgprot(prot);
 

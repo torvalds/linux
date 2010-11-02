@@ -37,6 +37,7 @@
 #include "policydb.h"
 #include "conditional.h"
 #include "mls.h"
+#include "services.h"
 
 #define _DEBUG_HASHES
 
@@ -185,9 +186,19 @@ static u32 rangetr_hash(struct hashtab *h, const void *k)
 static int rangetr_cmp(struct hashtab *h, const void *k1, const void *k2)
 {
 	const struct range_trans *key1 = k1, *key2 = k2;
-	return (key1->source_type != key2->source_type ||
-		key1->target_type != key2->target_type ||
-		key1->target_class != key2->target_class);
+	int v;
+
+	v = key1->source_type - key2->source_type;
+	if (v)
+		return v;
+
+	v = key1->target_type - key2->target_type;
+	if (v)
+		return v;
+
+	v = key1->target_class - key2->target_class;
+
+	return v;
 }
 
 /*
@@ -1624,11 +1635,11 @@ static int role_bounds_sanity_check(void *key, void *datum, void *datap)
 
 static int type_bounds_sanity_check(void *key, void *datum, void *datap)
 {
-	struct type_datum *upper, *type;
+	struct type_datum *upper;
 	struct policydb *p = datap;
 	int depth = 0;
 
-	upper = type = datum;
+	upper = datum;
 	while (upper->bounds) {
 		if (++depth == POLICYDB_BOUNDS_MAXDEPTH) {
 			printk(KERN_ERR "SELinux: type %s: "
@@ -2305,4 +2316,844 @@ bad:
 		rc = -EINVAL;
 	policydb_destroy(p);
 	goto out;
+}
+
+/*
+ * Write a MLS level structure to a policydb binary
+ * representation file.
+ */
+static int mls_write_level(struct mls_level *l, void *fp)
+{
+	__le32 buf[1];
+	int rc;
+
+	buf[0] = cpu_to_le32(l->sens);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+
+	rc = ebitmap_write(&l->cat, fp);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+/*
+ * Write a MLS range structure to a policydb binary
+ * representation file.
+ */
+static int mls_write_range_helper(struct mls_range *r, void *fp)
+{
+	__le32 buf[3];
+	size_t items;
+	int rc, eq;
+
+	eq = mls_level_eq(&r->level[1], &r->level[0]);
+
+	if (eq)
+		items = 2;
+	else
+		items = 3;
+	buf[0] = cpu_to_le32(items-1);
+	buf[1] = cpu_to_le32(r->level[0].sens);
+	if (!eq)
+		buf[2] = cpu_to_le32(r->level[1].sens);
+
+	BUG_ON(items > (sizeof(buf)/sizeof(buf[0])));
+
+	rc = put_entry(buf, sizeof(u32), items, fp);
+	if (rc)
+		return rc;
+
+	rc = ebitmap_write(&r->level[0].cat, fp);
+	if (rc)
+		return rc;
+	if (!eq) {
+		rc = ebitmap_write(&r->level[1].cat, fp);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
+
+static int sens_write(void *vkey, void *datum, void *ptr)
+{
+	char *key = vkey;
+	struct level_datum *levdatum = datum;
+	struct policy_data *pd = ptr;
+	void *fp = pd->fp;
+	__le32 buf[2];
+	size_t len;
+	int rc;
+
+	len = strlen(key);
+	buf[0] = cpu_to_le32(len);
+	buf[1] = cpu_to_le32(levdatum->isalias);
+	rc = put_entry(buf, sizeof(u32), 2, fp);
+	if (rc)
+		return rc;
+
+	rc = put_entry(key, 1, len, fp);
+	if (rc)
+		return rc;
+
+	rc = mls_write_level(levdatum->level, fp);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+static int cat_write(void *vkey, void *datum, void *ptr)
+{
+	char *key = vkey;
+	struct cat_datum *catdatum = datum;
+	struct policy_data *pd = ptr;
+	void *fp = pd->fp;
+	__le32 buf[3];
+	size_t len;
+	int rc;
+
+	len = strlen(key);
+	buf[0] = cpu_to_le32(len);
+	buf[1] = cpu_to_le32(catdatum->value);
+	buf[2] = cpu_to_le32(catdatum->isalias);
+	rc = put_entry(buf, sizeof(u32), 3, fp);
+	if (rc)
+		return rc;
+
+	rc = put_entry(key, 1, len, fp);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+static int role_trans_write(struct role_trans *r, void *fp)
+{
+	struct role_trans *tr;
+	u32 buf[3];
+	size_t nel;
+	int rc;
+
+	nel = 0;
+	for (tr = r; tr; tr = tr->next)
+		nel++;
+	buf[0] = cpu_to_le32(nel);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+	for (tr = r; tr; tr = tr->next) {
+		buf[0] = cpu_to_le32(tr->role);
+		buf[1] = cpu_to_le32(tr->type);
+		buf[2] = cpu_to_le32(tr->new_role);
+		rc = put_entry(buf, sizeof(u32), 3, fp);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
+
+static int role_allow_write(struct role_allow *r, void *fp)
+{
+	struct role_allow *ra;
+	u32 buf[2];
+	size_t nel;
+	int rc;
+
+	nel = 0;
+	for (ra = r; ra; ra = ra->next)
+		nel++;
+	buf[0] = cpu_to_le32(nel);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+	for (ra = r; ra; ra = ra->next) {
+		buf[0] = cpu_to_le32(ra->role);
+		buf[1] = cpu_to_le32(ra->new_role);
+		rc = put_entry(buf, sizeof(u32), 2, fp);
+		if (rc)
+			return rc;
+	}
+	return 0;
+}
+
+/*
+ * Write a security context structure
+ * to a policydb binary representation file.
+ */
+static int context_write(struct policydb *p, struct context *c,
+			 void *fp)
+{
+	int rc;
+	__le32 buf[3];
+
+	buf[0] = cpu_to_le32(c->user);
+	buf[1] = cpu_to_le32(c->role);
+	buf[2] = cpu_to_le32(c->type);
+
+	rc = put_entry(buf, sizeof(u32), 3, fp);
+	if (rc)
+		return rc;
+
+	rc = mls_write_range_helper(&c->range, fp);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+/*
+ * The following *_write functions are used to
+ * write the symbol data to a policy database
+ * binary representation file.
+ */
+
+static int perm_write(void *vkey, void *datum, void *fp)
+{
+	char *key = vkey;
+	struct perm_datum *perdatum = datum;
+	__le32 buf[2];
+	size_t len;
+	int rc;
+
+	len = strlen(key);
+	buf[0] = cpu_to_le32(len);
+	buf[1] = cpu_to_le32(perdatum->value);
+	rc = put_entry(buf, sizeof(u32), 2, fp);
+	if (rc)
+		return rc;
+
+	rc = put_entry(key, 1, len, fp);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+static int common_write(void *vkey, void *datum, void *ptr)
+{
+	char *key = vkey;
+	struct common_datum *comdatum = datum;
+	struct policy_data *pd = ptr;
+	void *fp = pd->fp;
+	__le32 buf[4];
+	size_t len;
+	int rc;
+
+	len = strlen(key);
+	buf[0] = cpu_to_le32(len);
+	buf[1] = cpu_to_le32(comdatum->value);
+	buf[2] = cpu_to_le32(comdatum->permissions.nprim);
+	buf[3] = cpu_to_le32(comdatum->permissions.table->nel);
+	rc = put_entry(buf, sizeof(u32), 4, fp);
+	if (rc)
+		return rc;
+
+	rc = put_entry(key, 1, len, fp);
+	if (rc)
+		return rc;
+
+	rc = hashtab_map(comdatum->permissions.table, perm_write, fp);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+static int write_cons_helper(struct policydb *p, struct constraint_node *node,
+			     void *fp)
+{
+	struct constraint_node *c;
+	struct constraint_expr *e;
+	__le32 buf[3];
+	u32 nel;
+	int rc;
+
+	for (c = node; c; c = c->next) {
+		nel = 0;
+		for (e = c->expr; e; e = e->next)
+			nel++;
+		buf[0] = cpu_to_le32(c->permissions);
+		buf[1] = cpu_to_le32(nel);
+		rc = put_entry(buf, sizeof(u32), 2, fp);
+		if (rc)
+			return rc;
+		for (e = c->expr; e; e = e->next) {
+			buf[0] = cpu_to_le32(e->expr_type);
+			buf[1] = cpu_to_le32(e->attr);
+			buf[2] = cpu_to_le32(e->op);
+			rc = put_entry(buf, sizeof(u32), 3, fp);
+			if (rc)
+				return rc;
+
+			switch (e->expr_type) {
+			case CEXPR_NAMES:
+				rc = ebitmap_write(&e->names, fp);
+				if (rc)
+					return rc;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int class_write(void *vkey, void *datum, void *ptr)
+{
+	char *key = vkey;
+	struct class_datum *cladatum = datum;
+	struct policy_data *pd = ptr;
+	void *fp = pd->fp;
+	struct policydb *p = pd->p;
+	struct constraint_node *c;
+	__le32 buf[6];
+	u32 ncons;
+	size_t len, len2;
+	int rc;
+
+	len = strlen(key);
+	if (cladatum->comkey)
+		len2 = strlen(cladatum->comkey);
+	else
+		len2 = 0;
+
+	ncons = 0;
+	for (c = cladatum->constraints; c; c = c->next)
+		ncons++;
+
+	buf[0] = cpu_to_le32(len);
+	buf[1] = cpu_to_le32(len2);
+	buf[2] = cpu_to_le32(cladatum->value);
+	buf[3] = cpu_to_le32(cladatum->permissions.nprim);
+	if (cladatum->permissions.table)
+		buf[4] = cpu_to_le32(cladatum->permissions.table->nel);
+	else
+		buf[4] = 0;
+	buf[5] = cpu_to_le32(ncons);
+	rc = put_entry(buf, sizeof(u32), 6, fp);
+	if (rc)
+		return rc;
+
+	rc = put_entry(key, 1, len, fp);
+	if (rc)
+		return rc;
+
+	if (cladatum->comkey) {
+		rc = put_entry(cladatum->comkey, 1, len2, fp);
+		if (rc)
+			return rc;
+	}
+
+	rc = hashtab_map(cladatum->permissions.table, perm_write, fp);
+	if (rc)
+		return rc;
+
+	rc = write_cons_helper(p, cladatum->constraints, fp);
+	if (rc)
+		return rc;
+
+	/* write out the validatetrans rule */
+	ncons = 0;
+	for (c = cladatum->validatetrans; c; c = c->next)
+		ncons++;
+
+	buf[0] = cpu_to_le32(ncons);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+
+	rc = write_cons_helper(p, cladatum->validatetrans, fp);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+static int role_write(void *vkey, void *datum, void *ptr)
+{
+	char *key = vkey;
+	struct role_datum *role = datum;
+	struct policy_data *pd = ptr;
+	void *fp = pd->fp;
+	struct policydb *p = pd->p;
+	__le32 buf[3];
+	size_t items, len;
+	int rc;
+
+	len = strlen(key);
+	items = 0;
+	buf[items++] = cpu_to_le32(len);
+	buf[items++] = cpu_to_le32(role->value);
+	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY)
+		buf[items++] = cpu_to_le32(role->bounds);
+
+	BUG_ON(items > (sizeof(buf)/sizeof(buf[0])));
+
+	rc = put_entry(buf, sizeof(u32), items, fp);
+	if (rc)
+		return rc;
+
+	rc = put_entry(key, 1, len, fp);
+	if (rc)
+		return rc;
+
+	rc = ebitmap_write(&role->dominates, fp);
+	if (rc)
+		return rc;
+
+	rc = ebitmap_write(&role->types, fp);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+static int type_write(void *vkey, void *datum, void *ptr)
+{
+	char *key = vkey;
+	struct type_datum *typdatum = datum;
+	struct policy_data *pd = ptr;
+	struct policydb *p = pd->p;
+	void *fp = pd->fp;
+	__le32 buf[4];
+	int rc;
+	size_t items, len;
+
+	len = strlen(key);
+	items = 0;
+	buf[items++] = cpu_to_le32(len);
+	buf[items++] = cpu_to_le32(typdatum->value);
+	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY) {
+		u32 properties = 0;
+
+		if (typdatum->primary)
+			properties |= TYPEDATUM_PROPERTY_PRIMARY;
+
+		if (typdatum->attribute)
+			properties |= TYPEDATUM_PROPERTY_ATTRIBUTE;
+
+		buf[items++] = cpu_to_le32(properties);
+		buf[items++] = cpu_to_le32(typdatum->bounds);
+	} else {
+		buf[items++] = cpu_to_le32(typdatum->primary);
+	}
+	BUG_ON(items > (sizeof(buf) / sizeof(buf[0])));
+	rc = put_entry(buf, sizeof(u32), items, fp);
+	if (rc)
+		return rc;
+
+	rc = put_entry(key, 1, len, fp);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+static int user_write(void *vkey, void *datum, void *ptr)
+{
+	char *key = vkey;
+	struct user_datum *usrdatum = datum;
+	struct policy_data *pd = ptr;
+	struct policydb *p = pd->p;
+	void *fp = pd->fp;
+	__le32 buf[3];
+	size_t items, len;
+	int rc;
+
+	len = strlen(key);
+	items = 0;
+	buf[items++] = cpu_to_le32(len);
+	buf[items++] = cpu_to_le32(usrdatum->value);
+	if (p->policyvers >= POLICYDB_VERSION_BOUNDARY)
+		buf[items++] = cpu_to_le32(usrdatum->bounds);
+	BUG_ON(items > (sizeof(buf) / sizeof(buf[0])));
+	rc = put_entry(buf, sizeof(u32), items, fp);
+	if (rc)
+		return rc;
+
+	rc = put_entry(key, 1, len, fp);
+	if (rc)
+		return rc;
+
+	rc = ebitmap_write(&usrdatum->roles, fp);
+	if (rc)
+		return rc;
+
+	rc = mls_write_range_helper(&usrdatum->range, fp);
+	if (rc)
+		return rc;
+
+	rc = mls_write_level(&usrdatum->dfltlevel, fp);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+static int (*write_f[SYM_NUM]) (void *key, void *datum,
+				void *datap) =
+{
+	common_write,
+	class_write,
+	role_write,
+	type_write,
+	user_write,
+	cond_write_bool,
+	sens_write,
+	cat_write,
+};
+
+static int ocontext_write(struct policydb *p, struct policydb_compat_info *info,
+			  void *fp)
+{
+	unsigned int i, j, rc;
+	size_t nel, len;
+	__le32 buf[3];
+	u32 nodebuf[8];
+	struct ocontext *c;
+	for (i = 0; i < info->ocon_num; i++) {
+		nel = 0;
+		for (c = p->ocontexts[i]; c; c = c->next)
+			nel++;
+		buf[0] = cpu_to_le32(nel);
+		rc = put_entry(buf, sizeof(u32), 1, fp);
+		if (rc)
+			return rc;
+		for (c = p->ocontexts[i]; c; c = c->next) {
+			switch (i) {
+			case OCON_ISID:
+				buf[0] = cpu_to_le32(c->sid[0]);
+				rc = put_entry(buf, sizeof(u32), 1, fp);
+				if (rc)
+					return rc;
+				rc = context_write(p, &c->context[0], fp);
+				if (rc)
+					return rc;
+				break;
+			case OCON_FS:
+			case OCON_NETIF:
+				len = strlen(c->u.name);
+				buf[0] = cpu_to_le32(len);
+				rc = put_entry(buf, sizeof(u32), 1, fp);
+				if (rc)
+					return rc;
+				rc = put_entry(c->u.name, 1, len, fp);
+				if (rc)
+					return rc;
+				rc = context_write(p, &c->context[0], fp);
+				if (rc)
+					return rc;
+				rc = context_write(p, &c->context[1], fp);
+				if (rc)
+					return rc;
+				break;
+			case OCON_PORT:
+				buf[0] = cpu_to_le32(c->u.port.protocol);
+				buf[1] = cpu_to_le32(c->u.port.low_port);
+				buf[2] = cpu_to_le32(c->u.port.high_port);
+				rc = put_entry(buf, sizeof(u32), 3, fp);
+				if (rc)
+					return rc;
+				rc = context_write(p, &c->context[0], fp);
+				if (rc)
+					return rc;
+				break;
+			case OCON_NODE:
+				nodebuf[0] = c->u.node.addr; /* network order */
+				nodebuf[1] = c->u.node.mask; /* network order */
+				rc = put_entry(nodebuf, sizeof(u32), 2, fp);
+				if (rc)
+					return rc;
+				rc = context_write(p, &c->context[0], fp);
+				if (rc)
+					return rc;
+				break;
+			case OCON_FSUSE:
+				buf[0] = cpu_to_le32(c->v.behavior);
+				len = strlen(c->u.name);
+				buf[1] = cpu_to_le32(len);
+				rc = put_entry(buf, sizeof(u32), 2, fp);
+				if (rc)
+					return rc;
+				rc = put_entry(c->u.name, 1, len, fp);
+				if (rc)
+					return rc;
+				rc = context_write(p, &c->context[0], fp);
+				if (rc)
+					return rc;
+				break;
+			case OCON_NODE6:
+				for (j = 0; j < 4; j++)
+					nodebuf[j] = c->u.node6.addr[j]; /* network order */
+				for (j = 0; j < 4; j++)
+					nodebuf[j + 4] = c->u.node6.mask[j]; /* network order */
+				rc = put_entry(nodebuf, sizeof(u32), 8, fp);
+				if (rc)
+					return rc;
+				rc = context_write(p, &c->context[0], fp);
+				if (rc)
+					return rc;
+				break;
+			}
+		}
+	}
+	return 0;
+}
+
+static int genfs_write(struct policydb *p, void *fp)
+{
+	struct genfs *genfs;
+	struct ocontext *c;
+	size_t len;
+	__le32 buf[1];
+	int rc;
+
+	len = 0;
+	for (genfs = p->genfs; genfs; genfs = genfs->next)
+		len++;
+	buf[0] = cpu_to_le32(len);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+	for (genfs = p->genfs; genfs; genfs = genfs->next) {
+		len = strlen(genfs->fstype);
+		buf[0] = cpu_to_le32(len);
+		rc = put_entry(buf, sizeof(u32), 1, fp);
+		if (rc)
+			return rc;
+		rc = put_entry(genfs->fstype, 1, len, fp);
+		if (rc)
+			return rc;
+		len = 0;
+		for (c = genfs->head; c; c = c->next)
+			len++;
+		buf[0] = cpu_to_le32(len);
+		rc = put_entry(buf, sizeof(u32), 1, fp);
+		if (rc)
+			return rc;
+		for (c = genfs->head; c; c = c->next) {
+			len = strlen(c->u.name);
+			buf[0] = cpu_to_le32(len);
+			rc = put_entry(buf, sizeof(u32), 1, fp);
+			if (rc)
+				return rc;
+			rc = put_entry(c->u.name, 1, len, fp);
+			if (rc)
+				return rc;
+			buf[0] = cpu_to_le32(c->v.sclass);
+			rc = put_entry(buf, sizeof(u32), 1, fp);
+			if (rc)
+				return rc;
+			rc = context_write(p, &c->context[0], fp);
+			if (rc)
+				return rc;
+		}
+	}
+	return 0;
+}
+
+static int range_count(void *key, void *data, void *ptr)
+{
+	int *cnt = ptr;
+	*cnt = *cnt + 1;
+
+	return 0;
+}
+
+static int range_write_helper(void *key, void *data, void *ptr)
+{
+	__le32 buf[2];
+	struct range_trans *rt = key;
+	struct mls_range *r = data;
+	struct policy_data *pd = ptr;
+	void *fp = pd->fp;
+	struct policydb *p = pd->p;
+	int rc;
+
+	buf[0] = cpu_to_le32(rt->source_type);
+	buf[1] = cpu_to_le32(rt->target_type);
+	rc = put_entry(buf, sizeof(u32), 2, fp);
+	if (rc)
+		return rc;
+	if (p->policyvers >= POLICYDB_VERSION_RANGETRANS) {
+		buf[0] = cpu_to_le32(rt->target_class);
+		rc = put_entry(buf, sizeof(u32), 1, fp);
+		if (rc)
+			return rc;
+	}
+	rc = mls_write_range_helper(r, fp);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+static int range_write(struct policydb *p, void *fp)
+{
+	size_t nel;
+	__le32 buf[1];
+	int rc;
+	struct policy_data pd;
+
+	pd.p = p;
+	pd.fp = fp;
+
+	/* count the number of entries in the hashtab */
+	nel = 0;
+	rc = hashtab_map(p->range_tr, range_count, &nel);
+	if (rc)
+		return rc;
+
+	buf[0] = cpu_to_le32(nel);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+
+	/* actually write all of the entries */
+	rc = hashtab_map(p->range_tr, range_write_helper, &pd);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+/*
+ * Write the configuration data in a policy database
+ * structure to a policy database binary representation
+ * file.
+ */
+int policydb_write(struct policydb *p, void *fp)
+{
+	unsigned int i, num_syms;
+	int rc;
+	__le32 buf[4];
+	u32 config;
+	size_t len;
+	struct policydb_compat_info *info;
+
+	/*
+	 * refuse to write policy older than compressed avtab
+	 * to simplify the writer.  There are other tests dropped
+	 * since we assume this throughout the writer code.  Be
+	 * careful if you ever try to remove this restriction
+	 */
+	if (p->policyvers < POLICYDB_VERSION_AVTAB) {
+		printk(KERN_ERR "SELinux: refusing to write policy version %d."
+		       "  Because it is less than version %d\n", p->policyvers,
+		       POLICYDB_VERSION_AVTAB);
+		return -EINVAL;
+	}
+
+	config = 0;
+	if (p->mls_enabled)
+		config |= POLICYDB_CONFIG_MLS;
+
+	if (p->reject_unknown)
+		config |= REJECT_UNKNOWN;
+	if (p->allow_unknown)
+		config |= ALLOW_UNKNOWN;
+
+	/* Write the magic number and string identifiers. */
+	buf[0] = cpu_to_le32(POLICYDB_MAGIC);
+	len = strlen(POLICYDB_STRING);
+	buf[1] = cpu_to_le32(len);
+	rc = put_entry(buf, sizeof(u32), 2, fp);
+	if (rc)
+		return rc;
+	rc = put_entry(POLICYDB_STRING, 1, len, fp);
+	if (rc)
+		return rc;
+
+	/* Write the version, config, and table sizes. */
+	info = policydb_lookup_compat(p->policyvers);
+	if (!info) {
+		printk(KERN_ERR "SELinux: compatibility lookup failed for policy "
+		    "version %d", p->policyvers);
+		return rc;
+	}
+
+	buf[0] = cpu_to_le32(p->policyvers);
+	buf[1] = cpu_to_le32(config);
+	buf[2] = cpu_to_le32(info->sym_num);
+	buf[3] = cpu_to_le32(info->ocon_num);
+
+	rc = put_entry(buf, sizeof(u32), 4, fp);
+	if (rc)
+		return rc;
+
+	if (p->policyvers >= POLICYDB_VERSION_POLCAP) {
+		rc = ebitmap_write(&p->policycaps, fp);
+		if (rc)
+			return rc;
+	}
+
+	if (p->policyvers >= POLICYDB_VERSION_PERMISSIVE) {
+		rc = ebitmap_write(&p->permissive_map, fp);
+		if (rc)
+			return rc;
+	}
+
+	num_syms = info->sym_num;
+	for (i = 0; i < num_syms; i++) {
+		struct policy_data pd;
+
+		pd.fp = fp;
+		pd.p = p;
+
+		buf[0] = cpu_to_le32(p->symtab[i].nprim);
+		buf[1] = cpu_to_le32(p->symtab[i].table->nel);
+
+		rc = put_entry(buf, sizeof(u32), 2, fp);
+		if (rc)
+			return rc;
+		rc = hashtab_map(p->symtab[i].table, write_f[i], &pd);
+		if (rc)
+			return rc;
+	}
+
+	rc = avtab_write(p, &p->te_avtab, fp);
+	if (rc)
+		return rc;
+
+	rc = cond_write_list(p, p->cond_list, fp);
+	if (rc)
+		return rc;
+
+	rc = role_trans_write(p->role_tr, fp);
+	if (rc)
+		return rc;
+
+	rc = role_allow_write(p->role_allow, fp);
+	if (rc)
+		return rc;
+
+	rc = ocontext_write(p, info, fp);
+	if (rc)
+		return rc;
+
+	rc = genfs_write(p, fp);
+	if (rc)
+		return rc;
+
+	rc = range_write(p, fp);
+	if (rc)
+		return rc;
+
+	for (i = 0; i < p->p_types.nprim; i++) {
+		struct ebitmap *e = flex_array_get(p->type_attr_map_array, i);
+
+		BUG_ON(!e);
+		rc = ebitmap_write(e, fp);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
 }

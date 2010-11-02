@@ -100,9 +100,6 @@ struct l2t_entry *cxgb4_l2t_get(struct l2t_data *d, struct neighbour *neigh,
 				unsigned int priority);
 
 void t4_l2t_update(struct adapter *adap, struct neighbour *neigh);
-struct l2t_entry *t4_l2t_alloc_switching(struct l2t_data *d);
-int t4_l2t_set_switching(struct adapter *adap, struct l2t_entry *e, u16 vlan,
-			 u8 port, u8 *eth_addr);
 struct l2t_data *t4_init_l2t(void);
 void do_l2t_write_rpl(struct adapter *p, const struct cpl_l2t_write_rpl *rpl);
 

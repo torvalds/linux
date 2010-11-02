@@ -172,18 +172,12 @@ static void phy3250_spi_cs_set(u32 control)
 }
 
 static struct pl022_config_chip spi0_chip_info = {
-	.lbm			= LOOPBACK_DISABLED,
 	.com_mode		= INTERRUPT_TRANSFER,
 	.iface			= SSP_INTERFACE_MOTOROLA_SPI,
 	.hierarchy		= SSP_MASTER,
 	.slave_tx_disable	= 0,
-	.endian_tx		= SSP_TX_LSB,
-	.endian_rx		= SSP_RX_LSB,
-	.data_size		= SSP_DATA_BITS_8,
 	.rx_lev_trig		= SSP_RX_4_OR_MORE_ELEM,
 	.tx_lev_trig		= SSP_TX_4_OR_MORE_EMPTY_LOC,
-	.clk_phase		= SSP_CLK_FIRST_EDGE,
-	.clk_pol		= SSP_CLK_POL_IDLE_LOW,
 	.ctrl_len		= SSP_BITS_8,
 	.wait_state		= SSP_MWIRE_WAIT_ZERO,
 	.duplex			= SSP_MICROWIRE_CHANNEL_FULL_DUPLEX,
@@ -239,6 +233,7 @@ static int __init phy3250_spi_board_register(void)
 			.max_speed_hz = 5000000,
 			.bus_num = 0,
 			.chip_select = 0,
+			.mode = SPI_MODE_0,
 			.platform_data = &eeprom,
 			.controller_data = &spi0_chip_info,
 		},
@@ -387,8 +382,6 @@ arch_initcall(lpc32xx_display_uid);
 
 MACHINE_START(PHY3250, "Phytec 3250 board with the LPC3250 Microcontroller")
 	/* Maintainer: Kevin Wells, NXP Semiconductors */
-	.phys_io	= LPC32XX_UART5_BASE,
-	.io_pg_offst	= ((IO_ADDRESS(LPC32XX_UART5_BASE))>>18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= lpc32xx_map_io,
 	.init_irq	= lpc32xx_init_irq,

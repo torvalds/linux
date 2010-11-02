@@ -27,7 +27,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/list.h>
 
 /*  ----------------------------------- This */
@@ -147,7 +146,6 @@ int drv_remove_all_dmm_res_elements(void *process_ctxt)
 	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
 	struct dmm_map_object *temp_map, *map_obj;
-	struct dmm_rsv_object *temp_rsv, *rsv_obj;
 
 	/* Free DMM mapped memory resources */
 	list_for_each_entry_safe(map_obj, temp_map, &ctxt->dmm_map_list, link) {
@@ -155,16 +153,6 @@ int drv_remove_all_dmm_res_elements(void *process_ctxt)
 				     (void *)map_obj->dsp_addr, ctxt);
 		if (status)
 			pr_err("%s: proc_un_map failed!"
-			       " status = 0x%xn", __func__, status);
-	}
-
-	/* Free DMM reserved memory resources */
-	list_for_each_entry_safe(rsv_obj, temp_rsv, &ctxt->dmm_rsv_list, link) {
-		status = proc_un_reserve_memory(ctxt->hprocessor, (void *)
-						rsv_obj->dsp_reserved_addr,
-						ctxt);
-		if (status)
-			pr_err("%s: proc_un_reserve_memory failed!"
 			       " status = 0x%xn", __func__, status);
 	}
 	return status;
@@ -309,6 +297,7 @@ int drv_create(struct drv_object **drv_obj)
 {
 	int status = 0;
 	struct drv_object *pdrv_object = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(drv_obj != NULL);
 	DBC_REQUIRE(refs > 0);
@@ -335,9 +324,16 @@ int drv_create(struct drv_object **drv_obj)
 	} else {
 		status = -ENOMEM;
 	}
-	/* Store the DRV Object in the Registry */
-	if (!status)
-		status = cfg_set_object((u32) pdrv_object, REG_DRV_OBJECT);
+	/* Store the DRV Object in the driver data */
+	if (!status) {
+		if (drv_datap) {
+			drv_datap->drv_object = (void *)pdrv_object;
+		} else {
+			status = -EPERM;
+			pr_err("%s: Failed to store DRV object\n", __func__);
+		}
+	}
+
 	if (!status) {
 		*drv_obj = pdrv_object;
 	} else {
@@ -374,6 +370,7 @@ int drv_destroy(struct drv_object *driver_obj)
 {
 	int status = 0;
 	struct drv_object *pdrv_object = (struct drv_object *)driver_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(pdrv_object);
@@ -386,8 +383,13 @@ int drv_destroy(struct drv_object *driver_obj)
 	kfree(pdrv_object->dev_list);
 	kfree(pdrv_object->dev_node_string);
 	kfree(pdrv_object);
-	/* Update the DRV Object in Registry to be 0 */
-	(void)cfg_set_object(0, REG_DRV_OBJECT);
+	/* Update the DRV Object in the driver data */
+	if (drv_datap) {
+		drv_datap->drv_object = NULL;
+	} else {
+		status = -EPERM;
+		pr_err("%s: Failed to store DRV object\n", __func__);
+	}
 
 	return status;
 }
@@ -438,11 +440,15 @@ u32 drv_get_first_dev_object(void)
 {
 	u32 dw_dev_object = 0;
 	struct drv_object *pdrv_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
-	if (!cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT)) {
+	if (drv_datap && drv_datap->drv_object) {
+		pdrv_obj = drv_datap->drv_object;
 		if ((pdrv_obj->dev_list != NULL) &&
 		    !LST_IS_EMPTY(pdrv_obj->dev_list))
 			dw_dev_object = (u32) lst_first(pdrv_obj->dev_list);
+	} else {
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 	}
 
 	return dw_dev_object;
@@ -458,14 +464,17 @@ u32 drv_get_first_dev_extension(void)
 {
 	u32 dw_dev_extension = 0;
 	struct drv_object *pdrv_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
-	if (!cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT)) {
-
+	if (drv_datap && drv_datap->drv_object) {
+		pdrv_obj = drv_datap->drv_object;
 		if ((pdrv_obj->dev_node_string != NULL) &&
 		    !LST_IS_EMPTY(pdrv_obj->dev_node_string)) {
 			dw_dev_extension =
 			    (u32) lst_first(pdrv_obj->dev_node_string);
 		}
+	} else {
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 	}
 
 	return dw_dev_extension;
@@ -482,18 +491,22 @@ u32 drv_get_next_dev_object(u32 hdev_obj)
 {
 	u32 dw_next_dev_object = 0;
 	struct drv_object *pdrv_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(hdev_obj != 0);
 
-	if (!cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT)) {
-
+	if (drv_datap && drv_datap->drv_object) {
+		pdrv_obj = drv_datap->drv_object;
 		if ((pdrv_obj->dev_list != NULL) &&
 		    !LST_IS_EMPTY(pdrv_obj->dev_list)) {
 			dw_next_dev_object = (u32) lst_next(pdrv_obj->dev_list,
 							    (struct list_head *)
 							    hdev_obj);
 		}
+	} else {
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 	}
+
 	return dw_next_dev_object;
 }
 
@@ -509,16 +522,20 @@ u32 drv_get_next_dev_extension(u32 dev_extension)
 {
 	u32 dw_dev_extension = 0;
 	struct drv_object *pdrv_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(dev_extension != 0);
 
-	if (!cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT)) {
+	if (drv_datap && drv_datap->drv_object) {
+		pdrv_obj = drv_datap->drv_object;
 		if ((pdrv_obj->dev_node_string != NULL) &&
 		    !LST_IS_EMPTY(pdrv_obj->dev_node_string)) {
 			dw_dev_extension =
 			    (u32) lst_next(pdrv_obj->dev_node_string,
 					   (struct list_head *)dev_extension);
 		}
+	} else {
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 	}
 
 	return dw_dev_extension;
@@ -616,6 +633,7 @@ int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 	int status = 0;
 	struct drv_object *pdrv_object;
 	struct drv_ext *pszdev_node;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(dw_context != 0);
 	DBC_REQUIRE(dev_node_strg != NULL);
@@ -626,7 +644,11 @@ int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 	 *  list.
 	 */
 
-	status = cfg_get_object((u32 *) &pdrv_object, REG_DRV_OBJECT);
+	if (!drv_datap || !drv_datap->drv_object)
+		status = -ENODATA;
+	else
+		pdrv_object = drv_datap->drv_object;
+
 	if (!status) {
 		pszdev_node = kzalloc(sizeof(struct drv_ext), GFP_KERNEL);
 		if (pszdev_node) {
@@ -710,7 +732,6 @@ static int request_bridge_resources(struct cfg_hostres *res)
 	host_res->dw_sys_ctrl_base = ioremap(OMAP_SYSC_BASE, OMAP_SYSC_SIZE);
 	dev_dbg(bridge, "dw_mem_base[0] 0x%x\n", host_res->dw_mem_base[0]);
 	dev_dbg(bridge, "dw_mem_base[3] 0x%x\n", host_res->dw_mem_base[3]);
-	dev_dbg(bridge, "dw_dmmu_base %p\n", host_res->dw_dmmu_base);
 
 	/* for 24xx base port is not mapping the mamory for DSP
 	 * internal memory TODO Do a ioremap here */
@@ -764,8 +785,6 @@ int drv_request_bridge_res_dsp(void **phost_resources)
 							 OMAP_PER_PRM_SIZE);
 		host_res->dw_core_pm_base = (u32) ioremap(OMAP_CORE_PRM_BASE,
 							  OMAP_CORE_PRM_SIZE);
-		host_res->dw_dmmu_base = ioremap(OMAP_DMMU_BASE,
-						 OMAP_DMMU_SIZE);
 
 		dev_dbg(bridge, "dw_mem_base[0] 0x%x\n",
 			host_res->dw_mem_base[0]);
@@ -777,7 +796,6 @@ int drv_request_bridge_res_dsp(void **phost_resources)
 			host_res->dw_mem_base[3]);
 		dev_dbg(bridge, "dw_mem_base[4] 0x%x\n",
 			host_res->dw_mem_base[4]);
-		dev_dbg(bridge, "dw_dmmu_base %p\n", host_res->dw_dmmu_base);
 
 		shm_size = drv_datap->shm_size;
 		if (shm_size >= 0x10000) {

@@ -132,7 +132,6 @@ static struct dst_ops dn_dst_ops = {
 	.negative_advice =	dn_dst_negative_advice,
 	.link_failure =		dn_dst_link_failure,
 	.update_pmtu =		dn_dst_update_pmtu,
-	.entries =		ATOMIC_INIT(0),
 };
 
 static __inline__ unsigned dn_hash(__le16 src, __le16 dst)
@@ -1758,6 +1757,7 @@ void __init dn_route_init(void)
 	dn_dst_ops.kmem_cachep =
 		kmem_cache_create("dn_dst_cache", sizeof(struct dn_route), 0,
 				  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+	dst_entries_init(&dn_dst_ops);
 	setup_timer(&dn_route_timer, dn_dst_check_expire, 0);
 	dn_route_timer.expires = jiffies + decnet_dst_gc_interval * HZ;
 	add_timer(&dn_route_timer);
@@ -1816,5 +1816,6 @@ void __exit dn_route_cleanup(void)
 	dn_run_flush(0);
 
 	proc_net_remove(&init_net, "decnet_cache");
+	dst_entries_destroy(&dn_dst_ops);
 }
 

@@ -573,7 +573,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 
 				acpi_os_release_mutex(method_desc->method.
 						      mutex->mutex.os_mutex);
-				method_desc->method.mutex->mutex.thread_id = NULL;
+				method_desc->method.mutex->mutex.thread_id = 0;
 			}
 		}
 

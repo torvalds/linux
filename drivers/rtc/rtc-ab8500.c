@@ -14,26 +14,26 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
+#include <linux/mfd/abx500.h>
 #include <linux/mfd/ab8500.h>
 #include <linux/delay.h>
 
-#define AB8500_RTC_SOFF_STAT_REG	0x0F00
-#define AB8500_RTC_CC_CONF_REG		0x0F01
-#define AB8500_RTC_READ_REQ_REG		0x0F02
-#define AB8500_RTC_WATCH_TSECMID_REG	0x0F03
-#define AB8500_RTC_WATCH_TSECHI_REG	0x0F04
-#define AB8500_RTC_WATCH_TMIN_LOW_REG	0x0F05
-#define AB8500_RTC_WATCH_TMIN_MID_REG	0x0F06
-#define AB8500_RTC_WATCH_TMIN_HI_REG	0x0F07
-#define AB8500_RTC_ALRM_MIN_LOW_REG	0x0F08
-#define AB8500_RTC_ALRM_MIN_MID_REG	0x0F09
-#define AB8500_RTC_ALRM_MIN_HI_REG	0x0F0A
-#define AB8500_RTC_STAT_REG		0x0F0B
-#define AB8500_RTC_BKUP_CHG_REG		0x0F0C
-#define AB8500_RTC_FORCE_BKUP_REG	0x0F0D
-#define AB8500_RTC_CALIB_REG		0x0F0E
-#define AB8500_RTC_SWITCH_STAT_REG	0x0F0F
-#define AB8500_REV_REG			0x1080
+#define AB8500_RTC_SOFF_STAT_REG	0x00
+#define AB8500_RTC_CC_CONF_REG		0x01
+#define AB8500_RTC_READ_REQ_REG		0x02
+#define AB8500_RTC_WATCH_TSECMID_REG	0x03
+#define AB8500_RTC_WATCH_TSECHI_REG	0x04
+#define AB8500_RTC_WATCH_TMIN_LOW_REG	0x05
+#define AB8500_RTC_WATCH_TMIN_MID_REG	0x06
+#define AB8500_RTC_WATCH_TMIN_HI_REG	0x07
+#define AB8500_RTC_ALRM_MIN_LOW_REG	0x08
+#define AB8500_RTC_ALRM_MIN_MID_REG	0x09
+#define AB8500_RTC_ALRM_MIN_HI_REG	0x0A
+#define AB8500_RTC_STAT_REG		0x0B
+#define AB8500_RTC_BKUP_CHG_REG		0x0C
+#define AB8500_RTC_FORCE_BKUP_REG	0x0D
+#define AB8500_RTC_CALIB_REG		0x0E
+#define AB8500_RTC_SWITCH_STAT_REG	0x0F
 
 /* RtcReadRequest bits */
 #define RTC_READ_REQUEST		0x01
@@ -46,13 +46,13 @@
 #define COUNTS_PER_SEC			(0xF000 / 60)
 #define AB8500_RTC_EPOCH		2000
 
-static const unsigned long ab8500_rtc_time_regs[] = {
+static const u8 ab8500_rtc_time_regs[] = {
 	AB8500_RTC_WATCH_TMIN_HI_REG, AB8500_RTC_WATCH_TMIN_MID_REG,
 	AB8500_RTC_WATCH_TMIN_LOW_REG, AB8500_RTC_WATCH_TSECHI_REG,
 	AB8500_RTC_WATCH_TSECMID_REG
 };
 
-static const unsigned long ab8500_rtc_alarm_regs[] = {
+static const u8 ab8500_rtc_alarm_regs[] = {
 	AB8500_RTC_ALRM_MIN_HI_REG, AB8500_RTC_ALRM_MIN_MID_REG,
 	AB8500_RTC_ALRM_MIN_LOW_REG
 };
@@ -76,29 +76,30 @@ static unsigned long get_elapsed_seconds(int year)
 
 static int ab8500_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
 	unsigned long timeout = jiffies + HZ;
 	int retval, i;
 	unsigned long mins, secs;
 	unsigned char buf[ARRAY_SIZE(ab8500_rtc_time_regs)];
+	u8 value;
 
 	/* Request a data read */
-	retval = ab8500_write(ab8500, AB8500_RTC_READ_REQ_REG,
-			      RTC_READ_REQUEST);
+	retval = abx500_set_register_interruptible(dev,
+		AB8500_RTC, AB8500_RTC_READ_REQ_REG, RTC_READ_REQUEST);
 	if (retval < 0)
 		return retval;
 
 	/* Early AB8500 chips will not clear the rtc read request bit */
-	if (ab8500->revision == 0) {
+	if (abx500_get_chip_id(dev) == 0) {
 		msleep(1);
 	} else {
 		/* Wait for some cycles after enabling the rtc read in ab8500 */
 		while (time_before(jiffies, timeout)) {
-			retval = ab8500_read(ab8500, AB8500_RTC_READ_REQ_REG);
+			retval = abx500_get_register_interruptible(dev,
+				AB8500_RTC, AB8500_RTC_READ_REQ_REG, &value);
 			if (retval < 0)
 				return retval;
 
-			if (!(retval & RTC_READ_REQUEST))
+			if (!(value & RTC_READ_REQUEST))
 				break;
 
 			msleep(1);
@@ -107,10 +108,11 @@ static int ab8500_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	/* Read the Watchtime registers */
 	for (i = 0; i < ARRAY_SIZE(ab8500_rtc_time_regs); i++) {
-		retval = ab8500_read(ab8500, ab8500_rtc_time_regs[i]);
+		retval = abx500_get_register_interruptible(dev,
+			AB8500_RTC, ab8500_rtc_time_regs[i], &value);
 		if (retval < 0)
 			return retval;
-		buf[i] = retval;
+		buf[i] = value;
 	}
 
 	mins = (buf[0] << 16) | (buf[1] << 8) | buf[2];
@@ -128,7 +130,6 @@ static int ab8500_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int ab8500_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
 	int retval, i;
 	unsigned char buf[ARRAY_SIZE(ab8500_rtc_time_regs)];
 	unsigned long no_secs, no_mins, secs = 0;
@@ -162,27 +163,29 @@ static int ab8500_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	buf[0] = (no_mins >> 16) & 0xFF;
 
 	for (i = 0; i < ARRAY_SIZE(ab8500_rtc_time_regs); i++) {
-		retval = ab8500_write(ab8500, ab8500_rtc_time_regs[i], buf[i]);
+		retval = abx500_set_register_interruptible(dev, AB8500_RTC,
+			ab8500_rtc_time_regs[i], buf[i]);
 		if (retval < 0)
 			return retval;
 	}
 
 	/* Request a data write */
-	return ab8500_write(ab8500, AB8500_RTC_READ_REQ_REG, RTC_WRITE_REQUEST);
+	return abx500_set_register_interruptible(dev, AB8500_RTC,
+		AB8500_RTC_READ_REQ_REG, RTC_WRITE_REQUEST);
 }
 
 static int ab8500_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
-	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
 	int retval, i;
-	int rtc_ctrl;
+	u8 rtc_ctrl, value;
 	unsigned char buf[ARRAY_SIZE(ab8500_rtc_alarm_regs)];
 	unsigned long secs, mins;
 
 	/* Check if the alarm is enabled or not */
-	rtc_ctrl = ab8500_read(ab8500, AB8500_RTC_STAT_REG);
-	if (rtc_ctrl < 0)
-		return rtc_ctrl;
+	retval = abx500_get_register_interruptible(dev, AB8500_RTC,
+		AB8500_RTC_STAT_REG, &rtc_ctrl);
+	if (retval < 0)
+		return retval;
 
 	if (rtc_ctrl & RTC_ALARM_ENA)
 		alarm->enabled = 1;
@@ -192,10 +195,11 @@ static int ab8500_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	alarm->pending = 0;
 
 	for (i = 0; i < ARRAY_SIZE(ab8500_rtc_alarm_regs); i++) {
-		retval = ab8500_read(ab8500, ab8500_rtc_alarm_regs[i]);
+		retval = abx500_get_register_interruptible(dev, AB8500_RTC,
+			ab8500_rtc_alarm_regs[i], &value);
 		if (retval < 0)
 			return retval;
-		buf[i] = retval;
+		buf[i] = value;
 	}
 
 	mins = (buf[0] << 16) | (buf[1] << 8) | (buf[2]);
@@ -211,15 +215,13 @@ static int ab8500_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 static int ab8500_rtc_irq_enable(struct device *dev, unsigned int enabled)
 {
-	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
-
-	return ab8500_set_bits(ab8500, AB8500_RTC_STAT_REG, RTC_ALARM_ENA,
-			       enabled ? RTC_ALARM_ENA : 0);
+	return abx500_mask_and_set_register_interruptible(dev, AB8500_RTC,
+		AB8500_RTC_STAT_REG, RTC_ALARM_ENA,
+		enabled ? RTC_ALARM_ENA : 0);
 }
 
 static int ab8500_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
-	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
 	int retval, i;
 	unsigned char buf[ARRAY_SIZE(ab8500_rtc_alarm_regs)];
 	unsigned long mins, secs = 0;
@@ -247,7 +249,8 @@ static int ab8500_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 	/* Set the alarm time */
 	for (i = 0; i < ARRAY_SIZE(ab8500_rtc_alarm_regs); i++) {
-		retval = ab8500_write(ab8500, ab8500_rtc_alarm_regs[i], buf[i]);
+		retval = abx500_set_register_interruptible(dev, AB8500_RTC,
+			ab8500_rtc_alarm_regs[i], buf[i]);
 		if (retval < 0)
 			return retval;
 	}
@@ -276,10 +279,9 @@ static const struct rtc_class_ops ab8500_rtc_ops = {
 
 static int __devinit ab8500_rtc_probe(struct platform_device *pdev)
 {
-	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	int err;
 	struct rtc_device *rtc;
-	int rtc_ctrl;
+	u8 rtc_ctrl;
 	int irq;
 
 	irq = platform_get_irq_byname(pdev, "ALARM");
@@ -287,17 +289,18 @@ static int __devinit ab8500_rtc_probe(struct platform_device *pdev)
 		return irq;
 
 	/* For RTC supply test */
-	err = ab8500_set_bits(ab8500, AB8500_RTC_STAT_REG, RTC_STATUS_DATA,
-			RTC_STATUS_DATA);
+	err = abx500_mask_and_set_register_interruptible(&pdev->dev, AB8500_RTC,
+		AB8500_RTC_STAT_REG, RTC_STATUS_DATA, RTC_STATUS_DATA);
 	if (err < 0)
 		return err;
 
 	/* Wait for reset by the PorRtc */
 	msleep(1);
 
-	rtc_ctrl = ab8500_read(ab8500, AB8500_RTC_STAT_REG);
-	if (rtc_ctrl < 0)
-		return rtc_ctrl;
+	err = abx500_get_register_interruptible(&pdev->dev, AB8500_RTC,
+		AB8500_RTC_STAT_REG, &rtc_ctrl);
+	if (err < 0)
+		return err;
 
 	/* Check if the RTC Supply fails */
 	if (!(rtc_ctrl & RTC_STATUS_DATA)) {

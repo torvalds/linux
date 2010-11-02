@@ -419,7 +419,7 @@ static u16 cas_phy_read(struct cas *cp, int reg)
 		udelay(10);
 		cmd = readl(cp->regs + REG_MIF_FRAME);
 		if (cmd & MIF_FRAME_TURN_AROUND_LSB)
-			return (cmd & MIF_FRAME_DATA_MASK);
+			return cmd & MIF_FRAME_DATA_MASK;
 	}
 	return 0xFFFF; /* -1 */
 }
@@ -804,7 +804,7 @@ static int cas_reset_mii_phy(struct cas *cp)
 			break;
 		udelay(10);
 	}
-	return (limit <= 0);
+	return limit <= 0;
 }
 
 static int cas_saturn_firmware_init(struct cas *cp)
@@ -2149,7 +2149,7 @@ end_copy_pkt:
 		skb->csum = csum_unfold(~csum);
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 	return len;
 }
 

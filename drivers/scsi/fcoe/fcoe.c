@@ -117,7 +117,7 @@ static void fcoe_recv_frame(struct sk_buff *skb);
 
 static void fcoe_get_lesb(struct fc_lport *, struct fc_els_lesb *);
 
-module_param_call(create, fcoe_create, NULL, (void *)FIP_MODE_AUTO, S_IWUSR);
+module_param_call(create, fcoe_create, NULL, (void *)FIP_MODE_FABRIC, S_IWUSR);
 __MODULE_PARM_TYPE(create, "string");
 MODULE_PARM_DESC(create, " Creates fcoe instance on a ethernet interface");
 module_param_call(create_vn2vn, fcoe_create, NULL,
@@ -1243,7 +1243,6 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 	struct fcoe_interface *fcoe;
 	struct fc_frame_header *fh;
 	struct fcoe_percpu_s *fps;
-	struct fcoe_port *port;
 	struct ethhdr *eh;
 	unsigned int cpu;
 
@@ -1262,16 +1261,7 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 			skb_tail_pointer(skb), skb_end_pointer(skb),
 			skb->csum, skb->dev ? skb->dev->name : "<NULL>");
 
-	/* check for mac addresses */
 	eh = eth_hdr(skb);
-	port = lport_priv(lport);
-	if (compare_ether_addr(eh->h_dest, port->data_src_addr) &&
-	    compare_ether_addr(eh->h_dest, fcoe->ctlr.ctl_src_addr) &&
-	    compare_ether_addr(eh->h_dest, (u8[6])FC_FCOE_FLOGI_MAC)) {
-		FCOE_NETDEV_DBG(netdev, "wrong destination mac address:%pM\n",
-				eh->h_dest);
-		goto err;
-	}
 
 	if (is_fip_mode(&fcoe->ctlr) &&
 	    compare_ether_addr(eh->h_source, fcoe->ctlr.dest_addr)) {
@@ -1290,6 +1280,12 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 
 	skb_set_transport_header(skb, sizeof(struct fcoe_hdr));
 	fh = (struct fc_frame_header *) skb_transport_header(skb);
+
+	if (ntoh24(&eh->h_dest[3]) != ntoh24(fh->fh_d_id)) {
+		FCOE_NETDEV_DBG(netdev, "FC frame d_id mismatch with MAC:%pM\n",
+				eh->h_dest);
+		goto err;
+	}
 
 	fr = fcoe_dev_from_skb(skb);
 	fr->fr_dev = lport;

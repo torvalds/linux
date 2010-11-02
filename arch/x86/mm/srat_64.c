@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/topology.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <asm/proto.h>
 #include <asm/numa.h>
@@ -98,15 +99,15 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 	unsigned long phys;
 
 	length = slit->header.length;
-	phys = find_e820_area(0, max_pfn_mapped<<PAGE_SHIFT, length,
+	phys = memblock_find_in_range(0, max_pfn_mapped<<PAGE_SHIFT, length,
 		 PAGE_SIZE);
 
-	if (phys == -1L)
+	if (phys == MEMBLOCK_ERROR)
 		panic(" Can not save slit!\n");
 
 	acpi_slit = __va(phys);
 	memcpy(acpi_slit, slit, length);
-	reserve_early(phys, phys + length, "ACPI SLIT");
+	memblock_x86_reserve_range(phys, phys + length, "ACPI SLIT");
 }
 
 /* Callback for Proximity Domain -> x2APIC mapping */
@@ -324,7 +325,7 @@ static int __init nodes_cover_memory(const struct bootnode *nodes)
 			pxmram = 0;
 	}
 
-	e820ram = max_pfn - (e820_hole_size(0, max_pfn<<PAGE_SHIFT)>>PAGE_SHIFT);
+	e820ram = max_pfn - (memblock_x86_hole_size(0, max_pfn<<PAGE_SHIFT)>>PAGE_SHIFT);
 	/* We seem to lose 3 pages somewhere. Allow 1M of slack. */
 	if ((long)(e820ram - pxmram) >= (1<<(20 - PAGE_SHIFT))) {
 		printk(KERN_ERR
@@ -421,7 +422,7 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 	}
 
 	for (i = 0; i < num_node_memblks; i++)
-		e820_register_active_regions(memblk_nodeid[i],
+		memblock_x86_register_active_regions(memblk_nodeid[i],
 				node_memblk_range[i].start >> PAGE_SHIFT,
 				node_memblk_range[i].end >> PAGE_SHIFT);
 

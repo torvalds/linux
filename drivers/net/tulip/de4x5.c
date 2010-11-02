@@ -1448,7 +1448,7 @@ de4x5_sw_reset(struct net_device *dev)
 	status = -EIO;
     }
 
-    lp->tx_new = (++lp->tx_new) % lp->txRingSize;
+    lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
     lp->tx_old = lp->tx_new;
 
     return status;
@@ -1506,7 +1506,7 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
  	    lp->stats.tx_bytes += skb->len;
 	    outl(POLL_DEMAND, DE4X5_TPD);/* Start the TX */
 
-	    lp->tx_new = (++lp->tx_new) % lp->txRingSize;
+	    lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
 
 	    if (TX_BUFFS_AVAIL) {
 		netif_start_queue(dev);         /* Another pkt may be queued */
@@ -1657,7 +1657,7 @@ de4x5_rx(struct net_device *dev)
 	    }
 
 	    /* Change buffer ownership for this frame, back to the adapter */
-	    for (;lp->rx_old!=entry;lp->rx_old=(++lp->rx_old)%lp->rxRingSize) {
+	    for (;lp->rx_old!=entry;lp->rx_old=(lp->rx_old + 1)%lp->rxRingSize) {
 		lp->rx_ring[lp->rx_old].status = cpu_to_le32(R_OWN);
 		barrier();
 	    }
@@ -1668,7 +1668,7 @@ de4x5_rx(struct net_device *dev)
 	/*
 	** Update entry information
 	*/
-	lp->rx_new = (++lp->rx_new) % lp->rxRingSize;
+	lp->rx_new = (lp->rx_new + 1) % lp->rxRingSize;
     }
 
     return 0;
@@ -1726,7 +1726,7 @@ de4x5_tx(struct net_device *dev)
 	}
 
 	/* Update all the pointers */
-	lp->tx_old = (++lp->tx_old) % lp->txRingSize;
+	lp->tx_old = (lp->tx_old + 1) % lp->txRingSize;
     }
 
     /* Any resources available? */
@@ -1801,7 +1801,7 @@ de4x5_rx_ovfc(struct net_device *dev)
 
     for (; (s32)le32_to_cpu(lp->rx_ring[lp->rx_new].status)>=0;) {
 	lp->rx_ring[lp->rx_new].status = cpu_to_le32(R_OWN);
-	lp->rx_new = (++lp->rx_new % lp->rxRingSize);
+	lp->rx_new = (lp->rx_new + 1) % lp->rxRingSize;
     }
 
     outl(omr, DE4X5_OMR);
@@ -1932,7 +1932,7 @@ set_multicast_list(struct net_device *dev)
 	    load_packet(dev, lp->setup_frame, TD_IC | PERFECT_F | TD_SET |
 			                                SETUP_FRAME_LEN, (struct sk_buff *)1);
 
-	    lp->tx_new = (++lp->tx_new) % lp->txRingSize;
+	    lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
 	    outl(POLL_DEMAND, DE4X5_TPD);       /* Start the TX */
 	    dev->trans_start = jiffies; /* prevent tx timeout */
 	}
@@ -3119,7 +3119,7 @@ dc2114x_autoconf(struct net_device *dev)
 	  if (lp->media == _100Mb) {
 	      if ((slnk = test_for_100Mb(dev, 6500)) < 0) {
 		  lp->media = SPD_DET;
-		  return  (slnk & ~TIMER_CB);
+		  return slnk & ~TIMER_CB;
 	      }
 	  } else {
 	      if (wait_for_link(dev) < 0) {
@@ -3484,7 +3484,7 @@ is_spd_100(struct net_device *dev)
 	spd = ((~gep_rd(dev)) & GEP_SLNK);
     } else {
 	if ((lp->ibn == 2) || !lp->asBitValid)
-	    return ((lp->chipset == DC21143)?(~inl(DE4X5_SISR)&SISR_LS100):0);
+	    return (lp->chipset == DC21143) ? (~inl(DE4X5_SISR)&SISR_LS100) : 0;
 
 	spd = (lp->asBitValid & (lp->asPolarity ^ (gep_rd(dev) & lp->asBit))) |
 	          (lp->linkOK & ~lp->asBitValid);
@@ -3502,15 +3502,15 @@ is_100_up(struct net_device *dev)
     if (lp->useMII) {
 	/* Double read for sticky bits & temporary drops */
 	mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII);
-	return (mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII) & MII_SR_LKS);
+	return mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII) & MII_SR_LKS;
     } else if (!lp->useSROM) {                       /* de500-xa */
-	return ((~gep_rd(dev)) & GEP_SLNK);
+	return (~gep_rd(dev)) & GEP_SLNK;
     } else {
 	if ((lp->ibn == 2) || !lp->asBitValid)
-	    return ((lp->chipset == DC21143)?(~inl(DE4X5_SISR)&SISR_LS100):0);
+	    return (lp->chipset == DC21143) ? (~inl(DE4X5_SISR)&SISR_LS100) : 0;
 
-        return ((lp->asBitValid&(lp->asPolarity^(gep_rd(dev)&lp->asBit))) |
-		(lp->linkOK & ~lp->asBitValid));
+        return (lp->asBitValid&(lp->asPolarity^(gep_rd(dev)&lp->asBit))) |
+		(lp->linkOK & ~lp->asBitValid);
     }
 }
 
@@ -3523,17 +3523,17 @@ is_10_up(struct net_device *dev)
     if (lp->useMII) {
 	/* Double read for sticky bits & temporary drops */
 	mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII);
-	return (mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII) & MII_SR_LKS);
+	return mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII) & MII_SR_LKS;
     } else if (!lp->useSROM) {                       /* de500-xa */
-	return ((~gep_rd(dev)) & GEP_LNP);
+	return (~gep_rd(dev)) & GEP_LNP;
     } else {
 	if ((lp->ibn == 2) || !lp->asBitValid)
-	    return (((lp->chipset & ~0x00ff) == DC2114x) ?
+	    return ((lp->chipset & ~0x00ff) == DC2114x) ?
 		    (~inl(DE4X5_SISR)&SISR_LS10):
-		    0);
+		    0;
 
-	return ((lp->asBitValid&(lp->asPolarity^(gep_rd(dev)&lp->asBit))) |
-		(lp->linkOK & ~lp->asBitValid));
+	return	(lp->asBitValid&(lp->asPolarity^(gep_rd(dev)&lp->asBit))) |
+		(lp->linkOK & ~lp->asBitValid);
     }
 }
 
@@ -3544,7 +3544,7 @@ is_anc_capable(struct net_device *dev)
     u_long iobase = dev->base_addr;
 
     if (lp->phy[lp->active].id && (!lp->useSROM || lp->useMII)) {
-	return (mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII));
+	return mii_rd(MII_SR, lp->phy[lp->active].addr, DE4X5_MII);
     } else if ((lp->chipset & ~0x00ff) == DC2114x) {
 	return (inl(DE4X5_SISR) & SISR_LPN) >> 12;
     } else {
@@ -3568,7 +3568,7 @@ ping_media(struct net_device *dev, int msec)
 
 	lp->tmp = lp->tx_new;                /* Remember the ring position */
 	load_packet(dev, lp->frame, TD_LS | TD_FS | sizeof(lp->frame), (struct sk_buff *)1);
-	lp->tx_new = (++lp->tx_new) % lp->txRingSize;
+	lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
 	outl(POLL_DEMAND, DE4X5_TPD);
     }
 
@@ -4930,7 +4930,7 @@ getfrom_mii(u32 command, u_long ioaddr)
     outl(command | MII_MDC, ioaddr);
     udelay(1);
 
-    return ((inl(ioaddr) >> 19) & 1);
+    return (inl(ioaddr) >> 19) & 1;
 }
 
 /*
@@ -4975,8 +4975,8 @@ mii_get_oui(u_char phyaddr, u_long ioaddr)
     a.breg[0]=a.breg[1];
     a.breg[1]=i;
 
-    return ((a.reg<<8)|ret); */                 /* SEEQ and Cypress way */
-/*    return ((r2<<6)|(u_int)(r3>>10)); */      /* NATIONAL and BROADCOM way */
+    return (a.reg<<8)|ret; */                 /* SEEQ and Cypress way */
+/*    return (r2<<6)|(u_int)(r3>>10); */      /* NATIONAL and BROADCOM way */
     return r2;                                  /* (I did it) My way */
 }
 
@@ -5144,7 +5144,7 @@ gep_rd(struct net_device *dev)
     if (lp->chipset == DC21140) {
 	return inl(DE4X5_GEP);
     } else if ((lp->chipset & ~0x00ff) == DC2114x) {
-	return (inl(DE4X5_SIGR) & 0x000fffff);
+	return inl(DE4X5_SIGR) & 0x000fffff;
     }
 
     return 0;
@@ -5417,7 +5417,7 @@ de4x5_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	/* Set up the descriptor and give ownership to the card */
 	load_packet(dev, lp->setup_frame, TD_IC | PERFECT_F | TD_SET |
 		                                       SETUP_FRAME_LEN, (struct sk_buff *)1);
-	lp->tx_new = (++lp->tx_new) % lp->txRingSize;
+	lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
 	outl(POLL_DEMAND, DE4X5_TPD);                /* Start the TX */
 	netif_wake_queue(dev);                      /* Unlock the TX ring */
 	break;
@@ -5474,7 +5474,8 @@ de4x5_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	tmp.lval[6] = inl(DE4X5_STRR); j+=4;
 	tmp.lval[7] = inl(DE4X5_SIGR); j+=4;
 	ioc->len = j;
-	if (copy_to_user(ioc->data, tmp.addr, ioc->len)) return -EFAULT;
+	if (copy_to_user(ioc->data, tmp.lval, ioc->len))
+		return -EFAULT;
 	break;
 
 #define DE4X5_DUMP              0x0f /* Dump the DE4X5 Status */

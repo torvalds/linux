@@ -86,7 +86,8 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 			   const u8 *mac, const u8 *bssid);
 void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 			  struct rt2x00_intf *intf,
-			  struct ieee80211_bss_conf *conf);
+			  struct ieee80211_bss_conf *conf,
+			  u32 changed);
 void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 			      struct antenna_setup ant);
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
@@ -99,18 +100,15 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 
 /**
  * rt2x00queue_alloc_rxskb - allocate a skb for RX purposes.
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- * @queue: The queue for which the skb will be applicable.
+ * @entry: The entry for which the skb will be applicable.
  */
-struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
-					struct queue_entry *entry);
+struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry);
 
 /**
  * rt2x00queue_free_skb - free a skb
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- * @skb: The skb to free.
+ * @entry: The entry for which the skb will be applicable.
  */
-void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
+void rt2x00queue_free_skb(struct queue_entry *entry);
 
 /**
  * rt2x00queue_align_frame - Align 802.11 frame to 4-byte boundary

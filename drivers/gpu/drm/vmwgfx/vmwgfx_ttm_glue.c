@@ -39,7 +39,7 @@ int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
 		return drm_mmap(filp, vma);
 	}
 
-	file_priv = (struct drm_file *)filp->private_data;
+	file_priv = filp->private_data;
 	dev_priv = vmw_priv(file_priv->minor->dev);
 	return ttm_bo_mmap(filp, vma, &dev_priv->bdev);
 }

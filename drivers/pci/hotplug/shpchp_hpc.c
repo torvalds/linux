@@ -179,8 +179,6 @@
 #define SLOT_EVENT_LATCH	0x2
 #define SLOT_SERR_INT_MASK	0x3
 
-static atomic_t shpchp_num_controllers = ATOMIC_INIT(0);
-
 static irqreturn_t shpc_isr(int irq, void *dev_id);
 static void start_int_poll_timer(struct controller *ctrl, int sec);
 static int hpc_check_cmd_status(struct controller *ctrl);
@@ -614,13 +612,6 @@ static void hpc_release_ctlr(struct controller *ctrl)
 
 	iounmap(ctrl->creg);
 	release_mem_region(ctrl->mmio_base, ctrl->mmio_size);
-
-	/*
-	 * If this is the last controller to be released, destroy the
-	 * shpchpd work queue
-	 */
-	if (atomic_dec_and_test(&shpchp_num_controllers))
-		destroy_workqueue(shpchp_wq);
 }
 
 static int hpc_power_on_slot(struct slot * slot)
@@ -1077,9 +1068,8 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 
 		rc = request_irq(ctrl->pci_dev->irq, shpc_isr, IRQF_SHARED,
 				 MY_NAME, (void *)ctrl);
-		ctrl_dbg(ctrl, "request_irq %d for hpc%d (returns %d)\n",
-			 ctrl->pci_dev->irq,
-		    atomic_read(&shpchp_num_controllers), rc);
+		ctrl_dbg(ctrl, "request_irq %d (returns %d)\n",
+			 ctrl->pci_dev->irq, rc);
 		if (rc) {
 			ctrl_err(ctrl, "Can't get irq %d for the hotplug "
 				 "controller\n", ctrl->pci_dev->irq);
@@ -1090,18 +1080,6 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 
 	shpc_get_max_bus_speed(ctrl);
 	shpc_get_cur_bus_speed(ctrl);
-
-	/*
-	 * If this is the first controller to be initialized,
-	 * initialize the shpchpd work queue
-	 */
-	if (atomic_add_return(1, &shpchp_num_controllers) == 1) {
-		shpchp_wq = create_singlethread_workqueue("shpchpd");
-		if (!shpchp_wq) {
-			rc = -ENOMEM;
-			goto abort_iounmap;
-		}
-	}
 
 	/*
 	 * Unmask all event interrupts of all slots

@@ -159,7 +159,6 @@ irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 {
 	struct efx_nic *efx = dev_id;
 	efx_oword_t *int_ker = efx->irq_status.addr;
-	struct efx_channel *channel;
 	int syserr;
 	int queues;
 
@@ -194,15 +193,10 @@ irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 	wmb(); /* Ensure the vector is cleared before interrupt ack */
 	falcon_irq_ack_a1(efx);
 
-	/* Schedule processing of any interrupting queues */
-	channel = &efx->channel[0];
-	while (queues) {
-		if (queues & 0x01)
-			efx_schedule_channel(channel);
-		channel++;
-		queues >>= 1;
-	}
-
+	if (queues & 1)
+		efx_schedule_channel(efx_get_channel(efx, 0));
+	if (queues & 2)
+		efx_schedule_channel(efx_get_channel(efx, 1));
 	return IRQ_HANDLED;
 }
 /**************************************************************************
@@ -452,30 +446,19 @@ static void falcon_reset_macs(struct efx_nic *efx)
 		/* It's not safe to use GLB_CTL_REG to reset the
 		 * macs, so instead use the internal MAC resets
 		 */
-		if (!EFX_IS10G(efx)) {
-			EFX_POPULATE_OWORD_1(reg, FRF_AB_GM_SW_RST, 1);
-			efx_writeo(efx, &reg, FR_AB_GM_CFG1);
-			udelay(1000);
+		EFX_POPULATE_OWORD_1(reg, FRF_AB_XM_CORE_RST, 1);
+		efx_writeo(efx, &reg, FR_AB_XM_GLB_CFG);
 
-			EFX_POPULATE_OWORD_1(reg, FRF_AB_GM_SW_RST, 0);
-			efx_writeo(efx, &reg, FR_AB_GM_CFG1);
-			udelay(1000);
-			return;
-		} else {
-			EFX_POPULATE_OWORD_1(reg, FRF_AB_XM_CORE_RST, 1);
-			efx_writeo(efx, &reg, FR_AB_XM_GLB_CFG);
-
-			for (count = 0; count < 10000; count++) {
-				efx_reado(efx, &reg, FR_AB_XM_GLB_CFG);
-				if (EFX_OWORD_FIELD(reg, FRF_AB_XM_CORE_RST) ==
-				    0)
-					return;
-				udelay(10);
-			}
-
-			netif_err(efx, hw, efx->net_dev,
-				  "timed out waiting for XMAC core reset\n");
+		for (count = 0; count < 10000; count++) {
+			efx_reado(efx, &reg, FR_AB_XM_GLB_CFG);
+			if (EFX_OWORD_FIELD(reg, FRF_AB_XM_CORE_RST) ==
+			    0)
+				return;
+			udelay(10);
 		}
+
+		netif_err(efx, hw, efx->net_dev,
+			  "timed out waiting for XMAC core reset\n");
 	}
 
 	/* Mac stats will fail whist the TX fifo is draining */
@@ -514,7 +497,6 @@ static void falcon_reset_macs(struct efx_nic *efx)
 	 * are re-enabled by the caller */
 	efx_writeo(efx, &mac_ctrl, FR_AB_MAC_CTRL);
 
-	/* This can run even when the GMAC is selected */
 	falcon_setup_xaui(efx);
 }
 
@@ -652,8 +634,6 @@ static void falcon_stats_timer_func(unsigned long context)
 	spin_unlock(&efx->stats_lock);
 }
 
-static void falcon_switch_mac(struct efx_nic *efx);
-
 static bool falcon_loopback_link_poll(struct efx_nic *efx)
 {
 	struct efx_link_state old_state = efx->link_state;
@@ -664,11 +644,7 @@ static bool falcon_loopback_link_poll(struct efx_nic *efx)
 	efx->link_state.fd = true;
 	efx->link_state.fc = efx->wanted_fc;
 	efx->link_state.up = true;
-
-	if (efx->loopback_mode == LOOPBACK_GMAC)
-		efx->link_state.speed = 1000;
-	else
-		efx->link_state.speed = 10000;
+	efx->link_state.speed = 10000;
 
 	return !efx_link_state_equal(&efx->link_state, &old_state);
 }
@@ -691,7 +667,7 @@ static int falcon_reconfigure_port(struct efx_nic *efx)
 	falcon_stop_nic_stats(efx);
 	falcon_deconfigure_mac_wrapper(efx);
 
-	falcon_switch_mac(efx);
+	falcon_reset_macs(efx);
 
 	efx->phy_op->reconfigure(efx);
 	rc = efx->mac_op->reconfigure(efx);
@@ -841,72 +817,22 @@ out:
 	return rc;
 }
 
-static void falcon_clock_mac(struct efx_nic *efx)
-{
-	unsigned strap_val;
-	efx_oword_t nic_stat;
-
-	/* Configure the NIC generated MAC clock correctly */
-	efx_reado(efx, &nic_stat, FR_AB_NIC_STAT);
-	strap_val = EFX_IS10G(efx) ? 5 : 3;
-	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
-		EFX_SET_OWORD_FIELD(nic_stat, FRF_BB_EE_STRAP_EN, 1);
-		EFX_SET_OWORD_FIELD(nic_stat, FRF_BB_EE_STRAP, strap_val);
-		efx_writeo(efx, &nic_stat, FR_AB_NIC_STAT);
-	} else {
-		/* Falcon A1 does not support 1G/10G speed switching
-		 * and must not be used with a PHY that does. */
-		BUG_ON(EFX_OWORD_FIELD(nic_stat, FRF_AB_STRAP_PINS) !=
-		       strap_val);
-	}
-}
-
-static void falcon_switch_mac(struct efx_nic *efx)
-{
-	struct efx_mac_operations *old_mac_op = efx->mac_op;
-	struct falcon_nic_data *nic_data = efx->nic_data;
-	unsigned int stats_done_offset;
-
-	WARN_ON(!mutex_is_locked(&efx->mac_lock));
-	WARN_ON(nic_data->stats_disable_count == 0);
-
-	efx->mac_op = (EFX_IS10G(efx) ?
-		       &falcon_xmac_operations : &falcon_gmac_operations);
-
-	if (EFX_IS10G(efx))
-		stats_done_offset = XgDmaDone_offset;
-	else
-		stats_done_offset = GDmaDone_offset;
-	nic_data->stats_dma_done = efx->stats_buffer.addr + stats_done_offset;
-
-	if (old_mac_op == efx->mac_op)
-		return;
-
-	falcon_clock_mac(efx);
-
-	netif_dbg(efx, hw, efx->net_dev, "selected %cMAC\n",
-		  EFX_IS10G(efx) ? 'X' : 'G');
-	/* Not all macs support a mac-level link state */
-	efx->xmac_poll_required = false;
-	falcon_reset_macs(efx);
-}
-
 /* This call is responsible for hooking in the MAC and PHY operations */
 static int falcon_probe_port(struct efx_nic *efx)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	int rc;
 
 	switch (efx->phy_type) {
 	case PHY_TYPE_SFX7101:
 		efx->phy_op = &falcon_sfx7101_phy_ops;
 		break;
-	case PHY_TYPE_SFT9001A:
-	case PHY_TYPE_SFT9001B:
-		efx->phy_op = &falcon_sft9001_phy_ops;
-		break;
 	case PHY_TYPE_QT2022C2:
 	case PHY_TYPE_QT2025C:
 		efx->phy_op = &falcon_qt202x_phy_ops;
+		break;
+	case PHY_TYPE_TXC43128:
+		efx->phy_op = &falcon_txc_phy_ops;
 		break;
 	default:
 		netif_err(efx, probe, efx->net_dev, "Unknown PHY type %d\n",
@@ -943,6 +869,7 @@ static int falcon_probe_port(struct efx_nic *efx)
 		  (u64)efx->stats_buffer.dma_addr,
 		  efx->stats_buffer.addr,
 		  (u64)virt_to_phys(efx->stats_buffer.addr));
+	nic_data->stats_dma_done = efx->stats_buffer.addr + XgDmaDone_offset;
 
 	return 0;
 }
@@ -1207,7 +1134,7 @@ static void falcon_monitor(struct efx_nic *efx)
 		falcon_stop_nic_stats(efx);
 		falcon_deconfigure_mac_wrapper(efx);
 
-		falcon_switch_mac(efx);
+		falcon_reset_macs(efx);
 		rc = efx->mac_op->reconfigure(efx);
 		BUG_ON(rc);
 
@@ -1216,8 +1143,7 @@ static void falcon_monitor(struct efx_nic *efx)
 		efx_link_status_changed(efx);
 	}
 
-	if (EFX_IS10G(efx))
-		falcon_poll_xmac(efx);
+	falcon_poll_xmac(efx);
 }
 
 /* Zeroes out the SRAM contents.  This routine must be called in
@@ -1610,16 +1536,6 @@ static int falcon_init_nic(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(temp, FRF_AB_ONCHIP_SRAM, 1);
 	efx_writeo(efx, &temp, FR_AB_NIC_STAT);
 
-	/* Set the source of the GMAC clock */
-	if (efx_nic_rev(efx) == EFX_REV_FALCON_B0) {
-		efx_reado(efx, &temp, FR_AB_GPIO_CTL);
-		EFX_SET_OWORD_FIELD(temp, FRF_AB_USE_NIC_CLK, true);
-		efx_writeo(efx, &temp, FR_AB_GPIO_CTL);
-	}
-
-	/* Select the correct MAC */
-	falcon_clock_mac(efx);
-
 	rc = falcon_reset_sram(efx);
 	if (rc)
 		return rc;
@@ -1880,7 +1796,7 @@ struct efx_nic_type falcon_b0_nic_type = {
 				   * channels */
 	.tx_dc_base = 0x130000,
 	.rx_dc_base = 0x100000,
-	.offload_features = NETIF_F_IP_CSUM | NETIF_F_RXHASH,
+	.offload_features = NETIF_F_IP_CSUM | NETIF_F_RXHASH | NETIF_F_NTUPLE,
 	.reset_world_flags = ETH_RESET_IRQ,
 };
 

@@ -213,7 +213,7 @@ void __init davinci_setup_mmc(int module, struct davinci_mmc_config *config)
 				IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE + 0x7c);
 
 			/* Configure pull down control */
-			__raw_writel((__raw_readl(pupdctl1) & ~0x400),
+			__raw_writel((__raw_readl(pupdctl1) & ~0xfc0),
 					pupdctl1);
 
 			mmcsd1_resources[0].start = DM365_MMCSD1_BASE;

@@ -97,6 +97,24 @@ system_call_common:
 	addi	r9,r1,STACK_FRAME_OVERHEAD
 	ld	r11,exception_marker@toc(r2)
 	std	r11,-16(r9)		/* "regshere" marker */
+#if defined(CONFIG_VIRT_CPU_ACCOUNTING) && defined(CONFIG_PPC_SPLPAR)
+BEGIN_FW_FTR_SECTION
+	beq	33f
+	/* if from user, see if there are any DTL entries to process */
+	ld	r10,PACALPPACAPTR(r13)	/* get ptr to VPA */
+	ld	r11,PACA_DTL_RIDX(r13)	/* get log read index */
+	ld	r10,LPPACA_DTLIDX(r10)	/* get log write index */
+	cmpd	cr1,r11,r10
+	beq+	cr1,33f
+	bl	.accumulate_stolen_time
+	REST_GPR(0,r1)
+	REST_4GPRS(3,r1)
+	REST_2GPRS(7,r1)
+	addi	r9,r1,STACK_FRAME_OVERHEAD
+33:
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING && CONFIG_PPC_SPLPAR */
+
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	.trace_hardirqs_on
 	REST_GPR(0,r1)
@@ -202,7 +220,9 @@ syscall_exit:
 	bge-	syscall_error
 syscall_error_cont:
 	ld	r7,_NIP(r1)
+BEGIN_FTR_SECTION
 	stdcx.	r0,0,r1			/* to clear the reservation */
+END_FTR_SECTION_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	andi.	r6,r8,MSR_PR
 	ld	r4,_LINK(r1)
 	/*
@@ -419,6 +439,17 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	sync
 #endif /* CONFIG_SMP */
 
+	/*
+	 * If we optimise away the clear of the reservation in system
+	 * calls because we know the CPU tracks the address of the
+	 * reservation, then we need to clear it here to cover the
+	 * case that the kernel context switch path has no larx
+	 * instructions.
+	 */
+BEGIN_FTR_SECTION
+	ldarx	r6,0,r1
+END_FTR_SECTION_IFSET(CPU_FTR_STCX_CHECKS_ADDRESS)
+
 	addi	r6,r4,-THREAD	/* Convert THREAD to 'current' */
 	std	r6,PACACURRENT(r13)	/* Set new 'current' */
 
@@ -576,7 +607,16 @@ ALT_FW_FTR_SECTION_END_IFCLR(FW_FEATURE_ISERIES)
 	andi.	r0,r3,MSR_RI
 	beq-	unrecov_restore
 
+	/*
+	 * Clear the reservation. If we know the CPU tracks the address of
+	 * the reservation then we can potentially save some cycles and use
+	 * a larx. On POWER6 and POWER7 this is significantly faster.
+	 */
+BEGIN_FTR_SECTION
 	stdcx.	r0,0,r1		/* to clear the reservation */
+FTR_SECTION_ELSE
+	ldarx	r4,0,r1
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 
 	/*
 	 * Clear RI before restoring r13.  If we are returning to
