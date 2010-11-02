@@ -47,6 +47,13 @@ static int stingray_touch_reset(void)
 	return 0;
 }
 
+static int stingray_touch_suspend(int enable)
+{
+	gpio_set_value(STINGRAY_TOUCH_WAKE_N_GPIO, enable);
+	msleep(20);
+	return 0;
+}
+
 /* mortable M1 */
 struct qtouch_ts_platform_data stingray_touch_data_m1 = {
 
@@ -248,6 +255,7 @@ struct qtouch_ts_platform_data stingray_touch_data_p0 = {
 	.fuzz_w			= 2,
 	.boot_i2c_addr	= XMEGAT_BL_I2C_ADDR,
 	.hw_reset		= stingray_touch_reset,
+	.hw_suspend		= stingray_touch_suspend,
 	.key_array = {
 		.cfg		= NULL,
 		.keys		= NULL,
@@ -429,6 +437,7 @@ struct qtouch_ts_platform_data stingray_touch_data_p1_or_later = {
 	.fuzz_w			= 2,
 	.boot_i2c_addr	= XMEGAT_BL_I2C_ADDR,
 	.hw_reset		= stingray_touch_reset,
+	.hw_suspend		= stingray_touch_suspend,
 	.key_array = {
 		.cfg		= NULL,
 		.keys		= NULL,
