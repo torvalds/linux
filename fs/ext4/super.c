@@ -2699,7 +2699,6 @@ static int ext4_lazyinit_thread(void *arg)
 	struct ext4_li_request *elr;
 	unsigned long next_wakeup;
 	DEFINE_WAIT(wait);
-	int ret;
 
 	BUG_ON(NULL == eli);
 
@@ -2723,13 +2722,12 @@ cont_thread:
 			elr = list_entry(pos, struct ext4_li_request,
 					 lr_request);
 
-			if (time_after_eq(jiffies, elr->lr_next_sched))
-				ret = ext4_run_li_request(elr);
-
-			if (ret) {
-				ret = 0;
-				ext4_remove_li_request(elr);
-				continue;
+			if (time_after_eq(jiffies, elr->lr_next_sched)) {
+				if (ext4_run_li_request(elr) != 0) {
+					/* error, remove the lazy_init job */
+					ext4_remove_li_request(elr);
+					continue;
+				}
 			}
 
 			if (time_before(elr->lr_next_sched, next_wakeup))
