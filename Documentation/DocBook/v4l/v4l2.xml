@@ -99,6 +99,7 @@ Remote Controller chapter.</contrib>
       <year>2007</year>
       <year>2008</year>
       <year>2009</year>
+      <year>2010</year>
       <holder>Bill Dirks, Michael H. Schimek, Hans Verkuil, Martin
 Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab</holder>
     </copyright>
@@ -110,8 +111,15 @@ Rubli, Andy Walls, Muralidharan Karicheri, Mauro Carvalho Chehab</holder>
       <!-- Put document revisions here, newest first. -->
       <!-- API revisions (changes and additions of defines, enums,
 structs, ioctls) must be noted in more detail in the history chapter
-(compat.sgml), along with the possible impact on existing drivers and
+(compat.xml), along with the possible impact on existing drivers and
 applications. -->
+
+      <revision>
+	<revnumber>2.6.37</revnumber>
+	<date>2010-08-06</date>
+	<authorinitials>hv</authorinitials>
+	<revremark>Removed obsolete vtx (videotext) API.</revremark>
+      </revision>
 
       <revision>
 	<revnumber>2.6.33</revnumber>

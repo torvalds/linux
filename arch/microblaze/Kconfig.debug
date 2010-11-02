@@ -10,7 +10,7 @@ source "lib/Kconfig.debug"
 
 config EARLY_PRINTK
 	bool "Early printk function for kernel"
-	depends on SERIAL_UARTLITE_CONSOLE
+	depends on SERIAL_UARTLITE_CONSOLE || SERIAL_8250_CONSOLE
 	default n
 	help
 	  This option turns on/off early printk messages to console.

@@ -142,6 +142,7 @@ static int __init amiga_zorro_probe(struct platform_device *pdev)
 	error = device_register(&bus->dev);
 	if (error) {
 		pr_err("Zorro: Error registering zorro_bus\n");
+		put_device(&bus->dev);
 		kfree(bus);
 		return error;
 	}
@@ -175,6 +176,7 @@ static int __init amiga_zorro_probe(struct platform_device *pdev)
 		if (error) {
 			dev_err(&bus->dev, "Error registering device %s\n",
 				z->name);
+			put_device(&z->dev);
 			continue;
 		}
 		error = zorro_create_sysfs_dev_files(z);

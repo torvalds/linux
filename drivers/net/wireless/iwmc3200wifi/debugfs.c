@@ -402,24 +402,28 @@ static const struct file_operations iwm_debugfs_txq_fops = {
 	.owner =	THIS_MODULE,
 	.open =		iwm_generic_open,
 	.read =		iwm_debugfs_txq_read,
+	.llseek =	default_llseek,
 };
 
 static const struct file_operations iwm_debugfs_tx_credit_fops = {
 	.owner =	THIS_MODULE,
 	.open =		iwm_generic_open,
 	.read =		iwm_debugfs_tx_credit_read,
+	.llseek =	default_llseek,
 };
 
 static const struct file_operations iwm_debugfs_rx_ticket_fops = {
 	.owner =	THIS_MODULE,
 	.open =		iwm_generic_open,
 	.read =		iwm_debugfs_rx_ticket_read,
+	.llseek =	default_llseek,
 };
 
 static const struct file_operations iwm_debugfs_fw_err_fops = {
 	.owner =	THIS_MODULE,
 	.open =		iwm_generic_open,
 	.read =		iwm_debugfs_fw_err_read,
+	.llseek =	default_llseek,
 };
 
 void iwm_debugfs_init(struct iwm_priv *iwm)

@@ -184,6 +184,7 @@ static const struct file_operations erst_dbg_ops = {
 	.read		= erst_dbg_read,
 	.write		= erst_dbg_write,
 	.unlocked_ioctl	= erst_dbg_ioctl,
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice erst_dbg_dev = {

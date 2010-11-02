@@ -1,10 +1,12 @@
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <linux/sort.h>
 #include <linux/slab.h>
 
 #include "super.h"
-#include "decode.h"
+#include "mds_client.h"
+
+#include <linux/ceph/decode.h>
 
 /*
  * Snapshots in ceph are driven in large part by cooperation from the
@@ -526,7 +528,7 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 			    struct ceph_cap_snap *capsnap)
 {
 	struct inode *inode = &ci->vfs_inode;
-	struct ceph_mds_client *mdsc = &ceph_sb_to_client(inode->i_sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 
 	BUG_ON(capsnap->writing);
 	capsnap->size = inode->i_size;
@@ -747,7 +749,7 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 		      struct ceph_mds_session *session,
 		      struct ceph_msg *msg)
 {
-	struct super_block *sb = mdsc->client->sb;
+	struct super_block *sb = mdsc->fsc->sb;
 	int mds = session->s_mds;
 	u64 split;
 	int op;

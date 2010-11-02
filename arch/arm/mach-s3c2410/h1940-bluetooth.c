@@ -30,7 +30,7 @@ static void h1940bt_enable(int on)
 {
 	if (on) {
 		/* Power on the chip */
-		h1940_latch_control(0, H1940_LATCH_BLUETOOTH_POWER);
+		gpio_set_value(H1940_LATCH_BLUETOOTH_POWER, 1);
 		/* Reset the chip */
 		mdelay(10);
 
@@ -43,7 +43,7 @@ static void h1940bt_enable(int on)
 		mdelay(10);
 		gpio_set_value(S3C2410_GPH(1), 0);
 		mdelay(10);
-		h1940_latch_control(H1940_LATCH_BLUETOOTH_POWER, 0);
+		gpio_set_value(H1940_LATCH_BLUETOOTH_POWER, 0);
 	}
 }
 
@@ -64,7 +64,14 @@ static int __devinit h1940bt_probe(struct platform_device *pdev)
 
 	ret = gpio_request(S3C2410_GPH(1), dev_name(&pdev->dev));
 	if (ret) {
-		dev_err(&pdev->dev, "could not get GPH1\n");\
+		dev_err(&pdev->dev, "could not get GPH1\n");
+		return ret;
+	}
+
+	ret = gpio_request(H1940_LATCH_BLUETOOTH_POWER, dev_name(&pdev->dev));
+	if (ret) {
+		gpio_free(S3C2410_GPH(1));
+		dev_err(&pdev->dev, "could not get BT_POWER\n");
 		return ret;
 	}
 

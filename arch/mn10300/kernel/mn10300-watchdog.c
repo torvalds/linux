@@ -30,7 +30,7 @@
 static DEFINE_SPINLOCK(watchdog_print_lock);
 static unsigned int watchdog;
 static unsigned int watchdog_hz = 1;
-unsigned int watchdog_alert_counter;
+unsigned int watchdog_alert_counter[NR_CPUS];
 
 EXPORT_SYMBOL(touch_nmi_watchdog);
 
@@ -38,9 +38,6 @@ EXPORT_SYMBOL(touch_nmi_watchdog);
  * the best way to detect whether a CPU has a 'hard lockup' problem
  * is to check its timer makes IRQ counts. If they are not
  * changing then that CPU has some problem.
- *
- * as these watchdog NMI IRQs are generated on every CPU, we only
- * have to check the current processor.
  *
  * since NMIs dont listen to _any_ locks, we have to be extremely
  * careful not to rely on unsafe variables. The printk might lock
@@ -69,8 +66,8 @@ int __init check_watchdog(void)
 
 	printk(KERN_INFO "OK.\n");
 
-	/* now that we know it works we can reduce NMI frequency to
-	 * something more reasonable; makes a difference in some configs
+	/* now that we know it works we can reduce NMI frequency to something
+	 * more reasonable; makes a difference in some configs
 	 */
 	watchdog_hz = 1;
 
@@ -121,15 +118,22 @@ void __init watchdog_go(void)
 	}
 }
 
+#ifdef CONFIG_SMP
+static void watchdog_dump_register(void *dummy)
+{
+	printk(KERN_ERR "--- Register Dump (CPU%d) ---\n", CPUID);
+	show_registers(current_frame());
+}
+#endif
+
 asmlinkage
 void watchdog_interrupt(struct pt_regs *regs, enum exception_code excep)
 {
-
 	/*
 	 * Since current-> is always on the stack, and we always switch
 	 * the stack NMI-atomically, it's safe to use smp_processor_id().
 	 */
-	int sum, cpu = smp_processor_id();
+	int sum, cpu;
 	int irq = NMIIRQ;
 	u8 wdt, tmp;
 
@@ -138,43 +142,61 @@ void watchdog_interrupt(struct pt_regs *regs, enum exception_code excep)
 	tmp = WDCTR;
 	NMICR = NMICR_WDIF;
 
-	nmi_count(cpu)++;
+	nmi_count(smp_processor_id())++;
 	kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
-	sum = irq_stat[cpu].__irq_count;
 
-	if (last_irq_sums[cpu] == sum) {
-		/*
-		 * Ayiee, looks like this CPU is stuck ...
-		 * wait a few IRQs (5 seconds) before doing the oops ...
-		 */
-		watchdog_alert_counter++;
-		if (watchdog_alert_counter == 5 * watchdog_hz) {
-			spin_lock(&watchdog_print_lock);
-			/*
-			 * We are in trouble anyway, lets at least try
-			 * to get a message out.
-			 */
-			bust_spinlocks(1);
-			printk(KERN_ERR
-			       "NMI Watchdog detected LOCKUP on CPU%d,"
-			       " pc %08lx, registers:\n",
-			       cpu, regs->pc);
-			show_registers(regs);
-			printk("console shuts up ...\n");
-			console_silent();
-			spin_unlock(&watchdog_print_lock);
-			bust_spinlocks(0);
-#ifdef CONFIG_GDBSTUB
-			if (gdbstub_busy)
-				gdbstub_exception(regs, excep);
-			else
-				gdbstub_intercept(regs, excep);
+	for_each_online_cpu(cpu) {
+
+		sum = irq_stat[cpu].__irq_count;
+
+		if ((last_irq_sums[cpu] == sum)
+#if defined(CONFIG_GDBSTUB) && defined(CONFIG_SMP)
+			&& !(CHK_GDBSTUB_BUSY()
+			     || atomic_read(&cpu_doing_single_step))
 #endif
-			do_exit(SIGSEGV);
+			) {
+			/*
+			 * Ayiee, looks like this CPU is stuck ...
+			 * wait a few IRQs (5 seconds) before doing the oops ...
+			 */
+			watchdog_alert_counter[cpu]++;
+			if (watchdog_alert_counter[cpu] == 5 * watchdog_hz) {
+				spin_lock(&watchdog_print_lock);
+				/*
+				 * We are in trouble anyway, lets at least try
+				 * to get a message out.
+				 */
+				bust_spinlocks(1);
+				printk(KERN_ERR
+				       "NMI Watchdog detected LOCKUP on CPU%d,"
+				       " pc %08lx, registers:\n",
+				       cpu, regs->pc);
+#ifdef CONFIG_SMP
+				printk(KERN_ERR
+				       "--- Register Dump (CPU%d) ---\n",
+				       CPUID);
+#endif
+				show_registers(regs);
+#ifdef CONFIG_SMP
+				smp_nmi_call_function(watchdog_dump_register,
+					NULL, 1);
+#endif
+				printk(KERN_NOTICE "console shuts up ...\n");
+				console_silent();
+				spin_unlock(&watchdog_print_lock);
+				bust_spinlocks(0);
+#ifdef CONFIG_GDBSTUB
+				if (CHK_GDBSTUB_BUSY_AND_ACTIVE())
+					gdbstub_exception(regs, excep);
+				else
+					gdbstub_intercept(regs, excep);
+#endif
+				do_exit(SIGSEGV);
+			}
+		} else {
+			last_irq_sums[cpu] = sum;
+			watchdog_alert_counter[cpu] = 0;
 		}
-	} else {
-		last_irq_sums[cpu] = sum;
-		watchdog_alert_counter = 0;
 	}
 
 	WDCTR = wdt | WDCTR_WDRST;

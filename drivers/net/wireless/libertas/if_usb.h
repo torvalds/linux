@@ -43,6 +43,7 @@ struct bootcmdresp
 /** USB card description structure*/
 struct if_usb_card {
 	struct usb_device *udev;
+	uint32_t model;  /* MODEL_* */
 	struct urb *rx_urb, *tx_urb;
 	struct lbs_private *priv;
 

@@ -160,7 +160,7 @@ static void Wb35Rx_Complete(struct urb *urb)
 	u32			SizeCheck;
 	u16			BulkLength;
 	u32			RxBufferId;
-	R00_DESCRIPTOR		R00;
+	struct R00_descriptor		R00;
 
 	/* Variable setting */
 	pWb35Rx->EP3vm_state = VM_COMPLETED;

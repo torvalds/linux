@@ -43,10 +43,6 @@ struct netns_xfrm {
 	unsigned int		policy_count[XFRM_POLICY_MAX * 2];
 	struct work_struct	policy_hash_work;
 
-	struct dst_ops		xfrm4_dst_ops;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	struct dst_ops		xfrm6_dst_ops;
-#endif
 
 	struct sock		*nlsk;
 	struct sock		*nlsk_stash;
@@ -57,6 +53,11 @@ struct netns_xfrm {
 	u32			sysctl_acq_expires;
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*sysctl_hdr;
+#endif
+
+	struct dst_ops		xfrm4_dst_ops;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct dst_ops		xfrm6_dst_ops;
 #endif
 };
 

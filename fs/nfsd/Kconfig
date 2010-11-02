@@ -28,6 +28,18 @@ config NFSD
 
 	  If unsure, say N.
 
+config NFSD_DEPRECATED
+	bool "Include support for deprecated syscall interface to NFSD"
+	depends on NFSD
+	default y
+	help
+	  The syscall interface to nfsd was obsoleted in 2.6.0 by a new
+	  filesystem based interface.  The old interface is due for removal
+	  in 2.6.40.  If you wish to remove the interface before then
+	  say N.
+
+	  In unsure, say Y.
+
 config NFSD_V2_ACL
 	bool
 	depends on NFSD

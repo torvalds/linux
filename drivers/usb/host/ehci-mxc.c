@@ -26,9 +26,6 @@
 #include <mach/mxc_ehci.h>
 
 #define ULPI_VIEWPORT_OFFSET	0x170
-#define PORTSC_OFFSET		0x184
-#define USBMODE_OFFSET		0x1a8
-#define USBMODE_CM_HOST		3
 
 struct ehci_mxc_priv {
 	struct clk *usbclk, *ahbclk;
@@ -51,6 +48,8 @@ static int ehci_mxc_setup(struct usb_hcd *hcd)
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
+	hcd->has_tt = 1;
+
 	retval = ehci_halt(ehci);
 	if (retval)
 		return retval;
@@ -59,8 +58,6 @@ static int ehci_mxc_setup(struct usb_hcd *hcd)
 	retval = ehci_init(hcd);
 	if (retval)
 		return retval;
-
-	hcd->has_tt = 1;
 
 	ehci->sbrn = 0x20;
 
@@ -191,12 +188,8 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		clk_enable(priv->ahbclk);
 	}
 
-	/* set USBMODE to host mode */
-	temp = readl(hcd->regs + USBMODE_OFFSET);
-	writel(temp | USBMODE_CM_HOST, hcd->regs + USBMODE_OFFSET);
-
 	/* set up the PORTSCx register */
-	writel(pdata->portsc, hcd->regs + PORTSC_OFFSET);
+	ehci_writel(ehci, pdata->portsc, &ehci->regs->port_status[0]);
 	mdelay(10);
 
 	/* setup specific usb hw */

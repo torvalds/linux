@@ -41,7 +41,6 @@
 #include <asm/irq.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/of_platform.h>
 #include <linux/of_i2c.h>
 

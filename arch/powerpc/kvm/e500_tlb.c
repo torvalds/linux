@@ -226,8 +226,7 @@ static void kvmppc_e500_stlbe_invalidate(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 	kvmppc_e500_shadow_release(vcpu_e500, tlbsel, esel);
 	stlbe->mas1 = 0;
-	trace_kvm_stlb_inval(index_of(tlbsel, esel), stlbe->mas1, stlbe->mas2,
-			     stlbe->mas3, stlbe->mas7);
+	trace_kvm_stlb_inval(index_of(tlbsel, esel));
 }
 
 static void kvmppc_e500_tlb1_invalidate(struct kvmppc_vcpu_e500 *vcpu_e500,
@@ -298,7 +297,8 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	/* Get reference to new page. */
 	new_page = gfn_to_page(vcpu_e500->vcpu.kvm, gfn);
 	if (is_error_page(new_page)) {
-		printk(KERN_ERR "Couldn't get guest page for gfn %lx!\n", gfn);
+		printk(KERN_ERR "Couldn't get guest page for gfn %lx!\n",
+				(long)gfn);
 		kvm_release_page_clean(new_page);
 		return;
 	}
@@ -314,10 +314,10 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 		| MAS1_TID(get_tlb_tid(gtlbe)) | MAS1_TS | MAS1_VALID;
 	stlbe->mas2 = (gvaddr & MAS2_EPN)
 		| e500_shadow_mas2_attrib(gtlbe->mas2,
-				vcpu_e500->vcpu.arch.msr & MSR_PR);
+				vcpu_e500->vcpu.arch.shared->msr & MSR_PR);
 	stlbe->mas3 = (hpaddr & MAS3_RPN)
 		| e500_shadow_mas3_attrib(gtlbe->mas3,
-				vcpu_e500->vcpu.arch.msr & MSR_PR);
+				vcpu_e500->vcpu.arch.shared->msr & MSR_PR);
 	stlbe->mas7 = (hpaddr >> 32) & MAS7_RPN;
 
 	trace_kvm_stlb_write(index_of(tlbsel, esel), stlbe->mas1, stlbe->mas2,
@@ -576,28 +576,28 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 
 int kvmppc_mmu_itlb_index(struct kvm_vcpu *vcpu, gva_t eaddr)
 {
-	unsigned int as = !!(vcpu->arch.msr & MSR_IS);
+	unsigned int as = !!(vcpu->arch.shared->msr & MSR_IS);
 
 	return kvmppc_e500_tlb_search(vcpu, eaddr, get_cur_pid(vcpu), as);
 }
 
 int kvmppc_mmu_dtlb_index(struct kvm_vcpu *vcpu, gva_t eaddr)
 {
-	unsigned int as = !!(vcpu->arch.msr & MSR_DS);
+	unsigned int as = !!(vcpu->arch.shared->msr & MSR_DS);
 
 	return kvmppc_e500_tlb_search(vcpu, eaddr, get_cur_pid(vcpu), as);
 }
 
 void kvmppc_mmu_itlb_miss(struct kvm_vcpu *vcpu)
 {
-	unsigned int as = !!(vcpu->arch.msr & MSR_IS);
+	unsigned int as = !!(vcpu->arch.shared->msr & MSR_IS);
 
 	kvmppc_e500_deliver_tlb_miss(vcpu, vcpu->arch.pc, as);
 }
 
 void kvmppc_mmu_dtlb_miss(struct kvm_vcpu *vcpu)
 {
-	unsigned int as = !!(vcpu->arch.msr & MSR_DS);
+	unsigned int as = !!(vcpu->arch.shared->msr & MSR_DS);
 
 	kvmppc_e500_deliver_tlb_miss(vcpu, vcpu->arch.fault_dear, as);
 }

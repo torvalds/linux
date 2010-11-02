@@ -130,6 +130,16 @@ config MMC_SDHCI_CNS3XXX
 
 	  If unsure, say N.
 
+config MMC_SDHCI_ESDHC_IMX
+	bool "SDHCI platform support for the Freescale eSDHC i.MX controller"
+	depends on MMC_SDHCI_PLTFM && (ARCH_MX25 || ARCH_MX35 || ARCH_MX5)
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Freescale eSDHC controller support on the platform
+	  bus, found on platforms like mx35/51.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_S3C
 	tristate "SDHCI support on Samsung S3C SoC"
 	depends on MMC_SDHCI && PLAT_SAMSUNG
@@ -142,6 +152,18 @@ config MMC_SDHCI_S3C
 	  available with CONFIG_EXPERIMENTAL is selected.
 
 	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_PXA
+	tristate "Marvell PXA168/PXA910/MMP2 SD Host Controller support"
+	depends on ARCH_PXA || ARCH_MMP
+	select MMC_SDHCI
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Marvell(R) PXA168/PXA910/MMP2 SD Host Controller.
+	  If you have a PXA168/PXA910/MMP2 platform with SD Host Controller
+	  and a card slot, say Y or M here.
 
 	  If unsure, say N.
 
@@ -237,7 +259,7 @@ endchoice
 
 config MMC_ATMELMCI_DMA
 	bool "Atmel MCI DMA support (EXPERIMENTAL)"
-	depends on MMC_ATMELMCI && AVR32 && DMA_ENGINE && EXPERIMENTAL
+	depends on MMC_ATMELMCI && (AVR32 || ARCH_AT91SAM9G45) && DMA_ENGINE && EXPERIMENTAL
 	help
 	  Say Y here to have the Atmel MCI driver use a DMA engine to
 	  do data transfers and thus increase the throughput and
@@ -395,6 +417,7 @@ config MMC_TMIO
 config MMC_CB710
 	tristate "ENE CB710 MMC/SD Interface support"
 	depends on PCI
+	select MISC_DEVICES
 	select CB710_CORE
 	help
 	  This option enables support for MMC/SD part of ENE CB710/720 Flash
@@ -451,3 +474,17 @@ config MMC_JZ4740
 	  SoCs.
 	  If you have a board based on such a SoC and with a SD/MMC slot,
 	  say Y or M here.
+
+config MMC_USHC
+	tristate "USB SD Host Controller (USHC) support"
+	depends on USB
+	help
+	  This selects support for USB SD Host Controllers based on
+	  the Cypress Astoria chip with firmware compliant with CSR's
+	  USB SD Host Controller specification (CS-118793-SP).
+
+	  CSR boards with this device include: USB<>SDIO (M1985v2),
+	  and Ultrasira.
+
+	  Note: These controllers only support SDIO cards and do not
+	  support MMC or SD memory cards.

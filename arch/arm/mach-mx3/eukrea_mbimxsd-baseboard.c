@@ -43,14 +43,13 @@
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
 #include <mach/audmux.h>
-#include <mach/ssi.h>
 
 #include "devices-imx35.h"
 #include "devices.h"
 
 static const struct fb_videomode fb_modedb[] = {
 	{
-		.name		= "CMO_QVGA",
+		.name		= "CMO-QVGA",
 		.refresh	= 60,
 		.xres		= 320,
 		.yres		= 240,
@@ -65,6 +64,40 @@ static const struct fb_videomode fb_modedb[] = {
 		.vmode		= FB_VMODE_NONINTERLACED,
 		.flag		= 0,
 	},
+	{
+		.name		= "DVI-VGA",
+		.refresh	= 60,
+		.xres		= 640,
+		.yres		= 480,
+		.pixclock	= 32000,
+		.left_margin	= 100,
+		.right_margin	= 100,
+		.upper_margin	= 7,
+		.lower_margin	= 100,
+		.hsync_len	= 7,
+		.vsync_len	= 7,
+		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT |
+				  FB_SYNC_OE_ACT_HIGH | FB_SYNC_CLK_INVERT,
+		.vmode		= FB_VMODE_NONINTERLACED,
+		.flag		= 0,
+	},
+	{
+		.name		= "DVI-SVGA",
+		.refresh	= 60,
+		.xres		= 800,
+		.yres		= 600,
+		.pixclock	= 25000,
+		.left_margin	= 75,
+		.right_margin	= 75,
+		.upper_margin	= 7,
+		.lower_margin	= 75,
+		.hsync_len	= 7,
+		.vsync_len	= 7,
+		.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT |
+				  FB_SYNC_OE_ACT_HIGH | FB_SYNC_CLK_INVERT,
+		.vmode		= FB_VMODE_NONINTERLACED,
+		.flag		= 0,
+	},
 };
 
 static struct ipu_platform_data mx3_ipu_data = {
@@ -73,7 +106,7 @@ static struct ipu_platform_data mx3_ipu_data = {
 
 static struct mx3fb_platform_data mx3fb_pdata = {
 	.dma_dev	= &mx3_ipu.dev,
-	.name		= "CMO_QVGA",
+	.name		= "CMO-QVGA",
 	.mode		= fb_modedb,
 	.num_modes	= ARRAY_SIZE(fb_modedb),
 };
@@ -120,6 +153,16 @@ static struct pad_desc eukrea_mbimxsd_pads[] = {
 	MX35_PAD_STXD4__AUDMUX_AUD4_TXD,
 	MX35_PAD_SRXD4__AUDMUX_AUD4_RXD,
 	MX35_PAD_SCK4__AUDMUX_AUD4_TXC,
+	/* CAN2 */
+	MX35_PAD_TX5_RX0__CAN2_TXCAN,
+	MX35_PAD_TX4_RX1__CAN2_RXCAN,
+	/* SDCARD */
+	MX35_PAD_SD1_CMD__ESDHC1_CMD,
+	MX35_PAD_SD1_CLK__ESDHC1_CLK,
+	MX35_PAD_SD1_DATA0__ESDHC1_DAT0,
+	MX35_PAD_SD1_DATA1__ESDHC1_DAT1,
+	MX35_PAD_SD1_DATA2__ESDHC1_DAT2,
+	MX35_PAD_SD1_DATA3__ESDHC1_DAT3,
 };
 
 #define GPIO_LED1	(2 * 32 + 29)
@@ -206,7 +249,8 @@ static struct i2c_board_info eukrea_mbimxsd_i2c_devices[] = {
 	},
 };
 
-struct imx_ssi_platform_data eukrea_mbimxsd_ssi_pdata = {
+static const
+struct imx_ssi_platform_data eukrea_mbimxsd_ssi_pdata __initconst = {
 	.flags = IMX_SSI_SYN | IMX_SSI_NET | IMX_SSI_USE_I2S_SLAVE,
 };
 
@@ -242,7 +286,10 @@ void __init eukrea_mbimxsd35_baseboard_init(void)
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 	mxc_register_device(&mx3_fb, &mx3fb_pdata);
 
-	mxc_register_device(&imx_ssi_device0, &eukrea_mbimxsd_ssi_pdata);
+	imx35_add_imx_ssi(0, &eukrea_mbimxsd_ssi_pdata);
+
+	imx35_add_flexcan1(NULL);
+	imx35_add_esdhc(0, NULL);
 
 	gpio_request(GPIO_LED1, "LED1");
 	gpio_direction_output(GPIO_LED1, 1);
@@ -254,7 +301,7 @@ void __init eukrea_mbimxsd35_baseboard_init(void)
 
 	gpio_request(GPIO_LCDPWR, "LCDPWR");
 	gpio_direction_output(GPIO_LCDPWR, 1);
-	gpio_free(GPIO_SWITCH1);
+	gpio_free(GPIO_LCDPWR);
 
 	i2c_register_board_info(0, eukrea_mbimxsd_i2c_devices,
 				ARRAY_SIZE(eukrea_mbimxsd_i2c_devices));

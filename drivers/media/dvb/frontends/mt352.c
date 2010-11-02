@@ -69,7 +69,7 @@ static int mt352_single_write(struct dvb_frontend *fe, u8 reg, u8 val)
 	return 0;
 }
 
-static int _mt352_write(struct dvb_frontend* fe, u8* ibuf, int ilen)
+static int _mt352_write(struct dvb_frontend* fe, const u8 ibuf[], int ilen)
 {
 	int err,i;
 	for (i=0; i < ilen-1; i++)

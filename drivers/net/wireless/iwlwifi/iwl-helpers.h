@@ -44,11 +44,6 @@ static inline struct ieee80211_conf *ieee80211_get_hw_conf(
 	return &hw->conf;
 }
 
-static inline int iwl_check_bits(unsigned long field, unsigned long mask)
-{
-	return ((field & mask) == mask) ? 1 : 0;
-}
-
 static inline unsigned long elapsed_jiffies(unsigned long start,
 					    unsigned long end)
 {

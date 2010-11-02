@@ -137,7 +137,7 @@ void set_colors()
 	if (has_colors()) {
 		normal_color_theme();
 	} else {
-		/* give deafults */
+		/* give defaults */
 		no_colors_theme();
 	}
 }
@@ -167,7 +167,7 @@ void print_in_middle(WINDOW *win,
 	length = strlen(string);
 	temp = (width - length) / 2;
 	x = startx + (int)temp;
-	wattrset(win, color);
+	(void) wattrset(win, color);
 	mvwprintw(win, y, x, "%s", string);
 	refresh();
 }
@@ -297,11 +297,11 @@ int btn_dialog(WINDOW *main_window, const char *msg, int btn_num, ...)
 	set_menu_fore(menu, attributes[DIALOG_MENU_FORE]);
 	set_menu_back(menu, attributes[DIALOG_MENU_BACK]);
 
-	wattrset(win, attributes[DIALOG_BOX]);
+	(void) wattrset(win, attributes[DIALOG_BOX]);
 	box(win, 0, 0);
 
 	/* print message */
-	wattrset(msg_win, attributes[DIALOG_TEXT]);
+	(void) wattrset(msg_win, attributes[DIALOG_TEXT]);
 	fill_window(msg_win, msg);
 
 	set_menu_win(menu, win);
@@ -392,16 +392,16 @@ int dialog_inputbox(WINDOW *main_window,
 	form_win = derwin(win, 1, prompt_width, prompt_lines+3, 2);
 	keypad(form_win, TRUE);
 
-	wattrset(form_win, attributes[INPUT_FIELD]);
+	(void) wattrset(form_win, attributes[INPUT_FIELD]);
 
-	wattrset(win, attributes[INPUT_BOX]);
+	(void) wattrset(win, attributes[INPUT_BOX]);
 	box(win, 0, 0);
-	wattrset(win, attributes[INPUT_HEADING]);
+	(void) wattrset(win, attributes[INPUT_HEADING]);
 	if (title)
 		mvwprintw(win, 0, 3, "%s", title);
 
 	/* print message */
-	wattrset(prompt_win, attributes[INPUT_TEXT]);
+	(void) wattrset(prompt_win, attributes[INPUT_TEXT]);
 	fill_window(prompt_win, prompt);
 
 	mvwprintw(form_win, 0, 0, "%*s", prompt_width, " ");
@@ -531,7 +531,7 @@ void show_scroll_win(WINDOW *main_window,
 
 	/* create the pad */
 	pad = newpad(total_lines+10, total_cols+10);
-	wattrset(pad, attributes[SCROLLWIN_TEXT]);
+	(void) wattrset(pad, attributes[SCROLLWIN_TEXT]);
 	fill_window(pad, text);
 
 	win_lines = min(total_lines+4, LINES-2);
@@ -546,9 +546,9 @@ void show_scroll_win(WINDOW *main_window,
 	win = newwin(win_lines, win_cols, y, x);
 	keypad(win, TRUE);
 	/* show the help in the help window, and show the help panel */
-	wattrset(win, attributes[SCROLLWIN_BOX]);
+	(void) wattrset(win, attributes[SCROLLWIN_BOX]);
 	box(win, 0, 0);
-	wattrset(win, attributes[SCROLLWIN_HEADING]);
+	(void) wattrset(win, attributes[SCROLLWIN_HEADING]);
 	mvwprintw(win, 0, 3, " %s ", title);
 	panel = new_panel(win);
 

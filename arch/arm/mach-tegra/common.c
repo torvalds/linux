@@ -19,13 +19,17 @@
 
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
 
 #include <asm/hardware/cache-l2x0.h>
 
 #include <mach/iomap.h>
+#include <mach/dma.h>
 
 #include "board.h"
 #include "clock.h"
+#include "fuse.h"
 
 static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	/* name		parent		rate		enabled */
@@ -35,8 +39,8 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	{ "pll_p_out2",	"pll_p",	48000000,	true },
 	{ "pll_p_out3",	"pll_p",	72000000,	true },
 	{ "pll_p_out4",	"pll_p",	108000000,	true },
-	{ "sys",	"pll_p_out4",	108000000,	true },
-	{ "hclk",	"sys",		108000000,	true },
+	{ "sclk",	"pll_p_out4",	108000000,	true },
+	{ "hclk",	"sclk",		108000000,	true },
 	{ "pclk",	"hclk",		54000000,	true },
 	{ NULL,		NULL,		0,		0},
 };
@@ -51,11 +55,16 @@ void __init tegra_init_cache(void)
 
 	l2x0_init(p, 0x6C080001, 0x8200c3fe);
 #endif
+
 }
 
 void __init tegra_common_init(void)
 {
+	tegra_init_fuse();
 	tegra_init_clock();
 	tegra_clk_init_from_table(common_clk_init_table);
 	tegra_init_cache();
+#ifdef CONFIG_TEGRA_SYSTEM_DMA
+	tegra_dma_init();
+#endif
 }

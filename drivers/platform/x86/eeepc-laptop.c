@@ -165,6 +165,7 @@ struct eeepc_laptop {
 	u16 event_count[128];		/* count for each event */
 
 	struct platform_device *platform_device;
+	struct acpi_device *device;		/* the device we are in */
 	struct device *hwmon_device;
 	struct backlight_device *backlight_device;
 
@@ -1193,9 +1194,9 @@ static int eeepc_input_init(struct eeepc_laptop *eeepc)
 	eeepc->inputdev = input;
 	return 0;
 
- err_free_keymap:
+err_free_keymap:
 	sparse_keymap_free(input);
- err_free_dev:
+err_free_dev:
 	input_free_device(input);
 	return error;
 }
@@ -1206,6 +1207,7 @@ static void eeepc_input_exit(struct eeepc_laptop *eeepc)
 		sparse_keymap_free(eeepc->inputdev);
 		input_unregister_device(eeepc->inputdev);
 	}
+	eeepc->inputdev = NULL;
 }
 
 /*
@@ -1326,16 +1328,15 @@ static void cmsg_quirks(struct eeepc_laptop *eeepc)
 	cmsg_quirk(eeepc, CM_ASL_TPD, "TPD");
 }
 
-static int eeepc_acpi_init(struct eeepc_laptop *eeepc,
-			   struct acpi_device *device)
+static int __devinit eeepc_acpi_init(struct eeepc_laptop *eeepc)
 {
 	unsigned int init_flags;
 	int result;
 
-	result = acpi_bus_get_status(device);
+	result = acpi_bus_get_status(eeepc->device);
 	if (result)
 		return result;
-	if (!device->status.present) {
+	if (!eeepc->device->status.present) {
 		pr_err("Hotkey device not present, aborting\n");
 		return -ENODEV;
 	}
@@ -1384,12 +1385,13 @@ static int __devinit eeepc_acpi_add(struct acpi_device *device)
 	strcpy(acpi_device_name(device), EEEPC_ACPI_DEVICE_NAME);
 	strcpy(acpi_device_class(device), EEEPC_ACPI_CLASS);
 	device->driver_data = eeepc;
+	eeepc->device = device;
 
 	eeepc->hotplug_disabled = hotplug_disabled;
 
 	eeepc_dmi_check(eeepc);
 
-	result = eeepc_acpi_init(eeepc, device);
+	result = eeepc_acpi_init(eeepc);
 	if (result)
 		goto fail_platform;
 	eeepc_enable_camera(eeepc);

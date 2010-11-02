@@ -1,8 +1,8 @@
 Overview of IIO
 
-The Industrial I/O subsytem is intended to provide support for devices
-that in some sense are analog to digital convertors (ADCs). As many
-actual devices combine some ADCs with digital to analog convertors
+The Industrial I/O subsystem is intended to provide support for devices
+that in some sense are analog to digital converters (ADCs). As many
+actual devices combine some ADCs with digital to analog converters
 (DACs) the intention is to add that functionality at a future date
 (hence the name).
 
@@ -46,18 +46,17 @@ external signal (trigger).  These triggers might be a data ready
 signal, a gpio line connected to some external system or an on
 processor periodic interrupt.  A single trigger may initialize data
 capture or reading from a number of sensors.  These triggers are
-used in iio to fill software ring buffers acting in a very similar
+used in IIO to fill software ring buffers acting in a very similar
 fashion to the hardware buffers described above.
 
 Other documentation:
 
-userspace.txt - overview of ring buffer reading from userspace
+userspace.txt - overview of ring buffer reading from userspace.
 
-device.txt - elemennts of a typical device driver.
+device.txt - elements of a typical device driver.
 
 trigger.txt - elements of a typical trigger driver.
 
-ring.txt - additional elements required for ring buffer support
+ring.txt - additional elements required for ring buffer support.
 
-
-
+sysfs-bus-iio - abi documentation file.

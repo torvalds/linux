@@ -49,6 +49,17 @@ config TABLET_USB_GTCO
           To compile this driver as a module, choose M here: the
           module will be called gtco.
 
+config TABLET_USB_HANWANG
+	tristate "Hanwang Art Master III tablet support (USB)"
+	depends on USB_ARCH_HAS_HCD
+	select USB
+	help
+	  Say Y here if you want to use the USB version of the Hanwang Art
+	  Master III tablet.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hanwang.
+
 config TABLET_USB_KBTAB
 	tristate "KB Gear JamStudio tablet support (USB)"
 	depends on USB_ARCH_HAS_HCD

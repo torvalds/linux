@@ -70,8 +70,8 @@
  * on extra page for the RPCRMDA header.
  */
 static int fast_reg_xdr(struct svcxprt_rdma *xprt,
-		 struct xdr_buf *xdr,
-		 struct svc_rdma_req_map *vec)
+			struct xdr_buf *xdr,
+			struct svc_rdma_req_map *vec)
 {
 	int sge_no;
 	u32 sge_bytes;
@@ -96,21 +96,25 @@ static int fast_reg_xdr(struct svcxprt_rdma *xprt,
 	vec->count = 2;
 	sge_no++;
 
-	/* Build the FRMR */
+	/* Map the XDR head */
 	frmr->kva = frva;
 	frmr->direction = DMA_TO_DEVICE;
 	frmr->access_flags = 0;
 	frmr->map_len = PAGE_SIZE;
 	frmr->page_list_len = 1;
+	page_off = (unsigned long)xdr->head[0].iov_base & ~PAGE_MASK;
 	frmr->page_list->page_list[page_no] =
-		ib_dma_map_single(xprt->sc_cm_id->device,
-				  (void *)xdr->head[0].iov_base,
-				  PAGE_SIZE, DMA_TO_DEVICE);
+		ib_dma_map_page(xprt->sc_cm_id->device,
+				virt_to_page(xdr->head[0].iov_base),
+				page_off,
+				PAGE_SIZE - page_off,
+				DMA_TO_DEVICE);
 	if (ib_dma_mapping_error(xprt->sc_cm_id->device,
 				 frmr->page_list->page_list[page_no]))
 		goto fatal_err;
 	atomic_inc(&xprt->sc_dma_used);
 
+	/* Map the XDR page list */
 	page_off = xdr->page_base;
 	page_bytes = xdr->page_len + page_off;
 	if (!page_bytes)
@@ -128,9 +132,9 @@ static int fast_reg_xdr(struct svcxprt_rdma *xprt,
 		page_bytes -= sge_bytes;
 
 		frmr->page_list->page_list[page_no] =
-			ib_dma_map_single(xprt->sc_cm_id->device,
-					  page_address(page),
-					  PAGE_SIZE, DMA_TO_DEVICE);
+			ib_dma_map_page(xprt->sc_cm_id->device,
+					page, page_off,
+					sge_bytes, DMA_TO_DEVICE);
 		if (ib_dma_mapping_error(xprt->sc_cm_id->device,
 					 frmr->page_list->page_list[page_no]))
 			goto fatal_err;
@@ -166,8 +170,10 @@ static int fast_reg_xdr(struct svcxprt_rdma *xprt,
 		vec->sge[sge_no].iov_base = frva + frmr->map_len + page_off;
 
 		frmr->page_list->page_list[page_no] =
-			ib_dma_map_single(xprt->sc_cm_id->device, va, PAGE_SIZE,
-					  DMA_TO_DEVICE);
+		    ib_dma_map_page(xprt->sc_cm_id->device, virt_to_page(va),
+				    page_off,
+				    PAGE_SIZE,
+				    DMA_TO_DEVICE);
 		if (ib_dma_mapping_error(xprt->sc_cm_id->device,
 					 frmr->page_list->page_list[page_no]))
 			goto fatal_err;
@@ -245,6 +251,35 @@ static int map_xdr(struct svcxprt_rdma *xprt,
 	return 0;
 }
 
+static dma_addr_t dma_map_xdr(struct svcxprt_rdma *xprt,
+			      struct xdr_buf *xdr,
+			      u32 xdr_off, size_t len, int dir)
+{
+	struct page *page;
+	dma_addr_t dma_addr;
+	if (xdr_off < xdr->head[0].iov_len) {
+		/* This offset is in the head */
+		xdr_off += (unsigned long)xdr->head[0].iov_base & ~PAGE_MASK;
+		page = virt_to_page(xdr->head[0].iov_base);
+	} else {
+		xdr_off -= xdr->head[0].iov_len;
+		if (xdr_off < xdr->page_len) {
+			/* This offset is in the page list */
+			page = xdr->pages[xdr_off >> PAGE_SHIFT];
+			xdr_off &= ~PAGE_MASK;
+		} else {
+			/* This offset is in the tail */
+			xdr_off -= xdr->page_len;
+			xdr_off += (unsigned long)
+				xdr->tail[0].iov_base & ~PAGE_MASK;
+			page = virt_to_page(xdr->tail[0].iov_base);
+		}
+	}
+	dma_addr = ib_dma_map_page(xprt->sc_cm_id->device, page, xdr_off,
+				   min_t(size_t, PAGE_SIZE, len), dir);
+	return dma_addr;
+}
+
 /* Assumptions:
  * - We are using FRMR
  *     - or -
@@ -293,10 +328,9 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 		sge[sge_no].length = sge_bytes;
 		if (!vec->frmr) {
 			sge[sge_no].addr =
-				ib_dma_map_single(xprt->sc_cm_id->device,
-						  (void *)
-						  vec->sge[xdr_sge_no].iov_base + sge_off,
-						  sge_bytes, DMA_TO_DEVICE);
+				dma_map_xdr(xprt, &rqstp->rq_res, xdr_off,
+					    sge_bytes, DMA_TO_DEVICE);
+			xdr_off += sge_bytes;
 			if (ib_dma_mapping_error(xprt->sc_cm_id->device,
 						 sge[sge_no].addr))
 				goto err;
@@ -333,6 +367,8 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 		goto err;
 	return 0;
  err:
+	svc_rdma_unmap_dma(ctxt);
+	svc_rdma_put_frmr(xprt, vec->frmr);
 	svc_rdma_put_context(ctxt, 0);
 	/* Fatal error, close transport */
 	return -EIO;
@@ -494,7 +530,8 @@ static int send_reply_chunks(struct svcxprt_rdma *xprt,
  * In all three cases, this function prepares the RPCRDMA header in
  * sge[0], the 'type' parameter indicates the type to place in the
  * RPCRDMA header, and the 'byte_count' field indicates how much of
- * the XDR to include in this RDMA_SEND.
+ * the XDR to include in this RDMA_SEND. NB: The offset of the payload
+ * to send is zero in the XDR.
  */
 static int send_reply(struct svcxprt_rdma *rdma,
 		      struct svc_rqst *rqstp,
@@ -536,23 +573,24 @@ static int send_reply(struct svcxprt_rdma *rdma,
 	ctxt->sge[0].lkey = rdma->sc_dma_lkey;
 	ctxt->sge[0].length = svc_rdma_xdr_get_reply_hdr_len(rdma_resp);
 	ctxt->sge[0].addr =
-		ib_dma_map_single(rdma->sc_cm_id->device, page_address(page),
-				  ctxt->sge[0].length, DMA_TO_DEVICE);
+	    ib_dma_map_page(rdma->sc_cm_id->device, page, 0,
+			    ctxt->sge[0].length, DMA_TO_DEVICE);
 	if (ib_dma_mapping_error(rdma->sc_cm_id->device, ctxt->sge[0].addr))
 		goto err;
 	atomic_inc(&rdma->sc_dma_used);
 
 	ctxt->direction = DMA_TO_DEVICE;
 
-	/* Determine how many of our SGE are to be transmitted */
+	/* Map the payload indicated by 'byte_count' */
 	for (sge_no = 1; byte_count && sge_no < vec->count; sge_no++) {
+		int xdr_off = 0;
 		sge_bytes = min_t(size_t, vec->sge[sge_no].iov_len, byte_count);
 		byte_count -= sge_bytes;
 		if (!vec->frmr) {
 			ctxt->sge[sge_no].addr =
-				ib_dma_map_single(rdma->sc_cm_id->device,
-						  vec->sge[sge_no].iov_base,
-						  sge_bytes, DMA_TO_DEVICE);
+				dma_map_xdr(rdma, &rqstp->rq_res, xdr_off,
+					    sge_bytes, DMA_TO_DEVICE);
+			xdr_off += sge_bytes;
 			if (ib_dma_mapping_error(rdma->sc_cm_id->device,
 						 ctxt->sge[sge_no].addr))
 				goto err;

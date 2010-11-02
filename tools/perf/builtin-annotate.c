@@ -28,7 +28,7 @@
 
 static char		const *input_name = "perf.data";
 
-static bool		force;
+static bool		force, use_tui, use_stdio;
 
 static bool		full_paths;
 
@@ -321,7 +321,7 @@ static int hist_entry__tty_annotate(struct hist_entry *he)
 
 static void hists__find_annotations(struct hists *self)
 {
-	struct rb_node *first = rb_first(&self->entries), *nd = first;
+	struct rb_node *nd = rb_first(&self->entries), *next;
 	int key = KEY_RIGHT;
 
 	while (nd) {
@@ -343,20 +343,19 @@ find_next:
 
 		if (use_browser > 0) {
 			key = hist_entry__tui_annotate(he);
-			if (is_exit_key(key))
-				break;
 			switch (key) {
 			case KEY_RIGHT:
-			case '\t':
-				nd = rb_next(nd);
+				next = rb_next(nd);
 				break;
 			case KEY_LEFT:
-				if (nd == first)
-					continue;
-				nd = rb_prev(nd);
-			default:
+				next = rb_prev(nd);
 				break;
+			default:
+				return;
 			}
+
+			if (next != NULL)
+				nd = next;
 		} else {
 			hist_entry__tty_annotate(he);
 			nd = rb_next(nd);
@@ -428,6 +427,8 @@ static const struct option options[] = {
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+	OPT_BOOLEAN(0, "tui", &use_tui, "Use the TUI interface"),
+	OPT_BOOLEAN(0, "stdio", &use_stdio, "Use the stdio interface"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
@@ -442,6 +443,11 @@ static const struct option options[] = {
 int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
+
+	if (use_stdio)
+		use_browser = 0;
+	else if (use_tui)
+		use_browser = 1;
 
 	setup_browser();
 

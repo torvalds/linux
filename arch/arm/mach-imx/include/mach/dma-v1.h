@@ -27,6 +27,8 @@
 
 #define imx_has_dma_v1()	(cpu_is_mx1() || cpu_is_mx21() || cpu_is_mx27())
 
+#include <mach/dma.h>
+
 #define IMX_DMA_CHANNELS  16
 
 #define DMA_MODE_READ		0
@@ -95,12 +97,6 @@ void imx_dma_disable(int channel);
 int imx_dma_request(int channel, const char *name);
 
 void imx_dma_free(int channel);
-
-enum imx_dma_prio {
-	DMA_PRIO_HIGH = 0,
-	DMA_PRIO_MEDIUM = 1,
-	DMA_PRIO_LOW = 2
-};
 
 int imx_dma_request_by_prio(const char *name, enum imx_dma_prio prio);
 

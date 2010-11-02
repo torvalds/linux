@@ -1997,6 +1997,10 @@
 
 #define A_PL_RST 0x6f0
 
+#define S_FATALPERREN    4
+#define V_FATALPERREN(x) ((x) << S_FATALPERREN)
+#define F_FATALPERREN    V_FATALPERREN(1U)
+
 #define S_CRSTWRM    1
 #define V_CRSTWRM(x) ((x) << S_CRSTWRM)
 #define F_CRSTWRM    V_CRSTWRM(1U)

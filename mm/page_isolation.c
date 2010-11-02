@@ -86,7 +86,7 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
  * all pages in [start_pfn...end_pfn) must be in the same zone.
  * zone->lock must be held before call this.
  *
- * Returns 0 if all pages in the range is isolated.
+ * Returns 1 if all pages in the range is isolated.
  */
 static int
 __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn)
@@ -119,7 +119,6 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
 	struct zone *zone;
 	int ret;
 
-	pfn = start_pfn;
 	/*
 	 * Note: pageblock_nr_page != MAX_ORDER. Then, chunks of free page
 	 * is not aligned to pageblock_nr_pages.

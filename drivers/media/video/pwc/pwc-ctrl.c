@@ -261,7 +261,7 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int frames)
 		PWC_DEBUG_MODULE("Failed to send video command... %d\n", ret);
 		return ret;
 	}
-	if (pEntry->compressed && pdev->vpalette != VIDEO_PALETTE_RAW)
+	if (pEntry->compressed && pdev->pixfmt == V4L2_PIX_FMT_YUV420)
 		pwc_dec1_init(pdev->type, pdev->release, buf, pdev->decompress_data);
 
 	pdev->cmd_len = 3;
@@ -321,7 +321,7 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames, i
 	if (ret < 0)
 		return ret;
 
-	if (pChoose->bandlength > 0 && pdev->vpalette != VIDEO_PALETTE_RAW)
+	if (pChoose->bandlength > 0 && pdev->pixfmt == V4L2_PIX_FMT_YUV420)
 		pwc_dec23_init(pdev, pdev->type, buf);
 
 	pdev->cmd_len = 13;
@@ -356,7 +356,7 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames, i
 	fps = (frames / 5) - 1;
 
 	/* special case: VGA @ 5 fps and snapshot is raw bayer mode */
-	if (size == PSZ_VGA && frames == 5 && snapshot && pdev->vpalette == VIDEO_PALETTE_RAW)
+	if (size == PSZ_VGA && frames == 5 && snapshot && pdev->pixfmt != V4L2_PIX_FMT_YUV420)
 	{
 		/* Only available in case the raw palette is selected or
 		   we have the decompressor available. This mode is
@@ -394,7 +394,7 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames, i
 	if (ret < 0)
 		return ret;
 
-	if (pChoose->bandlength > 0 && pdev->vpalette != VIDEO_PALETTE_RAW)
+	if (pChoose->bandlength > 0 && pdev->pixfmt == V4L2_PIX_FMT_YUV420)
 		pwc_dec23_init(pdev, pdev->type, buf);
 
 	pdev->cmd_len = 12;
@@ -429,7 +429,7 @@ int pwc_set_video_mode(struct pwc_device *pdev, int width, int height, int frame
 {
 	int ret, size;
 
-	PWC_DEBUG_FLOW("set_video_mode(%dx%d @ %d, palette %d).\n", width, height, frames, pdev->vpalette);
+	PWC_DEBUG_FLOW("set_video_mode(%dx%d @ %d, pixfmt %08x).\n", width, height, frames, pdev->pixfmt);
 	size = pwc_decode_size(pdev, width, height);
 	if (size < 0) {
 		PWC_DEBUG_MODULE("Could not find suitable size.\n");
@@ -519,13 +519,13 @@ static void pwc_set_image_buffer_size(struct pwc_device *pdev)
 {
 	int i, factor = 0;
 
-	/* for PALETTE_YUV420P */
-	switch(pdev->vpalette)
-	{
-	case VIDEO_PALETTE_YUV420P:
+	/* for V4L2_PIX_FMT_YUV420 */
+	switch (pdev->pixfmt) {
+	case V4L2_PIX_FMT_YUV420:
 		factor = 6;
 		break;
-	case VIDEO_PALETTE_RAW:
+	case V4L2_PIX_FMT_PWC1:
+	case V4L2_PIX_FMT_PWC2:
 		factor = 6; /* can be uncompressed YUV420P */
 		break;
 	}

@@ -10,6 +10,29 @@
 #include <linux/device.h>
 
 /*
+ * AB8500 bank addresses
+ */
+#define AB8500_SYS_CTRL1_BLOCK	0x1
+#define AB8500_SYS_CTRL2_BLOCK	0x2
+#define AB8500_REGU_CTRL1	0x3
+#define AB8500_REGU_CTRL2	0x4
+#define AB8500_USB		0x5
+#define AB8500_TVOUT		0x6
+#define AB8500_DBI		0x7
+#define AB8500_ECI_AV_ACC	0x8
+#define AB8500_RESERVED		0x9
+#define AB8500_GPADC		0xA
+#define AB8500_CHARGER		0xB
+#define AB8500_GAS_GAUGE	0xC
+#define AB8500_AUDIO		0xD
+#define AB8500_INTERRUPT	0xE
+#define AB8500_RTC		0xF
+#define AB8500_MISC		0x10
+#define AB8500_DEBUG		0x12
+#define AB8500_PROD_TEST	0x13
+#define AB8500_OTP_EMUL		0x15
+
+/*
  * Interrupts
  */
 
@@ -99,6 +122,7 @@ struct ab8500 {
 	int		revision;
 	int		irq_base;
 	int		irq;
+	u8		chip_id;
 
 	int (*write) (struct ab8500 *a8500, u16 addr, u8 data);
 	int (*read) (struct ab8500 *a8500, u16 addr);
@@ -123,10 +147,6 @@ struct ab8500_platform_data {
 	void (*init) (struct ab8500 *);
 	struct regulator_init_data *regulator[AB8500_NUM_REGULATORS];
 };
-
-extern int ab8500_write(struct ab8500 *a8500, u16 addr, u8 data);
-extern int ab8500_read(struct ab8500 *a8500, u16 addr);
-extern int ab8500_set_bits(struct ab8500 *a8500, u16 addr, u8 mask, u8 data);
 
 extern int __devinit ab8500_init(struct ab8500 *ab8500);
 extern int __devexit ab8500_exit(struct ab8500 *ab8500);

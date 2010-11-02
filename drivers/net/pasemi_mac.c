@@ -808,7 +808,7 @@ static int pasemi_mac_clean_rx(struct pasemi_mac_rxring *rx,
 			skb->csum = (macrx & XCT_MACRX_CSUM_M) >>
 					   XCT_MACRX_CSUM_S;
 		} else
-			skb->ip_summed = CHECKSUM_NONE;
+			skb_checksum_none_assert(skb);
 
 		packets++;
 		tot_bytes += len;

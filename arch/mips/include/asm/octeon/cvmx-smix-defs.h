@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2008 Cavium Networks
+ * Copyright (c) 2003-2010 Cavium Networks
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -28,16 +28,11 @@
 #ifndef __CVMX_SMIX_DEFS_H__
 #define __CVMX_SMIX_DEFS_H__
 
-#define CVMX_SMIX_CLK(offset) \
-	 CVMX_ADD_IO_SEG(0x0001180000001818ull + (((offset) & 1) * 256))
-#define CVMX_SMIX_CMD(offset) \
-	 CVMX_ADD_IO_SEG(0x0001180000001800ull + (((offset) & 1) * 256))
-#define CVMX_SMIX_EN(offset) \
-	 CVMX_ADD_IO_SEG(0x0001180000001820ull + (((offset) & 1) * 256))
-#define CVMX_SMIX_RD_DAT(offset) \
-	 CVMX_ADD_IO_SEG(0x0001180000001810ull + (((offset) & 1) * 256))
-#define CVMX_SMIX_WR_DAT(offset) \
-	 CVMX_ADD_IO_SEG(0x0001180000001808ull + (((offset) & 1) * 256))
+#define CVMX_SMIX_CLK(offset) (CVMX_ADD_IO_SEG(0x0001180000001818ull) + ((offset) & 1) * 256)
+#define CVMX_SMIX_CMD(offset) (CVMX_ADD_IO_SEG(0x0001180000001800ull) + ((offset) & 1) * 256)
+#define CVMX_SMIX_EN(offset) (CVMX_ADD_IO_SEG(0x0001180000001820ull) + ((offset) & 1) * 256)
+#define CVMX_SMIX_RD_DAT(offset) (CVMX_ADD_IO_SEG(0x0001180000001810ull) + ((offset) & 1) * 256)
+#define CVMX_SMIX_WR_DAT(offset) (CVMX_ADD_IO_SEG(0x0001180000001808ull) + ((offset) & 1) * 256)
 
 union cvmx_smix_clk {
 	uint64_t u64;
@@ -56,7 +51,8 @@ union cvmx_smix_clk {
 	struct cvmx_smix_clk_cn30xx {
 		uint64_t reserved_21_63:43;
 		uint64_t sample_hi:5;
-		uint64_t reserved_14_15:2;
+		uint64_t sample_mode:1;
+		uint64_t reserved_14_14:1;
 		uint64_t clk_idle:1;
 		uint64_t preamble:1;
 		uint64_t sample:4;
@@ -65,23 +61,15 @@ union cvmx_smix_clk {
 	struct cvmx_smix_clk_cn30xx cn31xx;
 	struct cvmx_smix_clk_cn30xx cn38xx;
 	struct cvmx_smix_clk_cn30xx cn38xxp2;
-	struct cvmx_smix_clk_cn50xx {
-		uint64_t reserved_25_63:39;
-		uint64_t mode:1;
-		uint64_t reserved_21_23:3;
-		uint64_t sample_hi:5;
-		uint64_t reserved_14_15:2;
-		uint64_t clk_idle:1;
-		uint64_t preamble:1;
-		uint64_t sample:4;
-		uint64_t phase:8;
-	} cn50xx;
+	struct cvmx_smix_clk_s cn50xx;
 	struct cvmx_smix_clk_s cn52xx;
-	struct cvmx_smix_clk_cn50xx cn52xxp1;
+	struct cvmx_smix_clk_s cn52xxp1;
 	struct cvmx_smix_clk_s cn56xx;
-	struct cvmx_smix_clk_cn50xx cn56xxp1;
+	struct cvmx_smix_clk_s cn56xxp1;
 	struct cvmx_smix_clk_cn30xx cn58xx;
 	struct cvmx_smix_clk_cn30xx cn58xxp1;
+	struct cvmx_smix_clk_s cn63xx;
+	struct cvmx_smix_clk_s cn63xxp1;
 };
 
 union cvmx_smix_cmd {
@@ -112,6 +100,8 @@ union cvmx_smix_cmd {
 	struct cvmx_smix_cmd_s cn56xxp1;
 	struct cvmx_smix_cmd_cn30xx cn58xx;
 	struct cvmx_smix_cmd_cn30xx cn58xxp1;
+	struct cvmx_smix_cmd_s cn63xx;
+	struct cvmx_smix_cmd_s cn63xxp1;
 };
 
 union cvmx_smix_en {
@@ -131,6 +121,8 @@ union cvmx_smix_en {
 	struct cvmx_smix_en_s cn56xxp1;
 	struct cvmx_smix_en_s cn58xx;
 	struct cvmx_smix_en_s cn58xxp1;
+	struct cvmx_smix_en_s cn63xx;
+	struct cvmx_smix_en_s cn63xxp1;
 };
 
 union cvmx_smix_rd_dat {
@@ -152,6 +144,8 @@ union cvmx_smix_rd_dat {
 	struct cvmx_smix_rd_dat_s cn56xxp1;
 	struct cvmx_smix_rd_dat_s cn58xx;
 	struct cvmx_smix_rd_dat_s cn58xxp1;
+	struct cvmx_smix_rd_dat_s cn63xx;
+	struct cvmx_smix_rd_dat_s cn63xxp1;
 };
 
 union cvmx_smix_wr_dat {
@@ -173,6 +167,8 @@ union cvmx_smix_wr_dat {
 	struct cvmx_smix_wr_dat_s cn56xxp1;
 	struct cvmx_smix_wr_dat_s cn58xx;
 	struct cvmx_smix_wr_dat_s cn58xxp1;
+	struct cvmx_smix_wr_dat_s cn63xx;
+	struct cvmx_smix_wr_dat_s cn63xxp1;
 };
 
 #endif

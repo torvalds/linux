@@ -52,16 +52,20 @@
 #define ATH_EP_RND(x, mul) 						\
 	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
 
+/* Defines the BT AR_BT_COEX_WGHT used */
+enum ath_stomp_type {
+	ATH_BTCOEX_NO_STOMP,
+	ATH_BTCOEX_STOMP_ALL,
+	ATH_BTCOEX_STOMP_LOW,
+	ATH_BTCOEX_STOMP_NONE
+};
+
 int ath9k_cmn_padpos(__le16 frame_control);
 int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb);
 void ath9k_cmn_update_ichannel(struct ieee80211_hw *hw,
 			       struct ath9k_channel *ichan);
 struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
 					       struct ath_hw *ah);
-int ath9k_cmn_key_config(struct ath_common *common,
-			 struct ieee80211_vif *vif,
-			 struct ieee80211_sta *sta,
-			 struct ieee80211_key_conf *key);
-void ath9k_cmn_key_delete(struct ath_common *common,
-			  struct ieee80211_key_conf *key);
 int ath9k_cmn_count_streams(unsigned int chainmask, int max);
+void ath9k_cmn_btcoex_bt_stomp(struct ath_common *common,
+				  enum ath_stomp_type stomp_type);

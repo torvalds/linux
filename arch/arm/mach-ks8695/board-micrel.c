@@ -53,8 +53,6 @@ static void __init micrel_init(void)
 
 MACHINE_START(KS8695, "KS8695 Centaur Development Board")
 	/* Maintainer: Micrel Semiconductor Inc. */
-	.phys_io	= KS8695_IO_PA,
-	.io_pg_offst	= (KS8695_IO_VA >> 18) & 0xfffc,
 	.boot_params	= KS8695_SDRAM_PA + 0x100,
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,

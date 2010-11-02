@@ -45,7 +45,7 @@ nv40_graph_channel(struct drm_device *dev)
 		struct nouveau_channel *chan = dev_priv->fifos[i];
 
 		if (chan && chan->ramin_grctx &&
-		    chan->ramin_grctx->instance == inst)
+		    chan->ramin_grctx->pinst == inst)
 			return chan;
 	}
 
@@ -61,27 +61,25 @@ nv40_graph_create_context(struct nouveau_channel *chan)
 	struct nouveau_grctx ctx = {};
 	int ret;
 
-	ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, pgraph->grctx_size,
-				     16, NVOBJ_FLAG_ZERO_ALLOC,
-				     &chan->ramin_grctx);
+	ret = nouveau_gpuobj_new(dev, chan, pgraph->grctx_size, 16,
+				 NVOBJ_FLAG_ZERO_ALLOC, &chan->ramin_grctx);
 	if (ret)
 		return ret;
 
 	/* Initialise default context values */
 	ctx.dev = chan->dev;
 	ctx.mode = NOUVEAU_GRCTX_VALS;
-	ctx.data = chan->ramin_grctx->gpuobj;
+	ctx.data = chan->ramin_grctx;
 	nv40_grctx_init(&ctx);
 
-	nv_wo32(dev, chan->ramin_grctx->gpuobj, 0,
-		     chan->ramin_grctx->gpuobj->im_pramin->start);
+	nv_wo32(chan->ramin_grctx, 0, chan->ramin_grctx->pinst);
 	return 0;
 }
 
 void
 nv40_graph_destroy_context(struct nouveau_channel *chan)
 {
-	nouveau_gpuobj_ref_del(chan->dev, &chan->ramin_grctx);
+	nouveau_gpuobj_ref(NULL, &chan->ramin_grctx);
 }
 
 static int
@@ -135,7 +133,7 @@ nv40_graph_load_context(struct nouveau_channel *chan)
 
 	if (!chan->ramin_grctx)
 		return -EINVAL;
-	inst = chan->ramin_grctx->instance >> 4;
+	inst = chan->ramin_grctx->pinst >> 4;
 
 	ret = nv40_graph_transfer_context(dev, inst, 0);
 	if (ret)

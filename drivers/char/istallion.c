@@ -704,6 +704,7 @@ static const struct file_operations	stli_fsiomem = {
 	.read		= stli_memread,
 	.write		= stli_memwrite,
 	.unlocked_ioctl	= stli_memioctl,
+	.llseek		= default_llseek,
 };
 
 /*****************************************************************************/

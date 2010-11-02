@@ -9,7 +9,6 @@ if ARCH_S5PC100
 
 config CPU_S5PC100
 	bool
-	select PLAT_S5P
 	select S5P_EXT_INT
 	select S3C_PL330_DMA
 	help

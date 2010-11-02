@@ -36,6 +36,9 @@
 #include <linux/irq.h>
 #include <linux/kthread.h>
 #include <linux/i2c/twl.h>
+#include <linux/platform_device.h>
+
+#include "twl-core.h"
 
 /*
  * TWL6030 (unlike its predecessors, which had two level interrupt handling)
@@ -222,6 +225,78 @@ int twl6030_interrupt_mask(u8 bit_mask, u8 offset)
 	return ret;
 }
 EXPORT_SYMBOL(twl6030_interrupt_mask);
+
+int twl6030_mmc_card_detect_config(void)
+{
+	int ret;
+	u8 reg_val = 0;
+
+	/* Unmasking the Card detect Interrupt line for MMC1 from Phoenix */
+	twl6030_interrupt_unmask(TWL6030_MMCDETECT_INT_MASK,
+						REG_INT_MSK_LINE_B);
+	twl6030_interrupt_unmask(TWL6030_MMCDETECT_INT_MASK,
+						REG_INT_MSK_STS_B);
+	/*
+	 * Intially Configuring MMC_CTRL for receving interrupts &
+	 * Card status on TWL6030 for MMC1
+	 */
+	ret = twl_i2c_read_u8(TWL6030_MODULE_ID0, &reg_val, TWL6030_MMCCTRL);
+	if (ret < 0) {
+		pr_err("twl6030: Failed to read MMCCTRL, error %d\n", ret);
+		return ret;
+	}
+	reg_val &= ~VMMC_AUTO_OFF;
+	reg_val |= SW_FC;
+	ret = twl_i2c_write_u8(TWL6030_MODULE_ID0, reg_val, TWL6030_MMCCTRL);
+	if (ret < 0) {
+		pr_err("twl6030: Failed to write MMCCTRL, error %d\n", ret);
+		return ret;
+	}
+
+	/* Configuring PullUp-PullDown register */
+	ret = twl_i2c_read_u8(TWL6030_MODULE_ID0, &reg_val,
+						TWL6030_CFG_INPUT_PUPD3);
+	if (ret < 0) {
+		pr_err("twl6030: Failed to read CFG_INPUT_PUPD3, error %d\n",
+									ret);
+		return ret;
+	}
+	reg_val &= ~(MMC_PU | MMC_PD);
+	ret = twl_i2c_write_u8(TWL6030_MODULE_ID0, reg_val,
+						TWL6030_CFG_INPUT_PUPD3);
+	if (ret < 0) {
+		pr_err("twl6030: Failed to write CFG_INPUT_PUPD3, error %d\n",
+									ret);
+		return ret;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(twl6030_mmc_card_detect_config);
+
+int twl6030_mmc_card_detect(struct device *dev, int slot)
+{
+	int ret = -EIO;
+	u8 read_reg = 0;
+	struct platform_device *pdev = to_platform_device(dev);
+
+	if (pdev->id) {
+		/* TWL6030 provide's Card detect support for
+		 * only MMC1 controller.
+		 */
+		pr_err("Unkown MMC controller %d in %s\n", pdev->id, __func__);
+		return ret;
+	}
+	/*
+	 * BIT0 of MMC_CTRL on TWL6030 provides card status for MMC1
+	 * 0 - Card not present ,1 - Card present
+	 */
+	ret = twl_i2c_read_u8(TWL6030_MODULE_ID0, &read_reg,
+						TWL6030_MMCCTRL);
+	if (ret >= 0)
+		ret = read_reg & STS_MMC;
+	return ret;
+}
+EXPORT_SYMBOL(twl6030_mmc_card_detect);
 
 int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 {

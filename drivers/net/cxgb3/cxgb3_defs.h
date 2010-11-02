@@ -43,8 +43,6 @@
 
 void *cxgb_alloc_mem(unsigned long size);
 void cxgb_free_mem(void *addr);
-void cxgb_neigh_update(struct neighbour *neigh);
-void cxgb_redirect(struct dst_entry *old, struct dst_entry *new);
 
 /*
  * Map an ATID or STID to their entries in the corresponding TID tables.
@@ -111,7 +109,6 @@ static inline struct t3c_tid_entry *lookup_atid(const struct tid_info *t,
 	return &e->t3c_tid;
 }
 
-int process_rx(struct t3cdev *dev, struct sk_buff **skbs, int n);
 int attach_t3cdev(struct t3cdev *dev);
 void detach_t3cdev(struct t3cdev *dev);
 #endif

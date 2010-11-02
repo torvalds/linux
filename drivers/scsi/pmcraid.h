@@ -42,7 +42,7 @@
  */
 #define PMCRAID_DRIVER_NAME		"PMC MaxRAID"
 #define PMCRAID_DEVFILE			"pmcsas"
-#define PMCRAID_DRIVER_VERSION		"2.0.2"
+#define PMCRAID_DRIVER_VERSION		"2.0.3"
 #define PMCRAID_DRIVER_DATE		__DATE__
 
 #define PMCRAID_FW_VERSION_1		0x002
@@ -184,6 +184,7 @@
 #define PMCRAID_IOASC_IR_INVALID_RESOURCE_HANDLE        0x05250000
 #define PMCRAID_IOASC_AC_TERMINATED_BY_HOST		0x0B5A0000
 #define PMCRAID_IOASC_UA_BUS_WAS_RESET			0x06290000
+#define PMCRAID_IOASC_TIME_STAMP_OUT_OF_SYNC		0x06908B00
 #define PMCRAID_IOASC_UA_BUS_WAS_RESET_BY_OTHER		0x06298000
 
 /* Driver defined IOASCs */
@@ -561,6 +562,17 @@ struct pmcraid_inquiry_data {
 	__u8	reserved3[16];
 };
 
+#define PMCRAID_TIMESTAMP_LEN		12
+#define PMCRAID_REQ_TM_STR_LEN		6
+#define PMCRAID_SCSI_SET_TIMESTAMP	0xA4
+#define PMCRAID_SCSI_SERVICE_ACTION	0x0F
+
+struct pmcraid_timestamp_data {
+	__u8 reserved1[4];
+	__u8 timestamp[PMCRAID_REQ_TM_STR_LEN];		/* current time value */
+	__u8 reserved2[2];
+};
+
 /* pmcraid_cmd - LLD representation of SCSI command */
 struct pmcraid_cmd {
 
@@ -568,7 +580,6 @@ struct pmcraid_cmd {
 	struct pmcraid_control_block *ioa_cb;
 	dma_addr_t ioa_cb_bus_addr;
 	dma_addr_t dma_handle;
-	u8 *sense_buffer;
 
 	/* pointer to mid layer structure of SCSI commands */
 	struct scsi_cmnd *scsi_cmd;
@@ -705,6 +716,9 @@ struct pmcraid_instance {
 	struct pmcraid_inquiry_data *inq_data;
 	dma_addr_t  inq_data_baddr;
 
+	struct pmcraid_timestamp_data *timestamp_data;
+	dma_addr_t  timestamp_data_baddr;
+
 	/* size of configuration table entry, varies based on the firmware */
 	u32	config_table_entry_size;
 
@@ -791,6 +805,7 @@ struct pmcraid_instance {
 #define SHUTDOWN_NONE               0x0
 #define SHUTDOWN_NORMAL             0x1
 #define SHUTDOWN_ABBREV             0x2
+	u32 timestamp_error:1; /* indicate set timestamp for out of sync */
 
 };
 
@@ -1056,10 +1071,10 @@ struct pmcraid_passthrough_ioctl_buffer {
 #define PMCRAID_PASSTHROUGH_IOCTL    'F'
 
 #define DRV_IOCTL(n, size) \
-    _IOC(_IOC_READ|_IOC_WRITE, PMCRAID_DRIVER_IOCTL, (n), (size))
+	_IOC(_IOC_READ|_IOC_WRITE, PMCRAID_DRIVER_IOCTL, (n), (size))
 
 #define FMW_IOCTL(n, size) \
-    _IOC(_IOC_READ|_IOC_WRITE, PMCRAID_PASSTHROUGH_IOCTL,  (n), (size))
+	_IOC(_IOC_READ|_IOC_WRITE, PMCRAID_PASSTHROUGH_IOCTL,  (n), (size))
 
 /*
  * _ARGSIZE: macro that gives size of the argument type passed to an IOCTL cmd.

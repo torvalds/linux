@@ -2850,12 +2850,6 @@ aic7xxx_done(struct aic7xxx_host *p, struct aic7xxx_scb *scb)
       aic_dev->r_total++;
       ptr = aic_dev->r_bins;
     }
-    if(cmd->device->simple_tags && cmd->request->cmd_flags & REQ_HARDBARRIER)
-    {
-      aic_dev->barrier_total++;
-      if(scb->tag_action == MSG_ORDERED_Q_TAG)
-        aic_dev->ordered_total++;
-    }
     x = scb->sg_length;
     x >>= 10;
     for(i=0; i<6; i++)
@@ -10125,7 +10119,6 @@ static void aic7xxx_buildscb(struct aic7xxx_host *p, struct scsi_cmnd *cmd,
   struct aic_dev_data *aic_dev = cmd->device->hostdata;
   struct scsi_device *sdptr = cmd->device;
   unsigned char tindex = TARGET_INDEX(cmd);
-  struct request *req = cmd->request;
   int use_sg;
 
   mask = (0x01 << tindex);
@@ -10144,19 +10137,8 @@ static void aic7xxx_buildscb(struct aic7xxx_host *p, struct scsi_cmnd *cmd,
     /* We always force TEST_UNIT_READY to untagged */
     if (cmd->cmnd[0] != TEST_UNIT_READY && sdptr->simple_tags)
     {
-      if (req->cmd_flags & REQ_HARDBARRIER)
-      {
-	if(sdptr->ordered_tags)
-	{
-          hscb->control |= MSG_ORDERED_Q_TAG;
-          scb->tag_action = MSG_ORDERED_Q_TAG;
-	}
-      }
-      else
-      {
-        hscb->control |= MSG_SIMPLE_Q_TAG;
-        scb->tag_action = MSG_SIMPLE_Q_TAG;
-      }
+      hscb->control |= MSG_SIMPLE_Q_TAG;
+      scb->tag_action = MSG_SIMPLE_Q_TAG;
     }
   }
   if ( !(aic_dev->dtr_pending) &&

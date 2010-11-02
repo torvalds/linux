@@ -24,6 +24,7 @@
 
 #include <mach/board-zoom.h>
 
+#include "board-flash.h"
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 
@@ -107,8 +108,6 @@ static void __init omap_zoom2_init(void)
 }
 
 MACHINE_START(OMAP_ZOOM2, "OMAP Zoom2 board")
-	.phys_io	= ZOOM_UART_BASE,
-	.io_pg_offst	= (ZOOM_UART_VIRT >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,

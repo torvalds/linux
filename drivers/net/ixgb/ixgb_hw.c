@@ -167,7 +167,7 @@ ixgb_adapter_stop(struct ixgb_hw *hw)
 	/* Clear any pending interrupt events. */
 	icr_reg = IXGB_READ_REG(hw, ICR);
 
-	return (ctrl_reg & IXGB_CTRL0_RST);
+	return ctrl_reg & IXGB_CTRL0_RST;
 }
 
 
@@ -209,7 +209,7 @@ ixgb_identify_xpak_vendor(struct ixgb_hw *hw)
 		xpak_vendor = ixgb_xpak_vendor_infineon;
 	}
 
-	return (xpak_vendor);
+	return xpak_vendor;
 }
 
 /******************************************************************************
@@ -273,7 +273,7 @@ ixgb_identify_phy(struct ixgb_hw *hw)
 	if (hw->subsystem_vendor_id == SUN_SUBVENDOR_ID)
 		phy_type = ixgb_phy_type_bcm;
 
-	return (phy_type);
+	return phy_type;
 }
 
 /******************************************************************************
@@ -366,7 +366,7 @@ ixgb_init_hw(struct ixgb_hw *hw)
 	/* 82597EX errata: Call check-for-link in case lane deskew is locked */
 	ixgb_check_for_link(hw);
 
-	return (status);
+	return status;
 }
 
 /******************************************************************************
@@ -531,7 +531,7 @@ ixgb_hash_mc_addr(struct ixgb_hw *hw,
 	}
 
 	hash_value &= 0xFFF;
-	return (hash_value);
+	return hash_value;
 }
 
 /******************************************************************************
@@ -715,7 +715,7 @@ ixgb_setup_fc(struct ixgb_hw *hw)
 		}
 		IXGB_WRITE_REG(hw, FCRTH, hw->fc.high_water);
 	}
-	return (status);
+	return status;
 }
 
 /******************************************************************************
@@ -1140,7 +1140,7 @@ mac_addr_valid(u8 *mac_addr)
 		pr_debug("MAC address is all zeros\n");
 		is_valid = false;
 	}
-	return (is_valid);
+	return is_valid;
 }
 
 /******************************************************************************

@@ -261,7 +261,6 @@ typedef struct tag_Tx_Config_Cmd_Format
 
 /*------------------------Export global variable----------------------------*/
 extern	dig_t	dm_digtable;
-extern	u8		dm_shadow[16][256];
 extern DRxPathSel      DM_RxPathSelTable;
 /*------------------------Export global variable----------------------------*/
 
@@ -302,7 +301,6 @@ extern  void dm_fsync_timer_callback(unsigned long data);
 extern  bool    dm_check_lbus_status(struct net_device *dev);
 #endif
 extern  void dm_check_fsync(struct net_device *dev);
-extern  void    dm_shadow_init(struct net_device *dev);
 extern  void dm_initialize_txpower_tracking(struct net_device *dev);
 
 

@@ -1,4 +1,4 @@
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <linux/bug.h>
 #include <linux/err.h>
@@ -6,9 +6,9 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#include "mdsmap.h"
-#include "messenger.h"
-#include "decode.h"
+#include <linux/ceph/mdsmap.h>
+#include <linux/ceph/messenger.h>
+#include <linux/ceph/decode.h>
 
 #include "super.h"
 
@@ -117,7 +117,8 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		}
 
 		dout("mdsmap_decode %d/%d %lld mds%d.%d %s %s\n",
-		     i+1, n, global_id, mds, inc, pr_addr(&addr.in_addr),
+		     i+1, n, global_id, mds, inc,
+		     ceph_pr_addr(&addr.in_addr),
 		     ceph_mds_state_name(state));
 		if (mds >= 0 && mds < m->m_max_mds && state > 0) {
 			m->m_info[mds].global_id = global_id;

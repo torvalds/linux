@@ -24,7 +24,7 @@
 
 #include <net/irda/irlan_event.h>
 
-char *irlan_state[] = {
+const char * const irlan_state[] = {
 	"IRLAN_IDLE",
 	"IRLAN_QUERY",
 	"IRLAN_CONN",

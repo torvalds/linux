@@ -1050,7 +1050,7 @@ gss_match(struct auth_cred *acred, struct rpc_cred *rc, int flags)
 out:
 	if (acred->machine_cred != gss_cred->gc_machine_cred)
 		return 0;
-	return (rc->cr_uid == acred->uid);
+	return rc->cr_uid == acred->uid;
 }
 
 /*

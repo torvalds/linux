@@ -153,6 +153,7 @@ int nfs_mount(struct nfs_mount_request *info)
 		.rpc_resp	= &result,
 	};
 	struct rpc_create_args args = {
+		.net		= &init_net,
 		.protocol	= info->protocol,
 		.address	= info->sap,
 		.addrsize	= info->salen,
@@ -224,6 +225,7 @@ void nfs_umount(const struct nfs_mount_request *info)
 		.to_retries = 2,
 	};
 	struct rpc_create_args args = {
+		.net		= &init_net,
 		.protocol	= IPPROTO_UDP,
 		.address	= info->sap,
 		.addrsize	= info->salen,
@@ -436,7 +438,7 @@ static int decode_auth_flavors(struct xdr_stream *xdr, struct mountres *res)
 
 	for (i = 0; i < entries; i++) {
 		flavors[i] = ntohl(*p++);
-		dprintk("NFS:\tflavor %u: %d\n", i, flavors[i]);
+		dprintk("NFS:   auth flavor[%u]: %d\n", i, flavors[i]);
 	}
 	*count = i;
 

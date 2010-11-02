@@ -21,9 +21,11 @@
 
 unsigned long *crst_table_alloc(struct mm_struct *, int);
 void crst_table_free(struct mm_struct *, unsigned long *);
+void crst_table_free_rcu(struct mm_struct *, unsigned long *);
 
 unsigned long *page_table_alloc(struct mm_struct *);
 void page_table_free(struct mm_struct *, unsigned long *);
+void page_table_free_rcu(struct mm_struct *, unsigned long *);
 void disable_noexec(struct mm_struct *, struct task_struct *);
 
 static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
@@ -175,5 +177,7 @@ static inline void pmd_populate(struct mm_struct *mm,
 
 #define pte_free_kernel(mm, pte) page_table_free(mm, (unsigned long *) pte)
 #define pte_free(mm, pte) page_table_free(mm, (unsigned long *) pte)
+
+extern void rcu_table_freelist_finish(void);
 
 #endif /* _S390_PGALLOC_H */

@@ -1,7 +1,7 @@
 /*
- * Line6 Linux USB driver - 0.8.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
- * Copyright (C) 2004-2009 Markus Grabner (grabner@icg.tugraz.at)
+ * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -9,11 +9,10 @@
  *
  */
 
-#include "driver.h"
-
 #include <linux/usb.h>
 
 #include "control.h"
+#include "driver.h"
 #include "pod.h"
 #include "usbdefs.h"
 #include "variax.h"
@@ -45,7 +44,7 @@ static ssize_t pod_get_param_int(struct device *dev, char *buf, int param)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	int retval = line6_wait_dump(&pod->dumpreq, 0);
+	int retval = line6_dump_wait_interruptible(&pod->dumpreq);
 	if (retval < 0)
 		return retval;
 	return sprintf(buf, "%d\n", pod->prog_data.control[param]);
@@ -63,7 +62,7 @@ static ssize_t pod_set_param_int(struct device *dev, const char *buf,
 	if (retval)
 		return retval;
 
-	pod_transmit_parameter(pod, param, value);
+	line6_pod_transmit_parameter(pod, param, value);
 	return count;
 }
 
@@ -71,7 +70,7 @@ static ssize_t variax_get_param_int(struct device *dev, char *buf, int param)
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_variax *variax = usb_get_intfdata(interface);
-	int retval = line6_wait_dump(&variax->dumpreq, 0);
+	int retval = line6_dump_wait_interruptible(&variax->dumpreq);
 	if (retval < 0)
 		return retval;
 	return sprintf(buf, "%d\n", variax->model_data.control[param]);
@@ -80,12 +79,11 @@ static ssize_t variax_get_param_int(struct device *dev, char *buf, int param)
 static ssize_t variax_get_param_float(struct device *dev, char *buf, int param)
 {
 	/*
-	   We do our own floating point handling here since floats in the
-	   kernel are problematic for at least two reasons: - many distros
-	   are still shipped with binary kernels optimized for the ancient
-	   80386 without FPU
-	   - there isn't a printf("%f")
-	   (see http://www.kernelthread.com/publications/faq/335.html)
+	   We do our own floating point handling here since at the time
+	   this code was written (Jan 2006) it was highly discouraged to
+	   use floating point arithmetic in the kernel. If you think that
+	   this no longer applies, feel free to replace this by generic
+	   floating point code.
 	 */
 
 	static const int BIAS = 0x7f;
@@ -97,7 +95,7 @@ static ssize_t variax_get_param_float(struct device *dev, char *buf, int param)
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_variax *variax = usb_get_intfdata(interface);
 	const unsigned char *p = variax->model_data.control + param;
-	int retval = line6_wait_dump(&variax->dumpreq, 0);
+	int retval = line6_dump_wait_interruptible(&variax->dumpreq);
 	if (retval < 0)
 		return retval;
 
@@ -530,7 +528,7 @@ static DEVICE_ATTR(mix1, S_IRUGO, variax_get_mix1, line6_nop_write);
 static DEVICE_ATTR(pickup_wiring, S_IRUGO, variax_get_pickup_wiring,
 		   line6_nop_write);
 
-int pod_create_files(int firmware, int type, struct device *dev)
+int line6_pod_create_files(int firmware, int type, struct device *dev)
 {
 	int err;
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tweak));
@@ -733,9 +731,8 @@ int pod_create_files(int firmware, int type, struct device *dev)
 				     (dev, &dev_attr_band_6_gain__bass));
 	return 0;
 }
-EXPORT_SYMBOL(pod_create_files);
 
-void pod_remove_files(int firmware, int type, struct device *dev)
+void line6_pod_remove_files(int firmware, int type, struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_tweak);
 	device_remove_file(dev, &dev_attr_wah_position);
@@ -908,9 +905,8 @@ void pod_remove_files(int firmware, int type, struct device *dev)
 		if (firmware >= 200)
 			device_remove_file(dev, &dev_attr_band_6_gain__bass);
 }
-EXPORT_SYMBOL(pod_remove_files);
 
-int variax_create_files(int firmware, int type, struct device *dev)
+int line6_variax_create_files(int firmware, int type, struct device *dev)
 {
 	int err;
 	CHECK_RETURN(device_create_file(dev, &dev_attr_body));
@@ -954,9 +950,8 @@ int variax_create_files(int firmware, int type, struct device *dev)
 	CHECK_RETURN(device_create_file(dev, &dev_attr_pickup_wiring));
 	return 0;
 }
-EXPORT_SYMBOL(variax_create_files);
 
-void variax_remove_files(int firmware, int type, struct device *dev)
+void line6_variax_remove_files(int firmware, int type, struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_body);
 	device_remove_file(dev, &dev_attr_pickup1_enable);
@@ -998,4 +993,3 @@ void variax_remove_files(int firmware, int type, struct device *dev)
 	device_remove_file(dev, &dev_attr_mix1);
 	device_remove_file(dev, &dev_attr_pickup_wiring);
 }
-EXPORT_SYMBOL(variax_remove_files);

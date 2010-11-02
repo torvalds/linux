@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2008 Cavium Networks
+ * Copyright (c) 2003-2010 Cavium Networks
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -28,158 +28,83 @@
 #ifndef __CVMX_PCIERCX_DEFS_H__
 #define __CVMX_PCIERCX_DEFS_H__
 
-#define CVMX_PCIERCX_CFG000(offset) \
-	 (0x0000000000000000ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG001(offset) \
-	 (0x0000000000000004ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG002(offset) \
-	 (0x0000000000000008ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG003(offset) \
-	 (0x000000000000000Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG004(offset) \
-	 (0x0000000000000010ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG005(offset) \
-	 (0x0000000000000014ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG006(offset) \
-	 (0x0000000000000018ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG007(offset) \
-	 (0x000000000000001Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG008(offset) \
-	 (0x0000000000000020ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG009(offset) \
-	 (0x0000000000000024ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG010(offset) \
-	 (0x0000000000000028ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG011(offset) \
-	 (0x000000000000002Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG012(offset) \
-	 (0x0000000000000030ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG013(offset) \
-	 (0x0000000000000034ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG014(offset) \
-	 (0x0000000000000038ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG015(offset) \
-	 (0x000000000000003Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG016(offset) \
-	 (0x0000000000000040ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG017(offset) \
-	 (0x0000000000000044ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG020(offset) \
-	 (0x0000000000000050ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG021(offset) \
-	 (0x0000000000000054ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG022(offset) \
-	 (0x0000000000000058ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG023(offset) \
-	 (0x000000000000005Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG028(offset) \
-	 (0x0000000000000070ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG029(offset) \
-	 (0x0000000000000074ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG030(offset) \
-	 (0x0000000000000078ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG031(offset) \
-	 (0x000000000000007Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG032(offset) \
-	 (0x0000000000000080ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG033(offset) \
-	 (0x0000000000000084ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG034(offset) \
-	 (0x0000000000000088ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG035(offset) \
-	 (0x000000000000008Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG036(offset) \
-	 (0x0000000000000090ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG037(offset) \
-	 (0x0000000000000094ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG038(offset) \
-	 (0x0000000000000098ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG039(offset) \
-	 (0x000000000000009Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG040(offset) \
-	 (0x00000000000000A0ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG041(offset) \
-	 (0x00000000000000A4ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG042(offset) \
-	 (0x00000000000000A8ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG064(offset) \
-	 (0x0000000000000100ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG065(offset) \
-	 (0x0000000000000104ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG066(offset) \
-	 (0x0000000000000108ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG067(offset) \
-	 (0x000000000000010Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG068(offset) \
-	 (0x0000000000000110ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG069(offset) \
-	 (0x0000000000000114ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG070(offset) \
-	 (0x0000000000000118ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG071(offset) \
-	 (0x000000000000011Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG072(offset) \
-	 (0x0000000000000120ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG073(offset) \
-	 (0x0000000000000124ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG074(offset) \
-	 (0x0000000000000128ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG075(offset) \
-	 (0x000000000000012Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG076(offset) \
-	 (0x0000000000000130ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG077(offset) \
-	 (0x0000000000000134ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG448(offset) \
-	 (0x0000000000000700ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG449(offset) \
-	 (0x0000000000000704ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG450(offset) \
-	 (0x0000000000000708ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG451(offset) \
-	 (0x000000000000070Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG452(offset) \
-	 (0x0000000000000710ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG453(offset) \
-	 (0x0000000000000714ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG454(offset) \
-	 (0x0000000000000718ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG455(offset) \
-	 (0x000000000000071Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG456(offset) \
-	 (0x0000000000000720ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG458(offset) \
-	 (0x0000000000000728ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG459(offset) \
-	 (0x000000000000072Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG460(offset) \
-	 (0x0000000000000730ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG461(offset) \
-	 (0x0000000000000734ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG462(offset) \
-	 (0x0000000000000738ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG463(offset) \
-	 (0x000000000000073Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG464(offset) \
-	 (0x0000000000000740ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG465(offset) \
-	 (0x0000000000000744ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG466(offset) \
-	 (0x0000000000000748ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG467(offset) \
-	 (0x000000000000074Cull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG468(offset) \
-	 (0x0000000000000750ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG490(offset) \
-	 (0x00000000000007A8ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG491(offset) \
-	 (0x00000000000007ACull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG492(offset) \
-	 (0x00000000000007B0ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG516(offset) \
-	 (0x0000000000000810ull + (((offset) & 1) * 0))
-#define CVMX_PCIERCX_CFG517(offset) \
-	 (0x0000000000000814ull + (((offset) & 1) * 0))
+#define CVMX_PCIERCX_CFG000(block_id) (0x0000000000000000ull)
+#define CVMX_PCIERCX_CFG001(block_id) (0x0000000000000004ull)
+#define CVMX_PCIERCX_CFG002(block_id) (0x0000000000000008ull)
+#define CVMX_PCIERCX_CFG003(block_id) (0x000000000000000Cull)
+#define CVMX_PCIERCX_CFG004(block_id) (0x0000000000000010ull)
+#define CVMX_PCIERCX_CFG005(block_id) (0x0000000000000014ull)
+#define CVMX_PCIERCX_CFG006(block_id) (0x0000000000000018ull)
+#define CVMX_PCIERCX_CFG007(block_id) (0x000000000000001Cull)
+#define CVMX_PCIERCX_CFG008(block_id) (0x0000000000000020ull)
+#define CVMX_PCIERCX_CFG009(block_id) (0x0000000000000024ull)
+#define CVMX_PCIERCX_CFG010(block_id) (0x0000000000000028ull)
+#define CVMX_PCIERCX_CFG011(block_id) (0x000000000000002Cull)
+#define CVMX_PCIERCX_CFG012(block_id) (0x0000000000000030ull)
+#define CVMX_PCIERCX_CFG013(block_id) (0x0000000000000034ull)
+#define CVMX_PCIERCX_CFG014(block_id) (0x0000000000000038ull)
+#define CVMX_PCIERCX_CFG015(block_id) (0x000000000000003Cull)
+#define CVMX_PCIERCX_CFG016(block_id) (0x0000000000000040ull)
+#define CVMX_PCIERCX_CFG017(block_id) (0x0000000000000044ull)
+#define CVMX_PCIERCX_CFG020(block_id) (0x0000000000000050ull)
+#define CVMX_PCIERCX_CFG021(block_id) (0x0000000000000054ull)
+#define CVMX_PCIERCX_CFG022(block_id) (0x0000000000000058ull)
+#define CVMX_PCIERCX_CFG023(block_id) (0x000000000000005Cull)
+#define CVMX_PCIERCX_CFG028(block_id) (0x0000000000000070ull)
+#define CVMX_PCIERCX_CFG029(block_id) (0x0000000000000074ull)
+#define CVMX_PCIERCX_CFG030(block_id) (0x0000000000000078ull)
+#define CVMX_PCIERCX_CFG031(block_id) (0x000000000000007Cull)
+#define CVMX_PCIERCX_CFG032(block_id) (0x0000000000000080ull)
+#define CVMX_PCIERCX_CFG033(block_id) (0x0000000000000084ull)
+#define CVMX_PCIERCX_CFG034(block_id) (0x0000000000000088ull)
+#define CVMX_PCIERCX_CFG035(block_id) (0x000000000000008Cull)
+#define CVMX_PCIERCX_CFG036(block_id) (0x0000000000000090ull)
+#define CVMX_PCIERCX_CFG037(block_id) (0x0000000000000094ull)
+#define CVMX_PCIERCX_CFG038(block_id) (0x0000000000000098ull)
+#define CVMX_PCIERCX_CFG039(block_id) (0x000000000000009Cull)
+#define CVMX_PCIERCX_CFG040(block_id) (0x00000000000000A0ull)
+#define CVMX_PCIERCX_CFG041(block_id) (0x00000000000000A4ull)
+#define CVMX_PCIERCX_CFG042(block_id) (0x00000000000000A8ull)
+#define CVMX_PCIERCX_CFG064(block_id) (0x0000000000000100ull)
+#define CVMX_PCIERCX_CFG065(block_id) (0x0000000000000104ull)
+#define CVMX_PCIERCX_CFG066(block_id) (0x0000000000000108ull)
+#define CVMX_PCIERCX_CFG067(block_id) (0x000000000000010Cull)
+#define CVMX_PCIERCX_CFG068(block_id) (0x0000000000000110ull)
+#define CVMX_PCIERCX_CFG069(block_id) (0x0000000000000114ull)
+#define CVMX_PCIERCX_CFG070(block_id) (0x0000000000000118ull)
+#define CVMX_PCIERCX_CFG071(block_id) (0x000000000000011Cull)
+#define CVMX_PCIERCX_CFG072(block_id) (0x0000000000000120ull)
+#define CVMX_PCIERCX_CFG073(block_id) (0x0000000000000124ull)
+#define CVMX_PCIERCX_CFG074(block_id) (0x0000000000000128ull)
+#define CVMX_PCIERCX_CFG075(block_id) (0x000000000000012Cull)
+#define CVMX_PCIERCX_CFG076(block_id) (0x0000000000000130ull)
+#define CVMX_PCIERCX_CFG077(block_id) (0x0000000000000134ull)
+#define CVMX_PCIERCX_CFG448(block_id) (0x0000000000000700ull)
+#define CVMX_PCIERCX_CFG449(block_id) (0x0000000000000704ull)
+#define CVMX_PCIERCX_CFG450(block_id) (0x0000000000000708ull)
+#define CVMX_PCIERCX_CFG451(block_id) (0x000000000000070Cull)
+#define CVMX_PCIERCX_CFG452(block_id) (0x0000000000000710ull)
+#define CVMX_PCIERCX_CFG453(block_id) (0x0000000000000714ull)
+#define CVMX_PCIERCX_CFG454(block_id) (0x0000000000000718ull)
+#define CVMX_PCIERCX_CFG455(block_id) (0x000000000000071Cull)
+#define CVMX_PCIERCX_CFG456(block_id) (0x0000000000000720ull)
+#define CVMX_PCIERCX_CFG458(block_id) (0x0000000000000728ull)
+#define CVMX_PCIERCX_CFG459(block_id) (0x000000000000072Cull)
+#define CVMX_PCIERCX_CFG460(block_id) (0x0000000000000730ull)
+#define CVMX_PCIERCX_CFG461(block_id) (0x0000000000000734ull)
+#define CVMX_PCIERCX_CFG462(block_id) (0x0000000000000738ull)
+#define CVMX_PCIERCX_CFG463(block_id) (0x000000000000073Cull)
+#define CVMX_PCIERCX_CFG464(block_id) (0x0000000000000740ull)
+#define CVMX_PCIERCX_CFG465(block_id) (0x0000000000000744ull)
+#define CVMX_PCIERCX_CFG466(block_id) (0x0000000000000748ull)
+#define CVMX_PCIERCX_CFG467(block_id) (0x000000000000074Cull)
+#define CVMX_PCIERCX_CFG468(block_id) (0x0000000000000750ull)
+#define CVMX_PCIERCX_CFG490(block_id) (0x00000000000007A8ull)
+#define CVMX_PCIERCX_CFG491(block_id) (0x00000000000007ACull)
+#define CVMX_PCIERCX_CFG492(block_id) (0x00000000000007B0ull)
+#define CVMX_PCIERCX_CFG515(block_id) (0x000000000000080Cull)
+#define CVMX_PCIERCX_CFG516(block_id) (0x0000000000000810ull)
+#define CVMX_PCIERCX_CFG517(block_id) (0x0000000000000814ull)
 
 union cvmx_pciercx_cfg000 {
 	uint32_t u32;
@@ -191,6 +116,8 @@ union cvmx_pciercx_cfg000 {
 	struct cvmx_pciercx_cfg000_s cn52xxp1;
 	struct cvmx_pciercx_cfg000_s cn56xx;
 	struct cvmx_pciercx_cfg000_s cn56xxp1;
+	struct cvmx_pciercx_cfg000_s cn63xx;
+	struct cvmx_pciercx_cfg000_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg001 {
@@ -225,6 +152,8 @@ union cvmx_pciercx_cfg001 {
 	struct cvmx_pciercx_cfg001_s cn52xxp1;
 	struct cvmx_pciercx_cfg001_s cn56xx;
 	struct cvmx_pciercx_cfg001_s cn56xxp1;
+	struct cvmx_pciercx_cfg001_s cn63xx;
+	struct cvmx_pciercx_cfg001_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg002 {
@@ -239,6 +168,8 @@ union cvmx_pciercx_cfg002 {
 	struct cvmx_pciercx_cfg002_s cn52xxp1;
 	struct cvmx_pciercx_cfg002_s cn56xx;
 	struct cvmx_pciercx_cfg002_s cn56xxp1;
+	struct cvmx_pciercx_cfg002_s cn63xx;
+	struct cvmx_pciercx_cfg002_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg003 {
@@ -254,6 +185,8 @@ union cvmx_pciercx_cfg003 {
 	struct cvmx_pciercx_cfg003_s cn52xxp1;
 	struct cvmx_pciercx_cfg003_s cn56xx;
 	struct cvmx_pciercx_cfg003_s cn56xxp1;
+	struct cvmx_pciercx_cfg003_s cn63xx;
+	struct cvmx_pciercx_cfg003_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg004 {
@@ -265,6 +198,8 @@ union cvmx_pciercx_cfg004 {
 	struct cvmx_pciercx_cfg004_s cn52xxp1;
 	struct cvmx_pciercx_cfg004_s cn56xx;
 	struct cvmx_pciercx_cfg004_s cn56xxp1;
+	struct cvmx_pciercx_cfg004_s cn63xx;
+	struct cvmx_pciercx_cfg004_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg005 {
@@ -276,6 +211,8 @@ union cvmx_pciercx_cfg005 {
 	struct cvmx_pciercx_cfg005_s cn52xxp1;
 	struct cvmx_pciercx_cfg005_s cn56xx;
 	struct cvmx_pciercx_cfg005_s cn56xxp1;
+	struct cvmx_pciercx_cfg005_s cn63xx;
+	struct cvmx_pciercx_cfg005_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg006 {
@@ -290,6 +227,8 @@ union cvmx_pciercx_cfg006 {
 	struct cvmx_pciercx_cfg006_s cn52xxp1;
 	struct cvmx_pciercx_cfg006_s cn56xx;
 	struct cvmx_pciercx_cfg006_s cn56xxp1;
+	struct cvmx_pciercx_cfg006_s cn63xx;
+	struct cvmx_pciercx_cfg006_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg007 {
@@ -317,6 +256,8 @@ union cvmx_pciercx_cfg007 {
 	struct cvmx_pciercx_cfg007_s cn52xxp1;
 	struct cvmx_pciercx_cfg007_s cn56xx;
 	struct cvmx_pciercx_cfg007_s cn56xxp1;
+	struct cvmx_pciercx_cfg007_s cn63xx;
+	struct cvmx_pciercx_cfg007_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg008 {
@@ -331,6 +272,8 @@ union cvmx_pciercx_cfg008 {
 	struct cvmx_pciercx_cfg008_s cn52xxp1;
 	struct cvmx_pciercx_cfg008_s cn56xx;
 	struct cvmx_pciercx_cfg008_s cn56xxp1;
+	struct cvmx_pciercx_cfg008_s cn63xx;
+	struct cvmx_pciercx_cfg008_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg009 {
@@ -347,6 +290,8 @@ union cvmx_pciercx_cfg009 {
 	struct cvmx_pciercx_cfg009_s cn52xxp1;
 	struct cvmx_pciercx_cfg009_s cn56xx;
 	struct cvmx_pciercx_cfg009_s cn56xxp1;
+	struct cvmx_pciercx_cfg009_s cn63xx;
+	struct cvmx_pciercx_cfg009_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg010 {
@@ -358,6 +303,8 @@ union cvmx_pciercx_cfg010 {
 	struct cvmx_pciercx_cfg010_s cn52xxp1;
 	struct cvmx_pciercx_cfg010_s cn56xx;
 	struct cvmx_pciercx_cfg010_s cn56xxp1;
+	struct cvmx_pciercx_cfg010_s cn63xx;
+	struct cvmx_pciercx_cfg010_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg011 {
@@ -369,6 +316,8 @@ union cvmx_pciercx_cfg011 {
 	struct cvmx_pciercx_cfg011_s cn52xxp1;
 	struct cvmx_pciercx_cfg011_s cn56xx;
 	struct cvmx_pciercx_cfg011_s cn56xxp1;
+	struct cvmx_pciercx_cfg011_s cn63xx;
+	struct cvmx_pciercx_cfg011_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg012 {
@@ -381,6 +330,8 @@ union cvmx_pciercx_cfg012 {
 	struct cvmx_pciercx_cfg012_s cn52xxp1;
 	struct cvmx_pciercx_cfg012_s cn56xx;
 	struct cvmx_pciercx_cfg012_s cn56xxp1;
+	struct cvmx_pciercx_cfg012_s cn63xx;
+	struct cvmx_pciercx_cfg012_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg013 {
@@ -393,6 +344,8 @@ union cvmx_pciercx_cfg013 {
 	struct cvmx_pciercx_cfg013_s cn52xxp1;
 	struct cvmx_pciercx_cfg013_s cn56xx;
 	struct cvmx_pciercx_cfg013_s cn56xxp1;
+	struct cvmx_pciercx_cfg013_s cn63xx;
+	struct cvmx_pciercx_cfg013_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg014 {
@@ -404,6 +357,8 @@ union cvmx_pciercx_cfg014 {
 	struct cvmx_pciercx_cfg014_s cn52xxp1;
 	struct cvmx_pciercx_cfg014_s cn56xx;
 	struct cvmx_pciercx_cfg014_s cn56xxp1;
+	struct cvmx_pciercx_cfg014_s cn63xx;
+	struct cvmx_pciercx_cfg014_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg015 {
@@ -429,6 +384,8 @@ union cvmx_pciercx_cfg015 {
 	struct cvmx_pciercx_cfg015_s cn52xxp1;
 	struct cvmx_pciercx_cfg015_s cn56xx;
 	struct cvmx_pciercx_cfg015_s cn56xxp1;
+	struct cvmx_pciercx_cfg015_s cn63xx;
+	struct cvmx_pciercx_cfg015_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg016 {
@@ -449,6 +406,8 @@ union cvmx_pciercx_cfg016 {
 	struct cvmx_pciercx_cfg016_s cn52xxp1;
 	struct cvmx_pciercx_cfg016_s cn56xx;
 	struct cvmx_pciercx_cfg016_s cn56xxp1;
+	struct cvmx_pciercx_cfg016_s cn63xx;
+	struct cvmx_pciercx_cfg016_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg017 {
@@ -471,6 +430,8 @@ union cvmx_pciercx_cfg017 {
 	struct cvmx_pciercx_cfg017_s cn52xxp1;
 	struct cvmx_pciercx_cfg017_s cn56xx;
 	struct cvmx_pciercx_cfg017_s cn56xxp1;
+	struct cvmx_pciercx_cfg017_s cn63xx;
+	struct cvmx_pciercx_cfg017_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg020 {
@@ -488,6 +449,8 @@ union cvmx_pciercx_cfg020 {
 	struct cvmx_pciercx_cfg020_s cn52xxp1;
 	struct cvmx_pciercx_cfg020_s cn56xx;
 	struct cvmx_pciercx_cfg020_s cn56xxp1;
+	struct cvmx_pciercx_cfg020_s cn63xx;
+	struct cvmx_pciercx_cfg020_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg021 {
@@ -500,6 +463,8 @@ union cvmx_pciercx_cfg021 {
 	struct cvmx_pciercx_cfg021_s cn52xxp1;
 	struct cvmx_pciercx_cfg021_s cn56xx;
 	struct cvmx_pciercx_cfg021_s cn56xxp1;
+	struct cvmx_pciercx_cfg021_s cn63xx;
+	struct cvmx_pciercx_cfg021_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg022 {
@@ -511,6 +476,8 @@ union cvmx_pciercx_cfg022 {
 	struct cvmx_pciercx_cfg022_s cn52xxp1;
 	struct cvmx_pciercx_cfg022_s cn56xx;
 	struct cvmx_pciercx_cfg022_s cn56xxp1;
+	struct cvmx_pciercx_cfg022_s cn63xx;
+	struct cvmx_pciercx_cfg022_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg023 {
@@ -523,6 +490,8 @@ union cvmx_pciercx_cfg023 {
 	struct cvmx_pciercx_cfg023_s cn52xxp1;
 	struct cvmx_pciercx_cfg023_s cn56xx;
 	struct cvmx_pciercx_cfg023_s cn56xxp1;
+	struct cvmx_pciercx_cfg023_s cn63xx;
+	struct cvmx_pciercx_cfg023_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg028 {
@@ -540,6 +509,8 @@ union cvmx_pciercx_cfg028 {
 	struct cvmx_pciercx_cfg028_s cn52xxp1;
 	struct cvmx_pciercx_cfg028_s cn56xx;
 	struct cvmx_pciercx_cfg028_s cn56xxp1;
+	struct cvmx_pciercx_cfg028_s cn63xx;
+	struct cvmx_pciercx_cfg028_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg029 {
@@ -561,6 +532,8 @@ union cvmx_pciercx_cfg029 {
 	struct cvmx_pciercx_cfg029_s cn52xxp1;
 	struct cvmx_pciercx_cfg029_s cn56xx;
 	struct cvmx_pciercx_cfg029_s cn56xxp1;
+	struct cvmx_pciercx_cfg029_s cn63xx;
+	struct cvmx_pciercx_cfg029_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg030 {
@@ -590,6 +563,8 @@ union cvmx_pciercx_cfg030 {
 	struct cvmx_pciercx_cfg030_s cn52xxp1;
 	struct cvmx_pciercx_cfg030_s cn56xx;
 	struct cvmx_pciercx_cfg030_s cn56xxp1;
+	struct cvmx_pciercx_cfg030_s cn63xx;
+	struct cvmx_pciercx_cfg030_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg031 {
@@ -611,6 +586,8 @@ union cvmx_pciercx_cfg031 {
 	struct cvmx_pciercx_cfg031_s cn52xxp1;
 	struct cvmx_pciercx_cfg031_s cn56xx;
 	struct cvmx_pciercx_cfg031_s cn56xxp1;
+	struct cvmx_pciercx_cfg031_s cn63xx;
+	struct cvmx_pciercx_cfg031_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg032 {
@@ -641,6 +618,8 @@ union cvmx_pciercx_cfg032 {
 	struct cvmx_pciercx_cfg032_s cn52xxp1;
 	struct cvmx_pciercx_cfg032_s cn56xx;
 	struct cvmx_pciercx_cfg032_s cn56xxp1;
+	struct cvmx_pciercx_cfg032_s cn63xx;
+	struct cvmx_pciercx_cfg032_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg033 {
@@ -663,6 +642,8 @@ union cvmx_pciercx_cfg033 {
 	struct cvmx_pciercx_cfg033_s cn52xxp1;
 	struct cvmx_pciercx_cfg033_s cn56xx;
 	struct cvmx_pciercx_cfg033_s cn56xxp1;
+	struct cvmx_pciercx_cfg033_s cn63xx;
+	struct cvmx_pciercx_cfg033_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg034 {
@@ -695,6 +676,8 @@ union cvmx_pciercx_cfg034 {
 	struct cvmx_pciercx_cfg034_s cn52xxp1;
 	struct cvmx_pciercx_cfg034_s cn56xx;
 	struct cvmx_pciercx_cfg034_s cn56xxp1;
+	struct cvmx_pciercx_cfg034_s cn63xx;
+	struct cvmx_pciercx_cfg034_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg035 {
@@ -713,6 +696,8 @@ union cvmx_pciercx_cfg035 {
 	struct cvmx_pciercx_cfg035_s cn52xxp1;
 	struct cvmx_pciercx_cfg035_s cn56xx;
 	struct cvmx_pciercx_cfg035_s cn56xxp1;
+	struct cvmx_pciercx_cfg035_s cn63xx;
+	struct cvmx_pciercx_cfg035_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg036 {
@@ -727,6 +712,8 @@ union cvmx_pciercx_cfg036 {
 	struct cvmx_pciercx_cfg036_s cn52xxp1;
 	struct cvmx_pciercx_cfg036_s cn56xx;
 	struct cvmx_pciercx_cfg036_s cn56xxp1;
+	struct cvmx_pciercx_cfg036_s cn63xx;
+	struct cvmx_pciercx_cfg036_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg037 {
@@ -740,6 +727,8 @@ union cvmx_pciercx_cfg037 {
 	struct cvmx_pciercx_cfg037_s cn52xxp1;
 	struct cvmx_pciercx_cfg037_s cn56xx;
 	struct cvmx_pciercx_cfg037_s cn56xxp1;
+	struct cvmx_pciercx_cfg037_s cn63xx;
+	struct cvmx_pciercx_cfg037_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg038 {
@@ -753,28 +742,51 @@ union cvmx_pciercx_cfg038 {
 	struct cvmx_pciercx_cfg038_s cn52xxp1;
 	struct cvmx_pciercx_cfg038_s cn56xx;
 	struct cvmx_pciercx_cfg038_s cn56xxp1;
+	struct cvmx_pciercx_cfg038_s cn63xx;
+	struct cvmx_pciercx_cfg038_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg039 {
 	uint32_t u32;
 	struct cvmx_pciercx_cfg039_s {
-		uint32_t reserved_0_31:32;
+		uint32_t reserved_9_31:23;
+		uint32_t cls:1;
+		uint32_t slsv:7;
+		uint32_t reserved_0_0:1;
 	} s;
-	struct cvmx_pciercx_cfg039_s cn52xx;
-	struct cvmx_pciercx_cfg039_s cn52xxp1;
-	struct cvmx_pciercx_cfg039_s cn56xx;
-	struct cvmx_pciercx_cfg039_s cn56xxp1;
+	struct cvmx_pciercx_cfg039_cn52xx {
+		uint32_t reserved_0_31:32;
+	} cn52xx;
+	struct cvmx_pciercx_cfg039_cn52xx cn52xxp1;
+	struct cvmx_pciercx_cfg039_cn52xx cn56xx;
+	struct cvmx_pciercx_cfg039_cn52xx cn56xxp1;
+	struct cvmx_pciercx_cfg039_s cn63xx;
+	struct cvmx_pciercx_cfg039_cn52xx cn63xxp1;
 };
 
 union cvmx_pciercx_cfg040 {
 	uint32_t u32;
 	struct cvmx_pciercx_cfg040_s {
-		uint32_t reserved_0_31:32;
+		uint32_t reserved_17_31:15;
+		uint32_t cdl:1;
+		uint32_t reserved_13_15:3;
+		uint32_t cde:1;
+		uint32_t csos:1;
+		uint32_t emc:1;
+		uint32_t tm:3;
+		uint32_t sde:1;
+		uint32_t hasd:1;
+		uint32_t ec:1;
+		uint32_t tls:4;
 	} s;
-	struct cvmx_pciercx_cfg040_s cn52xx;
-	struct cvmx_pciercx_cfg040_s cn52xxp1;
-	struct cvmx_pciercx_cfg040_s cn56xx;
-	struct cvmx_pciercx_cfg040_s cn56xxp1;
+	struct cvmx_pciercx_cfg040_cn52xx {
+		uint32_t reserved_0_31:32;
+	} cn52xx;
+	struct cvmx_pciercx_cfg040_cn52xx cn52xxp1;
+	struct cvmx_pciercx_cfg040_cn52xx cn56xx;
+	struct cvmx_pciercx_cfg040_cn52xx cn56xxp1;
+	struct cvmx_pciercx_cfg040_s cn63xx;
+	struct cvmx_pciercx_cfg040_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg041 {
@@ -786,6 +798,8 @@ union cvmx_pciercx_cfg041 {
 	struct cvmx_pciercx_cfg041_s cn52xxp1;
 	struct cvmx_pciercx_cfg041_s cn56xx;
 	struct cvmx_pciercx_cfg041_s cn56xxp1;
+	struct cvmx_pciercx_cfg041_s cn63xx;
+	struct cvmx_pciercx_cfg041_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg042 {
@@ -797,6 +811,8 @@ union cvmx_pciercx_cfg042 {
 	struct cvmx_pciercx_cfg042_s cn52xxp1;
 	struct cvmx_pciercx_cfg042_s cn56xx;
 	struct cvmx_pciercx_cfg042_s cn56xxp1;
+	struct cvmx_pciercx_cfg042_s cn63xx;
+	struct cvmx_pciercx_cfg042_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg064 {
@@ -810,6 +826,8 @@ union cvmx_pciercx_cfg064 {
 	struct cvmx_pciercx_cfg064_s cn52xxp1;
 	struct cvmx_pciercx_cfg064_s cn56xx;
 	struct cvmx_pciercx_cfg064_s cn56xxp1;
+	struct cvmx_pciercx_cfg064_s cn63xx;
+	struct cvmx_pciercx_cfg064_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg065 {
@@ -834,6 +852,8 @@ union cvmx_pciercx_cfg065 {
 	struct cvmx_pciercx_cfg065_s cn52xxp1;
 	struct cvmx_pciercx_cfg065_s cn56xx;
 	struct cvmx_pciercx_cfg065_s cn56xxp1;
+	struct cvmx_pciercx_cfg065_s cn63xx;
+	struct cvmx_pciercx_cfg065_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg066 {
@@ -858,6 +878,8 @@ union cvmx_pciercx_cfg066 {
 	struct cvmx_pciercx_cfg066_s cn52xxp1;
 	struct cvmx_pciercx_cfg066_s cn56xx;
 	struct cvmx_pciercx_cfg066_s cn56xxp1;
+	struct cvmx_pciercx_cfg066_s cn63xx;
+	struct cvmx_pciercx_cfg066_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg067 {
@@ -882,6 +904,8 @@ union cvmx_pciercx_cfg067 {
 	struct cvmx_pciercx_cfg067_s cn52xxp1;
 	struct cvmx_pciercx_cfg067_s cn56xx;
 	struct cvmx_pciercx_cfg067_s cn56xxp1;
+	struct cvmx_pciercx_cfg067_s cn63xx;
+	struct cvmx_pciercx_cfg067_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg068 {
@@ -901,6 +925,8 @@ union cvmx_pciercx_cfg068 {
 	struct cvmx_pciercx_cfg068_s cn52xxp1;
 	struct cvmx_pciercx_cfg068_s cn56xx;
 	struct cvmx_pciercx_cfg068_s cn56xxp1;
+	struct cvmx_pciercx_cfg068_s cn63xx;
+	struct cvmx_pciercx_cfg068_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg069 {
@@ -920,6 +946,8 @@ union cvmx_pciercx_cfg069 {
 	struct cvmx_pciercx_cfg069_s cn52xxp1;
 	struct cvmx_pciercx_cfg069_s cn56xx;
 	struct cvmx_pciercx_cfg069_s cn56xxp1;
+	struct cvmx_pciercx_cfg069_s cn63xx;
+	struct cvmx_pciercx_cfg069_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg070 {
@@ -936,6 +964,8 @@ union cvmx_pciercx_cfg070 {
 	struct cvmx_pciercx_cfg070_s cn52xxp1;
 	struct cvmx_pciercx_cfg070_s cn56xx;
 	struct cvmx_pciercx_cfg070_s cn56xxp1;
+	struct cvmx_pciercx_cfg070_s cn63xx;
+	struct cvmx_pciercx_cfg070_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg071 {
@@ -947,6 +977,8 @@ union cvmx_pciercx_cfg071 {
 	struct cvmx_pciercx_cfg071_s cn52xxp1;
 	struct cvmx_pciercx_cfg071_s cn56xx;
 	struct cvmx_pciercx_cfg071_s cn56xxp1;
+	struct cvmx_pciercx_cfg071_s cn63xx;
+	struct cvmx_pciercx_cfg071_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg072 {
@@ -958,6 +990,8 @@ union cvmx_pciercx_cfg072 {
 	struct cvmx_pciercx_cfg072_s cn52xxp1;
 	struct cvmx_pciercx_cfg072_s cn56xx;
 	struct cvmx_pciercx_cfg072_s cn56xxp1;
+	struct cvmx_pciercx_cfg072_s cn63xx;
+	struct cvmx_pciercx_cfg072_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg073 {
@@ -969,6 +1003,8 @@ union cvmx_pciercx_cfg073 {
 	struct cvmx_pciercx_cfg073_s cn52xxp1;
 	struct cvmx_pciercx_cfg073_s cn56xx;
 	struct cvmx_pciercx_cfg073_s cn56xxp1;
+	struct cvmx_pciercx_cfg073_s cn63xx;
+	struct cvmx_pciercx_cfg073_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg074 {
@@ -980,6 +1016,8 @@ union cvmx_pciercx_cfg074 {
 	struct cvmx_pciercx_cfg074_s cn52xxp1;
 	struct cvmx_pciercx_cfg074_s cn56xx;
 	struct cvmx_pciercx_cfg074_s cn56xxp1;
+	struct cvmx_pciercx_cfg074_s cn63xx;
+	struct cvmx_pciercx_cfg074_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg075 {
@@ -994,6 +1032,8 @@ union cvmx_pciercx_cfg075 {
 	struct cvmx_pciercx_cfg075_s cn52xxp1;
 	struct cvmx_pciercx_cfg075_s cn56xx;
 	struct cvmx_pciercx_cfg075_s cn56xxp1;
+	struct cvmx_pciercx_cfg075_s cn63xx;
+	struct cvmx_pciercx_cfg075_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg076 {
@@ -1013,6 +1053,8 @@ union cvmx_pciercx_cfg076 {
 	struct cvmx_pciercx_cfg076_s cn52xxp1;
 	struct cvmx_pciercx_cfg076_s cn56xx;
 	struct cvmx_pciercx_cfg076_s cn56xxp1;
+	struct cvmx_pciercx_cfg076_s cn63xx;
+	struct cvmx_pciercx_cfg076_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg077 {
@@ -1025,6 +1067,8 @@ union cvmx_pciercx_cfg077 {
 	struct cvmx_pciercx_cfg077_s cn52xxp1;
 	struct cvmx_pciercx_cfg077_s cn56xx;
 	struct cvmx_pciercx_cfg077_s cn56xxp1;
+	struct cvmx_pciercx_cfg077_s cn63xx;
+	struct cvmx_pciercx_cfg077_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg448 {
@@ -1037,6 +1081,8 @@ union cvmx_pciercx_cfg448 {
 	struct cvmx_pciercx_cfg448_s cn52xxp1;
 	struct cvmx_pciercx_cfg448_s cn56xx;
 	struct cvmx_pciercx_cfg448_s cn56xxp1;
+	struct cvmx_pciercx_cfg448_s cn63xx;
+	struct cvmx_pciercx_cfg448_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg449 {
@@ -1048,6 +1094,8 @@ union cvmx_pciercx_cfg449 {
 	struct cvmx_pciercx_cfg449_s cn52xxp1;
 	struct cvmx_pciercx_cfg449_s cn56xx;
 	struct cvmx_pciercx_cfg449_s cn56xxp1;
+	struct cvmx_pciercx_cfg449_s cn63xx;
+	struct cvmx_pciercx_cfg449_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg450 {
@@ -1064,6 +1112,8 @@ union cvmx_pciercx_cfg450 {
 	struct cvmx_pciercx_cfg450_s cn52xxp1;
 	struct cvmx_pciercx_cfg450_s cn56xx;
 	struct cvmx_pciercx_cfg450_s cn56xxp1;
+	struct cvmx_pciercx_cfg450_s cn63xx;
+	struct cvmx_pciercx_cfg450_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg451 {
@@ -1080,6 +1130,8 @@ union cvmx_pciercx_cfg451 {
 	struct cvmx_pciercx_cfg451_s cn52xxp1;
 	struct cvmx_pciercx_cfg451_s cn56xx;
 	struct cvmx_pciercx_cfg451_s cn56xxp1;
+	struct cvmx_pciercx_cfg451_s cn63xx;
+	struct cvmx_pciercx_cfg451_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg452 {
@@ -1103,6 +1155,8 @@ union cvmx_pciercx_cfg452 {
 	struct cvmx_pciercx_cfg452_s cn52xxp1;
 	struct cvmx_pciercx_cfg452_s cn56xx;
 	struct cvmx_pciercx_cfg452_s cn56xxp1;
+	struct cvmx_pciercx_cfg452_s cn63xx;
+	struct cvmx_pciercx_cfg452_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg453 {
@@ -1118,6 +1172,8 @@ union cvmx_pciercx_cfg453 {
 	struct cvmx_pciercx_cfg453_s cn52xxp1;
 	struct cvmx_pciercx_cfg453_s cn56xx;
 	struct cvmx_pciercx_cfg453_s cn56xxp1;
+	struct cvmx_pciercx_cfg453_s cn63xx;
+	struct cvmx_pciercx_cfg453_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg454 {
@@ -1136,6 +1192,8 @@ union cvmx_pciercx_cfg454 {
 	struct cvmx_pciercx_cfg454_s cn52xxp1;
 	struct cvmx_pciercx_cfg454_s cn56xx;
 	struct cvmx_pciercx_cfg454_s cn56xxp1;
+	struct cvmx_pciercx_cfg454_s cn63xx;
+	struct cvmx_pciercx_cfg454_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg455 {
@@ -1165,6 +1223,8 @@ union cvmx_pciercx_cfg455 {
 	struct cvmx_pciercx_cfg455_s cn52xxp1;
 	struct cvmx_pciercx_cfg455_s cn56xx;
 	struct cvmx_pciercx_cfg455_s cn56xxp1;
+	struct cvmx_pciercx_cfg455_s cn63xx;
+	struct cvmx_pciercx_cfg455_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg456 {
@@ -1178,6 +1238,8 @@ union cvmx_pciercx_cfg456 {
 	struct cvmx_pciercx_cfg456_s cn52xxp1;
 	struct cvmx_pciercx_cfg456_s cn56xx;
 	struct cvmx_pciercx_cfg456_s cn56xxp1;
+	struct cvmx_pciercx_cfg456_s cn63xx;
+	struct cvmx_pciercx_cfg456_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg458 {
@@ -1189,6 +1251,8 @@ union cvmx_pciercx_cfg458 {
 	struct cvmx_pciercx_cfg458_s cn52xxp1;
 	struct cvmx_pciercx_cfg458_s cn56xx;
 	struct cvmx_pciercx_cfg458_s cn56xxp1;
+	struct cvmx_pciercx_cfg458_s cn63xx;
+	struct cvmx_pciercx_cfg458_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg459 {
@@ -1200,6 +1264,8 @@ union cvmx_pciercx_cfg459 {
 	struct cvmx_pciercx_cfg459_s cn52xxp1;
 	struct cvmx_pciercx_cfg459_s cn56xx;
 	struct cvmx_pciercx_cfg459_s cn56xxp1;
+	struct cvmx_pciercx_cfg459_s cn63xx;
+	struct cvmx_pciercx_cfg459_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg460 {
@@ -1213,6 +1279,8 @@ union cvmx_pciercx_cfg460 {
 	struct cvmx_pciercx_cfg460_s cn52xxp1;
 	struct cvmx_pciercx_cfg460_s cn56xx;
 	struct cvmx_pciercx_cfg460_s cn56xxp1;
+	struct cvmx_pciercx_cfg460_s cn63xx;
+	struct cvmx_pciercx_cfg460_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg461 {
@@ -1226,6 +1294,8 @@ union cvmx_pciercx_cfg461 {
 	struct cvmx_pciercx_cfg461_s cn52xxp1;
 	struct cvmx_pciercx_cfg461_s cn56xx;
 	struct cvmx_pciercx_cfg461_s cn56xxp1;
+	struct cvmx_pciercx_cfg461_s cn63xx;
+	struct cvmx_pciercx_cfg461_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg462 {
@@ -1239,6 +1309,8 @@ union cvmx_pciercx_cfg462 {
 	struct cvmx_pciercx_cfg462_s cn52xxp1;
 	struct cvmx_pciercx_cfg462_s cn56xx;
 	struct cvmx_pciercx_cfg462_s cn56xxp1;
+	struct cvmx_pciercx_cfg462_s cn63xx;
+	struct cvmx_pciercx_cfg462_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg463 {
@@ -1253,6 +1325,8 @@ union cvmx_pciercx_cfg463 {
 	struct cvmx_pciercx_cfg463_s cn52xxp1;
 	struct cvmx_pciercx_cfg463_s cn56xx;
 	struct cvmx_pciercx_cfg463_s cn56xxp1;
+	struct cvmx_pciercx_cfg463_s cn63xx;
+	struct cvmx_pciercx_cfg463_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg464 {
@@ -1267,6 +1341,8 @@ union cvmx_pciercx_cfg464 {
 	struct cvmx_pciercx_cfg464_s cn52xxp1;
 	struct cvmx_pciercx_cfg464_s cn56xx;
 	struct cvmx_pciercx_cfg464_s cn56xxp1;
+	struct cvmx_pciercx_cfg464_s cn63xx;
+	struct cvmx_pciercx_cfg464_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg465 {
@@ -1281,6 +1357,8 @@ union cvmx_pciercx_cfg465 {
 	struct cvmx_pciercx_cfg465_s cn52xxp1;
 	struct cvmx_pciercx_cfg465_s cn56xx;
 	struct cvmx_pciercx_cfg465_s cn56xxp1;
+	struct cvmx_pciercx_cfg465_s cn63xx;
+	struct cvmx_pciercx_cfg465_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg466 {
@@ -1298,6 +1376,8 @@ union cvmx_pciercx_cfg466 {
 	struct cvmx_pciercx_cfg466_s cn52xxp1;
 	struct cvmx_pciercx_cfg466_s cn56xx;
 	struct cvmx_pciercx_cfg466_s cn56xxp1;
+	struct cvmx_pciercx_cfg466_s cn63xx;
+	struct cvmx_pciercx_cfg466_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg467 {
@@ -1313,6 +1393,8 @@ union cvmx_pciercx_cfg467 {
 	struct cvmx_pciercx_cfg467_s cn52xxp1;
 	struct cvmx_pciercx_cfg467_s cn56xx;
 	struct cvmx_pciercx_cfg467_s cn56xxp1;
+	struct cvmx_pciercx_cfg467_s cn63xx;
+	struct cvmx_pciercx_cfg467_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg468 {
@@ -1328,6 +1410,8 @@ union cvmx_pciercx_cfg468 {
 	struct cvmx_pciercx_cfg468_s cn52xxp1;
 	struct cvmx_pciercx_cfg468_s cn56xx;
 	struct cvmx_pciercx_cfg468_s cn56xxp1;
+	struct cvmx_pciercx_cfg468_s cn63xx;
+	struct cvmx_pciercx_cfg468_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg490 {
@@ -1342,6 +1426,8 @@ union cvmx_pciercx_cfg490 {
 	struct cvmx_pciercx_cfg490_s cn52xxp1;
 	struct cvmx_pciercx_cfg490_s cn56xx;
 	struct cvmx_pciercx_cfg490_s cn56xxp1;
+	struct cvmx_pciercx_cfg490_s cn63xx;
+	struct cvmx_pciercx_cfg490_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg491 {
@@ -1356,6 +1442,8 @@ union cvmx_pciercx_cfg491 {
 	struct cvmx_pciercx_cfg491_s cn52xxp1;
 	struct cvmx_pciercx_cfg491_s cn56xx;
 	struct cvmx_pciercx_cfg491_s cn56xxp1;
+	struct cvmx_pciercx_cfg491_s cn63xx;
+	struct cvmx_pciercx_cfg491_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg492 {
@@ -1370,6 +1458,23 @@ union cvmx_pciercx_cfg492 {
 	struct cvmx_pciercx_cfg492_s cn52xxp1;
 	struct cvmx_pciercx_cfg492_s cn56xx;
 	struct cvmx_pciercx_cfg492_s cn56xxp1;
+	struct cvmx_pciercx_cfg492_s cn63xx;
+	struct cvmx_pciercx_cfg492_s cn63xxp1;
+};
+
+union cvmx_pciercx_cfg515 {
+	uint32_t u32;
+	struct cvmx_pciercx_cfg515_s {
+		uint32_t reserved_21_31:11;
+		uint32_t s_d_e:1;
+		uint32_t ctcrb:1;
+		uint32_t cpyts:1;
+		uint32_t dsc:1;
+		uint32_t le:9;
+		uint32_t n_fts:8;
+	} s;
+	struct cvmx_pciercx_cfg515_s cn63xx;
+	struct cvmx_pciercx_cfg515_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg516 {
@@ -1381,6 +1486,8 @@ union cvmx_pciercx_cfg516 {
 	struct cvmx_pciercx_cfg516_s cn52xxp1;
 	struct cvmx_pciercx_cfg516_s cn56xx;
 	struct cvmx_pciercx_cfg516_s cn56xxp1;
+	struct cvmx_pciercx_cfg516_s cn63xx;
+	struct cvmx_pciercx_cfg516_s cn63xxp1;
 };
 
 union cvmx_pciercx_cfg517 {
@@ -1392,6 +1499,8 @@ union cvmx_pciercx_cfg517 {
 	struct cvmx_pciercx_cfg517_s cn52xxp1;
 	struct cvmx_pciercx_cfg517_s cn56xx;
 	struct cvmx_pciercx_cfg517_s cn56xxp1;
+	struct cvmx_pciercx_cfg517_s cn63xx;
+	struct cvmx_pciercx_cfg517_s cn63xxp1;
 };
 
 #endif

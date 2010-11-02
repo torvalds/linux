@@ -83,7 +83,6 @@
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
@@ -147,10 +146,9 @@ static int wl_adapter_attach(struct pcmcia_device *link)
 
 	link->resource[0]->end  = HCF_NUM_IO_PORTS;
 	link->resource[0]->flags= IO_DATA_PATH_WIDTH_16;
-	link->conf.Attributes   = CONF_ENABLE_IRQ;
-	link->conf.IntType      = INT_MEMORY_AND_IO;
-	link->conf.ConfigIndex  = 5;
-	link->conf.Present      = PRESENT_OPTION;
+	link->config_flags     |= CONF_ENABLE_IRQ;
+	link->config_index      = 5;
+	link->config_regs       = PRESENT_OPTION;
 
 	link->priv = dev;
 	lp = wl_priv(dev);
@@ -165,27 +163,6 @@ static int wl_adapter_attach(struct pcmcia_device *link)
 
 
 
-/*******************************************************************************
- *	wl_adapter_detach()
- *******************************************************************************
- *
- *  DESCRIPTION:
- *
- *      This deletes a driver "instance". The device is de-registered with Card
- *  Services. If it has been released, then the net device is unregistered, and
- *  all local data structures are freed. Otherwise, the structures will be
- *  freed when the device is released.
- *
- *  PARAMETERS:
- *
- *      link    - pointer to the dev_link_t structure representing the device to
- *                detach
- *
- *  RETURNS:
- *
- *      N/A
- *
- ******************************************************************************/
 static void wl_adapter_detach(struct pcmcia_device *link)
 {
 	struct net_device   *dev = link->priv;
@@ -209,26 +186,6 @@ static void wl_adapter_detach(struct pcmcia_device *link)
 /*============================================================================*/
 
 
-/*******************************************************************************
- *	wl_adapter_release()
- *******************************************************************************
- *
- *  DESCRIPTION:
- *
- *      After a card is removed, this routine will release the PCMCIA
- *  configuration. If the device is still open, this will be postponed until it
- *  is closed.
- *
- *  PARAMETERS:
- *
- *      arg - a u_long representing a pointer to a dev_link_t structure for the
- *            device to be released.
- *
- *  RETURNS:
- *
- *      N/A
- *
- ******************************************************************************/
 void wl_adapter_release(struct pcmcia_device *link)
 {
 	DBG_FUNC("wl_adapter_release");
@@ -268,26 +225,6 @@ static int wl_adapter_resume(struct pcmcia_device *link)
 	return 0;
 } /* wl_adapter_resume */
 
-/*******************************************************************************
- *	wl_adapter_insert()
- *******************************************************************************
- *
- *  DESCRIPTION:
- *
- *      wl_adapter_insert() is scheduled to run after a CARD_INSERTION event is
- *  received, to configure the PCMCIA socket, and to make the ethernet device
- *  available to the system.
- *
- *  PARAMETERS:
- *
- *      link    - pointer to the dev_link_t structure representing the device to
- *                insert
- *
- *  RETURNS:
- *
- *      N/A
- *
- ******************************************************************************/
 void wl_adapter_insert(struct pcmcia_device *link)
 {
 	struct net_device *dev;
@@ -302,7 +239,7 @@ void wl_adapter_insert(struct pcmcia_device *link)
 	dev     = link->priv;
 
 	/* Do we need to allocate an interrupt? */
-	link->conf.Attributes |= CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ;
 	link->io_lines = 6;
 
 	ret = pcmcia_request_io(link);
@@ -313,7 +250,7 @@ void wl_adapter_insert(struct pcmcia_device *link)
 	if (ret != 0)
 		goto failed;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret != 0)
 		goto failed;
 
@@ -457,9 +394,7 @@ MODULE_DEVICE_TABLE(pcmcia, wl_adapter_ids);
 
 static struct pcmcia_driver wlags49_driver = {
 	.owner	    = THIS_MODULE,
-	.drv	    = {
-		.name = DRIVER_NAME,
-	},
+	.name	    = DRIVER_NAME,
 	.probe	    = wl_adapter_attach,
 	.remove	    = wl_adapter_detach,
 	.id_table   = wl_adapter_ids,

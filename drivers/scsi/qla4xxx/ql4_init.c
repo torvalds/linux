@@ -1207,8 +1207,8 @@ static int qla4xxx_start_firmware_from_flash(struct scsi_qla_host *ha)
 			break;
 
 		DEBUG2(printk(KERN_INFO "scsi%ld: %s: Waiting for boot "
-			      "firmware to complete... ctrl_sts=0x%x\n",
-			      ha->host_no, __func__, ctrl_status));
+		    "firmware to complete... ctrl_sts=0x%x, remaining=%ld\n",
+		    ha->host_no, __func__, ctrl_status, max_wait_time));
 
 		msleep_interruptible(250);
 	} while (!time_after_eq(jiffies, max_wait_time));
@@ -1459,6 +1459,12 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha,
 exit_init_online:
 	set_bit(AF_ONLINE, &ha->flags);
 exit_init_hba:
+	if (is_qla8022(ha) && (status == QLA_ERROR)) {
+		/* Since interrupts are registered in start_firmware for
+		 * 82xx, release them here if initialize_adapter fails */
+		qla4xxx_free_irqs(ha);
+	}
+
 	DEBUG2(printk("scsi%ld: initialize adapter: %s\n", ha->host_no,
 	    status == QLA_ERROR ? "FAILED" : "SUCCEDED"));
 	return status;

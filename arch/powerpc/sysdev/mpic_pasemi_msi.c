@@ -39,24 +39,24 @@
 static struct mpic *msi_mpic;
 
 
-static void mpic_pasemi_msi_mask_irq(unsigned int irq)
+static void mpic_pasemi_msi_mask_irq(struct irq_data *data)
 {
-	pr_debug("mpic_pasemi_msi_mask_irq %d\n", irq);
-	mask_msi_irq(irq);
-	mpic_mask_irq(irq);
+	pr_debug("mpic_pasemi_msi_mask_irq %d\n", data->irq);
+	mask_msi_irq(data);
+	mpic_mask_irq(data->irq);
 }
 
-static void mpic_pasemi_msi_unmask_irq(unsigned int irq)
+static void mpic_pasemi_msi_unmask_irq(struct irq_data *data)
 {
-	pr_debug("mpic_pasemi_msi_unmask_irq %d\n", irq);
-	mpic_unmask_irq(irq);
-	unmask_msi_irq(irq);
+	pr_debug("mpic_pasemi_msi_unmask_irq %d\n", data->irq);
+	mpic_unmask_irq(data->irq);
+	unmask_msi_irq(data);
 }
 
 static struct irq_chip mpic_pasemi_msi_chip = {
-	.shutdown	= mpic_pasemi_msi_mask_irq,
-	.mask		= mpic_pasemi_msi_mask_irq,
-	.unmask		= mpic_pasemi_msi_unmask_irq,
+	.irq_shutdown	= mpic_pasemi_msi_mask_irq,
+	.irq_mask	= mpic_pasemi_msi_mask_irq,
+	.irq_unmask	= mpic_pasemi_msi_unmask_irq,
 	.eoi		= mpic_end_irq,
 	.set_type	= mpic_set_irq_type,
 	.set_affinity	= mpic_set_affinity,

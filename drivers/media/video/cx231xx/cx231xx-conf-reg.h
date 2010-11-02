@@ -39,6 +39,7 @@
 #define CIR_CAR_REG             0x38
 #define CIR_OT_CFG1             0x40
 #define CIR_OT_CFG2             0x44
+#define GBULK_BIT_EN            0x68
 #define PWR_CTL_EN              0x74
 
 /* Polaris Endpoints capture mask for register EP_MODE_SET */

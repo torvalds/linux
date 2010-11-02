@@ -28,56 +28,58 @@ omap_uart_virt:	.word	0x0
 		 * the desired UART phys and virt addresses temporarily into
 		 * the omap_uart_phys and omap_uart_virt above.
 		 */
-		.macro	addruart, rx, tmp
+		.macro	addruart, rp, rv
 
 		/* Use omap_uart_phys/virt if already configured */
-9:		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1			@ MMU enabled?
-		ldreq	\rx, =__virt_to_phys(omap_uart_phys)	@ physical base address
-		ldrne	\rx, =omap_uart_virt	@ virtual base
-		ldr	\rx, [\rx, #0]
-		cmp	\rx, #0			@ is port configured?
+9:		mrc	p15, 0, \rp, c1, c0
+		tst	\rp, #1			@ MMU enabled?
+		ldreq	\rp, =__virt_to_phys(omap_uart_phys)	@ MMU not enabled
+		ldrne	\rp, =omap_uart_phys	@ MMU enabled
+		add	\rv, \rp, #4		@ omap_uart_virt
+		ldr	\rp, [\rp, #0]
+		ldr	\rv, [\rv, #0]
+		cmp	\rp, #0			@ is port configured?
+		cmpne	\rv, #0
 		bne	99f			@ already configured
 
 		/* Check the debug UART configuration set in uncompress.h */
-		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1			@ MMU enabled?
-		ldreq	\rx, =OMAP_UART_INFO
-		ldrne	\rx, =__phys_to_virt(OMAP_UART_INFO)
-		ldr	\rx, [\rx, #0]
+		mrc	p15, 0, \rp, c1, c0
+		tst	\rp, #1			@ MMU enabled?
+		ldreq	\rp, =OMAP_UART_INFO	@ MMU not enabled
+		ldrne	\rp, =__phys_to_virt(OMAP_UART_INFO)	@ MMU enabled
+		ldr	\rp, [\rp, #0]
 
 		/* Select the UART to use based on the UART1 scratchpad value */
-10:		cmp	\rx, #0			@ no port configured?
+10:		cmp	\rp, #0			@ no port configured?
 		beq	11f			@ if none, try to use UART1
-		cmp	\rx, #OMAP1UART1
+		cmp	\rp, #OMAP1UART1
 		beq	11f			@ configure OMAP1UART1
-		cmp	\rx, #OMAP1UART2
+		cmp	\rp, #OMAP1UART2
 		beq	12f			@ configure OMAP1UART2
-		cmp	\rx, #OMAP1UART3
+		cmp	\rp, #OMAP1UART3
 		beq	13f			@ configure OMAP2UART3
 
 		/* Configure the UART offset from the phys/virt base */
-11:		mov	\rx, #0x00fb0000	@ OMAP1UART1
+11:		mov	\rp, #0x00fb0000	@ OMAP1UART1
 		b	98f
-12:		mov	\rx, #0x00fb0000	@ OMAP1UART1
-		orr	\rx, \rx, #0x00000800	@ OMAP1UART2
+12:		mov	\rp, #0x00fb0000	@ OMAP1UART1
+		orr	\rp, \rp, #0x00000800	@ OMAP1UART2
 		b	98f
-13:		mov	\rx, #0x00fb0000	@ OMAP1UART1
-		orr	\rx, \rx, #0x00000800	@ OMAP1UART2
-		orr	\rx, \rx, #0x00009000	@ OMAP1UART3
+13:		mov	\rp, #0x00fb0000	@ OMAP1UART1
+		orr	\rp, \rp, #0x00000800	@ OMAP1UART2
+		orr	\rp, \rp, #0x00009000	@ OMAP1UART3
 
 		/* Store both phys and virt address for the uart */
-98:		add	\rx, \rx, #0xff000000	@ phys base
-		mrc	p15, 0, \tmp, c1, c0
-		tst	\tmp, #1		@ MMU enabled?
-		ldreq	\tmp, =__virt_to_phys(omap_uart_phys)
-		ldrne	\tmp, =omap_uart_phys
-		str	\rx, [\tmp, #0]
-		sub	\rx, \rx, #0xff000000	@ phys base
-		add	\rx, \rx, #0xfe000000	@ virt base
-		ldreq	\tmp, =__virt_to_phys(omap_uart_virt)
-		ldrne	\tmp, =omap_uart_virt
-		str	\rx, [\tmp, #0]
+98:		add	\rp, \rp, #0xff000000	@ phys base
+		mrc	p15, 0, \rv, c1, c0
+		tst	\rv, #1			@ MMU enabled?
+		ldreq	\rv, =__virt_to_phys(omap_uart_phys)	@ MMU not enabled
+		ldrne	\rv, =omap_uart_phys	@ MMU enabled
+		str	\rp, [\rv, #0]
+		sub	\rp, \rp, #0xff000000	@ phys base
+		add	\rp, \rp, #0xfe000000	@ virt base
+		add	\rv, \rv, #4		@ omap_uart_lsr
+		str	\rp, [\rv, #0]
 		b	9b
 99:
 		.endm

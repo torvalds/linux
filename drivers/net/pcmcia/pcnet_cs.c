@@ -28,6 +28,8 @@
 
 ======================================================================*/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -35,14 +37,12 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
-#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/log2.h>
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
 #include "../8390.h"
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -100,7 +100,6 @@ static void pcnet_release(struct pcmcia_device *link);
 static int pcnet_open(struct net_device *dev);
 static int pcnet_close(struct net_device *dev);
 static int ei_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-static const struct ethtool_ops netdev_ethtool_ops;
 static irqreturn_t ei_irq_wrapper(int irq, void *dev_id);
 static void ei_watchdog(u_long arg);
 static void pcnet_reset_8390(struct net_device *dev);
@@ -238,14 +237,6 @@ static const struct net_device_ops pcnet_netdev_ops = {
 #endif
 };
 
-/*======================================================================
-
-    pcnet_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static int pcnet_probe(struct pcmcia_device *link)
 {
     pcnet_dev_t *info;
@@ -260,22 +251,12 @@ static int pcnet_probe(struct pcmcia_device *link)
     info->p_dev = link;
     link->priv = dev;
 
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
+    link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
     dev->netdev_ops = &pcnet_netdev_ops;
 
     return pcnet_config(link);
 } /* pcnet_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void pcnet_detach(struct pcmcia_device *link)
 {
@@ -300,22 +281,22 @@ static void pcnet_detach(struct pcmcia_device *link)
 static hw_info_t *get_hwinfo(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
-    win_req_t req;
     u_char __iomem *base, *virt;
     int i, j;
 
     /* Allocate a small memory window */
-    req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
-    req.Base = 0; req.Size = 0;
-    req.AccessSpeed = 0;
-    i = pcmcia_request_window(link, &req, &link->win);
+    link->resource[2]->flags |= WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
+    link->resource[2]->start = 0; link->resource[2]->end = 0;
+    i = pcmcia_request_window(link, link->resource[2], 0);
     if (i != 0)
 	return NULL;
 
-    virt = ioremap(req.Base, req.Size);
+    virt = ioremap(link->resource[2]->start,
+	    resource_size(link->resource[2]));
     for (i = 0; i < NR_INFO; i++) {
-	pcmcia_map_mem_page(link, link->win, hw_info[i].offset & ~(req.Size-1));
-	base = &virt[hw_info[i].offset & (req.Size-1)];
+	pcmcia_map_mem_page(link, link->resource[2],
+		hw_info[i].offset & ~(resource_size(link->resource[2])-1));
+	base = &virt[hw_info[i].offset & (resource_size(link->resource[2])-1)];
 	if ((readb(base+0) == hw_info[i].a0) &&
 	    (readb(base+2) == hw_info[i].a1) &&
 	    (readb(base+4) == hw_info[i].a2)) {
@@ -326,7 +307,7 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
     }
 
     iounmap(virt);
-    j = pcmcia_release_window(link, link->win);
+    j = pcmcia_release_window(link, link->resource[2]);
     return (i < NR_INFO) ? hw_info+i : NULL;
 } /* get_hwinfo */
 
@@ -421,7 +402,7 @@ static hw_info_t *get_ax88190(struct pcmcia_device *link)
     int i, j;
 
     /* Not much of a test, but the alternatives are messy */
-    if (link->conf.ConfigBase != 0x03c0)
+    if (link->config_base != 0x03c0)
 	return NULL;
 
     outb_p(0x01, ioaddr + EN0_DCFG);	/* Set word-wide access. */
@@ -434,8 +415,6 @@ static hw_info_t *get_ax88190(struct pcmcia_device *link)
 	dev->dev_addr[i] = j & 0xff;
 	dev->dev_addr[i+1] = j >> 8;
     }
-    printk(KERN_NOTICE "pcnet_cs: this is an AX88190 card!\n");
-    printk(KERN_NOTICE "pcnet_cs: use axnet_cs instead.\n");
     return NULL;
 }
 
@@ -462,14 +441,6 @@ static hw_info_t *get_hwired(struct pcmcia_device *link)
 
     return &default_info;
 } /* get_hwired */
-
-/*======================================================================
-
-    pcnet_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    ethernet device available to the system.
-
-======================================================================*/
 
 static int try_io_port(struct pcmcia_device *link)
 {
@@ -502,43 +473,22 @@ static int try_io_port(struct pcmcia_device *link)
     }
 }
 
-static int pcnet_confcheck(struct pcmcia_device *p_dev,
-			   cistpl_cftable_entry_t *cfg,
-			   cistpl_cftable_entry_t *dflt,
-			   unsigned int vcc,
-			   void *priv_data)
+static int pcnet_confcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int *priv = priv_data;
 	int try = (*priv & 0x1);
-	int i;
-	cistpl_io_t *io = &cfg->io;
 
-	if (cfg->index == 0 || cfg->io.nwin == 0)
+	*priv &= (p_dev->resource[2]->end >= 0x4000) ? 0x10 : ~0x10;
+
+	if (p_dev->config_index == 0)
 		return -EINVAL;
 
-	/* For multifunction cards, by convention, we configure the
-	   network function with window 0, and serial with window 1 */
-	if (io->nwin > 1) {
-		i = (io->win[1].len > io->win[0].len);
-		p_dev->resource[1]->start = io->win[1-i].base;
-		p_dev->resource[1]->end = io->win[1-i].len;
-	} else {
-		i = p_dev->resource[1]->end = 0;
-	}
+	if (p_dev->resource[0]->end + p_dev->resource[1]->end < 32)
+		return -EINVAL;
 
-	*priv &= ((cfg->mem.nwin == 1) &&
-		  (cfg->mem.win[0].len >= 0x4000)) ? 0x10 : ~0x10;
-
-	p_dev->resource[0]->start = io->win[i].base;
-	p_dev->resource[0]->end = io->win[i].len;
-	if (!try)
-		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-	else
+	if (try)
 		p_dev->io_lines = 16;
-	if (p_dev->resource[0]->end + p_dev->resource[1]->end >= 32)
-		return try_io_port(p_dev);
-
-	return -EINVAL;
+	return try_io_port(p_dev);
 }
 
 static hw_info_t *pcnet_try_config(struct pcmcia_device *link,
@@ -560,15 +510,14 @@ static hw_info_t *pcnet_try_config(struct pcmcia_device *link,
 	if (!link->irq)
 		return NULL;
 
-	if (resource_size(link->resource[1]) == 8) {
-		link->conf.Attributes |= CONF_ENABLE_SPKR;
-		link->conf.Status = CCSR_AUDIO_ENA;
-	}
+	if (resource_size(link->resource[1]) == 8)
+		link->config_flags |= CONF_ENABLE_SPKR;
+
 	if ((link->manf_id == MANFID_IBM) &&
 	    (link->card_id == PRODID_IBM_HOME_AND_AWAY))
-		link->conf.ConfigIndex |= 0x10;
+		link->config_index |= 0x10;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		return NULL;
 
@@ -583,7 +532,7 @@ static hw_info_t *pcnet_try_config(struct pcmcia_device *link,
 	} else
 		dev->if_port = 0;
 
-	if ((link->conf.ConfigBase == 0x03c0) &&
+	if ((link->config_base == 0x03c0) &&
 	    (link->manf_id == 0x149) && (link->card_id == 0xc1ab)) {
 		dev_info(&link->dev,
 			"this is an AX88190 card - use axnet_cs instead.\n");
@@ -653,9 +602,7 @@ static int pcnet_config(struct pcmcia_device *link)
 
     ei_status.name = "NE2000";
     ei_status.word16 = 1;
-    ei_status.reset_8390 = &pcnet_reset_8390;
-
-    SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
+    ei_status.reset_8390 = pcnet_reset_8390;
 
     if (info->flags & (IS_DL10019|IS_DL10022))
 	mii_phy_probe(dev);
@@ -663,39 +610,31 @@ static int pcnet_config(struct pcmcia_device *link)
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
-	printk(KERN_NOTICE "pcnet_cs: register_netdev() failed\n");
+	pr_notice("register_netdev() failed\n");
 	goto failed;
     }
 
     if (info->flags & (IS_DL10019|IS_DL10022)) {
 	u_char id = inb(dev->base_addr + 0x1a);
-	printk(KERN_INFO "%s: NE2000 (DL100%d rev %02x): ",
-	       dev->name, ((info->flags & IS_DL10022) ? 22 : 19), id);
+	netdev_info(dev, "NE2000 (DL100%d rev %02x): ",
+	       (info->flags & IS_DL10022) ? 22 : 19, id);
 	if (info->pna_phy)
-	    printk("PNA, ");
+	    pr_cont("PNA, ");
     } else {
-	printk(KERN_INFO "%s: NE2000 Compatible: ", dev->name);
+	netdev_info(dev, "NE2000 Compatible: ");
     }
-    printk("io %#3lx, irq %d,", dev->base_addr, dev->irq);
+    pr_cont("io %#3lx, irq %d,", dev->base_addr, dev->irq);
     if (info->flags & USE_SHMEM)
-	printk (" mem %#5lx,", dev->mem_start);
+	pr_cont(" mem %#5lx,", dev->mem_start);
     if (info->flags & HAS_MISC_REG)
-	printk(" %s xcvr,", if_names[dev->if_port]);
-    printk(" hw_addr %pM\n", dev->dev_addr);
+	pr_cont(" %s xcvr,", if_names[dev->if_port]);
+    pr_cont(" hw_addr %pM\n", dev->dev_addr);
     return 0;
 
 failed:
     pcnet_release(link);
     return -ENODEV;
 } /* pcnet_config */
-
-/*======================================================================
-
-    After a card is removed, pcnet_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
 
 static void pcnet_release(struct pcmcia_device *link)
 {
@@ -708,15 +647,6 @@ static void pcnet_release(struct pcmcia_device *link)
 
 	pcmcia_disable_device(link);
 }
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-======================================================================*/
 
 static int pcnet_suspend(struct pcmcia_device *link)
 {
@@ -955,7 +885,7 @@ static void mii_phy_probe(struct net_device *dev)
 	phyid = tmp << 16;
 	phyid |= mdio_read(mii_addr, i, MII_PHYID_REG2);
 	phyid &= MII_PHYID_REV_MASK;
-	pr_debug("%s: MII at %d is 0x%08x\n", dev->name, i, phyid);
+	netdev_dbg(dev, "MII at %d is 0x%08x\n", i, phyid);
 	if (phyid == AM79C9XX_HOME_PHY) {
 	    info->pna_phy = i;
 	} else if (phyid != AM79C9XX_ETH_PHY) {
@@ -988,7 +918,7 @@ static int pcnet_open(struct net_device *dev)
     info->phy_id = info->eth_phy;
     info->link_status = 0x00;
     init_timer(&info->watchdog);
-    info->watchdog.function = &ei_watchdog;
+    info->watchdog.function = ei_watchdog;
     info->watchdog.data = (u_long)dev;
     info->watchdog.expires = jiffies + HZ;
     add_timer(&info->watchdog);
@@ -1041,8 +971,8 @@ static void pcnet_reset_8390(struct net_device *dev)
     outb_p(ENISR_RESET, nic_base + EN0_ISR); /* Ack intr. */
 
     if (i == 100)
-	printk(KERN_ERR "%s: pcnet_reset_8390() did not complete.\n",
-	       dev->name);
+	netdev_err(dev, "pcnet_reset_8390() did not complete.\n");
+
     set_misc_reg(dev);
 
 } /* pcnet_reset_8390 */
@@ -1058,8 +988,7 @@ static int set_config(struct net_device *dev, struct ifmap *map)
 	else if ((map->port < 1) || (map->port > 2))
 	    return -EINVAL;
 	dev->if_port = map->port;
-	printk(KERN_INFO "%s: switched to %s port\n",
-	       dev->name, if_names[dev->if_port]);
+	netdev_info(dev, "switched to %s port\n", if_names[dev->if_port]);
 	NS8390_init(dev, 1);
     }
     return 0;
@@ -1094,7 +1023,7 @@ static void ei_watchdog(u_long arg)
        this, we can limp along even if the interrupt is blocked */
     if (info->stale++ && (inb_p(nic_base + EN0_ISR) & ENISR_ALL)) {
 	if (!info->fast_poll)
-	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
+	    netdev_info(dev, "interrupt(s) dropped!\n");
 	ei_irq_wrapper(dev->irq, dev);
 	info->fast_poll = HZ;
     }
@@ -1114,7 +1043,7 @@ static void ei_watchdog(u_long arg)
 	if (info->eth_phy) {
 	    info->phy_id = info->eth_phy = 0;
 	} else {
-	    printk(KERN_INFO "%s: MII is missing!\n", dev->name);
+	    netdev_info(dev, "MII is missing!\n");
 	    info->flags &= ~HAS_MII;
 	}
 	goto reschedule;
@@ -1123,8 +1052,7 @@ static void ei_watchdog(u_long arg)
     link &= 0x0004;
     if (link != info->link_status) {
 	u_short p = mdio_read(mii_addr, info->phy_id, 5);
-	printk(KERN_INFO "%s: %s link beat\n", dev->name,
-	       (link) ? "found" : "lost");
+	netdev_info(dev, "%s link beat\n", link ? "found" : "lost");
 	if (link && (info->flags & IS_DL10022)) {
 	    /* Disable collision detection on full duplex links */
 	    outb((p & 0x0140) ? 4 : 0, nic_base + DLINK_DIAG);
@@ -1135,13 +1063,12 @@ static void ei_watchdog(u_long arg)
 	if (link) {
 	    if (info->phy_id == info->eth_phy) {
 		if (p)
-		    printk(KERN_INFO "%s: autonegotiation complete: "
-			   "%sbaseT-%cD selected\n", dev->name,
+		    netdev_info(dev, "autonegotiation complete: "
+			   "%sbaseT-%cD selected\n",
 			   ((p & 0x0180) ? "100" : "10"),
 			   ((p & 0x0140) ? 'F' : 'H'));
 		else
-		    printk(KERN_INFO "%s: link partner did not "
-			   "autonegotiate\n", dev->name);
+		    netdev_info(dev, "link partner did not autonegotiate\n");
 	    }
 	    NS8390_init(dev, 1);
 	}
@@ -1154,7 +1081,7 @@ static void ei_watchdog(u_long arg)
 	    /* isolate this MII and try flipping to the other one */
 	    mdio_write(mii_addr, info->phy_id, 0, 0x0400);
 	    info->phy_id ^= info->pna_phy ^ info->eth_phy;
-	    printk(KERN_INFO "%s: switched to %s transceiver\n", dev->name,
+	    netdev_info(dev, "switched to %s transceiver\n",
 		   (info->phy_id == info->eth_phy) ? "ethernet" : "PNA");
 	    mdio_write(mii_addr, info->phy_id, 0,
 		       (info->phy_id == info->eth_phy) ? 0x1000 : 0);
@@ -1167,18 +1094,6 @@ reschedule:
     info->watchdog.expires = jiffies + HZ;
     add_timer(&info->watchdog);
 }
-
-/*====================================================================*/
-
-static void netdev_get_drvinfo(struct net_device *dev,
-			       struct ethtool_drvinfo *info)
-{
-	strcpy(info->driver, "pcnet_cs");
-}
-
-static const struct ethtool_ops netdev_ethtool_ops = {
-	.get_drvinfo		= netdev_get_drvinfo,
-};
 
 /*====================================================================*/
 
@@ -1214,9 +1129,9 @@ static void dma_get_8390_hdr(struct net_device *dev,
     unsigned int nic_base = dev->base_addr;
 
     if (ei_status.dmaing) {
-	printk(KERN_NOTICE "%s: DMAing conflict in dma_block_input."
+	netdev_notice(dev, "DMAing conflict in dma_block_input."
 	       "[DMAstat:%1x][irqlock:%1x]\n",
-	       dev->name, ei_status.dmaing, ei_status.irqlock);
+	       ei_status.dmaing, ei_status.irqlock);
 	return;
     }
 
@@ -1247,11 +1162,11 @@ static void dma_block_input(struct net_device *dev, int count,
     char *buf = skb->data;
 
     if ((ei_debug > 4) && (count != 4))
-	pr_debug("%s: [bi=%d]\n", dev->name, count+4);
+	netdev_dbg(dev, "[bi=%d]\n", count+4);
     if (ei_status.dmaing) {
-	printk(KERN_NOTICE "%s: DMAing conflict in dma_block_input."
+	netdev_notice(dev, "DMAing conflict in dma_block_input."
 	       "[DMAstat:%1x][irqlock:%1x]\n",
-	       dev->name, ei_status.dmaing, ei_status.irqlock);
+	       ei_status.dmaing, ei_status.irqlock);
 	return;
     }
     ei_status.dmaing |= 0x01;
@@ -1281,9 +1196,9 @@ static void dma_block_input(struct net_device *dev, int count,
 		break;
 	} while (--tries > 0);
 	if (tries <= 0)
-	    printk(KERN_NOTICE "%s: RX transfer address mismatch,"
+	    netdev_notice(dev, "RX transfer address mismatch,"
 		   "%#4.4x (expected) vs. %#4.4x (actual).\n",
-		   dev->name, ring_offset + xfer_count, addr);
+		   ring_offset + xfer_count, addr);
     }
 #endif
     outb_p(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
@@ -1304,7 +1219,7 @@ static void dma_block_output(struct net_device *dev, int count,
 
 #ifdef PCMCIA_DEBUG
     if (ei_debug > 4)
-	printk(KERN_DEBUG "%s: [bo=%d]\n", dev->name, count);
+	netdev_dbg(dev, "[bo=%d]\n", count);
 #endif
 
     /* Round the count up for word writes.  Do we need to do this?
@@ -1313,9 +1228,9 @@ static void dma_block_output(struct net_device *dev, int count,
     if (count & 0x01)
 	count++;
     if (ei_status.dmaing) {
-	printk(KERN_NOTICE "%s: DMAing conflict in dma_block_output."
+	netdev_notice(dev, "DMAing conflict in dma_block_output."
 	       "[DMAstat:%1x][irqlock:%1x]\n",
-	       dev->name, ei_status.dmaing, ei_status.irqlock);
+	       ei_status.dmaing, ei_status.irqlock);
 	return;
     }
     ei_status.dmaing |= 0x01;
@@ -1352,9 +1267,9 @@ static void dma_block_output(struct net_device *dev, int count,
 		break;
 	} while (--tries > 0);
 	if (tries <= 0) {
-	    printk(KERN_NOTICE "%s: Tx packet transfer address mismatch,"
+	    netdev_notice(dev, "Tx packet transfer address mismatch,"
 		   "%#4.4x (expected) vs. %#4.4x (actual).\n",
-		   dev->name, (start_page << 8) + count, addr);
+		   (start_page << 8) + count, addr);
 	    if (retries++ == 0)
 		goto retry;
 	}
@@ -1363,8 +1278,7 @@ static void dma_block_output(struct net_device *dev, int count,
 
     while ((inb_p(nic_base + EN0_ISR) & ENISR_RDC) == 0)
 	if (time_after(jiffies, dma_start + PCNET_RDC_TIMEOUT)) {
-	    printk(KERN_NOTICE "%s: timeout waiting for Tx RDC.\n",
-		   dev->name);
+	    netdev_notice(dev, "timeout waiting for Tx RDC.\n");
 	    pcnet_reset_8390(dev);
 	    NS8390_init(dev, 1);
 	    break;
@@ -1388,9 +1302,9 @@ static int setup_dma_config(struct pcmcia_device *link, int start_pg,
     ei_status.stop_page = stop_pg;
 
     /* set up block i/o functions */
-    ei_status.get_8390_hdr = &dma_get_8390_hdr;
-    ei_status.block_input = &dma_block_input;
-    ei_status.block_output = &dma_block_output;
+    ei_status.get_8390_hdr = dma_get_8390_hdr;
+    ei_status.block_input = dma_block_input;
+    ei_status.block_output = dma_block_output;
 
     return 0;
 }
@@ -1486,7 +1400,6 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
 {
     struct net_device *dev = link->priv;
     pcnet_dev_t *info = PRIV(dev);
-    win_req_t req;
     int i, window_size, offset, ret;
 
     window_size = (stop_pg - start_pg) << 8;
@@ -1497,22 +1410,22 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     window_size = roundup_pow_of_two(window_size);
 
     /* Allocate a memory window */
-    req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
-    req.Attributes |= WIN_USE_WAIT;
-    req.Base = 0; req.Size = window_size;
-    req.AccessSpeed = mem_speed;
-    ret = pcmcia_request_window(link, &req, &link->win);
+    link->resource[3]->flags |= WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM|WIN_ENABLE;
+    link->resource[3]->flags |= WIN_USE_WAIT;
+    link->resource[3]->start = 0; link->resource[3]->end = window_size;
+    ret = pcmcia_request_window(link, link->resource[3], mem_speed);
     if (ret)
 	    goto failed;
 
     offset = (start_pg << 8) + cm_offset;
     offset -= offset % window_size;
-    ret = pcmcia_map_mem_page(link, link->win, offset);
+    ret = pcmcia_map_mem_page(link, link->resource[3], offset);
     if (ret)
 	    goto failed;
 
     /* Try scribbling on the buffer */
-    info->base = ioremap(req.Base, window_size);
+    info->base = ioremap(link->resource[3]->start,
+			resource_size(link->resource[3]));
     for (i = 0; i < (TX_PAGES<<8); i += 2)
 	__raw_writew((i>>1), info->base+offset+i);
     udelay(100);
@@ -1521,24 +1434,25 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     pcnet_reset_8390(dev);
     if (i != (TX_PAGES<<8)) {
 	iounmap(info->base);
-	pcmcia_release_window(link, link->win);
-	info->base = NULL; link->win = 0;
+	pcmcia_release_window(link, link->resource[3]);
+	info->base = NULL;
 	goto failed;
     }
 
     ei_status.mem = info->base + offset;
-    ei_status.priv = req.Size;
+    ei_status.priv = resource_size(link->resource[3]);
     dev->mem_start = (u_long)ei_status.mem;
-    dev->mem_end = dev->mem_start + req.Size;
+    dev->mem_end = dev->mem_start + resource_size(link->resource[3]);
 
     ei_status.tx_start_page = start_pg;
     ei_status.rx_start_page = start_pg + TX_PAGES;
-    ei_status.stop_page = start_pg + ((req.Size - offset) >> 8);
+    ei_status.stop_page = start_pg + (
+	    (resource_size(link->resource[3]) - offset) >> 8);
 
     /* set up block i/o functions */
-    ei_status.get_8390_hdr = &shmem_get_8390_hdr;
-    ei_status.block_input = &shmem_block_input;
-    ei_status.block_output = &shmem_block_output;
+    ei_status.get_8390_hdr = shmem_get_8390_hdr;
+    ei_status.block_input = shmem_block_input;
+    ei_status.block_output = shmem_block_output;
 
     info->flags |= USE_SHMEM;
     return 0;
@@ -1622,6 +1536,7 @@ static struct pcmcia_device_id pcnet_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("COMPU-SHACK", "FASTline PCMCIA 10/100 Fast-Ethernet", 0xfa2e424d, 0x3953d9b9),
 	PCMCIA_DEVICE_PROD_ID12("CONTEC", "C-NET(PC)C-10L", 0x21cab552, 0xf6f90722),
 	PCMCIA_DEVICE_PROD_ID12("corega", "FEther PCC-TXF", 0x0a21501a, 0xa51564a2),
+	PCMCIA_DEVICE_PROD_ID12("corega", "Ether CF-TD", 0x0a21501a, 0x6589340a),
 	PCMCIA_DEVICE_PROD_ID12("corega K.K.", "corega EtherII PCC-T", 0x5261440f, 0xfa9d85bd),
 	PCMCIA_DEVICE_PROD_ID12("corega K.K.", "corega EtherII PCC-TD", 0x5261440f, 0xc49bd73d),
 	PCMCIA_DEVICE_PROD_ID12("Corega K.K.", "corega EtherII PCC-TD", 0xd4fdcbd8, 0xc49bd73d),
@@ -1772,9 +1687,7 @@ MODULE_FIRMWARE("cis/PE-200.cis");
 MODULE_FIRMWARE("cis/tamarack.cis");
 
 static struct pcmcia_driver pcnet_driver = {
-	.drv		= {
-		.name	= "pcnet_cs",
-	},
+	.name		= "pcnet_cs",
 	.probe		= pcnet_probe,
 	.remove		= pcnet_detach,
 	.owner		= THIS_MODULE,

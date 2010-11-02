@@ -328,18 +328,21 @@ extern int kdata_huge;
  * Note that assembly code assumes that USER_PL is zero.
  */
 #define USER_PL 0
-#define KERNEL_PL 1
+#if CONFIG_KERNEL_PL == 2
+#define GUEST_PL 1
+#endif
+#define KERNEL_PL CONFIG_KERNEL_PL
 
-/* SYSTEM_SAVE_1_0 holds the current cpu number ORed with ksp0. */
+/* SYSTEM_SAVE_K_0 holds the current cpu number ORed with ksp0. */
 #define CPU_LOG_MASK_VALUE 12
 #define CPU_MASK_VALUE ((1 << CPU_LOG_MASK_VALUE) - 1)
 #if CONFIG_NR_CPUS > CPU_MASK_VALUE
 # error Too many cpus!
 #endif
 #define raw_smp_processor_id() \
-	((int)__insn_mfspr(SPR_SYSTEM_SAVE_1_0) & CPU_MASK_VALUE)
+	((int)__insn_mfspr(SPR_SYSTEM_SAVE_K_0) & CPU_MASK_VALUE)
 #define get_current_ksp0() \
-	(__insn_mfspr(SPR_SYSTEM_SAVE_1_0) & ~CPU_MASK_VALUE)
+	(__insn_mfspr(SPR_SYSTEM_SAVE_K_0) & ~CPU_MASK_VALUE)
 #define next_current_ksp0(task) ({ \
 	unsigned long __ksp0 = task_ksp0(task); \
 	int __cpu = raw_smp_processor_id(); \

@@ -1,7 +1,8 @@
 /*
  * Ceph 'frag' type
  */
-#include "types.h"
+#include <linux/module.h>
+#include <linux/ceph/types.h>
 
 int ceph_frag_compare(__u32 a, __u32 b)
 {

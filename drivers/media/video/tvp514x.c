@@ -35,6 +35,7 @@
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-mediabus.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/tvp514x.h>
 
@@ -929,69 +930,51 @@ tvp514x_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 }
 
 /**
- * tvp514x_enum_fmt_cap() - V4L2 decoder interface handler for enum_fmt
+ * tvp514x_enum_mbus_fmt() - V4L2 decoder interface handler for enum_mbus_fmt
  * @sd: pointer to standard V4L2 sub-device structure
- * @fmt: standard V4L2 VIDIOC_ENUM_FMT ioctl structure
+ * @index: index of pixelcode to retrieve
+ * @code: receives the pixelcode
  *
- * Implement the VIDIOC_ENUM_FMT ioctl to enumerate supported formats
+ * Enumerates supported mediabus formats
  */
 static int
-tvp514x_enum_fmt_cap(struct v4l2_subdev *sd, struct v4l2_fmtdesc *fmt)
+tvp514x_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
+					enum v4l2_mbus_pixelcode *code)
 {
-	if (fmt == NULL || fmt->index)
+	if (index)
 		return -EINVAL;
 
-	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		/* only capture is supported */
-		return -EINVAL;
-
-	/* only one format */
-	fmt->flags = 0;
-	strlcpy(fmt->description, "8-bit UYVY 4:2:2 Format",
-					sizeof(fmt->description));
-	fmt->pixelformat = V4L2_PIX_FMT_UYVY;
+	*code = V4L2_MBUS_FMT_YUYV10_2X10;
 	return 0;
 }
 
 /**
- * tvp514x_fmt_cap() - V4L2 decoder interface handler for try/s/g_fmt
+ * tvp514x_mbus_fmt_cap() - V4L2 decoder interface handler for try/s/g_mbus_fmt
  * @sd: pointer to standard V4L2 sub-device structure
- * @f: pointer to standard V4L2 VIDIOC_TRY_FMT ioctl structure
+ * @f: pointer to the mediabus format structure
  *
- * Implement the VIDIOC_TRY/S/G_FMT ioctl for the CAPTURE buffer type. This
- * ioctl is used to negotiate the image capture size and pixel format.
+ * Negotiates the image capture size and mediabus format.
  */
 static int
-tvp514x_fmt_cap(struct v4l2_subdev *sd, struct v4l2_format *f)
+tvp514x_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *f)
 {
 	struct tvp514x_decoder *decoder = to_decoder(sd);
-	struct v4l2_pix_format *pix;
 	enum tvp514x_std current_std;
 
 	if (f == NULL)
 		return -EINVAL;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	pix = &f->fmt.pix;
-
 	/* Calculate height and width based on current standard */
 	current_std = decoder->current_std;
 
-	pix->pixelformat = V4L2_PIX_FMT_UYVY;
-	pix->width = decoder->std_list[current_std].width;
-	pix->height = decoder->std_list[current_std].height;
-	pix->field = V4L2_FIELD_INTERLACED;
-	pix->bytesperline = pix->width * 2;
-	pix->sizeimage = pix->bytesperline * pix->height;
-	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	pix->priv = 0;
+	f->code = V4L2_MBUS_FMT_YUYV10_2X10;
+	f->width = decoder->std_list[current_std].width;
+	f->height = decoder->std_list[current_std].height;
+	f->field = V4L2_FIELD_INTERLACED;
+	f->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
-	v4l2_dbg(1, debug, sd, "FMT: bytesperline - %d"
-			"Width - %d, Height - %d\n",
-			pix->bytesperline,
-			pix->width, pix->height);
+	v4l2_dbg(1, debug, sd, "MBUS_FMT: Width - %d, Height - %d\n",
+			f->width, f->height);
 	return 0;
 }
 
@@ -1131,10 +1114,10 @@ static const struct v4l2_subdev_core_ops tvp514x_core_ops = {
 static const struct v4l2_subdev_video_ops tvp514x_video_ops = {
 	.s_routing = tvp514x_s_routing,
 	.querystd = tvp514x_querystd,
-	.enum_fmt = tvp514x_enum_fmt_cap,
-	.g_fmt = tvp514x_fmt_cap,
-	.try_fmt = tvp514x_fmt_cap,
-	.s_fmt = tvp514x_fmt_cap,
+	.enum_mbus_fmt = tvp514x_enum_mbus_fmt,
+	.g_mbus_fmt = tvp514x_mbus_fmt,
+	.try_mbus_fmt = tvp514x_mbus_fmt,
+	.s_mbus_fmt = tvp514x_mbus_fmt,
 	.g_parm = tvp514x_g_parm,
 	.s_parm = tvp514x_s_parm,
 	.s_stream = tvp514x_s_stream,

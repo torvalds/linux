@@ -90,11 +90,6 @@ static void init_hardware(char *command, int size)
 	PDIQEG &= ~PD(1);
 	PDIRQEN |= PD(1);			/* IRQ enabled */
 
-#ifdef CONFIG_68328_SERIAL_UART2
-	/* Enable RXD TXD port bits to enable UART2 */
-	PJSEL &= ~(PJ(5) | PJ(4));
-#endif
-
 #ifdef CONFIG_INIT_LCD
 	/* initialize LCD controller */
 	LSSA = (long) screen_bits;

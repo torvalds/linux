@@ -233,6 +233,7 @@ static const struct file_operations codec_reg_fops = {
 	.open = codec_reg_open_file,
 	.read = codec_reg_read_file,
 	.write = codec_reg_write_file,
+	.llseek = default_llseek,
 };
 
 static void soc_init_codec_debugfs(struct snd_soc_codec *codec)

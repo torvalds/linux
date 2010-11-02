@@ -38,6 +38,7 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
+#include "iwl-agn-calib.h"
 
 static const s8 iwlagn_default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_VO,
@@ -50,6 +51,19 @@ static const s8 iwlagn_default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_UNUSED,
 	IWL_TX_FIFO_UNUSED,
 	IWL_TX_FIFO_UNUSED,
+};
+
+static const s8 iwlagn_ipan_queue_to_tx_fifo[] = {
+	IWL_TX_FIFO_VO,
+	IWL_TX_FIFO_VI,
+	IWL_TX_FIFO_BE,
+	IWL_TX_FIFO_BK,
+	IWL_TX_FIFO_BK_IPAN,
+	IWL_TX_FIFO_BE_IPAN,
+	IWL_TX_FIFO_VI_IPAN,
+	IWL_TX_FIFO_VO_IPAN,
+	IWL_TX_FIFO_BE_IPAN,
+	IWLAGN_CMD_FIFO_NUM,
 };
 
 static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
@@ -201,6 +215,25 @@ static int iwlagn_set_Xtal_calib(struct iwl_priv *priv)
 			     (u8 *)&cmd, sizeof(cmd));
 }
 
+static int iwlagn_set_temperature_offset_calib(struct iwl_priv *priv)
+{
+	struct iwl_calib_temperature_offset_cmd cmd;
+	__le16 *offset_calib =
+		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_TEMPERATURE);
+	cmd.hdr.op_code = IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD;
+	cmd.hdr.first_group = 0;
+	cmd.hdr.groups_num = 1;
+	cmd.hdr.data_valid = 1;
+	cmd.radio_sensor_offset = le16_to_cpu(offset_calib[1]);
+	if (!(cmd.radio_sensor_offset))
+		cmd.radio_sensor_offset = DEFAULT_RADIO_SENSOR_OFFSET;
+	cmd.reserved = 0;
+	IWL_DEBUG_CALIB(priv, "Radio sensor offset: %d\n",
+			cmd.radio_sensor_offset);
+	return iwl_calib_set(&priv->calib_results[IWL_CALIB_TEMP_OFFSET],
+			     (u8 *)&cmd, sizeof(cmd));
+}
+
 static int iwlagn_send_calib_cfg(struct iwl_priv *priv)
 {
 	struct iwl_calib_cfg_cmd calib_cfg_cmd;
@@ -294,7 +327,27 @@ void iwlagn_init_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
+		/*
+		 * Tell uCode we are ready to perform calibration
+		 * need to perform this before any calibration
+		 * no need to close the envlope since we are going
+		 * to load the runtime uCode later.
+		 */
+		iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
+			BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
+
+	}
 	iwlagn_send_calib_cfg(priv);
+
+	/**
+	 * temperature offset calibration is only needed for runtime ucode,
+	 * so prepare the value now.
+	 */
+	if (priv->cfg->need_temp_offset_calib)
+		iwlagn_set_temperature_offset_calib(priv);
+
 	return;
 
 restart:
@@ -306,7 +359,7 @@ static int iwlagn_send_wimax_coex(struct iwl_priv *priv)
 {
 	struct iwl_wimax_coex_cmd coex_cmd;
 
-	if (priv->cfg->support_wimax_coexist) {
+	if (priv->cfg->base_params->support_wimax_coexist) {
 		/* UnMask wake up src at associated sleep */
 		coex_cmd.flags = COEX_FLAGS_ASSOC_WA_UNMASK_MSK;
 
@@ -329,8 +382,54 @@ static int iwlagn_send_wimax_coex(struct iwl_priv *priv)
 				sizeof(coex_cmd), &coex_cmd);
 }
 
+static const u8 iwlagn_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
+	((BT_COEX_PRIO_TBL_PRIO_BYPASS << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_BYPASS << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(1 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_LOW << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_LOW << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(1 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_HIGH << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_HIGH << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(1 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_BYPASS << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_COEX_OFF << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	((BT_COEX_PRIO_TBL_PRIO_COEX_ON << IWL_BT_COEX_PRIO_TBL_PRIO_POS) |
+		(0 << IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS)),
+	0, 0, 0, 0, 0, 0, 0
+};
+
+void iwlagn_send_prio_tbl(struct iwl_priv *priv)
+{
+	struct iwl_bt_coex_prio_table_cmd prio_tbl_cmd;
+
+	memcpy(prio_tbl_cmd.prio_tbl, iwlagn_bt_prio_tbl,
+		sizeof(iwlagn_bt_prio_tbl));
+	if (iwl_send_cmd_pdu(priv, REPLY_BT_COEX_PRIO_TABLE,
+				sizeof(prio_tbl_cmd), &prio_tbl_cmd))
+		IWL_ERR(priv, "failed to send BT prio tbl command\n");
+}
+
+void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
+{
+	struct iwl_bt_coex_prot_env_cmd env_cmd;
+
+	env_cmd.action = action;
+	env_cmd.type = type;
+	if (iwl_send_cmd_pdu(priv, REPLY_BT_COEX_PROT_ENV,
+			     sizeof(env_cmd), &env_cmd))
+		IWL_ERR(priv, "failed to send BT env command\n");
+}
+
+
 int iwlagn_alive_notify(struct iwl_priv *priv)
 {
+	const s8 *queues;
 	u32 a;
 	unsigned long flags;
 	int i, chan;
@@ -365,7 +464,7 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	iwl_write_prph(priv, IWLAGN_SCD_QUEUECHAIN_SEL,
-		IWLAGN_SCD_QUEUECHAIN_SEL_ALL(priv->hw_params.max_txq_num));
+		IWLAGN_SCD_QUEUECHAIN_SEL_ALL(priv));
 	iwl_write_prph(priv, IWLAGN_SCD_AGGR_SEL, 0);
 
 	/* initiate the queues */
@@ -391,7 +490,13 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	/* Activate all Tx DMA/FIFO channels */
 	priv->cfg->ops->lib->txq_set_sched(priv, IWL_MASK(0, 7));
 
-	iwlagn_set_wr_ptrs(priv, IWL_CMD_QUEUE_NUM, 0);
+	/* map queues to FIFOs */
+	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
+		queues = iwlagn_ipan_queue_to_tx_fifo;
+	else
+		queues = iwlagn_default_queue_to_tx_fifo;
+
+	iwlagn_set_wr_ptrs(priv, priv->cmd_queue, 0);
 
 	/* make sure all queue are not stopped */
 	memset(&priv->queue_stopped[0], 0, sizeof(priv->queue_stopped));
@@ -400,11 +505,12 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 
 	/* reset to 0 to enable all the queue first */
 	priv->txq_ctx_active_msk = 0;
-	/* map qos queues to fifos one-to-one */
-	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo) != 10);
 
-	for (i = 0; i < ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo); i++) {
-		int ac = iwlagn_default_queue_to_tx_fifo[i];
+	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo) != 10);
+	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo) != 10);
+
+	for (i = 0; i < 10; i++) {
+		int ac = queues[i];
 
 		iwl_txq_ctx_activate(priv, i);
 

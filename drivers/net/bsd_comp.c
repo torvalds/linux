@@ -429,7 +429,7 @@ static void *bsd_alloc (unsigned char *options, int opt_len, int decomp)
 	if (!db->lens)
 	  {
 	    bsd_free (db);
-	    return (NULL);
+	    return NULL;
 	  }
       }
 /*

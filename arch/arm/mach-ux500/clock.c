@@ -477,6 +477,7 @@ static struct clk_lookup u8500_common_clks[] = {
 	CLK(sdi5,	"sdi5",		NULL),
 	CLK(uart2,	"uart2",	NULL),
 	CLK(ske,	"ske",		NULL),
+	CLK(ske,	"nmk-ske-keypad",	NULL),
 	CLK(sdi2,	"sdi2",		NULL),
 	CLK(i2c0,	"nmk-i2c.0",	NULL),
 	CLK(fsmc,	"fsmc",		NULL),

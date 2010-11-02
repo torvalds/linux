@@ -57,7 +57,7 @@
 #define clear_bit(nr, addr) ___clear_bit((nr), (addr))
 
 
-static inline void __clear_bit(int nr, volatile void *addr)
+static inline void __clear_bit(unsigned long nr, volatile void *addr)
 {
 	unsigned int *a = (unsigned int *) addr;
 	int mask;
@@ -70,15 +70,15 @@ static inline void __clear_bit(int nr, volatile void *addr)
 /*
  * test bit
  */
-static inline int test_bit(int nr, const volatile void *addr)
+static inline int test_bit(unsigned long nr, const volatile void *addr)
 {
-	return 1UL & (((const unsigned int *) addr)[nr >> 5] >> (nr & 31));
+	return 1UL & (((const volatile unsigned int *) addr)[nr >> 5] >> (nr & 31));
 }
 
 /*
  * change bit
  */
-static inline void __change_bit(int nr, volatile void *addr)
+static inline void __change_bit(unsigned long nr, volatile void *addr)
 {
 	int	mask;
 	unsigned int *a = (unsigned int *) addr;
@@ -88,7 +88,7 @@ static inline void __change_bit(int nr, volatile void *addr)
 	*a ^= mask;
 }
 
-extern void change_bit(int nr, volatile void *addr);
+extern void change_bit(unsigned long nr, volatile void *addr);
 
 /*
  * test and set bit
@@ -135,7 +135,7 @@ extern void change_bit(int nr, volatile void *addr);
 /*
  * test and change bit
  */
-static inline int __test_and_change_bit(int nr, volatile void *addr)
+static inline int __test_and_change_bit(unsigned long nr, volatile void *addr)
 {
 	int	mask, retval;
 	unsigned int *a = (unsigned int *)addr;
@@ -148,7 +148,7 @@ static inline int __test_and_change_bit(int nr, volatile void *addr)
 	return retval;
 }
 
-extern int test_and_change_bit(int nr, volatile void *addr);
+extern int test_and_change_bit(unsigned long nr, volatile void *addr);
 
 #include <asm-generic/bitops/lock.h>
 

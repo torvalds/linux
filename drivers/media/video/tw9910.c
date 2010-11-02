@@ -469,7 +469,7 @@ tw9910_select_norm(struct soc_camera_device *icd, u32 width, u32 height)
  */
 static int tw9910_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
 	u8 val;
 	int ret;
@@ -511,7 +511,7 @@ static int tw9910_set_bus_param(struct soc_camera_device *icd,
 				unsigned long flags)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u8 val = VSSL_VVALID | HSSL_DVALID;
 
 	/*
@@ -565,7 +565,7 @@ static int tw9910_enum_input(struct soc_camera_device *icd,
 static int tw9910_g_chip_ident(struct v4l2_subdev *sd,
 			       struct v4l2_dbg_chip_ident *id)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
 
 	id->ident = V4L2_IDENT_TW9910;
@@ -578,7 +578,7 @@ static int tw9910_g_chip_ident(struct v4l2_subdev *sd,
 static int tw9910_g_register(struct v4l2_subdev *sd,
 			     struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
 	if (reg->reg > 0xff)
@@ -600,7 +600,7 @@ static int tw9910_g_register(struct v4l2_subdev *sd,
 static int tw9910_s_register(struct v4l2_subdev *sd,
 			     struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (reg->reg > 0xff ||
 	    reg->val > 0xff)
@@ -613,7 +613,7 @@ static int tw9910_s_register(struct v4l2_subdev *sd,
 static int tw9910_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
 	struct v4l2_rect *rect = &a->c;
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
 	struct soc_camera_device *icd = client->dev.platform_data;
 	int                 ret  = -EINVAL;
@@ -701,7 +701,7 @@ tw9910_set_fmt_error:
 
 static int tw9910_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
 
 	if (!priv->scale) {
@@ -748,7 +748,7 @@ static int tw9910_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 static int tw9910_g_fmt(struct v4l2_subdev *sd,
 			struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
 
 	if (!priv->scale) {
@@ -778,7 +778,7 @@ static int tw9910_g_fmt(struct v4l2_subdev *sd,
 static int tw9910_s_fmt(struct v4l2_subdev *sd,
 			struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
 	/* See tw9910_s_crop() - no proper cropping support */
 	struct v4l2_crop a = {
@@ -813,7 +813,7 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd,
 static int tw9910_try_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct soc_camera_device *icd = client->dev.platform_data;
 	const struct tw9910_scale_ctrl *scale;
 

@@ -643,7 +643,8 @@ static ssize_t waiters_read(struct file *file, char __user *userbuf,
 static const struct file_operations waiters_fops = {
 	.owner   = THIS_MODULE,
 	.open    = waiters_open,
-	.read    = waiters_read
+	.read    = waiters_read,
+	.llseek  = default_llseek,
 };
 
 void dlm_delete_debug_file(struct dlm_ls *ls)

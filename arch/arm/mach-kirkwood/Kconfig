@@ -58,6 +58,12 @@ config MACH_TS41X
 	  QNAP TS-410, TS-410U, TS-419P and TS-419U Turbo NAS
 	  devices.
 
+config MACH_DOCKSTAR
+	bool "Seagate FreeAgent DockStar"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Seagate FreeAgent DockStar.
+
 config MACH_OPENRD
         bool
 
@@ -99,6 +105,12 @@ config MACH_NETSPACE_MAX_V2
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  LaCie Network Space Max v2 NAS.
+
+config MACH_D2NET_V2
+	bool "LaCie d2 Network v2 NAS Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie d2 Network v2 NAS.
 
 config MACH_NET2BIG_V2
 	bool "LaCie 2Big Network v2 NAS Board"

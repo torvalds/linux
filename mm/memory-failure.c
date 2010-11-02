@@ -7,21 +7,26 @@
  * Free Software Foundation.
  *
  * High level machine check handler. Handles pages reported by the
- * hardware as being corrupted usually due to a 2bit ECC memory or cache
+ * hardware as being corrupted usually due to a multi-bit ECC memory or cache
  * failure.
+ * 
+ * In addition there is a "soft offline" entry point that allows stop using
+ * not-yet-corrupted-by-suspicious pages without killing anything.
  *
  * Handles page cache pages in various states.	The tricky part
- * here is that we can access any page asynchronous to other VM
- * users, because memory failures could happen anytime and anywhere,
- * possibly violating some of their assumptions. This is why this code
- * has to be extremely careful. Generally it tries to use normal locking
- * rules, as in get the standard locks, even if that means the
- * error handling takes potentially a long time.
- *
- * The operation to map back from RMAP chains to processes has to walk
- * the complete process list and has non linear complexity with the number
- * mappings. In short it can be quite slow. But since memory corruptions
- * are rare we hope to get away with this.
+ * here is that we can access any page asynchronously in respect to 
+ * other VM users, because memory failures could happen anytime and 
+ * anywhere. This could violate some of their assumptions. This is why 
+ * this code has to be extremely careful. Generally it tries to use 
+ * normal locking rules, as in get the standard locks, even if that means 
+ * the error handling takes potentially a long time.
+ * 
+ * There are several operations here with exponential complexity because
+ * of unsuitable VM data structures. For example the operation to map back 
+ * from RMAP chains to processes has to walk the complete process list and 
+ * has non linear complexity with the number. But since memory corruptions
+ * are rare we hope to get away with this. This avoids impacting the core 
+ * VM.
  */
 
 /*
@@ -30,7 +35,6 @@
  * - kcore/oldmem/vmcore/mem/kmem check for hwpoison pages
  * - pass bad pages to kdump next kernel
  */
-#define DEBUG 1		/* remove me in 2.6.34 */
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/page-flags.h>
@@ -78,7 +82,7 @@ static int hwpoison_filter_dev(struct page *p)
 		return 0;
 
 	/*
-	 * page_mapping() does not accept slab page
+	 * page_mapping() does not accept slab pages.
 	 */
 	if (PageSlab(p))
 		return -EINVAL;
@@ -268,7 +272,7 @@ struct to_kill {
 	struct list_head nd;
 	struct task_struct *tsk;
 	unsigned long addr;
-	unsigned addr_valid:1;
+	char addr_valid;
 };
 
 /*
@@ -309,7 +313,7 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
 	 * a SIGKILL because the error is not contained anymore.
 	 */
 	if (tk->addr == -EFAULT) {
-		pr_debug("MCE: Unable to find user space address %lx in %s\n",
+		pr_info("MCE: Unable to find user space address %lx in %s\n",
 			page_to_pfn(p), tsk->comm);
 		tk->addr_valid = 0;
 	}
@@ -577,7 +581,7 @@ static int me_pagecache_clean(struct page *p, unsigned long pfn)
 					pfn, err);
 		} else if (page_has_private(p) &&
 				!try_to_release_page(p, GFP_NOIO)) {
-			pr_debug("MCE %#lx: failed to release buffers\n", pfn);
+			pr_info("MCE %#lx: failed to release buffers\n", pfn);
 		} else {
 			ret = RECOVERED;
 		}
@@ -693,11 +697,10 @@ static int me_swapcache_clean(struct page *p, unsigned long pfn)
  * Issues:
  * - Error on hugepage is contained in hugepage unit (not in raw page unit.)
  *   To narrow down kill region to one page, we need to break up pmd.
- * - To support soft-offlining for hugepage, we need to support hugepage
- *   migration.
  */
 static int me_huge_page(struct page *p, unsigned long pfn)
 {
+	int res = 0;
 	struct page *hpage = compound_head(p);
 	/*
 	 * We can safely recover from error on free or reserved (i.e.
@@ -710,8 +713,9 @@ static int me_huge_page(struct page *p, unsigned long pfn)
 	 * so there is no race between isolation and mapping/unmapping.
 	 */
 	if (!(page_mapping(hpage) || PageAnon(hpage))) {
-		__isolate_hwpoisoned_huge_page(hpage);
-		return RECOVERED;
+		res = dequeue_hwpoisoned_huge_page(hpage);
+		if (!res)
+			return RECOVERED;
 	}
 	return DELAYED;
 }
@@ -836,8 +840,6 @@ static int page_action(struct page_state *ps, struct page *p,
 	return (result == RECOVERED || result == DELAYED) ? 0 : -EBUSY;
 }
 
-#define N_UNMAP_TRIES 5
-
 /*
  * Do all that is necessary to remove user space mappings. Unmap
  * the pages and send SIGBUS to the processes if the data was dirty.
@@ -849,7 +851,6 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	struct address_space *mapping;
 	LIST_HEAD(tokill);
 	int ret;
-	int i;
 	int kill = 1;
 	struct page *hpage = compound_head(p);
 
@@ -903,17 +904,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	if (kill)
 		collect_procs(hpage, &tokill);
 
-	/*
-	 * try_to_unmap can fail temporarily due to races.
-	 * Try a few times (RED-PEN better strategy?)
-	 */
-	for (i = 0; i < N_UNMAP_TRIES; i++) {
-		ret = try_to_unmap(hpage, ttu);
-		if (ret == SWAP_SUCCESS)
-			break;
-		pr_debug("MCE %#lx: try_to_unmap retry needed %d\n", pfn,  ret);
-	}
-
+	ret = try_to_unmap(hpage, ttu);
 	if (ret != SWAP_SUCCESS)
 		printk(KERN_ERR "MCE %#lx: failed to unmap page (mapcount=%d)\n",
 				pfn, page_mapcount(hpage));
@@ -981,7 +972,10 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	 * We need/can do nothing about count=0 pages.
 	 * 1) it's a free page, and therefore in safe hand:
 	 *    prep_new_page() will be the gate keeper.
-	 * 2) it's part of a non-compound high order page.
+	 * 2) it's a free hugepage, which is also safe:
+	 *    an affected hugepage will be dequeued from hugepage freelist,
+	 *    so there's no concern about reusing it ever after.
+	 * 3) it's part of a non-compound high order page.
 	 *    Implies some kernel user: cannot stop them from
 	 *    R/W the page; let's pray that the page has been
 	 *    used and will be freed some time later.
@@ -993,6 +987,24 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 		if (is_free_buddy_page(p)) {
 			action_result(pfn, "free buddy", DELAYED);
 			return 0;
+		} else if (PageHuge(hpage)) {
+			/*
+			 * Check "just unpoisoned", "filter hit", and
+			 * "race with other subpage."
+			 */
+			lock_page_nosync(hpage);
+			if (!PageHWPoison(hpage)
+			    || (hwpoison_filter(p) && TestClearPageHWPoison(p))
+			    || (p != hpage && TestSetPageHWPoison(hpage))) {
+				atomic_long_sub(nr_pages, &mce_bad_pages);
+				return 0;
+			}
+			set_page_hwpoison_huge_page(hpage);
+			res = dequeue_hwpoisoned_huge_page(hpage);
+			action_result(pfn, "free huge",
+				      res ? IGNORED : DELAYED);
+			unlock_page(hpage);
+			return res;
 		} else {
 			action_result(pfn, "high order kernel", IGNORED);
 			return -EBUSY;
@@ -1147,16 +1159,26 @@ int unpoison_memory(unsigned long pfn)
 	page = compound_head(p);
 
 	if (!PageHWPoison(p)) {
-		pr_debug("MCE: Page was already unpoisoned %#lx\n", pfn);
+		pr_info("MCE: Page was already unpoisoned %#lx\n", pfn);
 		return 0;
 	}
 
 	nr_pages = 1 << compound_order(page);
 
 	if (!get_page_unless_zero(page)) {
+		/*
+		 * Since HWPoisoned hugepage should have non-zero refcount,
+		 * race between memory failure and unpoison seems to happen.
+		 * In such case unpoison fails and memory failure runs
+		 * to the end.
+		 */
+		if (PageHuge(page)) {
+			pr_debug("MCE: Memory failure is now running on free hugepage %#lx\n", pfn);
+			return 0;
+		}
 		if (TestClearPageHWPoison(p))
 			atomic_long_sub(nr_pages, &mce_bad_pages);
-		pr_debug("MCE: Software-unpoisoned free page %#lx\n", pfn);
+		pr_info("MCE: Software-unpoisoned free page %#lx\n", pfn);
 		return 0;
 	}
 
@@ -1168,12 +1190,12 @@ int unpoison_memory(unsigned long pfn)
 	 * the free buddy page pool.
 	 */
 	if (TestClearPageHWPoison(page)) {
-		pr_debug("MCE: Software-unpoisoned page %#lx\n", pfn);
+		pr_info("MCE: Software-unpoisoned page %#lx\n", pfn);
 		atomic_long_sub(nr_pages, &mce_bad_pages);
 		freeit = 1;
+		if (PageHuge(page))
+			clear_page_hwpoison_huge_page(page);
 	}
-	if (PageHuge(p))
-		clear_page_hwpoison_huge_page(page);
 	unlock_page(page);
 
 	put_page(page);
@@ -1187,7 +1209,11 @@ EXPORT_SYMBOL(unpoison_memory);
 static struct page *new_page(struct page *p, unsigned long private, int **x)
 {
 	int nid = page_to_nid(p);
-	return alloc_pages_exact_node(nid, GFP_HIGHUSER_MOVABLE, 0);
+	if (PageHuge(p))
+		return alloc_huge_page_node(page_hstate(compound_head(p)),
+						   nid);
+	else
+		return alloc_pages_exact_node(nid, GFP_HIGHUSER_MOVABLE, 0);
 }
 
 /*
@@ -1215,14 +1241,21 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
 	 * was free.
 	 */
 	set_migratetype_isolate(p);
+	/*
+	 * When the target page is a free hugepage, just remove it
+	 * from free hugepage list.
+	 */
 	if (!get_page_unless_zero(compound_head(p))) {
-		if (is_free_buddy_page(p)) {
-			pr_debug("get_any_page: %#lx free buddy page\n", pfn);
+		if (PageHuge(p)) {
+			pr_info("get_any_page: %#lx free huge page\n", pfn);
+			ret = dequeue_hwpoisoned_huge_page(compound_head(p));
+		} else if (is_free_buddy_page(p)) {
+			pr_info("get_any_page: %#lx free buddy page\n", pfn);
 			/* Set hwpoison bit while page is still isolated */
 			SetPageHWPoison(p);
 			ret = 0;
 		} else {
-			pr_debug("get_any_page: %#lx: unknown zero refcount page type %lx\n",
+			pr_info("get_any_page: %#lx: unknown zero refcount page type %lx\n",
 				pfn, p->flags);
 			ret = -EIO;
 		}
@@ -1232,6 +1265,46 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
 	}
 	unset_migratetype_isolate(p);
 	unlock_system_sleep();
+	return ret;
+}
+
+static int soft_offline_huge_page(struct page *page, int flags)
+{
+	int ret;
+	unsigned long pfn = page_to_pfn(page);
+	struct page *hpage = compound_head(page);
+	LIST_HEAD(pagelist);
+
+	ret = get_any_page(page, pfn, flags);
+	if (ret < 0)
+		return ret;
+	if (ret == 0)
+		goto done;
+
+	if (PageHWPoison(hpage)) {
+		put_page(hpage);
+		pr_debug("soft offline: %#lx hugepage already poisoned\n", pfn);
+		return -EBUSY;
+	}
+
+	/* Keep page count to indicate a given hugepage is isolated. */
+
+	list_add(&hpage->lru, &pagelist);
+	ret = migrate_huge_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0);
+	if (ret) {
+			putback_lru_pages(&pagelist);
+		pr_debug("soft offline: %#lx: migration failed %d, type %lx\n",
+			 pfn, ret, page->flags);
+		if (ret > 0)
+			ret = -EIO;
+		return ret;
+	}
+done:
+	if (!PageHWPoison(hpage))
+		atomic_long_add(1 << compound_order(hpage), &mce_bad_pages);
+	set_page_hwpoison_huge_page(hpage);
+	dequeue_hwpoisoned_huge_page(hpage);
+	/* keep elevated page count for bad page */
 	return ret;
 }
 
@@ -1262,6 +1335,9 @@ int soft_offline_page(struct page *page, int flags)
 	int ret;
 	unsigned long pfn = page_to_pfn(page);
 
+	if (PageHuge(page))
+		return soft_offline_huge_page(page, flags);
+
 	ret = get_any_page(page, pfn, flags);
 	if (ret < 0)
 		return ret;
@@ -1288,7 +1364,7 @@ int soft_offline_page(struct page *page, int flags)
 			goto done;
 	}
 	if (!PageLRU(page)) {
-		pr_debug("soft_offline: %#lx: unknown non LRU page type %lx\n",
+		pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
 				pfn, page->flags);
 		return -EIO;
 	}
@@ -1302,7 +1378,7 @@ int soft_offline_page(struct page *page, int flags)
 	if (PageHWPoison(page)) {
 		unlock_page(page);
 		put_page(page);
-		pr_debug("soft offline: %#lx page already poisoned\n", pfn);
+		pr_info("soft offline: %#lx page already poisoned\n", pfn);
 		return -EBUSY;
 	}
 
@@ -1323,7 +1399,7 @@ int soft_offline_page(struct page *page, int flags)
 	put_page(page);
 	if (ret == 1) {
 		ret = 0;
-		pr_debug("soft_offline: %#lx: invalidated\n", pfn);
+		pr_info("soft_offline: %#lx: invalidated\n", pfn);
 		goto done;
 	}
 
@@ -1339,13 +1415,13 @@ int soft_offline_page(struct page *page, int flags)
 		list_add(&page->lru, &pagelist);
 		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL, 0);
 		if (ret) {
-			pr_debug("soft offline: %#lx: migration failed %d, type %lx\n",
+			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
 				pfn, ret, page->flags);
 			if (ret > 0)
 				ret = -EIO;
 		}
 	} else {
-		pr_debug("soft offline: %#lx: isolation failed: %d, page count %d, type %lx\n",
+		pr_info("soft offline: %#lx: isolation failed: %d, page count %d, type %lx\n",
 				pfn, ret, page_count(page), page->flags);
 	}
 	if (ret)

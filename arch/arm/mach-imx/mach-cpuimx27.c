@@ -46,7 +46,7 @@
 #include "devices-imx27.h"
 #include "devices.h"
 
-static int eukrea_cpuimx27_pins[] = {
+static const int eukrea_cpuimx27_pins[] __initconst = {
 	/* UART1 */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,
@@ -157,7 +157,6 @@ cpuimx27_nand_board_info __initconst = {
 
 static struct platform_device *platform_devices[] __initdata = {
 	&eukrea_cpuimx27_nor_mtd_device,
-	&mxc_fec_device,
 	&mxc_wdt,
 	&mxc_w1_master_device,
 };
@@ -259,8 +258,9 @@ static void __init eukrea_cpuimx27_init(void)
 	i2c_register_board_info(0, eukrea_cpuimx27_i2c_devices,
 				ARRAY_SIZE(eukrea_cpuimx27_i2c_devices));
 
-	imx27_add_i2c_imx0(&cpuimx27_i2c1_data);
+	imx27_add_imx_i2c(0, &cpuimx27_i2c1_data);
 
+	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
 #if defined(CONFIG_MACH_EUKREA_CPUIMX27_USESDHC2)
@@ -307,8 +307,6 @@ static struct sys_timer eukrea_cpuimx27_timer = {
 };
 
 MACHINE_START(CPUIMX27, "EUKREA CPUIMX27")
-	.phys_io        = MX27_AIPI_BASE_ADDR,
-	.io_pg_offst    = ((MX27_AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = MX27_PHYS_OFFSET + 0x100,
 	.map_io         = mx27_map_io,
 	.init_irq       = mx27_init_irq,

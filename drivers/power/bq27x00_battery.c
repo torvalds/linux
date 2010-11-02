@@ -418,6 +418,7 @@ static int bq27x00_battery_remove(struct i2c_client *client)
 
 	power_supply_unregister(&di->bat);
 
+	kfree(di->bus);
 	kfree(di->bat.name);
 
 	mutex_lock(&battery_mutex);

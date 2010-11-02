@@ -490,6 +490,129 @@ err:
 	return rc;
 }
 
+int cond_write_bool(void *vkey, void *datum, void *ptr)
+{
+	char *key = vkey;
+	struct cond_bool_datum *booldatum = datum;
+	struct policy_data *pd = ptr;
+	void *fp = pd->fp;
+	__le32 buf[3];
+	u32 len;
+	int rc;
+
+	len = strlen(key);
+	buf[0] = cpu_to_le32(booldatum->value);
+	buf[1] = cpu_to_le32(booldatum->state);
+	buf[2] = cpu_to_le32(len);
+	rc = put_entry(buf, sizeof(u32), 3, fp);
+	if (rc)
+		return rc;
+	rc = put_entry(key, 1, len, fp);
+	if (rc)
+		return rc;
+	return 0;
+}
+
+/*
+ * cond_write_cond_av_list doesn't write out the av_list nodes.
+ * Instead it writes out the key/value pairs from the avtab. This
+ * is necessary because there is no way to uniquely identifying rules
+ * in the avtab so it is not possible to associate individual rules
+ * in the avtab with a conditional without saving them as part of
+ * the conditional. This means that the avtab with the conditional
+ * rules will not be saved but will be rebuilt on policy load.
+ */
+static int cond_write_av_list(struct policydb *p,
+			      struct cond_av_list *list, struct policy_file *fp)
+{
+	__le32 buf[1];
+	struct cond_av_list *cur_list;
+	u32 len;
+	int rc;
+
+	len = 0;
+	for (cur_list = list; cur_list != NULL; cur_list = cur_list->next)
+		len++;
+
+	buf[0] = cpu_to_le32(len);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+
+	if (len == 0)
+		return 0;
+
+	for (cur_list = list; cur_list != NULL; cur_list = cur_list->next) {
+		rc = avtab_write_item(p, cur_list->node, fp);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
+
+int cond_write_node(struct policydb *p, struct cond_node *node,
+		    struct policy_file *fp)
+{
+	struct cond_expr *cur_expr;
+	__le32 buf[2];
+	int rc;
+	u32 len = 0;
+
+	buf[0] = cpu_to_le32(node->cur_state);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+
+	for (cur_expr = node->expr; cur_expr != NULL; cur_expr = cur_expr->next)
+		len++;
+
+	buf[0] = cpu_to_le32(len);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+
+	for (cur_expr = node->expr; cur_expr != NULL; cur_expr = cur_expr->next) {
+		buf[0] = cpu_to_le32(cur_expr->expr_type);
+		buf[1] = cpu_to_le32(cur_expr->bool);
+		rc = put_entry(buf, sizeof(u32), 2, fp);
+		if (rc)
+			return rc;
+	}
+
+	rc = cond_write_av_list(p, node->true_list, fp);
+	if (rc)
+		return rc;
+	rc = cond_write_av_list(p, node->false_list, fp);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
+int cond_write_list(struct policydb *p, struct cond_node *list, void *fp)
+{
+	struct cond_node *cur;
+	u32 len;
+	__le32 buf[1];
+	int rc;
+
+	len = 0;
+	for (cur = list; cur != NULL; cur = cur->next)
+		len++;
+	buf[0] = cpu_to_le32(len);
+	rc = put_entry(buf, sizeof(u32), 1, fp);
+	if (rc)
+		return rc;
+
+	for (cur = list; cur != NULL; cur = cur->next) {
+		rc = cond_write_node(p, cur, fp);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
 /* Determine whether additional permissions are granted by the conditional
  * av table, and if so, add them to the result
  */

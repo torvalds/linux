@@ -100,6 +100,21 @@ void __init msm_map_qsd8x50_io(void)
 }
 #endif /* CONFIG_ARCH_QSD8X50 */
 
+#ifdef CONFIG_ARCH_MSM8X60
+static struct map_desc msm8x60_io_desc[] __initdata = {
+	MSM_DEVICE(QGIC_DIST),
+	MSM_DEVICE(QGIC_CPU),
+	MSM_DEVICE(TMR),
+	MSM_DEVICE(ACC),
+	MSM_DEVICE(GCC),
+};
+
+void __init msm_map_msm8x60_io(void)
+{
+	iotable_init(msm8x60_io_desc, ARRAY_SIZE(msm8x60_io_desc));
+}
+#endif /* CONFIG_ARCH_MSM8X60 */
+
 #ifdef CONFIG_ARCH_MSM7X30
 static struct map_desc msm7x30_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),

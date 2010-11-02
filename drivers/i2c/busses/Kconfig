@@ -95,10 +95,11 @@ config I2C_I801
 	    ESB2
 	    ICH8
 	    ICH9
-	    Tolapai
+	    EP80579 (Tolapai)
 	    ICH10
-	    3400/5 Series (PCH)
+	    5/3400 Series (PCH)
 	    Cougar Point (PCH)
+	    Patsburg (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -395,6 +396,16 @@ config I2C_IMX
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-imx.
+
+config I2C_INTEL_MID
+	tristate "Intel Moorestown/Medfield Platform I2C controller"
+	depends on PCI
+	help
+	  Say Y here if you have an Intel Moorestown/Medfield platform I2C
+	  controller.
+
+	  This support is also available as a module. If so, the module
+	  will be called i2c-intel-mid.
 
 config I2C_IOP3XX
 	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"

@@ -132,6 +132,7 @@ static inline int aer_osc_setup(struct pcie_device *pciedev)
 
 #ifdef CONFIG_ACPI_APEI
 extern int pcie_aer_get_firmware_first(struct pci_dev *pci_dev);
+extern bool aer_acpi_firmware_first(void);
 #else
 static inline int pcie_aer_get_firmware_first(struct pci_dev *pci_dev)
 {
@@ -139,6 +140,8 @@ static inline int pcie_aer_get_firmware_first(struct pci_dev *pci_dev)
 		return pci_dev->__aer_firmware_first;
 	return 0;
 }
+
+static inline bool aer_acpi_firmware_first(void) { return false; }
 #endif
 
 static inline void pcie_aer_force_firmware_first(struct pci_dev *pci_dev,

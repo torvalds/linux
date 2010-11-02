@@ -39,20 +39,20 @@
 #define IXGBE_82599_MC_TBL_SIZE   128
 #define IXGBE_82599_VFT_TBL_SIZE  128
 
-void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
-void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
-void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
-s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
-                                          ixgbe_link_speed speed,
-                                          bool autoneg,
-                                          bool autoneg_wait_to_complete);
+static void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
+static void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
+static void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
+static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
+						 ixgbe_link_speed speed,
+						 bool autoneg,
+						 bool autoneg_wait_to_complete);
 static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
                                            ixgbe_link_speed speed,
                                            bool autoneg,
                                            bool autoneg_wait_to_complete);
-s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
-                               bool autoneg_wait_to_complete);
-s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
+static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
+				      bool autoneg_wait_to_complete);
+static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
                                ixgbe_link_speed speed,
                                bool autoneg,
                                bool autoneg_wait_to_complete);
@@ -369,7 +369,7 @@ out:
  *  Configures link settings based on values in the ixgbe_hw struct.
  *  Restarts the link.  Performs autonegotiation if needed.
  **/
-s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
+static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
                                bool autoneg_wait_to_complete)
 {
 	u32 autoc_reg;
@@ -418,7 +418,7 @@ s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
   *  PHY states.  This includes selectively shutting down the Tx
   *  laser on the PHY, effectively halting physical link.
   **/
-void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
+static void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
 {
 	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
 
@@ -437,7 +437,7 @@ void ixgbe_disable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
  *  PHY states.  This includes selectively turning on the Tx
  *  laser on the PHY, effectively starting physical link.
  **/
-void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
+static void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
 {
 	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
 
@@ -460,7 +460,7 @@ void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
  *  end.  This is consistent with true clause 37 autoneg, which also
  *  involves a loss of signal.
  **/
-void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
+static void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
 {
 	hw_dbg(hw, "ixgbe_flap_tx_laser_multispeed_fiber\n");
 
@@ -729,7 +729,7 @@ out:
  *
  *  Set the link speed in the AUTOC register and restarts link.
  **/
-s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
+static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
                                ixgbe_link_speed speed, bool autoneg,
                                bool autoneg_wait_to_complete)
 {
@@ -1415,92 +1415,6 @@ s32 ixgbe_atr_set_dst_ipv4_82599(struct ixgbe_atr_input *input, u32 dst_addr)
 }
 
 /**
- *  ixgbe_atr_set_src_ipv6_82599 - Sets the source IPv6 address
- *  @input: input stream to modify
- *  @src_addr_1: the first 4 bytes of the IP address to load
- *  @src_addr_2: the second 4 bytes of the IP address to load
- *  @src_addr_3: the third 4 bytes of the IP address to load
- *  @src_addr_4: the fourth 4 bytes of the IP address to load
- **/
-s32 ixgbe_atr_set_src_ipv6_82599(struct ixgbe_atr_input *input,
-                                 u32 src_addr_1, u32 src_addr_2,
-                                 u32 src_addr_3, u32 src_addr_4)
-{
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET] = src_addr_4 & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 1] =
-	                                               (src_addr_4 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 2] =
-	                                              (src_addr_4 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 3] = src_addr_4 >> 24;
-
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 4] = src_addr_3 & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 5] =
-	                                               (src_addr_3 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 6] =
-	                                              (src_addr_3 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 7] = src_addr_3 >> 24;
-
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 8] = src_addr_2 & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 9] =
-	                                               (src_addr_2 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 10] =
-	                                              (src_addr_2 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 11] = src_addr_2 >> 24;
-
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 12] = src_addr_1 & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 13] =
-	                                               (src_addr_1 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 14] =
-	                                              (src_addr_1 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 15] = src_addr_1 >> 24;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_set_dst_ipv6_82599 - Sets the destination IPv6 address
- *  @input: input stream to modify
- *  @dst_addr_1: the first 4 bytes of the IP address to load
- *  @dst_addr_2: the second 4 bytes of the IP address to load
- *  @dst_addr_3: the third 4 bytes of the IP address to load
- *  @dst_addr_4: the fourth 4 bytes of the IP address to load
- **/
-s32 ixgbe_atr_set_dst_ipv6_82599(struct ixgbe_atr_input *input,
-                                 u32 dst_addr_1, u32 dst_addr_2,
-                                 u32 dst_addr_3, u32 dst_addr_4)
-{
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET] = dst_addr_4 & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 1] =
-	                                               (dst_addr_4 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 2] =
-	                                              (dst_addr_4 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 3] = dst_addr_4 >> 24;
-
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 4] = dst_addr_3 & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 5] =
-	                                               (dst_addr_3 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 6] =
-	                                              (dst_addr_3 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 7] = dst_addr_3 >> 24;
-
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 8] = dst_addr_2 & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 9] =
-	                                               (dst_addr_2 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 10] =
-	                                              (dst_addr_2 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 11] = dst_addr_2 >> 24;
-
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 12] = dst_addr_1 & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 13] =
-	                                               (dst_addr_1 >> 8) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 14] =
-	                                              (dst_addr_1 >> 16) & 0xff;
-	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 15] = dst_addr_1 >> 24;
-
-	return 0;
-}
-
-/**
  *  ixgbe_atr_set_src_port_82599 - Sets the source port
  *  @input: input stream to modify
  *  @src_port: the source port to load
@@ -1535,19 +1449,6 @@ s32 ixgbe_atr_set_flex_byte_82599(struct ixgbe_atr_input *input, u16 flex_byte)
 {
 	input->byte_stream[IXGBE_ATR_FLEX_BYTE_OFFSET + 1] = flex_byte >> 8;
 	input->byte_stream[IXGBE_ATR_FLEX_BYTE_OFFSET] = flex_byte & 0xff;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_set_vm_pool_82599 - Sets the Virtual Machine pool
- *  @input: input stream to modify
- *  @vm_pool: the Virtual Machine pool to load
- **/
-s32 ixgbe_atr_set_vm_pool_82599(struct ixgbe_atr_input *input,
-                                u8 vm_pool)
-{
-	input->byte_stream[IXGBE_ATR_VM_POOL_OFFSET] = vm_pool;
 
 	return 0;
 }
@@ -1645,41 +1546,6 @@ static s32 ixgbe_atr_get_src_ipv6_82599(struct ixgbe_atr_input *input,
 }
 
 /**
- *  ixgbe_atr_get_dst_ipv6_82599 - Gets the destination IPv6 address
- *  @input: input stream to search
- *  @dst_addr_1: the first 4 bytes of the IP address to load
- *  @dst_addr_2: the second 4 bytes of the IP address to load
- *  @dst_addr_3: the third 4 bytes of the IP address to load
- *  @dst_addr_4: the fourth 4 bytes of the IP address to load
- **/
-s32 ixgbe_atr_get_dst_ipv6_82599(struct ixgbe_atr_input *input,
-                                        u32 *dst_addr_1, u32 *dst_addr_2,
-                                        u32 *dst_addr_3, u32 *dst_addr_4)
-{
-	*dst_addr_1 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 12];
-	*dst_addr_1 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 13] << 8;
-	*dst_addr_1 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 14] << 16;
-	*dst_addr_1 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 15] << 24;
-
-	*dst_addr_2 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 8];
-	*dst_addr_2 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 9] << 8;
-	*dst_addr_2 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 10] << 16;
-	*dst_addr_2 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 11] << 24;
-
-	*dst_addr_3 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 4];
-	*dst_addr_3 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 5] << 8;
-	*dst_addr_3 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 6] << 16;
-	*dst_addr_3 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 7] << 24;
-
-	*dst_addr_4 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET];
-	*dst_addr_4 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 1] << 8;
-	*dst_addr_4 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 2] << 16;
-	*dst_addr_4 = input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 3] << 24;
-
-	return 0;
-}
-
-/**
  *  ixgbe_atr_get_src_port_82599 - Gets the source port
  *  @input: input stream to modify
  *  @src_port: the source port to load
@@ -1727,19 +1593,6 @@ static s32 ixgbe_atr_get_flex_byte_82599(struct ixgbe_atr_input *input,
 {
 	*flex_byte = input->byte_stream[IXGBE_ATR_FLEX_BYTE_OFFSET];
 	*flex_byte |= input->byte_stream[IXGBE_ATR_FLEX_BYTE_OFFSET + 1] << 8;
-
-	return 0;
-}
-
-/**
- *  ixgbe_atr_get_vm_pool_82599 - Gets the Virtual Machine pool
- *  @input: input stream to modify
- *  @vm_pool: the Virtual Machine pool to load
- **/
-s32 ixgbe_atr_get_vm_pool_82599(struct ixgbe_atr_input *input,
-                                       u8 *vm_pool)
-{
-	*vm_pool = input->byte_stream[IXGBE_ATR_VM_POOL_OFFSET];
 
 	return 0;
 }
@@ -1910,56 +1763,27 @@ s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
 	              (dst_port << IXGBE_FDIRPORT_DESTINATION_SHIFT)));
 
 	/*
-	 * Program the relevant mask registers.  If src/dst_port or src/dst_addr
-	 * are zero, then assume a full mask for that field.  Also assume that
-	 * a VLAN of 0 is unspecified, so mask that out as well.  L4type
-	 * cannot be masked out in this implementation.
+	 * Program the relevant mask registers.  L4type cannot be
+	 * masked out in this implementation.
 	 *
 	 * This also assumes IPv4 only.  IPv6 masking isn't supported at this
 	 * point in time.
 	 */
-	if (src_ipv4 == 0)
-		IXGBE_WRITE_REG(hw, IXGBE_FDIRSIP4M, 0xffffffff);
-	else
-		IXGBE_WRITE_REG(hw, IXGBE_FDIRSIP4M, input_masks->src_ip_mask);
-
-	if (dst_ipv4 == 0)
-		IXGBE_WRITE_REG(hw, IXGBE_FDIRDIP4M, 0xffffffff);
-	else
-		IXGBE_WRITE_REG(hw, IXGBE_FDIRDIP4M, input_masks->dst_ip_mask);
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRSIP4M, input_masks->src_ip_mask);
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRDIP4M, input_masks->dst_ip_mask);
 
 	switch (l4type & IXGBE_ATR_L4TYPE_MASK) {
 	case IXGBE_ATR_L4TYPE_TCP:
-		if (src_port == 0)
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM, 0xffff);
-		else
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
-			                input_masks->src_port_mask);
-
-		if (dst_port == 0)
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
-			               (IXGBE_READ_REG(hw, IXGBE_FDIRTCPM) |
-			                (0xffff << 16)));
-		else
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
-			               (IXGBE_READ_REG(hw, IXGBE_FDIRTCPM) |
-			                (input_masks->dst_port_mask << 16)));
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM, input_masks->src_port_mask);
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
+				(IXGBE_READ_REG(hw, IXGBE_FDIRTCPM) |
+				 (input_masks->dst_port_mask << 16)));
 		break;
 	case IXGBE_ATR_L4TYPE_UDP:
-		if (src_port == 0)
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM, 0xffff);
-		else
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
-			                input_masks->src_port_mask);
-
-		if (dst_port == 0)
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
-			               (IXGBE_READ_REG(hw, IXGBE_FDIRUDPM) |
-			                (0xffff << 16)));
-		else
-			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
-			               (IXGBE_READ_REG(hw, IXGBE_FDIRUDPM) |
-			                (input_masks->src_port_mask << 16)));
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM, input_masks->src_port_mask);
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
+				(IXGBE_READ_REG(hw, IXGBE_FDIRUDPM) |
+				 (input_masks->src_port_mask << 16)));
 		break;
 	default:
 		/* this already would have failed above */
@@ -1967,11 +1791,11 @@ s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
 	}
 
 	/* Program the last mask register, FDIRM */
-	if (input_masks->vlan_id_mask || !vlan_id)
+	if (input_masks->vlan_id_mask)
 		/* Mask both VLAN and VLANP - bits 0 and 1 */
 		fdirm |= 0x3;
 
-	if (input_masks->data_mask || !flex_bytes)
+	if (input_masks->data_mask)
 		/* Flex bytes need masking, so mask the whole thing - bit 4 */
 		fdirm |= 0x10;
 

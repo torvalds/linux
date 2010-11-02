@@ -1,0 +1,8 @@
+config FB_OLPC_DCON
+	tristate "One Laptop Per Child Display CONtroller support"
+	depends on OLPC && BROKEN
+	select I2C
+	---help---
+	  Add support for the OLPC XO DCON controller.  This controller is
+	  only available on OLPC platforms.   Unless you have one of these
+	  platforms, you will want to say 'N'.

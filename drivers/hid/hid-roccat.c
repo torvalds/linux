@@ -384,6 +384,7 @@ static const struct file_operations roccat_ops = {
 	.poll = roccat_poll,
 	.open = roccat_open,
 	.release = roccat_release,
+	.llseek = noop_llseek,
 };
 
 static int __init roccat_init(void)

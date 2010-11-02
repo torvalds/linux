@@ -873,29 +873,11 @@ static int nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 			ata_port_freeze(ap);
 		else
 			ata_port_abort(ap);
-		return 1;
+		return -1;
 	}
 
-	if (likely(flags & NV_CPB_RESP_DONE)) {
-		struct ata_queued_cmd *qc = ata_qc_from_tag(ap, cpb_num);
-		VPRINTK("CPB flags done, flags=0x%x\n", flags);
-		if (likely(qc)) {
-			DPRINTK("Completing qc from tag %d\n", cpb_num);
-			ata_qc_complete(qc);
-		} else {
-			struct ata_eh_info *ehi = &ap->link.eh_info;
-			/* Notifier bits set without a command may indicate the drive
-			   is misbehaving. Raise host state machine violation on this
-			   condition. */
-			ata_port_printk(ap, KERN_ERR,
-					"notifier for tag %d with no cmd?\n",
-					cpb_num);
-			ehi->err_mask |= AC_ERR_HSM;
-			ehi->action |= ATA_EH_RESET;
-			ata_port_freeze(ap);
-			return 1;
-		}
-	}
+	if (likely(flags & NV_CPB_RESP_DONE))
+		return 1;
 	return 0;
 }
 
@@ -1018,6 +1000,7 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 			      NV_ADMA_STAT_CPBERR |
 			      NV_ADMA_STAT_CMD_COMPLETE)) {
 			u32 check_commands = notifier_clears[i];
+			u32 done_mask = 0;
 			int pos, rc;
 
 			if (status & NV_ADMA_STAT_CPBERR) {
@@ -1034,10 +1017,13 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 				pos--;
 				rc = nv_adma_check_cpb(ap, pos,
 						notifier_error & (1 << pos));
-				if (unlikely(rc))
+				if (rc > 0)
+					done_mask |= 1 << pos;
+				else if (unlikely(rc < 0))
 					check_commands = 0;
 				check_commands &= ~(1 << pos);
 			}
+			ata_qc_complete_multiple(ap, ap->qc_active ^ done_mask);
 		}
 	}
 
@@ -2132,7 +2118,6 @@ static int nv_swncq_sdbfis(struct ata_port *ap)
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	u32 sactive;
 	u32 done_mask;
-	int i;
 	u8 host_stat;
 	u8 lack_dhfis = 0;
 
@@ -2152,27 +2137,11 @@ static int nv_swncq_sdbfis(struct ata_port *ap)
 	sactive = readl(pp->sactive_block);
 	done_mask = pp->qc_active ^ sactive;
 
-	if (unlikely(done_mask & sactive)) {
-		ata_ehi_clear_desc(ehi);
-		ata_ehi_push_desc(ehi, "illegal SWNCQ:qc_active transition"
-				  "(%08x->%08x)", pp->qc_active, sactive);
-		ehi->err_mask |= AC_ERR_HSM;
-		ehi->action |= ATA_EH_RESET;
-		return -EINVAL;
-	}
-	for (i = 0; i < ATA_MAX_QUEUE; i++) {
-		if (!(done_mask & (1 << i)))
-			continue;
-
-		qc = ata_qc_from_tag(ap, i);
-		if (qc) {
-			ata_qc_complete(qc);
-			pp->qc_active &= ~(1 << i);
-			pp->dhfis_bits &= ~(1 << i);
-			pp->dmafis_bits &= ~(1 << i);
-			pp->sdbfis_bits |= (1 << i);
-		}
-	}
+	pp->qc_active &= ~done_mask;
+	pp->dhfis_bits &= ~done_mask;
+	pp->dmafis_bits &= ~done_mask;
+	pp->sdbfis_bits |= done_mask;
+	ata_qc_complete_multiple(ap, ap->qc_active ^ done_mask);
 
 	if (!ap->qc_active) {
 		DPRINTK("over\n");

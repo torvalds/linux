@@ -75,7 +75,6 @@
 #define acpi_cache_t                        struct kmem_cache
 #define acpi_spinlock                       spinlock_t *
 #define acpi_cpu_flags                      unsigned long
-#define acpi_thread_id                      struct task_struct *
 
 #else /* !__KERNEL__ */
 
@@ -88,7 +87,7 @@
 /* Host-dependent types and defines for user-space ACPICA */
 
 #define ACPI_FLUSH_CPU_CACHE()
-#define acpi_thread_id                      pthread_t
+#define ACPI_CAST_PTHREAD_T(pthread) ((acpi_thread_id) (pthread))
 
 #if defined(__ia64__) || defined(__x86_64__)
 #define ACPI_MACHINE_WIDTH          64
@@ -113,12 +112,13 @@
 
 
 #ifdef __KERNEL__
+#include <acpi/actypes.h>
 /*
  * Overrides for in-kernel ACPICA
  */
 static inline acpi_thread_id acpi_os_get_thread_id(void)
 {
-	return current;
+	return (acpi_thread_id)(unsigned long)current;
 }
 
 /*
@@ -127,7 +127,6 @@ static inline acpi_thread_id acpi_os_get_thread_id(void)
  * However, boot has  (system_state != SYSTEM_RUNNING)
  * to quiet __might_sleep() in kmalloc() and resume does not.
  */
-#include <acpi/actypes.h>
 static inline void *acpi_os_allocate(acpi_size size)
 {
 	return kmalloc(size, irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL);

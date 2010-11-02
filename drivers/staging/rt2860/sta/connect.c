@@ -653,10 +653,8 @@ void CntlOidRTBssidProc(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *
 			   RTMPMakeRSNIE(pAd, pAd->StaCfg.AuthMode, pAd->StaCfg.WepStatus, 0);
 			   } */
 			/* No active association, join the BSS immediately */
-			DBGPRINT(RT_DEBUG_TRACE,
-				 ("CNTL - joining %02x:%02x:%02x:%02x:%02x:%02x ...\n",
-				  pOidBssid[0], pOidBssid[1], pOidBssid[2],
-				  pOidBssid[3], pOidBssid[4], pOidBssid[5]));
+			DBGPRINT(RT_DEBUG_TRACE, ("CNTL - joining %pM ...\n",
+					pOidBssid));
 
 			JoinParmFill(pAd, &JoinReq, pAd->MlmeAux.BssIdx);
 			MlmeEnqueue(pAd, SYNC_STATE_MACHINE, MT2_MLME_JOIN_REQ,
@@ -778,13 +776,8 @@ void CntlWaitJoinProc(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *El
 				LinkUp(pAd, BSS_ADHOC);
 				pAd->Mlme.CntlMachine.CurrState = CNTL_IDLE;
 				DBGPRINT(RT_DEBUG_TRACE,
-					 ("CNTL - join the IBSS = %02x:%02x:%02x:%02x:%02x:%02x ...\n",
-					  pAd->CommonCfg.Bssid[0],
-					  pAd->CommonCfg.Bssid[1],
-					  pAd->CommonCfg.Bssid[2],
-					  pAd->CommonCfg.Bssid[3],
-					  pAd->CommonCfg.Bssid[4],
-					  pAd->CommonCfg.Bssid[5]));
+					("CNTL - join the IBSS = %pM ...\n",
+						pAd->CommonCfg.Bssid));
 
 				pAd->IndicateMediaState =
 				    NdisMediaStateConnected;
@@ -902,13 +895,8 @@ void CntlWaitStartProc(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *E
 			}
 
 			DBGPRINT(RT_DEBUG_TRACE,
-				 ("CNTL - start a new IBSS = %02x:%02x:%02x:%02x:%02x:%02x ...\n",
-				  pAd->CommonCfg.Bssid[0],
-				  pAd->CommonCfg.Bssid[1],
-				  pAd->CommonCfg.Bssid[2],
-				  pAd->CommonCfg.Bssid[3],
-				  pAd->CommonCfg.Bssid[4],
-				  pAd->CommonCfg.Bssid[5]));
+				("CNTL - start a new IBSS = %pM ...\n",
+					pAd->CommonCfg.Bssid));
 		} else {
 			DBGPRINT(RT_DEBUG_TRACE,
 				 ("CNTL - Start IBSS fail. BUG!\n"));
