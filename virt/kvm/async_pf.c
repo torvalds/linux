@@ -124,24 +124,24 @@ void kvm_check_async_pf_completion(struct kvm_vcpu *vcpu)
 {
 	struct kvm_async_pf *work;
 
-	if (list_empty_careful(&vcpu->async_pf.done) ||
-	    !kvm_arch_can_inject_async_page_present(vcpu))
-		return;
+	while (!list_empty_careful(&vcpu->async_pf.done) &&
+	      kvm_arch_can_inject_async_page_present(vcpu)) {
+		spin_lock(&vcpu->async_pf.lock);
+		work = list_first_entry(&vcpu->async_pf.done, typeof(*work),
+					      link);
+		list_del(&work->link);
+		spin_unlock(&vcpu->async_pf.lock);
 
-	spin_lock(&vcpu->async_pf.lock);
-	work = list_first_entry(&vcpu->async_pf.done, typeof(*work), link);
-	list_del(&work->link);
-	spin_unlock(&vcpu->async_pf.lock);
+		if (work->page)
+			kvm_arch_async_page_ready(vcpu, work);
+		kvm_arch_async_page_present(vcpu, work);
 
-	if (work->page)
-		kvm_arch_async_page_ready(vcpu, work);
-	kvm_arch_async_page_present(vcpu, work);
-
-	list_del(&work->queue);
-	vcpu->async_pf.queued--;
-	if (work->page)
-		put_page(work->page);
-	kmem_cache_free(async_pf_cache, work);
+		list_del(&work->queue);
+		vcpu->async_pf.queued--;
+		if (work->page)
+			put_page(work->page);
+		kmem_cache_free(async_pf_cache, work);
+	}
 }
 
 int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn,
