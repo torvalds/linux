@@ -11,21 +11,23 @@ use File::Path qw(mkpath);
 use File::Copy qw(cp);
 use FileHandle;
 
-$#ARGV >= 0 || die "usage: autotest.pl config-file\n";
+$#ARGV >= 0 || die "usage: ktest.pl config-file\n";
 
 $| = 1;
 
 my %opt;
+my %repeat_tests;
+my %repeats;
 my %default;
 
 #default opts
-$default{"NUM_TESTS"}		= 5;
+$default{"NUM_TESTS"}		= 1;
 $default{"REBOOT_TYPE"}		= "grub";
 $default{"TEST_TYPE"}		= "test";
 $default{"BUILD_TYPE"}		= "randconfig";
 $default{"MAKE_CMD"}		= "make";
 $default{"TIMEOUT"}		= 120;
-$default{"TMP_DIR"}		= "/tmp/autotest";
+$default{"TMP_DIR"}		= "/tmp/ktest";
 $default{"SLEEP_TIME"}		= 60;	# sleep time between tests
 $default{"BUILD_NOCLEAN"}	= 0;
 $default{"REBOOT_ON_ERROR"}	= 0;
@@ -87,28 +89,137 @@ my $target_image;
 my $localversion;
 my $iteration = 0;
 
+sub set_value {
+    my ($lvalue, $rvalue) = @_;
+
+    if (defined($opt{$lvalue})) {
+	die "Error: Option $lvalue defined more than once!\n";
+    }
+    $opt{$lvalue} = $rvalue;
+}
+
 sub read_config {
     my ($config) = @_;
 
     open(IN, $config) || die "can't read file $config";
+
+    my $name = $config;
+    $name =~ s,.*/(.*),$1,;
+
+    my $test_num = 0;
+    my $default = 1;
+    my $repeat = 1;
+    my $num_tests_set = 0;
+    my $skip = 0;
+    my $rest;
 
     while (<IN>) {
 
 	# ignore blank lines and comments
 	next if (/^\s*$/ || /\s*\#/);
 
-	if (/^\s*(\S+)\s*=\s*(.*?)\s*$/) {
+	if (/^\s*TEST_START(.*)/) {
+
+	    $rest = $1;
+
+	    if ($num_tests_set) {
+		die "$name: $.: Can not specify both NUM_TESTS and TEST_START\n";
+	    }
+
+	    my $old_test_num = $test_num;
+
+	    $test_num += $repeat;
+	    $default = 0;
+	    $repeat = 1;
+
+	    if ($rest =~ /\s+SKIP(.*)/) {
+		$rest = $1;
+		$skip = 1;
+	    } else {
+		$skip = 0;
+	    }
+
+	    if ($rest =~ /\s+ITERATE\s+(\d+)(.*)$/) {
+		$repeat = $1;
+		$rest = $2;
+		$repeat_tests{"$test_num"} = $repeat;
+	    }
+
+	    if ($rest =~ /\s+SKIP(.*)/) {
+		$rest = $1;
+		$skip = 1;
+	    }
+
+	    if ($rest !~ /^\s*$/) {
+		die "$name: $.: Gargbage found after TEST_START\n$_";
+	    }
+
+	    if ($skip) {
+		$test_num = $old_test_num;
+		$repeat = 1;
+	    }
+
+	} elsif (/^\s*DEFAULTS(.*)$/) {
+	    $default = 1;
+
+	    $rest = $1;
+
+	    if ($rest =~ /\s+SKIP(.*)/) {
+		$rest = $1;
+		$skip = 1;
+	    } else {
+		$skip = 0;
+	    }
+
+	    if ($rest !~ /^\s*$/) {
+		die "$name: $.: Gargbage found after DEFAULTS\n$_";
+	    }
+
+	} elsif (/^\s*([A-Z_\[\]\d]+)\s*=\s*(.*?)\s*$/) {
+
+	    next if ($skip);
+
 	    my $lvalue = $1;
 	    my $rvalue = $2;
 
-	    if (defined($opt{$lvalue})) {
-		die "Error: Option $lvalue defined more than once!\n";
+	    if (!$default &&
+		($lvalue eq "NUM_TESTS" ||
+		 $lvalue eq "LOG_FILE" ||
+		 $lvalue eq "CLEAR_LOG")) {
+		die "$name: $.: $lvalue must be set in DEFAULTS section\n";
 	    }
-	    $opt{$lvalue} = $rvalue;
+
+	    if ($lvalue eq "NUM_TESTS") {
+		if ($test_num) {
+		    die "$name: $.: Can not specify both NUM_TESTS and TEST_START\n";
+		}
+		if (!$default) {
+		    die "$name: $.: NUM_TESTS must be set in default section\n";
+		}
+		$num_tests_set = 1;
+	    }
+
+	    if ($default || $lvalue =~ /\[\d+\]$/) {
+		set_value($lvalue, $rvalue);
+	    } else {
+		my $val = "$lvalue\[$test_num\]";
+		set_value($val, $rvalue);
+
+		if ($repeat > 1) {
+		    $repeats{$val} = $repeat;
+		}
+	    }
+	} else {
+	    die "$name: $.: Garbage found in config\n$_";
 	}
     }
 
     close(IN);
+
+    if ($test_num) {
+	$test_num += $repeat - 1;
+	$opt{"NUM_TESTS"} = $test_num;
+    }
 
     # set any defaults
 
@@ -398,6 +509,27 @@ sub reboot_to {
     run_command "$reboot_script";
 }
 
+sub get_sha1 {
+    my ($commit) = @_;
+
+    doprint "git rev-list --max-count=1 $commit ... ";
+    my $sha1 = `git rev-list --max-count=1 $commit`;
+    my $ret = $?;
+
+    logit $sha1;
+
+    if ($ret) {
+	doprint "FAILED\n";
+	dodie "Failed to get git $commit";
+    }
+
+    print "SUCCESS\n";
+
+    chomp $sha1;
+
+    return $sha1;
+}
+
 sub monitor {
     my $booted = 0;
     my $bug = 0;
@@ -497,7 +629,7 @@ sub install {
 	dodie "Failed to install modules";
 
     my $modlib = "/lib/modules/$version";
-    my $modtar = "autotest-mods.tar.bz2";
+    my $modtar = "ktest-mods.tar.bz2";
 
     run_command "ssh $target rm -rf $modlib" or
 	dodie "failed to remove old mods: $modlib";
@@ -840,6 +972,10 @@ sub bisect {
     my $start = $opt{"BISECT_START[$i]"};
     my $replay = $opt{"BISECT_REPLAY[$i]"};
 
+    # convert to true sha1's
+    $good = get_sha1($good);
+    $bad = get_sha1($bad);
+
     if (defined($opt{"BISECT_REVERSE[$i]"}) &&
 	$opt{"BISECT_REVERSE[$i]"} == 1) {
 	doprint "Performing a reverse bisect (bad is good, good is bad!)\n";
@@ -859,20 +995,7 @@ sub bisect {
     if (defined($check) && $check ne "0") {
 
 	# get current HEAD
-	doprint "git rev-list HEAD --max-count=1 ... ";
-	my $head = `git rev-list HEAD --max-count=1`;
-	my $ret = $?;
-
-	logit $head;
-
-	if ($ret) {
-	    doprint "FAILED\n";
-	    dodie "Failed to get git HEAD";
-	}
-
-	print "SUCCESS\n";
-
-	chomp $head;
+	my $head = get_sha1("HEAD");
 
 	if ($check ne "good") {
 	    doprint "TESTING BISECT BAD [$bad]\n";
@@ -955,6 +1078,10 @@ sub patchcheck {
     if (defined($opt{"PATCHCHECK_END[$i]"})) {
 	$end = $opt{"PATCHCHECK_END[$i]"};
     }
+
+    # Get the true sha1's since we can use things like HEAD~3
+    $start = get_sha1($start);
+    $end = get_sha1($end);
 
     my $type = $opt{"PATCHCHECK_TYPE[$i]"};
 
@@ -1054,8 +1181,29 @@ if ($opt{"CLEAR_LOG"} && defined($opt{"LOG_FILE"})) {
 
 doprint "\n\nSTARTING AUTOMATED TESTS\n\n";
 
-foreach my $option (sort keys %opt) {
-    doprint "$option = $opt{$option}\n";
+for (my $i = 0, my $repeat = 1; $i <= $opt{"NUM_TESTS"}; $i += $repeat) {
+
+    if (!$i) {
+	doprint "DEFAULT OPTIONS:\n";
+    } else {
+	doprint "\nTEST $i OPTIONS";
+	if (defined($repeat_tests{$i})) {
+	    $repeat = $repeat_tests{$i};
+	    doprint " ITERATE $repeat";
+	}
+	doprint "\n";
+    }
+
+    foreach my $option (sort keys %opt) {
+
+	if ($option =~ /\[(\d+)\]$/) {
+	    next if ($i != $1);
+	} else {
+	    next if ($i);
+	}
+
+	doprint "$option = $opt{$option}\n";
+    }
 }
 
 sub set_test_option {
@@ -1065,6 +1213,16 @@ sub set_test_option {
 
     if (defined($opt{$option})) {
 	return $opt{$option};
+    }
+
+    foreach my $test (keys %repeat_tests) {
+	if ($i >= $test &&
+	    $i < $test + $repeat_tests{$test}) {
+	    $option = "$name\[$test\]";
+	    if (defined($opt{$option})) {
+		return $opt{$option};
+	    }
+	}
     }
 
     if (defined($opt{$name})) {
