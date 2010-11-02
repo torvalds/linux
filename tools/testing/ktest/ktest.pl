@@ -1,4 +1,8 @@
 #!/usr/bin/perl -w
+#
+# Copywrite 2010 - Steven Rostedt <srostedt@redhat.com>, Red Hat Inc.
+# Licensed under the terms of the GNU GPL License version 2
+#
 
 use strict;
 use IPC::Open2;
@@ -34,6 +38,7 @@ my $noclean;
 my $minconfig;
 my $in_bisect = 0;
 my $bisect_bad = "";
+my $reverse_bisect;
 my $in_patchcheck = 0;
 my $run_test;
 my $redirect;
@@ -89,21 +94,38 @@ sub dodie {
 
 sub run_command {
     my ($command) = @_;
-    my $redirect_log = "";
-    my $redirect_tee = "";
+    my $dolog = 0;
+    my $dord = 0;
+    my $pid;
+
+    doprint("$command ... ");
+
+    $pid = open(CMD, "$command 2>&1 |") or
+	dodie "unable to exec $command";
 
     if (defined($opt{"LOG_FILE"})) {
-	$redirect_log = "| tee -a $opt{LOG_FILE}";
+	open(LOG, ">>$opt{LOG_FILE}") or
+	    dodie "failed to write to log";
+	$dolog = 1;
     }
 
     if (defined($redirect)) {
-	$redirect_tee = "| tee $redirect"
+	open (RD, ">$redirect") or
+	    dodie "failed to write to redirect $redirect";
+	$dord = 1;
     }
 
-    doprint "$command ... ";
-    `$command 2>&1 $redirect_tee $redirect_log > /dev/null`;
+    while (<CMD>) {
+	print LOG if ($dolog);
+	print RD  if ($dord);
+    }
 
+    waitpid($pid, 0);
     my $failed = $?;
+
+    close(CMD);
+    close(LOG) if ($dolog);
+    close(RD)  if ($dord);
 
     if ($failed) {
 	doprint "FAILED!\n";
@@ -574,6 +596,15 @@ sub run_bisect {
 	$result = "good";
     }
 
+    # Are we looking for where it worked, not failed?
+    if ($reverse_bisect) {
+	if ($failed) {
+	    $result = "good";
+	} else {
+	    $result = "bad";
+	}
+    }
+
     doprint "git bisect $result ... ";
     $output = `git bisect $result 2>&1`;
     $ret = $?;
@@ -613,6 +644,14 @@ sub bisect {
     my $good = $opt{"BISECT_GOOD[$i]"};
     my $bad = $opt{"BISECT_BAD[$i]"};
     my $type = $opt{"BISECT_TYPE[$i]"};
+
+    if (defined($opt{"BISECT_REVERSE[$i]"}) &&
+	$opt{"BISECT_REVERSE[$i]"} == 1) {
+	doprint "Performing a reverse bisect (bad is good, good is bad!)\n";
+	$reverse_bisect = 1;
+    } else {
+	$reverse_bisect = 0;
+    }
 
     $in_bisect = 1;
 
