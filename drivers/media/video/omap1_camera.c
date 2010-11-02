@@ -1386,7 +1386,7 @@ static void omap1_cam_init_videobuf(struct videobuf_queue *q,
 	}
 }
 
-static int omap1_cam_reqbufs(struct soc_camera_file *icf,
+static int omap1_cam_reqbufs(struct soc_camera_device *icd,
 			      struct v4l2_requestbuffers *p)
 {
 	int i;
@@ -1398,7 +1398,7 @@ static int omap1_cam_reqbufs(struct soc_camera_file *icf,
 	 * it hadn't triggered
 	 */
 	for (i = 0; i < p->count; i++) {
-		struct omap1_cam_buf *buf = container_of(icf->vb_vidq.bufs[i],
+		struct omap1_cam_buf *buf = container_of(icd->vb_vidq.bufs[i],
 						      struct omap1_cam_buf, vb);
 		buf->inwork = 0;
 		INIT_LIST_HEAD(&buf->vb.queue);
@@ -1485,10 +1485,10 @@ static int omap1_cam_set_bus_param(struct soc_camera_device *icd,
 
 static unsigned int omap1_cam_poll(struct file *file, poll_table *pt)
 {
-	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = file->private_data;
 	struct omap1_cam_buf *buf;
 
-	buf = list_entry(icf->vb_vidq.stream.next, struct omap1_cam_buf,
+	buf = list_entry(icd->vb_vidq.stream.next, struct omap1_cam_buf,
 			 vb.stream);
 
 	poll_wait(file, &buf->vb.done, pt);
