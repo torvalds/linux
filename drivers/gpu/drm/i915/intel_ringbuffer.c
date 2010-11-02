@@ -899,7 +899,7 @@ static int blt_ring_init(struct intel_ring_buffer *ring)
 {
 	if (NEED_BLT_WORKAROUND(ring->dev)) {
 		struct drm_i915_gem_object *obj;
-		u32 __iomem *ptr;
+		u32 *ptr;
 		int ret;
 
 		obj = to_intel_bo(i915_gem_alloc_object(ring->dev, 4096));
@@ -913,8 +913,8 @@ static int blt_ring_init(struct intel_ring_buffer *ring)
 		}
 
 		ptr = kmap(obj->pages[0]);
-		iowrite32(MI_BATCH_BUFFER_END, ptr);
-		iowrite32(MI_NOOP, ptr+1);
+		*ptr++ = MI_BATCH_BUFFER_END;
+		*ptr++ = MI_NOOP;
 		kunmap(obj->pages[0]);
 
 		ret = i915_gem_object_set_to_gtt_domain(&obj->base, false);
