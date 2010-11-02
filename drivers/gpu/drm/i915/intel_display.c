@@ -5588,20 +5588,19 @@ void ironlake_enable_drps(struct drm_device *dev)
 	fmin = (rgvmodectl & MEMMODE_FMIN_MASK);
 	fstart = (rgvmodectl & MEMMODE_FSTART_MASK) >>
 		MEMMODE_FSTART_SHIFT;
-	fstart = fmax;
 
 	vstart = (I915_READ(PXVFREQ_BASE + (fstart * 4)) & PXVFREQ_PX_MASK) >>
 		PXVFREQ_PX_SHIFT;
 
-	dev_priv->fmax = fstart; /* IPS callback will increase this */
+	dev_priv->fmax = fmax; /* IPS callback will increase this */
 	dev_priv->fstart = fstart;
 
-	dev_priv->max_delay = fmax;
+	dev_priv->max_delay = fstart;
 	dev_priv->min_delay = fmin;
 	dev_priv->cur_delay = fstart;
 
-	DRM_DEBUG_DRIVER("fmax: %d, fmin: %d, fstart: %d\n", fmax, fmin,
-			 fstart);
+	DRM_DEBUG_DRIVER("fmax: %d, fmin: %d, fstart: %d\n",
+			 fmax, fmin, fstart);
 
 	I915_WRITE(MEMINTREN, MEMINT_CX_SUPR_EN | MEMINT_EVAL_CHG_EN);
 
