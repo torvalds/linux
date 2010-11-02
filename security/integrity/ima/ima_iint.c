@@ -137,10 +137,6 @@ void ima_inode_free(struct inode *inode)
 {
 	struct ima_iint_cache *iint;
 
-	if (atomic_read(&inode->i_readcount))
-		printk(KERN_INFO "%s: readcount: %u\n", __func__,
-		       atomic_read(&inode->i_readcount));
-
 	if (!IS_IMA(inode))
 		return;
 
