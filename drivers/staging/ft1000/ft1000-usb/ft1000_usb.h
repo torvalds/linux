@@ -466,11 +466,8 @@ struct ft1000_device
 {
 	struct usb_device *dev;
 	struct net_device *net;
-	spinlock_t device_lock;
 
 	u32 status;
-
-	wait_queue_head_t control_wait;
 
 	struct urb *rx_urb;
 	struct urb *tx_urb;
