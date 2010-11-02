@@ -235,7 +235,7 @@ static void free_buffer(struct videobuf_queue *vq, struct omap1_cam_buf *buf,
 
 	BUG_ON(in_interrupt());
 
-	videobuf_waiton(vb, 0, 0);
+	videobuf_waiton(vq, vb, 0, 0);
 
 	if (vb_mode == OMAP1_CAM_DMA_CONTIG) {
 		videobuf_dma_contig_free(vq, vb);
@@ -1365,12 +1365,12 @@ static void omap1_cam_init_videobuf(struct videobuf_queue *q,
 		videobuf_queue_dma_contig_init(q, &omap1_videobuf_ops,
 				icd->dev.parent, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				sizeof(struct omap1_cam_buf), icd);
+				sizeof(struct omap1_cam_buf), icd, NULL);
 	else
 		videobuf_queue_sg_init(q, &omap1_videobuf_ops,
 				icd->dev.parent, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				sizeof(struct omap1_cam_buf), icd);
+				sizeof(struct omap1_cam_buf), icd, NULL);
 
 	/* use videobuf mode (auto)selected with the module parameter */
 	pcdev->vb_mode = sg_mode ? OMAP1_CAM_DMA_SG : OMAP1_CAM_DMA_CONTIG;
