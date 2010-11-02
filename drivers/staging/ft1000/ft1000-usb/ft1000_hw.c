@@ -1121,14 +1121,13 @@ static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
     if ( skb == NULL )
     {
         DEBUG ("ft1000_hw: ft1000_start_xmit:skb == NULL!!!\n" );
-        return STATUS_FAILURE;
+	return NETDEV_TX_OK;
     }
 
     if ( pFt1000Dev->status & FT1000_STATUS_CLOSING)
     {
         DEBUG("network driver is closed, return\n");
-        dev_kfree_skb(skb);
-        return STATUS_SUCCESS;
+	goto err;
     }
 
     //DEBUG("ft1000_start_xmit 1:length of packet = %d\n", skb->len);
@@ -1147,28 +1146,24 @@ static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
     {
         /* Drop packet is mediastate is down */
         DEBUG("ft1000_hw:ft1000_start_xmit:mediastate is down\n");
-        dev_kfree_skb(skb);
-        return STATUS_SUCCESS;
+	goto err;
     }
 
     if ( (skb->len < ENET_HEADER_SIZE) || (skb->len > ENET_MAX_SIZE) )
     {
         /* Drop packet which has invalid size */
         DEBUG("ft1000_hw:ft1000_start_xmit:invalid ethernet length\n");
-        dev_kfree_skb(skb);
-        return STATUS_SUCCESS;
+	goto err;
     }
 //mbelian
-    if(ft1000_copy_down_pkt (dev, (pdata+ENET_HEADER_SIZE-2), skb->len - ENET_HEADER_SIZE + 2) == STATUS_FAILURE)
-	{
-    	dev_kfree_skb(skb);
-		return STATUS_SUCCESS;
-	}
+	ft1000_copy_down_pkt(dev, (pdata+ENET_HEADER_SIZE-2),
+				skb->len - ENET_HEADER_SIZE + 2);
 
-    dev_kfree_skb(skb);
+err:
+	dev_kfree_skb(skb);
     //DEBUG(" ft1000_start_xmit() exit\n");
 
-    return 0;
+	return NETDEV_TX_OK;
 }
 
 //---------------------------------------------------------------------------
