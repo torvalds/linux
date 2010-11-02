@@ -21,6 +21,7 @@ $opt{"SLEEP_TIME"}		= 60;	# sleep time between tests
 $opt{"BUILD_NOCLEAN"}		= 0;
 $opt{"REBOOT_ON_ERROR"}		= 0;
 $opt{"POWEROFF_ON_ERROR"}	= 0;
+$opt{"REBOOT_ON_SUCCESS"}	= 1;
 $opt{"POWEROFF_ON_SUCCESS"}	= 0;
 $opt{"BUILD_OPTIONS"}		= "";
 $opt{"BISECT_SLEEP_TIME"}	= 10;   # sleep time between bisects
@@ -644,6 +645,10 @@ sub set_build_option {
 for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
     my $type = "BUILD_TYPE[$i]";
 
+    if (!defined($opt{$type})) {
+	$opt{$type} = $opt{"DEFAULT_BUILD_TYPE"};
+    }
+
     $noclean = set_build_option("BUILD_NOCLEAN", $i);
     $minconfig = set_build_option("MIN_CONFIG", $i);
     $run_test = set_build_option("TEST", $i);
@@ -674,7 +679,7 @@ for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
 
 if ($opt{"POWEROFF_ON_SUCCESS"}) {
     halt;
-} else {
+} elsif ($opt{"REBOOT_ON_SUCCESS"}) {
     reboot;
 }
 
