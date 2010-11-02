@@ -1075,7 +1075,6 @@ static int mid_setup_dma(struct pci_dev *pdev)
 	if (NULL == dma->dma_pool) {
 		pr_err("ERR_MDMA:pci_pool_create failed\n");
 		err = -ENOMEM;
-		kfree(dma);
 		goto err_dma_pool;
 	}
 
@@ -1186,7 +1185,6 @@ err_engine:
 	free_irq(pdev->irq, dma);
 err_irq:
 	pci_pool_destroy(dma->dma_pool);
-	kfree(dma);
 err_dma_pool:
 	pr_err("ERR_MDMA:setup_dma failed: %d\n", err);
 	return err;
