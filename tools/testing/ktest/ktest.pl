@@ -34,7 +34,9 @@ my $noclean;
 my $minconfig;
 my $in_bisect = 0;
 my $bisect_bad = "";
+my $in_patchcheck = 0;
 my $run_test;
+my $redirect;
 
 sub read_config {
     my ($config) = @_;
@@ -88,13 +90,18 @@ sub dodie {
 sub run_command {
     my ($command) = @_;
     my $redirect_log = "";
+    my $redirect_tee = "";
 
     if (defined($opt{"LOG_FILE"})) {
-	$redirect_log = " >> $opt{LOG_FILE} 2>&1";
+	$redirect_log = "| tee -a $opt{LOG_FILE}";
+    }
+
+    if (defined($redirect)) {
+	$redirect_tee = "| tee $redirect"
     }
 
     doprint "$command ... ";
-    `$command $redirect_log`;
+    `$command 2>&1 $redirect_tee $redirect_log > /dev/null`;
 
     my $failed = $?;
 
@@ -311,6 +318,37 @@ sub install {
     run_command "ssh $target rm -f /tmp/$modtar";
 }
 
+sub check_buildlog {
+    my ($patch) = @_;
+
+    my $buildlog = "$opt{TMP_DIR}/buildlog";
+    my @files = `git show $patch | diffstat -l`;
+
+    open(IN, "git show $patch |") or
+	dodie "failed to show $patch";
+    while (<IN>) {
+	if (m,^--- a/(.*),) {
+	    chomp $1;
+	    $files[$#files] = $1;
+	}
+    }
+    close(IN);
+
+    open(IN, $buildlog) or dodie "Can't open $buildlog";
+    while (<IN>) {
+	if (/^\s*(.*?):.*(warning|error)/) {
+	    my $err = $1;
+	    foreach my $file (@files) {
+		my $fullpath = "$opt{BUILD_DIR}/$file";
+		if ($file eq $err || $fullpath eq $err) {
+		    dodie "$file built with warnings";
+		}
+	    }
+	}
+    }
+    close(IN);
+}
+
 sub build {
     my ($type) = @_;
     my $defconfig = "";
@@ -358,11 +396,18 @@ sub build {
     run_command "$defconfig $append $make $type" or
 	dodie "failed make config";
 
+    # patch check will examine the log
+    if ($in_patchcheck) {
+	$redirect = "$opt{TMP_DIR}/buildlog";
+    }
+
     if (!run_command "$make $opt{BUILD_OPTIONS}") {
+	undef $redirect;
 	# bisect may need this to pass
 	return 1 if ($in_bisect);
 	dodie "failed build";
     }
+    undef $redirect;
 
     return 0;
 }
@@ -602,6 +647,90 @@ sub bisect {
     success $i;
 }
 
+sub patchcheck {
+    my ($i) = @_;
+
+    die "PATCHCHECK_START[$i] not defined\n"
+	if (!defined($opt{"PATCHCHECK_START[$i]"}));
+    die "PATCHCHECK_TYPE[$i] not defined\n"
+	if (!defined($opt{"PATCHCHECK_TYPE[$i]"}));
+
+    my $start = $opt{"PATCHCHECK_START[$i]"};
+
+    my $end = "HEAD";
+    if (defined($opt{"PATCHCHECK_END[$i]"})) {
+	$end = $opt{"PATCHCHECK_END[$i]"};
+    }
+
+    my $type = $opt{"PATCHCHECK_TYPE[$i]"};
+
+    # Can't have a test without having a test to run
+    if ($type eq "test" && !defined($run_test)) {
+	$type = "boot";
+    }
+
+    open (IN, "git log --pretty=oneline $end|") or
+	dodie "could not get git list";
+
+    my @list;
+
+    while (<IN>) {
+	chomp;
+	$list[$#list+1] = $_;
+	last if (/^$start/);
+    }
+    close(IN);
+
+    if ($list[$#list] !~ /^$start/) {
+	dodie "SHA1 $start not found";
+    }
+
+    # go backwards in the list
+    @list = reverse @list;
+
+    my $save_clean = $noclean;
+
+    $in_patchcheck = 1;
+    foreach my $item (@list) {
+	my $sha1 = $item;
+	$sha1 =~ s/^([[:xdigit:]]+).*/$1/;
+
+	doprint "\nProcessing commit $item\n\n";
+
+	run_command "git checkout $sha1" or
+	    die "Failed to checkout $sha1";
+
+	# only clean on the first and last patch
+	if ($item eq $list[0] ||
+	    $item eq $list[$#list]) {
+	    $noclean = $save_clean;
+	} else {
+	    $noclean = 1;
+	}
+
+	if (defined($minconfig)) {
+	    build "useconfig:$minconfig";
+	} else {
+	    # ?? no config to use?
+	    build "oldconfig";
+	}
+
+	check_buildlog $sha1;
+
+	next if ($type eq "build");
+
+	get_grub_index;
+	get_version;
+	install;
+	monitor;
+
+	next if ($type eq "boot");
+	do_run_test;
+    }
+    $in_patchcheck = 0;
+    success $i;
+}
+
 read_config $ARGV[0];
 
 # mandatory configs
@@ -656,8 +785,17 @@ for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
     doprint "\n\n";
     doprint "RUNNING TEST $i of $opt{NUM_BUILDS} with option $opt{$type}\n\n";
 
+    my $checkout = $opt{"CHECKOUT[$i]"};
+    if (defined($checkout)) {
+	run_command "git checkout $checkout" or
+	    die "failed to checkout $checkout";
+    }
+
     if ($opt{$type} eq "bisect") {
 	bisect $i;
+	next;
+    } elsif ($opt{$type} eq "patchcheck") {
+	patchcheck $i;
 	next;
     }
 
