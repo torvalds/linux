@@ -1531,6 +1531,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     * Club3D Theatron DTS
     * HT-Omega Claro (plus)
     * HT-Omega Claro halo (XT)
+    * Kuroutoshikou CMI8787-HG2PCI
     * Razer Barracuda AC-1
     * Sondigo Inferno
     * TempoTec HiFier Fantasia

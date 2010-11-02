@@ -262,7 +262,7 @@ oxygen_search_pci_id(struct oxygen *chip, const struct pci_device_id ids[])
 	 */
 	subdevice = oxygen_read_eeprom(chip, 2);
 	/* use default ID if EEPROM is missing */
-	if (subdevice == 0xffff)
+	if (subdevice == 0xffff && oxygen_read_eeprom(chip, 1) == 0xffff)
 		subdevice = 0x8788;
 	/*
 	 * We use only the subsystem device ID for searching because it is

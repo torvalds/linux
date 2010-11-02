@@ -71,6 +71,7 @@ enum {
 	MODEL_CLARO,		/* HT-Omega Claro */
 	MODEL_CLARO_HALO,	/* HT-Omega Claro halo */
 	MODEL_HIFIER,		/* TempoTec HiFier Fantasia */
+	MODEL_HG2PCI,		/* Kuroutoshikou CMI8787-HG2PCI */
 };
 
 static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
@@ -80,7 +81,7 @@ static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x0001), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x0010), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x8788), .driver_data = MODEL_CMEDIA_REF },
-	{ OXYGEN_PCI_SUBID(0x13f6, 0xffff), .driver_data = MODEL_CMEDIA_REF },
+	{ OXYGEN_PCI_SUBID(0x13f6, 0xffff), .driver_data = MODEL_HG2PCI },
 	{ OXYGEN_PCI_SUBID(0x147a, 0xa017), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x14c3, 0x1710), .driver_data = MODEL_HIFIER },
 	{ OXYGEN_PCI_SUBID(0x14c3, 0x1711), .driver_data = MODEL_HIFIER },
@@ -241,6 +242,11 @@ static void hifier_init(struct oxygen *chip)
 {
 	ak4396_init(chip);
 	snd_component_add(chip->card, "CS5340");
+}
+
+static void hg2pci_init(struct oxygen *chip)
+{
+	ak4396_init(chip);
 }
 
 static void generic_cleanup(struct oxygen *chip)
@@ -572,15 +578,20 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 					    CAPTURE_1_FROM_SPDIF;
 		break;
 	case MODEL_HIFIER:
+	case MODEL_HG2PCI:
 		chip->model.shortname = "C-Media CMI8787";
 		chip->model.chip = "CMI8787";
-		chip->model.init = hifier_init;
+		if (id->driver_data == MODEL_HIFIER)
+			chip->model.init = hifier_init;
+		else
+			chip->model.init = hg2pci_init;
 		chip->model.resume = stereo_resume;
 		chip->model.mixer_init = generic_mixer_init;
 		chip->model.set_adc_params = set_no_params;
 		chip->model.device_config = PLAYBACK_0_TO_I2S |
-					    PLAYBACK_1_TO_SPDIF |
-					    CAPTURE_0_FROM_I2S_1;
+					    PLAYBACK_1_TO_SPDIF;
+		if (id->driver_data == MODEL_HIFIER)
+			chip->model.device_config |= CAPTURE_0_FROM_I2S_1;
 		chip->model.dac_channels = 2;
 		break;
 	}
