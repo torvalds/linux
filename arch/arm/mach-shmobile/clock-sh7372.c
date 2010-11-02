@@ -291,6 +291,7 @@ struct clk sh7372_pllc2_clk = {
 	.ops		= &pllc2_clk_ops,
 	.parent		= &extal1_div2_clk,
 	.freq_table	= pllc2_freq_table,
+	.nr_freqs	= ARRAY_SIZE(pllc2_freq_table) - 1,
 	.parent_table	= pllc2_parent,
 	.parent_num	= ARRAY_SIZE(pllc2_parent),
 };
