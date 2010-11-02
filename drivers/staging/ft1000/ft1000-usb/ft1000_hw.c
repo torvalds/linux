@@ -1025,7 +1025,7 @@ static int ft1000_copy_down_pkt (struct net_device *netdev, u8 *packet, u16 len)
     {
 
         DEBUG("ft1000_copy_down_pkt::Card Not Ready\n");
-    	return STATUS_FAILURE;
+	return -ENODEV;
 
     }
 
@@ -1037,7 +1037,7 @@ static int ft1000_copy_down_pkt (struct net_device *netdev, u8 *packet, u16 len)
     {
         DEBUG("Error:ft1000_copy_down_pkt:Message Size Overflow!\n");
     	DEBUG("size = %d\n", count);
-    	return STATUS_FAILURE;
+	return -EINVAL;
     }
 
     if ( count % 4)
@@ -1080,25 +1080,18 @@ static int ft1000_copy_down_pkt (struct net_device *netdev, u8 *packet, u16 len)
     }*/
 
 
-    ret = usb_submit_urb(pFt1000Dev->tx_urb, GFP_ATOMIC);
-    if(ret)
-    {
+	ret = usb_submit_urb(pFt1000Dev->tx_urb, GFP_ATOMIC);
+	if (ret) {
 		DEBUG("ft1000 failed tx_urb %d\n", ret);
-
-		return STATUS_FAILURE;
-
-    }
-    else
-    {
-        //DEBUG("ft1000 sucess tx_urb %d\n", ret);
-
-        pInfo->stats.tx_packets++;
-        pInfo->stats.tx_bytes += (len+14);
-    }
+		return ret;
+	} else {
+		pInfo->stats.tx_packets++;
+		pInfo->stats.tx_bytes += (len+14);
+	}
 
     //DEBUG("ft1000_copy_down_pkt() exit\n");
 
-    return STATUS_SUCCESS;
+	return 0;
 }
 
 //---------------------------------------------------------------------------
