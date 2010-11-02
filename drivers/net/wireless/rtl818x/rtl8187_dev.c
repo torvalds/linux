@@ -742,7 +742,6 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
 			 RTL818X_EEPROM_CMD_CONFIG);
-
 	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
 	reg |= RTL818X_CONFIG3_ANAPARAM_WRITE | RTL818X_CONFIG3_GNT_SELECT;
 	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg);
@@ -752,18 +751,18 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 			  RTL8187B_RTL8225_ANAPARAM_ON);
 	rtl818x_iowrite8(priv, &priv->map->ANAPARAM3,
 			 RTL8187B_RTL8225_ANAPARAM3_ON);
+	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
+	reg &= ~RTL818X_CONFIG3_ANAPARAM_WRITE;
+	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg);
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
+			 RTL818X_EEPROM_CMD_NORMAL);
 
+	/* Reset PLL sequence on 8187B. Realtek note: reduces power
+	 * consumption about 30 mA */
 	rtl818x_iowrite8(priv, (u8 *)0xFF61, 0x10);
 	reg = rtl818x_ioread8(priv, (u8 *)0xFF62);
 	rtl818x_iowrite8(priv, (u8 *)0xFF62, reg & ~(1 << 5));
 	rtl818x_iowrite8(priv, (u8 *)0xFF62, reg | (1 << 5));
-
-	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
-	reg &= ~RTL818X_CONFIG3_ANAPARAM_WRITE;
-	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg);
-
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
-			 RTL818X_EEPROM_CMD_NORMAL);
 
 	res = rtl8187_cmd_reset(dev);
 	if (res)
