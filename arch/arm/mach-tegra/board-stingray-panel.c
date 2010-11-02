@@ -148,13 +148,16 @@ __setup("lcd_manfid=", board_lcd_manfid_init);
 static int stingray_panel_enable(void)
 {
 	struct i2c_adapter *adapter = NULL;
-	if (!strncmp(lcd_manfid, "SHP", 3) && (adapter = i2c_get_adapter(0)))
-		i2c_lock_adapter(adapter);
+
+	if (!strncmp(lcd_manfid, "SHP", 3) || !strncmp(lcd_manfid, "AUO", 3)) {
+		adapter = i2c_get_adapter(0);
+		if (adapter)
+			i2c_lock_adapter(adapter);
+	}
 
 	gpio_set_value(STINGRAY_LVDS_SHDN_B, 1);
 
-	if (adapter)
-	{
+	if (adapter) {
 		msleep(200);
 		i2c_unlock_adapter(adapter);
 		i2c_put_adapter(adapter);
