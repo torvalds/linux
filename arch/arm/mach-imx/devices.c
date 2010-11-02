@@ -77,38 +77,6 @@ int __init imx1_register_gpios(void)
 #endif
 
 #if defined(CONFIG_MACH_MX21) || defined(CONFIG_MACH_MX27)
-
-#ifdef CONFIG_MACH_MX27
-static struct resource mx27_camera_resources[] = {
-	{
-	       .start = MX27_CSI_BASE_ADDR,
-	       .end = MX27_CSI_BASE_ADDR + 0x1f,
-	       .flags = IORESOURCE_MEM,
-	}, {
-	       .start = MX27_EMMA_PRP_BASE_ADDR,
-	       .end = MX27_EMMA_PRP_BASE_ADDR + 0x1f,
-	       .flags = IORESOURCE_MEM,
-	}, {
-	       .start = MX27_INT_CSI,
-	       .end = MX27_INT_CSI,
-	       .flags = IORESOURCE_IRQ,
-	},{
-	       .start = MX27_INT_EMMAPRP,
-	       .end = MX27_INT_EMMAPRP,
-	       .flags = IORESOURCE_IRQ,
-	},
-};
-struct platform_device mx27_camera_device = {
-	.name = "mx2-camera",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mx27_camera_resources),
-	.resource = mx27_camera_resources,
-	.dev = {
-		.coherent_dma_mask = 0xffffffff,
-	},
-};
-#endif
-
 /* Watchdog: i.MX1 has seperate driver, i.MX21 and i.MX27 are equal */
 static struct resource mxc_wdt_resources[] = {
 	{

@@ -118,6 +118,19 @@ struct platform_device *__init imx_add_mx1_camera(
 		const struct imx_mx1_camera_data *data,
 		const struct mx1_camera_pdata *pdata);
 
+#include <mach/mx2_cam.h>
+struct imx_mx2_camera_data {
+	resource_size_t iobasecsi;
+	resource_size_t iosizecsi;
+	resource_size_t irqcsi;
+	resource_size_t iobaseemmaprp;
+	resource_size_t iosizeemmaprp;
+	resource_size_t irqemmaprp;
+};
+struct platform_device *__init imx_add_mx2_camera(
+		const struct imx_mx2_camera_data *data,
+		const struct mx2_camera_platform_data *pdata);
+
 #include <mach/mxc_nand.h>
 struct imx_mxc_nand_data {
 	/*
