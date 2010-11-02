@@ -11,7 +11,8 @@
 #define	m5249sim_h
 /****************************************************************************/
 
-#define	CPU_NAME	"COLDFIRE(m5249)"
+#define	CPU_NAME		"COLDFIRE(m5249)"
+#define	CPU_INSTR_PER_JIFFY	3
 
 /*
  *	Define the 5249 SIM register set addresses.

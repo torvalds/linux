@@ -11,7 +11,8 @@
 #define	m527xsim_h
 /****************************************************************************/
 
-#define	CPU_NAME	"COLDFIRE(m527x)"
+#define	CPU_NAME		"COLDFIRE(m527x)"
+#define	CPU_INSTR_PER_JIFFY	3
 
 
 /*

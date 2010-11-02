@@ -11,7 +11,8 @@
 #define	m528xsim_h
 /****************************************************************************/
 
-#define	CPU_NAME	"COLDFIRE(m528x)"
+#define	CPU_NAME		"COLDFIRE(m528x)"
+#define	CPU_INSTR_PER_JIFFY	3
 
 /*
  *	Define the 5280/5282 SIM register set addresses.

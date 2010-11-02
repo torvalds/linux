@@ -5,9 +5,10 @@
 #ifndef	m54xxsim_h
 #define m54xxsim_h
 
-#define	CPU_NAME	"COLDFIRE(m54xx)"
+#define	CPU_NAME		"COLDFIRE(m54xx)"
+#define	CPU_INSTR_PER_JIFFY	2
 
-#define MCFINT_VECBASE      64
+#define MCFINT_VECBASE		64
 
 /*
  *      Interrupt Controller Registers

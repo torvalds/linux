@@ -66,11 +66,18 @@ void (*mach_power_off)(void);
 #ifdef CONFIG_M68360
 #define CPU_NAME	"MC68360"
 #endif
-/*
- * The ColdFire CPU names are defined in their headers.
- */
 #ifndef CPU_NAME
 #define	CPU_NAME	"UNKNOWN"
+#endif
+
+/*
+ * Different cores have different instruction execution timings.
+ * The old/traditional 68000 cores are basically all the same, at 16.
+ * The ColdFire cores vary a little, their values are defined in their
+ * headers. We default to the standard 68000 value here.
+ */
+#ifndef CPU_INSTR_PER_JIFFY
+#define	CPU_INSTR_PER_JIFFY	16
 #endif
 
 extern int _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
@@ -273,12 +280,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	cpu = CPU_NAME;
 	mmu = "none";
 	fpu = "none";
-
-#ifdef CONFIG_COLDFIRE
-	clockfreq = (loops_per_jiffy * HZ) * 3;
-#else
-	clockfreq = (loops_per_jiffy * HZ) * 16;
-#endif
+	clockfreq = (loops_per_jiffy * HZ) * CPU_INSTR_PER_JIFFY;
 
 	seq_printf(m, "CPU:\t\t%s\n"
 		      "MMU:\t\t%s\n"

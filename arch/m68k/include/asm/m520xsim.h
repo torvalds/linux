@@ -11,7 +11,8 @@
 #define m520xsim_h
 /****************************************************************************/
 
-#define	CPU_NAME	"COLDFIRE(m520x)"
+#define	CPU_NAME		"COLDFIRE(m520x)"
+#define	CPU_INSTR_PER_JIFFY	3
 
 /*
  *  Define the 520x SIM register set addresses.
