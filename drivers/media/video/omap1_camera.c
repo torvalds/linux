@@ -504,7 +504,7 @@ static void omap1_videobuf_queue(struct videobuf_queue *vq,
 		 * empty. Since the transfer of the DMA programming register set
 		 * content to the DMA working register set is done automatically
 		 * by the DMA hardware, this can pretty well happen while we
-		 * are keeping the lock here. Levae fetching it from the queue
+		 * are keeping the lock here. Leave fetching it from the queue
 		 * to be done when a next DMA interrupt occures instead.
 		 */
 		return;
