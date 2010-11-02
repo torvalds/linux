@@ -113,7 +113,7 @@ void ima_counts_get(struct file *file)
 		goto out;
 
 	if (mode & FMODE_WRITE) {
-		if (inode->i_readcount && IS_IMA(inode))
+		if (atomic_read(&inode->i_readcount) && IS_IMA(inode))
 			send_tomtou = true;
 		goto out;
 	}
@@ -127,7 +127,7 @@ void ima_counts_get(struct file *file)
 out:
 	/* remember the vfs deals with i_writecount */
 	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
-		inode->i_readcount++;
+		atomic_inc(&inode->i_readcount);
 
 	spin_unlock(&inode->i_lock);
 
@@ -149,15 +149,16 @@ static void ima_dec_counts(struct inode *inode, struct file *file)
 	assert_spin_locked(&inode->i_lock);
 
 	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ) {
-		if (unlikely(inode->i_readcount == 0)) {
+		if (unlikely(atomic_read(&inode->i_readcount) == 0)) {
 			if (!ima_limit_imbalance(file)) {
 				printk(KERN_INFO "%s: open/free imbalance (r:%u)\n",
-				       __func__, inode->i_readcount);
+				       __func__,
+				       atomic_read(&inode->i_readcount));
 				dump_stack();
 			}
 			return;
 		}
-		inode->i_readcount--;
+		atomic_dec(&inode->i_readcount);
 	}
 }
 
