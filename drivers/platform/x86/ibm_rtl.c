@@ -28,6 +28,7 @@
 #include <linux/io.h>
 #include <linux/sysdev.h>
 #include <linux/dmi.h>
+#include <linux/efi.h>
 #include <linux/mutex.h>
 #include <asm/bios_ebda.h>
 
@@ -238,7 +239,7 @@ static int __init ibm_rtl_init(void) {
 	if (force)
 		pr_warning("ibm-rtl: module loaded by force\n");
 	/* first ensure that we are running on IBM HW */
-	else if (!dmi_check_system(ibm_rtl_dmi_table))
+	else if (efi_enabled || !dmi_check_system(ibm_rtl_dmi_table))
 		return -ENODEV;
 
 	/* Get the address for the Extended BIOS Data Area */
