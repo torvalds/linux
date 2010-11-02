@@ -669,10 +669,15 @@ static struct platform_device lcdc1_device = {
 	},
 };
 
+static long ap4evb_clk_optimize(unsigned long target, unsigned long *best_freq,
+				unsigned long *parent_freq);
+
+
 static struct sh_mobile_hdmi_info hdmi_info = {
 	.lcd_chan = &sh_mobile_lcdc1_info.ch[0],
 	.lcd_dev = &lcdc1_device.dev,
 	.flags = HDMI_SND_SRC_SPDIF,
+	.clk_optimize_parent = ap4evb_clk_optimize,
 };
 
 static struct resource hdmi_resources[] = {
@@ -698,6 +703,25 @@ static struct platform_device hdmi_device = {
 		.platform_data	= &hdmi_info,
 	},
 };
+
+static long ap4evb_clk_optimize(unsigned long target, unsigned long *best_freq,
+				unsigned long *parent_freq)
+{
+	struct clk *hdmi_ick = clk_get(&hdmi_device.dev, "ick");
+	long error;
+
+	if (IS_ERR(hdmi_ick)) {
+		int ret = PTR_ERR(hdmi_ick);
+		pr_err("Cannot get HDMI ICK: %d\n", ret);
+		return ret;
+	}
+
+	error = clk_round_parent(hdmi_ick, target, best_freq, parent_freq, 1, 64);
+
+	clk_put(hdmi_ick);
+
+	return error;
+}
 
 static struct gpio_led ap4evb_leds[] = {
 	{
