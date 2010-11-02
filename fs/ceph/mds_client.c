@@ -1791,6 +1791,8 @@ static int __do_request(struct ceph_mds_client *mdsc,
 		goto finish;
 	}
 
+	put_request_session(req);
+
 	mds = __choose_mds(mdsc, req);
 	if (mds < 0 ||
 	    ceph_mdsmap_get_state(mdsc->mdsmap, mds) < CEPH_MDS_STATE_ACTIVE) {
@@ -1808,6 +1810,8 @@ static int __do_request(struct ceph_mds_client *mdsc,
 			goto finish;
 		}
 	}
+	req->r_session = get_session(session);
+
 	dout("do_request mds%d session %p state %s\n", mds, session,
 	     session_state_name(session->s_state));
 	if (session->s_state != CEPH_MDS_SESSION_OPEN &&
@@ -1820,7 +1824,6 @@ static int __do_request(struct ceph_mds_client *mdsc,
 	}
 
 	/* send request */
-	req->r_session = get_session(session);
 	req->r_resend_mds = -1;   /* forget any previous mds hint */
 
 	if (req->r_request_started == 0)   /* note request start time */
@@ -1874,7 +1877,6 @@ static void kick_requests(struct ceph_mds_client *mdsc, int mds)
 		if (req->r_session &&
 		    req->r_session->s_mds == mds) {
 			dout(" kicking tid %llu\n", req->r_tid);
-			put_request_session(req);
 			__do_request(mdsc, req);
 		}
 	}
