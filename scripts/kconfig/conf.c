@@ -457,8 +457,28 @@ static struct option long_opts[] = {
 	{NULL, 0, NULL, 0}
 };
 
+static void conf_usage(const char *progname)
+{
+
+	printf("Usage: %s [option] <kconfig-file>\n", progname);
+	printf("[option] is _one_ of the following:\n");
+	printf("  --listnewconfig         List new options\n");
+	printf("  --oldaskconfig          Start a new configuration using a line-oriented program\n");
+	printf("  --oldconfig             Update a configuration using a provided .config as base\n");
+	printf("  --silentoldconfig       Same as oldconfig, but quietly, additionally update deps\n");
+	printf("  --oldnoconfig           Same as silentoldconfig but set new symbols to no\n");
+	printf("  --defconfig <file>      New config with default defined in <file>\n");
+	printf("  --savedefconfig <file>  Save the minimal current configuration to <file>\n");
+	printf("  --allnoconfig           New config where all options are answered with no\n");
+	printf("  --allyesconfig          New config where all options are answered with yes\n");
+	printf("  --allmodconfig          New config where all options are answered with mod\n");
+	printf("  --alldefconfig          New config with all symbols set to default\n");
+	printf("  --randconfig            New config with random answer to all options\n");
+}
+
 int main(int ac, char **av)
 {
+	const char *progname = av[0];
 	int opt;
 	const char *name, *defconfig_file = NULL /* gcc uninit */;
 	struct stat tmpstat;
@@ -492,14 +512,24 @@ int main(int ac, char **av)
 			srand(seed);
 			break;
 		}
+		case oldaskconfig:
+		case oldconfig:
+		case allnoconfig:
+		case allyesconfig:
+		case allmodconfig:
+		case alldefconfig:
+		case listnewconfig:
+		case oldnoconfig:
+			break;
 		case '?':
-			fprintf(stderr, _("See README for usage info\n"));
+			conf_usage(progname);
 			exit(1);
 			break;
 		}
 	}
 	if (ac == optind) {
 		printf(_("%s: Kconfig file missing\n"), av[0]);
+		conf_usage(progname);
 		exit(1);
 	}
 	name = av[optind];
