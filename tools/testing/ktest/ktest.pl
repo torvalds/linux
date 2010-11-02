@@ -19,7 +19,7 @@ my %opt;
 $opt{"NUM_BUILDS"}		= 5;
 $opt{"DEFAULT_BUILD_TYPE"}	= "randconfig";
 $opt{"MAKE_CMD"}		= "make";
-$opt{"TIMEOUT"}			= 50;
+$opt{"TIMEOUT"}			= 120;
 $opt{"TMP_DIR"}			= "/tmp/autotest";
 $opt{"SLEEP_TIME"}		= 60;	# sleep time between tests
 $opt{"BUILD_NOCLEAN"}		= 0;
@@ -29,6 +29,10 @@ $opt{"REBOOT_ON_SUCCESS"}	= 1;
 $opt{"POWEROFF_ON_SUCCESS"}	= 0;
 $opt{"BUILD_OPTIONS"}		= "";
 $opt{"BISECT_SLEEP_TIME"}	= 10;   # sleep time between bisects
+$opt{"CLEAR_LOG"}		= 0;
+$opt{"SUCCESS_LINE"}		= "login:";
+$opt{"BOOTED_TIMEOUT"}		= 1;
+$opt{"DIE_ON_FAILURE"}		= 1;
 
 my $version;
 my $grub_number;
@@ -36,6 +40,7 @@ my $target;
 my $make;
 my $noclean;
 my $minconfig;
+my $addconfig;
 my $in_bisect = 0;
 my $bisect_bad = "";
 my $reverse_bisect;
@@ -92,6 +97,16 @@ sub dodie {
     die @_;
 }
 
+sub fail {
+
+	if ($opt{"DIE_ON_FAILURE"}) {
+		dodie @_;
+	}
+
+	doprint "Failed: ", @_, "\n";
+	return 1;
+}
+
 sub run_command {
     my ($command) = @_;
     my $dolog = 0;
@@ -101,7 +116,7 @@ sub run_command {
     doprint("$command ... ");
 
     $pid = open(CMD, "$command 2>&1 |") or
-	dodie "unable to exec $command";
+	(fail "unable to exec $command" and return 0);
 
     if (defined($opt{"LOG_FILE"})) {
 	open(LOG, ">>$opt{LOG_FILE}") or
@@ -228,6 +243,7 @@ sub monitor {
     my $pid;
     my $skip_call_trace = 0;
     my $fp = \*IN;
+    my $loops;
 
     $pid = open_console($fp);
 
@@ -244,7 +260,11 @@ sub monitor {
 
     for (;;) {
 
-	$line = wait_for_input($fp);
+	if ($booted) {
+	    $line = wait_for_input($fp, $opt{"BOOTED_TIMEOUT"});
+	} else {
+	    $line = wait_for_input($fp);
+	}
 
 	last if (!defined($line));
 
@@ -253,7 +273,7 @@ sub monitor {
 	# we are not guaranteed to get a full line
 	$full_line .= $line;
 
-	if ($full_line =~ /login:/) {
+	if ($full_line =~ /$opt{"SUCCESS_LINE"}/) {
 	    $booted = 1;
 	}
 
@@ -281,16 +301,16 @@ sub monitor {
     close_console($fp, $pid);
 
     if (!$booted) {
-	return 1 if ($in_bisect);
-	dodie "failed - never got a boot prompt.\n";
+	return 0 if ($in_bisect);
+	fail "failed - never got a boot prompt.\n" and return 0;
     }
 
     if ($bug) {
-	return 1 if ($in_bisect);
-	dodie "failed - got a bug report\n";
+	return 0 if ($in_bisect);
+	fail "failed - got a bug report\n" and return 0;
     }
 
-    return 0;
+    return 1;
 }
 
 sub install {
@@ -363,12 +383,14 @@ sub check_buildlog {
 	    foreach my $file (@files) {
 		my $fullpath = "$opt{BUILD_DIR}/$file";
 		if ($file eq $err || $fullpath eq $err) {
-		    dodie "$file built with warnings";
+		    fail "$file built with warnings" and return 0;
 		}
 	    }
 	}
     }
     close(IN);
+
+    return 1;
 }
 
 sub build {
@@ -426,12 +448,12 @@ sub build {
     if (!run_command "$make $opt{BUILD_OPTIONS}") {
 	undef $redirect;
 	# bisect may need this to pass
-	return 1 if ($in_bisect);
-	dodie "failed build";
+	return 0 if ($in_bisect);
+	fail "failed build" and return 0;
     }
     undef $redirect;
 
-    return 0;
+    return 1;
 }
 
 sub reboot {
@@ -545,41 +567,40 @@ sub do_run_test {
     close_console($fp, $pid);
 
     if ($bug || $child_exit) {
-	return 1 if $in_bisect;
-	dodie "test failed";
+	return 0 if $in_bisect;
+	fail "test failed" and return 0;
     }
-    return 0;
+    return 1;
 }
 
 sub run_bisect {
     my ($type) = @_;
 
-    my $failed;
+    my $failed = 0;
     my $result;
     my $output;
     my $ret;
 
-
     if (defined($minconfig)) {
-	$failed = build "useconfig:$minconfig";
+	build "useconfig:$minconfig" or $failed = 1;
     } else {
 	# ?? no config to use?
-	$failed = build "oldconfig";
+	build "oldconfig" or $failed = 1;
     }
 
     if ($type ne "build") {
-	dodie "Failed on build" if $failed;
+	fail "Failed on build" if $failed;
 
 	# Now boot the box
 	get_grub_index;
 	get_version;
 	install;
-	$failed = monitor;
+	monitor or $failed = 1;
 
 	if ($type ne "boot") {
-	    dodie "Failed on boot" if $failed;
+	    fail "Failed on boot" if $failed;
 
-	    $failed = do_run_test;
+	    do_run_test or $failed = 1;
 	}
     }
 
@@ -613,7 +634,7 @@ sub run_bisect {
 
     if ($ret) {
 	doprint "FAILED\n";
-	dodie "Failed to git bisect";
+	fail "Failed to git bisect";
     }
 
     doprint "SUCCESS\n";
@@ -656,13 +677,13 @@ sub bisect {
     $in_bisect = 1;
 
     run_command "git bisect start" or
-	dodie "could not start bisect";
+	fail "could not start bisect";
 
     run_command "git bisect good $good" or
-	dodie "could not set bisect good to $good";
+	fail "could not set bisect good to $good";
 
     run_command "git bisect bad $bad" or
-	dodie "could not set bisect good to $bad";
+	fail "could not set bisect good to $bad";
 
     # Can't have a test without having a test to run
     if ($type eq "test" && !defined($run_test)) {
@@ -721,7 +742,7 @@ sub patchcheck {
     close(IN);
 
     if ($list[$#list] !~ /^$start/) {
-	dodie "SHA1 $start not found";
+	fail "SHA1 $start not found";
     }
 
     # go backwards in the list
@@ -748,26 +769,28 @@ sub patchcheck {
 	}
 
 	if (defined($minconfig)) {
-	    build "useconfig:$minconfig";
+	    build "useconfig:$minconfig" or return 0;
 	} else {
 	    # ?? no config to use?
-	    build "oldconfig";
+	    build "oldconfig" or return 0;
 	}
 
-	check_buildlog $sha1;
+	check_buildlog $sha1 or return 0;
 
 	next if ($type eq "build");
 
 	get_grub_index;
 	get_version;
 	install;
-	monitor;
+	monitor or return 0;
 
 	next if ($type eq "boot");
-	do_run_test;
+	do_run_test or next;
     }
     $in_patchcheck = 0;
     success $i;
+
+    return 1;
 }
 
 read_config $ARGV[0];
@@ -788,8 +811,15 @@ chdir $opt{"BUILD_DIR"} || die "can't change directory to $opt{BUILD_DIR}";
 
 $target = "$opt{SSH_USER}\@$opt{MACHINE}";
 
-doprint "\n\nSTARTING AUTOMATED TESTS\n";
+if ($opt{"CLEAR_LOG"} && defined($opt{"LOG_FILE"})) {
+    unlink $opt{"LOG_FILE"};
+}
 
+doprint "\n\nSTARTING AUTOMATED TESTS\n\n";
+
+foreach my $option (sort keys %opt) {
+    doprint "$option = $opt{$option}\n";
+}
 
 $make = "$opt{MAKE_CMD} O=$opt{OUTPUT_DIR}";
 
@@ -820,9 +850,19 @@ for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
     $noclean = set_build_option("BUILD_NOCLEAN", $i);
     $minconfig = set_build_option("MIN_CONFIG", $i);
     $run_test = set_build_option("TEST", $i);
+    $addconfig = set_build_option("ADD_CONFIG", $i);
 
     doprint "\n\n";
     doprint "RUNNING TEST $i of $opt{NUM_BUILDS} with option $opt{$type}\n\n";
+
+    if (!defined($minconfig)) {
+	$minconfig = $addconfig;
+
+    } elsif (defined($addconfig)) {
+	run_command "cat $addconfig $minconfig > $opt{TMP_DIR}/use_config" or
+	    dodie "Failed to create temp config";
+	$minconfig = "$opt{TMP_DIR}/use_config";
+    }
 
     my $checkout = $opt{"CHECKOUT[$i]"};
     if (defined($checkout)) {
@@ -839,16 +879,16 @@ for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
     }
 
     if ($opt{$type} ne "nobuild") {
-	build $opt{$type};
+	build $opt{$type} or next;
     }
 
     get_grub_index;
     get_version;
     install;
-    monitor;
+    monitor or next;
 
     if (defined($run_test)) {
-	do_run_test;
+	do_run_test or next;
     }
 
     success $i;
