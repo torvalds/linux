@@ -89,6 +89,7 @@ struct qtouch_ts_data {
 
 	atomic_t			irq_enabled;
 	atomic_t			process_open;
+	int				enable_irq_flag;
 	int				status;
 
 	uint8_t				mode;
@@ -1636,6 +1637,7 @@ static int qtouch_ts_probe(struct i2c_client *client,
 	ts->y_delta = ts->pdata->y_delta;
 	atomic_set(&ts->irq_enabled, 1);
 	atomic_set(&ts->process_open, 1);
+	ts->enable_irq_flag = 1;
 	ts->status = 0xfe;
 	ts->touch_fw_size = 0;
 	ts->touch_fw_image = NULL;
@@ -1875,7 +1877,8 @@ static int qtouch_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	if (ts->mode == 1)
 		return -EBUSY;
 
-	disable_irq_nosync(ts->client->irq);
+	if (ts->enable_irq_flag)
+		disable_irq_nosync(ts->client->irq);
 	ret = cancel_work_sync(&ts->work);
 	if (ret) { /* if work was pending disable-count is now 2 */
 		pr_info("%s: Pending work item\n", __func__);
@@ -1885,6 +1888,9 @@ static int qtouch_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	ret = qtouch_power_config(ts, 0);
 	if (ret < 0)
 		pr_err("%s: Cannot write power config\n", __func__);
+
+	if (ts->pdata->hw_suspend)
+		ts->pdata->hw_suspend(1);
 
 	return 0;
 }
@@ -1905,6 +1911,9 @@ static int qtouch_ts_resume(struct i2c_client *client)
 	if (ts->mode == 1)
 		return -EBUSY;
 
+	if (ts->pdata->hw_suspend)
+		ts->pdata->hw_suspend(0);
+
 	/* If we were suspended while a touch was happening
 	   we need to tell the upper layers so they do not hang
 	   waiting on the liftoff that will not come. */
@@ -1924,20 +1933,22 @@ static int qtouch_ts_resume(struct i2c_client *client)
 	ret = qtouch_power_config(ts, 1);
 	if (ret < 0) {
 		pr_err("%s: Cannot write power config\n", __func__);
+		ts->enable_irq_flag = 0;
 		return -EIO;
 	}
-	/* HACK: temporary fix for IC wake issue
-	qtouch_force_reset(ts, 0); */
+
 	/* Point the address pointer to the message processor.
 	 * Must do this before enabling interrupts */
 	obj = find_obj(ts, QTM_OBJ_GEN_MSG_PROC);
 	ret = qtouch_set_addr(ts, obj->entry.addr);
 	if (ret != 0) {
 		pr_err("%s: Can't to set addr to msg processor\n", __func__);
+		ts->enable_irq_flag = 0;
+		return -EIO;
 	}
-	/* end of HACK */
 
 	enable_irq(ts->client->irq);
+	ts->enable_irq_flag = 1;
 	return 0;
 }
 

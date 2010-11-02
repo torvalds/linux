@@ -511,6 +511,7 @@ struct qtouch_ts_platform_data {
 	uint8_t			boot_i2c_addr;
 
 	int			(*hw_reset)(void);
+	int			(*hw_suspend)(int);
 
 	/* TODO: allow multiple key arrays */
 	struct qtouch_key_array			key_array;
