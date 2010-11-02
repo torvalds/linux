@@ -23,6 +23,7 @@ $opt{"REBOOT_ON_ERROR"}		= 0;
 $opt{"POWEROFF_ON_ERROR"}	= 0;
 $opt{"POWEROFF_ON_SUCCESS"}	= 0;
 $opt{"BUILD_OPTIONS"}		= "";
+$opt{"BISECT_SLEEP_TIME"}	= 10;   # sleep time between bisects
 
 my $version;
 my $grub_number;
@@ -32,6 +33,7 @@ my $noclean;
 my $minconfig;
 my $in_bisect = 0;
 my $bisect_bad = "";
+my $run_test;
 
 sub read_config {
     my ($config) = @_;
@@ -68,7 +70,7 @@ sub doprint {
 }
 
 sub dodie {
-    doprint "CRITICAL FAILURE... ", @_;
+    doprint "CRITICAL FAILURE... ", @_, "\n";
 
     if ($opt{"REBOOT_ON_ERROR"}) {
 	doprint "REBOOTING\n";
@@ -84,14 +86,14 @@ sub dodie {
 
 sub run_command {
     my ($command) = @_;
-    my $redirect = "";
+    my $redirect_log = "";
 
     if (defined($opt{"LOG_FILE"})) {
-	$redirect = " >> $opt{LOG_FILE} 2>&1";
+	$redirect_log = " >> $opt{LOG_FILE} 2>&1";
     }
 
     doprint "$command ... ";
-    `$command $redirect`;
+    `$command $redirect_log`;
 
     my $failed = $?;
 
@@ -106,7 +108,7 @@ sub run_command {
 
 sub get_grub_index {
 
-    return if ($grub_number >= 0);
+    return if (defined($grub_number));
 
     doprint "Find grub menu ... ";
     $grub_number = -1;
@@ -164,28 +166,40 @@ sub reboot_to {
     run_command "ssh $target '(echo \"savedefault --default=$grub_number --once\" | grub --batch; reboot)'";
 }
 
-sub monitor {
+sub open_console {
+    my ($fp) = @_;
+
     my $flags;
+
+    my $pid = open($fp, "$opt{CONSOLE}|") or
+	dodie "Can't open console $opt{CONSOLE}";
+
+    $flags = fcntl($fp, F_GETFL, 0) or
+	dodie "Can't get flags for the socket: $!\n";
+    $flags = fcntl($fp, F_SETFL, $flags | O_NONBLOCK) or
+	dodie "Can't set flags for the socket: $!\n";
+
+    return $pid;
+}
+
+sub close_console {
+    my ($fp, $pid) = @_;
+
+    doprint "kill child process $pid\n";
+    kill 2, $pid;
+
+    print "closing!\n";
+    close($fp);
+}
+
+sub monitor {
     my $booted = 0;
     my $bug = 0;
     my $pid;
-    my $doopen2 = 0;
     my $skip_call_trace = 0;
+    my $fp = \*IN;
 
-    if ($doopen2) {
-	$pid = open2(\*IN, \*OUT, $opt{"CONSOLE"});
-	if ($pid < 0) {
-	    dodie "Failed to connect to the console";
-	}
-    } else {
-	$pid = open(IN, "$opt{CONSOLE} |");
-    }
-
-    $flags = fcntl(IN, F_GETFL, 0) or
-	dodie "Can't get flags for the socket: $!\n";
-
-    $flags = fcntl(IN, F_SETFL, $flags | O_NONBLOCK) or
-	dodie "Can't set flags for the socket: $!\n";
+    $pid = open_console($fp);
 
     my $line;
     my $full_line = "";
@@ -193,14 +207,14 @@ sub monitor {
     doprint "Wait for monitor to settle down.\n";
     # read the monitor and wait for the system to calm down
     do {
-	$line = wait_for_input(\*IN, 5);
+	$line = wait_for_input($fp, 5);
     } while (defined($line));
 
     reboot_to;
 
     for (;;) {
 
-	$line = wait_for_input(\*IN);
+	$line = wait_for_input($fp);
 
 	last if (!defined($line));
 
@@ -234,19 +248,15 @@ sub monitor {
 	}
     }
 
-    doprint "kill child process $pid\n";
-    kill 2, $pid;
-
-    print "closing!\n";
-    close(IN);
+    close_console($fp, $pid);
 
     if (!$booted) {
-	return 1 if (!$in_bisect);
+	return 1 if ($in_bisect);
 	dodie "failed - never got a boot prompt.\n";
     }
 
     if ($bug) {
-	return 1 if (!$in_bisect);
+	return 1 if ($in_bisect);
 	dodie "failed - got a bug report\n";
     }
 
@@ -395,6 +405,84 @@ sub get_version {
     doprint "$version\n";
 }
 
+sub child_run_test {
+    my $failed;
+
+    $failed = !run_command $run_test;
+    exit $failed;
+}
+
+my $child_done;
+
+sub child_finished {
+    $child_done = 1;
+}
+
+sub do_run_test {
+    my $child_pid;
+    my $child_exit;
+    my $pid;
+    my $line;
+    my $full_line;
+    my $bug = 0;
+    my $fp = \*IN;
+
+    $pid = open_console($fp);
+
+    # read the monitor and wait for the system to calm down
+    do {
+	$line = wait_for_input($fp, 1);
+    } while (defined($line));
+
+    $child_done = 0;
+
+    $SIG{CHLD} = qw(child_finished);
+
+    $child_pid = fork;
+
+    child_run_test if (!$child_pid);
+
+    $full_line = "";
+
+    do {
+	$line = wait_for_input($fp, 1);
+	if (defined($line)) {
+
+	    # we are not guaranteed to get a full line
+	    $full_line .= $line;
+
+	    if ($full_line =~ /call trace:/i) {
+		$bug = 1;
+	    }
+
+	    if ($full_line =~ /Kernel panic -/) {
+		$bug = 1;
+	    }
+
+	    if ($line =~ /\n/) {
+		$full_line = "";
+	    }
+	}
+    } while (!$child_done && !$bug);
+
+    if ($bug) {
+	doprint "Detected kernel crash!\n";
+	# kill the child with extreme prejudice
+	kill 9, $child_pid;
+    }
+
+    waitpid $child_pid, 0;
+    $child_exit = $?;
+
+    close_console($fp, $pid);
+
+    if ($bug || $child_exit) {
+	return 1 if $in_bisect;
+	dodie "test failed";
+    }
+    return 0;
+}
+
 sub run_bisect {
     my ($type) = @_;
 
@@ -422,11 +510,20 @@ sub run_bisect {
 
 	if ($type ne "boot") {
 	    dodie "Failed on boot" if $failed;
+
+	    $failed = do_run_test;
 	}
     }
 
     if ($failed) {
 	$result = "bad";
+
+	# reboot the box to a good kernel
+	if ($type eq "boot") {
+	    reboot;
+	    doprint "sleep a little for reboot\n";
+	    sleep $opt{"BISECT_SLEEP_TIME"};
+	}
     } else {
 	$result = "good";
     }
@@ -443,12 +540,15 @@ sub run_bisect {
     }
 
     doprint "SUCCESS\n";
-    if ($output =~ m/^(Bisecting: .*\(roughly \d+ steps?\)) \[([[:xdigit:]]+)\]/) {
+    if ($output =~ m/^(Bisecting: .*\(roughly \d+ steps?\))\s+\[([[:xdigit:]]+)\]/) {
 	doprint "$1 [$2]\n";
     } elsif ($output =~ m/^([[:xdigit:]]+) is the first bad commit/) {
 	$bisect_bad = $1;
 	doprint "Found bad commit... $1\n";
 	return 0;
+    } else {
+	# we already logged it, just print it now.
+	print $output;
     }
 
 
@@ -478,6 +578,11 @@ sub bisect {
 
     run_command "git bisect bad $bad" or
 	dodie "could not set bisect good to $bad";
+
+    # Can't have a test without having a test to run
+    if ($type eq "test" && !defined($run_test)) {
+	$type = "boot";
+    }
 
     do {
 	$result = run_bisect $type;
@@ -519,28 +624,29 @@ doprint "\n\nSTARTING AUTOMATED TESTS\n";
 
 $make = "$opt{MAKE_CMD} O=$opt{OUTPUT_DIR}";
 
+sub set_build_option {
+    my ($name, $i) = @_;
+
+    my $option = "$name\[$i\]";
+
+    if (defined($opt{$option})) {
+	return $opt{$option};
+    }
+
+    if (defined($opt{$name})) {
+	return $opt{$name};
+    }
+
+    return undef;
+}
+
 # First we need to do is the builds
 for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
     my $type = "BUILD_TYPE[$i]";
 
-    if (defined($opt{"BUILD_NOCLEAN[$i]"}) &&
-	$opt{"BUILD_NOCLEAN[$i]"} != 0) {
-	$noclean = 1;
-    } else {
-	$noclean = $opt{"BUILD_NOCLEAN"};
-    }
-
-    if (defined($opt{"MIN_CONFIG[$i]"})) {
-	$minconfig = $opt{"MIN_CONFIG[$i]"};
-    } elsif (defined($opt{"MIN_CONFIG"})) {
-	$minconfig = $opt{"MIN_CONFIG"};
-    } else {
-	undef $minconfig;
-    }
-
-    if (!defined($opt{$type})) {
-	$opt{$type} = $opt{"DEFAULT_BUILD_TYPE"};
-    }
+    $noclean = set_build_option("BUILD_NOCLEAN", $i);
+    $minconfig = set_build_option("MIN_CONFIG", $i);
+    $run_test = set_build_option("TEST", $i);
 
     doprint "\n\n";
     doprint "RUNNING TEST $i of $opt{NUM_BUILDS} with option $opt{$type}\n\n";
@@ -558,6 +664,11 @@ for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
     get_version;
     install;
     monitor;
+
+    if (defined($run_test)) {
+	do_run_test;
+    }
+
     success $i;
 }
 
