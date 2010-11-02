@@ -18,12 +18,6 @@
 #define _linux_osl_h_
 
 
-/* Linux Kernel: File Operations: start */
-extern void *osl_os_open_image(char *filename);
-extern int osl_os_get_image_block(char *buf, int len, void *image);
-extern void osl_os_close_image(void *image);
-/* Linux Kernel: File Operations: end */
-
 extern osl_t *osl_attach(void *pdev, uint bustype, bool pkttag);
 extern void osl_detach(osl_t *osh);
 
@@ -267,22 +261,6 @@ extern int osl_error(int bcmerror);
 #else
 #define OSL_UNCACHED(va)	((void *)va)
 #define OSL_CACHED(va)		((void *)va)
-#endif				/* mips */
-
-#if defined(mips)
-#define	OSL_GETCYCLES(x)	((x) = read_c0_count() * 2)
-#elif defined(__i386__)
-#define	OSL_GETCYCLES(x)	rdtscl((x))
-#else
-#define OSL_GETCYCLES(x)	((x) = 0)
-#endif				/* defined(mips) */
-
-/* dereference an address that may cause a bus exception */
-#ifdef mips
-#define	BUSPROBE(val, addr)	get_dbe((val), (addr))
-#include <asm/paccess.h>
-#else
-#define	BUSPROBE(val, addr)	({ (val) = R_REG(NULL, (addr)); 0; })
 #endif				/* mips */
 
 /* map/unmap physical to virtual I/O */
