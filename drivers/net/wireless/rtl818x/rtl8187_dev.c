@@ -779,8 +779,6 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 	rtl818x_iowrite16_idx(priv, (__le16 *)0xFFE0, 0x0FFF, 1);
 	rtl818x_iowrite8_idx(priv, (u8 *)0xFFE2, 0x00, 1);
 
-	rtl818x_iowrite16(priv, &priv->map->BEACON_INTERVAL, 100);
-	rtl818x_iowrite16(priv, &priv->map->ATIM_WND, 2);
 	rtl818x_iowrite16_idx(priv, (__le16 *)0xFFD4, 0xFFFF, 1);
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
