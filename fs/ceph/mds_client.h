@@ -166,7 +166,6 @@ struct ceph_mds_request {
 	struct ceph_mds_client *r_mdsc;
 
 	int r_op;                    /* mds op code */
-	int r_mds;
 
 	/* operation on what? */
 	struct inode *r_inode;              /* arg1 */

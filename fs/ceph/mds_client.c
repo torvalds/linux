@@ -1705,7 +1705,6 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	struct ceph_msg *msg;
 	int flags = 0;
 
-	req->r_mds = mds;
 	req->r_attempts++;
 	if (req->r_inode) {
 		struct ceph_cap *cap =
@@ -2068,8 +2067,11 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 			goto out;
 		} else  {
 			struct ceph_inode_info *ci = ceph_inode(req->r_inode);
-			struct ceph_cap *cap =
-				ceph_get_cap_for_mds(ci, req->r_mds);;
+			struct ceph_cap *cap = NULL;
+
+			if (req->r_session)
+				cap = ceph_get_cap_for_mds(ci,
+						   req->r_session->s_mds);
 
 			dout("already using auth");
 			if ((!cap || cap != ci->i_auth_cap) ||
