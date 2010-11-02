@@ -771,6 +771,8 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 	if (res)
 		return res;
 
+	rtl8187_set_anaparam(priv, true);
+
 	/* BRSR (Basic Rate Set Register) on 8187B looks to be the same as
 	 * RESP_RATE on 8187L in Realtek sources: each bit should be each
 	 * one of the 12 rates, all are enabled */
