@@ -10,9 +10,19 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 
-struct platform_device *imx_add_platform_device(const char *name, int id,
+struct platform_device *imx_add_platform_device_dmamask(
+		const char *name, int id,
 		const struct resource *res, unsigned int num_resources,
-		const void *data, size_t size_data);
+		const void *data, size_t size_data, u64 dmamask);
+
+static inline struct platform_device *imx_add_platform_device(
+		const char *name, int id,
+		const struct resource *res, unsigned int num_resources,
+		const void *data, size_t size_data)
+{
+	return imx_add_platform_device_dmamask(
+			name, id, res, num_resources, data, size_data, 0);
+}
 
 #include <linux/fec.h>
 struct imx_fec_data {
