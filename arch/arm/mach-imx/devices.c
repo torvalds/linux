@@ -70,49 +70,6 @@ struct platform_device imx1_camera_device = {
 	.num_resources  = ARRAY_SIZE(imx1_camera_resources),
 };
 
-static struct resource imx_usb_resources[] = {
-	{
-		.start	= 0x00212000,
-		.end	= 0x00212148,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= MX1_USBD_INT0,
-		.end	= MX1_USBD_INT0,
-		.flags	= IORESOURCE_IRQ,
-	}, {
-		.start	= MX1_USBD_INT1,
-		.end	= MX1_USBD_INT1,
-		.flags	= IORESOURCE_IRQ,
-	}, {
-		.start	= MX1_USBD_INT2,
-		.end	= MX1_USBD_INT2,
-		.flags	= IORESOURCE_IRQ,
-	}, {
-		.start	= MX1_USBD_INT3,
-		.end	= MX1_USBD_INT3,
-		.flags	= IORESOURCE_IRQ,
-	}, {
-		.start	= MX1_USBD_INT4,
-		.end	= MX1_USBD_INT4,
-		.flags	= IORESOURCE_IRQ,
-	}, {
-		.start	= MX1_USBD_INT5,
-		.end	= MX1_USBD_INT5,
-		.flags	= IORESOURCE_IRQ,
-	}, {
-		.start	= MX1_USBD_INT6,
-		.end	= MX1_USBD_INT6,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device imx_usb_device = {
-	.name		= "imx_udc",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(imx_usb_resources),
-	.resource	= imx_usb_resources,
-};
-
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {
 	{

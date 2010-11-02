@@ -114,13 +114,13 @@
 #define MX1_SSI_RX_INT		44
 #define MX1_SSI_RX_ERR_INT	45
 #define MX1_TOUCH_INT		46
-#define MX1_USBD_INT0		47
-#define MX1_USBD_INT1		48
-#define MX1_USBD_INT2		49
-#define MX1_USBD_INT3		50
-#define MX1_USBD_INT4		51
-#define MX1_USBD_INT5		52
-#define MX1_USBD_INT6		53
+#define MX1_INT_USBD0		47
+#define MX1_INT_USBD1		48
+#define MX1_INT_USBD2		49
+#define MX1_INT_USBD3		50
+#define MX1_INT_USBD4		51
+#define MX1_INT_USBD5		52
+#define MX1_INT_USBD6		53
 #define MX1_BTSYS_INT		55
 #define MX1_BTTIM_INT		56
 #define MX1_BTWUI_INT		57
@@ -163,6 +163,6 @@
  * to not break drivers/usb/gadget/imx_udc.  Should go
  * away after this driver uses the new name.
  */
-#define USBD_INT0		MX1_USBD_INT0
+#define USBD_INT0		MX1_INT_USBD0
 
 #endif /* ifndef __MACH_MX1_H__ */
