@@ -466,7 +466,7 @@ static void sh_hdmi_audio_config(struct sh_hdmi *hdmi)
  */
 static void sh_hdmi_phy_config(struct sh_hdmi *hdmi)
 {
-	if (hdmi->var.yres > 480) {
+	if (hdmi->var.pixclock < 30000) {
 		/* 720p, 8bit, 74.25MHz. Might need to be adjusted for other formats */
 		/*
 		 * [1:0]	Speed_A
@@ -570,8 +570,12 @@ static void sh_hdmi_avi_infoframe_setup(struct sh_hdmi *hdmi)
 	 */
 	if (hdmi->var.yres == 1080 && hdmi->var.xres == 1920)
 		vic = 16;
+	else if (hdmi->var.yres == 576 && hdmi->var.xres == 720)
+		vic = 17;
 	else if (hdmi->var.yres == 480 && hdmi->var.xres == 720)
 		vic = 2;
+	else if (hdmi->var.yres == 480 && hdmi->var.xres == 640)
+		vic = 1;
 	else
 		vic = 4;
 	hdmi_write(hdmi, vic, HDMI_CTRL_PKT_BUF_ACCESS_PB4);
@@ -824,9 +828,11 @@ static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 	if (!found)
 		return -ENXIO;
 
-	if ((found->xres == 720 && found->yres == 480) ||
-	    (found->xres == 1280 && found->yres == 720) ||
-	    (found->xres == 1920 && found->yres == 1080))
+	if ((found->xres == 640 && found->yres == 480 && found->refresh == 60) ||
+	    (found->xres == 720 && found->yres == 480 && found->refresh == 60) ||
+	    (found->xres == 720 && found->yres == 576 && found->refresh == 50) ||
+	    (found->xres == 1280 && found->yres == 720 && found->refresh == 60) ||
+	    (found->xres == 1920 && found->yres == 1080 && found->refresh == 60))
 		hdmi->preprogrammed_mode = true;
 	else
 		hdmi->preprogrammed_mode = false;
