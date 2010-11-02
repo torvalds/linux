@@ -1017,10 +1017,9 @@ static int ft1000_copy_down_pkt (struct net_device *netdev, u8 *packet, u16 len)
     struct ft1000_device *pFt1000Dev = pInfo->pFt1000Dev;
 
 
-    int i, count, ret;
-    USHORT *pTemp;
-    USHORT checksum;
+	int count, ret;
     u8 *t;
+	struct pseudo_hdr hdr;
 
     if (!pInfo->CardReady)
     {
@@ -1044,21 +1043,21 @@ static int ft1000_copy_down_pkt (struct net_device *netdev, u8 *packet, u16 len)
     if ( count % 4)
         count = count + (4- (count %4) );
 
-    pTemp = (PUSHORT)&(pFt1000Dev->tx_buf[0]);
-    *pTemp ++ = ntohs(count);
-    *pTemp ++ = 0x1020;
-    *pTemp ++ = 0x2010;
-    *pTemp ++ = 0x9100;
-    *pTemp ++ = 0;
-    *pTemp ++ = 0;
-    *pTemp ++ = 0;
-    pTemp = (PUSHORT)&(pFt1000Dev->tx_buf[0]);
-    checksum = *pTemp ++;
-    for (i=1; i<7; i++)
-    {
-        checksum ^= *pTemp ++;
-    }
-    *pTemp++ = checksum;
+	memset(&hdr, 0, sizeof(struct pseudo_hdr));
+
+	hdr.length = ntohs(count);
+	hdr.source = 0x10;
+	hdr.destination = 0x20;
+	hdr.portdest = 0x20;
+	hdr.portsrc = 0x10;
+	hdr.sh_str_id = 0x91;
+	hdr.control = 0x00;
+
+	hdr.checksum = hdr.length ^ hdr.source ^ hdr.destination ^
+			hdr.portdest ^ hdr.portsrc ^ hdr.sh_str_id ^
+			hdr.control;
+
+	memcpy(&pFt1000Dev->tx_buf[0], &hdr, sizeof(hdr));
 	memcpy(&(pFt1000Dev->tx_buf[sizeof(struct pseudo_hdr)]), packet, len);
 
     netif_stop_queue(netdev);
