@@ -1119,35 +1119,9 @@ EXPORT_SYMBOL(ttm_bo_validate);
 int ttm_bo_check_placement(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement)
 {
-	int i;
+	BUG_ON((placement->fpfn || placement->lpfn) &&
+	       (bo->mem.num_pages > (placement->lpfn - placement->fpfn)));
 
-	if (placement->fpfn || placement->lpfn) {
-		if (bo->mem.num_pages > (placement->lpfn - placement->fpfn)) {
-			printk(KERN_ERR TTM_PFX "Page number range to small "
-				"Need %lu pages, range is [%u, %u]\n",
-				bo->mem.num_pages, placement->fpfn,
-				placement->lpfn);
-			return -EINVAL;
-		}
-	}
-	for (i = 0; i < placement->num_placement; i++) {
-		if (!capable(CAP_SYS_ADMIN)) {
-			if (placement->placement[i] & TTM_PL_FLAG_NO_EVICT) {
-				printk(KERN_ERR TTM_PFX "Need to be root to "
-					"modify NO_EVICT status.\n");
-				return -EINVAL;
-			}
-		}
-	}
-	for (i = 0; i < placement->num_busy_placement; i++) {
-		if (!capable(CAP_SYS_ADMIN)) {
-			if (placement->busy_placement[i] & TTM_PL_FLAG_NO_EVICT) {
-				printk(KERN_ERR TTM_PFX "Need to be root to "
-					"modify NO_EVICT status.\n");
-				return -EINVAL;
-			}
-		}
-	}
 	return 0;
 }
 
