@@ -7,6 +7,8 @@
 use strict;
 use IPC::Open2;
 use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
+use File::Path qw(mkpath);
+use File::Copy qw(cp);
 use FileHandle;
 
 $#ARGV >= 0 || die "usage: autotest.pl config-file\n";
@@ -17,7 +19,7 @@ my %opt;
 
 #default opts
 $opt{"NUM_BUILDS"}		= 5;
-$opt{"DEFAULT_BUILD_TYPE"}	= "randconfig";
+$opt{"BUILD_TYPE"}		= "randconfig";
 $opt{"MAKE_CMD"}		= "make";
 $opt{"TIMEOUT"}			= 120;
 $opt{"TMP_DIR"}			= "/tmp/autotest";
@@ -35,6 +37,7 @@ $opt{"BOOTED_TIMEOUT"}		= 1;
 $opt{"DIE_ON_FAILURE"}		= 1;
 
 my $version;
+my $build_type;
 my $grub_number;
 my $target;
 my $make;
@@ -47,6 +50,11 @@ my $reverse_bisect;
 my $in_patchcheck = 0;
 my $run_test;
 my $redirect;
+my $buildlog;
+my $dmesg;
+my $monitor_fp;
+my $monitor_pid;
+my $monitor_cnt = 0;
 
 sub read_config {
     my ($config) = @_;
@@ -82,12 +90,22 @@ sub doprint {
     logit @_;
 }
 
+sub run_command;
+
+sub reboot {
+    # try to reboot normally
+    if (!run_command "ssh $target reboot") {
+	# nope? power cycle it.
+	run_command "$opt{POWER_CYCLE}";
+    }
+}
+
 sub dodie {
     doprint "CRITICAL FAILURE... ", @_, "\n";
 
     if ($opt{"REBOOT_ON_ERROR"}) {
 	doprint "REBOOTING\n";
-	`$opt{"POWER_CYCLE"}`;
+	reboot;
 
     } elsif ($opt{"POWEROFF_ON_ERROR"} && defined($opt{"POWER_OFF"})) {
 	doprint "POWERING OFF\n";
@@ -97,6 +115,59 @@ sub dodie {
     die @_;
 }
 
+sub open_console {
+    my ($fp) = @_;
+
+    my $flags;
+
+    my $pid = open($fp, "$opt{CONSOLE}|") or
+	dodie "Can't open console $opt{CONSOLE}";
+
+    $flags = fcntl($fp, F_GETFL, 0) or
+	dodie "Can't get flags for the socket: $!\n";
+    $flags = fcntl($fp, F_SETFL, $flags | O_NONBLOCK) or
+	dodie "Can't set flags for the socket: $!\n";
+
+    return $pid;
+}
+
+sub close_console {
+    my ($fp, $pid) = @_;
+
+    doprint "kill child process $pid\n";
+    kill 2, $pid;
+
+    print "closing!\n";
+    close($fp);
+}
+
+sub start_monitor {
+    if ($monitor_cnt++) {
+	return;
+    }
+    $monitor_fp = \*MONFD;
+    $monitor_pid = open_console $monitor_fp;
+}
+
+sub end_monitor {
+    if (--$monitor_cnt) {
+	return;
+    }
+    close_console($monitor_fp, $monitor_pid);
+}
+
+sub wait_for_monitor {
+    my ($time) = @_;
+    my $line;
+
+    doprint "Wait for monitor to settle down.\n";
+
+    # read the monitor and wait for the system to calm down
+    do {
+	$line = wait_for_input($monitor_fp, $time);
+    } while (defined($line));
+}
+
 sub fail {
 
 	if ($opt{"DIE_ON_FAILURE"}) {
@@ -104,6 +175,41 @@ sub fail {
 	}
 
 	doprint "Failed: ", @_, "\n";
+
+	doprint "REBOOTING\n";
+	reboot;
+	start_monitor;
+	wait_for_monitor $opt{"SLEEP_TIME"};
+	end_monitor;
+
+	return 1 if (!defined($opt{"STORE_FAILURES"}));
+
+	my @t = localtime;
+	my $date = sprintf "%04d%02d%02d%02d%02d%02d",
+		1900+$t[5],$t[4],$t[3],$t[2],$t[1],$t[0];
+
+	my $dir = "$opt{MACHINE}-$build_type-fail-$date";
+	my $faildir = "$opt{STORE_FAILURES}/$dir";
+
+	if (!-d $faildir) {
+	    mkpath($faildir) or
+		die "can't create $opt{STORE_FAILURES}";
+	}
+	if (-f "$opt{OUTPUT_DIR}/.config") {
+	    cp "$opt{OUTPUT_DIR}/.config", "$faildir/config" or
+		die "failed to copy .config";
+	}
+	if (-f $buildlog) {
+	    cp $buildlog, "$faildir/buildlog" or
+		die "failed to move $buildlog";
+	}
+	if (-f $dmesg) {
+	    cp $dmesg, "$faildir/dmesg" or
+		die "failed to move $dmesg";
+	}
+
+	doprint "*** Saved info to $faildir ***\n";
+
 	return 1;
 }
 
@@ -211,64 +317,34 @@ sub reboot_to {
     run_command "ssh $target '(echo \"savedefault --default=$grub_number --once\" | grub --batch; reboot)'";
 }
 
-sub open_console {
-    my ($fp) = @_;
-
-    my $flags;
-
-    my $pid = open($fp, "$opt{CONSOLE}|") or
-	dodie "Can't open console $opt{CONSOLE}";
-
-    $flags = fcntl($fp, F_GETFL, 0) or
-	dodie "Can't get flags for the socket: $!\n";
-    $flags = fcntl($fp, F_SETFL, $flags | O_NONBLOCK) or
-	dodie "Can't set flags for the socket: $!\n";
-
-    return $pid;
-}
-
-sub close_console {
-    my ($fp, $pid) = @_;
-
-    doprint "kill child process $pid\n";
-    kill 2, $pid;
-
-    print "closing!\n";
-    close($fp);
-}
-
 sub monitor {
     my $booted = 0;
     my $bug = 0;
-    my $pid;
     my $skip_call_trace = 0;
-    my $fp = \*IN;
     my $loops;
 
-    $pid = open_console($fp);
+    wait_for_monitor 5;
 
     my $line;
     my $full_line = "";
 
-    doprint "Wait for monitor to settle down.\n";
-    # read the monitor and wait for the system to calm down
-    do {
-	$line = wait_for_input($fp, 5);
-    } while (defined($line));
+    open(DMESG, "> $dmesg") or
+	die "unable to write to $dmesg";
 
     reboot_to;
 
     for (;;) {
 
 	if ($booted) {
-	    $line = wait_for_input($fp, $opt{"BOOTED_TIMEOUT"});
+	    $line = wait_for_input($monitor_fp, $opt{"BOOTED_TIMEOUT"});
 	} else {
-	    $line = wait_for_input($fp);
+	    $line = wait_for_input($monitor_fp);
 	}
 
 	last if (!defined($line));
 
 	doprint $line;
+	print DMESG $line;
 
 	# we are not guaranteed to get a full line
 	$full_line .= $line;
@@ -298,7 +374,7 @@ sub monitor {
 	}
     }
 
-    close_console($fp, $pid);
+    close(DMESG);
 
     if (!$booted) {
 	return 0 if ($in_bisect);
@@ -363,7 +439,6 @@ sub install {
 sub check_buildlog {
     my ($patch) = @_;
 
-    my $buildlog = "$opt{TMP_DIR}/buildlog";
     my @files = `git show $patch | diffstat -l`;
 
     open(IN, "git show $patch |") or
@@ -397,6 +472,8 @@ sub build {
     my ($type) = @_;
     my $defconfig = "";
     my $append = "";
+
+    unlink $buildlog;
 
     if ($type =~ /^useconfig:(.*)/) {
 	run_command "cp $1 $opt{OUTPUT_DIR}/.config" or
@@ -440,11 +517,7 @@ sub build {
     run_command "$defconfig $append $make $type" or
 	dodie "failed make config";
 
-    # patch check will examine the log
-    if ($in_patchcheck) {
-	$redirect = "$opt{TMP_DIR}/buildlog";
-    }
-
+    $redirect = "$opt{TMP_DIR}/buildlog";
     if (!run_command "$make $opt{BUILD_OPTIONS}") {
 	undef $redirect;
 	# bisect may need this to pass
@@ -454,14 +527,6 @@ sub build {
     undef $redirect;
 
     return 1;
-}
-
-sub reboot {
-    # try to reboot normally
-    if (!run_command "ssh $target reboot") {
-	# nope? power cycle it.
-	run_command "$opt{POWER_CYCLE}";
-    }
 }
 
 sub halt {
@@ -481,9 +546,11 @@ sub success {
     doprint     "*******************************************\n";
 
     if ($i != $opt{"NUM_BUILDS"}) {
+	doprint "Reboot and wait $opt{SLEEP_TIME} seconds\n";
 	reboot;
-	doprint "Sleeping $opt{SLEEP_TIME} seconds\n";
-	sleep "$opt{SLEEP_TIME}";
+	start_monitor;
+	wait_for_monitor $opt{"SLEEP_TIME"};
+	end_monitor;
     }
 }
 
@@ -496,9 +563,14 @@ sub get_version {
 }
 
 sub child_run_test {
-    my $failed;
+    my $failed = 0;
 
-    $failed = !run_command $run_test;
+    # child should have no power
+    $opt{"REBOOT_ON_ERROR"} = 0;
+    $opt{"POWEROFF_ON_ERROR"} = 0;
+    $opt{"DIE_ON_FAILURE"} = 1;
+
+    run_command $run_test or $failed = 1;
     exit $failed;
 }
 
@@ -511,18 +583,13 @@ sub child_finished {
 sub do_run_test {
     my $child_pid;
     my $child_exit;
-    my $pid;
     my $line;
     my $full_line;
     my $bug = 0;
-    my $fp = \*IN;
 
-    $pid = open_console($fp);
+    wait_for_monitor 1;
 
-    # read the monitor and wait for the system to calm down
-    do {
-	$line = wait_for_input($fp, 1);
-    } while (defined($line));
+    doprint "run test $run_test\n";
 
     $child_done = 0;
 
@@ -535,7 +602,7 @@ sub do_run_test {
     $full_line = "";
 
     do {
-	$line = wait_for_input($fp, 1);
+	$line = wait_for_input($monitor_fp, 1);
 	if (defined($line)) {
 
 	    # we are not guaranteed to get a full line
@@ -564,8 +631,6 @@ sub do_run_test {
     waitpid $child_pid, 0;
     $child_exit = $?;
 
-    close_console($fp, $pid);
-
     if ($bug || $child_exit) {
 	return 0 if $in_bisect;
 	fail "test failed" and return 0;
@@ -589,19 +654,22 @@ sub run_bisect {
     }
 
     if ($type ne "build") {
-	fail "Failed on build" if $failed;
+	dodie "Failed on build" if $failed;
 
 	# Now boot the box
 	get_grub_index;
 	get_version;
 	install;
+
+	start_monitor;
 	monitor or $failed = 1;
 
 	if ($type ne "boot") {
-	    fail "Failed on boot" if $failed;
+	    dodie "Failed on boot" if $failed;
 
 	    do_run_test or $failed = 1;
 	}
+	end_monitor;
     }
 
     if ($failed) {
@@ -609,9 +677,11 @@ sub run_bisect {
 
 	# reboot the box to a good kernel
 	if ($type eq "boot") {
+	    doprint "Reboot and sleep $opt{BISECT_SLEEP_TIME} seconds\n";
 	    reboot;
-	    doprint "sleep a little for reboot\n";
-	    sleep $opt{"BISECT_SLEEP_TIME"};
+	    start_monitor;
+	    wait_for_monitor $opt{"BISECT_SLEEP_TIME"};
+	    end_monitor;
 	}
     } else {
 	$result = "good";
@@ -782,10 +852,18 @@ sub patchcheck {
 	get_grub_index;
 	get_version;
 	install;
-	monitor or return 0;
 
-	next if ($type eq "boot");
-	do_run_test or next;
+	my $failed = 0;
+
+	start_monitor;
+	monitor or $failed = 1;
+
+	if (!$failed && $type ne "boot"){
+	    do_run_test or $failed = 1;
+	}
+	end_monitor;
+	return 0 if ($failed);
+
     }
     $in_patchcheck = 0;
     success $i;
@@ -821,6 +899,8 @@ foreach my $option (sort keys %opt) {
     doprint "$option = $opt{$option}\n";
 }
 
+$buildlog = "$opt{TMP_DIR}/buildlog";
+$dmesg = "$opt{TMP_DIR}/dmesg";
 $make = "$opt{MAKE_CMD} O=$opt{OUTPUT_DIR}";
 
 sub set_build_option {
@@ -841,19 +921,18 @@ sub set_build_option {
 
 # First we need to do is the builds
 for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
-    my $type = "BUILD_TYPE[$i]";
 
-    if (!defined($opt{$type})) {
-	$opt{$type} = $opt{"DEFAULT_BUILD_TYPE"};
-    }
-
+    $build_type = set_build_option("BUILD_TYPE", $i);
     $noclean = set_build_option("BUILD_NOCLEAN", $i);
     $minconfig = set_build_option("MIN_CONFIG", $i);
     $run_test = set_build_option("TEST", $i);
     $addconfig = set_build_option("ADD_CONFIG", $i);
 
     doprint "\n\n";
-    doprint "RUNNING TEST $i of $opt{NUM_BUILDS} with option $opt{$type}\n\n";
+    doprint "RUNNING TEST $i of $opt{NUM_BUILDS} with option $build_type\n\n";
+
+    unlink $dmesg;
+    unlink $buildlog;
 
     if (!defined($minconfig)) {
 	$minconfig = $addconfig;
@@ -870,26 +949,30 @@ for (my $i = 1; $i <= $opt{"NUM_BUILDS"}; $i++) {
 	    die "failed to checkout $checkout";
     }
 
-    if ($opt{$type} eq "bisect") {
+    if ($build_type eq "bisect") {
 	bisect $i;
 	next;
-    } elsif ($opt{$type} eq "patchcheck") {
+    } elsif ($build_type eq "patchcheck") {
 	patchcheck $i;
 	next;
     }
 
-    if ($opt{$type} ne "nobuild") {
-	build $opt{$type} or next;
+    if ($build_type ne "nobuild") {
+	build $build_type or next;
     }
 
     get_grub_index;
     get_version;
     install;
-    monitor or next;
 
-    if (defined($run_test)) {
-	do_run_test or next;
+    my $failed = 0;
+    start_monitor;
+    monitor or $failed = 1;;
+    if (!$failed && defined($run_test)) {
+	do_run_test or $failed = 1;
     }
+    end_monitor;
+    next if ($failed);
 
     success $i;
 }
