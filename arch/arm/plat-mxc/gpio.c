@@ -175,7 +175,7 @@ static void mxc_gpio_irq_handler(struct mxc_gpio_port *port, u32 irq_stat)
 static void mx3_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 {
 	u32 irq_stat;
-	struct mxc_gpio_port *port = (struct mxc_gpio_port *)get_irq_data(irq);
+	struct mxc_gpio_port *port = get_irq_data(irq);
 
 	irq_stat = __raw_readl(port->base + GPIO_ISR) &
 			__raw_readl(port->base + GPIO_IMR);
@@ -188,7 +188,7 @@ static void mx2_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 {
 	int i;
 	u32 irq_msk, irq_stat;
-	struct mxc_gpio_port *port = (struct mxc_gpio_port *)get_irq_data(irq);
+	struct mxc_gpio_port *port = get_irq_data(irq);
 
 	/* walk through all interrupt status registers */
 	for (i = 0; i < gpio_table_size; i++) {
