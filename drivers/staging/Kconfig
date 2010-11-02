@@ -177,5 +177,7 @@ source "drivers/staging/speakup/Kconfig"
 
 source "drivers/staging/cptm1217/Kconfig"
 
+source "drivers/staging/ste_rmi4/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
