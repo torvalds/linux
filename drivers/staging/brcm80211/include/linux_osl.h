@@ -134,9 +134,6 @@ extern void osl_dma_unmap(osl_t *osh, uint pa, uint size, int direction);
 #define SELECT_BUS_READ(osh, mmap_op, bus_op) mmap_op
 #endif
 
-#define OSL_ERROR(bcmerror)	osl_error(bcmerror)
-extern int osl_error(int bcmerror);
-
 /* the largest reasonable packet buffer driver uses for ethernet MTU in bytes */
 #define	PKTBUFSZ	2048	/* largest reasonable packet buffer, driver uses for ethernet MTU */
 

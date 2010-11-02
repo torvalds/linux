@@ -46,74 +46,6 @@ struct osl_info {
 /* Global ASSERT type flag */
 u32 g_assert_type;
 
-#ifdef BRCM_FULLMAC
-static s16 linuxbcmerrormap[] = { 0,	/* 0 */
-	-EINVAL,		/* BCME_ERROR */
-	-EINVAL,		/* BCME_BADARG */
-	-EINVAL,		/* BCME_BADOPTION */
-	-EINVAL,		/* BCME_NOTUP */
-	-EINVAL,		/* BCME_NOTDOWN */
-	-EINVAL,		/* BCME_NOTAP */
-	-EINVAL,		/* BCME_NOTSTA */
-	-EINVAL,		/* BCME_BADKEYIDX */
-	-EINVAL,		/* BCME_RADIOOFF */
-	-EINVAL,		/* BCME_NOTBANDLOCKED */
-	-EINVAL,		/* BCME_NOCLK */
-	-EINVAL,		/* BCME_BADRATESET */
-	-EINVAL,		/* BCME_BADBAND */
-	-E2BIG,			/* BCME_BUFTOOSHORT */
-	-E2BIG,			/* BCME_BUFTOOLONG */
-	-EBUSY,			/* BCME_BUSY */
-	-EINVAL,		/* BCME_NOTASSOCIATED */
-	-EINVAL,		/* BCME_BADSSIDLEN */
-	-EINVAL,		/* BCME_OUTOFRANGECHAN */
-	-EINVAL,		/* BCME_BADCHAN */
-	-EFAULT,		/* BCME_BADADDR */
-	-ENOMEM,		/* BCME_NORESOURCE */
-	-EOPNOTSUPP,		/* BCME_UNSUPPORTED */
-	-EMSGSIZE,		/* BCME_BADLENGTH */
-	-EINVAL,		/* BCME_NOTREADY */
-	-EPERM,			/* BCME_NOTPERMITTED */
-	-ENOMEM,		/* BCME_NOMEM */
-	-EINVAL,		/* BCME_ASSOCIATED */
-	-ERANGE,		/* BCME_RANGE */
-	-EINVAL,		/* BCME_NOTFOUND */
-	-EINVAL,		/* BCME_WME_NOT_ENABLED */
-	-EINVAL,		/* BCME_TSPEC_NOTFOUND */
-	-EINVAL,		/* BCME_ACM_NOTSUPPORTED */
-	-EINVAL,		/* BCME_NOT_WME_ASSOCIATION */
-	-EIO,			/* BCME_SDIO_ERROR */
-	-ENODEV,		/* BCME_DONGLE_DOWN */
-	-EINVAL,		/* BCME_VERSION */
-	-EIO,			/* BCME_TXFAIL */
-	-EIO,			/* BCME_RXFAIL */
-	-EINVAL,		/* BCME_NODEVICE */
-	-EINVAL,		/* BCME_NMODE_DISABLED */
-	-ENODATA,		/* BCME_NONRESIDENT */
-
-/* When an new error code is added to bcmutils.h, add os
- * spcecific error translation here as well
- */
-/* check if BCME_LAST changed since the last time this function was updated */
-#if BCME_LAST != -42
-#error "You need to add a OS error translation in the linuxbcmerrormap \
-	for new error code defined in bcmutils.h"
-#endif
-};
-
-/* translate bcmerrors into linux errors */
-int osl_error(int bcmerror)
-{
-	if (bcmerror > 0)
-		bcmerror = 0;
-	else if (bcmerror < BCME_LAST)
-		bcmerror = BCME_ERROR;
-
-	/* Array bounds covered by ASSERT in osl_attach */
-	return linuxbcmerrormap[-bcmerror];
-}
-#endif /* BRCM_FULLMAC */
-
 osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 {
 	osl_t *osh;
@@ -122,11 +54,6 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 	ASSERT(osh);
 
 	bzero(osh, sizeof(osl_t));
-
-#ifdef BRCM_FULLMAC
-	/* Check that error map has the right number of entries in it */
-	ASSERT(ABS(BCME_LAST) == (ARRAY_SIZE(linuxbcmerrormap) - 1));
-#endif /* BRCM_FULLMAC */
 
 	osh->magic = OS_HANDLE_MAGIC;
 	osh->failed = 0;
