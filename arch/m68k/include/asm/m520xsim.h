@@ -11,6 +11,8 @@
 #define m520xsim_h
 /****************************************************************************/
 
+#define	CPU_NAME	"COLDFIRE(m520x)"
+
 /*
  *  Define the 520x SIM register set addresses.
  */

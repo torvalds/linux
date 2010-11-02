@@ -5,6 +5,8 @@
 #ifndef	m54xxsim_h
 #define m54xxsim_h
 
+#define	CPU_NAME	"COLDFIRE(m54xx)"
+
 #define MCFINT_VECBASE      64
 
 /*

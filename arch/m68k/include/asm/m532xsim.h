@@ -9,6 +9,8 @@
 #define	m532xsim_h
 /****************************************************************************/
 
+#define	CPU_NAME	"COLDFIRE(m532x)"
+
 #define MCF_REG32(x) (*(volatile unsigned long  *)(x))
 #define MCF_REG16(x) (*(volatile unsigned short *)(x))
 #define MCF_REG08(x) (*(volatile unsigned char  *)(x))

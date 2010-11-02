@@ -14,6 +14,8 @@
 #define	m5307sim_h
 /****************************************************************************/
 
+#define	CPU_NAME	"COLDFIRE(m5307)"
+
 /*
  *	Define the 5307 SIM register set addresses.
  */

@@ -55,55 +55,22 @@ void (*mach_halt)(void);
 void (*mach_power_off)(void);
 
 #ifdef CONFIG_M68328
-	#define CPU "MC68328"
+#define CPU_NAME	"MC68328"
 #endif
 #ifdef CONFIG_M68EZ328
-	#define CPU "MC68EZ328"
+#define CPU_NAME	"MC68EZ328"
 #endif
 #ifdef CONFIG_M68VZ328
-	#define CPU "MC68VZ328"
+#define CPU_NAME	"MC68VZ328"
 #endif
 #ifdef CONFIG_M68360
-	#define CPU "MC68360"
+#define CPU_NAME	"MC68360"
 #endif
-#if defined(CONFIG_M5206)
-	#define	CPU "COLDFIRE(m5206)"
-#endif
-#if defined(CONFIG_M5206e)
-	#define	CPU "COLDFIRE(m5206e)"
-#endif
-#if defined(CONFIG_M520x)
-	#define CPU "COLDFIRE(m520x)"
-#endif
-#if defined(CONFIG_M523x)
-	#define CPU "COLDFIRE(m523x)"
-#endif
-#if defined(CONFIG_M5249)
-	#define CPU "COLDFIRE(m5249)"
-#endif
-#if defined(CONFIG_M5271)
-	#define CPU "COLDFIRE(m5270/5271)"
-#endif
-#if defined(CONFIG_M5272)
-	#define CPU "COLDFIRE(m5272)"
-#endif
-#if defined(CONFIG_M5275)
-	#define CPU "COLDFIRE(m5274/5275)"
-#endif
-#if defined(CONFIG_M528x)
-	#define CPU "COLDFIRE(m5280/5282)"
-#endif
-#if defined(CONFIG_M5307)
-	#define	CPU "COLDFIRE(m5307)"
-#endif
-#if defined(CONFIG_M532x)
-	#define	CPU "COLDFIRE(m532x)"
-#endif
-#if defined(CONFIG_M5407)
-	#define	CPU "COLDFIRE(m5407)"
-#endif
-#ifndef CPU
-	#define	CPU "UNKNOWN"
+/*
+ * The ColdFire CPU names are defined in their headers.
+ */
+#ifndef CPU_NAME
+#define	CPU_NAME	"UNKNOWN"
 #endif
 
 extern int _stext, _etext, _sdata, _edata, _sbss, _ebss, _end;
@@ -208,7 +175,7 @@ void __init setup_arch(char **cmdline_p)
 	command_line[sizeof(command_line) - 1] = 0;
 #endif /* CONFIG_UBOOT */
 
-	printk(KERN_INFO "\x0F\r\n\nuClinux/" CPU "\n");
+	printk(KERN_INFO "\x0F\r\n\nuClinux/" CPU_NAME "\n");
 
 #ifdef CONFIG_UCDIMM
 	printk(KERN_INFO "uCdimm by Lineo, Inc. <www.lineo.com>\n");
@@ -303,7 +270,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	char *cpu, *mmu, *fpu;
 	u_long clockfreq;
 
-	cpu = CPU;
+	cpu = CPU_NAME;
 	mmu = "none";
 	fpu = "none";
 
