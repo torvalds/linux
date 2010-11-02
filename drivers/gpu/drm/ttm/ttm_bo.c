@@ -458,7 +458,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_bo_global *glob = bo->glob;
 	struct ttm_bo_driver *driver;
-	void *sync_obj;
+	void *sync_obj = NULL;
 	void *sync_obj_arg;
 	int put_count;
 	int ret;
@@ -493,17 +493,20 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 		spin_lock(&glob->lru_lock);
 	}
 queue:
-	sync_obj = bo->sync_obj;
-	sync_obj_arg = bo->sync_obj_arg;
 	driver = bdev->driver;
+	if (bo->sync_obj)
+		sync_obj = driver->sync_obj_ref(bo->sync_obj);
+	sync_obj_arg = bo->sync_obj_arg;
 
 	kref_get(&bo->list_kref);
 	list_add_tail(&bo->ddestroy, &bdev->ddestroy);
 	spin_unlock(&glob->lru_lock);
 	spin_unlock(&bo->lock);
 
-	if (sync_obj)
+	if (sync_obj) {
 		driver->sync_obj_flush(sync_obj, sync_obj_arg);
+		driver->sync_obj_unref(&sync_obj);
+	}
 	schedule_delayed_work(&bdev->wq,
 			      ((HZ / 100) < 1) ? 1 : HZ / 100);
 }
