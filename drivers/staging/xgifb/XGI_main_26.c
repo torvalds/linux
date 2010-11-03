@@ -472,9 +472,11 @@ unsigned char XGIfb_query_north_bridge_space(struct xgi_hw_device_info *pXGIhw_e
 			break;
 		}
 
-		pdev = pci_find_device(PCI_VENDOR_ID_SI, nbridge_id, pdev);
-		if (pdev)
+		pdev = pci_get_device(PCI_VENDOR_ID_SI, nbridge_id, pdev);
+		if (pdev) {
 			valid_pdev = 1;
+			pci_dev_put(pdev);
+		}
 	}
 
 	if (!valid_pdev) {
