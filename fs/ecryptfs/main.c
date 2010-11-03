@@ -36,6 +36,7 @@
 #include <linux/parser.h>
 #include <linux/fs_stack.h>
 #include <linux/slab.h>
+#include <linux/magic.h>
 #include "ecryptfs_kernel.h"
 
 /**
@@ -564,6 +565,7 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 	ecryptfs_set_superblock_lower(s, path.dentry->d_sb);
 	s->s_maxbytes = path.dentry->d_sb->s_maxbytes;
 	s->s_blocksize = path.dentry->d_sb->s_blocksize;
+	s->s_magic = ECRYPTFS_SUPER_MAGIC;
 
 	inode = ecryptfs_get_inode(path.dentry->d_inode, s);
 	rc = PTR_ERR(inode);
