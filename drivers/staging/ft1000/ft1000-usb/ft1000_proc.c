@@ -38,7 +38,7 @@
 //#endif
 
 
-u16 ft1000_read_dpram16 (struct ft1000_device *ft1000dev, USHORT indx,
+u16 ft1000_read_dpram16 (struct ft1000_device *ft1000dev, u16 indx,
 			 u8 *buffer, u8 highlow);
 
 

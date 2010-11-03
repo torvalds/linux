@@ -653,12 +653,12 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
         {
             IOCTL_DPRAM_BLK *dpram_data;
             //IOCTL_DPRAM_COMMAND dpram_command;
-            USHORT qtype;
-            USHORT msgsz;
+            u16 qtype;
+            u16 msgsz;
 		struct pseudo_hdr *ppseudo_hdr;
             u16 *pmsg;
-            USHORT total_len;
-            USHORT app_index;
+            u16 total_len;
+            u16 app_index;
             u16 status;
 
             //DEBUG("FT1000:ft1000_ChIoctl: IOCTL_FT1000_SET_DPRAM called\n");

@@ -98,7 +98,6 @@ struct prov_record {
 /*end of Jim*/
 #define DEBUG(args...) printk(KERN_INFO args)
 
-#define USHORT              u16
 #define ULONG               u32 /* WTF ??? */
 #define BOOLEAN             u8
 #define PULONG              u32 *
@@ -561,13 +560,13 @@ struct dpram_blk {
 } __attribute__ ((packed));
 
 u16 ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data, u16 nRegIndx);
-u16 ft1000_write_register(struct ft1000_device *ft1000dev, USHORT value, u16 nRegIndx);
-u16 ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer, USHORT cnt);
-u16 ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer, USHORT cnt);
-u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer, u8 highlow);
-u16 ft1000_write_dpram16(struct ft1000_device *ft1000dev, USHORT indx, USHORT value, u8 highlow);
-u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer);
-u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer);
+u16 ft1000_write_register(struct ft1000_device *ft1000dev, u16 value, u16 nRegIndx);
+u16 ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u16 cnt);
+u16 ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u16 cnt);
+u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u8 highlow);
+u16 ft1000_write_dpram16(struct ft1000_device *ft1000dev, u16 indx, u16 value, u8 highlow);
+u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer);
+u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer);
 
 extern void *pFileStart;
 extern size_t FileLength;

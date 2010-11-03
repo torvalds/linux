@@ -160,7 +160,7 @@ u16 ft1000_read_register(struct ft1000_device *ft1000dev, u16* Data, u16 nRegInd
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 ft1000_write_register(struct ft1000_device *ft1000dev, USHORT value, u16 nRegIndx)
+u16 ft1000_write_register(struct ft1000_device *ft1000dev, u16 value, u16 nRegIndx)
 {
      u16 ret = STATUS_SUCCESS;
 
@@ -196,7 +196,7 @@ u16 ft1000_write_register(struct ft1000_device *ft1000dev, USHORT value, u16 nRe
 //
 //---------------------------------------------------------------------------
 
-u16 ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer, USHORT cnt)
+u16 ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u16 cnt)
 {
     u16 ret = STATUS_SUCCESS;
 
@@ -235,7 +235,7 @@ u16 ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer, USHORT cnt)
+u16 ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u16 cnt)
 {
      u16 ret = STATUS_SUCCESS;
 
@@ -272,7 +272,7 @@ u16 ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffe
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer, u8 highlow)
+u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer, u8 highlow)
 {
     u16 ret = STATUS_SUCCESS;
 
@@ -320,7 +320,7 @@ u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 ft1000_write_dpram16(struct ft1000_device *ft1000dev, USHORT indx, USHORT value, u8 highlow)
+u16 ft1000_write_dpram16(struct ft1000_device *ft1000dev, u16 indx, u16 value, u8 highlow)
 {
      u16 ret = STATUS_SUCCESS;
 
@@ -365,10 +365,10 @@ u16 ft1000_write_dpram16(struct ft1000_device *ft1000dev, USHORT indx, USHORT va
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer)
+u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer)
 {
     u8 buf[16];
-    USHORT pos;
+    u16 pos;
     u16 ret = STATUS_SUCCESS;
 
     //DEBUG("fix_ft1000_read_dpram32: indx: %d  \n", indx);
@@ -414,11 +414,11 @@ u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *bu
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer)
+u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buffer)
 {
-    USHORT pos1;
-    USHORT pos2;
-    USHORT i;
+    u16 pos1;
+    u16 pos2;
+    u16 i;
     u8 buf[32];
     u8 resultbuffer[32];
     u8 *pdata;
@@ -494,7 +494,7 @@ u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *b
 static void card_reset_dsp (struct ft1000_device *ft1000dev, BOOLEAN value)
 {
     u16 status = STATUS_SUCCESS;
-    USHORT tempword;
+    u16 tempword;
 
     status = ft1000_write_register (ft1000dev, HOST_INTF_BE, FT1000_REG_SUP_CTRL);
     status = ft1000_read_register(ft1000dev, &tempword, FT1000_REG_SUP_CTRL);
@@ -593,7 +593,7 @@ void CardSendCommand(struct ft1000_device *ft1000dev, void *ptempbuffer, int siz
 int dsp_reload(struct ft1000_device *ft1000dev)
 {
     u16 status;
-    USHORT tempword;
+    u16 tempword;
     ULONG templong;
 
 	struct ft1000_info *pft1000info;
@@ -1543,7 +1543,7 @@ static int ft1000_dsp_prov(void *arg)
 	struct pseudo_hdr *ppseudo_hdr;
     u16 *pmsg;
     u16 status;
-    USHORT TempShortBuf [256];
+    u16 TempShortBuf [256];
 
     DEBUG("*** DspProv Entered\n");
 
@@ -1876,7 +1876,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
                   *pmsg++ = convert.wrd;
                   *pmsg++ = htons(info->DrvErrNum);
 
-                  CardSendCommand (dev, (unsigned char*)&tempbuffer[0], (USHORT)(0x0012 + PSEUDOSZ));
+                  CardSendCommand (dev, (unsigned char*)&tempbuffer[0], (u16)(0x0012 + PSEUDOSZ));
                   info->DrvErrNum = 0;
               }
               info->DrvMsgPend = 0;
@@ -1907,9 +1907,9 @@ int ft1000_poll(void* dev_id) {
     u16 status;
     u16 size;
     int i;
-    USHORT data;
-    USHORT modulo;
-    USHORT portid;
+    u16 data;
+    u16 modulo;
+    u16 portid;
     u16 nxtph;
 	struct dpram_blk *pdpram_blk;
 	struct pseudo_hdr *ppseudo_hdr;
