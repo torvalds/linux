@@ -1556,8 +1556,6 @@ int fsl_rio_setup(struct platform_device *dev)
 	saved_mcheck_exception = ppc_md.machine_check_exception;
 	ppc_md.machine_check_exception = fsl_rio_mcheck_exception;
 #endif
-	/* Ensure that RFXE is set */
-	mtspr(SPRN_HID1, (mfspr(SPRN_HID1) | 0x20000));
 
 	return 0;
 err:
