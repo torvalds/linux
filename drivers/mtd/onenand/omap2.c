@@ -108,8 +108,9 @@ static void wait_warn(char *msg, int state, unsigned int ctrl,
 static int omap2_onenand_wait(struct mtd_info *mtd, int state)
 {
 	struct omap2_onenand *c = container_of(mtd, struct omap2_onenand, mtd);
+	struct onenand_chip *this = mtd->priv;
 	unsigned int intr = 0;
-	unsigned int ctrl;
+	unsigned int ctrl, ctrl_mask;
 	unsigned long timeout;
 	u32 syscfg;
 
@@ -180,7 +181,8 @@ retry:
 			if (result == 0) {
 				/* Timeout after 20ms */
 				ctrl = read_reg(c, ONENAND_REG_CTRL_STATUS);
-				if (ctrl & ONENAND_CTRL_ONGO) {
+				if (ctrl & ONENAND_CTRL_ONGO &&
+				    !this->ongoing) {
 					/*
 					 * The operation seems to be still going
 					 * so give it some more time.
@@ -269,7 +271,11 @@ retry:
 		return -EIO;
 	}
 
-	if (ctrl & 0xFE9F)
+	ctrl_mask = 0xFE9F;
+	if (this->ongoing)
+		ctrl_mask &= ~0x8000;
+
+	if (ctrl & ctrl_mask)
 		wait_warn("unexpected controller status", state, ctrl, intr);
 
 	return 0;
