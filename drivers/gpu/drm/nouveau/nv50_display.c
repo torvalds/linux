@@ -33,6 +33,8 @@
 #include "nouveau_ramht.h"
 #include "drm_crtc_helper.h"
 
+static void nv50_display_isr(struct drm_device *);
+
 static inline int
 nv50_sor_nr(struct drm_device *dev)
 {
@@ -328,6 +330,9 @@ int nv50_display_create(struct drm_device *dev)
 		}
 	}
 
+	INIT_WORK(&dev_priv->irq_work, nv50_display_irq_handler_bh);
+	nouveau_irq_register(dev, 26, nv50_display_isr);
+
 	ret = nv50_display_init(dev);
 	if (ret) {
 		nv50_display_destroy(dev);
@@ -345,6 +350,7 @@ nv50_display_destroy(struct drm_device *dev)
 	drm_mode_config_cleanup(dev);
 
 	nv50_display_disable(dev);
+	nouveau_irq_unregister(dev, 26);
 }
 
 static u16
@@ -863,8 +869,8 @@ nv50_display_irq_hotplug_bh(struct work_struct *work)
 	drm_helper_hpd_irq_event(dev);
 }
 
-void
-nv50_display_irq_handler(struct drm_device *dev)
+static void
+nv50_display_isr(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t delayed = 0;

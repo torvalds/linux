@@ -26,6 +26,8 @@
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"
 
+#include "nv50_display.h"
+
 static void nv50_gpio_isr(struct drm_device *dev);
 
 static int
@@ -109,6 +111,8 @@ nv50_gpio_init(struct drm_device *dev)
 		nv_wr32(dev, 0xe074, 0xffffffff);
 	}
 
+	INIT_WORK(&dev_priv->hpd_work, nv50_display_irq_hotplug_bh);
+	spin_lock_init(&dev_priv->hpd_state.lock);
 	nouveau_irq_register(dev, 21, nv50_gpio_isr);
 	return 0;
 }

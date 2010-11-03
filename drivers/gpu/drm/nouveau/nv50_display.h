@@ -35,7 +35,6 @@
 #include "nouveau_crtc.h"
 #include "nv50_evo.h"
 
-void nv50_display_irq_handler(struct drm_device *dev);
 void nv50_display_irq_handler_bh(struct work_struct *work);
 void nv50_display_irq_hotplug_bh(struct work_struct *work);
 int nv50_display_early_init(struct drm_device *dev);

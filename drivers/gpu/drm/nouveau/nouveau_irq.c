@@ -38,10 +38,6 @@
 #include "nouveau_ramht.h"
 #include "nouveau_util.h"
 
-/* needed for hotplug irq */
-#include "nouveau_connector.h"
-#include "nv50_display.h"
-
 void
 nouveau_irq_preinstall(struct drm_device *dev)
 {
@@ -50,12 +46,7 @@ nouveau_irq_preinstall(struct drm_device *dev)
 	/* Master disable */
 	nv_wr32(dev, NV03_PMC_INTR_EN_0, 0);
 
-	if (dev_priv->card_type >= NV_50) {
-		INIT_WORK(&dev_priv->irq_work, nv50_display_irq_handler_bh);
-		INIT_WORK(&dev_priv->hpd_work, nv50_display_irq_hotplug_bh);
-		spin_lock_init(&dev_priv->hpd_state.lock);
-		INIT_LIST_HEAD(&dev_priv->vbl_waiting);
-	}
+	INIT_LIST_HEAD(&dev_priv->vbl_waiting);
 }
 
 int
@@ -1236,11 +1227,6 @@ nouveau_irq_handler(DRM_IRQ_ARGS)
 	if (status & NV_PMC_INTR_0_CRTCn_PENDING) {
 		nouveau_crtc_irq_handler(dev, (status>>24)&3);
 		status &= ~NV_PMC_INTR_0_CRTCn_PENDING;
-	}
-
-	if (status & NV_PMC_INTR_0_NV50_DISPLAY_PENDING) {
-		nv50_display_irq_handler(dev);
-		status &= ~NV_PMC_INTR_0_NV50_DISPLAY_PENDING;
 	}
 
 	for (i = 0; i < 32 && status; i++) {
