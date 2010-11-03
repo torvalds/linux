@@ -386,13 +386,15 @@ static int i2s_set_dsp_mode(unsigned long base, unsigned int mode)
 	if (mode != TEGRA_AUDIO_DSP_PCM) {
 		/* Disable PCM mode */
 		val = i2s_readl(base, I2S_I2S_PCM_CTRL_0);
-		val &= ~(I2S_I2S_PCM_CTRL_TRM_MODE|I2S_I2S_PCM_CTRL_RCV_MODE);
+		val &= ~(I2S_I2S_PCM_CTRL_TRM_MODE |
+				I2S_I2S_PCM_CTRL_RCV_MODE);
 		i2s_writel(base, val, I2S_I2S_PCM_CTRL_0);
 	}
 	if (mode != TEGRA_AUDIO_DSP_NETWORK) {
 		/* Disable Network mode */
 		val = i2s_readl(base, I2S_I2S_NW_CTRL_0);
-		val &= ~(I2S_I2S_NW_CTRL_TRM_TLPHY_MODE|I2S_I2S_NW_CTRL_RCV_TLPHY_MODE);
+		val &= ~(I2S_I2S_NW_CTRL_TRM_TLPHY_MODE |
+				I2S_I2S_NW_CTRL_RCV_TLPHY_MODE);
 		i2s_writel(base, val, I2S_I2S_NW_CTRL_0);
 	}
 
@@ -401,13 +403,15 @@ static int i2s_set_dsp_mode(unsigned long base, unsigned int mode)
 	case TEGRA_AUDIO_DSP_NETWORK:
 		/* Set DSP Network (Telephony) Mode */
 		val = i2s_readl(base, I2S_I2S_NW_CTRL_0);
-		val |= I2S_I2S_NW_CTRL_TRM_TLPHY_MODE|I2S_I2S_NW_CTRL_RCV_TLPHY_MODE;
+		val |= I2S_I2S_NW_CTRL_TRM_TLPHY_MODE |
+				I2S_I2S_NW_CTRL_RCV_TLPHY_MODE;
 		i2s_writel(base, val, I2S_I2S_NW_CTRL_0);
 		break;
 	case TEGRA_AUDIO_DSP_PCM:
 		/* Set DSP PCM Mode */
 		val = i2s_readl(base, I2S_I2S_PCM_CTRL_0);
-		val |= I2S_I2S_PCM_CTRL_TRM_MODE|I2S_I2S_PCM_CTRL_RCV_MODE;
+		val |= I2S_I2S_PCM_CTRL_TRM_MODE |
+				I2S_I2S_PCM_CTRL_RCV_MODE;
 		i2s_writel(base, val, I2S_I2S_PCM_CTRL_0);
 		break;
 	}
@@ -556,6 +560,58 @@ static inline u32 i2s_get_fifo_full_empty_count(unsigned long base, int fifo)
 		val = val >> I2S_I2S_FIFO_SCR_FIFO2_FULL_EMPTY_COUNT_SHIFT;
 
 	return val & I2S_I2S_FIFO_SCR_FIFO_FULL_EMPTY_COUNT_MASK;
+}
+
+static int i2s_configure(struct platform_device *pdev)
+{
+	struct tegra_audio_platform_data *pdata = pdev->dev.platform_data;
+	struct audio_driver_state *state = pdata->driver_data;
+	bool master;
+	struct clk *i2s_clk;
+	int master_clk;
+
+	/* dev_info(&pdev->dev, "%s\n", __func__); */
+
+	if (!state)
+		return -ENOMEM;
+
+	/* disable interrupts from I2S */
+	i2s_enable_fifos(state->i2s_base, 0);
+	i2s_fifo_clear(state->i2s_base, I2S_FIFO_TX);
+	i2s_fifo_clear(state->i2s_base, I2S_FIFO_RX);
+	i2s_set_left_right_control_polarity(state->i2s_base, 0); /* default */
+
+	i2s_clk = clk_get(&pdev->dev, NULL);
+	if (!i2s_clk) {
+		dev_err(&pdev->dev, "%s: could not get i2s clock\n",
+			__func__);
+		return -EIO;
+	}
+
+	master = state->bit_format == TEGRA_AUDIO_BIT_FORMAT_DSP ?
+			state->pdata->dsp_master : state->pdata->i2s_master;
+
+
+	master_clk = state->bit_format == TEGRA_AUDIO_BIT_FORMAT_DSP ?
+			state->pdata->dsp_master_clk :
+			state->pdata->i2s_master_clk;
+#define I2S_CLK_FUDGE_FACTOR 2  /* Todo, fix this! */
+	if (master)
+		i2s_set_channel_bit_count(state->i2s_base, master_clk,
+			clk_get_rate(i2s_clk)*I2S_CLK_FUDGE_FACTOR);
+	i2s_set_master(state->i2s_base, master);
+
+	i2s_set_fifo_mode(state->i2s_base, I2S_FIFO_TX, 1);
+	i2s_set_fifo_mode(state->i2s_base, I2S_FIFO_RX, 0);
+
+	if (state->bit_format == TEGRA_AUDIO_BIT_FORMAT_DSP)
+		i2s_set_bit_format(state->i2s_base, I2S_BIT_FORMAT_DSP);
+	else
+		i2s_set_bit_format(state->i2s_base, state->pdata->mode);
+	i2s_set_bit_size(state->i2s_base, state->pdata->bit_size);
+	i2s_set_fifo_format(state->i2s_base, state->pdata->fifo_fmt);
+
+	return 0;
 }
 
 static int init_stream_buffer(struct audio_stream *,
@@ -1489,6 +1545,7 @@ static long tegra_audio_ioctl(struct file *file,
 			goto done;
 		}
 		sound_ops->tear_down(ads);
+		i2s_configure(ads->pdev);
 		sound_ops->setup(ads);
 	}
 
@@ -1562,7 +1619,7 @@ static long tegra_audio_in_ioctl(struct file *file,
 			break;
 		}
 #endif
-		if(cfg.stereo && !ads->pdata->stereo_capture) {
+		if (cfg.stereo && !ads->pdata->stereo_capture) {
 			pr_err("%s: not capable of stereo capture.",
 				__func__);
 			rc = -EINVAL;
@@ -2341,14 +2398,14 @@ static int tegra_audio_probe(struct platform_device *pdev)
 
 	i2s_clk = clk_get(&pdev->dev, NULL);
 	if (!i2s_clk) {
-		dev_err(&pdev->dev, "%s: could not get i2s1 clock\n",
+		dev_err(&pdev->dev, "%s: could not get i2s clock\n",
 			__func__);
 		return -EIO;
 	}
 
 	clk_set_rate(i2s_clk, state->pdata->i2s_clk_rate);
 	if (clk_enable(i2s_clk)) {
-		dev_err(&pdev->dev, "%s: failed to enable i2s1 clock\n",
+		dev_err(&pdev->dev, "%s: failed to enable i2s clock\n",
 			__func__);
 		return -EIO;
 	}
@@ -2370,20 +2427,9 @@ static int tegra_audio_probe(struct platform_device *pdev)
 	}
 	clk_enable(audio_sync_clk);
 
-	i2s_enable_fifos(state->i2s_base, 0);
-	/* disable interrupts from I2S */
-	i2s_fifo_clear(state->i2s_base, I2S_FIFO_TX);
-	i2s_fifo_clear(state->i2s_base, I2S_FIFO_RX);
-	i2s_set_left_right_control_polarity(state->i2s_base, 0); /* default */
-	if (state->pdata->master)
-		i2s_set_channel_bit_count(state->i2s_base, 44100,
-				clk_get_rate(i2s_clk));
-	i2s_set_master(state->i2s_base, state->pdata->master);
-	i2s_set_fifo_mode(state->i2s_base, I2S_FIFO_TX, 1);
-	i2s_set_fifo_mode(state->i2s_base, I2S_FIFO_RX, 0);
-	i2s_set_bit_format(state->i2s_base, state->pdata->mode);
-	i2s_set_bit_size(state->i2s_base, state->pdata->bit_size);
-	i2s_set_fifo_format(state->i2s_base, state->pdata->fifo_fmt);
+	rc = i2s_configure(pdev);
+	if (rc < 0)
+		return rc;
 
 	if ((state->pdata->mask & TEGRA_AUDIO_ENABLE_TX)) {
 		state->out.opened = 0;
@@ -2515,37 +2561,7 @@ static int tegra_audio_suspend(struct platform_device *pdev, pm_message_t mesg)
 
 static int tegra_audio_resume(struct platform_device *pdev)
 {
-	struct tegra_audio_platform_data *pdata = pdev->dev.platform_data;
-	struct audio_driver_state *state = pdata->driver_data;
-
-	/* dev_info(&pdev->dev, "%s\n", __func__); */
-
-	if (!state)
-		return -ENOMEM;
-
-	/* disable interrupts from I2S */
-	i2s_fifo_clear(state->i2s_base, I2S_FIFO_TX);
-	i2s_fifo_clear(state->i2s_base, I2S_FIFO_RX);
-	i2s_enable_fifos(state->i2s_base, 0);
-
-	i2s_set_left_right_control_polarity(state->i2s_base, 0); /* default */
-
-	if (state->pdata->master)
-		i2s_set_channel_bit_count(state->i2s_base, 44100,
-				state->pdata->i2s_clk_rate);
-	i2s_set_master(state->i2s_base, state->pdata->master);
-
-	i2s_set_fifo_mode(state->i2s_base, I2S_FIFO_TX, 1);
-	i2s_set_fifo_mode(state->i2s_base, I2S_FIFO_RX, 0);
-
-	if (state->bit_format == TEGRA_AUDIO_BIT_FORMAT_DSP)
-		i2s_set_bit_format(state->i2s_base, I2S_BIT_FORMAT_DSP);
-	else
-		i2s_set_bit_format(state->i2s_base, state->pdata->mode);
-	i2s_set_bit_size(state->i2s_base, state->pdata->bit_size);
-	i2s_set_fifo_format(state->i2s_base, state->pdata->fifo_fmt);
-
-	return 0;
+	return i2s_configure(pdev);
 }
 #endif /* CONFIG_PM */
 
