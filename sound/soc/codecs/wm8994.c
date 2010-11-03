@@ -1730,8 +1730,6 @@ static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (!wm8994_volatile(reg))
 		wm8994->reg_cache[reg] = value;
 
-	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
-
 	return wm8994_reg_write(codec->control_data, reg, value);
 }
 
