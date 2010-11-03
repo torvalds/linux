@@ -726,7 +726,7 @@ static int ft1000_reset_card (struct net_device *dev)
 
     // Initialize DSP heartbeat area to ho
     ft1000_write_dpram16(ft1000dev, FT1000_MAG_HI_HO, ho_mag, FT1000_MAG_HI_HO_INDX);
-    ft1000_read_dpram16(ft1000dev, FT1000_MAG_HI_HO, (PCHAR)&tempword, FT1000_MAG_HI_HO_INDX);
+    ft1000_read_dpram16(ft1000dev, FT1000_MAG_HI_HO, (u8 *)&tempword, FT1000_MAG_HI_HO_INDX);
     DEBUG("ft1000_hw:ft1000_reset_card:hi_ho value = 0x%x\n", tempword);
 
 
