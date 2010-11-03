@@ -273,9 +273,10 @@ static struct platform_device cpcap_audio_device = {
 
 /* This is the CPCAP Stereo DAC interface. */
 static struct tegra_audio_platform_data tegra_audio_pdata = {
-	.master		= false,
+	.i2s_master	= false, /* CPCAP Stereo DAC */
+	.dsp_master	= false, /* Don't care */
 	.dma_on		= true,  /* use dma by default */
-	.i2s_clk_rate	= 240000000,
+	.i2s_clk_rate	= 24000000,
 	.dap_clk	= "clk_dev1",
 	.audio_sync_clk = "audio_2x",
 	.mode		= I2S_BIT_FORMAT_I2S,
@@ -288,9 +289,11 @@ static struct tegra_audio_platform_data tegra_audio_pdata = {
 
 /* Connected to CPCAP CODEC - Switchable to Bluetooth Audio. */
 static struct tegra_audio_platform_data tegra_audio2_pdata = {
-	.master		= false,
+	.i2s_master	= false, /* CPCAP CODEC */
+	.dsp_master	= true,  /* Bluetooth */
+	.dsp_master_clk = 8000,  /* Bluetooth audio speed */
 	.dma_on		= true,  /* use dma by default */
-	.i2s_clk_rate	= 240000000,
+	.i2s_clk_rate	= 1000000, /* BCM4329 max bitclock is 2048000 Hz */
 	.dap_clk	= "clk_dev1",
 	.audio_sync_clk = "audio_2x",
 	.mode		= I2S_BIT_FORMAT_DSP, /* Using COCEC in network mode */
@@ -908,7 +911,7 @@ static inline void das_writel(unsigned long value, unsigned long offset)
 
 static void init_dac1(void)
 {
-	bool master = tegra_audio_pdata.master;
+	bool master = tegra_audio_pdata.i2s_master;
 	/* DAC1 -> DAP1 */
 	das_writel((!master)<<31, APB_MISC_DAS_DAP_CTRL_SEL_0);
 	das_writel(0, APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0);
@@ -916,14 +919,15 @@ static void init_dac1(void)
 
 static void init_dac2(bool bluetooth)
 {
-	bool master = tegra_audio2_pdata.master;
 	if (!bluetooth) {
 		/* DAC2 -> DAP2 for CPCAP CODEC */
+		bool master = tegra_audio2_pdata.i2s_master;
 		das_writel((!master)<<31 | 1, APB_MISC_DAS_DAP_CTRL_SEL_0 + 4);
 		das_writel(1<<28 | 1<<24 | 1,
 				APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0 + 4);
 	} else {
 		/* DAC2 -> DAP4 for Bluetooth Voice */
+		bool master = tegra_audio2_pdata.dsp_master;
 		das_writel((!master)<<31 | 1, APB_MISC_DAS_DAP_CTRL_SEL_0 + 12);
 		das_writel(3<<28 | 3<<24 | 3,
 				APB_MISC_DAS_DAC_INPUT_DATA_CLK_SEL_0 + 4);
