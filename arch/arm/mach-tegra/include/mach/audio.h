@@ -35,7 +35,10 @@
 #define TEGRA_AUDIO_ENABLE_RX	2
 
 struct tegra_audio_platform_data {
-	bool master;
+	bool i2s_master;
+	bool dsp_master;
+	int i2s_master_clk; /* When I2S mode and master, the framesync rate. */
+	int dsp_master_clk; /* When DSP mode and master, the framesync rate. */
 	bool dma_on;
 	unsigned long i2s_clk_rate;
 	const char *dap_clk;
