@@ -231,11 +231,6 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	boot_command_line[COMMAND_LINE_SIZE-1] = 0;
 
-#ifdef DEBUG
-	if (strlen(*cmdline_p))
-		printk(KERN_DEBUG "Command line: '%s'\n", *cmdline_p);
-#endif
-
 #if defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_DUMMY_CONSOLE)
 	conswitchp = &dummy_con;
 #endif
