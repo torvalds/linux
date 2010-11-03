@@ -1506,7 +1506,6 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 {
 	struct file_lock *fl, *ret;
 	struct fasync_struct *new;
-	struct inode *inode = filp->f_path.dentry->d_inode;
 	int error;
 
 	fl = lease_alloc(filp, arg);
@@ -1520,7 +1519,7 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 	}
 	ret = fl;
 	lock_flocks();
-	error = __vfs_setlease(filp, arg, &fl);
+	error = __vfs_setlease(filp, arg, &ret);
 	if (error) {
 		unlock_flocks();
 		locks_free_lock(fl);
@@ -1538,14 +1537,7 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 	if (!fasync_insert_entry(fd, filp, &ret->fl_fasync, new))
 		new = NULL;
 
-	if (error < 0) {
-		/* remove lease just inserted by setlease */
-		fl->fl_type = F_UNLCK | F_INPROGRESS;
-		fl->fl_break_time = jiffies - 10;
-		time_out_leases(inode);
-	} else {
-		error = __f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
-	}
+	error = __f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
 	unlock_flocks();
 
 out_free_fasync:
