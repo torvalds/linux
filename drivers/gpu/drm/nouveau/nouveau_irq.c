@@ -267,28 +267,25 @@ nouveau_fifo_irq_handler(struct drm_device *dev)
 	nv_wr32(dev, NV03_PMC_INTR_0, NV_PMC_INTR_0_PFIFO_PENDING);
 }
 
-struct nouveau_bitfield_names {
-	uint32_t mask;
-	const char *name;
-};
-
-static struct nouveau_bitfield_names nstatus_names[] =
+static struct nouveau_bitfield nstatus_names[] =
 {
 	{ NV04_PGRAPH_NSTATUS_STATE_IN_USE,       "STATE_IN_USE" },
 	{ NV04_PGRAPH_NSTATUS_INVALID_STATE,      "INVALID_STATE" },
 	{ NV04_PGRAPH_NSTATUS_BAD_ARGUMENT,       "BAD_ARGUMENT" },
-	{ NV04_PGRAPH_NSTATUS_PROTECTION_FAULT,   "PROTECTION_FAULT" }
+	{ NV04_PGRAPH_NSTATUS_PROTECTION_FAULT,   "PROTECTION_FAULT" },
+	{}
 };
 
-static struct nouveau_bitfield_names nstatus_names_nv10[] =
+static struct nouveau_bitfield nstatus_names_nv10[] =
 {
 	{ NV10_PGRAPH_NSTATUS_STATE_IN_USE,       "STATE_IN_USE" },
 	{ NV10_PGRAPH_NSTATUS_INVALID_STATE,      "INVALID_STATE" },
 	{ NV10_PGRAPH_NSTATUS_BAD_ARGUMENT,       "BAD_ARGUMENT" },
-	{ NV10_PGRAPH_NSTATUS_PROTECTION_FAULT,   "PROTECTION_FAULT" }
+	{ NV10_PGRAPH_NSTATUS_PROTECTION_FAULT,   "PROTECTION_FAULT" },
+	{}
 };
 
-static struct nouveau_bitfield_names nsource_names[] =
+static struct nouveau_bitfield nsource_names[] =
 {
 	{ NV03_PGRAPH_NSOURCE_NOTIFICATION,       "NOTIFICATION" },
 	{ NV03_PGRAPH_NSOURCE_DATA_ERROR,         "DATA_ERROR" },
@@ -309,56 +306,8 @@ static struct nouveau_bitfield_names nsource_names[] =
 	{ NV03_PGRAPH_NSOURCE_DMA_VTX_PROTECTION, "DMA_VTX_PROTECTION" },
 	{ NV03_PGRAPH_NSOURCE_DMA_WIDTH_A,        "DMA_WIDTH_A" },
 	{ NV03_PGRAPH_NSOURCE_DMA_WIDTH_B,        "DMA_WIDTH_B" },
+	{}
 };
-
-static void
-nouveau_print_bitfield_names_(uint32_t value,
-				const struct nouveau_bitfield_names *namelist,
-				const int namelist_len)
-{
-	/*
-	 * Caller must have already printed the KERN_* log level for us.
-	 * Also the caller is responsible for adding the newline.
-	 */
-	int i;
-	for (i = 0; i < namelist_len; ++i) {
-		uint32_t mask = namelist[i].mask;
-		if (value & mask) {
-			printk(" %s", namelist[i].name);
-			value &= ~mask;
-		}
-	}
-	if (value)
-		printk(" (unknown bits 0x%08x)", value);
-}
-#define nouveau_print_bitfield_names(val, namelist) \
-	nouveau_print_bitfield_names_((val), (namelist), ARRAY_SIZE(namelist))
-
-struct nouveau_enum_names {
-	uint32_t value;
-	const char *name;
-};
-
-static void
-nouveau_print_enum_names_(uint32_t value,
-				const struct nouveau_enum_names *namelist,
-				const int namelist_len)
-{
-	/*
-	 * Caller must have already printed the KERN_* log level for us.
-	 * Also the caller is responsible for adding the newline.
-	 */
-	int i;
-	for (i = 0; i < namelist_len; ++i) {
-		if (value == namelist[i].value) {
-			printk("%s", namelist[i].name);
-			return;
-		}
-	}
-	printk("unknown value 0x%08x", value);
-}
-#define nouveau_print_enum_names(val, namelist) \
-	nouveau_print_enum_names_((val), (namelist), ARRAY_SIZE(namelist))
 
 static int
 nouveau_graph_chid_from_grctx(struct drm_device *dev)
@@ -482,12 +431,12 @@ nouveau_graph_dump_trap_info(struct drm_device *dev, const char *id,
 
 	if (dev_priv->card_type < NV_50) {
 		NV_INFO(dev, "%s - nSource:", id);
-		nouveau_print_bitfield_names(nsource, nsource_names);
+		nouveau_bitfield_print(nsource_names, nsource);
 		printk(", nStatus:");
 		if (dev_priv->card_type < NV_10)
-			nouveau_print_bitfield_names(nstatus, nstatus_names);
+			nouveau_bitfield_print(nstatus_names, nstatus);
 		else
-			nouveau_print_bitfield_names(nstatus, nstatus_names_nv10);
+			nouveau_bitfield_print(nstatus_names_nv10, nstatus);
 		printk("\n");
 	}
 
@@ -631,13 +580,14 @@ nouveau_pgraph_irq_handler(struct drm_device *dev)
 	nv_wr32(dev, NV03_PMC_INTR_0, NV_PMC_INTR_0_PGRAPH_PENDING);
 }
 
-static struct nouveau_enum_names nv50_mp_exec_error_names[] =
+static struct nouveau_enum nv50_mp_exec_error_names[] =
 {
 	{ 3, "STACK_UNDERFLOW" },
 	{ 4, "QUADON_ACTIVE" },
 	{ 8, "TIMEOUT" },
 	{ 0x10, "INVALID_OPCODE" },
 	{ 0x40, "BREAKPOINT" },
+	{}
 };
 
 static void
@@ -666,8 +616,7 @@ nv50_pgraph_mp_trap(struct drm_device *dev, int tpid, int display)
 			ophigh= nv_rd32(dev, addr + 0x74);
 			NV_INFO(dev, "PGRAPH_TRAP_MP_EXEC - "
 					"TP %d MP %d: ", tpid, i);
-			nouveau_print_enum_names(status,
-					nv50_mp_exec_error_names);
+			nouveau_enum_print(nv50_mp_exec_error_names, status);
 			printk(" at %06x warp %d, opcode %08x %08x\n",
 					pc&0xffffff, pc >> 24,
 					oplow, ophigh);
@@ -1020,7 +969,7 @@ nv50_pgraph_trap_handler(struct drm_device *dev)
 }
 
 /* There must be a *lot* of these. Will take some time to gather them up. */
-static struct nouveau_enum_names nv50_data_error_names[] =
+static struct nouveau_enum nv50_data_error_names[] =
 {
 	{ 4,	"INVALID_VALUE" },
 	{ 5,	"INVALID_ENUM" },
@@ -1028,6 +977,7 @@ static struct nouveau_enum_names nv50_data_error_names[] =
 	{ 0xc,	"INVALID_BITFIELD" },
 	{ 0x28,	"MP_NO_REG_SPACE" },
 	{ 0x2b,	"MP_BLOCK_SIZE_MISMATCH" },
+	{}
 };
 
 static void
@@ -1126,8 +1076,8 @@ nv50_pgraph_irq_handler(struct drm_device *dev)
 				nouveau_graph_dump_trap_info(dev,
 						"PGRAPH_DATA_ERROR", &trap);
 				NV_INFO (dev, "PGRAPH_DATA_ERROR - ");
-				nouveau_print_enum_names(nv_rd32(dev, 0x400110),
-						nv50_data_error_names);
+				nouveau_enum_print(nv50_data_error_names,
+						   nv_rd32(dev, 0x400110));
 				printk("\n");
 			}
 			status &= ~0x00100000;

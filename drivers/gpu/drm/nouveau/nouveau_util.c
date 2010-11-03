@@ -27,7 +27,40 @@
 
 #include <linux/ratelimit.h>
 
+#include "nouveau_util.h"
+
 static DEFINE_RATELIMIT_STATE(nouveau_ratelimit_state, 3 * HZ, 20);
+
+void
+nouveau_bitfield_print(const struct nouveau_bitfield *bf, u32 value)
+{
+	while (bf->name) {
+		if (value & bf->mask) {
+			printk(" %s", bf->name);
+			value &= ~bf->mask;
+		}
+
+		bf++;
+	}
+
+	if (value)
+		printk(" (unknown bits 0x%08x)", value);
+}
+
+void
+nouveau_enum_print(const struct nouveau_enum *en, u32 value)
+{
+	while (en->name) {
+		if (value == en->value) {
+			printk("%s", en->name);
+			return;
+		}
+
+		en++;
+	}
+
+	printk("(unknown enum 0x%08x)", value);
+}
 
 int
 nouveau_ratelimit(void)
