@@ -268,6 +268,7 @@ nv40_fifo_init_ramxx(struct drm_device *dev)
 static void
 nv40_fifo_init_intr(struct drm_device *dev)
 {
+	nouveau_irq_register(dev, 8, nv04_fifo_isr);
 	nv_wr32(dev, 0x002100, 0xffffffff);
 	nv_wr32(dev, 0x002140, 0xffffffff);
 }

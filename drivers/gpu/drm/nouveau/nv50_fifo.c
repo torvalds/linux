@@ -106,6 +106,7 @@ nv50_fifo_init_intr(struct drm_device *dev)
 {
 	NV_DEBUG(dev, "\n");
 
+	nouveau_irq_register(dev, 8, nv04_fifo_isr);
 	nv_wr32(dev, NV03_PFIFO_INTR_0, 0xFFFFFFFF);
 	nv_wr32(dev, NV03_PFIFO_INTR_EN_0, 0xFFFFFFFF);
 }
@@ -206,6 +207,9 @@ nv50_fifo_takedown(struct drm_device *dev)
 
 	if (!pfifo->playlist[0])
 		return;
+
+	nv_wr32(dev, 0x2140, 0x00000000);
+	nouveau_irq_unregister(dev, 8);
 
 	nouveau_gpuobj_ref(NULL, &pfifo->playlist[0]);
 	nouveau_gpuobj_ref(NULL, &pfifo->playlist[1]);

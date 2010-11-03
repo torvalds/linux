@@ -1053,6 +1053,7 @@ extern void nvc0_fb_takedown(struct drm_device *);
 
 /* nv04_fifo.c */
 extern int  nv04_fifo_init(struct drm_device *);
+extern void nv04_fifo_fini(struct drm_device *);
 extern void nv04_fifo_disable(struct drm_device *);
 extern void nv04_fifo_enable(struct drm_device *);
 extern bool nv04_fifo_reassign(struct drm_device *, bool);
@@ -1062,6 +1063,7 @@ extern int  nv04_fifo_create_context(struct nouveau_channel *);
 extern void nv04_fifo_destroy_context(struct nouveau_channel *);
 extern int  nv04_fifo_load_context(struct nouveau_channel *);
 extern int  nv04_fifo_unload_context(struct drm_device *);
+extern void nv04_fifo_isr(struct drm_device *);
 
 /* nv10_fifo.c */
 extern int  nv10_fifo_init(struct drm_device *);

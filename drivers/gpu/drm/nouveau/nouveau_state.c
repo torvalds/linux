@@ -75,7 +75,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.unload_context	= nv04_graph_unload_context;
 		engine->fifo.channels		= 16;
 		engine->fifo.init		= nv04_fifo_init;
-		engine->fifo.takedown		= nouveau_stub_takedown;
+		engine->fifo.takedown		= nv04_fifo_fini;
 		engine->fifo.disable		= nv04_fifo_disable;
 		engine->fifo.enable		= nv04_fifo_enable;
 		engine->fifo.reassign		= nv04_fifo_reassign;
@@ -132,7 +132,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.set_tile_region	= nv10_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
-		engine->fifo.takedown		= nouveau_stub_takedown;
+		engine->fifo.takedown		= nv04_fifo_fini;
 		engine->fifo.disable		= nv04_fifo_disable;
 		engine->fifo.enable		= nv04_fifo_enable;
 		engine->fifo.reassign		= nv04_fifo_reassign;
@@ -189,7 +189,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.set_tile_region	= nv20_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
-		engine->fifo.takedown		= nouveau_stub_takedown;
+		engine->fifo.takedown		= nv04_fifo_fini;
 		engine->fifo.disable		= nv04_fifo_disable;
 		engine->fifo.enable		= nv04_fifo_enable;
 		engine->fifo.reassign		= nv04_fifo_reassign;
@@ -246,7 +246,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.set_tile_region	= nv20_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
-		engine->fifo.takedown		= nouveau_stub_takedown;
+		engine->fifo.takedown		= nv04_fifo_fini;
 		engine->fifo.disable		= nv04_fifo_disable;
 		engine->fifo.enable		= nv04_fifo_enable;
 		engine->fifo.reassign		= nv04_fifo_reassign;
@@ -306,7 +306,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->graph.set_tile_region	= nv40_graph_set_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv40_fifo_init;
-		engine->fifo.takedown		= nouveau_stub_takedown;
+		engine->fifo.takedown		= nv04_fifo_fini;
 		engine->fifo.disable		= nv04_fifo_disable;
 		engine->fifo.enable		= nv04_fifo_enable;
 		engine->fifo.reassign		= nv04_fifo_reassign;
