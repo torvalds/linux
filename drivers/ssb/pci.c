@@ -573,37 +573,38 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 	ssb_dprintk(KERN_DEBUG PFX "SPROM revision %d detected.\n", out->revision);
 	memset(out->et0mac, 0xFF, 6);		/* preset et0 and et1 mac */
 	memset(out->et1mac, 0xFF, 6);
+
 	if ((bus->chip_id & 0xFF00) == 0x4400) {
 		/* Workaround: The BCM44XX chip has a stupid revision
 		 * number stored in the SPROM.
 		 * Always extract r1. */
 		out->revision = 1;
-		sprom_extract_r123(out, in);
+		ssb_dprintk(KERN_DEBUG PFX "SPROM treated as revision %d\n", out->revision);
 	} else if (bus->chip_id == 0x4321) {
 		/* the BCM4328 has a chipid == 0x4321 and a rev 4 SPROM */
 		out->revision = 4;
+		ssb_dprintk(KERN_DEBUG PFX "SPROM treated as revision %d\n", out->revision);
+	}
+
+	switch (out->revision) {
+	case 1:
+	case 2:
+	case 3:
+		sprom_extract_r123(out, in);
+		break;
+	case 4:
+	case 5:
 		sprom_extract_r45(out, in);
-	} else {
-		switch (out->revision) {
-		case 1:
-		case 2:
-		case 3:
-			sprom_extract_r123(out, in);
-			break;
-		case 4:
-		case 5:
-			sprom_extract_r45(out, in);
-			break;
-		case 8:
-			sprom_extract_r8(out, in);
-			break;
-		default:
-			ssb_printk(KERN_WARNING PFX "Unsupported SPROM"
-				   "  revision %d detected. Will extract"
-				   " v1\n", out->revision);
-			out->revision = 1;
-			sprom_extract_r123(out, in);
-		}
+		break;
+	case 8:
+		sprom_extract_r8(out, in);
+		break;
+	default:
+		ssb_printk(KERN_WARNING PFX "Unsupported SPROM"
+			   "  revision %d detected. Will extract"
+			   " v1\n", out->revision);
+		out->revision = 1;
+		sprom_extract_r123(out, in);
 	}
 
 	if (out->boardflags_lo == 0xFFFF)
