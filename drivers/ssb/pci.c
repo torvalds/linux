@@ -619,7 +619,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 			     struct ssb_sprom *sprom)
 {
 	const struct ssb_sprom *fallback;
-	int err = -ENOMEM;
+	int err;
 	u16 *buf;
 
 	if (!ssb_is_sprom_available(bus)) {
@@ -646,7 +646,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 
 	buf = kcalloc(SSB_SPROMSIZE_WORDS_R123, sizeof(u16), GFP_KERNEL);
 	if (!buf)
-		goto out;
+		return -ENOMEM;
 	bus->sprom_size = SSB_SPROMSIZE_WORDS_R123;
 	sprom_do_read(bus, buf);
 	err = sprom_check_crc(buf, bus->sprom_size);
@@ -656,7 +656,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 		buf = kcalloc(SSB_SPROMSIZE_WORDS_R4, sizeof(u16),
 			      GFP_KERNEL);
 		if (!buf)
-			goto out;
+			return -ENOMEM;
 		bus->sprom_size = SSB_SPROMSIZE_WORDS_R4;
 		sprom_do_read(bus, buf);
 		err = sprom_check_crc(buf, bus->sprom_size);
@@ -678,7 +678,6 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 
 out_free:
 	kfree(buf);
-out:
 	return err;
 }
 
