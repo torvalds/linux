@@ -22,11 +22,13 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4535 if I2C
 	select SND_SOC_AK4642 if I2C
 	select SND_SOC_AK4671 if I2C
+	select SND_SOC_ALC5623 if I2C
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
 	select SND_SOC_CS42L51 if I2C
 	select SND_SOC_CS4270 if I2C
+	select SND_SOC_CX20442
 	select SND_SOC_DA7210 if I2C
-	select SND_SOC_JZ4740 if SOC_JZ4740
+	select SND_SOC_JZ4740_CODEC if SOC_JZ4740
 	select SND_SOC_MAX98088 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_PCM3008
@@ -128,6 +130,9 @@ config SND_SOC_AK4642
 
 config SND_SOC_AK4671
 	tristate
+
+config SND_SOC_ALC5623
+       tristate
 
 config SND_SOC_CQ0093VC
 	tristate
@@ -317,3 +322,4 @@ config SND_SOC_WM2000
 
 config SND_SOC_WM9090
 	tristate
+

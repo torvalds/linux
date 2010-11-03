@@ -2228,6 +2228,7 @@ static int clk_sys_event(struct snd_soc_dapm_widget *w,
 
 static void wm8994_update_class_w(struct snd_soc_codec *codec)
 {
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	int enable = 1;
 	int source = 0;  /* GCC flow analysis can't track enable */
 	int reg, reg_r;
@@ -2278,11 +2279,13 @@ static void wm8994_update_class_w(struct snd_soc_codec *codec)
 				    WM8994_CP_DYN_PWR |
 				    WM8994_CP_DYN_SRC_SEL_MASK,
 				    source | WM8994_CP_DYN_PWR);
+		wm8994->hubs.class_w = true;
 		
 	} else {
 		dev_dbg(codec->dev, "Class W disabled\n");
 		snd_soc_update_bits(codec, WM8994_CLASS_W_1,
 				    WM8994_CP_DYN_PWR, 0);
+		wm8994->hubs.class_w = false;
 	}
 }
 
