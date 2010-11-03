@@ -4151,6 +4151,7 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment,
 	int ret;
 
 	BUG_ON(obj_priv->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT);
+	BUG_ON(need_fence && !mappable);
 	WARN_ON(i915_verify_lists(dev));
 
 	if (obj_priv->gtt_space != NULL) {
