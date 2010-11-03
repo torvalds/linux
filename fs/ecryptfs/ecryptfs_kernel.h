@@ -192,7 +192,6 @@ ecryptfs_get_key_payload_data(struct key *key)
 		(((struct user_key_payload*)key->payload.data)->data);
 }
 
-#define ECRYPTFS_SUPER_MAGIC 0xf15f
 #define ECRYPTFS_MAX_KEYSET_SIZE 1024
 #define ECRYPTFS_MAX_CIPHER_NAME_SIZE 32
 #define ECRYPTFS_MAX_NUM_ENC_KEYS 64
