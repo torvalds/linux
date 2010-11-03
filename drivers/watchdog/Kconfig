@@ -862,7 +862,12 @@ config SBC_EPX_C3_WATCHDOG
 
 # M68K Architecture
 
-# M68KNOMMU Architecture
+config M548x_WATCHDOG
+	tristate "MCF548x watchdog support"
+	depends on M548x
+	help
+	  To compile this driver as a module, choose M here: the
+	  module will be called m548x_wdt.
 
 # MIPS Architecture
 

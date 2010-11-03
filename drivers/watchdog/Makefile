@@ -106,8 +106,7 @@ obj-$(CONFIG_SBC_EPX_C3_WATCHDOG) += sbc_epx_c3.o
 # M32R Architecture
 
 # M68K Architecture
-
-# M68KNOMMU Architecture
+obj-$(CONFIG_M548x_WATCHDOG) += m548x_wdt.o
 
 # MIPS Architecture
 obj-$(CONFIG_ATH79_WDT) += ath79_wdt.o
