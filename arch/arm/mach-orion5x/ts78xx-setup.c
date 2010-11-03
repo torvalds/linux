@@ -550,8 +550,6 @@ static void __init ts78xx_init(void)
 
 MACHINE_START(TS78XX, "Technologic Systems TS-78xx SBC")
 	/* Maintainer: Alexander Clouter <alex@digriz.org.uk> */
-	.phys_io	= ORION5X_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= ts78xx_init,
 	.map_io		= ts78xx_map_io,

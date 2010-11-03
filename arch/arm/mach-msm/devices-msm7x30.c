@@ -51,6 +51,11 @@ struct platform_device msm_device_uart2 = {
 	.resource	= resources_uart2,
 };
 
+struct platform_device msm_device_smd = {
+	.name   = "msm_smd",
+	.id     = -1,
+};
+
 struct clk msm_clocks_7x30[] = {
 	CLK_PCOM("adm_clk",	ADM_CLK,	NULL, 0),
 	CLK_PCOM("adsp_clk",	ADSP_CLK,	NULL, 0),

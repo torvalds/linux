@@ -122,9 +122,8 @@ static size_t
 pdu_write_u(struct p9_fcall *pdu, const char __user *udata, size_t size)
 {
 	size_t len = MIN(pdu->capacity - pdu->size, size);
-	int err = copy_from_user(&pdu->sdata[pdu->size], udata, len);
-	if (err)
-		printk(KERN_WARNING "pdu_write_u returning: %d\n", err);
+	if (copy_from_user(&pdu->sdata[pdu->size], udata, len))
+		len = 0;
 
 	pdu->size += len;
 	return size - len;

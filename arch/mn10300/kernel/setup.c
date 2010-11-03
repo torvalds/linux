@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
+#include <linux/cpu.h>
 #include <asm/processor.h>
 #include <linux/console.h>
 #include <asm/uaccess.h>
@@ -30,7 +31,6 @@
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <proc/proc.h>
-#include <asm/busctl-regs.h>
 #include <asm/fpu.h>
 #include <asm/sections.h>
 
@@ -64,11 +64,13 @@ unsigned long memory_size;
 struct thread_info *__current_ti = &init_thread_union.thread_info;
 struct task_struct *__current = &init_task;
 
-#define mn10300_known_cpus 3
+#define mn10300_known_cpus 5
 static const char *const mn10300_cputypes[] = {
-	"am33v1",
-	"am33v2",
-	"am34v1",
+	"am33-1",
+	"am33-2",
+	"am34-1",
+	"am33-3",
+	"am34-2",
 	"unknown"
 };
 
@@ -123,6 +125,7 @@ void __init setup_arch(char **cmdline_p)
 
 	cpu_init();
 	unit_setup();
+	smp_init_cpus();
 	parse_mem_cmdline(cmdline_p);
 
 	init_mm.start_code = (unsigned long)&_text;
@@ -179,57 +182,55 @@ void __init setup_arch(char **cmdline_p)
 void __init cpu_init(void)
 {
 	unsigned long cpurev = CPUREV, type;
-	unsigned long base, size;
 
 	type = (CPUREV & CPUREV_TYPE) >> CPUREV_TYPE_S;
 	if (type > mn10300_known_cpus)
 		type = mn10300_known_cpus;
 
-	printk(KERN_INFO "Matsushita %s, rev %ld\n",
+	printk(KERN_INFO "Panasonic %s, rev %ld\n",
 	       mn10300_cputypes[type],
 	       (cpurev & CPUREV_REVISION) >> CPUREV_REVISION_S);
 
-	/* determine the memory size and base from the memory controller regs */
-	memory_size = 0;
-
-	base = SDBASE(0);
-	if (base & SDBASE_CE) {
-		size = (base & SDBASE_CBAM) << SDBASE_CBAM_SHIFT;
-		size = ~size + 1;
-		base &= SDBASE_CBA;
-
-		printk(KERN_INFO "SDRAM[0]: %luMb @%08lx\n", size >> 20, base);
-		memory_size += size;
-		phys_memory_base = base;
-	}
-
-	base = SDBASE(1);
-	if (base & SDBASE_CE) {
-		size = (base & SDBASE_CBAM) << SDBASE_CBAM_SHIFT;
-		size = ~size + 1;
-		base &= SDBASE_CBA;
-
-		printk(KERN_INFO "SDRAM[1]: %luMb @%08lx\n", size >> 20, base);
-		memory_size += size;
-		if (phys_memory_base == 0)
-			phys_memory_base = base;
-	}
-
+	get_mem_info(&phys_memory_base, &memory_size);
 	phys_memory_end = phys_memory_base + memory_size;
 
-#ifdef CONFIG_FPU
 	fpu_init_state();
-#endif
 }
+
+static struct cpu cpu_devices[NR_CPUS];
+
+static int __init topology_init(void)
+{
+	int i;
+
+	for_each_present_cpu(i)
+		register_cpu(&cpu_devices[i], i);
+
+	return 0;
+}
+
+subsys_initcall(topology_init);
 
 /*
  * Get CPU information for use by the procfs.
  */
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
+#ifdef CONFIG_SMP
+	struct mn10300_cpuinfo *c = v;
+	unsigned long cpu_id = c - cpu_data;
+	unsigned long cpurev = c->type, type, icachesz, dcachesz;
+#else  /* CONFIG_SMP */
+	unsigned long cpu_id = 0;
 	unsigned long cpurev = CPUREV, type, icachesz, dcachesz;
+#endif /* CONFIG_SMP */
 
-	type = (CPUREV & CPUREV_TYPE) >> CPUREV_TYPE_S;
+#ifdef CONFIG_SMP
+	if (!cpu_online(cpu_id))
+		return 0;
+#endif
+
+	type = (cpurev & CPUREV_TYPE) >> CPUREV_TYPE_S;
 	if (type > mn10300_known_cpus)
 		type = mn10300_known_cpus;
 
@@ -244,13 +245,14 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		1024;
 
 	seq_printf(m,
-		   "processor  : 0\n"
-		   "vendor_id  : Matsushita\n"
+		   "processor  : %ld\n"
+		   "vendor_id  : " PROCESSOR_VENDOR_NAME "\n"
 		   "cpu core   : %s\n"
 		   "cpu rev    : %lu\n"
 		   "model name : " PROCESSOR_MODEL_NAME		"\n"
 		   "icache size: %lu\n"
 		   "dcache size: %lu\n",
+		   cpu_id,
 		   mn10300_cputypes[type],
 		   (cpurev & CPUREV_REVISION) >> CPUREV_REVISION_S,
 		   icachesz,
@@ -262,8 +264,13 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   "bogomips   : %lu.%02lu\n\n",
 		   MN10300_IOCLK / 1000000,
 		   (MN10300_IOCLK / 10000) % 100,
+#ifdef CONFIG_SMP
+		   c->loops_per_jiffy / (500000 / HZ),
+		   (c->loops_per_jiffy / (5000 / HZ)) % 100
+#else  /* CONFIG_SMP */
 		   loops_per_jiffy / (500000 / HZ),
 		   (loops_per_jiffy / (5000 / HZ)) % 100
+#endif /* CONFIG_SMP */
 		   );
 
 	return 0;

@@ -805,8 +805,6 @@ static int smsc95xx_reset(struct usbnet *dev)
 		return ret;
 	}
 
-	smsc95xx_init_mac_address(dev);
-
 	ret = smsc95xx_set_mac_address(dev);
 	if (ret < 0)
 		return ret;
@@ -1046,6 +1044,8 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	pdata->use_tx_csum = DEFAULT_TX_CSUM_ENABLE;
 	pdata->use_rx_csum = DEFAULT_RX_CSUM_ENABLE;
+
+	smsc95xx_init_mac_address(dev);
 
 	/* Init all registers */
 	ret = smsc95xx_reset(dev);

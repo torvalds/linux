@@ -63,8 +63,8 @@ Supported chips:
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
   * Maxim MAX6659
-    Prefix: 'max6657'
-    Addresses scanned: I2C 0x4c, 0x4d (unsupported 0x4e)
+    Prefix: 'max6659'
+    Addresses scanned: I2C 0x4c, 0x4d, 0x4e
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
   * Maxim MAX6680
@@ -84,6 +84,21 @@ Supported chips:
     Addresses scanned: I2C 0x4c
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3500
+  * Maxim MAX6695
+    Prefix: 'max6695'
+    Addresses scanned: I2C 0x18
+    Datasheet: Publicly available at the Maxim website
+               http://www.maxim-ic.com/datasheet/index.mvp/id/4199
+  * Maxim MAX6696
+    Prefix: 'max6695'
+    Addresses scanned: I2C 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
+                           0x4c, 0x4d and 0x4e
+    Datasheet: Publicly available at the Maxim website
+               http://www.maxim-ic.com/datasheet/index.mvp/id/4199
+  * Winbond/Nuvoton W83L771W/G
+    Prefix: 'w83l771'
+    Addresses scanned: I2C 0x4c
+    Datasheet: No longer available
   * Winbond/Nuvoton W83L771AWG/ASG
     Prefix: 'w83l771'
     Addresses scanned: I2C 0x4c
@@ -101,10 +116,11 @@ well as the temperature of up to one external diode. It is compatible
 with many other devices, many of which are supported by this driver.
 
 Note that there is no easy way to differentiate between the MAX6657,
-MAX6658 and MAX6659 variants. The extra address and features of the
-MAX6659 are not supported by this driver. The MAX6680 and MAX6681 only
-differ in their pinout, therefore they obviously can't (and don't need to)
-be distinguished.
+MAX6658 and MAX6659 variants. The extra features of the MAX6659 are only
+supported by this driver if the chip is located at address 0x4d or 0x4e,
+or if the chip type is explicitly selected as max6659.
+The MAX6680 and MAX6681 only differ in their pinout, therefore they obviously
+can't (and don't need to) be distinguished.
 
 The specificity of this family of chipsets over the ADM1021/LM84
 family is that it features critical limits with hysteresis, and an
@@ -151,11 +167,21 @@ MAX6680 and MAX6681:
   * Selectable address
   * Remote sensor type selection
 
-W83L771AWG/ASG
-  * The AWG and ASG variants only differ in package format.
+MAX6695 and MAX6696:
+  * Better local resolution
+  * Selectable address (max6696)
+  * Second critical temperature limit
+  * Two remote sensors
+
+W83L771W/G
+  * The G variant is lead-free, otherwise similar to the W.
   * Filter and alert configuration register at 0xBF
-  * Diode ideality factor configuration (remote sensor) at 0xE3
   * Moving average (depending on conversion rate)
+
+W83L771AWG/ASG
+  * Successor of the W83L771W/G, same features.
+  * The AWG and ASG variants only differ in package format.
+  * Diode ideality factor configuration (remote sensor) at 0xE3
 
 All temperature values are given in degrees Celsius. Resolution
 is 1.0 degree for the local temperature, 0.125 degree for the remote

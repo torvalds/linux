@@ -104,15 +104,34 @@ static inline bool cpu_is_u8500(void)
 #endif
 }
 
+#define CPUID_DB8500ED	0x410fc090
+#define CPUID_DB8500V1	0x411fc091
+#define CPUID_DB8500V2	0x412fc091
+
 static inline bool cpu_is_u8500ed(void)
 {
-	return cpu_is_u8500() && (read_cpuid_id() & 15) == 0;
+	return cpu_is_u8500() && (read_cpuid_id() == CPUID_DB8500ED);
 }
 
 static inline bool cpu_is_u8500v1(void)
 {
-	return cpu_is_u8500() && (read_cpuid_id() & 15) == 1;
+	return cpu_is_u8500() && (read_cpuid_id() == CPUID_DB8500V1);
 }
+
+static inline bool cpu_is_u8500v2(void)
+{
+	return cpu_is_u8500() && (read_cpuid_id() == CPUID_DB8500V2);
+}
+
+#ifdef CONFIG_UX500_SOC_DB8500
+bool cpu_is_u8500v10(void);
+bool cpu_is_u8500v11(void);
+bool cpu_is_u8500v20(void);
+#else
+static inline bool cpu_is_u8500v10(void) { return false; }
+static inline bool cpu_is_u8500v11(void) { return false; }
+static inline bool cpu_is_u8500v20(void) { return false; }
+#endif
 
 static inline bool cpu_is_u5500(void)
 {

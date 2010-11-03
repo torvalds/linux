@@ -50,6 +50,30 @@ EXPORT_SYMBOL_GPL(dccp_hashinfo);
 /* the maximum queue length for tx in packets. 0 is no limit */
 int sysctl_dccp_tx_qlen __read_mostly = 5;
 
+#ifdef CONFIG_IP_DCCP_DEBUG
+static const char *dccp_state_name(const int state)
+{
+	static const char *const dccp_state_names[] = {
+	[DCCP_OPEN]		= "OPEN",
+	[DCCP_REQUESTING]	= "REQUESTING",
+	[DCCP_PARTOPEN]		= "PARTOPEN",
+	[DCCP_LISTEN]		= "LISTEN",
+	[DCCP_RESPOND]		= "RESPOND",
+	[DCCP_CLOSING]		= "CLOSING",
+	[DCCP_ACTIVE_CLOSEREQ]	= "CLOSEREQ",
+	[DCCP_PASSIVE_CLOSE]	= "PASSIVE_CLOSE",
+	[DCCP_PASSIVE_CLOSEREQ]	= "PASSIVE_CLOSEREQ",
+	[DCCP_TIME_WAIT]	= "TIME_WAIT",
+	[DCCP_CLOSED]		= "CLOSED",
+	};
+
+	if (state >= DCCP_MAX_STATES)
+		return "INVALID STATE!";
+	else
+		return dccp_state_names[state];
+}
+#endif
+
 void dccp_set_state(struct sock *sk, const int state)
 {
 	const int oldstate = sk->sk_state;
@@ -145,30 +169,6 @@ const char *dccp_packet_name(const int type)
 }
 
 EXPORT_SYMBOL_GPL(dccp_packet_name);
-
-const char *dccp_state_name(const int state)
-{
-	static const char *const dccp_state_names[] = {
-	[DCCP_OPEN]		= "OPEN",
-	[DCCP_REQUESTING]	= "REQUESTING",
-	[DCCP_PARTOPEN]		= "PARTOPEN",
-	[DCCP_LISTEN]		= "LISTEN",
-	[DCCP_RESPOND]		= "RESPOND",
-	[DCCP_CLOSING]		= "CLOSING",
-	[DCCP_ACTIVE_CLOSEREQ]	= "CLOSEREQ",
-	[DCCP_PASSIVE_CLOSE]	= "PASSIVE_CLOSE",
-	[DCCP_PASSIVE_CLOSEREQ]	= "PASSIVE_CLOSEREQ",
-	[DCCP_TIME_WAIT]	= "TIME_WAIT",
-	[DCCP_CLOSED]		= "CLOSED",
-	};
-
-	if (state >= DCCP_MAX_STATES)
-		return "INVALID STATE!";
-	else
-		return dccp_state_names[state];
-}
-
-EXPORT_SYMBOL_GPL(dccp_state_name);
 
 int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 {
@@ -726,7 +726,13 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		goto out_discard;
 
 	skb_queue_tail(&sk->sk_write_queue, skb);
-	dccp_write_xmit(sk,0);
+	/*
+	 * The xmit_timer is set if the TX CCID is rate-based and will expire
+	 * when congestion control permits to release further packets into the
+	 * network. Window-based CCIDs do not use this timer.
+	 */
+	if (!timer_pending(&dp->dccps_xmit_timer))
+		dccp_write_xmit(sk);
 out_release:
 	release_sock(sk);
 	return rc ? : len;
@@ -944,15 +950,28 @@ void dccp_close(struct sock *sk, long timeout)
 
 	if (data_was_unread) {
 		/* Unread data was tossed, send an appropriate Reset Code */
-		DCCP_WARN("DCCP: ABORT -- %u bytes unread\n", data_was_unread);
+		DCCP_WARN("ABORT with %u bytes unread\n", data_was_unread);
 		dccp_send_reset(sk, DCCP_RESET_CODE_ABORTED);
 		dccp_set_state(sk, DCCP_CLOSED);
 	} else if (sock_flag(sk, SOCK_LINGER) && !sk->sk_lingertime) {
 		/* Check zero linger _after_ checking for unread data. */
 		sk->sk_prot->disconnect(sk, 0);
 	} else if (sk->sk_state != DCCP_CLOSED) {
+		/*
+		 * Normal connection termination. May need to wait if there are
+		 * still packets in the TX queue that are delayed by the CCID.
+		 */
+		dccp_flush_write_queue(sk, &timeout);
 		dccp_terminate_connection(sk);
 	}
+
+	/*
+	 * Flush write queue. This may be necessary in several cases:
+	 * - we have been closed by the peer but still have application data;
+	 * - abortive termination (unread data or zero linger time),
+	 * - normal termination but queue could not be flushed within time limit
+	 */
+	__skb_queue_purge(&sk->sk_write_queue);
 
 	sk_stream_wait_close(sk, timeout);
 

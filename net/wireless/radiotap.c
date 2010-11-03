@@ -14,6 +14,7 @@
  * See COPYING for more details.
  */
 
+#include <linux/kernel.h>
 #include <net/cfg80211.h>
 #include <net/ieee80211_radiotap.h>
 #include <asm/unaligned.h>
@@ -45,7 +46,7 @@ static const struct radiotap_align_size rtap_namespace_sizes[] = {
 };
 
 static const struct ieee80211_radiotap_namespace radiotap_ns = {
-	.n_bits = sizeof(rtap_namespace_sizes) / sizeof(rtap_namespace_sizes[0]),
+	.n_bits = ARRAY_SIZE(rtap_namespace_sizes),
 	.align_size = rtap_namespace_sizes,
 };
 
@@ -200,7 +201,7 @@ int ieee80211_radiotap_iterator_next(
 {
 	while (1) {
 		int hit = 0;
-		int pad, align, size, subns, vnslen;
+		int pad, align, size, subns;
 		uint32_t oui;
 
 		/* if no more EXT bits, that's it */
@@ -260,6 +261,27 @@ int ieee80211_radiotap_iterator_next(
 		if (pad)
 			iterator->_arg += align - pad;
 
+		if (iterator->_arg_index % 32 == IEEE80211_RADIOTAP_VENDOR_NAMESPACE) {
+			int vnslen;
+
+			if ((unsigned long)iterator->_arg + size -
+			    (unsigned long)iterator->_rtheader >
+			    (unsigned long)iterator->_max_length)
+				return -EINVAL;
+
+			oui = (*iterator->_arg << 16) |
+				(*(iterator->_arg + 1) << 8) |
+				*(iterator->_arg + 2);
+			subns = *(iterator->_arg + 3);
+
+			find_ns(iterator, oui, subns);
+
+			vnslen = get_unaligned_le16(iterator->_arg + 4);
+			iterator->_next_ns_data = iterator->_arg + size + vnslen;
+			if (!iterator->current_namespace)
+				size += vnslen;
+		}
+
 		/*
 		 * this is what we will return to user, but we need to
 		 * move on first so next call has something fresh to test
@@ -286,40 +308,25 @@ int ieee80211_radiotap_iterator_next(
 		/* these special ones are valid in each bitmap word */
 		switch (iterator->_arg_index % 32) {
 		case IEEE80211_RADIOTAP_VENDOR_NAMESPACE:
-			iterator->_bitmap_shifter >>= 1;
-			iterator->_arg_index++;
-
 			iterator->_reset_on_ext = 1;
 
-			vnslen = get_unaligned_le16(iterator->this_arg + 4);
-			iterator->_next_ns_data = iterator->_arg + vnslen;
-			oui = (*iterator->this_arg << 16) |
-				(*(iterator->this_arg + 1) << 8) |
-				*(iterator->this_arg + 2);
-			subns = *(iterator->this_arg + 3);
-
-			find_ns(iterator, oui, subns);
-
 			iterator->is_radiotap_ns = 0;
-			/* allow parsers to show this information */
+			/*
+			 * If parser didn't register this vendor
+			 * namespace with us, allow it to show it
+			 * as 'raw. Do do that, set argument index
+			 * to vendor namespace.
+			 */
 			iterator->this_arg_index =
 				IEEE80211_RADIOTAP_VENDOR_NAMESPACE;
-			iterator->this_arg_size += vnslen;
-			if ((unsigned long)iterator->this_arg +
-			    iterator->this_arg_size -
-			    (unsigned long)iterator->_rtheader >
-			    (unsigned long)(unsigned long)iterator->_max_length)
-				return -EINVAL;
-			hit = 1;
-			break;
+			if (!iterator->current_namespace)
+				hit = 1;
+			goto next_entry;
 		case IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE:
-			iterator->_bitmap_shifter >>= 1;
-			iterator->_arg_index++;
-
 			iterator->_reset_on_ext = 1;
 			iterator->current_namespace = &radiotap_ns;
 			iterator->is_radiotap_ns = 1;
-			break;
+			goto next_entry;
 		case IEEE80211_RADIOTAP_EXT:
 			/*
 			 * bit 31 was set, there is more

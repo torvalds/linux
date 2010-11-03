@@ -13,6 +13,7 @@
 
 #include <acpi/processor.h>
 #include <asm/acpi.h>
+#include <asm/mwait.h>
 
 /*
  * Initialize bm_flags based on the CPU cache properties
@@ -64,16 +65,6 @@ struct cstate_entry {
 static struct cstate_entry __percpu *cpu_cstate_entry;	/* per CPU ptr */
 
 static short mwait_supported[ACPI_PROCESSOR_MAX_POWER];
-
-#define MWAIT_SUBSTATE_MASK	(0xf)
-#define MWAIT_CSTATE_MASK	(0xf)
-#define MWAIT_SUBSTATE_SIZE	(4)
-
-#define CPUID_MWAIT_LEAF (5)
-#define CPUID5_ECX_EXTENSIONS_SUPPORTED (0x1)
-#define CPUID5_ECX_INTERRUPT_BREAK	(0x2)
-
-#define MWAIT_ECX_INTERRUPT_BREAK	(0x1)
 
 #define NATIVE_CSTATE_BEYOND_HALT	(2)
 

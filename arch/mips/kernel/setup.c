@@ -31,6 +31,7 @@
 #include <asm/setup.h>
 #include <asm/smp-ops.h>
 #include <asm/system.h>
+#include <asm/prom.h>
 
 struct cpuinfo_mips cpu_data[NR_CPUS] __read_mostly;
 
@@ -487,7 +488,9 @@ static void __init arch_mem_init(char **cmdline_p)
 	}
 
 	bootmem_init();
+	device_tree_init();
 	sparse_init();
+	plat_swiotlb_setup();
 	paging_init();
 }
 

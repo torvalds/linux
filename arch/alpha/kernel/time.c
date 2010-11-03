@@ -41,7 +41,7 @@
 #include <linux/init.h>
 #include <linux/bcd.h>
 #include <linux/profile.h>
-#include <linux/perf_event.h>
+#include <linux/irq_work.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -83,25 +83,25 @@ static struct {
 
 unsigned long est_cycle_freq;
 
-#ifdef CONFIG_PERF_EVENTS
+#ifdef CONFIG_IRQ_WORK
 
-DEFINE_PER_CPU(u8, perf_event_pending);
+DEFINE_PER_CPU(u8, irq_work_pending);
 
-#define set_perf_event_pending_flag()  __get_cpu_var(perf_event_pending) = 1
-#define test_perf_event_pending()      __get_cpu_var(perf_event_pending)
-#define clear_perf_event_pending()     __get_cpu_var(perf_event_pending) = 0
+#define set_irq_work_pending_flag()  __get_cpu_var(irq_work_pending) = 1
+#define test_irq_work_pending()      __get_cpu_var(irq_work_pending)
+#define clear_irq_work_pending()     __get_cpu_var(irq_work_pending) = 0
 
-void set_perf_event_pending(void)
+void set_irq_work_pending(void)
 {
-	set_perf_event_pending_flag();
+	set_irq_work_pending_flag();
 }
 
-#else  /* CONFIG_PERF_EVENTS */
+#else  /* CONFIG_IRQ_WORK */
 
-#define test_perf_event_pending()      0
-#define clear_perf_event_pending()
+#define test_irq_work_pending()      0
+#define clear_irq_work_pending()
 
-#endif /* CONFIG_PERF_EVENTS */
+#endif /* CONFIG_IRQ_WORK */
 
 
 static inline __u32 rpcc(void)
@@ -191,9 +191,9 @@ irqreturn_t timer_interrupt(int irq, void *dev)
 
 	write_sequnlock(&xtime_lock);
 
-	if (test_perf_event_pending()) {
-		clear_perf_event_pending();
-		perf_event_do_pending();
+	if (test_irq_work_pending()) {
+		clear_irq_work_pending();
+		irq_work_run();
 	}
 
 #ifndef CONFIG_SMP

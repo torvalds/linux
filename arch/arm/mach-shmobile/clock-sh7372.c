@@ -51,7 +51,7 @@
 #define SMSTPCR4	0xe6150140
 
 /* Platforms must set frequency on their DV_CLKI pin */
-struct clk dv_clki_clk = {
+struct clk sh7372_dv_clki_clk = {
 };
 
 /* Fixed 32 KHz root clock from EXTALR pin */
@@ -86,9 +86,9 @@ static struct clk_ops div2_clk_ops = {
 };
 
 /* Divide dv_clki by two */
-struct clk dv_clki_div2_clk = {
+struct clk sh7372_dv_clki_div2_clk = {
 	.ops		= &div2_clk_ops,
-	.parent		= &dv_clki_clk,
+	.parent		= &sh7372_dv_clki_clk,
 };
 
 /* Divide extal1 by two */
@@ -150,7 +150,7 @@ static struct clk pllc1_div2_clk = {
 static struct clk *pllc2_parent[] = {
 	[0] = &extal1_div2_clk,
 	[1] = &extal2_div2_clk,
-	[2] = &dv_clki_div2_clk,
+	[2] = &sh7372_dv_clki_div2_clk,
 };
 
 /* Only multipliers 20 * 2 to 46 * 2 are valid, last entry for CPUFREQ_TABLE_END */
@@ -284,7 +284,7 @@ static struct clk_ops pllc2_clk_ops = {
 	.set_parent	= pllc2_set_parent,
 };
 
-struct clk pllc2_clk = {
+struct clk sh7372_pllc2_clk = {
 	.ops		= &pllc2_clk_ops,
 	.parent		= &extal1_div2_clk,
 	.freq_table	= pllc2_freq_table,
@@ -292,19 +292,28 @@ struct clk pllc2_clk = {
 	.parent_num	= ARRAY_SIZE(pllc2_parent),
 };
 
+/* External input clock (pin name: FSIACK/FSIBCK ) */
+struct clk sh7372_fsiack_clk = {
+};
+
+struct clk sh7372_fsibck_clk = {
+};
+
 static struct clk *main_clks[] = {
-	&dv_clki_clk,
+	&sh7372_dv_clki_clk,
 	&r_clk,
 	&sh7372_extal1_clk,
 	&sh7372_extal2_clk,
-	&dv_clki_div2_clk,
+	&sh7372_dv_clki_div2_clk,
 	&extal1_div2_clk,
 	&extal2_div2_clk,
 	&extal2_div4_clk,
 	&pllc0_clk,
 	&pllc1_clk,
 	&pllc1_div2_clk,
-	&pllc2_clk,
+	&sh7372_pllc2_clk,
+	&sh7372_fsiack_clk,
+	&sh7372_fsibck_clk,
 };
 
 static void div4_kick(struct clk *clk)
@@ -357,7 +366,7 @@ static struct clk div4_clks[DIV4_NR] = {
 };
 
 enum { DIV6_VCK1, DIV6_VCK2, DIV6_VCK3, DIV6_FMSI, DIV6_FMSO,
-       DIV6_FSIA, DIV6_FSIB, DIV6_SUB, DIV6_SPU,
+       DIV6_SUB, DIV6_SPU,
        DIV6_VOU, DIV6_DSIT, DIV6_DSI0P, DIV6_DSI1P,
        DIV6_NR };
 
@@ -367,8 +376,6 @@ static struct clk div6_clks[DIV6_NR] = {
 	[DIV6_VCK3] = SH_CLK_DIV6(&pllc1_div2_clk, VCLKCR3, 0),
 	[DIV6_FMSI] = SH_CLK_DIV6(&pllc1_div2_clk, FMSICKCR, 0),
 	[DIV6_FMSO] = SH_CLK_DIV6(&pllc1_div2_clk, FMSOCKCR, 0),
-	[DIV6_FSIA] = SH_CLK_DIV6(&pllc1_div2_clk, FSIACKCR, 0),
-	[DIV6_FSIB] = SH_CLK_DIV6(&pllc1_div2_clk, FSIBCKCR, 0),
 	[DIV6_SUB] = SH_CLK_DIV6(&sh7372_extal2_clk, SUBCKCR, 0),
 	[DIV6_SPU] = SH_CLK_DIV6(&pllc1_div2_clk, SPUCKCR, 0),
 	[DIV6_VOU] = SH_CLK_DIV6(&pllc1_div2_clk, VOUCKCR, 0),
@@ -377,24 +384,42 @@ static struct clk div6_clks[DIV6_NR] = {
 	[DIV6_DSI1P] = SH_CLK_DIV6(&pllc1_div2_clk, DSI1PCKCR, 0),
 };
 
-enum { DIV6_HDMI, DIV6_REPARENT_NR };
+enum { DIV6_HDMI, DIV6_FSIA, DIV6_FSIB, DIV6_REPARENT_NR };
 
 /* Indices are important - they are the actual src selecting values */
 static struct clk *hdmi_parent[] = {
 	[0] = &pllc1_div2_clk,
-	[1] = &pllc2_clk,
-	[2] = &dv_clki_clk,
+	[1] = &sh7372_pllc2_clk,
+	[2] = &sh7372_dv_clki_clk,
 	[3] = NULL,	/* pllc2_div4 not implemented yet */
+};
+
+static struct clk *fsiackcr_parent[] = {
+	[0] = &pllc1_div2_clk,
+	[1] = &sh7372_pllc2_clk,
+	[2] = &sh7372_fsiack_clk, /* external input for FSI A */
+	[3] = NULL,	/* setting prohibited */
+};
+
+static struct clk *fsibckcr_parent[] = {
+	[0] = &pllc1_div2_clk,
+	[1] = &sh7372_pllc2_clk,
+	[2] = &sh7372_fsibck_clk, /* external input for FSI B */
+	[3] = NULL,	/* setting prohibited */
 };
 
 static struct clk div6_reparent_clks[DIV6_REPARENT_NR] = {
 	[DIV6_HDMI] = SH_CLK_DIV6_EXT(&pllc1_div2_clk, HDMICKCR, 0,
 				      hdmi_parent, ARRAY_SIZE(hdmi_parent), 6, 2),
+	[DIV6_FSIA] = SH_CLK_DIV6_EXT(&pllc1_div2_clk, FSIACKCR, 0,
+				      fsiackcr_parent, ARRAY_SIZE(fsiackcr_parent), 6, 2),
+	[DIV6_FSIB] = SH_CLK_DIV6_EXT(&pllc1_div2_clk, FSIBCKCR, 0,
+				      fsibckcr_parent, ARRAY_SIZE(fsibckcr_parent), 6, 2),
 };
 
 enum { MSTP001,
        MSTP131, MSTP130,
-       MSTP129, MSTP128, MSTP127, MSTP126,
+       MSTP129, MSTP128, MSTP127, MSTP126, MSTP125,
        MSTP118, MSTP117, MSTP116,
        MSTP106, MSTP101, MSTP100,
        MSTP223,
@@ -414,6 +439,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP128] = MSTP(&div4_clks[DIV4_B], SMSTPCR1, 28, 0), /* VEU0 */
 	[MSTP127] = MSTP(&div4_clks[DIV4_B], SMSTPCR1, 27, 0), /* CEU */
 	[MSTP126] = MSTP(&div4_clks[DIV4_B], SMSTPCR1, 26, 0), /* CSI2 */
+	[MSTP125] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR1, 25, 0), /* TMU0 */
 	[MSTP118] = MSTP(&div4_clks[DIV4_B], SMSTPCR1, 18, 0), /* DSITX */
 	[MSTP117] = MSTP(&div4_clks[DIV4_B], SMSTPCR1, 17, 0), /* LCDC1 */
 	[MSTP116] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR1, 16, 0), /* IIC0 */
@@ -429,7 +455,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP201] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR2, 1, 0), /* SCIFA3 */
 	[MSTP200] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR2, 0, 0), /* SCIFA4 */
 	[MSTP329] = MSTP(&r_clk, SMSTPCR3, 29, 0), /* CMT10 */
-	[MSTP328] = MSTP(&div6_clks[DIV6_SPU], SMSTPCR3, 28, 0), /* FSIA */
+	[MSTP328] = MSTP(&div6_clks[DIV6_SPU], SMSTPCR3, 28, 0), /* FSI2 */
 	[MSTP323] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR3, 23, 0), /* IIC1 */
 	[MSTP322] = MSTP(&div6_clks[DIV6_SUB], SMSTPCR3, 22, 0), /* USB0 */
 	[MSTP314] = MSTP(&div4_clks[DIV4_HP], SMSTPCR3, 14, 0), /* SDHI0 */
@@ -445,10 +471,11 @@ static struct clk mstp_clks[MSTP_NR] = {
 
 #define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
 #define CLKDEV_DEV_ID(_id, _clk) { .dev_id = _id, .clk = _clk }
+#define CLKDEV_ICK_ID(_cid, _did, _clk) { .con_id = _cid, .dev_id = _did, .clk = _clk }
 
 static struct clk_lookup lookups[] = {
 	/* main clocks */
-	CLKDEV_CON_ID("dv_clki_div2_clk", &dv_clki_div2_clk),
+	CLKDEV_CON_ID("dv_clki_div2_clk", &sh7372_dv_clki_div2_clk),
 	CLKDEV_CON_ID("r_clk", &r_clk),
 	CLKDEV_CON_ID("extal1", &sh7372_extal1_clk),
 	CLKDEV_CON_ID("extal2", &sh7372_extal2_clk),
@@ -458,7 +485,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("pllc0_clk", &pllc0_clk),
 	CLKDEV_CON_ID("pllc1_clk", &pllc1_clk),
 	CLKDEV_CON_ID("pllc1_div2_clk", &pllc1_div2_clk),
-	CLKDEV_CON_ID("pllc2_clk", &pllc2_clk),
+	CLKDEV_CON_ID("pllc2_clk", &sh7372_pllc2_clk),
 
 	/* DIV4 clocks */
 	CLKDEV_CON_ID("i_clk", &div4_clks[DIV4_I]),
@@ -483,8 +510,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("vck3_clk", &div6_clks[DIV6_VCK3]),
 	CLKDEV_CON_ID("fmsi_clk", &div6_clks[DIV6_FMSI]),
 	CLKDEV_CON_ID("fmso_clk", &div6_clks[DIV6_FMSO]),
-	CLKDEV_CON_ID("fsia_clk", &div6_clks[DIV6_FSIA]),
-	CLKDEV_CON_ID("fsib_clk", &div6_clks[DIV6_FSIB]),
+	CLKDEV_CON_ID("fsia_clk", &div6_reparent_clks[DIV6_FSIA]),
+	CLKDEV_CON_ID("fsib_clk", &div6_reparent_clks[DIV6_FSIB]),
 	CLKDEV_CON_ID("sub_clk", &div6_clks[DIV6_SUB]),
 	CLKDEV_CON_ID("spu_clk", &div6_clks[DIV6_SPU]),
 	CLKDEV_CON_ID("vou_clk", &div6_clks[DIV6_VOU]),
@@ -501,6 +528,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("uio_pdrv_genirq.1", &mstp_clks[MSTP128]), /* VEU0 */
 	CLKDEV_DEV_ID("sh_mobile_ceu.0", &mstp_clks[MSTP127]), /* CEU */
 	CLKDEV_DEV_ID("sh-mobile-csi2.0", &mstp_clks[MSTP126]), /* CSI2 */
+	CLKDEV_DEV_ID("sh_tmu.0", &mstp_clks[MSTP125]), /* TMU00 */
+	CLKDEV_DEV_ID("sh_tmu.1", &mstp_clks[MSTP125]), /* TMU01 */
 	CLKDEV_DEV_ID("sh-mipi-dsi.0", &mstp_clks[MSTP118]), /* DSITX */
 	CLKDEV_DEV_ID("sh_mobile_lcdc_fb.1", &mstp_clks[MSTP117]), /* LCDC1 */
 	CLKDEV_DEV_ID("i2c-sh_mobile.0", &mstp_clks[MSTP116]), /* IIC0 */
@@ -516,7 +545,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh-sci.2", &mstp_clks[MSTP202]), /* SCIFA2 */
 	CLKDEV_DEV_ID("sh-sci.3", &mstp_clks[MSTP201]), /* SCIFA3 */
 	CLKDEV_DEV_ID("sh-sci.4", &mstp_clks[MSTP200]), /* SCIFA4 */
-	CLKDEV_CON_ID("cmt1", &mstp_clks[MSTP329]), /* CMT10 */
+	CLKDEV_DEV_ID("sh_cmt.10", &mstp_clks[MSTP329]), /* CMT10 */
 	CLKDEV_DEV_ID("sh_fsi2", &mstp_clks[MSTP328]), /* FSI2 */
 	CLKDEV_DEV_ID("i2c-sh_mobile.1", &mstp_clks[MSTP323]), /* IIC1 */
 	CLKDEV_DEV_ID("r8a66597_hcd.0", &mstp_clks[MSTP323]), /* USB0 */
@@ -531,7 +560,10 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("r8a66597_hcd.1", &mstp_clks[MSTP406]), /* USB1 */
 	CLKDEV_DEV_ID("r8a66597_udc.1", &mstp_clks[MSTP406]), /* USB1 */
 	CLKDEV_DEV_ID("sh_keysc.0", &mstp_clks[MSTP403]), /* KEYSC */
-	{.con_id = "ick", .dev_id = "sh-mobile-hdmi", .clk = &div6_reparent_clks[DIV6_HDMI]},
+
+	CLKDEV_ICK_ID("ick", "sh-mobile-hdmi", &div6_reparent_clks[DIV6_HDMI]),
+	CLKDEV_ICK_ID("icka", "sh_fsi2", &div6_reparent_clks[DIV6_FSIA]),
+	CLKDEV_ICK_ID("ickb", "sh_fsi2", &div6_reparent_clks[DIV6_FSIB]),
 };
 
 void __init sh7372_clock_init(void)
@@ -548,7 +580,7 @@ void __init sh7372_clock_init(void)
 		ret = sh_clk_div6_register(div6_clks, DIV6_NR);
 
 	if (!ret)
-		ret = sh_clk_div6_reparent_register(div6_reparent_clks, DIV6_NR);
+		ret = sh_clk_div6_reparent_register(div6_reparent_clks, DIV6_REPARENT_NR);
 
 	if (!ret)
 		ret = sh_clk_mstp32_register(mstp_clks, MSTP_NR);

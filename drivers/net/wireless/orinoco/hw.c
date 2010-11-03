@@ -762,14 +762,17 @@ int orinoco_hw_get_act_bitrate(struct orinoco_private *priv, int *bitrate)
 	case FIRMWARE_TYPE_INTERSIL: /* Intersil style rate */
 	case FIRMWARE_TYPE_SYMBOL: /* Symbol style rate */
 		for (i = 0; i < BITRATE_TABLE_SIZE; i++)
-			if (bitrate_table[i].intersil_txratectrl == val)
+			if (bitrate_table[i].intersil_txratectrl == val) {
+				*bitrate = bitrate_table[i].bitrate * 100000;
 				break;
+			}
 
-		if (i >= BITRATE_TABLE_SIZE)
+		if (i >= BITRATE_TABLE_SIZE) {
 			printk(KERN_INFO "%s: Unable to determine current bitrate (0x%04hx)\n",
 			       priv->ndev->name, val);
+			err = -EIO;
+		}
 
-		*bitrate = bitrate_table[i].bitrate * 100000;
 		break;
 	default:
 		BUG();

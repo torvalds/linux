@@ -3164,7 +3164,7 @@ static void reg_r_i(struct gspca_dev *gspca_dev,
 			index, gspca_dev->usb_buf, len,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r err %d", ret);
+		err("reg_r err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -3205,7 +3205,7 @@ static void reg_w_i(struct gspca_dev *gspca_dev,
 			value, index, NULL, 0,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w err %d", ret);
+		err("reg_w err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -3230,7 +3230,7 @@ static u16 read_sensor_register(struct gspca_dev *gspca_dev,
 
 	reg_r(gspca_dev, 0xa1, 0xb33f, 1);
 	if (!(gspca_dev->usb_buf[0] & 0x02)) {
-		PDEBUG(D_ERR, "I2c Bus Busy Wait %02x",
+		err("I2c Bus Busy Wait %02x",
 			gspca_dev->usb_buf[0]);
 		return 0;
 	}
@@ -3344,7 +3344,7 @@ static void i2c_write(struct gspca_dev *gspca_dev,
 		msleep(20);
 	} while (--retry > 0);
 	if (retry <= 0)
-		PDEBUG(D_ERR, "i2c_write timeout");
+		err("i2c_write timeout");
 }
 
 static void put_tab_to_reg(struct gspca_dev *gspca_dev,
@@ -3440,7 +3440,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	switch (sensor) {
 	case -1:
-		PDEBUG(D_PROBE, "Unknown sensor...");
+		err("Unknown sensor...");
 		return -EINVAL;
 	case SENSOR_HV7131R:
 		PDEBUG(D_PROBE, "Find Sensor HV7131R");
@@ -4226,18 +4226,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

@@ -497,7 +497,7 @@ struct inode *diReadSpecial(struct super_block *sb, ino_t inum, int secondary)
 	 * appear hashed, but do not put on any lists.  hlist_del()
 	 * will work fine and require no locking.
 	 */
-	ip->i_hash.pprev = &ip->i_hash.next;
+	hlist_add_fake(&ip->i_hash);
 
 	return (ip);
 }

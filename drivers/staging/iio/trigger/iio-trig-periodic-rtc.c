@@ -72,17 +72,7 @@ error_ret:
 	return ret;
 }
 
-static ssize_t iio_trig_periodic_read_name(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
-{
-	struct iio_trigger *trig = dev_get_drvdata(dev);
-	return sprintf(buf, "%s\n", trig->name);
-}
-
-static DEVICE_ATTR(name, S_IRUGO,
-	    iio_trig_periodic_read_name,
-	    NULL);
+static IIO_TRIGGER_NAME_ATTR;
 static DEVICE_ATTR(frequency, S_IRUGO | S_IWUSR,
 	    iio_trig_periodic_read_freq,
 	    iio_trig_periodic_write_freq);

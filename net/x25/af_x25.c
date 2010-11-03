@@ -507,14 +507,14 @@ static int x25_listen(struct socket *sock, int backlog)
 	struct sock *sk = sock->sk;
 	int rc = -EOPNOTSUPP;
 
-	lock_kernel();
+	lock_sock(sk);
 	if (sk->sk_state != TCP_LISTEN) {
 		memset(&x25_sk(sk)->dest_addr, 0, X25_ADDR_LEN);
 		sk->sk_max_ack_backlog = backlog;
 		sk->sk_state           = TCP_LISTEN;
 		rc = 0;
 	}
-	unlock_kernel();
+	release_sock(sk);
 
 	return rc;
 }
@@ -688,7 +688,6 @@ static int x25_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct sockaddr_x25 *addr = (struct sockaddr_x25 *)uaddr;
 	int len, i, rc = 0;
 
-	lock_kernel();
 	if (!sock_flag(sk, SOCK_ZAPPED) ||
 	    addr_len != sizeof(struct sockaddr_x25) ||
 	    addr->sx25_family != AF_X25) {
@@ -704,12 +703,13 @@ static int x25_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		}
 	}
 
+	lock_sock(sk);
 	x25_sk(sk)->source_addr = addr->sx25_addr;
 	x25_insert_socket(sk);
 	sock_reset_flag(sk, SOCK_ZAPPED);
+	release_sock(sk);
 	SOCK_DEBUG(sk, "x25_bind: socket is bound\n");
 out:
-	unlock_kernel();
 	return rc;
 }
 
@@ -751,7 +751,6 @@ static int x25_connect(struct socket *sock, struct sockaddr *uaddr,
 	struct x25_route *rt;
 	int rc = 0;
 
-	lock_kernel();
 	lock_sock(sk);
 	if (sk->sk_state == TCP_ESTABLISHED && sock->state == SS_CONNECTING) {
 		sock->state = SS_CONNECTED;
@@ -829,7 +828,6 @@ out_put_route:
 	x25_route_put(rt);
 out:
 	release_sock(sk);
-	unlock_kernel();
 	return rc;
 }
 
@@ -869,8 +867,7 @@ static int x25_accept(struct socket *sock, struct socket *newsock, int flags)
 	struct sk_buff *skb;
 	int rc = -EINVAL;
 
-	lock_kernel();
-	if (!sk || sk->sk_state != TCP_LISTEN)
+	if (!sk)
 		goto out;
 
 	rc = -EOPNOTSUPP;
@@ -878,6 +875,10 @@ static int x25_accept(struct socket *sock, struct socket *newsock, int flags)
 		goto out;
 
 	lock_sock(sk);
+	rc = -EINVAL;
+	if (sk->sk_state != TCP_LISTEN)
+		goto out2;
+
 	rc = x25_wait_for_data(sk, sk->sk_rcvtimeo);
 	if (rc)
 		goto out2;
@@ -897,7 +898,6 @@ static int x25_accept(struct socket *sock, struct socket *newsock, int flags)
 out2:
 	release_sock(sk);
 out:
-	unlock_kernel();
 	return rc;
 }
 
@@ -909,7 +909,6 @@ static int x25_getname(struct socket *sock, struct sockaddr *uaddr,
 	struct x25_sock *x25 = x25_sk(sk);
 	int rc = 0;
 
-	lock_kernel();
 	if (peer) {
 		if (sk->sk_state != TCP_ESTABLISHED) {
 			rc = -ENOTCONN;
@@ -923,19 +922,6 @@ static int x25_getname(struct socket *sock, struct sockaddr *uaddr,
 	*uaddr_len = sizeof(*sx25);
 
 out:
-	unlock_kernel();
-	return rc;
-}
-
-static unsigned int x25_datagram_poll(struct file *file, struct socket *sock,
-			   poll_table *wait)
-{
-	int rc;
-
-	lock_kernel();
-	rc = datagram_poll(file, sock, wait);
-	unlock_kernel();
-
 	return rc;
 }
 
@@ -1746,7 +1732,7 @@ static const struct proto_ops x25_proto_ops = {
 	.socketpair =	sock_no_socketpair,
 	.accept =	x25_accept,
 	.getname =	x25_getname,
-	.poll =		x25_datagram_poll,
+	.poll =		datagram_poll,
 	.ioctl =	x25_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = compat_x25_ioctl,

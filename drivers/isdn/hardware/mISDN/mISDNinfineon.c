@@ -563,7 +563,7 @@ reset_inf(struct inf_hw *hw)
 		mdelay(10);
 		hw->ipac.isac.adf2 = 0x87;
 		hw->ipac.hscx[0].slot = 0x1f;
-		hw->ipac.hscx[0].slot = 0x23;
+		hw->ipac.hscx[1].slot = 0x23;
 		break;
 	case INF_GAZEL_R753:
 		val = inl((u32)hw->cfg.start + GAZEL_CNTRL);

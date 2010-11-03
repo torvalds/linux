@@ -116,11 +116,11 @@ static int ip4_frag_match(struct inet_frag_queue *q, void *a)
 	struct ip4_create_arg *arg = a;
 
 	qp = container_of(q, struct ipq, q);
-	return (qp->id == arg->iph->id &&
+	return	qp->id == arg->iph->id &&
 			qp->saddr == arg->iph->saddr &&
 			qp->daddr == arg->iph->daddr &&
 			qp->protocol == arg->iph->protocol &&
-			qp->user == arg->user);
+			qp->user == arg->user;
 }
 
 /* Memory Tracking Functions. */
@@ -542,7 +542,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	/* If the first fragment is fragmented itself, we split
 	 * it to two chunks: the first with data and paged part
 	 * and the second, holding only fragments. */
-	if (skb_has_frags(head)) {
+	if (skb_has_frag_list(head)) {
 		struct sk_buff *clone;
 		int i, plen = 0;
 

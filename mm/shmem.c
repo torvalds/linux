@@ -1586,6 +1586,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 
 	inode = new_inode(sb);
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode_init_owner(inode, dir, mode);
 		inode->i_blocks = 0;
 		inode->i_mapping->backing_dev_info = &shmem_backing_dev_info;
@@ -1903,7 +1904,7 @@ static int shmem_link(struct dentry *old_dentry, struct inode *dir, struct dentr
 	dir->i_size += BOGO_DIRENT_SIZE;
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	inc_nlink(inode);
-	atomic_inc(&inode->i_count);	/* New dentry reference */
+	ihold(inode);	/* New dentry reference */
 	dget(dentry);		/* Extra pinning count for the created dentry */
 	d_instantiate(dentry, inode);
 out:
@@ -2146,7 +2147,7 @@ static int shmem_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 	if (*len < 3)
 		return 255;
 
-	if (hlist_unhashed(&inode->i_hash)) {
+	if (inode_unhashed(inode)) {
 		/* Unfortunately insert_inode_hash is not idempotent,
 		 * so as we hash inodes here rather than at creation
 		 * time, we need a lock to ensure we only try
@@ -2154,7 +2155,7 @@ static int shmem_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 		 */
 		static DEFINE_SPINLOCK(lock);
 		spin_lock(&lock);
-		if (hlist_unhashed(&inode->i_hash))
+		if (inode_unhashed(inode))
 			__insert_inode_hash(inode,
 					    inode->i_ino + inode->i_generation);
 		spin_unlock(&lock);
@@ -2537,16 +2538,16 @@ static const struct vm_operations_struct shmem_vm_ops = {
 };
 
 
-static int shmem_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *shmem_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, shmem_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, shmem_fill_super);
 }
 
 static struct file_system_type tmpfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "tmpfs",
-	.get_sb		= shmem_get_sb,
+	.mount		= shmem_mount,
 	.kill_sb	= kill_litter_super,
 };
 
@@ -2642,7 +2643,7 @@ out:
 
 static struct file_system_type tmpfs_fs_type = {
 	.name		= "tmpfs",
-	.get_sb		= ramfs_get_sb,
+	.mount		= ramfs_mount,
 	.kill_sb	= kill_litter_super,
 };
 

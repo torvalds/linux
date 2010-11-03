@@ -38,7 +38,6 @@
 #include <mach/iomux-mx27.h>
 #include <asm/mach/time.h>
 #include <mach/audmux.h>
-#include <mach/ssi.h>
 #include <mach/mxc_nand.h>
 #include <mach/irqs.h>
 #include <mach/mmc.h>
@@ -55,7 +54,7 @@
 #define SPI1_SS1 (GPIO_PORTD + 27)
 #define SD2_CD (GPIO_PORTC + 29)
 
-static int pca100_pins[] = {
+static const int pca100_pins[] __initconst = {
 	/* UART1 */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,
@@ -174,7 +173,6 @@ pca100_nand_board_info __initconst = {
 
 static struct platform_device *platform_devices[] __initdata = {
 	&mxc_w1_master_device,
-	&mxc_fec_device,
 	&mxc_wdt,
 };
 
@@ -193,11 +191,9 @@ static struct i2c_board_info pca100_i2c_devices[] = {
 		I2C_BOARD_INFO("at24", 0x52), /* E0=0, E1=1, E2=0 */
 		.platform_data = &board_eeprom,
 	}, {
-		I2C_BOARD_INFO("rtc-pcf8563", 0x51),
-		.type = "pcf8563"
+		I2C_BOARD_INFO("pcf8563", 0x51),
 	}, {
 		I2C_BOARD_INFO("lm75", 0x4a),
-		.type = "lm75"
 	}
 };
 
@@ -252,7 +248,7 @@ static void pca100_ac97_cold_reset(struct snd_ac97 *ac97)
 	msleep(2);
 }
 
-static struct imx_ssi_platform_data pca100_ssi_pdata = {
+static const struct imx_ssi_platform_data pca100_ssi_pdata __initconst = {
 	.ac97_reset		= pca100_ac97_cold_reset,
 	.ac97_warm_reset	= pca100_ac97_warm_reset,
 	.flags			= IMX_SSI_USE_AC97,
@@ -389,7 +385,7 @@ static void __init pca100_init(void)
 	if (ret)
 		printk(KERN_ERR "pca100: Failed to setup pins (%d)\n", ret);
 
-	mxc_register_device(&imx_ssi_device0, &pca100_ssi_pdata);
+	imx27_add_imx_ssi(0, &pca100_ssi_pdata);
 
 	imx27_add_imx_uart0(&uart_pdata);
 
@@ -401,7 +397,7 @@ static void __init pca100_init(void)
 	i2c_register_board_info(1, pca100_i2c_devices,
 				ARRAY_SIZE(pca100_i2c_devices));
 
-	imx27_add_i2c_imx1(&pca100_i2c1_data);
+	imx27_add_imx_i2c(1, &pca100_i2c1_data);
 
 #if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
 	mxc_gpio_mode(GPIO_PORTD | 28 | GPIO_GPIO | GPIO_IN);
@@ -436,6 +432,7 @@ static void __init pca100_init(void)
 
 	mxc_register_device(&mxc_fb_device, &pca100_fb_data);
 
+	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }
 
@@ -449,8 +446,6 @@ static struct sys_timer pca100_timer = {
 };
 
 MACHINE_START(PCA100, "phyCARD-i.MX27")
-	.phys_io        = MX27_AIPI_BASE_ADDR,
-	.io_pg_offst    = ((MX27_AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = MX27_PHYS_OFFSET + 0x100,
 	.map_io         = mx27_map_io,
 	.init_irq       = mx27_init_irq,

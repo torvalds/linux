@@ -267,6 +267,7 @@ static const struct file_operations mISDN_fops = {
 	.unlocked_ioctl	= mISDN_ioctl,
 	.open		= mISDN_open,
 	.release	= mISDN_close,
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice mISDNtimer = {

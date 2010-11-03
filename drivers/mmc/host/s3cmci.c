@@ -1736,8 +1736,7 @@ static int __devinit s3cmci_probe(struct platform_device *pdev)
 	mmc->max_req_size	= 4095 * 512;
 	mmc->max_seg_size	= mmc->max_req_size;
 
-	mmc->max_phys_segs	= 128;
-	mmc->max_hw_segs	= 128;
+	mmc->max_segs		= 128;
 
 	dbg(host, dbg_debug,
 	    "probe: mode:%s mapped mci_base:%p irq:%u irq_cd:%u dma:%u.\n",

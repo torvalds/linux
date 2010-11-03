@@ -121,8 +121,8 @@ static const struct ctrl ov9650_ctrls[] = {
 			.minimum	= 0x00,
 			.maximum	= 0x1ff,
 			.step		= 0x4,
-			.default_value 	= EXPOSURE_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
+			.default_value	= EXPOSURE_DEFAULT,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = ov9650_set_exposure,
 		.get = ov9650_get_exposure
@@ -146,13 +146,13 @@ static const struct ctrl ov9650_ctrls[] = {
 	{
 		{
 			.id		= V4L2_CID_RED_BALANCE,
-			.type 		= V4L2_CTRL_TYPE_INTEGER,
-			.name 		= "red balance",
-			.minimum 	= 0x00,
-			.maximum 	= 0xff,
-			.step 		= 0x1,
-			.default_value 	= RED_GAIN_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "red balance",
+			.minimum	= 0x00,
+			.maximum	= 0xff,
+			.step		= 0x1,
+			.default_value	= RED_GAIN_DEFAULT,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = ov9650_set_red_balance,
 		.get = ov9650_get_red_balance
@@ -161,13 +161,13 @@ static const struct ctrl ov9650_ctrls[] = {
 	{
 		{
 			.id		= V4L2_CID_BLUE_BALANCE,
-			.type 		= V4L2_CTRL_TYPE_INTEGER,
-			.name 		= "blue balance",
-			.minimum 	= 0x00,
-			.maximum 	= 0xff,
-			.step 		= 0x1,
-			.default_value 	= BLUE_GAIN_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "blue balance",
+			.minimum	= 0x00,
+			.maximum	= 0xff,
+			.step		= 0x1,
+			.default_value	= BLUE_GAIN_DEFAULT,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = ov9650_set_blue_balance,
 		.get = ov9650_get_blue_balance
@@ -175,13 +175,13 @@ static const struct ctrl ov9650_ctrls[] = {
 #define HFLIP_IDX 4
 	{
 		{
-			.id 		= V4L2_CID_HFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "horizontal flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
+			.id		= V4L2_CID_HFLIP,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "horizontal flip",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 0
 		},
 		.set = ov9650_set_hflip,
 		.get = ov9650_get_hflip
@@ -189,13 +189,13 @@ static const struct ctrl ov9650_ctrls[] = {
 #define VFLIP_IDX 5
 	{
 		{
-			.id 		= V4L2_CID_VFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "vertical flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0
+			.id		= V4L2_CID_VFLIP,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "vertical flip",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 0
 		},
 		.set = ov9650_set_vflip,
 		.get = ov9650_get_vflip
@@ -203,13 +203,13 @@ static const struct ctrl ov9650_ctrls[] = {
 #define AUTO_WHITE_BALANCE_IDX 6
 	{
 		{
-			.id 		= V4L2_CID_AUTO_WHITE_BALANCE,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "auto white balance",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 1
+			.id		= V4L2_CID_AUTO_WHITE_BALANCE,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "auto white balance",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 1
 		},
 		.set = ov9650_set_auto_white_balance,
 		.get = ov9650_get_auto_white_balance
@@ -217,13 +217,13 @@ static const struct ctrl ov9650_ctrls[] = {
 #define AUTO_GAIN_CTRL_IDX 7
 	{
 		{
-			.id 		= V4L2_CID_AUTOGAIN,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "auto gain control",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 1
+			.id		= V4L2_CID_AUTOGAIN,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "auto gain control",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 1
 		},
 		.set = ov9650_set_auto_gain,
 		.get = ov9650_get_auto_gain
@@ -231,13 +231,13 @@ static const struct ctrl ov9650_ctrls[] = {
 #define AUTO_EXPOSURE_IDX 8
 	{
 		{
-			.id 		= V4L2_CID_EXPOSURE_AUTO,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "auto exposure",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 1
+			.id		= V4L2_CID_EXPOSURE_AUTO,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "auto exposure",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 1
 		},
 		.set = ov9650_set_auto_exposure,
 		.get = ov9650_get_auto_exposure

@@ -10,10 +10,9 @@
  *
  * This driver is for the device MCT USB-RS232 Converter (25 pin, Model No.
  * U232-P25) from Magic Control Technology Corp. (there is also a 9 pin
- * Model No. U232-P9). See http://www.mct.com.tw/p_u232.html for further
- * information. The properties of this device are listed at the end of this
- * file. This device is available from various distributors. I know Hana,
- * http://www.hana.de and D-Link, http://www.dlink.com/products/usb/dsbs25.
+ * Model No. U232-P9). See http://www.mct.com.tw/products/product_us232.html 
+ * for further information. The properties of this device are listed at the end 
+ * of this file. This device was used in the Dlink DSB-S25.
  *
  * All of the information about the device was acquired by using SniffUSB
  * on Windows98. The technical details of the reverse engineering are
@@ -458,7 +457,7 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
  * embedded UART.  Exhaustive documentation for these is available at:
  *
  *   http://www.semiconductors.philips.com/pip/p87c52ubaa
- *   http://www.semiconductors.philips.com/pip/pdiusbd12
+ *   http://www.nxp.com/acrobat_download/various/PDIUSBD12_PROGRAMMING_GUIDE.pdf
  *
  * Thanks to Julian Highfield for the pointer to the Philips database.
  *

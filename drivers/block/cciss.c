@@ -26,7 +26,6 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/delay.h>
 #include <linux/major.h>
 #include <linux/fs.h>
@@ -66,11 +65,7 @@ MODULE_SUPPORTED_DEVICE("HP Smart Array Controllers");
 MODULE_VERSION("3.6.26");
 MODULE_LICENSE("GPL");
 
-static int cciss_allow_hpsa;
-module_param(cciss_allow_hpsa, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(cciss_allow_hpsa,
-	"Prevent cciss driver from accessing hardware known to be "
-	" supported by the hpsa driver");
+static DEFINE_MUTEX(cciss_mutex);
 
 #include "cciss_cmd.h"
 #include "cciss.h"
@@ -98,18 +93,6 @@ static const struct pci_device_id cciss_pci_device_id[] = {
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSD,     0x103C, 0x3215},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSC,     0x103C, 0x3237},
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSC,     0x103C, 0x323D},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3241},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3243},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3245},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3247},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3249},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x324A},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x324B},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3250},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3251},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3252},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3253},
-	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSE,     0x103C, 0x3254},
 	{0,}
 };
 
@@ -137,23 +120,9 @@ static struct board_type products[] = {
 	{0x3214103C, "Smart Array E200i", &SA5_access},
 	{0x3215103C, "Smart Array E200i", &SA5_access},
 	{0x3237103C, "Smart Array E500", &SA5_access},
-/* controllers below this line are also supported by the hpsa driver. */
-#define HPSA_BOUNDARY 0x3223103C
 	{0x3223103C, "Smart Array P800", &SA5_access},
 	{0x3234103C, "Smart Array P400", &SA5_access},
 	{0x323D103C, "Smart Array P700m", &SA5_access},
-	{0x3241103C, "Smart Array P212", &SA5_access},
-	{0x3243103C, "Smart Array P410", &SA5_access},
-	{0x3245103C, "Smart Array P410i", &SA5_access},
-	{0x3247103C, "Smart Array P411", &SA5_access},
-	{0x3249103C, "Smart Array P812", &SA5_access},
-	{0x324A103C, "Smart Array P712m", &SA5_access},
-	{0x324B103C, "Smart Array P711m", &SA5_access},
-	{0x3250103C, "Smart Array", &SA5_access},
-	{0x3251103C, "Smart Array", &SA5_access},
-	{0x3252103C, "Smart Array", &SA5_access},
-	{0x3253103C, "Smart Array", &SA5_access},
-	{0x3254103C, "Smart Array", &SA5_access},
 };
 
 /* How long to wait (in milliseconds) for board to go into simple mode */
@@ -1059,9 +1028,9 @@ static int cciss_unlocked_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&cciss_mutex);
 	ret = cciss_open(bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&cciss_mutex);
 
 	return ret;
 }
@@ -1074,13 +1043,13 @@ static int cciss_release(struct gendisk *disk, fmode_t mode)
 	ctlr_info_t *h;
 	drive_info_struct *drv;
 
-	lock_kernel();
+	mutex_lock(&cciss_mutex);
 	h = get_host(disk);
 	drv = get_drv(disk);
 	dev_dbg(&h->pdev->dev, "cciss_release %s\n", disk->disk_name);
 	drv->usage_count--;
 	h->usage_count--;
-	unlock_kernel();
+	mutex_unlock(&cciss_mutex);
 	return 0;
 }
 
@@ -1088,9 +1057,9 @@ static int do_ioctl(struct block_device *bdev, fmode_t mode,
 		    unsigned cmd, unsigned long arg)
 {
 	int ret;
-	lock_kernel();
+	mutex_lock(&cciss_mutex);
 	ret = cciss_ioctl(bdev, mode, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&cciss_mutex);
 	return ret;
 }
 
@@ -1182,6 +1151,7 @@ static int cciss_ioctl32_big_passthru(struct block_device *bdev, fmode_t mode,
 	int err;
 	u32 cp;
 
+	memset(&arg64, 0, sizeof(arg64));
 	err = 0;
 	err |=
 	    copy_from_user(&arg64.LUN_info, &arg32->LUN_info,
@@ -1232,470 +1202,452 @@ static void check_ioctl_unit_attention(ctlr_info_t *h, CommandList_struct *c)
 			c->err_info->ScsiStatus != SAM_STAT_CHECK_CONDITION)
 		(void)check_for_unit_attention(h, c);
 }
-/*
- * ioctl
- */
+
+static int cciss_getpciinfo(ctlr_info_t *h, void __user *argp)
+{
+	cciss_pci_info_struct pciinfo;
+
+	if (!argp)
+		return -EINVAL;
+	pciinfo.domain = pci_domain_nr(h->pdev->bus);
+	pciinfo.bus = h->pdev->bus->number;
+	pciinfo.dev_fn = h->pdev->devfn;
+	pciinfo.board_id = h->board_id;
+	if (copy_to_user(argp, &pciinfo, sizeof(cciss_pci_info_struct)))
+		return -EFAULT;
+	return 0;
+}
+
+static int cciss_getintinfo(ctlr_info_t *h, void __user *argp)
+{
+	cciss_coalint_struct intinfo;
+
+	if (!argp)
+		return -EINVAL;
+	intinfo.delay = readl(&h->cfgtable->HostWrite.CoalIntDelay);
+	intinfo.count = readl(&h->cfgtable->HostWrite.CoalIntCount);
+	if (copy_to_user
+	    (argp, &intinfo, sizeof(cciss_coalint_struct)))
+		return -EFAULT;
+	return 0;
+}
+
+static int cciss_setintinfo(ctlr_info_t *h, void __user *argp)
+{
+	cciss_coalint_struct intinfo;
+	unsigned long flags;
+	int i;
+
+	if (!argp)
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (copy_from_user(&intinfo, argp, sizeof(intinfo)))
+		return -EFAULT;
+	if ((intinfo.delay == 0) && (intinfo.count == 0))
+		return -EINVAL;
+	spin_lock_irqsave(&h->lock, flags);
+	/* Update the field, and then ring the doorbell */
+	writel(intinfo.delay, &(h->cfgtable->HostWrite.CoalIntDelay));
+	writel(intinfo.count, &(h->cfgtable->HostWrite.CoalIntCount));
+	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
+
+	for (i = 0; i < MAX_IOCTL_CONFIG_WAIT; i++) {
+		if (!(readl(h->vaddr + SA5_DOORBELL) & CFGTBL_ChangeReq))
+			break;
+		udelay(1000); /* delay and try again */
+	}
+	spin_unlock_irqrestore(&h->lock, flags);
+	if (i >= MAX_IOCTL_CONFIG_WAIT)
+		return -EAGAIN;
+	return 0;
+}
+
+static int cciss_getnodename(ctlr_info_t *h, void __user *argp)
+{
+	NodeName_type NodeName;
+	int i;
+
+	if (!argp)
+		return -EINVAL;
+	for (i = 0; i < 16; i++)
+		NodeName[i] = readb(&h->cfgtable->ServerName[i]);
+	if (copy_to_user(argp, NodeName, sizeof(NodeName_type)))
+		return -EFAULT;
+	return 0;
+}
+
+static int cciss_setnodename(ctlr_info_t *h, void __user *argp)
+{
+	NodeName_type NodeName;
+	unsigned long flags;
+	int i;
+
+	if (!argp)
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (copy_from_user(NodeName, argp, sizeof(NodeName_type)))
+		return -EFAULT;
+	spin_lock_irqsave(&h->lock, flags);
+	/* Update the field, and then ring the doorbell */
+	for (i = 0; i < 16; i++)
+		writeb(NodeName[i], &h->cfgtable->ServerName[i]);
+	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
+	for (i = 0; i < MAX_IOCTL_CONFIG_WAIT; i++) {
+		if (!(readl(h->vaddr + SA5_DOORBELL) & CFGTBL_ChangeReq))
+			break;
+		udelay(1000); /* delay and try again */
+	}
+	spin_unlock_irqrestore(&h->lock, flags);
+	if (i >= MAX_IOCTL_CONFIG_WAIT)
+		return -EAGAIN;
+	return 0;
+}
+
+static int cciss_getheartbeat(ctlr_info_t *h, void __user *argp)
+{
+	Heartbeat_type heartbeat;
+
+	if (!argp)
+		return -EINVAL;
+	heartbeat = readl(&h->cfgtable->HeartBeat);
+	if (copy_to_user(argp, &heartbeat, sizeof(Heartbeat_type)))
+		return -EFAULT;
+	return 0;
+}
+
+static int cciss_getbustypes(ctlr_info_t *h, void __user *argp)
+{
+	BusTypes_type BusTypes;
+
+	if (!argp)
+		return -EINVAL;
+	BusTypes = readl(&h->cfgtable->BusTypes);
+	if (copy_to_user(argp, &BusTypes, sizeof(BusTypes_type)))
+		return -EFAULT;
+	return 0;
+}
+
+static int cciss_getfirmver(ctlr_info_t *h, void __user *argp)
+{
+	FirmwareVer_type firmware;
+
+	if (!argp)
+		return -EINVAL;
+	memcpy(firmware, h->firm_ver, 4);
+
+	if (copy_to_user
+	    (argp, firmware, sizeof(FirmwareVer_type)))
+		return -EFAULT;
+	return 0;
+}
+
+static int cciss_getdrivver(ctlr_info_t *h, void __user *argp)
+{
+	DriverVer_type DriverVer = DRIVER_VERSION;
+
+	if (!argp)
+		return -EINVAL;
+	if (copy_to_user(argp, &DriverVer, sizeof(DriverVer_type)))
+		return -EFAULT;
+	return 0;
+}
+
+static int cciss_getluninfo(ctlr_info_t *h,
+	struct gendisk *disk, void __user *argp)
+{
+	LogvolInfo_struct luninfo;
+	drive_info_struct *drv = get_drv(disk);
+
+	if (!argp)
+		return -EINVAL;
+	memcpy(&luninfo.LunID, drv->LunID, sizeof(luninfo.LunID));
+	luninfo.num_opens = drv->usage_count;
+	luninfo.num_parts = 0;
+	if (copy_to_user(argp, &luninfo, sizeof(LogvolInfo_struct)))
+		return -EFAULT;
+	return 0;
+}
+
+static int cciss_passthru(ctlr_info_t *h, void __user *argp)
+{
+	IOCTL_Command_struct iocommand;
+	CommandList_struct *c;
+	char *buff = NULL;
+	u64bit temp64;
+	DECLARE_COMPLETION_ONSTACK(wait);
+
+	if (!argp)
+		return -EINVAL;
+
+	if (!capable(CAP_SYS_RAWIO))
+		return -EPERM;
+
+	if (copy_from_user
+	    (&iocommand, argp, sizeof(IOCTL_Command_struct)))
+		return -EFAULT;
+	if ((iocommand.buf_size < 1) &&
+	    (iocommand.Request.Type.Direction != XFER_NONE)) {
+		return -EINVAL;
+	}
+	if (iocommand.buf_size > 0) {
+		buff = kmalloc(iocommand.buf_size, GFP_KERNEL);
+		if (buff == NULL)
+			return -EFAULT;
+	}
+	if (iocommand.Request.Type.Direction == XFER_WRITE) {
+		/* Copy the data into the buffer we created */
+		if (copy_from_user(buff, iocommand.buf, iocommand.buf_size)) {
+			kfree(buff);
+			return -EFAULT;
+		}
+	} else {
+		memset(buff, 0, iocommand.buf_size);
+	}
+	c = cmd_special_alloc(h);
+	if (!c) {
+		kfree(buff);
+		return -ENOMEM;
+	}
+	/* Fill in the command type */
+	c->cmd_type = CMD_IOCTL_PEND;
+	/* Fill in Command Header */
+	c->Header.ReplyQueue = 0;   /* unused in simple mode */
+	if (iocommand.buf_size > 0) { /* buffer to fill */
+		c->Header.SGList = 1;
+		c->Header.SGTotal = 1;
+	} else { /* no buffers to fill */
+		c->Header.SGList = 0;
+		c->Header.SGTotal = 0;
+	}
+	c->Header.LUN = iocommand.LUN_info;
+	/* use the kernel address the cmd block for tag */
+	c->Header.Tag.lower = c->busaddr;
+
+	/* Fill in Request block */
+	c->Request = iocommand.Request;
+
+	/* Fill in the scatter gather information */
+	if (iocommand.buf_size > 0) {
+		temp64.val = pci_map_single(h->pdev, buff,
+			iocommand.buf_size, PCI_DMA_BIDIRECTIONAL);
+		c->SG[0].Addr.lower = temp64.val32.lower;
+		c->SG[0].Addr.upper = temp64.val32.upper;
+		c->SG[0].Len = iocommand.buf_size;
+		c->SG[0].Ext = 0;  /* we are not chaining */
+	}
+	c->waiting = &wait;
+
+	enqueue_cmd_and_start_io(h, c);
+	wait_for_completion(&wait);
+
+	/* unlock the buffers from DMA */
+	temp64.val32.lower = c->SG[0].Addr.lower;
+	temp64.val32.upper = c->SG[0].Addr.upper;
+	pci_unmap_single(h->pdev, (dma_addr_t) temp64.val, iocommand.buf_size,
+			 PCI_DMA_BIDIRECTIONAL);
+	check_ioctl_unit_attention(h, c);
+
+	/* Copy the error information out */
+	iocommand.error_info = *(c->err_info);
+	if (copy_to_user(argp, &iocommand, sizeof(IOCTL_Command_struct))) {
+		kfree(buff);
+		cmd_special_free(h, c);
+		return -EFAULT;
+	}
+
+	if (iocommand.Request.Type.Direction == XFER_READ) {
+		/* Copy the data out of the buffer we created */
+		if (copy_to_user(iocommand.buf, buff, iocommand.buf_size)) {
+			kfree(buff);
+			cmd_special_free(h, c);
+			return -EFAULT;
+		}
+	}
+	kfree(buff);
+	cmd_special_free(h, c);
+	return 0;
+}
+
+static int cciss_bigpassthru(ctlr_info_t *h, void __user *argp)
+{
+	BIG_IOCTL_Command_struct *ioc;
+	CommandList_struct *c;
+	unsigned char **buff = NULL;
+	int *buff_size = NULL;
+	u64bit temp64;
+	BYTE sg_used = 0;
+	int status = 0;
+	int i;
+	DECLARE_COMPLETION_ONSTACK(wait);
+	__u32 left;
+	__u32 sz;
+	BYTE __user *data_ptr;
+
+	if (!argp)
+		return -EINVAL;
+	if (!capable(CAP_SYS_RAWIO))
+		return -EPERM;
+	ioc = (BIG_IOCTL_Command_struct *)
+	    kmalloc(sizeof(*ioc), GFP_KERNEL);
+	if (!ioc) {
+		status = -ENOMEM;
+		goto cleanup1;
+	}
+	if (copy_from_user(ioc, argp, sizeof(*ioc))) {
+		status = -EFAULT;
+		goto cleanup1;
+	}
+	if ((ioc->buf_size < 1) &&
+	    (ioc->Request.Type.Direction != XFER_NONE)) {
+		status = -EINVAL;
+		goto cleanup1;
+	}
+	/* Check kmalloc limits  using all SGs */
+	if (ioc->malloc_size > MAX_KMALLOC_SIZE) {
+		status = -EINVAL;
+		goto cleanup1;
+	}
+	if (ioc->buf_size > ioc->malloc_size * MAXSGENTRIES) {
+		status = -EINVAL;
+		goto cleanup1;
+	}
+	buff = kzalloc(MAXSGENTRIES * sizeof(char *), GFP_KERNEL);
+	if (!buff) {
+		status = -ENOMEM;
+		goto cleanup1;
+	}
+	buff_size = kmalloc(MAXSGENTRIES * sizeof(int), GFP_KERNEL);
+	if (!buff_size) {
+		status = -ENOMEM;
+		goto cleanup1;
+	}
+	left = ioc->buf_size;
+	data_ptr = ioc->buf;
+	while (left) {
+		sz = (left > ioc->malloc_size) ? ioc->malloc_size : left;
+		buff_size[sg_used] = sz;
+		buff[sg_used] = kmalloc(sz, GFP_KERNEL);
+		if (buff[sg_used] == NULL) {
+			status = -ENOMEM;
+			goto cleanup1;
+		}
+		if (ioc->Request.Type.Direction == XFER_WRITE) {
+			if (copy_from_user(buff[sg_used], data_ptr, sz)) {
+				status = -EFAULT;
+				goto cleanup1;
+			}
+		} else {
+			memset(buff[sg_used], 0, sz);
+		}
+		left -= sz;
+		data_ptr += sz;
+		sg_used++;
+	}
+	c = cmd_special_alloc(h);
+	if (!c) {
+		status = -ENOMEM;
+		goto cleanup1;
+	}
+	c->cmd_type = CMD_IOCTL_PEND;
+	c->Header.ReplyQueue = 0;
+	c->Header.SGList = sg_used;
+	c->Header.SGTotal = sg_used;
+	c->Header.LUN = ioc->LUN_info;
+	c->Header.Tag.lower = c->busaddr;
+
+	c->Request = ioc->Request;
+	for (i = 0; i < sg_used; i++) {
+		temp64.val = pci_map_single(h->pdev, buff[i], buff_size[i],
+				    PCI_DMA_BIDIRECTIONAL);
+		c->SG[i].Addr.lower = temp64.val32.lower;
+		c->SG[i].Addr.upper = temp64.val32.upper;
+		c->SG[i].Len = buff_size[i];
+		c->SG[i].Ext = 0;	/* we are not chaining */
+	}
+	c->waiting = &wait;
+	enqueue_cmd_and_start_io(h, c);
+	wait_for_completion(&wait);
+	/* unlock the buffers from DMA */
+	for (i = 0; i < sg_used; i++) {
+		temp64.val32.lower = c->SG[i].Addr.lower;
+		temp64.val32.upper = c->SG[i].Addr.upper;
+		pci_unmap_single(h->pdev,
+			(dma_addr_t) temp64.val, buff_size[i],
+			PCI_DMA_BIDIRECTIONAL);
+	}
+	check_ioctl_unit_attention(h, c);
+	/* Copy the error information out */
+	ioc->error_info = *(c->err_info);
+	if (copy_to_user(argp, ioc, sizeof(*ioc))) {
+		cmd_special_free(h, c);
+		status = -EFAULT;
+		goto cleanup1;
+	}
+	if (ioc->Request.Type.Direction == XFER_READ) {
+		/* Copy the data out of the buffer we created */
+		BYTE __user *ptr = ioc->buf;
+		for (i = 0; i < sg_used; i++) {
+			if (copy_to_user(ptr, buff[i], buff_size[i])) {
+				cmd_special_free(h, c);
+				status = -EFAULT;
+				goto cleanup1;
+			}
+			ptr += buff_size[i];
+		}
+	}
+	cmd_special_free(h, c);
+	status = 0;
+cleanup1:
+	if (buff) {
+		for (i = 0; i < sg_used; i++)
+			kfree(buff[i]);
+		kfree(buff);
+	}
+	kfree(buff_size);
+	kfree(ioc);
+	return status;
+}
+
 static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
-		       unsigned int cmd, unsigned long arg)
+	unsigned int cmd, unsigned long arg)
 {
 	struct gendisk *disk = bdev->bd_disk;
 	ctlr_info_t *h = get_host(disk);
-	drive_info_struct *drv = get_drv(disk);
 	void __user *argp = (void __user *)arg;
 
 	dev_dbg(&h->pdev->dev, "cciss_ioctl: Called with cmd=%x %lx\n",
 		cmd, arg);
 	switch (cmd) {
 	case CCISS_GETPCIINFO:
-		{
-			cciss_pci_info_struct pciinfo;
-
-			if (!arg)
-				return -EINVAL;
-			pciinfo.domain = pci_domain_nr(h->pdev->bus);
-			pciinfo.bus = h->pdev->bus->number;
-			pciinfo.dev_fn = h->pdev->devfn;
-			pciinfo.board_id = h->board_id;
-			if (copy_to_user
-			    (argp, &pciinfo, sizeof(cciss_pci_info_struct)))
-				return -EFAULT;
-			return 0;
-		}
+		return cciss_getpciinfo(h, argp);
 	case CCISS_GETINTINFO:
-		{
-			cciss_coalint_struct intinfo;
-			if (!arg)
-				return -EINVAL;
-			intinfo.delay =
-			    readl(&h->cfgtable->HostWrite.CoalIntDelay);
-			intinfo.count =
-			    readl(&h->cfgtable->HostWrite.CoalIntCount);
-			if (copy_to_user
-			    (argp, &intinfo, sizeof(cciss_coalint_struct)))
-				return -EFAULT;
-			return 0;
-		}
+		return cciss_getintinfo(h, argp);
 	case CCISS_SETINTINFO:
-		{
-			cciss_coalint_struct intinfo;
-			unsigned long flags;
-			int i;
-
-			if (!arg)
-				return -EINVAL;
-			if (!capable(CAP_SYS_ADMIN))
-				return -EPERM;
-			if (copy_from_user
-			    (&intinfo, argp, sizeof(cciss_coalint_struct)))
-				return -EFAULT;
-			if ((intinfo.delay == 0) && (intinfo.count == 0))
-				return -EINVAL;
-			spin_lock_irqsave(&h->lock, flags);
-			/* Update the field, and then ring the doorbell */
-			writel(intinfo.delay,
-			       &(h->cfgtable->HostWrite.CoalIntDelay));
-			writel(intinfo.count,
-			       &(h->cfgtable->HostWrite.CoalIntCount));
-			writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
-
-			for (i = 0; i < MAX_IOCTL_CONFIG_WAIT; i++) {
-				if (!(readl(h->vaddr + SA5_DOORBELL)
-				      & CFGTBL_ChangeReq))
-					break;
-				/* delay and try again */
-				udelay(1000);
-			}
-			spin_unlock_irqrestore(&h->lock, flags);
-			if (i >= MAX_IOCTL_CONFIG_WAIT)
-				return -EAGAIN;
-			return 0;
-		}
+		return cciss_setintinfo(h, argp);
 	case CCISS_GETNODENAME:
-		{
-			NodeName_type NodeName;
-			int i;
-
-			if (!arg)
-				return -EINVAL;
-			for (i = 0; i < 16; i++)
-				NodeName[i] =
-				    readb(&h->cfgtable->ServerName[i]);
-			if (copy_to_user(argp, NodeName, sizeof(NodeName_type)))
-				return -EFAULT;
-			return 0;
-		}
+		return cciss_getnodename(h, argp);
 	case CCISS_SETNODENAME:
-		{
-			NodeName_type NodeName;
-			unsigned long flags;
-			int i;
-
-			if (!arg)
-				return -EINVAL;
-			if (!capable(CAP_SYS_ADMIN))
-				return -EPERM;
-
-			if (copy_from_user
-			    (NodeName, argp, sizeof(NodeName_type)))
-				return -EFAULT;
-
-			spin_lock_irqsave(&h->lock, flags);
-
-			/* Update the field, and then ring the doorbell */
-			for (i = 0; i < 16; i++)
-				writeb(NodeName[i],
-				       &h->cfgtable->ServerName[i]);
-
-			writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
-
-			for (i = 0; i < MAX_IOCTL_CONFIG_WAIT; i++) {
-				if (!(readl(h->vaddr + SA5_DOORBELL)
-				      & CFGTBL_ChangeReq))
-					break;
-				/* delay and try again */
-				udelay(1000);
-			}
-			spin_unlock_irqrestore(&h->lock, flags);
-			if (i >= MAX_IOCTL_CONFIG_WAIT)
-				return -EAGAIN;
-			return 0;
-		}
-
+		return cciss_setnodename(h, argp);
 	case CCISS_GETHEARTBEAT:
-		{
-			Heartbeat_type heartbeat;
-
-			if (!arg)
-				return -EINVAL;
-			heartbeat = readl(&h->cfgtable->HeartBeat);
-			if (copy_to_user
-			    (argp, &heartbeat, sizeof(Heartbeat_type)))
-				return -EFAULT;
-			return 0;
-		}
+		return cciss_getheartbeat(h, argp);
 	case CCISS_GETBUSTYPES:
-		{
-			BusTypes_type BusTypes;
-
-			if (!arg)
-				return -EINVAL;
-			BusTypes = readl(&h->cfgtable->BusTypes);
-			if (copy_to_user
-			    (argp, &BusTypes, sizeof(BusTypes_type)))
-				return -EFAULT;
-			return 0;
-		}
+		return cciss_getbustypes(h, argp);
 	case CCISS_GETFIRMVER:
-		{
-			FirmwareVer_type firmware;
-
-			if (!arg)
-				return -EINVAL;
-			memcpy(firmware, h->firm_ver, 4);
-
-			if (copy_to_user
-			    (argp, firmware, sizeof(FirmwareVer_type)))
-				return -EFAULT;
-			return 0;
-		}
+		return cciss_getfirmver(h, argp);
 	case CCISS_GETDRIVVER:
-		{
-			DriverVer_type DriverVer = DRIVER_VERSION;
-
-			if (!arg)
-				return -EINVAL;
-
-			if (copy_to_user
-			    (argp, &DriverVer, sizeof(DriverVer_type)))
-				return -EFAULT;
-			return 0;
-		}
-
+		return cciss_getdrivver(h, argp);
 	case CCISS_DEREGDISK:
 	case CCISS_REGNEWD:
 	case CCISS_REVALIDVOLS:
 		return rebuild_lun_table(h, 0, 1);
-
-	case CCISS_GETLUNINFO:{
-			LogvolInfo_struct luninfo;
-
-			memcpy(&luninfo.LunID, drv->LunID,
-				sizeof(luninfo.LunID));
-			luninfo.num_opens = drv->usage_count;
-			luninfo.num_parts = 0;
-			if (copy_to_user(argp, &luninfo,
-					 sizeof(LogvolInfo_struct)))
-				return -EFAULT;
-			return 0;
-		}
+	case CCISS_GETLUNINFO:
+		return cciss_getluninfo(h, disk, argp);
 	case CCISS_PASSTHRU:
-		{
-			IOCTL_Command_struct iocommand;
-			CommandList_struct *c;
-			char *buff = NULL;
-			u64bit temp64;
-			DECLARE_COMPLETION_ONSTACK(wait);
-
-			if (!arg)
-				return -EINVAL;
-
-			if (!capable(CAP_SYS_RAWIO))
-				return -EPERM;
-
-			if (copy_from_user
-			    (&iocommand, argp, sizeof(IOCTL_Command_struct)))
-				return -EFAULT;
-			if ((iocommand.buf_size < 1) &&
-			    (iocommand.Request.Type.Direction != XFER_NONE)) {
-				return -EINVAL;
-			}
-#if 0				/* 'buf_size' member is 16-bits, and always smaller than kmalloc limit */
-			/* Check kmalloc limits */
-			if (iocommand.buf_size > 128000)
-				return -EINVAL;
-#endif
-			if (iocommand.buf_size > 0) {
-				buff = kmalloc(iocommand.buf_size, GFP_KERNEL);
-				if (buff == NULL)
-					return -EFAULT;
-			}
-			if (iocommand.Request.Type.Direction == XFER_WRITE) {
-				/* Copy the data into the buffer we created */
-				if (copy_from_user
-				    (buff, iocommand.buf, iocommand.buf_size)) {
-					kfree(buff);
-					return -EFAULT;
-				}
-			} else {
-				memset(buff, 0, iocommand.buf_size);
-			}
-			c = cmd_special_alloc(h);
-			if (!c) {
-				kfree(buff);
-				return -ENOMEM;
-			}
-			/* Fill in the command type */
-			c->cmd_type = CMD_IOCTL_PEND;
-			/* Fill in Command Header */
-			c->Header.ReplyQueue = 0;   /* unused in simple mode */
-			if (iocommand.buf_size > 0) /* buffer to fill */
-			{
-				c->Header.SGList = 1;
-				c->Header.SGTotal = 1;
-			} else /* no buffers to fill */
-			{
-				c->Header.SGList = 0;
-				c->Header.SGTotal = 0;
-			}
-			c->Header.LUN = iocommand.LUN_info;
-			/* use the kernel address the cmd block for tag */
-			c->Header.Tag.lower = c->busaddr;
-
-			/* Fill in Request block */
-			c->Request = iocommand.Request;
-
-			/* Fill in the scatter gather information */
-			if (iocommand.buf_size > 0) {
-				temp64.val = pci_map_single(h->pdev, buff,
-					iocommand.buf_size,
-					PCI_DMA_BIDIRECTIONAL);
-				c->SG[0].Addr.lower = temp64.val32.lower;
-				c->SG[0].Addr.upper = temp64.val32.upper;
-				c->SG[0].Len = iocommand.buf_size;
-				c->SG[0].Ext = 0;  /* we are not chaining */
-			}
-			c->waiting = &wait;
-
-			enqueue_cmd_and_start_io(h, c);
-			wait_for_completion(&wait);
-
-			/* unlock the buffers from DMA */
-			temp64.val32.lower = c->SG[0].Addr.lower;
-			temp64.val32.upper = c->SG[0].Addr.upper;
-			pci_unmap_single(h->pdev, (dma_addr_t) temp64.val,
-					 iocommand.buf_size,
-					 PCI_DMA_BIDIRECTIONAL);
-
-			check_ioctl_unit_attention(h, c);
-
-			/* Copy the error information out */
-			iocommand.error_info = *(c->err_info);
-			if (copy_to_user
-			    (argp, &iocommand, sizeof(IOCTL_Command_struct))) {
-				kfree(buff);
-				cmd_special_free(h, c);
-				return -EFAULT;
-			}
-
-			if (iocommand.Request.Type.Direction == XFER_READ) {
-				/* Copy the data out of the buffer we created */
-				if (copy_to_user
-				    (iocommand.buf, buff, iocommand.buf_size)) {
-					kfree(buff);
-					cmd_special_free(h, c);
-					return -EFAULT;
-				}
-			}
-			kfree(buff);
-			cmd_special_free(h, c);
-			return 0;
-		}
-	case CCISS_BIG_PASSTHRU:{
-			BIG_IOCTL_Command_struct *ioc;
-			CommandList_struct *c;
-			unsigned char **buff = NULL;
-			int *buff_size = NULL;
-			u64bit temp64;
-			BYTE sg_used = 0;
-			int status = 0;
-			int i;
-			DECLARE_COMPLETION_ONSTACK(wait);
-			__u32 left;
-			__u32 sz;
-			BYTE __user *data_ptr;
-
-			if (!arg)
-				return -EINVAL;
-			if (!capable(CAP_SYS_RAWIO))
-				return -EPERM;
-			ioc = (BIG_IOCTL_Command_struct *)
-			    kmalloc(sizeof(*ioc), GFP_KERNEL);
-			if (!ioc) {
-				status = -ENOMEM;
-				goto cleanup1;
-			}
-			if (copy_from_user(ioc, argp, sizeof(*ioc))) {
-				status = -EFAULT;
-				goto cleanup1;
-			}
-			if ((ioc->buf_size < 1) &&
-			    (ioc->Request.Type.Direction != XFER_NONE)) {
-				status = -EINVAL;
-				goto cleanup1;
-			}
-			/* Check kmalloc limits  using all SGs */
-			if (ioc->malloc_size > MAX_KMALLOC_SIZE) {
-				status = -EINVAL;
-				goto cleanup1;
-			}
-			if (ioc->buf_size > ioc->malloc_size * MAXSGENTRIES) {
-				status = -EINVAL;
-				goto cleanup1;
-			}
-			buff =
-			    kzalloc(MAXSGENTRIES * sizeof(char *), GFP_KERNEL);
-			if (!buff) {
-				status = -ENOMEM;
-				goto cleanup1;
-			}
-			buff_size = kmalloc(MAXSGENTRIES * sizeof(int),
-						   GFP_KERNEL);
-			if (!buff_size) {
-				status = -ENOMEM;
-				goto cleanup1;
-			}
-			left = ioc->buf_size;
-			data_ptr = ioc->buf;
-			while (left) {
-				sz = (left >
-				      ioc->malloc_size) ? ioc->
-				    malloc_size : left;
-				buff_size[sg_used] = sz;
-				buff[sg_used] = kmalloc(sz, GFP_KERNEL);
-				if (buff[sg_used] == NULL) {
-					status = -ENOMEM;
-					goto cleanup1;
-				}
-				if (ioc->Request.Type.Direction == XFER_WRITE) {
-					if (copy_from_user
-					    (buff[sg_used], data_ptr, sz)) {
-						status = -EFAULT;
-						goto cleanup1;
-					}
-				} else {
-					memset(buff[sg_used], 0, sz);
-				}
-				left -= sz;
-				data_ptr += sz;
-				sg_used++;
-			}
-			c = cmd_special_alloc(h);
-			if (!c) {
-				status = -ENOMEM;
-				goto cleanup1;
-			}
-			c->cmd_type = CMD_IOCTL_PEND;
-			c->Header.ReplyQueue = 0;
-
-			if (ioc->buf_size > 0) {
-				c->Header.SGList = sg_used;
-				c->Header.SGTotal = sg_used;
-			} else {
-				c->Header.SGList = 0;
-				c->Header.SGTotal = 0;
-			}
-			c->Header.LUN = ioc->LUN_info;
-			c->Header.Tag.lower = c->busaddr;
-
-			c->Request = ioc->Request;
-			if (ioc->buf_size > 0) {
-				for (i = 0; i < sg_used; i++) {
-					temp64.val =
-					    pci_map_single(h->pdev, buff[i],
-						    buff_size[i],
-						    PCI_DMA_BIDIRECTIONAL);
-					c->SG[i].Addr.lower =
-					    temp64.val32.lower;
-					c->SG[i].Addr.upper =
-					    temp64.val32.upper;
-					c->SG[i].Len = buff_size[i];
-					c->SG[i].Ext = 0;	/* we are not chaining */
-				}
-			}
-			c->waiting = &wait;
-			enqueue_cmd_and_start_io(h, c);
-			wait_for_completion(&wait);
-			/* unlock the buffers from DMA */
-			for (i = 0; i < sg_used; i++) {
-				temp64.val32.lower = c->SG[i].Addr.lower;
-				temp64.val32.upper = c->SG[i].Addr.upper;
-				pci_unmap_single(h->pdev,
-					(dma_addr_t) temp64.val, buff_size[i],
-					PCI_DMA_BIDIRECTIONAL);
-			}
-			check_ioctl_unit_attention(h, c);
-			/* Copy the error information out */
-			ioc->error_info = *(c->err_info);
-			if (copy_to_user(argp, ioc, sizeof(*ioc))) {
-				cmd_special_free(h, c);
-				status = -EFAULT;
-				goto cleanup1;
-			}
-			if (ioc->Request.Type.Direction == XFER_READ) {
-				/* Copy the data out of the buffer we created */
-				BYTE __user *ptr = ioc->buf;
-				for (i = 0; i < sg_used; i++) {
-					if (copy_to_user
-					    (ptr, buff[i], buff_size[i])) {
-						cmd_special_free(h, c);
-						status = -EFAULT;
-						goto cleanup1;
-					}
-					ptr += buff_size[i];
-				}
-			}
-			cmd_special_free(h, c);
-			status = 0;
-		      cleanup1:
-			if (buff) {
-				for (i = 0; i < sg_used; i++)
-					kfree(buff[i]);
-				kfree(buff);
-			}
-			kfree(buff_size);
-			kfree(ioc);
-			return status;
-		}
+		return cciss_passthru(h, argp);
+	case CCISS_BIG_PASSTHRU:
+		return cciss_bigpassthru(h, argp);
 
 	/* scsi_cmd_ioctl handles these, below, though some are not */
 	/* very meaningful for cciss.  SG_IO is the main one people want. */
@@ -3986,9 +3938,6 @@ static int __devinit cciss_lookup_board_id(struct pci_dev *pdev, u32 *board_id)
 			subsystem_vendor_id;
 
 	for (i = 0; i < ARRAY_SIZE(products); i++) {
-		/* Stand aside for hpsa driver on request */
-		if (cciss_allow_hpsa && products[i].board_id == HPSA_BOUNDARY)
-			return -ENODEV;
 		if (*board_id == products[i].board_id)
 			return i;
 	}

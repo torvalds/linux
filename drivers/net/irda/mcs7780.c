@@ -734,7 +734,7 @@ static int mcs_net_open(struct net_device *netdev)
 	}
 
 	if (!mcs_setup_urbs(mcs))
-	goto error3;
+		goto error3;
 
 	ret = mcs_receive_start(mcs);
 	if (ret)

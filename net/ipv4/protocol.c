@@ -28,8 +28,7 @@
 #include <linux/spinlock.h>
 #include <net/protocol.h>
 
-const struct net_protocol *inet_protos[MAX_INET_PROTOS] ____cacheline_aligned_in_smp;
-static DEFINE_SPINLOCK(inet_proto_lock);
+const struct net_protocol __rcu *inet_protos[MAX_INET_PROTOS] __read_mostly;
 
 /*
  *	Add a protocol handler to the hash tables
@@ -37,20 +36,10 @@ static DEFINE_SPINLOCK(inet_proto_lock);
 
 int inet_add_protocol(const struct net_protocol *prot, unsigned char protocol)
 {
-	int hash, ret;
+	int hash = protocol & (MAX_INET_PROTOS - 1);
 
-	hash = protocol & (MAX_INET_PROTOS - 1);
-
-	spin_lock_bh(&inet_proto_lock);
-	if (inet_protos[hash]) {
-		ret = -1;
-	} else {
-		inet_protos[hash] = prot;
-		ret = 0;
-	}
-	spin_unlock_bh(&inet_proto_lock);
-
-	return ret;
+	return !cmpxchg((const struct net_protocol **)&inet_protos[hash],
+			NULL, prot) ? 0 : -1;
 }
 EXPORT_SYMBOL(inet_add_protocol);
 
@@ -60,18 +49,10 @@ EXPORT_SYMBOL(inet_add_protocol);
 
 int inet_del_protocol(const struct net_protocol *prot, unsigned char protocol)
 {
-	int hash, ret;
+	int ret, hash = protocol & (MAX_INET_PROTOS - 1);
 
-	hash = protocol & (MAX_INET_PROTOS - 1);
-
-	spin_lock_bh(&inet_proto_lock);
-	if (inet_protos[hash] == prot) {
-		inet_protos[hash] = NULL;
-		ret = 0;
-	} else {
-		ret = -1;
-	}
-	spin_unlock_bh(&inet_proto_lock);
+	ret = (cmpxchg((const struct net_protocol **)&inet_protos[hash],
+		       prot, NULL) == prot) ? 0 : -1;
 
 	synchronize_net();
 

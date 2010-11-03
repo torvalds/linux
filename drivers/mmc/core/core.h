@@ -22,8 +22,8 @@ struct mmc_bus_ops {
 	void (*detect)(struct mmc_host *);
 	int (*suspend)(struct mmc_host *);
 	int (*resume)(struct mmc_host *);
-	void (*power_save)(struct mmc_host *);
-	void (*power_restore)(struct mmc_host *);
+	int (*power_save)(struct mmc_host *);
+	int (*power_restore)(struct mmc_host *);
 };
 
 void mmc_attach_bus(struct mmc_host *host, const struct mmc_bus_ops *ops);
@@ -35,6 +35,8 @@ void mmc_set_chip_select(struct mmc_host *host, int mode);
 void mmc_set_clock(struct mmc_host *host, unsigned int hz);
 void mmc_set_bus_mode(struct mmc_host *host, unsigned int mode);
 void mmc_set_bus_width(struct mmc_host *host, unsigned int width);
+void mmc_set_bus_width_ddr(struct mmc_host *host, unsigned int width,
+			   unsigned int ddr);
 u32 mmc_select_voltage(struct mmc_host *host, u32 ocr);
 void mmc_set_timing(struct mmc_host *host, unsigned int timing);
 
@@ -58,7 +60,6 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr);
 
 /* Module parameters */
 extern int use_spi_crc;
-extern int mmc_assume_removable;
 
 /* Debugfs information for hosts and cards */
 void mmc_add_host_debugfs(struct mmc_host *host);

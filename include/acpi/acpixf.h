@@ -47,7 +47,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20100702
+#define ACPI_CA_VERSION                 0x20101013
 
 #include "actypes.h"
 #include "actbl.h"
@@ -72,6 +72,7 @@ extern u8 acpi_gbl_truncate_io_addresses;
 
 extern u32 acpi_current_gpe_count;
 extern struct acpi_table_fadt acpi_gbl_FADT;
+extern u8 acpi_gbl_system_awake_and_running;
 
 extern u32 acpi_rsdt_forced;
 /*
@@ -104,6 +105,10 @@ acpi_status acpi_get_system_info(struct acpi_buffer *ret_buffer);
 const char *acpi_format_exception(acpi_status exception);
 
 acpi_status acpi_purge_cached_objects(void);
+
+acpi_status acpi_install_interface(acpi_string interface_name);
+
+acpi_status acpi_remove_interface(acpi_string interface_name);
 
 /*
  * ACPI Memory management
@@ -263,6 +268,8 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 acpi_status acpi_install_exception_handler(acpi_exception_handler handler);
 #endif
 
+acpi_status acpi_install_interface_handler(acpi_interface_handler handler);
+
 /*
  * Event interfaces
  */
@@ -307,6 +314,8 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 		       u32 register_count, u32 interrupt_number);
 
 acpi_status acpi_remove_gpe_block(acpi_handle gpe_device);
+
+acpi_status acpi_update_gpes(void);
 
 /*
  * Resource interfaces

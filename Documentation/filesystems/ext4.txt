@@ -353,6 +353,20 @@ noauto_da_alloc		replacing existing files via patterns such as
 			system crashes before the delayed allocation
 			blocks are forced to disk.
 
+noinit_itable		Do not initialize any uninitialized inode table
+			blocks in the background.  This feature may be
+			used by installation CD's so that the install
+			process can complete as quickly as possible; the
+			inode table initialization process would then be
+			deferred until the next time the  file system
+			is unmounted.
+
+init_itable=n		The lazy itable init code will wait n times the
+			number of milliseconds it took to zero out the
+			previous block group's inode table.  This
+			minimizes the impact on the systme performance
+			while file system's inode table is being initialized.
+
 discard		Controls whether ext4 should issue discard/TRIM
 nodiscard(*)		commands to the underlying block device when
 			blocks are freed.  This is useful for SSD devices

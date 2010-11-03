@@ -5,8 +5,7 @@
  *  Copyright (C) 2007-2010 Angelo Arrifano <miknix@gmail.com>
  *
  *  Information gathered from disassebled dsdt and from here:
- *  "http://download.microsoft.com/download/9/c/5/
- *  9c5b2167-8017-4bae-9fde-d599bac8184a/DirAppLaunch_Vista.doc"
+ *  <http://www.microsoft.com/whdc/system/platform/firmware/DirAppLaunch.mspx> 
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -398,16 +397,15 @@ static int __init quickstart_init_input(void)
 static int __init quickstart_init(void)
 {
 	int ret;
-	acpi_status status = 0;
 
 	/* ACPI Check */
 	if (acpi_disabled)
 		return -ENODEV;
 
 	/* ACPI driver register */
-	status = acpi_bus_register_driver(&quickstart_acpi_driver);
-	if (status < 0)
-		return -ENODEV;
+	ret = acpi_bus_register_driver(&quickstart_acpi_driver);
+	if (ret)
+		return ret;
 
 	/* If existing bus with no devices */
 	if (!quickstart_data.btn_lst) {

@@ -11,9 +11,8 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select PM_RUNTIME
 	select VFP
 	select NEON if ARCH_OMAP3 || ARCH_OMAP4
-	select SERIAL_8250
-	select SERIAL_CORE_CONSOLE
-	select SERIAL_8250_CONSOLE
+	select SERIAL_OMAP
+	select SERIAL_OMAP_CONSOLE
 	select I2C
 	select I2C_OMAP
 	select MFD
@@ -35,7 +34,7 @@ config ARCH_OMAP3
 	default y
 	select CPU_V7
 	select USB_ARCH_HAS_EHCI
-	select ARM_L1_CACHE_SHIFT_6
+	select ARM_L1_CACHE_SHIFT_6 if !ARCH_OMAP4
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
@@ -43,6 +42,8 @@ config ARCH_OMAP4
 	depends on ARCH_OMAP2PLUS
 	select CPU_V7
 	select ARM_GIC
+	select PL310_ERRATA_588369
+	select ARM_ERRATA_720789
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
@@ -99,20 +100,20 @@ config MACH_OMAP2_TUSB6010
 
 config MACH_OMAP_H4
 	bool "OMAP 2420 H4 board"
-	depends on ARCH_OMAP2
+	depends on ARCH_OMAP2420
 	default y
 	select OMAP_PACKAGE_ZAF
 	select OMAP_DEBUG_DEVICES
 
 config MACH_OMAP_APOLLON
 	bool "OMAP 2420 Apollon board"
-	depends on ARCH_OMAP2
+	depends on ARCH_OMAP2420
 	default y
 	select OMAP_PACKAGE_ZAC
 
 config MACH_OMAP_2430SDP
 	bool "OMAP 2430 SDP board"
-	depends on ARCH_OMAP2
+	depends on ARCH_OMAP2430
 	default y
 	select OMAP_PACKAGE_ZAC
 
@@ -134,6 +135,26 @@ config MACH_OMAP_LDP
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
+
+config MACH_OMAP3530_LV_SOM
+	bool "OMAP3 Logic 3530 LV SOM board"
+	depends on ARCH_OMAP3
+	select OMAP_PACKAGE_CBB
+	default y
+	help
+	 Support for the LogicPD OMAP3530 SOM Development kit
+	 for full description please see the products webpage at
+	 http://www.logicpd.com/products/development-kits/texas-instruments-zoom%E2%84%A2-omap35x-development-kit
+
+config MACH_OMAP3_TORPEDO
+	bool "OMAP3 Logic 35x Torpedo board"
+	depends on ARCH_OMAP3
+	select OMAP_PACKAGE_CBB
+	default y
+	help
+	 Support for the LogicPD OMAP35x Torpedo Development kit
+	 for full description please see the products webpage at
+	 http://www.logicpd.com/products/development-kits/zoom-omap35x-torpedo-development-kit
 
 config MACH_OVERO
 	bool "Gumstix Overo board"
@@ -200,12 +221,18 @@ config MACH_OMAP_ZOOM2
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
+	select SERIAL_8250
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_8250_CONSOLE
 
 config MACH_OMAP_ZOOM3
 	bool "OMAP3630 Zoom3 board"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBP
+	select SERIAL_8250
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_8250_CONSOLE
 
 config MACH_CM_T35
 	bool "CompuLab CM-T35 module"
@@ -214,8 +241,21 @@ config MACH_CM_T35
 	select OMAP_PACKAGE_CUS
 	select OMAP_MUX
 
+config MACH_CM_T3517
+	bool "CompuLab CM-T3517 module"
+	depends on ARCH_OMAP3
+	default y
+	select OMAP_PACKAGE_CBB
+	select OMAP_MUX
+
 config MACH_IGEP0020
 	bool "IGEP v2 board"
+	depends on ARCH_OMAP3
+	default y
+	select OMAP_PACKAGE_CBB
+
+config MACH_IGEP0030
+	bool "IGEP OMAP3 module"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB

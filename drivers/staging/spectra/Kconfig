@@ -6,7 +6,7 @@ menuconfig SPECTRA
 	default n
 	---help---
 	  Enable the FTL pseudo-filesystem used with the NAND Flash
-	  controller on Intel Moorestown Platform to pretend to be a disk
+	  controller on Intel Moorestown Platform to pretend to be a disk.
 
 choice
 	prompt "Compile for"

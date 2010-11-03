@@ -1264,7 +1264,7 @@ struct xfrm_tunnel {
 	int (*handler)(struct sk_buff *skb);
 	int (*err_handler)(struct sk_buff *skb, u32 info);
 
-	struct xfrm_tunnel *next;
+	struct xfrm_tunnel __rcu *next;
 	int priority;
 };
 
@@ -1272,7 +1272,7 @@ struct xfrm6_tunnel {
 	int (*handler)(struct sk_buff *skb);
 	int (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			   u8 type, u8 code, int offset, __be32 info);
-	struct xfrm6_tunnel *next;
+	struct xfrm6_tunnel __rcu *next;
 	int priority;
 };
 
@@ -1419,7 +1419,6 @@ extern int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 extern int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family);
 extern int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family);
 extern __be32 xfrm6_tunnel_alloc_spi(struct net *net, xfrm_address_t *saddr);
-extern void xfrm6_tunnel_free_spi(struct net *net, xfrm_address_t *saddr);
 extern __be32 xfrm6_tunnel_spi_lookup(struct net *net, xfrm_address_t *saddr);
 extern int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb);
@@ -1466,8 +1465,6 @@ struct xfrm_state *xfrm_find_acq(struct net *net, struct xfrm_mark *mark,
 				 xfrm_address_t *saddr, int create,
 				 unsigned short family);
 extern int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol);
-extern int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *xdst,
-			  struct flowi *fl, int family, int strict);
 
 #ifdef CONFIG_XFRM_MIGRATE
 extern int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,

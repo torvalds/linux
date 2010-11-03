@@ -69,7 +69,7 @@ static inline void cfq_blkiocg_update_completion_stats(struct blkio_group *blkg,
 
 static inline void cfq_blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 			struct blkio_group *blkg, void *key, dev_t dev) {
-	blkiocg_add_blkio_group(blkcg, blkg, key, dev);
+	blkiocg_add_blkio_group(blkcg, blkg, key, dev, BLKIO_POLICY_PROP);
 }
 
 static inline int cfq_blkiocg_del_blkio_group(struct blkio_group *blkg)

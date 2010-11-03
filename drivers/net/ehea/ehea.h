@@ -396,7 +396,9 @@ struct ehea_port_res {
 	int swqe_ll_count;
 	u32 swqe_id_counter;
 	u64 tx_packets;
+	u64 tx_bytes;
 	u64 rx_packets;
+	u64 rx_bytes;
 	u32 poll_counter;
 	struct net_lro_mgr lro_mgr;
 	struct net_lro_desc lro_desc[MAX_LRO_DESCRIPTORS];
@@ -491,6 +493,8 @@ struct ehea_port {
 	u8 full_duplex;
 	u8 autoneg;
 	u8 num_def_qps;
+	wait_queue_head_t swqe_avail_wq;
+	wait_queue_head_t restart_wq;
 };
 
 struct port_res_cfg {

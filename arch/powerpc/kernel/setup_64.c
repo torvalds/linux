@@ -486,7 +486,7 @@ static void __init emergency_stack_init(void)
 	 * bringup, we need to get at them in real mode. This means they
 	 * must also be within the RMO region.
 	 */
-	limit = min(slb0_limit(), memblock.rmo_size);
+	limit = min(slb0_limit(), ppc64_rma_size);
 
 	for_each_possible_cpu(i) {
 		unsigned long sp;

@@ -165,8 +165,11 @@ static ssize_t pmdown_time_set(struct device *dev,
 {
 	struct snd_soc_pcm_runtime *rtd =
 			container_of(dev, struct snd_soc_pcm_runtime, dev);
+	int ret;
 
-	strict_strtol(buf, 10, &rtd->pmdown_time);
+	ret = strict_strtol(buf, 10, &rtd->pmdown_time);
+	if (ret)
+		return ret;
 
 	return count;
 }
@@ -230,6 +233,7 @@ static const struct file_operations codec_reg_fops = {
 	.open = codec_reg_open_file,
 	.read = codec_reg_read_file,
 	.write = codec_reg_write_file,
+	.llseek = default_llseek,
 };
 
 static void soc_init_codec_debugfs(struct snd_soc_codec *codec)

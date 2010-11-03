@@ -60,7 +60,7 @@ static unsigned int ns_to_tim_reg(unsigned int tim_mult, unsigned int nsecs)
 	 * Compute # of eclock periods to get desired duration in
 	 * nanoseconds.
 	 */
-	val = DIV_ROUND_UP(nsecs * (octeon_get_clock_rate() / 1000000),
+	val = DIV_ROUND_UP(nsecs * (octeon_get_io_clock_rate() / 1000000),
 			  1000 * tim_mult);
 
 	return val;

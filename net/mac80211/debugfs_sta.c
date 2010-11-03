@@ -36,6 +36,7 @@ static ssize_t sta_ ##name## _read(struct file *file,			\
 static const struct file_operations sta_ ##name## _ops = {		\
 	.read = sta_##name##_read,					\
 	.open = mac80211_open_file_generic,				\
+	.llseek = generic_file_llseek,					\
 }
 
 #define STA_OPS_RW(name)						\
@@ -43,6 +44,7 @@ static const struct file_operations sta_ ##name## _ops = {		\
 	.read = sta_##name##_read,					\
 	.write = sta_##name##_write,					\
 	.open = mac80211_open_file_generic,				\
+	.llseek = generic_file_llseek,					\
 }
 
 #define STA_FILE(name, field, format)					\
@@ -196,7 +198,8 @@ static ssize_t sta_agg_status_write(struct file *file, const char __user *userbu
 		else
 			ret = ieee80211_stop_tx_ba_session(&sta->sta, tid);
 	} else {
-		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_RECIPIENT, 3);
+		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_RECIPIENT,
+					       3, true);
 		ret = 0;
 	}
 
@@ -300,7 +303,7 @@ STA_OPS(ht_capa);
 
 void ieee80211_sta_debugfs_add(struct sta_info *sta)
 {
-	struct dentry *stations_dir = sta->local->debugfs.stations;
+	struct dentry *stations_dir = sta->sdata->debugfs.subdir_stations;
 	u8 mac[3*ETH_ALEN];
 
 	sta->debugfs.add_has_run = true;

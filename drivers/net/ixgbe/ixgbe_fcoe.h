@@ -66,6 +66,7 @@ struct ixgbe_fcoe {
 	u8 tc;
 	u8 up;
 #endif
+	atomic_t refcnt;
 	spinlock_t lock;
 	struct pci_pool *pool;
 	struct ixgbe_fcoe_ddp ddp[IXGBE_FCOE_DDP_MAX];

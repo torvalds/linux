@@ -93,8 +93,13 @@ static struct mfd_cell rtc_devs[] = {
 static struct resource onkey_resources[] = {
 	{
 		.name	= "max8925-onkey",
-		.start	= MAX8925_IRQ_GPM_SW_3SEC,
-		.end	= MAX8925_IRQ_GPM_SW_3SEC,
+		.start	= MAX8925_IRQ_GPM_SW_R,
+		.end	= MAX8925_IRQ_GPM_SW_R,
+		.flags	= IORESOURCE_IRQ,
+	}, {
+		.name	= "max8925-onkey",
+		.start	= MAX8925_IRQ_GPM_SW_F,
+		.end	= MAX8925_IRQ_GPM_SW_F,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -102,7 +107,7 @@ static struct resource onkey_resources[] = {
 static struct mfd_cell onkey_devs[] = {
 	{
 		.name		= "max8925-onkey",
-		.num_resources	= 1,
+		.num_resources	= 2,
 		.resources	= &onkey_resources[0],
 		.id		= -1,
 	},

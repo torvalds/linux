@@ -309,7 +309,8 @@ static int amd_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 
 	num_entries = A_SIZE_LVL2(agp_bridge->current_size)->num_entries;
 
-	if (type != 0 || mem->type != 0)
+	if (type != mem->type ||
+	    agp_bridge->driver->agp_type_to_mask_type(agp_bridge, type))
 		return -EINVAL;
 
 	if ((pg_start + mem->page_count) > num_entries)
@@ -348,7 +349,8 @@ static int amd_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 	unsigned long __iomem *cur_gatt;
 	unsigned long addr;
 
-	if (type != 0 || mem->type != 0)
+	if (type != mem->type ||
+	    agp_bridge->driver->agp_type_to_mask_type(agp_bridge, type))
 		return -EINVAL;
 
 	for (i = pg_start; i < (mem->page_count + pg_start); i++) {

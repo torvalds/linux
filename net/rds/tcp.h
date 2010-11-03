@@ -43,8 +43,6 @@ struct rds_tcp_statistics {
 };
 
 /* tcp.c */
-int __init rds_tcp_init(void);
-void rds_tcp_exit(void);
 void rds_tcp_tune(struct socket *sock);
 void rds_tcp_nonagle(struct socket *sock);
 void rds_tcp_set_callbacks(struct socket *sock, struct rds_connection *conn);
@@ -61,16 +59,15 @@ void rds_tcp_conn_shutdown(struct rds_connection *conn);
 void rds_tcp_state_change(struct sock *sk);
 
 /* tcp_listen.c */
-int __init rds_tcp_listen_init(void);
+int rds_tcp_listen_init(void);
 void rds_tcp_listen_stop(void);
 void rds_tcp_listen_data_ready(struct sock *sk, int bytes);
 
 /* tcp_recv.c */
-int __init rds_tcp_recv_init(void);
+int rds_tcp_recv_init(void);
 void rds_tcp_recv_exit(void);
 void rds_tcp_data_ready(struct sock *sk, int bytes);
 int rds_tcp_recv(struct rds_connection *conn);
-void rds_tcp_inc_purge(struct rds_incoming *inc);
 void rds_tcp_inc_free(struct rds_incoming *inc);
 int rds_tcp_inc_copy_to_user(struct rds_incoming *inc, struct iovec *iov,
 			     size_t size);
@@ -81,8 +78,6 @@ void rds_tcp_xmit_complete(struct rds_connection *conn);
 int rds_tcp_xmit(struct rds_connection *conn, struct rds_message *rm,
 	         unsigned int hdr_off, unsigned int sg, unsigned int off);
 void rds_tcp_write_space(struct sock *sk);
-int rds_tcp_xmit_cong_map(struct rds_connection *conn,
-			  struct rds_cong_map *map, unsigned long offset);
 
 /* tcp_stats.c */
 DECLARE_PER_CPU(struct rds_tcp_statistics, rds_tcp_stats);

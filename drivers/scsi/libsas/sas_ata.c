@@ -162,6 +162,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	unsigned int xfer = 0;
 	unsigned int si;
 
+	/* If the device fell off, no sense in issuing commands */
+	if (dev->gone)
+		return AC_ERR_SYSTEM;
+
 	task = sas_alloc_task(GFP_ATOMIC);
 	if (!task)
 		return AC_ERR_SYSTEM;
@@ -347,6 +351,7 @@ static int sas_ata_scr_read(struct ata_link *link, unsigned int sc_reg_in,
 static struct ata_port_operations sas_sata_ops = {
 	.phy_reset		= sas_ata_phy_reset,
 	.post_internal_cmd	= sas_ata_post_internal,
+	.qc_defer               = ata_std_qc_defer,
 	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= sas_ata_qc_issue,
 	.qc_fill_rtf		= sas_ata_qc_fill_rtf,

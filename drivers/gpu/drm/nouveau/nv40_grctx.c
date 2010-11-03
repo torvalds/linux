@@ -596,13 +596,13 @@ nv40_graph_construct_shader(struct nouveau_grctx *ctx)
 
 	offset += 0x0280/4;
 	for (i = 0; i < 16; i++, offset += 2)
-		nv_wo32(dev, obj, offset, 0x3f800000);
+		nv_wo32(obj, offset * 4, 0x3f800000);
 
 	for (vs = 0; vs < vs_nr; vs++, offset += vs_len) {
 		for (i = 0; i < vs_nr_b0 * 6; i += 6)
-			nv_wo32(dev, obj, offset + b0_offset + i, 0x00000001);
+			nv_wo32(obj, (offset + b0_offset + i) * 4, 0x00000001);
 		for (i = 0; i < vs_nr_b1 * 4; i += 4)
-			nv_wo32(dev, obj, offset + b1_offset + i, 0x3f800000);
+			nv_wo32(obj, (offset + b1_offset + i) * 4, 0x3f800000);
 	}
 }
 

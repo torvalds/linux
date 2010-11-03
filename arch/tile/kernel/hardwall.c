@@ -774,6 +774,7 @@ static const struct file_operations dev_hardwall_fops = {
 #endif
 	.flush          = hardwall_flush,
 	.release        = hardwall_release,
+	.llseek		= noop_llseek,
 };
 
 static struct cdev hardwall_dev;

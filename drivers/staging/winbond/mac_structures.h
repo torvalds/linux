@@ -177,23 +177,6 @@ enum enum_MMPDUResultCode
 } WB_MMPDURESULTCODE, *PWB_MMPDURESULTCODE;
 */
 
-/*===========================================================
-// enum_TxRate --
-//   Define the transmission constants based on W89C32 MAC
-//   target specification.
-//===========================================================*/
-typedef enum enum_TxRate {
-    TXRATE_1M               = 0,
-    TXRATE_2MLONG           = 2,
-    TXRATE_2MSHORT          = 3,
-    TXRATE_55MLONG          = 4,
-    TXRATE_55MSHORT         = 5,
-    TXRATE_11MLONG          = 6,
-    TXRATE_11MSHORT         = 7,
-    TXRATE_AUTO             = 255           /* PD43 20021108 */
-} WB_TXRATE, *PWB_TXRATE;
-
-
 #define	RATE_BITMAP_1M				1
 #define	RATE_BITMAP_2M				2
 #define	RATE_BITMAP_5dot5M			5

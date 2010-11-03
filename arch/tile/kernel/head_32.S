@@ -23,6 +23,7 @@
 #include <asm/asm-offsets.h>
 #include <hv/hypervisor.h>
 #include <arch/chip.h>
+#include <arch/spr_def.h>
 
 /*
  * This module contains the entry code for kernel images. It performs the
@@ -76,7 +77,7 @@ ENTRY(_start)
 	}
 1:
 
-	/* Get our processor number and save it away in SAVE_1_0. */
+	/* Get our processor number and save it away in SAVE_K_0. */
 	jal hv_inquire_topology
 	mulll_uu r4, r1, r2        /* r1 == y, r2 == width */
 	add r4, r4, r0             /* r0 == x, so r4 == cpu == y*width + x */
@@ -124,7 +125,7 @@ ENTRY(_start)
 	lw r0, r0
 	lw sp, r1
 	or r4, sp, r4
-	mtspr SYSTEM_SAVE_1_0, r4  /* save ksp0 + cpu */
+	mtspr SPR_SYSTEM_SAVE_K_0, r4  /* save ksp0 + cpu */
 	addi sp, sp, -STACK_TOP_DELTA
 	{
 	  move lr, zero   /* stop backtraces in the called function */

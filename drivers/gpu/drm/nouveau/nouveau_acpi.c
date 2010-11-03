@@ -292,6 +292,6 @@ nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector)
 	if (ret < 0)
 		return ret;
 
-	nv_connector->edid = edid;
+	nv_connector->edid = kmemdup(edid, EDID_LENGTH, GFP_KERNEL);
 	return 0;
 }

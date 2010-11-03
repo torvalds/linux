@@ -31,6 +31,8 @@
 
 #define O2HB_REGION_TIMEOUT_MS		2000
 
+#define O2HB_MAX_REGION_NAME_LEN	32
+
 /* number of changes to be seen as live */
 #define O2HB_LIVE_THRESHOLD	   2
 /* number of equal samples to be seen as dead */
@@ -81,5 +83,7 @@ int o2hb_check_node_heartbeating(u8 node_num);
 int o2hb_check_node_heartbeating_from_callback(u8 node_num);
 int o2hb_check_local_node_heartbeating(void);
 void o2hb_stop_all_regions(void);
+int o2hb_get_all_regions(char *region_uuids, u8 numregions);
+int o2hb_global_heartbeat_active(void);
 
 #endif /* O2CLUSTER_HEARTBEAT_H */

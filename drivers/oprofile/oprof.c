@@ -225,26 +225,17 @@ post_sync:
 	mutex_unlock(&start_mutex);
 }
 
-int oprofile_set_backtrace(unsigned long val)
+int oprofile_set_ulong(unsigned long *addr, unsigned long val)
 {
-	int err = 0;
+	int err = -EBUSY;
 
 	mutex_lock(&start_mutex);
-
-	if (oprofile_started) {
-		err = -EBUSY;
-		goto out;
+	if (!oprofile_started) {
+		*addr = val;
+		err = 0;
 	}
-
-	if (!oprofile_ops.backtrace) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	oprofile_backtrace_depth = val;
-
-out:
 	mutex_unlock(&start_mutex);
+
 	return err;
 }
 
@@ -257,16 +248,9 @@ static int __init oprofile_init(void)
 		printk(KERN_INFO "oprofile: using timer interrupt.\n");
 		err = oprofile_timer_init(&oprofile_ops);
 		if (err)
-			goto out_arch;
+			return err;
 	}
-	err = oprofilefs_register();
-	if (err)
-		goto out_arch;
-	return 0;
-
-out_arch:
-	oprofile_arch_exit();
-	return err;
+	return oprofilefs_register();
 }
 
 

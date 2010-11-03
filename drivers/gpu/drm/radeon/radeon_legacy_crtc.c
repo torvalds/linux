@@ -348,10 +348,25 @@ void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 			 struct drm_framebuffer *old_fb)
 {
+	return radeon_crtc_do_set_base(crtc, old_fb, x, y, 0);
+}
+
+int radeon_crtc_set_base_atomic(struct drm_crtc *crtc,
+				struct drm_framebuffer *fb,
+				int x, int y, enum mode_set_atomic state)
+{
+	return radeon_crtc_do_set_base(crtc, fb, x, y, 1);
+}
+
+int radeon_crtc_do_set_base(struct drm_crtc *crtc,
+			 struct drm_framebuffer *fb,
+			 int x, int y, int atomic)
+{
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_framebuffer *radeon_fb;
+	struct drm_framebuffer *target_fb;
 	struct drm_gem_object *obj;
 	struct radeon_bo *rbo;
 	uint64_t base;
@@ -364,14 +379,21 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	DRM_DEBUG_KMS("\n");
 	/* no fb bound */
-	if (!crtc->fb) {
+	if (!atomic && !crtc->fb) {
 		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
 
-	radeon_fb = to_radeon_framebuffer(crtc->fb);
+	if (atomic) {
+		radeon_fb = to_radeon_framebuffer(fb);
+		target_fb = fb;
+	}
+	else {
+		radeon_fb = to_radeon_framebuffer(crtc->fb);
+		target_fb = crtc->fb;
+	}
 
-	switch (crtc->fb->bits_per_pixel) {
+	switch (target_fb->bits_per_pixel) {
 	case 8:
 		format = 2;
 		break;
@@ -415,10 +437,10 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	crtc_offset_cntl = 0;
 
-	pitch_pixels = crtc->fb->pitch / (crtc->fb->bits_per_pixel / 8);
-	crtc_pitch  = (((pitch_pixels * crtc->fb->bits_per_pixel) +
-			((crtc->fb->bits_per_pixel * 8) - 1)) /
-		       (crtc->fb->bits_per_pixel * 8));
+	pitch_pixels = target_fb->pitch / (target_fb->bits_per_pixel / 8);
+	crtc_pitch  = (((pitch_pixels * target_fb->bits_per_pixel) +
+			((target_fb->bits_per_pixel * 8) - 1)) /
+		       (target_fb->bits_per_pixel * 8));
 	crtc_pitch |= crtc_pitch << 16;
 
 
@@ -443,14 +465,14 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 			crtc_tile_x0_y0 = x | (y << 16);
 			base &= ~0x7ff;
 		} else {
-			int byteshift = crtc->fb->bits_per_pixel >> 4;
+			int byteshift = target_fb->bits_per_pixel >> 4;
 			int tile_addr = (((y >> 3) * pitch_pixels +  x) >> (8 - byteshift)) << 11;
 			base += tile_addr + ((x << byteshift) % 256) + ((y % 8) << 8);
 			crtc_offset_cntl |= (y % 16);
 		}
 	} else {
 		int offset = y * pitch_pixels + x;
-		switch (crtc->fb->bits_per_pixel) {
+		switch (target_fb->bits_per_pixel) {
 		case 8:
 			offset *= 1;
 			break;
@@ -496,8 +518,8 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	WREG32(RADEON_CRTC_OFFSET + radeon_crtc->crtc_offset, crtc_offset);
 	WREG32(RADEON_CRTC_PITCH + radeon_crtc->crtc_offset, crtc_pitch);
 
-	if (old_fb && old_fb != crtc->fb) {
-		radeon_fb = to_radeon_framebuffer(old_fb);
+	if (!atomic && fb && fb != crtc->fb) {
+		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = radeon_fb->obj->driver_private;
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
@@ -717,10 +739,6 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		pll = &rdev->clock.p1pll;
 
 	pll->flags = RADEON_PLL_LEGACY;
-	if (radeon_new_pll == 1)
-		pll->algo = PLL_ALGO_NEW;
-	else
-		pll->algo = PLL_ALGO_LEGACY;
 
 	if (mode->clock > 200000) /* range limits??? */
 		pll->flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
@@ -1040,6 +1058,7 @@ static const struct drm_crtc_helper_funcs legacy_helper_funcs = {
 	.mode_fixup = radeon_crtc_mode_fixup,
 	.mode_set = radeon_crtc_mode_set,
 	.mode_set_base = radeon_crtc_set_base,
+	.mode_set_base_atomic = radeon_crtc_set_base_atomic,
 	.prepare = radeon_crtc_prepare,
 	.commit = radeon_crtc_commit,
 	.load_lut = radeon_crtc_load_lut,

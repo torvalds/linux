@@ -419,8 +419,6 @@ static void __init net2big_init(void)
 
 /* Warning: LaCie use a wrong mach-type (0x20e=526) in their bootloader. */
 MACHINE_START(NET2BIG, "LaCie 2Big Network")
-	.phys_io	= ORION5X_REGS_PHYS_BASE,
-	.io_pg_offst	= ((ORION5X_REGS_VIRT_BASE) >> 18) & 0xFFFC,
 	.boot_params	= 0x00000100,
 	.init_machine	= net2big_init,
 	.map_io		= orion5x_map_io,

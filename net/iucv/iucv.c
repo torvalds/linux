@@ -1798,7 +1798,8 @@ static void iucv_work_fn(struct work_struct *work)
  * Handles external interrupts coming in from CP.
  * Places the interrupt buffer on a queue and schedules iucv_tasklet_fn().
  */
-static void iucv_external_interrupt(u16 code)
+static void iucv_external_interrupt(unsigned int ext_int_code,
+				    unsigned int param32, unsigned long param64)
 {
 	struct iucv_irq_data *p;
 	struct iucv_irq_list *work;

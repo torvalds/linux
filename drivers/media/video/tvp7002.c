@@ -330,19 +330,6 @@ static const struct i2c_reg_value tvp7002_parms_720P50[] = {
 	{ TVP7002_EOR, 0xff, TVP7002_RESERVED }
 };
 
-/* Struct list for available formats */
-static const struct v4l2_fmtdesc tvp7002_fmt_list[] = {
-	{
-	 .index = 0,
-	 .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-	 .flags = 0,
-	 .description = "8-bit UYVY 4:2:2 Format",
-	 .pixelformat = V4L2_PIX_FMT_UYVY,
-	},
-};
-
-#define NUM_FORMATS		ARRAY_SIZE(tvp7002_fmt_list)
-
 /* Preset definition for handling device operation */
 struct tvp7002_preset_definition {
 	u32 preset;
@@ -439,7 +426,6 @@ struct tvp7002 {
 	int ver;
 	int streaming;
 
-	struct v4l2_pix_format pix;
 	const struct tvp7002_preset_definition *current_preset;
 	u8 gain;
 };
@@ -695,81 +681,33 @@ static int tvp7002_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 }
 
 /*
- * tvp7002_try_fmt_cap() - V4L2 decoder interface handler for try_fmt
+ * tvp7002_mbus_fmt() - V4L2 decoder interface handler for try/s/g_mbus_fmt
  * @sd: pointer to standard V4L2 sub-device structure
- * @f: pointer to standard V4L2 VIDIOC_TRY_FMT ioctl structure
+ * @f: pointer to mediabus format structure
  *
- * Implement the VIDIOC_TRY_FMT ioctl for the CAPTURE buffer type. This
- * ioctl is used to negotiate the image capture size and pixel format
- * without actually making it take effect.
+ * Negotiate the image capture size and mediabus format.
+ * There is only one possible format, so this single function works for
+ * get, set and try.
  */
-static int tvp7002_try_fmt_cap(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int tvp7002_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *f)
 {
 	struct tvp7002 *device = to_tvp7002(sd);
 	struct v4l2_dv_enum_preset e_preset;
-	struct v4l2_pix_format *pix;
-	int error = 0;
-
-	pix = &f->fmt.pix;
+	int error;
 
 	/* Calculate height and width based on current standard */
 	error = v4l_fill_dv_preset_info(device->current_preset->preset, &e_preset);
 	if (error)
-		return -EINVAL;
+		return error;
 
-	pix->width = e_preset.width;
-	pix->height = e_preset.height;
-	pix->pixelformat = V4L2_PIX_FMT_UYVY;
-	pix->field = device->current_preset->scanmode;
-	pix->bytesperline = pix->width * 2;
-	pix->sizeimage = pix->bytesperline * pix->height;
-	pix->colorspace = device->current_preset->color_space;
-	pix->priv = 0;
+	f->width = e_preset.width;
+	f->height = e_preset.height;
+	f->code = V4L2_MBUS_FMT_YUYV10_1X20;
+	f->field = device->current_preset->scanmode;
+	f->colorspace = device->current_preset->color_space;
 
-	v4l2_dbg(1, debug, sd, "Try FMT: pixelformat - %s, bytesperline - %d"
-			"Width - %d, Height - %d", "8-bit UYVY 4:2:2 Format",
-			pix->bytesperline, pix->width, pix->height);
-	return error;
-}
-
-/*
- * tvp7002_s_fmt() - V4L2 decoder interface handler for s_fmt
- * @sd: pointer to standard V4L2 sub-device structure
- * @f: pointer to standard V4L2 VIDIOC_S_FMT ioctl structure
- *
- * If the requested format is supported, configures the HW to use that
- * format, returns error code if format not supported or HW can't be
- * correctly configured.
- */
-static int tvp7002_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
-{
-	struct tvp7002 *decoder = to_tvp7002(sd);
-	int rval;
-
-	rval = tvp7002_try_fmt_cap(sd, f);
-	if (!rval)
-		decoder->pix = f->fmt.pix;
-	return rval;
-}
-
-/*
- * tvp7002_g_fmt() - V4L2 decoder interface handler for tvp7002_g_fmt
- * @sd: pointer to standard V4L2 sub-device structure
- * @f: pointer to standard V4L2 v4l2_format structure
- *
- * Returns the decoder's current pixel format in the v4l2_format
- * parameter.
- */
-static int tvp7002_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
-{
-	struct tvp7002 *decoder = to_tvp7002(sd);
-
-	f->fmt.pix = decoder->pix;
-
-	v4l2_dbg(1, debug, sd, "Current FMT: bytesperline - %d"
-			"Width - %d, Height - %d",
-			decoder->pix.bytesperline,
-			decoder->pix.width, decoder->pix.height);
+	v4l2_dbg(1, debug, sd, "MBUS_FMT: Width - %d, Height - %d",
+			f->width, f->height);
 	return 0;
 }
 
@@ -894,21 +832,21 @@ static int tvp7002_s_register(struct v4l2_subdev *sd,
 #endif
 
 /*
- * tvp7002_enum_fmt() - Enum supported formats
+ * tvp7002_enum_mbus_fmt() - Enum supported mediabus formats
  * @sd: pointer to standard V4L2 sub-device structure
- * @fmtdesc: pointer to format struct
+ * @index: format index
+ * @code: pointer to mediabus format
  *
- * Enumerate supported formats.
+ * Enumerate supported mediabus formats.
  */
 
-static int tvp7002_enum_fmt(struct v4l2_subdev *sd,
-						struct v4l2_fmtdesc *fmtdesc)
+static int tvp7002_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
+					enum v4l2_mbus_pixelcode *code)
 {
 	/* Check requested format index is within range */
-	if (fmtdesc->index < 0 || fmtdesc->index >= NUM_FORMATS)
+	if (index)
 		return -EINVAL;
-	*fmtdesc = tvp7002_fmt_list[fmtdesc->index];
-
+	*code = V4L2_MBUS_FMT_YUYV10_1X20;
 	return 0;
 }
 
@@ -1027,9 +965,10 @@ static const struct v4l2_subdev_video_ops tvp7002_video_ops = {
 	.s_dv_preset = tvp7002_s_dv_preset,
 	.query_dv_preset = tvp7002_query_dv_preset,
 	.s_stream = tvp7002_s_stream,
-	.g_fmt = tvp7002_g_fmt,
-	.s_fmt = tvp7002_s_fmt,
-	.enum_fmt = tvp7002_enum_fmt,
+	.g_mbus_fmt = tvp7002_mbus_fmt,
+	.try_mbus_fmt = tvp7002_mbus_fmt,
+	.s_mbus_fmt = tvp7002_mbus_fmt,
+	.enum_mbus_fmt = tvp7002_enum_mbus_fmt,
 };
 
 /* V4L2 top level operation handlers */
@@ -1040,17 +979,6 @@ static const struct v4l2_subdev_ops tvp7002_ops = {
 
 static struct tvp7002 tvp7002_dev = {
 	.streaming = 0,
-
-	.pix = {
-		.width = 1280,
-		.height = 720,
-		.pixelformat = V4L2_PIX_FMT_UYVY,
-		.field = V4L2_FIELD_NONE,
-		.bytesperline = 1280 * 2,
-		.sizeimage = 1280 * 2 * 720,
-		.colorspace = V4L2_COLORSPACE_REC709,
-		},
-
 	.current_preset = tvp7002_presets,
 	.gain = 0,
 };

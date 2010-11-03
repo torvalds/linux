@@ -365,7 +365,7 @@ void zfcp_fc_port_did_lookup(struct work_struct *work)
 	}
 
 	if (!port->d_id) {
-		zfcp_erp_port_failed(port, "fcgpn_2", NULL);
+		zfcp_erp_set_port_status(port, ZFCP_STATUS_COMMON_ERP_FAILED);
 		goto out;
 	}
 

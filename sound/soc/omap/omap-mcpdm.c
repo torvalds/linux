@@ -32,7 +32,6 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <plat/control.h>
 #include <plat/dma.h>
 #include <plat/mcbsp.h>
 #include "mcpdm.h"

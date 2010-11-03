@@ -398,6 +398,7 @@ struct inode *autofs4_get_inode(struct super_block *sb,
 		inode->i_gid = sb->s_root->d_inode->i_gid;
 	}
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_ino = get_next_ino();
 
 	if (S_ISDIR(inf->mode)) {
 		inode->i_nlink = 2;

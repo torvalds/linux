@@ -317,6 +317,14 @@ config DEBUG_OBJECTS_RCU_HEAD
 	help
 	  Enable this to turn on debugging of RCU list heads (call_rcu() usage).
 
+config DEBUG_OBJECTS_PERCPU_COUNTER
+	bool "Debug percpu counter objects"
+	depends on DEBUG_OBJECTS
+	help
+	  If you say Y here, additional code will be inserted into the
+	  percpu counter routines to track the life time of percpu counter
+	  objects and validate the percpu counter operations.
+
 config DEBUG_OBJECTS_ENABLE_DEFAULT
 	int "debug_objects bootup default value (0-1)"
         range 0 1
@@ -353,7 +361,7 @@ config SLUB_DEBUG_ON
 config SLUB_STATS
 	default n
 	bool "Enable SLUB performance statistics"
-	depends on SLUB && SLUB_DEBUG && SYSFS
+	depends on SLUB && SYSFS
 	help
 	  SLUB statistics are useful to debug SLUBs allocation behavior in
 	  order find ways to optimize the allocator. This should never be
@@ -366,7 +374,7 @@ config SLUB_STATS
 config DEBUG_KMEMLEAK
 	bool "Kernel memory leak detector"
 	depends on DEBUG_KERNEL && EXPERIMENTAL && !MEMORY_HOTPLUG && \
-		(X86 || ARM || PPC || S390 || SPARC64 || SUPERH || MICROBLAZE)
+		(X86 || ARM || PPC || S390 || SPARC64 || SUPERH || MICROBLAZE || TILE)
 
 	select DEBUG_FS if SYSFS
 	select STACKTRACE if STACKTRACE_SUPPORT
@@ -461,6 +469,15 @@ config DEBUG_MUTEXES
 	 This feature allows mutex semantics violations to be detected and
 	 reported.
 
+config BKL
+	bool "Big Kernel Lock" if (SMP || PREEMPT)
+	default y
+	help
+	  This is the traditional lock that is used in old code instead
+	  of proper locking. All drivers that use the BKL should depend
+	  on this symbol.
+	  Say Y here unless you are working on removing the BKL.
+
 config DEBUG_LOCK_ALLOC
 	bool "Lock debugging: detect incorrect freeing of live locks"
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
@@ -482,6 +499,7 @@ config PROVE_LOCKING
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
 	select DEBUG_LOCK_ALLOC
+	select TRACE_IRQFLAGS
 	default n
 	help
 	 This feature enables the kernel to prove that all locking
@@ -539,6 +557,23 @@ config PROVE_RCU_REPEATEDLY
 	 disabling, allowing multiple RCU-lockdep warnings to be printed
 	 on a single reboot.
 
+	 Say Y to allow multiple RCU-lockdep warnings per boot.
+
+	 Say N if you are unsure.
+
+config SPARSE_RCU_POINTER
+	bool "RCU debugging: sparse-based checks for pointer usage"
+	default n
+	help
+	 This feature enables the __rcu sparse annotation for
+	 RCU-protected pointers.  This annotation will cause sparse
+	 to flag any non-RCU used of annotated pointers.  This can be
+	 helpful when debugging RCU usage.  Please note that this feature
+	 is not intended to enforce code cleanliness; it is instead merely
+	 a debugging aid.
+
+	 Say Y to make sparse flag questionable use of RCU-protected pointers
+
 	 Say N if you are unsure.
 
 config LOCKDEP
@@ -579,11 +614,10 @@ config DEBUG_LOCKDEP
 	  of more runtime overhead.
 
 config TRACE_IRQFLAGS
-	depends on DEBUG_KERNEL
 	bool
-	default y
-	depends on TRACE_IRQFLAGS_SUPPORT
-	depends on PROVE_LOCKING
+	help
+	  Enables hooks to interrupt enabling and disabling for
+	  either tracing or lock debugging.
 
 config DEBUG_SPINLOCK_SLEEP
 	bool "Spinlock debugging: sleep-inside-spinlock checking"
@@ -714,6 +748,15 @@ config DEBUG_LIST
 
 	  If unsure, say N.
 
+config TEST_LIST_SORT
+	bool "Linked list sorting test"
+	depends on DEBUG_KERNEL
+	help
+	  Enable this to turn on 'list_sort()' function test. This test is
+	  executed only once during system boot, so affects only boot time.
+
+	  If unsure, say N.
+
 config DEBUG_SG
 	bool "Debug SG table operations"
 	depends on DEBUG_KERNEL
@@ -831,6 +874,30 @@ config RCU_CPU_STALL_DETECTOR
 	  Say N if you want to disable such checks.
 
 	  Say Y if you are unsure.
+
+config RCU_CPU_STALL_TIMEOUT
+	int "RCU CPU stall timeout in seconds"
+	depends on RCU_CPU_STALL_DETECTOR
+	range 3 300
+	default 60
+	help
+	  If a given RCU grace period extends more than the specified
+	  number of seconds, a CPU stall warning is printed.  If the
+	  RCU grace period persists, additional CPU stall warnings are
+	  printed at more widely spaced intervals.
+
+config RCU_CPU_STALL_DETECTOR_RUNNABLE
+	bool "RCU CPU stall checking starts automatically at boot"
+	depends on RCU_CPU_STALL_DETECTOR
+	default y
+	help
+	  If set, start checking for RCU CPU stalls immediately on
+	  boot.  Otherwise, RCU CPU stall checking must be manually
+	  enabled.
+
+	  Say Y if you are unsure.
+
+	  Say N if you wish to suppress RCU CPU stall checking during boot.
 
 config RCU_CPU_STALL_VERBOSE
 	bool "Print additional per-task information for RCU_CPU_STALL_DETECTOR"
@@ -1147,6 +1214,19 @@ config ATOMIC64_SELFTEST
 	bool "Perform an atomic64_t self-test at boot"
 	help
 	  Enable this option to test the atomic64_t functions at boot.
+
+	  If unsure, say N.
+
+config ASYNC_RAID6_TEST
+	tristate "Self test for hardware accelerated raid6 recovery"
+	depends on ASYNC_RAID6_RECOV
+	select ASYNC_MEMCPY
+	---help---
+	  This is a one-shot self test that permutes through the
+	  recovery of all the possible two disk failure scenarios for a
+	  N-disk array.  Recovery is performed with the asynchronous
+	  raid6 recovery routines, and will optionally use an offload
+	  engine if one is available.
 
 	  If unsure, say N.
 

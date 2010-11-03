@@ -1264,7 +1264,6 @@ static void garmin_read_bulk_callback(struct urb *urb)
 		garmin_data_p->flags &= ~FLAGS_BULK_IN_ACTIVE;
 		spin_unlock_irqrestore(&garmin_data_p->lock, flags);
 	}
-	return;
 }
 
 

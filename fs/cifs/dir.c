@@ -54,18 +54,18 @@ build_path_from_dentry(struct dentry *direntry)
 	int dfsplen;
 	char *full_path;
 	char dirsep;
-	struct cifs_sb_info *cifs_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
+	struct cifsTconInfo *tcon = cifs_sb_master_tcon(cifs_sb);
 
 	if (direntry == NULL)
 		return NULL;  /* not much we can do if dentry is freed and
 		we need to reopen the file after it was closed implicitly
 		when the server crashed */
 
-	cifs_sb = CIFS_SB(direntry->d_sb);
 	dirsep = CIFS_DIR_SEP(cifs_sb);
 	pplen = cifs_sb->prepathlen;
-	if (cifs_sb->tcon && (cifs_sb->tcon->Flags & SMB_SHARE_IS_IN_DFS))
-		dfsplen = strnlen(cifs_sb->tcon->treeName, MAX_TREE_SIZE + 1);
+	if (tcon->Flags & SMB_SHARE_IS_IN_DFS)
+		dfsplen = strnlen(tcon->treeName, MAX_TREE_SIZE + 1);
 	else
 		dfsplen = 0;
 cifs_bp_rename_retry:
@@ -117,7 +117,7 @@ cifs_bp_rename_retry:
 	/* BB test paths to Windows with '/' in the midst of prepath */
 
 	if (dfsplen) {
-		strncpy(full_path, cifs_sb->tcon->treeName, dfsplen);
+		strncpy(full_path, tcon->treeName, dfsplen);
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) {
 			int i;
 			for (i = 0; i < dfsplen; i++) {
@@ -128,135 +128,6 @@ cifs_bp_rename_retry:
 	}
 	strncpy(full_path + dfsplen, CIFS_SB(direntry->d_sb)->prepath, pplen);
 	return full_path;
-}
-
-struct cifsFileInfo *
-cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
-		  struct file *file, struct vfsmount *mnt, unsigned int oflags)
-{
-	int oplock = 0;
-	struct cifsFileInfo *pCifsFile;
-	struct cifsInodeInfo *pCifsInode;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(mnt->mnt_sb);
-
-	pCifsFile = kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
-	if (pCifsFile == NULL)
-		return pCifsFile;
-
-	if (oplockEnabled)
-		oplock = REQ_OPLOCK;
-
-	pCifsFile->netfid = fileHandle;
-	pCifsFile->pid = current->tgid;
-	pCifsFile->pInode = igrab(newinode);
-	pCifsFile->mnt = mnt;
-	pCifsFile->pfile = file;
-	pCifsFile->invalidHandle = false;
-	pCifsFile->closePend = false;
-	mutex_init(&pCifsFile->fh_mutex);
-	mutex_init(&pCifsFile->lock_mutex);
-	INIT_LIST_HEAD(&pCifsFile->llist);
-	atomic_set(&pCifsFile->count, 1);
-	INIT_WORK(&pCifsFile->oplock_break, cifs_oplock_break);
-
-	write_lock(&GlobalSMBSeslock);
-	list_add(&pCifsFile->tlist, &cifs_sb->tcon->openFileList);
-	pCifsInode = CIFS_I(newinode);
-	if (pCifsInode) {
-		/* if readable file instance put first in list*/
-		if (oflags & FMODE_READ)
-			list_add(&pCifsFile->flist, &pCifsInode->openFileList);
-		else
-			list_add_tail(&pCifsFile->flist,
-				      &pCifsInode->openFileList);
-
-		if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
-			pCifsInode->clientCanCacheAll = true;
-			pCifsInode->clientCanCacheRead = true;
-			cFYI(1, "Exclusive Oplock inode %p", newinode);
-		} else if ((oplock & 0xF) == OPLOCK_READ)
-				pCifsInode->clientCanCacheRead = true;
-	}
-	write_unlock(&GlobalSMBSeslock);
-
-	file->private_data = pCifsFile;
-
-	return pCifsFile;
-}
-
-int cifs_posix_open(char *full_path, struct inode **pinode,
-			struct super_block *sb, int mode, int oflags,
-			__u32 *poplock, __u16 *pnetfid, int xid)
-{
-	int rc;
-	FILE_UNIX_BASIC_INFO *presp_data;
-	__u32 posix_flags = 0;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	struct cifs_fattr fattr;
-
-	cFYI(1, "posix open %s", full_path);
-
-	presp_data = kzalloc(sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
-	if (presp_data == NULL)
-		return -ENOMEM;
-
-/* So far cifs posix extensions can only map the following flags.
-   There are other valid fmode oflags such as FMODE_LSEEK, FMODE_PREAD, but
-   so far we do not seem to need them, and we can treat them as local only */
-	if ((oflags & (FMODE_READ | FMODE_WRITE)) ==
-		(FMODE_READ | FMODE_WRITE))
-		posix_flags = SMB_O_RDWR;
-	else if (oflags & FMODE_READ)
-		posix_flags = SMB_O_RDONLY;
-	else if (oflags & FMODE_WRITE)
-		posix_flags = SMB_O_WRONLY;
-	if (oflags & O_CREAT)
-		posix_flags |= SMB_O_CREAT;
-	if (oflags & O_EXCL)
-		posix_flags |= SMB_O_EXCL;
-	if (oflags & O_TRUNC)
-		posix_flags |= SMB_O_TRUNC;
-	/* be safe and imply O_SYNC for O_DSYNC */
-	if (oflags & O_DSYNC)
-		posix_flags |= SMB_O_SYNC;
-	if (oflags & O_DIRECTORY)
-		posix_flags |= SMB_O_DIRECTORY;
-	if (oflags & O_NOFOLLOW)
-		posix_flags |= SMB_O_NOFOLLOW;
-	if (oflags & O_DIRECT)
-		posix_flags |= SMB_O_DIRECT;
-
-	mode &= ~current_umask();
-	rc = CIFSPOSIXCreate(xid, cifs_sb->tcon, posix_flags, mode,
-			pnetfid, presp_data, poplock, full_path,
-			cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-	if (rc)
-		goto posix_open_ret;
-
-	if (presp_data->Type == cpu_to_le32(-1))
-		goto posix_open_ret; /* open ok, caller does qpathinfo */
-
-	if (!pinode)
-		goto posix_open_ret; /* caller does not need info */
-
-	cifs_unix_basic_to_fattr(&fattr, presp_data, cifs_sb);
-
-	/* get new inode and set it up */
-	if (*pinode == NULL) {
-		cifs_fill_uniqueid(sb, &fattr);
-		*pinode = cifs_iget(sb, &fattr);
-		if (!*pinode) {
-			rc = -ENOMEM;
-			goto posix_open_ret;
-		}
-	} else {
-		cifs_fattr_to_inode(*pinode, &fattr);
-	}
-
-posix_open_ret:
-	kfree(presp_data);
-	return rc;
 }
 
 static void setup_cifs_dentry(struct cifsTconInfo *tcon,
@@ -291,6 +162,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	int desiredAccess = GENERIC_READ | GENERIC_WRITE;
 	__u16 fileHandle;
 	struct cifs_sb_info *cifs_sb;
+	struct tcon_link *tlink;
 	struct cifsTconInfo *tcon;
 	char *full_path = NULL;
 	FILE_ALL_INFO *buf = NULL;
@@ -300,21 +172,26 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	xid = GetXid();
 
 	cifs_sb = CIFS_SB(inode->i_sb);
-	tcon = cifs_sb->tcon;
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink)) {
+		FreeXid(xid);
+		return PTR_ERR(tlink);
+	}
+	tcon = tlink_tcon(tlink);
+
+	if (oplockEnabled)
+		oplock = REQ_OPLOCK;
+
+	if (nd && (nd->flags & LOOKUP_OPEN))
+		oflags = nd->intent.open.file->f_flags;
+	else
+		oflags = O_RDONLY | O_CREAT;
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
 		goto cifs_create_out;
 	}
-
-	if (oplockEnabled)
-		oplock = REQ_OPLOCK;
-
-	if (nd && (nd->flags & LOOKUP_OPEN))
-		oflags = nd->intent.open.flags;
-	else
-		oflags = FMODE_READ | SMB_O_CREAT;
 
 	if (tcon->unix_ext && (tcon->ses->capabilities & CAP_UNIX) &&
 	    (CIFS_UNIX_POSIX_PATH_OPS_CAP &
@@ -344,9 +221,9 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		/* if the file is going to stay open, then we
 		   need to set the desired access properly */
 		desiredAccess = 0;
-		if (oflags & FMODE_READ)
+		if (OPEN_FMODE(oflags) & FMODE_READ)
 			desiredAccess |= GENERIC_READ; /* is this too little? */
-		if (oflags & FMODE_WRITE)
+		if (OPEN_FMODE(oflags) & FMODE_WRITE)
 			desiredAccess |= GENERIC_WRITE;
 
 		if ((oflags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
@@ -375,7 +252,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	if (!tcon->unix_ext && (mode & S_IWUGO) == 0)
 		create_options |= CREATE_OPTION_READONLY;
 
-	if (cifs_sb->tcon->ses->capabilities & CAP_NT_SMBS)
+	if (tcon->ses->capabilities & CAP_NT_SMBS)
 		rc = CIFSSMBOpen(xid, tcon, full_path, disposition,
 			 desiredAccess, create_options,
 			 &fileHandle, &oplock, buf, cifs_sb->local_nls,
@@ -467,8 +344,7 @@ cifs_create_set_dentry:
 			goto cifs_create_out;
 		}
 
-		pfile_info = cifs_new_fileinfo(newinode, fileHandle, filp,
-					       nd->path.mnt, oflags);
+		pfile_info = cifs_new_fileinfo(fileHandle, filp, tlink, oplock);
 		if (pfile_info == NULL) {
 			fput(filp);
 			CIFSSMBClose(xid, tcon, fileHandle);
@@ -481,6 +357,7 @@ cifs_create_set_dentry:
 cifs_create_out:
 	kfree(buf);
 	kfree(full_path);
+	cifs_put_tlink(tlink);
 	FreeXid(xid);
 	return rc;
 }
@@ -491,6 +368,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 	int rc = -EPERM;
 	int xid;
 	struct cifs_sb_info *cifs_sb;
+	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
@@ -503,10 +381,14 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 	if (!old_valid_dev(device_number))
 		return -EINVAL;
 
-	xid = GetXid();
-
 	cifs_sb = CIFS_SB(inode->i_sb);
-	pTcon = cifs_sb->tcon;
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink))
+		return PTR_ERR(tlink);
+
+	pTcon = tlink_tcon(tlink);
+
+	xid = GetXid();
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -606,6 +488,7 @@ mknod_out:
 	kfree(full_path);
 	kfree(buf);
 	FreeXid(xid);
+	cifs_put_tlink(tlink);
 	return rc;
 }
 
@@ -619,6 +502,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	__u16 fileHandle = 0;
 	bool posix_open = false;
 	struct cifs_sb_info *cifs_sb;
+	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
 	struct cifsFileInfo *cfile;
 	struct inode *newInode = NULL;
@@ -633,7 +517,12 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	/* check whether path exists */
 
 	cifs_sb = CIFS_SB(parent_dir_inode->i_sb);
-	pTcon = cifs_sb->tcon;
+	tlink = cifs_sb_tlink(cifs_sb);
+	if (IS_ERR(tlink)) {
+		FreeXid(xid);
+		return (struct dentry *)tlink;
+	}
+	pTcon = tlink_tcon(tlink);
 
 	/*
 	 * Don't allow the separator character in a path component.
@@ -644,8 +533,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		for (i = 0; i < direntry->d_name.len; i++)
 			if (direntry->d_name.name[i] == '\\') {
 				cFYI(1, "Invalid file name");
-				FreeXid(xid);
-				return ERR_PTR(-EINVAL);
+				rc = -EINVAL;
+				goto lookup_out;
 			}
 	}
 
@@ -655,7 +544,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	 */
 	if (nd && (nd->flags & LOOKUP_EXCL)) {
 		d_instantiate(direntry, NULL);
-		return NULL;
+		rc = 0;
+		goto lookup_out;
 	}
 
 	/* can not grab the rename sem here since it would
@@ -663,8 +553,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	in which we already have the sb rename sem */
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
-		FreeXid(xid);
-		return ERR_PTR(-ENOMEM);
+		rc = -ENOMEM;
+		goto lookup_out;
 	}
 
 	if (direntry->d_inode != NULL) {
@@ -687,11 +577,11 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	if (pTcon->unix_ext) {
 		if (nd && !(nd->flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY)) &&
 		     (nd->flags & LOOKUP_OPEN) && !pTcon->broken_posix_open &&
-		     (nd->intent.open.flags & O_CREAT)) {
+		     (nd->intent.open.file->f_flags & O_CREAT)) {
 			rc = cifs_posix_open(full_path, &newInode,
 					parent_dir_inode->i_sb,
 					nd->intent.open.create_mode,
-					nd->intent.open.flags, &oplock,
+					nd->intent.open.file->f_flags, &oplock,
 					&fileHandle, xid);
 			/*
 			 * The check below works around a bug in POSIX
@@ -727,9 +617,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 				goto lookup_out;
 			}
 
-			cfile = cifs_new_fileinfo(newInode, fileHandle, filp,
-						  nd->path.mnt,
-						  nd->intent.open.flags);
+			cfile = cifs_new_fileinfo(fileHandle, filp, tlink,
+						  oplock);
 			if (cfile == NULL) {
 				fput(filp);
 				CIFSSMBClose(xid, pTcon, fileHandle);
@@ -759,6 +648,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 
 lookup_out:
 	kfree(full_path);
+	cifs_put_tlink(tlink);
 	FreeXid(xid);
 	return ERR_PTR(rc);
 }

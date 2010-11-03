@@ -797,7 +797,7 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		return -EOPNOTSUPP;
 
 	ipc.opt = NULL;
-	ipc.shtx.flags = 0;
+	ipc.tx_flags = 0;
 
 	if (up->pending) {
 		/*
@@ -845,7 +845,7 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	ipc.addr = inet->inet_saddr;
 
 	ipc.oif = sk->sk_bound_dev_if;
-	err = sock_tx_timestamp(msg, sk, &ipc.shtx);
+	err = sock_tx_timestamp(sk, &ipc.tx_flags);
 	if (err)
 		return err;
 	if (msg->msg_controllen) {
@@ -1413,7 +1413,7 @@ int udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		}
 	}
 
-	if (sk->sk_filter) {
+	if (rcu_dereference_raw(sk->sk_filter)) {
 		if (udp_lib_checksum_complete(skb))
 			goto drop;
 	}

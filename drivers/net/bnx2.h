@@ -352,12 +352,7 @@ struct l2_fhdr {
 #define BNX2_L2CTX_BD_PRE_READ				0x00000000
 #define BNX2_L2CTX_CTX_SIZE				0x00000000
 #define BNX2_L2CTX_CTX_TYPE				0x00000000
-#define BNX2_L2CTX_LO_WATER_MARK_DEFAULT		 4
-#define BNX2_L2CTX_LO_WATER_MARK_SCALE			 4
-#define BNX2_L2CTX_LO_WATER_MARK_DIS			 0
-#define BNX2_L2CTX_HI_WATER_MARK_SHIFT			 4
-#define BNX2_L2CTX_HI_WATER_MARK_SCALE			 16
-#define BNX2_L2CTX_WATER_MARKS_MSK			 0x000000ff
+#define BNX2_L2CTX_FLOW_CTRL_ENABLE			 0x000000ff
 #define BNX2_L2CTX_CTX_TYPE_SIZE_L2			 ((0x20/20)<<16)
 #define BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE		 (0xf<<28)
 #define BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_UNDEFINED	 (0<<28)
@@ -4185,6 +4180,15 @@ struct l2_fhdr {
 #define BNX2_RLUP_RSS_CONFIG_IPV6_RSS_TYPE_IP_ONLY_XI	 (2L<<2)
 #define BNX2_RLUP_RSS_CONFIG_IPV6_RSS_TYPE_RES_XI	 (3L<<2)
 
+#define BNX2_RLUP_RSS_COMMAND				0x00002048
+#define BNX2_RLUP_RSS_COMMAND_RSS_IND_TABLE_ADDR	 (0xfUL<<0)
+#define BNX2_RLUP_RSS_COMMAND_RSS_WRITE_MASK		 (0xffUL<<4)
+#define BNX2_RLUP_RSS_COMMAND_WRITE			 (1UL<<12)
+#define BNX2_RLUP_RSS_COMMAND_READ			 (1UL<<13)
+#define BNX2_RLUP_RSS_COMMAND_HASH_MASK			 (0x7UL<<14)
+
+#define BNX2_RLUP_RSS_DATA				0x0000204c
+
 
 /*
  *  rbuf_reg definition
@@ -6077,6 +6081,7 @@ struct l2_fhdr {
 
 #define BNX2_COM_SCRATCH				0x00120000
 
+#define BNX2_FW_RX_LOW_LATENCY				 0x00120058
 #define BNX2_FW_RX_DROP_COUNT				 0x00120084
 
 
@@ -6497,8 +6502,8 @@ struct l2_fhdr {
 #define TX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct tx_bd))
 #define MAX_TX_DESC_CNT (TX_DESC_CNT - 1)
 
-#define MAX_RX_RINGS	4
-#define MAX_RX_PG_RINGS	16
+#define MAX_RX_RINGS	8
+#define MAX_RX_PG_RINGS	32
 #define RX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
 #define MAX_RX_DESC_CNT (RX_DESC_CNT - 1)
 #define MAX_TOTAL_RX_DESC_CNT (MAX_RX_DESC_CNT * MAX_RX_RINGS)
@@ -6736,10 +6741,6 @@ struct bnx2 {
 #define BNX2_FLAG_BROKEN_STATS		0x00002000
 
 	struct bnx2_napi	bnx2_napi[BNX2_MAX_MSIX_VEC];
-
-#ifdef BCM_VLAN
-	struct			vlan_group *vlgrp;
-#endif
 
 	u32			rx_buf_use_size;	/* useable size */
 	u32			rx_buf_size;		/* with alignment */

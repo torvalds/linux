@@ -150,7 +150,7 @@ void __cpuinit cpu_probe(void)
 			boot_cpu_data.type = CPU_SH7724;
 			boot_cpu_data.flags |= CPU_HAS_L2_CACHE;
 			break;
-		case 0x50:
+		case 0x10:
 			boot_cpu_data.type = CPU_SH7757;
 			break;
 		}

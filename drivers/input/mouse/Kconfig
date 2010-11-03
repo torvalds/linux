@@ -30,6 +30,7 @@ config MOUSE_PS2
 		<http://w1.894.telia.com/~u89404340/touchpad/index.html>
 	  and a new version of GPM at:
 		<http://www.geocities.com/dt_or/gpm/gpm.html>
+		<http://xorg.freedesktop.org/archive/individual/driver/>
 	  to take advantage of the advanced features of the touchpad.
 
 	  If unsure, say Y.

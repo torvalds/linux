@@ -433,8 +433,9 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 	struct page *page;
 
 	ubifs_assert(ubifs_inode(inode)->ui_size == inode->i_size);
+	ubifs_assert(!c->ro_media && !c->ro_mount);
 
-	if (unlikely(c->ro_media))
+	if (unlikely(c->ro_error))
 		return -EROFS;
 
 	/* Try out the fast-path part first */
@@ -1439,9 +1440,9 @@ static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vm
 
 	dbg_gen("ino %lu, pg %lu, i_size %lld",	inode->i_ino, page->index,
 		i_size_read(inode));
-	ubifs_assert(!(inode->i_sb->s_flags & MS_RDONLY));
+	ubifs_assert(!c->ro_media && !c->ro_mount);
 
-	if (unlikely(c->ro_media))
+	if (unlikely(c->ro_error))
 		return VM_FAULT_SIGBUS; /* -EROFS */
 
 	/*

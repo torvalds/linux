@@ -64,8 +64,7 @@ config TEST_POWER
 
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
-	select W1
-	select W1_SLAVE_DS2760
+	depends on W1 && W1_SLAVE_DS2760
 	help
 	  Say Y here to enable support for batteries with ds2760 chip.
 
@@ -108,6 +107,13 @@ config BATTERY_WM97XX
 	depends on TOUCHSCREEN_WM97XX=y
 	help
 	  Say Y to enable support for battery measured by WM97xx aux port.
+
+config BATTERY_BQ20Z75
+        tristate "TI BQ20z75 gas gauge"
+        depends on I2C
+        help
+         Say Y to include support for TI BQ20z75 SBS-compliant
+         gas gauge and protection IC.
 
 config BATTERY_BQ27x00
 	tristate "BQ27x00 battery driver"
@@ -165,5 +171,18 @@ config BATTERY_INTEL_MID
 	help
 	  Say Y here to enable the battery driver on Intel MID
 	  platforms.
+
+config CHARGER_ISP1704
+	tristate "ISP1704 USB Charger Detection"
+	depends on USB_OTG_UTILS
+	help
+	  Say Y to enable support for USB Charger Detection with
+	  ISP1707/ISP1704 USB transceivers.
+
+config CHARGER_TWL4030
+	tristate "OMAP TWL4030 BCI charger driver"
+	depends on TWL4030_CORE
+	help
+	  Say Y here to enable support for TWL4030 Battery Charge Interface.
 
 endif # POWER_SUPPLY

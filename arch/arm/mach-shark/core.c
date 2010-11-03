@@ -152,8 +152,6 @@ static struct sys_timer shark_timer = {
 
 MACHINE_START(SHARK, "Shark")
 	/* Maintainer: Alexander Schulz */
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= ((0xe0000000) >> 18) & 0xfffc,
 	.boot_params	= 0x08003000,
 	.map_io		= shark_map_io,
 	.init_irq	= shark_init_irq,

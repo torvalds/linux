@@ -45,7 +45,6 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -657,11 +656,8 @@ static int bt3c_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
-	link->resource[0]->end = 8;
-
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_VPP |
+		CONF_AUTO_SET_IO;
 
 	return bt3c_config(link);
 }
@@ -675,43 +671,41 @@ static void bt3c_detach(struct pcmcia_device *link)
 	kfree(info);
 }
 
-static int bt3c_check_config(struct pcmcia_device *p_dev,
-			     cistpl_cftable_entry_t *cf,
-			     cistpl_cftable_entry_t *dflt,
-			     unsigned int vcc,
-			     void *priv_data)
+static int bt3c_check_config(struct pcmcia_device *p_dev, void *priv_data)
 {
-	unsigned long try = (unsigned long) priv_data;
+	int *try = priv_data;
 
-	p_dev->io_lines = (try == 0) ? 16 : cf->io.flags & CISTPL_IO_LINES_MASK;
+	if (try == 0)
+		p_dev->io_lines = 16;
 
-	if (cf->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp = cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-	if ((cf->io.nwin > 0) && (cf->io.win[0].len == 8) &&
-	    (cf->io.win[0].base != 0)) {
-		p_dev->resource[0]->start = cf->io.win[0].base;
-		if (!pcmcia_request_io(p_dev))
-			return 0;
-	}
-	return -ENODEV;
+	if ((p_dev->resource[0]->end != 8) || (p_dev->resource[0]->start == 0))
+		return -EINVAL;
+
+	p_dev->resource[0]->end = 8;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+
+	return pcmcia_request_io(p_dev);
 }
 
 static int bt3c_check_config_notpicky(struct pcmcia_device *p_dev,
-				      cistpl_cftable_entry_t *cf,
-				      cistpl_cftable_entry_t *dflt,
-				      unsigned int vcc,
 				      void *priv_data)
 {
 	static unsigned int base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
 	int j;
 
-	if ((cf->io.nwin > 0) && ((cf->io.flags & CISTPL_IO_LINES_MASK) <= 3)) {
-		for (j = 0; j < 5; j++) {
-			p_dev->resource[0]->start = base[j];
-			p_dev->io_lines = base[j] ? 16 : 3;
-			if (!pcmcia_request_io(p_dev))
-				return 0;
-		}
+	if (p_dev->io_lines > 3)
+		return -ENODEV;
+
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->resource[0]->end = 8;
+
+	for (j = 0; j < 5; j++) {
+		p_dev->resource[0]->start = base[j];
+		p_dev->io_lines = base[j] ? 16 : 3;
+		if (!pcmcia_request_io(p_dev))
+			return 0;
 	}
 	return -ENODEV;
 }
@@ -742,7 +736,7 @@ found_port:
 	if (i != 0)
 		goto failed;
 
-	i = pcmcia_request_configuration(link, &link->conf);
+	i = pcmcia_enable_device(link);
 	if (i != 0)
 		goto failed;
 
@@ -775,9 +769,7 @@ MODULE_DEVICE_TABLE(pcmcia, bt3c_ids);
 
 static struct pcmcia_driver bt3c_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "bt3c_cs",
-	},
+	.name		= "bt3c_cs",
 	.probe		= bt3c_probe,
 	.remove		= bt3c_detach,
 	.id_table	= bt3c_ids,

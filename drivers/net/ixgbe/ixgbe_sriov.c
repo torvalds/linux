@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -43,8 +43,8 @@
 
 #include "ixgbe_sriov.h"
 
-int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
-			    int entries, u16 *hash_list, u32 vf)
+static int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
+				   int entries, u16 *hash_list, u32 vf)
 {
 	struct vf_data_storage *vfinfo = &adapter->vfinfo[vf];
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -104,13 +104,14 @@ void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter)
 	}
 }
 
-int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid, u32 vf)
+static int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid,
+			     u32 vf)
 {
 	return adapter->hw.mac.ops.set_vfta(&adapter->hw, vid, vf, (bool)add);
 }
 
 
-void ixgbe_set_vmolr(struct ixgbe_hw *hw, u32 vf, bool aupe)
+static void ixgbe_set_vmolr(struct ixgbe_hw *hw, u32 vf, bool aupe)
 {
 	u32 vmolr = IXGBE_READ_REG(hw, IXGBE_VMOLR(vf));
 	vmolr |= (IXGBE_VMOLR_ROMPE |
@@ -134,7 +135,7 @@ static void ixgbe_set_vmvir(struct ixgbe_adapter *adapter, u32 vid, u32 vf)
 		IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf), 0);
 }
 
-inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
+static inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	int rar_entry = hw->mac.num_rar_entries - (vf + 1);
@@ -162,8 +163,8 @@ inline void ixgbe_vf_reset_event(struct ixgbe_adapter *adapter, u32 vf)
 	hw->mac.ops.clear_rar(hw, rar_entry);
 }
 
-int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
-                          int vf, unsigned char *mac_addr)
+static int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
+			    int vf, unsigned char *mac_addr)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	int rar_entry = hw->mac.num_rar_entries - (vf + 1);
@@ -197,7 +198,7 @@ int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 	return 0;
 }
 
-inline void ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
+static inline void ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 reg;

@@ -159,7 +159,7 @@ static int pxa3xx_cpufreq_verify(struct cpufreq_policy *policy)
 
 static unsigned int pxa3xx_cpufreq_get(unsigned int cpu)
 {
-	return get_clk_frequency_khz(0);
+	return pxa3xx_get_clk_frequency_khz(0);
 }
 
 static int pxa3xx_cpufreq_set(struct cpufreq_policy *policy,
@@ -212,7 +212,8 @@ static int pxa3xx_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.min_freq = 104000;
 	policy->cpuinfo.max_freq = (cpu_is_pxa320()) ? 806000 : 624000;
 	policy->cpuinfo.transition_latency = 1000; /* FIXME: 1 ms, assumed */
-	policy->cur = policy->min = policy->max = get_clk_frequency_khz(0);
+	policy->max = pxa3xx_get_clk_frequency_khz(0);
+	policy->cur = policy->min = policy->max;
 
 	if (cpu_is_pxa300() || cpu_is_pxa310())
 		ret = setup_freqs_table(policy, ARRAY_AND_SIZE(pxa300_freqs));

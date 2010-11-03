@@ -96,8 +96,6 @@ static void __init gateway7001_init(void)
 #ifdef CONFIG_MACH_GATEWAY7001
 MACHINE_START(GATEWAY7001, "Gateway 7001 AP")
 	/* Maintainer: Imre Kaloz <kaloz@openwrt.org> */
-	.phys_io	= IXP4XX_PERIPHERAL_BASE_PHYS,
-	.io_pg_offst	= ((IXP4XX_PERIPHERAL_BASE_VIRT) >> 18) & 0xfffc,
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,

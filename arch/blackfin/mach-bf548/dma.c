@@ -63,6 +63,7 @@ int channel2irq(unsigned int channel)
 		break;
 	case CH_SPORT1_TX:
 		ret_irq = IRQ_SPORT1_TX;
+		break;
 	case CH_SPI0:
 		ret_irq = IRQ_SPI0;
 		break;

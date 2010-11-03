@@ -203,7 +203,7 @@ static inline void sierra_net_set_private(struct usbnet *dev,
 /* is packet IPv4 */
 static inline int is_ip(struct sk_buff *skb)
 {
-	return (skb->protocol == cpu_to_be16(ETH_P_IP));
+	return skb->protocol == cpu_to_be16(ETH_P_IP);
 }
 
 /*
@@ -354,7 +354,7 @@ static void sierra_net_set_ctx_index(struct sierra_net_data *priv, u8 ctx_ix)
 
 static inline int sierra_net_is_valid_addrlen(u8 len)
 {
-	return (len == sizeof(struct in_addr));
+	return len == sizeof(struct in_addr);
 }
 
 static int sierra_net_parse_lsi(struct usbnet *dev, char *data, int datalen)

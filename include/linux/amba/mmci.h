@@ -24,6 +24,7 @@
  * whether a card is present in the MMC slot or not
  * @gpio_wp: read this GPIO pin to see if the card is write protected
  * @gpio_cd: read this GPIO pin to detect card insertion
+ * @cd_invert: true if the gpio_cd pin value is active low
  * @capabilities: the capabilities of the block as implemented in
  * this platform, signify anything MMC_CAP_* from mmc/host.h
  */
@@ -35,6 +36,7 @@ struct mmci_platform_data {
 	unsigned int (*status)(struct device *);
 	int	gpio_wp;
 	int	gpio_cd;
+	bool	cd_invert;
 	unsigned long capabilities;
 };
 

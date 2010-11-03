@@ -1,8 +1,8 @@
 /*
  * at91_can.c - CAN network driver for AT91 SoC CAN controller
  *
- * (C) 2007 by Hans J. Koch <hjk@linutronix.de>
- * (C) 2008, 2009 by Marc Kleine-Budde <kernel@pengutronix.de>
+ * (C) 2007 by Hans J. Koch <hjk@hansjkoch.de>
+ * (C) 2008, 2009, 2010 by Marc Kleine-Budde <kernel@pengutronix.de>
  *
  * This software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2 as distributed in the 'COPYING'
@@ -40,7 +40,6 @@
 
 #include <mach/board.h>
 
-#define DRV_NAME		"at91_can"
 #define AT91_NAPI_WEIGHT	12
 
 /*
@@ -172,6 +171,7 @@ struct at91_priv {
 };
 
 static struct can_bittiming_const at91_bittiming_const = {
+	.name		= KBUILD_MODNAME,
 	.tseg1_min	= 4,
 	.tseg1_max	= 16,
 	.tseg2_min	= 2,
@@ -199,13 +199,13 @@ static inline int get_tx_echo_mb(const struct at91_priv *priv)
 
 static inline u32 at91_read(const struct at91_priv *priv, enum at91_reg reg)
 {
-	return readl(priv->reg_base + reg);
+	return __raw_readl(priv->reg_base + reg);
 }
 
 static inline void at91_write(const struct at91_priv *priv, enum at91_reg reg,
 		u32 value)
 {
-	writel(value, priv->reg_base + reg);
+	__raw_writel(value, priv->reg_base + reg);
 }
 
 static inline void set_mb_mode_prio(const struct at91_priv *priv,
@@ -243,6 +243,12 @@ static void at91_setup_mailboxes(struct net_device *dev)
 		set_mb_mode(priv, i, AT91_MB_MODE_RX);
 	set_mb_mode(priv, AT91_MB_RX_LAST, AT91_MB_MODE_RX_OVRWR);
 
+	/* reset acceptance mask and id register */
+	for (i = AT91_MB_RX_FIRST; i <= AT91_MB_RX_LAST; i++) {
+		at91_write(priv, AT91_MAM(i), 0x0 );
+		at91_write(priv, AT91_MID(i), AT91_MID_MIDE);
+	}
+
 	/* The last 4 mailboxes are used for transmitting. */
 	for (i = AT91_MB_TX_FIRST; i <= AT91_MB_TX_LAST; i++)
 		set_mb_mode_prio(priv, i, AT91_MB_MODE_TX, 0);
@@ -257,14 +263,26 @@ static int at91_set_bittiming(struct net_device *dev)
 	const struct can_bittiming *bt = &priv->can.bittiming;
 	u32 reg_br;
 
-	reg_br = ((priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES) << 24) |
-		((bt->brp - 1) << 16) |	((bt->sjw - 1) << 12) |
+	reg_br = ((priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES) ? 1 << 24 : 0) |
+		((bt->brp - 1) << 16) | ((bt->sjw - 1) << 12) |
 		((bt->prop_seg - 1) << 8) | ((bt->phase_seg1 - 1) << 4) |
 		((bt->phase_seg2 - 1) << 0);
 
-	dev_info(dev->dev.parent, "writing AT91_BR: 0x%08x\n", reg_br);
+	netdev_info(dev, "writing AT91_BR: 0x%08x\n", reg_br);
 
 	at91_write(priv, AT91_BR, reg_br);
+
+	return 0;
+}
+
+static int at91_get_berr_counter(const struct net_device *dev,
+		struct can_berr_counter *bec)
+{
+	const struct at91_priv *priv = netdev_priv(dev);
+	u32 reg_ecr = at91_read(priv, AT91_ECR);
+
+	bec->rxerr = reg_ecr & 0xff;
+	bec->txerr = reg_ecr >> 16;
 
 	return 0;
 }
@@ -281,6 +299,7 @@ static void at91_chip_start(struct net_device *dev)
 	reg_mr = at91_read(priv, AT91_MR);
 	at91_write(priv, AT91_MR, reg_mr & ~AT91_MR_CANEN);
 
+	at91_set_bittiming(dev);
 	at91_setup_mailboxes(dev);
 	at91_transceiver_switch(priv, 1);
 
@@ -350,8 +369,7 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(!(at91_read(priv, AT91_MSR(mb)) & AT91_MSR_MRDY))) {
 		netif_stop_queue(dev);
 
-		dev_err(dev->dev.parent,
-			"BUG! TX buffer full when queue awake!\n");
+		netdev_err(dev, "BUG! TX buffer full when queue awake!\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -435,7 +453,7 @@ static void at91_rx_overflow_err(struct net_device *dev)
 	struct sk_buff *skb;
 	struct can_frame *cf;
 
-	dev_dbg(dev->dev.parent, "RX buffer overflow\n");
+	netdev_dbg(dev, "RX buffer overflow\n");
 	stats->rx_over_errors++;
 	stats->rx_errors++;
 
@@ -479,6 +497,9 @@ static void at91_read_mb(struct net_device *dev, unsigned int mb,
 
 	*(u32 *)(cf->data + 0) = at91_read(priv, AT91_MDL(mb));
 	*(u32 *)(cf->data + 4) = at91_read(priv, AT91_MDH(mb));
+
+	/* allow RX of extended frames */
+	at91_write(priv, AT91_MID(mb), AT91_MID_MIDE);
 
 	if (unlikely(mb == AT91_MB_RX_LAST && reg_msr & AT91_MSR_MMI))
 		at91_rx_overflow_err(dev);
@@ -565,8 +586,8 @@ static int at91_poll_rx(struct net_device *dev, int quota)
 
 	if (priv->rx_next > AT91_MB_RX_LOW_LAST &&
 	    reg_sr & AT91_MB_RX_LOW_MASK)
-		dev_info(dev->dev.parent,
-			 "order of incoming frames cannot be guaranteed\n");
+		netdev_info(dev,
+			"order of incoming frames cannot be guaranteed\n");
 
  again:
 	for (mb = find_next_bit(addr, AT91_MB_RX_NUM, priv->rx_next);
@@ -604,7 +625,7 @@ static void at91_poll_err_frame(struct net_device *dev,
 
 	/* CRC error */
 	if (reg_sr & AT91_IRQ_CERR) {
-		dev_dbg(dev->dev.parent, "CERR irq\n");
+		netdev_dbg(dev, "CERR irq\n");
 		dev->stats.rx_errors++;
 		priv->can.can_stats.bus_error++;
 		cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
@@ -612,7 +633,7 @@ static void at91_poll_err_frame(struct net_device *dev,
 
 	/* Stuffing Error */
 	if (reg_sr & AT91_IRQ_SERR) {
-		dev_dbg(dev->dev.parent, "SERR irq\n");
+		netdev_dbg(dev, "SERR irq\n");
 		dev->stats.rx_errors++;
 		priv->can.can_stats.bus_error++;
 		cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
@@ -621,14 +642,14 @@ static void at91_poll_err_frame(struct net_device *dev,
 
 	/* Acknowledgement Error */
 	if (reg_sr & AT91_IRQ_AERR) {
-		dev_dbg(dev->dev.parent, "AERR irq\n");
+		netdev_dbg(dev, "AERR irq\n");
 		dev->stats.tx_errors++;
 		cf->can_id |= CAN_ERR_ACK;
 	}
 
 	/* Form error */
 	if (reg_sr & AT91_IRQ_FERR) {
-		dev_dbg(dev->dev.parent, "FERR irq\n");
+		netdev_dbg(dev, "FERR irq\n");
 		dev->stats.rx_errors++;
 		priv->can.can_stats.bus_error++;
 		cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
@@ -637,7 +658,7 @@ static void at91_poll_err_frame(struct net_device *dev,
 
 	/* Bit Error */
 	if (reg_sr & AT91_IRQ_BERR) {
-		dev_dbg(dev->dev.parent, "BERR irq\n");
+		netdev_dbg(dev, "BERR irq\n");
 		dev->stats.tx_errors++;
 		priv->can.can_stats.bus_error++;
 		cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
@@ -755,12 +776,10 @@ static void at91_irq_err_state(struct net_device *dev,
 		struct can_frame *cf, enum can_state new_state)
 {
 	struct at91_priv *priv = netdev_priv(dev);
-	u32 reg_idr, reg_ier, reg_ecr;
-	u8 tec, rec;
+	u32 reg_idr = 0, reg_ier = 0;
+	struct can_berr_counter bec;
 
-	reg_ecr = at91_read(priv, AT91_ECR);
-	rec = reg_ecr & 0xff;
-	tec = reg_ecr >> 16;
+	at91_get_berr_counter(dev, &bec);
 
 	switch (priv->can.state) {
 	case CAN_STATE_ERROR_ACTIVE:
@@ -771,11 +790,11 @@ static void at91_irq_err_state(struct net_device *dev,
 		 */
 		if (new_state >= CAN_STATE_ERROR_WARNING &&
 		    new_state <= CAN_STATE_BUS_OFF) {
-			dev_dbg(dev->dev.parent, "Error Warning IRQ\n");
+			netdev_dbg(dev, "Error Warning IRQ\n");
 			priv->can.can_stats.error_warning++;
 
 			cf->can_id |= CAN_ERR_CRTL;
-			cf->data[1] = (tec > rec) ?
+			cf->data[1] = (bec.txerr > bec.rxerr) ?
 				CAN_ERR_CRTL_TX_WARNING :
 				CAN_ERR_CRTL_RX_WARNING;
 		}
@@ -787,11 +806,11 @@ static void at91_irq_err_state(struct net_device *dev,
 		 */
 		if (new_state >= CAN_STATE_ERROR_PASSIVE &&
 		    new_state <= CAN_STATE_BUS_OFF) {
-			dev_dbg(dev->dev.parent, "Error Passive IRQ\n");
+			netdev_dbg(dev, "Error Passive IRQ\n");
 			priv->can.can_stats.error_passive++;
 
 			cf->can_id |= CAN_ERR_CRTL;
-			cf->data[1] = (tec > rec) ?
+			cf->data[1] = (bec.txerr > bec.rxerr) ?
 				CAN_ERR_CRTL_TX_PASSIVE :
 				CAN_ERR_CRTL_RX_PASSIVE;
 		}
@@ -804,7 +823,7 @@ static void at91_irq_err_state(struct net_device *dev,
 		if (new_state <= CAN_STATE_ERROR_PASSIVE) {
 			cf->can_id |= CAN_ERR_RESTARTED;
 
-			dev_dbg(dev->dev.parent, "restarted\n");
+			netdev_dbg(dev, "restarted\n");
 			priv->can.can_stats.restarts++;
 
 			netif_carrier_on(dev);
@@ -825,7 +844,7 @@ static void at91_irq_err_state(struct net_device *dev,
 		 * circumstances. so just enable AT91_IRQ_ERRP, thus
 		 * the "fallthrough"
 		 */
-		dev_dbg(dev->dev.parent, "Error Active\n");
+		netdev_dbg(dev, "Error Active\n");
 		cf->can_id |= CAN_ERR_PROT;
 		cf->data[2] = CAN_ERR_PROT_ACTIVE;
 	case CAN_STATE_ERROR_WARNING:	/* fallthrough */
@@ -843,7 +862,7 @@ static void at91_irq_err_state(struct net_device *dev,
 
 		cf->can_id |= CAN_ERR_BUSOFF;
 
-		dev_dbg(dev->dev.parent, "bus-off\n");
+		netdev_dbg(dev, "bus-off\n");
 		netif_carrier_off(dev);
 		priv->can.can_stats.bus_off++;
 
@@ -881,7 +900,7 @@ static void at91_irq_err(struct net_device *dev)
 	else if (likely(reg_sr & AT91_IRQ_ERRA))
 		new_state = CAN_STATE_ERROR_ACTIVE;
 	else {
-		dev_err(dev->dev.parent, "BUG! hardware in undefined state\n");
+		netdev_err(dev, "BUG! hardware in undefined state\n");
 		return;
 	}
 
@@ -1018,7 +1037,7 @@ static const struct net_device_ops at91_netdev_ops = {
 	.ndo_start_xmit	= at91_start_xmit,
 };
 
-static int __init at91_can_probe(struct platform_device *pdev)
+static int __devinit at91_can_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct at91_priv *priv;
@@ -1067,8 +1086,8 @@ static int __init at91_can_probe(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 	priv->can.clock.freq = clk_get_rate(clk);
 	priv->can.bittiming_const = &at91_bittiming_const;
-	priv->can.do_set_bittiming = at91_set_bittiming;
 	priv->can.do_set_mode = at91_set_mode;
+	priv->can.do_get_berr_counter = at91_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 	priv->reg_base = addr;
 	priv->dev = dev;
@@ -1092,7 +1111,7 @@ static int __init at91_can_probe(struct platform_device *pdev)
 	return 0;
 
  exit_free:
-	free_netdev(dev);
+	free_candev(dev);
  exit_iounmap:
 	iounmap(addr);
  exit_release:
@@ -1113,14 +1132,14 @@ static int __devexit at91_can_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	free_netdev(dev);
-
 	iounmap(priv->reg_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
 
 	clk_put(priv->clk);
+
+	free_candev(dev);
 
 	return 0;
 }
@@ -1129,21 +1148,19 @@ static struct platform_driver at91_can_driver = {
 	.probe		= at91_can_probe,
 	.remove		= __devexit_p(at91_can_remove),
 	.driver		= {
-		.name	= DRV_NAME,
+		.name	= KBUILD_MODNAME,
 		.owner	= THIS_MODULE,
 	},
 };
 
 static int __init at91_can_module_init(void)
 {
-	printk(KERN_INFO "%s netdevice driver\n", DRV_NAME);
 	return platform_driver_register(&at91_can_driver);
 }
 
 static void __exit at91_can_module_exit(void)
 {
 	platform_driver_unregister(&at91_can_driver);
-	printk(KERN_INFO "%s: driver removed\n", DRV_NAME);
 }
 
 module_init(at91_can_module_init);
@@ -1151,4 +1168,4 @@ module_exit(at91_can_module_exit);
 
 MODULE_AUTHOR("Marc Kleine-Budde <mkl@pengutronix.de>");
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION(DRV_NAME " CAN netdevice driver");
+MODULE_DESCRIPTION(KBUILD_MODNAME " CAN netdevice driver");

@@ -63,6 +63,12 @@ struct nfs_clone_mount {
 #define NFS_UNSPEC_PORT		(-1)
 
 /*
+ * Maximum number of pages that readdir can use for creating
+ * a vmapped array of pages.
+ */
+#define NFS_MAX_READDIR_PAGES 8
+
+/*
  * In-kernel mount arguments
  */
 struct nfs_parsed_mount_data {
@@ -181,15 +187,15 @@ extern void nfs_destroy_directcache(void);
 /* nfs2xdr.c */
 extern int nfs_stat_to_errno(int);
 extern struct rpc_procinfo nfs_procedures[];
-extern __be32 * nfs_decode_dirent(__be32 *, struct nfs_entry *, int);
+extern __be32 *nfs_decode_dirent(struct xdr_stream *, struct nfs_entry *, struct nfs_server *, int);
 
 /* nfs3xdr.c */
 extern struct rpc_procinfo nfs3_procedures[];
-extern __be32 *nfs3_decode_dirent(__be32 *, struct nfs_entry *, int);
+extern __be32 *nfs3_decode_dirent(struct xdr_stream *, struct nfs_entry *, struct nfs_server *, int);
 
 /* nfs4xdr.c */
 #ifdef CONFIG_NFS_V4
-extern __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus);
+extern __be32 *nfs4_decode_dirent(struct xdr_stream *, struct nfs_entry *, struct nfs_server *, int);
 #endif
 #ifdef CONFIG_NFS_V4_1
 extern const u32 nfs41_maxread_overhead;

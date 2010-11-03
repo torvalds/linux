@@ -487,6 +487,10 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 
 	/* Allocate zeroed buffer. */
 	psz_coff_buf = kzalloc(ul_len + 4, GFP_KERNEL);
+	if (psz_coff_buf == NULL) {
+		status = -ENOMEM;
+		goto func_end;
+	}
 #ifdef _DB_TIOMAP
 	if (strstr(dcd_key->path, "iva") == NULL) {
 		/* Locate section by objectID and read its content. */
@@ -571,6 +575,10 @@ int dcd_get_objects(struct dcd_manager *hdcd_mgr,
 
 	/* Allocate zeroed buffer. */
 	psz_coff_buf = kzalloc(ul_len + 4, GFP_KERNEL);
+	if (psz_coff_buf == NULL) {
+		status = -ENOMEM;
+		goto func_cont;
+	}
 #ifdef _DB_TIOMAP
 	if (strstr(sz_coff_path, "iva") == NULL) {
 		/* Locate section by objectID and read its content. */

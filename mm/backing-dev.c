@@ -74,11 +74,11 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 
 	nr_wb = nr_dirty = nr_io = nr_more_io = 0;
 	spin_lock(&inode_lock);
-	list_for_each_entry(inode, &wb->b_dirty, i_list)
+	list_for_each_entry(inode, &wb->b_dirty, i_wb_list)
 		nr_dirty++;
-	list_for_each_entry(inode, &wb->b_io, i_list)
+	list_for_each_entry(inode, &wb->b_io, i_wb_list)
 		nr_io++;
-	list_for_each_entry(inode, &wb->b_more_io, i_list)
+	list_for_each_entry(inode, &wb->b_more_io, i_wb_list)
 		nr_more_io++;
 	spin_unlock(&inode_lock);
 
@@ -362,7 +362,7 @@ static int bdi_forker_thread(void *ptr)
 {
 	struct bdi_writeback *me = ptr;
 
-	current->flags |= PF_FLUSHER | PF_SWAPWRITE;
+	current->flags |= PF_SWAPWRITE;
 	set_freezable();
 
 	/*
@@ -729,6 +729,7 @@ static wait_queue_head_t congestion_wqh[2] = {
 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),
 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[1])
 	};
+static atomic_t nr_bdi_congested[2];
 
 void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
 {
@@ -736,7 +737,8 @@ void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
 	wait_queue_head_t *wqh = &congestion_wqh[sync];
 
 	bit = sync ? BDI_sync_congested : BDI_async_congested;
-	clear_bit(bit, &bdi->state);
+	if (test_and_clear_bit(bit, &bdi->state))
+		atomic_dec(&nr_bdi_congested[sync]);
 	smp_mb__after_clear_bit();
 	if (waitqueue_active(wqh))
 		wake_up(wqh);
@@ -748,7 +750,8 @@ void set_bdi_congested(struct backing_dev_info *bdi, int sync)
 	enum bdi_state bit;
 
 	bit = sync ? BDI_sync_congested : BDI_async_congested;
-	set_bit(bit, &bdi->state);
+	if (!test_and_set_bit(bit, &bdi->state))
+		atomic_inc(&nr_bdi_congested[sync]);
 }
 EXPORT_SYMBOL(set_bdi_congested);
 
@@ -764,13 +767,72 @@ EXPORT_SYMBOL(set_bdi_congested);
 long congestion_wait(int sync, long timeout)
 {
 	long ret;
+	unsigned long start = jiffies;
 	DEFINE_WAIT(wait);
 	wait_queue_head_t *wqh = &congestion_wqh[sync];
 
 	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
 	ret = io_schedule_timeout(timeout);
 	finish_wait(wqh, &wait);
+
+	trace_writeback_congestion_wait(jiffies_to_usecs(timeout),
+					jiffies_to_usecs(jiffies - start));
+
 	return ret;
 }
 EXPORT_SYMBOL(congestion_wait);
 
+/**
+ * wait_iff_congested - Conditionally wait for a backing_dev to become uncongested or a zone to complete writes
+ * @zone: A zone to check if it is heavily congested
+ * @sync: SYNC or ASYNC IO
+ * @timeout: timeout in jiffies
+ *
+ * In the event of a congested backing_dev (any backing_dev) and the given
+ * @zone has experienced recent congestion, this waits for up to @timeout
+ * jiffies for either a BDI to exit congestion of the given @sync queue
+ * or a write to complete.
+ *
+ * In the absense of zone congestion, cond_resched() is called to yield
+ * the processor if necessary but otherwise does not sleep.
+ *
+ * The return value is 0 if the sleep is for the full timeout. Otherwise,
+ * it is the number of jiffies that were still remaining when the function
+ * returned. return_value == timeout implies the function did not sleep.
+ */
+long wait_iff_congested(struct zone *zone, int sync, long timeout)
+{
+	long ret;
+	unsigned long start = jiffies;
+	DEFINE_WAIT(wait);
+	wait_queue_head_t *wqh = &congestion_wqh[sync];
+
+	/*
+	 * If there is no congestion, or heavy congestion is not being
+	 * encountered in the current zone, yield if necessary instead
+	 * of sleeping on the congestion queue
+	 */
+	if (atomic_read(&nr_bdi_congested[sync]) == 0 ||
+			!zone_is_reclaim_congested(zone)) {
+		cond_resched();
+
+		/* In case we scheduled, work out time remaining */
+		ret = timeout - (jiffies - start);
+		if (ret < 0)
+			ret = 0;
+
+		goto out;
+	}
+
+	/* Sleep until uncongested or a write happens */
+	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
+	ret = io_schedule_timeout(timeout);
+	finish_wait(wqh, &wait);
+
+out:
+	trace_writeback_wait_iff_congested(jiffies_to_usecs(timeout),
+					jiffies_to_usecs(jiffies - start));
+
+	return ret;
+}
+EXPORT_SYMBOL(wait_iff_congested);

@@ -56,10 +56,7 @@ struct print_buf {
 #define TIPC_PB_MAX_STR 512	/* max printable string (with trailing NUL) */
 
 void tipc_printbuf_init(struct print_buf *pb, char *buf, u32 size);
-void tipc_printbuf_reset(struct print_buf *pb);
-int  tipc_printbuf_empty(struct print_buf *pb);
 int  tipc_printbuf_validate(struct print_buf *pb);
-void tipc_printbuf_move(struct print_buf *pb_to, struct print_buf *pb_from);
 
 int tipc_log_resize(int log_size);
 

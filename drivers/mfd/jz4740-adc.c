@@ -153,7 +153,7 @@ static inline void jz4740_adc_set_enabled(struct jz4740_adc *adc, int engine,
 	if (enabled)
 		val |= BIT(engine);
 	else
-		val &= BIT(engine);
+		val &= ~BIT(engine);
 	writeb(val, adc->base + JZ_REG_ADC_ENABLE);
 
 	spin_unlock_irqrestore(&adc->lock, flags);

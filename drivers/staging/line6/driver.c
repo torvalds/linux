@@ -1,15 +1,13 @@
 /*
- * Line6 Linux USB driver - 0.8.0
+ * Line6 Linux USB driver - 0.9.1beta
  *
- * Copyright (C) 2004-2009 Markus Grabner (grabner@icg.tugraz.at)
+ * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
  *	published by the Free Software Foundation, version 2.
  *
  */
-
-#include "driver.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -19,6 +17,7 @@
 #include "audio.h"
 #include "capture.h"
 #include "control.h"
+#include "driver.h"
 #include "midi.h"
 #include "playback.h"
 #include "pod.h"
@@ -27,58 +26,77 @@
 #include "usbdefs.h"
 #include "variax.h"
 
-
 #define DRIVER_AUTHOR  "Markus Grabner <grabner@icg.tugraz.at>"
 #define DRIVER_DESC    "Line6 USB Driver"
-#define DRIVER_VERSION "0.8.0"
-
+#define DRIVER_VERSION "0.9.1beta" DRIVER_REVISION
 
 /* table of devices that work with this driver */
 static const struct usb_device_id line6_id_table[] = {
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_BASSPODXT) },
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_BASSPODXTLIVE) },
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_BASSPODXTPRO) },
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_GUITARPORT) },
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_POCKETPOD) },
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODX3) },
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODX3LIVE) },
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODXT) },
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODXTLIVE) },
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODXTPRO) },
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_TONEPORT_GX) },
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_TONEPORT_UX1) },
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_TONEPORT_UX2) },
-	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_VARIAX) },
-	{ },
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_BASSPODXT)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_BASSPODXTLIVE)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_BASSPODXTPRO)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_GUITARPORT)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_POCKETPOD)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODSTUDIO_GX)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODSTUDIO_UX1)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODSTUDIO_UX2)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODX3)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODX3LIVE)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODXT)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODXTLIVE)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_PODXTPRO)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_TONEPORT_GX)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_TONEPORT_UX1)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_TONEPORT_UX2)},
+	{USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_VARIAX)},
+	{},
 };
+
 MODULE_DEVICE_TABLE(usb, line6_id_table);
 
+/* *INDENT-OFF* */
 static struct line6_properties line6_properties_table[] = {
-	{ "BassPODxt",        LINE6_BIT_BASSPODXT,     LINE6_BIT_CONTROL_PCM },
-	{ "BassPODxt Live",   LINE6_BIT_BASSPODXTLIVE, LINE6_BIT_CONTROL_PCM },
-	{ "BassPODxt Pro",    LINE6_BIT_BASSPODXTPRO,  LINE6_BIT_CONTROL_PCM },
-	{ "GuitarPort",       LINE6_BIT_GUITARPORT,    LINE6_BIT_PCM         },
-	{ "Pocket POD",       LINE6_BIT_POCKETPOD,     LINE6_BIT_CONTROL_PCM },
-	{ "POD X3",           LINE6_BIT_PODX3,         LINE6_BIT_PCM         },
-	{ "POD X3 Live",      LINE6_BIT_PODX3LIVE,     LINE6_BIT_PCM         },
-	{ "PODxt",            LINE6_BIT_PODXT,         LINE6_BIT_CONTROL_PCM },
-	{ "PODxt Live",       LINE6_BIT_PODXTLIVE,     LINE6_BIT_CONTROL_PCM },
-	{ "PODxt Pro",        LINE6_BIT_PODXTPRO,      LINE6_BIT_CONTROL_PCM },
-	{ "TonePort GX",      LINE6_BIT_TONEPORT_GX,   LINE6_BIT_PCM         },
-	{ "TonePort UX1",     LINE6_BIT_TONEPORT_UX1,  LINE6_BIT_PCM         },
-	{ "TonePort UX2",     LINE6_BIT_TONEPORT_UX2,  LINE6_BIT_PCM         },
-	{ "Variax Workbench", LINE6_BIT_VARIAX,        LINE6_BIT_CONTROL     }
+	{ "BassPODxt",     "BassPODxt",        LINE6_BIT_BASSPODXT,     LINE6_BIT_CONTROL_PCM_HWMON },
+	{ "BassPODxtLive", "BassPODxt Live",   LINE6_BIT_BASSPODXTLIVE, LINE6_BIT_CONTROL_PCM_HWMON },
+	{ "BassPODxtPro",  "BassPODxt Pro",    LINE6_BIT_BASSPODXTPRO,  LINE6_BIT_CONTROL_PCM_HWMON },
+	{ "GuitarPort",    "GuitarPort",       LINE6_BIT_GUITARPORT,    LINE6_BIT_PCM               },
+	{ "PocketPOD",     "Pocket POD",       LINE6_BIT_POCKETPOD,     LINE6_BIT_CONTROL           },
+	{ "PODStudioGX",   "POD Studio GX",    LINE6_BIT_PODSTUDIO_GX,  LINE6_BIT_PCM               },
+	{ "PODStudioUX1",  "POD Studio UX1",   LINE6_BIT_PODSTUDIO_UX1, LINE6_BIT_PCM               },
+	{ "PODStudioUX2",  "POD Studio UX2",   LINE6_BIT_PODSTUDIO_UX2, LINE6_BIT_PCM               },
+	{ "PODX3",         "POD X3",           LINE6_BIT_PODX3,         LINE6_BIT_PCM               },
+	{ "PODX3Live",     "POD X3 Live",      LINE6_BIT_PODX3LIVE,     LINE6_BIT_PCM               },
+	{ "PODxt",         "PODxt",            LINE6_BIT_PODXT,         LINE6_BIT_CONTROL_PCM_HWMON },
+	{ "PODxtLive",     "PODxt Live",       LINE6_BIT_PODXTLIVE,     LINE6_BIT_CONTROL_PCM_HWMON },
+	{ "PODxtPro",      "PODxt Pro",        LINE6_BIT_PODXTPRO,      LINE6_BIT_CONTROL_PCM_HWMON },
+	{ "TonePortGX",    "TonePort GX",      LINE6_BIT_TONEPORT_GX,   LINE6_BIT_PCM               },
+	{ "TonePortUX1",   "TonePort UX1",     LINE6_BIT_TONEPORT_UX1,  LINE6_BIT_PCM               },
+	{ "TonePortUX2",   "TonePort UX2",     LINE6_BIT_TONEPORT_UX2,  LINE6_BIT_PCM               },
+	{ "Variax",        "Variax Workbench", LINE6_BIT_VARIAX,        LINE6_BIT_CONTROL           }
 };
-
+/* *INDENT-ON* */
 
 /*
 	This is Line6's MIDI manufacturer ID.
 */
-const unsigned char line6_midi_id[] = { 0x00, 0x01, 0x0c };
+const unsigned char line6_midi_id[] = {
+	0x00, 0x01, 0x0c
+};
+
+/*
+	Code to request version of POD, Variax interface
+	(and maybe other devices).
+*/
+static const char line6_request_version0[] = {
+	0xf0, 0x7e, 0x7f, 0x06, 0x01, 0xf7
+};
+
+/*
+	Copy of version request code with GFP_KERNEL flag for use in URB.
+*/
+static const char *line6_request_version;
 
 struct usb_line6 *line6_devices[LINE6_MAX_DEVICES];
-struct workqueue_struct *line6_workqueue;
-
 
 /**
 	 Class for asynchronous messages.
@@ -90,7 +108,6 @@ struct message {
 	int done;
 };
 
-
 /*
 	Forward declarations.
 */
@@ -98,21 +115,30 @@ static void line6_data_received(struct urb *urb);
 static int line6_send_raw_message_async_part(struct message *msg,
 					     struct urb *urb);
 
-
 /*
 	Start to listen on endpoint.
 */
 static int line6_start_listen(struct usb_line6 *line6)
 {
+	int err;
 	usb_fill_int_urb(line6->urb_listen, line6->usbdev,
 			 usb_rcvintpipe(line6->usbdev, line6->ep_control_read),
 			 line6->buffer_listen, LINE6_BUFSIZE_LISTEN,
 			 line6_data_received, line6, line6->interval);
 	line6->urb_listen->actual_length = 0;
-	return usb_submit_urb(line6->urb_listen, GFP_KERNEL);
+	err = usb_submit_urb(line6->urb_listen, GFP_ATOMIC);
+	return err;
 }
 
-#if DO_DUMP_ANY
+/*
+	Stop listening on endpoint.
+*/
+static void line6_stop_listen(struct usb_line6 *line6)
+{
+	usb_kill_urb(line6->urb_listen);
+}
+
+#ifdef CONFIG_LINE6_USB_DUMP_ANY
 /*
 	Write hexdump to syslog.
 */
@@ -136,12 +162,13 @@ void line6_write_hexdump(struct usb_line6 *line6, char dir,
 			if (j < n) {
 				unsigned char val = buffer[i + j];
 				bytes = snprintf(p, hexdumpsize, " %02X", val);
-				asc[j] = ((val >= 0x20) && (val < 0x7f)) ? val : '.';
+				asc[j] = ((val >= 0x20)
+					  && (val < 0x7f)) ? val : '.';
 			} else
 				bytes = snprintf(p, hexdumpsize, "   ");
 
 			if (bytes > hexdumpsize)
-				break;  /* buffer overflow */
+				break;	/* buffer overflow */
 
 			p += bytes;
 			hexdumpsize -= bytes;
@@ -152,7 +179,7 @@ void line6_write_hexdump(struct usb_line6 *line6, char dir,
 }
 #endif
 
-#if DO_DUMP_URB_RECEIVE
+#ifdef CONFIG_LINE6_USB_DUMP_CTRL
 /*
 	Dump URB data to syslog.
 */
@@ -169,19 +196,19 @@ static void line6_dump_urb(struct urb *urb)
 #endif
 
 /*
-	Send raw message in pieces of max_packet_size bytes.
+	Send raw message in pieces of wMaxPacketSize bytes.
 */
 int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 			   int size)
 {
 	int i, done = 0;
-	int actual_size;
 
-#if DO_DUMP_URB_SEND
+#ifdef CONFIG_LINE6_USB_DUMP_CTRL
 	line6_write_hexdump(line6, 'S', buffer, size);
 #endif
 
-	for (i = 0; i < size; i += actual_size) {
+	for (i = 0; i < size; i += line6->max_packet_size) {
+		int partial;
 		const char *frag_buf = buffer + i;
 		int frag_size = min(line6->max_packet_size, size - i);
 		int retval;
@@ -190,7 +217,7 @@ int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 					   usb_sndintpipe(line6->usbdev,
 							  line6->ep_control_write),
 					   (char *)frag_buf, frag_size,
-					   &actual_size, LINE6_TIMEOUT * HZ);
+					   &partial, LINE6_TIMEOUT * HZ);
 
 		if (retval) {
 			dev_err(line6->ifcdev,
@@ -198,7 +225,7 @@ int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 			break;
 		}
 
-		done += actual_size;
+		done += frag_size;
 	}
 
 	return done;
@@ -234,7 +261,7 @@ static int line6_send_raw_message_async_part(struct message *msg,
 			 (char *)msg->buffer + done, bytes,
 			 line6_async_request_sent, msg, line6->interval);
 
-#if DO_DUMP_URB_SEND
+#ifdef CONFIG_LINE6_USB_DUMP_CTRL
 	line6_write_hexdump(line6, 'S', (char *)msg->buffer + done, bytes);
 #endif
 
@@ -250,6 +277,17 @@ static int line6_send_raw_message_async_part(struct message *msg,
 	}
 
 	return 0;
+}
+
+/*
+	Setup and start timer.
+*/
+void line6_start_timer(struct timer_list *timer, unsigned int msecs,
+		       void (*function) (unsigned long), unsigned long data)
+{
+	setup_timer(timer, function, data);
+	timer->expires = jiffies + msecs * HZ / 1000;
+	add_timer(timer);
 }
 
 /*
@@ -289,12 +327,34 @@ int line6_send_raw_message_async(struct usb_line6 *line6, const char *buffer,
 }
 
 /*
+	Send asynchronous device version request.
+*/
+int line6_version_request_async(struct usb_line6 *line6)
+{
+	return line6_send_raw_message_async(line6, line6_request_version,
+					    sizeof(line6_request_version0));
+}
+
+/*
 	Send sysex message in pieces of wMaxPacketSize bytes.
 */
 int line6_send_sysex_message(struct usb_line6 *line6, const char *buffer,
 			     int size)
 {
-	return line6_send_raw_message(line6, buffer, size + SYSEX_EXTRA_SIZE) - SYSEX_EXTRA_SIZE;
+	return line6_send_raw_message(line6, buffer,
+				      size + SYSEX_EXTRA_SIZE) -
+	    SYSEX_EXTRA_SIZE;
+}
+
+/*
+	Send sysex message in pieces of wMaxPacketSize bytes.
+*/
+int line6_send_sysex_message_async(struct usb_line6 *line6, const char *buffer,
+				   int size)
+{
+	return line6_send_raw_message_async(line6, buffer,
+					    size + SYSEX_EXTRA_SIZE) -
+	    SYSEX_EXTRA_SIZE;
 }
 
 /*
@@ -305,7 +365,7 @@ int line6_send_sysex_message(struct usb_line6 *line6, const char *buffer,
 char *line6_alloc_sysex_buffer(struct usb_line6 *line6, int code1, int code2,
 			       int size)
 {
-	char *buffer = kmalloc(size + SYSEX_EXTRA_SIZE, GFP_KERNEL);
+	char *buffer = kmalloc(size + SYSEX_EXTRA_SIZE, GFP_ATOMIC);
 
 	if (!buffer) {
 		dev_err(line6->ifcdev, "out of memory\n");
@@ -332,29 +392,36 @@ static void line6_data_received(struct urb *urb)
 	if (urb->status == -ESHUTDOWN)
 		return;
 
-#if DO_DUMP_URB_RECEIVE
+#ifdef CONFIG_LINE6_USB_DUMP_CTRL
 	line6_dump_urb(urb);
 #endif
 
-	done = midibuf_write(mb, urb->transfer_buffer, urb->actual_length);
+	done =
+	    line6_midibuf_write(mb, urb->transfer_buffer, urb->actual_length);
 
 	if (done < urb->actual_length) {
-		midibuf_ignore(mb, done);
-		DEBUG_MESSAGES(dev_err(line6->ifcdev, "%d %d buffer overflow - message skipped\n", done, urb->actual_length));
+		line6_midibuf_ignore(mb, done);
+		DEBUG_MESSAGES(dev_err
+			       (line6->ifcdev,
+				"%d %d buffer overflow - message skipped\n",
+				done, urb->actual_length));
 	}
 
 	for (;;) {
-		done = midibuf_read(mb, line6->buffer_message, LINE6_MESSAGE_MAXLEN);
+		done =
+		    line6_midibuf_read(mb, line6->buffer_message,
+				       LINE6_MESSAGE_MAXLEN);
 
 		if (done == 0)
 			break;
 
 		/* MIDI input filter */
-		if (midibuf_skip_message(mb, line6->line6midi->midi_mask_receive))
+		if (line6_midibuf_skip_message
+		    (mb, line6->line6midi->midi_mask_receive))
 			continue;
 
 		line6->message_length = done;
-#if DO_DUMP_MIDI_RECEIVE
+#ifdef CONFIG_LINE6_USB_DUMP_MIDI
 		line6_write_hexdump(line6, 'r', line6->buffer_message, done);
 #endif
 		line6_midi_receive(line6, line6->buffer_message, done);
@@ -366,26 +433,33 @@ static void line6_data_received(struct urb *urb)
 		case LINE6_DEVID_PODXT:
 		case LINE6_DEVID_PODXTPRO:
 		case LINE6_DEVID_POCKETPOD:
-			pod_process_message((struct usb_line6_pod *)line6);
+			line6_pod_process_message((struct usb_line6_pod *)
+						  line6);
 			break;
 
 		case LINE6_DEVID_PODXTLIVE:
 			switch (line6->interface_number) {
 			case PODXTLIVE_INTERFACE_POD:
-				pod_process_message((struct usb_line6_pod *)line6);
+				line6_pod_process_message((struct usb_line6_pod
+							   *)line6);
 				break;
 
 			case PODXTLIVE_INTERFACE_VARIAX:
-				variax_process_message((struct usb_line6_variax *)line6);
+				line6_variax_process_message((struct
+							      usb_line6_variax
+							      *)line6);
 				break;
 
 			default:
-				dev_err(line6->ifcdev, "PODxt Live interface %d not supported\n", line6->interface_number);
+				dev_err(line6->ifcdev,
+					"PODxt Live interface %d not supported\n",
+					line6->interface_number);
 			}
 			break;
 
 		case LINE6_DEVID_VARIAX:
-			variax_process_message((struct usb_line6_variax *)line6);
+			line6_variax_process_message((struct usb_line6_variax *)
+						     line6);
 			break;
 
 		default:
@@ -396,44 +470,17 @@ static void line6_data_received(struct urb *urb)
 	line6_start_listen(line6);
 }
 
-static int line6_send(struct usb_line6 *line6, unsigned char *buf, size_t len)
-{
-	int retval;
-	int partial;
-
-#if DO_DUMP_URB_SEND
-	line6_write_hexdump(line6, 'S', buf, len);
-#endif
-
-	retval = usb_interrupt_msg(line6->usbdev,
-				   usb_sndintpipe(line6->usbdev,
-						  line6->ep_control_write),
-				   buf, len, &partial,
-				   LINE6_TIMEOUT * HZ);
-
-	if (retval) {
-		dev_err(line6->ifcdev,
-			"usb_interrupt_msg failed (%d)\n", retval);
-	}
-
-	if (partial != len) {
-		dev_err(line6->ifcdev,
-			"usb_interrupt_msg sent partial message (%d)\n",
-			 retval);
-	}
-
-	return retval;
-}
-
 /*
 	Send channel number (i.e., switch to a different sound).
 */
 int line6_send_program(struct usb_line6 *line6, int value)
 {
+	int retval;
 	unsigned char *buffer;
-	size_t len = 2;
+	int partial;
 
-	buffer = kmalloc(len, GFP_KERNEL);
+	buffer = kmalloc(2, GFP_KERNEL);
+
 	if (!buffer) {
 		dev_err(line6->ifcdev, "out of memory\n");
 		return -ENOMEM;
@@ -442,7 +489,21 @@ int line6_send_program(struct usb_line6 *line6, int value)
 	buffer[0] = LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_HOST;
 	buffer[1] = value;
 
-	return line6_send(line6, buffer, len);
+#ifdef CONFIG_LINE6_USB_DUMP_CTRL
+	line6_write_hexdump(line6, 'S', buffer, 2);
+#endif
+
+	retval = usb_interrupt_msg(line6->usbdev,
+				   usb_sndintpipe(line6->usbdev,
+						  line6->ep_control_write),
+				   buffer, 2, &partial, LINE6_TIMEOUT * HZ);
+
+	if (retval)
+		dev_err(line6->ifcdev, "usb_interrupt_msg failed (%d)\n",
+			retval);
+
+	kfree(buffer);
+	return retval;
 }
 
 /*
@@ -450,10 +511,12 @@ int line6_send_program(struct usb_line6 *line6, int value)
 */
 int line6_transmit_parameter(struct usb_line6 *line6, int param, int value)
 {
+	int retval;
 	unsigned char *buffer;
-	size_t len = 3;
+	int partial;
 
-	buffer = kmalloc(len, GFP_KERNEL);
+	buffer = kmalloc(3, GFP_KERNEL);
+
 	if (!buffer) {
 		dev_err(line6->ifcdev, "out of memory\n");
 		return -ENOMEM;
@@ -463,13 +526,28 @@ int line6_transmit_parameter(struct usb_line6 *line6, int param, int value)
 	buffer[1] = param;
 	buffer[2] = value;
 
-	return line6_send(line6, buffer, len);
+#ifdef CONFIG_LINE6_USB_DUMP_CTRL
+	line6_write_hexdump(line6, 'S', buffer, 3);
+#endif
+
+	retval = usb_interrupt_msg(line6->usbdev,
+				   usb_sndintpipe(line6->usbdev,
+						  line6->ep_control_write),
+				   buffer, 3, &partial, LINE6_TIMEOUT * HZ);
+
+	if (retval)
+		dev_err(line6->ifcdev, "usb_interrupt_msg failed (%d)\n",
+			retval);
+
+	kfree(buffer);
+	return retval;
 }
 
 /*
 	Read data from device.
 */
-int line6_read_data(struct usb_line6 *line6, int address, void *data, size_t datalen)
+int line6_read_data(struct usb_line6 *line6, int address, void *data,
+		    size_t datalen)
 {
 	struct usb_device *usbdev = line6->usbdev;
 	int ret;
@@ -477,10 +555,9 @@ int line6_read_data(struct usb_line6 *line6, int address, void *data, size_t dat
 
 	/* query the serial number: */
 	ret = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0), 0x67,
-				      USB_TYPE_VENDOR | USB_RECIP_DEVICE
-				      | USB_DIR_OUT,
-				      (datalen << 8) | 0x21, address,
-				      NULL, 0, LINE6_TIMEOUT * HZ);
+			      USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+			      (datalen << 8) | 0x21, address,
+			      NULL, 0, LINE6_TIMEOUT * HZ);
 
 	if (ret < 0) {
 		dev_err(line6->ifcdev, "read request failed (error %d)\n", ret);
@@ -557,9 +634,7 @@ int line6_write_data(struct usb_line6 *line6, int address, void *data,
 				"receiving status failed (error %d)\n", ret);
 			return ret;
 		}
-	}
-	while (status == 0xff)
-		;
+	} while (status == 0xff);
 
 	if (status != 0) {
 		dev_err(line6->ifcdev, "write failed (error %d)\n", ret);
@@ -575,7 +650,8 @@ int line6_write_data(struct usb_line6 *line6, int address, void *data,
 */
 int line6_read_serial_number(struct usb_line6 *line6, int *serial_number)
 {
-	return line6_read_data(line6, 0x80d0, serial_number, sizeof(*serial_number));
+	return line6_read_data(line6, 0x80d0, serial_number,
+			       sizeof(*serial_number));
 }
 
 /*
@@ -599,7 +675,7 @@ ssize_t line6_nop_write(struct device *dev, struct device_attribute *attr,
 /*
 	"write" request on "raw" special file.
 */
-#if CREATE_RAW_FILE
+#ifdef CONFIG_LINE6_USB_RAW
 ssize_t line6_set_raw(struct device *dev, struct device_attribute *attr,
 		      const char *buf, size_t count)
 {
@@ -637,25 +713,11 @@ static void line6_destruct(struct usb_interface *interface)
 	kfree(line6);
 }
 
-static void line6_list_devices(void)
-{
-	int i;
-
-	for (i = 0; i < LINE6_MAX_DEVICES; ++i) {
-		struct usb_line6 *dev = line6_devices[i];
-		printk(KERN_INFO "Line6 device %d: ", i);
-
-		if (dev == NULL)
-			printk("(not used)\n");
-		else
-			printk("%s:%d\n", dev->properties->name, dev->interface_number);
-	}
-}
-
 /*
 	Probe USB device.
 */
-static int line6_probe(struct usb_interface *interface, const struct usb_device_id *id)
+static int line6_probe(struct usb_interface *interface,
+		       const struct usb_device_id *id)
 {
 	int devtype;
 	struct usb_device *usbdev = NULL;
@@ -674,10 +736,6 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 	if (usbdev == NULL)
 		return -ENODEV;
 
-	/* increment reference counters: */
-	usb_get_intf(interface);
-	usb_get_dev(usbdev);
-
 	/* we don't handle multiple configurations */
 	if (usbdev->descriptor.bNumConfigurations != 1) {
 		ret = -ENODEV;
@@ -689,8 +747,8 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 		u16 idVendor = le16_to_cpu(usbdev->descriptor.idVendor);
 		u16 idProduct = le16_to_cpu(usbdev->descriptor.idProduct);
 
-		if (idVendor == line6_id_table[devtype].idVendor
-		     && idProduct == line6_id_table[devtype].idProduct)
+		if (idVendor == line6_id_table[devtype].idVendor &&
+		    idProduct == line6_id_table[devtype].idProduct)
 			break;
 	}
 
@@ -719,10 +777,21 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 
 	switch (product) {
 	case LINE6_DEVID_BASSPODXTLIVE:
-	case LINE6_DEVID_POCKETPOD:
 	case LINE6_DEVID_PODXTLIVE:
 	case LINE6_DEVID_VARIAX:
 		alternate = 1;
+		break;
+
+	case LINE6_DEVID_POCKETPOD:
+		switch (interface_number) {
+		case 0:
+			return 0;	/* this interface has no endpoints */
+		case 1:
+			alternate = 0;
+			break;
+		default:
+			MISSING_CASE;
+		}
 		break;
 
 	case LINE6_DEVID_PODX3:
@@ -746,21 +815,27 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 		alternate = 5;
 		break;
 
-	case LINE6_DEVID_TONEPORT_GX:
 	case LINE6_DEVID_GUITARPORT:
-		alternate = 2;  /* 1..4 seem to be ok */
+	case LINE6_DEVID_PODSTUDIO_GX:
+	case LINE6_DEVID_PODSTUDIO_UX1:
+	case LINE6_DEVID_TONEPORT_GX:
+	case LINE6_DEVID_TONEPORT_UX1:
+		alternate = 2;	/* 1..4 seem to be ok */
 		break;
 
-	case LINE6_DEVID_TONEPORT_UX1:
 	case LINE6_DEVID_TONEPORT_UX2:
+	case LINE6_DEVID_PODSTUDIO_UX2:
 		switch (interface_number) {
 		case 0:
 			/* defaults to 44.1kHz, 16-bit */
 			alternate = 2;
 			break;
 		case 1:
-			alternate = 0;
-			break;
+			/* don't know yet what this is ...
+			   alternate = 1;
+			   break;
+			 */
+			return -ENODEV;
 		default:
 			MISSING_CASE;
 		}
@@ -783,22 +858,30 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 	case LINE6_DEVID_BASSPODXT:
 	case LINE6_DEVID_BASSPODXTLIVE:
 	case LINE6_DEVID_BASSPODXTPRO:
-	case LINE6_DEVID_POCKETPOD:
 	case LINE6_DEVID_PODXT:
 	case LINE6_DEVID_PODXTPRO:
 		size = sizeof(struct usb_line6_pod);
-		ep_read  = 0x84;
+		ep_read = 0x84;
 		ep_write = 0x03;
+		break;
+
+	case LINE6_DEVID_POCKETPOD:
+		size = sizeof(struct usb_line6_pod);
+		ep_read = 0x82;
+		ep_write = 0x02;
 		break;
 
 	case LINE6_DEVID_PODX3:
 	case LINE6_DEVID_PODX3LIVE:
 		/* currently unused! */
 		size = sizeof(struct usb_line6_pod);
-		ep_read  = 0x81;
+		ep_read = 0x81;
 		ep_write = 0x01;
 		break;
 
+	case LINE6_DEVID_PODSTUDIO_GX:
+	case LINE6_DEVID_PODSTUDIO_UX1:
+	case LINE6_DEVID_PODSTUDIO_UX2:
 	case LINE6_DEVID_TONEPORT_GX:
 	case LINE6_DEVID_TONEPORT_UX1:
 	case LINE6_DEVID_TONEPORT_UX2:
@@ -811,13 +894,13 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 		switch (interface_number) {
 		case PODXTLIVE_INTERFACE_POD:
 			size = sizeof(struct usb_line6_pod);
-			ep_read  = 0x84;
+			ep_read = 0x84;
 			ep_write = 0x03;
 			break;
 
 		case PODXTLIVE_INTERFACE_VARIAX:
 			size = sizeof(struct usb_line6_variax);
-			ep_read  = 0x86;
+			ep_read = 0x86;
 			ep_write = 0x05;
 			break;
 
@@ -829,7 +912,7 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 
 	case LINE6_DEVID_VARIAX:
 		size = sizeof(struct usb_line6_variax);
-		ep_read  = 0x82;
+		ep_read = 0x82;
 		ep_write = 0x01;
 		break;
 
@@ -840,7 +923,8 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 	}
 
 	if (size == 0) {
-		dev_err(line6->ifcdev, "driver bug: interface data size not set\n");
+		dev_err(line6->ifcdev,
+			"driver bug: interface data size not set\n");
 		ret = -ENODEV;
 		goto err_put;
 	}
@@ -865,16 +949,19 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 	/* get data from endpoint descriptor (see usb_maxpacket): */
 	{
 		struct usb_host_endpoint *ep;
-		unsigned epnum = usb_pipeendpoint(usb_rcvintpipe(usbdev, ep_read));
+		unsigned epnum =
+		    usb_pipeendpoint(usb_rcvintpipe(usbdev, ep_read));
 		ep = usbdev->ep_in[epnum];
 
 		if (ep != NULL) {
 			line6->interval = ep->desc.bInterval;
-			line6->max_packet_size = le16_to_cpu(ep->desc.wMaxPacketSize);
+			line6->max_packet_size =
+			    le16_to_cpu(ep->desc.wMaxPacketSize);
 		} else {
 			line6->interval = LINE6_FALLBACK_INTERVAL;
 			line6->max_packet_size = LINE6_FALLBACK_MAXPACKETSIZE;
-			dev_err(line6->ifcdev, "endpoint not available, using fallback values");
+			dev_err(line6->ifcdev,
+				"endpoint not available, using fallback values");
 		}
 	}
 
@@ -882,7 +969,8 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 
 	if (properties->capabilities & LINE6_BIT_CONTROL) {
 		/* initialize USB buffers: */
-		line6->buffer_listen = kmalloc(LINE6_BUFSIZE_LISTEN, GFP_KERNEL);
+		line6->buffer_listen =
+		    kmalloc(LINE6_BUFSIZE_LISTEN, GFP_KERNEL);
 
 		if (line6->buffer_listen == NULL) {
 			dev_err(&interface->dev, "Out of memory\n");
@@ -890,7 +978,8 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 			goto err_destruct;
 		}
 
-		line6->buffer_message = kmalloc(LINE6_MESSAGE_MAXLEN, GFP_KERNEL);
+		line6->buffer_message =
+		    kmalloc(LINE6_MESSAGE_MAXLEN, GFP_KERNEL);
 
 		if (line6->buffer_message == NULL) {
 			dev_err(&interface->dev, "Out of memory\n");
@@ -925,17 +1014,21 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 	case LINE6_DEVID_PODX3LIVE:
 	case LINE6_DEVID_PODXT:
 	case LINE6_DEVID_PODXTPRO:
-		ret = pod_init(interface, (struct usb_line6_pod *)line6);
+		ret = line6_pod_init(interface, (struct usb_line6_pod *)line6);
 		break;
 
 	case LINE6_DEVID_PODXTLIVE:
 		switch (interface_number) {
 		case PODXTLIVE_INTERFACE_POD:
-			ret = pod_init(interface, (struct usb_line6_pod *)line6);
+			ret =
+			    line6_pod_init(interface,
+					   (struct usb_line6_pod *)line6);
 			break;
 
 		case PODXTLIVE_INTERFACE_VARIAX:
-			ret = variax_init(interface, (struct usb_line6_variax *)line6);
+			ret =
+			    line6_variax_init(interface,
+					      (struct usb_line6_variax *)line6);
 			break;
 
 		default:
@@ -948,14 +1041,21 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 		break;
 
 	case LINE6_DEVID_VARIAX:
-		ret = variax_init(interface, (struct usb_line6_variax *)line6);
+		ret =
+		    line6_variax_init(interface,
+				      (struct usb_line6_variax *)line6);
 		break;
 
+	case LINE6_DEVID_PODSTUDIO_GX:
+	case LINE6_DEVID_PODSTUDIO_UX1:
+	case LINE6_DEVID_PODSTUDIO_UX2:
 	case LINE6_DEVID_TONEPORT_GX:
 	case LINE6_DEVID_TONEPORT_UX1:
 	case LINE6_DEVID_TONEPORT_UX2:
 	case LINE6_DEVID_GUITARPORT:
-		ret = toneport_init(interface, (struct usb_line6_toneport *)line6);
+		ret =
+		    line6_toneport_init(interface,
+					(struct usb_line6_toneport *)line6);
 		break;
 
 	default:
@@ -971,10 +1071,24 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 	if (ret < 0)
 		goto err_destruct;
 
+	/* creation of additional special files should go here */
+
 	dev_info(&interface->dev, "Line6 %s now attached\n",
 		 line6->properties->name);
 	line6_devices[devnum] = line6;
-	line6_list_devices();
+
+	switch (product) {
+	case LINE6_DEVID_PODX3:
+	case LINE6_DEVID_PODX3LIVE:
+		dev_info(&interface->dev,
+			 "NOTE: the Line6 %s is detected, but not yet supported\n",
+			 line6->properties->name);
+	}
+
+	/* increment reference counters: */
+	usb_get_intf(interface);
+	usb_get_dev(usbdev);
+
 	return 0;
 
 err_destruct:
@@ -1000,6 +1114,8 @@ static void line6_disconnect(struct usb_interface *interface)
 	if (usbdev == NULL)
 		return;
 
+	/* removal of additional special files should go here */
+
 	sysfs_remove_link(&interface->dev.kobj, "usb_device");
 
 	interface_number = interface->cur_altsetting->desc.bInterfaceNumber;
@@ -1007,7 +1123,7 @@ static void line6_disconnect(struct usb_interface *interface)
 
 	if (line6 != NULL) {
 		if (line6->urb_listen != NULL)
-			usb_kill_urb(line6->urb_listen);
+			line6_stop_listen(line6);
 
 		if (usbdev != line6->usbdev)
 			dev_err(line6->ifcdev,
@@ -1022,43 +1138,46 @@ static void line6_disconnect(struct usb_interface *interface)
 		case LINE6_DEVID_PODX3LIVE:
 		case LINE6_DEVID_PODXT:
 		case LINE6_DEVID_PODXTPRO:
-			pod_disconnect(interface);
+			line6_pod_disconnect(interface);
 			break;
 
 		case LINE6_DEVID_PODXTLIVE:
 			switch (interface_number) {
 			case PODXTLIVE_INTERFACE_POD:
-				pod_disconnect(interface);
+				line6_pod_disconnect(interface);
 				break;
 
 			case PODXTLIVE_INTERFACE_VARIAX:
-				variax_disconnect(interface);
+				line6_variax_disconnect(interface);
 				break;
 			}
 
 			break;
 
 		case LINE6_DEVID_VARIAX:
-			variax_disconnect(interface);
+			line6_variax_disconnect(interface);
 			break;
 
+		case LINE6_DEVID_PODSTUDIO_GX:
+		case LINE6_DEVID_PODSTUDIO_UX1:
+		case LINE6_DEVID_PODSTUDIO_UX2:
 		case LINE6_DEVID_TONEPORT_GX:
 		case LINE6_DEVID_TONEPORT_UX1:
 		case LINE6_DEVID_TONEPORT_UX2:
 		case LINE6_DEVID_GUITARPORT:
-			toneport_disconnect(interface);
+			line6_toneport_disconnect(interface);
 			break;
 
 		default:
 			MISSING_CASE;
 		}
 
-		dev_info(&interface->dev, "Line6 %s now disconnected\n", line6->properties->name);
+		dev_info(&interface->dev, "Line6 %s now disconnected\n",
+			 line6->properties->name);
 
-		for (i = LINE6_MAX_DEVICES; i--;) {
+		for (i = LINE6_MAX_DEVICES; i--;)
 			if (line6_devices[i] == line6)
 				line6_devices[i] = NULL;
-		}
 	}
 
 	line6_destruct(interface);
@@ -1066,14 +1185,78 @@ static void line6_disconnect(struct usb_interface *interface)
 	/* decrement reference counters: */
 	usb_put_intf(interface);
 	usb_put_dev(usbdev);
-
-	line6_list_devices();
 }
+
+#ifdef CONFIG_PM
+
+/*
+	Suspend Line6 device.
+*/
+static int line6_suspend(struct usb_interface *interface, pm_message_t message)
+{
+	struct usb_line6 *line6 = usb_get_intfdata(interface);
+	struct snd_line6_pcm *line6pcm = line6->line6pcm;
+
+	snd_power_change_state(line6->card, SNDRV_CTL_POWER_D3hot);
+
+	if (line6->properties->capabilities & LINE6_BIT_CONTROL)
+		line6_stop_listen(line6);
+
+	if (line6pcm != NULL) {
+		snd_pcm_suspend_all(line6pcm->pcm);
+		line6_pcm_disconnect(line6pcm);
+		line6pcm->flags = 0;
+	}
+
+	return 0;
+}
+
+/*
+	Resume Line6 device.
+*/
+static int line6_resume(struct usb_interface *interface)
+{
+	struct usb_line6 *line6 = usb_get_intfdata(interface);
+
+	if (line6->properties->capabilities & LINE6_BIT_CONTROL)
+		line6_start_listen(line6);
+
+	snd_power_change_state(line6->card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+
+/*
+	Resume Line6 device after reset.
+*/
+static int line6_reset_resume(struct usb_interface *interface)
+{
+	struct usb_line6 *line6 = usb_get_intfdata(interface);
+
+	switch (line6->usbdev->descriptor.idProduct) {
+	case LINE6_DEVID_PODSTUDIO_GX:
+	case LINE6_DEVID_PODSTUDIO_UX1:
+	case LINE6_DEVID_PODSTUDIO_UX2:
+	case LINE6_DEVID_TONEPORT_GX:
+	case LINE6_DEVID_TONEPORT_UX1:
+	case LINE6_DEVID_TONEPORT_UX2:
+	case LINE6_DEVID_GUITARPORT:
+		line6_toneport_reset_resume((struct usb_line6_toneport *)line6);
+	}
+
+	return line6_resume(interface);
+}
+
+#endif /* CONFIG_PM */
 
 static struct usb_driver line6_driver = {
 	.name = DRIVER_NAME,
 	.probe = line6_probe,
 	.disconnect = line6_disconnect,
+#ifdef CONFIG_PM
+	.suspend = line6_suspend,
+	.resume = line6_resume,
+	.reset_resume = line6_reset_resume,
+#endif
 	.id_table = line6_id_table,
 };
 
@@ -1084,22 +1267,28 @@ static int __init line6_init(void)
 {
 	int i, retval;
 
-	printk(KERN_INFO "%s driver version %s%s\n",
-	       DRIVER_NAME, DRIVER_VERSION, DRIVER_REVISION);
-	line6_workqueue = create_workqueue(DRIVER_NAME);
-
-	if (line6_workqueue == NULL) {
-		err("couldn't create workqueue");
-		return -EINVAL;
-	}
+	printk(KERN_INFO "%s driver version %s\n", DRIVER_NAME, DRIVER_VERSION);
 
 	for (i = LINE6_MAX_DEVICES; i--;)
 		line6_devices[i] = NULL;
 
 	retval = usb_register(&line6_driver);
 
-	if (retval)
+	if (retval) {
 		err("usb_register failed. Error number %d", retval);
+		return retval;
+	}
+
+	line6_request_version = kmalloc(sizeof(line6_request_version0),
+					GFP_KERNEL);
+
+	if (line6_request_version == NULL) {
+		err("Out of memory");
+		return -ENOMEM;
+	}
+
+	memcpy((char *)line6_request_version, line6_request_version0,
+	       sizeof(line6_request_version0));
 
 	return retval;
 }
@@ -1109,8 +1298,27 @@ static int __init line6_init(void)
 */
 static void __exit line6_exit(void)
 {
-	destroy_workqueue(line6_workqueue);
+	int i;
+	struct usb_line6 *line6;
+	struct snd_line6_pcm *line6pcm;
+
+	/* stop all PCM channels */
+	for (i = LINE6_MAX_DEVICES; i--;) {
+		line6 = line6_devices[i];
+
+		if (line6 == NULL)
+			continue;
+
+		line6pcm = line6->line6pcm;
+
+		if (line6pcm == NULL)
+			continue;
+
+		line6_pcm_stop(line6pcm, ~0);
+	}
+
 	usb_deregister(&line6_driver);
+	kfree(line6_request_version);
 }
 
 module_init(line6_init);

@@ -148,7 +148,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "Servers:");
 
 	i = 0;
-	read_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp1, &cifs_tcp_ses_list) {
 		server = list_entry(tmp1, struct TCP_Server_Info,
 				    tcp_ses_list);
@@ -230,7 +230,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			spin_unlock(&GlobalMid_Lock);
 		}
 	}
-	read_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 	seq_putc(m, '\n');
 
 	/* BB add code to dump additional info such as TCP session info now */
@@ -270,7 +270,7 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 		atomic_set(&totBufAllocCount, 0);
 		atomic_set(&totSmBufAllocCount, 0);
 #endif /* CONFIG_CIFS_STATS2 */
-		read_lock(&cifs_tcp_ses_lock);
+		spin_lock(&cifs_tcp_ses_lock);
 		list_for_each(tmp1, &cifs_tcp_ses_list) {
 			server = list_entry(tmp1, struct TCP_Server_Info,
 					    tcp_ses_list);
@@ -303,7 +303,7 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 				}
 			}
 		}
-		read_unlock(&cifs_tcp_ses_lock);
+		spin_unlock(&cifs_tcp_ses_lock);
 	}
 
 	return count;
@@ -343,7 +343,7 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 		GlobalCurrentXid, GlobalMaxActiveXid);
 
 	i = 0;
-	read_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp1, &cifs_tcp_ses_list) {
 		server = list_entry(tmp1, struct TCP_Server_Info,
 				    tcp_ses_list);
@@ -397,7 +397,7 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 			}
 		}
 	}
-	read_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	seq_putc(m, '\n');
 	return 0;

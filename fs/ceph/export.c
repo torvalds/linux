@@ -1,10 +1,11 @@
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <linux/exportfs.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #include "super.h"
+#include "mds_client.h"
 
 /*
  * NFS export support
@@ -120,7 +121,7 @@ static struct dentry *__fh_to_dentry(struct super_block *sb,
 static struct dentry *__cfh_to_dentry(struct super_block *sb,
 				      struct ceph_nfs_confh *cfh)
 {
-	struct ceph_mds_client *mdsc = &ceph_sb_to_client(sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(sb)->mdsc;
 	struct inode *inode;
 	struct dentry *dentry;
 	struct ceph_vino vino;

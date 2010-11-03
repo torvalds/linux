@@ -27,6 +27,7 @@
 #include <linux/i2c/twl.h>
 #include <linux/io.h>
 #include <linux/smsc911x.h>
+#include <linux/mmc/host.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -41,11 +42,12 @@
 #include <mach/board-zoom.h>
 
 #include <asm/delay.h>
-#include <plat/control.h>
 #include <plat/usb.h>
 
+#include "board-flash.h"
 #include "mux.h"
 #include "hsmmc.h"
+#include "control.h"
 
 #define LDP_SMSC911X_CS		1
 #define LDP_SMSC911X_GPIO	152
@@ -82,7 +84,7 @@ static struct platform_device ldp_smsc911x_device = {
 	},
 };
 
-static int board_keymap[] = {
+static uint32_t board_keymap[] = {
 	KEY(0, 0, KEY_1),
 	KEY(1, 0, KEY_2),
 	KEY(2, 0, KEY_3),
@@ -362,7 +364,7 @@ static int __init omap_i2c_init(void)
 static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.mmc		= 1,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 	},
@@ -442,8 +444,6 @@ static void __init omap_ldp_init(void)
 }
 
 MACHINE_START(OMAP_LDP, "OMAP LDP board")
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,

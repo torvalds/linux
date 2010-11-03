@@ -72,6 +72,7 @@ static const char version[] =
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/crc32.h>

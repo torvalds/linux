@@ -59,6 +59,7 @@ static int usb_open(struct inode * inode, struct file * file)
 static const struct file_operations usb_fops = {
 	.owner =	THIS_MODULE,
 	.open =		usb_open,
+	.llseek =	noop_llseek,
 };
 
 static struct usb_class {

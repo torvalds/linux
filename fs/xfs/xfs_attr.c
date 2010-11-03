@@ -355,16 +355,15 @@ xfs_attr_set_int(
 			if (mp->m_flags & XFS_MOUNT_WSYNC) {
 				xfs_trans_set_sync(args.trans);
 			}
+
+			if (!error && (flags & ATTR_KERNOTIME) == 0) {
+				xfs_trans_ichgtime(args.trans, dp,
+							XFS_ICHGTIME_CHG);
+			}
 			err2 = xfs_trans_commit(args.trans,
 						 XFS_TRANS_RELEASE_LOG_RES);
 			xfs_iunlock(dp, XFS_ILOCK_EXCL);
 
-			/*
-			 * Hit the inode change time.
-			 */
-			if (!error && (flags & ATTR_KERNOTIME) == 0) {
-				xfs_ichgtime(dp, XFS_ICHGTIME_CHG);
-			}
 			return(error == 0 ? err2 : error);
 		}
 
@@ -420,19 +419,15 @@ xfs_attr_set_int(
 		xfs_trans_set_sync(args.trans);
 	}
 
+	if ((flags & ATTR_KERNOTIME) == 0)
+		xfs_trans_ichgtime(args.trans, dp, XFS_ICHGTIME_CHG);
+
 	/*
 	 * Commit the last in the sequence of transactions.
 	 */
 	xfs_trans_log_inode(args.trans, dp, XFS_ILOG_CORE);
 	error = xfs_trans_commit(args.trans, XFS_TRANS_RELEASE_LOG_RES);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
-
-	/*
-	 * Hit the inode change time.
-	 */
-	if (!error && (flags & ATTR_KERNOTIME) == 0) {
-		xfs_ichgtime(dp, XFS_ICHGTIME_CHG);
-	}
 
 	return(error);
 
@@ -567,19 +562,15 @@ xfs_attr_remove_int(xfs_inode_t *dp, struct xfs_name *name, int flags)
 		xfs_trans_set_sync(args.trans);
 	}
 
+	if ((flags & ATTR_KERNOTIME) == 0)
+		xfs_trans_ichgtime(args.trans, dp, XFS_ICHGTIME_CHG);
+
 	/*
 	 * Commit the last in the sequence of transactions.
 	 */
 	xfs_trans_log_inode(args.trans, dp, XFS_ILOG_CORE);
 	error = xfs_trans_commit(args.trans, XFS_TRANS_RELEASE_LOG_RES);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
-
-	/*
-	 * Hit the inode change time.
-	 */
-	if (!error && (flags & ATTR_KERNOTIME) == 0) {
-		xfs_ichgtime(dp, XFS_ICHGTIME_CHG);
-	}
 
 	return(error);
 
@@ -1995,7 +1986,7 @@ xfs_attr_rmtval_get(xfs_da_args_t *args)
 
 			tmp = (valuelen < XFS_BUF_SIZE(bp))
 				? valuelen : XFS_BUF_SIZE(bp);
-			xfs_biomove(bp, 0, tmp, dst, XBF_READ);
+			xfs_buf_iomove(bp, 0, tmp, dst, XBRW_READ);
 			xfs_buf_relse(bp);
 			dst += tmp;
 			valuelen -= tmp;
@@ -2125,9 +2116,9 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 
 		tmp = (valuelen < XFS_BUF_SIZE(bp)) ? valuelen :
 							XFS_BUF_SIZE(bp);
-		xfs_biomove(bp, 0, tmp, src, XBF_WRITE);
+		xfs_buf_iomove(bp, 0, tmp, src, XBRW_WRITE);
 		if (tmp < XFS_BUF_SIZE(bp))
-			xfs_biozero(bp, tmp, XFS_BUF_SIZE(bp) - tmp);
+			xfs_buf_zero(bp, tmp, XFS_BUF_SIZE(bp) - tmp);
 		if ((error = xfs_bwrite(mp, bp))) {/* GROT: NOTE: synchronous write */
 			return (error);
 		}

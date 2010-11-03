@@ -110,6 +110,24 @@ void __init mx35_init_irq(void)
 static int mxc_init_l2x0(void)
 {
 	void __iomem *l2x0_base;
+	void __iomem *clkctl_base;
+/*
+ * First of all, we must repair broken chip settings. There are some
+ * i.MX35 CPUs in the wild, comming with bogus L2 cache settings. These
+ * misconfigured CPUs will run amok immediately when the L2 cache gets enabled.
+ * Workaraound is to setup the correct register setting prior enabling the
+ * L2 cache. This should not hurt already working CPUs, as they are using the
+ * same value
+ */
+#define L2_MEM_VAL 0x10
+
+	clkctl_base = ioremap(MX35_CLKCTL_BASE_ADDR, 4096);
+	if (clkctl_base != NULL) {
+		writel(0x00000515, clkctl_base + L2_MEM_VAL);
+		iounmap(clkctl_base);
+	} else {
+		pr_err("L2 cache: Cannot fix timing. Trying to continue without\n");
+	}
 
 	l2x0_base = ioremap(L2CC_BASE_ADDR, 4096);
 	if (IS_ERR(l2x0_base)) {

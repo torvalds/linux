@@ -13,6 +13,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/spi/spi.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -21,12 +22,13 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx51.h>
-#include <mach/imx-uart.h>
 #include <mach/3ds_debugboard.h>
 
+#include "devices-imx51.h"
 #include "devices.h"
 
 #define EXPIO_PARENT_INT	(MXC_INTERNAL_IRQS + GPIO_PORTA + 6)
+#define MX51_3DS_ECSPI2_CS	(GPIO_PORTC + 28)
 
 static struct pad_desc mx51_3ds_pads[] = {
 	/* UART1 */
@@ -61,19 +63,25 @@ static struct pad_desc mx51_3ds_pads[] = {
 	MX51_PAD_KEY_COL3__KEY_COL3,
 	MX51_PAD_KEY_COL4__KEY_COL4,
 	MX51_PAD_KEY_COL5__KEY_COL5,
+
+	/* eCSPI2 */
+	MX51_PAD_NANDF_RB2__ECSPI2_SCLK,
+	MX51_PAD_NANDF_RB3__ECSPI2_MISO,
+	MX51_PAD_NANDF_D15__ECSPI2_MOSI,
+	MX51_PAD_NANDF_D12__GPIO_3_28,
 };
 
 /* Serial ports */
 #if defined(CONFIG_SERIAL_IMX) || defined(CONFIG_SERIAL_IMX_MODULE)
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 static inline void mxc_init_imx_uart(void)
 {
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
-	mxc_register_device(&mxc_uart_device2, &uart_pdata);
+	imx51_add_imx_uart(0, &uart_pdata);
+	imx51_add_imx_uart(1, &uart_pdata);
+	imx51_add_imx_uart(2, &uart_pdata);
 }
 #else /* !SERIAL_IMX */
 static inline void mxc_init_imx_uart(void)
@@ -127,6 +135,26 @@ static inline void mxc_init_keypad(void)
 }
 #endif
 
+static int mx51_3ds_spi2_cs[] = {
+	MXC_SPI_CS(0),
+	MX51_3DS_ECSPI2_CS,
+};
+
+static const struct spi_imx_master mx51_3ds_ecspi2_pdata __initconst = {
+	.chipselect	= mx51_3ds_spi2_cs,
+	.num_chipselect	= ARRAY_SIZE(mx51_3ds_spi2_cs),
+};
+
+static struct spi_board_info mx51_3ds_spi_nor_device[] = {
+	{
+	 .modalias = "m25p80",
+	 .max_speed_hz = 25000000,	/* max spi clock (SCK) speed in HZ */
+	 .bus_num = 1,
+	 .chip_select = 1,
+	 .mode = SPI_MODE_0,
+	 .platform_data = NULL,},
+};
+
 /*
  * Board specific initialization.
  */
@@ -135,6 +163,10 @@ static void __init mxc_board_init(void)
 	mxc_iomux_v3_setup_multiple_pads(mx51_3ds_pads,
 					ARRAY_SIZE(mx51_3ds_pads));
 	mxc_init_imx_uart();
+
+	imx51_add_ecspi(1, &mx51_3ds_ecspi2_pdata);
+	spi_register_board_info(mx51_3ds_spi_nor_device,
+				ARRAY_SIZE(mx51_3ds_spi_nor_device));
 
 	if (mxc_expio_init(MX51_CS5_BASE_ADDR, EXPIO_PARENT_INT))
 		printk(KERN_WARNING "Init of the debugboard failed, all "
@@ -154,8 +186,6 @@ static struct sys_timer mxc_timer = {
 
 MACHINE_START(MX51_3DS, "Freescale MX51 3-Stack Board")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.phys_io = MX51_AIPS1_BASE_ADDR,
-	.io_pg_offst = ((MX51_AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params = PHYS_OFFSET + 0x100,
 	.map_io = mx51_map_io,
 	.init_irq = mx51_init_irq,

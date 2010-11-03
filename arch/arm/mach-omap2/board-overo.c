@@ -32,6 +32,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mmc/host.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -303,13 +304,13 @@ static void __init overo_flash_init(void)
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 	},
 	{
 		.mmc		= 2,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 		.transceiver	= true,
@@ -501,8 +502,6 @@ static void __init overo_init(void)
 }
 
 MACHINE_START(OVERO, "Gumstix Overo")
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,

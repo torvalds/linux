@@ -40,7 +40,12 @@
 #define VIAFB_NUM_I2C		5
 
 struct viafb_shared {
+	u32 iga1_devices;
+	u32 iga2_devices;
+
 	struct proc_dir_entry *proc_entry;	/*viafb proc entry */
+	struct proc_dir_entry *iga1_proc_entry;
+	struct proc_dir_entry *iga2_proc_entry;
 	struct viafb_dev *vdev;			/* Global dev info */
 
 	/* All the information will be needed to set engine */
@@ -103,4 +108,6 @@ void via_fb_pci_remove(struct pci_dev *pdev);
 /* Temporary */
 int viafb_init(void);
 void viafb_exit(void);
+int viafb_suspend(struct pci_dev *pdev, pm_message_t state);
+int viafb_resume(struct pci_dev *pdev);
 #endif /* __VIAFBDEV_H__ */

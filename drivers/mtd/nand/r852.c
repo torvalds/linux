@@ -757,11 +757,6 @@ static irqreturn_t r852_irq(int irq, void *data)
 
 	spin_lock_irqsave(&dev->irqlock, flags);
 
-	/* We can recieve shared interrupt while pci is suspended
-		in that case reads will return 0xFFFFFFFF.... */
-	if (dev->insuspend)
-		goto out;
-
 	/* handle card detection interrupts first */
 	card_status = r852_read_reg(dev, R852_CARD_IRQ_STA);
 	r852_write_reg(dev, R852_CARD_IRQ_STA, card_status);
@@ -1035,7 +1030,6 @@ void r852_shutdown(struct pci_dev *pci_dev)
 int r852_suspend(struct device *device)
 {
 	struct r852_device *dev = pci_get_drvdata(to_pci_dev(device));
-	unsigned long flags;
 
 	if (dev->ctlreg & R852_CTL_CARDENABLE)
 		return -EBUSY;
@@ -1047,41 +1041,20 @@ int r852_suspend(struct device *device)
 	r852_disable_irqs(dev);
 	r852_engine_disable(dev);
 
-	spin_lock_irqsave(&dev->irqlock, flags);
-	dev->insuspend = 1;
-	spin_unlock_irqrestore(&dev->irqlock, flags);
-
-	/* At that point, even if interrupt handler is running, it will quit */
-	/* So wait for this to happen explictly */
-	synchronize_irq(dev->irq);
-
 	/* If card was pulled off just during the suspend, which is very
 		unlikely, we will remove it on resume, it too late now
 		anyway... */
 	dev->card_unstable = 0;
-
-	pci_save_state(to_pci_dev(device));
-	return pci_prepare_to_sleep(to_pci_dev(device));
+	return 0;
 }
 
 int r852_resume(struct device *device)
 {
 	struct r852_device *dev = pci_get_drvdata(to_pci_dev(device));
-	unsigned long flags;
-
-	/* Turn on the hardware */
-	pci_back_from_sleep(to_pci_dev(device));
-	pci_restore_state(to_pci_dev(device));
 
 	r852_disable_irqs(dev);
 	r852_card_update_present(dev);
 	r852_engine_disable(dev);
-
-
-	/* Now its safe for IRQ to run */
-	spin_lock_irqsave(&dev->irqlock, flags);
-	dev->insuspend = 0;
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 
 
 	/* If card status changed, just do the work */
@@ -1120,7 +1093,6 @@ static const struct pci_device_id r852_pci_id_tbl[] = {
 MODULE_DEVICE_TABLE(pci, r852_pci_id_tbl);
 
 SIMPLE_DEV_PM_OPS(r852_pm_ops, r852_suspend, r852_resume);
-
 
 static struct pci_driver r852_pci_driver = {
 	.name		= DRV_NAME,

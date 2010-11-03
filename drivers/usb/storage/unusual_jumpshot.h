@@ -21,7 +21,7 @@
 UNUSUAL_DEV(  0x05dc, 0x0001, 0x0000, 0x0001,
 		"Lexar",
 		"Jumpshot USB CF Reader",
-		US_SC_SCSI, US_PR_JUMPSHOT, NULL,
+		USB_SC_SCSI, USB_PR_JUMPSHOT, NULL,
 		US_FL_NEED_OVERRIDE),
 
 #endif /* defined(CONFIG_USB_STORAGE_JUMPSHOT) || ... */

@@ -394,7 +394,7 @@ static struct go7007_usb_board board_adlink_mpg24 = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
-				.type	= "wis_twTW2804",
+				.type	= "wis_tw2804",
 				.id	= I2C_DRIVERID_WIS_TW2804,
 				.addr	= 0x00, /* yes, really */
 			},

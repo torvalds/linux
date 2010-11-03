@@ -21,7 +21,7 @@ static struct proc_dir_entry *root_irq_dir;
 static int irq_affinity_proc_show(struct seq_file *m, void *v)
 {
 	struct irq_desc *desc = irq_to_desc((long)m->private);
-	const struct cpumask *mask = desc->affinity;
+	const struct cpumask *mask = desc->irq_data.affinity;
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	if (desc->status & IRQ_MOVE_PENDING)
@@ -65,7 +65,7 @@ static ssize_t irq_affinity_proc_write(struct file *file,
 	cpumask_var_t new_value;
 	int err;
 
-	if (!irq_to_desc(irq)->chip->set_affinity || no_irq_affinity ||
+	if (!irq_to_desc(irq)->irq_data.chip->irq_set_affinity || no_irq_affinity ||
 	    irq_balancing_disabled(irq))
 		return -EIO;
 
@@ -185,7 +185,7 @@ static int irq_node_proc_show(struct seq_file *m, void *v)
 {
 	struct irq_desc *desc = irq_to_desc((long) m->private);
 
-	seq_printf(m, "%d\n", desc->node);
+	seq_printf(m, "%d\n", desc->irq_data.node);
 	return 0;
 }
 
@@ -269,7 +269,7 @@ void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 {
 	char name [MAX_NAMELEN];
 
-	if (!root_irq_dir || (desc->chip == &no_irq_chip) || desc->dir)
+	if (!root_irq_dir || (desc->irq_data.chip == &no_irq_chip) || desc->dir)
 		return;
 
 	memset(name, 0, MAX_NAMELEN);
@@ -295,6 +295,24 @@ void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 
 	proc_create_data("spurious", 0444, desc->dir,
 			 &irq_spurious_proc_fops, (void *)(long)irq);
+}
+
+void unregister_irq_proc(unsigned int irq, struct irq_desc *desc)
+{
+	char name [MAX_NAMELEN];
+
+	if (!root_irq_dir || !desc->dir)
+		return;
+#ifdef CONFIG_SMP
+	remove_proc_entry("smp_affinity", desc->dir);
+	remove_proc_entry("affinity_hint", desc->dir);
+	remove_proc_entry("node", desc->dir);
+#endif
+	remove_proc_entry("spurious", desc->dir);
+
+	memset(name, 0, MAX_NAMELEN);
+	sprintf(name, "%u", irq);
+	remove_proc_entry(name, root_irq_dir);
 }
 
 #undef MAX_NAMELEN

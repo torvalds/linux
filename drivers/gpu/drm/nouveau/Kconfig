@@ -10,6 +10,7 @@ config DRM_NOUVEAU
 	select FB
 	select FRAMEBUFFER_CONSOLE if !EMBEDDED
 	select FB_BACKLIGHT if DRM_NOUVEAU_BACKLIGHT
+	select ACPI_VIDEO if ACPI
 	help
 	  Choose this option for open-source nVidia support.
 

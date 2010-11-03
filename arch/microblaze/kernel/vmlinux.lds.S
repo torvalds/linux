@@ -8,7 +8,6 @@
  * for more details.
  */
 
-OUTPUT_FORMAT("elf32-microblaze", "elf32-microblaze", "elf32-microblaze")
 OUTPUT_ARCH(microblaze)
 ENTRY(microblaze_start)
 
@@ -16,7 +15,11 @@ ENTRY(microblaze_start)
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/thread_info.h>
 
+#ifdef __MICROBLAZEEL__
+jiffies = jiffies_64;
+#else
 jiffies = jiffies_64 + 4;
+#endif
 
 SECTIONS {
 	. = CONFIG_KERNEL_START;

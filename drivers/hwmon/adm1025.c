@@ -12,7 +12,7 @@
  * resolution of about 0.5% of the nominal value). Temperature values are
  * reported with a 1 deg resolution and a 3 deg accuracy. Complete
  * datasheet can be obtained from Analog's website at:
- *   http://www.analog.com/Analog_Root/productPage/productHome/0,2121,ADM1025,00.html
+ *   http://www.onsemi.com/PowerSolutions/product.do?id=ADM1025 
  *
  * This driver also supports the ADM1025A, which differs from the ADM1025
  * only in that it has "open-drain VID inputs while the ADM1025 has

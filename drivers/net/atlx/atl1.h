@@ -56,15 +56,12 @@ struct atl1_adapter;
 struct atl1_hw;
 
 /* function prototypes needed by multiple files */
-u32 atl1_hash_mc_addr(struct atl1_hw *hw, u8 *mc_addr);
-void atl1_hash_set(struct atl1_hw *hw, u32 hash_value);
-s32 atl1_read_phy_reg(struct atl1_hw *hw, u16 reg_addr, u16 *phy_data);
-void atl1_set_mac_addr(struct atl1_hw *hw);
+static u32 atl1_hash_mc_addr(struct atl1_hw *hw, u8 *mc_addr);
+static void atl1_hash_set(struct atl1_hw *hw, u32 hash_value);
+static void atl1_set_mac_addr(struct atl1_hw *hw);
 static int atl1_mii_ioctl(struct net_device *netdev, struct ifreq *ifr,
 	int cmd);
 static u32 atl1_check_link(struct atl1_adapter *adapter);
-
-extern const struct ethtool_ops atl1_ethtool_ops;
 
 /* hardware definitions specific to L1 */
 

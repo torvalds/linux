@@ -810,16 +810,18 @@ void saa7134_irq_oss_done(struct saa7134_dev *dev, unsigned long status);
 /* ----------------------------------------------------------- */
 /* saa7134-input.c                                             */
 
+#if defined(CONFIG_VIDEO_SAA7134_RC)
 int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
 void saa7134_probe_i2c_ir(struct saa7134_dev *dev);
 int saa7134_ir_start(struct saa7134_dev *dev);
 void saa7134_ir_stop(struct saa7134_dev *dev);
-
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
+#else
+#define saa7134_input_init1(dev)	(0)
+#define saa7134_input_fini(dev)		(0)
+#define saa7134_input_irq(dev)		(0)
+#define saa7134_probe_i2c_ir(dev)	(0)
+#define saa7134_ir_start(dev)		(0)
+#define saa7134_ir_stop(dev)		(0)
+#endif

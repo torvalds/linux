@@ -80,7 +80,7 @@ static inline struct anon_vma_chain *anon_vma_chain_alloc(void)
 	return kmem_cache_alloc(anon_vma_chain_cachep, GFP_KERNEL);
 }
 
-void anon_vma_chain_free(struct anon_vma_chain *anon_vma_chain)
+static void anon_vma_chain_free(struct anon_vma_chain *anon_vma_chain)
 {
 	kmem_cache_free(anon_vma_chain_cachep, anon_vma_chain);
 }
@@ -314,7 +314,7 @@ void __init anon_vma_init(void)
  * Getting a lock on a stable anon_vma from a page off the LRU is
  * tricky: page_lock_anon_vma rely on RCU to guard against the races.
  */
-struct anon_vma *page_lock_anon_vma(struct page *page)
+struct anon_vma *__page_lock_anon_vma(struct page *page)
 {
 	struct anon_vma *anon_vma, *root_anon_vma;
 	unsigned long anon_mapping;
@@ -348,6 +348,8 @@ out:
 }
 
 void page_unlock_anon_vma(struct anon_vma *anon_vma)
+	__releases(&anon_vma->root->lock)
+	__releases(RCU)
 {
 	anon_vma_unlock(anon_vma);
 	rcu_read_unlock();
@@ -407,7 +409,7 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
  *
  * On success returns with pte mapped and locked.
  */
-pte_t *page_check_address(struct page *page, struct mm_struct *mm,
+pte_t *__page_check_address(struct page *page, struct mm_struct *mm,
 			  unsigned long address, spinlock_t **ptlp, int sync)
 {
 	pgd_t *pgd;
@@ -745,7 +747,7 @@ int page_mkclean(struct page *page)
 		if (mapping) {
 			ret = page_mkclean_file(mapping, page);
 			if (page_test_dirty(page)) {
-				page_clear_dirty(page);
+				page_clear_dirty(page, 1);
 				ret = 1;
 			}
 		}
@@ -780,10 +782,10 @@ void page_move_anon_rmap(struct page *page,
 }
 
 /**
- * __page_set_anon_rmap - setup new anonymous rmap
- * @page:	the page to add the mapping to
- * @vma:	the vm area in which the mapping is added
- * @address:	the user virtual address mapped
+ * __page_set_anon_rmap - set up new anonymous rmap
+ * @page:	Page to add to rmap	
+ * @vma:	VM area to add page to.
+ * @address:	User virtual address of the mapping	
  * @exclusive:	the page is exclusively owned by the current process
  */
 static void __page_set_anon_rmap(struct page *page,
@@ -793,25 +795,16 @@ static void __page_set_anon_rmap(struct page *page,
 
 	BUG_ON(!anon_vma);
 
+	if (PageAnon(page))
+		return;
+
 	/*
 	 * If the page isn't exclusively mapped into this vma,
 	 * we must use the _oldest_ possible anon_vma for the
 	 * page mapping!
 	 */
-	if (!exclusive) {
-		if (PageAnon(page))
-			return;
+	if (!exclusive)
 		anon_vma = anon_vma->root;
-	} else {
-		/*
-		 * In this case, swapped-out-but-not-discarded swap-cache
-		 * is remapped. So, no need to update page->mapping here.
-		 * We convice anon_vma poitned by page->mapping is not obsolete
-		 * because vma->anon_vma is necessary to be a family of it.
-		 */
-		if (PageAnon(page))
-			return;
-	}
 
 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
 	page->mapping = (struct address_space *) anon_vma;
@@ -942,7 +935,7 @@ void page_remove_rmap(struct page *page)
 	 * containing the swap entry, but page not yet written to swap.
 	 */
 	if ((!PageAnon(page) || PageSwapCache(page)) && page_test_dirty(page)) {
-		page_clear_dirty(page);
+		page_clear_dirty(page, 1);
 		set_page_dirty(page);
 	}
 	/*

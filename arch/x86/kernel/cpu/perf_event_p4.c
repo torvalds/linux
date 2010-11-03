@@ -18,6 +18,8 @@
 struct p4_event_bind {
 	unsigned int opcode;			/* Event code and ESCR selector */
 	unsigned int escr_msr[2];		/* ESCR MSR for this event */
+	unsigned int escr_emask;		/* valid ESCR EventMask bits */
+	unsigned int shared;			/* event is shared across threads */
 	char cntr[2][P4_CNTR_LIMIT];		/* counter index (offset), -1 on abscence */
 };
 
@@ -66,231 +68,435 @@ static struct p4_event_bind p4_event_bind_map[] = {
 	[P4_EVENT_TC_DELIVER_MODE] = {
 		.opcode		= P4_OPCODE(P4_EVENT_TC_DELIVER_MODE),
 		.escr_msr	= { MSR_P4_TC_ESCR0, MSR_P4_TC_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_TC_DELIVER_MODE, DD)			|
+			P4_ESCR_EMASK_BIT(P4_EVENT_TC_DELIVER_MODE, DB)			|
+			P4_ESCR_EMASK_BIT(P4_EVENT_TC_DELIVER_MODE, DI)			|
+			P4_ESCR_EMASK_BIT(P4_EVENT_TC_DELIVER_MODE, BD)			|
+			P4_ESCR_EMASK_BIT(P4_EVENT_TC_DELIVER_MODE, BB)			|
+			P4_ESCR_EMASK_BIT(P4_EVENT_TC_DELIVER_MODE, BI)			|
+			P4_ESCR_EMASK_BIT(P4_EVENT_TC_DELIVER_MODE, ID),
+		.shared		= 1,
 		.cntr		= { {4, 5, -1}, {6, 7, -1} },
 	},
 	[P4_EVENT_BPU_FETCH_REQUEST] = {
 		.opcode		= P4_OPCODE(P4_EVENT_BPU_FETCH_REQUEST),
 		.escr_msr	= { MSR_P4_BPU_ESCR0, MSR_P4_BPU_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_BPU_FETCH_REQUEST, TCMISS),
 		.cntr		= { {0, -1, -1}, {2, -1, -1} },
 	},
 	[P4_EVENT_ITLB_REFERENCE] = {
 		.opcode		= P4_OPCODE(P4_EVENT_ITLB_REFERENCE),
 		.escr_msr	= { MSR_P4_ITLB_ESCR0, MSR_P4_ITLB_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_ITLB_REFERENCE, HIT)			|
+			P4_ESCR_EMASK_BIT(P4_EVENT_ITLB_REFERENCE, MISS)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_ITLB_REFERENCE, HIT_UK),
 		.cntr		= { {0, -1, -1}, {2, -1, -1} },
 	},
 	[P4_EVENT_MEMORY_CANCEL] = {
 		.opcode		= P4_OPCODE(P4_EVENT_MEMORY_CANCEL),
 		.escr_msr	= { MSR_P4_DAC_ESCR0, MSR_P4_DAC_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_MEMORY_CANCEL, ST_RB_FULL)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_MEMORY_CANCEL, 64K_CONF),
 		.cntr		= { {8, 9, -1}, {10, 11, -1} },
 	},
 	[P4_EVENT_MEMORY_COMPLETE] = {
 		.opcode		= P4_OPCODE(P4_EVENT_MEMORY_COMPLETE),
 		.escr_msr	= { MSR_P4_SAAT_ESCR0 , MSR_P4_SAAT_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_MEMORY_COMPLETE, LSC)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_MEMORY_COMPLETE, SSC),
 		.cntr		= { {8, 9, -1}, {10, 11, -1} },
 	},
 	[P4_EVENT_LOAD_PORT_REPLAY] = {
 		.opcode		= P4_OPCODE(P4_EVENT_LOAD_PORT_REPLAY),
 		.escr_msr	= { MSR_P4_SAAT_ESCR0, MSR_P4_SAAT_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_LOAD_PORT_REPLAY, SPLIT_LD),
 		.cntr		= { {8, 9, -1}, {10, 11, -1} },
 	},
 	[P4_EVENT_STORE_PORT_REPLAY] = {
 		.opcode		= P4_OPCODE(P4_EVENT_STORE_PORT_REPLAY),
 		.escr_msr	= { MSR_P4_SAAT_ESCR0 ,  MSR_P4_SAAT_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_STORE_PORT_REPLAY, SPLIT_ST),
 		.cntr		= { {8, 9, -1}, {10, 11, -1} },
 	},
 	[P4_EVENT_MOB_LOAD_REPLAY] = {
 		.opcode		= P4_OPCODE(P4_EVENT_MOB_LOAD_REPLAY),
 		.escr_msr	= { MSR_P4_MOB_ESCR0, MSR_P4_MOB_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_MOB_LOAD_REPLAY, NO_STA)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_MOB_LOAD_REPLAY, NO_STD)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_MOB_LOAD_REPLAY, PARTIAL_DATA)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_MOB_LOAD_REPLAY, UNALGN_ADDR),
 		.cntr		= { {0, -1, -1}, {2, -1, -1} },
 	},
 	[P4_EVENT_PAGE_WALK_TYPE] = {
 		.opcode		= P4_OPCODE(P4_EVENT_PAGE_WALK_TYPE),
 		.escr_msr	= { MSR_P4_PMH_ESCR0, MSR_P4_PMH_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_PAGE_WALK_TYPE, DTMISS)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_PAGE_WALK_TYPE, ITMISS),
+		.shared		= 1,
 		.cntr		= { {0, -1, -1}, {2, -1, -1} },
 	},
 	[P4_EVENT_BSQ_CACHE_REFERENCE] = {
 		.opcode		= P4_OPCODE(P4_EVENT_BSQ_CACHE_REFERENCE),
 		.escr_msr	= { MSR_P4_BSU_ESCR0, MSR_P4_BSU_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_CACHE_REFERENCE, RD_2ndL_HITS)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_CACHE_REFERENCE, RD_2ndL_HITE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_CACHE_REFERENCE, RD_2ndL_HITM)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_CACHE_REFERENCE, RD_3rdL_HITS)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_CACHE_REFERENCE, RD_3rdL_HITE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_CACHE_REFERENCE, RD_3rdL_HITM)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_CACHE_REFERENCE, RD_2ndL_MISS)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_CACHE_REFERENCE, RD_3rdL_MISS)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_CACHE_REFERENCE, WR_2ndL_MISS),
 		.cntr		= { {0, -1, -1}, {2, -1, -1} },
 	},
 	[P4_EVENT_IOQ_ALLOCATION] = {
 		.opcode		= P4_OPCODE(P4_EVENT_IOQ_ALLOCATION),
 		.escr_msr	= { MSR_P4_FSB_ESCR0, MSR_P4_FSB_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ALLOCATION, DEFAULT)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ALLOCATION, ALL_READ)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ALLOCATION, ALL_WRITE)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ALLOCATION, MEM_UC)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ALLOCATION, MEM_WC)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ALLOCATION, MEM_WT)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ALLOCATION, MEM_WP)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ALLOCATION, MEM_WB)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ALLOCATION, OWN)			|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ALLOCATION, OTHER)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ALLOCATION, PREFETCH),
 		.cntr		= { {0, -1, -1}, {2, -1, -1} },
 	},
 	[P4_EVENT_IOQ_ACTIVE_ENTRIES] = {	/* shared ESCR */
 		.opcode		= P4_OPCODE(P4_EVENT_IOQ_ACTIVE_ENTRIES),
 		.escr_msr	= { MSR_P4_FSB_ESCR1,  MSR_P4_FSB_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ACTIVE_ENTRIES, DEFAULT)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ACTIVE_ENTRIES, ALL_READ)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ACTIVE_ENTRIES, ALL_WRITE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ACTIVE_ENTRIES, MEM_UC)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ACTIVE_ENTRIES, MEM_WC)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ACTIVE_ENTRIES, MEM_WT)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ACTIVE_ENTRIES, MEM_WP)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ACTIVE_ENTRIES, MEM_WB)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ACTIVE_ENTRIES, OWN)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ACTIVE_ENTRIES, OTHER)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_IOQ_ACTIVE_ENTRIES, PREFETCH),
 		.cntr		= { {2, -1, -1}, {3, -1, -1} },
 	},
 	[P4_EVENT_FSB_DATA_ACTIVITY] = {
 		.opcode		= P4_OPCODE(P4_EVENT_FSB_DATA_ACTIVITY),
 		.escr_msr	= { MSR_P4_FSB_ESCR0, MSR_P4_FSB_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_FSB_DATA_ACTIVITY, DRDY_DRV)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_FSB_DATA_ACTIVITY, DRDY_OWN)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_FSB_DATA_ACTIVITY, DRDY_OTHER)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_FSB_DATA_ACTIVITY, DBSY_DRV)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_FSB_DATA_ACTIVITY, DBSY_OWN)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_FSB_DATA_ACTIVITY, DBSY_OTHER),
+		.shared		= 1,
 		.cntr		= { {0, -1, -1}, {2, -1, -1} },
 	},
 	[P4_EVENT_BSQ_ALLOCATION] = {		/* shared ESCR, broken CCCR1 */
 		.opcode		= P4_OPCODE(P4_EVENT_BSQ_ALLOCATION),
 		.escr_msr	= { MSR_P4_BSU_ESCR0, MSR_P4_BSU_ESCR0 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ALLOCATION, REQ_TYPE0)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ALLOCATION, REQ_TYPE1)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ALLOCATION, REQ_LEN0)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ALLOCATION, REQ_LEN1)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ALLOCATION, REQ_IO_TYPE)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ALLOCATION, REQ_LOCK_TYPE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ALLOCATION, REQ_CACHE_TYPE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ALLOCATION, REQ_SPLIT_TYPE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ALLOCATION, REQ_DEM_TYPE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ALLOCATION, REQ_ORD_TYPE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ALLOCATION, MEM_TYPE0)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ALLOCATION, MEM_TYPE1)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ALLOCATION, MEM_TYPE2),
 		.cntr		= { {0, -1, -1}, {1, -1, -1} },
 	},
 	[P4_EVENT_BSQ_ACTIVE_ENTRIES] = {	/* shared ESCR */
 		.opcode		= P4_OPCODE(P4_EVENT_BSQ_ACTIVE_ENTRIES),
 		.escr_msr	= { MSR_P4_BSU_ESCR1 , MSR_P4_BSU_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ACTIVE_ENTRIES, REQ_TYPE0)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ACTIVE_ENTRIES, REQ_TYPE1)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ACTIVE_ENTRIES, REQ_LEN0)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ACTIVE_ENTRIES, REQ_LEN1)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ACTIVE_ENTRIES, REQ_IO_TYPE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ACTIVE_ENTRIES, REQ_LOCK_TYPE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ACTIVE_ENTRIES, REQ_CACHE_TYPE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ACTIVE_ENTRIES, REQ_SPLIT_TYPE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ACTIVE_ENTRIES, REQ_DEM_TYPE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ACTIVE_ENTRIES, REQ_ORD_TYPE)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ACTIVE_ENTRIES, MEM_TYPE0)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ACTIVE_ENTRIES, MEM_TYPE1)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BSQ_ACTIVE_ENTRIES, MEM_TYPE2),
 		.cntr		= { {2, -1, -1}, {3, -1, -1} },
 	},
 	[P4_EVENT_SSE_INPUT_ASSIST] = {
 		.opcode		= P4_OPCODE(P4_EVENT_SSE_INPUT_ASSIST),
 		.escr_msr	= { MSR_P4_FIRM_ESCR0, MSR_P4_FIRM_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_SSE_INPUT_ASSIST, ALL),
+		.shared		= 1,
 		.cntr		= { {8, 9, -1}, {10, 11, -1} },
 	},
 	[P4_EVENT_PACKED_SP_UOP] = {
 		.opcode		= P4_OPCODE(P4_EVENT_PACKED_SP_UOP),
 		.escr_msr	= { MSR_P4_FIRM_ESCR0, MSR_P4_FIRM_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_PACKED_SP_UOP, ALL),
+		.shared		= 1,
 		.cntr		= { {8, 9, -1}, {10, 11, -1} },
 	},
 	[P4_EVENT_PACKED_DP_UOP] = {
 		.opcode		= P4_OPCODE(P4_EVENT_PACKED_DP_UOP),
 		.escr_msr	= { MSR_P4_FIRM_ESCR0, MSR_P4_FIRM_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_PACKED_DP_UOP, ALL),
+		.shared		= 1,
 		.cntr		= { {8, 9, -1}, {10, 11, -1} },
 	},
 	[P4_EVENT_SCALAR_SP_UOP] = {
 		.opcode		= P4_OPCODE(P4_EVENT_SCALAR_SP_UOP),
 		.escr_msr	= { MSR_P4_FIRM_ESCR0, MSR_P4_FIRM_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_SCALAR_SP_UOP, ALL),
+		.shared		= 1,
 		.cntr		= { {8, 9, -1}, {10, 11, -1} },
 	},
 	[P4_EVENT_SCALAR_DP_UOP] = {
 		.opcode		= P4_OPCODE(P4_EVENT_SCALAR_DP_UOP),
 		.escr_msr	= { MSR_P4_FIRM_ESCR0, MSR_P4_FIRM_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_SCALAR_DP_UOP, ALL),
+		.shared		= 1,
 		.cntr		= { {8, 9, -1}, {10, 11, -1} },
 	},
 	[P4_EVENT_64BIT_MMX_UOP] = {
 		.opcode		= P4_OPCODE(P4_EVENT_64BIT_MMX_UOP),
 		.escr_msr	= { MSR_P4_FIRM_ESCR0, MSR_P4_FIRM_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_64BIT_MMX_UOP, ALL),
+		.shared		= 1,
 		.cntr		= { {8, 9, -1}, {10, 11, -1} },
 	},
 	[P4_EVENT_128BIT_MMX_UOP] = {
 		.opcode		= P4_OPCODE(P4_EVENT_128BIT_MMX_UOP),
 		.escr_msr	= { MSR_P4_FIRM_ESCR0, MSR_P4_FIRM_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_128BIT_MMX_UOP, ALL),
+		.shared		= 1,
 		.cntr		= { {8, 9, -1}, {10, 11, -1} },
 	},
 	[P4_EVENT_X87_FP_UOP] = {
 		.opcode		= P4_OPCODE(P4_EVENT_X87_FP_UOP),
 		.escr_msr	= { MSR_P4_FIRM_ESCR0, MSR_P4_FIRM_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_X87_FP_UOP, ALL),
+		.shared		= 1,
 		.cntr		= { {8, 9, -1}, {10, 11, -1} },
 	},
 	[P4_EVENT_TC_MISC] = {
 		.opcode		= P4_OPCODE(P4_EVENT_TC_MISC),
 		.escr_msr	= { MSR_P4_TC_ESCR0, MSR_P4_TC_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_TC_MISC, FLUSH),
 		.cntr		= { {4, 5, -1}, {6, 7, -1} },
 	},
 	[P4_EVENT_GLOBAL_POWER_EVENTS] = {
 		.opcode		= P4_OPCODE(P4_EVENT_GLOBAL_POWER_EVENTS),
 		.escr_msr	= { MSR_P4_FSB_ESCR0, MSR_P4_FSB_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_GLOBAL_POWER_EVENTS, RUNNING),
 		.cntr		= { {0, -1, -1}, {2, -1, -1} },
 	},
 	[P4_EVENT_TC_MS_XFER] = {
 		.opcode		= P4_OPCODE(P4_EVENT_TC_MS_XFER),
 		.escr_msr	= { MSR_P4_MS_ESCR0, MSR_P4_MS_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_TC_MS_XFER, CISC),
 		.cntr		= { {4, 5, -1}, {6, 7, -1} },
 	},
 	[P4_EVENT_UOP_QUEUE_WRITES] = {
 		.opcode		= P4_OPCODE(P4_EVENT_UOP_QUEUE_WRITES),
 		.escr_msr	= { MSR_P4_MS_ESCR0, MSR_P4_MS_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_UOP_QUEUE_WRITES, FROM_TC_BUILD)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_UOP_QUEUE_WRITES, FROM_TC_DELIVER)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_UOP_QUEUE_WRITES, FROM_ROM),
 		.cntr		= { {4, 5, -1}, {6, 7, -1} },
 	},
 	[P4_EVENT_RETIRED_MISPRED_BRANCH_TYPE] = {
 		.opcode		= P4_OPCODE(P4_EVENT_RETIRED_MISPRED_BRANCH_TYPE),
 		.escr_msr	= { MSR_P4_TBPU_ESCR0 , MSR_P4_TBPU_ESCR0 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_RETIRED_MISPRED_BRANCH_TYPE, CONDITIONAL)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_RETIRED_MISPRED_BRANCH_TYPE, CALL)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_RETIRED_MISPRED_BRANCH_TYPE, RETURN)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_RETIRED_MISPRED_BRANCH_TYPE, INDIRECT),
 		.cntr		= { {4, 5, -1}, {6, 7, -1} },
 	},
 	[P4_EVENT_RETIRED_BRANCH_TYPE] = {
 		.opcode		= P4_OPCODE(P4_EVENT_RETIRED_BRANCH_TYPE),
 		.escr_msr	= { MSR_P4_TBPU_ESCR0 , MSR_P4_TBPU_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_RETIRED_BRANCH_TYPE, CONDITIONAL)	|
+			P4_ESCR_EMASK_BIT(P4_EVENT_RETIRED_BRANCH_TYPE, CALL)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_RETIRED_BRANCH_TYPE, RETURN)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_RETIRED_BRANCH_TYPE, INDIRECT),
 		.cntr		= { {4, 5, -1}, {6, 7, -1} },
 	},
 	[P4_EVENT_RESOURCE_STALL] = {
 		.opcode		= P4_OPCODE(P4_EVENT_RESOURCE_STALL),
 		.escr_msr	= { MSR_P4_ALF_ESCR0, MSR_P4_ALF_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_RESOURCE_STALL, SBFULL),
 		.cntr		= { {12, 13, 16}, {14, 15, 17} },
 	},
 	[P4_EVENT_WC_BUFFER] = {
 		.opcode		= P4_OPCODE(P4_EVENT_WC_BUFFER),
 		.escr_msr	= { MSR_P4_DAC_ESCR0, MSR_P4_DAC_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_WC_BUFFER, WCB_EVICTS)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_WC_BUFFER, WCB_FULL_EVICTS),
+		.shared		= 1,
 		.cntr		= { {8, 9, -1}, {10, 11, -1} },
 	},
 	[P4_EVENT_B2B_CYCLES] = {
 		.opcode		= P4_OPCODE(P4_EVENT_B2B_CYCLES),
 		.escr_msr	= { MSR_P4_FSB_ESCR0, MSR_P4_FSB_ESCR1 },
+		.escr_emask	= 0,
 		.cntr		= { {0, -1, -1}, {2, -1, -1} },
 	},
 	[P4_EVENT_BNR] = {
 		.opcode		= P4_OPCODE(P4_EVENT_BNR),
 		.escr_msr	= { MSR_P4_FSB_ESCR0, MSR_P4_FSB_ESCR1 },
+		.escr_emask	= 0,
 		.cntr		= { {0, -1, -1}, {2, -1, -1} },
 	},
 	[P4_EVENT_SNOOP] = {
 		.opcode		= P4_OPCODE(P4_EVENT_SNOOP),
 		.escr_msr	= { MSR_P4_FSB_ESCR0, MSR_P4_FSB_ESCR1 },
+		.escr_emask	= 0,
 		.cntr		= { {0, -1, -1}, {2, -1, -1} },
 	},
 	[P4_EVENT_RESPONSE] = {
 		.opcode		= P4_OPCODE(P4_EVENT_RESPONSE),
 		.escr_msr	= { MSR_P4_FSB_ESCR0, MSR_P4_FSB_ESCR1 },
+		.escr_emask	= 0,
 		.cntr		= { {0, -1, -1}, {2, -1, -1} },
 	},
 	[P4_EVENT_FRONT_END_EVENT] = {
 		.opcode		= P4_OPCODE(P4_EVENT_FRONT_END_EVENT),
 		.escr_msr	= { MSR_P4_CRU_ESCR2, MSR_P4_CRU_ESCR3 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_FRONT_END_EVENT, NBOGUS)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_FRONT_END_EVENT, BOGUS),
 		.cntr		= { {12, 13, 16}, {14, 15, 17} },
 	},
 	[P4_EVENT_EXECUTION_EVENT] = {
 		.opcode		= P4_OPCODE(P4_EVENT_EXECUTION_EVENT),
 		.escr_msr	= { MSR_P4_CRU_ESCR2, MSR_P4_CRU_ESCR3 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS0)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS1)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS2)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS3)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS0)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS1)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS2)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS3),
 		.cntr		= { {12, 13, 16}, {14, 15, 17} },
 	},
 	[P4_EVENT_REPLAY_EVENT] = {
 		.opcode		= P4_OPCODE(P4_EVENT_REPLAY_EVENT),
 		.escr_msr	= { MSR_P4_CRU_ESCR2, MSR_P4_CRU_ESCR3 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_REPLAY_EVENT, NBOGUS)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_REPLAY_EVENT, BOGUS),
 		.cntr		= { {12, 13, 16}, {14, 15, 17} },
 	},
 	[P4_EVENT_INSTR_RETIRED] = {
 		.opcode		= P4_OPCODE(P4_EVENT_INSTR_RETIRED),
 		.escr_msr	= { MSR_P4_CRU_ESCR0, MSR_P4_CRU_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_INSTR_RETIRED, NBOGUSNTAG)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_INSTR_RETIRED, NBOGUSTAG)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_INSTR_RETIRED, BOGUSNTAG)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_INSTR_RETIRED, BOGUSTAG),
 		.cntr		= { {12, 13, 16}, {14, 15, 17} },
 	},
 	[P4_EVENT_UOPS_RETIRED] = {
 		.opcode		= P4_OPCODE(P4_EVENT_UOPS_RETIRED),
 		.escr_msr	= { MSR_P4_CRU_ESCR0, MSR_P4_CRU_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_UOPS_RETIRED, NBOGUS)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_UOPS_RETIRED, BOGUS),
 		.cntr		= { {12, 13, 16}, {14, 15, 17} },
 	},
 	[P4_EVENT_UOP_TYPE] = {
 		.opcode		= P4_OPCODE(P4_EVENT_UOP_TYPE),
 		.escr_msr	= { MSR_P4_RAT_ESCR0, MSR_P4_RAT_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_UOP_TYPE, TAGLOADS)			|
+			P4_ESCR_EMASK_BIT(P4_EVENT_UOP_TYPE, TAGSTORES),
 		.cntr		= { {12, 13, 16}, {14, 15, 17} },
 	},
 	[P4_EVENT_BRANCH_RETIRED] = {
 		.opcode		= P4_OPCODE(P4_EVENT_BRANCH_RETIRED),
 		.escr_msr	= { MSR_P4_CRU_ESCR2, MSR_P4_CRU_ESCR3 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_BRANCH_RETIRED, MMNP)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BRANCH_RETIRED, MMNM)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BRANCH_RETIRED, MMTP)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_BRANCH_RETIRED, MMTM),
 		.cntr		= { {12, 13, 16}, {14, 15, 17} },
 	},
 	[P4_EVENT_MISPRED_BRANCH_RETIRED] = {
 		.opcode		= P4_OPCODE(P4_EVENT_MISPRED_BRANCH_RETIRED),
 		.escr_msr	= { MSR_P4_CRU_ESCR0, MSR_P4_CRU_ESCR1 },
+		.escr_emask	=
+		P4_ESCR_EMASK_BIT(P4_EVENT_MISPRED_BRANCH_RETIRED, NBOGUS),
 		.cntr		= { {12, 13, 16}, {14, 15, 17} },
 	},
 	[P4_EVENT_X87_ASSIST] = {
 		.opcode		= P4_OPCODE(P4_EVENT_X87_ASSIST),
 		.escr_msr	= { MSR_P4_CRU_ESCR2, MSR_P4_CRU_ESCR3 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_X87_ASSIST, FPSU)			|
+			P4_ESCR_EMASK_BIT(P4_EVENT_X87_ASSIST, FPSO)			|
+			P4_ESCR_EMASK_BIT(P4_EVENT_X87_ASSIST, POAO)			|
+			P4_ESCR_EMASK_BIT(P4_EVENT_X87_ASSIST, POAU)			|
+			P4_ESCR_EMASK_BIT(P4_EVENT_X87_ASSIST, PREA),
 		.cntr		= { {12, 13, 16}, {14, 15, 17} },
 	},
 	[P4_EVENT_MACHINE_CLEAR] = {
 		.opcode		= P4_OPCODE(P4_EVENT_MACHINE_CLEAR),
 		.escr_msr	= { MSR_P4_CRU_ESCR2, MSR_P4_CRU_ESCR3 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_MACHINE_CLEAR, CLEAR)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_MACHINE_CLEAR, MOCLEAR)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_MACHINE_CLEAR, SMCLEAR),
 		.cntr		= { {12, 13, 16}, {14, 15, 17} },
 	},
 	[P4_EVENT_INSTR_COMPLETED] = {
 		.opcode		= P4_OPCODE(P4_EVENT_INSTR_COMPLETED),
 		.escr_msr	= { MSR_P4_CRU_ESCR0, MSR_P4_CRU_ESCR1 },
+		.escr_emask	=
+			P4_ESCR_EMASK_BIT(P4_EVENT_INSTR_COMPLETED, NBOGUS)		|
+			P4_ESCR_EMASK_BIT(P4_EVENT_INSTR_COMPLETED, BOGUS),
 		.cntr		= { {12, 13, 16}, {14, 15, 17} },
 	},
 };
@@ -428,29 +634,73 @@ static u64 p4_pmu_event_map(int hw_event)
 	return config;
 }
 
-static int p4_validate_raw_event(struct perf_event *event)
+/* check cpu model specifics */
+static bool p4_event_match_cpu_model(unsigned int event_idx)
 {
-	unsigned int v;
-
-	/* user data may have out-of-bound event index */
-	v = p4_config_unpack_event(event->attr.config);
-	if (v >= ARRAY_SIZE(p4_event_bind_map)) {
-		pr_warning("P4 PMU: Unknown event code: %d\n", v);
-		return -EINVAL;
+	/* INSTR_COMPLETED event only exist for model 3, 4, 6 (Prescott) */
+	if (event_idx == P4_EVENT_INSTR_COMPLETED) {
+		if (boot_cpu_data.x86_model != 3 &&
+			boot_cpu_data.x86_model != 4 &&
+			boot_cpu_data.x86_model != 6)
+			return false;
 	}
 
 	/*
-	 * it may have some screwed PEBS bits
+	 * For info
+	 * - IQ_ESCR0, IQ_ESCR1 only for models 1 and 2
 	 */
-	if (p4_config_pebs_has(event->attr.config, P4_PEBS_CONFIG_ENABLE)) {
-		pr_warning("P4 PMU: PEBS are not supported yet\n");
+
+	return true;
+}
+
+static int p4_validate_raw_event(struct perf_event *event)
+{
+	unsigned int v, emask;
+
+	/* User data may have out-of-bound event index */
+	v = p4_config_unpack_event(event->attr.config);
+	if (v >= ARRAY_SIZE(p4_event_bind_map))
 		return -EINVAL;
+
+	/* It may be unsupported: */
+	if (!p4_event_match_cpu_model(v))
+		return -EINVAL;
+
+	/*
+	 * NOTE: P4_CCCR_THREAD_ANY has not the same meaning as
+	 * in Architectural Performance Monitoring, it means not
+	 * on _which_ logical cpu to count but rather _when_, ie it
+	 * depends on logical cpu state -- count event if one cpu active,
+	 * none, both or any, so we just allow user to pass any value
+	 * desired.
+	 *
+	 * In turn we always set Tx_OS/Tx_USR bits bound to logical
+	 * cpu without their propagation to another cpu
+	 */
+
+	/*
+	 * if an event is shared accross the logical threads
+	 * the user needs special permissions to be able to use it
+	 */
+	if (p4_event_bind_map[v].shared) {
+		if (perf_paranoid_cpu() && !capable(CAP_SYS_ADMIN))
+			return -EACCES;
 	}
+
+	/* ESCR EventMask bits may be invalid */
+	emask = p4_config_unpack_escr(event->attr.config) & P4_ESCR_EVENTMASK_MASK;
+	if (emask & ~p4_event_bind_map[v].escr_emask)
+		return -EINVAL;
+
+	/*
+	 * it may have some invalid PEBS bits
+	 */
+	if (p4_config_pebs_has(event->attr.config, P4_PEBS_CONFIG_ENABLE))
+		return -EINVAL;
+
 	v = p4_config_unpack_metric(event->attr.config);
-	if (v >= ARRAY_SIZE(p4_pebs_bind_map)) {
-		pr_warning("P4 PMU: Unknown metric code: %d\n", v);
+	if (v >= ARRAY_SIZE(p4_pebs_bind_map))
 		return -EINVAL;
-	}
 
 	return 0;
 }
@@ -478,27 +728,21 @@ static int p4_hw_config(struct perf_event *event)
 
 	if (event->attr.type == PERF_TYPE_RAW) {
 
+		/*
+		 * Clear bits we reserve to be managed by kernel itself
+		 * and never allowed from a user space
+		 */
+		 event->attr.config &= P4_CONFIG_MASK;
+
 		rc = p4_validate_raw_event(event);
 		if (rc)
 			goto out;
 
 		/*
-		 * We don't control raw events so it's up to the caller
-		 * to pass sane values (and we don't count the thread number
-		 * on HT machine but allow HT-compatible specifics to be
-		 * passed on)
-		 *
 		 * Note that for RAW events we allow user to use P4_CCCR_RESERVED
 		 * bits since we keep additional info here (for cache events and etc)
-		 *
-		 * XXX: HT wide things should check perf_paranoid_cpu() &&
-		 *      CAP_SYS_ADMIN
 		 */
-		event->hw.config |= event->attr.config &
-			(p4_config_pack_escr(P4_ESCR_MASK_HT) |
-			 p4_config_pack_cccr(P4_CCCR_MASK_HT | P4_CCCR_RESERVED));
-
-		event->hw.config &= ~P4_CCCR_FORCE_OVF;
+		event->hw.config |= event->attr.config;
 	}
 
 	rc = x86_setup_perfctr(event);

@@ -16,6 +16,7 @@
 #include <linux/smc91x.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/interrupt.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -24,6 +25,8 @@
 #include <mach/mmp2.h>
 
 #include "common.h"
+
+#define FLINT_NR_IRQS	(IRQ_BOARD_START + 48)
 
 static unsigned long flint_pin_config[] __initdata = {
 	/* UART1 */
@@ -113,9 +116,8 @@ static void __init flint_init(void)
 }
 
 MACHINE_START(FLINT, "Flint Development Platform")
-	.phys_io        = APB_PHYS_BASE,
-	.io_pg_offst    = (APB_VIRT_BASE >> 18) & 0xfffc,
 	.map_io		= mmp_map_io,
+	.nr_irqs	= FLINT_NR_IRQS,
 	.init_irq       = mmp2_init_irq,
 	.timer          = &mmp2_timer,
 	.init_machine   = flint_init,

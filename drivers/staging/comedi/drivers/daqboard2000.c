@@ -50,8 +50,8 @@ Configuration options:
    With some help from our swedish distributor, we got the Windows sourcecode
    for the card, and here are the findings so far.
 
-   1. A good document that describes the PCI interface chip is found at:
-      http://plx.plxtech.com/download/9080/databook/9080db-106.pdf
+   1. A good document that describes the PCI interface chip is 9080db-106.pdf
+      available from http://www.plxtech.com/products/io/pci9080 
 
    2. The initialization done so far is:
         a. program the FPGA (windows code sans a lot of error messages)

@@ -65,7 +65,9 @@ enum nmk_gpio_pull {
 /* Sleep mode */
 enum nmk_gpio_slpm {
 	NMK_GPIO_SLPM_INPUT,
+	NMK_GPIO_SLPM_WAKEUP_ENABLE = NMK_GPIO_SLPM_INPUT,
 	NMK_GPIO_SLPM_NOCHANGE,
+	NMK_GPIO_SLPM_WAKEUP_DISABLE = NMK_GPIO_SLPM_NOCHANGE,
 };
 
 extern int nmk_gpio_set_slpm(int gpio, enum nmk_gpio_slpm mode);

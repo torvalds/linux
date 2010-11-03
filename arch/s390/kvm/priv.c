@@ -154,12 +154,12 @@ static int handle_chsc(struct kvm_vcpu *vcpu)
 
 static int handle_stfl(struct kvm_vcpu *vcpu)
 {
-	unsigned int facility_list = stfl();
+	unsigned int facility_list;
 	int rc;
 
 	vcpu->stat.instruction_stfl++;
 	/* only pass the facility bits, which we can handle */
-	facility_list &= 0xff00fff3;
+	facility_list = S390_lowcore.stfl_fac_list & 0xff00fff3;
 
 	rc = copy_to_guest(vcpu, offsetof(struct _lowcore, stfl_fac_list),
 			   &facility_list, sizeof(facility_list));

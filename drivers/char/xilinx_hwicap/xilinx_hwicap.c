@@ -81,7 +81,6 @@
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 #include <linux/sysctl.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
@@ -112,6 +111,7 @@
 #define HWICAP_DEVICES 1
 
 /* An array, which is set to true when the device is registered. */
+static DEFINE_MUTEX(hwicap_mutex);
 static bool probed_devices[HWICAP_DEVICES];
 static struct mutex icap_sem;
 
@@ -502,7 +502,7 @@ static int hwicap_open(struct inode *inode, struct file *file)
 	struct hwicap_drvdata *drvdata;
 	int status;
 
-	lock_kernel();
+	mutex_lock(&hwicap_mutex);
 	drvdata = container_of(inode->i_cdev, struct hwicap_drvdata, cdev);
 
 	status = mutex_lock_interruptible(&drvdata->sem);
@@ -528,7 +528,7 @@ static int hwicap_open(struct inode *inode, struct file *file)
  error:
 	mutex_unlock(&drvdata->sem);
  out:
-	unlock_kernel();
+	mutex_unlock(&hwicap_mutex);
 	return status;
 }
 
@@ -567,6 +567,7 @@ static const struct file_operations hwicap_fops = {
 	.read = hwicap_read,
 	.open = hwicap_open,
 	.release = hwicap_release,
+	.llseek = noop_llseek,
 };
 
 static int __devinit hwicap_setup(struct device *dev, int id,

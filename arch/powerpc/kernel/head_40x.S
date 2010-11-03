@@ -923,11 +923,7 @@ initial_mmu:
 	mtspr	SPRN_PID,r0
 	sync
 
-	/* Configure and load two entries into TLB slots 62 and 63.
-	 * In case we are pinning TLBs, these are reserved in by the
-	 * other TLB functions.  If not reserving, then it doesn't
-	 * matter where they are loaded.
-	 */
+	/* Configure and load one entry into TLB slots 63 */
 	clrrwi	r4,r4,10		/* Mask off the real page number */
 	ori	r4,r4,(TLB_WR | TLB_EX)	/* Set the write and execute bits */
 

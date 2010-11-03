@@ -22,16 +22,17 @@
 
 #include "hid-ids.h"
 
-static void sp_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int rsize)
+static __u8 *sp_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
 {
-	if (rsize >= 107 && rdesc[104] == 0x26 && rdesc[105] == 0x80 &&
+	if (*rsize >= 107 && rdesc[104] == 0x26 && rdesc[105] == 0x80 &&
 			rdesc[106] == 0x03) {
 		dev_info(&hdev->dev, "fixing up Sunplus Wireless Desktop "
 				"report descriptor\n");
 		rdesc[105] = rdesc[110] = 0x03;
 		rdesc[106] = rdesc[111] = 0x21;
 	}
+	return rdesc;
 }
 
 #define sp_map_key_clear(c)	hid_map_usage_clear(hi, usage, bit, max, \

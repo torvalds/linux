@@ -255,8 +255,6 @@ void __init colibri_pxa320_init(void)
 }
 
 MACHINE_START(COLIBRI320, "Toradex Colibri PXA320")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= COLIBRI_SDRAM_BASE + 0x100,
 	.init_machine	= colibri_pxa320_init,
 	.map_io		= pxa_map_io,

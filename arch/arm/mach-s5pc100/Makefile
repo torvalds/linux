@@ -11,7 +11,7 @@ obj-				:=
 
 # Core support for S5PC100 system
 
-obj-$(CONFIG_CPU_S5PC100)	+= cpu.o init.o clock.o gpiolib.o irq-gpio.o
+obj-$(CONFIG_CPU_S5PC100)	+= cpu.o init.o clock.o gpiolib.o
 obj-$(CONFIG_CPU_S5PC100)	+= setup-i2c0.o
 obj-$(CONFIG_CPU_S5PC100)	+= dma.o
 

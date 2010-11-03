@@ -531,7 +531,7 @@ static int sgiseeq_open(struct net_device *dev)
 
 	if (request_irq(irq, sgiseeq_interrupt, 0, sgiseeqstr, dev)) {
 		printk(KERN_ERR "Seeq8003: Can't get irq %d\n", dev->irq);
-		err = -EAGAIN;
+		return -EAGAIN;
 	}
 
 	err = init_seeq(dev, sp, sregs);

@@ -131,8 +131,6 @@ static void __init sheevaplug_init(void)
 #ifdef CONFIG_MACH_SHEEVAPLUG
 MACHINE_START(SHEEVAPLUG, "Marvell SheevaPlug Reference Board")
 	/* Maintainer: shadi Ammouri <shadi@marvell.com> */
-	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
-	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= sheevaplug_init,
 	.map_io		= kirkwood_map_io,
@@ -143,8 +141,6 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_ESATA_SHEEVAPLUG
 MACHINE_START(ESATA_SHEEVAPLUG, "Marvell eSATA SheevaPlug Reference Board")
-	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
-	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= sheevaplug_init,
 	.map_io		= kirkwood_map_io,

@@ -1060,7 +1060,7 @@ void free_initmem(void)
 
 	/*
 	 * Free the pages mapped from 0xc0000000 that correspond to code
-	 * pages from 0xfd000000 that we won't use again after init.
+	 * pages from MEM_SV_INTRPT that we won't use again after init.
 	 */
 	free_init_pages("unused kernel text",
 			(unsigned long)_sinittext - text_delta,

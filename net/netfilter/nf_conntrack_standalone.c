@@ -15,6 +15,7 @@
 #include <linux/seq_file.h>
 #include <linux/percpu.h>
 #include <linux/netdevice.h>
+#include <linux/security.h>
 #include <net/net_namespace.h>
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
@@ -108,6 +109,29 @@ static void ct_seq_stop(struct seq_file *s, void *v)
 	rcu_read_unlock();
 }
 
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+static int ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
+{
+	int ret;
+	u32 len;
+	char *secctx;
+
+	ret = security_secid_to_secctx(ct->secmark, &secctx, &len);
+	if (ret)
+		return ret;
+
+	ret = seq_printf(s, "secctx=%s ", secctx);
+
+	security_release_secctx(secctx, len);
+	return ret;
+}
+#else
+static inline int ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
+{
+	return 0;
+}
+#endif
+
 /* return 0 on success, 1 in case of error */
 static int ct_seq_show(struct seq_file *s, void *v)
 {
@@ -168,10 +192,8 @@ static int ct_seq_show(struct seq_file *s, void *v)
 		goto release;
 #endif
 
-#ifdef CONFIG_NF_CONNTRACK_SECMARK
-	if (seq_printf(s, "secmark=%u ", ct->secmark))
+	if (ct_show_secctx(s, ct))
 		goto release;
-#endif
 
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 	if (seq_printf(s, "zone=%u ", nf_ct_zone(ct)))

@@ -324,14 +324,6 @@ struct rt_rtmp_sg_list {
 /* */
 /*  Some utility macros */
 /* */
-#ifndef min
-#define min(_a, _b)     (((_a) < (_b)) ? (_a) : (_b))
-#endif
-
-#ifndef max
-#define max(_a, _b)     (((_a) > (_b)) ? (_a) : (_b))
-#endif
-
 #define GET_LNA_GAIN(_pAd)	((_pAd->LatchRfRegs.Channel <= 14) ? (_pAd->BLNAGain) : ((_pAd->LatchRfRegs.Channel <= 64) ? (_pAd->ALNAGain0) : ((_pAd->LatchRfRegs.Channel <= 128) ? (_pAd->ALNAGain1) : (_pAd->ALNAGain2))))
 
 #define INC_COUNTER64(Val)          (Val.QuadPart++)
@@ -2239,15 +2231,15 @@ struct rt_tx_blk {
 	unsigned long Priv;		/* Hardware specific value saved in here. */
 };
 
-#define fTX_bRtsRequired		0x0001	/* Indicate if need send RTS frame for protection. Not used in RT2860/RT2870. */
-#define fTX_bAckRequired       	0x0002	/* the packet need ack response */
-#define fTX_bPiggyBack     		0x0004	/* Legacy device use Piggback or not */
-#define fTX_bHTRate         	0x0008	/* allow to use HT rate */
-#define fTX_bForceNonQoS       	0x0010	/* force to transmit frame without WMM-QoS in HT mode */
-#define fTX_bAllowFrag       	0x0020	/* allow to fragment the packet, A-MPDU, A-MSDU, A-Ralink is not allowed to fragment */
-#define fTX_bMoreData			0x0040	/* there are more data packets in PowerSave Queue */
-#define fTX_bWMM				0x0080	/* QOS Data */
-#define fTX_bClearEAPFrame		0x0100
+#define fTX_bRtsRequired	0x0001	/* Indicate if need send RTS frame for protection. Not used in RT2860/RT2870. */
+#define fTX_bAckRequired	0x0002	/* the packet need ack response */
+#define fTX_bPiggyBack		0x0004	/* Legacy device use Piggback or not */
+#define fTX_bHTRate		0x0008	/* allow to use HT rate */
+#define fTX_bForceNonQoS	0x0010	/* force to transmit frame without WMM-QoS in HT mode */
+#define fTX_bAllowFrag		0x0020	/* allow to fragment the packet, A-MPDU, A-MSDU, A-Ralink is not allowed to fragment */
+#define fTX_bMoreData		0x0040	/* there are more data packets in PowerSave Queue */
+#define fTX_bWMM		0x0080	/* QOS Data */
+#define fTX_bClearEAPFrame	0x0100
 
 #define TX_BLK_SET_FLAG(_pTxBlk, _flag)		(_pTxBlk->Flags |= _flag)
 #define TX_BLK_TEST_FLAG(_pTxBlk, _flag)	(((_pTxBlk->Flags & _flag) == _flag) ? 1 : 0)

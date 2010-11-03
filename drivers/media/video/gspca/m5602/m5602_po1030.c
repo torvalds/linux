@@ -58,14 +58,14 @@ static const struct ctrl po1030_ctrls[] = {
 #define GAIN_IDX 0
 	{
 		{
-			.id 		= V4L2_CID_GAIN,
-			.type 		= V4L2_CTRL_TYPE_INTEGER,
-			.name 		= "gain",
-			.minimum 	= 0x00,
-			.maximum 	= 0x4f,
-			.step 		= 0x1,
-			.default_value 	= PO1030_GLOBAL_GAIN_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
+			.id		= V4L2_CID_GAIN,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "gain",
+			.minimum	= 0x00,
+			.maximum	= 0x4f,
+			.step		= 0x1,
+			.default_value	= PO1030_GLOBAL_GAIN_DEFAULT,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = po1030_set_gain,
 		.get = po1030_get_gain
@@ -73,14 +73,14 @@ static const struct ctrl po1030_ctrls[] = {
 #define EXPOSURE_IDX 1
 	{
 		{
-			.id 		= V4L2_CID_EXPOSURE,
-			.type 		= V4L2_CTRL_TYPE_INTEGER,
-			.name 		= "exposure",
-			.minimum 	= 0x00,
-			.maximum 	= 0x02ff,
-			.step 		= 0x1,
-			.default_value 	= PO1030_EXPOSURE_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
+			.id		= V4L2_CID_EXPOSURE,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "exposure",
+			.minimum	= 0x00,
+			.maximum	= 0x02ff,
+			.step		= 0x1,
+			.default_value	= PO1030_EXPOSURE_DEFAULT,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = po1030_set_exposure,
 		.get = po1030_get_exposure
@@ -88,14 +88,14 @@ static const struct ctrl po1030_ctrls[] = {
 #define RED_BALANCE_IDX 2
 	{
 		{
-			.id 		= V4L2_CID_RED_BALANCE,
-			.type 		= V4L2_CTRL_TYPE_INTEGER,
-			.name 		= "red balance",
-			.minimum 	= 0x00,
-			.maximum 	= 0xff,
-			.step 		= 0x1,
-			.default_value 	= PO1030_RED_GAIN_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
+			.id		= V4L2_CID_RED_BALANCE,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "red balance",
+			.minimum	= 0x00,
+			.maximum	= 0xff,
+			.step		= 0x1,
+			.default_value	= PO1030_RED_GAIN_DEFAULT,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = po1030_set_red_balance,
 		.get = po1030_get_red_balance
@@ -103,14 +103,14 @@ static const struct ctrl po1030_ctrls[] = {
 #define BLUE_BALANCE_IDX 3
 	{
 		{
-			.id 		= V4L2_CID_BLUE_BALANCE,
-			.type 		= V4L2_CTRL_TYPE_INTEGER,
-			.name 		= "blue balance",
-			.minimum 	= 0x00,
-			.maximum 	= 0xff,
-			.step 		= 0x1,
-			.default_value 	= PO1030_BLUE_GAIN_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
+			.id		= V4L2_CID_BLUE_BALANCE,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "blue balance",
+			.minimum	= 0x00,
+			.maximum	= 0xff,
+			.step		= 0x1,
+			.default_value	= PO1030_BLUE_GAIN_DEFAULT,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = po1030_set_blue_balance,
 		.get = po1030_get_blue_balance
@@ -118,13 +118,13 @@ static const struct ctrl po1030_ctrls[] = {
 #define HFLIP_IDX 4
 	{
 		{
-			.id 		= V4L2_CID_HFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "horizontal flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0,
+			.id		= V4L2_CID_HFLIP,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "horizontal flip",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 0,
 		},
 		.set = po1030_set_hflip,
 		.get = po1030_get_hflip
@@ -132,13 +132,13 @@ static const struct ctrl po1030_ctrls[] = {
 #define VFLIP_IDX 5
 	{
 		{
-			.id 		= V4L2_CID_VFLIP,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "vertical flip",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0,
+			.id		= V4L2_CID_VFLIP,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "vertical flip",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 0,
 		},
 		.set = po1030_set_vflip,
 		.get = po1030_get_vflip
@@ -146,13 +146,13 @@ static const struct ctrl po1030_ctrls[] = {
 #define AUTO_WHITE_BALANCE_IDX 6
 	{
 		{
-			.id 		= V4L2_CID_AUTO_WHITE_BALANCE,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "auto white balance",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0,
+			.id		= V4L2_CID_AUTO_WHITE_BALANCE,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "auto white balance",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 0,
 		},
 		.set = po1030_set_auto_white_balance,
 		.get = po1030_get_auto_white_balance
@@ -160,13 +160,13 @@ static const struct ctrl po1030_ctrls[] = {
 #define AUTO_EXPOSURE_IDX 7
 	{
 		{
-			.id 		= V4L2_CID_EXPOSURE_AUTO,
-			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name 		= "auto exposure",
-			.minimum 	= 0,
-			.maximum 	= 1,
-			.step 		= 1,
-			.default_value 	= 0,
+			.id		= V4L2_CID_EXPOSURE_AUTO,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "auto exposure",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value	= 0,
 		},
 		.set = po1030_set_auto_exposure,
 		.get = po1030_get_auto_exposure
@@ -174,14 +174,14 @@ static const struct ctrl po1030_ctrls[] = {
 #define GREEN_BALANCE_IDX 8
 	{
 		{
-			.id 		= M5602_V4L2_CID_GREEN_BALANCE,
-			.type 		= V4L2_CTRL_TYPE_INTEGER,
-			.name 		= "green balance",
-			.minimum 	= 0x00,
-			.maximum 	= 0xff,
-			.step 		= 0x1,
-			.default_value 	= PO1030_GREEN_GAIN_DEFAULT,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
+			.id		= M5602_V4L2_CID_GREEN_BALANCE,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "green balance",
+			.minimum	= 0x00,
+			.maximum	= 0xff,
+			.step		= 0x1,
+			.default_value	= PO1030_GREEN_GAIN_DEFAULT,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = po1030_set_green_balance,
 		.get = po1030_get_green_balance

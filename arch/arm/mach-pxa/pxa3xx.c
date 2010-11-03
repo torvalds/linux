@@ -98,23 +98,6 @@ unsigned int pxa3xx_get_clk_frequency_khz(int info)
 	return CLK / 1000;
 }
 
-/*
- * Return the current static memory controller clock frequency
- * in units of 10kHz
- */
-unsigned int pxa3xx_get_memclk_frequency_10khz(void)
-{
-	unsigned long acsr;
-	unsigned int smcfs, clk = 0;
-
-	acsr = ACSR;
-
-	smcfs = (acsr >> 23) & 0x7;
-	clk = (acsr & ACCR_D0CS) ? RO_CLK : smcfs_mult[smcfs] * BASE_CLK;
-
-	return (clk / 10000);
-}
-
 void pxa3xx_clear_reset_status(unsigned int mask)
 {
 	/* RESET_STATUS_* has a 1:1 mapping with ARSR */
@@ -265,7 +248,7 @@ static struct clk_lookup pxa3xx_clkregs[] = {
 	INIT_CLKREG(&clk_pxa3xx_i2c, "pxa2xx-i2c.0", NULL),
 	INIT_CLKREG(&clk_pxa3xx_udc, "pxa27x-udc", NULL),
 	INIT_CLKREG(&clk_pxa3xx_usbh, "pxa27x-ohci", NULL),
-	INIT_CLKREG(&clk_pxa3xx_u2d, NULL, "U2DCLK"),
+	INIT_CLKREG(&clk_pxa3xx_u2d, "pxa3xx-u2d", NULL),
 	INIT_CLKREG(&clk_pxa3xx_keypad, "pxa27x-keypad", NULL),
 	INIT_CLKREG(&clk_pxa3xx_ssp1, "pxa27x-ssp.0", NULL),
 	INIT_CLKREG(&clk_pxa3xx_ssp2, "pxa27x-ssp.1", NULL),

@@ -1101,7 +1101,7 @@ static int udf_link(struct dentry *old_dentry, struct inode *dir,
 	inc_nlink(inode);
 	inode->i_ctime = current_fs_time(inode->i_sb);
 	mark_inode_dirty(inode);
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 	d_instantiate(dentry, inode);
 	unlock_kernel();
 

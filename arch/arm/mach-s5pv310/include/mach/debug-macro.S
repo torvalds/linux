@@ -20,13 +20,12 @@
 	 * aligned and add in the offset when we load the value here.
 	 */
 
-	.macro addruart, rx, tmp
-		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1
-		ldreq	\rx, = S3C_PA_UART
-		ldrne	\rx, = S3C_VA_UART
+	.macro addruart, rp, rv
+		ldreq	\rp, = S3C_PA_UART
+		ldrne	\rv, = S3C_VA_UART
 #if CONFIG_DEBUG_S3C_UART != 0
-		add	\rx, \rx, #(0x10000 * CONFIG_DEBUG_S3C_UART)
+		add	\rp, \rp, #(0x10000 * CONFIG_DEBUG_S3C_UART)
+		add	\rv, \rv, #(0x10000 * CONFIG_DEBUG_S3C_UART)
 #endif
 	.endm
 

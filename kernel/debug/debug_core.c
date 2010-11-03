@@ -47,6 +47,7 @@
 #include <linux/pid.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
+#include <linux/rcupdate.h>
 
 #include <asm/cacheflush.h>
 #include <asm/byteorder.h>
@@ -109,13 +110,15 @@ static struct kgdb_bkpt		kgdb_break[KGDB_MAX_BREAKPOINTS] = {
  */
 atomic_t			kgdb_active = ATOMIC_INIT(-1);
 EXPORT_SYMBOL_GPL(kgdb_active);
+static DEFINE_RAW_SPINLOCK(dbg_master_lock);
+static DEFINE_RAW_SPINLOCK(dbg_slave_lock);
 
 /*
  * We use NR_CPUs not PERCPU, in case kgdb is used to debug early
  * bootup code (which might not have percpu set up yet):
  */
-static atomic_t			passive_cpu_wait[NR_CPUS];
-static atomic_t			cpu_in_kgdb[NR_CPUS];
+static atomic_t			masters_in_kgdb;
+static atomic_t			slaves_in_kgdb;
 static atomic_t			kgdb_break_tasklet_var;
 atomic_t			kgdb_setting_breakpoint;
 
@@ -204,18 +207,6 @@ int __weak kgdb_arch_init(void)
 int __weak kgdb_skipexception(int exception, struct pt_regs *regs)
 {
 	return 0;
-}
-
-/**
- *	kgdb_disable_hw_debug - Disable hardware debugging while we in kgdb.
- *	@regs: Current &struct pt_regs.
- *
- *	This function will be called if the particular architecture must
- *	disable hardware debugging while it is processing gdb packets or
- *	handling exception.
- */
-void __weak kgdb_disable_hw_debug(struct pt_regs *regs)
-{
 }
 
 /*
@@ -457,26 +448,34 @@ static int kgdb_reenter_check(struct kgdb_state *ks)
 	return 1;
 }
 
-static void dbg_cpu_switch(int cpu, int next_cpu)
+static void dbg_touch_watchdogs(void)
 {
-	/* Mark the cpu we are switching away from as a slave when it
-	 * holds the kgdb_active token.  This must be done so that the
-	 * that all the cpus wait in for the debug core will not enter
-	 * again as the master. */
-	if (cpu == atomic_read(&kgdb_active)) {
-		kgdb_info[cpu].exception_state |= DCPU_IS_SLAVE;
-		kgdb_info[cpu].exception_state &= ~DCPU_WANT_MASTER;
-	}
-	kgdb_info[next_cpu].exception_state |= DCPU_NEXT_MASTER;
+	touch_softlockup_watchdog_sync();
+	clocksource_touch_watchdog();
+	rcu_cpu_stall_reset();
 }
 
-static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs)
+static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs,
+		int exception_state)
 {
 	unsigned long flags;
 	int sstep_tries = 100;
 	int error;
-	int i, cpu;
+	int cpu;
 	int trace_on = 0;
+	int online_cpus = num_online_cpus();
+
+	kgdb_info[ks->cpu].enter_kgdb++;
+	kgdb_info[ks->cpu].exception_state |= exception_state;
+
+	if (exception_state == DCPU_WANT_MASTER)
+		atomic_inc(&masters_in_kgdb);
+	else
+		atomic_inc(&slaves_in_kgdb);
+
+	if (arch_kgdb_ops.disable_hw_break)
+		arch_kgdb_ops.disable_hw_break(regs);
+
 acquirelock:
 	/*
 	 * Interrupts will be restored by the 'trap return' code, except when
@@ -489,14 +488,15 @@ acquirelock:
 	kgdb_info[cpu].task = current;
 	kgdb_info[cpu].ret_state = 0;
 	kgdb_info[cpu].irq_depth = hardirq_count() >> HARDIRQ_SHIFT;
-	/*
-	 * Make sure the above info reaches the primary CPU before
-	 * our cpu_in_kgdb[] flag setting does:
-	 */
-	atomic_inc(&cpu_in_kgdb[cpu]);
 
-	if (exception_level == 1)
+	/* Make sure the above info reaches the primary CPU */
+	smp_mb();
+
+	if (exception_level == 1) {
+		if (raw_spin_trylock(&dbg_master_lock))
+			atomic_xchg(&kgdb_active, cpu);
 		goto cpu_master_loop;
+	}
 
 	/*
 	 * CPU will loop if it is a slave or request to become a kgdb
@@ -508,10 +508,12 @@ cpu_loop:
 			kgdb_info[cpu].exception_state &= ~DCPU_NEXT_MASTER;
 			goto cpu_master_loop;
 		} else if (kgdb_info[cpu].exception_state & DCPU_WANT_MASTER) {
-			if (atomic_cmpxchg(&kgdb_active, -1, cpu) == cpu)
+			if (raw_spin_trylock(&dbg_master_lock)) {
+				atomic_xchg(&kgdb_active, cpu);
 				break;
+			}
 		} else if (kgdb_info[cpu].exception_state & DCPU_IS_SLAVE) {
-			if (!atomic_read(&passive_cpu_wait[cpu]))
+			if (!raw_spin_is_locked(&dbg_slave_lock))
 				goto return_normal;
 		} else {
 return_normal:
@@ -522,9 +524,12 @@ return_normal:
 				arch_kgdb_ops.correct_hw_break();
 			if (trace_on)
 				tracing_on();
-			atomic_dec(&cpu_in_kgdb[cpu]);
-			touch_softlockup_watchdog_sync();
-			clocksource_touch_watchdog();
+			kgdb_info[cpu].exception_state &=
+				~(DCPU_WANT_MASTER | DCPU_IS_SLAVE);
+			kgdb_info[cpu].enter_kgdb--;
+			smp_mb__before_atomic_dec();
+			atomic_dec(&slaves_in_kgdb);
+			dbg_touch_watchdogs();
 			local_irq_restore(flags);
 			return 0;
 		}
@@ -541,8 +546,8 @@ return_normal:
 	    (kgdb_info[cpu].task &&
 	     kgdb_info[cpu].task->pid != kgdb_sstep_pid) && --sstep_tries) {
 		atomic_set(&kgdb_active, -1);
-		touch_softlockup_watchdog_sync();
-		clocksource_touch_watchdog();
+		raw_spin_unlock(&dbg_master_lock);
+		dbg_touch_watchdogs();
 		local_irq_restore(flags);
 
 		goto acquirelock;
@@ -563,16 +568,12 @@ return_normal:
 	if (dbg_io_ops->pre_exception)
 		dbg_io_ops->pre_exception();
 
-	kgdb_disable_hw_debug(ks->linux_regs);
-
 	/*
 	 * Get the passive CPU lock which will hold all the non-primary
 	 * CPU in a spin state while the debugger is active
 	 */
-	if (!kgdb_single_step) {
-		for (i = 0; i < NR_CPUS; i++)
-			atomic_inc(&passive_cpu_wait[i]);
-	}
+	if (!kgdb_single_step)
+		raw_spin_lock(&dbg_slave_lock);
 
 #ifdef CONFIG_SMP
 	/* Signal the other CPUs to enter kgdb_wait() */
@@ -583,10 +584,9 @@ return_normal:
 	/*
 	 * Wait for the other CPUs to be notified and be waiting for us:
 	 */
-	for_each_online_cpu(i) {
-		while (kgdb_do_roundup && !atomic_read(&cpu_in_kgdb[i]))
-			cpu_relax();
-	}
+	while (kgdb_do_roundup && (atomic_read(&masters_in_kgdb) +
+				atomic_read(&slaves_in_kgdb)) != online_cpus)
+		cpu_relax();
 
 	/*
 	 * At this point the primary processor is completely
@@ -615,7 +615,8 @@ cpu_master_loop:
 		if (error == DBG_PASS_EVENT) {
 			dbg_kdb_mode = !dbg_kdb_mode;
 		} else if (error == DBG_SWITCH_CPU_EVENT) {
-			dbg_cpu_switch(cpu, dbg_switch_cpu);
+			kgdb_info[dbg_switch_cpu].exception_state |=
+				DCPU_NEXT_MASTER;
 			goto cpu_loop;
 		} else {
 			kgdb_info[cpu].ret_state = error;
@@ -627,24 +628,11 @@ cpu_master_loop:
 	if (dbg_io_ops->post_exception)
 		dbg_io_ops->post_exception();
 
-	atomic_dec(&cpu_in_kgdb[ks->cpu]);
-
 	if (!kgdb_single_step) {
-		for (i = NR_CPUS-1; i >= 0; i--)
-			atomic_dec(&passive_cpu_wait[i]);
-		/*
-		 * Wait till all the CPUs have quit from the debugger,
-		 * but allow a CPU that hit an exception and is
-		 * waiting to become the master to remain in the debug
-		 * core.
-		 */
-		for_each_online_cpu(i) {
-			while (kgdb_do_roundup &&
-			       atomic_read(&cpu_in_kgdb[i]) &&
-			       !(kgdb_info[i].exception_state &
-				 DCPU_WANT_MASTER))
-				cpu_relax();
-		}
+		raw_spin_unlock(&dbg_slave_lock);
+		/* Wait till all the CPUs have quit from the debugger. */
+		while (kgdb_do_roundup && atomic_read(&slaves_in_kgdb))
+			cpu_relax();
 	}
 
 kgdb_restore:
@@ -655,12 +643,20 @@ kgdb_restore:
 		else
 			kgdb_sstep_pid = 0;
 	}
+	if (arch_kgdb_ops.correct_hw_break)
+		arch_kgdb_ops.correct_hw_break();
 	if (trace_on)
 		tracing_on();
+
+	kgdb_info[cpu].exception_state &=
+		~(DCPU_WANT_MASTER | DCPU_IS_SLAVE);
+	kgdb_info[cpu].enter_kgdb--;
+	smp_mb__before_atomic_dec();
+	atomic_dec(&masters_in_kgdb);
 	/* Free kgdb_active */
 	atomic_set(&kgdb_active, -1);
-	touch_softlockup_watchdog_sync();
-	clocksource_touch_watchdog();
+	raw_spin_unlock(&dbg_master_lock);
+	dbg_touch_watchdogs();
 	local_irq_restore(flags);
 
 	return kgdb_info[cpu].ret_state;
@@ -678,7 +674,6 @@ kgdb_handle_exception(int evector, int signo, int ecode, struct pt_regs *regs)
 {
 	struct kgdb_state kgdb_var;
 	struct kgdb_state *ks = &kgdb_var;
-	int ret;
 
 	ks->cpu			= raw_smp_processor_id();
 	ks->ex_vector		= evector;
@@ -689,11 +684,10 @@ kgdb_handle_exception(int evector, int signo, int ecode, struct pt_regs *regs)
 
 	if (kgdb_reenter_check(ks))
 		return 0; /* Ouch, double exception ! */
-	kgdb_info[ks->cpu].exception_state |= DCPU_WANT_MASTER;
-	ret = kgdb_cpu_enter(ks, regs);
-	kgdb_info[ks->cpu].exception_state &= ~(DCPU_WANT_MASTER |
-						DCPU_IS_SLAVE);
-	return ret;
+	if (kgdb_info[ks->cpu].enter_kgdb != 0)
+		return 0;
+
+	return kgdb_cpu_enter(ks, regs, DCPU_WANT_MASTER);
 }
 
 int kgdb_nmicallback(int cpu, void *regs)
@@ -706,12 +700,9 @@ int kgdb_nmicallback(int cpu, void *regs)
 	ks->cpu			= cpu;
 	ks->linux_regs		= regs;
 
-	if (!atomic_read(&cpu_in_kgdb[cpu]) &&
-	    atomic_read(&kgdb_active) != -1 &&
-	    atomic_read(&kgdb_active) != cpu) {
-		kgdb_info[cpu].exception_state |= DCPU_IS_SLAVE;
-		kgdb_cpu_enter(ks, regs);
-		kgdb_info[cpu].exception_state &= ~DCPU_IS_SLAVE;
+	if (kgdb_info[ks->cpu].enter_kgdb == 0 &&
+			raw_spin_is_locked(&dbg_master_lock)) {
+		kgdb_cpu_enter(ks, regs, DCPU_IS_SLAVE);
 		return 0;
 	}
 #endif

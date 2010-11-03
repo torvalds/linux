@@ -1367,8 +1367,6 @@ static void mos7840_break(struct tty_struct *tty, int break_state)
 	    mos7840_port->shadowLCR);
 	mos7840_set_uart_reg(port, LINE_CONTROL_REGISTER,
 			     mos7840_port->shadowLCR);
-
-	return;
 }
 
 /*****************************************************************************
@@ -1599,8 +1597,6 @@ static void mos7840_throttle(struct tty_struct *tty)
 		if (status < 0)
 			return;
 	}
-
-	return;
 }
 
 /*****************************************************************************
@@ -2075,8 +2071,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	mos7840_port->delta_msr_cond = 1;
 	dbg("mos7840_change_port_settings mos7840_port->shadowLCR is End %x",
 	    mos7840_port->shadowLCR);
-
-	return;
 }
 
 /*****************************************************************************
@@ -2145,7 +2139,6 @@ static void mos7840_set_termios(struct tty_struct *tty,
 			mos7840_port->read_urb_busy = false;
 		}
 	}
-	return;
 }
 
 /*****************************************************************************
@@ -2209,6 +2202,34 @@ static int mos7840_get_serial_info(struct moschip_port *mos7840_port,
 	return 0;
 }
 
+static int mos7840_get_icount(struct tty_struct *tty,
+			struct serial_icounter_struct *icount)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct moschip_port *mos7840_port;
+	struct async_icount cnow;
+
+	mos7840_port = mos7840_get_port_private(port);
+	cnow = mos7840_port->icount;
+
+	smp_rmb();
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+
+	dbg("%s (%d) TIOCGICOUNT RX=%d, TX=%d", __func__,
+		port->number, icount->rx, icount->tx);
+	return 0;
+}
+
 /*****************************************************************************
  * SerialIoctl
  *	this function handles any ioctl calls to the driver
@@ -2223,7 +2244,6 @@ static int mos7840_ioctl(struct tty_struct *tty, struct file *file,
 
 	struct async_icount cnow;
 	struct async_icount cprev;
-	struct serial_icounter_struct icount;
 
 	if (mos7840_port_paranoia_check(port, __func__)) {
 		dbg("%s", "Invalid port");
@@ -2282,29 +2302,6 @@ static int mos7840_ioctl(struct tty_struct *tty, struct file *file,
 		/* NOTREACHED */
 		break;
 
-	case TIOCGICOUNT:
-		cnow = mos7840_port->icount;
-		smp_rmb();
-
-		memset(&icount, 0, sizeof(struct serial_icounter_struct));
-
-		icount.cts = cnow.cts;
-		icount.dsr = cnow.dsr;
-		icount.rng = cnow.rng;
-		icount.dcd = cnow.dcd;
-		icount.rx = cnow.rx;
-		icount.tx = cnow.tx;
-		icount.frame = cnow.frame;
-		icount.overrun = cnow.overrun;
-		icount.parity = cnow.parity;
-		icount.brk = cnow.brk;
-		icount.buf_overrun = cnow.buf_overrun;
-
-		dbg("%s (%d) TIOCGICOUNT RX=%d, TX=%d", __func__,
-		    port->number, icount.rx, icount.tx);
-		if (copy_to_user(argp, &icount, sizeof(icount)))
-			return -EFAULT;
-		return 0;
 	default:
 		break;
 	}
@@ -2674,6 +2671,7 @@ static struct usb_serial_driver moschip7840_4port_device = {
 	.break_ctl = mos7840_break,
 	.tiocmget = mos7840_tiocmget,
 	.tiocmset = mos7840_tiocmset,
+	.get_icount = mos7840_get_icount,
 	.attach = mos7840_startup,
 	.disconnect = mos7840_disconnect,
 	.release = mos7840_release,

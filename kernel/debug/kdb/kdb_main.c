@@ -1127,7 +1127,7 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		/* special case below */
 	} else {
 		kdb_printf("\nEntering kdb (current=0x%p, pid %d) ",
-			   kdb_current, kdb_current->pid);
+			   kdb_current, kdb_current ? kdb_current->pid : 0);
 #if defined(CONFIG_SMP)
 		kdb_printf("on processor %d ", raw_smp_processor_id());
 #endif
@@ -1749,13 +1749,13 @@ static int kdb_go(int argc, const char **argv)
 	int nextarg;
 	long offset;
 
+	if (raw_smp_processor_id() != kdb_initial_cpu) {
+		kdb_printf("go must execute on the entry cpu, "
+			   "please use \"cpu %d\" and then execute go\n",
+			   kdb_initial_cpu);
+		return KDB_BADCPUNUM;
+	}
 	if (argc == 1) {
-		if (raw_smp_processor_id() != kdb_initial_cpu) {
-			kdb_printf("go <address> must be issued from the "
-				   "initial cpu, do cpu %d first\n",
-				   kdb_initial_cpu);
-			return KDB_ARGCOUNT;
-		}
 		nextarg = 1;
 		diag = kdbgetaddrarg(argc, argv, &nextarg,
 				     &addr, &offset, NULL);
@@ -2603,20 +2603,17 @@ static int kdb_summary(int argc, const char **argv)
  */
 static int kdb_per_cpu(int argc, const char **argv)
 {
-	char buf[256], fmtstr[64];
-	kdb_symtab_t symtab;
-	cpumask_t suppress = CPU_MASK_NONE;
-	int cpu, diag;
-	unsigned long addr, val, bytesperword = 0, whichcpu = ~0UL;
+	char fmtstr[64];
+	int cpu, diag, nextarg = 1;
+	unsigned long addr, symaddr, val, bytesperword = 0, whichcpu = ~0UL;
 
 	if (argc < 1 || argc > 3)
 		return KDB_ARGCOUNT;
 
-	snprintf(buf, sizeof(buf), "per_cpu__%s", argv[1]);
-	if (!kdbgetsymval(buf, &symtab)) {
-		kdb_printf("%s is not a per_cpu variable\n", argv[1]);
-		return KDB_BADADDR;
-	}
+	diag = kdbgetaddrarg(argc, argv, &nextarg, &symaddr, NULL, NULL);
+	if (diag)
+		return diag;
+
 	if (argc >= 2) {
 		diag = kdbgetularg(argv[2], &bytesperword);
 		if (diag)
@@ -2649,46 +2646,25 @@ static int kdb_per_cpu(int argc, const char **argv)
 #define KDB_PCU(cpu) 0
 #endif
 #endif
-
 	for_each_online_cpu(cpu) {
+		if (KDB_FLAG(CMD_INTERRUPT))
+			return 0;
+
 		if (whichcpu != ~0UL && whichcpu != cpu)
 			continue;
-		addr = symtab.sym_start + KDB_PCU(cpu);
+		addr = symaddr + KDB_PCU(cpu);
 		diag = kdb_getword(&val, addr, bytesperword);
 		if (diag) {
 			kdb_printf("%5d " kdb_bfd_vma_fmt0 " - unable to "
 				   "read, diag=%d\n", cpu, addr, diag);
 			continue;
 		}
-#ifdef	CONFIG_SMP
-		if (!val) {
-			cpu_set(cpu, suppress);
-			continue;
-		}
-#endif	/* CONFIG_SMP */
 		kdb_printf("%5d ", cpu);
 		kdb_md_line(fmtstr, addr,
 			bytesperword == KDB_WORD_SIZE,
 			1, bytesperword, 1, 1, 0);
 	}
-	if (cpus_weight(suppress) == 0)
-		return 0;
-	kdb_printf("Zero suppressed cpu(s):");
-	for (cpu = first_cpu(suppress); cpu < num_possible_cpus();
-	     cpu = next_cpu(cpu, suppress)) {
-		kdb_printf(" %d", cpu);
-		if (cpu == num_possible_cpus() - 1 ||
-		    next_cpu(cpu, suppress) != cpu + 1)
-			continue;
-		while (cpu < num_possible_cpus() &&
-		       next_cpu(cpu, suppress) == cpu + 1)
-			++cpu;
-		kdb_printf("-%d", cpu);
-	}
-	kdb_printf("\n");
-
 #undef KDB_PCU
-
 	return 0;
 }
 
@@ -2783,6 +2759,8 @@ int kdb_register_repeat(char *cmd,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(kdb_register_repeat);
+
 
 /*
  * kdb_register - Compatibility register function for commands that do
@@ -2805,6 +2783,7 @@ int kdb_register(char *cmd,
 	return kdb_register_repeat(cmd, func, usage, help, minlen,
 				   KDB_REPEAT_NONE);
 }
+EXPORT_SYMBOL_GPL(kdb_register);
 
 /*
  * kdb_unregister - This function is used to unregister a kernel
@@ -2823,7 +2802,7 @@ int kdb_unregister(char *cmd)
 	/*
 	 *  find the command.
 	 */
-	for (i = 0, kp = kdb_commands; i < kdb_max_commands; i++, kp++) {
+	for_each_kdbcmd(kp, i) {
 		if (kp->cmd_name && (strcmp(kp->cmd_name, cmd) == 0)) {
 			kp->cmd_name = NULL;
 			return 0;
@@ -2833,6 +2812,7 @@ int kdb_unregister(char *cmd)
 	/* Couldn't find it.  */
 	return 1;
 }
+EXPORT_SYMBOL_GPL(kdb_unregister);
 
 /* Initialize the kdb command table. */
 static void __init kdb_inittab(void)

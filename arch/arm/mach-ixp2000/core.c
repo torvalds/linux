@@ -197,7 +197,7 @@ unsigned long ixp2000_gettimeoffset (void)
 	return offset / ticks_per_usec;
 }
 
-static int ixp2000_timer_interrupt(int irq, void *dev_id)
+static irqreturn_t ixp2000_timer_interrupt(int irq, void *dev_id)
 {
 	/* clear timer 1 */
 	ixp2000_reg_wrb(IXP2000_T1_CLR, 1);

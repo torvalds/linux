@@ -59,17 +59,10 @@
 #include <linux/hrtimer.h>	/* ktime_get_real() */
 #include <trace/events/power.h>
 #include <linux/sched.h>
+#include <asm/mwait.h>
 
 #define INTEL_IDLE_VERSION "0.4"
 #define PREFIX "intel_idle: "
-
-#define MWAIT_SUBSTATE_MASK	(0xf)
-#define MWAIT_CSTATE_MASK	(0xf)
-#define MWAIT_SUBSTATE_SIZE	(4)
-#define MWAIT_MAX_NUM_CSTATES	8
-#define CPUID_MWAIT_LEAF (5)
-#define CPUID5_ECX_EXTENSIONS_SUPPORTED (0x1)
-#define CPUID5_ECX_INTERRUPT_BREAK	(0x2)
 
 static struct cpuidle_driver intel_idle_driver = {
 	.name = "intel_idle",
@@ -81,7 +74,7 @@ static int max_cstate = MWAIT_MAX_NUM_CSTATES - 1;
 static unsigned int mwait_substates;
 
 /* Reliable LAPIC Timer States, bit 1 for C1 etc.  */
-static unsigned int lapic_timer_reliable_states;
+static unsigned int lapic_timer_reliable_states = (1 << 1);	 /* Default to only C1 */
 
 static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
 static int intel_idle(struct cpuidle_device *dev, struct cpuidle_state *state);
@@ -101,7 +94,6 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.driver_data = (void *) 0x00,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 3,
-		.power_usage = 1000,
 		.target_residency = 6,
 		.enter = &intel_idle },
 	{ /* MWAIT C2 */
@@ -110,7 +102,6 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.driver_data = (void *) 0x10,
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 20,
-		.power_usage = 500,
 		.target_residency = 80,
 		.enter = &intel_idle },
 	{ /* MWAIT C3 */
@@ -119,8 +110,43 @@ static struct cpuidle_state nehalem_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.driver_data = (void *) 0x20,
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 200,
-		.power_usage = 350,
 		.target_residency = 800,
+		.enter = &intel_idle },
+};
+
+static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
+	{ /* MWAIT C0 */ },
+	{ /* MWAIT C1 */
+		.name = "SNB-C1",
+		.desc = "MWAIT 0x00",
+		.driver_data = (void *) 0x00,
+		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.exit_latency = 1,
+		.target_residency = 4,
+		.enter = &intel_idle },
+	{ /* MWAIT C2 */
+		.name = "SNB-C3",
+		.desc = "MWAIT 0x10",
+		.driver_data = (void *) 0x10,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 80,
+		.target_residency = 160,
+		.enter = &intel_idle },
+	{ /* MWAIT C3 */
+		.name = "SNB-C6",
+		.desc = "MWAIT 0x20",
+		.driver_data = (void *) 0x20,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 104,
+		.target_residency = 208,
+		.enter = &intel_idle },
+	{ /* MWAIT C4 */
+		.name = "SNB-C7",
+		.desc = "MWAIT 0x30",
+		.driver_data = (void *) 0x30,
+		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 109,
+		.target_residency = 300,
 		.enter = &intel_idle },
 };
 
@@ -132,7 +158,6 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.driver_data = (void *) 0x00,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 1,
-		.power_usage = 1000,
 		.target_residency = 4,
 		.enter = &intel_idle },
 	{ /* MWAIT C2 */
@@ -141,7 +166,6 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.driver_data = (void *) 0x10,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 20,
-		.power_usage = 500,
 		.target_residency = 80,
 		.enter = &intel_idle },
 	{ /* MWAIT C3 */ },
@@ -151,7 +175,6 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.driver_data = (void *) 0x30,
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 100,
-		.power_usage = 250,
 		.target_residency = 400,
 		.enter = &intel_idle },
 	{ /* MWAIT C5 */ },
@@ -161,7 +184,6 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.driver_data = (void *) 0x52,
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 140,
-		.power_usage = 150,
 		.target_residency = 560,
 		.enter = &intel_idle },
 };
@@ -186,13 +208,10 @@ static int intel_idle(struct cpuidle_device *dev, struct cpuidle_state *state)
 	local_irq_disable();
 
 	/*
-	 * If the state flag indicates that the TLB will be flushed or if this
-	 * is the deepest c-state supported, do a voluntary leave mm to avoid
-	 * costly and mostly unnecessary wakeups for flushing the user TLB's
-	 * associated with the active mm.
+	 * leave_mm() to avoid costly and often unnecessary wakeups
+	 * for flushing the user TLB's associated with the active mm.
 	 */
-	if (state->flags & CPUIDLE_FLAG_TLB_FLUSHED ||
-	    (&dev->states[dev->state_count - 1] == state))
+	if (state->flags & CPUIDLE_FLAG_TLB_FLUSHED)
 		leave_mm(cpu);
 
 	if (!(lapic_timer_reliable_states & (1 << (cstate))))
@@ -276,8 +295,13 @@ static int intel_idle_probe(void)
 
 	case 0x1C:	/* 28 - Atom Processor */
 	case 0x26:	/* 38 - Lincroft Atom Processor */
-		lapic_timer_reliable_states = (1 << 2) | (1 << 1); /* C2, C1 */
+		lapic_timer_reliable_states = (1 << 1); /* C1 */
 		cpuidle_state_table = atom_cstates;
+		break;
+
+	case 0x2A:	/* SNB */
+	case 0x2D:	/* SNB Xeon */
+		cpuidle_state_table = snb_cstates;
 		break;
 #ifdef FUTURE_USE
 	case 0x17:	/* 23 - Core 2 Duo */

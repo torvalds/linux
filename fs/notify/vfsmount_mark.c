@@ -169,7 +169,11 @@ int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 			goto out;
 		}
 
-		if (mark->group < lmark->group)
+		if (mark->group->priority < lmark->group->priority)
+			continue;
+
+		if ((mark->group->priority == lmark->group->priority) &&
+		    (mark->group < lmark->group))
 			continue;
 
 		hlist_add_before_rcu(&mark->m.m_list, &lmark->m.m_list);
