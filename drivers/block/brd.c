@@ -15,7 +15,7 @@
 #include <linux/blkdev.h>
 #include <linux/bio.h>
 #include <linux/highmem.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/radix-tree.h>
 #include <linux/buffer_head.h> /* invalidate_bh_lrus() */
 #include <linux/slab.h>
@@ -55,6 +55,7 @@ struct brd_device {
 /*
  * Look up and return a brd's page for a given sector.
  */
+static DEFINE_MUTEX(brd_mutex);
 static struct page *brd_lookup_page(struct brd_device *brd, sector_t sector)
 {
 	pgoff_t idx;
@@ -402,7 +403,7 @@ static int brd_ioctl(struct block_device *bdev, fmode_t mode,
 	 * ram device BLKFLSBUF has special semantics, we want to actually
 	 * release and destroy the ramdisk data.
 	 */
-	lock_kernel();
+	mutex_lock(&brd_mutex);
 	mutex_lock(&bdev->bd_mutex);
 	error = -EBUSY;
 	if (bdev->bd_openers <= 1) {
@@ -419,7 +420,7 @@ static int brd_ioctl(struct block_device *bdev, fmode_t mode,
 		error = 0;
 	}
 	mutex_unlock(&bdev->bd_mutex);
-	unlock_kernel();
+	mutex_unlock(&brd_mutex);
 
 	return error;
 }
@@ -482,7 +483,6 @@ static struct brd_device *brd_alloc(int i)
 	if (!brd->brd_queue)
 		goto out_free_dev;
 	blk_queue_make_request(brd->brd_queue, brd_make_request);
-	blk_queue_ordered(brd->brd_queue, QUEUE_ORDERED_TAG);
 	blk_queue_max_hw_sectors(brd->brd_queue, 1024);
 	blk_queue_bounce_limit(brd->brd_queue, BLK_BOUNCE_ANY);
 

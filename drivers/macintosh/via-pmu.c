@@ -18,7 +18,7 @@
  *
  */
 #include <stdarg.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -45,6 +45,7 @@
 #include <linux/syscalls.h>
 #include <linux/suspend.h>
 #include <linux/cpu.h>
+#include <linux/compat.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
@@ -72,6 +73,7 @@
 /* How many iterations between battery polls */
 #define BATTERY_POLLING_COUNT	2
 
+static DEFINE_MUTEX(pmu_info_proc_mutex);
 static volatile unsigned char __iomem *via;
 
 /* VIA registers - spaced 0x200 bytes apart */
@@ -2077,7 +2079,7 @@ pmu_open(struct inode *inode, struct file *file)
 	pp->rb_get = pp->rb_put = 0;
 	spin_lock_init(&pp->lock);
 	init_waitqueue_head(&pp->wait);
-	lock_kernel();
+	mutex_lock(&pmu_info_proc_mutex);
 	spin_lock_irqsave(&all_pvt_lock, flags);
 #if defined(CONFIG_INPUT_ADBHID) && defined(CONFIG_PMAC_BACKLIGHT)
 	pp->backlight_locker = 0;
@@ -2085,7 +2087,7 @@ pmu_open(struct inode *inode, struct file *file)
 	list_add(&pp->list, &all_pmu_pvt);
 	spin_unlock_irqrestore(&all_pvt_lock, flags);
 	file->private_data = pp;
-	unlock_kernel();
+	mutex_unlock(&pmu_info_proc_mutex);
 	return 0;
 }
 
@@ -2342,20 +2344,62 @@ static long pmu_unlocked_ioctl(struct file *filp,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&pmu_info_proc_mutex);
 	ret = pmu_ioctl(filp, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&pmu_info_proc_mutex);
 
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+#define PMU_IOC_GET_BACKLIGHT32	_IOR('B', 1, compat_size_t)
+#define PMU_IOC_SET_BACKLIGHT32	_IOW('B', 2, compat_size_t)
+#define PMU_IOC_GET_MODEL32	_IOR('B', 3, compat_size_t)
+#define PMU_IOC_HAS_ADB32	_IOR('B', 4, compat_size_t)
+#define PMU_IOC_CAN_SLEEP32	_IOR('B', 5, compat_size_t)
+#define PMU_IOC_GRAB_BACKLIGHT32 _IOR('B', 6, compat_size_t)
+
+static long compat_pmu_ioctl (struct file *filp, u_int cmd, u_long arg)
+{
+	switch (cmd) {
+	case PMU_IOC_SLEEP:
+		break;
+	case PMU_IOC_GET_BACKLIGHT32:
+		cmd = PMU_IOC_GET_BACKLIGHT;
+		break;
+	case PMU_IOC_SET_BACKLIGHT32:
+		cmd = PMU_IOC_SET_BACKLIGHT;
+		break;
+	case PMU_IOC_GET_MODEL32:
+		cmd = PMU_IOC_GET_MODEL;
+		break;
+	case PMU_IOC_HAS_ADB32:
+		cmd = PMU_IOC_HAS_ADB;
+		break;
+	case PMU_IOC_CAN_SLEEP32:
+		cmd = PMU_IOC_CAN_SLEEP;
+		break;
+	case PMU_IOC_GRAB_BACKLIGHT32:
+		cmd = PMU_IOC_GRAB_BACKLIGHT;
+		break;
+	default:
+		return -ENOIOCTLCMD;
+	}
+	return pmu_unlocked_ioctl(filp, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
 
 static const struct file_operations pmu_device_fops = {
 	.read		= pmu_read,
 	.write		= pmu_write,
 	.poll		= pmu_fpoll,
 	.unlocked_ioctl	= pmu_unlocked_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= compat_pmu_ioctl,
+#endif
 	.open		= pmu_open,
 	.release	= pmu_release,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice pmu_device = {

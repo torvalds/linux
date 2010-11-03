@@ -4323,13 +4323,13 @@ struct saa7134_board saa7134_boards[] = {
 	},
 	[SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM] = {
 		/*       Beholder Intl. Ltd. 2008      */
-		/*Dmitry Belimov <d.belimov@gmail.com> */
-		.name           = "Beholder BeholdTV Columbus TVFM",
+		/* Dmitry Belimov <d.belimov@gmail.com> */
+		.name           = "Beholder BeholdTV Columbus TV/FM",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_ALPS_TSBE5_PAL,
-		.radio_type     = UNSET,
-		.tuner_addr     = ADDR_UNSET,
-		.radio_addr     = ADDR_UNSET,
+		.radio_type     = TUNER_TEA5767,
+		.tuner_addr     = 0xc2 >> 1,
+		.radio_addr     = 0xc0 >> 1,
 		.tda9887_conf   = TDA9887_PRESENT,
 		.gpiomask       = 0x000A8004,
 		.inputs         = {{
@@ -7551,22 +7551,22 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		   so we do not need to probe for a radio tuner device. */
 		if (dev->radio_type != UNSET)
 			v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, "tuner", "tuner",
+				&dev->i2c_adap, NULL, "tuner",
 				dev->radio_addr, NULL);
 		if (has_demod)
 			v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, "tuner", "tuner",
+				&dev->i2c_adap, NULL, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (dev->tuner_addr == ADDR_UNSET) {
 			enum v4l2_i2c_tuner_type type =
 				has_demod ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
 
 			v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, "tuner", "tuner",
+				&dev->i2c_adap, NULL, "tuner",
 				0, v4l2_i2c_tuner_addrs(type));
 		} else {
 			v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, "tuner", "tuner",
+				&dev->i2c_adap, NULL, "tuner",
 				dev->tuner_addr, NULL);
 		}
 	}

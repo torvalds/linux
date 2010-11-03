@@ -30,6 +30,21 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alexander Shishkin");
 
+/*
+ * ETM tracer state
+ */
+struct tracectx {
+	unsigned int	etb_bufsz;
+	void __iomem	*etb_regs;
+	void __iomem	*etm_regs;
+	unsigned long	flags;
+	int		ncmppairs;
+	int		etm_portsz;
+	struct device	*dev;
+	struct clk	*emu_clk;
+	struct mutex	mutex;
+};
+
 static struct tracectx tracer;
 
 static inline bool trace_isrunning(struct tracectx *t)
@@ -230,7 +245,7 @@ static void etm_dump(void)
 	etb_lock(t);
 }
 
-static void sysrq_etm_dump(int key, struct tty_struct *tty)
+static void sysrq_etm_dump(int key)
 {
 	dev_dbg(tracer.dev, "Dumping ETB buffer\n");
 	etm_dump();
@@ -314,6 +329,7 @@ static const struct file_operations etb_fops = {
 	.read = etb_read,
 	.open = etb_open,
 	.release = etb_release,
+	.llseek = no_llseek,
 };
 
 static struct miscdevice etb_miscdev = {

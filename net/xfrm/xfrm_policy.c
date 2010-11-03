@@ -50,6 +50,9 @@ static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family);
 static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo);
 static void xfrm_init_pmtu(struct dst_entry *dst);
 static int stale_bundle(struct dst_entry *dst);
+static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *xdst,
+			  struct flowi *fl, int family, int strict);
+
 
 static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 						int dir);
@@ -1175,9 +1178,8 @@ xfrm_tmpl_resolve_one(struct xfrm_policy *policy, struct flowi *fl,
 		    tmpl->mode == XFRM_MODE_BEET) {
 			remote = &tmpl->id.daddr;
 			local = &tmpl->saddr;
-			family = tmpl->encap_family;
-			if (xfrm_addr_any(local, family)) {
-				error = xfrm_get_saddr(net, &tmp, remote, family);
+			if (xfrm_addr_any(local, tmpl->encap_family)) {
+				error = xfrm_get_saddr(net, &tmp, remote, tmpl->encap_family);
 				if (error)
 					goto fail;
 				local = &tmp;
@@ -2277,7 +2279,7 @@ static void xfrm_init_pmtu(struct dst_entry *dst)
  * still valid.
  */
 
-int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
+static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 		struct flowi *fl, int family, int strict)
 {
 	struct dst_entry *dst = &first->u.dst;
@@ -2358,8 +2360,6 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 
 	return 1;
 }
-
-EXPORT_SYMBOL(xfrm_bundle_ok);
 
 int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 {

@@ -237,6 +237,7 @@ get_key(const void *p, const void *end,
 	if (!supported_gss_krb5_enctype(alg)) {
 		printk(KERN_WARNING "gss_kerberos_mech: unsupported "
 			"encryption key algorithm %d\n", alg);
+		p = ERR_PTR(-EINVAL);
 		goto out_err;
 	}
 	p = simple_get_netobj(p, end, &key);
@@ -282,15 +283,19 @@ gss_import_v1_context(const void *p, const void *end, struct krb5_ctx *ctx)
 	ctx->enctype = ENCTYPE_DES_CBC_RAW;
 
 	ctx->gk5e = get_gss_krb5_enctype(ctx->enctype);
-	if (ctx->gk5e == NULL)
+	if (ctx->gk5e == NULL) {
+		p = ERR_PTR(-EINVAL);
 		goto out_err;
+	}
 
 	/* The downcall format was designed before we completely understood
 	 * the uses of the context fields; so it includes some stuff we
 	 * just give some minimal sanity-checking, and some we ignore
 	 * completely (like the next twenty bytes): */
-	if (unlikely(p + 20 > end || p + 20 < p))
+	if (unlikely(p + 20 > end || p + 20 < p)) {
+		p = ERR_PTR(-EFAULT);
 		goto out_err;
+	}
 	p += 20;
 	p = simple_get_bytes(p, end, &tmp, sizeof(tmp));
 	if (IS_ERR(p))
@@ -422,7 +427,7 @@ static int
 context_derive_keys_rc4(struct krb5_ctx *ctx)
 {
 	struct crypto_hash *hmac;
-	char sigkeyconstant[] = "signaturekey";
+	static const char sigkeyconstant[] = "signaturekey";
 	int slen = strlen(sigkeyconstant) + 1;	/* include null terminator */
 	struct hash_desc desc;
 	struct scatterlist sg[1];
@@ -619,6 +624,7 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
 	if (ctx->seq_send64 != ctx->seq_send) {
 		dprintk("%s: seq_send64 %lx, seq_send %x overflow?\n", __func__,
 			(long unsigned)ctx->seq_send64, ctx->seq_send);
+		p = ERR_PTR(-EINVAL);
 		goto out_err;
 	}
 	p = simple_get_bytes(p, end, &ctx->enctype, sizeof(ctx->enctype));

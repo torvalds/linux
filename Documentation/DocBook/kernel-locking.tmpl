@@ -1645,7 +1645,9 @@ the amount of locking which needs to be done.
       all the readers who were traversing the list when we deleted the
       element are finished.  We use <function>call_rcu()</function> to
       register a callback which will actually destroy the object once
-      the readers are finished.
+      all pre-existing readers are finished.  Alternatively,
+      <function>synchronize_rcu()</function> may be used to block until
+      all pre-existing are finished.
     </para>
     <para>
       But how does Read Copy Update know when the readers are
@@ -1714,7 +1716,7 @@ the amount of locking which needs to be done.
 -        object_put(obj);
 +        list_del_rcu(&amp;obj-&gt;list);
          cache_num--;
-+        call_rcu(&amp;obj-&gt;rcu, cache_delete_rcu, obj);
++        call_rcu(&amp;obj-&gt;rcu, cache_delete_rcu);
  }
 
  /* Must be holding cache_lock */
@@ -1725,14 +1727,6 @@ the amount of locking which needs to be done.
          if (++cache_num > MAX_CACHE_SIZE) {
                  struct object *i, *outcast = NULL;
                  list_for_each_entry(i, &amp;cache, list) {
-@@ -85,6 +94,7 @@
-         obj-&gt;popularity = 0;
-         atomic_set(&amp;obj-&gt;refcnt, 1); /* The cache holds a reference */
-         spin_lock_init(&amp;obj-&gt;lock);
-+        INIT_RCU_HEAD(&amp;obj-&gt;rcu);
-
-         spin_lock_irqsave(&amp;cache_lock, flags);
-         __cache_add(obj);
 @@ -104,12 +114,11 @@
  struct object *cache_find(int id)
  {
@@ -1922,9 +1916,12 @@ machines due to caching.
       <function>mutex_lock()</function>
       </para>
       <para>
-       There is a <function>mutex_trylock()</function> which can be
-       used inside interrupt context, as it will not sleep.
+       There is a <function>mutex_trylock()</function> which does not
+       sleep.  Still, it must not be used inside interrupt context since
+       its implementation is not safe for that.
        <function>mutex_unlock()</function> will also never sleep.
+       It cannot be used in interrupt context either since a mutex
+       must be released by the same task that acquired it.
       </para>
      </listitem>
     </itemizedlist>
@@ -1956,6 +1953,12 @@ machines due to caching.
      </listitem>
     </itemizedlist>
    </sect1>
+  </chapter>
+
+  <chapter id="apiref">
+   <title>Mutex API reference</title>
+!Iinclude/linux/mutex.h
+!Ekernel/mutex.c
   </chapter>
 
   <chapter id="references">

@@ -112,13 +112,13 @@ int         log_level = LOG_ERROR;
 int         log_level_default = LOG_ERROR;
 module_param(log_level, int, 0444);
 
-int         max_mru = MUSYCC_MRU;
+int         cxt1e1_max_mru = MUSYCC_MRU;
 int         max_mru_default = MUSYCC_MRU;
-module_param(max_mru, int, 0444);
+module_param(cxt1e1_max_mru, int, 0444);
 
-int         max_mtu = MUSYCC_MTU;
+int         cxt1e1_max_mtu = MUSYCC_MTU;
 int         max_mtu_default = MUSYCC_MTU;
-module_param(max_mtu, int, 0444);
+module_param(cxt1e1_max_mtu, int, 0444);
 
 int         max_txdesc_used = MUSYCC_TXDESC_MIN;
 int         max_txdesc_default = MUSYCC_TXDESC_MIN;
@@ -1118,12 +1118,12 @@ c4_mod_init (void)
     if (log_level != log_level_default)
         pr_info("NOTE: driver parameter <log_level> changed from default %d to %d.\n",
                 log_level_default, log_level);
-    if (max_mru != max_mru_default)
-        pr_info("NOTE: driver parameter <max_mru> changed from default %d to %d.\n",
-                max_mru_default, max_mru);
-    if (max_mtu != max_mtu_default)
-        pr_info("NOTE: driver parameter <max_mtu> changed from default %d to %d.\n",
-                max_mtu_default, max_mtu);
+       if (cxt1e1_max_mru != max_mru_default)
+               pr_info("NOTE: driver parameter <cxt1e1_max_mru> changed from default %d to %d.\n",
+                               max_mru_default, cxt1e1_max_mru);
+       if (cxt1e1_max_mtu != max_mtu_default)
+               pr_info("NOTE: driver parameter <cxt1e1_max_mtu> changed from default %d to %d.\n",
+                               max_mtu_default, cxt1e1_max_mtu);
     if (max_rxdesc_used != max_rxdesc_default)
     {
         if (max_rxdesc_used > 2000)

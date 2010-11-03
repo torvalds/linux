@@ -41,6 +41,37 @@ int s3c_gpio_cfgpin(unsigned int pin, unsigned int config)
 }
 EXPORT_SYMBOL(s3c_gpio_cfgpin);
 
+int s3c_gpio_cfgpin_range(unsigned int start, unsigned int nr,
+			  unsigned int cfg)
+{
+	int ret;
+
+	for (; nr > 0; nr--, start++) {
+		ret = s3c_gpio_cfgpin(start, cfg);
+		if (ret != 0)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(s3c_gpio_cfgpin_range);
+
+int s3c_gpio_cfgall_range(unsigned int start, unsigned int nr,
+			  unsigned int cfg, s3c_gpio_pull_t pull)
+{
+	int ret;
+
+	for (; nr > 0; nr--, start++) {
+		s3c_gpio_setpull(start, pull);
+		ret = s3c_gpio_cfgpin(start, cfg);
+		if (ret != 0)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(s3c_gpio_cfgall_range);
+
 unsigned s3c_gpio_getcfg(unsigned int pin)
 {
 	struct s3c_gpio_chip *chip = s3c_gpiolib_getchip(pin);
@@ -79,6 +110,25 @@ int s3c_gpio_setpull(unsigned int pin, s3c_gpio_pull_t pull)
 	return ret;
 }
 EXPORT_SYMBOL(s3c_gpio_setpull);
+
+s3c_gpio_pull_t s3c_gpio_getpull(unsigned int pin)
+{
+	struct s3c_gpio_chip *chip = s3c_gpiolib_getchip(pin);
+	unsigned long flags;
+	int offset;
+	u32 pup = 0;
+
+	if (chip) {
+		offset = pin - chip->chip.base;
+
+		s3c_gpio_lock(chip, flags);
+		pup = s3c_gpio_do_getpull(chip, offset);
+		s3c_gpio_unlock(chip, flags);
+	}
+
+	return (__force s3c_gpio_pull_t)pup;
+}
+EXPORT_SYMBOL(s3c_gpio_getpull);
 
 #ifdef CONFIG_S3C_GPIO_CFG_S3C24XX
 int s3c_gpio_setcfg_s3c24xx_a(struct s3c_gpio_chip *chip,
@@ -273,13 +323,13 @@ s5p_gpio_drvstr_t s5p_gpio_get_drvstr(unsigned int pin)
 	if (!chip)
 		return -EINVAL;
 
-	off = chip->chip.base - pin;
+	off = pin - chip->chip.base;
 	shift = off * 2;
 	reg = chip->base + 0x0C;
 
 	drvstr = __raw_readl(reg);
-	drvstr = 0xffff & (0x3 << shift);
 	drvstr = drvstr >> shift;
+	drvstr &= 0x3;
 
 	return (__force s5p_gpio_drvstr_t)drvstr;
 }
@@ -296,11 +346,12 @@ int s5p_gpio_set_drvstr(unsigned int pin, s5p_gpio_drvstr_t drvstr)
 	if (!chip)
 		return -EINVAL;
 
-	off = chip->chip.base - pin;
+	off = pin - chip->chip.base;
 	shift = off * 2;
 	reg = chip->base + 0x0C;
 
 	tmp = __raw_readl(reg);
+	tmp &= ~(0x3 << shift);
 	tmp |= drvstr << shift;
 
 	__raw_writel(tmp, reg);

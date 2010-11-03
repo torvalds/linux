@@ -27,6 +27,8 @@
 
 #include "vmwgfx_kms.h"
 
+#define VMWGFX_LDU_NUM_DU 8
+
 #define vmw_crtc_to_ldu(x) \
 	container_of(x, struct vmw_legacy_display_unit, base.crtc)
 #define vmw_encoder_to_ldu(x) \
@@ -335,7 +337,8 @@ static void vmw_ldu_connector_restore(struct drm_connector *connector)
 }
 
 static enum drm_connector_status
-	vmw_ldu_connector_detect(struct drm_connector *connector)
+	vmw_ldu_connector_detect(struct drm_connector *connector,
+				 bool force)
 {
 	if (vmw_connector_to_ldu(connector)->pref_active)
 		return connector_status_connected;
@@ -424,7 +427,9 @@ static int vmw_ldu_connector_fill_modes(struct drm_connector *connector,
 {
 	struct vmw_legacy_display_unit *ldu = vmw_connector_to_ldu(connector);
 	struct drm_device *dev = connector->dev;
+	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct drm_display_mode *mode = NULL;
+	struct drm_display_mode *bmode;
 	struct drm_display_mode prefmode = { DRM_MODE("preferred",
 		DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -440,22 +445,30 @@ static int vmw_ldu_connector_fill_modes(struct drm_connector *connector,
 		mode->hdisplay = ldu->pref_width;
 		mode->vdisplay = ldu->pref_height;
 		mode->vrefresh = drm_mode_vrefresh(mode);
-		drm_mode_probed_add(connector, mode);
+		if (vmw_kms_validate_mode_vram(dev_priv, mode->hdisplay * 2,
+					       mode->vdisplay)) {
+			drm_mode_probed_add(connector, mode);
 
-		if (ldu->pref_mode) {
-			list_del_init(&ldu->pref_mode->head);
-			drm_mode_destroy(dev, ldu->pref_mode);
+			if (ldu->pref_mode) {
+				list_del_init(&ldu->pref_mode->head);
+				drm_mode_destroy(dev, ldu->pref_mode);
+			}
+
+			ldu->pref_mode = mode;
 		}
-
-		ldu->pref_mode = mode;
 	}
 
 	for (i = 0; vmw_ldu_connector_builtin[i].type != 0; i++) {
-		if (vmw_ldu_connector_builtin[i].hdisplay > max_width ||
-		    vmw_ldu_connector_builtin[i].vdisplay > max_height)
+		bmode = &vmw_ldu_connector_builtin[i];
+		if (bmode->hdisplay > max_width ||
+		    bmode->vdisplay > max_height)
 			continue;
 
-		mode = drm_mode_duplicate(dev, &vmw_ldu_connector_builtin[i]);
+		if (!vmw_kms_validate_mode_vram(dev_priv, bmode->hdisplay * 2,
+						bmode->vdisplay))
+			continue;
+
+		mode = drm_mode_duplicate(dev, bmode);
 		if (!mode)
 			return 0;
 		mode->vrefresh = drm_mode_vrefresh(mode);
@@ -516,7 +529,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 
 	drm_connector_init(dev, connector, &vmw_legacy_connector_funcs,
 			   DRM_MODE_CONNECTOR_LVDS);
-	connector->status = vmw_ldu_connector_detect(connector);
+	connector->status = vmw_ldu_connector_detect(connector, true);
 
 	drm_encoder_init(dev, encoder, &vmw_legacy_encoder_funcs,
 			 DRM_MODE_ENCODER_LVDS);
@@ -535,6 +548,10 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 
 int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
+	int i;
+	int ret;
+
 	if (dev_priv->ldu_priv) {
 		DRM_INFO("ldu system already on\n");
 		return -EINVAL;
@@ -552,23 +569,24 @@ int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv)
 
 	drm_mode_create_dirty_info_property(dev_priv->dev);
 
-	vmw_ldu_init(dev_priv, 0);
-	/* for old hardware without multimon only enable one display */
 	if (dev_priv->capabilities & SVGA_CAP_MULTIMON) {
-		vmw_ldu_init(dev_priv, 1);
-		vmw_ldu_init(dev_priv, 2);
-		vmw_ldu_init(dev_priv, 3);
-		vmw_ldu_init(dev_priv, 4);
-		vmw_ldu_init(dev_priv, 5);
-		vmw_ldu_init(dev_priv, 6);
-		vmw_ldu_init(dev_priv, 7);
+		for (i = 0; i < VMWGFX_LDU_NUM_DU; ++i)
+			vmw_ldu_init(dev_priv, i);
+		ret = drm_vblank_init(dev, VMWGFX_LDU_NUM_DU);
+	} else {
+		/* for old hardware without multimon only enable one display */
+		vmw_ldu_init(dev_priv, 0);
+		ret = drm_vblank_init(dev, 1);
 	}
 
-	return 0;
+	return ret;
 }
 
 int vmw_kms_close_legacy_display_system(struct vmw_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
+
+	drm_vblank_cleanup(dev);
 	if (!dev_priv->ldu_priv)
 		return -ENOSYS;
 
@@ -610,7 +628,7 @@ int vmw_kms_ldu_update_layout(struct vmw_private *dev_priv, unsigned num,
 			ldu->pref_height = 600;
 			ldu->pref_active = false;
 		}
-		con->status = vmw_ldu_connector_detect(con);
+		con->status = vmw_ldu_connector_detect(con, true);
 	}
 
 	mutex_unlock(&dev->mode_config.mutex);

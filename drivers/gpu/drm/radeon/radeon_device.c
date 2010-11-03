@@ -117,9 +117,10 @@ void radeon_scratch_init(struct radeon_device *rdev)
 	} else {
 		rdev->scratch.num_reg = 7;
 	}
+	rdev->scratch.reg_base = RADEON_SCRATCH_REG0;
 	for (i = 0; i < rdev->scratch.num_reg; i++) {
 		rdev->scratch.free[i] = true;
-		rdev->scratch.reg[i] = RADEON_SCRATCH_REG0 + (i * 4);
+		rdev->scratch.reg[i] = rdev->scratch.reg_base + (i * 4);
 	}
 }
 
@@ -147,6 +148,86 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
 			return;
 		}
 	}
+}
+
+void radeon_wb_disable(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->wb.wb_obj) {
+		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
+		if (unlikely(r != 0))
+			return;
+		radeon_bo_kunmap(rdev->wb.wb_obj);
+		radeon_bo_unpin(rdev->wb.wb_obj);
+		radeon_bo_unreserve(rdev->wb.wb_obj);
+	}
+	rdev->wb.enabled = false;
+}
+
+void radeon_wb_fini(struct radeon_device *rdev)
+{
+	radeon_wb_disable(rdev);
+	if (rdev->wb.wb_obj) {
+		radeon_bo_unref(&rdev->wb.wb_obj);
+		rdev->wb.wb = NULL;
+		rdev->wb.wb_obj = NULL;
+	}
+}
+
+int radeon_wb_init(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->wb.wb_obj == NULL) {
+		r = radeon_bo_create(rdev, NULL, RADEON_GPU_PAGE_SIZE, true,
+				RADEON_GEM_DOMAIN_GTT, &rdev->wb.wb_obj);
+		if (r) {
+			dev_warn(rdev->dev, "(%d) create WB bo failed\n", r);
+			return r;
+		}
+	}
+	r = radeon_bo_reserve(rdev->wb.wb_obj, false);
+	if (unlikely(r != 0)) {
+		radeon_wb_fini(rdev);
+		return r;
+	}
+	r = radeon_bo_pin(rdev->wb.wb_obj, RADEON_GEM_DOMAIN_GTT,
+			  &rdev->wb.gpu_addr);
+	if (r) {
+		radeon_bo_unreserve(rdev->wb.wb_obj);
+		dev_warn(rdev->dev, "(%d) pin WB bo failed\n", r);
+		radeon_wb_fini(rdev);
+		return r;
+	}
+	r = radeon_bo_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
+	radeon_bo_unreserve(rdev->wb.wb_obj);
+	if (r) {
+		dev_warn(rdev->dev, "(%d) map WB bo failed\n", r);
+		radeon_wb_fini(rdev);
+		return r;
+	}
+
+	/* disable event_write fences */
+	rdev->wb.use_event = false;
+	/* disabled via module param */
+	if (radeon_no_wb == 1)
+		rdev->wb.enabled = false;
+	else {
+		/* often unreliable on AGP */
+		if (rdev->flags & RADEON_IS_AGP) {
+			rdev->wb.enabled = false;
+		} else {
+			rdev->wb.enabled = true;
+			/* event_write fences are only available on r600+ */
+			if (rdev->family >= CHIP_R600)
+				rdev->wb.use_event = true;
+		}
+	}
+
+	dev_info(rdev->dev, "WB %sabled\n", rdev->wb.enabled ? "en" : "dis");
+
+	return 0;
 }
 
 /**
@@ -199,7 +280,7 @@ void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 
 		mc->mc_vram_size = mc->aper_size;
 	}
 	mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
-	if (rdev->flags & RADEON_IS_AGP && mc->vram_end > mc->gtt_start && mc->vram_end <= mc->gtt_end) {
+	if (rdev->flags & RADEON_IS_AGP && mc->vram_end > mc->gtt_start && mc->vram_start <= mc->gtt_end) {
 		dev_warn(rdev->dev, "limiting VRAM to PCI aperture size\n");
 		mc->real_vram_size = mc->aper_size;
 		mc->mc_vram_size = mc->aper_size;
@@ -293,30 +374,20 @@ bool radeon_card_posted(struct radeon_device *rdev)
 void radeon_update_bandwidth_info(struct radeon_device *rdev)
 {
 	fixed20_12 a;
-	u32 sclk, mclk;
+	u32 sclk = rdev->pm.current_sclk;
+	u32 mclk = rdev->pm.current_mclk;
+
+	/* sclk/mclk in Mhz */
+	a.full = dfixed_const(100);
+	rdev->pm.sclk.full = dfixed_const(sclk);
+	rdev->pm.sclk.full = dfixed_div(rdev->pm.sclk, a);
+	rdev->pm.mclk.full = dfixed_const(mclk);
+	rdev->pm.mclk.full = dfixed_div(rdev->pm.mclk, a);
 
 	if (rdev->flags & RADEON_IS_IGP) {
-		sclk = radeon_get_engine_clock(rdev);
-		mclk = rdev->clock.default_mclk;
-
-		a.full = dfixed_const(100);
-		rdev->pm.sclk.full = dfixed_const(sclk);
-		rdev->pm.sclk.full = dfixed_div(rdev->pm.sclk, a);
-		rdev->pm.mclk.full = dfixed_const(mclk);
-		rdev->pm.mclk.full = dfixed_div(rdev->pm.mclk, a);
-
 		a.full = dfixed_const(16);
 		/* core_bandwidth = sclk(Mhz) * 16 */
 		rdev->pm.core_bandwidth.full = dfixed_div(rdev->pm.sclk, a);
-	} else {
-		sclk = radeon_get_engine_clock(rdev);
-		mclk = radeon_get_memory_clock(rdev);
-
-		a.full = dfixed_const(100);
-		rdev->pm.sclk.full = dfixed_const(sclk);
-		rdev->pm.sclk.full = dfixed_div(rdev->pm.sclk, a);
-		rdev->pm.mclk.full = dfixed_const(mclk);
-		rdev->pm.mclk.full = dfixed_div(rdev->pm.mclk, a);
 	}
 }
 

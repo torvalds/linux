@@ -59,7 +59,7 @@ struct netvsc_driver_context {
 /* Need this many pages to handle worst case fragmented packet */
 #define PACKET_PAGES_HIWATER  (MAX_SKB_FRAGS + 2)
 
-static int ring_size = roundup_pow_of_two(2*MAX_SKB_FRAGS+1);
+static int ring_size = 128;
 module_param(ring_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
 
@@ -327,6 +327,9 @@ static const struct net_device_ops device_ops = {
 	.ndo_stop =			netvsc_close,
 	.ndo_start_xmit =		netvsc_start_xmit,
 	.ndo_set_multicast_list =	netvsc_set_multicast_list,
+	.ndo_change_mtu =		eth_change_mtu,
+	.ndo_validate_addr =		eth_validate_addr,
+	.ndo_set_mac_address =		eth_mac_addr,
 };
 
 static int netvsc_probe(struct device *device)
@@ -491,8 +494,6 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	struct netvsc_driver *net_drv_obj = &g_netvsc_drv.drv_obj;
 	struct driver_context *drv_ctx = &g_netvsc_drv.drv_ctx;
 	int ret;
-
-	vmbus_get_interface(&net_drv_obj->Base.VmbusChannelInterface);
 
 	net_drv_obj->RingBufferSize = ring_size * PAGE_SIZE;
 	net_drv_obj->OnReceiveCallback = netvsc_recv_callback;

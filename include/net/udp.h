@@ -151,6 +151,7 @@ static inline void udp_lib_hash(struct sock *sk)
 }
 
 extern void udp_lib_unhash(struct sock *sk);
+extern void udp_lib_rehash(struct sock *sk, u16 new_hash);
 
 static inline void udp_lib_close(struct sock *sk, long timeout)
 {
@@ -181,6 +182,9 @@ extern int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 			      int (*push_pending_frames)(struct sock *));
 extern struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
 				    __be32 daddr, __be16 dport,
+				    int dif);
+extern struct sock *udp6_lib_lookup(struct net *net, const struct in6_addr *saddr, __be16 sport,
+				    const struct in6_addr *daddr, __be16 dport,
 				    int dif);
 
 /*

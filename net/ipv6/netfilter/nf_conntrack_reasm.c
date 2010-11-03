@@ -73,7 +73,7 @@ static struct inet_frags nf_frags;
 static struct netns_frags nf_init_frags;
 
 #ifdef CONFIG_SYSCTL
-struct ctl_table nf_ct_ipv6_sysctl_table[] = {
+struct ctl_table nf_ct_frag6_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_frag6_timeout",
 		.data		= &nf_init_frags.timeout,
@@ -97,6 +97,8 @@ struct ctl_table nf_ct_ipv6_sysctl_table[] = {
 	},
 	{ }
 };
+
+static struct ctl_table_header *nf_ct_frag6_sysctl_header;
 #endif
 
 static unsigned int nf_hashfn(struct inet_frag_queue *q)
@@ -111,14 +113,6 @@ static void nf_skb_free(struct sk_buff *skb)
 {
 	if (NFCT_FRAG6_CB(skb)->orig)
 		kfree_skb(NFCT_FRAG6_CB(skb)->orig);
-}
-
-/* Memory Tracking Functions. */
-static void frag_kfree_skb(struct sk_buff *skb)
-{
-	atomic_sub(skb->truesize, &nf_init_frags.mem);
-	nf_skb_free(skb);
-	kfree_skb(skb);
 }
 
 /* Destruction primitives. */
@@ -282,66 +276,22 @@ static int nf_ct_frag6_queue(struct nf_ct_frag6_queue *fq, struct sk_buff *skb,
 	}
 
 found:
-	/* We found where to put this one.  Check for overlap with
-	 * preceding fragment, and, if needed, align things so that
-	 * any overlaps are eliminated.
+	/* RFC5722, Section 4:
+	 *                                  When reassembling an IPv6 datagram, if
+	 *   one or more its constituent fragments is determined to be an
+	 *   overlapping fragment, the entire datagram (and any constituent
+	 *   fragments, including those not yet received) MUST be silently
+	 *   discarded.
 	 */
-	if (prev) {
-		int i = (NFCT_FRAG6_CB(prev)->offset + prev->len) - offset;
 
-		if (i > 0) {
-			offset += i;
-			if (end <= offset) {
-				pr_debug("overlap\n");
-				goto err;
-			}
-			if (!pskb_pull(skb, i)) {
-				pr_debug("Can't pull\n");
-				goto err;
-			}
-			if (skb->ip_summed != CHECKSUM_UNNECESSARY)
-				skb->ip_summed = CHECKSUM_NONE;
-		}
-	}
+	/* Check for overlap with preceding fragment. */
+	if (prev &&
+	    (NFCT_FRAG6_CB(prev)->offset + prev->len) - offset > 0)
+		goto discard_fq;
 
-	/* Look for overlap with succeeding segments.
-	 * If we can merge fragments, do it.
-	 */
-	while (next && NFCT_FRAG6_CB(next)->offset < end) {
-		/* overlap is 'i' bytes */
-		int i = end - NFCT_FRAG6_CB(next)->offset;
-
-		if (i < next->len) {
-			/* Eat head of the next overlapped fragment
-			 * and leave the loop. The next ones cannot overlap.
-			 */
-			pr_debug("Eat head of the overlapped parts.: %d", i);
-			if (!pskb_pull(next, i))
-				goto err;
-
-			/* next fragment */
-			NFCT_FRAG6_CB(next)->offset += i;
-			fq->q.meat -= i;
-			if (next->ip_summed != CHECKSUM_UNNECESSARY)
-				next->ip_summed = CHECKSUM_NONE;
-			break;
-		} else {
-			struct sk_buff *free_it = next;
-
-			/* Old fragmnet is completely overridden with
-			 * new one drop it.
-			 */
-			next = next->next;
-
-			if (prev)
-				prev->next = next;
-			else
-				fq->q.fragments = next;
-
-			fq->q.meat -= free_it->len;
-			frag_kfree_skb(free_it);
-		}
-	}
+	/* Look for overlap with succeeding segment. */
+	if (next && NFCT_FRAG6_CB(next)->offset < end)
+		goto discard_fq;
 
 	NFCT_FRAG6_CB(skb)->offset = offset;
 
@@ -371,6 +321,8 @@ found:
 	write_unlock(&nf_frags.lock);
 	return 0;
 
+discard_fq:
+	fq_kill(fq);
 err:
 	return -1;
 }
@@ -413,7 +365,7 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 	/* If the first fragment is fragmented itself, we split
 	 * it to two chunks: the first with data and paged part
 	 * and the second, holding only fragments. */
-	if (skb_has_frags(head)) {
+	if (skb_has_frag_list(head)) {
 		struct sk_buff *clone;
 		int i, plen = 0;
 
@@ -673,11 +625,24 @@ int nf_ct_frag6_init(void)
 	inet_frags_init_net(&nf_init_frags);
 	inet_frags_init(&nf_frags);
 
+#ifdef CONFIG_SYSCTL
+	nf_ct_frag6_sysctl_header = register_sysctl_paths(nf_net_netfilter_sysctl_path,
+							  nf_ct_frag6_sysctl_table);
+	if (!nf_ct_frag6_sysctl_header) {
+		inet_frags_fini(&nf_frags);
+		return -ENOMEM;
+	}
+#endif
+
 	return 0;
 }
 
 void nf_ct_frag6_cleanup(void)
 {
+#ifdef CONFIG_SYSCTL
+	unregister_sysctl_table(nf_ct_frag6_sysctl_header);
+	nf_ct_frag6_sysctl_header = NULL;
+#endif
 	inet_frags_fini(&nf_frags);
 
 	nf_init_frags.low_thresh = 0;

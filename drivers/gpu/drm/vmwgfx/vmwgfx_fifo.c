@@ -106,6 +106,7 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	mutex_lock(&dev_priv->hw_mutex);
 	dev_priv->enable_state = vmw_read(dev_priv, SVGA_REG_ENABLE);
 	dev_priv->config_done_state = vmw_read(dev_priv, SVGA_REG_CONFIG_DONE);
+	dev_priv->traces_state = vmw_read(dev_priv, SVGA_REG_TRACES);
 	vmw_write(dev_priv, SVGA_REG_ENABLE, 1);
 
 	min = 4;
@@ -175,6 +176,8 @@ void vmw_fifo_release(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 		  dev_priv->config_done_state);
 	vmw_write(dev_priv, SVGA_REG_ENABLE,
 		  dev_priv->enable_state);
+	vmw_write(dev_priv, SVGA_REG_TRACES,
+		  dev_priv->traces_state);
 
 	mutex_unlock(&dev_priv->hw_mutex);
 	vmw_fence_queue_takedown(&fifo->fence_queue);
@@ -542,7 +545,7 @@ int vmw_fifo_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_file *file_priv;
 	struct vmw_private *dev_priv;
 
-	file_priv = (struct drm_file *)filp->private_data;
+	file_priv = filp->private_data;
 	dev_priv = vmw_priv(file_priv->minor->dev);
 
 	if (vma->vm_pgoff != (dev_priv->mmio_start >> PAGE_SHIFT) ||

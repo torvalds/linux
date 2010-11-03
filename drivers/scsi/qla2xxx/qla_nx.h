@@ -26,6 +26,7 @@
 #define CRB_RCVPEG_STATE		QLA82XX_REG(0x13c)
 #define BOOT_LOADER_DIMM_STATUS		QLA82XX_REG(0x54)
 #define CRB_DMA_SHIFT			QLA82XX_REG(0xcc)
+#define QLA82XX_DMA_SHIFT_VALUE		0x55555555
 
 #define QLA82XX_HW_H0_CH_HUB_ADR    0x05
 #define QLA82XX_HW_H1_CH_HUB_ADR    0x0E
@@ -582,6 +583,10 @@
 #define QLA82XX_DRVST_NOT_RDY		0
 #define	QLA82XX_DRVST_RST_RDY		1
 #define QLA82XX_DRVST_QSNT_RDY		2
+
+/* Different drive active state */
+#define QLA82XX_DRV_NOT_ACTIVE		0
+#define QLA82XX_DRV_ACTIVE		1
 
 /*
  * The PCI VendorID and DeviceID for our board.

@@ -595,7 +595,7 @@ struct conf_tx_ac_category {
 	u16 tx_op_limit;
 };
 
-#define CONF_TX_MAX_TID_COUNT 7
+#define CONF_TX_MAX_TID_COUNT 8
 
 enum {
 	CONF_CHANNEL_TYPE_DCF = 0,   /* DC/LEGACY*/
@@ -912,6 +912,22 @@ struct conf_conn_settings {
 	u8 psm_entry_retries;
 
 	/*
+	 * Specifies the maximum number of times to try transmit the PSM entry
+	 * null-func frame for each PSM entry attempt
+	 *
+	 * Range 0 - 255
+	 */
+	u8 psm_entry_nullfunc_retries;
+
+	/*
+	 * Specifies the time to linger in active mode after successfully
+	 * transmitting the PSM entry null-func frame.
+	 *
+	 * Range 0 - 255 TU's
+	 */
+	u8 psm_entry_hangover_period;
+
+	/*
 	 *
 	 * Specifies the interval of the connection keep-alive null-func
 	 * frame in ms.
@@ -1016,6 +1032,64 @@ struct conf_roam_trigger_settings {
 	u8 avg_weight_snr_data;
 };
 
+struct conf_scan_settings {
+	/*
+	 * The minimum time to wait on each channel for active scans
+	 *
+	 * Range: 0 - 65536 tu
+	 */
+	u16 min_dwell_time_active;
+
+	/*
+	 * The maximum time to wait on each channel for active scans
+	 *
+	 * Range: 0 - 65536 tu
+	 */
+	u16 max_dwell_time_active;
+
+	/*
+	 * The maximum time to wait on each channel for passive scans
+	 *
+	 * Range: 0 - 65536 tu
+	 */
+	u16 min_dwell_time_passive;
+
+	/*
+	 * The maximum time to wait on each channel for passive scans
+	 *
+	 * Range: 0 - 65536 tu
+	 */
+	u16 max_dwell_time_passive;
+
+	/*
+	 * Number of probe requests to transmit on each active scan channel
+	 *
+	 * Range: u8
+	 */
+	u16 num_probe_reqs;
+
+};
+
+/* these are number of channels on the band divided by two, rounded up */
+#define CONF_TX_PWR_COMPENSATION_LEN_2 7
+#define CONF_TX_PWR_COMPENSATION_LEN_5 18
+
+struct conf_rf_settings {
+	/*
+	 * Per channel power compensation for 2.4GHz
+	 *
+	 * Range: s8
+	 */
+	u8 tx_per_channel_power_compensation_2[CONF_TX_PWR_COMPENSATION_LEN_2];
+
+	/*
+	 * Per channel power compensation for 5GHz
+	 *
+	 * Range: s8
+	 */
+	u8 tx_per_channel_power_compensation_5[CONF_TX_PWR_COMPENSATION_LEN_5];
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -1024,6 +1098,8 @@ struct conf_drv_settings {
 	struct conf_itrim_settings itrim;
 	struct conf_pm_config_settings pm_config;
 	struct conf_roam_trigger_settings roam_trigger;
+	struct conf_scan_settings scan;
+	struct conf_rf_settings rf;
 };
 
 #endif

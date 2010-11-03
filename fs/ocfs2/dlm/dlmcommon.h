@@ -445,7 +445,9 @@ enum {
 	DLM_LOCK_REQUEST_MSG,	 /* 515 */
 	DLM_RECO_DATA_DONE_MSG,	 /* 516 */
 	DLM_BEGIN_RECO_MSG,	 /* 517 */
-	DLM_FINALIZE_RECO_MSG	 /* 518 */
+	DLM_FINALIZE_RECO_MSG,	 /* 518 */
+	DLM_QUERY_REGION,	 /* 519 */
+	DLM_QUERY_NODEINFO,	 /* 520 */
 };
 
 struct dlm_reco_node_data
@@ -725,6 +727,31 @@ struct dlm_cancel_join
 	u8 pad1[2];
 	u8 name_len;
 	u8 domain[O2NM_MAX_NAME_LEN];
+};
+
+struct dlm_query_region {
+	u8 qr_node;
+	u8 qr_numregions;
+	u8 qr_namelen;
+	u8 pad1;
+	u8 qr_domain[O2NM_MAX_NAME_LEN];
+	u8 qr_regions[O2HB_MAX_REGION_NAME_LEN * O2NM_MAX_REGIONS];
+};
+
+struct dlm_node_info {
+	u8 ni_nodenum;
+	u8 pad1;
+	u16 ni_ipv4_port;
+	u32 ni_ipv4_address;
+};
+
+struct dlm_query_nodeinfo {
+	u8 qn_nodenum;
+	u8 qn_numnodes;
+	u8 qn_namelen;
+	u8 pad1;
+	u8 qn_domain[O2NM_MAX_NAME_LEN];
+	struct dlm_node_info qn_nodes[O2NM_MAX_NODES];
 };
 
 struct dlm_exit_domain
@@ -1030,6 +1057,7 @@ int dlm_drop_lockres_ref(struct dlm_ctxt *dlm,
 			 struct dlm_lock_resource *res);
 void dlm_clean_master_list(struct dlm_ctxt *dlm,
 			   u8 dead_node);
+void dlm_force_free_mles(struct dlm_ctxt *dlm);
 int dlm_lock_basts_flushed(struct dlm_ctxt *dlm, struct dlm_lock *lock);
 int __dlm_lockres_has_locks(struct dlm_lock_resource *res);
 int __dlm_lockres_unused(struct dlm_lock_resource *res);

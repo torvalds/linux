@@ -24,10 +24,11 @@ static int __init no_initrd(char *str)
 
 __setup("noinitrd", no_initrd);
 
-static int __init do_linuxrc(void * shell)
+static int __init do_linuxrc(void *_shell)
 {
-	static char *argv[] = { "linuxrc", NULL, };
-	extern char * envp_init[];
+	static const char *argv[] = { "linuxrc", NULL, };
+	extern const char *envp_init[];
+	const char *shell = _shell;
 
 	sys_close(old_fd);sys_close(root_fd);
 	sys_setsid();

@@ -675,7 +675,7 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 	f->f_path.mnt = mnt;
 	f->f_pos = 0;
 	f->f_op = fops_get(inode->i_fop);
-	file_move(f, &inode->i_sb->s_files);
+	file_sb_list_add(f, inode->i_sb);
 
 	error = security_dentry_open(f, cred);
 	if (error)
@@ -721,7 +721,7 @@ cleanup_all:
 			mnt_drop_write(mnt);
 		}
 	}
-	file_kill(f);
+	file_sb_list_del(f);
 	f->f_path.dentry = NULL;
 	f->f_path.mnt = NULL;
 cleanup_file:
@@ -786,11 +786,11 @@ struct file *nameidata_to_filp(struct nameidata *nd)
 	/* Pick up the filp from the open intent */
 	filp = nd->intent.open.file;
 	/* Has the filesystem initialised the file for us? */
-	if (filp->f_path.dentry == NULL)
+	if (filp->f_path.dentry == NULL) {
+		path_get(&nd->path);
 		filp = __dentry_open(nd->path.dentry, nd->path.mnt, filp,
 				     NULL, cred);
-	else
-		path_put(&nd->path);
+	}
 	return filp;
 }
 

@@ -268,11 +268,21 @@ static inline int between(__u32 seq1, __u32 seq2, __u32 seq3)
 	return seq3 - seq2 >= seq1 - seq2;
 }
 
-static inline int tcp_too_many_orphans(struct sock *sk, int num)
+static inline bool tcp_too_many_orphans(struct sock *sk, int shift)
 {
-	return (num > sysctl_tcp_max_orphans) ||
-		(sk->sk_wmem_queued > SOCK_MIN_SNDBUF &&
-		 atomic_read(&tcp_memory_allocated) > sysctl_tcp_mem[2]);
+	struct percpu_counter *ocp = sk->sk_prot->orphan_count;
+	int orphans = percpu_counter_read_positive(ocp);
+
+	if (orphans << shift > sysctl_tcp_max_orphans) {
+		orphans = percpu_counter_sum_positive(ocp);
+		if (orphans << shift > sysctl_tcp_max_orphans)
+			return true;
+	}
+
+	if (sk->sk_wmem_queued > SOCK_MIN_SNDBUF &&
+	    atomic_read(&tcp_memory_allocated) > sysctl_tcp_mem[2])
+		return true;
+	return false;
 }
 
 /* syncookies: remember time of last synqueue overflow */
@@ -335,8 +345,6 @@ static inline void tcp_dec_quickack_mode(struct sock *sk,
 			icsk->icsk_ack.quick -= pkts;
 	}
 }
-
-extern void tcp_enter_quickack_mode(struct sock *sk);
 
 #define	TCP_ECN_OK		1
 #define	TCP_ECN_QUEUE_CWR	2
@@ -465,8 +473,22 @@ extern unsigned int tcp_current_mss(struct sock *sk);
 /* Bound MSS / TSO packet size with the half of the window */
 static inline int tcp_bound_to_half_wnd(struct tcp_sock *tp, int pktsize)
 {
-	if (tp->max_window && pktsize > (tp->max_window >> 1))
-		return max(tp->max_window >> 1, 68U - tp->tcp_header_len);
+	int cutoff;
+
+	/* When peer uses tiny windows, there is no use in packetizing
+	 * to sub-MSS pieces for the sake of SWS or making sure there
+	 * are enough packets in the pipe for fast recovery.
+	 *
+	 * On the other hand, for extremely large MSS devices, handling
+	 * smaller than MSS windows in this way does make sense.
+	 */
+	if (tp->max_window >= 512)
+		cutoff = (tp->max_window >> 1);
+	else
+		cutoff = tp->max_window;
+
+	if (cutoff && pktsize > cutoff)
+		return max_t(int, cutoff, 68U - tp->tcp_header_len);
 	else
 		return pktsize;
 }
@@ -778,6 +800,15 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 
 /* Use define here intentionally to get WARN_ON location shown at the caller */
 #define tcp_verify_left_out(tp)	WARN_ON(tcp_left_out(tp) > tp->packets_out)
+
+/*
+ * Convert RFC 3390 larger initial window into an equivalent number of packets.
+ * This is based on the numbers specified in RFC 5681, 3.1.
+ */
+static inline u32 rfc3390_bytes_to_packets(const u32 smss)
+{
+	return smss <= 1095 ? 4 : (smss > 2190 ? 2 : 3);
+}
 
 extern void tcp_enter_cwr(struct sock *sk, const int set_ssthresh);
 extern __u32 tcp_init_cwnd(struct tcp_sock *tp, struct dst_entry *dst);

@@ -15,15 +15,3 @@ config ZRAM
 
 	  See zram.txt for more information.
 	  Project home: http://compcache.googlecode.com/
-
-config ZRAM_STATS
-	bool "Enable statistics for compressed RAM disks"
-	depends on ZRAM
-	default y
-	help
-	  Enable statistics collection for compressed RAM devices. Statistics
-	  are exported through ioctl interface, so you have to use zramconfig
-	  program to get them. This adds only a minimal overhead.
-
-	  If unsure, say Y.
-

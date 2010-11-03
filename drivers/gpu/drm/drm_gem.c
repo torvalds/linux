@@ -92,12 +92,6 @@ drm_gem_init(struct drm_device *dev)
 
 	spin_lock_init(&dev->object_name_lock);
 	idr_init(&dev->object_name_idr);
-	atomic_set(&dev->object_count, 0);
-	atomic_set(&dev->object_memory, 0);
-	atomic_set(&dev->pin_count, 0);
-	atomic_set(&dev->pin_memory, 0);
-	atomic_set(&dev->gtt_count, 0);
-	atomic_set(&dev->gtt_memory, 0);
 
 	mm = kzalloc(sizeof(struct drm_gem_mm), GFP_KERNEL);
 	if (!mm) {
@@ -148,11 +142,8 @@ int drm_gem_object_init(struct drm_device *dev,
 		return -ENOMEM;
 
 	kref_init(&obj->refcount);
-	kref_init(&obj->handlecount);
+	atomic_set(&obj->handle_count, 0);
 	obj->size = size;
-
-	atomic_inc(&dev->object_count);
-	atomic_add(obj->size, &dev->object_memory);
 
 	return 0;
 }
@@ -180,8 +171,6 @@ drm_gem_object_alloc(struct drm_device *dev, size_t size)
 	return obj;
 fput:
 	/* Object_init mangles the global counters - readjust them. */
-	atomic_dec(&dev->object_count);
-	atomic_sub(obj->size, &dev->object_memory);
 	fput(obj->filp);
 free:
 	kfree(obj);
@@ -436,10 +425,7 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 void
 drm_gem_object_release(struct drm_gem_object *obj)
 {
-	struct drm_device *dev = obj->dev;
 	fput(obj->filp);
-	atomic_dec(&dev->object_count);
-	atomic_sub(obj->size, &dev->object_memory);
 }
 EXPORT_SYMBOL(drm_gem_object_release);
 
@@ -462,28 +448,6 @@ drm_gem_object_free(struct kref *kref)
 }
 EXPORT_SYMBOL(drm_gem_object_free);
 
-/**
- * Called after the last reference to the object has been lost.
- * Must be called without holding struct_mutex
- *
- * Frees the object
- */
-void
-drm_gem_object_free_unlocked(struct kref *kref)
-{
-	struct drm_gem_object *obj = (struct drm_gem_object *) kref;
-	struct drm_device *dev = obj->dev;
-
-	if (dev->driver->gem_free_object_unlocked != NULL)
-		dev->driver->gem_free_object_unlocked(obj);
-	else if (dev->driver->gem_free_object != NULL) {
-		mutex_lock(&dev->struct_mutex);
-		dev->driver->gem_free_object(obj);
-		mutex_unlock(&dev->struct_mutex);
-	}
-}
-EXPORT_SYMBOL(drm_gem_object_free_unlocked);
-
 static void drm_gem_object_ref_bug(struct kref *list_kref)
 {
 	BUG();
@@ -496,12 +460,8 @@ static void drm_gem_object_ref_bug(struct kref *list_kref)
  * called before drm_gem_object_free or we'll be touching
  * freed memory
  */
-void
-drm_gem_object_handle_free(struct kref *kref)
+void drm_gem_object_handle_free(struct drm_gem_object *obj)
 {
-	struct drm_gem_object *obj = container_of(kref,
-						  struct drm_gem_object,
-						  handlecount);
 	struct drm_device *dev = obj->dev;
 
 	/* Remove any name for this object */
@@ -528,6 +488,10 @@ void drm_gem_vm_open(struct vm_area_struct *vma)
 	struct drm_gem_object *obj = vma->vm_private_data;
 
 	drm_gem_object_reference(obj);
+
+	mutex_lock(&obj->dev->struct_mutex);
+	drm_vm_open_locked(vma);
+	mutex_unlock(&obj->dev->struct_mutex);
 }
 EXPORT_SYMBOL(drm_gem_vm_open);
 
@@ -535,7 +499,10 @@ void drm_gem_vm_close(struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
 
-	drm_gem_object_unreference_unlocked(obj);
+	mutex_lock(&obj->dev->struct_mutex);
+	drm_vm_close_locked(vma);
+	drm_gem_object_unreference(obj);
+	mutex_unlock(&obj->dev->struct_mutex);
 }
 EXPORT_SYMBOL(drm_gem_vm_close);
 

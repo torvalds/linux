@@ -587,6 +587,7 @@ static const struct file_operations gru_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= gru_file_unlocked_ioctl,
 	.mmap		= gru_file_mmap,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice gru_miscdev = {

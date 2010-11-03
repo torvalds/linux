@@ -640,7 +640,7 @@ static void fasync_free_rcu(struct rcu_head *head)
  * match the state "is the filp on a fasync list".
  *
  */
-static int fasync_remove_entry(struct file *filp, struct fasync_struct **fapp)
+int fasync_remove_entry(struct file *filp, struct fasync_struct **fapp)
 {
 	struct fasync_struct *fa, **fp;
 	int result = 0;
@@ -666,21 +666,31 @@ static int fasync_remove_entry(struct file *filp, struct fasync_struct **fapp)
 	return result;
 }
 
+struct fasync_struct *fasync_alloc(void)
+{
+	return kmem_cache_alloc(fasync_cache, GFP_KERNEL);
+}
+
 /*
- * Add a fasync entry. Return negative on error, positive if
- * added, and zero if did nothing but change an existing one.
+ * NOTE! This can be used only for unused fasync entries:
+ * entries that actually got inserted on the fasync list
+ * need to be released by rcu - see fasync_remove_entry.
+ */
+void fasync_free(struct fasync_struct *new)
+{
+	kmem_cache_free(fasync_cache, new);
+}
+
+/*
+ * Insert a new entry into the fasync list.  Return the pointer to the
+ * old one if we didn't use the new one.
  *
  * NOTE! It is very important that the FASYNC flag always
  * match the state "is the filp on a fasync list".
  */
-static int fasync_add_entry(int fd, struct file *filp, struct fasync_struct **fapp)
+struct fasync_struct *fasync_insert_entry(int fd, struct file *filp, struct fasync_struct **fapp, struct fasync_struct *new)
 {
-	struct fasync_struct *new, *fa, **fp;
-	int result = 0;
-
-	new = kmem_cache_alloc(fasync_cache, GFP_KERNEL);
-	if (!new)
-		return -ENOMEM;
+        struct fasync_struct *fa, **fp;
 
 	spin_lock(&filp->f_lock);
 	spin_lock(&fasync_lock);
@@ -691,8 +701,6 @@ static int fasync_add_entry(int fd, struct file *filp, struct fasync_struct **fa
 		spin_lock_irq(&fa->fa_lock);
 		fa->fa_fd = fd;
 		spin_unlock_irq(&fa->fa_lock);
-
-		kmem_cache_free(fasync_cache, new);
 		goto out;
 	}
 
@@ -702,13 +710,39 @@ static int fasync_add_entry(int fd, struct file *filp, struct fasync_struct **fa
 	new->fa_fd = fd;
 	new->fa_next = *fapp;
 	rcu_assign_pointer(*fapp, new);
-	result = 1;
 	filp->f_flags |= FASYNC;
 
 out:
 	spin_unlock(&fasync_lock);
 	spin_unlock(&filp->f_lock);
-	return result;
+	return fa;
+}
+
+/*
+ * Add a fasync entry. Return negative on error, positive if
+ * added, and zero if did nothing but change an existing one.
+ */
+static int fasync_add_entry(int fd, struct file *filp, struct fasync_struct **fapp)
+{
+	struct fasync_struct *new;
+
+	new = fasync_alloc();
+	if (!new)
+		return -ENOMEM;
+
+	/*
+	 * fasync_insert_entry() returns the old (update) entry if
+	 * it existed.
+	 *
+	 * So free the (unused) new entry and return 0 to let the
+	 * caller know that we didn't add any new fasync entries.
+	 */
+	if (fasync_insert_entry(fd, filp, fapp, new)) {
+		fasync_free(new);
+		return 0;
+	}
+
+	return 1;
 }
 
 /*
@@ -769,11 +803,15 @@ EXPORT_SYMBOL(kill_fasync);
 
 static int __init fcntl_init(void)
 {
-	/* please add new bits here to ensure allocation uniqueness */
-	BUILD_BUG_ON(19 - 1 /* for O_RDONLY being 0 */ != HWEIGHT32(
+	/*
+	 * Please add new bits here to ensure allocation uniqueness.
+	 * Exceptions: O_NONBLOCK is a two bit define on parisc; O_NDELAY
+	 * is defined as O_NONBLOCK on some platforms and not on others.
+	 */
+	BUILD_BUG_ON(18 - 1 /* for O_RDONLY being 0 */ != HWEIGHT32(
 		O_RDONLY	| O_WRONLY	| O_RDWR	|
 		O_CREAT		| O_EXCL	| O_NOCTTY	|
-		O_TRUNC		| O_APPEND	| O_NONBLOCK	|
+		O_TRUNC		| O_APPEND	| /* O_NONBLOCK	| */
 		__O_SYNC	| O_DSYNC	| FASYNC	|
 		O_DIRECT	| O_LARGEFILE	| O_DIRECTORY	|
 		O_NOFOLLOW	| O_NOATIME	| O_CLOEXEC	|

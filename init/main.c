@@ -197,8 +197,8 @@ static int __init set_reset_devices(char *str)
 
 __setup("reset_devices", set_reset_devices);
 
-static char * argv_init[MAX_INIT_ARGS+2] = { "init", NULL, };
-char * envp_init[MAX_INIT_ENVS+2] = { "HOME=/", "TERM=linux", NULL, };
+static const char * argv_init[MAX_INIT_ARGS+2] = { "init", NULL, };
+const char * envp_init[MAX_INIT_ENVS+2] = { "HOME=/", "TERM=linux", NULL, };
 static const char *panic_later, *panic_param;
 
 extern const struct obs_kernel_param __setup_start[], __setup_end[];
@@ -424,7 +424,6 @@ static void __init setup_command_line(char *command_line)
 static __initdata DECLARE_COMPLETION(kthreadd_done);
 
 static noinline void __init_refok rest_init(void)
-	__releases(kernel_lock)
 {
 	int pid;
 
@@ -556,7 +555,6 @@ asmlinkage void __init start_kernel(void)
 
 	local_irq_disable();
 	early_boot_irqs_off();
-	early_init_irq_lock_class();
 
 /*
  * Interrupts are still disabled. Do necessary setups, then
@@ -809,7 +807,7 @@ static void __init do_pre_smp_initcalls(void)
 		do_one_initcall(*fn);
 }
 
-static void run_init_process(char *init_filename)
+static void run_init_process(const char *init_filename)
 {
 	argv_init[0] = init_filename;
 	kernel_execve(init_filename, argv_init, envp_init);
@@ -819,7 +817,6 @@ static void run_init_process(char *init_filename)
  * makes it inline to init() and it becomes part of init.text section
  */
 static noinline int init_post(void)
-	__releases(kernel_lock)
 {
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();

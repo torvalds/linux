@@ -68,39 +68,52 @@ static const struct {
 #define map_key_clear(c)	hid_map_usage_clear(hidinput, usage, &bit, \
 		&max, EV_KEY, (c))
 
-static inline int match_scancode(unsigned int code, unsigned int scancode)
+static bool match_scancode(struct hid_usage *usage,
+			   unsigned int cur_idx, unsigned int scancode)
 {
-	if (scancode == 0)
-		return 1;
-
-	return (code & (HID_USAGE_PAGE | HID_USAGE)) == scancode;
+	return (usage->hid & (HID_USAGE_PAGE | HID_USAGE)) == scancode;
 }
 
-static inline int match_keycode(unsigned int code, unsigned int keycode)
+static bool match_keycode(struct hid_usage *usage,
+			  unsigned int cur_idx, unsigned int keycode)
 {
-	if (keycode == 0)
-		return 1;
-
-	return code == keycode;
+	/*
+	 * We should exclude unmapped usages when doing lookup by keycode.
+	 */
+	return (usage->type == EV_KEY && usage->code == keycode);
 }
+
+static bool match_index(struct hid_usage *usage,
+			unsigned int cur_idx, unsigned int idx)
+{
+	return cur_idx == idx;
+}
+
+typedef bool (*hid_usage_cmp_t)(struct hid_usage *usage,
+				unsigned int cur_idx, unsigned int val);
 
 static struct hid_usage *hidinput_find_key(struct hid_device *hid,
-					   unsigned int scancode,
-					   unsigned int keycode)
+					   hid_usage_cmp_t match,
+					   unsigned int value,
+					   unsigned int *usage_idx)
 {
-	int i, j, k;
+	unsigned int i, j, k, cur_idx = 0;
 	struct hid_report *report;
 	struct hid_usage *usage;
 
 	for (k = HID_INPUT_REPORT; k <= HID_OUTPUT_REPORT; k++) {
 		list_for_each_entry(report, &hid->report_enum[k].report_list, list) {
 			for (i = 0; i < report->maxfield; i++) {
-				for ( j = 0; j < report->field[i]->maxusage; j++) {
+				for (j = 0; j < report->field[i]->maxusage; j++) {
 					usage = report->field[i]->usage + j;
-					if (usage->type == EV_KEY &&
-						match_scancode(usage->hid, scancode) &&
-						match_keycode(usage->code, keycode))
-						return usage;
+					if (usage->type == EV_KEY || usage->type == 0) {
+						if (match(usage, cur_idx, value)) {
+							if (usage_idx)
+								*usage_idx = cur_idx;
+							return usage;
+						}
+						cur_idx++;
+					}
 				}
 			}
 		}
@@ -108,39 +121,68 @@ static struct hid_usage *hidinput_find_key(struct hid_device *hid,
 	return NULL;
 }
 
+static struct hid_usage *hidinput_locate_usage(struct hid_device *hid,
+					const struct input_keymap_entry *ke,
+					unsigned int *index)
+{
+	struct hid_usage *usage;
+	unsigned int scancode;
+
+	if (ke->flags & INPUT_KEYMAP_BY_INDEX)
+		usage = hidinput_find_key(hid, match_index, ke->index, index);
+	else if (input_scancode_to_scalar(ke, &scancode) == 0)
+		usage = hidinput_find_key(hid, match_scancode, scancode, index);
+	else
+		usage = NULL;
+
+	return usage;
+}
+
 static int hidinput_getkeycode(struct input_dev *dev,
-			       unsigned int scancode, unsigned int *keycode)
+			       struct input_keymap_entry *ke)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct hid_usage *usage;
+	unsigned int scancode, index;
 
-	usage = hidinput_find_key(hid, scancode, 0);
+	usage = hidinput_locate_usage(hid, ke, &index);
 	if (usage) {
-		*keycode = usage->code;
+		ke->keycode = usage->type == EV_KEY ?
+				usage->code : KEY_RESERVED;
+		ke->index = index;
+		scancode = usage->hid & (HID_USAGE_PAGE | HID_USAGE);
+		ke->len = sizeof(scancode);
+		memcpy(ke->scancode, &scancode, sizeof(scancode));
 		return 0;
 	}
+
 	return -EINVAL;
 }
 
 static int hidinput_setkeycode(struct input_dev *dev,
-			       unsigned int scancode, unsigned int keycode)
+			       const struct input_keymap_entry *ke,
+			       unsigned int *old_keycode)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 	struct hid_usage *usage;
-	int old_keycode;
 
-	usage = hidinput_find_key(hid, scancode, 0);
+	usage = hidinput_locate_usage(hid, ke, NULL);
 	if (usage) {
-		old_keycode = usage->code;
-		usage->code = keycode;
+		*old_keycode = usage->type == EV_KEY ?
+				usage->code : KEY_RESERVED;
+		usage->code = ke->keycode;
 
-		clear_bit(old_keycode, dev->keybit);
+		clear_bit(*old_keycode, dev->keybit);
 		set_bit(usage->code, dev->keybit);
-		dbg_hid(KERN_DEBUG "Assigned keycode %d to HID usage code %x\n", keycode, scancode);
-		/* Set the keybit for the old keycode if the old keycode is used
-		 * by another key */
-		if (hidinput_find_key (hid, 0, old_keycode))
-			set_bit(old_keycode, dev->keybit);
+		dbg_hid(KERN_DEBUG "Assigned keycode %d to HID usage code %x\n",
+			usage->code, usage->hid);
+
+		/*
+		 * Set the keybit for the old keycode if the old keycode is used
+		 * by another key
+		 */
+		if (hidinput_find_key(hid, match_keycode, *old_keycode, NULL))
+			set_bit(*old_keycode, dev->keybit);
 
 		return 0;
 	}
@@ -148,6 +190,83 @@ static int hidinput_setkeycode(struct input_dev *dev,
 	return -EINVAL;
 }
 
+
+/**
+ * hidinput_calc_abs_res - calculate an absolute axis resolution
+ * @field: the HID report field to calculate resolution for
+ * @code: axis code
+ *
+ * The formula is:
+ *                         (logical_maximum - logical_minimum)
+ * resolution = ----------------------------------------------------------
+ *              (physical_maximum - physical_minimum) * 10 ^ unit_exponent
+ *
+ * as seen in the HID specification v1.11 6.2.2.7 Global Items.
+ *
+ * Only exponent 1 length units are processed. Centimeters are converted to
+ * inches. Degrees are converted to radians.
+ */
+static __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code)
+{
+	__s32 unit_exponent = field->unit_exponent;
+	__s32 logical_extents = field->logical_maximum -
+					field->logical_minimum;
+	__s32 physical_extents = field->physical_maximum -
+					field->physical_minimum;
+	__s32 prev;
+
+	/* Check if the extents are sane */
+	if (logical_extents <= 0 || physical_extents <= 0)
+		return 0;
+
+	/*
+	 * Verify and convert units.
+	 * See HID specification v1.11 6.2.2.7 Global Items for unit decoding
+	 */
+	if (code == ABS_X || code == ABS_Y || code == ABS_Z) {
+		if (field->unit == 0x11) {		/* If centimeters */
+			/* Convert to inches */
+			prev = logical_extents;
+			logical_extents *= 254;
+			if (logical_extents < prev)
+				return 0;
+			unit_exponent += 2;
+		} else if (field->unit != 0x13) {	/* If not inches */
+			return 0;
+		}
+	} else if (code == ABS_RX || code == ABS_RY || code == ABS_RZ) {
+		if (field->unit == 0x14) {		/* If degrees */
+			/* Convert to radians */
+			prev = logical_extents;
+			logical_extents *= 573;
+			if (logical_extents < prev)
+				return 0;
+			unit_exponent += 1;
+		} else if (field->unit != 0x12) {	/* If not radians */
+			return 0;
+		}
+	} else {
+		return 0;
+	}
+
+	/* Apply negative unit exponent */
+	for (; unit_exponent < 0; unit_exponent++) {
+		prev = logical_extents;
+		logical_extents *= 10;
+		if (logical_extents < prev)
+			return 0;
+	}
+	/* Apply positive unit exponent */
+	for (; unit_exponent > 0; unit_exponent--) {
+		prev = physical_extents;
+		physical_extents *= 10;
+		if (physical_extents < prev)
+			return 0;
+	}
+
+	/* Calculate resolution */
+	return logical_extents / physical_extents;
+}
 
 static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_field *field,
 				     struct hid_usage *usage)
@@ -334,6 +453,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 		case 0x44: /* BarrelSwitch */
 			map_key_clear(BTN_STYLUS);
+			break;
+
+		case 0x46: /* TabletPick */
+			map_key_clear(BTN_STYLUS2);
 			break;
 
 		default:  goto unknown;
@@ -537,6 +660,9 @@ mapped:
 			input_set_abs_params(input, usage->code, a, b, (b - a) >> 8, (b - a) >> 4);
 		else	input_set_abs_params(input, usage->code, a, b, 0, 0);
 
+		input_abs_set_res(input, usage->code,
+				  hidinput_calc_abs_res(field, usage->code));
+
 		/* use a larger default input buffer for MT devices */
 		if (usage->code == ABS_MT_POSITION_X && input->hint_events_per_packet == 0)
 			input_set_events_per_packet(input, 60);
@@ -659,6 +785,9 @@ void hidinput_report_event(struct hid_device *hid, struct hid_report *report)
 {
 	struct hid_input *hidinput;
 
+	if (hid->quirks & HID_QUIRK_NO_INPUT_SYNC)
+		return;
+
 	list_for_each_entry(hidinput, &hid->inputs, list)
 		input_sync(hidinput->input);
 }
@@ -748,8 +877,8 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 					hid->ll_driver->hidinput_input_event;
 				input_dev->open = hidinput_open;
 				input_dev->close = hidinput_close;
-				input_dev->setkeycode = hidinput_setkeycode;
-				input_dev->getkeycode = hidinput_getkeycode;
+				input_dev->setkeycode_new = hidinput_setkeycode;
+				input_dev->getkeycode_new = hidinput_getkeycode;
 
 				input_dev->name = hid->name;
 				input_dev->phys = hid->phys;

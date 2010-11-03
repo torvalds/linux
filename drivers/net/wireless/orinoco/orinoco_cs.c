@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -93,14 +92,6 @@ orinoco_cs_hard_reset(struct orinoco_private *priv)
 /* PCMCIA stuff     						    */
 /********************************************************************/
 
-/*
- * This creates an "instance" of the driver, allocating local data
- * structures for one device.  The device is registered with Card
- * Services.
- *
- * The dev_link structure is initialized, but we don't actually
- * configure the card at this point -- we wait until we receive a card
- * insertion event.  */
 static int
 orinoco_cs_probe(struct pcmcia_device *link)
 {
@@ -117,23 +108,9 @@ orinoco_cs_probe(struct pcmcia_device *link)
 	card->p_dev = link;
 	link->priv = priv;
 
-	/* General socket configuration defaults can go here.  In this
-	 * client, we assume very little, and rely on the CIS for
-	 * almost everything.  In most clients, many details (i.e.,
-	 * number, sizes, and attributes of IO windows) are fixed by
-	 * the nature of the device, and can be hard-wired here. */
-	link->conf.Attributes = 0;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-
 	return orinoco_cs_config(link);
 }				/* orinoco_cs_attach */
 
-/*
- * This deletes a driver "instance".  The device is de-registered with
- * Card Services.  If it has been released, all local data structures
- * are freed.  Otherwise, the structures will be freed when the device
- * is released.
- */
 static void orinoco_cs_detach(struct pcmcia_device *link)
 {
 	struct orinoco_private *priv = link->priv;
@@ -145,76 +122,12 @@ static void orinoco_cs_detach(struct pcmcia_device *link)
 	free_orinocodev(priv);
 }				/* orinoco_cs_detach */
 
-/*
- * orinoco_cs_config() is scheduled to run after a CARD_INSERTION
- * event is received, to configure the PCMCIA socket, and to make the
- * device available to the system.
- */
-
-static int orinoco_cs_config_check(struct pcmcia_device *p_dev,
-				   cistpl_cftable_entry_t *cfg,
-				   cistpl_cftable_entry_t *dflt,
-				   unsigned int vcc,
-				   void *priv_data)
+static int orinoco_cs_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if (cfg->index == 0)
-		goto next_entry;
+	if (p_dev->config_index == 0)
+		return -EINVAL;
 
-	/* Use power settings for Vcc and Vpp if present */
-	/* Note that the CIS values need to be rescaled */
-	if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000) {
-			DEBUG(2, "%s: Vcc mismatch (vcc = %d, CIS = %d)\n",
-			      __func__, vcc,
-			      cfg->vcc.param[CISTPL_POWER_VNOM] / 10000);
-			if (!ignore_cis_vcc)
-				goto next_entry;
-		}
-	} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000) {
-			DEBUG(2, "%s: Vcc mismatch (vcc = %d, CIS = %d)\n",
-			      __func__, vcc,
-			      dflt->vcc.param[CISTPL_POWER_VNOM] / 10000);
-			if (!ignore_cis_vcc)
-				goto next_entry;
-		}
-	}
-
-	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp =
-			cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-	else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp =
-			dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-
-	/* Do we need to allocate an interrupt? */
-	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
-
-	/* IO window settings */
-	p_dev->resource[0]->end = p_dev->resource[1]->end = 0;
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
-		p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
-		p_dev->resource[0]->flags |=
-			pcmcia_io_cfg_data_width(io->flags);
-		p_dev->resource[0]->start = io->win[0].base;
-		p_dev->resource[0]->end = io->win[0].len;
-		if (io->nwin > 1) {
-			p_dev->resource[1]->flags = p_dev->resource[0]->flags;
-			p_dev->resource[1]->start = io->win[1].base;
-			p_dev->resource[1]->end = io->win[1].len;
-		}
-
-		/* This reserves IO space but doesn't actually enable it */
-		if (pcmcia_request_io(p_dev) != 0)
-			goto next_entry;
-	}
-	return 0;
-
-next_entry:
-	pcmcia_disable_device(p_dev);
-	return -ENODEV;
+	return pcmcia_request_io(p_dev);
 };
 
 static int
@@ -225,20 +138,10 @@ orinoco_cs_config(struct pcmcia_device *link)
 	int ret;
 	void __iomem *mem;
 
-	/*
-	 * In this loop, we scan the CIS for configuration table
-	 * entries, each of which describes a valid card
-	 * configuration, including voltage, IO window, memory window,
-	 * and interrupt settings.
-	 *
-	 * We make no assumptions about the card to be configured: we
-	 * use just the information available in the CIS.  In an ideal
-	 * world, this would work for any PCMCIA card, but it requires
-	 * a complete and accurate CIS.  In practice, a driver usually
-	 * "knows" most of these things without consulting the CIS,
-	 * and most client drivers will only use the CIS to fill in
-	 * implementation-defined details.
-	 */
+	link->config_flags |= CONF_AUTO_SET_VPP | CONF_AUTO_CHECK_VCC |
+		CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
+	if (ignore_cis_vcc)
+		link->config_flags &= ~CONF_AUTO_CHECK_VCC;
 	ret = pcmcia_loop_config(link, orinoco_cs_config_check, NULL);
 	if (ret) {
 		if (!ignore_cis_vcc)
@@ -262,12 +165,7 @@ orinoco_cs_config(struct pcmcia_device *link)
 
 	hermes_struct_init(hw, mem, HERMES_16BIT_REGSPACING);
 
-	/*
-	 * This actually configures the PCMCIA socket -- setting up
-	 * the I/O windows and the interrupt mapping, and putting the
-	 * card and host interface into "Memory and IO" mode.
-	 */
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
@@ -291,11 +189,6 @@ orinoco_cs_config(struct pcmcia_device *link)
 	return -ENODEV;
 }				/* orinoco_cs_config */
 
-/*
- * After a card is removed, orinoco_cs_release() will unregister the
- * device, and release the PCMCIA configuration.  If the device is
- * still open, this will be postponed until it is closed.
- */
 static void
 orinoco_cs_release(struct pcmcia_device *link)
 {
@@ -343,12 +236,6 @@ static int orinoco_cs_resume(struct pcmcia_device *link)
 /********************************************************************/
 /* Module initialization					    */
 /********************************************************************/
-
-/* Can't be declared "const" or the whole __initdata section will
- * become const */
-static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
-	" (David Gibson <hermes@gibson.dropbear.id.au>, "
-	"Pavel Roskin <proski@gnu.org>, et al)";
 
 static struct pcmcia_device_id orinoco_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0101, 0x0777), /* 3Com AirConnect PCI 777A */
@@ -441,9 +328,7 @@ MODULE_DEVICE_TABLE(pcmcia, orinoco_cs_ids);
 
 static struct pcmcia_driver orinoco_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= DRIVER_NAME,
-	},
+	.name		= DRIVER_NAME,
 	.probe		= orinoco_cs_probe,
 	.remove		= orinoco_cs_detach,
 	.id_table       = orinoco_cs_ids,
@@ -454,8 +339,6 @@ static struct pcmcia_driver orinoco_driver = {
 static int __init
 init_orinoco_cs(void)
 {
-	printk(KERN_DEBUG "%s\n", version);
-
 	return pcmcia_register_driver(&orinoco_driver);
 }
 

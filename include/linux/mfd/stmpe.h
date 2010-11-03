@@ -112,13 +112,19 @@ struct stmpe_keypad_platform_data {
 	bool no_autorepeat;
 };
 
+#define STMPE_GPIO_NOREQ_811_TOUCH	(0xf0)
+
 /**
  * struct stmpe_gpio_platform_data - STMPE GPIO platform data
  * @gpio_base: first gpio number assigned.  A maximum of
  *	       %STMPE_NR_GPIOS GPIOs will be allocated.
+ * @norequest_mask: bitmask specifying which GPIOs should _not_ be
+ *		    requestable due to different usage (e.g. touch, keypad)
+ *		    STMPE_GPIO_NOREQ_* macros can be used here.
  */
 struct stmpe_gpio_platform_data {
 	int gpio_base;
+	unsigned norequest_mask;
 	void (*setup)(struct stmpe *stmpe, unsigned gpio_base);
 	void (*remove)(struct stmpe *stmpe, unsigned gpio_base);
 };

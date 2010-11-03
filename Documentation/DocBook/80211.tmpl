@@ -1,0 +1,495 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE set PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+	"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" []>
+<set>
+  <setinfo>
+    <title>The 802.11 subsystems &ndash; for kernel developers</title>
+    <subtitle>
+      Explaining wireless 802.11 networking in the Linux kernel
+    </subtitle>
+
+    <copyright>
+      <year>2007-2009</year>
+      <holder>Johannes Berg</holder>
+    </copyright>
+
+    <authorgroup>
+      <author>
+        <firstname>Johannes</firstname>
+        <surname>Berg</surname>
+        <affiliation>
+          <address><email>johannes@sipsolutions.net</email></address>
+        </affiliation>
+      </author>
+    </authorgroup>
+
+    <legalnotice>
+      <para>
+        This documentation is free software; you can redistribute
+        it and/or modify it under the terms of the GNU General Public
+        License version 2 as published by the Free Software Foundation.
+      </para>
+      <para>
+        This documentation is distributed in the hope that it will be
+        useful, but WITHOUT ANY WARRANTY; without even the implied
+        warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+        See the GNU General Public License for more details.
+      </para>
+      <para>
+        You should have received a copy of the GNU General Public
+        License along with this documentation; if not, write to the Free
+        Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+        MA 02111-1307 USA
+      </para>
+      <para>
+        For more details see the file COPYING in the source
+        distribution of Linux.
+      </para>
+    </legalnotice>
+
+    <abstract>
+      <para>
+        These books attempt to give a description of the
+        various subsystems that play a role in 802.11 wireless
+        networking in Linux. Since these books are for kernel
+        developers they attempts to document the structures
+        and functions used in the kernel as well as giving a
+        higher-level overview.
+      </para>
+      <para>
+	The reader is expected to be familiar with the 802.11
+	standard as published by the IEEE in 802.11-2007 (or
+	possibly later versions). References to this standard
+	will be given as "802.11-2007 8.1.5".
+      </para>
+    </abstract>
+  </setinfo>
+  <book id="cfg80211-developers-guide">
+    <bookinfo>
+      <title>The cfg80211 subsystem</title>
+
+      <abstract>
+!Pinclude/net/cfg80211.h Introduction
+      </abstract>
+    </bookinfo>
+      <chapter>
+      <title>Device registration</title>
+!Pinclude/net/cfg80211.h Device registration
+!Finclude/net/cfg80211.h ieee80211_band
+!Finclude/net/cfg80211.h ieee80211_channel_flags
+!Finclude/net/cfg80211.h ieee80211_channel
+!Finclude/net/cfg80211.h ieee80211_rate_flags
+!Finclude/net/cfg80211.h ieee80211_rate
+!Finclude/net/cfg80211.h ieee80211_sta_ht_cap
+!Finclude/net/cfg80211.h ieee80211_supported_band
+!Finclude/net/cfg80211.h cfg80211_signal_type
+!Finclude/net/cfg80211.h wiphy_params_flags
+!Finclude/net/cfg80211.h wiphy_flags
+!Finclude/net/cfg80211.h wiphy
+!Finclude/net/cfg80211.h wireless_dev
+!Finclude/net/cfg80211.h wiphy_new
+!Finclude/net/cfg80211.h wiphy_register
+!Finclude/net/cfg80211.h wiphy_unregister
+!Finclude/net/cfg80211.h wiphy_free
+
+!Finclude/net/cfg80211.h wiphy_name
+!Finclude/net/cfg80211.h wiphy_dev
+!Finclude/net/cfg80211.h wiphy_priv
+!Finclude/net/cfg80211.h priv_to_wiphy
+!Finclude/net/cfg80211.h set_wiphy_dev
+!Finclude/net/cfg80211.h wdev_priv
+      </chapter>
+      <chapter>
+      <title>Actions and configuration</title>
+!Pinclude/net/cfg80211.h Actions and configuration
+!Finclude/net/cfg80211.h cfg80211_ops
+!Finclude/net/cfg80211.h vif_params
+!Finclude/net/cfg80211.h key_params
+!Finclude/net/cfg80211.h survey_info_flags
+!Finclude/net/cfg80211.h survey_info
+!Finclude/net/cfg80211.h beacon_parameters
+!Finclude/net/cfg80211.h plink_actions
+!Finclude/net/cfg80211.h station_parameters
+!Finclude/net/cfg80211.h station_info_flags
+!Finclude/net/cfg80211.h rate_info_flags
+!Finclude/net/cfg80211.h rate_info
+!Finclude/net/cfg80211.h station_info
+!Finclude/net/cfg80211.h monitor_flags
+!Finclude/net/cfg80211.h mpath_info_flags
+!Finclude/net/cfg80211.h mpath_info
+!Finclude/net/cfg80211.h bss_parameters
+!Finclude/net/cfg80211.h ieee80211_txq_params
+!Finclude/net/cfg80211.h cfg80211_crypto_settings
+!Finclude/net/cfg80211.h cfg80211_auth_request
+!Finclude/net/cfg80211.h cfg80211_assoc_request
+!Finclude/net/cfg80211.h cfg80211_deauth_request
+!Finclude/net/cfg80211.h cfg80211_disassoc_request
+!Finclude/net/cfg80211.h cfg80211_ibss_params
+!Finclude/net/cfg80211.h cfg80211_connect_params
+!Finclude/net/cfg80211.h cfg80211_pmksa
+!Finclude/net/cfg80211.h cfg80211_send_rx_auth
+!Finclude/net/cfg80211.h cfg80211_send_auth_timeout
+!Finclude/net/cfg80211.h __cfg80211_auth_canceled
+!Finclude/net/cfg80211.h cfg80211_send_rx_assoc
+!Finclude/net/cfg80211.h cfg80211_send_assoc_timeout
+!Finclude/net/cfg80211.h cfg80211_send_deauth
+!Finclude/net/cfg80211.h __cfg80211_send_deauth
+!Finclude/net/cfg80211.h cfg80211_send_disassoc
+!Finclude/net/cfg80211.h __cfg80211_send_disassoc
+!Finclude/net/cfg80211.h cfg80211_ibss_joined
+!Finclude/net/cfg80211.h cfg80211_connect_result
+!Finclude/net/cfg80211.h cfg80211_roamed
+!Finclude/net/cfg80211.h cfg80211_disconnected
+!Finclude/net/cfg80211.h cfg80211_ready_on_channel
+!Finclude/net/cfg80211.h cfg80211_remain_on_channel_expired
+!Finclude/net/cfg80211.h cfg80211_new_sta
+!Finclude/net/cfg80211.h cfg80211_rx_mgmt
+!Finclude/net/cfg80211.h cfg80211_mgmt_tx_status
+!Finclude/net/cfg80211.h cfg80211_cqm_rssi_notify
+!Finclude/net/cfg80211.h cfg80211_michael_mic_failure
+      </chapter>
+      <chapter>
+      <title>Scanning and BSS list handling</title>
+!Pinclude/net/cfg80211.h Scanning and BSS list handling
+!Finclude/net/cfg80211.h cfg80211_ssid
+!Finclude/net/cfg80211.h cfg80211_scan_request
+!Finclude/net/cfg80211.h cfg80211_scan_done
+!Finclude/net/cfg80211.h cfg80211_bss
+!Finclude/net/cfg80211.h cfg80211_inform_bss_frame
+!Finclude/net/cfg80211.h cfg80211_inform_bss
+!Finclude/net/cfg80211.h cfg80211_unlink_bss
+!Finclude/net/cfg80211.h cfg80211_find_ie
+!Finclude/net/cfg80211.h ieee80211_bss_get_ie
+      </chapter>
+      <chapter>
+      <title>Utility functions</title>
+!Pinclude/net/cfg80211.h Utility functions
+!Finclude/net/cfg80211.h ieee80211_channel_to_frequency
+!Finclude/net/cfg80211.h ieee80211_frequency_to_channel
+!Finclude/net/cfg80211.h ieee80211_get_channel
+!Finclude/net/cfg80211.h ieee80211_get_response_rate
+!Finclude/net/cfg80211.h ieee80211_hdrlen
+!Finclude/net/cfg80211.h ieee80211_get_hdrlen_from_skb
+!Finclude/net/cfg80211.h ieee80211_radiotap_iterator
+      </chapter>
+      <chapter>
+      <title>Data path helpers</title>
+!Pinclude/net/cfg80211.h Data path helpers
+!Finclude/net/cfg80211.h ieee80211_data_to_8023
+!Finclude/net/cfg80211.h ieee80211_data_from_8023
+!Finclude/net/cfg80211.h ieee80211_amsdu_to_8023s
+!Finclude/net/cfg80211.h cfg80211_classify8021d
+      </chapter>
+      <chapter>
+      <title>Regulatory enforcement infrastructure</title>
+!Pinclude/net/cfg80211.h Regulatory enforcement infrastructure
+!Finclude/net/cfg80211.h regulatory_hint
+!Finclude/net/cfg80211.h wiphy_apply_custom_regulatory
+!Finclude/net/cfg80211.h freq_reg_info
+      </chapter>
+      <chapter>
+      <title>RFkill integration</title>
+!Pinclude/net/cfg80211.h RFkill integration
+!Finclude/net/cfg80211.h wiphy_rfkill_set_hw_state
+!Finclude/net/cfg80211.h wiphy_rfkill_start_polling
+!Finclude/net/cfg80211.h wiphy_rfkill_stop_polling
+      </chapter>
+      <chapter>
+      <title>Test mode</title>
+!Pinclude/net/cfg80211.h Test mode
+!Finclude/net/cfg80211.h cfg80211_testmode_alloc_reply_skb
+!Finclude/net/cfg80211.h cfg80211_testmode_reply
+!Finclude/net/cfg80211.h cfg80211_testmode_alloc_event_skb
+!Finclude/net/cfg80211.h cfg80211_testmode_event
+      </chapter>
+  </book>
+  <book id="mac80211-developers-guide">
+    <bookinfo>
+      <title>The mac80211 subsystem</title>
+      <abstract>
+!Pinclude/net/mac80211.h Introduction
+!Pinclude/net/mac80211.h Warning
+      </abstract>
+    </bookinfo>
+
+    <toc></toc>
+
+  <!--
+  Generally, this document shall be ordered by increasing complexity.
+  It is important to note that readers should be able to read only
+  the first few sections to get a working driver and only advanced
+  usage should require reading the full document.
+  -->
+
+    <part>
+      <title>The basic mac80211 driver interface</title>
+      <partintro>
+        <para>
+          You should read and understand the information contained
+          within this part of the book while implementing a driver.
+          In some chapters, advanced usage is noted, that may be
+          skipped at first.
+        </para>
+        <para>
+          This part of the book only covers station and monitor mode
+          functionality, additional information required to implement
+          the other modes is covered in the second part of the book.
+        </para>
+      </partintro>
+
+      <chapter id="basics">
+        <title>Basic hardware handling</title>
+        <para>TBD</para>
+        <para>
+          This chapter shall contain information on getting a hw
+          struct allocated and registered with mac80211.
+        </para>
+        <para>
+          Since it is required to allocate rates/modes before registering
+          a hw struct, this chapter shall also contain information on setting
+          up the rate/mode structs.
+        </para>
+        <para>
+          Additionally, some discussion about the callbacks and
+          the general programming model should be in here, including
+          the definition of ieee80211_ops which will be referred to
+          a lot.
+        </para>
+        <para>
+          Finally, a discussion of hardware capabilities should be done
+          with references to other parts of the book.
+        </para>
+  <!-- intentionally multiple !F lines to get proper order -->
+!Finclude/net/mac80211.h ieee80211_hw
+!Finclude/net/mac80211.h ieee80211_hw_flags
+!Finclude/net/mac80211.h SET_IEEE80211_DEV
+!Finclude/net/mac80211.h SET_IEEE80211_PERM_ADDR
+!Finclude/net/mac80211.h ieee80211_ops
+!Finclude/net/mac80211.h ieee80211_alloc_hw
+!Finclude/net/mac80211.h ieee80211_register_hw
+!Finclude/net/mac80211.h ieee80211_get_tx_led_name
+!Finclude/net/mac80211.h ieee80211_get_rx_led_name
+!Finclude/net/mac80211.h ieee80211_get_assoc_led_name
+!Finclude/net/mac80211.h ieee80211_get_radio_led_name
+!Finclude/net/mac80211.h ieee80211_unregister_hw
+!Finclude/net/mac80211.h ieee80211_free_hw
+      </chapter>
+
+      <chapter id="phy-handling">
+        <title>PHY configuration</title>
+        <para>TBD</para>
+        <para>
+          This chapter should describe PHY handling including
+          start/stop callbacks and the various structures used.
+        </para>
+!Finclude/net/mac80211.h ieee80211_conf
+!Finclude/net/mac80211.h ieee80211_conf_flags
+      </chapter>
+
+      <chapter id="iface-handling">
+        <title>Virtual interfaces</title>
+        <para>TBD</para>
+        <para>
+          This chapter should describe virtual interface basics
+          that are relevant to the driver (VLANs, MGMT etc are not.)
+          It should explain the use of the add_iface/remove_iface
+          callbacks as well as the interface configuration callbacks.
+        </para>
+        <para>Things related to AP mode should be discussed there.</para>
+        <para>
+          Things related to supporting multiple interfaces should be
+          in the appropriate chapter, a BIG FAT note should be here about
+          this though and the recommendation to allow only a single
+          interface in STA mode at first!
+        </para>
+!Finclude/net/mac80211.h ieee80211_vif
+      </chapter>
+
+      <chapter id="rx-tx">
+        <title>Receive and transmit processing</title>
+        <sect1>
+          <title>what should be here</title>
+          <para>TBD</para>
+          <para>
+            This should describe the receive and transmit
+            paths in mac80211/the drivers as well as
+            transmit status handling.
+          </para>
+        </sect1>
+        <sect1>
+          <title>Frame format</title>
+!Pinclude/net/mac80211.h Frame format
+        </sect1>
+        <sect1>
+          <title>Packet alignment</title>
+!Pnet/mac80211/rx.c Packet alignment
+        </sect1>
+        <sect1>
+          <title>Calling into mac80211 from interrupts</title>
+!Pinclude/net/mac80211.h Calling mac80211 from interrupts
+        </sect1>
+        <sect1>
+          <title>functions/definitions</title>
+!Finclude/net/mac80211.h ieee80211_rx_status
+!Finclude/net/mac80211.h mac80211_rx_flags
+!Finclude/net/mac80211.h ieee80211_tx_info
+!Finclude/net/mac80211.h ieee80211_rx
+!Finclude/net/mac80211.h ieee80211_rx_irqsafe
+!Finclude/net/mac80211.h ieee80211_tx_status
+!Finclude/net/mac80211.h ieee80211_tx_status_irqsafe
+!Finclude/net/mac80211.h ieee80211_rts_get
+!Finclude/net/mac80211.h ieee80211_rts_duration
+!Finclude/net/mac80211.h ieee80211_ctstoself_get
+!Finclude/net/mac80211.h ieee80211_ctstoself_duration
+!Finclude/net/mac80211.h ieee80211_generic_frame_duration
+!Finclude/net/mac80211.h ieee80211_wake_queue
+!Finclude/net/mac80211.h ieee80211_stop_queue
+!Finclude/net/mac80211.h ieee80211_wake_queues
+!Finclude/net/mac80211.h ieee80211_stop_queues
+        </sect1>
+      </chapter>
+
+      <chapter id="filters">
+        <title>Frame filtering</title>
+!Pinclude/net/mac80211.h Frame filtering
+!Finclude/net/mac80211.h ieee80211_filter_flags
+      </chapter>
+    </part>
+
+    <part id="advanced">
+      <title>Advanced driver interface</title>
+      <partintro>
+        <para>
+         Information contained within this part of the book is
+         of interest only for advanced interaction of mac80211
+         with drivers to exploit more hardware capabilities and
+         improve performance.
+        </para>
+      </partintro>
+
+      <chapter id="hardware-crypto-offload">
+        <title>Hardware crypto acceleration</title>
+!Pinclude/net/mac80211.h Hardware crypto acceleration
+  <!-- intentionally multiple !F lines to get proper order -->
+!Finclude/net/mac80211.h set_key_cmd
+!Finclude/net/mac80211.h ieee80211_key_conf
+!Finclude/net/mac80211.h ieee80211_key_flags
+      </chapter>
+
+      <chapter id="powersave">
+        <title>Powersave support</title>
+!Pinclude/net/mac80211.h Powersave support
+      </chapter>
+
+      <chapter id="beacon-filter">
+        <title>Beacon filter support</title>
+!Pinclude/net/mac80211.h Beacon filter support
+!Finclude/net/mac80211.h ieee80211_beacon_loss
+      </chapter>
+
+      <chapter id="qos">
+        <title>Multiple queues and QoS support</title>
+        <para>TBD</para>
+!Finclude/net/mac80211.h ieee80211_tx_queue_params
+      </chapter>
+
+      <chapter id="AP">
+        <title>Access point mode support</title>
+        <para>TBD</para>
+        <para>Some parts of the if_conf should be discussed here instead</para>
+        <para>
+          Insert notes about VLAN interfaces with hw crypto here or
+          in the hw crypto chapter.
+        </para>
+!Finclude/net/mac80211.h ieee80211_get_buffered_bc
+!Finclude/net/mac80211.h ieee80211_beacon_get
+      </chapter>
+
+      <chapter id="multi-iface">
+        <title>Supporting multiple virtual interfaces</title>
+        <para>TBD</para>
+        <para>
+          Note: WDS with identical MAC address should almost always be OK
+        </para>
+        <para>
+          Insert notes about having multiple virtual interfaces with
+          different MAC addresses here, note which configurations are
+          supported by mac80211, add notes about supporting hw crypto
+          with it.
+        </para>
+      </chapter>
+
+      <chapter id="hardware-scan-offload">
+        <title>Hardware scan offload</title>
+        <para>TBD</para>
+!Finclude/net/mac80211.h ieee80211_scan_completed
+      </chapter>
+    </part>
+
+    <part id="rate-control">
+      <title>Rate control interface</title>
+      <partintro>
+        <para>TBD</para>
+        <para>
+         This part of the book describes the rate control algorithm
+         interface and how it relates to mac80211 and drivers.
+        </para>
+      </partintro>
+      <chapter id="dummy">
+        <title>dummy chapter</title>
+        <para>TBD</para>
+      </chapter>
+    </part>
+
+    <part id="internal">
+      <title>Internals</title>
+      <partintro>
+        <para>TBD</para>
+        <para>
+         This part of the book describes mac80211 internals.
+        </para>
+      </partintro>
+
+      <chapter id="key-handling">
+        <title>Key handling</title>
+        <sect1>
+          <title>Key handling basics</title>
+!Pnet/mac80211/key.c Key handling basics
+        </sect1>
+        <sect1>
+          <title>MORE TBD</title>
+          <para>TBD</para>
+        </sect1>
+      </chapter>
+
+      <chapter id="rx-processing">
+        <title>Receive processing</title>
+        <para>TBD</para>
+      </chapter>
+
+      <chapter id="tx-processing">
+        <title>Transmit processing</title>
+        <para>TBD</para>
+      </chapter>
+
+      <chapter id="sta-info">
+        <title>Station info handling</title>
+        <sect1>
+          <title>Programming information</title>
+!Fnet/mac80211/sta_info.h sta_info
+!Fnet/mac80211/sta_info.h ieee80211_sta_info_flags
+        </sect1>
+        <sect1>
+          <title>STA information lifetime rules</title>
+!Pnet/mac80211/sta_info.c STA information lifetime rules
+        </sect1>
+      </chapter>
+
+      <chapter id="synchronisation">
+        <title>Synchronisation</title>
+        <para>TBD</para>
+        <para>Locking, lots of RCU</para>
+      </chapter>
+    </part>
+  </book>
+</set>

@@ -24,6 +24,9 @@ of many distributions, e.g. :
 You can get the latest version released from the Coccinelle homepage at
 http://coccinelle.lip6.fr/
 
+Information and tips about Coccinelle are also provided on the wiki
+pages at http://cocci.ekstranet.diku.dk/wiki/doku.php
+
 Once you have it, run the following command:
 
      	./configure
@@ -41,20 +44,22 @@ A Coccinelle-specific target is defined in the top level
 Makefile. This target is named 'coccicheck' and calls the 'coccicheck'
 front-end in the 'scripts' directory.
 
-Four modes are defined: report, patch, context, and org. The mode to
+Four modes are defined: patch, report, context, and org. The mode to
 use is specified by setting the MODE variable with 'MODE=<mode>'.
+
+'patch' proposes a fix, when possible.
 
 'report' generates a list in the following format:
   file:line:column-column: message
-
-'patch' proposes a fix, when possible.
 
 'context' highlights lines of interest and their context in a
 diff-like style.Lines of interest are indicated with '-'.
 
 'org' generates a report in the Org mode format of Emacs.
 
-Note that not all semantic patches implement all modes.
+Note that not all semantic patches implement all modes. For easy use
+of Coccinelle, the default mode is "chain" which tries the previous
+modes in the order above until one succeeds.
 
 To make a report for every semantic patch, run the following command:
 
@@ -68,9 +73,9 @@ To produce patches, run:
 
 
 The coccicheck target applies every semantic patch available in the
-subdirectories of 'scripts/coccinelle' to the entire Linux kernel.
+sub-directories of 'scripts/coccinelle' to the entire Linux kernel.
 
-For each semantic patch, a changelog message is proposed.  It gives a
+For each semantic patch, a commit message is proposed.  It gives a
 description of the problem being checked by the semantic patch, and
 includes a reference to Coccinelle.
 
@@ -93,12 +98,35 @@ or
 	make coccicheck COCCI=<my_SP.cocci> MODE=report
 
 
+ Using Coccinelle on (modified) files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To apply Coccinelle on a file basis, instead of a directory basis, the
+following command may be used:
+
+    make C=1 CHECK="scripts/coccicheck"
+
+To check only newly edited code, use the value 2 for the C flag, i.e.
+
+    make C=2 CHECK="scripts/coccicheck"
+
+This runs every semantic patch in scripts/coccinelle by default. The
+COCCI variable may additionally be used to only apply a single
+semantic patch as shown in the previous section.
+
+The "chain" mode is the default. You can select another one with the
+MODE variable explained above.
+
+In this mode, there is no information about semantic patches
+displayed, and no commit message proposed.
+
+
  Proposing new semantic patches
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 New semantic patches can be proposed and submitted by kernel
 developers. For sake of clarity, they should be organized in the
-subdirectories of 'scripts/coccinelle/'.
+sub-directories of 'scripts/coccinelle/'.
 
 
  Detailed description of the 'report' mode
@@ -111,7 +139,7 @@ Example:
 
 Running
 
-	make coccicheck MODE=report COCCI=scripts/coccinelle/err_cast.cocci
+	make coccicheck MODE=report COCCI=scripts/coccinelle/api/err_cast.cocci
 
 will execute the following part of the SmPL script.
 
@@ -149,7 +177,7 @@ identified.
 Example:
 
 Running
-	make coccicheck MODE=patch COCCI=scripts/coccinelle/err_cast.cocci
+	make coccicheck MODE=patch COCCI=scripts/coccinelle/api/err_cast.cocci
 
 will execute the following part of the SmPL script.
 
@@ -193,7 +221,7 @@ NOTE: The diff-like output generated is NOT an applicable patch. The
 Example:
 
 Running
-	make coccicheck MODE=context COCCI=scripts/coccinelle/err_cast.cocci
+	make coccicheck MODE=context COCCI=scripts/coccinelle/api/err_cast.cocci
 
 will execute the following part of the SmPL script.
 
@@ -228,7 +256,7 @@ diff -u -p /home/user/linux/crypto/ctr.c /tmp/nothing
 Example:
 
 Running
-	make coccicheck MODE=org COCCI=scripts/coccinelle/err_cast.cocci
+	make coccicheck MODE=org COCCI=scripts/coccinelle/api/err_cast.cocci
 
 will execute the following part of the SmPL script.
 

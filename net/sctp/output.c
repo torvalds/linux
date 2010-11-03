@@ -41,6 +41,8 @@
  * be incorporated into the next SCTP release.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/wait.h>
@@ -92,7 +94,6 @@ struct sctp_packet *sctp_packet_config(struct sctp_packet *packet,
 	SCTP_DEBUG_PRINTK("%s: packet:%p vtag:0x%x\n", __func__,
 			  packet, vtag);
 
-	sctp_packet_reset(packet);
 	packet->vtag = vtag;
 
 	if (ecn_capable && sctp_packet_empty(packet)) {

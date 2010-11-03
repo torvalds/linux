@@ -147,6 +147,7 @@ struct memory_timings {
 };
 
 extern void omap2xxx_sdrc_init_params(u32 force_lock_to_unlock_mode);
+struct omap_sdrc_params *rx51_get_sdram_timings(void);
 
 u32 omap2xxx_sdrc_dll_is_unlocked(void);
 u32 omap2xxx_sdrc_reprogram(u32 level, u32 force);

@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "uClinux/68k (w/o MMU) Kernel Configuration"
-
 config M68K
 	bool
 	default y
@@ -56,6 +49,10 @@ config GENERIC_HWEIGHT
 	default y
 
 config GENERIC_HARDIRQS
+	bool
+	default y
+
+config GENERIC_HARDIRQS_NO__DO_IRQ
 	bool
 	default y
 
@@ -171,6 +168,11 @@ config M5407
 	help
 	  Motorola ColdFire 5407 processor support.
 
+config M548x
+	bool "MCF548x"
+	help
+	  Freescale ColdFire 5480/5481/5482/5483/5484/5485 processor support.
+
 endchoice
 
 config M527x
@@ -181,7 +183,7 @@ config M527x
 
 config COLDFIRE
 	bool
-	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M532x || M5407)
+	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M532x || M5407 || M548x)
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	default y

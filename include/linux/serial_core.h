@@ -44,7 +44,8 @@
 #define PORT_RM9000	16	/* PMC-Sierra RM9xxx internal UART */
 #define PORT_OCTEON	17	/* Cavium OCTEON internal UART */
 #define PORT_AR7	18	/* Texas Instruments AR7 internal UART */
-#define PORT_MAX_8250	18	/* max port ID */
+#define PORT_U6_16550A	19	/* ST-Ericsson U6xxx internal UART */
+#define PORT_MAX_8250	19	/* max port ID */
 
 /*
  * ARM specific type numbers.  These are not currently guaranteed
@@ -195,6 +196,9 @@
 /* High Speed UART for Medfield */
 #define PORT_MFD	95
 
+/* TI OMAP-UART */
+#define PORT_OMAP	96
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>
@@ -288,6 +292,8 @@ struct uart_port {
 	void			(*set_termios)(struct uart_port *,
 				               struct ktermios *new,
 				               struct ktermios *old);
+	void			(*pm)(struct uart_port *, unsigned int state,
+				      unsigned int old);
 	unsigned int		irq;			/* irq number */
 	unsigned long		irqflags;		/* irq flags  */
 	unsigned int		uartclk;		/* base uart clock */
@@ -410,6 +416,14 @@ unsigned int uart_get_baud_rate(struct uart_port *port, struct ktermios *termios
 				unsigned int max);
 unsigned int uart_get_divisor(struct uart_port *port, unsigned int baud);
 
+/* Base timer interval for polling */
+static inline int uart_poll_timeout(struct uart_port *port)
+{
+	int timeout = port->timeout;
+
+	return timeout > 6 ? (timeout / 2 - 2) : 1;
+}
+
 /*
  * Console helpers.
  */
@@ -465,7 +479,7 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 #ifdef SUPPORT_SYSRQ
 	if (port->sysrq) {
 		if (ch && time_before(jiffies, port->sysrq)) {
-			handle_sysrq(ch, port->state->port.tty);
+			handle_sysrq(ch);
 			port->sysrq = 0;
 			return 1;
 		}

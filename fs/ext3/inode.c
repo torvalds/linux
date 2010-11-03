@@ -498,7 +498,7 @@ static ext3_fsblk_t ext3_find_goal(struct inode *inode, long block,
 }
 
 /**
- *	ext3_blks_to_allocate: Look up the block map and count the number
+ *	ext3_blks_to_allocate - Look up the block map and count the number
  *	of direct blocks need to be allocated for the given branch.
  *
  *	@branch: chain of indirect blocks
@@ -536,14 +536,18 @@ static int ext3_blks_to_allocate(Indirect *branch, int k, unsigned long blks,
 }
 
 /**
- *	ext3_alloc_blocks: multiple allocate blocks needed for a branch
+ *	ext3_alloc_blocks - multiple allocate blocks needed for a branch
+ *	@handle: handle for this transaction
+ *	@inode: owner
+ *	@goal: preferred place for allocation
  *	@indirect_blks: the number of blocks need to allocate for indirect
  *			blocks
- *
+ *	@blks:	number of blocks need to allocated for direct blocks
  *	@new_blocks: on return it will store the new block numbers for
  *	the indirect blocks(if needed) and the first direct block,
- *	@blks:	on return it will store the total number of allocated
- *		direct blocks
+ *	@err: here we store the error value
+ *
+ *	return the number of direct blocks allocated
  */
 static int ext3_alloc_blocks(handle_t *handle, struct inode *inode,
 			ext3_fsblk_t goal, int indirect_blks, int blks,
@@ -598,9 +602,11 @@ failed_out:
 
 /**
  *	ext3_alloc_branch - allocate and set up a chain of blocks.
+ *	@handle: handle for this transaction
  *	@inode: owner
  *	@indirect_blks: number of allocated indirect blocks
  *	@blks: number of allocated direct blocks
+ *	@goal: preferred place for allocation
  *	@offsets: offsets (in the blocks) to store the pointers to next.
  *	@branch: place to store the chain in.
  *
@@ -700,10 +706,9 @@ failed:
 
 /**
  * ext3_splice_branch - splice the allocated branch onto inode.
+ * @handle: handle for this transaction
  * @inode: owner
  * @block: (logical) number of block we are adding
- * @chain: chain of indirect blocks (with a missing link - see
- *	ext3_alloc_branch)
  * @where: location of missing link
  * @num:   number of indirect blocks we are adding
  * @blks:  number of direct blocks we are adding
@@ -1696,8 +1701,8 @@ static int ext3_journalled_writepage(struct page *page,
 		 * doesn't seem much point in redirtying the page here.
 		 */
 		ClearPageChecked(page);
-		ret = block_prepare_write(page, 0, PAGE_CACHE_SIZE,
-					ext3_get_block);
+		ret = __block_write_begin(page, 0, PAGE_CACHE_SIZE,
+					  ext3_get_block);
 		if (ret != 0) {
 			ext3_journal_stop(handle);
 			goto out_unlock;
@@ -2530,7 +2535,6 @@ void ext3_truncate(struct inode *inode)
 			 */
 		} else {
 			/* Shared branch grows from an indirect block */
-			BUFFER_TRACE(partial->bh, "get_write_access");
 			ext3_free_branches(handle, inode, partial->bh,
 					partial->p,
 					partial->p+1, (chain+n-1) - partial);

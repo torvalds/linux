@@ -477,7 +477,7 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 
 	ioid = cell_iommu_get_ioid(np);
 
-	window = kmalloc_node(sizeof(*window), GFP_KERNEL, iommu->nid);
+	window = kzalloc_node(sizeof(*window), GFP_KERNEL, iommu->nid);
 	BUG_ON(window == NULL);
 
 	window->offset = offset;

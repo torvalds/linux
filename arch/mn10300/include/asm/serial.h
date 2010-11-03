@@ -9,10 +9,8 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
-/*
- * The ASB2305 has an 18.432 MHz clock the UART
- */
-#define BASE_BAUD	(18432000 / 16)
+#ifndef _ASM_SERIAL_H
+#define _ASM_SERIAL_H
 
 /* Standard COM flags (except for COM4, because of the 8514 problem) */
 #ifdef CONFIG_SERIAL_DETECT_IRQ
@@ -34,3 +32,5 @@
 #endif
 
 #include <unit/serial.h>
+
+#endif /* _ASM_SERIAL_H */

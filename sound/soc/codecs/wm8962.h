@@ -3775,17 +3775,6 @@
 #define WM8962_VSS_ENA_SHIFT                         0  /* VSS_ENA */
 #define WM8962_VSS_ENA_WIDTH                         1  /* VSS_ENA */
 
-extern const u16 wm8962_reg[WM8962_MAX_REGISTER + 1];
-
-struct wm8962_reg_access {
-	u16 read;
-	u16 write;
-	u16 vol;
-};
-
-extern
-const struct wm8962_reg_access wm8962_reg_access[WM8962_MAX_REGISTER + 1];
-
 int wm8962_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
 
 #endif

@@ -77,6 +77,15 @@ config USB_GSPCA_JEILINJ
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_jeilinj.
 
+config USB_GSPCA_KONICA
+	tristate "Konica USB Camera V4L2 driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the Konica chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_konica.
+
 config USB_GSPCA_MARS
 	tristate "Mars USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
@@ -336,6 +345,15 @@ config USB_GSPCA_VC032X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_vc032x.
+
+config USB_GSPCA_XIRLINK_CIT
+	tristate "Xirlink C-It USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for Xirlink C-It bases cameras.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_xirlink_cit.
 
 config USB_GSPCA_ZC3XX
 	tristate "ZC3XX USB Camera Driver"

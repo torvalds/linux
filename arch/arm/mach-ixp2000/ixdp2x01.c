@@ -416,8 +416,6 @@ static void __init ixdp2x01_init_machine(void)
 #ifdef CONFIG_ARCH_IXDP2401
 MACHINE_START(IXDP2401, "Intel IXDP2401 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
-	.phys_io	= IXP2000_UART_PHYS_BASE,
-	.io_pg_offst	= ((IXP2000_UART_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.map_io		= ixdp2x01_map_io,
 	.init_irq	= ixdp2x01_init_irq,
@@ -429,8 +427,6 @@ MACHINE_END
 #ifdef CONFIG_ARCH_IXDP2801
 MACHINE_START(IXDP2801, "Intel IXDP2801 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
-	.phys_io	= IXP2000_UART_PHYS_BASE,
-	.io_pg_offst	= ((IXP2000_UART_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.map_io		= ixdp2x01_map_io,
 	.init_irq	= ixdp2x01_init_irq,
@@ -444,8 +440,6 @@ MACHINE_END
  */
 MACHINE_START(IXDP28X5, "Intel IXDP2805/2855 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
-	.phys_io	= IXP2000_UART_PHYS_BASE,
-	.io_pg_offst	= ((IXP2000_UART_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.map_io		= ixdp2x01_map_io,
 	.init_irq	= ixdp2x01_init_irq,

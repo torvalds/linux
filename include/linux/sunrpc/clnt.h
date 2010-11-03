@@ -30,7 +30,7 @@ struct rpc_inode;
  * The high-level client handle
  */
 struct rpc_clnt {
-	struct kref		cl_kref;	/* Number of references */
+	atomic_t		cl_count;	/* Number of references */
 	struct list_head	cl_clients;	/* Global list of clients */
 	struct list_head	cl_tasks;	/* List of tasks */
 	spinlock_t		cl_lock;	/* spinlock */
@@ -102,6 +102,7 @@ struct rpc_procinfo {
 #ifdef __KERNEL__
 
 struct rpc_create_args {
+	struct net		*net;
 	int			protocol;
 	struct sockaddr		*address;
 	size_t			addrsize;
@@ -137,7 +138,6 @@ int		rpcb_register(u32, u32, int, unsigned short);
 int		rpcb_v4_register(const u32 program, const u32 version,
 				 const struct sockaddr *address,
 				 const char *netid);
-int		rpcb_getport_sync(struct sockaddr_in *, u32, u32, int);
 void		rpcb_getport_async(struct rpc_task *);
 
 void		rpc_call_start(struct rpc_task *);

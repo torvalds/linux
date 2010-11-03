@@ -18,7 +18,6 @@
 #include <linux/io.h>
 
 #include <pcmcia/ss.h>
-#include <pcmcia/cs.h>
 
 #include <asm/system.h>
 
@@ -646,7 +645,7 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 	if (!pci_resource_start(dev, 0)) {
 		dev_warn(&dev->dev, "refusing to load the driver as the "
 			"io_base is NULL.\n");
-		goto err_out_free_mem;
+		goto err_out_disable;
 	}
 
 	dev_info(&dev->dev, "Cirrus PD6729 PCI to PCMCIA Bridge at 0x%llx "

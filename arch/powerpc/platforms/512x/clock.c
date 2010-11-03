@@ -57,7 +57,7 @@ static struct clk *mpc5121_clk_get(struct device *dev, const char *id)
 	int id_match = 0;
 
 	if (dev == NULL || id == NULL)
-		return NULL;
+		return clk;
 
 	mutex_lock(&clocks_mutex);
 	list_for_each_entry(p, &clocks, node) {

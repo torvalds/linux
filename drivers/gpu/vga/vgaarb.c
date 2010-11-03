@@ -598,7 +598,7 @@ static inline void vga_update_device_decodes(struct vga_device *vgadev,
 	pr_debug("vgaarb: decoding count now is: %d\n", vga_decode_count);
 }
 
-void __vga_set_legacy_decoding(struct pci_dev *pdev, unsigned int decodes, bool userspace)
+static void __vga_set_legacy_decoding(struct pci_dev *pdev, unsigned int decodes, bool userspace)
 {
 	struct vga_device *vgadev;
 	unsigned long flags;
@@ -1211,6 +1211,7 @@ static const struct file_operations vga_arb_device_fops = {
 	.poll = vga_arb_fpoll,
 	.open = vga_arb_open,
 	.release = vga_arb_release,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice vga_arb_device = {

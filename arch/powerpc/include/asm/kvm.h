@@ -86,5 +86,6 @@ struct kvm_guest_debug_arch {
 
 #define KVM_INTERRUPT_SET	-1U
 #define KVM_INTERRUPT_UNSET	-2U
+#define KVM_INTERRUPT_SET_LEVEL	-3U
 
 #endif /* __LINUX_KVM_POWERPC_H */

@@ -42,7 +42,7 @@
   *	Public function declarations for prom-based chipset
   ************************************************************************/
 int rtmp_ee_prom_read16(struct rt_rtmp_adapter *pAd,
-			u16 Offset, u16 * pValue);
+			u16 Offset, u16 *pValue);
 #endif /* RTMP_PCI_SUPPORT // */
 #ifdef RTMP_USB_SUPPORT
 /*************************************************************************
@@ -55,7 +55,7 @@ int RTUSBReadEEPROM16(struct rt_rtmp_adapter *pAd,
 #ifdef RT30xx
 #ifdef RTMP_EFUSE_SUPPORT
 int rtmp_ee_efuse_read16(struct rt_rtmp_adapter *pAd,
-			 u16 Offset, u16 * pValue);
+			 u16 Offset, u16 *pValue);
 #endif /* RTMP_EFUSE_SUPPORT // */
 #endif /* RT30xx // */
 

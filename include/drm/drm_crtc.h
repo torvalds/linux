@@ -221,7 +221,8 @@ struct drm_framebuffer_funcs {
 	 * the semantics and arguments have a one to one mapping
 	 * on this function.
 	 */
-	int (*dirty)(struct drm_framebuffer *framebuffer, unsigned flags,
+	int (*dirty)(struct drm_framebuffer *framebuffer,
+		     struct drm_file *file_priv, unsigned flags,
 		     unsigned color, struct drm_clip_rect *clips,
 		     unsigned num_clips);
 };
@@ -386,7 +387,15 @@ struct drm_connector_funcs {
 	void (*dpms)(struct drm_connector *connector, int mode);
 	void (*save)(struct drm_connector *connector);
 	void (*restore)(struct drm_connector *connector);
-	enum drm_connector_status (*detect)(struct drm_connector *connector);
+
+	/* Check to see if anything is attached to the connector.
+	 * @force is set to false whilst polling, true when checking the
+	 * connector due to user request. @force can be used by the driver
+	 * to avoid expensive, destructive operations during automated
+	 * probing.
+	 */
+	enum drm_connector_status (*detect)(struct drm_connector *connector,
+					    bool force);
 	int (*fill_modes)(struct drm_connector *connector, uint32_t max_width, uint32_t max_height);
 	int (*set_property)(struct drm_connector *connector, struct drm_property *property,
 			     uint64_t val);
@@ -754,6 +763,7 @@ extern int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern bool drm_detect_hdmi_monitor(struct edid *edid);
+extern bool drm_detect_monitor_audio(struct edid *edid);
 extern int drm_mode_page_flip_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,

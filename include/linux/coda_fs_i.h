@@ -10,19 +10,24 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/spinlock.h>
 #include <linux/coda.h>
 
 /*
  * coda fs inode data
+ * c_lock protects accesses to c_flags, c_mapcount, c_cached_epoch, c_uid and
+ * c_cached_perm.
+ * vfs_inode is set only when the inode is created and never changes.
+ * c_fid is set when the inode is created and should be considered immutable.
  */
 struct coda_inode_info {
-        struct CodaFid	   c_fid;	/* Coda identifier */
-        u_short	           c_flags;     /* flags (see below) */
-	struct list_head   c_cilist;    /* list of all coda inodes */
+	struct CodaFid	   c_fid;	/* Coda identifier */
+	u_short	           c_flags;     /* flags (see below) */
 	unsigned int	   c_mapcount;  /* nr of times this inode is mapped */
 	unsigned int	   c_cached_epoch; /* epoch for cached permissions */
 	vuid_t		   c_uid;	/* fsuid for cached permissions */
-        unsigned int       c_cached_perm; /* cached access permissions */
+	unsigned int       c_cached_perm; /* cached access permissions */
+	spinlock_t	   c_lock;
 	struct inode	   vfs_inode;
 };
 

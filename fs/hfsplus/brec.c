@@ -42,10 +42,13 @@ u16 hfs_brec_keylen(struct hfs_bnode *node, u16 rec)
 		recoff = hfs_bnode_read_u16(node, node->tree->node_size - (rec + 1) * 2);
 		if (!recoff)
 			return 0;
-		if (node->tree->attributes & HFS_TREE_BIGKEYS)
-			retval = hfs_bnode_read_u16(node, recoff) + 2;
-		else
-			retval = (hfs_bnode_read_u8(node, recoff) | 1) + 1;
+
+		retval = hfs_bnode_read_u16(node, recoff) + 2;
+		if (retval > node->tree->max_key_len + 2) {
+			printk(KERN_ERR "hfs: keylen %d too large\n",
+				retval);
+			retval = 0;
+		}
 	}
 	return retval;
 }
@@ -216,7 +219,7 @@ skip:
 static struct hfs_bnode *hfs_bnode_split(struct hfs_find_data *fd)
 {
 	struct hfs_btree *tree;
-	struct hfs_bnode *node, *new_node;
+	struct hfs_bnode *node, *new_node, *next_node;
 	struct hfs_bnode_desc node_desc;
 	int num_recs, new_rec_off, new_off, old_rec_off;
 	int data_start, data_end, size;
@@ -235,6 +238,17 @@ static struct hfs_bnode *hfs_bnode_split(struct hfs_find_data *fd)
 	new_node->type = node->type;
 	new_node->height = node->height;
 
+	if (node->next)
+		next_node = hfs_bnode_find(tree, node->next);
+	else
+		next_node = NULL;
+
+	if (IS_ERR(next_node)) {
+		hfs_bnode_put(node);
+		hfs_bnode_put(new_node);
+		return next_node;
+	}
+
 	size = tree->node_size / 2 - node->num_recs * 2 - 14;
 	old_rec_off = tree->node_size - 4;
 	num_recs = 1;
@@ -248,6 +262,8 @@ static struct hfs_bnode *hfs_bnode_split(struct hfs_find_data *fd)
 		/* panic? */
 		hfs_bnode_put(node);
 		hfs_bnode_put(new_node);
+		if (next_node)
+			hfs_bnode_put(next_node);
 		return ERR_PTR(-ENOSPC);
 	}
 
@@ -302,8 +318,7 @@ static struct hfs_bnode *hfs_bnode_split(struct hfs_find_data *fd)
 	hfs_bnode_write(node, &node_desc, 0, sizeof(node_desc));
 
 	/* update next bnode header */
-	if (new_node->next) {
-		struct hfs_bnode *next_node = hfs_bnode_find(tree, new_node->next);
+	if (next_node) {
 		next_node->prev = new_node->this;
 		hfs_bnode_read(next_node, &node_desc, 0, sizeof(node_desc));
 		node_desc.prev = cpu_to_be32(next_node->prev);

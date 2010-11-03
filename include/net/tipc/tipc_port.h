@@ -88,8 +88,6 @@ void tipc_acknowledge(u32 port_ref,u32 ack);
 
 struct tipc_port *tipc_get_port(const u32 ref);
 
-void *tipc_get_handle(const u32 ref);
-
 /*
  * The following routines require that the port be locked on entry
  */

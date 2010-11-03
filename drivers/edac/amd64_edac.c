@@ -1,5 +1,5 @@
 #include "amd64_edac.h"
-#include <asm/k8.h>
+#include <asm/amd_nb.h>
 
 static struct edac_pci_ctl_info *amd64_ctl_pci;
 
@@ -2071,23 +2071,20 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 		amd64_handle_ce(mci, info);
 	else if (ecc_type == 1)
 		amd64_handle_ue(mci, info);
-
-	/*
-	 * If main error is CE then overflow must be CE.  If main error is UE
-	 * then overflow is unknown.  We'll call the overflow a CE - if
-	 * panic_on_ue is set then we're already panic'ed and won't arrive
-	 * here. Else, then apparently someone doesn't think that UE's are
-	 * catastrophic.
-	 */
-	if (info->nbsh & K8_NBSH_OVERFLOW)
-		edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR " Error Overflow");
 }
 
-void amd64_decode_bus_error(int node_id, struct err_regs *regs)
+void amd64_decode_bus_error(int node_id, struct mce *m, u32 nbcfg)
 {
 	struct mem_ctl_info *mci = mci_lookup[node_id];
+	struct err_regs regs;
 
-	__amd64_decode_bus_error(mci, regs);
+	regs.nbsl  = (u32) m->status;
+	regs.nbsh  = (u32)(m->status >> 32);
+	regs.nbeal = (u32) m->addr;
+	regs.nbeah = (u32)(m->addr >> 32);
+	regs.nbcfg = nbcfg;
+
+	__amd64_decode_bus_error(mci, &regs);
 
 	/*
 	 * Check the UE bit of the NB status high register, if set generate some
@@ -2096,7 +2093,7 @@ void amd64_decode_bus_error(int node_id, struct err_regs *regs)
 	 *
 	 * FIXME: this should go somewhere else, if at all.
 	 */
-	if (regs->nbsh & K8_NBSH_UC_ERR && !report_gart_errors)
+	if (regs.nbsh & K8_NBSH_UC_ERR && !report_gart_errors)
 		edac_mc_handle_ue_no_info(mci, "UE bit is set");
 
 }
@@ -2937,7 +2934,7 @@ static int __init amd64_edac_init(void)
 	 * to finish initialization of the MC instances.
 	 */
 	err = -ENODEV;
-	for (nb = 0; nb < num_k8_northbridges; nb++) {
+	for (nb = 0; nb < k8_northbridges.num; nb++) {
 		if (!pvt_lookup[nb])
 			continue;
 

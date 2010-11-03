@@ -30,6 +30,7 @@
 #include <linux/capability.h>
 #include <linux/syscalls.h>
 #include <linux/memcontrol.h>
+#include <linux/poll.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -47,8 +48,6 @@ long nr_swap_pages;
 long total_swap_pages;
 static int least_priority;
 
-static bool swap_for_hibernation;
-
 static const char Bad_file[] = "Bad swap file entry ";
 static const char Unused_file[] = "Unused swap file entry ";
 static const char Bad_offset[] = "Bad swap offset entry ";
@@ -59,6 +58,10 @@ static struct swap_list_t swap_list = {-1, -1};
 static struct swap_info_struct *swap_info[MAX_SWAPFILES];
 
 static DEFINE_MUTEX(swapon_mutex);
+
+static DECLARE_WAIT_QUEUE_HEAD(proc_poll_wait);
+/* Activity counter to indicate that a swapon or swapoff has occurred */
+static atomic_t proc_poll_event = ATOMIC_INIT(0);
 
 static inline unsigned char swap_count(unsigned char ent)
 {
@@ -141,8 +144,7 @@ static int discard_swap(struct swap_info_struct *si)
 	nr_blocks = ((sector_t)se->nr_pages - 1) << (PAGE_SHIFT - 9);
 	if (nr_blocks) {
 		err = blkdev_issue_discard(si->bdev, start_block,
-				nr_blocks, GFP_KERNEL,
-				BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
+				nr_blocks, GFP_KERNEL, 0);
 		if (err)
 			return err;
 		cond_resched();
@@ -153,8 +155,7 @@ static int discard_swap(struct swap_info_struct *si)
 		nr_blocks = (sector_t)se->nr_pages << (PAGE_SHIFT - 9);
 
 		err = blkdev_issue_discard(si->bdev, start_block,
-				nr_blocks, GFP_KERNEL,
-				BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
+				nr_blocks, GFP_KERNEL, 0);
 		if (err)
 			break;
 
@@ -193,8 +194,7 @@ static void discard_swap_cluster(struct swap_info_struct *si,
 			start_block <<= PAGE_SHIFT - 9;
 			nr_blocks <<= PAGE_SHIFT - 9;
 			if (blkdev_issue_discard(si->bdev, start_block,
-				    nr_blocks, GFP_NOIO, BLKDEV_IFL_WAIT |
-							BLKDEV_IFL_BARRIER))
+				    nr_blocks, GFP_NOIO, 0))
 				break;
 		}
 
@@ -320,10 +320,8 @@ checks:
 	if (offset > si->highest_bit)
 		scan_base = offset = si->lowest_bit;
 
-	/* reuse swap entry of cache-only swap if not hibernation. */
-	if (vm_swap_full()
-		&& usage == SWAP_HAS_CACHE
-		&& si->swap_map[offset] == SWAP_HAS_CACHE) {
+	/* reuse swap entry of cache-only swap if not busy. */
+	if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
 		int swap_was_freed;
 		spin_unlock(&swap_lock);
 		swap_was_freed = __try_to_reclaim_swap(si, offset);
@@ -453,8 +451,6 @@ swp_entry_t get_swap_page(void)
 	spin_lock(&swap_lock);
 	if (nr_swap_pages <= 0)
 		goto noswap;
-	if (swap_for_hibernation)
-		goto noswap;
 	nr_swap_pages--;
 
 	for (type = swap_list.next; type >= 0 && wrapped < 2; type = next) {
@@ -483,6 +479,28 @@ swp_entry_t get_swap_page(void)
 
 	nr_swap_pages++;
 noswap:
+	spin_unlock(&swap_lock);
+	return (swp_entry_t) {0};
+}
+
+/* The only caller of this function is now susupend routine */
+swp_entry_t get_swap_page_of_type(int type)
+{
+	struct swap_info_struct *si;
+	pgoff_t offset;
+
+	spin_lock(&swap_lock);
+	si = swap_info[type];
+	if (si && (si->flags & SWP_WRITEOK)) {
+		nr_swap_pages--;
+		/* This is called for allocating swap entry, not cache */
+		offset = scan_swap_map(si, 1);
+		if (offset) {
+			spin_unlock(&swap_lock);
+			return swp_entry(type, offset);
+		}
+		nr_swap_pages++;
+	}
 	spin_unlock(&swap_lock);
 	return (swp_entry_t) {0};
 }
@@ -670,6 +688,24 @@ int try_to_free_swap(struct page *page)
 	if (page_swapcount(page))
 		return 0;
 
+	/*
+	 * Once hibernation has begun to create its image of memory,
+	 * there's a danger that one of the calls to try_to_free_swap()
+	 * - most probably a call from __try_to_reclaim_swap() while
+	 * hibernation is allocating its own swap pages for the image,
+	 * but conceivably even a call from memory reclaim - will free
+	 * the swap from a page which has already been recorded in the
+	 * image as a clean swapcache page, and then reuse its swap for
+	 * another page of the image.  On waking from hibernation, the
+	 * original page might be freed under memory pressure, then
+	 * later read back in from swap, now with the wrong data.
+	 *
+	 * Hibernation clears bits from gfp_allowed_mask to prevent
+	 * memory reclaim from writing to disk, so check that here.
+	 */
+	if (!(gfp_allowed_mask & __GFP_IO))
+		return 0;
+
 	delete_from_swap_cache(page);
 	SetPageDirty(page);
 	return 1;
@@ -746,74 +782,6 @@ int mem_cgroup_count_swap_user(swp_entry_t ent, struct page **pagep)
 #endif
 
 #ifdef CONFIG_HIBERNATION
-
-static pgoff_t hibernation_offset[MAX_SWAPFILES];
-/*
- * Once hibernation starts to use swap, we freeze swap_map[]. Otherwise,
- * saved swap_map[] image to the disk will be an incomplete because it's
- * changing without synchronization with hibernation snap shot.
- * At resume, we just make swap_for_hibernation=false. We can forget
- * used maps easily.
- */
-void hibernation_freeze_swap(void)
-{
-	int i;
-
-	spin_lock(&swap_lock);
-
-	printk(KERN_INFO "PM: Freeze Swap\n");
-	swap_for_hibernation = true;
-	for (i = 0; i < MAX_SWAPFILES; i++)
-		hibernation_offset[i] = 1;
-	spin_unlock(&swap_lock);
-}
-
-void hibernation_thaw_swap(void)
-{
-	spin_lock(&swap_lock);
-	if (swap_for_hibernation) {
-		printk(KERN_INFO "PM: Thaw Swap\n");
-		swap_for_hibernation = false;
-	}
-	spin_unlock(&swap_lock);
-}
-
-/*
- * Because updateing swap_map[] can make not-saved-status-change,
- * we use our own easy allocator.
- * Please see kernel/power/swap.c, Used swaps are recorded into
- * RB-tree.
- */
-swp_entry_t get_swap_for_hibernation(int type)
-{
-	pgoff_t off;
-	swp_entry_t val = {0};
-	struct swap_info_struct *si;
-
-	spin_lock(&swap_lock);
-
-	si = swap_info[type];
-	if (!si || !(si->flags & SWP_WRITEOK))
-		goto done;
-
-	for (off = hibernation_offset[type]; off < si->max; ++off) {
-		if (!si->swap_map[off])
-			break;
-	}
-	if (off < si->max) {
-		val = swp_entry(type, off);
-		hibernation_offset[type] = off + 1;
-	}
-done:
-	spin_unlock(&swap_lock);
-	return val;
-}
-
-void swap_free_for_hibernation(swp_entry_t ent)
-{
-	/* Nothing to do */
-}
-
 /*
  * Find the swap type that corresponds to given device (if any).
  *
@@ -1717,6 +1685,8 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	}
 	filp_close(swap_file, NULL);
 	err = 0;
+	atomic_inc(&proc_poll_event);
+	wake_up_interruptible(&proc_poll_wait);
 
 out_dput:
 	filp_close(victim, NULL);
@@ -1725,6 +1695,25 @@ out:
 }
 
 #ifdef CONFIG_PROC_FS
+struct proc_swaps {
+	struct seq_file seq;
+	int event;
+};
+
+static unsigned swaps_poll(struct file *file, poll_table *wait)
+{
+	struct proc_swaps *s = file->private_data;
+
+	poll_wait(file, &proc_poll_wait, wait);
+
+	if (s->event != atomic_read(&proc_poll_event)) {
+		s->event = atomic_read(&proc_poll_event);
+		return POLLIN | POLLRDNORM | POLLERR | POLLPRI;
+	}
+
+	return POLLIN | POLLRDNORM;
+}
+
 /* iterator */
 static void *swap_start(struct seq_file *swap, loff_t *pos)
 {
@@ -1808,7 +1797,24 @@ static const struct seq_operations swaps_op = {
 
 static int swaps_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &swaps_op);
+	struct proc_swaps *s;
+	int ret;
+
+	s = kmalloc(sizeof(struct proc_swaps), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	file->private_data = s;
+
+	ret = seq_open(file, &swaps_op);
+	if (ret) {
+		kfree(s);
+		return ret;
+	}
+
+	s->seq.private = s;
+	s->event = atomic_read(&proc_poll_event);
+	return ret;
 }
 
 static const struct file_operations proc_swaps_operations = {
@@ -1816,6 +1822,7 @@ static const struct file_operations proc_swaps_operations = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
+	.poll		= swaps_poll,
 };
 
 static int __init procswaps_init(void)
@@ -2084,7 +2091,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 			p->flags |= SWP_SOLIDSTATE;
 			p->cluster_next = 1 + (random32() % p->highest_bit);
 		}
-		if (discard_swap(p) == 0)
+		if (discard_swap(p) == 0 && (swap_flags & SWAP_FLAG_DISCARD))
 			p->flags |= SWP_DISCARDABLE;
 	}
 
@@ -2121,6 +2128,9 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		swap_info[prev]->next = type;
 	spin_unlock(&swap_lock);
 	mutex_unlock(&swapon_mutex);
+	atomic_inc(&proc_poll_event);
+	wake_up_interruptible(&proc_poll_wait);
+
 	error = 0;
 	goto out;
 bad_swap:

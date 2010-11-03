@@ -193,8 +193,7 @@ Description:
 static inline u64
 GetRingBufferIndices(struct hv_ring_buffer_info *RingInfo)
 {
-	return ((u64)RingInfo->RingBuffer->WriteIndex << 32)
-	|| RingInfo->RingBuffer->ReadIndex;
+	return (u64)RingInfo->RingBuffer->WriteIndex << 32;
 }
 
 

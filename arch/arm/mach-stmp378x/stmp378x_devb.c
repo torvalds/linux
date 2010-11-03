@@ -324,8 +324,6 @@ static void __init stmp378x_devb_init(void)
 }
 
 MACHINE_START(STMP378X, "STMP378X")
-	.phys_io	= 0x80000000,
-	.io_pg_offst	= ((0xf0000000) >> 18) & 0xfffc,
 	.boot_params	= 0x40000100,
 	.map_io		= stmp378x_map_io,
 	.init_irq	= stmp378x_init_irq,

@@ -420,7 +420,7 @@ int exofs_set_link(struct inode *dir, struct exofs_dir_entry *de,
 	err = exofs_write_begin(NULL, page->mapping, pos, len,
 				AOP_FLAG_UNINTERRUPTIBLE, &page, NULL);
 	if (err)
-		EXOFS_ERR("exofs_set_link: exofs_write_begin FAILD => %d\n",
+		EXOFS_ERR("exofs_set_link: exofs_write_begin FAILED => %d\n",
 			  err);
 
 	de->inode_no = cpu_to_le64(inode->i_ino);
@@ -556,7 +556,7 @@ int exofs_delete_entry(struct exofs_dir_entry *dir, struct page *page)
 	err = exofs_write_begin(NULL, page->mapping, pos, to - from, 0,
 							&page, NULL);
 	if (err)
-		EXOFS_ERR("exofs_delete_entry: exofs_write_begin FAILD => %d\n",
+		EXOFS_ERR("exofs_delete_entry: exofs_write_begin FAILED => %d\n",
 			  err);
 	if (pde)
 		pde->rec_len = cpu_to_le16(to - from);

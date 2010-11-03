@@ -917,19 +917,6 @@ xlog_iodone(xfs_buf_t *bp)
 	l = iclog->ic_log;
 
 	/*
-	 * If the _XFS_BARRIER_FAILED flag was set by a lower
-	 * layer, it means the underlying device no longer supports
-	 * barrier I/O. Warn loudly and turn off barriers.
-	 */
-	if (bp->b_flags & _XFS_BARRIER_FAILED) {
-		bp->b_flags &= ~_XFS_BARRIER_FAILED;
-		l->l_mp->m_flags &= ~XFS_MOUNT_BARRIER;
-		xfs_fs_cmn_err(CE_WARN, l->l_mp,
-				"xlog_iodone: Barriers are no longer supported"
-				" by device. Disabling barriers\n");
-	}
-
-	/*
 	 * Race to shutdown the filesystem if we see an error.
 	 */
 	if (XFS_TEST_ERROR((XFS_BUF_GETERROR(bp)), l->l_mp,
@@ -1131,7 +1118,8 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		iclog->ic_prev = prev_iclog;
 		prev_iclog = iclog;
 
-		bp = xfs_buf_get_noaddr(log->l_iclog_size, mp->m_logdev_targp);
+		bp = xfs_buf_get_uncached(mp->m_logdev_targp,
+						log->l_iclog_size, 0);
 		if (!bp)
 			goto out_free_iclog;
 		if (!XFS_BUF_CPSEMA(bp))
@@ -1309,7 +1297,7 @@ xlog_bdstrat(
 	if (iclog->ic_state & XLOG_STATE_IOERROR) {
 		XFS_BUF_ERROR(bp, EIO);
 		XFS_BUF_STALE(bp);
-		xfs_biodone(bp);
+		xfs_buf_ioend(bp, 0);
 		/*
 		 * It would seem logical to return EIO here, but we rely on
 		 * the log state machine to propagate I/O errors instead of
@@ -3015,7 +3003,8 @@ _xfs_log_force(
 
 	XFS_STATS_INC(xs_log_force);
 
-	xlog_cil_push(log, 1);
+	if (log->l_cilp)
+		xlog_cil_force(log);
 
 	spin_lock(&log->l_icloglock);
 
@@ -3167,7 +3156,7 @@ _xfs_log_force_lsn(
 	XFS_STATS_INC(xs_log_force);
 
 	if (log->l_cilp) {
-		lsn = xlog_cil_push_lsn(log, lsn);
+		lsn = xlog_cil_force_lsn(log, lsn);
 		if (lsn == NULLCOMMITLSN)
 			return 0;
 	}
@@ -3724,7 +3713,7 @@ xfs_log_force_umount(
 	 * call below.
 	 */
 	if (!logerror && (mp->m_flags & XFS_MOUNT_DELAYLOG))
-		xlog_cil_push(log, 1);
+		xlog_cil_force(log);
 
 	/*
 	 * We must hold both the GRANT lock and the LOG lock,

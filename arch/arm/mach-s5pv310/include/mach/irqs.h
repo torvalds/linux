@@ -3,7 +3,7 @@
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *
- * S5PV210 - IRQ definitions
+ * S5PV310 - IRQ definitions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,12 +15,14 @@
 
 #include <plat/irqs.h>
 
-/* Private Peripheral Interrupt */
+/* PPI: Private Peripheral Interrupt */
+
 #define IRQ_PPI(x)		S5P_IRQ(x+16)
 
 #define IRQ_LOCALTIMER		IRQ_PPI(13)
 
-/* Shared Peripheral Interrupt */
+/* SPI: Shared Peripheral Interrupt */
+
 #define IRQ_SPI(x)		S5P_IRQ(x+32)
 
 #define IRQ_EINT0		IRQ_SPI(40)
@@ -36,7 +38,7 @@
 #define IRQ_PCIE		IRQ_SPI(50)
 #define IRQ_SYSTEM_TIMER	IRQ_SPI(51)
 #define IRQ_MFC			IRQ_SPI(52)
-#define IRQ_WTD			IRQ_SPI(53)
+#define IRQ_WDT			IRQ_SPI(53)
 #define IRQ_AUDIO_SS		IRQ_SPI(54)
 #define IRQ_AC97		IRQ_SPI(55)
 #define IRQ_SPDIF		IRQ_SPI(56)
@@ -58,6 +60,9 @@
 #define IRQ_TIMER3_VIC		COMBINER_IRQ(22, 3)
 #define IRQ_TIMER4_VIC		COMBINER_IRQ(22, 4)
 
+#define IRQ_RTC_ALARM		COMBINER_IRQ(23, 0)
+#define IRQ_RTC_TIC		COMBINER_IRQ(23, 1)
+
 #define IRQ_UART0		COMBINER_IRQ(26, 0)
 #define IRQ_UART1		COMBINER_IRQ(26, 1)
 #define IRQ_UART2		COMBINER_IRQ(26, 2)
@@ -65,10 +70,46 @@
 #define IRQ_UART4		COMBINER_IRQ(26, 4)
 
 #define IRQ_IIC			COMBINER_IRQ(27, 0)
+#define IRQ_IIC1		COMBINER_IRQ(27, 1)
+#define IRQ_IIC2		COMBINER_IRQ(27, 2)
+#define IRQ_IIC3		COMBINER_IRQ(27, 3)
+#define IRQ_IIC4		COMBINER_IRQ(27, 4)
+#define IRQ_IIC5		COMBINER_IRQ(27, 5)
+#define IRQ_IIC6		COMBINER_IRQ(27, 6)
+#define IRQ_IIC7		COMBINER_IRQ(27, 7)
+
+#define IRQ_HSMMC0		COMBINER_IRQ(29, 0)
+#define IRQ_HSMMC1		COMBINER_IRQ(29, 1)
+#define IRQ_HSMMC2		COMBINER_IRQ(29, 2)
+#define IRQ_HSMMC3		COMBINER_IRQ(29, 3)
+
+#define IRQ_ONENAND_AUDI	COMBINER_IRQ(34, 0)
+
+#define IRQ_EINT4		COMBINER_IRQ(37, 0)
+#define IRQ_EINT5		COMBINER_IRQ(37, 1)
+#define IRQ_EINT6		COMBINER_IRQ(37, 2)
+#define IRQ_EINT7		COMBINER_IRQ(37, 3)
+#define IRQ_EINT8		COMBINER_IRQ(38, 0)
+
+#define IRQ_EINT9		COMBINER_IRQ(38, 1)
+#define IRQ_EINT10		COMBINER_IRQ(38, 2)
+#define IRQ_EINT11		COMBINER_IRQ(38, 3)
+#define IRQ_EINT12		COMBINER_IRQ(38, 4)
+#define IRQ_EINT13		COMBINER_IRQ(38, 5)
+#define IRQ_EINT14		COMBINER_IRQ(38, 6)
+#define IRQ_EINT15		COMBINER_IRQ(38, 7)
+
+#define IRQ_EINT16_31		COMBINER_IRQ(39, 0)
+
+#define MAX_COMBINER_NR		40
+
+#define S5P_IRQ_EINT_BASE	COMBINER_IRQ(MAX_COMBINER_NR, 0)
+
+#define S5P_EINT_BASE1		(S5P_IRQ_EINT_BASE + 0)
+#define S5P_EINT_BASE2		(S5P_IRQ_EINT_BASE + 16)
 
 /* Set the default NR_IRQS */
-#define NR_IRQS			COMBINER_IRQ(MAX_COMBINER_NR, 0)
 
-#define MAX_COMBINER_NR		39
+#define NR_IRQS			(S5P_IRQ_EINT_BASE + 32)
 
-#endif /* ASM_ARCH_IRQS_H */
+#endif /* __ASM_ARCH_IRQS_H */

@@ -150,6 +150,9 @@
 /** Is the PROC_STATUS SPR supported? */
 #define CHIP_HAS_PROC_STATUS_SPR() 0
 
+/** Is the DSTREAM_PF SPR supported? */
+#define CHIP_HAS_DSTREAM_PF() 0
+
 /** Log of the number of mshims we have. */
 #define CHIP_LOG_NUM_MSHIMS() 2
 

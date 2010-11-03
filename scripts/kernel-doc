@@ -44,12 +44,13 @@ use strict;
 # Note: This only supports 'c'.
 
 # usage:
-# kernel-doc [ -docbook | -html | -text | -man ] [ -no-doc-sections ]
+# kernel-doc [ -docbook | -html | -text | -man | -list ] [ -no-doc-sections ]
 #           [ -function funcname [ -function funcname ...] ] c file(s)s > outputfile
 # or
 #           [ -nofunction funcname [ -function funcname ...] ] c file(s)s > outputfile
 #
 #  Set output format using one of -docbook -html -text or -man.  Default is man.
+#  The -list format is for internal use by docproc.
 #
 #  -no-doc-sections
 #	Do not output DOC: sections
@@ -210,9 +211,16 @@ my %highlights_text = ( $type_constant, "\$1",
 			$type_param, "\$1" );
 my $blankline_text = "";
 
+# list mode
+my %highlights_list = ( $type_constant, "\$1",
+			$type_func, "\$1",
+			$type_struct, "\$1",
+			$type_param, "\$1" );
+my $blankline_list = "";
 
 sub usage {
-    print "Usage: $0 [ -v ] [ -docbook | -html | -text | -man ] [ -no-doc-sections ]\n";
+    print "Usage: $0 [ -v ] [ -docbook | -html | -text | -man | -list ]\n";
+    print "         [ -no-doc-sections ]\n";
     print "         [ -function funcname [ -function funcname ...] ]\n";
     print "         [ -nofunction funcname [ -nofunction funcname ...] ]\n";
     print "         c source file(s) > outputfile\n";
@@ -318,6 +326,10 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 	$output_mode = "xml";
 	%highlights = %highlights_xml;
 	$blankline = $blankline_xml;
+    } elsif ($cmd eq "-list") {
+	$output_mode = "list";
+	%highlights = %highlights_list;
+	$blankline = $blankline_list;
     } elsif ($cmd eq "-gnome") {
 	$output_mode = "gnome";
 	%highlights = %highlights_gnome;
@@ -1361,6 +1373,42 @@ sub output_blockhead_text(%) {
     }
 }
 
+## list mode output functions
+
+sub output_function_list(%) {
+    my %args = %{$_[0]};
+
+    print $args{'function'} . "\n";
+}
+
+# output enum in list
+sub output_enum_list(%) {
+    my %args = %{$_[0]};
+    print $args{'enum'} . "\n";
+}
+
+# output typedef in list
+sub output_typedef_list(%) {
+    my %args = %{$_[0]};
+    print $args{'typedef'} . "\n";
+}
+
+# output struct as list
+sub output_struct_list(%) {
+    my %args = %{$_[0]};
+
+    print $args{'struct'} . "\n";
+}
+
+sub output_blockhead_list(%) {
+    my %args = %{$_[0]};
+    my ($parameter, $section);
+
+    foreach $section (@{$args{'sectionlist'}}) {
+	print "DOC: $section\n";
+    }
+}
+
 ##
 # generic output function for all types (function, struct/union, typedef, enum);
 # calls the generated, variable output_ function name based on
@@ -1679,7 +1727,7 @@ sub check_sections($$$$$$) {
 		foreach $px (0 .. $#prms) {
 			$prm_clean = $prms[$px];
 			$prm_clean =~ s/\[.*\]//;
-			$prm_clean =~ s/__attribute__\s*\(\([a-z,_\*\s\(\)]*\)\)//;
+			$prm_clean =~ s/__attribute__\s*\(\([a-z,_\*\s\(\)]*\)\)//i;
 			# ignore array size in a parameter string;
 			# however, the original param string may contain
 			# spaces, e.g.:  addr[6 + 2]

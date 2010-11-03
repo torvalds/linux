@@ -156,7 +156,7 @@ void end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 	if (uptodate) {
 		set_buffer_uptodate(bh);
 	} else {
-		if (!buffer_eopnotsupp(bh) && !quiet_error(bh)) {
+		if (!quiet_error(bh)) {
 			buffer_io_error(bh);
 			printk(KERN_WARNING "lost page write due to "
 					"I/O error on %s\n",
@@ -770,11 +770,12 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 				spin_unlock(lock);
 				/*
 				 * Ensure any pending I/O completes so that
-				 * ll_rw_block() actually writes the current
-				 * contents - it is a noop if I/O is still in
-				 * flight on potentially older contents.
+				 * write_dirty_buffer() actually writes the
+				 * current contents - it is a noop if I/O is
+				 * still in flight on potentially older
+				 * contents.
 				 */
-				ll_rw_block(SWRITE_SYNC_PLUG, 1, &bh);
+				write_dirty_buffer(bh, WRITE_SYNC_PLUG);
 
 				/*
 				 * Kick off IO for the previous mapping. Note
@@ -904,7 +905,6 @@ try_again:
 
 		bh->b_state = 0;
 		atomic_set(&bh->b_count, 0);
-		bh->b_private = NULL;
 		bh->b_size = size;
 
 		/* Link the buffer to its page */
@@ -1705,7 +1705,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 		 * and kswapd activity, but those code paths have their own
 		 * higher-level throttling.
 		 */
-		if (wbc->sync_mode != WB_SYNC_NONE || !wbc->nonblocking) {
+		if (wbc->sync_mode != WB_SYNC_NONE) {
 			lock_buffer(bh);
 		} else if (!trylock_buffer(bh)) {
 			redirty_page_for_writepage(wbc, page);
@@ -1833,9 +1833,11 @@ void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
 }
 EXPORT_SYMBOL(page_zero_new_buffers);
 
-int block_prepare_write(struct page *page, unsigned from, unsigned to,
+int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 		get_block_t *get_block)
 {
+	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+	unsigned to = from + len;
 	struct inode *inode = page->mapping->host;
 	unsigned block_start, block_end;
 	sector_t block;
@@ -1915,7 +1917,7 @@ int block_prepare_write(struct page *page, unsigned from, unsigned to,
 	}
 	return err;
 }
-EXPORT_SYMBOL(block_prepare_write);
+EXPORT_SYMBOL(__block_write_begin);
 
 static int __block_commit_write(struct inode *inode, struct page *page,
 		unsigned from, unsigned to)
@@ -1951,15 +1953,6 @@ static int __block_commit_write(struct inode *inode, struct page *page,
 		SetPageUptodate(page);
 	return 0;
 }
-
-int __block_write_begin(struct page *page, loff_t pos, unsigned len,
-		get_block_t *get_block)
-{
-	unsigned start = pos & (PAGE_CACHE_SIZE - 1);
-
-	return block_prepare_write(page, start, start + len, get_block);
-}
-EXPORT_SYMBOL(__block_write_begin);
 
 /*
  * block_write_begin takes care of the basic task of block allocation and
@@ -2378,7 +2371,7 @@ block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 	else
 		end = PAGE_CACHE_SIZE;
 
-	ret = block_prepare_write(page, 0, end, get_block);
+	ret = __block_write_begin(page, 0, end, get_block);
 	if (!ret)
 		ret = block_commit_write(page, 0, end);
 
@@ -2465,11 +2458,10 @@ int nobh_write_begin(struct address_space *mapping,
 	*fsdata = NULL;
 
 	if (page_has_buffers(page)) {
-		unlock_page(page);
-		page_cache_release(page);
-		*pagep = NULL;
-		return block_write_begin(mapping, pos, len, flags, pagep,
-					 get_block);
+		ret = __block_write_begin(page, pos, len, get_block);
+		if (unlikely(ret))
+			goto out_release;
+		return ret;
 	}
 
 	if (PageMappedToDisk(page))
@@ -2890,7 +2882,6 @@ static void end_bio_bh_io_sync(struct bio *bio, int err)
 
 	if (err == -EOPNOTSUPP) {
 		set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
-		set_bit(BH_Eopnotsupp, &bh->b_state);
 	}
 
 	if (unlikely (test_bit(BIO_QUIET,&bio->bi_flags)))
@@ -2910,13 +2901,6 @@ int submit_bh(int rw, struct buffer_head * bh)
 	BUG_ON(!bh->b_end_io);
 	BUG_ON(buffer_delay(bh));
 	BUG_ON(buffer_unwritten(bh));
-
-	/*
-	 * Mask in barrier bit for a write (could be either a WRITE or a
-	 * WRITE_SYNC
-	 */
-	if (buffer_ordered(bh) && (rw & WRITE))
-		rw |= WRITE_BARRIER;
 
 	/*
 	 * Only clear out a write error when rewriting
@@ -2956,22 +2940,21 @@ EXPORT_SYMBOL(submit_bh);
 
 /**
  * ll_rw_block: low-level access to block devices (DEPRECATED)
- * @rw: whether to %READ or %WRITE or %SWRITE or maybe %READA (readahead)
+ * @rw: whether to %READ or %WRITE or maybe %READA (readahead)
  * @nr: number of &struct buffer_heads in the array
  * @bhs: array of pointers to &struct buffer_head
  *
  * ll_rw_block() takes an array of pointers to &struct buffer_heads, and
  * requests an I/O operation on them, either a %READ or a %WRITE.  The third
- * %SWRITE is like %WRITE only we make sure that the *current* data in buffers
- * are sent to disk. The fourth %READA option is described in the documentation
- * for generic_make_request() which ll_rw_block() calls.
+ * %READA option is described in the documentation for generic_make_request()
+ * which ll_rw_block() calls.
  *
  * This function drops any buffer that it cannot get a lock on (with the
- * BH_Lock state bit) unless SWRITE is required, any buffer that appears to be
- * clean when doing a write request, and any buffer that appears to be
- * up-to-date when doing read request.  Further it marks as clean buffers that
- * are processed for writing (the buffer cache won't assume that they are
- * actually clean until the buffer gets unlocked).
+ * BH_Lock state bit), any buffer that appears to be clean when doing a write
+ * request, and any buffer that appears to be up-to-date when doing read
+ * request.  Further it marks as clean buffers that are processed for
+ * writing (the buffer cache won't assume that they are actually clean
+ * until the buffer gets unlocked).
  *
  * ll_rw_block sets b_end_io to simple completion handler that marks
  * the buffer up-to-date (if approriate), unlocks the buffer and wakes
@@ -2987,20 +2970,13 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 	for (i = 0; i < nr; i++) {
 		struct buffer_head *bh = bhs[i];
 
-		if (rw == SWRITE || rw == SWRITE_SYNC || rw == SWRITE_SYNC_PLUG)
-			lock_buffer(bh);
-		else if (!trylock_buffer(bh))
+		if (!trylock_buffer(bh))
 			continue;
-
-		if (rw == WRITE || rw == SWRITE || rw == SWRITE_SYNC ||
-		    rw == SWRITE_SYNC_PLUG) {
+		if (rw == WRITE) {
 			if (test_clear_buffer_dirty(bh)) {
 				bh->b_end_io = end_buffer_write_sync;
 				get_bh(bh);
-				if (rw == SWRITE_SYNC)
-					submit_bh(WRITE_SYNC, bh);
-				else
-					submit_bh(WRITE, bh);
+				submit_bh(WRITE, bh);
 				continue;
 			}
 		} else {
@@ -3016,12 +2992,25 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 }
 EXPORT_SYMBOL(ll_rw_block);
 
+void write_dirty_buffer(struct buffer_head *bh, int rw)
+{
+	lock_buffer(bh);
+	if (!test_clear_buffer_dirty(bh)) {
+		unlock_buffer(bh);
+		return;
+	}
+	bh->b_end_io = end_buffer_write_sync;
+	get_bh(bh);
+	submit_bh(rw, bh);
+}
+EXPORT_SYMBOL(write_dirty_buffer);
+
 /*
  * For a data-integrity writeout, we need to wait upon any in-progress I/O
  * and then start new I/O and then wait upon it.  The caller must have a ref on
  * the buffer_head.
  */
-int sync_dirty_buffer(struct buffer_head *bh)
+int __sync_dirty_buffer(struct buffer_head *bh, int rw)
 {
 	int ret = 0;
 
@@ -3030,18 +3019,20 @@ int sync_dirty_buffer(struct buffer_head *bh)
 	if (test_clear_buffer_dirty(bh)) {
 		get_bh(bh);
 		bh->b_end_io = end_buffer_write_sync;
-		ret = submit_bh(WRITE_SYNC, bh);
+		ret = submit_bh(rw, bh);
 		wait_on_buffer(bh);
-		if (buffer_eopnotsupp(bh)) {
-			clear_buffer_eopnotsupp(bh);
-			ret = -EOPNOTSUPP;
-		}
 		if (!ret && !buffer_uptodate(bh))
 			ret = -EIO;
 	} else {
 		unlock_buffer(bh);
 	}
 	return ret;
+}
+EXPORT_SYMBOL(__sync_dirty_buffer);
+
+int sync_dirty_buffer(struct buffer_head *bh)
+{
+	return __sync_dirty_buffer(bh, WRITE_SYNC);
 }
 EXPORT_SYMBOL(sync_dirty_buffer);
 

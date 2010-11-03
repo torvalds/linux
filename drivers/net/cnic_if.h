@@ -12,8 +12,8 @@
 #ifndef CNIC_IF_H
 #define CNIC_IF_H
 
-#define CNIC_MODULE_VERSION	"2.1.3"
-#define CNIC_MODULE_RELDATE	"June 24, 2010"
+#define CNIC_MODULE_VERSION	"2.2.6"
+#define CNIC_MODULE_RELDATE	"Oct 12, 2010"
 
 #define CNIC_ULP_RDMA		0
 #define CNIC_ULP_ISCSI		1
@@ -80,16 +80,13 @@ struct kcqe {
 #define DRV_CTL_IO_RD_CMD		0x102
 #define DRV_CTL_CTX_WR_CMD		0x103
 #define DRV_CTL_CTXTBL_WR_CMD		0x104
-#define DRV_CTL_COMPLETION_CMD		0x105
+#define DRV_CTL_RET_L5_SPQ_CREDIT_CMD	0x105
 #define DRV_CTL_START_L2_CMD		0x106
 #define DRV_CTL_STOP_L2_CMD		0x107
+#define DRV_CTL_RET_L2_SPQ_CREDIT_CMD	0x10c
 
 struct cnic_ctl_completion {
 	u32	cid;
-};
-
-struct drv_ctl_completion {
-	u32	comp_count;
 };
 
 struct cnic_ctl_info {
@@ -98,6 +95,10 @@ struct cnic_ctl_info {
 		struct cnic_ctl_completion comp;
 		char bytes[MAX_CNIC_CTL_DATA];
 	} data;
+};
+
+struct drv_ctl_spq_credit {
+	u32	credit_count;
 };
 
 struct drv_ctl_io {
@@ -115,7 +116,7 @@ struct drv_ctl_l2_ring {
 struct drv_ctl_info {
 	int	cmd;
 	union {
-		struct drv_ctl_completion comp;
+		struct drv_ctl_spq_credit credit;
 		struct drv_ctl_io io;
 		struct drv_ctl_l2_ring ring;
 		char bytes[MAX_DRV_CTL_DATA];
@@ -138,6 +139,7 @@ struct cnic_irq {
 	unsigned int	vector;
 	void		*status_blk;
 	u32		status_blk_num;
+	u32		status_blk_num2;
 	u32		irq_flags;
 #define CNIC_IRQ_FL_MSIX		0x00000001
 };
@@ -152,6 +154,7 @@ struct cnic_eth_dev {
 	struct pci_dev	*pdev;
 	void __iomem	*io_base;
 	void __iomem	*io_base2;
+	void		*iro_arr;
 
 	u32		ctx_tbl_offset;
 	u32		ctx_tbl_len;
@@ -160,7 +163,9 @@ struct cnic_eth_dev {
 	u32		max_iscsi_conn;
 	u32		max_fcoe_conn;
 	u32		max_rdma_conn;
-	u32		reserved0[2];
+	u32		fcoe_init_cid;
+	u16		iscsi_l2_client_id;
+	u16		iscsi_l2_cid;
 
 	int		num_irq;
 	struct cnic_irq	irq_arr[MAX_CNIC_VEC];

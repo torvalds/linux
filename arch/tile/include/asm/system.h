@@ -89,6 +89,10 @@
 #define get_cycles_low() __insn_mfspr(SPR_CYCLE)   /* just get all 64 bits */
 #endif
 
+#if !CHIP_HAS_MF_WAITS_FOR_VICTIMS()
+int __mb_incoherent(void);  /* Helper routine for mb_incoherent(). */
+#endif
+
 /* Fence to guarantee visibility of stores to incoherent memory. */
 static inline void
 mb_incoherent(void)
@@ -97,7 +101,6 @@ mb_incoherent(void)
 
 #if !CHIP_HAS_MF_WAITS_FOR_VICTIMS()
 	{
-		int __mb_incoherent(void);
 #if CHIP_HAS_TILE_WRITE_PENDING()
 		const unsigned long WRITE_TIMEOUT_CYCLES = 400;
 		unsigned long start = get_cycles_low();
@@ -161,7 +164,7 @@ extern struct task_struct *_switch_to(struct task_struct *prev,
 /* Helper function for _switch_to(). */
 extern struct task_struct *__switch_to(struct task_struct *prev,
 				       struct task_struct *next,
-				       unsigned long new_system_save_1_0);
+				       unsigned long new_system_save_k_0);
 
 /* Address that switched-away from tasks are at. */
 extern unsigned long get_switch_to_pc(void);
@@ -213,13 +216,6 @@ int hardwall_deactivate(struct task_struct *task);
 		hardwall_deactivate(p); \
 } while (0)
 #endif
-
-/* Invoke the simulator "syscall" mechanism (see arch/tile/kernel/entry.S). */
-extern int _sim_syscall(int syscall_num, ...);
-#define sim_syscall(syscall_num, ...) \
-	_sim_syscall(SIM_CONTROL_SYSCALL + \
-		((syscall_num) << _SIM_CONTROL_OPERATOR_BITS), \
-		## __VA_ARGS__)
 
 /*
  * Kernel threads can check to see if they need to migrate their

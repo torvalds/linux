@@ -594,27 +594,27 @@ DEFINE_CLOCK(uart2_clk1,   0, PCCR1, 30, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(uart1_clk1,   0, PCCR1, 31, NULL, NULL, &ipg_clk);
 
 /* Clocks we cannot directly gate, but drivers need their rates */
-DEFINE_CLOCK(cspi1_clk,    0, 0,      0, NULL, &cspi1_clk1, &per2_clk);
-DEFINE_CLOCK(cspi2_clk,    1, 0,      0, NULL, &cspi2_clk1, &per2_clk);
-DEFINE_CLOCK(cspi3_clk,    2, 0,      0, NULL, &cspi13_clk1, &per2_clk);
-DEFINE_CLOCK(sdhc1_clk,    0, 0,      0, NULL, &sdhc1_clk1, &per2_clk);
-DEFINE_CLOCK(sdhc2_clk,    1, 0,      0, NULL, &sdhc2_clk1, &per2_clk);
-DEFINE_CLOCK(sdhc3_clk,    2, 0,      0, NULL, &sdhc3_clk1, &per2_clk);
-DEFINE_CLOCK(pwm_clk,      0, 0,      0, NULL, &pwm_clk1, &per1_clk);
-DEFINE_CLOCK(gpt1_clk,     0, 0,      0, NULL, &gpt1_clk1, &per1_clk);
-DEFINE_CLOCK(gpt2_clk,     1, 0,      0, NULL, &gpt2_clk1, &per1_clk);
-DEFINE_CLOCK(gpt3_clk,     2, 0,      0, NULL, &gpt3_clk1, &per1_clk);
-DEFINE_CLOCK(gpt4_clk,     3, 0,      0, NULL, &gpt4_clk1, &per1_clk);
-DEFINE_CLOCK(gpt5_clk,     4, 0,      0, NULL, &gpt5_clk1, &per1_clk);
-DEFINE_CLOCK(gpt6_clk,     5, 0,      0, NULL, &gpt6_clk1, &per1_clk);
-DEFINE_CLOCK(uart1_clk,    0, 0,      0, NULL, &uart1_clk1, &per1_clk);
-DEFINE_CLOCK(uart2_clk,    1, 0,      0, NULL, &uart2_clk1, &per1_clk);
-DEFINE_CLOCK(uart3_clk,    2, 0,      0, NULL, &uart3_clk1, &per1_clk);
-DEFINE_CLOCK(uart4_clk,    3, 0,      0, NULL, &uart4_clk1, &per1_clk);
-DEFINE_CLOCK(uart5_clk,    4, 0,      0, NULL, &uart5_clk1, &per1_clk);
-DEFINE_CLOCK(uart6_clk,    5, 0,      0, NULL, &uart6_clk1, &per1_clk);
-DEFINE_CLOCK1(lcdc_clk,    0, 0,      0, parent, &lcdc_clk1, &per3_clk);
-DEFINE_CLOCK1(csi_clk,     0, 0,      0, parent, &csi_clk1, &per4_clk);
+DEFINE_CLOCK(cspi1_clk,    0, NULL,   0, NULL, &cspi1_clk1, &per2_clk);
+DEFINE_CLOCK(cspi2_clk,    1, NULL,   0, NULL, &cspi2_clk1, &per2_clk);
+DEFINE_CLOCK(cspi3_clk,    2, NULL,   0, NULL, &cspi13_clk1, &per2_clk);
+DEFINE_CLOCK(sdhc1_clk,    0, NULL,   0, NULL, &sdhc1_clk1, &per2_clk);
+DEFINE_CLOCK(sdhc2_clk,    1, NULL,   0, NULL, &sdhc2_clk1, &per2_clk);
+DEFINE_CLOCK(sdhc3_clk,    2, NULL,   0, NULL, &sdhc3_clk1, &per2_clk);
+DEFINE_CLOCK(pwm_clk,      0, NULL,   0, NULL, &pwm_clk1, &per1_clk);
+DEFINE_CLOCK(gpt1_clk,     0, NULL,   0, NULL, &gpt1_clk1, &per1_clk);
+DEFINE_CLOCK(gpt2_clk,     1, NULL,   0, NULL, &gpt2_clk1, &per1_clk);
+DEFINE_CLOCK(gpt3_clk,     2, NULL,   0, NULL, &gpt3_clk1, &per1_clk);
+DEFINE_CLOCK(gpt4_clk,     3, NULL,   0, NULL, &gpt4_clk1, &per1_clk);
+DEFINE_CLOCK(gpt5_clk,     4, NULL,   0, NULL, &gpt5_clk1, &per1_clk);
+DEFINE_CLOCK(gpt6_clk,     5, NULL,   0, NULL, &gpt6_clk1, &per1_clk);
+DEFINE_CLOCK(uart1_clk,    0, NULL,   0, NULL, &uart1_clk1, &per1_clk);
+DEFINE_CLOCK(uart2_clk,    1, NULL,   0, NULL, &uart2_clk1, &per1_clk);
+DEFINE_CLOCK(uart3_clk,    2, NULL,   0, NULL, &uart3_clk1, &per1_clk);
+DEFINE_CLOCK(uart4_clk,    3, NULL,   0, NULL, &uart4_clk1, &per1_clk);
+DEFINE_CLOCK(uart5_clk,    4, NULL,   0, NULL, &uart5_clk1, &per1_clk);
+DEFINE_CLOCK(uart6_clk,    5, NULL,   0, NULL, &uart6_clk1, &per1_clk);
+DEFINE_CLOCK1(lcdc_clk,    0, NULL,   0, parent, &lcdc_clk1, &per3_clk);
+DEFINE_CLOCK1(csi_clk,     0, NULL,   0, parent, &csi_clk1, &per4_clk);
 
 #define _REGISTER_CLOCK(d, n, c) \
 	{ \
@@ -640,9 +640,9 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("mxc-mmc.0", NULL, sdhc1_clk)
 	_REGISTER_CLOCK("mxc-mmc.1", NULL, sdhc2_clk)
 	_REGISTER_CLOCK("mxc-mmc.2", NULL, sdhc3_clk)
-	_REGISTER_CLOCK("spi_imx.0", NULL, cspi1_clk)
-	_REGISTER_CLOCK("spi_imx.1", NULL, cspi2_clk)
-	_REGISTER_CLOCK("spi_imx.2", NULL, cspi3_clk)
+	_REGISTER_CLOCK("imx27-cspi.0", NULL, cspi1_clk)
+	_REGISTER_CLOCK("imx27-cspi.1", NULL, cspi2_clk)
+	_REGISTER_CLOCK("imx27-cspi.2", NULL, cspi3_clk)
 	_REGISTER_CLOCK("imx-fb.0", NULL, lcdc_clk)
 	_REGISTER_CLOCK("mx2-camera.0", NULL, csi_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usb_clk)

@@ -27,6 +27,7 @@
 #include <linux/kthread.h>
 #include <linux/log2.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 
 /**** Helper functions used for Div, Remainder operation on u64 ****/
 
@@ -113,7 +114,6 @@ u64 GLOB_u64_Remainder(u64 addr, u32 divisor_type)
 
 #define GLOB_SBD_NAME          "nd"
 #define GLOB_SBD_IRQ_NUM       (29)
-#define GLOB_VERSION		"driver version 20091110"
 
 #define GLOB_SBD_IOCTL_GC                        (0x7701)
 #define GLOB_SBD_IOCTL_WL                        (0x7702)
@@ -272,13 +272,6 @@ static int get_res_blk_num_os(void)
 	return res_blks;
 }
 
-static void SBD_prepare_flush(struct request_queue *q, struct request *rq)
-{
-	rq->cmd_type = REQ_TYPE_LINUX_BLOCK;
-	/* rq->timeout = 5 * HZ; */
-	rq->cmd[0] = REQ_LB_OP_FLUSH;
-}
-
 /* Transfer a full request. */
 static int do_transfer(struct spectra_nand_dev *tr, struct request *req)
 {
@@ -296,8 +289,7 @@ static int do_transfer(struct spectra_nand_dev *tr, struct request *req)
 			IdentifyDeviceData.PagesPerBlock *
 			res_blks_os;
 
-	if (req->cmd_type == REQ_TYPE_LINUX_BLOCK &&
-			req->cmd[0] == REQ_LB_OP_FLUSH) {
+	if (req->cmd_type & REQ_FLUSH) {
 		if (force_flush_cache()) /* Fail to flush cache */
 			return -EIO;
 		else
@@ -597,11 +589,25 @@ int GLOB_SBD_ioctl(struct block_device *bdev, fmode_t mode,
 	return -ENOTTY;
 }
 
+static DEFINE_MUTEX(ffsport_mutex);
+
+int GLOB_SBD_unlocked_ioctl(struct block_device *bdev, fmode_t mode,
+		unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	mutex_lock(&ffsport_mutex);
+	ret = GLOB_SBD_ioctl(bdev, mode, cmd, arg);
+	mutex_unlock(&ffsport_mutex);
+
+	return ret;
+}
+
 static struct block_device_operations GLOB_SBD_ops = {
 	.owner = THIS_MODULE,
 	.open = GLOB_SBD_open,
 	.release = GLOB_SBD_release,
-	.locked_ioctl = GLOB_SBD_ioctl,
+	.ioctl = GLOB_SBD_unlocked_ioctl,
 	.getgeo = GLOB_SBD_getgeo,
 };
 
@@ -650,8 +656,7 @@ static int SBD_setup_device(struct spectra_nand_dev *dev, int which)
 	/* Here we force report 512 byte hardware sector size to Kernel */
 	blk_queue_logical_block_size(dev->queue, 512);
 
-	blk_queue_ordered(dev->queue, QUEUE_ORDERED_DRAIN_FLUSH,
-					SBD_prepare_flush);
+	blk_queue_ordered(dev->queue, QUEUE_ORDERED_DRAIN_FLUSH);
 
 	dev->thread = kthread_run(spectra_trans_thread, dev, "nand_thd");
 	if (IS_ERR(dev->thread)) {

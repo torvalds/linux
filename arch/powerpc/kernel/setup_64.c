@@ -95,7 +95,7 @@ int ucache_bsize;
 
 #ifdef CONFIG_SMP
 
-static int smt_enabled_cmdline;
+static char *smt_enabled_cmdline;
 
 /* Look for ibm,smt-enabled OF option */
 static void check_smt_enabled(void)
@@ -103,37 +103,46 @@ static void check_smt_enabled(void)
 	struct device_node *dn;
 	const char *smt_option;
 
+	/* Default to enabling all threads */
+	smt_enabled_at_boot = threads_per_core;
+
 	/* Allow the command line to overrule the OF option */
-	if (smt_enabled_cmdline)
-		return;
+	if (smt_enabled_cmdline) {
+		if (!strcmp(smt_enabled_cmdline, "on"))
+			smt_enabled_at_boot = threads_per_core;
+		else if (!strcmp(smt_enabled_cmdline, "off"))
+			smt_enabled_at_boot = 0;
+		else {
+			long smt;
+			int rc;
 
-	dn = of_find_node_by_path("/options");
+			rc = strict_strtol(smt_enabled_cmdline, 10, &smt);
+			if (!rc)
+				smt_enabled_at_boot =
+					min(threads_per_core, (int)smt);
+		}
+	} else {
+		dn = of_find_node_by_path("/options");
+		if (dn) {
+			smt_option = of_get_property(dn, "ibm,smt-enabled",
+						     NULL);
 
-	if (dn) {
-		smt_option = of_get_property(dn, "ibm,smt-enabled", NULL);
+			if (smt_option) {
+				if (!strcmp(smt_option, "on"))
+					smt_enabled_at_boot = threads_per_core;
+				else if (!strcmp(smt_option, "off"))
+					smt_enabled_at_boot = 0;
+			}
 
-                if (smt_option) {
-			if (!strcmp(smt_option, "on"))
-				smt_enabled_at_boot = 1;
-			else if (!strcmp(smt_option, "off"))
-				smt_enabled_at_boot = 0;
-                }
-        }
+			of_node_put(dn);
+		}
+	}
 }
 
 /* Look for smt-enabled= cmdline option */
 static int __init early_smt_enabled(char *p)
 {
-	smt_enabled_cmdline = 1;
-
-	if (!p)
-		return 0;
-
-	if (!strcmp(p, "on") || !strcmp(p, "1"))
-		smt_enabled_at_boot = 1;
-	else if (!strcmp(p, "off") || !strcmp(p, "0"))
-		smt_enabled_at_boot = 0;
-
+	smt_enabled_cmdline = p;
 	return 0;
 }
 early_param("smt-enabled", early_smt_enabled);
@@ -380,8 +389,8 @@ void __init setup_system(void)
 	 */
 	xmon_setup();
 
-	check_smt_enabled();
 	smp_setup_cpu_maps();
+	check_smt_enabled();
 
 #ifdef CONFIG_SMP
 	/* Release secondary cpus out of their spinloops at 0x60 now that
@@ -477,7 +486,7 @@ static void __init emergency_stack_init(void)
 	 * bringup, we need to get at them in real mode. This means they
 	 * must also be within the RMO region.
 	 */
-	limit = min(slb0_limit(), memblock.rmo_size);
+	limit = min(slb0_limit(), ppc64_rma_size);
 
 	for_each_possible_cpu(i) {
 		unsigned long sp;

@@ -79,8 +79,6 @@ subsys_initcall(rd88f6192_pci_init);
 
 MACHINE_START(RD88F6192_NAS, "Marvell RD-88F6192-NAS Development Board")
 	/* Maintainer: Saeed Bishara <saeed@marvell.com> */
-	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
-	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= rd88f6192_init,
 	.map_io		= kirkwood_map_io,

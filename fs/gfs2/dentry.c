@@ -49,7 +49,7 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 		ip = GFS2_I(inode);
 	}
 
-	if (sdp->sd_args.ar_localcaching)
+	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL)
 		goto valid;
 
 	had_lock = (gfs2_glock_is_locked_by_me(dip->i_gl) != NULL);

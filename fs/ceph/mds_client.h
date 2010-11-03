@@ -8,9 +8,9 @@
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
 
-#include "types.h"
-#include "messenger.h"
-#include "mdsmap.h"
+#include <linux/ceph/types.h>
+#include <linux/ceph/messenger.h>
+#include <linux/ceph/mdsmap.h>
 
 /*
  * Some lock dependencies:
@@ -26,7 +26,7 @@
  *
  */
 
-struct ceph_client;
+struct ceph_fs_client;
 struct ceph_cap;
 
 /*
@@ -230,11 +230,12 @@ struct ceph_mds_request {
  * mds client state
  */
 struct ceph_mds_client {
-	struct ceph_client      *client;
+	struct ceph_fs_client  *fsc;
 	struct mutex            mutex;         /* all nested structures */
 
 	struct ceph_mdsmap      *mdsmap;
-	struct completion       safe_umount_waiters, session_close_waiters;
+	struct completion       safe_umount_waiters;
+	wait_queue_head_t       session_close_wq;
 	struct list_head        waiting_for_map;
 
 	struct ceph_mds_session **sessions;    /* NULL for mds if no session */
@@ -288,11 +289,6 @@ struct ceph_mds_client {
 	int		caps_avail_count;    /* unused, unreserved */
 	int		caps_min_count;      /* keep at least this many
 						(unreserved) */
-
-#ifdef CONFIG_DEBUG_FS
-	struct dentry 	  *debugfs_file;
-#endif
-
 	spinlock_t	  dentry_lru_lock;
 	struct list_head  dentry_lru;
 	int		  num_dentry;
@@ -315,10 +311,9 @@ extern void ceph_put_mds_session(struct ceph_mds_session *s);
 extern int ceph_send_msg_mds(struct ceph_mds_client *mdsc,
 			     struct ceph_msg *msg, int mds);
 
-extern int ceph_mdsc_init(struct ceph_mds_client *mdsc,
-			   struct ceph_client *client);
+extern int ceph_mdsc_init(struct ceph_fs_client *fsc);
 extern void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc);
-extern void ceph_mdsc_stop(struct ceph_mds_client *mdsc);
+extern void ceph_mdsc_destroy(struct ceph_fs_client *fsc);
 
 extern void ceph_mdsc_sync(struct ceph_mds_client *mdsc);
 

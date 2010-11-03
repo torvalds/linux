@@ -104,10 +104,14 @@ int __init notsc_setup(char *str)
 
 __setup("notsc", notsc_setup);
 
+static int no_sched_irq_time;
+
 static int __init tsc_setup(char *str)
 {
 	if (!strcmp(str, "reliable"))
 		tsc_clocksource_reliable = 1;
+	if (!strncmp(str, "noirqtime", 9))
+		no_sched_irq_time = 1;
 	return 1;
 }
 
@@ -626,6 +630,44 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 	local_irq_restore(flags);
 }
 
+static unsigned long long cyc2ns_suspend;
+
+void save_sched_clock_state(void)
+{
+	if (!sched_clock_stable)
+		return;
+
+	cyc2ns_suspend = sched_clock();
+}
+
+/*
+ * Even on processors with invariant TSC, TSC gets reset in some the
+ * ACPI system sleep states. And in some systems BIOS seem to reinit TSC to
+ * arbitrary value (still sync'd across cpu's) during resume from such sleep
+ * states. To cope up with this, recompute the cyc2ns_offset for each cpu so
+ * that sched_clock() continues from the point where it was left off during
+ * suspend.
+ */
+void restore_sched_clock_state(void)
+{
+	unsigned long long offset;
+	unsigned long flags;
+	int cpu;
+
+	if (!sched_clock_stable)
+		return;
+
+	local_irq_save(flags);
+
+	__get_cpu_var(cyc2ns_offset) = 0;
+	offset = cyc2ns_suspend - sched_clock();
+
+	for_each_possible_cpu(cpu)
+		per_cpu(cyc2ns_offset, cpu) = offset;
+
+	local_irq_restore(flags);
+}
+
 #ifdef CONFIG_CPU_FREQ
 
 /* Frequency scaling support. Adjust the TSC based timer when the cpu frequency
@@ -763,6 +805,7 @@ void mark_tsc_unstable(char *reason)
 	if (!tsc_unstable) {
 		tsc_unstable = 1;
 		sched_clock_stable = 0;
+		disable_sched_clock_irqtime();
 		printk(KERN_INFO "Marking TSC unstable due to %s\n", reason);
 		/* Change only the rating, when not registered */
 		if (clocksource_tsc.mult)
@@ -854,60 +897,6 @@ static void __init init_tsc_clocksource(void)
 	clocksource_register_khz(&clocksource_tsc, tsc_khz);
 }
 
-#ifdef CONFIG_X86_64
-/*
- * calibrate_cpu is used on systems with fixed rate TSCs to determine
- * processor frequency
- */
-#define TICK_COUNT 100000000
-static unsigned long __init calibrate_cpu(void)
-{
-	int tsc_start, tsc_now;
-	int i, no_ctr_free;
-	unsigned long evntsel3 = 0, pmc3 = 0, pmc_now = 0;
-	unsigned long flags;
-
-	for (i = 0; i < 4; i++)
-		if (avail_to_resrv_perfctr_nmi_bit(i))
-			break;
-	no_ctr_free = (i == 4);
-	if (no_ctr_free) {
-		WARN(1, KERN_WARNING "Warning: AMD perfctrs busy ... "
-		     "cpu_khz value may be incorrect.\n");
-		i = 3;
-		rdmsrl(MSR_K7_EVNTSEL3, evntsel3);
-		wrmsrl(MSR_K7_EVNTSEL3, 0);
-		rdmsrl(MSR_K7_PERFCTR3, pmc3);
-	} else {
-		reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i);
-		reserve_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
-	}
-	local_irq_save(flags);
-	/* start measuring cycles, incrementing from 0 */
-	wrmsrl(MSR_K7_PERFCTR0 + i, 0);
-	wrmsrl(MSR_K7_EVNTSEL0 + i, 1 << 22 | 3 << 16 | 0x76);
-	rdtscl(tsc_start);
-	do {
-		rdmsrl(MSR_K7_PERFCTR0 + i, pmc_now);
-		tsc_now = get_cycles();
-	} while ((tsc_now - tsc_start) < TICK_COUNT);
-
-	local_irq_restore(flags);
-	if (no_ctr_free) {
-		wrmsrl(MSR_K7_EVNTSEL3, 0);
-		wrmsrl(MSR_K7_PERFCTR3, pmc3);
-		wrmsrl(MSR_K7_EVNTSEL3, evntsel3);
-	} else {
-		release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
-		release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
-	}
-
-	return pmc_now * tsc_khz / (tsc_now - tsc_start);
-}
-#else
-static inline unsigned long calibrate_cpu(void) { return cpu_khz; }
-#endif
-
 void __init tsc_init(void)
 {
 	u64 lpj;
@@ -925,10 +914,6 @@ void __init tsc_init(void)
 		mark_tsc_unstable("could not calculate TSC khz");
 		return;
 	}
-
-	if (cpu_has(&boot_cpu_data, X86_FEATURE_CONSTANT_TSC) &&
-			(boot_cpu_data.x86_vendor == X86_VENDOR_AMD))
-		cpu_khz = calibrate_cpu();
 
 	printk("Detected %lu.%03lu MHz processor.\n",
 			(unsigned long)cpu_khz / 1000,
@@ -948,6 +933,9 @@ void __init tsc_init(void)
 
 	/* now allow native_sched_clock() to use rdtsc */
 	tsc_disabled = 0;
+
+	if (!no_sched_irq_time)
+		enable_sched_clock_irqtime();
 
 	lpj = ((u64)tsc_khz * 1000);
 	do_div(lpj, HZ);

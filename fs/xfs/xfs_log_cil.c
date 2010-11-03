@@ -68,6 +68,7 @@ xlog_cil_init(
 	ctx->sequence = 1;
 	ctx->cil = cil;
 	cil->xc_ctx = ctx;
+	cil->xc_current_sequence = ctx->sequence;
 
 	cil->xc_log = log;
 	log->l_cilp = cil;
@@ -145,66 +146,161 @@ xlog_cil_init_post_recovery(
 }
 
 /*
- * Insert the log item into the CIL and calculate the difference in space
- * consumed by the item. Add the space to the checkpoint ticket and calculate
- * if the change requires additional log metadata. If it does, take that space
- * as well. Remove the amount of space we addded to the checkpoint ticket from
- * the current transaction ticket so that the accounting works out correctly.
+ * Format log item into a flat buffers
  *
- * If this is the first time the item is being placed into the CIL in this
- * context, pin it so it can't be written to disk until the CIL is flushed to
- * the iclog and the iclog written to disk.
+ * For delayed logging, we need to hold a formatted buffer containing all the
+ * changes on the log item. This enables us to relog the item in memory and
+ * write it out asynchronously without needing to relock the object that was
+ * modified at the time it gets written into the iclog.
+ *
+ * This function builds a vector for the changes in each log item in the
+ * transaction. It then works out the length of the buffer needed for each log
+ * item, allocates them and formats the vector for the item into the buffer.
+ * The buffer is then attached to the log item are then inserted into the
+ * Committed Item List for tracking until the next checkpoint is written out.
+ *
+ * We don't set up region headers during this process; we simply copy the
+ * regions into the flat buffer. We can do this because we still have to do a
+ * formatting step to write the regions into the iclog buffer.  Writing the
+ * ophdrs during the iclog write means that we can support splitting large
+ * regions across iclog boundares without needing a change in the format of the
+ * item/region encapsulation.
+ *
+ * Hence what we need to do now is change the rewrite the vector array to point
+ * to the copied region inside the buffer we just allocated. This allows us to
+ * format the regions into the iclog as though they are being formatted
+ * directly out of the objects themselves.
  */
 static void
-xlog_cil_insert(
+xlog_cil_format_items(
 	struct log		*log,
-	struct xlog_ticket	*ticket,
-	struct xfs_log_item	*item,
-	struct xfs_log_vec	*lv)
+	struct xfs_log_vec	*log_vector)
 {
-	struct xfs_cil		*cil = log->l_cilp;
+	struct xfs_log_vec *lv;
+
+	ASSERT(log_vector);
+	for (lv = log_vector; lv; lv = lv->lv_next) {
+		void	*ptr;
+		int	index;
+		int	len = 0;
+
+		/* build the vector array and calculate it's length */
+		IOP_FORMAT(lv->lv_item, lv->lv_iovecp);
+		for (index = 0; index < lv->lv_niovecs; index++)
+			len += lv->lv_iovecp[index].i_len;
+
+		lv->lv_buf_len = len;
+		lv->lv_buf = kmem_alloc(lv->lv_buf_len, KM_SLEEP|KM_NOFS);
+		ptr = lv->lv_buf;
+
+		for (index = 0; index < lv->lv_niovecs; index++) {
+			struct xfs_log_iovec *vec = &lv->lv_iovecp[index];
+
+			memcpy(ptr, vec->i_addr, vec->i_len);
+			vec->i_addr = ptr;
+			ptr += vec->i_len;
+		}
+		ASSERT(ptr == lv->lv_buf + lv->lv_buf_len);
+	}
+}
+
+/*
+ * Prepare the log item for insertion into the CIL. Calculate the difference in
+ * log space and vectors it will consume, and if it is a new item pin it as
+ * well.
+ */
+STATIC void
+xfs_cil_prepare_item(
+	struct log		*log,
+	struct xfs_log_vec	*lv,
+	int			*len,
+	int			*diff_iovecs)
+{
 	struct xfs_log_vec	*old = lv->lv_item->li_lv;
-	struct xfs_cil_ctx	*ctx = cil->xc_ctx;
-	int			len;
-	int			diff_iovecs;
-	int			iclog_space;
 
 	if (old) {
 		/* existing lv on log item, space used is a delta */
-		ASSERT(!list_empty(&item->li_cil));
+		ASSERT(!list_empty(&lv->lv_item->li_cil));
 		ASSERT(old->lv_buf && old->lv_buf_len && old->lv_niovecs);
 
-		len = lv->lv_buf_len - old->lv_buf_len;
-		diff_iovecs = lv->lv_niovecs - old->lv_niovecs;
+		*len += lv->lv_buf_len - old->lv_buf_len;
+		*diff_iovecs += lv->lv_niovecs - old->lv_niovecs;
 		kmem_free(old->lv_buf);
 		kmem_free(old);
 	} else {
 		/* new lv, must pin the log item */
 		ASSERT(!lv->lv_item->li_lv);
-		ASSERT(list_empty(&item->li_cil));
+		ASSERT(list_empty(&lv->lv_item->li_cil));
 
-		len = lv->lv_buf_len;
-		diff_iovecs = lv->lv_niovecs;
+		*len += lv->lv_buf_len;
+		*diff_iovecs += lv->lv_niovecs;
 		IOP_PIN(lv->lv_item);
 
 	}
-	len += diff_iovecs * sizeof(xlog_op_header_t);
 
 	/* attach new log vector to log item */
 	lv->lv_item->li_lv = lv;
 
-	spin_lock(&cil->xc_cil_lock);
-	list_move_tail(&item->li_cil, &cil->xc_cil);
-	ctx->nvecs += diff_iovecs;
+	/*
+	 * If this is the first time the item is being committed to the
+	 * CIL, store the sequence number on the log item so we can
+	 * tell in future commits whether this is the first checkpoint
+	 * the item is being committed into.
+	 */
+	if (!lv->lv_item->li_seq)
+		lv->lv_item->li_seq = log->l_cilp->xc_ctx->sequence;
+}
+
+/*
+ * Insert the log items into the CIL and calculate the difference in space
+ * consumed by the item. Add the space to the checkpoint ticket and calculate
+ * if the change requires additional log metadata. If it does, take that space
+ * as well. Remove the amount of space we addded to the checkpoint ticket from
+ * the current transaction ticket so that the accounting works out correctly.
+ */
+static void
+xlog_cil_insert_items(
+	struct log		*log,
+	struct xfs_log_vec	*log_vector,
+	struct xlog_ticket	*ticket)
+{
+	struct xfs_cil		*cil = log->l_cilp;
+	struct xfs_cil_ctx	*ctx = cil->xc_ctx;
+	struct xfs_log_vec	*lv;
+	int			len = 0;
+	int			diff_iovecs = 0;
+	int			iclog_space;
+
+	ASSERT(log_vector);
 
 	/*
-	 * If this is the first time the item is being committed to the CIL,
-	 * store the sequence number on the log item so we can tell
-	 * in future commits whether this is the first checkpoint the item is
-	 * being committed into.
+	 * Do all the accounting aggregation and switching of log vectors
+	 * around in a separate loop to the insertion of items into the CIL.
+	 * Then we can do a separate loop to update the CIL within a single
+	 * lock/unlock pair. This reduces the number of round trips on the CIL
+	 * lock from O(nr_logvectors) to O(1) and greatly reduces the overall
+	 * hold time for the transaction commit.
+	 *
+	 * If this is the first time the item is being placed into the CIL in
+	 * this context, pin it so it can't be written to disk until the CIL is
+	 * flushed to the iclog and the iclog written to disk.
+	 *
+	 * We can do this safely because the context can't checkpoint until we
+	 * are done so it doesn't matter exactly how we update the CIL.
 	 */
-	if (!item->li_seq)
-		item->li_seq = ctx->sequence;
+	for (lv = log_vector; lv; lv = lv->lv_next)
+		xfs_cil_prepare_item(log, lv, &len, &diff_iovecs);
+
+	/* account for space used by new iovec headers  */
+	len += diff_iovecs * sizeof(xlog_op_header_t);
+
+	spin_lock(&cil->xc_cil_lock);
+
+	/* move the items to the tail of the CIL */
+	for (lv = log_vector; lv; lv = lv->lv_next)
+		list_move_tail(&lv->lv_item->li_cil, &cil->xc_cil);
+
+	ctx->nvecs += diff_iovecs;
 
 	/*
 	 * Now transfer enough transaction reservation to the context ticket
@@ -240,72 +336,6 @@ xlog_cil_insert(
 	spin_unlock(&cil->xc_cil_lock);
 }
 
-/*
- * Format log item into a flat buffers
- *
- * For delayed logging, we need to hold a formatted buffer containing all the
- * changes on the log item. This enables us to relog the item in memory and
- * write it out asynchronously without needing to relock the object that was
- * modified at the time it gets written into the iclog.
- *
- * This function builds a vector for the changes in each log item in the
- * transaction. It then works out the length of the buffer needed for each log
- * item, allocates them and formats the vector for the item into the buffer.
- * The buffer is then attached to the log item are then inserted into the
- * Committed Item List for tracking until the next checkpoint is written out.
- *
- * We don't set up region headers during this process; we simply copy the
- * regions into the flat buffer. We can do this because we still have to do a
- * formatting step to write the regions into the iclog buffer.  Writing the
- * ophdrs during the iclog write means that we can support splitting large
- * regions across iclog boundares without needing a change in the format of the
- * item/region encapsulation.
- *
- * Hence what we need to do now is change the rewrite the vector array to point
- * to the copied region inside the buffer we just allocated. This allows us to
- * format the regions into the iclog as though they are being formatted
- * directly out of the objects themselves.
- */
-static void
-xlog_cil_format_items(
-	struct log		*log,
-	struct xfs_log_vec	*log_vector,
-	struct xlog_ticket	*ticket,
-	xfs_lsn_t		*start_lsn)
-{
-	struct xfs_log_vec *lv;
-
-	if (start_lsn)
-		*start_lsn = log->l_cilp->xc_ctx->sequence;
-
-	ASSERT(log_vector);
-	for (lv = log_vector; lv; lv = lv->lv_next) {
-		void	*ptr;
-		int	index;
-		int	len = 0;
-
-		/* build the vector array and calculate it's length */
-		IOP_FORMAT(lv->lv_item, lv->lv_iovecp);
-		for (index = 0; index < lv->lv_niovecs; index++)
-			len += lv->lv_iovecp[index].i_len;
-
-		lv->lv_buf_len = len;
-		lv->lv_buf = kmem_zalloc(lv->lv_buf_len, KM_SLEEP|KM_NOFS);
-		ptr = lv->lv_buf;
-
-		for (index = 0; index < lv->lv_niovecs; index++) {
-			struct xfs_log_iovec *vec = &lv->lv_iovecp[index];
-
-			memcpy(ptr, vec->i_addr, vec->i_len);
-			vec->i_addr = ptr;
-			ptr += vec->i_len;
-		}
-		ASSERT(ptr == lv->lv_buf + lv->lv_buf_len);
-
-		xlog_cil_insert(log, ticket, lv->lv_item, lv);
-	}
-}
-
 static void
 xlog_cil_free_logvec(
 	struct xfs_log_vec	*log_vector)
@@ -318,80 +348,6 @@ xlog_cil_free_logvec(
 		kmem_free(lv);
 		lv = next;
 	}
-}
-
-/*
- * Commit a transaction with the given vector to the Committed Item List.
- *
- * To do this, we need to format the item, pin it in memory if required and
- * account for the space used by the transaction. Once we have done that we
- * need to release the unused reservation for the transaction, attach the
- * transaction to the checkpoint context so we carry the busy extents through
- * to checkpoint completion, and then unlock all the items in the transaction.
- *
- * For more specific information about the order of operations in
- * xfs_log_commit_cil() please refer to the comments in
- * xfs_trans_commit_iclog().
- *
- * Called with the context lock already held in read mode to lock out
- * background commit, returns without it held once background commits are
- * allowed again.
- */
-int
-xfs_log_commit_cil(
-	struct xfs_mount	*mp,
-	struct xfs_trans	*tp,
-	struct xfs_log_vec	*log_vector,
-	xfs_lsn_t		*commit_lsn,
-	int			flags)
-{
-	struct log		*log = mp->m_log;
-	int			log_flags = 0;
-	int			push = 0;
-
-	if (flags & XFS_TRANS_RELEASE_LOG_RES)
-		log_flags = XFS_LOG_REL_PERM_RESERV;
-
-	if (XLOG_FORCED_SHUTDOWN(log)) {
-		xlog_cil_free_logvec(log_vector);
-		return XFS_ERROR(EIO);
-	}
-
-	/* lock out background commit */
-	down_read(&log->l_cilp->xc_ctx_lock);
-	xlog_cil_format_items(log, log_vector, tp->t_ticket, commit_lsn);
-
-	/* check we didn't blow the reservation */
-	if (tp->t_ticket->t_curr_res < 0)
-		xlog_print_tic_res(log->l_mp, tp->t_ticket);
-
-	/* attach the transaction to the CIL if it has any busy extents */
-	if (!list_empty(&tp->t_busy)) {
-		spin_lock(&log->l_cilp->xc_cil_lock);
-		list_splice_init(&tp->t_busy,
-					&log->l_cilp->xc_ctx->busy_extents);
-		spin_unlock(&log->l_cilp->xc_cil_lock);
-	}
-
-	tp->t_commit_lsn = *commit_lsn;
-	xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
-	xfs_trans_unreserve_and_mod_sb(tp);
-
-	/* check for background commit before unlock */
-	if (log->l_cilp->xc_ctx->space_used > XLOG_CIL_SPACE_LIMIT(log))
-		push = 1;
-	up_read(&log->l_cilp->xc_ctx_lock);
-
-	/*
-	 * We need to push CIL every so often so we don't cache more than we
-	 * can fit in the log. The limit really is that a checkpoint can't be
-	 * more than half the log (the current checkpoint is not allowed to
-	 * overwrite the previous checkpoint), but commit latency and memory
-	 * usage limit this to a smaller size in most cases.
-	 */
-	if (push)
-		xlog_cil_push(log, 0);
-	return 0;
 }
 
 /*
@@ -427,13 +383,23 @@ xlog_cil_committed(
 }
 
 /*
- * Push the Committed Item List to the log. If the push_now flag is not set,
- * then it is a background flush and so we can chose to ignore it.
+ * Push the Committed Item List to the log. If @push_seq flag is zero, then it
+ * is a background flush and so we can chose to ignore it. Otherwise, if the
+ * current sequence is the same as @push_seq we need to do a flush. If
+ * @push_seq is less than the current sequence, then it has already been
+ * flushed and we don't need to do anything - the caller will wait for it to
+ * complete if necessary.
+ *
+ * @push_seq is a value rather than a flag because that allows us to do an
+ * unlocked check of the sequence number for a match. Hence we can allows log
+ * forces to run racily and not issue pushes for the same sequence twice. If we
+ * get a race between multiple pushes for the same sequence they will block on
+ * the first one and then abort, hence avoiding needless pushes.
  */
-int
+STATIC int
 xlog_cil_push(
 	struct log		*log,
-	int			push_now)
+	xfs_lsn_t		push_seq)
 {
 	struct xfs_cil		*cil = log->l_cilp;
 	struct xfs_log_vec	*lv;
@@ -453,12 +419,20 @@ xlog_cil_push(
 	if (!cil)
 		return 0;
 
+	ASSERT(!push_seq || push_seq <= cil->xc_ctx->sequence);
+
 	new_ctx = kmem_zalloc(sizeof(*new_ctx), KM_SLEEP|KM_NOFS);
 	new_ctx->ticket = xlog_cil_ticket_alloc(log);
 
-	/* lock out transaction commit, but don't block on background push */
+	/*
+	 * Lock out transaction commit, but don't block for background pushes
+	 * unless we are well over the CIL space limit. See the definition of
+	 * XLOG_CIL_HARD_SPACE_LIMIT() for the full explanation of the logic
+	 * used here.
+	 */
 	if (!down_write_trylock(&cil->xc_ctx_lock)) {
-		if (!push_now)
+		if (!push_seq &&
+		    cil->xc_ctx->space_used < XLOG_CIL_HARD_SPACE_LIMIT(log))
 			goto out_free_ticket;
 		down_write(&cil->xc_ctx_lock);
 	}
@@ -469,7 +443,11 @@ xlog_cil_push(
 		goto out_skip;
 
 	/* check for spurious background flush */
-	if (!push_now && cil->xc_ctx->space_used < XLOG_CIL_SPACE_LIMIT(log))
+	if (!push_seq && cil->xc_ctx->space_used < XLOG_CIL_SPACE_LIMIT(log))
+		goto out_skip;
+
+	/* check for a previously pushed seqeunce */
+	if (push_seq && push_seq < cil->xc_ctx->sequence)
 		goto out_skip;
 
 	/*
@@ -513,6 +491,13 @@ xlog_cil_push(
 	new_ctx->sequence = ctx->sequence + 1;
 	new_ctx->cil = cil;
 	cil->xc_ctx = new_ctx;
+
+	/*
+	 * mirror the new sequence into the cil structure so that we can do
+	 * unlocked checks against the current sequence in log forces without
+	 * risking deferencing a freed context pointer.
+	 */
+	cil->xc_current_sequence = new_ctx->sequence;
 
 	/*
 	 * The switch is now done, so we can drop the context lock and move out
@@ -626,6 +611,105 @@ out_abort:
 }
 
 /*
+ * Commit a transaction with the given vector to the Committed Item List.
+ *
+ * To do this, we need to format the item, pin it in memory if required and
+ * account for the space used by the transaction. Once we have done that we
+ * need to release the unused reservation for the transaction, attach the
+ * transaction to the checkpoint context so we carry the busy extents through
+ * to checkpoint completion, and then unlock all the items in the transaction.
+ *
+ * For more specific information about the order of operations in
+ * xfs_log_commit_cil() please refer to the comments in
+ * xfs_trans_commit_iclog().
+ *
+ * Called with the context lock already held in read mode to lock out
+ * background commit, returns without it held once background commits are
+ * allowed again.
+ */
+int
+xfs_log_commit_cil(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	struct xfs_log_vec	*log_vector,
+	xfs_lsn_t		*commit_lsn,
+	int			flags)
+{
+	struct log		*log = mp->m_log;
+	int			log_flags = 0;
+	int			push = 0;
+
+	if (flags & XFS_TRANS_RELEASE_LOG_RES)
+		log_flags = XFS_LOG_REL_PERM_RESERV;
+
+	if (XLOG_FORCED_SHUTDOWN(log)) {
+		xlog_cil_free_logvec(log_vector);
+		return XFS_ERROR(EIO);
+	}
+
+	/*
+	 * do all the hard work of formatting items (including memory
+	 * allocation) outside the CIL context lock. This prevents stalling CIL
+	 * pushes when we are low on memory and a transaction commit spends a
+	 * lot of time in memory reclaim.
+	 */
+	xlog_cil_format_items(log, log_vector);
+
+	/* lock out background commit */
+	down_read(&log->l_cilp->xc_ctx_lock);
+	if (commit_lsn)
+		*commit_lsn = log->l_cilp->xc_ctx->sequence;
+
+	xlog_cil_insert_items(log, log_vector, tp->t_ticket);
+
+	/* check we didn't blow the reservation */
+	if (tp->t_ticket->t_curr_res < 0)
+		xlog_print_tic_res(log->l_mp, tp->t_ticket);
+
+	/* attach the transaction to the CIL if it has any busy extents */
+	if (!list_empty(&tp->t_busy)) {
+		spin_lock(&log->l_cilp->xc_cil_lock);
+		list_splice_init(&tp->t_busy,
+					&log->l_cilp->xc_ctx->busy_extents);
+		spin_unlock(&log->l_cilp->xc_cil_lock);
+	}
+
+	tp->t_commit_lsn = *commit_lsn;
+	xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
+	xfs_trans_unreserve_and_mod_sb(tp);
+
+	/*
+	 * Once all the items of the transaction have been copied to the CIL,
+	 * the items can be unlocked and freed.
+	 *
+	 * This needs to be done before we drop the CIL context lock because we
+	 * have to update state in the log items and unlock them before they go
+	 * to disk. If we don't, then the CIL checkpoint can race with us and
+	 * we can run checkpoint completion before we've updated and unlocked
+	 * the log items. This affects (at least) processing of stale buffers,
+	 * inodes and EFIs.
+	 */
+	xfs_trans_free_items(tp, *commit_lsn, 0);
+
+	/* check for background commit before unlock */
+	if (log->l_cilp->xc_ctx->space_used > XLOG_CIL_SPACE_LIMIT(log))
+		push = 1;
+
+	up_read(&log->l_cilp->xc_ctx_lock);
+
+	/*
+	 * We need to push CIL every so often so we don't cache more than we
+	 * can fit in the log. The limit really is that a checkpoint can't be
+	 * more than half the log (the current checkpoint is not allowed to
+	 * overwrite the previous checkpoint), but commit latency and memory
+	 * usage limit this to a smaller size in most cases.
+	 */
+	if (push)
+		xlog_cil_push(log, 0);
+	return 0;
+}
+
+/*
  * Conditionally push the CIL based on the sequence passed in.
  *
  * We only need to push if we haven't already pushed the sequence
@@ -639,39 +723,34 @@ out_abort:
  * commit lsn is there. It'll be empty, so this is broken for now.
  */
 xfs_lsn_t
-xlog_cil_push_lsn(
+xlog_cil_force_lsn(
 	struct log	*log,
-	xfs_lsn_t	push_seq)
+	xfs_lsn_t	sequence)
 {
 	struct xfs_cil		*cil = log->l_cilp;
 	struct xfs_cil_ctx	*ctx;
 	xfs_lsn_t		commit_lsn = NULLCOMMITLSN;
 
-restart:
-	down_write(&cil->xc_ctx_lock);
-	ASSERT(push_seq <= cil->xc_ctx->sequence);
+	ASSERT(sequence <= cil->xc_current_sequence);
 
-	/* check to see if we need to force out the current context */
-	if (push_seq == cil->xc_ctx->sequence) {
-		up_write(&cil->xc_ctx_lock);
-		xlog_cil_push(log, 1);
-		goto restart;
-	}
+	/*
+	 * check to see if we need to force out the current context.
+	 * xlog_cil_push() handles racing pushes for the same sequence,
+	 * so no need to deal with it here.
+	 */
+	if (sequence == cil->xc_current_sequence)
+		xlog_cil_push(log, sequence);
 
 	/*
 	 * See if we can find a previous sequence still committing.
-	 * We can drop the flush lock as soon as we have the cil lock
-	 * because we are now only comparing contexts protected by
-	 * the cil lock.
-	 *
 	 * We need to wait for all previous sequence commits to complete
 	 * before allowing the force of push_seq to go ahead. Hence block
 	 * on commits for those as well.
 	 */
+restart:
 	spin_lock(&cil->xc_cil_lock);
-	up_write(&cil->xc_ctx_lock);
 	list_for_each_entry(ctx, &cil->xc_committing, committing) {
-		if (ctx->sequence > push_seq)
+		if (ctx->sequence > sequence)
 			continue;
 		if (!ctx->commit_lsn) {
 			/*
@@ -681,7 +760,7 @@ restart:
 			sv_wait(&cil->xc_commit_wait, 0, &cil->xc_cil_lock, 0);
 			goto restart;
 		}
-		if (ctx->sequence != push_seq)
+		if (ctx->sequence != sequence)
 			continue;
 		/* found it! */
 		commit_lsn = ctx->commit_lsn;

@@ -11,6 +11,8 @@ menuconfig FSL_SOC_BOOKE
 
 if FSL_SOC_BOOKE
 
+if PPC32
+
 config MPC8540_ADS
 	bool "Freescale MPC8540 ADS"
 	select DEFAULT_UIMAGE
@@ -153,10 +155,20 @@ config SBC8560
 	help
 	  This option enables support for the Wind River SBC8560 board
 
+config P3041_DS
+	bool "Freescale P3041 DS"
+	select DEFAULT_UIMAGE
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select MPC8xxx_GPIO
+	select HAS_RAPIDIO
+	help
+	  This option enables support for the P3041 DS board
+
 config P4080_DS
 	bool "Freescale P4080 DS"
 	select DEFAULT_UIMAGE
-	select PPC_FSL_BOOK3E
 	select PPC_E500MC
 	select PHYS_64BIT
 	select SWIOTLB
@@ -164,6 +176,20 @@ config P4080_DS
 	select HAS_RAPIDIO
 	help
 	  This option enables support for the P4080 DS board
+
+endif # PPC32
+
+config P5020_DS
+	bool "Freescale P5020 DS"
+	select DEFAULT_UIMAGE
+	select E500
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select MPC8xxx_GPIO
+	select HAS_RAPIDIO
+	help
+	  This option enables support for the P5020 DS board
 
 endif # FSL_SOC_BOOKE
 

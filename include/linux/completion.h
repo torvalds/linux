@@ -10,7 +10,7 @@
 
 #include <linux/wait.h>
 
-/**
+/*
  * struct completion - structure used to maintain state for a "completion"
  *
  * This is the opaque structure used to maintain the state for a "completion".
@@ -34,7 +34,7 @@ struct completion {
 	({ init_completion(&work); work; })
 
 /**
- * DECLARE_COMPLETION: - declare and initialize a completion structure
+ * DECLARE_COMPLETION - declare and initialize a completion structure
  * @work:  identifier for the completion structure
  *
  * This macro declares and initializes a completion structure. Generally used
@@ -50,7 +50,7 @@ struct completion {
  * are on the kernel stack:
  */
 /**
- * DECLARE_COMPLETION_ONSTACK: - declare and initialize a completion structure
+ * DECLARE_COMPLETION_ONSTACK - declare and initialize a completion structure
  * @work:  identifier for the completion structure
  *
  * This macro declares and initializes a completion structure on the kernel
@@ -64,7 +64,7 @@ struct completion {
 #endif
 
 /**
- * init_completion: - Initialize a dynamically allocated completion
+ * init_completion - Initialize a dynamically allocated completion
  * @x:  completion structure that is to be initialized
  *
  * This inline function will initialize a dynamically created completion
@@ -92,7 +92,7 @@ extern void complete(struct completion *);
 extern void complete_all(struct completion *);
 
 /**
- * INIT_COMPLETION: - reinitialize a completion structure
+ * INIT_COMPLETION - reinitialize a completion structure
  * @x:  completion structure to be reinitialized
  *
  * This macro should be used to reinitialize a completion structure so it can

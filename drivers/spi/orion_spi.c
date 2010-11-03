@@ -404,7 +404,7 @@ static int orion_spi_transfer(struct spi_device *spi, struct spi_message *m)
 			goto msg_rejected;
 		}
 
-		if ((t != NULL) && t->bits_per_word)
+		if (t->bits_per_word)
 			bits_per_word = t->bits_per_word;
 
 		if ((bits_per_word != 8) && (bits_per_word != 16)) {
@@ -415,7 +415,7 @@ static int orion_spi_transfer(struct spi_device *spi, struct spi_message *m)
 			goto msg_rejected;
 		}
 		/*make sure buffer length is even when working in 16 bit mode*/
-		if ((t != NULL) && (t->bits_per_word == 16) && (t->len & 1)) {
+		if ((t->bits_per_word == 16) && (t->len & 1)) {
 			dev_err(&spi->dev,
 				"message rejected : "
 				"odd data length (%d) while in 16 bit mode\n",

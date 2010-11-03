@@ -675,8 +675,10 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	}
 
 	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
-	filp->private_data = tty;
-	file_move(filp, &tty->tty_files);
+
+	retval = tty_add_file(tty, filp);
+	if (retval)
+		goto out;
 
 	retval = devpts_pty_new(inode, tty->link);
 	if (retval)

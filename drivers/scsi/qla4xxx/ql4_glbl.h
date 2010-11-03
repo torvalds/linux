@@ -94,6 +94,7 @@ void qla4xxx_process_response_queue(struct scsi_qla_host *ha);
 void qla4xxx_wake_dpc(struct scsi_qla_host *ha);
 void qla4xxx_get_conn_event_log(struct scsi_qla_host *ha);
 void qla4xxx_mailbox_premature_completion(struct scsi_qla_host *ha);
+void qla4xxx_dump_registers(struct scsi_qla_host *ha);
 
 void qla4_8xxx_pci_config(struct scsi_qla_host *);
 int qla4_8xxx_iospace_config(struct scsi_qla_host *ha);
@@ -132,7 +133,7 @@ void qla4_8xxx_idc_unlock(struct scsi_qla_host *ha);
 int qla4_8xxx_device_state_handler(struct scsi_qla_host *ha);
 void qla4_8xxx_need_qsnt_handler(struct scsi_qla_host *ha);
 void qla4_8xxx_clear_drv_active(struct scsi_qla_host *ha);
-inline void qla4_8xxx_set_drv_active(struct scsi_qla_host *ha);
+void qla4_8xxx_set_drv_active(struct scsi_qla_host *ha);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdiscoverywait;

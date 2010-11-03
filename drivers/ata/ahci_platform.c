@@ -23,6 +23,10 @@
 #include <linux/ahci_platform.h>
 #include "ahci.h"
 
+static struct scsi_host_template ahci_platform_sht = {
+	AHCI_SHT("ahci_platform"),
+};
+
 static int __init ahci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -125,9 +129,6 @@ static int __init ahci_probe(struct platform_device *pdev)
 		ata_port_desc(ap, "mmio %pR", mem);
 		ata_port_desc(ap, "port 0x%x", 0x100 + ap->port_no * 0x80);
 
-		/* set initial link pm policy */
-		ap->pm_policy = NOT_AVAILABLE;
-
 		/* set enclosure management message type */
 		if (ap->flags & ATA_FLAG_EM)
 			ap->em_message_type = hpriv->em_msg_type;
@@ -145,7 +146,7 @@ static int __init ahci_probe(struct platform_device *pdev)
 	ahci_print_info(host, "platform");
 
 	rc = ata_host_activate(host, irq, ahci_interrupt, IRQF_SHARED,
-			       &ahci_sht);
+			       &ahci_platform_sht);
 	if (rc)
 		goto err0;
 

@@ -12,7 +12,6 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/sem.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
@@ -377,7 +376,6 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
 	struct vm_area_struct *vma;
 	int ret = -EINVAL;
 
-	lock_kernel();
 	if (scope < FLUSH_SCOPE_LINE || scope > FLUSH_SCOPE_ALL ||
 	    cache & ~FLUSH_CACHE_BOTH)
 		goto out;
@@ -446,7 +444,6 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
 	    }
 	}
 out:
-	unlock_kernel();
 	return ret;
 }
 
@@ -459,7 +456,9 @@ asmlinkage int sys_getpagesize(void)
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	register long __res asm ("%d0") = __NR_execve;
 	register long __a asm ("%d1") = (long)(filename);

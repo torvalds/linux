@@ -242,7 +242,8 @@ static int v9fs_dir_readdir_dotl(struct file *filp, void *dirent,
 		while (rdir->head < rdir->tail) {
 
 			err = p9dirent_read(rdir->buf + rdir->head,
-						buflen - rdir->head, &curdirent,
+						rdir->tail - rdir->head,
+						&curdirent,
 						fid->clnt->proto_version);
 			if (err < 0) {
 				P9_DPRINTK(P9_DEBUG_VFS, "returned %d\n", err);
@@ -292,9 +293,11 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 
 	fid = filp->private_data;
 	P9_DPRINTK(P9_DEBUG_VFS,
-			"inode: %p filp: %p fid: %d\n", inode, filp, fid->fid);
+			"v9fs_dir_release: inode: %p filp: %p fid: %d\n",
+			inode, filp, fid ? fid->fid : -1);
 	filemap_write_and_wait(inode->i_mapping);
-	p9_client_clunk(fid);
+	if (fid)
+		p9_client_clunk(fid);
 	return 0;
 }
 
@@ -312,4 +315,5 @@ const struct file_operations v9fs_dir_operations_dotl = {
 	.readdir = v9fs_dir_readdir_dotl,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
+        .fsync = v9fs_file_fsync_dotl,
 };

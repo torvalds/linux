@@ -173,13 +173,12 @@ int snd_usb_init_pitch(struct snd_usb_audio *chip, int iface,
 
 	switch (altsd->bInterfaceProtocol) {
 	case UAC_VERSION_1:
+	default:
 		return init_pitch_v1(chip, iface, alts, fmt);
 
 	case UAC_VERSION_2:
 		return init_pitch_v2(chip, iface, alts, fmt);
 	}
-
-	return -EINVAL;
 }
 
 /*
@@ -238,6 +237,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	subs->datainterval = fmt->datainterval;
 	subs->syncpipe = subs->syncinterval = 0;
 	subs->maxpacksize = fmt->maxpacksize;
+	subs->syncmaxsize = 0;
 	subs->fill_max = 0;
 
 	/* we need a sync pipe in async OUT or adaptive IN mode */
@@ -284,6 +284,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 			subs->syncinterval = get_endpoint(alts, 1)->bInterval - 1;
 		else
 			subs->syncinterval = 3;
+		subs->syncmaxsize = le16_to_cpu(get_endpoint(alts, 1)->wMaxPacketSize);
 	}
 
 	/* always fill max packet size */
@@ -467,7 +468,7 @@ static int hw_check_valid_format(struct snd_usb_substream *subs,
 		return 0;
 	}
 	/* check whether the period time is >= the data packet interval */
-	if (snd_usb_get_speed(subs->dev) == USB_SPEED_HIGH) {
+	if (snd_usb_get_speed(subs->dev) != USB_SPEED_FULL) {
 		ptime = 125 * (1 << fp->datainterval);
 		if (ptime > pt->max || (ptime == pt->max && pt->openmax)) {
 			hwc_debug("   > check: ptime %u > max %u\n", ptime, pt->max);
@@ -735,7 +736,7 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 	}
 
 	param_period_time_if_needed = SNDRV_PCM_HW_PARAM_PERIOD_TIME;
-	if (snd_usb_get_speed(subs->dev) != USB_SPEED_HIGH)
+	if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL)
 		/* full speed devices have fixed data packet interval */
 		ptmin = 1000;
 	if (ptmin == 1000)

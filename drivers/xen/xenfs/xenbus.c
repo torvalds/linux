@@ -594,4 +594,5 @@ const struct file_operations xenbus_file_ops = {
 	.open = xenbus_file_open,
 	.release = xenbus_file_release,
 	.poll = xenbus_file_poll,
+	.llseek = no_llseek,
 };

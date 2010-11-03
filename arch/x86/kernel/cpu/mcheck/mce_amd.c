@@ -131,7 +131,8 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 	u32 low = 0, high = 0, address = 0;
 	unsigned int bank, block;
 	struct thresh_restart tr;
-	u8 lvt_off;
+	int lvt_off = -1;
+	u8 offset;
 
 	for (bank = 0; bank < NR_BANKS; ++bank) {
 		for (block = 0; block < NR_BLOCKS; ++block) {
@@ -141,6 +142,7 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 				address = (low & MASK_BLKPTR_LO) >> 21;
 				if (!address)
 					break;
+
 				address += MCG_XBLK_ADDR;
 			} else
 				++address;
@@ -148,12 +150,8 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 			if (rdmsr_safe(address, &low, &high))
 				break;
 
-			if (!(high & MASK_VALID_HI)) {
-				if (block)
-					continue;
-				else
-					break;
-			}
+			if (!(high & MASK_VALID_HI))
+				continue;
 
 			if (!(high & MASK_CNTP_HI)  ||
 			     (high & MASK_LOCKED_HI))
@@ -165,8 +163,28 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 			if (shared_bank[bank] && c->cpu_core_id)
 				break;
 #endif
-			lvt_off = setup_APIC_eilvt_mce(THRESHOLD_APIC_VECTOR,
-						       APIC_EILVT_MSG_FIX, 0);
+			offset = (high & MASK_LVTOFF_HI) >> 20;
+			if (lvt_off < 0) {
+				if (setup_APIC_eilvt(offset,
+						     THRESHOLD_APIC_VECTOR,
+						     APIC_EILVT_MSG_FIX, 0)) {
+					pr_err(FW_BUG "cpu %d, failed to "
+					       "setup threshold interrupt "
+					       "for bank %d, block %d "
+					       "(MSR%08X=0x%x%08x)",
+					       smp_processor_id(), bank, block,
+					       address, high, low);
+					continue;
+				}
+				lvt_off = offset;
+			} else if (lvt_off != offset) {
+				pr_err(FW_BUG "cpu %d, invalid threshold "
+				       "interrupt offset %d for bank %d,"
+				       "block %d (MSR%08X=0x%x%08x)",
+				       smp_processor_id(), lvt_off, bank,
+				       block, address, high, low);
+				continue;
+			}
 
 			high &= ~MASK_LVTOFF_HI;
 			high |= lvt_off << 20;
@@ -530,7 +548,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		err = -ENOMEM;
 		goto out;
 	}
-	if (!alloc_cpumask_var(&b->cpus, GFP_KERNEL)) {
+	if (!zalloc_cpumask_var(&b->cpus, GFP_KERNEL)) {
 		kfree(b);
 		err = -ENOMEM;
 		goto out;
@@ -543,7 +561,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 #ifndef CONFIG_SMP
 	cpumask_setall(b->cpus);
 #else
-	cpumask_copy(b->cpus, c->llc_shared_map);
+	cpumask_set_cpu(cpu, b->cpus);
 #endif
 
 	per_cpu(threshold_banks, cpu)[bank] = b;

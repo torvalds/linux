@@ -43,6 +43,7 @@ static struct {
 	{ IR_TYPE_RC6,		"rc-6"		},
 	{ IR_TYPE_JVC,		"jvc"		},
 	{ IR_TYPE_SONY,		"sony"		},
+	{ IR_TYPE_RC5_SZ,	"rc-5-sz"	},
 	{ IR_TYPE_LIRC,		"lirc"		},
 };
 
@@ -67,13 +68,18 @@ static ssize_t show_protocols(struct device *d,
 	char *tmp = buf;
 	int i;
 
-	if (ir_dev->props->driver_type == RC_DRIVER_SCANCODE) {
+	/* Device is being removed */
+	if (!ir_dev)
+		return -EINVAL;
+
+	if (ir_dev->props && ir_dev->props->driver_type == RC_DRIVER_SCANCODE) {
 		enabled = ir_dev->rc_tab.ir_type;
 		allowed = ir_dev->props->allowed_protos;
-	} else {
+	} else if (ir_dev->raw) {
 		enabled = ir_dev->raw->enabled_protocols;
 		allowed = ir_raw_get_allowed_protocols();
-	}
+	} else
+		return sprintf(tmp, "[builtin]\n");
 
 	IR_dprintk(1, "allowed - 0x%llx, enabled - 0x%llx\n",
 		   (long long)allowed,
@@ -121,10 +127,18 @@ static ssize_t store_protocols(struct device *d,
 	int rc, i, count = 0;
 	unsigned long flags;
 
-	if (ir_dev->props->driver_type == RC_DRIVER_SCANCODE)
+	/* Device is being removed */
+	if (!ir_dev)
+		return -EINVAL;
+
+	if (ir_dev->props && ir_dev->props->driver_type == RC_DRIVER_SCANCODE)
 		type = ir_dev->rc_tab.ir_type;
-	else
+	else if (ir_dev->raw)
 		type = ir_dev->raw->enabled_protocols;
+	else {
+		IR_dprintk(1, "Protocol switching not supported\n");
+		return -EINVAL;
+	}
 
 	while ((tmp = strsep((char **) &data, " \n")) != NULL) {
 		if (!*tmp)
@@ -185,7 +199,7 @@ static ssize_t store_protocols(struct device *d,
 		}
 	}
 
-	if (ir_dev->props->driver_type == RC_DRIVER_SCANCODE) {
+	if (ir_dev->props && ir_dev->props->driver_type == RC_DRIVER_SCANCODE) {
 		spin_lock_irqsave(&ir_dev->rc_tab.lock, flags);
 		ir_dev->rc_tab.ir_type = type;
 		spin_unlock_irqrestore(&ir_dev->rc_tab.lock, flags);
@@ -251,8 +265,6 @@ static struct device_type rc_dev_type = {
  */
 int ir_register_class(struct input_dev *input_dev)
 {
-	int rc;
-	const char *path;
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 	int devno = find_first_zero_bit(&ir_core_dev_number,
 					IRRCV_NUM_DEVICES);
@@ -261,17 +273,28 @@ int ir_register_class(struct input_dev *input_dev)
 		return devno;
 
 	ir_dev->dev.type = &rc_dev_type;
+	ir_dev->devno = devno;
 
 	ir_dev->dev.class = &ir_input_class;
 	ir_dev->dev.parent = input_dev->dev.parent;
+	input_dev->dev.parent = &ir_dev->dev;
 	dev_set_name(&ir_dev->dev, "rc%d", devno);
 	dev_set_drvdata(&ir_dev->dev, ir_dev);
-	rc = device_register(&ir_dev->dev);
-	if (rc)
-		return rc;
+	return  device_register(&ir_dev->dev);
+};
+
+/**
+ * ir_register_input - registers ir input device with input subsystem
+ * @input_dev:	the struct input_dev descriptor of the device
+ */
+
+int ir_register_input(struct input_dev *input_dev)
+{
+	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
+	int rc;
+	const char *path;
 
 
-	input_dev->dev.parent = &ir_dev->dev;
 	rc = input_register_device(input_dev);
 	if (rc < 0) {
 		device_del(&ir_dev->dev);
@@ -287,11 +310,9 @@ int ir_register_class(struct input_dev *input_dev)
 		path ? path : "N/A");
 	kfree(path);
 
-	ir_dev->devno = devno;
-	set_bit(devno, &ir_core_dev_number);
-
+	set_bit(ir_dev->devno, &ir_core_dev_number);
 	return 0;
-};
+}
 
 /**
  * ir_unregister_class() - removes the sysfs for sysfs for
@@ -304,6 +325,7 @@ void ir_unregister_class(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 
+	input_set_drvdata(input_dev, NULL);
 	clear_bit(ir_dev->devno, &ir_core_dev_number);
 	input_unregister_device(input_dev);
 	device_del(&ir_dev->dev);

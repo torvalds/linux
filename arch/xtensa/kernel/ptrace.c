@@ -256,9 +256,11 @@ int ptrace_pokeusr(struct task_struct *child, long regno, long val)
 	return 0;
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	int ret = -EPERM;
+	void __user *datap = (void __user *) data;
 
 	switch (request) {
 	case PTRACE_PEEKTEXT:	/* read word at location addr. */
@@ -267,7 +269,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	case PTRACE_PEEKUSR:	/* read register specified by addr. */
-		ret = ptrace_peekusr(child, addr, (void __user *) data);
+		ret = ptrace_peekusr(child, addr, datap);
 		break;
 
 	case PTRACE_POKETEXT:	/* write the word at location addr. */
@@ -280,19 +282,19 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	case PTRACE_GETREGS:
-		ret = ptrace_getregs(child, (void __user *) data);
+		ret = ptrace_getregs(child, datap);
 		break;
 
 	case PTRACE_SETREGS:
-		ret = ptrace_setregs(child, (void __user *) data);
+		ret = ptrace_setregs(child, datap);
 		break;
 
 	case PTRACE_GETXTREGS:
-		ret = ptrace_getxregs(child, (void __user *) data);
+		ret = ptrace_getxregs(child, datap);
 		break;
 
 	case PTRACE_SETXTREGS:
-		ret = ptrace_setxregs(child, (void __user *) data);
+		ret = ptrace_setxregs(child, datap);
 		break;
 
 	default:

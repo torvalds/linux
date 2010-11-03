@@ -111,11 +111,11 @@ static int use_dma = 1;
 module_param(use_dma, bool, 0);
 MODULE_PARM_DESC(use_dma, "enable/disable use of DMA");
 #else
-const int use_dma;
+static const int use_dma;
 #endif
 #else
 const int use_prefetch;
-const int use_dma;
+static const int use_dma;
 #endif
 
 struct omap_nand_info {
@@ -413,7 +413,7 @@ static inline int omap_nand_dma_transfer(struct mtd_info *mtd, void *addr,
 		prefetch_status = gpmc_read_status(GPMC_PREFETCH_COUNT);
 	} while (prefetch_status);
 	/* disable and stop the PFPW engine */
-	gpmc_prefetch_reset();
+	gpmc_prefetch_reset(info->gpmc_cs);
 
 	dma_unmap_single(&info->pdev->dev, dma_addr, len, dir);
 	return 0;

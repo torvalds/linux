@@ -104,6 +104,8 @@ void nv04_dfp_disable(struct drm_device *dev, int head)
 	}
 	/* don't inadvertently turn it on when state written later */
 	crtcstate[head].fp_control = FP_TG_CONTROL_OFF;
+	crtcstate[head].CRTC[NV_CIO_CRE_LCD__INDEX] &=
+		~NV_CIO_CRE_LCD_ROUTE_MASK;
 }
 
 void nv04_dfp_update_fp_control(struct drm_encoder *encoder, int mode)
@@ -253,26 +255,21 @@ static void nv04_dfp_prepare(struct drm_encoder *encoder)
 
 	nv04_dfp_prepare_sel_clk(dev, nv_encoder, head);
 
-	/* Some NV4x have unknown values (0x3f, 0x50, 0x54, 0x6b, 0x79, 0x7f)
-	 * at LCD__INDEX which we don't alter
-	 */
-	if (!(*cr_lcd & 0x44)) {
-		*cr_lcd = 0x3;
+	*cr_lcd = (*cr_lcd & ~NV_CIO_CRE_LCD_ROUTE_MASK) | 0x3;
 
-		if (nv_two_heads(dev)) {
-			if (nv_encoder->dcb->location == DCB_LOC_ON_CHIP)
-				*cr_lcd |= head ? 0x0 : 0x8;
-			else {
-				*cr_lcd |= (nv_encoder->dcb->or << 4) & 0x30;
-				if (nv_encoder->dcb->type == OUTPUT_LVDS)
-					*cr_lcd |= 0x30;
-				if ((*cr_lcd & 0x30) == (*cr_lcd_oth & 0x30)) {
-					/* avoid being connected to both crtcs */
-					*cr_lcd_oth &= ~0x30;
-					NVWriteVgaCrtc(dev, head ^ 1,
-						       NV_CIO_CRE_LCD__INDEX,
-						       *cr_lcd_oth);
-				}
+	if (nv_two_heads(dev)) {
+		if (nv_encoder->dcb->location == DCB_LOC_ON_CHIP)
+			*cr_lcd |= head ? 0x0 : 0x8;
+		else {
+			*cr_lcd |= (nv_encoder->dcb->or << 4) & 0x30;
+			if (nv_encoder->dcb->type == OUTPUT_LVDS)
+				*cr_lcd |= 0x30;
+			if ((*cr_lcd & 0x30) == (*cr_lcd_oth & 0x30)) {
+				/* avoid being connected to both crtcs */
+				*cr_lcd_oth &= ~0x30;
+				NVWriteVgaCrtc(dev, head ^ 1,
+					       NV_CIO_CRE_LCD__INDEX,
+					       *cr_lcd_oth);
 			}
 		}
 	}
@@ -444,6 +441,7 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct dcb_entry *dcbe = nv_encoder->dcb;
 	int head = nouveau_crtc(encoder->crtc)->index;
+	struct drm_encoder *slave_encoder;
 
 	if (dcbe->type == OUTPUT_TMDS)
 		run_tmds_table(dev, dcbe, head, nv_encoder->mode.clock);
@@ -462,15 +460,37 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + nv04_dac_output_offset(encoder), 0x00100000);
 
 	/* Init external transmitters */
-	if (get_tmds_slave(encoder))
-		get_slave_funcs(get_tmds_slave(encoder))->mode_set(
-			encoder, &nv_encoder->mode, &nv_encoder->mode);
+	slave_encoder = get_tmds_slave(encoder);
+	if (slave_encoder)
+		get_slave_funcs(slave_encoder)->mode_set(
+			slave_encoder, &nv_encoder->mode, &nv_encoder->mode);
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
 	NV_INFO(dev, "Output %s is running on CRTC %d using output %c\n",
 		drm_get_connector_name(&nouveau_encoder_connector_get(nv_encoder)->base),
 		nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
+}
+
+static void nv04_dfp_update_backlight(struct drm_encoder *encoder, int mode)
+{
+#ifdef __powerpc__
+	struct drm_device *dev = encoder->dev;
+
+	/* BIOS scripts usually take care of the backlight, thanks
+	 * Apple for your consistency.
+	 */
+	if (dev->pci_device == 0x0179 || dev->pci_device == 0x0189 ||
+	    dev->pci_device == 0x0329) {
+		if (mode == DRM_MODE_DPMS_ON) {
+			nv_mask(dev, NV_PBUS_DEBUG_DUALHEAD_CTL, 0, 1 << 31);
+			nv_mask(dev, NV_PCRTC_GPIO_EXT, 3, 1);
+		} else {
+			nv_mask(dev, NV_PBUS_DEBUG_DUALHEAD_CTL, 1 << 31, 0);
+			nv_mask(dev, NV_PCRTC_GPIO_EXT, 3, 0);
+		}
+	}
+#endif
 }
 
 static inline bool is_powersaving_dpms(int mode)
@@ -520,6 +540,7 @@ static void nv04_lvds_dpms(struct drm_encoder *encoder, int mode)
 					 LVDS_PANEL_OFF, 0);
 	}
 
+	nv04_dfp_update_backlight(encoder, mode);
 	nv04_dfp_update_fp_control(encoder, mode);
 
 	if (mode == DRM_MODE_DPMS_ON)
@@ -543,6 +564,7 @@ static void nv04_tmds_dpms(struct drm_encoder *encoder, int mode)
 	NV_INFO(dev, "Setting dpms mode %d on tmds encoder (output %d)\n",
 		     mode, nv_encoder->dcb->index);
 
+	nv04_dfp_update_backlight(encoder, mode);
 	nv04_dfp_update_fp_control(encoder, mode);
 }
 
@@ -615,7 +637,7 @@ static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 	    get_tmds_slave(encoder))
 		return;
 
-	type = nouveau_i2c_identify(dev, "TMDS transmitter", info, 2);
+	type = nouveau_i2c_identify(dev, "TMDS transmitter", info, NULL, 2);
 	if (type < 0)
 		return;
 

@@ -263,6 +263,7 @@
 #		define NV_CIO_CRE_HCUR_ADDR1_ADR	7:2
 #	define NV_CIO_CRE_LCD__INDEX		0x33
 #		define NV_CIO_CRE_LCD_LCD_SELECT	0:0
+#		define NV_CIO_CRE_LCD_ROUTE_MASK	0x3b
 #	define NV_CIO_CRE_DDC0_STATUS__INDEX	0x36
 #	define NV_CIO_CRE_DDC0_WR__INDEX	0x37
 #	define NV_CIO_CRE_ILACE__INDEX		0x39	/* interlace */

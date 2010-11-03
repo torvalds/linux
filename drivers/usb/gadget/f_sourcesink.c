@@ -404,7 +404,7 @@ static void sourcesink_disable(struct usb_function *f)
 
 /*-------------------------------------------------------------------------*/
 
-static int __ref sourcesink_bind_config(struct usb_configuration *c)
+static int __init sourcesink_bind_config(struct usb_configuration *c)
 {
 	struct f_sourcesink	*ss;
 	int			status;
@@ -498,7 +498,6 @@ unknown:
 static struct usb_configuration sourcesink_driver = {
 	.label		= "source/sink",
 	.strings	= sourcesink_strings,
-	.bind		= sourcesink_bind_config,
 	.setup		= sourcesink_setup,
 	.bConfigurationValue = 3,
 	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
@@ -532,5 +531,5 @@ int __init sourcesink_add(struct usb_composite_dev *cdev, bool autoresume)
 		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	return usb_add_config(cdev, &sourcesink_driver);
+	return usb_add_config(cdev, &sourcesink_driver, sourcesink_bind_config);
 }

@@ -195,6 +195,7 @@ static const struct file_operations stack_max_size_fops = {
 	.open		= tracing_open_generic,
 	.read		= stack_max_size_read,
 	.write		= stack_max_size_write,
+	.llseek		= default_llseek,
 };
 
 static void *
@@ -249,7 +250,7 @@ static int trace_lookup_stack(struct seq_file *m, long i)
 {
 	unsigned long addr = stack_dump_trace[i];
 
-	return seq_printf(m, "%pF\n", (void *)addr);
+	return seq_printf(m, "%pS\n", (void *)addr);
 }
 
 static void print_disabled(struct seq_file *m)

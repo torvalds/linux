@@ -188,9 +188,6 @@ static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
 	int enable;
 	int report;
 
-	if (gpio->debounce_time > 0)
-		mdelay(gpio->debounce_time);
-
 	enable = gpio_get_value(gpio->gpio);
 	if (gpio->invert)
 		enable = !enable;
@@ -211,7 +208,8 @@ static irqreturn_t gpio_handler(int irq, void *data)
 {
 	struct snd_soc_jack_gpio *gpio = data;
 
-	schedule_work(&gpio->work);
+	schedule_delayed_work(&gpio->work,
+			      msecs_to_jiffies(gpio->debounce_time));
 
 	return IRQ_HANDLED;
 }
@@ -221,7 +219,7 @@ static void gpio_work(struct work_struct *work)
 {
 	struct snd_soc_jack_gpio *gpio;
 
-	gpio = container_of(work, struct snd_soc_jack_gpio, work);
+	gpio = container_of(work, struct snd_soc_jack_gpio, work.work);
 	snd_soc_jack_gpio_detect(gpio);
 }
 
@@ -262,7 +260,7 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 		if (ret)
 			goto err;
 
-		INIT_WORK(&gpios[i].work, gpio_work);
+		INIT_DELAYED_WORK(&gpios[i].work, gpio_work);
 		gpios[i].jack = jack;
 
 		ret = request_irq(gpio_to_irq(gpios[i].gpio),
@@ -312,6 +310,7 @@ void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 		gpio_unexport(gpios[i].gpio);
 #endif
 		free_irq(gpio_to_irq(gpios[i].gpio), &gpios[i]);
+		cancel_delayed_work_sync(&gpios[i].work);
 		gpio_free(gpios[i].gpio);
 		gpios[i].jack = NULL;
 	}

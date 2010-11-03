@@ -22,6 +22,8 @@
 #include "main.h"
 #include "bitarray.h"
 
+#include <linux/bitops.h>
+
 /* returns true if the corresponding bit in the given seq_bits indicates true
  * and curr_seqno is within range of last_seqno */
 uint8_t get_bit_status(TYPE_OF_WORD *seq_bits, uint32_t last_seqno,
@@ -125,11 +127,10 @@ static void bit_reset_window(TYPE_OF_WORD *seq_bits)
  *  1 if the window was moved (either new or very old)
  *  0 if the window was not moved/shifted.
  */
-char bit_get_packet(TYPE_OF_WORD *seq_bits, int32_t seq_num_diff,
-		    int8_t set_mark)
+char bit_get_packet(void *priv, TYPE_OF_WORD *seq_bits,
+		    int32_t seq_num_diff, int8_t set_mark)
 {
-	/* FIXME: each orig_node->batman_if will be attached to a softif */
-	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct bat_priv *bat_priv = (struct bat_priv *)priv;
 
 	/* sequence number is slightly older. We already got a sequence number
 	 * higher than this one, so we just mark it. */
@@ -187,21 +188,14 @@ char bit_get_packet(TYPE_OF_WORD *seq_bits, int32_t seq_num_diff,
 }
 
 /* count the hamming weight, how many good packets did we receive? just count
- * the 1's. The inner loop uses the Kernighan algorithm, see
- * http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetKernighan
+ * the 1's.
  */
 int bit_packet_count(TYPE_OF_WORD *seq_bits)
 {
 	int i, hamming = 0;
-	TYPE_OF_WORD word;
 
-	for (i = 0; i < NUM_WORDS; i++) {
-		word = seq_bits[i];
+	for (i = 0; i < NUM_WORDS; i++)
+		hamming += hweight_long(seq_bits[i]);
 
-		while (word) {
-			word &= word-1;
-			hamming++;
-		}
-	}
 	return hamming;
 }

@@ -367,7 +367,7 @@ struct net_device *alloc_etherdev_mq(int sizeof_priv, unsigned int queue_count)
 EXPORT_SYMBOL(alloc_etherdev_mq);
 
 static size_t _format_mac_addr(char *buf, int buflen,
-				const unsigned char *addr, int len)
+			       const unsigned char *addr, int len)
 {
 	int i;
 	char *cp = buf;
@@ -376,7 +376,7 @@ static size_t _format_mac_addr(char *buf, int buflen,
 		cp += scnprintf(cp, buflen - (cp - buf), "%02x", addr[i]);
 		if (i == len - 1)
 			break;
-		cp += strlcpy(cp, ":", buflen - (cp - buf));
+		cp += scnprintf(cp, buflen - (cp - buf), ":");
 	}
 	return cp - buf;
 }
@@ -386,7 +386,7 @@ ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len)
 	size_t l;
 
 	l = _format_mac_addr(buf, PAGE_SIZE, addr, len);
-	l += strlcpy(buf + l, "\n", PAGE_SIZE - l);
-	return ((ssize_t) l);
+	l += scnprintf(buf + l, PAGE_SIZE - l, "\n");
+	return (ssize_t)l;
 }
 EXPORT_SYMBOL(sysfs_format_mac);

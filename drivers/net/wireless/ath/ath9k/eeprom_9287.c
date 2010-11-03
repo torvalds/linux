@@ -34,8 +34,13 @@ static bool ath9k_hw_ar9287_fill_eeprom(struct ath_hw *ah)
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
 	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *eep_data;
-	int addr, eep_start_loc = AR9287_EEP_START_LOC;
+	int addr, eep_start_loc;
 	eep_data = (u16 *)eep;
+
+	if (ah->hw_version.devid == 0x7015)
+		eep_start_loc = AR9287_HTC_EEP_START_LOC;
+	else
+		eep_start_loc = AR9287_EEP_START_LOC;
 
 	if (!ath9k_hw_use_flash(ah)) {
 		ath_print(common, ATH_DBG_EEPROM,
@@ -319,7 +324,7 @@ static void ath9k_hw_get_ar9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 		minDelta = 0;
 
 		if (i == 0) {
-			if (AR_SREV_9280_10_OR_LATER(ah))
+			if (AR_SREV_9280_20_OR_LATER(ah))
 				ss = (int16_t)(0 - (minPwrT4[i] / 2));
 			else
 				ss = 0;
@@ -878,7 +883,7 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 			ratesArray[i] = AR9287_MAX_RATE_POWER;
 	}
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
+	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		for (i = 0; i < Ar5416RateSize; i++)
 			ratesArray[i] -= AR9287_PWR_TABLE_OFFSET_DB * 2;
 	}
@@ -972,7 +977,7 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 	else
 		i = rate6mb;
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
+	if (AR_SREV_9280_20_OR_LATER(ah))
 		regulatory->max_power_level =
 			ratesArray[i] + AR9287_PWR_TABLE_OFFSET_DB * 2;
 	else
@@ -1121,7 +1126,7 @@ static void ath9k_hw_ar9287_set_board_values(struct ath_hw *ah,
 }
 
 static u8 ath9k_hw_ar9287_get_num_ant_config(struct ath_hw *ah,
-					     enum ieee80211_band freq_band)
+					     enum ath9k_hal_freq_band freq_band)
 {
 	return 1;
 }

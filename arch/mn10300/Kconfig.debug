@@ -101,7 +101,7 @@ config GDBSTUB_DEBUG_BREAKPOINT
 
 choice
 	prompt "GDB stub port"
-	default GDBSTUB_TTYSM0
+	default GDBSTUB_ON_TTYSM0
 	depends on GDBSTUB
 	help
 	  Select the serial port used for GDB-stub.

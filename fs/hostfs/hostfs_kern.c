@@ -104,7 +104,7 @@ static char *__dentry_name(struct dentry *dentry, char *name)
 		__putname(name);
 		return NULL;
 	}
-	strncpy(name, root, PATH_MAX);
+	strlcpy(name, root, PATH_MAX);
 	if (len > p - name) {
 		__putname(name);
 		return NULL;
@@ -217,7 +217,7 @@ int hostfs_statfs(struct dentry *dentry, struct kstatfs *sf)
 	err = do_statfs(dentry->d_sb->s_fs_info,
 			&sf->f_bsize, &f_blocks, &f_bfree, &f_bavail, &f_files,
 			&f_ffree, &sf->f_fsid, sizeof(sf->f_fsid),
-			&sf->f_namelen, sf->f_spare);
+			&sf->f_namelen);
 	if (err)
 		return err;
 	sf->f_blocks = f_blocks;
@@ -876,7 +876,7 @@ static void *hostfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 		char *path = dentry_name(dentry);
 		int err = -ENOMEM;
 		if (path) {
-			int err = hostfs_do_readlink(path, link, PATH_MAX);
+			err = hostfs_do_readlink(path, link, PATH_MAX);
 			if (err == PATH_MAX)
 				err = -E2BIG;
 			__putname(path);
@@ -962,11 +962,11 @@ out:
 	return err;
 }
 
-static int hostfs_read_sb(struct file_system_type *type,
+static struct dentry *hostfs_read_sb(struct file_system_type *type,
 			  int flags, const char *dev_name,
-			  void *data, struct vfsmount *mnt)
+			  void *data)
 {
-	return get_sb_nodev(type, flags, data, hostfs_fill_sb_common, mnt);
+	return mount_nodev(type, flags, data, hostfs_fill_sb_common);
 }
 
 static void hostfs_kill_sb(struct super_block *s)
@@ -978,7 +978,7 @@ static void hostfs_kill_sb(struct super_block *s)
 static struct file_system_type hostfs_type = {
 	.owner 		= THIS_MODULE,
 	.name 		= "hostfs",
-	.get_sb 	= hostfs_read_sb,
+	.mount	 	= hostfs_read_sb,
 	.kill_sb	= hostfs_kill_sb,
 	.fs_flags 	= 0,
 };

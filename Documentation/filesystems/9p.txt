@@ -111,7 +111,7 @@ OPTIONS
   		This can be used to share devices/named pipes/sockets between
 		hosts.  This functionality will be expanded in later versions.
 
-  access	there are three access modes.
+  access	there are four access modes.
 			user  = if a user tries to access a file on v9fs
 			        filesystem for the first time, v9fs sends an
 			        attach command (Tattach) for that user.
@@ -120,6 +120,8 @@ OPTIONS
 				the files on the mounted filesystem
 			any   = v9fs does single attach and performs all
 				operations as one user
+			client = ACL based access check on the 9p client
+			         side for access validation
 
   cachetag	cache tag to use the specified persistent cache.
 		cache tags for existing cache sessions can be listed at

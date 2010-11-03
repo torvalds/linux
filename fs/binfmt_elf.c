@@ -800,7 +800,7 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 			 * default mmap base, as well as whatever program they
 			 * might try to exec.  This is because the brk will
 			 * follow the loader, and is not movable.  */
-#ifdef CONFIG_X86
+#if defined(CONFIG_X86) || defined(CONFIG_ARM)
 			load_bias = 0;
 #else
 			load_bias = ELF_PAGESTART(ELF_ET_DYN_BASE - vaddr);

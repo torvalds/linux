@@ -76,7 +76,7 @@ EXPORT_SYMBOL(drm_mode_debug_printmodeline);
  * according to the hdisplay, vdisplay, vrefresh.
  * It is based from the VESA(TM) Coordinated Video Timing Generator by
  * Graham Loveridge April 9, 2003 available at
- * http://www.vesa.org/public/CVT/CVTd6r1.xls
+ * http://www.elo.utfsm.cl/~elo212/docs/CVTd6r1.xls 
  *
  * And it is copied from xf86CVTmode in xserver/hw/xfree86/modes/xf86cvt.c.
  * What I have done is to translate it by using integer calculation.
@@ -251,7 +251,10 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 		drm_mode->htotal = drm_mode->hdisplay + CVT_RB_H_BLANK;
 		/* Fill in HSync values */
 		drm_mode->hsync_end = drm_mode->hdisplay + CVT_RB_H_BLANK / 2;
-		drm_mode->hsync_start = drm_mode->hsync_end = CVT_RB_H_SYNC;
+		drm_mode->hsync_start = drm_mode->hsync_end - CVT_RB_H_SYNC;
+		/* Fill in VSync values */
+		drm_mode->vsync_start = drm_mode->vdisplay + CVT_RB_VFPORCH;
+		drm_mode->vsync_end = drm_mode->vsync_start + vsync;
 	}
 	/* 15/13. Find pixel clock frequency (kHz for xf86) */
 	drm_mode->clock = drm_mode->htotal * HV_FACTOR * 1000 / hperiod;

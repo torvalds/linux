@@ -736,7 +736,7 @@ again:
 	dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
 	if (!dst_pte)
 		return -ENOMEM;
-	src_pte = pte_offset_map_nested(src_pmd, addr);
+	src_pte = pte_offset_map(src_pmd, addr);
 	src_ptl = pte_lockptr(src_mm, src_pmd);
 	spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
 	orig_src_pte = src_pte;
@@ -767,7 +767,7 @@ again:
 
 	arch_leave_lazy_mmu_mode();
 	spin_unlock(src_ptl);
-	pte_unmap_nested(orig_src_pte);
+	pte_unmap(orig_src_pte);
 	add_mm_rss_vec(dst_mm, rss);
 	pte_unmap_unlock(orig_dst_pte, dst_ptl);
 	cond_resched();
@@ -1450,7 +1450,8 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 					if (ret & VM_FAULT_OOM)
 						return i ? i : -ENOMEM;
 					if (ret &
-					    (VM_FAULT_HWPOISON|VM_FAULT_SIGBUS))
+					    (VM_FAULT_HWPOISON|VM_FAULT_HWPOISON_LARGE|
+					     VM_FAULT_SIGBUS))
 						return i ? i : -EFAULT;
 					BUG();
 				}
@@ -1590,7 +1591,7 @@ struct page *get_dump_page(unsigned long addr)
 }
 #endif /* CONFIG_ELF_CORE */
 
-pte_t *get_locked_pte(struct mm_struct *mm, unsigned long addr,
+pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
 			spinlock_t **ptl)
 {
 	pgd_t * pgd = pgd_offset(mm, addr);
@@ -2079,7 +2080,7 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
 		 * zeroes.
 		 */
 		if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE))
-			memset(kaddr, 0, PAGE_SIZE);
+			clear_page(kaddr);
 		kunmap_atomic(kaddr, KM_USER0);
 		flush_dcache_page(dst);
 	} else
@@ -2107,6 +2108,7 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
 static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long address, pte_t *page_table, pmd_t *pmd,
 		spinlock_t *ptl, pte_t orig_pte)
+	__releases(ptl)
 {
 	struct page *old_page, *new_page;
 	pte_t entry;
@@ -2623,9 +2625,10 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned int flags, pte_t orig_pte)
 {
 	spinlock_t *ptl;
-	struct page *page;
+	struct page *page, *swapcache = NULL;
 	swp_entry_t entry;
 	pte_t pte;
+	int locked;
 	struct mem_cgroup *ptr = NULL;
 	int exclusive = 0;
 	int ret = 0;
@@ -2676,13 +2679,32 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		goto out_release;
 	}
 
-	lock_page(page);
+	locked = lock_page_or_retry(page, mm, flags);
 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+	if (!locked) {
+		ret |= VM_FAULT_RETRY;
+		goto out_release;
+	}
 
-	page = ksm_might_need_to_copy(page, vma, address);
-	if (!page) {
-		ret = VM_FAULT_OOM;
-		goto out;
+	/*
+	 * Make sure try_to_free_swap or reuse_swap_page or swapoff did not
+	 * release the swapcache from under us.  The page pin, and pte_same
+	 * test below, are not enough to exclude that.  Even if it is still
+	 * swapcache, we need to check that the page's swap has not changed.
+	 */
+	if (unlikely(!PageSwapCache(page) || page_private(page) != entry.val))
+		goto out_page;
+
+	if (ksm_might_need_to_copy(page, vma, address)) {
+		swapcache = page;
+		page = ksm_does_need_to_copy(page, vma, address);
+
+		if (unlikely(!page)) {
+			ret = VM_FAULT_OOM;
+			page = swapcache;
+			swapcache = NULL;
+			goto out_page;
+		}
 	}
 
 	if (mem_cgroup_try_charge_swapin(mm, page, GFP_KERNEL, &ptr)) {
@@ -2735,6 +2757,18 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
 		try_to_free_swap(page);
 	unlock_page(page);
+	if (swapcache) {
+		/*
+		 * Hold the lock to avoid the swap entry to be reused
+		 * until we take the PT lock for the pte_same() check
+		 * (to avoid false positives from pte_same). For
+		 * further safety release the lock after the swap_free
+		 * so that the swap count won't change under a
+		 * parallel locked swapcache.
+		 */
+		unlock_page(swapcache);
+		page_cache_release(swapcache);
+	}
 
 	if (flags & FAULT_FLAG_WRITE) {
 		ret |= do_wp_page(mm, vma, address, page_table, pmd, ptl, pte);
@@ -2756,25 +2790,43 @@ out_page:
 	unlock_page(page);
 out_release:
 	page_cache_release(page);
+	if (swapcache) {
+		unlock_page(swapcache);
+		page_cache_release(swapcache);
+	}
 	return ret;
 }
 
 /*
- * This is like a special single-page "expand_downwards()",
- * except we must first make sure that 'address-PAGE_SIZE'
+ * This is like a special single-page "expand_{down|up}wards()",
+ * except we must first make sure that 'address{-|+}PAGE_SIZE'
  * doesn't hit another vma.
- *
- * The "find_vma()" will do the right thing even if we wrap
  */
 static inline int check_stack_guard_page(struct vm_area_struct *vma, unsigned long address)
 {
 	address &= PAGE_MASK;
 	if ((vma->vm_flags & VM_GROWSDOWN) && address == vma->vm_start) {
-		address -= PAGE_SIZE;
-		if (find_vma(vma->vm_mm, address) != vma)
-			return -ENOMEM;
+		struct vm_area_struct *prev = vma->vm_prev;
 
-		expand_stack(vma, address);
+		/*
+		 * Is there a mapping abutting this one below?
+		 *
+		 * That's only ok if it's the same stack mapping
+		 * that has gotten split..
+		 */
+		if (prev && prev->vm_end == address)
+			return prev->vm_flags & VM_GROWSDOWN ? 0 : -ENOMEM;
+
+		expand_stack(vma, address - PAGE_SIZE);
+	}
+	if ((vma->vm_flags & VM_GROWSUP) && address + PAGE_SIZE == vma->vm_end) {
+		struct vm_area_struct *next = vma->vm_next;
+
+		/* As VM_GROWSDOWN but s/below/above/ */
+		if (next && next->vm_start == address + PAGE_SIZE)
+			return next->vm_flags & VM_GROWSUP ? 0 : -ENOMEM;
+
+		expand_upwards(vma, address + PAGE_SIZE);
 	}
 	return 0;
 }
@@ -2881,7 +2933,8 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	vmf.page = NULL;
 
 	ret = vma->vm_ops->fault(vma, &vmf);
-	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
+	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE |
+			    VM_FAULT_RETRY)))
 		return ret;
 
 	if (unlikely(PageHWPoison(vmf.page))) {
@@ -3140,7 +3193,7 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 		 * with threads.
 		 */
 		if (flags & FAULT_FLAG_WRITE)
-			flush_tlb_page(vma, address);
+			flush_tlb_fix_spurious_fault(vma, address);
 	}
 unlock:
 	pte_unmap_unlock(pte, ptl);
@@ -3298,7 +3351,7 @@ int in_gate_area_no_task(unsigned long addr)
 
 #endif	/* __HAVE_ARCH_GATE_AREA */
 
-static int follow_pte(struct mm_struct *mm, unsigned long address,
+static int __follow_pte(struct mm_struct *mm, unsigned long address,
 		pte_t **ptepp, spinlock_t **ptlp)
 {
 	pgd_t *pgd;
@@ -3333,6 +3386,17 @@ unlock:
 	pte_unmap_unlock(ptep, *ptlp);
 out:
 	return -EINVAL;
+}
+
+static inline int follow_pte(struct mm_struct *mm, unsigned long address,
+			     pte_t **ptepp, spinlock_t **ptlp)
+{
+	int res;
+
+	/* (void) is needed to make gcc happy */
+	(void) __cond_lock(*ptlp,
+			   !(res = __follow_pte(mm, address, ptepp, ptlp)));
+	return res;
 }
 
 /**

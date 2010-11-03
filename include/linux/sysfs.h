@@ -16,6 +16,7 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
+#include <linux/kobject_ns.h>
 #include <asm/atomic.h>
 
 struct kobject;
@@ -163,6 +164,10 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 			const struct attribute *attr, const char *group);
 void sysfs_remove_file_from_group(struct kobject *kobj,
 			const struct attribute *attr, const char *group);
+int sysfs_merge_group(struct kobject *kobj,
+		       const struct attribute_group *grp);
+void sysfs_unmerge_group(struct kobject *kobj,
+		       const struct attribute_group *grp);
 
 void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
 void sysfs_notify_dirent(struct sysfs_dirent *sd);
@@ -298,6 +303,17 @@ static inline int sysfs_add_file_to_group(struct kobject *kobj,
 
 static inline void sysfs_remove_file_from_group(struct kobject *kobj,
 		const struct attribute *attr, const char *group)
+{
+}
+
+static inline int sysfs_merge_group(struct kobject *kobj,
+		       const struct attribute_group *grp)
+{
+	return 0;
+}
+
+static inline void sysfs_unmerge_group(struct kobject *kobj,
+		       const struct attribute_group *grp)
 {
 }
 

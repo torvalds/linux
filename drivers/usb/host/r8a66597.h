@@ -227,7 +227,7 @@ static inline void r8a66597_write_fifo(struct r8a66597 *r8a66597,
 		int odd = len & 0x0001;
 
 		len = len / 2;
-		ioread16_rep(fifoaddr, buf, len);
+		iowrite16_rep(fifoaddr, buf, len);
 		if (unlikely(odd)) {
 			buf = &buf[len];
 			iowrite8((unsigned char)*buf, fifoaddr);

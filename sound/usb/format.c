@@ -49,7 +49,8 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 	u64 pcm_formats;
 
 	switch (protocol) {
-	case UAC_VERSION_1: {
+	case UAC_VERSION_1:
+	default: {
 		struct uac_format_type_i_discrete_descriptor *fmt = _fmt;
 		sample_width = fmt->bBitResolution;
 		sample_bytes = fmt->bSubframeSize;
@@ -64,9 +65,6 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		format <<= 1;
 		break;
 	}
-
-	default:
-		return -EINVAL;
 	}
 
 	pcm_formats = 0;
@@ -384,6 +382,10 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 	 * audio class v2 uses class specific EP0 range requests for that.
 	 */
 	switch (protocol) {
+	default:
+		snd_printdd(KERN_WARNING "%d:%u:%d : invalid protocol version %d, assuming v1\n",
+			   chip->dev->devnum, fp->iface, fp->altsetting, protocol);
+		/* fall through */
 	case UAC_VERSION_1:
 		fp->channels = fmt->bNrChannels;
 		ret = parse_audio_format_rates_v1(chip, fp, (unsigned char *) fmt, 7);
@@ -392,10 +394,6 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 		/* fp->channels is already set in this case */
 		ret = parse_audio_format_rates_v2(chip, fp);
 		break;
-	default:
-		snd_printk(KERN_ERR "%d:%u:%d : invalid protocol version %d\n",
-			   chip->dev->devnum, fp->iface, fp->altsetting, protocol);
-		return -EINVAL;
 	}
 
 	if (fp->channels < 1) {
@@ -438,6 +436,10 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 	fp->channels = 1;
 
 	switch (protocol) {
+	default:
+		snd_printdd(KERN_WARNING "%d:%u:%d : invalid protocol version %d, assuming v1\n",
+			   chip->dev->devnum, fp->iface, fp->altsetting, protocol);
+		/* fall through */
 	case UAC_VERSION_1: {
 		struct uac_format_type_ii_discrete_descriptor *fmt = _fmt;
 		brate = le16_to_cpu(fmt->wMaxBitRate);
@@ -456,10 +458,6 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 		ret = parse_audio_format_rates_v2(chip, fp);
 		break;
 	}
-	default:
-		snd_printk(KERN_ERR "%d:%u:%d : invalid protocol version %d\n",
-			   chip->dev->devnum, fp->iface, fp->altsetting, protocol);
-		return -EINVAL;
 	}
 
 	return ret;

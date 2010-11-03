@@ -260,6 +260,7 @@ vxfs_get_fake_inode(struct super_block *sbp, struct vxfs_inode_info *vip)
 	struct inode			*ip = NULL;
 
 	if ((ip = new_inode(sbp))) {
+		ip->i_ino = get_next_ino();
 		vxfs_iinit(ip, vip);
 		ip->i_mapping->a_ops = &vxfs_aops;
 	}

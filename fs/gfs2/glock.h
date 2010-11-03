@@ -215,7 +215,7 @@ void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
 
 /**
- * gfs2_glock_nq_init - intialize a holder and enqueue it on a glock
+ * gfs2_glock_nq_init - initialize a holder and enqueue it on a glock
  * @gl: the glock
  * @state: the state we're requesting
  * @flags: the modifier flags

@@ -116,7 +116,7 @@ int ima_must_measure(struct ima_iint_cache *iint, struct inode *inode,
 {
 	int must_measure;
 
-	if (iint->flags & IMA_MEASURED)
+	if (iint && iint->flags & IMA_MEASURED)
 		return 1;
 
 	must_measure = ima_match_policy(inode, function, mask);

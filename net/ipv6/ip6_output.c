@@ -637,9 +637,9 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 	}
 	mtu -= hlen + sizeof(struct frag_hdr);
 
-	if (skb_has_frags(skb)) {
+	if (skb_has_frag_list(skb)) {
 		int first_len = skb_pagelen(skb);
-		int truesizes = 0;
+		struct sk_buff *frag2;
 
 		if (first_len - hlen > mtu ||
 		    ((first_len - hlen) & 7) ||
@@ -651,18 +651,18 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 			if (frag->len > mtu ||
 			    ((frag->len & 7) && frag->next) ||
 			    skb_headroom(frag) < hlen)
-			    goto slow_path;
+				goto slow_path_clean;
 
 			/* Partially cloned skb? */
 			if (skb_shared(frag))
-				goto slow_path;
+				goto slow_path_clean;
 
 			BUG_ON(frag->sk);
 			if (skb->sk) {
 				frag->sk = skb->sk;
 				frag->destructor = sock_wfree;
-				truesizes += frag->truesize;
 			}
+			skb->truesize -= frag->truesize;
 		}
 
 		err = 0;
@@ -693,7 +693,6 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 
 		first_len = skb_pagelen(skb);
 		skb->data_len = first_len - skb_headlen(skb);
-		skb->truesize -= truesizes;
 		skb->len = first_len;
 		ipv6_hdr(skb)->payload_len = htons(first_len -
 						   sizeof(struct ipv6hdr));
@@ -756,6 +755,15 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 			      IPSTATS_MIB_FRAGFAILS);
 		dst_release(&rt->dst);
 		return err;
+
+slow_path_clean:
+		skb_walk_frags(skb, frag2) {
+			if (frag2 == frag)
+				break;
+			frag2->sk = NULL;
+			frag2->destructor = NULL;
+			skb->truesize += frag2->truesize;
+		}
 	}
 
 slow_path:
@@ -870,8 +878,8 @@ static inline int ip6_rt_check(struct rt6key *rt_key,
 			       struct in6_addr *fl_addr,
 			       struct in6_addr *addr_cache)
 {
-	return ((rt_key->plen != 128 || !ipv6_addr_equal(fl_addr, &rt_key->addr)) &&
-		(addr_cache == NULL || !ipv6_addr_equal(fl_addr, addr_cache)));
+	return (rt_key->plen != 128 || !ipv6_addr_equal(fl_addr, &rt_key->addr)) &&
+		(addr_cache == NULL || !ipv6_addr_equal(fl_addr, addr_cache));
 }
 
 static struct dst_entry *ip6_sk_dst_check(struct sock *sk,

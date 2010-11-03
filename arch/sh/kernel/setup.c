@@ -24,7 +24,6 @@
 #include <linux/module.h>
 #include <linux/smp.h>
 #include <linux/err.h>
-#include <linux/debugfs.h>
 #include <linux/crash_dump.h>
 #include <linux/mmzone.h>
 #include <linux/clk.h>
@@ -42,6 +41,7 @@
 #include <asm/smp.h>
 #include <asm/mmu_context.h>
 #include <asm/mmzone.h>
+#include <asm/sparsemem.h>
 
 /*
  * Initialize loops_per_jiffy as 10000000 (1000MIPS).
@@ -53,6 +53,7 @@ struct sh_cpuinfo cpu_data[NR_CPUS] __read_mostly = {
 		.type			= CPU_SH_NONE,
 		.family			= CPU_FAMILY_UNKNOWN,
 		.loops_per_jiffy	= 10000000,
+		.phys_bits		= MAX_PHYSMEM_BITS,
 	},
 };
 EXPORT_SYMBOL(cpu_data);
@@ -136,8 +137,9 @@ void __init check_for_initrd(void)
 		goto disable;
 	}
 
-	if (unlikely(start < PAGE_OFFSET)) {
-		pr_err("initrd start < PAGE_OFFSET\n");
+	if (unlikely(start < __MEMORY_START)) {
+		pr_err("initrd start (%08lx) < __MEMORY_START(%x)\n",
+			start, __MEMORY_START);
 		goto disable;
 	}
 
@@ -158,7 +160,7 @@ void __init check_for_initrd(void)
 	/*
 	 * Address sanitization
 	 */
-	initrd_start = (unsigned long)__va(__pa(start));
+	initrd_start = (unsigned long)__va(start);
 	initrd_end = initrd_start + INITRD_SIZE;
 
 	memblock_reserve(__pa(initrd_start), INITRD_SIZE);
@@ -432,6 +434,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (c->flags & CPU_HAS_L2_CACHE)
 		show_cacheinfo(m, "scache", c->scache);
 
+	seq_printf(m, "address sizes\t: %u bits physical\n", c->phys_bits);
+
 	seq_printf(m, "bogomips\t: %lu.%02lu\n",
 		     c->loops_per_jiffy/(500000/HZ),
 		     (c->loops_per_jiffy/(5000/HZ)) % 100);
@@ -458,17 +462,3 @@ const struct seq_operations cpuinfo_op = {
 	.show	= show_cpuinfo,
 };
 #endif /* CONFIG_PROC_FS */
-
-struct dentry *sh_debugfs_root;
-
-static int __init sh_debugfs_init(void)
-{
-	sh_debugfs_root = debugfs_create_dir("sh", NULL);
-	if (!sh_debugfs_root)
-		return -ENOMEM;
-	if (IS_ERR(sh_debugfs_root))
-		return PTR_ERR(sh_debugfs_root);
-
-	return 0;
-}
-arch_initcall(sh_debugfs_init);

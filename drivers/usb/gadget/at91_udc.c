@@ -1266,7 +1266,6 @@ write_in:
 	csr |= AT91_UDP_TXPKTRDY;
 	__raw_writel(csr, creg);
 	udc->req_pending = 0;
-	return;
 }
 
 static void handle_ep0(struct at91_udc *udc)
@@ -1628,7 +1627,8 @@ static void at91_vbus_timer(unsigned long data)
 		schedule_work(&udc->vbus_timer_work);
 }
 
-int usb_gadget_register_driver (struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	struct at91_udc	*udc = &controller;
 	int		retval;
@@ -1636,7 +1636,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 
 	if (!driver
 			|| driver->speed < USB_SPEED_FULL
-			|| !driver->bind
+			|| !bind
 			|| !driver->setup) {
 		DBG("bad parameter.\n");
 		return -EINVAL;
@@ -1653,9 +1653,9 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	udc->enabled = 1;
 	udc->selfpowered = 1;
 
-	retval = driver->bind(&udc->gadget);
+	retval = bind(&udc->gadget);
 	if (retval) {
-		DBG("driver->bind() returned %d\n", retval);
+		DBG("bind() returned %d\n", retval);
 		udc->driver = NULL;
 		udc->gadget.dev.driver = NULL;
 		dev_set_drvdata(&udc->gadget.dev, NULL);
@@ -1671,7 +1671,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver)
 	DBG("bound to %s\n", driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL (usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 {

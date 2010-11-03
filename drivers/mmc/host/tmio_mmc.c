@@ -164,6 +164,7 @@ tmio_mmc_start_command(struct tmio_mmc_host *host, struct mmc_command *cmd)
 static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 {
 	struct mmc_data *data = host->data;
+	void *sg_virt;
 	unsigned short *buf;
 	unsigned int count;
 	unsigned long flags;
@@ -173,8 +174,8 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 		return;
 	}
 
-	buf = (unsigned short *)(tmio_mmc_kmap_atomic(host, &flags) +
-	      host->sg_off);
+	sg_virt = tmio_mmc_kmap_atomic(host->sg_ptr, &flags);
+	buf = (unsigned short *)(sg_virt + host->sg_off);
 
 	count = host->sg_ptr->length - host->sg_off;
 	if (count > data->blksz)
@@ -191,7 +192,7 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 
 	host->sg_off += count;
 
-	tmio_mmc_kunmap_atomic(host, &flags);
+	tmio_mmc_kunmap_atomic(sg_virt, &flags);
 
 	if (host->sg_off == host->sg_ptr->length)
 		tmio_mmc_next_sg(host);
@@ -657,14 +658,21 @@ static void tmio_mmc_release_dma(struct tmio_mmc_host *host)
 static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 	struct mmc_data *data)
 {
+	struct mfd_cell *cell = host->pdev->dev.platform_data;
+	struct tmio_mmc_data *pdata = cell->driver_data;
+
 	pr_debug("setup data transfer: blocksize %08x  nr_blocks %d\n",
 		 data->blksz, data->blocks);
 
-	/* Hardware cannot perform 1 and 2 byte requests in 4 bit mode */
-	if (data->blksz < 4 && host->mmc->ios.bus_width == MMC_BUS_WIDTH_4) {
-		pr_err("%s: %d byte block unsupported in 4 bit mode\n",
-		       mmc_hostname(host->mmc), data->blksz);
-		return -EINVAL;
+	/* Some hardware cannot perform 2 byte requests in 4 bit mode */
+	if (host->mmc->ios.bus_width == MMC_BUS_WIDTH_4) {
+		int blksz_2bytes = pdata->flags & TMIO_MMC_BLKSZ_2BYTES;
+
+		if (data->blksz < 2 || (data->blksz < 4 && !blksz_2bytes)) {
+			pr_err("%s: %d byte block unsupported in 4 bit mode\n",
+			       mmc_hostname(host->mmc), data->blksz);
+			return -EINVAL;
+		}
 	}
 
 	tmio_mmc_init_sg(host, data);
@@ -755,10 +763,23 @@ static int tmio_mmc_get_ro(struct mmc_host *mmc)
 		(sd_ctrl_read32(host, CTL_STATUS) & TMIO_STAT_WRPROTECT)) ? 0 : 1;
 }
 
+static int tmio_mmc_get_cd(struct mmc_host *mmc)
+{
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct mfd_cell	*cell = host->pdev->dev.platform_data;
+	struct tmio_mmc_data *pdata = cell->driver_data;
+
+	if (!pdata->get_cd)
+		return -ENOSYS;
+	else
+		return pdata->get_cd(host->pdev);
+}
+
 static const struct mmc_host_ops tmio_mmc_ops = {
 	.request	= tmio_mmc_request,
 	.set_ios	= tmio_mmc_set_ios,
 	.get_ro         = tmio_mmc_get_ro,
+	.get_cd		= tmio_mmc_get_cd,
 };
 
 #ifdef CONFIG_PM

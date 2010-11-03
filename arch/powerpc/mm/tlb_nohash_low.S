@@ -200,6 +200,7 @@ _GLOBAL(_tlbivax_bcast)
 	rlwimi	r5,r4,0,16,31
 	wrteei	0
 	mtspr	SPRN_MMUCR,r5
+	isync
 /*	tlbivax	0,r3 - use .long to avoid binutils deps */
 	.long 0x7c000624 | (r3 << 11)
 	isync
@@ -366,7 +367,7 @@ _GLOBAL(set_context)
 #error Unsupported processor type !
 #endif
 
-#if defined(CONFIG_FSL_BOOKE)
+#if defined(CONFIG_PPC_FSL_BOOK3E)
 /*
  * extern void loadcam_entry(unsigned int index)
  *

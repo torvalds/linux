@@ -31,6 +31,7 @@
  30 -> Videology 20K14XUSB USB2.0               (em2820/em2840)
  31 -> Usbgear VD204v9                          (em2821)
  32 -> Supercomp USB 2.0 TV                     (em2821)
+ 33 -> Elgato Video Capture                     (em2860)        [0fd9:0033]
  34 -> Terratec Cinergy A Hybrid XS             (em2860)        [0ccd:004f]
  35 -> Typhoon DVD Maker                        (em2860)
  36 -> NetGMBH Cam                              (em2860)
@@ -45,7 +46,7 @@
  45 -> Pinnacle PCTV DVB-T                      (em2870)
  46 -> Compro, VideoMate U3                     (em2870)        [185b:2870]
  47 -> KWorld DVB-T 305U                        (em2880)        [eb1a:e305]
- 48 -> KWorld DVB-T 310U                        (em2880)        [eb1a:e310]
+ 48 -> KWorld DVB-T 310U                        (em2880)
  49 -> MSI DigiVox A/D                          (em2880)        [eb1a:e310]
  50 -> MSI DigiVox A/D II                       (em2880)        [eb1a:e320]
  51 -> Terratec Hybrid XS Secam                 (em2880)        [0ccd:004c]

@@ -323,18 +323,35 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 	return &user_sparc32_view;
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+struct fps {
+	unsigned long regs[32];
+	unsigned long fsr;
+	unsigned long flags;
+	unsigned long extra;
+	unsigned long fpqd;
+	struct fq {
+		unsigned long *insnaddr;
+		unsigned long insn;
+	} fpq[16];
+};
+
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	unsigned long addr2 = current->thread.kregs->u_regs[UREG_I4];
+	void __user *addr2p;
 	const struct user_regset_view *view;
+	struct pt_regs __user *pregs;
+	struct fps __user *fps;
 	int ret;
 
 	view = task_user_regset_view(current);
+	addr2p = (void __user *) addr2;
+	pregs = (struct pt_regs __user *) addr;
+	fps = (struct fps __user *) addr;
 
 	switch(request) {
 	case PTRACE_GETREGS: {
-		struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
-
 		ret = copy_regset_to_user(child, view, REGSET_GENERAL,
 					  32 * sizeof(u32),
 					  4 * sizeof(u32),
@@ -348,8 +365,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	}
 
 	case PTRACE_SETREGS: {
-		struct pt_regs __user *pregs = (struct pt_regs __user *) addr;
-
 		ret = copy_regset_from_user(child, view, REGSET_GENERAL,
 					    32 * sizeof(u32),
 					    4 * sizeof(u32),
@@ -363,19 +378,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	}
 
 	case PTRACE_GETFPREGS: {
-		struct fps {
-			unsigned long regs[32];
-			unsigned long fsr;
-			unsigned long flags;
-			unsigned long extra;
-			unsigned long fpqd;
-			struct fq {
-				unsigned long *insnaddr;
-				unsigned long insn;
-			} fpq[16];
-		};
-		struct fps __user *fps = (struct fps __user *) addr;
-
 		ret = copy_regset_to_user(child, view, REGSET_FP,
 					  0 * sizeof(u32),
 					  32 * sizeof(u32),
@@ -397,19 +399,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	}
 
 	case PTRACE_SETFPREGS: {
-		struct fps {
-			unsigned long regs[32];
-			unsigned long fsr;
-			unsigned long flags;
-			unsigned long extra;
-			unsigned long fpqd;
-			struct fq {
-				unsigned long *insnaddr;
-				unsigned long insn;
-			} fpq[16];
-		};
-		struct fps __user *fps = (struct fps __user *) addr;
-
 		ret = copy_regset_from_user(child, view, REGSET_FP,
 					    0 * sizeof(u32),
 					    32 * sizeof(u32),
@@ -424,8 +413,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_READTEXT:
 	case PTRACE_READDATA:
-		ret = ptrace_readdata(child, addr,
-				      (void __user *) addr2, data);
+		ret = ptrace_readdata(child, addr, addr2p, data);
 
 		if (ret == data)
 			ret = 0;
@@ -435,8 +423,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_WRITETEXT:
 	case PTRACE_WRITEDATA:
-		ret = ptrace_writedata(child, (void __user *) addr2,
-				       addr, data);
+		ret = ptrace_writedata(child, addr2p, addr, data);
 
 		if (ret == data)
 			ret = 0;

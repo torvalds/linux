@@ -537,7 +537,8 @@ static int do_chaninfo_ioctl(struct comedi_device *dev,
 
 			x = (dev->minor << 28) | (it.subdev << 24) | (i << 16) |
 			    (s->range_table_list[i]->length);
-			put_user(x, it.rangelist + i);
+			if (put_user(x, it.rangelist + i))
+				return -EFAULT;
 		}
 #if 0
 		if (copy_to_user(it.rangelist, s->range_type_list,
@@ -1922,6 +1923,7 @@ const struct file_operations comedi_fops = {
 	.mmap = comedi_mmap,
 	.poll = comedi_poll,
 	.fasync = comedi_fasync,
+	.llseek = noop_llseek,
 };
 
 struct class *comedi_class;

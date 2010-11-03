@@ -38,7 +38,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 #include <asm/atomic.h>
 
 MODULE_AUTHOR("Eugene Konev <ejka@imfi.kspu.ru>");
@@ -108,7 +108,7 @@ MODULE_PARM_DESC(dumb_switch, "Assume switch is not connected to MDIO bus");
 #define CPMAC_RX_INT_CLEAR		0x019c
 #define CPMAC_MAC_INT_ENABLE		0x01a8
 #define CPMAC_MAC_INT_CLEAR		0x01ac
-#define CPMAC_MAC_ADDR_LO(channel) 	(0x01b0 + (channel) * 4)
+#define CPMAC_MAC_ADDR_LO(channel)	(0x01b0 + (channel) * 4)
 #define CPMAC_MAC_ADDR_MID		0x01d0
 #define CPMAC_MAC_ADDR_HI		0x01d4
 #define CPMAC_MAC_HASH_LO		0x01d8
@@ -227,7 +227,7 @@ static void cpmac_dump_regs(struct net_device *dev)
 	for (i = 0; i < CPMAC_REG_END; i += 4) {
 		if (i % 16 == 0) {
 			if (i)
-				printk("\n");
+				pr_cont("\n");
 			printk(KERN_DEBUG "%s: reg[%p]:", dev->name,
 			       priv->regs + i);
 		}
@@ -262,7 +262,7 @@ static void cpmac_dump_skb(struct net_device *dev, struct sk_buff *skb)
 	for (i = 0; i < skb->len; i++) {
 		if (i % 16 == 0) {
 			if (i)
-				printk("\n");
+				pr_cont("\n");
 			printk(KERN_DEBUG "%s: data[%p]:", dev->name,
 			       skb->data + i);
 		}
@@ -391,7 +391,7 @@ static struct sk_buff *cpmac_rx_one(struct cpmac_priv *priv,
 	if (likely(skb)) {
 		skb_put(desc->skb, desc->datalen);
 		desc->skb->protocol = eth_type_trans(desc->skb, priv->dev);
-		desc->skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(desc->skb);
 		priv->dev->stats.rx_packets++;
 		priv->dev->stats.rx_bytes += desc->datalen;
 		result = desc->skb;
@@ -506,7 +506,7 @@ static int cpmac_poll(struct napi_struct *napi, int budget)
 					"restart rx from a descriptor that's "
 					"not free: %p\n",
 					priv->dev->name, restart);
-				goto fatal_error;
+			goto fatal_error;
 		}
 
 		cpmac_write(priv->regs, CPMAC_RX_PTR(0), restart->mapping);
@@ -873,7 +873,8 @@ static int cpmac_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return -EINVAL;
 }
 
-static void cpmac_get_ringparam(struct net_device *dev, struct ethtool_ringparam* ring)
+static void cpmac_get_ringparam(struct net_device *dev,
+						struct ethtool_ringparam *ring)
 {
 	struct cpmac_priv *priv = netdev_priv(dev);
 
@@ -888,7 +889,8 @@ static void cpmac_get_ringparam(struct net_device *dev, struct ethtool_ringparam
 	ring->tx_pending = 1;
 }
 
-static int cpmac_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ring)
+static int cpmac_set_ringparam(struct net_device *dev,
+						struct ethtool_ringparam *ring)
 {
 	struct cpmac_priv *priv = netdev_priv(dev);
 
@@ -1012,8 +1014,8 @@ static int cpmac_open(struct net_device *dev)
 
 	priv->rx_head->prev->hw_next = (u32)0;
 
-	if ((res = request_irq(dev->irq, cpmac_irq, IRQF_SHARED,
-			       dev->name, dev))) {
+	res = request_irq(dev->irq, cpmac_irq, IRQF_SHARED, dev->name, dev);
+	if (res) {
 		if (netif_msg_drv(priv))
 			printk(KERN_ERR "%s: failed to obtain irq\n",
 			       dev->name);
@@ -1133,7 +1135,8 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	}
 
 	if (phy_id == PHY_MAX_ADDR) {
-		dev_err(&pdev->dev, "no PHY present, falling back to switch on MDIO bus 0\n");
+		dev_err(&pdev->dev, "no PHY present, falling back "
+					"to switch on MDIO bus 0\n");
 		strncpy(mdio_bus_id, "0", MII_BUS_ID_SIZE); /* fixed phys bus */
 		phy_id = pdev->id;
 	}
@@ -1169,9 +1172,10 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	priv->msg_enable = netif_msg_init(debug_level, 0xff);
 	memcpy(dev->dev_addr, pdata->dev_addr, sizeof(pdata->dev_addr));
 
-	snprintf(priv->phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT, mdio_bus_id, phy_id);
+	snprintf(priv->phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT,
+						mdio_bus_id, phy_id);
 
-	priv->phy = phy_connect(dev, priv->phy_name, &cpmac_adjust_link, 0,
+	priv->phy = phy_connect(dev, priv->phy_name, cpmac_adjust_link, 0,
 						PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(priv->phy)) {
@@ -1182,7 +1186,8 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	if ((rc = register_netdev(dev))) {
+	rc = register_netdev(dev);
+	if (rc) {
 		printk(KERN_ERR "cpmac: error %i registering device %s\n", rc,
 		       dev->name);
 		goto fail;
@@ -1248,11 +1253,13 @@ int __devinit cpmac_init(void)
 
 	cpmac_mii->reset(cpmac_mii);
 
-	for (i = 0; i < 300; i++)
-		if ((mask = cpmac_read(cpmac_mii->priv, CPMAC_MDIO_ALIVE)))
+	for (i = 0; i < 300; i++) {
+		mask = cpmac_read(cpmac_mii->priv, CPMAC_MDIO_ALIVE);
+		if (mask)
 			break;
 		else
 			msleep(10);
+	}
 
 	mask &= 0x7fffffff;
 	if (mask & (mask - 1)) {

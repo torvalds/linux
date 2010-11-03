@@ -21,7 +21,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
@@ -33,9 +32,9 @@
 #include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/cpu.h>
-#include <linux/pci.h>
 #include <asm/msr.h>
 #include <asm/processor.h>
+#include <asm/smp.h>
 
 #define DRVNAME	"pkgtemp"
 
@@ -224,7 +223,7 @@ static int __devinit pkgtemp_probe(struct platform_device *pdev)
 
 	err = sysfs_create_group(&pdev->dev.kobj, &pkgtemp_group);
 	if (err)
-		goto exit_free;
+		goto exit_dev;
 
 	data->hwmon_dev = hwmon_device_register(&pdev->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -238,6 +237,8 @@ static int __devinit pkgtemp_probe(struct platform_device *pdev)
 
 exit_class:
 	sysfs_remove_group(&pdev->dev.kobj, &pkgtemp_group);
+exit_dev:
+	device_remove_file(&pdev->dev, &sensor_dev_attr_temp1_max.dev_attr);
 exit_free:
 	kfree(data);
 exit:
@@ -250,6 +251,7 @@ static int __devexit pkgtemp_remove(struct platform_device *pdev)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &pkgtemp_group);
+	device_remove_file(&pdev->dev, &sensor_dev_attr_temp1_max.dev_attr);
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 	return 0;
@@ -281,9 +283,10 @@ static int __cpuinit pkgtemp_device_add(unsigned int cpu)
 	int err;
 	struct platform_device *pdev;
 	struct pdev_entry *pdev_entry;
-#ifdef CONFIG_SMP
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
-#endif
+
+	if (!cpu_has(c, X86_FEATURE_PTS))
+		return 0;
 
 	mutex_lock(&pdev_list_mutex);
 
@@ -336,20 +339,20 @@ exit:
 	return err;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-static void pkgtemp_device_remove(unsigned int cpu)
+static void __cpuinit pkgtemp_device_remove(unsigned int cpu)
 {
-	struct pdev_entry *p, *n;
+	struct pdev_entry *p;
 	unsigned int i;
 	int err;
 
 	mutex_lock(&pdev_list_mutex);
-	list_for_each_entry_safe(p, n, &pdev_list, list) {
+	list_for_each_entry(p, &pdev_list, list) {
 		if (p->cpu != cpu)
 			continue;
 
 		platform_device_unregister(p->pdev);
 		list_del(&p->list);
+		mutex_unlock(&pdev_list_mutex);
 		kfree(p);
 		for_each_cpu(i, cpu_core_mask(cpu)) {
 			if (i != cpu) {
@@ -358,7 +361,7 @@ static void pkgtemp_device_remove(unsigned int cpu)
 					break;
 			}
 		}
-		break;
+		return;
 	}
 	mutex_unlock(&pdev_list_mutex);
 }
@@ -383,12 +386,10 @@ static int __cpuinit pkgtemp_cpu_callback(struct notifier_block *nfb,
 static struct notifier_block pkgtemp_cpu_notifier __refdata = {
 	.notifier_call = pkgtemp_cpu_callback,
 };
-#endif				/* !CONFIG_HOTPLUG_CPU */
 
 static int __init pkgtemp_init(void)
 {
 	int i, err = -ENODEV;
-	struct pdev_entry *p, *n;
 
 	/* quick check if we run Intel */
 	if (cpu_data(0).x86_vendor != X86_VENDOR_INTEL)
@@ -398,36 +399,23 @@ static int __init pkgtemp_init(void)
 	if (err)
 		goto exit;
 
-	for_each_online_cpu(i) {
-		struct cpuinfo_x86 *c = &cpu_data(i);
+	for_each_online_cpu(i)
+		pkgtemp_device_add(i);
 
-		if (!cpu_has(c, X86_FEATURE_PTS))
-			continue;
-
-		err = pkgtemp_device_add(i);
-		if (err)
-			goto exit_devices_unreg;
-	}
+#ifndef CONFIG_HOTPLUG_CPU
 	if (list_empty(&pdev_list)) {
 		err = -ENODEV;
 		goto exit_driver_unreg;
 	}
-
-#ifdef CONFIG_HOTPLUG_CPU
-	register_hotcpu_notifier(&pkgtemp_cpu_notifier);
 #endif
+
+	register_hotcpu_notifier(&pkgtemp_cpu_notifier);
 	return 0;
 
-exit_devices_unreg:
-	mutex_lock(&pdev_list_mutex);
-	list_for_each_entry_safe(p, n, &pdev_list, list) {
-		platform_device_unregister(p->pdev);
-		list_del(&p->list);
-		kfree(p);
-	}
-	mutex_unlock(&pdev_list_mutex);
+#ifndef CONFIG_HOTPLUG_CPU
 exit_driver_unreg:
 	platform_driver_unregister(&pkgtemp_driver);
+#endif
 exit:
 	return err;
 }
@@ -435,9 +423,8 @@ exit:
 static void __exit pkgtemp_exit(void)
 {
 	struct pdev_entry *p, *n;
-#ifdef CONFIG_HOTPLUG_CPU
+
 	unregister_hotcpu_notifier(&pkgtemp_cpu_notifier);
-#endif
 	mutex_lock(&pdev_list_mutex);
 	list_for_each_entry_safe(p, n, &pdev_list, list) {
 		platform_device_unregister(p->pdev);

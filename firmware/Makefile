@@ -32,12 +32,14 @@ fw-shipped-$(CONFIG_ADAPTEC_STARFIRE) += adaptec/starfire_rx.bin \
 					 adaptec/starfire_tx.bin
 fw-shipped-$(CONFIG_ATARI_DSP56K) += dsp56k/bootstrap.bin
 fw-shipped-$(CONFIG_ATM_AMBASSADOR) += atmsar11.fw
-fw-shipped-$(CONFIG_BNX2X) += bnx2x-e1-5.2.13.0.fw bnx2x-e1h-5.2.13.0.fw
-fw-shipped-$(CONFIG_BNX2) += bnx2/bnx2-mips-09-5.0.0.j15.fw \
-			     bnx2/bnx2-rv2p-09-5.0.0.j10.fw \
-			     bnx2/bnx2-rv2p-09ax-5.0.0.j10.fw \
-			     bnx2/bnx2-mips-06-5.0.0.j6.fw \
-			     bnx2/bnx2-rv2p-06-5.0.0.j3.fw
+fw-shipped-$(CONFIG_BNX2X) += bnx2x/bnx2x-e1-6.0.34.0.fw \
+			      bnx2x/bnx2x-e1h-6.0.34.0.fw \
+			      bnx2x/bnx2x-e2-6.0.34.0.fw
+fw-shipped-$(CONFIG_BNX2) += bnx2/bnx2-mips-09-6.0.17.fw \
+			     bnx2/bnx2-rv2p-09-6.0.17.fw \
+			     bnx2/bnx2-rv2p-09ax-6.0.17.fw \
+			     bnx2/bnx2-mips-06-6.0.15.fw \
+			     bnx2/bnx2-rv2p-06-6.0.15.fw
 fw-shipped-$(CONFIG_CASSINI) += sun/cassini.bin
 fw-shipped-$(CONFIG_COMPUTONE) += intelliport2.bin
 fw-shipped-$(CONFIG_CHELSIO_T3) += cxgb3/t3b_psram-1.1.0.bin \
@@ -142,7 +144,7 @@ fw-shipped-$(CONFIG_YAM) += yam/1200.bin yam/9600.bin
 fw-shipped-all := $(fw-shipped-y) $(fw-shipped-m) $(fw-shipped-)
 
 # Directories which we _might_ need to create, so we have a rule for them.
-firmware-dirs := $(sort $(patsubst %,$(objtree)/$(obj)/%/,$(dir $(fw-external-y) $(fw-shipped-all))))
+firmware-dirs := $(sort $(addprefix $(objtree)/$(obj)/,$(dir $(fw-external-y) $(fw-shipped-all))))
 
 quiet_cmd_mkdir = MKDIR   $(patsubst $(objtree)/%,%,$@)
       cmd_mkdir = mkdir -p $@

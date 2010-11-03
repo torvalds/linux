@@ -115,7 +115,6 @@
  *
  * ACPI_SIZE        16/32/64-bit unsigned value
  * ACPI_NATIVE_INT  16/32/64-bit signed value
- *
  */
 
 /*******************************************************************************
@@ -131,6 +130,16 @@ typedef COMPILER_DEPENDENT_UINT64 UINT64;
 typedef COMPILER_DEPENDENT_INT64 INT64;
 
 /*! [End] no source code translation !*/
+
+/*
+ * Value returned by acpi_os_get_thread_id. There is no standard "thread_id"
+ * across operating systems or even the various UNIX systems. Since ACPICA
+ * only needs the thread ID as a unique thread identifier, we use a u64
+ * as the only common data type - it will accommodate any type of pointer or
+ * any type of integer. It is up to the host-dependent OSL to cast the
+ * native thread ID type to a u64 (in acpi_os_get_thread_id).
+ */
+#define acpi_thread_id                  u64
 
 /*******************************************************************************
  *
@@ -210,12 +219,6 @@ typedef u32 acpi_physical_address;
  * be defined in the OS-specific header, and this will take precedence.
  *
  ******************************************************************************/
-
-/* Value returned by acpi_os_get_thread_id */
-
-#ifndef acpi_thread_id
-#define acpi_thread_id			acpi_size
-#endif
 
 /* Flags for acpi_os_acquire_lock/acpi_os_release_lock */
 
@@ -374,16 +377,6 @@ typedef void *acpi_handle;	/* Actually a ptr to a NS Node */
 
 typedef u8 acpi_owner_id;
 #define ACPI_OWNER_ID_MAX               0xFF
-
-struct uint64_struct {
-	u32 lo;
-	u32 hi;
-};
-
-union uint64_overlay {
-	u64 full;
-	struct uint64_struct part;
-};
 
 #define ACPI_INTEGER_BIT_SIZE           64
 #define ACPI_MAX_DECIMAL_DIGITS         20	/* 2^64 = 18,446,744,073,709,551,616 */
@@ -949,6 +942,9 @@ typedef
 acpi_status(*acpi_walk_callback) (acpi_handle object,
 				  u32 nesting_level,
 				  void *context, void **return_value);
+
+typedef
+u32 (*acpi_interface_handler) (acpi_string interface_name, u32 supported);
 
 /* Interrupt handler return values */
 

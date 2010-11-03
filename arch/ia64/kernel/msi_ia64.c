@@ -104,8 +104,8 @@ static int ia64_msi_retrigger_irq(unsigned int irq)
  */
 static struct irq_chip ia64_msi_chip = {
 	.name		= "PCI-MSI",
-	.mask		= mask_msi_irq,
-	.unmask		= unmask_msi_irq,
+	.irq_mask	= mask_msi_irq,
+	.irq_unmask	= unmask_msi_irq,
 	.ack		= ia64_ack_msi_irq,
 #ifdef CONFIG_SMP
 	.set_affinity	= ia64_set_msi_irq_affinity,
@@ -160,8 +160,8 @@ static int dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 
 static struct irq_chip dmar_msi_type = {
 	.name = "DMAR_MSI",
-	.unmask = dmar_msi_unmask,
-	.mask = dmar_msi_mask,
+	.irq_unmask = dmar_msi_unmask,
+	.irq_mask = dmar_msi_mask,
 	.ack = ia64_ack_msi_irq,
 #ifdef CONFIG_SMP
 	.set_affinity = dmar_msi_set_affinity,

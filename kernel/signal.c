@@ -1105,7 +1105,8 @@ int zap_other_threads(struct task_struct *p)
 	return count;
 }
 
-struct sighand_struct *lock_task_sighand(struct task_struct *tsk, unsigned long *flags)
+struct sighand_struct *__lock_task_sighand(struct task_struct *tsk,
+					   unsigned long *flags)
 {
 	struct sighand_struct *sighand;
 
@@ -1617,6 +1618,8 @@ static int sigkill_pending(struct task_struct *tsk)
  * is gone, we keep current->exit_code unless clear_code.
  */
 static void ptrace_stop(int exit_code, int clear_code, siginfo_t *info)
+	__releases(&current->sighand->siglock)
+	__acquires(&current->sighand->siglock)
 {
 	if (arch_ptrace_stop_needed(exit_code, info)) {
 		/*
@@ -2214,6 +2217,14 @@ int copy_siginfo_to_user(siginfo_t __user *to, siginfo_t *from)
 		err |= __put_user(from->si_addr, &to->si_addr);
 #ifdef __ARCH_SI_TRAPNO
 		err |= __put_user(from->si_trapno, &to->si_trapno);
+#endif
+#ifdef BUS_MCEERR_AO
+		/* 
+		 * Other callers might not initialize the si_lsb field,
+	 	 * so check explicitely for the right codes here.
+		 */
+		if (from->si_code == BUS_MCEERR_AR || from->si_code == BUS_MCEERR_AO)
+			err |= __put_user(from->si_addr_lsb, &to->si_addr_lsb);
 #endif
 		break;
 	case __SI_CHLD:

@@ -45,7 +45,6 @@
 #define SIO_REG_ADDR		0x60	/* Logical device address (2 bytes) */
 
 #define SIO_FINTEK_ID		0x1934	/* Manufacturers ID */
-#define SIO_F71808_ID		0x0901  /* Chipset ID */
 #define SIO_F71858_ID		0x0507  /* Chipset ID */
 #define SIO_F71862_ID		0x0601	/* Chipset ID */
 #define SIO_F71882_ID		0x0541	/* Chipset ID */
@@ -97,10 +96,9 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
-enum chips { f71808fg, f71858fg, f71862fg, f71882fg, f71889fg, f8000 };
+enum chips { f71858fg, f71862fg, f71882fg, f71889fg, f8000 };
 
 static const char *f71882fg_names[] = {
-	"f71808fg",
 	"f71858fg",
 	"f71862fg",
 	"f71882fg",
@@ -113,7 +111,7 @@ static struct platform_device *f71882fg_pdev;
 /* Super-I/O Function prototypes */
 static inline int superio_inb(int base, int reg);
 static inline int superio_inw(int base, int reg);
-static inline void superio_enter(int base);
+static inline int superio_enter(int base);
 static inline void superio_select(int base, int ld);
 static inline void superio_exit(int base);
 
@@ -308,8 +306,8 @@ static struct sensor_device_attribute_2 f71858fg_in_temp_attr[] = {
 	SENSOR_ATTR_2(temp3_fault, S_IRUGO, show_temp_fault, NULL, 0, 2),
 };
 
-/* In attr common to the f71862fg, f71882fg and f71889fg */
-static struct sensor_device_attribute_2 fxxxx_in_attr[] = {
+/* Temp and in attr common to the f71862fg, f71882fg and f71889fg */
+static struct sensor_device_attribute_2 fxxxx_in_temp_attr[] = {
 	SENSOR_ATTR_2(in0_input, S_IRUGO, show_in, NULL, 0, 0),
 	SENSOR_ATTR_2(in1_input, S_IRUGO, show_in, NULL, 0, 1),
 	SENSOR_ATTR_2(in2_input, S_IRUGO, show_in, NULL, 0, 2),
@@ -319,22 +317,6 @@ static struct sensor_device_attribute_2 fxxxx_in_attr[] = {
 	SENSOR_ATTR_2(in6_input, S_IRUGO, show_in, NULL, 0, 6),
 	SENSOR_ATTR_2(in7_input, S_IRUGO, show_in, NULL, 0, 7),
 	SENSOR_ATTR_2(in8_input, S_IRUGO, show_in, NULL, 0, 8),
-};
-
-/* In attr for the f71808fg */
-static struct sensor_device_attribute_2 f71808_in_attr[] = {
-	SENSOR_ATTR_2(in0_input, S_IRUGO, show_in, NULL, 0, 0),
-	SENSOR_ATTR_2(in1_input, S_IRUGO, show_in, NULL, 0, 1),
-	SENSOR_ATTR_2(in2_input, S_IRUGO, show_in, NULL, 0, 2),
-	SENSOR_ATTR_2(in3_input, S_IRUGO, show_in, NULL, 0, 3),
-	SENSOR_ATTR_2(in4_input, S_IRUGO, show_in, NULL, 0, 4),
-	SENSOR_ATTR_2(in5_input, S_IRUGO, show_in, NULL, 0, 5),
-	SENSOR_ATTR_2(in6_input, S_IRUGO, show_in, NULL, 0, 7),
-	SENSOR_ATTR_2(in7_input, S_IRUGO, show_in, NULL, 0, 8),
-};
-
-/* Temp attr common to the f71808fg, f71862fg, f71882fg and f71889fg */
-static struct sensor_device_attribute_2 fxxxx_temp_attr[] = {
 	SENSOR_ATTR_2(temp1_input, S_IRUGO, show_temp, NULL, 0, 1),
 	SENSOR_ATTR_2(temp1_max, S_IRUGO|S_IWUSR, show_temp_max,
 		store_temp_max, 0, 1),
@@ -373,10 +355,6 @@ static struct sensor_device_attribute_2 fxxxx_temp_attr[] = {
 		store_temp_beep, 0, 6),
 	SENSOR_ATTR_2(temp2_type, S_IRUGO, show_temp_type, NULL, 0, 2),
 	SENSOR_ATTR_2(temp2_fault, S_IRUGO, show_temp_fault, NULL, 0, 2),
-};
-
-/* Temp and in attr common to the f71862fg, f71882fg and f71889fg */
-static struct sensor_device_attribute_2 f71862_temp_attr[] = {
 	SENSOR_ATTR_2(temp3_input, S_IRUGO, show_temp, NULL, 0, 3),
 	SENSOR_ATTR_2(temp3_max, S_IRUGO|S_IWUSR, show_temp_max,
 		store_temp_max, 0, 3),
@@ -883,11 +861,20 @@ static int superio_inw(int base, int reg)
 	return val;
 }
 
-static inline void superio_enter(int base)
+static inline int superio_enter(int base)
 {
+	/* Don't step on other drivers' I/O space by accident */
+	if (!request_muxed_region(base, 2, DRVNAME)) {
+		printk(KERN_ERR DRVNAME ": I/O address 0x%04x already in use\n",
+				base);
+		return -EBUSY;
+	}
+
 	/* according to the datasheet the key must be send twice! */
 	outb(SIO_UNLOCK_KEY, base);
 	outb(SIO_UNLOCK_KEY, base);
+
+	return 0;
 }
 
 static inline void superio_select(int base, int ld)
@@ -899,6 +886,7 @@ static inline void superio_select(int base, int ld)
 static inline void superio_exit(int base)
 {
 	outb(SIO_LOCK_KEY, base);
+	release_region(base, 2);
 }
 
 static inline int fan_from_reg(u16 reg)
@@ -1011,11 +999,6 @@ static struct f71882fg_data *f71882fg_update_device(struct device *dev)
 				data->temp_type[1] = 6;
 				break;
 			}
-		} else if (data->type == f71808fg) {
-			reg  = f71882fg_read8(data, F71882FG_REG_TEMP_TYPE);
-			data->temp_type[1] = (reg & 0x02) ? 2 : 4;
-			data->temp_type[2] = (reg & 0x04) ? 2 : 4;
-
 		} else {
 			reg2 = f71882fg_read8(data, F71882FG_REG_PECI);
 			if ((reg2 & 0x03) == 0x01)
@@ -1898,8 +1881,7 @@ static ssize_t store_pwm_auto_point_temp(struct device *dev,
 
 	val /= 1000;
 
-	if (data->type == f71889fg
-	 || data->type == f71808fg)
+	if (data->type == f71889fg)
 		val = SENSORS_LIMIT(val, -128, 127);
 	else
 		val = SENSORS_LIMIT(val, 0, 127);
@@ -2002,28 +1984,8 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 			/* fall through! */
 		case f71862fg:
 			err = f71882fg_create_sysfs_files(pdev,
-					f71862_temp_attr,
-					ARRAY_SIZE(f71862_temp_attr));
-			if (err)
-				goto exit_unregister_sysfs;
-			err = f71882fg_create_sysfs_files(pdev,
-					fxxxx_in_attr,
-					ARRAY_SIZE(fxxxx_in_attr));
-			if (err)
-				goto exit_unregister_sysfs;
-			err = f71882fg_create_sysfs_files(pdev,
-					fxxxx_temp_attr,
-					ARRAY_SIZE(fxxxx_temp_attr));
-			break;
-		case f71808fg:
-			err = f71882fg_create_sysfs_files(pdev,
-					f71808_in_attr,
-					ARRAY_SIZE(f71808_in_attr));
-			if (err)
-				goto exit_unregister_sysfs;
-			err = f71882fg_create_sysfs_files(pdev,
-					fxxxx_temp_attr,
-					ARRAY_SIZE(fxxxx_temp_attr));
+					fxxxx_in_temp_attr,
+					ARRAY_SIZE(fxxxx_in_temp_attr));
 			break;
 		case f8000:
 			err = f71882fg_create_sysfs_files(pdev,
@@ -2050,7 +2012,6 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 		case f71862fg:
 			err = (data->pwm_enable & 0x15) != 0x15;
 			break;
-		case f71808fg:
 		case f71882fg:
 		case f71889fg:
 			err = 0;
@@ -2096,7 +2057,6 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 					f8000_auto_pwm_attr,
 					ARRAY_SIZE(f8000_auto_pwm_attr));
 			break;
-		case f71808fg:
 		case f71889fg:
 			for (i = 0; i < nr_fans; i++) {
 				data->pwm_auto_point_mapping[i] =
@@ -2176,22 +2136,8 @@ static int f71882fg_remove(struct platform_device *pdev)
 			/* fall through! */
 		case f71862fg:
 			f71882fg_remove_sysfs_files(pdev,
-					f71862_temp_attr,
-					ARRAY_SIZE(f71862_temp_attr));
-			f71882fg_remove_sysfs_files(pdev,
-					fxxxx_in_attr,
-					ARRAY_SIZE(fxxxx_in_attr));
-			f71882fg_remove_sysfs_files(pdev,
-					fxxxx_temp_attr,
-					ARRAY_SIZE(fxxxx_temp_attr));
-			break;
-		case f71808fg:
-			f71882fg_remove_sysfs_files(pdev,
-					f71808_in_attr,
-					ARRAY_SIZE(f71808_in_attr));
-			f71882fg_remove_sysfs_files(pdev,
-					fxxxx_temp_attr,
-					ARRAY_SIZE(fxxxx_temp_attr));
+					fxxxx_in_temp_attr,
+					ARRAY_SIZE(fxxxx_in_temp_attr));
 			break;
 		case f8000:
 			f71882fg_remove_sysfs_files(pdev,
@@ -2239,29 +2185,20 @@ static int f71882fg_remove(struct platform_device *pdev)
 static int __init f71882fg_find(int sioaddr, unsigned short *address,
 	struct f71882fg_sio_data *sio_data)
 {
-	int err = -ENODEV;
 	u16 devid;
-
-	/* Don't step on other drivers' I/O space by accident */
-	if (!request_region(sioaddr, 2, DRVNAME)) {
-		printk(KERN_ERR DRVNAME ": I/O address 0x%04x already in use\n",
-				(int)sioaddr);
-		return -EBUSY;
-	}
-
-	superio_enter(sioaddr);
+	int err = superio_enter(sioaddr);
+	if (err)
+		return err;
 
 	devid = superio_inw(sioaddr, SIO_REG_MANID);
 	if (devid != SIO_FINTEK_ID) {
 		pr_debug(DRVNAME ": Not a Fintek device\n");
+		err = -ENODEV;
 		goto exit;
 	}
 
 	devid = force_id ? force_id : superio_inw(sioaddr, SIO_REG_DEVID);
 	switch (devid) {
-	case SIO_F71808_ID:
-		sio_data->type = f71808fg;
-		break;
 	case SIO_F71858_ID:
 		sio_data->type = f71858fg;
 		break;
@@ -2280,6 +2217,7 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 	default:
 		printk(KERN_INFO DRVNAME ": Unsupported Fintek device: %04x\n",
 		       (unsigned int)devid);
+		err = -ENODEV;
 		goto exit;
 	}
 
@@ -2290,12 +2228,14 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 
 	if (!(superio_inb(sioaddr, SIO_REG_ENABLE) & 0x01)) {
 		printk(KERN_WARNING DRVNAME ": Device not activated\n");
+		err = -ENODEV;
 		goto exit;
 	}
 
 	*address = superio_inw(sioaddr, SIO_REG_ADDR);
 	if (*address == 0) {
 		printk(KERN_WARNING DRVNAME ": Base address not set\n");
+		err = -ENODEV;
 		goto exit;
 	}
 	*address &= ~(REGION_LENGTH - 1);	/* Ignore 3 LSB */
@@ -2306,7 +2246,6 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 		(int)superio_inb(sioaddr, SIO_REG_DEVREV));
 exit:
 	superio_exit(sioaddr);
-	release_region(sioaddr, 2);
 	return err;
 }
 

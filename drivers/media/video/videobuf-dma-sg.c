@@ -94,7 +94,7 @@ err:
  * must free the memory.
  */
 static struct scatterlist *videobuf_pages_to_sg(struct page **pages,
-						int nr_pages, int offset)
+					int nr_pages, int offset, size_t size)
 {
 	struct scatterlist *sglist;
 	int i;
@@ -110,12 +110,14 @@ static struct scatterlist *videobuf_pages_to_sg(struct page **pages,
 		/* DMA to highmem pages might not work */
 		goto highmem;
 	sg_set_page(&sglist[0], pages[0], PAGE_SIZE - offset, offset);
+	size -= PAGE_SIZE - offset;
 	for (i = 1; i < nr_pages; i++) {
 		if (NULL == pages[i])
 			goto nopage;
 		if (PageHighMem(pages[i]))
 			goto highmem;
-		sg_set_page(&sglist[i], pages[i], PAGE_SIZE, 0);
+		sg_set_page(&sglist[i], pages[i], min_t(size_t, PAGE_SIZE, size), 0);
+		size -= min_t(size_t, PAGE_SIZE, size);
 	}
 	return sglist;
 
@@ -170,7 +172,8 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
 
 	first = (data          & PAGE_MASK) >> PAGE_SHIFT;
 	last  = ((data+size-1) & PAGE_MASK) >> PAGE_SHIFT;
-	dma->offset   = data & ~PAGE_MASK;
+	dma->offset = data & ~PAGE_MASK;
+	dma->size = size;
 	dma->nr_pages = last-first+1;
 	dma->pages = kmalloc(dma->nr_pages * sizeof(struct page *), GFP_KERNEL);
 	if (NULL == dma->pages)
@@ -252,7 +255,7 @@ int videobuf_dma_map(struct device *dev, struct videobuf_dmabuf *dma)
 
 	if (dma->pages) {
 		dma->sglist = videobuf_pages_to_sg(dma->pages, dma->nr_pages,
-						   dma->offset);
+						   dma->offset, dma->size);
 	}
 	if (dma->vaddr) {
 		dma->sglist = videobuf_vmalloc_to_sg(dma->vaddr,
@@ -355,7 +358,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 	map->count--;
 	if (0 == map->count) {
 		dprintk(1, "munmap %p q=%p\n", map, q);
-		mutex_lock(&q->vb_lock);
+		videobuf_queue_lock(q);
 		for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 			if (NULL == q->bufs[i])
 				continue;
@@ -371,7 +374,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 			q->bufs[i]->baddr = 0;
 			q->ops->buf_release(q, q->bufs[i]);
 		}
-		mutex_unlock(&q->vb_lock);
+		videobuf_queue_unlock(q);
 		kfree(map);
 	}
 	return;
@@ -651,10 +654,11 @@ void videobuf_queue_sg_init(struct videobuf_queue *q,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,
 			 unsigned int msize,
-			 void *priv)
+			 void *priv,
+			 struct mutex *ext_lock)
 {
 	videobuf_queue_core_init(q, ops, dev, irqlock, type, field, msize,
-				 priv, &sg_ops);
+				 priv, &sg_ops, ext_lock);
 }
 EXPORT_SYMBOL_GPL(videobuf_queue_sg_init);
 

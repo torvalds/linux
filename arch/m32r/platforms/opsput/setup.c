@@ -72,7 +72,7 @@ static void shutdown_opsput_irq(unsigned int irq)
 
 static struct irq_chip opsput_irq_type =
 {
-	.typename = "OPSPUT-IRQ",
+	.name = "OPSPUT-IRQ",
 	.startup = startup_opsput_irq,
 	.shutdown = shutdown_opsput_irq,
 	.enable = enable_opsput_irq,
@@ -149,7 +149,7 @@ static void shutdown_opsput_pld_irq(unsigned int irq)
 
 static struct irq_chip opsput_pld_irq_type =
 {
-	.typename = "OPSPUT-PLD-IRQ",
+	.name = "OPSPUT-PLD-IRQ",
 	.startup = startup_opsput_pld_irq,
 	.shutdown = shutdown_opsput_pld_irq,
 	.enable = enable_opsput_pld_irq,
@@ -218,7 +218,7 @@ static void shutdown_opsput_lanpld_irq(unsigned int irq)
 
 static struct irq_chip opsput_lanpld_irq_type =
 {
-	.typename = "OPSPUT-PLD-LAN-IRQ",
+	.name = "OPSPUT-PLD-LAN-IRQ",
 	.startup = startup_opsput_lanpld_irq,
 	.shutdown = shutdown_opsput_lanpld_irq,
 	.enable = enable_opsput_lanpld_irq,

@@ -32,6 +32,7 @@
 #include <linux/crypto.h>
 #include <linux/fs_stack.h>
 #include <linux/slab.h>
+#include <linux/xattr.h>
 #include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
@@ -70,15 +71,19 @@ ecryptfs_create_underlying_file(struct inode *lower_dir_inode,
 	struct vfsmount *lower_mnt = ecryptfs_dentry_to_lower_mnt(dentry);
 	struct dentry *dentry_save;
 	struct vfsmount *vfsmount_save;
+	unsigned int flags_save;
 	int rc;
 
 	dentry_save = nd->path.dentry;
 	vfsmount_save = nd->path.mnt;
+	flags_save = nd->flags;
 	nd->path.dentry = lower_dentry;
 	nd->path.mnt = lower_mnt;
+	nd->flags &= ~LOOKUP_OPEN;
 	rc = vfs_create(lower_dir_inode, lower_dentry, mode, nd);
 	nd->path.dentry = dentry_save;
 	nd->path.mnt = vfsmount_save;
+	nd->flags = flags_save;
 	return rc;
 }
 
@@ -349,7 +354,7 @@ out:
 
 /**
  * ecryptfs_new_lower_dentry
- * @ename: The name of the new dentry.
+ * @name: The name of the new dentry.
  * @lower_dir_dentry: Parent directory of the new dentry.
  * @nd: nameidata from last lookup.
  *
@@ -386,20 +391,19 @@ ecryptfs_new_lower_dentry(struct qstr *name, struct dentry *lower_dir_dentry,
  * ecryptfs_lookup_one_lower
  * @ecryptfs_dentry: The eCryptfs dentry that we are looking up
  * @lower_dir_dentry: lower parent directory
+ * @name: lower file name
  *
  * Get the lower dentry from vfs. If lower dentry does not exist yet,
  * create it.
  */
 static struct dentry *
 ecryptfs_lookup_one_lower(struct dentry *ecryptfs_dentry,
-			  struct dentry *lower_dir_dentry)
+			  struct dentry *lower_dir_dentry, struct qstr *name)
 {
 	struct nameidata nd;
 	struct vfsmount *lower_mnt;
-	struct qstr *name;
 	int err;
 
-	name = &ecryptfs_dentry->d_name;
 	lower_mnt = mntget(ecryptfs_dentry_to_lower_mnt(
 				    ecryptfs_dentry->d_parent));
 	err = vfs_path_lookup(lower_dir_dentry, lower_mnt, name->name , 0, &nd);
@@ -434,6 +438,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	size_t encrypted_and_encoded_name_size;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat = NULL;
 	struct dentry *lower_dir_dentry, *lower_dentry;
+	struct qstr lower_name;
 	int rc = 0;
 
 	ecryptfs_dentry->d_op = &ecryptfs_dops;
@@ -444,9 +449,17 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 		goto out_d_drop;
 	}
 	lower_dir_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry->d_parent);
-
+	lower_name.name = ecryptfs_dentry->d_name.name;
+	lower_name.len = ecryptfs_dentry->d_name.len;
+	lower_name.hash = ecryptfs_dentry->d_name.hash;
+	if (lower_dir_dentry->d_op && lower_dir_dentry->d_op->d_hash) {
+		rc = lower_dir_dentry->d_op->d_hash(lower_dir_dentry,
+						    &lower_name);
+		if (rc < 0)
+			goto out_d_drop;
+	}
 	lower_dentry = ecryptfs_lookup_one_lower(ecryptfs_dentry,
-						 lower_dir_dentry);
+						 lower_dir_dentry, &lower_name);
 	if (IS_ERR(lower_dentry)) {
 		rc = PTR_ERR(lower_dentry);
 		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_lower() returned "
@@ -471,8 +484,17 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 		       "filename; rc = [%d]\n", __func__, rc);
 		goto out_d_drop;
 	}
+	lower_name.name = encrypted_and_encoded_name;
+	lower_name.len = encrypted_and_encoded_name_size;
+	lower_name.hash = full_name_hash(lower_name.name, lower_name.len);
+	if (lower_dir_dentry->d_op && lower_dir_dentry->d_op->d_hash) {
+		rc = lower_dir_dentry->d_op->d_hash(lower_dir_dentry,
+						    &lower_name);
+		if (rc < 0)
+			goto out_d_drop;
+	}
 	lower_dentry = ecryptfs_lookup_one_lower(ecryptfs_dentry,
-						 lower_dir_dentry);
+						 lower_dir_dentry, &lower_name);
 	if (IS_ERR(lower_dentry)) {
 		rc = PTR_ERR(lower_dentry);
 		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_lower() returned "
@@ -1091,10 +1113,8 @@ ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
-	mutex_lock(&lower_dentry->d_inode->i_mutex);
-	rc = lower_dentry->d_inode->i_op->setxattr(lower_dentry, name, value,
-						   size, flags);
-	mutex_unlock(&lower_dentry->d_inode->i_mutex);
+
+	rc = vfs_setxattr(lower_dentry, name, value, size, flags);
 out:
 	return rc;
 }

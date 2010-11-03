@@ -18,7 +18,7 @@ extern "C" {
 struct file {
 	struct file *next;
 	struct file *parent;
-	char *name;
+	const char *name;
 	int lineno;
 	int flags;
 };
@@ -165,7 +165,6 @@ struct menu {
 	struct symbol *sym;
 	struct property *prompt;
 	struct expr *dep;
-	struct expr *dir_dep;
 	unsigned int flags;
 	char *help;
 	struct file *file;

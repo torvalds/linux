@@ -48,6 +48,7 @@ struct videobuf_dmabuf {
 
 	/* for userland buffer */
 	int                 offset;
+	size_t		    size;
 	struct page         **pages;
 
 	/* for kernel buffers */
@@ -102,7 +103,8 @@ void videobuf_queue_sg_init(struct videobuf_queue *q,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,
 			 unsigned int msize,
-			 void *priv);
+			 void *priv,
+			 struct mutex *ext_lock);
 
 #endif /* _VIDEOBUF_DMA_SG_H */
 

@@ -1,3 +1,4 @@
+#include <stdarg.h>
 
 /* confdata.c */
 P(conf_parse,void,(const char *name));
@@ -8,6 +9,7 @@ P(conf_write,int,(const char *name));
 P(conf_write_autoconf,int,(void));
 P(conf_get_changed,bool,(void));
 P(conf_set_changed_callback, void,(void (*fn)(void)));
+P(conf_set_message_callback, void,(void (*fn)(const char *fmt, va_list ap)));
 
 /* menu.c */
 P(rootmenu,struct menu,);
@@ -28,6 +30,7 @@ P(symbol_hash,struct symbol *,[SYMBOL_HASHSIZE]);
 
 P(sym_lookup,struct symbol *,(const char *name, int flags));
 P(sym_find,struct symbol *,(const char *name));
+P(sym_expand_string_value,const char *,(const char *in));
 P(sym_re_search,struct symbol **,(const char *pattern));
 P(sym_type_name,const char *,(enum symbol_type type));
 P(sym_calc_value,void,(struct symbol *sym));

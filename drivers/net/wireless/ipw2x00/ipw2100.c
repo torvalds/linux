@@ -1921,9 +1921,9 @@ static int ipw2100_net_init(struct net_device *dev)
 
 		bg_band->band = IEEE80211_BAND_2GHZ;
 		bg_band->n_channels = geo->bg_channels;
-		bg_band->channels =
-			kzalloc(geo->bg_channels *
-				sizeof(struct ieee80211_channel), GFP_KERNEL);
+		bg_band->channels = kcalloc(geo->bg_channels,
+					    sizeof(struct ieee80211_channel),
+					    GFP_KERNEL);
 		if (!bg_band->channels) {
 			ipw2100_down(priv);
 			return -ENOMEM;
@@ -2723,14 +2723,6 @@ static void __ipw2100_rx_process(struct ipw2100_priv *priv)
 
 		packet = &priv->rx_buffers[i];
 
-		/* Sync the DMA for the STATUS buffer so CPU is sure to get
-		 * the correct values */
-		pci_dma_sync_single_for_cpu(priv->pci_dev,
-					    sq->nic +
-					    sizeof(struct ipw2100_status) * i,
-					    sizeof(struct ipw2100_status),
-					    PCI_DMA_FROMDEVICE);
-
 		/* Sync the DMA for the RX buffer so CPU is sure to get
 		 * the correct values */
 		pci_dma_sync_single_for_cpu(priv->pci_dev, packet->dma_addr,
@@ -3064,9 +3056,9 @@ static void ipw2100_tx_send_commands(struct ipw2100_priv *priv)
 
 		packet = list_entry(element, struct ipw2100_tx_packet, list);
 
-		IPW_DEBUG_TX("using TBD at virt=%p, phys=%p\n",
+		IPW_DEBUG_TX("using TBD at virt=%p, phys=%04X\n",
 			     &txq->drv[txq->next],
-			     (void *)(txq->nic + txq->next *
+			     (u32) (txq->nic + txq->next *
 				      sizeof(struct ipw2100_bd)));
 
 		packet->index = txq->next;
@@ -6665,12 +6657,13 @@ static int __init ipw2100_init(void)
 	printk(KERN_INFO DRV_NAME ": %s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
 	printk(KERN_INFO DRV_NAME ": %s\n", DRV_COPYRIGHT);
 
+	pm_qos_add_request(&ipw2100_pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
+			   PM_QOS_DEFAULT_VALUE);
+
 	ret = pci_register_driver(&ipw2100_pci_driver);
 	if (ret)
 		goto out;
 
-	pm_qos_add_request(&ipw2100_pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
-			   PM_QOS_DEFAULT_VALUE);
 #ifdef CONFIG_IPW2100_DEBUG
 	ipw2100_debug_level = debug;
 	ret = driver_create_file(&ipw2100_pci_driver.driver,

@@ -152,7 +152,7 @@ static int __init sffsdr_init(void)
 					    sffsdr_snd_resources,
 					    ARRAY_SIZE(sffsdr_snd_resources));
 	if (ret) {
-		printk(KERN_ERR "platform device add ressources failed\n");
+		printk(KERN_ERR "platform device add resources failed\n");
 		goto error;
 	}
 

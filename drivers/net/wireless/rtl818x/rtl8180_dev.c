@@ -445,7 +445,7 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 					     &priv->rx_ring_dma);
 
 	if (!priv->rx_ring || (unsigned long)priv->rx_ring & 0xFF) {
-		wiphy_err(dev->wiphy, "cannot allocate rx ring\n");
+		wiphy_err(dev->wiphy, "Cannot allocate RX ring\n");
 		return -ENOMEM;
 	}
 
@@ -502,7 +502,7 @@ static int rtl8180_init_tx_ring(struct ieee80211_hw *dev,
 
 	ring = pci_alloc_consistent(priv->pdev, sizeof(*ring) * entries, &dma);
 	if (!ring || (unsigned long)ring & 0xFF) {
-		wiphy_err(dev->wiphy, "cannot allocate tx ring (prio = %d)\n",
+		wiphy_err(dev->wiphy, "Cannot allocate TX ring (prio = %d)\n",
 			  prio);
 		return -ENOMEM;
 	}
@@ -568,7 +568,7 @@ static int rtl8180_start(struct ieee80211_hw *dev)
 	ret = request_irq(priv->pdev->irq, rtl8180_interrupt,
 			  IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret) {
-		wiphy_err(dev->wiphy, "failed to register irq handler\n");
+		wiphy_err(dev->wiphy, "failed to register IRQ handler\n");
 		goto err_free_rings;
 	}
 
@@ -783,6 +783,7 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 	struct rtl8180_priv *priv = dev->priv;
 	struct rtl8180_vif *vif_priv;
 	int i;
+	u8 reg;
 
 	vif_priv = (struct rtl8180_vif *)&vif->drv_priv;
 
@@ -791,12 +792,14 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 			rtl818x_iowrite8(priv, &priv->map->BSSID[i],
 					 info->bssid[i]);
 
-		if (is_valid_ether_addr(info->bssid))
-			rtl818x_iowrite8(priv, &priv->map->MSR,
-					 RTL818X_MSR_INFRA);
-		else
-			rtl818x_iowrite8(priv, &priv->map->MSR,
-					 RTL818X_MSR_NO_LINK);
+		if (is_valid_ether_addr(info->bssid)) {
+			if (vif->type == NL80211_IFTYPE_ADHOC)
+				reg = RTL818X_MSR_ADHOC;
+			else
+				reg = RTL818X_MSR_INFRA;
+		} else
+			reg = RTL818X_MSR_NO_LINK;
+		rtl818x_iowrite8(priv, &priv->map->MSR, reg);
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT && priv->rf->conf_erp)

@@ -1538,6 +1538,19 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 	if (!fcport)
 		return;
 
+	/* Now that the rport has been deleted, set the fcport state to
+	   FCS_DEVICE_DEAD */
+	atomic_set(&fcport->state, FCS_DEVICE_DEAD);
+
+	/*
+	 * Transport has effectively 'deleted' the rport, clear
+	 * all local references.
+	 */
+	spin_lock_irq(host->host_lock);
+	fcport->rport = fcport->drport = NULL;
+	*((fc_port_t **)rport->dd_data) = NULL;
+	spin_unlock_irq(host->host_lock);
+
 	if (test_bit(ABORT_ISP_ACTIVE, &fcport->vha->dpc_flags))
 		return;
 
@@ -1545,15 +1558,6 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 		qla2x00_abort_all_cmds(fcport->vha, DID_NO_CONNECT << 16);
 		return;
 	}
-
-	/*
-	 * Transport has effectively 'deleted' the rport, clear
-	 * all local references.
-	 */
-	spin_lock_irq(host->host_lock);
-	fcport->rport = NULL;
-	*((fc_port_t **)rport->dd_data) = NULL;
-	spin_unlock_irq(host->host_lock);
 }
 
 static void
@@ -1676,14 +1680,14 @@ static void
 qla2x00_get_host_fabric_name(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
-	u64 node_name;
+	uint8_t node_name[WWN_SIZE] = { 0xFF, 0xFF, 0xFF, 0xFF, \
+		0xFF, 0xFF, 0xFF, 0xFF};
+	u64 fabric_name = wwn_to_u64(node_name);
 
 	if (vha->device_flags & SWITCH_FOUND)
-		node_name = wwn_to_u64(vha->fabric_node_name);
-	else
-		node_name = wwn_to_u64(vha->node_name);
+		fabric_name = wwn_to_u64(vha->fabric_node_name);
 
-	fc_host_fabric_name(shost) = node_name;
+	fc_host_fabric_name(shost) = fabric_name;
 }
 
 static void
@@ -1776,6 +1780,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 	}
 
 	/* initialize attributes */
+	fc_host_dev_loss_tmo(vha->host) = ha->port_down_retry_count;
 	fc_host_node_name(vha->host) = wwn_to_u64(vha->node_name);
 	fc_host_port_name(vha->host) = wwn_to_u64(vha->port_name);
 	fc_host_supported_classes(vha->host) =
@@ -1838,25 +1843,32 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 
 	qla24xx_disable_vp(vha);
 
+	vha->flags.delete_progress = 1;
+
 	fc_remove_host(vha->host);
 
 	scsi_remove_host(vha->host);
 
-	qla2x00_free_fcports(vha);
+	if (vha->timer_active) {
+		qla2x00_vp_stop_timer(vha);
+		DEBUG15(printk(KERN_INFO "scsi(%ld): timer for the vport[%d]"
+		" = %p has stopped\n", vha->host_no, vha->vp_idx, vha));
+	}
 
 	qla24xx_deallocate_vp_id(vha);
+
+	/* No pending activities shall be there on the vha now */
+	DEBUG(msleep(random32()%10));  /* Just to see if something falls on
+					* the net we have placed below */
+
+	BUG_ON(atomic_read(&vha->vref_count));
+
+	qla2x00_free_fcports(vha);
 
 	mutex_lock(&ha->vport_lock);
 	ha->cur_vport_count--;
 	clear_bit(vha->vp_idx, ha->vp_idx_map);
 	mutex_unlock(&ha->vport_lock);
-
-	if (vha->timer_active) {
-		qla2x00_vp_stop_timer(vha);
-		DEBUG15(printk ("scsi(%ld): timer for the vport[%d] = %p "
-		    "has stopped\n",
-		    vha->host_no, vha->vp_idx, vha));
-        }
 
 	if (vha->req->id && !ha->flags.cpu_affinity_enabled) {
 		if (qla25xx_delete_req_que(vha, vha->req) != QLA_SUCCESS)
@@ -1977,6 +1989,7 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	u32 speed = FC_PORTSPEED_UNKNOWN;
 
+	fc_host_dev_loss_tmo(vha->host) = ha->port_down_retry_count;
 	fc_host_node_name(vha->host) = wwn_to_u64(vha->node_name);
 	fc_host_port_name(vha->host) = wwn_to_u64(vha->port_name);
 	fc_host_supported_classes(vha->host) = FC_COS_CLASS3;

@@ -28,11 +28,13 @@
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	long __res;
-	asm volatile ("push %%ebx ; movl %2,%%ebx ; int $0x80 ; pop %%ebx"
+	asm volatile ("int $0x80"
 	: "=a" (__res)
-	: "0" (__NR_execve), "ri" (filename), "c" (argv), "d" (envp) : "memory");
+	: "0" (__NR_execve), "b" (filename), "c" (argv), "d" (envp) : "memory");
 	return __res;
 }

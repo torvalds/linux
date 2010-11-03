@@ -55,6 +55,9 @@
 static int drm_version(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 
+#define DRM_IOCTL_DEF(ioctl, _func, _flags) \
+	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0}
+
 /** Ioctl table */
 static struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_VERSION, drm_version, 0),
@@ -88,8 +91,8 @@ static struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_NEW_CTX, drm_newctx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_RES_CTX, drm_resctx, DRM_AUTH),
 
-	DRM_IOCTL_DEF(DRM_IOCTL_ADD_DRAW, drm_adddraw, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF(DRM_IOCTL_RM_DRAW, drm_rmdraw, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_IOCTL_ADD_DRAW, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_IOCTL_RM_DRAW, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 
 	DRM_IOCTL_DEF(DRM_IOCTL_LOCK, drm_lock, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_IOCTL_UNLOCK, drm_unlock, DRM_AUTH),
@@ -124,7 +127,7 @@ static struct drm_ioctl_desc drm_ioctls[] = {
 
 	DRM_IOCTL_DEF(DRM_IOCTL_MODESET_CTL, drm_modeset_ctl, 0),
 
-	DRM_IOCTL_DEF(DRM_IOCTL_UPDATE_DRAW, drm_update_drawable_info, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_IOCTL_UPDATE_DRAW, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 
 	DRM_IOCTL_DEF(DRM_IOCTL_GEM_CLOSE, drm_gem_close_ioctl, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_GEM_FLINK, drm_gem_flink_ioctl, DRM_AUTH|DRM_UNLOCKED),
@@ -176,10 +179,6 @@ int drm_lastclose(struct drm_device * dev)
 		drm_irq_uninstall(dev);
 
 	mutex_lock(&dev->struct_mutex);
-
-	/* Free drawable information memory */
-	drm_drawable_free_all(dev);
-	del_timer(&dev->timer);
 
 	/* Clear AGP information */
 	if (drm_core_has_AGP(dev) && dev->agp &&
@@ -281,7 +280,8 @@ EXPORT_SYMBOL(drm_exit);
 /** File operations structure */
 static const struct file_operations drm_stub_fops = {
 	.owner = THIS_MODULE,
-	.open = drm_stub_open
+	.open = drm_stub_open,
+	.llseek = noop_llseek,
 };
 
 static int __init drm_core_init(void)
@@ -421,6 +421,7 @@ long drm_ioctl(struct file *filp,
 	int retcode = -EINVAL;
 	char stack_kdata[128];
 	char *kdata = NULL;
+	unsigned int usize, asize;
 
 	dev = file_priv->minor->dev;
 	atomic_inc(&dev->ioctl_count);
@@ -436,11 +437,18 @@ long drm_ioctl(struct file *filp,
 	    ((nr < DRM_COMMAND_BASE) || (nr >= DRM_COMMAND_END)))
 		goto err_i1;
 	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END) &&
-	    (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls))
+	    (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls)) {
+		u32 drv_size;
 		ioctl = &dev->driver->ioctls[nr - DRM_COMMAND_BASE];
+		drv_size = _IOC_SIZE(ioctl->cmd_drv);
+		usize = asize = _IOC_SIZE(cmd);
+		if (drv_size > asize)
+			asize = drv_size;
+	}
 	else if ((nr >= DRM_COMMAND_END) || (nr < DRM_COMMAND_BASE)) {
 		ioctl = &drm_ioctls[nr];
 		cmd = ioctl->cmd;
+		usize = asize = _IOC_SIZE(cmd);
 	} else
 		goto err_i1;
 
@@ -460,10 +468,10 @@ long drm_ioctl(struct file *filp,
 		retcode = -EACCES;
 	} else {
 		if (cmd & (IOC_IN | IOC_OUT)) {
-			if (_IOC_SIZE(cmd) <= sizeof(stack_kdata)) {
+			if (asize <= sizeof(stack_kdata)) {
 				kdata = stack_kdata;
 			} else {
-				kdata = kmalloc(_IOC_SIZE(cmd), GFP_KERNEL);
+				kdata = kmalloc(asize, GFP_KERNEL);
 				if (!kdata) {
 					retcode = -ENOMEM;
 					goto err_i1;
@@ -473,11 +481,13 @@ long drm_ioctl(struct file *filp,
 
 		if (cmd & IOC_IN) {
 			if (copy_from_user(kdata, (void __user *)arg,
-					   _IOC_SIZE(cmd)) != 0) {
+					   usize) != 0) {
 				retcode = -EFAULT;
 				goto err_i1;
 			}
-		}
+		} else
+			memset(kdata, 0, usize);
+
 		if (ioctl->flags & DRM_UNLOCKED)
 			retcode = func(dev, kdata, file_priv);
 		else {
@@ -488,7 +498,7 @@ long drm_ioctl(struct file *filp,
 
 		if (cmd & IOC_OUT) {
 			if (copy_to_user((void __user *)arg, kdata,
-					 _IOC_SIZE(cmd)) != 0)
+					 usize) != 0)
 				retcode = -EFAULT;
 		}
 	}

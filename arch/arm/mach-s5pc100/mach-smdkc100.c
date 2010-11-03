@@ -47,6 +47,7 @@
 #include <plat/adc.h>
 #include <plat/keypad.h>
 #include <plat/ts.h>
+#include <plat/audio.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDKC100_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -196,6 +197,7 @@ static struct platform_device *smdkc100_devices[] __initdata = {
 	&s5p_device_fimc0,
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
+	&s5pc100_device_spdif,
 };
 
 static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
@@ -226,6 +228,8 @@ static void __init smdkc100_machine_init(void)
 
 	samsung_keypad_set_platdata(&smdkc100_keypad_data);
 
+	s5pc100_spdif_setup_gpio(S5PC100_SPDIF_GPD);
+
 	/* LCD init */
 	gpio_request(S5PC100_GPD(0), "GPD");
 	gpio_request(S5PC100_GPH0(6), "GPH0");
@@ -235,8 +239,6 @@ static void __init smdkc100_machine_init(void)
 
 MACHINE_START(SMDKC100, "SMDKC100")
 	/* Maintainer: Byungho Min <bhmin@samsung.com> */
-	.phys_io	= S3C_PA_UART & 0xfff00000,
-	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S5P_PA_SDRAM + 0x100,
 	.init_irq	= s5pc100_init_irq,
 	.map_io		= smdkc100_map_io,

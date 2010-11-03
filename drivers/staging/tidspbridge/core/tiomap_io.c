@@ -16,6 +16,8 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <plat/dsp.h>
+
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
@@ -27,7 +29,6 @@
 #include <dspbridge/drv.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/wdt.h>
 
 /*  ----------------------------------- specific to this file */
@@ -133,17 +134,16 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 
 		if (!status) {
 			ul_tlb_base_virt =
-			    dev_context->atlb_entry[0].ul_dsp_va * DSPWORDSIZE;
+			    dev_context->sh_s.seg0_da * DSPWORDSIZE;
 			DBC_ASSERT(ul_tlb_base_virt <= ul_shm_base_virt);
-			dw_ext_prog_virt_mem =
-			    dev_context->atlb_entry[0].ul_gpp_va;
+			dw_ext_prog_virt_mem = dev_context->sh_s.seg0_va;
 
 			if (!trace_read) {
 				ul_shm_offset_virt =
 				    ul_shm_base_virt - ul_tlb_base_virt;
 				ul_shm_offset_virt +=
 				    PG_ALIGN_HIGH(ul_ext_end - ul_dyn_ext_base +
-						  1, HW_PAGE_SIZE64KB);
+						  1, PAGE_SIZE * 16);
 				dw_ext_prog_virt_mem -= ul_shm_offset_virt;
 				dw_ext_prog_virt_mem +=
 				    (ul_ext_base - ul_dyn_ext_base);
@@ -317,8 +317,9 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 			ret = -EPERM;
 
 		if (!ret) {
-			ul_tlb_base_virt =
-			    dev_context->atlb_entry[0].ul_dsp_va * DSPWORDSIZE;
+			ul_tlb_base_virt = dev_context->sh_s.seg0_da *
+								DSPWORDSIZE;
+
 			DBC_ASSERT(ul_tlb_base_virt <= ul_shm_base_virt);
 
 			if (symbols_reloaded) {
@@ -336,7 +337,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 			    ul_shm_base_virt - ul_tlb_base_virt;
 			if (trace_load) {
 				dw_ext_prog_virt_mem =
-				    dev_context->atlb_entry[0].ul_gpp_va;
+					dev_context->sh_s.seg0_va;
 			} else {
 				dw_ext_prog_virt_mem = host_res->dw_mem_base[1];
 				dw_ext_prog_virt_mem +=
@@ -388,11 +389,10 @@ int sm_interrupt_dsp(struct bridge_dev_context *dev_context, u16 mb_val)
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 	u32 opplevel = 0;
 #endif
-	struct dspbridge_platform_data *pdata =
+	struct omap_dsp_platform_data *pdata =
 		omap_dspbridge_dev->dev.platform_data;
 	struct cfg_hostres *resources = dev_context->resources;
 	int status = 0;
-	u32 temp;
 
 	if (!dev_context->mbox)
 		return 0;
@@ -436,7 +436,7 @@ int sm_interrupt_dsp(struct bridge_dev_context *dev_context, u16 mb_val)
 		omap_mbox_restore_ctx(dev_context->mbox);
 
 		/* Access MMU SYS CONFIG register to generate a short wakeup */
-		temp = readl(resources->dw_dmmu_base + 0x10);
+		iommu_read_reg(dev_context->dsp_mmu, MMU_SYSCONFIG);
 
 		dev_context->dw_brd_state = BRD_RUNNING;
 	} else if (dev_context->dw_brd_state == BRD_RETENTION) {

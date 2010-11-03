@@ -11,6 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/delay.h>
+#include <linux/swiotlb.h>
 
 #include <asm/time.h>
 
@@ -18,6 +19,8 @@
 #include <asm/octeon/cvmx-npi-defs.h>
 #include <asm/octeon/cvmx-pci-defs.h>
 #include <asm/octeon/pci-octeon.h>
+
+#include <dma-coherence.h>
 
 #define USE_OCTEON_INTERNAL_ARBITER
 
@@ -31,6 +34,8 @@
 
 /* Octeon't PCI controller uses did=3, subdid=3 for PCI memory. */
 #define OCTEON_PCI_MEMSPACE_OFFSET  (0x00011b0000000000ull)
+
+u64 octeon_bar1_pci_phys;
 
 /**
  * This is the bit decoding used for the Octeon PCI controller addresses
@@ -169,6 +174,8 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 		pci_read_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, &dconfig);
 		pci_write_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, dconfig);
 	}
+
+	dev->dev.archdata.dma_ops = octeon_pci_dma_map_ops;
 
 	return 0;
 }
@@ -618,12 +625,10 @@ static int __init octeon_pci_setup(void)
 	 * before the readl()'s below. We don't want BAR2 overlapping
 	 * with BAR0/BAR1 during these reads.
 	 */
-	octeon_npi_write32(CVMX_NPI_PCI_CFG08, 0);
-	octeon_npi_write32(CVMX_NPI_PCI_CFG09, 0x80);
-
-	/* Disable the BAR1 movable mappings */
-	for (index = 0; index < 32; index++)
-		octeon_npi_write32(CVMX_NPI_PCI_BAR1_INDEXX(index), 0);
+	octeon_npi_write32(CVMX_NPI_PCI_CFG08,
+			   (u32)(OCTEON_BAR2_PCI_ADDRESS & 0xffffffffull));
+	octeon_npi_write32(CVMX_NPI_PCI_CFG09,
+			   (u32)(OCTEON_BAR2_PCI_ADDRESS >> 32));
 
 	if (octeon_dma_bar_type == OCTEON_DMA_BAR_TYPE_BIG) {
 		/* Remap the Octeon BAR 0 to 0-2GB */
@@ -636,6 +641,25 @@ static int __init octeon_pci_setup(void)
 		 */
 		octeon_npi_write32(CVMX_NPI_PCI_CFG06, 2ul << 30);
 		octeon_npi_write32(CVMX_NPI_PCI_CFG07, 0);
+
+		/* BAR1 movable mappings set for identity mapping */
+		octeon_bar1_pci_phys = 0x80000000ull;
+		for (index = 0; index < 32; index++) {
+			union cvmx_pci_bar1_indexx bar1_index;
+
+			bar1_index.u32 = 0;
+			/* Address bits[35:22] sent to L2C */
+			bar1_index.s.addr_idx =
+				(octeon_bar1_pci_phys >> 22) + index;
+			/* Don't put PCI accesses in L2. */
+			bar1_index.s.ca = 1;
+			/* Endian Swap Mode */
+			bar1_index.s.end_swp = 1;
+			/* Set '1' when the selected address range is valid. */
+			bar1_index.s.addr_v = 1;
+			octeon_npi_write32(CVMX_NPI_PCI_BAR1_INDEXX(index),
+					   bar1_index.u32);
+		}
 
 		/* Devices go after BAR1 */
 		octeon_pci_mem_resource.start =
@@ -652,6 +676,27 @@ static int __init octeon_pci_setup(void)
 		octeon_npi_write32(CVMX_NPI_PCI_CFG06, 0);
 		octeon_npi_write32(CVMX_NPI_PCI_CFG07, 0);
 
+		/* BAR1 movable regions contiguous to cover the swiotlb */
+		octeon_bar1_pci_phys =
+			virt_to_phys(octeon_swiotlb) & ~((1ull << 22) - 1);
+
+		for (index = 0; index < 32; index++) {
+			union cvmx_pci_bar1_indexx bar1_index;
+
+			bar1_index.u32 = 0;
+			/* Address bits[35:22] sent to L2C */
+			bar1_index.s.addr_idx =
+				(octeon_bar1_pci_phys >> 22) + index;
+			/* Don't put PCI accesses in L2. */
+			bar1_index.s.ca = 1;
+			/* Endian Swap Mode */
+			bar1_index.s.end_swp = 1;
+			/* Set '1' when the selected address range is valid. */
+			bar1_index.s.addr_v = 1;
+			octeon_npi_write32(CVMX_NPI_PCI_BAR1_INDEXX(index),
+					   bar1_index.u32);
+		}
+
 		/* Devices go after BAR0 */
 		octeon_pci_mem_resource.start =
 			OCTEON_PCI_MEMSPACE_OFFSET + (128ul << 20) +
@@ -667,6 +712,9 @@ static int __init octeon_pci_setup(void)
 	 * was setup properly.
 	 */
 	cvmx_write_csr(CVMX_NPI_PCI_INT_SUM2, -1);
+
+	octeon_pci_dma_init();
+
 	return 0;
 }
 

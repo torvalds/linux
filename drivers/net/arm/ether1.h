@@ -38,7 +38,6 @@
 
 struct ether1_priv {
 	void __iomem *base;
-	struct net_device_stats stats;
 	unsigned int tx_link;
 	unsigned int tx_head;
 	volatile unsigned int tx_tail;

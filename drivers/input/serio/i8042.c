@@ -1063,7 +1063,7 @@ static long i8042_panic_blink(int state)
 #ifdef CONFIG_X86
 static void i8042_dritek_enable(void)
 {
-	char param = 0x90;
+	unsigned char param = 0x90;
 	int error;
 
 	error = i8042_command(&param, 0x1059);
@@ -1485,8 +1485,8 @@ static int __init i8042_init(void)
 
 static void __exit i8042_exit(void)
 {
-	platform_driver_unregister(&i8042_driver);
 	platform_device_unregister(i8042_platform_device);
+	platform_driver_unregister(&i8042_driver);
 	i8042_platform_exit();
 
 	panic_blink = NULL;

@@ -469,9 +469,13 @@ static struct i2c_board_info __initdata palm27x_pi2c_board_info[] = {
 	},
 };
 
+static struct i2c_pxa_platform_data palm27x_i2c_power_info = {
+	.use_pio	= 1,
+};
+
 void __init palm27x_pmic_init(void)
 {
 	i2c_register_board_info(1, ARRAY_AND_SIZE(palm27x_pi2c_board_info));
-	pxa27x_set_i2c_power_info(NULL);
+	pxa27x_set_i2c_power_info(&palm27x_i2c_power_info);
 }
 #endif

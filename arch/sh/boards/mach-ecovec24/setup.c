@@ -231,14 +231,41 @@ static struct platform_device usb1_common_device = {
 };
 
 /* LCDC */
+const static struct fb_videomode ecovec_lcd_modes[] = {
+	{
+		.name		= "Panel",
+		.xres		= 800,
+		.yres		= 480,
+		.left_margin	= 220,
+		.right_margin	= 110,
+		.hsync_len	= 70,
+		.upper_margin	= 20,
+		.lower_margin	= 5,
+		.vsync_len	= 5,
+		.sync		= 0, /* hsync and vsync are active low */
+	},
+};
+
+const static struct fb_videomode ecovec_dvi_modes[] = {
+	{
+		.name		= "DVI",
+		.xres		= 1280,
+		.yres		= 720,
+		.left_margin	= 220,
+		.right_margin	= 110,
+		.hsync_len	= 40,
+		.upper_margin	= 20,
+		.lower_margin	= 5,
+		.vsync_len	= 5,
+		.sync = 0, /* hsync and vsync are active low */
+	},
+};
+
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.ch[0] = {
 		.interface_type = RGB18,
 		.chan = LCDC_CHAN_MAINLCD,
 		.bpp = 16,
-		.lcd_cfg = {
-			.sync = 0, /* hsync and vsync are active low */
-		},
 		.lcd_size_cfg = { /* 7.0 inch */
 			.width = 152,
 			.height = 91,
@@ -620,7 +647,6 @@ static struct soc_camera_link tw9910_link = {
 	.bus_id		= 1,
 	.power		= tw9910_power,
 	.board_info	= &i2c_camera[0],
-	.module_name	= "tw9910",
 	.priv		= &tw9910_info,
 };
 
@@ -644,7 +670,6 @@ static struct soc_camera_link mt9t112_link1 = {
 	.power		= mt9t112_power1,
 	.bus_id		= 0,
 	.board_info	= &i2c_camera[1],
-	.module_name	= "mt9t112",
 	.priv		= &mt9t112_info1,
 };
 
@@ -667,7 +692,6 @@ static struct soc_camera_link mt9t112_link2 = {
 	.power		= mt9t112_power2,
 	.bus_id		= 1,
 	.board_info	= &i2c_camera[2],
-	.module_name	= "mt9t112",
 	.priv		= &mt9t112_info2,
 };
 
@@ -793,7 +817,6 @@ static struct sh_vou_pdata sh_vou_pdata = {
 	.flags		= SH_VOU_HSYNC_LOW | SH_VOU_VSYNC_LOW,
 	.board_info	= &ak8813,
 	.i2c_adap	= 0,
-	.module_name	= "ak881x",
 };
 
 static struct resource sh_vou_resources[] = {
@@ -1079,33 +1102,18 @@ static int __init arch_setup(void)
 	if (gpio_get_value(GPIO_PTE6)) {
 		/* DVI */
 		lcdc_info.clock_source			= LCDC_CLK_EXTERNAL;
-		lcdc_info.ch[0].clock_divider		= 1,
-		lcdc_info.ch[0].lcd_cfg.name		= "DVI";
-		lcdc_info.ch[0].lcd_cfg.xres		= 1280;
-		lcdc_info.ch[0].lcd_cfg.yres		= 720;
-		lcdc_info.ch[0].lcd_cfg.left_margin	= 220;
-		lcdc_info.ch[0].lcd_cfg.right_margin	= 110;
-		lcdc_info.ch[0].lcd_cfg.hsync_len	= 40;
-		lcdc_info.ch[0].lcd_cfg.upper_margin	= 20;
-		lcdc_info.ch[0].lcd_cfg.lower_margin	= 5;
-		lcdc_info.ch[0].lcd_cfg.vsync_len	= 5;
+		lcdc_info.ch[0].clock_divider		= 1;
+		lcdc_info.ch[0].lcd_cfg			= ecovec_dvi_modes;
+		lcdc_info.ch[0].num_cfg			= ARRAY_SIZE(ecovec_dvi_modes);
 
 		gpio_set_value(GPIO_PTA2, 1);
 		gpio_set_value(GPIO_PTU1, 1);
 	} else {
 		/* Panel */
-
 		lcdc_info.clock_source			= LCDC_CLK_PERIPHERAL;
-		lcdc_info.ch[0].clock_divider		= 2,
-		lcdc_info.ch[0].lcd_cfg.name		= "Panel";
-		lcdc_info.ch[0].lcd_cfg.xres		= 800;
-		lcdc_info.ch[0].lcd_cfg.yres		= 480;
-		lcdc_info.ch[0].lcd_cfg.left_margin	= 220;
-		lcdc_info.ch[0].lcd_cfg.right_margin	= 110;
-		lcdc_info.ch[0].lcd_cfg.hsync_len	= 70;
-		lcdc_info.ch[0].lcd_cfg.upper_margin	= 20;
-		lcdc_info.ch[0].lcd_cfg.lower_margin	= 5;
-		lcdc_info.ch[0].lcd_cfg.vsync_len	= 5;
+		lcdc_info.ch[0].clock_divider		= 2;
+		lcdc_info.ch[0].lcd_cfg			= ecovec_lcd_modes;
+		lcdc_info.ch[0].num_cfg			= ARRAY_SIZE(ecovec_lcd_modes);
 
 		gpio_set_value(GPIO_PTR1, 1);
 
@@ -1248,14 +1256,14 @@ static int __init arch_setup(void)
 
 	/* set SPU2 clock to 83.4 MHz */
 	clk = clk_get(NULL, "spu_clk");
-	if (clk) {
+	if (!IS_ERR(clk)) {
 		clk_set_rate(clk, clk_round_rate(clk, 83333333));
 		clk_put(clk);
 	}
 
 	/* change parent of FSI B */
 	clk = clk_get(NULL, "fsib_clk");
-	if (clk) {
+	if (!IS_ERR(clk)) {
 		clk_register(&fsimckb_clk);
 		clk_set_parent(clk, &fsimckb_clk);
 		clk_set_rate(clk, 11000);
@@ -1273,7 +1281,7 @@ static int __init arch_setup(void)
 
 	/* set VPU clock to 166 MHz */
 	clk = clk_get(NULL, "vpu_clk");
-	if (clk) {
+	if (!IS_ERR(clk)) {
 		clk_set_rate(clk, clk_round_rate(clk, 166000000));
 		clk_put(clk);
 	}

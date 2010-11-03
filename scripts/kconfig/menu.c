@@ -10,7 +10,7 @@
 #include "lkc.h"
 
 static const char nohelp_text[] = N_(
-	"There is no help available for this kernel option.\n");
+	"There is no help available for this option.\n");
 
 struct menu rootmenu;
 static struct menu **last_entry_ptr;
@@ -107,7 +107,6 @@ static struct expr *menu_check_dep(struct expr *e)
 void menu_add_dep(struct expr *dep)
 {
 	current_entry->dep = expr_alloc_and(current_entry->dep, menu_check_dep(dep));
-	current_entry->dir_dep = current_entry->dep;
 }
 
 void menu_set_type(int type)
@@ -139,7 +138,7 @@ struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *e
 			while (isspace(*prompt))
 				prompt++;
 		}
-		if (current_entry->prompt)
+		if (current_entry->prompt && current_entry != &rootmenu)
 			prop_warn(prop, "prompt redefined");
 		current_entry->prompt = prop;
 	}
@@ -291,10 +290,6 @@ void menu_finalize(struct menu *parent)
 		for (menu = parent->list; menu; menu = menu->next)
 			menu_finalize(menu);
 	} else if (sym) {
-		/* ignore inherited dependencies for dir_dep */
-		sym->dir_dep.expr = expr_transform(expr_copy(parent->dir_dep));
-		sym->dir_dep.expr = expr_eliminate_dups(sym->dir_dep.expr);
-
 		basedep = parent->prompt ? parent->prompt->visible.expr : NULL;
 		basedep = expr_trans_compare(basedep, E_UNEQUAL, &symbol_no);
 		basedep = expr_eliminate_dups(expr_transform(basedep));
@@ -325,6 +320,8 @@ void menu_finalize(struct menu *parent)
 			parent->next = last_menu->next;
 			last_menu->next = NULL;
 		}
+
+		sym->dir_dep.expr = parent->dep;
 	}
 	for (menu = parent->list; menu; menu = menu->next) {
 		if (sym && sym_is_choice(sym) &&
@@ -566,7 +563,7 @@ void menu_get_ext_help(struct menu *menu, struct gstr *help)
 
 	if (menu_has_help(menu)) {
 		if (sym->name) {
-			str_printf(help, "CONFIG_%s:\n\n", sym->name);
+			str_printf(help, "%s%s:\n\n", CONFIG_, sym->name);
 			str_append(help, _(menu_get_help(menu)));
 			str_append(help, "\n");
 		}

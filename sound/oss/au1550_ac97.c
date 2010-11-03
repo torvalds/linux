@@ -43,7 +43,6 @@
 #include <linux/sound.h>
 #include <linux/slab.h>
 #include <linux/soundcard.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -77,6 +76,7 @@
 /* Boot options
  * 0 = no VRA, 1 = use VRA if codec supports it
  */
+static DEFINE_MUTEX(au1550_ac97_mutex);
 static int      vra = 1;
 module_param(vra, bool, 0);
 MODULE_PARM_DESC(vra, "if 1 use VRA if codec supports it");
@@ -171,7 +171,7 @@ au1550_delay(int msec)
 static u16
 rdcodec(struct ac97_codec *codec, u8 addr)
 {
-	struct au1550_state *s = (struct au1550_state *)codec->private_data;
+	struct au1550_state *s = codec->private_data;
 	unsigned long   flags;
 	u32             cmd, val;
 	u16             data;
@@ -239,7 +239,7 @@ rdcodec(struct ac97_codec *codec, u8 addr)
 static void
 wrcodec(struct ac97_codec *codec, u8 addr, u16 data)
 {
-	struct au1550_state *s = (struct au1550_state *)codec->private_data;
+	struct au1550_state *s = codec->private_data;
 	unsigned long   flags;
 	u32             cmd, val;
 	int             i;
@@ -798,9 +798,9 @@ au1550_llseek(struct file *file, loff_t offset, int origin)
 static int
 au1550_open_mixdev(struct inode *inode, struct file *file)
 {
-	lock_kernel();
+	mutex_lock(&au1550_ac97_mutex);
 	file->private_data = &au1550_state;
-	unlock_kernel();
+	mutex_unlock(&au1550_ac97_mutex);
 	return 0;
 }
 
@@ -820,13 +820,13 @@ mixdev_ioctl(struct ac97_codec *codec, unsigned int cmd,
 static long
 au1550_ioctl_mixdev(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct au1550_state *s = (struct au1550_state *)file->private_data;
+	struct au1550_state *s = file->private_data;
 	struct ac97_codec *codec = s->codec;
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&au1550_ac97_mutex);
 	ret = mixdev_ioctl(codec, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&au1550_ac97_mutex);
 
 	return ret;
 }
@@ -1031,7 +1031,7 @@ copy_dmabuf_user(struct dmabuf *db, char* userbuf, int count, int to_user)
 static ssize_t
 au1550_read(struct file *file, char *buffer, size_t count, loff_t *ppos)
 {
-	struct au1550_state *s = (struct au1550_state *)file->private_data;
+	struct au1550_state *s = file->private_data;
 	struct dmabuf  *db = &s->dma_adc;
 	DECLARE_WAITQUEUE(wait, current);
 	ssize_t         ret;
@@ -1111,7 +1111,7 @@ out2:
 static ssize_t
 au1550_write(struct file *file, const char *buffer, size_t count, loff_t * ppos)
 {
-	struct au1550_state *s = (struct au1550_state *)file->private_data;
+	struct au1550_state *s = file->private_data;
 	struct dmabuf  *db = &s->dma_dac;
 	DECLARE_WAITQUEUE(wait, current);
 	ssize_t         ret = 0;
@@ -1211,7 +1211,7 @@ out2:
 static unsigned int
 au1550_poll(struct file *file, struct poll_table_struct *wait)
 {
-	struct au1550_state *s = (struct au1550_state *)file->private_data;
+	struct au1550_state *s = file->private_data;
 	unsigned long   flags;
 	unsigned int    mask = 0;
 
@@ -1250,12 +1250,12 @@ au1550_poll(struct file *file, struct poll_table_struct *wait)
 static int
 au1550_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct au1550_state *s = (struct au1550_state *)file->private_data;
+	struct au1550_state *s = file->private_data;
 	struct dmabuf  *db;
 	unsigned long   size;
 	int ret = 0;
 
-	lock_kernel();
+	mutex_lock(&au1550_ac97_mutex);
 	mutex_lock(&s->sem);
 	if (vma->vm_flags & VM_WRITE)
 		db = &s->dma_dac;
@@ -1283,7 +1283,7 @@ au1550_mmap(struct file *file, struct vm_area_struct *vma)
 	db->mapped = 1;
 out:
 	mutex_unlock(&s->sem);
-	unlock_kernel();
+	mutex_unlock(&au1550_ac97_mutex);
 	return ret;
 }
 
@@ -1342,7 +1342,7 @@ dma_count_done(struct dmabuf *db)
 static int
 au1550_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct au1550_state *s = (struct au1550_state *)file->private_data;
+	struct au1550_state *s = file->private_data;
 	unsigned long   flags;
 	audio_buf_info  abinfo;
 	count_info      cinfo;
@@ -1781,9 +1781,9 @@ au1550_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&au1550_ac97_mutex);
 	ret = au1550_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&au1550_ac97_mutex);
 
 	return ret;
 }
@@ -1804,7 +1804,7 @@ au1550_open(struct inode *inode, struct file *file)
 #endif
 
 	file->private_data = s;
-	lock_kernel();
+	mutex_lock(&au1550_ac97_mutex);
 	/* wait for device to become free */
 	mutex_lock(&s->open_mutex);
 	while (s->open_mode & file->f_mode) {
@@ -1861,21 +1861,21 @@ au1550_open(struct inode *inode, struct file *file)
 out:
 	mutex_unlock(&s->open_mutex);
 out2:
-	unlock_kernel();
+	mutex_unlock(&au1550_ac97_mutex);
 	return ret;
 }
 
 static int
 au1550_release(struct inode *inode, struct file *file)
 {
-	struct au1550_state *s = (struct au1550_state *)file->private_data;
+	struct au1550_state *s = file->private_data;
 
-	lock_kernel();
+	mutex_lock(&au1550_ac97_mutex);
 
 	if (file->f_mode & FMODE_WRITE) {
-		unlock_kernel();
+		mutex_unlock(&au1550_ac97_mutex);
 		drain_dac(s, file->f_flags & O_NONBLOCK);
-		lock_kernel();
+		mutex_lock(&au1550_ac97_mutex);
 	}
 
 	mutex_lock(&s->open_mutex);
@@ -1892,7 +1892,7 @@ au1550_release(struct inode *inode, struct file *file)
 	s->open_mode &= ((~file->f_mode) & (FMODE_READ|FMODE_WRITE));
 	mutex_unlock(&s->open_mutex);
 	wake_up(&s->open_wait);
-	unlock_kernel();
+	mutex_unlock(&au1550_ac97_mutex);
 	return 0;
 }
 

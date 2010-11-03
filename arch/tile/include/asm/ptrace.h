@@ -51,10 +51,7 @@ typedef uint_reg_t pt_reg_t;
 
 /*
  * This struct defines the way the registers are stored on the stack during a
- * system call/exception.  It should be a multiple of 8 bytes to preserve
- * normal stack alignment rules.
- *
- * Must track <sys/ucontext.h> and <sys/procfs.h>
+ * system call or exception.  "struct sigcontext" has the same shape.
  */
 struct pt_regs {
 	/* Saved main processor registers; 56..63 are special. */
@@ -65,8 +62,8 @@ struct pt_regs {
 	pt_reg_t lr;		/* aliases regs[TREG_LR] */
 
 	/* Saved special registers. */
-	pt_reg_t pc;		/* stored in EX_CONTEXT_1_0 */
-	pt_reg_t ex1;		/* stored in EX_CONTEXT_1_1 (PL and ICS bit) */
+	pt_reg_t pc;		/* stored in EX_CONTEXT_K_0 */
+	pt_reg_t ex1;		/* stored in EX_CONTEXT_K_1 (PL and ICS bit) */
 	pt_reg_t faultnum;	/* fault number (INT_SWINT_1 for syscall) */
 	pt_reg_t orig_r0;	/* r0 at syscall entry, else zero */
 	pt_reg_t flags;		/* flags (see below) */
@@ -79,11 +76,6 @@ struct pt_regs {
 };
 
 #endif /* __ASSEMBLY__ */
-
-/* Flag bits in pt_regs.flags */
-#define PT_FLAGS_DISABLE_IRQ    1  /* on return to kernel, disable irqs */
-#define PT_FLAGS_CALLER_SAVES   2  /* caller-save registers are valid */
-#define PT_FLAGS_RESTORE_REGS   4  /* restore callee-save regs on return */
 
 #define PTRACE_GETREGS		12
 #define PTRACE_SETREGS		13
@@ -100,6 +92,11 @@ struct pt_regs {
 #endif
 
 #ifdef __KERNEL__
+
+/* Flag bits in pt_regs.flags */
+#define PT_FLAGS_DISABLE_IRQ    1  /* on return to kernel, disable irqs */
+#define PT_FLAGS_CALLER_SAVES   2  /* caller-save registers are valid */
+#define PT_FLAGS_RESTORE_REGS   4  /* restore callee-save regs on return */
 
 #ifndef __ASSEMBLY__
 

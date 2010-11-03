@@ -1,7 +1,7 @@
 /* linux/arch/arm/mach-s5pv210/cpu.c
  *
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ *		http://www.samsung.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/sysdev.h>
 #include <linux/platform_device.h>
+#include <linux/sched.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -47,7 +48,22 @@ static struct map_desc s5pv210_iodesc[] __initdata = {
 	{
 		.virtual	= (unsigned long)S5P_VA_SYSTIMER,
 		.pfn		= __phys_to_pfn(S5PV210_PA_SYSTIMER),
-		.length		= SZ_1M,
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_GPIO,
+		.pfn		= __phys_to_pfn(S5PV210_PA_GPIO),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)VA_VIC0,
+		.pfn		= __phys_to_pfn(S5PV210_PA_VIC0),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)VA_VIC1,
+		.pfn		= __phys_to_pfn(S5PV210_PA_VIC1),
+		.length		= SZ_16K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)VA_VIC2,
@@ -60,8 +76,28 @@ static struct map_desc s5pv210_iodesc[] __initdata = {
 		.length		= SZ_16K,
 		.type		= MT_DEVICE,
 	}, {
+		.virtual	= (unsigned long)S3C_VA_UART,
+		.pfn		= __phys_to_pfn(S3C_PA_UART),
+		.length		= SZ_512K,
+		.type		= MT_DEVICE,
+	}, {
 		.virtual	= (unsigned long)S5P_VA_SROMC,
 		.pfn		= __phys_to_pfn(S5PV210_PA_SROMC),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_DMC0,
+		.pfn		= __phys_to_pfn(S5PV210_PA_DMC0),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_DMC1,
+		.pfn		= __phys_to_pfn(S5PV210_PA_DMC1),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_USB_HSPHY,
+		.pfn		=__phys_to_pfn(S5PV210_PA_HSPHY),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}

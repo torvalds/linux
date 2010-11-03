@@ -49,7 +49,7 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/blktrace_api.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
@@ -102,6 +102,8 @@ static int scatter_elem_sz_prev = SG_SCATTER_SZ;
 
 static int sg_add(struct device *, struct class_interface *);
 static void sg_remove(struct device *, struct class_interface *);
+
+static DEFINE_MUTEX(sg_mutex);
 
 static DEFINE_IDR(sg_index_idr);
 static DEFINE_RWLOCK(sg_index_lock);	/* Also used to lock
@@ -210,7 +212,7 @@ static void sg_put_dev(Sg_device *sdp);
 
 static int sg_allow_access(struct file *filp, unsigned char *cmd)
 {
-	struct sg_fd *sfp = (struct sg_fd *)filp->private_data;
+	struct sg_fd *sfp = filp->private_data;
 
 	if (sfp->parentdp->device->type == TYPE_SCANNER)
 		return 0;
@@ -229,7 +231,7 @@ sg_open(struct inode *inode, struct file *filp)
 	int res;
 	int retval;
 
-	lock_kernel();
+	mutex_lock(&sg_mutex);
 	nonseekable_open(inode, filp);
 	SCSI_LOG_TIMEOUT(3, printk("sg_open: dev=%d, flags=0x%x\n", dev, flags));
 	sdp = sg_get_dev(dev);
@@ -314,7 +316,7 @@ sdp_put:
 sg_put:
 	if (sdp)
 		sg_put_dev(sdp);
-	unlock_kernel();
+	mutex_unlock(&sg_mutex);
 	return retval;
 }
 
@@ -1092,9 +1094,9 @@ sg_unlocked_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&sg_mutex);
 	ret = sg_ioctl(filp, cmd_in, arg);
-	unlock_kernel();
+	mutex_unlock(&sg_mutex);
 
 	return ret;
 }
@@ -1351,6 +1353,7 @@ static const struct file_operations sg_fops = {
 	.mmap = sg_mmap,
 	.release = sg_release,
 	.fasync = sg_fasync,
+	.llseek = no_llseek,
 };
 
 static struct class *sg_sysfs_class;
@@ -1657,7 +1660,7 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 	if (sg_allow_dio && hp->flags & SG_FLAG_DIRECT_IO &&
 	    dxfer_dir != SG_DXFER_UNKNOWN && !iov_count &&
 	    !sfp->parentdp->device->host->unchecked_isa_dma &&
-	    blk_rq_aligned(q, hp->dxferp, dxfer_len))
+	    blk_rq_aligned(q, (unsigned long)hp->dxferp, dxfer_len))
 		md = NULL;
 	else
 		md = &map_data;

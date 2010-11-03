@@ -41,7 +41,6 @@
 #include <asm/irq.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/of_platform.h>
 #include <linux/of_i2c.h>
 
@@ -760,6 +759,9 @@ static int __devinit iic_probe(struct platform_device *ofdev,
 
 	dev_info(&ofdev->dev, "using %s mode\n",
 		 dev->fast_mode ? "fast (400 kHz)" : "standard (100 kHz)");
+
+	/* Now register all the child nodes */
+	of_i2c_register_devices(adap);
 
 	return 0;
 

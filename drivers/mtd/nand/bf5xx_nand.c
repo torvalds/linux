@@ -110,15 +110,6 @@ static const unsigned short bfin_nfc_pin_req[] =
 	 0};
 
 #ifdef CONFIG_MTD_NAND_BF5XX_BOOTROM_ECC
-static uint8_t bbt_pattern[] = { 0xff };
-
-static struct nand_bbt_descr bootrom_bbt = {
-	.options = 0,
-	.offs = 63,
-	.len = 1,
-	.pattern = bbt_pattern,
-};
-
 static struct nand_ecclayout bootrom_ecclayout = {
 	.eccbytes = 24,
 	.eccpos = {
@@ -682,7 +673,6 @@ static int __devinit bf5xx_nand_add_partition(struct bf5xx_nand_info *info)
 static int __devexit bf5xx_nand_remove(struct platform_device *pdev)
 {
 	struct bf5xx_nand_info *info = to_nand_info(pdev);
-	struct mtd_info *mtd = NULL;
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -690,11 +680,7 @@ static int __devexit bf5xx_nand_remove(struct platform_device *pdev)
 	 * and their partitions, then go through freeing the
 	 * resources used
 	 */
-	mtd = &info->mtd;
-	if (mtd) {
-		nand_release(mtd);
-		kfree(mtd);
-	}
+	nand_release(&info->mtd);
 
 	peripheral_free_list(bfin_nfc_pin_req);
 	bf5xx_nand_dma_remove(info);
@@ -710,7 +696,7 @@ static int bf5xx_nand_scan(struct mtd_info *mtd)
 	struct nand_chip *chip = mtd->priv;
 	int ret;
 
-	ret = nand_scan_ident(mtd, 1);
+	ret = nand_scan_ident(mtd, 1, NULL);
 	if (ret)
 		return ret;
 
@@ -814,7 +800,6 @@ static int __devinit bf5xx_nand_probe(struct platform_device *pdev)
 	/* setup hardware ECC data struct */
 	if (hardware_ecc) {
 #ifdef CONFIG_MTD_NAND_BF5XX_BOOTROM_ECC
-		chip->badblock_pattern = &bootrom_bbt;
 		chip->ecc.layout = &bootrom_ecclayout;
 #endif
 		chip->read_buf      = bf5xx_nand_dma_read_buf;
@@ -834,6 +819,10 @@ static int __devinit bf5xx_nand_probe(struct platform_device *pdev)
 		err = -ENXIO;
 		goto out_err_nand_scan;
 	}
+
+#ifdef CONFIG_MTD_NAND_BF5XX_BOOTROM_ECC
+	chip->badblockpos = 63;
+#endif
 
 	/* add NAND partition */
 	bf5xx_nand_add_partition(info);

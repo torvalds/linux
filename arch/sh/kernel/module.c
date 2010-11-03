@@ -149,13 +149,11 @@ int module_finalize(const Elf_Ehdr *hdr,
 	int ret = 0;
 
 	ret |= module_dwarf_finalize(hdr, sechdrs, me);
-	ret |= module_bug_finalize(hdr, sechdrs, me);
 
 	return ret;
 }
 
 void module_arch_cleanup(struct module *mod)
 {
-	module_bug_cleanup(mod);
 	module_dwarf_cleanup(mod);
 }

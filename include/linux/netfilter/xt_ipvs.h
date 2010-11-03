@@ -1,6 +1,8 @@
 #ifndef _XT_IPVS_H
 #define _XT_IPVS_H
 
+#include <linux/types.h>
+
 enum {
 	XT_IPVS_IPVS_PROPERTY =	1 << 0, /* all other options imply this one */
 	XT_IPVS_PROTO =		1 << 1,

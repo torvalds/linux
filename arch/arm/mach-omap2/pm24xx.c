@@ -38,7 +38,6 @@
 #include <mach/irqs.h>
 #include <plat/clock.h>
 #include <plat/sram.h>
-#include <plat/control.h>
 #include <plat/dma.h>
 #include <plat/board.h>
 
@@ -48,6 +47,7 @@
 #include "cm-regbits-24xx.h"
 #include "sdrc.h"
 #include "pm.h"
+#include "control.h"
 
 #include <plat/powerdomain.h>
 #include <plat/clockdomain.h>
@@ -244,6 +244,8 @@ static void omap2_enter_mpu_retention(void)
 static int omap2_can_sleep(void)
 {
 	if (omap2_fclks_active())
+		return 0;
+	if (!omap_uart_can_sleep())
 		return 0;
 	if (osc_ck->usecount > 1)
 		return 0;

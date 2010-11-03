@@ -322,6 +322,7 @@ cppi_channel_allocate(struct dma_controller *c,
 				index, transmit ? 'T' : 'R', cppi_ch);
 	cppi_ch->hw_ep = ep;
 	cppi_ch->channel.status = MUSB_DMA_STATUS_FREE;
+	cppi_ch->channel.max_len = 0x7fffffff;
 
 	DBG(4, "Allocate CPPI%d %cX\n", index, transmit ? 'T' : 'R');
 	return &cppi_ch->channel;
@@ -1155,7 +1156,7 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 	struct musb_hw_ep	*hw_ep = NULL;
 	u32			rx, tx;
 	int			i, index;
-	unsigned long		flags;
+	unsigned long		uninitialized_var(flags);
 
 	cppi = container_of(musb->dma_controller, struct cppi, controller);
 	if (cppi->irq)

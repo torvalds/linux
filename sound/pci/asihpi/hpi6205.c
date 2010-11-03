@@ -941,8 +941,7 @@ static void outstream_host_buffer_free(struct hpi_adapter_obj *pao,
 
 }
 
-static u32 outstream_get_space_available(struct hpi_hostbuffer_status
-	*status)
+static u32 outstream_get_space_available(struct hpi_hostbuffer_status *status)
 {
 	return status->size_in_bytes - (status->host_index -
 		status->dSP_index);
@@ -987,6 +986,10 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 		/* write it */
 		phm->function = HPI_OSTREAM_WRITE;
 		hw_message(pao, phm, phr);
+
+		if (phr->error)
+			return;
+
 		/* update status information that the DSP would typically
 		 * update (and will update next time the DSP
 		 * buffer update task reads data from the host BBM buffer)

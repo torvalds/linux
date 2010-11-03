@@ -518,7 +518,7 @@ static struct snd_soc_dai_ops cs4270_dai_ops = {
 	.digital_mute	= cs4270_dai_mute,
 };
 
-struct snd_soc_dai_driver cs4270_dai = {
+static struct snd_soc_dai_driver cs4270_dai = {
 	.name = "cs4270-hifi",
 	.playback = {
 		.stream_name = "Playback",

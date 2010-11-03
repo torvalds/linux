@@ -116,7 +116,24 @@ __common_int_entry:
 	cc = r0 == 0;
 	if cc jump .Lcommon_restore_context;
 #else /* CONFIG_IPIPE */
+
+#ifdef CONFIG_PREEMPT
+	r7 = sp;
+	r4.l = lo(ALIGN_PAGE_MASK);
+	r4.h = hi(ALIGN_PAGE_MASK);
+	r7 = r7 & r4;
+	p5 = r7;
+	r7 = [p5 + TI_PREEMPT]; /* get preempt count */
+	r7 += 1;                /* increment it */
+	[p5 + TI_PREEMPT] = r7;
+#endif
 	pseudo_long_call _do_irq, p2;
+
+#ifdef CONFIG_PREEMPT
+	r7 += -1;
+	[p5 + TI_PREEMPT] = r7; /* restore preempt count */
+#endif
+
 	SP += 12;
 #endif /* CONFIG_IPIPE */
 	pseudo_long_call _return_from_int, p2;

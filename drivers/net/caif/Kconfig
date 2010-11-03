@@ -15,7 +15,7 @@ config CAIF_TTY
 
 config CAIF_SPI_SLAVE
 	tristate "CAIF SPI transport driver for slave interface"
-	depends on CAIF
+	depends on CAIF && HAS_DMA
 	default n
 	---help---
 	The CAIF Link layer SPI Protocol driver for Slave SPI interface.
@@ -31,3 +31,10 @@ config CAIF_SPI_SYNC
 	Putting the next command and length in the start of the frame can
 	help to synchronize to the next transfer in case of over or under-runs.
 	This option also needs to be enabled on the modem.
+
+config CAIF_SHM
+	tristate "CAIF shared memory protocol driver"
+	depends on CAIF && U5500_MBOX
+	default n
+	---help---
+	The CAIF shared memory protocol driver for the STE UX5500 platform.

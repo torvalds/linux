@@ -18,6 +18,11 @@
 #include "hw-ops.h"
 #include "ar9003_phy.h"
 
+enum ar9003_cal_types {
+	IQ_MISMATCH_CAL = BIT(0),
+	TEMP_COMP_CAL = BIT(1),
+};
+
 static void ar9003_hw_setup_calibration(struct ath_hw *ah,
 					struct ath9k_cal_list *currCal)
 {
@@ -49,11 +54,6 @@ static void ar9003_hw_setup_calibration(struct ath_hw *ah,
 
 		ath_print(common, ATH_DBG_CALIBRATE,
 			  "starting Temperature Compensation Calibration\n");
-		break;
-	case ADC_DC_INIT_CAL:
-	case ADC_GAIN_CAL:
-	case ADC_DC_CAL:
-		/* Not yet */
 		break;
 	}
 }
@@ -314,27 +314,6 @@ static const struct ath9k_percal_data iq_cal_single_sample = {
 static void ar9003_hw_init_cal_settings(struct ath_hw *ah)
 {
 	ah->iq_caldata.calData = &iq_cal_single_sample;
-	ah->supp_cals = IQ_MISMATCH_CAL;
-}
-
-static bool ar9003_hw_iscal_supported(struct ath_hw *ah,
-				      enum ath9k_cal_types calType)
-{
-	switch (calType & ah->supp_cals) {
-	case IQ_MISMATCH_CAL:
-		/*
-		 * XXX: Run IQ Mismatch for non-CCK only
-		 * Note that CHANNEL_B is never set though.
-		 */
-		return true;
-	case ADC_GAIN_CAL:
-	case ADC_DC_CAL:
-		return false;
-	case TEMP_COMP_CAL:
-		return true;
-	}
-
-	return false;
 }
 
 /*
@@ -773,15 +752,16 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 
 	/* Initialize list pointers */
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
+	ah->supp_cals = IQ_MISMATCH_CAL;
 
-	if (ar9003_hw_iscal_supported(ah, IQ_MISMATCH_CAL)) {
+	if (ah->supp_cals & IQ_MISMATCH_CAL) {
 		INIT_CAL(&ah->iq_caldata);
 		INSERT_CAL(ah, &ah->iq_caldata);
 		ath_print(common, ATH_DBG_CALIBRATE,
 			  "enabling IQ Calibration.\n");
 	}
 
-	if (ar9003_hw_iscal_supported(ah, TEMP_COMP_CAL)) {
+	if (ah->supp_cals & TEMP_COMP_CAL) {
 		INIT_CAL(&ah->tempCompCalData);
 		INSERT_CAL(ah, &ah->tempCompCalData);
 		ath_print(common, ATH_DBG_CALIBRATE,
@@ -808,7 +788,6 @@ void ar9003_hw_attach_calib_ops(struct ath_hw *ah)
 	priv_ops->init_cal_settings = ar9003_hw_init_cal_settings;
 	priv_ops->init_cal = ar9003_hw_init_cal;
 	priv_ops->setup_calibration = ar9003_hw_setup_calibration;
-	priv_ops->iscal_supported = ar9003_hw_iscal_supported;
 
 	ops->calibrate = ar9003_hw_calibrate;
 }

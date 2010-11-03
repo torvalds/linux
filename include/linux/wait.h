@@ -614,6 +614,7 @@ int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 		(wait)->private = current;				\
 		(wait)->func = autoremove_wake_function;		\
 		INIT_LIST_HEAD(&(wait)->task_list);			\
+		(wait)->flags = 0;					\
 	} while (0)
 
 /**

@@ -35,7 +35,7 @@
 #include <linux/moduleparam.h>
 #include <linux/ipmi.h>
 #include <linux/ipmi_smi.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/watchdog.h>
 #include <linux/miscdevice.h>
 #include <linux/init.h>
@@ -149,6 +149,7 @@
 #define	WDIOC_GET_PRETIMEOUT     _IOW(WATCHDOG_IOCTL_BASE, 22, int)
 #endif
 
+static DEFINE_MUTEX(ipmi_watchdog_mutex);
 static int nowayout = WATCHDOG_NOWAYOUT;
 
 static ipmi_user_t watchdog_user;
@@ -748,9 +749,9 @@ static long ipmi_unlocked_ioctl(struct file *file,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&ipmi_watchdog_mutex);
 	ret = ipmi_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&ipmi_watchdog_mutex);
 
 	return ret;
 }
@@ -844,7 +845,6 @@ static int ipmi_open(struct inode *ino, struct file *filep)
 		if (test_and_set_bit(0, &ipmi_wdog_open))
 			return -EBUSY;
 
-		cycle_kernel_lock();
 
 		/*
 		 * Don't start the timer now, let it start on the
@@ -909,6 +909,7 @@ static const struct file_operations ipmi_wdog_fops = {
 	.open    = ipmi_open,
 	.release = ipmi_close,
 	.fasync  = ipmi_fasync,
+	.llseek  = no_llseek,
 };
 
 static struct miscdevice ipmi_wdog_miscdev = {

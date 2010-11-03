@@ -34,6 +34,7 @@
 struct sh_mmcif_plat_data {
 	void (*set_pwr)(struct platform_device *pdev, int state);
 	void (*down_pwr)(struct platform_device *pdev);
+	int (*get_cd)(struct platform_device *pdef);
 	u8	sup_pclk;	/* 1 :SH7757, 0: SH7724/SH7372 */
 	unsigned long caps;
 	u32	ocr;

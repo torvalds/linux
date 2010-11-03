@@ -267,7 +267,7 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(struct call_single_data, csd_data);
  *
  * Returns 0 on success, else a negative status code.
  */
-int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
+int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 			     int wait)
 {
 	struct call_single_data d = {
@@ -336,7 +336,7 @@ EXPORT_SYMBOL(smp_call_function_single);
  *	3) any other online cpu in @mask
  */
 int smp_call_function_any(const struct cpumask *mask,
-			  void (*func)(void *info), void *info, int wait)
+			  smp_call_func_t func, void *info, int wait)
 {
 	unsigned int cpu;
 	const struct cpumask *nodemask;
@@ -365,9 +365,10 @@ call:
 EXPORT_SYMBOL_GPL(smp_call_function_any);
 
 /**
- * __smp_call_function_single(): Run a function on another CPU
+ * __smp_call_function_single(): Run a function on a specific CPU
  * @cpu: The CPU to run on.
  * @data: Pre-allocated and setup data structure
+ * @wait: If true, wait until function has completed on specified CPU.
  *
  * Like smp_call_function_single(), but allow caller to pass in a
  * pre-allocated data structure. Useful for embedding @data inside
@@ -376,8 +377,10 @@ EXPORT_SYMBOL_GPL(smp_call_function_any);
 void __smp_call_function_single(int cpu, struct call_single_data *data,
 				int wait)
 {
-	csd_lock(data);
+	unsigned int this_cpu;
+	unsigned long flags;
 
+	this_cpu = get_cpu();
 	/*
 	 * Can deadlock when called with interrupts disabled.
 	 * We allow cpu's that are not yet online though, as no one else can
@@ -387,7 +390,15 @@ void __smp_call_function_single(int cpu, struct call_single_data *data,
 	WARN_ON_ONCE(cpu_online(smp_processor_id()) && wait && irqs_disabled()
 		     && !oops_in_progress);
 
-	generic_exec_single(cpu, data, wait);
+	if (cpu == this_cpu) {
+		local_irq_save(flags);
+		data->func(data->info);
+		local_irq_restore(flags);
+	} else {
+		csd_lock(data);
+		generic_exec_single(cpu, data, wait);
+	}
+	put_cpu();
 }
 
 /**
@@ -405,7 +416,7 @@ void __smp_call_function_single(int cpu, struct call_single_data *data,
  * must be disabled when calling this function.
  */
 void smp_call_function_many(const struct cpumask *mask,
-			    void (*func)(void *), void *info, bool wait)
+			    smp_call_func_t func, void *info, bool wait)
 {
 	struct call_function_data *data;
 	unsigned long flags;
@@ -489,7 +500,7 @@ EXPORT_SYMBOL(smp_call_function_many);
  * You must not call this function with disabled interrupts or from a
  * hardware interrupt handler or from a bottom half handler.
  */
-int smp_call_function(void (*func)(void *), void *info, int wait)
+int smp_call_function(smp_call_func_t func, void *info, int wait)
 {
 	preempt_disable();
 	smp_call_function_many(cpu_online_mask, func, info, wait);

@@ -33,8 +33,8 @@ struct aa_rlimit {
 };
 
 int aa_map_resource(int resource);
-int aa_task_setrlimit(struct aa_profile *profile, unsigned int resource,
-		      struct rlimit *new_rlim);
+int aa_task_setrlimit(struct aa_profile *profile, struct task_struct *,
+		      unsigned int resource, struct rlimit *new_rlim);
 
 void __aa_transition_rlimits(struct aa_profile *old, struct aa_profile *new);
 

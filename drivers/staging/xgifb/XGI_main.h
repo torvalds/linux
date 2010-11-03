@@ -46,8 +46,7 @@
 #define XGI_IOTYPE2 __iomem
 #define XGIINITSTATIC static
 
-static struct pci_device_id __devinitdata xgifb_pci_table[] = {
-
+static DEFINE_PCI_DEVICE_TABLE(xgifb_pci_table) = {
 	{ PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_20, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_27, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
 	{ PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_40, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
@@ -351,20 +350,17 @@ static int enable_dstn = 0;
 static int XGIfb_ypan = -1;
 
 
-int 	   XGIfb_accel = 0;
-
-
 static int XGIfb_hwcursor_size = 0;
 static int XGIfb_CRT2_write_enable = 0;
 
-int XGIfb_crt2type  = -1;	/* TW: CRT2 type (for overriding autodetection) */
-int XGIfb_tvplug    = -1;	/* PR: Tv plug type (for overriding autodetection) */
+static int XGIfb_crt2type = -1; /* TW: CRT2 type (for overriding autodetection) */
+static int XGIfb_tvplug = -1; /* PR: Tv plug type (for overriding autodetection) */
 
-int XGIfb_queuemode = -1; 	/* TW: Use MMIO queue mode by default (310/325 series only) */
+static int XGIfb_queuemode = -1; /* TW: Use MMIO queue mode by default (310/325 series only) */
 
-unsigned char XGIfb_detectedpdc = 0;
+static unsigned char XGIfb_detectedpdc = 0;
 
-unsigned char XGIfb_detectedlcda = 0xff;
+static unsigned char XGIfb_detectedlcda = 0xff;
 
 
 
@@ -373,10 +369,10 @@ unsigned char XGIfb_detectedlcda = 0xff;
 /* XGIfb_info XGIfbinfo; */
 
 /* TW: Hardware extension; contains data on hardware */
-struct xgi_hw_device_info XGIhw_ext;
+static struct xgi_hw_device_info XGIhw_ext;
 
 /* TW: XGI private structure */
-struct vb_device_info  XGI_Pr;
+static struct vb_device_info  XGI_Pr;
 
 /* card parameters */
 static unsigned long XGIfb_mmio_size = 0;
@@ -393,7 +389,7 @@ typedef enum _XGI_CMDTYPE {
 
 /* mode table */
 /* NOT const - will be patched for 1280x960 mode number chaos reasons */
-struct _XGIbios_mode {
+static struct _XGIbios_mode {
 	char name[15];
 	u8 mode_no;
 	u16 vesa_mode_no_1;  /* "XGI defined" VESA mode number */
@@ -492,17 +488,17 @@ static int xgifb_mode_idx = 1;
 #else
 static int xgifb_mode_idx = -1;               /* Use a default mode if we are inside the kernel */
 #endif
-u8  XGIfb_mode_no  = 0;
-u8  XGIfb_rate_idx = 0;
+static u8  XGIfb_mode_no  = 0;
+static u8  XGIfb_rate_idx = 0;
 
 /* TW: CR36 evaluation */
-const unsigned short XGI300paneltype[] =
+static const unsigned short XGI300paneltype[] =
     { LCD_UNKNOWN,   LCD_800x600,  LCD_1024x768,  LCD_1280x1024,
       LCD_1280x960,  LCD_640x480,  LCD_1024x600,  LCD_1152x768,
        LCD_1024x768, LCD_1024x768,  LCD_1024x768,
       LCD_1024x768,  LCD_1024x768, LCD_1024x768,  LCD_1024x768 };
 
-const unsigned short XGI310paneltype[] =
+static const unsigned short XGI310paneltype[] =
     { LCD_UNKNOWN,   LCD_800x600,  LCD_1024x768,  LCD_1280x1024,
       LCD_640x480,   LCD_1024x600, LCD_1152x864,  LCD_1280x960,
       LCD_1152x768,  LCD_1400x1050,LCD_1280x768,  LCD_1600x1200,

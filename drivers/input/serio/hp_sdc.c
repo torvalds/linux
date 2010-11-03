@@ -905,7 +905,7 @@ static int __init hp_sdc_init(void)
 	ts_sync[1]	= 0x0f;
 	ts_sync[2] = ts_sync[3]	= ts_sync[4] = ts_sync[5] = 0;
 	t_sync.act.semaphore = &s_sync;
-	init_MUTEX_LOCKED(&s_sync);
+	sema_init(&s_sync, 0);
 	hp_sdc_enqueue_transaction(&t_sync);
 	down(&s_sync); /* Wait for t_sync to complete */
 
@@ -1039,7 +1039,7 @@ static int __init hp_sdc_register(void)
 		return hp_sdc.dev_err;
 	}
 
-	init_MUTEX_LOCKED(&tq_init_sem);
+	sema_init(&tq_init_sem, 0);
 
 	tq_init.actidx		= 0;
 	tq_init.idx		= 1;

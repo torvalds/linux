@@ -217,7 +217,7 @@ source "net/dns_resolver/Kconfig"
 
 config RPS
 	boolean
-	depends on SMP && SYSFS
+	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
 	default y
 
 menu "Network testing"
@@ -293,6 +293,7 @@ source "net/wimax/Kconfig"
 source "net/rfkill/Kconfig"
 source "net/9p/Kconfig"
 source "net/caif/Kconfig"
+source "net/ceph/Kconfig"
 
 
 endif   # if NET

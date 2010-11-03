@@ -427,11 +427,11 @@ int __cpuinit __cpu_up(unsigned int cpu)
 #endif
 
 	if (!cpu_callin_map[cpu]) {
-		printk("Processor %u is stuck.\n", cpu);
+		printk(KERN_ERR "Processor %u is stuck.\n", cpu);
 		return -ENOENT;
 	}
 
-	printk("Processor %u found.\n", cpu);
+	DBG("Processor %u found.\n", cpu);
 
 	if (smp_ops->give_timebase)
 		smp_ops->give_timebase();
@@ -508,9 +508,6 @@ int __devinit start_secondary(void *unused)
 	if (smp_ops->take_timebase)
 		smp_ops->take_timebase();
 
-	if (system_state > SYSTEM_BOOTING)
-		snapshot_timebase();
-
 	secondary_cpu_time_init();
 
 	ipi_call_lock();
@@ -575,9 +572,16 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 	free_cpumask_var(old_mask);
 
-	snapshot_timebases();
-
 	dump_numa_cpu_topology();
+}
+
+int arch_sd_sibling_asym_packing(void)
+{
+	if (cpu_has_feature(CPU_FTR_ASYM_SMT)) {
+		printk_once(KERN_INFO "Enabling Asymmetric SMT scheduling\n");
+		return SD_ASYM_PACKING;
+	}
+	return 0;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

@@ -267,7 +267,9 @@ static void rv770_mc_program(struct radeon_device *rdev)
  */
 void r700_cp_stop(struct radeon_device *rdev)
 {
+	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	WREG32(CP_ME_CNTL, (CP_ME_HALT | CP_PFP_HALT));
+	WREG32(SCRATCH_UMSK, 0);
 }
 
 static int rv770_cp_load_microcode(struct radeon_device *rdev)
@@ -642,10 +644,11 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 	else
 		gb_tiling_config |= BANK_TILING((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
 	rdev->config.rv770.tiling_nbanks = 4 << ((gb_tiling_config >> 4) & 0x3);
-
-	gb_tiling_config |= GROUP_SIZE(0);
-	rdev->config.rv770.tiling_group_size = 256;
-
+	gb_tiling_config |= GROUP_SIZE((mc_arb_ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT);
+	if ((mc_arb_ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT)
+		rdev->config.rv770.tiling_group_size = 512;
+	else
+		rdev->config.rv770.tiling_group_size = 256;
 	if (((mc_arb_ramcfg & NOOFROWS_MASK) >> NOOFROWS_SHIFT) > 3) {
 		gb_tiling_config |= ROW_TILING(3);
 		gb_tiling_config |= SAMPLE_SPLIT(3);
@@ -905,6 +908,54 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 
 }
 
+static int rv770_vram_scratch_init(struct radeon_device *rdev)
+{
+	int r;
+	u64 gpu_addr;
+
+	if (rdev->vram_scratch.robj == NULL) {
+		r = radeon_bo_create(rdev, NULL, RADEON_GPU_PAGE_SIZE,
+					true, RADEON_GEM_DOMAIN_VRAM,
+					&rdev->vram_scratch.robj);
+		if (r) {
+			return r;
+		}
+	}
+
+	r = radeon_bo_reserve(rdev->vram_scratch.robj, false);
+	if (unlikely(r != 0))
+		return r;
+	r = radeon_bo_pin(rdev->vram_scratch.robj,
+			  RADEON_GEM_DOMAIN_VRAM, &gpu_addr);
+	if (r) {
+		radeon_bo_unreserve(rdev->vram_scratch.robj);
+		return r;
+	}
+	r = radeon_bo_kmap(rdev->vram_scratch.robj,
+				(void **)&rdev->vram_scratch.ptr);
+	if (r)
+		radeon_bo_unpin(rdev->vram_scratch.robj);
+	radeon_bo_unreserve(rdev->vram_scratch.robj);
+
+	return r;
+}
+
+static void rv770_vram_scratch_fini(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->vram_scratch.robj == NULL) {
+		return;
+	}
+	r = radeon_bo_reserve(rdev->vram_scratch.robj, false);
+	if (likely(r == 0)) {
+		radeon_bo_kunmap(rdev->vram_scratch.robj);
+		radeon_bo_unpin(rdev->vram_scratch.robj);
+		radeon_bo_unreserve(rdev->vram_scratch.robj);
+	}
+	radeon_bo_unref(&rdev->vram_scratch.robj);
+}
+
 int rv770_mc_init(struct radeon_device *rdev)
 {
 	u32 tmp;
@@ -944,6 +995,7 @@ int rv770_mc_init(struct radeon_device *rdev)
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
+	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
 	r600_vram_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
 
@@ -970,6 +1022,9 @@ static int rv770_startup(struct radeon_device *rdev)
 		if (r)
 			return r;
 	}
+	r = rv770_vram_scratch_init(rdev);
+	if (r)
+		return r;
 	rv770_gpu_init(rdev);
 	r = r600_blit_init(rdev);
 	if (r) {
@@ -977,19 +1032,12 @@ static int rv770_startup(struct radeon_device *rdev)
 		rdev->asic->copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
 	}
-	/* pin copy shader into vram */
-	if (rdev->r600_blit.shader_obj) {
-		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-		if (unlikely(r != 0))
-			return r;
-		r = radeon_bo_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
-				&rdev->r600_blit.shader_gpu_addr);
-		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
-		if (r) {
-			DRM_ERROR("failed to pin blit object %d\n", r);
-			return r;
-		}
-	}
+
+	/* allocate wb buffer */
+	r = radeon_wb_init(rdev);
+	if (r)
+		return r;
+
 	/* Enable IRQ */
 	r = r600_irq_init(rdev);
 	if (r) {
@@ -1008,8 +1056,7 @@ static int rv770_startup(struct radeon_device *rdev)
 	r = r600_cp_resume(rdev);
 	if (r)
 		return r;
-	/* write back buffer are not vital so don't worry about failure */
-	r600_wb_enable(rdev);
+
 	return 0;
 }
 
@@ -1023,11 +1070,6 @@ int rv770_resume(struct radeon_device *rdev)
 	 */
 	/* post card */
 	atom_asic_init(rdev->mode_info.atom_context);
-	/* Initialize clocks */
-	r = radeon_clocks_init(rdev);
-	if (r) {
-		return r;
-	}
 
 	r = rv770_startup(rdev);
 	if (r) {
@@ -1060,7 +1102,7 @@ int rv770_suspend(struct radeon_device *rdev)
 	r700_cp_stop(rdev);
 	rdev->cp.ready = false;
 	r600_irq_suspend(rdev);
-	r600_wb_disable(rdev);
+	radeon_wb_disable(rdev);
 	rv770_pcie_gart_disable(rdev);
 	/* unpin shaders bo */
 	if (rdev->r600_blit.shader_obj) {
@@ -1118,9 +1160,6 @@ int rv770_init(struct radeon_device *rdev)
 	radeon_surface_init(rdev);
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
-	r = radeon_clocks_init(rdev);
-	if (r)
-		return r;
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)
@@ -1158,8 +1197,8 @@ int rv770_init(struct radeon_device *rdev)
 	if (r) {
 		dev_err(rdev->dev, "disabling GPU acceleration\n");
 		r700_cp_fini(rdev);
-		r600_wb_fini(rdev);
 		r600_irq_fini(rdev);
+		radeon_wb_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		rv770_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
@@ -1191,13 +1230,13 @@ void rv770_fini(struct radeon_device *rdev)
 {
 	r600_blit_fini(rdev);
 	r700_cp_fini(rdev);
-	r600_wb_fini(rdev);
 	r600_irq_fini(rdev);
+	radeon_wb_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
+	rv770_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
-	radeon_clocks_fini(rdev);
 	radeon_agp_fini(rdev);
 	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);

@@ -37,32 +37,6 @@ static inline int prepare_hugepage_range(struct file *file,
 int arch_prepare_hugepage(struct page *page);
 void arch_release_hugepage(struct page *page);
 
-static inline pte_t pte_mkhuge(pte_t pte)
-{
-	/*
-	 * PROT_NONE needs to be remapped from the pte type to the ste type.
-	 * The HW invalid bit is also different for pte and ste. The pte
-	 * invalid bit happens to be the same as the ste _SEGMENT_ENTRY_LARGE
-	 * bit, so we don't have to clear it.
-	 */
-	if (pte_val(pte) & _PAGE_INVALID) {
-		if (pte_val(pte) & _PAGE_SWT)
-			pte_val(pte) |= _HPAGE_TYPE_NONE;
-		pte_val(pte) |= _SEGMENT_ENTRY_INV;
-	}
-	/*
-	 * Clear SW pte bits SWT and SWX, there are no SW bits in a segment
-	 * table entry.
-	 */
-	pte_val(pte) &= ~(_PAGE_SWT | _PAGE_SWX);
-	/*
-	 * Also set the change-override bit because we don't need dirty bit
-	 * tracking for hugetlbfs pages.
-	 */
-	pte_val(pte) |= (_SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_CO);
-	return pte;
-}
-
 static inline pte_t huge_pte_wrprotect(pte_t pte)
 {
 	pte_val(pte) |= _PAGE_RO;
@@ -97,6 +71,7 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 {
 	pte_t pte = huge_ptep_get(ptep);
 
+	mm->context.flush_mm = 1;
 	pmd_clear((pmd_t *) ptep);
 	return pte;
 }
@@ -167,7 +142,8 @@ static inline void huge_ptep_invalidate(struct mm_struct *mm,
 ({									\
 	pte_t __pte = huge_ptep_get(__ptep);				\
 	if (pte_write(__pte)) {						\
-		if (atomic_read(&(__mm)->mm_users) > 1 ||		\
+		(__mm)->context.flush_mm = 1;				\
+		if (atomic_read(&(__mm)->context.attach_count) > 1 ||	\
 		    (__mm) != current->active_mm)			\
 			huge_ptep_invalidate(__mm, __addr, __ptep);	\
 		set_huge_pte_at(__mm, __addr, __ptep,			\

@@ -142,7 +142,7 @@ int snd_pcm_info_user(struct snd_pcm_substream *substream,
 
 #ifdef RULES_DEBUG
 #define HW_PARAM(v) [SNDRV_PCM_HW_PARAM_##v] = #v
-char *snd_pcm_hw_param_names[] = {
+static const char * const snd_pcm_hw_param_names[] = {
 	HW_PARAM(ACCESS),
 	HW_PARAM(FORMAT),
 	HW_PARAM(SUBFORMAT),
@@ -864,6 +864,8 @@ static void snd_pcm_post_start(struct snd_pcm_substream *substream, int state)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_trigger_tstamp(substream);
 	runtime->hw_ptr_jiffies = jiffies;
+	runtime->hw_ptr_buffer_jiffies = (runtime->buffer_size * HZ) / 
+							    runtime->rate;
 	runtime->status->state = state;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 	    runtime->silence_size > 0)
@@ -978,6 +980,10 @@ static int snd_pcm_do_pause(struct snd_pcm_substream *substream, int push)
 {
 	if (substream->runtime->trigger_master != substream)
 		return 0;
+	/* some drivers might use hw_ptr to recover from the pause -
+	   update the hw_ptr now */
+	if (push)
+		snd_pcm_update_hw_ptr(substream);
 	/* The jiffies check in snd_pcm_update_hw_ptr*() is done by
 	 * a delta betwen the current jiffies, this gives a large enough
 	 * delta, effectively to skip the check once.
@@ -1988,6 +1994,8 @@ void snd_pcm_release_substream(struct snd_pcm_substream *substream)
 		substream->ops->close(substream);
 		substream->hw_opened = 0;
 	}
+	if (pm_qos_request_active(&substream->latency_pm_qos_req))
+		pm_qos_remove_request(&substream->latency_pm_qos_req);
 	if (substream->pcm_release) {
 		substream->pcm_release(substream);
 		substream->pcm_release = NULL;

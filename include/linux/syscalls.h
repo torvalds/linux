@@ -701,7 +701,8 @@ asmlinkage long sys_nfsservctl(int cmd,
 asmlinkage long sys_syslog(int type, char __user *buf, int len);
 asmlinkage long sys_uselib(const char __user *library);
 asmlinkage long sys_ni_syscall(void);
-asmlinkage long sys_ptrace(long request, long pid, long addr, long data);
+asmlinkage long sys_ptrace(long request, long pid, unsigned long addr,
+			   unsigned long data);
 
 asmlinkage long sys_add_key(const char __user *_type,
 			    const char __user *_description,
@@ -820,7 +821,7 @@ asmlinkage long sys_fanotify_mark(int fanotify_fd, unsigned int flags,
 				  u64 mask, int fd,
 				  const char  __user *pathname);
 
-int kernel_execve(const char *filename, char *const argv[], char *const envp[]);
+int kernel_execve(const char *filename, const char *const argv[], const char *const envp[]);
 
 
 asmlinkage long sys_perf_event_open(

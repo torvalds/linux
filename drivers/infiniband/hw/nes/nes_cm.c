@@ -502,7 +502,9 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 static void nes_retrans_expired(struct nes_cm_node *cm_node)
 {
 	struct iw_cm_id *cm_id = cm_node->cm_id;
-	switch (cm_node->state) {
+	enum nes_cm_node_state state = cm_node->state;
+	cm_node->state = NES_CM_STATE_CLOSED;
+	switch (state) {
 	case NES_CM_STATE_SYN_RCVD:
 	case NES_CM_STATE_CLOSING:
 		rem_ref_cm_node(cm_node->cm_core, cm_node);
@@ -511,7 +513,6 @@ static void nes_retrans_expired(struct nes_cm_node *cm_node)
 	case NES_CM_STATE_FIN_WAIT1:
 		if (cm_node->cm_id)
 			cm_id->rem_ref(cm_id);
-		cm_node->state = NES_CM_STATE_CLOSED;
 		send_reset(cm_node, NULL);
 		break;
 	default:
@@ -1423,7 +1424,6 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 {
 
 	int	reset = 0;	/* whether to send reset in case of err.. */
-	int	passive_state;
 	atomic_inc(&cm_resets_recvd);
 	nes_debug(NES_DBG_CM, "Received Reset, cm_node = %p, state = %u."
 			" refcnt=%d\n", cm_node, cm_node->state,
@@ -1438,10 +1438,7 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		active_open_err(cm_node, skb, reset);
 		break;
 	case NES_CM_STATE_MPAREQ_RCVD:
-		passive_state = atomic_add_return(1, &cm_node->passive_state);
-		if (passive_state ==  NES_SEND_RESET_EVENT)
-			create_event(cm_node, NES_CM_EVENT_RESET);
-		cm_node->state = NES_CM_STATE_CLOSED;
+		atomic_inc(&cm_node->passive_state);
 		dev_kfree_skb_any(skb);
 		break;
 	case NES_CM_STATE_ESTABLISHED:
@@ -1456,6 +1453,7 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	case NES_CM_STATE_CLOSED:
 		drop_packet(skb);
 		break;
+	case NES_CM_STATE_FIN_WAIT2:
 	case NES_CM_STATE_FIN_WAIT1:
 	case NES_CM_STATE_LAST_ACK:
 		cm_node->cm_id->rem_ref(cm_node->cm_id);
@@ -2702,7 +2700,7 @@ static int nes_disconnect(struct nes_qp *nesqp, int abrupt)
 	nesibdev = nesvnic->nesibdev;
 
 	nes_debug(NES_DBG_CM, "netdev refcnt = %u.\n",
-			atomic_read(&nesvnic->netdev->refcnt));
+			netdev_refcnt_read(nesvnic->netdev));
 
 	if (nesqp->active_conn) {
 
@@ -2777,6 +2775,12 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		return -EINVAL;
 	}
 
+	passive_state = atomic_add_return(1, &cm_node->passive_state);
+	if (passive_state == NES_SEND_RESET_EVENT) {
+		rem_ref_cm_node(cm_node->cm_core, cm_node);
+		return -ECONNRESET;
+	}
+
 	/* associate the node with the QP */
 	nesqp->cm_node = (void *)cm_node;
 	cm_node->nesqp = nesqp;
@@ -2786,7 +2790,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	atomic_inc(&cm_accepts);
 
 	nes_debug(NES_DBG_CM, "netdev refcnt = %u.\n",
-			atomic_read(&nesvnic->netdev->refcnt));
+			netdev_refcnt_read(nesvnic->netdev));
 
 	/* allocate the ietf frame and space for private data */
 	nesqp->ietf_frame = pci_alloc_consistent(nesdev->pcidev,
@@ -2979,9 +2983,6 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		printk(KERN_ERR "%s[%u] OFA CM event_handler returned, "
 			"ret=%d\n", __func__, __LINE__, ret);
 
-	passive_state = atomic_add_return(1, &cm_node->passive_state);
-	if (passive_state == NES_SEND_RESET_EVENT)
-		create_event(cm_node, NES_CM_EVENT_RESET);
 	return 0;
 }
 

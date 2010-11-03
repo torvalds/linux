@@ -271,6 +271,8 @@ struct usb_serial_driver {
 	int  (*tiocmget)(struct tty_struct *tty, struct file *file);
 	int  (*tiocmset)(struct tty_struct *tty, struct file *file,
 			 unsigned int set, unsigned int clear);
+	int  (*get_icount)(struct tty_struct *tty,
+			struct serial_icounter_struct *icount);
 	/* Called by the tty layer for port level work. There may or may not
 	   be an attached tty at this point */
 	void (*dtr_rts)(struct usb_serial_port *port, int on);
@@ -342,8 +344,7 @@ extern int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 extern void usb_serial_generic_process_read_urb(struct urb *urb);
 extern int usb_serial_generic_prepare_write_buffer(struct usb_serial_port *port,
 						void *dest, size_t size);
-extern int usb_serial_handle_sysrq_char(struct tty_struct *tty,
-					struct usb_serial_port *port,
+extern int usb_serial_handle_sysrq_char(struct usb_serial_port *port,
 					unsigned int ch);
 extern int usb_serial_handle_break(struct usb_serial_port *port);
 

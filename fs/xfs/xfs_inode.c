@@ -660,7 +660,8 @@ xfs_dinode_from_disk(
 	to->di_uid = be32_to_cpu(from->di_uid);
 	to->di_gid = be32_to_cpu(from->di_gid);
 	to->di_nlink = be32_to_cpu(from->di_nlink);
-	to->di_projid = be16_to_cpu(from->di_projid);
+	to->di_projid_lo = be16_to_cpu(from->di_projid_lo);
+	to->di_projid_hi = be16_to_cpu(from->di_projid_hi);
 	memcpy(to->di_pad, from->di_pad, sizeof(to->di_pad));
 	to->di_flushiter = be16_to_cpu(from->di_flushiter);
 	to->di_atime.t_sec = be32_to_cpu(from->di_atime.t_sec);
@@ -695,7 +696,8 @@ xfs_dinode_to_disk(
 	to->di_uid = cpu_to_be32(from->di_uid);
 	to->di_gid = cpu_to_be32(from->di_gid);
 	to->di_nlink = cpu_to_be32(from->di_nlink);
-	to->di_projid = cpu_to_be16(from->di_projid);
+	to->di_projid_lo = cpu_to_be16(from->di_projid_lo);
+	to->di_projid_hi = cpu_to_be16(from->di_projid_hi);
 	memcpy(to->di_pad, from->di_pad, sizeof(to->di_pad));
 	to->di_flushiter = cpu_to_be16(from->di_flushiter);
 	to->di_atime.t_sec = cpu_to_be32(from->di_atime.t_sec);
@@ -874,7 +876,7 @@ xfs_iread(
 	if (ip->i_d.di_version == 1) {
 		ip->i_d.di_nlink = ip->i_d.di_onlink;
 		ip->i_d.di_onlink = 0;
-		ip->i_d.di_projid = 0;
+		xfs_set_projid(ip, 0);
 	}
 
 	ip->i_delayed_blks = 0;
@@ -982,8 +984,7 @@ xfs_ialloc(
 	mode_t		mode,
 	xfs_nlink_t	nlink,
 	xfs_dev_t	rdev,
-	cred_t		*cr,
-	xfs_prid_t	prid,
+	prid_t		prid,
 	int		okalloc,
 	xfs_buf_t	**ialloc_context,
 	boolean_t	*call_again,
@@ -1027,7 +1028,7 @@ xfs_ialloc(
 	ASSERT(ip->i_d.di_nlink == nlink);
 	ip->i_d.di_uid = current_fsuid();
 	ip->i_d.di_gid = current_fsgid();
-	ip->i_d.di_projid = prid;
+	xfs_set_projid(ip, prid);
 	memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
 
 	/*
@@ -1914,6 +1915,11 @@ xfs_iunlink_remove(
 	return 0;
 }
 
+/*
+ * A big issue when freeing the inode cluster is is that we _cannot_ skip any
+ * inodes that are in memory - they all must be marked stale and attached to
+ * the cluster buffer.
+ */
 STATIC void
 xfs_ifree_cluster(
 	xfs_inode_t	*free_ip,
@@ -1945,8 +1951,6 @@ xfs_ifree_cluster(
 	}
 
 	for (j = 0; j < nbufs; j++, inum += ninodes) {
-		int	found = 0;
-
 		blkno = XFS_AGB_TO_DADDR(mp, XFS_INO_TO_AGNO(mp, inum),
 					 XFS_INO_TO_AGBNO(mp, inum));
 
@@ -1965,7 +1969,9 @@ xfs_ifree_cluster(
 		/*
 		 * Walk the inodes already attached to the buffer and mark them
 		 * stale. These will all have the flush locks held, so an
-		 * in-memory inode walk can't lock them.
+		 * in-memory inode walk can't lock them. By marking them all
+		 * stale first, we will not attempt to lock them in the loop
+		 * below as the XFS_ISTALE flag will be set.
 		 */
 		lip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
 		while (lip) {
@@ -1977,10 +1983,10 @@ xfs_ifree_cluster(
 							&iip->ili_flush_lsn,
 							&iip->ili_item.li_lsn);
 				xfs_iflags_set(iip->ili_inode, XFS_ISTALE);
-				found++;
 			}
 			lip = lip->li_bio_list;
 		}
+
 
 		/*
 		 * For each inode in memory attempt to add it to the inode
@@ -1993,6 +1999,7 @@ xfs_ifree_cluster(
 		 * even trying to lock them.
 		 */
 		for (i = 0; i < ninodes; i++) {
+retry:
 			read_lock(&pag->pag_ici_lock);
 			ip = radix_tree_lookup(&pag->pag_ici_root,
 					XFS_INO_TO_AGINO(mp, (inum + i)));
@@ -2003,38 +2010,36 @@ xfs_ifree_cluster(
 				continue;
 			}
 
-			/* don't try to lock/unlock the current inode */
+			/*
+			 * Don't try to lock/unlock the current inode, but we
+			 * _cannot_ skip the other inodes that we did not find
+			 * in the list attached to the buffer and are not
+			 * already marked stale. If we can't lock it, back off
+			 * and retry.
+			 */
 			if (ip != free_ip &&
 			    !xfs_ilock_nowait(ip, XFS_ILOCK_EXCL)) {
 				read_unlock(&pag->pag_ici_lock);
-				continue;
+				delay(1);
+				goto retry;
 			}
 			read_unlock(&pag->pag_ici_lock);
 
-			if (!xfs_iflock_nowait(ip)) {
-				if (ip != free_ip)
-					xfs_iunlock(ip, XFS_ILOCK_EXCL);
-				continue;
-			}
-
+			xfs_iflock(ip);
 			xfs_iflags_set(ip, XFS_ISTALE);
-			if (xfs_inode_clean(ip)) {
-				ASSERT(ip != free_ip);
-				xfs_ifunlock(ip);
-				xfs_iunlock(ip, XFS_ILOCK_EXCL);
-				continue;
-			}
 
+			/*
+			 * we don't need to attach clean inodes or those only
+			 * with unlogged changes (which we throw away, anyway).
+			 */
 			iip = ip->i_itemp;
-			if (!iip) {
-				/* inode with unlogged changes only */
+			if (!iip || xfs_inode_clean(ip)) {
 				ASSERT(ip != free_ip);
 				ip->i_update_core = 0;
 				xfs_ifunlock(ip);
 				xfs_iunlock(ip, XFS_ILOCK_EXCL);
 				continue;
 			}
-			found++;
 
 			iip->ili_last_fields = iip->ili_format.ilf_fields;
 			iip->ili_format.ilf_fields = 0;
@@ -2049,8 +2054,7 @@ xfs_ifree_cluster(
 				xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		}
 
-		if (found)
-			xfs_trans_stale_inode_buf(tp, bp);
+		xfs_trans_stale_inode_buf(tp, bp);
 		xfs_trans_binval(tp, bp);
 	}
 
@@ -2722,7 +2726,7 @@ cluster_corrupt_out:
 			XFS_BUF_UNDONE(bp);
 			XFS_BUF_STALE(bp);
 			XFS_BUF_ERROR(bp,EIO);
-			xfs_biodone(bp);
+			xfs_buf_ioend(bp, 0);
 		} else {
 			XFS_BUF_STALE(bp);
 			xfs_buf_relse(bp);
@@ -3005,7 +3009,7 @@ xfs_iflush_int(
 			memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
 			memset(&(dip->di_pad[0]), 0,
 			      sizeof(dip->di_pad));
-			ASSERT(ip->i_d.di_projid == 0);
+			ASSERT(xfs_get_projid(ip) == 0);
 		}
 	}
 

@@ -873,6 +873,28 @@ static int __devinit stmpe_devices_init(struct stmpe *stmpe)
 	return ret;
 }
 
+#ifdef CONFIG_PM
+static int stmpe_suspend(struct device *dev)
+{
+	struct i2c_client *i2c = to_i2c_client(dev);
+
+	if (device_may_wakeup(&i2c->dev))
+		enable_irq_wake(i2c->irq);
+
+	return 0;
+}
+
+static int stmpe_resume(struct device *dev)
+{
+	struct i2c_client *i2c = to_i2c_client(dev);
+
+	if (device_may_wakeup(&i2c->dev))
+		disable_irq_wake(i2c->irq);
+
+	return 0;
+}
+#endif
+
 static int __devinit stmpe_probe(struct i2c_client *i2c,
 				 const struct i2c_device_id *id)
 {
@@ -960,9 +982,19 @@ static const struct i2c_device_id stmpe_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, stmpe_id);
 
+#ifdef CONFIG_PM
+static const struct dev_pm_ops stmpe_dev_pm_ops = {
+	.suspend	= stmpe_suspend,
+	.resume		= stmpe_resume,
+};
+#endif
+
 static struct i2c_driver stmpe_driver = {
 	.driver.name	= "stmpe",
 	.driver.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+	.driver.pm	= &stmpe_dev_pm_ops,
+#endif
 	.probe		= stmpe_probe,
 	.remove		= __devexit_p(stmpe_remove),
 	.id_table	= stmpe_id,

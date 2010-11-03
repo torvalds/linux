@@ -149,7 +149,7 @@ static  void receive_chars(struct tty_struct *tty)
 						ch = ia64_ssc(0, 0, 0, 0,
 							      SSC_GETCHAR);
 					while (!ch);
-					handle_sysrq(ch, NULL);
+					handle_sysrq(ch);
 				}
 #endif
 				seen_esc = 0;
@@ -395,7 +395,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 {
 	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
 	    (cmd != TIOCSERCONFIG) && (cmd != TIOCSERGSTRUCT) &&
-	    (cmd != TIOCMIWAIT) && (cmd != TIOCGICOUNT)) {
+	    (cmd != TIOCMIWAIT)) {
 		if (tty->flags & (1 << TTY_IO_ERROR))
 		    return -EIO;
 	}
@@ -433,16 +433,6 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 		case TIOCMIWAIT:
 			printk(KERN_INFO "rs_ioctl: TIOCMIWAIT: called\n");
 			return 0;
-		/*
-		 * Get counter of input serial line interrupts (DCD,RI,DSR,CTS)
-		 * Return: write counters to the user passed counter struct
-		 * NB: both 1->0 and 0->1 transitions are counted except for
-		 *     RI where only 0->1 is counted.
-		 */
-		case TIOCGICOUNT:
-			printk(KERN_INFO "rs_ioctl: TIOCGICOUNT called\n");
-			return 0;
-
 		case TIOCSERGWILD:
 		case TIOCSERSWILD:
 			/* "setserial -W" is called in Debian boot */

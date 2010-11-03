@@ -134,6 +134,33 @@ static const struct file_operations mmc_ios_fops = {
 	.release	= single_release,
 };
 
+static int mmc_clock_opt_get(void *data, u64 *val)
+{
+	struct mmc_host *host = data;
+
+	*val = host->ios.clock;
+
+	return 0;
+}
+
+static int mmc_clock_opt_set(void *data, u64 val)
+{
+	struct mmc_host *host = data;
+
+	/* We need this check due to input value is u64 */
+	if (val > host->f_max)
+		return -EINVAL;
+
+	mmc_claim_host(host);
+	mmc_set_clock(host, (unsigned int) val);
+	mmc_release_host(host);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(mmc_clock_fops, mmc_clock_opt_get, mmc_clock_opt_set,
+	"%llu\n");
+
 void mmc_add_host_debugfs(struct mmc_host *host)
 {
 	struct dentry *root;
@@ -150,11 +177,15 @@ void mmc_add_host_debugfs(struct mmc_host *host)
 	host->debugfs_root = root;
 
 	if (!debugfs_create_file("ios", S_IRUSR, root, host, &mmc_ios_fops))
-		goto err_ios;
+		goto err_node;
+
+	if (!debugfs_create_file("clock", S_IRUSR | S_IWUSR, root, host,
+			&mmc_clock_fops))
+		goto err_node;
 
 	return;
 
-err_ios:
+err_node:
 	debugfs_remove_recursive(root);
 	host->debugfs_root = NULL;
 err_root:
@@ -245,6 +276,7 @@ static const struct file_operations mmc_dbg_ext_csd_fops = {
 	.open		= mmc_ext_csd_open,
 	.read		= mmc_ext_csd_read,
 	.release	= mmc_ext_csd_release,
+	.llseek		= default_llseek,
 };
 
 void mmc_add_card_debugfs(struct mmc_card *card)

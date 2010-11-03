@@ -81,7 +81,7 @@ static int ns2_led_get_mode(struct ns2_led_data *led_dat,
 	int cmd_level;
 	int slow_level;
 
-	read_lock(&led_dat->rw_lock);
+	read_lock_irq(&led_dat->rw_lock);
 
 	cmd_level = gpio_get_value(led_dat->cmd);
 	slow_level = gpio_get_value(led_dat->slow);
@@ -95,7 +95,7 @@ static int ns2_led_get_mode(struct ns2_led_data *led_dat,
 		}
 	}
 
-	read_unlock(&led_dat->rw_lock);
+	read_unlock_irq(&led_dat->rw_lock);
 
 	return ret;
 }
@@ -104,8 +104,9 @@ static void ns2_led_set_mode(struct ns2_led_data *led_dat,
 			     enum ns2_led_modes mode)
 {
 	int i;
+	unsigned long flags;
 
-	write_lock(&led_dat->rw_lock);
+	write_lock_irqsave(&led_dat->rw_lock, flags);
 
 	for (i = 0; i < ARRAY_SIZE(ns2_led_modval); i++) {
 		if (mode == ns2_led_modval[i].mode) {
@@ -116,7 +117,7 @@ static void ns2_led_set_mode(struct ns2_led_data *led_dat,
 		}
 	}
 
-	write_unlock(&led_dat->rw_lock);
+	write_unlock_irqrestore(&led_dat->rw_lock, flags);
 }
 
 static void ns2_led_set(struct led_classdev *led_cdev,
@@ -140,10 +141,12 @@ static ssize_t ns2_led_sata_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buff, size_t count)
 {
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct ns2_led_data *led_dat =
+		container_of(led_cdev, struct ns2_led_data, cdev);
 	int ret;
 	unsigned long enable;
 	enum ns2_led_modes mode;
-	struct ns2_led_data *led_dat = dev_get_drvdata(dev);
 
 	ret = strict_strtoul(buff, 10, &enable);
 	if (ret < 0)
@@ -171,7 +174,9 @@ static ssize_t ns2_led_sata_store(struct device *dev,
 static ssize_t ns2_led_sata_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
-	struct ns2_led_data *led_dat = dev_get_drvdata(dev);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct ns2_led_data *led_dat =
+		container_of(led_cdev, struct ns2_led_data, cdev);
 
 	return sprintf(buf, "%d\n", led_dat->sata);
 }
@@ -233,7 +238,6 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	if (ret < 0)
 		goto err_free_slow;
 
-	dev_set_drvdata(led_dat->cdev.dev, led_dat);
 	ret = device_create_file(led_dat->cdev.dev, &dev_attr_sata);
 	if (ret < 0)
 		goto err_free_cdev;

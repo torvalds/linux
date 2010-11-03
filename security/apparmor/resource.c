@@ -72,6 +72,7 @@ int aa_map_resource(int resource)
 /**
  * aa_task_setrlimit - test permission to set an rlimit
  * @profile - profile confining the task  (NOT NULL)
+ * @task - task the resource is being set on
  * @resource - the resource being set
  * @new_rlim - the new resource limit  (NOT NULL)
  *
@@ -79,18 +80,21 @@ int aa_map_resource(int resource)
  *
  * Returns: 0 or error code if setting resource failed
  */
-int aa_task_setrlimit(struct aa_profile *profile, unsigned int resource,
-		      struct rlimit *new_rlim)
+int aa_task_setrlimit(struct aa_profile *profile, struct task_struct *task,
+		      unsigned int resource, struct rlimit *new_rlim)
 {
 	int error = 0;
 
-	if (profile->rlimits.mask & (1 << resource) &&
-	    new_rlim->rlim_max > profile->rlimits.limits[resource].rlim_max)
+	/* TODO: extend resource control to handle other (non current)
+	 * processes.  AppArmor rules currently have the implicit assumption
+	 * that the task is setting the resource of the current process
+	 */
+	if ((task != current->group_leader) ||
+	    (profile->rlimits.mask & (1 << resource) &&
+	     new_rlim->rlim_max > profile->rlimits.limits[resource].rlim_max))
+		error = -EACCES;
 
-		error = audit_resource(profile, resource, new_rlim->rlim_max,
-			-EACCES);
-
-	return error;
+	return audit_resource(profile, resource, new_rlim->rlim_max, error);
 }
 
 /**

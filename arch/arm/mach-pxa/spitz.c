@@ -979,8 +979,6 @@ static void __init spitz_fixup(struct machine_desc *desc,
 
 #ifdef CONFIG_MACH_SPITZ
 MACHINE_START(SPITZ, "SHARP Spitz")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= spitz_fixup,
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa27x_init_irq,
@@ -991,8 +989,6 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_BORZOI
 MACHINE_START(BORZOI, "SHARP Borzoi")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= spitz_fixup,
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa27x_init_irq,
@@ -1003,8 +999,6 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_AKITA
 MACHINE_START(AKITA, "SHARP Akita")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup		= spitz_fixup,
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa27x_init_irq,

@@ -503,6 +503,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 	struct kbd_struct * kbd;
 	unsigned int console;
 	unsigned char ucval;
+	unsigned int uival;
 	void __user *up = (void __user *)arg;
 	int i, perm;
 	int ret = 0;
@@ -533,11 +534,14 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 	case KIOCSOUND:
 		if (!perm)
 			goto eperm;
-		/* FIXME: This is an old broken API but we need to keep it
-		   supported and somehow separate the historic advertised
-		   tick rate from any real one */
+		/*
+		 * The use of PIT_TICK_RATE is historic, it used to be
+		 * the platform-dependent CLOCK_TICK_RATE between 2.6.12
+		 * and 2.6.36, which was a minor but unfortunate ABI
+		 * change.
+		 */
 		if (arg)
-			arg = CLOCK_TICK_RATE / arg;
+			arg = PIT_TICK_RATE / arg;
 		kd_mksound(arg, 0);
 		break;
 
@@ -553,11 +557,8 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		 */
 		ticks = HZ * ((arg >> 16) & 0xffff) / 1000;
 		count = ticks ? (arg & 0xffff) : 0;
-		/* FIXME: This is an old broken API but we need to keep it
-		   supported and somehow separate the historic advertised
-		   tick rate from any real one */
 		if (count)
-			count = CLOCK_TICK_RATE / count;
+			count = PIT_TICK_RATE / count;
 		kd_mksound(count, ticks);
 		break;
 	}
@@ -657,7 +658,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		break;
 
 	case KDGETMODE:
-		ucval = vc->vc_mode;
+		uival = vc->vc_mode;
 		goto setint;
 
 	case KDMAPDISP:
@@ -695,7 +696,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		break;
 
 	case KDGKBMODE:
-		ucval = ((kbd->kbdmode == VC_RAW) ? K_RAW :
+		uival = ((kbd->kbdmode == VC_RAW) ? K_RAW :
 				 (kbd->kbdmode == VC_MEDIUMRAW) ? K_MEDIUMRAW :
 				 (kbd->kbdmode == VC_UNICODE) ? K_UNICODE :
 				 K_XLATE);
@@ -717,9 +718,9 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		break;
 
 	case KDGKBMETA:
-		ucval = (vc_kbd_mode(kbd, VC_META) ? K_ESCPREFIX : K_METABIT);
+		uival = (vc_kbd_mode(kbd, VC_META) ? K_ESCPREFIX : K_METABIT);
 	setint:
-		ret = put_user(ucval, (int __user *)arg);
+		ret = put_user(uival, (int __user *)arg);
 		break;
 
 	case KDGETKEYCODE:
@@ -949,7 +950,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		for (i = 0; i < MAX_NR_CONSOLES; ++i)
 			if (! VT_IS_IN_USE(i))
 				break;
-		ucval = i < MAX_NR_CONSOLES ? (i+1) : -1;
+		uival = i < MAX_NR_CONSOLES ? (i+1) : -1;
 		goto setint;		 
 
 	/*

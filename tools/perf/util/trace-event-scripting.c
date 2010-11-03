@@ -97,7 +97,7 @@ void setup_python_scripting(void)
 	register_python_scripting(&python_scripting_unsupported_ops);
 }
 #else
-struct scripting_ops python_scripting_ops;
+extern struct scripting_ops python_scripting_ops;
 
 void setup_python_scripting(void)
 {
@@ -158,7 +158,7 @@ void setup_perl_scripting(void)
 	register_perl_scripting(&perl_scripting_unsupported_ops);
 }
 #else
-struct scripting_ops perl_scripting_ops;
+extern struct scripting_ops perl_scripting_ops;
 
 void setup_perl_scripting(void)
 {

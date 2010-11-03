@@ -138,7 +138,7 @@ static int drm_do_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 				break;
 		}
 
-		if (!agpmem)
+		if (&agpmem->head == &dev->agp->memory)
 			goto vm_fault_error;
 
 		/*
@@ -433,6 +433,25 @@ static void drm_vm_open(struct vm_area_struct *vma)
 	mutex_unlock(&dev->struct_mutex);
 }
 
+void drm_vm_close_locked(struct vm_area_struct *vma)
+{
+	struct drm_file *priv = vma->vm_file->private_data;
+	struct drm_device *dev = priv->minor->dev;
+	struct drm_vma_entry *pt, *temp;
+
+	DRM_DEBUG("0x%08lx,0x%08lx\n",
+		  vma->vm_start, vma->vm_end - vma->vm_start);
+	atomic_dec(&dev->vma_count);
+
+	list_for_each_entry_safe(pt, temp, &dev->vmalist, head) {
+		if (pt->vma == vma) {
+			list_del(&pt->head);
+			kfree(pt);
+			break;
+		}
+	}
+}
+
 /**
  * \c close method for all virtual memory types.
  *
@@ -445,20 +464,9 @@ static void drm_vm_close(struct vm_area_struct *vma)
 {
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->minor->dev;
-	struct drm_vma_entry *pt, *temp;
-
-	DRM_DEBUG("0x%08lx,0x%08lx\n",
-		  vma->vm_start, vma->vm_end - vma->vm_start);
-	atomic_dec(&dev->vma_count);
 
 	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry_safe(pt, temp, &dev->vmalist, head) {
-		if (pt->vma == vma) {
-			list_del(&pt->head);
-			kfree(pt);
-			break;
-		}
-	}
+	drm_vm_close_locked(vma);
 	mutex_unlock(&dev->struct_mutex);
 }
 
@@ -515,14 +523,7 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-resource_size_t drm_core_get_map_ofs(struct drm_local_map * map)
-{
-	return map->offset;
-}
-
-EXPORT_SYMBOL(drm_core_get_map_ofs);
-
-resource_size_t drm_core_get_reg_ofs(struct drm_device *dev)
+static resource_size_t drm_core_get_reg_ofs(struct drm_device *dev)
 {
 #ifdef __alpha__
 	return dev->hose->dense_mem_base - dev->hose->mem_space->start;
@@ -530,8 +531,6 @@ resource_size_t drm_core_get_reg_ofs(struct drm_device *dev)
 	return 0;
 #endif
 }
-
-EXPORT_SYMBOL(drm_core_get_reg_ofs);
 
 /**
  * mmap DMA memory.
@@ -619,7 +618,7 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 #endif
 	case _DRM_FRAME_BUFFER:
 	case _DRM_REGISTERS:
-		offset = dev->driver->get_reg_ofs(dev);
+		offset = drm_core_get_reg_ofs(dev);
 		vma->vm_flags |= VM_IO;	/* not in core dump */
 		vma->vm_page_prot = drm_io_prot(map->type, vma);
 #if !defined(__arm__)

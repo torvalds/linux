@@ -1900,7 +1900,7 @@ int iwctl_siwgenie(struct net_device *dev,
 	}
 
 	out://not completely ...not necessary in wpa_supplicant 0.5.8
-	return 0;
+	return ret;
 }
 
 int iwctl_giwgenie(struct net_device *dev,
@@ -2018,9 +2018,7 @@ param->u.wpa_key.seq_len = seq_len;
 
 #if 0
 printk("param->u.wpa_key.alg_name =%d\n",param->u.wpa_key.alg_name);
-printk("param->addr=%02x:%02x:%02x:%02x:%02x:%02x\n",
-	      param->addr[0],param->addr[1],param->addr[2],
-	      param->addr[3],param->addr[4],param->addr[5]);
+printk(KERN_DEBUG "param->addr=%pM\n", param->addr);
 printk("param->u.wpa_key.set_tx =%d\n",param->u.wpa_key.set_tx);
 printk("param->u.wpa_key.key_index =%d\n",param->u.wpa_key.key_index);
 printk("param->u.wpa_key.key_len =%d\n",param->u.wpa_key.key_len);

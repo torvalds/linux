@@ -230,6 +230,7 @@ static const struct file_operations codec_reg_fops = {
 	.open = codec_reg_open_file,
 	.read = codec_reg_read_file,
 	.write = codec_reg_write_file,
+	.llseek = default_llseek,
 };
 
 static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
@@ -274,15 +275,22 @@ static ssize_t codec_list_read_file(struct file *file, char __user *user_buf,
 				    size_t count, loff_t *ppos)
 {
 	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	ssize_t ret = 0;
+	ssize_t len, ret = 0;
 	struct snd_soc_codec *codec;
 
 	if (!buf)
 		return -ENOMEM;
 
-	list_for_each_entry(codec, &codec_list, list)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
-				codec->name);
+	list_for_each_entry(codec, &codec_list, list) {
+		len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
+			       codec->name);
+		if (len >= 0)
+			ret += len;
+		if (ret > PAGE_SIZE) {
+			ret = PAGE_SIZE;
+			break;
+		}
+	}
 
 	if (ret >= 0)
 		ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
@@ -301,17 +309,23 @@ static ssize_t dai_list_read_file(struct file *file, char __user *user_buf,
 				  size_t count, loff_t *ppos)
 {
 	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	ssize_t ret = 0;
+	ssize_t len, ret = 0;
 	struct snd_soc_dai *dai;
 
 	if (!buf)
 		return -ENOMEM;
 
-	list_for_each_entry(dai, &dai_list, list)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s\n", dai->name);
+	list_for_each_entry(dai, &dai_list, list) {
+		len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n", dai->name);
+		if (len >= 0)
+			ret += len;
+		if (ret > PAGE_SIZE) {
+			ret = PAGE_SIZE;
+			break;
+		}
+	}
 
-	if (ret >= 0)
-		ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
 
 	kfree(buf);
 
@@ -328,18 +342,24 @@ static ssize_t platform_list_read_file(struct file *file,
 				       size_t count, loff_t *ppos)
 {
 	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	ssize_t ret = 0;
+	ssize_t len, ret = 0;
 	struct snd_soc_platform *platform;
 
 	if (!buf)
 		return -ENOMEM;
 
-	list_for_each_entry(platform, &platform_list, list)
-		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
-				platform->name);
+	list_for_each_entry(platform, &platform_list, list) {
+		len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
+			       platform->name);
+		if (len >= 0)
+			ret += len;
+		if (ret > PAGE_SIZE) {
+			ret = PAGE_SIZE;
+			break;
+		}
+	}
 
-	if (ret >= 0)
-		ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
 
 	kfree(buf);
 
@@ -1497,6 +1517,16 @@ static int soc_register_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
 	 * for the generic AC97 subsystem.
 	 */
 	if (rtd->codec_dai->driver->ac97_control && !rtd->codec->ac97_registered) {
+		/*
+		 * It is possible that the AC97 device is already registered to
+		 * the device subsystem. This happens when the device is created
+		 * via snd_ac97_mixer(). Currently only SoC codec that does so
+		 * is the generic AC97 glue but others migh emerge.
+		 *
+		 * In those cases we don't try to register the device again.
+		 */
+		if (!rtd->codec->ac97_created)
+			return 0;
 
 		ret = soc_ac97_dev_register(rtd->codec);
 		if (ret < 0) {
@@ -1812,6 +1842,13 @@ int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 
 	codec->ac97->bus->ops = ops;
 	codec->ac97->num = num;
+
+	/*
+	 * Mark the AC97 device to be created by us. This way we ensure that the
+	 * device will be registered with the device subsystem later on.
+	 */
+	codec->ac97_created = 1;
+
 	mutex_unlock(&codec->mutex);
 	return 0;
 }
@@ -1832,6 +1869,7 @@ void snd_soc_free_ac97_codec(struct snd_soc_codec *codec)
 	kfree(codec->ac97->bus);
 	kfree(codec->ac97);
 	codec->ac97 = NULL;
+	codec->ac97_created = 0;
 	mutex_unlock(&codec->mutex);
 }
 EXPORT_SYMBOL_GPL(snd_soc_free_ac97_codec);
@@ -2892,7 +2930,7 @@ static inline char *fmt_single_name(struct device *dev, int *id)
 			char tmp[NAME_SIZE];
 
 			/* create unique ID number from I2C addr and bus */
-			*id = ((id1 && 0xffff) << 16) + id2;
+			*id = ((id1 & 0xffff) << 16) + id2;
 
 			/* sanitize component name for DAI link creation */
 			snprintf(tmp, NAME_SIZE, "%s.%s", dev->driver->name, name);
@@ -3014,8 +3052,11 @@ int snd_soc_register_dais(struct device *dev,
 		}
 
 		dai->dev = dev;
-		dai->id = i;
 		dai->driver = &dai_drv[i];
+		if (dai->driver->id)
+			dai->id = dai->driver->id;
+		else
+			dai->id = i;
 		if (!dai->driver->ops)
 			dai->driver->ops = &null_dai_ops;
 
@@ -3259,6 +3300,7 @@ found:
 
 	if (codec->reg_cache)
 		kfree(codec->reg_cache);
+	kfree(codec->name);
 	kfree(codec);
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_codec);
@@ -3288,6 +3330,7 @@ static int __init snd_soc_init(void)
 
 	return platform_driver_register(&soc_driver);
 }
+module_init(snd_soc_init);
 
 static void __exit snd_soc_exit(void)
 {
@@ -3296,8 +3339,6 @@ static void __exit snd_soc_exit(void)
 #endif
 	platform_driver_unregister(&soc_driver);
 }
-
-module_init(snd_soc_init);
 module_exit(snd_soc_exit);
 
 /* Module information */

@@ -56,6 +56,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/aer.h>
 #include <asm/dma.h>
@@ -877,8 +878,8 @@ static void arcmsr_report_ccb_state(struct AdapterControlBlock *acb,
 	if (!error) {
 		if (acb->devstate[id][lun] == ARECA_RAID_GONE)
 			acb->devstate[id][lun] = ARECA_RAID_GOOD;
-			ccb->pcmd->result = DID_OK << 16;
-			arcmsr_ccb_complete(ccb);
+		ccb->pcmd->result = DID_OK << 16;
+		arcmsr_ccb_complete(ccb);
 	}else{
 		switch (ccb->arcmsr_cdb.DeviceStatus) {
 		case ARCMSR_DEV_SELECT_TIMEOUT: {

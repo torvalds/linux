@@ -651,7 +651,7 @@ int hvc_poll(struct hvc_struct *hp)
 					if (sysrq_pressed)
 						continue;
 				} else if (sysrq_pressed) {
-					handle_sysrq(buf[i], tty);
+					handle_sysrq(buf[i]);
 					sysrq_pressed = 0;
 					continue;
 				}
@@ -713,7 +713,6 @@ static int khvcd(void *unused)
 	struct hvc_struct *hp;
 
 	set_freezable();
-	__set_current_state(TASK_RUNNING);
 	do {
 		poll_mask = 0;
 		hvc_kicked = 0;

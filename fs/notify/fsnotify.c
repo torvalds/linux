@@ -84,59 +84,39 @@ void __fsnotify_update_child_dentry_flags(struct inode *inode)
 }
 
 /* Notify this dentry's parent about a child's events. */
-void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
+int __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
 {
 	struct dentry *parent;
 	struct inode *p_inode;
-	bool send = false;
-	bool should_update_children = false;
+	int ret = 0;
 
 	if (!dentry)
 		dentry = path->dentry;
 
 	if (!(dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED))
-		return;
+		return 0;
 
-	spin_lock(&dentry->d_lock);
-	parent = dentry->d_parent;
+	parent = dget_parent(dentry);
 	p_inode = parent->d_inode;
 
-	if (fsnotify_inode_watches_children(p_inode)) {
-		if (p_inode->i_fsnotify_mask & mask) {
-			dget(parent);
-			send = true;
-		}
-	} else {
-		/*
-		 * The parent doesn't care about events on it's children but
-		 * at least one child thought it did.  We need to run all the
-		 * children and update their d_flags to let them know p_inode
-		 * doesn't care about them any more.
-		 */
-		dget(parent);
-		should_update_children = true;
-	}
-
-	spin_unlock(&dentry->d_lock);
-
-	if (send) {
+	if (unlikely(!fsnotify_inode_watches_children(p_inode)))
+		__fsnotify_update_child_dentry_flags(p_inode);
+	else if (p_inode->i_fsnotify_mask & mask) {
 		/* we are notifying a parent so come up with the new mask which
 		 * specifies these are events which came from a child. */
 		mask |= FS_EVENT_ON_CHILD;
 
 		if (path)
-			fsnotify(p_inode, mask, path, FSNOTIFY_EVENT_PATH,
-				 dentry->d_name.name, 0);
+			ret = fsnotify(p_inode, mask, path, FSNOTIFY_EVENT_PATH,
+				       dentry->d_name.name, 0);
 		else
-			fsnotify(p_inode, mask, dentry->d_inode, FSNOTIFY_EVENT_INODE,
-				 dentry->d_name.name, 0);
-		dput(parent);
+			ret = fsnotify(p_inode, mask, dentry->d_inode, FSNOTIFY_EVENT_INODE,
+				       dentry->d_name.name, 0);
 	}
 
-	if (unlikely(should_update_children)) {
-		__fsnotify_update_child_dentry_flags(p_inode);
-		dput(parent);
-	}
+	dput(parent);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__fsnotify_parent);
 
@@ -148,13 +128,14 @@ static int send_to_group(struct inode *to_tell, struct vfsmount *mnt,
 			 const unsigned char *file_name,
 			 struct fsnotify_event **event)
 {
-	struct fsnotify_group *group = inode_mark->group;
-	__u32 inode_test_mask = (mask & ~FS_EVENT_ON_CHILD);
-	__u32 vfsmount_test_mask = (mask & ~FS_EVENT_ON_CHILD);
+	struct fsnotify_group *group = NULL;
+	__u32 inode_test_mask = 0;
+	__u32 vfsmount_test_mask = 0;
 
-	pr_debug("%s: group=%p to_tell=%p mnt=%p mark=%p mask=%x data=%p"
-		 " data_is=%d cookie=%d event=%p\n", __func__, group, to_tell,
-		 mnt, inode_mark, mask, data, data_is, cookie, *event);
+	if (unlikely(!inode_mark && !vfsmount_mark)) {
+		BUG();
+		return 0;
+	}
 
 	/* clear ignored on inode modification */
 	if (mask & FS_MODIFY) {
@@ -168,17 +149,28 @@ static int send_to_group(struct inode *to_tell, struct vfsmount *mnt,
 
 	/* does the inode mark tell us to do something? */
 	if (inode_mark) {
+		group = inode_mark->group;
+		inode_test_mask = (mask & ~FS_EVENT_ON_CHILD);
 		inode_test_mask &= inode_mark->mask;
 		inode_test_mask &= ~inode_mark->ignored_mask;
 	}
 
 	/* does the vfsmount_mark tell us to do something? */
 	if (vfsmount_mark) {
+		vfsmount_test_mask = (mask & ~FS_EVENT_ON_CHILD);
+		group = vfsmount_mark->group;
 		vfsmount_test_mask &= vfsmount_mark->mask;
 		vfsmount_test_mask &= ~vfsmount_mark->ignored_mask;
 		if (inode_mark)
 			vfsmount_test_mask &= ~inode_mark->ignored_mask;
 	}
+
+	pr_debug("%s: group=%p to_tell=%p mnt=%p mask=%x inode_mark=%p"
+		 " inode_test_mask=%x vfsmount_mark=%p vfsmount_test_mask=%x"
+		 " data=%p data_is=%d cookie=%d event=%p\n",
+		 __func__, group, to_tell, mnt, mask, inode_mark,
+		 inode_test_mask, vfsmount_mark, vfsmount_test_mask, data,
+		 data_is, cookie, *event);
 
 	if (!inode_test_mask && !vfsmount_test_mask)
 		return 0;
@@ -207,13 +199,12 @@ static int send_to_group(struct inode *to_tell, struct vfsmount *mnt,
 int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	     const unsigned char *file_name, u32 cookie)
 {
-	struct hlist_node *inode_node, *vfsmount_node;
+	struct hlist_node *inode_node = NULL, *vfsmount_node = NULL;
 	struct fsnotify_mark *inode_mark = NULL, *vfsmount_mark = NULL;
 	struct fsnotify_group *inode_group, *vfsmount_group;
 	struct fsnotify_event *event = NULL;
 	struct vfsmount *mnt;
 	int idx, ret = 0;
-	bool used_inode = false, used_vfsmount = false;
 	/* global tests shouldn't care about events on child only the specific event */
 	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
 
@@ -238,61 +229,58 @@ int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 	    (test_mask & to_tell->i_fsnotify_mask))
 		inode_node = srcu_dereference(to_tell->i_fsnotify_marks.first,
 					      &fsnotify_mark_srcu);
-	else
-		inode_node = NULL;
 
-	if (mnt) {
-		if ((mask & FS_MODIFY) ||
-		    (test_mask & mnt->mnt_fsnotify_mask))
-			vfsmount_node = srcu_dereference(mnt->mnt_fsnotify_marks.first,
-							 &fsnotify_mark_srcu);
-		else
-			vfsmount_node = NULL;
-	} else {
-		mnt = NULL;
-		vfsmount_node = NULL;
+	if (mnt && ((mask & FS_MODIFY) ||
+		    (test_mask & mnt->mnt_fsnotify_mask))) {
+		vfsmount_node = srcu_dereference(mnt->mnt_fsnotify_marks.first,
+						 &fsnotify_mark_srcu);
+		inode_node = srcu_dereference(to_tell->i_fsnotify_marks.first,
+					      &fsnotify_mark_srcu);
 	}
 
 	while (inode_node || vfsmount_node) {
+		inode_group = vfsmount_group = NULL;
+
 		if (inode_node) {
 			inode_mark = hlist_entry(srcu_dereference(inode_node, &fsnotify_mark_srcu),
 						 struct fsnotify_mark, i.i_list);
 			inode_group = inode_mark->group;
-		} else
-			inode_group = (void *)-1;
+		}
 
 		if (vfsmount_node) {
 			vfsmount_mark = hlist_entry(srcu_dereference(vfsmount_node, &fsnotify_mark_srcu),
 							struct fsnotify_mark, m.m_list);
 			vfsmount_group = vfsmount_mark->group;
-		} else
-			vfsmount_group = (void *)-1;
-
-		if (inode_group < vfsmount_group) {
-			/* handle inode */
-			send_to_group(to_tell, NULL, inode_mark, NULL, mask, data,
-				      data_is, cookie, file_name, &event);
-			used_inode = true;
-		} else if (vfsmount_group < inode_group) {
-			send_to_group(to_tell, mnt, NULL, vfsmount_mark, mask, data,
-				      data_is, cookie, file_name, &event);
-			used_vfsmount = true;
-		} else {
-			send_to_group(to_tell, mnt, inode_mark, vfsmount_mark,
-				      mask, data, data_is, cookie, file_name,
-				      &event);
-			used_vfsmount = true;
-			used_inode = true;
 		}
 
-		if (used_inode)
+		if (inode_group > vfsmount_group) {
+			/* handle inode */
+			ret = send_to_group(to_tell, NULL, inode_mark, NULL, mask, data,
+					    data_is, cookie, file_name, &event);
+			/* we didn't use the vfsmount_mark */
+			vfsmount_group = NULL;
+		} else if (vfsmount_group > inode_group) {
+			ret = send_to_group(to_tell, mnt, NULL, vfsmount_mark, mask, data,
+					    data_is, cookie, file_name, &event);
+			inode_group = NULL;
+		} else {
+			ret = send_to_group(to_tell, mnt, inode_mark, vfsmount_mark,
+					    mask, data, data_is, cookie, file_name,
+					    &event);
+		}
+
+		if (ret && (mask & ALL_FSNOTIFY_PERM_EVENTS))
+			goto out;
+
+		if (inode_group)
 			inode_node = srcu_dereference(inode_node->next,
 						      &fsnotify_mark_srcu);
-		if (used_vfsmount)
+		if (vfsmount_group)
 			vfsmount_node = srcu_dereference(vfsmount_node->next,
 							 &fsnotify_mark_srcu);
 	}
-
+	ret = 0;
+out:
 	srcu_read_unlock(&fsnotify_mark_srcu, idx);
 	/*
 	 * fsnotify_create_event() took a reference so the event can't be cleaned

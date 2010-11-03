@@ -29,8 +29,6 @@
 /* #define QL_DEBUG_LEVEL_17 */ /* Output EEH trace messages */
 /* #define QL_DEBUG_LEVEL_18 */ /* Output T10 CRC trace messages */
 
-/* #define QL_PRINTK_BUF */ /* Captures printk to buffer */
-
 /*
 * Macros use for debugging the driver.
 */

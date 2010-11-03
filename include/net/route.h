@@ -199,6 +199,8 @@ static inline int ip_route_newports(struct rtable **rp, u8 protocol,
 		fl.fl_ip_sport = sport;
 		fl.fl_ip_dport = dport;
 		fl.proto = protocol;
+		if (inet_sk(sk)->transparent)
+			fl.flags |= FLOWI_FLAG_ANYSRC;
 		ip_rt_put(*rp);
 		*rp = NULL;
 		security_sk_classify_flow(sk, &fl);

@@ -46,7 +46,7 @@ int pm_generic_runtime_suspend(struct device *dev)
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int ret;
 
-	ret = pm && pm->runtime_suspend ? pm->runtime_suspend(dev) : -EINVAL;
+	ret = pm && pm->runtime_suspend ? pm->runtime_suspend(dev) : 0;
 
 	return ret;
 }
@@ -65,7 +65,7 @@ int pm_generic_runtime_resume(struct device *dev)
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int ret;
 
-	ret = pm && pm->runtime_resume ? pm->runtime_resume(dev) : -EINVAL;
+	ret = pm && pm->runtime_resume ? pm->runtime_resume(dev) : 0;
 
 	return ret;
 }

@@ -34,7 +34,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <asm/errno.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
@@ -49,7 +49,7 @@
 #define PWC_MINOR	0
 #define PWC_EXTRAMINOR	12
 #define PWC_VERSION_CODE KERNEL_VERSION(PWC_MAJOR,PWC_MINOR,PWC_EXTRAMINOR)
-#define PWC_VERSION 	"10.0.13"
+#define PWC_VERSION	"10.0.14"
 #define PWC_NAME 	"pwc"
 #define PFX		PWC_NAME ": "
 
@@ -180,7 +180,7 @@ struct pwc_device
    int vcinterface;		/* video control interface */
    int valternate;		/* alternate interface needed */
    int vframes, vsize;		/* frames-per-second & size (see PSZ_*) */
-   int vpalette;		/* palette: 420P, RAW or RGBBAYER */
+   int pixfmt;			/* pixelformat: V4L2_PIX_FMT_YUV420 or raw: _PWC1, _PWC2 */
    int vframe_count;		/* received frames */
    int vframes_dumped; 		/* counter for dumped frames */
    int vframes_error;		/* frames received in error */

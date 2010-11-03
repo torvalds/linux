@@ -2170,8 +2170,9 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 
 	tty = get_current_tty();
 	if (tty) {
-		file_list_lock();
+		spin_lock(&tty_files_lock);
 		if (!list_empty(&tty->tty_files)) {
+			struct tty_file_private *file_priv;
 			struct inode *inode;
 
 			/* Revalidate access to controlling tty.
@@ -2179,14 +2180,16 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 			   than using file_has_perm, as this particular open
 			   file may belong to another process and we are only
 			   interested in the inode-based check here. */
-			file = list_first_entry(&tty->tty_files, struct file, f_u.fu_list);
+			file_priv = list_first_entry(&tty->tty_files,
+						struct tty_file_private, list);
+			file = file_priv->file;
 			inode = file->f_path.dentry->d_inode;
 			if (inode_has_perm(cred, inode,
 					   FILE__READ | FILE__WRITE, NULL)) {
 				drop_tty = 1;
 			}
 		}
-		file_list_unlock();
+		spin_unlock(&tty_files_lock);
 		tty_kref_put(tty);
 	}
 	/* Reset controlling tty. */
@@ -3351,11 +3354,11 @@ static int selinux_task_setrlimit(struct task_struct *p, unsigned int resource,
 	return 0;
 }
 
-static int selinux_task_setscheduler(struct task_struct *p, int policy, struct sched_param *lp)
+static int selinux_task_setscheduler(struct task_struct *p)
 {
 	int rc;
 
-	rc = cap_task_setscheduler(p, policy, lp);
+	rc = cap_task_setscheduler(p);
 	if (rc)
 		return rc;
 
@@ -4274,6 +4277,27 @@ static void selinux_inet_conn_established(struct sock *sk, struct sk_buff *skb)
 		family = PF_INET;
 
 	selinux_skb_peerlbl_sid(skb, family, &sksec->peer_sid);
+}
+
+static int selinux_secmark_relabel_packet(u32 sid)
+{
+	const struct task_security_struct *__tsec;
+	u32 tsid;
+
+	__tsec = current_security();
+	tsid = __tsec->sid;
+
+	return avc_has_perm(tsid, sid, SECCLASS_PACKET, PACKET__RELABELTO, NULL);
+}
+
+static void selinux_secmark_refcount_inc(void)
+{
+	atomic_inc(&selinux_secmark_refcount);
+}
+
+static void selinux_secmark_refcount_dec(void)
+{
+	atomic_dec(&selinux_secmark_refcount);
 }
 
 static void selinux_req_classify_flow(const struct request_sock *req,
@@ -5530,6 +5554,9 @@ static struct security_operations selinux_ops = {
 	.inet_conn_request =		selinux_inet_conn_request,
 	.inet_csk_clone =		selinux_inet_csk_clone,
 	.inet_conn_established =	selinux_inet_conn_established,
+	.secmark_relabel_packet =	selinux_secmark_relabel_packet,
+	.secmark_refcount_inc =		selinux_secmark_refcount_inc,
+	.secmark_refcount_dec =		selinux_secmark_refcount_dec,
 	.req_classify_flow =		selinux_req_classify_flow,
 	.tun_dev_create =		selinux_tun_dev_create,
 	.tun_dev_post_create = 		selinux_tun_dev_post_create,

@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/input.h>
+#include <linux/input/sparse-keymap.h>
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/rfkill.h>
@@ -79,32 +80,25 @@ struct bios_args {
 	u32 command;
 	u32 commandtype;
 	u32 datasize;
-	char *data;
+	u32 data;
 };
 
 struct bios_return {
 	u32 sigpass;
 	u32 return_code;
+	u32 value;
 };
 
-struct key_entry {
-	char type;		/* See KE_* below */
-	u16 code;
-	u16 keycode;
-};
-
-enum { KE_KEY, KE_END };
-
-static struct key_entry hp_wmi_keymap[] = {
-	{KE_KEY, 0x02, KEY_BRIGHTNESSUP},
-	{KE_KEY, 0x03, KEY_BRIGHTNESSDOWN},
-	{KE_KEY, 0x20e6, KEY_PROG1},
-	{KE_KEY, 0x20e8, KEY_MEDIA},
-	{KE_KEY, 0x2142, KEY_MEDIA},
-	{KE_KEY, 0x213b, KEY_INFO},
-	{KE_KEY, 0x2169, KEY_DIRECTION},
-	{KE_KEY, 0x231b, KEY_HELP},
-	{KE_END, 0}
+static const struct key_entry hp_wmi_keymap[] = {
+	{ KE_KEY, 0x02,   { KEY_BRIGHTNESSUP } },
+	{ KE_KEY, 0x03,   { KEY_BRIGHTNESSDOWN } },
+	{ KE_KEY, 0x20e6, { KEY_PROG1 } },
+	{ KE_KEY, 0x20e8, { KEY_MEDIA } },
+	{ KE_KEY, 0x2142, { KEY_MEDIA } },
+	{ KE_KEY, 0x213b, { KEY_INFO } },
+	{ KE_KEY, 0x2169, { KEY_DIRECTION } },
+	{ KE_KEY, 0x231b, { KEY_HELP } },
+	{ KE_END, 0 }
 };
 
 static struct input_dev *hp_wmi_input_dev;
@@ -148,7 +142,7 @@ static struct platform_driver hp_wmi_driver = {
  *       buffer = kzalloc(128, GFP_KERNEL);
  *       ret = hp_wmi_perform_query(0x7, 0, buffer, 128)
  */
-static int hp_wmi_perform_query(int query, int write, char *buffer,
+static int hp_wmi_perform_query(int query, int write, u32 *buffer,
 				int buffersize)
 {
 	struct bios_return bios_return;
@@ -159,7 +153,7 @@ static int hp_wmi_perform_query(int query, int write, char *buffer,
 		.command = write ? 0x2 : 0x1,
 		.commandtype = query,
 		.datasize = buffersize,
-		.data = buffer,
+		.data = *buffer,
 	};
 	struct acpi_buffer input = { sizeof(struct bios_args), &args };
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -177,29 +171,14 @@ static int hp_wmi_perform_query(int query, int write, char *buffer,
 
 	bios_return = *((struct bios_return *)obj->buffer.pointer);
 
-	if (bios_return.return_code) {
-		printk(KERN_WARNING PREFIX "Query %d returned %d\n", query,
-		       bios_return.return_code);
-		kfree(obj);
-		return bios_return.return_code;
-	}
-	if (obj->buffer.length - sizeof(bios_return) > buffersize) {
-		kfree(obj);
-		return -EINVAL;
-	}
-
-	memset(buffer, 0, buffersize);
-	memcpy(buffer,
-	       ((char *)obj->buffer.pointer) + sizeof(struct bios_return),
-	       obj->buffer.length - sizeof(bios_return));
-	kfree(obj);
+	memcpy(buffer, &bios_return.value, sizeof(bios_return.value));
 	return 0;
 }
 
 static int hp_wmi_display_state(void)
 {
-	int state;
-	int ret = hp_wmi_perform_query(HPWMI_DISPLAY_QUERY, 0, (char *)&state,
+	int state = 0;
+	int ret = hp_wmi_perform_query(HPWMI_DISPLAY_QUERY, 0, &state,
 				       sizeof(state));
 	if (ret)
 		return -EINVAL;
@@ -208,8 +187,8 @@ static int hp_wmi_display_state(void)
 
 static int hp_wmi_hddtemp_state(void)
 {
-	int state;
-	int ret = hp_wmi_perform_query(HPWMI_HDDTEMP_QUERY, 0, (char *)&state,
+	int state = 0;
+	int ret = hp_wmi_perform_query(HPWMI_HDDTEMP_QUERY, 0, &state,
 				       sizeof(state));
 	if (ret)
 		return -EINVAL;
@@ -218,8 +197,8 @@ static int hp_wmi_hddtemp_state(void)
 
 static int hp_wmi_als_state(void)
 {
-	int state;
-	int ret = hp_wmi_perform_query(HPWMI_ALS_QUERY, 0, (char *)&state,
+	int state = 0;
+	int ret = hp_wmi_perform_query(HPWMI_ALS_QUERY, 0, &state,
 				       sizeof(state));
 	if (ret)
 		return -EINVAL;
@@ -228,8 +207,8 @@ static int hp_wmi_als_state(void)
 
 static int hp_wmi_dock_state(void)
 {
-	int state;
-	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, (char *)&state,
+	int state = 0;
+	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, &state,
 				       sizeof(state));
 
 	if (ret)
@@ -240,8 +219,8 @@ static int hp_wmi_dock_state(void)
 
 static int hp_wmi_tablet_state(void)
 {
-	int state;
-	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, (char *)&state,
+	int state = 0;
+	int ret = hp_wmi_perform_query(HPWMI_HARDWARE_QUERY, 0, &state,
 				       sizeof(state));
 	if (ret)
 		return ret;
@@ -256,7 +235,7 @@ static int hp_wmi_set_block(void *data, bool blocked)
 	int ret;
 
 	ret = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 1,
-				   (char *)&query, sizeof(query));
+				   &query, sizeof(query));
 	if (ret)
 		return -EINVAL;
 	return 0;
@@ -268,10 +247,10 @@ static const struct rfkill_ops hp_wmi_rfkill_ops = {
 
 static bool hp_wmi_get_sw_state(enum hp_wmi_radio r)
 {
-	int wireless;
+	int wireless = 0;
 	int mask;
 	hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0,
-			     (char *)&wireless, sizeof(wireless));
+			     &wireless, sizeof(wireless));
 	/* TBD: Pass error */
 
 	mask = 0x200 << (r * 8);
@@ -284,10 +263,10 @@ static bool hp_wmi_get_sw_state(enum hp_wmi_radio r)
 
 static bool hp_wmi_get_hw_state(enum hp_wmi_radio r)
 {
-	int wireless;
+	int wireless = 0;
 	int mask;
 	hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0,
-			     (char *)&wireless, sizeof(wireless));
+			     &wireless, sizeof(wireless));
 	/* TBD: Pass error */
 
 	mask = 0x800 << (r * 8);
@@ -347,7 +326,7 @@ static ssize_t set_als(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
 	u32 tmp = simple_strtoul(buf, NULL, 10);
-	int ret = hp_wmi_perform_query(HPWMI_ALS_QUERY, 1, (char *)&tmp,
+	int ret = hp_wmi_perform_query(HPWMI_ALS_QUERY, 1, &tmp,
 				       sizeof(tmp));
 	if (ret)
 		return -EINVAL;
@@ -361,67 +340,12 @@ static DEVICE_ATTR(als, S_IRUGO | S_IWUSR, show_als, set_als);
 static DEVICE_ATTR(dock, S_IRUGO, show_dock, NULL);
 static DEVICE_ATTR(tablet, S_IRUGO, show_tablet, NULL);
 
-static struct key_entry *hp_wmi_get_entry_by_scancode(unsigned int code)
-{
-	struct key_entry *key;
-
-	for (key = hp_wmi_keymap; key->type != KE_END; key++)
-		if (code == key->code)
-			return key;
-
-	return NULL;
-}
-
-static struct key_entry *hp_wmi_get_entry_by_keycode(unsigned int keycode)
-{
-	struct key_entry *key;
-
-	for (key = hp_wmi_keymap; key->type != KE_END; key++)
-		if (key->type == KE_KEY && keycode == key->keycode)
-			return key;
-
-	return NULL;
-}
-
-static int hp_wmi_getkeycode(struct input_dev *dev,
-			     unsigned int scancode, unsigned int *keycode)
-{
-	struct key_entry *key = hp_wmi_get_entry_by_scancode(scancode);
-
-	if (key && key->type == KE_KEY) {
-		*keycode = key->keycode;
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
-static int hp_wmi_setkeycode(struct input_dev *dev,
-			     unsigned int scancode, unsigned int keycode)
-{
-	struct key_entry *key;
-	unsigned int old_keycode;
-
-	key = hp_wmi_get_entry_by_scancode(scancode);
-	if (key && key->type == KE_KEY) {
-		old_keycode = key->keycode;
-		key->keycode = keycode;
-		set_bit(keycode, dev->keybit);
-		if (!hp_wmi_get_entry_by_keycode(old_keycode))
-			clear_bit(old_keycode, dev->keybit);
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
 static void hp_wmi_notify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
-	static struct key_entry *key;
 	union acpi_object *obj;
 	u32 event_id, event_data;
-	int key_code, ret;
+	int key_code = 0, ret;
 	u32 *location;
 	acpi_status status;
 
@@ -475,23 +399,13 @@ static void hp_wmi_notify(u32 value, void *context)
 		break;
 	case HPWMI_BEZEL_BUTTON:
 		ret = hp_wmi_perform_query(HPWMI_HOTKEY_QUERY, 0,
-					   (char *)&key_code,
+					   &key_code,
 					   sizeof(key_code));
 		if (ret)
 			break;
-		key = hp_wmi_get_entry_by_scancode(key_code);
-		if (key) {
-			switch (key->type) {
-			case KE_KEY:
-				input_report_key(hp_wmi_input_dev,
-						 key->keycode, 1);
-				input_sync(hp_wmi_input_dev);
-				input_report_key(hp_wmi_input_dev,
-						 key->keycode, 0);
-				input_sync(hp_wmi_input_dev);
-				break;
-			}
-		} else
+
+		if (!sparse_keymap_report_event(hp_wmi_input_dev,
+						key_code, 1, true))
 			printk(KERN_INFO PREFIX "Unknown key code - 0x%x\n",
 			       key_code);
 		break;
@@ -524,7 +438,7 @@ static void hp_wmi_notify(u32 value, void *context)
 
 static int __init hp_wmi_input_setup(void)
 {
-	struct key_entry *key;
+	acpi_status status;
 	int err;
 
 	hp_wmi_input_dev = input_allocate_device();
@@ -534,21 +448,14 @@ static int __init hp_wmi_input_setup(void)
 	hp_wmi_input_dev->name = "HP WMI hotkeys";
 	hp_wmi_input_dev->phys = "wmi/input0";
 	hp_wmi_input_dev->id.bustype = BUS_HOST;
-	hp_wmi_input_dev->getkeycode = hp_wmi_getkeycode;
-	hp_wmi_input_dev->setkeycode = hp_wmi_setkeycode;
 
-	for (key = hp_wmi_keymap; key->type != KE_END; key++) {
-		switch (key->type) {
-		case KE_KEY:
-			set_bit(EV_KEY, hp_wmi_input_dev->evbit);
-			set_bit(key->keycode, hp_wmi_input_dev->keybit);
-			break;
-		}
-	}
+	__set_bit(EV_SW, hp_wmi_input_dev->evbit);
+	__set_bit(SW_DOCK, hp_wmi_input_dev->swbit);
+	__set_bit(SW_TABLET_MODE, hp_wmi_input_dev->swbit);
 
-	set_bit(EV_SW, hp_wmi_input_dev->evbit);
-	set_bit(SW_DOCK, hp_wmi_input_dev->swbit);
-	set_bit(SW_TABLET_MODE, hp_wmi_input_dev->swbit);
+	err = sparse_keymap_setup(hp_wmi_input_dev, hp_wmi_keymap, NULL);
+	if (err)
+		goto err_free_dev;
 
 	/* Set initial hardware state */
 	input_report_switch(hp_wmi_input_dev, SW_DOCK, hp_wmi_dock_state());
@@ -556,14 +463,32 @@ static int __init hp_wmi_input_setup(void)
 			    hp_wmi_tablet_state());
 	input_sync(hp_wmi_input_dev);
 
-	err = input_register_device(hp_wmi_input_dev);
-
-	if (err) {
-		input_free_device(hp_wmi_input_dev);
-		return err;
+	status = wmi_install_notify_handler(HPWMI_EVENT_GUID, hp_wmi_notify, NULL);
+	if (ACPI_FAILURE(status)) {
+		err = -EIO;
+		goto err_free_keymap;
 	}
 
+	err = input_register_device(hp_wmi_input_dev);
+	if (err)
+		goto err_uninstall_notifier;
+
 	return 0;
+
+ err_uninstall_notifier:
+	wmi_remove_notify_handler(HPWMI_EVENT_GUID);
+ err_free_keymap:
+	sparse_keymap_free(hp_wmi_input_dev);
+ err_free_dev:
+	input_free_device(hp_wmi_input_dev);
+	return err;
+}
+
+static void hp_wmi_input_destroy(void)
+{
+	wmi_remove_notify_handler(HPWMI_EVENT_GUID);
+	sparse_keymap_free(hp_wmi_input_dev);
+	input_unregister_device(hp_wmi_input_dev);
 }
 
 static void cleanup_sysfs(struct platform_device *device)
@@ -578,9 +503,9 @@ static void cleanup_sysfs(struct platform_device *device)
 static int __devinit hp_wmi_bios_setup(struct platform_device *device)
 {
 	int err;
-	int wireless;
+	int wireless = 0;
 
-	err = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0, (char *)&wireless,
+	err = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0, &wireless,
 				   sizeof(wireless));
 	if (err)
 		return err;
@@ -718,15 +643,9 @@ static int __init hp_wmi_init(void)
 	int bios_capable = wmi_has_guid(HPWMI_BIOS_GUID);
 
 	if (event_capable) {
-		err = wmi_install_notify_handler(HPWMI_EVENT_GUID,
-						 hp_wmi_notify, NULL);
-		if (ACPI_FAILURE(err))
-			return -EINVAL;
 		err = hp_wmi_input_setup();
-		if (err) {
-			wmi_remove_notify_handler(HPWMI_EVENT_GUID);
+		if (err)
 			return err;
-		}
 	}
 
 	if (bios_capable) {
@@ -753,20 +672,17 @@ err_device_add:
 err_device_alloc:
 	platform_driver_unregister(&hp_wmi_driver);
 err_driver_reg:
-	if (wmi_has_guid(HPWMI_EVENT_GUID)) {
-		input_unregister_device(hp_wmi_input_dev);
-		wmi_remove_notify_handler(HPWMI_EVENT_GUID);
-	}
+	if (event_capable)
+		hp_wmi_input_destroy();
 
 	return err;
 }
 
 static void __exit hp_wmi_exit(void)
 {
-	if (wmi_has_guid(HPWMI_EVENT_GUID)) {
-		wmi_remove_notify_handler(HPWMI_EVENT_GUID);
-		input_unregister_device(hp_wmi_input_dev);
-	}
+	if (wmi_has_guid(HPWMI_EVENT_GUID))
+		hp_wmi_input_destroy();
+
 	if (hp_wmi_platform_dev) {
 		platform_device_unregister(hp_wmi_platform_dev);
 		platform_driver_unregister(&hp_wmi_driver);

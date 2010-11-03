@@ -47,53 +47,53 @@
 	int __n = (n); \
 	int __mask = 1 << (__n & 0x1f); \
 	if (__n < 32) \
-		__insn_mtspr(SPR_INTERRUPT_MASK_SET_1_0, __mask); \
+		__insn_mtspr(SPR_INTERRUPT_MASK_SET_K_0, __mask); \
 	else \
-		__insn_mtspr(SPR_INTERRUPT_MASK_SET_1_1, __mask); \
+		__insn_mtspr(SPR_INTERRUPT_MASK_SET_K_1, __mask); \
 } while (0)
 #define interrupt_mask_reset(n) do { \
 	int __n = (n); \
 	int __mask = 1 << (__n & 0x1f); \
 	if (__n < 32) \
-		__insn_mtspr(SPR_INTERRUPT_MASK_RESET_1_0, __mask); \
+		__insn_mtspr(SPR_INTERRUPT_MASK_RESET_K_0, __mask); \
 	else \
-		__insn_mtspr(SPR_INTERRUPT_MASK_RESET_1_1, __mask); \
+		__insn_mtspr(SPR_INTERRUPT_MASK_RESET_K_1, __mask); \
 } while (0)
 #define interrupt_mask_check(n) ({ \
 	int __n = (n); \
 	(((__n < 32) ? \
-	 __insn_mfspr(SPR_INTERRUPT_MASK_1_0) : \
-	 __insn_mfspr(SPR_INTERRUPT_MASK_1_1)) \
+	 __insn_mfspr(SPR_INTERRUPT_MASK_K_0) : \
+	 __insn_mfspr(SPR_INTERRUPT_MASK_K_1)) \
 	  >> (__n & 0x1f)) & 1; \
 })
 #define interrupt_mask_set_mask(mask) do { \
 	unsigned long long __m = (mask); \
-	__insn_mtspr(SPR_INTERRUPT_MASK_SET_1_0, (unsigned long)(__m)); \
-	__insn_mtspr(SPR_INTERRUPT_MASK_SET_1_1, (unsigned long)(__m>>32)); \
+	__insn_mtspr(SPR_INTERRUPT_MASK_SET_K_0, (unsigned long)(__m)); \
+	__insn_mtspr(SPR_INTERRUPT_MASK_SET_K_1, (unsigned long)(__m>>32)); \
 } while (0)
 #define interrupt_mask_reset_mask(mask) do { \
 	unsigned long long __m = (mask); \
-	__insn_mtspr(SPR_INTERRUPT_MASK_RESET_1_0, (unsigned long)(__m)); \
-	__insn_mtspr(SPR_INTERRUPT_MASK_RESET_1_1, (unsigned long)(__m>>32)); \
+	__insn_mtspr(SPR_INTERRUPT_MASK_RESET_K_0, (unsigned long)(__m)); \
+	__insn_mtspr(SPR_INTERRUPT_MASK_RESET_K_1, (unsigned long)(__m>>32)); \
 } while (0)
 #else
 #define interrupt_mask_set(n) \
-	__insn_mtspr(SPR_INTERRUPT_MASK_SET_1, (1UL << (n)))
+	__insn_mtspr(SPR_INTERRUPT_MASK_SET_K, (1UL << (n)))
 #define interrupt_mask_reset(n) \
-	__insn_mtspr(SPR_INTERRUPT_MASK_RESET_1, (1UL << (n)))
+	__insn_mtspr(SPR_INTERRUPT_MASK_RESET_K, (1UL << (n)))
 #define interrupt_mask_check(n) \
-	((__insn_mfspr(SPR_INTERRUPT_MASK_1) >> (n)) & 1)
+	((__insn_mfspr(SPR_INTERRUPT_MASK_K) >> (n)) & 1)
 #define interrupt_mask_set_mask(mask) \
-	__insn_mtspr(SPR_INTERRUPT_MASK_SET_1, (mask))
+	__insn_mtspr(SPR_INTERRUPT_MASK_SET_K, (mask))
 #define interrupt_mask_reset_mask(mask) \
-	__insn_mtspr(SPR_INTERRUPT_MASK_RESET_1, (mask))
+	__insn_mtspr(SPR_INTERRUPT_MASK_RESET_K, (mask))
 #endif
 
 /*
  * The set of interrupts we want active if irqs are enabled.
  * Note that in particular, the tile timer interrupt comes and goes
  * from this set, since we have no other way to turn off the timer.
- * Likewise, INTCTRL_1 is removed and re-added during device
+ * Likewise, INTCTRL_K is removed and re-added during device
  * interrupts, as is the the hardwall UDN_FIREWALL interrupt.
  * We use a low bit (MEM_ERROR) as our sentinel value and make sure it
  * is always claimed as an "active interrupt" so we can query that bit
@@ -103,55 +103,57 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 #define INITIAL_INTERRUPTS_ENABLED INT_MASK(INT_MEM_ERROR)
 
 /* Disable interrupts. */
-#define raw_local_irq_disable() \
+#define arch_local_irq_disable() \
 	interrupt_mask_set_mask(LINUX_MASKABLE_INTERRUPTS)
 
 /* Disable all interrupts, including NMIs. */
-#define raw_local_irq_disable_all() \
+#define arch_local_irq_disable_all() \
 	interrupt_mask_set_mask(-1UL)
 
 /* Re-enable all maskable interrupts. */
-#define raw_local_irq_enable() \
+#define arch_local_irq_enable() \
 	interrupt_mask_reset_mask(__get_cpu_var(interrupts_enabled_mask))
 
 /* Disable or enable interrupts based on flag argument. */
-#define raw_local_irq_restore(disabled) do { \
+#define arch_local_irq_restore(disabled) do { \
 	if (disabled) \
-		raw_local_irq_disable(); \
+		arch_local_irq_disable(); \
 	else \
-		raw_local_irq_enable(); \
+		arch_local_irq_enable(); \
 } while (0)
 
 /* Return true if "flags" argument means interrupts are disabled. */
-#define raw_irqs_disabled_flags(flags) ((flags) != 0)
+#define arch_irqs_disabled_flags(flags) ((flags) != 0)
 
 /* Return true if interrupts are currently disabled. */
-#define raw_irqs_disabled() interrupt_mask_check(INT_MEM_ERROR)
+#define arch_irqs_disabled() interrupt_mask_check(INT_MEM_ERROR)
 
 /* Save whether interrupts are currently disabled. */
-#define raw_local_save_flags(flags) ((flags) = raw_irqs_disabled())
+#define arch_local_save_flags() arch_irqs_disabled()
 
 /* Save whether interrupts are currently disabled, then disable them. */
-#define raw_local_irq_save(flags) \
-	do { raw_local_save_flags(flags); raw_local_irq_disable(); } while (0)
+#define arch_local_irq_save() ({ \
+	unsigned long __flags = arch_local_save_flags(); \
+	arch_local_irq_disable(); \
+	__flags; })
 
 /* Prevent the given interrupt from being enabled next time we enable irqs. */
-#define raw_local_irq_mask(interrupt) \
+#define arch_local_irq_mask(interrupt) \
 	(__get_cpu_var(interrupts_enabled_mask) &= ~INT_MASK(interrupt))
 
 /* Prevent the given interrupt from being enabled immediately. */
-#define raw_local_irq_mask_now(interrupt) do { \
-	raw_local_irq_mask(interrupt); \
+#define arch_local_irq_mask_now(interrupt) do { \
+	arch_local_irq_mask(interrupt); \
 	interrupt_mask_set(interrupt); \
 } while (0)
 
 /* Allow the given interrupt to be enabled next time we enable irqs. */
-#define raw_local_irq_unmask(interrupt) \
+#define arch_local_irq_unmask(interrupt) \
 	(__get_cpu_var(interrupts_enabled_mask) |= INT_MASK(interrupt))
 
 /* Allow the given interrupt to be enabled immediately, if !irqs_disabled. */
-#define raw_local_irq_unmask_now(interrupt) do { \
-	raw_local_irq_unmask(interrupt); \
+#define arch_local_irq_unmask_now(interrupt) do { \
+	arch_local_irq_unmask(interrupt); \
 	if (!irqs_disabled()) \
 		interrupt_mask_reset(interrupt); \
 } while (0)
@@ -168,14 +170,14 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 
 /* Return 0 or 1 to indicate whether interrupts are currently disabled. */
 #define IRQS_DISABLED(tmp)					\
-	mfspr   tmp, INTERRUPT_MASK_1;				\
+	mfspr   tmp, SPR_INTERRUPT_MASK_K;			\
 	andi    tmp, tmp, 1
 
 /* Load up a pointer to &interrupts_enabled_mask. */
 #define GET_INTERRUPTS_ENABLED_MASK_PTR(reg)			\
-	moveli reg, hw2_last(interrupts_enabled_mask); \
-	shl16insli reg, reg, hw1(interrupts_enabled_mask); \
-	shl16insli reg, reg, hw0(interrupts_enabled_mask); \
+	moveli reg, hw2_last(interrupts_enabled_mask);		\
+	shl16insli reg, reg, hw1(interrupts_enabled_mask);	\
+	shl16insli reg, reg, hw0(interrupts_enabled_mask);	\
 	add     reg, reg, tp
 
 /* Disable interrupts. */
@@ -183,18 +185,18 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 	moveli  tmp0, hw2_last(LINUX_MASKABLE_INTERRUPTS);	\
 	shl16insli tmp0, tmp0, hw1(LINUX_MASKABLE_INTERRUPTS);	\
 	shl16insli tmp0, tmp0, hw0(LINUX_MASKABLE_INTERRUPTS);	\
-	mtspr   INTERRUPT_MASK_SET_1, tmp0
+	mtspr   SPR_INTERRUPT_MASK_SET_K, tmp0
 
 /* Disable ALL synchronous interrupts (used by NMI entry). */
 #define IRQ_DISABLE_ALL(tmp)					\
 	movei   tmp, -1;					\
-	mtspr   INTERRUPT_MASK_SET_1, tmp
+	mtspr   SPR_INTERRUPT_MASK_SET_K, tmp
 
 /* Enable interrupts. */
 #define IRQ_ENABLE(tmp0, tmp1)					\
 	GET_INTERRUPTS_ENABLED_MASK_PTR(tmp0);			\
 	ld      tmp0, tmp0;					\
-	mtspr   INTERRUPT_MASK_RESET_1, tmp0
+	mtspr   SPR_INTERRUPT_MASK_RESET_K, tmp0
 
 #else /* !__tilegx__ */
 
@@ -208,14 +210,14 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
  * (making the original code's write of the "high" mask word idempotent).
  */
 #define IRQS_DISABLED(tmp)					\
-	mfspr   tmp, INTERRUPT_MASK_1_0;			\
+	mfspr   tmp, SPR_INTERRUPT_MASK_K_0;			\
 	shri    tmp, tmp, INT_MEM_ERROR;			\
 	andi    tmp, tmp, 1
 
 /* Load up a pointer to &interrupts_enabled_mask. */
 #define GET_INTERRUPTS_ENABLED_MASK_PTR(reg)			\
-	moveli  reg, lo16(interrupts_enabled_mask);	\
-	auli    reg, reg, ha16(interrupts_enabled_mask);\
+	moveli  reg, lo16(interrupts_enabled_mask);		\
+	auli    reg, reg, ha16(interrupts_enabled_mask);	\
 	add     reg, reg, tp
 
 /* Disable interrupts. */
@@ -225,16 +227,16 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 	 moveli tmp1, lo16(LINUX_MASKABLE_INTERRUPTS)		\
 	};							\
 	{							\
-	 mtspr  INTERRUPT_MASK_SET_1_0, tmp0;			\
+	 mtspr  SPR_INTERRUPT_MASK_SET_K_0, tmp0;		\
 	 auli   tmp1, tmp1, ha16(LINUX_MASKABLE_INTERRUPTS)	\
 	};							\
-	mtspr   INTERRUPT_MASK_SET_1_1, tmp1
+	mtspr   SPR_INTERRUPT_MASK_SET_K_1, tmp1
 
 /* Disable ALL synchronous interrupts (used by NMI entry). */
 #define IRQ_DISABLE_ALL(tmp)					\
 	movei   tmp, -1;					\
-	mtspr   INTERRUPT_MASK_SET_1_0, tmp;			\
-	mtspr   INTERRUPT_MASK_SET_1_1, tmp
+	mtspr   SPR_INTERRUPT_MASK_SET_K_0, tmp;		\
+	mtspr   SPR_INTERRUPT_MASK_SET_K_1, tmp
 
 /* Enable interrupts. */
 #define IRQ_ENABLE(tmp0, tmp1)					\
@@ -244,8 +246,8 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 	 addi   tmp1, tmp0, 4					\
 	};							\
 	lw      tmp1, tmp1;					\
-	mtspr   INTERRUPT_MASK_RESET_1_0, tmp0;			\
-	mtspr   INTERRUPT_MASK_RESET_1_1, tmp1
+	mtspr   SPR_INTERRUPT_MASK_RESET_K_0, tmp0;		\
+	mtspr   SPR_INTERRUPT_MASK_RESET_K_1, tmp1
 #endif
 
 /*

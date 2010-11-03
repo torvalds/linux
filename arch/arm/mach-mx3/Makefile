@@ -7,7 +7,6 @@
 obj-y				:= mm.o devices.o cpu.o
 CFLAGS_mm.o = -DIMX_NEEDS_DEPRECATED_SYMBOLS
 CFLAGS_devices.o = -DIMX_NEEDS_DEPRECATED_SYMBOLS
-CFLAGS_cpu.o = -DIMX_NEEDS_DEPRECATED_SYMBOLS
 obj-$(CONFIG_ARCH_MX31)		+= clock-imx31.o iomux-imx31.o
 obj-$(CONFIG_ARCH_MX35)		+= clock-imx35.o
 obj-$(CONFIG_MACH_MX31ADS)	+= mach-mx31ads.o

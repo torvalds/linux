@@ -1,5 +1,5 @@
 /*
- *  Force feedback support for Logitech Rumblepad 2
+ *  Force feedback support for Logitech RumblePad and Rumblepad 2
  *
  *  Copyright (c) 2008 Anssi Hannula <anssi.hannula@gmail.com>
  */
@@ -110,7 +110,7 @@ int lg2ff_init(struct hid_device *hid)
 
 	usbhid_submit_report(hid, report, USB_DIR_OUT);
 
-	dev_info(&hid->dev, "Force feedback for Logitech Rumblepad 2 by "
+	dev_info(&hid->dev, "Force feedback for Logitech RumblePad/Rumblepad 2 by "
 	       "Anssi Hannula <anssi.hannula@gmail.com>\n");
 
 	return 0;

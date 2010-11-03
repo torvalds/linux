@@ -878,7 +878,7 @@ static int build_deemphasis(struct snd_akm4xxx *ak, int num_emphs)
 static void proc_regs_read(struct snd_info_entry *entry,
 		struct snd_info_buffer *buffer)
 {
-	struct snd_akm4xxx *ak = (struct snd_akm4xxx *)entry->private_data;
+	struct snd_akm4xxx *ak = entry->private_data;
 	int reg, val, chip;
 	for (chip = 0; chip < ak->num_chips; chip++) {
 		for (reg = 0; reg < ak->total_regs; reg++) {
@@ -900,7 +900,7 @@ static int proc_init(struct snd_akm4xxx *ak)
 	return 0;
 }
 #else /* !CONFIG_PROC_FS */
-static int proc_init(struct snd_akm4xxx *ak) {}
+static int proc_init(struct snd_akm4xxx *ak) { return 0; }
 #endif
 
 int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)

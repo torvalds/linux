@@ -38,7 +38,7 @@ static const struct rpc_authops *auth_flavors[RPC_AUTH_MAXFLAVOR] = {
 static LIST_HEAD(cred_unused);
 static unsigned long number_cred_unused;
 
-#define MAX_HASHTABLE_BITS (10) 
+#define MAX_HASHTABLE_BITS (14)
 static int param_set_hashtbl_sz(const char *val, const struct kernel_param *kp)
 {
 	unsigned long num;
@@ -595,7 +595,7 @@ rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp,
 int
 rpcauth_refreshcred(struct rpc_task *task)
 {
-	struct rpc_cred	*cred = task->tk_rqstp->rq_cred;
+	struct rpc_cred	*cred;
 	int err;
 
 	cred = task->tk_rqstp->rq_cred;
@@ -658,7 +658,7 @@ out1:
 	return err;
 }
 
-void __exit rpcauth_remove_module(void)
+void rpcauth_remove_module(void)
 {
 	rpc_destroy_authunix();
 	rpc_destroy_generic_auth();

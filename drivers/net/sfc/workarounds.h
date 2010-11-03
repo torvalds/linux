@@ -19,9 +19,7 @@
 #define EFX_WORKAROUND_FALCON_A(efx) (efx_nic_rev(efx) <= EFX_REV_FALCON_A1)
 #define EFX_WORKAROUND_FALCON_AB(efx) (efx_nic_rev(efx) <= EFX_REV_FALCON_B0)
 #define EFX_WORKAROUND_SIENA(efx) (efx_nic_rev(efx) == EFX_REV_SIENA_A0)
-#define EFX_WORKAROUND_10G(efx) EFX_IS10G(efx)
-#define EFX_WORKAROUND_SFT9001(efx) ((efx)->phy_type == PHY_TYPE_SFT9001A || \
-				     (efx)->phy_type == PHY_TYPE_SFT9001B)
+#define EFX_WORKAROUND_10G(efx) 1
 
 /* XAUI resets if link not detected */
 #define EFX_WORKAROUND_5147 EFX_WORKAROUND_ALWAYS
@@ -57,10 +55,5 @@
 #define EFX_WORKAROUND_7803 EFX_WORKAROUND_FALCON_AB
 /* Leak overlength packets rather than free */
 #define EFX_WORKAROUND_8071 EFX_WORKAROUND_FALCON_A
-
-/* Need to send XNP pages for 100BaseT */
-#define EFX_WORKAROUND_13204 EFX_WORKAROUND_SFT9001
-/* Don't restart AN in near-side loopback */
-#define EFX_WORKAROUND_15195 EFX_WORKAROUND_SFT9001
 
 #endif /* EFX_WORKAROUNDS_H */

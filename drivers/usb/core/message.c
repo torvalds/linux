@@ -1140,13 +1140,6 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 {
 	int i;
 
-	dev_dbg(&dev->dev, "%s nuking %s URBs\n", __func__,
-		skip_ep0 ? "non-ep0" : "all");
-	for (i = skip_ep0; i < 16; ++i) {
-		usb_disable_endpoint(dev, i, true);
-		usb_disable_endpoint(dev, i + USB_DIR_IN, true);
-	}
-
 	/* getting rid of interfaces will disconnect
 	 * any drivers bound to them (a key side effect)
 	 */
@@ -1175,6 +1168,13 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 		dev->actconfig = NULL;
 		if (dev->state == USB_STATE_CONFIGURED)
 			usb_set_device_state(dev, USB_STATE_ADDRESS);
+	}
+
+	dev_dbg(&dev->dev, "%s nuking %s URBs\n", __func__,
+		skip_ep0 ? "non-ep0" : "all");
+	for (i = skip_ep0; i < 16; ++i) {
+		usb_disable_endpoint(dev, i, true);
+		usb_disable_endpoint(dev, i + USB_DIR_IN, true);
 	}
 }
 
@@ -1724,6 +1724,15 @@ free_interfaces:
 	if (ret)
 		goto free_interfaces;
 
+	/* if it's already configured, clear out old state first.
+	 * getting rid of old interfaces means unbinding their drivers.
+	 */
+	if (dev->state != USB_STATE_ADDRESS)
+		usb_disable_device(dev, 1);	/* Skip ep0 */
+
+	/* Get rid of pending async Set-Config requests for this device */
+	cancel_async_set_config(dev);
+
 	/* Make sure we have bandwidth (and available HCD resources) for this
 	 * configuration.  Remove endpoints from the schedule if we're dropping
 	 * this configuration to set configuration 0.  After this point, the
@@ -1733,19 +1742,10 @@ free_interfaces:
 	mutex_lock(&hcd->bandwidth_mutex);
 	ret = usb_hcd_alloc_bandwidth(dev, cp, NULL, NULL);
 	if (ret < 0) {
-		usb_autosuspend_device(dev);
 		mutex_unlock(&hcd->bandwidth_mutex);
+		usb_autosuspend_device(dev);
 		goto free_interfaces;
 	}
-
-	/* if it's already configured, clear out old state first.
-	 * getting rid of old interfaces means unbinding their drivers.
-	 */
-	if (dev->state != USB_STATE_ADDRESS)
-		usb_disable_device(dev, 1);	/* Skip ep0 */
-
-	/* Get rid of pending async Set-Config requests for this device */
-	cancel_async_set_config(dev);
 
 	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			      USB_REQ_SET_CONFIGURATION, 0, configuration, 0,
@@ -1761,8 +1761,8 @@ free_interfaces:
 	if (!cp) {
 		usb_set_device_state(dev, USB_STATE_ADDRESS);
 		usb_hcd_alloc_bandwidth(dev, NULL, NULL, NULL);
-		usb_autosuspend_device(dev);
 		mutex_unlock(&hcd->bandwidth_mutex);
+		usb_autosuspend_device(dev);
 		goto free_interfaces;
 	}
 	mutex_unlock(&hcd->bandwidth_mutex);
@@ -1802,6 +1802,7 @@ free_interfaces:
 		intf->dev.groups = usb_interface_groups;
 		intf->dev.dma_mask = dev->dev.dma_mask;
 		INIT_WORK(&intf->reset_ws, __usb_queue_reset_device);
+		intf->minor = -1;
 		device_initialize(&intf->dev);
 		dev_set_name(&intf->dev, "%d-%s:%d.%d",
 			dev->bus->busnum, dev->devpath,

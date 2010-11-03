@@ -185,8 +185,8 @@ static int pmic_scu_ipc_battery_property_get(struct battery_property *prop)
 {
 	u32 data[3];
 	u8 *p = (u8 *)&data[1];
-	int err = intel_scu_ipc_command(IPC_CMD_BATTERY_PROPERTY,
-				IPCMSG_BATTERY, NULL, 0, data, 3);
+	int err = intel_scu_ipc_command(IPCMSG_BATTERY,
+				IPC_CMD_BATTERY_PROPERTY, NULL, 0, data, 3);
 
 	prop->capacity = data[0];
 	prop->crnt = *p++;
@@ -207,7 +207,7 @@ static int pmic_scu_ipc_battery_property_get(struct battery_property *prop)
 
 static int pmic_scu_ipc_set_charger(int charger)
 {
-	return intel_scu_ipc_simple_command(charger, IPCMSG_BATTERY);
+	return intel_scu_ipc_simple_command(IPCMSG_BATTERY, charger);
 }
 
 /**

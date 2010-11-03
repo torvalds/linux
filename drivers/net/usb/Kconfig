@@ -358,6 +358,14 @@ config USB_NET_ZAURUS
 	  really need this non-conformant variant of CDC Ethernet (or in
 	  some cases CDC MDLM) protocol, not "g_ether".
 
+config USB_NET_CX82310_ETH
+	tristate "Conexant CX82310 USB ethernet port"
+	depends on USB_USBNET
+	help
+	  Choose this option if you're using a Conexant CX82310-based ADSL
+	  router with USB ethernet port. This driver is for routers only,
+	  it will not work with ADSL modems (use cxacru driver instead).
+
 config USB_HSO
 	tristate "Option USB High Speed Mobile Devices"
 	depends on USB && RFKILL

@@ -240,6 +240,7 @@ static void __init vpac270_onenand_init(void) {}
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
 static struct pxamci_platform_data vpac270_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.gpio_power		= -1,
 	.gpio_card_detect	= GPIO53_VPAC270_SD_DETECT_N,
 	.gpio_card_ro		= GPIO52_VPAC270_SD_READONLY,
 	.detect_delay_ms	= 200,
@@ -717,8 +718,6 @@ static void __init vpac270_init(void)
 }
 
 MACHINE_START(VPAC270, "Voipac PXA270")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa27x_init_irq,

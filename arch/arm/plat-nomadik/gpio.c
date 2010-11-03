@@ -102,6 +102,22 @@ static void __nmk_gpio_make_input(struct nmk_gpio_chip *nmk_chip,
 	writel(1 << offset, nmk_chip->addr + NMK_GPIO_DIRC);
 }
 
+static void __nmk_gpio_set_output(struct nmk_gpio_chip *nmk_chip,
+				  unsigned offset, int val)
+{
+	if (val)
+		writel(1 << offset, nmk_chip->addr + NMK_GPIO_DATS);
+	else
+		writel(1 << offset, nmk_chip->addr + NMK_GPIO_DATC);
+}
+
+static void __nmk_gpio_make_output(struct nmk_gpio_chip *nmk_chip,
+				  unsigned offset, int val)
+{
+	writel(1 << offset, nmk_chip->addr + NMK_GPIO_DIRS);
+	__nmk_gpio_set_output(nmk_chip, offset, val);
+}
+
 static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
 			     pin_cfg_t cfg)
 {
@@ -118,20 +134,29 @@ static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
 		[3] /* illegal */	= "??"
 	};
 	static const char *slpmnames[] = {
-		[NMK_GPIO_SLPM_INPUT]		= "input",
-		[NMK_GPIO_SLPM_NOCHANGE]	= "no-change",
+		[NMK_GPIO_SLPM_INPUT]		= "input/wakeup",
+		[NMK_GPIO_SLPM_NOCHANGE]	= "no-change/no-wakeup",
 	};
 
 	int pin = PIN_NUM(cfg);
 	int pull = PIN_PULL(cfg);
 	int af = PIN_ALT(cfg);
 	int slpm = PIN_SLPM(cfg);
+	int output = PIN_DIR(cfg);
+	int val = PIN_VAL(cfg);
 
-	dev_dbg(nmk_chip->chip.dev, "pin %d: af %s, pull %s, slpm %s\n",
-		pin, afnames[af], pullnames[pull], slpmnames[slpm]);
+	dev_dbg(nmk_chip->chip.dev, "pin %d: af %s, pull %s, slpm %s (%s%s)\n",
+		pin, afnames[af], pullnames[pull], slpmnames[slpm],
+		output ? "output " : "input",
+		output ? (val ? "high" : "low") : "");
 
-	__nmk_gpio_make_input(nmk_chip, offset);
-	__nmk_gpio_set_pull(nmk_chip, offset, pull);
+	if (output)
+		__nmk_gpio_make_output(nmk_chip, offset, val);
+	else {
+		__nmk_gpio_make_input(nmk_chip, offset);
+		__nmk_gpio_set_pull(nmk_chip, offset, pull);
+	}
+
 	__nmk_gpio_set_slpm(nmk_chip, offset, slpm);
 	__nmk_gpio_set_mode(nmk_chip, offset, af);
 }
@@ -200,6 +225,10 @@ EXPORT_SYMBOL(nmk_config_pins);
  * changed to an input (with pullup/down enabled) in sleep and deep sleep.  If
  * @mode is NMK_GPIO_SLPM_NOCHANGE, the pin remains in the state it was
  * configured even when in sleep and deep sleep.
+ *
+ * On DB8500v2 onwards, this setting loses the previous meaning and instead
+ * indicates if wakeup detection is enabled on the pin.  Note that
+ * enable_irq_wake() will automatically enable wakeup detection.
  */
 int nmk_gpio_set_slpm(int gpio, enum nmk_gpio_slpm mode)
 {
@@ -367,7 +396,27 @@ static void nmk_gpio_irq_unmask(unsigned int irq)
 
 static int nmk_gpio_irq_set_wake(unsigned int irq, unsigned int on)
 {
-	return nmk_gpio_irq_modify(irq, WAKE, on);
+	struct nmk_gpio_chip *nmk_chip;
+	unsigned long flags;
+	int gpio;
+
+	gpio = NOMADIK_IRQ_TO_GPIO(irq);
+	nmk_chip = get_irq_chip_data(irq);
+	if (!nmk_chip)
+		return -EINVAL;
+
+	spin_lock_irqsave(&nmk_chip->lock, flags);
+#ifdef CONFIG_ARCH_U8500
+	if (cpu_is_u8500v2()) {
+		__nmk_gpio_set_slpm(nmk_chip, gpio,
+				    on ? NMK_GPIO_SLPM_WAKEUP_ENABLE
+				       : NMK_GPIO_SLPM_WAKEUP_DISABLE);
+	}
+#endif
+	__nmk_gpio_irq_modify(nmk_chip, gpio, WAKE, on);
+	spin_unlock_irqrestore(&nmk_chip->lock, flags);
+
+	return 0;
 }
 
 static int nmk_gpio_irq_set_type(unsigned int irq, unsigned int type)
@@ -495,12 +544,8 @@ static void nmk_gpio_set_output(struct gpio_chip *chip, unsigned offset,
 {
 	struct nmk_gpio_chip *nmk_chip =
 		container_of(chip, struct nmk_gpio_chip, chip);
-	u32 bit = 1 << offset;
 
-	if (val)
-		writel(bit, nmk_chip->addr + NMK_GPIO_DATS);
-	else
-		writel(bit, nmk_chip->addr + NMK_GPIO_DATC);
+	__nmk_gpio_set_output(nmk_chip, offset, val);
 }
 
 static int nmk_gpio_make_output(struct gpio_chip *chip, unsigned offset,
@@ -509,8 +554,7 @@ static int nmk_gpio_make_output(struct gpio_chip *chip, unsigned offset,
 	struct nmk_gpio_chip *nmk_chip =
 		container_of(chip, struct nmk_gpio_chip, chip);
 
-	writel(1 << offset, nmk_chip->addr + NMK_GPIO_DIRS);
-	nmk_gpio_set_output(chip, offset, val);
+	__nmk_gpio_make_output(nmk_chip, offset, val);
 
 	return 0;
 }
@@ -534,7 +578,7 @@ static struct gpio_chip nmk_gpio_template = {
 	.can_sleep		= 0,
 };
 
-static int __init nmk_gpio_probe(struct platform_device *dev)
+static int __devinit nmk_gpio_probe(struct platform_device *dev)
 {
 	struct nmk_gpio_platform_data *pdata = dev->dev.platform_data;
 	struct nmk_gpio_chip *nmk_chip;

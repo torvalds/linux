@@ -68,7 +68,7 @@ static int xcvr[NUM_UNITS]; 			/* The data transfer mode. */
 
 	In 1997 Realtek made available the documentation for the second generation
 	RTL8012 chip, which has lead to several driver improvements.
-	  http://www.realtek.com.tw/cn/cn.html
+	  http://www.realtek.com.tw/
 
 					Theory of Operation
 
@@ -445,7 +445,7 @@ static int net_open(struct net_device *dev)
 	init_timer(&lp->timer);
 	lp->timer.expires = jiffies + TIMED_CHECKER;
 	lp->timer.data = (unsigned long)dev;
-	lp->timer.function = &atp_timed_checker;    /* timer handler */
+	lp->timer.function = atp_timed_checker;    /* timer handler */
 	add_timer(&lp->timer);
 
 	netif_start_queue(dev);

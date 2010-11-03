@@ -2790,29 +2790,6 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 		 * NB: both 1->0 and 0->1 transitions are counted except for
 		 *     RI where only 0->1 is counted.
 		 */
-	case TIOCGICOUNT: {
-		struct serial_icounter_struct sic = { };
-
-		spin_lock_irqsave(&info->card->card_lock, flags);
-		cnow = info->icount;
-		spin_unlock_irqrestore(&info->card->card_lock, flags);
-
-		sic.cts = cnow.cts;
-		sic.dsr = cnow.dsr;
-		sic.rng = cnow.rng;
-		sic.dcd = cnow.dcd;
-		sic.rx = cnow.rx;
-		sic.tx = cnow.tx;
-		sic.frame = cnow.frame;
-		sic.overrun = cnow.overrun;
-		sic.parity = cnow.parity;
-		sic.brk = cnow.brk;
-		sic.buf_overrun = cnow.buf_overrun;
-
-		if (copy_to_user(argp, &sic, sizeof(sic)))
-			ret_val = -EFAULT;
-		break;
-	}
 	default:
 		ret_val = -ENOIOCTLCMD;
 	}
@@ -2822,6 +2799,31 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 #endif
 	return ret_val;
 }				/* cy_ioctl */
+
+static int cy_get_icount(struct tty_struct *tty,
+				struct serial_icounter_struct *sic)
+{
+	struct cyclades_port *info = tty->driver_data;
+	struct cyclades_icount cnow;	/* Used to snapshot */
+	unsigned long flags;
+
+	spin_lock_irqsave(&info->card->card_lock, flags);
+	cnow = info->icount;
+	spin_unlock_irqrestore(&info->card->card_lock, flags);
+
+	sic->cts = cnow.cts;
+	sic->dsr = cnow.dsr;
+	sic->rng = cnow.rng;
+	sic->dcd = cnow.dcd;
+	sic->rx = cnow.rx;
+	sic->tx = cnow.tx;
+	sic->frame = cnow.frame;
+	sic->overrun = cnow.overrun;
+	sic->parity = cnow.parity;
+	sic->brk = cnow.brk;
+	sic->buf_overrun = cnow.buf_overrun;
+	return 0;
+}
 
 /*
  * This routine allows the tty driver to be notified when
@@ -4084,6 +4086,7 @@ static const struct tty_operations cy_ops = {
 	.wait_until_sent = cy_wait_until_sent,
 	.tiocmget = cy_tiocmget,
 	.tiocmset = cy_tiocmset,
+	.get_icount = cy_get_icount,
 	.proc_fops = &cyclades_proc_fops,
 };
 

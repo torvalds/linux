@@ -42,10 +42,8 @@ extern const struct address_space_operations cifs_addr_ops;
 extern const struct address_space_operations cifs_addr_ops_smallbuf;
 
 /* Functions related to super block operations */
-/* extern const struct super_operations cifs_super_ops;*/
-extern void cifs_read_inode(struct inode *);
-/*extern void cifs_delete_inode(struct inode *);*/  /* BB not needed yet */
-/* extern void cifs_write_inode(struct inode *); */ /* BB not needed yet */
+extern void cifs_sb_active(struct super_block *sb);
+extern void cifs_sb_deactive(struct super_block *sb);
 
 /* Functions related to inodes */
 extern const struct inode_operations cifs_dir_inode_ops;
@@ -104,7 +102,7 @@ extern int cifs_readlink(struct dentry *direntry, char __user *buffer,
 extern int cifs_symlink(struct inode *inode, struct dentry *direntry,
 			const char *symname);
 extern int	cifs_removexattr(struct dentry *, const char *);
-extern int 	cifs_setxattr(struct dentry *, const char *, const void *,
+extern int	cifs_setxattr(struct dentry *, const char *, const void *,
 			size_t, int);
 extern ssize_t	cifs_getxattr(struct dentry *, const char *, void *, size_t);
 extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
@@ -114,5 +112,5 @@ extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 extern const struct export_operations cifs_export_ops;
 #endif /* EXPERIMENTAL */
 
-#define CIFS_VERSION   "1.65"
+#define CIFS_VERSION   "1.68"
 #endif				/* _CIFSFS_H */

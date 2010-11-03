@@ -113,7 +113,7 @@ static void ps3disk_scatter_gather(struct ps3_storage_device *dev,
 			memcpy(buf, dev->bounce_buf+offset, size);
 		offset += size;
 		flush_kernel_dcache_page(bvec->bv_page);
-		bvec_kunmap_irq(bvec, &flags);
+		bvec_kunmap_irq(buf, &flags);
 		i++;
 	}
 }
@@ -468,7 +468,7 @@ static int __devinit ps3disk_probe(struct ps3_system_bus_device *_dev)
 	blk_queue_dma_alignment(queue, dev->blk_size-1);
 	blk_queue_logical_block_size(queue, dev->blk_size);
 
-	blk_queue_ordered(queue, QUEUE_ORDERED_DRAIN_FLUSH);
+	blk_queue_flush(queue, REQ_FLUSH);
 
 	blk_queue_max_segments(queue, -1);
 	blk_queue_max_segment_size(queue, dev->bounce_size);

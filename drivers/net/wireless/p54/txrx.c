@@ -275,15 +275,15 @@ static int p54_rssi_to_dbm(struct p54_common *priv, int rssi)
 {
 	int band = priv->hw->conf.channel->band;
 
-	if (priv->rxhw != 5)
+	if (priv->rxhw != 5) {
 		return ((rssi * priv->rssical_db[band].mul) / 64 +
 			 priv->rssical_db[band].add) / 4;
-	else
+	} else {
 		/*
 		 * TODO: find the correct formula
 		 */
-		return ((rssi * priv->rssical_db[band].mul) / 64 +
-			 priv->rssical_db[band].add) / 4;
+		return rssi / 2 - 110;
+	}
 }
 
 /*
@@ -446,7 +446,7 @@ static void p54_rx_frame_sent(struct p54_common *priv, struct sk_buff *skb)
 	}
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
-	     (!payload->status))
+	     !(payload->status & P54_TX_FAILED))
 		info->flags |= IEEE80211_TX_STAT_ACK;
 	if (payload->status & P54_TX_PSM_CANCELLED)
 		info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
@@ -540,7 +540,7 @@ static void p54_rx_trap(struct p54_common *priv, struct sk_buff *skb)
 	case P54_TRAP_BEACON_TX:
 		break;
 	case P54_TRAP_RADAR:
-		wiphy_info(priv->hw->wiphy, "radar (freq:%d mhz)\n", freq);
+		wiphy_info(priv->hw->wiphy, "radar (freq:%d MHz)\n", freq);
 		break;
 	case P54_TRAP_NO_BEACON:
 		if (priv->vif)
@@ -683,14 +683,15 @@ static void p54_tx_80211_header(struct p54_common *priv, struct sk_buff *skb,
 	}
 }
 
-static u8 p54_convert_algo(enum ieee80211_key_alg alg)
+static u8 p54_convert_algo(u32 cipher)
 {
-	switch (alg) {
-	case ALG_WEP:
+	switch (cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
 		return P54_CRYPTO_WEP;
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		return P54_CRYPTO_TKIPMICHAEL;
-	case ALG_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP:
 		return P54_CRYPTO_AESCCMP;
 	default:
 		return 0;
@@ -731,7 +732,7 @@ int p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 	if (info->control.hw_key) {
 		crypt_offset = ieee80211_get_hdrlen_from_skb(skb);
-		if (info->control.hw_key->alg == ALG_TKIP) {
+		if (info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 			u8 *iv = (u8 *)(skb->data + crypt_offset);
 			/*
 			 * The firmware excepts that the IV has to have
@@ -827,10 +828,10 @@ int p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb)
 	hdr->tries = ridx;
 	txhdr->rts_rate_idx = 0;
 	if (info->control.hw_key) {
-		txhdr->key_type = p54_convert_algo(info->control.hw_key->alg);
+		txhdr->key_type = p54_convert_algo(info->control.hw_key->cipher);
 		txhdr->key_len = min((u8)16, info->control.hw_key->keylen);
 		memcpy(txhdr->key, info->control.hw_key->key, txhdr->key_len);
-		if (info->control.hw_key->alg == ALG_TKIP) {
+		if (info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 			/* reserve space for the MIC key */
 			len += 8;
 			memcpy(skb_put(skb, 8), &(info->control.hw_key->key

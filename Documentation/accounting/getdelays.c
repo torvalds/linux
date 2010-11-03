@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <signal.h>
 
 #include <linux/genetlink.h>
@@ -266,11 +267,13 @@ int main(int argc, char *argv[])
 	int containerset = 0;
 	char containerpath[1024];
 	int cfd = 0;
+	int forking = 0;
+	sigset_t sigset;
 
 	struct msgtemplate msg;
 
-	while (1) {
-		c = getopt(argc, argv, "qdiw:r:m:t:p:vlC:");
+	while (!forking) {
+		c = getopt(argc, argv, "qdiw:r:m:t:p:vlC:c:");
 		if (c < 0)
 			break;
 
@@ -318,6 +321,28 @@ int main(int argc, char *argv[])
 			if (!tid)
 				err(1, "Invalid pid\n");
 			cmd_type = TASKSTATS_CMD_ATTR_PID;
+			break;
+		case 'c':
+
+			/* Block SIGCHLD for sigwait() later */
+			if (sigemptyset(&sigset) == -1)
+				err(1, "Failed to empty sigset");
+			if (sigaddset(&sigset, SIGCHLD))
+				err(1, "Failed to set sigchld in sigset");
+			sigprocmask(SIG_BLOCK, &sigset, NULL);
+
+			/* fork/exec a child */
+			tid = fork();
+			if (tid < 0)
+				err(1, "Fork failed\n");
+			if (tid == 0)
+				if (execvp(argv[optind - 1],
+				    &argv[optind - 1]) < 0)
+					exit(-1);
+
+			/* Set the command type and avoid further processing */
+			cmd_type = TASKSTATS_CMD_ATTR_PID;
+			forking = 1;
 			break;
 		case 'v':
 			printf("debug on\n");
@@ -368,6 +393,15 @@ int main(int argc, char *argv[])
 	if (tid && containerset) {
 		fprintf(stderr, "Select either -t or -C, not both\n");
 		goto err;
+	}
+
+	/*
+	 * If we forked a child, wait for it to exit. Cannot use waitpid()
+	 * as all the delicious data would be reaped as part of the wait
+	 */
+	if (tid && forking) {
+		int sig_received;
+		sigwait(&sigset, &sig_received);
 	}
 
 	if (tid) {

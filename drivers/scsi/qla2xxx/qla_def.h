@@ -706,6 +706,11 @@ typedef struct {
 #define MBC_SET_PORT_CONFIG		0x122	/* Set port configuration */
 #define MBC_GET_PORT_CONFIG		0x123	/* Get port configuration */
 
+/*
+ * ISP81xx mailbox commands
+ */
+#define MBC_WRITE_MPI_REGISTER		0x01    /* Write MPI Register. */
+
 /* Firmware return data sizes */
 #define FCAL_MAP_SIZE	128
 
@@ -1695,9 +1700,7 @@ typedef struct fc_port {
 	atomic_t state;
 	uint32_t flags;
 
-	int port_login_retry_count;
 	int login_retry;
-	atomic_t port_down_timer;
 
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;
@@ -2641,6 +2644,7 @@ struct qla_hw_data {
 #define MBX_UPDATE_FLASH_ACTIVE	3
 
 	struct mutex vport_lock;        /* Virtual port synchronization */
+	spinlock_t vport_slock; /* order is hardware_lock, then vport_slock */
 	struct completion mbx_cmd_comp; /* Serialize mbx access */
 	struct completion mbx_intr_comp;  /* Used for completion notification */
 	struct completion dcbx_comp;	/* For set port config notification */
@@ -2828,6 +2832,7 @@ typedef struct scsi_qla_host {
 		uint32_t	management_server_logged_in :1;
 		uint32_t	process_response_queue	:1;
 		uint32_t	difdix_supported:1;
+		uint32_t	delete_progress:1;
 	} flags;
 
 	atomic_t	loop_state;
@@ -2858,6 +2863,7 @@ typedef struct scsi_qla_host {
 #define NPIV_CONFIG_NEEDED	16
 #define ISP_UNRECOVERABLE	17
 #define FCOE_CTX_RESET_NEEDED	18	/* Initiate FCoE context reset */
+#define MPI_RESET_NEEDED	19	/* Initiate MPI FW reset */
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0
@@ -2922,6 +2928,8 @@ typedef struct scsi_qla_host {
 	struct req_que *req;
 	int		fw_heartbeat_counter;
 	int		seconds_since_last_heartbeat;
+
+	atomic_t	vref_count;
 } scsi_qla_host_t;
 
 /*
@@ -2931,6 +2939,22 @@ typedef struct scsi_qla_host {
 	(test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) || \
 	 test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags) || \
 	 atomic_read(&ha->loop_state) == LOOP_DOWN)
+
+#define QLA_VHA_MARK_BUSY(__vha, __bail) do {		     \
+	atomic_inc(&__vha->vref_count);			     \
+	mb();						     \
+	if (__vha->flags.delete_progress) {		     \
+		atomic_dec(&__vha->vref_count);		     \
+		__bail = 1;				     \
+	} else {					     \
+		__bail = 0;				     \
+	}						     \
+} while (0)
+
+#define QLA_VHA_MARK_NOT_BUSY(__vha) do {		     \
+	atomic_dec(&__vha->vref_count);			     \
+} while (0)
+
 
 #define qla_printk(level, ha, format, arg...) \
 	dev_printk(level , &((ha)->pdev->dev) , format , ## arg)
@@ -2982,6 +3006,8 @@ typedef struct scsi_qla_host {
 #define	QLA_DSDS_PER_IOCB	37
 
 #define CMD_SP(Cmnd)		((Cmnd)->SCp.ptr)
+
+#define QLA_SG_ALL	1024
 
 enum nexus_wait_type {
 	WAIT_HOST = 0,

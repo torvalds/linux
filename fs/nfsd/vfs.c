@@ -281,23 +281,13 @@ commit_metadata(struct svc_fh *fhp)
 {
 	struct inode *inode = fhp->fh_dentry->d_inode;
 	const struct export_operations *export_ops = inode->i_sb->s_export_op;
-	int error = 0;
 
 	if (!EX_ISSYNC(fhp->fh_export))
 		return 0;
 
-	if (export_ops->commit_metadata) {
-		error = export_ops->commit_metadata(inode);
-	} else {
-		struct writeback_control wbc = {
-			.sync_mode = WB_SYNC_ALL,
-			.nr_to_write = 0, /* metadata only */
-		};
-
-		error = sync_inode(inode, &wbc);
-	}
-
-	return error;
+	if (export_ops->commit_metadata)
+		return export_ops->commit_metadata(inode);
+	return sync_inode_metadata(inode, 1);
 }
 
 /*
@@ -2033,15 +2023,17 @@ out:
 __be32
 nfsd_statfs(struct svc_rqst *rqstp, struct svc_fh *fhp, struct kstatfs *stat, int access)
 {
-	struct path path = {
-		.mnt	= fhp->fh_export->ex_path.mnt,
-		.dentry	= fhp->fh_dentry,
-	};
 	__be32 err;
 
 	err = fh_verify(rqstp, fhp, 0, NFSD_MAY_NOP | access);
-	if (!err && vfs_statfs(&path, stat))
-		err = nfserr_io;
+	if (!err) {
+		struct path path = {
+			.mnt	= fhp->fh_export->ex_path.mnt,
+			.dentry	= fhp->fh_dentry,
+		};
+		if (vfs_statfs(&path, stat))
+			err = nfserr_io;
+	}
 	return err;
 }
 

@@ -1,20 +1,20 @@
 /*
-   tm6000-input.c - driver for TM5600/TM6000/TM6010 USB video capture devices
-
-   Copyright (C) 2010 Stefan Ringel <stefan.ringel@arcor.de>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation version 2
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  tm6000-input.c - driver for TM5600/TM6000/TM6010 USB video capture devices
+ *
+ *  Copyright (C) 2010 Stefan Ringel <stefan.ringel@arcor.de>
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation version 2
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -36,7 +36,7 @@ MODULE_PARM_DESC(ir_debug, "enable debug message [IR]");
 
 static unsigned int enable_ir = 1;
 module_param(enable_ir, int, 0644);
-MODULE_PARM_DESC(enable_ir, "enable ir (default is enable");
+MODULE_PARM_DESC(enable_ir, "enable ir (default is enable)");
 
 #undef dprintk
 
@@ -46,7 +46,7 @@ MODULE_PARM_DESC(enable_ir, "enable ir (default is enable");
 	}
 
 struct tm6000_ir_poll_result {
-	u8 rc_data[4];
+	u16 rc_data;
 };
 
 struct tm6000_IR {
@@ -60,9 +60,9 @@ struct tm6000_IR {
 	int			polling;
 	struct delayed_work	work;
 	u8			wait:1;
+	u8			key:1;
 	struct urb		*int_urb;
 	u8			*urb_data;
-	u8			key:1;
 
 	int (*get_key) (struct tm6000_IR *, struct tm6000_ir_poll_result *);
 
@@ -122,13 +122,14 @@ static void tm6000_ir_urb_received(struct urb *urb)
 
 	if (urb->status != 0)
 		printk(KERN_INFO "not ready\n");
-	else if (urb->actual_length > 0)
+	else if (urb->actual_length > 0) {
 		memcpy(ir->urb_data, urb->transfer_buffer, urb->actual_length);
 
-	dprintk("data %02x %02x %02x %02x\n", ir->urb_data[0],
-	ir->urb_data[1], ir->urb_data[2], ir->urb_data[3]);
+		dprintk("data %02x %02x %02x %02x\n", ir->urb_data[0],
+			ir->urb_data[1], ir->urb_data[2], ir->urb_data[3]);
 
-	ir->key = 1;
+		ir->key = 1;
+	}
 
 	rc = usb_submit_urb(urb, GFP_ATOMIC);
 }
@@ -140,30 +141,47 @@ static int default_polling_getkey(struct tm6000_IR *ir,
 	int rc;
 	u8 buf[2];
 
-	if (ir->wait && !&dev->int_in) {
-		poll_result->rc_data[0] = 0xff;
+	if (ir->wait && !&dev->int_in)
 		return 0;
-	}
 
 	if (&dev->int_in) {
-		poll_result->rc_data[0] = ir->urb_data[0];
-		poll_result->rc_data[1] = ir->urb_data[1];
+		if (ir->ir.ir_type == IR_TYPE_RC5)
+			poll_result->rc_data = ir->urb_data[0];
+		else
+			poll_result->rc_data = ir->urb_data[0] | ir->urb_data[1] << 8;
 	} else {
 		tm6000_set_reg(dev, REQ_04_EN_DISABLE_MCU_INT, 2, 0);
 		msleep(10);
 		tm6000_set_reg(dev, REQ_04_EN_DISABLE_MCU_INT, 2, 1);
 		msleep(10);
 
-		rc = tm6000_read_write_usb(dev, USB_DIR_IN | USB_TYPE_VENDOR |
-		 USB_RECIP_DEVICE, REQ_02_GET_IR_CODE, 0, 0, buf, 1);
+		if (ir->ir.ir_type == IR_TYPE_RC5) {
+			rc = tm6000_read_write_usb(dev, USB_DIR_IN |
+				USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+				REQ_02_GET_IR_CODE, 0, 0, buf, 1);
 
-		msleep(10);
+			msleep(10);
 
-		dprintk("read data=%02x\n", buf[0]);
-		if (rc < 0)
-			return rc;
+			dprintk("read data=%02x\n", buf[0]);
+			if (rc < 0)
+				return rc;
 
-		poll_result->rc_data[0] = buf[0];
+			poll_result->rc_data = buf[0];
+		} else {
+			rc = tm6000_read_write_usb(dev, USB_DIR_IN |
+				USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+				REQ_02_GET_IR_CODE, 0, 0, buf, 2);
+
+			msleep(10);
+
+			dprintk("read data=%04x\n", buf[0] | buf[1] << 8);
+			if (rc < 0)
+				return rc;
+
+			poll_result->rc_data = buf[0] | buf[1] << 8;
+		}
+		if ((poll_result->rc_data & 0x00ff) != 0xff)
+			ir->key = 1;
 	}
 	return 0;
 }
@@ -180,12 +198,11 @@ static void tm6000_ir_handle_key(struct tm6000_IR *ir)
 		return;
 	}
 
-	dprintk("ir->get_key result data=%02x %02x\n",
-		poll_result.rc_data[0], poll_result.rc_data[1]);
+	dprintk("ir->get_key result data=%04x\n", poll_result.rc_data);
 
-	if (poll_result.rc_data[0] != 0xff && ir->key == 1) {
+	if (ir->key) {
 		ir_input_keydown(ir->input->input_dev, &ir->ir,
-			poll_result.rc_data[0] | poll_result.rc_data[1] << 8);
+				(u32)poll_result.rc_data);
 
 		ir_input_nokey(ir->input->input_dev, &ir->ir);
 		ir->key = 0;

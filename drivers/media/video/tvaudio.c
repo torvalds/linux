@@ -35,7 +35,6 @@
 #include <media/tvaudio.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 
 #include <media/i2c-addr.h>
 
@@ -1227,18 +1226,6 @@ static int tea6320_initialize(struct CHIPSTATE * chip)
 static int tda8425_shift10(int val) { return (val >> 10) | 0xc0; }
 static int tda8425_shift12(int val) { return (val >> 12) | 0xf0; }
 
-static int tda8425_initialize(struct CHIPSTATE *chip)
-{
-	struct CHIPDESC *desc = chip->desc;
-	struct i2c_client *c = v4l2_get_subdevdata(&chip->sd);
-	int inputmap[4] = { /* tuner	*/ TDA8425_S1_CH2, /* radio  */ TDA8425_S1_CH1,
-			    /* extern	*/ TDA8425_S1_CH1, /* intern */ TDA8425_S1_OFF};
-
-	if (c->adapter->id == I2C_HW_B_RIVA)
-		memcpy(desc->inputmap, inputmap, sizeof(inputmap));
-	return 0;
-}
-
 static void tda8425_setmode(struct CHIPSTATE *chip, int mode)
 {
 	int s1 = chip->shadow.bytes[TDA8425_S1+1] & 0xe1;
@@ -1574,7 +1561,6 @@ static struct CHIPDESC chiplist[] = {
 		.treblereg  = TDA8425_TR,
 
 		/* callbacks */
-		.initialize = tda8425_initialize,
 		.volfunc    = tda8425_shift10,
 		.bassfunc   = tda8425_shift12,
 		.treblefunc = tda8425_shift12,
@@ -2079,9 +2065,25 @@ static const struct i2c_device_id tvaudio_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tvaudio_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "tvaudio",
-	.probe = tvaudio_probe,
-	.remove = tvaudio_remove,
-	.id_table = tvaudio_id,
+static struct i2c_driver tvaudio_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tvaudio",
+	},
+	.probe		= tvaudio_probe,
+	.remove		= tvaudio_remove,
+	.id_table	= tvaudio_id,
 };
+
+static __init int init_tvaudio(void)
+{
+	return i2c_add_driver(&tvaudio_driver);
+}
+
+static __exit void exit_tvaudio(void)
+{
+	i2c_del_driver(&tvaudio_driver);
+}
+
+module_init(init_tvaudio);
+module_exit(exit_tvaudio);

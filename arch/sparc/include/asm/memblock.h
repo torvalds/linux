@@ -5,6 +5,4 @@
 
 #define MEMBLOCK_DBG(fmt...) prom_printf(fmt)
 
-#define MEMBLOCK_REAL_LIMIT	0
-
 #endif /* !(_SPARC64_MEMBLOCK_H) */

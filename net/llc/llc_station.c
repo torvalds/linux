@@ -689,7 +689,7 @@ static void llc_station_rcv(struct sk_buff *skb)
 
 int __init llc_station_init(void)
 {
-	u16 rc = -ENOBUFS;
+	int rc = -ENOBUFS;
 	struct sk_buff *skb;
 	struct llc_station_state_ev *ev;
 

@@ -79,12 +79,6 @@ static int ac97_soc_probe(struct snd_soc_codec *codec)
 	struct snd_ac97_template ac97_template;
 	int ret;
 
-	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
-	if (ret < 0) {
-		printk(KERN_ERR "ASoC: failed to init generic ac97 glue\n");
-		return ret;
-	}
-
 	/* add codec as bus device for standard ac97 */
 	ret = snd_ac97_bus(codec->card->snd_card, 0, &soc_ac97_ops, NULL, &ac97_bus);
 	if (ret < 0)
@@ -168,3 +162,4 @@ module_exit(ac97_exit);
 MODULE_DESCRIPTION("Soc Generic AC97 driver");
 MODULE_AUTHOR("Liam Girdwood");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:ac97-codec");

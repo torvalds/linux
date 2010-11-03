@@ -41,7 +41,6 @@
 #include <asm/system.h>
 #include <asm/io.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -572,11 +571,7 @@ static int dtl1_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
-	link->resource[0]->end = 8;
-
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	return dtl1_config(link);
 }
@@ -591,18 +586,14 @@ static void dtl1_detach(struct pcmcia_device *link)
 	kfree(info);
 }
 
-static int dtl1_confcheck(struct pcmcia_device *p_dev,
-			  cistpl_cftable_entry_t *cf,
-			  cistpl_cftable_entry_t *dflt,
-			  unsigned int vcc,
-			  void *priv_data)
+static int dtl1_confcheck(struct pcmcia_device *p_dev, void *priv_data)
 {
-	if ((cf->io.nwin != 1) || (cf->io.win[0].len <= 8))
+	if ((p_dev->resource[1]->end) || (p_dev->resource[1]->end < 8))
 		return -ENODEV;
 
-	p_dev->resource[0]->start = cf->io.win[0].base;
-	p_dev->resource[0]->end = cf->io.win[0].len;	/*yo */
-	p_dev->io_lines = cf->io.flags & CISTPL_IO_LINES_MASK;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+
 	return pcmcia_request_io(p_dev);
 }
 
@@ -620,7 +611,7 @@ static int dtl1_config(struct pcmcia_device *link)
 	if (i != 0)
 		goto failed;
 
-	i = pcmcia_request_configuration(link, &link->conf);
+	i = pcmcia_enable_device(link);
 	if (i != 0)
 		goto failed;
 
@@ -656,9 +647,7 @@ MODULE_DEVICE_TABLE(pcmcia, dtl1_ids);
 
 static struct pcmcia_driver dtl1_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "dtl1_cs",
-	},
+	.name		= "dtl1_cs",
 	.probe		= dtl1_probe,
 	.remove		= dtl1_detach,
 	.id_table	= dtl1_ids,

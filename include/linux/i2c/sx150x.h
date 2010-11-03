@@ -63,6 +63,9 @@
  *            IRQ lines will appear.  Similarly to gpio_base, the expander
  *            will create a block of irqs beginning at this number.
  *            This value is ignored if irq_summary is < 0.
+ * @reset_during_probe: If set to true, the driver will trigger a full
+ *                      reset of the chip at the beginning of the probe
+ *                      in order to place it in a known state.
  */
 struct sx150x_platform_data {
 	unsigned gpio_base;
@@ -73,6 +76,7 @@ struct sx150x_platform_data {
 	u16      io_polarity;
 	int      irq_summary;
 	unsigned irq_base;
+	bool     reset_during_probe;
 };
 
 #endif /* __LINUX_I2C_SX150X_H */

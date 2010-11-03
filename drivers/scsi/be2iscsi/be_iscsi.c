@@ -300,8 +300,7 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 			   enum iscsi_host_param param, char *buf)
 {
 	struct beiscsi_hba *phba = (struct beiscsi_hba *)iscsi_host_priv(shost);
-	int len = 0;
-	int status;
+	int status = 0;
 
 	SE_DEBUG(DBG_LVL_8, "In beiscsi_get_host_param, param= %d\n", param);
 	switch (param) {
@@ -315,7 +314,7 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 	default:
 		return iscsi_host_get_param(shost, param, buf);
 	}
-	return len;
+	return status;
 }
 
 int beiscsi_get_macaddr(char *buf, struct beiscsi_hba *phba)
@@ -523,7 +522,6 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 	if (beiscsi_ep->ep_cid > (phba->fw_config.iscsi_cid_start +
 				  phba->params.cxns_per_ctrl * 2)) {
 		SE_DEBUG(DBG_LVL_1, "Failed in allocate iscsi cid\n");
-		beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 		goto free_ep;
 	}
 
@@ -560,7 +558,6 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		SE_DEBUG(DBG_LVL_1, "mgmt_open_connection Failed"
 				    " status = %d extd_status = %d\n",
 				    status, extd_status);
-		beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 		free_mcc_tag(&phba->ctrl, tag);
 		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 			    nonemb_cmd.va, nonemb_cmd.dma);
@@ -575,7 +572,6 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		beiscsi_ep->cid_vld = 1;
 		SE_DEBUG(DBG_LVL_8, "mgmt_open_connection Success\n");
 	}
-	beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 			    nonemb_cmd.va, nonemb_cmd.dma);
 	return 0;

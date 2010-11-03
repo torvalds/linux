@@ -433,7 +433,7 @@ typedef struct {
  * with.  However gcc is not clever enough to compute the
  * modulus (2^n-1) without a second multiply.
  */
-#define vsid_scrample(protovsid, size) \
+#define vsid_scramble(protovsid, size) \
 	((((protovsid) * VSID_MULTIPLIER_##size) % VSID_MODULUS_##size))
 
 #else /* 1 */

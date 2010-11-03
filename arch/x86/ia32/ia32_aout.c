@@ -34,7 +34,7 @@
 #include <asm/ia32.h>
 
 #undef WARN_OLD
-#undef CORE_DUMP /* probably broken */
+#undef CORE_DUMP /* definitely broken */
 
 static int load_aout_binary(struct linux_binprm *, struct pt_regs *regs);
 static int load_aout_library(struct file *);
@@ -131,21 +131,15 @@ static void set_brk(unsigned long start, unsigned long end)
  * macros to write out all the necessary info.
  */
 
-static int dump_write(struct file *file, const void *addr, int nr)
-{
-	return file->f_op->write(file, addr, nr, &file->f_pos) == nr;
-}
+#include <linux/coredump.h>
 
 #define DUMP_WRITE(addr, nr)			     \
 	if (!dump_write(file, (void *)(addr), (nr))) \
 		goto end_coredump;
 
-#define DUMP_SEEK(offset)						\
-	if (file->f_op->llseek) {					\
-		if (file->f_op->llseek(file, (offset), 0) != (offset))	\
-			goto end_coredump;				\
-	} else								\
-		file->f_pos = (offset)
+#define DUMP_SEEK(offset)		\
+	if (!dump_seek(file, offset))	\
+		goto end_coredump;
 
 #define START_DATA()	(u.u_tsize << PAGE_SHIFT)
 #define START_STACK(u)	(u.start_stack)
@@ -217,12 +211,6 @@ static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file,
 		dump_size = dump.u_ssize << PAGE_SHIFT;
 		DUMP_WRITE(dump_start, dump_size);
 	}
-	/*
-	 * Finally dump the task struct.  Not be used by gdb, but
-	 * could be useful
-	 */
-	set_fs(KERNEL_DS);
-	DUMP_WRITE(current, sizeof(*current));
 end_coredump:
 	set_fs(fs);
 	return has_dumped;

@@ -3,9 +3,10 @@
  *
  *  Allow an NFS filesystem to be mounted as root. The way this works is:
  *     (1) Use the IP autoconfig mechanism to set local IP addresses and routes.
- *     (2) Handle RPC negotiation with the system which replied to RARP or
- *         was reported as a boot server by BOOTP or manually.
- *     (3) The actual mounting is done later, when init() is running.
+ *     (2) Construct the device string and the options string using DHCP
+ *         option 17 and/or kernel command line options.
+ *     (3) When mount_root() sets up the root file system, pass these strings
+ *         to the NFS client's regular mount interface via sys_mount().
  *
  *
  *	Changes:
@@ -65,470 +66,245 @@
  *	Hua Qin		:	Support for mounting root file system via
  *				NFS over TCP.
  *	Fabian Frederick:	Option parser rebuilt (using parser lib)
-*/
+ *	Chuck Lever	:	Use super.c's text-based mount option parsing
+ *	Chuck Lever	:	Add "nfsrootdebug".
+ */
 
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/kernel.h>
-#include <linux/time.h>
-#include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/sunrpc/clnt.h>
-#include <linux/sunrpc/xprtsock.h>
 #include <linux/nfs.h>
 #include <linux/nfs_fs.h>
-#include <linux/nfs_mount.h>
-#include <linux/in.h>
-#include <linux/major.h>
 #include <linux/utsname.h>
-#include <linux/inet.h>
 #include <linux/root_dev.h>
 #include <net/ipconfig.h>
-#include <linux/parser.h>
 
 #include "internal.h"
 
-/* Define this to allow debugging output */
-#undef NFSROOT_DEBUG
 #define NFSDBG_FACILITY NFSDBG_ROOT
-
-/* Default port to use if server is not running a portmapper */
-#define NFS_MNT_PORT	627
 
 /* Default path we try to mount. "%s" gets replaced by our IP address */
 #define NFS_ROOT		"/tftpboot/%s"
 
 /* Parameters passed from the kernel command line */
-static char nfs_root_name[256] __initdata = "";
+static char nfs_root_parms[256] __initdata = "";
+
+/* Text-based mount options passed to super.c */
+static char nfs_root_options[256] __initdata = "";
 
 /* Address of NFS server */
-static __be32 servaddr __initdata = 0;
+static __be32 servaddr __initdata = htonl(INADDR_NONE);
 
 /* Name of directory to mount */
-static char nfs_export_path[NFS_MAXPATHLEN + 1] __initdata = { 0, };
+static char nfs_export_path[NFS_MAXPATHLEN + 1] __initdata = "";
 
-/* NFS-related data */
-static struct nfs_mount_data nfs_data __initdata = { 0, };/* NFS mount info */
-static int nfs_port __initdata = 0;		/* Port to connect to for NFS */
-static int mount_port __initdata = 0;		/* Mount daemon port number */
+/* server:export path string passed to super.c */
+static char nfs_root_device[NFS_MAXPATHLEN + 1] __initdata = "";
 
-
-/***************************************************************************
-
-			     Parsing of options
-
- ***************************************************************************/
-
-enum {
-	/* Options that take integer arguments */
-	Opt_port, Opt_rsize, Opt_wsize, Opt_timeo, Opt_retrans, Opt_acregmin,
-	Opt_acregmax, Opt_acdirmin, Opt_acdirmax,
-	/* Options that take no arguments */
-	Opt_soft, Opt_hard, Opt_intr,
-	Opt_nointr, Opt_posix, Opt_noposix, Opt_cto, Opt_nocto, Opt_ac, 
-	Opt_noac, Opt_lock, Opt_nolock, Opt_v2, Opt_v3, Opt_udp, Opt_tcp,
-	Opt_acl, Opt_noacl,
-	/* Error token */
-	Opt_err
-};
-
-static const match_table_t tokens __initconst = {
-	{Opt_port, "port=%u"},
-	{Opt_rsize, "rsize=%u"},
-	{Opt_wsize, "wsize=%u"},
-	{Opt_timeo, "timeo=%u"},
-	{Opt_retrans, "retrans=%u"},
-	{Opt_acregmin, "acregmin=%u"},
-	{Opt_acregmax, "acregmax=%u"},
-	{Opt_acdirmin, "acdirmin=%u"},
-	{Opt_acdirmax, "acdirmax=%u"},
-	{Opt_soft, "soft"},
-	{Opt_hard, "hard"},
-	{Opt_intr, "intr"},
-	{Opt_nointr, "nointr"},
-	{Opt_posix, "posix"},
-	{Opt_noposix, "noposix"},
-	{Opt_cto, "cto"},
-	{Opt_nocto, "nocto"},
-	{Opt_ac, "ac"},
-	{Opt_noac, "noac"},
-	{Opt_lock, "lock"},
-	{Opt_nolock, "nolock"},
-	{Opt_v2, "nfsvers=2"},
-	{Opt_v2, "v2"},
-	{Opt_v3, "nfsvers=3"},
-	{Opt_v3, "v3"},
-	{Opt_udp, "proto=udp"},
-	{Opt_udp, "udp"},
-	{Opt_tcp, "proto=tcp"},
-	{Opt_tcp, "tcp"},
-	{Opt_acl, "acl"},
-	{Opt_noacl, "noacl"},
-	{Opt_err, NULL}
-	
-};
-
+#ifdef RPC_DEBUG
 /*
- *  Parse option string.
+ * When the "nfsrootdebug" kernel command line option is specified,
+ * enable debugging messages for NFSROOT.
  */
-
-static int __init root_nfs_parse(char *name, char *buf)
+static int __init nfs_root_debug(char *__unused)
 {
-
-	char *p;
-	substring_t args[MAX_OPT_ARGS];
-	int option;
-
-	if (!name)
-		return 1;
-
-	/* Set the NFS remote path */
-	p = strsep(&name, ",");
-	if (p[0] != '\0' && strcmp(p, "default") != 0)
-		strlcpy(buf, p, NFS_MAXPATHLEN);
-
-	while ((p = strsep (&name, ",")) != NULL) {
-		int token; 
-		if (!*p)
-			continue;
-		token = match_token(p, tokens, args);
-
-		/* %u tokens only. Beware if you add new tokens! */
-		if (token < Opt_soft && match_int(&args[0], &option))
-			return 0;
-		switch (token) {
-			case Opt_port:
-				nfs_port = option;
-				break;
-			case Opt_rsize:
-				nfs_data.rsize = option;
-				break;
-			case Opt_wsize:
-				nfs_data.wsize = option;
-				break;
-			case Opt_timeo:
-				nfs_data.timeo = option;
-				break;
-			case Opt_retrans:
-				nfs_data.retrans = option;
-				break;
-			case Opt_acregmin:
-				nfs_data.acregmin = option;
-				break;
-			case Opt_acregmax:
-				nfs_data.acregmax = option;
-				break;
-			case Opt_acdirmin:
-				nfs_data.acdirmin = option;
-				break;
-			case Opt_acdirmax:
-				nfs_data.acdirmax = option;
-				break;
-			case Opt_soft:
-				nfs_data.flags |= NFS_MOUNT_SOFT;
-				break;
-			case Opt_hard:
-				nfs_data.flags &= ~NFS_MOUNT_SOFT;
-				break;
-			case Opt_intr:
-			case Opt_nointr:
-				break;
-			case Opt_posix:
-				nfs_data.flags |= NFS_MOUNT_POSIX;
-				break;
-			case Opt_noposix:
-				nfs_data.flags &= ~NFS_MOUNT_POSIX;
-				break;
-			case Opt_cto:
-				nfs_data.flags &= ~NFS_MOUNT_NOCTO;
-				break;
-			case Opt_nocto:
-				nfs_data.flags |= NFS_MOUNT_NOCTO;
-				break;
-			case Opt_ac:
-				nfs_data.flags &= ~NFS_MOUNT_NOAC;
-				break;
-			case Opt_noac:
-				nfs_data.flags |= NFS_MOUNT_NOAC;
-				break;
-			case Opt_lock:
-				nfs_data.flags &= ~NFS_MOUNT_NONLM;
-				break;
-			case Opt_nolock:
-				nfs_data.flags |= NFS_MOUNT_NONLM;
-				break;
-			case Opt_v2:
-				nfs_data.flags &= ~NFS_MOUNT_VER3;
-				break;
-			case Opt_v3:
-				nfs_data.flags |= NFS_MOUNT_VER3;
-				break;
-			case Opt_udp:
-				nfs_data.flags &= ~NFS_MOUNT_TCP;
-				break;
-			case Opt_tcp:
-				nfs_data.flags |= NFS_MOUNT_TCP;
-				break;
-			case Opt_acl:
-				nfs_data.flags &= ~NFS_MOUNT_NOACL;
-				break;
-			case Opt_noacl:
-				nfs_data.flags |= NFS_MOUNT_NOACL;
-				break;
-			default:
-				printk(KERN_WARNING "Root-NFS: unknown "
-					"option: %s\n", p);
-				return 0;
-		}
-	}
-
+	nfs_debug |= NFSDBG_ROOT | NFSDBG_MOUNT;
 	return 1;
 }
 
-/*
- *  Prepare the NFS data structure and parse all options.
- */
-static int __init root_nfs_name(char *name)
-{
-	static char buf[NFS_MAXPATHLEN] __initdata;
-	char *cp;
-
-	/* Set some default values */
-	memset(&nfs_data, 0, sizeof(nfs_data));
-	nfs_port          = -1;
-	nfs_data.version  = NFS_MOUNT_VERSION;
-	nfs_data.flags    = NFS_MOUNT_NONLM;	/* No lockd in nfs root yet */
-	nfs_data.rsize    = NFS_DEF_FILE_IO_SIZE;
-	nfs_data.wsize    = NFS_DEF_FILE_IO_SIZE;
-	nfs_data.acregmin = NFS_DEF_ACREGMIN;
-	nfs_data.acregmax = NFS_DEF_ACREGMAX;
-	nfs_data.acdirmin = NFS_DEF_ACDIRMIN;
-	nfs_data.acdirmax = NFS_DEF_ACDIRMAX;
-	strcpy(buf, NFS_ROOT);
-
-	/* Process options received from the remote server */
-	root_nfs_parse(root_server_path, buf);
-
-	/* Override them by options set on kernel command-line */
-	root_nfs_parse(name, buf);
-
-	cp = utsname()->nodename;
-	if (strlen(buf) + strlen(cp) > NFS_MAXPATHLEN) {
-		printk(KERN_ERR "Root-NFS: Pathname for remote directory too long.\n");
-		return -1;
-	}
-	sprintf(nfs_export_path, buf, cp);
-
-	return 1;
-}
-
-
-/*
- *  Get NFS server address.
- */
-static int __init root_nfs_addr(void)
-{
-	if ((servaddr = root_server_addr) == htonl(INADDR_NONE)) {
-		printk(KERN_ERR "Root-NFS: No NFS server available, giving up.\n");
-		return -1;
-	}
-
-	snprintf(nfs_data.hostname, sizeof(nfs_data.hostname),
-		 "%pI4", &servaddr);
-	return 0;
-}
-
-/*
- *  Tell the user what's going on.
- */
-#ifdef NFSROOT_DEBUG
-static void __init root_nfs_print(void)
-{
-	printk(KERN_NOTICE "Root-NFS: Mounting %s on server %s as root\n",
-		nfs_export_path, nfs_data.hostname);
-	printk(KERN_NOTICE "Root-NFS:     rsize = %d, wsize = %d, timeo = %d, retrans = %d\n",
-		nfs_data.rsize, nfs_data.wsize, nfs_data.timeo, nfs_data.retrans);
-	printk(KERN_NOTICE "Root-NFS:     acreg (min,max) = (%d,%d), acdir (min,max) = (%d,%d)\n",
-		nfs_data.acregmin, nfs_data.acregmax,
-		nfs_data.acdirmin, nfs_data.acdirmax);
-	printk(KERN_NOTICE "Root-NFS:     nfsd port = %d, mountd port = %d, flags = %08x\n",
-		nfs_port, mount_port, nfs_data.flags);
-}
+__setup("nfsrootdebug", nfs_root_debug);
 #endif
-
-
-static int __init root_nfs_init(void)
-{
-#ifdef NFSROOT_DEBUG
-	nfs_debug |= NFSDBG_ROOT;
-#endif
-
-	/*
-	 * Decode the root directory path name and NFS options from
-	 * the kernel command line. This has to go here in order to
-	 * be able to use the client IP address for the remote root
-	 * directory (necessary for pure RARP booting).
-	 */
-	if (root_nfs_name(nfs_root_name) < 0 ||
-	    root_nfs_addr() < 0)
-		return -1;
-
-#ifdef NFSROOT_DEBUG
-	root_nfs_print();
-#endif
-
-	return 0;
-}
-
 
 /*
  *  Parse NFS server and directory information passed on the kernel
  *  command line.
+ *
+ *  nfsroot=[<server-ip>:]<root-dir>[,<nfs-options>]
+ *
+ *  If there is a "%s" token in the <root-dir> string, it is replaced
+ *  by the ASCII-representation of the client's IP address.
  */
 static int __init nfs_root_setup(char *line)
 {
 	ROOT_DEV = Root_NFS;
+
 	if (line[0] == '/' || line[0] == ',' || (line[0] >= '0' && line[0] <= '9')) {
-		strlcpy(nfs_root_name, line, sizeof(nfs_root_name));
+		strlcpy(nfs_root_parms, line, sizeof(nfs_root_parms));
 	} else {
-		int n = strlen(line) + sizeof(NFS_ROOT) - 1;
-		if (n >= sizeof(nfs_root_name))
-			line[sizeof(nfs_root_name) - sizeof(NFS_ROOT) - 2] = '\0';
-		sprintf(nfs_root_name, NFS_ROOT, line);
+		size_t n = strlen(line) + sizeof(NFS_ROOT) - 1;
+		if (n >= sizeof(nfs_root_parms))
+			line[sizeof(nfs_root_parms) - sizeof(NFS_ROOT) - 2] = '\0';
+		sprintf(nfs_root_parms, NFS_ROOT, line);
 	}
-	root_server_addr = root_nfs_parse_addr(nfs_root_name);
+
+	/*
+	 * Extract the IP address of the NFS server containing our
+	 * root file system, if one was specified.
+	 *
+	 * Note: root_nfs_parse_addr() removes the server-ip from
+	 *	 nfs_root_parms, if it exists.
+	 */
+	root_server_addr = root_nfs_parse_addr(nfs_root_parms);
+
 	return 1;
 }
 
 __setup("nfsroot=", nfs_root_setup);
 
-/***************************************************************************
-
-	       Routines to actually mount the root directory
-
- ***************************************************************************/
-
-/*
- *  Construct sockaddr_in from address and port number.
- */
-static inline void
-set_sockaddr(struct sockaddr_in *sin, __be32 addr, __be16 port)
+static int __init root_nfs_copy(char *dest, const char *src,
+				     const size_t destlen)
 {
-	sin->sin_family = AF_INET;
-	sin->sin_addr.s_addr = addr;
-	sin->sin_port = port;
+	if (strlcpy(dest, src, destlen) > destlen)
+		return -1;
+	return 0;
+}
+
+static int __init root_nfs_cat(char *dest, const char *src,
+				  const size_t destlen)
+{
+	if (strlcat(dest, src, destlen) > destlen)
+		return -1;
+	return 0;
 }
 
 /*
- *  Query server portmapper for the port of a daemon program.
+ * Parse out root export path and mount options from
+ * passed-in string @incoming.
+ *
+ * Copy the export path into @exppath.
  */
-static int __init root_nfs_getport(int program, int version, int proto)
+static int __init root_nfs_parse_options(char *incoming, char *exppath,
+					 const size_t exppathlen)
 {
-	struct sockaddr_in sin;
+	char *p;
 
-	printk(KERN_NOTICE "Looking up port of RPC %d/%d on %pI4\n",
-		program, version, &servaddr);
-	set_sockaddr(&sin, servaddr, 0);
-	return rpcb_getport_sync(&sin, program, version, proto);
-}
+	/*
+	 * Set the NFS remote path
+	 */
+	p = strsep(&incoming, ",");
+	if (*p != '\0' && strcmp(p, "default") != 0)
+		if (root_nfs_copy(exppath, p, exppathlen))
+			return -1;
 
+	/*
+	 * @incoming now points to the rest of the string; if it
+	 * contains something, append it to our root options buffer
+	 */
+	if (incoming != NULL && *incoming != '\0')
+		if (root_nfs_cat(nfs_root_options, incoming,
+						sizeof(nfs_root_options)))
+			return -1;
 
-/*
- *  Use portmapper to find mountd and nfsd port numbers if not overriden
- *  by the user. Use defaults if portmapper is not available.
- *  XXX: Is there any nfs server with no portmapper?
- */
-static int __init root_nfs_ports(void)
-{
-	int port;
-	int nfsd_ver, mountd_ver;
-	int nfsd_port, mountd_port;
-	int proto;
-
-	if (nfs_data.flags & NFS_MOUNT_VER3) {
-		nfsd_ver = NFS3_VERSION;
-		mountd_ver = NFS_MNT3_VERSION;
-		nfsd_port = NFS_PORT;
-		mountd_port = NFS_MNT_PORT;
-	} else {
-		nfsd_ver = NFS2_VERSION;
-		mountd_ver = NFS_MNT_VERSION;
-		nfsd_port = NFS_PORT;
-		mountd_port = NFS_MNT_PORT;
-	}
-
-	proto = (nfs_data.flags & NFS_MOUNT_TCP) ? IPPROTO_TCP : IPPROTO_UDP;
-
-	if (nfs_port < 0) {
-		if ((port = root_nfs_getport(NFS_PROGRAM, nfsd_ver, proto)) < 0) {
-			printk(KERN_ERR "Root-NFS: Unable to get nfsd port "
-					"number from server, using default\n");
-			port = nfsd_port;
-		}
-		nfs_port = port;
-		dprintk("Root-NFS: Portmapper on server returned %d "
-			"as nfsd port\n", port);
-	}
-
-	if ((port = root_nfs_getport(NFS_MNT_PROGRAM, mountd_ver, proto)) < 0) {
-		printk(KERN_ERR "Root-NFS: Unable to get mountd port "
-				"number from server, using default\n");
-		port = mountd_port;
-	}
-	mount_port = port;
-	dprintk("Root-NFS: mountd port is %d\n", port);
+	/*
+	 * Possibly prepare for more options to be appended
+	 */
+	if (nfs_root_options[0] != '\0' &&
+	    nfs_root_options[strlen(nfs_root_options)] != ',')
+		if (root_nfs_cat(nfs_root_options, ",",
+						sizeof(nfs_root_options)))
+			return -1;
 
 	return 0;
 }
 
-
 /*
- *  Get a file handle from the server for the directory which is to be
- *  mounted.
+ *  Decode the export directory path name and NFS options from
+ *  the kernel command line.  This has to be done late in order to
+ *  use a dynamically acquired client IP address for the remote
+ *  root directory path.
+ *
+ *  Returns zero if successful; otherwise -1 is returned.
  */
-static int __init root_nfs_get_handle(void)
+static int __init root_nfs_data(char *cmdline)
 {
-	struct sockaddr_in sin;
-	unsigned int auth_flav_len = 0;
-	struct nfs_mount_request request = {
-		.sap		= (struct sockaddr *)&sin,
-		.salen		= sizeof(sin),
-		.dirpath	= nfs_export_path,
-		.version	= (nfs_data.flags & NFS_MOUNT_VER3) ?
-					NFS_MNT3_VERSION : NFS_MNT_VERSION,
-		.protocol	= (nfs_data.flags & NFS_MOUNT_TCP) ?
-					XPRT_TRANSPORT_TCP : XPRT_TRANSPORT_UDP,
-		.auth_flav_len	= &auth_flav_len,
-	};
-	int status = -ENOMEM;
+	char addr_option[sizeof("nolock,addr=") + INET_ADDRSTRLEN + 1];
+	int len, retval = -1;
+	char *tmp = NULL;
+	const size_t tmplen = sizeof(nfs_export_path);
 
-	request.fh = nfs_alloc_fhandle();
-	if (!request.fh)
-		goto out;
-	set_sockaddr(&sin, servaddr, htons(mount_port));
-	status = nfs_mount(&request);
-	if (status < 0)
-		printk(KERN_ERR "Root-NFS: Server returned error %d "
-				"while mounting %s\n", status, nfs_export_path);
-	else {
-		nfs_data.root.size = request.fh->size;
-		memcpy(&nfs_data.root.data, request.fh->data, request.fh->size);
+	tmp = kzalloc(tmplen, GFP_KERNEL);
+	if (tmp == NULL)
+		goto out_nomem;
+	strcpy(tmp, NFS_ROOT);
+
+	if (root_server_path[0] != '\0') {
+		dprintk("Root-NFS: DHCPv4 option 17: %s\n",
+			root_server_path);
+		if (root_nfs_parse_options(root_server_path, tmp, tmplen))
+			goto out_optionstoolong;
 	}
-	nfs_free_fhandle(request.fh);
+
+	if (cmdline[0] != '\0') {
+		dprintk("Root-NFS: nfsroot=%s\n", cmdline);
+		if (root_nfs_parse_options(cmdline, tmp, tmplen))
+			goto out_optionstoolong;
+	}
+
+	/*
+	 * Append mandatory options for nfsroot so they override
+	 * what has come before
+	 */
+	snprintf(addr_option, sizeof(addr_option), "nolock,addr=%pI4",
+			&servaddr);
+	if (root_nfs_cat(nfs_root_options, addr_option,
+						sizeof(nfs_root_options)))
+		goto out_optionstoolong;
+
+	/*
+	 * Set up nfs_root_device.  For NFS mounts, this looks like
+	 *
+	 *	server:/path
+	 *
+	 * At this point, utsname()->nodename contains our local
+	 * IP address or hostname, set by ipconfig.  If "%s" exists
+	 * in tmp, substitute the nodename, then shovel the whole
+	 * mess into nfs_root_device.
+	 */
+	len = snprintf(nfs_export_path, sizeof(nfs_export_path),
+				tmp, utsname()->nodename);
+	if (len > (int)sizeof(nfs_export_path))
+		goto out_devnametoolong;
+	len = snprintf(nfs_root_device, sizeof(nfs_root_device),
+				"%pI4:%s", &servaddr, nfs_export_path);
+	if (len > (int)sizeof(nfs_root_device))
+		goto out_devnametoolong;
+
+	retval = 0;
+
 out:
-	return status;
+	kfree(tmp);
+	return retval;
+out_nomem:
+	printk(KERN_ERR "Root-NFS: could not allocate memory\n");
+	goto out;
+out_optionstoolong:
+	printk(KERN_ERR "Root-NFS: mount options string too long\n");
+	goto out;
+out_devnametoolong:
+	printk(KERN_ERR "Root-NFS: root device name too long.\n");
+	goto out;
 }
 
-/*
- *  Get the NFS port numbers and file handle, and return the prepared 'data'
- *  argument for mount() if everything went OK. Return NULL otherwise.
+/**
+ * nfs_root_data - Return prepared 'data' for NFSROOT mount
+ * @root_device: OUT: address of string containing NFSROOT device
+ * @root_data: OUT: address of string containing NFSROOT mount options
+ *
+ * Returns zero and sets @root_device and @root_data if successful,
+ * otherwise -1 is returned.
  */
-void * __init nfs_root_data(void)
+int __init nfs_root_data(char **root_device, char **root_data)
 {
-	if (root_nfs_init() < 0
-	 || root_nfs_ports() < 0
-	 || root_nfs_get_handle() < 0)
-		return NULL;
-	set_sockaddr((struct sockaddr_in *) &nfs_data.addr, servaddr, htons(nfs_port));
-	return (void*)&nfs_data;
+	servaddr = root_server_addr;
+	if (servaddr == htonl(INADDR_NONE)) {
+		printk(KERN_ERR "Root-NFS: no NFS server address\n");
+		return -1;
+	}
+
+	if (root_nfs_data(nfs_root_parms) < 0)
+		return -1;
+
+	*root_device = nfs_root_device;
+	*root_data = nfs_root_options;
+	return 0;
 }

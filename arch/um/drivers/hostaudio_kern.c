@@ -8,7 +8,7 @@
 #include "linux/slab.h"
 #include "linux/sound.h"
 #include "linux/soundcard.h"
-#include "linux/smp_lock.h"
+#include "linux/mutex.h"
 #include "asm/uaccess.h"
 #include "init.h"
 #include "os.h"
@@ -40,6 +40,11 @@ static char *mixer = HOSTAUDIO_DEV_MIXER;
 "    This is used to specify the host mixer device to the hostaudio driver.\n"\
 "    The default is \"" HOSTAUDIO_DEV_MIXER "\".\n\n"
 
+module_param(dsp, charp, 0644);
+MODULE_PARM_DESC(dsp, DSP_HELP);
+module_param(mixer, charp, 0644);
+MODULE_PARM_DESC(mixer, MIXER_HELP);
+
 #ifndef MODULE
 static int set_dsp(char *name, int *add)
 {
@@ -56,16 +61,9 @@ static int set_mixer(char *name, int *add)
 }
 
 __uml_setup("mixer=", set_mixer, "mixer=<mixer device>\n" MIXER_HELP);
-
-#else /*MODULE*/
-
-module_param(dsp, charp, 0644);
-MODULE_PARM_DESC(dsp, DSP_HELP);
-
-module_param(mixer, charp, 0644);
-MODULE_PARM_DESC(mixer, MIXER_HELP);
-
 #endif
+
+static DEFINE_MUTEX(hostaudio_mutex);
 
 /* /dev/dsp file operations */
 
@@ -202,9 +200,9 @@ static int hostaudio_open(struct inode *inode, struct file *file)
 		w = 1;
 
 	kparam_block_sysfs_write(dsp);
-	lock_kernel();
+	mutex_lock(&hostaudio_mutex);
 	ret = os_open_file(dsp, of_set_rw(OPENFLAGS(), r, w), 0);
-	unlock_kernel();
+	mutex_unlock(&hostaudio_mutex);
 	kparam_unblock_sysfs_write(dsp);
 
 	if (ret < 0) {
@@ -263,9 +261,9 @@ static int hostmixer_open_mixdev(struct inode *inode, struct file *file)
 		w = 1;
 
 	kparam_block_sysfs_write(mixer);
-	lock_kernel();
+	mutex_lock(&hostaudio_mutex);
 	ret = os_open_file(mixer, of_set_rw(OPENFLAGS(), r, w), 0);
-	unlock_kernel();
+	mutex_unlock(&hostaudio_mutex);
 	kparam_unblock_sysfs_write(mixer);
 
 	if (ret < 0) {

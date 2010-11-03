@@ -224,7 +224,8 @@ static void show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
 	/* We don't show the stack guard page in /proc/maps */
 	start = vma->vm_start;
 	if (vma->vm_flags & VM_GROWSDOWN)
-		start += PAGE_SIZE;
+		if (!vma_stack_continue(vma->vm_prev, vma->vm_start))
+			start += PAGE_SIZE;
 
 	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
 			start,
@@ -326,6 +327,7 @@ struct mem_size_stats {
 	unsigned long private_clean;
 	unsigned long private_dirty;
 	unsigned long referenced;
+	unsigned long anonymous;
 	unsigned long swap;
 	u64 pss;
 };
@@ -356,19 +358,22 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 		if (!page)
 			continue;
 
+		if (PageAnon(page))
+			mss->anonymous += PAGE_SIZE;
+
 		mss->resident += PAGE_SIZE;
 		/* Accumulate the size in pages that have been accessed. */
 		if (pte_young(ptent) || PageReferenced(page))
 			mss->referenced += PAGE_SIZE;
 		mapcount = page_mapcount(page);
 		if (mapcount >= 2) {
-			if (pte_dirty(ptent))
+			if (pte_dirty(ptent) || PageDirty(page))
 				mss->shared_dirty += PAGE_SIZE;
 			else
 				mss->shared_clean += PAGE_SIZE;
 			mss->pss += (PAGE_SIZE << PSS_SHIFT) / mapcount;
 		} else {
-			if (pte_dirty(ptent))
+			if (pte_dirty(ptent) || PageDirty(page))
 				mss->private_dirty += PAGE_SIZE;
 			else
 				mss->private_clean += PAGE_SIZE;
@@ -409,6 +414,7 @@ static int show_smap(struct seq_file *m, void *v)
 		   "Private_Clean:  %8lu kB\n"
 		   "Private_Dirty:  %8lu kB\n"
 		   "Referenced:     %8lu kB\n"
+		   "Anonymous:      %8lu kB\n"
 		   "Swap:           %8lu kB\n"
 		   "KernelPageSize: %8lu kB\n"
 		   "MMUPageSize:    %8lu kB\n",
@@ -420,6 +426,7 @@ static int show_smap(struct seq_file *m, void *v)
 		   mss.private_clean >> 10,
 		   mss.private_dirty >> 10,
 		   mss.referenced >> 10,
+		   mss.anonymous >> 10,
 		   mss.swap >> 10,
 		   vma_kernel_pagesize(vma) >> 10,
 		   vma_mmu_pagesize(vma) >> 10);
@@ -538,6 +545,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 
 const struct file_operations proc_clear_refs_operations = {
 	.write		= clear_refs_write,
+	.llseek		= noop_llseek,
 };
 
 struct pagemapread {

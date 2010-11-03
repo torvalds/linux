@@ -385,7 +385,7 @@ struct snd_soc_jack_gpio {
 	int invert;
 	int debounce_time;
 	struct snd_soc_jack *jack;
-	struct work_struct work;
+	struct delayed_work work;
 
 	int (*jack_status_check)(void);
 };
@@ -442,6 +442,7 @@ struct snd_soc_codec {
 	unsigned int suspended:1; /* Codec is in suspend PM state */
 	unsigned int probed:1; /* Codec has been probed */
 	unsigned int ac97_registered:1; /* Codec has been AC97 registered */
+	unsigned int ac97_created:1; /* Codec has been created by SoC */
 	unsigned int sysfs_registered:1; /* codec has been sysfs registered */
 
 	/* codec IO */

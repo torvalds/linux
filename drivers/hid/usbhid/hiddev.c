@@ -67,8 +67,6 @@ struct hiddev_list {
 	struct mutex thread_lock;
 };
 
-static struct usb_driver hiddev_driver;
-
 /*
  * Find a report, given the report's type and ID.  The ID can be specified
  * indirectly by REPORT_ID_FIRST (which returns the first report of the given
@@ -266,13 +264,15 @@ static int hiddev_open(struct inode *inode, struct file *file)
 {
 	struct hiddev_list *list;
 	struct usb_interface *intf;
+	struct hid_device *hid;
 	struct hiddev *hiddev;
 	int res;
 
-	intf = usb_find_interface(&hiddev_driver, iminor(inode));
+	intf = usbhid_find_interface(iminor(inode));
 	if (!intf)
 		return -ENODEV;
-	hiddev = usb_get_intfdata(intf);
+	hid = usb_get_intfdata(intf);
+	hiddev = hid->hiddev;
 
 	if (!(list = kzalloc(sizeof(struct hiddev_list), GFP_KERNEL)))
 		return -ENOMEM;
@@ -587,7 +587,7 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct hiddev_list *list = file->private_data;
 	struct hiddev *hiddev = list->hiddev;
 	struct hid_device *hid = hiddev->hid;
-	struct usb_device *dev = hid_to_usb_dev(hid);
+	struct usb_device *dev;
 	struct hiddev_collection_info cinfo;
 	struct hiddev_report_info rinfo;
 	struct hiddev_field_info finfo;
@@ -601,8 +601,10 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	/* Called without BKL by compat methods so no BKL taken */
 
 	/* FIXME: Who or what stop this racing with a disconnect ?? */
-	if (!hiddev->exist)
+	if (!hiddev->exist || !hid)
 		return -EIO;
+
+	dev = hid_to_usb_dev(hid);
 
 	switch (cmd) {
 
@@ -843,6 +845,7 @@ static const struct file_operations hiddev_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= hiddev_compat_ioctl,
 #endif
+	.llseek		= noop_llseek,
 };
 
 static char *hiddev_devnode(struct device *dev, mode_t *mode)
@@ -888,7 +891,6 @@ int hiddev_connect(struct hid_device *hid, unsigned int force)
 	hid->hiddev = hiddev;
 	hiddev->hid = hid;
 	hiddev->exist = 1;
-	usb_set_intfdata(usbhid->intf, usbhid);
 	retval = usb_register_dev(usbhid->intf, &hiddev_class);
 	if (retval) {
 		err_hid("Not able to get a minor for this device.");
@@ -921,42 +923,4 @@ void hiddev_disconnect(struct hid_device *hid)
 	} else {
 		kfree(hiddev);
 	}
-}
-
-/* Currently this driver is a USB driver.  It's not a conventional one in
- * the sense that it doesn't probe at the USB level.  Instead it waits to
- * be connected by HID through the hiddev_connect / hiddev_disconnect
- * routines.  The reason to register as a USB device is to gain part of the
- * minor number space from the USB major.
- *
- * In theory, should the HID code be generalized to more than one physical
- * medium (say, IEEE 1384), this driver will probably need to register its
- * own major number, and in doing so, no longer need to register with USB.
- * At that point the probe routine and hiddev_driver struct below will no
- * longer be useful.
- */
-
-
-/* We never attach in this manner, and rely on HID to connect us.  This
- * is why there is no disconnect routine defined in the usb_driver either.
- */
-static int hiddev_usbd_probe(struct usb_interface *intf,
-			     const struct usb_device_id *hiddev_info)
-{
-	return -ENODEV;
-}
-
-static /* const */ struct usb_driver hiddev_driver = {
-	.name =		"hiddev",
-	.probe =	hiddev_usbd_probe,
-};
-
-int __init hiddev_init(void)
-{
-	return usb_register(&hiddev_driver);
-}
-
-void hiddev_exit(void)
-{
-	usb_deregister(&hiddev_driver);
 }

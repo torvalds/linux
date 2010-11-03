@@ -19,6 +19,7 @@
 #include <plat/cpu.h>
 #include <plat/s5p6440.h>
 #include <plat/s5p6442.h>
+#include <plat/s5p6450.h>
 #include <plat/s5pc100.h>
 #include <plat/s5pv210.h>
 #include <plat/s5pv310.h>
@@ -27,6 +28,7 @@
 
 static const char name_s5p6440[] = "S5P6440";
 static const char name_s5p6442[] = "S5P6442";
+static const char name_s5p6450[] = "S5P6450";
 static const char name_s5pc100[] = "S5PC100";
 static const char name_s5pv210[] = "S5PV210/S5PC110";
 static const char name_s5pv310[] = "S5PV310";
@@ -38,7 +40,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.map_io		= s5p6440_map_io,
 		.init_clocks	= s5p6440_init_clocks,
 		.init_uarts	= s5p6440_init_uarts,
-		.init		= s5p6440_init,
+		.init		= s5p64x0_init,
 		.name		= name_s5p6440,
 	}, {
 		.idcode		= 0x36442000,
@@ -48,6 +50,14 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.init_uarts	= s5p6442_init_uarts,
 		.init		= s5p6442_init,
 		.name		= name_s5p6442,
+	}, {
+		.idcode		= 0x36450000,
+		.idmask		= 0xffffff00,
+		.map_io		= s5p6450_map_io,
+		.init_clocks	= s5p6450_init_clocks,
+		.init_uarts	= s5p6450_init_uarts,
+		.init		= s5p64x0_init,
+		.name		= name_s5p6450,
 	}, {
 		.idcode		= 0x43100000,
 		.idmask		= 0xfffff000,
@@ -89,31 +99,9 @@ static struct map_desc s5p_iodesc[] __initdata = {
 		.length		= SZ_64K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= (unsigned long)S3C_VA_UART,
-		.pfn		= __phys_to_pfn(S3C_PA_UART),
-		.length		= SZ_512K,
-		.type		= MT_DEVICE,
-#ifdef CONFIG_ARM_VIC
-	}, {
-		.virtual	= (unsigned long)VA_VIC0,
-		.pfn		= __phys_to_pfn(S5P_PA_VIC0),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= (unsigned long)VA_VIC1,
-		.pfn		= __phys_to_pfn(S5P_PA_VIC1),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-#endif
-	}, {
 		.virtual	= (unsigned long)S3C_VA_TIMER,
 		.pfn		= __phys_to_pfn(S5P_PA_TIMER),
 		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= (unsigned long)S5P_VA_GPIO,
-		.pfn		= __phys_to_pfn(S5P_PA_GPIO),
-		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S3C_VA_WATCHDOG,

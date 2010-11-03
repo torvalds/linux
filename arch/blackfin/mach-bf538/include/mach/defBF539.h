@@ -32,6 +32,7 @@
 /* System Interrupt Controller (0xFFC00100 - 0xFFC001FF) */
 #define	SWRST			0xFFC00100  /* Software	Reset Register (16-bit) */
 #define	SYSCR			0xFFC00104  /* System Configuration registe */
+#define	SIC_RVECT		0xFFC00108
 #define	SIC_IMASK0		0xFFC0010C  /* Interrupt Mask Register */
 #define	SIC_IAR0		0xFFC00110  /* Interrupt Assignment Register 0 */
 #define	SIC_IAR1		0xFFC00114  /* Interrupt Assignment Register 1 */
@@ -1610,113 +1611,6 @@
 #define	UCEN_P		0x00
 
 
-/* **********  SERIAL PORT MASKS  ********************** */
-/* SPORTx_TCR1 Masks */
-#define	TSPEN		0x0001	/* TX enable  */
-#define	ITCLK		0x0002	/* Internal TX Clock Select  */
-#define	TDTYPE		0x000C	/* TX Data Formatting Select */
-#define	DTYPE_NORM	0x0000		/* Data	Format Normal */
-#define	DTYPE_ULAW	0x0008		/* Compand Using u-Law */
-#define	DTYPE_ALAW	0x000C		/* Compand Using A-Law */
-#define	TLSBIT		0x0010	/* TX Bit Order */
-#define	ITFS		0x0200	/* Internal TX Frame Sync Select  */
-#define	TFSR		0x0400	/* TX Frame Sync Required Select  */
-#define	DITFS		0x0800	/* Data	Independent TX Frame Sync Select  */
-#define	LTFS		0x1000	/* Low TX Frame	Sync Select  */
-#define	LATFS		0x2000	/* Late	TX Frame Sync Select  */
-#define	TCKFE		0x4000	/* TX Clock Falling Edge Select */
-/* SPORTx_RCR1 Deprecated Masks								 */
-#define	TULAW		DTYPE_ULAW		/* Compand Using u-Law */
-#define	TALAW		DTYPE_ALAW			/* Compand Using A-Law */
-
-/* SPORTx_TCR2 Masks */
-#ifdef _MISRA_RULES
-#define	SLEN(x)		((x)&0x1Fu)	/* SPORT TX Word Length	(2 - 31) */
-#else
-#define	SLEN(x)		((x)&0x1F)	/* SPORT TX Word Length	(2 - 31) */
-#endif /* _MISRA_RULES */
-#define	TXSE		0x0100	/*TX Secondary Enable */
-#define	TSFSE		0x0200	/*TX Stereo Frame Sync Enable */
-#define	TRFST		0x0400	/*TX Right-First Data Order  */
-
-/* SPORTx_RCR1 Masks */
-#define	RSPEN		0x0001	/* RX enable  */
-#define	IRCLK		0x0002	/* Internal RX Clock Select  */
-#define	RDTYPE		0x000C	/* RX Data Formatting Select */
-#define	DTYPE_NORM	0x0000		/* no companding */
-#define	DTYPE_ULAW	0x0008		/* Compand Using u-Law */
-#define	DTYPE_ALAW	0x000C		/* Compand Using A-Law */
-#define	RLSBIT		0x0010	/* RX Bit Order */
-#define	IRFS		0x0200	/* Internal RX Frame Sync Select  */
-#define	RFSR		0x0400	/* RX Frame Sync Required Select  */
-#define	LRFS		0x1000	/* Low RX Frame	Sync Select  */
-#define	LARFS		0x2000	/* Late	RX Frame Sync Select  */
-#define	RCKFE		0x4000	/* RX Clock Falling Edge Select */
-/* SPORTx_RCR1 Deprecated Masks								 */
-#define	RULAW		DTYPE_ULAW		/* Compand Using u-Law */
-#define	RALAW		DTYPE_ALAW			/* Compand Using A-Law */
-
-/* SPORTx_RCR2 Masks */
-#ifdef _MISRA_RULES
-#define	SLEN(x)		((x)&0x1Fu)	/* SPORT RX Word Length	(2 - 31) */
-#else
-#define	SLEN(x)		((x)&0x1F)	/* SPORT RX Word Length	(2 - 31) */
-#endif /* _MISRA_RULES */
-#define	RXSE		0x0100	/*RX Secondary Enable */
-#define	RSFSE		0x0200	/*RX Stereo Frame Sync Enable */
-#define	RRFST		0x0400	/*Right-First Data Order  */
-
-/*SPORTx_STAT Masks */
-#define	RXNE		0x0001		/*RX FIFO Not Empty Status */
-#define	RUVF		0x0002		/*RX Underflow Status */
-#define	ROVF		0x0004		/*RX Overflow Status */
-#define	TXF			0x0008		/*TX FIFO Full Status */
-#define	TUVF		0x0010		/*TX Underflow Status */
-#define	TOVF		0x0020		/*TX Overflow Status */
-#define	TXHRE		0x0040		/*TX Hold Register Empty */
-
-/*SPORTx_MCMC1 Masks */
-#define	WOFF			0x000003FF	/*Multichannel Window Offset Field */
-/* SPORTx_MCMC1	Macros								 */
-#ifdef _MISRA_RULES
-#define	SET_WOFF(x)		((x) & 0x3FFu)	/* Multichannel	Window Offset Field */
-/* Only	use SET_WSIZE Macro With Logic OR While	Setting	Lower Order Bits */
-#define	SET_WSIZE(x)	(((((x)>>0x3)-1u)&0xFu)	<< 0xC)	/* Multichannel	Window Size = (x/8)-1 */
-#else
-#define	SET_WOFF(x)		((x) & 0x3FF)	/* Multichannel	Window Offset Field */
-/* Only	use SET_WSIZE Macro With Logic OR While	Setting	Lower Order Bits */
-#define	SET_WSIZE(x)	(((((x)>>0x3)-1)&0xF) << 0xC)	/* Multichannel	Window Size = (x/8)-1 */
-#endif /* _MISRA_RULES */
-
-
-/*SPORTx_MCMC2 Masks */
-#define	MCCRM		0x0003	/*Multichannel Clock Recovery Mode */
-#define	REC_BYPASS	0x0000		/* Bypass Mode (No Clock Recovery) */
-#define	REC_2FROM4	0x0002		/* Recover 2 MHz Clock from 4 MHz Clock */
-#define	REC_8FROM16	0x0003		/* Recover 8 MHz Clock from 16 MHz Clock */
-#define	MCDTXPE		0x0004	/*Multichannel DMA Transmit Packing */
-#define	MCDRXPE		0x0008	/*Multichannel DMA Receive Packing */
-#define	MCMEN		0x0010	/*Multichannel Frame Mode Enable */
-#define	FSDR		0x0080	/*Multichannel Frame Sync to Data Relationship */
-#define	MFD			0xF000	/*Multichannel Frame Delay    */
-#define	MFD_0		0x0000		/* Multichannel	Frame Delay = 0 */
-#define	MFD_1		0x1000		/* Multichannel	Frame Delay = 1 */
-#define	MFD_2		0x2000		/* Multichannel	Frame Delay = 2 */
-#define	MFD_3		0x3000		/* Multichannel	Frame Delay = 3 */
-#define	MFD_4		0x4000		/* Multichannel	Frame Delay = 4 */
-#define	MFD_5		0x5000		/* Multichannel	Frame Delay = 5 */
-#define	MFD_6		0x6000		/* Multichannel	Frame Delay = 6 */
-#define	MFD_7		0x7000		/* Multichannel	Frame Delay = 7 */
-#define	MFD_8		0x8000		/* Multichannel	Frame Delay = 8 */
-#define	MFD_9		0x9000		/* Multichannel	Frame Delay = 9 */
-#define	MFD_10		0xA000		/* Multichannel	Frame Delay = 10 */
-#define	MFD_11		0xB000		/* Multichannel	Frame Delay = 11 */
-#define	MFD_12		0xC000		/* Multichannel	Frame Delay = 12 */
-#define	MFD_13		0xD000		/* Multichannel	Frame Delay = 13 */
-#define	MFD_14		0xE000		/* Multichannel	Frame Delay = 14 */
-#define	MFD_15		0xF000		/* Multichannel	Frame Delay = 15 */
-
-
 /*  *********  PARALLEL	PERIPHERAL INTERFACE (PPI) MASKS ****************   */
 /*  PPI_CONTROL	Masks	      */
 #define	PORT_EN		0x0001	/* PPI Port Enable  */
@@ -2000,78 +1894,6 @@
 #define	PE13_P	0xD
 #define	PE14_P	0xE
 #define	PE15_P	0xF
-
-
-/* ***********	SERIAL PERIPHERAL INTERFACE (SPI) MASKS	 **************** */
-/* SPIx_CTL Masks */
-#define	TIMOD		0x0003		/* Transfer Initiate Mode */
-#define	RDBR_CORE	0x0000		/*		RDBR Read Initiates, IRQ When RDBR Full */
-#define	TDBR_CORE	0x0001		/*		TDBR Write Initiates, IRQ When TDBR Empty */
-#define	RDBR_DMA	0x0002		/*		DMA Read, DMA Until FIFO Empty */
-#define	TDBR_DMA	0x0003		/*		DMA Write, DMA Until FIFO Full */
-#define	SZ			0x0004		/* Send	Zero (When TDBR	Empty, Send Zero/Last*) */
-#define	GM			0x0008		/* Get More (When RDBR Full, Overwrite/Discard*) */
-#define	PSSE		0x0010		/* Slave-Select	Input Enable */
-#define	EMISO		0x0020		/* Enable MISO As Output */
-#define	SIZE		0x0100		/* Size	of Words (16/8*	Bits) */
-#define	LSBF		0x0200		/* LSB First			 */
-#define	CPHA		0x0400		/* Clock Phase			 */
-#define	CPOL		0x0800		/* Clock Polarity		 */
-#define	MSTR		0x1000		/* Master/Slave*		 */
-#define	WOM			0x2000		/* Write Open Drain Master */
-#define	SPE			0x4000		/* SPI Enable			 */
-
-/* SPIx_FLG Masks */
-#define	FLS1	0x0002	/* Enables (=1)	SPI_FLOUT1 as flag output for SPI Slave-select */
-#define	FLS2	0x0004	/* Enables (=1)	SPI_FLOUT2 as flag output for SPI Slave-select */
-#define	FLS3	0x0008	/* Enables (=1)	SPI_FLOUT3 as flag output for SPI Slave-select */
-#define	FLS4	0x0010	/* Enables (=1)	SPI_FLOUT4 as flag output for SPI Slave-select */
-#define	FLS5	0x0020	/* Enables (=1)	SPI_FLOUT5 as flag output for SPI Slave-select */
-#define	FLS6	0x0040	/* Enables (=1)	SPI_FLOUT6 as flag output for SPI Slave-select */
-#define	FLS7	0x0080	/* Enables (=1)	SPI_FLOUT7 as flag output for SPI Slave-select */
-
-#define	FLG1	0x0200	/* Activates (=0) SPI_FLOUT1 as	flag output for	SPI Slave-select  */
-#define	FLG2	0x0400	/* Activates (=0) SPI_FLOUT2 as	flag output for	SPI Slave-select */
-#define	FLG3	0x0800	/* Activates (=0) SPI_FLOUT3 as	flag output for	SPI Slave-select  */
-#define	FLG4	0x1000	/* Activates (=0) SPI_FLOUT4 as	flag output for	SPI Slave-select  */
-#define	FLG5	0x2000	/* Activates (=0) SPI_FLOUT5 as	flag output for	SPI Slave-select  */
-#define	FLG6	0x4000	/* Activates (=0) SPI_FLOUT6 as	flag output for	SPI Slave-select  */
-#define	FLG7	0x8000	/* Activates (=0) SPI_FLOUT7 as	flag output for	SPI Slave-select */
-
-/* SPIx_FLG Bit	Positions */
-#define	FLS1_P	0x0001	/* Enables (=1)	SPI_FLOUT1 as flag output for SPI Slave-select */
-#define	FLS2_P	0x0002	/* Enables (=1)	SPI_FLOUT2 as flag output for SPI Slave-select */
-#define	FLS3_P	0x0003	/* Enables (=1)	SPI_FLOUT3 as flag output for SPI Slave-select */
-#define	FLS4_P	0x0004	/* Enables (=1)	SPI_FLOUT4 as flag output for SPI Slave-select */
-#define	FLS5_P	0x0005	/* Enables (=1)	SPI_FLOUT5 as flag output for SPI Slave-select */
-#define	FLS6_P	0x0006	/* Enables (=1)	SPI_FLOUT6 as flag output for SPI Slave-select */
-#define	FLS7_P	0x0007	/* Enables (=1)	SPI_FLOUT7 as flag output for SPI Slave-select */
-#define	FLG1_P	0x0009	/* Activates (=0) SPI_FLOUT1 as	flag output for	SPI Slave-select  */
-#define	FLG2_P	0x000A	/* Activates (=0) SPI_FLOUT2 as	flag output for	SPI Slave-select */
-#define	FLG3_P	0x000B	/* Activates (=0) SPI_FLOUT3 as	flag output for	SPI Slave-select  */
-#define	FLG4_P	0x000C	/* Activates (=0) SPI_FLOUT4 as	flag output for	SPI Slave-select  */
-#define	FLG5_P	0x000D	/* Activates (=0) SPI_FLOUT5 as	flag output for	SPI Slave-select  */
-#define	FLG6_P	0x000E	/* Activates (=0) SPI_FLOUT6 as	flag output for	SPI Slave-select  */
-#define	FLG7_P	0x000F	/* Activates (=0) SPI_FLOUT7 as	flag output for	SPI Slave-select */
-
-/* SPIx_STAT Masks */
-#define	SPIF	0x0001	/* Set (=1) when SPI single-word transfer complete */
-#define	MODF	0x0002	/* Set (=1) in a master	device when some other device tries to become master */
-#define	TXE		0x0004	/* Set (=1) when transmission occurs with no new data in SPI_TDBR */
-#define	TXS		0x0008	/* SPI_TDBR Data Buffer	Status (0=Empty, 1=Full) */
-#define	RBSY	0x0010	/* Set (=1) when data is received with RDBR full */
-#define	RXS		0x0020	/* SPI_RDBR Data Buffer	Status (0=Empty, 1=Full)  */
-#define	TXCOL	0x0040	/* When	set (=1), corrupt data may have	been transmitted  */
-
-/* SPIx_FLG Masks										 */
-#define	FLG1E	0xFDFF		/* Activates SPI_FLOUT1	 */
-#define	FLG2E	0xFBFF		/* Activates SPI_FLOUT2	 */
-#define	FLG3E	0xF7FF		/* Activates SPI_FLOUT3	 */
-#define	FLG4E	0xEFFF		/* Activates SPI_FLOUT4	 */
-#define	FLG5E	0xDFFF		/* Activates SPI_FLOUT5	 */
-#define	FLG6E	0xBFFF		/* Activates SPI_FLOUT6	 */
-#define	FLG7E	0x7FFF		/* Activates SPI_FLOUT7	 */
-
 
 /* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS	************* */
 /* EBIU_AMGCTL Masks */

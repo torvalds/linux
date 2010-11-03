@@ -16,7 +16,7 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/interrupt.h>
 #include <linux/buffer_head.h>
 #include <linux/kernel.h>
@@ -45,6 +45,7 @@
 /*
  * file operation structure for tape block frontend
  */
+static DEFINE_MUTEX(tape_block_mutex);
 static int tapeblock_open(struct block_device *, fmode_t);
 static int tapeblock_release(struct gendisk *, fmode_t);
 static int tapeblock_medium_changed(struct gendisk *);
@@ -217,8 +218,7 @@ tapeblock_setup_device(struct tape_device * device)
 	if (!blkdat->request_queue)
 		return -ENOMEM;
 
-	elevator_exit(blkdat->request_queue->elevator);
-	rc = elevator_init(blkdat->request_queue, "noop");
+	rc = elevator_change(blkdat->request_queue, "noop");
 	if (rc)
 		goto cleanup_queue;
 
@@ -362,7 +362,7 @@ tapeblock_open(struct block_device *bdev, fmode_t mode)
 	struct tape_device *	device;
 	int			rc;
 
-	lock_kernel();
+	mutex_lock(&tape_block_mutex);
 	device = tape_get_device(disk->private_data);
 
 	if (device->required_tapemarks) {
@@ -386,14 +386,14 @@ tapeblock_open(struct block_device *bdev, fmode_t mode)
 	 *       is called.
 	 */
 	tape_state_set(device, TS_BLKUSE);
-	unlock_kernel();
+	mutex_unlock(&tape_block_mutex);
 	return 0;
 
 release:
 	tape_release(device);
  put_device:
 	tape_put_device(device);
-	unlock_kernel();
+	mutex_unlock(&tape_block_mutex);
 	return rc;
 }
 
@@ -408,11 +408,11 @@ tapeblock_release(struct gendisk *disk, fmode_t mode)
 {
 	struct tape_device *device = disk->private_data;
  
-	lock_kernel();
+	mutex_lock(&tape_block_mutex);
 	tape_state_set(device, TS_IN_USE);
 	tape_release(device);
 	tape_put_device(device);
-	unlock_kernel();
+	mutex_unlock(&tape_block_mutex);
 
 	return 0;
 }

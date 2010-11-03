@@ -13,6 +13,7 @@
 * Audit and clean up header files folder
 * Use kernel coding style
 * checkpatch.pl fixes
+* allocate ext_mem_pool from consistent memory instead of using ioremap
 
 Please send any patches to Greg Kroah-Hartman <greg@kroah.com>
 and Omar Ramirez Luna <omar.ramirez@ti.com>.

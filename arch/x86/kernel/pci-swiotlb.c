@@ -10,7 +10,8 @@
 #include <asm/iommu.h>
 #include <asm/swiotlb.h>
 #include <asm/dma.h>
-
+#include <asm/xen/swiotlb-xen.h>
+#include <asm/iommu_table.h>
 int swiotlb __read_mostly;
 
 static void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
@@ -41,30 +42,59 @@ static struct dma_map_ops swiotlb_dma_ops = {
 };
 
 /*
- * pci_swiotlb_detect - set swiotlb to 1 if necessary
+ * pci_swiotlb_detect_override - set swiotlb to 1 if necessary
  *
  * This returns non-zero if we are forced to use swiotlb (by the boot
  * option).
  */
-int __init pci_swiotlb_detect(void)
+int __init pci_swiotlb_detect_override(void)
 {
 	int use_swiotlb = swiotlb | swiotlb_force;
 
-	/* don't initialize swiotlb if iommu=off (no_iommu=1) */
-#ifdef CONFIG_X86_64
-	if (!no_iommu && max_pfn > MAX_DMA32_PFN)
-		swiotlb = 1;
-#endif
 	if (swiotlb_force)
 		swiotlb = 1;
 
 	return use_swiotlb;
 }
+IOMMU_INIT_FINISH(pci_swiotlb_detect_override,
+		  pci_xen_swiotlb_detect,
+		  pci_swiotlb_init,
+		  pci_swiotlb_late_init);
+
+/*
+ * if 4GB or more detected (and iommu=off not set) return 1
+ * and set swiotlb to 1.
+ */
+int __init pci_swiotlb_detect_4gb(void)
+{
+	/* don't initialize swiotlb if iommu=off (no_iommu=1) */
+#ifdef CONFIG_X86_64
+	if (!no_iommu && max_pfn > MAX_DMA32_PFN)
+		swiotlb = 1;
+#endif
+	return swiotlb;
+}
+IOMMU_INIT(pci_swiotlb_detect_4gb,
+	   pci_swiotlb_detect_override,
+	   pci_swiotlb_init,
+	   pci_swiotlb_late_init);
 
 void __init pci_swiotlb_init(void)
 {
 	if (swiotlb) {
 		swiotlb_init(0);
 		dma_ops = &swiotlb_dma_ops;
+	}
+}
+
+void __init pci_swiotlb_late_init(void)
+{
+	/* An IOMMU turned us off. */
+	if (!swiotlb)
+		swiotlb_free();
+	else {
+		printk(KERN_INFO "PCI-DMA: "
+		       "Using software bounce buffering for IO (SWIOTLB)\n");
+		swiotlb_print_info();
 	}
 }

@@ -102,7 +102,8 @@ struct ttm_bus_placement {
  */
 
 struct ttm_mem_reg {
-	struct drm_mm_node *mm_node;
+	void *mm_node;
+	unsigned long start;
 	unsigned long size;
 	unsigned long num_pages;
 	uint32_t page_alignment;
@@ -246,9 +247,11 @@ struct ttm_buffer_object {
 
 	atomic_t reserved;
 
-
 	/**
 	 * Members protected by the bo::lock
+	 * In addition, setting sync_obj to anything else
+	 * than NULL requires bo::reserved to be held. This allows for
+	 * checking NULL while reserved but not holding bo::lock.
 	 */
 
 	void *sync_obj_arg;

@@ -217,7 +217,7 @@ xfs_btree_del_cursor(
 	 */
 	for (i = 0; i < cur->bc_nlevels; i++) {
 		if (cur->bc_bufs[i])
-			xfs_btree_setbuf(cur, i, NULL);
+			xfs_trans_brelse(cur->bc_tp, cur->bc_bufs[i]);
 		else if (!error)
 			break;
 	}
@@ -656,7 +656,7 @@ xfs_btree_reada_bufl(
 
 	ASSERT(fsbno != NULLFSBLOCK);
 	d = XFS_FSB_TO_DADDR(mp, fsbno);
-	xfs_baread(mp->m_ddev_targp, d, mp->m_bsize * count);
+	xfs_buf_readahead(mp->m_ddev_targp, d, mp->m_bsize * count);
 }
 
 /*
@@ -676,7 +676,7 @@ xfs_btree_reada_bufs(
 	ASSERT(agno != NULLAGNUMBER);
 	ASSERT(agbno != NULLAGBLOCK);
 	d = XFS_AGB_TO_DADDR(mp, agno, agbno);
-	xfs_baread(mp->m_ddev_targp, d, mp->m_bsize * count);
+	xfs_buf_readahead(mp->m_ddev_targp, d, mp->m_bsize * count);
 }
 
 STATIC int
@@ -763,22 +763,19 @@ xfs_btree_readahead(
  * Set the buffer for level "lev" in the cursor to bp, releasing
  * any previous buffer.
  */
-void
+STATIC void
 xfs_btree_setbuf(
 	xfs_btree_cur_t		*cur,	/* btree cursor */
 	int			lev,	/* level in btree */
 	xfs_buf_t		*bp)	/* new buffer to set */
 {
 	struct xfs_btree_block	*b;	/* btree block */
-	xfs_buf_t		*obp;	/* old buffer pointer */
 
-	obp = cur->bc_bufs[lev];
-	if (obp)
-		xfs_trans_brelse(cur->bc_tp, obp);
+	if (cur->bc_bufs[lev])
+		xfs_trans_brelse(cur->bc_tp, cur->bc_bufs[lev]);
 	cur->bc_bufs[lev] = bp;
 	cur->bc_ra[lev] = 0;
-	if (!bp)
-		return;
+
 	b = XFS_BUF_TO_BLOCK(bp);
 	if (cur->bc_flags & XFS_BTREE_LONG_PTRS) {
 		if (be64_to_cpu(b->bb_u.l.bb_leftsib) == NULLDFSBNO)
@@ -3011,6 +3008,43 @@ out0:
 	return 0;
 }
 
+/*
+ * Kill the current root node, and replace it with it's only child node.
+ */
+STATIC int
+xfs_btree_kill_root(
+	struct xfs_btree_cur	*cur,
+	struct xfs_buf		*bp,
+	int			level,
+	union xfs_btree_ptr	*newroot)
+{
+	int			error;
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+	XFS_BTREE_STATS_INC(cur, killroot);
+
+	/*
+	 * Update the root pointer, decreasing the level by 1 and then
+	 * free the old root.
+	 */
+	cur->bc_ops->set_root(cur, newroot, -1);
+
+	error = cur->bc_ops->free_block(cur, bp);
+	if (error) {
+		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+		return error;
+	}
+
+	XFS_BTREE_STATS_INC(cur, free);
+
+	cur->bc_bufs[level] = NULL;
+	cur->bc_ra[level] = 0;
+	cur->bc_nlevels--;
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	return 0;
+}
+
 STATIC int
 xfs_btree_dec_cursor(
 	struct xfs_btree_cur	*cur,
@@ -3195,7 +3229,7 @@ xfs_btree_delrec(
 			 * Make it the new root of the btree.
 			 */
 			pp = xfs_btree_ptr_addr(cur, 1, block);
-			error = cur->bc_ops->kill_root(cur, bp, level, pp);
+			error = xfs_btree_kill_root(cur, bp, level, pp);
 			if (error)
 				goto error0;
 		} else if (level > 0) {

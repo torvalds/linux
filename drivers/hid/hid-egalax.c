@@ -31,7 +31,7 @@ struct egalax_data {
 	bool first;		/* is this the first finger in the frame? */
 	bool valid;		/* valid finger data, or just placeholder? */
 	bool activity;		/* at least one active finger previously? */
-	__u16 lastx, lasty;	/* latest valid (x, y) in the frame */
+	__u16 lastx, lasty, lastz;	/* latest valid (x, y, z) in the frame */
 };
 
 static int egalax_input_mapping(struct hid_device *hdev, struct hid_input *hi,
@@ -79,6 +79,10 @@ static int egalax_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		case HID_DG_TIPPRESSURE:
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_PRESSURE);
+			/* touchscreen emulation */
+			input_set_abs_params(hi->input, ABS_PRESSURE,
+						field->logical_minimum,
+						field->logical_maximum, 0, 0);
 			return 1;
 		}
 		return 0;
@@ -109,8 +113,8 @@ static void egalax_filter_event(struct egalax_data *td, struct input_dev *input)
 	if (td->valid) {
 		/* emit multitouch events */
 		input_event(input, EV_ABS, ABS_MT_TRACKING_ID, td->id);
-		input_event(input, EV_ABS, ABS_MT_POSITION_X, td->x);
-		input_event(input, EV_ABS, ABS_MT_POSITION_Y, td->y);
+		input_event(input, EV_ABS, ABS_MT_POSITION_X, td->x >> 3);
+		input_event(input, EV_ABS, ABS_MT_POSITION_Y, td->y >> 3);
 		input_event(input, EV_ABS, ABS_MT_PRESSURE, td->z);
 
 		input_mt_sync(input);
@@ -121,6 +125,7 @@ static void egalax_filter_event(struct egalax_data *td, struct input_dev *input)
 		 */
 		td->lastx = td->x;
 		td->lasty = td->y;
+		td->lastz = td->z;
 	}
 
 	/*
@@ -129,8 +134,9 @@ static void egalax_filter_event(struct egalax_data *td, struct input_dev *input)
 	 * the oldest on the panel, the one we want for single touch
 	 */
 	if (!td->first && td->activity) {
-		input_event(input, EV_ABS, ABS_X, td->lastx);
-		input_event(input, EV_ABS, ABS_Y, td->lasty);
+		input_event(input, EV_ABS, ABS_X, td->lastx >> 3);
+		input_event(input, EV_ABS, ABS_Y, td->lasty >> 3);
+ 		input_event(input, EV_ABS, ABS_PRESSURE, td->lastz);
 	}
 
 	if (!td->valid) {
@@ -159,6 +165,13 @@ static int egalax_event(struct hid_device *hid, struct hid_field *field,
 {
 	struct egalax_data *td = hid_get_drvdata(hid);
 
+	/* Note, eGalax has two product lines: the first is resistive and
+	 * uses a standard parallel multitouch protocol (product ID ==
+	 * 48xx).  The second is capacitive and uses an unusual "serial"
+	 * protocol with a different message for each multitouch finger
+	 * (product ID == 72xx).  We do not yet generate a correct event
+	 * sequence for the capacitive/serial protocol.
+	 */
 	if (hid->claimed & HID_CLAIMED_INPUT) {
 		struct input_dev *input = field->hidinput->input;
 
@@ -246,6 +259,8 @@ static void egalax_remove(struct hid_device *hdev)
 static const struct hid_device_id egalax_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
 			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH1) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, egalax_devices);

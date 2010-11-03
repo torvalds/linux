@@ -36,6 +36,10 @@ config SND_S3C_SOC_AC97
 	tristate
 	select SND_SOC_AC97_BUS
 
+config SND_S5P_SOC_SPDIF
+	tristate
+	select SND_SOC_SPDIF
+
 config SND_S3C24XX_SOC_NEO1973_WM8753
 	tristate "SoC I2S Audio support for NEO1973 - WM8753"
 	depends on SND_S3C24XX_SOC && MACH_NEO1973_GTA01
@@ -157,3 +161,10 @@ config SND_S5PV210_SOC_GONI_WM8994
 	help
 	  Say Y if you want to add support for SoC audio on goni
 	  with the WM8994.
+
+config SND_SOC_SMDK_SPDIF
+	tristate "SoC S/PDIF Audio support for SMDK"
+	depends on SND_S3C24XX_SOC && (MACH_SMDKC100 || MACH_SMDKC110 || MACH_SMDKV210)
+	select SND_S5P_SOC_SPDIF
+	help
+	  Say Y if you want to add support for SoC S/PDIF audio on the SMDK.

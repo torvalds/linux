@@ -55,7 +55,7 @@ EXPORT_SYMBOL(acpi_root_dir);
 static int set_power_nocheck(const struct dmi_system_id *id)
 {
 	printk(KERN_NOTICE PREFIX "%s detected - "
-		"disable power check in power transistion\n", id->ident);
+		"disable power check in power transition\n", id->ident);
 	acpi_power_nocheck = 1;
 	return 0;
 }
@@ -80,23 +80,15 @@ static int set_copy_dsdt(const struct dmi_system_id *id)
 
 static struct dmi_system_id dsdt_dmi_table[] __initdata = {
 	/*
-	 * Insyde BIOS on some TOSHIBA machines corrupt the DSDT.
+	 * Invoke DSDT corruption work-around on all Toshiba Satellite.
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=14679
 	 */
 	{
 	 .callback = set_copy_dsdt,
-	 .ident = "TOSHIBA Satellite A505",
+	 .ident = "TOSHIBA Satellite",
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Satellite A505"),
-		},
-	},
-	{
-	 .callback = set_copy_dsdt,
-	 .ident = "TOSHIBA Satellite L505D",
-	 .matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Satellite L505D"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Satellite"),
 		},
 	},
 	{}
@@ -943,6 +935,12 @@ static int __init acpi_bus_init(void)
 		goto error1;
 	}
 
+	/*
+	 * _PDC control method may load dynamic SSDT tables,
+	 * and we need to install the table handler before that.
+	 */
+	acpi_sysfs_init();
+
 	acpi_early_processor_set_pdc();
 
 	/*
@@ -1027,14 +1025,13 @@ static int __init acpi_init(void)
 
 	/*
 	 * If the laptop falls into the DMI check table, the power state check
-	 * will be disabled in the course of device power transistion.
+	 * will be disabled in the course of device power transition.
 	 */
 	dmi_check_system(power_nocheck_dmi_table);
 
 	acpi_scan_init();
 	acpi_ec_init();
 	acpi_power_init();
-	acpi_sysfs_init();
 	acpi_debugfs_init();
 	acpi_sleep_proc_init();
 	acpi_wakeup_device_init();

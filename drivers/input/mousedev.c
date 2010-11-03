@@ -138,8 +138,8 @@ static void mousedev_touchpad_event(struct input_dev *dev,
 
 		fx(0) = value;
 		if (mousedev->touch && mousedev->pkt_count >= 2) {
-			size = input_abs_get_min(dev, ABS_X) -
-					input_abs_get_max(dev, ABS_X);
+			size = input_abs_get_max(dev, ABS_X) -
+					input_abs_get_min(dev, ABS_X);
 			if (size == 0)
 				size = 256 * 2;
 
@@ -155,8 +155,8 @@ static void mousedev_touchpad_event(struct input_dev *dev,
 		fy(0) = value;
 		if (mousedev->touch && mousedev->pkt_count >= 2) {
 			/* use X size for ABS_Y to keep the same scale */
-			size = input_abs_get_min(dev, ABS_X) -
-					input_abs_get_max(dev, ABS_X);
+			size = input_abs_get_max(dev, ABS_X) -
+					input_abs_get_min(dev, ABS_X);
 			if (size == 0)
 				size = 256 * 2;
 
@@ -792,6 +792,7 @@ static const struct file_operations mousedev_fops = {
 	.open =		mousedev_open,
 	.release =	mousedev_release,
 	.fasync =	mousedev_fasync,
+	.llseek = noop_llseek,
 };
 
 static int mousedev_install_chrdev(struct mousedev *mousedev)
@@ -866,7 +867,7 @@ static struct mousedev *mousedev_create(struct input_dev *dev,
 	spin_lock_init(&mousedev->client_lock);
 	mutex_init(&mousedev->mutex);
 	lockdep_set_subclass(&mousedev->mutex,
-			     minor == MOUSEDEV_MIX ? MOUSEDEV_MIX : 0);
+			     minor == MOUSEDEV_MIX ? SINGLE_DEPTH_NESTING : 0);
 	init_waitqueue_head(&mousedev->wait);
 
 	if (minor == MOUSEDEV_MIX)

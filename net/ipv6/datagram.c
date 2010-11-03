@@ -105,9 +105,12 @@ ipv4_connected:
 		if (ipv6_addr_any(&np->saddr))
 			ipv6_addr_set_v4mapped(inet->inet_saddr, &np->saddr);
 
-		if (ipv6_addr_any(&np->rcv_saddr))
+		if (ipv6_addr_any(&np->rcv_saddr)) {
 			ipv6_addr_set_v4mapped(inet->inet_rcv_saddr,
 					       &np->rcv_saddr);
+			if (sk->sk_prot->rehash)
+				sk->sk_prot->rehash(sk);
+		}
 
 		goto out;
 	}
@@ -181,6 +184,8 @@ ipv4_connected:
 	if (ipv6_addr_any(&np->rcv_saddr)) {
 		ipv6_addr_copy(&np->rcv_saddr, &fl.fl6_src);
 		inet->inet_rcv_saddr = LOOPBACK4_IPV6;
+		if (sk->sk_prot->rehash)
+			sk->sk_prot->rehash(sk);
 	}
 
 	ip6_dst_store(sk, dst,
@@ -571,6 +576,25 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 	if (np->rxopt.bits.odstopts && opt->dst1) {
 		u8 *ptr = nh + opt->dst1;
 		put_cmsg(msg, SOL_IPV6, IPV6_2292DSTOPTS, (ptr[1]+1)<<3, ptr);
+	}
+	if (np->rxopt.bits.rxorigdstaddr) {
+		struct sockaddr_in6 sin6;
+		u16 *ports = (u16 *) skb_transport_header(skb);
+
+		if (skb_transport_offset(skb) + 4 <= skb->len) {
+			/* All current transport protocols have the port numbers in the
+			 * first four bytes of the transport header and this function is
+			 * written with this assumption in mind.
+			 */
+
+			sin6.sin6_family = AF_INET6;
+			ipv6_addr_copy(&sin6.sin6_addr, &ipv6_hdr(skb)->daddr);
+			sin6.sin6_port = ports[1];
+			sin6.sin6_flowinfo = 0;
+			sin6.sin6_scope_id = 0;
+
+			put_cmsg(msg, SOL_IPV6, IPV6_ORIGDSTADDR, sizeof(sin6), &sin6);
+		}
 	}
 	return 0;
 }

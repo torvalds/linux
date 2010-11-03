@@ -1024,6 +1024,10 @@ ThinkPad-specific interface.  The driver will disable its native
 backlight brightness control interface if it detects that the standard
 ACPI interface is available in the ThinkPad.
 
+If you want to use the thinkpad-acpi backlight brightness control
+instead of the generic ACPI video backlight brightness control for some
+reason, you should use the acpi_backlight=vendor kernel parameter.
+
 The brightness_enable module parameter can be used to control whether
 the LCD brightness control feature will be enabled when available.
 brightness_enable=0 forces it to be disabled.  brightness_enable=1

@@ -1457,11 +1457,11 @@ hardware_send_packet(struct net_device *dev, void *buf, short length)
 	if (net_debug > 5)
 		printk(KERN_DEBUG "%s: entering hardware_send_packet routine.\n", dev->name);
 
-		/* determine how much of the transmit buffer space is available */
-		if (lp->tx_end > lp->tx_start)
+	/* determine how much of the transmit buffer space is available */
+	if (lp->tx_end > lp->tx_start)
 		tx_available = lp->xmt_ram - (lp->tx_end - lp->tx_start);
-		else if (lp->tx_end < lp->tx_start)
-			tx_available = lp->tx_start - lp->tx_end;
+	else if (lp->tx_end < lp->tx_start)
+		tx_available = lp->tx_start - lp->tx_end;
 	else tx_available = lp->xmt_ram;
 
 	if (((((length + 3) >> 1) << 1) + 2*XMT_HEADER) >= tx_available) {

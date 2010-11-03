@@ -397,6 +397,7 @@ static struct real_driver sx_real_driver = {
 static const struct file_operations sx_fw_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = sx_fw_ioctl,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice sx_fw_device = {

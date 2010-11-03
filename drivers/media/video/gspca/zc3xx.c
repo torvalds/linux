@@ -21,9 +21,7 @@
 
 #define MODULE_NAME "zc3xx"
 
-#ifdef CONFIG_INPUT
 #include <linux/input.h>
-#endif
 #include "gspca.h"
 #include "jpeg.h"
 
@@ -2953,7 +2951,7 @@ static const struct usb_action mc501cb_Initial[] = {
 	{}
 };
 
-static const struct usb_action mc501cb_InitialScale[] = {	 /* 320x240 */
+static const struct usb_action mc501cb_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL}, /* 00,00,01,cc */
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT}, /* 00,02,10,cc */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT}, /* 00,10,01,cc */
@@ -3731,7 +3729,6 @@ static const struct usb_action pas106b_InitialScale[] = {	/* 176x144 */
 	{0xaa, 0x0d, 0x0000},
 	{0xaa, 0x0e, 0x0002},
 	{0xaa, 0x14, 0x0081},
-
 /* Other registers */
 	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
 /* Frame retreiving */
@@ -3785,7 +3782,6 @@ static const struct usb_action pas106b_InitialScale[] = {	/* 176x144 */
 	{0xa0, 0x05, ZC3XX_R185_WINYWIDTH},
 	{0xa0, 0x14, ZC3XX_R186_WINYCENTER},
 	{0xa0, 0x00, ZC3XX_R180_AUTOCORRECTENABLE},
-
 /* Auto exposure and white balance */
 	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},
 	{0xa0, 0x03, ZC3XX_R191_EXPOSURELIMITMID},
@@ -3849,7 +3845,6 @@ static const struct usb_action pas106b_Initial[] = {	/* 352x288 */
 	{0xaa, 0x0d, 0x0000},
 	{0xaa, 0x0e, 0x0002},
 	{0xaa, 0x14, 0x0081},
-
 /* Other registers */
 	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
 /* Frame retreiving */
@@ -5698,7 +5693,7 @@ static u8 reg_r_i(struct gspca_dev *gspca_dev,
 			index, gspca_dev->usb_buf, 1,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r_i err %d", ret);
+		err("reg_r_i err %d", ret);
 		gspca_dev->usb_err = ret;
 		return 0;
 	}
@@ -5730,7 +5725,7 @@ static void reg_w_i(struct gspca_dev *gspca_dev,
 			value, index, NULL, 0,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w_i err %d", ret);
+		err("reg_w_i err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -6309,8 +6304,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 		if (chipset_revision_sensor[i].revision == retword) {
 			sd->chip_revision = retword;
 			send_unknown(gspca_dev, SENSOR_PB0330);
-			return chipset_revision_sensor[i]
-						.internal_sensor_id;
+			return chipset_revision_sensor[i].internal_sensor_id;
 		}
 	}
 
@@ -6503,8 +6497,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				PDEBUG(D_PROBE, "Sensor Tas5130 (VF0250)");
 				break;
 			default:
-				PDEBUG(D_PROBE,
-					"Unknown sensor - set to TAS5130C");
+				warn("Unknown sensor - set to TAS5130C");
 				sd->sensor = SENSOR_TAS5130C;
 			}
 			break;
@@ -6610,7 +6603,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			sd->sensor = SENSOR_OV7620;	/* same sensor (?) */
 			break;
 		default:
-			PDEBUG(D_ERR|D_PROBE, "Unknown sensor %04x", sensor);
+			err("Unknown sensor %04x", sensor);
 			return -EINVAL;
 		}
 	}
@@ -6790,7 +6783,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		/* fall thru */
 	case SENSOR_PAS202B:
 	case SENSOR_PO2030:
-/*		reg_w(gspca_dev, 0x40, ZC3XX_R117_GGAIN);  * (from win traces) */
+/*		reg_w(gspca_dev, 0x40, ZC3XX_R117_GGAIN); in win traces */
 		reg_r(gspca_dev, 0x0180);
 		break;
 	case SENSOR_OV7620:
@@ -6798,7 +6791,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x15, 0x01ae);
 		i2c_read(gspca_dev, 0x13);	/*fixme: returns 0xa3 */
 		i2c_write(gspca_dev, 0x13, 0xa3, 0x00);
-					 /*fixme: returned value to send? */
+					/*fixme: returned value to send? */
 		reg_w(gspca_dev, 0x40, 0x0117);
 		reg_r(gspca_dev, 0x0180);
 		break;
@@ -6841,7 +6834,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		/* remove the webcam's header:
 		 * ff d8 ff fe 00 0e 00 00 ss ss 00 01 ww ww hh hh pp pp
 		 *	- 'ss ss' is the frame sequence number (BE)
-		 * 	- 'ww ww' and 'hh hh' are the window dimensions (BE)
+		 *	- 'ww ww' and 'hh hh' are the window dimensions (BE)
 		 *	- 'pp pp' is the packet sequence number (BE)
 		 */
 		data += 18;
@@ -7007,7 +7000,7 @@ static int sd_get_jcomp(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet data */
 			int len)		/* interrput packet length */
@@ -7035,7 +7028,7 @@ static const struct sd_desc sd_desc = {
 	.querymenu = sd_querymenu,
 	.get_jcomp = sd_get_jcomp,
 	.set_jcomp = sd_set_jcomp,
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	.int_pkt_scan = sd_int_pkt_scan,
 #endif
 };
@@ -7120,18 +7113,12 @@ static struct usb_driver sd_driver = {
 
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

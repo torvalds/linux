@@ -2055,25 +2055,6 @@ ia64_mca_init(void)
 
 	IA64_MCA_DEBUG("%s: registered OS INIT handler with SAL\n", __func__);
 
-	/*
-	 *  Configure the CMCI/P vector and handler. Interrupts for CMC are
-	 *  per-processor, so AP CMC interrupts are setup in smp_callin() (smpboot.c).
-	 */
-	register_percpu_irq(IA64_CMC_VECTOR, &cmci_irqaction);
-	register_percpu_irq(IA64_CMCP_VECTOR, &cmcp_irqaction);
-	ia64_mca_cmc_vector_setup();       /* Setup vector on BSP */
-
-	/* Setup the MCA rendezvous interrupt vector */
-	register_percpu_irq(IA64_MCA_RENDEZ_VECTOR, &mca_rdzv_irqaction);
-
-	/* Setup the MCA wakeup interrupt vector */
-	register_percpu_irq(IA64_MCA_WAKEUP_VECTOR, &mca_wkup_irqaction);
-
-#ifdef CONFIG_ACPI
-	/* Setup the CPEI/P handler */
-	register_percpu_irq(IA64_CPEP_VECTOR, &mca_cpep_irqaction);
-#endif
-
 	/* Initialize the areas set aside by the OS to buffer the
 	 * platform/processor error states for MCA/INIT/CMC
 	 * handling.
@@ -2102,6 +2083,25 @@ ia64_mca_late_init(void)
 {
 	if (!mca_init)
 		return 0;
+
+	/*
+	 *  Configure the CMCI/P vector and handler. Interrupts for CMC are
+	 *  per-processor, so AP CMC interrupts are setup in smp_callin() (smpboot.c).
+	 */
+	register_percpu_irq(IA64_CMC_VECTOR, &cmci_irqaction);
+	register_percpu_irq(IA64_CMCP_VECTOR, &cmcp_irqaction);
+	ia64_mca_cmc_vector_setup();       /* Setup vector on BSP */
+
+	/* Setup the MCA rendezvous interrupt vector */
+	register_percpu_irq(IA64_MCA_RENDEZ_VECTOR, &mca_rdzv_irqaction);
+
+	/* Setup the MCA wakeup interrupt vector */
+	register_percpu_irq(IA64_MCA_WAKEUP_VECTOR, &mca_wkup_irqaction);
+
+#ifdef CONFIG_ACPI
+	/* Setup the CPEI/P handler */
+	register_percpu_irq(IA64_CPEP_VECTOR, &mca_cpep_irqaction);
+#endif
 
 	register_hotcpu_notifier(&mca_cpu_notifier);
 

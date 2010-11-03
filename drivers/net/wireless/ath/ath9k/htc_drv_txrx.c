@@ -78,18 +78,23 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = tx_info->control.sta;
 	struct ath9k_htc_sta *ista;
-	struct ath9k_htc_vif *avp;
 	struct ath9k_htc_tx_ctl tx_ctl;
 	enum htc_endpoint_id epid;
 	u16 qnum;
 	__le16 fc;
 	u8 *tx_fhdr;
-	u8 sta_idx;
+	u8 sta_idx, vif_idx;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 	fc = hdr->frame_control;
 
-	avp = (struct ath9k_htc_vif *) tx_info->control.vif->drv_priv;
+	if (tx_info->control.vif &&
+			(struct ath9k_htc_vif *) tx_info->control.vif->drv_priv)
+		vif_idx = ((struct ath9k_htc_vif *)
+				tx_info->control.vif->drv_priv)->index;
+	else
+		vif_idx = priv->nvifs;
+
 	if (sta) {
 		ista = (struct ath9k_htc_sta *) sta->drv_priv;
 		sta_idx = ista->index;
@@ -106,7 +111,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 		memset(&tx_hdr, 0, sizeof(struct tx_frame_hdr));
 
 		tx_hdr.node_idx = sta_idx;
-		tx_hdr.vif_idx = avp->index;
+		tx_hdr.vif_idx = vif_idx;
 
 		if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
 			tx_ctl.type = ATH9K_HTC_AMPDU;
@@ -169,7 +174,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 		tx_ctl.type = ATH9K_HTC_NORMAL;
 
 		mgmt_hdr.node_idx = sta_idx;
-		mgmt_hdr.vif_idx = avp->index;
+		mgmt_hdr.vif_idx = vif_idx;
 		mgmt_hdr.tidno = 0;
 		mgmt_hdr.flags = 0;
 
@@ -364,8 +369,7 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv)
 		| ATH9K_RX_FILTER_UCAST | ATH9K_RX_FILTER_BCAST
 		| ATH9K_RX_FILTER_MCAST;
 
-	/* If not a STA, enable processing of Probe Requests */
-	if (ah->opmode != NL80211_IFTYPE_STATION)
+	if (priv->rxfilter & FIF_PROBE_REQ)
 		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
 
 	/*
@@ -410,8 +414,7 @@ static void ath9k_htc_opmode_init(struct ath9k_htc_priv *priv)
 	ath9k_hw_setrxfilter(ah, rfilt);
 
 	/* configure bssid mask */
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		ath_hw_setbssidmask(common);
+	ath_hw_setbssidmask(common);
 
 	/* configure operational mode */
 	ath9k_hw_setopmode(ah);

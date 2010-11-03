@@ -374,7 +374,7 @@ static ssize_t iowarrior_write(struct file *file,
 	case USB_DEVICE_ID_CODEMERCS_IOWPV2:
 	case USB_DEVICE_ID_CODEMERCS_IOW40:
 		/* IOW24 and IOW40 use a synchronous call */
-		buf = kmalloc(8, GFP_KERNEL);	/* 8 bytes are enough for both products */
+		buf = kmalloc(count, GFP_KERNEL);
 		if (!buf) {
 			retval = -ENOMEM;
 			goto exit;
@@ -542,7 +542,7 @@ static long iowarrior_ioctl(struct file *file, unsigned int cmd,
 			retval = io_res;
 		else {
 			io_res = copy_to_user(user_buffer, buffer, dev->report_size);
-			if (io_res < 0)
+			if (io_res)
 				retval = -EFAULT;
 		}
 		break;
@@ -574,7 +574,7 @@ static long iowarrior_ioctl(struct file *file, unsigned int cmd,
 			}
 			io_res = copy_to_user((struct iowarrior_info __user *)arg, &info,
 					 sizeof(struct iowarrior_info));
-			if (io_res < 0)
+			if (io_res)
 				retval = -EFAULT;
 			break;
 		}
@@ -730,6 +730,7 @@ static const struct file_operations iowarrior_fops = {
 	.open = iowarrior_open,
 	.release = iowarrior_release,
 	.poll = iowarrior_poll,
+	.llseek = noop_llseek,
 };
 
 static char *iowarrior_devnode(struct device *dev, mode_t *mode)

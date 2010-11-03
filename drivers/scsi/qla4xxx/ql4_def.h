@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
+#include <linux/aer.h>
 
 #include <net/tcp.h>
 #include <scsi/scsi.h>
@@ -35,24 +36,6 @@
 
 #include "ql4_dbg.h"
 #include "ql4_nx.h"
-
-#if defined(CONFIG_PCIEAER)
-#include <linux/aer.h>
-#else
-/* AER releated */
-static inline int pci_enable_pcie_error_reporting(struct pci_dev *dev)
-{
-	return -EINVAL;
-}
-static inline int pci_disable_pcie_error_reporting(struct pci_dev *dev)
-{
-	return -EINVAL;
-}
-static inline int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
-{
-	return -EINVAL;
-}
-#endif
 
 #ifndef PCI_DEVICE_ID_QLOGIC_ISP4010
 #define PCI_DEVICE_ID_QLOGIC_ISP4010	0x4010
@@ -179,6 +162,7 @@ static inline int pci_cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
 #define IOCB_TOV_MARGIN			10
 #define RELOGIN_TOV			18
 #define ISNS_DEREG_TOV			5
+#define HBA_ONLINE_TOV			30
 
 #define MAX_RESET_HA_RETRIES		2
 

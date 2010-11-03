@@ -241,6 +241,10 @@ struct audit_context {
 			pid_t			pid;
 			struct audit_cap_data	cap;
 		} capset;
+		struct {
+			int			fd;
+			int			flags;
+		} mmap;
 	};
 	int fds[2];
 
@@ -1304,6 +1308,10 @@ static void show_special(struct audit_context *context, int *call_panic)
 		audit_log_cap(ab, "cap_pi", &context->capset.cap.inheritable);
 		audit_log_cap(ab, "cap_pp", &context->capset.cap.permitted);
 		audit_log_cap(ab, "cap_pe", &context->capset.cap.effective);
+		break; }
+	case AUDIT_MMAP: {
+		audit_log_format(ab, "fd=%d flags=0x%x", context->mmap.fd,
+				 context->mmap.flags);
 		break; }
 	}
 	audit_log_end(ab);
@@ -2474,6 +2482,14 @@ void __audit_log_capset(pid_t pid,
 	context->capset.cap.inheritable = new->cap_effective;
 	context->capset.cap.permitted   = new->cap_permitted;
 	context->type = AUDIT_CAPSET;
+}
+
+void __audit_mmap_fd(int fd, int flags)
+{
+	struct audit_context *context = current->audit_context;
+	context->mmap.fd = fd;
+	context->mmap.flags = flags;
+	context->type = AUDIT_MMAP;
 }
 
 /**

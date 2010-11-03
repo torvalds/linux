@@ -218,7 +218,7 @@ static struct page *dio_get_page(struct dio *dio)
  * filesystems can use it to hold additional state between get_block calls and
  * dio_complete.
  */
-static int dio_complete(struct dio *dio, loff_t offset, int ret, bool is_async)
+static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret, bool is_async)
 {
 	ssize_t transferred = 0;
 
@@ -634,7 +634,7 @@ static int dio_send_cur_page(struct dio *dio)
 	int ret = 0;
 
 	if (dio->bio) {
-		loff_t cur_offset = dio->block_in_file << dio->blkbits;
+		loff_t cur_offset = dio->cur_page_fs_offset;
 		loff_t bio_next_offset = dio->logical_offset_in_bio +
 			dio->bio->bi_size;
 
@@ -659,7 +659,7 @@ static int dio_send_cur_page(struct dio *dio)
 		 * Submit now if the underlying fs is about to perform a
 		 * metadata read
 		 */
-		if (dio->boundary)
+		else if (dio->boundary)
 			dio_bio_submit(dio);
 	}
 

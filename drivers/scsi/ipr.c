@@ -1096,6 +1096,7 @@ static void ipr_init_res_entry(struct ipr_resource_entry *res,
 		res->bus = cfgtew->u.cfgte->res_addr.bus;
 		res->target = cfgtew->u.cfgte->res_addr.target;
 		res->lun = cfgtew->u.cfgte->res_addr.lun;
+		res->lun_wwn = get_unaligned_be64(cfgtew->u.cfgte->lun_wwn);
 	}
 
 	ipr_update_ata_class(res, proto);
@@ -1142,7 +1143,7 @@ static char *ipr_format_res_path(u8 *res_path, char *buffer, int len)
 	int i;
 	char *p = buffer;
 
-	res_path[0] = '\0';
+	*p = '\0';
 	p += snprintf(p, buffer + len - p, "%02X", res_path[0]);
 	for (i = 1; res_path[i] != 0xff && ((i * 3) < len); i++)
 		p += snprintf(p, buffer + len - p, "-%02X", res_path[i]);
@@ -1670,7 +1671,7 @@ static void ipr_log_enhanced_array_error(struct ipr_ioa_cfg *ioa_cfg,
 
 	array_entry = error->array_member;
 	num_entries = min_t(u32, be32_to_cpu(error->num_entries),
-			    sizeof(error->array_member));
+			    ARRAY_SIZE(error->array_member));
 
 	for (i = 0; i < num_entries; i++, array_entry++) {
 		if (!memcmp(array_entry->vpd.vpd.sn, zero_sn, IPR_SERIAL_NUM_LEN))
@@ -2151,8 +2152,8 @@ static void ipr_log_sis64_array_error(struct ipr_ioa_cfg *ioa_cfg,
 	ipr_err_separator;
 
 	array_entry = error->array_member;
-	num_entries = min_t(u32, be32_to_cpu(error->num_entries),
-			    sizeof(error->array_member));
+	num_entries = min_t(u32, error->num_entries,
+			    ARRAY_SIZE(error->array_member));
 
 	for (i = 0; i < num_entries; i++, array_entry++) {
 
@@ -2166,10 +2167,10 @@ static void ipr_log_sis64_array_error(struct ipr_ioa_cfg *ioa_cfg,
 
 		ipr_err("Array Member %d:\n", i);
 		ipr_log_ext_vpd(&array_entry->vpd);
-		ipr_err("Current Location: %s",
+		ipr_err("Current Location: %s\n",
 			 ipr_format_res_path(array_entry->res_path, buffer,
 					     sizeof(buffer)));
-		ipr_err("Expected Location: %s",
+		ipr_err("Expected Location: %s\n",
 			 ipr_format_res_path(array_entry->expected_res_path,
 					     buffer, sizeof(buffer)));
 
@@ -4089,6 +4090,7 @@ static int ipr_change_queue_type(struct scsi_device *sdev, int tag_type)
 /**
  * ipr_show_adapter_handle - Show the adapter's resource handle for this device
  * @dev:	device struct
+ * @attr:	device attribute structure
  * @buf:	buffer
  *
  * Return value:
@@ -4122,6 +4124,7 @@ static struct device_attribute ipr_adapter_handle_attr = {
  * ipr_show_resource_path - Show the resource path or the resource address for
  *			    this device.
  * @dev:	device struct
+ * @attr:	device attribute structure
  * @buf:	buffer
  *
  * Return value:
@@ -4159,8 +4162,45 @@ static struct device_attribute ipr_resource_path_attr = {
 };
 
 /**
+ * ipr_show_device_id - Show the device_id for this device.
+ * @dev:	device struct
+ * @attr:	device attribute structure
+ * @buf:	buffer
+ *
+ * Return value:
+ *	number of bytes printed to buffer
+ **/
+static ssize_t ipr_show_device_id(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)sdev->host->hostdata;
+	struct ipr_resource_entry *res;
+	unsigned long lock_flags = 0;
+	ssize_t len = -ENXIO;
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	res = (struct ipr_resource_entry *)sdev->hostdata;
+	if (res && ioa_cfg->sis64)
+		len = snprintf(buf, PAGE_SIZE, "0x%llx\n", res->dev_id);
+	else if (res)
+		len = snprintf(buf, PAGE_SIZE, "0x%llx\n", res->lun_wwn);
+
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+	return len;
+}
+
+static struct device_attribute ipr_device_id_attr = {
+	.attr = {
+		.name =		"device_id",
+		.mode =		S_IRUGO,
+	},
+	.show = ipr_show_device_id
+};
+
+/**
  * ipr_show_resource_type - Show the resource type for this device.
  * @dev:	device struct
+ * @attr:	device attribute structure
  * @buf:	buffer
  *
  * Return value:
@@ -4195,6 +4235,7 @@ static struct device_attribute ipr_resource_type_attr = {
 static struct device_attribute *ipr_dev_attrs[] = {
 	&ipr_adapter_handle_attr,
 	&ipr_resource_path_attr,
+	&ipr_device_id_attr,
 	&ipr_resource_type_attr,
 	NULL,
 };
@@ -4898,39 +4939,15 @@ static int ipr_eh_abort(struct scsi_cmnd * scsi_cmd)
 /**
  * ipr_handle_other_interrupt - Handle "other" interrupts
  * @ioa_cfg:	ioa config struct
+ * @int_reg:	interrupt register
  *
  * Return value:
  * 	IRQ_NONE / IRQ_HANDLED
  **/
-static irqreturn_t ipr_handle_other_interrupt(struct ipr_ioa_cfg *ioa_cfg)
+static irqreturn_t ipr_handle_other_interrupt(struct ipr_ioa_cfg *ioa_cfg,
+					      volatile u32 int_reg)
 {
 	irqreturn_t rc = IRQ_HANDLED;
-	volatile u32 int_reg, int_mask_reg;
-
-	int_mask_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg32);
-	int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32) & ~int_mask_reg;
-
-	/* If an interrupt on the adapter did not occur, ignore it.
-	 * Or in the case of SIS 64, check for a stage change interrupt.
-	 */
-	if ((int_reg & IPR_PCII_OPER_INTERRUPTS) == 0) {
-		if (ioa_cfg->sis64) {
-			int_mask_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
-			int_reg = readl(ioa_cfg->regs.sense_interrupt_reg) & ~int_mask_reg;
-			if (int_reg & IPR_PCII_IPL_STAGE_CHANGE) {
-
-				/* clear stage change */
-				writel(IPR_PCII_IPL_STAGE_CHANGE, ioa_cfg->regs.clr_interrupt_reg);
-				int_reg = readl(ioa_cfg->regs.sense_interrupt_reg) & ~int_mask_reg;
-				list_del(&ioa_cfg->reset_cmd->queue);
-				del_timer(&ioa_cfg->reset_cmd->timer);
-				ipr_reset_ioa_job(ioa_cfg->reset_cmd);
-				return IRQ_HANDLED;
-			}
-		}
-
-		return IRQ_NONE;
-	}
 
 	if (int_reg & IPR_PCII_IOA_TRANS_TO_OPER) {
 		/* Mask the interrupt */
@@ -4991,7 +5008,7 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 {
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)devp;
 	unsigned long lock_flags = 0;
-	volatile u32 int_reg;
+	volatile u32 int_reg, int_mask_reg;
 	u32 ioasc;
 	u16 cmd_index;
 	int num_hrrq = 0;
@@ -5002,6 +5019,33 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 
 	/* If interrupts are disabled, ignore the interrupt */
 	if (!ioa_cfg->allow_interrupts) {
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+		return IRQ_NONE;
+	}
+
+	int_mask_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg32);
+	int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32) & ~int_mask_reg;
+
+	/* If an interrupt on the adapter did not occur, ignore it.
+	 * Or in the case of SIS 64, check for a stage change interrupt.
+	 */
+	if (unlikely((int_reg & IPR_PCII_OPER_INTERRUPTS) == 0)) {
+		if (ioa_cfg->sis64) {
+			int_mask_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
+			int_reg = readl(ioa_cfg->regs.sense_interrupt_reg) & ~int_mask_reg;
+			if (int_reg & IPR_PCII_IPL_STAGE_CHANGE) {
+
+				/* clear stage change */
+				writel(IPR_PCII_IPL_STAGE_CHANGE, ioa_cfg->regs.clr_interrupt_reg);
+				int_reg = readl(ioa_cfg->regs.sense_interrupt_reg) & ~int_mask_reg;
+				list_del(&ioa_cfg->reset_cmd->queue);
+				del_timer(&ioa_cfg->reset_cmd->timer);
+				ipr_reset_ioa_job(ioa_cfg->reset_cmd);
+				spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+				return IRQ_HANDLED;
+			}
+		}
+
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 		return IRQ_NONE;
 	}
@@ -5045,7 +5089,7 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 			/* Clear the PCI interrupt */
 			do {
 				writel(IPR_PCII_HRRQ_UPDATED, ioa_cfg->regs.clr_interrupt_reg32);
-				int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32);
+				int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32) & ~int_mask_reg;
 			} while (int_reg & IPR_PCII_HRRQ_UPDATED &&
 					num_hrrq++ < IPR_MAX_HRRQ_RETRIES);
 
@@ -5060,7 +5104,7 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 	}
 
 	if (unlikely(rc == IRQ_NONE))
-		rc = ipr_handle_other_interrupt(ioa_cfg);
+		rc = ipr_handle_other_interrupt(ioa_cfg, int_reg);
 
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 	return rc;
@@ -8981,6 +9025,8 @@ static struct pci_device_id ipr_pci_table[] __devinitdata = {
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_574D, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_FPGA_E2,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B2, 0, 0, 0 },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_FPGA_E2,
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57C4, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_ASIC_E2,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B4, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_ASIC_E2,

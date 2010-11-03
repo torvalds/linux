@@ -4,7 +4,6 @@
 
 config CPU_S3C2440
 	bool
-	depends on ARCH_S3C2410
 	select CPU_ARM920T
 	select S3C_GPIO_PULL_UP
 	select S3C2410_CLOCK
@@ -18,7 +17,6 @@ config CPU_S3C2440
 
 config CPU_S3C2442
 	bool
-	depends on ARCH_S3C2410
 	select CPU_ARM920T
 	select S3C2410_CLOCK
 	select S3C2410_GPIO
@@ -30,7 +28,7 @@ config CPU_S3C2442
 
 config CPU_S3C244X
 	bool
-	depends on ARCH_S3C2410 && (CPU_S3C2440 || CPU_S3C2442)
+	depends on CPU_S3C2440 || CPU_S3C2442
 	help
 	  Support for S3C2440 and S3C2442 Samsung Mobile CPU based systems.
 
@@ -72,7 +70,7 @@ config S3C2440_PLL_16934400
 
 config S3C2440_DMA
 	bool
-	depends on ARCH_S3C2410 && CPU_S3C24405B
+	depends on CPU_S3C2440
 	help
 	  Support for S3C2440 specific DMA code5A
 
@@ -181,7 +179,6 @@ config MACH_MINI2440
 	select CPU_S3C2440
 	select EEPROM_AT24
 	select LEDS_TRIGGER_BACKLIGHT
-	select SND_S3C24XX_SOC_S3C24XX_UDA134X
 	select S3C_DEV_NAND
 	select S3C_DEV_USB_HOST
 	help

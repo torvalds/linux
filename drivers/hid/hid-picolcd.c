@@ -547,11 +547,11 @@ static void picolcd_fb_destroy(struct fb_info *info)
 	ref_cnt--;
 	mutex_lock(&info->lock);
 	(*ref_cnt)--;
-	may_release = !ref_cnt;
+	may_release = !*ref_cnt;
 	mutex_unlock(&info->lock);
 	if (may_release) {
-		framebuffer_release(info);
 		vfree((u8 *)info->fix.smem_start);
+		framebuffer_release(info);
 	}
 }
 

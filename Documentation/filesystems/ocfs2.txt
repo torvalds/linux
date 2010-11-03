@@ -87,3 +87,10 @@ dir_resv_level=	(*)	By default, directory reservations will scale with file
 			reservations - users should rarely need to change this
 			value. If allocation reservations are turned off, this
 			option will have no effect.
+coherency=full  (*)	Disallow concurrent O_DIRECT writes, cluster inode
+			lock will be taken to force other nodes drop cache,
+			therefore full cluster coherency is guaranteed even
+			for O_DIRECT writes.
+coherency=buffered	Allow concurrent O_DIRECT writes without EX lock among
+			nodes, which gains high performance at risk of getting
+			stale data on other nodes.

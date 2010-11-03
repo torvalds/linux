@@ -133,9 +133,7 @@ struct snd_card {
 	int free_on_last_close;		/* free in context of file_release */
 	wait_queue_head_t shutdown_sleep;
 	struct device *dev;		/* device assigned to this card */
-#ifndef CONFIG_SYSFS_DEPRECATED
 	struct device *card_dev;	/* cardX object for sysfs */
-#endif
 
 #ifdef CONFIG_PM
 	unsigned int power_state;	/* power state */
@@ -179,7 +177,7 @@ int snd_power_wait(struct snd_card *card, unsigned int power_state);
 #define snd_power_lock(card)		do { (void)(card); } while (0)
 #define snd_power_unlock(card)		do { (void)(card); } while (0)
 static inline int snd_power_wait(struct snd_card *card, unsigned int state) { return 0; }
-#define snd_power_get_state(card)	SNDRV_CTL_POWER_D0
+#define snd_power_get_state(card)	({ (void)(card); SNDRV_CTL_POWER_D0; })
 #define snd_power_change_state(card, state)	do { (void)(card); } while (0)
 
 #endif /* CONFIG_PM */
@@ -196,11 +194,7 @@ struct snd_minor {
 /* return a device pointer linked to each sound device as a parent */
 static inline struct device *snd_card_get_device_link(struct snd_card *card)
 {
-#ifdef CONFIG_SYSFS_DEPRECATED
-	return card ? card->dev : NULL;
-#else
 	return card ? card->card_dev : NULL;
-#endif
 }
 
 /* sound.c */
