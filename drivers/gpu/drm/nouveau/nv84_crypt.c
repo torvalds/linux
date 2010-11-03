@@ -24,6 +24,9 @@
 
 #include "drmP.h"
 #include "nouveau_drv.h"
+#include "nouveau_util.h"
+
+static void nv84_crypt_isr(struct drm_device *);
 
 int
 nv84_crypt_create_context(struct nouveau_channel *chan)
@@ -97,8 +100,11 @@ nv84_crypt_init(struct drm_device *dev)
 
 	nv_mask(dev, 0x000200, 0x00004000, 0x00000000);
 	nv_mask(dev, 0x000200, 0x00004000, 0x00004000);
+
+	nouveau_irq_register(dev, 14, nv84_crypt_isr);
 	nv_wr32(dev, 0x102130, 0xffffffff);
 	nv_wr32(dev, 0x102140, 0xffffffbf);
+
 	nv_wr32(dev, 0x10200c, 0x00000010);
 	return 0;
 }
@@ -107,4 +113,25 @@ void
 nv84_crypt_fini(struct drm_device *dev)
 {
 	nv_wr32(dev, 0x102140, 0x00000000);
+	nouveau_irq_unregister(dev, 14);
+}
+
+static void
+nv84_crypt_isr(struct drm_device *dev)
+{
+	u32 stat = nv_rd32(dev, 0x102130);
+	u32 mthd = nv_rd32(dev, 0x102190);
+	u32 data = nv_rd32(dev, 0x102194);
+	u32 inst = nv_rd32(dev, 0x102188) & 0x7fffffff;
+	int show = nouveau_ratelimit();
+
+	if (show) {
+		NV_INFO(dev, "PCRYPT_INTR: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			     stat, mthd, data, inst);
+	}
+
+	nv_wr32(dev, 0x102130, stat);
+	nv_wr32(dev, 0x10200c, 0x10);
+
+	nv50_fb_vm_trap(dev, show, "PCRYPT");
 }

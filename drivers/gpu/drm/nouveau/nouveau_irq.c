@@ -36,18 +36,11 @@
 #include "nouveau_drv.h"
 #include "nouveau_reg.h"
 #include "nouveau_ramht.h"
-#include <linux/ratelimit.h>
+#include "nouveau_util.h"
 
 /* needed for hotplug irq */
 #include "nouveau_connector.h"
 #include "nv50_display.h"
-
-static DEFINE_RATELIMIT_STATE(nouveau_ratelimit_state, 3 * HZ, 20);
-
-static int nouveau_ratelimit(void)
-{
-	return __ratelimit(&nouveau_ratelimit_state);
-}
 
 void
 nouveau_irq_preinstall(struct drm_device *dev)
@@ -1238,22 +1231,6 @@ nouveau_irq_handler(DRM_IRQ_ARGS)
 			nouveau_pgraph_irq_handler(dev);
 
 		status &= ~NV_PMC_INTR_0_PGRAPH_PENDING;
-	}
-
-	if (status & 0x00004000) {
-		u32 stat = nv_rd32(dev, 0x102130);
-		u32 mthd = nv_rd32(dev, 0x102190);
-		u32 data = nv_rd32(dev, 0x102194);
-		u32 inst = nv_rd32(dev, 0x102188) & 0x7fffffff;
-
-		NV_INFO(dev, "PCRYPT_INTR: 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			stat, mthd, data, inst);
-		nv_wr32(dev, 0x102130, stat);
-		nv_wr32(dev, 0x10200c, 0x10);
-
-		nv50_fb_vm_trap(dev, nouveau_ratelimit(), "PCRYPT");
-		status &= ~0x00004000;
-
 	}
 
 	if (status & NV_PMC_INTR_0_CRTCn_PENDING) {

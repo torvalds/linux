@@ -5,7 +5,7 @@
 ccflags-y := -Iinclude/drm
 nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nouveau_object.o nouveau_irq.o nouveau_notifier.o \
-             nouveau_sgdma.o nouveau_dma.o \
+             nouveau_sgdma.o nouveau_dma.o nouveau_util.o \
              nouveau_bo.o nouveau_fence.o nouveau_gem.o nouveau_ttm.o \
              nouveau_hw.o nouveau_calc.o nouveau_bios.o nouveau_i2c.o \
              nouveau_display.o nouveau_connector.o nouveau_fbcon.o \
