@@ -1565,8 +1565,7 @@ static int input_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 		}							\
 	} while (0)
 
-#ifdef CONFIG_PM
-static void input_dev_reset(struct input_dev *dev, bool activate)
+static void input_dev_toggle(struct input_dev *dev, bool activate)
 {
 	if (!dev->event)
 		return;
@@ -1580,12 +1579,44 @@ static void input_dev_reset(struct input_dev *dev, bool activate)
 	}
 }
 
+/**
+ * input_reset_device() - reset/restore the state of input device
+ * @dev: input device whose state needs to be reset
+ *
+ * This function tries to reset the state of an opened input device and
+ * bring internal state and state if the hardware in sync with each other.
+ * We mark all keys as released, restore LED state, repeat rate, etc.
+ */
+void input_reset_device(struct input_dev *dev)
+{
+	mutex_lock(&dev->mutex);
+
+	if (dev->users) {
+		input_dev_toggle(dev, true);
+
+		/*
+		 * Keys that have been pressed at suspend time are unlikely
+		 * to be still pressed when we resume.
+		 */
+		spin_lock_irq(&dev->event_lock);
+		input_dev_release_keys(dev);
+		spin_unlock_irq(&dev->event_lock);
+	}
+
+	mutex_unlock(&dev->mutex);
+}
+EXPORT_SYMBOL(input_reset_device);
+
+#ifdef CONFIG_PM
 static int input_dev_suspend(struct device *dev)
 {
 	struct input_dev *input_dev = to_input_dev(dev);
 
 	mutex_lock(&input_dev->mutex);
-	input_dev_reset(input_dev, false);
+
+	if (input_dev->users)
+		input_dev_toggle(input_dev, false);
+
 	mutex_unlock(&input_dev->mutex);
 
 	return 0;
@@ -1595,18 +1626,7 @@ static int input_dev_resume(struct device *dev)
 {
 	struct input_dev *input_dev = to_input_dev(dev);
 
-	mutex_lock(&input_dev->mutex);
-	input_dev_reset(input_dev, true);
-
-	/*
-	 * Keys that have been pressed at suspend time are unlikely
-	 * to be still pressed when we resume.
-	 */
-	spin_lock_irq(&input_dev->event_lock);
-	input_dev_release_keys(input_dev);
-	spin_unlock_irq(&input_dev->event_lock);
-
-	mutex_unlock(&input_dev->mutex);
+	input_reset_device(input_dev);
 
 	return 0;
 }
