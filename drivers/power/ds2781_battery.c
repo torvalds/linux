@@ -267,8 +267,7 @@ static int battery_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (is_ac_charging()) {
-			if ((di->status.battery_full) ||
-			    (di->status.percentage >= 100))
+			if (di->status.battery_full)
 				val->intval = POWER_SUPPLY_STATUS_FULL;
 			else
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
