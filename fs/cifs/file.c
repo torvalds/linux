@@ -146,7 +146,7 @@ client_can_cache:
 		rc = cifs_get_inode_info(&inode, full_path, buf, inode->i_sb,
 					 xid, NULL);
 
-	cifs_set_oplock_level(inode, oplock);
+	cifs_set_oplock_level(pCifsInode, oplock);
 
 	return rc;
 }
@@ -248,7 +248,7 @@ cifs_new_fileinfo(__u16 fileHandle, struct file *file,
 		list_add_tail(&pCifsFile->flist, &pCifsInode->openFileList);
 	spin_unlock(&cifs_file_list_lock);
 
-	cifs_set_oplock_level(inode, oplock);
+	cifs_set_oplock_level(pCifsInode, oplock);
 
 	file->private_data = pCifsFile;
 	return pCifsFile;
@@ -279,7 +279,7 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	if (list_empty(&cifsi->openFileList)) {
 		cFYI(1, "closing last open instance for inode %p",
 			cifs_file->dentry->d_inode);
-		cifs_set_oplock_level(inode, 0);
+		cifs_set_oplock_level(cifsi, 0);
 	}
 	spin_unlock(&cifs_file_list_lock);
 
@@ -611,7 +611,7 @@ reopen_success:
 	     we can not go to the server to get the new inod
 	     info */
 
-	cifs_set_oplock_level(inode, oplock);
+	cifs_set_oplock_level(pCifsInode, oplock);
 
 	cifs_relock_file(pCifsFile);
 

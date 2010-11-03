@@ -570,7 +570,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				cFYI(1, "file id match, oplock break");
 				pCifsInode = CIFS_I(netfile->dentry->d_inode);
 
-				cifs_set_oplock_level(netfile->dentry->d_inode,
+				cifs_set_oplock_level(pCifsInode,
 						      pSMB->OplockLevel);
 				/*
 				 * cifs_oplock_break_put() can't be called
@@ -722,18 +722,20 @@ cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb)
 	}
 }
 
-void cifs_set_oplock_level(struct inode *inode, __u32 oplock)
+void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
 {
-	struct cifsInodeInfo *cinode = CIFS_I(inode);
+	oplock &= 0xF;
 
-	if ((oplock & 0xF) == OPLOCK_EXCLUSIVE) {
+	if (oplock == OPLOCK_EXCLUSIVE) {
 		cinode->clientCanCacheAll = true;
 		cinode->clientCanCacheRead = true;
-		cFYI(1, "Exclusive Oplock granted on inode %p", inode);
-	} else if ((oplock & 0xF) == OPLOCK_READ) {
+		cFYI(1, "Exclusive Oplock granted on inode %p",
+		     &cinode->vfs_inode);
+	} else if (oplock == OPLOCK_READ) {
 		cinode->clientCanCacheAll = false;
 		cinode->clientCanCacheRead = true;
-		cFYI(1, "Level II Oplock granted on inode %p", inode);
+		cFYI(1, "Level II Oplock granted on inode %p",
+		    &cinode->vfs_inode);
 	} else {
 		cinode->clientCanCacheAll = false;
 		cinode->clientCanCacheRead = false;
