@@ -149,7 +149,7 @@ void dec_module_count(void)
 
 int compare_orig(void *data1, void *data2)
 {
-	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
+	return (compare_ether_addr(data1, data2) == 0 ? 1 : 0);
 }
 
 /* hashfunction to choose an entry in a hash table of given size */
@@ -190,16 +190,6 @@ int is_my_mac(uint8_t *addr)
 	rcu_read_unlock();
 	return 0;
 
-}
-
-int is_bcast(uint8_t *addr)
-{
-	return (addr[0] == (uint8_t)0xff) && (addr[1] == (uint8_t)0xff);
-}
-
-int is_mcast(uint8_t *addr)
-{
-	return *addr & 0x01;
 }
 
 module_init(batman_init);

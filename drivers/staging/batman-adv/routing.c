@@ -756,11 +756,11 @@ int recv_bat_packet(struct sk_buff *skb, struct batman_if *batman_if)
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* packet with broadcast indication but unicast recipient */
-	if (!is_bcast(ethhdr->h_dest))
+	if (!is_broadcast_ether_addr(ethhdr->h_dest))
 		return NET_RX_DROP;
 
 	/* packet with broadcast sender address */
-	if (is_bcast(ethhdr->h_source))
+	if (is_broadcast_ether_addr(ethhdr->h_source))
 		return NET_RX_DROP;
 
 	/* create a copy of the skb, if needed, to modify it. */
@@ -933,11 +933,11 @@ int recv_icmp_packet(struct sk_buff *skb, struct batman_if *recv_if)
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* packet with unicast indication but broadcast recipient */
-	if (is_bcast(ethhdr->h_dest))
+	if (is_broadcast_ether_addr(ethhdr->h_dest))
 		return NET_RX_DROP;
 
 	/* packet with broadcast sender address */
-	if (is_bcast(ethhdr->h_source))
+	if (is_broadcast_ether_addr(ethhdr->h_source))
 		return NET_RX_DROP;
 
 	/* not for me */
@@ -1107,11 +1107,11 @@ static int check_unicast_packet(struct sk_buff *skb, int hdr_size)
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* packet with unicast indication but broadcast recipient */
-	if (is_bcast(ethhdr->h_dest))
+	if (is_broadcast_ether_addr(ethhdr->h_dest))
 		return -1;
 
 	/* packet with broadcast sender address */
-	if (is_bcast(ethhdr->h_source))
+	if (is_broadcast_ether_addr(ethhdr->h_source))
 		return -1;
 
 	/* not for me */
@@ -1283,11 +1283,11 @@ int recv_bcast_packet(struct sk_buff *skb, struct batman_if *recv_if)
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* packet with broadcast indication but unicast recipient */
-	if (!is_bcast(ethhdr->h_dest))
+	if (!is_broadcast_ether_addr(ethhdr->h_dest))
 		return NET_RX_DROP;
 
 	/* packet with broadcast sender address */
-	if (is_bcast(ethhdr->h_source))
+	if (is_broadcast_ether_addr(ethhdr->h_source))
 		return NET_RX_DROP;
 
 	/* ignore broadcasts sent by myself */
