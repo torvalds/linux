@@ -302,7 +302,7 @@ struct eepro_local {
 #define ee_id_eepro10p0 0x10   /* ID for eepro/10+ */
 #define ee_id_eepro10p1 0x31
 
-#define TX_TIMEOUT 40
+#define TX_TIMEOUT ((4*HZ)/10)
 
 /* Index to functions, as function prototypes. */
 

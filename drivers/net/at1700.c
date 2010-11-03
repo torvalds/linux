@@ -150,7 +150,7 @@ struct net_local {
 #define PORT_OFFSET(o) (o)
 
 
-#define TX_TIMEOUT		10
+#define TX_TIMEOUT		(HZ/10)
 
 
 /* Index to functions, as function prototypes. */

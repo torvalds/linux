@@ -191,7 +191,7 @@ enum commands {
 #define	 RX_SUSPEND	0x0030
 #define	 RX_ABORT	0x0040
 
-#define TX_TIMEOUT	5
+#define TX_TIMEOUT	(HZ/20)
 
 
 struct i596_reg {

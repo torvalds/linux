@@ -201,7 +201,7 @@ struct net_local {
 #define RX_BUF_SIZE 	(1518+14+18)	/* packet+header+RBD */
 #define RX_BUF_END		(dev->mem_end - dev->mem_start)
 
-#define TX_TIMEOUT 5
+#define TX_TIMEOUT (HZ/20)
 
 /*
   That's it: only 86 bytes to set up the beast, including every extra
