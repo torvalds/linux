@@ -465,8 +465,8 @@ static struct regulator_ops mc13783_fixed_regulator_ops = {
 	.get_voltage = mc13783_fixed_regulator_get_voltage,
 };
 
-int mc13783_powermisc_rmw(struct mc13783_regulator_priv *priv, u32 mask,
-									u32 val)
+static int mc13783_powermisc_rmw(struct mc13783_regulator_priv *priv, u32 mask,
+				 u32 val)
 {
 	struct mc13783 *mc13783 = priv->mc13783;
 	int ret;
