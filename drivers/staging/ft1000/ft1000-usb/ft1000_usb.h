@@ -98,7 +98,6 @@ struct prov_record {
 /*end of Jim*/
 #define DEBUG(args...) printk(KERN_INFO args)
 
-#define ULONG               u32 /* WTF ??? */
 #define BOOLEAN             u8
 #define PCHAR               u8 *
 #define UINT                u32
@@ -572,7 +571,7 @@ extern size_t FileLength;
 extern int numofmsgbuf;
 
 int ft1000_close (struct net_device *dev);
-u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLength);
+u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, u32  FileLength);
 
 extern struct list_head freercvpool;
 extern spinlock_t free_buff_lock;   // lock to arbitrate free buffer list for receive command data

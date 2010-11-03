@@ -594,7 +594,7 @@ int dsp_reload(struct ft1000_device *ft1000dev)
 {
     u16 status;
     u16 tempword;
-    ULONG templong;
+    u32 templong;
 
 	struct ft1000_info *pft1000info;
 
