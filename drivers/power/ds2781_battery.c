@@ -385,7 +385,9 @@ static void ds2781_battery_alarm(struct alarm *alarm)
 
 static void ds2781_reset_if_necessary(struct ds2781_device_info *di)
 {
-	if (di->status.percentage < 100) {
+	/* If we have read from the DS2781 and the percentage is not 100%,
+	 * the ACR should be reset. */
+	if (di->raw[DS2781_REG_RSNSP] && (di->status.percentage < 100)) {
 		dev_err(di->dev, "Charge complete before 100 percent.\n");
 		dev_err(di->dev, "Resetting ACR registers to Full 40 value.\n");
 
