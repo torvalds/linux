@@ -285,8 +285,16 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 	struct clk *clk;
 
 	ops = (struct pcmcia_low_level *)dev->dev.platform_data;
-	if (!ops)
-		return -ENODEV;
+	if (!ops) {
+		ret = -ENODEV;
+		goto err0;
+	}
+
+	if (cpu_is_pxa320() && ops->nr > 1) {
+		dev_err(&dev->dev, "pxa320 supports only one pcmcia slot");
+		ret = -EINVAL;
+		goto err0;
+	}
 
 	clk = clk_get(&dev->dev, NULL);
 	if (!clk)
@@ -316,7 +324,7 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 
 		ret = pxa2xx_drv_pcmcia_add_one(skt);
 		if (ret)
-			break;
+			goto err1;
 	}
 
 	if (ret) {
@@ -329,6 +337,13 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 		dev_set_drvdata(&dev->dev, sinfo);
 	}
 
+	return 0;
+
+err1:
+	while (--i >= 0)
+		soc_pcmcia_remove_one(&sinfo->skt[i]);
+	kfree(sinfo);
+err0:
 	return ret;
 }
 
