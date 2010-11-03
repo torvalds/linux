@@ -199,8 +199,8 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 			ecryptfs_dentry->d_name.name, rc);
 		goto out_free;
 	}
-	if ((ecryptfs_inode_to_private(inode)->lower_file->f_flags & O_RDONLY)
-	    && !(file->f_flags & O_RDONLY)) {
+	if ((ecryptfs_inode_to_private(inode)->lower_file->f_flags & O_ACCMODE)
+	    == O_RDONLY && (file->f_flags & O_ACCMODE) != O_RDONLY) {
 		rc = -EPERM;
 		printk(KERN_WARNING "%s: Lower persistent file is RO; eCryptfs "
 		       "file must hence be opened RO\n", __func__);
