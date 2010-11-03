@@ -39,6 +39,9 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/asoc.h>
+
 #define NAME_SIZE	32
 
 static DEFINE_MUTEX(pcm_mutex);
@@ -1914,6 +1917,7 @@ unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg)
 
 	ret = codec->driver->read(codec, reg);
 	dev_dbg(codec->dev, "read %x => %x\n", reg, ret);
+	trace_snd_soc_reg_read(codec, reg, ret);
 
 	return ret;
 }
@@ -1923,6 +1927,7 @@ unsigned int snd_soc_write(struct snd_soc_codec *codec,
 			   unsigned int reg, unsigned int val)
 {
 	dev_dbg(codec->dev, "write %x = %x\n", reg, val);
+	trace_snd_soc_reg_write(codec, reg, val);
 	return codec->driver->write(codec, reg, val);
 }
 EXPORT_SYMBOL_GPL(snd_soc_write);
