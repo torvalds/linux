@@ -50,8 +50,6 @@ static int snd_soc_4_12_write(struct snd_soc_codec *codec, unsigned int reg,
 		return 0;
 	}
 
-	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
-
 	ret = codec->hw_write(codec->control_data, data, 2);
 	if (ret == 2)
 		return 0;
@@ -126,8 +124,6 @@ static int snd_soc_7_9_write(struct snd_soc_codec *codec, unsigned int reg,
 		return 0;
 	}
 
-	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
-
 	ret = codec->hw_write(codec->control_data, data, 2);
 	if (ret == 2)
 		return 0;
@@ -185,8 +181,6 @@ static int snd_soc_8_8_write(struct snd_soc_codec *codec, unsigned int reg,
 		codec->cache_sync = 1;
 		return 0;
 	}
-
-	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
 
 	if (codec->hw_write(codec->control_data, data, 2) == 2)
 		return 0;
@@ -259,8 +253,6 @@ static int snd_soc_8_16_write(struct snd_soc_codec *codec, unsigned int reg,
 		codec->cache_sync = 1;
 		return 0;
 	}
-
-	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
 
 	if (codec->hw_write(codec->control_data, data, 3) == 3)
 		return 0;
@@ -455,8 +447,6 @@ static int snd_soc_16_8_write(struct snd_soc_codec *codec, unsigned int reg,
 		return 0;
 	}
 
-	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
-
 	ret = codec->hw_write(codec->control_data, data, 3);
 	if (ret == 3)
 		return 0;
@@ -567,8 +557,6 @@ static int snd_soc_16_16_write(struct snd_soc_codec *codec, unsigned int reg,
 		codec->cache_sync = 1;
 		return 0;
 	}
-
-	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
 
 	ret = codec->hw_write(codec->control_data, data, 4);
 	if (ret == 4)
