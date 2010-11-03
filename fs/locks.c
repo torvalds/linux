@@ -1504,7 +1504,7 @@ static int do_fcntl_delete_lease(struct file *filp)
 
 static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 {
-	struct file_lock *fl;
+	struct file_lock *fl, *ret;
 	struct fasync_struct *new;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	int error;
@@ -1518,6 +1518,7 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 		locks_free_lock(fl);
 		return -ENOMEM;
 	}
+	ret = fl;
 	lock_flocks();
 	error = __vfs_setlease(filp, arg, &fl);
 	if (error) {
@@ -1525,6 +1526,8 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 		locks_free_lock(fl);
 		goto out_free_fasync;
 	}
+	if (ret != fl)
+		locks_free_lock(fl);
 
 	/*
 	 * fasync_insert_entry() returns the old entry if any.
@@ -1532,7 +1535,7 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 	 * inserted it into the fasync list. Clear new so that
 	 * we don't release it here.
 	 */
-	if (!fasync_insert_entry(fd, filp, &fl->fl_fasync, new))
+	if (!fasync_insert_entry(fd, filp, &ret->fl_fasync, new))
 		new = NULL;
 
 	if (error < 0) {
