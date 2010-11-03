@@ -404,6 +404,10 @@ static int __init intel_idle_init(void)
 {
 	int retval;
 
+	/* Do not load intel_idle at all for now if idle= is passed */
+	if (boot_option_idle_override != IDLE_NO_OVERRIDE)
+		return -ENODEV;
+
 	retval = intel_idle_probe();
 	if (retval)
 		return retval;
