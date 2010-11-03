@@ -138,10 +138,8 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb,
 				      struct gfs2_inum_host *inum)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
-	struct gfs2_holder i_gh;
 	struct inode *inode;
 	struct dentry *dentry;
-	int error;
 
 	inode = gfs2_ilookup(sb, inum->no_addr);
 	if (inode) {
@@ -152,52 +150,16 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb,
 		goto out_inode;
 	}
 
-	error = gfs2_glock_nq_num(sdp, inum->no_addr, &gfs2_inode_glops,
-				  LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
-	if (error)
-		return ERR_PTR(error);
-
-	error = gfs2_check_blk_type(sdp, inum->no_addr, GFS2_BLKST_DINODE);
-	if (error)
-		goto fail;
-
-	inode = gfs2_inode_lookup(sb, DT_UNKNOWN, inum->no_addr, 0);
-	if (IS_ERR(inode)) {
-		error = PTR_ERR(inode);
-		goto fail;
-	}
-
-	error = gfs2_inode_refresh(GFS2_I(inode));
-	if (error) {
-		iput(inode);
-		goto fail;
-	}
-
-	/* Pick up the works we bypass in gfs2_inode_lookup */
-	if (inode->i_state & I_NEW) 
-		gfs2_set_iop(inode);
-
-	if (GFS2_I(inode)->i_no_formal_ino != inum->no_formal_ino) {
-		iput(inode);
-		goto fail;
-	}
-
-	error = -EIO;
-	if (GFS2_I(inode)->i_diskflags & GFS2_DIF_SYSTEM) {
-		iput(inode);
-		goto fail;
-	}
-
-	gfs2_glock_dq_uninit(&i_gh);
+	inode = gfs2_lookup_by_inum(sdp, inum->no_addr, &inum->no_formal_ino,
+				    GFS2_BLKST_DINODE);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
 
 out_inode:
 	dentry = d_obtain_alias(inode);
 	if (!IS_ERR(dentry))
 		dentry->d_op = &gfs2_dops;
 	return dentry;
-fail:
-	gfs2_glock_dq_uninit(&i_gh);
-	return ERR_PTR(error);
 }
 
 static struct dentry *gfs2_fh_to_dentry(struct super_block *sb, struct fid *fid,
