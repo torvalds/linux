@@ -171,8 +171,12 @@ static void wl1251_disable_line_irq(struct wl1251 *wl)
 	return disable_irq(wl->irq);
 }
 
-static void wl1251_sdio_set_power(bool enable)
+static int wl1251_sdio_set_power(struct wl1251 *wl, bool enable)
 {
+	if (wl->set_power)
+		wl->set_power(enable);
+
+	return 0;
 }
 
 static struct wl1251_if_operations wl1251_sdio_ops = {
@@ -181,6 +185,7 @@ static struct wl1251_if_operations wl1251_sdio_ops = {
 	.write_elp = wl1251_sdio_write_elp,
 	.read_elp = wl1251_sdio_read_elp,
 	.reset = wl1251_sdio_reset,
+	.power = wl1251_sdio_set_power,
 };
 
 static int wl1251_platform_probe(struct platform_device *pdev)
@@ -239,7 +244,6 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 	wl_sdio->func = func;
 	wl->if_priv = wl_sdio;
 	wl->if_ops = &wl1251_sdio_ops;
-	wl->set_power = wl1251_sdio_set_power;
 
 	if (wl12xx_board_data != NULL) {
 		wl->set_power = wl12xx_board_data->set_power;

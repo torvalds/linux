@@ -215,12 +215,21 @@ static void wl1251_spi_disable_irq(struct wl1251 *wl)
 	return disable_irq(wl->irq);
 }
 
+static int wl1251_spi_set_power(struct wl1251 *wl, bool enable)
+{
+	if (wl->set_power)
+		wl->set_power(enable);
+
+	return 0;
+}
+
 static const struct wl1251_if_operations wl1251_spi_ops = {
 	.read = wl1251_spi_read,
 	.write = wl1251_spi_write,
 	.reset = wl1251_spi_reset_wake,
 	.enable_irq = wl1251_spi_enable_irq,
 	.disable_irq = wl1251_spi_disable_irq,
+	.power = wl1251_spi_set_power,
 };
 
 static int __devinit wl1251_spi_probe(struct spi_device *spi)
