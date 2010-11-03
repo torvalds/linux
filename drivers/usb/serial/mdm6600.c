@@ -513,7 +513,7 @@ static int mdm6600_write(struct tty_struct *tty, struct usb_serial_port *port,
 	return count;
 }
 
-int mdm6600_write_room(struct tty_struct *tty)
+static int mdm6600_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct mdm6600_port *modem = usb_get_serial_data(port->serial);
@@ -531,7 +531,7 @@ int mdm6600_write_room(struct tty_struct *tty)
 	return room;
 }
 
-int mdm6600_chars_in_buffer(struct tty_struct *tty)
+static int mdm6600_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct mdm6600_port *modem = usb_get_serial_data(port->serial);
@@ -872,7 +872,7 @@ static int mdm6600_reset_resume(struct usb_interface *intf)
 	return mdm6600_resume(intf);
 }
 
-int mdm6600_probe(struct usb_serial *serial, const struct usb_device_id *id)
+static int mdm6600_probe(struct usb_serial *serial, const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(serial->interface);
 
