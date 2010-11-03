@@ -623,10 +623,10 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
         memcpy(get_stat_data.eui64, info->eui64, EUISZ);
 
             if (info->ProgConStat != 0xFF) {
-                ft1000_read_dpram16(ft1000dev, FT1000_MAG_DSP_LED, (PUCHAR)&ledStat, FT1000_MAG_DSP_LED_INDX);
+                ft1000_read_dpram16(ft1000dev, FT1000_MAG_DSP_LED, (u8 *)&ledStat, FT1000_MAG_DSP_LED_INDX);
                 get_stat_data.LedStat = ntohs(ledStat);
                 DEBUG("FT1000:ft1000_ChIoctl: LedStat = 0x%x\n", get_stat_data.LedStat);
-                ft1000_read_dpram16(ft1000dev, FT1000_MAG_DSP_CON_STATE, (PUCHAR)&conStat, FT1000_MAG_DSP_CON_STATE_INDX);
+                ft1000_read_dpram16(ft1000dev, FT1000_MAG_DSP_CON_STATE, (u8 *)&conStat, FT1000_MAG_DSP_CON_STATE_INDX);
                 get_stat_data.ConStat = ntohs(conStat);
                 DEBUG("FT1000:ft1000_ChIoctl: ConStat = 0x%x\n", get_stat_data.ConStat);
             }

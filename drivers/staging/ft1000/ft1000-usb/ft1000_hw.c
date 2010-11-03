@@ -196,7 +196,7 @@ u16 ft1000_write_register(struct ft1000_device *ft1000dev, USHORT value, u16 nRe
 //
 //---------------------------------------------------------------------------
 
-u16 ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer, USHORT cnt)
+u16 ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer, USHORT cnt)
 {
     u16 ret = STATUS_SUCCESS;
 
@@ -235,7 +235,7 @@ u16 ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buf
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer, USHORT cnt)
+u16 ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer, USHORT cnt)
 {
      u16 ret = STATUS_SUCCESS;
 
@@ -272,7 +272,7 @@ u16 ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR bu
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer, u8 highlow)
+u16 ft1000_read_dpram16(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer, u8 highlow)
 {
     u16 ret = STATUS_SUCCESS;
 
@@ -365,7 +365,7 @@ u16 ft1000_write_dpram16(struct ft1000_device *ft1000dev, USHORT indx, USHORT va
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer)
+u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer)
 {
     UCHAR buf[16];
     USHORT pos;
@@ -414,14 +414,14 @@ u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR
 // Notes:
 //
 //---------------------------------------------------------------------------
-u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHAR buffer)
+u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer)
 {
     USHORT pos1;
     USHORT pos2;
     USHORT i;
     UCHAR buf[32];
     UCHAR resultbuffer[32];
-    PUCHAR pdata;
+    u8 *pdata;
     u16 ret  = STATUS_SUCCESS;
 
     //DEBUG("fix_ft1000_write_dpram32: Entered:\n");
@@ -445,7 +445,7 @@ u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHA
         return ret;
     }
 
-    ret = ft1000_read_dpram32(ft1000dev, pos1, (PUCHAR)&resultbuffer[0], 16);
+    ret = ft1000_read_dpram32(ft1000dev, pos1, (u8 *)&resultbuffer[0], 16);
     if (ret == STATUS_SUCCESS)
     {
         buffer = pdata;
@@ -460,8 +460,8 @@ u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, PUCHA
 
     if (ret == STATUS_FAILURE)
     {
-        ret = ft1000_write_dpram32(ft1000dev, pos1, (PUCHAR)&tempbuffer[0], 16);
-        ret = ft1000_read_dpram32(ft1000dev, pos1, (PUCHAR)&resultbuffer[0], 16);
+        ret = ft1000_write_dpram32(ft1000dev, pos1, (u8 *)&tempbuffer[0], 16);
+        ret = ft1000_read_dpram32(ft1000dev, pos1, (u8 *)&resultbuffer[0], 16);
         if (ret == STATUS_SUCCESS)
         {
             buffer = pdata;
@@ -621,7 +621,7 @@ int dsp_reload(struct ft1000_device *ft1000dev)
     status = ft1000_write_register (ft1000dev, HOST_INTF_BE, FT1000_REG_SUP_CTRL);
 
     // Let's check for FEFE
-    status = ft1000_read_dpram32 (ft1000dev, FT1000_MAG_DPRAM_FEFE_INDX, (PUCHAR)&templong, 4);
+    status = ft1000_read_dpram32 (ft1000dev, FT1000_MAG_DPRAM_FEFE_INDX, (u8 *)&templong, 4);
     DEBUG("templong (fefe) = 0x%8x\n", templong);
 
     // call codeloader
@@ -1485,7 +1485,7 @@ static BOOLEAN ft1000_receive_cmd (struct ft1000_device *dev, u16 *pbuffer, int 
     int i;
     u16 tempword;
 
-    ret = ft1000_read_dpram16(dev, FT1000_MAG_PH_LEN, (PUCHAR)&size, FT1000_MAG_PH_LEN_INDX);
+    ret = ft1000_read_dpram16(dev, FT1000_MAG_PH_LEN, (u8 *)&size, FT1000_MAG_PH_LEN_INDX);
     size = ntohs(size) + PSEUDOSZ;
     if (size > maxsz) {
         DEBUG("FT1000:ft1000_receive_cmd:Invalid command length = %d\n", size);
@@ -1596,7 +1596,7 @@ static int ft1000_dsp_prov(void *arg)
             TempShortBuf[1] = htons (len);
             memcpy(&TempShortBuf[2], ppseudo_hdr, len);
 
-            status = ft1000_write_dpram32 (dev, 0, (PUCHAR)&TempShortBuf[0], (unsigned short)(len+2));
+            status = ft1000_write_dpram32 (dev, 0, (u8 *)&TempShortBuf[0], (unsigned short)(len+2));
             status = ft1000_write_register (dev, FT1000_DB_DPRAM_TX, FT1000_REG_DOORBELL);
 
             list_del(&ptr->list);
@@ -1815,7 +1815,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
                 }
                 info->DSPInfoBlk[10] = 0x7200;
                 info->DSPInfoBlk[11] = htons(info->DSPInfoBlklen);
-                status = ft1000_write_dpram32 (dev, 0, (PUCHAR)&info->DSPInfoBlk[0], (unsigned short)(info->DSPInfoBlklen+22));
+                status = ft1000_write_dpram32 (dev, 0, (u8 *)&info->DSPInfoBlk[0], (unsigned short)(info->DSPInfoBlklen+22));
                 status = ft1000_write_register (dev, FT1000_DB_DPRAM_TX, FT1000_REG_DOORBELL);
                 info->DrvMsgPend = 0;
 
@@ -1930,14 +1930,14 @@ int ft1000_poll(void* dev_id) {
         if (tempword & FT1000_DB_DPRAM_RX) {
             //DEBUG("ft1000_poll: FT1000_REG_DOORBELL message type:  FT1000_DB_DPRAM_RX\n");
 
-            status = ft1000_read_dpram16(dev, 0x200, (PUCHAR)&data, 0);
+            status = ft1000_read_dpram16(dev, 0x200, (u8 *)&data, 0);
             //DEBUG("ft1000_poll:FT1000_DB_DPRAM_RX:ft1000_read_dpram16:size = 0x%x\n", data);
             size = ntohs(data) + 16 + 2; //wai
             if (size % 4) {
                 modulo = 4 - (size % 4);
                 size = size + modulo;
             }
-            status = ft1000_read_dpram16(dev, 0x201, (PUCHAR)&portid, 1);
+            status = ft1000_read_dpram16(dev, 0x201, (u8 *)&portid, 1);
             portid &= 0xff;
             //DEBUG("ft1000_poll: FT1000_REG_DOORBELL message type: FT1000_DB_DPRAM_RX : portid 0x%x\n", portid);
 
@@ -2072,7 +2072,7 @@ int ft1000_poll(void* dev_id) {
             status = ft1000_write_register (dev, FT1000_ASIC_RESET_REQ, FT1000_REG_DOORBELL);
             status = ft1000_write_register (dev, HOST_INTF_BE, FT1000_REG_SUP_CTRL);
             // copy dsp session record from Adapter block
-            status = ft1000_write_dpram32 (dev, 0, (PUCHAR)&info->DSPSess.Rec[0], 1024);
+            status = ft1000_write_dpram32 (dev, 0, (u8 *)&info->DSPSess.Rec[0], 1024);
             // Program WMARK register
             status = ft1000_write_register (dev, 0x600, FT1000_REG_MAG_WATERMARK);
             // ring doorbell to tell DSP that ASIC is out of reset
@@ -2086,10 +2086,10 @@ int ft1000_poll(void* dev_id) {
             if (info->fAppMsgPend == 0) {
                // Reset ASIC and DSP
 
-                status    = ft1000_read_dpram16(dev, FT1000_MAG_DSP_TIMER0, (PUCHAR)&(info->DSP_TIME[0]), FT1000_MAG_DSP_TIMER0_INDX);
-                status    = ft1000_read_dpram16(dev, FT1000_MAG_DSP_TIMER1, (PUCHAR)&(info->DSP_TIME[1]), FT1000_MAG_DSP_TIMER1_INDX);
-                status    = ft1000_read_dpram16(dev, FT1000_MAG_DSP_TIMER2, (PUCHAR)&(info->DSP_TIME[2]), FT1000_MAG_DSP_TIMER2_INDX);
-                status    = ft1000_read_dpram16(dev, FT1000_MAG_DSP_TIMER3, (PUCHAR)&(info->DSP_TIME[3]), FT1000_MAG_DSP_TIMER3_INDX);
+                status    = ft1000_read_dpram16(dev, FT1000_MAG_DSP_TIMER0, (u8 *)&(info->DSP_TIME[0]), FT1000_MAG_DSP_TIMER0_INDX);
+                status    = ft1000_read_dpram16(dev, FT1000_MAG_DSP_TIMER1, (u8 *)&(info->DSP_TIME[1]), FT1000_MAG_DSP_TIMER1_INDX);
+                status    = ft1000_read_dpram16(dev, FT1000_MAG_DSP_TIMER2, (u8 *)&(info->DSP_TIME[2]), FT1000_MAG_DSP_TIMER2_INDX);
+                status    = ft1000_read_dpram16(dev, FT1000_MAG_DSP_TIMER3, (u8 *)&(info->DSP_TIME[3]), FT1000_MAG_DSP_TIMER3_INDX);
                 info->CardReady = 0;
                 info->DrvErrNum = DSP_CONDRESET_INFO;
                 DEBUG("ft1000_hw:DSP conditional reset requested\n");

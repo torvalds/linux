@@ -228,7 +228,7 @@ static USHORT get_handshake(struct ft1000_device *ft1000dev, USHORT expected_val
                    status = ft1000_write_register (ft1000dev,  FT1000_DB_DNLD_RX, FT1000_REG_DOORBELL);
                }
 
-                status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, (PUCHAR)&handshake, 1);
+                status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, (u8 *)&handshake, 1);
                 //DEBUG("get_handshake: handshake is %x\n", tempx);
                 handshake = ntohs(handshake);
                 //DEBUG("get_handshake: after swap, handshake is %x\n", handshake);
@@ -300,10 +300,10 @@ static USHORT get_handshake_usb(struct ft1000_device *ft1000dev, USHORT expected
    while (loopcnt < 100)
    {
        if (pft1000info->usbboot == 2) {
-           status = ft1000_read_dpram32 (ft1000dev, 0, (PUCHAR)&(pft1000info->tempbuf[0]), 64);
+           status = ft1000_read_dpram32 (ft1000dev, 0, (u8 *)&(pft1000info->tempbuf[0]), 64);
            for (temp=0; temp<16; temp++)
                DEBUG("tempbuf %d = 0x%x\n", temp, pft1000info->tempbuf[temp]);
-           status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, (PUCHAR)&handshake, 1);
+           status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, (u8 *)&handshake, 1);
            DEBUG("handshake from read_dpram16 = 0x%x\n", handshake);
            if (pft1000info->dspalive == pft1000info->tempbuf[6])
                handshake = 0;
@@ -313,7 +313,7 @@ static USHORT get_handshake_usb(struct ft1000_device *ft1000dev, USHORT expected
            }
        }
        else {
-           status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, (PUCHAR)&handshake, 1);
+           status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_HANDSHAKE_LOC, (u8 *)&handshake, 1);
        }
        loopcnt++;
        msleep(10);
@@ -356,14 +356,14 @@ static USHORT get_request_type(struct ft1000_device *ft1000dev)
 
    if ( pft1000info->bootmode == 1)
    {
-       status = fix_ft1000_read_dpram32 (ft1000dev, DWNLD_MAG1_TYPE_LOC, (PUCHAR)&tempx);
+       status = fix_ft1000_read_dpram32 (ft1000dev, DWNLD_MAG1_TYPE_LOC, (u8 *)&tempx);
        tempx = ntohl(tempx);
    }
    else
    {
        tempx = 0;
 
-       status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_TYPE_LOC, (PUCHAR)&tempword, 1);
+       status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_TYPE_LOC, (u8 *)&tempword, 1);
        tempx |= (tempword << 16);
        tempx = ntohl(tempx);
    }
@@ -383,7 +383,7 @@ static USHORT get_request_type_usb(struct ft1000_device *ft1000dev)
 	struct ft1000_info *pft1000info = netdev_priv(ft1000dev->net);
    if ( pft1000info->bootmode == 1)
    {
-       status = fix_ft1000_read_dpram32 (ft1000dev, DWNLD_MAG1_TYPE_LOC, (PUCHAR)&tempx);
+       status = fix_ft1000_read_dpram32 (ft1000dev, DWNLD_MAG1_TYPE_LOC, (u8 *)&tempx);
        tempx = ntohl(tempx);
    }
    else
@@ -394,7 +394,7 @@ static USHORT get_request_type_usb(struct ft1000_device *ft1000dev)
        }
        else {
           tempx = 0;
-          status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_TYPE_LOC, (PUCHAR)&tempword, 1);
+          status = ft1000_read_dpram16 (ft1000dev, DWNLD_MAG1_TYPE_LOC, (u8 *)&tempword, 1);
        }
        tempx |= (tempword << 16);
        tempx = ntohl(tempx);
@@ -428,14 +428,14 @@ static long get_request_value(struct ft1000_device *ft1000dev)
 
        if ( pft1000info->bootmode == 1)
        {
-	   status = fix_ft1000_read_dpram32(ft1000dev, DWNLD_MAG1_SIZE_LOC, (PUCHAR)&value);
+	   status = fix_ft1000_read_dpram32(ft1000dev, DWNLD_MAG1_SIZE_LOC, (u8 *)&value);
 	   value = ntohl(value);
        }
        else
        {
-	   status = ft1000_read_dpram16(ft1000dev, DWNLD_MAG1_SIZE_LOC, (PUCHAR)&tempword, 0);
+	   status = ft1000_read_dpram16(ft1000dev, DWNLD_MAG1_SIZE_LOC, (u8 *)&tempword, 0);
 	   value = tempword;
-           status = ft1000_read_dpram16(ft1000dev, DWNLD_MAG1_SIZE_LOC, (PUCHAR)&tempword, 1);
+           status = ft1000_read_dpram16(ft1000dev, DWNLD_MAG1_SIZE_LOC, (u8 *)&tempword, 1);
 	   value |= (tempword << 16);
 	   value = ntohl(value);
        }
@@ -460,7 +460,7 @@ static long get_request_value_usb(struct ft1000_device *ft1000dev)
        }
        else {
           value = 0;
-          status = ft1000_read_dpram16(ft1000dev, DWNLD_MAG1_SIZE_LOC, (PUCHAR)&tempword, 1);
+          status = ft1000_read_dpram16(ft1000dev, DWNLD_MAG1_SIZE_LOC, (u8 *)&tempword, 1);
        }
 
        value |= (tempword << 16);
@@ -494,7 +494,7 @@ static void put_request_value(struct ft1000_device *ft1000dev, long lvalue)
    ULONG    status;
 
        tempx = ntohl(lvalue);
-       status = fix_ft1000_write_dpram32(ft1000dev, DWNLD_MAG1_SIZE_LOC, (PUCHAR)&tempx);
+       status = fix_ft1000_write_dpram32(ft1000dev, DWNLD_MAG1_SIZE_LOC, (u8 *)&tempx);
 
 
 
@@ -602,24 +602,24 @@ static ULONG write_blk (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR
 	      if (pft1000info->bootmode == 0)
 	      {
 		 if (dpram >= 0x3F4)
-                     Status = ft1000_write_dpram32 (ft1000dev, dpram, (PUCHAR)&tempbuffer[0], 8);
+                     Status = ft1000_write_dpram32 (ft1000dev, dpram, (u8 *)&tempbuffer[0], 8);
 	         else
-                    Status = ft1000_write_dpram32 (ft1000dev, dpram, (PUCHAR)&tempbuffer[0], 64);
+                    Status = ft1000_write_dpram32 (ft1000dev, dpram, (u8 *)&tempbuffer[0], 64);
 	      }
 	      else
 	      {
                  for (j=0; j<10; j++)
                  {
-                   Status = ft1000_write_dpram32 (ft1000dev, dpram, (PUCHAR)&tempbuffer[0], 64);
+                   Status = ft1000_write_dpram32 (ft1000dev, dpram, (u8 *)&tempbuffer[0], 64);
 		   if (Status == STATUS_SUCCESS)
 		   {
 		       // Work around for ASIC bit stuffing problem.
 		       if ( (tempbuffer[31] & 0xfe00) == 0xfe00)
 		       {
-      		           Status = ft1000_write_dpram32(ft1000dev, dpram+12, (PUCHAR)&tempbuffer[24], 64);
+      		           Status = ft1000_write_dpram32(ft1000dev, dpram+12, (u8 *)&tempbuffer[24], 64);
 		       }
     		       // Let's check the data written
-	    	       Status = ft1000_read_dpram32 (ft1000dev, dpram, (PUCHAR)&resultbuffer[0], 64);
+	    	       Status = ft1000_read_dpram32 (ft1000dev, dpram, (u8 *)&resultbuffer[0], 64);
 		       if ( (tempbuffer[31] & 0xfe00) == 0xfe00)
 		       {
 		           for (i=0; i<28; i++)
@@ -633,7 +633,7 @@ static ULONG write_blk (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR
 				   break;
 				}
 			   }
-   			   Status = ft1000_read_dpram32 (ft1000dev, dpram+12, (PUCHAR)&resultbuffer[0], 64);
+   			   Status = ft1000_read_dpram32 (ft1000dev, dpram+12, (u8 *)&resultbuffer[0], 64);
 		           for (i=0; i<16; i++)
 		           {
     			       if (resultbuffer[i] != tempbuffer[i+24])
@@ -799,7 +799,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
    ULONG                   image_chksum = 0;
 
    USHORT                  dpram = 0;
-   PUCHAR                  pbuffer;
+   u8 *pbuffer;
 	struct prov_record *pprov_record;
 	struct ft1000_info *pft1000info = netdev_priv(ft1000dev->net);
 
@@ -1066,7 +1066,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
 
                       templong = *pUsData++;
 					  templong |= (*pUsData++ << 16);
-                      Status = fix_ft1000_write_dpram32 (ft1000dev, dpram++, (PUCHAR)&templong);
+                      Status = fix_ft1000_write_dpram32 (ft1000dev, dpram++, (u8 *)&templong);
 
                }
                break;
@@ -1095,7 +1095,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
                       templong = ntohs(*pUsFile++);
 					  temp = ntohs(*pUsFile++);
 					  templong |= (temp << 16);
-                      Status = fix_ft1000_write_dpram32 (ft1000dev, dpram++, (PUCHAR)&templong);
+                      Status = fix_ft1000_write_dpram32 (ft1000dev, dpram++, (u8 *)&templong);
 
                }
                break;
