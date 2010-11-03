@@ -51,9 +51,7 @@ sw_usp:
 .globl ret_from_exception
 .globl ret_from_signal
 .globl sys_call_table
-.globl ret_from_interrupt
 .globl inthandler
-.globl fasthandler
 
 enosys:
 	mov.l	#sys_ni_syscall,%d3
@@ -192,31 +190,7 @@ ENTRY(inthandler)
 	jbsr	do_IRQ			/* call high level irq handler */
 	lea	%sp@(8),%sp		/* pop args off stack */
 
-	bra	ret_from_interrupt	/* this was fallthrough */
-
-/*
- * This is the fast interrupt handler (for certain hardware interrupt
- * sources). Unlike the normal interrupt handler it just uses the
- * current stack (doesn't care if it is user or kernel). It also
- * doesn't bother doing the bottom half handlers.
- */
-ENTRY(fasthandler)
-	SAVE_LOCAL
-
-	movew	%sp@(PT_OFF_FORMATVEC),%d0
-	andl	#0x03fc,%d0		/* mask out vector only */
-
-	movel	%sp,%sp@-		/* push regs arg */
-	lsrl	#2,%d0			/* calculate real vector # */
-	movel	%d0,%sp@-		/* push vector number */
-	jbsr	do_IRQ			/* call high level irq handler */
-	lea	%sp@(8),%sp		/* pop args off stack */
-
-	RESTORE_LOCAL
-
-ENTRY(ret_from_interrupt)
-	/* the fasthandler is confusing me, haven't seen any user */
-	jmp	ret_from_exception
+	bra	ret_from_exception
 
 /*
  * Beware - when entering resume, prev (the current task) is
