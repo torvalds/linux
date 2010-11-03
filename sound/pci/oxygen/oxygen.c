@@ -66,28 +66,34 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "enable card");
 
 enum {
-	MODEL_CMEDIA_REF,	/* C-Media's reference design */
-	MODEL_MERIDIAN,		/* AuzenTech X-Meridian */
-	MODEL_CLARO,		/* HT-Omega Claro */
-	MODEL_CLARO_HALO,	/* HT-Omega Claro halo */
-	MODEL_HIFIER,		/* TempoTec HiFier Fantasia */
-	MODEL_HG2PCI,		/* Kuroutoshikou CMI8787-HG2PCI */
+	MODEL_CMEDIA_REF,
+	MODEL_MERIDIAN,
+	MODEL_CLARO,
+	MODEL_CLARO_HALO,
+	MODEL_HIFIER,
+	MODEL_HG2PCI,
 };
 
 static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
+	/* C-Media's reference design */
 	{ OXYGEN_PCI_SUBID(0x10b0, 0x0216), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x10b0, 0x0218), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x10b0, 0x0219), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x0001), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x0010), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x8788), .driver_data = MODEL_CMEDIA_REF },
-	{ OXYGEN_PCI_SUBID(0x13f6, 0xffff), .driver_data = MODEL_HG2PCI },
 	{ OXYGEN_PCI_SUBID(0x147a, 0xa017), .driver_data = MODEL_CMEDIA_REF },
+	{ OXYGEN_PCI_SUBID(0x1a58, 0x0910), .driver_data = MODEL_CMEDIA_REF },
+	/* Kuroutoshikou CMI8787-HG2PCI */
+	{ OXYGEN_PCI_SUBID(0x13f6, 0xffff), .driver_data = MODEL_HG2PCI },
+	/* TempoTec HiFier Fantasia */
 	{ OXYGEN_PCI_SUBID(0x14c3, 0x1710), .driver_data = MODEL_HIFIER },
 	{ OXYGEN_PCI_SUBID(0x14c3, 0x1711), .driver_data = MODEL_HIFIER },
-	{ OXYGEN_PCI_SUBID(0x1a58, 0x0910), .driver_data = MODEL_CMEDIA_REF },
+	/* AuzenTech X-Meridian */
 	{ OXYGEN_PCI_SUBID(0x415a, 0x5431), .driver_data = MODEL_MERIDIAN },
+	/* HT-Omega Claro */
 	{ OXYGEN_PCI_SUBID(0x7284, 0x9761), .driver_data = MODEL_CLARO },
+	/* HT-Omega Claro halo */
 	{ OXYGEN_PCI_SUBID(0x7284, 0x9781), .driver_data = MODEL_CLARO_HALO },
 	{ }
 };
