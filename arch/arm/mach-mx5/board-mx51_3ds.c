@@ -172,6 +172,7 @@ static void __init mxc_board_init(void)
 		printk(KERN_WARNING "Init of the debugboard failed, all "
 				    "devices on the board are unusable.\n");
 
+	imx51_add_sdhci_esdhc_imx(0, NULL);
 	mxc_init_keypad();
 }
 
