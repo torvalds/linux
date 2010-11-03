@@ -41,7 +41,7 @@ int mxc_iomux_v3_setup_pad(iomux_v3_cfg_t *pad)
 
 	if (MUX_SELECT_INPUT_OFS(pad))
 		__raw_writel(MUX_SELECT_INPUT(pad),
-			base + MUX_SELECT_INPUT(pad));
+			base + MUX_SELECT_INPUT_OFS(pad));
 
 	if (!(MUX_PAD_CTRL(pad) & NO_PAD_CTRL) && MUX_PAD_CTRL_OFS(pad))
 		__raw_writel(MUX_PAD_CTRL(pad), base + MUX_PAD_CTRL_OFS(pad));
