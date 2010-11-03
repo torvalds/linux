@@ -351,11 +351,24 @@ static int tegra2_super_clk_set_parent(struct clk *c, struct clk *p)
 	return -EINVAL;
 }
 
+/*
+ * Super clocks have "clock skippers" instead of dividers.  Dividing using
+ * a clock skipper does not allow the voltage to be scaled down, so instead
+ * adjust the rate of the parent clock.  This requires that the parent of a
+ * super clock have no other children, otherwise the rate will change
+ * underneath the other children.
+ */
+static int tegra2_super_clk_set_rate(struct clk *c, unsigned long rate)
+{
+	return clk_set_rate(c->parent, rate);
+}
+
 static struct clk_ops tegra_super_ops = {
 	.init			= tegra2_super_clk_init,
 	.enable			= tegra2_super_clk_enable,
 	.disable		= tegra2_super_clk_disable,
 	.set_parent		= tegra2_super_clk_set_parent,
+	.set_rate		= tegra2_super_clk_set_rate,
 };
 
 /* virtual cpu clock functions */
