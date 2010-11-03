@@ -713,22 +713,10 @@ static void mdm6600_read_bulk_work(struct work_struct *work)
 	unsigned long flags;
 	struct mdm6600_port *modem = container_of(work, struct mdm6600_port,
 		read.work);
-	struct usb_anchor *anchor = &modem->read.pending;
 
 	dbg("%s", __func__);
 
-	while (true) {
-		spin_lock_irqsave(&anchor->lock, flags);
-		if (list_empty(&anchor->urb_list)) {
-			spin_unlock_irqrestore(&anchor->lock, flags);
-			return;
-		}
-
-		u = list_entry(anchor->urb_list.next, struct urb,
-				    anchor_list);
-		usb_get_urb(u);
-		spin_unlock_irqrestore(&anchor->lock, flags);
-
+	while ((u = usb_get_from_anchor(&modem->read.pending))) {
 		dbg("%s: processing urb %p len %u", __func__, u,
 			u->actual_length);
 		usb_serial_debug_data(debug_data, &modem->port->dev, __func__,
@@ -747,7 +735,6 @@ static void mdm6600_read_bulk_work(struct work_struct *work)
 		tty_kref_put(tty);
 
 next:
-		usb_unanchor_urb(u);
 		spin_lock_irqsave(&modem->susp_lock, flags);
 		if (modem->susp_count || !modem->opened) {
 			spin_unlock_irqrestore(&modem->susp_lock, flags);
