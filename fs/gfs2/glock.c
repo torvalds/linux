@@ -1782,12 +1782,13 @@ int __init gfs2_glock_init(void)
 	}
 #endif
 
-	glock_workqueue = alloc_workqueue("glock_workqueue", WQ_RESCUER |
+	glock_workqueue = alloc_workqueue("glock_workqueue", WQ_MEM_RECLAIM |
 					  WQ_HIGHPRI | WQ_FREEZEABLE, 0);
 	if (IS_ERR(glock_workqueue))
 		return PTR_ERR(glock_workqueue);
-	gfs2_delete_workqueue = alloc_workqueue("delete_workqueue", WQ_RESCUER |
-						WQ_FREEZEABLE, 0);
+	gfs2_delete_workqueue = alloc_workqueue("delete_workqueue",
+						WQ_MEM_RECLAIM | WQ_FREEZEABLE,
+						0);
 	if (IS_ERR(gfs2_delete_workqueue)) {
 		destroy_workqueue(glock_workqueue);
 		return PTR_ERR(gfs2_delete_workqueue);
