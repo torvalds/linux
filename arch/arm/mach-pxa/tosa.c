@@ -46,6 +46,7 @@
 #include <mach/tosa_bt.h>
 #include <mach/pxa2xx_spi.h>
 #include <mach/audio.h>
+#include <mach/smemc.h>
 
 #include <asm/mach/arch.h>
 #include <mach/tosa.h>
@@ -893,9 +894,11 @@ static void tosa_poweroff(void)
 
 static void tosa_restart(char mode, const char *cmd)
 {
+	uint32_t msc0 = __raw_readl(MSC0);
+
 	/* Bootloader magic for a reboot */
-	if((MSC0 & 0xffff0000) == 0x7ff00000)
-		MSC0 = (MSC0 & 0xffff) | 0x7ee00000;
+	if((msc0 & 0xffff0000) == 0x7ff00000)
+		__raw_writel((msc0 & 0xffff) | 0x7ee00000, MSC0);
 
 	tosa_poweroff();
 }

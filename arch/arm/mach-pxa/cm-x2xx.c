@@ -24,6 +24,7 @@
 #include <mach/pxa2xx-regs.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
+#include <mach/smemc.h>
 
 #include <asm/hardware/it8152.h>
 
@@ -392,9 +393,9 @@ static int cmx2xx_suspend(struct sys_device *dev, pm_message_t state)
 	cmx2xx_pci_suspend();
 
 	/* save MSC registers */
-	sleep_save_msc[0] = MSC0;
-	sleep_save_msc[1] = MSC1;
-	sleep_save_msc[2] = MSC2;
+	sleep_save_msc[0] = __raw_readl(MSC0);
+	sleep_save_msc[1] = __raw_readl(MSC1);
+	sleep_save_msc[2] = __raw_readl(MSC2);
 
 	/* setup power saving mode registers */
 	PCFR = 0x0;
@@ -416,9 +417,9 @@ static int cmx2xx_resume(struct sys_device *dev)
 	cmx2xx_pci_resume();
 
 	/* restore MSC registers */
-	MSC0 = sleep_save_msc[0];
-	MSC1 = sleep_save_msc[1];
-	MSC2 = sleep_save_msc[2];
+	__raw_writel(sleep_save_msc[0], MSC0);
+	__raw_writel(sleep_save_msc[1], MSC1);
+	__raw_writel(sleep_save_msc[2], MSC2);
 
 	return 0;
 }

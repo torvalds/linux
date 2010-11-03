@@ -17,6 +17,7 @@
 #include <linux/suspend.h>
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
+#include <linux/io.h>
 
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
@@ -28,6 +29,8 @@
 #include <mach/ohci.h>
 #include <mach/pm.h>
 #include <mach/dma.h>
+#include <mach/smemc.h>
+
 #include <plat/i2c.h>
 
 #include "generic.h"
@@ -255,7 +258,7 @@ enum {
 
 void pxa27x_cpu_pm_save(unsigned long *sleep_save)
 {
-	SAVE(MDREFR);
+	sleep_save[SLEEP_SAVE_MDREFR] = __raw_readl(MDREFR);
 	SAVE(PCFR);
 
 	SAVE(CKEN);
@@ -264,7 +267,7 @@ void pxa27x_cpu_pm_save(unsigned long *sleep_save)
 
 void pxa27x_cpu_pm_restore(unsigned long *sleep_save)
 {
-	RESTORE(MDREFR);
+	__raw_writel(sleep_save[SLEEP_SAVE_MDREFR], MDREFR);
 	RESTORE(PCFR);
 
 	PSSR = PSSR_RDH | PSSR_PH;
@@ -373,8 +376,8 @@ void __init pxa27x_init_irq(void)
 
 static struct map_desc pxa27x_io_desc[] __initdata = {
 	{	/* Mem Ctl */
-		.virtual	=  0xf6000000,
-		.pfn		= __phys_to_pfn(0x48000000),
+		.virtual	= SMEMC_VIRT,
+		.pfn		= __phys_to_pfn(PXA2XX_SMEMC_BASE),
 		.length		= 0x00200000,
 		.type		= MT_DEVICE
 	}, {	/* IMem ctl */

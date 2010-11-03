@@ -48,6 +48,7 @@
 #include <mach/udc.h>
 #include <mach/pxa2xx_spi.h>
 #include <mach/pxa27x-udc.h>
+#include <mach/smemc.h>
 
 #include <linux/spi/spi.h>
 #include <linux/mfd/da903x.h>
@@ -976,7 +977,7 @@ static void __init stargate2_init(void)
 {
 	/* This is probably a board specific hack as this must be set
 	   prior to connecting the MFP stuff up. */
-	MECR &= ~MECR_NOS;
+	__raw_writel(__raw_readl(MECR) & ~MECR_NOS, MECR);
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(stargate2_pin_config));
 

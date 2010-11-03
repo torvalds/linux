@@ -27,6 +27,7 @@
 #include <mach/ohci.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/audio.h>
+#include <mach/smemc.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -255,9 +256,9 @@ static struct platform_device *devices[] __initdata = {
 static void __init csb726_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(csb726_pin_config));
-/*	MSC1 = 0x7ffc3ffc; *//* LAN9215/EXP_CS */
-/*	MSC2 = 0x06697ff4; *//* none/SM501 */
-	MSC2 = (MSC2 & ~0xffff) | 0x7ff4; /* SM501 */
+/*	__raw_writel(0x7ffc3ffc, MSC1); *//* LAN9215/EXP_CS */
+/*	__raw_writel(0x06697ff4, MSC2); *//* none/SM501 */
+	__raw_writel((__raw_readl(MSC2) & ~0xffff) | 0x7ff4, MSC2); /* SM501 */
 
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);

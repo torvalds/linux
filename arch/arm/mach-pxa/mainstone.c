@@ -51,6 +51,7 @@
 #include <mach/irda.h>
 #include <mach/ohci.h>
 #include <plat/pxa27x_keypad.h>
+#include <mach/smemc.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -565,7 +566,7 @@ static void __init mainstone_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	mst_flash_data[0].width = (BOOT_DEF & 1) ? 2 : 4;
+	mst_flash_data[0].width = (__raw_readl(BOOT_DEF) & 1) ? 2 : 4;
 	mst_flash_data[1].width = 4;
 
 	/* Compensate for SW7 which swaps the flash banks */

@@ -28,6 +28,7 @@
 
 #include <mach/reset.h>
 #include <mach/gpio.h>
+#include <mach/smemc.h>
 
 #include "generic.h"
 

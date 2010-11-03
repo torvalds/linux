@@ -46,6 +46,7 @@
 #include <mach/mmc.h>
 #include <mach/irda.h>
 #include <mach/ohci.h>
+#include <mach/smemc.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -463,7 +464,7 @@ static void __init lpd270_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	lpd270_flash_data[0].width = (BOOT_DEF & 1) ? 2 : 4;
+	lpd270_flash_data[0].width = (__raw_readl(BOOT_DEF) & 1) ? 2 : 4;
 	lpd270_flash_data[1].width = 4;
 
 	/*

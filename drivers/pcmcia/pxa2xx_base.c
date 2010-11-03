@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 
 #include <mach/hardware.h>
+#include <mach/smemc.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
@@ -116,36 +117,48 @@ static inline u_int pxa2xx_pcmcia_cmd_time(u_int mem_clk_10khz,
 
 static int pxa2xx_pcmcia_set_mcmem( int sock, int speed, int clock )
 {
-	MCMEM(sock) = ((pxa2xx_mcxx_setup(speed, clock)
+	uint32_t val;
+
+	val = ((pxa2xx_mcxx_setup(speed, clock)
 		& MCXX_SETUP_MASK) << MCXX_SETUP_SHIFT)
 		| ((pxa2xx_mcxx_asst(speed, clock)
 		& MCXX_ASST_MASK) << MCXX_ASST_SHIFT)
 		| ((pxa2xx_mcxx_hold(speed, clock)
 		& MCXX_HOLD_MASK) << MCXX_HOLD_SHIFT);
+
+	__raw_writel(val, MCMEM(sock));
 
 	return 0;
 }
 
 static int pxa2xx_pcmcia_set_mcio( int sock, int speed, int clock )
 {
-	MCIO(sock) = ((pxa2xx_mcxx_setup(speed, clock)
+	uint32_t val;
+
+	val = ((pxa2xx_mcxx_setup(speed, clock)
 		& MCXX_SETUP_MASK) << MCXX_SETUP_SHIFT)
 		| ((pxa2xx_mcxx_asst(speed, clock)
 		& MCXX_ASST_MASK) << MCXX_ASST_SHIFT)
 		| ((pxa2xx_mcxx_hold(speed, clock)
 		& MCXX_HOLD_MASK) << MCXX_HOLD_SHIFT);
+
+	__raw_writel(val, MCIO(sock));
 
 	return 0;
 }
 
 static int pxa2xx_pcmcia_set_mcatt( int sock, int speed, int clock )
 {
-	MCATT(sock) = ((pxa2xx_mcxx_setup(speed, clock)
+	uint32_t val;
+
+	val = ((pxa2xx_mcxx_setup(speed, clock)
 		& MCXX_SETUP_MASK) << MCXX_SETUP_SHIFT)
 		| ((pxa2xx_mcxx_asst(speed, clock)
 		& MCXX_ASST_MASK) << MCXX_ASST_SHIFT)
 		| ((pxa2xx_mcxx_hold(speed, clock)
 		& MCXX_HOLD_MASK) << MCXX_HOLD_SHIFT);
+
+	__raw_writel(val, MCATT(sock));
 
 	return 0;
 }
@@ -205,19 +218,18 @@ pxa2xx_pcmcia_frequency_change(struct soc_pcmcia_socket *skt,
 static void pxa2xx_configure_sockets(struct device *dev)
 {
 	struct pcmcia_low_level *ops = dev->platform_data;
-
 	/*
 	 * We have at least one socket, so set MECR:CIT
 	 * (Card Is There)
 	 */
-	MECR |= MECR_CIT;
+	uint32_t mecr = MECR_CIT;
 
 	/* Set MECR:NOS (Number Of Sockets) */
 	if ((ops->first + ops->nr) > 1 ||
 	    machine_is_viper() || machine_is_arcom_zeus())
-		MECR |= MECR_NOS;
-	else
-		MECR &= ~MECR_NOS;
+		mecr |= MECR_NOS;
+
+	__raw_writel(mecr, MECR);
 }
 
 static const char *skt_names[] = {

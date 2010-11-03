@@ -50,6 +50,7 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/pm.h>
+#include <mach/smemc.h>
 
 #include "generic.h"
 #include "clock.h"
@@ -525,7 +526,7 @@ static void __init lubbock_init(void)
 	pxa_set_ac97_info(NULL);
 
 	lubbock_flash_data[0].width = lubbock_flash_data[1].width =
-		(BOOT_DEF & 1) ? 2 : 4;
+		(__raw_readl(BOOT_DEF) & 1) ? 2 : 4;
 	/* Compensate for the nROMBT switch which swaps the flash banks */
 	printk(KERN_NOTICE "Lubbock configured to boot from %s (bank %d)\n",
 	       flashboot?"Flash":"ROM", flashboot);

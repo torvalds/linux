@@ -31,6 +31,7 @@
 #include <mach/pm.h>
 #include <mach/dma.h>
 #include <mach/regs-intc.h>
+#include <mach/smemc.h>
 #include <plat/i2c.h>
 
 #include "generic.h"
@@ -583,8 +584,8 @@ void __init pxa3xx_init_irq(void)
 
 static struct map_desc pxa3xx_io_desc[] __initdata = {
 	{	/* Mem Ctl */
-		.virtual	=  0xf6000000,
-		.pfn		= __phys_to_pfn(0x4a000000),
+		.virtual	= SMEMC_VIRT,
+		.pfn		= __phys_to_pfn(PXA3XX_SMEMC_BASE),
 		.length		= 0x00200000,
 		.type		= MT_DEVICE
 	}
