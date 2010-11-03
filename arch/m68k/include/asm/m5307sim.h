@@ -97,6 +97,17 @@
 #define	MCFSIM_PADAT		(MCF_MBAR + 0x248)
 
 /*
+ *  UART module.
+ */
+#if defined(CONFIG_NETtel) || defined(CONFIG_SECUREEDGEMP3)
+#define MCFUART_BASE1		0x200           /* Base address of UART1 */
+#define MCFUART_BASE2		0x1c0           /* Base address of UART2 */
+#else
+#define MCFUART_BASE1		0x1c0           /* Base address of UART1 */
+#define MCFUART_BASE2		0x200           /* Base address of UART2 */
+#endif
+
+/*
  * Generic GPIO support
  */
 #define MCFGPIO_PIN_MAX			16

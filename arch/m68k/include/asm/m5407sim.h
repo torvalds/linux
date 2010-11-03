@@ -76,6 +76,9 @@
 #define MCFSIM_DACR1		0x110		/* DRAM 1 Addr and Ctrl (r/w) */
 #define MCFSIM_DMR1		0x114		/* DRAM 1 Mask reg (r/w) */
 
+#define MCFUART_BASE1		0x1c0           /* Base address of UART1 */
+#define MCFUART_BASE2		0x200           /* Base address of UART2 */
+
 #define	MCFSIM_PADDR		(MCF_MBAR + 0x244)
 #define	MCFSIM_PADAT		(MCF_MBAR + 0x248)
 

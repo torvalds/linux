@@ -65,6 +65,9 @@
 #define	MCFSIM_DCMR1		0x5c		/* DRAM 1 Mask reg (r/w) */
 #define	MCFSIM_DCCR1		0x63		/* DRAM 1 Control reg (r/w) */
 
+#define	MCFUART_BASE1		0x100		/* Base address of UART1 */
+#define	MCFUART_BASE2		0x140		/* Base address of UART2 */
+
 #define	MCFSIM_PACNT		(MCF_MBAR + 0x80) /* Port A Control (r/w) */
 #define	MCFSIM_PADDR		(MCF_MBAR + 0x84) /* Port A Direction (r/w) */
 #define	MCFSIM_PADAT		(MCF_MBAR + 0x86) /* Port A Data (r/w) */

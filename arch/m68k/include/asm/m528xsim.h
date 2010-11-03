@@ -44,6 +44,13 @@
 #define	MCFSIM_DMR1		0x54		/* SDRAM address mask 1 */
 
 /*
+ *	UART module.
+ */
+#define MCFUART_BASE1		0x200           /* Base address of UART1 */
+#define MCFUART_BASE2		0x240           /* Base address of UART2 */
+#define MCFUART_BASE3		0x280           /* Base address of UART3 */
+
+/*
  * 	GPIO registers
  */
 #define MCFGPIO_PORTA		(MCF_IPSBAR + 0x00100000)

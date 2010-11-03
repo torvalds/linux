@@ -58,6 +58,12 @@
 #define	MCFSIM_DMR1		0x5c		/* SDRAM address mask 1 */
 #endif
 
+/*
+ *	UART module.
+ */
+#define MCFUART_BASE1		0x200           /* Base address of UART1 */
+#define MCFUART_BASE2		0x240           /* Base address of UART2 */
+#define MCFUART_BASE3		0x280           /* Base address of UART3 */
 
 #ifdef CONFIG_M5271
 #define MCFGPIO_PODR_ADDR	(MCF_IPSBAR + 0x100000)

@@ -103,6 +103,13 @@
 #define	ACR_CM_OFF_IMP		(3<<5)
 #define	ACR_WPROTECT		(1<<2)
 
+/*
+ *  UART module.
+ */
+#define MCFUART_BASE1		0xFC060000	/* Base address of UART1 */
+#define MCFUART_BASE2		0xFC064000	/* Base address of UART2 */
+#define MCFUART_BASE3		0xFC068000	/* Base address of UART3 */
+
 /*********************************************************************
  *
  * Reset Controller Module

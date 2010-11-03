@@ -25,6 +25,14 @@
 #define MCFINTC_ICR0		0x40		/* Base ICR register */
 
 /*
+ *	UART module.
+ */
+#define MCFUART_BASE1		0x8600		/* Base address of UART1 */
+#define MCFUART_BASE2		0x8700		/* Base address of UART2 */
+#define MCFUART_BASE3		0x8800		/* Base address of UART3 */
+#define MCFUART_BASE4		0x8900		/* Base address of UART4 */
+
+/*
  *	Define system peripheral IRQ usage.
  */
 #define MCF_IRQ_TIMER		(64 + 54)	/* Slice Timer 0 */
