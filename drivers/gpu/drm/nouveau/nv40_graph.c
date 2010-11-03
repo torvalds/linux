@@ -30,6 +30,7 @@
 #include "nouveau_grctx.h"
 
 static int nv40_graph_register(struct drm_device *);
+static void nv40_graph_isr(struct drm_device *);
 
 struct nouveau_channel *
 nv40_graph_channel(struct drm_device *dev)
@@ -277,6 +278,7 @@ nv40_graph_init(struct drm_device *dev)
 	/* No context present currently */
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, 0x00000000);
 
+	nouveau_irq_register(dev, 12, nv40_graph_isr);
 	nv_wr32(dev, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
 	nv_wr32(dev, NV40_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
@@ -408,6 +410,7 @@ nv40_graph_init(struct drm_device *dev)
 
 void nv40_graph_takedown(struct drm_device *dev)
 {
+	nouveau_irq_unregister(dev, 12);
 }
 
 static int
@@ -448,4 +451,70 @@ nv40_graph_register(struct drm_device *dev)
 
 	dev_priv->engine.graph.registered = true;
 	return 0;
+}
+
+static int
+nv40_graph_isr_chid(struct drm_device *dev, u32 inst)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_channel *chan;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&dev_priv->channels.lock, flags);
+	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
+		chan = dev_priv->channels.ptr[i];
+		if (!chan || !chan->ramin_grctx)
+			continue;
+
+		if (inst == chan->ramin_grctx->pinst)
+			break;
+	}
+	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
+	return i;
+}
+
+static void
+nv40_graph_isr(struct drm_device *dev)
+{
+	u32 stat;
+
+	while ((stat = nv_rd32(dev, NV03_PGRAPH_INTR))) {
+		u32 nsource = nv_rd32(dev, NV03_PGRAPH_NSOURCE);
+		u32 nstatus = nv_rd32(dev, NV03_PGRAPH_NSTATUS);
+		u32 inst = (nv_rd32(dev, 0x40032c) & 0x000fffff) << 4;
+		u32 chid = nv40_graph_isr_chid(dev, inst);
+		u32 addr = nv_rd32(dev, NV04_PGRAPH_TRAPPED_ADDR);
+		u32 subc = (addr & 0x00070000) >> 16;
+		u32 mthd = (addr & 0x00001ffc);
+		u32 data = nv_rd32(dev, NV04_PGRAPH_TRAPPED_DATA);
+		u32 class = nv_rd32(dev, 0x400160 + subc * 4) & 0xffff;
+		u32 show = stat;
+
+		if (stat & NV_PGRAPH_INTR_ERROR) {
+			if (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD) {
+				if (!nouveau_gpuobj_mthd_call2(dev, chid, class, mthd, data))
+					show &= ~NV_PGRAPH_INTR_ERROR;
+			} else
+			if (nsource & NV03_PGRAPH_NSOURCE_DMA_VTX_PROTECTION) {
+				nv_mask(dev, 0x402000, 0, 0);
+			}
+		}
+
+		nv_wr32(dev, NV03_PGRAPH_INTR, stat);
+		nv_wr32(dev, NV04_PGRAPH_FIFO, 0x00000001);
+
+		if (show && nouveau_ratelimit()) {
+			NV_INFO(dev, "PGRAPH -");
+			nouveau_bitfield_print(nv10_graph_intr, show);
+			printk(" nsource:");
+			nouveau_bitfield_print(nv04_graph_nsource, nsource);
+			printk(" nstatus:");
+			nouveau_bitfield_print(nv10_graph_nstatus, nstatus);
+			printk("\n");
+			NV_INFO(dev, "PGRAPH - ch %d (0x%08x) subc %d "
+				     "class 0x%04x mthd 0x%04x data 0x%08x\n",
+				chid, inst, subc, class, mthd, data);
+		}
+	}
 }

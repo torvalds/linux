@@ -113,6 +113,24 @@ nouveau_gpuobj_mthd_call(struct nouveau_channel *chan,
 	return -ENOENT;
 }
 
+int
+nouveau_gpuobj_mthd_call2(struct drm_device *dev, int chid,
+			  u32 class, u32 mthd, u32 data)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_channel *chan = NULL;
+	unsigned long flags;
+	int ret = -EINVAL;
+
+	spin_lock_irqsave(&dev_priv->channels.lock, flags);
+	if (chid > 0 && chid < dev_priv->engine.fifo.channels)
+		chan = dev_priv->channels.ptr[chid];
+	if (chan)
+		ret = nouveau_gpuobj_mthd_call(chan, class, mthd, data);
+	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
+	return ret;
+}
+
 /* NVidia uses context objects to drive drawing operations.
 
    Context objects can be selected into 8 subchannels in the FIFO,

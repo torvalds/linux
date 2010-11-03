@@ -54,6 +54,7 @@ struct nouveau_fpriv {
 #include "nouveau_drm.h"
 #include "nouveau_reg.h"
 #include "nouveau_bios.h"
+#include "nouveau_util.h"
 struct nouveau_grctx;
 
 #define MAX_NUM_DCB_ENTRIES 16
@@ -872,6 +873,7 @@ extern int  nouveau_gpuobj_mthd_new(struct drm_device *, u32 class, u32 mthd,
 				    int (*exec)(struct nouveau_channel *,
 					        u32 class, u32 mthd, u32 data));
 extern int  nouveau_gpuobj_mthd_call(struct nouveau_channel *, u32, u32, u32);
+extern int  nouveau_gpuobj_mthd_call2(struct drm_device *, int, u32, u32, u32);
 extern int nouveau_gpuobj_channel_init(struct nouveau_channel *,
 				       uint32_t vram_h, uint32_t tt_h);
 extern void nouveau_gpuobj_channel_takedown(struct nouveau_channel *);
@@ -1110,9 +1112,9 @@ extern int  nv04_graph_create_context(struct nouveau_channel *);
 extern void nv04_graph_destroy_context(struct nouveau_channel *);
 extern int  nv04_graph_load_context(struct nouveau_channel *);
 extern int  nv04_graph_unload_context(struct drm_device *);
-extern void nv04_graph_context_switch(struct drm_device *);
 extern int  nv04_graph_mthd_page_flip(struct nouveau_channel *chan,
 				      u32 class, u32 mthd, u32 data);
+extern struct nouveau_bitfield nv04_graph_nsource[];
 
 /* nv10_graph.c */
 extern int  nv10_graph_init(struct drm_device *);
@@ -1122,8 +1124,9 @@ extern int  nv10_graph_create_context(struct nouveau_channel *);
 extern void nv10_graph_destroy_context(struct nouveau_channel *);
 extern int  nv10_graph_load_context(struct nouveau_channel *);
 extern int  nv10_graph_unload_context(struct drm_device *);
-extern void nv10_graph_context_switch(struct drm_device *);
 extern void nv10_graph_set_tile_region(struct drm_device *dev, int i);
+extern struct nouveau_bitfield nv10_graph_intr[];
+extern struct nouveau_bitfield nv10_graph_nstatus[];
 
 /* nv20_graph.c */
 extern int  nv20_graph_create_context(struct nouveau_channel *);
@@ -1155,7 +1158,6 @@ extern int  nv50_graph_create_context(struct nouveau_channel *);
 extern void nv50_graph_destroy_context(struct nouveau_channel *);
 extern int  nv50_graph_load_context(struct nouveau_channel *);
 extern int  nv50_graph_unload_context(struct drm_device *);
-extern void nv50_graph_context_switch(struct drm_device *);
 extern int  nv50_grctx_init(struct nouveau_grctx *);
 extern void nv50_graph_tlb_flush(struct drm_device *dev);
 extern void nv86_graph_tlb_flush(struct drm_device *dev);

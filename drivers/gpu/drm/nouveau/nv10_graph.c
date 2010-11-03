@@ -26,8 +26,10 @@
 #include "drm.h"
 #include "nouveau_drm.h"
 #include "nouveau_drv.h"
+#include "nouveau_util.h"
 
-static int nv10_graph_register(struct drm_device *);
+static int  nv10_graph_register(struct drm_device *);
+static void nv10_graph_isr(struct drm_device *);
 
 #define NV10_FIFO_NUMBER 32
 
@@ -788,7 +790,7 @@ nv10_graph_unload_context(struct drm_device *dev)
 	return 0;
 }
 
-void
+static void
 nv10_graph_context_switch(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -924,6 +926,7 @@ int nv10_graph_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
+	nouveau_irq_register(dev, 12, nv10_graph_isr);
 	nv_wr32(dev, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
 	nv_wr32(dev, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
@@ -966,6 +969,8 @@ int nv10_graph_init(struct drm_device *dev)
 
 void nv10_graph_takedown(struct drm_device *dev)
 {
+	nv_wr32(dev, NV03_PGRAPH_INTR_EN, 0x00000000);
+	nouveau_irq_unregister(dev, 12);
 }
 
 static int
@@ -1116,4 +1121,67 @@ nv10_graph_register(struct drm_device *dev)
 
 	dev_priv->engine.graph.registered = true;
 	return 0;
+}
+
+struct nouveau_bitfield nv10_graph_intr[] = {
+	{ NV_PGRAPH_INTR_NOTIFY, "NOTIFY" },
+	{ NV_PGRAPH_INTR_ERROR,  "ERROR"  },
+	{}
+};
+
+struct nouveau_bitfield nv10_graph_nstatus[] =
+{
+	{ NV10_PGRAPH_NSTATUS_STATE_IN_USE,       "STATE_IN_USE" },
+	{ NV10_PGRAPH_NSTATUS_INVALID_STATE,      "INVALID_STATE" },
+	{ NV10_PGRAPH_NSTATUS_BAD_ARGUMENT,       "BAD_ARGUMENT" },
+	{ NV10_PGRAPH_NSTATUS_PROTECTION_FAULT,   "PROTECTION_FAULT" },
+	{}
+};
+
+static void
+nv10_graph_isr(struct drm_device *dev)
+{
+	u32 stat;
+
+	while ((stat = nv_rd32(dev, NV03_PGRAPH_INTR))) {
+		u32 nsource = nv_rd32(dev, NV03_PGRAPH_NSOURCE);
+		u32 nstatus = nv_rd32(dev, NV03_PGRAPH_NSTATUS);
+		u32 addr = nv_rd32(dev, NV04_PGRAPH_TRAPPED_ADDR);
+		u32 chid = (addr & 0x01f00000) >> 20;
+		u32 subc = (addr & 0x00070000) >> 16;
+		u32 mthd = (addr & 0x00001ffc);
+		u32 data = nv_rd32(dev, NV04_PGRAPH_TRAPPED_DATA);
+		u32 class = nv_rd32(dev, 0x400160 + subc * 4) & 0xfff;
+		u32 show = stat;
+
+		if (stat & NV_PGRAPH_INTR_ERROR) {
+			if (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD) {
+				if (!nouveau_gpuobj_mthd_call2(dev, chid, class, mthd, data))
+					show &= ~NV_PGRAPH_INTR_ERROR;
+			}
+		}
+
+		if (stat & NV_PGRAPH_INTR_CONTEXT_SWITCH) {
+			nv_wr32(dev, NV03_PGRAPH_INTR, NV_PGRAPH_INTR_CONTEXT_SWITCH);
+			stat &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
+			show &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
+			nv10_graph_context_switch(dev);
+		}
+
+		nv_wr32(dev, NV03_PGRAPH_INTR, stat);
+		nv_wr32(dev, NV04_PGRAPH_FIFO, 0x00000001);
+
+		if (show && nouveau_ratelimit()) {
+			NV_INFO(dev, "PGRAPH -");
+			nouveau_bitfield_print(nv10_graph_intr, show);
+			printk(" nsource:");
+			nouveau_bitfield_print(nv04_graph_nsource, nsource);
+			printk(" nstatus:");
+			nouveau_bitfield_print(nv10_graph_nstatus, nstatus);
+			printk("\n");
+			NV_INFO(dev, "PGRAPH - ch %d/%d class 0x%04x "
+				     "mthd 0x%04x data 0x%08x\n",
+				chid, subc, class, mthd, data);
+		}
+	}
 }
