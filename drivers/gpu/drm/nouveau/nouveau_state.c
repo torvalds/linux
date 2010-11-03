@@ -393,7 +393,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.init		= nv50_display_init;
 		engine->display.destroy		= nv50_display_destroy;
 		engine->gpio.init		= nv50_gpio_init;
-		engine->gpio.takedown		= nouveau_stub_takedown;
+		engine->gpio.takedown		= nv50_gpio_fini;
 		engine->gpio.get		= nv50_gpio_get;
 		engine->gpio.set		= nv50_gpio_set;
 		engine->gpio.irq_enable		= nv50_gpio_irq_enable;

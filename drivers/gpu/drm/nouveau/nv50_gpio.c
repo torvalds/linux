@@ -26,6 +26,8 @@
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"
 
+static void nv50_gpio_isr(struct drm_device *dev);
+
 static int
 nv50_gpio_location(struct dcb_gpio_entry *gpio, uint32_t *reg, uint32_t *shift)
 {
@@ -107,5 +109,39 @@ nv50_gpio_init(struct drm_device *dev)
 		nv_wr32(dev, 0xe074, 0xffffffff);
 	}
 
+	nouveau_irq_register(dev, 21, nv50_gpio_isr);
 	return 0;
+}
+
+void
+nv50_gpio_fini(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	nv_wr32(dev, 0xe050, 0x00000000);
+	if (dev_priv->chipset >= 0x90)
+		nv_wr32(dev, 0xe070, 0x00000000);
+	nouveau_irq_unregister(dev, 21);
+}
+
+static void
+nv50_gpio_isr(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	uint32_t hpd0_bits, hpd1_bits = 0;
+
+	hpd0_bits = nv_rd32(dev, 0xe054);
+	nv_wr32(dev, 0xe054, hpd0_bits);
+
+	if (dev_priv->chipset >= 0x90) {
+		hpd1_bits = nv_rd32(dev, 0xe074);
+		nv_wr32(dev, 0xe074, hpd1_bits);
+	}
+
+	spin_lock(&dev_priv->hpd_state.lock);
+	dev_priv->hpd_state.hpd0_bits |= hpd0_bits;
+	dev_priv->hpd_state.hpd1_bits |= hpd1_bits;
+	spin_unlock(&dev_priv->hpd_state.lock);
+
+	queue_work(dev_priv->wq, &dev_priv->hpd_work);
 }

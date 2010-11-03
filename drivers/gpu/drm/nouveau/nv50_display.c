@@ -869,25 +869,6 @@ nv50_display_irq_handler(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t delayed = 0;
 
-	if (nv_rd32(dev, NV50_PMC_INTR_0) & NV50_PMC_INTR_0_HOTPLUG) {
-		uint32_t hpd0_bits, hpd1_bits = 0;
-
-		hpd0_bits = nv_rd32(dev, 0xe054);
-		nv_wr32(dev, 0xe054, hpd0_bits);
-
-		if (dev_priv->chipset >= 0x90) {
-			hpd1_bits = nv_rd32(dev, 0xe074);
-			nv_wr32(dev, 0xe074, hpd1_bits);
-		}
-
-		spin_lock(&dev_priv->hpd_state.lock);
-		dev_priv->hpd_state.hpd0_bits |= hpd0_bits;
-		dev_priv->hpd_state.hpd1_bits |= hpd1_bits;
-		spin_unlock(&dev_priv->hpd_state.lock);
-
-		queue_work(dev_priv->wq, &dev_priv->hpd_work);
-	}
-
 	while (nv_rd32(dev, NV50_PMC_INTR_0) & NV50_PMC_INTR_0_DISPLAY) {
 		uint32_t intr0 = nv_rd32(dev, NV50_PDISPLAY_INTR_0);
 		uint32_t intr1 = nv_rd32(dev, NV50_PDISPLAY_INTR_1);

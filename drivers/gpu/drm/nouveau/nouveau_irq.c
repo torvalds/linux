@@ -1238,11 +1238,9 @@ nouveau_irq_handler(DRM_IRQ_ARGS)
 		status &= ~NV_PMC_INTR_0_CRTCn_PENDING;
 	}
 
-	if (status & (NV_PMC_INTR_0_NV50_DISPLAY_PENDING |
-		      NV_PMC_INTR_0_NV50_I2C_PENDING)) {
+	if (status & NV_PMC_INTR_0_NV50_DISPLAY_PENDING) {
 		nv50_display_irq_handler(dev);
-		status &= ~(NV_PMC_INTR_0_NV50_DISPLAY_PENDING |
-			    NV_PMC_INTR_0_NV50_I2C_PENDING);
+		status &= ~NV_PMC_INTR_0_NV50_DISPLAY_PENDING;
 	}
 
 	for (i = 0; i < 32 && status; i++) {
