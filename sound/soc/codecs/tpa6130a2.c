@@ -119,7 +119,7 @@ static int tpa6130a2_power(int power)
 {
 	struct	tpa6130a2_data *data;
 	u8	val;
-	int	ret;
+	int	ret = 0;
 
 	BUG_ON(tpa6130a2_client == NULL);
 	data = i2c_get_clientdata(tpa6130a2_client);
