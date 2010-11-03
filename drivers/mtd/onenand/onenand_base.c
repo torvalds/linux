@@ -1845,7 +1845,7 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 	const u_char *buf = ops->datbuf;
 	const u_char *oob = ops->oobbuf;
 	u_char *oobbuf;
-	int ret = 0;
+	int ret = 0, cmd;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "%s: to = 0x%08x, len = %i\n",
 		__func__, (unsigned int) to, (int) len);
@@ -1954,7 +1954,19 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 			ONENAND_SET_NEXT_BUFFERRAM(this);
 		}
 
-		this->command(mtd, ONENAND_CMD_PROG, to, mtd->writesize);
+		this->ongoing = 0;
+		cmd = ONENAND_CMD_PROG;
+
+		/* Exclude 1st OTP and OTP blocks for cache program feature */
+		if (ONENAND_IS_CACHE_PROGRAM(this) &&
+		    likely(onenand_block(this, to) != 0) &&
+		    ONENAND_IS_4KB_PAGE(this) &&
+		    ((written + thislen) < len)) {
+			cmd = ONENAND_CMD_2X_CACHE_PROG;
+			this->ongoing = 1;
+		}
+
+		this->command(mtd, cmd, to, mtd->writesize);
 
 		/*
 		 * 2 PLANE, MLC, and Flex-OneNAND wait here
@@ -3377,8 +3389,10 @@ static void onenand_check_features(struct mtd_info *mtd)
 	case ONENAND_DEVICE_DENSITY_4Gb:
 		if (ONENAND_IS_DDP(this))
 			this->options |= ONENAND_HAS_2PLANE;
-		else if (numbufs == 1)
+		else if (numbufs == 1) {
 			this->options |= ONENAND_HAS_4KB_PAGE;
+			this->options |= ONENAND_HAS_CACHE_PROGRAM;
+		}
 
 	case ONENAND_DEVICE_DENSITY_2Gb:
 		/* 2Gb DDP does not have 2 plane */
@@ -3415,6 +3429,8 @@ static void onenand_check_features(struct mtd_info *mtd)
 		printk(KERN_DEBUG "Chip has 2 plane\n");
 	if (this->options & ONENAND_HAS_4KB_PAGE)
 		printk(KERN_DEBUG "Chip has 4KiB pagesize\n");
+	if (this->options & ONENAND_HAS_CACHE_PROGRAM)
+		printk(KERN_DEBUG "Chip has cache program feature\n");
 }
 
 /**
