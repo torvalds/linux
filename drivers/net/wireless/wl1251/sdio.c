@@ -43,8 +43,6 @@ struct wl1251_sdio {
 	u32 elp_val;
 };
 
-static struct wl12xx_platform_data *wl12xx_board_data;
-
 static struct sdio_func *wl_to_func(struct wl1251 *wl)
 {
 	struct wl1251_sdio *wl_sdio = wl->if_priv;
@@ -219,30 +217,6 @@ static struct wl1251_if_operations wl1251_sdio_ops = {
 	.power = wl1251_sdio_set_power,
 };
 
-static int wl1251_platform_probe(struct platform_device *pdev)
-{
-	if (pdev->id != -1) {
-		wl1251_error("can only handle single device");
-		return -ENODEV;
-	}
-
-	wl12xx_board_data = pdev->dev.platform_data;
-	return 0;
-}
-
-/*
- * Dummy platform_driver for passing platform_data to this driver,
- * until we have a way to pass this through SDIO subsystem or
- * some other way.
- */
-static struct platform_driver wl1251_platform_driver = {
-	.driver = {
-		.name	= "wl1251_data",
-		.owner	= THIS_MODULE,
-	},
-	.probe	= wl1251_platform_probe,
-};
-
 static int wl1251_sdio_probe(struct sdio_func *func,
 			     const struct sdio_device_id *id)
 {
@@ -250,6 +224,7 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 	struct wl1251 *wl;
 	struct ieee80211_hw *hw;
 	struct wl1251_sdio *wl_sdio;
+	const struct wl12xx_platform_data *wl12xx_board_data;
 
 	hw = wl1251_alloc_hw();
 	if (IS_ERR(hw))
@@ -276,6 +251,7 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 	wl->if_priv = wl_sdio;
 	wl->if_ops = &wl1251_sdio_ops;
 
+	wl12xx_board_data = wl12xx_get_platform_data();
 	if (wl12xx_board_data != NULL) {
 		wl->set_power = wl12xx_board_data->set_power;
 		wl->irq = wl12xx_board_data->irq;
@@ -378,12 +354,6 @@ static int __init wl1251_sdio_init(void)
 {
 	int err;
 
-	err = platform_driver_register(&wl1251_platform_driver);
-	if (err) {
-		wl1251_error("failed to register platform driver: %d", err);
-		return err;
-	}
-
 	err = sdio_register_driver(&wl1251_sdio_driver);
 	if (err)
 		wl1251_error("failed to register sdio driver: %d", err);
@@ -393,7 +363,6 @@ static int __init wl1251_sdio_init(void)
 static void __exit wl1251_sdio_exit(void)
 {
 	sdio_unregister_driver(&wl1251_sdio_driver);
-	platform_driver_unregister(&wl1251_platform_driver);
 	wl1251_notice("unloaded");
 }
 
