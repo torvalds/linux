@@ -3324,7 +3324,7 @@ tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink)
  * If the superblock doesn't refer to a multiuser mount, then just return
  * the master tcon for the mount.
  *
- * First, search the radix tree for an existing tcon for this fsuid. If one
+ * First, search the rbtree for an existing tcon for this fsuid. If one
  * exists, then check to see if it's pending construction. If it is then wait
  * for construction to complete. Once it's no longer pending, check to see if
  * it failed and either return an error or retry construction, depending on
