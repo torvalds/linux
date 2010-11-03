@@ -94,11 +94,13 @@ void ath9k_ps_wakeup(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	unsigned long flags;
+	enum ath9k_power_mode power_mode;
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
 	if (++sc->ps_usecount != 1)
 		goto unlock;
 
+	power_mode = sc->sc_ah->power_mode;
 	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
 
 	/*
@@ -106,10 +108,12 @@ void ath9k_ps_wakeup(struct ath_softc *sc)
 	 * useful data. Better clear them now so that they don't mess up
 	 * survey data results.
 	 */
-	spin_lock(&common->cc_lock);
-	ath_hw_cycle_counters_update(common);
-	memset(&common->cc_survey, 0, sizeof(common->cc_survey));
-	spin_unlock(&common->cc_lock);
+	if (power_mode != ATH9K_PM_AWAKE) {
+		spin_lock(&common->cc_lock);
+		ath_hw_cycle_counters_update(common);
+		memset(&common->cc_survey, 0, sizeof(common->cc_survey));
+		spin_unlock(&common->cc_lock);
+	}
 
  unlock:
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
