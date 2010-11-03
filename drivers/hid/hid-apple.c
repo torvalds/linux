@@ -167,7 +167,7 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 		struct hid_usage *usage, __s32 value)
 {
 	struct apple_sc *asc = hid_get_drvdata(hid);
-	const struct apple_key_translation *trans;
+	const struct apple_key_translation *trans, *table;
 
 	if (usage->code == KEY_FN) {
 		asc->fn_on = !!value;
@@ -178,14 +178,15 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 	if (fnmode) {
 		int do_translate;
 
-		if(hid->product >= USB_DEVICE_ID_APPLE_WELLSPRING4_ANSI &&
-				hid->product <= USB_DEVICE_ID_APPLE_WELLSPRING4A_JIS) {
-			trans = apple_find_translation(macbookair_fn_keys, usage->code);
-		} else if (hid->product < 0x21d || hid->product >= 0x300) {
-			trans = apple_find_translation(powerbook_fn_keys, usage->code);
-		} else {
-			trans = apple_find_translation(apple_fn_keys, usage->code);
-		}
+		if (hid->product >= USB_DEVICE_ID_APPLE_WELLSPRING4_ANSI &&
+				hid->product <= USB_DEVICE_ID_APPLE_WELLSPRING4A_JIS)
+			table = macbookair_fn_keys;
+		else if (hid->product < 0x21d || hid->product >= 0x300)
+			table = powerbook_fn_keys;
+		else
+			table = apple_fn_keys;
+
+		trans = apple_find_translation (table, usage->code);
 
 		if (trans) {
 			if (test_bit(usage->code, asc->pressed_fn))
