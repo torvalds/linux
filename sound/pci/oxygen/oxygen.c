@@ -70,8 +70,8 @@ enum {
 	MODEL_MERIDIAN,
 	MODEL_CLARO,
 	MODEL_CLARO_HALO,
-	MODEL_HIFIER,
-	MODEL_HG2PCI,
+	MODEL_FANTASIA,
+	MODEL_2CH_OUTPUT,
 };
 
 static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
@@ -85,10 +85,11 @@ static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
 	{ OXYGEN_PCI_SUBID(0x147a, 0xa017), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x1a58, 0x0910), .driver_data = MODEL_CMEDIA_REF },
 	/* Kuroutoshikou CMI8787-HG2PCI */
-	{ OXYGEN_PCI_SUBID(0x13f6, 0xffff), .driver_data = MODEL_HG2PCI },
+	{ OXYGEN_PCI_SUBID(0x13f6, 0xffff), .driver_data = MODEL_2CH_OUTPUT },
 	/* TempoTec HiFier Fantasia */
-	{ OXYGEN_PCI_SUBID(0x14c3, 0x1710), .driver_data = MODEL_HIFIER },
-	{ OXYGEN_PCI_SUBID(0x14c3, 0x1711), .driver_data = MODEL_HIFIER },
+	{ OXYGEN_PCI_SUBID(0x14c3, 0x1710), .driver_data = MODEL_FANTASIA },
+	/* TempoTec HiFier Serenade */
+	{ OXYGEN_PCI_SUBID(0x14c3, 0x1711), .driver_data = MODEL_2CH_OUTPUT },
 	/* AuzenTech X-Meridian */
 	{ OXYGEN_PCI_SUBID(0x415a, 0x5431), .driver_data = MODEL_MERIDIAN },
 	/* HT-Omega Claro */
@@ -244,13 +245,13 @@ static void claro_halo_init(struct oxygen *chip)
 	claro_enable_hp(chip);
 }
 
-static void hifier_init(struct oxygen *chip)
+static void fantasia_init(struct oxygen *chip)
 {
 	ak4396_init(chip);
 	snd_component_add(chip->card, "CS5340");
 }
 
-static void hg2pci_init(struct oxygen *chip)
+static void stereo_output_init(struct oxygen *chip)
 {
 	ak4396_init(chip);
 }
@@ -583,20 +584,20 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 					    CAPTURE_0_FROM_I2S_2 |
 					    CAPTURE_1_FROM_SPDIF;
 		break;
-	case MODEL_HIFIER:
-	case MODEL_HG2PCI:
+	case MODEL_FANTASIA:
+	case MODEL_2CH_OUTPUT:
 		chip->model.shortname = "C-Media CMI8787";
 		chip->model.chip = "CMI8787";
-		if (id->driver_data == MODEL_HIFIER)
-			chip->model.init = hifier_init;
+		if (id->driver_data == MODEL_FANTASIA)
+			chip->model.init = fantasia_init;
 		else
-			chip->model.init = hg2pci_init;
+			chip->model.init = stereo_output_init;
 		chip->model.resume = stereo_resume;
 		chip->model.mixer_init = generic_mixer_init;
 		chip->model.set_adc_params = set_no_params;
 		chip->model.device_config = PLAYBACK_0_TO_I2S |
 					    PLAYBACK_1_TO_SPDIF;
-		if (id->driver_data == MODEL_HIFIER)
+		if (id->driver_data == MODEL_FANTASIA)
 			chip->model.device_config |= CAPTURE_0_FROM_I2S_1;
 		chip->model.dac_channels = 2;
 		break;

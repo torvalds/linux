@@ -226,6 +226,7 @@ config SND_OXYGEN
 	   * Razer Barracuda AC-1
 	   * Sondigo Inferno
 	   * TempoTec/MediaTek HiFier Fantasia
+	   * TempoTec/MediaTek HiFier Serenade
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-oxygen.
