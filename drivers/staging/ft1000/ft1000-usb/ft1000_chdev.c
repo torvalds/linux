@@ -656,7 +656,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
             USHORT qtype;
             USHORT msgsz;
 		struct pseudo_hdr *ppseudo_hdr;
-            PUSHORT pmsg;
+            u16 *pmsg;
             USHORT total_len;
             USHORT app_index;
             u16 status;
@@ -766,8 +766,8 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
                         // Make sure we are within the limits of the slow queue memory limitation
                         if ( (msgsz < MAX_CMD_SQSIZE) && (msgsz > PSEUDOSZ) ) {
                             // Need to put sequence number plus new checksum for message
-                            //pmsg = (PUSHORT)&dpram_command.dpram_blk.pseudohdr;
-                            pmsg = (PUSHORT)&dpram_data->pseudohdr;
+                            //pmsg = (u16 *)&dpram_command.dpram_blk.pseudohdr;
+                            pmsg = (u16 *)&dpram_data->pseudohdr;
 				ppseudo_hdr = (struct pseudo_hdr *)pmsg;
                             total_len = msgsz+2;
                             if (total_len & 0x1) {

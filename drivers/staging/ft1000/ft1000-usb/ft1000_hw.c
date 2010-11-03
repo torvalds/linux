@@ -1209,7 +1209,7 @@ static int ft1000_copy_up_pkt (struct urb *urb)
     //DEBUG("ft1000_copy_up_pkt: transfer_buffer_length=%d, actual_buffer_len=%d\n",
       //       urb->transfer_buffer_length, urb->actual_length);
 
-    chksum = (PUSHORT)ft1000dev->rx_buf;
+    chksum = (u16 *)ft1000dev->rx_buf;
 
     tempword = *chksum++;
     for (i=1; i<7; i++)
@@ -1541,7 +1541,7 @@ static int ft1000_dsp_prov(void *arg)
     u16 i=0;
 	struct prov_record *ptr;
 	struct pseudo_hdr *ppseudo_hdr;
-    PUSHORT pmsg;
+    u16 *pmsg;
     u16 status;
     USHORT TempShortBuf [256];
 
@@ -1579,7 +1579,7 @@ static int ft1000_dsp_prov(void *arg)
             len = htons(len);
             len += PSEUDOSZ;
 
-            pmsg = (PUSHORT)ptr->pprov_data;
+            pmsg = (u16 *)ptr->pprov_data;
 		ppseudo_hdr = (struct pseudo_hdr *)pmsg;
             // Insert slow queue sequence number
             ppseudo_hdr->seq_num = info->squeseqnum++;
@@ -1626,7 +1626,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
 	struct drv_msg *pdrvmsg;
     u16 i;
 	struct pseudo_hdr *ppseudo_hdr;
-    PUSHORT pmsg;
+    u16 *pmsg;
     u16 status;
     union {
         u8  byte[2];
@@ -1758,7 +1758,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
                 tempword = ntohs(pdrvmsg->length);
                 info->DSPInfoBlklen = tempword;
                 if (tempword < (MAX_DSP_SESS_REC-4) ) {
-                    pmsg = (PUSHORT)&pdrvmsg->data[0];
+                    pmsg = (u16 *)&pdrvmsg->data[0];
                     for (i=0; i<((tempword+1)/2); i++) {
                         DEBUG("FT1000:drivermsg:dsp info data = 0x%x\n", *pmsg);
                         info->DSPInfoBlk[i+10] = *pmsg++;
@@ -1790,10 +1790,10 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
 
                 // Put message into Slow Queue
                 // Form Pseudo header
-                pmsg = (PUSHORT)info->DSPInfoBlk;
+                pmsg = (u16 *)info->DSPInfoBlk;
                 *pmsg++ = 0;
                 *pmsg++ = htons(info->DSPInfoBlklen+20+info->DSPInfoBlklen);
-		ppseudo_hdr = (struct pseudo_hdr *)(PUSHORT)&info->DSPInfoBlk[2];
+		ppseudo_hdr = (struct pseudo_hdr *)(u16 *)&info->DSPInfoBlk[2];
                 ppseudo_hdr->length = htons(info->DSPInfoBlklen+4+info->DSPInfoBlklen);
                 ppseudo_hdr->source = 0x10;
                 ppseudo_hdr->destination = 0x20;
@@ -1840,7 +1840,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
               if ( (tempword & FT1000_DB_DPRAM_TX) == 0) {
                   // Put message into Slow Queue
                   // Form Pseudo header
-                  pmsg = (PUSHORT)&tempbuffer[0];
+                  pmsg = (u16 *)&tempbuffer[0];
 			ppseudo_hdr = (struct pseudo_hdr *)pmsg;
                   ppseudo_hdr->length = htons(0x0012);
                   ppseudo_hdr->source = 0x10;
@@ -1861,7 +1861,7 @@ static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
                   for (i=1; i<7; i++) {
                       ppseudo_hdr->checksum ^= *pmsg++;
                   }
-                  pmsg = (PUSHORT)&tempbuffer[16];
+                  pmsg = (u16 *)&tempbuffer[16];
                   *pmsg++ = htons(RSP_DRV_ERR_RPT_MSG);
                   *pmsg++ = htons(0x000e);
                   *pmsg++ = htons(info->DSP_TIME[0]);
