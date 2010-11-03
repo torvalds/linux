@@ -32,6 +32,9 @@
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
 
+static void nv04_vblank_crtc0_isr(struct drm_device *);
+static void nv04_vblank_crtc1_isr(struct drm_device *);
+
 static void
 nv04_display_store_initial_head_owner(struct drm_device *dev)
 {
@@ -197,6 +200,8 @@ nv04_display_create(struct drm_device *dev)
 		func->save(encoder);
 	}
 
+	nouveau_irq_register(dev, 24, nv04_vblank_crtc0_isr);
+	nouveau_irq_register(dev, 25, nv04_vblank_crtc1_isr);
 	return 0;
 }
 
@@ -258,3 +263,16 @@ nv04_display_init(struct drm_device *dev)
 	return 0;
 }
 
+static void
+nv04_vblank_crtc0_isr(struct drm_device *dev)
+{
+	nv_wr32(dev, NV_CRTC0_INTSTAT, NV_CRTC_INTR_VBLANK);
+	drm_handle_vblank(dev, 0);
+}
+
+static void
+nv04_vblank_crtc1_isr(struct drm_device *dev)
+{
+	nv_wr32(dev, NV_CRTC1_INTSTAT, NV_CRTC_INTR_VBLANK);
+	drm_handle_vblank(dev, 1);
+}

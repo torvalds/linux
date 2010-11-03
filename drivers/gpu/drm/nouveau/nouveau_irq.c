@@ -1131,20 +1131,6 @@ nv50_pgraph_irq_handler(struct drm_device *dev)
 		nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) & ~(1 << 31));
 }
 
-static void
-nouveau_crtc_irq_handler(struct drm_device *dev, int crtc)
-{
-	if (crtc & 1) {
-		nv_wr32(dev, NV_CRTC0_INTSTAT, NV_CRTC_INTR_VBLANK);
-		drm_handle_vblank(dev, 0);
-	}
-
-	if (crtc & 2) {
-		nv_wr32(dev, NV_CRTC1_INTSTAT, NV_CRTC_INTR_VBLANK);
-		drm_handle_vblank(dev, 1);
-	}
-}
-
 irqreturn_t
 nouveau_irq_handler(DRM_IRQ_ARGS)
 {
@@ -1172,11 +1158,6 @@ nouveau_irq_handler(DRM_IRQ_ARGS)
 			nouveau_pgraph_irq_handler(dev);
 
 		status &= ~NV_PMC_INTR_0_PGRAPH_PENDING;
-	}
-
-	if (status & NV_PMC_INTR_0_CRTCn_PENDING) {
-		nouveau_crtc_irq_handler(dev, (status>>24)&3);
-		status &= ~NV_PMC_INTR_0_CRTCn_PENDING;
 	}
 
 	for (i = 0; i < 32 && status; i++) {
