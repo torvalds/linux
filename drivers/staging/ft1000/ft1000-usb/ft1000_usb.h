@@ -100,7 +100,6 @@ struct prov_record {
 
 #define ULONG               u32 /* WTF ??? */
 #define BOOLEAN             u8
-#define PULONG              u32 *
 #define PCHAR               u8 *
 #define UINT                u32
 
