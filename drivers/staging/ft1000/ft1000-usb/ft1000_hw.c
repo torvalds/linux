@@ -367,7 +367,7 @@ u16 ft1000_write_dpram16(struct ft1000_device *ft1000dev, USHORT indx, USHORT va
 //---------------------------------------------------------------------------
 u16 fix_ft1000_read_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *buffer)
 {
-    UCHAR buf[16];
+    u8 buf[16];
     USHORT pos;
     u16 ret = STATUS_SUCCESS;
 
@@ -419,8 +419,8 @@ u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, USHORT indx, u8 *b
     USHORT pos1;
     USHORT pos2;
     USHORT i;
-    UCHAR buf[32];
-    UCHAR resultbuffer[32];
+    u8 buf[32];
+    u8 resultbuffer[32];
     u8 *pdata;
     u16 ret  = STATUS_SUCCESS;
 

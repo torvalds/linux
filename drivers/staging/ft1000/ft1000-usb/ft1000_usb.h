@@ -98,7 +98,6 @@ struct prov_record {
 /*end of Jim*/
 #define DEBUG(args...) printk(KERN_INFO args)
 
-#define UCHAR               u8
 #define USHORT              u16
 #define ULONG               u32 /* WTF ??? */
 #define BOOLEAN             u8
@@ -371,15 +370,15 @@ struct prov_record {
 
 
 
-#define ISR_EMPTY			(UCHAR)0x00 	 // no bits set in ISR
+#define ISR_EMPTY			(u8)0x00 	 // no bits set in ISR
 
-#define ISR_DOORBELL_ACK	(UCHAR)0x01		 //  the doorbell i sent has been recieved.
+#define ISR_DOORBELL_ACK	(u8)0x01		 //  the doorbell i sent has been recieved.
 
-#define ISR_DOORBELL_PEND	(UCHAR)0x02 	 //  doorbell for me
+#define ISR_DOORBELL_PEND	(u8)0x02 	 //  doorbell for me
 
-#define ISR_RCV				(UCHAR)0x04 	 // packet received with no errors
+#define ISR_RCV				(u8)0x04 	 // packet received with no errors
 
-#define ISR_WATERMARK		(UCHAR)0x08 	 //
+#define ISR_WATERMARK		(u8)0x08 	 //
 
 
 

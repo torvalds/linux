@@ -534,7 +534,7 @@ static USHORT hdr_checksum(struct pseudo_hdr *pHdr)
 //
 // Parameters:  struct ft1000_device  - device structure
 //              USHORT **pUsFile - DSP image file pointer in USHORT
-//              UCHAR  **pUcFile - DSP image file pointer in UCHAR
+//              u8  **pUcFile - DSP image file pointer in u8
 //              long   word_length - lenght of the buffer to be written
 //                                   to DPRAM
 //
@@ -546,7 +546,7 @@ static USHORT hdr_checksum(struct pseudo_hdr *pHdr)
 // Notes:
 //
 //---------------------------------------------------------------------------
-static ULONG write_blk (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR **pUcFile, long word_length)
+static ULONG write_blk (struct ft1000_device *ft1000dev, USHORT **pUsFile, u8 **pUcFile, long word_length)
 {
    ULONG Status = STATUS_SUCCESS;
    USHORT dpram;
@@ -690,7 +690,7 @@ static void usb_dnld_complete (struct urb *urb)
 //
 // Parameters:  struct ft1000_device  - device structure
 //              USHORT **pUsFile - DSP image file pointer in USHORT
-//              UCHAR  **pUcFile - DSP image file pointer in UCHAR
+//              u8  **pUcFile - DSP image file pointer in u8
 //              long   word_length - lenght of the buffer to be written
 //                                   to DPRAM
 //
@@ -702,7 +702,7 @@ static void usb_dnld_complete (struct urb *urb)
 // Notes:
 //
 //---------------------------------------------------------------------------
-static ULONG write_blk_fifo (struct ft1000_device *ft1000dev, USHORT **pUsFile, UCHAR **pUcFile, long word_length)
+static ULONG write_blk_fifo (struct ft1000_device *ft1000dev, USHORT **pUsFile, u8 **pUcFile, long word_length)
 {
    ULONG Status = STATUS_SUCCESS;
    int byte_length;
@@ -789,8 +789,8 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
 	struct drv_msg *pMailBoxData;
    USHORT                  *pUsData = NULL;
    USHORT                  *pUsFile = NULL;
-   UCHAR                   *pUcFile = NULL;
-   UCHAR                   *pBootEnd = NULL, *pCodeEnd= NULL;
+   u8                   *pUcFile = NULL;
+   u8                   *pBootEnd = NULL, *pCodeEnd= NULL;
    int                     imageN;
    long                    loader_code_address, loader_code_size = 0;
    long                    run_address = 0, run_size = 0;
@@ -821,9 +821,9 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
    ft1000_write_register (ft1000dev, 0x800, FT1000_REG_MAG_WATERMARK);
 
       pUsFile = (USHORT *)(pFileStart + pFileHdr5->loader_offset);
-      pUcFile = (UCHAR *)(pFileStart + pFileHdr5->loader_offset);
+      pUcFile = (u8 *)(pFileStart + pFileHdr5->loader_offset);
 
-      pBootEnd = (UCHAR *)(pFileStart + pFileHdr5->loader_code_end);
+      pBootEnd = (u8 *)(pFileStart + pFileHdr5->loader_code_end);
 
       loader_code_address = pFileHdr5->loader_code_address;
       loader_code_size = pFileHdr5->loader_code_size;
@@ -879,7 +879,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
                DEBUG("FT1000:REQUEST_DONE_BL\n");
                /* Reposition ptrs to beginning of code section */
                pUsFile = (USHORT *)(pBootEnd);
-               pUcFile = (UCHAR *)(pBootEnd);
+               pUcFile = (u8 *)(pBootEnd);
                //DEBUG("FT1000:download:pUsFile = 0x%8x\n", (int)pUsFile);
                //DEBUG("FT1000:download:pUcFile = 0x%8x\n", (int)pUcFile);
                uiState = STATE_CODE_DWNLD;
@@ -989,7 +989,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
                pft1000info->usbboot = 3;
                /* Reposition ptrs to beginning of provisioning section */
                   pUsFile = (USHORT *)(pFileStart + pFileHdr5->commands_offset);
-                  pUcFile = (UCHAR *)(pFileStart + pFileHdr5->commands_offset);
+                  pUcFile = (u8 *)(pFileStart + pFileHdr5->commands_offset);
                uiState = STATE_DONE_DWNLD;
                break;
             case  REQUEST_CODE_SEGMENT:
@@ -1119,8 +1119,8 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
                            bGoodVersion = TRUE;
                            DEBUG("FT1000:download: bGoodVersion is TRUE\n");
                            pUsFile = (USHORT *)(pFileStart + pDspImageInfoV6->begin_offset);
-                           pUcFile = (UCHAR *)(pFileStart + pDspImageInfoV6->begin_offset);
-                           pCodeEnd = (UCHAR *)(pFileStart + pDspImageInfoV6->end_offset);
+                           pUcFile = (u8 *)(pFileStart + pDspImageInfoV6->begin_offset);
+                           pCodeEnd = (u8 *)(pFileStart + pDspImageInfoV6->end_offset);
                            run_address = pDspImageInfoV6->run_address;
                            run_size = pDspImageInfoV6->image_size;
                            image_chksum = (ULONG)pDspImageInfoV6->checksum;
@@ -1188,7 +1188,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, ULONG  FileLe
                     pprov_record->pprov_data = pbuffer;
                     list_add_tail (&pprov_record->list, &pft1000info->prov_list);
                     // Move to next entry if available
-			pUcFile = (UCHAR *)((unsigned long)pUcFile + (UINT)((usHdrLength + 1) & 0xFFFFFFFE) + sizeof(struct pseudo_hdr));
+			pUcFile = (u8 *)((unsigned long)pUcFile + (UINT)((usHdrLength + 1) & 0xFFFFFFFE) + sizeof(struct pseudo_hdr));
                     if ( (unsigned long)(pUcFile) - (unsigned long)(pFileStart) >= (unsigned long)FileLength) {
                        uiState = STATE_DONE_FILE;
                     }
