@@ -26,11 +26,4 @@ extern int register_sh_pmu(struct sh_pmu *);
 extern int reserve_pmc_hardware(void);
 extern void release_pmc_hardware(void);
 
-static inline void set_perf_event_pending(void)
-{
-	/* Nothing to see here, move along. */
-}
-
-#define PERF_EVENT_INDEX_OFFSET	0
-
 #endif /* __ASM_SH_PERF_EVENT_H */

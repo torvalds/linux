@@ -5,6 +5,8 @@
 
 #define EXT_GPIO(x)		(128 + (x))
 
+#define ZYLONITE_NR_IRQS	(IRQ_BOARD_START + 32)
+
 /* the following variables are processor specific and initialized
  * by the corresponding zylonite_pxa3xx_init()
  */

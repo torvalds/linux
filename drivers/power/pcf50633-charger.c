@@ -456,6 +456,7 @@ static int __devexit pcf50633_mbc_remove(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(mbc_irq_handlers); i++)
 		pcf50633_free_irq(mbc->pcf, mbc_irq_handlers[i]);
 
+	sysfs_remove_group(&pdev->dev.kobj, &mbc_attr_group);
 	power_supply_unregister(&mbc->usb);
 	power_supply_unregister(&mbc->adapter);
 	power_supply_unregister(&mbc->ac);

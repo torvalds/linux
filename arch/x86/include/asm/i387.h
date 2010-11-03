@@ -55,6 +55,12 @@ extern int save_i387_xstate_ia32(void __user *buf);
 extern int restore_i387_xstate_ia32(void __user *buf);
 #endif
 
+#ifdef CONFIG_MATH_EMULATION
+extern void finit_soft_fpu(struct i387_soft_struct *soft);
+#else
+static inline void finit_soft_fpu(struct i387_soft_struct *soft) {}
+#endif
+
 #define X87_FSW_ES (1 << 7)	/* Exception Summary */
 
 static __always_inline __pure bool use_xsaveopt(void)
@@ -67,6 +73,11 @@ static __always_inline __pure bool use_xsave(void)
 	return static_cpu_has(X86_FEATURE_XSAVE);
 }
 
+static __always_inline __pure bool use_fxsr(void)
+{
+        return static_cpu_has(X86_FEATURE_FXSR);
+}
+
 extern void __sanitize_i387_state(struct task_struct *);
 
 static inline void sanitize_i387_state(struct task_struct *tsk)
@@ -77,19 +88,11 @@ static inline void sanitize_i387_state(struct task_struct *tsk)
 }
 
 #ifdef CONFIG_X86_64
-
-/* Ignore delayed exceptions from user space */
-static inline void tolerant_fwait(void)
-{
-	asm volatile("1: fwait\n"
-		     "2:\n"
-		     _ASM_EXTABLE(1b, 2b));
-}
-
 static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
 {
 	int err;
 
+	/* See comment in fxsave() below. */
 	asm volatile("1:  rex64/fxrstor (%[fx])\n\t"
 		     "2:\n"
 		     ".section .fixup,\"ax\"\n"
@@ -98,42 +101,8 @@ static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
 		     ".previous\n"
 		     _ASM_EXTABLE(1b, 3b)
 		     : [err] "=r" (err)
-#if 0 /* See comment in fxsave() below. */
-		     : [fx] "r" (fx), "m" (*fx), "0" (0));
-#else
-		     : [fx] "cdaSDb" (fx), "m" (*fx), "0" (0));
-#endif
+		     : [fx] "R" (fx), "m" (*fx), "0" (0));
 	return err;
-}
-
-/* AMD CPUs don't save/restore FDP/FIP/FOP unless an exception
-   is pending. Clear the x87 state here by setting it to fixed
-   values. The kernel data segment can be sometimes 0 and sometimes
-   new user value. Both should be ok.
-   Use the PDA as safe address because it should be already in L1. */
-static inline void fpu_clear(struct fpu *fpu)
-{
-	struct xsave_struct *xstate = &fpu->state->xsave;
-	struct i387_fxsave_struct *fx = &fpu->state->fxsave;
-
-	/*
-	 * xsave header may indicate the init state of the FP.
-	 */
-	if (use_xsave() &&
-	    !(xstate->xsave_hdr.xstate_bv & XSTATE_FP))
-		return;
-
-	if (unlikely(fx->swd & X87_FSW_ES))
-		asm volatile("fnclex");
-	alternative_input(ASM_NOP8 ASM_NOP2,
-			  "    emms\n"		/* clear stack tags */
-			  "    fildl %%gs:0",	/* load to clear state */
-			  X86_FEATURE_FXSAVE_LEAK);
-}
-
-static inline void clear_fpu_state(struct task_struct *tsk)
-{
-	fpu_clear(&tsk->thread.fpu);
 }
 
 static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
@@ -149,6 +118,7 @@ static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
 	if (unlikely(err))
 		return -EFAULT;
 
+	/* See comment in fxsave() below. */
 	asm volatile("1:  rex64/fxsave (%[fx])\n\t"
 		     "2:\n"
 		     ".section .fixup,\"ax\"\n"
@@ -157,11 +127,7 @@ static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
 		     ".previous\n"
 		     _ASM_EXTABLE(1b, 3b)
 		     : [err] "=r" (err), "=m" (*fx)
-#if 0 /* See comment in fxsave() below. */
-		     : [fx] "r" (fx), "0" (0));
-#else
-		     : [fx] "cdaSDb" (fx), "0" (0));
-#endif
+		     : [fx] "R" (fx), "0" (0));
 	if (unlikely(err) &&
 	    __clear_user(fx, sizeof(struct i387_fxsave_struct)))
 		err = -EFAULT;
@@ -175,55 +141,28 @@ static inline void fpu_fxsave(struct fpu *fpu)
 	   uses any extended registers for addressing, a second REX prefix
 	   will be generated (to the assembler, rex64 followed by semicolon
 	   is a separate instruction), and hence the 64-bitness is lost. */
-#if 0
+
+#ifdef CONFIG_AS_FXSAVEQ
 	/* Using "fxsaveq %0" would be the ideal choice, but is only supported
 	   starting with gas 2.16. */
 	__asm__ __volatile__("fxsaveq %0"
 			     : "=m" (fpu->state->fxsave));
-#elif 0
+#else
 	/* Using, as a workaround, the properly prefixed form below isn't
 	   accepted by any binutils version so far released, complaining that
 	   the same type of prefix is used twice if an extended register is
-	   needed for addressing (fix submitted to mainline 2005-11-21). */
-	__asm__ __volatile__("rex64/fxsave %0"
-			     : "=m" (fpu->state->fxsave));
-#else
-	/* This, however, we can work around by forcing the compiler to select
+	   needed for addressing (fix submitted to mainline 2005-11-21).
+	asm volatile("rex64/fxsave %0"
+		     : "=m" (fpu->state->fxsave));
+	   This, however, we can work around by forcing the compiler to select
 	   an addressing mode that doesn't require extended registers. */
-	__asm__ __volatile__("rex64/fxsave (%1)"
-			     : "=m" (fpu->state->fxsave)
-			     : "cdaSDb" (&fpu->state->fxsave));
+	asm volatile("rex64/fxsave (%[fx])"
+		     : "=m" (fpu->state->fxsave)
+		     : [fx] "R" (&fpu->state->fxsave));
 #endif
-}
-
-static inline void fpu_save_init(struct fpu *fpu)
-{
-	if (use_xsave())
-		fpu_xsave(fpu);
-	else
-		fpu_fxsave(fpu);
-
-	fpu_clear(fpu);
-}
-
-static inline void __save_init_fpu(struct task_struct *tsk)
-{
-	fpu_save_init(&tsk->thread.fpu);
-	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 }
 
 #else  /* CONFIG_X86_32 */
-
-#ifdef CONFIG_MATH_EMULATION
-extern void finit_soft_fpu(struct i387_soft_struct *soft);
-#else
-static inline void finit_soft_fpu(struct i387_soft_struct *soft) {}
-#endif
-
-static inline void tolerant_fwait(void)
-{
-	asm volatile("fnclex ; fwait");
-}
 
 /* perform fxrstor iff the processor has extended states, otherwise frstor */
 static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
@@ -241,6 +180,14 @@ static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
 	return 0;
 }
 
+static inline void fpu_fxsave(struct fpu *fpu)
+{
+	asm volatile("fxsave %[fx]"
+		     : [fx] "=m" (fpu->state->fxsave));
+}
+
+#endif	/* CONFIG_X86_64 */
+
 /* We need a safe address that is cheap to find and that is already
    in L1 during context switch. The best choices are unfortunately
    different for UP and SMP */
@@ -256,47 +203,33 @@ static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
 static inline void fpu_save_init(struct fpu *fpu)
 {
 	if (use_xsave()) {
-		struct xsave_struct *xstate = &fpu->state->xsave;
-		struct i387_fxsave_struct *fx = &fpu->state->fxsave;
-
 		fpu_xsave(fpu);
 
 		/*
 		 * xsave header may indicate the init state of the FP.
 		 */
-		if (!(xstate->xsave_hdr.xstate_bv & XSTATE_FP))
-			goto end;
-
-		if (unlikely(fx->swd & X87_FSW_ES))
-			asm volatile("fnclex");
-
-		/*
-		 * we can do a simple return here or be paranoid :)
-		 */
-		goto clear_state;
+		if (!(fpu->state->xsave.xsave_hdr.xstate_bv & XSTATE_FP))
+			return;
+	} else if (use_fxsr()) {
+		fpu_fxsave(fpu);
+	} else {
+		asm volatile("fsave %[fx]; fwait"
+			     : [fx] "=m" (fpu->state->fsave));
+		return;
 	}
 
-	/* Use more nops than strictly needed in case the compiler
-	   varies code */
-	alternative_input(
-		"fnsave %[fx] ;fwait;" GENERIC_NOP8 GENERIC_NOP4,
-		"fxsave %[fx]\n"
-		"bt $7,%[fsw] ; jnc 1f ; fnclex\n1:",
-		X86_FEATURE_FXSR,
-		[fx] "m" (fpu->state->fxsave),
-		[fsw] "m" (fpu->state->fxsave.swd) : "memory");
-clear_state:
+	if (unlikely(fpu->state->fxsave.swd & X87_FSW_ES))
+		asm volatile("fnclex");
+
 	/* AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception
 	   is pending.  Clear the x87 state here by setting it to fixed
 	   values. safe_address is a random variable that should be in L1 */
 	alternative_input(
-		GENERIC_NOP8 GENERIC_NOP2,
+		ASM_NOP8 ASM_NOP2,
 		"emms\n\t"	  	/* clear stack tags */
-		"fildl %[addr]", 	/* set F?P to defined value */
+		"fildl %P[addr]",	/* set F?P to defined value */
 		X86_FEATURE_FXSAVE_LEAK,
 		[addr] "m" (safe_address));
-end:
-	;
 }
 
 static inline void __save_init_fpu(struct task_struct *tsk)
@@ -304,9 +237,6 @@ static inline void __save_init_fpu(struct task_struct *tsk)
 	fpu_save_init(&tsk->thread.fpu);
 	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 }
-
-
-#endif	/* CONFIG_X86_64 */
 
 static inline int fpu_fxrstor_checking(struct fpu *fpu)
 {
@@ -344,7 +274,10 @@ static inline void __unlazy_fpu(struct task_struct *tsk)
 static inline void __clear_fpu(struct task_struct *tsk)
 {
 	if (task_thread_info(tsk)->status & TS_USEDFPU) {
-		tolerant_fwait();
+		/* Ignore delayed exceptions from user space */
+		asm volatile("1: fwait\n"
+			     "2:\n"
+			     _ASM_EXTABLE(1b, 2b));
 		task_thread_info(tsk)->status &= ~TS_USEDFPU;
 		stts();
 	}
@@ -405,19 +338,6 @@ static inline void irq_ts_restore(int TS_state)
 		stts();
 }
 
-#ifdef CONFIG_X86_64
-
-static inline void save_init_fpu(struct task_struct *tsk)
-{
-	__save_init_fpu(tsk);
-	stts();
-}
-
-#define unlazy_fpu	__unlazy_fpu
-#define clear_fpu	__clear_fpu
-
-#else  /* CONFIG_X86_32 */
-
 /*
  * These disable preemption on their own and are safe
  */
@@ -442,8 +362,6 @@ static inline void clear_fpu(struct task_struct *tsk)
 	__clear_fpu(tsk);
 	preempt_enable();
 }
-
-#endif	/* CONFIG_X86_64 */
 
 /*
  * i387 state interaction
@@ -507,8 +425,5 @@ static inline void fpu_copy(struct fpu *dst, struct fpu *src)
 extern void fpu_finit(struct fpu *fpu);
 
 #endif /* __ASSEMBLY__ */
-
-#define PSHUFB_XMM5_XMM0 .byte 0x66, 0x0f, 0x38, 0x00, 0xc5
-#define PSHUFB_XMM5_XMM6 .byte 0x66, 0x0f, 0x38, 0x00, 0xf5
 
 #endif /* _ASM_X86_I387_H */

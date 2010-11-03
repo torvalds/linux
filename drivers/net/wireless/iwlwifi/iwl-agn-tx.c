@@ -71,18 +71,6 @@ static const u8 tid_to_ac[] = {
 	2, 3, 3, 2, 1, 1, 0, 0
 };
 
-static const u8 ac_to_fifo[] = {
-	IWL_TX_FIFO_VO,
-	IWL_TX_FIFO_VI,
-	IWL_TX_FIFO_BE,
-	IWL_TX_FIFO_BK,
-};
-
-static inline int get_fifo_from_ac(u8 ac)
-{
-	return ac_to_fifo[ac];
-}
-
 static inline int get_ac_from_tid(u16 tid)
 {
 	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
@@ -92,10 +80,10 @@ static inline int get_ac_from_tid(u16 tid)
 	return -EINVAL;
 }
 
-static inline int get_fifo_from_tid(u16 tid)
+static inline int get_fifo_from_tid(struct iwl_rxon_context *ctx, u16 tid)
 {
 	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
-		return get_fifo_from_ac(tid_to_ac[tid]);
+		return ctx->ac_to_fifo[tid_to_ac[tid]];
 
 	/* no support for TIDs 8-15 yet */
 	return -EINVAL;
@@ -118,7 +106,7 @@ void iwlagn_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 
 	WARN_ON(len > 0xFFF || write_ptr >= TFD_QUEUE_SIZE_MAX);
 
-	if (txq_id != IWL_CMD_QUEUE_NUM) {
+	if (txq_id != priv->cmd_queue) {
 		sta_id = txq->cmd[txq->q.write_ptr]->cmd.tx.sta_id;
 		sec_ctl = txq->cmd[txq->q.write_ptr]->cmd.tx.sec_ctl;
 
@@ -155,7 +143,7 @@ void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 
 	WARN_ON(read_ptr >= TFD_QUEUE_SIZE_MAX);
 
-	if (txq_id != IWL_CMD_QUEUE_NUM)
+	if (txq_id != priv->cmd_queue)
 		sta_id = txq->cmd[read_ptr]->cmd.tx.sta_id;
 
 	bc_ent = cpu_to_le16(1 | (sta_id << 12));
@@ -236,13 +224,13 @@ int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	int ret;
 
 	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWLAGN_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
-	     <= txq_id)) {
+	    (IWLAGN_FIRST_AMPDU_QUEUE +
+		priv->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
 		IWL_WARN(priv,
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
 			IWLAGN_FIRST_AMPDU_QUEUE +
-			priv->cfg->num_of_ampdu_queues - 1);
+			priv->cfg->base_params->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
 
@@ -298,13 +286,13 @@ int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 			   u16 ssn_idx, u8 tx_fifo)
 {
 	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWLAGN_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
-	     <= txq_id)) {
+	    (IWLAGN_FIRST_AMPDU_QUEUE +
+		priv->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
 		IWL_ERR(priv,
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
 			IWLAGN_FIRST_AMPDU_QUEUE +
-			priv->cfg->num_of_ampdu_queues - 1);
+			priv->cfg->base_params->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
 
@@ -333,19 +321,15 @@ void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask)
 	iwl_write_prph(priv, IWLAGN_SCD_TXFACT, mask);
 }
 
-static inline int get_queue_from_ac(u16 ac)
-{
-	return ac;
-}
-
 /*
  * handle build REPLY_TX command notification.
  */
 static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
-				  struct iwl_tx_cmd *tx_cmd,
-				  struct ieee80211_tx_info *info,
-				  struct ieee80211_hdr *hdr,
-				  u8 std_id)
+					struct sk_buff *skb,
+					struct iwl_tx_cmd *tx_cmd,
+					struct ieee80211_tx_info *info,
+					struct ieee80211_hdr *hdr,
+					u8 std_id)
 {
 	__le16 fc = hdr->frame_control;
 	__le32 tx_flags = tx_cmd->tx_flags;
@@ -365,6 +349,13 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 
 	if (ieee80211_is_back_req(fc))
 		tx_flags |= TX_CMD_FLG_ACK_MSK | TX_CMD_FLG_IMM_BA_RSP_MASK;
+	else if (info->band == IEEE80211_BAND_2GHZ &&
+		 priv->cfg->bt_params &&
+		 priv->cfg->bt_params->advanced_bt_coexist &&
+		 (ieee80211_is_auth(fc) || ieee80211_is_assoc_req(fc) ||
+		 ieee80211_is_reassoc_req(fc) ||
+		 skb->protocol == cpu_to_be16(ETH_P_PAE)))
+		tx_flags |= TX_CMD_FLG_IGNORE_BT;
 
 
 	tx_cmd->sta_id = std_id;
@@ -454,7 +445,14 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 		rate_flags |= RATE_MCS_CCK_MSK;
 
 	/* Set up antennas */
-	priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
+	 if (priv->cfg->bt_params &&
+	     priv->cfg->bt_params->advanced_bt_coexist &&
+	     priv->bt_full_concurrent) {
+		/* operated as 1x1 in full concurrency mode */
+		priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
+				first_antenna(priv->hw_params.valid_tx_ant));
+	} else
+		priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
 					      priv->hw_params.valid_tx_ant);
 	rate_flags |= iwl_ant_idx_to_flags(priv->mgmt_tx_ant);
 
@@ -470,8 +468,8 @@ static void iwlagn_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 {
 	struct ieee80211_key_conf *keyconf = info->control.hw_key;
 
-	switch (keyconf->alg) {
-	case ALG_CCMP:
+	switch (keyconf->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_CCM;
 		memcpy(tx_cmd->key, keyconf->key, keyconf->keylen);
 		if (info->flags & IEEE80211_TX_CTL_AMPDU)
@@ -479,19 +477,19 @@ static void iwlagn_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 		IWL_DEBUG_TX(priv, "tx_cmd with AES hwcrypto\n");
 		break;
 
-	case ALG_TKIP:
+	case WLAN_CIPHER_SUITE_TKIP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_TKIP;
 		ieee80211_get_tkip_key(keyconf, skb_frag,
 			IEEE80211_TKIP_P2_KEY, tx_cmd->key);
 		IWL_DEBUG_TX(priv, "tx_cmd with tkip hwcrypto\n");
 		break;
 
-	case ALG_WEP:
+	case WLAN_CIPHER_SUITE_WEP104:
+		tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
+		/* fall through */
+	case WLAN_CIPHER_SUITE_WEP40:
 		tx_cmd->sec_ctl |= (TX_CMD_SEC_WEP |
 			(keyconf->keyidx & TX_CMD_SEC_MSK) << TX_CMD_SEC_SHIFT);
-
-		if (keyconf->keylen == WEP_KEY_LEN_128)
-			tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
 
 		memcpy(&tx_cmd->key[3], keyconf->key, keyconf->keylen);
 
@@ -500,7 +498,7 @@ static void iwlagn_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 		break;
 
 	default:
-		IWL_ERR(priv, "Unknown encode alg %d\n", keyconf->alg);
+		IWL_ERR(priv, "Unknown encode cipher %x\n", keyconf->cipher);
 		break;
 	}
 }
@@ -519,6 +517,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
 	struct iwl_tx_cmd *tx_cmd;
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	int swq_id, txq_id;
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
@@ -532,6 +531,9 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	u8 tid = 0;
 	u8 *qc = NULL;
 	unsigned long flags;
+
+	if (info->control.vif)
+		ctx = iwl_rxon_ctx_from_vif(info->control.vif);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (iwl_is_rfkill(priv)) {
@@ -553,7 +555,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	hdr_len = ieee80211_hdrlen(fc);
 
 	/* Find index into station table for destination station */
-	sta_id = iwl_sta_id_or_broadcast(priv, info->control.sta);
+	sta_id = iwl_sta_id_or_broadcast(priv, ctx, info->control.sta);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
 			       hdr->addr1);
@@ -565,8 +567,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	if (sta)
 		sta_priv = (void *)sta->drv_priv;
 
-	if (sta_priv && sta_id != priv->hw_params.bcast_sta_id &&
-	    sta_priv->asleep) {
+	if (sta_priv && sta_priv->asleep) {
 		WARN_ON(!(info->flags & IEEE80211_TX_CTL_PSPOLL_RESPONSE));
 		/*
 		 * This sends an asynchronous command to the device,
@@ -580,7 +581,20 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		iwl_sta_modify_sleep_tx_count(priv, sta_id, 1);
 	}
 
-	txq_id = get_queue_from_ac(skb_get_queue_mapping(skb));
+	/*
+	 * Send this frame after DTIM -- there's a special queue
+	 * reserved for this for contexts that support AP mode.
+	 */
+	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
+		txq_id = ctx->mcast_queue;
+		/*
+		 * The microcode will clear the more data
+		 * bit in the last frame it transmits.
+		 */
+		hdr->frame_control |=
+			cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+	} else
+		txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
 
 	/* irqs already disabled/saved above when locking priv->lock */
 	spin_lock(&priv->sta_lock);
@@ -625,6 +639,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	/* Set up driver data for this TFD */
 	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct iwl_tx_info));
 	txq->txb[q->write_ptr].skb = skb;
+	txq->txb[q->write_ptr].ctx = ctx;
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_cmd = txq->cmd[q->write_ptr];
@@ -655,7 +670,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		iwlagn_tx_cmd_build_hwcrypto(priv, info, tx_cmd, skb, sta_id);
 
 	/* TODO need this for burst mode later on */
-	iwlagn_tx_cmd_build_basic(priv, tx_cmd, info, hdr, sta_id);
+	iwlagn_tx_cmd_build_basic(priv, skb, tx_cmd, info, hdr, sta_id);
 	iwl_dbg_log_tx_data_frame(priv, len, hdr);
 
 	iwlagn_tx_cmd_build_rate(priv, tx_cmd, info, fc);
@@ -813,7 +828,7 @@ void iwlagn_hw_txq_ctx_free(struct iwl_priv *priv)
 	/* Tx queues */
 	if (priv->txq) {
 		for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
-			if (txq_id == IWL_CMD_QUEUE_NUM)
+			if (txq_id == priv->cmd_queue)
 				iwl_cmd_queue_free(priv);
 			else
 				iwl_tx_queue_free(priv, txq_id);
@@ -870,9 +885,9 @@ int iwlagn_txq_ctx_alloc(struct iwl_priv *priv)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* Alloc and init all Tx queues, including the command queue (#4) */
+	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
-		slots_num = (txq_id == IWL_CMD_QUEUE_NUM) ?
+		slots_num = (txq_id == priv->cmd_queue) ?
 					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		ret = iwl_tx_queue_init(priv, &priv->txq[txq_id], slots_num,
 				       txq_id);
@@ -910,7 +925,7 @@ void iwlagn_txq_ctx_reset(struct iwl_priv *priv)
 
 	/* Alloc and init all Tx queues, including the command queue (#4) */
 	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++) {
-		slots_num = txq_id == IWL_CMD_QUEUE_NUM ?
+		slots_num = txq_id == priv->cmd_queue ?
 			    TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		iwl_tx_queue_reset(priv, &priv->txq[txq_id], slots_num, txq_id);
 	}
@@ -968,7 +983,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	unsigned long flags;
 	struct iwl_tid_data *tid_data;
 
-	tx_fifo = get_fifo_from_tid(tid);
+	tx_fifo = get_fifo_from_tid(iwl_rxon_ctx_from_vif(vif), tid);
 	if (unlikely(tx_fifo < 0))
 		return tx_fifo;
 
@@ -1024,12 +1039,12 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid)
 {
-	int tx_fifo_id, txq_id, sta_id, ssn = -1;
+	int tx_fifo_id, txq_id, sta_id, ssn;
 	struct iwl_tid_data *tid_data;
 	int write_ptr, read_ptr;
 	unsigned long flags;
 
-	tx_fifo_id = get_fifo_from_tid(tid);
+	tx_fifo_id = get_fifo_from_tid(iwl_rxon_ctx_from_vif(vif), tid);
 	if (unlikely(tx_fifo_id < 0))
 		return tx_fifo_id;
 
@@ -1042,21 +1057,26 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 
-	if (priv->stations[sta_id].tid[tid].agg.state ==
-				IWL_EMPTYING_HW_QUEUE_ADDBA) {
-		IWL_DEBUG_HT(priv, "AGG stop before setup done\n");
-		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
-		priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
-		spin_unlock_irqrestore(&priv->sta_lock, flags);
-		return 0;
-	}
-
-	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_ON)
-		IWL_WARN(priv, "Stopping AGG while state not ON or starting\n");
-
 	tid_data = &priv->stations[sta_id].tid[tid];
 	ssn = (tid_data->seq_number & IEEE80211_SCTL_SEQ) >> 4;
 	txq_id = tid_data->agg.txq_id;
+
+	switch (priv->stations[sta_id].tid[tid].agg.state) {
+	case IWL_EMPTYING_HW_QUEUE_ADDBA:
+		/*
+		 * This can happen if the peer stops aggregation
+		 * again before we've had a chance to drain the
+		 * queue we selected previously, i.e. before the
+		 * session was really started completely.
+		 */
+		IWL_DEBUG_HT(priv, "AGG stop before setup done\n");
+		goto turn_off;
+	case IWL_AGG_ON:
+		break;
+	default:
+		IWL_WARN(priv, "Stopping AGG while state not ON or starting\n");
+	}
+
 	write_ptr = priv->txq[txq_id].q.write_ptr;
 	read_ptr = priv->txq[txq_id].q.read_ptr;
 
@@ -1070,6 +1090,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	}
 
 	IWL_DEBUG_HT(priv, "HW queue is empty\n");
+ turn_off:
 	priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
 
 	/* do not restore/save irqs */
@@ -1098,6 +1119,9 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 	struct iwl_queue *q = &priv->txq[txq_id].q;
 	u8 *addr = priv->stations[sta_id].sta.sta.addr;
 	struct iwl_tid_data *tid_data = &priv->stations[sta_id].tid[tid];
+	struct iwl_rxon_context *ctx;
+
+	ctx = &priv->contexts[priv->stations[sta_id].ctxid];
 
 	lockdep_assert_held(&priv->sta_lock);
 
@@ -1108,12 +1132,12 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 		if ((txq_id  == tid_data->agg.txq_id) &&
 		    (q->read_ptr == q->write_ptr)) {
 			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
-			int tx_fifo = get_fifo_from_tid(tid);
+			int tx_fifo = get_fifo_from_tid(ctx, tid);
 			IWL_DEBUG_HT(priv, "HW queue empty: continue DELBA flow\n");
 			priv->cfg->ops->lib->txq_agg_disable(priv, txq_id,
 							     ssn, tx_fifo);
 			tid_data->agg.state = IWL_AGG_OFF;
-			ieee80211_stop_tx_ba_cb_irqsafe(priv->vif, addr, tid);
+			ieee80211_stop_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
 		}
 		break;
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -1121,7 +1145,7 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 		if (tid_data->tfds_in_queue == 0) {
 			IWL_DEBUG_HT(priv, "HW queue empty: continue ADDBA flow\n");
 			tid_data->agg.state = IWL_AGG_ON;
-			ieee80211_start_tx_ba_cb_irqsafe(priv->vif, addr, tid);
+			ieee80211_start_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
 		}
 		break;
 	}
@@ -1129,14 +1153,14 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 	return 0;
 }
 
-static void iwlagn_tx_status(struct iwl_priv *priv, struct sk_buff *skb)
+static void iwlagn_tx_status(struct iwl_priv *priv, struct iwl_tx_info *tx_info)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx_info->skb->data;
 	struct ieee80211_sta *sta;
 	struct iwl_station_priv *sta_priv;
 
 	rcu_read_lock();
-	sta = ieee80211_find_sta(priv->vif, hdr->addr1);
+	sta = ieee80211_find_sta(tx_info->ctx->vif, hdr->addr1);
 	if (sta) {
 		sta_priv = (void *)sta->drv_priv;
 		/* avoid atomic ops if this isn't a client */
@@ -1146,7 +1170,7 @@ static void iwlagn_tx_status(struct iwl_priv *priv, struct sk_buff *skb)
 	}
 	rcu_read_unlock();
 
-	ieee80211_tx_status_irqsafe(priv->hw, skb);
+	ieee80211_tx_status_irqsafe(priv->hw, tx_info->skb);
 }
 
 int iwlagn_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
@@ -1169,7 +1193,7 @@ int iwlagn_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		tx_info = &txq->txb[txq->q.read_ptr];
-		iwlagn_tx_status(priv, tx_info->skb);
+		iwlagn_tx_status(priv, tx_info);
 
 		hdr = (struct ieee80211_hdr *)tx_info->skb->data;
 		if (hdr && ieee80211_is_data_qos(hdr->frame_control))
@@ -1203,7 +1227,8 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	struct ieee80211_tx_info *info;
 
 	if (unlikely(!agg->wait_for_ba))  {
-		IWL_ERR(priv, "Received BA when not expected\n");
+		if (unlikely(ba_resp->bitmap))
+			IWL_ERR(priv, "Received BA when not expected\n");
 		return -EINVAL;
 	}
 
@@ -1367,3 +1392,43 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+const char *iwl_get_tx_fail_reason(u32 status)
+{
+#define TX_STATUS_FAIL(x) case TX_STATUS_FAIL_ ## x: return #x
+#define TX_STATUS_POSTPONE(x) case TX_STATUS_POSTPONE_ ## x: return #x
+
+	switch (status & TX_STATUS_MSK) {
+	case TX_STATUS_SUCCESS:
+		return "SUCCESS";
+	TX_STATUS_POSTPONE(DELAY);
+	TX_STATUS_POSTPONE(FEW_BYTES);
+	TX_STATUS_POSTPONE(BT_PRIO);
+	TX_STATUS_POSTPONE(QUIET_PERIOD);
+	TX_STATUS_POSTPONE(CALC_TTAK);
+	TX_STATUS_FAIL(INTERNAL_CROSSED_RETRY);
+	TX_STATUS_FAIL(SHORT_LIMIT);
+	TX_STATUS_FAIL(LONG_LIMIT);
+	TX_STATUS_FAIL(FIFO_UNDERRUN);
+	TX_STATUS_FAIL(DRAIN_FLOW);
+	TX_STATUS_FAIL(RFKILL_FLUSH);
+	TX_STATUS_FAIL(LIFE_EXPIRE);
+	TX_STATUS_FAIL(DEST_PS);
+	TX_STATUS_FAIL(HOST_ABORTED);
+	TX_STATUS_FAIL(BT_RETRY);
+	TX_STATUS_FAIL(STA_INVALID);
+	TX_STATUS_FAIL(FRAG_DROPPED);
+	TX_STATUS_FAIL(TID_DISABLE);
+	TX_STATUS_FAIL(FIFO_FLUSHED);
+	TX_STATUS_FAIL(INSUFFICIENT_CF_POLL);
+	TX_STATUS_FAIL(PASSIVE_NO_RX);
+	TX_STATUS_FAIL(NO_BEACON_ON_RADAR);
+	}
+
+	return "UNKNOWN";
+
+#undef TX_STATUS_FAIL
+#undef TX_STATUS_POSTPONE
+}
+#endif /* CONFIG_IWLWIFI_DEBUG */

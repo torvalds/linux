@@ -84,6 +84,9 @@
 #define BOND_DEFAULT_MAX_BONDS  1   /* Default maximum number of devices to support */
 
 #define BOND_DEFAULT_TX_QUEUES 16   /* Default number of tx queues per device */
+
+#define BOND_DEFAULT_RESEND_IGMP	1 /* Default number of IGMP membership reports */
+
 /* hashing types */
 #define BOND_XMIT_POLICY_LAYER2		0 /* layer 2 (MAC only), default */
 #define BOND_XMIT_POLICY_LAYER34	1 /* layer 3+4 (IP ^ (TCP || UDP)) */

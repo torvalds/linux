@@ -614,9 +614,7 @@ int rt_ioctl_siwap(struct net_device *dev,
 		    OID_802_11_BSSID,
 		    sizeof(NDIS_802_11_MAC_ADDRESS), (void *) & Bssid);
 
-	DBGPRINT(RT_DEBUG_TRACE,
-		 ("IOCTL::SIOCSIWAP %02x:%02x:%02x:%02x:%02x:%02x\n", Bssid[0],
-		  Bssid[1], Bssid[2], Bssid[3], Bssid[4], Bssid[5]));
+	DBGPRINT(RT_DEBUG_TRACE, ("IOCTL::SIOCSIWAP %pM\n", Bssid));
 
 	return 0;
 }
@@ -1513,11 +1511,8 @@ void getBaInfo(struct rt_rtmp_adapter *pAd, char *pOutBuf)
 		if (((pEntry->ValidAsCLI || pEntry->ValidAsApCli)
 		     && (pEntry->Sst == SST_ASSOC))
 		    || (pEntry->ValidAsWDS) || (pEntry->ValidAsMesh)) {
-			sprintf(pOutBuf + strlen(pOutBuf),
-				"\n%02X:%02X:%02X:%02X:%02X:%02X (Aid = %d) (AP) -\n",
-				pEntry->Addr[0], pEntry->Addr[1],
-				pEntry->Addr[2], pEntry->Addr[3],
-				pEntry->Addr[4], pEntry->Addr[5], pEntry->Aid);
+			sprintf(pOutBuf + strlen(pOutBuf), "\n%pM (Aid = %d) "
+				"(AP) -\n", pEntry->Addr, pEntry->Aid);
 
 			sprintf(pOutBuf, "%s[Recipient]\n", pOutBuf);
 			for (j = 0; j < NUM_OF_TID; j++) {

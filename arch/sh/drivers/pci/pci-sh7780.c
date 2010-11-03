@@ -246,7 +246,7 @@ static int __init sh7780_pci_init(void)
 	const char *type;
 	int ret, i;
 
-	printk(KERN_NOTICE "PCI: Starting intialization.\n");
+	printk(KERN_NOTICE "PCI: Starting initialization.\n");
 
 	chan->reg_base = 0xfe040000;
 

@@ -41,7 +41,7 @@ static __init int profile_init(void)
 	tmp = TM11ICR;
 
 	printk(KERN_INFO "Profiling initiated on timer 11, priority 0, %uHz\n",
-	       mn10300_ioclk / 8 / (TM11BR + 1));
+	       MN10300_IOCLK / 8 / (TM11BR + 1));
 	printk(KERN_INFO "Profile histogram stored %p-%p\n",
 	       prof_buffer, (u8 *)(prof_buffer + prof_len) - 1);
 

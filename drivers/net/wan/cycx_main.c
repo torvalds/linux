@@ -81,9 +81,9 @@ static irqreturn_t cycx_isr(int irq, void *dev_id);
  */
 
 /* private data */
-static char cycx_drvname[] = "cyclomx";
-static char cycx_fullname[] = "CYCLOM 2X(tm) Sync Card Driver";
-static char cycx_copyright[] = "(c) 1998-2003 Arnaldo Carvalho de Melo "
+static const char cycx_drvname[] = "cyclomx";
+static const char cycx_fullname[] = "CYCLOM 2X(tm) Sync Card Driver";
+static const char cycx_copyright[] = "(c) 1998-2003 Arnaldo Carvalho de Melo "
 			  "<acme@conectiva.com.br>";
 static int cycx_ncards = CONFIG_CYCX_CARDS;
 static struct cycx_device *cycx_card_array;	/* adapter data space */

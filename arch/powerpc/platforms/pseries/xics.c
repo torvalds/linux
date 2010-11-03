@@ -178,7 +178,7 @@ static int get_irq_server(unsigned int virq, const struct cpumask *cpumask,
 	if (!distribute_irqs)
 		return default_server;
 
-	if (!cpumask_equal(cpumask, cpu_all_mask)) {
+	if (!cpumask_subset(cpu_possible_mask, cpumask)) {
 		int server = cpumask_first_and(cpu_online_mask, cpumask);
 
 		if (server < nr_cpu_ids)
@@ -243,7 +243,7 @@ static unsigned int xics_startup(unsigned int virq)
 	 * at that level, so we do it here by hand.
 	 */
 	if (irq_to_desc(virq)->msi_desc)
-		unmask_msi_irq(virq);
+		unmask_msi_irq(irq_get_irq_data(virq));
 
 	/* unmask it */
 	xics_unmask_irq(virq);

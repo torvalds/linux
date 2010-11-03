@@ -38,11 +38,9 @@ static int s5p6442_spi_cfg_gpio(struct platform_device *pdev)
 	switch (pdev->id) {
 	case 0:
 		s3c_gpio_cfgpin(S5P6442_GPB(0), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6442_GPB(2), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6442_GPB(3), S3C_GPIO_SFN(2));
 		s3c_gpio_setpull(S5P6442_GPB(0), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5P6442_GPB(2), S3C_GPIO_PULL_UP);
-		s3c_gpio_setpull(S5P6442_GPB(3), S3C_GPIO_PULL_UP);
+		s3c_gpio_cfgall_range(S5P6442_GPB(2), 2,
+				      S3C_GPIO_SFN(2), S3C_GPIO_PULL_UP);
 		break;
 
 	default:

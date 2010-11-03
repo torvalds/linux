@@ -35,6 +35,7 @@
 #include <plat/cpu.h>
 
 #include "dss.h"
+#include "dss_features.h"
 
 static int num_overlays;
 static struct list_head overlay_list;
@@ -237,7 +238,8 @@ static ssize_t overlay_global_alpha_store(struct omap_overlay *ovl,
 	/* Video1 plane does not support global alpha
 	 * to always make it 255 completely opaque
 	 */
-	if (ovl->id == OMAP_DSS_VIDEO1)
+	if (!dss_has_feature(FEAT_GLOBAL_ALPHA_VID1) &&
+			ovl->id == OMAP_DSS_VIDEO1)
 		info.global_alpha = 255;
 	else
 		info.global_alpha = simple_strtoul(buf, NULL, 10);
@@ -510,11 +512,11 @@ static void omap_dss_add_overlay(struct omap_overlay *overlay)
 	list_add_tail(&overlay->list, &overlay_list);
 }
 
-static struct omap_overlay *dispc_overlays[3];
+static struct omap_overlay *dispc_overlays[MAX_DSS_OVERLAYS];
 
 void dss_overlay_setup_dispc_manager(struct omap_overlay_manager *mgr)
 {
-	mgr->num_overlays = 3;
+	mgr->num_overlays = dss_feat_get_num_ovls();
 	mgr->overlays = dispc_overlays;
 }
 
@@ -535,7 +537,7 @@ void dss_init_overlays(struct platform_device *pdev)
 
 	num_overlays = 0;
 
-	for (i = 0; i < 3; ++i) {
+	for (i = 0; i < dss_feat_get_num_ovls(); ++i) {
 		struct omap_overlay *ovl;
 		ovl = kzalloc(sizeof(*ovl), GFP_KERNEL);
 
@@ -545,18 +547,12 @@ void dss_init_overlays(struct platform_device *pdev)
 		case 0:
 			ovl->name = "gfx";
 			ovl->id = OMAP_DSS_GFX;
-			ovl->supported_modes = cpu_is_omap34xx() ?
-				OMAP_DSS_COLOR_GFX_OMAP3 :
-				OMAP_DSS_COLOR_GFX_OMAP2;
 			ovl->caps = OMAP_DSS_OVL_CAP_DISPC;
 			ovl->info.global_alpha = 255;
 			break;
 		case 1:
 			ovl->name = "vid1";
 			ovl->id = OMAP_DSS_VIDEO1;
-			ovl->supported_modes = cpu_is_omap34xx() ?
-				OMAP_DSS_COLOR_VID1_OMAP3 :
-				OMAP_DSS_COLOR_VID_OMAP2;
 			ovl->caps = OMAP_DSS_OVL_CAP_SCALE |
 				OMAP_DSS_OVL_CAP_DISPC;
 			ovl->info.global_alpha = 255;
@@ -564,9 +560,6 @@ void dss_init_overlays(struct platform_device *pdev)
 		case 2:
 			ovl->name = "vid2";
 			ovl->id = OMAP_DSS_VIDEO2;
-			ovl->supported_modes = cpu_is_omap34xx() ?
-				OMAP_DSS_COLOR_VID2_OMAP3 :
-				OMAP_DSS_COLOR_VID_OMAP2;
 			ovl->caps = OMAP_DSS_OVL_CAP_SCALE |
 				OMAP_DSS_OVL_CAP_DISPC;
 			ovl->info.global_alpha = 255;
@@ -578,6 +571,9 @@ void dss_init_overlays(struct platform_device *pdev)
 		ovl->set_overlay_info = &dss_ovl_set_overlay_info;
 		ovl->get_overlay_info = &dss_ovl_get_overlay_info;
 		ovl->wait_for_go = &dss_ovl_wait_for_go;
+
+		ovl->supported_modes =
+			dss_feat_get_supported_color_modes(ovl->id);
 
 		omap_dss_add_overlay(ovl);
 
@@ -651,7 +647,7 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
 	}
 
 	if (mgr) {
-		for (i = 0; i < 3; i++) {
+		for (i = 0; i < dss_feat_get_num_ovls(); i++) {
 			struct omap_overlay *ovl;
 			ovl = omap_dss_get_overlay(i);
 			if (!ovl->manager || force) {

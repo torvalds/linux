@@ -18,11 +18,9 @@
 #define UX500_UART(n)	__UX500_UART(n)
 #define UART_BASE	UX500_UART(CONFIG_UX500_DEBUG_UART)
 
-	.macro	addruart, rx, tmp
-	mrc	p15, 0, \rx, c1, c0
-	tst	\rx, #1					@ MMU enabled?
-	ldreq	\rx, =UART_BASE				@ no, physical address
-	ldrne	\rx, =IO_ADDRESS(UART_BASE)		@ yes, virtual address
+	.macro	addruart, rp, rv
+	ldr	\rp, =UART_BASE				@ no, physical address
+	ldr	\rv, =IO_ADDRESS(UART_BASE)		@ yes, virtual address
 	.endm
 
 #include <asm/hardware/debug-pl01x.S>

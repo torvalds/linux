@@ -7081,7 +7081,7 @@ static int ocfs2_reflink_xattr_in_block(struct ocfs2_xattr_reflink *args,
 		goto out;
 	}
 
-	if (!(le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED))
+	if (!indexed)
 		ret = ocfs2_reflink_xattr_block(args, blk_bh, new_blk_bh);
 	else
 		ret = ocfs2_reflink_xattr_tree(args, blk_bh, new_blk_bh);

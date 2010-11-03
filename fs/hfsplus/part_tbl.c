@@ -74,6 +74,7 @@ struct old_pmap {
 int hfs_part_find(struct super_block *sb,
 		  sector_t *part_start, sector_t *part_size)
 {
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 	struct buffer_head *bh;
 	__be16 *data;
 	int i, size, res;
@@ -95,7 +96,7 @@ int hfs_part_find(struct super_block *sb,
 		for (i = 0; i < size; p++, i++) {
 			if (p->pdStart && p->pdSize &&
 			    p->pdFSID == cpu_to_be32(0x54465331)/*"TFS1"*/ &&
-			    (HFSPLUS_SB(sb).part < 0 || HFSPLUS_SB(sb).part == i)) {
+			    (sbi->part < 0 || sbi->part == i)) {
 				*part_start += be32_to_cpu(p->pdStart);
 				*part_size = be32_to_cpu(p->pdSize);
 				res = 0;
@@ -111,7 +112,7 @@ int hfs_part_find(struct super_block *sb,
 		size = be32_to_cpu(pm->pmMapBlkCnt);
 		for (i = 0; i < size;) {
 			if (!memcmp(pm->pmPartType,"Apple_HFS", 9) &&
-			    (HFSPLUS_SB(sb).part < 0 || HFSPLUS_SB(sb).part == i)) {
+			    (sbi->part < 0 || sbi->part == i)) {
 				*part_start += be32_to_cpu(pm->pmPyPartStart);
 				*part_size = be32_to_cpu(pm->pmPartBlkCnt);
 				res = 0;

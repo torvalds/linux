@@ -291,6 +291,23 @@ static void fixup_sst39vf_rev_b(struct mtd_info *mtd, void *param)
 
 	cfi->addr_unlock1 = 0x555;
 	cfi->addr_unlock2 = 0x2AA;
+
+	cfi->sector_erase_cmd = CMD(0x50);
+}
+
+static void fixup_sst38vf640x_sectorsize(struct mtd_info *mtd, void *param)
+{
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+
+	fixup_sst39vf_rev_b(mtd, param);
+
+	/*
+	 * CFI reports 1024 sectors (0x03ff+1) of 64KBytes (0x0100*256) where
+	 * it should report a size of 8KBytes (0x0020*256).
+	 */
+	cfi->cfiq->EraseRegionInfo[0] = 0x002003ff;
+	pr_warning("%s: Bad 38VF640x CFI data; adjusting sector size from 64 to 8KiB\n", mtd->name);
 }
 
 static void fixup_s29gl064n_sectors(struct mtd_info *mtd, void *param)
@@ -317,14 +334,14 @@ static void fixup_s29gl032n_sectors(struct mtd_info *mtd, void *param)
 
 /* Used to fix CFI-Tables of chips without Extended Query Tables */
 static struct cfi_fixup cfi_nopri_fixup_table[] = {
-	{ CFI_MFR_SST, 0x234A, fixup_sst39vf, NULL, }, // SST39VF1602
-	{ CFI_MFR_SST, 0x234B, fixup_sst39vf, NULL, }, // SST39VF1601
-	{ CFI_MFR_SST, 0x235A, fixup_sst39vf, NULL, }, // SST39VF3202
-	{ CFI_MFR_SST, 0x235B, fixup_sst39vf, NULL, }, // SST39VF3201
-	{ CFI_MFR_SST, 0x235C, fixup_sst39vf_rev_b, NULL, }, // SST39VF3202B
-	{ CFI_MFR_SST, 0x235D, fixup_sst39vf_rev_b, NULL, }, // SST39VF3201B
-	{ CFI_MFR_SST, 0x236C, fixup_sst39vf_rev_b, NULL, }, // SST39VF6402B
-	{ CFI_MFR_SST, 0x236D, fixup_sst39vf_rev_b, NULL, }, // SST39VF6401B
+	{ CFI_MFR_SST, 0x234A, fixup_sst39vf, NULL, }, /* SST39VF1602 */
+	{ CFI_MFR_SST, 0x234B, fixup_sst39vf, NULL, }, /* SST39VF1601 */
+	{ CFI_MFR_SST, 0x235A, fixup_sst39vf, NULL, }, /* SST39VF3202 */
+	{ CFI_MFR_SST, 0x235B, fixup_sst39vf, NULL, }, /* SST39VF3201 */
+	{ CFI_MFR_SST, 0x235C, fixup_sst39vf_rev_b, NULL, }, /* SST39VF3202B */
+	{ CFI_MFR_SST, 0x235D, fixup_sst39vf_rev_b, NULL, }, /* SST39VF3201B */
+	{ CFI_MFR_SST, 0x236C, fixup_sst39vf_rev_b, NULL, }, /* SST39VF6402B */
+	{ CFI_MFR_SST, 0x236D, fixup_sst39vf_rev_b, NULL, }, /* SST39VF6401B */
 	{ 0, 0, NULL, NULL }
 };
 
@@ -344,6 +361,10 @@ static struct cfi_fixup cfi_fixup_table[] = {
 	{ CFI_MFR_AMD, 0x1301, fixup_s29gl064n_sectors, NULL, },
 	{ CFI_MFR_AMD, 0x1a00, fixup_s29gl032n_sectors, NULL, },
 	{ CFI_MFR_AMD, 0x1a01, fixup_s29gl032n_sectors, NULL, },
+	{ CFI_MFR_SST, 0x536A, fixup_sst38vf640x_sectorsize, NULL, }, /* SST38VF6402 */
+	{ CFI_MFR_SST, 0x536B, fixup_sst38vf640x_sectorsize, NULL, }, /* SST38VF6401 */
+	{ CFI_MFR_SST, 0x536C, fixup_sst38vf640x_sectorsize, NULL, }, /* SST38VF6404 */
+	{ CFI_MFR_SST, 0x536D, fixup_sst38vf640x_sectorsize, NULL, }, /* SST38VF6403 */
 #if !FORCE_WORD_WRITE
 	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_use_write_buffers, NULL, },
 #endif
@@ -374,6 +395,13 @@ static void cfi_fixup_major_minor(struct cfi_private *cfi,
 	if (cfi->mfr == CFI_MFR_SAMSUNG && cfi->id == 0x257e &&
 	    extp->MajorVersion == '0')
 		extp->MajorVersion = '1';
+	/*
+	 * SST 38VF640x chips report major=0xFF / minor=0xFF.
+	 */
+	if (cfi->mfr == CFI_MFR_SST && (cfi->id >> 4) == 0x0536) {
+		extp->MajorVersion = '1';
+		extp->MinorVersion = '0';
+	}
 }
 
 struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
@@ -418,8 +446,8 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 
 			/*
 			 * Valid primary extension versions are: 1.0, 1.1, 1.2, 1.3, 1.4
-			 * see: http://www.amd.com/us-en/assets/content_type/DownloadableAssets/cfi_r20.pdf, page 19
-			 *      http://www.amd.com/us-en/assets/content_type/DownloadableAssets/cfi_100_20011201.pdf
+			 * see: http://cs.ozerki.net/zap/pub/axim-x5/docs/cfi_r20.pdf, page 19 
+			 *      http://www.spansion.com/Support/AppNotes/cfi_100_20011201.pdf
 			 *      http://www.spansion.com/Support/Datasheets/s29ws-p_00_a12_e.pdf
 			 */
 			if (extp->MajorVersion != '1' ||
@@ -545,15 +573,6 @@ static struct mtd_info *cfi_amdstd_setup(struct mtd_info *mtd)
 		printk(KERN_WARNING "Sum of regions (%lx) != total size of set of interleaved chips (%lx)\n", offset, devsize);
 		goto setup_err;
 	}
-#if 0
-	// debug
-	for (i=0; i<mtd->numeraseregions;i++){
-		printk("%d: offset=0x%x,size=0x%x,blocks=%d\n",
-		       i,mtd->eraseregions[i].offset,
-		       mtd->eraseregions[i].erasesize,
-		       mtd->eraseregions[i].numblocks);
-	}
-#endif
 
 	__module_get(THIS_MODULE);
 	register_reboot_notifier(&mtd->reboot_notifier);
@@ -674,7 +693,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 				 * there was an error (so leave the erase
 				 * routine to recover from it) or we trying to
 				 * use the erase-in-progress sector. */
-				map_write(map, CMD(0x30), chip->in_progress_block_addr);
+				map_write(map, cfi->sector_erase_cmd, chip->in_progress_block_addr);
 				chip->state = FL_ERASING;
 				chip->oldstate = FL_READY;
 				printk(KERN_ERR "MTD %s(): chip not ready after erase suspend\n", __func__);
@@ -727,7 +746,7 @@ static void put_chip(struct map_info *map, struct flchip *chip, unsigned long ad
 	switch(chip->oldstate) {
 	case FL_ERASING:
 		chip->state = chip->oldstate;
-		map_write(map, CMD(0x30), chip->in_progress_block_addr);
+		map_write(map, cfi->sector_erase_cmd, chip->in_progress_block_addr);
 		chip->oldstate = FL_READY;
 		chip->state = FL_ERASING;
 		break;
@@ -870,7 +889,7 @@ static void __xipram xip_udelay(struct map_info *map, struct flchip *chip,
 			local_irq_disable();
 
 			/* Resume the write or erase operation */
-			map_write(map, CMD(0x30), adr);
+			map_write(map, cfi->sector_erase_cmd, adr);
 			chip->state = oldstate;
 			start = xip_currtime();
 		} else if (usec >= 1000000/HZ) {
@@ -1025,9 +1044,6 @@ static inline int do_read_secsi_onechip(struct map_info *map, struct flchip *chi
 	mutex_lock(&chip->mutex);
 
 	if (chip->state != FL_READY){
-#if 0
-		printk(KERN_DEBUG "Waiting for chip to read, status = %d\n", chip->state);
-#endif
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		add_wait_queue(&chip->wq, &wait);
 
@@ -1035,10 +1051,6 @@ static inline int do_read_secsi_onechip(struct map_info *map, struct flchip *chi
 
 		schedule();
 		remove_wait_queue(&chip->wq, &wait);
-#if 0
-		if(signal_pending(current))
-			return -EINTR;
-#endif
 		timeo = jiffies + HZ;
 
 		goto retry;
@@ -1246,9 +1258,6 @@ static int cfi_amdstd_write_words(struct mtd_info *mtd, loff_t to, size_t len,
 		mutex_lock(&cfi->chips[chipnum].mutex);
 
 		if (cfi->chips[chipnum].state != FL_READY) {
-#if 0
-			printk(KERN_DEBUG "Waiting for chip to write, status = %d\n", cfi->chips[chipnum].state);
-#endif
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			add_wait_queue(&cfi->chips[chipnum].wq, &wait);
 
@@ -1256,10 +1265,6 @@ static int cfi_amdstd_write_words(struct mtd_info *mtd, loff_t to, size_t len,
 
 			schedule();
 			remove_wait_queue(&cfi->chips[chipnum].wq, &wait);
-#if 0
-			if(signal_pending(current))
-				return -EINTR;
-#endif
 			goto retry;
 		}
 
@@ -1324,9 +1329,6 @@ static int cfi_amdstd_write_words(struct mtd_info *mtd, loff_t to, size_t len,
 		mutex_lock(&cfi->chips[chipnum].mutex);
 
 		if (cfi->chips[chipnum].state != FL_READY) {
-#if 0
-			printk(KERN_DEBUG "Waiting for chip to write, status = %d\n", cfi->chips[chipnum].state);
-#endif
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			add_wait_queue(&cfi->chips[chipnum].wq, &wait);
 
@@ -1334,10 +1336,6 @@ static int cfi_amdstd_write_words(struct mtd_info *mtd, loff_t to, size_t len,
 
 			schedule();
 			remove_wait_queue(&cfi->chips[chipnum].wq, &wait);
-#if 0
-			if(signal_pending(current))
-				return -EINTR;
-#endif
 			goto retry1;
 		}
 
@@ -1396,7 +1394,6 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 
 	cfi_send_gen_cmd(0xAA, cfi->addr_unlock1, chip->start, map, cfi, cfi->device_type, NULL);
 	cfi_send_gen_cmd(0x55, cfi->addr_unlock2, chip->start, map, cfi, cfi->device_type, NULL);
-	//cfi_send_gen_cmd(0xA0, cfi->addr_unlock1, chip->start, map, cfi, cfi->device_type, NULL);
 
 	/* Write Buffer Load */
 	map_write(map, CMD(0x25), cmd_adr);
@@ -1675,7 +1672,7 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 	cfi_send_gen_cmd(0x80, cfi->addr_unlock1, chip->start, map, cfi, cfi->device_type, NULL);
 	cfi_send_gen_cmd(0xAA, cfi->addr_unlock1, chip->start, map, cfi, cfi->device_type, NULL);
 	cfi_send_gen_cmd(0x55, cfi->addr_unlock2, chip->start, map, cfi, cfi->device_type, NULL);
-	map_write(map, CMD(0x30), adr);
+	map_write(map, cfi->sector_erase_cmd, adr);
 
 	chip->state = FL_ERASING;
 	chip->erase_suspended = 0;

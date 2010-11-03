@@ -38,6 +38,7 @@
 #include <linux/skbuff.h>
 #include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
+#include <linux/tcp.h>
 
 #include "mlx4_en.h"
 
@@ -582,7 +583,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 	/* If we support per priority flow control and the packet contains
 	 * a vlan tag, send the packet to the TX ring assigned to that priority
 	 */
-	if (priv->prof->rx_ppp && priv->vlgrp && vlan_tx_tag_present(skb)) {
+	if (priv->prof->rx_ppp && vlan_tx_tag_present(skb)) {
 		vlan_tag = vlan_tx_tag_get(skb);
 		return MLX4_EN_NUM_TX_RINGS + (vlan_tag >> 13);
 	}
@@ -600,6 +601,9 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mlx4_wqe_data_seg *data;
 	struct skb_frag_struct *frag;
 	struct mlx4_en_tx_info *tx_info;
+	struct ethhdr *ethh;
+	u64 mac;
+	u32 mac_l, mac_h;
 	int tx_ind = 0;
 	int nr_txbb;
 	int desc_size;
@@ -611,6 +615,9 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i;
 	int lso_header_size;
 	void *fragptr;
+
+	if (!priv->port_up)
+		goto tx_drop;
 
 	real_size = get_real_size(skb, dev, &lso_header_size);
 	if (unlikely(!real_size))
@@ -627,7 +634,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_ind = skb->queue_mapping;
 	ring = &priv->tx_ring[tx_ind];
-	if (priv->vlgrp && vlan_tx_tag_present(skb))
+	if (vlan_tx_tag_present(skb))
 		vlan_tag = vlan_tx_tag_get(skb);
 
 	/* Check available TXBBs And 2K spare for prefetch */
@@ -674,6 +681,19 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx_desc->ctrl.srcrb_flags |= cpu_to_be32(MLX4_WQE_CTRL_IP_CSUM |
 							 MLX4_WQE_CTRL_TCP_UDP_CSUM);
 		priv->port_stats.tx_chksum_offload++;
+	}
+
+	if (unlikely(priv->validate_loopback)) {
+		/* Copy dst mac address to wqe */
+		skb_reset_mac_header(skb);
+		ethh = eth_hdr(skb);
+		if (ethh && ethh->h_dest) {
+			mac = mlx4_en_mac_to_u64(ethh->h_dest);
+			mac_h = (u32) ((mac & 0xffff00000000ULL) >> 16);
+			mac_l = (u32) (mac & 0xffffffff);
+			tx_desc->ctrl.srcrb_flags |= cpu_to_be32(mac_h);
+			tx_desc->ctrl.imm = cpu_to_be32(mac_l);
+		}
 	}
 
 	/* Handle LSO (TSO) packets */

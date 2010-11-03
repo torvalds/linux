@@ -41,23 +41,35 @@ static unsigned int fmax = 515633;
  * @clkreg: default value for MCICLOCK register
  * @clkreg_enable: enable value for MMCICLOCK register
  * @datalength_bits: number of bits in the MMCIDATALENGTH register
+ * @fifosize: number of bytes that can be written when MMCI_TXFIFOEMPTY
+ *	      is asserted (likewise for RX)
+ * @fifohalfsize: number of bytes that can be written when MCI_TXFIFOHALFEMPTY
+ *		  is asserted (likewise for RX)
  */
 struct variant_data {
 	unsigned int		clkreg;
 	unsigned int		clkreg_enable;
 	unsigned int		datalength_bits;
+	unsigned int		fifosize;
+	unsigned int		fifohalfsize;
 };
 
 static struct variant_data variant_arm = {
+	.fifosize		= 16 * 4,
+	.fifohalfsize		= 8 * 4,
 	.datalength_bits	= 16,
 };
 
 static struct variant_data variant_u300 = {
+	.fifosize		= 16 * 4,
+	.fifohalfsize		= 8 * 4,
 	.clkreg_enable		= 1 << 13, /* HWFCEN */
 	.datalength_bits	= 16,
 };
 
 static struct variant_data variant_ux500 = {
+	.fifosize		= 30 * 4,
+	.fifohalfsize		= 8 * 4,
 	.clkreg			= MCI_CLK_ENABLE,
 	.clkreg_enable		= 1 << 14, /* HWFCEN */
 	.datalength_bits	= 24,
@@ -138,6 +150,7 @@ static void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)
 
 static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 {
+	struct variant_data *variant = host->variant;
 	unsigned int datactrl, timeout, irqmask;
 	unsigned long long clks;
 	void __iomem *base;
@@ -173,7 +186,7 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 		 * If we have less than a FIFOSIZE of bytes to transfer,
 		 * trigger a PIO interrupt as soon as any data is available.
 		 */
-		if (host->size < MCI_FIFOSIZE)
+		if (host->size < variant->fifosize)
 			irqmask |= MCI_RXDATAAVLBLMASK;
 	} else {
 		/*
@@ -332,13 +345,15 @@ static int mmci_pio_read(struct mmci_host *host, char *buffer, unsigned int rema
 
 static int mmci_pio_write(struct mmci_host *host, char *buffer, unsigned int remain, u32 status)
 {
+	struct variant_data *variant = host->variant;
 	void __iomem *base = host->base;
 	char *ptr = buffer;
 
 	do {
 		unsigned int count, maxcnt;
 
-		maxcnt = status & MCI_TXFIFOEMPTY ? MCI_FIFOSIZE : MCI_FIFOHALFSIZE;
+		maxcnt = status & MCI_TXFIFOEMPTY ?
+			 variant->fifosize : variant->fifohalfsize;
 		count = min(remain, maxcnt);
 
 		writesl(base + MMCIFIFO, ptr, count >> 2);
@@ -362,6 +377,7 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 {
 	struct mmci_host *host = dev_id;
 	struct sg_mapping_iter *sg_miter = &host->sg_miter;
+	struct variant_data *variant = host->variant;
 	void __iomem *base = host->base;
 	unsigned long flags;
 	u32 status;
@@ -420,7 +436,7 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 	 * If we're nearing the end of the read, switch to
 	 * "any data available" mode.
 	 */
-	if (status & MCI_RXACTIVE && host->size < MCI_FIFOSIZE)
+	if (status & MCI_RXACTIVE && host->size < variant->fifosize)
 		writel(MCI_RXDATAAVLBLMASK, base + MMCIMASK1);
 
 	/*
@@ -507,19 +523,27 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct mmci_host *host = mmc_priv(mmc);
 	u32 pwr = 0;
 	unsigned long flags;
+	int ret;
 
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
-		if(host->vcc &&
-		   regulator_is_enabled(host->vcc))
-			regulator_disable(host->vcc);
+		if (host->vcc)
+			ret = mmc_regulator_set_ocr(mmc, host->vcc, 0);
 		break;
 	case MMC_POWER_UP:
-#ifdef CONFIG_REGULATOR
-		if (host->vcc)
-			/* This implicitly enables the regulator */
-			mmc_regulator_set_ocr(host->vcc, ios->vdd);
-#endif
+		if (host->vcc) {
+			ret = mmc_regulator_set_ocr(mmc, host->vcc, ios->vdd);
+			if (ret) {
+				dev_err(mmc_dev(mmc), "unable to set OCR\n");
+				/*
+				 * The .set_ios() function in the mmc_host_ops
+				 * struct return void, and failing to set the
+				 * power should be rare so we print an error
+				 * and return here.
+				 */
+				return;
+			}
+		}
 		if (host->plat->vdd_handler)
 			pwr |= host->plat->vdd_handler(mmc_dev(mmc), ios->vdd,
 						       ios->power_mode);
@@ -564,24 +588,38 @@ static int mmci_get_ro(struct mmc_host *mmc)
 	if (host->gpio_wp == -ENOSYS)
 		return -ENOSYS;
 
-	return gpio_get_value(host->gpio_wp);
+	return gpio_get_value_cansleep(host->gpio_wp);
 }
 
 static int mmci_get_cd(struct mmc_host *mmc)
 {
 	struct mmci_host *host = mmc_priv(mmc);
+	struct mmci_platform_data *plat = host->plat;
 	unsigned int status;
 
-	if (host->gpio_cd == -ENOSYS)
-		status = host->plat->status(mmc_dev(host->mmc));
-	else
-		status = !gpio_get_value(host->gpio_cd);
+	if (host->gpio_cd == -ENOSYS) {
+		if (!plat->status)
+			return 1; /* Assume always present */
+
+		status = plat->status(mmc_dev(host->mmc));
+	} else
+		status = !!gpio_get_value_cansleep(host->gpio_cd)
+			^ plat->cd_invert;
 
 	/*
 	 * Use positive logic throughout - status is zero for no card,
 	 * non-zero for card inserted.
 	 */
 	return status;
+}
+
+static irqreturn_t mmci_cd_irq(int irq, void *dev_id)
+{
+	struct mmci_host *host = dev_id;
+
+	mmc_detect_change(host->mmc, msecs_to_jiffies(500));
+
+	return IRQ_HANDLED;
 }
 
 static const struct mmc_host_ops mmci_ops = {
@@ -620,6 +658,7 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 
 	host->gpio_wp = -ENOSYS;
 	host->gpio_cd = -ENOSYS;
+	host->gpio_cd_irq = -1;
 
 	host->hw_designer = amba_manf(dev);
 	host->hw_revision = amba_rev(dev);
@@ -699,13 +738,11 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	if (host->vcc == NULL)
 		mmc->ocr_avail = plat->ocr_mask;
 	mmc->caps = plat->capabilities;
-	mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	/*
 	 * We can do SGIO
 	 */
-	mmc->max_hw_segs = 16;
-	mmc->max_phys_segs = NR_SG;
+	mmc->max_segs = NR_SG;
 
 	/*
 	 * Since only a certain number of bits are valid in the data length
@@ -744,6 +781,12 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 			host->gpio_cd = plat->gpio_cd;
 		else if (ret != -ENOSYS)
 			goto err_gpio_cd;
+
+		ret = request_any_context_irq(gpio_to_irq(plat->gpio_cd),
+					      mmci_cd_irq, 0,
+					      DRIVER_NAME " (cd)", host);
+		if (ret >= 0)
+			host->gpio_cd_irq = gpio_to_irq(plat->gpio_cd);
 	}
 	if (gpio_is_valid(plat->gpio_wp)) {
 		ret = gpio_request(plat->gpio_wp, DRIVER_NAME " (wp)");
@@ -754,6 +797,10 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 		else if (ret != -ENOSYS)
 			goto err_gpio_wp;
 	}
+
+	if ((host->plat->status || host->gpio_cd != -ENOSYS)
+	    && host->gpio_cd_irq < 0)
+		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	ret = request_irq(dev->irq[0], mmci_irq, IRQF_SHARED, DRIVER_NAME " (cmd)", host);
 	if (ret)
@@ -781,6 +828,8 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	if (host->gpio_wp != -ENOSYS)
 		gpio_free(host->gpio_wp);
  err_gpio_wp:
+	if (host->gpio_cd_irq >= 0)
+		free_irq(host->gpio_cd_irq, host);
 	if (host->gpio_cd != -ENOSYS)
 		gpio_free(host->gpio_cd);
  err_gpio_cd:
@@ -819,6 +868,8 @@ static int __devexit mmci_remove(struct amba_device *dev)
 
 		if (host->gpio_wp != -ENOSYS)
 			gpio_free(host->gpio_wp);
+		if (host->gpio_cd_irq >= 0)
+			free_irq(host->gpio_cd_irq, host);
 		if (host->gpio_cd != -ENOSYS)
 			gpio_free(host->gpio_cd);
 
@@ -826,8 +877,8 @@ static int __devexit mmci_remove(struct amba_device *dev)
 		clk_disable(host->clk);
 		clk_put(host->clk);
 
-		if (regulator_is_enabled(host->vcc))
-			regulator_disable(host->vcc);
+		if (host->vcc)
+			mmc_regulator_set_ocr(mmc, host->vcc, 0);
 		regulator_put(host->vcc);
 
 		mmc_free_host(mmc);

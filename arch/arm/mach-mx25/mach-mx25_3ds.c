@@ -28,7 +28,6 @@
 #include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
-#include <linux/fec.h>
 #include <linux/platform_device.h>
 #include <linux/input/matrix_keypad.h>
 
@@ -97,9 +96,17 @@ static struct pad_desc mx25pdk_pads[] = {
 	MX25_PAD_KPP_COL1__KPP_COL1,
 	MX25_PAD_KPP_COL2__KPP_COL2,
 	MX25_PAD_KPP_COL3__KPP_COL3,
+
+	/* SD1 */
+	MX25_PAD_SD1_CMD__SD1_CMD,
+	MX25_PAD_SD1_CLK__SD1_CLK,
+	MX25_PAD_SD1_DATA0__SD1_DATA0,
+	MX25_PAD_SD1_DATA1__SD1_DATA1,
+	MX25_PAD_SD1_DATA2__SD1_DATA2,
+	MX25_PAD_SD1_DATA3__SD1_DATA3,
 };
 
-static struct fec_platform_data mx25_fec_pdata = {
+static const struct fec_platform_data mx25_fec_pdata __initconst = {
         .phy    = PHY_INTERFACE_MODE_RMII,
 };
 
@@ -192,8 +199,10 @@ static void __init mx25pdk_init(void)
 	mxc_register_device(&mxc_wdt, NULL);
 
 	mx25pdk_fec_reset();
-	mxc_register_device(&mx25_fec_device, &mx25_fec_pdata);
+	imx25_add_fec(&mx25_fec_pdata);
 	mxc_register_device(&mx25_kpp_device, &mx25pdk_keymap_data);
+
+	imx25_add_esdhc(0, NULL);
 }
 
 static void __init mx25pdk_timer_init(void)
@@ -207,8 +216,6 @@ static struct sys_timer mx25pdk_timer = {
 
 MACHINE_START(MX25_3DS, "Freescale MX25PDK (3DS)")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.phys_io	= MX25_AIPS1_BASE_ADDR,
-	.io_pg_offst	= ((MX25_AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = MX25_PHYS_OFFSET + 0x100,
 	.map_io         = mx25_map_io,
 	.init_irq       = mx25_init_irq,

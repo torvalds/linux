@@ -569,7 +569,7 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
  *
  * maybe bm_set should be atomic_t ?
  */
-static unsigned long _drbd_bm_total_weight(struct drbd_conf *mdev)
+unsigned long _drbd_bm_total_weight(struct drbd_conf *mdev)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
 	unsigned long s;

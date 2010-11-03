@@ -2,9 +2,10 @@
  * zfcp device driver
  *
  * Userspace interface for accessing the
- * Access Control Lists / Control File Data Channel
+ * Access Control Lists / Control File Data Channel;
+ * handling of response code and states for ports and LUNs.
  *
- * Copyright IBM Corporation 2008, 2009
+ * Copyright IBM Corporation 2008, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -251,8 +252,9 @@ static const struct file_operations zfcp_cfdc_fops = {
 	.open = nonseekable_open,
 	.unlocked_ioctl = zfcp_cfdc_dev_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl = zfcp_cfdc_dev_ioctl
+	.compat_ioctl = zfcp_cfdc_dev_ioctl,
 #endif
+	.llseek = no_llseek,
 };
 
 struct miscdevice zfcp_cfdc_misc = {
@@ -260,3 +262,184 @@ struct miscdevice zfcp_cfdc_misc = {
 	.name = "zfcp_cfdc",
 	.fops = &zfcp_cfdc_fops,
 };
+
+/**
+ * zfcp_cfdc_adapter_access_changed - Process change in adapter ACT
+ * @adapter: Adapter where the Access Control Table (ACT) changed
+ *
+ * After a change in the adapter ACT, check if access to any
+ * previously denied resources is now possible.
+ */
+void zfcp_cfdc_adapter_access_changed(struct zfcp_adapter *adapter)
+{
+	unsigned long flags;
+	struct zfcp_port *port;
+	struct scsi_device *sdev;
+	struct zfcp_scsi_dev *zfcp_sdev;
+	int status;
+
+	if (adapter->connection_features & FSF_FEATURE_NPIV_MODE)
+		return;
+
+	read_lock_irqsave(&adapter->port_list_lock, flags);
+	list_for_each_entry(port, &adapter->port_list, list) {
+		status = atomic_read(&port->status);
+		if ((status & ZFCP_STATUS_COMMON_ACCESS_DENIED) ||
+		    (status & ZFCP_STATUS_COMMON_ACCESS_BOXED))
+			zfcp_erp_port_reopen(port,
+					     ZFCP_STATUS_COMMON_ERP_FAILED,
+					     "cfaac_1", NULL);
+	}
+	read_unlock_irqrestore(&adapter->port_list_lock, flags);
+
+	shost_for_each_device(sdev, port->adapter->scsi_host) {
+		zfcp_sdev = sdev_to_zfcp(sdev);
+		status = atomic_read(&zfcp_sdev->status);
+		if ((status & ZFCP_STATUS_COMMON_ACCESS_DENIED) ||
+		    (status & ZFCP_STATUS_COMMON_ACCESS_BOXED))
+			zfcp_erp_lun_reopen(sdev,
+					    ZFCP_STATUS_COMMON_ERP_FAILED,
+					    "cfaac_2", NULL);
+	}
+}
+
+static void zfcp_act_eval_err(struct zfcp_adapter *adapter, u32 table)
+{
+	u16 subtable = table >> 16;
+	u16 rule = table & 0xffff;
+	const char *act_type[] = { "unknown", "OS", "WWPN", "DID", "LUN" };
+
+	if (subtable && subtable < ARRAY_SIZE(act_type))
+		dev_warn(&adapter->ccw_device->dev,
+			 "Access denied according to ACT rule type %s, "
+			 "rule %d\n", act_type[subtable], rule);
+}
+
+/**
+ * zfcp_cfdc_port_denied - Process "access denied" for port
+ * @port: The port where the acces has been denied
+ * @qual: The FSF status qualifier for the access denied FSF status
+ */
+void zfcp_cfdc_port_denied(struct zfcp_port *port,
+			   union fsf_status_qual *qual)
+{
+	dev_warn(&port->adapter->ccw_device->dev,
+		 "Access denied to port 0x%016Lx\n",
+		 (unsigned long long)port->wwpn);
+
+	zfcp_act_eval_err(port->adapter, qual->halfword[0]);
+	zfcp_act_eval_err(port->adapter, qual->halfword[1]);
+	zfcp_erp_set_port_status(port,
+				 ZFCP_STATUS_COMMON_ERP_FAILED |
+				 ZFCP_STATUS_COMMON_ACCESS_DENIED);
+}
+
+/**
+ * zfcp_cfdc_lun_denied - Process "access denied" for LUN
+ * @sdev: The SCSI device / LUN where the access has been denied
+ * @qual: The FSF status qualifier for the access denied FSF status
+ */
+void zfcp_cfdc_lun_denied(struct scsi_device *sdev,
+			  union fsf_status_qual *qual)
+{
+	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
+
+	dev_warn(&zfcp_sdev->port->adapter->ccw_device->dev,
+		 "Access denied to LUN 0x%016Lx on port 0x%016Lx\n",
+		 zfcp_scsi_dev_lun(sdev),
+		 (unsigned long long)zfcp_sdev->port->wwpn);
+	zfcp_act_eval_err(zfcp_sdev->port->adapter, qual->halfword[0]);
+	zfcp_act_eval_err(zfcp_sdev->port->adapter, qual->halfword[1]);
+	zfcp_erp_set_lun_status(sdev,
+				ZFCP_STATUS_COMMON_ERP_FAILED |
+				ZFCP_STATUS_COMMON_ACCESS_DENIED);
+
+	atomic_clear_mask(ZFCP_STATUS_LUN_SHARED, &zfcp_sdev->status);
+	atomic_clear_mask(ZFCP_STATUS_LUN_READONLY, &zfcp_sdev->status);
+}
+
+/**
+ * zfcp_cfdc_lun_shrng_vltn - Evaluate LUN sharing violation status
+ * @sdev: The LUN / SCSI device where sharing violation occurred
+ * @qual: The FSF status qualifier from the LUN sharing violation
+ */
+void zfcp_cfdc_lun_shrng_vltn(struct scsi_device *sdev,
+			      union fsf_status_qual *qual)
+{
+	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
+
+	if (qual->word[0])
+		dev_warn(&zfcp_sdev->port->adapter->ccw_device->dev,
+			 "LUN 0x%Lx on port 0x%Lx is already in "
+			 "use by CSS%d, MIF Image ID %x\n",
+			 zfcp_scsi_dev_lun(sdev),
+			 (unsigned long long)zfcp_sdev->port->wwpn,
+			 qual->fsf_queue_designator.cssid,
+			 qual->fsf_queue_designator.hla);
+	else
+		zfcp_act_eval_err(zfcp_sdev->port->adapter, qual->word[2]);
+
+	zfcp_erp_set_lun_status(sdev,
+				ZFCP_STATUS_COMMON_ERP_FAILED |
+				ZFCP_STATUS_COMMON_ACCESS_DENIED);
+	atomic_clear_mask(ZFCP_STATUS_LUN_SHARED, &zfcp_sdev->status);
+	atomic_clear_mask(ZFCP_STATUS_LUN_READONLY, &zfcp_sdev->status);
+}
+
+/**
+ * zfcp_cfdc_open_lun_eval - Eval access ctrl. status for successful "open lun"
+ * @sdev: The SCSI device / LUN where to evaluate the status
+ * @bottom: The qtcb bottom with the status from the "open lun"
+ *
+ * Returns: 0 if LUN is usable, -EACCES if the access control table
+ *          reports an unsupported configuration.
+ */
+int zfcp_cfdc_open_lun_eval(struct scsi_device *sdev,
+			    struct fsf_qtcb_bottom_support *bottom)
+{
+	int shared, rw;
+	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
+	struct zfcp_adapter *adapter = zfcp_sdev->port->adapter;
+
+	if ((adapter->connection_features & FSF_FEATURE_NPIV_MODE) ||
+	    !(adapter->adapter_features & FSF_FEATURE_LUN_SHARING) ||
+	    zfcp_ccw_priv_sch(adapter))
+		return 0;
+
+	shared = !(bottom->lun_access_info & FSF_UNIT_ACCESS_EXCLUSIVE);
+	rw = (bottom->lun_access_info & FSF_UNIT_ACCESS_OUTBOUND_TRANSFER);
+
+	if (shared)
+		atomic_set_mask(ZFCP_STATUS_LUN_SHARED, &zfcp_sdev->status);
+
+	if (!rw) {
+		atomic_set_mask(ZFCP_STATUS_LUN_READONLY, &zfcp_sdev->status);
+		dev_info(&adapter->ccw_device->dev, "SCSI device at LUN "
+			 "0x%016Lx on port 0x%016Lx opened read-only\n",
+			 zfcp_scsi_dev_lun(sdev),
+			 (unsigned long long)zfcp_sdev->port->wwpn);
+	}
+
+	if (!shared && !rw) {
+		dev_err(&adapter->ccw_device->dev, "Exclusive read-only access "
+			"not supported (LUN 0x%016Lx, port 0x%016Lx)\n",
+			zfcp_scsi_dev_lun(sdev),
+			(unsigned long long)zfcp_sdev->port->wwpn);
+		zfcp_erp_set_lun_status(sdev, ZFCP_STATUS_COMMON_ERP_FAILED);
+		zfcp_erp_lun_shutdown(sdev, 0, "fsouh_6", NULL);
+		return -EACCES;
+	}
+
+	if (shared && rw) {
+		dev_err(&adapter->ccw_device->dev,
+			"Shared read-write access not supported "
+			"(LUN 0x%016Lx, port 0x%016Lx)\n",
+			zfcp_scsi_dev_lun(sdev),
+			(unsigned long long)zfcp_sdev->port->wwpn);
+		zfcp_erp_set_lun_status(sdev, ZFCP_STATUS_COMMON_ERP_FAILED);
+		zfcp_erp_lun_shutdown(sdev, 0, "fsosh_8", NULL);
+		return -EACCES;
+	}
+
+	return 0;
+}

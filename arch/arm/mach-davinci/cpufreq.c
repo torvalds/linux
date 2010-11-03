@@ -34,6 +34,8 @@
 struct davinci_cpufreq {
 	struct device *dev;
 	struct clk *armclk;
+	struct clk *asyncclk;
+	unsigned long asyncrate;
 };
 static struct davinci_cpufreq cpufreq;
 
@@ -104,15 +106,27 @@ static int davinci_target(struct cpufreq_policy *policy,
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
 	/* if moving to higher frequency, up the voltage beforehand */
-	if (pdata->set_voltage && freqs.new > freqs.old)
-		pdata->set_voltage(idx);
+	if (pdata->set_voltage && freqs.new > freqs.old) {
+		ret = pdata->set_voltage(idx);
+		if (ret)
+			goto out;
+	}
 
 	ret = clk_set_rate(armclk, idx);
+	if (ret)
+		goto out;
+
+	if (cpufreq.asyncclk) {
+		ret = clk_set_rate(cpufreq.asyncclk, cpufreq.asyncrate);
+		if (ret)
+			goto out;
+	}
 
 	/* if moving to lower freq, lower the voltage after lowering freq */
 	if (pdata->set_voltage && freqs.new < freqs.old)
 		pdata->set_voltage(idx);
 
+out:
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
 	return ret;
@@ -185,6 +199,7 @@ static struct cpufreq_driver davinci_driver = {
 static int __init davinci_cpufreq_probe(struct platform_device *pdev)
 {
 	struct davinci_cpufreq_config *pdata = pdev->dev.platform_data;
+	struct clk *asyncclk;
 
 	if (!pdata)
 		return -EINVAL;
@@ -199,12 +214,21 @@ static int __init davinci_cpufreq_probe(struct platform_device *pdev)
 		return PTR_ERR(cpufreq.armclk);
 	}
 
+	asyncclk = clk_get(cpufreq.dev, "async");
+	if (!IS_ERR(asyncclk)) {
+		cpufreq.asyncclk = asyncclk;
+		cpufreq.asyncrate = clk_get_rate(asyncclk);
+	}
+
 	return cpufreq_register_driver(&davinci_driver);
 }
 
 static int __exit davinci_cpufreq_remove(struct platform_device *pdev)
 {
 	clk_put(cpufreq.armclk);
+
+	if (cpufreq.asyncclk)
+		clk_put(cpufreq.asyncclk);
 
 	return cpufreq_unregister_driver(&davinci_driver);
 }

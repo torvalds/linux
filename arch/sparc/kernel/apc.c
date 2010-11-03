@@ -132,6 +132,7 @@ static const struct file_operations apc_fops = {
 	.unlocked_ioctl =	apc_ioctl,
 	.open =			apc_open,
 	.release =		apc_release,
+	.llseek =		noop_llseek,
 };
 
 static struct miscdevice apc_miscdev = { APC_MINOR, APC_DEVNAME, &apc_fops };

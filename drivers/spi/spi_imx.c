@@ -56,7 +56,28 @@ struct spi_imx_config {
 	unsigned int speed_hz;
 	unsigned int bpw;
 	unsigned int mode;
-	int cs;
+	u8 cs;
+};
+
+enum spi_imx_devtype {
+	SPI_IMX_VER_IMX1,
+	SPI_IMX_VER_0_0,
+	SPI_IMX_VER_0_4,
+	SPI_IMX_VER_0_5,
+	SPI_IMX_VER_0_7,
+	SPI_IMX_VER_2_3,
+	SPI_IMX_VER_AUTODETECT,
+};
+
+struct spi_imx_data;
+
+struct spi_imx_devtype_data {
+	void (*intctrl)(struct spi_imx_data *, int);
+	int (*config)(struct spi_imx_data *, struct spi_imx_config *);
+	void (*trigger)(struct spi_imx_data *);
+	int (*rx_available)(struct spi_imx_data *);
+	void (*reset)(struct spi_imx_data *);
+	unsigned int fifosize;
 };
 
 struct spi_imx_data {
@@ -76,11 +97,7 @@ struct spi_imx_data {
 	const void *tx_buf;
 	unsigned int txfifo; /* number of words pushed in tx FIFO */
 
-	/* SoC specific functions */
-	void (*intctrl)(struct spi_imx_data *, int);
-	int (*config)(struct spi_imx_data *, struct spi_imx_config *);
-	void (*trigger)(struct spi_imx_data *);
-	int (*rx_available)(struct spi_imx_data *);
+	struct spi_imx_devtype_data devtype_data;
 };
 
 #define MXC_SPI_BUF_RX(type)						\
@@ -140,7 +157,7 @@ static unsigned int spi_imx_clkdiv_1(unsigned int fin,
 	return max;
 }
 
-/* MX1, MX31, MX35 */
+/* MX1, MX31, MX35, MX51 CSPI */
 static unsigned int spi_imx_clkdiv_2(unsigned int fin,
 		unsigned int fspi)
 {
@@ -153,6 +170,128 @@ static unsigned int spi_imx_clkdiv_2(unsigned int fin,
 	}
 
 	return 7;
+}
+
+#define SPI_IMX2_3_CTRL		0x08
+#define SPI_IMX2_3_CTRL_ENABLE		(1 <<  0)
+#define SPI_IMX2_3_CTRL_XCH		(1 <<  2)
+#define SPI_IMX2_3_CTRL_MODE(cs)	(1 << ((cs) +  4))
+#define SPI_IMX2_3_CTRL_POSTDIV_OFFSET	8
+#define SPI_IMX2_3_CTRL_PREDIV_OFFSET	12
+#define SPI_IMX2_3_CTRL_CS(cs)		((cs) << 18)
+#define SPI_IMX2_3_CTRL_BL_OFFSET	20
+
+#define SPI_IMX2_3_CONFIG	0x0c
+#define SPI_IMX2_3_CONFIG_SCLKPHA(cs)	(1 << ((cs) +  0))
+#define SPI_IMX2_3_CONFIG_SCLKPOL(cs)	(1 << ((cs) +  4))
+#define SPI_IMX2_3_CONFIG_SBBCTRL(cs)	(1 << ((cs) +  8))
+#define SPI_IMX2_3_CONFIG_SSBPOL(cs)	(1 << ((cs) + 12))
+
+#define SPI_IMX2_3_INT		0x10
+#define SPI_IMX2_3_INT_TEEN		(1 <<  0)
+#define SPI_IMX2_3_INT_RREN		(1 <<  3)
+
+#define SPI_IMX2_3_STAT		0x18
+#define SPI_IMX2_3_STAT_RR		(1 <<  3)
+
+/* MX51 eCSPI */
+static unsigned int spi_imx2_3_clkdiv(unsigned int fin, unsigned int fspi)
+{
+	/*
+	 * there are two 4-bit dividers, the pre-divider divides by
+	 * $pre, the post-divider by 2^$post
+	 */
+	unsigned int pre, post;
+
+	if (unlikely(fspi > fin))
+		return 0;
+
+	post = fls(fin) - fls(fspi);
+	if (fin > fspi << post)
+		post++;
+
+	/* now we have: (fin <= fspi << post) with post being minimal */
+
+	post = max(4U, post) - 4;
+	if (unlikely(post > 0xf)) {
+		pr_err("%s: cannot set clock freq: %u (base freq: %u)\n",
+				__func__, fspi, fin);
+		return 0xff;
+	}
+
+	pre = DIV_ROUND_UP(fin, fspi << post) - 1;
+
+	pr_debug("%s: fin: %u, fspi: %u, post: %u, pre: %u\n",
+			__func__, fin, fspi, post, pre);
+	return (pre << SPI_IMX2_3_CTRL_PREDIV_OFFSET) |
+		(post << SPI_IMX2_3_CTRL_POSTDIV_OFFSET);
+}
+
+static void __maybe_unused spi_imx2_3_intctrl(struct spi_imx_data *spi_imx, int enable)
+{
+	unsigned val = 0;
+
+	if (enable & MXC_INT_TE)
+		val |= SPI_IMX2_3_INT_TEEN;
+
+	if (enable & MXC_INT_RR)
+		val |= SPI_IMX2_3_INT_RREN;
+
+	writel(val, spi_imx->base + SPI_IMX2_3_INT);
+}
+
+static void __maybe_unused spi_imx2_3_trigger(struct spi_imx_data *spi_imx)
+{
+	u32 reg;
+
+	reg = readl(spi_imx->base + SPI_IMX2_3_CTRL);
+	reg |= SPI_IMX2_3_CTRL_XCH;
+	writel(reg, spi_imx->base + SPI_IMX2_3_CTRL);
+}
+
+static int __maybe_unused spi_imx2_3_config(struct spi_imx_data *spi_imx,
+		struct spi_imx_config *config)
+{
+	u32 ctrl = SPI_IMX2_3_CTRL_ENABLE, cfg = 0;
+
+	/* set master mode */
+	ctrl |= SPI_IMX2_3_CTRL_MODE(config->cs);
+
+	/* set clock speed */
+	ctrl |= spi_imx2_3_clkdiv(spi_imx->spi_clk, config->speed_hz);
+
+	/* set chip select to use */
+	ctrl |= SPI_IMX2_3_CTRL_CS(config->cs);
+
+	ctrl |= (config->bpw - 1) << SPI_IMX2_3_CTRL_BL_OFFSET;
+
+	cfg |= SPI_IMX2_3_CONFIG_SBBCTRL(config->cs);
+
+	if (config->mode & SPI_CPHA)
+		cfg |= SPI_IMX2_3_CONFIG_SCLKPHA(config->cs);
+
+	if (config->mode & SPI_CPOL)
+		cfg |= SPI_IMX2_3_CONFIG_SCLKPOL(config->cs);
+
+	if (config->mode & SPI_CS_HIGH)
+		cfg |= SPI_IMX2_3_CONFIG_SSBPOL(config->cs);
+
+	writel(ctrl, spi_imx->base + SPI_IMX2_3_CTRL);
+	writel(cfg, spi_imx->base + SPI_IMX2_3_CONFIG);
+
+	return 0;
+}
+
+static int __maybe_unused spi_imx2_3_rx_available(struct spi_imx_data *spi_imx)
+{
+	return readl(spi_imx->base + SPI_IMX2_3_STAT) & SPI_IMX2_3_STAT_RR;
+}
+
+static void __maybe_unused spi_imx2_3_reset(struct spi_imx_data *spi_imx)
+{
+	/* drain receive buffer */
+	while (spi_imx2_3_rx_available(spi_imx))
+		readl(spi_imx->base + MXC_CSPIRXDATA);
 }
 
 #define MX31_INTREG_TEEN	(1 << 0)
@@ -178,7 +317,7 @@ static unsigned int spi_imx_clkdiv_2(unsigned int fin,
  * the i.MX35 has a slightly different register layout for bits
  * we do not use here.
  */
-static void mx31_intctrl(struct spi_imx_data *spi_imx, int enable)
+static void __maybe_unused mx31_intctrl(struct spi_imx_data *spi_imx, int enable)
 {
 	unsigned int val = 0;
 
@@ -190,7 +329,7 @@ static void mx31_intctrl(struct spi_imx_data *spi_imx, int enable)
 	writel(val, spi_imx->base + MXC_CSPIINT);
 }
 
-static void mx31_trigger(struct spi_imx_data *spi_imx)
+static void __maybe_unused mx31_trigger(struct spi_imx_data *spi_imx)
 {
 	unsigned int reg;
 
@@ -199,20 +338,16 @@ static void mx31_trigger(struct spi_imx_data *spi_imx)
 	writel(reg, spi_imx->base + MXC_CSPICTRL);
 }
 
-static int mx31_config(struct spi_imx_data *spi_imx,
+static int __maybe_unused spi_imx0_4_config(struct spi_imx_data *spi_imx,
 		struct spi_imx_config *config)
 {
 	unsigned int reg = MX31_CSPICTRL_ENABLE | MX31_CSPICTRL_MASTER;
+	int cs = spi_imx->chipselect[config->cs];
 
 	reg |= spi_imx_clkdiv_2(spi_imx->spi_clk, config->speed_hz) <<
 		MX31_CSPICTRL_DR_SHIFT;
 
-	if (cpu_is_mx31())
-		reg |= (config->bpw - 1) << MX31_CSPICTRL_BC_SHIFT;
-	else if (cpu_is_mx25() || cpu_is_mx35()) {
-		reg |= (config->bpw - 1) << MX35_CSPICTRL_BL_SHIFT;
-		reg |= MX31_CSPICTRL_SSCTL;
-	}
+	reg |= (config->bpw - 1) << MX31_CSPICTRL_BC_SHIFT;
 
 	if (config->mode & SPI_CPHA)
 		reg |= MX31_CSPICTRL_PHA;
@@ -220,21 +355,50 @@ static int mx31_config(struct spi_imx_data *spi_imx,
 		reg |= MX31_CSPICTRL_POL;
 	if (config->mode & SPI_CS_HIGH)
 		reg |= MX31_CSPICTRL_SSPOL;
-	if (config->cs < 0) {
-		if (cpu_is_mx31())
-			reg |= (config->cs + 32) << MX31_CSPICTRL_CS_SHIFT;
-		else if (cpu_is_mx25() || cpu_is_mx35())
-			reg |= (config->cs + 32) << MX35_CSPICTRL_CS_SHIFT;
-	}
+	if (cs < 0)
+		reg |= (cs + 32) << MX31_CSPICTRL_CS_SHIFT;
 
 	writel(reg, spi_imx->base + MXC_CSPICTRL);
 
 	return 0;
 }
 
-static int mx31_rx_available(struct spi_imx_data *spi_imx)
+static int __maybe_unused spi_imx0_7_config(struct spi_imx_data *spi_imx,
+		struct spi_imx_config *config)
+{
+	unsigned int reg = MX31_CSPICTRL_ENABLE | MX31_CSPICTRL_MASTER;
+	int cs = spi_imx->chipselect[config->cs];
+
+	reg |= spi_imx_clkdiv_2(spi_imx->spi_clk, config->speed_hz) <<
+		MX31_CSPICTRL_DR_SHIFT;
+
+	reg |= (config->bpw - 1) << MX35_CSPICTRL_BL_SHIFT;
+	reg |= MX31_CSPICTRL_SSCTL;
+
+	if (config->mode & SPI_CPHA)
+		reg |= MX31_CSPICTRL_PHA;
+	if (config->mode & SPI_CPOL)
+		reg |= MX31_CSPICTRL_POL;
+	if (config->mode & SPI_CS_HIGH)
+		reg |= MX31_CSPICTRL_SSPOL;
+	if (cs < 0)
+		reg |= (cs + 32) << MX35_CSPICTRL_CS_SHIFT;
+
+	writel(reg, spi_imx->base + MXC_CSPICTRL);
+
+	return 0;
+}
+
+static int __maybe_unused mx31_rx_available(struct spi_imx_data *spi_imx)
 {
 	return readl(spi_imx->base + MX31_CSPISTATUS) & MX31_STATUS_RR;
+}
+
+static void __maybe_unused spi_imx0_4_reset(struct spi_imx_data *spi_imx)
+{
+	/* drain receive buffer */
+	while (readl(spi_imx->base + MX3_CSPISTAT) & MX3_CSPISTAT_RR)
+		readl(spi_imx->base + MXC_CSPIRXDATA);
 }
 
 #define MX27_INTREG_RR		(1 << 4)
@@ -250,7 +414,7 @@ static int mx31_rx_available(struct spi_imx_data *spi_imx)
 #define MX27_CSPICTRL_DR_SHIFT	14
 #define MX27_CSPICTRL_CS_SHIFT	19
 
-static void mx27_intctrl(struct spi_imx_data *spi_imx, int enable)
+static void __maybe_unused mx27_intctrl(struct spi_imx_data *spi_imx, int enable)
 {
 	unsigned int val = 0;
 
@@ -262,7 +426,7 @@ static void mx27_intctrl(struct spi_imx_data *spi_imx, int enable)
 	writel(val, spi_imx->base + MXC_CSPIINT);
 }
 
-static void mx27_trigger(struct spi_imx_data *spi_imx)
+static void __maybe_unused mx27_trigger(struct spi_imx_data *spi_imx)
 {
 	unsigned int reg;
 
@@ -271,10 +435,11 @@ static void mx27_trigger(struct spi_imx_data *spi_imx)
 	writel(reg, spi_imx->base + MXC_CSPICTRL);
 }
 
-static int mx27_config(struct spi_imx_data *spi_imx,
+static int __maybe_unused mx27_config(struct spi_imx_data *spi_imx,
 		struct spi_imx_config *config)
 {
 	unsigned int reg = MX27_CSPICTRL_ENABLE | MX27_CSPICTRL_MASTER;
+	int cs = spi_imx->chipselect[config->cs];
 
 	reg |= spi_imx_clkdiv_1(spi_imx->spi_clk, config->speed_hz) <<
 		MX27_CSPICTRL_DR_SHIFT;
@@ -286,17 +451,22 @@ static int mx27_config(struct spi_imx_data *spi_imx,
 		reg |= MX27_CSPICTRL_POL;
 	if (config->mode & SPI_CS_HIGH)
 		reg |= MX27_CSPICTRL_SSPOL;
-	if (config->cs < 0)
-		reg |= (config->cs + 32) << MX27_CSPICTRL_CS_SHIFT;
+	if (cs < 0)
+		reg |= (cs + 32) << MX27_CSPICTRL_CS_SHIFT;
 
 	writel(reg, spi_imx->base + MXC_CSPICTRL);
 
 	return 0;
 }
 
-static int mx27_rx_available(struct spi_imx_data *spi_imx)
+static int __maybe_unused mx27_rx_available(struct spi_imx_data *spi_imx)
 {
 	return readl(spi_imx->base + MXC_CSPIINT) & MX27_INTREG_RR;
+}
+
+static void __maybe_unused spi_imx0_0_reset(struct spi_imx_data *spi_imx)
+{
+	writel(1, spi_imx->base + MXC_RESET);
 }
 
 #define MX1_INTREG_RR		(1 << 3)
@@ -310,7 +480,7 @@ static int mx27_rx_available(struct spi_imx_data *spi_imx)
 #define MX1_CSPICTRL_MASTER	(1 << 10)
 #define MX1_CSPICTRL_DR_SHIFT	13
 
-static void mx1_intctrl(struct spi_imx_data *spi_imx, int enable)
+static void __maybe_unused mx1_intctrl(struct spi_imx_data *spi_imx, int enable)
 {
 	unsigned int val = 0;
 
@@ -322,7 +492,7 @@ static void mx1_intctrl(struct spi_imx_data *spi_imx, int enable)
 	writel(val, spi_imx->base + MXC_CSPIINT);
 }
 
-static void mx1_trigger(struct spi_imx_data *spi_imx)
+static void __maybe_unused mx1_trigger(struct spi_imx_data *spi_imx)
 {
 	unsigned int reg;
 
@@ -331,7 +501,7 @@ static void mx1_trigger(struct spi_imx_data *spi_imx)
 	writel(reg, spi_imx->base + MXC_CSPICTRL);
 }
 
-static int mx1_config(struct spi_imx_data *spi_imx,
+static int __maybe_unused mx1_config(struct spi_imx_data *spi_imx,
 		struct spi_imx_config *config)
 {
 	unsigned int reg = MX1_CSPICTRL_ENABLE | MX1_CSPICTRL_MASTER;
@@ -350,10 +520,72 @@ static int mx1_config(struct spi_imx_data *spi_imx,
 	return 0;
 }
 
-static int mx1_rx_available(struct spi_imx_data *spi_imx)
+static int __maybe_unused mx1_rx_available(struct spi_imx_data *spi_imx)
 {
 	return readl(spi_imx->base + MXC_CSPIINT) & MX1_INTREG_RR;
 }
+
+static void __maybe_unused mx1_reset(struct spi_imx_data *spi_imx)
+{
+	writel(1, spi_imx->base + MXC_RESET);
+}
+
+/*
+ * These version numbers are taken from the Freescale driver.  Unfortunately it
+ * doesn't support i.MX1, so this entry doesn't match the scheme. :-(
+ */
+static struct spi_imx_devtype_data spi_imx_devtype_data[] __devinitdata = {
+#ifdef CONFIG_SPI_IMX_VER_IMX1
+	[SPI_IMX_VER_IMX1] = {
+		.intctrl = mx1_intctrl,
+		.config = mx1_config,
+		.trigger = mx1_trigger,
+		.rx_available = mx1_rx_available,
+		.reset = mx1_reset,
+		.fifosize = 8,
+	},
+#endif
+#ifdef CONFIG_SPI_IMX_VER_0_0
+	[SPI_IMX_VER_0_0] = {
+		.intctrl = mx27_intctrl,
+		.config = mx27_config,
+		.trigger = mx27_trigger,
+		.rx_available = mx27_rx_available,
+		.reset = spi_imx0_0_reset,
+		.fifosize = 8,
+	},
+#endif
+#ifdef CONFIG_SPI_IMX_VER_0_4
+	[SPI_IMX_VER_0_4] = {
+		.intctrl = mx31_intctrl,
+		.config = spi_imx0_4_config,
+		.trigger = mx31_trigger,
+		.rx_available = mx31_rx_available,
+		.reset = spi_imx0_4_reset,
+		.fifosize = 8,
+	},
+#endif
+#ifdef CONFIG_SPI_IMX_VER_0_7
+	[SPI_IMX_VER_0_7] = {
+		.intctrl = mx31_intctrl,
+		.config = spi_imx0_7_config,
+		.trigger = mx31_trigger,
+		.rx_available = mx31_rx_available,
+		.reset = spi_imx0_4_reset,
+		.fifosize = 8,
+	},
+#endif
+#ifdef CONFIG_SPI_IMX_VER_2_3
+	[SPI_IMX_VER_2_3] = {
+		.intctrl = spi_imx2_3_intctrl,
+		.config = spi_imx2_3_config,
+		.trigger = spi_imx2_3_trigger,
+		.rx_available = spi_imx2_3_rx_available,
+		.reset = spi_imx2_3_reset,
+		.fifosize = 64,
+	},
+#endif
+};
 
 static void spi_imx_chipselect(struct spi_device *spi, int is_active)
 {
@@ -370,21 +602,21 @@ static void spi_imx_chipselect(struct spi_device *spi, int is_active)
 
 static void spi_imx_push(struct spi_imx_data *spi_imx)
 {
-	while (spi_imx->txfifo < 8) {
+	while (spi_imx->txfifo < spi_imx->devtype_data.fifosize) {
 		if (!spi_imx->count)
 			break;
 		spi_imx->tx(spi_imx);
 		spi_imx->txfifo++;
 	}
 
-	spi_imx->trigger(spi_imx);
+	spi_imx->devtype_data.trigger(spi_imx);
 }
 
 static irqreturn_t spi_imx_isr(int irq, void *dev_id)
 {
 	struct spi_imx_data *spi_imx = dev_id;
 
-	while (spi_imx->rx_available(spi_imx)) {
+	while (spi_imx->devtype_data.rx_available(spi_imx)) {
 		spi_imx->rx(spi_imx);
 		spi_imx->txfifo--;
 	}
@@ -398,11 +630,12 @@ static irqreturn_t spi_imx_isr(int irq, void *dev_id)
 		/* No data left to push, but still waiting for rx data,
 		 * enable receive data available interrupt.
 		 */
-		spi_imx->intctrl(spi_imx, MXC_INT_RR);
+		spi_imx->devtype_data.intctrl(
+				spi_imx, MXC_INT_RR);
 		return IRQ_HANDLED;
 	}
 
-	spi_imx->intctrl(spi_imx, 0);
+	spi_imx->devtype_data.intctrl(spi_imx, 0);
 	complete(&spi_imx->xfer_done);
 
 	return IRQ_HANDLED;
@@ -417,7 +650,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	config.bpw = t ? t->bits_per_word : spi->bits_per_word;
 	config.speed_hz  = t ? t->speed_hz : spi->max_speed_hz;
 	config.mode = spi->mode;
-	config.cs = spi_imx->chipselect[spi->chip_select];
+	config.cs = spi->chip_select;
 
 	if (!config.speed_hz)
 		config.speed_hz = spi->max_speed_hz;
@@ -439,7 +672,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	} else
 		BUG();
 
-	spi_imx->config(spi_imx, &config);
+	spi_imx->devtype_data.config(spi_imx, &config);
 
 	return 0;
 }
@@ -458,7 +691,7 @@ static int spi_imx_transfer(struct spi_device *spi,
 
 	spi_imx_push(spi_imx);
 
-	spi_imx->intctrl(spi_imx, MXC_INT_TE);
+	spi_imx->devtype_data.intctrl(spi_imx, MXC_INT_TE);
 
 	wait_for_completion(&spi_imx->xfer_done);
 
@@ -484,6 +717,39 @@ static int spi_imx_setup(struct spi_device *spi)
 static void spi_imx_cleanup(struct spi_device *spi)
 {
 }
+
+static struct platform_device_id spi_imx_devtype[] = {
+	{
+		.name = DRIVER_NAME,
+		.driver_data = SPI_IMX_VER_AUTODETECT,
+	}, {
+		.name = "imx1-cspi",
+		.driver_data = SPI_IMX_VER_IMX1,
+	}, {
+		.name = "imx21-cspi",
+		.driver_data = SPI_IMX_VER_0_0,
+	}, {
+		.name = "imx25-cspi",
+		.driver_data = SPI_IMX_VER_0_7,
+	}, {
+		.name = "imx27-cspi",
+		.driver_data = SPI_IMX_VER_0_0,
+	}, {
+		.name = "imx31-cspi",
+		.driver_data = SPI_IMX_VER_0_4,
+	}, {
+		.name = "imx35-cspi",
+		.driver_data = SPI_IMX_VER_0_7,
+	}, {
+		.name = "imx51-cspi",
+		.driver_data = SPI_IMX_VER_0_7,
+	}, {
+		.name = "imx51-ecspi",
+		.driver_data = SPI_IMX_VER_2_3,
+	}, {
+		/* sentinel */
+	}
+};
 
 static int __devinit spi_imx_probe(struct platform_device *pdev)
 {
@@ -536,6 +802,31 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 
 	init_completion(&spi_imx->xfer_done);
 
+	if (pdev->id_entry->driver_data == SPI_IMX_VER_AUTODETECT) {
+		if (cpu_is_mx25() || cpu_is_mx35())
+			spi_imx->devtype_data =
+				spi_imx_devtype_data[SPI_IMX_VER_0_7];
+		else if (cpu_is_mx25() || cpu_is_mx31() || cpu_is_mx35())
+			spi_imx->devtype_data =
+				spi_imx_devtype_data[SPI_IMX_VER_0_4];
+		else if (cpu_is_mx27() || cpu_is_mx21())
+			spi_imx->devtype_data =
+				spi_imx_devtype_data[SPI_IMX_VER_0_0];
+		else if (cpu_is_mx1())
+			spi_imx->devtype_data =
+				spi_imx_devtype_data[SPI_IMX_VER_IMX1];
+		else
+			BUG();
+	} else
+		spi_imx->devtype_data =
+			spi_imx_devtype_data[pdev->id_entry->driver_data];
+
+	if (!spi_imx->devtype_data.intctrl) {
+		dev_err(&pdev->dev, "no support for this device compiled in\n");
+		ret = -ENODEV;
+		goto out_gpio_free;
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "can't get platform resource\n");
@@ -567,24 +858,6 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 		goto out_iounmap;
 	}
 
-	if (cpu_is_mx25() || cpu_is_mx31() || cpu_is_mx35()) {
-		spi_imx->intctrl = mx31_intctrl;
-		spi_imx->config = mx31_config;
-		spi_imx->trigger = mx31_trigger;
-		spi_imx->rx_available = mx31_rx_available;
-	} else  if (cpu_is_mx27() || cpu_is_mx21()) {
-		spi_imx->intctrl = mx27_intctrl;
-		spi_imx->config = mx27_config;
-		spi_imx->trigger = mx27_trigger;
-		spi_imx->rx_available = mx27_rx_available;
-	} else if (cpu_is_mx1()) {
-		spi_imx->intctrl = mx1_intctrl;
-		spi_imx->config = mx1_config;
-		spi_imx->trigger = mx1_trigger;
-		spi_imx->rx_available = mx1_rx_available;
-	} else
-		BUG();
-
 	spi_imx->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(spi_imx->clk)) {
 		dev_err(&pdev->dev, "unable to get clock\n");
@@ -595,15 +868,9 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 	clk_enable(spi_imx->clk);
 	spi_imx->spi_clk = clk_get_rate(spi_imx->clk);
 
-	if (cpu_is_mx1() || cpu_is_mx21() || cpu_is_mx27())
-		writel(1, spi_imx->base + MXC_RESET);
+	spi_imx->devtype_data.reset(spi_imx);
 
-	/* drain receive buffer */
-	if (cpu_is_mx25() || cpu_is_mx31() || cpu_is_mx35())
-		while (readl(spi_imx->base + MX3_CSPISTAT) & MX3_CSPISTAT_RR)
-			readl(spi_imx->base + MXC_CSPIRXDATA);
-
-	spi_imx->intctrl(spi_imx, 0);
+	spi_imx->devtype_data.intctrl(spi_imx, 0);
 
 	ret = spi_bitbang_start(&spi_imx->bitbang);
 	if (ret) {
@@ -668,6 +935,7 @@ static struct platform_driver spi_imx_driver = {
 		   .name = DRIVER_NAME,
 		   .owner = THIS_MODULE,
 		   },
+	.id_table = spi_imx_devtype,
 	.probe = spi_imx_probe,
 	.remove = __devexit_p(spi_imx_remove),
 };

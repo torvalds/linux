@@ -5,6 +5,6 @@
 #ifndef __ARCH_ARM_VMALLOC_H
 #define __ARCH_ARM_VMALLOC_H
 
-#define VMALLOC_END       (PAGE_OFFSET + 0x10000000)
+#define VMALLOC_END       0xd0000000
 
 #endif

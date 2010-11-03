@@ -74,11 +74,12 @@ static int __write_console(const char *data, int len)
 	wmb();			/* write ring before updating pointer */
 	intf->out_prod = prod;
 
-	notify_daemon();
+	if (sent)
+		notify_daemon();
 	return sent;
 }
 
-static int write_console(uint32_t vtermno, const char *data, int len)
+static int domU_write_console(uint32_t vtermno, const char *data, int len)
 {
 	int ret = len;
 
@@ -101,7 +102,7 @@ static int write_console(uint32_t vtermno, const char *data, int len)
 	return ret;
 }
 
-static int read_console(uint32_t vtermno, char *buf, int len)
+static int domU_read_console(uint32_t vtermno, char *buf, int len)
 {
 	struct xencons_interface *intf = xencons_interface();
 	XENCONS_RING_IDX cons, prod;
@@ -122,28 +123,62 @@ static int read_console(uint32_t vtermno, char *buf, int len)
 	return recv;
 }
 
-static const struct hv_ops hvc_ops = {
-	.get_chars = read_console,
-	.put_chars = write_console,
+static struct hv_ops domU_hvc_ops = {
+	.get_chars = domU_read_console,
+	.put_chars = domU_write_console,
 	.notifier_add = notifier_add_irq,
 	.notifier_del = notifier_del_irq,
 	.notifier_hangup = notifier_hangup_irq,
 };
 
-static int __init xen_init(void)
+static int dom0_read_console(uint32_t vtermno, char *buf, int len)
+{
+	return HYPERVISOR_console_io(CONSOLEIO_read, len, buf);
+}
+
+/*
+ * Either for a dom0 to write to the system console, or a domU with a
+ * debug version of Xen
+ */
+static int dom0_write_console(uint32_t vtermno, const char *str, int len)
+{
+	int rc = HYPERVISOR_console_io(CONSOLEIO_write, len, (char *)str);
+	if (rc < 0)
+		return 0;
+
+	return len;
+}
+
+static struct hv_ops dom0_hvc_ops = {
+	.get_chars = dom0_read_console,
+	.put_chars = dom0_write_console,
+	.notifier_add = notifier_add_irq,
+	.notifier_del = notifier_del_irq,
+	.notifier_hangup = notifier_hangup_irq,
+};
+
+static int __init xen_hvc_init(void)
 {
 	struct hvc_struct *hp;
+	struct hv_ops *ops;
 
-	if (!xen_pv_domain() ||
-	    xen_initial_domain() ||
-	    !xen_start_info->console.domU.evtchn)
+	if (!xen_pv_domain())
 		return -ENODEV;
 
-	xencons_irq = bind_evtchn_to_irq(xen_start_info->console.domU.evtchn);
+	if (xen_initial_domain()) {
+		ops = &dom0_hvc_ops;
+		xencons_irq = bind_virq_to_irq(VIRQ_CONSOLE, 0);
+	} else {
+		if (!xen_start_info->console.domU.evtchn)
+			return -ENODEV;
+
+		ops = &domU_hvc_ops;
+		xencons_irq = bind_evtchn_to_irq(xen_start_info->console.domU.evtchn);
+	}
 	if (xencons_irq < 0)
 		xencons_irq = 0; /* NO_IRQ */
 
-	hp = hvc_alloc(HVC_COOKIE, xencons_irq, &hvc_ops, 256);
+	hp = hvc_alloc(HVC_COOKIE, xencons_irq, ops, 256);
 	if (IS_ERR(hp))
 		return PTR_ERR(hp);
 
@@ -160,7 +195,7 @@ void xen_console_resume(void)
 		rebind_evtchn_irq(xen_start_info->console.domU.evtchn, xencons_irq);
 }
 
-static void __exit xen_fini(void)
+static void __exit xen_hvc_fini(void)
 {
 	if (hvc)
 		hvc_remove(hvc);
@@ -168,28 +203,23 @@ static void __exit xen_fini(void)
 
 static int xen_cons_init(void)
 {
+	struct hv_ops *ops;
+
 	if (!xen_pv_domain())
 		return 0;
 
-	hvc_instantiate(HVC_COOKIE, 0, &hvc_ops);
+	if (xen_initial_domain())
+		ops = &dom0_hvc_ops;
+	else
+		ops = &domU_hvc_ops;
+
+	hvc_instantiate(HVC_COOKIE, 0, ops);
 	return 0;
 }
 
-module_init(xen_init);
-module_exit(xen_fini);
+module_init(xen_hvc_init);
+module_exit(xen_hvc_fini);
 console_initcall(xen_cons_init);
-
-static void raw_console_write(const char *str, int len)
-{
-	while(len > 0) {
-		int rc = HYPERVISOR_console_io(CONSOLEIO_write, len, (char *)str);
-		if (rc <= 0)
-			break;
-
-		str += rc;
-		len -= rc;
-	}
-}
 
 #ifdef CONFIG_EARLY_PRINTK
 static void xenboot_write_console(struct console *console, const char *string,
@@ -198,19 +228,22 @@ static void xenboot_write_console(struct console *console, const char *string,
 	unsigned int linelen, off = 0;
 	const char *pos;
 
-	raw_console_write(string, len);
+	dom0_write_console(0, string, len);
 
-	write_console(0, "(early) ", 8);
+	if (xen_initial_domain())
+		return;
+
+	domU_write_console(0, "(early) ", 8);
 	while (off < len && NULL != (pos = strchr(string+off, '\n'))) {
 		linelen = pos-string+off;
 		if (off + linelen > len)
 			break;
-		write_console(0, string+off, linelen);
-		write_console(0, "\r\n", 2);
+		domU_write_console(0, string+off, linelen);
+		domU_write_console(0, "\r\n", 2);
 		off += linelen + 1;
 	}
 	if (off < len)
-		write_console(0, string+off, len-off);
+		domU_write_console(0, string+off, len-off);
 }
 
 struct console xenboot_console = {
@@ -222,7 +255,7 @@ struct console xenboot_console = {
 
 void xen_raw_console_write(const char *str)
 {
-	raw_console_write(str, strlen(str));
+	dom0_write_console(0, str, strlen(str));
 }
 
 void xen_raw_printk(const char *fmt, ...)

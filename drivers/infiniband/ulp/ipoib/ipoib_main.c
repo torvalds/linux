@@ -1240,6 +1240,7 @@ static struct net_device *ipoib_add_port(const char *format,
 		goto alloc_mem_failed;
 
 	SET_NETDEV_DEV(priv->dev, hca->dma_device);
+	priv->dev->dev_id = port - 1;
 
 	if (!ib_query_port(hca, port, &attr))
 		priv->max_ib_mtu = ib_mtu_enum_to_int(attr.max_mtu);
@@ -1362,6 +1363,8 @@ static void ipoib_add_one(struct ib_device *device)
 	}
 
 	for (p = s; p <= e; ++p) {
+		if (rdma_port_get_link_layer(device, p) != IB_LINK_LAYER_INFINIBAND)
+			continue;
 		dev = ipoib_add_port("ib%d", device, p);
 		if (!IS_ERR(dev)) {
 			priv = netdev_priv(dev);
@@ -1409,8 +1412,7 @@ static int __init ipoib_init_module(void)
 
 	ipoib_sendq_size = roundup_pow_of_two(ipoib_sendq_size);
 	ipoib_sendq_size = min(ipoib_sendq_size, IPOIB_MAX_QUEUE_SIZE);
-	ipoib_sendq_size = max(ipoib_sendq_size, max(2 * MAX_SEND_CQE,
-						     IPOIB_MIN_QUEUE_SIZE));
+	ipoib_sendq_size = max3(ipoib_sendq_size, 2 * MAX_SEND_CQE, IPOIB_MIN_QUEUE_SIZE);
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 	ipoib_max_conn_qp = min(ipoib_max_conn_qp, IPOIB_CM_MAX_CONN_QP);
 #endif

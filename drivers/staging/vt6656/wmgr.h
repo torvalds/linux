@@ -355,7 +355,7 @@ typedef struct tagSMgmtObject
 
     // link list of known bss's (scan results)
     KnownBSS                sBSSList[MAX_BSS_NUM];
-   //link list of same bss's  //DavidWang
+	/* link list of same bss's */
     KnownBSS				pSameBSS[6] ;
     BOOL          Cisco_cckm ;
     BYTE          Roam_dbm;

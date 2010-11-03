@@ -158,8 +158,10 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc_dev_prepare(rtc);
 
 	err = device_register(&rtc->dev);
-	if (err)
+	if (err) {
+		put_device(&rtc->dev);
 		goto exit_kfree;
+	}
 
 	rtc_dev_add_device(rtc);
 	rtc_sysfs_add_device(rtc);

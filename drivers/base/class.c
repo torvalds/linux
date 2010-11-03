@@ -184,9 +184,9 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 	if (!cls->dev_kobj)
 		cls->dev_kobj = sysfs_dev_char_kobj;
 
-#if defined(CONFIG_SYSFS_DEPRECATED) && defined(CONFIG_BLOCK)
+#if defined(CONFIG_BLOCK)
 	/* let the block class directory show up in the root of sysfs */
-	if (cls != &block_class)
+	if (!sysfs_deprecated || cls != &block_class)
 		cp->class_subsys.kobj.kset = class_kset;
 #else
 	cp->class_subsys.kobj.kset = class_kset;
@@ -275,25 +275,6 @@ void class_destroy(struct class *cls)
 
 	class_unregister(cls);
 }
-
-#ifdef CONFIG_SYSFS_DEPRECATED
-char *make_class_name(const char *name, struct kobject *kobj)
-{
-	char *class_name;
-	int size;
-
-	size = strlen(name) + strlen(kobject_name(kobj)) + 2;
-
-	class_name = kmalloc(size, GFP_KERNEL);
-	if (!class_name)
-		return NULL;
-
-	strcpy(class_name, name);
-	strcat(class_name, ":");
-	strcat(class_name, kobject_name(kobj));
-	return class_name;
-}
-#endif
 
 /**
  * class_dev_iter_init - initialize class device iterator

@@ -28,7 +28,7 @@
 #include "wl1271_acx.h"
 
 int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
-		       bool send);
+		       u32 rates, bool send);
 void wl1271_ps_elp_sleep(struct wl1271 *wl);
 int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake);
 void wl1271_elp_work(struct work_struct *work);

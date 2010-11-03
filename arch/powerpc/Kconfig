@@ -1,9 +1,3 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux/PowerPC Kernel Configuration"
-
 source "arch/powerpc/platforms/Kconfig.cputype"
 
 config PPC32
@@ -138,6 +132,7 @@ config PPC
 	select HAVE_OPROFILE
 	select HAVE_SYSCALL_WRAPPERS if PPC64
 	select GENERIC_ATOMIC64 if PPC32
+	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS && PPC_BOOK3S_64
@@ -687,9 +682,12 @@ config 4xx_SOC
 	bool
 
 config FSL_LBC
-	bool
+	bool "Freescale Local Bus support"
+	depends on FSL_SOC
 	help
-	  Freescale Localbus support
+	  Enables reporting of errors from the Freescale local bus
+	  controller.  Also contains some common code used by
+	  drivers for specific local bus peripherals.
 
 config FSL_GTM
 	bool

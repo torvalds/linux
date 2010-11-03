@@ -774,8 +774,7 @@ static void xs_destroy(struct rpc_xprt *xprt)
 
 	xs_close(xprt);
 	xs_free_peer_addresses(xprt);
-	kfree(xprt->slot);
-	kfree(xprt);
+	xprt_free(xprt);
 	module_put(THIS_MODULE);
 }
 
@@ -1516,7 +1515,7 @@ static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 	xs_update_peer_port(xprt);
 }
 
-static unsigned short xs_get_srcport(struct sock_xprt *transport, struct socket *sock)
+static unsigned short xs_get_srcport(struct sock_xprt *transport)
 {
 	unsigned short port = transport->srcport;
 
@@ -1525,7 +1524,7 @@ static unsigned short xs_get_srcport(struct sock_xprt *transport, struct socket 
 	return port;
 }
 
-static unsigned short xs_next_srcport(struct sock_xprt *transport, struct socket *sock, unsigned short port)
+static unsigned short xs_next_srcport(struct sock_xprt *transport, unsigned short port)
 {
 	if (transport->srcport != 0)
 		transport->srcport = 0;
@@ -1535,23 +1534,18 @@ static unsigned short xs_next_srcport(struct sock_xprt *transport, struct socket
 		return xprt_max_resvport;
 	return --port;
 }
-
-static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
+static int xs_bind(struct sock_xprt *transport, struct socket *sock)
 {
-	struct sockaddr_in myaddr = {
-		.sin_family = AF_INET,
-	};
-	struct sockaddr_in *sa;
+	struct sockaddr_storage myaddr;
 	int err, nloop = 0;
-	unsigned short port = xs_get_srcport(transport, sock);
+	unsigned short port = xs_get_srcport(transport);
 	unsigned short last;
 
-	sa = (struct sockaddr_in *)&transport->srcaddr;
-	myaddr.sin_addr = sa->sin_addr;
+	memcpy(&myaddr, &transport->srcaddr, transport->xprt.addrlen);
 	do {
-		myaddr.sin_port = htons(port);
-		err = kernel_bind(sock, (struct sockaddr *) &myaddr,
-						sizeof(myaddr));
+		rpc_set_port((struct sockaddr *)&myaddr, port);
+		err = kernel_bind(sock, (struct sockaddr *)&myaddr,
+				transport->xprt.addrlen);
 		if (port == 0)
 			break;
 		if (err == 0) {
@@ -1559,47 +1553,22 @@ static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 			break;
 		}
 		last = port;
-		port = xs_next_srcport(transport, sock, port);
+		port = xs_next_srcport(transport, port);
 		if (port > last)
 			nloop++;
 	} while (err == -EADDRINUSE && nloop != 2);
-	dprintk("RPC:       %s %pI4:%u: %s (%d)\n",
-			__func__, &myaddr.sin_addr,
-			port, err ? "failed" : "ok", err);
+
+	if (myaddr.ss_family == AF_INET)
+		dprintk("RPC:       %s %pI4:%u: %s (%d)\n", __func__,
+				&((struct sockaddr_in *)&myaddr)->sin_addr,
+				port, err ? "failed" : "ok", err);
+	else
+		dprintk("RPC:       %s %pI6:%u: %s (%d)\n", __func__,
+				&((struct sockaddr_in6 *)&myaddr)->sin6_addr,
+				port, err ? "failed" : "ok", err);
 	return err;
 }
 
-static int xs_bind6(struct sock_xprt *transport, struct socket *sock)
-{
-	struct sockaddr_in6 myaddr = {
-		.sin6_family = AF_INET6,
-	};
-	struct sockaddr_in6 *sa;
-	int err, nloop = 0;
-	unsigned short port = xs_get_srcport(transport, sock);
-	unsigned short last;
-
-	sa = (struct sockaddr_in6 *)&transport->srcaddr;
-	myaddr.sin6_addr = sa->sin6_addr;
-	do {
-		myaddr.sin6_port = htons(port);
-		err = kernel_bind(sock, (struct sockaddr *) &myaddr,
-						sizeof(myaddr));
-		if (port == 0)
-			break;
-		if (err == 0) {
-			transport->srcport = port;
-			break;
-		}
-		last = port;
-		port = xs_next_srcport(transport, sock, port);
-		if (port > last)
-			nloop++;
-	} while (err == -EADDRINUSE && nloop != 2);
-	dprintk("RPC:       xs_bind6 %pI6:%u: %s (%d)\n",
-		&myaddr.sin6_addr, port, err ? "failed" : "ok", err);
-	return err;
-}
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key xs_key[2];
@@ -1622,6 +1591,18 @@ static inline void xs_reclassify_socket6(struct socket *sock)
 	sock_lock_init_class_and_name(sk, "slock-AF_INET6-RPC",
 		&xs_slock_key[1], "sk_lock-AF_INET6-RPC", &xs_key[1]);
 }
+
+static inline void xs_reclassify_socket(int family, struct socket *sock)
+{
+	switch (family) {
+	case AF_INET:
+		xs_reclassify_socket4(sock);
+		break;
+	case AF_INET6:
+		xs_reclassify_socket6(sock);
+		break;
+	}
+}
 #else
 static inline void xs_reclassify_socket4(struct socket *sock)
 {
@@ -1630,7 +1611,35 @@ static inline void xs_reclassify_socket4(struct socket *sock)
 static inline void xs_reclassify_socket6(struct socket *sock)
 {
 }
+
+static inline void xs_reclassify_socket(int family, struct socket *sock)
+{
+}
 #endif
+
+static struct socket *xs_create_sock(struct rpc_xprt *xprt,
+		struct sock_xprt *transport, int family, int type, int protocol)
+{
+	struct socket *sock;
+	int err;
+
+	err = __sock_create(xprt->xprt_net, family, type, protocol, &sock, 1);
+	if (err < 0) {
+		dprintk("RPC:       can't create %d transport socket (%d).\n",
+				protocol, -err);
+		goto out;
+	}
+	xs_reclassify_socket(family, sock);
+
+	if (xs_bind(transport, sock)) {
+		sock_release(sock);
+		goto out;
+	}
+
+	return sock;
+out:
+	return ERR_PTR(err);
+}
 
 static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 {
@@ -1661,82 +1670,23 @@ static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 	xs_udp_do_set_buffer_size(xprt);
 }
 
-/**
- * xs_udp_connect_worker4 - set up a UDP socket
- * @work: RPC transport to connect
- *
- * Invoked by a work queue tasklet.
- */
-static void xs_udp_connect_worker4(struct work_struct *work)
+static void xs_udp_setup_socket(struct work_struct *work)
 {
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, connect_worker.work);
 	struct rpc_xprt *xprt = &transport->xprt;
 	struct socket *sock = transport->sock;
-	int err, status = -EIO;
+	int status = -EIO;
 
 	if (xprt->shutdown)
 		goto out;
 
 	/* Start by resetting any existing state */
 	xs_reset_transport(transport);
-
-	err = sock_create_kern(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
-	if (err < 0) {
-		dprintk("RPC:       can't create UDP transport socket (%d).\n", -err);
+	sock = xs_create_sock(xprt, transport,
+			xs_addr(xprt)->sa_family, SOCK_DGRAM, IPPROTO_UDP);
+	if (IS_ERR(sock))
 		goto out;
-	}
-	xs_reclassify_socket4(sock);
-
-	if (xs_bind4(transport, sock)) {
-		sock_release(sock);
-		goto out;
-	}
-
-	dprintk("RPC:       worker connecting xprt %p via %s to "
-				"%s (port %s)\n", xprt,
-			xprt->address_strings[RPC_DISPLAY_PROTO],
-			xprt->address_strings[RPC_DISPLAY_ADDR],
-			xprt->address_strings[RPC_DISPLAY_PORT]);
-
-	xs_udp_finish_connecting(xprt, sock);
-	status = 0;
-out:
-	xprt_clear_connecting(xprt);
-	xprt_wake_pending_tasks(xprt, status);
-}
-
-/**
- * xs_udp_connect_worker6 - set up a UDP socket
- * @work: RPC transport to connect
- *
- * Invoked by a work queue tasklet.
- */
-static void xs_udp_connect_worker6(struct work_struct *work)
-{
-	struct sock_xprt *transport =
-		container_of(work, struct sock_xprt, connect_worker.work);
-	struct rpc_xprt *xprt = &transport->xprt;
-	struct socket *sock = transport->sock;
-	int err, status = -EIO;
-
-	if (xprt->shutdown)
-		goto out;
-
-	/* Start by resetting any existing state */
-	xs_reset_transport(transport);
-
-	err = sock_create_kern(PF_INET6, SOCK_DGRAM, IPPROTO_UDP, &sock);
-	if (err < 0) {
-		dprintk("RPC:       can't create UDP transport socket (%d).\n", -err);
-		goto out;
-	}
-	xs_reclassify_socket6(sock);
-
-	if (xs_bind6(transport, sock) < 0) {
-		sock_release(sock);
-		goto out;
-	}
 
 	dprintk("RPC:       worker connecting xprt %p via %s to "
 				"%s (port %s)\n", xprt,
@@ -1755,12 +1705,12 @@ out:
  * We need to preserve the port number so the reply cache on the server can
  * find our cached RPC replies when we get around to reconnecting.
  */
-static void xs_abort_connection(struct rpc_xprt *xprt, struct sock_xprt *transport)
+static void xs_abort_connection(struct sock_xprt *transport)
 {
 	int result;
 	struct sockaddr any;
 
-	dprintk("RPC:       disconnecting xprt %p to reuse port\n", xprt);
+	dprintk("RPC:       disconnecting xprt %p to reuse port\n", transport);
 
 	/*
 	 * Disconnect the transport socket by doing a connect operation
@@ -1770,13 +1720,13 @@ static void xs_abort_connection(struct rpc_xprt *xprt, struct sock_xprt *transpo
 	any.sa_family = AF_UNSPEC;
 	result = kernel_connect(transport->sock, &any, sizeof(any), 0);
 	if (!result)
-		xs_sock_mark_closed(xprt);
+		xs_sock_mark_closed(&transport->xprt);
 	else
 		dprintk("RPC:       AF_UNSPEC connect return code %d\n",
 				result);
 }
 
-static void xs_tcp_reuse_connection(struct rpc_xprt *xprt, struct sock_xprt *transport)
+static void xs_tcp_reuse_connection(struct sock_xprt *transport)
 {
 	unsigned int state = transport->inet->sk_state;
 
@@ -1799,7 +1749,7 @@ static void xs_tcp_reuse_connection(struct rpc_xprt *xprt, struct sock_xprt *tra
 				"sk_shutdown set to %d\n",
 				__func__, transport->inet->sk_shutdown);
 	}
-	xs_abort_connection(xprt, transport);
+	xs_abort_connection(transport);
 }
 
 static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
@@ -1852,12 +1802,12 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
  *
  * Invoked by a work queue tasklet.
  */
-static void xs_tcp_setup_socket(struct rpc_xprt *xprt,
-		struct sock_xprt *transport,
-		struct socket *(*create_sock)(struct rpc_xprt *,
-			struct sock_xprt *))
+static void xs_tcp_setup_socket(struct work_struct *work)
 {
+	struct sock_xprt *transport =
+		container_of(work, struct sock_xprt, connect_worker.work);
 	struct socket *sock = transport->sock;
+	struct rpc_xprt *xprt = &transport->xprt;
 	int status = -EIO;
 
 	if (xprt->shutdown)
@@ -1865,7 +1815,8 @@ static void xs_tcp_setup_socket(struct rpc_xprt *xprt,
 
 	if (!sock) {
 		clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
-		sock = create_sock(xprt, transport);
+		sock = xs_create_sock(xprt, transport,
+				xs_addr(xprt)->sa_family, SOCK_STREAM, IPPROTO_TCP);
 		if (IS_ERR(sock)) {
 			status = PTR_ERR(sock);
 			goto out;
@@ -1876,7 +1827,7 @@ static void xs_tcp_setup_socket(struct rpc_xprt *xprt,
 		abort_and_exit = test_and_clear_bit(XPRT_CONNECTION_ABORT,
 				&xprt->state);
 		/* "close" the socket, preserving the local port */
-		xs_tcp_reuse_connection(xprt, transport);
+		xs_tcp_reuse_connection(transport);
 
 		if (abort_and_exit)
 			goto out_eagain;
@@ -1923,84 +1874,6 @@ out_eagain:
 out:
 	xprt_clear_connecting(xprt);
 	xprt_wake_pending_tasks(xprt, status);
-}
-
-static struct socket *xs_create_tcp_sock4(struct rpc_xprt *xprt,
-		struct sock_xprt *transport)
-{
-	struct socket *sock;
-	int err;
-
-	/* start from scratch */
-	err = sock_create_kern(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
-	if (err < 0) {
-		dprintk("RPC:       can't create TCP transport socket (%d).\n",
-				-err);
-		goto out_err;
-	}
-	xs_reclassify_socket4(sock);
-
-	if (xs_bind4(transport, sock) < 0) {
-		sock_release(sock);
-		goto out_err;
-	}
-	return sock;
-out_err:
-	return ERR_PTR(-EIO);
-}
-
-/**
- * xs_tcp_connect_worker4 - connect a TCP socket to a remote endpoint
- * @work: RPC transport to connect
- *
- * Invoked by a work queue tasklet.
- */
-static void xs_tcp_connect_worker4(struct work_struct *work)
-{
-	struct sock_xprt *transport =
-		container_of(work, struct sock_xprt, connect_worker.work);
-	struct rpc_xprt *xprt = &transport->xprt;
-
-	xs_tcp_setup_socket(xprt, transport, xs_create_tcp_sock4);
-}
-
-static struct socket *xs_create_tcp_sock6(struct rpc_xprt *xprt,
-		struct sock_xprt *transport)
-{
-	struct socket *sock;
-	int err;
-
-	/* start from scratch */
-	err = sock_create_kern(PF_INET6, SOCK_STREAM, IPPROTO_TCP, &sock);
-	if (err < 0) {
-		dprintk("RPC:       can't create TCP transport socket (%d).\n",
-				-err);
-		goto out_err;
-	}
-	xs_reclassify_socket6(sock);
-
-	if (xs_bind6(transport, sock) < 0) {
-		sock_release(sock);
-		goto out_err;
-	}
-	return sock;
-out_err:
-	return ERR_PTR(-EIO);
-}
-
-/**
- * xs_tcp_connect_worker6 - connect a TCP socket to a remote endpoint
- * @work: RPC transport to connect
- *
- * Invoked by a work queue tasklet.
- */
-static void xs_tcp_connect_worker6(struct work_struct *work)
-{
-	struct sock_xprt *transport =
-		container_of(work, struct sock_xprt, connect_worker.work);
-	struct rpc_xprt *xprt = &transport->xprt;
-
-	xs_tcp_setup_socket(xprt, transport, xs_create_tcp_sock6);
 }
 
 /**
@@ -2262,6 +2135,31 @@ static struct rpc_xprt_ops bc_tcp_ops = {
 	.print_stats		= xs_tcp_print_stats,
 };
 
+static int xs_init_anyaddr(const int family, struct sockaddr *sap)
+{
+	static const struct sockaddr_in sin = {
+		.sin_family		= AF_INET,
+		.sin_addr.s_addr	= htonl(INADDR_ANY),
+	};
+	static const struct sockaddr_in6 sin6 = {
+		.sin6_family		= AF_INET6,
+		.sin6_addr		= IN6ADDR_ANY_INIT,
+	};
+
+	switch (family) {
+	case AF_INET:
+		memcpy(sap, &sin, sizeof(sin));
+		break;
+	case AF_INET6:
+		memcpy(sap, &sin6, sizeof(sin6));
+		break;
+	default:
+		dprintk("RPC:       %s: Bad address family\n", __func__);
+		return -EAFNOSUPPORT;
+	}
+	return 0;
+}
+
 static struct rpc_xprt *xs_setup_xprt(struct xprt_create *args,
 				      unsigned int slot_table_size)
 {
@@ -2273,27 +2171,25 @@ static struct rpc_xprt *xs_setup_xprt(struct xprt_create *args,
 		return ERR_PTR(-EBADF);
 	}
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
-	if (new == NULL) {
+	xprt = xprt_alloc(args->net, sizeof(*new), slot_table_size);
+	if (xprt == NULL) {
 		dprintk("RPC:       xs_setup_xprt: couldn't allocate "
 				"rpc_xprt\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	xprt = &new->xprt;
 
-	xprt->max_reqs = slot_table_size;
-	xprt->slot = kcalloc(xprt->max_reqs, sizeof(struct rpc_rqst), GFP_KERNEL);
-	if (xprt->slot == NULL) {
-		kfree(xprt);
-		dprintk("RPC:       xs_setup_xprt: couldn't allocate slot "
-				"table\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
+	new = container_of(xprt, struct sock_xprt, xprt);
 	memcpy(&xprt->addr, args->dstaddr, args->addrlen);
 	xprt->addrlen = args->addrlen;
 	if (args->srcaddr)
 		memcpy(&new->srcaddr, args->srcaddr, args->addrlen);
+	else {
+		int err;
+		err = xs_init_anyaddr(args->dstaddr->sa_family,
+					(struct sockaddr *)&new->srcaddr);
+		if (err != 0)
+			return ERR_PTR(err);
+	}
 
 	return xprt;
 }
@@ -2341,7 +2237,7 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 			xprt_set_bound(xprt);
 
 		INIT_DELAYED_WORK(&transport->connect_worker,
-					xs_udp_connect_worker4);
+					xs_udp_setup_socket);
 		xs_format_peer_addresses(xprt, "udp", RPCBIND_NETID_UDP);
 		break;
 	case AF_INET6:
@@ -2349,7 +2245,7 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 			xprt_set_bound(xprt);
 
 		INIT_DELAYED_WORK(&transport->connect_worker,
-					xs_udp_connect_worker6);
+					xs_udp_setup_socket);
 		xs_format_peer_addresses(xprt, "udp", RPCBIND_NETID_UDP6);
 		break;
 	default:
@@ -2371,8 +2267,7 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 		return xprt;
 	ret = ERR_PTR(-EINVAL);
 out_err:
-	kfree(xprt->slot);
-	kfree(xprt);
+	xprt_free(xprt);
 	return ret;
 }
 
@@ -2416,7 +2311,7 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 			xprt_set_bound(xprt);
 
 		INIT_DELAYED_WORK(&transport->connect_worker,
-					xs_tcp_connect_worker4);
+					xs_tcp_setup_socket);
 		xs_format_peer_addresses(xprt, "tcp", RPCBIND_NETID_TCP);
 		break;
 	case AF_INET6:
@@ -2424,7 +2319,7 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 			xprt_set_bound(xprt);
 
 		INIT_DELAYED_WORK(&transport->connect_worker,
-					xs_tcp_connect_worker6);
+					xs_tcp_setup_socket);
 		xs_format_peer_addresses(xprt, "tcp", RPCBIND_NETID_TCP6);
 		break;
 	default:
@@ -2447,8 +2342,7 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 		return xprt;
 	ret = ERR_PTR(-EINVAL);
 out_err:
-	kfree(xprt->slot);
-	kfree(xprt);
+	xprt_free(xprt);
 	return ret;
 }
 
@@ -2507,15 +2401,10 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 		goto out_err;
 	}
 
-	if (xprt_bound(xprt))
-		dprintk("RPC:       set up xprt to %s (port %s) via %s\n",
-				xprt->address_strings[RPC_DISPLAY_ADDR],
-				xprt->address_strings[RPC_DISPLAY_PORT],
-				xprt->address_strings[RPC_DISPLAY_PROTO]);
-	else
-		dprintk("RPC:       set up xprt to %s (autobind) via %s\n",
-				xprt->address_strings[RPC_DISPLAY_ADDR],
-				xprt->address_strings[RPC_DISPLAY_PROTO]);
+	dprintk("RPC:       set up xprt to %s (port %s) via %s\n",
+			xprt->address_strings[RPC_DISPLAY_ADDR],
+			xprt->address_strings[RPC_DISPLAY_PORT],
+			xprt->address_strings[RPC_DISPLAY_PROTO]);
 
 	/*
 	 * Since we don't want connections for the backchannel, we set
@@ -2528,8 +2417,7 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 		return xprt;
 	ret = ERR_PTR(-EINVAL);
 out_err:
-	kfree(xprt->slot);
-	kfree(xprt);
+	xprt_free(xprt);
 	return ret;
 }
 

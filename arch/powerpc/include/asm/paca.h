@@ -85,6 +85,8 @@ struct paca_struct {
 	u8 kexec_state;		/* set when kexec down has irqs off */
 #ifdef CONFIG_PPC_STD_MMU_64
 	struct slb_shadow *slb_shadow_ptr;
+	struct dtl_entry *dispatch_log;
+	struct dtl_entry *dispatch_log_end;
 
 	/*
 	 * Now, starting in cacheline 2, the exception save areas
@@ -129,13 +131,19 @@ struct paca_struct {
 	u8 soft_enabled;		/* irq soft-enable flag */
 	u8 hard_enabled;		/* set if irqs are enabled in MSR */
 	u8 io_sync;			/* writel() needs spin_unlock sync */
-	u8 perf_event_pending;		/* PM interrupt while soft-disabled */
+	u8 irq_work_pending;		/* IRQ_WORK interrupt while soft-disable */
 
 	/* Stuff for accurate time accounting */
 	u64 user_time;			/* accumulated usermode TB ticks */
 	u64 system_time;		/* accumulated system TB ticks */
-	u64 startpurr;			/* PURR/TB value snapshot */
+	u64 user_time_scaled;		/* accumulated usermode SPURR ticks */
+	u64 starttime;			/* TB value snapshot */
+	u64 starttime_user;		/* TB value on exit to usermode */
 	u64 startspurr;			/* SPURR value snapshot */
+	u64 utime_sspurr;		/* ->user_time when ->startspurr set */
+	u64 stolen_time;		/* TB ticks taken by hypervisor */
+	u64 dtl_ridx;			/* read index in dispatch log */
+	struct dtl_entry *dtl_curr;	/* pointer corresponding to dtl_ridx */
 
 #ifdef CONFIG_KVM_BOOK3S_HANDLER
 	/* We use this to store guest state in */

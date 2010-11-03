@@ -225,6 +225,28 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	if (wl->nvs == NULL)
 		return -ENODEV;
 
+	/*
+	 * FIXME: the LEGACY NVS image support (NVS's missing the 5GHz band
+	 * configurations) can be removed when those NVS files stop floating
+	 * around.
+	 */
+	if (wl->nvs_len == sizeof(struct wl1271_nvs_file) ||
+	    wl->nvs_len == WL1271_INI_LEGACY_NVS_FILE_SIZE) {
+		if (wl->nvs->general_params.dual_mode_select)
+			wl->enable_11a = true;
+	}
+
+	if (wl->nvs_len != sizeof(struct wl1271_nvs_file) &&
+	    (wl->nvs_len != WL1271_INI_LEGACY_NVS_FILE_SIZE ||
+	     wl->enable_11a)) {
+		wl1271_error("nvs size is not as expected: %zu != %zu",
+			     wl->nvs_len, sizeof(struct wl1271_nvs_file));
+		kfree(wl->nvs);
+		wl->nvs = NULL;
+		wl->nvs_len = 0;
+		return -EILSEQ;
+	}
+
 	/* only the first part of the NVS needs to be uploaded */
 	nvs_len = sizeof(wl->nvs->nvs);
 	nvs_ptr = (u8 *)wl->nvs->nvs;
@@ -251,8 +273,10 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 		burst_len = nvs_ptr[0];
 		dest_addr = (nvs_ptr[1] & 0xfe) | ((u32)(nvs_ptr[2] << 8));
 
-		/* FIXME: Due to our new wl1271_translate_reg_addr function,
-		   we need to add the REGISTER_BASE to the destination */
+		/*
+		 * Due to our new wl1271_translate_reg_addr function,
+		 * we need to add the REGISTER_BASE to the destination
+		 */
 		dest_addr += REGISTERS_BASE;
 
 		/* We move our pointer to the data */
@@ -274,31 +298,21 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 
 	/*
 	 * We've reached the first zero length, the first NVS table
-	 * is 7 bytes further.
+	 * is located at an aligned offset which is at least 7 bytes further.
 	 */
-	nvs_ptr += 7;
+	nvs_ptr = (u8 *)wl->nvs->nvs +
+			ALIGN(nvs_ptr - (u8 *)wl->nvs->nvs + 7, 4);
 	nvs_len -= nvs_ptr - (u8 *)wl->nvs->nvs;
-	nvs_len = ALIGN(nvs_len, 4);
 
-	/* FIXME: The driver sets the partition here, but this is not needed,
-	   since it sets to the same one as currently in use */
 	/* Now we must set the partition correctly */
 	wl1271_set_partition(wl, &part_table[PART_WORK]);
 
 	/* Copy the NVS tables to a new block to ensure alignment */
-	/* FIXME: We jump 3 more bytes before uploading the NVS.  It seems
-	that our NVS files have three extra zeros here.  I'm not sure whether
-	the problem is in our NVS generation or we should really jumpt these
-	3 bytes here */
-	nvs_ptr += 3;
-
-	nvs_aligned = kmemdup(nvs_ptr, nvs_len, GFP_KERNEL); if
-	(!nvs_aligned) return -ENOMEM;
+	nvs_aligned = kmemdup(nvs_ptr, nvs_len, GFP_KERNEL);
+	if (!nvs_aligned)
+		return -ENOMEM;
 
 	/* And finally we upload the NVS tables */
-	/* FIXME: In wl1271, we upload everything at once.
-	   No endianness handling needed here?! The ref driver doesn't do
-	   anything about it at this point */
 	wl1271_write(wl, CMD_MBOX_ADDRESS, nvs_aligned, nvs_len, false);
 
 	kfree(nvs_aligned);
@@ -457,17 +471,20 @@ int wl1271_boot(struct wl1271 *wl)
 {
 	int ret = 0;
 	u32 tmp, clk, pause;
+	int ref_clock = wl->ref_clock;
 
 	wl1271_boot_hw_version(wl);
 
-	if (REF_CLOCK == 0 || REF_CLOCK == 2 || REF_CLOCK == 4)
+	if (ref_clock == 0 || ref_clock == 2 || ref_clock == 4)
 		/* ref clk: 19.2/38.4/38.4-XTAL */
 		clk = 0x3;
-	else if (REF_CLOCK == 1 || REF_CLOCK == 3)
+	else if (ref_clock == 1 || ref_clock == 3)
 		/* ref clk: 26/52 */
 		clk = 0x5;
+	else
+		return -EINVAL;
 
-	if (REF_CLOCK != 0) {
+	if (ref_clock != 0) {
 		u16 val;
 		/* Set clock type (open drain) */
 		val = wl1271_top_reg_read(wl, OCP_REG_CLK_TYPE);
@@ -493,10 +510,7 @@ int wl1271_boot(struct wl1271 *wl)
 
 	wl1271_debug(DEBUG_BOOT, "pause1 0x%x", pause);
 
-	pause &= ~(WU_COUNTER_PAUSE_VAL); /* FIXME: This should probably be
-					   * WU_COUNTER_PAUSE_VAL instead of
-					   * 0x3ff (magic number ).  How does
-					   * this work?! */
+	pause &= ~(WU_COUNTER_PAUSE_VAL);
 	pause |= WU_COUNTER_PAUSE_VAL;
 	wl1271_write32(wl, WU_COUNTER_PAUSE, pause);
 
@@ -516,7 +530,7 @@ int wl1271_boot(struct wl1271 *wl)
 	wl1271_debug(DEBUG_BOOT, "clk2 0x%x", clk);
 
 	/* 2 */
-	clk |= (REF_CLOCK << 1) << 4;
+	clk |= (ref_clock << 1) << 4;
 	wl1271_write32(wl, DRPW_SCRATCH_START, clk);
 
 	wl1271_set_partition(wl, &part_table[PART_WORK]);
@@ -550,7 +564,6 @@ int wl1271_boot(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	/* FIXME: Need to check whether this is really what we want */
 	wl1271_write32(wl, ACX_REG_INTERRUPT_MASK,
 		       WL1271_ACX_ALL_EVENTS_VECTOR);
 

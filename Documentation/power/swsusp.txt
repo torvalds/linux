@@ -66,7 +66,8 @@ swsusp saves the state of the machine into active swaps and then reboots or
 powerdowns.  You must explicitly specify the swap partition to resume from with
 ``resume='' kernel option. If signature is found it loads and restores saved
 state. If the option ``noresume'' is specified as a boot parameter, it skips
-the resuming.
+the resuming.  If the option ``hibernate=nocompress'' is specified as a boot
+parameter, it saves hibernation image without compression.
 
 In the meantime while the system is suspended you should not add/remove any
 of the hardware, write to the filesystems, etc.

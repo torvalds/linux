@@ -303,7 +303,7 @@ int trackpoint_detect(struct psmouse *psmouse, bool set_properties)
 
 	psmouse->private = kzalloc(sizeof(struct trackpoint_data), GFP_KERNEL);
 	if (!psmouse->private)
-		return -1;
+		return -ENOMEM;
 
 	psmouse->vendor = "IBM";
 	psmouse->name = "TrackPoint";

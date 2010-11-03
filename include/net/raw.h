@@ -45,7 +45,10 @@ struct raw_iter_state {
 	struct raw_hashinfo *h;
 };
 
-#define raw_seq_private(seq) ((struct raw_iter_state *)(seq)->private)
+static inline struct raw_iter_state *raw_seq_private(struct seq_file *seq)
+{
+	return seq->private;
+}
 void *raw_seq_start(struct seq_file *seq, loff_t *pos);
 void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos);
 void raw_seq_stop(struct seq_file *seq, void *v);

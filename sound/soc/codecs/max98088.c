@@ -2051,7 +2051,7 @@ static int max98088_i2c_probe(struct i2c_client *i2c,
        return ret;
 }
 
-static int max98088_i2c_remove(struct i2c_client *client)
+static int __devexit max98088_i2c_remove(struct i2c_client *client)
 {
        snd_soc_unregister_codec(&client->dev);
        kfree(i2c_get_clientdata(client));

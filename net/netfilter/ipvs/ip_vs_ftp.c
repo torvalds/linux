@@ -20,17 +20,6 @@
  *
  * Author:	Wouter Gadeyne
  *
- *
- * Code for ip_vs_expect_related and ip_vs_expect_callback is taken from
- * http://www.ssi.bg/~ja/nfct/:
- *
- * ip_vs_nfct.c:	Netfilter connection tracking support for IPVS
- *
- * Portions Copyright (C) 2001-2002
- * Antefacto Ltd, 181 Parnell St, Dublin 1, Ireland.
- *
- * Portions Copyright (C) 2003-2008
- * Julian Anastasov
  */
 
 #define KMSG_COMPONENT "IPVS"
@@ -58,16 +47,6 @@
 #define SERVER_STRING "227 Entering Passive Mode ("
 #define CLIENT_STRING "PORT "
 
-#define FMT_TUPLE	"%pI4:%u->%pI4:%u/%u"
-#define ARG_TUPLE(T)	&(T)->src.u3.ip, ntohs((T)->src.u.all), \
-			&(T)->dst.u3.ip, ntohs((T)->dst.u.all), \
-			(T)->dst.protonum
-
-#define FMT_CONN	"%pI4:%u->%pI4:%u->%pI4:%u/%u:%u"
-#define ARG_CONN(C)	&((C)->caddr.ip), ntohs((C)->cport), \
-			&((C)->vaddr.ip), ntohs((C)->vport), \
-			&((C)->daddr.ip), ntohs((C)->dport), \
-			(C)->protocol, (C)->state
 
 /*
  * List of ports (up to IP_VS_APP_MAX_PORTS) to be handled by helper
@@ -85,6 +64,8 @@ static int ip_vs_ftp_pasv;
 static int
 ip_vs_ftp_init_conn(struct ip_vs_app *app, struct ip_vs_conn *cp)
 {
+	/* We use connection tracking for the command connection */
+	cp->flags |= IP_VS_CONN_F_NFCT;
 	return 0;
 }
 
@@ -146,120 +127,6 @@ static int ip_vs_ftp_get_addrport(char *data, char *data_limit,
 	*addr = get_unaligned((__be32 *)p);
 	*port = get_unaligned((__be16 *)(p + 4));
 	return 1;
-}
-
-/*
- * Called from init_conntrack() as expectfn handler.
- */
-static void
-ip_vs_expect_callback(struct nf_conn *ct,
-		      struct nf_conntrack_expect *exp)
-{
-	struct nf_conntrack_tuple *orig, new_reply;
-	struct ip_vs_conn *cp;
-
-	if (exp->tuple.src.l3num != PF_INET)
-		return;
-
-	/*
-	 * We assume that no NF locks are held before this callback.
-	 * ip_vs_conn_out_get and ip_vs_conn_in_get should match their
-	 * expectations even if they use wildcard values, now we provide the
-	 * actual values from the newly created original conntrack direction.
-	 * The conntrack is confirmed when packet reaches IPVS hooks.
-	 */
-
-	/* RS->CLIENT */
-	orig = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
-	cp = ip_vs_conn_out_get(exp->tuple.src.l3num, orig->dst.protonum,
-				&orig->src.u3, orig->src.u.tcp.port,
-				&orig->dst.u3, orig->dst.u.tcp.port);
-	if (cp) {
-		/* Change reply CLIENT->RS to CLIENT->VS */
-		new_reply = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
-		IP_VS_DBG(7, "%s(): ct=%p, status=0x%lX, tuples=" FMT_TUPLE ", "
-			  FMT_TUPLE ", found inout cp=" FMT_CONN "\n",
-			  __func__, ct, ct->status,
-			  ARG_TUPLE(orig), ARG_TUPLE(&new_reply),
-			  ARG_CONN(cp));
-		new_reply.dst.u3 = cp->vaddr;
-		new_reply.dst.u.tcp.port = cp->vport;
-		IP_VS_DBG(7, "%s(): ct=%p, new tuples=" FMT_TUPLE ", " FMT_TUPLE
-			  ", inout cp=" FMT_CONN "\n",
-			  __func__, ct,
-			  ARG_TUPLE(orig), ARG_TUPLE(&new_reply),
-			  ARG_CONN(cp));
-		goto alter;
-	}
-
-	/* CLIENT->VS */
-	cp = ip_vs_conn_in_get(exp->tuple.src.l3num, orig->dst.protonum,
-			       &orig->src.u3, orig->src.u.tcp.port,
-			       &orig->dst.u3, orig->dst.u.tcp.port);
-	if (cp) {
-		/* Change reply VS->CLIENT to RS->CLIENT */
-		new_reply = ct->tuplehash[IP_CT_DIR_REPLY].tuple;
-		IP_VS_DBG(7, "%s(): ct=%p, status=0x%lX, tuples=" FMT_TUPLE ", "
-			  FMT_TUPLE ", found outin cp=" FMT_CONN "\n",
-			  __func__, ct, ct->status,
-			  ARG_TUPLE(orig), ARG_TUPLE(&new_reply),
-			  ARG_CONN(cp));
-		new_reply.src.u3 = cp->daddr;
-		new_reply.src.u.tcp.port = cp->dport;
-		IP_VS_DBG(7, "%s(): ct=%p, new tuples=" FMT_TUPLE ", "
-			  FMT_TUPLE ", outin cp=" FMT_CONN "\n",
-			  __func__, ct,
-			  ARG_TUPLE(orig), ARG_TUPLE(&new_reply),
-			  ARG_CONN(cp));
-		goto alter;
-	}
-
-	IP_VS_DBG(7, "%s(): ct=%p, status=0x%lX, tuple=" FMT_TUPLE
-		  " - unknown expect\n",
-		  __func__, ct, ct->status, ARG_TUPLE(orig));
-	return;
-
-alter:
-	/* Never alter conntrack for non-NAT conns */
-	if (IP_VS_FWD_METHOD(cp) == IP_VS_CONN_F_MASQ)
-		nf_conntrack_alter_reply(ct, &new_reply);
-	ip_vs_conn_put(cp);
-	return;
-}
-
-/*
- * Create NF conntrack expectation with wildcard (optional) source port.
- * Then the default callback function will alter the reply and will confirm
- * the conntrack entry when the first packet comes.
- */
-static void
-ip_vs_expect_related(struct sk_buff *skb, struct nf_conn *ct,
-		     struct ip_vs_conn *cp, u_int8_t proto,
-		     const __be16 *port, int from_rs)
-{
-	struct nf_conntrack_expect *exp;
-
-	BUG_ON(!ct || ct == &nf_conntrack_untracked);
-
-	exp = nf_ct_expect_alloc(ct);
-	if (!exp)
-		return;
-
-	if (from_rs)
-		nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT,
-				  nf_ct_l3num(ct), &cp->daddr, &cp->caddr,
-				  proto, port, &cp->cport);
-	else
-		nf_ct_expect_init(exp, NF_CT_EXPECT_CLASS_DEFAULT,
-				  nf_ct_l3num(ct), &cp->caddr, &cp->vaddr,
-				  proto, port, &cp->vport);
-
-	exp->expectfn = ip_vs_expect_callback;
-
-	IP_VS_DBG(7, "%s(): ct=%p, expect tuple=" FMT_TUPLE "\n",
-		  __func__, ct, ARG_TUPLE(&exp->tuple));
-	nf_ct_expect_related(exp);
-	nf_ct_expect_put(exp);
 }
 
 /*
@@ -328,14 +195,19 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		/*
 		 * Now update or create an connection entry for it
 		 */
-		n_cp = ip_vs_conn_out_get(AF_INET, iph->protocol, &from, port,
-					  &cp->caddr, 0);
+		{
+			struct ip_vs_conn_param p;
+			ip_vs_conn_fill_param(AF_INET, iph->protocol,
+					      &from, port, &cp->caddr, 0, &p);
+			n_cp = ip_vs_conn_out_get(&p);
+		}
 		if (!n_cp) {
-			n_cp = ip_vs_conn_new(AF_INET, IPPROTO_TCP,
-					      &cp->caddr, 0,
-					      &cp->vaddr, port,
-					      &from, port,
-					      IP_VS_CONN_F_NO_CPORT,
+			struct ip_vs_conn_param p;
+			ip_vs_conn_fill_param(AF_INET, IPPROTO_TCP, &cp->caddr,
+					      0, &cp->vaddr, port, &p);
+			n_cp = ip_vs_conn_new(&p, &from, port,
+					      IP_VS_CONN_F_NO_CPORT |
+					      IP_VS_CONN_F_NFCT,
 					      cp->dest);
 			if (!n_cp)
 				return 0;
@@ -370,9 +242,14 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 			ret = nf_nat_mangle_tcp_packet(skb, ct, ctinfo,
 						       start-data, end-start,
 						       buf, buf_len);
-			if (ret)
-				ip_vs_expect_related(skb, ct, n_cp,
-						     IPPROTO_TCP, NULL, 0);
+			if (ret) {
+				ip_vs_nfct_expect_related(skb, ct, n_cp,
+							  IPPROTO_TCP, 0, 0);
+				if (skb->ip_summed == CHECKSUM_COMPLETE)
+					skb->ip_summed = CHECKSUM_UNNECESSARY;
+				/* csum is updated */
+				ret = 1;
+			}
 		}
 
 		/*
@@ -479,21 +356,22 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		  ip_vs_proto_name(iph->protocol),
 		  &to.ip, ntohs(port), &cp->vaddr.ip, 0);
 
-	n_cp = ip_vs_conn_in_get(AF_INET, iph->protocol,
-				 &to, port,
-				 &cp->vaddr, htons(ntohs(cp->vport)-1));
-	if (!n_cp) {
-		n_cp = ip_vs_conn_new(AF_INET, IPPROTO_TCP,
-				      &to, port,
+	{
+		struct ip_vs_conn_param p;
+		ip_vs_conn_fill_param(AF_INET, iph->protocol, &to, port,
 				      &cp->vaddr, htons(ntohs(cp->vport)-1),
-				      &cp->daddr, htons(ntohs(cp->dport)-1),
-				      0,
-				      cp->dest);
-		if (!n_cp)
-			return 0;
+				      &p);
+		n_cp = ip_vs_conn_in_get(&p);
+		if (!n_cp) {
+			n_cp = ip_vs_conn_new(&p, &cp->daddr,
+					      htons(ntohs(cp->dport)-1),
+					      IP_VS_CONN_F_NFCT, cp->dest);
+			if (!n_cp)
+				return 0;
 
-		/* add its controller */
-		ip_vs_control_add(n_cp, cp);
+			/* add its controller */
+			ip_vs_control_add(n_cp, cp);
+		}
 	}
 
 	/*

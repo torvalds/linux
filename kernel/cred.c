@@ -325,7 +325,7 @@ EXPORT_SYMBOL(prepare_creds);
 
 /*
  * Prepare credentials for current to perform an execve()
- * - The caller must hold current->cred_guard_mutex
+ * - The caller must hold ->cred_guard_mutex
  */
 struct cred *prepare_exec_creds(void)
 {
@@ -383,8 +383,6 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 #endif
 	struct cred *new;
 	int ret;
-
-	mutex_init(&p->cred_guard_mutex);
 
 	if (
 #ifdef CONFIG_KEYS

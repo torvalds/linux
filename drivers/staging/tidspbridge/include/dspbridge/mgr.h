@@ -192,7 +192,7 @@ extern int mgr_get_dcd_handle(struct mgr_object
  *  ======== mgr_init ========
  *  Purpose:
  *      Initialize MGR's private state, keeping a reference count on each
- *      call. Intializes the DCD.
+ *      call. Initializes the DCD.
  *  Parameters:
  *  Returns:
  *      TRUE if initialized; FALSE if error occured.

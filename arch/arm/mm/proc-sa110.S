@@ -156,7 +156,7 @@ ENTRY(cpu_sa110_set_pte_ext)
 #endif
 	mov	pc, lr
 
-	__INIT
+	__CPUINIT
 
 	.type	__sa110_setup, #function
 __sa110_setup:

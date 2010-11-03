@@ -59,10 +59,11 @@ static int ocfs2_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	return ret;
 }
 
-static int __ocfs2_page_mkwrite(struct inode *inode, struct buffer_head *di_bh,
+static int __ocfs2_page_mkwrite(struct file *file, struct buffer_head *di_bh,
 				struct page *page)
 {
 	int ret;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct address_space *mapping = inode->i_mapping;
 	loff_t pos = page_offset(page);
 	unsigned int len = PAGE_CACHE_SIZE;
@@ -111,7 +112,7 @@ static int __ocfs2_page_mkwrite(struct inode *inode, struct buffer_head *di_bh,
 	if (page->index == last_index)
 		len = ((size - 1) & ~PAGE_CACHE_MASK) + 1;
 
-	ret = ocfs2_write_begin_nolock(mapping, pos, len, 0, &locked_page,
+	ret = ocfs2_write_begin_nolock(file, mapping, pos, len, 0, &locked_page,
 				       &fsdata, di_bh, page);
 	if (ret) {
 		if (ret != -ENOSPC)
@@ -159,7 +160,7 @@ static int ocfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 */
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
-	ret = __ocfs2_page_mkwrite(inode, di_bh, page);
+	ret = __ocfs2_page_mkwrite(vma->vm_file, di_bh, page);
 
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 

@@ -191,7 +191,7 @@ struct xhci_op_regs {
 /* bits 4:6 are reserved (and should be preserved on writes). */
 /* light reset (port status stays unchanged) - reset completed when this is 0 */
 #define CMD_LRESET	(1 << 7)
-/* FIXME: ignoring host controller save/restore state for now. */
+/* host controller save/restore state. */
 #define CMD_CSS		(1 << 8)
 #define CMD_CRS		(1 << 9)
 /* Enable Wrap Event - '1' means xHC generates an event when MFINDEX wraps. */
@@ -269,6 +269,10 @@ struct xhci_op_regs {
  * A read gives the current link PM state of the port,
  * a write with Link State Write Strobe set sets the link state.
  */
+#define PORT_PLS_MASK	(0xf << 5)
+#define XDEV_U0		(0x0 << 5)
+#define XDEV_U3		(0x3 << 5)
+#define XDEV_RESUME	(0xf << 5)
 /* true: port has power (see HCC_PPC) */
 #define PORT_POWER	(1 << 9)
 /* bits 10:13 indicate device speed:
@@ -353,6 +357,8 @@ struct xhci_op_regs {
 #define PORT_U2_TIMEOUT(p)	(((p) & 0xff) << 8)
 /* Bits 24:31 for port testing */
 
+/* USB2 Protocol PORTSPMSC */
+#define PORT_RWE	(1 << 0x3)
 
 /**
  * struct xhci_intr_reg - Interrupt Register Set
@@ -510,6 +516,7 @@ struct xhci_slot_ctx {
 #define MAX_EXIT	(0xffff)
 /* Root hub port number that is needed to access the USB device */
 #define ROOT_HUB_PORT(p)	(((p) & 0xff) << 16)
+#define DEVINFO_TO_ROOT_HUB_PORT(p)	(((p) >> 16) & 0xff)
 /* Maximum number of ports under a hub device */
 #define XHCI_MAX_PORTS(p)	(((p) & 0xff) << 24)
 
@@ -731,6 +738,7 @@ struct xhci_virt_ep {
 };
 
 struct xhci_virt_device {
+	struct usb_device		*udev;
 	/*
 	 * Commands to the hardware are passed an "input context" that
 	 * tells the hardware what to change in its data structures.
@@ -745,12 +753,15 @@ struct xhci_virt_device {
 	/* Rings saved to ensure old alt settings can be re-instated */
 	struct xhci_ring		**ring_cache;
 	int				num_rings_cached;
+	/* Store xHC assigned device address */
+	int				address;
 #define	XHCI_MAX_RINGS_CACHED	31
 	struct xhci_virt_ep		eps[31];
 	struct completion		cmd_completion;
 	/* Status of the last command issued for this device */
 	u32				cmd_status;
 	struct list_head		cmd_list;
+	u8				port;
 };
 
 
@@ -880,6 +891,10 @@ struct xhci_event_cmd {
 /* Stop Endpoint TRB - ep_index to endpoint ID for this TRB */
 #define TRB_TO_EP_INDEX(p)		((((p) & (0x1f << 16)) >> 16) - 1)
 #define	EP_ID_FOR_TRB(p)		((((p) + 1) & 0x1f) << 16)
+
+#define SUSPEND_PORT_FOR_TRB(p)		(((p) & 1) << 23)
+#define TRB_TO_SUSPEND_PORT(p)		(((p) & (1 << 23)) >> 23)
+#define LAST_EP_INDEX			30
 
 /* Set TR Dequeue Pointer command TRB fields */
 #define TRB_TO_STREAM_ID(p)		((((p) & (0xffff << 16)) >> 16))
@@ -1115,6 +1130,17 @@ struct urb_priv {
 #define XHCI_STOP_EP_CMD_TIMEOUT	5
 /* XXX: Make these module parameters */
 
+struct s3_save {
+	u32	command;
+	u32	dev_nt;
+	u64	dcbaa_ptr;
+	u32	config_reg;
+	u32	irq_pending;
+	u32	irq_control;
+	u32	erst_size;
+	u64	erst_base;
+	u64	erst_dequeue;
+};
 
 /* There is one ehci_hci structure per controller */
 struct xhci_hcd {
@@ -1178,6 +1204,12 @@ struct xhci_hcd {
 #endif
 	/* Host controller watchdog timer structures */
 	unsigned int		xhc_state;
+
+	unsigned long		bus_suspended;
+	unsigned long		next_statechange;
+
+	u32			command;
+	struct s3_save		s3;
 /* Host controller is dying - not responding to commands. "I'm not dead yet!"
  *
  * xHC interrupts have been disabled and a watchdog timer will (or has already)
@@ -1199,6 +1231,10 @@ struct xhci_hcd {
 #define	XHCI_LINK_TRB_QUIRK	(1 << 0)
 #define XHCI_RESET_EP_QUIRK	(1 << 1)
 #define XHCI_NEC_HOST		(1 << 2)
+	u32			port_c_suspend[8];	/* port suspend change*/
+	u32			suspended_ports[8];	/* which ports are
+							   suspended */
+	unsigned long		resume_done[MAX_HC_PORTS];
 };
 
 /* For testing purposes */
@@ -1369,6 +1405,15 @@ int xhci_init(struct usb_hcd *hcd);
 int xhci_run(struct usb_hcd *hcd);
 void xhci_stop(struct usb_hcd *hcd);
 void xhci_shutdown(struct usb_hcd *hcd);
+
+#ifdef	CONFIG_PM
+int xhci_suspend(struct xhci_hcd *xhci);
+int xhci_resume(struct xhci_hcd *xhci, bool hibernated);
+#else
+#define	xhci_suspend	NULL
+#define	xhci_resume	NULL
+#endif
+
 int xhci_get_frame(struct usb_hcd *hcd);
 irqreturn_t xhci_irq(struct usb_hcd *hcd);
 irqreturn_t xhci_msi_irq(int irq, struct usb_hcd *hcd);
@@ -1388,7 +1433,7 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status);
 int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev, struct usb_host_endpoint *ep);
 int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev, struct usb_host_endpoint *ep);
 void xhci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep);
-int xhci_reset_device(struct usb_hcd *hcd, struct usb_device *udev);
+int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev);
 int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
 void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
 
@@ -1406,7 +1451,7 @@ int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 int xhci_queue_vendor_command(struct xhci_hcd *xhci,
 		u32 field1, u32 field2, u32 field3, u32 field4);
 int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
-		unsigned int ep_index);
+		unsigned int ep_index, int suspend);
 int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
 		int slot_id, unsigned int ep_index);
 int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
@@ -1436,11 +1481,25 @@ void xhci_queue_config_ep_quirk(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
 		struct xhci_dequeue_state *deq_state);
 void xhci_stop_endpoint_command_watchdog(unsigned long arg);
+void xhci_ring_ep_doorbell(struct xhci_hcd *xhci, unsigned int slot_id,
+		unsigned int ep_index, unsigned int stream_id);
 
 /* xHCI roothub code */
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
 		char *buf, u16 wLength);
 int xhci_hub_status_data(struct usb_hcd *hcd, char *buf);
+
+#ifdef CONFIG_PM
+int xhci_bus_suspend(struct usb_hcd *hcd);
+int xhci_bus_resume(struct usb_hcd *hcd);
+#else
+#define	xhci_bus_suspend	NULL
+#define	xhci_bus_resume		NULL
+#endif	/* CONFIG_PM */
+
+u32 xhci_port_state_to_neutral(u32 state);
+int xhci_find_slot_id_by_port(struct xhci_hcd *xhci, u16 port);
+void xhci_ring_device(struct xhci_hcd *xhci, int slot_id);
 
 /* xHCI contexts */
 struct xhci_input_control_ctx *xhci_get_input_control_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx);

@@ -37,14 +37,21 @@ typedef struct xpaddr {
 
 
 extern unsigned long get_phys_to_machine(unsigned long pfn);
-extern void set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 
 static inline unsigned long pfn_to_mfn(unsigned long pfn)
 {
+	unsigned long mfn;
+
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return pfn;
 
-	return get_phys_to_machine(pfn) & ~FOREIGN_FRAME_BIT;
+	mfn = get_phys_to_machine(pfn);
+
+	if (mfn != INVALID_P2M_ENTRY)
+		mfn &= ~FOREIGN_FRAME_BIT;
+
+	return mfn;
 }
 
 static inline int phys_to_machine_mapping_valid(unsigned long pfn)
@@ -159,6 +166,7 @@ static inline pte_t __pte_ma(pteval_t x)
 
 #define pgd_val_ma(x)	((x).pgd)
 
+void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid);
 
 xmaddr_t arbitrary_virt_to_machine(void *address);
 unsigned long arbitrary_virt_to_mfn(void *vaddr);

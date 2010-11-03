@@ -427,11 +427,11 @@ static int stub_probe(struct usb_interface *interface,
 
 
 	if (busid_priv->status == STUB_BUSID_ALLOC) {
-		busid_priv->interf_count++;
 		sdev = busid_priv->sdev;
 		if (!sdev)
 			return -ENODEV;
 
+		busid_priv->interf_count++;
 		dev_info(&interface->dev,
 		 "USB/IP Stub: register a new interface "
 		 "(bus %u dev %u ifn %u)\n", udev->bus->busnum, udev->devnum,

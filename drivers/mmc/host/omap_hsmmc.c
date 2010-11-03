@@ -250,9 +250,9 @@ static int omap_hsmmc_1_set_power(struct device *dev, int slot, int power_on,
 		mmc_slot(host).before_set_reg(dev, slot, power_on, vdd);
 
 	if (power_on)
-		ret = mmc_regulator_set_ocr(host->vcc, vdd);
+		ret = mmc_regulator_set_ocr(host->mmc, host->vcc, vdd);
 	else
-		ret = mmc_regulator_set_ocr(host->vcc, 0);
+		ret = mmc_regulator_set_ocr(host->mmc, host->vcc, 0);
 
 	if (mmc_slot(host).after_set_reg)
 		mmc_slot(host).after_set_reg(dev, slot, power_on, vdd);
@@ -291,18 +291,23 @@ static int omap_hsmmc_23_set_power(struct device *dev, int slot, int power_on,
 	 * chips/cards need an interface voltage rail too.
 	 */
 	if (power_on) {
-		ret = mmc_regulator_set_ocr(host->vcc, vdd);
+		ret = mmc_regulator_set_ocr(host->mmc, host->vcc, vdd);
 		/* Enable interface voltage rail, if needed */
 		if (ret == 0 && host->vcc_aux) {
 			ret = regulator_enable(host->vcc_aux);
 			if (ret < 0)
-				ret = mmc_regulator_set_ocr(host->vcc, 0);
+				ret = mmc_regulator_set_ocr(host->mmc,
+							host->vcc, 0);
 		}
 	} else {
+		/* Shut down the rail */
 		if (host->vcc_aux)
 			ret = regulator_disable(host->vcc_aux);
-		if (ret == 0)
-			ret = mmc_regulator_set_ocr(host->vcc, 0);
+		if (!ret) {
+			/* Then proceed to shut down the local regulator */
+			ret = mmc_regulator_set_ocr(host->mmc,
+						host->vcc, 0);
+		}
 	}
 
 	if (mmc_slot(host).after_set_reg)
@@ -343,9 +348,9 @@ static int omap_hsmmc_23_set_sleep(struct device *dev, int slot, int sleep,
 	if (cardsleep) {
 		/* VCC can be turned off if card is asleep */
 		if (sleep)
-			err = mmc_regulator_set_ocr(host->vcc, 0);
+			err = mmc_regulator_set_ocr(host->mmc, host->vcc, 0);
 		else
-			err = mmc_regulator_set_ocr(host->vcc, vdd);
+			err = mmc_regulator_set_ocr(host->mmc, host->vcc, vdd);
 	} else
 		err = regulator_set_mode(host->vcc, mode);
 	if (err)
@@ -364,6 +369,7 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 {
 	struct regulator *reg;
 	int ret = 0;
+	int ocr_value = 0;
 
 	switch (host->id) {
 	case OMAP_MMC1_DEVID:
@@ -396,6 +402,17 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 		}
 	} else {
 		host->vcc = reg;
+		ocr_value = mmc_regulator_get_ocrmask(reg);
+		if (!mmc_slot(host).ocr_mask) {
+			mmc_slot(host).ocr_mask = ocr_value;
+		} else {
+			if (!(mmc_slot(host).ocr_mask & ocr_value)) {
+				pr_err("MMC%d ocrmask %x is not supported\n",
+					host->id, mmc_slot(host).ocr_mask);
+				mmc_slot(host).ocr_mask = 0;
+				return -EINVAL;
+			}
+		}
 		mmc_slot(host).ocr_mask = mmc_regulator_get_ocrmask(reg);
 
 		/* Allow an aux regulator */
@@ -466,8 +483,6 @@ static int omap_hsmmc_gpio_init(struct omap_mmc_platform_data *pdata)
 	int ret;
 
 	if (gpio_is_valid(pdata->slots[0].switch_pin)) {
-		pdata->suspend = omap_hsmmc_suspend_cdirq;
-		pdata->resume = omap_hsmmc_resume_cdirq;
 		if (pdata->slots[0].cover)
 			pdata->slots[0].get_cover_state =
 					omap_hsmmc_get_cover_state;
@@ -981,6 +996,17 @@ static inline void omap_hsmmc_reset_controller_fsm(struct omap_hsmmc_host *host,
 
 	OMAP_HSMMC_WRITE(host->base, SYSCTL,
 			 OMAP_HSMMC_READ(host->base, SYSCTL) | bit);
+
+	/*
+	 * OMAP4 ES2 and greater has an updated reset logic.
+	 * Monitor a 0->1 transition first
+	 */
+	if (mmc_slot(host).features & HSMMC_HAS_UPDATED_RESET) {
+		while ((!(OMAP_HSMMC_READ(host, SYSCTL) & bit))
+					&& (i++ < limit))
+			cpu_relax();
+	}
+	i = 0;
 
 	while ((OMAP_HSMMC_READ(host->base, SYSCTL) & bit) &&
 		(i++ < limit))
@@ -2003,6 +2029,8 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	if (res == NULL || irq < 0)
 		return -ENXIO;
 
+	res->start += pdata->reg_offset;
+	res->end += pdata->reg_offset;
 	res = request_mem_region(res->start, res->end - res->start + 1,
 							pdev->name);
 	if (res == NULL)
@@ -2105,8 +2133,7 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 
 	/* Since we do only SG emulation, we can have as many segs
 	 * as we want. */
-	mmc->max_phys_segs = 1024;
-	mmc->max_hw_segs = 1024;
+	mmc->max_segs = 1024;
 
 	mmc->max_blk_size = 512;       /* Block Length at max can be 1024 */
 	mmc->max_blk_count = 0xFFFF;    /* No. of Blocks is 16 bits */
@@ -2116,23 +2143,9 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	mmc->caps |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
 		     MMC_CAP_WAIT_WHILE_BUSY | MMC_CAP_ERASE;
 
-	switch (mmc_slot(host).wires) {
-	case 8:
-		mmc->caps |= MMC_CAP_8_BIT_DATA;
-		/* Fall through */
-	case 4:
+	mmc->caps |= mmc_slot(host).caps;
+	if (mmc->caps & MMC_CAP_8_BIT_DATA)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
-		break;
-	case 1:
-		/* Nothing to crib here */
-	case 0:
-		/* Assuming nothing was given by board, Core use's 1-Bit */
-		break;
-	default:
-		/* Completely unexpected.. Core goes with 1-Bit Width */
-		dev_crit(mmc_dev(host->mmc), "Invalid width %d\n used!"
-			"using 1 instead\n", mmc_slot(host).wires);
-	}
 
 	if (mmc_slot(host).nonremovable)
 		mmc->caps |= MMC_CAP_NONREMOVABLE;
@@ -2203,6 +2216,8 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 				"Unable to grab MMC CD IRQ\n");
 			goto err_irq_cd;
 		}
+		pdata->suspend = omap_hsmmc_suspend_cdirq;
+		pdata->resume = omap_hsmmc_resume_cdirq;
 	}
 
 	omap_hsmmc_disable_irq(host);

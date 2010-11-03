@@ -697,9 +697,9 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	struct inode *inode = file->f_path.dentry->d_inode;
 	int fbidx = iminor(inode);
 	struct fb_info *info = registered_fb[fbidx];
-	u32 *buffer, *dst;
-	u32 __iomem *src;
-	int c, i, cnt = 0, err = 0;
+	u8 *buffer, *dst;
+	u8 __iomem *src;
+	int c, cnt = 0, err = 0;
 	unsigned long total_size;
 
 	if (!info || ! info->screen_base)
@@ -730,7 +730,7 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	if (!buffer)
 		return -ENOMEM;
 
-	src = (u32 __iomem *) (info->screen_base + p);
+	src = (u8 __iomem *) (info->screen_base + p);
 
 	if (info->fbops->fb_sync)
 		info->fbops->fb_sync(info);
@@ -738,17 +738,9 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	while (count) {
 		c  = (count > PAGE_SIZE) ? PAGE_SIZE : count;
 		dst = buffer;
-		for (i = c >> 2; i--; )
-			*dst++ = fb_readl(src++);
-		if (c & 3) {
-			u8 *dst8 = (u8 *) dst;
-			u8 __iomem *src8 = (u8 __iomem *) src;
-
-			for (i = c & 3; i--;)
-				*dst8++ = fb_readb(src8++);
-
-			src = (u32 __iomem *) src8;
-		}
+		fb_memcpy_fromfb(dst, src, c);
+		dst += c;
+		src += c;
 
 		if (copy_to_user(buf, buffer, c)) {
 			err = -EFAULT;
@@ -772,9 +764,9 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	struct inode *inode = file->f_path.dentry->d_inode;
 	int fbidx = iminor(inode);
 	struct fb_info *info = registered_fb[fbidx];
-	u32 *buffer, *src;
-	u32 __iomem *dst;
-	int c, i, cnt = 0, err = 0;
+	u8 *buffer, *src;
+	u8 __iomem *dst;
+	int c, cnt = 0, err = 0;
 	unsigned long total_size;
 
 	if (!info || !info->screen_base)
@@ -811,7 +803,7 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	if (!buffer)
 		return -ENOMEM;
 
-	dst = (u32 __iomem *) (info->screen_base + p);
+	dst = (u8 __iomem *) (info->screen_base + p);
 
 	if (info->fbops->fb_sync)
 		info->fbops->fb_sync(info);
@@ -825,19 +817,9 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 			break;
 		}
 
-		for (i = c >> 2; i--; )
-			fb_writel(*src++, dst++);
-
-		if (c & 3) {
-			u8 *src8 = (u8 *) src;
-			u8 __iomem *dst8 = (u8 __iomem *) dst;
-
-			for (i = c & 3; i--; )
-				fb_writeb(*src8++, dst8++);
-
-			dst = (u32 __iomem *) dst8;
-		}
-
+		fb_memcpy_tofb(dst, src, c);
+		dst += c;
+		src += c;
 		*ppos += c;
 		buf += c;
 		cnt += c;
@@ -877,13 +859,13 @@ fb_pan_display(struct fb_info *info, struct fb_var_screeninfo *var)
 
 	if ((err = info->fbops->fb_pan_display(var, info)))
 		return err;
-        info->var.xoffset = var->xoffset;
-        info->var.yoffset = var->yoffset;
-        if (var->vmode & FB_VMODE_YWRAP)
-                info->var.vmode |= FB_VMODE_YWRAP;
-        else
-                info->var.vmode &= ~FB_VMODE_YWRAP;
-        return 0;
+	info->var.xoffset = var->xoffset;
+	info->var.yoffset = var->yoffset;
+	if (var->vmode & FB_VMODE_YWRAP)
+		info->var.vmode |= FB_VMODE_YWRAP;
+	else
+		info->var.vmode &= ~FB_VMODE_YWRAP;
+	return 0;
 }
 
 static int fb_check_caps(struct fb_info *info, struct fb_var_screeninfo *var,
@@ -1439,6 +1421,7 @@ static const struct file_operations fb_fops = {
 #ifdef CONFIG_FB_DEFERRED_IO
 	.fsync =	fb_deferred_io_fsync,
 #endif
+	.llseek =	default_llseek,
 };
 
 struct class *fb_class;

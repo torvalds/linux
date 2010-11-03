@@ -349,10 +349,46 @@ void tlb_flush_pgtable(struct mmu_gather *tlb, unsigned long address)
 
 static void setup_page_sizes(void)
 {
-	unsigned int tlb0cfg = mfspr(SPRN_TLB0CFG);
-	unsigned int tlb0ps = mfspr(SPRN_TLB0PS);
-	unsigned int eptcfg = mfspr(SPRN_EPTCFG);
+	unsigned int tlb0cfg;
+	unsigned int tlb0ps;
+	unsigned int eptcfg;
 	int i, psize;
+
+#ifdef CONFIG_PPC_FSL_BOOK3E
+	unsigned int mmucfg = mfspr(SPRN_MMUCFG);
+
+	if (((mmucfg & MMUCFG_MAVN) == MMUCFG_MAVN_V1) &&
+		(mmu_has_feature(MMU_FTR_TYPE_FSL_E))) {
+		unsigned int tlb1cfg = mfspr(SPRN_TLB1CFG);
+		unsigned int min_pg, max_pg;
+
+		min_pg = (tlb1cfg & TLBnCFG_MINSIZE) >> TLBnCFG_MINSIZE_SHIFT;
+		max_pg = (tlb1cfg & TLBnCFG_MAXSIZE) >> TLBnCFG_MAXSIZE_SHIFT;
+
+		for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
+			struct mmu_psize_def *def;
+			unsigned int shift;
+
+			def = &mmu_psize_defs[psize];
+			shift = def->shift;
+
+			if (shift == 0)
+				continue;
+
+			/* adjust to be in terms of 4^shift Kb */
+			shift = (shift - 10) >> 1;
+
+			if ((shift >= min_pg) && (shift <= max_pg))
+				def->flags |= MMU_PAGE_SIZE_DIRECT;
+		}
+
+		goto no_indirect;
+	}
+#endif
+
+	tlb0cfg = mfspr(SPRN_TLB0CFG);
+	tlb0ps = mfspr(SPRN_TLB0PS);
+	eptcfg = mfspr(SPRN_EPTCFG);
 
 	/* Look for supported direct sizes */
 	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
@@ -505,10 +541,26 @@ static void __early_init_mmu(int boot_cpu)
 	 */
 	linear_map_top = memblock_end_of_DRAM();
 
+#ifdef CONFIG_PPC_FSL_BOOK3E
+	if (mmu_has_feature(MMU_FTR_TYPE_FSL_E)) {
+		unsigned int num_cams;
+
+		/* use a quarter of the TLBCAM for bolted linear map */
+		num_cams = (mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY) / 4;
+		linear_map_top = map_mem_in_cams(linear_map_top, num_cams);
+
+		/* limit memory so we dont have linear faults */
+		memblock_enforce_memory_limit(linear_map_top);
+		memblock_analyze();
+	}
+#endif
+
 	/* A sync won't hurt us after mucking around with
 	 * the MMU configuration
 	 */
 	mb();
+
+	memblock_set_current_limit(linear_map_top);
 }
 
 void __init early_init_mmu(void)
@@ -521,4 +573,18 @@ void __cpuinit early_init_mmu_secondary(void)
 	__early_init_mmu(0);
 }
 
+void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+				phys_addr_t first_memblock_size)
+{
+	/* On Embedded 64-bit, we adjust the RMA size to match
+	 * the bolted TLB entry. We know for now that only 1G
+	 * entries are supported though that may eventually
+	 * change. We crop it to the size of the first MEMBLOCK to
+	 * avoid going over total available memory just in case...
+	 */
+	ppc64_rma_size = min_t(u64, first_memblock_size, 0x40000000);
+
+	/* Finally limit subsequent allocations */
+	memblock_set_current_limit(ppc64_memblock_base + ppc64_rma_size);
+}
 #endif /* CONFIG_PPC64 */

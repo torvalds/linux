@@ -490,24 +490,24 @@ err_ret:
 	return ret;
 }
 
-static IIO_DEV_ATTR_ACCEL_X_OFFSET(S_IWUSR | S_IRUGO,
-		adis16400_read_12bit_signed,
-		adis16400_write_16bit,
-		ADIS16400_XACCL_OFF);
+#define ADIS16400_DEV_ATTR_CALIBBIAS(_channel, _reg)		\
+	IIO_DEV_ATTR_##_channel##_CALIBBIAS(S_IWUSR | S_IRUGO,	\
+			adis16400_read_12bit_signed,		\
+			adis16400_write_16bit,			\
+			_reg)
 
-static IIO_DEV_ATTR_ACCEL_Y_OFFSET(S_IWUSR | S_IRUGO,
-		adis16400_read_12bit_signed,
-		adis16400_write_16bit,
-		ADIS16400_YACCL_OFF);
+static ADIS16400_DEV_ATTR_CALIBBIAS(GYRO_X, ADIS16400_XGYRO_OFF);
+static ADIS16400_DEV_ATTR_CALIBBIAS(GYRO_Y, ADIS16400_XGYRO_OFF);
+static ADIS16400_DEV_ATTR_CALIBBIAS(GYRO_Z, ADIS16400_XGYRO_OFF);
 
-static IIO_DEV_ATTR_ACCEL_Z_OFFSET(S_IWUSR | S_IRUGO,
-		adis16400_read_12bit_signed,
-		adis16400_write_16bit,
-		ADIS16400_ZACCL_OFF);
+static ADIS16400_DEV_ATTR_CALIBBIAS(ACCEL_X, ADIS16400_XACCL_OFF);
+static ADIS16400_DEV_ATTR_CALIBBIAS(ACCEL_Y, ADIS16400_XACCL_OFF);
+static ADIS16400_DEV_ATTR_CALIBBIAS(ACCEL_Z, ADIS16400_XACCL_OFF);
 
-static IIO_DEV_ATTR_IN_NAMED_RAW(supply, adis16400_read_14bit_signed,
+
+static IIO_DEV_ATTR_IN_NAMED_RAW(0, supply, adis16400_read_14bit_signed,
 		ADIS16400_SUPPLY_OUT);
-static IIO_CONST_ATTR(in_supply_scale, "0.002418");
+static IIO_CONST_ATTR_IN_NAMED_SCALE(0, supply, "0.002418 V");
 
 static IIO_DEV_ATTR_GYRO_X(adis16400_read_14bit_signed,
 		ADIS16400_XGYRO_OUT);
@@ -515,7 +515,7 @@ static IIO_DEV_ATTR_GYRO_Y(adis16400_read_14bit_signed,
 		ADIS16400_YGYRO_OUT);
 static IIO_DEV_ATTR_GYRO_Z(adis16400_read_14bit_signed,
 		ADIS16400_ZGYRO_OUT);
-static IIO_CONST_ATTR(gyro_scale, "0.05 deg/s");
+static IIO_CONST_ATTR(gyro_scale, "0.0008726646");
 
 static IIO_DEV_ATTR_ACCEL_X(adis16400_read_14bit_signed,
 		ADIS16400_XACCL_OUT);
@@ -523,7 +523,7 @@ static IIO_DEV_ATTR_ACCEL_Y(adis16400_read_14bit_signed,
 		ADIS16400_YACCL_OUT);
 static IIO_DEV_ATTR_ACCEL_Z(adis16400_read_14bit_signed,
 		ADIS16400_ZACCL_OUT);
-static IIO_CONST_ATTR(accel_scale, "0.00333 g");
+static IIO_CONST_ATTR(accel_scale, "0.0326561445");
 
 static IIO_DEV_ATTR_MAGN_X(adis16400_read_14bit_signed,
 		ADIS16400_XMAGN_OUT);
@@ -535,12 +535,12 @@ static IIO_CONST_ATTR(magn_scale, "0.0005 Gs");
 
 
 static IIO_DEV_ATTR_TEMP_RAW(adis16400_read_12bit_signed);
-static IIO_CONST_ATTR(temp_offset, "198.16 K");
-static IIO_CONST_ATTR(temp_scale, "0.14 K");
+static IIO_CONST_ATTR_TEMP_OFFSET("198.16 K");
+static IIO_CONST_ATTR_TEMP_SCALE("0.14 K");
 
-static IIO_DEV_ATTR_IN_RAW(0, adis16400_read_12bit_unsigned,
+static IIO_DEV_ATTR_IN_RAW(1, adis16400_read_12bit_unsigned,
 		ADIS16400_AUX_ADC);
-static IIO_CONST_ATTR(in0_scale, "0.000806");
+static IIO_CONST_ATTR(in1_scale, "0.000806 V");
 
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		adis16400_read_frequency,
@@ -548,9 +548,9 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 
 static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16400_write_reset, 0);
 
-static IIO_CONST_ATTR_AVAIL_SAMP_FREQ("409 546 819 1638");
+static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("409 546 819 1638");
 
-static IIO_CONST_ATTR(name, "adis16400");
+static IIO_CONST_ATTR_NAME("adis16400");
 
 static struct attribute *adis16400_event_attributes[] = {
 	NULL
@@ -561,11 +561,14 @@ static struct attribute_group adis16400_event_attribute_group = {
 };
 
 static struct attribute *adis16400_attributes[] = {
-	&iio_dev_attr_accel_x_offset.dev_attr.attr,
-	&iio_dev_attr_accel_y_offset.dev_attr.attr,
-	&iio_dev_attr_accel_z_offset.dev_attr.attr,
-	&iio_dev_attr_in_supply_raw.dev_attr.attr,
-	&iio_const_attr_in_supply_scale.dev_attr.attr,
+	&iio_dev_attr_gyro_x_calibbias.dev_attr.attr,
+	&iio_dev_attr_gyro_y_calibbias.dev_attr.attr,
+	&iio_dev_attr_gyro_z_calibbias.dev_attr.attr,
+	&iio_dev_attr_accel_x_calibbias.dev_attr.attr,
+	&iio_dev_attr_accel_y_calibbias.dev_attr.attr,
+	&iio_dev_attr_accel_z_calibbias.dev_attr.attr,
+	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
+	&iio_const_attr_in0_supply_scale.dev_attr.attr,
 	&iio_dev_attr_gyro_x_raw.dev_attr.attr,
 	&iio_dev_attr_gyro_y_raw.dev_attr.attr,
 	&iio_dev_attr_gyro_z_raw.dev_attr.attr,
@@ -581,10 +584,10 @@ static struct attribute *adis16400_attributes[] = {
 	&iio_dev_attr_temp_raw.dev_attr.attr,
 	&iio_const_attr_temp_offset.dev_attr.attr,
 	&iio_const_attr_temp_scale.dev_attr.attr,
-	&iio_dev_attr_in0_raw.dev_attr.attr,
-	&iio_const_attr_in0_scale.dev_attr.attr,
+	&iio_dev_attr_in1_raw.dev_attr.attr,
+	&iio_const_attr_in1_scale.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
-	&iio_const_attr_available_sampling_frequency.dev_attr.attr,
+	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_const_attr_name.dev_attr.attr,
 	NULL

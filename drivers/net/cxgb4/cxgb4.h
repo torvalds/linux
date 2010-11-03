@@ -281,7 +281,6 @@ struct sge_rspq;
 
 struct port_info {
 	struct adapter *adapter;
-	struct vlan_group *vlan_grp;
 	u16    viid;
 	s16    xact_addr_filt;        /* index of exact MAC address filter */
 	u16    rss_size;              /* size of VI's RSS table slice */
@@ -463,6 +462,8 @@ struct sge {
 	u8 counter_val[SGE_NCOUNTERS];
 	unsigned int starve_thres;
 	u8 idma_state[2];
+	unsigned int egr_start;
+	unsigned int ingr_start;
 	void *egr_map[MAX_EGRQ];    /* qid->queue egress queue map */
 	struct sge_rspq *ingr_map[MAX_INGQ]; /* qid->queue ingress queue map */
 	DECLARE_BITMAP(starving_fl, MAX_EGRQ);
@@ -590,7 +591,6 @@ void t4_os_portmod_changed(const struct adapter *adap, int port_id);
 void t4_os_link_changed(struct adapter *adap, int port_id, int link_stat);
 
 void *t4_alloc_mem(size_t size);
-void t4_free_mem(void *addr);
 
 void t4_free_sge_resources(struct adapter *adap);
 irq_handler_t t4_intr_handler(struct adapter *adap);
@@ -649,7 +649,6 @@ static inline int t4_wr_mbox_ns(struct adapter *adap, int mbox, const void *cmd,
 
 void t4_intr_enable(struct adapter *adapter);
 void t4_intr_disable(struct adapter *adapter);
-void t4_intr_clear(struct adapter *adapter);
 int t4_slow_intr_handler(struct adapter *adapter);
 
 int t4_wait_dev_ready(struct adapter *adap);
@@ -662,24 +661,16 @@ int t4_check_fw_version(struct adapter *adapter);
 int t4_prep_adapter(struct adapter *adapter);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);
 void t4_fatal_err(struct adapter *adapter);
-int t4_set_trace_filter(struct adapter *adapter, const struct trace_params *tp,
-			int filter_index, int enable);
-void t4_get_trace_filter(struct adapter *adapter, struct trace_params *tp,
-			 int filter_index, int *enabled);
 int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 			int start, int n, const u16 *rspq, unsigned int nrspq);
 int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 		       unsigned int flags);
-int t4_read_rss(struct adapter *adapter, u16 *entries);
 int t4_mc_read(struct adapter *adap, u32 addr, __be32 *data, u64 *parity);
 int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 		u64 *parity);
 
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p);
-void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p);
-
 void t4_read_mtu_tbl(struct adapter *adap, u16 *mtus, u8 *mtu_log);
-void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st);
 void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 			 struct tp_tcp_stats *v6);
 void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
@@ -709,8 +700,6 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		unsigned int pf, unsigned int vf, unsigned int nmac, u8 *mac,
 		unsigned int *rss_size);
-int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
-	       unsigned int vf, unsigned int viid);
 int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		int mtu, int promisc, int all_multi, int bcast, int vlanex,
 		bool sleep_ok);
@@ -729,9 +718,6 @@ int t4_mdio_rd(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
 	       unsigned int mmd, unsigned int reg, u16 *valp);
 int t4_mdio_wr(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
 	       unsigned int mmd, unsigned int reg, u16 val);
-int t4_iq_start_stop(struct adapter *adap, unsigned int mbox, bool start,
-		     unsigned int pf, unsigned int vf, unsigned int iqid,
-		     unsigned int fl0id, unsigned int fl1id);
 int t4_iq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	       unsigned int vf, unsigned int iqtype, unsigned int iqid,
 	       unsigned int fl0id, unsigned int fl1id);

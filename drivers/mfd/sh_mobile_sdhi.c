@@ -65,7 +65,18 @@ static void sh_mobile_sdhi_set_pwr(struct platform_device *tmio, int state)
 		p->set_pwr(pdev, state);
 }
 
-static int __init sh_mobile_sdhi_probe(struct platform_device *pdev)
+static int sh_mobile_sdhi_get_cd(struct platform_device *tmio)
+{
+	struct platform_device *pdev = to_platform_device(tmio->dev.parent);
+	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
+
+	if (p && p->get_cd)
+		return p->get_cd(pdev);
+	else
+		return -ENOSYS;
+}
+
+static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 {
 	struct sh_mobile_sdhi *priv;
 	struct tmio_mmc_data *mmc_data;
@@ -106,11 +117,19 @@ static int __init sh_mobile_sdhi_probe(struct platform_device *pdev)
 
 	mmc_data->hclk = clk_get_rate(priv->clk);
 	mmc_data->set_pwr = sh_mobile_sdhi_set_pwr;
+	mmc_data->get_cd = sh_mobile_sdhi_get_cd;
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
 	if (p) {
 		mmc_data->flags = p->tmio_flags;
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
+		mmc_data->capabilities |= p->tmio_caps;
 	}
+
+	/*
+	 * All SDHI blocks support 2-byte and larger block sizes in 4-bit
+	 * bus width mode.
+	 */
+	mmc_data->flags |= TMIO_MMC_BLKSZ_2BYTES;
 
 	if (p && p->dma_slave_tx >= 0 && p->dma_slave_rx >= 0) {
 		priv->param_tx.slave_id = p->dma_slave_tx;

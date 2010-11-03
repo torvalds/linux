@@ -113,12 +113,15 @@ int unregister_early_external_interrupt(__u16 code, ext_int_handler_t handler,
 	return 0;
 }
 
-void __irq_entry do_extint(struct pt_regs *regs, unsigned short code)
+void __irq_entry do_extint(struct pt_regs *regs, unsigned int ext_int_code,
+			   unsigned int param32, unsigned long param64)
 {
+	struct pt_regs *old_regs;
+	unsigned short code;
         ext_int_info_t *p;
         int index;
-	struct pt_regs *old_regs;
 
+	code = (unsigned short) ext_int_code;
 	old_regs = set_irq_regs(regs);
 	s390_idle_check(regs, S390_lowcore.int_clock,
 			S390_lowcore.async_enter_timer);
@@ -132,7 +135,7 @@ void __irq_entry do_extint(struct pt_regs *regs, unsigned short code)
         index = ext_hash(code);
 	for (p = ext_int_hash[index]; p; p = p->next) {
 		if (likely(p->code == code))
-			p->handler(code);
+			p->handler(ext_int_code, param32, param64);
 	}
 	irq_exit();
 	set_irq_regs(old_regs);

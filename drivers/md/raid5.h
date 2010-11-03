@@ -275,6 +275,7 @@ struct r6_state {
 				    * filling
 				    */
 #define R5_Wantdrain	13 /* dev->towrite needs to be drained */
+#define R5_WantFUA	14	/* Write should be FUA */
 /*
  * Write method
  */

@@ -36,7 +36,8 @@ void videobuf_queue_vmalloc_init(struct videobuf_queue *q,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,
 			 unsigned int msize,
-			 void *priv);
+			 void *priv,
+			 struct mutex *ext_lock);
 
 void *videobuf_to_vmalloc(struct videobuf_buffer *buf);
 

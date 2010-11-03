@@ -27,7 +27,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/list.h>
 #include <dspbridge/memdefs.h>
 #include <dspbridge/proc.h>
@@ -57,7 +56,6 @@
 /*  ----------------------------------- This */
 #include <dspbridge/nodepriv.h>
 #include <dspbridge/node.h>
-#include <dspbridge/dmm.h>
 
 /* Static/Dynamic Loader includes */
 #include <dspbridge/dbll.h>
@@ -318,10 +316,6 @@ int node_allocate(struct proc_object *hprocessor,
 	u32 mapped_addr = 0;
 	u32 map_attrs = 0x0;
 	struct dsp_processorstate proc_state;
-#ifdef DSP_DMM_DEBUG
-	struct dmm_object *dmm_mgr;
-	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
-#endif
 
 	void *node_res;
 
@@ -431,34 +425,12 @@ int node_allocate(struct proc_object *hprocessor,
 	if (status)
 		goto func_cont;
 
-	status = proc_reserve_memory(hprocessor,
-				     pnode->create_args.asa.task_arg_obj.
-				     heap_size + PAGE_SIZE,
-				     (void **)&(pnode->create_args.asa.
-					task_arg_obj.udsp_heap_res_addr),
-				     pr_ctxt);
-	if (status) {
-		pr_err("%s: Failed to reserve memory for heap: 0x%x\n",
-		       __func__, status);
-		goto func_cont;
-	}
-#ifdef DSP_DMM_DEBUG
-	status = dmm_get_handle(p_proc_object, &dmm_mgr);
-	if (!dmm_mgr) {
-		status = DSP_EHANDLE;
-		goto func_cont;
-	}
-
-	dmm_mem_map_dump(dmm_mgr);
-#endif
-
 	map_attrs |= DSP_MAPLITTLEENDIAN;
 	map_attrs |= DSP_MAPELEMSIZE32;
 	map_attrs |= DSP_MAPVIRTUALADDR;
 	status = proc_map(hprocessor, (void *)attr_in->pgpp_virt_addr,
 			  pnode->create_args.asa.task_arg_obj.heap_size,
-			  (void *)pnode->create_args.asa.task_arg_obj.
-			  udsp_heap_res_addr, (void **)&mapped_addr, map_attrs,
+			  NULL, (void **)&mapped_addr, map_attrs,
 			  pr_ctxt);
 	if (status)
 		pr_err("%s: Failed to map memory for Heap: 0x%x\n",
@@ -2506,25 +2478,20 @@ static void delete_node(struct node_object *hnode,
 			struct process_context *pr_ctxt)
 {
 	struct node_mgr *hnode_mgr;
-	struct cmm_xlatorobject *xlator;
 	struct bridge_drv_interface *intf_fxns;
 	u32 i;
 	enum node_type node_type;
 	struct stream_chnl stream;
 	struct node_msgargs node_msg_args;
 	struct node_taskargs task_arg_obj;
-#ifdef DSP_DMM_DEBUG
-	struct dmm_object *dmm_mgr;
-	struct proc_object *p_proc_object =
-	    (struct proc_object *)hnode->hprocessor;
-#endif
+
 	int status;
 	if (!hnode)
 		goto func_end;
 	hnode_mgr = hnode->hnode_mgr;
 	if (!hnode_mgr)
 		goto func_end;
-	xlator = hnode->xlator;
+
 	node_type = node_get_type(hnode);
 	if (node_type != NODE_DEVICE) {
 		node_msg_args = hnode->create_args.asa.node_msg_args;
@@ -2578,19 +2545,6 @@ static void delete_node(struct node_object *hnode,
 			status = proc_un_map(hnode->hprocessor, (void *)
 					     task_arg_obj.udsp_heap_addr,
 					     pr_ctxt);
-
-			status = proc_un_reserve_memory(hnode->hprocessor,
-							(void *)
-							task_arg_obj.
-							udsp_heap_res_addr,
-							pr_ctxt);
-#ifdef DSP_DMM_DEBUG
-			status = dmm_get_handle(p_proc_object, &dmm_mgr);
-			if (dmm_mgr)
-				dmm_mem_map_dump(dmm_mgr);
-			else
-				status = DSP_EHANDLE;
-#endif
 		}
 	}
 	if (node_type != NODE_MESSAGE) {
@@ -2620,11 +2574,7 @@ static void delete_node(struct node_object *hnode,
 	hnode->dcd_props.obj_data.node_obj.pstr_i_alg_name = NULL;
 
 	/* Free all SM address translator resources */
-	if (xlator) {
-		(void)cmm_xlator_delete(xlator, true);	/* force free */
-		xlator = NULL;
-	}
-
+	kfree(hnode->xlator);
 	kfree(hnode->nldr_node_obj);
 	hnode->nldr_node_obj = NULL;
 	hnode->hnode_mgr = NULL;

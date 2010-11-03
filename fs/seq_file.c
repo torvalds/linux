@@ -131,7 +131,7 @@ Eoverflow:
  */
 ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 {
-	struct seq_file *m = (struct seq_file *)file->private_data;
+	struct seq_file *m = file->private_data;
 	size_t copied = 0;
 	loff_t pos;
 	size_t n;
@@ -280,7 +280,7 @@ EXPORT_SYMBOL(seq_read);
  */
 loff_t seq_lseek(struct file *file, loff_t offset, int origin)
 {
-	struct seq_file *m = (struct seq_file *)file->private_data;
+	struct seq_file *m = file->private_data;
 	loff_t retval = -EINVAL;
 
 	mutex_lock(&m->lock);
@@ -324,7 +324,7 @@ EXPORT_SYMBOL(seq_lseek);
  */
 int seq_release(struct inode *inode, struct file *file)
 {
-	struct seq_file *m = (struct seq_file *)file->private_data;
+	struct seq_file *m = file->private_data;
 	kfree(m->buf);
 	kfree(m);
 	return 0;
@@ -462,9 +462,7 @@ int seq_path_root(struct seq_file *m, struct path *path, struct path *root,
 	if (size) {
 		char *p;
 
-		spin_lock(&dcache_lock);
 		p = __d_path(path, root, buf, size);
-		spin_unlock(&dcache_lock);
 		res = PTR_ERR(p);
 		if (!IS_ERR(p)) {
 			char *end = mangle_path(buf, p, esc);

@@ -254,10 +254,10 @@ static void VmbusProcessChannelEvent(void *context)
 	channel = GetChannelFromRelId(relId);
 
 	if (channel) {
-		VmbusChannelOnChannelEvent(channel);
+		vmbus_onchannel_event(channel);
 		/*
 		 * WorkQueueQueueWorkItem(channel->dataWorkQueue,
-		 *			  VmbusChannelOnChannelEvent,
+		 *			  vmbus_onchannel_event,
 		 *			  (void*)channel);
 		 */
 	} else {

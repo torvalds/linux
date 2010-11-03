@@ -139,9 +139,9 @@
 
 #define PO1030_GLOBAL_GAIN_DEFAULT	0x12
 #define PO1030_EXPOSURE_DEFAULT		0x0085
-#define PO1030_BLUE_GAIN_DEFAULT 	0x36
-#define PO1030_RED_GAIN_DEFAULT 	0x36
-#define PO1030_GREEN_GAIN_DEFAULT 	0x40
+#define PO1030_BLUE_GAIN_DEFAULT	0x36
+#define PO1030_RED_GAIN_DEFAULT		0x36
+#define PO1030_GREEN_GAIN_DEFAULT	0x40
 
 /*****************************************************************************/
 
@@ -166,8 +166,7 @@ static const struct m5602_sensor po1030 = {
 	.disconnect = po1030_disconnect,
 };
 
-static const unsigned char preinit_po1030[][3] =
-{
+static const unsigned char preinit_po1030[][3] = {
 	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02},
 	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0},
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
@@ -193,8 +192,7 @@ static const unsigned char preinit_po1030[][3] =
 	{BRIDGE, M5602_XB_GPIO_DAT, 0x00}
 };
 
-static const unsigned char init_po1030[][3] =
-{
+static const unsigned char init_po1030[][3] = {
 	{BRIDGE, M5602_XB_MCU_CLK_DIV, 0x02},
 	{BRIDGE, M5602_XB_MCU_CLK_CTRL, 0xb0},
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00},
@@ -271,5 +269,4 @@ static const unsigned char init_po1030[][3] =
 	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06},
 	{BRIDGE, M5602_XB_GPIO_EN_L, 0x00},
 };
-
 #endif

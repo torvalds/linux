@@ -1,7 +1,7 @@
 /*
  * Performance events support for SH-4A performance counters
  *
- *  Copyright (C) 2009  Paul Mundt
+ *  Copyright (C) 2009, 2010  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -22,7 +22,25 @@
 #define CCBR_CMDS	(1 << 1)
 #define CCBR_PPCE	(1 << 0)
 
+#ifdef CONFIG_CPU_SHX3
+/*
+ * The PMCAT location for SH-X3 CPUs was quietly moved, while the CCBR
+ * and PMCTR locations remains tentatively constant. This change remains
+ * wholly undocumented, and was simply found through trial and error.
+ *
+ * Early cuts of SH-X3 still appear to use the SH-X/SH-X2 locations, and
+ * it's unclear when this ceased to be the case. For now we always use
+ * the new location (if future parts keep up with this trend then
+ * scanning for them at runtime also remains a viable option.)
+ *
+ * The gap in the register space also suggests that there are other
+ * undocumented counters, so this will need to be revisited at a later
+ * point in time.
+ */
+#define PPC_PMCAT	0xfc100240
+#else
 #define PPC_PMCAT	0xfc100080
+#endif
 
 #define PMCAT_OVF3	(1 << 27)
 #define PMCAT_CNN3	(1 << 26)
@@ -241,7 +259,7 @@ static void sh4a_pmu_enable_all(void)
 }
 
 static struct sh_pmu sh4a_pmu = {
-	.name		= "SH-4A",
+	.name		= "sh4a",
 	.num_events	= 2,
 	.event_map	= sh4a_event_map,
 	.max_events	= ARRAY_SIZE(sh4a_general_events),

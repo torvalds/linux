@@ -238,9 +238,7 @@ static inline void vio_cmo_dealloc(struct vio_dev *viodev, size_t size)
 	 * memory in this pool does not change.
 	 */
 	if (spare_needed && reserve_freed) {
-		tmp = min(spare_needed, min(reserve_freed,
-		                            (viodev->cmo.entitled -
-		                             VIO_CMO_MIN_ENT)));
+		tmp = min3(spare_needed, reserve_freed, (viodev->cmo.entitled - VIO_CMO_MIN_ENT));
 
 		vio_cmo.spare += tmp;
 		viodev->cmo.entitled -= tmp;
@@ -1184,7 +1182,12 @@ EXPORT_SYMBOL(vio_unregister_driver);
 /* vio_dev refcount hit 0 */
 static void __devinit vio_dev_release(struct device *dev)
 {
-	/* XXX should free TCE table */
+	struct iommu_table *tbl = get_iommu_table_base(dev);
+
+	/* iSeries uses a common table for all vio devices */
+	if (!firmware_has_feature(FW_FEATURE_ISERIES) && tbl)
+		iommu_free_table(tbl, dev->of_node ?
+			dev->of_node->full_name : dev_name(dev));
 	of_node_put(dev->of_node);
 	kfree(to_vio_dev(dev));
 }
@@ -1254,8 +1257,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	if (device_register(&viodev->dev)) {
 		printk(KERN_ERR "%s: failed to register device %s\n",
 				__func__, dev_name(&viodev->dev));
-		/* XXX free TCE table */
-		kfree(viodev);
+		put_device(&viodev->dev);
 		return NULL;
 	}
 

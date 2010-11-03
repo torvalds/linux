@@ -65,8 +65,6 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	if (test_tsk_thread_flag(task, TIF_31BIT))
 		mask = 0xffffffff;
 #endif
-	if (i + n == 6)
-		args[--n] = regs->args[0] & mask;
 	while (n-- > 0)
 		if (i + n > 0)
 			args[n] = regs->gprs[2 + i + n] & mask;
@@ -80,8 +78,6 @@ static inline void syscall_set_arguments(struct task_struct *task,
 					 const unsigned long *args)
 {
 	BUG_ON(i + n > 6);
-	if (i + n == 6)
-		regs->args[0] = args[--n];
 	while (n-- > 0)
 		if (i + n > 0)
 			regs->gprs[2 + i + n] = args[n];

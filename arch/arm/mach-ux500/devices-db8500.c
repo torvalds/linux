@@ -110,6 +110,82 @@ struct platform_device u8500_i2c4_device = {
 	.num_resources	= ARRAY_SIZE(u8500_i2c4_resources),
 };
 
+/*
+ * SD/MMC
+ */
+
+struct amba_device u8500_sdi0_device = {
+	.dev		= {
+		.init_name = "sdi0",
+	},
+	.res		= {
+		.start	= U8500_SDI0_BASE,
+		.end	= U8500_SDI0_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC0, NO_IRQ},
+};
+
+struct amba_device u8500_sdi1_device = {
+	.dev		= {
+		.init_name = "sdi1",
+	},
+	.res		= {
+		.start	= U8500_SDI1_BASE,
+		.end	= U8500_SDI1_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC1, NO_IRQ},
+};
+
+struct amba_device u8500_sdi2_device = {
+	.dev		= {
+		.init_name = "sdi2",
+	},
+	.res		= {
+		.start	= U8500_SDI2_BASE,
+		.end	= U8500_SDI2_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC2, NO_IRQ},
+};
+
+struct amba_device u8500_sdi3_device = {
+	.dev		= {
+		.init_name = "sdi3",
+	},
+	.res		= {
+		.start	= U8500_SDI3_BASE,
+		.end	= U8500_SDI3_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC3, NO_IRQ},
+};
+
+struct amba_device u8500_sdi4_device = {
+	.dev		= {
+		.init_name = "sdi4",
+	},
+	.res		= {
+		.start	= U8500_SDI4_BASE,
+		.end	= U8500_SDI4_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC4, NO_IRQ},
+};
+
+struct amba_device u8500_sdi5_device = {
+	.dev		= {
+		.init_name = "sdi5",
+	},
+	.res		= {
+		.start	= U8500_SDI5_BASE,
+		.end	= U8500_SDI5_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= {IRQ_DB8500_SDMMC5, NO_IRQ},
+};
+
 static struct resource dma40_resources[] = {
 	[0] = {
 		.start = U8500_DMA_BASE,
@@ -132,35 +208,25 @@ static struct resource dma40_resources[] = {
 
 /* Default configuration for physcial memcpy */
 struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
-	.channel_type = (STEDMA40_CHANNEL_IN_PHY_MODE |
-			 STEDMA40_LOW_PRIORITY_CHANNEL |
-			 STEDMA40_PCHAN_BASIC_MODE),
+	.mode = STEDMA40_MODE_PHYSICAL,
 	.dir = STEDMA40_MEM_TO_MEM,
 
-	.src_info.endianess = STEDMA40_LITTLE_ENDIAN,
 	.src_info.data_width = STEDMA40_BYTE_WIDTH,
 	.src_info.psize = STEDMA40_PSIZE_PHY_1,
 	.src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 
-	.dst_info.endianess = STEDMA40_LITTLE_ENDIAN,
 	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
 	.dst_info.psize = STEDMA40_PSIZE_PHY_1,
 	.dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 };
 /* Default configuration for logical memcpy */
 struct stedma40_chan_cfg dma40_memcpy_conf_log = {
-	.channel_type = (STEDMA40_CHANNEL_IN_LOG_MODE |
-			 STEDMA40_LOW_PRIORITY_CHANNEL |
-			 STEDMA40_LCHAN_SRC_LOG_DST_LOG |
-			 STEDMA40_NO_TIM_FOR_LINK),
 	.dir = STEDMA40_MEM_TO_MEM,
 
-	.src_info.endianess = STEDMA40_LITTLE_ENDIAN,
 	.src_info.data_width = STEDMA40_BYTE_WIDTH,
 	.src_info.psize = STEDMA40_PSIZE_LOG_1,
 	.src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 
-	.dst_info.endianess = STEDMA40_LITTLE_ENDIAN,
 	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
 	.dst_info.psize = STEDMA40_PSIZE_LOG_1,
 	.dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
@@ -170,30 +236,29 @@ struct stedma40_chan_cfg dma40_memcpy_conf_log = {
  * Mapping between destination event lines and physical device address.
  * The event line is tied to a device and therefor the address is constant.
  */
-static const dma_addr_t dma40_tx_map[STEDMA40_NR_DEV];
+static const dma_addr_t dma40_tx_map[DB8500_DMA_NR_DEV];
 
 /* Mapping between source event lines and physical device address */
-static const dma_addr_t dma40_rx_map[STEDMA40_NR_DEV];
+static const dma_addr_t dma40_rx_map[DB8500_DMA_NR_DEV];
 
 /* Reserved event lines for memcpy only */
 static int dma40_memcpy_event[] = {
-	STEDMA40_MEMCPY_TX_0,
-	STEDMA40_MEMCPY_TX_1,
-	STEDMA40_MEMCPY_TX_2,
-	STEDMA40_MEMCPY_TX_3,
-	STEDMA40_MEMCPY_TX_4,
-	STEDMA40_MEMCPY_TX_5,
+	DB8500_DMA_MEMCPY_TX_0,
+	DB8500_DMA_MEMCPY_TX_1,
+	DB8500_DMA_MEMCPY_TX_2,
+	DB8500_DMA_MEMCPY_TX_3,
+	DB8500_DMA_MEMCPY_TX_4,
+	DB8500_DMA_MEMCPY_TX_5,
 };
 
 static struct stedma40_platform_data dma40_plat_data = {
-	.dev_len = STEDMA40_NR_DEV,
+	.dev_len = DB8500_DMA_NR_DEV,
 	.dev_rx = dma40_rx_map,
 	.dev_tx = dma40_tx_map,
 	.memcpy = dma40_memcpy_event,
 	.memcpy_len = ARRAY_SIZE(dma40_memcpy_event),
 	.memcpy_conf_phy = &dma40_memcpy_conf_phy,
 	.memcpy_conf_log = &dma40_memcpy_conf_log,
-	.llis_per_log = 8,
 	.disabled_channels = {-1},
 };
 
@@ -216,3 +281,23 @@ void dma40_u8500ed_fixup(void)
 	dma40_resources[1].start = U8500_DMA_LCPA_BASE_ED;
 	dma40_resources[1].end = U8500_DMA_LCPA_BASE_ED + 2 * SZ_1K - 1;
 }
+
+struct resource keypad_resources[] = {
+	[0] = {
+		.start = U8500_SKE_BASE,
+		.end = U8500_SKE_BASE + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_DB8500_KB,
+		.end = IRQ_DB8500_KB,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device ux500_ske_keypad_device = {
+	.name = "nmk-ske-keypad",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(keypad_resources),
+	.resource = keypad_resources,
+};

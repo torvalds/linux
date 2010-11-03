@@ -158,5 +158,8 @@ void __init_refok free_initmem(void)
 	free_init_pages("unused kernel memory",
 			(unsigned long)(&__init_begin),
 			(unsigned long)(&__init_end));
+
+	if (memory_start == (unsigned long)(&__init_end))
+		memory_start = (unsigned long)(&__init_begin);
 #endif
 }

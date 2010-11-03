@@ -816,7 +816,7 @@ static int kimage_load_normal_segment(struct kimage *image,
 
 		ptr = kmap(page);
 		/* Start with a clear page */
-		memset(ptr, 0, PAGE_SIZE);
+		clear_page(ptr);
 		ptr += maddr & ~PAGE_MASK;
 		mchunk = PAGE_SIZE - (maddr & ~PAGE_MASK);
 		if (mchunk > mbytes)

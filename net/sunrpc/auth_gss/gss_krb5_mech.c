@@ -427,7 +427,7 @@ static int
 context_derive_keys_rc4(struct krb5_ctx *ctx)
 {
 	struct crypto_hash *hmac;
-	char sigkeyconstant[] = "signaturekey";
+	static const char sigkeyconstant[] = "signaturekey";
 	int slen = strlen(sigkeyconstant) + 1;	/* include null terminator */
 	struct hash_desc desc;
 	struct scatterlist sg[1];

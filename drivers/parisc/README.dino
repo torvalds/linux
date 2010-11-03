@@ -10,8 +10,7 @@
 ** PCI bus. HP-supplied graphics cards that utilize the PCI bus are
 ** not affected."
 **
-** REVISIT: "go/pci_defect" link below is stale.
-**	HP Internal can use <http://hpfcdma.fc.hp.com:80/Dino/>
+** http://h20000.www2.hp.com/bizsupport/TechSupport/Home.jsp?locale=en_US&prodTypeId=12454&prodSeriesId=44443
 **
 **	Product		First Good Serial Number
 **  C200/C240 (US)	US67350000

@@ -179,9 +179,8 @@ acpi_debug_print(u32 requested_debug_level,
 	if (thread_id != acpi_gbl_prev_thread_id) {
 		if (ACPI_LV_THREADS & acpi_dbg_level) {
 			acpi_os_printf
-			    ("\n**** Context Switch from TID %p to TID %p ****\n\n",
-			     ACPI_CAST_PTR(void, acpi_gbl_prev_thread_id),
-			     ACPI_CAST_PTR(void, thread_id));
+			    ("\n**** Context Switch from TID %u to TID %u ****\n\n",
+			     (u32)acpi_gbl_prev_thread_id, (u32)thread_id);
 		}
 
 		acpi_gbl_prev_thread_id = thread_id;
@@ -194,7 +193,7 @@ acpi_debug_print(u32 requested_debug_level,
 	acpi_os_printf("%8s-%04ld ", module_name, line_number);
 
 	if (ACPI_LV_THREADS & acpi_dbg_level) {
-		acpi_os_printf("[%p] ", ACPI_CAST_PTR(void, thread_id));
+		acpi_os_printf("[%u] ", (u32)thread_id);
 	}
 
 	acpi_os_printf("[%02ld] %-22.22s: ",

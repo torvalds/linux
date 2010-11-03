@@ -132,6 +132,11 @@ static void proc_dump_substream_status(struct snd_usb_substream *subs, struct sn
 			    ? get_full_speed_hz(subs->freqm)
 			    : get_high_speed_hz(subs->freqm),
 			    subs->freqm >> 16, subs->freqm & 0xffff);
+		if (subs->freqshift != INT_MIN)
+			snd_iprintf(buffer, "    Feedback Format = %d.%d\n",
+				    (subs->syncmaxsize > 3 ? 32 : 24)
+						- (16 - subs->freqshift),
+				    16 - subs->freqshift);
 	} else {
 		snd_iprintf(buffer, "  Status: Stop\n");
 	}

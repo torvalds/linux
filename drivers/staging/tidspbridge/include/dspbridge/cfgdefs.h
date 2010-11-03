@@ -68,7 +68,6 @@ struct cfg_hostres {
 	void __iomem *dw_per_base;
 	u32 dw_per_pm_base;
 	u32 dw_core_pm_base;
-	void __iomem *dw_dmmu_base;
 	void __iomem *dw_sys_ctrl_base;
 };
 

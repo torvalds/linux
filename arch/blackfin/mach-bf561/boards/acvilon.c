@@ -302,7 +302,7 @@ static struct platform_nand_data bfin_plat_nand_data = {
 static struct resource bfin_plat_nand_resources = {
 	.start = 0x24000000,
 	.end = 0x24000000 + (1 << MAX(BFIN_NAND_PLAT_CLE, BFIN_NAND_PLAT_ALE)),
-	.flags = IORESOURCE_IO,
+	.flags = IORESOURCE_MEM,
 };
 
 static struct platform_device bfin_async_nand_device = {

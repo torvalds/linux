@@ -12,8 +12,8 @@
 #include "debug.h"
 #include "util.h"
 
-int verbose = 0;
-bool dump_trace = false;
+int verbose;
+bool dump_trace = false, quiet = false;
 
 int eprintf(int level, const char *fmt, ...)
 {

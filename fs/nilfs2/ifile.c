@@ -161,25 +161,46 @@ int nilfs_ifile_get_inode_block(struct inode *ifile, ino_t ino,
 }
 
 /**
- * nilfs_ifile_new - create inode file
- * @sbi: nilfs_sb_info struct
+ * nilfs_ifile_read - read or get ifile inode
+ * @sb: super block instance
+ * @root: root object
  * @inode_size: size of an inode
+ * @raw_inode: on-disk ifile inode
+ * @inodep: buffer to store the inode
  */
-struct inode *nilfs_ifile_new(struct nilfs_sb_info *sbi, size_t inode_size)
+int nilfs_ifile_read(struct super_block *sb, struct nilfs_root *root,
+		     size_t inode_size, struct nilfs_inode *raw_inode,
+		     struct inode **inodep)
 {
 	struct inode *ifile;
 	int err;
 
-	ifile = nilfs_mdt_new(sbi->s_nilfs, sbi->s_super, NILFS_IFILE_INO,
-			      sizeof(struct nilfs_ifile_info));
-	if (ifile) {
-		err = nilfs_palloc_init_blockgroup(ifile, inode_size);
-		if (unlikely(err)) {
-			nilfs_mdt_destroy(ifile);
-			return NULL;
-		}
-		nilfs_palloc_setup_cache(ifile,
-					 &NILFS_IFILE_I(ifile)->palloc_cache);
-	}
-	return ifile;
+	ifile = nilfs_iget_locked(sb, root, NILFS_IFILE_INO);
+	if (unlikely(!ifile))
+		return -ENOMEM;
+	if (!(ifile->i_state & I_NEW))
+		goto out;
+
+	err = nilfs_mdt_init(ifile, NILFS_MDT_GFP,
+			     sizeof(struct nilfs_ifile_info));
+	if (err)
+		goto failed;
+
+	err = nilfs_palloc_init_blockgroup(ifile, inode_size);
+	if (err)
+		goto failed;
+
+	nilfs_palloc_setup_cache(ifile, &NILFS_IFILE_I(ifile)->palloc_cache);
+
+	err = nilfs_read_inode_common(ifile, raw_inode);
+	if (err)
+		goto failed;
+
+	unlock_new_inode(ifile);
+ out:
+	*inodep = ifile;
+	return 0;
+ failed:
+	iget_failed(ifile);
+	return err;
 }

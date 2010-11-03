@@ -8,7 +8,6 @@
 
 #include <linux/bug.h>
 #include <linux/device.h>
-#include <linux/ethtool.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <linux/highmem.h>
@@ -1361,17 +1360,6 @@ static int fwnet_change_mtu(struct net_device *net, int new_mtu)
 	return 0;
 }
 
-static void fwnet_get_drvinfo(struct net_device *net,
-			      struct ethtool_drvinfo *info)
-{
-	strcpy(info->driver, KBUILD_MODNAME);
-	strcpy(info->bus_info, "ieee1394");
-}
-
-static const struct ethtool_ops fwnet_ethtool_ops = {
-	.get_drvinfo = fwnet_get_drvinfo,
-};
-
 static const struct net_device_ops fwnet_netdev_ops = {
 	.ndo_open       = fwnet_open,
 	.ndo_stop	= fwnet_stop,
@@ -1390,7 +1378,6 @@ static void fwnet_init_dev(struct net_device *net)
 	net->hard_header_len	= FWNET_HLEN;
 	net->type		= ARPHRD_IEEE1394;
 	net->tx_queue_len	= 10;
-	SET_ETHTOOL_OPS(net, &fwnet_ethtool_ops);
 }
 
 /* caller must hold fwnet_device_mutex */

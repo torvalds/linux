@@ -35,8 +35,8 @@ static int proc_set_super(struct super_block *sb, void *data)
 	return set_anon_super(sb, NULL);
 }
 
-static int proc_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *proc_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
 	int err;
 	struct super_block *sb;
@@ -61,14 +61,14 @@ static int proc_get_sb(struct file_system_type *fs_type,
 
 	sb = sget(fs_type, proc_test_super, proc_set_super, ns);
 	if (IS_ERR(sb))
-		return PTR_ERR(sb);
+		return ERR_CAST(sb);
 
 	if (!sb->s_root) {
 		sb->s_flags = flags;
 		err = proc_fill_super(sb);
 		if (err) {
 			deactivate_locked_super(sb);
-			return err;
+			return ERR_PTR(err);
 		}
 
 		ei = PROC_I(sb->s_root->d_inode);
@@ -79,11 +79,9 @@ static int proc_get_sb(struct file_system_type *fs_type,
 		}
 
 		sb->s_flags |= MS_ACTIVE;
-		ns->proc_mnt = mnt;
 	}
 
-	simple_set_mnt(mnt, sb);
-	return 0;
+	return dget(sb->s_root);
 }
 
 static void proc_kill_sb(struct super_block *sb)
@@ -97,7 +95,7 @@ static void proc_kill_sb(struct super_block *sb)
 
 static struct file_system_type proc_fs_type = {
 	.name		= "proc",
-	.get_sb		= proc_get_sb,
+	.mount		= proc_mount,
 	.kill_sb	= proc_kill_sb,
 };
 
@@ -115,6 +113,7 @@ void __init proc_root_init(void)
 		return;
 	}
 
+	init_pid_ns.proc_mnt = proc_mnt;
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	proc_net_init();
@@ -179,6 +178,7 @@ static int proc_root_readdir(struct file * filp,
 static const struct file_operations proc_root_operations = {
 	.read		 = generic_read_dir,
 	.readdir	 = proc_root_readdir,
+	.llseek		= default_llseek,
 };
 
 /*
@@ -212,6 +212,7 @@ int pid_ns_prepare_proc(struct pid_namespace *ns)
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 
+	ns->proc_mnt = mnt;
 	return 0;
 }
 

@@ -539,7 +539,7 @@ config VIDEO_VIU
 config VIDEO_VIVI
 	tristate "Virtual Video Driver"
 	depends on VIDEO_DEV && VIDEO_V4L2 && !SPARC32 && !SPARC64
-	depends on (FRAMEBUFFER_CONSOLE || STI_CONSOLE) && FONTS
+	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
 	select FONT_8x16
 	select VIDEOBUF_VMALLOC
 	default n
@@ -599,67 +599,7 @@ config VIDEO_W9966
 	  Check out <file:Documentation/video4linux/w9966.txt> for more
 	  information.
 
-config VIDEO_CPIA
-	tristate "CPiA Video For Linux (DEPRECATED)"
-	depends on VIDEO_V4L1
-	default n
-	---help---
-	  This driver is DEPRECATED please use the gspca cpia1 module
-	  instead. Note that you need atleast version 0.6.4 of libv4l for
-	  the cpia1 gspca module.
-
-	  This is the video4linux driver for cameras based on Vision's CPiA
-	  (Colour Processor Interface ASIC), such as the Creative Labs Video
-	  Blaster Webcam II. If you have one of these cameras, say Y here
-	  and select parallel port and/or USB lowlevel support below,
-	  otherwise say N. This will not work with the Creative Webcam III.
-
-	  Please read <file:Documentation/video4linux/README.cpia> for more
-	  information.
-
-	  This driver is also available as a module (cpia).
-
-config VIDEO_CPIA_PP
-	tristate "CPiA Parallel Port Lowlevel Support"
-	depends on PARPORT_1284 && VIDEO_CPIA && PARPORT
-	help
-	  This is the lowlevel parallel port support for cameras based on
-	  Vision's CPiA (Colour Processor Interface ASIC), such as the
-	  Creative Webcam II. If you have the parallel port version of one
-	  of these cameras, say Y here, otherwise say N. It is also available
-	  as a module (cpia_pp).
-
-config VIDEO_CPIA_USB
-	tristate "CPiA USB Lowlevel Support"
-	depends on VIDEO_CPIA && USB
-	help
-	  This is the lowlevel USB support for cameras based on Vision's CPiA
-	  (Colour Processor Interface ASIC), such as the Creative Webcam II.
-	  If you have the USB version of one of these cameras, say Y here,
-	  otherwise say N. This will not work with the Creative Webcam III.
-	  It is also available as a module (cpia_usb).
-
 source "drivers/media/video/cpia2/Kconfig"
-
-config VIDEO_SAA5246A
-	tristate "SAA5246A, SAA5281 Teletext processor"
-	depends on I2C && VIDEO_V4L2
-	help
-	  Support for I2C bus based teletext using the SAA5246A or SAA5281
-	  chip. Useful only if you live in Europe.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa5246a.
-
-config VIDEO_SAA5249
-	tristate "SAA5249 Teletext processor"
-	depends on I2C && VIDEO_V4L2
-	help
-	  Support for I2C bus based teletext using the SAA5249 chip. At the
-	  moment this is only useful on some European WinTV cards.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa5249.
 
 config VIDEO_VINO
 	tristate "SGI Vino Video For Linux (EXPERIMENTAL)"
@@ -668,14 +608,6 @@ config VIDEO_VINO
 	help
 	  Say Y here to build in support for the Vino video input system found
 	  on SGI Indy machines.
-
-config VIDEO_STRADIS
-	tristate "Stradis 4:2:2 MPEG-2 video driver  (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PCI && VIDEO_V4L1 && VIRT_TO_BUS
-	help
-	  Say Y here to enable support for the Stradis 4:2:2 MPEG-2 video
-	  driver for PCI.  There is a product page at
-	  <http://www.stradis.com/>.
 
 source "drivers/media/video/zoran/Kconfig"
 
@@ -774,6 +706,22 @@ config VIDEO_CAFE_CCIC
 	  CMOS camera controller.  This is the controller found on first-
 	  generation OLPC systems.
 
+config VIDEO_SR030PC30
+	tristate "SR030PC30 VGA camera sensor support"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This driver supports SR030PC30 VGA camera from Siliconfile
+
+config VIDEO_VIA_CAMERA
+	tristate "VIAFB camera controller support"
+	depends on FB_VIA
+	select VIDEOBUF_DMA_SG
+	select VIDEO_OV7670
+	help
+	   Driver support for the integrated camera controller in VIA
+	   Chrome9 chipsets.  Currently only tested on OLPC xo-1.5 systems
+	   with ov7670 sensors.
+
 config SOC_CAMERA
 	tristate "SoC camera support"
 	depends on VIDEO_V4L2 && HAS_DMA && I2C
@@ -782,6 +730,12 @@ config SOC_CAMERA
 	  SoC Camera is a common API to several cameras, not connecting
 	  over a bus like PCI or USB. For example some i2c camera connected
 	  directly to the data bus of an SoC.
+
+config SOC_CAMERA_IMX074
+	tristate "imx074 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This driver supports IMX074 cameras from Sony
 
 config SOC_CAMERA_MT9M001
 	tristate "mt9m001 support"
@@ -834,6 +788,12 @@ config SOC_CAMERA_PLATFORM
 	depends on SOC_CAMERA
 	help
 	  This is a generic SoC camera platform driver, useful for testing
+
+config SOC_CAMERA_OV6650
+	tristate "ov6650 sensor support"
+	depends on SOC_CAMERA && I2C
+	---help---
+	  This is a V4L2 SoC camera driver for the OmniVision OV6650 sensor
 
 config SOC_CAMERA_OV772X
 	tristate "ov772x camera support"
@@ -889,6 +849,14 @@ config VIDEO_SH_MOBILE_CEU
 	select VIDEOBUF_DMA_CONTIG
 	---help---
 	  This is a v4l2 driver for the SuperH Mobile CEU Interface
+
+config VIDEO_OMAP1
+	tristate "OMAP1 Camera Interface driver"
+	depends on VIDEO_DEV && ARCH_OMAP1 && SOC_CAMERA
+	select VIDEOBUF_DMA_CONTIG
+	select VIDEOBUF_DMA_SG
+	---help---
+	  This is a v4l2 driver for the TI OMAP1 camera interface
 
 config VIDEO_OMAP2
 	tristate "OMAP2 Camera Capture Interface driver"
@@ -978,7 +946,7 @@ config USB_STKWEBCAM
 	  Supported devices are typically found in some Asus laptops,
 	  with USB id 174f:a311 and 05e1:0501. Other Syntek cameras
 	  may be supported by the stk11xx driver, from which this is
-	  derived, see http://stk11xx.sourceforge.net
+	  derived, see <http://sourceforge.net/projects/syntekdriver/> 
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called stkwebcam.

@@ -29,6 +29,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/net_namespace.h>
 #include <net/checksum.h>
+#include <net/ip.h>
 
 #define CLUSTERIP_VERSION "0.8"
 
@@ -231,24 +232,22 @@ clusterip_hashfn(const struct sk_buff *skb,
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	unsigned long hashval;
-	u_int16_t sport, dport;
-	const u_int16_t *ports;
+	u_int16_t sport = 0, dport = 0;
+	int poff;
 
-	switch (iph->protocol) {
-	case IPPROTO_TCP:
-	case IPPROTO_UDP:
-	case IPPROTO_UDPLITE:
-	case IPPROTO_SCTP:
-	case IPPROTO_DCCP:
-	case IPPROTO_ICMP:
-		ports = (const void *)iph+iph->ihl*4;
-		sport = ports[0];
-		dport = ports[1];
-		break;
-	default:
+	poff = proto_ports_offset(iph->protocol);
+	if (poff >= 0) {
+		const u_int16_t *ports;
+		u16 _ports[2];
+
+		ports = skb_header_pointer(skb, iph->ihl * 4 + poff, 4, _ports);
+		if (ports) {
+			sport = ports[0];
+			dport = ports[1];
+		}
+	} else {
 		if (net_ratelimit())
 			pr_info("unknown protocol %u\n", iph->protocol);
-		sport = dport = 0;
 	}
 
 	switch (config->hash_mode) {

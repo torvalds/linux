@@ -39,6 +39,9 @@ static uint32_t vram_ne_placement_flags = TTM_PL_FLAG_VRAM |
 static uint32_t sys_placement_flags = TTM_PL_FLAG_SYSTEM |
 	TTM_PL_FLAG_CACHED;
 
+static uint32_t gmr_placement_flags = VMW_PL_FLAG_GMR |
+	TTM_PL_FLAG_CACHED;
+
 struct ttm_placement vmw_vram_placement = {
 	.fpfn = 0,
 	.lpfn = 0,
@@ -46,6 +49,20 @@ struct ttm_placement vmw_vram_placement = {
 	.placement = &vram_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &vram_placement_flags
+};
+
+static uint32_t vram_gmr_placement_flags[] = {
+	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED,
+	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
+};
+
+struct ttm_placement vmw_vram_gmr_placement = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.num_placement = 2,
+	.placement = vram_gmr_placement_flags,
+	.num_busy_placement = 1,
+	.busy_placement = &gmr_placement_flags
 };
 
 struct ttm_placement vmw_vram_sys_placement = {
@@ -77,27 +94,52 @@ struct ttm_placement vmw_sys_placement = {
 
 struct vmw_ttm_backend {
 	struct ttm_backend backend;
+	struct page **pages;
+	unsigned long num_pages;
+	struct vmw_private *dev_priv;
+	int gmr_id;
 };
 
 static int vmw_ttm_populate(struct ttm_backend *backend,
 			    unsigned long num_pages, struct page **pages,
 			    struct page *dummy_read_page)
 {
+	struct vmw_ttm_backend *vmw_be =
+	    container_of(backend, struct vmw_ttm_backend, backend);
+
+	vmw_be->pages = pages;
+	vmw_be->num_pages = num_pages;
+
 	return 0;
 }
 
 static int vmw_ttm_bind(struct ttm_backend *backend, struct ttm_mem_reg *bo_mem)
 {
-	return 0;
+	struct vmw_ttm_backend *vmw_be =
+	    container_of(backend, struct vmw_ttm_backend, backend);
+
+	vmw_be->gmr_id = bo_mem->start;
+
+	return vmw_gmr_bind(vmw_be->dev_priv, vmw_be->pages,
+			    vmw_be->num_pages, vmw_be->gmr_id);
 }
 
 static int vmw_ttm_unbind(struct ttm_backend *backend)
 {
+	struct vmw_ttm_backend *vmw_be =
+	    container_of(backend, struct vmw_ttm_backend, backend);
+
+	vmw_gmr_unbind(vmw_be->dev_priv, vmw_be->gmr_id);
 	return 0;
 }
 
 static void vmw_ttm_clear(struct ttm_backend *backend)
 {
+	struct vmw_ttm_backend *vmw_be =
+		container_of(backend, struct vmw_ttm_backend, backend);
+
+	vmw_be->pages = NULL;
+	vmw_be->num_pages = 0;
 }
 
 static void vmw_ttm_destroy(struct ttm_backend *backend)
@@ -125,6 +167,7 @@ struct ttm_backend *vmw_ttm_backend_init(struct ttm_bo_device *bdev)
 		return NULL;
 
 	vmw_be->backend.func = &vmw_ttm_func;
+	vmw_be->dev_priv = container_of(bdev, struct vmw_private, bdev);
 
 	return &vmw_be->backend;
 }
@@ -142,15 +185,28 @@ int vmw_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		/* System memory */
 
 		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
-		man->available_caching = TTM_PL_MASK_CACHING;
+		man->available_caching = TTM_PL_FLAG_CACHED;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_VRAM:
 		/* "On-card" video ram */
+		man->func = &ttm_bo_manager_func;
 		man->gpu_offset = 0;
 		man->flags = TTM_MEMTYPE_FLAG_FIXED | TTM_MEMTYPE_FLAG_MAPPABLE;
-		man->available_caching = TTM_PL_MASK_CACHING;
-		man->default_caching = TTM_PL_FLAG_WC;
+		man->available_caching = TTM_PL_FLAG_CACHED;
+		man->default_caching = TTM_PL_FLAG_CACHED;
+		break;
+	case VMW_PL_GMR:
+		/*
+		 * "Guest Memory Regions" is an aperture like feature with
+		 *  one slot per bo. There is an upper limit of the number of
+		 *  slots as well as the bo size.
+		 */
+		man->func = &vmw_gmrid_manager_func;
+		man->gpu_offset = 0;
+		man->flags = TTM_MEMTYPE_FLAG_CMA | TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->available_caching = TTM_PL_FLAG_CACHED;
+		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	default:
 		DRM_ERROR("Unsupported memory type %u\n", (unsigned)type);
@@ -174,18 +230,6 @@ static int vmw_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 	return 0;
 }
 
-static void vmw_move_notify(struct ttm_buffer_object *bo,
-		     struct ttm_mem_reg *new_mem)
-{
-	if (new_mem->mem_type != TTM_PL_SYSTEM)
-		vmw_dmabuf_gmr_unbind(bo);
-}
-
-static void vmw_swap_notify(struct ttm_buffer_object *bo)
-{
-	vmw_dmabuf_gmr_unbind(bo);
-}
-
 static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
@@ -200,10 +244,10 @@ static int vmw_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg
 		return -EINVAL;
 	switch (mem->mem_type) {
 	case TTM_PL_SYSTEM:
-		/* System memory */
+	case VMW_PL_GMR:
 		return 0;
 	case TTM_PL_VRAM:
-		mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
+		mem->bus.offset = mem->start << PAGE_SHIFT;
 		mem->bus.base = dev_priv->vram_start;
 		mem->bus.is_iomem = true;
 		break;
@@ -276,8 +320,8 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.sync_obj_flush = vmw_sync_obj_flush,
 	.sync_obj_unref = vmw_sync_obj_unref,
 	.sync_obj_ref = vmw_sync_obj_ref,
-	.move_notify = vmw_move_notify,
-	.swap_notify = vmw_swap_notify,
+	.move_notify = NULL,
+	.swap_notify = NULL,
 	.fault_reserve_notify = &vmw_ttm_fault_reserve_notify,
 	.io_mem_reserve = &vmw_ttm_io_mem_reserve,
 	.io_mem_free = &vmw_ttm_io_mem_free,

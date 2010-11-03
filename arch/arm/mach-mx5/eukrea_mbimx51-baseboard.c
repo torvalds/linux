@@ -30,6 +30,7 @@
 
 #include <asm/mach/arch.h>
 
+#include "devices-imx51.h"
 #include "devices.h"
 
 #define MBIMX51_TSC2007_GPIO	(2*32 + 30)
@@ -112,9 +113,25 @@ static struct pad_desc mbimx51_pads[] = {
 	MX51_PAD_KEY_COL1__KEY_COL1,
 	MX51_PAD_KEY_COL2__KEY_COL2,
 	MX51_PAD_KEY_COL3__KEY_COL3,
+
+	/* SD 1 */
+	MX51_PAD_SD1_CMD__SD1_CMD,
+	MX51_PAD_SD1_CLK__SD1_CLK,
+	MX51_PAD_SD1_DATA0__SD1_DATA0,
+	MX51_PAD_SD1_DATA1__SD1_DATA1,
+	MX51_PAD_SD1_DATA2__SD1_DATA2,
+	MX51_PAD_SD1_DATA3__SD1_DATA3,
+
+	/* SD 2 */
+	MX51_PAD_SD2_CMD__SD2_CMD,
+	MX51_PAD_SD2_CLK__SD2_CLK,
+	MX51_PAD_SD2_DATA0__SD2_DATA0,
+	MX51_PAD_SD2_DATA1__SD2_DATA1,
+	MX51_PAD_SD2_DATA2__SD2_DATA2,
+	MX51_PAD_SD2_DATA3__SD2_DATA3,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -158,9 +175,11 @@ struct tsc2007_platform_data tsc2007_data = {
 
 static struct i2c_board_info mbimx51_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("tsc2007", 0x48),
+		I2C_BOARD_INFO("tsc2007", 0x49),
 		.irq  = MBIMX51_TSC2007_IRQ,
 		.platform_data = &tsc2007_data,
+	}, {
+		I2C_BOARD_INFO("tlv320aic23", 0x1a),
 	},
 };
 
@@ -172,8 +191,8 @@ void __init eukrea_mbimx51_baseboard_init(void)
 	mxc_iomux_v3_setup_multiple_pads(mbimx51_pads,
 					ARRAY_SIZE(mbimx51_pads));
 
-	mxc_register_device(&mxc_uart_device1, NULL);
-	mxc_register_device(&mxc_uart_device2, &uart_pdata);
+	imx51_add_imx_uart(1, NULL);
+	imx51_add_imx_uart(2, &uart_pdata);
 
 	gpio_request(MBIMX51_LED0, "LED0");
 	gpio_direction_output(MBIMX51_LED0, 1);
@@ -197,4 +216,7 @@ void __init eukrea_mbimx51_baseboard_init(void)
 	set_irq_type(MBIMX51_TSC2007_IRQ, IRQF_TRIGGER_FALLING);
 	i2c_register_board_info(1, mbimx51_i2c_devices,
 				ARRAY_SIZE(mbimx51_i2c_devices));
+
+	imx51_add_esdhc(0, NULL);
+	imx51_add_esdhc(1, NULL);
 }

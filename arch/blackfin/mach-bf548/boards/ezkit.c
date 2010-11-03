@@ -837,8 +837,12 @@ static struct platform_device bfin_atapi_device = {
 #if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
 static struct mtd_partition partition_info[] = {
 	{
-		.name = "linux kernel(nand)",
+		.name = "bootloader(nand)",
 		.offset = 0,
+		.size = 0x80000,
+	}, {
+		.name = "linux kernel(nand)",
+		.offset = MTDPART_OFS_APPEND,
 		.size = 4 * 1024 * 1024,
 	},
 	{
@@ -901,7 +905,7 @@ static struct platform_device bf54x_sdh_device = {
 static struct mtd_partition ezkit_partitions[] = {
 	{
 		.name       = "bootloader(nor)",
-		.size       = 0x40000,
+		.size       = 0x80000,
 		.offset     = 0,
 	}, {
 		.name       = "linux kernel(nor)",
@@ -943,7 +947,7 @@ static struct platform_device ezkit_flash_device = {
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
 		.name = "bootloader(spi)",
-		.size = 0x00040000,
+		.size = 0x00080000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
@@ -966,8 +970,8 @@ static struct bfin5xx_spi_chip spi_flash_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SND_BLACKFIN_AD183X) \
-	|| defined(CONFIG_SND_BLACKFIN_AD183X_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD183X) \
+	|| defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
 static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
 	.enable_dma = 0,
 	.bits_per_word = 16,
@@ -1023,13 +1027,13 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.mode = SPI_MODE_3,
 	},
 #endif
-#if defined(CONFIG_SND_BLACKFIN_AD183X) \
-	|| defined(CONFIG_SND_BLACKFIN_AD183X_MODULE)
+#if defined(CONFIG_SND_BF5XX_SOC_AD183X) \
+	|| defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
 	{
-		.modalias = "ad1836",
+		.modalias = "ad183x",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 1,
-		.chip_select = CONFIG_SND_BLACKFIN_SPI_PFBIT,
+		.chip_select = 4,
 		.controller_data = &ad1836_spi_chip_info,
 	},
 #endif
@@ -1107,7 +1111,7 @@ static struct resource bfin_spi1_resource[] = {
 
 /* SPI controller data */
 static struct bfin5xx_spi_master bf54x_spi_master_info0 = {
-	.num_chipselect = 3,
+	.num_chipselect = 4,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
@@ -1123,7 +1127,7 @@ static struct platform_device bf54x_spi_master0 = {
 };
 
 static struct bfin5xx_spi_master bf54x_spi_master_info1 = {
-	.num_chipselect = 3,
+	.num_chipselect = 4,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI1_SCK, P_SPI1_MISO, P_SPI1_MOSI, 0},
 };
@@ -1204,6 +1208,11 @@ static struct i2c_board_info __initdata bfin_i2c_board_info1[] = {
 		I2C_BOARD_INFO("adxl34x", 0x53),
 		.irq = IRQ_PC5,
 		.platform_data = (void *)&adxl34x_info,
+	},
+#endif
+#if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_BFIN_TWI_LCD_MODULE)
+	{
+		I2C_BOARD_INFO("ad5252", 0x2f),
 	},
 #endif
 };

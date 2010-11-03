@@ -62,10 +62,10 @@ replicas continue to be exactly same.
 	# mount /dev/sd0  /tmp/a
 
 	#ls /tmp/a
-	t1 t2 t2
+	t1 t2 t3
 
 	#ls /mnt/a
-	t1 t2 t2
+	t1 t2 t3
 
 	Note that the mount has propagated to the mount at /mnt as well.
 

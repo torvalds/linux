@@ -158,7 +158,7 @@ int __init rpc_init_generic_auth(void)
 	return rpcauth_init_credcache(&generic_auth);
 }
 
-void __exit rpc_destroy_generic_auth(void)
+void rpc_destroy_generic_auth(void)
 {
 	rpcauth_destroy_credcache(&generic_auth);
 }

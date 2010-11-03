@@ -10,11 +10,11 @@
 #include <linux/irqflags.h>
 #include <linux/module.h>
 
-void notrace raw_local_irq_restore(unsigned long flags)
+void notrace arch_local_irq_restore(unsigned long flags)
 {
 	unsigned long __dummy0, __dummy1;
 
-	if (flags == RAW_IRQ_DISABLED) {
+	if (flags == ARCH_IRQ_DISABLED) {
 		__asm__ __volatile__ (
 			"stc	sr, %0\n\t"
 			"or	#0xf0, %0\n\t"
@@ -33,14 +33,14 @@ void notrace raw_local_irq_restore(unsigned long flags)
 #endif
 			"ldc	%0, sr\n\t"
 			: "=&r" (__dummy0), "=r" (__dummy1)
-			: "1" (~RAW_IRQ_DISABLED)
+			: "1" (~ARCH_IRQ_DISABLED)
 			: "memory"
 		);
 	}
 }
-EXPORT_SYMBOL(raw_local_irq_restore);
+EXPORT_SYMBOL(arch_local_irq_restore);
 
-unsigned long notrace __raw_local_save_flags(void)
+unsigned long notrace arch_local_save_flags(void)
 {
 	unsigned long flags;
 
@@ -54,4 +54,4 @@ unsigned long notrace __raw_local_save_flags(void)
 
 	return flags;
 }
-EXPORT_SYMBOL(__raw_local_save_flags);
+EXPORT_SYMBOL(arch_local_save_flags);

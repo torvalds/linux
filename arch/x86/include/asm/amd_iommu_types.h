@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009 Advanced Micro Devices, Inc.
+ * Copyright (C) 2007-2010 Advanced Micro Devices, Inc.
  * Author: Joerg Roedel <joerg.roedel@amd.com>
  *         Leo Duran <leo.duran@amd.com>
  *
@@ -416,13 +416,22 @@ struct amd_iommu {
 	struct dma_ops_domain *default_dom;
 
 	/*
-	 * This array is required to work around a potential BIOS bug.
-	 * The BIOS may miss to restore parts of the PCI configuration
-	 * space when the system resumes from S3. The result is that the
-	 * IOMMU does not execute commands anymore which leads to system
-	 * failure.
+	 * We can't rely on the BIOS to restore all values on reinit, so we
+	 * need to stash them
 	 */
-	u32 cache_cfg[4];
+
+	/* The iommu BAR */
+	u32 stored_addr_lo;
+	u32 stored_addr_hi;
+
+	/*
+	 * Each iommu has 6 l1s, each of which is documented as having 0x12
+	 * registers
+	 */
+	u32 stored_l1[6][0x12];
+
+	/* The l2 indirect registers */
+	u32 stored_l2[0x83];
 };
 
 /*

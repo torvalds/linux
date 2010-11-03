@@ -22,4 +22,4 @@
  * 0xe0000000 to 0xefffffff. This gives us 256 MB of vm space and handles
  * larger physical memory designs better.
  */
-#define VMALLOC_END       (PAGE_OFFSET + 0x30000000)
+#define VMALLOC_END       0xf0000000

@@ -75,7 +75,7 @@ void tipc_cltr_attach_node(struct cluster *c_ptr, struct tipc_node *n_ptr);
 void tipc_cltr_send_slave_routes(struct cluster *c_ptr, u32 dest);
 void tipc_cltr_broadcast(struct sk_buff *buf);
 int tipc_cltr_init(void);
-u32 tipc_cltr_next_node(struct cluster *c_ptr, u32 addr);
+
 void tipc_cltr_bcast_new_route(struct cluster *c_ptr, u32 dest, u32 lo, u32 hi);
 void tipc_cltr_send_local_routes(struct cluster *c_ptr, u32 dest);
 void tipc_cltr_bcast_lost_route(struct cluster *c_ptr, u32 dest, u32 lo, u32 hi);

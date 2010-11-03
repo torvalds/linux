@@ -398,8 +398,6 @@ lpd7a40x_map_io(void)
 
 MACHINE_START (LPD7A400, "Logic Product Development LPD7A400-10")
 	/* Maintainer: Marc Singer */
-	.phys_io	= 0x80000000,
-	.io_pg_offst	= ((io_p2v (0x80000000))>>18) & 0xfffc,
 	.boot_params	= 0xc0000100,
 	.map_io		= lpd7a40x_map_io,
 	.init_irq	= lh7a400_init_irq,
@@ -413,8 +411,6 @@ MACHINE_END
 
 MACHINE_START (LPD7A404, "Logic Product Development LPD7A404-10")
 	/* Maintainer: Marc Singer */
-	.phys_io	= 0x80000000,
-	.io_pg_offst	= ((io_p2v (0x80000000))>>18) & 0xfffc,
 	.boot_params	= 0xc0000100,
 	.map_io		= lpd7a40x_map_io,
 	.init_irq	= lh7a404_init_irq,

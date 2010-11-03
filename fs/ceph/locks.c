@@ -1,11 +1,11 @@
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <linux/file.h>
 #include <linux/namei.h>
 
 #include "super.h"
 #include "mds_client.h"
-#include "pagelist.h"
+#include <linux/ceph/pagelist.h>
 
 /**
  * Implement fcntl and flock locking functions.
@@ -16,7 +16,7 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct file *file,
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	struct ceph_mds_client *mdsc =
-		&ceph_sb_to_client(inode->i_sb)->mdsc;
+		ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_mds_request *req;
 	int err;
 
@@ -181,8 +181,9 @@ void ceph_count_locks(struct inode *inode, int *fcntl_count, int *flock_count)
  * Encode the flock and fcntl locks for the given inode into the pagelist.
  * Format is: #fcntl locks, sequential fcntl locks, #flock locks,
  * sequential flock locks.
- * Must be called with BLK already held, and the lock numbers should have
- * been gathered under the same lock holding window.
+ * Must be called with lock_flocks() already held.
+ * If we encounter more of a specific lock type than expected,
+ * we return the value 1.
  */
 int ceph_encode_locks(struct inode *inode, struct ceph_pagelist *pagelist,
 		      int num_fcntl_locks, int num_flock_locks)
@@ -190,6 +191,8 @@ int ceph_encode_locks(struct inode *inode, struct ceph_pagelist *pagelist,
 	struct file_lock *lock;
 	struct ceph_filelock cephlock;
 	int err = 0;
+	int seen_fcntl = 0;
+	int seen_flock = 0;
 
 	dout("encoding %d flock and %d fcntl locks", num_flock_locks,
 	     num_fcntl_locks);
@@ -198,6 +201,11 @@ int ceph_encode_locks(struct inode *inode, struct ceph_pagelist *pagelist,
 		goto fail;
 	for (lock = inode->i_flock; lock != NULL; lock = lock->fl_next) {
 		if (lock->fl_flags & FL_POSIX) {
+			++seen_fcntl;
+			if (seen_fcntl > num_fcntl_locks) {
+				err = -ENOSPC;
+				goto fail;
+			}
 			err = lock_to_ceph_filelock(lock, &cephlock);
 			if (err)
 				goto fail;
@@ -213,6 +221,11 @@ int ceph_encode_locks(struct inode *inode, struct ceph_pagelist *pagelist,
 		goto fail;
 	for (lock = inode->i_flock; lock != NULL; lock = lock->fl_next) {
 		if (lock->fl_flags & FL_FLOCK) {
+			++seen_flock;
+			if (seen_flock > num_flock_locks) {
+				err = -ENOSPC;
+				goto fail;
+			}
 			err = lock_to_ceph_filelock(lock, &cephlock);
 			if (err)
 				goto fail;

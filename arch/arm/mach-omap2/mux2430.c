@@ -586,7 +586,7 @@ static struct omap_mux __initdata omap2430_muxmodes[] = {
  * 447-pin s-PBGA Package, 0.00mm Ball Pitch (Bottom)
  */
 #ifdef CONFIG_DEBUG_FS
-struct omap_ball __initdata omap2430_pop_ball[] = {
+static struct omap_ball __initdata omap2430_pop_ball[] = {
 	_OMAP2430_BALLENTRY(CAM_D0, "t8", NULL),
 	_OMAP2430_BALLENTRY(CAM_D1, "t4", NULL),
 	_OMAP2430_BALLENTRY(CAM_D10, "r4", NULL),

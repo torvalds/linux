@@ -804,7 +804,7 @@ static struct soc_camera_ops mt9t112_ops = {
 static int mt9t112_g_chip_ident(struct v4l2_subdev *sd,
 				struct v4l2_dbg_chip_ident *id)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t112_priv *priv = to_mt9t112(client);
 
 	id->ident    = priv->model;
@@ -817,7 +817,7 @@ static int mt9t112_g_chip_ident(struct v4l2_subdev *sd,
 static int mt9t112_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int                ret;
 
 	reg->size = 2;
@@ -831,7 +831,7 @@ static int mt9t112_g_register(struct v4l2_subdev *sd,
 static int mt9t112_s_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
 	mt9t112_reg_write(ret, client, reg->reg, reg->val);
@@ -858,7 +858,7 @@ static struct v4l2_subdev_core_ops mt9t112_subdev_core_ops = {
 ************************************************************************/
 static int mt9t112_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t112_priv *priv = to_mt9t112(client);
 	int ret = 0;
 
@@ -968,7 +968,7 @@ static int mt9t112_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 
 static int mt9t112_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct v4l2_rect *rect = &a->c;
 
 	return mt9t112_set_params(client, rect->width, rect->height,
@@ -978,7 +978,7 @@ static int mt9t112_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 static int mt9t112_g_fmt(struct v4l2_subdev *sd,
 			 struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t112_priv *priv = to_mt9t112(client);
 
 	if (!priv->format) {
@@ -1000,7 +1000,7 @@ static int mt9t112_g_fmt(struct v4l2_subdev *sd,
 static int mt9t112_s_fmt(struct v4l2_subdev *sd,
 			 struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	/* TODO: set colorspace */
 	return mt9t112_set_params(client, mf->width, mf->height, mf->code);

@@ -2,7 +2,6 @@
  * linux/drivers/video/arcfb.c -- FB driver for Arc monochrome LCD board
  *
  * Copyright (C) 2005, Jaya Kumar <jayalk@intworks.biz>
- * http://www.intworks.biz/arclcd
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file COPYING in the main directory of this archive for

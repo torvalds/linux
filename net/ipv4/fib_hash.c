@@ -54,36 +54,37 @@ struct fib_node {
 	struct fib_alias        fn_embedded_alias;
 };
 
+#define EMBEDDED_HASH_SIZE (L1_CACHE_BYTES / sizeof(struct hlist_head))
+
 struct fn_zone {
-	struct fn_zone		*fz_next;	/* Next not empty zone	*/
-	struct hlist_head	*fz_hash;	/* Hash table pointer	*/
-	int			fz_nent;	/* Number of entries	*/
-
-	int			fz_divisor;	/* Hash divisor		*/
+	struct fn_zone __rcu	*fz_next;	/* Next not empty zone	*/
+	struct hlist_head __rcu	*fz_hash;	/* Hash table pointer	*/
+	seqlock_t		fz_lock;
 	u32			fz_hashmask;	/* (fz_divisor - 1)	*/
-#define FZ_HASHMASK(fz)		((fz)->fz_hashmask)
 
-	int			fz_order;	/* Zone order		*/
-	__be32			fz_mask;
+	u8			fz_order;	/* Zone order (0..32)	*/
+	u8			fz_revorder;	/* 32 - fz_order	*/
+	__be32			fz_mask;	/* inet_make_mask(order) */
 #define FZ_MASK(fz)		((fz)->fz_mask)
+
+	struct hlist_head	fz_embedded_hash[EMBEDDED_HASH_SIZE];
+
+	int			fz_nent;	/* Number of entries	*/
+	int			fz_divisor;	/* Hash size (mask+1)	*/
 };
 
-/* NOTE. On fast computers evaluation of fz_hashmask and fz_mask
- * can be cheaper than memory lookup, so that FZ_* macros are used.
- */
-
 struct fn_hash {
-	struct fn_zone	*fn_zones[33];
-	struct fn_zone	*fn_zone_list;
+	struct fn_zone		*fn_zones[33];
+	struct fn_zone __rcu	*fn_zone_list;
 };
 
 static inline u32 fn_hash(__be32 key, struct fn_zone *fz)
 {
-	u32 h = ntohl(key)>>(32 - fz->fz_order);
+	u32 h = ntohl(key) >> fz->fz_revorder;
 	h ^= (h>>20);
 	h ^= (h>>10);
 	h ^= (h>>5);
-	h &= FZ_HASHMASK(fz);
+	h &= fz->fz_hashmask;
 	return h;
 }
 
@@ -92,7 +93,6 @@ static inline __be32 fz_key(__be32 dst, struct fn_zone *fz)
 	return dst & FZ_MASK(fz);
 }
 
-static DEFINE_RWLOCK(fib_hash_lock);
 static unsigned int fib_hash_genid;
 
 #define FZ_MAX_DIVISOR ((PAGE_SIZE<<MAX_ORDER) / sizeof(struct hlist_head))
@@ -101,12 +101,11 @@ static struct hlist_head *fz_hash_alloc(int divisor)
 {
 	unsigned long size = divisor * sizeof(struct hlist_head);
 
-	if (size <= PAGE_SIZE) {
+	if (size <= PAGE_SIZE)
 		return kzalloc(size, GFP_KERNEL);
-	} else {
-		return (struct hlist_head *)
-			__get_free_pages(GFP_KERNEL | __GFP_ZERO, get_order(size));
-	}
+
+	return (struct hlist_head *)
+		__get_free_pages(GFP_KERNEL | __GFP_ZERO, get_order(size));
 }
 
 /* The fib hash lock must be held when this is called. */
@@ -123,10 +122,11 @@ static inline void fn_rebuild_zone(struct fn_zone *fz,
 		hlist_for_each_entry_safe(f, node, n, &old_ht[i], fn_hash) {
 			struct hlist_head *new_head;
 
-			hlist_del(&f->fn_hash);
+			hlist_del_rcu(&f->fn_hash);
 
-			new_head = &fz->fz_hash[fn_hash(f->fn_key, fz)];
-			hlist_add_head(&f->fn_hash, new_head);
+			new_head = rcu_dereference_protected(fz->fz_hash, 1) +
+				   fn_hash(f->fn_key, fz);
+			hlist_add_head_rcu(&f->fn_hash, new_head);
 		}
 	}
 }
@@ -147,14 +147,14 @@ static void fn_rehash_zone(struct fn_zone *fz)
 	int old_divisor, new_divisor;
 	u32 new_hashmask;
 
-	old_divisor = fz->fz_divisor;
+	new_divisor = old_divisor = fz->fz_divisor;
 
 	switch (old_divisor) {
-	case 16:
-		new_divisor = 256;
+	case EMBEDDED_HASH_SIZE:
+		new_divisor *= EMBEDDED_HASH_SIZE;
 		break;
-	case 256:
-		new_divisor = 1024;
+	case EMBEDDED_HASH_SIZE*EMBEDDED_HASH_SIZE:
+		new_divisor *= (EMBEDDED_HASH_SIZE/2);
 		break;
 	default:
 		if ((old_divisor << 1) > FZ_MAX_DIVISOR) {
@@ -175,22 +175,46 @@ static void fn_rehash_zone(struct fn_zone *fz)
 	ht = fz_hash_alloc(new_divisor);
 
 	if (ht)	{
-		write_lock_bh(&fib_hash_lock);
-		old_ht = fz->fz_hash;
-		fz->fz_hash = ht;
+		struct fn_zone nfz;
+
+		memcpy(&nfz, fz, sizeof(nfz));
+
+		write_seqlock_bh(&fz->fz_lock);
+		old_ht = rcu_dereference_protected(fz->fz_hash, 1);
+		RCU_INIT_POINTER(nfz.fz_hash, ht);
+		nfz.fz_hashmask = new_hashmask;
+		nfz.fz_divisor = new_divisor;
+		fn_rebuild_zone(&nfz, old_ht, old_divisor);
+		fib_hash_genid++;
+		rcu_assign_pointer(fz->fz_hash, ht);
 		fz->fz_hashmask = new_hashmask;
 		fz->fz_divisor = new_divisor;
-		fn_rebuild_zone(fz, old_ht, old_divisor);
-		fib_hash_genid++;
-		write_unlock_bh(&fib_hash_lock);
+		write_sequnlock_bh(&fz->fz_lock);
 
-		fz_hash_free(old_ht, old_divisor);
+		if (old_ht != fz->fz_embedded_hash) {
+			synchronize_rcu();
+			fz_hash_free(old_ht, old_divisor);
+		}
 	}
 }
 
-static inline void fn_free_node(struct fib_node * f)
+static void fn_free_node_rcu(struct rcu_head *head)
 {
+	struct fib_node *f = container_of(head, struct fib_node, fn_embedded_alias.rcu);
+
 	kmem_cache_free(fn_hash_kmem, f);
+}
+
+static inline void fn_free_node(struct fib_node *f)
+{
+	call_rcu(&f->fn_embedded_alias.rcu, fn_free_node_rcu);
+}
+
+static void fn_free_alias_rcu(struct rcu_head *head)
+{
+	struct fib_alias *fa = container_of(head, struct fib_alias, rcu);
+
+	kmem_cache_free(fn_alias_kmem, fa);
 }
 
 static inline void fn_free_alias(struct fib_alias *fa, struct fib_node *f)
@@ -199,7 +223,7 @@ static inline void fn_free_alias(struct fib_alias *fa, struct fib_node *f)
 	if (fa == &f->fn_embedded_alias)
 		fa->fa_info = NULL;
 	else
-		kmem_cache_free(fn_alias_kmem, fa);
+		call_rcu(&fa->rcu, fn_free_alias_rcu);
 }
 
 static struct fn_zone *
@@ -210,68 +234,71 @@ fn_new_zone(struct fn_hash *table, int z)
 	if (!fz)
 		return NULL;
 
-	if (z) {
-		fz->fz_divisor = 16;
-	} else {
-		fz->fz_divisor = 1;
-	}
-	fz->fz_hashmask = (fz->fz_divisor - 1);
-	fz->fz_hash = fz_hash_alloc(fz->fz_divisor);
-	if (!fz->fz_hash) {
-		kfree(fz);
-		return NULL;
-	}
+	seqlock_init(&fz->fz_lock);
+	fz->fz_divisor = z ? EMBEDDED_HASH_SIZE : 1;
+	fz->fz_hashmask = fz->fz_divisor - 1;
+	RCU_INIT_POINTER(fz->fz_hash, fz->fz_embedded_hash);
 	fz->fz_order = z;
+	fz->fz_revorder = 32 - z;
 	fz->fz_mask = inet_make_mask(z);
 
 	/* Find the first not empty zone with more specific mask */
-	for (i=z+1; i<=32; i++)
+	for (i = z + 1; i <= 32; i++)
 		if (table->fn_zones[i])
 			break;
-	write_lock_bh(&fib_hash_lock);
-	if (i>32) {
+	if (i > 32) {
 		/* No more specific masks, we are the first. */
-		fz->fz_next = table->fn_zone_list;
-		table->fn_zone_list = fz;
+		rcu_assign_pointer(fz->fz_next,
+				   rtnl_dereference(table->fn_zone_list));
+		rcu_assign_pointer(table->fn_zone_list, fz);
 	} else {
-		fz->fz_next = table->fn_zones[i]->fz_next;
-		table->fn_zones[i]->fz_next = fz;
+		rcu_assign_pointer(fz->fz_next,
+				   rtnl_dereference(table->fn_zones[i]->fz_next));
+		rcu_assign_pointer(table->fn_zones[i]->fz_next, fz);
 	}
 	table->fn_zones[z] = fz;
 	fib_hash_genid++;
-	write_unlock_bh(&fib_hash_lock);
 	return fz;
 }
 
 int fib_table_lookup(struct fib_table *tb,
-		     const struct flowi *flp, struct fib_result *res)
+		     const struct flowi *flp, struct fib_result *res,
+		     int fib_flags)
 {
 	int err;
 	struct fn_zone *fz;
 	struct fn_hash *t = (struct fn_hash *)tb->tb_data;
 
-	read_lock(&fib_hash_lock);
-	for (fz = t->fn_zone_list; fz; fz = fz->fz_next) {
+	rcu_read_lock();
+	for (fz = rcu_dereference(t->fn_zone_list);
+	     fz != NULL;
+	     fz = rcu_dereference(fz->fz_next)) {
 		struct hlist_head *head;
 		struct hlist_node *node;
 		struct fib_node *f;
-		__be32 k = fz_key(flp->fl4_dst, fz);
+		__be32 k;
+		unsigned int seq;
 
-		head = &fz->fz_hash[fn_hash(k, fz)];
-		hlist_for_each_entry(f, node, head, fn_hash) {
-			if (f->fn_key != k)
-				continue;
+		do {
+			seq = read_seqbegin(&fz->fz_lock);
+			k = fz_key(flp->fl4_dst, fz);
 
-			err = fib_semantic_match(&f->fn_alias,
+			head = rcu_dereference(fz->fz_hash) + fn_hash(k, fz);
+			hlist_for_each_entry_rcu(f, node, head, fn_hash) {
+				if (f->fn_key != k)
+					continue;
+
+				err = fib_semantic_match(&f->fn_alias,
 						 flp, res,
-						 fz->fz_order);
-			if (err <= 0)
-				goto out;
-		}
+						 fz->fz_order, fib_flags);
+				if (err <= 0)
+					goto out;
+			}
+		} while (read_seqretry(&fz->fz_lock, seq));
 	}
 	err = 1;
 out:
-	read_unlock(&fib_hash_lock);
+	rcu_read_unlock();
 	return err;
 }
 
@@ -285,6 +312,7 @@ void fib_table_select_default(struct fib_table *tb,
 	struct fib_info *last_resort;
 	struct fn_hash *t = (struct fn_hash *)tb->tb_data;
 	struct fn_zone *fz = t->fn_zones[0];
+	struct hlist_head *head;
 
 	if (fz == NULL)
 		return;
@@ -293,11 +321,12 @@ void fib_table_select_default(struct fib_table *tb,
 	last_resort = NULL;
 	order = -1;
 
-	read_lock(&fib_hash_lock);
-	hlist_for_each_entry(f, node, &fz->fz_hash[0], fn_hash) {
+	rcu_read_lock();
+	head = rcu_dereference(fz->fz_hash);
+	hlist_for_each_entry_rcu(f, node, head, fn_hash) {
 		struct fib_alias *fa;
 
-		list_for_each_entry(fa, &f->fn_alias, fa_list) {
+		list_for_each_entry_rcu(fa, &f->fn_alias, fa_list) {
 			struct fib_info *next_fi = fa->fa_info;
 
 			if (fa->fa_scope != res->scope ||
@@ -309,7 +338,8 @@ void fib_table_select_default(struct fib_table *tb,
 			if (!next_fi->fib_nh[0].nh_gw ||
 			    next_fi->fib_nh[0].nh_scope != RT_SCOPE_LINK)
 				continue;
-			fa->fa_state |= FA_S_ACCESSED;
+
+			fib_alias_accessed(fa);
 
 			if (fi == NULL) {
 				if (next_fi != res->fi)
@@ -341,25 +371,25 @@ void fib_table_select_default(struct fib_table *tb,
 		fib_result_assign(res, last_resort);
 	tb->tb_default = last_idx;
 out:
-	read_unlock(&fib_hash_lock);
+	rcu_read_unlock();
 }
 
 /* Insert node F to FZ. */
 static inline void fib_insert_node(struct fn_zone *fz, struct fib_node *f)
 {
-	struct hlist_head *head = &fz->fz_hash[fn_hash(f->fn_key, fz)];
+	struct hlist_head *head = rtnl_dereference(fz->fz_hash) + fn_hash(f->fn_key, fz);
 
-	hlist_add_head(&f->fn_hash, head);
+	hlist_add_head_rcu(&f->fn_hash, head);
 }
 
 /* Return the node in FZ matching KEY. */
 static struct fib_node *fib_find_node(struct fn_zone *fz, __be32 key)
 {
-	struct hlist_head *head = &fz->fz_hash[fn_hash(key, fz)];
+	struct hlist_head *head = rtnl_dereference(fz->fz_hash) + fn_hash(key, fz);
 	struct hlist_node *node;
 	struct fib_node *f;
 
-	hlist_for_each_entry(f, node, head, fn_hash) {
+	hlist_for_each_entry_rcu(f, node, head, fn_hash) {
 		if (f->fn_key == key)
 			return f;
 	}
@@ -367,6 +397,17 @@ static struct fib_node *fib_find_node(struct fn_zone *fz, __be32 key)
 	return NULL;
 }
 
+
+static struct fib_alias *fib_fast_alloc(struct fib_node *f)
+{
+	struct fib_alias *fa = &f->fn_embedded_alias;
+
+	if (fa->fa_info != NULL)
+		fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
+	return fa;
+}
+
+/* Caller must hold RTNL. */
 int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 {
 	struct fn_hash *table = (struct fn_hash *) tb->tb_data;
@@ -451,7 +492,6 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 		}
 
 		if (cfg->fc_nlflags & NLM_F_REPLACE) {
-			struct fib_info *fi_drop;
 			u8 state;
 
 			fa = fa_first;
@@ -460,21 +500,25 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 					err = 0;
 				goto out;
 			}
-			write_lock_bh(&fib_hash_lock);
-			fi_drop = fa->fa_info;
-			fa->fa_info = fi;
-			fa->fa_type = cfg->fc_type;
-			fa->fa_scope = cfg->fc_scope;
-			state = fa->fa_state;
-			fa->fa_state &= ~FA_S_ACCESSED;
-			fib_hash_genid++;
-			write_unlock_bh(&fib_hash_lock);
+			err = -ENOBUFS;
+			new_fa = fib_fast_alloc(f);
+			if (new_fa == NULL)
+				goto out;
 
-			fib_release_info(fi_drop);
+			new_fa->fa_tos = fa->fa_tos;
+			new_fa->fa_info = fi;
+			new_fa->fa_type = cfg->fc_type;
+			new_fa->fa_scope = cfg->fc_scope;
+			state = fa->fa_state;
+			new_fa->fa_state = state & ~FA_S_ACCESSED;
+			fib_hash_genid++;
+			list_replace_rcu(&fa->fa_list, &new_fa->fa_list);
+
+			fn_free_alias(fa, f);
 			if (state & FA_S_ACCESSED)
 				rt_cache_flush(cfg->fc_nlinfo.nl_net, -1);
-			rtmsg_fib(RTM_NEWROUTE, key, fa, cfg->fc_dst_len, tb->tb_id,
-				  &cfg->fc_nlinfo, NLM_F_REPLACE);
+			rtmsg_fib(RTM_NEWROUTE, key, new_fa, cfg->fc_dst_len,
+				  tb->tb_id, &cfg->fc_nlinfo, NLM_F_REPLACE);
 			return 0;
 		}
 
@@ -506,12 +550,10 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 		f = new_f;
 	}
 
-	new_fa = &f->fn_embedded_alias;
-	if (new_fa->fa_info != NULL) {
-		new_fa = kmem_cache_alloc(fn_alias_kmem, GFP_KERNEL);
-		if (new_fa == NULL)
-			goto out;
-	}
+	new_fa = fib_fast_alloc(f);
+	if (new_fa == NULL)
+		goto out;
+
 	new_fa->fa_info = fi;
 	new_fa->fa_tos = tos;
 	new_fa->fa_type = cfg->fc_type;
@@ -522,13 +564,11 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 	 * Insert new entry to the list.
 	 */
 
-	write_lock_bh(&fib_hash_lock);
 	if (new_f)
 		fib_insert_node(fz, new_f);
-	list_add_tail(&new_fa->fa_list,
+	list_add_tail_rcu(&new_fa->fa_list,
 		 (fa ? &fa->fa_list : &f->fn_alias));
 	fib_hash_genid++;
-	write_unlock_bh(&fib_hash_lock);
 
 	if (new_f)
 		fz->fz_nent++;
@@ -603,14 +643,12 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 			  tb->tb_id, &cfg->fc_nlinfo, 0);
 
 		kill_fn = 0;
-		write_lock_bh(&fib_hash_lock);
-		list_del(&fa->fa_list);
+		list_del_rcu(&fa->fa_list);
 		if (list_empty(&f->fn_alias)) {
-			hlist_del(&f->fn_hash);
+			hlist_del_rcu(&f->fn_hash);
 			kill_fn = 1;
 		}
 		fib_hash_genid++;
-		write_unlock_bh(&fib_hash_lock);
 
 		if (fa->fa_state & FA_S_ACCESSED)
 			rt_cache_flush(cfg->fc_nlinfo.nl_net, -1);
@@ -627,7 +665,7 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 
 static int fn_flush_list(struct fn_zone *fz, int idx)
 {
-	struct hlist_head *head = &fz->fz_hash[idx];
+	struct hlist_head *head = rtnl_dereference(fz->fz_hash) + idx;
 	struct hlist_node *node, *n;
 	struct fib_node *f;
 	int found = 0;
@@ -641,14 +679,12 @@ static int fn_flush_list(struct fn_zone *fz, int idx)
 			struct fib_info *fi = fa->fa_info;
 
 			if (fi && (fi->fib_flags&RTNH_F_DEAD)) {
-				write_lock_bh(&fib_hash_lock);
-				list_del(&fa->fa_list);
+				list_del_rcu(&fa->fa_list);
 				if (list_empty(&f->fn_alias)) {
-					hlist_del(&f->fn_hash);
+					hlist_del_rcu(&f->fn_hash);
 					kill_f = 1;
 				}
 				fib_hash_genid++;
-				write_unlock_bh(&fib_hash_lock);
 
 				fn_free_alias(fa, f);
 				found++;
@@ -662,13 +698,16 @@ static int fn_flush_list(struct fn_zone *fz, int idx)
 	return found;
 }
 
+/* caller must hold RTNL. */
 int fib_table_flush(struct fib_table *tb)
 {
 	struct fn_hash *table = (struct fn_hash *) tb->tb_data;
 	struct fn_zone *fz;
 	int found = 0;
 
-	for (fz = table->fn_zone_list; fz; fz = fz->fz_next) {
+	for (fz = rtnl_dereference(table->fn_zone_list);
+	     fz != NULL;
+	     fz = rtnl_dereference(fz->fz_next)) {
 		int i;
 
 		for (i = fz->fz_divisor - 1; i >= 0; i--)
@@ -677,6 +716,24 @@ int fib_table_flush(struct fib_table *tb)
 	return found;
 }
 
+void fib_free_table(struct fib_table *tb)
+{
+	struct fn_hash *table = (struct fn_hash *) tb->tb_data;
+	struct fn_zone *fz, *next;
+
+	next = table->fn_zone_list;
+	while (next != NULL) {
+		fz = next;
+		next = fz->fz_next;
+
+		if (fz->fz_hash != fz->fz_embedded_hash)
+			fz_hash_free(fz->fz_hash, fz->fz_divisor);
+
+		kfree(fz);
+	}
+
+	kfree(tb);
+}
 
 static inline int
 fn_hash_dump_bucket(struct sk_buff *skb, struct netlink_callback *cb,
@@ -690,10 +747,10 @@ fn_hash_dump_bucket(struct sk_buff *skb, struct netlink_callback *cb,
 
 	s_i = cb->args[4];
 	i = 0;
-	hlist_for_each_entry(f, node, head, fn_hash) {
+	hlist_for_each_entry_rcu(f, node, head, fn_hash) {
 		struct fib_alias *fa;
 
-		list_for_each_entry(fa, &f->fn_alias, fa_list) {
+		list_for_each_entry_rcu(fa, &f->fn_alias, fa_list) {
 			if (i < s_i)
 				goto next;
 
@@ -711,7 +768,7 @@ fn_hash_dump_bucket(struct sk_buff *skb, struct netlink_callback *cb,
 				cb->args[4] = i;
 				return -1;
 			}
-		next:
+next:
 			i++;
 		}
 	}
@@ -725,14 +782,15 @@ fn_hash_dump_zone(struct sk_buff *skb, struct netlink_callback *cb,
 		   struct fn_zone *fz)
 {
 	int h, s_h;
+	struct hlist_head *head = rcu_dereference(fz->fz_hash);
 
-	if (fz->fz_hash == NULL)
+	if (head == NULL)
 		return skb->len;
 	s_h = cb->args[3];
 	for (h = s_h; h < fz->fz_divisor; h++) {
-		if (hlist_empty(&fz->fz_hash[h]))
+		if (hlist_empty(head + h))
 			continue;
-		if (fn_hash_dump_bucket(skb, cb, tb, fz, &fz->fz_hash[h]) < 0) {
+		if (fn_hash_dump_bucket(skb, cb, tb, fz, head + h) < 0) {
 			cb->args[3] = h;
 			return -1;
 		}
@@ -746,23 +804,26 @@ fn_hash_dump_zone(struct sk_buff *skb, struct netlink_callback *cb,
 int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
 		   struct netlink_callback *cb)
 {
-	int m, s_m;
+	int m = 0, s_m;
 	struct fn_zone *fz;
 	struct fn_hash *table = (struct fn_hash *)tb->tb_data;
 
 	s_m = cb->args[2];
-	read_lock(&fib_hash_lock);
-	for (fz = table->fn_zone_list, m=0; fz; fz = fz->fz_next, m++) {
-		if (m < s_m) continue;
+	rcu_read_lock();
+	for (fz = rcu_dereference(table->fn_zone_list);
+	     fz != NULL;
+	     fz = rcu_dereference(fz->fz_next), m++) {
+		if (m < s_m)
+			continue;
 		if (fn_hash_dump_zone(skb, cb, tb, fz) < 0) {
 			cb->args[2] = m;
-			read_unlock(&fib_hash_lock);
+			rcu_read_unlock();
 			return -1;
 		}
 		memset(&cb->args[3], 0,
 		       sizeof(cb->args) - 3*sizeof(cb->args[0]));
 	}
-	read_unlock(&fib_hash_lock);
+	rcu_read_unlock();
 	cb->args[2] = m;
 	return skb->len;
 }
@@ -825,14 +886,15 @@ static struct fib_alias *fib_get_first(struct seq_file *seq)
 	iter->genid	= fib_hash_genid;
 	iter->valid	= 1;
 
-	for (iter->zone = table->fn_zone_list; iter->zone;
-	     iter->zone = iter->zone->fz_next) {
+	for (iter->zone = rcu_dereference(table->fn_zone_list);
+	     iter->zone != NULL;
+	     iter->zone = rcu_dereference(iter->zone->fz_next)) {
 		int maxslot;
 
 		if (!iter->zone->fz_nent)
 			continue;
 
-		iter->hash_head = iter->zone->fz_hash;
+		iter->hash_head = rcu_dereference(iter->zone->fz_hash);
 		maxslot = iter->zone->fz_divisor;
 
 		for (iter->bucket = 0; iter->bucket < maxslot;
@@ -911,13 +973,13 @@ static struct fib_alias *fib_get_next(struct seq_file *seq)
 			}
 		}
 
-		iter->zone = iter->zone->fz_next;
+		iter->zone = rcu_dereference(iter->zone->fz_next);
 
 		if (!iter->zone)
 			goto out;
 
 		iter->bucket = 0;
-		iter->hash_head = iter->zone->fz_hash;
+		iter->hash_head = rcu_dereference(iter->zone->fz_hash);
 
 		hlist_for_each_entry(fn, node, iter->hash_head, fn_hash) {
 			list_for_each_entry(fa, &fn->fn_alias, fa_list) {
@@ -950,11 +1012,11 @@ static struct fib_alias *fib_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *fib_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(fib_hash_lock)
+	__acquires(RCU)
 {
 	void *v = NULL;
 
-	read_lock(&fib_hash_lock);
+	rcu_read_lock();
 	if (fib_get_table(seq_file_net(seq), RT_TABLE_MAIN))
 		v = *pos ? fib_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
 	return v;
@@ -967,15 +1029,16 @@ static void *fib_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void fib_seq_stop(struct seq_file *seq, void *v)
-	__releases(fib_hash_lock)
+	__releases(RCU)
 {
-	read_unlock(&fib_hash_lock);
+	rcu_read_unlock();
 }
 
 static unsigned fib_flag_trans(int type, __be32 mask, struct fib_info *fi)
 {
 	static const unsigned type2flags[RTN_MAX + 1] = {
-		[7] = RTF_REJECT, [8] = RTF_REJECT,
+		[7] = RTF_REJECT,
+		[8] = RTF_REJECT,
 	};
 	unsigned flags = type2flags[type];
 

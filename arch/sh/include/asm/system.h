@@ -140,8 +140,6 @@ extern unsigned int instruction_size(unsigned int insn);
 extern unsigned long cached_to_uncached;
 extern unsigned long uncached_size;
 
-extern struct dentry *sh_debugfs_root;
-
 void per_cpu_trap_init(void);
 void default_idle(void);
 void cpu_idle_wait(void);

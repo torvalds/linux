@@ -204,6 +204,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
 /**
  * struct spi_master - interface to SPI master controller
  * @dev: device interface to this driver
+ * @list: link with the global spi_master list
  * @bus_num: board-specific (and often SOC-specific) identifier for a
  *	given SPI controller.
  * @num_chipselect: chipselects are used to distinguish individual
@@ -237,6 +238,8 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  */
 struct spi_master {
 	struct device	dev;
+
+	struct list_head list;
 
 	/* other than negative (== assign one dynamically), bus_num is fully
 	 * board-specific.  usually that simplifies to being SOC-specific.

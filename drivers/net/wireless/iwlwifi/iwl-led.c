@@ -108,13 +108,13 @@ static int iwl_led_pattern(struct iwl_priv *priv, unsigned int idx)
 	BUG_ON(idx > IWL_MAX_BLINK_TBL);
 
 	IWL_DEBUG_LED(priv, "Led blink time compensation= %u\n",
-			priv->cfg->led_compensation);
+			priv->cfg->base_params->led_compensation);
 	led_cmd.on =
 		iwl_blink_compensation(priv, blink_tbl[idx].on_time,
-					priv->cfg->led_compensation);
+				priv->cfg->base_params->led_compensation);
 	led_cmd.off =
 		iwl_blink_compensation(priv, blink_tbl[idx].off_time,
-					priv->cfg->led_compensation);
+				priv->cfg->base_params->led_compensation);
 
 	return priv->cfg->ops->led->cmd(priv, &led_cmd);
 }

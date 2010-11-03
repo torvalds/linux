@@ -22,6 +22,8 @@
 #ifndef __HW_H__
 #define __HW_H__
 
+#include <linux/seq_file.h>
+
 #include "viamode.h"
 #include "global.h"
 #include "via_modesetting.h"
@@ -29,6 +31,25 @@
 #define viafb_read_reg(p, i)			via_read_reg(p, i)
 #define viafb_write_reg(i, p, d)		via_write_reg(p, i, d)
 #define viafb_write_reg_mask(i, p, d, m)	via_write_reg_mask(p, i, d, m)
+
+/* VIA output devices */
+#define VIA_LDVP0	0x00000001
+#define VIA_LDVP1	0x00000002
+#define VIA_DVP0	0x00000004
+#define VIA_CRT		0x00000010
+#define VIA_DVP1	0x00000020
+#define VIA_LVDS1	0x00000040
+#define VIA_LVDS2	0x00000080
+
+/* VIA output device power states */
+#define VIA_STATE_ON		0
+#define VIA_STATE_STANDBY	1
+#define VIA_STATE_SUSPEND	2
+#define VIA_STATE_OFF		3
+
+/* VIA output device sync polarity */
+#define VIA_HSYNC_NEGATIVE	0x01
+#define VIA_VSYNC_NEGATIVE	0x02
 
 /***************************************************
 * Definition IGA1 Design Method of CRTC Registers *
@@ -340,6 +361,17 @@ is reserved, so it may have problem to set 1600x1200 on IGA2. */
 #define VX855_IGA2_FIFO_THRESHOLD               160
 #define VX855_IGA2_FIFO_HIGH_THRESHOLD          160
 #define VX855_IGA2_DISPLAY_QUEUE_EXPIRE_NUM     320
+
+/* For VT3410 */
+#define VX900_IGA1_FIFO_MAX_DEPTH               400
+#define VX900_IGA1_FIFO_THRESHOLD               320
+#define VX900_IGA1_FIFO_HIGH_THRESHOLD          320
+#define VX900_IGA1_DISPLAY_QUEUE_EXPIRE_NUM     160
+
+#define VX900_IGA2_FIFO_MAX_DEPTH               192
+#define VX900_IGA2_FIFO_THRESHOLD               160
+#define VX900_IGA2_FIFO_HIGH_THRESHOLD          160
+#define VX900_IGA2_DISPLAY_QUEUE_EXPIRE_NUM     320
 
 #define IGA1_FIFO_DEPTH_SELECT_REG_NUM          1
 #define IGA1_FIFO_THRESHOLD_REG_NUM             2
@@ -858,6 +890,8 @@ struct iga2_crtc_timing {
 #define VX800_FUNCTION3     0x3353
 /* VT3409 chipset*/
 #define VX855_FUNCTION3     0x3409
+/* VT3410 chipset*/
+#define VX900_FUNCTION3     0x3410
 
 #define NUM_TOTAL_PLL_TABLE ARRAY_SIZE(pll_value)
 
@@ -873,6 +907,11 @@ struct pci_device_id_info {
 	u32 chip_index;
 };
 
+struct via_device_mapping {
+	u32 device;
+	const char *name;
+};
+
 extern unsigned int viafb_second_virtual_xres;
 extern int viafb_SAMM_ON;
 extern int viafb_dual_fb;
@@ -881,9 +920,6 @@ extern int viafb_LCD_ON;
 extern int viafb_DVI_ON;
 extern int viafb_hotplug;
 
-void viafb_set_output_path(int device, int set_iga,
-	int output_interface);
-
 void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	struct VideoModeTable *video_mode, int bpp_byte, int set_iga);
 
@@ -891,8 +927,11 @@ void viafb_set_vclock(u32 CLK, int set_iga);
 void viafb_load_reg(int timing_value, int viafb_load_reg_num,
 	struct io_register *reg,
 	      int io_type);
-void viafb_crt_disable(void);
-void viafb_crt_enable(void);
+void via_set_source(u32 devices, u8 iga);
+void via_set_state(u32 devices, u8 state);
+void via_set_sync_polarity(u32 devices, u8 polarity);
+u32 via_parse_odev(char *input, char **end);
+void via_odev_to_seq(struct seq_file *m, u32 odev);
 void init_ad9389(void);
 /* Access I/O Function */
 void viafb_lock_crt(void);
@@ -908,8 +947,8 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 	struct VideoModeTable *vmode_tbl1, int video_bpp1);
 void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
 	struct VideoModeTable *vmode_tbl);
-void viafb_init_chip_info(int chip_type);
-void viafb_init_dac(int set_iga);
+void __devinit viafb_init_chip_info(int chip_type);
+void __devinit viafb_init_dac(int set_iga);
 int viafb_get_pixclock(int hres, int vres, int vmode_refresh);
 int viafb_get_refresh(int hres, int vres, u32 float_refresh);
 void viafb_update_device_setting(int hres, int vres, int bpp,

@@ -367,7 +367,6 @@ static int hexium_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_d
 	saa7146_write(dev, MC1, (MASK_08 | MASK_24 | MASK_10 | MASK_26));
 
 	hexium->i2c_adapter = (struct i2c_adapter) {
-		.class = I2C_CLASS_TV_ANALOG,
 		.name = "hexium gemini",
 	};
 	saa7146_i2c_adapter_prepare(dev, &hexium->i2c_adapter, SAA7146_I2C_BUS_BIT_RATE_480);

@@ -557,7 +557,8 @@ out:	cred = q->avail - cred;
 
 	if (unlikely(fl_starving(q))) {
 		smp_wmb();
-		set_bit(q->cntxt_id, adap->sge.starving_fl);
+		set_bit(q->cntxt_id - adap->sge.egr_start,
+			adap->sge.starving_fl);
 	}
 
 	return cred;
@@ -974,7 +975,7 @@ out_free:	dev_kfree_skb(skb);
 	}
 
 	cpl->ctrl0 = htonl(TXPKT_OPCODE(CPL_TX_PKT_XT) |
-			   TXPKT_INTF(pi->tx_chan) | TXPKT_PF(0));
+			   TXPKT_INTF(pi->tx_chan) | TXPKT_PF(adap->fn));
 	cpl->pack = htons(0);
 	cpl->len = htons(skb->len);
 	cpl->ctrl1 = cpu_to_be64(cntrl);
@@ -1213,7 +1214,8 @@ static void txq_stop_maperr(struct sge_ofld_txq *q)
 {
 	q->mapping_err++;
 	q->q.stops++;
-	set_bit(q->q.cntxt_id, q->adap->sge.txq_maperr);
+	set_bit(q->q.cntxt_id - q->adap->sge.egr_start,
+		q->adap->sge.txq_maperr);
 }
 
 /**
@@ -1528,18 +1530,11 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 		skb->rxhash = (__force u32)pkt->rsshdr.hash_val;
 
 	if (unlikely(pkt->vlan_ex)) {
-		struct port_info *pi = netdev_priv(rxq->rspq.netdev);
-		struct vlan_group *grp = pi->vlan_grp;
-
+		__vlan_hwaccel_put_tag(skb, ntohs(pkt->vlan));
 		rxq->stats.vlan_ex++;
-		if (likely(grp)) {
-			ret = vlan_gro_frags(&rxq->rspq.napi, grp,
-					     ntohs(pkt->vlan));
-			goto stats;
-		}
 	}
 	ret = napi_gro_frags(&rxq->rspq.napi);
-stats:	if (ret == GRO_HELD)
+	if (ret == GRO_HELD)
 		rxq->stats.lro_pkts++;
 	else if (ret == GRO_MERGED || ret == GRO_MERGED_FREE)
 		rxq->stats.lro_merged++;
@@ -1603,19 +1598,13 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 			rxq->stats.rx_cso++;
 		}
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 
 	if (unlikely(pkt->vlan_ex)) {
-		struct vlan_group *grp = pi->vlan_grp;
-
+		__vlan_hwaccel_put_tag(skb, ntohs(pkt->vlan));
 		rxq->stats.vlan_ex++;
-		if (likely(grp))
-			vlan_hwaccel_receive_skb(skb, grp, ntohs(pkt->vlan));
-		else
-			dev_kfree_skb_any(skb);
-	} else
-		netif_receive_skb(skb);
-
+	}
+	netif_receive_skb(skb);
 	return 0;
 }
 
@@ -1835,6 +1824,7 @@ static unsigned int process_intrq(struct adapter *adap)
 		if (RSPD_TYPE(rc->type_gen) == RSP_TYPE_INTR) {
 			unsigned int qid = ntohl(rc->pldbuflen_qid);
 
+			qid -= adap->sge.ingr_start;
 			napi_schedule(&adap->sge.ingr_map[qid]->napi);
 		}
 
@@ -2050,14 +2040,14 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	/* set offset to -1 to distinguish ingress queues without FL */
 	iq->offset = fl ? 0 : -1;
 
-	adap->sge.ingr_map[iq->cntxt_id] = iq;
+	adap->sge.ingr_map[iq->cntxt_id - adap->sge.ingr_start] = iq;
 
 	if (fl) {
 		fl->cntxt_id = ntohs(c.fl0id);
 		fl->avail = fl->pend_cred = 0;
 		fl->pidx = fl->cidx = 0;
 		fl->alloc_failed = fl->large_alloc_failed = fl->starving = 0;
-		adap->sge.egr_map[fl->cntxt_id] = fl;
+		adap->sge.egr_map[fl->cntxt_id - adap->sge.egr_start] = fl;
 		refill_fl(adap, fl, fl_cap(fl), GFP_KERNEL);
 	}
 	return 0;
@@ -2087,7 +2077,7 @@ static void init_txq(struct adapter *adap, struct sge_txq *q, unsigned int id)
 	q->stops = q->restarts = 0;
 	q->stat = (void *)&q->desc[q->size];
 	q->cntxt_id = id;
-	adap->sge.egr_map[id] = q;
+	adap->sge.egr_map[id - adap->sge.egr_start] = q;
 }
 
 int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
@@ -2259,7 +2249,7 @@ static void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq,
 {
 	unsigned int fl_id = fl ? fl->cntxt_id : 0xffff;
 
-	adap->sge.ingr_map[rq->cntxt_id] = NULL;
+	adap->sge.ingr_map[rq->cntxt_id - adap->sge.ingr_start] = NULL;
 	t4_iq_free(adap, adap->fn, adap->fn, 0, FW_IQ_TYPE_FL_INT_CAP,
 		   rq->cntxt_id, fl_id, 0xffff);
 	dma_free_coherent(adap->pdev_dev, (rq->size + 1) * rq->iqe_len,

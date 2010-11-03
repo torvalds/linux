@@ -163,24 +163,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 /*
  * These are used in the alignment trap handler when emulating
  * single-precision loads and stores.
- * We restore and save the fpscr so the task gets the same result
- * and exceptions as if the cpu had performed the load or store.
  */
 
 _GLOBAL(cvt_fd)
-	lfd	0,THREAD_FPSCR(r5)	/* load up fpscr value */
-	MTFSF_L(0)
 	lfs	0,0(r3)
 	stfd	0,0(r4)
-	mffs	0
-	stfd	0,THREAD_FPSCR(r5)	/* save new fpscr value */
 	blr
 
 _GLOBAL(cvt_df)
-	lfd	0,THREAD_FPSCR(r5)	/* load up fpscr value */
-	MTFSF_L(0)
 	lfd	0,0(r3)
 	stfs	0,0(r4)
-	mffs	0
-	stfd	0,THREAD_FPSCR(r5)	/* save new fpscr value */
 	blr

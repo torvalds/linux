@@ -16,7 +16,7 @@
 #ifndef __ASM_ARCH_MSM_VMALLOC_H
 #define __ASM_ARCH_MSM_VMALLOC_H
 
-#define VMALLOC_END	  (PAGE_OFFSET + 0x10000000)
+#define VMALLOC_END	  0xd0000000
 
 #endif
 

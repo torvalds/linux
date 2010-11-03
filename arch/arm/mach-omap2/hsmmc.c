@@ -14,11 +14,11 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <mach/hardware.h>
-#include <plat/control.h>
 #include <plat/mmc.h>
 #include <plat/omap-pm.h>
 
 #include "hsmmc.h"
+#include "control.h"
 
 #if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
 
@@ -135,10 +135,11 @@ static void omap4_hsmmc1_before_set_reg(struct device *dev, int slot,
 	 *
 	 * FIXME handle VMMC1A as needed ...
 	 */
-	reg = omap_ctrl_readl(control_pbias_offset);
-	reg &= ~(OMAP4_MMC1_PBIASLITE_PWRDNZ | OMAP4_MMC1_PWRDNZ |
-					OMAP4_USBC1_ICUSB_PWRDNZ);
-	omap_ctrl_writel(reg, control_pbias_offset);
+	reg = omap4_ctrl_pad_readl(control_pbias_offset);
+	reg &= ~(OMAP4_MMC1_PBIASLITE_PWRDNZ_MASK |
+		OMAP4_MMC1_PWRDNZ_MASK |
+		OMAP4_USBC1_ICUSB_PWRDNZ_MASK);
+	omap4_ctrl_pad_writel(reg, control_pbias_offset);
 }
 
 static void omap4_hsmmc1_after_set_reg(struct device *dev, int slot,
@@ -147,30 +148,33 @@ static void omap4_hsmmc1_after_set_reg(struct device *dev, int slot,
 	u32 reg;
 
 	if (power_on) {
-		reg = omap_ctrl_readl(control_pbias_offset);
-		reg |= OMAP4_MMC1_PBIASLITE_PWRDNZ;
+		reg = omap4_ctrl_pad_readl(control_pbias_offset);
+		reg |= OMAP4_MMC1_PBIASLITE_PWRDNZ_MASK;
 		if ((1 << vdd) <= MMC_VDD_165_195)
-			reg &= ~OMAP4_MMC1_PBIASLITE_VMODE;
+			reg &= ~OMAP4_MMC1_PBIASLITE_VMODE_MASK;
 		else
-			reg |= OMAP4_MMC1_PBIASLITE_VMODE;
-		reg |= (OMAP4_MMC1_PBIASLITE_PWRDNZ | OMAP4_MMC1_PWRDNZ |
-						OMAP4_USBC1_ICUSB_PWRDNZ);
-		omap_ctrl_writel(reg, control_pbias_offset);
+			reg |= OMAP4_MMC1_PBIASLITE_VMODE_MASK;
+		reg |= (OMAP4_MMC1_PBIASLITE_PWRDNZ_MASK |
+			OMAP4_MMC1_PWRDNZ_MASK |
+			OMAP4_USBC1_ICUSB_PWRDNZ_MASK);
+		omap4_ctrl_pad_writel(reg, control_pbias_offset);
 		/* 4 microsec delay for comparator to generate an error*/
 		udelay(4);
-		reg = omap_ctrl_readl(control_pbias_offset);
-		if (reg & OMAP4_MMC1_PBIASLITE_VMODE_ERROR) {
+		reg = omap4_ctrl_pad_readl(control_pbias_offset);
+		if (reg & OMAP4_MMC1_PBIASLITE_VMODE_ERROR_MASK) {
 			pr_err("Pbias Voltage is not same as LDO\n");
 			/* Caution : On VMODE_ERROR Power Down MMC IO */
-			reg &= ~(OMAP4_MMC1_PWRDNZ | OMAP4_USBC1_ICUSB_PWRDNZ);
-			omap_ctrl_writel(reg, control_pbias_offset);
+			reg &= ~(OMAP4_MMC1_PWRDNZ_MASK |
+				OMAP4_USBC1_ICUSB_PWRDNZ_MASK);
+			omap4_ctrl_pad_writel(reg, control_pbias_offset);
 		}
 	} else {
-		reg = omap_ctrl_readl(control_pbias_offset);
-		 reg |= (OMAP4_MMC1_PBIASLITE_PWRDNZ |
-			OMAP4_MMC1_PBIASLITE_VMODE | OMAP4_MMC1_PWRDNZ |
-			OMAP4_USBC1_ICUSB_PWRDNZ);
-		omap_ctrl_writel(reg, control_pbias_offset);
+		reg = omap4_ctrl_pad_readl(control_pbias_offset);
+		reg |= (OMAP4_MMC1_PBIASLITE_PWRDNZ_MASK |
+			OMAP4_MMC1_PWRDNZ_MASK |
+			OMAP4_MMC1_PBIASLITE_VMODE_MASK |
+			OMAP4_USBC1_ICUSB_PWRDNZ_MASK);
+		omap4_ctrl_pad_writel(reg, control_pbias_offset);
 	}
 }
 
@@ -218,17 +222,18 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 			control_devconf1_offset = OMAP343X_CONTROL_DEVCONF1;
 		}
 	} else {
-		control_pbias_offset = OMAP44XX_CONTROL_PBIAS_LITE;
-		control_mmc1 = OMAP44XX_CONTROL_MMC1;
-		reg = omap_ctrl_readl(control_mmc1);
-		reg |= (OMAP4_CONTROL_SDMMC1_PUSTRENGTHGRP0 |
-			OMAP4_CONTROL_SDMMC1_PUSTRENGTHGRP1);
-		reg &= ~(OMAP4_CONTROL_SDMMC1_PUSTRENGTHGRP2 |
-			OMAP4_CONTROL_SDMMC1_PUSTRENGTHGRP3);
-		reg |= (OMAP4_CONTROL_SDMMC1_DR0_SPEEDCTRL |
-			OMAP4_CONTROL_SDMMC1_DR1_SPEEDCTRL |
-			OMAP4_CONTROL_SDMMC1_DR2_SPEEDCTRL);
-		omap_ctrl_writel(reg, control_mmc1);
+		control_pbias_offset =
+			OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_PBIASLITE;
+		control_mmc1 = OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_MMC1;
+		reg = omap4_ctrl_pad_readl(control_mmc1);
+		reg |= (OMAP4_SDMMC1_PUSTRENGTH_GRP0_MASK |
+			OMAP4_SDMMC1_PUSTRENGTH_GRP1_MASK);
+		reg &= ~(OMAP4_SDMMC1_PUSTRENGTH_GRP2_MASK |
+			OMAP4_SDMMC1_PUSTRENGTH_GRP3_MASK);
+		reg |= (OMAP4_USBC1_DR0_SPEEDCTRL_MASK|
+			OMAP4_SDMMC1_DR1_SPEEDCTRL_MASK |
+			OMAP4_SDMMC1_DR2_SPEEDCTRL_MASK);
+		omap4_ctrl_pad_writel(reg, control_mmc1);
 	}
 
 	for (c = controllers; c->mmc; c++) {
@@ -258,9 +263,13 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 				"mmc%islot%i", c->mmc, 1);
 		mmc->slots[0].name = hc->name;
 		mmc->nr_slots = 1;
-		mmc->slots[0].wires = c->wires;
+		mmc->slots[0].caps = c->caps;
 		mmc->slots[0].internal_clock = !c->ext_clock;
 		mmc->dma_mask = 0xffffffff;
+		if (cpu_is_omap44xx())
+			mmc->reg_offset = OMAP4_MMC_REG_OFFSET;
+		else
+			mmc->reg_offset = 0;
 
 		mmc->get_context_loss_count = hsmmc_get_context_loss;
 
@@ -298,6 +307,9 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 		else
 			mmc->slots[0].features |= HSMMC_HAS_PBIAS;
 
+		if (cpu_is_omap44xx() && (omap_rev() > OMAP4430_REV_ES1_0))
+			mmc->slots[0].features |= HSMMC_HAS_UPDATED_RESET;
+
 		switch (c->mmc) {
 		case 1:
 			if (mmc->slots[0].features & HSMMC_HAS_PBIAS) {
@@ -316,16 +328,20 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 			}
 
 			/* Omap3630 HSMMC1 supports only 4-bit */
-			if (cpu_is_omap3630() && c->wires > 4) {
-				c->wires = 4;
-				mmc->slots[0].wires = c->wires;
+			if (cpu_is_omap3630() &&
+					(c->caps & MMC_CAP_8_BIT_DATA)) {
+				c->caps &= ~MMC_CAP_8_BIT_DATA;
+				c->caps |= MMC_CAP_4_BIT_DATA;
+				mmc->slots[0].caps = c->caps;
 			}
 			break;
 		case 2:
 			if (c->ext_clock)
 				c->transceiver = 1;
-			if (c->transceiver && c->wires > 4)
-				c->wires = 4;
+			if (c->transceiver && (c->caps & MMC_CAP_8_BIT_DATA)) {
+				c->caps &= ~MMC_CAP_8_BIT_DATA;
+				c->caps |= MMC_CAP_4_BIT_DATA;
+			}
 			/* FALLTHROUGH */
 		case 3:
 			if (mmc->slots[0].features & HSMMC_HAS_PBIAS) {

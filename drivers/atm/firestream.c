@@ -444,8 +444,8 @@ static inline void fs_kfree_skb (struct sk_buff * skb)
 #define ROUND_NEAREST 3
 /********** make rate (not quite as much fun as Horizon) **********/
 
-static unsigned int make_rate (unsigned int rate, int r,
-			       u16 * bits, unsigned int * actual) 
+static int make_rate(unsigned int rate, int r,
+		      u16 *bits, unsigned int *actual)
 {
 	unsigned char exp = -1; /* hush gcc */
 	unsigned int man = -1;  /* hush gcc */

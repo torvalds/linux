@@ -327,14 +327,13 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 {
 	struct circ_buf *xmit = &sport->port.state->xmit;
 
-	while (!(readl(sport->port.membase + UTS) & UTS_TXFULL)) {
+	while (!uart_circ_empty(xmit) &&
+			!(readl(sport->port.membase + UTS) & UTS_TXFULL)) {
 		/* send xmit->buf[xmit->tail]
 		 * out the port here */
 		writel(xmit->buf[xmit->tail], sport->port.membase + URTX0);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		sport->port.icount.tx++;
-		if (uart_circ_empty(xmit))
-			break;
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)

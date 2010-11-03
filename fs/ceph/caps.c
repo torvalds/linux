@@ -1,4 +1,4 @@
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <linux/fs.h>
 #include <linux/kernel.h>
@@ -9,8 +9,9 @@
 #include <linux/writeback.h>
 
 #include "super.h"
-#include "decode.h"
-#include "messenger.h"
+#include "mds_client.h"
+#include <linux/ceph/decode.h>
+#include <linux/ceph/messenger.h>
 
 /*
  * Capability management
@@ -287,11 +288,11 @@ void ceph_put_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap)
 	spin_unlock(&mdsc->caps_list_lock);
 }
 
-void ceph_reservation_status(struct ceph_client *client,
+void ceph_reservation_status(struct ceph_fs_client *fsc,
 			     int *total, int *avail, int *used, int *reserved,
 			     int *min)
 {
-	struct ceph_mds_client *mdsc = &client->mdsc;
+	struct ceph_mds_client *mdsc = fsc->mdsc;
 
 	if (total)
 		*total = mdsc->caps_total_count;
@@ -399,7 +400,7 @@ static void __insert_cap_node(struct ceph_inode_info *ci,
 static void __cap_set_timeouts(struct ceph_mds_client *mdsc,
 			       struct ceph_inode_info *ci)
 {
-	struct ceph_mount_args *ma = mdsc->client->mount_args;
+	struct ceph_mount_options *ma = mdsc->fsc->mount_options;
 
 	ci->i_hold_caps_min = round_jiffies(jiffies +
 					    ma->caps_wanted_delay_min * HZ);
@@ -515,7 +516,7 @@ int ceph_add_cap(struct inode *inode,
 		 unsigned seq, unsigned mseq, u64 realmino, int flags,
 		 struct ceph_cap_reservation *caps_reservation)
 {
-	struct ceph_mds_client *mdsc = &ceph_inode_to_client(inode)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_cap *new_cap = NULL;
 	struct ceph_cap *cap;
@@ -873,7 +874,7 @@ void __ceph_remove_cap(struct ceph_cap *cap)
 	struct ceph_mds_session *session = cap->session;
 	struct ceph_inode_info *ci = cap->ci;
 	struct ceph_mds_client *mdsc =
-		&ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
+		ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
 	int removed = 0;
 
 	dout("__ceph_remove_cap %p from %p\n", cap, &ci->vfs_inode);
@@ -1210,7 +1211,7 @@ void __ceph_flush_snaps(struct ceph_inode_info *ci,
 	int mds;
 	struct ceph_cap_snap *capsnap;
 	u32 mseq;
-	struct ceph_mds_client *mdsc = &ceph_inode_to_client(inode)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
 	struct ceph_mds_session *session = NULL; /* if session != NULL, we hold
 						    session->s_mutex */
 	u64 next_follows = 0;  /* keep track of how far we've gotten through the
@@ -1336,7 +1337,7 @@ static void ceph_flush_snaps(struct ceph_inode_info *ci)
 void __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 {
 	struct ceph_mds_client *mdsc =
-		&ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
+		ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
 	struct inode *inode = &ci->vfs_inode;
 	int was = ci->i_dirty_caps;
 	int dirty = 0;
@@ -1378,7 +1379,7 @@ void __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 static int __mark_caps_flushing(struct inode *inode,
 				 struct ceph_mds_session *session)
 {
-	struct ceph_mds_client *mdsc = &ceph_sb_to_client(inode->i_sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int flushing;
 
@@ -1416,17 +1417,6 @@ static int __mark_caps_flushing(struct inode *inode,
 /*
  * try to invalidate mapping pages without blocking.
  */
-static int mapping_is_empty(struct address_space *mapping)
-{
-	struct page *page = find_get_page(mapping, 0);
-
-	if (!page)
-		return 1;
-
-	put_page(page);
-	return 0;
-}
-
 static int try_nonblocking_invalidate(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -1436,7 +1426,7 @@ static int try_nonblocking_invalidate(struct inode *inode)
 	invalidate_mapping_pages(&inode->i_data, 0, -1);
 	spin_lock(&inode->i_lock);
 
-	if (mapping_is_empty(&inode->i_data) &&
+	if (inode->i_data.nrpages == 0 &&
 	    invalidating_gen == ci->i_rdcache_gen) {
 		/* success. */
 		dout("try_nonblocking_invalidate %p success\n", inode);
@@ -1462,8 +1452,8 @@ static int try_nonblocking_invalidate(struct inode *inode)
 void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 		     struct ceph_mds_session *session)
 {
-	struct ceph_client *client = ceph_inode_to_client(&ci->vfs_inode);
-	struct ceph_mds_client *mdsc = &client->mdsc;
+	struct ceph_fs_client *fsc = ceph_inode_to_client(&ci->vfs_inode);
+	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct inode *inode = &ci->vfs_inode;
 	struct ceph_cap *cap;
 	int file_wanted, used;
@@ -1533,7 +1523,7 @@ retry_locked:
 	 */
 	if ((!is_delayed || mdsc->stopping) &&
 	    ci->i_wrbuffer_ref == 0 &&               /* no dirty pages... */
-	    ci->i_rdcache_gen &&                     /* may have cached pages */
+	    inode->i_data.nrpages &&                 /* have cached pages */
 	    (file_wanted == 0 ||                     /* no open files */
 	     (revoking & (CEPH_CAP_FILE_CACHE|
 			  CEPH_CAP_FILE_LAZYIO))) && /*  or revoking cache */
@@ -1706,7 +1696,7 @@ ack:
 static int try_flush_caps(struct inode *inode, struct ceph_mds_session *session,
 			  unsigned *flush_tid)
 {
-	struct ceph_mds_client *mdsc = &ceph_sb_to_client(inode->i_sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int unlock_session = session ? 0 : 1;
 	int flushing = 0;
@@ -1872,7 +1862,7 @@ int ceph_write_inode(struct inode *inode, struct writeback_control *wbc)
 				       caps_are_flushed(inode, flush_tid));
 	} else {
 		struct ceph_mds_client *mdsc =
-			&ceph_sb_to_client(inode->i_sb)->mdsc;
+			ceph_sb_to_client(inode->i_sb)->mdsc;
 
 		spin_lock(&inode->i_lock);
 		if (__ceph_caps_dirty(ci))
@@ -2465,7 +2455,7 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 	__releases(inode->i_lock)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_mds_client *mdsc = &ceph_sb_to_client(inode->i_sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	unsigned seq = le32_to_cpu(m->seq);
 	int dirty = le32_to_cpu(m->dirty);
 	int cleaned = 0;
@@ -2713,7 +2703,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		      struct ceph_msg *msg)
 {
 	struct ceph_mds_client *mdsc = session->s_mdsc;
-	struct super_block *sb = mdsc->client->sb;
+	struct super_block *sb = mdsc->fsc->sb;
 	struct inode *inode;
 	struct ceph_cap *cap;
 	struct ceph_mds_caps *h;

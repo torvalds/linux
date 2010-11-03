@@ -14,7 +14,7 @@
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/wl12xx.h>
+#include <linux/wl12xx.h>
 #include <linux/i2c.h>
 #include <linux/i2c/twl.h>
 #include <linux/clk.h>
@@ -32,6 +32,8 @@
 #include <plat/gpmc.h>
 #include <plat/onenand.h>
 #include <plat/gpmc-smc91x.h>
+
+#include <mach/board-rx51.h>
 
 #include <sound/tlv320aic3x.h>
 #include <sound/tpa6130a2-plat.h>
@@ -103,6 +105,10 @@ static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
 		.controller_data	= &tsc2005_mcspi_config,
 		/* .platform_data = &tsc2005_config,*/
 	},
+};
+
+static struct platform_device rx51_charger_device = {
+	.name = "isp1704_charger",
 };
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
@@ -185,7 +191,7 @@ static void __init rx51_add_gpio_keys(void)
 }
 #endif /* CONFIG_KEYBOARD_GPIO || CONFIG_KEYBOARD_GPIO_MODULE */
 
-static int board_keymap[] = {
+static uint32_t board_keymap[] = {
 	/*
 	 * Note that KEY(x, 8, KEY_XXX) entries represent "entrire row
 	 * connected to the ground" matrix state.
@@ -303,7 +309,7 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.name		= "external",
 		.mmc		= 1,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.cover_only	= true,
 		.gpio_cd	= 160,
 		.gpio_wp	= -EINVAL,
@@ -312,7 +318,8 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.name		= "internal",
 		.mmc		= 2,
-		.wires		= 8, /* See also rx51_mmc2_remux */
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
+						/* See also rx51_mmc2_remux */
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 		.nonremovable	= true,
@@ -916,5 +923,6 @@ void __init rx51_peripherals_init(void)
 	spi_register_board_info(rx51_peripherals_spi_board_info,
 				ARRAY_SIZE(rx51_peripherals_spi_board_info));
 	omap2_hsmmc_init(mmc);
+	platform_device_register(&rx51_charger_device);
 }
 

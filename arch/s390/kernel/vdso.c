@@ -84,11 +84,7 @@ struct vdso_data *vdso_data = &vdso_data_store.data;
  */
 static void vdso_init_data(struct vdso_data *vd)
 {
-	unsigned int facility_list;
-
-	facility_list = stfl();
-	vd->ectg_available =
-		user_mode != HOME_SPACE_MODE && (facility_list & 1);
+	vd->ectg_available = user_mode != HOME_SPACE_MODE && test_facility(31);
 }
 
 #ifdef CONFIG_64BIT

@@ -42,8 +42,6 @@ static struct drm_driver driver = {
 	.lastclose = savage_driver_lastclose,
 	.unload = savage_driver_unload,
 	.reclaim_buffers = savage_reclaim_buffers,
-	.get_map_ofs = drm_core_get_map_ofs,
-	.get_reg_ofs = drm_core_get_reg_ofs,
 	.ioctls = savage_ioctls,
 	.dma_ioctl = savage_bci_buffers,
 	.fops = {
@@ -54,6 +52,7 @@ static struct drm_driver driver = {
 		 .mmap = drm_mmap,
 		 .poll = drm_poll,
 		 .fasync = drm_fasync,
+		 .llseek = noop_llseek,
 	},
 
 	.pci_driver = {

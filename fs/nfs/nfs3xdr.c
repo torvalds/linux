@@ -100,6 +100,13 @@ static const umode_t nfs_type2fmt[] = {
 	[NF3FIFO] = S_IFIFO,
 };
 
+static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
+{
+	dprintk("nfs: %s: prematurely hit end of receive buffer. "
+		"Remaining buffer length is %tu words.\n",
+		func, xdr->end - xdr->p);
+}
+
 /*
  * Common NFS XDR functions as inlines
  */
@@ -117,6 +124,29 @@ xdr_decode_fhandle(__be32 *p, struct nfs_fh *fh)
 		return p + XDR_QUADLEN(fh->size);
 	}
 	return NULL;
+}
+
+static inline __be32 *
+xdr_decode_fhandle_stream(struct xdr_stream *xdr, struct nfs_fh *fh)
+{
+	__be32 *p;
+	p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		goto out_overflow;
+	fh->size = ntohl(*p++);
+
+	if (fh->size <= NFS3_FHSIZE) {
+		p = xdr_inline_decode(xdr, fh->size);
+		if (unlikely(!p))
+			goto out_overflow;
+		memcpy(fh->data, p, fh->size);
+		return p + XDR_QUADLEN(fh->size);
+	}
+	return NULL;
+
+out_overflow:
+	print_overflow_msg(__func__, xdr);
+	return ERR_PTR(-EIO);
 }
 
 /*
@@ -238,6 +268,26 @@ xdr_decode_post_op_attr(__be32 *p, struct nfs_fattr *fattr)
 	if (*p++)
 		p = xdr_decode_fattr(p, fattr);
 	return p;
+}
+
+static inline __be32 *
+xdr_decode_post_op_attr_stream(struct xdr_stream *xdr, struct nfs_fattr *fattr)
+{
+	__be32 *p;
+
+	p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		goto out_overflow;
+	if (ntohl(*p++)) {
+		p = xdr_inline_decode(xdr, 84);
+		if (unlikely(!p))
+			goto out_overflow;
+		p = xdr_decode_fattr(p, fattr);
+	}
+	return p;
+out_overflow:
+	print_overflow_msg(__func__, xdr);
+	return ERR_PTR(-EIO);
 }
 
 static inline __be32 *
@@ -442,12 +492,12 @@ nfs3_xdr_mknodargs(struct rpc_rqst *req, __be32 *p, struct nfs3_mknodargs *args)
  * Encode RENAME arguments
  */
 static int
-nfs3_xdr_renameargs(struct rpc_rqst *req, __be32 *p, struct nfs3_renameargs *args)
+nfs3_xdr_renameargs(struct rpc_rqst *req, __be32 *p, struct nfs_renameargs *args)
 {
-	p = xdr_encode_fhandle(p, args->fromfh);
-	p = xdr_encode_array(p, args->fromname, args->fromlen);
-	p = xdr_encode_fhandle(p, args->tofh);
-	p = xdr_encode_array(p, args->toname, args->tolen);
+	p = xdr_encode_fhandle(p, args->old_dir);
+	p = xdr_encode_array(p, args->old_name->name, args->old_name->len);
+	p = xdr_encode_fhandle(p, args->new_dir);
+	p = xdr_encode_array(p, args->new_name->name, args->new_name->len);
 	req->rq_slen = xdr_adjust_iovec(req->rq_svec, p);
 	return 0;
 }
@@ -504,9 +554,8 @@ nfs3_xdr_readdirres(struct rpc_rqst *req, __be32 *p, struct nfs3_readdirres *res
 	struct kvec *iov = rcvbuf->head;
 	struct page **page;
 	size_t hdrlen;
-	u32 len, recvd, pglen;
+	u32 recvd, pglen;
 	int status, nr = 0;
-	__be32 *entry, *end, *kaddr;
 
 	status = ntohl(*p++);
 	/* Decode post_op_attrs */
@@ -536,99 +585,38 @@ nfs3_xdr_readdirres(struct rpc_rqst *req, __be32 *p, struct nfs3_readdirres *res
 	if (pglen > recvd)
 		pglen = recvd;
 	page = rcvbuf->pages;
-	kaddr = p = kmap_atomic(*page, KM_USER0);
-	end = (__be32 *)((char *)p + pglen);
-	entry = p;
 
-	/* Make sure the packet actually has a value_follows and EOF entry */
-	if ((entry + 1) > end)
-		goto short_pkt;
-
-	for (; *p++; nr++) {
-		if (p + 3 > end)
-			goto short_pkt;
-		p += 2;				/* inode # */
-		len = ntohl(*p++);		/* string length */
-		p += XDR_QUADLEN(len) + 2;	/* name + cookie */
-		if (len > NFS3_MAXNAMLEN) {
-			dprintk("NFS: giant filename in readdir (len 0x%x)!\n",
-						len);
-			goto err_unmap;
-		}
-
-		if (res->plus) {
-			/* post_op_attr */
-			if (p + 2 > end)
-				goto short_pkt;
-			if (*p++) {
-				p += 21;
-				if (p + 1 > end)
-					goto short_pkt;
-			}
-			/* post_op_fh3 */
-			if (*p++) {
-				if (p + 1 > end)
-					goto short_pkt;
-				len = ntohl(*p++);
-				if (len > NFS3_FHSIZE) {
-					dprintk("NFS: giant filehandle in "
-						"readdir (len 0x%x)!\n", len);
-					goto err_unmap;
-				}
-				p += XDR_QUADLEN(len);
-			}
-		}
-
-		if (p + 2 > end)
-			goto short_pkt;
-		entry = p;
-	}
-
-	/*
-	 * Apparently some server sends responses that are a valid size, but
-	 * contain no entries, and have value_follows==0 and EOF==0. For
-	 * those, just set the EOF marker.
-	 */
-	if (!nr && entry[1] == 0) {
-		dprintk("NFS: readdir reply truncated!\n");
-		entry[1] = 1;
-	}
- out:
-	kunmap_atomic(kaddr, KM_USER0);
 	return nr;
- short_pkt:
-	/*
-	 * When we get a short packet there are 2 possibilities. We can
-	 * return an error, or fix up the response to look like a valid
-	 * response and return what we have so far. If there are no
-	 * entries and the packet was short, then return -EIO. If there
-	 * are valid entries in the response, return them and pretend that
-	 * the call was successful, but incomplete. The caller can retry the
-	 * readdir starting at the last cookie.
-	 */
-	entry[0] = entry[1] = 0;
-	if (!nr)
-		nr = -errno_NFSERR_IO;
-	goto out;
-err_unmap:
-	nr = -errno_NFSERR_IO;
-	goto out;
 }
 
 __be32 *
-nfs3_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus)
+nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, struct nfs_server *server, int plus)
 {
+	__be32 *p;
 	struct nfs_entry old = *entry;
 
-	if (!*p++) {
-		if (!*p)
+	p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		goto out_overflow;
+	if (!ntohl(*p++)) {
+		p = xdr_inline_decode(xdr, 4);
+		if (unlikely(!p))
+			goto out_overflow;
+		if (!ntohl(*p++))
 			return ERR_PTR(-EAGAIN);
 		entry->eof = 1;
 		return ERR_PTR(-EBADCOOKIE);
 	}
 
+	p = xdr_inline_decode(xdr, 12);
+	if (unlikely(!p))
+		goto out_overflow;
 	p = xdr_decode_hyper(p, &entry->ino);
 	entry->len  = ntohl(*p++);
+
+	p = xdr_inline_decode(xdr, entry->len + 8);
+	if (unlikely(!p))
+		goto out_overflow;
 	entry->name = (const char *) p;
 	p += XDR_QUADLEN(entry->len);
 	entry->prev_cookie = entry->cookie;
@@ -636,10 +624,17 @@ nfs3_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus)
 
 	if (plus) {
 		entry->fattr->valid = 0;
-		p = xdr_decode_post_op_attr(p, entry->fattr);
+		p = xdr_decode_post_op_attr_stream(xdr, entry->fattr);
+		if (IS_ERR(p))
+			goto out_overflow_exit;
 		/* In fact, a post_op_fh3: */
+		p = xdr_inline_decode(xdr, 4);
+		if (unlikely(!p))
+			goto out_overflow;
 		if (*p++) {
-			p = xdr_decode_fhandle(p, entry->fh);
+			p = xdr_decode_fhandle_stream(xdr, entry->fh);
+			if (IS_ERR(p))
+				goto out_overflow_exit;
 			/* Ugh -- server reply was truncated */
 			if (p == NULL) {
 				dprintk("NFS: FH truncated\n");
@@ -650,8 +645,18 @@ nfs3_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus)
 			memset((u8*)(entry->fh), 0, sizeof(*entry->fh));
 	}
 
-	entry->eof = !p[0] && p[1];
+	p = xdr_inline_peek(xdr, 8);
+	if (p != NULL)
+		entry->eof = !p[0] && p[1];
+	else
+		entry->eof = 0;
+
 	return p;
+
+out_overflow:
+	print_overflow_msg(__func__, xdr);
+out_overflow_exit:
+	return ERR_PTR(-EIO);
 }
 
 /*
@@ -824,7 +829,6 @@ nfs3_xdr_readlinkres(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 	struct kvec *iov = rcvbuf->head;
 	size_t hdrlen;
 	u32 len, recvd;
-	char	*kaddr;
 	int	status;
 
 	status = ntohl(*p++);
@@ -857,10 +861,7 @@ nfs3_xdr_readlinkres(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 		return -EIO;
 	}
 
-	/* NULL terminate the string we got */
-	kaddr = (char*)kmap_atomic(rcvbuf->pages[0], KM_USER0);
-	kaddr[len+rcvbuf->page_base] = '\0';
-	kunmap_atomic(kaddr, KM_USER0);
+	xdr_terminate_string(rcvbuf, len);
 	return 0;
 }
 
@@ -970,14 +971,14 @@ nfs3_xdr_createres(struct rpc_rqst *req, __be32 *p, struct nfs3_diropres *res)
  * Decode RENAME reply
  */
 static int
-nfs3_xdr_renameres(struct rpc_rqst *req, __be32 *p, struct nfs3_renameres *res)
+nfs3_xdr_renameres(struct rpc_rqst *req, __be32 *p, struct nfs_renameres *res)
 {
 	int	status;
 
 	if ((status = ntohl(*p++)) != 0)
 		status = nfs_stat_to_errno(status);
-	p = xdr_decode_wcc_data(p, res->fromattr);
-	p = xdr_decode_wcc_data(p, res->toattr);
+	p = xdr_decode_wcc_data(p, res->old_fattr);
+	p = xdr_decode_wcc_data(p, res->new_fattr);
 	return status;
 }
 
@@ -1043,8 +1044,9 @@ nfs3_xdr_fsinfores(struct rpc_rqst *req, __be32 *p, struct nfs_fsinfo *res)
 	res->wtmult = ntohl(*p++);
 	res->dtpref = ntohl(*p++);
 	p = xdr_decode_hyper(p, &res->maxfilesize);
+	p = xdr_decode_time3(p, &res->time_delta);
 
-	/* ignore time_delta and properties */
+	/* ignore properties */
 	res->lease_time = 0;
 	return 0;
 }

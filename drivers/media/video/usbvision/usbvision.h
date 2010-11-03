@@ -363,6 +363,7 @@ struct usb_usbvision {
 
 	/* i2c Declaration Section*/
 	struct i2c_adapter i2c_adap;
+	int registered_i2c;
 
 	struct urb *ctrlUrb;
 	unsigned char ctrlUrbBuffer[8];

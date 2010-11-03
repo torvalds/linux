@@ -108,12 +108,6 @@ struct dmm_map_object {
 	struct bridge_dma_map_info dma_info;
 };
 
-/* Used for DMM reserved memory accounting */
-struct dmm_rsv_object {
-	struct list_head link;
-	u32 dsp_reserved_addr;
-};
-
 /* New structure (member of process context) abstracts DMM resource info */
 struct dspheap_res_object {
 	s32 heap_allocated;	/* DMM status */
@@ -165,10 +159,6 @@ struct process_context {
 	struct list_head dmm_map_list;
 	spinlock_t dmm_map_lock;
 
-	/* DMM reserved memory resources */
-	struct list_head dmm_rsv_list;
-	spinlock_t dmm_rsv_lock;
-
 	/* DSP Heap resources */
 	struct dspheap_res_object *pdspheap_list;
 
@@ -193,7 +183,7 @@ struct process_context {
  *  Ensures:
  *      0:        - *drv_obj is a valid DRV interface to the device.
  *                      - List of DevObject Created and Initialized.
- *                      - List of dev_node String created and intialized.
+ *                      - List of dev_node String created and initialized.
  *                      - Registry is updated with the DRV Object.
  *      !0:       DRV Object not created
  *  Details:

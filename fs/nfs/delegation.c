@@ -71,20 +71,20 @@ static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_
 	if (inode->i_flock == NULL)
 		goto out;
 
-	/* Protect inode->i_flock using the BKL */
-	lock_kernel();
+	/* Protect inode->i_flock using the file locks lock */
+	lock_flocks();
 	for (fl = inode->i_flock; fl != NULL; fl = fl->fl_next) {
 		if (!(fl->fl_flags & (FL_POSIX|FL_FLOCK)))
 			continue;
 		if (nfs_file_open_context(fl->fl_file) != ctx)
 			continue;
-		unlock_kernel();
+		unlock_flocks();
 		status = nfs4_lock_delegation_recall(state, fl);
 		if (status < 0)
 			goto out;
-		lock_kernel();
+		lock_flocks();
 	}
-	unlock_kernel();
+	unlock_flocks();
 out:
 	return status;
 }

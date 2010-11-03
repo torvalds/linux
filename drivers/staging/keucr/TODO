@@ -1,0 +1,14 @@
+TODO:
+	- checkpatch.pl clean
+	- sparse clean
+	- determine if the driver should not be using a duplicate
+	  version of the usb-storage scsi interface code, but should
+	  be merged into the drivers/usb/storage/ directory and
+	  infrastructure instead.
+	- review by the USB developer community
+	- common.h: use kernel swap, le, & be functions
+	- smcommon.h & smilsub.c: use kernel hweight8(), hweight16(),
+		strcmp(), & strcpy()
+
+Please send any patches for this driver to Al Cho <acho@novell.com> and
+Greg Kroah-Hartman <gregkh@suse.de>.

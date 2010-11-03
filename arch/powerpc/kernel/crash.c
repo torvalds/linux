@@ -414,18 +414,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	crash_kexec_wait_realmode(crashing_cpu);
 #endif
 
-	for_each_irq(i) {
-		struct irq_desc *desc = irq_to_desc(i);
-
-		if (!desc || !desc->chip || !desc->chip->eoi)
-			continue;
-
-		if (desc->status & IRQ_INPROGRESS)
-			desc->chip->eoi(i);
-
-		if (!(desc->status & IRQ_DISABLED))
-			desc->chip->shutdown(i);
-	}
+	machine_kexec_mask_interrupts();
 
 	/*
 	 * Call registered shutdown routines savely.  Swap out

@@ -85,7 +85,7 @@ struct extent_io_ops {
 
 struct extent_io_tree {
 	struct rb_root state;
-	struct rb_root buffer;
+	struct radix_tree_root buffer;
 	struct address_space *mapping;
 	u64 dirty_bytes;
 	spinlock_t lock;
@@ -123,7 +123,7 @@ struct extent_buffer {
 	unsigned long bflags;
 	atomic_t refs;
 	struct list_head leak_list;
-	struct rb_node rb_node;
+	struct rcu_head rcu_head;
 
 	/* the spinlock is used to protect most operations */
 	spinlock_t lock;
