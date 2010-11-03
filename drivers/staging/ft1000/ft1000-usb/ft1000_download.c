@@ -773,7 +773,7 @@ static u32 write_blk_fifo (struct ft1000_device *ft1000dev, u16 **pUsFile, u8 **
 u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, u32  FileLength)
 {
    u16                     Status = STATUS_SUCCESS;
-   UINT                    uiState;
+   u32                    uiState;
    u16                  handshake;
 	struct pseudo_hdr *pHdr;
    u16                  usHdrLength;
@@ -1181,14 +1181,14 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, u32  FileLeng
             // Get buffer for provisioning data
 		pbuffer = kmalloc((usHdrLength + sizeof(struct pseudo_hdr)), GFP_ATOMIC);
             if (pbuffer) {
-		memcpy(pbuffer, (void *)pUcFile, (UINT)(usHdrLength + sizeof(struct pseudo_hdr)));
+		memcpy(pbuffer, (void *)pUcFile, (u32)(usHdrLength + sizeof(struct pseudo_hdr)));
                 // link provisioning data
 		pprov_record = kmalloc(sizeof(struct prov_record), GFP_ATOMIC);
                 if (pprov_record) {
                     pprov_record->pprov_data = pbuffer;
                     list_add_tail (&pprov_record->list, &pft1000info->prov_list);
                     // Move to next entry if available
-			pUcFile = (u8 *)((unsigned long)pUcFile + (UINT)((usHdrLength + 1) & 0xFFFFFFFE) + sizeof(struct pseudo_hdr));
+			pUcFile = (u8 *)((unsigned long)pUcFile + (u32)((usHdrLength + 1) & 0xFFFFFFFE) + sizeof(struct pseudo_hdr));
                     if ( (unsigned long)(pUcFile) - (unsigned long)(pFileStart) >= (unsigned long)FileLength) {
                        uiState = STATE_DONE_FILE;
                     }

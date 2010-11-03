@@ -98,8 +98,6 @@ struct prov_record {
 /*end of Jim*/
 #define DEBUG(args...) printk(KERN_INFO args)
 
-#define UINT                u32
-
 #define FALSE           0
 #define TRUE            1
 
