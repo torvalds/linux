@@ -752,8 +752,6 @@ struct drm_i915_gem_object {
 	 * Advice: are the backing pages purgeable?
 	 */
 	unsigned int madv : 2;
-	unsigned int fenceable : 1;
-	unsigned int mappable : 1;
 
 	/**
 	 * Current tiling mode for the object.
@@ -771,6 +769,12 @@ struct drm_i915_gem_object {
 	 * bits with absolutely no headroom. So use 4 bits. */
 	unsigned int pin_count : 4;
 #define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
+
+	/**
+	 * Is the object at the current location in the gtt mappable and
+	 * fenceable? Used to avoid costly recalculations.
+	 */
+	unsigned int map_and_fenceable : 1;
 
 	/**
 	 * Whether the current gtt mapping needs to be mappable (and isn't just
@@ -1013,7 +1017,7 @@ struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
 					      size_t size);
 void i915_gem_free_object(struct drm_gem_object *obj);
 int i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment,
-			bool mappable, bool need_fence);
+			bool map_and_fenceable);
 void i915_gem_object_unpin(struct drm_gem_object *obj);
 int i915_gem_object_unbind(struct drm_gem_object *obj);
 void i915_gem_release_mmap(struct drm_gem_object *obj);

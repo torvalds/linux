@@ -59,8 +59,7 @@ static int i915_gem_object_wait_rendering(struct drm_gem_object *obj,
 					  bool interruptible);
 static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 				       unsigned alignment,
-				       bool mappable,
-				       bool need_fence);
+				       bool map_and_fenceable);
 static void i915_gem_clear_fence_reg(struct drm_gem_object *obj);
 static int i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 				struct drm_i915_gem_pwrite *args,
@@ -1074,7 +1073,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	else if (obj_priv->tiling_mode == I915_TILING_NONE &&
 		 obj_priv->gtt_space &&
 		 obj->write_domain != I915_GEM_DOMAIN_CPU) {
-		ret = i915_gem_object_pin(obj, 0, true, false);
+		ret = i915_gem_object_pin(obj, 0, true);
 		if (ret)
 			goto out;
 
@@ -1300,8 +1299,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	BUG_ON(obj_priv->pin_count && !obj_priv->pin_mappable);
 
 	if (obj_priv->gtt_space) {
-		if (!obj_priv->mappable ||
-		    (obj_priv->tiling_mode && !obj_priv->fenceable)) {
+		if (!obj_priv->map_and_fenceable) {
 			ret = i915_gem_object_unbind(obj);
 			if (ret)
 				goto unlock;
@@ -1309,8 +1307,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	if (!obj_priv->gtt_space) {
-		ret = i915_gem_object_bind_to_gtt(obj, 0,
-						  true, obj_priv->tiling_mode);
+		ret = i915_gem_object_bind_to_gtt(obj, 0, true);
 		if (ret)
 			goto unlock;
 	}
@@ -2273,8 +2270,8 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 
 	i915_gem_info_remove_gtt(dev_priv, obj_priv);
 	list_del_init(&obj_priv->mm_list);
-	obj_priv->fenceable = true;
-	obj_priv->mappable = true;
+	/* Avoid an unnecessary call to unbind on rebind. */
+	obj_priv->map_and_fenceable = true;
 
 	drm_mm_put_block(obj_priv->gtt_space);
 	obj_priv->gtt_space = NULL;
@@ -2383,7 +2380,7 @@ static void i915_write_fence_reg(struct drm_gem_object *obj)
 	if ((obj_priv->gtt_offset & ~I915_FENCE_START_MASK) ||
 	    (obj_priv->gtt_offset & (size - 1))) {
 		WARN(1, "%s: object 0x%08x [fenceable? %d] not 1M or size (0x%08x) aligned [gtt_space offset=%lx, size=%lx]\n",
-		     __func__, obj_priv->gtt_offset, obj_priv->fenceable, size,
+		     __func__, obj_priv->gtt_offset, obj_priv->map_and_fenceable, size,
 		     obj_priv->gtt_space->start, obj_priv->gtt_space->size);
 		return;
 	}
@@ -2687,8 +2684,7 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj,
 static int
 i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 			    unsigned alignment,
-			    bool mappable,
-			    bool need_fence)
+			    bool map_and_fenceable)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -2696,6 +2692,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 	struct drm_mm_node *free_space;
 	gfp_t gfpmask = __GFP_NORETRY | __GFP_NOWARN;
 	u32 size, fence_size, fence_alignment;
+	bool mappable, fenceable;
 	int ret;
 
 	if (obj_priv->madv != I915_MADV_WILLNEED) {
@@ -2707,25 +2704,25 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 	fence_alignment = i915_gem_get_gtt_alignment(obj_priv);
 
 	if (alignment == 0)
-		alignment = need_fence ? fence_alignment : 4096;
-	if (need_fence && alignment & (fence_alignment - 1)) {
+		alignment = map_and_fenceable ? fence_alignment : 4096;
+	if (map_and_fenceable && alignment & (fence_alignment - 1)) {
 		DRM_ERROR("Invalid object alignment requested %u\n", alignment);
 		return -EINVAL;
 	}
 
-	size = need_fence ? fence_size : obj->size;
+	size = map_and_fenceable ? fence_size : obj->size;
 
 	/* If the object is bigger than the entire aperture, reject it early
 	 * before evicting everything in a vain attempt to find space.
 	 */
 	if (obj->size >
-	    (mappable ? dev_priv->mm.gtt_mappable_end : dev_priv->mm.gtt_total)) {
+	    (map_and_fenceable ? dev_priv->mm.gtt_mappable_end : dev_priv->mm.gtt_total)) {
 		DRM_ERROR("Attempting to bind an object larger than the aperture\n");
 		return -E2BIG;
 	}
 
  search_free:
-	if (mappable)
+	if (map_and_fenceable)
 		free_space =
 			drm_mm_search_free_in_range(&dev_priv->mm.gtt_space,
 						    size, alignment, 0,
@@ -2736,7 +2733,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 						size, alignment, 0);
 
 	if (free_space != NULL) {
-		if (mappable)
+		if (map_and_fenceable)
 			obj_priv->gtt_space =
 				drm_mm_get_block_range_generic(free_space,
 							       size, alignment, 0,
@@ -2750,7 +2747,8 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 		/* If the gtt is empty and we're still having trouble
 		 * fitting our object in, we're out of memory.
 		 */
-		ret = i915_gem_evict_something(dev, size, alignment, mappable);
+		ret = i915_gem_evict_something(dev, size, alignment,
+					       map_and_fenceable);
 		if (ret)
 			return ret;
 
@@ -2765,7 +2763,8 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 		if (ret == -ENOMEM) {
 			/* first try to clear up some space from the GTT */
 			ret = i915_gem_evict_something(dev, size,
-						       alignment, mappable);
+						       alignment,
+						       map_and_fenceable);
 			if (ret) {
 				/* now try to shrink everyone else */
 				if (gfpmask) {
@@ -2796,7 +2795,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 		obj_priv->gtt_space = NULL;
 
 		ret = i915_gem_evict_something(dev, size,
-					       alignment, mappable);
+					       alignment, map_and_fenceable);
 		if (ret)
 			return ret;
 
@@ -2816,14 +2815,16 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 	BUG_ON(obj->read_domains & I915_GEM_GPU_DOMAINS);
 	BUG_ON(obj->write_domain & I915_GEM_GPU_DOMAINS);
 
-	trace_i915_gem_object_bind(obj, obj_priv->gtt_offset, mappable);
+	trace_i915_gem_object_bind(obj, obj_priv->gtt_offset, map_and_fenceable);
 
-	obj_priv->fenceable =
+	fenceable =
 		obj_priv->gtt_space->size == fence_size &&
 		(obj_priv->gtt_space->start & (fence_alignment -1)) == 0;
 
-	obj_priv->mappable =
+	mappable =
 		obj_priv->gtt_offset + obj->size <= dev_priv->mm.gtt_mappable_end;
+
+	obj_priv->map_and_fenceable = mappable && fenceable;
 
 	return 0;
 }
@@ -3538,8 +3539,7 @@ i915_gem_execbuffer_pin(struct drm_device *dev,
 				entry->relocation_count ? true : need_fence;
 
 			/* Check fence reg constraints and rebind if necessary */
-			if ((need_fence && !obj->fenceable) ||
-			    (need_mappable && !obj->mappable)) {
+			if (need_mappable && !obj->map_and_fenceable) {
 				ret = i915_gem_object_unbind(&obj->base);
 				if (ret)
 					break;
@@ -3547,8 +3547,7 @@ i915_gem_execbuffer_pin(struct drm_device *dev,
 
 			ret = i915_gem_object_pin(&obj->base,
 						  entry->alignment,
-						  need_mappable,
-						  need_fence);
+						  need_mappable);
 			if (ret)
 				break;
 
@@ -4143,7 +4142,7 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 
 int
 i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment,
-		    bool mappable, bool need_fence)
+		    bool map_and_fenceable)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4151,19 +4150,19 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment,
 	int ret;
 
 	BUG_ON(obj_priv->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT);
-	BUG_ON(need_fence && !mappable);
+	BUG_ON(map_and_fenceable && !map_and_fenceable);
 	WARN_ON(i915_verify_lists(dev));
 
 	if (obj_priv->gtt_space != NULL) {
 		if ((alignment && obj_priv->gtt_offset & (alignment - 1)) ||
-		    (need_fence && !obj_priv->fenceable) ||
-		    (mappable && !obj_priv->mappable)) {
+		    (map_and_fenceable && !obj_priv->map_and_fenceable)) {
 			WARN(obj_priv->pin_count,
 			     "bo is already pinned with incorrect alignment:"
-			     " offset=%x, req.alignment=%x, need_fence=%d, fenceable=%d, mappable=%d, cpu_accessible=%d\n",
+			     " offset=%x, req.alignment=%x, req.map_and_fenceable=%d,"
+			     " obj->map_and_fenceable=%d\n",
 			     obj_priv->gtt_offset, alignment,
-			     need_fence, obj_priv->fenceable,
-			     mappable, obj_priv->mappable);
+			     map_and_fenceable,
+			     obj_priv->map_and_fenceable);
 			ret = i915_gem_object_unbind(obj);
 			if (ret)
 				return ret;
@@ -4172,18 +4171,18 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment,
 
 	if (obj_priv->gtt_space == NULL) {
 		ret = i915_gem_object_bind_to_gtt(obj, alignment,
-						  mappable, need_fence);
+						  map_and_fenceable);
 		if (ret)
 			return ret;
 	}
 
 	if (obj_priv->pin_count++ == 0) {
-		i915_gem_info_add_pin(dev_priv, obj_priv, mappable);
+		i915_gem_info_add_pin(dev_priv, obj_priv, map_and_fenceable);
 		if (!obj_priv->active)
 			list_move_tail(&obj_priv->mm_list,
 				       &dev_priv->mm.pinned_list);
 	}
-	BUG_ON(!obj_priv->pin_mappable && mappable);
+	BUG_ON(!obj_priv->pin_mappable && map_and_fenceable);
 
 	WARN_ON(i915_verify_lists(dev));
 	return 0;
@@ -4245,8 +4244,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	obj_priv->user_pin_count++;
 	obj_priv->pin_filp = file_priv;
 	if (obj_priv->user_pin_count == 1) {
-		ret = i915_gem_object_pin(obj, args->alignment,
-					  true, obj_priv->tiling_mode);
+		ret = i915_gem_object_pin(obj, args->alignment, true);
 		if (ret)
 			goto out;
 	}
@@ -4439,8 +4437,8 @@ struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
 	INIT_LIST_HEAD(&obj->ring_list);
 	INIT_LIST_HEAD(&obj->gpu_write_list);
 	obj->madv = I915_MADV_WILLNEED;
-	obj->fenceable = true;
-	obj->mappable = true;
+	/* Avoid an unnecessary call to unbind on the first bind. */
+	obj->map_and_fenceable = true;
 
 	return &obj->base;
 }
@@ -4560,7 +4558,7 @@ i915_gem_init_pipe_control(struct drm_device *dev)
 	obj_priv = to_intel_bo(obj);
 	obj_priv->agp_type = AGP_USER_CACHED_MEMORY;
 
-	ret = i915_gem_object_pin(obj, 4096, true, false);
+	ret = i915_gem_object_pin(obj, 4096, true);
 	if (ret)
 		goto err_unref;
 
