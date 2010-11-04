@@ -59,12 +59,6 @@ static struct gatt_mask intel_i810_masks[] =
 	 .type = INTEL_AGP_CACHED_MEMORY}
 };
 
-#define INTEL_AGP_UNCACHED_MEMORY              0
-#define INTEL_AGP_CACHED_MEMORY_LLC            1
-#define INTEL_AGP_CACHED_MEMORY_LLC_GFDT       2
-#define INTEL_AGP_CACHED_MEMORY_LLC_MLC        3
-#define INTEL_AGP_CACHED_MEMORY_LLC_MLC_GFDT   4
-
 struct intel_gtt_driver {
 	unsigned int gen : 8;
 	unsigned int is_g33 : 1;
