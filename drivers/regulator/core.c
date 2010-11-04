@@ -1269,7 +1269,9 @@ static int _regulator_enable(struct regulator_dev *rdev)
 
 	/* do we need to enable the supply regulator first */
 	if (rdev->supply) {
+		mutex_lock(&rdev->supply->mutex);
 		ret = _regulator_enable(rdev->supply);
+		mutex_unlock(&rdev->supply->mutex);
 		if (ret < 0) {
 			printk(KERN_ERR "%s: failed to enable %s: %d\n",
 			       __func__, rdev_get_name(rdev), ret);
