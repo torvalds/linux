@@ -1148,6 +1148,7 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 			struct rt2x00intf_conf *conf, const unsigned int flags)
 {
 	u32 reg;
+	bool update_bssid = false;
 
 	if (flags & CONFIG_UPDATE_TYPE) {
 		/*
@@ -1177,6 +1178,16 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 	}
 
 	if (flags & CONFIG_UPDATE_MAC) {
+		if (flags & CONFIG_UPDATE_TYPE &&
+		    conf->sync == TSF_SYNC_AP_NONE) {
+			/*
+			 * The BSSID register has to be set to our own mac
+			 * address in AP mode.
+			 */
+			memcpy(conf->bssid, conf->mac, sizeof(conf->mac));
+			update_bssid = true;
+		}
+
 		if (!is_zero_ether_addr((const u8 *)conf->mac)) {
 			reg = le32_to_cpu(conf->mac[1]);
 			rt2x00_set_field32(&reg, MAC_ADDR_DW1_UNICAST_TO_ME_MASK, 0xff);
@@ -1187,7 +1198,7 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 					      conf->mac, sizeof(conf->mac));
 	}
 
-	if (flags & CONFIG_UPDATE_BSSID) {
+	if ((flags & CONFIG_UPDATE_BSSID) || update_bssid) {
 		if (!is_zero_ether_addr((const u8 *)conf->bssid)) {
 			reg = le32_to_cpu(conf->bssid[1]);
 			rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_ID_MASK, 3);
