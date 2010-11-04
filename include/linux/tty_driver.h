@@ -235,6 +235,7 @@
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/cdev.h>
+#include <linux/termios.h>
 
 struct tty_struct;
 struct tty_driver;
