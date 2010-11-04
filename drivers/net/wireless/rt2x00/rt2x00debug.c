@@ -162,10 +162,10 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	struct timeval timestamp;
 	u32 data_len;
 
-	do_gettimeofday(&timestamp);
-
-	if (!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags))
+	if (likely(!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags)))
 		return;
+
+	do_gettimeofday(&timestamp);
 
 	if (skb_queue_len(&intf->frame_dump_skbqueue) > 20) {
 		DEBUG(rt2x00dev, "txrx dump queue length exceeded.\n");
