@@ -427,7 +427,8 @@ struct nvmap_handle *nvmap_validate_get(struct nvmap_client *client,
 	return NULL;
 }
 
-struct nvmap_client *nvmap_create_client(struct nvmap_device *dev)
+struct nvmap_client *nvmap_create_client(struct nvmap_device *dev,
+					 const char *name)
 {
 	struct nvmap_client *client;
 	int i;
@@ -440,6 +441,7 @@ struct nvmap_client *nvmap_create_client(struct nvmap_device *dev)
 	if (!client)
 		return NULL;
 
+	client->name = name;
 	client->super = true;
 	client->dev = dev;
 	/* TODO: allocate unique IOVMM client for each nvmap client */
@@ -554,7 +556,7 @@ static int nvmap_open(struct inode *inode, struct file *filp)
 		return ret;
 
 	BUG_ON(dev != nvmap_dev);
-	priv = nvmap_create_client(dev);
+	priv = nvmap_create_client(dev, "user");
 	if (!priv)
 		return -ENOMEM;
 
@@ -755,7 +757,8 @@ static void client_stringify(struct nvmap_client *client, struct seq_file *s)
 {
 	char task_comm[sizeof(client->task->comm)];
 	get_task_comm(task_comm, client->task);
-	seq_printf(s, "%16s %8u", task_comm, client->task->pid);
+	seq_printf(s, "%8s %16s %8u", client->name, task_comm,
+		   client->task->pid);
 }
 
 static void allocations_stringify(struct nvmap_client *client,
