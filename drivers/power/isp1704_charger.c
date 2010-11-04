@@ -391,12 +391,12 @@ static int __devinit isp1704_charger_probe(struct platform_device *pdev)
 	if (!isp->otg)
 		goto fail0;
 
+	isp->dev = &pdev->dev;
+	platform_set_drvdata(pdev, isp);
+
 	ret = isp1704_test_ulpi(isp);
 	if (ret < 0)
 		goto fail1;
-
-	isp->dev = &pdev->dev;
-	platform_set_drvdata(pdev, isp);
 
 	isp->psy.name		= "isp1704";
 	isp->psy.type		= POWER_SUPPLY_TYPE_USB;
