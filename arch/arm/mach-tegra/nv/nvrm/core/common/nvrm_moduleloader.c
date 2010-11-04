@@ -571,7 +571,7 @@ static NvError NvRmPrivInitAvp(NvRmDeviceHandle hRm)
     if (s_KernelImage)
         return NvSuccess;
 
-    s_AvpClient = nvmap_create_client(nvmap_dev);
+    s_AvpClient = nvmap_create_client(nvmap_dev, "nvrm_avp");
     if (IS_ERR(s_AvpClient)) {
         e = NvError_InsufficientMemory;
         goto fail;
