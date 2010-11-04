@@ -425,8 +425,6 @@ nv50_graph_register(struct drm_device *dev)
 	NVOBJ_CLASS(dev, 0x0030, GR); /* null */
 	NVOBJ_CLASS(dev, 0x5039, GR); /* m2mf */
 	NVOBJ_CLASS(dev, 0x502d, GR); /* 2d */
-	NVOBJ_CLASS(dev, 0x50c0, GR); /* compute */
-	NVOBJ_CLASS(dev, 0x85c0, GR); /* compute (nva3, nva5, nva8) */
 
 	/* tesla */
 	if (dev_priv->chipset == 0x50)
@@ -451,6 +449,14 @@ nv50_graph_register(struct drm_device *dev)
 			break;
 		}
 	}
+
+	/* compute */
+	if (dev_priv->chipset <= 0xa0 ||
+	    dev_priv->chipset == 0xaa ||
+	    dev_priv->chipset == 0xac)
+		NVOBJ_CLASS(dev, 0x50c0, GR);
+	else
+		NVOBJ_CLASS(dev, 0x85c0, GR);
 
 	dev_priv->engine.graph.registered = true;
 	return 0;
