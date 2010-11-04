@@ -34,9 +34,14 @@ struct platform_device *__init imx_add_fec(
 		const struct fec_platform_data *pdata);
 
 #include <linux/can/platform/flexcan.h>
-struct platform_device *__init imx_add_flexcan(int id,
-		resource_size_t iobase, resource_size_t iosize,
-		resource_size_t irq,
+struct imx_flexcan_data {
+	int id;
+	resource_size_t iobase;
+	resource_size_t iosize;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_flexcan(
+		const struct imx_flexcan_data *data,
 		const struct flexcan_platform_data *pdata);
 
 #include <linux/gpio_keys.h>

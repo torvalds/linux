@@ -13,10 +13,11 @@ extern const struct imx_fec_data imx25_fec_data __initconst;
 #define imx25_add_fec(pdata)	\
 	imx_add_fec(&imx25_fec_data, pdata)
 
-#define imx25_add_flexcan0(pdata)	\
-	imx_add_flexcan(0, MX25_CAN1_BASE_ADDR, SZ_16K, MX25_INT_CAN1, pdata)
-#define imx25_add_flexcan1(pdata)	\
-	imx_add_flexcan(1, MX25_CAN2_BASE_ADDR, SZ_16K, MX25_INT_CAN2, pdata)
+extern const struct imx_flexcan_data imx25_flexcan_data[] __initconst;
+#define imx25_add_flexcan(id, pdata)	\
+	imx_add_flexcan(&imx25_flexcan_data[id], pdata)
+#define imx25_add_flexcan0(pdata)	imx25_add_flexcan(0, pdata)
+#define imx25_add_flexcan1(pdata)	imx25_add_flexcan(1, pdata)
 
 extern const struct imx_imx_i2c_data imx25_imx_i2c_data[] __initconst;
 #define imx25_add_imx_i2c(id, pdata)	\
