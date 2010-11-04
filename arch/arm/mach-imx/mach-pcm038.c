@@ -173,7 +173,6 @@ pcm038_nand_board_info __initconst = {
 static struct platform_device *platform_devices[] __initdata = {
 	&pcm038_nor_mtd_device,
 	&pcm038_sram_mtd_device,
-	&mxc_wdt,
 };
 
 /* On pcm038 there's a sram attached to CS1, we enable the chipselect here and
@@ -325,6 +324,7 @@ static void __init pcm038_init(void)
 
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx27_add_imx2_wdt(NULL);
 	imx27_add_mxc_w1(NULL);
 
 #ifdef CONFIG_MACH_PCM970_BASEBOARD

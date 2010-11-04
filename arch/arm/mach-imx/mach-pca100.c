@@ -171,10 +171,6 @@ pca100_nand_board_info __initconst = {
 	.hw_ecc = 1,
 };
 
-static struct platform_device *platform_devices[] __initdata = {
-	&mxc_wdt,
-};
-
 static const struct imxi2c_platform_data pca100_i2c1_data __initconst = {
 	.bitrate = 100000,
 };
@@ -432,7 +428,7 @@ static void __init pca100_init(void)
 	mxc_register_device(&mxc_fb_device, &pca100_fb_data);
 
 	imx27_add_fec(NULL);
-	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx27_add_imx2_wdt(NULL);
 	imx27_add_mxc_w1(NULL);
 }
 

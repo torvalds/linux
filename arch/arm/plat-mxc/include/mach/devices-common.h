@@ -43,6 +43,12 @@ struct platform_device *__init imx_add_flexcan(int id,
 struct platform_device *__init imx_add_gpio_keys(
 		const struct gpio_keys_platform_data *pdata);
 
+struct imx_imx2_wdt_data {
+	resource_size_t iobase;
+};
+struct platform_device *__init imx_add_imx2_wdt(
+		const struct imx_imx2_wdt_data *data);
+
 #include <mach/i2c.h>
 struct imx_imx_i2c_data {
 	int id;

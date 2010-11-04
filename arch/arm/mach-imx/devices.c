@@ -77,22 +77,6 @@ int __init imx1_register_gpios(void)
 #endif
 
 #if defined(CONFIG_MACH_MX21) || defined(CONFIG_MACH_MX27)
-/* Watchdog: i.MX1 has seperate driver, i.MX21 and i.MX27 are equal */
-static struct resource mxc_wdt_resources[] = {
-	{
-		.start = MX2x_WDOG_BASE_ADDR,
-		.end = MX2x_WDOG_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-};
-
-struct platform_device mxc_wdt = {
-	.name = "imx2-wdt",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_wdt_resources),
-	.resource = mxc_wdt_resources,
-};
-
 /*
  * lcdc:
  * - i.MX1: the basic controller
