@@ -38,7 +38,7 @@ static struct snd_soc_dai_link imx_phycore_dai_ac97[] = {
 };
 
 static struct snd_soc_card imx_phycore = {
-	.name		= "PhyCORE-audio",
+	.name		= "PhyCORE-ac97-audio",
 	.dai_link	= imx_phycore_dai_ac97,
 	.num_links	= ARRAY_SIZE(imx_phycore_dai_ac97),
 };
