@@ -54,6 +54,15 @@ struct imx_imx2_wdt_data {
 struct platform_device *__init imx_add_imx2_wdt(
 		const struct imx_imx2_wdt_data *data);
 
+#include <mach/imxfb.h>
+struct imx_imx_fb_data {
+	resource_size_t iobase;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_imx_fb(
+		const struct imx_imx_fb_data *data,
+		const struct imx_fb_platform_data *pdata);
+
 #include <mach/i2c.h>
 struct imx_imx_i2c_data {
 	int id;

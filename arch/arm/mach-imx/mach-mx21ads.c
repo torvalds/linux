@@ -24,7 +24,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/imxfb.h>
 #include <mach/iomux-mx21.h>
 #include <mach/mxc_nand.h>
 #include <mach/mmc.h>
@@ -213,7 +212,7 @@ static struct imx_fb_videomode mx21ads_modes[] = {
 	},
 };
 
-static struct imx_fb_platform_data mx21ads_fb_data = {
+static const struct imx_fb_platform_data mx21ads_fb_data __initconst = {
 	.mode = mx21ads_modes,
 	.num_modes = ARRAY_SIZE(mx21ads_modes),
 
@@ -296,7 +295,7 @@ static void __init mx21ads_board_init(void)
 	imx21_add_imx_uart0(&uart_pdata_rts);
 	imx21_add_imx_uart2(&uart_pdata_norts);
 	imx21_add_imx_uart3(&uart_pdata_rts);
-	mxc_register_device(&mxc_fb_device, &mx21ads_fb_data);
+	imx21_add_imx_fb(&mx21ads_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, &mx21ads_sdhc_pdata);
 	imx21_add_mxc_nand(&mx21ads_nand_board_info);
 

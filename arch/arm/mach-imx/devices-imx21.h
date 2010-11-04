@@ -13,6 +13,10 @@ extern const struct imx_imx2_wdt_data imx21_imx2_wdt_data __initconst;
 #define imx21_add_imx2_wdt(pdata)	\
 	imx_add_imx2_wdt(&imx21_imx2_wdt_data)
 
+extern const struct imx_imx_fb_data imx21_imx_fb_data __initconst;
+#define imx21_add_imx_fb(pdata)	\
+	imx_add_imx_fb(&imx21_imx_fb_data, pdata)
+
 extern const struct imx_imx_i2c_data imx21_imx_i2c_data __initconst;
 #define imx21_add_imx_i2c(pdata)	\
 	imx_add_imx_i2c(&imx21_imx_i2c_data, pdata)

@@ -31,7 +31,6 @@
 #include <mach/iomux-mx27.h>
 #include <mach/mxc_nand.h>
 #include <linux/i2c/pca953x.h>
-#include <mach/imxfb.h>
 #include <mach/mmc.h>
 
 #include "devices-imx27.h"
@@ -196,7 +195,7 @@ static struct imx_fb_videomode mxt_td60_modes[] = {
 	},
 };
 
-static struct imx_fb_platform_data mxt_td60_fb_data = {
+static const struct imx_fb_platform_data mxt_td60_fb_data __initconst = {
 	.mode = mxt_td60_modes,
 	.num_modes = ARRAY_SIZE(mxt_td60_modes),
 
@@ -253,7 +252,7 @@ static void __init mxt_td60_board_init(void)
 
 	imx27_add_imx_i2c(0, &mxt_td60_i2c0_data);
 	imx27_add_imx_i2c(1, &mxt_td60_i2c1_data);
-	mxc_register_device(&mxc_fb_device, &mxt_td60_fb_data);
+	imx27_add_imx_fb(&mxt_td60_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
 	imx27_add_fec(NULL);
 }

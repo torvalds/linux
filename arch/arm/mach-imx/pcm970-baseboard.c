@@ -25,10 +25,10 @@
 
 #include <mach/common.h>
 #include <mach/iomux-mx27.h>
-#include <mach/imxfb.h>
 #include <mach/hardware.h>
 #include <mach/mmc.h>
 
+#include "devices-imx27.h"
 #include "devices.h"
 
 static const int pcm970_pins[] __initconst = {
@@ -179,7 +179,7 @@ static struct imx_fb_videomode pcm970_modes[] = {
 	},
 };
 
-static struct imx_fb_platform_data pcm038_fb_data = {
+static const struct imx_fb_platform_data pcm038_fb_data __initconst = {
 	.mode = pcm970_modes,
 	.num_modes = ARRAY_SIZE(pcm970_modes),
 
@@ -226,7 +226,7 @@ void __init pcm970_baseboard_init(void)
 	mxc_gpio_setup_multiple_pins(pcm970_pins, ARRAY_SIZE(pcm970_pins),
 			"PCM970");
 
-	mxc_register_device(&mxc_fb_device, &pcm038_fb_data);
+	imx27_add_imx_fb(&pcm038_fb_data);
 	mxc_gpio_mode(GPIO_PORTC | 28 | GPIO_GPIO | GPIO_IN);
 	mxc_register_device(&mxc_sdhc_device1, &sdhc_pdata);
 	platform_device_register(&pcm970_sja1000);

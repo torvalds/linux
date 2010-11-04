@@ -32,7 +32,6 @@
 
 #include <mach/common.h>
 #include <mach/iomux-mx27.h>
-#include <mach/imxfb.h>
 #include <mach/hardware.h>
 #include <mach/mmc.h>
 #include <mach/spi.h>
@@ -196,7 +195,7 @@ static struct imx_fb_videomode eukrea_mbimx27_modes[] = {
 	},
 };
 
-static struct imx_fb_platform_data eukrea_mbimx27_fb_data = {
+static const struct imx_fb_platform_data eukrea_mbimx27_fb_data __initconst = {
 	.mode = eukrea_mbimx27_modes,
 	.num_modes = ARRAY_SIZE(eukrea_mbimx27_modes),
 
@@ -351,7 +350,7 @@ void __init eukrea_mbimx27_baseboard_init(void)
 	imx27_add_imx_uart3(&uart_pdata);
 #endif
 
-	mxc_register_device(&mxc_fb_device, &eukrea_mbimx27_fb_data);
+	imx27_add_imx_fb(&eukrea_mbimx27_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, &sdhc_pdata);
 
 	i2c_register_board_info(0, eukrea_mbimx27_i2c_devices,

@@ -77,35 +77,6 @@ int __init imx1_register_gpios(void)
 #endif
 
 #if defined(CONFIG_MACH_MX21) || defined(CONFIG_MACH_MX27)
-/*
- * lcdc:
- * - i.MX1: the basic controller
- * - i.MX21: to be checked
- * - i.MX27: like i.MX1, with slightly variations
- */
-static struct resource mxc_fb[] = {
-	{
-		.start = MX2x_LCDC_BASE_ADDR,
-		.end = MX2x_LCDC_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX2x_INT_LCDC,
-		.end = MX2x_INT_LCDC,
-		.flags = IORESOURCE_IRQ,
-	}
-};
-
-/* mxc lcd driver */
-struct platform_device mxc_fb_device = {
-	.name = "imx-fb",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_fb),
-	.resource = mxc_fb,
-	.dev = {
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-	},
-};
-
 static struct resource mxc_pwm_resources[] = {
 	{
 		.start = MX2x_PWM_BASE_ADDR,

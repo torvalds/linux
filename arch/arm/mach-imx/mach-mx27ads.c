@@ -30,7 +30,6 @@
 #include <mach/gpio.h>
 #include <mach/iomux-mx27.h>
 #include <mach/mxc_nand.h>
-#include <mach/imxfb.h>
 #include <mach/mmc.h>
 
 #include "devices-imx27.h"
@@ -228,7 +227,7 @@ static struct imx_fb_videomode mx27ads_modes[] = {
 	},
 };
 
-static struct imx_fb_platform_data mx27ads_fb_data = {
+static const struct imx_fb_platform_data mx27ads_fb_data __initconst = {
 	.mode = mx27ads_modes,
 	.num_modes = ARRAY_SIZE(mx27ads_modes),
 
@@ -307,7 +306,7 @@ static void __init mx27ads_board_init(void)
 	i2c_register_board_info(1, mx27ads_i2c_devices,
 				ARRAY_SIZE(mx27ads_i2c_devices));
 	imx27_add_imx_i2c(1, &mx27ads_i2c1_data);
-	mxc_register_device(&mxc_fb_device, &mx27ads_fb_data);
+	imx27_add_imx_fb(&mx27ads_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
 	mxc_register_device(&mxc_sdhc_device1, &sdhc2_pdata);
 

@@ -43,7 +43,6 @@
 #include <mach/mmc.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
-#include <mach/imxfb.h>
 
 #include "devices-imx27.h"
 #include "devices.h"
@@ -350,7 +349,7 @@ static struct imx_fb_videomode pca100_fb_modes[] = {
 	},
 };
 
-static struct imx_fb_platform_data pca100_fb_data = {
+static const struct imx_fb_platform_data pca100_fb_data __initconst = {
 	.mode = pca100_fb_modes,
 	.num_modes = ARRAY_SIZE(pca100_fb_modes),
 
@@ -425,7 +424,7 @@ static void __init pca100_init(void)
 		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
 	}
 
-	mxc_register_device(&mxc_fb_device, &pca100_fb_data);
+	imx27_add_imx_fb(&pca100_fb_data);
 
 	imx27_add_fec(NULL);
 	imx27_add_imx2_wdt(NULL);
