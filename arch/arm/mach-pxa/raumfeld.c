@@ -588,6 +588,9 @@ static struct pxafb_mach_info raumfeld_sharp_lcd_info = {
 	.num_modes	= 1,
 	.video_mem_size = 0x400000,
 	.lcd_conn	= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
+#ifdef CONFIG_PXA3XX_GCU
+	.acceleration_enabled = 1,
+#endif
 };
 
 static void __init raumfeld_lcd_init(void)
@@ -616,6 +619,8 @@ static void __init raumfeld_lcd_init(void)
 		pr_warning("Unable to request GPIO_DISPLAY_ENABLE\n");
 	else
 		gpio_direction_output(GPIO_DISPLAY_ENABLE, 1);
+
+	platform_device_register(&pxa3xx_device_gcu);
 }
 
 /**
