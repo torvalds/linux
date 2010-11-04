@@ -20,9 +20,6 @@
 #include <sound/soc-dapm.h>
 #include <asm/mach-types.h>
 
-#include "../codecs/wm9712.h"
-#include "imx-ssi.h"
-
 static struct snd_soc_card imx_phycore;
 
 static struct snd_soc_ops imx_phycore_hifi_ops = {
