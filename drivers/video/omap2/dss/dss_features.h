@@ -27,6 +27,7 @@
 enum dss_feat_id {
 	FEAT_GLOBAL_ALPHA	= 1 << 0,
 	FEAT_GLOBAL_ALPHA_VID1	= 1 << 1,
+	FEAT_PRE_MULT_ALPHA	= 1 << 2,
 };
 
 /* DSS register field id */

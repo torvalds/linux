@@ -134,11 +134,23 @@ static struct omap_dss_features omap2_dss_features = {
 };
 
 /* OMAP3 DSS Features */
-static struct omap_dss_features omap3_dss_features = {
+static struct omap_dss_features omap3430_dss_features = {
 	.reg_fields = omap3_dss_reg_fields,
 	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
 
 	.has_feature	= FEAT_GLOBAL_ALPHA,
+
+	.num_mgrs = 2,
+	.num_ovls = 3,
+	.supported_displays = omap3_dss_supported_displays,
+	.supported_color_modes = omap3_dss_supported_color_modes,
+};
+
+static struct omap_dss_features omap3630_dss_features = {
+	.reg_fields = omap3_dss_reg_fields,
+	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
+
+	.has_feature    = FEAT_GLOBAL_ALPHA | FEAT_PRE_MULT_ALPHA,
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
@@ -186,6 +198,8 @@ void dss_features_init(void)
 {
 	if (cpu_is_omap24xx())
 		omap_current_dss_features = &omap2_dss_features;
-	else
-		omap_current_dss_features = &omap3_dss_features;
+	else if (cpu_is_omap3630())
+		omap_current_dss_features = &omap3630_dss_features;
+	else if (cpu_is_omap34xx())
+		omap_current_dss_features = &omap3430_dss_features;
 }
