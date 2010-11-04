@@ -1430,8 +1430,8 @@ static int try_nonblocking_invalidate(struct inode *inode)
 	    invalidating_gen == ci->i_rdcache_gen) {
 		/* success. */
 		dout("try_nonblocking_invalidate %p success\n", inode);
-		ci->i_rdcache_gen = 0;
-		ci->i_rdcache_revoking = 0;
+		/* save any racing async invalidate some trouble */
+		ci->i_rdcache_revoking = ci->i_rdcache_gen - 1;
 		return 0;
 	}
 	dout("try_nonblocking_invalidate %p failed\n", inode);

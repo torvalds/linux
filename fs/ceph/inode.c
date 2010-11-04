@@ -1394,11 +1394,8 @@ static void ceph_invalidate_work(struct work_struct *work)
 	spin_lock(&inode->i_lock);
 	dout("invalidate_pages %p gen %d revoking %d\n", inode,
 	     ci->i_rdcache_gen, ci->i_rdcache_revoking);
-	if (ci->i_rdcache_gen == 0 ||
-	    ci->i_rdcache_revoking != ci->i_rdcache_gen) {
-		BUG_ON(ci->i_rdcache_revoking > ci->i_rdcache_gen);
+	if (ci->i_rdcache_revoking != ci->i_rdcache_gen) {
 		/* nevermind! */
-		ci->i_rdcache_revoking = 0;
 		spin_unlock(&inode->i_lock);
 		goto out;
 	}
@@ -1408,15 +1405,16 @@ static void ceph_invalidate_work(struct work_struct *work)
 	ceph_invalidate_nondirty_pages(inode->i_mapping);
 
 	spin_lock(&inode->i_lock);
-	if (orig_gen == ci->i_rdcache_gen) {
+	if (orig_gen == ci->i_rdcache_gen &&
+	    orig_gen == ci->i_rdcache_revoking) {
 		dout("invalidate_pages %p gen %d successful\n", inode,
 		     ci->i_rdcache_gen);
-		ci->i_rdcache_gen = 0;
-		ci->i_rdcache_revoking = 0;
+		ci->i_rdcache_revoking--;
 		check = 1;
 	} else {
-		dout("invalidate_pages %p gen %d raced, gen now %d\n",
-		     inode, orig_gen, ci->i_rdcache_gen);
+		dout("invalidate_pages %p gen %d raced, now %d revoking %d\n",
+		     inode, orig_gen, ci->i_rdcache_gen,
+		     ci->i_rdcache_revoking);
 	}
 	spin_unlock(&inode->i_lock);
 
