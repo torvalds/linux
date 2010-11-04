@@ -818,7 +818,7 @@ static int __init imx_dma_init(void)
 		imx_dmav1_baseaddr = MX27_IO_ADDRESS(MX27_DMA_BASE_ADDR);
 	else
 #endif
-		BUG();
+		return 0;
 
 	dma_clk = clk_get(NULL, "dma");
 	clk_enable(dma_clk);
