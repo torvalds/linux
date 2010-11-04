@@ -147,6 +147,5 @@ struct crypto_cipher *ieee80211_aes_key_setup_encrypt(const u8 key[])
 
 void ieee80211_aes_key_free(struct crypto_cipher *tfm)
 {
-	if (tfm)
-		crypto_free_cipher(tfm);
+	crypto_free_cipher(tfm);
 }
