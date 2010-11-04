@@ -785,7 +785,7 @@ u16 scram_dnldr(struct ft1000_device *ft1000dev, void *pFileStart, u32  FileLeng
 	struct dsp_file_hdr *pFileHdr5;
 	struct dsp_image_info *pDspImageInfoV6 = NULL;
    long                    requested_version;
-   BOOLEAN                 bGoodVersion;
+   bool                 bGoodVersion;
 	struct drv_msg *pMailBoxData;
    u16                  *pUsData = NULL;
    u16                  *pUsFile = NULL;

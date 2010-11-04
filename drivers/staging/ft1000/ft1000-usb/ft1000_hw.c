@@ -491,7 +491,7 @@ u16 fix_ft1000_write_dpram32(struct ft1000_device *ft1000dev, u16 indx, u8 *buff
 //
 //  Returns:    None
 //-----------------------------------------------------------------------
-static void card_reset_dsp (struct ft1000_device *ft1000dev, BOOLEAN value)
+static void card_reset_dsp (struct ft1000_device *ft1000dev, bool value)
 {
     u16 status = STATUS_SUCCESS;
     u16 tempword;
@@ -1479,7 +1479,7 @@ static int ft1000_chkcard (struct ft1000_device *dev) {
 //          = 1 (successful)
 //
 //---------------------------------------------------------------------------
-static BOOLEAN ft1000_receive_cmd (struct ft1000_device *dev, u16 *pbuffer, int maxsz, u16 *pnxtph) {
+static bool ft1000_receive_cmd (struct ft1000_device *dev, u16 *pbuffer, int maxsz, u16 *pnxtph) {
     u16 size, ret;
     u16 *ppseudohdr;
     int i;

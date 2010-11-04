@@ -98,7 +98,6 @@ struct prov_record {
 /*end of Jim*/
 #define DEBUG(args...) printk(KERN_INFO args)
 
-#define BOOLEAN             u8
 #define PCHAR               u8 *
 #define UINT                u32
 
@@ -488,9 +487,9 @@ struct ft1000_info {
 	unsigned char usbboot;
     unsigned short dspalive;
     u16 ASIC_ID;
-    BOOLEAN fProvComplete;
-    BOOLEAN fCondResetPend;
-    BOOLEAN fAppMsgPend;
+    bool fProvComplete;
+    bool fCondResetPend;
+    bool fAppMsgPend;
     char *pfwimg;
     int fwimgsz;
     u16 DrvErrNum;

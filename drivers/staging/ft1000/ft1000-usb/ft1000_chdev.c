@@ -64,7 +64,7 @@ spinlock_t free_buff_lock;
 int numofmsgbuf = 0;
 
 // Global variable to indicate that all provisioning data is sent to DSP
-//BOOLEAN fProvComplete;
+//bool fProvComplete;
 
 //
 // Table of entry-point routines for char device
