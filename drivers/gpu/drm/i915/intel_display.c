@@ -1461,8 +1461,7 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 		BUG();
 	}
 
-	ret = i915_gem_object_pin(obj, alignment,
-				  !pipelined || obj_priv->tiling_mode,
+	ret = i915_gem_object_pin(obj, alignment, true,
 				  obj_priv->tiling_mode);
 	if (ret)
 		return ret;
