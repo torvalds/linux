@@ -124,7 +124,7 @@ static int lme2510_bulk_write(struct usb_device *dev,
 	int ret, actual_l;
 
 	ret = usb_bulk_msg(dev, usb_sndbulkpipe(dev, pipe),
-				snd, len , &actual_l, 500);
+				snd, len , &actual_l, 100);
 	return ret;
 }
 
@@ -134,7 +134,7 @@ static int lme2510_bulk_read(struct usb_device *dev,
 	int ret, actual_l;
 
 	ret = usb_bulk_msg(dev, usb_rcvbulkpipe(dev, pipe),
-				 rev, len , &actual_l, 500);
+				 rev, len , &actual_l, 200);
 	return ret;
 }
 
@@ -166,7 +166,7 @@ static int lme2510_usb_talk(struct dvb_usb_device *d,
 
 	ret |= lme2510_bulk_write(d->udev, buff, wlen , 0x01);
 
-	msleep(12);
+	msleep(10);
 
 	ret |= usb_clear_halt(d->udev, usb_rcvbulkpipe(d->udev, 0x01));
 
@@ -1073,5 +1073,5 @@ module_exit(lme2510_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LM2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.70");
+MODULE_VERSION("1.71");
 MODULE_LICENSE("GPL");
