@@ -46,6 +46,8 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
+#include <trace/events/asoc.h>
+
 /* dapm power sequences - make this per codec in the future */
 static int dapm_up_seq[] = {
 	[snd_soc_dapm_pre] = 0,
@@ -151,6 +153,8 @@ static int snd_soc_dapm_set_bias_level(struct snd_soc_card *card,
 		return -EINVAL;
 	}
 
+	trace_snd_soc_bias_level_start(card, level);
+
 	if (card && card->set_bias_level)
 		ret = card->set_bias_level(card, level);
 	if (ret == 0) {
@@ -159,6 +163,8 @@ static int snd_soc_dapm_set_bias_level(struct snd_soc_card *card,
 		else
 			dapm->bias_level = level;
 	}
+
+	trace_snd_soc_bias_level_done(card, level);
 
 	return ret;
 }
@@ -761,7 +767,9 @@ static void dapm_seq_check_event(struct snd_soc_dapm_context *dapm,
 	if (w->event && (w->event_flags & event)) {
 		pop_dbg(dapm->dev, card->pop_time, "pop test : %s %s\n",
 			w->name, ev_name);
+		trace_snd_soc_dapm_widget_event_start(w, event);
 		ret = w->event(w, NULL, event);
+		trace_snd_soc_dapm_widget_event_done(w, event);
 		if (ret < 0)
 			pr_err("%s: %s event failed: %d\n",
 			       ev_name, w->name, ret);
@@ -921,6 +929,8 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 	int power;
 	int sys_power = 0;
 
+	trace_snd_soc_dapm_start(card);
+
 	/* Check which widgets we need to power and store them in
 	 * lists indicating if they should be powered up or down.
 	 */
@@ -946,6 +956,8 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 
 			if (w->power == power)
 				continue;
+
+			trace_snd_soc_dapm_widget_power(w, power);
 
 			if (power)
 				dapm_seq_insert(w, &up_list, dapm_up_seq);
@@ -1036,6 +1048,8 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 	pop_dbg(dapm->dev, card->pop_time,
 		"DAPM sequencing finished, waiting %dms\n", card->pop_time);
 	pop_wait(card->pop_time);
+
+	trace_snd_soc_dapm_done(card);
 
 	return 0;
 }
