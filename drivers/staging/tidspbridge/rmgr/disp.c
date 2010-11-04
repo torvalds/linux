@@ -460,17 +460,6 @@ int disp_node_create(struct disp_object *disp_obj,
 		DBC_ASSERT(ul_bytes < (RMS_COMMANDBUFSIZE * sizeof(rms_word)));
 		status = send_message(disp_obj, node_get_timeout(hnode),
 				      ul_bytes, node_env);
-		if (status >= 0) {
-			/*
-			 * Message successfully received from RMS.
-			 * Return the status of the Node's create function
-			 * on the DSP-side
-			 */
-			status = (((rms_word *) (disp_obj->pbuf))[0]);
-			if (status < 0)
-				dev_dbg(bridge, "%s: DSP-side failed: 0x%x\n",
-					__func__, status);
-		}
 	}
 func_end:
 	return status;
@@ -513,18 +502,6 @@ int disp_node_delete(struct disp_object *disp_obj,
 			status = send_message(disp_obj, node_get_timeout(hnode),
 					      sizeof(struct rms_command),
 					      &dw_arg);
-			if (status >= 0) {
-				/*
-				 * Message successfully received from RMS.
-				 * Return the status of the Node's delete
-				 * function on the DSP-side
-				 */
-				status = (((rms_word *) (disp_obj->pbuf))[0]);
-				if (status < 0)
-					dev_dbg(bridge, "%s: DSP-side failed: "
-						"0x%x\n", __func__, status);
-			}
-
 		}
 	}
 	return status;
@@ -566,18 +543,6 @@ int disp_node_run(struct disp_object *disp_obj,
 			status = send_message(disp_obj, node_get_timeout(hnode),
 					      sizeof(struct rms_command),
 					      &dw_arg);
-			if (status >= 0) {
-				/*
-				 * Message successfully received from RMS.
-				 * Return the status of the Node's execute
-				 * function on the DSP-side
-				 */
-				status = (((rms_word *) (disp_obj->pbuf))[0]);
-				if (status < 0)
-					dev_dbg(bridge, "%s: DSP-side failed: "
-						"0x%x\n", __func__, status);
-			}
-
 		}
 	}
 
@@ -739,7 +704,14 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 		} else {
 			if (CHNL_IS_IO_COMPLETE(chnl_ioc_obj)) {
 				DBC_ASSERT(chnl_ioc_obj.pbuf == pbuf);
-				status = (*((rms_word *) chnl_ioc_obj.pbuf));
+				if (*((int *)chnl_ioc_obj.pbuf) < 0) {
+					/* Translate DSP's to kernel error */
+					status = -EREMOTEIO;
+					dev_dbg(bridge, "%s: DSP-side failed:"
+						" DSP errcode = 0x%x, Kernel "
+						"errcode = %d\n", __func__,
+						*(int *)pbuf, status);
+				}
 				*pdw_arg =
 				    (((rms_word *) (chnl_ioc_obj.pbuf))[1]);
 			} else {
