@@ -943,6 +943,7 @@ static const struct ieee80211_ops rt2800pci_mac80211_ops = {
 	.get_tsf		= rt2800_get_tsf,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
 	.ampdu_action		= rt2800_ampdu_action,
+	.flush			= rt2x00mac_flush,
 };
 
 static const struct rt2800_ops rt2800pci_rt2800_ops = {

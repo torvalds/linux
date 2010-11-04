@@ -1133,6 +1133,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 int rt2x00mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		      const struct ieee80211_tx_queue_params *params);
 void rt2x00mac_rfkill_poll(struct ieee80211_hw *hw);
+void rt2x00mac_flush(struct ieee80211_hw *hw, bool drop);
 
 /*
  * Driver allocation handlers.

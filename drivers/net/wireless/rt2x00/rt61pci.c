@@ -2824,6 +2824,7 @@ static const struct ieee80211_ops rt61pci_mac80211_ops = {
 	.conf_tx		= rt61pci_conf_tx,
 	.get_tsf		= rt61pci_get_tsf,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
+	.flush			= rt2x00mac_flush,
 };
 
 static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
