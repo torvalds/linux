@@ -6,12 +6,12 @@
 
 #include <mach/rk29-dma-pl330.h>
 
-static u64 dma_dmamask = DMA_BIT_MASK(16);
+static u64 dma_dmamask = DMA_BIT_MASK(32);
 
 static struct resource rk29_dmac0_resource[] = {
 	[0] = {
-		.start  = RK29_DMAC0_PHYS,
-		.end    = RK29_DMAC0_PHYS + RK29_DMAC0_SIZE,
+		.start  = RK29_SDMAC0_PHYS,//RK29_DMAC0_PHYS,
+		.end    = RK29_SDMAC0_PHYS + RK29_SDMAC0_SIZE,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -44,12 +44,12 @@ static struct rk29_pl330_platdata rk29_dmac0_pdata = {
 
 static struct platform_device rk29_device_dmac0 = {
 	.name		= "rk29-pl330",
-	.id		= 1,
+	.id		= 0,
 	.num_resources	= ARRAY_SIZE(rk29_dmac0_resource),
 	.resource	= rk29_dmac0_resource,
 	.dev		= {
 		.dma_mask = &dma_dmamask,
-		.coherent_dma_mask = DMA_BIT_MASK(16),
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 		.platform_data = &rk29_dmac0_pdata,
 	},
 };
@@ -90,12 +90,12 @@ static struct rk29_pl330_platdata rk29_dmac2_pdata = {
 
 static struct platform_device rk29_device_dmac2 = {
 	.name		= "rk29-pl330",
-	.id		= 2,
+	.id		= 1,
 	.num_resources	= ARRAY_SIZE(rk29_dmac2_resource),
 	.resource	= rk29_dmac2_resource,
 	.dev		= {
 		.dma_mask = &dma_dmamask,
-		.coherent_dma_mask = DMA_BIT_MASK(16),
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 		.platform_data = &rk29_dmac2_pdata,
 	},
 };

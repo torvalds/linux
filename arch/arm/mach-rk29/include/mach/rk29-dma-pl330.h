@@ -67,7 +67,7 @@ static inline bool rk29_dma_has_circular(void)
  * to the rk29 DMA API driver for PL330.
  */
 struct rk29_pl330_platdata {
-	enum dma_ch peri[16];
+	enum dma_ch peri[32];
 };
 
 #include <mach/dma.h>
