@@ -2,18 +2,10 @@
 # Makefile for the kernel character device drivers.
 #
 
-#
-# This file contains the font map for the default (hardware) font
-#
-FONTMAPFILE = cp437.uni
-
 obj-y				+= mem.o random.o
 obj-$(CONFIG_TTY_PRINTK)	+= ttyprintk.o
 obj-y				+= misc.o
-obj-$(CONFIG_VT)		+= vt_ioctl.o vc_screen.o selection.o keyboard.o
 obj-$(CONFIG_BFIN_JTAG_COMM)	+= bfin_jtag_comm.o
-obj-$(CONFIG_CONSOLE_TRANSLATIONS) += consolemap.o consolemap_deftbl.o
-obj-$(CONFIG_HW_CONSOLE)	+= vt.o defkeymap.o
 obj-$(CONFIG_MVME147_SCC)	+= generic_serial.o vme_scc.o
 obj-$(CONFIG_MVME162_SCC)	+= generic_serial.o vme_scc.o
 obj-$(CONFIG_BVME6000_SCC)	+= generic_serial.o vme_scc.o
@@ -106,28 +98,3 @@ obj-$(CONFIG_RAMOOPS)		+= ramoops.o
 
 obj-$(CONFIG_JS_RTC)		+= js-rtc.o
 js-rtc-y = rtc.o
-
-# Files generated that shall be removed upon make clean
-clean-files := consolemap_deftbl.c defkeymap.c
-
-quiet_cmd_conmk = CONMK   $@
-      cmd_conmk = scripts/conmakehash $< > $@
-
-$(obj)/consolemap_deftbl.c: $(src)/$(FONTMAPFILE)
-	$(call cmd,conmk)
-
-$(obj)/defkeymap.o:  $(obj)/defkeymap.c
-
-# Uncomment if you're changing the keymap and have an appropriate
-# loadkeys version for the map. By default, we'll use the shipped
-# versions.
-# GENERATE_KEYMAP := 1
-
-ifdef GENERATE_KEYMAP
-
-$(obj)/defkeymap.c: $(obj)/%.c: $(src)/%.map
-	loadkeys --mktable $< > $@.tmp
-	sed -e 's/^static *//' $@.tmp > $@
-	rm $@.tmp
-
-endif
