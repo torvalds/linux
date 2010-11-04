@@ -75,6 +75,10 @@ config GENERIC_CLOCKEVENTS
 config NO_IOPORT
 	def_bool y
 
+config COLDFIRE_SW_A7
+	bool
+	default n
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -107,11 +111,13 @@ config M68360
 
 config M5206
 	bool "MCF5206"
+	select COLDFIRE_SW_A7
 	help
 	  Motorola ColdFire 5206 processor support.
 
 config M5206e
 	bool "MCF5206e"
+	select COLDFIRE_SW_A7
 	help
 	  Motorola ColdFire 5206e processor support.
 
@@ -129,6 +135,7 @@ config M523x
 
 config M5249
 	bool "MCF5249"
+	select COLDFIRE_SW_A7
 	help
 	  Motorola ColdFire 5249 processor support.
 
@@ -139,6 +146,7 @@ config M5271
 
 config M5272
 	bool "MCF5272"
+	select COLDFIRE_SW_A7
 	help
 	  Motorola ColdFire 5272 processor support.
 
@@ -155,6 +163,7 @@ config M528x
 
 config M5307
 	bool "MCF5307"
+	select COLDFIRE_SW_A7
 	help
 	  Motorola ColdFire 5307 processor support.
 
@@ -165,6 +174,7 @@ config M532x
 
 config M5407
 	bool "MCF5407"
+	select COLDFIRE_SW_A7
 	help
 	  Motorola ColdFire 5407 processor support.
 

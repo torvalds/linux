@@ -26,6 +26,7 @@
 #define CACR_IHLCK	0x00000800	/* Intruction cache half lock */
 #define CACR_IDCM	0x00000400	/* Intruction cache inhibit */
 #define CACR_ICINVA	0x00000100	/* Invalidate instr cache */
+#define CACR_EUSP	0x00000020	/* Enable separate user a7 */
 
 #define ACR_BASE_POS	24		/* Address Base */
 #define ACR_MASK_POS	16		/* Address Mask */
@@ -67,7 +68,11 @@
 	/* Enable data store buffer */
 	/* outside ACRs : No cache, precise */
 	/* Enable instruction+branch caches */
+#if defined(CONFIG_M5407)
 #define CACHE_MODE (CACR_DEC+CACR_DESB+CACR_DDCM_P+CACR_BEC+CACR_IEC)
+#else
+#define CACHE_MODE (CACR_DEC+CACR_DESB+CACR_DDCM_P+CACR_BEC+CACR_IEC+CACR_EUSP)
+#endif
 
 #define DATA_CACHE_MODE (ACR_ENABLE+ACR_ANY+ACR_CM_WT)
 

@@ -46,7 +46,7 @@
 	movec	%d0,%ACR0
 	movel	#0x00000000,%d0		/* no other regions cached */
 	movec	%d0,%ACR1
-	movel	#0x80400100,%d0		/* configure cache */
+	movel	#0x80400110,%d0		/* configure cache */
 	movec	%d0,%CACR		/* enable cache */
 	nop
 .endm
@@ -101,7 +101,7 @@
 	movec	%d0,%ACR0
 	movel	#0x00000000,%d0		/* no other regions cached */
 	movec	%d0,%ACR1
-	movel	#0x80000200,%d0		/* setup cache mask */
+	movel	#0x80000210,%d0		/* setup cache mask */
 	movec	%d0,%CACR		/* enable cache */
 	nop
 .endm
@@ -142,7 +142,7 @@
 	movec	%d0,%ACR0
 	move.l	#0x00000000,%d0		/* no other regions cached */
 	movec	%d0,%ACR1
-	move.l	#0x80400000,%d0		/* enable 8K instruction cache */
+	move.l	#0x80400010,%d0		/* enable 8K instruction cache */
 	movec	%d0,%CACR
 	nop
 .endm

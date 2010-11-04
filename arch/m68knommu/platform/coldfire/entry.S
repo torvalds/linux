@@ -36,13 +36,16 @@
 #include <asm/asm-offsets.h>
 #include <asm/entry.h>
 
+#ifdef CONFIG_COLDFIRE_SW_A7
+/*
+ *	Define software copies of the supervisor and user stack pointers.
+ */
 .bss
-
 sw_ksp:
 .long	0
-
 sw_usp:
 .long	0
+#endif /* CONFIG_COLDFIRE_SW_A7 */
 
 .text
 
@@ -52,6 +55,7 @@ sw_usp:
 .globl ret_from_signal
 .globl sys_call_table
 .globl inthandler
+.globl fasthandler
 
 enosys:
 	mov.l	#sys_ni_syscall,%d3
@@ -138,20 +142,7 @@ Luser_return:
 	jne	Lwork_to_do		/* still work to do */
 
 Lreturn:
-	move	#0x2700,%sr		/* disable intrs */
-	movel	sw_usp,%a0		/* get usp */
-	movel	%sp@(PT_OFF_PC),%a0@-	/* copy exception program counter */
-	movel	%sp@(PT_OFF_FORMATVEC),%a0@- /* copy exception format/vector/sr */
-	moveml	%sp@,%d1-%d5/%a0-%a2
-	lea	%sp@(32),%sp		/* space for 8 regs */
-	movel	%sp@+,%d0
-	addql	#4,%sp			/* orig d0 */
-	addl	%sp@+,%sp		/* stk adj */
-	addql	#8,%sp			/* remove exception */
-	movel	%sp,sw_ksp		/* save ksp */
-	subql	#8,sw_usp		/* set exception */
-	movel	sw_usp,%sp		/* restore usp */
-	rte
+	RESTORE_USER
 
 Lwork_to_do:
 	movel	%a0@(TI_FLAGS),%d1	/* get thread_info->flags */
@@ -201,9 +192,8 @@ ENTRY(inthandler)
  */
 ENTRY(resume)
 	movel	%a0, %d1			/* get prev thread in d1 */
-
-	movel	sw_usp,%d0			/* save usp */
-	movel	%d0,%a0@(TASK_THREAD+THREAD_USP)
+	RDUSP
+	movel	%a2,%a0@(TASK_THREAD+THREAD_USP)
 
 	SAVE_SWITCH_STACK
 	movel	%sp,%a0@(TASK_THREAD+THREAD_KSP) /* save kernel stack pointer */
@@ -211,5 +201,5 @@ ENTRY(resume)
 	RESTORE_SWITCH_STACK
 
 	movel	%a1@(TASK_THREAD+THREAD_USP),%a0 /* restore thread user stack */
-	movel	%a0, sw_usp
+	WRUSP
 	rts
