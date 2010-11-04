@@ -101,6 +101,9 @@ static struct _intel_private {
 	dma_addr_t scratch_page_dma;
 } intel_private;
 
+static int intel_fake_agp_insert_entries(struct agp_memory *mem,
+					 off_t pg_start, int type);
+
 #define INTEL_GTT_GEN	intel_private.driver->gen
 #define IS_G33		intel_private.driver->is_g33
 #define IS_PINEVIEW	intel_private.driver->is_pineview
@@ -176,10 +179,12 @@ static int intel_i810_fetch_size(void)
 	if ((smram_miscc & I810_GFX_MEM_WIN_SIZE) == I810_GFX_MEM_WIN_32M) {
 		agp_bridge->current_size = (void *) (values + 1);
 		agp_bridge->aperture_size_idx = 1;
+		intel_private.base.gtt_total_entries = KB(32) / 4;
 		return values[1].size;
 	} else {
 		agp_bridge->current_size = (void *) (values);
 		agp_bridge->aperture_size_idx = 0;
+		intel_private.base.gtt_total_entries = KB(64) / 4;
 		return values[0].size;
 	}
 
@@ -205,6 +210,9 @@ static int intel_i810_configure(void)
 			return -ENOMEM;
 		}
 	}
+
+	intel_private.gtt = intel_private.registers + I810_PTE_BASE;
+	intel_private.scratch_page_dma = agp_bridge->scratch_page & PAGE_MASK;
 
 	if ((readl(intel_private.registers+I810_DRAM_CTL)
 		& I810_DRAM_ROW_0) == I810_DRAM_ROW_0_SDRAM) {
@@ -273,79 +281,27 @@ static void i8xx_destroy_pages(struct page *page)
 static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
 				int type)
 {
-	int i, j, num_entries;
-	void *temp;
-	int ret = -EINVAL;
-	int mask_type;
-
-	if (mem->page_count == 0)
-		goto out;
-
-	temp = agp_bridge->current_size;
-	num_entries = A_SIZE_FIX(temp)->num_entries;
-
-	if ((pg_start + mem->page_count) > num_entries)
-		goto out_err;
-
-
-	for (j = pg_start; j < (pg_start + mem->page_count); j++) {
-		if (!PGE_EMPTY(agp_bridge, readl(agp_bridge->gatt_table+j))) {
-			ret = -EBUSY;
-			goto out_err;
-		}
-	}
-
-	if (type != mem->type)
-		goto out_err;
-
-	mask_type = agp_bridge->driver->agp_type_to_mask_type(agp_bridge, type);
-
-	switch (mask_type) {
-	case AGP_DCACHE_MEMORY:
-		if (!mem->is_flushed)
-			global_cache_flush();
-		for (i = pg_start; i < (pg_start + mem->page_count); i++) {
-			writel((i*4096)|I810_PTE_LOCAL|I810_PTE_VALID,
-			       intel_private.registers+I810_PTE_BASE+(i*4));
-		}
-		readl(intel_private.registers+I810_PTE_BASE+((i-1)*4));
-		break;
-	case AGP_PHYS_MEMORY:
-	case AGP_NORMAL_MEMORY:
-		if (!mem->is_flushed)
-			global_cache_flush();
-		for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
-			writel(agp_bridge->driver->mask_memory(agp_bridge,
-					page_to_phys(mem->pages[i]), mask_type),
-			       intel_private.registers+I810_PTE_BASE+(j*4));
-		}
-		readl(intel_private.registers+I810_PTE_BASE+((j-1)*4));
-		break;
-	default:
-		goto out_err;
-	}
-
-out:
-	ret = 0;
-out_err:
-	mem->is_flushed = true;
-	return ret;
-}
-
-static int intel_i810_remove_entries(struct agp_memory *mem, off_t pg_start,
-				int type)
-{
 	int i;
 
-	if (mem->page_count == 0)
+	if (type == AGP_DCACHE_MEMORY) {
+		if ((pg_start + mem->page_count)
+				> intel_private.num_dcache_entries)
+			return -EINVAL;
+
+		if (!mem->is_flushed)
+			global_cache_flush();
+
+		for (i = pg_start; i < (pg_start + mem->page_count); i++) {
+			dma_addr_t addr = i << PAGE_SHIFT;
+			intel_private.driver->write_entry(addr,
+							  i, type);
+		}
+		readl(intel_private.gtt+i-1);
+
 		return 0;
-
-	for (i = pg_start; i < (mem->page_count + pg_start); i++) {
-		writel(agp_bridge->scratch_page, intel_private.registers+I810_PTE_BASE+(i*4));
 	}
-	readl(intel_private.registers+I810_PTE_BASE+((i-1)*4));
 
-	return 0;
+	return intel_fake_agp_insert_entries(mem, pg_start, type);
 }
 
 /*
@@ -388,29 +344,6 @@ static struct agp_memory *alloc_agpphysmem_i8xx(size_t pg_count, int type)
 	new->type = AGP_PHYS_MEMORY;
 	new->physical = page_to_phys(new->pages[0]);
 	return new;
-}
-
-static struct agp_memory *intel_i810_alloc_by_type(size_t pg_count, int type)
-{
-	struct agp_memory *new;
-
-	if (type == AGP_DCACHE_MEMORY) {
-		if (pg_count != intel_private.num_dcache_entries)
-			return NULL;
-
-		new = agp_create_memory(1);
-		if (new == NULL)
-			return NULL;
-
-		new->type = AGP_DCACHE_MEMORY;
-		new->page_count = pg_count;
-		new->num_scratch_pages = 0;
-		agp_free_page_array(new);
-		return new;
-	}
-	if (type == AGP_PHYS_MEMORY)
-		return alloc_agpphysmem_i8xx(pg_count, type);
-	return NULL;
 }
 
 static void intel_i810_free_by_type(struct agp_memory *curr)
@@ -461,6 +394,23 @@ static int intel_gtt_setup_scratch_page(void)
 	intel_private.scratch_page = page;
 
 	return 0;
+}
+
+static void i810_write_entry(dma_addr_t addr, unsigned int entry,
+			     unsigned int flags)
+{
+	u32 pte_flags = I810_PTE_VALID;
+
+	switch (flags) {
+	case AGP_DCACHE_MEMORY:
+		pte_flags |= I810_PTE_LOCAL;
+		break;
+	case AGP_USER_CACHED_MEMORY:
+		pte_flags |= I830_PTE_SYSTEM_CACHED;
+		break;
+	}
+
+	writel(addr | pte_flags, intel_private.gtt + entry);
 }
 
 static const struct aper_size_info_fixed const intel_fake_agp_sizes[] = {
@@ -760,7 +710,7 @@ static void intel_gtt_cleanup(void)
 
 	iounmap(intel_private.gtt);
 	iounmap(intel_private.registers);
-	
+
 	intel_gtt_teardown_scratch_page();
 }
 
@@ -889,7 +839,7 @@ static void i830_write_entry(dma_addr_t addr, unsigned int entry,
 			     unsigned int flags)
 {
 	u32 pte_flags = I810_PTE_VALID;
-	
+
 	if (flags ==  AGP_USER_CACHED_MEMORY)
 		pte_flags |= I830_PTE_SYSTEM_CACHED;
 
@@ -1106,6 +1056,22 @@ static void intel_fake_agp_chipset_flush(struct agp_bridge_data *bridge)
 static struct agp_memory *intel_fake_agp_alloc_by_type(size_t pg_count,
 						       int type)
 {
+	struct agp_memory *new;
+
+	if (type == AGP_DCACHE_MEMORY && INTEL_GTT_GEN == 1) {
+		if (pg_count != intel_private.num_dcache_entries)
+			return NULL;
+
+		new = agp_create_memory(1);
+		if (new == NULL)
+			return NULL;
+
+		new->type = AGP_DCACHE_MEMORY;
+		new->page_count = pg_count;
+		new->num_scratch_pages = 0;
+		agp_free_page_array(new);
+		return new;
+	}
 	if (type == AGP_PHYS_MEMORY)
 		return alloc_agpphysmem_i8xx(pg_count, type);
 	/* always return NULL for other allocation types for now */
@@ -1316,8 +1282,8 @@ static const struct agp_bridge_driver intel_810_driver = {
 	.create_gatt_table	= agp_generic_create_gatt_table,
 	.free_gatt_table	= agp_generic_free_gatt_table,
 	.insert_memory		= intel_i810_insert_entries,
-	.remove_memory		= intel_i810_remove_entries,
-	.alloc_by_type		= intel_i810_alloc_by_type,
+	.remove_memory		= intel_fake_agp_remove_entries,
+	.alloc_by_type		= intel_fake_agp_alloc_by_type,
 	.free_by_type		= intel_i810_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
@@ -1352,6 +1318,8 @@ static const struct agp_bridge_driver intel_fake_agp_driver = {
 static const struct intel_gtt_driver i81x_gtt_driver = {
 	.gen = 1,
 	.dma_mask_size = 32,
+	.check_flags = i830_check_flags,
+	.write_entry = i810_write_entry,
 };
 static const struct intel_gtt_driver i8xx_gtt_driver = {
 	.gen = 2,
@@ -1369,7 +1337,7 @@ static const struct intel_gtt_driver i915_gtt_driver = {
 	.setup = i9xx_setup,
 	.cleanup = i9xx_cleanup,
 	/* i945 is the last gpu to need phys mem (for overlay and cursors). */
-	.write_entry = i830_write_entry, 
+	.write_entry = i830_write_entry,
 	.dma_mask_size = 32,
 	.check_flags = i830_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
@@ -1557,7 +1525,7 @@ int intel_gmch_probe(struct pci_dev *pdev,
 		if (find_gmch(intel_gtt_chipsets[i].gmch_chip_id)) {
 			bridge->driver =
 				intel_gtt_chipsets[i].gmch_driver;
-			intel_private.driver = 
+			intel_private.driver =
 				intel_gtt_chipsets[i].gtt_driver;
 			break;
 		}
