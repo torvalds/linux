@@ -896,14 +896,8 @@ static void i830_write_entry(dma_addr_t addr, unsigned int entry,
 {
 	u32 pte_flags = I810_PTE_VALID;
 	
-	switch (flags) {
-	case AGP_DCACHE_MEMORY:
-		pte_flags |= I810_PTE_LOCAL;
-		break;
-	case AGP_USER_CACHED_MEMORY:
+	if (flags ==  AGP_USER_CACHED_MEMORY)
 		pte_flags |= I830_PTE_SYSTEM_CACHED;
-		break;
-	}
 
 	writel(addr | pte_flags, intel_private.gtt + entry);
 }
