@@ -451,11 +451,10 @@ nv50_graph_register(struct drm_device *dev)
 	}
 
 	/* compute */
-	if (dev_priv->chipset <= 0xa0 ||
-	    dev_priv->chipset == 0xaa ||
-	    dev_priv->chipset == 0xac)
-		NVOBJ_CLASS(dev, 0x50c0, GR);
-	else
+	NVOBJ_CLASS(dev, 0x50c0, GR);
+	if (dev_priv->chipset  > 0xa0 &&
+	    dev_priv->chipset != 0xaa &&
+	    dev_priv->chipset != 0xac)
 		NVOBJ_CLASS(dev, 0x85c0, GR);
 
 	dev_priv->engine.graph.registered = true;
