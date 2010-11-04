@@ -196,7 +196,6 @@ extern int net_os_set_suspend_disable(struct net_device *dev, int val);
 extern int net_os_set_suspend(struct net_device *dev, int val);
 extern int net_os_set_dtim_skip(struct net_device *dev, int val);
 extern int net_os_set_packet_filter(struct net_device *dev, int val);
-extern int net_os_send_hang_message(struct net_device *dev);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
 #define IWE_STREAM_ADD_EVENT(info, stream, ends, iwe, extra) \
@@ -231,6 +230,7 @@ extern int dhd_dev_get_pno_status(struct net_device *dev);
 #define PNO_TLV_TYPE_SSID_IE		'S'
 #define PNO_TLV_TYPE_TIME		'T'
 #define  PNO_EVENT_UP			"PNO_EVENT"
+#define PNO_SCAN_MAX_FW			508
 
 typedef struct cmd_tlv {
 	char prefix;
