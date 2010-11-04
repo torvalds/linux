@@ -115,15 +115,16 @@ static const struct fb_videomode default_720p = {
 	.xres = 1280,
 	.yres = 720,
 
-	.left_margin = 200,
-	.right_margin = 88,
-	.hsync_len = 48,
+	.left_margin = 220,
+	.right_margin = 110,
+	.hsync_len = 40,
 
 	.upper_margin = 20,
 	.lower_margin = 5,
 	.vsync_len = 5,
 
 	.pixclock = 13468,
+	.refresh = 60,
 	.sync = FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
 };
 
