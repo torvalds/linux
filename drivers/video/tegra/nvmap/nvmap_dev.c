@@ -22,10 +22,12 @@
 
 #include <linux/backing-dev.h>
 #include <linux/bitmap.h>
+#include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/platform_device.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
@@ -737,35 +739,11 @@ static ssize_t attr_show_usage(struct device *dev,
 	return sprintf(buf, "%08x\n", node->heap_bit);
 }
 
-static ssize_t attr_show_clients(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	struct nvmap_carveout_node *node = nvmap_heap_device_to_arg(dev);
-	struct nvmap_carveout_commit *commit;
-	char *orig_buf = buf;
-
-	mutex_lock(&node->clients_mutex);
-	list_for_each_entry(commit, &node->clients, list) {
-		struct nvmap_client *client =
-			get_client_from_carveout_commit(node, commit);
-		char task_comm[sizeof(client->task->comm)];
-		get_task_comm(task_comm, client->task);
-		buf += sprintf(buf, "%16s %8u %8u\n", task_comm,
-			       client->task->pid, commit->commit);
-	}
-	mutex_unlock(&node->clients_mutex);
-	return buf - orig_buf;
-}
-
 static struct device_attribute heap_attr_show_usage =
 	__ATTR(usage, S_IRUGO, attr_show_usage, NULL);
 
-static struct device_attribute heap_attr_show_clients =
-	__ATTR(clients, S_IRUGO, attr_show_clients, NULL);
-
 static struct attribute *heap_extra_attrs[] = {
 	&heap_attr_show_usage.attr,
-	&heap_attr_show_clients.attr,
 	NULL,
 };
 
@@ -773,10 +751,93 @@ static struct attribute_group heap_extra_attr_group = {
 	.attrs = heap_extra_attrs,
 };
 
+static void client_stringify(struct nvmap_client *client, struct seq_file *s)
+{
+	char task_comm[sizeof(client->task->comm)];
+	get_task_comm(task_comm, client->task);
+	seq_printf(s, "%16s %8u", task_comm, client->task->pid);
+}
+
+static void allocations_stringify(struct nvmap_client *client,
+				  struct seq_file *s)
+{
+	struct rb_node *n = client->handle_refs.rb_node;
+
+	for (; n != NULL; n = rb_next(n)) {
+		struct nvmap_handle_ref *ref =
+			rb_entry(n, struct nvmap_handle_ref, node);
+		struct nvmap_handle *handle = ref->handle;
+		if (!handle->heap_pgalloc)
+			seq_printf(s, " %8u@%8lx ", handle->size,
+				   handle->carveout->base);
+	}
+	seq_printf(s, "\n");
+}
+
+static int nvmap_debug_allocations_show(struct seq_file *s, void *unused)
+{
+	struct nvmap_carveout_node *node = s->private;
+	struct nvmap_carveout_commit *commit;
+
+	mutex_lock(&node->clients_mutex);
+	list_for_each_entry(commit, &node->clients, list) {
+		struct nvmap_client *client =
+			get_client_from_carveout_commit(node, commit);
+		client_stringify(client, s);
+		allocations_stringify(client, s);
+	}
+	mutex_unlock(&node->clients_mutex);
+
+	return 0;
+}
+
+static int nvmap_debug_allocations_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, nvmap_debug_allocations_show,
+			   inode->i_private);
+}
+
+static struct file_operations debug_allocations_fops = {
+	.open = nvmap_debug_allocations_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int nvmap_debug_clients_show(struct seq_file *s, void *unused)
+{
+	struct nvmap_carveout_node *node = s->private;
+	struct nvmap_carveout_commit *commit;
+
+	mutex_lock(&node->clients_mutex);
+	list_for_each_entry(commit, &node->clients, list) {
+		struct nvmap_client *client =
+			get_client_from_carveout_commit(node, commit);
+		client_stringify(client, s);
+		seq_printf(s, " %8u\n", commit->commit);
+	}
+	mutex_unlock(&node->clients_mutex);
+
+	return 0;
+}
+
+static int nvmap_debug_clients_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, nvmap_debug_clients_show, inode->i_private);
+}
+
+static struct file_operations debug_clients_fops = {
+	.open = nvmap_debug_clients_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static int nvmap_probe(struct platform_device *pdev)
 {
 	struct nvmap_platform_data *plat = pdev->dev.platform_data;
 	struct nvmap_device *dev;
+	struct dentry *nvmap_debug_root;
 	unsigned int i;
 	int e;
 
@@ -885,6 +946,10 @@ static int nvmap_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	nvmap_debug_root = debugfs_create_dir("nvmap", NULL);
+	if (IS_ERR_OR_NULL(nvmap_debug_root))
+		dev_err(&pdev->dev, "couldn't create debug files\n");
+
 	for (i = 0; i < plat->nr_carveouts; i++) {
 		struct nvmap_carveout_node *node = &dev->heaps[i];
 		const struct nvmap_platform_carveout *co = &plat->carveouts[i];
@@ -907,7 +972,19 @@ static int nvmap_probe(struct platform_device *pdev)
 
 		dev_info(&pdev->dev, "created carveout %s (%uKiB)\n",
 			 co->name, co->size / 1024);
+
+		if (!IS_ERR_OR_NULL(nvmap_debug_root)) {
+			struct dentry *heap_root =
+				debugfs_create_dir(co->name, nvmap_debug_root);
+			if (!IS_ERR_OR_NULL(heap_root)) {
+				debugfs_create_file("clients", 0664, heap_root,
+				    node, &debug_clients_fops);
+				debugfs_create_file("allocations", 0664,
+				    heap_root, node, &debug_allocations_fops);
+			}
+		}
 	}
+
 	platform_set_drvdata(pdev, dev);
 	nvmap_dev = dev;
 	return 0;
