@@ -79,6 +79,9 @@ EXPORT_SYMBOL(mx51_revision);
  */
 static int __init mx51_neon_fixup(void)
 {
+	if (!cpu_is_mx51())
+		return 0;
+
 	if (mx51_revision() < MX51_CHIP_REV_3_0 && (elf_hwcap & HWCAP_NEON)) {
 		elf_hwcap &= ~HWCAP_NEON;
 		pr_info("Turning off NEON support, detected broken NEON implementation\n");
