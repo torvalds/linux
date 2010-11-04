@@ -361,7 +361,7 @@ void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev)
 		if (!rt2x00queue_empty(queue)) {
 			if (rt2x00queue_dma_timeout(queue))
 				rt2x00usb_watchdog_tx_dma(queue);
-			if (rt2x00queue_timeout(queue))
+			if (rt2x00queue_status_timeout(queue))
 				rt2x00usb_watchdog_tx_status(queue);
 		}
 	}

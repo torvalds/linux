@@ -593,10 +593,10 @@ static inline int rt2x00queue_threshold(struct data_queue *queue)
 }
 
 /**
- * rt2x00queue_timeout - Check if a timeout occured for STATUS reorts
+ * rt2x00queue_status_timeout - Check if a timeout occured for STATUS reports
  * @queue: Queue to check.
  */
-static inline int rt2x00queue_timeout(struct data_queue *queue)
+static inline int rt2x00queue_status_timeout(struct data_queue *queue)
 {
 	return time_after(queue->last_action[Q_INDEX_DMA_DONE],
 			  queue->last_action[Q_INDEX_DONE] + (HZ / 10));
