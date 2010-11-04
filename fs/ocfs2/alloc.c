@@ -5858,6 +5858,7 @@ int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 
 	ocfs2_journal_dirty(handle, tl_bh);
 
+	osb->truncated_clusters += num_clusters;
 bail:
 	mlog_exit(status);
 	return status;
@@ -5928,6 +5929,8 @@ static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
 		}
 		i--;
 	}
+
+	osb->truncated_clusters = 0;
 
 bail:
 	mlog_exit(status);
