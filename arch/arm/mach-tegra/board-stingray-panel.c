@@ -201,8 +201,6 @@ static struct nvhost_device stingray_disp1_device = {
 	},
 };
 
-static struct regulator *stingray_hdmi_reg;
-
 static int stingray_hdmi_init(void)
 {
 	tegra_gpio_enable(STINGRAY_HDMI_5V_EN);

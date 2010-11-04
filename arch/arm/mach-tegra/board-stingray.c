@@ -772,7 +772,7 @@ static int __init mot_usb_serial_num_setup(char *options)
 __setup("androidboot.serialno=", mot_usb_serial_num_setup);
 
 static int mot_boot_recovery = 0;
-static int __init mot_bm_recovery_setup()
+static int __init mot_bm_recovery_setup(char *options)
 {
        mot_boot_recovery = 1;
        return 1;
