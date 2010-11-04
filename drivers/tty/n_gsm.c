@@ -2375,6 +2375,7 @@ static int gsmld_config(struct tty_struct *tty, struct gsm_mux *gsm,
 	gsm->mru = c->mru;
 	gsm->encoding = c->encapsulation;
 	gsm->adaption = c->adaption;
+	gsm->n2 = c->n2;
 
 	if (c->i == 1)
 		gsm->ftype = UIH;
