@@ -311,14 +311,6 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	memset(txdesc, 0, sizeof(*txdesc));
 
 	/*
-	 * Initialize information from queue
-	 */
-	txdesc->qid = entry->queue->qid;
-	txdesc->cw_min = entry->queue->cw_min;
-	txdesc->cw_max = entry->queue->cw_max;
-	txdesc->aifs = entry->queue->aifs;
-
-	/*
 	 * Header and frame information.
 	 */
 	txdesc->length = entry->skb->len;

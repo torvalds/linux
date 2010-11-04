@@ -280,7 +280,6 @@ enum txentry_desc_flags {
  * Summary of information for the frame descriptor before sending a TX frame.
  *
  * @flags: Descriptor flags (See &enum queue_entry_flags).
- * @qid: Queue identification (See &enum data_queue_qid).
  * @length: Length of the entire frame.
  * @header_length: Length of 802.11 header.
  * @length_high: PLCP length high word.
@@ -293,11 +292,8 @@ enum txentry_desc_flags {
  * @rate_mode: Rate mode (See @enum rate_modulation).
  * @mpdu_density: MDPU density.
  * @retry_limit: Max number of retries.
- * @aifs: AIFS value.
  * @ifs: IFS value.
  * @txop: IFS value for 11n capable chips.
- * @cw_min: cwmin value.
- * @cw_max: cwmax value.
  * @cipher: Cipher type used for encryption.
  * @key_idx: Key index used for encryption.
  * @iv_offset: Position where IV should be inserted by hardware.
@@ -305,8 +301,6 @@ enum txentry_desc_flags {
  */
 struct txentry_desc {
 	unsigned long flags;
-
-	enum data_queue_qid qid;
 
 	u16 length;
 	u16 header_length;
@@ -323,11 +317,8 @@ struct txentry_desc {
 	u16 mpdu_density;
 
 	short retry_limit;
-	short aifs;
 	short ifs;
 	short txop;
-	short cw_min;
-	short cw_max;
 
 	enum cipher cipher;
 	u16 key_idx;

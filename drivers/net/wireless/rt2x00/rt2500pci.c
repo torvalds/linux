@@ -1193,9 +1193,9 @@ static void rt2500pci_write_tx_desc(struct queue_entry *entry,
 
 	rt2x00_desc_read(txd, 2, &word);
 	rt2x00_set_field32(&word, TXD_W2_IV_OFFSET, IEEE80211_HEADER);
-	rt2x00_set_field32(&word, TXD_W2_AIFS, txdesc->aifs);
-	rt2x00_set_field32(&word, TXD_W2_CWMIN, txdesc->cw_min);
-	rt2x00_set_field32(&word, TXD_W2_CWMAX, txdesc->cw_max);
+	rt2x00_set_field32(&word, TXD_W2_AIFS, entry->queue->aifs);
+	rt2x00_set_field32(&word, TXD_W2_CWMIN, entry->queue->cw_min);
+	rt2x00_set_field32(&word, TXD_W2_CWMAX, entry->queue->cw_max);
 	rt2x00_desc_write(txd, 2, word);
 
 	rt2x00_desc_read(txd, 3, &word);
