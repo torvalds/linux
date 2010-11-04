@@ -39,7 +39,6 @@ struct osl_info {
 	osl_pubinfo_t pub;
 	uint magic;
 	void *pdev;
-	uint failed;
 	uint bustype;
 };
 
@@ -56,7 +55,6 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 	bzero(osh, sizeof(osl_t));
 
 	osh->magic = OS_HANDLE_MAGIC;
-	osh->failed = 0;
 	osh->pdev = pdev;
 	osh->pub.pkttag = pkttag;
 	osh->bustype = bustype;
