@@ -1269,6 +1269,7 @@ extern void intel_overlay_print_error_state(struct seq_file *m, struct intel_ove
 
 #define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
+#define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 
