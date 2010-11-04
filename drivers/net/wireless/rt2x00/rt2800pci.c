@@ -442,7 +442,7 @@ static int rt2800pci_set_state(struct rt2x00_dev *rt2x00dev,
 	 * if the device is booting and wasn't asleep it will return
 	 * failure when attempting to wakeup.
 	 */
-	rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0, 2);
+	rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0xff, 2);
 
 	if (state == STATE_AWAKE) {
 		rt2800_mcu_request(rt2x00dev, MCU_WAKEUP, TOKEN_WAKUP, 0, 0);

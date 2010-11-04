@@ -184,9 +184,9 @@ static int rt2800usb_set_state(struct rt2x00_dev *rt2x00dev,
 			       enum dev_state state)
 {
 	if (state == STATE_AWAKE)
-		rt2800_mcu_request(rt2x00dev, MCU_WAKEUP, 0xff, 0, 0);
+		rt2800_mcu_request(rt2x00dev, MCU_WAKEUP, 0xff, 0, 2);
 	else
-		rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0, 2);
+		rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0xff, 2);
 
 	return 0;
 }
