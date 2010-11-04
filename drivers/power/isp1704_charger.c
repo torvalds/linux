@@ -59,7 +59,7 @@ struct isp1704_charger {
 	struct notifier_block	nb;
 	struct work_struct	work;
 
-	char			model[7];
+	char			model[8];
 	unsigned		present:1;
 };
 
