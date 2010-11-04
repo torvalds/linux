@@ -1181,6 +1181,30 @@ Table 1-12: Files in /proc/fs/ext4/<devname>
  mb_groups       details of multiblock allocator buddy cache of free blocks
 ..............................................................................
 
+2.0 /proc/consoles
+------------------
+Shows registered system console lines.
+
+To see which character device lines are currently used for the system console
+/dev/console, you may simply look into the file /proc/consoles:
+
+  > cat /proc/consoles
+  tty0                 -WU (ECp)       4:7
+  ttyS0                -W- (Ep)        4:64
+
+The columns are:
+
+  device               name of the device
+  operations           R = can do read operations
+                       W = can do write operations
+                       U = can do unblank
+  flags                E = it is enabled
+                       C = it is prefered console
+                       B = it is primary boot console
+                       p = it is used for printk buffer
+                       b = it is not a TTY but a Braille device
+                       a = it is safe to use when cpu is offline
+  major:minor          major and minor number of the device separated by a colon
 
 ------------------------------------------------------------------------------
 Summary
