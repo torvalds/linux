@@ -1048,6 +1048,8 @@ static void ipr_init_res_entry(struct ipr_resource_entry *res,
 			sizeof(res->res_path));
 
 		res->bus = 0;
+		memcpy(&res->dev_lun.scsi_lun, &cfgtew->u.cfgte64->lun,
+			sizeof(res->dev_lun.scsi_lun));
 		res->lun = scsilun_to_int(&res->dev_lun);
 
 		if (res->type == IPR_RES_TYPE_GENERIC_SCSI) {
@@ -1063,9 +1065,6 @@ static void ipr_init_res_entry(struct ipr_resource_entry *res,
 								  ioa_cfg->max_devs_supported);
 				set_bit(res->target, ioa_cfg->target_ids);
 			}
-
-			memcpy(&res->dev_lun.scsi_lun, &cfgtew->u.cfgte64->lun,
-				sizeof(res->dev_lun.scsi_lun));
 		} else if (res->type == IPR_RES_TYPE_IOAFP) {
 			res->bus = IPR_IOAFP_VIRTUAL_BUS;
 			res->target = 0;
@@ -1116,7 +1115,7 @@ static int ipr_is_same_device(struct ipr_resource_entry *res,
 	if (res->ioa_cfg->sis64) {
 		if (!memcmp(&res->dev_id, &cfgtew->u.cfgte64->dev_id,
 					sizeof(cfgtew->u.cfgte64->dev_id)) &&
-			!memcmp(&res->lun, &cfgtew->u.cfgte64->lun,
+			!memcmp(&res->dev_lun.scsi_lun, &cfgtew->u.cfgte64->lun,
 					sizeof(cfgtew->u.cfgte64->lun))) {
 			return 1;
 		}
