@@ -87,6 +87,9 @@
 #define SDHCI_BLOCK_GAP_CONTROL	0x2A
 
 #define SDHCI_WAKE_UP_CONTROL	0x2B
+#define  SDHCI_WAKE_ON_INT	0x01
+#define  SDHCI_WAKE_ON_INSERT	0x02
+#define  SDHCI_WAKE_ON_REMOVE	0x04
 
 #define SDHCI_CLOCK_CONTROL	0x2C
 #define  SDHCI_DIVIDER_SHIFT	8
@@ -317,6 +320,7 @@ extern void sdhci_remove_host(struct sdhci_host *host, int dead);
 #ifdef CONFIG_PM
 extern int sdhci_suspend_host(struct sdhci_host *host, pm_message_t state);
 extern int sdhci_resume_host(struct sdhci_host *host);
+extern void sdhci_enable_irq_wakeups(struct sdhci_host *host);
 #endif
 
 #endif /* __SDHCI_HW_H */
