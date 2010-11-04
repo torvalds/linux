@@ -18,7 +18,7 @@
 #define _linux_osl_h_
 
 
-extern osl_t *osl_attach(void *pdev, uint bustype, bool pkttag);
+extern osl_t *osl_attach(void *pdev, uint bustype);
 extern void osl_detach(osl_t *osh);
 
 extern u32 g_assert_type;
@@ -56,7 +56,6 @@ extern uint osl_pci_slot(osl_t *osh);
 
 /* Pkttag flag should be part of public information */
 typedef struct {
-	bool pkttag;
 	uint pktalloced;	/* Number of allocated packet buffers */
 	bool mmbus;		/* Bus supports memory-mapped register accesses */
 	pktfree_cb_fn_t tx_fn;	/* Callback function for PKTFREE */
@@ -285,7 +284,6 @@ extern void osl_dma_unmap(osl_t *osh, uint pa, uint size, int direction);
 #define	PKTSETLEN(skb, len)	__skb_trim((struct sk_buff *)(skb), (len))
 #define	PKTPUSH(skb, bytes)	skb_push((struct sk_buff *)(skb), (bytes))
 #define	PKTPULL(skb, bytes)	skb_pull((struct sk_buff *)(skb), (bytes))
-#define	PKTTAG(skb)		((void *)(((struct sk_buff *)(skb))->cb))
 #define PKTALLOCED(osh)		(((osl_pubinfo_t *)(osh))->pktalloced)
 #define PKTSETPOOL(osh, skb, x, y)	do {} while (0)
 #define PKTPOOL(osh, skb)		false
@@ -301,9 +299,6 @@ osl_pkt_frmnative(osl_pubinfo_t *osh, struct sk_buff *skb)
 {
 	struct sk_buff *nskb;
 
-	if (osh->pkttag)
-		bzero((void *)skb->cb, OSL_PKTTAG_SZ);
-
 	for (nskb = skb; nskb; nskb = nskb->next)
 		osh->pktalloced++;
 
@@ -316,9 +311,6 @@ static inline struct sk_buff *
 osl_pkt_tonative(osl_pubinfo_t *osh, void *pkt)
 {
 	struct sk_buff *nskb;
-
-	if (osh->pkttag)
-		bzero(((struct sk_buff *)pkt)->cb, OSL_PKTTAG_SZ);
 
 	for (nskb = (struct sk_buff *)pkt; nskb; nskb = nskb->next)
 		osh->pktalloced--;

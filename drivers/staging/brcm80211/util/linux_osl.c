@@ -45,7 +45,7 @@ struct osl_info {
 /* Global ASSERT type flag */
 u32 g_assert_type;
 
-osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
+osl_t *osl_attach(void *pdev, uint bustype)
 {
 	osl_t *osh;
 
@@ -56,7 +56,6 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 
 	osh->magic = OS_HANDLE_MAGIC;
 	osh->pdev = pdev;
-	osh->pub.pkttag = pkttag;
 	osh->bustype = bustype;
 
 	switch (bustype) {
@@ -77,12 +76,6 @@ osl_t *osl_attach(void *pdev, uint bustype, bool pkttag)
 		break;
 	}
 
-#if defined(BCMDBG) && !defined(BRCM_FULLMAC)
-	if (pkttag) {
-		struct sk_buff *skb;
-		ASSERT(OSL_PKTTAG_SZ <= sizeof(skb->cb));
-	}
-#endif
 	return osh;
 }
 
@@ -95,7 +88,6 @@ void osl_detach(osl_t *osh)
 	kfree(osh);
 }
 
-/* Return a new packet. zero out pkttag */
 void *BCMFASTPATH osl_pktget(osl_t *osh, uint len)
 {
 	struct sk_buff *skb;

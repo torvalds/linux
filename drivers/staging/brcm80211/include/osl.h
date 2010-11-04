@@ -21,8 +21,6 @@
 typedef struct osl_info osl_t;
 typedef struct osl_dmainfo osldma_t;
 
-#define OSL_PKTTAG_SZ	32	/* Size of PktTag */
-
 /* Drivers use PKTFREESETCB to register a callback function when a packet is freed by OSL */
 typedef void (*pktfree_cb_fn_t) (void *ctx, void *pkt, unsigned int status);
 

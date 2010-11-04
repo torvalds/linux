@@ -188,7 +188,7 @@ int bcmsdh_probe(struct device *dev)
 	}
 #endif				/* defined(OOB_INTR_ONLY) */
 	/* allocate SDIO Host Controller state info */
-	osh = osl_attach(dev, PCI_BUS, false);
+	osh = osl_attach(dev, PCI_BUS);
 	if (!osh) {
 		SDLX_MSG(("%s: osl_attach failed\n", __func__));
 		goto err;
@@ -384,7 +384,7 @@ bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		SDLX_MSG(("%s: Disabling TI FlashMedia Controller.\n",
 			  __func__));
-		osh = osl_attach(pdev, PCI_BUS, false);
+		osh = osl_attach(pdev, PCI_BUS);
 		if (!osh) {
 			SDLX_MSG(("%s: osl_attach failed\n", __func__));
 			goto err;
@@ -419,7 +419,7 @@ bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 
 	/* allocate SDIO Host Controller state info */
-	osh = osl_attach(pdev, PCI_BUS, false);
+	osh = osl_attach(pdev, PCI_BUS);
 	if (!osh) {
 		SDLX_MSG(("%s: osl_attach failed\n", __func__));
 		goto err;

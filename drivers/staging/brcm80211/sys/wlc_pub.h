@@ -441,10 +441,6 @@ struct wlc_if;
 
 #define PROMISC_ENAB(wlc)	((wlc)->promisc)
 
-extern void wlc_pkttag_info_move(wlc_pub_t *pub, void *pkt_from, void *pkt_to);
-
-#define WLPKTTAGSCB(p) (WLPKTTAG(p)->_scb)
-
 #define	WLC_PREC_COUNT		16	/* Max precedence level implemented */
 
 /* pri is PKTPRIO encoded in the packet. This maps the Packet priority to

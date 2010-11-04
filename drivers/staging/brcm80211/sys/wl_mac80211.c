@@ -789,8 +789,7 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 		return NULL;
 	}
 
-	/* Requires pkttag feature */
-	osh = osl_attach(btparam, bustype, true);
+	osh = osl_attach(btparam, bustype);
 	ASSERT(osh);
 
 #ifdef WLC_HIGH_ONLY

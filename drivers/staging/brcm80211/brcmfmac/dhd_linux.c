@@ -1865,7 +1865,7 @@ static int dhd_open(struct net_device *net)
 
 osl_t *dhd_osl_attach(void *pdev, uint bustype)
 {
-	return osl_attach(pdev, bustype, true);
+	return osl_attach(pdev, bustype);
 }
 
 void dhd_osl_detach(osl_t *osh)
