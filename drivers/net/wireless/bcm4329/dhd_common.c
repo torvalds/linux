@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c,v 1.5.6.8.2.6.6.69.4.4 2010/09/22 21:21:15 Exp $
+ * $Id: dhd_common.c,v 1.5.6.8.2.6.6.69.4.10 2010/10/29 19:58:08 Exp $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -70,6 +70,11 @@ extern void dhd_ind_scan_confirm(void *h, bool status);
 extern int dhd_wl_ioctl(dhd_pub_t *dhd, uint cmd, char *buf, uint buflen);
 void dhd_iscan_lock(void);
 void dhd_iscan_unlock(void);
+
+#if defined(KEEP_ALIVE)
+extern bool ap_fw_loaded;
+int dhd_keep_alive_onoff(dhd_pub_t *dhd, int ka_on);
+#endif /* KEEP_ALIVE */
 
 /* Packet alignment for most efficient SDIO (can change based on platform) */
 #ifndef DHD_SDALIGN
@@ -1392,6 +1397,19 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	}
 #endif /* PKT_FILTER_SUPPORT */
 
+#if defined(KEEP_ALIVE)
+	{
+	/* Set Keep Alive : be sure to use FW with -keepalive */
+	int res;
+
+	if (ap_fw_loaded == FALSE) {
+		if ((res = dhd_keep_alive_onoff(dhd, 1)) < 0)
+			DHD_ERROR(("%s set keeplive failed %d\n", \
+		__FUNCTION__, res));
+		}
+	}
+#endif
+
 	dhd_os_proto_unblock(dhd);
 
 	return 0;
@@ -1446,7 +1464,7 @@ dhd_iscan_free_buf(void *dhdp, iscan_buf_t *iscan_delete)
 	dhd_pub_t *dhd = dhd_bus_pub(dhdp);
 
 	dhd_iscan_lock();
-	/* If iscan_delete is null then delete the entire 
+	/* If iscan_delete is null then delete the entire
 	 * chain or else delete specific one provided
 	 */
 	if (!iscan_delete) {
@@ -1885,6 +1903,11 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr)
 	if (scan_fr  != 0)
 		pfn_param.scan_freq = htod32(scan_fr);
 
+	if (pfn_param.scan_freq > PNO_SCAN_MAX_FW) {
+		DHD_ERROR(("%s pno freq above %d sec\n", __FUNCTION__, PNO_SCAN_MAX_FW));
+		return err;
+	}
+
 	bcm_mkiovar("pfn_set", (char *)&pfn_param, sizeof(pfn_param), iovbuf, sizeof(iovbuf));
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 
@@ -1932,6 +1955,53 @@ int dhd_pno_get_status(dhd_pub_t *dhd)
 }
 
 #endif /* PNO_SUPPORT */
+
+#if defined(KEEP_ALIVE)
+int dhd_keep_alive_onoff(dhd_pub_t *dhd, int ka_on)
+{
+	char buf[256];
+	char *buf_ptr = buf;
+	wl_keep_alive_pkt_t keep_alive_pkt;
+	char * str;
+	int str_len, buf_len;
+	int res = 0;
+	int keep_alive_period = KEEP_ALIVE_PERIOD; /* in ms */
+
+	DHD_TRACE(("%s: ka:%d\n", __FUNCTION__, ka_on));
+
+	if (ka_on) { /* on suspend */
+		keep_alive_pkt.period_msec = keep_alive_period;
+
+	} else {
+		/* on resume, turn off keep_alive packets  */
+		keep_alive_pkt.period_msec = 0;
+	}
+
+	/* IOC var name  */
+	str = "keep_alive";
+	str_len = strlen(str);
+	strncpy(buf, str, str_len);
+	buf[str_len] = '\0';
+	buf_len = str_len + 1;
+
+	/* set ptr to IOCTL payload after the var name */
+	buf_ptr += buf_len; /* include term Z */
+
+	/* copy Keep-alive attributes from local var keep_alive_pkt */
+	str = NULL_PKT_STR;
+	keep_alive_pkt.len_bytes = strlen(str);
+
+	memcpy(buf_ptr, &keep_alive_pkt, WL_KEEP_ALIVE_FIXED_LEN);
+	buf_ptr += WL_KEEP_ALIVE_FIXED_LEN;
+
+	/* copy packet data */
+	memcpy(buf_ptr, str, keep_alive_pkt.len_bytes);
+	buf_len += (WL_KEEP_ALIVE_FIXED_LEN + keep_alive_pkt.len_bytes);
+
+	res = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, buf_len);
+	return res;
+}
+#endif /* defined(KEEP_ALIVE) */
 
 #if defined(CSCAN)
 
