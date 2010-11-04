@@ -43,22 +43,6 @@
 #define AGGREGATION_SIZE	3840
 
 /**
- * DOC: Number of entries per queue
- *
- * Under normal load without fragmentation, 12 entries are sufficient
- * without the queue being filled up to the maximum. When using fragmentation
- * and the queue threshold code, we need to add some additional margins to
- * make sure the queue will never (or only under extreme load) fill up
- * completely.
- * Since we don't use preallocated DMA, having a large number of queue entries
- * will have minimal impact on the memory requirements for the queue.
- */
-#define RX_ENTRIES	24
-#define TX_ENTRIES	24
-#define BEACON_ENTRIES	1
-#define ATIM_ENTRIES	8
-
-/**
  * enum data_queue_qid: Queue identification
  *
  * @QID_AC_BE: AC BE queue

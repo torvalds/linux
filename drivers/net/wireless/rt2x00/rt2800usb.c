@@ -165,7 +165,8 @@ static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 	 * this limit so reduce the number to prevent errors.
 	 */
 	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_AGG_LIMIT,
-			   ((RX_ENTRIES * DATA_FRAME_SIZE) / 1024) - 3);
+			   ((rt2x00dev->ops->rx->entry_num * DATA_FRAME_SIZE)
+			    / 1024) - 3);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_EN, 1);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_TX_BULK_EN, 1);
 	rt2800_register_write(rt2x00dev, USB_DMA_CFG, reg);
@@ -553,21 +554,21 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 };
 
 static const struct data_queue_desc rt2800usb_queue_rx = {
-	.entry_num		= RX_ENTRIES,
+	.entry_num		= 128,
 	.data_size		= AGGREGATION_SIZE,
 	.desc_size		= RXINFO_DESC_SIZE + RXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt2800usb_queue_tx = {
-	.entry_num		= TX_ENTRIES,
+	.entry_num		= 64,
 	.data_size		= AGGREGATION_SIZE,
 	.desc_size		= TXINFO_DESC_SIZE + TXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt2800usb_queue_bcn = {
-	.entry_num		= 8 * BEACON_ENTRIES,
+	.entry_num		= 8,
 	.data_size		= MGMT_FRAME_SIZE,
 	.desc_size		= TXINFO_DESC_SIZE + TXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
