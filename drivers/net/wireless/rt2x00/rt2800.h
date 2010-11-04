@@ -960,8 +960,31 @@
 
 /*
  * TXOP_CTRL_CFG:
+ * TIMEOUT_TRUN_EN: Enable/Disable TXOP timeout truncation
+ * AC_TRUN_EN: Enable/Disable truncation for AC change
+ * TXRATEGRP_TRUN_EN: Enable/Disable truncation for TX rate group change
+ * USER_MODE_TRUN_EN: Enable/Disable truncation for user TXOP mode
+ * MIMO_PS_TRUN_EN: Enable/Disable truncation for MIMO PS RTS/CTS
+ * RESERVED_TRUN_EN: Reserved
+ * LSIG_TXOP_EN: Enable/Disable L-SIG TXOP protection
+ * EXT_CCA_EN: Enable/Disable extension channel CCA reference (Defer 40Mhz
+ *	       transmissions if extension CCA is clear).
+ * EXT_CCA_DLY: Extension CCA signal delay time (unit: us)
+ * EXT_CWMIN: CwMin for extension channel backoff
+ *	      0: Disabled
+ *
  */
 #define TXOP_CTRL_CFG			0x1340
+#define TXOP_CTRL_CFG_TIMEOUT_TRUN_EN	FIELD32(0x00000001)
+#define TXOP_CTRL_CFG_AC_TRUN_EN	FIELD32(0x00000002)
+#define TXOP_CTRL_CFG_TXRATEGRP_TRUN_EN	FIELD32(0x00000004)
+#define TXOP_CTRL_CFG_USER_MODE_TRUN_EN	FIELD32(0x00000008)
+#define TXOP_CTRL_CFG_MIMO_PS_TRUN_EN	FIELD32(0x00000010)
+#define TXOP_CTRL_CFG_RESERVED_TRUN_EN	FIELD32(0x00000020)
+#define TXOP_CTRL_CFG_LSIG_TXOP_EN	FIELD32(0x00000040)
+#define TXOP_CTRL_CFG_EXT_CCA_EN	FIELD32(0x00000080)
+#define TXOP_CTRL_CFG_EXT_CCA_DLY	FIELD32(0x0000ff00)
+#define TXOP_CTRL_CFG_EXT_CWMIN		FIELD32(0x000f0000)
 
 /*
  * TX_RTS_CFG:

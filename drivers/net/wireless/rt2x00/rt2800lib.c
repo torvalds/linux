@@ -2097,7 +2097,23 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 		rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
 	}
 
-	rt2800_register_write(rt2x00dev, TXOP_CTRL_CFG, 0x0000583f);
+	/*
+	 * The legacy driver also sets TXOP_CTRL_CFG_RESERVED_TRUN_EN to 1
+	 * although it is reserved.
+	 */
+	rt2800_register_read(rt2x00dev, TXOP_CTRL_CFG, &reg);
+	rt2x00_set_field32(&reg, TXOP_CTRL_CFG_TIMEOUT_TRUN_EN, 1);
+	rt2x00_set_field32(&reg, TXOP_CTRL_CFG_AC_TRUN_EN, 1);
+	rt2x00_set_field32(&reg, TXOP_CTRL_CFG_TXRATEGRP_TRUN_EN, 1);
+	rt2x00_set_field32(&reg, TXOP_CTRL_CFG_USER_MODE_TRUN_EN, 1);
+	rt2x00_set_field32(&reg, TXOP_CTRL_CFG_MIMO_PS_TRUN_EN, 1);
+	rt2x00_set_field32(&reg, TXOP_CTRL_CFG_RESERVED_TRUN_EN, 1);
+	rt2x00_set_field32(&reg, TXOP_CTRL_CFG_LSIG_TXOP_EN, 0);
+	rt2x00_set_field32(&reg, TXOP_CTRL_CFG_EXT_CCA_EN, 0);
+	rt2x00_set_field32(&reg, TXOP_CTRL_CFG_EXT_CCA_DLY, 88);
+	rt2x00_set_field32(&reg, TXOP_CTRL_CFG_EXT_CWMIN, 0);
+	rt2800_register_write(rt2x00dev, TXOP_CTRL_CFG, reg);
+
 	rt2800_register_write(rt2x00dev, TXOP_HLDR_ET, 0x00000002);
 
 	rt2800_register_read(rt2x00dev, TX_RTS_CFG, &reg);
