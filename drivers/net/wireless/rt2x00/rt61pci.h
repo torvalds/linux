@@ -412,7 +412,7 @@ struct hw_pairwise_ta_entry {
  * DROP_VERSION_ERROR: Drop version error frame.
  * DROP_MULTICAST: Drop multicast frames.
  * DROP_BORADCAST: Drop broadcast frames.
- * ROP_ACK_CTS: Drop received ACK and CTS.
+ * DROP_ACK_CTS: Drop received ACK and CTS.
  */
 #define TXRX_CSR0			0x3040
 #define TXRX_CSR0_RX_ACK_TIMEOUT	FIELD32(0x000001ff)
