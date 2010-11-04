@@ -483,6 +483,10 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	unsigned int header_length;
 	int rate_idx;
 
+	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) ||
+	    !test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		goto submit_entry;
+
 	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
 		goto submit_entry;
 
@@ -567,9 +571,13 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	entry->skb = skb;
 
 submit_entry:
-	rt2x00dev->ops->lib->clear_entry(entry);
-	rt2x00queue_index_inc(entry->queue, Q_INDEX);
+	entry->flags = 0;
 	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
+	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
+	    test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags)) {
+		rt2x00dev->ops->lib->clear_entry(entry);
+		rt2x00queue_index_inc(entry->queue, Q_INDEX);
+	}
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
 
