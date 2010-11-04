@@ -323,7 +323,7 @@ static struct sys_timer mxc_timer = {
 
 MACHINE_START(EUKREA_CPUIMX51SD, "Eukrea CPUIMX51SD")
 	/* Maintainer: Eric Bénard <eric@eukrea.com> */
-	.boot_params = PHYS_OFFSET + 0x100,
+	.boot_params = MX51_PHYS_OFFSET + 0x100,
 	.map_io = mx51_map_io,
 	.init_irq = mx51_init_irq,
 	.init_machine = eukrea_cpuimx51sd_init,
