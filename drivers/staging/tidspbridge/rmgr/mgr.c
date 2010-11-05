@@ -169,6 +169,11 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 
 		}
 	}
+
+	/* the last status is not 0, but neither an error */
+	if (status > 0)
+		status = 0;
+
 	if (!status) {
 		if (node_id > (node_index - 1)) {
 			status = -EINVAL;
