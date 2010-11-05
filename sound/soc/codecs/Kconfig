@@ -58,6 +58,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8741 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8750 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8753 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8770 if SPI_MASTER
 	select SND_SOC_WM8776 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8804 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8900 if I2C
@@ -242,6 +243,9 @@ config SND_SOC_WM8750
 	tristate
 
 config SND_SOC_WM8753
+	tristate
+
+config SND_SOC_WM8770
 	tristate
 
 config SND_SOC_WM8776
