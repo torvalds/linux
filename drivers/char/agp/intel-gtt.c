@@ -1476,6 +1476,13 @@ const struct intel_gtt *intel_gtt_get(void)
 }
 EXPORT_SYMBOL(intel_gtt_get);
 
+void intel_gtt_chipset_flush(void)
+{
+	if (intel_private.driver->chipset_flush)
+		intel_private.driver->chipset_flush();
+}
+EXPORT_SYMBOL(intel_gtt_chipset_flush);
+
 void intel_gmch_remove(struct pci_dev *pdev)
 {
 	if (intel_private.pcidev)

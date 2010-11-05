@@ -13,6 +13,7 @@ const struct intel_gtt {
 	unsigned int gtt_mappable_entries;
 } *intel_gtt_get(void);
 
+void intel_gtt_chipset_flush(void);
 
 /* Special gtt memory types */
 #define AGP_DCACHE_MEMORY	1
@@ -26,4 +27,3 @@ const struct intel_gtt {
 #define AGP_USER_CACHED_MEMORY_GFDT (1 << 3)
 
 #endif
-

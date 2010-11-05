@@ -2192,7 +2192,7 @@ i915_gem_flush(struct drm_device *dev,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	if (flush_domains & I915_GEM_DOMAIN_CPU)
-		drm_agp_chipset_flush(dev);
+		intel_gtt_chipset_flush();
 
 	if ((flush_domains | invalidate_domains) & I915_GEM_GPU_DOMAINS) {
 		if (flush_rings & RING_RENDER)
@@ -2920,14 +2920,13 @@ i915_gem_object_flush_gtt_write_domain(struct drm_gem_object *obj)
 static void
 i915_gem_object_flush_cpu_write_domain(struct drm_gem_object *obj)
 {
-	struct drm_device *dev = obj->dev;
 	uint32_t old_write_domain;
 
 	if (obj->write_domain != I915_GEM_DOMAIN_CPU)
 		return;
 
 	i915_gem_clflush_object(obj);
-	drm_agp_chipset_flush(dev);
+	intel_gtt_chipset_flush();
 	old_write_domain = obj->write_domain;
 	obj->write_domain = 0;
 
@@ -5069,7 +5068,7 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 			page_cache_release(page);
 		}
 	}
-	drm_agp_chipset_flush(dev);
+	intel_gtt_chipset_flush();
 
 	obj_priv->phys_obj->cur_obj = NULL;
 	obj_priv->phys_obj = NULL;
@@ -5161,7 +5160,7 @@ i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 			return -EFAULT;
 	}
 
-	drm_agp_chipset_flush(dev);
+	intel_gtt_chipset_flush();
 	return 0;
 }
 
