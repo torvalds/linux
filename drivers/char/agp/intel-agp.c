@@ -828,13 +828,8 @@ static void __devexit agp_intel_remove(struct pci_dev *pdev)
 static int agp_intel_resume(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
-	int ret_val;
 
 	bridge->driver->configure();
-
-	ret_val = agp_rebind_memory();
-	if (ret_val != 0)
-		return ret_val;
 
 	return 0;
 }

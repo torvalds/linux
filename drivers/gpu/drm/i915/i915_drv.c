@@ -310,6 +310,7 @@ static int i915_drm_thaw(struct drm_device *dev)
 	/* KMS EnterVT equivalent */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		mutex_lock(&dev->struct_mutex);
+		i915_gem_restore_gtt_mappings(dev);
 		dev_priv->mm.suspended = 0;
 
 		error = i915_gem_init_ringbuffer(dev);

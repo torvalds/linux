@@ -1141,6 +1141,9 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 void i915_gem_free_all_phys_object(struct drm_device *dev);
 void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
 
+/* i915_gem_gtt.c */
+void i915_gem_restore_gtt_mappings(struct drm_device *dev);
+
 /* i915_gem_evict.c */
 int i915_gem_evict_something(struct drm_device *dev, int min_size,
 			     unsigned alignment, bool mappable);
