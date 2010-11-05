@@ -462,7 +462,7 @@ static int solo_buf_prepare(struct videobuf_queue *vq,
 		int rc = videobuf_iolock(vq, vb, NULL);
 		if (rc < 0) {
 			struct videobuf_dmabuf *dma = videobuf_to_dma(vb);
-			videobuf_dma_unmap(vq, dma);
+			videobuf_dma_unmap(vq->dev, dma);
 			videobuf_dma_free(dma);
 			vb->state = VIDEOBUF_NEEDS_INIT;
 			return rc;
@@ -489,7 +489,7 @@ static void solo_buf_release(struct videobuf_queue *vq,
 {
 	struct videobuf_dmabuf *dma = videobuf_to_dma(vb);
 
-	videobuf_dma_unmap(vq, dma);
+	videobuf_dma_unmap(vq->dev, dma);
 	videobuf_dma_free(dma);
 	vb->state = VIDEOBUF_NEEDS_INIT;
 }
@@ -539,7 +539,7 @@ static int solo_v4l2_open(struct file *file)
 			       &solo_dev->pdev->dev, &fh->slock,
 			       V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			       SOLO_DISP_PIX_FIELD,
-			       sizeof(struct videobuf_buffer), fh);
+			       sizeof(struct videobuf_buffer), fh, NULL);
 
 	return 0;
 }
