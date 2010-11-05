@@ -255,13 +255,6 @@ static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 		printk(KERN_WARNING
 		       "ASoC: Failed to create codec register debugfs file\n");
 
-	codec->debugfs_pop_time = debugfs_create_u32("dapm_pop_time", 0644,
-						     codec->debugfs_codec_root,
-						     &codec->dapm.pop_time);
-	if (!codec->debugfs_pop_time)
-		printk(KERN_WARNING
-		       "Failed to create pop time debugfs file\n");
-
 	codec->dapm.debugfs_dapm = debugfs_create_dir("dapm",
 						 codec->debugfs_codec_root);
 	if (!codec->dapm.debugfs_dapm)
@@ -380,9 +373,18 @@ static void soc_init_card_debugfs(struct snd_soc_card *card)
 {
 	card->debugfs_card_root = debugfs_create_dir(card->name,
 						     debugfs_root);
-	if (!card->debugfs_card_root)
+	if (!card->debugfs_card_root) {
 		dev_warn(card->dev,
 			 "ASoC: Failed to create codec debugfs directory\n");
+		return;
+	}
+
+	card->debugfs_pop_time = debugfs_create_u32("dapm_pop_time", 0644,
+						    card->debugfs_card_root,
+						    &card->pop_time);
+	if (!card->debugfs_pop_time)
+		dev_warn(card->dev,
+		       "Failed to create pop time debugfs file\n");
 }
 
 static void soc_cleanup_card_debugfs(struct snd_soc_card *card)
@@ -1426,6 +1428,7 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num)
 
 	/* probe the CODEC */
 	if (!codec->probed) {
+		codec->dapm.card = card;
 		if (codec->driver->probe) {
 			ret = codec->driver->probe(codec);
 			if (ret < 0) {

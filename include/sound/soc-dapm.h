@@ -469,7 +469,6 @@ struct snd_soc_dapm_widget {
 
 /* DAPM context */
 struct snd_soc_dapm_context {
-	u32 pop_time;
 	struct list_head widgets;
 	struct list_head paths;
 	enum snd_soc_bias_level bias_level;
@@ -479,6 +478,7 @@ struct snd_soc_dapm_context {
 
 	struct device *dev; /* from parent - for debug */
 	struct snd_soc_codec *codec; /* parent codec */
+	struct snd_soc_card *card; /* parent card */
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dapm;
 #endif
