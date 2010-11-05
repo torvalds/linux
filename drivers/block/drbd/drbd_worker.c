@@ -782,6 +782,7 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 	union drbd_state os, ns;
 	struct drbd_work *w;
 	char *khelper_cmd = NULL;
+	int verify_done = 0;
 
 	/* Remove all elements from the resync LRU. Since future actions
 	 * might set bits in the (main) bitmap, then the entries in the
@@ -818,6 +819,8 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 	spin_lock_irq(&mdev->req_lock);
 	os = mdev->state;
 
+	verify_done = (os.conn == C_VERIFY_S || os.conn == C_VERIFY_T);
+
 	/* This protects us against multiple calls (that can happen in the presence
 	   of application IO), and against connectivity loss just before we arrive here. */
 	if (os.conn <= C_CONNECTED)
@@ -827,8 +830,7 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 	ns.conn = C_CONNECTED;
 
 	dev_info(DEV, "%s done (total %lu sec; paused %lu sec; %lu K/sec)\n",
-	     (os.conn == C_VERIFY_S || os.conn == C_VERIFY_T) ?
-	     "Online verify " : "Resync",
+	     verify_done ? "Online verify " : "Resync",
 	     dt + mdev->rs_paused, mdev->rs_paused, dbdt);
 
 	n_oos = drbd_bm_total_weight(mdev);
@@ -905,7 +907,8 @@ out:
 	mdev->rs_total  = 0;
 	mdev->rs_failed = 0;
 	mdev->rs_paused = 0;
-	mdev->ov_start_sector = 0;
+	if (verify_done)
+		mdev->ov_start_sector = 0;
 
 	drbd_md_sync(mdev);
 
