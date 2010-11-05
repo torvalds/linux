@@ -50,11 +50,14 @@ int solo_p2m_dma(struct solo6010_dev *solo_dev, u8 id, int wr,
 int solo_p2m_dma_t(struct solo6010_dev *solo_dev, u8 id, int wr,
 		   dma_addr_t dma_addr, u32 ext_addr, u32 size)
 {
-	struct p2m_desc desc;
+	struct p2m_desc *desc = kzalloc(sizeof(*desc) * 2, GFP_DMA);
 
-	solo_p2m_push_desc(&desc, wr, dma_addr, ext_addr, size, 0, 0);
+	if (desc == NULL)
+		return -ENOMEM;
 
-	return solo_p2m_dma_desc(solo_dev, id, &desc, 1);
+	solo_p2m_push_desc(&desc[1], wr, dma_addr, ext_addr, size, 0, 0);
+
+	return solo_p2m_dma_desc(solo_dev, id, desc, 2);
 }
 
 void solo_p2m_push_desc(struct p2m_desc *desc, int wr, dma_addr_t dma_addr,
@@ -81,33 +84,43 @@ int solo_p2m_dma_desc(struct solo6010_dev *solo_dev, u8 id,
 	struct solo_p2m_dev *p2m_dev;
 	unsigned int timeout;
 	int ret = 0;
+	u32 config = 0;
+	dma_addr_t desc_dma = 0;
 
 	BUG_ON(id >= SOLO_NR_P2M);
-	BUG_ON(desc_count > SOLO_NR_P2M_DESC);
+	BUG_ON(!desc_count || desc_count > SOLO_NR_P2M_DESC);
 
 	p2m_dev = &solo_dev->p2m_dev[id];
 
 	mutex_lock(&p2m_dev->mutex);
 
+	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id), 0);
+
 	INIT_COMPLETION(p2m_dev->completion);
 	p2m_dev->error = 0;
 
-	/* Setup the descriptor count and base address */
-	p2m_dev->num_descs = desc_count;
-	p2m_dev->descs = desc;
-	p2m_dev->desc_idx = 0;
-
-	/* We plug in the first descriptor here. The isr will take
-	 * over from desc[1] after this. */
-	solo_reg_write(solo_dev, SOLO_P2M_TAR_ADR(id), desc[0].ta);
-	solo_reg_write(solo_dev, SOLO_P2M_EXT_ADR(id), desc[0].fa);
-	solo_reg_write(solo_dev, SOLO_P2M_EXT_CFG(id), desc[0].ext);
-	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id), desc[0].ctrl);
+	/* Enable the descriptors */
+	config = solo_reg_read(solo_dev, SOLO_P2M_CONFIG(id));
+	desc_dma = pci_map_single(solo_dev->pdev, desc,
+				  desc_count * sizeof(*desc),
+				  PCI_DMA_TODEVICE);
+	solo_reg_write(solo_dev, SOLO_P2M_DES_ADR(id), desc_dma);
+	solo_reg_write(solo_dev, SOLO_P2M_DESC_ID(id), desc_count - 1);
+	solo_reg_write(solo_dev, SOLO_P2M_CONFIG(id), config |
+		       SOLO_P2M_DESC_MODE);
 
 	/* Should have all descriptors completed from one interrupt */
 	timeout = wait_for_completion_timeout(&p2m_dev->completion, HZ);
 
 	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id), 0);
+
+	/* Reset back to non-descriptor mode */
+	solo_reg_write(solo_dev, SOLO_P2M_CONFIG(id), config);
+	solo_reg_write(solo_dev, SOLO_P2M_DESC_ID(id), 0);
+	solo_reg_write(solo_dev, SOLO_P2M_DES_ADR(id), 0);
+	pci_unmap_single(solo_dev->pdev, desc_dma,
+			 desc_count * sizeof(*desc),
+			 PCI_DMA_TODEVICE);
 
 	if (p2m_dev->error)
 		ret = -EIO;
@@ -134,9 +147,12 @@ int solo_p2m_dma_sg(struct solo6010_dev *solo_dev, u8 id,
 	if (WARN_ON_ONCE(!size))
 		return -EINVAL;
 
-	for (i = idx = 0; i < SOLO_NR_P2M_DESC && sg && size > 0;
+	memset(pdesc, 0, sizeof(*pdesc));
+
+	/* Should rewrite this to handle > SOLO_NR_P2M_DESC transactions */
+	for (i = 0, idx = 1; idx < SOLO_NR_P2M_DESC && sg && size > 0;
 	     i++, sg = sg_next(sg)) {
-		struct p2m_desc *desc = &pdesc[i];
+		struct p2m_desc *desc = &pdesc[idx];
 		u32 sg_len = sg_dma_len(sg);
 		u32 len;
 
@@ -231,26 +247,10 @@ static void run_p2m_test(struct solo6010_dev *solo_dev)
 void solo_p2m_isr(struct solo6010_dev *solo_dev, int id)
 {
 	struct solo_p2m_dev *p2m_dev = &solo_dev->p2m_dev[id];
-	struct p2m_desc *desc;
 
 	solo_reg_write(solo_dev, SOLO_IRQ_STAT, SOLO_IRQ_P2M(id));
 
-	p2m_dev->desc_idx++;
-
-	if (p2m_dev->desc_idx >= p2m_dev->num_descs) {
-		complete(&p2m_dev->completion);
-		return;
-	}
-
-	/* Reset the p2m and start the next one */
-	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id), 0);
-
-	desc = &p2m_dev->descs[p2m_dev->desc_idx];
-
-	solo_reg_write(solo_dev, SOLO_P2M_TAR_ADR(id), desc->ta);
-	solo_reg_write(solo_dev, SOLO_P2M_EXT_ADR(id), desc->fa);
-	solo_reg_write(solo_dev, SOLO_P2M_EXT_CFG(id), desc->ext);
-	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id), desc->ctrl);
+	complete(&p2m_dev->completion);
 }
 
 void solo_p2m_error_isr(struct solo6010_dev *solo_dev, u32 status)
@@ -292,6 +292,7 @@ int solo_p2m_init(struct solo6010_dev *solo_dev)
 		solo_reg_write(solo_dev, SOLO_P2M_CONFIG(i),
 			       SOLO_P2M_CSC_16BIT_565 |
 			       SOLO_P2M_DMA_INTERVAL(3) |
+			       SOLO_P2M_DESC_INTR_OPT |
 			       SOLO_P2M_PCI_MASTER_MODE);
 		solo6010_irq_on(solo_dev, SOLO_IRQ_P2M(i));
 	}

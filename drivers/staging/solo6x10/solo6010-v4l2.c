@@ -206,7 +206,9 @@ static int solo_v4l2_set_ch(struct solo6010_dev *solo_dev, u8 ch)
 
 static void disp_reset_desc(struct solo_filehandle *fh)
 {
-	fh->desc_idx = 0;
+	/* We use desc mode, which ignores desc 0 */
+	memset(fh->desc, 0, sizeof(*fh->desc));
+	fh->desc_idx = 1;
 }
 
 static int disp_flush_descs(struct solo_filehandle *fh)

@@ -137,9 +137,6 @@ struct solo_p2m_dev {
 	struct mutex		mutex;
 	struct completion	completion;
 	int			error;
-	int			num_descs;
-	int			desc_idx;
-	struct p2m_desc		*descs;
 };
 
 #define OSD_TEXT_MAX		30

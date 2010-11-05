@@ -15,7 +15,6 @@ TODO (general):
 	* implement a CID control for motion areas/thresholds
 	* implement CID controls for mozaic areas
 	* allow for higher level of interval (for < 1 fps)
-	* Get proper descriptor mode working in p2m
 	* sound:
 	  - implement playback via external sound jack
 	  - implement loopback of external sound jack with incoming audio?
