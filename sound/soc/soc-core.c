@@ -374,6 +374,20 @@ static const struct file_operations platform_list_fops = {
 	.llseek = default_llseek,/* read accesses f_pos */
 };
 
+static void soc_init_card_debugfs(struct snd_soc_card *card)
+{
+	card->debugfs_card_root = debugfs_create_dir(card->name,
+						     debugfs_root);
+	if (!card->debugfs_card_root)
+		dev_warn(card->dev,
+			 "ASoC: Failed to create codec debugfs directory\n");
+}
+
+static void soc_cleanup_card_debugfs(struct snd_soc_card *card)
+{
+	debugfs_remove_recursive(card->debugfs_card_root);
+}
+
 #else
 
 static inline void soc_init_codec_debugfs(struct snd_soc_codec *codec)
@@ -1667,6 +1681,8 @@ static int soc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&card->codec_dev_list);
 	INIT_LIST_HEAD(&card->platform_dev_list);
 
+	soc_init_card_debugfs(card);
+
 	ret = snd_soc_register_card(card);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to register card\n");
@@ -1693,6 +1709,8 @@ static int soc_remove(struct platform_device *pdev)
 		/* remove and free each DAI */
 		for (i = 0; i < card->num_rtd; i++)
 			soc_remove_dai_link(card, i);
+
+		soc_cleanup_card_debugfs(card);
 
 		/* remove the card */
 		if (card->remove)

@@ -589,6 +589,10 @@ struct snd_soc_card {
 	struct list_head codec_dev_list;
 	struct list_head platform_dev_list;
 	struct list_head dai_dev_list;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_card_root;
+#endif
 };
 
 /* SoC machine DAI configuration, glues a codec and cpu DAI together */
