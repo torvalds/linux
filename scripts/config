@@ -86,7 +86,7 @@ while [ "$1" != "" ] ; do
 		B=$ARG
 		shift 2
 		;;
-	--*)
+	-*)
 		checkarg "$1"
 		shift
 		;;
