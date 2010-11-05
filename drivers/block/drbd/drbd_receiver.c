@@ -2003,10 +2003,16 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packets cmd, un
 	case P_OV_REQUEST:
 		if (mdev->ov_start_sector == ~(sector_t)0 &&
 		    mdev->agreed_pro_version >= 90) {
+			unsigned long now = jiffies;
+			int i;
 			mdev->ov_start_sector = sector;
 			mdev->ov_position = sector;
 			mdev->ov_left = drbd_bm_bits(mdev) - BM_SECT_TO_BIT(sector);
 			mdev->rs_total = mdev->ov_left;
+			for (i = 0; i < DRBD_SYNC_MARKS; i++) {
+				mdev->rs_mark_left[i] = mdev->ov_left;
+				mdev->rs_mark_time[i] = now;
+			}
 			dev_info(DEV, "Online Verify start sector: %llu\n",
 					(unsigned long long)sector);
 		}
