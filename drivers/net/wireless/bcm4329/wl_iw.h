@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.h,v 1.5.34.1.6.36.4.1 2010/09/10 19:24:30 Exp $
+ * $Id: wl_iw.h,v 1.5.34.1.6.36.4.12 2010/11/03 03:15:49 Exp $
  */
 
 
@@ -87,8 +87,9 @@ typedef struct wl_iw_extra_params {
 #define AP_LPB_CMD              (SIOCIWFIRSTPRIV+23)
 #define WL_AP_STOP              (SIOCIWFIRSTPRIV+25)
 #define WL_FW_RELOAD            (SIOCIWFIRSTPRIV+27)
-#define WL_COMBO_SCAN           (SIOCIWFIRSTPRIV+29)
-#define WL_AP_SPARE3            (SIOCIWFIRSTPRIV+31)
+#define WL_AP_STA_DISASSOC		(SIOCIWFIRSTPRIV+29)
+#define WL_COMBO_SCAN           (SIOCIWFIRSTPRIV+31)
+
 #define G_SCAN_RESULTS		(8*1024)
 #define WE_ADD_EVENT_FIX	0x80
 #define G_WLAN_SET_ON		0
@@ -116,19 +117,18 @@ typedef struct wl_iw {
 	dhd_pub_t * pub;
 } wl_iw_t;
 
-#define WLC_IW_SS_CACHE_MAXLEN				512
+#define WLC_IW_SS_CACHE_MAXLEN				2048
 #define WLC_IW_SS_CACHE_CTRL_FIELD_MAXLEN	32
 #define WLC_IW_BSS_INFO_MAXLEN 				\
 	(WLC_IW_SS_CACHE_MAXLEN - WLC_IW_SS_CACHE_CTRL_FIELD_MAXLEN)
 
 typedef struct wl_iw_ss_cache {
+	struct wl_iw_ss_cache *next;
+	int dirty;
 	uint32 buflen;
 	uint32 version;
 	uint32 count;
 	wl_bss_info_t bss_info[1];
-	char dummy[WLC_IW_BSS_INFO_MAXLEN - sizeof(wl_bss_info_t)];
-	int dirty;
-	struct wl_iw_ss_cache *next;
 } wl_iw_ss_cache_t;
 
 typedef struct wl_iw_ss_cache_ctrl {
@@ -140,6 +140,7 @@ typedef struct wl_iw_ss_cache_ctrl {
 	uint m_cons_br_scan_cnt;	
 	struct timer_list *m_timer;	
 } wl_iw_ss_cache_ctrl_t;
+
 typedef enum broadcast_first_scan {
 	BROADCAST_SCAN_FIRST_IDLE = 0,
 	BROADCAST_SCAN_FIRST_STARTED,
@@ -158,12 +159,13 @@ struct ap_profile {
 	uint32	channel;
 	uint32	preamble;
 	uint32	max_scb;
+	uint32  closednet;
 };
 
 
 #define MACLIST_MODE_DISABLED	0
-#define MACLIST_MODE_ENABLED	1
-#define MACLIST_MODE_ALLOW	2
+#define MACLIST_MODE_DENY		1
+#define MACLIST_MODE_ALLOW		2
 struct mflist {
 	uint count;
 	struct ether_addr ea[16];
@@ -171,8 +173,7 @@ struct mflist {
 
 struct mac_list_set {
 	uint32	mode;
-	struct mflist white_list;
-	struct mflist black_list;
+	struct mflist mac_list;
 };
 #endif
 

@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c,v 1.65.4.9.2.12.2.104.4.27 2010/10/29 02:31:24 Exp $
+ * $Id: dhd_linux.c,v 1.65.4.9.2.12.2.104.4.29 2010/11/04 01:14:41 Exp $
  */
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
@@ -280,10 +280,10 @@ typedef struct dhd_info {
 	int wl_count;
 	int wl_packet;
 
-	int hang_was_sent;
-
-	struct mutex wl_start_lock;
-
+	int hang_was_sent; /* flag that message was send at least once */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
+	struct mutex wl_start_lock; /* mutex when START called to prevent any other Linux calls */
+#endif
 	/* Thread to issue ioctl for multicast */
 	long sysioc_pid;
 	struct semaphore sysioc_sem;
@@ -307,7 +307,7 @@ char nvram_path[MOD_PARAM_PATHLEN];
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 struct semaphore dhd_registration_sem;
-#define DHD_REGISTRATION_TIMEOUT  8000  /* msec : allowed time to finished dhd registration */
+#define DHD_REGISTRATION_TIMEOUT  12000  /* msec : allowed time to finished dhd registration */
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) */
 /* load firmware and/or nvram values from the filesystem */
 module_param_string(firmware_path, firmware_path, MOD_PARAM_PATHLEN, 0);
@@ -2057,8 +2057,9 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	wake_lock_init(&dhd->wl_wifi, WAKE_LOCK_SUSPEND, "wlan_wake");
 	wake_lock_init(&dhd->wl_rxwake, WAKE_LOCK_SUSPEND, "wlan_rx_wake");
 #endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
 	mutex_init(&dhd->wl_start_lock);
-
+#endif
 	/* Link to info module */
 	dhd->pub.info = dhd;
 
@@ -2926,7 +2927,7 @@ dhd_dev_reset(struct net_device *dev, uint8 flag)
 	/* Turning on watchdog back */
 	if (!flag)
 		dhd_os_wd_timer(&dhd->pub, dhd_watchdog_ms);
-	DHD_ERROR(("%s: WLAN OFF DONE:\n", __FUNCTION__));
+	DHD_ERROR(("%s: WLAN OFF DONE\n", __FUNCTION__));
 
 	return ret;
 }
@@ -3038,6 +3039,40 @@ dhd_dev_get_pno_status(struct net_device *dev)
 }
 
 #endif /* PNO_SUPPORT */
+
+int net_os_send_hang_message(struct net_device *dev)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+	int ret = 0;
+
+	if (dhd) {
+		if (!dhd->hang_was_sent) {
+			dhd->hang_was_sent = 1;
+			ret = wl_iw_send_priv_event(dev, "HANG");
+		}
+	}
+	return ret;
+}
+
+void dhd_os_start_lock(dhd_pub_t *pub)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
+	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+
+	if (dhd)
+		mutex_lock(&dhd->wl_start_lock);
+#endif
+}
+
+void dhd_os_start_unlock(dhd_pub_t *pub)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
+	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
+
+	if (dhd)
+		mutex_unlock(&dhd->wl_start_lock);
+#endif
+}
 
 static int
 dhd_get_pend_8021x_cnt(dhd_info_t *dhd)
@@ -3219,34 +3254,4 @@ int net_os_wake_unlock(struct net_device *dev)
 	if (dhd)
 		ret = dhd_os_wake_unlock(&dhd->pub);
 	return ret;
-}
-
-int net_os_send_hang_message(struct net_device *dev)
-{
-	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
-	int ret = 0;
-
-	if (dhd) {
-		if (!dhd->hang_was_sent) {
-			dhd->hang_was_sent = 1;
-			ret = wl_iw_send_priv_event(dev, "HANG");
-		}
-	}
-	return ret;
-}
-
-void dhd_os_start_lock(dhd_pub_t *pub)
-{
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
-
-	if (dhd)
-		mutex_lock(&dhd->wl_start_lock);
-}
-
-void dhd_os_start_unlock(dhd_pub_t *pub)
-{
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
-
-	if (dhd)
-		mutex_unlock(&dhd->wl_start_lock);
 }
