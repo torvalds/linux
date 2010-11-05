@@ -1126,6 +1126,8 @@ int __drbd_set_state(struct drbd_conf *mdev,
 			mdev->rs_mark_time[i] = now;
 		}
 
+		drbd_rs_controller_reset(mdev);
+
 		if (ns.conn == C_VERIFY_S) {
 			dev_info(DEV, "Starting Online Verify from sector %llu\n",
 					(unsigned long long)mdev->ov_position);

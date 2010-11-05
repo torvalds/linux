@@ -1883,8 +1883,12 @@ int drbd_rs_should_slow_down(struct drbd_conf *mdev)
 
 		/* sync speed average over the last 2*DRBD_SYNC_MARK_STEP,
 		 * approx. */
-		i = (mdev->rs_last_mark + DRBD_SYNC_MARKS-2) % DRBD_SYNC_MARKS;
-		rs_left = drbd_bm_total_weight(mdev) - mdev->rs_failed;
+		i = (mdev->rs_last_mark + DRBD_SYNC_MARKS-1) % DRBD_SYNC_MARKS;
+
+		if (mdev->state.conn == C_VERIFY_S || mdev->state.conn == C_VERIFY_T)
+			rs_left = mdev->ov_left;
+		else
+			rs_left = drbd_bm_total_weight(mdev) - mdev->rs_failed;
 
 		dt = ((long)jiffies - (long)mdev->rs_mark_time[i]) / HZ;
 		if (!dt)
@@ -1992,6 +1996,8 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packets cmd, un
 			D_ASSERT(mdev->agreed_pro_version >= 89);
 			e->w.cb = w_e_end_csum_rs_req;
 		} else if (cmd == P_OV_REPLY) {
+			/* track progress, we may need to throttle */
+			atomic_add(size >> 9, &mdev->rs_sect_in);
 			e->w.cb = w_e_end_ov_reply;
 			dec_rs_pending(mdev);
 			/* drbd_rs_begin_io done when we sent this request,

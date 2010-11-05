@@ -708,11 +708,7 @@ static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int ca
 		return 0;
 	}
 
-	number = SLEEP_TIME*mdev->sync_conf.rate / ((BM_BLOCK_SIZE/1024)*HZ);
-	if (atomic_read(&mdev->rs_pending_cnt) > number)
-		goto requeue;
-
-	number -= atomic_read(&mdev->rs_pending_cnt);
+	number = drbd_rs_number_requests(mdev);
 
 	sector = mdev->ov_position;
 	for (i = 0; i < number; i++) {
@@ -741,10 +737,10 @@ static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int ca
 	mdev->ov_position = sector;
 
  requeue:
+	mdev->rs_in_flight += (i << (BM_BLOCK_SHIFT - 9));
 	mod_timer(&mdev->resync_timer, jiffies + SLEEP_TIME);
 	return 1;
 }
-
 
 int w_ov_finished(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {

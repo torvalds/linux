@@ -154,7 +154,8 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 	seq_printf_with_thousands_grouping(seq, dbdt);
 	seq_printf(seq, ")");
 
-	if (mdev->state.conn == C_SYNC_TARGET) {
+	if (mdev->state.conn == C_SYNC_TARGET ||
+	    mdev->state.conn == C_VERIFY_S) {
 		if (mdev->c_sync_rate > 1000)
 			seq_printf(seq, " want: %d,%03d",
 				   mdev->c_sync_rate / 1000, mdev->c_sync_rate % 1000);
