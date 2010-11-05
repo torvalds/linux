@@ -134,8 +134,7 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 			      u32 undb_props_size, u32 *pu_num_nodes)
 {
 	int status = 0;
-	struct dsp_uuid node_uuid, temp_uuid;
-	u32 temp_index = 0;
+	struct dsp_uuid node_uuid;
 	u32 node_index = 0;
 	struct dcd_genericobj gen_obj;
 	struct mgr_object *pmgr_obj = NULL;
@@ -149,51 +148,33 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 	*pu_num_nodes = 0;
 	/* Get the Manager Object from the driver data */
 	if (!drv_datap || !drv_datap->mgr_object) {
-		status = -ENODATA;
 		pr_err("%s: Failed to retrieve the object handle\n", __func__);
-		goto func_cont;
-	} else {
-		pmgr_obj = drv_datap->mgr_object;
+		return -ENODATA;
 	}
+	pmgr_obj = drv_datap->mgr_object;
 
 	DBC_ASSERT(pmgr_obj);
 	/* Forever loop till we hit failed or no more items in the
 	 * Enumeration. We will exit the loop other than 0; */
-	while (status == 0) {
-		status = dcd_enumerate_object(temp_index++, DSP_DCDNODETYPE,
-					      &temp_uuid);
-		if (status == 0) {
-			node_index++;
-			if (node_id == (node_index - 1))
-				node_uuid = temp_uuid;
-
+	while (!status) {
+		status = dcd_enumerate_object(node_index++, DSP_DCDNODETYPE,
+				&node_uuid);
+		if (status)
+			break;
+		*pu_num_nodes = node_index;
+		if (node_id == (node_index - 1)) {
+			status = dcd_get_object_def(pmgr_obj->hdcd_mgr,
+					&node_uuid, DSP_DCDNODETYPE, &gen_obj);
+			if (status)
+				break;
+			/* Get the Obj def */
+			*pndb_props = gen_obj.obj_data.node_obj.ndb_props;
 		}
 	}
 
 	/* the last status is not 0, but neither an error */
 	if (status > 0)
 		status = 0;
-
-	if (!status) {
-		if (node_id > (node_index - 1)) {
-			status = -EINVAL;
-		} else {
-			status = dcd_get_object_def(pmgr_obj->hdcd_mgr,
-						    (struct dsp_uuid *)
-						    &node_uuid, DSP_DCDNODETYPE,
-						    &gen_obj);
-			if (!status) {
-				/* Get the Obj def */
-				*pndb_props =
-				    gen_obj.obj_data.node_obj.ndb_props;
-				*pu_num_nodes = node_index;
-			}
-		}
-	}
-
-func_cont:
-	DBC_ENSURE((!status && *pu_num_nodes > 0) ||
-		   (status && *pu_num_nodes == 0));
 
 	return status;
 }
