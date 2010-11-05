@@ -34,7 +34,6 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/pci.h>
-#include <linux/intel-gtt.h>
 
 struct change_domains {
 	uint32_t invalidate_domains;

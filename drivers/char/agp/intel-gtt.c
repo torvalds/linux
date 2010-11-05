@@ -24,7 +24,6 @@
 #include <asm/smp.h>
 #include "agp.h"
 #include "intel-agp.h"
-#include <linux/intel-gtt.h>
 #include <drm/intel-gtt.h>
 
 /*
@@ -38,10 +37,6 @@
 #else
 #define USE_PCI_DMA_API 0
 #endif
-
-#define AGP_DCACHE_MEMORY	1
-#define AGP_PHYS_MEMORY		2
-#define INTEL_AGP_CACHED_MEMORY 3
 
 struct intel_gtt_driver {
 	unsigned int gen : 8;

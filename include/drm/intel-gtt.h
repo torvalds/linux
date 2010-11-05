@@ -13,5 +13,17 @@ const struct intel_gtt {
 	unsigned int gtt_mappable_entries;
 } *intel_gtt_get(void);
 
+
+/* Special gtt memory types */
+#define AGP_DCACHE_MEMORY	1
+#define AGP_PHYS_MEMORY		2
+
+/* New caching attributes for gen6/sandybridge */
+#define AGP_USER_CACHED_MEMORY_LLC_MLC (AGP_USER_TYPES + 2)
+#define AGP_USER_UNCACHED_MEMORY (AGP_USER_TYPES + 4)
+
+/* flag for GFDT type */
+#define AGP_USER_CACHED_MEMORY_GFDT (1 << 3)
+
 #endif
 
