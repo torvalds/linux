@@ -86,9 +86,6 @@ static struct _intel_private {
 	dma_addr_t scratch_page_dma;
 } intel_private;
 
-static int intel_fake_agp_insert_entries(struct agp_memory *mem,
-					 off_t pg_start, int type);
-
 #define INTEL_GTT_GEN	intel_private.driver->gen
 #define IS_G33		intel_private.driver->is_g33
 #define IS_PINEVIEW	intel_private.driver->is_pineview
@@ -223,30 +220,26 @@ static void i810_cleanup(void)
 	free_gatt_pages(intel_private.i81x_gtt_table, I810_GTT_ORDER);
 }
 
-static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
-				int type)
+static int i810_insert_dcache_entries(struct agp_memory *mem, off_t pg_start,
+				      int type)
 {
 	int i;
 
-	if (type == AGP_DCACHE_MEMORY) {
-		if ((pg_start + mem->page_count)
-				> intel_private.num_dcache_entries)
-			return -EINVAL;
+	if ((pg_start + mem->page_count)
+			> intel_private.num_dcache_entries)
+		return -EINVAL;
 
-		if (!mem->is_flushed)
-			global_cache_flush();
+	if (!mem->is_flushed)
+		global_cache_flush();
 
-		for (i = pg_start; i < (pg_start + mem->page_count); i++) {
-			dma_addr_t addr = i << PAGE_SHIFT;
-			intel_private.driver->write_entry(addr,
-							  i, type);
-		}
-		readl(intel_private.gtt+i-1);
-
-		return 0;
+	for (i = pg_start; i < (pg_start + mem->page_count); i++) {
+		dma_addr_t addr = i << PAGE_SHIFT;
+		intel_private.driver->write_entry(addr,
+						  i, type);
 	}
+	readl(intel_private.gtt+i-1);
 
-	return intel_fake_agp_insert_entries(mem, pg_start, type);
+	return 0;
 }
 
 /*
@@ -935,6 +928,9 @@ static int intel_fake_agp_insert_entries(struct agp_memory *mem,
 	int i, j;
 	int ret = -EINVAL;
 
+	if (INTEL_GTT_GEN == 1 && type == AGP_DCACHE_MEMORY)
+		return i810_insert_dcache_entries(mem, pg_start, type);
+
 	if (mem->page_count == 0)
 		goto out;
 
@@ -1211,28 +1207,6 @@ static int i9xx_setup(void)
 	return 0;
 }
 
-static const struct agp_bridge_driver intel_810_driver = {
-	.owner			= THIS_MODULE,
-	.size_type		= FIXED_APER_SIZE,
-	.aperture_sizes		= intel_fake_agp_sizes,
-	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
-	.configure		= intel_fake_agp_configure,
-	.fetch_size		= intel_fake_agp_fetch_size,
-	.cleanup		= intel_gtt_cleanup,
-	.agp_enable		= intel_fake_agp_enable,
-	.cache_flush		= global_cache_flush,
-	.create_gatt_table	= intel_fake_agp_create_gatt_table,
-	.free_gatt_table	= intel_fake_agp_free_gatt_table,
-	.insert_memory		= intel_i810_insert_entries,
-	.remove_memory		= intel_fake_agp_remove_entries,
-	.alloc_by_type		= intel_fake_agp_alloc_by_type,
-	.free_by_type		= intel_i810_free_by_type,
-	.agp_alloc_page		= agp_generic_alloc_page,
-	.agp_alloc_pages        = agp_generic_alloc_pages,
-	.agp_destroy_page	= agp_generic_destroy_page,
-	.agp_destroy_pages      = agp_generic_destroy_pages,
-};
-
 static const struct agp_bridge_driver intel_fake_agp_driver = {
 	.owner			= THIS_MODULE,
 	.size_type		= FIXED_APER_SIZE,
@@ -1352,93 +1326,92 @@ static const struct intel_gtt_driver sandybridge_gtt_driver = {
 static const struct intel_gtt_driver_description {
 	unsigned int gmch_chip_id;
 	char *name;
-	const struct agp_bridge_driver *gmch_driver;
 	const struct intel_gtt_driver *gtt_driver;
 } intel_gtt_chipsets[] = {
-	{ PCI_DEVICE_ID_INTEL_82810_IG1, "i810", &intel_810_driver,
+	{ PCI_DEVICE_ID_INTEL_82810_IG1, "i810",
 		&i81x_gtt_driver},
-	{ PCI_DEVICE_ID_INTEL_82810_IG3, "i810", &intel_810_driver,
+	{ PCI_DEVICE_ID_INTEL_82810_IG3, "i810",
 		&i81x_gtt_driver},
-	{ PCI_DEVICE_ID_INTEL_82810E_IG, "i810", &intel_810_driver,
+	{ PCI_DEVICE_ID_INTEL_82810E_IG, "i810",
 		&i81x_gtt_driver},
-	{ PCI_DEVICE_ID_INTEL_82815_CGC, "i815", &intel_810_driver,
+	{ PCI_DEVICE_ID_INTEL_82815_CGC, "i815",
 		&i81x_gtt_driver},
 	{ PCI_DEVICE_ID_INTEL_82830_CGC, "830M",
-		&intel_fake_agp_driver, &i8xx_gtt_driver},
+		&i8xx_gtt_driver},
 	{ PCI_DEVICE_ID_INTEL_82845G_IG, "830M",
-		&intel_fake_agp_driver, &i8xx_gtt_driver},
+		&i8xx_gtt_driver},
 	{ PCI_DEVICE_ID_INTEL_82854_IG, "854",
-		&intel_fake_agp_driver, &i8xx_gtt_driver},
+		&i8xx_gtt_driver},
 	{ PCI_DEVICE_ID_INTEL_82855GM_IG, "855GM",
-		&intel_fake_agp_driver, &i8xx_gtt_driver},
+		&i8xx_gtt_driver},
 	{ PCI_DEVICE_ID_INTEL_82865_IG, "865",
-		&intel_fake_agp_driver, &i8xx_gtt_driver},
+		&i8xx_gtt_driver},
 	{ PCI_DEVICE_ID_INTEL_E7221_IG, "E7221 (i915)",
-		&intel_fake_agp_driver, &i915_gtt_driver },
+		&i915_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_82915G_IG, "915G",
-		&intel_fake_agp_driver, &i915_gtt_driver },
+		&i915_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_82915GM_IG, "915GM",
-		&intel_fake_agp_driver, &i915_gtt_driver },
+		&i915_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_82945G_IG, "945G",
-		&intel_fake_agp_driver, &i915_gtt_driver },
+		&i915_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_82945GM_IG, "945GM",
-		&intel_fake_agp_driver, &i915_gtt_driver },
+		&i915_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_82945GME_IG, "945GME",
-		&intel_fake_agp_driver, &i915_gtt_driver },
+		&i915_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_82946GZ_IG, "946GZ",
-		&intel_fake_agp_driver, &i965_gtt_driver },
+		&i965_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_82G35_IG, "G35",
-		&intel_fake_agp_driver, &i965_gtt_driver },
+		&i965_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_82965Q_IG, "965Q",
-		&intel_fake_agp_driver, &i965_gtt_driver },
+		&i965_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_82965G_IG, "965G",
-		&intel_fake_agp_driver, &i965_gtt_driver },
+		&i965_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_82965GM_IG, "965GM",
-		&intel_fake_agp_driver, &i965_gtt_driver },
+		&i965_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_82965GME_IG, "965GME/GLE",
-		&intel_fake_agp_driver, &i965_gtt_driver },
+		&i965_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_G33_IG, "G33",
-		&intel_fake_agp_driver, &g33_gtt_driver },
+		&g33_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_Q35_IG, "Q35",
-		&intel_fake_agp_driver, &g33_gtt_driver },
+		&g33_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_Q33_IG, "Q33",
-		&intel_fake_agp_driver, &g33_gtt_driver },
+		&g33_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_PINEVIEW_M_IG, "GMA3150",
-		&intel_fake_agp_driver, &pineview_gtt_driver },
+		&pineview_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_PINEVIEW_IG, "GMA3150",
-		&intel_fake_agp_driver, &pineview_gtt_driver },
+		&pineview_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_GM45_IG, "GM45",
-		&intel_fake_agp_driver, &g4x_gtt_driver },
+		&g4x_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_EAGLELAKE_IG, "Eaglelake",
-		&intel_fake_agp_driver, &g4x_gtt_driver },
+		&g4x_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_Q45_IG, "Q45/Q43",
-		&intel_fake_agp_driver, &g4x_gtt_driver },
+		&g4x_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_G45_IG, "G45/G43",
-		&intel_fake_agp_driver, &g4x_gtt_driver },
+		&g4x_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_B43_IG, "B43",
-		&intel_fake_agp_driver, &g4x_gtt_driver },
+		&g4x_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_B43_1_IG, "B43",
-		&intel_fake_agp_driver, &g4x_gtt_driver },
+		&g4x_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_G41_IG, "G41",
-		&intel_fake_agp_driver, &g4x_gtt_driver },
+		&g4x_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_IRONLAKE_D_IG,
-	    "HD Graphics", &intel_fake_agp_driver, &ironlake_gtt_driver },
+	    "HD Graphics", &ironlake_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG,
-	    "HD Graphics", &intel_fake_agp_driver, &ironlake_gtt_driver },
+	    "HD Graphics", &ironlake_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT1_IG,
-	    "Sandybridge", &intel_fake_agp_driver, &sandybridge_gtt_driver },
+	    "Sandybridge", &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT2_IG,
-	    "Sandybridge", &intel_fake_agp_driver, &sandybridge_gtt_driver },
+	    "Sandybridge", &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_GT2_PLUS_IG,
-	    "Sandybridge", &intel_fake_agp_driver, &sandybridge_gtt_driver },
+	    "Sandybridge", &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT1_IG,
-	    "Sandybridge", &intel_fake_agp_driver, &sandybridge_gtt_driver },
+	    "Sandybridge", &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT2_IG,
-	    "Sandybridge", &intel_fake_agp_driver, &sandybridge_gtt_driver },
+	    "Sandybridge", &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_GT2_PLUS_IG,
-	    "Sandybridge", &intel_fake_agp_driver, &sandybridge_gtt_driver },
+	    "Sandybridge", &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_SANDYBRIDGE_S_IG,
-	    "Sandybridge", &intel_fake_agp_driver, &sandybridge_gtt_driver },
+	    "Sandybridge", &sandybridge_gtt_driver },
 	{ 0, NULL, NULL }
 };
 
@@ -1463,21 +1436,20 @@ int intel_gmch_probe(struct pci_dev *pdev,
 				      struct agp_bridge_data *bridge)
 {
 	int i, mask;
-	bridge->driver = NULL;
+	intel_private.driver = NULL;
 
 	for (i = 0; intel_gtt_chipsets[i].name != NULL; i++) {
 		if (find_gmch(intel_gtt_chipsets[i].gmch_chip_id)) {
-			bridge->driver =
-				intel_gtt_chipsets[i].gmch_driver;
 			intel_private.driver =
 				intel_gtt_chipsets[i].gtt_driver;
 			break;
 		}
 	}
 
-	if (!bridge->driver)
+	if (!intel_private.driver)
 		return 0;
 
+	bridge->driver = &intel_fake_agp_driver;
 	bridge->dev_private_data = &intel_private;
 	bridge->dev = pdev;
 
