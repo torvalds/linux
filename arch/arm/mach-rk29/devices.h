@@ -21,5 +21,7 @@ extern struct platform_device rk29_device_uart0;
 extern struct platform_device rk29_device_uart1;
 extern struct platform_device rk29_device_uart2;
 extern struct platform_device rk29_device_uart3;
+extern struct platform_device rk29_device_gpu;
+extern struct platform_device rk29_device_fb;
 
 #endif

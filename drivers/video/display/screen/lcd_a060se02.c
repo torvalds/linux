@@ -1,6 +1,6 @@
 #include <linux/fb.h>
 #include <linux/delay.h>
-#include "../../rk2818_fb.h"
+#include "../../rk29_fb.h"
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include "screen.h"
@@ -117,7 +117,7 @@ int lcd_refresh(u8 arg)
 
 
 
-void set_lcd_info(struct rk28fb_screen *screen)
+void set_lcd_info(struct rk29fb_screen *screen)
 {
     /* screen type & face */
     screen->type = OUT_TYPE;

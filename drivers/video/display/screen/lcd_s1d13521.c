@@ -1,6 +1,6 @@
 #include <linux/fb.h>
 #include <linux/delay.h>
-#include "../../rk2818_fb.h"
+#include "../../rk29_fb.h"
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include "screen.h"
@@ -118,41 +118,41 @@ void s1d13521if_init_gpio(void)
 {
     int i;
     int ret=0;
-    
-	rk2818_mux_api_set(GPIOC_LCDC18BIT_SEL_NAME, IOMUXB_GPIO0_C01);
-	rk2818_mux_api_set(GPIOC_LCDC24BIT_SEL_NAME, IOMUXB_GPIO0_C2_7);
-    
+
+	rk29_mux_api_set(GPIOC_LCDC18BIT_SEL_NAME, IOMUXB_GPIO0_C01);
+	rk29_mux_api_set(GPIOC_LCDC24BIT_SEL_NAME, IOMUXB_GPIO0_C2_7);
+
 	for(i = 0; i < 8; i++)
     {
 		if(i == 1 || i == 6)//HIRQ, HRDY
         {
-    		ret = gpio_request(GPIO_RESET_L+i, NULL); 
+    		ret = gpio_request(GPIO_RESET_L+i, NULL);
             if(ret != 0)
             {
                 gpio_free(GPIO_RESET_L+i);
-                printk(">>>>>> lcd cs gpio_request err \n ");                        
-            } 
+                printk(">>>>>> lcd cs gpio_request err \n ");
+            }
             gpio_direction_input(GPIO_RESET_L+i);
             gpio_free(GPIO_RESET_L+i);
-		} 
+		}
         else  //RESET_L, HD/C, HCS_L, HRD_L, HWE_L, RMODE
 		{
             ret = gpio_request(GPIO_RESET_L+i, NULL);
             if(ret != 0)
             {
                 gpio_free(GPIO_RESET_L+i);
-                printk(">>>>>> lcd cs gpio_request err \n ");                        
-            } 
+                printk(">>>>>> lcd cs gpio_request err \n ");
+            }
             gpio_direction_output(GPIO_RESET_L+i, 0);
             gpio_set_value(GPIO_RESET_L+i, GPIO_HIGH);
-            gpio_free(GPIO_RESET_L+i);			
+            gpio_free(GPIO_RESET_L+i);
 		}
 	}
 }
 
 void s1d13521if_set_reset(void)
 {
-    gpio_request(GPIO_RMODE, 0); 
+    gpio_request(GPIO_RMODE, 0);
 	gpio_set_value(GPIO_RMODE, GPIO_HIGH);
     gpio_request(GPIO_RESET_L, 0);
 

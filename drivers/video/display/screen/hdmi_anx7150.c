@@ -1,6 +1,6 @@
 #include <linux/fb.h>
 #include <linux/delay.h>
-#include "../../rk2818_fb.h"
+#include "../../rk29_fb.h"
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include "screen.h"
@@ -39,9 +39,9 @@ int anx7150_init(void);
 int anx7150_standby(u8 enable);
 
 
-void set_hdmi_info(struct rk28fb_screen *screen)
+void set_hdmi_info(struct rk29fb_screen *screen)
 {
-    struct rk28fb_screen *screen2 = screen + 1;
+    struct rk29fb_screen *screen2 = screen + 1;
 
     /* ****************** 576p ******************* */
     /* screen type & face */
