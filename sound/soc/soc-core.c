@@ -238,8 +238,10 @@ static const struct file_operations codec_reg_fops = {
 
 static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 {
-	codec->debugfs_codec_root = debugfs_create_dir(codec->name ,
-						       debugfs_root);
+	struct dentry *debugfs_card_root = codec->card->debugfs_card_root;
+
+	codec->debugfs_codec_root = debugfs_create_dir(codec->name,
+						       debugfs_card_root);
 	if (!codec->debugfs_codec_root) {
 		printk(KERN_WARNING
 		       "ASoC: Failed to create codec debugfs directory\n");
