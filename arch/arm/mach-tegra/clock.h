@@ -21,6 +21,8 @@
 #define __MACH_TEGRA_CLOCK_H
 
 #include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <asm/clkdev.h>
 
 #define DIV_BUS			(1 << 0)
@@ -75,8 +77,6 @@ enum clk_state {
 struct clk {
 	/* node for master clocks list */
 	struct list_head	node;		/* node for list of all clocks */
-	struct list_head	children;	/* list of children */
-	struct list_head	sibling;	/* node for children */
 	struct list_head	dvfs;		/* list of dvfs dependencies */
 	struct clk_lookup	lookup;
 
@@ -91,11 +91,11 @@ struct clk {
 	unsigned long		max_rate;
 	bool			is_dvfs;
 	bool			auto_dvfs;
+	bool			cansleep;
 	u32			flags;
 	const char		*name;
 
 	u32			refcnt;
-	unsigned long		requested_rate;
 	enum clk_state		state;
 	struct clk		*parent;
 	u32			div;
@@ -137,8 +137,10 @@ struct clk {
 			unsigned long			rate;
 		} shared_bus_user;
 	} u;
-};
 
+	struct mutex mutex;
+	spinlock_t spinlock;
+};
 
 struct clk_duplicate {
 	const char *name;
@@ -158,12 +160,10 @@ void tegra2_periph_reset_assert(struct clk *c);
 void clk_init(struct clk *clk);
 struct clk *tegra_get_clock_by_name(const char *name);
 unsigned long clk_measure_input_freq(void);
-void clk_disable_locked(struct clk *c);
-int clk_enable_locked(struct clk *c);
-int clk_set_parent_locked(struct clk *c, struct clk *parent);
-int clk_set_rate_locked(struct clk *c, unsigned long rate);
 int clk_reparent(struct clk *c, struct clk *parent);
 void tegra_clk_init_from_table(struct tegra_clk_init_table *table);
 void tegra_clk_set_dvfs_rates(void);
+void clk_set_cansleep(struct clk *c);
+unsigned long clk_get_rate_locked(struct clk *c);
 
 #endif

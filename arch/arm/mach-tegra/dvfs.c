@@ -42,21 +42,11 @@ struct dvfs_reg {
 	int millivolts;
 };
 
-static LIST_HEAD(dvfs_list);
 static LIST_HEAD(dvfs_debug_list);
 static LIST_HEAD(dvfs_reg_list);
 
-static DEFINE_MUTEX(dvfs_lock);
-
-void lock_dvfs(void)
-{
-	mutex_lock(&dvfs_lock);
-}
-
-void unlock_dvfs(void)
-{
-	mutex_unlock(&dvfs_lock);
-}
+static DEFINE_MUTEX(dvfs_debug_list_lock);
+static DEFINE_MUTEX(dvfs_reg_list_lock);
 
 static int dvfs_reg_set_voltage(struct dvfs_reg *dvfs_reg)
 {
@@ -71,46 +61,53 @@ static int dvfs_reg_set_voltage(struct dvfs_reg *dvfs_reg)
 
 	dvfs_reg->millivolts = millivolts;
 
+	if (!dvfs_reg->reg) {
+		pr_warn("dvfs set voltage on %s ignored\n", dvfs_reg->reg_id);
+		return 0;
+	}
+
 	return regulator_set_voltage(dvfs_reg->reg,
 		millivolts * 1000, dvfs_reg->max_millivolts * 1000);
 }
 
-static int dvfs_reg_get_voltage(struct dvfs_reg *dvfs_reg)
+static int dvfs_reg_connect_to_regulator(struct dvfs_reg *dvfs_reg)
 {
-	int ret = regulator_get_voltage(dvfs_reg->reg);
+	struct regulator *reg;
 
-	if (ret > 0)
-		return ret / 1000;
+	if (!dvfs_reg->reg) {
+		reg = regulator_get(NULL, dvfs_reg->reg_id);
+		if (IS_ERR(reg))
+			return -EINVAL;
+	}
 
-	return ret;
+	dvfs_reg->reg = reg;
+
+	return 0;
 }
 
 static struct dvfs_reg *get_dvfs_reg(struct dvfs *d)
 {
 	struct dvfs_reg *dvfs_reg;
-	struct regulator *reg;
+
+	mutex_lock(&dvfs_reg_list_lock);
 
 	list_for_each_entry(dvfs_reg, &dvfs_reg_list, node)
 		if (!strcmp(d->reg_id, dvfs_reg->reg_id))
-			return dvfs_reg;
-
-	reg = regulator_get(NULL, d->reg_id);
-	if (IS_ERR(reg))
-		return NULL;
+			goto out;
 
 	dvfs_reg = kzalloc(sizeof(struct dvfs_reg), GFP_KERNEL);
 	if (!dvfs_reg) {
 		pr_err("%s: Failed to allocate dvfs_reg\n", __func__);
-		regulator_put(reg);
-		return NULL;
+		goto out;
 	}
 
 	INIT_LIST_HEAD(&dvfs_reg->dvfs);
-	dvfs_reg->reg = reg;
 	dvfs_reg->reg_id = kstrdup(d->reg_id, GFP_KERNEL);
 
 	list_add_tail(&dvfs_reg->node, &dvfs_reg_list);
 
+out:
+	mutex_unlock(&dvfs_reg_list_lock);
 	return dvfs_reg;
 }
 
@@ -127,7 +124,7 @@ static struct dvfs_reg *attach_dvfs_reg(struct dvfs *d)
 	if (d->max_millivolts > d->dvfs_reg->max_millivolts)
 		d->dvfs_reg->max_millivolts = d->max_millivolts;
 
-	d->cur_millivolts = dvfs_reg_get_voltage(d->dvfs_reg);
+	d->cur_millivolts = d->max_millivolts;
 
 	return dvfs_reg;
 }
@@ -177,7 +174,7 @@ int tegra_dvfs_set_rate(struct clk *c, unsigned long rate)
 
 	c->dvfs_rate = rate;
 
-	freq_up = (c->refcnt == 0) || (rate > c->rate);
+	freq_up = (c->refcnt == 0) || (rate > clk_get_rate_locked(c));
 
 	list_for_each_entry(d, &c->dvfs, node) {
 		if (d->higher == freq_up)
@@ -197,7 +194,8 @@ int tegra_dvfs_set_rate(struct clk *c, unsigned long rate)
 }
 EXPORT_SYMBOL(tegra_dvfs_set_rate);
 
-int tegra_enable_dvfs_on_clk(struct clk *c, struct dvfs *d)
+/* May only be called during clock init, does not take any locks on clock c. */
+int __init tegra_enable_dvfs_on_clk(struct clk *c, struct dvfs *d)
 {
 	int i;
 	struct dvfs_reg *dvfs_reg;
@@ -221,30 +219,38 @@ int tegra_enable_dvfs_on_clk(struct clk *c, struct dvfs *d)
 	}
 	d->num_freqs = i;
 
-	if (d->auto_dvfs)
+	if (d->auto_dvfs) {
 		c->auto_dvfs = true;
+		clk_set_cansleep(c);
+	}
 
 	c->is_dvfs = true;
-	smp_wmb();
 
 	list_add_tail(&d->node, &c->dvfs);
 
+	mutex_lock(&dvfs_debug_list_lock);
 	list_add_tail(&d->debug_node, &dvfs_debug_list);
+	mutex_unlock(&dvfs_debug_list_lock);
 
 	return 0;
 }
 
-int __init tegra_init_dvfs(void)
+/*
+ * Iterate through all the dvfs regulators, finding the regulator exported
+ * by the regulator api for each one.  Must be called in late init, after
+ * all the regulator api's regulators are initialized.
+ */
+int __init tegra_dvfs_late_init(void)
 {
-	lock_dvfs();
-	tegra2_init_dvfs();
+	struct dvfs_reg *dvfs_reg;
 
-	tegra_clk_set_dvfs_rates();
-	unlock_dvfs();
+	mutex_lock(&dvfs_reg_list_lock);
+	list_for_each_entry(dvfs_reg, &dvfs_reg_list, node)
+		dvfs_reg_connect_to_regulator(dvfs_reg);
+	mutex_unlock(&dvfs_reg_list_lock);
 
 	return 0;
 }
-late_initcall(tegra_init_dvfs);
 
 #ifdef CONFIG_DEBUG_FS
 static int dvfs_tree_sort_cmp(void *p, struct list_head *a, struct list_head *b)
@@ -273,7 +279,7 @@ static int dvfs_tree_show(struct seq_file *s, void *data)
 	seq_printf(s, "   clock      rate       mV\n");
 	seq_printf(s, "--------------------------------\n");
 
-	lock_dvfs();
+	mutex_lock(&dvfs_debug_list_lock);
 
 	list_sort(NULL, &dvfs_debug_list, dvfs_tree_sort_cmp);
 
@@ -288,7 +294,7 @@ static int dvfs_tree_show(struct seq_file *s, void *data)
 			d->cur_rate, d->cur_millivolts);
 	}
 
-	unlock_dvfs();
+	mutex_unlock(&dvfs_debug_list_lock);
 
 	return 0;
 }
