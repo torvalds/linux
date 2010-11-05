@@ -39,25 +39,9 @@
 #define USE_PCI_DMA_API 0
 #endif
 
-static const struct aper_size_info_fixed intel_i810_sizes[] =
-{
-	{64, 16384, 4},
-	/* The 32M mode still requires a 64k gatt */
-	{32, 8192, 4}
-};
-
 #define AGP_DCACHE_MEMORY	1
 #define AGP_PHYS_MEMORY		2
 #define INTEL_AGP_CACHED_MEMORY 3
-
-static struct gatt_mask intel_i810_masks[] =
-{
-	{.mask = I810_PTE_VALID, .type = 0},
-	{.mask = (I810_PTE_VALID | I810_PTE_LOCAL), .type = AGP_DCACHE_MEMORY},
-	{.mask = I810_PTE_VALID, .type = 0},
-	{.mask = I810_PTE_VALID | I830_PTE_SYSTEM_CACHED,
-	 .type = INTEL_AGP_CACHED_MEMORY}
-};
 
 struct intel_gtt_driver {
 	unsigned int gen : 8;
@@ -94,6 +78,7 @@ static struct _intel_private {
 		void __iomem *i9xx_flush_page;
 		void *i8xx_flush_page;
 	};
+	char *i81x_gtt_table;
 	struct page *i8xx_page;
 	struct resource ifp_resource;
 	int resource_valid;
@@ -163,86 +148,6 @@ static void intel_agp_unmap_memory(struct agp_memory *mem)
 	intel_agp_free_sglist(mem);
 }
 
-static int intel_i810_fetch_size(void)
-{
-	u32 smram_miscc;
-	struct aper_size_info_fixed *values;
-
-	pci_read_config_dword(intel_private.bridge_dev,
-			      I810_SMRAM_MISCC, &smram_miscc);
-	values = A_SIZE_FIX(agp_bridge->driver->aperture_sizes);
-
-	if ((smram_miscc & I810_GMS) == I810_GMS_DISABLE) {
-		dev_warn(&intel_private.bridge_dev->dev, "i810 is disabled\n");
-		return 0;
-	}
-	if ((smram_miscc & I810_GFX_MEM_WIN_SIZE) == I810_GFX_MEM_WIN_32M) {
-		agp_bridge->current_size = (void *) (values + 1);
-		agp_bridge->aperture_size_idx = 1;
-		intel_private.base.gtt_total_entries = KB(32) / 4;
-		return values[1].size;
-	} else {
-		agp_bridge->current_size = (void *) (values);
-		agp_bridge->aperture_size_idx = 0;
-		intel_private.base.gtt_total_entries = KB(64) / 4;
-		return values[0].size;
-	}
-
-	return 0;
-}
-
-static int intel_i810_configure(void)
-{
-	struct aper_size_info_fixed *current_size;
-	u32 temp;
-	int i;
-
-	current_size = A_SIZE_FIX(agp_bridge->current_size);
-
-	if (!intel_private.registers) {
-		pci_read_config_dword(intel_private.pcidev, I810_MMADDR, &temp);
-		temp &= 0xfff80000;
-
-		intel_private.registers = ioremap(temp, 128 * 4096);
-		if (!intel_private.registers) {
-			dev_err(&intel_private.pcidev->dev,
-				"can't remap memory\n");
-			return -ENOMEM;
-		}
-	}
-
-	intel_private.gtt = intel_private.registers + I810_PTE_BASE;
-	intel_private.scratch_page_dma = agp_bridge->scratch_page & PAGE_MASK;
-
-	if ((readl(intel_private.registers+I810_DRAM_CTL)
-		& I810_DRAM_ROW_0) == I810_DRAM_ROW_0_SDRAM) {
-		/* This will need to be dynamically assigned */
-		dev_info(&intel_private.pcidev->dev,
-			 "detected 4MB dedicated video ram\n");
-		intel_private.num_dcache_entries = 1024;
-	}
-	pci_read_config_dword(intel_private.pcidev, I810_GMADDR, &temp);
-	agp_bridge->gart_bus_addr = (temp & PCI_BASE_ADDRESS_MEM_MASK);
-	writel(agp_bridge->gatt_bus_addr | I810_PGETBL_ENABLED, intel_private.registers+I810_PGETBL_CTL);
-	readl(intel_private.registers+I810_PGETBL_CTL);	/* PCI Posting. */
-
-	if (agp_bridge->driver->needs_scratch_page) {
-		for (i = 0; i < current_size->num_entries; i++) {
-			writel(agp_bridge->scratch_page, intel_private.registers+I810_PTE_BASE+(i*4));
-		}
-		readl(intel_private.registers+I810_PTE_BASE+((i-1)*4));	/* PCI posting. */
-	}
-	global_cache_flush();
-	return 0;
-}
-
-static void intel_i810_cleanup(void)
-{
-	writel(0, intel_private.registers+I810_PGETBL_CTL);
-	readl(intel_private.registers);	/* PCI Posting. */
-	iounmap(intel_private.registers);
-}
-
 static void intel_fake_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 {
 	return;
@@ -276,6 +181,46 @@ static void i8xx_destroy_pages(struct page *page)
 	put_page(page);
 	__free_pages(page, 2);
 	atomic_dec(&agp_bridge->current_memory_agp);
+}
+
+#define I810_GTT_ORDER 4
+static int i810_setup(void)
+{
+	u32 reg_addr;
+	char *gtt_table;
+
+	/* i81x does not preallocate the gtt. It's always 64kb in size. */
+	gtt_table = alloc_gatt_pages(I810_GTT_ORDER);
+	if (gtt_table == NULL)
+		return -ENOMEM;
+	intel_private.i81x_gtt_table = gtt_table;
+
+	pci_read_config_dword(intel_private.pcidev, I810_MMADDR, &reg_addr);
+	reg_addr &= 0xfff80000;
+
+	intel_private.registers = ioremap(reg_addr, KB(64));
+	if (!intel_private.registers)
+		return -ENOMEM;
+
+	writel(virt_to_phys(gtt_table) | I810_PGETBL_ENABLED,
+	       intel_private.registers+I810_PGETBL_CTL);
+
+	intel_private.gtt_bus_addr = reg_addr + I810_PTE_BASE;
+
+	if ((readl(intel_private.registers+I810_DRAM_CTL)
+		& I810_DRAM_ROW_0) == I810_DRAM_ROW_0_SDRAM) {
+		dev_info(&intel_private.pcidev->dev,
+			 "detected 4MB dedicated video ram\n");
+		intel_private.num_dcache_entries = 1024;
+	}
+
+	return 0;
+}
+
+static void i810_cleanup(void)
+{
+	writel(0, intel_private.registers+I810_PGETBL_CTL);
+	free_gatt_pages(intel_private.i81x_gtt_table, I810_GTT_ORDER);
 }
 
 static int intel_i810_insert_entries(struct agp_memory *mem, off_t pg_start,
@@ -363,13 +308,6 @@ static void intel_i810_free_by_type(struct agp_memory *curr)
 	kfree(curr);
 }
 
-static unsigned long intel_i810_mask_memory(struct agp_bridge_data *bridge,
-					    dma_addr_t addr, int type)
-{
-	/* Type checking must be done elsewhere */
-	return addr | bridge->driver->masks[type].mask;
-}
-
 static int intel_gtt_setup_scratch_page(void)
 {
 	struct page *page;
@@ -414,9 +352,9 @@ static void i810_write_entry(dma_addr_t addr, unsigned int entry,
 }
 
 static const struct aper_size_info_fixed const intel_fake_agp_sizes[] = {
+	{32, 8192, 3},
+	{64, 16384, 4},
 	{128, 32768, 5},
-	/* The 64M mode still requires a 128k gatt */
-	{64, 16384, 5},
 	{256, 65536, 6},
 	{512, 131072, 7},
 };
@@ -428,6 +366,9 @@ static unsigned int intel_gtt_stolen_size(void)
 	int local = 0;
 	static const int ddt[4] = { 0, 16, 32, 64 };
 	unsigned int stolen_size = 0;
+
+	if (INTEL_GTT_GEN == 1)
+		return 0; /* no stolen mem on i81x */
 
 	pci_read_config_word(intel_private.bridge_dev,
 			     I830_GMCH_CTRL, &gmch_ctrl);
@@ -677,7 +618,18 @@ static unsigned int intel_gtt_mappable_entries(void)
 {
 	unsigned int aperture_size;
 
-	if (INTEL_GTT_GEN == 2) {
+	if (INTEL_GTT_GEN == 1) {
+		u32 smram_miscc;
+
+		pci_read_config_dword(intel_private.bridge_dev,
+				      I810_SMRAM_MISCC, &smram_miscc);
+
+		if ((smram_miscc & I810_GFX_MEM_WIN_SIZE)
+				== I810_GFX_MEM_WIN_32M)
+			aperture_size = MB(32);
+		else
+			aperture_size = MB(64);
+	} else if (INTEL_GTT_GEN == 2) {
 		u16 gmch_ctrl;
 
 		pci_read_config_word(intel_private.bridge_dev,
@@ -751,14 +703,7 @@ static int intel_gtt_init(void)
 
 	global_cache_flush();   /* FIXME: ? */
 
-	/* we have to call this as early as possible after the MMIO base address is known */
 	intel_private.base.stolen_size = intel_gtt_stolen_size();
-	if (intel_private.base.stolen_size == 0) {
-		intel_private.driver->cleanup();
-		iounmap(intel_private.registers);
-		iounmap(intel_private.gtt);
-		return -ENOMEM;
-	}
 
 	ret = intel_gtt_setup_scratch_page();
 	if (ret != 0) {
@@ -851,7 +796,7 @@ static bool intel_enable_gtt(void)
 	u32 gma_addr;
 	u8 __iomem *reg;
 
-	if (INTEL_GTT_GEN == 2)
+	if (INTEL_GTT_GEN <= 2)
 		pci_read_config_dword(intel_private.pcidev, I810_GMADDR,
 				      &gma_addr);
 	else
@@ -1268,19 +1213,16 @@ static int i9xx_setup(void)
 
 static const struct agp_bridge_driver intel_810_driver = {
 	.owner			= THIS_MODULE,
-	.aperture_sizes		= intel_i810_sizes,
 	.size_type		= FIXED_APER_SIZE,
-	.num_aperture_sizes	= 2,
-	.needs_scratch_page	= true,
-	.configure		= intel_i810_configure,
-	.fetch_size		= intel_i810_fetch_size,
-	.cleanup		= intel_i810_cleanup,
-	.mask_memory		= intel_i810_mask_memory,
-	.masks			= intel_i810_masks,
+	.aperture_sizes		= intel_fake_agp_sizes,
+	.num_aperture_sizes	= ARRAY_SIZE(intel_fake_agp_sizes),
+	.configure		= intel_fake_agp_configure,
+	.fetch_size		= intel_fake_agp_fetch_size,
+	.cleanup		= intel_gtt_cleanup,
 	.agp_enable		= intel_fake_agp_enable,
 	.cache_flush		= global_cache_flush,
-	.create_gatt_table	= agp_generic_create_gatt_table,
-	.free_gatt_table	= agp_generic_free_gatt_table,
+	.create_gatt_table	= intel_fake_agp_create_gatt_table,
+	.free_gatt_table	= intel_fake_agp_free_gatt_table,
 	.insert_memory		= intel_i810_insert_entries,
 	.remove_memory		= intel_fake_agp_remove_entries,
 	.alloc_by_type		= intel_fake_agp_alloc_by_type,
@@ -1289,7 +1231,6 @@ static const struct agp_bridge_driver intel_810_driver = {
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
-	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
 static const struct agp_bridge_driver intel_fake_agp_driver = {
@@ -1317,7 +1258,10 @@ static const struct agp_bridge_driver intel_fake_agp_driver = {
 
 static const struct intel_gtt_driver i81x_gtt_driver = {
 	.gen = 1,
+	.has_pgtbl_enable = 1,
 	.dma_mask_size = 32,
+	.setup = i810_setup,
+	.cleanup = i810_cleanup,
 	.check_flags = i830_check_flags,
 	.write_entry = i810_write_entry,
 };
@@ -1549,8 +1493,8 @@ int intel_gmch_probe(struct pci_dev *pdev,
 		pci_set_consistent_dma_mask(intel_private.pcidev,
 					    DMA_BIT_MASK(mask));
 
-	if (bridge->driver == &intel_810_driver)
-		return 1;
+	/*if (bridge->driver == &intel_810_driver)
+		return 1;*/
 
 	if (intel_gtt_init() != 0)
 		return 0;
