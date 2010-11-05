@@ -199,12 +199,11 @@ static struct ipath_devdata *ipath_alloc_devdata(struct pci_dev *pdev)
 		goto bail;
 	}
 
-	dd = vmalloc(sizeof(*dd));
+	dd = vzalloc(sizeof(*dd));
 	if (!dd) {
 		dd = ERR_PTR(-ENOMEM);
 		goto bail;
 	}
-	memset(dd, 0, sizeof(*dd));
 	dd->ipath_unit = -1;
 
 	spin_lock_irqsave(&ipath_devs_lock, flags);
