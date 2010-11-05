@@ -70,6 +70,9 @@ config MXC_TZIC
 	  containing this interrupt controller.
 	  Say N here only if you are really sure.
 
+config MXC_AVIC
+	bool
+
 config MXC_PWM
 	tristate "Enable PWM driver"
 	select HAVE_PWM
