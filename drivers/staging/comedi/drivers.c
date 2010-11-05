@@ -470,10 +470,8 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 		struct page **pages = NULL;
 
 		async->buf_page_list =
-		    vmalloc(sizeof(struct comedi_buf_page) * n_pages);
+		    vzalloc(sizeof(struct comedi_buf_page) * n_pages);
 		if (async->buf_page_list) {
-			memset(async->buf_page_list, 0,
-			       sizeof(struct comedi_buf_page) * n_pages);
 			pages = vmalloc(sizeof(struct page *) * n_pages);
 		}
 		if (pages) {

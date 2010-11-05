@@ -2180,8 +2180,7 @@ static int XGIfb_heap_init(void)
 
 #ifndef AGPOFF
 	if (XGIfb_queuemode == AGP_CMD_QUEUE) {
-		agp_info = vmalloc(sizeof(*agp_info));
-		memset((void *)agp_info, 0x00, sizeof(*agp_info));
+		agp_info = vzalloc(sizeof(*agp_info));
 		agp_copy_info(agp_info);
 
 		agp_backend_acquire();
