@@ -40,7 +40,6 @@
 #include <mach/audmux.h>
 #include <mach/mxc_nand.h>
 #include <mach/irqs.h>
-#include <mach/mmc.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
@@ -268,7 +267,7 @@ static void pca100_sdhc2_exit(struct device *dev, void *data)
 	free_irq(IRQ_GPIOC(29), data);
 }
 
-static struct imxmmc_platform_data sdhc_pdata = {
+static const struct imxmmc_platform_data sdhc_pdata __initconst = {
 	.init = pca100_sdhc2_init,
 	.exit = pca100_sdhc2_exit,
 };
@@ -383,7 +382,7 @@ static void __init pca100_init(void)
 
 	imx27_add_imx_uart0(&uart_pdata);
 
-	mxc_register_device(&mxc_sdhc_device1, &sdhc_pdata);
+	imx27_add_mxc_mmc(1, &sdhc_pdata);
 
 	imx27_add_mxc_nand(&pca100_nand_board_info);
 

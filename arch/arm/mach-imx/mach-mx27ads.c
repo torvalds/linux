@@ -30,7 +30,6 @@
 #include <mach/gpio.h>
 #include <mach/iomux-mx27.h>
 #include <mach/mxc_nand.h>
-#include <mach/mmc.h>
 
 #include "devices-imx27.h"
 #include "devices.h"
@@ -271,12 +270,12 @@ static void mx27ads_sdhc2_exit(struct device *dev, void *data)
 	free_irq(IRQ_GPIOB(7), data);
 }
 
-static struct imxmmc_platform_data sdhc1_pdata = {
+static const struct imxmmc_platform_data sdhc1_pdata __initconst = {
 	.init = mx27ads_sdhc1_init,
 	.exit = mx27ads_sdhc1_exit,
 };
 
-static struct imxmmc_platform_data sdhc2_pdata = {
+static const struct imxmmc_platform_data sdhc2_pdata __initconst = {
 	.init = mx27ads_sdhc2_init,
 	.exit = mx27ads_sdhc2_exit,
 };
@@ -307,8 +306,8 @@ static void __init mx27ads_board_init(void)
 				ARRAY_SIZE(mx27ads_i2c_devices));
 	imx27_add_imx_i2c(1, &mx27ads_i2c1_data);
 	imx27_add_imx_fb(&mx27ads_fb_data);
-	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
-	mxc_register_device(&mxc_sdhc_device1, &sdhc2_pdata);
+	imx27_add_mxc_mmc(0, &sdhc1_pdata);
+	imx27_add_mxc_mmc(1, &sdhc2_pdata);
 
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));

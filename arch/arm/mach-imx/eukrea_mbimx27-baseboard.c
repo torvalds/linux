@@ -33,7 +33,6 @@
 #include <mach/common.h>
 #include <mach/iomux-mx27.h>
 #include <mach/hardware.h>
-#include <mach/mmc.h>
 #include <mach/spi.h>
 #include <mach/audmux.h>
 
@@ -305,7 +304,7 @@ static struct platform_device *platform_devices[] __initdata = {
 	&leds_gpio,
 };
 
-static struct imxmmc_platform_data sdhc_pdata = {
+static const struct imxmmc_platform_data sdhc_pdata __initconst = {
 	.dat3_card_detect = 1,
 };
 
@@ -351,7 +350,7 @@ void __init eukrea_mbimx27_baseboard_init(void)
 #endif
 
 	imx27_add_imx_fb(&eukrea_mbimx27_fb_data);
-	mxc_register_device(&mxc_sdhc_device0, &sdhc_pdata);
+	imx27_add_mxc_mmc(0, &sdhc_pdata);
 
 	i2c_register_board_info(0, eukrea_mbimx27_i2c_devices,
 				ARRAY_SIZE(eukrea_mbimx27_i2c_devices));

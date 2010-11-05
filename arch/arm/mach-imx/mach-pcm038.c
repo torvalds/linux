@@ -212,7 +212,7 @@ static const struct spi_imx_master pcm038_spi0_data __initconst = {
 
 static struct regulator_consumer_supply sdhc1_consumers[] = {
 	{
-		.dev	= &mxc_sdhc_device1.dev,
+		.dev_name = "mxc-mmc.1",
 		.supply	= "sdhc_vcc",
 	},
 };

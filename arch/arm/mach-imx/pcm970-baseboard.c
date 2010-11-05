@@ -26,7 +26,6 @@
 #include <mach/common.h>
 #include <mach/iomux-mx27.h>
 #include <mach/hardware.h>
-#include <mach/mmc.h>
 
 #include "devices-imx27.h"
 #include "devices.h"
@@ -119,7 +118,7 @@ static void pcm970_sdhc2_exit(struct device *dev, void *data)
 	gpio_free(GPIO_PORTC + 28);
 }
 
-static struct imxmmc_platform_data sdhc_pdata = {
+static const struct imxmmc_platform_data sdhc_pdata __initconst = {
 	.get_ro = pcm970_sdhc2_get_ro,
 	.init = pcm970_sdhc2_init,
 	.exit = pcm970_sdhc2_exit,
@@ -228,6 +227,6 @@ void __init pcm970_baseboard_init(void)
 
 	imx27_add_imx_fb(&pcm038_fb_data);
 	mxc_gpio_mode(GPIO_PORTC | 28 | GPIO_GPIO | GPIO_IN);
-	mxc_register_device(&mxc_sdhc_device1, &sdhc_pdata);
+	imx27_add_mxc_mmc(1, &sdhc_pdata);
 	platform_device_register(&pcm970_sja1000);
 }

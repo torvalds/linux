@@ -76,40 +76,6 @@ int __init imx1_register_gpios(void)
 }
 #endif
 
-#if defined(CONFIG_MACH_MX21) || defined(CONFIG_MACH_MX27)
-#define DEFINE_MXC_MMC_DEVICE(n, baseaddr, irq, dmareq)			\
-	static struct resource mxc_sdhc_resources ## n[] = {		\
-		{							\
-			.start = baseaddr,				\
-			.end = baseaddr + SZ_4K - 1,			\
-			.flags = IORESOURCE_MEM,			\
-		}, {							\
-			.start = irq,					\
-			.end = irq,					\
-			.flags = IORESOURCE_IRQ,			\
-		}, {							\
-			.start = dmareq,				\
-			.end = dmareq,					\
-			.flags = IORESOURCE_DMA,			\
-		},							\
-	};								\
-									\
-	static u64 mxc_sdhc ## n ## _dmamask = DMA_BIT_MASK(32);	\
-									\
-	struct platform_device mxc_sdhc_device ## n = {			\
-		.name = "mxc-mmc",					\
-		.id = n,						\
-		.dev = {						\
-			.dma_mask = &mxc_sdhc ## n ## _dmamask,		\
-			.coherent_dma_mask = DMA_BIT_MASK(32),		\
-		},							\
-		.num_resources = ARRAY_SIZE(mxc_sdhc_resources ## n),	\
-		.resource = mxc_sdhc_resources ## n,		\
-	}
-
-DEFINE_MXC_MMC_DEVICE(0, MX2x_SDHC1_BASE_ADDR, MX2x_INT_SDHC1, MX2x_DMA_REQ_SDHC1);
-DEFINE_MXC_MMC_DEVICE(1, MX2x_SDHC2_BASE_ADDR, MX2x_INT_SDHC2, MX2x_DMA_REQ_SDHC2);
-
 #ifdef CONFIG_MACH_MX27
 static struct resource otg_resources[] = {
 	{
@@ -203,6 +169,7 @@ struct platform_device mxc_usbh2 = {
 };
 #endif
 
+#if defined(CONFIG_MACH_MX21) || defined(CONFIG_MACH_MX27)
 /* GPIO port description */
 #define DEFINE_MXC_GPIO_PORT_IRQ(SOC, n, _irq)				\
 	{								\

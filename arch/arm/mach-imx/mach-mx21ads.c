@@ -26,7 +26,6 @@
 #include <asm/mach/map.h>
 #include <mach/iomux-mx21.h>
 #include <mach/mxc_nand.h>
-#include <mach/mmc.h>
 
 #include "devices-imx21.h"
 #include "devices.h"
@@ -232,15 +231,8 @@ static int mx21ads_sdhc_get_ro(struct device *dev)
 static int mx21ads_sdhc_init(struct device *dev, irq_handler_t detect_irq,
 	void *data)
 {
-	int ret;
-
-	ret = request_irq(IRQ_GPIOD(25), detect_irq,
+	return request_irq(IRQ_GPIOD(25), detect_irq,
 		IRQF_TRIGGER_FALLING, "mmc-detect", data);
-	if (ret)
-		goto out;
-	return 0;
-out:
-	return ret;
 }
 
 static void mx21ads_sdhc_exit(struct device *dev, void *data)
@@ -248,7 +240,7 @@ static void mx21ads_sdhc_exit(struct device *dev, void *data)
 	free_irq(IRQ_GPIOD(25), data);
 }
 
-static struct imxmmc_platform_data mx21ads_sdhc_pdata = {
+static const struct imxmmc_platform_data mx21ads_sdhc_pdata __initconst = {
 	.ocr_avail = MMC_VDD_29_30 | MMC_VDD_30_31, /* 3.0V */
 	.get_ro = mx21ads_sdhc_get_ro,
 	.init = mx21ads_sdhc_init,
@@ -296,7 +288,7 @@ static void __init mx21ads_board_init(void)
 	imx21_add_imx_uart2(&uart_pdata_norts);
 	imx21_add_imx_uart3(&uart_pdata_rts);
 	imx21_add_imx_fb(&mx21ads_fb_data);
-	mxc_register_device(&mxc_sdhc_device0, &mx21ads_sdhc_pdata);
+	imx21_add_mxc_mmc(0, &mx21ads_sdhc_pdata);
 	imx21_add_mxc_nand(&mx21ads_nand_board_info);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));

@@ -34,7 +34,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/common.h>
-#include <mach/mmc.h>
 #include <mach/iomux.h>
 #include <mach/mxc_ehci.h>
 
@@ -156,7 +155,7 @@ static void visstrim_m10_sdhc1_exit(struct device *dev, void *data)
 	free_irq(SDHC1_IRQ, data);
 }
 
-static struct imxmmc_platform_data visstrim_m10_sdhc_pdata = {
+static const struct imxmmc_platform_data visstrim_m10_sdhc_pdata __initconst = {
 	.init = visstrim_m10_sdhc1_init,
 	.exit = visstrim_m10_sdhc1_exit,
 };
@@ -237,7 +236,7 @@ static void __init visstrim_m10_board_init(void)
 				ARRAY_SIZE(visstrim_m10_i2c_devices));
 	imx27_add_imx_i2c(0, &visstrim_m10_i2c_data);
 	imx27_add_imx_i2c(1, &visstrim_m10_i2c_data);
-	mxc_register_device(&mxc_sdhc_device0, &visstrim_m10_sdhc_pdata);
+	imx27_add_mxc_mmc(0, &visstrim_m10_sdhc_pdata);
 	mxc_register_device(&mxc_otg_host, &visstrim_m10_usbotg_pdata);
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));

@@ -265,7 +265,7 @@ static void __init eukrea_cpuimx27_init(void)
 
 #if defined(CONFIG_MACH_EUKREA_CPUIMX27_USESDHC2)
 	/* SDHC2 can be used for Wifi */
-	mxc_register_device(&mxc_sdhc_device1, NULL);
+	imx27_add_mxc_mmc(1, NULL);
 #endif
 #if defined(MACH_EUKREA_CPUIMX27_USEUART4)
 	/* in which case UART4 is also used for Bluetooth */

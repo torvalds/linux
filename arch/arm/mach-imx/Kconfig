@@ -73,6 +73,7 @@ config MACH_MX21ADS
 	bool "MX21ADS platform"
 	select IMX_HAVE_PLATFORM_IMX_FB
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	help
 	  Include support for MX21ADS platform. This includes specific
@@ -89,6 +90,7 @@ config MACH_MX27ADS
 	select IMX_HAVE_PLATFORM_IMX_FB
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_MXC_W1
 	help
@@ -116,6 +118,7 @@ choice
 config MACH_PCM970_BASEBOARD
 	bool "PHYTEC PCM970 development board"
 	select IMX_HAVE_PLATFORM_IMX_FB
+	select IMX_HAVE_PLATFORM_MXC_MMC
 	help
 	  This adds board specific devices that can be found on Phytec's
 	  PCM970 evaluation board.
@@ -137,6 +140,7 @@ config MACH_CPUIMX27
 config MACH_EUKREA_CPUIMX27_USESDHC2
 	bool "CPUIMX27 integrates SDHC2 module"
 	depends on MACH_CPUIMX27
+	select IMX_HAVE_PLATFORM_MXC_MMC
 	help
 	  This adds support for the internal SDHC2 used on CPUIMX27
 	  for wifi or eMMC.
@@ -158,6 +162,7 @@ config MACH_EUKREA_MBIMX27_BASEBOARD
 	select IMX_HAVE_PLATFORM_IMX_FB
 	select IMX_HAVE_PLATFORM_IMX_SSI
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	help
 	  This adds board specific devices that can be found on Eukrea's
@@ -168,6 +173,7 @@ endchoice
 config MACH_MX27_3DS
 	bool "MX27PDK platform"
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_MMC
 	help
 	  Include support for MX27PDK platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -176,6 +182,7 @@ config MACH_IMX27_VISSTRIM_M10
 	bool "Vista Silicon i.MX27 Visstrim_m10"
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_MMC
 	help
 	  Include support for Visstrim_m10 platform and its different variants.
 	  This includes specific configurations for the board and its
@@ -195,6 +202,7 @@ config MACH_PCA100
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_SSI
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_MXC_W1
 	select IMX_HAVE_PLATFORM_SPI_IMX
@@ -208,6 +216,7 @@ config MACH_MXT_TD60
 	select IMX_HAVE_PLATFORM_IMX_FB
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	help
 	  Include support for i-MXT (aka td60) platform. This
