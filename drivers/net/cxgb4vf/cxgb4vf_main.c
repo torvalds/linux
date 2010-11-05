@@ -2600,7 +2600,6 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		pi->xact_addr_filt = -1;
 		pi->rx_offload = RX_CSO;
 		netif_carrier_off(netdev);
-		netif_tx_stop_all_queues(netdev);
 		netdev->irq = pdev->irq;
 
 		netdev->features = (NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |

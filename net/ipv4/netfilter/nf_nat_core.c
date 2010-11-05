@@ -47,26 +47,6 @@ __nf_nat_proto_find(u_int8_t protonum)
 	return rcu_dereference(nf_nat_protos[protonum]);
 }
 
-static const struct nf_nat_protocol *
-nf_nat_proto_find_get(u_int8_t protonum)
-{
-	const struct nf_nat_protocol *p;
-
-	rcu_read_lock();
-	p = __nf_nat_proto_find(protonum);
-	if (!try_module_get(p->me))
-		p = &nf_nat_unknown_protocol;
-	rcu_read_unlock();
-
-	return p;
-}
-
-static void
-nf_nat_proto_put(const struct nf_nat_protocol *p)
-{
-	module_put(p->me);
-}
-
 /* We keep an extra hash for each conntrack, for fast searching. */
 static inline unsigned int
 hash_by_src(const struct net *net, u16 zone,
@@ -587,6 +567,26 @@ static struct nf_ct_ext_type nat_extend __read_mostly = {
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
+
+static const struct nf_nat_protocol *
+nf_nat_proto_find_get(u_int8_t protonum)
+{
+	const struct nf_nat_protocol *p;
+
+	rcu_read_lock();
+	p = __nf_nat_proto_find(protonum);
+	if (!try_module_get(p->me))
+		p = &nf_nat_unknown_protocol;
+	rcu_read_unlock();
+
+	return p;
+}
+
+static void
+nf_nat_proto_put(const struct nf_nat_protocol *p)
+{
+	module_put(p->me);
+}
 
 static const struct nla_policy protonat_nla_policy[CTA_PROTONAT_MAX+1] = {
 	[CTA_PROTONAT_PORT_MIN]	= { .type = NLA_U16 },
