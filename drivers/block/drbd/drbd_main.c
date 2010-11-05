@@ -961,6 +961,10 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 /* helper for __drbd_set_state */
 static void set_ov_position(struct drbd_conf *mdev, enum drbd_conns cs)
 {
+	if (mdev->agreed_pro_version < 90)
+		mdev->ov_start_sector = 0;
+	mdev->rs_total = drbd_bm_bits(mdev);
+	mdev->ov_position = 0;
 	if (cs == C_VERIFY_T) {
 		/* starting online verify from an arbitrary position
 		 * does not fit well into the existing protocol.
@@ -970,11 +974,15 @@ static void set_ov_position(struct drbd_conf *mdev, enum drbd_conns cs)
 		mdev->ov_start_sector = ~(sector_t)0;
 	} else {
 		unsigned long bit = BM_SECT_TO_BIT(mdev->ov_start_sector);
-		if (bit >= mdev->rs_total)
+		if (bit >= mdev->rs_total) {
 			mdev->ov_start_sector =
 				BM_BIT_TO_SECT(mdev->rs_total - 1);
+			mdev->rs_total = 1;
+		} else
+			mdev->rs_total -= bit;
 		mdev->ov_position = mdev->ov_start_sector;
 	}
+	mdev->ov_left = mdev->rs_total;
 }
 
 static void drbd_resume_al(struct drbd_conf *mdev)
@@ -1081,7 +1089,7 @@ int __drbd_set_state(struct drbd_conf *mdev,
 	if ((os.conn == C_VERIFY_S || os.conn == C_VERIFY_T) &&
 	    ns.conn < C_CONNECTED) {
 		mdev->ov_start_sector =
-			BM_BIT_TO_SECT(mdev->rs_total - mdev->ov_left);
+			BM_BIT_TO_SECT(drbd_bm_bits(mdev) - mdev->ov_left);
 		dev_info(DEV, "Online Verify reached sector %llu\n",
 			(unsigned long long)mdev->ov_start_sector);
 	}
@@ -1106,14 +1114,7 @@ int __drbd_set_state(struct drbd_conf *mdev,
 		unsigned long now = jiffies;
 		int i;
 
-		mdev->ov_position = 0;
-		mdev->rs_total = drbd_bm_bits(mdev);
-		if (mdev->agreed_pro_version >= 90)
-			set_ov_position(mdev, ns.conn);
-		else
-			mdev->ov_start_sector = 0;
-		mdev->ov_left = mdev->rs_total
-			      - BM_SECT_TO_BIT(mdev->ov_position);
+		set_ov_position(mdev, ns.conn);
 		mdev->rs_start = now;
 		mdev->rs_last_events = 0;
 		mdev->rs_last_sect_ev = 0;
@@ -1121,7 +1122,7 @@ int __drbd_set_state(struct drbd_conf *mdev,
 		mdev->ov_last_oos_start = 0;
 
 		for (i = 0; i < DRBD_SYNC_MARKS; i++) {
-			mdev->rs_mark_left[i] = mdev->rs_total;
+			mdev->rs_mark_left[i] = mdev->ov_left;
 			mdev->rs_mark_time[i] = now;
 		}
 

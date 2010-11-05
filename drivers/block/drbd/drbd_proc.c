@@ -239,12 +239,13 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 		    mdev->state.conn == C_SYNC_TARGET)
 			drbd_syncer_progress(mdev, seq);
 
-		if (mdev->state.conn == C_VERIFY_S || mdev->state.conn == C_VERIFY_T)
+		if (mdev->state.conn == C_VERIFY_S || mdev->state.conn == C_VERIFY_T) {
+			unsigned long bm_bits = drbd_bm_bits(mdev);
 			seq_printf(seq, "\t%3d%%      %lu/%lu\n",
-				   (int)((mdev->rs_total-mdev->ov_left) /
-					 (mdev->rs_total/100+1)),
-				   mdev->rs_total - mdev->ov_left,
-				   mdev->rs_total);
+				   (int)((bm_bits-mdev->ov_left) /
+					 (bm_bits/100+1)),
+				   bm_bits - mdev->ov_left, bm_bits);
+		}
 
 		if (proc_details >= 1 && get_ldev_if_state(mdev, D_FAILED)) {
 			lc_seq_printf_stats(seq, mdev->resync);

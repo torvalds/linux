@@ -2005,7 +2005,8 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packets cmd, un
 		    mdev->agreed_pro_version >= 90) {
 			mdev->ov_start_sector = sector;
 			mdev->ov_position = sector;
-			mdev->ov_left = mdev->rs_total - BM_SECT_TO_BIT(sector);
+			mdev->ov_left = drbd_bm_bits(mdev) - BM_SECT_TO_BIT(sector);
+			mdev->rs_total = mdev->ov_left;
 			dev_info(DEV, "Online Verify start sector: %llu\n",
 					(unsigned long long)sector);
 		}
