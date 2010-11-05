@@ -984,11 +984,6 @@ static int intel_fake_agp_remove_entries(struct agp_memory *mem,
 	return 0;
 }
 
-static void intel_fake_agp_chipset_flush(struct agp_bridge_data *bridge)
-{
-	intel_private.driver->chipset_flush();
-}
-
 static struct agp_memory *intel_fake_agp_alloc_by_type(size_t pg_count,
 						       int type)
 {
@@ -1222,7 +1217,6 @@ static const struct agp_bridge_driver intel_fake_agp_driver = {
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_destroy_pages      = agp_generic_destroy_pages,
-	.chipset_flush		= intel_fake_agp_chipset_flush,
 };
 
 static const struct intel_gtt_driver i81x_gtt_driver = {
