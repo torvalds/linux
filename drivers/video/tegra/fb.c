@@ -651,7 +651,7 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	tegra_fb->fb_mem = fb_mem;
 	tegra_fb->xres = fb_data->xres;
 	tegra_fb->yres = fb_data->yres;
-	tegra_fb->fb_nvmap = nvmap_create_client(nvmap_dev);
+	tegra_fb->fb_nvmap = nvmap_create_client(nvmap_dev, "tegra-fb");
 	if (!tegra_fb->fb_nvmap) {
 		dev_err(&ndev->dev, "couldn't create nvmap client\n");
 		ret = -ENOMEM;

@@ -669,7 +669,7 @@ static int __devinit nvhost_probe(struct platform_device *pdev)
 
 	host->pdev = pdev;
 
-	host->nvmap = nvmap_create_client(nvmap_dev);
+	host->nvmap = nvmap_create_client(nvmap_dev, "nvhost");
 	if (!host->nvmap) {
 		dev_err(&pdev->dev, "unable to create nvmap client\n");
 		err = -EIO;
