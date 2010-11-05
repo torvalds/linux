@@ -18,6 +18,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/scatterlist.h>
 
 #include "solo6010.h"
 
@@ -30,8 +31,9 @@ int solo_p2m_dma(struct solo6010_dev *solo_dev, u8 id, int wr,
 	int ret;
 
 	WARN_ON(!size);
-	WARN_ON(id >= SOLO_NR_P2M);
-	if (!size || id >= SOLO_NR_P2M)
+	BUG_ON(id >= SOLO_NR_P2M);
+
+	if (!size)
 		return -EINVAL;
 
 	dma_addr = pci_map_single(solo_dev->pdev, sys_addr, size,
@@ -48,41 +50,117 @@ int solo_p2m_dma(struct solo6010_dev *solo_dev, u8 id, int wr,
 int solo_p2m_dma_t(struct solo6010_dev *solo_dev, u8 id, int wr,
 		   dma_addr_t dma_addr, u32 ext_addr, u32 size)
 {
-	struct solo_p2m_dev *p2m_dev;
-	unsigned int timeout = 0;
+	struct p2m_desc desc;
 
-	WARN_ON(!size);
-	WARN_ON(id >= SOLO_NR_P2M);
-	if (!size || id >= SOLO_NR_P2M)
-		return -EINVAL;
+	solo_p2m_push_desc(&desc, wr, dma_addr, ext_addr, size, 0, 0);
+
+	return solo_p2m_dma_desc(solo_dev, id, &desc, 1);
+}
+
+void solo_p2m_push_desc(struct p2m_desc *desc, int wr, dma_addr_t dma_addr,
+			u32 ext_addr, u32 size, int repeat, u32 ext_size)
+{
+	desc->ta = dma_addr;
+	desc->fa = ext_addr;
+
+	desc->ext = SOLO_P2M_COPY_SIZE(size >> 2);
+	desc->ctrl = SOLO_P2M_BURST_SIZE(SOLO_P2M_BURST_256) |
+		(wr ? SOLO_P2M_WRITE : 0) | SOLO_P2M_TRANS_ON;
+
+	/* Ext size only matters when we're repeating */
+	if (repeat) {
+		desc->ext |= SOLO_P2M_EXT_INC(ext_size >> 2);
+		desc->ctrl |=  SOLO_P2M_PCI_INC(size >> 2) |
+			SOLO_P2M_REPEAT(repeat);
+	}
+}
+
+int solo_p2m_dma_desc(struct solo6010_dev *solo_dev, u8 id,
+		      struct p2m_desc *desc, int desc_count)
+{
+	struct solo_p2m_dev *p2m_dev;
+	unsigned int timeout;
+	int ret = 0;
+
+	BUG_ON(id >= SOLO_NR_P2M);
+	BUG_ON(desc_count > SOLO_NR_P2M_DESC);
 
 	p2m_dev = &solo_dev->p2m_dev[id];
 
-	down(&p2m_dev->sem);
+	mutex_lock(&p2m_dev->mutex);
 
-start_dma:
 	INIT_COMPLETION(p2m_dev->completion);
 	p2m_dev->error = 0;
-	solo_reg_write(solo_dev, SOLO_P2M_TAR_ADR(id), dma_addr);
-	solo_reg_write(solo_dev, SOLO_P2M_EXT_ADR(id), ext_addr);
-	solo_reg_write(solo_dev, SOLO_P2M_EXT_CFG(id),
-		       SOLO_P2M_COPY_SIZE(size >> 2));
-	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id),
-		       SOLO_P2M_BURST_SIZE(SOLO_P2M_BURST_256) |
-		       (wr ? SOLO_P2M_WRITE : 0) | SOLO_P2M_TRANS_ON);
 
+	/* Setup the descriptor count and base address */
+	p2m_dev->num_descs = desc_count;
+	p2m_dev->descs = desc;
+	p2m_dev->desc_idx = 0;
+
+	/* We plug in the first descriptor here. The isr will take
+	 * over from desc[1] after this. */
+	solo_reg_write(solo_dev, SOLO_P2M_TAR_ADR(id), desc[0].ta);
+	solo_reg_write(solo_dev, SOLO_P2M_EXT_ADR(id), desc[0].fa);
+	solo_reg_write(solo_dev, SOLO_P2M_EXT_CFG(id), desc[0].ext);
+	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id), desc[0].ctrl);
+
+	/* Should have all descriptors completed from one interrupt */
 	timeout = wait_for_completion_timeout(&p2m_dev->completion, HZ);
 
 	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id), 0);
 
-	/* XXX Really looks to me like we will get stuck here if a
-	 * real PCI P2M error occurs */
 	if (p2m_dev->error)
-		goto start_dma;
+		ret = -EIO;
+	else if (timeout == 0)
+		ret = -EAGAIN;
 
-	up(&p2m_dev->sem);
+	mutex_unlock(&p2m_dev->mutex);
 
-	return (timeout == 0) ? -EAGAIN : 0;
+	WARN_ON_ONCE(ret);
+
+	return ret;
+}
+
+int solo_p2m_dma_sg(struct solo6010_dev *solo_dev, u8 id,
+		    struct p2m_desc *pdesc, int wr,
+		    struct scatterlist *sg, u32 sg_off,
+		    u32 ext_addr, u32 size)
+{
+	int i;
+	int idx;
+
+	BUG_ON(id >= SOLO_NR_P2M);
+
+	if (WARN_ON_ONCE(!size))
+		return -EINVAL;
+
+	for (i = idx = 0; i < SOLO_NR_P2M_DESC && sg && size > 0;
+	     i++, sg = sg_next(sg)) {
+		struct p2m_desc *desc = &pdesc[i];
+		u32 sg_len = sg_dma_len(sg);
+		u32 len;
+
+		if (sg_off >= sg_len) {
+			sg_off -= sg_len;
+			continue;
+		}
+
+		sg_len -= sg_off;
+		len = min(sg_len, size);
+
+		solo_p2m_push_desc(desc, wr, sg_dma_address(sg) + sg_off,
+				   ext_addr, len, 0, 0);
+
+		size -= len;
+		ext_addr += len;
+		idx++;
+
+		sg_off = 0;
+	}
+
+	WARN_ON_ONCE(size || i >= SOLO_NR_P2M_DESC);
+
+	return solo_p2m_dma_desc(solo_dev, id, pdesc, idx);
 }
 
 #ifdef SOLO_TEST_P2M
@@ -152,8 +230,27 @@ static void run_p2m_test(struct solo6010_dev *solo_dev)
 
 void solo_p2m_isr(struct solo6010_dev *solo_dev, int id)
 {
+	struct solo_p2m_dev *p2m_dev = &solo_dev->p2m_dev[id];
+	struct p2m_desc *desc;
+
 	solo_reg_write(solo_dev, SOLO_IRQ_STAT, SOLO_IRQ_P2M(id));
-	complete(&solo_dev->p2m_dev[id].completion);
+
+	p2m_dev->desc_idx++;
+
+	if (p2m_dev->desc_idx >= p2m_dev->num_descs) {
+		complete(&p2m_dev->completion);
+		return;
+	}
+
+	/* Reset the p2m and start the next one */
+	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id), 0);
+
+	desc = &p2m_dev->descs[p2m_dev->desc_idx];
+
+	solo_reg_write(solo_dev, SOLO_P2M_TAR_ADR(id), desc->ta);
+	solo_reg_write(solo_dev, SOLO_P2M_EXT_ADR(id), desc->fa);
+	solo_reg_write(solo_dev, SOLO_P2M_EXT_CFG(id), desc->ext);
+	solo_reg_write(solo_dev, SOLO_P2M_CONTROL(id), desc->ctrl);
 }
 
 void solo_p2m_error_isr(struct solo6010_dev *solo_dev, u32 status)
@@ -188,16 +285,13 @@ int solo_p2m_init(struct solo6010_dev *solo_dev)
 	for (i = 0; i < SOLO_NR_P2M; i++) {
 		p2m_dev = &solo_dev->p2m_dev[i];
 
-		sema_init(&p2m_dev->sem, 1);
+		mutex_init(&p2m_dev->mutex);
 		init_completion(&p2m_dev->completion);
-
-		solo_reg_write(solo_dev, SOLO_P2M_DES_ADR(i),
-			       __pa(p2m_dev->desc));
 
 		solo_reg_write(solo_dev, SOLO_P2M_CONTROL(i), 0);
 		solo_reg_write(solo_dev, SOLO_P2M_CONFIG(i),
 			       SOLO_P2M_CSC_16BIT_565 |
-			       SOLO_P2M_DMA_INTERVAL(0) |
+			       SOLO_P2M_DMA_INTERVAL(3) |
 			       SOLO_P2M_PCI_MASTER_MODE);
 		solo6010_irq_on(solo_dev, SOLO_IRQ_P2M(i));
 	}
