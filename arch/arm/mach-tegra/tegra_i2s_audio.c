@@ -45,6 +45,8 @@
 #include <linux/delay.h>
 #include <linux/tegra_audio.h>
 #include <linux/pm.h>
+#include <linux/workqueue.h>
+
 #include <mach/dma.h>
 #include <mach/iomap.h>
 #include <mach/i2s.h>
@@ -91,6 +93,7 @@ struct audio_stream {
 	struct tegra_dma_req dma_req;
 
 	struct pm_qos_request_list pm_qos;
+	struct work_struct allow_suspend_work;
 	struct wake_lock wake_lock;
 	char wake_lock_name[100];
 };
@@ -221,15 +224,24 @@ static inline struct audio_driver_state *ads_from_in(
 static inline void prevent_suspend(struct audio_stream *as)
 {
 	pr_debug("%s\n", __func__);
+	cancel_work_sync(&as->allow_suspend_work);
 	wake_lock(&as->wake_lock);
 	pm_qos_update_request(&as->pm_qos, 0);
 }
 
-static inline void allow_suspend(struct audio_stream *as)
+static void allow_suspend_worker(struct work_struct *w)
 {
+	struct audio_stream *as = container_of(w,
+			struct audio_stream, allow_suspend_work);
+
 	pr_debug("%s\n", __func__);
 	pm_qos_update_request(&as->pm_qos, PM_QOS_DEFAULT_VALUE);
 	wake_unlock(&as->wake_lock);
+}
+
+static inline void allow_suspend(struct audio_stream *as)
+{
+	schedule_work(&as->allow_suspend_work);
 }
 
 #define I2S_I2S_FIFO_TX_BUSY	I2S_I2S_STATUS_FIFO1_BSY
@@ -2460,6 +2472,7 @@ static int tegra_audio_probe(struct platform_device *pdev)
 		if (rc < 0)
 			return rc;
 
+		INIT_WORK(&state->out.allow_suspend_work, allow_suspend_worker);
 		pm_qos_add_request(&state->out.pm_qos, PM_QOS_CPU_DMA_LATENCY,
 				PM_QOS_DEFAULT_VALUE);
 
@@ -2503,6 +2516,7 @@ static int tegra_audio_probe(struct platform_device *pdev)
 		if (rc < 0)
 			return rc;
 
+		INIT_WORK(&state->in.allow_suspend_work, allow_suspend_worker);
 		pm_qos_add_request(&state->in.pm_qos, PM_QOS_CPU_DMA_LATENCY,
 					PM_QOS_DEFAULT_VALUE);
 
