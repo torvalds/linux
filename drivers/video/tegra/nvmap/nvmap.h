@@ -100,6 +100,7 @@ struct nvmap_carveout_commit {
 };
 
 struct nvmap_client {
+	const char			*name;
 	struct nvmap_device		*dev;
 	struct nvmap_share		*share;
 	struct rb_root			handle_refs;

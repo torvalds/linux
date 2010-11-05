@@ -66,7 +66,8 @@ struct nvmap_pinarray_elem {
 	__u32 pin_offset;
 };
 
-struct nvmap_client *nvmap_create_client(struct nvmap_device *dev);
+struct nvmap_client *nvmap_create_client(struct nvmap_device *dev,
+					 const char *name);
 
 struct nvmap_handle_ref *nvmap_alloc(struct nvmap_client *client, size_t size,
 				     size_t align, unsigned int flags);

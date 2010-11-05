@@ -159,7 +159,6 @@ int nvmap_ioctl_alloc(struct file *filp, void __user *arg)
 {
 	struct nvmap_alloc_handle op;
 	struct nvmap_client *client = filp->private_data;
-	int ret;
 
 	if (copy_from_user(&op, arg, sizeof(op)))
 		return -EFAULT;
@@ -174,12 +173,8 @@ int nvmap_ioctl_alloc(struct file *filp, void __user *arg)
 	 * data leakage. */
 	op.align = max_t(size_t, op.align, PAGE_SIZE);
 
-	ret = nvmap_alloc_handle_id(client, op.handle, op.heap_mask,
-				    op.align, op.flags);
-	if (ret)
-		pr_err("%s: nvmap allocation failed (%d)\n", __func__, ret);
-
-	return ret;
+	return nvmap_alloc_handle_id(client, op.handle, op.heap_mask,
+				     op.align, op.flags);
 }
 
 int nvmap_ioctl_create(struct file *filp, unsigned int cmd, void __user *arg)
