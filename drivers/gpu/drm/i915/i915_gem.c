@@ -95,6 +95,7 @@ static void i915_gem_info_add_gtt(struct drm_i915_private *dev_priv,
 			min_t(size_t, obj->gtt_space->size,
 			      dev_priv->mm.gtt_mappable_end - obj->gtt_offset);
 	}
+	list_add_tail(&obj->gtt_list, &dev_priv->mm.gtt_list);
 }
 
 static void i915_gem_info_remove_gtt(struct drm_i915_private *dev_priv,
@@ -107,6 +108,7 @@ static void i915_gem_info_remove_gtt(struct drm_i915_private *dev_priv,
 			min_t(size_t, obj->gtt_space->size,
 			      dev_priv->mm.gtt_mappable_end - obj->gtt_offset);
 	}
+	list_del_init(&obj->gtt_list);
 }
 
 /**
@@ -4604,6 +4606,7 @@ struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
 	obj->base.driver_private = NULL;
 	obj->fence_reg = I915_FENCE_REG_NONE;
 	INIT_LIST_HEAD(&obj->mm_list);
+	INIT_LIST_HEAD(&obj->gtt_list);
 	INIT_LIST_HEAD(&obj->ring_list);
 	INIT_LIST_HEAD(&obj->gpu_write_list);
 	obj->madv = I915_MADV_WILLNEED;
@@ -4916,6 +4919,7 @@ i915_gem_load(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.pinned_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 	INIT_LIST_HEAD(&dev_priv->mm.deferred_free_list);
+	INIT_LIST_HEAD(&dev_priv->mm.gtt_list);
 	init_ring_lists(&dev_priv->render_ring);
 	init_ring_lists(&dev_priv->bsd_ring);
 	init_ring_lists(&dev_priv->blt_ring);

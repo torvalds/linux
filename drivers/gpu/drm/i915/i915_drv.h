@@ -547,6 +547,9 @@ typedef struct drm_i915_private {
 		struct drm_mm stolen;
 		/** Memory allocator for GTT */
 		struct drm_mm gtt_space;
+		/** List of all objects in gtt_space. Used to restore gtt
+		 * mappings on resume */
+		struct list_head gtt_list;
 		/** End of mappable part of GTT */
 		unsigned long gtt_mappable_end;
 
@@ -714,6 +717,7 @@ struct drm_i915_gem_object {
 
 	/** Current space allocated to this object in the GTT, if any. */
 	struct drm_mm_node *gtt_space;
+	struct list_head gtt_list;
 
 	/** This object's place on the active/flushing/inactive lists */
 	struct list_head ring_list;
