@@ -1619,6 +1619,7 @@ extern int drbd_rs_del_all(struct drbd_conf *mdev);
 extern void drbd_rs_failed_io(struct drbd_conf *mdev,
 		sector_t sector, int size);
 extern int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *);
+extern void drbd_advance_rs_marks(struct drbd_conf *mdev, unsigned long still_to_go);
 extern void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector,
 		int size, const char *file, const unsigned int line);
 #define drbd_set_in_sync(mdev, sector, size) \

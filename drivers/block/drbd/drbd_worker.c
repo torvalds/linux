@@ -1185,7 +1185,13 @@ int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 
 	drbd_free_ee(mdev, e);
 
-	if (--mdev->ov_left == 0) {
+	--mdev->ov_left;
+
+	/* let's advance progress step marks only for every other megabyte */
+	if ((mdev->ov_left & 0x200) == 0x200)
+		drbd_advance_rs_marks(mdev, mdev->ov_left);
+
+	if (mdev->ov_left == 0) {
 		ov_oos_print(mdev);
 		drbd_resync_finished(mdev);
 	}

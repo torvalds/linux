@@ -4340,7 +4340,13 @@ static int got_OVResult(struct drbd_conf *mdev, struct p_header80 *h)
 	drbd_rs_complete_io(mdev, sector);
 	dec_rs_pending(mdev);
 
-	if (--mdev->ov_left == 0) {
+	--mdev->ov_left;
+
+	/* let's advance progress step marks only for every other megabyte */
+	if ((mdev->ov_left & 0x200) == 0x200)
+		drbd_advance_rs_marks(mdev, mdev->ov_left);
+
+	if (mdev->ov_left == 0) {
 		w = kmalloc(sizeof(*w), GFP_NOIO);
 		if (w) {
 			w->cb = w_ov_finished;
