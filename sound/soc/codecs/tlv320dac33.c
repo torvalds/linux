@@ -58,7 +58,7 @@
 	(1000000000 / ((rate * 1000) / samples))
 
 #define US_TO_SAMPLES(rate, us) \
-	(rate / (1000000 / us))
+	(rate / (1000000 / (us < 1000000 ? us : 1000000)))
 
 #define UTHR_FROM_PERIOD_SIZE(samples, playrate, burstrate) \
 	((samples * 5000) / ((burstrate * 5000) / (burstrate - playrate)))
@@ -200,7 +200,7 @@ static int dac33_read(struct snd_soc_codec *codec, unsigned int reg,
 		      u8 *value)
 {
 	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
-	int val;
+	int val, ret = 0;
 
 	*value = reg & 0xff;
 
@@ -210,6 +210,7 @@ static int dac33_read(struct snd_soc_codec *codec, unsigned int reg,
 		if (val < 0) {
 			dev_err(codec->dev, "Read failed (%d)\n", val);
 			value[0] = dac33_read_reg_cache(codec, reg);
+			ret = val;
 		} else {
 			value[0] = val;
 			dac33_write_reg_cache(codec, reg, val);
@@ -218,7 +219,7 @@ static int dac33_read(struct snd_soc_codec *codec, unsigned int reg,
 		value[0] = dac33_read_reg_cache(codec, reg);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int dac33_write(struct snd_soc_codec *codec, unsigned int reg,
@@ -329,13 +330,18 @@ static void dac33_init_chip(struct snd_soc_codec *codec)
 		    dac33_read_reg_cache(codec, DAC33_LINER_TO_RLO_VOL));
 }
 
-static inline void dac33_read_id(struct snd_soc_codec *codec)
+static inline int dac33_read_id(struct snd_soc_codec *codec)
 {
+	int i, ret = 0;
 	u8 reg;
 
-	dac33_read(codec, DAC33_DEVICE_ID_MSB, &reg);
-	dac33_read(codec, DAC33_DEVICE_ID_LSB, &reg);
-	dac33_read(codec, DAC33_DEVICE_REV_ID, &reg);
+	for (i = 0; i < 3; i++) {
+		ret = dac33_read(codec, DAC33_DEVICE_ID_MSB + i, &reg);
+		if (ret < 0)
+			break;
+	}
+
+	return ret;
 }
 
 static inline void dac33_soft_power(struct snd_soc_codec *codec, int power)
@@ -1076,6 +1082,9 @@ static void dac33_calculate_times(struct snd_pcm_substream *substream)
 		/* Number of samples under i2c latency */
 		dac33->alarm_threshold = US_TO_SAMPLES(rate,
 						dac33->mode1_latency);
+		nsample_limit = DAC33_BUFFER_SIZE_SAMPLES -
+				dac33->alarm_threshold;
+
 		if (dac33->auto_fifo_config) {
 			if (period_size <= dac33->alarm_threshold)
 				/*
@@ -1086,6 +1095,8 @@ static void dac33_calculate_times(struct snd_pcm_substream *substream)
 				       ((dac33->alarm_threshold / period_size) +
 				       (dac33->alarm_threshold % period_size ?
 				       1 : 0));
+			else if (period_size > nsample_limit)
+				dac33->nsample = nsample_limit;
 			else
 				dac33->nsample = period_size;
 		} else {
@@ -1097,8 +1108,7 @@ static void dac33_calculate_times(struct snd_pcm_substream *substream)
 			 */
 			dac33->nsample_max = substream->runtime->buffer_size -
 						period_size;
-			nsample_limit = DAC33_BUFFER_SIZE_SAMPLES -
-					dac33->alarm_threshold;
+
 			if (dac33->nsample_max > nsample_limit)
 				dac33->nsample_max = nsample_limit;
 
@@ -1414,8 +1424,14 @@ static int dac33_soc_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to power up codec: %d\n", ret);
 		goto err_power;
 	}
-	dac33_read_id(codec);
+	ret = dac33_read_id(codec);
 	dac33_hard_power(codec, 0);
+
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to read chip ID: %d\n", ret);
+		ret = -ENODEV;
+		goto err_power;
+	}
 
 	/* Check if the IRQ number is valid and request it */
 	if (dac33->irq >= 0) {
