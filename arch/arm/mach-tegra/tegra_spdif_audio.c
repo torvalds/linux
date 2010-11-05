@@ -46,6 +46,7 @@
 #include <linux/pm_qos_params.h>
 #include <linux/delay.h>
 #include <linux/tegra_audio.h>
+#include <linux/workqueue.h>
 
 #include <mach/dma.h>
 #include <mach/iomap.h>
@@ -88,6 +89,7 @@ struct audio_stream {
 	struct tegra_dma_req dma_req;
 
 	struct pm_qos_request_list pm_qos;
+	struct work_struct allow_suspend_work;
 };
 
 struct spdif_pio_stats {
@@ -162,13 +164,22 @@ static inline struct audio_driver_state *ads_from_out(
 static inline void prevent_suspend(struct audio_stream *as)
 {
 	pr_debug("%s\n", __func__);
+	cancel_work_sync(&as->allow_suspend_work);
 	pm_qos_update_request(&as->pm_qos, 0);
+}
+
+static void allow_suspend_worker(struct work_struct *w)
+{
+	struct audio_stream *as = container_of(w,
+			struct audio_stream, allow_suspend_work);
+
+	pr_debug("%s\n", __func__);
+	pm_qos_update_request(&as->pm_qos, PM_QOS_DEFAULT_VALUE);
 }
 
 static inline void allow_suspend(struct audio_stream *as)
 {
-	pr_debug("%s\n", __func__);
-	pm_qos_update_request(&as->pm_qos, PM_QOS_DEFAULT_VALUE);
+	schedule_work(&as->allow_suspend_work);
 }
 
 #define I2S_I2S_FIFO_TX_BUSY	I2S_I2S_STATUS_FIFO1_BSY
@@ -1337,6 +1348,7 @@ static int tegra_spdif_probe(struct platform_device *pdev)
 	if (rc < 0)
 		return rc;
 
+	INIT_WORK(&state->out.allow_suspend_work, allow_suspend_worker);
 	pm_qos_add_request(&state->out.pm_qos, PM_QOS_CPU_DMA_LATENCY,
 				PM_QOS_DEFAULT_VALUE);
 
