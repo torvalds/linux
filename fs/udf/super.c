@@ -959,9 +959,9 @@ static struct udf_bitmap *udf_sb_alloc_bitmap(struct super_block *sb, u32 index)
 		(sizeof(struct buffer_head *) * nr_groups);
 
 	if (size <= PAGE_SIZE)
-		bitmap = kmalloc(size, GFP_KERNEL);
+		bitmap = kzalloc(size, GFP_KERNEL);
 	else
-		bitmap = vmalloc(size); /* TODO: get rid of vmalloc */
+		bitmap = vzalloc(size); /* TODO: get rid of vzalloc */
 
 	if (bitmap == NULL) {
 		udf_error(sb, __func__,
@@ -970,7 +970,6 @@ static struct udf_bitmap *udf_sb_alloc_bitmap(struct super_block *sb, u32 index)
 		return NULL;
 	}
 
-	memset(bitmap, 0x00, size);
 	bitmap->s_block_bitmap = (struct buffer_head **)(bitmap + 1);
 	bitmap->s_nr_groups = nr_groups;
 	return bitmap;
