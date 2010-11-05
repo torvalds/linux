@@ -492,6 +492,32 @@ int drbd_rs_controller(struct drbd_conf *mdev)
 	return req_sect;
 }
 
+int drbd_rs_number_requests(struct drbd_conf *mdev)
+{
+	int number;
+	if (mdev->rs_plan_s.size) { /* mdev->sync_conf.c_plan_ahead */
+		number = drbd_rs_controller(mdev) >> (BM_BLOCK_SHIFT - 9);
+		mdev->c_sync_rate = number * HZ * (BM_BLOCK_SIZE / 1024) / SLEEP_TIME;
+	} else {
+		mdev->c_sync_rate = mdev->sync_conf.rate;
+		number = SLEEP_TIME * mdev->c_sync_rate  / ((BM_BLOCK_SIZE / 1024) * HZ);
+	}
+
+	/* Throttle resync on lower level disk activity, which may also be
+	 * caused by application IO on Primary/SyncTarget.
+	 * Keep this after the call to drbd_rs_controller, as that assumes
+	 * to be called as precisely as possible every SLEEP_TIME,
+	 * and would be confused otherwise. */
+	if (number && drbd_rs_should_slow_down(mdev)) {
+		mdev->c_sync_rate = 1;
+		number = 0;
+	}
+
+	/* ignore the amount of pending requests, the resync controller should
+	 * throttle down to incoming reply rate soon enough anyways. */
+	return number;
+}
+
 int w_make_resync_request(struct drbd_conf *mdev,
 		struct drbd_work *w, int cancel)
 {
@@ -499,7 +525,7 @@ int w_make_resync_request(struct drbd_conf *mdev,
 	sector_t sector;
 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
 	int max_segment_size;
-	int number, rollback_i, size, pe, mx;
+	int number, rollback_i, size;
 	int align, queued, sndbuf;
 	int i = 0;
 
@@ -537,38 +563,9 @@ int w_make_resync_request(struct drbd_conf *mdev,
 		mdev->agreed_pro_version < 94 ? queue_max_segment_size(mdev->rq_queue) :
 		mdev->agreed_pro_version < 95 ?	DRBD_MAX_SIZE_H80_PACKET : DRBD_MAX_SEGMENT_SIZE;
 
-	if (mdev->rs_plan_s.size) { /* mdev->sync_conf.c_plan_ahead */
-		number = drbd_rs_controller(mdev) >> (BM_BLOCK_SHIFT - 9);
-		mdev->c_sync_rate = number * HZ * (BM_BLOCK_SIZE / 1024) / SLEEP_TIME;
-	} else {
-		mdev->c_sync_rate = mdev->sync_conf.rate;
-		number = SLEEP_TIME * mdev->c_sync_rate  / ((BM_BLOCK_SIZE / 1024) * HZ);
-	}
-
-	/* Throttle resync on lower level disk activity, which may also be
-	 * caused by application IO on Primary/SyncTarget.
-	 * Keep this after the call to drbd_rs_controller, as that assumes
-	 * to be called as precisely as possible every SLEEP_TIME,
-	 * and would be confused otherwise. */
-	if (drbd_rs_should_slow_down(mdev))
+	number = drbd_rs_number_requests(mdev);
+	if (number == 0)
 		goto requeue;
-
-	mutex_lock(&mdev->data.mutex);
-	if (mdev->data.socket)
-		mx = mdev->data.socket->sk->sk_rcvbuf / sizeof(struct p_block_req);
-	else
-		mx = 1;
-	mutex_unlock(&mdev->data.mutex);
-
-	/* For resync rates >160MB/sec, allow more pending RS requests */
-	if (number > mx)
-		mx = number;
-
-	/* Limit the number of pending RS requests to no more than the peer's receive buffer */
-	pe = atomic_read(&mdev->rs_pending_cnt);
-	if ((pe + number) > mx) {
-		number = mx - pe;
-	}
 
 	for (i = 0; i < number; i++) {
 		/* Stop generating RS requests, when half of the send buffer is filled */
