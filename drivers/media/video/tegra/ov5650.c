@@ -67,6 +67,16 @@ static struct ov5650_reg reset_seq[] = {
 	{OV5650_TABLE_END, 0x0},
 };
 
+static struct ov5650_reg otp_reset_seq[] = {
+        {0x3008, 0x82}, /* reset registers pg 72 */
+        {OV5650_TABLE_WAIT_MS, 5},
+        {0x3008, 0x42}, /* register power down pg 72 */
+        {OV5650_TABLE_WAIT_MS, 5},
+        {0x3008, 0x02}, /* register power down pg 72 */
+        {OV5650_TABLE_WAIT_MS, 5},
+        {OV5650_TABLE_END, 0x0},
+};
+
 static struct ov5650_reg *test_pattern_modes[] = {
 	tp_none_seq,
 	tp_cbars_seq,
@@ -572,12 +582,12 @@ static int ov5650_get_otp(struct ov5650_info *info, void __user *ubuffer)
 	if (info->otp_valid)
 		goto end;
 
-	err = ov5650_write_table(info->i2c_client, reset_seq, NULL, 0);
+	err = ov5650_write_table(info->i2c_client, otp_reset_seq, NULL, 0);
 	if (err)
 		return err;
 
 	/* Read OTP byte by byte. */
-	i = (uint8_t) offsetof(struct ov5650_otp_data, part_num);
+	i = (uint8_t) offsetof(struct ov5650_otp_data, sensor_serial_num);
 	err = ov5650_write_reg(info->i2c_client, 0x3D00, i);
 	if (err)
 		return err;
