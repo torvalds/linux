@@ -43,6 +43,13 @@ extern const struct imx_mx2_camera_data imx27_mx2_camera_data __initconst;
 #define imx27_add_mx2_camera(pdata)	\
 	imx_add_mx2_camera(&imx27_mx2_camera_data, pdata)
 
+extern const struct imx_mxc_ehci_data imx27_mxc_ehci_otg_data __initconst;
+#define imx27_add_mxc_ehci_otg(pdata)	\
+	imx_add_mxc_ehci(&imx27_mxc_ehci_otg_data, pdata)
+extern const struct imx_mxc_ehci_data imx27_mxc_ehci_hs_data[] __initconst;
+#define imx27_add_mxc_ehci_hs(id, pdata)	\
+	imx_add_mxc_ehci(&imx27_mxc_ehci_hs_data[id - 1], pdata)
+
 extern const struct imx_mxc_mmc_data imx27_mxc_mmc_data[] __initconst;
 #define imx27_add_mxc_mmc(id, pdata)	\
 	imx_add_mxc_mmc(&imx27_mxc_mmc_data[id], pdata)

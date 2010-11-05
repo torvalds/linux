@@ -35,7 +35,6 @@
 #include <asm/mach/time.h>
 #include <mach/common.h>
 #include <mach/iomux.h>
-#include <mach/mxc_ehci.h>
 
 #include "devices-imx27.h"
 #include "devices.h"
@@ -215,7 +214,8 @@ static int otg_phy_init(struct platform_device *pdev)
 	return 0;
 }
 
-static struct mxc_usbh_platform_data visstrim_m10_usbotg_pdata = {
+static const struct mxc_usbh_platform_data
+visstrim_m10_usbotg_pdata __initconst = {
 	.init = otg_phy_init,
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
@@ -237,7 +237,7 @@ static void __init visstrim_m10_board_init(void)
 	imx27_add_imx_i2c(0, &visstrim_m10_i2c_data);
 	imx27_add_imx_i2c(1, &visstrim_m10_i2c_data);
 	imx27_add_mxc_mmc(0, &visstrim_m10_sdhc_pdata);
-	mxc_register_device(&mxc_otg_host, &visstrim_m10_usbotg_pdata);
+	imx27_add_mxc_ehci_otg(&visstrim_m10_usbotg_pdata);
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }

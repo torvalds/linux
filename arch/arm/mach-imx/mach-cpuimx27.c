@@ -40,7 +40,6 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx27.h>
 #include <mach/mxc_nand.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx27.h"
@@ -213,12 +212,12 @@ static struct platform_device serial_device = {
 #endif
 
 #if defined(CONFIG_USB_ULPI)
-static struct mxc_usbh_platform_data otg_pdata = {
+static struct mxc_usbh_platform_data otg_pdata __initdata = {
 	.portsc	= MXC_EHCI_MODE_ULPI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
-static struct mxc_usbh_platform_data usbh2_pdata = {
+static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.portsc	= MXC_EHCI_MODE_ULPI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
@@ -281,13 +280,13 @@ static void __init eukrea_cpuimx27_init(void)
 		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-		mxc_register_device(&mxc_otg_host, &otg_pdata);
+		imx27_add_mxc_ehci_otg(&otg_pdata);
 	}
 
 	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+	imx27_add_mxc_ehci_hs(2, &usbh2_pdata);
 #endif
 	if (!otg_mode_host)
 		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);

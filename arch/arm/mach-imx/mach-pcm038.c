@@ -37,7 +37,6 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx27.h>
 #include <mach/mxc_nand.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx27.h"
@@ -283,7 +282,7 @@ static struct spi_board_info pcm038_spi_board_info[] __initdata = {
 	}
 };
 
-static struct mxc_usbh_platform_data usbh2_pdata = {
+static const struct mxc_usbh_platform_data usbh2_pdata __initconst = {
 	.portsc	= MXC_EHCI_MODE_ULPI,
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_DIFF_UNI,
 };
@@ -320,7 +319,7 @@ static void __init pcm038_init(void)
 	spi_register_board_info(pcm038_spi_board_info,
 				ARRAY_SIZE(pcm038_spi_board_info));
 
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+	imx27_add_mxc_ehci_hs(2, &usbh2_pdata);
 
 	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));

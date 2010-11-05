@@ -151,6 +151,16 @@ struct platform_device *__init imx_add_mx2_camera(
 		const struct imx_mx2_camera_data *data,
 		const struct mx2_camera_platform_data *pdata);
 
+#include <mach/mxc_ehci.h>
+struct imx_mxc_ehci_data {
+	int id;
+	resource_size_t iobase;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_mxc_ehci(
+		const struct imx_mxc_ehci_data *data,
+		const struct mxc_usbh_platform_data *pdata);
+
 #include <mach/mmc.h>
 struct imx_mxc_mmc_data {
 	int id;
