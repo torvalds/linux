@@ -88,6 +88,7 @@ struct qtouch_ts_data {
 	uint8_t				ypos_lshift_msb;
 
 	atomic_t			irq_enabled;
+	atomic_t			process_open;
 	int				status;
 
 	uint8_t				mode;
@@ -995,6 +996,9 @@ int qtouch_input_open(struct input_dev *input)
 	int err;
 	struct qtouch_ts_data *ts = input_get_drvdata(input);
 
+	if (!atomic_xchg(&ts->process_open, 0))
+		return 0;
+
 	if (ts->touch_fw_image == NULL)
 		goto finish_touch_upgrade;
 
@@ -1631,6 +1635,7 @@ static int qtouch_ts_probe(struct i2c_client *client,
 	ts->x_delta = ts->pdata->x_delta;
 	ts->y_delta = ts->pdata->y_delta;
 	atomic_set(&ts->irq_enabled, 1);
+	atomic_set(&ts->process_open, 1);
 	ts->status = 0xfe;
 	ts->touch_fw_size = 0;
 	ts->touch_fw_image = NULL;
