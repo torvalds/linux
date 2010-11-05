@@ -77,25 +77,6 @@ int __init imx1_register_gpios(void)
 #endif
 
 #if defined(CONFIG_MACH_MX21) || defined(CONFIG_MACH_MX27)
-static struct resource mxc_pwm_resources[] = {
-	{
-		.start = MX2x_PWM_BASE_ADDR,
-		.end = MX2x_PWM_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX2x_INT_PWM,
-		.end = MX2x_INT_PWM,
-		.flags = IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_pwm_device = {
-	.name = "mxc_pwm",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_pwm_resources),
-	.resource = mxc_pwm_resources,
-};
-
 #define DEFINE_MXC_MMC_DEVICE(n, baseaddr, irq, dmareq)			\
 	static struct resource mxc_sdhc_resources ## n[] = {		\
 		{							\
