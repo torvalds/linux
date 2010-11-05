@@ -116,7 +116,7 @@ static int cq93vc_set_bias_level(struct snd_soc_codec *codec,
 			     DAVINCI_VC_REG12_POWER_ALL_OFF);
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 
 	return 0;
 }

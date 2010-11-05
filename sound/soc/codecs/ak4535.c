@@ -290,10 +290,11 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int ak4535_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, ak4535_dapm_widgets,
-				  ARRAY_SIZE(ak4535_dapm_widgets));
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_new_controls(dapm, ak4535_dapm_widgets,
+				  ARRAY_SIZE(ak4535_dapm_widgets));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	return 0;
 }
@@ -399,7 +400,7 @@ static int ak4535_set_bias_level(struct snd_soc_codec *codec,
 		ak4535_write(codec, AK4535_PM1, i & (~0x80));
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 

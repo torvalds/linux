@@ -129,6 +129,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int sdp4430_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	/* Add SDP4430 specific controls */
@@ -138,25 +139,25 @@ static int sdp4430_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 
 	/* Add SDP4430 specific widgets */
-	ret = snd_soc_dapm_new_controls(codec, sdp4430_twl6040_dapm_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, sdp4430_twl6040_dapm_widgets,
 				ARRAY_SIZE(sdp4430_twl6040_dapm_widgets));
 	if (ret)
 		return ret;
 
 	/* Set up SDP4430 specific audio path audio_map */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	/* SDP4430 connected pins */
-	snd_soc_dapm_enable_pin(codec, "Ext Mic");
-	snd_soc_dapm_enable_pin(codec, "Ext Spk");
-	snd_soc_dapm_enable_pin(codec, "Headset Mic");
-	snd_soc_dapm_enable_pin(codec, "Headset Stereophone");
+	snd_soc_dapm_enable_pin(dapm, "Ext Mic");
+	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
+	snd_soc_dapm_enable_pin(dapm, "Headset Mic");
+	snd_soc_dapm_enable_pin(dapm, "Headset Stereophone");
 
 	/* TWL6040 not connected pins */
-	snd_soc_dapm_nc_pin(codec, "AFML");
-	snd_soc_dapm_nc_pin(codec, "AFMR");
+	snd_soc_dapm_nc_pin(dapm, "AFML");
+	snd_soc_dapm_nc_pin(dapm, "AFMR");
 
-	ret = snd_soc_dapm_sync(codec);
+	ret = snd_soc_dapm_sync(dapm);
 
 	return ret;
 }

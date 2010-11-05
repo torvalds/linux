@@ -333,16 +333,17 @@ static const struct snd_kcontrol_new wm8753_neo1973_gta02_controls[] = {
 static int neo1973_gta02_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err;
 
 	/* set up NC codec pins */
-	snd_soc_dapm_nc_pin(codec, "OUT3");
-	snd_soc_dapm_nc_pin(codec, "OUT4");
-	snd_soc_dapm_nc_pin(codec, "LINE1");
-	snd_soc_dapm_nc_pin(codec, "LINE2");
+	snd_soc_dapm_nc_pin(dapm, "OUT3");
+	snd_soc_dapm_nc_pin(dapm, "OUT4");
+	snd_soc_dapm_nc_pin(dapm, "LINE1");
+	snd_soc_dapm_nc_pin(dapm, "LINE2");
 
 	/* Add neo1973 gta02 specific widgets */
-	snd_soc_dapm_new_controls(codec, wm8753_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, wm8753_dapm_widgets,
 				  ARRAY_SIZE(wm8753_dapm_widgets));
 
 	/* add neo1973 gta02 specific controls */
@@ -353,25 +354,25 @@ static int neo1973_gta02_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 		return err;
 
 	/* set up neo1973 gta02 specific audio path audio_map */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	/* set endpoints to default off mode */
-	snd_soc_dapm_disable_pin(codec, "Stereo Out");
-	snd_soc_dapm_disable_pin(codec, "GSM Line Out");
-	snd_soc_dapm_disable_pin(codec, "GSM Line In");
-	snd_soc_dapm_disable_pin(codec, "Headset Mic");
-	snd_soc_dapm_disable_pin(codec, "Handset Mic");
-	snd_soc_dapm_disable_pin(codec, "Handset Spk");
+	snd_soc_dapm_disable_pin(dapm, "Stereo Out");
+	snd_soc_dapm_disable_pin(dapm, "GSM Line Out");
+	snd_soc_dapm_disable_pin(dapm, "GSM Line In");
+	snd_soc_dapm_disable_pin(dapm, "Headset Mic");
+	snd_soc_dapm_disable_pin(dapm, "Handset Mic");
+	snd_soc_dapm_disable_pin(dapm, "Handset Spk");
 
 	/* allow audio paths from the GSM modem to run during suspend */
-	snd_soc_dapm_ignore_suspend(codec, "Stereo Out");
-	snd_soc_dapm_ignore_suspend(codec, "GSM Line Out");
-	snd_soc_dapm_ignore_suspend(codec, "GSM Line In");
-	snd_soc_dapm_ignore_suspend(codec, "Headset Mic");
-	snd_soc_dapm_ignore_suspend(codec, "Handset Mic");
-	snd_soc_dapm_ignore_suspend(codec, "Handset Spk");
+	snd_soc_dapm_ignore_suspend(dapm, "Stereo Out");
+	snd_soc_dapm_ignore_suspend(dapm, "GSM Line Out");
+	snd_soc_dapm_ignore_suspend(dapm, "GSM Line In");
+	snd_soc_dapm_ignore_suspend(dapm, "Headset Mic");
+	snd_soc_dapm_ignore_suspend(dapm, "Handset Mic");
+	snd_soc_dapm_ignore_suspend(dapm, "Handset Spk");
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }

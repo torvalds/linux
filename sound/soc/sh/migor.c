@@ -140,11 +140,12 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int migor_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_new_controls(codec, migor_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, migor_dapm_widgets,
 				  ARRAY_SIZE(migor_dapm_widgets));
 
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	return 0;
 }

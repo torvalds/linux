@@ -158,10 +158,11 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int smartq_wm8987_init(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err = 0;
 
 	/* Add SmartQ specific widgets */
-	snd_soc_dapm_new_controls(codec, wm8987_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, wm8987_dapm_widgets,
 				  ARRAY_SIZE(wm8987_dapm_widgets));
 
 	/* add SmartQ specific controls */
@@ -172,20 +173,20 @@ static int smartq_wm8987_init(struct snd_soc_codec *codec)
 		return err;
 
 	/* setup SmartQ specific audio path */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	/* set endpoints to not connected */
-	snd_soc_dapm_nc_pin(codec, "LINPUT1");
-	snd_soc_dapm_nc_pin(codec, "RINPUT1");
-	snd_soc_dapm_nc_pin(codec, "OUT3");
-	snd_soc_dapm_nc_pin(codec, "ROUT1");
+	snd_soc_dapm_nc_pin(dapm, "LINPUT1");
+	snd_soc_dapm_nc_pin(dapm, "RINPUT1");
+	snd_soc_dapm_nc_pin(dapm, "OUT3");
+	snd_soc_dapm_nc_pin(dapm, "ROUT1");
 
 	/* set endpoints to default off mode */
-	snd_soc_dapm_enable_pin(codec, "Internal Speaker");
-	snd_soc_dapm_enable_pin(codec, "Internal Mic");
-	snd_soc_dapm_disable_pin(codec, "Headphone Jack");
+	snd_soc_dapm_enable_pin(dapm, "Internal Speaker");
+	snd_soc_dapm_enable_pin(dapm, "Internal Mic");
+	snd_soc_dapm_disable_pin(dapm, "Headphone Jack");
 
-	err = snd_soc_dapm_sync(codec);
+	err = snd_soc_dapm_sync(dapm);
 	if (err)
 		return err;
 

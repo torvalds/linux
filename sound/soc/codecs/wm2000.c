@@ -705,6 +705,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 /* Called from the machine driver */
 int wm2000_add_controls(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	if (!wm2000_i2c) {
@@ -712,12 +713,12 @@ int wm2000_add_controls(struct snd_soc_codec *codec)
 		return -ENODEV;
 	}
 
-	ret = snd_soc_dapm_new_controls(codec, wm2000_dapm_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, wm2000_dapm_widgets,
 					ARRAY_SIZE(wm2000_dapm_widgets));
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	ret = snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 	if (ret < 0)
 		return ret;
 

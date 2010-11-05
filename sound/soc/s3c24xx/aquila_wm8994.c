@@ -93,27 +93,28 @@ static const struct snd_soc_dapm_route aquila_dapm_routes[] = {
 static int aquila_wm8994_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	/* add aquila specific widgets */
-	snd_soc_dapm_new_controls(codec, aquila_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, aquila_dapm_widgets,
 			ARRAY_SIZE(aquila_dapm_widgets));
 
 	/* set up aquila specific audio routes */
-	snd_soc_dapm_add_routes(codec, aquila_dapm_routes,
+	snd_soc_dapm_add_routes(dapm, aquila_dapm_routes,
 			ARRAY_SIZE(aquila_dapm_routes));
 
 	/* set endpoints to not connected */
-	snd_soc_dapm_nc_pin(codec, "IN2LP:VXRN");
-	snd_soc_dapm_nc_pin(codec, "IN2RP:VXRP");
-	snd_soc_dapm_nc_pin(codec, "LINEOUT1N");
-	snd_soc_dapm_nc_pin(codec, "LINEOUT1P");
-	snd_soc_dapm_nc_pin(codec, "LINEOUT2N");
-	snd_soc_dapm_nc_pin(codec, "LINEOUT2P");
-	snd_soc_dapm_nc_pin(codec, "SPKOUTRN");
-	snd_soc_dapm_nc_pin(codec, "SPKOUTRP");
+	snd_soc_dapm_nc_pin(dapm, "IN2LP:VXRN");
+	snd_soc_dapm_nc_pin(dapm, "IN2RP:VXRP");
+	snd_soc_dapm_nc_pin(dapm, "LINEOUT1N");
+	snd_soc_dapm_nc_pin(dapm, "LINEOUT1P");
+	snd_soc_dapm_nc_pin(dapm, "LINEOUT2N");
+	snd_soc_dapm_nc_pin(dapm, "LINEOUT2P");
+	snd_soc_dapm_nc_pin(dapm, "SPKOUTRN");
+	snd_soc_dapm_nc_pin(dapm, "SPKOUTRP");
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 
 	/* Headset jack detection */
 	ret = snd_soc_jack_new(&aquila, "Headset Jack",

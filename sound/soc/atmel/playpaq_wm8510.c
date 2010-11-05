@@ -318,27 +318,28 @@ static const struct snd_soc_dapm_route intercon[] = {
 static int playpaq_wm8510_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int i;
 
 	/*
 	 * Add DAPM widgets
 	 */
 	for (i = 0; i < ARRAY_SIZE(playpaq_dapm_widgets); i++)
-		snd_soc_dapm_new_control(codec, &playpaq_dapm_widgets[i]);
+		snd_soc_dapm_new_control(dapm, &playpaq_dapm_widgets[i]);
 
 
 
 	/*
 	 * Setup audio path interconnects
 	 */
-	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
+	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
 
 
 
 	/* always connected pins */
-	snd_soc_dapm_enable_pin(codec, "Int Mic");
-	snd_soc_dapm_enable_pin(codec, "Ext Spk");
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_enable_pin(dapm, "Int Mic");
+	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
+	snd_soc_dapm_sync(dapm);
 
 
 

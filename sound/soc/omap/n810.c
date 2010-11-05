@@ -58,6 +58,7 @@ static int n810_dmic_func;
 
 static void n810_ext_control(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int hp = 0, line1l = 0;
 
 	switch (n810_jack_func) {
@@ -72,25 +73,25 @@ static void n810_ext_control(struct snd_soc_codec *codec)
 	}
 
 	if (n810_spk_func)
-		snd_soc_dapm_enable_pin(codec, "Ext Spk");
+		snd_soc_dapm_enable_pin(dapm, "Ext Spk");
 	else
-		snd_soc_dapm_disable_pin(codec, "Ext Spk");
+		snd_soc_dapm_disable_pin(dapm, "Ext Spk");
 
 	if (hp)
-		snd_soc_dapm_enable_pin(codec, "Headphone Jack");
+		snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
 	else
-		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
+		snd_soc_dapm_disable_pin(dapm, "Headphone Jack");
 	if (line1l)
-		snd_soc_dapm_enable_pin(codec, "LINE1L");
+		snd_soc_dapm_enable_pin(dapm, "LINE1L");
 	else
-		snd_soc_dapm_disable_pin(codec, "LINE1L");
+		snd_soc_dapm_disable_pin(dapm, "LINE1L");
 
 	if (n810_dmic_func)
-		snd_soc_dapm_enable_pin(codec, "DMic");
+		snd_soc_dapm_enable_pin(dapm, "DMic");
 	else
-		snd_soc_dapm_disable_pin(codec, "DMic");
+		snd_soc_dapm_disable_pin(dapm, "DMic");
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 }
 
 static int n810_startup(struct snd_pcm_substream *substream)
@@ -274,17 +275,18 @@ static const struct snd_kcontrol_new aic33_n810_controls[] = {
 static int n810_aic33_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err;
 
 	/* Not connected */
-	snd_soc_dapm_nc_pin(codec, "MONO_LOUT");
-	snd_soc_dapm_nc_pin(codec, "HPLCOM");
-	snd_soc_dapm_nc_pin(codec, "HPRCOM");
-	snd_soc_dapm_nc_pin(codec, "MIC3L");
-	snd_soc_dapm_nc_pin(codec, "MIC3R");
-	snd_soc_dapm_nc_pin(codec, "LINE1R");
-	snd_soc_dapm_nc_pin(codec, "LINE2L");
-	snd_soc_dapm_nc_pin(codec, "LINE2R");
+	snd_soc_dapm_nc_pin(dapm, "MONO_LOUT");
+	snd_soc_dapm_nc_pin(dapm, "HPLCOM");
+	snd_soc_dapm_nc_pin(dapm, "HPRCOM");
+	snd_soc_dapm_nc_pin(dapm, "MIC3L");
+	snd_soc_dapm_nc_pin(dapm, "MIC3R");
+	snd_soc_dapm_nc_pin(dapm, "LINE1R");
+	snd_soc_dapm_nc_pin(dapm, "LINE2L");
+	snd_soc_dapm_nc_pin(dapm, "LINE2R");
 
 	/* Add N810 specific controls */
 	err = snd_soc_add_controls(codec, aic33_n810_controls,
@@ -293,13 +295,13 @@ static int n810_aic33_init(struct snd_soc_pcm_runtime *rtd)
 		return err;
 
 	/* Add N810 specific widgets */
-	snd_soc_dapm_new_controls(codec, aic33_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, aic33_dapm_widgets,
 				  ARRAY_SIZE(aic33_dapm_widgets));
 
 	/* Set up N810 specific audio path audio_map */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }

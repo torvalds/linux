@@ -232,26 +232,27 @@ static int rx1950_hw_params(struct snd_pcm_substream *substream,
 static int rx1950_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err;
 
 	/* Add rx1950 specific widgets */
-	err = snd_soc_dapm_new_controls(codec, uda1380_dapm_widgets,
+	err = snd_soc_dapm_new_controls(dapm, uda1380_dapm_widgets,
 				  ARRAY_SIZE(uda1380_dapm_widgets));
 
 	if (err)
 		return err;
 
 	/* Set up rx1950 specific audio path audio_mapnects */
-	err = snd_soc_dapm_add_routes(codec, audio_map,
+	err = snd_soc_dapm_add_routes(dapm, audio_map,
 				      ARRAY_SIZE(audio_map));
 
 	if (err)
 		return err;
 
-	snd_soc_dapm_enable_pin(codec, "Headphone Jack");
-	snd_soc_dapm_enable_pin(codec, "Speaker");
+	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
+	snd_soc_dapm_enable_pin(dapm, "Speaker");
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 
 	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
 		&hp_jack);

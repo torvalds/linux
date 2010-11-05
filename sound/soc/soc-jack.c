@@ -60,6 +60,7 @@ EXPORT_SYMBOL_GPL(snd_soc_jack_new);
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 {
 	struct snd_soc_codec *codec;
+	struct snd_soc_dapm_context *dapm;
 	struct snd_soc_jack_pin *pin;
 	int enable;
 	int oldstatus;
@@ -68,6 +69,7 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 		return;
 
 	codec = jack->codec;
+	dapm =  &codec->dapm;
 
 	mutex_lock(&codec->mutex);
 
@@ -88,15 +90,15 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 			enable = !enable;
 
 		if (enable)
-			snd_soc_dapm_enable_pin(codec, pin->pin);
+			snd_soc_dapm_enable_pin(dapm, pin->pin);
 		else
-			snd_soc_dapm_disable_pin(codec, pin->pin);
+			snd_soc_dapm_disable_pin(dapm, pin->pin);
 	}
 
 	/* Report before the DAPM sync to help users updating micbias status */
 	blocking_notifier_call_chain(&jack->notifier, status, NULL);
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 
 	snd_jack_report(jack->jack, status);
 

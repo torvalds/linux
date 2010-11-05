@@ -18,7 +18,7 @@
 
 #include <sound/core.h>
 #include <sound/initval.h>
-#include <sound/soc-dapm.h>
+#include <sound/soc.h>
 
 #include "cx20442.h"
 
@@ -89,10 +89,11 @@ static const struct snd_soc_dapm_route cx20442_audio_map[] = {
 
 static int cx20442_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, cx20442_dapm_widgets,
-				  ARRAY_SIZE(cx20442_dapm_widgets));
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_add_routes(codec, cx20442_audio_map,
+	snd_soc_dapm_new_controls(dapm, cx20442_dapm_widgets,
+				  ARRAY_SIZE(cx20442_dapm_widgets));
+	snd_soc_dapm_add_routes(dapm, cx20442_audio_map,
 				ARRAY_SIZE(cx20442_audio_map));
 
 	return 0;
@@ -263,7 +264,7 @@ static void v253_close(struct tty_struct *tty)
 	/* Prevent the codec driver from further accessing the modem */
 	codec->hw_write = NULL;
 	cx20442->control_data = NULL;
-	codec->pop_time = 0;
+	codec->dapm.pop_time = 0;
 }
 
 /* Line discipline .hangup() */
@@ -291,7 +292,7 @@ static void v253_receive(struct tty_struct *tty,
 		/* Set up codec driver access to modem controls */
 		cx20442->control_data = tty;
 		codec->hw_write = (hw_write_t)tty->ops->write;
-		codec->pop_time = 1;
+		codec->dapm.pop_time = 1;
 	}
 }
 
@@ -348,7 +349,7 @@ static int cx20442_codec_probe(struct snd_soc_codec *codec)
 
 	cx20442->control_data = NULL;
 	codec->hw_write = NULL;
-	codec->pop_time = 0;
+	codec->dapm.pop_time = 0;
 
 	return 0;
 }

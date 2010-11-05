@@ -65,19 +65,20 @@ static const struct snd_soc_dapm_route base_map[] = {
 static int simtec_tlv320aic23_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_new_controls(codec, dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, dapm_widgets,
 				  ARRAY_SIZE(dapm_widgets));
 
-	snd_soc_dapm_add_routes(codec, base_map, ARRAY_SIZE(base_map));
+	snd_soc_dapm_add_routes(dapm, base_map, ARRAY_SIZE(base_map));
 
-	snd_soc_dapm_enable_pin(codec, "Headphone Jack");
-	snd_soc_dapm_enable_pin(codec, "Line In");
-	snd_soc_dapm_enable_pin(codec, "Line Out");
-	snd_soc_dapm_enable_pin(codec, "Mic Jack");
+	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
+	snd_soc_dapm_enable_pin(dapm, "Line In");
+	snd_soc_dapm_enable_pin(dapm, "Line Out");
+	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 
 	simtec_audio_init(rtd);
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }

@@ -355,11 +355,12 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int wm8978_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_dapm_new_controls(codec, wm8978_dapm_widgets,
-				  ARRAY_SIZE(wm8978_dapm_widgets));
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
+	snd_soc_dapm_new_controls(dapm, wm8978_dapm_widgets,
+				  ARRAY_SIZE(wm8978_dapm_widgets));
 	/* set up the WM8978 audio map */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	return 0;
 }
@@ -837,7 +838,7 @@ static int wm8978_set_bias_level(struct snd_soc_codec *codec,
 		/* bit 3: enable bias, bit 2: enable I/O tie off buffer */
 		power1 |= 0xc;
 
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* Initial cap charge at VMID 5k */
 			snd_soc_write(codec, WM8978_POWER_MANAGEMENT_1,
 				      power1 | 0x3);
@@ -857,7 +858,7 @@ static int wm8978_set_bias_level(struct snd_soc_codec *codec,
 
 	dev_dbg(codec->dev, "%s: %d, %x\n", __func__, level, power1);
 
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 

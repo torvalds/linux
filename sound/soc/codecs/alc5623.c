@@ -832,7 +832,7 @@ static int alc5623_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, ALC5623_PWR_MANAG_ADD1, 0);
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -888,10 +888,10 @@ static int alc5623_resume(struct snd_soc_codec *codec)
 	alc5623_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* charge alc5623 caps */
-	if (codec->suspend_bias_level == SND_SOC_BIAS_ON) {
+	if (codec->dapm.suspend_bias_level == SND_SOC_BIAS_ON) {
 		alc5623_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-		codec->bias_level = SND_SOC_BIAS_ON;
-		alc5623_set_bias_level(codec, codec->bias_level);
+		codec->dapm.bias_level = SND_SOC_BIAS_ON;
+		alc5623_set_bias_level(codec, codec->dapm.bias_level);
 	}
 
 	return 0;
@@ -900,6 +900,7 @@ static int alc5623_resume(struct snd_soc_codec *codec)
 static int alc5623_probe(struct snd_soc_codec *codec)
 {
 	struct alc5623_priv *alc5623 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, alc5623->control_type);
@@ -943,24 +944,24 @@ static int alc5623_probe(struct snd_soc_codec *codec)
 	snd_soc_add_controls(codec, alc5623_snd_controls,
 			ARRAY_SIZE(alc5623_snd_controls));
 
-	snd_soc_dapm_new_controls(codec, alc5623_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, alc5623_dapm_widgets,
 					ARRAY_SIZE(alc5623_dapm_widgets));
 
 	/* set up audio path interconnects */
-	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
+	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
 
 	switch (alc5623->id) {
 	default:
 	case 0x21:
 	case 0x22:
-		snd_soc_dapm_new_controls(codec, alc5623_dapm_amp_widgets,
+		snd_soc_dapm_new_controls(dapm, alc5623_dapm_amp_widgets,
 					ARRAY_SIZE(alc5623_dapm_amp_widgets));
-		snd_soc_dapm_add_routes(codec, intercon_amp_spk,
-						ARRAY_SIZE(intercon_amp_spk));
+		snd_soc_dapm_add_routes(dapm, intercon_amp_spk,
+					ARRAY_SIZE(intercon_amp_spk));
 		break;
 	case 0x23:
-		snd_soc_dapm_add_routes(codec, intercon_spk,
-						ARRAY_SIZE(intercon_spk));
+		snd_soc_dapm_add_routes(dapm, intercon_spk,
+					ARRAY_SIZE(intercon_spk));
 		break;
 	}
 

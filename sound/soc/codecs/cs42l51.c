@@ -519,6 +519,7 @@ static struct snd_soc_dai_driver cs42l51_dai = {
 static int cs42l51_probe(struct snd_soc_codec *codec)
 {
 	struct cs42l51_private *cs42l51 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret, reg;
 
 	codec->control_data = cs42l51->control_data;
@@ -550,9 +551,9 @@ static int cs42l51_probe(struct snd_soc_codec *codec)
 
 	snd_soc_add_controls(codec, cs42l51_snd_controls,
 		ARRAY_SIZE(cs42l51_snd_controls));
-	snd_soc_dapm_new_controls(codec, cs42l51_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, cs42l51_dapm_widgets,
 		ARRAY_SIZE(cs42l51_dapm_widgets));
-	snd_soc_dapm_add_routes(codec, cs42l51_routes,
+	snd_soc_dapm_add_routes(dapm, cs42l51_routes,
 		ARRAY_SIZE(cs42l51_routes));
 
 	return 0;

@@ -230,8 +230,9 @@ static inline int wm8350_out2_ramp_step(struct snd_soc_codec *codec)
  */
 static void wm8350_pga_work(struct work_struct *work)
 {
-	struct snd_soc_codec *codec =
-	    container_of(work, struct snd_soc_codec, delayed_work.work);
+	struct snd_soc_dapm_context *dapm =
+	    container_of(work, struct snd_soc_dapm_context, delayed_work.work);
+	struct snd_soc_codec *codec = dapm->codec;
 	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out1 = &wm8350_data->out1,
 	    *out2 = &wm8350_data->out2;
@@ -302,8 +303,8 @@ static int pga_event(struct snd_soc_dapm_widget *w,
 		out->ramp = WM8350_RAMP_UP;
 		out->active = 1;
 
-		if (!delayed_work_pending(&codec->delayed_work))
-			schedule_delayed_work(&codec->delayed_work,
+		if (!delayed_work_pending(&codec->dapm.delayed_work))
+			schedule_delayed_work(&codec->dapm.delayed_work,
 					      msecs_to_jiffies(1));
 		break;
 
@@ -311,8 +312,8 @@ static int pga_event(struct snd_soc_dapm_widget *w,
 		out->ramp = WM8350_RAMP_DOWN;
 		out->active = 0;
 
-		if (!delayed_work_pending(&codec->delayed_work))
-			schedule_delayed_work(&codec->delayed_work,
+		if (!delayed_work_pending(&codec->dapm.delayed_work))
+			schedule_delayed_work(&codec->dapm.delayed_work,
 					      msecs_to_jiffies(1));
 		break;
 	}
@@ -786,9 +787,10 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int wm8350_add_widgets(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(codec,
+	ret = snd_soc_dapm_new_controls(dapm,
 					wm8350_dapm_widgets,
 					ARRAY_SIZE(wm8350_dapm_widgets));
 	if (ret != 0) {
@@ -797,7 +799,7 @@ static int wm8350_add_widgets(struct snd_soc_codec *codec)
 	}
 
 	/* set up audio paths */
-	ret = snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	ret = snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 	if (ret != 0) {
 		dev_err(codec->dev, "DAPM route register failed\n");
 		return ret;
@@ -1184,7 +1186,7 @@ static int wm8350_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(priv->supplies),
 						    priv->supplies);
 			if (ret != 0)
@@ -1317,7 +1319,7 @@ static int wm8350_set_bias_level(struct snd_soc_codec *codec,
 				       priv->supplies);
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -1550,7 +1552,7 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 	/* Put the codec into reset if it wasn't already */
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_5, WM8350_CODEC_ENA);
 
-	INIT_DELAYED_WORK(&codec->delayed_work, wm8350_pga_work);
+	INIT_DELAYED_WORK(&codec->dapm.delayed_work, wm8350_pga_work);
 
 	/* Enable the codec */
 	wm8350_set_bits(wm8350, WM8350_POWER_MGMT_5, WM8350_CODEC_ENA);
@@ -1635,12 +1637,12 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 	priv->mic.jack = NULL;
 
 	/* cancel any work waiting to be queued. */
-	ret = cancel_delayed_work(&codec->delayed_work);
+	ret = cancel_delayed_work(&codec->dapm.delayed_work);
 
 	/* if there was any work waiting then we run it now and
 	 * wait for its completion */
 	if (ret) {
-		schedule_delayed_work(&codec->delayed_work, 0);
+		schedule_delayed_work(&codec->dapm.delayed_work, 0);
 		flush_scheduled_work();
 	}
 

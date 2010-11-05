@@ -111,18 +111,19 @@ static struct snd_soc_ops jive_ops = {
 static int jive_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err;
 
 	/* These endpoints are not being used. */
-	snd_soc_dapm_nc_pin(codec, "LINPUT2");
-	snd_soc_dapm_nc_pin(codec, "RINPUT2");
-	snd_soc_dapm_nc_pin(codec, "LINPUT3");
-	snd_soc_dapm_nc_pin(codec, "RINPUT3");
-	snd_soc_dapm_nc_pin(codec, "OUT3");
-	snd_soc_dapm_nc_pin(codec, "MONO");
+	snd_soc_dapm_nc_pin(dapm, "LINPUT2");
+	snd_soc_dapm_nc_pin(dapm, "RINPUT2");
+	snd_soc_dapm_nc_pin(dapm, "LINPUT3");
+	snd_soc_dapm_nc_pin(dapm, "RINPUT3");
+	snd_soc_dapm_nc_pin(dapm, "OUT3");
+	snd_soc_dapm_nc_pin(dapm, "MONO");
 
 	/* Add jive specific widgets */
-	err = snd_soc_dapm_new_controls(codec, wm8750_dapm_widgets,
+	err = snd_soc_dapm_new_controls(dapm, wm8750_dapm_widgets,
 					ARRAY_SIZE(wm8750_dapm_widgets));
 	if (err) {
 		printk(KERN_ERR "%s: failed to add widgets (%d)\n",
@@ -130,8 +131,8 @@ static int jive_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 		return err;
 	}
 
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }

@@ -291,13 +291,14 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int wm8940_add_widgets(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(codec, wm8940_dapm_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, wm8940_dapm_widgets,
 					ARRAY_SIZE(wm8940_dapm_widgets));
 	if (ret)
 		goto error_ret;
-	ret = snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	ret = snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 	if (ret)
 		goto error_ret;
 

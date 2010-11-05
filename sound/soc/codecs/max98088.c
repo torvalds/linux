@@ -1224,15 +1224,17 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int max98088_add_widgets(struct snd_soc_codec *codec)
 {
-       snd_soc_dapm_new_controls(codec, max98088_dapm_widgets,
+       struct snd_soc_dapm_context *dapm = &codec->dapm;
+
+       snd_soc_dapm_new_controls(dapm, max98088_dapm_widgets,
                                  ARRAY_SIZE(max98088_dapm_widgets));
 
-       snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+       snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
        snd_soc_add_controls(codec, max98088_snd_controls,
                             ARRAY_SIZE(max98088_snd_controls));
 
-       snd_soc_dapm_new_widgets(codec);
+       snd_soc_dapm_new_widgets(dapm);
        return 0;
 }
 
@@ -1617,7 +1619,7 @@ static int max98088_set_bias_level(struct snd_soc_codec *codec,
                break;
 
        case SND_SOC_BIAS_STANDBY:
-               if (codec->bias_level == SND_SOC_BIAS_OFF)
+               if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
                        max98088_sync_cache(codec);
 
                snd_soc_update_bits(codec, M98088_REG_4C_PWR_EN_IN,
@@ -1630,7 +1632,7 @@ static int max98088_set_bias_level(struct snd_soc_codec *codec,
                codec->cache_sync = 1;
                break;
        }
-       codec->bias_level = level;
+       codec->dapm.bias_level = level;
        return 0;
 }
 

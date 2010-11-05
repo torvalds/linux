@@ -814,6 +814,8 @@ static const struct snd_soc_dapm_route lineout2_se_routes[] = {
 
 int wm_hubs_add_analogue_controls(struct snd_soc_codec *codec)
 {
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
 	/* Latch volume update bits & default ZC on */
 	snd_soc_update_bits(codec, WM8993_LEFT_LINE_INPUT_1_2_VOLUME,
 			    WM8993_IN1_VU, WM8993_IN1_VU);
@@ -842,7 +844,7 @@ int wm_hubs_add_analogue_controls(struct snd_soc_codec *codec)
 	snd_soc_add_controls(codec, analogue_snd_controls,
 			     ARRAY_SIZE(analogue_snd_controls));
 
-	snd_soc_dapm_new_controls(codec, analogue_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, analogue_dapm_widgets,
 				  ARRAY_SIZE(analogue_dapm_widgets));
 	return 0;
 }
@@ -851,24 +853,26 @@ EXPORT_SYMBOL_GPL(wm_hubs_add_analogue_controls);
 int wm_hubs_add_analogue_routes(struct snd_soc_codec *codec,
 				int lineout1_diff, int lineout2_diff)
 {
-	snd_soc_dapm_add_routes(codec, analogue_routes,
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
+	snd_soc_dapm_add_routes(dapm, analogue_routes,
 				ARRAY_SIZE(analogue_routes));
 
 	if (lineout1_diff)
-		snd_soc_dapm_add_routes(codec,
+		snd_soc_dapm_add_routes(dapm,
 					lineout1_diff_routes,
 					ARRAY_SIZE(lineout1_diff_routes));
 	else
-		snd_soc_dapm_add_routes(codec,
+		snd_soc_dapm_add_routes(dapm,
 					lineout1_se_routes,
 					ARRAY_SIZE(lineout1_se_routes));
 
 	if (lineout2_diff)
-		snd_soc_dapm_add_routes(codec,
+		snd_soc_dapm_add_routes(dapm,
 					lineout2_diff_routes,
 					ARRAY_SIZE(lineout2_diff_routes));
 	else
-		snd_soc_dapm_add_routes(codec,
+		snd_soc_dapm_add_routes(dapm,
 					lineout2_se_routes,
 					ARRAY_SIZE(lineout2_se_routes));
 
@@ -895,7 +899,7 @@ int wm_hubs_handle_analogue_pdata(struct snd_soc_codec *codec,
 	 * VMID as an output and can disable it.
 	 */
 	if (lineout1_diff && lineout2_diff)
-		codec->idle_bias_off = 1;
+		codec->dapm.idle_bias_off = 1;
 
 	if (lineout1fb)
 		snd_soc_update_bits(codec, WM8993_ADDITIONAL_CONTROL,

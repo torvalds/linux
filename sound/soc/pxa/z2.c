@@ -140,22 +140,23 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int z2_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	/* NC codec pins */
-	snd_soc_dapm_disable_pin(codec, "LINPUT3");
-	snd_soc_dapm_disable_pin(codec, "RINPUT3");
-	snd_soc_dapm_disable_pin(codec, "OUT3");
-	snd_soc_dapm_disable_pin(codec, "MONO");
+	snd_soc_dapm_disable_pin(dapm, "LINPUT3");
+	snd_soc_dapm_disable_pin(dapm, "RINPUT3");
+	snd_soc_dapm_disable_pin(dapm, "OUT3");
+	snd_soc_dapm_disable_pin(dapm, "MONO");
 
 	/* Add z2 specific widgets */
-	snd_soc_dapm_new_controls(codec, wm8750_dapm_widgets,
+	snd_soc_dapm_new_controls(dapm, wm8750_dapm_widgets,
 				 ARRAY_SIZE(wm8750_dapm_widgets));
 
 	/* Set up z2 specific audio paths */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	ret = snd_soc_dapm_sync(codec);
+	ret = snd_soc_dapm_sync(dapm);
 	if (ret)
 		goto err;
 
