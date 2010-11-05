@@ -1499,6 +1499,7 @@ extern int drbd_resync_finished(struct drbd_conf *mdev);
 extern int drbd_md_sync_page_io(struct drbd_conf *mdev,
 		struct drbd_backing_dev *bdev, sector_t sector, int rw);
 extern void drbd_ov_oos_found(struct drbd_conf*, sector_t, int);
+extern void drbd_rs_controller_reset(struct drbd_conf *mdev);
 
 static inline void ov_oos_print(struct drbd_conf *mdev)
 {

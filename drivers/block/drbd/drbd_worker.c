@@ -1439,6 +1439,17 @@ int drbd_alter_sa(struct drbd_conf *mdev, int na)
 	return retcode;
 }
 
+void drbd_rs_controller_reset(struct drbd_conf *mdev)
+{
+	atomic_set(&mdev->rs_sect_in, 0);
+	atomic_set(&mdev->rs_sect_ev, 0);
+	mdev->rs_in_flight = 0;
+	mdev->rs_planed = 0;
+	spin_lock(&mdev->peer_seq_lock);
+	fifo_set(&mdev->rs_plan_s, 0);
+	spin_unlock(&mdev->peer_seq_lock);
+}
+
 /**
  * drbd_start_resync() - Start the resync process
  * @mdev:	DRBD device.
@@ -1556,13 +1567,7 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 			drbd_resync_finished(mdev);
 		}
 
-		atomic_set(&mdev->rs_sect_in, 0);
-		atomic_set(&mdev->rs_sect_ev, 0);
-		mdev->rs_in_flight = 0;
-		mdev->rs_planed = 0;
-		spin_lock(&mdev->peer_seq_lock);
-		fifo_set(&mdev->rs_plan_s, 0);
-		spin_unlock(&mdev->peer_seq_lock);
+		drbd_rs_controller_reset(mdev);
 		/* ns.conn may already be != mdev->state.conn,
 		 * we may have been paused in between, or become paused until
 		 * the timer triggers.
