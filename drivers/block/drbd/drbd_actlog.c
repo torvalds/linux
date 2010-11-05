@@ -919,6 +919,22 @@ static void drbd_try_clear_on_disk_bm(struct drbd_conf *mdev, sector_t sector,
 	}
 }
 
+void drbd_advance_rs_marks(struct drbd_conf *mdev, unsigned long still_to_go)
+{
+	unsigned long now = jiffies;
+	unsigned long last = mdev->rs_mark_time[mdev->rs_last_mark];
+	int next = (mdev->rs_last_mark + 1) % DRBD_SYNC_MARKS;
+	if (time_after_eq(now, last + DRBD_SYNC_MARK_STEP)) {
+		if (mdev->rs_mark_left[mdev->rs_last_mark] != still_to_go &&
+		    mdev->state.conn != C_PAUSED_SYNC_T &&
+		    mdev->state.conn != C_PAUSED_SYNC_S) {
+			mdev->rs_mark_time[next] = now;
+			mdev->rs_mark_left[next] = still_to_go;
+			mdev->rs_last_mark = next;
+		}
+	}
+}
+
 /* clear the bit corresponding to the piece of storage in question:
  * size byte of data starting from sector.  Only clear a bits of the affected
  * one ore more _aligned_ BM_BLOCK_SIZE blocks.
@@ -969,19 +985,7 @@ void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector, int size,
 	 */
 	count = drbd_bm_clear_bits(mdev, sbnr, ebnr);
 	if (count && get_ldev(mdev)) {
-		unsigned long now = jiffies;
-		unsigned long last = mdev->rs_mark_time[mdev->rs_last_mark];
-		int next = (mdev->rs_last_mark + 1) % DRBD_SYNC_MARKS;
-		if (time_after_eq(now, last + DRBD_SYNC_MARK_STEP)) {
-			unsigned long tw = drbd_bm_total_weight(mdev);
-			if (mdev->rs_mark_left[mdev->rs_last_mark] != tw &&
-			    mdev->state.conn != C_PAUSED_SYNC_T &&
-			    mdev->state.conn != C_PAUSED_SYNC_S) {
-				mdev->rs_mark_time[next] = now;
-				mdev->rs_mark_left[next] = tw;
-				mdev->rs_last_mark = next;
-			}
-		}
+		drbd_advance_rs_marks(mdev, drbd_bm_total_weight(mdev));
 		spin_lock_irqsave(&mdev->al_lock, flags);
 		drbd_try_clear_on_disk_bm(mdev, sector, count, TRUE);
 		spin_unlock_irqrestore(&mdev->al_lock, flags);
