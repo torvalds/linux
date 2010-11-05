@@ -2348,6 +2348,7 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	if (init_data->supply_regulator && init_data->supply_regulator_dev) {
 		dev_err(dev,
 			"Supply regulator specified by both name and dev\n");
+		ret = -EINVAL;
 		goto scrub;
 	}
 
@@ -2366,6 +2367,7 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 		if (!found) {
 			dev_err(dev, "Failed to find supply %s\n",
 				init_data->supply_regulator);
+			ret = -ENODEV;
 			goto scrub;
 		}
 
