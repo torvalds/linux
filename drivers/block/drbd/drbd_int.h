@@ -2157,7 +2157,10 @@ static inline void drbd_get_syncer_progress(struct drbd_conf *mdev,
 	 * units of BM_BLOCK_SIZE.
 	 * for the percentage, we don't care. */
 
-	*bits_left = drbd_bm_total_weight(mdev) - mdev->rs_failed;
+	if (mdev->state.conn == C_VERIFY_S || mdev->state.conn == C_VERIFY_T)
+		*bits_left = mdev->ov_left;
+	else
+		*bits_left = drbd_bm_total_weight(mdev) - mdev->rs_failed;
 	/* >> 10 to prevent overflow,
 	 * +1 to prevent division by zero */
 	if (*bits_left > mdev->rs_total) {
