@@ -1052,7 +1052,6 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 			printk(KERN_WARNING
 			       "%s: could not add device link %s err %d\n",
 			       __func__, dev->kobj.name, err);
-			device_remove_file(dev, &regulator->dev_attr);
 			goto link_name_err;
 		}
 	}
