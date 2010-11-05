@@ -19,6 +19,8 @@ config MIPS
 	select GENERIC_ATOMIC64 if !64BIT
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_PROBE
 
 menu "Machine selection"
 
@@ -1919,20 +1921,6 @@ config CPU_R4000_WORKAROUNDS
 	select CPU_R4400_WORKAROUNDS
 
 config CPU_R4400_WORKAROUNDS
-	bool
-
-#
-# Use the generic interrupt handling code in kernel/irq/:
-#
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_IRQ_PROBE
-	bool
-	default y
-
-config IRQ_PER_CPU
 	bool
 
 #
