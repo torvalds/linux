@@ -1964,8 +1964,10 @@ static struct config_item *o2hb_heartbeat_group_make_item(struct config_group *g
 	if (reg == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	if (strlen(name) > O2HB_MAX_REGION_NAME_LEN)
-		return ERR_PTR(-ENAMETOOLONG);
+	if (strlen(name) > O2HB_MAX_REGION_NAME_LEN) {
+		ret = -ENAMETOOLONG;
+		goto free;
+	}
 
 	spin_lock(&o2hb_live_lock);
 	reg->hr_region_num = 0;
@@ -1974,7 +1976,8 @@ static struct config_item *o2hb_heartbeat_group_make_item(struct config_group *g
 							 O2NM_MAX_REGIONS);
 		if (reg->hr_region_num >= O2NM_MAX_REGIONS) {
 			spin_unlock(&o2hb_live_lock);
-			return ERR_PTR(-EFBIG);
+			ret = -EFBIG;
+			goto free;
 		}
 		set_bit(reg->hr_region_num, o2hb_region_bitmap);
 	}
@@ -1986,10 +1989,13 @@ static struct config_item *o2hb_heartbeat_group_make_item(struct config_group *g
 	ret = o2hb_debug_region_init(reg, o2hb_debug_dir);
 	if (ret) {
 		config_item_put(&reg->hr_item);
-		return ERR_PTR(ret);
+		goto free;
 	}
 
 	return &reg->hr_item;
+free:
+	kfree(reg);
+	return ERR_PTR(ret);
 }
 
 static void o2hb_heartbeat_group_drop_item(struct config_group *group,
