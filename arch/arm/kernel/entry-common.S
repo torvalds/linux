@@ -183,12 +183,24 @@ ENDPROC(ret_from_fork)
 ftrace_call\suffix:
 	bl	ftrace_stub
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	.globl ftrace_graph_call\suffix
+ftrace_graph_call\suffix:
+	mov	r0, r0
+#endif
+
 	mcount_exit
 .endm
 
 .macro __ftrace_graph_caller
 	sub	r0, fp, #4		@ &lr of instrumented routine (&parent)
+#ifdef CONFIG_DYNAMIC_FTRACE
+	@ called from __ftrace_caller, saved in mcount_enter
+	ldr	r1, [sp, #16]		@ instrumented routine (func)
+#else
+	@ called from __mcount, untouched in lr
 	mov	r1, lr			@ instrumented routine (func)
+#endif
 	sub	r1, r1, #MCOUNT_INSN_SIZE
 	mov	r2, fp			@ frame pointer
 	bl	prepare_ftrace_return
