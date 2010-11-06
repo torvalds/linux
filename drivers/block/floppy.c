@@ -4363,9 +4363,9 @@ out_unreg_blkdev:
 out_put_disk:
 	while (dr--) {
 		del_timer(&motor_off_timer[dr]);
-		put_disk(disks[dr]);
 		if (disks[dr]->queue)
 			blk_cleanup_queue(disks[dr]->queue);
+		put_disk(disks[dr]);
 	}
 	return err;
 }
