@@ -57,7 +57,7 @@ static inline const struct rt2x00_rate *rt2x00_get_rate(const u16 hw_value)
 }
 
 #define RATE_MCS(__mode, __mcs) \
-	( (((__mode) & 0x00ff) << 8) | ((__mcs) & 0x00ff) )
+	((((__mode) & 0x00ff) << 8) | ((__mcs) & 0x00ff))
 
 static inline int rt2x00_get_rate_mcs(const u16 mcs_value)
 {
