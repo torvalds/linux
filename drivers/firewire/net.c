@@ -7,6 +7,7 @@
  */
 
 #include <linux/bug.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
@@ -169,15 +170,8 @@ struct fwnet_device {
 	struct fw_address_handler handler;
 	u64 local_fifo;
 
-	/* List of packets to be sent */
-	struct list_head packet_list;
-	/*
-	 * List of packets that were broadcasted.  When we get an ISO interrupt
-	 * one of them has been sent
-	 */
-	struct list_head broadcasted_list;
-	/* List of packets that have been sent but not yet acked */
-	struct list_head sent_list;
+	/* Number of tx datagrams that have been queued but not yet acked */
+	int queued_datagrams;
 
 	struct list_head peer_list;
 	struct fw_card *card;
@@ -195,7 +189,7 @@ struct fwnet_peer {
 	unsigned pdg_size;        /* pd_list size */
 
 	u16 datagram_label;       /* outgoing datagram label */
-	unsigned max_payload;     /* includes RFC2374_FRAG_HDR_SIZE overhead */
+	u16 max_payload;          /* includes RFC2374_FRAG_HDR_SIZE overhead */
 	int node_id;
 	int generation;
 	unsigned speed;
@@ -203,22 +197,18 @@ struct fwnet_peer {
 
 /* This is our task struct. It's used for the packet complete callback.  */
 struct fwnet_packet_task {
-	/*
-	 * ptask can actually be on dev->packet_list, dev->broadcasted_list,
-	 * or dev->sent_list depending on its current state.
-	 */
-	struct list_head pt_link;
 	struct fw_transaction transaction;
 	struct rfc2734_header hdr;
 	struct sk_buff *skb;
 	struct fwnet_device *dev;
 
 	int outstanding_pkts;
-	unsigned max_payload;
 	u64 fifo_addr;
 	u16 dest_node;
+	u16 max_payload;
 	u8 generation;
 	u8 speed;
+	u8 enqueued;
 };
 
 /*
@@ -915,9 +905,9 @@ static void fwnet_transmit_packet_done(struct fwnet_packet_task *ptask)
 	ptask->outstanding_pkts--;
 
 	/* Check whether we or the networking TX soft-IRQ is last user. */
-	free = (ptask->outstanding_pkts == 0 && !list_empty(&ptask->pt_link));
+	free = (ptask->outstanding_pkts == 0 && ptask->enqueued);
 	if (free)
-		list_del(&ptask->pt_link);
+		dev->queued_datagrams--;
 
 	if (ptask->outstanding_pkts == 0) {
 		dev->netdev->stats.tx_packets++;
@@ -986,9 +976,9 @@ static void fwnet_transmit_packet_failed(struct fwnet_packet_task *ptask)
 	ptask->outstanding_pkts = 0;
 
 	/* Check whether we or the networking TX soft-IRQ is last user. */
-	free = !list_empty(&ptask->pt_link);
+	free = ptask->enqueued;
 	if (free)
-		list_del(&ptask->pt_link);
+		dev->queued_datagrams--;
 
 	dev->netdev->stats.tx_dropped++;
 	dev->netdev->stats.tx_errors++;
@@ -1069,9 +1059,11 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 		spin_lock_irqsave(&dev->lock, flags);
 
 		/* If the AT tasklet already ran, we may be last user. */
-		free = (ptask->outstanding_pkts == 0 && list_empty(&ptask->pt_link));
+		free = (ptask->outstanding_pkts == 0 && !ptask->enqueued);
 		if (!free)
-			list_add_tail(&ptask->pt_link, &dev->broadcasted_list);
+			ptask->enqueued = true;
+		else
+			dev->queued_datagrams--;
 
 		spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -1086,9 +1078,11 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 	spin_lock_irqsave(&dev->lock, flags);
 
 	/* If the AT tasklet already ran, we may be last user. */
-	free = (ptask->outstanding_pkts == 0 && list_empty(&ptask->pt_link));
+	free = (ptask->outstanding_pkts == 0 && !ptask->enqueued);
 	if (!free)
-		list_add_tail(&ptask->pt_link, &dev->sent_list);
+		ptask->enqueued = true;
+	else
+		dev->queued_datagrams--;
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -1350,10 +1344,12 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 		max_payload += RFC2374_FRAG_HDR_SIZE;
 	}
 
+	dev->queued_datagrams++;
+
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	ptask->max_payload = max_payload;
-	INIT_LIST_HEAD(&ptask->pt_link);
+	ptask->enqueued    = 0;
 
 	fwnet_send_packet(ptask);
 
@@ -1487,14 +1483,9 @@ static int fwnet_probe(struct device *_dev)
 	dev->broadcast_rcv_context = NULL;
 	dev->broadcast_xmt_max_payload = 0;
 	dev->broadcast_xmt_datagramlabel = 0;
-
 	dev->local_fifo = FWNET_NO_FIFO_ADDR;
-
-	INIT_LIST_HEAD(&dev->packet_list);
-	INIT_LIST_HEAD(&dev->broadcasted_list);
-	INIT_LIST_HEAD(&dev->sent_list);
+	dev->queued_datagrams = 0;
 	INIT_LIST_HEAD(&dev->peer_list);
-
 	dev->card = card;
 	dev->netdev = net;
 
@@ -1552,7 +1543,7 @@ static int fwnet_remove(struct device *_dev)
 	struct fwnet_peer *peer = dev_get_drvdata(_dev);
 	struct fwnet_device *dev = peer->dev;
 	struct net_device *net;
-	struct fwnet_packet_task *ptask, *pt_next;
+	int i;
 
 	mutex_lock(&fwnet_device_mutex);
 
@@ -1570,21 +1561,9 @@ static int fwnet_remove(struct device *_dev)
 					      dev->card);
 			fw_iso_context_destroy(dev->broadcast_rcv_context);
 		}
-		list_for_each_entry_safe(ptask, pt_next,
-					 &dev->packet_list, pt_link) {
-			dev_kfree_skb_any(ptask->skb);
-			kmem_cache_free(fwnet_packet_task_cache, ptask);
-		}
-		list_for_each_entry_safe(ptask, pt_next,
-					 &dev->broadcasted_list, pt_link) {
-			dev_kfree_skb_any(ptask->skb);
-			kmem_cache_free(fwnet_packet_task_cache, ptask);
-		}
-		list_for_each_entry_safe(ptask, pt_next,
-					 &dev->sent_list, pt_link) {
-			dev_kfree_skb_any(ptask->skb);
-			kmem_cache_free(fwnet_packet_task_cache, ptask);
-		}
+		for (i = 0; dev->queued_datagrams && i < 5; i++)
+			ssleep(1);
+		WARN_ON(dev->queued_datagrams);
 		list_del(&dev->dev_link);
 
 		free_netdev(net);
