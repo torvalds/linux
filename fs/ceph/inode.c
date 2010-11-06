@@ -1055,7 +1055,8 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 		ininfo = rinfo->targeti.in;
 		vino.ino = le64_to_cpu(ininfo->ino);
 		vino.snap = le64_to_cpu(ininfo->snapid);
-		if (!dn->d_inode) {
+		in = dn->d_inode;
+		if (!in) {
 			in = ceph_get_inode(sb, vino);
 			if (IS_ERR(in)) {
 				pr_err("fill_trace bad get_inode "
