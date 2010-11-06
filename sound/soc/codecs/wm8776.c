@@ -34,7 +34,6 @@
 /* codec private data */
 struct wm8776_priv {
 	enum snd_soc_control_type control_type;
-	u16 reg_cache[WM8776_CACHEREGNUM];
 	int sysclk[2];
 };
 
