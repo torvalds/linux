@@ -2288,8 +2288,7 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
 		i915_gem_clear_fence_reg(obj);
 
-	drm_unbind_agp(obj_priv->agp_mem);
-	drm_free_agp(obj_priv->agp_mem, obj->size / PAGE_SIZE);
+	i915_gem_gtt_unbind_object(obj);
 
 	i915_gem_object_put_pages_gtt(obj);
 
@@ -2808,15 +2807,8 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 		return ret;
 	}
 
-	/* Create an AGP memory structure pointing at our pages, and bind it
-	 * into the GTT.
-	 */
-	obj_priv->agp_mem = drm_agp_bind_pages(dev,
-					       obj_priv->pages,
-					       obj->size >> PAGE_SHIFT,
-					       obj_priv->gtt_space->start,
-					       obj_priv->agp_type);
-	if (obj_priv->agp_mem == NULL) {
+	ret = i915_gem_gtt_bind_object(obj);
+	if (ret) {
 		i915_gem_object_put_pages_gtt(obj);
 		drm_mm_put_block(obj_priv->gtt_space);
 		obj_priv->gtt_space = NULL;

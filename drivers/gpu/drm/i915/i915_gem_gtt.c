@@ -47,3 +47,31 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	/* Be paranoid and flush the chipset cache. */
 	intel_gtt_chipset_flush();
 }
+
+int i915_gem_gtt_bind_object(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+
+	/* Create an AGP memory structure pointing at our pages, and bind it
+	 * into the GTT.
+	 */
+	obj_priv->agp_mem = drm_agp_bind_pages(dev,
+					       obj_priv->pages,
+					       obj->size >> PAGE_SHIFT,
+					       obj_priv->gtt_space->start,
+					       obj_priv->agp_type);
+
+	if (obj_priv->agp_mem)
+		return 0;
+	else
+		return -ENOMEM;
+}
+
+void i915_gem_gtt_unbind_object(struct drm_gem_object *obj)
+{
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+
+	drm_unbind_agp(obj_priv->agp_mem);
+	drm_free_agp(obj_priv->agp_mem, obj->size / PAGE_SIZE);
+}

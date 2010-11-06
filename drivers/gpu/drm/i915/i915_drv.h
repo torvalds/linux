@@ -1143,6 +1143,8 @@ void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
 
 /* i915_gem_gtt.c */
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
+int i915_gem_gtt_bind_object(struct drm_gem_object *obj);
+void i915_gem_gtt_unbind_object(struct drm_gem_object *obj);
 
 /* i915_gem_evict.c */
 int i915_gem_evict_something(struct drm_device *dev, int min_size,
