@@ -164,6 +164,7 @@ struct menu {
 	struct menu *list;
 	struct symbol *sym;
 	struct property *prompt;
+	struct expr *visibility;
 	struct expr *dep;
 	unsigned int flags;
 	char *help;
