@@ -5818,6 +5818,12 @@ void intel_init_clock_gating(struct drm_device *dev)
 				   ILK_DPFC_DIS2 |
 				   ILK_CLK_FBC);
 		}
+
+		if (IS_GEN5(dev)) {
+			I915_WRITE(_3D_CHICKEN2,
+				   _3D_CHICKEN2_WM_READ_PIPELINED << 16 |
+				   _3D_CHICKEN2_WM_READ_PIPELINED);
+		}
 		return;
 	} else if (IS_G4X(dev)) {
 		uint32_t dspclk_gate;

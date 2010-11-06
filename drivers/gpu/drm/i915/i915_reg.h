@@ -316,6 +316,19 @@
 
 #define ERROR_GEN6	0x040a0
 
+/* GM45+ chicken bits -- debug workaround bits that may be required
+ * for various sorts of correct behavior.  The top 16 bits of each are
+ * the enables for writing to the corresponding low bit.
+ */
+#define _3D_CHICKEN	0x02084
+#define _3D_CHICKEN2	0x0208c
+/* Disables pipelining of read flushes past the SF-WIZ interface.
+ * Required on all Ironlake steppings according to the B-Spec, but the
+ * particular danger of not doing so is not specified.
+ */
+# define _3D_CHICKEN2_WM_READ_PIPELINED			(1 << 14)
+#define _3D_CHICKEN3	0x02090
+
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)
 # define MI_FLUSH_ENABLE				(1 << 11)
