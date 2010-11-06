@@ -33,15 +33,24 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv;
-	int ret;
 
 	list_for_each_entry(obj_priv,
 			    &dev_priv->mm.gtt_list,
 			    gtt_list) {
-		/* Hack to force agp to reinsert buffer object. */
-		obj_priv->agp_mem->is_bound = false;
-		ret = agp_bind_memory(obj_priv->agp_mem, obj_priv->gtt_space->start / PAGE_SIZE);
-		BUG_ON(ret != 0);
+		if (dev_priv->mm.gtt->needs_dmar) {
+			BUG_ON(!obj_priv->sg_list);
+
+			intel_gtt_insert_sg_entries(obj_priv->sg_list,
+						    obj_priv->num_sg,
+						    obj_priv->gtt_space->start
+							>> PAGE_SHIFT,
+						    obj_priv->agp_type);
+		} else
+			intel_gtt_insert_pages(obj_priv->gtt_space->start
+						   >> PAGE_SHIFT,
+					       obj_priv->base.size >> PAGE_SHIFT,
+					       obj_priv->pages,
+					       obj_priv->agp_type);
 	}
 
 	/* Be paranoid and flush the chipset cache. */
@@ -51,27 +60,43 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 int i915_gem_gtt_bind_object(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+	int ret;
 
-	/* Create an AGP memory structure pointing at our pages, and bind it
-	 * into the GTT.
-	 */
-	obj_priv->agp_mem = drm_agp_bind_pages(dev,
-					       obj_priv->pages,
-					       obj->size >> PAGE_SHIFT,
-					       obj_priv->gtt_space->start,
-					       obj_priv->agp_type);
+	if (dev_priv->mm.gtt->needs_dmar) {
+		ret = intel_gtt_map_memory(obj_priv->pages,
+					   obj->size >> PAGE_SHIFT,
+					   &obj_priv->sg_list,
+					   &obj_priv->num_sg);
+		if (ret != 0)
+			return ret;
 
-	if (obj_priv->agp_mem)
-		return 0;
-	else
-		return -ENOMEM;
+		intel_gtt_insert_sg_entries(obj_priv->sg_list, obj_priv->num_sg,
+					    obj_priv->gtt_space->start
+						>> PAGE_SHIFT,
+					    obj_priv->agp_type);
+	} else
+		intel_gtt_insert_pages(obj_priv->gtt_space->start >> PAGE_SHIFT,
+				       obj->size >> PAGE_SHIFT,
+				       obj_priv->pages,
+				       obj_priv->agp_type);
+
+	return 0;
 }
 
 void i915_gem_gtt_unbind_object(struct drm_gem_object *obj)
 {
+	struct drm_device *dev = obj->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 
-	drm_unbind_agp(obj_priv->agp_mem);
-	drm_free_agp(obj_priv->agp_mem, obj->size / PAGE_SIZE);
+	if (dev_priv->mm.gtt->needs_dmar) {
+		intel_gtt_unmap_memory(obj_priv->sg_list, obj_priv->num_sg);
+		obj_priv->sg_list = NULL;
+		obj_priv->num_sg = 0;
+	}
+
+	intel_gtt_clear_range(obj_priv->gtt_space->start >> PAGE_SHIFT,
+			      obj->size >> PAGE_SHIFT);
 }
