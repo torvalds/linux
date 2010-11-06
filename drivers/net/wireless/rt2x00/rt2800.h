@@ -1508,17 +1508,17 @@
 #define SHARED_KEY_MODE_BASE		0x7000
 
 #define MAC_WCID_ENTRY(__idx) \
-	( MAC_WCID_BASE + ((__idx) * sizeof(struct mac_wcid_entry)) )
+	(MAC_WCID_BASE + ((__idx) * sizeof(struct mac_wcid_entry)))
 #define PAIRWISE_KEY_ENTRY(__idx) \
-	( PAIRWISE_KEY_TABLE_BASE + ((__idx) * sizeof(struct hw_key_entry)) )
+	(PAIRWISE_KEY_TABLE_BASE + ((__idx) * sizeof(struct hw_key_entry)))
 #define MAC_IVEIV_ENTRY(__idx) \
-	( MAC_IVEIV_TABLE_BASE + ((__idx) * sizeof(struct mac_iveiv_entry)) )
+	(MAC_IVEIV_TABLE_BASE + ((__idx) * sizeof(struct mac_iveiv_entry)))
 #define MAC_WCID_ATTR_ENTRY(__idx) \
-	( MAC_WCID_ATTRIBUTE_BASE + ((__idx) * sizeof(u32)) )
+	(MAC_WCID_ATTRIBUTE_BASE + ((__idx) * sizeof(u32)))
 #define SHARED_KEY_ENTRY(__idx) \
-	( SHARED_KEY_TABLE_BASE + ((__idx) * sizeof(struct hw_key_entry)) )
+	(SHARED_KEY_TABLE_BASE + ((__idx) * sizeof(struct hw_key_entry)))
 #define SHARED_KEY_MODE_ENTRY(__idx) \
-	( SHARED_KEY_MODE_BASE + ((__idx) * sizeof(u32)) )
+	(SHARED_KEY_MODE_BASE + ((__idx) * sizeof(u32)))
 
 struct mac_wcid_entry {
 	u8 mac[6];
@@ -1658,9 +1658,9 @@ struct mac_iveiv_entry {
 #define HW_BEACON_BASE7			0x5bc0
 
 #define HW_BEACON_OFFSET(__index) \
-	( ((__index) < 4) ? ( HW_BEACON_BASE0 + (__index * 0x0200) ) : \
-	  (((__index) < 6) ? ( HW_BEACON_BASE4 + ((__index - 4) * 0x0200) ) : \
-	  (HW_BEACON_BASE6 - ((__index - 6) * 0x0200))) )
+	(((__index) < 4) ? (HW_BEACON_BASE0 + (__index * 0x0200)) : \
+	  (((__index) < 6) ? (HW_BEACON_BASE4 + ((__index - 4) * 0x0200)) : \
+	  (HW_BEACON_BASE6 - ((__index - 6) * 0x0200))))
 
 /*
  * BBP registers.
@@ -2010,8 +2010,8 @@ struct mac_iveiv_entry {
 /*
  * DMA descriptor defines.
  */
-#define TXWI_DESC_SIZE			( 4 * sizeof(__le32) )
-#define RXWI_DESC_SIZE			( 4 * sizeof(__le32) )
+#define TXWI_DESC_SIZE			(4 * sizeof(__le32))
+#define RXWI_DESC_SIZE			(4 * sizeof(__le32))
 
 /*
  * TX WI structure
