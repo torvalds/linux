@@ -412,10 +412,22 @@
 #define BCN_OFFSET1_BCN7		FIELD32(0xff000000)
 
 /*
- * PBF registers
- * Most are for debug. Driver doesn't touch PBF register.
+ * TXRXQ_PCNT: PBF register
+ * PCNT_TX0Q: Page count for TX hardware queue 0
+ * PCNT_TX1Q: Page count for TX hardware queue 1
+ * PCNT_TX2Q: Page count for TX hardware queue 2
+ * PCNT_RX0Q: Page count for RX hardware queue
  */
 #define TXRXQ_PCNT			0x0438
+#define TXRXQ_PCNT_TX0Q			FIELD32(0x000000ff)
+#define TXRXQ_PCNT_TX1Q			FIELD32(0x0000ff00)
+#define TXRXQ_PCNT_TX2Q			FIELD32(0x00ff0000)
+#define TXRXQ_PCNT_RX0Q			FIELD32(0xff000000)
+
+/*
+ * PBF register
+ * Debug. Driver doesn't touch PBF register.
+ */
 #define PBF_DBG				0x043c
 
 /*

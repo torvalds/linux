@@ -243,6 +243,49 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 }
 
 /*
+ * Watchdog handlers
+ */
+static void rt2800usb_watchdog(struct rt2x00_dev *rt2x00dev)
+{
+	unsigned int i;
+	u32 reg;
+
+	rt2800_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
+	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX0Q)) {
+		WARNING(rt2x00dev, "TX HW queue 0 timed out,"
+			" invoke forced kick");
+
+		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf40012);
+
+		for (i = 0; i < 10; i++) {
+			udelay(10);
+			if (!rt2x00_get_field32(reg, TXRXQ_PCNT_TX0Q))
+				break;
+		}
+
+		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf40006);
+	}
+
+	rt2800_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
+	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX1Q)) {
+		WARNING(rt2x00dev, "TX HW queue 1 timed out,"
+			" invoke forced kick");
+
+		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf4000a);
+
+		for (i = 0; i < 10; i++) {
+			udelay(10);
+			if (!rt2x00_get_field32(reg, TXRXQ_PCNT_TX1Q))
+				break;
+		}
+
+		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf40006);
+	}
+
+	rt2x00usb_watchdog(rt2x00dev);
+}
+
+/*
  * TX descriptor initialization
  */
 static __le32 *rt2800usb_get_txwi(struct queue_entry *entry)
@@ -534,7 +577,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.link_stats		= rt2800_link_stats,
 	.reset_tuner		= rt2800_reset_tuner,
 	.link_tuner		= rt2800_link_tuner,
-	.watchdog		= rt2x00usb_watchdog,
+	.watchdog		= rt2800usb_watchdog,
 	.write_tx_desc		= rt2800usb_write_tx_desc,
 	.write_tx_data		= rt2800_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
