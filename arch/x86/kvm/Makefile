@@ -1,5 +1,5 @@
 
-EXTRA_CFLAGS += -Ivirt/kvm -Iarch/x86/kvm
+ccflags-y += -Ivirt/kvm -Iarch/x86/kvm
 
 CFLAGS_x86.o := -I.
 CFLAGS_svm.o := -I.
