@@ -213,8 +213,8 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 		u16 wordbuf[17];
 
 		result = hfa384x_drvr_setconfig16(hw,
-						  HFA384x_RID_CNFROAMINGMODE,
-						  HFA384x_ROAMMODE_HOSTSCAN_HOSTROAM);
+					HFA384x_RID_CNFROAMINGMODE,
+					HFA384x_ROAMMODE_HOSTSCAN_HOSTROAM);
 		if (result) {
 			printk(KERN_ERR
 			       "setconfig(ROAMINGMODE) failed. result=%d\n",
@@ -258,8 +258,8 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 		}
 		/* ibss options */
 		result = hfa384x_drvr_setconfig16(hw,
-						  HFA384x_RID_CREATEIBSS,
-						  HFA384x_CREATEIBSS_JOINCREATEIBSS);
+					HFA384x_RID_CREATEIBSS,
+					HFA384x_CREATEIBSS_JOINCREATEIBSS);
 		if (result) {
 			printk(KERN_ERR "Failed to set CREATEIBSS.\n");
 			msg->resultcode.data =
@@ -416,7 +416,8 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 #define REQBASICRATE(N) \
 	if ((count >= N) && DOT11_RATE5_ISBASIC_GET(item->supprates[(N)-1])) { \
 		req->basicrate ## N .data = item->supprates[(N)-1]; \
-		req->basicrate ## N .status = P80211ENUM_msgitem_status_data_ok; \
+		req->basicrate ## N .status = \
+			P80211ENUM_msgitem_status_data_ok; \
 	}
 
 	REQBASICRATE(1);
@@ -431,7 +432,8 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 #define REQSUPPRATE(N) \
 	if (count >= N) { \
 		req->supprate ## N .data = item->supprates[(N)-1]; \
-		req->supprate ## N .status = P80211ENUM_msgitem_status_data_ok; \
+		req->supprate ## N .status = \
+			P80211ENUM_msgitem_status_data_ok; \
 	}
 
 	REQSUPPRATE(1);
@@ -1102,7 +1104,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		result = hfa384x_drvr_disable(hw, 0);
 		if (result) {
 			pr_debug
-			    ("failed to disable port 0 after sniffing, result=%d\n",
+			("failed to disable port 0 after sniffing, result=%d\n",
 			     result);
 			goto failed;
 		}
@@ -1137,7 +1139,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 			result = hfa384x_drvr_enable(hw, 0);
 			if (result) {
 				pr_debug
-				    ("failed to enable port to presniff setting, result=%d\n",
+				("failed to enable port to presniff setting, result=%d\n",
 				     result);
 				goto failed;
 			}
@@ -1161,7 +1163,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 						  &(hw->presniff_port_type));
 				if (result) {
 					pr_debug
-					    ("failed to read porttype, result=%d\n",
+					("failed to read porttype, result=%d\n",
 					     result);
 					goto failed;
 				}
@@ -1171,7 +1173,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 						  &(hw->presniff_wepflags));
 				if (result) {
 					pr_debug
-					    ("failed to read wepflags, result=%d\n",
+					("failed to read wepflags, result=%d\n",
 					     result);
 					goto failed;
 				}
@@ -1238,8 +1240,8 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 
 			if (result) {
 				pr_debug
-				    ("failed to set wepflags=0x%04x, result=%d\n",
-				     word, result);
+				  ("failed to set wepflags=0x%04x, result=%d\n",
+				   word, result);
 				goto failed;
 			}
 		}
