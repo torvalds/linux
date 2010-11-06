@@ -66,12 +66,14 @@
 #define	P80211_FRMMETA_MAGIC	0x802110
 
 #define P80211SKB_FRMMETA(s) \
-	(((((struct p80211_frmmeta *)((s)->cb))->magic) == P80211_FRMMETA_MAGIC) ? \
+	(((((struct p80211_frmmeta *)((s)->cb))->magic) == \
+		P80211_FRMMETA_MAGIC) ? \
 		((struct p80211_frmmeta *)((s)->cb)) : \
 		(NULL))
 
 #define P80211SKB_RXMETA(s) \
-	(P80211SKB_FRMMETA((s)) ?  P80211SKB_FRMMETA((s))->rx : ((struct p80211_rxmeta *)(NULL)))
+	(P80211SKB_FRMMETA((s)) ?  P80211SKB_FRMMETA((s))->rx : \
+		((struct p80211_rxmeta *)(NULL)))
 
 struct p80211_rxmeta {
 	struct wlandevice *wlandev;
