@@ -828,7 +828,7 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 }
 EXPORT_SYMBOL_GPL(rt2800_write_beacon);
 
-static void inline rt2800_clear_beacon(struct rt2x00_dev *rt2x00dev,
+static inline void rt2800_clear_beacon(struct rt2x00_dev *rt2x00dev,
 				       unsigned int beacon_base)
 {
 	int i;
