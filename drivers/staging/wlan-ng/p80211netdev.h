@@ -94,11 +94,11 @@ typedef struct net_device netdevice_t;
 #endif
 
 /*--- NSD Capabilities Flags ------------------------------*/
-#define P80211_NSDCAP_HARDWAREWEP           0x01	/* hardware wep engine */
-#define P80211_NSDCAP_SHORT_PREAMBLE        0x10	/* hardware supports */
-#define P80211_NSDCAP_HWFRAGMENT            0x80	/* nsd handles frag/defrag */
-#define P80211_NSDCAP_AUTOJOIN              0x100	/* nsd does autojoin */
-#define P80211_NSDCAP_NOSCAN                0x200	/* nsd can scan */
+#define P80211_NSDCAP_HARDWAREWEP           0x01  /* hardware wep engine */
+#define P80211_NSDCAP_SHORT_PREAMBLE        0x10  /* hardware supports */
+#define P80211_NSDCAP_HWFRAGMENT            0x80  /* nsd handles frag/defrag */
+#define P80211_NSDCAP_AUTOJOIN              0x100 /* nsd does autojoin */
+#define P80211_NSDCAP_NOSCAN                0x200 /* nsd can scan */
 
 /* Received frame statistics */
 typedef struct p80211_frmrx_t {
