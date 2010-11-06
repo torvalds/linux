@@ -398,7 +398,7 @@ enum queue_index {
  * @entries: Base address of the &struct queue_entry which are
  *	part of this queue.
  * @qid: The queue identification, see &enum data_queue_qid.
- * @lock: Spinlock to protect index handling. Whenever @index, @index_done or
+ * @index_lock: Spinlock to protect index handling. Whenever @index, @index_done or
  *	@index_crypt needs to be changed this lock should be grabbed to prevent
  *	index corruption due to concurrency.
  * @count: Number of frames handled in the queue.
@@ -422,7 +422,7 @@ struct data_queue {
 
 	enum data_queue_qid qid;
 
-	spinlock_t lock;
+	spinlock_t index_lock;
 	unsigned int count;
 	unsigned short limit;
 	unsigned short threshold;

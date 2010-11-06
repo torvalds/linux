@@ -641,10 +641,10 @@ void rt2x00queue_for_each_entry(struct data_queue *queue,
 	 * it should not be kicked during this run, since it
 	 * is part of another TX operation.
 	 */
-	spin_lock_irqsave(&queue->lock, irqflags);
+	spin_lock_irqsave(&queue->index_lock, irqflags);
 	index_start = queue->index[start];
 	index_end = queue->index[end];
-	spin_unlock_irqrestore(&queue->lock, irqflags);
+	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 
 	/*
 	 * Start from the TX done pointer, this guarentees that we will
@@ -698,11 +698,11 @@ struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
 		return NULL;
 	}
 
-	spin_lock_irqsave(&queue->lock, irqflags);
+	spin_lock_irqsave(&queue->index_lock, irqflags);
 
 	entry = &queue->entries[queue->index[index]];
 
-	spin_unlock_irqrestore(&queue->lock, irqflags);
+	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 
 	return entry;
 }
@@ -718,7 +718,7 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
 		return;
 	}
 
-	spin_lock_irqsave(&queue->lock, irqflags);
+	spin_lock_irqsave(&queue->index_lock, irqflags);
 
 	queue->index[index]++;
 	if (queue->index[index] >= queue->limit)
@@ -733,7 +733,7 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
 		queue->count++;
 	}
 
-	spin_unlock_irqrestore(&queue->lock, irqflags);
+	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 }
 
 static void rt2x00queue_reset(struct data_queue *queue)
@@ -741,7 +741,7 @@ static void rt2x00queue_reset(struct data_queue *queue)
 	unsigned long irqflags;
 	unsigned int i;
 
-	spin_lock_irqsave(&queue->lock, irqflags);
+	spin_lock_irqsave(&queue->index_lock, irqflags);
 
 	queue->count = 0;
 	queue->length = 0;
@@ -751,7 +751,7 @@ static void rt2x00queue_reset(struct data_queue *queue)
 		queue->last_action[i] = jiffies;
 	}
 
-	spin_unlock_irqrestore(&queue->lock, irqflags);
+	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 }
 
 void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev)
@@ -903,7 +903,7 @@ void rt2x00queue_uninitialize(struct rt2x00_dev *rt2x00dev)
 static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 			     struct data_queue *queue, enum data_queue_qid qid)
 {
-	spin_lock_init(&queue->lock);
+	spin_lock_init(&queue->index_lock);
 
 	queue->rt2x00dev = rt2x00dev;
 	queue->qid = qid;
