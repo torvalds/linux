@@ -133,7 +133,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 */
 	if (!(ant->flags & ANTENNA_RX_DIVERSITY))
 		config.rx = rt2x00lib_config_antenna_check(config.rx, def->rx);
-	else if(config.rx == ANTENNA_SW_DIVERSITY)
+	else if (config.rx == ANTENNA_SW_DIVERSITY)
 		config.rx = active->rx;
 
 	if (!(ant->flags & ANTENNA_TX_DIVERSITY))
