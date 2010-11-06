@@ -35,6 +35,7 @@
 #include <mach/irqs.h>
 #include <mach/rk29_iomap.h>
 #include <mach/board.h>
+#include <mach/rk29_nand.h>
 
 
 #include <linux/mtd/nand.h>
@@ -44,6 +45,17 @@
 
 extern struct sys_timer rk29_timer;
 
+int rk29_nand_io_init(void)
+{
+    return 0;
+}
+
+struct rk29_nand_platform_data rk29_nand_data = {
+    .width      = 1,     /* data bus width in bytes */
+    .hw_ecc     = 1,     /* hw ecc 0: soft ecc */
+    .num_flash    = 1,
+    .io_init   = rk29_nand_io_init,
+};
 
 static struct rk29_gpio_bank rk29_gpiobankinit[] = {
 	{
@@ -280,6 +292,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART1_RK29	
 	&rk29_device_uart1,
 #endif	
+#ifdef CONFIG_MTD_NAND_RK29
+	&rk29_device_nand,
+#endif
 
 #ifdef CONFIG_FB_RK29
     &rk29_device_fb,

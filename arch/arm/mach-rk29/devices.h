@@ -16,6 +16,7 @@
 #ifndef __ARCH_ARM_MACH_RK29_DEVICES_H
 #define __ARCH_ARM_MACH_RK29_DEVICES_H
 
+extern struct rk29_nand_platform_data rk29_nand_data;
 
 extern struct platform_device rk29_device_uart0;
 extern struct platform_device rk29_device_uart1;
@@ -23,5 +24,6 @@ extern struct platform_device rk29_device_uart2;
 extern struct platform_device rk29_device_uart3;
 extern struct platform_device rk29_device_gpu;
 extern struct platform_device rk29_device_fb;
+extern struct platform_device rk29_device_nand;
 
 #endif
