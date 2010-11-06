@@ -114,8 +114,7 @@ static void rt2800usb_toggle_rx(struct rt2x00_dev *rt2x00dev,
 
 	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX,
-			   (state == STATE_RADIO_RX_ON) ||
-			   (state == STATE_RADIO_RX_ON_LINK));
+			   (state == STATE_RADIO_RX_ON));
 	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 }
 
@@ -216,9 +215,7 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt2800usb_set_state(rt2x00dev, STATE_SLEEP);
 		break;
 	case STATE_RADIO_RX_ON:
-	case STATE_RADIO_RX_ON_LINK:
 	case STATE_RADIO_RX_OFF:
-	case STATE_RADIO_RX_OFF_LINK:
 		rt2800usb_toggle_rx(rt2x00dev, state);
 		break;
 	case STATE_RADIO_IRQ_ON:
