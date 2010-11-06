@@ -37,6 +37,7 @@
 #include <wlc_key.h>
 #include <wlc_bsscfg.h>
 #include <wlc_channel.h>
+#include <wlc_event.h>
 #include <wlc_mac80211.h>
 #include <wlc_bmac.h>
 #include <wlc_scb.h>
@@ -61,6 +62,7 @@
 #endif				/* WLC_HIGH_ONLY */
 #include <wlc_alloc.h>
 #include <net/mac80211.h>
+#include <wl_dbg.h>
 
 #ifdef WLC_HIGH_ONLY
 #undef R_REG

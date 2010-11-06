@@ -51,6 +51,7 @@
  * At some point we may be able to skip the include of wlc.h and instead just
  * define a stub wlc_info and band struct to allow rpc calls to get the rpc handle.
  */
+#include <wlc_event.h>
 #include <wlc_mac80211.h>
 #include <wlc_bmac.h>
 #include <wlc_phy_shim.h>
@@ -72,6 +73,7 @@
 #include <pcie_core.h>
 
 #include <wlc_alloc.h>
+#include <wl_dbg.h>
 
 #define	TIMER_INTERVAL_WATCHDOG_BMAC	1000	/* watchdog timer, in unit of ms */
 

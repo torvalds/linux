@@ -33,11 +33,13 @@
 #include <wlc_key.h>
 #include <wlc_channel.h>
 #include <wlc_bsscfg.h>
+#include <wlc_event.h>
 #include <wlc_mac80211.h>
 #include <wlc_scb.h>
 #include <wl_export.h>
 #include <wlc_bmac.h>
 #include <wlc_stf.h>
+#include <wl_dbg.h>
 
 #define WLC_STF_SS_STBC_RX(wlc) (WLCISNPHY(wlc->band) && \
 	NREV_GT(wlc->band->phyrev, 3) && NREV_LE(wlc->band->phyrev, 6))

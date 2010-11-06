@@ -36,6 +36,7 @@
 #ifdef MSGTRACE
 #include <msgtrace.h>
 #endif
+#include <wl_dbg.h>
 
 /* Local prototypes */
 static void wlc_timer_cb(void *arg);

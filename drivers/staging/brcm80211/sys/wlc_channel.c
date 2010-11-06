@@ -28,10 +28,12 @@
 #include <wlioctl.h>
 #include <wlc_pub.h>
 #include <wlc_key.h>
+#include <wlc_event.h>
 #include <wlc_mac80211.h>
 #include <wlc_bmac.h>
 #include <wlc_stf.h>
 #include <wlc_channel.h>
+#include <wl_dbg.h>
 
 typedef struct wlc_cm_band {
 	u8 locale_flags;	/* locale_info_t flags */

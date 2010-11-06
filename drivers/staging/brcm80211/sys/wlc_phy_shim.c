@@ -47,6 +47,7 @@
 #include <wlc_channel.h>
 #include <bcmsrom.h>
 #include <wlc_key.h>
+#include <wlc_event.h>
 
 #include <wlc_mac80211.h>
 
@@ -54,6 +55,7 @@
 #include <wlc_phy_shim.h>
 #include <wlc_phy_hal.h>
 #include <wl_export.h>
+#include <wl_dbg.h>
 
 /* PHY SHIM module specific state */
 struct wlc_phy_shim_info {
