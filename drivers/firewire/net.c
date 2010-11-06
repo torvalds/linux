@@ -906,6 +906,7 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask);
 static void fwnet_transmit_packet_done(struct fwnet_packet_task *ptask)
 {
 	struct fwnet_device *dev = ptask->dev;
+	struct sk_buff *skb = ptask->skb;
 	unsigned long flags;
 	bool free;
 
@@ -916,8 +917,11 @@ static void fwnet_transmit_packet_done(struct fwnet_packet_task *ptask)
 	/* Check whether we or the networking TX soft-IRQ is last user. */
 	free = (ptask->outstanding_pkts == 0 && !list_empty(&ptask->pt_link));
 
-	if (ptask->outstanding_pkts == 0)
+	if (ptask->outstanding_pkts == 0) {
 		list_del(&ptask->pt_link);
+		dev->netdev->stats.tx_packets++;
+		dev->netdev->stats.tx_bytes += skb->len;
+	}
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -926,7 +930,6 @@ static void fwnet_transmit_packet_done(struct fwnet_packet_task *ptask)
 		u16 fg_off;
 		u16 datagram_label;
 		u16 lf;
-		struct sk_buff *skb;
 
 		/* Update the ptask to point to the next fragment and send it */
 		lf = fwnet_get_hdr_lf(&ptask->hdr);
@@ -953,7 +956,7 @@ static void fwnet_transmit_packet_done(struct fwnet_packet_task *ptask)
 			datagram_label = fwnet_get_hdr_dgl(&ptask->hdr);
 			break;
 		}
-		skb = ptask->skb;
+
 		skb_pull(skb, ptask->max_payload);
 		if (ptask->outstanding_pkts > 1) {
 			fwnet_make_sf_hdr(&ptask->hdr, RFC2374_HDR_INTFRAG,
