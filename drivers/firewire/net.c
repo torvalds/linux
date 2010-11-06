@@ -916,9 +916,10 @@ static void fwnet_transmit_packet_done(struct fwnet_packet_task *ptask)
 
 	/* Check whether we or the networking TX soft-IRQ is last user. */
 	free = (ptask->outstanding_pkts == 0 && !list_empty(&ptask->pt_link));
+	if (free)
+		list_del(&ptask->pt_link);
 
 	if (ptask->outstanding_pkts == 0) {
-		list_del(&ptask->pt_link);
 		dev->netdev->stats.tx_packets++;
 		dev->netdev->stats.tx_bytes += skb->len;
 	}
@@ -973,6 +974,31 @@ static void fwnet_transmit_packet_done(struct fwnet_packet_task *ptask)
 		fwnet_free_ptask(ptask);
 }
 
+static void fwnet_transmit_packet_failed(struct fwnet_packet_task *ptask)
+{
+	struct fwnet_device *dev = ptask->dev;
+	unsigned long flags;
+	bool free;
+
+	spin_lock_irqsave(&dev->lock, flags);
+
+	/* One fragment failed; don't try to send remaining fragments. */
+	ptask->outstanding_pkts = 0;
+
+	/* Check whether we or the networking TX soft-IRQ is last user. */
+	free = !list_empty(&ptask->pt_link);
+	if (free)
+		list_del(&ptask->pt_link);
+
+	dev->netdev->stats.tx_dropped++;
+	dev->netdev->stats.tx_errors++;
+
+	spin_unlock_irqrestore(&dev->lock, flags);
+
+	if (free)
+		fwnet_free_ptask(ptask);
+}
+
 static void fwnet_write_complete(struct fw_card *card, int rcode,
 				 void *payload, size_t length, void *data)
 {
@@ -980,11 +1006,12 @@ static void fwnet_write_complete(struct fw_card *card, int rcode,
 
 	ptask = data;
 
-	if (rcode == RCODE_COMPLETE)
+	if (rcode == RCODE_COMPLETE) {
 		fwnet_transmit_packet_done(ptask);
-	else
+	} else {
 		fw_error("fwnet_write_complete: failed: %x\n", rcode);
-		/* ??? error recovery */
+		fwnet_transmit_packet_failed(ptask);
+	}
 }
 
 static int fwnet_send_packet(struct fwnet_packet_task *ptask)
