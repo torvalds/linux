@@ -5819,6 +5819,10 @@ void intel_init_clock_gating(struct drm_device *dev)
 				   ILK_CLK_FBC);
 		}
 
+		I915_WRITE(ILK_DISPLAY_CHICKEN2,
+			   I915_READ(ILK_DISPLAY_CHICKEN2) |
+			   ILK_ELPIN_409_SELECT);
+
 		if (IS_GEN5(dev)) {
 			I915_WRITE(_3D_CHICKEN2,
 				   _3D_CHICKEN2_WM_READ_PIPELINED << 16 |

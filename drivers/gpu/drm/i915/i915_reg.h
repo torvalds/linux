@@ -2609,6 +2609,8 @@
 #define GTIER   0x4401c
 
 #define ILK_DISPLAY_CHICKEN2	0x42004
+/* Required on all Ironlake and Sandybridge according to the B-Spec. */
+#define  ILK_ELPIN_409_SELECT	(1 << 25)
 #define  ILK_DPARB_GATE	(1<<22)
 #define  ILK_VSDPFD_FULL	(1<<21)
 #define ILK_DSPCLK_GATE		0x42020
