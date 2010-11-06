@@ -87,41 +87,29 @@ static struct _intel_private {
 #define IS_IRONLAKE	intel_private.driver->is_ironlake
 #define HAS_PGTBL_EN	intel_private.driver->has_pgtbl_enable
 
-static void intel_agp_free_sglist(struct agp_memory *mem)
-{
-	struct sg_table st;
-
-	st.sgl = mem->sg_list;
-	st.orig_nents = st.nents = mem->page_count;
-
-	sg_free_table(&st);
-
-	mem->sg_list = NULL;
-	mem->num_sg = 0;
-}
-
-static int intel_agp_map_memory(struct agp_memory *mem)
+int intel_gtt_map_memory(struct page **pages, unsigned int num_entries,
+			 struct scatterlist **sg_list, int *num_sg)
 {
 	struct sg_table st;
 	struct scatterlist *sg;
 	int i;
 
-	if (mem->sg_list)
+	if (*sg_list)
 		return 0; /* already mapped (for e.g. resume */
 
-	DBG("try mapping %lu pages\n", (unsigned long)mem->page_count);
+	DBG("try mapping %lu pages\n", (unsigned long)num_entries);
 
-	if (sg_alloc_table(&st, mem->page_count, GFP_KERNEL))
+	if (sg_alloc_table(&st, num_entries, GFP_KERNEL))
 		goto err;
 
-	mem->sg_list = sg = st.sgl;
+	*sg_list = sg = st.sgl;
 
-	for (i = 0 ; i < mem->page_count; i++, sg = sg_next(sg))
-		sg_set_page(sg, mem->pages[i], PAGE_SIZE, 0);
+	for (i = 0 ; i < num_entries; i++, sg = sg_next(sg))
+		sg_set_page(sg, pages[i], PAGE_SIZE, 0);
 
-	mem->num_sg = pci_map_sg(intel_private.pcidev, mem->sg_list,
-				 mem->page_count, PCI_DMA_BIDIRECTIONAL);
-	if (unlikely(!mem->num_sg))
+	*num_sg = pci_map_sg(intel_private.pcidev, *sg_list,
+				 num_entries, PCI_DMA_BIDIRECTIONAL);
+	if (unlikely(!*num_sg))
 		goto err;
 
 	return 0;
@@ -130,15 +118,22 @@ err:
 	sg_free_table(&st);
 	return -ENOMEM;
 }
+EXPORT_SYMBOL(intel_gtt_map_memory);
 
-static void intel_agp_unmap_memory(struct agp_memory *mem)
+void intel_gtt_unmap_memory(struct scatterlist *sg_list, int num_sg)
 {
+	struct sg_table st;
 	DBG("try unmapping %lu pages\n", (unsigned long)mem->page_count);
 
-	pci_unmap_sg(intel_private.pcidev, mem->sg_list,
-		     mem->page_count, PCI_DMA_BIDIRECTIONAL);
-	intel_agp_free_sglist(mem);
+	pci_unmap_sg(intel_private.pcidev, sg_list,
+		     num_sg, PCI_DMA_BIDIRECTIONAL);
+
+	st.sgl = sg_list;
+	st.orig_nents = st.nents = num_sg;
+
+	sg_free_table(&st);
 }
+EXPORT_SYMBOL(intel_gtt_unmap_memory);
 
 static void intel_fake_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 {
@@ -307,7 +302,7 @@ static int intel_gtt_setup_scratch_page(void)
 	get_page(page);
 	set_pages_uc(page, 1);
 
-	if (USE_PCI_DMA_API && INTEL_GTT_GEN > 2) {
+	if (intel_private.base.needs_dmar) {
 		dma_addr = pci_map_page(intel_private.pcidev, page, 0,
 				    PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 		if (pci_dma_mapping_error(intel_private.pcidev, dma_addr))
@@ -699,6 +694,8 @@ static int intel_gtt_init(void)
 		return ret;
 	}
 
+	intel_private.base.needs_dmar = USE_PCI_DMA_API && INTEL_GTT_GEN > 2;
+
 	return 0;
 }
 
@@ -892,10 +889,10 @@ static bool i830_check_flags(unsigned int flags)
 	return false;
 }
 
-static void intel_gtt_insert_sg_entries(struct scatterlist *sg_list,
-					unsigned int sg_len,
-					unsigned int pg_start,
-					unsigned int flags)
+void intel_gtt_insert_sg_entries(struct scatterlist *sg_list,
+				 unsigned int sg_len,
+				 unsigned int pg_start,
+				 unsigned int flags)
 {
 	struct scatterlist *sg;
 	unsigned int len, m;
@@ -916,11 +913,25 @@ static void intel_gtt_insert_sg_entries(struct scatterlist *sg_list,
 	}
 	readl(intel_private.gtt+j-1);
 }
+EXPORT_SYMBOL(intel_gtt_insert_sg_entries);
+
+void intel_gtt_insert_pages(unsigned int first_entry, unsigned int num_entries,
+			    struct page **pages, unsigned int flags)
+{
+	int i, j;
+
+	for (i = 0, j = first_entry; i < num_entries; i++, j++) {
+		dma_addr_t addr = page_to_phys(pages[i]);
+		intel_private.driver->write_entry(addr,
+						  j, flags);
+	}
+	readl(intel_private.gtt+j-1);
+}
+EXPORT_SYMBOL(intel_gtt_insert_pages);
 
 static int intel_fake_agp_insert_entries(struct agp_memory *mem,
 					 off_t pg_start, int type)
 {
-	int i, j;
 	int ret = -EINVAL;
 
 	if (INTEL_GTT_GEN == 1 && type == AGP_DCACHE_MEMORY)
@@ -941,21 +952,17 @@ static int intel_fake_agp_insert_entries(struct agp_memory *mem,
 	if (!mem->is_flushed)
 		global_cache_flush();
 
-	if (USE_PCI_DMA_API && INTEL_GTT_GEN > 2) {
-		ret = intel_agp_map_memory(mem);
+	if (intel_private.base.needs_dmar) {
+		ret = intel_gtt_map_memory(mem->pages, mem->page_count,
+					   &mem->sg_list, &mem->num_sg);
 		if (ret != 0)
 			return ret;
 
 		intel_gtt_insert_sg_entries(mem->sg_list, mem->num_sg,
 					    pg_start, type);
-	} else {
-		for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
-			dma_addr_t addr = page_to_phys(mem->pages[i]);
-			intel_private.driver->write_entry(addr,
-							  j, type);
-		}
-		readl(intel_private.gtt+j-1);
-	}
+	} else
+		intel_gtt_insert_pages(pg_start, mem->page_count, mem->pages,
+				       type);
 
 out:
 	ret = 0;
@@ -964,22 +971,31 @@ out_err:
 	return ret;
 }
 
-static int intel_fake_agp_remove_entries(struct agp_memory *mem,
-					 off_t pg_start, int type)
+void intel_gtt_clear_range(unsigned int first_entry, unsigned int num_entries)
 {
-	int i;
+	unsigned int i;
 
-	if (mem->page_count == 0)
-		return 0;
-
-	if (USE_PCI_DMA_API && INTEL_GTT_GEN > 2)
-		intel_agp_unmap_memory(mem);
-
-	for (i = pg_start; i < (mem->page_count + pg_start); i++) {
+	for (i = first_entry; i < (first_entry + num_entries); i++) {
 		intel_private.driver->write_entry(intel_private.scratch_page_dma,
 						  i, 0);
 	}
 	readl(intel_private.gtt+i-1);
+}
+EXPORT_SYMBOL(intel_gtt_clear_range);
+
+static int intel_fake_agp_remove_entries(struct agp_memory *mem,
+					 off_t pg_start, int type)
+{
+	if (mem->page_count == 0)
+		return 0;
+
+	if (intel_private.base.needs_dmar) {
+		intel_gtt_unmap_memory(mem->sg_list, mem->num_sg);
+		mem->sg_list = NULL;
+		mem->num_sg = 0;
+	}
+
+	intel_gtt_clear_range(pg_start, mem->page_count);
 
 	return 0;
 }
