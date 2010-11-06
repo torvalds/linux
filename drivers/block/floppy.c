@@ -4573,8 +4573,8 @@ static void __exit floppy_module_exit(void)
 			device_remove_file(&floppy_device[drive].dev, &dev_attr_cmos);
 			platform_device_unregister(&floppy_device[drive]);
 		}
-		put_disk(disks[drive]);
 		blk_cleanup_queue(disks[drive]->queue);
+		put_disk(disks[drive]);
 	}
 
 	del_timer_sync(&fd_timeout);
