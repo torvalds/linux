@@ -154,11 +154,13 @@ int ceph_open(struct inode *inode, struct file *file)
 	}
 
 	/*
-	 * No need to block if we have any caps.  Update wanted set
+	 * No need to block if we have caps on the auth MDS (for
+	 * write) or any MDS (for read).  Update wanted set
 	 * asynchronously.
 	 */
 	spin_lock(&inode->i_lock);
-	if (__ceph_is_any_real_caps(ci)) {
+	if (__ceph_is_any_real_caps(ci) &&
+	    (((fmode & CEPH_FILE_MODE_WR) == 0) || ci->i_auth_cap)) {
 		int mds_wanted = __ceph_caps_mds_wanted(ci);
 		int issued = __ceph_caps_issued(ci, NULL);
 
