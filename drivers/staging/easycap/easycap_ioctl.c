@@ -977,8 +977,12 @@ if (NULL == file) {
 }
 peasycap = file->private_data;
 if (NULL == peasycap) {
-	SAY("ERROR:  peasycap is NULL.\n");
+	SAY("ERROR:  peasycap is NULL\n");
 	return -1;
+}
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap\n");
+	return -EFAULT;
 }
 p = peasycap->pusb_device;
 if (NULL == p) {
@@ -1011,6 +1015,11 @@ if (0 <= kd && DONGLE_MANY > kd) {
 		SAY("ERROR:  peasycap is NULL\n");
 		mutex_unlock(&easycap_dongle[kd].mutex_video);
 		return -ERESTARTSYS;
+	}
+	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+		SAY("ERROR: bad peasycap\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_video);
+		return -EFAULT;
 	}
 	p = peasycap->pusb_device;
 	if (NULL == peasycap->pusb_device) {
@@ -2297,7 +2306,7 @@ case VIDIOC_DQBUF:
 				((long long int)(timeval.tv_sec - \
 						timeval2.tv_sec)) + \
 				(long long int)(timeval.tv_usec - \
-				timeval2.tv_usec);
+						timeval2.tv_usec);
 		sdr = signed_div(fudge, 1000);
 		sll = sdr.quotient;
 		ull = sdr.remainder;
@@ -2317,6 +2326,8 @@ case VIDIOC_DQBUF:
 	JOM(16, "  %10i=bytesused\n", v4l2_buffer.bytesused);
 	JOM(16, "  0x%08X=flags\n", v4l2_buffer.flags);
 	JOM(16, "  %10i=field\n", v4l2_buffer.field);
+	JOM(16, "  %10li=timestamp.tv_sec\n", \
+					(long)v4l2_buffer.timestamp.tv_sec);
 	JOM(16, "  %10li=timestamp.tv_usec\n", \
 					(long)v4l2_buffer.timestamp.tv_usec);
 	JOM(16, "  %10i=sequence\n", v4l2_buffer.sequence);
@@ -2528,6 +2539,10 @@ if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL.\n");
 	return -EFAULT;
 }
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap\n");
+	return -EFAULT;
+}
 p = peasycap->pusb_device;
 if (NULL == p) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
@@ -2559,6 +2574,11 @@ if (0 <= kd && DONGLE_MANY > kd) {
 		SAY("ERROR:  peasycap is NULL\n");
 		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -ERESTARTSYS;
+	}
+	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+		SAY("ERROR: bad peasycap\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
+		return -EFAULT;
 	}
 	p = peasycap->pusb_device;
 	if (NULL == peasycap->pusb_device) {
@@ -2795,3 +2815,5 @@ mutex_unlock(&easycap_dongle[kd].mutex_audio);
 return 0;
 }
 /*****************************************************************************/
+
+

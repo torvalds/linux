@@ -64,6 +64,11 @@ if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return;
 }
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap\n");
+	return;
+}
+
 much = 0;
 
 if (peasycap->audio_idle) {
@@ -595,6 +600,13 @@ easysnd_open(struct inode *inode, struct file *file)
 struct usb_interface *pusb_interface;
 struct easycap *peasycap;
 int subminor, rc;
+/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
+#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+struct v4l2_device *pv4l2_device;
+#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
+#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 JOT(4, "begins\n");
 
@@ -612,6 +624,39 @@ if (NULL == peasycap) {
 	SAY("ending unsuccessfully\n");
 	return -1;
 }
+/*---------------------------------------------------------------------------*/
+#if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
+#
+/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#else
+#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+/*---------------------------------------------------------------------------*/
+/*
+ *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
+ *  BEEN WRITTEN BY THE CALL TO usb_set_intfdata() IN easycap_usb_probe(),
+ *  REPLACING IT WITH A POINTER TO THE EMBEDDED v4l2_device STRUCTURE.
+ *  TO DETECT THIS, THE STRING IN THE easycap.telltale[] BUFFER IS CHECKED.
+*/
+/*---------------------------------------------------------------------------*/
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	pv4l2_device = usb_get_intfdata(pusb_interface);
+	if ((struct v4l2_device *)NULL == pv4l2_device) {
+		SAY("ERROR: pv4l2_device is NULL\n");
+		return -EFAULT;
+	}
+	peasycap = (struct easycap *) \
+		container_of(pv4l2_device, struct easycap, v4l2_device);
+}
+#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
+#
+#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+/*---------------------------------------------------------------------------*/
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	return -EFAULT;
+}
+/*---------------------------------------------------------------------------*/
 
 file->private_data = peasycap;
 
@@ -624,7 +669,7 @@ JOM(4, "starting initialization\n");
 
 if ((struct usb_device *)NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
-	return -EFAULT;
+	return -ENODEV;
 }
 JOM(16, "0x%08lX=peasycap->pusb_device\n", (long int)peasycap->pusb_device);
 
@@ -641,7 +686,7 @@ if ((struct usb_device *)NULL == peasycap->pusb_device) {
 /*---------------------------------------------------------------------------*/
 if ((struct usb_device *)NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device has become NULL\n");
-	return -EFAULT;
+	return -ENODEV;
 }
 rc = usb_set_interface(peasycap->pusb_device, peasycap->audio_interface, \
 					peasycap->audio_altsetting_on);
@@ -676,6 +721,10 @@ JOT(4, "begins\n");
 peasycap = file->private_data;
 if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL.\n");
+	return -EFAULT;
+}
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
 	return -EFAULT;
 }
 if (0 != kill_audio_urbs(peasycap)) {
@@ -722,6 +771,10 @@ if (NULL == peasycap) {
 	SAY("ERROR in easysnd_read(): peasycap is NULL\n");
 	return -EFAULT;
 }
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	return -EFAULT;
+}
 if (NULL == peasycap->pusb_device) {
 	SAY("ERROR in easysnd_read(): peasycap->pusb_device is NULL\n");
 	return -EFAULT;
@@ -750,6 +803,12 @@ if (0 <= kd && DONGLE_MANY > kd) {
 	peasycap = file->private_data;
 	if (NULL == peasycap) {
 		SAY("ERROR:  peasycap is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
+		return -ERESTARTSYS;
+	}
+	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+		SAY("ERROR: bad peasycap: 0x%08lX\n", \
+						(unsigned long int) peasycap);
 		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -ERESTARTSYS;
 	}

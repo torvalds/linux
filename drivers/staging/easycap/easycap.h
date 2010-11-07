@@ -33,6 +33,7 @@
  *                EASYCAP_NEEDS_USBVIDEO_H
  *                EASYCAP_NEEDS_V4L2_DEVICE_H
  *                EASYCAP_NEEDS_V4L2_FOPS
+ *                EASYCAP_NEEDS_UNLOCKED_IOCTL
  *
  *  IF REQUIRED THEY MUST BE EXTERNALLY DEFINED, FOR EXAMPLE AS COMPILER
  *  OPTIONS.
@@ -81,25 +82,14 @@
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-#if (!defined(__OLD_VIDIOC_))
-#define __OLD_VIDIOC_
-#endif /* !defined(__OLD_VIDIOC_) */
-
 #include <media/v4l2-dev.h>
-
 #if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
 #include <media/v4l2-device.h>
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-
-#if (!defined(__OLD_VIDIOC_))
-#define __OLD_VIDIOC_
-#endif /* !defined(__OLD_VIDIOC_) */
 #include <linux/videodev2.h>
-
 #include <linux/soundcard.h>
-
 #if defined(EASYCAP_NEEDS_USBVIDEO_H)
 #include <config/video/usbvideo.h>
 #endif /*EASYCAP_NEEDS_USBVIDEO_H*/
@@ -110,7 +100,6 @@
 
 #define STRINGIZE_AGAIN(x) #x
 #define STRINGIZE(x) STRINGIZE_AGAIN(x)
-
 /*---------------------------------------------------------------------------*/
 /*  VENDOR, PRODUCT:  Syntek Semiconductor Co., Ltd
  *
@@ -305,6 +294,8 @@ int hue_ok;
  */
 /*---------------------------------------------------------------------------*/
 struct easycap {
+#define TELLTALE "expectedstring"
+char telltale[16];
 int isdongle;
 
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
@@ -501,7 +492,6 @@ long             easycap_ioctl_noinode(struct file *, unsigned int, \
 								unsigned long);
 int              easycap_ioctl(struct inode *, struct file *, unsigned int, \
 								unsigned long);
-
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
 int              easycap_open_noinode(struct file *);

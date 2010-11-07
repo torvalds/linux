@@ -93,16 +93,15 @@ const struct file_operations easycap_fops = {
 	.llseek		= no_llseek,
 };
 struct vm_operations_struct easycap_vm_ops = {
-.open  = easycap_vma_open,
-.close = easycap_vma_close,
-.fault = easycap_vma_fault,
+	.open  = easycap_vma_open,
+	.close = easycap_vma_close,
+	.fault = easycap_vma_fault,
 };
 struct usb_class_driver easycap_class = {
-.name = "usb/easycap%d",
-.fops = &easycap_fops,
-.minor_base = USB_SKEL_MINOR_BASE,
+	.name = "usb/easycap%d",
+	.fops = &easycap_fops,
+	.minor_base = USB_SKEL_MINOR_BASE,
 };
-
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
 #if defined(EASYCAP_NEEDS_V4L2_FOPS)
@@ -121,7 +120,6 @@ const struct v4l2_file_operations v4l2_fops = {
 #endif /*EASYCAP_NEEDS_V4L2_FOPS*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-
 /*--------------------------------------------------------------------------*/
 /*
  *  PARAMETERS USED WHEN REGISTERING THE AUDIO INTERFACE
@@ -147,7 +145,7 @@ struct usb_class_driver easysnd_class = {
 /****************************************************************************/
 /*---------------------------------------------------------------------------*/
 /*
- *  THIS ROUTINE DOES NOT DETECT MULTIPLE OCCURRENCES OF POINTER peasycap
+ *  THIS ROUTINE DOES NOT DETECT DUPLICATE OCCURRENCES OF POINTER peasycap
 */
 /*---------------------------------------------------------------------------*/
 int
@@ -213,6 +211,10 @@ peasycap = (struct easycap *)video_get_drvdata(pvideo_device);
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
+	return -EFAULT;
+}
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
 	return -EFAULT;
 }
 if (NULL == peasycap->pusb_device) {
@@ -838,6 +840,10 @@ if (NULL == peasycap) {
 	SAY("ending unsuccessfully\n");
 	return -EFAULT;
 }
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	return -EFAULT;
+}
 if (0 != kill_video_urbs(peasycap)) {
 	SAM("ERROR: kill_video_urbs() failed\n");
 	return -EFAULT;
@@ -865,6 +871,10 @@ peasycap = video_get_drvdata(pvideo_device);
 if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL\n");
 	SAY("ending unsuccessfully\n");
+	return -EFAULT;
+}
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
 	return -EFAULT;
 }
 if (0 != kill_video_urbs(peasycap)) {
@@ -902,6 +912,10 @@ JOT(4, "\n");
 peasycap = container_of(pkref, struct easycap, kref);
 if (NULL == peasycap) {
 	SAM("ERROR: peasycap is NULL: cannot perform deletions\n");
+	return;
+}
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
 	return;
 }
 kd = isdongle(peasycap);
@@ -1026,8 +1040,6 @@ if ((struct list_head *)NULL != peasycap->purb_audio_head) {
 JOM(4, "%i audio data_urb structures freed\n", m);
 JOM(4, "setting peasycap->purb_audio_head=NULL\n");
 peasycap->purb_audio_head = (struct list_head *)NULL;
-} else {
-JOM(4, "peasycap->purb_audio_head is NULL\n");
 }
 /*---------------------------------------------------------------------------*/
 JOM(4, "freeing audio isoc buffers.\n");
@@ -1108,6 +1120,10 @@ if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL\n");
 	return -EFAULT;
 }
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	return -EFAULT;
+}
 if (NULL == peasycap->pusb_device) {
 	SAY("ERROR:  peasycap->pusb_device is NULL\n");
 	return -EFAULT;
@@ -1140,10 +1156,16 @@ if (0 <= kd && DONGLE_MANY > kd) {
 		mutex_unlock(&easycap_dongle[kd].mutex_video);
 		return -ERESTARTSYS;
 	}
+	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+		SAY("ERROR: bad peasycap: 0x%08lX\n", \
+						(unsigned long int) peasycap);
+		mutex_unlock(&easycap_dongle[kd].mutex_video);
+		return -ERESTARTSYS;
+	}
 	if (NULL == peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		mutex_unlock(&easycap_dongle[kd].mutex_video);
-	return -ERESTARTSYS;
+		return -ERESTARTSYS;
 	}
 } else
 	/*-------------------------------------------------------------------*/
@@ -2687,11 +2709,16 @@ easycap_vma_open(struct vm_area_struct *pvma)
 struct easycap *peasycap;
 
 peasycap = pvma->vm_private_data;
-if (NULL != peasycap)
-	peasycap->vma_many++;
-
+if (NULL == peasycap) {
+	SAY("ERROR: peasycap is NULL\n");
+	return;
+}
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	return;
+}
+peasycap->vma_many++;
 JOT(8, "%i=peasycap->vma_many\n", peasycap->vma_many);
-
 return;
 }
 /*****************************************************************************/
@@ -2701,10 +2728,16 @@ easycap_vma_close(struct vm_area_struct *pvma)
 struct easycap *peasycap;
 
 peasycap = pvma->vm_private_data;
-if (NULL != peasycap) {
-	peasycap->vma_many--;
-	JOT(8, "%i=peasycap->vma_many\n", peasycap->vma_many);
+if (NULL == peasycap) {
+	SAY("ERROR: peasycap is NULL\n");
+	return;
 }
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	return;
+}
+peasycap->vma_many--;
+JOT(8, "%i=peasycap->vma_many\n", peasycap->vma_many);
 return;
 }
 /*****************************************************************************/
@@ -2820,10 +2853,12 @@ if (NULL == peasycap) {
 	SAY("ERROR: easycap_complete(): peasycap is NULL\n");
 	return;
 }
-
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
+	return;
+}
 if (peasycap->video_eof)
 	return;
-
 for (i = 0; i < VIDEO_ISOC_BUFFER_MANY; i++)
 	if (purb->transfer_buffer == peasycap->video_isoc_buffer[i].pgo)
 		break;
@@ -3545,6 +3580,7 @@ if (0 == bInterfaceNumber) {
  *  PERFORM URGENT INTIALIZATIONS ...
 */
 /*---------------------------------------------------------------------------*/
+	strcpy(&peasycap->telltale[0], TELLTALE);
 	kref_init(&peasycap->kref);
 	JOM(8, "intf[%i]: after kref_init(..._video) " \
 			"%i=peasycap->kref.refcount.counter\n", \
@@ -4299,6 +4335,26 @@ case 0: {
  */
 /*--------------------------------------------------------------------------*/
 	usb_set_intfdata(pusb_interface, peasycap);
+/*---------------------------------------------------------------------------*/
+/*
+ *  IT IS ESSENTIAL TO INITIALIZE THE HARDWARE BEFORE, RATHER THAN AFTER,
+ *  THE DEVICE IS REGISTERED, BECAUSE SOME VERSIONS OF THE videodev MODULE
+ *  CALL easycap_open() IMMEDIATELY AFTER REGISTRATION, CAUSING A CLASH.
+ *  BEWARE.
+*/
+/*---------------------------------------------------------------------------*/
+#if defined(PREFER_NTSC)
+	peasycap->ntsc = true;
+	JOM(8, "defaulting initially to NTSC\n");
+#else
+	peasycap->ntsc = false;
+	JOM(8, "defaulting initially to PAL\n");
+#endif /*PREFER_NTSC*/
+	rc = reset(peasycap);
+	if (0 != rc) {
+		SAM("ERROR: reset() returned %i\n", rc);
+		return -EFAULT;
+	}
 /*--------------------------------------------------------------------------*/
 /*
  *  THE VIDEO DEVICE CAN BE REGISTERED NOW, AS IT IS READY.
@@ -4687,6 +4743,13 @@ struct easycap *peasycap;
 struct list_head *plist_head;
 struct data_urb *pdata_urb;
 int minor, m, kd;
+/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
+#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+struct v4l2_device *pv4l2_device;
+#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
+#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 JOT(4, "\n");
 
@@ -4714,6 +4777,38 @@ if (1 == bInterfaceNumber)
 peasycap = usb_get_intfdata(pusb_interface);
 if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
+	return;
+}
+/*---------------------------------------------------------------------------*/
+#if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
+#
+/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#else
+#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+/*---------------------------------------------------------------------------*/
+/*
+ *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
+ *  BEEN WRITTEN BY THE CALL TO usb_set_intfdata() IN easycap_usb_probe(),
+ *  REPLACING IT WITH A POINTER TO THE EMBEDDED v4l2_device STRUCTURE.
+ *  TO DETECT THIS, THE STRING IN THE easycap.telltale[] BUFFER IS CHECKED.
+*/
+/*---------------------------------------------------------------------------*/
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	pv4l2_device = usb_get_intfdata(pusb_interface);
+	if ((struct v4l2_device *)NULL == pv4l2_device) {
+		SAY("ERROR: pv4l2_device is NULL\n");
+		return;
+	}
+	peasycap = (struct easycap *) \
+		container_of(pv4l2_device, struct easycap, v4l2_device);
+}
+#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
+#
+#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+/*---------------------------------------------------------------------------*/
+if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
+	SAY("ERROR: bad peasycap: 0x%08lX\n", (unsigned long int) peasycap);
 	return;
 }
 /*---------------------------------------------------------------------------*/
@@ -4806,14 +4901,28 @@ case 0: {
 		JOM(4, "intf[%i]: usb_deregister_dev()\n", bInterfaceNumber);
 		SAM("easycap detached from minor #%d\n", minor);
 	}
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #else
+#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+	if (!peasycap->v4l2_device.name[0]) {
+		SAM("ERROR: peasycap->v4l2_device.name is empty\n");
+		if (0 <= kd && DONGLE_MANY > kd)
+			mutex_unlock(&easycap_dongle[kd].mutex_video);
+		return;
+	}
+	v4l2_device_disconnect(&peasycap->v4l2_device);
+	JOM(4, "v4l2_device_disconnect() OK\n");
+	v4l2_device_unregister(&peasycap->v4l2_device);
+	JOM(4, "v4l2_device_unregister() OK\n");
+#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
+
 	video_unregister_device(&peasycap->video_device);
-	JOM(4, "unregistered with videodev: %i=minor\n", \
-						peasycap->video_device.minor);
+	JOM(4, "intf[%i]: video_unregister_device() OK\n", bInterfaceNumber);
 	(peasycap->registered_video)--;
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+	JOM(4, "unregistered with videodev: %i=minor\n", minor);
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
 	if (0 <= kd && DONGLE_MANY > kd) {
 		mutex_unlock(&easycap_dongle[kd].mutex_video);
 		JOM(4, "unlocked easycap_dongle[%i].mutex_video\n", kd);
@@ -4941,7 +5050,7 @@ MODULE_AUTHOR("R.M. Thomas <rmthomas@sciolus.org>");
 MODULE_DESCRIPTION(EASYCAP_DRIVER_DESCRIPTION);
 MODULE_VERSION(EASYCAP_DRIVER_VERSION);
 #if defined(EASYCAP_DEBUG)
-MODULE_PARM_DESC(debug, "Debug level: 0 (default),1,2,...");
+MODULE_PARM_DESC(debug, "Debug level: 0(default),1,2,...,9");
 #endif /*EASYCAP_DEBUG*/
 MODULE_PARM_DESC(bars, \
 	"Testcard bars on input signal failure: 0=>no, 1=>yes(default)");
