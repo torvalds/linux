@@ -1189,7 +1189,7 @@ void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt)
 		/* Process special event packets and then discard them */
 		if (ntoh16(skb->protocol) == ETHER_TYPE_BRCM)
 			dhd_wl_host_event(dhd, &ifidx,
-					  skb->mac_header,
+					  skb_mac_header(skb),
 					  &event, &data);
 
 		ASSERT(ifidx < DHD_MAX_IFS && dhd->iflist[ifidx]);
