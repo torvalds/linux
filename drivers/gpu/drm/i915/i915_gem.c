@@ -1340,11 +1340,12 @@ unlock:
 	mutex_unlock(&dev->struct_mutex);
 
 	switch (ret) {
+	case -EAGAIN:
+		set_need_resched();
 	case 0:
 	case -ERESTARTSYS:
 		return VM_FAULT_NOPAGE;
 	case -ENOMEM:
-	case -EAGAIN:
 		return VM_FAULT_OOM;
 	default:
 		return VM_FAULT_SIGBUS;
