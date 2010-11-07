@@ -65,6 +65,32 @@ static inline int match_fourchar(substring_t *arg, u32 *result)
 	return 0;
 }
 
+int hfsplus_parse_options_remount(char *input, int *force)
+{
+	char *p;
+	substring_t args[MAX_OPT_ARGS];
+	int token;
+
+	if (!input)
+		return 0;
+
+	while ((p = strsep(&input, ",")) != NULL) {
+		if (!*p)
+			continue;
+
+		token = match_token(p, tokens, args);
+		switch (token) {
+		case opt_force:
+			*force = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return 1;
+}
+
 /* Parse options from mount. Returns 0 on failure */
 /* input is the options passed to mount() as a string */
 int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi)

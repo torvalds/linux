@@ -263,11 +263,9 @@ static int hfsplus_remount(struct super_block *sb, int *flags, char *data)
 		return 0;
 	if (!(*flags & MS_RDONLY)) {
 		struct hfsplus_vh *vhdr = HFSPLUS_SB(sb)->s_vhdr;
-		struct hfsplus_sb_info sbi;
+		int force = 0;
 
-		memset(&sbi, 0, sizeof(struct hfsplus_sb_info));
-		sbi.nls = HFSPLUS_SB(sb)->nls;
-		if (!hfsplus_parse_options(data, &sbi))
+		if (!hfsplus_parse_options_remount(data, &force))
 			return -EINVAL;
 
 		if (!(vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_UNMNT))) {
@@ -275,7 +273,7 @@ static int hfsplus_remount(struct super_block *sb, int *flags, char *data)
 			       "running fsck.hfsplus is recommended.  leaving read-only.\n");
 			sb->s_flags |= MS_RDONLY;
 			*flags |= MS_RDONLY;
-		} else if (test_bit(HFSPLUS_SB_FORCE, &sbi.flags)) {
+		} else if (force) {
 			/* nothing */
 		} else if (vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_SOFTLOCK)) {
 			printk(KERN_WARNING "hfs: filesystem is marked locked, leaving read-only.\n");
