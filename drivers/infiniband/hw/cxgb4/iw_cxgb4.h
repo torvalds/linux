@@ -46,7 +46,6 @@
 #include <linux/timer.h>
 #include <linux/io.h>
 #include <linux/kfifo.h>
-#include <linux/mutex.h>
 
 #include <asm/byteorder.h>
 
