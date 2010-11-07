@@ -2612,8 +2612,8 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
 	 */
-	queue_map = pkt_dev->cur_queue_map;
 	mod_cur_headers(pkt_dev);
+	queue_map = pkt_dev->cur_queue_map;
 
 	datalen = (odev->hard_header_len + 16) & ~0xf;
 
@@ -2976,8 +2976,8 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
 	 */
-	queue_map = pkt_dev->cur_queue_map;
 	mod_cur_headers(pkt_dev);
+	queue_map = pkt_dev->cur_queue_map;
 
 	skb = __netdev_alloc_skb(odev,
 				 pkt_dev->cur_pkt_size + 64
