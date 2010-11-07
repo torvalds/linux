@@ -49,4 +49,5 @@ obj-$(CONFIG_SENSORS_L3G4200D)	+= l3g4200d.o
 obj-$(CONFIG_GPS_GPIO_BRCM4750)	+= gps-gpio-brcm4750.o
 obj-$(CONFIG_MDM6600_CTRL)	+= mdm6600_ctrl.o
 obj-$(CONFIG_SENSORS_MOTO_BMP085) += moto_bmp085.o
+obj-$(CONFIG_TEGRA_CRYPTO_DEV)	+= tegra-cryptodev.o
 obj-$(CONFIG_TS27010MUX)	+= ts27010mux/

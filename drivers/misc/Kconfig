@@ -501,6 +501,12 @@ config GPS_GPIO_BRCM4750
 	---help---
 	Adds GPIO controller driver for GPS Broadcom 4750 chipset
 
+config TEGRA_CRYPTO_DEV
+	bool "Device node to access tegra aes hardware"
+	---help---
+	Dev node /dev/tegra-crypto in order to get access to tegra aes
+	hardware from user space
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
