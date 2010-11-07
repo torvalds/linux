@@ -988,9 +988,9 @@ if (NULL == peasycap)
 
 pusb_device = peasycap->pusb_device;
 if (NULL == pusb_device)
-	return -EFAULT;
+	return -ENODEV;
 
-JOT(8, "%02X %02X %02X %02X %02X %02X %02X %02X\n",	\
+JOM(8, "%02X %02X %02X %02X %02X %02X %02X %02X\n",	\
 			requesttype, request,		\
 			(0x00FF & value_unmute),	\
 			(0xFF00 & value_unmute) >> 8,	\
@@ -1029,41 +1029,25 @@ if (rc != (int)length)
  *                    THE UPPER BYTE SEEMS TO HAVE NO EFFECT.
  */
 /*--------------------------------------------------------------------------*/
-
 SET(pusb_device, 0x0500, 0x0094);
-
 SET(pusb_device, 0x0500, 0x008C);
-
 SET(pusb_device, 0x0506, 0x0001);
 SET(pusb_device, 0x0507, 0x0000);
-
 id1 = read_vt(pusb_device, 0x007C);
 id2 = read_vt(pusb_device, 0x007E);
-SAY("0x%04X:0x%04X is audio vendor id\n", id1, id2);
-
+SAM("0x%04X:0x%04X is audio vendor id\n", id1, id2);
 /*---------------------------------------------------------------------------*/
 /*
-*   SELECT AUDIO SOURCE "LINE IN" AND SET DEFAULT GAIN TO 0 dB.
-*
-*   THESE COMMANDS SEEM TO BE ACCEPTED (THOUGH POSSIBLY IGNORED) EVEN WHEN
-*   THERE IS NO SEPARATE AUDIO CHIP PRESENT.
+ *  SELECT AUDIO SOURCE "LINE IN" AND SET THE AUDIO GAIN.
 */
 /*---------------------------------------------------------------------------*/
-
-write_vt(pusb_device, 0x0002, 0x8000);
-write_vt(pusb_device, 0x001C, 0x8000);
-
-write_vt(pusb_device, 0x000E, 0x0000);
-write_vt(pusb_device, 0x0010, 0x0000);
-write_vt(pusb_device, 0x0012, 0x8000);
-write_vt(pusb_device, 0x0016, 0x0000);
-
-write_vt(pusb_device, 0x001A, 0x0404);
-write_vt(pusb_device, 0x0002, 0x0000);
-write_vt(pusb_device, 0x001C, 0x0000);
-
+if (31 < gain)
+	gain = 31;
+if (0 > gain)
+	gain = 0;
+if (0 != audio_gainset(pusb_device, (__s8)gain))
+	SAY("ERROR: audio_gainset() failed\n");
 check_vt(pusb_device);
-
 return 0;
 }
 /*****************************************************************************/
@@ -1096,17 +1080,23 @@ if (0 > igot)
 if (0x8000 & igot)
 	SAY("register 0x%02X muted\n", 0x12);
 
+igot = read_vt(pusb_device, 0x0014);
+if (0 > igot)
+	SAY("ERROR: failed to read VT1612A register 0x14\n");
+if (0x8000 & igot)
+	SAY("register 0x%02X muted\n", 0x14);
+
 igot = read_vt(pusb_device, 0x0016);
 if (0 > igot)
 	SAY("ERROR: failed to read VT1612A register 0x16\n");
 if (0x8000 & igot)
 	SAY("register 0x%02X muted\n", 0x16);
 
-igot = read_vt(pusb_device, 0x001A);
+igot = read_vt(pusb_device, 0x0018);
 if (0 > igot)
-	SAY("ERROR: failed to read VT1612A register 0x1A\n");
+	SAY("ERROR: failed to read VT1612A register 0x18\n");
 if (0x8000 & igot)
-	SAY("register 0x%02X muted\n", 0x1A);
+	SAY("register 0x%02X muted\n", 0x18);
 
 igot = read_vt(pusb_device, 0x001C);
 if (0 > igot)
@@ -1118,14 +1108,18 @@ return 0;
 }
 /*****************************************************************************/
 /*---------------------------------------------------------------------------*/
-/*
- *  NOTE:  THIS DOES INCREASE THE VOLUME DRAMATICALLY:
- *         audio_gainset(pusb_device, 0x000F);
+/*  NOTE:  THIS DOES INCREASE THE VOLUME DRAMATICALLY:
+ *                      audio_gainset(pusb_device, 0x000F);
  *
- *  IF 16<loud<31 VT1621A REGISTER 0x1C IS SET FOR POSITIVE GAIN.
- *  IF loud<=16 VT1621A REGISTER 0x1C IS SET FOR ZERO GAIN.
- *  THERE IS NEVER ANY (ADDITIONAL) ATTENUATION.
- */
+ *       loud        dB  register 0x10      dB register 0x1C    dB total
+ *         0               -34.5                   0             -34.5
+ *        ..                ....                   .              ....
+ *        15                10.5                   0              10.5
+ *        16                12.0                   0              12.0
+ *        17                12.0                   1.5            13.5
+ *        ..                ....                  ....            ....
+ *        31                12.0                  22.5            34.5
+*/
 /*---------------------------------------------------------------------------*/
 int
 audio_gainset(struct usb_device *pusb_device, __s8 loud)
@@ -1134,25 +1128,65 @@ int igot;
 __u8 u8;
 __u16 mute;
 
-if (16 > loud)
-	loud = 16;
-u8 = 0x000F & (__u8)(loud - 16);
+if ((struct usb_device *)NULL == pusb_device)
+	return -ENODEV;
+if (0 > loud)
+	loud = 0;
+if (31 < loud)
+	loud = 31;
 
 write_vt(pusb_device, 0x0002, 0x8000);
+/*---------------------------------------------------------------------------*/
+igot = read_vt(pusb_device, 0x000E);
+if (0 > igot) {
+	SAY("ERROR: failed to read VT1612A register 0x0E\n");
+	mute = 0x0000;
+} else
+	mute = 0x8000 & ((unsigned int)igot);
+mute = 0;
 
+if (16 > loud)
+	u8 = 0x01 | (0x001F & (((__u8)(15 - loud)) << 1));
+else
+	u8 = 0;
+
+JOT(8, "0x%04X=(mute|u8) for VT1612A register 0x0E\n", mute | u8);
+write_vt(pusb_device, 0x000E, (mute | u8));
+/*---------------------------------------------------------------------------*/
+igot = read_vt(pusb_device, 0x0010);
+if (0 > igot) {
+	SAY("ERROR: failed to read VT1612A register 0x10\n");
+	mute = 0x0000;
+} else
+	mute = 0x8000 & ((unsigned int)igot);
+mute = 0;
+
+JOT(8, "0x%04X=(mute|u8|(u8<<8)) for VT1612A register 0x10,...0x18\n", \
+							mute | u8 | (u8 << 8));
+write_vt(pusb_device, 0x0010, (mute | u8 | (u8 << 8)));
+write_vt(pusb_device, 0x0012, (mute | u8 | (u8 << 8)));
+write_vt(pusb_device, 0x0014, (mute | u8 | (u8 << 8)));
+write_vt(pusb_device, 0x0016, (mute | u8 | (u8 << 8)));
+write_vt(pusb_device, 0x0018, (mute | u8 | (u8 << 8)));
+/*---------------------------------------------------------------------------*/
 igot = read_vt(pusb_device, 0x001C);
 if (0 > igot) {
 	SAY("ERROR: failed to read VT1612A register 0x1C\n");
 	mute = 0x0000;
 } else
 	mute = 0x8000 & ((unsigned int)igot);
+mute = 0;
 
-JOT(8, "0x%04X=(mute|u8|(u8<<8))\n", mute | u8 | (u8 << 8));
+if (16 <= loud)
+	u8 = 0x000F & (__u8)(loud - 16);
+else
+	u8 = 0;
 
-write_vt(pusb_device, 0x001C, 0x8000);
+JOT(8, "0x%04X=(mute|u8|(u8<<8)) for VT1612A register 0x1C\n", \
+							mute | u8 | (u8 << 8));
 write_vt(pusb_device, 0x001C, (mute | u8 | (u8 << 8)));
+write_vt(pusb_device, 0x001A, 0x0404);
 write_vt(pusb_device, 0x0002, 0x0000);
-
 return 0;
 }
 /*****************************************************************************/
@@ -1161,6 +1195,8 @@ audio_gainget(struct usb_device *pusb_device)
 {
 int igot;
 
+if (NULL == pusb_device)
+	return -ENODEV;
 igot = read_vt(pusb_device, 0x001C);
 if (0 > igot)
 	SAY("ERROR: failed to read VT1612A register 0x1C\n");

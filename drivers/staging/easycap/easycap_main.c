@@ -34,8 +34,10 @@
 
 int debug;
 int bars;
+int gain = 16;
 module_param(debug, int, S_IRUGO | S_IWUSR);
 module_param(bars, int, S_IRUGO | S_IWUSR);
+module_param(gain, int, S_IRUGO | S_IWUSR);
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -4770,7 +4772,8 @@ easycap_module_init(void)
 int result;
 
 SAY("========easycap=======\n");
-JOT(4, "begins.  %i=debug %i=bars\n", debug, bars);
+JOT(4, "begins.  %i=debug %i=bars %i=gain\n", debug, bars, \
+						gain);
 SAY("version: " EASYCAP_DRIVER_VERSION "\n");
 /*---------------------------------------------------------------------------*/
 /*
@@ -4811,8 +4814,9 @@ MODULE_AUTHOR("R.M. Thomas <rmthomas@sciolus.org>");
 MODULE_DESCRIPTION(EASYCAP_DRIVER_DESCRIPTION);
 MODULE_VERSION(EASYCAP_DRIVER_VERSION);
 #if defined(EASYCAP_DEBUG)
-MODULE_PARM_DESC(debug, "Debug level: 0 (default),1,2,...,9");
+MODULE_PARM_DESC(debug, "Debug level: 0 (default),1,2,...");
 #endif /*EASYCAP_DEBUG*/
 MODULE_PARM_DESC(bars, \
 	"Testcard bars on input signal failure: 0=>no, 1=>yes(default)");
+MODULE_PARM_DESC(gain, "Audio gain: 0,...,16(default),...31");
 /*****************************************************************************/

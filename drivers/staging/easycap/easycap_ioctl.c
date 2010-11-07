@@ -873,18 +873,26 @@ i1 = 0;
 while (0xFFFFFFFF != easycap_control[i1].id) {
 	if (V4L2_CID_AUDIO_VOLUME == easycap_control[i1].id) {
 		if ((easycap_control[i1].minimum > value) || \
-			(easycap_control[i1].maximum < value))
+				(easycap_control[i1].maximum < value))
 			value = easycap_control[i1].default_value;
+		if ((easycap_control[i1].minimum <= peasycap->volume) && \
+					(easycap_control[i1].maximum >= \
+							peasycap->volume)) {
+			if (peasycap->volume == value) {
+				SAM("unchanged volume at  0x%02X\n", value);
+				return 0;
+			}
+		}
 		peasycap->volume = value;
 		mood = (16 > peasycap->volume) ? 16 : \
 			((31 < peasycap->volume) ? 31 : \
 			(__s8) peasycap->volume);
 		if (!audio_gainset(peasycap->pusb_device, mood)) {
-			SAM("adjusting volume to 0x%01X\n", mood);
+			SAM("adjusting volume to 0x%02X\n", mood);
 			return 0;
 		} else {
 			SAM("WARNING: failed to adjust volume to " \
-							"0x%1X\n", mood);
+							"0x%2X\n", mood);
 			return -ENOENT;
 		}
 		break;
