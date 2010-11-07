@@ -956,8 +956,8 @@ return -ENOENT;
 static int easycap_ioctl_bkl(struct inode *inode, struct file *file,
 			     unsigned int cmd, unsigned long arg)
 {
-static struct easycap *peasycap;
-static struct usb_device *p;
+struct easycap *peasycap;
+struct usb_device *p;
 
 if (NULL == file) {
 	SAY("ERROR:  file is NULL\n");
@@ -973,13 +973,6 @@ if (NULL == p) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -EFAULT;
 }
-/*---------------------------------------------------------------------------*/
-/*
- *  MOST OF THE VARIABLES DECLARED static IN THE case{} BLOCKS BELOW ARE SO
- *  DECLARED SIMPLY TO AVOID A COMPILER WARNING OF THE KIND:
- *  easycap_ioctl.c: warning:
- *                       the frame size of ... bytes is larger than 1024 bytes
- */
 /*---------------------------------------------------------------------------*/
 switch (cmd) {
 case VIDIOC_QUERYCAP: {
@@ -1247,57 +1240,67 @@ case VIDIOC_QUERYMENU: {
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_G_CTRL: {
-	struct v4l2_control v4l2_control;
+	struct v4l2_control *pv4l2_control;
 
 	JOM(8, "VIDIOC_G_CTRL\n");
-
-	if (0 != copy_from_user(&v4l2_control, (void __user *)arg, \
-					sizeof(struct v4l2_control)))
+	pv4l2_control = kzalloc(sizeof(struct v4l2_control), GFP_KERNEL);
+	if (!pv4l2_control) {
+		SAM("ERROR: out of memory\n");
+		return -ENOMEM;
+	}
+	if (0 != copy_from_user(pv4l2_control, (void __user *)arg, \
+					sizeof(struct v4l2_control))) {
+		kfree(pv4l2_control);
 		return -EFAULT;
+	}
 
-	switch (v4l2_control.id) {
+	switch (pv4l2_control->id) {
 	case V4L2_CID_BRIGHTNESS: {
-		v4l2_control.value = peasycap->brightness;
-		JOM(8, "user enquires brightness: %i\n", v4l2_control.value);
+		pv4l2_control->value = peasycap->brightness;
+		JOM(8, "user enquires brightness: %i\n", pv4l2_control->value);
 		break;
 	}
 	case V4L2_CID_CONTRAST: {
-		v4l2_control.value = peasycap->contrast;
-		JOM(8, "user enquires contrast: %i\n", v4l2_control.value);
+		pv4l2_control->value = peasycap->contrast;
+		JOM(8, "user enquires contrast: %i\n", pv4l2_control->value);
 		break;
 	}
 	case V4L2_CID_SATURATION: {
-		v4l2_control.value = peasycap->saturation;
-		JOM(8, "user enquires saturation: %i\n", v4l2_control.value);
+		pv4l2_control->value = peasycap->saturation;
+		JOM(8, "user enquires saturation: %i\n", pv4l2_control->value);
 		break;
 	}
 	case V4L2_CID_HUE: {
-		v4l2_control.value = peasycap->hue;
-		JOM(8, "user enquires hue: %i\n", v4l2_control.value);
+		pv4l2_control->value = peasycap->hue;
+		JOM(8, "user enquires hue: %i\n", pv4l2_control->value);
 		break;
 	}
 	case V4L2_CID_AUDIO_VOLUME: {
-		v4l2_control.value = peasycap->volume;
-		JOM(8, "user enquires volume: %i\n", v4l2_control.value);
+		pv4l2_control->value = peasycap->volume;
+		JOM(8, "user enquires volume: %i\n", pv4l2_control->value);
 		break;
 	}
 	case V4L2_CID_AUDIO_MUTE: {
 		if (1 == peasycap->mute)
-			v4l2_control.value = true;
+			pv4l2_control->value = true;
 		else
-			v4l2_control.value = false;
-		JOM(8, "user enquires mute: %i\n", v4l2_control.value);
+			pv4l2_control->value = false;
+		JOM(8, "user enquires mute: %i\n", pv4l2_control->value);
 		break;
 	}
 	default: {
 		SAM("ERROR: unknown V4L2 control: 0x%08X=id\n", \
-							v4l2_control.id);
+							pv4l2_control->id);
+		kfree(pv4l2_control);
 		return -EINVAL;
 	}
 	}
-	if (0 != copy_to_user((void __user *)arg, &v4l2_control, \
-					sizeof(struct v4l2_control)))
+	if (0 != copy_to_user((void __user *)arg, pv4l2_control, \
+					sizeof(struct v4l2_control))) {
+		kfree(pv4l2_control);
 		return -EFAULT;
+	}
+	kfree(pv4l2_control);
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1596,8 +1599,9 @@ case VIDIOC_ENUM_FRAMEINTERVALS: {
 	}
 
 	if (0 != copy_from_user(&v4l2_frmivalenum, (void __user *)arg, \
-					sizeof(struct v4l2_frmivalenum)))
+					sizeof(struct v4l2_frmivalenum))) {
 		return -EFAULT;
+	}
 
 	index = v4l2_frmivalenum.index;
 
@@ -1632,29 +1636,50 @@ case VIDIOC_ENUM_FRAMEINTERVALS: {
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_G_FMT: {
-	struct v4l2_format v4l2_format;
-	struct v4l2_pix_format v4l2_pix_format;
+	struct v4l2_format *pv4l2_format;
+	struct v4l2_pix_format *pv4l2_pix_format;
 
 	JOM(8, "VIDIOC_G_FMT\n");
-
-	if (0 != copy_from_user(&v4l2_format, (void __user *)arg, \
-					sizeof(struct v4l2_format)))
+	pv4l2_format = kzalloc(sizeof(struct v4l2_format), GFP_KERNEL);
+	if (!pv4l2_format) {
+		SAM("ERROR: out of memory\n");
+	return -ENOMEM;
+	}
+	pv4l2_pix_format = kzalloc(sizeof(struct v4l2_pix_format), GFP_KERNEL);
+	if (!pv4l2_pix_format) {
+		SAM("ERROR: out of memory\n");
+		kfree(pv4l2_format);
+		return -ENOMEM;
+	}
+	if (0 != copy_from_user(pv4l2_format, (void __user *)arg, \
+					sizeof(struct v4l2_format))) {
+		kfree(pv4l2_format);
+		kfree(pv4l2_pix_format);
 		return -EFAULT;
+	}
 
-	if (v4l2_format.type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (pv4l2_format->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		kfree(pv4l2_format);
+		kfree(pv4l2_pix_format);
 		return -EINVAL;
+	}
 
-	memset(&v4l2_pix_format, 0, sizeof(struct v4l2_pix_format));
-	v4l2_format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	memcpy(&(v4l2_format.fmt.pix), \
-			 &(easycap_format[peasycap->format_offset]\
-			.v4l2_format.fmt.pix), sizeof(v4l2_pix_format));
+	memset(pv4l2_pix_format, 0, sizeof(struct v4l2_pix_format));
+	pv4l2_format->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	memcpy(&pv4l2_format->fmt.pix, \
+			 &easycap_format[peasycap->format_offset]\
+			.v4l2_format.fmt.pix, sizeof(struct v4l2_pix_format));
 	JOM(8, "user is told: %s\n", \
 			&easycap_format[peasycap->format_offset].name[0]);
 
-	if (0 != copy_to_user((void __user *)arg, &v4l2_format, \
-					sizeof(struct v4l2_format)))
+	if (0 != copy_to_user((void __user *)arg, pv4l2_format, \
+					sizeof(struct v4l2_format))) {
+		kfree(pv4l2_format);
+		kfree(pv4l2_pix_format);
 		return -EFAULT;
+	}
+	kfree(pv4l2_format);
+	kfree(pv4l2_pix_format);
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -2196,38 +2221,50 @@ case VIDIOC_STREAMOFF: {
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_G_PARM: {
-	struct v4l2_streamparm v4l2_streamparm;
+	struct v4l2_streamparm *pv4l2_streamparm;
 
 	JOM(8, "VIDIOC_G_PARM\n");
-
-	if (0 != copy_from_user(&v4l2_streamparm, (void __user *)arg, \
-					sizeof(struct v4l2_streamparm)))
+	pv4l2_streamparm = kzalloc(sizeof(struct v4l2_streamparm), GFP_KERNEL);
+	if (!pv4l2_streamparm) {
+		SAM("ERROR: out of memory\n");
+		return -ENOMEM;
+	}
+	if (0 != copy_from_user(pv4l2_streamparm, (void __user *)arg, \
+					sizeof(struct v4l2_streamparm))) {
+		kfree(pv4l2_streamparm);
 		return -EFAULT;
+	}
 
-	if (v4l2_streamparm.type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (pv4l2_streamparm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		kfree(pv4l2_streamparm);
 		return -EINVAL;
-	v4l2_streamparm.parm.capture.capability = 0;
-	v4l2_streamparm.parm.capture.capturemode = 0;
-	v4l2_streamparm.parm.capture.timeperframe.numerator = 1;
+	}
+	pv4l2_streamparm->parm.capture.capability = 0;
+	pv4l2_streamparm->parm.capture.capturemode = 0;
+	pv4l2_streamparm->parm.capture.timeperframe.numerator = 1;
 
 	if (peasycap->fps) {
-		v4l2_streamparm.parm.capture.timeperframe.\
+		pv4l2_streamparm->parm.capture.timeperframe.\
 						denominator = peasycap->fps;
 	} else {
 		if (true == peasycap->ntsc) {
-			v4l2_streamparm.parm.capture.timeperframe.\
+			pv4l2_streamparm->parm.capture.timeperframe.\
 						denominator = 30;
 		} else {
-			v4l2_streamparm.parm.capture.timeperframe.\
+			pv4l2_streamparm->parm.capture.timeperframe.\
 						denominator = 25;
 		}
 	}
 
-	v4l2_streamparm.parm.capture.readbuffers = peasycap->frame_buffer_many;
-	v4l2_streamparm.parm.capture.extendedmode = 0;
-	if (0 != copy_to_user((void __user *)arg, &v4l2_streamparm, \
-					sizeof(struct v4l2_streamparm)))
+	pv4l2_streamparm->parm.capture.readbuffers = \
+						peasycap->frame_buffer_many;
+	pv4l2_streamparm->parm.capture.extendedmode = 0;
+	if (0 != copy_to_user((void __user *)arg, pv4l2_streamparm, \
+					sizeof(struct v4l2_streamparm))) {
+		kfree(pv4l2_streamparm);
 		return -EFAULT;
+	}
+	kfree(pv4l2_streamparm);
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
