@@ -157,6 +157,13 @@
 #define PAPRD_GAIN_TABLE_ENTRIES    32
 #define PAPRD_TABLE_SZ              24
 
+enum ath_hw_txq_subtype {
+	ATH_TXQ_AC_BE = 0,
+	ATH_TXQ_AC_BK = 1,
+	ATH_TXQ_AC_VI = 2,
+	ATH_TXQ_AC_VO = 3,
+};
+
 enum ath_ini_subsys {
 	ATH_INI_PRE = 0,
 	ATH_INI_CORE,

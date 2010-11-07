@@ -585,10 +585,10 @@ static const struct file_operations fops_wiphy = {
 	do {								\
 		len += snprintf(buf + len, size - len,			\
 				"%s%13u%11u%10u%10u\n", str,		\
-		sc->debug.stats.txstats[sc->tx.hwq_map[WME_AC_BE]].elem, \
-		sc->debug.stats.txstats[sc->tx.hwq_map[WME_AC_BK]].elem, \
-		sc->debug.stats.txstats[sc->tx.hwq_map[WME_AC_VI]].elem, \
-		sc->debug.stats.txstats[sc->tx.hwq_map[WME_AC_VO]].elem); \
+		sc->debug.stats.txstats[WME_AC_BE].elem, \
+		sc->debug.stats.txstats[WME_AC_BK].elem, \
+		sc->debug.stats.txstats[WME_AC_VI].elem, \
+		sc->debug.stats.txstats[WME_AC_VO].elem); \
 } while(0)
 
 static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
@@ -630,33 +630,35 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	return retval;
 }
 
-void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
-		       struct ath_buf *bf, struct ath_tx_status *ts)
+void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
+		       struct ath_tx_status *ts)
 {
-	TX_STAT_INC(txq->axq_qnum, tx_pkts_all);
-	sc->debug.stats.txstats[txq->axq_qnum].tx_bytes_all += bf->bf_mpdu->len;
+	int qnum = skb_get_queue_mapping(bf->bf_mpdu);
+
+	TX_STAT_INC(qnum, tx_pkts_all);
+	sc->debug.stats.txstats[qnum].tx_bytes_all += bf->bf_mpdu->len;
 
 	if (bf_isampdu(bf)) {
 		if (bf_isxretried(bf))
-			TX_STAT_INC(txq->axq_qnum, a_xretries);
+			TX_STAT_INC(qnum, a_xretries);
 		else
-			TX_STAT_INC(txq->axq_qnum, a_completed);
+			TX_STAT_INC(qnum, a_completed);
 	} else {
-		TX_STAT_INC(txq->axq_qnum, completed);
+		TX_STAT_INC(qnum, completed);
 	}
 
 	if (ts->ts_status & ATH9K_TXERR_FIFO)
-		TX_STAT_INC(txq->axq_qnum, fifo_underrun);
+		TX_STAT_INC(qnum, fifo_underrun);
 	if (ts->ts_status & ATH9K_TXERR_XTXOP)
-		TX_STAT_INC(txq->axq_qnum, xtxop);
+		TX_STAT_INC(qnum, xtxop);
 	if (ts->ts_status & ATH9K_TXERR_TIMER_EXPIRED)
-		TX_STAT_INC(txq->axq_qnum, timer_exp);
+		TX_STAT_INC(qnum, timer_exp);
 	if (ts->ts_flags & ATH9K_TX_DESC_CFG_ERR)
-		TX_STAT_INC(txq->axq_qnum, desc_cfg_err);
+		TX_STAT_INC(qnum, desc_cfg_err);
 	if (ts->ts_flags & ATH9K_TX_DATA_UNDERRUN)
-		TX_STAT_INC(txq->axq_qnum, data_underrun);
+		TX_STAT_INC(qnum, data_underrun);
 	if (ts->ts_flags & ATH9K_TX_DELIM_UNDERRUN)
-		TX_STAT_INC(txq->axq_qnum, delim_underrun);
+		TX_STAT_INC(qnum, delim_underrun);
 }
 
 static const struct file_operations fops_xmit = {

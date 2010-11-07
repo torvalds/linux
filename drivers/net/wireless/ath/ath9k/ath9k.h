@@ -195,7 +195,6 @@ enum ATH_AGGR_STATUS {
 
 #define ATH_TXFIFO_DEPTH 8
 struct ath_txq {
-	int axq_class;
 	u32 axq_qnum;
 	u32 *axq_link;
 	struct list_head axq_q;
@@ -208,11 +207,12 @@ struct ath_txq {
 	struct list_head txq_fifo_pending;
 	u8 txq_headidx;
 	u8 txq_tailidx;
+	int pending_frames;
 };
 
 struct ath_atx_ac {
+	struct ath_txq *txq;
 	int sched;
-	int qnum;
 	struct list_head list;
 	struct list_head tid_q;
 };
@@ -290,12 +290,11 @@ struct ath_tx_control {
 struct ath_tx {
 	u16 seq_no;
 	u32 txqsetup;
-	int hwq_map[WME_NUM_AC];
 	spinlock_t txbuflock;
 	struct list_head txbuf;
 	struct ath_txq txq[ATH9K_NUM_TX_QUEUES];
 	struct ath_descdma txdma;
-	int pending_frames[WME_NUM_AC];
+	struct ath_txq *txq_map[WME_NUM_AC];
 };
 
 struct ath_rx_edma {
@@ -325,7 +324,6 @@ void ath_rx_cleanup(struct ath_softc *sc);
 int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp);
 struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype);
 void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq);
-int ath_tx_setup(struct ath_softc *sc, int haltype);
 void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx);
 void ath_draintxq(struct ath_softc *sc,
 		     struct ath_txq *txq, bool retry_tx);
@@ -665,7 +663,6 @@ struct ath_wiphy {
 
 void ath9k_tasklet(unsigned long data);
 int ath_reset(struct ath_softc *sc, bool retry_tx);
-int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
 int ath_cabq_update(struct ath_softc *);
 
 static inline void ath_read_cachesize(struct ath_common *common, int *csz)
