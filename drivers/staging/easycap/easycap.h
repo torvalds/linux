@@ -44,10 +44,17 @@
 
 /*---------------------------------------------------------------------------*/
 /*
+ *  THESE ARE NORMALLY DEFINED
+ */
+/*---------------------------------------------------------------------------*/
+#define  PATIENCE  500
+#undef   PREFER_NTSC
+#define  PERSEVERE
+/*---------------------------------------------------------------------------*/
+/*
  *  THESE ARE FOR MAINTENANCE ONLY - NORMALLY UNDEFINED:
  */
 /*---------------------------------------------------------------------------*/
-#undef  PREFER_NTSC
 #undef  EASYCAP_TESTCARD
 #undef  EASYCAP_TESTTONE
 #undef  NOREADBACK
@@ -122,7 +129,7 @@
 
 #define USB_SKEL_MINOR_BASE     192
 #define DONGLE_MANY 8
-
+#define INPUT_MANY 6
 /*---------------------------------------------------------------------------*/
 /*
  *  DEFAULT LUMINANCE, CONTRAST, SATURATION AND HUE
@@ -146,6 +153,7 @@
 #if (USB_2_0_MAXPACKETSIZE > PAGE_SIZE)
 #error video_isoc_buffer[.] will not be big enough
 #endif
+#define VIDEO_JUNK_TOLERATE VIDEO_ISOC_BUFFER_MANY
 /*---------------------------------------------------------------------------*/
 /*
  *  VIDEO BUFFERS
@@ -238,6 +246,7 @@ struct list_head list_head;
 void *pgo;
 void *pto;
 __u16 kount;
+__u16 input;
 };
 /*---------------------------------------------------------------------------*/
 struct data_urb {
@@ -255,6 +264,22 @@ struct easycap_format {
 __u16 mask;
 char name[128];
 struct v4l2_format v4l2_format;
+};
+struct inputset {
+int input;
+int input_ok;
+int standard_offset;
+int standard_offset_ok;
+int format_offset;
+int format_offset_ok;
+int brightness;
+int brightness_ok;
+int contrast;
+int contrast_ok;
+int saturation;
+int saturation_ok;
+int hue;
+int hue_ok;
 };
 /*---------------------------------------------------------------------------*/
 /*
@@ -274,7 +299,7 @@ struct v4l2_device v4l2_device;
 #endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-
+int status;
 unsigned int audio_pages_per_fragment;
 unsigned int audio_bytes_per_fragment;
 unsigned int audio_buffer_page_many;
@@ -302,7 +327,9 @@ int input;
 int polled;
 int standard_offset;
 int format_offset;
+struct inputset inputset[INPUT_MANY];
 
+bool ntsc;
 int fps;
 int usec;
 int tolerate;
@@ -480,6 +507,8 @@ int              redaub(struct easycap *, void *, void *, \
 						int, int, __u8, __u8, bool);
 void             easycap_testcard(struct easycap *, int);
 int              fillin_formats(void);
+int              reset(struct easycap *);
+int              newinput(struct easycap *, int);
 int              adjust_standard(struct easycap *, v4l2_std_id);
 int              adjust_format(struct easycap *, __u32, __u32, __u32, \
 								int, bool);
@@ -517,11 +546,11 @@ int              wakeup_device(struct usb_device *);
 int              confirm_resolution(struct usb_device *);
 int              confirm_stream(struct usb_device *);
 
-int              setup_stk(struct usb_device *);
-int              setup_saa(struct usb_device *);
+int              setup_stk(struct usb_device *, bool);
+int              setup_saa(struct usb_device *, bool);
 int              setup_vt(struct usb_device *);
-int              check_stk(struct usb_device *);
-int              check_saa(struct usb_device *);
+int              check_stk(struct usb_device *, bool);
+int              check_saa(struct usb_device *, bool);
 int              ready_saa(struct usb_device *);
 int              merit_saa(struct usb_device *);
 int              check_vt(struct usb_device *);
@@ -539,10 +568,6 @@ int              stop_100(struct usb_device *);
 int              write_300(struct usb_device *);
 int              read_vt(struct usb_device *, __u16);
 int              write_vt(struct usb_device *, __u16, __u16);
-
-int              set2to78(struct usb_device *);
-int              set2to93(struct usb_device *);
-
 int              regset(struct usb_device *, __u16, __u16);
 int              regget(struct usb_device *, __u16, void *);
 int		isdongle(struct easycap *);

@@ -638,11 +638,6 @@ if ((struct usb_device *)NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device has become NULL\n");
 	return -EFAULT;
 }
-rc = adjust_volume(peasycap, -8192);
-if (0 != rc) {
-	SAM("ERROR: adjust_volume(default) returned %i\n", rc);
-	return -EFAULT;
-}
 /*---------------------------------------------------------------------------*/
 if ((struct usb_device *)NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device has become NULL\n");
@@ -653,25 +648,19 @@ rc = usb_set_interface(peasycap->pusb_device, peasycap->audio_interface, \
 JOM(8, "usb_set_interface(.,%i,%i) returned %i\n", peasycap->audio_interface, \
 					peasycap->audio_altsetting_on, rc);
 
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
-	SAM("ERROR: peasycap->pusb_device has become NULL\n");
-	return -EFAULT;
-}
 rc = wakeup_device(peasycap->pusb_device);
 if (0 == rc)
 	JOM(8, "wakeup_device() returned %i\n", rc);
 else
-	JOM(8, "easysnd open(): ERROR: wakeup_device() returned %i\n", rc);
+	JOM(8, "ERROR: wakeup_device() returned %i\n", rc);
 
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
-	SAM("ERROR: peasycap->pusb_device has become NULL\n");
-	return -EFAULT;
-}
-submit_audio_urbs(peasycap);
+peasycap->audio_eof = 0;
 peasycap->audio_idle = 0;
 
 peasycap->timeval1.tv_sec  = 0;
 peasycap->timeval1.tv_usec = 0;
+
+submit_audio_urbs(peasycap);
 
 JOM(4, "finished initialization\n");
 return 0;
@@ -764,7 +753,6 @@ while ((fragment == (peasycap->audio_fill / \
 		JOM(8, "returning 0 because  %i=audio_eof\n", \
 							peasycap->audio_eof);
 		kill_audio_urbs(peasycap);
-		msleep(500);
 		return 0;
 	}
 	if (peasycap->audio_idle) {

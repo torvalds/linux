@@ -36,6 +36,7 @@
  *  UNLESS THERE IS A PREMATURE ERROR RETURN THIS ROUTINE UPDATES THE
  *  FOLLOWING:
  *          peasycap->standard_offset
+ *          peasycap->inputset[peasycap->input].standard_offset
  *          peasycap->fps
  *          peasycap->usec
  *          peasycap->tolerate
@@ -45,8 +46,9 @@ int adjust_standard(struct easycap *peasycap, v4l2_std_id std_id)
 {
 struct easycap_standard const *peasycap_standard;
 __u16 reg, set;
-int ir, rc, need;
+int ir, rc, need, k;
 unsigned int itwas, isnow;
+bool resubmit;
 
 if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
@@ -67,7 +69,7 @@ if (0xFFFF == peasycap_standard->mask) {
 							(unsigned int)std_id);
 	return -EINVAL;
 }
-SAM("user requests standard: %s\n", \
+SAM("selected standard: %s\n", \
 			&(peasycap_standard->v4l2_standard.name[0]));
 if (peasycap->standard_offset == \
 			(int)(peasycap_standard - &easycap_standard[0])) {
@@ -75,18 +77,43 @@ if (peasycap->standard_offset == \
 	return 0;
 }
 peasycap->standard_offset = (int)(peasycap_standard - &easycap_standard[0]);
+for (k = 0; k < INPUT_MANY;  k++) {
+	if (!peasycap->inputset[k].standard_offset_ok) {
+			peasycap->inputset[k].standard_offset = \
+						peasycap->standard_offset;
+	}
+}
+if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
+	peasycap->inputset[peasycap->input].standard_offset = \
+						peasycap->standard_offset;
+	peasycap->inputset[peasycap->input].standard_offset_ok = 1;
+} else
+	JOM(8, "%i=peasycap->input\n", peasycap->input);
 peasycap->fps = peasycap_standard->v4l2_standard.frameperiod.denominator / \
 		peasycap_standard->v4l2_standard.frameperiod.numerator;
-if (!peasycap->fps) {
-	SAM("MISTAKE: frames-per-second is zero\n");
-	return -EFAULT;
+switch (peasycap->fps) {
+case 30: {
+	peasycap->ntsc = true;
+	break;
+}
+case 25: {
+	peasycap->ntsc = false;
+	break;
+}
+default: {
+	SAM("MISTAKE: %i=frames-per-second\n", peasycap->fps);
+	return -ENOENT;
+}
 }
 JOM(8, "%i frames-per-second\n", peasycap->fps);
 peasycap->usec = 1000000 / (2 * peasycap->fps);
 peasycap->tolerate = 1000 * (25 / peasycap->fps);
 
-kill_video_urbs(peasycap);
-
+if (peasycap->video_isoc_streaming) {
+	resubmit = true;
+	kill_video_urbs(peasycap);
+} else
+	resubmit = false;
 /*--------------------------------------------------------------------------*/
 /*
  *  SAA7113H DATASHEET PAGE 44, TABLE 42
@@ -101,11 +128,6 @@ case NTSC_M_JP: {
 		SAM("ERROR: cannot read SAA register 0x%02X\n", reg);
 	else
 		itwas = (unsigned int)ir;
-
-
-	set2to78(peasycap->pusb_device);
-
-
 	rc = write_saa(peasycap->pusb_device, reg, set);
 	if (0 != rc)
 		SAM("ERROR: failed to set SAA register " \
@@ -118,9 +140,6 @@ case NTSC_M_JP: {
 		else
 			JOM(8, "SAA register 0x%02X changed " \
 				"from 0x%02X to 0x%02X\n", reg, itwas, isnow);
-
-		set2to78(peasycap->pusb_device);
-
 	}
 
 	reg = 0x0B;  set = 0x48;
@@ -129,9 +148,6 @@ case NTSC_M_JP: {
 		SAM("ERROR: cannot read SAA register 0x%02X\n", reg);
 	else
 		itwas = (unsigned int)ir;
-
-	set2to78(peasycap->pusb_device);
-
 	rc = write_saa(peasycap->pusb_device, reg, set);
 	if (0 != rc)
 		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X " \
@@ -144,9 +160,6 @@ case NTSC_M_JP: {
 		else
 			JOM(8, "SAA register 0x%02X changed " \
 				"from 0x%02X to 0x%02X\n", reg, itwas, isnow);
-
-		set2to78(peasycap->pusb_device);
-
 	}
 /*--------------------------------------------------------------------------*/
 /*
@@ -183,9 +196,6 @@ if (need) {
 		SAM("ERROR: failed to read SAA register 0x%02X\n", reg);
 	else
 		itwas = (unsigned int)ir;
-
-	set2to78(peasycap->pusb_device);
-
 	rc = write_saa(peasycap->pusb_device, reg, set);
 	if (0 != write_saa(peasycap->pusb_device, reg, set)) {
 		SAM("ERROR: failed to set SAA register " \
@@ -216,19 +226,18 @@ else {
 		set = itwas | 0x40 ;
 	else
 		set = itwas & ~0x40 ;
-
-set2to78(peasycap->pusb_device);
-
-rc  = write_saa(peasycap->pusb_device, reg, set);
-if (0 != rc)
-	SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X\n", reg, set);
-else {
-	isnow = (unsigned int)read_saa(peasycap->pusb_device, reg);
-	if (0 > ir)
-		JOM(8, "SAA register 0x%02X changed to 0x%02X\n", reg, isnow);
-	else
-		JOM(8, "SAA register 0x%02X changed " \
-			"from 0x%02X to 0x%02X\n", reg, itwas, isnow);
+	rc  = write_saa(peasycap->pusb_device, reg, set);
+	if (0 != rc)
+		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X\n", \
+								reg, set);
+	else {
+		isnow = (unsigned int)read_saa(peasycap->pusb_device, reg);
+		if (0 > ir)
+			JOM(8, "SAA register 0x%02X changed to 0x%02X\n", \
+								reg, isnow);
+		else
+			JOM(8, "SAA register 0x%02X changed " \
+				"from 0x%02X to 0x%02X\n", reg, itwas, isnow);
 	}
 }
 /*--------------------------------------------------------------------------*/
@@ -247,19 +256,18 @@ else {
 		set = itwas | 0x80 ;
 	else
 		set = itwas & ~0x80 ;
-
-set2to78(peasycap->pusb_device);
-
-rc = write_saa(peasycap->pusb_device, reg, set);
-if (0 != rc)
-	SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X\n", reg, set);
-else {
-	isnow = (unsigned int)read_saa(peasycap->pusb_device, reg);
-	if (0 > ir)
-		JOM(8, "SAA register 0x%02X changed to 0x%02X\n", reg, isnow);
-	else
-		JOM(8, "SAA register 0x%02X changed " \
-			"from 0x%02X to 0x%02X\n", reg, itwas, isnow);
+	rc = write_saa(peasycap->pusb_device, reg, set);
+	if (0 != rc)
+		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X\n", \
+								reg, set);
+	else {
+		isnow = (unsigned int)read_saa(peasycap->pusb_device, reg);
+		if (0 > ir)
+			JOM(8, "SAA register 0x%02X changed to 0x%02X\n", \
+								reg, isnow);
+		else
+			JOM(8, "SAA register 0x%02X changed " \
+				"from 0x%02X to 0x%02X\n", reg, itwas, isnow);
 	}
 }
 /*--------------------------------------------------------------------------*/
@@ -276,9 +284,6 @@ if (0 > ir)
 		set = 0x0A ;
 	else
 		set = 0x07 ;
-
-	set2to78(peasycap->pusb_device);
-
 	if (0 != write_saa(peasycap->pusb_device, reg, set))
 		SAM("ERROR: failed to set SAA register 0x%02X to 0x%02X\n", \
 								reg, set);
@@ -291,18 +296,20 @@ if (0 > ir)
 			JOM(8, "SAA register 0x%02X changed "
 				"from 0x%02X to 0x%02X\n", reg, itwas, isnow);
 	}
-	if (0 != check_saa(peasycap->pusb_device))
-		SAM("ERROR: check_saa() failed\n");
+if (true == resubmit)
+	submit_video_urbs(peasycap);
 return 0;
 }
 /*****************************************************************************/
 /*--------------------------------------------------------------------------*/
 /*
- *  THE ALGORITHM FOR RESPONDING TO THE VIDIO_S_FMT IOCTL DEPENDS ON THE
- *  CURRENT VALUE OF peasycap->standard_offset.
+ *  THE ALGORITHM FOR RESPONDING TO THE VIDIO_S_FMT IOCTL REQUIRES
+ *  A VALID VALUE OF peasycap->standard_offset, OTHERWISE -EBUSY IS RETURNED.
+ *
  *  PROVIDED THE ARGUMENT try IS false AND THERE IS NO PREMATURE ERROR RETURN
  *  THIS ROUTINE UPDATES THE FOLLOWING:
  *          peasycap->format_offset
+ *          peasycap->inputset[peasycap->input].format_offset
  *          peasycap->pixelformat
  *          peasycap->field
  *          peasycap->height
@@ -325,13 +332,18 @@ int adjust_format(struct easycap *peasycap, \
 struct easycap_format *peasycap_format, *peasycap_best_format;
 __u16 mask;
 struct usb_device *p;
-int miss, multiplier, best;
+int miss, multiplier, best, k;
 char bf[5], *pc;
 __u32 uc;
+bool resubmit;
 
 if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
+}
+if (0 > peasycap->standard_offset) {
+	JOM(8, "%i=peasycap->standard_offset\n", peasycap->standard_offset);
+	return -EBUSY;
 }
 p = peasycap->pusb_device;
 if ((struct usb_device *)NULL == p) {
@@ -422,6 +434,23 @@ peasycap->width         = peasycap_format->v4l2_format.fmt.pix.width;
 peasycap->pixelformat   = peasycap_format->v4l2_format.fmt.pix.pixelformat;
 peasycap->field         = peasycap_format->v4l2_format.fmt.pix.field;
 peasycap->format_offset = (int)(peasycap_format - &easycap_format[0]);
+
+
+for (k = 0; k < INPUT_MANY; k++) {
+	if (!peasycap->inputset[k].format_offset_ok) {
+		peasycap->inputset[k].format_offset = \
+						peasycap->format_offset;
+	}
+}
+if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
+	peasycap->inputset[peasycap->input].format_offset = \
+						peasycap->format_offset;
+	peasycap->inputset[peasycap->input].format_offset_ok = 1;
+} else
+	JOM(8, "%i=peasycap->input\n", peasycap->input);
+
+
+
 peasycap->bytesperpixel = (0x00F0 & peasycap_format->mask) >> 4 ;
 if (0x0100 & peasycap_format->mask)
 	peasycap->byteswaporder = true;
@@ -461,9 +490,11 @@ if (true == peasycap->offerfields) {
 
 
 }
-
-kill_video_urbs(peasycap);
-
+if (peasycap->video_isoc_streaming) {
+	resubmit = true;
+	kill_video_urbs(peasycap);
+} else
+	resubmit = false;
 /*---------------------------------------------------------------------------*/
 /*
  *  PAL
@@ -536,16 +567,15 @@ if (0 == (0x01 & peasycap_format->mask)) {
 	}
 }
 /*---------------------------------------------------------------------------*/
-
-check_stk(peasycap->pusb_device);
-
+if (true == resubmit)
+	submit_video_urbs(peasycap);
 return (int)(peasycap_best_format - &easycap_format[0]);
 }
 /*****************************************************************************/
 int adjust_brightness(struct easycap *peasycap, int value)
 {
 unsigned int mood;
-int i1;
+int i1, k;
 
 if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
@@ -561,11 +591,29 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 		if ((easycap_control[i1].minimum > value) || \
 					(easycap_control[i1].maximum < value))
 			value = easycap_control[i1].default_value;
+
+		if ((easycap_control[i1].minimum <= peasycap->brightness) && \
+					(easycap_control[i1].maximum >= \
+						peasycap->brightness)) {
+			if (peasycap->brightness == value) {
+				SAM("unchanged brightness at  0x%02X\n", \
+								value);
+				return 0;
+			}
+		}
 		peasycap->brightness = value;
+		for (k = 0; k < INPUT_MANY; k++) {
+			if (!peasycap->inputset[k].brightness_ok)
+				peasycap->inputset[k].brightness = \
+							peasycap->brightness;
+		}
+		if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
+			peasycap->inputset[peasycap->input].brightness = \
+							peasycap->brightness;
+			peasycap->inputset[peasycap->input].brightness_ok = 1;
+		} else
+			JOM(8, "%i=peasycap->input\n", peasycap->input);
 		mood = 0x00FF & (unsigned int)peasycap->brightness;
-
-		set2to78(peasycap->pusb_device);
-
 		if (!write_saa(peasycap->pusb_device, 0x0A, mood)) {
 			SAM("adjusting brightness to  0x%02X\n", mood);
 			return 0;
@@ -574,9 +622,6 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 							"to 0x%02X\n", mood);
 			return -ENOENT;
 		}
-
-		set2to78(peasycap->pusb_device);
-
 		break;
 	}
 	i1++;
@@ -588,7 +633,7 @@ return -ENOENT;
 int adjust_contrast(struct easycap *peasycap, int value)
 {
 unsigned int mood;
-int i1;
+int i1, k;
 
 if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
@@ -604,11 +649,31 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 		if ((easycap_control[i1].minimum > value) || \
 					(easycap_control[i1].maximum < value))
 			value = easycap_control[i1].default_value;
+
+
+
+		if ((easycap_control[i1].minimum <= peasycap->contrast) && \
+				(easycap_control[i1].maximum >= \
+							peasycap->contrast)) {
+			if (peasycap->contrast == value) {
+				SAM("unchanged contrast at  0x%02X\n", value);
+				return 0;
+			}
+		}
 		peasycap->contrast = value;
+		for (k = 0; k < INPUT_MANY; k++) {
+			if (!peasycap->inputset[k].contrast_ok) {
+				peasycap->inputset[k].contrast = \
+							peasycap->contrast;
+			}
+		}
+		if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
+			peasycap->inputset[peasycap->input].contrast = \
+							peasycap->contrast;
+			peasycap->inputset[peasycap->input].contrast_ok = 1;
+		} else
+			JOM(8, "%i=peasycap->input\n", peasycap->input);
 		mood = 0x00FF & (unsigned int) (peasycap->contrast - 128);
-
-		set2to78(peasycap->pusb_device);
-
 		if (!write_saa(peasycap->pusb_device, 0x0B, mood)) {
 			SAM("adjusting contrast to  0x%02X\n", mood);
 			return 0;
@@ -617,9 +682,6 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 							"0x%02X\n", mood);
 			return -ENOENT;
 		}
-
-		set2to78(peasycap->pusb_device);
-
 		break;
 	}
 	i1++;
@@ -631,7 +693,7 @@ return -ENOENT;
 int adjust_saturation(struct easycap *peasycap, int value)
 {
 unsigned int mood;
-int i1;
+int i1, k;
 
 if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
@@ -647,11 +709,31 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 		if ((easycap_control[i1].minimum > value) || \
 					(easycap_control[i1].maximum < value))
 			value = easycap_control[i1].default_value;
+
+
+		if ((easycap_control[i1].minimum <= peasycap->saturation) && \
+					(easycap_control[i1].maximum >= \
+						peasycap->saturation)) {
+			if (peasycap->saturation == value) {
+				SAM("unchanged saturation at  0x%02X\n", \
+								value);
+				return 0;
+			}
+		}
 		peasycap->saturation = value;
+		for (k = 0; k < INPUT_MANY; k++) {
+			if (!peasycap->inputset[k].saturation_ok) {
+				peasycap->inputset[k].saturation = \
+							peasycap->saturation;
+			}
+		}
+		if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
+			peasycap->inputset[peasycap->input].saturation = \
+							peasycap->saturation;
+			peasycap->inputset[peasycap->input].saturation_ok = 1;
+		} else
+			JOM(8, "%i=peasycap->input\n", peasycap->input);
 		mood = 0x00FF & (unsigned int) (peasycap->saturation - 128);
-
-		set2to78(peasycap->pusb_device);
-
 		if (!write_saa(peasycap->pusb_device, 0x0C, mood)) {
 			SAM("adjusting saturation to  0x%02X\n", mood);
 			return 0;
@@ -661,9 +743,6 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 			return -ENOENT;
 		}
 		break;
-
-		set2to78(peasycap->pusb_device);
-
 	}
 	i1++;
 }
@@ -674,7 +753,7 @@ return -ENOENT;
 int adjust_hue(struct easycap *peasycap, int value)
 {
 unsigned int mood;
-int i1, i2;
+int i1, i2, k;
 
 if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
@@ -690,12 +769,28 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 		if ((easycap_control[i1].minimum > value) || \
 					(easycap_control[i1].maximum < value))
 			value = easycap_control[i1].default_value;
+
+		if ((easycap_control[i1].minimum <= peasycap->hue) && \
+					(easycap_control[i1].maximum >= \
+							peasycap->hue)) {
+			if (peasycap->hue == value) {
+				SAM("unchanged hue at  0x%02X\n", value);
+				return 0;
+			}
+		}
 		peasycap->hue = value;
+		for (k = 0; k < INPUT_MANY; k++) {
+			if (!peasycap->inputset[k].hue_ok)
+				peasycap->inputset[k].hue = peasycap->hue;
+		}
+		if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
+			peasycap->inputset[peasycap->input].hue = \
+							peasycap->hue;
+			peasycap->inputset[peasycap->input].hue_ok = 1;
+		} else
+			JOM(8, "%i=peasycap->input\n", peasycap->input);
 		i2 = peasycap->hue - 128;
 		mood = 0x00FF & ((int) i2);
-
-		set2to78(peasycap->pusb_device);
-
 		if (!write_saa(peasycap->pusb_device, 0x0D, mood)) {
 			SAM("adjusting hue to  0x%02X\n", mood);
 			return 0;
@@ -703,9 +798,6 @@ while (0xFFFFFFFF != easycap_control[i1].id) {
 			SAM("WARNING: failed to adjust hue to 0x%02X\n", mood);
 			return -ENOENT;
 		}
-
-		set2to78(peasycap->pusb_device);
-
 		break;
 	}
 	i1++;
@@ -1004,6 +1096,7 @@ case VIDIOC_G_INPUT: {
 case VIDIOC_S_INPUT:
 	{
 	__u32 index;
+	int rc;
 
 	JOM(8, "VIDIOC_S_INPUT\n");
 
@@ -1017,14 +1110,18 @@ case VIDIOC_S_INPUT:
 		break;
 	}
 
-	if ((0 > index) || (5 < index)) {
+	if ((0 > index) || (INPUT_MANY <= index)) {
 		JOM(8, "ERROR:  bad requested input: %i\n", index);
 		return -EINVAL;
 	}
-	peasycap->input = (int)index;
 
-	select_input(peasycap->pusb_device, peasycap->input, 9);
-
+	rc = newinput(peasycap, (int)index);
+	if (0 == rc) {
+		JOM(8, "newinput(.,%i) OK\n", (int)index);
+	} else {
+		SAM("ERROR: newinput(.,%i) returned %i\n", (int)index, rc);
+		return -EFAULT;
+	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1351,6 +1448,8 @@ case VIDIOC_S_FMT: {
 					v4l2_format.fmt.pix.field, \
 					try);
 	if (0 > best_format) {
+		if (-EBUSY == best_format)
+			return -EBUSY;
 		JOM(8, "WARNING: adjust_format() returned %i\n", best_format);
 		return -ENOENT;
 	}
@@ -1472,6 +1571,12 @@ case VIDIOC_G_STD: {
 
 	JOM(8, "VIDIOC_G_STD\n");
 
+	if (0 > peasycap->standard_offset) {
+		JOM(8, "%i=peasycap->standard_offset\n", \
+					peasycap->standard_offset);
+		return -EBUSY;
+	}
+
 	if (0 != copy_from_user(&std_id, (void __user *)arg, \
 						sizeof(v4l2_std_id)))
 		return -EFAULT;
@@ -1549,9 +1654,9 @@ case VIDIOC_QUERYBUF: {
 	JOM(8, "VIDIOC_QUERYBUF\n");
 
 	if (peasycap->video_eof) {
-		JOM(8, "returning -1 because  %i=video_eof\n", \
+		JOM(8, "returning -EIO because  %i=video_eof\n", \
 							peasycap->video_eof);
-		return -1;
+		return -EIO;
 	}
 
 	if (0 != copy_from_user(&v4l2_buffer, (void __user *)arg, \
@@ -1632,12 +1737,14 @@ case VIDIOC_DQBUF:
 	struct signed_div_result sdr;
 	long long int above, below, dnbydt, fudge, sll;
 	unsigned long long int ull;
-	struct timeval timeval0;
+	struct timeval timeval8;
 	struct timeval timeval1;
 #endif /*AUDIOTIME*/
 	struct timeval timeval, timeval2;
 	int i, j;
 	struct v4l2_buffer v4l2_buffer;
+	int rcdq;
+	__u16 input;
 
 	JOM(8, "VIDIOC_DQBUF\n");
 
@@ -1668,8 +1775,14 @@ case VIDIOC_DQBUF:
 /*---------------------------------------------------------------------------*/
 
 	if (!peasycap->polled) {
-		if (-EIO == easycap_dqbuf(peasycap, 0))
-			return -EIO;
+		do {
+			rcdq = easycap_dqbuf(peasycap, 0);
+			if (-EIO == rcdq) {
+				JOM(8, "returning -EIO because " \
+						"dqbuf() returned -EIO\n");
+				return -EIO;
+			}
+		} while (0 != rcdq);
 	} else {
 		if (peasycap->video_eof)
 			return -EIO;
@@ -1708,11 +1821,11 @@ case VIDIOC_DQBUF:
 
 #if defined(AUDIOTIME)
 	if (!peasycap->timeval0.tv_sec) {
-		timeval0 = timeval;
+		timeval8 = timeval;
 		timeval1 = timeval;
 		timeval2 = timeval;
 		dnbydt = 192000;
-		peasycap->timeval0 = timeval0;
+		peasycap->timeval0 = timeval8;
 	} else {
 		dnbydt = peasycap->dnbydt;
 		timeval1 = peasycap->timeval1;
@@ -1766,21 +1879,26 @@ case VIDIOC_DQBUF:
 	JOM(8, "..... user is offered frame buffer %i\n", \
 							peasycap->frame_read);
 	peasycap->frame_lock = 1;
+
+	input = peasycap->frame_buffer[peasycap->frame_read][0].input;
+	if (0x08 & input) {
+		JOM(8, "user is offered frame buffer %i, input %i\n", \
+					peasycap->frame_read, (0x07 & input));
+	} else {
+		JOM(8, "user is offered frame buffer %i\n", \
+							peasycap->frame_read);
+	}
+	peasycap->frame_lock = 1;
+	JOM(8, "%i=peasycap->frame_fill\n", peasycap->frame_fill);
 	if (peasycap->frame_read == peasycap->frame_fill) {
 		if (peasycap->frame_lock) {
-			JOM(8, "ERROR:  filling frame buffer " \
+			JOM(8, "WORRY:  filling frame buffer " \
 						"while offered to user\n");
 		}
 	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-/*---------------------------------------------------------------------------*/
-/*
- *  AUDIO URBS HAVE ALREADY BEEN SUBMITTED WHEN THIS COMMAND IS RECEIVED;
- *  VIDEO URBS HAVE NOT.
- */
-/*---------------------------------------------------------------------------*/
 case VIDIOC_STREAMON: {
 	int i;
 
@@ -1839,6 +1957,20 @@ case VIDIOC_G_PARM: {
 	v4l2_streamparm.parm.capture.capturemode = 0;
 	v4l2_streamparm.parm.capture.timeperframe.numerator = 1;
 	v4l2_streamparm.parm.capture.timeperframe.denominator = 30;
+
+	if (peasycap->fps) {
+		v4l2_streamparm.parm.capture.timeperframe.\
+						denominator = peasycap->fps;
+	} else {
+		if (true == peasycap->ntsc) {
+			v4l2_streamparm.parm.capture.timeperframe.\
+						denominator = 30;
+		} else {
+			v4l2_streamparm.parm.capture.timeperframe.\
+						denominator = 25;
+		}
+	}
+
 	v4l2_streamparm.parm.capture.readbuffers = peasycap->frame_buffer_many;
 	v4l2_streamparm.parm.capture.extendedmode = 0;
 	if (0 != copy_to_user((void __user *)arg, &v4l2_streamparm, \
@@ -2094,6 +2226,15 @@ case SNDCTL_DSP_GETISPACE: {
 								sizeof(int)))
 		return -EFAULT;
 	break;
+}
+case 0x00005401:
+case 0x00005402:
+case 0x00005403:
+case 0x00005404:
+case 0x00005405:
+case 0x00005406: {
+	JOM(8, "SNDCTL_TMR_...: 0x%08X unsupported\n", cmd);
+	return -ENOIOCTLCMD;
 }
 default: {
 	JOM(8, "ERROR: unrecognized DSP IOCTL command: 0x%08X\n", cmd);
