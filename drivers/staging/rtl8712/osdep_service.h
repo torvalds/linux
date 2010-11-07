@@ -196,10 +196,7 @@ static inline void sleep_schedulable(int ms)
 
 static inline u8 *_malloc(u32 sz)
 {
-	u8 *pbuf;
-
-	pbuf =	kmalloc(sz, GFP_ATOMIC);
-	return pbuf;
+	return	kmalloc(sz, GFP_ATOMIC);
 }
 
 static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
