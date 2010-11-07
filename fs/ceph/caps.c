@@ -2689,6 +2689,11 @@ static void handle_cap_import(struct ceph_mds_client *mdsc,
 		     NULL /* no caps context */);
 	try_flush_caps(inode, session, NULL);
 	up_read(&mdsc->snap_rwsem);
+
+	/* make sure we re-request max_size, if necessary */
+	spin_lock(&inode->i_lock);
+	ci->i_requested_max_size = 0;
+	spin_unlock(&inode->i_lock);
 }
 
 /*
