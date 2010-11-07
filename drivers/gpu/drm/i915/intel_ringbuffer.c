@@ -173,7 +173,7 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 	}
 
 	I915_WRITE_CTL(ring,
-			((ring->gem_object->size - PAGE_SIZE) & RING_NR_PAGES)
+			((ring->size - PAGE_SIZE) & RING_NR_PAGES)
 			| RING_REPORT_64K | RING_VALID);
 
 	/* If the head is still not zero, the ring is dead */
