@@ -2127,10 +2127,7 @@ void cy_as_hal_pll_lock_loss_handler(cy_as_hal_device_tag tag)
  */
 void *cy_as_hal_alloc(uint32_t cnt)
 {
-	void *ret_p;
-
-	ret_p = kmalloc(cnt, GFP_ATOMIC);
-	return ret_p;
+	return kmalloc(cnt, GFP_ATOMIC);
 }
 
 /*
@@ -2150,10 +2147,7 @@ void cy_as_hal_free(void *mem_p)
  */
 void *cy_as_hal_c_b_alloc(uint32_t cnt)
 {
-	void *ret_p;
-
-	ret_p = kmalloc(cnt, GFP_ATOMIC);
-	return ret_p;
+	return kmalloc(cnt, GFP_ATOMIC);
 }
 
 /*
