@@ -1326,6 +1326,7 @@ struct bm_extent {
 
 #define BME_NO_WRITES  0  /* bm_extent.flags: no more requests on this one! */
 #define BME_LOCKED     1  /* bm_extent.flags: syncer active on this one. */
+#define BME_PRIORITY   2  /* finish resync IO on this extent ASAP! App IO waiting! */
 
 /* drbd_bitmap.c */
 /*
@@ -1552,7 +1553,7 @@ extern int w_start_resync(struct drbd_conf *, struct drbd_work *, int);
 extern void resync_timer_fn(unsigned long data);
 
 /* drbd_receiver.c */
-extern int drbd_rs_should_slow_down(struct drbd_conf *mdev);
+extern int drbd_rs_should_slow_down(struct drbd_conf *mdev, sector_t sector);
 extern int drbd_submit_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e,
 		const unsigned rw, const int fault_type);
 extern int drbd_release_ee(struct drbd_conf *mdev, struct list_head *list);

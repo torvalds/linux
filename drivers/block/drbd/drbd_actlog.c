@@ -182,6 +182,7 @@ static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr)
 	if (unlikely(tmp != NULL)) {
 		struct bm_extent  *bm_ext = lc_entry(tmp, struct bm_extent, lce);
 		if (test_bit(BME_NO_WRITES, &bm_ext->flags)) {
+			set_bit(BME_PRIORITY, &bm_ext->flags);
 			spin_unlock_irq(&mdev->al_lock);
 			return NULL;
 		}
@@ -1297,8 +1298,7 @@ void drbd_rs_complete_io(struct drbd_conf *mdev, sector_t sector)
 	}
 
 	if (lc_put(mdev->resync, &bm_ext->lce) == 0) {
-		clear_bit(BME_LOCKED, &bm_ext->flags);
-		clear_bit(BME_NO_WRITES, &bm_ext->flags);
+		bm_ext->flags = 0; /* clear BME_LOCKED, BME_NO_WRITES and BME_PRIORITY */
 		mdev->resync_locked--;
 		wake_up(&mdev->al_wait);
 	}
