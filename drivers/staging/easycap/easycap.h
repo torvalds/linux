@@ -121,7 +121,7 @@
 #define EASYCAP_DRIVER_DESCRIPTION "easycapdc60"
 
 #define USB_SKEL_MINOR_BASE     192
-#define VIDEO_DEVICE_MANY 8
+#define DONGLE_MANY 8
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -264,6 +264,17 @@ struct v4l2_format v4l2_format;
  */
 /*---------------------------------------------------------------------------*/
 struct easycap {
+int isdongle;
+
+/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
+#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
+struct video_device video_device;
+#if defined(EASYCAP_NEEDS_V4L2_DEVICE_H)
+struct v4l2_device v4l2_device;
+#endif /*EASYCAP_NEEDS_V4L2_DEVICE_H*/
+#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
+/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
+
 unsigned int audio_pages_per_fragment;
 unsigned int audio_bytes_per_fragment;
 unsigned int audio_buffer_page_many;
@@ -275,12 +286,6 @@ __s16 oldaudio;
 
 int ilk;
 bool microphone;
-
-/*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
-#if defined(EASYCAP_IS_VIDEODEV_CLIENT)
-struct video_device *pvideo_device;
-#endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 
 struct usb_device *pusb_device;
 struct usb_interface *pusb_interface;
@@ -306,7 +311,10 @@ int merit[180];
 struct timeval timeval0;
 struct timeval timeval1;
 struct timeval timeval2;
+struct timeval timeval3;
+struct timeval timeval6;
 struct timeval timeval7;
+struct timeval timeval8;
 long long int dnbydt;
 
 int    video_interface;
@@ -331,6 +339,13 @@ struct data_buffer \
 
 struct list_head urb_video_head;
 struct list_head *purb_video_head;
+
+__u8 cache[8];
+__u8 *pcache;
+int video_mt;
+int audio_mt;
+long long audio_bytes;
+__u32 isequence;
 
 int vma_many;
 
@@ -530,6 +545,7 @@ int              set2to93(struct usb_device *);
 
 int              regset(struct usb_device *, __u16, __u16);
 int              regget(struct usb_device *, __u16, void *);
+int		isdongle(struct easycap *);
 /*---------------------------------------------------------------------------*/
 struct signed_div_result {
 long long int quotient;
@@ -557,20 +573,39 @@ unsigned long long int remainder;
 	} \
 } while (0)
 /*---------------------------------------------------------------------------*/
-
+/*
+ *  MACROS SAM(...) AND JOM(...) ALLOW DIAGNOSTIC OUTPUT TO BE TAGGED WITH
+ *  THE IDENTITY OF THE DONGLE TO WHICH IT APPLIES, BUT IF INVOKED WHEN THE
+ *  POINTER peasycap IS INVALID AN Oops IS LIKELY, AND ITS CAUSE MAY NOT BE
+ *  IMMEDIATELY OBVIOUS FROM A CASUAL READING OF THE SOURCE CODE.  BEWARE.
+*/
+/*---------------------------------------------------------------------------*/
 #define SAY(format, args...) do { \
-	printk(KERN_DEBUG "easycap: %s: " format, __func__, ##args); \
+	printk(KERN_DEBUG "easycap:: %s: " \
+			format, __func__, ##args); \
 } while (0)
-
+#define SAM(format, args...) do { \
+	printk(KERN_DEBUG "easycap::%i%s: " \
+			format, peasycap->isdongle, __func__, ##args);\
+} while (0)
 
 #if defined(EASYCAP_DEBUG)
 #define JOT(n, format, args...) do { \
 	if (n <= debug) { \
-		printk(KERN_DEBUG "easycap: %s: " format, __func__, ##args); \
+		printk(KERN_DEBUG "easycap:: %s: " \
+			format, __func__, ##args);\
 	} \
 } while (0)
+#define JOM(n, format, args...) do { \
+	if (n <= debug) { \
+		printk(KERN_DEBUG "easycap::%i%s: " \
+			format, peasycap->isdongle, __func__, ##args);\
+	} \
+} while (0)
+
 #else
 #define JOT(n, format, args...) do {} while (0)
+#define JOM(n, format, args...) do {} while (0)
 #endif /*EASYCAP_DEBUG*/
 
 #define MICROSECONDS(X, Y) \

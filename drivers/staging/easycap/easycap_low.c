@@ -783,6 +783,12 @@ return usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0), \
 		(int)50000);
 }
 /*****************************************************************************/
+int
+audio_setup(struct easycap *peasycap)
+{
+struct usb_device *pusb_device;
+unsigned char buffer[1];
+int rc, id1, id2;
 /*---------------------------------------------------------------------------*/
 /*
  *                                IMPORTANT:
@@ -791,20 +797,12 @@ return usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0), \
  *  TO ENABLE AUDIO  THE VALUE 0x0200 MUST BE SENT.
  */
 /*---------------------------------------------------------------------------*/
-int
-audio_setup(struct easycap *peasycap)
-{
-struct usb_device *pusb_device;
-static __u8 request = 0x01;
-static __u8 requesttype = \
+const __u8 request = 0x01;
+const __u8 requesttype = \
 		(__u8)(USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE);
-
-static __u16 value_unmute = 0x0200;
-static __u16 index = 0x0301;
-
-static unsigned char buffer[1];
-static __u16 length = 1;
-int rc, id1, id2;
+const __u16 value_unmute = 0x0200;
+const __u16 index = 0x0301;
+const __u16 length = 1;
 
 if (NULL == peasycap)
 	return -EFAULT;
