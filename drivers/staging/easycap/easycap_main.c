@@ -471,7 +471,7 @@ if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -ENODEV;
 }
-rc = usb_set_interface(peasycap->pusb_device, \
+rc = usb_set_interface(peasycap->pusb_device,
 			peasycap->video_interface, \
 			peasycap->video_altsetting_off);
 if (0 != rc) {
@@ -1103,7 +1103,7 @@ else
 int
 easycap_dqbuf(struct easycap *peasycap, int mode)
 {
-int miss, rc;
+int ifield, miss, rc;
 
 JOT(8, "\n");
 
@@ -1111,16 +1111,18 @@ if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL\n");
 	return -EFAULT;
 }
+ifield = 0;
+JOM(8, "%i=ifield\n", ifield);
 /*---------------------------------------------------------------------------*/
 /*
- *  WAIT FOR FIELD 0
+ *  WAIT FOR FIELD ifield  (0 => TOP, 1 => BOTTOM)
  */
 /*---------------------------------------------------------------------------*/
 miss = 0;
 while ((peasycap->field_read == peasycap->field_fill) || \
 				(0 != (0xFF00 & peasycap->field_buffer\
 					[peasycap->field_read][0].kount)) || \
-				(0 != (0x00FF & peasycap->field_buffer\
+				(ifield != (0x00FF & peasycap->field_buffer\
 					[peasycap->field_read][0].kount))) {
 	if (mode)
 		return -EAGAIN;
@@ -1134,7 +1136,7 @@ while ((peasycap->field_read == peasycap->field_fill) || \
 			((peasycap->field_read != peasycap->field_fill) && \
 				(0 == (0xFF00 & peasycap->field_buffer\
 					[peasycap->field_read][0].kount)) && \
-				(0 == (0x00FF & peasycap->field_buffer\
+				(ifield == (0x00FF & peasycap->field_buffer\
 					[peasycap->field_read][0].kount))))))) {
 		SAM("aborted by signal\n");
 		return -EIO;
@@ -1176,33 +1178,20 @@ JOM(8, "first awakening on wq_video after %i waits\n", miss);
 rc = field2frame(peasycap);
 if (0 != rc)
 	SAM("ERROR: field2frame() returned %i\n", rc);
-
-if (true == peasycap->offerfields) {
-	peasycap->frame_read = peasycap->frame_fill;
-	(peasycap->frame_fill)++;
-	if (peasycap->frame_buffer_many <= peasycap->frame_fill)
-		peasycap->frame_fill = 0;
-
-	if (0x01 & easycap_standard[peasycap->standard_offset].mask) {
-		peasycap->frame_buffer[peasycap->frame_read][0].kount = \
-							V4L2_FIELD_BOTTOM;
-	} else {
-		peasycap->frame_buffer[peasycap->frame_read][0].kount = \
-							V4L2_FIELD_TOP;
-	}
-JOM(8, "setting:    %i=peasycap->frame_read\n", peasycap->frame_read);
-JOM(8, "bumped to:  %i=peasycap->frame_fill\n", peasycap->frame_fill);
-}
 /*---------------------------------------------------------------------------*/
 /*
- *  WAIT FOR FIELD 1
+ *  WAIT FOR THE OTHER FIELD
  */
 /*---------------------------------------------------------------------------*/
+if (ifield)
+	ifield = 0;
+else
+	ifield = 1;
 miss = 0;
 while ((peasycap->field_read == peasycap->field_fill) || \
 				(0 != (0xFF00 & peasycap->field_buffer\
 					[peasycap->field_read][0].kount)) || \
-				(0 == (0x00FF & peasycap->field_buffer\
+				(ifield != (0x00FF & peasycap->field_buffer\
 					[peasycap->field_read][0].kount))) {
 	if (mode)
 		return -EAGAIN;
@@ -1215,8 +1204,9 @@ while ((peasycap->field_read == peasycap->field_fill) || \
 			((peasycap->field_read != peasycap->field_fill) && \
 				(0 == (0xFF00 & peasycap->field_buffer\
 					[peasycap->field_read][0].kount)) && \
-				(0 != (0x00FF & peasycap->field_buffer\
-					[peasycap->field_read][0].kount))))))) {
+				(ifield == (0x00FF & peasycap->field_buffer\
+					[peasycap->field_read][0].\
+								kount))))))) {
 		SAM("aborted by signal\n");
 		return -EIO;
 	}
@@ -1257,7 +1247,18 @@ JOM(8, "second awakening on wq_video after %i waits\n", miss);
 rc = field2frame(peasycap);
 if (0 != rc)
 	SAM("ERROR: field2frame() returned %i\n", rc);
-
+/*---------------------------------------------------------------------------*/
+/*
+ *  WASTE THIS FRAME
+*/
+/*---------------------------------------------------------------------------*/
+if (0 != peasycap->skip) {
+	peasycap->skipped++;
+	if (peasycap->skip != peasycap->skipped)
+		return peasycap->skip - peasycap->skipped;
+	peasycap->skipped = 0;
+}
+/*---------------------------------------------------------------------------*/
 peasycap->frame_read = peasycap->frame_fill;
 peasycap->queued[peasycap->frame_read] = 0;
 peasycap->done[peasycap->frame_read]   = V4L2_BUF_FLAG_DONE;
@@ -1289,8 +1290,7 @@ return 0;
  *  odd==false IS TRANSFERRED TO THE FRAME BUFFER.
  *
  *  THE BOOLEAN PARAMETER offerfields IS true ONLY WHEN THE USER PROGRAM
- *  CHOOSES THE OPTION V4L2_FIELD_ALTERNATE.  NO USERSPACE PROGRAM TESTED
- *  TO DATE HAS DONE THIS.  BUGS ARE LIKELY.
+ *  CHOOSES THE OPTION V4L2_FIELD_INTERLACED.
  */
 /*---------------------------------------------------------------------------*/
 int
@@ -1315,8 +1315,10 @@ if ((struct easycap *)NULL == peasycap) {
 
 badinput = false;
 
-JOM(8, "=====  parity %i, field buffer %i --> frame buffer %i\n", \
+JOM(8, "=====  parity %i, input 0x%02X, field buffer %i --> " \
+						"frame buffer %i\n", \
 			peasycap->field_buffer[peasycap->field_read][0].kount,\
+			peasycap->field_buffer[peasycap->field_read][0].input,\
 			peasycap->field_read, peasycap->frame_fill);
 JOM(8, "=====  %i=bytesperpixel\n", peasycap->bytesperpixel);
 if (true == peasycap->offerfields)
@@ -1374,7 +1376,7 @@ if (peasycap->field_buffer[kex][0].kount)
 else
 	odd = false;
 
-if ((true == odd) && (false == offerfields) &&(false == decimatepixel)) {
+if ((true == odd) && (false == decimatepixel)) {
 	JOM(8, "  initial skipping    %4i          bytes p.%4i\n", \
 							w3/multiplier, mad);
 	pad += (w3 / multiplier);  rad -= (w3 / multiplier);
@@ -1494,7 +1496,7 @@ while (cz < wz) {
  *  UNLESS IT IS THE LAST LINE OF AN ODD FRAME
  */
 /*---------------------------------------------------------------------------*/
-		if (((false == odd) || (cz != wz))&&(false == offerfields)) {
+		if ((false == odd) || (cz != wz)) {
 			over = w3;
 			do {
 				if (!rad) {
@@ -3162,6 +3164,15 @@ if (purb->status) {
 							[peasycap->field_page];
 					pfield_buffer->pto = \
 							pfield_buffer->pgo;
+					pfield_buffer->input = 0x08 | \
+						(0x07 & peasycap->input);
+					if ((peasycap->field_buffer[peasycap->\
+							field_fill][0]).\
+								input != \
+							pfield_buffer->input)
+						(peasycap->field_buffer\
+							[peasycap->field_fill]\
+							[0]).kount |= 0x1000;
 				}
 
 				much = PAGE_SIZE - (int)(pfield_buffer->pto - \
@@ -3441,7 +3452,6 @@ if (0 == bInterfaceNumber) {
 			break;
 		}
 	}
-
 	if (DONGLE_MANY <= dongle_this) {
 		SAM("ERROR: too many dongles\n");
 		return -ENOMEM;
@@ -3481,6 +3491,8 @@ if (0 == bInterfaceNumber) {
 
 	peasycap->frame_buffer_many = FRAME_BUFFER_MANY;
 
+	peasycap->skip = 0;
+	peasycap->skipped = 0;
 	peasycap->offerfields = 0;
 /*---------------------------------------------------------------------------*/
 /*

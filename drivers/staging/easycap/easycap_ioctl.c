@@ -40,6 +40,7 @@
  *          peasycap->fps
  *          peasycap->usec
  *          peasycap->tolerate
+ *          peasycap->skip
  */
 /*---------------------------------------------------------------------------*/
 int adjust_standard(struct easycap *peasycap, v4l2_std_id std_id)
@@ -60,9 +61,17 @@ if ((struct usb_device *)NULL == peasycap->pusb_device) {
 }
 peasycap_standard = &easycap_standard[0];
 while (0xFFFF != peasycap_standard->mask) {
-	if (std_id & peasycap_standard->v4l2_standard.id)
+	if (std_id == peasycap_standard->v4l2_standard.id)
 		break;
 	peasycap_standard++;
+}
+if (0xFFFF == peasycap_standard->mask) {
+	peasycap_standard = &easycap_standard[0];
+	while (0xFFFF != peasycap_standard->mask) {
+		if (std_id & peasycap_standard->v4l2_standard.id)
+			break;
+		peasycap_standard++;
+	}
 }
 if (0xFFFF == peasycap_standard->mask) {
 	SAM("ERROR: 0x%08X=std_id: standard not found\n", \
@@ -92,10 +101,12 @@ if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
 peasycap->fps = peasycap_standard->v4l2_standard.frameperiod.denominator / \
 		peasycap_standard->v4l2_standard.frameperiod.numerator;
 switch (peasycap->fps) {
+case 6:
 case 30: {
 	peasycap->ntsc = true;
 	break;
 }
+case 5:
 case 25: {
 	peasycap->ntsc = false;
 	break;
@@ -106,9 +117,15 @@ default: {
 }
 }
 JOM(8, "%i frames-per-second\n", peasycap->fps);
-peasycap->usec = 1000000 / (2 * peasycap->fps);
-peasycap->tolerate = 1000 * (25 / peasycap->fps);
-
+if (0x8000 & peasycap_standard->mask) {
+	peasycap->skip = 5;
+	peasycap->usec = 1000000 / (2 * (5 * peasycap->fps));
+	peasycap->tolerate = 1000 * (25 / (5 * peasycap->fps));
+} else {
+	peasycap->skip = 0;
+	peasycap->usec = 1000000 / (2 * peasycap->fps);
+	peasycap->tolerate = 1000 * (25 / peasycap->fps);
+}
 if (peasycap->video_isoc_streaming) {
 	resubmit = true;
 	kill_video_urbs(peasycap);
@@ -311,7 +328,6 @@ return 0;
  *          peasycap->format_offset
  *          peasycap->inputset[peasycap->input].format_offset
  *          peasycap->pixelformat
- *          peasycap->field
  *          peasycap->height
  *          peasycap->width
  *          peasycap->bytesperpixel
@@ -333,7 +349,7 @@ struct easycap_format *peasycap_format, *peasycap_best_format;
 __u16 mask;
 struct usb_device *p;
 int miss, multiplier, best, k;
-char bf[5], *pc;
+char bf[5], fo[32], *pc;
 __u32 uc;
 bool resubmit;
 
@@ -351,13 +367,62 @@ if ((struct usb_device *)NULL == p) {
 	return -EFAULT;
 }
 pc = &bf[0];
-uc = pixelformat;  memcpy((void *)pc, (void *)(&uc), 4);  bf[4] = 0;
-mask = easycap_standard[peasycap->standard_offset].mask;
+uc = pixelformat;
+memcpy((void *)pc, (void *)(&uc), 4);
+bf[4] = 0;
+mask = 0xFF & easycap_standard[peasycap->standard_offset].mask;
 SAM("sought:    %ix%i,%s(0x%08X),%i=field,0x%02X=std mask\n", \
 				width, height, pc, pixelformat, field, mask);
+switch (field) {
+case V4L2_FIELD_ANY: {
+	strcpy(&fo[0], "V4L2_FIELD_ANY ");
+	break;
+}
+case V4L2_FIELD_NONE: {
+	strcpy(&fo[0], "V4L2_FIELD_NONE");
+	break;
+}
+case V4L2_FIELD_TOP: {
+	strcpy(&fo[0], "V4L2_FIELD_TOP");
+	break;
+}
+case V4L2_FIELD_BOTTOM: {
+	strcpy(&fo[0], "V4L2_FIELD_BOTTOM");
+	break;
+}
+case V4L2_FIELD_INTERLACED: {
+	strcpy(&fo[0], "V4L2_FIELD_INTERLACED");
+	break;
+}
+case V4L2_FIELD_SEQ_TB: {
+	strcpy(&fo[0], "V4L2_FIELD_SEQ_TB");
+	break;
+}
+case V4L2_FIELD_SEQ_BT: {
+	strcpy(&fo[0], "V4L2_FIELD_SEQ_BT");
+	break;
+}
+case V4L2_FIELD_ALTERNATE: {
+	strcpy(&fo[0], "V4L2_FIELD_ALTERNATE");
+	break;
+}
+case V4L2_FIELD_INTERLACED_TB: {
+	strcpy(&fo[0], "V4L2_FIELD_INTERLACED_TB");
+	break;
+}
+case V4L2_FIELD_INTERLACED_BT: {
+	strcpy(&fo[0], "V4L2_FIELD_INTERLACED_BT");
+	break;
+}
+default: {
+	strcpy(&fo[0], "V4L2_FIELD_... UNKNOWN  ");
+	break;
+}
+}
+SAM("sought:    %s\n", &fo[0]);
 if (V4L2_FIELD_ANY == field) {
-	field = V4L2_FIELD_INTERLACED;
-	SAM("prefer:    V4L2_FIELD_INTERLACED=field, was V4L2_FIELD_ANY\n");
+	field = V4L2_FIELD_NONE;
+	SAM("prefer:    V4L2_FIELD_NONE=field, was V4L2_FIELD_ANY\n");
 }
 peasycap_best_format = (struct easycap_format *)NULL;
 peasycap_format = &easycap_format[0];
@@ -369,7 +434,7 @@ while (0 != peasycap_format->v4l2_format.fmt.pix.width) {
 		peasycap_format->v4l2_format.fmt.pix.width,
 		peasycap_format->v4l2_format.fmt.pix.height);
 
-	if (((peasycap_format->mask & 0x0F) == (mask & 0x0F)) && \
+	if (((peasycap_format->mask & 0x1F) == (mask & 0x1F)) && \
 		(peasycap_format->v4l2_format.fmt.pix.field == field) && \
 		(peasycap_format->v4l2_format.fmt.pix.pixelformat == \
 							pixelformat) && \
@@ -385,7 +450,7 @@ if (0 == peasycap_format->v4l2_format.fmt.pix.width) {
 							width, height, mask);
 	peasycap_format = &easycap_format[0];  best = -1;
 	while (0 != peasycap_format->v4l2_format.fmt.pix.width) {
-		if (((peasycap_format->mask & 0x0F) == (mask & 0x0F)) && \
+		if (((peasycap_format->mask & 0x1F) == (mask & 0x1F)) && \
 				 (peasycap_format->v4l2_format.fmt.pix\
 						.field == field) && \
 				 (peasycap_format->v4l2_format.fmt.pix\
@@ -432,7 +497,6 @@ SAM("actioning: %ix%i %s\n", \
 peasycap->height        = peasycap_format->v4l2_format.fmt.pix.height;
 peasycap->width         = peasycap_format->v4l2_format.fmt.pix.width;
 peasycap->pixelformat   = peasycap_format->v4l2_format.fmt.pix.pixelformat;
-peasycap->field         = peasycap_format->v4l2_format.fmt.pix.field;
 peasycap->format_offset = (int)(peasycap_format - &easycap_format[0]);
 
 
@@ -451,11 +515,15 @@ if ((0 <= peasycap->input) && (INPUT_MANY > peasycap->input)) {
 
 
 
-peasycap->bytesperpixel = (0x00F0 & peasycap_format->mask) >> 4 ;
+peasycap->bytesperpixel = (0x00E0 & peasycap_format->mask) >> 5 ;
 if (0x0100 & peasycap_format->mask)
 	peasycap->byteswaporder = true;
 else
 	peasycap->byteswaporder = false;
+if (0x0200 & peasycap_format->mask)
+	peasycap->skip = 5;
+else
+	peasycap->skip = 0;
 if (0x0800 & peasycap_format->mask)
 	peasycap->decimatepixel = true;
 else
@@ -472,24 +540,6 @@ peasycap->videofieldamount = multiplier * peasycap->width * \
 					multiplier * peasycap->height;
 peasycap->frame_buffer_used = peasycap->bytesperpixel * \
 					peasycap->width * peasycap->height;
-
-if (true == peasycap->offerfields) {
-	SAM("WARNING: %i=peasycap->field is untested: " \
-				"please report problems\n", peasycap->field);
-
-
-/*
- *    FIXME ---- THIS IS UNTESTED, MAY BE (AND PROBABLY IS) INCORRECT:
- *
- *    peasycap->frame_buffer_used = peasycap->frame_buffer_used / 2;
- *
- *    SO DO NOT RISK IT YET.
- *
- */
-
-
-
-}
 if (peasycap->video_isoc_streaming) {
 	resubmit = true;
 	kill_video_urbs(peasycap);
@@ -1386,13 +1436,191 @@ case VIDIOC_ENUM_FMT: {
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/*
+ *  THE RESPONSE TO VIDIOC_ENUM_FRAMESIZES MUST BE CONDITIONED ON THE
+ *  THE CURRENT STANDARD, BECAUSE THAT IS WHAT gstreamer EXPECTS.  BEWARE.
+*/
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_ENUM_FRAMESIZES: {
-	JOM(8, "VIDIOC_ENUM_FRAMESIZES unsupported\n");
-	return -EINVAL;
+	__u32 index;
+	struct v4l2_frmsizeenum v4l2_frmsizeenum;
+
+	JOM(8, "VIDIOC_ENUM_FRAMESIZES\n");
+
+	if (0 != copy_from_user(&v4l2_frmsizeenum, (void __user *)arg, \
+					sizeof(struct v4l2_frmsizeenum)))
+		return -EFAULT;
+
+	index = v4l2_frmsizeenum.index;
+
+	v4l2_frmsizeenum.type = (__u32) V4L2_FRMSIZE_TYPE_DISCRETE;
+
+	if (true == peasycap->ntsc) {
+		switch (index) {
+		case 0: {
+			v4l2_frmsizeenum.discrete.width = 640;
+			v4l2_frmsizeenum.discrete.height = 480;
+			JOM(8, "%i=index: %ix%i\n", index, \
+					(int)(v4l2_frmsizeenum.\
+						 discrete.width), \
+					(int)(v4l2_frmsizeenum.\
+						discrete.height));
+			break;
+		}
+		case 1: {
+			v4l2_frmsizeenum.discrete.width = 320;
+			v4l2_frmsizeenum.discrete.height = 240;
+			JOM(8, "%i=index: %ix%i\n", index, \
+					(int)(v4l2_frmsizeenum.\
+						discrete.width), \
+					(int)(v4l2_frmsizeenum.\
+						discrete.height));
+			break;
+		}
+		case 2: {
+			v4l2_frmsizeenum.discrete.width = 720;
+			v4l2_frmsizeenum.discrete.height = 480;
+			JOM(8, "%i=index: %ix%i\n", index, \
+					(int)(v4l2_frmsizeenum.\
+						discrete.width), \
+					(int)(v4l2_frmsizeenum.\
+						discrete.height));
+			break;
+		}
+		case 3: {
+			v4l2_frmsizeenum.discrete.width = 360;
+			v4l2_frmsizeenum.discrete.height = 240;
+			JOM(8, "%i=index: %ix%i\n", index, \
+					(int)(v4l2_frmsizeenum.\
+						discrete.width), \
+					(int)(v4l2_frmsizeenum.\
+						discrete.height));
+			break;
+		}
+		default: {
+			JOM(8, "%i=index: exhausts framesizes\n", index);
+			return -EINVAL;
+		}
+		}
+	} else {
+		switch (index) {
+		case 0: {
+			v4l2_frmsizeenum.discrete.width = 640;
+			v4l2_frmsizeenum.discrete.height = 480;
+			JOM(8, "%i=index: %ix%i\n", index, \
+					(int)(v4l2_frmsizeenum.\
+						discrete.width), \
+					(int)(v4l2_frmsizeenum.\
+						discrete.height));
+			break;
+		}
+		case 1: {
+			v4l2_frmsizeenum.discrete.width = 320;
+			v4l2_frmsizeenum.discrete.height = 240;
+			JOM(8, "%i=index: %ix%i\n", index, \
+					(int)(v4l2_frmsizeenum.\
+						discrete.width), \
+					(int)(v4l2_frmsizeenum.\
+						discrete.height));
+			break;
+		}
+		case 2: {
+			v4l2_frmsizeenum.discrete.width = 704;
+			v4l2_frmsizeenum.discrete.height = 576;
+			JOM(8, "%i=index: %ix%i\n", index, \
+					(int)(v4l2_frmsizeenum.\
+						discrete.width), \
+					(int)(v4l2_frmsizeenum.\
+						discrete.height));
+			break;
+		}
+		case 3: {
+			v4l2_frmsizeenum.discrete.width = 720;
+			v4l2_frmsizeenum.discrete.height = 576;
+			JOM(8, "%i=index: %ix%i\n", index, \
+					(int)(v4l2_frmsizeenum.\
+						discrete.width), \
+					(int)(v4l2_frmsizeenum.\
+						discrete.height));
+			break;
+		}
+		case 4: {
+			v4l2_frmsizeenum.discrete.width = 360;
+			v4l2_frmsizeenum.discrete.height = 288;
+			JOM(8, "%i=index: %ix%i\n", index, \
+					(int)(v4l2_frmsizeenum.\
+						discrete.width), \
+					(int)(v4l2_frmsizeenum.\
+						discrete.height));
+			break;
+		}
+		default: {
+			JOM(8, "%i=index: exhausts framesizes\n", index);
+			return -EINVAL;
+		}
+		}
+	}
+	if (0 != copy_to_user((void __user *)arg, &v4l2_frmsizeenum, \
+					sizeof(struct v4l2_frmsizeenum)))
+		return -EFAULT;
+	break;
 }
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/*
+ *  THE RESPONSE TO VIDIOC_ENUM_FRAMEINTERVALS MUST BE CONDITIONED ON THE
+ *  THE CURRENT STANDARD, BECAUSE THAT IS WHAT gstreamer EXPECTS.  BEWARE.
+*/
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_ENUM_FRAMEINTERVALS: {
-	JOM(8, "VIDIOC_ENUM_FRAME_INTERVALS unsupported\n");
-	return -EINVAL;
+	__u32 index;
+	int denominator;
+	struct v4l2_frmivalenum v4l2_frmivalenum;
+
+	JOM(8, "VIDIOC_ENUM_FRAMEINTERVALS\n");
+
+	if (peasycap->fps)
+		denominator = peasycap->fps;
+	else {
+		if (true == peasycap->ntsc)
+			denominator = 30;
+		else
+			denominator = 25;
+	}
+
+	if (0 != copy_from_user(&v4l2_frmivalenum, (void __user *)arg, \
+					sizeof(struct v4l2_frmivalenum)))
+		return -EFAULT;
+
+	index = v4l2_frmivalenum.index;
+
+	v4l2_frmivalenum.type = (__u32) V4L2_FRMIVAL_TYPE_DISCRETE;
+
+	switch (index) {
+	case 0: {
+		v4l2_frmivalenum.discrete.numerator = 1;
+		v4l2_frmivalenum.discrete.denominator = denominator;
+		JOM(8, "%i=index: %i/%i\n", index, \
+			(int)(v4l2_frmivalenum.discrete.numerator), \
+			(int)(v4l2_frmivalenum.discrete.denominator));
+		break;
+	}
+	case 1: {
+		v4l2_frmivalenum.discrete.numerator = 1;
+		v4l2_frmivalenum.discrete.denominator = denominator/5;
+		JOM(8, "%i=index: %i/%i\n", index, \
+			(int)(v4l2_frmivalenum.discrete.numerator), \
+			(int)(v4l2_frmivalenum.discrete.denominator));
+		break;
+	}
+	default: {
+		JOM(8, "%i=index: exhausts frameintervals\n", index);
+		return -EINVAL;
+	}
+	}
+	if (0 != copy_to_user((void __user *)arg, &v4l2_frmivalenum, \
+					sizeof(struct v4l2_frmivalenum)))
+		return -EFAULT;
+	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_G_FMT: {
@@ -1603,6 +1831,10 @@ case VIDIOC_S_STD: {
 						sizeof(v4l2_std_id)))
 		return -EFAULT;
 
+	JOM(8, "User requests standard: 0x%08X%08X\n", \
+		(int)((std_id & (((v4l2_std_id)0xFFFFFFFF) << 32)) >> 32), \
+		(int)(std_id & ((v4l2_std_id)0xFFFFFFFF)));
+
 	rc = adjust_standard(peasycap, std_id);
 	if (0 > rc) {
 		JOM(8, "WARNING: adjust_standard() returned %i\n", rc);
@@ -1675,7 +1907,7 @@ case VIDIOC_QUERYBUF: {
 	v4l2_buffer.flags = V4L2_BUF_FLAG_MAPPED | \
 						peasycap->done[index] | \
 						peasycap->queued[index];
-	v4l2_buffer.field = peasycap->field;
+	v4l2_buffer.field = V4L2_FIELD_NONE;
 	v4l2_buffer.memory = V4L2_MEMORY_MMAP;
 	v4l2_buffer.m.offset = index * FRAME_BUFFER_SIZE;
 	v4l2_buffer.length = FRAME_BUFFER_SIZE;
@@ -1762,6 +1994,24 @@ case VIDIOC_DQBUF:
 	if (v4l2_buffer.type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
+	if (true == peasycap->offerfields) {
+		/*-----------------------------------------------------------*/
+		/*
+		 *  IN ITS 50 "fps" MODE tvtime SEEMS ALWAYS TO REQUEST
+		 *  V4L2_FIELD_BOTTOM
+		*/
+		/*-----------------------------------------------------------*/
+		if (V4L2_FIELD_TOP == v4l2_buffer.field)
+			JOM(8, "user wants V4L2_FIELD_TOP\n");
+		else if (V4L2_FIELD_BOTTOM == v4l2_buffer.field)
+			JOM(8, "user wants V4L2_FIELD_BOTTOM\n");
+		else if (V4L2_FIELD_ANY == v4l2_buffer.field)
+			JOM(8, "user wants V4L2_FIELD_ANY\n");
+		else
+			JOM(8, "user wants V4L2_FIELD_...UNKNOWN: %i\n", \
+							v4l2_buffer.field);
+	}
+
 	if (!peasycap->video_isoc_streaming) {
 		JOM(16, "returning -EIO because video urbs not streaming\n");
 		return -EIO;
@@ -1811,11 +2061,10 @@ case VIDIOC_DQBUF:
 	v4l2_buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	v4l2_buffer.bytesused = peasycap->frame_buffer_used;
 	v4l2_buffer.flags = V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_DONE;
-	v4l2_buffer.field =  peasycap->field;
-	if (V4L2_FIELD_ALTERNATE == v4l2_buffer.field)
-		v4l2_buffer.field = \
-				0x000F & (peasycap->\
-				frame_buffer[peasycap->frame_read][0].kount);
+	if (true == peasycap->offerfields)
+		v4l2_buffer.field = V4L2_FIELD_BOTTOM;
+	else
+		v4l2_buffer.field = V4L2_FIELD_NONE;
 	do_gettimeofday(&timeval);
 	timeval2 = timeval;
 
@@ -1875,10 +2124,6 @@ case VIDIOC_DQBUF:
 	if (0 != copy_to_user((void __user *)arg, &v4l2_buffer, \
 						sizeof(struct v4l2_buffer)))
 		return -EFAULT;
-
-	JOM(8, "..... user is offered frame buffer %i\n", \
-							peasycap->frame_read);
-	peasycap->frame_lock = 1;
 
 	input = peasycap->frame_buffer[peasycap->frame_read][0].input;
 	if (0x08 & input) {
@@ -1956,7 +2201,6 @@ case VIDIOC_G_PARM: {
 	v4l2_streamparm.parm.capture.capability = 0;
 	v4l2_streamparm.parm.capture.capturemode = 0;
 	v4l2_streamparm.parm.capture.timeperframe.numerator = 1;
-	v4l2_streamparm.parm.capture.timeperframe.denominator = 30;
 
 	if (peasycap->fps) {
 		v4l2_streamparm.parm.capture.timeperframe.\

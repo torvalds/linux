@@ -200,7 +200,17 @@
 #define  NTSC_M_JP      5
 #define  PAL_60         7
 #define  PAL_M          9
-#define  STANDARD_MANY 10
+#define  PAL_BGHIN_SLOW    10
+#define  PAL_Nc_SLOW       12
+#define  SECAM_SLOW        14
+#define  NTSC_N_SLOW       16
+#define  NTSC_N_443_SLOW   18
+#define  NTSC_M_SLOW       11
+#define  NTSC_443_SLOW     13
+#define  NTSC_M_JP_SLOW    15
+#define  PAL_60_SLOW       17
+#define  PAL_M_SLOW        19
+#define  STANDARD_MANY 20
 /*---------------------------------------------------------------------------*/
 /*
  *  ENUMS
@@ -228,7 +238,6 @@ PIXELFORMAT_MANY
 enum {
 FIELD_NONE,
 FIELD_INTERLACED,
-FIELD_ALTERNATE,
 INTERLACE_MANY
 };
 #define SETTINGS_MANY	(STANDARD_MANY * \
@@ -333,6 +342,8 @@ bool ntsc;
 int fps;
 int usec;
 int tolerate;
+int skip;
+int skipped;
 int merit[180];
 
 struct timeval timeval0;
@@ -399,7 +410,6 @@ int frame_lock;		/* Flag set to 1 by DQBUF and cleared by QBUF        */
  */
 /*---------------------------------------------------------------------------*/
 __u32                   pixelformat;
-__u32                   field;
 int                     width;
 int                     height;
 int                     bytesperpixel;
