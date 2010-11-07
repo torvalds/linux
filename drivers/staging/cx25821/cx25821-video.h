@@ -49,10 +49,11 @@
 
 #define VIDEO_DEBUG 0
 
-#define dprintk(level, fmt, arg...)\
-    do { if (VIDEO_DEBUG >= level)\
-	printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg);\
-    } while (0)
+#define dprintk(level, fmt, arg...)					\
+do {									\
+	if (VIDEO_DEBUG >= level)					\
+		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ##arg);	\
+} while (0)
 
 /* For IOCTL to identify running upstream */
 #define UPSTREAM_START_VIDEO        700
