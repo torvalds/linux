@@ -36,7 +36,7 @@
 /*---------------------------------------------------------------------------*/
 /*
  *  ON COMPLETION OF AN AUDIO URB ITS DATA IS COPIED TO THE AUDIO BUFFERS
- *  PROVIDED peasycap->audio_idle IS ZER0.  REGARDLESS OF THIS BEING TRUE,
+ *  PROVIDED peasycap->audio_idle IS ZERO.  REGARDLESS OF THIS BEING TRUE,
  *  IT IS RESUBMITTED PROVIDED peasycap->audio_isoc_streaming IS NOT ZERO.
  */
 /*---------------------------------------------------------------------------*/
@@ -842,11 +842,7 @@ do_gettimeofday(&timeval);
 if (!peasycap->timeval1.tv_sec) {
 	audio_bytes = 0;
 	timeval1 = timeval;
-
-	if (mutex_lock_interruptible(&(peasycap->mutex_timeval1)))
-		return -ERESTARTSYS;
 	peasycap->timeval1 = timeval1;
-	mutex_unlock(&(peasycap->mutex_timeval1));
 	sdr.quotient = 192000;
 } else {
 	audio_bytes += (long long int) szret;
@@ -861,10 +857,7 @@ if (!peasycap->timeval1.tv_sec) {
 		sdr.quotient = 192000;
 }
 JOT(8, "audio streaming at %lli bytes/second\n", sdr.quotient);
-if (mutex_lock_interruptible(&(peasycap->mutex_timeval1)))
-	return -ERESTARTSYS;
 peasycap->dnbydt = sdr.quotient;
-mutex_unlock(&(peasycap->mutex_timeval1));
 
 JOT(8, "returning %li\n", (long int)szret);
 return szret;

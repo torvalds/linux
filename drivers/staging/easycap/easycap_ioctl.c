@@ -857,10 +857,8 @@ case VIDIOC_QUERYCAP: {
 					&v4l2_capability.bus_info[0]);
 	}
 	if (0 != copy_to_user((void __user *)arg, &v4l2_capability, \
-					sizeof(struct v4l2_capability))) {
-		POUT;
+					sizeof(struct v4l2_capability)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -871,10 +869,8 @@ case VIDIOC_ENUMINPUT: {
 	JOT(8, "VIDIOC_ENUMINPUT\n");
 
 	if (0 != copy_from_user(&v4l2_input, (void __user *)arg, \
-					sizeof(struct v4l2_input))) {
-		POUT;
+					sizeof(struct v4l2_input)))
 		return -EFAULT;
-	}
 
 	index = v4l2_input.index;
 	memset(&v4l2_input, 0, sizeof(struct v4l2_input));
@@ -959,10 +955,8 @@ case VIDIOC_ENUMINPUT: {
 	}
 
 	if (0 != copy_to_user((void __user *)arg, &v4l2_input, \
-						sizeof(struct v4l2_input))) {
-		POUT;
+						sizeof(struct v4l2_input)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -972,10 +966,8 @@ case VIDIOC_G_INPUT: {
 	JOT(8, "VIDIOC_G_INPUT\n");
 	index = (__u32)peasycap->input;
 	JOT(8, "user is told: %i\n", index);
-	if (0 != copy_to_user((void __user *)arg, &index, sizeof(__u32))) {
-		POUT;
+	if (0 != copy_to_user((void __user *)arg, &index, sizeof(__u32)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -985,10 +977,8 @@ case VIDIOC_S_INPUT:
 
 	JOT(8, "VIDIOC_S_INPUT\n");
 
-	if (0 != copy_from_user(&index, (void __user *)arg, sizeof(__u32))) {
-		POUT;
+	if (0 != copy_from_user(&index, (void __user *)arg, sizeof(__u32)))
 		return -EFAULT;
-	}
 
 	JOT(8, "user requests input %i\n", index);
 
@@ -1019,10 +1009,8 @@ case VIDIOC_ENUMAUDOUT: {
 	JOT(8, "VIDIOC_ENUMAUDOUT\n");
 
 	if (0 != copy_from_user(&v4l2_audioout, (void __user *)arg, \
-					sizeof(struct v4l2_audioout))) {
-		POUT;
+					sizeof(struct v4l2_audioout)))
 		return -EFAULT;
-	}
 
 	if (0 != v4l2_audioout.index)
 		return -EINVAL;
@@ -1031,10 +1019,8 @@ case VIDIOC_ENUMAUDOUT: {
 	strcpy(&v4l2_audioout.name[0], "Soundtrack");
 
 	if (0 != copy_to_user((void __user *)arg, &v4l2_audioout, \
-					sizeof(struct v4l2_audioout))) {
-		POUT;
+					sizeof(struct v4l2_audioout)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1045,10 +1031,8 @@ case VIDIOC_QUERYCTRL: {
 	JOT(8, "VIDIOC_QUERYCTRL\n");
 
 	if (0 != copy_from_user(&v4l2_queryctrl, (void __user *)arg, \
-					sizeof(struct v4l2_queryctrl))) {
-		POUT;
+					sizeof(struct v4l2_queryctrl)))
 		return -EFAULT;
-	}
 
 	i1 = 0;
 	while (0xFFFFFFFF != easycap_control[i1].id) {
@@ -1066,10 +1050,8 @@ case VIDIOC_QUERYCTRL: {
 		return -EINVAL;
 	}
 	if (0 != copy_to_user((void __user *)arg, &v4l2_queryctrl, \
-					sizeof(struct v4l2_queryctrl))) {
-		POUT;
+					sizeof(struct v4l2_queryctrl)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1085,10 +1067,8 @@ case VIDIOC_G_CTRL: {
 	JOT(8, "VIDIOC_G_CTRL\n");
 
 	if (0 != copy_from_user(&v4l2_control, (void __user *)arg, \
-					sizeof(struct v4l2_control))) {
-		POUT;
+					sizeof(struct v4l2_control)))
 		return -EFAULT;
-	}
 
 	switch (v4l2_control.id) {
 	case V4L2_CID_BRIGHTNESS: {
@@ -1127,15 +1107,12 @@ case VIDIOC_G_CTRL: {
 	default: {
 		SAY("ERROR: unknown V4L2 control: 0x%08X=id\n", \
 							v4l2_control.id);
-		explain_cid(v4l2_control.id);
 		return -EINVAL;
 	}
 	}
 	if (0 != copy_to_user((void __user *)arg, &v4l2_control, \
-					sizeof(struct v4l2_control))) {
-		POUT;
+					sizeof(struct v4l2_control)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1151,10 +1128,8 @@ case VIDIOC_S_CTRL:
 	JOT(8, "VIDIOC_S_CTRL\n");
 
 	if (0 != copy_from_user(&v4l2_control, (void __user *)arg, \
-					sizeof(struct v4l2_control))) {
-		POUT;
+					sizeof(struct v4l2_control)))
 		return -EFAULT;
-	}
 
 	switch (v4l2_control.id) {
 	case V4L2_CID_BRIGHTNESS: {
@@ -1203,10 +1178,9 @@ case VIDIOC_S_CTRL:
 	default: {
 		SAY("ERROR: unknown V4L2 control: 0x%08X=id\n", \
 							v4l2_control.id);
-		explain_cid(v4l2_control.id);
-	return -EINVAL;
-			}
+		return -EINVAL;
 		}
+	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1222,10 +1196,8 @@ case VIDIOC_ENUM_FMT: {
 	JOT(8, "VIDIOC_ENUM_FMT\n");
 
 	if (0 != copy_from_user(&v4l2_fmtdesc, (void __user *)arg, \
-					sizeof(struct v4l2_fmtdesc))) {
-		POUT;
+					sizeof(struct v4l2_fmtdesc)))
 		return -EFAULT;
-	}
 
 	index = v4l2_fmtdesc.index;
 	memset(&v4l2_fmtdesc, 0, sizeof(struct v4l2_fmtdesc));
@@ -1282,10 +1254,8 @@ case VIDIOC_ENUM_FMT: {
 	}
 	}
 	if (0 != copy_to_user((void __user *)arg, &v4l2_fmtdesc, \
-					sizeof(struct v4l2_fmtdesc))) {
-		POUT;
+					sizeof(struct v4l2_fmtdesc)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1305,15 +1275,11 @@ case VIDIOC_G_FMT: {
 	JOT(8, "VIDIOC_G_FMT\n");
 
 	if (0 != copy_from_user(&v4l2_format, (void __user *)arg, \
-					sizeof(struct v4l2_format))) {
-		POUT;
+					sizeof(struct v4l2_format)))
 		return -EFAULT;
-	}
 
-	if (v4l2_format.type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		POUT;
+	if (v4l2_format.type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	}
 
 	memset(&v4l2_pix_format, 0, sizeof(struct v4l2_pix_format));
 	v4l2_format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -1324,10 +1290,8 @@ case VIDIOC_G_FMT: {
 			&easycap_format[peasycap->format_offset].name[0]);
 
 	if (0 != copy_to_user((void __user *)arg, &v4l2_format, \
-					sizeof(struct v4l2_format))) {
-		POUT;
+					sizeof(struct v4l2_format)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1347,10 +1311,8 @@ case VIDIOC_S_FMT: {
 	}
 
 	if (0 != copy_from_user(&v4l2_format, (void __user *)arg, \
-					sizeof(struct v4l2_format))) {
-		POUT;
+					sizeof(struct v4l2_format)))
 		return -EFAULT;
-	}
 
 	best_format = adjust_format(peasycap, \
 					v4l2_format.fmt.pix.width, \
@@ -1371,10 +1333,8 @@ case VIDIOC_S_FMT: {
 	JOT(8, "user is told: %s\n", &easycap_format[best_format].name[0]);
 
 	if (0 != copy_to_user((void __user *)arg, &v4l2_format, \
-					sizeof(struct v4l2_format))) {
-		POUT;
+					sizeof(struct v4l2_format)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1384,10 +1344,8 @@ case VIDIOC_CROPCAP: {
 	JOT(8, "VIDIOC_CROPCAP\n");
 
 	if (0 != copy_from_user(&v4l2_cropcap, (void __user *)arg, \
-					sizeof(struct v4l2_cropcap))) {
-		POUT;
+					sizeof(struct v4l2_cropcap)))
 		return -EFAULT;
-	}
 
 	if (v4l2_cropcap.type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		JOT(8, "v4l2_cropcap.type != V4L2_BUF_TYPE_VIDEO_CAPTURE\n");
@@ -1408,10 +1366,8 @@ case VIDIOC_CROPCAP: {
 	JOT(8, "user is told: %ix%i\n", peasycap->width, peasycap->height);
 
 	if (0 != copy_to_user((void __user *)arg, &v4l2_cropcap, \
-					sizeof(struct v4l2_cropcap))) {
-		POUT;
+					sizeof(struct v4l2_cropcap)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1444,10 +1400,8 @@ case VIDIOC_ENUMSTD: {
 	JOT(8, "VIDIOC_ENUMSTD\n");
 
 	if (0 != copy_from_user(&v4l2_standard, (void __user *)arg, \
-					sizeof(struct v4l2_standard))) {
-		POUT;
+					sizeof(struct v4l2_standard)))
 		return -EFAULT;
-	}
 	index = v4l2_standard.index;
 
 	last3 = last2; last2 = last1; last1 = last0; last0 = index;
@@ -1477,10 +1431,8 @@ case VIDIOC_ENUMSTD: {
 	v4l2_standard.index = index;
 
 	if (0 != copy_to_user((void __user *)arg, &v4l2_standard, \
-					sizeof(struct v4l2_standard))) {
-		POUT;
+					sizeof(struct v4l2_standard)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1491,10 +1443,8 @@ case VIDIOC_G_STD: {
 	JOT(8, "VIDIOC_G_STD\n");
 
 	if (0 != copy_from_user(&std_id, (void __user *)arg, \
-						sizeof(v4l2_std_id))) {
-		POUT;
+						sizeof(v4l2_std_id)))
 		return -EFAULT;
-	}
 
 	peasycap_standard = &easycap_standard[peasycap->standard_offset];
 	std_id = peasycap_standard->v4l2_standard.id;
@@ -1503,10 +1453,8 @@ case VIDIOC_G_STD: {
 				&peasycap_standard->v4l2_standard.name[0]);
 
 	if (0 != copy_to_user((void __user *)arg, &std_id, \
-						sizeof(v4l2_std_id))) {
-		POUT;
+						sizeof(v4l2_std_id)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1517,10 +1465,8 @@ case VIDIOC_S_STD: {
 	JOT(8, "VIDIOC_S_STD\n");
 
 	if (0 != copy_from_user(&std_id, (void __user *)arg, \
-						sizeof(v4l2_std_id))) {
-		POUT;
+						sizeof(v4l2_std_id)))
 		return -EFAULT;
-	}
 
 	rc = adjust_standard(peasycap, std_id);
 	if (0 > rc) {
@@ -1537,17 +1483,13 @@ case VIDIOC_REQBUFS: {
 	JOT(8, "VIDIOC_REQBUFS\n");
 
 	if (0 != copy_from_user(&v4l2_requestbuffers, (void __user *)arg, \
-				sizeof(struct v4l2_requestbuffers))) {
-		POUT;
+				sizeof(struct v4l2_requestbuffers)))
 		return -EFAULT;
-	}
 
 	if (v4l2_requestbuffers.type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	if (v4l2_requestbuffers.memory != V4L2_MEMORY_MMAP) {
-		POUT;
+	if (v4l2_requestbuffers.memory != V4L2_MEMORY_MMAP)
 		return -EINVAL;
-	}
 	nbuffers = v4l2_requestbuffers.count;
 	JOT(8, "                   User requests %i buffers ...\n", nbuffers);
 	if (nbuffers < 2)
@@ -1565,10 +1507,8 @@ case VIDIOC_REQBUFS: {
 	peasycap->frame_buffer_many = nbuffers;
 
 	if (0 != copy_to_user((void __user *)arg, &v4l2_requestbuffers, \
-				sizeof(struct v4l2_requestbuffers))) {
-		POUT;
+				sizeof(struct v4l2_requestbuffers)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1585,10 +1525,8 @@ case VIDIOC_QUERYBUF: {
 	}
 
 	if (0 != copy_from_user(&v4l2_buffer, (void __user *)arg, \
-					sizeof(struct v4l2_buffer))) {
-		POUT;
+					sizeof(struct v4l2_buffer)))
 		return -EFAULT;
-	}
 
 	if (v4l2_buffer.type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1620,10 +1558,8 @@ case VIDIOC_QUERYBUF: {
 	JOT(16, "  %10i=length\n", v4l2_buffer.length);
 
 	if (0 != copy_to_user((void __user *)arg, &v4l2_buffer, \
-					sizeof(struct v4l2_buffer))) {
-		POUT;
+					sizeof(struct v4l2_buffer)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1633,10 +1569,8 @@ case VIDIOC_QBUF: {
 	JOT(8, "VIDIOC_QBUF\n");
 
 	if (0 != copy_from_user(&v4l2_buffer, (void __user *)arg, \
-					sizeof(struct v4l2_buffer))) {
-		POUT;
+					sizeof(struct v4l2_buffer)))
 		return -EFAULT;
-	}
 
 	if (v4l2_buffer.type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1651,10 +1585,8 @@ case VIDIOC_QBUF: {
 	peasycap->queued[v4l2_buffer.index] = V4L2_BUF_FLAG_QUEUED;
 
 	if (0 != copy_to_user((void __user *)arg, &v4l2_buffer, \
-					sizeof(struct v4l2_buffer))) {
-		POUT;
+					sizeof(struct v4l2_buffer)))
 		return -EFAULT;
-	}
 
 	JOT(8, ".....   user queueing frame buffer %i\n", \
 						(int)v4l2_buffer.index);
@@ -1687,10 +1619,8 @@ case VIDIOC_DQBUF:
 	}
 
 	if (0 != copy_from_user(&v4l2_buffer, (void __user *)arg, \
-					sizeof(struct v4l2_buffer))) {
-		POUT;
+					sizeof(struct v4l2_buffer)))
 		return -EFAULT;
-	}
 
 	if (v4l2_buffer.type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1752,17 +1682,10 @@ case VIDIOC_DQBUF:
 		timeval1 = timeval;
 		timeval2 = timeval;
 		dnbydt = 192000;
-
-		if (mutex_lock_interruptible(&(peasycap->mutex_timeval0)))
-			return -ERESTARTSYS;
 		peasycap->timeval0 = timeval0;
-		mutex_unlock(&(peasycap->mutex_timeval0));
 	} else {
-		if (mutex_lock_interruptible(&(peasycap->mutex_timeval1)))
-			return -ERESTARTSYS;
 		dnbydt = peasycap->dnbydt;
 		timeval1 = peasycap->timeval1;
-		mutex_unlock(&(peasycap->mutex_timeval1));
 		above = dnbydt * MICROSECONDS(timeval, timeval1);
 		below = 192000;
 		sdr = signed_div(above, below);
@@ -1807,10 +1730,8 @@ case VIDIOC_DQBUF:
 	JOT(16, "  %10i=length\n", v4l2_buffer.length);
 
 	if (0 != copy_to_user((void __user *)arg, &v4l2_buffer, \
-						sizeof(struct v4l2_buffer))) {
-		POUT;
+						sizeof(struct v4l2_buffer)))
 		return -EFAULT;
-	}
 
 	JOT(8, "..... user is offered frame buffer %i\n", \
 							peasycap->frame_read);
@@ -1879,15 +1800,11 @@ case VIDIOC_G_PARM: {
 	JOT(8, "VIDIOC_G_PARM\n");
 
 	if (0 != copy_from_user(&v4l2_streamparm, (void __user *)arg, \
-					sizeof(struct v4l2_streamparm))) {
-		POUT;
+					sizeof(struct v4l2_streamparm)))
 		return -EFAULT;
-	}
 
-	if (v4l2_streamparm.type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		POUT;
+	if (v4l2_streamparm.type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	}
 	v4l2_streamparm.parm.capture.capability = 0;
 	v4l2_streamparm.parm.capture.capturemode = 0;
 	v4l2_streamparm.parm.capture.timeperframe.numerator = 1;
@@ -1895,10 +1812,8 @@ case VIDIOC_G_PARM: {
 	v4l2_streamparm.parm.capture.readbuffers = peasycap->frame_buffer_many;
 	v4l2_streamparm.parm.capture.extendedmode = 0;
 	if (0 != copy_to_user((void __user *)arg, &v4l2_streamparm, \
-					sizeof(struct v4l2_streamparm))) {
-		POUT;
+					sizeof(struct v4l2_streamparm)))
 		return -EFAULT;
-	}
 	break;
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -1941,8 +1856,6 @@ case VIDIOC_S_FREQUENCY: {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 default: {
 	JOT(8, "ERROR: unrecognized V4L2 IOCTL command: 0x%08X\n", cmd);
-	explain_ioctl(cmd);
-	POUT;
 	return -ENOIOCTLCMD;
 }
 }
@@ -2147,7 +2060,6 @@ case SNDCTL_DSP_GETISPACE: {
 }
 default: {
 	JOT(8, "ERROR: unrecognized DSP IOCTL command: 0x%08X\n", cmd);
-	POUT;
 	return -ENOIOCTLCMD;
 }
 }
@@ -2164,532 +2076,5 @@ long easysnd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	unlock_kernel();
 
 	return ret;
-}
-
-/*****************************************************************************/
-int explain_ioctl(__u32 wot)
-{
-int k;
-/*---------------------------------------------------------------------------*/
-/*
- *  THE DATA FOR THE ARRAY mess BELOW WERE CONSTRUCTED BY RUNNING THE FOLLOWING
- *  SHELL SCRIPT:
- *  #
- *  cat /usr/src/linux-headers-`uname -r`/include/linux/videodev2.h | \
- *     grep "^#define VIDIOC_" - | grep -v "_OLD" - | \
- *     sed -e "s,_IO.*$,,;p" | sed -e "N;s,\n,, " | \
- *     sed -e "s/^#define /  {/;s/#define /, \"/;s/$/\"},/" | \
- *     sed -e "s,	,,g;s, ,,g" >ioctl.tmp
- *  echo "{0xFFFFFFFF,\"\"}" >>ioctl.tmp
- *  exit 0
- *  #
- * AND REINSTATING THE EXCISED "_OLD" CASES WERE LATER MANUALLY.
- *
- * THE DATA FOR THE ARRAY mess1 BELOW WERE CONSTRUCTED BY RUNNING THE FOLLOWING
- * SHELL SCRIPT:
- *  cat /usr/src/linux-headers-`uname -r`/include/linux/videodev.h | \
- *     grep "^#define VIDIOC" - | grep -v "_OLD" - | \
- *     sed -e "s,_IO.*$,,;p" | sed -e "N;s,\n,, " | \
- *     sed -e "s/^#define /  {/;s/#define /, \"/;s/$/\"},/" | \
- *     sed -e "s,   ,,g;s, ,,g" >ioctl.tmp
- *  echo "{0xFFFFFFFF,\"\"}" >>ioctl.tmp
- *  exit 0
- *  #
- */
-/*---------------------------------------------------------------------------*/
-static struct mess {
-	__u32 command;
-	char  name[64];
-} mess[] = {
-#if defined(VIDIOC_QUERYCAP)
-{VIDIOC_QUERYCAP, "VIDIOC_QUERYCAP"},
-#endif
-#if defined(VIDIOC_RESERVED)
-{VIDIOC_RESERVED, "VIDIOC_RESERVED"},
-#endif
-#if defined(VIDIOC_ENUM_FMT)
-{VIDIOC_ENUM_FMT, "VIDIOC_ENUM_FMT"},
-#endif
-#if defined(VIDIOC_G_FMT)
-{VIDIOC_G_FMT, "VIDIOC_G_FMT"},
-#endif
-#if defined(VIDIOC_S_FMT)
-{VIDIOC_S_FMT, "VIDIOC_S_FMT"},
-#endif
-#if defined(VIDIOC_REQBUFS)
-{VIDIOC_REQBUFS, "VIDIOC_REQBUFS"},
-#endif
-#if defined(VIDIOC_QUERYBUF)
-{VIDIOC_QUERYBUF, "VIDIOC_QUERYBUF"},
-#endif
-#if defined(VIDIOC_G_FBUF)
-{VIDIOC_G_FBUF, "VIDIOC_G_FBUF"},
-#endif
-#if defined(VIDIOC_S_FBUF)
-{VIDIOC_S_FBUF, "VIDIOC_S_FBUF"},
-#endif
-#if defined(VIDIOC_OVERLAY)
-{VIDIOC_OVERLAY, "VIDIOC_OVERLAY"},
-#endif
-#if defined(VIDIOC_QBUF)
-{VIDIOC_QBUF, "VIDIOC_QBUF"},
-#endif
-#if defined(VIDIOC_DQBUF)
-{VIDIOC_DQBUF, "VIDIOC_DQBUF"},
-#endif
-#if defined(VIDIOC_STREAMON)
-{VIDIOC_STREAMON, "VIDIOC_STREAMON"},
-#endif
-#if defined(VIDIOC_STREAMOFF)
-{VIDIOC_STREAMOFF, "VIDIOC_STREAMOFF"},
-#endif
-#if defined(VIDIOC_G_PARM)
-{VIDIOC_G_PARM, "VIDIOC_G_PARM"},
-#endif
-#if defined(VIDIOC_S_PARM)
-{VIDIOC_S_PARM, "VIDIOC_S_PARM"},
-#endif
-#if defined(VIDIOC_G_STD)
-{VIDIOC_G_STD, "VIDIOC_G_STD"},
-#endif
-#if defined(VIDIOC_S_STD)
-{VIDIOC_S_STD, "VIDIOC_S_STD"},
-#endif
-#if defined(VIDIOC_ENUMSTD)
-{VIDIOC_ENUMSTD, "VIDIOC_ENUMSTD"},
-#endif
-#if defined(VIDIOC_ENUMINPUT)
-{VIDIOC_ENUMINPUT, "VIDIOC_ENUMINPUT"},
-#endif
-#if defined(VIDIOC_G_CTRL)
-{VIDIOC_G_CTRL, "VIDIOC_G_CTRL"},
-#endif
-#if defined(VIDIOC_S_CTRL)
-{VIDIOC_S_CTRL, "VIDIOC_S_CTRL"},
-#endif
-#if defined(VIDIOC_G_TUNER)
-{VIDIOC_G_TUNER, "VIDIOC_G_TUNER"},
-#endif
-#if defined(VIDIOC_S_TUNER)
-{VIDIOC_S_TUNER, "VIDIOC_S_TUNER"},
-#endif
-#if defined(VIDIOC_G_AUDIO)
-{VIDIOC_G_AUDIO, "VIDIOC_G_AUDIO"},
-#endif
-#if defined(VIDIOC_S_AUDIO)
-{VIDIOC_S_AUDIO, "VIDIOC_S_AUDIO"},
-#endif
-#if defined(VIDIOC_QUERYCTRL)
-{VIDIOC_QUERYCTRL, "VIDIOC_QUERYCTRL"},
-#endif
-#if defined(VIDIOC_QUERYMENU)
-{VIDIOC_QUERYMENU, "VIDIOC_QUERYMENU"},
-#endif
-#if defined(VIDIOC_G_INPUT)
-{VIDIOC_G_INPUT, "VIDIOC_G_INPUT"},
-#endif
-#if defined(VIDIOC_S_INPUT)
-{VIDIOC_S_INPUT, "VIDIOC_S_INPUT"},
-#endif
-#if defined(VIDIOC_G_OUTPUT)
-{VIDIOC_G_OUTPUT, "VIDIOC_G_OUTPUT"},
-#endif
-#if defined(VIDIOC_S_OUTPUT)
-{VIDIOC_S_OUTPUT, "VIDIOC_S_OUTPUT"},
-#endif
-#if defined(VIDIOC_ENUMOUTPUT)
-{VIDIOC_ENUMOUTPUT, "VIDIOC_ENUMOUTPUT"},
-#endif
-#if defined(VIDIOC_G_AUDOUT)
-{VIDIOC_G_AUDOUT, "VIDIOC_G_AUDOUT"},
-#endif
-#if defined(VIDIOC_S_AUDOUT)
-{VIDIOC_S_AUDOUT, "VIDIOC_S_AUDOUT"},
-#endif
-#if defined(VIDIOC_G_MODULATOR)
-{VIDIOC_G_MODULATOR, "VIDIOC_G_MODULATOR"},
-#endif
-#if defined(VIDIOC_S_MODULATOR)
-{VIDIOC_S_MODULATOR, "VIDIOC_S_MODULATOR"},
-#endif
-#if defined(VIDIOC_G_FREQUENCY)
-{VIDIOC_G_FREQUENCY, "VIDIOC_G_FREQUENCY"},
-#endif
-#if defined(VIDIOC_S_FREQUENCY)
-{VIDIOC_S_FREQUENCY, "VIDIOC_S_FREQUENCY"},
-#endif
-#if defined(VIDIOC_CROPCAP)
-{VIDIOC_CROPCAP, "VIDIOC_CROPCAP"},
-#endif
-#if defined(VIDIOC_G_CROP)
-{VIDIOC_G_CROP, "VIDIOC_G_CROP"},
-#endif
-#if defined(VIDIOC_S_CROP)
-{VIDIOC_S_CROP, "VIDIOC_S_CROP"},
-#endif
-#if defined(VIDIOC_G_JPEGCOMP)
-{VIDIOC_G_JPEGCOMP, "VIDIOC_G_JPEGCOMP"},
-#endif
-#if defined(VIDIOC_S_JPEGCOMP)
-{VIDIOC_S_JPEGCOMP, "VIDIOC_S_JPEGCOMP"},
-#endif
-#if defined(VIDIOC_QUERYSTD)
-{VIDIOC_QUERYSTD, "VIDIOC_QUERYSTD"},
-#endif
-#if defined(VIDIOC_TRY_FMT)
-{VIDIOC_TRY_FMT, "VIDIOC_TRY_FMT"},
-#endif
-#if defined(VIDIOC_ENUMAUDIO)
-{VIDIOC_ENUMAUDIO, "VIDIOC_ENUMAUDIO"},
-#endif
-#if defined(VIDIOC_ENUMAUDOUT)
-{VIDIOC_ENUMAUDOUT, "VIDIOC_ENUMAUDOUT"},
-#endif
-#if defined(VIDIOC_G_PRIORITY)
-{VIDIOC_G_PRIORITY, "VIDIOC_G_PRIORITY"},
-#endif
-#if defined(VIDIOC_S_PRIORITY)
-{VIDIOC_S_PRIORITY, "VIDIOC_S_PRIORITY"},
-#endif
-#if defined(VIDIOC_G_SLICED_VBI_CAP)
-{VIDIOC_G_SLICED_VBI_CAP, "VIDIOC_G_SLICED_VBI_CAP"},
-#endif
-#if defined(VIDIOC_LOG_STATUS)
-{VIDIOC_LOG_STATUS, "VIDIOC_LOG_STATUS"},
-#endif
-#if defined(VIDIOC_G_EXT_CTRLS)
-{VIDIOC_G_EXT_CTRLS, "VIDIOC_G_EXT_CTRLS"},
-#endif
-#if defined(VIDIOC_S_EXT_CTRLS)
-{VIDIOC_S_EXT_CTRLS, "VIDIOC_S_EXT_CTRLS"},
-#endif
-#if defined(VIDIOC_TRY_EXT_CTRLS)
-{VIDIOC_TRY_EXT_CTRLS, "VIDIOC_TRY_EXT_CTRLS"},
-#endif
-#if defined(VIDIOC_ENUM_FRAMESIZES)
-{VIDIOC_ENUM_FRAMESIZES, "VIDIOC_ENUM_FRAMESIZES"},
-#endif
-#if defined(VIDIOC_ENUM_FRAMEINTERVALS)
-{VIDIOC_ENUM_FRAMEINTERVALS, "VIDIOC_ENUM_FRAMEINTERVALS"},
-#endif
-#if defined(VIDIOC_G_ENC_INDEX)
-{VIDIOC_G_ENC_INDEX, "VIDIOC_G_ENC_INDEX"},
-#endif
-#if defined(VIDIOC_ENCODER_CMD)
-{VIDIOC_ENCODER_CMD, "VIDIOC_ENCODER_CMD"},
-#endif
-#if defined(VIDIOC_TRY_ENCODER_CMD)
-{VIDIOC_TRY_ENCODER_CMD, "VIDIOC_TRY_ENCODER_CMD"},
-#endif
-#if defined(VIDIOC_G_CHIP_IDENT)
-{VIDIOC_G_CHIP_IDENT, "VIDIOC_G_CHIP_IDENT"},
-#endif
-
-#if defined(VIDIOC_OVERLAY_OLD)
-{VIDIOC_OVERLAY_OLD, "VIDIOC_OVERLAY_OLD"},
-#endif
-#if defined(VIDIOC_S_PARM_OLD)
-{VIDIOC_S_PARM_OLD, "VIDIOC_S_PARM_OLD"},
-#endif
-#if defined(VIDIOC_S_CTRL_OLD)
-{VIDIOC_S_CTRL_OLD, "VIDIOC_S_CTRL_OLD"},
-#endif
-#if defined(VIDIOC_G_AUDIO_OLD)
-{VIDIOC_G_AUDIO_OLD, "VIDIOC_G_AUDIO_OLD"},
-#endif
-#if defined(VIDIOC_G_AUDOUT_OLD)
-{VIDIOC_G_AUDOUT_OLD, "VIDIOC_G_AUDOUT_OLD"},
-#endif
-#if defined(VIDIOC_CROPCAP_OLD)
-{VIDIOC_CROPCAP_OLD, "VIDIOC_CROPCAP_OLD"},
-#endif
-{0xFFFFFFFF, ""}
-};
-
-static struct mess mess1[] = \
-{
-#if defined(VIDIOCGCAP)
-{VIDIOCGCAP, "VIDIOCGCAP"},
-#endif
-#if defined(VIDIOCGCHAN)
-{VIDIOCGCHAN, "VIDIOCGCHAN"},
-#endif
-#if defined(VIDIOCSCHAN)
-{VIDIOCSCHAN, "VIDIOCSCHAN"},
-#endif
-#if defined(VIDIOCGTUNER)
-{VIDIOCGTUNER, "VIDIOCGTUNER"},
-#endif
-#if defined(VIDIOCSTUNER)
-{VIDIOCSTUNER, "VIDIOCSTUNER"},
-#endif
-#if defined(VIDIOCGPICT)
-{VIDIOCGPICT, "VIDIOCGPICT"},
-#endif
-#if defined(VIDIOCSPICT)
-{VIDIOCSPICT, "VIDIOCSPICT"},
-#endif
-#if defined(VIDIOCCAPTURE)
-{VIDIOCCAPTURE, "VIDIOCCAPTURE"},
-#endif
-#if defined(VIDIOCGWIN)
-{VIDIOCGWIN, "VIDIOCGWIN"},
-#endif
-#if defined(VIDIOCSWIN)
-{VIDIOCSWIN, "VIDIOCSWIN"},
-#endif
-#if defined(VIDIOCGFBUF)
-{VIDIOCGFBUF, "VIDIOCGFBUF"},
-#endif
-#if defined(VIDIOCSFBUF)
-{VIDIOCSFBUF, "VIDIOCSFBUF"},
-#endif
-#if defined(VIDIOCKEY)
-{VIDIOCKEY, "VIDIOCKEY"},
-#endif
-#if defined(VIDIOCGFREQ)
-{VIDIOCGFREQ, "VIDIOCGFREQ"},
-#endif
-#if defined(VIDIOCSFREQ)
-{VIDIOCSFREQ, "VIDIOCSFREQ"},
-#endif
-#if defined(VIDIOCGAUDIO)
-{VIDIOCGAUDIO, "VIDIOCGAUDIO"},
-#endif
-#if defined(VIDIOCSAUDIO)
-{VIDIOCSAUDIO, "VIDIOCSAUDIO"},
-#endif
-#if defined(VIDIOCSYNC)
-{VIDIOCSYNC, "VIDIOCSYNC"},
-#endif
-#if defined(VIDIOCMCAPTURE)
-{VIDIOCMCAPTURE, "VIDIOCMCAPTURE"},
-#endif
-#if defined(VIDIOCGMBUF)
-{VIDIOCGMBUF, "VIDIOCGMBUF"},
-#endif
-#if defined(VIDIOCGUNIT)
-{VIDIOCGUNIT, "VIDIOCGUNIT"},
-#endif
-#if defined(VIDIOCGCAPTURE)
-{VIDIOCGCAPTURE, "VIDIOCGCAPTURE"},
-#endif
-#if defined(VIDIOCSCAPTURE)
-{VIDIOCSCAPTURE, "VIDIOCSCAPTURE"},
-#endif
-#if defined(VIDIOCSPLAYMODE)
-{VIDIOCSPLAYMODE, "VIDIOCSPLAYMODE"},
-#endif
-#if defined(VIDIOCSWRITEMODE)
-{VIDIOCSWRITEMODE, "VIDIOCSWRITEMODE"},
-#endif
-#if defined(VIDIOCGPLAYINFO)
-{VIDIOCGPLAYINFO, "VIDIOCGPLAYINFO"},
-#endif
-#if defined(VIDIOCSMICROCODE)
-{VIDIOCSMICROCODE, "VIDIOCSMICROCODE"},
-#endif
-{0xFFFFFFFF, ""}
-};
-
-k = 0;
-while (mess[k].name[0]) {
-	if (wot == mess[k].command) {
-		JOT(8, "ioctl 0x%08X is %s\n", \
-					mess[k].command, &mess[k].name[0]);
-		return 0;
-	}
-	k++;
-}
-JOT(8, "ioctl 0x%08X is not in videodev2.h\n", wot);
-
-k = 0;
-while (mess1[k].name[0]) {
-	if (wot == mess1[k].command) {
-		JOT(8, "ioctl 0x%08X is %s (V4L1)\n", \
-					mess1[k].command, &mess1[k].name[0]);
-		return 0;
-	}
-	k++;
-}
-JOT(8, "ioctl 0x%08X is not in videodev.h\n", wot);
-return -1;
-}
-/*****************************************************************************/
-int explain_cid(__u32 wot)
-{
-int k;
-/*---------------------------------------------------------------------------*/
-/*
- *  THE DATA FOR THE ARRAY mess BELOW WERE CONSTRUCTED BY RUNNING THE FOLLOWING
- *  SHELL SCRIPT:
- *  #
- *  cat /usr/src/linux-headers-`uname -r`/include/linux/videodev2.h | \
- *     grep "^#define V4L2_CID_" |  \
- *     sed -e "s,(.*$,,;p" | sed -e "N;s,\n,, " | \
- *     sed -e "s/^#define /  {/;s/#define /, \"/;s/$/\"},/" | \
- *     sed -e "s,	,,g;s, ,,g" | grep -v "_BASE" | grep -v "MPEG" >cid.tmp
- *  echo "{0xFFFFFFFF,\"\"}" >>cid.tmp
- *  exit 0
- *  #
- */
-/*---------------------------------------------------------------------------*/
-static struct mess
-{
-__u32 command;
-char  name[64];
-} mess[] = {
-#if defined(V4L2_CID_USER_CLASS)
-{V4L2_CID_USER_CLASS, "V4L2_CID_USER_CLASS"},
-#endif
-#if defined(V4L2_CID_BRIGHTNESS)
-{V4L2_CID_BRIGHTNESS, "V4L2_CID_BRIGHTNESS"},
-#endif
-#if defined(V4L2_CID_CONTRAST)
-{V4L2_CID_CONTRAST, "V4L2_CID_CONTRAST"},
-#endif
-#if defined(V4L2_CID_SATURATION)
-{V4L2_CID_SATURATION, "V4L2_CID_SATURATION"},
-#endif
-#if defined(V4L2_CID_HUE)
-{V4L2_CID_HUE, "V4L2_CID_HUE"},
-#endif
-#if defined(V4L2_CID_AUDIO_VOLUME)
-{V4L2_CID_AUDIO_VOLUME, "V4L2_CID_AUDIO_VOLUME"},
-#endif
-#if defined(V4L2_CID_AUDIO_BALANCE)
-{V4L2_CID_AUDIO_BALANCE, "V4L2_CID_AUDIO_BALANCE"},
-#endif
-#if defined(V4L2_CID_AUDIO_BASS)
-{V4L2_CID_AUDIO_BASS, "V4L2_CID_AUDIO_BASS"},
-#endif
-#if defined(V4L2_CID_AUDIO_TREBLE)
-{V4L2_CID_AUDIO_TREBLE, "V4L2_CID_AUDIO_TREBLE"},
-#endif
-#if defined(V4L2_CID_AUDIO_MUTE)
-{V4L2_CID_AUDIO_MUTE, "V4L2_CID_AUDIO_MUTE"},
-#endif
-#if defined(V4L2_CID_AUDIO_LOUDNESS)
-{V4L2_CID_AUDIO_LOUDNESS, "V4L2_CID_AUDIO_LOUDNESS"},
-#endif
-#if defined(V4L2_CID_BLACK_LEVEL)
-{V4L2_CID_BLACK_LEVEL, "V4L2_CID_BLACK_LEVEL"},
-#endif
-#if defined(V4L2_CID_AUTO_WHITE_BALANCE)
-{V4L2_CID_AUTO_WHITE_BALANCE, "V4L2_CID_AUTO_WHITE_BALANCE"},
-#endif
-#if defined(V4L2_CID_DO_WHITE_BALANCE)
-{V4L2_CID_DO_WHITE_BALANCE, "V4L2_CID_DO_WHITE_BALANCE"},
-#endif
-#if defined(V4L2_CID_RED_BALANCE)
-{V4L2_CID_RED_BALANCE, "V4L2_CID_RED_BALANCE"},
-#endif
-#if defined(V4L2_CID_BLUE_BALANCE)
-{V4L2_CID_BLUE_BALANCE, "V4L2_CID_BLUE_BALANCE"},
-#endif
-#if defined(V4L2_CID_GAMMA)
-{V4L2_CID_GAMMA, "V4L2_CID_GAMMA"},
-#endif
-#if defined(V4L2_CID_WHITENESS)
-{V4L2_CID_WHITENESS, "V4L2_CID_WHITENESS"},
-#endif
-#if defined(V4L2_CID_EXPOSURE)
-{V4L2_CID_EXPOSURE, "V4L2_CID_EXPOSURE"},
-#endif
-#if defined(V4L2_CID_AUTOGAIN)
-{V4L2_CID_AUTOGAIN, "V4L2_CID_AUTOGAIN"},
-#endif
-#if defined(V4L2_CID_GAIN)
-{V4L2_CID_GAIN, "V4L2_CID_GAIN"},
-#endif
-#if defined(V4L2_CID_HFLIP)
-{V4L2_CID_HFLIP, "V4L2_CID_HFLIP"},
-#endif
-#if defined(V4L2_CID_VFLIP)
-{V4L2_CID_VFLIP, "V4L2_CID_VFLIP"},
-#endif
-#if defined(V4L2_CID_HCENTER)
-{V4L2_CID_HCENTER, "V4L2_CID_HCENTER"},
-#endif
-#if defined(V4L2_CID_VCENTER)
-{V4L2_CID_VCENTER, "V4L2_CID_VCENTER"},
-#endif
-#if defined(V4L2_CID_POWER_LINE_FREQUENCY)
-{V4L2_CID_POWER_LINE_FREQUENCY, "V4L2_CID_POWER_LINE_FREQUENCY"},
-#endif
-#if defined(V4L2_CID_HUE_AUTO)
-{V4L2_CID_HUE_AUTO, "V4L2_CID_HUE_AUTO"},
-#endif
-#if defined(V4L2_CID_WHITE_BALANCE_TEMPERATURE)
-{V4L2_CID_WHITE_BALANCE_TEMPERATURE, "V4L2_CID_WHITE_BALANCE_TEMPERATURE"},
-#endif
-#if defined(V4L2_CID_SHARPNESS)
-{V4L2_CID_SHARPNESS, "V4L2_CID_SHARPNESS"},
-#endif
-#if defined(V4L2_CID_BACKLIGHT_COMPENSATION)
-{V4L2_CID_BACKLIGHT_COMPENSATION, "V4L2_CID_BACKLIGHT_COMPENSATION"},
-#endif
-#if defined(V4L2_CID_CHROMA_AGC)
-{V4L2_CID_CHROMA_AGC, "V4L2_CID_CHROMA_AGC"},
-#endif
-#if defined(V4L2_CID_COLOR_KILLER)
-{V4L2_CID_COLOR_KILLER, "V4L2_CID_COLOR_KILLER"},
-#endif
-#if defined(V4L2_CID_LASTP1)
-{V4L2_CID_LASTP1, "V4L2_CID_LASTP1"},
-#endif
-#if defined(V4L2_CID_CAMERA_CLASS)
-{V4L2_CID_CAMERA_CLASS, "V4L2_CID_CAMERA_CLASS"},
-#endif
-#if defined(V4L2_CID_EXPOSURE_AUTO)
-{V4L2_CID_EXPOSURE_AUTO, "V4L2_CID_EXPOSURE_AUTO"},
-#endif
-#if defined(V4L2_CID_EXPOSURE_ABSOLUTE)
-{V4L2_CID_EXPOSURE_ABSOLUTE, "V4L2_CID_EXPOSURE_ABSOLUTE"},
-#endif
-#if defined(V4L2_CID_EXPOSURE_AUTO_PRIORITY)
-{V4L2_CID_EXPOSURE_AUTO_PRIORITY, "V4L2_CID_EXPOSURE_AUTO_PRIORITY"},
-#endif
-#if defined(V4L2_CID_PAN_RELATIVE)
-{V4L2_CID_PAN_RELATIVE, "V4L2_CID_PAN_RELATIVE"},
-#endif
-#if defined(V4L2_CID_TILT_RELATIVE)
-{V4L2_CID_TILT_RELATIVE, "V4L2_CID_TILT_RELATIVE"},
-#endif
-#if defined(V4L2_CID_PAN_RESET)
-{V4L2_CID_PAN_RESET, "V4L2_CID_PAN_RESET"},
-#endif
-#if defined(V4L2_CID_TILT_RESET)
-{V4L2_CID_TILT_RESET, "V4L2_CID_TILT_RESET"},
-#endif
-#if defined(V4L2_CID_PAN_ABSOLUTE)
-{V4L2_CID_PAN_ABSOLUTE, "V4L2_CID_PAN_ABSOLUTE"},
-#endif
-#if defined(V4L2_CID_TILT_ABSOLUTE)
-{V4L2_CID_TILT_ABSOLUTE, "V4L2_CID_TILT_ABSOLUTE"},
-#endif
-#if defined(V4L2_CID_FOCUS_ABSOLUTE)
-{V4L2_CID_FOCUS_ABSOLUTE, "V4L2_CID_FOCUS_ABSOLUTE"},
-#endif
-#if defined(V4L2_CID_FOCUS_RELATIVE)
-{V4L2_CID_FOCUS_RELATIVE, "V4L2_CID_FOCUS_RELATIVE"},
-#endif
-#if defined(V4L2_CID_FOCUS_AUTO)
-{V4L2_CID_FOCUS_AUTO, "V4L2_CID_FOCUS_AUTO"},
-#endif
-{0xFFFFFFFF, ""}
-};
-
-k = 0;
-while (mess[k].name[0]) {
-	if (wot == mess[k].command) {
-		JOT(8, "ioctl 0x%08X is %s\n", \
-					mess[k].command, &mess[k].name[0]);
-		return 0;
-	}
-	k++;
-}
-JOT(8, "cid 0x%08X is not in videodev2.h\n", wot);
-return -1;
 }
 /*****************************************************************************/

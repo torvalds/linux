@@ -42,12 +42,6 @@
 #if (!defined(EASYCAP_H))
 #define EASYCAP_H
 
-#if defined(EASYCAP_DEBUG)
-#if (9 < EASYCAP_DEBUG)
-#error Debug levels 0 to 9 are okay.\
-  To achieve higher levels, remove this trap manually from easycap.h
-#endif
-#endif /*EASYCAP_DEBUG*/
 /*---------------------------------------------------------------------------*/
 /*
  *  THESE ARE FOR MAINTENANCE ONLY - NORMALLY UNDEFINED:
@@ -56,21 +50,9 @@
 #undef  PREFER_NTSC
 #undef  EASYCAP_TESTCARD
 #undef  EASYCAP_TESTTONE
-#undef  LOCKFRAME
 #undef  NOREADBACK
 #undef  AUDIOTIME
 /*---------------------------------------------------------------------------*/
-/*
- *
- *  DEFINE   BRIDGER   TO ACTIVATE THE ROUTINE FOR BRIDGING VIDEOTAPE DROPOUTS.
- *
- *             *** UNDER DEVELOPMENT/TESTING - NOT READY YET!***
- *
- */
-/*---------------------------------------------------------------------------*/
-#undef  BRIDGER
-/*---------------------------------------------------------------------------*/
-
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -135,7 +117,7 @@
 #define USB_EASYCAP_VENDOR_ID	0x05e1
 #define USB_EASYCAP_PRODUCT_ID	0x0408
 
-#define EASYCAP_DRIVER_VERSION "0.8.21"
+#define EASYCAP_DRIVER_VERSION "0.8.41"
 #define EASYCAP_DRIVER_DESCRIPTION "easycapdc60"
 
 #define USB_SKEL_MINOR_BASE     192
@@ -291,8 +273,6 @@ unsigned int audio_buffer_page_many;
 __s16 oldaudio;
 #endif /*UPSAMPLE*/
 
-struct easycap_format easycap_format[1 + SETTINGS_MANY];
-
 int ilk;
 bool microphone;
 
@@ -306,10 +286,6 @@ struct usb_device *pusb_device;
 struct usb_interface *pusb_interface;
 
 struct kref kref;
-
-struct mutex mutex_mmap_video[FRAME_BUFFER_MANY];
-struct mutex mutex_timeval0;
-struct mutex mutex_timeval1;
 
 int queued[FRAME_BUFFER_MANY];
 int done[FRAME_BUFFER_MANY];
@@ -346,8 +322,6 @@ int    video_isoc_sequence;
 int    video_idle;
 int    video_eof;
 int    video_junk;
-
-int    fudge;
 
 struct data_buffer video_isoc_buffer[VIDEO_ISOC_BUFFER_MANY];
 struct data_buffer \
@@ -489,11 +463,7 @@ int              kill_video_urbs(struct easycap *);
 int              field2frame(struct easycap *);
 int              redaub(struct easycap *, void *, void *, \
 						int, int, __u8, __u8, bool);
-void             debrief(struct easycap *);
-void             sayreadonly(struct easycap *);
 void             easycap_testcard(struct easycap *, int);
-int              explain_ioctl(__u32);
-int              explain_cid(__u32);
 int              fillin_formats(void);
 int              adjust_standard(struct easycap *, v4l2_std_id);
 int              adjust_format(struct easycap *, __u32, __u32, __u32, \
@@ -595,15 +565,13 @@ unsigned long long int remainder;
 
 #if defined(EASYCAP_DEBUG)
 #define JOT(n, format, args...) do { \
-	if (n <= easycap_debug) { \
+	if (n <= debug) { \
 		printk(KERN_DEBUG "easycap: %s: " format, __func__, ##args); \
 	} \
 } while (0)
 #else
 #define JOT(n, format, args...) do {} while (0)
 #endif /*EASYCAP_DEBUG*/
-
-#define POUT JOT(8, ":-(in file %s line %4i\n", __FILE__, __LINE__)
 
 #define MICROSECONDS(X, Y) \
 			((1000000*((long long int)(X.tv_sec - Y.tv_sec))) + \

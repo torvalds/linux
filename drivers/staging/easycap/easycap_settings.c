@@ -413,7 +413,7 @@ return n;
 }
 /*---------------------------------------------------------------------------*/
 struct v4l2_queryctrl easycap_control[] = \
- {{
+{{
 .id       = V4L2_CID_BRIGHTNESS,
 .type     = V4L2_CTRL_TYPE_INTEGER,
 .name     = "Brightness",
@@ -485,5 +485,5 @@ struct v4l2_queryctrl easycap_control[] = \
 {
 .id = 0xFFFFFFFF
 }
- };
+};
 /*****************************************************************************/

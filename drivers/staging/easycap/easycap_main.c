@@ -31,8 +31,8 @@
 #include "easycap.h"
 #include "easycap_standard.h"
 
-int easycap_debug;
-module_param(easycap_debug, int, S_IRUGO | S_IWUSR);
+int debug;
+module_param(debug, int, S_IRUGO | S_IWUSR);
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -313,8 +313,6 @@ peasycap->video_eof = 0;
 peasycap->audio_eof = 0;
 
 do_gettimeofday(&peasycap->timeval7);
-
-peasycap->fudge = 0;
 
 JOT(4, "finished initialization\n");
 return 0;
@@ -855,15 +853,11 @@ if (NULL == peasycap) {
  */
 /*---------------------------------------------------------------------------*/
 miss = 0;
-if (mutex_lock_interruptible(&(peasycap->mutex_mmap_video[0])))
-	return -ERESTARTSYS;
 while ((peasycap->field_read == peasycap->field_fill) || \
 				(0 != (0xFF00 & peasycap->field_buffer\
 					[peasycap->field_read][0].kount)) || \
 				(0 != (0x00FF & peasycap->field_buffer\
 					[peasycap->field_read][0].kount))) {
-	mutex_unlock(&(peasycap->mutex_mmap_video[0]));
-
 	if (mode)
 		return -EAGAIN;
 
@@ -888,15 +882,11 @@ while ((peasycap->field_read == peasycap->field_fill) || \
 	}
 	if (peasycap->video_eof) {
 		JOT(8, "%i=peasycap->video_eof\n", peasycap->video_eof);
-		debrief(peasycap);
 		kill_video_urbs(peasycap);
 		return -EIO;
 	}
 miss++;
-if (mutex_lock_interruptible(&(peasycap->mutex_mmap_video[0])))
-	return -ERESTARTSYS;
 }
-mutex_unlock(&(peasycap->mutex_mmap_video[0]));
 JOT(8, "first awakening on wq_video after %i waits\n", miss);
 
 rc = field2frame(peasycap);
@@ -925,15 +915,11 @@ JOT(8, "bumped to:  %i=peasycap->frame_fill\n", peasycap->frame_fill);
  */
 /*---------------------------------------------------------------------------*/
 miss = 0;
-if (mutex_lock_interruptible(&(peasycap->mutex_mmap_video[0])))
-	return -ERESTARTSYS;
 while ((peasycap->field_read == peasycap->field_fill) || \
 				(0 != (0xFF00 & peasycap->field_buffer\
 					[peasycap->field_read][0].kount)) || \
 				(0 == (0x00FF & peasycap->field_buffer\
 					[peasycap->field_read][0].kount))) {
-	mutex_unlock(&(peasycap->mutex_mmap_video[0]));
-
 	if (mode)
 		return -EAGAIN;
 
@@ -957,15 +943,11 @@ while ((peasycap->field_read == peasycap->field_fill) || \
 	}
 	if (peasycap->video_eof) {
 		JOT(8, "%i=peasycap->video_eof\n", peasycap->video_eof);
-		debrief(peasycap);
 		kill_video_urbs(peasycap);
 		return -EIO;
 	}
 miss++;
-if (mutex_lock_interruptible(&(peasycap->mutex_mmap_video[0])))
-	return -ERESTARTSYS;
 }
-mutex_unlock(&(peasycap->mutex_mmap_video[0]));
 JOT(8, "second awakening on wq_video after %i waits\n", miss);
 
 rc = field2frame(peasycap);
@@ -2233,41 +2215,6 @@ default: {
 return 0;
 }
 /*****************************************************************************/
-void
-debrief(struct easycap *peasycap)
-{
-if ((struct usb_device *)NULL != peasycap->pusb_device) {
-	check_stk(peasycap->pusb_device);
-	check_saa(peasycap->pusb_device);
-	sayreadonly(peasycap);
-	SAY("%i=peasycap->field_fill\n", peasycap->field_fill);
-	SAY("%i=peasycap->field_read\n", peasycap->field_read);
-	SAY("%i=peasycap->frame_fill\n", peasycap->frame_fill);
-	SAY("%i=peasycap->frame_read\n", peasycap->frame_read);
-}
-return;
-}
-/*****************************************************************************/
-void
-sayreadonly(struct easycap *peasycap)
-{
-static int done;
-int got00, got1F, got60, got61, got62;
-
-if ((!done) && ((struct usb_device *)NULL != peasycap->pusb_device)) {
-	done = 1;
-	got00 = read_saa(peasycap->pusb_device, 0x00);
-	got1F = read_saa(peasycap->pusb_device, 0x1F);
-	got60 = read_saa(peasycap->pusb_device, 0x60);
-	got61 = read_saa(peasycap->pusb_device, 0x61);
-	got62 = read_saa(peasycap->pusb_device, 0x62);
-	SAY("0x%02X=reg0x00  0x%02X=reg0x1F\n", got00, got1F);
-	SAY("0x%02X=reg0x60  0x%02X=reg0x61  0x%02X=reg0x62\n", \
-							got60, got61, got62);
-}
-return;
-}
-/*****************************************************************************/
 /*---------------------------------------------------------------------------*/
 /*
  *  SEE CORBET ET AL. "LINUX DEVICE DRIVERS", 3rd EDITION, PAGES 430-434
@@ -2355,7 +2302,6 @@ if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return retcode;
 }
-mutex_lock(&(peasycap->mutex_mmap_video[0]));
 /*---------------------------------------------------------------------------*/
 pbuf = peasycap->frame_buffer[k][m].pgo;
 if (NULL == pbuf) {
@@ -2370,7 +2316,6 @@ if (NULL == page) {
 get_page(page);
 /*---------------------------------------------------------------------------*/
 finish:
-mutex_unlock(&(peasycap->mutex_mmap_video[0]));
 if (NULL == page) {
 	SAY("ERROR:  page is NULL after get_page(page)\n");
 } else {
@@ -2383,7 +2328,7 @@ return retcode;
 /*---------------------------------------------------------------------------*/
 /*
  *  ON COMPLETION OF A VIDEO URB ITS DATA IS COPIED TO THE FIELD BUFFERS
- *  PROVIDED peasycap->video_idle IS ZER0.  REGARDLESS OF THIS BEING TRUE,
+ *  PROVIDED peasycap->video_idle IS ZERO.  REGARDLESS OF THIS BEING TRUE,
  *  IT IS RESUBMITTED PROVIDED peasycap->video_isoc_streaming IS NOT ZERO.
  *
  *  THIS FUNCTION IS AN INTERRUPT SERVICE ROUTINE AND MUST NOT SLEEP.
@@ -2400,7 +2345,7 @@ return retcode;
  *      0 != (kount & 0x8000)   => AT LEAST ONE URB COMPLETED WITH ERRORS
  *      0 != (kount & 0x4000)   => BUFFER HAS TOO MUCH DATA
  *      0 != (kount & 0x2000)   => BUFFER HAS NOT ENOUGH DATA
- *      0 != (kount & 0x0400)   => FIELD WAS SUBMITTED BY BRIDGER ROUTINE
+ *      0 != (kount & 0x0400)   => RESERVED
  *      0 != (kount & 0x0200)   => FIELD BUFFER NOT YET CHECKED
  *      0 != (kount & 0x0100)   => BUFFER HAS TWO EXTRA BYTES - WHY?
  */
@@ -2417,10 +2362,6 @@ int videofieldamount;
 unsigned int override;
 int framestatus, framelength, frameactual, frameoffset;
 __u8 *pu;
-#if defined(BRIDGER)
-struct timeval timeval;
-long long usec;
-#endif /*BRIDGER*/
 
 if (NULL == purb) {
 	SAY("ERROR: easycap_complete(): purb is NULL\n");
@@ -2865,55 +2806,6 @@ if (purb->status) {
 }
 /*---------------------------------------------------------------------------*/
 /*
- *
- *
- *             *** UNDER DEVELOPMENT/TESTING - NOT READY YET! ***
- *
- *
- *
- *  VIDEOTAPES MAY HAVE BEEN MANUALLY PAUSED AND RESTARTED DURING RECORDING.
- *  THIS CAUSES LOSS OF SYNC, CONFUSING DOWNSTREAM USERSPACE PROGRAMS WHICH
- *  MAY INTERPRET THE INTERRUPTION AS A SYMPTOM OF LATENCY.  TO OVERCOME THIS
- *  THE DRIVER BRIDGES THE HIATUS BY SENDING DUMMY VIDEO FRAMES AT ROUGHLY
- *  THE RIGHT TIME INTERVALS IN THE HOPE OF PERSUADING THE DOWNSTREAM USERSPACE
- *  PROGRAM TO RESUME NORMAL SERVICE WHEN THE INTERRUPTION IS OVER.
- */
-/*---------------------------------------------------------------------------*/
-#if defined(BRIDGER)
-do_gettimeofday(&timeval);
-if (peasycap->timeval7.tv_sec) {
-	usec = 1000000*(timeval.tv_sec  - peasycap->timeval7.tv_sec) + \
-			(timeval.tv_usec - peasycap->timeval7.tv_usec);
-	if (usec > (peasycap->usec + peasycap->tolerate)) {
-		JOT(8, "bridging hiatus\n");
-		peasycap->video_junk = 0;
-		peasycap->field_buffer[peasycap->field_fill][0].kount |= 0x0400;
-
-		peasycap->field_read = (peasycap->field_fill)++;
-
-		if (FIELD_BUFFER_MANY <= peasycap->field_fill) \
-						peasycap->field_fill = 0;
-		peasycap->field_page = 0;
-		pfield_buffer = &peasycap->field_buffer\
-				[peasycap->field_fill][peasycap->field_page];
-		pfield_buffer->pto = pfield_buffer->pgo;
-
-		JOT(8, "bumped to: %i=peasycap->field_fill  %i=parity\n", \
-			peasycap->field_fill, 0x00FF & pfield_buffer->kount);
-		JOT(8, "field buffer %i has %i bytes to be overwritten\n", \
-			peasycap->field_read, videofieldamount);
-		JOT(8, "wakeup call to wq_video, " \
-			"%i=field_read %i=field_fill %i=parity\n", \
-			peasycap->field_read, peasycap->field_fill, \
-			0x00FF & \
-			peasycap->field_buffer[peasycap->field_read][0].kount);
-		wake_up_interruptible(&(peasycap->wq_video));
-		do_gettimeofday(&peasycap->timeval7);
-	}
-}
-#endif /*BRIDGER*/
-/*---------------------------------------------------------------------------*/
-/*
  *  RESUBMIT THIS URB, UNLESS A SEVERE PERSISTENT ERROR CONDITION EXISTS.
  *
  *  IF THE WAIT QUEUES ARE NOT CLEARED IN RESPONSE TO AN ERROR CONDITION
@@ -3152,12 +3044,6 @@ if (0 == bInterfaceNumber) {
 	init_waitqueue_head(&(peasycap->wq_video));
 	init_waitqueue_head(&(peasycap->wq_audio));
 
-	mutex_init(&(peasycap->mutex_timeval0));
-	mutex_init(&(peasycap->mutex_timeval1));
-
-	for (k = 0; k < FRAME_BUFFER_MANY; k++)
-		mutex_init(&(peasycap->mutex_mmap_video[k]));
-
 	peasycap->ilk = 0;
 	peasycap->microphone = false;
 
@@ -3176,11 +3062,6 @@ if (0 == bInterfaceNumber) {
 	peasycap->audio_isoc_buffer_size = -1;
 
 	peasycap->frame_buffer_many = FRAME_BUFFER_MANY;
-
-	if ((struct mutex *)NULL == &(peasycap->mutex_mmap_video[0])) {
-		SAY("ERROR: &(peasycap->mutex_mmap_video[%i]) is NULL\n", 0);
-		return -EFAULT;
-	}
 /*---------------------------------------------------------------------------*/
 /*
  *  DYNAMICALLY FILL IN THE AVAILABLE FORMATS.
@@ -4308,7 +4189,7 @@ easycap_module_init(void)
 int result;
 
 SAY("========easycap=======\n");
-JOT(4, "begins.  %i=debug\n", easycap_debug);
+JOT(4, "begins.  %i=debug\n", debug);
 SAY("version: " EASYCAP_DRIVER_VERSION "\n");
 /*---------------------------------------------------------------------------*/
 /*
@@ -4349,6 +4230,6 @@ MODULE_AUTHOR("R.M. Thomas <rmthomas@sciolus.org>");
 MODULE_DESCRIPTION(EASYCAP_DRIVER_DESCRIPTION);
 MODULE_VERSION(EASYCAP_DRIVER_VERSION);
 #if defined(EASYCAP_DEBUG)
-MODULE_PARM_DESC(easycap_debug, "debug: 0 (default), 1, 2,...");
+MODULE_PARM_DESC(debug, "debug: 0 (default), 1, 2,...");
 #endif /*EASYCAP_DEBUG*/
 /*****************************************************************************/
