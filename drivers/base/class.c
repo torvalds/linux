@@ -482,8 +482,8 @@ void class_interface_unregister(struct class_interface *class_intf)
 	class_put(parent);
 }
 
-ssize_t show_class_attr_string(struct class *class, struct class_attribute *attr,
-                        	char *buf)
+ssize_t show_class_attr_string(struct class *class,
+			       struct class_attribute *attr, char *buf)
 {
 	struct class_attribute_string *cs;
 	cs = container_of(attr, struct class_attribute_string, attr);
