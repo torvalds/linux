@@ -154,6 +154,7 @@
 #error video_isoc_buffer[.] will not be big enough
 #endif
 #define VIDEO_JUNK_TOLERATE VIDEO_ISOC_BUFFER_MANY
+#define VIDEO_LOST_TOLERATE 50
 /*---------------------------------------------------------------------------*/
 /*
  *  VIDEO BUFFERS
@@ -344,6 +345,7 @@ int usec;
 int tolerate;
 int skip;
 int skipped;
+int lost[INPUT_MANY];
 int merit[180];
 
 struct timeval timeval0;

@@ -29,37 +29,69 @@
 #include "easycap_debug.h"
 
 /*****************************************************************************/
-#define TESTCARD_BYTESPERLINE (2 * 1440)
+#define TESTCARD_BYTESPERLINE (2 * 720)
 void
-easycap_testcard(struct easycap *peasycap, int field_fill)
+easycap_testcard(struct easycap *peasycap, int field)
 {
 int total;
 int y, u, v, r, g, b;
 unsigned char uyvy[4];
-
-int i1, line, k, m, n, more, much, barwidth;
+int i1, line, k, m, n, more, much, barwidth, barheight;
 unsigned char bfbar[TESTCARD_BYTESPERLINE / 8], *p1, *p2;
 struct data_buffer *pfield_buffer;
 
-JOT(8, "%i=field_fill\n", field_fill);
-
-if ((TESTCARD_BYTESPERLINE / 2) < peasycap->width) {
-	SAY("ERROR: image is too wide\n");
+if (NULL == peasycap) {
+	SAY("ERROR: peasycap is NULL\n");
 	return;
 }
-if (peasycap->width % 16) {
-	SAY("ERROR: indivisible image width\n");
+JOM(8, "%i=field\n", field);
+switch (peasycap->width) {
+case 720:
+case 360: {
+	barwidth = (2 * 720) / 8;
+	break;
+}
+case 704:
+case 352: {
+	barwidth = (2 * 704) / 8;
+	break;
+}
+case 640:
+case 320: {
+	barwidth = (2 * 640) / 8;
+	break;
+}
+default: {
+	SAM("ERROR:  cannot set barwidth\n");
 	return;
 }
-
+}
+if (TESTCARD_BYTESPERLINE < barwidth) {
+	SAM("ERROR: barwidth is too large\n");
+	return;
+}
+switch (peasycap->height) {
+case 576:
+case 288: {
+	barheight = 576;
+	break;
+}
+case 480:
+case 240: {
+	barheight = 480;
+	break;
+}
+default: {
+	SAM("ERROR: cannot set barheight\n");
+	return;
+}
+}
 total = 0;
-barwidth = (2 * peasycap->width) / 8;
-
-k = field_fill;
+k = field;
 m = 0;
 n = 0;
 
-for (line = 0;  line < (peasycap->height / 2);  line++) {
+for (line = 0;  line < (barheight / 2);  line++) {
 	for (i1 = 0;  i1 < 8;  i1++) {
 		r = (i1 * 256)/8;
 		g = (i1 * 256)/8;
@@ -88,15 +120,15 @@ for (line = 0;  line < (peasycap->height / 2);  line++) {
 
 		while (more) {
 			if ((FIELD_BUFFER_SIZE/PAGE_SIZE) <= m) {
-				SAY("ERROR:  bad m reached\n");
+				SAM("ERROR:  bad m reached\n");
 				return;
 			}
 		if (PAGE_SIZE < n) {
-			SAY("ERROR:  bad n reached\n"); return;
+			SAM("ERROR:  bad n reached\n"); return;
 		}
 
 		if (0 > more) {
-			SAY("ERROR:  internal fault\n");
+			SAM("ERROR:  internal fault\n");
 			return;
 		}
 
@@ -117,10 +149,6 @@ for (line = 0;  line < (peasycap->height / 2);  line++) {
 		}
 	}
 }
-
-JOT(8, "%i=total\n", total);
-if (total != peasycap->width * peasycap->height)
-	SAY("ERROR: wrong number of bytes written:  %i\n", total);
 return;
 }
 /*****************************************************************************/
@@ -375,10 +403,12 @@ int i1;
 unsigned char *p2;
 struct data_buffer *paudio_buffer;
 
-JOT(8, "%i=audio_fill\n", audio_fill);
-
+if (NULL == peasycap) {
+	SAY("ERROR: peasycap is NULL\n");
+	return;
+}
+JOM(8, "%i=audio_fill\n", audio_fill);
 paudio_buffer = &peasycap->audio_buffer[audio_fill];
-
 p2 = (unsigned char *)(paudio_buffer->pgo);
 for (i1 = 0;  i1 < PAGE_SIZE;  i1 += 4, p2 += 4) {
 	*p2       = (unsigned char) (0x00FF & tones[i1/2]);

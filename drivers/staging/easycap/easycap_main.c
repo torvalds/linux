@@ -33,7 +33,9 @@
 #include "easycap_ioctl.h"
 
 int debug;
+int bars;
 module_param(debug, int, S_IRUGO | S_IWUSR);
+module_param(bars, int, S_IRUGO | S_IWUSR);
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -868,7 +870,7 @@ return 0;
 void
 easycap_delete(struct kref *pkref)
 {
-int k, m, lost;
+int k, m, gone;
 int allocation_video_urb, allocation_video_page, allocation_video_struct;
 int allocation_audio_urb, allocation_audio_page, allocation_audio_struct;
 int registered_video, registered_audio;
@@ -941,7 +943,7 @@ for (k = 0;  k < VIDEO_ISOC_BUFFER_MANY;  k++) {
 JOM(4, "isoc video buffers freed: %i pages\n", m * (0x01 << VIDEO_ISOC_ORDER));
 /*---------------------------------------------------------------------------*/
 JOM(4, "freeing video field buffers.\n");
-lost = 0;
+gone = 0;
 for (k = 0;  k < FIELD_BUFFER_MANY;  k++) {
 	for (m = 0;  m < FIELD_BUFFER_SIZE/PAGE_SIZE;  m++) {
 		if ((void *)NULL != peasycap->field_buffer[k][m].pgo) {
@@ -949,14 +951,14 @@ for (k = 0;  k < FIELD_BUFFER_MANY;  k++) {
 					(peasycap->field_buffer[k][m].pgo));
 			peasycap->field_buffer[k][m].pgo = (void *)NULL;
 			peasycap->allocation_video_page -= 1;
-			lost++;
+			gone++;
 		}
 	}
 }
-JOM(4, "video field buffers freed: %i pages\n", lost);
+JOM(4, "video field buffers freed: %i pages\n", gone);
 /*---------------------------------------------------------------------------*/
 JOM(4, "freeing video frame buffers.\n");
-lost = 0;
+gone = 0;
 for (k = 0;  k < FRAME_BUFFER_MANY;  k++) {
 	for (m = 0;  m < FRAME_BUFFER_SIZE/PAGE_SIZE;  m++) {
 		if ((void *)NULL != peasycap->frame_buffer[k][m].pgo) {
@@ -964,11 +966,11 @@ for (k = 0;  k < FRAME_BUFFER_MANY;  k++) {
 					(peasycap->frame_buffer[k][m].pgo));
 			peasycap->frame_buffer[k][m].pgo = (void *)NULL;
 			peasycap->allocation_video_page -= 1;
-			lost++;
+			gone++;
 		}
 	}
 }
-JOM(4, "video frame buffers freed: %i pages\n", lost);
+JOM(4, "video frame buffers freed: %i pages\n", gone);
 /*---------------------------------------------------------------------------*/
 /*
  *  FREE AUDIO.
@@ -1027,16 +1029,16 @@ JOM(4, "easysnd_delete(): isoc audio buffers freed: %i pages\n", \
 					m * (0x01 << AUDIO_ISOC_ORDER));
 /*---------------------------------------------------------------------------*/
 JOM(4, "freeing audio buffers.\n");
-lost = 0;
+gone = 0;
 for (k = 0;  k < peasycap->audio_buffer_page_many;  k++) {
 	if ((void *)NULL != peasycap->audio_buffer[k].pgo) {
 		free_page((unsigned long)(peasycap->audio_buffer[k].pgo));
 		peasycap->audio_buffer[k].pgo = (void *)NULL;
 		peasycap->allocation_audio_page -= 1;
-		lost++;
+		gone++;
 	}
 }
-JOM(4, "easysnd_delete(): audio buffers freed: %i pages\n", lost);
+JOM(4, "easysnd_delete(): audio buffers freed: %i pages\n", gone);
 /*---------------------------------------------------------------------------*/
 JOM(4, "freeing easycap structure.\n");
 allocation_video_urb    = peasycap->allocation_video_urb;
@@ -1103,7 +1105,7 @@ else
 int
 easycap_dqbuf(struct easycap *peasycap, int mode)
 {
-int ifield, miss, rc;
+int input, ifield, miss, rc;
 
 JOT(8, "\n");
 
@@ -1113,6 +1115,36 @@ if (NULL == peasycap) {
 }
 ifield = 0;
 JOM(8, "%i=ifield\n", ifield);
+/*---------------------------------------------------------------------------*/
+/*
+ *  CHECK FOR LOST INPUT SIGNAL.
+ *
+ *  FOR THE FOUR-CVBS EasyCAP, THIS DOES NOT WORK AS EXPECTED.
+ *  IF INPUT 0 IS PRESENT AND LOCKED, UNPLUGGING INPUT 4 DOES NOT RESULT IN
+ *  SETTING BIT 0x40 ON REGISTER 0x1F, PRESUMABLY BECAUSE THERE IS FLYWHEELING
+ *  ON INPUT 0.  THE UPSHOT IS:
+ *
+ *    INPUT 0   PLUGGED, INPUT 4   PLUGGED => SCREEN 0 OK,   SCREEN 4 OK
+ *    INPUT 0   PLUGGED, INPUT 4 UNPLUGGED => SCREEN 0 OK,   SCREEN 4 BLACK
+ *    INPUT 0 UNPLUGGED, INPUT 4   PLUGGED => SCREEN 0 BARS, SCREEN 4 OK
+ *    INPUT 0 UNPLUGGED, INPUT 4 UNPLUGGED => SCREEN 0 BARS, SCREEN 4 BARS
+*/
+/*---------------------------------------------------------------------------*/
+input = peasycap->input;
+if (0 <= input && INPUT_MANY > input) {
+	rc = read_saa(peasycap->pusb_device, 0x1F);
+	if (0 <= rc) {
+		if (rc & 0x40)
+			peasycap->lost[input] += 1;
+		else
+			peasycap->lost[input] -= 2;
+
+	if (0 > peasycap->lost[input])
+		peasycap->lost[input] = 0;
+	else if ((2 * VIDEO_LOST_TOLERATE) < peasycap->lost[input])
+		peasycap->lost[input] = (2 * VIDEO_LOST_TOLERATE);
+	}
+}
 /*---------------------------------------------------------------------------*/
 /*
  *  WAIT FOR FIELD ifield  (0 => TOP, 1 => BOTTOM)
@@ -1304,7 +1336,7 @@ struct signed_div_result sdr;
 void *pex, *pad;
 int kex, kad, mex, mad, rex, rad, rad2;
 int c2, c3, w2, w3, cz, wz;
-int rc, bytesperpixel, multiplier, much, more, over, rump, caches;
+int rc, bytesperpixel, multiplier, much, more, over, rump, caches, input;
 __u8 mask, margin;
 bool odd, isuy, decimatepixel, offerfields, badinput;
 
@@ -1314,6 +1346,7 @@ if ((struct easycap *)NULL == peasycap) {
 }
 
 badinput = false;
+input = 0x07 & peasycap->field_buffer[peasycap->field_read][0].input;
 
 JOM(8, "=====  parity %i, input 0x%02X, field buffer %i --> " \
 						"frame buffer %i\n", \
@@ -1337,8 +1370,10 @@ if (peasycap->field_read == peasycap->field_fill) {
 #if defined(EASYCAP_TESTCARD)
 easycap_testcard(peasycap, peasycap->field_read);
 #else
-if (0 != (0x0400 & peasycap->field_buffer[peasycap->field_read][0].kount))
-	easycap_testcard(peasycap, peasycap->field_read);
+if (0 <= input && INPUT_MANY > input) {
+	if (bars && VIDEO_LOST_TOLERATE <= peasycap->lost[input])
+		easycap_testcard(peasycap, peasycap->field_read);
+}
 #endif /*EASYCAP_TESTCARD*/
 /*---------------------------------------------------------------------------*/
 
@@ -3491,6 +3526,8 @@ if (0 == bInterfaceNumber) {
 
 	peasycap->frame_buffer_many = FRAME_BUFFER_MANY;
 
+	for (k = 0; k < INPUT_MANY; k++)
+		peasycap->lost[k] = 0;
 	peasycap->skip = 0;
 	peasycap->skipped = 0;
 	peasycap->offerfields = 0;
@@ -4733,7 +4770,7 @@ easycap_module_init(void)
 int result;
 
 SAY("========easycap=======\n");
-JOT(4, "begins.  %i=debug\n", debug);
+JOT(4, "begins.  %i=debug %i=bars\n", debug, bars);
 SAY("version: " EASYCAP_DRIVER_VERSION "\n");
 /*---------------------------------------------------------------------------*/
 /*
@@ -4774,6 +4811,8 @@ MODULE_AUTHOR("R.M. Thomas <rmthomas@sciolus.org>");
 MODULE_DESCRIPTION(EASYCAP_DRIVER_DESCRIPTION);
 MODULE_VERSION(EASYCAP_DRIVER_VERSION);
 #if defined(EASYCAP_DEBUG)
-MODULE_PARM_DESC(debug, "debug: 0 (default), 1, 2,...");
+MODULE_PARM_DESC(debug, "Debug level: 0 (default),1,2,...,9");
 #endif /*EASYCAP_DEBUG*/
+MODULE_PARM_DESC(bars, \
+	"Testcard bars on input signal failure: 0=>no, 1=>yes(default)");
 /*****************************************************************************/
