@@ -636,7 +636,7 @@ else
 
 if ((struct usb_device *)NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device has become NULL\n");
-	return -EFAULT;
+	return -ENODEV;
 }
 /*---------------------------------------------------------------------------*/
 if ((struct usb_device *)NULL == peasycap->pusb_device) {
@@ -695,7 +695,7 @@ long long int above, below, mean;
 struct signed_div_result sdr;
 unsigned char *p0;
 long int kount1, more, rc, l0, lm;
-int fragment;
+int fragment, kd;
 struct easycap *peasycap;
 struct data_buffer *pdata_buffer;
 size_t szret;
@@ -713,20 +713,76 @@ size_t szret;
 
 JOT(8, "===== easysnd_read(): kount=%i, *poff=%i\n", (int)kount, (int)(*poff));
 
-peasycap = (struct easycap *)(file->private_data);
+if (NULL == file) {
+	SAY("ERROR:  file is NULL\n");
+	return -ERESTARTSYS;
+}
+peasycap = file->private_data;
 if (NULL == peasycap) {
 	SAY("ERROR in easysnd_read(): peasycap is NULL\n");
 	return -EFAULT;
 }
+if (NULL == peasycap->pusb_device) {
+	SAY("ERROR in easysnd_read(): peasycap->pusb_device is NULL\n");
+	return -EFAULT;
+}
+kd = isdongle(peasycap);
+if (0 <= kd && DONGLE_MANY > kd) {
+	if (mutex_lock_interruptible(&(easycap_dongle[kd].mutex_audio))) {
+		SAY("ERROR: cannot lock easycap_dongle[%i].mutex_audio\n", kd);
+		return -ERESTARTSYS;
+	}
+	JOM(4, "locked easycap_dongle[%i].mutex_audio\n", kd);
 /*---------------------------------------------------------------------------*/
+/*
+ *  MEANWHILE, easycap_usb_disconnect() MAY HAVE FREED POINTER peasycap,
+ *  IN WHICH CASE A REPEAT CALL TO isdongle() WILL FAIL.
+ *  IF NECESSARY, BAIL OUT.
+*/
+/*---------------------------------------------------------------------------*/
+	if (kd != isdongle(peasycap))
+		return -ERESTARTSYS;
+	if (NULL == file) {
+		SAY("ERROR:  file is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
+		return -ERESTARTSYS;
+	}
+	peasycap = file->private_data;
+	if (NULL == peasycap) {
+		SAY("ERROR:  peasycap is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
+		return -ERESTARTSYS;
+	}
+	if (NULL == peasycap->pusb_device) {
+		SAM("ERROR: peasycap->pusb_device is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
+		return -ERESTARTSYS;
+	}
+} else {
+/*---------------------------------------------------------------------------*/
+/*
+ *  IF easycap_usb_disconnect() HAS ALREADY FREED POINTER peasycap BEFORE THE
+ *  ATTEMPT TO ACQUIRE THE SEMAPHORE, isdongle() WILL HAVE FAILED.  BAIL OUT.
+*/
+/*---------------------------------------------------------------------------*/
+	return -ERESTARTSYS;
+}
+/*---------------------------------------------------------------------------*/
+if (file->f_flags & O_NONBLOCK)
+	JOT(16, "NONBLOCK  kount=%i, *poff=%i\n", (int)kount, (int)(*poff));
+else
+	JOT(8, "BLOCKING  kount=%i, *poff=%i\n", (int)kount, (int)(*poff));
+
 if ((0 > peasycap->audio_read) || \
 		(peasycap->audio_buffer_page_many <= peasycap->audio_read)) {
 	SAM("ERROR: peasycap->audio_read out of range\n");
+	mutex_unlock(&easycap_dongle[kd].mutex_audio);
 	return -EFAULT;
 }
 pdata_buffer = &peasycap->audio_buffer[peasycap->audio_read];
 if ((struct data_buffer *)NULL == pdata_buffer) {
 	SAM("ERROR: pdata_buffer is NULL\n");
+	mutex_unlock(&easycap_dongle[kd].mutex_audio);
 	return -EFAULT;
 }
 JOM(12, "before wait, %i=frag read  %i=frag fill\n", \
@@ -738,6 +794,7 @@ while ((fragment == (peasycap->audio_fill / \
 		(0 == (PAGE_SIZE - (pdata_buffer->pto - pdata_buffer->pgo)))) {
 	if (file->f_flags & O_NONBLOCK) {
 		JOM(16, "returning -EAGAIN as instructed\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -EAGAIN;
 	}
 	rc = wait_event_interruptible(peasycap->wq_audio, \
@@ -747,21 +804,25 @@ while ((fragment == (peasycap->audio_fill / \
 		(0 < (PAGE_SIZE - (pdata_buffer->pto - pdata_buffer->pgo))))));
 	if (0 != rc) {
 		SAM("aborted by signal\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -ERESTARTSYS;
 	}
 	if (peasycap->audio_eof) {
 		JOM(8, "returning 0 because  %i=audio_eof\n", \
 							peasycap->audio_eof);
 		kill_audio_urbs(peasycap);
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return 0;
 	}
 	if (peasycap->audio_idle) {
 		JOM(16, "returning 0 because  %i=audio_idle\n", \
 							peasycap->audio_idle);
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return 0;
 	}
 	if (!peasycap->audio_isoc_streaming) {
 		JOM(16, "returning 0 because audio urbs not streaming\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return 0;
 	}
 }
@@ -773,15 +834,18 @@ while (fragment == (peasycap->audio_read / \
 				peasycap->audio_pages_per_fragment)) {
 	if (NULL == pdata_buffer->pgo) {
 		SAM("ERROR: pdata_buffer->pgo is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -EFAULT;
 	}
 	if (NULL == pdata_buffer->pto) {
 		SAM("ERROR: pdata_buffer->pto is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -EFAULT;
 	}
 	kount1 = PAGE_SIZE - (pdata_buffer->pto - pdata_buffer->pgo);
 	if (0 > kount1) {
 		SAM("easysnd_read: MISTAKE: kount1 is negative\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -ERESTARTSYS;
 	}
 	if (!kount1) {
@@ -799,19 +863,23 @@ while (fragment == (peasycap->audio_read / \
 			(peasycap->audio_buffer_page_many <= \
 					peasycap->audio_read)) {
 			SAM("ERROR: peasycap->audio_read out of range\n");
+			mutex_unlock(&easycap_dongle[kd].mutex_audio);
 			return -EFAULT;
 		}
 		pdata_buffer = &peasycap->audio_buffer[peasycap->audio_read];
 		if ((struct data_buffer *)NULL == pdata_buffer) {
 			SAM("ERROR: pdata_buffer is NULL\n");
+			mutex_unlock(&easycap_dongle[kd].mutex_audio);
 			return -EFAULT;
 		}
 		if (NULL == pdata_buffer->pgo) {
 			SAM("ERROR: pdata_buffer->pgo is NULL\n");
+			mutex_unlock(&easycap_dongle[kd].mutex_audio);
 			return -EFAULT;
 		}
 		if (NULL == pdata_buffer->pto) {
 			SAM("ERROR: pdata_buffer->pto is NULL\n");
+			mutex_unlock(&easycap_dongle[kd].mutex_audio);
 			return -EFAULT;
 		}
 		kount1 = PAGE_SIZE - (pdata_buffer->pto - pdata_buffer->pgo);
@@ -840,6 +908,7 @@ while (fragment == (peasycap->audio_read / \
 	rc = copy_to_user(puserspacebuffer, pdata_buffer->pto, more);
 	if (0 != rc) {
 		SAM("ERROR: copy_to_user() returned %li\n", rc);
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
 		return -EFAULT;
 	}
 	*poff += (loff_t)more;
@@ -902,6 +971,7 @@ JOM(8, "audio streaming at %lli bytes/second\n", sdr.quotient);
 peasycap->dnbydt = sdr.quotient;
 
 JOM(8, "returning %li\n", (long int)szret);
+mutex_unlock(&easycap_dongle[kd].mutex_audio);
 return szret;
 }
 /*****************************************************************************/

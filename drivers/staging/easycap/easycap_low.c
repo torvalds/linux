@@ -38,8 +38,8 @@
 */
 /****************************************************************************/
 
-#include "easycap_debug.h"
 #include "easycap.h"
+#include "easycap_debug.h"
 
 /*--------------------------------------------------------------------------*/
 const struct stk1160config { int reg; int set; } stk1160configPAL[256] = {
@@ -248,6 +248,9 @@ int
 confirm_resolution(struct usb_device *p)
 {
 __u8 get0, get1, get2, get3, get4, get5, get6, get7;
+
+if (NULL == p)
+	return -ENODEV;
 GET(p, 0x0110, &get0);
 GET(p, 0x0111, &get1);
 GET(p, 0x0112, &get2);
@@ -288,6 +291,8 @@ confirm_stream(struct usb_device *p)
 __u16 get2;
 __u8 igot;
 
+if (NULL == p)
+	return -ENODEV;
 GET(p, 0x0100, &igot);  get2 = 0x80 & igot;
 if (0x80 == get2)
 	JOT(8, "confirm_stream:  OK\n");
@@ -301,6 +306,8 @@ setup_stk(struct usb_device *p, bool ntsc)
 {
 int i0;
 
+if (NULL == p)
+	return -ENODEV;
 i0 = 0;
 if (true == ntsc) {
 	while (0xFFF != stk1160configNTSC[i0].reg) {
@@ -324,6 +331,8 @@ setup_saa(struct usb_device *p, bool ntsc)
 {
 int i0, ir;
 
+if (NULL == p)
+	return -ENODEV;
 i0 = 0;
 if (true == ntsc) {
 	while (0xFF != saa7113configNTSC[i0].reg) {
@@ -346,6 +355,8 @@ write_000(struct usb_device *p, __u16 set2, __u16 set0)
 {
 __u8 igot0, igot2;
 
+if (NULL == p)
+	return -ENODEV;
 GET(p, 0x0002, &igot2);
 GET(p, 0x0000, &igot0);
 SET(p, 0x0002, set2);
@@ -356,6 +367,8 @@ return 0;
 int
 write_saa(struct usb_device *p, __u16 reg0, __u16 set0)
 {
+if (NULL == p)
+	return -ENODEV;
 SET(p, 0x200, 0x00);
 SET(p, 0x204, reg0);
 SET(p, 0x205, set0);
@@ -379,6 +392,8 @@ __u8 igot;
 __u16 got502, got503;
 __u16 set502, set503;
 
+if (NULL == p)
+	return -ENODEV;
 SET(p, 0x0504, reg0);
 SET(p, 0x0500, 0x008B);
 
@@ -414,6 +429,8 @@ read_vt(struct usb_device *p, __u16 reg0)
 __u8 igot;
 __u16 got502, got503;
 
+if (NULL == p)
+	return -ENODEV;
 SET(p, 0x0504, reg0);
 SET(p, 0x0500, 0x008B);
 
@@ -433,6 +450,8 @@ return (got503 << 8) | got502;
 int
 write_300(struct usb_device *p)
 {
+if (NULL == p)
+	return -ENODEV;
 SET(p, 0x300, 0x0012);
 SET(p, 0x350, 0x002D);
 SET(p, 0x351, 0x0001);
@@ -453,6 +472,8 @@ check_saa(struct usb_device *p, bool ntsc)
 {
 int i0, ir, rc;
 
+if (NULL == p)
+	return -ENODEV;
 i0 = 0;
 rc = 0;
 if (true == ntsc) {
@@ -501,6 +522,8 @@ merit_saa(struct usb_device *p)
 {
 int rc;
 
+if (NULL == p)
+	return -ENODEV;
 rc = read_saa(p, 0x1F);
 if ((0 > rc) || (0x02 & rc))
 	return 1 ;
@@ -521,6 +544,8 @@ const int max = 5, marktime = PATIENCE/5;
  *              3     FOR NON-INTERLACED   60 Hz
 */
 /*--------------------------------------------------------------------------*/
+if (NULL == p)
+	return -ENODEV;
 j = 0;
 while (max > j) {
 	rc = read_saa(p, 0x1F);
@@ -565,6 +590,8 @@ check_stk(struct usb_device *p, bool ntsc)
 {
 int i0, ir;
 
+if (NULL == p)
+	return -ENODEV;
 i0 = 0;
 if (true == ntsc) {
 	while (0xFFF != stk1160configNTSC[i0].reg) {
@@ -637,6 +664,8 @@ read_saa(struct usb_device *p, __u16 reg0)
 {
 __u8 igot;
 
+if (NULL == p)
+	return -ENODEV;
 SET(p, 0x208, reg0);
 SET(p, 0x200, 0x20);
 if (0 != wait_i2c(p))
@@ -651,6 +680,8 @@ read_stk(struct usb_device *p, __u32 reg0)
 {
 __u8 igot;
 
+if (NULL == p)
+	return -ENODEV;
 igot = 0;
 GET(p, reg0, &igot);
 return igot;
@@ -679,6 +710,8 @@ select_input(struct usb_device *p, int input, int mode)
 {
 int ir;
 
+if (NULL == p)
+	return -ENODEV;
 stop_100(p);
 switch (input) {
 case 0:
@@ -781,6 +814,8 @@ set_resolution(struct usb_device *p, \
 {
 __u16 u0x0111, u0x0113, u0x0115, u0x0117;
 
+if (NULL == p)
+	return -ENODEV;
 u0x0111 = ((0xFF00 & set0) >> 8);
 u0x0113 = ((0xFF00 & set1) >> 8);
 u0x0115 = ((0xFF00 & set2) >> 8);
@@ -804,6 +839,8 @@ start_100(struct usb_device *p)
 __u16 get116, get117, get0;
 __u8 igot116, igot117, igot;
 
+if (NULL == p)
+	return -ENODEV;
 GET(p, 0x0116, &igot116);
 get116 = igot116;
 GET(p, 0x0117, &igot117);
@@ -827,6 +864,8 @@ stop_100(struct usb_device *p)
 __u16 get0;
 __u8 igot;
 
+if (NULL == p)
+	return -ENODEV;
 GET(p, 0x0100, &igot);
 get0 = igot;
 SET(p, 0x0100, (0x7F & get0));
@@ -846,6 +885,8 @@ __u8 igot;
 const int max = 2;
 int k;
 
+if (NULL == p)
+	return -ENODEV;
 for (k = 0;  k < max;  k++) {
 	GET(p, 0x0201, &igot);  get0 = igot;
 	switch (get0) {
@@ -872,8 +913,7 @@ __u16 igot;
 int rc0, rc1;
 
 if (!pusb_device)
-	return -EFAULT;
-
+	return -ENODEV;
 rc1 = 0;  igot = 0;
 rc0 = usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0), \
 		(__u8)0x01, \
@@ -936,8 +976,7 @@ regget(struct usb_device *pusb_device, __u16 index, void *pvoid)
 int ir;
 
 if (!pusb_device)
-	return -EFAULT;
-
+	return -ENODEV;
 ir = usb_control_msg(pusb_device, usb_rcvctrlpipe(pusb_device, 0), \
 		(__u8)0x00, \
 		(__u8)(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE), \
@@ -952,6 +991,8 @@ return 0xFF & ir;
 int
 wakeup_device(struct usb_device *pusb_device)
 {
+if (!pusb_device)
+	return -ENODEV;
 return usb_control_msg(pusb_device, usb_sndctrlpipe(pusb_device, 0), \
 		(__u8)USB_REQ_SET_FEATURE, \
 		(__u8)(USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE), \
@@ -1056,6 +1097,8 @@ check_vt(struct usb_device *pusb_device)
 {
 int igot;
 
+if (!pusb_device)
+	return -ENODEV;
 igot = read_vt(pusb_device, 0x0002);
 if (0 > igot)
 	SAY("ERROR: failed to read VT1612A register 0x02\n");
@@ -1128,7 +1171,7 @@ int igot;
 __u8 u8;
 __u16 mute;
 
-if ((struct usb_device *)NULL == pusb_device)
+if (NULL == pusb_device)
 	return -ENODEV;
 if (0 > loud)
 	loud = 0;

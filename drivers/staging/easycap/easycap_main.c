@@ -45,11 +45,14 @@ module_param(gain, int, S_IRUGO | S_IWUSR);
  *  IS CALLED SUCCESSIVELY FOR INTERFACES 0, 1, 2 AND THE POINTER peasycap
  *  ALLOCATED DURING THE PROBING OF INTERFACE 0 MUST BE REMEMBERED WHEN
  *  PROBING INTERFACES 1 AND 2.
+ *
+ *  IOCTL LOCKING IS DONE AT MODULE LEVEL, NOT DEVICE LEVEL.
 */
 /*---------------------------------------------------------------------------*/
 
-struct easycap *peasycap_dongle[DONGLE_MANY];
+struct easycap_dongle easycap_dongle[DONGLE_MANY];
 static int dongle_this;
+static int dongle_done;
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -80,7 +83,11 @@ const struct file_operations easycap_fops = {
 	.owner		= THIS_MODULE,
 	.open		= easycap_open,
 	.release	= easycap_release,
-	.unlocked_ioctl	= easycap_ioctl,
+#if defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)
+	.unlocked_ioctl	= easycap_ioctl_noinode,
+#else
+	.ioctl		= easycap_ioctl,
+#endif /*EASYCAP_NEEDS_UNLOCKED_IOCTL*/
 	.poll		= easycap_poll,
 	.mmap		= easycap_mmap,
 	.llseek		= no_llseek,
@@ -103,7 +110,11 @@ const struct v4l2_file_operations v4l2_fops = {
 	.owner		= THIS_MODULE,
 	.open		= easycap_open_noinode,
 	.release	= easycap_release_noinode,
-	.unlocked_ioctl	= easycap_ioctl,
+#if defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)
+	.unlocked_ioctl	= easycap_ioctl_noinode,
+#else
+	.ioctl		= easycap_ioctl,
+#endif /*EASYCAP_NEEDS_UNLOCKED_IOCTL*/
 	.poll		= easycap_poll,
 	.mmap		= easycap_mmap,
 };
@@ -120,7 +131,11 @@ const struct file_operations easysnd_fops = {
 	.owner		= THIS_MODULE,
 	.open		= easysnd_open,
 	.release	= easysnd_release,
-	.unlocked_ioctl	= easysnd_ioctl,
+#if defined(EASYCAP_NEEDS_UNLOCKED_IOCTL)
+	.unlocked_ioctl	= easysnd_ioctl_noinode,
+#else
+	.ioctl		= easysnd_ioctl,
+#endif /*EASYCAP_NEEDS_UNLOCKED_IOCTL*/
 	.read		= easysnd_read,
 	.llseek		= no_llseek,
 };
@@ -139,10 +154,10 @@ int
 isdongle(struct easycap *peasycap)
 {
 int k;
-if ((struct easycap *)NULL == peasycap)
+if (NULL == peasycap)
 	return -2;
 for (k = 0; k < DONGLE_MANY; k++) {
-	if (peasycap_dongle[k] == peasycap) {
+	if (easycap_dongle[k].peasycap == peasycap) {
 		peasycap->isdongle = k;
 		return k;
 	}
@@ -196,11 +211,10 @@ if ((struct video_device *)NULL == pvideo_device) {
 peasycap = (struct easycap *)video_get_drvdata(pvideo_device);
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-if ((struct easycap *)NULL == peasycap) {
+if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
 }
-file->private_data = peasycap;
 if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -EFAULT;
@@ -208,6 +222,7 @@ if (NULL == peasycap->pusb_device) {
 	JOM(16, "0x%08lX=peasycap->pusb_device\n", \
 					(long int)peasycap->pusb_device);
 }
+file->private_data = peasycap;
 rc = wakeup_device(peasycap->pusb_device);
 if (0 == rc)
 	JOM(8, "wakeup_device() OK\n");
@@ -243,7 +258,7 @@ struct easycap_standard const *peasycap_standard;
 int i, rc, input, rate;
 bool ntsc, other;
 
-if ((struct easycap *)NULL == peasycap) {
+if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
 }
@@ -251,7 +266,7 @@ input = peasycap->input;
 
 /*---------------------------------------------------------------------------*/
 /*
- *  IF THE SAA7113H HAS ALREADY ACQUIRED LOCK, USE ITS HARDWARE-DETECTED
+ *  IF THE SAA7113H HAS ALREADY ACQUIRED SYNC, USE ITS HARDWARE-DETECTED
  *  FIELD FREQUENCY TO DISTINGUISH NTSC FROM PAL.  THIS IS ESSENTIAL FOR
  *  gstreamer AND OTHER USERSPACE PROGRAMS WHICH MAY NOT ATTEMPT TO INITIATE
  *  A SWITCH BETWEEN PAL AND NTSC.
@@ -447,7 +462,7 @@ if (NULL == peasycap) {
 }
 JOM(8, "%i=input sought\n", input);
 
-if ((0 > input) &&(INPUT_MANY <= input))
+if (0 > input && INPUT_MANY <= input)
 	return -ENOENT;
 inputnow = peasycap->input;
 if (input == inputnow)
@@ -581,7 +596,7 @@ if (input == peasycap->inputset[input].input) {
 	return -ENOENT;
 }
 /*---------------------------------------------------------------------------*/
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
+if (NULL == peasycap->pusb_device) {
 	SAM("ERROR: peasycap->pusb_device is NULL\n");
 	return -ENODEV;
 }
@@ -617,16 +632,16 @@ struct list_head *plist_head;
 int j, isbad, nospc, m, rc;
 int isbuf;
 
-if ((struct easycap *)NULL == peasycap) {
+if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
 }
 
-if ((struct list_head *)NULL == peasycap->purb_video_head) {
+if (NULL == peasycap->purb_video_head) {
 	SAY("ERROR: peasycap->urb_video_head uninitialized\n");
 	return -EFAULT;
 }
-if ((struct usb_device *)NULL == peasycap->pusb_device) {
+if (NULL == peasycap->pusb_device) {
 	SAY("ERROR: peasycap->pusb_device is NULL\n");
 	return -ENODEV;
 }
@@ -768,7 +783,7 @@ int m;
 struct list_head *plist_head;
 struct data_urb *pdata_urb;
 
-if ((struct easycap *)NULL == peasycap) {
+if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
 }
@@ -780,8 +795,8 @@ if (peasycap->video_isoc_streaming) {
 		list_for_each(plist_head, (peasycap->purb_video_head)) {
 			pdata_urb = list_entry(plist_head, struct data_urb, \
 								list_head);
-			if ((struct data_urb *)NULL != pdata_urb) {
-				if ((struct urb *)NULL != pdata_urb->purb) {
+			if (NULL != pdata_urb) {
+				if (NULL != pdata_urb->purb) {
 					usb_kill_urb(pdata_urb->purb);
 					m++;
 				}
@@ -864,15 +879,17 @@ return 0;
 /*****************************************************************************/
 /*--------------------------------------------------------------------------*/
 /*
- *  THIS FUNCTION IS CALLED FROM WITHIN easycap_usb_disconnect().
- *  BY THIS STAGE THE DEVICE HAS ALREADY BEEN PHYSICALLY UNPLUGGED.
- *  peasycap->pusb_device IS NO LONGER VALID AND SHOULD HAVE BEEN SET TO NULL.
+ *  THIS FUNCTION IS CALLED FROM WITHIN easycap_usb_disconnect() AND IS
+ *  PROTECTED BY SEMAPHORES SET AND CLEARED BY easycap_usb_disconnect().
+ *
+ *  BY THIS STAGE THE DEVICE HAS ALREADY BEEN PHYSICALLY UNPLUGGED, SO
+ *  peasycap->pusb_device IS NO LONGER VALID.
  */
 /*---------------------------------------------------------------------------*/
 void
 easycap_delete(struct kref *pkref)
 {
-int k, m, gone;
+int k, m, gone, kd;
 int allocation_video_urb, allocation_video_page, allocation_video_struct;
 int allocation_audio_urb, allocation_audio_page, allocation_audio_struct;
 int registered_video, registered_audio;
@@ -883,10 +900,11 @@ struct list_head *plist_head, *plist_next;
 JOT(4, "\n");
 
 peasycap = container_of(pkref, struct easycap, kref);
-if ((struct easycap *)NULL == peasycap) {
+if (NULL == peasycap) {
 	SAM("ERROR: peasycap is NULL: cannot perform deletions\n");
 	return;
 }
+kd = isdongle(peasycap);
 /*---------------------------------------------------------------------------*/
 /*
  *  FREE VIDEO.
@@ -925,8 +943,6 @@ if ((struct list_head *)NULL != peasycap->purb_video_head) {
 	JOM(4, "%i video data_urb structures freed\n", m);
 	JOM(4, "setting peasycap->purb_video_head=NULL\n");
 	peasycap->purb_video_head = (struct list_head *)NULL;
-	} else {
-JOM(4, "peasycap->purb_video_head is NULL\n");
 }
 /*---------------------------------------------------------------------------*/
 JOM(4, "freeing video isoc buffers.\n");
@@ -1051,15 +1067,16 @@ allocation_audio_urb    = peasycap->allocation_audio_urb;
 allocation_audio_page   = peasycap->allocation_audio_page;
 allocation_audio_struct = peasycap->allocation_audio_struct;
 registered_audio        = peasycap->registered_audio;
-m = 0;
-if ((struct easycap *)NULL != peasycap) {
-	kfree(peasycap);  peasycap = (struct easycap *)NULL;
-	allocation_video_struct -= sizeof(struct easycap);
-	m++;
-}
-JOT(4, "%i easycap structure freed\n", m);
-/*---------------------------------------------------------------------------*/
 
+kfree(peasycap);
+if (0 <= kd && DONGLE_MANY > kd) {
+	easycap_dongle[kd].peasycap = (struct easycap *)NULL;
+	JOT(4, "   null-->easycap_dongle[%i].peasycap\n", kd);
+	allocation_video_struct -= sizeof(struct easycap);
+} else {
+	SAY("ERROR: cannot purge easycap_dongle[].peasycap");
+}
+/*---------------------------------------------------------------------------*/
 SAY("%8i= video urbs     after all deletions\n", allocation_video_urb);
 SAY("%8i= video pages    after all deletions\n", allocation_video_page);
 SAY("%8i= video structs  after all deletions\n", allocation_video_struct);
@@ -1076,27 +1093,75 @@ return;
 unsigned int easycap_poll(struct file *file, poll_table *wait)
 {
 struct easycap *peasycap;
+int rc, kd;
 
 JOT(8, "\n");
 
 if (NULL == ((poll_table *)wait))
 	JOT(8, "WARNING:  poll table pointer is NULL ... continuing\n");
-if (NULL == ((struct file *)file)) {
+if ((struct file *)NULL == file) {
 	SAY("ERROR:  file pointer is NULL\n");
-	return -EFAULT;
+	return -ERESTARTSYS;
 }
 peasycap = file->private_data;
 if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL\n");
 	return -EFAULT;
 }
+if (NULL == peasycap->pusb_device) {
+	SAY("ERROR:  peasycap->pusb_device is NULL\n");
+	return -EFAULT;
+}
+/*---------------------------------------------------------------------------*/
+kd = isdongle(peasycap);
+if (0 <= kd && DONGLE_MANY > kd) {
+	if (mutex_lock_interruptible(&easycap_dongle[kd].mutex_video)) {
+		SAY("ERROR: cannot down easycap_dongle[%i].mutex_video\n", kd);
+		return -ERESTARTSYS;
+	}
+	JOM(4, "locked easycap_dongle[%i].mutex_video\n", kd);
+	/*-------------------------------------------------------------------*/
+	/*
+	 *  MEANWHILE, easycap_usb_disconnect() MAY HAVE FREED POINTER
+	 *  peasycap, IN WHICH CASE A REPEAT CALL TO isdongle() WILL FAIL.
+	 *  IF NECESSARY, BAIL OUT.
+	*/
+	/*-------------------------------------------------------------------*/
+	if (kd != isdongle(peasycap))
+		return -ERESTARTSYS;
+	if (NULL == file) {
+		SAY("ERROR:  file is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_video);
+		return -ERESTARTSYS;
+	}
+	peasycap = file->private_data;
+	if (NULL == peasycap) {
+		SAY("ERROR:  peasycap is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_video);
+		return -ERESTARTSYS;
+	}
+	if (NULL == peasycap->pusb_device) {
+		SAM("ERROR: peasycap->pusb_device is NULL\n");
+		mutex_unlock(&easycap_dongle[kd].mutex_video);
+	return -ERESTARTSYS;
+	}
+} else
+	/*-------------------------------------------------------------------*/
+	/*
+	 *  IF easycap_usb_disconnect() HAS ALREADY FREED POINTER peasycap
+	 *  BEFORE THE ATTEMPT TO ACQUIRE THE SEMAPHORE, isdongle() WILL
+	 *  HAVE FAILED.  BAIL OUT.
+	*/
+	/*-------------------------------------------------------------------*/
+	return -ERESTARTSYS;
+/*---------------------------------------------------------------------------*/
+rc = easycap_dqbuf(peasycap, 0);
 peasycap->polled = 1;
-
-if (0 == easycap_dqbuf(peasycap, 0))
+mutex_unlock(&easycap_dongle[kd].mutex_video);
+if (0 == rc)
 	return POLLIN | POLLRDNORM;
 else
 	return POLLERR;
-
 }
 /*****************************************************************************/
 /*---------------------------------------------------------------------------*/
@@ -1115,6 +1180,10 @@ if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL\n");
 	return -EFAULT;
 }
+if (NULL == peasycap->pusb_device) {
+	SAY("ERROR:  peasycap->pusb_device is NULL\n");
+	return -EFAULT;
+}
 ifield = 0;
 JOM(8, "%i=ifield\n", ifield);
 /*---------------------------------------------------------------------------*/
@@ -1122,9 +1191,9 @@ JOM(8, "%i=ifield\n", ifield);
  *  CHECK FOR LOST INPUT SIGNAL.
  *
  *  FOR THE FOUR-CVBS EasyCAP, THIS DOES NOT WORK AS EXPECTED.
- *  IF INPUT 0 IS PRESENT AND LOCKED, UNPLUGGING INPUT 4 DOES NOT RESULT IN
- *  SETTING BIT 0x40 ON REGISTER 0x1F, PRESUMABLY BECAUSE THERE IS FLYWHEELING
- *  ON INPUT 0.  THE UPSHOT IS:
+ *  IF INPUT 0 IS PRESENT AND SYNC ACQUIRED, UNPLUGGING INPUT 4 DOES NOT
+ *  RESULT IN SETTING BIT 0x40 ON REGISTER 0x1F, PRESUMABLY BECAUSE THERE
+ *  IS FLYWHEELING ON INPUT 0.  THE UPSHOT IS:
  *
  *    INPUT 0   PLUGGED, INPUT 4   PLUGGED => SCREEN 0 OK,   SCREEN 4 OK
  *    INPUT 0   PLUGGED, INPUT 4 UNPLUGGED => SCREEN 0 OK,   SCREEN 4 BLACK
@@ -1342,7 +1411,7 @@ int rc, bytesperpixel, multiplier, much, more, over, rump, caches, input;
 __u8 mask, margin;
 bool odd, isuy, decimatepixel, offerfields, badinput;
 
-if ((struct easycap *)NULL == peasycap) {
+if (NULL == peasycap) {
 	SAY("ERROR: peasycap is NULL\n");
 	return -EFAULT;
 }
@@ -1447,13 +1516,11 @@ while (cz < wz) {
 					much) / 2;
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 			if (1 < bytesperpixel) {
-				if ((rad * \
-					2) < (much * \
-						bytesperpixel)) {
+				if (rad * 2 < much * bytesperpixel) {
 					/*
 					**   INJUDICIOUS ALTERATION OF THIS
-					**   BLOCK WILL CAUSE BREAKAGE.
-					**   BEWARE.
+					**   STATEMENT BLOCK WILL CAUSE
+					**   BREAKAGE.  BEWARE.
 					**/
 					rad2 = rad + bytesperpixel - 1;
 					much = ((((2 * \
@@ -1483,7 +1550,6 @@ while (cz < wz) {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 			if (rump)
 				caches++;
-
 				if (true == badinput) {
 					JOM(8, "ERROR: 0x%02X=->field_buffer" \
 						"[%i][%i].input, " \
@@ -1492,7 +1558,6 @@ while (cz < wz) {
 						[kex][mex].input, kex, mex, \
 						(0x08|peasycap->input));
 				}
-
 			rc = redaub(peasycap, pad, pex, much, more, \
 							mask, margin, isuy);
 			if (0 > rc) {
@@ -1575,12 +1640,11 @@ while (cz < wz) {
 					much) / 4;
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 			if (1 < bytesperpixel) {
-				if ((rad * 4) < (much * \
-						bytesperpixel)) {
+				if (rad * 4 < much * bytesperpixel) {
 					/*
 					**   INJUDICIOUS ALTERATION OF THIS
-					**   BLOCK WILL CAUSE BREAKAGE.
-					**   BEWARE.
+					**   STATEMENT BLOCK WILL CAUSE
+					**   BREAKAGE.  BEWARE.
 					**/
 					rad2 = rad + bytesperpixel - 1;
 					much = ((((2 * rad2)/bytesperpixel)/2)\
@@ -1620,7 +1684,6 @@ while (cz < wz) {
 						[kex][mex].input, kex, mex, \
 						(0x08|peasycap->input));
 				}
-
 			rc = redaub(peasycap, pad, pex, much, more, \
 							mask, margin, isuy);
 			if (0 > rc) {
@@ -3297,8 +3360,8 @@ return;
  *                                  FIXME
  *
  *
- *  THIS FUNCTION ASSUMES THAT, ON EACH AND EVERY OCCASION THAT THE DEVICE IS
- *  PHYSICALLY PLUGGED IN, INTERFACE 0 IS PROBED FIRST.
+ *  THIS FUNCTION ASSUMES THAT, ON EACH AND EVERY OCCASION THAT THE EasyCAP
+ *  IS PHYSICALLY PLUGGED IN, INTERFACE 0 IS PROBED FIRST.
  *  IF THIS IS NOT TRUE, THERE IS THE POSSIBILITY OF AN Oops.
  *
  *  THIS HAS NEVER BEEN A PROBLEM IN PRACTICE, BUT SOMETHING SEEMS WRONG HERE.
@@ -3338,6 +3401,16 @@ __s32 value;
 struct easycap_format *peasycap_format;
 
 JOT(4, "\n");
+
+if (!dongle_done) {
+	dongle_done = 1;
+	for (k = 0; k < DONGLE_MANY; k++) {
+		easycap_dongle[k].peasycap = (struct easycap *)NULL;
+		mutex_init(&easycap_dongle[k].mutex_video);
+		mutex_init(&easycap_dongle[k].mutex_audio);
+	}
+}
+
 peasycap = (struct easycap *)NULL;
 
 if ((struct usb_interface *)NULL == pusb_interface) {
@@ -3481,12 +3554,20 @@ if (0 == bInterfaceNumber) {
 	init_waitqueue_head(&peasycap->wq_audio);
 
 	for (dongle_this = 0; dongle_this < DONGLE_MANY; dongle_this++) {
-		if ((struct easycap *)NULL == peasycap_dongle[dongle_this]) {
-				peasycap_dongle[dongle_this] = peasycap;
-				JOM(8, "intf[%i]: peasycap-->easycap" \
+		if (NULL == easycap_dongle[dongle_this].peasycap) {
+			if (0 == mutex_is_locked(&easycap_dongle\
+						[dongle_this].mutex_video)) {
+				if (0 == mutex_is_locked(&easycap_dongle\
+						[dongle_this].mutex_audio)) {
+					easycap_dongle\
+						[dongle_this].peasycap = \
+								peasycap;
+					JOM(8, "intf[%i]: peasycap-->easycap" \
 						"_dongle[%i].peasycap\n", \
 						bInterfaceNumber, dongle_this);
-			break;
+					break;
+				}
+			}
 		}
 	}
 	if (DONGLE_MANY <= dongle_this) {
@@ -3665,15 +3746,15 @@ if (0 == bInterfaceNumber) {
 	 *  FOR INTERFACES 1 AND 2 THE POINTER peasycap IS OBTAINED BY ASSUMING
 	 *  THAT dongle_this HAS NOT CHANGED SINCE INTERFACE 0 WAS PROBED.  IF
 	 *  THIS IS NOT THE CASE, FOR EXAMPLE WHEN TWO EASYCAPs ARE PLUGGED IN
-	 *  SIMULTANEOUSLY, THERE WILL BE VERY SERIOUS TROUBLE.
+	 *  SIMULTANEOUSLY, THERE WILL BE SERIOUS TROUBLE.
 	*/
 /*---------------------------------------------------------------------------*/
 	if ((0 > dongle_this) || (DONGLE_MANY <= dongle_this)) {
 		SAY("ERROR: bad dongle count\n");
 		return -EFAULT;
 	}
-	peasycap = peasycap_dongle[dongle_this];
-	JOT(8, "intf[%i]: peasycap_dongle[%i]-->peasycap\n", \
+	peasycap = easycap_dongle[dongle_this].peasycap;
+	JOT(8, "intf[%i]: easycap_dongle[%i].peasycap-->peasycap\n", \
 						bInterfaceNumber, dongle_this);
 
 	if ((struct easycap *)NULL == peasycap) {
@@ -3721,6 +3802,7 @@ if ((USB_CLASS_VIDEO == bInterfaceClass) || \
  */
 /*---------------------------------------------------------------------------*/
 isokalt = 0;
+
 for (i = 0; i < pusb_interface->num_altsetting; i++) {
 	pusb_host_interface = &(pusb_interface->altsetting[i]);
 	if ((struct usb_host_interface *)NULL == pusb_host_interface) {
@@ -4245,6 +4327,9 @@ case 0: {
 	}
 /*---------------------------------------------------------------------------*/
 /*
+ *                                   FIXME
+ *
+ *
  *  THIS IS BELIEVED TO BE HARMLESS, BUT MAY WELL BE UNNECESSARY OR WRONG:
 */
 /*---------------------------------------------------------------------------*/
@@ -4587,9 +4672,8 @@ return 0;
 /*****************************************************************************/
 /*---------------------------------------------------------------------------*/
 /*
- *  WHEN THIS FUNCTION IS CALLED THE DEVICE HAS ALREADY BEEN PHYSICALLY
- *  UNPLUGGED.
- *  HENCE peasycap->pusb_device IS NO LONGER VALID AND MUST BE SET TO NULL.
+ *  WHEN THIS FUNCTION IS CALLED THE EasyCAP HAS ALREADY BEEN PHYSICALLY
+ *  UNPLUGGED.  HENCE peasycap->pusb_device IS NO LONGER VALID.
  */
 /*---------------------------------------------------------------------------*/
 void
@@ -4602,7 +4686,7 @@ struct easycap *peasycap;
 
 struct list_head *plist_head;
 struct data_urb *pdata_urb;
-int minor, m;
+int minor, m, kd;
 
 JOT(4, "\n");
 
@@ -4691,49 +4775,75 @@ default:
 /*--------------------------------------------------------------------------*/
 /*
  *  DEREGISTER
+ *
+ *  THIS PROCEDURE WILL BLOCK UNTIL easycap_poll(), VIDEO IOCTL AND AUDIO
+ *  IOCTL ARE ALL UNLOCKED.  IF THIS IS NOT DONE AN Oops CAN OCCUR WHEN
+ *  AN EasyCAP IS UNPLUGGED WHILE THE URBS ARE RUNNING.  BEWARE.
  */
 /*--------------------------------------------------------------------------*/
+kd = isdongle(peasycap);
 switch (bInterfaceNumber) {
 case 0: {
+	if (0 <= kd && DONGLE_MANY > kd) {
+		wake_up_interruptible(&peasycap->wq_video);
+		JOM(4, "about to lock easycap_dongle[%i].mutex_video\n", kd);
+		if (mutex_lock_interruptible(&easycap_dongle[kd].\
+								mutex_video)) {
+			SAY("ERROR: cannot lock easycap_dongle[%i]." \
+							"mutex_video\n", kd);
+			return;
+		}
+		JOM(4, "locked easycap_dongle[%i].mutex_video\n", kd);
+	} else
+		SAY("ERROR: %i=kd is bad: cannot lock dongle\n", kd);
+/*---------------------------------------------------------------------------*/
 #if (!defined(EASYCAP_IS_VIDEODEV_CLIENT))
 	if ((struct easycap *)NULL == peasycap) {
 		SAM("ERROR: peasycap has become NULL\n");
 	} else {
-		lock_kernel();
 		usb_deregister_dev(pusb_interface, &easycap_class);
 		(peasycap->registered_video)--;
-
 		JOM(4, "intf[%i]: usb_deregister_dev()\n", bInterfaceNumber);
-		unlock_kernel();
 		SAM("easycap detached from minor #%d\n", minor);
 	}
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #else
-	if ((struct easycap *)NULL == peasycap)
-		SAM("ERROR: peasycap has become NULL\n");
-	else {
-		lock_kernel();
-		video_unregister_device(&peasycap->video_device);
-		(peasycap->registered_video)--;
-		unlock_kernel();
-		JOM(4, "unregistered with videodev: %i=minor\n", \
+	video_unregister_device(&peasycap->video_device);
+	JOM(4, "unregistered with videodev: %i=minor\n", \
 						peasycap->video_device.minor);
-	}
+	(peasycap->registered_video)--;
 /*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
 #endif /*EASYCAP_IS_VIDEODEV_CLIENT*/
+	if (0 <= kd && DONGLE_MANY > kd) {
+		mutex_unlock(&easycap_dongle[kd].mutex_video);
+		JOM(4, "unlocked easycap_dongle[%i].mutex_video\n", kd);
+	}
 	break;
 }
 case 2: {
-	lock_kernel();
+	if (0 <= kd && DONGLE_MANY > kd) {
+		wake_up_interruptible(&peasycap->wq_audio);
+		JOM(4, "about to lock easycap_dongle[%i].mutex_audio\n", kd);
+		if (mutex_lock_interruptible(&easycap_dongle[kd].\
+								mutex_audio)) {
+			SAY("ERROR: cannot lock easycap_dongle[%i]." \
+							"mutex_audio\n", kd);
+			return;
+		}
+		JOM(4, "locked easycap_dongle[%i].mutex_audio\n", kd);
+	} else
+		SAY("ERROR: %i=kd is bad: cannot lock dongle\n", kd);
 
 	usb_deregister_dev(pusb_interface, &easysnd_class);
-	if ((struct easycap *)NULL != peasycap)
-		(peasycap->registered_audio)--;
+	(peasycap->registered_audio)--;
 
 	JOM(4, "intf[%i]: usb_deregister_dev()\n", bInterfaceNumber);
-	unlock_kernel();
-
 	SAM("easysnd detached from minor #%d\n", minor);
+
+	if (0 <= kd && DONGLE_MANY > kd) {
+		mutex_unlock(&easycap_dongle[kd].mutex_audio);
+		JOM(4, "unlocked easycap_dongle[%i].mutex_audio\n", kd);
+	}
 	break;
 }
 default:
@@ -4744,24 +4854,41 @@ default:
  *  CALL easycap_delete() IF NO REMAINING REFERENCES TO peasycap
  */
 /*---------------------------------------------------------------------------*/
-if ((struct easycap *)NULL == peasycap) {
-	SAM("ERROR: peasycap has become NULL\n");
-	SAM("cannot call kref_put()\n");
-	SAM("ending unsuccessfully: may cause memory leak\n");
-	return;
-}
 if (!peasycap->kref.refcount.counter) {
-	SAM("ERROR: peasycap->kref.refcount.counter is zero " \
+	SAM("ERROR: peasycap->kref.refcount.counter is zero "
 						"so cannot call kref_put()\n");
 	SAM("ending unsuccessfully: may cause memory leak\n");
 	return;
 }
-JOM(4, "intf[%i]: kref_put() with %i=peasycap->kref.refcount.counter\n", \
+if (0 <= kd && DONGLE_MANY > kd) {
+	JOM(4, "about to lock easycap_dongle[%i].mutex_video\n", kd);
+	if (mutex_lock_interruptible(&easycap_dongle[kd].mutex_video)) {
+		SAY("ERROR: cannot down easycap_dongle[%i].mutex_video\n", kd);
+		SAM("ending unsuccessfully: may cause memory leak\n");
+	return;
+	}
+	JOM(4, "locked easycap_dongle[%i].mutex_video\n", kd);
+	JOM(4, "about to lock easycap_dongle[%i].mutex_audio\n", kd);
+	if (mutex_lock_interruptible(&easycap_dongle[kd].mutex_audio)) {
+		SAY("ERROR: cannot down easycap_dongle[%i].mutex_audio\n", kd);
+		mutex_unlock(&(easycap_dongle[kd].mutex_video));
+		JOM(4, "unlocked easycap_dongle[%i].mutex_video\n", kd);
+		SAM("ending unsuccessfully: may cause memory leak\n");
+		return;
+	}
+	JOM(4, "locked easycap_dongle[%i].mutex_audio\n", kd);
+}
+JOM(4, "intf[%i]: %i=peasycap->kref.refcount.counter\n", \
 		bInterfaceNumber, (int)peasycap->kref.refcount.counter);
 kref_put(&peasycap->kref, easycap_delete);
-JOM(4, "intf[%i]: kref_put() done.\n", bInterfaceNumber);
+JOT(4, "intf[%i]: kref_put() done.\n", bInterfaceNumber);
+if (0 <= kd && DONGLE_MANY > kd) {
+	mutex_unlock(&(easycap_dongle[kd].mutex_audio));
+	JOT(4, "unlocked easycap_dongle[%i].mutex_audio\n", kd);
+	mutex_unlock(&easycap_dongle[kd].mutex_video);
+	JOT(4, "unlocked easycap_dongle[%i].mutex_video\n", kd);
+}
 /*---------------------------------------------------------------------------*/
-
 JOM(4, "ends\n");
 return;
 }
