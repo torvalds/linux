@@ -301,18 +301,6 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-#define mass_write(addr, reg, data...)					\
-	{ static const u8 _val[] = data;				\
-	rc = tm6000_read_write_usb(dev, USB_DIR_OUT | USB_TYPE_VENDOR,	\
-	REQ_16_SET_GET_I2C_WR1_RDN, (reg<<8)+addr, 0x00, (u8 *) _val,	\
-	ARRAY_SIZE(_val));						\
-	if (rc < 0) {							\
-		printk(KERN_ERR "Error on line %d: %d\n", __LINE__, rc);	\
-		return rc;						\
-	}								\
-	msleep(10);							\
-	}
-
 static const struct i2c_algorithm tm6000_algo = {
 	.master_xfer   = tm6000_i2c_xfer,
 	.functionality = functionality,
