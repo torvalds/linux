@@ -46,7 +46,8 @@ static inline int cpu_is_pxa910(void)
 #ifdef CONFIG_CPU_MMP2
 static inline int cpu_is_mmp2(void)
 {
-	return (((cpu_readid_id() >> 8) & 0xff) == 0x58);
+	return (((read_cpuid_id() >> 8) & 0xff) == 0x58);
+}
 #else
 #define cpu_is_mmp2()	(0)
 #endif
