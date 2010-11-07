@@ -193,7 +193,7 @@ static unsigned gpio_addr_inputs[] = {
 	GPIO_PG1, GPIO_PH9, GPIO_PH10
 };
 
-static struct gpio_decoder_platfrom_data spi_decoded_cs = {
+static struct gpio_decoder_platform_data spi_decoded_cs = {
 	.base		= EXP_GPIO_SPISEL_BASE,
 	.input_addrs	= gpio_addr_inputs,
 	.nr_input_addrs = ARRAY_SIZE(gpio_addr_inputs),
