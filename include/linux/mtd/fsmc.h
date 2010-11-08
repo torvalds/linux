@@ -16,6 +16,7 @@
 #ifndef __MTD_FSMC_H
 #define __MTD_FSMC_H
 
+#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/types.h>
