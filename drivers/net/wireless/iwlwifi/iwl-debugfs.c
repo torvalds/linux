@@ -1580,7 +1580,7 @@ static ssize_t iwl_dbgfs_bt_traffic_read(struct file *file,
 		priv->bt_full_concurrent ? "full concurrency" : "3-wire");
 	pos += scnprintf(buf + pos, bufsz - pos, "BT status: %s, "
 			 "last traffic notif: %d\n",
-		priv->bt_status ? "On" : "Off", priv->notif_bt_traffic_load);
+		priv->bt_status ? "On" : "Off", priv->last_bt_traffic_load);
 	pos += scnprintf(buf + pos, bufsz - pos, "ch_announcement: %d, "
 			 "sco_active: %d, kill_ack_mask: %x, "
 			 "kill_cts_mask: %x\n",

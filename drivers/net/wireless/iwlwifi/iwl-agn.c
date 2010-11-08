@@ -3837,7 +3837,6 @@ static int iwl_init_drv(struct iwl_priv *priv)
 		priv->bt_on_thresh = BT_ON_THRESHOLD_DEF;
 		priv->bt_duration = BT_DURATION_LIMIT_DEF;
 		priv->dynamic_frag_thresh = BT_FRAG_THRESHOLD_DEF;
-		priv->dynamic_agg_thresh = BT_AGG_THRESHOLD_DEF;
 	}
 
 	/* Set the tx_power_user_lmt to the lowest power level

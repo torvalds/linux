@@ -2025,7 +2025,6 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 	struct iwl_bt_coex_profile_notif *coex = &pkt->u.bt_coex_profile_notif;
 	struct iwlagn_bt_sco_cmd sco_cmd = { .flags = 0 };
 	struct iwl_bt_uart_msg *uart_msg = &coex->last_bt_uart_msg;
-	u8 last_traffic_load;
 
 	IWL_DEBUG_NOTIF(priv, "BT Coex notification:\n");
 	IWL_DEBUG_NOTIF(priv, "    status: %d\n", coex->bt_status);
@@ -2034,11 +2033,10 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 			coex->bt_ci_compliance);
 	iwlagn_print_uartmsg(priv, uart_msg);
 
-	last_traffic_load = priv->notif_bt_traffic_load;
-	priv->notif_bt_traffic_load = coex->bt_traffic_load;
+	priv->last_bt_traffic_load = priv->bt_traffic_load;
 	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
 		if (priv->bt_status != coex->bt_status ||
-		    last_traffic_load != coex->bt_traffic_load) {
+		    priv->last_bt_traffic_load != coex->bt_traffic_load) {
 			if (coex->bt_status) {
 				/* BT on */
 				if (!priv->bt_ch_announce)

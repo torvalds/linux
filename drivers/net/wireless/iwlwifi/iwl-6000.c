@@ -546,6 +546,7 @@ static struct iwl_bt_params iwl6000_bt_params = {
 	.bt_statistics = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.advanced_bt_coexist = true,
+	.agg_time_limit = BT_AGG_THRESHOLD_DEF,
 	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
 	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
 };
