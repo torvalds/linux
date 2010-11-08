@@ -4936,7 +4936,8 @@ static void __exit cciss_cleanup(void)
 		}
 	}
 	kthread_stop(cciss_scan_thread);
-	remove_proc_entry("driver/cciss", NULL);
+	if (proc_cciss)
+		remove_proc_entry("driver/cciss", NULL);
 	bus_unregister(&cciss_bus_type);
 }
 
