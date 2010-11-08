@@ -904,3 +904,95 @@ void __exit btrfs_exit_compress(void)
 {
 	free_workspaces();
 }
+
+/*
+ * Copy uncompressed data from working buffer to pages.
+ *
+ * buf_start is the byte offset we're of the start of our workspace buffer.
+ *
+ * total_out is the last byte of the buffer
+ */
+int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
+			      unsigned long total_out, u64 disk_start,
+			      struct bio_vec *bvec, int vcnt,
+			      unsigned long *page_index,
+			      unsigned long *pg_offset)
+{
+	unsigned long buf_offset;
+	unsigned long current_buf_start;
+	unsigned long start_byte;
+	unsigned long working_bytes = total_out - buf_start;
+	unsigned long bytes;
+	char *kaddr;
+	struct page *page_out = bvec[*page_index].bv_page;
+
+	/*
+	 * start byte is the first byte of the page we're currently
+	 * copying into relative to the start of the compressed data.
+	 */
+	start_byte = page_offset(page_out) - disk_start;
+
+	/* we haven't yet hit data corresponding to this page */
+	if (total_out <= start_byte)
+		return 1;
+
+	/*
+	 * the start of the data we care about is offset into
+	 * the middle of our working buffer
+	 */
+	if (total_out > start_byte && buf_start < start_byte) {
+		buf_offset = start_byte - buf_start;
+		working_bytes -= buf_offset;
+	} else {
+		buf_offset = 0;
+	}
+	current_buf_start = buf_start;
+
+	/* copy bytes from the working buffer into the pages */
+	while (working_bytes > 0) {
+		bytes = min(PAGE_CACHE_SIZE - *pg_offset,
+			    PAGE_CACHE_SIZE - buf_offset);
+		bytes = min(bytes, working_bytes);
+		kaddr = kmap_atomic(page_out, KM_USER0);
+		memcpy(kaddr + *pg_offset, buf + buf_offset, bytes);
+		kunmap_atomic(kaddr, KM_USER0);
+		flush_dcache_page(page_out);
+
+		*pg_offset += bytes;
+		buf_offset += bytes;
+		working_bytes -= bytes;
+		current_buf_start += bytes;
+
+		/* check if we need to pick another page */
+		if (*pg_offset == PAGE_CACHE_SIZE) {
+			(*page_index)++;
+			if (*page_index >= vcnt)
+				return 0;
+
+			page_out = bvec[*page_index].bv_page;
+			*pg_offset = 0;
+			start_byte = page_offset(page_out) - disk_start;
+
+			/*
+			 * make sure our new page is covered by this
+			 * working buffer
+			 */
+			if (total_out <= start_byte)
+				return 1;
+
+			/*
+			 * the next page in the biovec might not be adjacent
+			 * to the last page, but it might still be found
+			 * inside this working buffer. bump our offset pointer
+			 */
+			if (total_out > start_byte &&
+			    current_buf_start < start_byte) {
+				buf_offset = start_byte - buf_start;
+				working_bytes = total_out - start_byte;
+				current_buf_start = buf_start + buf_offset;
+			}
+		}
+	}
+
+	return 1;
+}

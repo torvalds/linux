@@ -260,12 +260,10 @@ static int lzo_decompress_biovec(struct list_head *ws,
 				 size_t srclen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	int ret = 0;
+	int ret = 0, ret2;
 	char *data_in;
-	unsigned long page_bytes_left;
 	unsigned long page_in_index = 0;
 	unsigned long page_out_index = 0;
-	struct page *page_out;
 	unsigned long total_pages_in = (srclen + PAGE_CACHE_SIZE - 1) /
 					PAGE_CACHE_SIZE;
 	unsigned long buf_start;
@@ -273,9 +271,6 @@ static int lzo_decompress_biovec(struct list_head *ws,
 	unsigned long bytes;
 	unsigned long working_bytes;
 	unsigned long pg_offset;
-	unsigned long start_byte;
-	unsigned long current_buf_start;
-	char *kaddr;
 
 	size_t in_len;
 	size_t out_len;
@@ -295,8 +290,6 @@ static int lzo_decompress_biovec(struct list_head *ws,
 	in_page_bytes_left = PAGE_CACHE_SIZE - LZO_LEN;
 
 	tot_out = 0;
-	page_out = bvec[0].bv_page;
-	page_bytes_left = PAGE_CACHE_SIZE;
 	pg_offset = 0;
 
 	while (tot_in < tot_len) {
@@ -359,97 +352,15 @@ cont:
 			break;
 		}
 
-		/*
-		 * buf start is the byte offset we're of the start of
-		 * our workspace buffer
-		 */
 		buf_start = tot_out;
-
-		/* tot_out is the last byte of the workspace buffer */
 		tot_out += out_len;
 
-		working_bytes = tot_out - buf_start;
-
-		/*
-		 * start_byte is the first byte of the page we're currently
-		 * copying into relative to the start of the compressed data.
-		 */
-		start_byte = page_offset(page_out) - disk_start;
-
-		if (working_bytes == 0) {
-			/* we didn't make progress in this inflate
-			 * call, we're done
-			 */
+		ret2 = btrfs_decompress_buf2page(workspace->buf, buf_start,
+						 tot_out, disk_start,
+						 bvec, vcnt,
+						 &page_out_index, &pg_offset);
+		if (ret2 == 0)
 			break;
-		}
-
-		/* we haven't yet hit data corresponding to this page */
-		if (tot_out <= start_byte)
-			continue;
-
-		/*
-		 * the start of the data we care about is offset into
-		 * the middle of our working buffer
-		 */
-		if (tot_out > start_byte && buf_start < start_byte) {
-			buf_offset = start_byte - buf_start;
-			working_bytes -= buf_offset;
-		} else {
-			buf_offset = 0;
-		}
-		current_buf_start = buf_start;
-
-		/* copy bytes from the working buffer into the pages */
-		while (working_bytes > 0) {
-			bytes = min(PAGE_CACHE_SIZE - pg_offset,
-				    PAGE_CACHE_SIZE - buf_offset);
-			bytes = min(bytes, working_bytes);
-			kaddr = kmap_atomic(page_out, KM_USER0);
-			memcpy(kaddr + pg_offset, workspace->buf + buf_offset,
-			       bytes);
-			kunmap_atomic(kaddr, KM_USER0);
-			flush_dcache_page(page_out);
-
-			pg_offset += bytes;
-			page_bytes_left -= bytes;
-			buf_offset += bytes;
-			working_bytes -= bytes;
-			current_buf_start += bytes;
-
-			/* check if we need to pick another page */
-			if (page_bytes_left == 0) {
-				page_out_index++;
-				if (page_out_index >= vcnt) {
-					ret = 0;
-					goto done;
-				}
-
-				page_out = bvec[page_out_index].bv_page;
-				pg_offset = 0;
-				page_bytes_left = PAGE_CACHE_SIZE;
-				start_byte = page_offset(page_out) - disk_start;
-
-				/*
-				 * make sure our new page is covered by this
-				 * working buffer
-				 */
-				if (tot_out <= start_byte)
-					break;
-
-				/* the next page in the biovec might not
-				 * be adjacent to the last page, but it
-				 * might still be found inside this working
-				 * buffer.  bump our offset pointer
-				 */
-				if (tot_out > start_byte &&
-				    current_buf_start < start_byte) {
-					buf_offset = start_byte - buf_start;
-					working_bytes = tot_out - start_byte;
-					current_buf_start = buf_start +
-						buf_offset;
-				}
-			}
-		}
 	}
 done:
 	if (data_in)

@@ -34,6 +34,11 @@ int btrfs_decompress_biovec(int type, struct page **pages_in, u64 disk_start,
 			    struct bio_vec *bvec, int vcnt, size_t srclen);
 int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
 		     unsigned long start_byte, size_t srclen, size_t destlen);
+int btrfs_decompress_buf2page(char *buf, unsigned long buf_start,
+			      unsigned long total_out, u64 disk_start,
+			      struct bio_vec *bvec, int vcnt,
+			      unsigned long *page_index,
+			      unsigned long *pg_offset);
 
 int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 				  unsigned long len, u64 disk_start,
