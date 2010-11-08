@@ -6,6 +6,7 @@
 #include <linux/tracepoint.h>
 
 #include <drm/drmP.h>
+#include "i915_drv.h"
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM i915
@@ -16,18 +17,18 @@
 
 TRACE_EVENT(i915_gem_object_create,
 
-	    TP_PROTO(struct drm_gem_object *obj),
+	    TP_PROTO(struct drm_i915_gem_object *obj),
 
 	    TP_ARGS(obj),
 
 	    TP_STRUCT__entry(
-			     __field(struct drm_gem_object *, obj)
+			     __field(struct drm_i915_gem_object *, obj)
 			     __field(u32, size)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->obj = obj;
-			   __entry->size = obj->size;
+			   __entry->size = obj->base.size;
 			   ),
 
 	    TP_printk("obj=%p, size=%u", __entry->obj, __entry->size)
@@ -35,12 +36,12 @@ TRACE_EVENT(i915_gem_object_create,
 
 TRACE_EVENT(i915_gem_object_bind,
 
-	    TP_PROTO(struct drm_gem_object *obj, u32 gtt_offset, bool mappable),
+	    TP_PROTO(struct drm_i915_gem_object *obj, u32 gtt_offset, bool mappable),
 
 	    TP_ARGS(obj, gtt_offset, mappable),
 
 	    TP_STRUCT__entry(
-			     __field(struct drm_gem_object *, obj)
+			     __field(struct drm_i915_gem_object *, obj)
 			     __field(u32, gtt_offset)
 			     __field(bool, mappable)
 			     ),
@@ -58,20 +59,20 @@ TRACE_EVENT(i915_gem_object_bind,
 
 TRACE_EVENT(i915_gem_object_change_domain,
 
-	    TP_PROTO(struct drm_gem_object *obj, uint32_t old_read_domains, uint32_t old_write_domain),
+	    TP_PROTO(struct drm_i915_gem_object *obj, uint32_t old_read_domains, uint32_t old_write_domain),
 
 	    TP_ARGS(obj, old_read_domains, old_write_domain),
 
 	    TP_STRUCT__entry(
-			     __field(struct drm_gem_object *, obj)
+			     __field(struct drm_i915_gem_object *, obj)
 			     __field(u32, read_domains)
 			     __field(u32, write_domain)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->obj = obj;
-			   __entry->read_domains = obj->read_domains | (old_read_domains << 16);
-			   __entry->write_domain = obj->write_domain | (old_write_domain << 16);
+			   __entry->read_domains = obj->base.read_domains | (old_read_domains << 16);
+			   __entry->write_domain = obj->base.write_domain | (old_write_domain << 16);
 			   ),
 
 	    TP_printk("obj=%p, read=%04x, write=%04x",
@@ -81,12 +82,12 @@ TRACE_EVENT(i915_gem_object_change_domain,
 
 TRACE_EVENT(i915_gem_object_get_fence,
 
-	    TP_PROTO(struct drm_gem_object *obj, int fence, int tiling_mode),
+	    TP_PROTO(struct drm_i915_gem_object *obj, int fence, int tiling_mode),
 
 	    TP_ARGS(obj, fence, tiling_mode),
 
 	    TP_STRUCT__entry(
-			     __field(struct drm_gem_object *, obj)
+			     __field(struct drm_i915_gem_object *, obj)
 			     __field(int, fence)
 			     __field(int, tiling_mode)
 			     ),
@@ -103,12 +104,12 @@ TRACE_EVENT(i915_gem_object_get_fence,
 
 DECLARE_EVENT_CLASS(i915_gem_object,
 
-	    TP_PROTO(struct drm_gem_object *obj),
+	    TP_PROTO(struct drm_i915_gem_object *obj),
 
 	    TP_ARGS(obj),
 
 	    TP_STRUCT__entry(
-			     __field(struct drm_gem_object *, obj)
+			     __field(struct drm_i915_gem_object *, obj)
 			     ),
 
 	    TP_fast_assign(
@@ -120,21 +121,21 @@ DECLARE_EVENT_CLASS(i915_gem_object,
 
 DEFINE_EVENT(i915_gem_object, i915_gem_object_clflush,
 
-	    TP_PROTO(struct drm_gem_object *obj),
+	    TP_PROTO(struct drm_i915_gem_object *obj),
 
 	    TP_ARGS(obj)
 );
 
 DEFINE_EVENT(i915_gem_object, i915_gem_object_unbind,
 
-	    TP_PROTO(struct drm_gem_object *obj),
+	    TP_PROTO(struct drm_i915_gem_object *obj),
 
 	    TP_ARGS(obj)
 );
 
 DEFINE_EVENT(i915_gem_object, i915_gem_object_destroy,
 
-	    TP_PROTO(struct drm_gem_object *obj),
+	    TP_PROTO(struct drm_i915_gem_object *obj),
 
 	    TP_ARGS(obj)
 );
@@ -266,13 +267,13 @@ DEFINE_EVENT(i915_ring, i915_ring_wait_end,
 );
 
 TRACE_EVENT(i915_flip_request,
-	    TP_PROTO(int plane, struct drm_gem_object *obj),
+	    TP_PROTO(int plane, struct drm_i915_gem_object *obj),
 
 	    TP_ARGS(plane, obj),
 
 	    TP_STRUCT__entry(
 		    __field(int, plane)
-		    __field(struct drm_gem_object *, obj)
+		    __field(struct drm_i915_gem_object *, obj)
 		    ),
 
 	    TP_fast_assign(
@@ -284,13 +285,13 @@ TRACE_EVENT(i915_flip_request,
 );
 
 TRACE_EVENT(i915_flip_complete,
-	    TP_PROTO(int plane, struct drm_gem_object *obj),
+	    TP_PROTO(int plane, struct drm_i915_gem_object *obj),
 
 	    TP_ARGS(plane, obj),
 
 	    TP_STRUCT__entry(
 		    __field(int, plane)
-		    __field(struct drm_gem_object *, obj)
+		    __field(struct drm_i915_gem_object *, obj)
 		    ),
 
 	    TP_fast_assign(

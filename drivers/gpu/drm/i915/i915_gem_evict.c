@@ -32,12 +32,11 @@
 #include "i915_drm.h"
 
 static bool
-mark_free(struct drm_i915_gem_object *obj_priv,
-	   struct list_head *unwind)
+mark_free(struct drm_i915_gem_object *obj, struct list_head *unwind)
 {
-	list_add(&obj_priv->evict_list, unwind);
-	drm_gem_object_reference(&obj_priv->base);
-	return drm_mm_scan_add_block(obj_priv->gtt_space);
+	list_add(&obj->evict_list, unwind);
+	drm_gem_object_reference(&obj->base);
+	return drm_mm_scan_add_block(obj->gtt_space);
 }
 
 int
@@ -46,7 +45,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct list_head eviction_list, unwind_list;
-	struct drm_i915_gem_object *obj_priv;
+	struct drm_i915_gem_object *obj;
 	int ret = 0;
 
 	i915_gem_retire_requests(dev);
@@ -96,42 +95,42 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 		drm_mm_init_scan(&dev_priv->mm.gtt_space, min_size, alignment);
 
 	/* First see if there is a large enough contiguous idle region... */
-	list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, mm_list) {
-		if (mark_free(obj_priv, &unwind_list))
+	list_for_each_entry(obj, &dev_priv->mm.inactive_list, mm_list) {
+		if (mark_free(obj, &unwind_list))
 			goto found;
 	}
 
 	/* Now merge in the soon-to-be-expired objects... */
-	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, mm_list) {
+	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
 		/* Does the object require an outstanding flush? */
-		if (obj_priv->base.write_domain || obj_priv->pin_count)
+		if (obj->base.write_domain || obj->pin_count)
 			continue;
 
-		if (mark_free(obj_priv, &unwind_list))
+		if (mark_free(obj, &unwind_list))
 			goto found;
 	}
 
 	/* Finally add anything with a pending flush (in order of retirement) */
-	list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list, mm_list) {
-		if (obj_priv->pin_count)
+	list_for_each_entry(obj, &dev_priv->mm.flushing_list, mm_list) {
+		if (obj->pin_count)
 			continue;
 
-		if (mark_free(obj_priv, &unwind_list))
+		if (mark_free(obj, &unwind_list))
 			goto found;
 	}
-	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, mm_list) {
-		if (! obj_priv->base.write_domain || obj_priv->pin_count)
+	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
+		if (! obj->base.write_domain || obj->pin_count)
 			continue;
 
-		if (mark_free(obj_priv, &unwind_list))
+		if (mark_free(obj, &unwind_list))
 			goto found;
 	}
 
 	/* Nothing found, clean up and bail out! */
-	list_for_each_entry(obj_priv, &unwind_list, evict_list) {
-		ret = drm_mm_scan_remove_block(obj_priv->gtt_space);
+	list_for_each_entry(obj, &unwind_list, evict_list) {
+		ret = drm_mm_scan_remove_block(obj->gtt_space);
 		BUG_ON(ret);
-		drm_gem_object_unreference(&obj_priv->base);
+		drm_gem_object_unreference(&obj->base);
 	}
 
 	/* We expect the caller to unpin, evict all and try again, or give up.
@@ -145,26 +144,26 @@ found:
 	 * temporary list. */
 	INIT_LIST_HEAD(&eviction_list);
 	while (!list_empty(&unwind_list)) {
-		obj_priv = list_first_entry(&unwind_list,
-					    struct drm_i915_gem_object,
-					    evict_list);
-		if (drm_mm_scan_remove_block(obj_priv->gtt_space)) {
-			list_move(&obj_priv->evict_list, &eviction_list);
+		obj = list_first_entry(&unwind_list,
+				       struct drm_i915_gem_object,
+				       evict_list);
+		if (drm_mm_scan_remove_block(obj->gtt_space)) {
+			list_move(&obj->evict_list, &eviction_list);
 			continue;
 		}
-		list_del(&obj_priv->evict_list);
-		drm_gem_object_unreference(&obj_priv->base);
+		list_del(&obj->evict_list);
+		drm_gem_object_unreference(&obj->base);
 	}
 
 	/* Unbinding will emit any required flushes */
 	while (!list_empty(&eviction_list)) {
-		obj_priv = list_first_entry(&eviction_list,
-					    struct drm_i915_gem_object,
-					    evict_list);
+		obj = list_first_entry(&eviction_list,
+				       struct drm_i915_gem_object,
+				       evict_list);
 		if (ret == 0)
-			ret = i915_gem_object_unbind(&obj_priv->base);
-		list_del(&obj_priv->evict_list);
-		drm_gem_object_unreference(&obj_priv->base);
+			ret = i915_gem_object_unbind(obj);
+		list_del(&obj->evict_list);
+		drm_gem_object_unreference(&obj->base);
 	}
 
 	return ret;
@@ -203,7 +202,7 @@ i915_gem_evict_inactive(struct drm_device *dev, bool purgeable_only)
 	list_for_each_entry_safe(obj, next,
 				 &dev_priv->mm.inactive_list, mm_list) {
 		if (!purgeable_only || obj->madv != I915_MADV_WILLNEED) {
-			int ret = i915_gem_object_unbind(&obj->base);
+			int ret = i915_gem_object_unbind(obj);
 			if (ret)
 				return ret;
 		}

@@ -234,25 +234,24 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 
 /* Is the current GTT allocation valid for the change in tiling? */
 static bool
-i915_gem_object_fence_ok(struct drm_gem_object *obj, int tiling_mode)
+i915_gem_object_fence_ok(struct drm_i915_gem_object *obj, int tiling_mode)
 {
-	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	u32 size;
 
 	if (tiling_mode == I915_TILING_NONE)
 		return true;
 
-	if (INTEL_INFO(obj->dev)->gen >= 4)
+	if (INTEL_INFO(obj->base.dev)->gen >= 4)
 		return true;
 
-	if (!obj_priv->gtt_space)
+	if (!obj->gtt_space)
 		return true;
 
-	if (INTEL_INFO(obj->dev)->gen == 3) {
-		if (obj_priv->gtt_offset & ~I915_FENCE_START_MASK)
+	if (INTEL_INFO(obj->base.dev)->gen == 3) {
+		if (obj->gtt_offset & ~I915_FENCE_START_MASK)
 			return false;
 	} else {
-		if (obj_priv->gtt_offset & ~I830_FENCE_START_MASK)
+		if (obj->gtt_offset & ~I830_FENCE_START_MASK)
 			return false;
 	}
 
@@ -260,18 +259,18 @@ i915_gem_object_fence_ok(struct drm_gem_object *obj, int tiling_mode)
 	 * Previous chips need to be aligned to the size of the smallest
 	 * fence register that can contain the object.
 	 */
-	if (INTEL_INFO(obj->dev)->gen == 3)
+	if (INTEL_INFO(obj->base.dev)->gen == 3)
 		size = 1024*1024;
 	else
 		size = 512*1024;
 
-	while (size < obj_priv->base.size)
+	while (size < obj->base.size)
 		size <<= 1;
 
-	if (obj_priv->gtt_space->size != size)
+	if (obj->gtt_space->size != size)
 		return false;
 
-	if (obj_priv->gtt_offset & (size - 1))
+	if (obj->gtt_offset & (size - 1))
 		return false;
 
 	return true;
@@ -283,30 +282,29 @@ i915_gem_object_fence_ok(struct drm_gem_object *obj, int tiling_mode)
  */
 int
 i915_gem_set_tiling(struct drm_device *dev, void *data,
-		   struct drm_file *file_priv)
+		   struct drm_file *file)
 {
 	struct drm_i915_gem_set_tiling *args = data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_gem_object *obj;
-	struct drm_i915_gem_object *obj_priv;
+	struct drm_i915_gem_object *obj;
 	int ret;
 
 	ret = i915_gem_check_is_wedged(dev);
 	if (ret)
 		return ret;
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
 	if (obj == NULL)
 		return -ENOENT;
-	obj_priv = to_intel_bo(obj);
 
-	if (!i915_tiling_ok(dev, args->stride, obj->size, args->tiling_mode)) {
-		drm_gem_object_unreference_unlocked(obj);
+	if (!i915_tiling_ok(dev,
+			    args->stride, obj->base.size, args->tiling_mode)) {
+		drm_gem_object_unreference_unlocked(&obj->base);
 		return -EINVAL;
 	}
 
-	if (obj_priv->pin_count) {
-		drm_gem_object_unreference_unlocked(obj);
+	if (obj->pin_count) {
+		drm_gem_object_unreference_unlocked(&obj->base);
 		return -EBUSY;
 	}
 
@@ -340,8 +338,8 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	if (args->tiling_mode != obj_priv->tiling_mode ||
-	    args->stride != obj_priv->stride) {
+	if (args->tiling_mode != obj->tiling_mode ||
+	    args->stride != obj->stride) {
 		/* We need to rebind the object if its current allocation
 		 * no longer meets the alignment restrictions for its new
 		 * tiling mode. Otherwise we can just leave it alone, but
@@ -349,22 +347,22 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		 */
 		if (!i915_gem_object_fence_ok(obj, args->tiling_mode))
 			ret = i915_gem_object_unbind(obj);
-		else if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
+		else if (obj->fence_reg != I915_FENCE_REG_NONE)
 			ret = i915_gem_object_put_fence_reg(obj, true);
 		else
 			i915_gem_release_mmap(obj);
 
 		if (ret != 0) {
-			args->tiling_mode = obj_priv->tiling_mode;
-			args->stride = obj_priv->stride;
+			args->tiling_mode = obj->tiling_mode;
+			args->stride = obj->stride;
 			goto err;
 		}
 
-		obj_priv->tiling_mode = args->tiling_mode;
-		obj_priv->stride = args->stride;
+		obj->tiling_mode = args->tiling_mode;
+		obj->stride = args->stride;
 	}
 err:
-	drm_gem_object_unreference(obj);
+	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
@@ -375,22 +373,20 @@ err:
  */
 int
 i915_gem_get_tiling(struct drm_device *dev, void *data,
-		   struct drm_file *file_priv)
+		   struct drm_file *file)
 {
 	struct drm_i915_gem_get_tiling *args = data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_gem_object *obj;
-	struct drm_i915_gem_object *obj_priv;
+	struct drm_i915_gem_object *obj;
 
-	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
 	if (obj == NULL)
 		return -ENOENT;
-	obj_priv = to_intel_bo(obj);
 
 	mutex_lock(&dev->struct_mutex);
 
-	args->tiling_mode = obj_priv->tiling_mode;
-	switch (obj_priv->tiling_mode) {
+	args->tiling_mode = obj->tiling_mode;
+	switch (obj->tiling_mode) {
 	case I915_TILING_X:
 		args->swizzle_mode = dev_priv->mm.bit_6_swizzle_x;
 		break;
@@ -410,7 +406,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_10_17)
 		args->swizzle_mode = I915_BIT_6_SWIZZLE_9_10;
 
-	drm_gem_object_unreference(obj);
+	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
@@ -440,46 +436,44 @@ i915_gem_swizzle_page(struct page *page)
 }
 
 void
-i915_gem_object_do_bit_17_swizzle(struct drm_gem_object *obj)
+i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
 {
-	struct drm_device *dev = obj->dev;
+	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
-	int page_count = obj->size >> PAGE_SHIFT;
+	int page_count = obj->base.size >> PAGE_SHIFT;
 	int i;
 
 	if (dev_priv->mm.bit_6_swizzle_x != I915_BIT_6_SWIZZLE_9_10_17)
 		return;
 
-	if (obj_priv->bit_17 == NULL)
+	if (obj->bit_17 == NULL)
 		return;
 
 	for (i = 0; i < page_count; i++) {
-		char new_bit_17 = page_to_phys(obj_priv->pages[i]) >> 17;
+		char new_bit_17 = page_to_phys(obj->pages[i]) >> 17;
 		if ((new_bit_17 & 0x1) !=
-		    (test_bit(i, obj_priv->bit_17) != 0)) {
-			i915_gem_swizzle_page(obj_priv->pages[i]);
-			set_page_dirty(obj_priv->pages[i]);
+		    (test_bit(i, obj->bit_17) != 0)) {
+			i915_gem_swizzle_page(obj->pages[i]);
+			set_page_dirty(obj->pages[i]);
 		}
 	}
 }
 
 void
-i915_gem_object_save_bit_17_swizzle(struct drm_gem_object *obj)
+i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj)
 {
-	struct drm_device *dev = obj->dev;
+	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
-	int page_count = obj->size >> PAGE_SHIFT;
+	int page_count = obj->base.size >> PAGE_SHIFT;
 	int i;
 
 	if (dev_priv->mm.bit_6_swizzle_x != I915_BIT_6_SWIZZLE_9_10_17)
 		return;
 
-	if (obj_priv->bit_17 == NULL) {
-		obj_priv->bit_17 = kmalloc(BITS_TO_LONGS(page_count) *
+	if (obj->bit_17 == NULL) {
+		obj->bit_17 = kmalloc(BITS_TO_LONGS(page_count) *
 					   sizeof(long), GFP_KERNEL);
-		if (obj_priv->bit_17 == NULL) {
+		if (obj->bit_17 == NULL) {
 			DRM_ERROR("Failed to allocate memory for bit 17 "
 				  "record\n");
 			return;
@@ -487,9 +481,9 @@ i915_gem_object_save_bit_17_swizzle(struct drm_gem_object *obj)
 	}
 
 	for (i = 0; i < page_count; i++) {
-		if (page_to_phys(obj_priv->pages[i]) & (1 << 17))
-			__set_bit(i, obj_priv->bit_17);
+		if (page_to_phys(obj->pages[i]) & (1 << 17))
+			__set_bit(i, obj->bit_17);
 		else
-			__clear_bit(i, obj_priv->bit_17);
+			__clear_bit(i, obj->bit_17);
 	}
 }

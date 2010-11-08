@@ -157,7 +157,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	}
 
 	if (init->ring_size != 0) {
-		if (dev_priv->render_ring.gem_object != NULL) {
+		if (dev_priv->render_ring.obj != NULL) {
 			i915_dma_cleanup(dev);
 			DRM_ERROR("Client tried to initialize ringbuffer in "
 				  "GEM mode\n");

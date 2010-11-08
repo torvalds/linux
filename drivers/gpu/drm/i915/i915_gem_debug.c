@@ -152,13 +152,12 @@ i915_gem_dump_page(struct page *page, uint32_t start, uint32_t end,
 }
 
 void
-i915_gem_dump_object(struct drm_gem_object *obj, int len,
+i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
 		     const char *where, uint32_t mark)
 {
-	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int page;
 
-	DRM_INFO("%s: object at offset %08x\n", where, obj_priv->gtt_offset);
+	DRM_INFO("%s: object at offset %08x\n", where, obj->gtt_offset);
 	for (page = 0; page < (len + PAGE_SIZE-1) / PAGE_SIZE; page++) {
 		int page_len, chunk, chunk_len;
 
@@ -170,9 +169,9 @@ i915_gem_dump_object(struct drm_gem_object *obj, int len,
 			chunk_len = page_len - chunk;
 			if (chunk_len > 128)
 				chunk_len = 128;
-			i915_gem_dump_page(obj_priv->pages[page],
+			i915_gem_dump_page(obj->pages[page],
 					   chunk, chunk + chunk_len,
-					   obj_priv->gtt_offset +
+					   obj->gtt_offset +
 					   page * PAGE_SIZE,
 					   mark);
 		}
@@ -182,21 +181,19 @@ i915_gem_dump_object(struct drm_gem_object *obj, int len,
 
 #if WATCH_COHERENCY
 void
-i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle)
+i915_gem_object_check_coherency(struct drm_i915_gem_object *obj, int handle)
 {
-	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+	struct drm_device *dev = obj->base.dev;
 	int page;
 	uint32_t *gtt_mapping;
 	uint32_t *backing_map = NULL;
 	int bad_count = 0;
 
 	DRM_INFO("%s: checking coherency of object %p@0x%08x (%d, %zdkb):\n",
-		 __func__, obj, obj_priv->gtt_offset, handle,
+		 __func__, obj, obj->gtt_offset, handle,
 		 obj->size / 1024);
 
-	gtt_mapping = ioremap(dev->agp->base + obj_priv->gtt_offset,
-			      obj->size);
+	gtt_mapping = ioremap(dev->agp->base + obj->gtt_offset, obj->base.size);
 	if (gtt_mapping == NULL) {
 		DRM_ERROR("failed to map GTT space\n");
 		return;
@@ -205,7 +202,7 @@ i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle)
 	for (page = 0; page < obj->size / PAGE_SIZE; page++) {
 		int i;
 
-		backing_map = kmap_atomic(obj_priv->pages[page], KM_USER0);
+		backing_map = kmap_atomic(obj->pages[page], KM_USER0);
 
 		if (backing_map == NULL) {
 			DRM_ERROR("failed to map backing page\n");
@@ -220,7 +217,7 @@ i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle)
 			if (cpuval != gttval) {
 				DRM_INFO("incoherent CPU vs GPU at 0x%08x: "
 					 "0x%08x vs 0x%08x\n",
-					 (int)(obj_priv->gtt_offset +
+					 (int)(obj->gtt_offset +
 					       page * PAGE_SIZE + i * 4),
 					 cpuval, gttval);
 				if (bad_count++ >= 8) {

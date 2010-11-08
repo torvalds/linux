@@ -423,28 +423,23 @@ static void i915_error_work_func(struct work_struct *work)
 #ifdef CONFIG_DEBUG_FS
 static struct drm_i915_error_object *
 i915_error_object_create(struct drm_device *dev,
-			 struct drm_gem_object *src)
+			 struct drm_i915_gem_object *src)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_object *dst;
-	struct drm_i915_gem_object *src_priv;
 	int page, page_count;
 	u32 reloc_offset;
 
-	if (src == NULL)
+	if (src == NULL || src->pages == NULL)
 		return NULL;
 
-	src_priv = to_intel_bo(src);
-	if (src_priv->pages == NULL)
-		return NULL;
-
-	page_count = src->size / PAGE_SIZE;
+	page_count = src->base.size / PAGE_SIZE;
 
 	dst = kmalloc(sizeof(*dst) + page_count * sizeof (u32 *), GFP_ATOMIC);
 	if (dst == NULL)
 		return NULL;
 
-	reloc_offset = src_priv->gtt_offset;
+	reloc_offset = src->gtt_offset;
 	for (page = 0; page < page_count; page++) {
 		unsigned long flags;
 		void __iomem *s;
@@ -466,7 +461,7 @@ i915_error_object_create(struct drm_device *dev,
 		reloc_offset += PAGE_SIZE;
 	}
 	dst->page_count = page_count;
-	dst->gtt_offset = src_priv->gtt_offset;
+	dst->gtt_offset = src->gtt_offset;
 
 	return dst;
 
@@ -598,9 +593,9 @@ static u32 capture_bo_list(struct drm_i915_error_buffer *err,
 static void i915_capture_error_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj_priv;
+	struct drm_i915_gem_object *obj;
 	struct drm_i915_error_state *error;
-	struct drm_gem_object *batchbuffer[2];
+	struct drm_i915_gem_object *batchbuffer[2];
 	unsigned long flags;
 	u32 bbaddr;
 	int count;
@@ -668,34 +663,30 @@ static void i915_capture_error_state(struct drm_device *dev)
 	batchbuffer[0] = NULL;
 	batchbuffer[1] = NULL;
 	count = 0;
-	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, mm_list) {
-		struct drm_gem_object *obj = &obj_priv->base;
-
+	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
 		if (batchbuffer[0] == NULL &&
-		    bbaddr >= obj_priv->gtt_offset &&
-		    bbaddr < obj_priv->gtt_offset + obj->size)
+		    bbaddr >= obj->gtt_offset &&
+		    bbaddr < obj->gtt_offset + obj->base.size)
 			batchbuffer[0] = obj;
 
 		if (batchbuffer[1] == NULL &&
-		    error->acthd >= obj_priv->gtt_offset &&
-		    error->acthd < obj_priv->gtt_offset + obj->size)
+		    error->acthd >= obj->gtt_offset &&
+		    error->acthd < obj->gtt_offset + obj->base.size)
 			batchbuffer[1] = obj;
 
 		count++;
 	}
 	/* Scan the other lists for completeness for those bizarre errors. */
 	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
-		list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list, mm_list) {
-			struct drm_gem_object *obj = &obj_priv->base;
-
+		list_for_each_entry(obj, &dev_priv->mm.flushing_list, mm_list) {
 			if (batchbuffer[0] == NULL &&
-			    bbaddr >= obj_priv->gtt_offset &&
-			    bbaddr < obj_priv->gtt_offset + obj->size)
+			    bbaddr >= obj->gtt_offset &&
+			    bbaddr < obj->gtt_offset + obj->base.size)
 				batchbuffer[0] = obj;
 
 			if (batchbuffer[1] == NULL &&
-			    error->acthd >= obj_priv->gtt_offset &&
-			    error->acthd < obj_priv->gtt_offset + obj->size)
+			    error->acthd >= obj->gtt_offset &&
+			    error->acthd < obj->gtt_offset + obj->base.size)
 				batchbuffer[1] = obj;
 
 			if (batchbuffer[0] && batchbuffer[1])
@@ -703,17 +694,15 @@ static void i915_capture_error_state(struct drm_device *dev)
 		}
 	}
 	if (batchbuffer[0] == NULL || batchbuffer[1] == NULL) {
-		list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, mm_list) {
-			struct drm_gem_object *obj = &obj_priv->base;
-
+		list_for_each_entry(obj, &dev_priv->mm.inactive_list, mm_list) {
 			if (batchbuffer[0] == NULL &&
-			    bbaddr >= obj_priv->gtt_offset &&
-			    bbaddr < obj_priv->gtt_offset + obj->size)
+			    bbaddr >= obj->gtt_offset &&
+			    bbaddr < obj->gtt_offset + obj->base.size)
 				batchbuffer[0] = obj;
 
 			if (batchbuffer[1] == NULL &&
-			    error->acthd >= obj_priv->gtt_offset &&
-			    error->acthd < obj_priv->gtt_offset + obj->size)
+			    error->acthd >= obj->gtt_offset &&
+			    error->acthd < obj->gtt_offset + obj->base.size)
 				batchbuffer[1] = obj;
 
 			if (batchbuffer[0] && batchbuffer[1])
@@ -732,14 +721,14 @@ static void i915_capture_error_state(struct drm_device *dev)
 
 	/* Record the ringbuffer */
 	error->ringbuffer = i915_error_object_create(dev,
-			dev_priv->render_ring.gem_object);
+						     dev_priv->render_ring.obj);
 
 	/* Record buffers on the active and pinned lists. */
 	error->active_bo = NULL;
 	error->pinned_bo = NULL;
 
 	error->active_bo_count = count;
-	list_for_each_entry(obj_priv, &dev_priv->mm.pinned_list, mm_list)
+	list_for_each_entry(obj, &dev_priv->mm.pinned_list, mm_list)
 		count++;
 	error->pinned_bo_count = count - error->active_bo_count;
 
@@ -948,7 +937,7 @@ static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_i915_gem_object *obj_priv;
+	struct drm_i915_gem_object *obj;
 	struct intel_unpin_work *work;
 	unsigned long flags;
 	bool stall_detected;
@@ -967,13 +956,13 @@ static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
 	}
 
 	/* Potential stall - if we see that the flip has happened, assume a missed interrupt */
-	obj_priv = to_intel_bo(work->pending_flip_obj);
+	obj = work->pending_flip_obj;
 	if (INTEL_INFO(dev)->gen >= 4) {
 		int dspsurf = intel_crtc->plane == 0 ? DSPASURF : DSPBSURF;
-		stall_detected = I915_READ(dspsurf) == obj_priv->gtt_offset;
+		stall_detected = I915_READ(dspsurf) == obj->gtt_offset;
 	} else {
 		int dspaddr = intel_crtc->plane == 0 ? DSPAADDR : DSPBADDR;
-		stall_detected = I915_READ(dspaddr) == (obj_priv->gtt_offset +
+		stall_detected = I915_READ(dspaddr) == (obj->gtt_offset +
 							crtc->y * crtc->fb->pitch +
 							crtc->x * crtc->fb->bits_per_pixel/8);
 	}

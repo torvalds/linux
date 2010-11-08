@@ -4,7 +4,7 @@
 struct  intel_hw_status_page {
 	u32	__iomem	*page_addr;
 	unsigned int	gfx_addr;
-	struct		drm_gem_object *obj;
+	struct		drm_i915_gem_object *obj;
 };
 
 #define I915_RING_READ(reg) i915_safe_read(dev_priv, reg)
@@ -32,7 +32,7 @@ struct  intel_ring_buffer {
 	u32		mmio_base;
 	void		*virtual_start;
 	struct		drm_device *dev;
-	struct		drm_gem_object *gem_object;
+	struct		drm_i915_gem_object *obj;
 
 	unsigned int	head;
 	unsigned int	tail;

@@ -139,7 +139,7 @@ u32 intel_ring_get_active_head(struct intel_ring_buffer *ring)
 static int init_ring_common(struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	struct drm_i915_gem_object *obj_priv = to_intel_bo(ring->gem_object);
+	struct drm_i915_gem_object *obj = ring->obj;
 	u32 head;
 
 	/* Stop the ring if it's running. */
@@ -148,7 +148,7 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 	ring->write_tail(ring, 0);
 
 	/* Initialize the ring. */
-	I915_WRITE_START(ring, obj_priv->gtt_offset);
+	I915_WRITE_START(ring, obj->gtt_offset);
 	head = I915_READ_HEAD(ring) & HEAD_ADDR;
 
 	/* G45 ring initialization fails to reset head to zero */
@@ -178,7 +178,7 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 
 	/* If the head is still not zero, the ring is dead */
 	if ((I915_READ_CTL(ring) & RING_VALID) == 0 ||
-	    I915_READ_START(ring) != obj_priv->gtt_offset ||
+	    I915_READ_START(ring) != obj->gtt_offset ||
 	    (I915_READ_HEAD(ring) & HEAD_ADDR) != 0) {
 		DRM_ERROR("%s initialization failed "
 				"ctl %08x head %08x tail %08x start %08x\n",
@@ -514,17 +514,15 @@ render_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 static void cleanup_status_page(struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	struct drm_gem_object *obj;
-	struct drm_i915_gem_object *obj_priv;
+	struct drm_i915_gem_object *obj;
 
 	obj = ring->status_page.obj;
 	if (obj == NULL)
 		return;
-	obj_priv = to_intel_bo(obj);
 
-	kunmap(obj_priv->pages[0]);
+	kunmap(obj->pages[0]);
 	i915_gem_object_unpin(obj);
-	drm_gem_object_unreference(obj);
+	drm_gem_object_unreference(&obj->base);
 	ring->status_page.obj = NULL;
 
 	memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
@@ -534,8 +532,7 @@ static int init_status_page(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_gem_object *obj;
-	struct drm_i915_gem_object *obj_priv;
+	struct drm_i915_gem_object *obj;
 	int ret;
 
 	obj = i915_gem_alloc_object(dev, 4096);
@@ -544,16 +541,15 @@ static int init_status_page(struct intel_ring_buffer *ring)
 		ret = -ENOMEM;
 		goto err;
 	}
-	obj_priv = to_intel_bo(obj);
-	obj_priv->agp_type = AGP_USER_CACHED_MEMORY;
+	obj->agp_type = AGP_USER_CACHED_MEMORY;
 
 	ret = i915_gem_object_pin(obj, 4096, true);
 	if (ret != 0) {
 		goto err_unref;
 	}
 
-	ring->status_page.gfx_addr = obj_priv->gtt_offset;
-	ring->status_page.page_addr = kmap(obj_priv->pages[0]);
+	ring->status_page.gfx_addr = obj->gtt_offset;
+	ring->status_page.page_addr = kmap(obj->pages[0]);
 	if (ring->status_page.page_addr == NULL) {
 		memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
 		goto err_unpin;
@@ -570,7 +566,7 @@ static int init_status_page(struct intel_ring_buffer *ring)
 err_unpin:
 	i915_gem_object_unpin(obj);
 err_unref:
-	drm_gem_object_unreference(obj);
+	drm_gem_object_unreference(&obj->base);
 err:
 	return ret;
 }
@@ -578,8 +574,7 @@ err:
 int intel_init_ring_buffer(struct drm_device *dev,
 			   struct intel_ring_buffer *ring)
 {
-	struct drm_i915_gem_object *obj_priv;
-	struct drm_gem_object *obj;
+	struct drm_i915_gem_object *obj;
 	int ret;
 
 	ring->dev = dev;
@@ -600,15 +595,14 @@ int intel_init_ring_buffer(struct drm_device *dev,
 		goto err_hws;
 	}
 
-	ring->gem_object = obj;
+	ring->obj = obj;
 
 	ret = i915_gem_object_pin(obj, PAGE_SIZE, true);
 	if (ret)
 		goto err_unref;
 
-	obj_priv = to_intel_bo(obj);
 	ring->map.size = ring->size;
-	ring->map.offset = dev->agp->base + obj_priv->gtt_offset;
+	ring->map.offset = dev->agp->base + obj->gtt_offset;
 	ring->map.type = 0;
 	ring->map.flags = 0;
 	ring->map.mtrr = 0;
@@ -632,8 +626,8 @@ err_unmap:
 err_unpin:
 	i915_gem_object_unpin(obj);
 err_unref:
-	drm_gem_object_unreference(obj);
-	ring->gem_object = NULL;
+	drm_gem_object_unreference(&obj->base);
+	ring->obj = NULL;
 err_hws:
 	cleanup_status_page(ring);
 	return ret;
@@ -644,7 +638,7 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 	struct drm_i915_private *dev_priv;
 	int ret;
 
-	if (ring->gem_object == NULL)
+	if (ring->obj == NULL)
 		return;
 
 	/* Disable the ring buffer. The ring must be idle at this point */
@@ -654,9 +648,9 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 
 	drm_core_ioremapfree(&ring->map, ring->dev);
 
-	i915_gem_object_unpin(ring->gem_object);
-	drm_gem_object_unreference(ring->gem_object);
-	ring->gem_object = NULL;
+	i915_gem_object_unpin(ring->obj);
+	drm_gem_object_unreference(&ring->obj->base);
+	ring->obj = NULL;
 
 	if (ring->cleanup)
 		ring->cleanup(ring);
@@ -902,11 +896,11 @@ static int blt_ring_init(struct intel_ring_buffer *ring)
 		u32 *ptr;
 		int ret;
 
-		obj = to_intel_bo(i915_gem_alloc_object(ring->dev, 4096));
+		obj = i915_gem_alloc_object(ring->dev, 4096);
 		if (obj == NULL)
 			return -ENOMEM;
 
-		ret = i915_gem_object_pin(&obj->base, 4096, true);
+		ret = i915_gem_object_pin(obj, 4096, true);
 		if (ret) {
 			drm_gem_object_unreference(&obj->base);
 			return ret;
@@ -917,9 +911,9 @@ static int blt_ring_init(struct intel_ring_buffer *ring)
 		*ptr++ = MI_NOOP;
 		kunmap(obj->pages[0]);
 
-		ret = i915_gem_object_set_to_gtt_domain(&obj->base, false);
+		ret = i915_gem_object_set_to_gtt_domain(obj, false);
 		if (ret) {
-			i915_gem_object_unpin(&obj->base);
+			i915_gem_object_unpin(obj);
 			drm_gem_object_unreference(&obj->base);
 			return ret;
 		}

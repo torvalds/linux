@@ -32,7 +32,6 @@
 
 #include "i915_reg.h"
 #include "intel_bios.h"
-#include "i915_trace.h"
 #include "intel_ringbuffer.h"
 #include <linux/io-mapping.h>
 #include <linux/i2c.h>
@@ -90,7 +89,7 @@ struct drm_i915_gem_phys_object {
 	int id;
 	struct page **page_list;
 	drm_dma_handle_t *handle;
-	struct drm_gem_object *cur_obj;
+	struct drm_i915_gem_object *cur_obj;
 };
 
 struct mem_block {
@@ -125,7 +124,7 @@ struct drm_i915_master_private {
 #define I915_FENCE_REG_NONE -1
 
 struct drm_i915_fence_reg {
-	struct drm_gem_object *obj;
+	struct drm_i915_gem_object *obj;
 	struct list_head lru_list;
 	bool gpu;
 };
@@ -280,9 +279,9 @@ typedef struct drm_i915_private {
 	uint32_t counter;
 	unsigned int seqno_gfx_addr;
 	drm_local_map_t hws_map;
-	struct drm_gem_object *seqno_obj;
-	struct drm_gem_object *pwrctx;
-	struct drm_gem_object *renderctx;
+	struct drm_i915_gem_object *seqno_obj;
+	struct drm_i915_gem_object *pwrctx;
+	struct drm_i915_gem_object *renderctx;
 
 	struct resource mch_res;
 
@@ -690,14 +689,14 @@ typedef struct drm_i915_private {
 	u8 fmax;
 	u8 fstart;
 
- 	u64 last_count1;
- 	unsigned long last_time1;
- 	u64 last_count2;
- 	struct timespec last_time2;
- 	unsigned long gfx_power;
- 	int c_m;
- 	int r_t;
- 	u8 corr;
+	u64 last_count1;
+	unsigned long last_time1;
+	u64 last_count2;
+	struct timespec last_time2;
+	unsigned long gfx_power;
+	int c_m;
+	int r_t;
+	u8 corr;
 	spinlock_t *mchdev_lock;
 
 	enum no_fbc_reason no_fbc_reason;
@@ -711,7 +710,6 @@ typedef struct drm_i915_private {
 	struct intel_fbdev *fbdev;
 } drm_i915_private_t;
 
-/** driver private structure attached to each drm_gem_object */
 struct drm_i915_gem_object {
 	struct drm_gem_object base;
 
@@ -918,7 +916,7 @@ enum intel_chip_family {
 #define HAS_BLT(dev)            (INTEL_INFO(dev)->has_blt_ring)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
-#define HAS_OVERLAY(dev) 		(INTEL_INFO(dev)->has_overlay)
+#define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)
 
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
@@ -946,6 +944,8 @@ enum intel_chip_family {
 #define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
 #define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
+
+#include "i915_trace.h"
 
 extern struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
@@ -1085,14 +1085,15 @@ int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
 int i915_gem_init_object(struct drm_gem_object *obj);
-struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
-					      size_t size);
+struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
+						  size_t size);
 void i915_gem_free_object(struct drm_gem_object *obj);
-int i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment,
+int i915_gem_object_pin(struct drm_i915_gem_object *obj,
+			uint32_t alignment,
 			bool map_and_fenceable);
-void i915_gem_object_unpin(struct drm_gem_object *obj);
-int i915_gem_object_unbind(struct drm_gem_object *obj);
-void i915_gem_release_mmap(struct drm_gem_object *obj);
+void i915_gem_object_unpin(struct drm_i915_gem_object *obj);
+int i915_gem_object_unbind(struct drm_i915_gem_object *obj);
+void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 
 /**
@@ -1104,14 +1105,14 @@ i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 	return (int32_t)(seq1 - seq2) >= 0;
 }
 
-int i915_gem_object_get_fence_reg(struct drm_gem_object *obj,
+int i915_gem_object_get_fence_reg(struct drm_i915_gem_object *obj,
 				  bool interruptible);
-int i915_gem_object_put_fence_reg(struct drm_gem_object *obj,
+int i915_gem_object_put_fence_reg(struct drm_i915_gem_object *obj,
 				  bool interruptible);
 void i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_reset(struct drm_device *dev);
-void i915_gem_clflush_object(struct drm_gem_object *obj);
-int i915_gem_object_set_domain(struct drm_gem_object *obj,
+void i915_gem_clflush_object(struct drm_i915_gem_object *obj);
+int i915_gem_object_set_domain(struct drm_i915_gem_object *obj,
 			       uint32_t read_domains,
 			       uint32_t write_domain);
 int i915_gem_object_flush_gpu(struct drm_i915_gem_object *obj,
@@ -1131,23 +1132,23 @@ int i915_do_wait_request(struct drm_device *dev,
 			 bool interruptible,
 			 struct intel_ring_buffer *ring);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
-int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
+int i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,
 				      int write);
-int i915_gem_object_set_to_display_plane(struct drm_gem_object *obj,
+int i915_gem_object_set_to_display_plane(struct drm_i915_gem_object *obj,
 					 bool pipelined);
 int i915_gem_attach_phys_object(struct drm_device *dev,
-				struct drm_gem_object *obj,
+				struct drm_i915_gem_object *obj,
 				int id,
 				int align);
 void i915_gem_detach_phys_object(struct drm_device *dev,
-				 struct drm_gem_object *obj);
+				 struct drm_i915_gem_object *obj);
 void i915_gem_free_all_phys_object(struct drm_device *dev);
-void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
+void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
 /* i915_gem_gtt.c */
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
-int i915_gem_gtt_bind_object(struct drm_gem_object *obj);
-void i915_gem_gtt_unbind_object(struct drm_gem_object *obj);
+int i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj);
+void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj);
 
 /* i915_gem_evict.c */
 int i915_gem_evict_something(struct drm_device *dev, int min_size,
@@ -1157,19 +1158,20 @@ int i915_gem_evict_inactive(struct drm_device *dev, bool purgeable_only);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
-void i915_gem_object_do_bit_17_swizzle(struct drm_gem_object *obj);
-void i915_gem_object_save_bit_17_swizzle(struct drm_gem_object *obj);
+void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj);
+void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj);
 
 /* i915_gem_debug.c */
-void i915_gem_dump_object(struct drm_gem_object *obj, int len,
+void i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
 			  const char *where, uint32_t mark);
 #if WATCH_LISTS
 int i915_verify_lists(struct drm_device *dev);
 #else
 #define i915_verify_lists(dev) 0
 #endif
-void i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle);
-void i915_gem_dump_object(struct drm_gem_object *obj, int len,
+void i915_gem_object_check_coherency(struct drm_i915_gem_object *obj,
+				     int handle);
+void i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
 			  const char *where, uint32_t mark);
 
 /* i915_debugfs.c */
@@ -1251,10 +1253,10 @@ extern void intel_display_print_error_state(struct seq_file *m,
  * In that case, we don't need to do it when GEM is initialized as nobody else
  * has access to the ring.
  */
-#define RING_LOCK_TEST_WITH_RETURN(dev, file_priv) do {			\
-	if (((drm_i915_private_t *)dev->dev_private)->render_ring.gem_object \
+#define RING_LOCK_TEST_WITH_RETURN(dev, file) do {			\
+	if (((drm_i915_private_t *)dev->dev_private)->render_ring.obj \
 			== NULL)					\
-		LOCK_TEST_WITH_RETURN(dev, file_priv);			\
+		LOCK_TEST_WITH_RETURN(dev, file);			\
 } while (0)
 
 
