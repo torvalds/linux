@@ -4878,17 +4878,24 @@ i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 		     struct drm_file *file_priv)
 {
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
-	void *obj_addr;
-	int ret;
-	char __user *user_data;
+	void *vaddr = obj_priv->phys_obj->handle->vaddr + args->offset;
+	char __user *user_data = (char __user *) (uintptr_t) args->data_ptr;
 
-	user_data = (char __user *) (uintptr_t) args->data_ptr;
-	obj_addr = obj_priv->phys_obj->handle->vaddr + args->offset;
+	DRM_DEBUG_DRIVER("vaddr %p, %lld\n", vaddr, args->size);
 
-	DRM_DEBUG_DRIVER("obj_addr %p, %lld\n", obj_addr, args->size);
-	ret = copy_from_user(obj_addr, user_data, args->size);
-	if (ret)
-		return -EFAULT;
+	if (__copy_from_user_inatomic_nocache(vaddr, user_data, args->size)) {
+		unsigned long unwritten;
+
+		/* The physical object once assigned is fixed for the lifetime
+		 * of the obj, so we can safely drop the lock and continue
+		 * to access vaddr.
+		 */
+		mutex_unlock(&dev->struct_mutex);
+		unwritten = copy_from_user(vaddr, user_data, args->size);
+		mutex_lock(&dev->struct_mutex);
+		if (unwritten)
+			return -EFAULT;
+	}
 
 	drm_agp_chipset_flush(dev);
 	return 0;
