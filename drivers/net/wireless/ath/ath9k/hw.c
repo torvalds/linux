@@ -484,6 +484,7 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
 			  "Failed allocating banks for "
 			  "external radio\n");
+		ath9k_hw_rf_free_ext_banks(ah);
 		return ecode;
 	}
 
