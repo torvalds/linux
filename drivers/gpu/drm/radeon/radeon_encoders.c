@@ -1520,6 +1520,7 @@ radeon_atom_dac_detect(struct drm_encoder *encoder, struct drm_connector *connec
 static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 
 	if (radeon_encoder->active_device &
 	    (ATOM_DEVICE_DFP_SUPPORT | ATOM_DEVICE_LCD_SUPPORT)) {
@@ -1530,6 +1531,13 @@ static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 
 	radeon_atom_output_lock(encoder, true);
 	radeon_atom_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
+
+	/* select the clock/data port if it uses a router */
+	if (connector) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		if (radeon_connector->router.cd_valid)
+			radeon_router_select_cd_port(radeon_connector);
+	}
 
 	/* this is needed for the pll/ss setup to work correctly in some cases */
 	atombios_set_encoder_crtc_source(encoder);

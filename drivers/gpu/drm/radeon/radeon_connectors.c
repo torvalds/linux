@@ -1116,7 +1116,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 				radeon_connector->shared_ddc = true;
 				shared_ddc = true;
 			}
-			if (radeon_connector->router_bus && router->valid &&
+			if (radeon_connector->router_bus && router->ddc_valid &&
 			    (radeon_connector->router.router_id == router->router_id)) {
 				radeon_connector->shared_ddc = false;
 				shared_ddc = false;
@@ -1136,7 +1136,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 	radeon_connector->connector_object_id = connector_object_id;
 	radeon_connector->hpd = *hpd;
 	radeon_connector->router = *router;
-	if (router->valid) {
+	if (router->ddc_valid || router->cd_valid) {
 		radeon_connector->router_bus = radeon_i2c_lookup(rdev, &router->i2c_info);
 		if (!radeon_connector->router_bus)
 			goto failed;
