@@ -833,6 +833,14 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static int ext4_drop_inode(struct inode *inode)
+{
+	int drop = generic_drop_inode(inode);
+
+	trace_ext4_drop_inode(inode, drop);
+	return drop;
+}
+
 static void ext4_destroy_inode(struct inode *inode)
 {
 	ext4_ioend_wait(inode);
@@ -1175,6 +1183,7 @@ static const struct super_operations ext4_sops = {
 	.destroy_inode	= ext4_destroy_inode,
 	.write_inode	= ext4_write_inode,
 	.dirty_inode	= ext4_dirty_inode,
+	.drop_inode	= ext4_drop_inode,
 	.evict_inode	= ext4_evict_inode,
 	.put_super	= ext4_put_super,
 	.sync_fs	= ext4_sync_fs,
@@ -1196,6 +1205,7 @@ static const struct super_operations ext4_nojournal_sops = {
 	.destroy_inode	= ext4_destroy_inode,
 	.write_inode	= ext4_write_inode,
 	.dirty_inode	= ext4_dirty_inode,
+	.drop_inode	= ext4_drop_inode,
 	.evict_inode	= ext4_evict_inode,
 	.write_super	= ext4_write_super,
 	.put_super	= ext4_put_super,
