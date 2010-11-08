@@ -186,6 +186,14 @@ config FB_SYS_FOPS
        depends on FB
        default n
 
+config FB_WMT_GE_ROPS
+	tristate
+	depends on FB
+	default n
+	---help---
+	  Include functions for accelerated rectangle filling and area
+	  copying using WonderMedia Graphics Engine operations.
+
 config FB_DEFERRED_IO
 	bool
 	depends on FB
@@ -1721,6 +1729,24 @@ config FB_AU1200
 	  This is the framebuffer driver for the AMD Au1200 SOC.  It can drive
 	  various panels and CRTs by passing in kernel cmd line option
 	  au1200fb:panel=<name>.
+
+config FB_VT8500
+	bool "VT8500 LCD Driver"
+	depends on (FB = y) && ARM && ARCH_VT8500 && VTWM_VERSION_VT8500
+	select FB_WMT_GE_ROPS
+	select FB_SYS_IMAGEBLIT
+	help
+	  This is the framebuffer driver for VIA VT8500 integrated LCD
+	  controller.
+
+config FB_WM8505
+	bool "WM8505 frame buffer support"
+	depends on (FB = y) && ARM && ARCH_VT8500 && VTWM_VERSION_WM8505
+	select FB_WMT_GE_ROPS
+	select FB_SYS_IMAGEBLIT
+	help
+	  This is the framebuffer driver for WonderMedia WM8505
+	  integrated LCD controller.
 
 source "drivers/video/geode/Kconfig"
 
