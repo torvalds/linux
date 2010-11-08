@@ -456,7 +456,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8741 = {
 	.resume =	wm8741_resume,
 	.reg_cache_size = ARRAY_SIZE(wm8741_reg_defaults),
 	.reg_word_size = sizeof(u16),
-	.reg_cache_default = &wm8741_reg_defaults,
+	.reg_cache_default = wm8741_reg_defaults,
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
