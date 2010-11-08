@@ -694,7 +694,6 @@ sub check_buildlog {
 sub build {
     my ($type) = @_;
     my $defconfig = "";
-    my $append = "";
 
     unlink $buildlog;
 
@@ -707,7 +706,7 @@ sub build {
 
     # old config can ask questions
     if ($type eq "oldconfig") {
-	$append = "yes ''|";
+	$type = "oldnoconfig";
 
 	# allow for empty configs
 	run_command "touch $outputdir/.config";
@@ -737,7 +736,7 @@ sub build {
 	$defconfig = "KCONFIG_ALLCONFIG=$minconfig";
     }
 
-    run_command "$append $defconfig $make $type" or
+    run_command "$defconfig $make $type" or
 	dodie "failed make config";
 
     $redirect = "$buildlog";
