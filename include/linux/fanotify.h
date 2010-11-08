@@ -96,7 +96,7 @@ struct fanotify_event_metadata {
 struct fanotify_response {
 	__s32 fd;
 	__u32 response;
-} __attribute__ ((packed));
+};
 
 /* Legit userspace responses to a _PERM event */
 #define FAN_ALLOW	0x01
