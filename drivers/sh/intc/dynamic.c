@@ -60,5 +60,5 @@ void reserve_intc_vectors(struct intc_vect *vectors, unsigned int nr_vecs)
 	int i;
 
 	for (i = 0; i < nr_vecs; i++)
-		irq_reserve_irqs(evt2irq(vectors[i].vect), 1);
+		irq_reserve_irq(evt2irq(vectors[i].vect));
 }

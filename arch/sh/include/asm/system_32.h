@@ -145,42 +145,6 @@ do {								\
 		__restore_dsp(prev);				\
 } while (0)
 
-/*
- * Jump to uncached area.
- * When handling TLB or caches, we need to do it from an uncached area.
- */
-#define jump_to_uncached()			\
-do {						\
-	unsigned long __dummy;			\
-						\
-	__asm__ __volatile__(			\
-		"mova	1f, %0\n\t"		\
-		"add	%1, %0\n\t"		\
-		"jmp	@%0\n\t"		\
-		" nop\n\t"			\
-		".balign 4\n"			\
-		"1:"				\
-		: "=&z" (__dummy)		\
-		: "r" (cached_to_uncached));	\
-} while (0)
-
-/*
- * Back to cached area.
- */
-#define back_to_cached()				\
-do {							\
-	unsigned long __dummy;				\
-	ctrl_barrier();					\
-	__asm__ __volatile__(				\
-		"mov.l	1f, %0\n\t"			\
-		"jmp	@%0\n\t"			\
-		" nop\n\t"				\
-		".balign 4\n"				\
-		"1:	.long 2f\n"			\
-		"2:"					\
-		: "=&r" (__dummy));			\
-} while (0)
-
 #ifdef CONFIG_CPU_HAS_SR_RB
 #define lookup_exception_vector()	\
 ({					\
