@@ -1993,7 +1993,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	    drm_core_check_feature(dev, DRIVER_MODESET)) {
 		DRM_ERROR("kernel modesetting requires GEM, disabling driver.\n");
 		ret = -ENODEV;
-		goto out_iomapfree;
+		goto out_workqueue_free;
 	}
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
@@ -2016,8 +2016,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	/* Init HWS */
 	if (!I915_NEED_GFX_HWS(dev)) {
 		ret = i915_init_phys_hws(dev);
-		if (ret != 0)
-			goto out_workqueue_free;
+		if (ret)
+			goto out_gem_unload;
 	}
 
 	if (IS_PINEVIEW(dev))
@@ -2044,11 +2044,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->trace_irq_seqno = 0;
 
 	ret = drm_vblank_init(dev, I915_NUM_PIPE);
-
-	if (ret) {
-		(void) i915_driver_unload(dev);
-		return ret;
-	}
+	if (ret)
+		goto out_gem_unload;
 
 	/* Start out suspended */
 	dev_priv->mm.suspended = 1;
@@ -2059,7 +2056,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		ret = i915_load_modeset_init(dev);
 		if (ret < 0) {
 			DRM_ERROR("failed to init modeset\n");
-			goto out_workqueue_free;
+			goto out_gem_unload;
 		}
 	}
 
@@ -2077,6 +2074,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	return 0;
 
+out_gem_unload:
+	if (dev->pdev->msi_enabled)
+		pci_disable_msi(dev->pdev);
+
+	intel_teardown_gmbus(dev);
+	intel_teardown_mchbar(dev);
 out_workqueue_free:
 	destroy_workqueue(dev_priv->wq);
 out_iomapfree:
