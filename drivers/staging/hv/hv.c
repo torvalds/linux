@@ -50,7 +50,7 @@ static int HvQueryHypervisorPresence(void)
 	ebx = 0;
 	ecx = 0;
 	edx = 0;
-	op = HvCpuIdFunctionVersionAndFeatures;
+	op = HVCPUID_VERSION_FEATURES;
 	cpuid(op, &eax, &ebx, &ecx, &edx);
 
 	return ecx & HV_PRESENT_BIT;
@@ -76,7 +76,7 @@ static int HvQueryHypervisorInfo(void)
 	ebx = 0;
 	ecx = 0;
 	edx = 0;
-	op = HvCpuIdFunctionHvVendorAndMaxFunction;
+	op = HVCPUID_VENDOR_MAXFUNCTION;
 	cpuid(op, &eax, &ebx, &ecx, &edx);
 
 	DPRINT_INFO(VMBUS, "Vendor ID: %c%c%c%c%c%c%c%c%c%c%c%c",
@@ -98,7 +98,7 @@ static int HvQueryHypervisorInfo(void)
 	ebx = 0;
 	ecx = 0;
 	edx = 0;
-	op = HvCpuIdFunctionHvInterface;
+	op = HVCPUID_INTERFACE;
 	cpuid(op, &eax, &ebx, &ecx, &edx);
 
 	DPRINT_INFO(VMBUS, "Interface ID: %c%c%c%c",
@@ -107,12 +107,12 @@ static int HvQueryHypervisorInfo(void)
 		    ((eax >> 16) & 0xFF),
 		    ((eax >> 24) & 0xFF));
 
-	if (maxLeaf >= HvCpuIdFunctionMsHvVersion) {
+	if (maxLeaf >= HVCPUID_VERSION) {
 		eax = 0;
 		ebx = 0;
 		ecx = 0;
 		edx = 0;
-		op = HvCpuIdFunctionMsHvVersion;
+		op = HVCPUID_VERSION;
 		cpuid(op, &eax, &ebx, &ecx, &edx);
 		DPRINT_INFO(VMBUS, "OS Build:%d-%d.%d-%d-%d.%d",\
 			    eax,
@@ -222,7 +222,7 @@ int HvInit(void)
 	gHvContext.GuestId = HV_LINUX_GUEST_ID;
 
 	/* See if the hypercall page is already set */
-	rdmsrl(HV_X64_MSR_HYPERCALL, hypercallMsr.AsUINT64);
+	rdmsrl(HV_X64_MSR_HYPERCALL, hypercallMsr.as_uint64);
 
 	/*
 	* Allocate the hypercall page memory
@@ -236,16 +236,16 @@ int HvInit(void)
 		goto Cleanup;
 	}
 
-	hypercallMsr.Enable = 1;
+	hypercallMsr.enable = 1;
 
-	hypercallMsr.GuestPhysicalAddress = vmalloc_to_pfn(virtAddr);
-	wrmsrl(HV_X64_MSR_HYPERCALL, hypercallMsr.AsUINT64);
+	hypercallMsr.guest_physical_address = vmalloc_to_pfn(virtAddr);
+	wrmsrl(HV_X64_MSR_HYPERCALL, hypercallMsr.as_uint64);
 
 	/* Confirm that hypercall page did get setup. */
-	hypercallMsr.AsUINT64 = 0;
-	rdmsrl(HV_X64_MSR_HYPERCALL, hypercallMsr.AsUINT64);
+	hypercallMsr.as_uint64 = 0;
+	rdmsrl(HV_X64_MSR_HYPERCALL, hypercallMsr.as_uint64);
 
-	if (!hypercallMsr.Enable) {
+	if (!hypercallMsr.enable) {
 		DPRINT_ERR(VMBUS, "unable to set hypercall page!!");
 		goto Cleanup;
 	}
@@ -254,7 +254,7 @@ int HvInit(void)
 
 	DPRINT_INFO(VMBUS, "Hypercall page VA=%p, PA=0x%0llx",
 		    gHvContext.HypercallPage,
-		    (u64)hypercallMsr.GuestPhysicalAddress << PAGE_SHIFT);
+		    (u64)hypercallMsr.guest_physical_address << PAGE_SHIFT);
 
 	/* Setup the global signal event param for the signal event hypercall */
 	gHvContext.SignalEventBuffer =
@@ -267,19 +267,19 @@ int HvInit(void)
 		(struct hv_input_signal_event *)
 			(ALIGN_UP((unsigned long)gHvContext.SignalEventBuffer,
 				  HV_HYPERCALL_PARAM_ALIGN));
-	gHvContext.SignalEventParam->ConnectionId.Asu32 = 0;
-	gHvContext.SignalEventParam->ConnectionId.u.Id =
+	gHvContext.SignalEventParam->connectionid.asu32 = 0;
+	gHvContext.SignalEventParam->connectionid.u.id =
 						VMBUS_EVENT_CONNECTION_ID;
-	gHvContext.SignalEventParam->FlagNumber = 0;
-	gHvContext.SignalEventParam->RsvdZ = 0;
+	gHvContext.SignalEventParam->flag_number = 0;
+	gHvContext.SignalEventParam->rsvdz = 0;
 
 	return ret;
 
 Cleanup:
 	if (virtAddr) {
-		if (hypercallMsr.Enable) {
-			hypercallMsr.AsUINT64 = 0;
-			wrmsrl(HV_X64_MSR_HYPERCALL, hypercallMsr.AsUINT64);
+		if (hypercallMsr.enable) {
+			hypercallMsr.as_uint64 = 0;
+			wrmsrl(HV_X64_MSR_HYPERCALL, hypercallMsr.as_uint64);
 		}
 
 		vfree(virtAddr);
@@ -302,8 +302,8 @@ void HvCleanup(void)
 	gHvContext.SignalEventParam = NULL;
 
 	if (gHvContext.HypercallPage) {
-		hypercallMsr.AsUINT64 = 0;
-		wrmsrl(HV_X64_MSR_HYPERCALL, hypercallMsr.AsUINT64);
+		hypercallMsr.as_uint64 = 0;
+		wrmsrl(HV_X64_MSR_HYPERCALL, hypercallMsr.as_uint64);
 		vfree(gHvContext.HypercallPage);
 		gHvContext.HypercallPage = NULL;
 	}
@@ -337,12 +337,12 @@ u16 HvPostMessage(union hv_connection_id connectionId,
 	alignedMsg = (struct hv_input_post_message *)
 			(ALIGN_UP(addr, HV_HYPERCALL_PARAM_ALIGN));
 
-	alignedMsg->ConnectionId = connectionId;
-	alignedMsg->MessageType = messageType;
-	alignedMsg->PayloadSize = payloadSize;
-	memcpy((void *)alignedMsg->Payload, payload, payloadSize);
+	alignedMsg->connectionid = connectionId;
+	alignedMsg->message_type = messageType;
+	alignedMsg->payload_size = payloadSize;
+	memcpy((void *)alignedMsg->payload, payload, payloadSize);
 
-	status = HvDoHypercall(HvCallPostMessage, alignedMsg, NULL) & 0xFFFF;
+	status = HvDoHypercall(HVCALL_POST_MESSAGE, alignedMsg, NULL) & 0xFFFF;
 
 	kfree((void *)addr);
 
@@ -359,7 +359,7 @@ u16 HvSignalEvent(void)
 {
 	u16 status;
 
-	status = HvDoHypercall(HvCallSignalEvent, gHvContext.SignalEventParam,
+	status = HvDoHypercall(HVCALL_SIGNAL_EVENT, gHvContext.SignalEventParam,
 			       NULL) & 0xFFFF;
 	return status;
 }
@@ -407,47 +407,47 @@ void HvSynicInit(void *irqarg)
 	}
 
 	/* Setup the Synic's message page */
-	rdmsrl(HV_X64_MSR_SIMP, simp.AsUINT64);
-	simp.SimpEnabled = 1;
-	simp.BaseSimpGpa = virt_to_phys(gHvContext.synICMessagePage[cpu])
+	rdmsrl(HV_X64_MSR_SIMP, simp.as_uint64);
+	simp.simp_enabled = 1;
+	simp.base_simp_gpa = virt_to_phys(gHvContext.synICMessagePage[cpu])
 		>> PAGE_SHIFT;
 
-	DPRINT_DBG(VMBUS, "HV_X64_MSR_SIMP msr set to: %llx", simp.AsUINT64);
+	DPRINT_DBG(VMBUS, "HV_X64_MSR_SIMP msr set to: %llx", simp.as_uint64);
 
-	wrmsrl(HV_X64_MSR_SIMP, simp.AsUINT64);
+	wrmsrl(HV_X64_MSR_SIMP, simp.as_uint64);
 
 	/* Setup the Synic's event page */
-	rdmsrl(HV_X64_MSR_SIEFP, siefp.AsUINT64);
-	siefp.SiefpEnabled = 1;
-	siefp.BaseSiefpGpa = virt_to_phys(gHvContext.synICEventPage[cpu])
+	rdmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
+	siefp.siefp_enabled = 1;
+	siefp.base_siefp_gpa = virt_to_phys(gHvContext.synICEventPage[cpu])
 		>> PAGE_SHIFT;
 
-	DPRINT_DBG(VMBUS, "HV_X64_MSR_SIEFP msr set to: %llx", siefp.AsUINT64);
+	DPRINT_DBG(VMBUS, "HV_X64_MSR_SIEFP msr set to: %llx", siefp.as_uint64);
 
-	wrmsrl(HV_X64_MSR_SIEFP, siefp.AsUINT64);
+	wrmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
 
 	/* Setup the interception SINT. */
 	/* wrmsrl((HV_X64_MSR_SINT0 + HV_SYNIC_INTERCEPTION_SINT_INDEX), */
-	/*	  interceptionSint.AsUINT64); */
+	/*	  interceptionSint.as_uint64); */
 
 	/* Setup the shared SINT. */
-	rdmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.AsUINT64);
+	rdmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.as_uint64);
 
-	sharedSint.AsUINT64 = 0;
-	sharedSint.Vector = irqVector; /* HV_SHARED_SINT_IDT_VECTOR + 0x20; */
-	sharedSint.Masked = false;
-	sharedSint.AutoEoi = true;
+	sharedSint.as_uint64 = 0;
+	sharedSint.vector = irqVector; /* HV_SHARED_SINT_IDT_VECTOR + 0x20; */
+	sharedSint.masked = false;
+	sharedSint.auto_eoi = true;
 
 	DPRINT_DBG(VMBUS, "HV_X64_MSR_SINT1 msr set to: %llx",
-		   sharedSint.AsUINT64);
+		   sharedSint.as_uint64);
 
-	wrmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.AsUINT64);
+	wrmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.as_uint64);
 
 	/* Enable the global synic bit */
-	rdmsrl(HV_X64_MSR_SCONTROL, sctrl.AsUINT64);
-	sctrl.Enable = 1;
+	rdmsrl(HV_X64_MSR_SCONTROL, sctrl.as_uint64);
+	sctrl.enable = 1;
 
-	wrmsrl(HV_X64_MSR_SCONTROL, sctrl.AsUINT64);
+	wrmsrl(HV_X64_MSR_SCONTROL, sctrl.as_uint64);
 
 	gHvContext.SynICInitialized = true;
 	return;
@@ -474,25 +474,25 @@ void HvSynicCleanup(void *arg)
 	if (!gHvContext.SynICInitialized)
 		return;
 
-	rdmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.AsUINT64);
+	rdmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.as_uint64);
 
-	sharedSint.Masked = 1;
+	sharedSint.masked = 1;
 
 	/* Need to correctly cleanup in the case of SMP!!! */
 	/* Disable the interrupt */
-	wrmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.AsUINT64);
+	wrmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.as_uint64);
 
-	rdmsrl(HV_X64_MSR_SIMP, simp.AsUINT64);
-	simp.SimpEnabled = 0;
-	simp.BaseSimpGpa = 0;
+	rdmsrl(HV_X64_MSR_SIMP, simp.as_uint64);
+	simp.simp_enabled = 0;
+	simp.base_simp_gpa = 0;
 
-	wrmsrl(HV_X64_MSR_SIMP, simp.AsUINT64);
+	wrmsrl(HV_X64_MSR_SIMP, simp.as_uint64);
 
-	rdmsrl(HV_X64_MSR_SIEFP, siefp.AsUINT64);
-	siefp.SiefpEnabled = 0;
-	siefp.BaseSiefpGpa = 0;
+	rdmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
+	siefp.siefp_enabled = 0;
+	siefp.base_siefp_gpa = 0;
 
-	wrmsrl(HV_X64_MSR_SIEFP, siefp.AsUINT64);
+	wrmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
 
 	osd_PageFree(gHvContext.synICMessagePage[cpu], 1);
 	osd_PageFree(gHvContext.synICEventPage[cpu], 1);

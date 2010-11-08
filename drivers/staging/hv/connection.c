@@ -309,8 +309,8 @@ int VmbusPostMessage(void *buffer, size_t bufferLen)
 {
 	union hv_connection_id connId;
 
-	connId.Asu32 = 0;
-	connId.u.Id = VMBUS_MESSAGE_CONNECTION_ID;
+	connId.asu32 = 0;
+	connId.u.id = VMBUS_MESSAGE_CONNECTION_ID;
 	return HvPostMessage(connId, 1, buffer, bufferLen);
 }
 

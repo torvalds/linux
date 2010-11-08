@@ -153,7 +153,7 @@ static void VmbusOnMsgDPC(struct hv_driver *drv)
 	struct hv_message *copied;
 
 	while (1) {
-		if (msg->Header.MessageType == HvMessageTypeNone) {
+		if (msg->header.message_type == HVMSG_NONE) {
 			/* no msg */
 			break;
 		} else {
@@ -166,18 +166,18 @@ static void VmbusOnMsgDPC(struct hv_driver *drv)
 					      (void *)copied);
 		}
 
-		msg->Header.MessageType = HvMessageTypeNone;
+		msg->header.message_type = HVMSG_NONE;
 
 		/*
 		 * Make sure the write to MessageType (ie set to
-		 * HvMessageTypeNone) happens before we read the
+		 * HVMSG_NONE) happens before we read the
 		 * MessagePending and EOMing. Otherwise, the EOMing
 		 * will not deliver any more messages since there is
 		 * no empty slot
 		 */
 		mb();
 
-		if (msg->Header.MessageFlags.MessagePending) {
+		if (msg->header.message_flags.msg_pending) {
 			/*
 			 * This will cause message queue rescan to
 			 * possibly deliver another msg from the
@@ -212,10 +212,10 @@ static int VmbusOnISR(struct hv_driver *drv)
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Check if there are actual msgs to be process */
-	if (msg->Header.MessageType != HvMessageTypeNone) {
+	if (msg->header.message_type != HVMSG_NONE) {
 		DPRINT_DBG(VMBUS, "received msg type %d size %d",
-				msg->Header.MessageType,
-				msg->Header.PayloadSize);
+				msg->header.message_type,
+				msg->header.payload_size);
 		ret |= 0x1;
 	}
 
@@ -224,8 +224,8 @@ static int VmbusOnISR(struct hv_driver *drv)
 	event = (union hv_synic_event_flags *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Since we are a child, we only need to check bit 0 */
-	if (test_and_clear_bit(0, (unsigned long *) &event->Flags32[0])) {
-		DPRINT_DBG(VMBUS, "received event %d", event->Flags32[0]);
+	if (test_and_clear_bit(0, (unsigned long *) &event->flags32[0])) {
+		DPRINT_DBG(VMBUS, "received event %d", event->flags32[0]);
 		ret |= 0x2;
 	}
 

@@ -742,8 +742,8 @@ void vmbus_onmessage(void *context)
 	struct vmbus_channel_message_header *hdr;
 	int size;
 
-	hdr = (struct vmbus_channel_message_header *)msg->u.Payload;
-	size = msg->Header.PayloadSize;
+	hdr = (struct vmbus_channel_message_header *)msg->u.payload;
+	size = msg->header.payload_size;
 
 	DPRINT_DBG(VMBUS, "message type %d size %d", hdr->msgtype, size);
 
@@ -752,7 +752,7 @@ void vmbus_onmessage(void *context)
 			   "Received invalid channel message type %d size %d",
 			   hdr->msgtype, size);
 		print_hex_dump_bytes("", DUMP_PREFIX_NONE,
-				     (unsigned char *)msg->u.Payload, size);
+				     (unsigned char *)msg->u.payload, size);
 		kfree(msg);
 		return;
 	}

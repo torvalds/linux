@@ -43,24 +43,24 @@ static void DumpMonitorPage(struct hv_monitor_page *MonitorPage)
 	int j = 0;
 
 	DPRINT_DBG(VMBUS, "monitorPage - %p, trigger state - %d",
-		   MonitorPage, MonitorPage->TriggerState);
+		   MonitorPage, MonitorPage->trigger_state);
 
 	for (i = 0; i < 4; i++)
 		DPRINT_DBG(VMBUS, "trigger group (%d) - %llx", i,
-			   MonitorPage->TriggerGroup[i].AsUINT64);
+			   MonitorPage->trigger_group[i].as_uint64);
 
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < 32; j++) {
 			DPRINT_DBG(VMBUS, "latency (%d)(%d) - %llx", i, j,
-				   MonitorPage->Latency[i][j]);
+				   MonitorPage->latency[i][j]);
 		}
 	}
 	for (i = 0; i < 4; i++) {
 		for (j = 0; j < 32; j++) {
 			DPRINT_DBG(VMBUS, "param-conn id (%d)(%d) - %d", i, j,
-			       MonitorPage->Parameter[i][j].ConnectionId.Asu32);
+			       MonitorPage->parameter[i][j].connectionid.asu32);
 			DPRINT_DBG(VMBUS, "param-flag (%d)(%d) - %d", i, j,
-				MonitorPage->Parameter[i][j].FlagNumber);
+				MonitorPage->parameter[i][j].flag_number);
 		}
 	}
 }
@@ -84,8 +84,8 @@ static void vmbus_setevent(struct vmbus_channel *channel)
 		monitorpage++; /* Get the child to parent monitor page */
 
 		set_bit(channel->monitor_bit,
-			(unsigned long *)&monitorpage->TriggerGroup
-					[channel->monitor_grp].Pending);
+			(unsigned long *)&monitorpage->trigger_group
+					[channel->monitor_grp].pending);
 
 	} else {
 		VmbusSetEvent(channel->offermsg.child_relid);
@@ -108,7 +108,7 @@ static void VmbusChannelClearEvent(struct vmbus_channel *channel)
 		monitorPage++; /* Get the child to parent monitor page */
 
 		clear_bit(Channel->monitor_bit,
-			  (unsigned long *)&monitorPage->TriggerGroup
+			  (unsigned long *)&monitorPage->trigger_group
 					[Channel->monitor_grp].Pending);
 	}
 }
@@ -138,22 +138,22 @@ void vmbus_get_debug_info(struct vmbus_channel *channel,
 	debuginfo->monitorid = channel->offermsg.monitorid;
 
 	debuginfo->servermonitor_pending =
-			monitorpage->TriggerGroup[monitor_group].Pending;
+			monitorpage->trigger_group[monitor_group].pending;
 	debuginfo->servermonitor_latency =
-			monitorpage->Latency[monitor_group][monitor_offset];
+			monitorpage->latency[monitor_group][monitor_offset];
 	debuginfo->servermonitor_connectionid =
-			monitorpage->Parameter[monitor_group]
-					[monitor_offset].ConnectionId.u.Id;
+			monitorpage->parameter[monitor_group]
+					[monitor_offset].connectionid.u.id;
 
 	monitorpage++;
 
 	debuginfo->clientmonitor_pending =
-			monitorpage->TriggerGroup[monitor_group].Pending;
+			monitorpage->trigger_group[monitor_group].pending;
 	debuginfo->clientmonitor_latency =
-			monitorpage->Latency[monitor_group][monitor_offset];
+			monitorpage->latency[monitor_group][monitor_offset];
 	debuginfo->clientmonitor_connectionid =
-			monitorpage->Parameter[monitor_group]
-					[monitor_offset].ConnectionId.u.Id;
+			monitorpage->parameter[monitor_group]
+					[monitor_offset].connectionid.u.id;
 
 	RingBufferGetDebugInfo(&channel->inbound, &debuginfo->inbound);
 	RingBufferGetDebugInfo(&channel->outbound, &debuginfo->outbound);
