@@ -131,12 +131,14 @@ static inline void tegra_flow_wfi(struct cpuidle_device *dev)
 
 	flow_ctrl = flow_ctrl + FLOW_CTRL_HALT_CPUx_EVENTS(dev->cpu);
 
+	stop_critical_timings();
 	dsb();
 	__raw_writel(reg, flow_ctrl);
 	reg = __raw_readl(flow_ctrl);
 	__asm__ volatile ("wfi");
 	__raw_writel(0, flow_ctrl);
 	reg = __raw_readl(flow_ctrl);
+	start_critical_timings();
 }
 
 #ifdef CONFIG_SMP
@@ -377,6 +379,7 @@ static void tegra_idle_enter_lp2_cpu1(struct cpuidle_device *dev,
 
 	/* Prepare CPU1 for LP2 by putting it in reset */
 
+	stop_critical_timings();
 	gic_cpu_exit(0);
 	barrier();
 	twd_ctrl = readl(twd_base + 0x8);
@@ -398,6 +401,7 @@ static void tegra_idle_enter_lp2_cpu1(struct cpuidle_device *dev,
 	tegra_legacy_force_irq_clr(TEGRA_CPUIDLE_BOTH_IDLE);
 
 	writel(smp_processor_id(), EVP_CPU_RESET_VECTOR);
+	start_critical_timings();
 
 	/*
 	 * TODO: is it worth going back to wfi if no interrupt is pending
@@ -474,7 +478,7 @@ static int tegra_idle_enter_lp2(struct cpuidle_device *dev,
 	return (int)us;
 }
 
-static int tegra_idle_enter(unsigned int cpu)
+static int tegra_cpuidle_register_device(unsigned int cpu)
 {
 	struct cpuidle_device *dev;
 	struct cpuidle_state *state;
@@ -589,7 +593,7 @@ static int __init tegra_cpuidle_init(void)
 		return ret;
 
 	for_each_possible_cpu(cpu) {
-		if (tegra_idle_enter(cpu))
+		if (tegra_cpuidle_register_device(cpu))
 			pr_err("CPU%u: error initializing idle loop\n", cpu);
 	}
 

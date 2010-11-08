@@ -365,6 +365,7 @@ unsigned int tegra_suspend_lp2(unsigned int us)
 		tegra_lp2_set_trigger(us);
 
 	suspend_cpu_complex();
+	stop_critical_timings();
 	flush_cache_all();
 	/* structure is written by reset code, so the L2 lines
 	 * must be invalidated */
@@ -375,6 +376,7 @@ unsigned int tegra_suspend_lp2(unsigned int us)
 	/* return from __cortex_a9_restore */
 	barrier();
 	restore_cpu_complex();
+	start_critical_timings();
 
 	remain = tegra_lp2_timer_remain();
 	if (us)
