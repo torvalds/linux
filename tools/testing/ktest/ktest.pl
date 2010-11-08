@@ -46,6 +46,7 @@ my $machine;
 my $tmpdir;
 my $builddir;
 my $outputdir;
+my $output_config;
 my $test_type;
 my $build_type;
 my $build_options;
@@ -389,8 +390,8 @@ sub fail {
 	    mkpath($faildir) or
 		die "can't create $faildir";
 	}
-	if (-f "$outputdir/.config") {
-	    cp "$outputdir/.config", "$faildir/config" or
+	if (-f "$output_config") {
+	    cp "$output_config", "$faildir/config" or
 		die "failed to copy .config";
 	}
 	if (-f $buildlog) {
@@ -619,7 +620,7 @@ sub install {
 
     # should we process modules?
     $install_mods = 0;
-    open(IN, "$outputdir/.config") or dodie("Can't read config file");
+    open(IN, "$output_config") or dodie("Can't read config file");
     while (<IN>) {
 	if (/CONFIG_MODULES(=y)?/) {
 	    $install_mods = 1 if (defined($1));
@@ -706,7 +707,7 @@ sub build {
     unlink $buildlog;
 
     if ($type =~ /^useconfig:(.*)/) {
-	run_command "cp $1 $outputdir/.config" or
+	run_command "cp $1 $output_config" or
 	    dodie "could not copy $1 to .config";
 
 	$type = "oldconfig";
@@ -717,20 +718,20 @@ sub build {
 	$type = "oldnoconfig";
 
 	# allow for empty configs
-	run_command "touch $outputdir/.config";
+	run_command "touch $output_config";
 
-	run_command "mv $outputdir/.config $outputdir/config_temp" or
+	run_command "mv $output_config $outputdir/config_temp" or
 	    dodie "moving .config";
 
 	if (!$noclean && !run_command "$make mrproper") {
 	    dodie "make mrproper";
 	}
 
-	run_command "mv $outputdir/config_temp $outputdir/.config" or
+	run_command "mv $outputdir/config_temp $output_config" or
 	    dodie "moving config_temp";
 
     } elsif (!$noclean) {
-	unlink "$outputdir/.config";
+	unlink "$output_config";
 	run_command "$make mrproper" or
 	    dodie "make mrproper";
     }
@@ -1292,6 +1293,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $buildlog = "$tmpdir/buildlog-$machine";
     $dmesg = "$tmpdir/dmesg-$machine";
     $make = "$makecmd O=$outputdir";
+    $output_config = "$outputdir/.config";
 
     if ($reboot_type eq "grub") {
 	dodie "GRUB_MENU not defined" if (!defined($grub_menu));
