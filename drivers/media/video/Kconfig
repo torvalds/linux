@@ -666,6 +666,15 @@ config VIDEO_HEXIUM_GEMINI
 	  To compile this driver as a module, choose M here: the
 	  module will be called hexium_gemini.
 
+config VIDEO_TIMBERDALE
+	tristate "Support for timberdale Video In/LogiWIN"
+	depends on VIDEO_V4L2 && I2C
+	select TIMB_DMA
+	select VIDEO_ADV7180
+	select VIDEOBUF_DMA_CONTIG
+	---help---
+	Add support for the Video In peripherial of the timberdale FPGA.
+
 source "drivers/media/video/cx88/Kconfig"
 
 source "drivers/media/video/cx23885/Kconfig"
