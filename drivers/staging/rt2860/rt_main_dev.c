@@ -102,8 +102,8 @@ int MainVirtualIF_close(IN struct net_device *net_dev)
 		    (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST))) {
 			struct rt_mlme_disassoc_req DisReq;
 			struct rt_mlme_queue_elem *MsgElem =
-			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
-							MEM_ALLOC_FLAG);
+				kmalloc(sizeof(struct rt_mlme_queue_elem),
+					MEM_ALLOC_FLAG);
 
 			if (MsgElem) {
 				COPY_MAC_ADDR(DisReq.Addr,
@@ -725,7 +725,8 @@ Note:
 int AdapterBlockAllocateMemory(void *handle, void ** ppAd)
 {
 
-	*ppAd = (void *)vmalloc(sizeof(struct rt_rtmp_adapter));	/*pci_alloc_consistent(pci_dev, sizeof(struct rt_rtmp_adapter), phy_addr); */
+	*ppAd = vmalloc(sizeof(struct rt_rtmp_adapter));
+	/* pci_alloc_consistent(pci_dev, sizeof(struct rt_rtmp_adapter), phy_addr); */
 
 	if (*ppAd) {
 		NdisZeroMemory(*ppAd, sizeof(struct rt_rtmp_adapter));

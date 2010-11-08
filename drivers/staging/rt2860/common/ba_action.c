@@ -799,8 +799,8 @@ void BAOriSessionTearDown(struct rt_rtmp_adapter *pAd,
 			/* force send specified TID DelBA */
 			struct rt_mlme_delba_req DelbaReq;
 			struct rt_mlme_queue_elem *Elem =
-			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
-							MEM_ALLOC_FLAG);
+				kmalloc(sizeof(struct rt_mlme_queue_elem),
+					MEM_ALLOC_FLAG);
 			if (Elem != NULL) {
 				NdisZeroMemory(&DelbaReq, sizeof(DelbaReq));
 				NdisZeroMemory(Elem, sizeof(struct rt_mlme_queue_elem));
@@ -839,8 +839,8 @@ void BAOriSessionTearDown(struct rt_rtmp_adapter *pAd,
 	    && (pBAEntry->ORI_BA_Status == Originator_Done)) {
 		struct rt_mlme_delba_req DelbaReq;
 		struct rt_mlme_queue_elem *Elem =
-		    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
-						MEM_ALLOC_FLAG);
+			kmalloc(sizeof(struct rt_mlme_queue_elem),
+				MEM_ALLOC_FLAG);
 		if (Elem != NULL) {
 			NdisZeroMemory(&DelbaReq, sizeof(DelbaReq));
 			NdisZeroMemory(Elem, sizeof(struct rt_mlme_queue_elem));
@@ -908,8 +908,8 @@ void BARecSessionTearDown(struct rt_rtmp_adapter *pAd,
 		/* */
 		if (bPassive == FALSE) {
 			struct rt_mlme_queue_elem *Elem =
-			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
-							MEM_ALLOC_FLAG);
+				kmalloc(sizeof(struct rt_mlme_queue_elem),
+					MEM_ALLOC_FLAG);
 			if (Elem != NULL) {
 				NdisZeroMemory(&DelbaReq, sizeof(DelbaReq));
 				NdisZeroMemory(Elem, sizeof(struct rt_mlme_queue_elem));
