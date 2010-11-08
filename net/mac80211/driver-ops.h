@@ -233,6 +233,20 @@ static inline void drv_get_tkip_seq(struct ieee80211_local *local,
 	trace_drv_get_tkip_seq(local, hw_key_idx, iv32, iv16);
 }
 
+static inline int drv_set_frag_threshold(struct ieee80211_local *local,
+					u32 value)
+{
+	int ret = 0;
+
+	might_sleep();
+
+	trace_drv_set_frag_threshold(local, value);
+	if (local->ops->set_frag_threshold)
+		ret = local->ops->set_frag_threshold(&local->hw, value);
+	trace_drv_return_int(local, ret);
+	return ret;
+}
+
 static inline int drv_set_rts_threshold(struct ieee80211_local *local,
 					u32 value)
 {

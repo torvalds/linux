@@ -531,6 +531,27 @@ TRACE_EVENT(drv_get_tkip_seq,
 	)
 );
 
+TRACE_EVENT(drv_set_frag_threshold,
+	TP_PROTO(struct ieee80211_local *local, u32 value),
+
+	TP_ARGS(local, value),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u32, value)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->value = value;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " value:%d",
+		LOCAL_PR_ARG, __entry->value
+	)
+);
+
 TRACE_EVENT(drv_set_rts_threshold,
 	TP_PROTO(struct ieee80211_local *local, u32 value),
 

@@ -1652,6 +1652,11 @@ enum ieee80211_ampdu_mlme_action {
  *	and IV16) for the given key from hardware.
  *	The callback must be atomic.
  *
+ * @set_frag_threshold: Configuration of fragmentation threshold. Assign this
+ *	if the device does fragmentation by itself; if this callback is
+ *	implemented then the stack will not do fragmentation.
+ *	The callback can sleep.
+ *
  * @set_rts_threshold: Configuration of RTS threshold (if device needs it)
  *	The callback can sleep.
  *
@@ -1765,6 +1770,7 @@ struct ieee80211_ops {
 			 struct ieee80211_low_level_stats *stats);
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
 			     u32 *iv32, u16 *iv16);
+	int (*set_frag_threshold)(struct ieee80211_hw *hw, u32 value);
 	int (*set_rts_threshold)(struct ieee80211_hw *hw, u32 value);
 	int (*sta_add)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);

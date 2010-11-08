@@ -1299,6 +1299,13 @@ static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	int err;
 
+	if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
+		err = drv_set_frag_threshold(local, wiphy->frag_threshold);
+
+		if (err)
+			return err;
+	}
+
 	if (changed & WIPHY_PARAM_COVERAGE_CLASS) {
 		err = drv_set_coverage_class(local, wiphy->coverage_class);
 
