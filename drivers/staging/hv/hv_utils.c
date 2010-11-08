@@ -271,15 +271,15 @@ static int __init init_hyperv_utils(void)
 	if (!dmi_check_system(hv_utils_dmi_table))
 		return -ENODEV;
 
-	hv_cb_utils[HV_SHUTDOWN_MSG].channel->OnChannelCallback =
+	hv_cb_utils[HV_SHUTDOWN_MSG].channel->onchannel_callback =
 		&shutdown_onchannelcallback;
 	hv_cb_utils[HV_SHUTDOWN_MSG].callback = &shutdown_onchannelcallback;
 
-	hv_cb_utils[HV_TIMESYNC_MSG].channel->OnChannelCallback =
+	hv_cb_utils[HV_TIMESYNC_MSG].channel->onchannel_callback =
 		&timesync_onchannelcallback;
 	hv_cb_utils[HV_TIMESYNC_MSG].callback = &timesync_onchannelcallback;
 
-	hv_cb_utils[HV_HEARTBEAT_MSG].channel->OnChannelCallback =
+	hv_cb_utils[HV_HEARTBEAT_MSG].channel->onchannel_callback =
 		&heartbeat_onchannelcallback;
 	hv_cb_utils[HV_HEARTBEAT_MSG].callback = &heartbeat_onchannelcallback;
 
@@ -290,15 +290,15 @@ static void exit_hyperv_utils(void)
 {
 	printk(KERN_INFO "De-Registered HyperV Utility Driver\n");
 
-	hv_cb_utils[HV_SHUTDOWN_MSG].channel->OnChannelCallback =
+	hv_cb_utils[HV_SHUTDOWN_MSG].channel->onchannel_callback =
 		&chn_cb_negotiate;
 	hv_cb_utils[HV_SHUTDOWN_MSG].callback = &chn_cb_negotiate;
 
-	hv_cb_utils[HV_TIMESYNC_MSG].channel->OnChannelCallback =
+	hv_cb_utils[HV_TIMESYNC_MSG].channel->onchannel_callback =
 		&chn_cb_negotiate;
 	hv_cb_utils[HV_TIMESYNC_MSG].callback = &chn_cb_negotiate;
 
-	hv_cb_utils[HV_HEARTBEAT_MSG].channel->OnChannelCallback =
+	hv_cb_utils[HV_HEARTBEAT_MSG].channel->onchannel_callback =
 		&chn_cb_negotiate;
 	hv_cb_utils[HV_HEARTBEAT_MSG].callback = &chn_cb_negotiate;
 }

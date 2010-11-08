@@ -139,35 +139,35 @@ static void get_channel_info(struct hv_device *device,
 
 	vmbus_get_debug_info(device->channel, &debug_info);
 
-	info->ChannelId = debug_info.RelId;
-	info->ChannelState = debug_info.State;
-	memcpy(&info->ChannelType, &debug_info.InterfaceType,
+	info->ChannelId = debug_info.relid;
+	info->ChannelState = debug_info.state;
+	memcpy(&info->ChannelType, &debug_info.interfacetype,
 	       sizeof(struct hv_guid));
-	memcpy(&info->ChannelInstance, &debug_info.InterfaceInstance,
+	memcpy(&info->ChannelInstance, &debug_info.interface_instance,
 	       sizeof(struct hv_guid));
 
-	info->MonitorId = debug_info.MonitorId;
+	info->MonitorId = debug_info.monitorid;
 
-	info->ServerMonitorPending = debug_info.ServerMonitorPending;
-	info->ServerMonitorLatency = debug_info.ServerMonitorLatency;
-	info->ServerMonitorConnectionId = debug_info.ServerMonitorConnectionId;
+	info->ServerMonitorPending = debug_info.servermonitor_pending;
+	info->ServerMonitorLatency = debug_info.servermonitor_latency;
+	info->ServerMonitorConnectionId = debug_info.servermonitor_connectionid;
 
-	info->ClientMonitorPending = debug_info.ClientMonitorPending;
-	info->ClientMonitorLatency = debug_info.ClientMonitorLatency;
-	info->ClientMonitorConnectionId = debug_info.ClientMonitorConnectionId;
+	info->ClientMonitorPending = debug_info.clientmonitor_pending;
+	info->ClientMonitorLatency = debug_info.clientmonitor_latency;
+	info->ClientMonitorConnectionId = debug_info.clientmonitor_connectionid;
 
-	info->Inbound.InterruptMask = debug_info.Inbound.CurrentInterruptMask;
-	info->Inbound.ReadIndex = debug_info.Inbound.CurrentReadIndex;
-	info->Inbound.WriteIndex = debug_info.Inbound.CurrentWriteIndex;
-	info->Inbound.BytesAvailToRead = debug_info.Inbound.BytesAvailToRead;
-	info->Inbound.BytesAvailToWrite = debug_info.Inbound.BytesAvailToWrite;
+	info->Inbound.InterruptMask = debug_info.inbound.CurrentInterruptMask;
+	info->Inbound.ReadIndex = debug_info.inbound.CurrentReadIndex;
+	info->Inbound.WriteIndex = debug_info.inbound.CurrentWriteIndex;
+	info->Inbound.BytesAvailToRead = debug_info.inbound.BytesAvailToRead;
+	info->Inbound.BytesAvailToWrite = debug_info.inbound.BytesAvailToWrite;
 
-	info->Outbound.InterruptMask = debug_info.Outbound.CurrentInterruptMask;
-	info->Outbound.ReadIndex = debug_info.Outbound.CurrentReadIndex;
-	info->Outbound.WriteIndex = debug_info.Outbound.CurrentWriteIndex;
-	info->Outbound.BytesAvailToRead = debug_info.Outbound.BytesAvailToRead;
+	info->Outbound.InterruptMask = debug_info.outbound.CurrentInterruptMask;
+	info->Outbound.ReadIndex = debug_info.outbound.CurrentReadIndex;
+	info->Outbound.WriteIndex = debug_info.outbound.CurrentWriteIndex;
+	info->Outbound.BytesAvailToRead = debug_info.outbound.BytesAvailToRead;
 	info->Outbound.BytesAvailToWrite =
-		debug_info.Outbound.BytesAvailToWrite;
+		debug_info.outbound.BytesAvailToWrite;
 }
 
 /*
