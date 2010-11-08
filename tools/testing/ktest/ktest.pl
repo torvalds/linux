@@ -97,6 +97,11 @@ sub set_value {
 	die "Error: Option $lvalue defined more than once!\n";
     }
     $opt{$lvalue} = $rvalue;
+    if ($rvalue =~ /^\s*$/) {
+	delete $opt{$lvalue};
+    } else {
+	$opt{$lvalue} = $rvalue;
+    }
 }
 
 sub read_config {
