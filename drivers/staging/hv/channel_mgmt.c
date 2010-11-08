@@ -566,7 +566,7 @@ static void vmbus_onopen_result(struct vmbus_channel_message_header *hdr)
 				memcpy(&msginfo->response.open_result,
 				       result,
 				       sizeof(struct vmbus_channel_open_result));
-				osd_WaitEventSet(msginfo->waitevent);
+				osd_waitevent_set(msginfo->waitevent);
 				break;
 			}
 		}
@@ -616,7 +616,7 @@ static void vmbus_ongpadl_created(struct vmbus_channel_message_header *hdr)
 				memcpy(&msginfo->response.gpadl_created,
 				       gpadlcreated,
 				       sizeof(struct vmbus_channel_gpadl_created));
-				osd_WaitEventSet(msginfo->waitevent);
+				osd_waitevent_set(msginfo->waitevent);
 				break;
 			}
 		}
@@ -662,7 +662,7 @@ static void vmbus_ongpadl_torndown(
 				memcpy(&msginfo->response.gpadl_torndown,
 				       gpadl_torndown,
 				       sizeof(struct vmbus_channel_gpadl_torndown));
-				osd_WaitEventSet(msginfo->waitevent);
+				osd_waitevent_set(msginfo->waitevent);
 				break;
 			}
 		}
@@ -703,7 +703,7 @@ static void vmbus_onversion_response(
 			memcpy(&msginfo->response.version_response,
 			      version_response,
 			      sizeof(struct vmbus_channel_version_response));
-			osd_WaitEventSet(msginfo->waitevent);
+			osd_waitevent_set(msginfo->waitevent);
 		}
 	}
 	spin_unlock_irqrestore(&gVmbusConnection.channelmsg_lock, flags);
@@ -782,7 +782,7 @@ int vmbus_request_offers(void)
 	if (!msginfo)
 		return -ENOMEM;
 
-	msginfo->waitevent = osd_WaitEventCreate();
+	msginfo->waitevent = osd_waitevent_create();
 	if (!msginfo->waitevent) {
 		kfree(msginfo);
 		return -ENOMEM;
@@ -808,7 +808,7 @@ int vmbus_request_offers(void)
 
 		goto Cleanup;
 	}
-	/* osd_WaitEventWait(msgInfo->waitEvent); */
+	/* osd_waitevent_wait(msgInfo->waitEvent); */
 
 	/*SpinlockAcquire(gVmbusConnection.channelMsgLock);
 	REMOVE_ENTRY_LIST(&msgInfo->msgListEntry);

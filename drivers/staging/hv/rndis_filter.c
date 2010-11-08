@@ -129,7 +129,7 @@ static struct rndis_request *GetRndisRequest(struct rndis_device *Device,
 	if (!request)
 		return NULL;
 
-	request->WaitEvent = osd_WaitEventCreate();
+	request->WaitEvent = osd_waitevent_create();
 	if (!request->WaitEvent) {
 		kfree(request);
 		return NULL;
@@ -313,7 +313,7 @@ static void RndisFilterReceiveResponse(struct rndis_device *Device,
 			}
 		}
 
-		osd_WaitEventSet(request->WaitEvent);
+		osd_waitevent_set(request->WaitEvent);
 	} else {
 		DPRINT_ERR(NETVSC, "no rndis request found for this response "
 			   "(id 0x%x res type 0x%x)",
@@ -497,7 +497,7 @@ static int RndisFilterQueryDevice(struct rndis_device *Device, u32 Oid,
 	if (ret != 0)
 		goto Cleanup;
 
-	osd_WaitEventWait(request->WaitEvent);
+	osd_waitevent_wait(request->WaitEvent);
 
 	/* Copy the response back */
 	queryComplete = &request->ResponseMessage.Message.QueryComplete;
@@ -572,7 +572,7 @@ static int RndisFilterSetPacketFilter(struct rndis_device *Device,
 	if (ret != 0)
 		goto Cleanup;
 
-	ret = osd_WaitEventWaitEx(request->WaitEvent, 2000/*2sec*/);
+	ret = osd_waitevent_waitex(request->WaitEvent, 2000/*2sec*/);
 	if (!ret) {
 		ret = -1;
 		DPRINT_ERR(NETVSC, "timeout before we got a set response...");
@@ -665,7 +665,7 @@ static int RndisFilterInitDevice(struct rndis_device *Device)
 		goto Cleanup;
 	}
 
-	osd_WaitEventWait(request->WaitEvent);
+	osd_waitevent_wait(request->WaitEvent);
 
 	initComplete = &request->ResponseMessage.Message.InitializeComplete;
 	status = initComplete->Status;

@@ -66,7 +66,7 @@ int VmbusConnect(void)
 	 * Setup the vmbus event connection for channel interrupt
 	 * abstraction stuff
 	 */
-	gVmbusConnection.InterruptPage = osd_PageAlloc(1);
+	gVmbusConnection.InterruptPage = osd_page_alloc(1);
 	if (gVmbusConnection.InterruptPage == NULL) {
 		ret = -1;
 		goto Cleanup;
@@ -81,7 +81,7 @@ int VmbusConnect(void)
 	 * Setup the monitor notification facility. The 1st page for
 	 * parent->child and the 2nd page for child->parent
 	 */
-	gVmbusConnection.MonitorPages = osd_PageAlloc(2);
+	gVmbusConnection.MonitorPages = osd_page_alloc(2);
 	if (gVmbusConnection.MonitorPages == NULL) {
 		ret = -1;
 		goto Cleanup;
@@ -95,7 +95,7 @@ int VmbusConnect(void)
 		goto Cleanup;
 	}
 
-	msgInfo->waitevent = osd_WaitEventCreate();
+	msgInfo->waitevent = osd_waitevent_create();
 	if (!msgInfo->waitevent) {
 		ret = -ENOMEM;
 		goto Cleanup;
@@ -134,7 +134,7 @@ int VmbusConnect(void)
 	}
 
 	/* Wait for the connection response */
-	osd_WaitEventWait(msgInfo->waitevent);
+	osd_waitevent_wait(msgInfo->waitevent);
 
 	list_del(&msgInfo->msglistentry);
 
@@ -162,12 +162,12 @@ Cleanup:
 		destroy_workqueue(gVmbusConnection.WorkQueue);
 
 	if (gVmbusConnection.InterruptPage) {
-		osd_PageFree(gVmbusConnection.InterruptPage, 1);
+		osd_page_free(gVmbusConnection.InterruptPage, 1);
 		gVmbusConnection.InterruptPage = NULL;
 	}
 
 	if (gVmbusConnection.MonitorPages) {
-		osd_PageFree(gVmbusConnection.MonitorPages, 2);
+		osd_page_free(gVmbusConnection.MonitorPages, 2);
 		gVmbusConnection.MonitorPages = NULL;
 	}
 
@@ -202,7 +202,7 @@ int VmbusDisconnect(void)
 	if (ret != 0)
 		goto Cleanup;
 
-	osd_PageFree(gVmbusConnection.InterruptPage, 1);
+	osd_page_free(gVmbusConnection.InterruptPage, 1);
 
 	/* TODO: iterate thru the msg list and free up */
 	destroy_workqueue(gVmbusConnection.WorkQueue);

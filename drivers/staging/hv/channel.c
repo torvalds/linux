@@ -180,7 +180,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	newchannel->channel_callback_context = context;
 
 	/* Allocate the ring buffer */
-	out = osd_PageAlloc((send_ringbuffer_size + recv_ringbuffer_size)
+	out = osd_page_alloc((send_ringbuffer_size + recv_ringbuffer_size)
 			     >> PAGE_SHIFT);
 	if (!out)
 		return -ENOMEM;
@@ -242,7 +242,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 		goto errorout;
 	}
 
-	openInfo->waitevent = osd_WaitEventCreate();
+	openInfo->waitevent = osd_waitevent_create();
 	if (!openInfo->waitevent) {
 		err = -ENOMEM;
 		goto errorout;
@@ -280,7 +280,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	}
 
 	/* FIXME: Need to time-out here */
-	osd_WaitEventWait(openInfo->waitevent);
+	osd_waitevent_wait(openInfo->waitevent);
 
 	if (openInfo->response.open_result.status == 0)
 		DPRINT_INFO(VMBUS, "channel <%p> open success!!", newchannel);
@@ -300,7 +300,7 @@ Cleanup:
 errorout:
 	RingBufferCleanup(&newchannel->outbound);
 	RingBufferCleanup(&newchannel->inbound);
-	osd_PageFree(out, (send_ringbuffer_size + recv_ringbuffer_size)
+	osd_page_free(out, (send_ringbuffer_size + recv_ringbuffer_size)
 		     >> PAGE_SHIFT);
 	kfree(openInfo);
 	return err;
@@ -508,7 +508,7 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	if (ret)
 		return ret;
 
-	msginfo->waitevent = osd_WaitEventCreate();
+	msginfo->waitevent = osd_waitevent_create();
 	if (!msginfo->waitevent) {
 		ret = -ENOMEM;
 		goto Cleanup;
@@ -565,7 +565,7 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 
 		}
 	}
-	osd_WaitEventWait(msginfo->waitevent);
+	osd_waitevent_wait(msginfo->waitevent);
 
 	/* At this point, we received the gpadl created msg */
 	DPRINT_DBG(VMBUS, "Received GPADL created "
@@ -604,7 +604,7 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 	if (!info)
 		return -ENOMEM;
 
-	info->waitevent = osd_WaitEventCreate();
+	info->waitevent = osd_waitevent_create();
 	if (!info->waitevent) {
 		kfree(info);
 		return -ENOMEM;
@@ -628,7 +628,7 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 		/* something... */
 	}
 
-	osd_WaitEventWait(info->waitevent);
+	osd_waitevent_wait(info->waitevent);
 
 	/* Received a torndown response */
 	spin_lock_irqsave(&gVmbusConnection.channelmsg_lock, flags);
@@ -663,7 +663,7 @@ void vmbus_close(struct vmbus_channel *channel)
 	if (!info)
 		return;
 
-	/* info->waitEvent = osd_WaitEventCreate(); */
+	/* info->waitEvent = osd_waitevent_create(); */
 
 	msg = (struct vmbus_channel_close_channel *)info->msg;
 	msg->header.msgtype = CHANNELMSG_CLOSECHANNEL;
@@ -686,7 +686,7 @@ void vmbus_close(struct vmbus_channel *channel)
 	RingBufferCleanup(&channel->outbound);
 	RingBufferCleanup(&channel->inbound);
 
-	osd_PageFree(channel->ringbuffer_pages, channel->ringbuffer_pagecount);
+	osd_page_free(channel->ringbuffer_pages, channel->ringbuffer_pagecount);
 
 	kfree(info);
 

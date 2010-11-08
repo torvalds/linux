@@ -228,9 +228,9 @@ int hv_init(void)
 
 	/*
 	* Allocate the hypercall page memory
-	* virtaddr = osd_PageAlloc(1);
+	* virtaddr = osd_page_alloc(1);
 	*/
-	virtaddr = osd_VirtualAllocExec(PAGE_SIZE);
+	virtaddr = osd_virtual_alloc_exec(PAGE_SIZE);
 
 	if (!virtaddr) {
 		DPRINT_ERR(VMBUS,
@@ -462,10 +462,10 @@ void hv_synic_init(void *irqarg)
 
 Cleanup:
 	if (hv_context.synic_event_page[cpu])
-		osd_PageFree(hv_context.synic_event_page[cpu], 1);
+		osd_page_free(hv_context.synic_event_page[cpu], 1);
 
 	if (hv_context.synic_message_page[cpu])
-		osd_PageFree(hv_context.synic_message_page[cpu], 1);
+		osd_page_free(hv_context.synic_message_page[cpu], 1);
 	return;
 }
 
@@ -502,6 +502,6 @@ void hv_synic_cleanup(void *arg)
 
 	wrmsrl(HV_X64_MSR_SIEFP, siefp.as_uint64);
 
-	osd_PageFree(hv_context.synic_message_page[cpu], 1);
-	osd_PageFree(hv_context.synic_event_page[cpu], 1);
+	osd_page_free(hv_context.synic_message_page[cpu], 1);
+	osd_page_free(hv_context.synic_event_page[cpu], 1);
 }

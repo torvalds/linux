@@ -221,7 +221,7 @@ static int NetVscInitializeReceiveBufferWithNetVsp(struct hv_device *Device)
 	/* ASSERT((netDevice->ReceiveBufferSize & (PAGE_SIZE - 1)) == 0); */
 
 	netDevice->ReceiveBuffer =
-		osd_PageAlloc(netDevice->ReceiveBufferSize >> PAGE_SHIFT);
+		osd_page_alloc(netDevice->ReceiveBufferSize >> PAGE_SHIFT);
 	if (!netDevice->ReceiveBuffer) {
 		DPRINT_ERR(NETVSC,
 			   "unable to allocate receive buffer of size %d",
@@ -249,7 +249,7 @@ static int NetVscInitializeReceiveBufferWithNetVsp(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	/* osd_WaitEventWait(ext->ChannelInitEvent); */
+	/* osd_waitevent_wait(ext->ChannelInitEvent); */
 
 	/* Notify the NetVsp of the gpadl handle */
 	DPRINT_INFO(NETVSC, "Sending NvspMessage1TypeSendReceiveBuffer...");
@@ -274,7 +274,7 @@ static int NetVscInitializeReceiveBufferWithNetVsp(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	osd_WaitEventWait(netDevice->ChannelInitEvent);
+	osd_waitevent_wait(netDevice->ChannelInitEvent);
 
 	/* Check the response */
 	if (initPacket->Messages.Version1Messages.SendReceiveBufferComplete.Status != NvspStatusSuccess) {
@@ -350,7 +350,7 @@ static int NetVscInitializeSendBufferWithNetVsp(struct hv_device *Device)
 	/* ASSERT((netDevice->SendBufferSize & (PAGE_SIZE - 1)) == 0); */
 
 	netDevice->SendBuffer =
-		osd_PageAlloc(netDevice->SendBufferSize >> PAGE_SHIFT);
+		osd_page_alloc(netDevice->SendBufferSize >> PAGE_SHIFT);
 	if (!netDevice->SendBuffer) {
 		DPRINT_ERR(NETVSC, "unable to allocate send buffer of size %d",
 			   netDevice->SendBufferSize);
@@ -375,7 +375,7 @@ static int NetVscInitializeSendBufferWithNetVsp(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	/* osd_WaitEventWait(ext->ChannelInitEvent); */
+	/* osd_waitevent_wait(ext->ChannelInitEvent); */
 
 	/* Notify the NetVsp of the gpadl handle */
 	DPRINT_INFO(NETVSC, "Sending NvspMessage1TypeSendSendBuffer...");
@@ -400,7 +400,7 @@ static int NetVscInitializeSendBufferWithNetVsp(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	osd_WaitEventWait(netDevice->ChannelInitEvent);
+	osd_waitevent_wait(netDevice->ChannelInitEvent);
 
 	/* Check the response */
 	if (initPacket->Messages.Version1Messages.SendSendBufferComplete.Status != NvspStatusSuccess) {
@@ -480,7 +480,7 @@ static int NetVscDestroyReceiveBuffer(struct netvsc_device *NetDevice)
 		DPRINT_INFO(NETVSC, "Freeing up receive buffer...");
 
 		/* Free up the receive buffer */
-		osd_PageFree(NetDevice->ReceiveBuffer,
+		osd_page_free(NetDevice->ReceiveBuffer,
 			     NetDevice->ReceiveBufferSize >> PAGE_SHIFT);
 		NetDevice->ReceiveBuffer = NULL;
 	}
@@ -553,7 +553,7 @@ static int NetVscDestroySendBuffer(struct netvsc_device *NetDevice)
 		DPRINT_INFO(NETVSC, "Freeing up send buffer...");
 
 		/* Free up the receive buffer */
-		osd_PageFree(NetDevice->SendBuffer,
+		osd_page_free(NetDevice->SendBuffer,
 			     NetDevice->SendBufferSize >> PAGE_SHIFT);
 		NetDevice->SendBuffer = NULL;
 	}
@@ -597,7 +597,7 @@ static int NetVscConnectToVsp(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	osd_WaitEventWait(netDevice->ChannelInitEvent);
+	osd_waitevent_wait(netDevice->ChannelInitEvent);
 
 	/* Now, check the response */
 	/* ASSERT(initPacket->Messages.InitMessages.InitComplete.MaximumMdlChainLength <= MAX_MULTIPAGE_BUFFER_COUNT); */
@@ -651,7 +651,7 @@ static int NetVscConnectToVsp(struct hv_device *Device)
 	 * packet) since our Vmbus always set the
 	 * VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED flag
 	 */
-	 /* osd_WaitEventWait(NetVscChannel->ChannelInitEvent); */
+	 /* osd_waitevent_wait(NetVscChannel->ChannelInitEvent); */
 
 	/* Post the big receive buffer to NetVSP */
 	ret = NetVscInitializeReceiveBufferWithNetVsp(Device);
@@ -710,7 +710,7 @@ static int NetVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 		list_add_tail(&packet->ListEntry,
 			      &netDevice->ReceivePacketList);
 	}
-	netDevice->ChannelInitEvent = osd_WaitEventCreate();
+	netDevice->ChannelInitEvent = osd_waitevent_create();
 	if (!netDevice->ChannelInitEvent) {
 		ret = -ENOMEM;
 		goto Cleanup;
@@ -855,7 +855,7 @@ static void NetVscOnSendCompletion(struct hv_device *Device,
 		/* Copy the response back */
 		memcpy(&netDevice->ChannelInitPacket, nvspPacket,
 		       sizeof(struct nvsp_message));
-		osd_WaitEventSet(netDevice->ChannelInitEvent);
+		osd_waitevent_set(netDevice->ChannelInitEvent);
 	} else if (nvspPacket->Header.MessageType ==
 		   NvspMessage1TypeSendRNDISPacketComplete) {
 		/* Get the send context */

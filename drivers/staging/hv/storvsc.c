@@ -198,7 +198,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 	 * channel
 	 */
 	memset(request, 0, sizeof(struct storvsc_request_extension));
-	request->WaitEvent = osd_WaitEventCreate();
+	request->WaitEvent = osd_waitevent_create();
 	if (!request->WaitEvent) {
 		ret = -ENOMEM;
 		goto nomem;
@@ -224,7 +224,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	osd_WaitEventWait(request->WaitEvent);
+	osd_waitevent_wait(request->WaitEvent);
 
 	if (vstorPacket->Operation != VStorOperationCompleteIo ||
 	    vstorPacket->Status != 0) {
@@ -255,7 +255,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	osd_WaitEventWait(request->WaitEvent);
+	osd_waitevent_wait(request->WaitEvent);
 
 	/* TODO: Check returned version */
 	if (vstorPacket->Operation != VStorOperationCompleteIo ||
@@ -287,7 +287,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	osd_WaitEventWait(request->WaitEvent);
+	osd_waitevent_wait(request->WaitEvent);
 
 	/* TODO: Check returned version */
 	if (vstorPacket->Operation != VStorOperationCompleteIo ||
@@ -323,7 +323,7 @@ static int StorVscChannelInit(struct hv_device *Device)
 		goto Cleanup;
 	}
 
-	osd_WaitEventWait(request->WaitEvent);
+	osd_waitevent_wait(request->WaitEvent);
 
 	if (vstorPacket->Operation != VStorOperationCompleteIo ||
 	    vstorPacket->Status != 0) {
@@ -473,7 +473,7 @@ static void StorVscOnChannelCallback(void *context)
 				memcpy(&request->VStorPacket, packet,
 				       sizeof(struct vstor_packet));
 
-				osd_WaitEventSet(request->WaitEvent);
+				osd_waitevent_set(request->WaitEvent);
 			} else {
 				StorVscOnReceive(device,
 						(struct vstor_packet *)packet,
@@ -622,7 +622,7 @@ int StorVscOnHostReset(struct hv_device *Device)
 	request = &storDevice->ResetRequest;
 	vstorPacket = &request->VStorPacket;
 
-	request->WaitEvent = osd_WaitEventCreate();
+	request->WaitEvent = osd_waitevent_create();
 	if (!request->WaitEvent) {
 		ret = -ENOMEM;
 		goto Cleanup;
@@ -644,7 +644,7 @@ int StorVscOnHostReset(struct hv_device *Device)
 	}
 
 	/* FIXME: Add a timeout */
-	osd_WaitEventWait(request->WaitEvent);
+	osd_waitevent_wait(request->WaitEvent);
 
 	kfree(request->WaitEvent);
 	DPRINT_INFO(STORVSC, "host adapter reset completed");
