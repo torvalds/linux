@@ -106,7 +106,7 @@ static int create_fd(struct fsnotify_group *group, struct fsnotify_event *event)
 	return client_fd;
 }
 
-static ssize_t fill_event_metadata(struct fsnotify_group *group,
+static int fill_event_metadata(struct fsnotify_group *group,
 				   struct fanotify_event_metadata *metadata,
 				   struct fsnotify_event *event)
 {
@@ -257,10 +257,11 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	fd = fill_event_metadata(group, &fanotify_event_metadata, event);
-	if (fd < 0)
-		return fd;
+	ret = fill_event_metadata(group, &fanotify_event_metadata, event);
+	if (ret < 0)
+		goto out;
 
+	fd = ret;
 	ret = prepare_for_access_response(group, event, fd);
 	if (ret)
 		goto out_close_fd;
@@ -275,6 +276,13 @@ out_kill_access_response:
 	remove_access_response(group, event, fd);
 out_close_fd:
 	sys_close(fd);
+out:
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+	if (event->mask & FAN_ALL_PERM_EVENTS) {
+		event->response = FAN_DENY;
+		wake_up(&group->fanotify_data.access_waitq);
+	}
+#endif
 	return ret;
 }
 
