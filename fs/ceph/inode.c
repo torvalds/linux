@@ -471,7 +471,9 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 
 	if (issued & (CEPH_CAP_FILE_EXCL|
 		      CEPH_CAP_FILE_WR|
-		      CEPH_CAP_FILE_BUFFER)) {
+		      CEPH_CAP_FILE_BUFFER|
+		      CEPH_CAP_AUTH_EXCL|
+		      CEPH_CAP_XATTR_EXCL)) {
 		if (timespec_compare(ctime, &inode->i_ctime) > 0) {
 			dout("ctime %ld.%09ld -> %ld.%09ld inc w/ cap\n",
 			     inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
@@ -511,7 +513,7 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 			warn = 1;
 		}
 	} else {
-		/* we have no write caps; whatever the MDS says is true */
+		/* we have no write|excl caps; whatever the MDS says is true */
 		if (ceph_seq_cmp(time_warp_seq, ci->i_time_warp_seq) >= 0) {
 			inode->i_ctime = *ctime;
 			inode->i_mtime = *mtime;
