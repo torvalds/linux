@@ -184,6 +184,17 @@ config LOWMEM_SIZE
 	hex "Maximum low memory size (in bytes)" if LOWMEM_SIZE_BOOL
 	default "0x30000000"
 
+config MANUAL_RESET_VECTOR
+	hex "Microblaze reset vector address setup"
+	default "0x0"
+	help
+	  Set this option to have the kernel override the CPU Reset vector.
+	  If zero, no change will be made to the MicroBlaze reset vector at
+	  address 0x0.
+	  If non-zero, a jump instruction to this address, will be written
+	  to the reset vector at address 0x0.
+	  If you are unsure, set it to default value 0x0.
+
 config KERNEL_START_BOOL
 	bool "Set custom kernel base address"
 	depends on ADVANCED_OPTIONS

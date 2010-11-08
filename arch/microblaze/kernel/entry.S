@@ -993,11 +993,10 @@ ENTRY(_reset)
 	/* These are compiled and loaded into high memory, then
 	 * copied into place in mach_early_setup */
 	.section	.init.ivt, "ax"
+#if CONFIG_MANUAL_RESET_VECTOR
 	.org	0x0
-	/* this is very important - here is the reset vector */
-	/* in current MMU branch you don't care what is here - it is
-	 * used from bootloader site - but this is correct for FS-BOOT */
-	brai	0x70
+	brai	CONFIG_MANUAL_RESET_VECTOR
+#endif
 	.org	0x8
 	brai	TOPHYS(_user_exception); /* syscall handler */
 	.org	0x10
