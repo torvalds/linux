@@ -59,19 +59,19 @@ struct sh_mmcif_plat_data {
 #define MMCIF_CE_HOST_STS2	0x0000004C
 #define MMCIF_CE_VERSION	0x0000007C
 
-extern inline u32 sh_mmcif_readl(void __iomem *addr, int reg)
+static inline u32 sh_mmcif_readl(void __iomem *addr, int reg)
 {
 	return readl(addr + reg);
 }
 
-extern inline void sh_mmcif_writel(void __iomem *addr, int reg, u32 val)
+static inline void sh_mmcif_writel(void __iomem *addr, int reg, u32 val)
 {
 	writel(val, addr + reg);
 }
 
 #define SH_MMCIF_BBS 512 /* boot block size */
 
-extern inline void sh_mmcif_boot_cmd_send(void __iomem *base,
+static inline void sh_mmcif_boot_cmd_send(void __iomem *base,
 					  unsigned long cmd, unsigned long arg)
 {
 	sh_mmcif_writel(base, MMCIF_CE_INT, 0);
@@ -79,7 +79,7 @@ extern inline void sh_mmcif_boot_cmd_send(void __iomem *base,
 	sh_mmcif_writel(base, MMCIF_CE_CMD_SET, cmd);
 }
 
-extern inline int sh_mmcif_boot_cmd_poll(void __iomem *base, unsigned long mask)
+static inline int sh_mmcif_boot_cmd_poll(void __iomem *base, unsigned long mask)
 {
 	unsigned long tmp;
 	int cnt;
@@ -95,14 +95,14 @@ extern inline int sh_mmcif_boot_cmd_poll(void __iomem *base, unsigned long mask)
 	return -1;
 }
 
-extern inline int sh_mmcif_boot_cmd(void __iomem *base,
+static inline int sh_mmcif_boot_cmd(void __iomem *base,
 				    unsigned long cmd, unsigned long arg)
 {
 	sh_mmcif_boot_cmd_send(base, cmd, arg);
 	return sh_mmcif_boot_cmd_poll(base, 0x00010000);
 }
 
-extern inline int sh_mmcif_boot_do_read_single(void __iomem *base,
+static inline int sh_mmcif_boot_do_read_single(void __iomem *base,
 					       unsigned int block_nr,
 					       unsigned long *buf)
 {
@@ -125,7 +125,7 @@ extern inline int sh_mmcif_boot_do_read_single(void __iomem *base,
 	return 0;
 }
 
-extern inline int sh_mmcif_boot_do_read(void __iomem *base,
+static inline int sh_mmcif_boot_do_read(void __iomem *base,
 					unsigned long first_block,
 					unsigned long nr_blocks,
 					void *buf)
@@ -143,7 +143,7 @@ extern inline int sh_mmcif_boot_do_read(void __iomem *base,
 	return ret;
 }
 
-extern inline void sh_mmcif_boot_init(void __iomem *base)
+static inline void sh_mmcif_boot_init(void __iomem *base)
 {
 	unsigned long tmp;
 
@@ -177,7 +177,7 @@ extern inline void sh_mmcif_boot_init(void __iomem *base)
 	sh_mmcif_boot_cmd(base, 0x03400040, 0x00010000);
 }
 
-extern inline void sh_mmcif_boot_slurp(void __iomem *base,
+static inline void sh_mmcif_boot_slurp(void __iomem *base,
 				       unsigned char *buf,
 				       unsigned long no_bytes)
 {
