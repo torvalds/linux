@@ -92,33 +92,33 @@ static const struct hv_guid VMBUS_SERVICE_ID = {
 
 
 struct hv_input_signal_event_buffer {
-	u64 Align8;
-	struct hv_input_signal_event Event;
+	u64 align8;
+	struct hv_input_signal_event event;
 };
 
 struct hv_context {
 	/* We only support running on top of Hyper-V
 	* So at this point this really can only contain the Hyper-V ID
 	*/
-	u64 GuestId;
+	u64 guestid;
 
-	void *HypercallPage;
+	void *hypercall_page;
 
-	bool SynICInitialized;
+	bool synic_initialized;
 
 	/*
 	 * This is used as an input param to HvCallSignalEvent hypercall. The
 	 * input param is immutable in our usage and must be dynamic mem (vs
 	 * stack or global). */
-	struct hv_input_signal_event_buffer *SignalEventBuffer;
+	struct hv_input_signal_event_buffer *signal_event_buffer;
 	/* 8-bytes aligned of the buffer above */
-	struct hv_input_signal_event *SignalEventParam;
+	struct hv_input_signal_event *signal_event_param;
 
-	void *synICMessagePage[MAX_NUM_CPUS];
-	void *synICEventPage[MAX_NUM_CPUS];
+	void *synic_message_page[MAX_NUM_CPUS];
+	void *synic_event_page[MAX_NUM_CPUS];
 };
 
-extern struct hv_context gHvContext;
+extern struct hv_context hv_context;
 
 
 /* Hv Interface */

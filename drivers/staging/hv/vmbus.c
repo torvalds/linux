@@ -147,7 +147,7 @@ static void VmbusOnCleanup(struct hv_driver *drv)
 static void VmbusOnMsgDPC(struct hv_driver *drv)
 {
 	int cpu = smp_processor_id();
-	void *page_addr = gHvContext.synICMessagePage[cpu];
+	void *page_addr = hv_context.synic_message_page[cpu];
 	struct hv_message *msg = (struct hv_message *)page_addr +
 				  VMBUS_MESSAGE_SINT;
 	struct hv_message *copied;
@@ -208,7 +208,7 @@ static int VmbusOnISR(struct hv_driver *drv)
 	struct hv_message *msg;
 	union hv_synic_event_flags *event;
 
-	page_addr = gHvContext.synICMessagePage[cpu];
+	page_addr = hv_context.synic_message_page[cpu];
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Check if there are actual msgs to be process */
@@ -220,7 +220,7 @@ static int VmbusOnISR(struct hv_driver *drv)
 	}
 
 	/* TODO: Check if there are events to be process */
-	page_addr = gHvContext.synICEventPage[cpu];
+	page_addr = hv_context.synic_event_page[cpu];
 	event = (union hv_synic_event_flags *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Since we are a child, we only need to check bit 0 */
