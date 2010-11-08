@@ -20,6 +20,15 @@ ip_no_pmtu_disc - BOOLEAN
 min_pmtu - INTEGER
 	default 562 - minimum discovered Path MTU
 
+route/max_size - INTEGER
+	Maximum number of routes allowed in the kernel.  Increase
+	this when using large numbers of interfaces and/or routes.
+
+neigh/default/gc_thresh3 - INTEGER
+	Maximum number of neighbor entries allowed.  Increase this
+	when using large numbers of interfaces and when communicating
+	with large numbers of directly-connected peers.
+
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
 
