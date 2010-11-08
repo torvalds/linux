@@ -176,8 +176,8 @@ static unsigned int ip_vs_conn_hashkey_conn(const struct ip_vs_conn *cp)
 	ip_vs_conn_fill_param(cp->af, cp->protocol, &cp->caddr, cp->cport,
 			      NULL, 0, &p);
 
-	if (cp->dest && cp->dest->svc->pe) {
-		p.pe = cp->dest->svc->pe;
+	if (cp->pe) {
+		p.pe = cp->pe;
 		p.pe_data = cp->pe_data;
 		p.pe_data_len = cp->pe_data_len;
 	}
@@ -765,6 +765,7 @@ static void ip_vs_conn_expire(unsigned long data)
 		if (cp->flags & IP_VS_CONN_F_NFCT)
 			ip_vs_conn_drop_conntrack(cp);
 
+		ip_vs_pe_put(cp->pe);
 		kfree(cp->pe_data);
 		if (unlikely(cp->app != NULL))
 			ip_vs_unbind_app(cp);
@@ -826,7 +827,9 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p,
 			&cp->daddr, daddr);
 	cp->dport          = dport;
 	cp->flags	   = flags;
-	if (flags & IP_VS_CONN_F_TEMPLATE && p->pe_data) {
+	if (flags & IP_VS_CONN_F_TEMPLATE && p->pe) {
+		ip_vs_pe_get(p->pe);
+		cp->pe = p->pe;
 		cp->pe_data = p->pe_data;
 		cp->pe_data_len = p->pe_data_len;
 	}
@@ -958,15 +961,13 @@ static int ip_vs_conn_seq_show(struct seq_file *seq, void *v)
 		char pe_data[IP_VS_PENAME_MAXLEN + IP_VS_PEDATA_MAXLEN + 3];
 		size_t len = 0;
 
-		if (cp->dest && cp->pe_data &&
-		    cp->dest->svc->pe->show_pe_data) {
+		if (cp->pe_data) {
 			pe_data[0] = ' ';
-			len = strlen(cp->dest->svc->pe->name);
-			memcpy(pe_data + 1, cp->dest->svc->pe->name, len);
+			len = strlen(cp->pe->name);
+			memcpy(pe_data + 1, cp->pe->name, len);
 			pe_data[len + 1] = ' ';
 			len += 2;
-			len += cp->dest->svc->pe->show_pe_data(cp,
-							       pe_data + len);
+			len += cp->pe->show_pe_data(cp, pe_data + len);
 		}
 		pe_data[len] = '\0';
 
