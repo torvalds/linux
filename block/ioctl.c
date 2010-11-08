@@ -242,6 +242,7 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		 * We need to set the startsect first, the driver may
 		 * want to override it.
 		 */
+		memset(&geo, 0, sizeof(geo));
 		geo.start = get_start_sect(bdev);
 		ret = disk->fops->getgeo(bdev, &geo);
 		if (ret)
