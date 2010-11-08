@@ -12,30 +12,9 @@
 #ifndef _ASM_SH_IO_SNAPGEAR_H
 #define _ASM_SH_IO_SNAPGEAR_H
 
-#if defined(CONFIG_CPU_SH4)
-/*
- * The external interrupt lines, these take up ints 0 - 15 inclusive
- * depending on the priority for the interrupt.  In fact the priority
- * is the interrupt :-)
- */
-
-#define IRL0_IRQ	2
-#define IRL0_PRIORITY	13
-
-#define IRL1_IRQ	5
-#define IRL1_PRIORITY	10
-
-#define IRL2_IRQ	8
-#define IRL2_PRIORITY	7
-
-#define IRL3_IRQ	11
-#define IRL3_PRIORITY	4
-#endif
-
 #define __IO_PREFIX	snapgear
 #include <asm/io_generic.h>
 
-#ifdef CONFIG_SH_SECUREEDGE5410
 /*
  * We need to remember what was written to the ioport as some bits
  * are shared with other functions and you cannot read back what was
@@ -66,6 +45,5 @@ extern unsigned short secureedge5410_ioport;
 			((secureedge5410_ioport & ~(mask)) | ((val) & (mask)))))
 #define SECUREEDGE_READ_IOPORT() \
 	 ((*SECUREEDGE_IOPORT_ADDR&0x0817) | (secureedge5410_ioport&~0x0817))
-#endif
 
 #endif /* _ASM_SH_IO_SNAPGEAR_H */
