@@ -216,6 +216,7 @@ static int tegra_fb_blank(int blank, struct fb_info *info)
 
 	case FB_BLANK_POWERDOWN:
 		dev_dbg(&tegra_fb->ndev->dev, "blank\n");
+		flush_workqueue(tegra_fb->flip_wq);
 		tegra_dc_disable(tegra_fb->win->dc);
 		return 0;
 
@@ -223,6 +224,12 @@ static int tegra_fb_blank(int blank, struct fb_info *info)
 		return -ENOTTY;
 	}
 }
+
+void tegra_fb_suspend(struct tegra_fb_info *tegra_fb)
+{
+	flush_workqueue(tegra_fb->flip_wq);
+}
+
 
 static int tegra_fb_pan_display(struct fb_var_screeninfo *var,
 				struct fb_info *info)
