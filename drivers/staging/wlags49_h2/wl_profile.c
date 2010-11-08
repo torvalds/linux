@@ -248,7 +248,7 @@ void parse_config(struct net_device *dev)
 		} else {
 			DBG_TRACE(DbgInfo, "F/W image file found\n");
 #define DHF_ALLOC_SIZE 96000			/* just below 96K, let's hope it suffices for now and for the future */
-			cp = (char *)vmalloc(DHF_ALLOC_SIZE);
+			cp = vmalloc(DHF_ALLOC_SIZE);
 			if (cp == NULL) {
 				DBG_ERROR(DbgInfo, "error in vmalloc\n");
 			} else {
