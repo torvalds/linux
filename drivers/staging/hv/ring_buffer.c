@@ -51,11 +51,11 @@ GetRingBufferAvailBytes(struct hv_ring_buffer_info *rbi, u32 *read, u32 *write)
 	u32 read_loc, write_loc;
 
 	/* Capture the read/write indices before they changed */
-	read_loc = rbi->RingBuffer->ReadIndex;
-	write_loc = rbi->RingBuffer->WriteIndex;
+	read_loc = rbi->ring_buffer->read_index;
+	write_loc = rbi->ring_buffer->write_index;
 
-	*write = BYTES_AVAIL_TO_WRITE(read_loc, write_loc, rbi->RingDataSize);
-	*read = rbi->RingDataSize - *write;
+	*write = BYTES_AVAIL_TO_WRITE(read_loc, write_loc, rbi->ring_datasize);
+	*read = rbi->ring_datasize - *write;
 }
 
 /*++
@@ -70,7 +70,7 @@ Description:
 static inline u32
 GetNextWriteLocation(struct hv_ring_buffer_info *RingInfo)
 {
-	u32 next = RingInfo->RingBuffer->WriteIndex;
+	u32 next = RingInfo->ring_buffer->write_index;
 
 	/* ASSERT(next < RingInfo->RingDataSize); */
 
@@ -90,7 +90,7 @@ static inline void
 SetNextWriteLocation(struct hv_ring_buffer_info *RingInfo,
 		     u32 NextWriteLocation)
 {
-	RingInfo->RingBuffer->WriteIndex = NextWriteLocation;
+	RingInfo->ring_buffer->write_index = NextWriteLocation;
 }
 
 /*++
@@ -105,7 +105,7 @@ Description:
 static inline u32
 GetNextReadLocation(struct hv_ring_buffer_info *RingInfo)
 {
-	u32 next = RingInfo->RingBuffer->ReadIndex;
+	u32 next = RingInfo->ring_buffer->read_index;
 
 	/* ASSERT(next < RingInfo->RingDataSize); */
 
@@ -125,11 +125,11 @@ Description:
 static inline u32
 GetNextReadLocationWithOffset(struct hv_ring_buffer_info *RingInfo, u32 Offset)
 {
-	u32 next = RingInfo->RingBuffer->ReadIndex;
+	u32 next = RingInfo->ring_buffer->read_index;
 
 	/* ASSERT(next < RingInfo->RingDataSize); */
 	next += Offset;
-	next %= RingInfo->RingDataSize;
+	next %= RingInfo->ring_datasize;
 
 	return next;
 }
@@ -146,7 +146,7 @@ Description:
 static inline void
 SetNextReadLocation(struct hv_ring_buffer_info *RingInfo, u32 NextReadLocation)
 {
-	RingInfo->RingBuffer->ReadIndex = NextReadLocation;
+	RingInfo->ring_buffer->read_index = NextReadLocation;
 }
 
 
@@ -162,7 +162,7 @@ Description:
 static inline void *
 GetRingBuffer(struct hv_ring_buffer_info *RingInfo)
 {
-	return (void *)RingInfo->RingBuffer->Buffer;
+	return (void *)RingInfo->ring_buffer->buffer;
 }
 
 
@@ -178,7 +178,7 @@ Description:
 static inline u32
 GetRingBufferSize(struct hv_ring_buffer_info *RingInfo)
 {
-	return RingInfo->RingDataSize;
+	return RingInfo->ring_datasize;
 }
 
 /*++
@@ -193,7 +193,7 @@ Description:
 static inline u64
 GetRingBufferIndices(struct hv_ring_buffer_info *RingInfo)
 {
-	return (u64)RingInfo->RingBuffer->WriteIndex << 32;
+	return (u64)RingInfo->ring_buffer->write_index << 32;
 }
 
 
@@ -221,11 +221,11 @@ void DumpRingInfo(struct hv_ring_buffer_info *RingInfo, char *Prefix)
 		"avail read %u read idx %u write idx %u>>",
 		Prefix,
 		RingInfo,
-		RingInfo->RingBuffer->Buffer,
+		RingInfo->ring_buffer->buffer,
 		bytesAvailToWrite,
 		bytesAvailToRead,
-		RingInfo->RingBuffer->ReadIndex,
-		RingInfo->RingBuffer->WriteIndex);
+		RingInfo->ring_buffer->read_index,
+		RingInfo->ring_buffer->write_index);
 }
 
 
@@ -262,16 +262,19 @@ void RingBufferGetDebugInfo(struct hv_ring_buffer_info *RingInfo,
 	u32 bytesAvailToWrite;
 	u32 bytesAvailToRead;
 
-	if (RingInfo->RingBuffer) {
+	if (RingInfo->ring_buffer) {
 		GetRingBufferAvailBytes(RingInfo,
 					&bytesAvailToRead,
 					&bytesAvailToWrite);
 
-		debug_info->BytesAvailToRead = bytesAvailToRead;
-		debug_info->BytesAvailToWrite = bytesAvailToWrite;
-		debug_info->CurrentReadIndex = RingInfo->RingBuffer->ReadIndex;
-		debug_info->CurrentWriteIndex = RingInfo->RingBuffer->WriteIndex;
-		debug_info->CurrentInterruptMask = RingInfo->RingBuffer->InterruptMask;
+		debug_info->bytes_avail_toread = bytesAvailToRead;
+		debug_info->bytes_avail_towrite = bytesAvailToWrite;
+		debug_info->current_read_index =
+			RingInfo->ring_buffer->read_index;
+		debug_info->current_write_index =
+			RingInfo->ring_buffer->write_index;
+		debug_info->current_interrupt_mask =
+			RingInfo->ring_buffer->interrupt_mask;
 	}
 }
 
@@ -287,7 +290,7 @@ Description:
 --*/
 u32 GetRingBufferInterruptMask(struct hv_ring_buffer_info *rbi)
 {
-	return rbi->RingBuffer->InterruptMask;
+	return rbi->ring_buffer->interrupt_mask;
 }
 
 /*++
@@ -306,11 +309,12 @@ int RingBufferInit(struct hv_ring_buffer_info *RingInfo, void *Buffer, u32 Buffe
 
 	memset(RingInfo, 0, sizeof(struct hv_ring_buffer_info));
 
-	RingInfo->RingBuffer = (struct hv_ring_buffer *)Buffer;
-	RingInfo->RingBuffer->ReadIndex = RingInfo->RingBuffer->WriteIndex = 0;
+	RingInfo->ring_buffer = (struct hv_ring_buffer *)Buffer;
+	RingInfo->ring_buffer->read_index =
+		RingInfo->ring_buffer->write_index = 0;
 
-	RingInfo->RingSize = BufferLen;
-	RingInfo->RingDataSize = BufferLen - sizeof(struct hv_ring_buffer);
+	RingInfo->ring_size = BufferLen;
+	RingInfo->ring_datasize = BufferLen - sizeof(struct hv_ring_buffer);
 
 	spin_lock_init(&RingInfo->ring_lock);
 

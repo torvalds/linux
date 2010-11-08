@@ -213,7 +213,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	newchannel->ringbuffer_gpadlhandle = 0;
 
 	ret = vmbus_establish_gpadl(newchannel,
-					 newchannel->outbound.RingBuffer,
+					 newchannel->outbound.ring_buffer,
 					 send_ringbuffer_size +
 					 recv_ringbuffer_size,
 					 &newchannel->ringbuffer_gpadlhandle);
@@ -227,10 +227,10 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 		   "size %d recv ring %p size %d, downstreamoffset %d>",
 		   newchannel, newchannel->offermsg.child_relid,
 		   newchannel->ringbuffer_gpadlhandle,
-		   newchannel->outbound.RingBuffer,
-		   newchannel->outbound.RingSize,
-		   newchannel->inbound.RingBuffer,
-		   newchannel->inbound.RingSize,
+		   newchannel->outbound.ring_buffer,
+		   newchannel->outbound.ring_size,
+		   newchannel->inbound.ring_buffer,
+		   newchannel->inbound.ring_size,
 		   send_ringbuffer_size);
 
 	/* Create and init the channel open message */

@@ -156,18 +156,21 @@ static void get_channel_info(struct hv_device *device,
 	info->ClientMonitorLatency = debug_info.clientmonitor_latency;
 	info->ClientMonitorConnectionId = debug_info.clientmonitor_connectionid;
 
-	info->Inbound.InterruptMask = debug_info.inbound.CurrentInterruptMask;
-	info->Inbound.ReadIndex = debug_info.inbound.CurrentReadIndex;
-	info->Inbound.WriteIndex = debug_info.inbound.CurrentWriteIndex;
-	info->Inbound.BytesAvailToRead = debug_info.inbound.BytesAvailToRead;
-	info->Inbound.BytesAvailToWrite = debug_info.inbound.BytesAvailToWrite;
+	info->Inbound.InterruptMask = debug_info.inbound.current_interrupt_mask;
+	info->Inbound.ReadIndex = debug_info.inbound.current_read_index;
+	info->Inbound.WriteIndex = debug_info.inbound.current_write_index;
+	info->Inbound.BytesAvailToRead = debug_info.inbound.bytes_avail_toread;
+	info->Inbound.BytesAvailToWrite =
+		debug_info.inbound.bytes_avail_towrite;
 
-	info->Outbound.InterruptMask = debug_info.outbound.CurrentInterruptMask;
-	info->Outbound.ReadIndex = debug_info.outbound.CurrentReadIndex;
-	info->Outbound.WriteIndex = debug_info.outbound.CurrentWriteIndex;
-	info->Outbound.BytesAvailToRead = debug_info.outbound.BytesAvailToRead;
+	info->Outbound.InterruptMask =
+		debug_info.outbound.current_interrupt_mask;
+	info->Outbound.ReadIndex = debug_info.outbound.current_read_index;
+	info->Outbound.WriteIndex = debug_info.outbound.current_write_index;
+	info->Outbound.BytesAvailToRead =
+		debug_info.outbound.bytes_avail_toread;
 	info->Outbound.BytesAvailToWrite =
-		debug_info.outbound.BytesAvailToWrite;
+		debug_info.outbound.bytes_avail_towrite;
 }
 
 /*
