@@ -529,6 +529,9 @@ static void __register_request(struct ceph_mds_client *mdsc,
 	ceph_mdsc_get_request(req);
 	__insert_request(mdsc, req);
 
+	req->r_uid = current_fsuid();
+	req->r_gid = current_fsgid();
+
 	if (dir) {
 		struct ceph_inode_info *ci = ceph_inode(dir);
 
@@ -1588,8 +1591,8 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 
 	head->mdsmap_epoch = cpu_to_le32(mdsc->mdsmap->m_epoch);
 	head->op = cpu_to_le32(req->r_op);
-	head->caller_uid = cpu_to_le32(current_fsuid());
-	head->caller_gid = cpu_to_le32(current_fsgid());
+	head->caller_uid = cpu_to_le32(req->r_uid);
+	head->caller_gid = cpu_to_le32(req->r_gid);
 	head->args = req->r_args;
 
 	ceph_encode_filepath(&p, end, ino1, path1);
