@@ -97,14 +97,8 @@ u32 rv6xx_get_temp(struct radeon_device *rdev)
 {
 	u32 temp = (RREG32(CG_THERMAL_STATUS) & ASIC_T_MASK) >>
 		ASIC_T_SHIFT;
-	u32 actual_temp = 0;
 
-	if ((temp >> 7) & 1)
-		actual_temp = 0;
-	else
-		actual_temp = (temp >> 1) & 0xff;
-
-	return actual_temp * 1000;
+	return temp * 1000;
 }
 
 void r600_pm_get_dynpm_state(struct radeon_device *rdev)
