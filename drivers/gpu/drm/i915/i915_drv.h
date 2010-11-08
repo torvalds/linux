@@ -1226,12 +1226,14 @@ i915_write(struct drm_i915_private *dev_priv, u32 reg, u64 val, int len)
 #define I915_WRITE8(reg, val)	i915_write(dev_priv, (reg), (val), 1)
 #define I915_WRITE64(reg, val)	i915_write(dev_priv, (reg), (val), 8)
 #define I915_READ64(reg)	i915_read(dev_priv, (reg), 8)
-#define POSTING_READ(reg)	(void)I915_READ(reg)
-#define POSTING_READ16(reg)	(void)I915_READ16(reg)
 
 #define I915_READ_NOTRACE(reg)		readl(dev_priv->regs + (reg))
 #define I915_WRITE_NOTRACE(reg, val)	writel(val, dev_priv->regs + (reg))
-#define POSTING_READ_NOTRACE(reg)	(void)I915_READ_NOTRACE(reg)
+#define I915_READ16_NOTRACE(reg)		readw(dev_priv->regs + (reg))
+#define I915_WRITE16_NOTRACE(reg, val)	writew(val, dev_priv->regs + (reg))
+
+#define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
+#define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
 
 
 #define BEGIN_LP_RING(n) \

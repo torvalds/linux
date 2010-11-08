@@ -126,7 +126,7 @@ static void set_clock(void *data, int state_high)
 			GPIO_CLOCK_VAL_MASK;
 
 	I915_WRITE_NOTRACE(gpio->reg, reserved | clock_bits);
-	POSTING_READ_NOTRACE(gpio->reg);
+	POSTING_READ(gpio->reg);
 }
 
 static void set_data(void *data, int state_high)
@@ -143,7 +143,7 @@ static void set_data(void *data, int state_high)
 			GPIO_DATA_VAL_MASK;
 
 	I915_WRITE_NOTRACE(gpio->reg, reserved | data_bits);
-	POSTING_READ_NOTRACE(gpio->reg);
+	POSTING_READ(gpio->reg);
 }
 
 static struct i2c_adapter *
