@@ -1610,8 +1610,10 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 		err = -EINVAL;
 		vnet_hdr_len = sizeof(vnet_hdr);
-		if ((len -= vnet_hdr_len) < 0)
+		if (len < vnet_hdr_len)
 			goto out_free;
+
+		len -= vnet_hdr_len;
 
 		if (skb_is_gso(skb)) {
 			struct skb_shared_info *sinfo = skb_shinfo(skb);
