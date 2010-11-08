@@ -565,12 +565,50 @@ static struct platform_device *qhd_devices[] __initdata = {
 
 /* FSI */
 #define IRQ_FSI		evt2irq(0x1840)
+
+static int fsi_set_rate(int is_porta, int rate)
+{
+	struct clk *fsib_clk;
+	struct clk *fdiv_clk = &sh7372_fsidivb_clk;
+	int ret;
+
+	/* set_rate is not needed if port A */
+	if (is_porta)
+		return 0;
+
+	fsib_clk = clk_get(NULL, "fsib_clk");
+	if (IS_ERR(fsib_clk))
+		return -EINVAL;
+
+	switch (rate) {
+	case 48000:
+		clk_set_rate(fsib_clk, clk_round_rate(fsib_clk, 85428000));
+		clk_set_rate(fdiv_clk, clk_round_rate(fdiv_clk, 12204000));
+		ret = SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
+		break;
+	default:
+		pr_err("unsupported rate in FSI2 port B\n");
+		ret = -EINVAL;
+		break;
+	}
+
+	clk_put(fsib_clk);
+
+	return ret;
+}
+
 static struct sh_fsi_platform_info fsi_info = {
 	.porta_flags = SH_FSI_BRS_INV |
 		       SH_FSI_OUT_SLAVE_MODE |
 		       SH_FSI_IN_SLAVE_MODE |
 		       SH_FSI_OFMT(PCM) |
 		       SH_FSI_IFMT(PCM),
+
+	.portb_flags = SH_FSI_BRS_INV |
+		       SH_FSI_BRM_INV |
+		       SH_FSI_LRS_INV |
+		       SH_FSI_OFMT(SPDIF),
+	.set_rate = fsi_set_rate,
 };
 
 static struct resource fsi_resources[] = {
@@ -634,6 +672,7 @@ static struct platform_device lcdc1_device = {
 static struct sh_mobile_hdmi_info hdmi_info = {
 	.lcd_chan = &sh_mobile_lcdc1_info.ch[0],
 	.lcd_dev = &lcdc1_device.dev,
+	.flags = HDMI_SND_SRC_SPDIF,
 };
 
 static struct resource hdmi_resources[] = {
@@ -992,6 +1031,7 @@ static void __init ap4evb_map_io(void)
 
 #define GPIO_PORT9CR	0xE6051009
 #define GPIO_PORT10CR	0xE605100A
+#define USCCR1		0xE6058144
 static void __init ap4evb_init(void)
 {
 	u32 srcr4;
@@ -1062,7 +1102,7 @@ static void __init ap4evb_init(void)
 	/* setup USB phy */
 	__raw_writew(0x8a0a, 0xE6058130);	/* USBCR2 */
 
-	/* enable FSI2 */
+	/* enable FSI2 port A (ak4643) */
 	gpio_request(GPIO_FN_FSIAIBT,	NULL);
 	gpio_request(GPIO_FN_FSIAILR,	NULL);
 	gpio_request(GPIO_FN_FSIAISLD,	NULL);
@@ -1078,6 +1118,10 @@ static void __init ap4evb_init(void)
 	/* card detect pin for MMC slot (CN7) */
 	gpio_request(GPIO_PORT41, NULL);
 	gpio_direction_input(GPIO_PORT41);
+
+	/* setup FSI2 port B (HDMI) */
+	gpio_request(GPIO_FN_FSIBCK, NULL);
+	__raw_writew(__raw_readw(USCCR1) & ~(1 << 6), USCCR1); /* use SPDIF */
 
 	/* set SPU2 clock to 119.6 MHz */
 	clk = clk_get(NULL, "spu_clk");
