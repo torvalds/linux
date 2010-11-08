@@ -526,9 +526,6 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	if (crev < 2)
 		return false;
 
-	router.ddc_valid = false;
-	router.cd_valid = false;
-
 	obj_header = (ATOM_OBJECT_HEADER *) (ctx->bios + data_offset);
 	path_obj = (ATOM_DISPLAY_OBJECT_PATH_TABLE *)
 	    (ctx->bios + data_offset +
@@ -625,6 +622,8 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 			if (connector_type == DRM_MODE_CONNECTOR_Unknown)
 				continue;
 
+			router.ddc_valid = false;
+			router.cd_valid = false;
 			for (j = 0; j < ((le16_to_cpu(path->usSize) - 8) / 2); j++) {
 				uint8_t grph_obj_id, grph_obj_num, grph_obj_type;
 
@@ -648,10 +647,8 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 								 usDeviceTag));
 
 				} else if (grph_obj_type == GRAPH_OBJECT_TYPE_ROUTER) {
-					router.ddc_valid = false;
-					router.cd_valid = false;
 					for (k = 0; k < router_obj->ucNumberOfObjects; k++) {
-						u16 router_obj_id = le16_to_cpu(router_obj->asObjects[j].usObjectID);
+						u16 router_obj_id = le16_to_cpu(router_obj->asObjects[k].usObjectID);
 						if (le16_to_cpu(path->usGraphicObjIds[j]) == router_obj_id) {
 							ATOM_COMMON_RECORD_HEADER *record = (ATOM_COMMON_RECORD_HEADER *)
 								(ctx->bios + data_offset +

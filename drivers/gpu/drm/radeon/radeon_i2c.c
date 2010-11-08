@@ -1095,14 +1095,14 @@ void radeon_router_select_ddc_port(struct radeon_connector *radeon_connector)
 	radeon_i2c_get_byte(radeon_connector->router_bus,
 			    radeon_connector->router.i2c_addr,
 			    0x3, &val);
-	val &= radeon_connector->router.ddc_mux_control_pin;
+	val &= ~radeon_connector->router.ddc_mux_control_pin;
 	radeon_i2c_put_byte(radeon_connector->router_bus,
 			    radeon_connector->router.i2c_addr,
 			    0x3, val);
 	radeon_i2c_get_byte(radeon_connector->router_bus,
 			    radeon_connector->router.i2c_addr,
 			    0x1, &val);
-	val &= radeon_connector->router.ddc_mux_control_pin;
+	val &= ~radeon_connector->router.ddc_mux_control_pin;
 	val |= radeon_connector->router.ddc_mux_state;
 	radeon_i2c_put_byte(radeon_connector->router_bus,
 			    radeon_connector->router.i2c_addr,
@@ -1120,14 +1120,14 @@ void radeon_router_select_cd_port(struct radeon_connector *radeon_connector)
 	radeon_i2c_get_byte(radeon_connector->router_bus,
 			    radeon_connector->router.i2c_addr,
 			    0x3, &val);
-	val &= radeon_connector->router.cd_mux_control_pin;
+	val &= ~radeon_connector->router.cd_mux_control_pin;
 	radeon_i2c_put_byte(radeon_connector->router_bus,
 			    radeon_connector->router.i2c_addr,
 			    0x3, val);
 	radeon_i2c_get_byte(radeon_connector->router_bus,
 			    radeon_connector->router.i2c_addr,
 			    0x1, &val);
-	val &= radeon_connector->router.cd_mux_control_pin;
+	val &= ~radeon_connector->router.cd_mux_control_pin;
 	val |= radeon_connector->router.cd_mux_state;
 	radeon_i2c_put_byte(radeon_connector->router_bus,
 			    radeon_connector->router.i2c_addr,
