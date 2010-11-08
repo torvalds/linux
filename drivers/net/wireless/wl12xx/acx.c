@@ -862,7 +862,7 @@ out:
 	return ret;
 }
 
-int wl1271_acx_frag_threshold(struct wl1271 *wl)
+int wl1271_acx_frag_threshold(struct wl1271 *wl, u16 frag_threshold)
 {
 	struct acx_frag_threshold *acx;
 	int ret = 0;
@@ -876,7 +876,7 @@ int wl1271_acx_frag_threshold(struct wl1271 *wl)
 		goto out;
 	}
 
-	acx->frag_threshold = cpu_to_le16(wl->conf.tx.frag_threshold);
+	acx->frag_threshold = cpu_to_le16(frag_threshold);
 	ret = wl1271_cmd_configure(wl, ACX_FRAG_CFG, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("Setting of frag threshold failed: %d", ret);
