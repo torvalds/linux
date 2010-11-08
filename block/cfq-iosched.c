@@ -3255,6 +3255,10 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	if (cfq_class_rt(new_cfqq) && !cfq_class_rt(cfqq))
 		return true;
 
+	/* An idle queue should not be idle now for some reason */
+	if (RB_EMPTY_ROOT(&cfqq->sort_list) && !cfq_should_idle(cfqd, cfqq))
+		return true;
+
 	if (!cfqd->active_cic || !cfq_cfqq_wait_request(cfqq))
 		return false;
 
@@ -3508,8 +3512,25 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 		}
 	}
 
-	if (!cfqd->rq_in_driver)
+	if (!cfqd->rq_in_driver) {
 		cfq_schedule_dispatch(cfqd);
+		return;
+	}
+	/*
+	 * A queue is idle at cfq_dispatch_requests(), but it gets noidle
+	 * later. We schedule a dispatch if the queue has no requests,
+	 * otherwise the disk is actually in idle till all requests
+	 * are finished even cfq_arm_slice_timer doesn't make the queue idle
+	 * */
+	cfqq = cfqd->active_queue;
+	if (!cfqq)
+		return;
+
+	if (RB_EMPTY_ROOT(&cfqq->sort_list) && !cfq_should_idle(cfqd, cfqq) &&
+	    (!cfqd->cfq_group_idle || cfqq->cfqg->nr_cfqq > 1)) {
+		cfq_del_timer(cfqd, cfqq);
+		cfq_schedule_dispatch(cfqd);
+	}
 }
 
 /*
