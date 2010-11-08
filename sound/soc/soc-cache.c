@@ -25,6 +25,7 @@ static unsigned int snd_soc_4_12_read(struct snd_soc_codec *codec,
 			if (codec->cache_only)
 				return -1;
 
+			BUG_ON(!codec->hw_read);
 			return codec->hw_read(codec, reg);
 	}
 
@@ -99,6 +100,7 @@ static unsigned int snd_soc_7_9_read(struct snd_soc_codec *codec,
 			if (codec->cache_only)
 				return -1;
 
+			BUG_ON(!codec->hw_read);
 			return codec->hw_read(codec, reg);
 	}
 
@@ -199,6 +201,7 @@ static unsigned int snd_soc_8_8_read(struct snd_soc_codec *codec,
 			if (codec->cache_only)
 				return -1;
 
+			BUG_ON(!codec->hw_read);
 			return codec->hw_read(codec, reg);
 	}
 
@@ -270,6 +273,7 @@ static unsigned int snd_soc_8_16_read(struct snd_soc_codec *codec,
 		if (codec->cache_only)
 			return -1;
 
+		BUG_ON(!codec->hw_read);
 		return codec->hw_read(codec, reg);
 	} else {
 		return cache[reg];
@@ -420,6 +424,7 @@ static unsigned int snd_soc_16_8_read(struct snd_soc_codec *codec,
 			if (codec->cache_only)
 				return -1;
 
+			BUG_ON(!codec->hw_read);
 			return codec->hw_read(codec, reg);
 	}
 
@@ -531,6 +536,7 @@ static unsigned int snd_soc_16_16_read(struct snd_soc_codec *codec,
 		if (codec->cache_only)
 			return -1;
 
+		BUG_ON(!codec->hw_read);
 		return codec->hw_read(codec, reg);
 	}
 
