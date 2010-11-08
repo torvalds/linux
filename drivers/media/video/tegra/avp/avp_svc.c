@@ -62,13 +62,17 @@ static struct avp_module avp_modules[] = {
 };
 #define NUM_AVP_MODULES		ARRAY_SIZE(avp_modules)
 
+struct avp_clk {
+	struct clk		*clk;
+	int			refcnt;
+	struct avp_module	*mod;
+};
+
 struct avp_svc_info {
-	struct clk			*clks[NUM_CLK_REQUESTS];
+	struct avp_clk			clks[NUM_CLK_REQUESTS];
 	/* used for dvfs */
 	struct clk			*sclk;
 
-	/* XXX: if # of clocks > BITS_PER_LONG, fix this */
-	unsigned long			clk_reqs;
 	struct mutex			clk_lock;
 
 	struct trpc_endpoint		*cpu_ep;
@@ -291,8 +295,7 @@ static void do_svc_module_reset(struct avp_svc_info *avp_svc,
 	struct svc_module_ctrl *msg = (struct svc_module_ctrl *)_msg;
 	struct svc_common_resp resp;
 	struct avp_module *mod;
-
-	pr_info("avp_svc: module reset: %d\n", msg->module_id);
+	struct avp_clk *aclk;
 
 	mod = find_avp_module(avp_svc, msg->module_id);
 	if (!mod) {
@@ -305,10 +308,12 @@ static void do_svc_module_reset(struct avp_svc_info *avp_svc,
 		resp.err = 0;
 		goto send_response;
 	}
+	pr_info("avp_svc: module reset: %s\n", mod->name);
 
-	tegra_periph_reset_assert(avp_svc->clks[mod->clk_req]);
+	aclk = &avp_svc->clks[mod->clk_req];
+	tegra_periph_reset_assert(aclk->clk);
 	udelay(10);
-	tegra_periph_reset_deassert(avp_svc->clks[mod->clk_req]);
+	tegra_periph_reset_deassert(aclk->clk);
 	resp.err = 0;
 
 send_response:
@@ -324,10 +329,8 @@ static void do_svc_module_clock(struct avp_svc_info *avp_svc,
 	struct svc_module_ctrl *msg = (struct svc_module_ctrl *)_msg;
 	struct svc_common_resp resp;
 	struct avp_module *mod;
-	unsigned long clk_bit;
+	struct avp_clk *aclk;
 
-	pr_info("avp_svc: module clock: %d %s\n", msg->module_id,
-		msg->enable ? "on" : "off");
 	mod = find_avp_module(avp_svc, msg->module_id);
 	if (!mod) {
 		pr_err("avp_svc: unknown module clock requested: %d\n",
@@ -335,22 +338,24 @@ static void do_svc_module_clock(struct avp_svc_info *avp_svc,
 		resp.err = AVP_ERR_EINVAL;
 		goto send_response;
 	}
+	pr_info("avp_svc: module clock: %s %s\n", mod->name,
+		msg->enable ? "on" : "off");
 
-	clk_bit = 1 << mod->clk_req;
 	mutex_lock(&avp_svc->clk_lock);
+	aclk = &avp_svc->clks[mod->clk_req];
 	if (msg->enable) {
-		/* don't allow duplicate clock requests */
-		BUG_ON(avp_svc->clk_reqs & clk_bit);
-
-		clk_enable(avp_svc->sclk);
-		clk_enable(avp_svc->clks[mod->clk_req]);
-		avp_svc->clk_reqs |= clk_bit;
+		if (aclk->refcnt++ == 0) {
+			clk_enable(avp_svc->sclk);
+			clk_enable(aclk->clk);
+		}
 	} else {
-		BUG_ON(!(avp_svc->clk_reqs & clk_bit));
-
-		avp_svc->clk_reqs &= ~clk_bit;
-		clk_disable(avp_svc->clks[mod->clk_req]);
-		clk_disable(avp_svc->sclk);
+		if (unlikely(aclk->refcnt == 0)) {
+			pr_err("avp_svc: unbalanced clock disable for '%s'\n",
+			       aclk->mod->name);
+		} else if (--aclk->refcnt == 0) {
+			clk_disable(aclk->clk);
+			clk_disable(avp_svc->sclk);
+		}
 	}
 	mutex_unlock(&avp_svc->clk_lock);
 	resp.err = 0;
@@ -612,12 +617,16 @@ void avp_svc_stop(struct avp_svc_info *avp_svc)
 	avp_svc->nvmap_remote = NULL;
 
 	mutex_lock(&avp_svc->clk_lock);
-	for (i = 0; i < NUM_CLK_REQUESTS; i++)
-		if (avp_svc->clk_reqs & (1 << i)) {
-			pr_info("%s: remote left clock %d on\n", __func__, i);
-			clk_disable(avp_svc->clks[i]);
+	for (i = 0; i < NUM_CLK_REQUESTS; i++) {
+		struct avp_clk *aclk = &avp_svc->clks[i];
+		BUG_ON(aclk->refcnt < 0);
+		if (aclk->refcnt > 0) {
+			pr_info("%s: remote left clock '%s' on\n", __func__,
+				aclk->mod->name);
+			clk_disable(aclk->clk);
 		}
-	avp_svc->clk_reqs = 0;
+		aclk->refcnt = 0;
+	}
 	mutex_unlock(&avp_svc->clk_lock);
 }
 
@@ -653,7 +662,9 @@ struct avp_svc_info *avp_svc_init(struct platform_device *pdev,
 			pr_err("avp_svc: Couldn't get required clocks\n");
 			goto err_get_clks;
 		}
-		avp_svc->clks[mod->clk_req] = clk;
+		avp_svc->clks[mod->clk_req].clk = clk;
+		avp_svc->clks[mod->clk_req].mod = mod;
+		avp_svc->clks[mod->clk_req].refcnt = 0;
 	}
 
 	avp_svc->sclk = clk_get(&pdev->dev, "sclk");
@@ -670,8 +681,8 @@ struct avp_svc_info *avp_svc_init(struct platform_device *pdev,
 
 err_get_clks:
 	for (i = 0; i < NUM_CLK_REQUESTS; i++)
-		if (avp_svc->clks[i])
-			clk_put(avp_svc->clks[i]);
+		if (avp_svc->clks[i].clk)
+			clk_put(avp_svc->clks[i].clk);
 	if (!IS_ERR_OR_NULL(avp_svc->sclk))
 		clk_put(avp_svc->sclk);
 err_alloc:
@@ -683,7 +694,7 @@ void avp_svc_destroy(struct avp_svc_info *avp_svc)
 	int i;
 
 	for (i = 0; i < NUM_CLK_REQUESTS; i++)
-		clk_put(avp_svc->clks[i]);
+		clk_put(avp_svc->clks[i].clk);
 	clk_put(avp_svc->sclk);
 
 	kfree(avp_svc);
