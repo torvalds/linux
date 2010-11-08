@@ -37,7 +37,7 @@ char RTMP_GetTxPwr(struct rt_rtmp_adapter *pAd, IN HTTRANSMIT_SETTING HTTxMode);
 	==========================================================================
 	Description:
 		Prepare Measurement request action frame and enqueue it into
-		management queue waiting for transmition.
+		management queue waiting for transmission.
 
 	Parametrs:
 		1. the destination mac address of the frame.
@@ -60,7 +60,7 @@ void MakeMeasurementReqFrame(struct rt_rtmp_adapter *pAd,
 	==========================================================================
 	Description:
 		Prepare Measurement report action frame and enqueue it into
-		management queue waiting for transmition.
+		management queue waiting for transmission.
 
 	Parametrs:
 		1. the destination mac address of the frame.
@@ -80,7 +80,7 @@ void EnqueueMeasurementRep(struct rt_rtmp_adapter *pAd,
 	==========================================================================
 	Description:
 		Prepare TPC Request action frame and enqueue it into
-		management queue waiting for transmition.
+		management queue waiting for transmission.
 
 	Parametrs:
 		1. the destination mac address of the frame.
@@ -94,7 +94,7 @@ void EnqueueTPCReq(struct rt_rtmp_adapter *pAd, u8 *pDA, u8 DialogToken);
 	==========================================================================
 	Description:
 		Prepare TPC Report action frame and enqueue it into
-		management queue waiting for transmition.
+		management queue waiting for transmission.
 
 	Parametrs:
 		1. the destination mac address of the frame.
@@ -110,7 +110,7 @@ void EnqueueTPCRep(struct rt_rtmp_adapter *pAd,
 	==========================================================================
 	Description:
 		Prepare Channel Switch Announcement action frame and enqueue it into
-		management queue waiting for transmition.
+		management queue waiting for transmission.
 
 	Parametrs:
 		1. the destination mac address of the frame.
@@ -126,7 +126,7 @@ void EnqueueChSwAnn(struct rt_rtmp_adapter *pAd,
 /*
 	==========================================================================
 	Description:
-		Spectrun action frames Handler such as channel switch annoucement,
+		Spectrun action frames Handler such as channel switch announcement,
 		measurement report, measurement request actions frames.
 
 	Parametrs:

@@ -28,13 +28,14 @@
 	rtmp_timer.h
 
     Abstract:
-	Ralink Wireless Driver timer related data structures and delcarations
+	Ralink Wireless Driver timer related data structures and declarations 
 
     Revision History:
-	Who           When                What
+	Who          		When                 What
 	--------    ----------      ----------------------------------------------
-	Name          Date                 Modification logs
-	Shiang Tu    Aug-28-2008	init version
+	Name          		Date                 Modification logs
+	Shiang Tu    		Aug-28-2008 	     init version
+	Justin P. Mattock	11/07/2010	     Fix a typo
 
 */
 
@@ -51,8 +52,8 @@
 
 /* ----------------- Timer Related MARCO ---------------*/
 /* In some os or chipset, we have a lot of timer functions and will read/write register, */
-/*   it's not allowed in Linux USB sub-system to do it ( because of sleep issue when */
-/*  submit to ctrl pipe). So we need a wrapper function to take care it. */
+/* it's not allowed in Linux USB sub-system to do it ( because of sleep issue when */
+/* submit to ctrl pipe). So we need a wrapper function to take care it. */
 
 #ifdef RTMP_TIMER_TASK_SUPPORT
 typedef void(*RTMP_TIMER_TASK_HANDLE) (void *SystemSpecific1,

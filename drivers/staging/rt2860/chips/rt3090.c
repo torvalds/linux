@@ -28,10 +28,11 @@
 	rt3090.c
 
 	Abstract:
-	Specific funcitons and variables for RT3070
+	Specific functions and variables for RT3070
 
 	Revision History:
-	Who         When          What
+	Who         		When            What
+	Justin P. Mattock	11/07/2010	Fix a typo
 	--------    ----------    ----------------------------------------------
 */
 

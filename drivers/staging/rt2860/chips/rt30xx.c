@@ -28,10 +28,11 @@
 	rt30xx.c
 
 	Abstract:
-	Specific funcitons and variables for RT30xx.
+	Specific functions and variables for RT30xx.
 
 	Revision History:
-	Who         When          What
+	Who         		When            What
+	Justin P. Mattock	11/07/2010	Fix some typos
 	--------    ----------    ----------------------------------------------
 */
 
@@ -89,7 +90,7 @@ struct rt_reg_pair RT30xx_RFRegTable[] = {
 
 u8 NUM_RF_REG_PARMS = (sizeof(RT30xx_RFRegTable) / sizeof(struct rt_reg_pair));
 
-/* Antenna divesity use GPIO3 and EESK pin for control */
+/* Antenna diversity use GPIO3 and EESK pin for control */
 /* Antenna and EEPROM access are both using EESK pin, */
 /* Therefor we should avoid accessing EESK at the same time */
 /* Then restore antenna after EEPROM access */
@@ -243,7 +244,7 @@ void RTMPFilterCalibration(struct rt_rtmp_adapter *pAd)
 				break;
 			}
 
-			/* prevent infinite loop cause driver hang. */
+			/* prevent infinite loop; causes driver hang. */
 			if (loopcnt++ > 100) {
 				DBGPRINT(RT_DEBUG_ERROR,
 					 ("RTMPFilterCalibration - can't find a valid value, loopcnt=%d stop calibrating",

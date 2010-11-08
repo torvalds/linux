@@ -767,13 +767,13 @@ void send_monitor_packets(struct rt_rtmp_adapter *pAd, struct rt_rx_blk *pRxBlk)
 		/* QOS */
 		if (pRxBlk->pHeader->FC.SubType & 0x08) {
 			header_len += 2;
-			/* Data skip QOS contorl field */
+			/* Data skip QOS control field */
 			pRxBlk->DataSize -= 2;
 		}
 		/* Order bit: A-Ralink or HTC+ */
 		if (pRxBlk->pHeader->FC.Order) {
 			header_len += 4;
-			/* Data skip HTC contorl field */
+			/* Data skip HTC control field */
 			pRxBlk->DataSize -= 4;
 		}
 		/* Copy Header */
@@ -1175,7 +1175,7 @@ int RtmpOSNetDevAddrSet(struct net_device *pNetDev, u8 *pMacAddr)
 	net_dev = pNetDev;
 	GET_PAD_FROM_NET_DEV(pAd, net_dev);
 
-	/* work-around for the SuSE due to it has it's own interface name management system. */
+	/* work-around for SuSE, due to them having their own interface name management system. */
 	{
 		NdisZeroMemory(pAd->StaCfg.dev_name, 16);
 		NdisMoveMemory(pAd->StaCfg.dev_name, net_dev->name,
@@ -1300,7 +1300,7 @@ int RtmpOSNetDevAttach(struct net_device *pNetDev,
 	int ret, rtnl_locked = FALSE;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("RtmpOSNetDevAttach()--->\n"));
-	/* If we need hook some callback function to the net device structrue, now do it. */
+	/* If we need hook some callback function to the net device structure, now do it. */
 	if (pDevOpHook) {
 		struct rt_rtmp_adapter *pAd = NULL;
 
@@ -1351,10 +1351,10 @@ struct net_device *RtmpOSNetDevCreate(struct rt_rtmp_adapter *pAd,
 		return NULL;
 	}
 
-	/* find a available interface name, max 32 interfaces */
+	/* find an available interface name, max 32 interfaces */
 	status = RtmpOSNetDevRequestName(pAd, pNetDev, pNamePrefix, devNum);
 	if (status != NDIS_STATUS_SUCCESS) {
-		/* error! no any available ra name can be used! */
+		/* error! no available ra name can be used! */
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("Assign interface name (%s with suffix 0~32) failed...\n",
 			  pNamePrefix));

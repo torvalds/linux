@@ -27,8 +27,8 @@
 #include "rt_config.h"
 
 /* Following information will be show when you run 'modinfo' */
-/* *** If you have a solution for the bug in current version of driver, please mail to me. */
-/* Otherwise post to forum in ralinktech's web site(www.ralinktech.com) and let all users help you. *** */
+/* If you have a solution for the bug in current version of driver, please e-mail me. */
+/* Otherwise post to the forum at ralinktech's web site(www.ralinktech.com) and let all users help you. */
 MODULE_AUTHOR("Paul Lin <paul_lin@ralinktech.com>");
 MODULE_DESCRIPTION("RT2870/RT3070 Wireless Lan Linux Driver");
 MODULE_LICENSE("GPL");
@@ -882,8 +882,8 @@ static int __devinit rt2870_probe(IN struct usb_interface *intf,
 	if (net_dev == NULL)
 		goto err_out_free_radev;
 
-	/* Here are the net_device structure with usb specific parameters. */
-	/* for supporting Network Manager.
+	/* Here are the net_device structure with usb specific parameters. 
+	 * for supporting Network Manager.
 	 * Set the sysfs physical device reference for the network logical device if set prior to registration will
 	 * cause a symlink during initialization.
 	 */

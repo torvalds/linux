@@ -32,7 +32,8 @@
 	Revision History:
 	Who			When		What
 	--------	----------	----------------------------------------------
-	Name		Date		Modification logs
+	Name			Date		Modification logs
+	Justin P. Mattock	11/07/2010	Fix some typos.
 
 */
 
@@ -279,7 +280,7 @@ static void rtusb_dataout_complete(unsigned long data)
 	    && !RTUSB_TEST_BULK_FLAG(pAd,
 				     (fRTUSB_BULK_OUT_DATA_FRAG <<
 				      BulkOutPipeId))) {
-		/* Indicate There is data avaliable */
+		/* Indicate There is data available */
 		RTUSB_SET_BULK_FLAG(pAd,
 				    (fRTUSB_BULK_OUT_DATA_NORMAL <<
 				     BulkOutPipeId));
@@ -335,7 +336,7 @@ static void rtusb_null_frame_done_tasklet(unsigned long data)
 	}
 
 	/* Always call Bulk routine, even reset bulk. */
-	/* The protectioon of rest bulk should be in BulkOut routine */
+	/* The protection of rest bulk should be in BulkOut routine */
 	RTUSBKickBulkOut(pAd);
 }
 
@@ -383,7 +384,7 @@ static void rtusb_rts_frame_done_tasklet(unsigned long data)
 	RTMP_SEM_UNLOCK(&pAd->BulkOutLock[pRTSContext->BulkOutPipeId]);
 
 	/* Always call Bulk routine, even reset bulk. */
-	/* The protectioon of rest bulk should be in BulkOut routine */
+	/* The protection of rest bulk should be in BulkOut routine */
 	RTUSBKickBulkOut(pAd);
 
 }
@@ -427,7 +428,7 @@ static void rtusb_pspoll_frame_done_tasklet(unsigned long data)
 	RTMP_SEM_UNLOCK(&pAd->BulkOutLock[0]);
 
 	/* Always call Bulk routine, even reset bulk. */
-	/* The protectioon of rest bulk should be in BulkOut routine */
+	/* The protection of rest bulk should be in BulkOut routine */
 	RTUSBKickBulkOut(pAd);
 
 }
@@ -575,7 +576,7 @@ static void rtusb_mgmt_dma_done_tasklet(unsigned long data)
 		} else {
 
 			/* Always call Bulk routine, even reset bulk. */
-			/* The protectioon of rest bulk should be in BulkOut routine */
+			/* The protection of rest bulk should be in BulkOut routine */
 			if (pAd->MgmtRing.TxSwFreeIdx <
 			    MGMT_RING_SIZE
 			    /* pMLMEContext->bWaitingBulkOut == TRUE */) {

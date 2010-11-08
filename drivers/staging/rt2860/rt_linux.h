@@ -30,7 +30,8 @@
     Abstract:
 
     Revision History:
-    Who          When          What
+    Who          	When         	What
+    Justin P. Mattock	11/07/2010 	Fix typo in a comment
     ---------    ----------    ----------------------------------------------
 */
 
@@ -726,7 +727,7 @@ void linux_pci_unmap_single(struct rt_rtmp_adapter *pAd, dma_addr_t dma_addr,
 #define RTMP_GET_PACKET_MOREDATA(_p)				(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+7])
 
 /* */
-/*      Sepcific Pakcet Type definition */
+/*      Specific Packet Type definition */
 /* */
 #define RTMP_PACKET_SPECIFIC_CB_OFFSET	11
 

@@ -31,7 +31,8 @@
     Create and register network interface.
 
     Revision History:
-    Who         When            What
+    Who         	When            What
+    Justin P. Mattock	11/07/2010	Fix typos in comments
     --------    ----------      ----------------------------------------------
 */
 
@@ -234,7 +235,7 @@ int rt28xx_close(struct net_device *dev)
 		RTMPPCIeLinkCtrlValueRestore(pAd, RESTORE_CLOSE);
 #endif /* RTMP_MAC_PCI // */
 
-		/* If dirver doesn't wake up firmware here, */
+		/* If driver doesn't wake up firmware here, */
 		/* NICLoadFirmware will hang forever when interface is up again. */
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)) {
 			AsicForceWakeup(pAd, TRUE);
@@ -310,8 +311,8 @@ int rt28xx_close(struct net_device *dev)
 			RTMP_ASIC_INTERRUPT_DISABLE(pAd);
 		}
 		/* Receive packets to clear DMA index after disable interrupt. */
-		/*RTMPHandleRxDoneInterrupt(pAd); */
-		/* put to radio off to save power when driver unload.  After radiooff, can't write /read register.  So need to finish all */
+		/* RTMPHandleRxDoneInterrupt(pAd); */
+		/* put radio off to save power when driver unloads.  After radiooff, can't write/read register, so need to finish all. */
 		/* register access before Radio off. */
 
 		brc = RT28xxPciAsicRadioOff(pAd, RTMP_HALT, 0);

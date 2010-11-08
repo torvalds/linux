@@ -32,7 +32,8 @@
 	Revision History:
 	Who			When			What
 	--------	----------		----------------------------------------------
-	John Chang  2004-09-01      add WMM support
+	John Chang  		2004-09-01      add WMM support
+	Justin P. Mattock	11/07/2010	Fix typos
 */
 #include "../rt_config.h"
 
@@ -118,7 +119,7 @@ BOOLEAN PeerAssocRspSanity(struct rt_rtmp_adapter *pAd, void * pMsg, unsigned lo
 	NdisMoveMemory(pAid, &pFrame->Octet[4], 2);
 	Length += 2;
 
-	/* Aid already swaped byte order in RTMPFrameEndianChange() for big endian platform */
+	/* Aid already swapped byte order in RTMPFrameEndianChange() for big endian platform */
 	*pAid = (*pAid) & 0x3fff;	/* AID is low 14-bit */
 
 	/* -- get supported rates from payload and advance the pointer */
