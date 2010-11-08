@@ -123,18 +123,18 @@ extern struct hv_context hv_context;
 
 /* Hv Interface */
 
-extern int HvInit(void);
+extern int hv_init(void);
 
-extern void HvCleanup(void);
+extern void hv_cleanup(void);
 
-extern u16 HvPostMessage(union hv_connection_id connectionId,
-			 enum hv_message_type messageType,
-			 void *payload, size_t payloadSize);
+extern u16 hv_post_message(union hv_connection_id connection_id,
+			 enum hv_message_type message_type,
+			 void *payload, size_t payload_size);
 
-extern u16 HvSignalEvent(void);
+extern u16 hv_signal_event(void);
 
-extern void HvSynicInit(void *irqarg);
+extern void hv_synic_init(void *irqarg);
 
-extern void HvSynicCleanup(void *arg);
+extern void hv_synic_cleanup(void *arg);
 
 #endif /* __HV_H__ */

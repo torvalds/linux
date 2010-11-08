@@ -836,7 +836,7 @@ enum hv_call_code {
 	HVCALL_SIGNAL_EVENT	= 0x005d,
 };
 
-/* Definition of the HvPostMessage hypercall input structure. */
+/* Definition of the hv_post_message hypercall input structure. */
 struct hv_input_post_message {
 	union hv_connection_id connectionid;
 	u32 reserved;
@@ -845,7 +845,7 @@ struct hv_input_post_message {
 	u64 payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
 };
 
-/* Definition of the HvSignalEvent hypercall input structure. */
+/* Definition of the hv_signal_event hypercall input structure. */
 struct hv_input_signal_event {
 	union hv_connection_id connectionid;
 	u16 flag_number;

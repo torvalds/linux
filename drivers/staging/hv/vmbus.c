@@ -109,7 +109,7 @@ static int VmbusOnDeviceAdd(struct hv_device *dev, void *AdditionalInfo)
 
 	/* strcpy(dev->name, "vmbus"); */
 	/* SynIC setup... */
-	on_each_cpu(HvSynicInit, (void *)irqvector, 1);
+	on_each_cpu(hv_synic_init, (void *)irqvector, 1);
 
 	/* Connect to VMBus in the root partition */
 	ret = VmbusConnect();
@@ -127,7 +127,7 @@ static int VmbusOnDeviceRemove(struct hv_device *dev)
 
 	vmbus_release_unattached_channels();
 	VmbusDisconnect();
-	on_each_cpu(HvSynicCleanup, NULL, 1);
+	on_each_cpu(hv_synic_cleanup, NULL, 1);
 	return ret;
 }
 
@@ -138,7 +138,7 @@ static void VmbusOnCleanup(struct hv_driver *drv)
 {
 	/* struct vmbus_driver *driver = (struct vmbus_driver *)drv; */
 
-	HvCleanup();
+	hv_cleanup();
 }
 
 /*
@@ -264,7 +264,7 @@ int VmbusInitialize(struct hv_driver *drv)
 	driver->GetChannelOffers	= VmbusGetChannelOffers;
 
 	/* Hypervisor initialization...setup hypercall page..etc */
-	ret = HvInit();
+	ret = hv_init();
 	if (ret != 0)
 		DPRINT_ERR(VMBUS, "Unable to initialize the hypervisor - 0x%x",
 				ret);

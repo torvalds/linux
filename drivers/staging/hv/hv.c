@@ -36,9 +36,10 @@ struct hv_context hv_context = {
 };
 
 /*
- * HvQueryHypervisorPresence - Query the cpuid for presense of windows hypervisor
+ * query_hypervisor_presence
+ * - Query the cpuid for presense of windows hypervisor
  */
-static int HvQueryHypervisorPresence(void)
+static int query_hypervisor_presence(void)
 {
 	unsigned int eax;
 	unsigned int ebx;
@@ -57,9 +58,9 @@ static int HvQueryHypervisorPresence(void)
 }
 
 /*
- * HvQueryHypervisorInfo - Get version info of the windows hypervisor
+ * query_hypervisor_info - Get version info of the windows hypervisor
  */
-static int HvQueryHypervisorInfo(void)
+static int query_hypervisor_info(void)
 {
 	unsigned int eax;
 	unsigned int ebx;
@@ -126,9 +127,9 @@ static int HvQueryHypervisorInfo(void)
 }
 
 /*
- * HvDoHypercall - Invoke the specified hypercall
+ * do_hypercall- Invoke the specified hypercall
  */
-static u64 HvDoHypercall(u64 control, void *input, void *output)
+static u64 do_hypercall(u64 control, void *input, void *output)
 {
 #ifdef CONFIG_X86_64
 	u64 hv_status = 0;
@@ -181,11 +182,11 @@ static u64 HvDoHypercall(u64 control, void *input, void *output)
 }
 
 /*
- * HvInit - Main initialization routine.
+ * hv_init - Main initialization routine.
  *
  * This routine must be called before any other routines in here are called
  */
-int HvInit(void)
+int hv_init(void)
 {
 	int ret = 0;
 	int max_leaf;
@@ -196,7 +197,7 @@ int HvInit(void)
 	memset(hv_context.synic_message_page, 0,
 	       sizeof(void *) * MAX_NUM_CPUS);
 
-	if (!HvQueryHypervisorPresence()) {
+	if (!query_hypervisor_presence()) {
 		DPRINT_ERR(VMBUS, "No Windows hypervisor detected!!");
 		goto Cleanup;
 	}
@@ -204,7 +205,7 @@ int HvInit(void)
 	DPRINT_INFO(VMBUS,
 		    "Windows hypervisor detected! Retrieving more info...");
 
-	max_leaf = HvQueryHypervisorInfo();
+	max_leaf = query_hypervisor_info();
 	/* HvQueryHypervisorFeatures(maxLeaf); */
 
 	/*
@@ -291,11 +292,11 @@ Cleanup:
 }
 
 /*
- * HvCleanup - Cleanup routine.
+ * hv_cleanup - Cleanup routine.
  *
  * This routine is called normally during driver unloading or exiting.
  */
-void HvCleanup(void)
+void hv_cleanup(void)
 {
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 
@@ -312,11 +313,11 @@ void HvCleanup(void)
 }
 
 /*
- * HvPostMessage - Post a message using the hypervisor message IPC.
+ * hv_post_message - Post a message using the hypervisor message IPC.
  *
  * This involves a hypercall.
  */
-u16 HvPostMessage(union hv_connection_id connection_id,
+u16 hv_post_message(union hv_connection_id connection_id,
 		  enum hv_message_type message_type,
 		  void *payload, size_t payload_size)
 {
@@ -344,7 +345,8 @@ u16 HvPostMessage(union hv_connection_id connection_id,
 	aligned_msg->payload_size = payload_size;
 	memcpy((void *)aligned_msg->payload, payload, payload_size);
 
-	status = HvDoHypercall(HVCALL_POST_MESSAGE, aligned_msg, NULL) & 0xFFFF;
+	status = do_hypercall(HVCALL_POST_MESSAGE, aligned_msg, NULL)
+		& 0xFFFF;
 
 	kfree((void *)addr);
 
@@ -353,28 +355,29 @@ u16 HvPostMessage(union hv_connection_id connection_id,
 
 
 /*
- * HvSignalEvent - Signal an event on the specified connection using the hypervisor event IPC.
+ * hv_signal_event -
+ * Signal an event on the specified connection using the hypervisor event IPC.
  *
  * This involves a hypercall.
  */
-u16 HvSignalEvent(void)
+u16 hv_signal_event(void)
 {
 	u16 status;
 
-	status = HvDoHypercall(HVCALL_SIGNAL_EVENT,
+	status = do_hypercall(HVCALL_SIGNAL_EVENT,
 			       hv_context.signal_event_param,
 			       NULL) & 0xFFFF;
 	return status;
 }
 
 /*
- * HvSynicInit - Initialize the Synthethic Interrupt Controller.
+ * hv_synic_init - Initialize the Synthethic Interrupt Controller.
  *
  * If it is already initialized by another entity (ie x2v shim), we need to
  * retrieve the initialized message and event pages.  Otherwise, we create and
  * initialize the message and event pages.
  */
-void HvSynicInit(void *irqarg)
+void hv_synic_init(void *irqarg)
 {
 	u64 version;
 	union hv_synic_simp simp;
@@ -467,9 +470,9 @@ Cleanup:
 }
 
 /*
- * HvSynicCleanup - Cleanup routine for HvSynicInit().
+ * hv_synic_cleanup - Cleanup routine for hv_synic_init().
  */
-void HvSynicCleanup(void *arg)
+void hv_synic_cleanup(void *arg)
 {
 	union hv_synic_sint shared_sint;
 	union hv_synic_simp simp;

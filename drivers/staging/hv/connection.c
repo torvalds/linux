@@ -311,7 +311,7 @@ int VmbusPostMessage(void *buffer, size_t bufferLen)
 
 	connId.asu32 = 0;
 	connId.u.id = VMBUS_MESSAGE_CONNECTION_ID;
-	return HvPostMessage(connId, 1, buffer, bufferLen);
+	return hv_post_message(connId, 1, buffer, bufferLen);
 }
 
 /*
@@ -324,5 +324,5 @@ int VmbusSetEvent(u32 childRelId)
 		(unsigned long *)gVmbusConnection.SendInterruptPage +
 		(childRelId >> 5));
 
-	return HvSignalEvent();
+	return hv_signal_event();
 }
