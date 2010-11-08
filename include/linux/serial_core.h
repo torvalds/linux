@@ -199,6 +199,9 @@
 /* TI OMAP-UART */
 #define PORT_OMAP	96
 
+/* VIA VT8500 SoC */
+#define PORT_VT8500	97
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

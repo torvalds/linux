@@ -1381,6 +1381,16 @@ config SERIAL_MSM_CONSOLE
 	depends on SERIAL_MSM=y
 	select SERIAL_CORE_CONSOLE
 
+config SERIAL_VT8500
+	bool "VIA VT8500 on-chip serial port support"
+	depends on ARM && ARCH_VT8500
+	select SERIAL_CORE
+
+config SERIAL_VT8500_CONSOLE
+	bool "VIA VT8500 serial console support"
+	depends on SERIAL_VT8500=y
+	select SERIAL_CORE_CONSOLE
+
 config SERIAL_NETX
 	tristate "NetX serial port support"
 	depends on ARM && ARCH_NETX
