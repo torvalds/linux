@@ -67,6 +67,15 @@ void ext4_ioend_wait(struct inode *inode)
 	wait_event(*wq, (atomic_read(&EXT4_I(inode)->i_ioend_count) == 0));
 }
 
+static void put_io_page(struct ext4_io_page *io_page)
+{
+	if (atomic_dec_and_test(&io_page->p_count)) {
+		end_page_writeback(io_page->p_page);
+		put_page(io_page->p_page);
+		kmem_cache_free(io_page_cachep, io_page);
+	}
+}
+
 void ext4_free_io_end(ext4_io_end_t *io)
 {
 	int i;
@@ -75,15 +84,8 @@ void ext4_free_io_end(ext4_io_end_t *io)
 	BUG_ON(!io);
 	if (io->page)
 		put_page(io->page);
-	for (i = 0; i < io->num_io_pages; i++) {
-		if (--io->pages[i]->p_count == 0) {
-			struct page *page = io->pages[i]->p_page;
-
-			end_page_writeback(page);
-			put_page(page);
-			kmem_cache_free(io_page_cachep, io->pages[i]);
-		}
-	}
+	for (i = 0; i < io->num_io_pages; i++)
+		put_io_page(io->pages[i]);
 	io->num_io_pages = 0;
 	wq = to_ioend_wq(io->inode);
 	if (atomic_dec_and_test(&EXT4_I(io->inode)->i_ioend_count) &&
@@ -235,13 +237,7 @@ static void ext4_end_bio(struct bio *bio, int error)
 			} while (bh != head);
 		}
 
-		if (--io_end->pages[i]->p_count == 0) {
-			struct page *page = io_end->pages[i]->p_page;
-
-			end_page_writeback(page);
-			put_page(page);
-			kmem_cache_free(io_page_cachep, io_end->pages[i]);
-		}
+		put_io_page(io_end->pages[i]);
 
 		/*
 		 * If this is a partial write which happened to make
@@ -369,7 +365,7 @@ submit_and_retry:
 	if ((io_end->num_io_pages == 0) ||
 	    (io_end->pages[io_end->num_io_pages-1] != io_page)) {
 		io_end->pages[io_end->num_io_pages++] = io_page;
-		io_page->p_count++;
+		atomic_inc(&io_page->p_count);
 	}
 	return 0;
 }
@@ -398,7 +394,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 		return -ENOMEM;
 	}
 	io_page->p_page = page;
-	io_page->p_count = 0;
+	atomic_set(&io_page->p_count, 1);
 	get_page(page);
 
 	for (bh = head = page_buffers(page), block_start = 0;
@@ -430,10 +426,6 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	 * PageWriteback bit from the page to prevent the system from
 	 * wedging later on.
 	 */
-	if (io_page->p_count == 0) {
-		put_page(page);
-		end_page_writeback(page);
-		kmem_cache_free(io_page_cachep, io_page);
-	}
+	put_io_page(io_page);
 	return ret;
 }

@@ -177,7 +177,7 @@ struct mpage_da_data {
 
 struct ext4_io_page {
 	struct page	*p_page;
-	int		p_count;
+	atomic_t	p_count;
 };
 
 #define MAX_IO_PAGES 128
