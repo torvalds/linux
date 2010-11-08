@@ -3690,8 +3690,7 @@ int wl_iw_attach(struct net_device *dev, void *dhdp)
 		return -ENOMEM;
 	memset(iscan, 0, sizeof(iscan_info_t));
 
-	iscan->iscan_ex_params_p =
-	    (wl_iscan_params_t *) kmalloc(params_size, GFP_KERNEL);
+	iscan->iscan_ex_params_p = kmalloc(params_size, GFP_KERNEL);
 	if (!iscan->iscan_ex_params_p)
 		return -ENOMEM;
 	iscan->iscan_ex_param_size = params_size;
@@ -3723,9 +3722,7 @@ int wl_iw_attach(struct net_device *dev, void *dhdp)
 	priv_dev = dev;
 	MUTEX_LOCK_SOFTAP_SET_INIT(iw->pub);
 #endif
-	g_scan = NULL;
-
-	g_scan = (void *)kmalloc(G_SCAN_RESULTS, GFP_KERNEL);
+	g_scan = kmalloc(G_SCAN_RESULTS, GFP_KERNEL);
 	if (!g_scan)
 		return -ENOMEM;
 

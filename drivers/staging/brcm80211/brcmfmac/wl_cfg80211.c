@@ -704,7 +704,7 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid, u16 action)
 
 	if (ssid && ssid->SSID_len)
 		params_size += sizeof(struct wlc_ssid);
-	params = (struct wl_iscan_params *)kzalloc(params_size, GFP_KERNEL);
+	params = kzalloc(params_size, GFP_KERNEL);
 	if (unlikely(!params))
 		return -ENOMEM;
 	memset(params, 0, params_size);
@@ -2793,53 +2793,52 @@ static void wl_init_eloop_handler(struct wl_event_loop *el)
 
 static s32 wl_init_priv_mem(struct wl_priv *wl)
 {
-	wl->scan_results = (void *)kzalloc(WL_SCAN_BUF_MAX, GFP_KERNEL);
+	wl->scan_results = kzalloc(WL_SCAN_BUF_MAX, GFP_KERNEL);
 	if (unlikely(!wl->scan_results)) {
 		WL_ERR(("Scan results alloc failed\n"));
 		goto init_priv_mem_out;
 	}
-	wl->conf = (void *)kzalloc(sizeof(*wl->conf), GFP_KERNEL);
+	wl->conf = kzalloc(sizeof(*wl->conf), GFP_KERNEL);
 	if (unlikely(!wl->conf)) {
 		WL_ERR(("wl_conf alloc failed\n"));
 		goto init_priv_mem_out;
 	}
-	wl->profile = (void *)kzalloc(sizeof(*wl->profile), GFP_KERNEL);
+	wl->profile = kzalloc(sizeof(*wl->profile), GFP_KERNEL);
 	if (unlikely(!wl->profile)) {
 		WL_ERR(("wl_profile alloc failed\n"));
 		goto init_priv_mem_out;
 	}
-	wl->bss_info = (void *)kzalloc(WL_BSS_INFO_MAX, GFP_KERNEL);
+	wl->bss_info = kzalloc(WL_BSS_INFO_MAX, GFP_KERNEL);
 	if (unlikely(!wl->bss_info)) {
 		WL_ERR(("Bss information alloc failed\n"));
 		goto init_priv_mem_out;
 	}
-	wl->scan_req_int =
-	    (void *)kzalloc(sizeof(*wl->scan_req_int), GFP_KERNEL);
+	wl->scan_req_int = kzalloc(sizeof(*wl->scan_req_int), GFP_KERNEL);
 	if (unlikely(!wl->scan_req_int)) {
 		WL_ERR(("Scan req alloc failed\n"));
 		goto init_priv_mem_out;
 	}
-	wl->ioctl_buf = (void *)kzalloc(WL_IOCTL_LEN_MAX, GFP_KERNEL);
+	wl->ioctl_buf = kzalloc(WL_IOCTL_LEN_MAX, GFP_KERNEL);
 	if (unlikely(!wl->ioctl_buf)) {
 		WL_ERR(("Ioctl buf alloc failed\n"));
 		goto init_priv_mem_out;
 	}
-	wl->extra_buf = (void *)kzalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
+	wl->extra_buf = kzalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
 	if (unlikely(!wl->extra_buf)) {
 		WL_ERR(("Extra buf alloc failed\n"));
 		goto init_priv_mem_out;
 	}
-	wl->iscan = (void *)kzalloc(sizeof(*wl->iscan), GFP_KERNEL);
+	wl->iscan = kzalloc(sizeof(*wl->iscan), GFP_KERNEL);
 	if (unlikely(!wl->iscan)) {
 		WL_ERR(("Iscan buf alloc failed\n"));
 		goto init_priv_mem_out;
 	}
-	wl->fw = (void *)kzalloc(sizeof(*wl->fw), GFP_KERNEL);
+	wl->fw = kzalloc(sizeof(*wl->fw), GFP_KERNEL);
 	if (unlikely(!wl->fw)) {
 		WL_ERR(("fw object alloc failed\n"));
 		goto init_priv_mem_out;
 	}
-	wl->pmk_list = (void *)kzalloc(sizeof(*wl->pmk_list), GFP_KERNEL);
+	wl->pmk_list = kzalloc(sizeof(*wl->pmk_list), GFP_KERNEL);
 	if (unlikely(!wl->pmk_list)) {
 		WL_ERR(("pmk list alloc failed\n"));
 		goto init_priv_mem_out;
