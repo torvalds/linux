@@ -1229,6 +1229,11 @@ i915_write(struct drm_i915_private *dev_priv, u32 reg, u64 val, int len)
 #define POSTING_READ(reg)	(void)I915_READ(reg)
 #define POSTING_READ16(reg)	(void)I915_READ16(reg)
 
+#define I915_READ_NOTRACE(reg)		readl(dev_priv->regs + (reg))
+#define I915_WRITE_NOTRACE(reg, val)	writel(val, dev_priv->regs + (reg))
+#define POSTING_READ_NOTRACE(reg)	(void)I915_READ_NOTRACE(reg)
+
+
 #define BEGIN_LP_RING(n) \
 	intel_ring_begin(&dev_priv->render_ring, (n))
 
