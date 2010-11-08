@@ -2450,8 +2450,8 @@ struct iwl_bt_cmd {
 
 #define IWLAGN_BT3_T7_DEFAULT		1
 
-#define IWLAGN_BT_KILL_ACK_MASK_DEFAULT	cpu_to_le32(0xffffffff)
-#define IWLAGN_BT_KILL_CTS_MASK_DEFAULT	cpu_to_le32(0xffffffff)
+#define IWLAGN_BT_KILL_ACK_MASK_DEFAULT	cpu_to_le32(0xffff0000)
+#define IWLAGN_BT_KILL_CTS_MASK_DEFAULT	cpu_to_le32(0xffff0000)
 
 #define IWLAGN_BT3_PRIO_SAMPLE_DEFAULT	2
 
