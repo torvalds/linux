@@ -84,7 +84,7 @@ static void cpcap_brightness_work(struct work_struct *work)
 
 	brightness = cpcap_led_data->brightness;
 
-	if (brightness > 0) {
+	if (brightness > 1) {
 		brightness = (cpcap_led_data->pdata->cpcap_reg_period |
 				 cpcap_led_data->pdata->cpcap_reg_duty_cycle |
 				 cpcap_led_data->pdata->cpcap_reg_current |
