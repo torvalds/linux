@@ -106,7 +106,6 @@ sub set_value {
     if (defined($opt{$lvalue})) {
 	die "Error: Option $lvalue defined more than once!\n";
     }
-    $opt{$lvalue} = $rvalue;
     if ($rvalue =~ /^\s*$/) {
 	delete $opt{$lvalue};
     } else {
@@ -945,20 +944,18 @@ sub run_git_bisect {
     return 1;
 }
 
-sub run_bisect {
-    my ($type) = @_;
+# returns 1 on success, 0 on failure
+sub run_bisect_test {
+    my ($type, $buildtype) = @_;
 
     my $failed = 0;
     my $result;
     my $output;
     my $ret;
 
-    if (defined($minconfig)) {
-	build "useconfig:$minconfig" or $failed = 1;
-    } else {
-	# ?? no config to use?
-	build "oldconfig" or $failed = 1;
-    }
+    $in_bisect = 1;
+
+    build $buildtype or $failed = 1;
 
     if ($type ne "build") {
 	dodie "Failed on build" if $failed;
@@ -980,7 +977,7 @@ sub run_bisect {
     }
 
     if ($failed) {
-	$result = "bad";
+	$result = 0;
 
 	# reboot the box to a good kernel
 	if ($type ne "build") {
@@ -991,19 +988,35 @@ sub run_bisect {
 	    end_monitor;
 	}
     } else {
-	$result = "good";
+	$result = 1;
     }
+    $in_bisect = 0;
+
+    return $result;
+}
+
+sub run_bisect {
+    my ($type) = @_;
+    my $buildtype = "oldconfig";
+
+    # We should have a minconfig to use?
+    if (defined($minconfig)) {
+	$buildtype = "useconfig:$minconfig";
+    }
+
+    my $ret = run_bisect_test $type, $buildtype;
+
 
     # Are we looking for where it worked, not failed?
     if ($reverse_bisect) {
-	if ($failed) {
-	    $result = "good";
-	} else {
-	    $result = "bad";
-	}
+	$ret = !$ret;
     }
 
-    return $result;
+    if ($ret) {
+	return "good";
+    } else {
+	return  "bad";
+    }
 }
 
 sub bisect {
@@ -1032,8 +1045,6 @@ sub bisect {
     } else {
 	$reverse_bisect = 0;
     }
-
-    $in_bisect = 1;
 
     # Can't have a test without having a test to run
     if ($type eq "test" && !defined($run_test)) {
@@ -1108,7 +1119,359 @@ sub bisect {
 
     doprint "Bad commit was [$bisect_bad]\n";
 
-    $in_bisect = 0;
+    success $i;
+}
+
+my %config_ignore;
+my %config_set;
+
+my %config_list;
+my %null_config;
+
+my %dependency;
+
+sub process_config_ignore {
+    my ($config) = @_;
+
+    open (IN, $config)
+	or dodie "Failed to read $config";
+
+    while (<IN>) {
+	if (/^(.*?(CONFIG\S*)(=.*| is not set))/) {
+	    $config_ignore{$2} = $1;
+	}
+    }
+
+    close(IN);
+}
+
+sub read_current_config {
+    my ($config_ref) = @_;
+
+    %{$config_ref} = ();
+    undef %{$config_ref};
+
+    my @key = keys %{$config_ref};
+    if ($#key >= 0) {
+	print "did not delete!\n";
+	exit;
+    }
+    open (IN, "$output_config");
+
+    while (<IN>) {
+	if (/^(CONFIG\S+)=(.*)/) {
+	    ${$config_ref}{$1} = $2;
+	}
+    }
+    close(IN);
+}
+
+sub get_dependencies {
+    my ($config) = @_;
+
+    my $arr = $dependency{$config};
+    if (!defined($arr)) {
+	return ();
+    }
+
+    my @deps = @{$arr};
+
+    foreach my $dep (@{$arr}) {
+	print "ADD DEP $dep\n";
+	@deps = (@deps, get_dependencies $dep);
+    }
+
+    return @deps;
+}
+
+sub create_config {
+    my @configs = @_;
+
+    open(OUT, ">$output_config") or dodie "Can not write to $output_config";
+
+    foreach my $config (@configs) {
+	print OUT "$config_set{$config}\n";
+	my @deps = get_dependencies $config;
+	foreach my $dep (@deps) {
+	    print OUT "$config_set{$dep}\n";
+	}
+    }
+
+    foreach my $config (keys %config_ignore) {
+	print OUT "$config_ignore{$config}\n";
+    }
+    close(OUT);
+
+#    exit;
+    run_command "$make oldnoconfig" or
+	dodie "failed make config oldconfig";
+
+}
+
+sub compare_configs {
+    my (%a, %b) = @_;
+
+    foreach my $item (keys %a) {
+	if (!defined($b{$item})) {
+	    print "diff $item\n";
+	    return 1;
+	}
+	delete $b{$item};
+    }
+
+    my @keys = keys %b;
+    if ($#keys) {
+	print "diff2 $keys[0]\n";
+    }
+    return -1 if ($#keys >= 0);
+
+    return 0;
+}
+
+sub run_config_bisect_test {
+    my ($type) = @_;
+
+    return run_bisect_test $type, "oldconfig";
+}
+
+sub process_passed {
+    my (%configs) = @_;
+
+    doprint "These configs had no failure: (Enabling them for further compiles)\n";
+    # Passed! All these configs are part of a good compile.
+    # Add them to the min options.
+    foreach my $config (keys %configs) {
+	if (defined($config_list{$config})) {
+	    doprint " removing $config\n";
+	    $config_ignore{$config} = $config_list{$config};
+	    delete $config_list{$config};
+	}
+    }
+}
+
+sub process_failed {
+    my ($config) = @_;
+
+    doprint "\n\n***************************************\n";
+    doprint "Found bad config: $config\n";
+    doprint "***************************************\n\n";
+}
+
+sub run_config_bisect {
+
+    my @start_list = keys %config_list;
+
+    if ($#start_list < 0) {
+	doprint "No more configs to test!!!\n";
+	return -1;
+    }
+
+    doprint "***** RUN TEST ***\n";
+    my $type = $opt{"CONFIG_BISECT_TYPE[$iteration]"};
+    my $ret;
+    my %current_config;
+
+    my $count = $#start_list + 1;
+    doprint "  $count configs to test\n";
+
+    my $half = int($#start_list / 2);
+
+    do {
+	my @tophalf = @start_list[0 .. $half];
+
+	create_config @tophalf;
+	read_current_config \%current_config;
+
+	$count = $#tophalf + 1;
+	doprint "Testing $count configs\n";
+	my $found = 0;
+	# make sure we test something
+	foreach my $config (@tophalf) {
+	    if (defined($current_config{$config})) {
+		logit " $config\n";
+		$found = 1;
+	    }
+	}
+	if (!$found) {
+	    # try the other half
+	    doprint "Top half produced no set configs, trying bottom half\n";
+	    @tophalf = @start_list[$half .. $#start_list];
+	    create_config @tophalf;
+	    read_current_config \%current_config;
+	    foreach my $config (@tophalf) {
+		if (defined($current_config{$config})) {
+		    logit " $config\n";
+		    $found = 1;
+		}
+	    }
+	    if (!$found) {
+		doprint "Failed: Can't make new config with current configs\n";
+		foreach my $config (@start_list) {
+		    doprint "  CONFIG: $config\n";
+		}
+		return -1;
+	    }
+	    $count = $#tophalf + 1;
+	    doprint "Testing $count configs\n";
+	}
+
+	$ret = run_config_bisect_test $type;
+
+	if ($ret) {
+	    process_passed %current_config;
+	    return 0;
+	}
+
+	doprint "This config had a failure.\n";
+	doprint "Removing these configs that were not set in this config:\n";
+
+	# A config exists in this group that was bad.
+	foreach my $config (keys %config_list) {
+	    if (!defined($current_config{$config})) {
+		doprint " removing $config\n";
+		delete $config_list{$config};
+	    }
+	}
+
+	@start_list = @tophalf;
+
+	if ($#start_list == 0) {
+	    process_failed $start_list[0];
+	    return 1;
+	}
+
+	# remove half the configs we are looking at and see if
+	# they are good.
+	$half = int($#start_list / 2);
+    } while ($half > 0);
+
+    # we found a single config, try it again
+    my @tophalf = @start_list[0 .. 0];
+
+    $ret = run_config_bisect_test $type;
+    if ($ret) {
+	process_passed %current_config;
+	return 0;
+    }
+
+    process_failed $start_list[0];
+    return 1;
+}
+
+sub config_bisect {
+    my ($i) = @_;
+
+    my $start_config = $opt{"CONFIG_BISECT[$i]"};
+
+    my $tmpconfig = "$tmpdir/use_config";
+
+    # Make the file with the bad config and the min config
+    if (defined($minconfig)) {
+	# read the min config for things to ignore
+	run_command "cp $minconfig $tmpconfig" or
+	    dodie "failed to copy $minconfig to $tmpconfig";
+    } else {
+	unlink $tmpconfig;
+    }
+
+    # Add other configs
+    if (defined($addconfig)) {
+	run_command "cat $addconfig >> $tmpconfig" or
+	    dodie "failed to append $addconfig";
+    }
+
+    my $defconfig = "";
+    if (-f $tmpconfig) {
+	$defconfig = "KCONFIG_ALLCONFIG=$tmpconfig";
+	process_config_ignore $tmpconfig;
+    }
+
+    # now process the start config
+    run_command "cp $start_config $output_config" or
+	dodie "failed to copy $start_config to $output_config";
+
+    # read directly what we want to check
+    my %config_check;
+    open (IN, $output_config)
+	or dodie "faied to open $output_config";
+
+    while (<IN>) {
+	if (/^((CONFIG\S*)=.*)/) {
+	    $config_check{$2} = $1;
+	}
+    }
+    close(IN);
+
+    # Now run oldconfig with the minconfig (and addconfigs)
+    run_command "$defconfig $make oldnoconfig" or
+	dodie "failed make config oldconfig";
+
+    # check to see what we lost (or gained)
+    open (IN, $output_config)
+	or dodie "Failed to read $start_config";
+
+    my %removed_configs;
+    my %added_configs;
+
+    while (<IN>) {
+	if (/^((CONFIG\S*)=.*)/) {
+	    # save off all options
+	    $config_set{$2} = $1;
+	    if (defined($config_check{$2})) {
+		if (defined($config_ignore{$2})) {
+		    $removed_configs{$2} = $1;
+		} else {
+		    $config_list{$2} = $1;
+		}
+	    } elsif (!defined($config_ignore{$2})) {
+		$added_configs{$2} = $1;
+		$config_list{$2} = $1;
+	    }
+	}
+    }
+    close(IN);
+
+    my @confs = keys %removed_configs;
+    if ($#confs >= 0) {
+	doprint "Configs overridden by default configs and removed from check:\n";
+	foreach my $config (@confs) {
+	    doprint " $config\n";
+	}
+    }
+    @confs = keys %added_configs;
+    if ($#confs >= 0) {
+	doprint "Configs appearing in make oldconfig and added:\n";
+	foreach my $config (@confs) {
+	    doprint " $config\n";
+	}
+    }
+
+    my %config_test;
+    my $once = 0;
+
+    # Sometimes kconfig does weird things. We must make sure
+    # that the config we autocreate has everything we need
+    # to test, otherwise we may miss testing configs, or
+    # may not be able to create a new config.
+    # Here we create a config with everything set.
+    create_config (keys %config_list);
+    read_current_config \%config_test;
+    foreach my $config (keys %config_list) {
+	if (!defined($config_test{$config})) {
+	    if (!$once) {
+		$once = 1;
+		doprint "Configs not produced by kconfig (will not be checked):\n";
+	    }
+	    doprint "  $config\n";
+	    delete $config_list{$config};
+	}
+    }
+    my $ret;
+    do {
+	$ret = run_config_bisect;
+    } while (!$ret);
+
+    return $ret if ($ret < 0);
 
     success $i;
 }
@@ -1341,7 +1704,6 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $dmesg = "$tmpdir/dmesg-$machine";
     $make = "$makecmd O=$outputdir";
     $output_config = "$outputdir/.config";
-    $output_config = "$outputdir/.config";
 
     if ($reboot_type eq "grub") {
 	dodie "GRUB_MENU not defined" if (!defined($grub_menu));
@@ -1354,6 +1716,8 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	$run_type = $opt{"PATCHCHECK_TYPE[$i]"};
     } elsif ($test_type eq "bisect") {
 	$run_type = $opt{"BISECT_TYPE[$i]"};
+    } elsif ($test_type eq "config_bisect") {
+	$run_type = $opt{"CONFIG_BISECT_TYPE[$i]"};
     }
 
     # mistake in config file?
@@ -1384,6 +1748,9 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     if ($test_type eq "bisect") {
 	bisect $i;
+	next;
+    } elsif ($test_type eq "config_bisect") {
+	config_bisect $i;
 	next;
     } elsif ($test_type eq "patchcheck") {
 	patchcheck $i;
