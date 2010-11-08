@@ -75,6 +75,26 @@ static const char *f10h_nb_mce_desc[] = {
 	"ECC Error in the Probe Filter directory"
 };
 
+static const char * const f15h_ic_mce_desc[] = {
+	"UC during a demand linefill from L2",
+	"Parity error during data load from IC",
+	"Parity error for IC valid bit",
+	"Main tag parity error",
+	"Parity error in prediction queue",
+	"PFB data/address parity error",
+	"Parity error in the branch status reg",
+	"PFB promotion address error",
+	"Tag error during probe/victimization",
+	"Parity error for IC probe tag valid bit",
+	"PFB non-cacheable bit parity error",
+	"PFB valid bit parity error",			/* xec = 0xd */
+	"patch RAM",					/* xec = 010 */
+	"uop queue",
+	"insn buffer",
+	"predecode buffer",
+	"fetch address FIFO"
+};
+
 static bool f12h_dc_mce(u16 ec, u8 xec)
 {
 	bool ret = false;
@@ -241,7 +261,7 @@ static void amd_decode_dc_mce(struct mce *m)
 		pr_emerg(HW_ERR "Corrupted DC MCE info?\n");
 }
 
-static bool k8_ic_mce(u16 ec)
+static bool k8_ic_mce(u16 ec, u8 xec)
 {
 	u8 ll	 = ec & 0x3;
 	u8 r4	 = (ec >> 4) & 0xf;
@@ -276,7 +296,7 @@ static bool k8_ic_mce(u16 ec)
 	return ret;
 }
 
-static bool f14h_ic_mce(u16 ec)
+static bool f14h_ic_mce(u16 ec, u8 xec)
 {
 	u8 ll    = ec & 0x3;
 	u8 tt    = (ec >> 2) & 0x3;
@@ -297,6 +317,32 @@ static bool f14h_ic_mce(u16 ec)
 	return ret;
 }
 
+static bool f15h_ic_mce(u16 ec, u8 xec)
+{
+	bool ret = true;
+
+	if (!MEM_ERROR(ec))
+		return false;
+
+	switch (xec) {
+	case 0x0 ... 0xa:
+		pr_cont("%s.\n", f15h_ic_mce_desc[xec]);
+		break;
+
+	case 0xd:
+		pr_cont("%s.\n", f15h_ic_mce_desc[xec-2]);
+		break;
+
+	case 0x10 ... 0x14:
+		pr_cont("Decoder %s parity error.\n", f15h_ic_mce_desc[xec-4]);
+		break;
+
+	default:
+		ret = false;
+	}
+	return ret;
+}
+
 static void amd_decode_ic_mce(struct mce *m)
 {
 	u16 ec = m->status & 0xffff;
@@ -311,7 +357,7 @@ static void amd_decode_ic_mce(struct mce *m)
 		bool k8 = (boot_cpu_data.x86 == 0xf && (m->status & BIT_64(58)));
 
 		pr_cont("during %s.\n", (k8 ? "system linefill" : "NB data read"));
-	} else if (fam_ops->ic_mce(ec))
+	} else if (fam_ops->ic_mce(ec, xec))
 		;
 	else
 		pr_emerg(HW_ERR "Corrupted IC MCE info?\n");
@@ -697,6 +743,7 @@ static int __init mce_amd_init(void)
 	case 0x15:
 		xec_mask = 0x1f;
 		fam_ops->dc_mce = f15h_dc_mce;
+		fam_ops->ic_mce = f15h_ic_mce;
 		break;
 
 	default:
