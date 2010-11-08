@@ -2410,9 +2410,9 @@ struct iwl_link_quality_cmd {
 #define BT_FRAG_THRESHOLD_MAX	0
 #define BT_FRAG_THRESHOLD_MIN	0
 
-#define BT_AGG_THRESHOLD_DEF	0
-#define BT_AGG_THRESHOLD_MAX	0
-#define BT_AGG_THRESHOLD_MIN	0
+#define BT_AGG_THRESHOLD_DEF	1200
+#define BT_AGG_THRESHOLD_MAX	8000
+#define BT_AGG_THRESHOLD_MIN	400
 
 /*
  * REPLY_BT_CONFIG = 0x9b (command, has simple generic response)
