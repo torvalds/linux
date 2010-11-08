@@ -32,6 +32,7 @@
 
 #include "i915_reg.h"
 #include "intel_bios.h"
+#include "i915_trace.h"
 #include "intel_ringbuffer.h"
 #include <linux/io-mapping.h>
 #include <linux/i2c.h>
@@ -1173,14 +1174,58 @@ extern void intel_overlay_print_error_state(struct seq_file *m, struct intel_ove
 		LOCK_TEST_WITH_RETURN(dev, file_priv);			\
 } while (0)
 
-#define I915_READ(reg)          readl(dev_priv->regs + (reg))
-#define I915_WRITE(reg, val)     writel(val, dev_priv->regs + (reg))
-#define I915_READ16(reg)	readw(dev_priv->regs + (reg))
-#define I915_WRITE16(reg, val)	writel(val, dev_priv->regs + (reg))
-#define I915_READ8(reg)		readb(dev_priv->regs + (reg))
-#define I915_WRITE8(reg, val)	writeb(val, dev_priv->regs + (reg))
-#define I915_WRITE64(reg, val)	writeq(val, dev_priv->regs + (reg))
-#define I915_READ64(reg)	readq(dev_priv->regs + (reg))
+static inline u32 i915_read(struct drm_i915_private *dev_priv, u32 reg, int len)
+{
+       u64 val = 0;
+
+       switch (len) {
+       case 8:
+               val = readq(dev_priv->regs + reg);
+               break;
+       case 4:
+               val = readl(dev_priv->regs + reg);
+               break;
+       case 2:
+               val = readw(dev_priv->regs + reg);
+               break;
+       case 1:
+               val = readb(dev_priv->regs + reg);
+               break;
+       }
+       trace_i915_reg_rw('R', reg, val, len);
+
+       return val;
+}
+
+static inline void
+i915_write(struct drm_i915_private *dev_priv, u32 reg, u64 val, int len)
+{
+       /* Trace down the write operation before the real write */
+       trace_i915_reg_rw('W', reg, val, len);
+       switch (len) {
+       case 8:
+               writeq(val, dev_priv->regs + reg);
+               break;
+       case 4:
+               writel(val, dev_priv->regs + reg);
+               break;
+       case 2:
+               writew(val, dev_priv->regs + reg);
+               break;
+       case 1:
+               writeb(val, dev_priv->regs + reg);
+               break;
+       }
+}
+
+#define I915_READ(reg)		i915_read(dev_priv, (reg), 4)
+#define I915_WRITE(reg, val)	i915_write(dev_priv, (reg), (val), 4)
+#define I915_READ16(reg)	i915_read(dev_priv, (reg), 2)
+#define I915_WRITE16(reg, val)	i915_write(dev_priv, (reg), (val), 2)
+#define I915_READ8(reg)		i915_read(dev_priv, (reg), 1)
+#define I915_WRITE8(reg, val)	i915_write(dev_priv, (reg), (val), 1)
+#define I915_WRITE64(reg, val)	i915_write(dev_priv, (reg), (val), 8)
+#define I915_READ64(reg)	i915_read(dev_priv, (reg), 8)
 #define POSTING_READ(reg)	(void)I915_READ(reg)
 #define POSTING_READ16(reg)	(void)I915_READ16(reg)
 

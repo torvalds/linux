@@ -301,6 +301,29 @@ TRACE_EVENT(i915_flip_complete,
 	    TP_printk("plane=%d, obj=%p", __entry->plane, __entry->obj)
 );
 
+TRACE_EVENT(i915_reg_rw,
+           TP_PROTO(int cmd, uint32_t reg, uint64_t val, int len),
+
+           TP_ARGS(cmd, reg, val, len),
+
+           TP_STRUCT__entry(
+                   __field(int, cmd)
+                   __field(uint32_t, reg)
+                   __field(uint64_t, val)
+                   __field(int, len)
+                   ),
+
+           TP_fast_assign(
+                   __entry->cmd = cmd;
+                   __entry->reg = reg;
+                   __entry->val = (uint64_t)val;
+                   __entry->len = len;
+                   ),
+
+           TP_printk("cmd=%c, reg=0x%x, val=0x%llx, len=%d",
+                     __entry->cmd, __entry->reg, __entry->val, __entry->len)
+);
+
 #endif /* _I915_TRACE_H_ */
 
 /* This part must be outside protection */
