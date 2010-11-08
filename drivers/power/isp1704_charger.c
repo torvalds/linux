@@ -422,6 +422,23 @@ static int __devinit isp1704_charger_probe(struct platform_device *pdev)
 
 	dev_info(isp->dev, "registered with product id %s\n", isp->model);
 
+	/*
+	 * Taking over the D+ pullup.
+	 *
+	 * FIXME: The device will be disconnected if it was already
+	 * enumerated. The charger driver should be always loaded before any
+	 * gadget is loaded.
+	 */
+	if (isp->otg->gadget)
+		usb_gadget_disconnect(isp->otg->gadget);
+
+	/* Detect charger if VBUS is valid (the cable was already plugged). */
+	ret = otg_io_read(isp->otg, ULPI_USB_INT_STS);
+	if ((ret & ULPI_INT_VBUS_VALID) && !isp->otg->default_a) {
+		isp->event = USB_EVENT_VBUS;
+		schedule_work(&isp->work);
+	}
+
 	return 0;
 fail2:
 	power_supply_unregister(&isp->psy);
