@@ -787,3 +787,22 @@ struct platform_device tegra_grhost_device = {
 	.resource = tegra_grhost_resources,
 	.num_resources = ARRAY_SIZE(tegra_grhost_resources),
 };
+
+static struct resource tegra_avp_resources[] = {
+	[0] = {
+		.start	= INT_SHR_SEM_INBOX_IBF,
+		.end	= INT_SHR_SEM_INBOX_IBF,
+		.flags	= IORESOURCE_IRQ,
+		.name	= "mbox_from_avp_pending",
+	},
+};
+
+struct platform_device tegra_avp_device = {
+	.name		= "tegra-avp",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(tegra_avp_resources),
+	.resource	= tegra_avp_resources,
+	.dev  = {
+		.coherent_dma_mask	= 0xffffffffULL,
+	},
+};
