@@ -49,6 +49,18 @@ struct rk29fb_info{
     int (*io_deinit)(void);
 };
 
+struct rk29_sdmmc_platform_data {
+	unsigned int num_slots;
+	unsigned int host_caps;
+	unsigned int host_ocr_avail;
+	unsigned int use_dma:1;
+	char dma_name[8];
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+	int (*status)(struct device *);
+	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
+};
+
 void __init rk29_map_common_io(void);
 void __init rk29_clock_init(void);
 

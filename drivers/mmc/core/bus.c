@@ -268,7 +268,6 @@ int mmc_add_card(struct mmc_card *card)
 	return 0;
 }
 
-extern int sdmmc0_disable_Irq_ForRemoval;
 /*
  * Unregister a new MMC card with the driver model, and
  * (eventually) free it.
@@ -278,7 +277,6 @@ void mmc_remove_card(struct mmc_card *card)
 #ifdef CONFIG_DEBUG_FS
 	mmc_remove_card_debugfs(card);
 #endif
-	unsigned long flags;
 
 	if (mmc_card_present(card)) {
 		if (mmc_host_is_spi(card->host)) {
@@ -288,13 +286,6 @@ void mmc_remove_card(struct mmc_card *card)
 			printk(KERN_INFO "%s: card %04x removed\n",
 				mmc_hostname(card->host), card->rca);
 		}
-
-        if( !strncmp( mmc_hostname(card->host) ,"mmc0" , strlen("mmc0")) )
-        {
-			local_irq_save(flags);
-            sdmmc0_disable_Irq_ForRemoval = 1; //close the IRQ for insertion or removal  
-            local_irq_restore(flags);
-        }
 		device_del(&card->dev);
 	}
 

@@ -19,9 +19,59 @@
 #include <linux/delay.h>
 #include <mach/irqs.h>
 #include <mach/rk29_iomap.h>
- 
-#include "devices.h" 
- 
+#include "devices.h"
+
+#ifdef CONFIG_SDMMC0_RK29 
+static struct resource resources_sdmmc0[] = {
+	{
+		.start 	= IRQ_SDMMC,
+		.end 	= IRQ_SDMMC,
+		.flags 	= IORESOURCE_IRQ,
+	},
+	{
+		.start 	= RK29_SDMMC0_PHYS,
+		.end 	= RK29_SDMMC0_PHYS + RK29_SDMMC0_SIZE -1,
+		.flags 	= IORESOURCE_MEM,
+	}
+};
+#endif
+#ifdef CONFIG_SDMMC1_RK29
+static struct resource resources_sdmmc1[] = {
+	{
+		.start 	= IRQ_SDIO,
+		.end 	= IRQ_SDIO,
+		.flags 	= IORESOURCE_IRQ,
+	},
+	{
+		.start 	= RK29_SDMMC1_PHYS,
+		.end 	= RK29_SDMMC1_PHYS + RK29_SDMMC1_SIZE -1,
+		.flags 	= IORESOURCE_MEM,
+	}
+}; 
+#endif
+/* sdmmc */
+#ifdef CONFIG_SDMMC0_RK29
+struct platform_device rk29_device_sdmmc0 = {
+	.name			= "rk29_sdmmc",
+	.id				= 0,
+	.num_resources	= ARRAY_SIZE(resources_sdmmc0),
+	.resource		= resources_sdmmc0,
+	.dev 			= {
+		.platform_data = &default_sdmmc0_data,
+	},
+};
+#endif
+#ifdef CONFIG_SDMMC1_RK29
+struct platform_device rk29_device_sdmmc1 = {
+	.name			= "rk29_sdmmc",
+	.id				= 1,
+	.num_resources	= ARRAY_SIZE(resources_sdmmc1),
+	.resource		= resources_sdmmc1,
+	.dev 			= {
+		.platform_data = &default_sdmmc1_data,
+	},
+};
+#endif
 /*
  * rk29 4 uarts device
  */
@@ -34,7 +84,7 @@ static struct resource resources_uart0[] = {
 	},
 	{
 		.start	= RK29_UART0_PHYS,
-		.end	= RK29_UART0_PHYS + SZ_1K - 1,
+		.end	= RK29_UART0_PHYS + RK29_UART0_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -48,7 +98,7 @@ static struct resource resources_uart1[] = {
 	},
 	{
 		.start	= RK29_UART1_PHYS,
-		.end	= RK29_UART1_PHYS + SZ_1K - 1,
+		.end	= RK29_UART1_PHYS + RK29_UART1_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -62,7 +112,7 @@ static struct resource resources_uart2[] = {
 	},
 	{
 		.start	= RK29_UART2_PHYS,
-		.end	= RK29_UART2_PHYS + SZ_1K - 1,
+		.end	= RK29_UART2_PHYS + RK29_UART2_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -76,7 +126,7 @@ static struct resource resources_uart3[] = {
 	},
 	{
 		.start	= RK29_UART3_PHYS,
-		.end	= RK29_UART3_PHYS + SZ_1K - 1,
+		.end	= RK29_UART3_PHYS + RK29_UART3_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };

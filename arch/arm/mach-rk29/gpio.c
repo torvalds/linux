@@ -500,7 +500,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	unsigned char  __iomem	*gpioRegBase;
 	u32		isr;
 
-	rk29_gpio = get_irq_chip_data(irq);
+	rk29_gpio = get_irq_chip_data(irq+14);
 	gpioRegBase = rk29_gpio->regbase;
 
 	//ÆÁ±ÎÖÐ¶Ï6»ò7
@@ -602,6 +602,7 @@ void __init rk29_gpio_irq_setup(void)
 				irq = IRQ_GPIO6;
 				break;		
 		}
+		set_irq_chip_data(NR_AIC_IRQS+this->bank->id,this);
 		set_irq_chained_handler(irq, gpio_irq_handler);
 		this += 1; 
 		pin += 32;

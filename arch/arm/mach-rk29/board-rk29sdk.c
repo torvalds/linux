@@ -288,10 +288,107 @@ struct rk29fb_info rk29_fb_info = {
 };
 
 
+/*****************************************************************************************
+ * SDMMC devices
+*****************************************************************************************/
+#ifdef CONFIG_SDMMC0_RK29
+void rk29_sdmmc0_cfg_gpio(struct platform_device *dev)
+{
+	rk29_mux_api_set(GPIO1D1_SDMMC0CMD_NAME, GPIO1H_SDMMC0_CMD);
+	rk29_mux_api_set(GPIO1D0_SDMMC0CLKOUT_NAME, GPIO1H_SDMMC0_CLKOUT);
+	rk29_mux_api_set(GPIO1D2_SDMMC0DATA0_NAME, GPIO1H_SDMMC0_DATA0);
+	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
+	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
+	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
+}
+
+#define CONFIG_SDMMC0_USE_DMA
+struct rk29_sdmmc_platform_data default_sdmmc0_data = {
+	.num_slots		= 1,
+	.host_ocr_avail = (MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|
+					   MMC_VDD_30_31|MMC_VDD_31_32|MMC_VDD_32_33| 
+					   MMC_VDD_33_34|MMC_VDD_34_35| MMC_VDD_35_36),
+	.host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
+	.io_init = rk29_sdmmc0_cfg_gpio,
+	.dma_name = "sd_mmc",
+#ifdef CONFIG_SDMMC0_USE_DMA
+	.use_dma  = 1,
+#else
+	.use_dma = 0,
+#endif
+};
+#endif
+#ifdef CONFIG_SDMMC1_RK29
+#define CONFIG_SDMMC1_USE_DMA
+void rk29_sdmmc1_cfg_gpio(struct platform_device *dev)
+{
+	rk29_mux_api_set(GPIO1C2_SDMMC1CMD_NAME, GPIO1H_SDMMC1_CMD);
+	rk29_mux_api_set(GPIO1C7_SDMMC1CLKOUT_NAME, GPIO1H_SDMMC1_CLKOUT);
+	rk29_mux_api_set(GPIO1C3_SDMMC1DATA0_NAME, GPIO1H_SDMMC1_DATA0);
+	rk29_mux_api_set(GPIO1C4_SDMMC1DATA1_NAME, GPIO1H_SDMMC1_DATA1);
+	rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_SDMMC1_DATA2);
+	rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_SDMMC1_DATA3);
+}
+
+struct rk29_sdmmc_platform_data default_sdmmc1_data = {
+	.num_slots		= 1,
+	.host_ocr_avail = (MMC_VDD_26_27|MMC_VDD_27_28|MMC_VDD_28_29|
+					   MMC_VDD_29_30|MMC_VDD_30_31|MMC_VDD_31_32|
+					   MMC_VDD_32_33|MMC_VDD_33_34),
+	.host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_SDIO_IRQ|
+				   MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
+	.io_init = rk29_sdmmc1_cfg_gpio,
+	.dma_name = "sdio",
+#ifdef CONFIG_SDMMC1_USE_DMA
+	.use_dma  = 1,
+#else
+	.use_dma = 0,
+#endif
+};
+#endif
+static void __init rk29_board_iomux_init(void)
+{
+	#ifdef CONFIG_UART0_RK29	
+	rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_UART0_SOUT);
+	rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_UART0_SIN);
+	#ifdef CONFIG_UART0_CTS_RTS_RK29
+	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
+	rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_UART0_CTS_N);
+	#endif
+	#endif
+	#ifdef CONFIG_UART1_RK29	
+	rk29_mux_api_set(GPIO2A5_UART1SOUT_NAME, GPIO2L_UART1_SOUT);
+	rk29_mux_api_set(GPIO2A4_UART1SIN_NAME, GPIO2L_UART1_SIN);
+	#endif
+	#ifdef CONFIG_UART2_RK29	
+	rk29_mux_api_set(GPIO2B1_UART2SOUT_NAME, GPIO2L_UART2_SOUT);
+	rk29_mux_api_set(GPIO2B0_UART2SIN_NAME, GPIO2L_UART2_SIN);
+	#ifdef CONFIG_UART2_CTS_RTS_RK29
+	rk29_mux_api_set(GPIO2A7_UART2RTSN_NAME, GPIO2L_UART2_RTS_N);
+	rk29_mux_api_set(GPIO2A6_UART2CTSN_NAME, GPIO2L_UART2_CTS_N);
+	#endif
+	#endif
+	#ifdef CONFIG_UART3_RK29	
+	rk29_mux_api_set(GPIO2B3_UART3SOUT_NAME, GPIO2L_UART3_SOUT);
+	rk29_mux_api_set(GPIO2B2_UART3SIN_NAME, GPIO2L_UART3_SIN);
+	#ifdef CONFIG_UART3_CTS_RTS_RK29
+	rk29_mux_api_set(GPIO2B5_UART3RTSN_I2C3SCL_NAME, GPIO2L_UART3_RTS_N);
+	rk29_mux_api_set(GPIO2B4_UART3CTSN_I2C3SDA_NAME, GPIO2L_UART3_CTS_N);
+	#endif
+	#endif
+}
+
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART1_RK29	
 	&rk29_device_uart1,
 #endif	
+#ifdef CONFIG_SDMMC0_RK29	
+	&rk29_device_sdmmc0,
+#endif
+#ifdef CONFIG_SDMMC1_RK29
+	&rk29_device_sdmmc1,
+#endif
 #ifdef CONFIG_MTD_NAND_RK29
 	&rk29_device_nand,
 #endif
@@ -321,6 +418,7 @@ static void __init machine_rk29_init_irq(void)
 static void __init machine_rk29_board_init(void)
 { 
 	platform_add_devices(devices, ARRAY_SIZE(devices));	
+	rk29_board_iomux_init();
 }
 
 static void __init machine_rk29_mapio(void)
