@@ -18,6 +18,7 @@
  *
  */
 
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/kref.h>
@@ -26,6 +27,7 @@
 #include <linux/mutex.h>
 #include <linux/rbtree.h>
 #include <linux/sched.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/tegra_rpc.h>
 #include <linux/types.h>
@@ -92,6 +94,7 @@ struct trpc_msg {
 };
 
 static struct tegra_rpc_info *tegra_rpc;
+static struct dentry *trpc_debug_root;
 
 static struct trpc_msg *dequeue_msg_locked(struct trpc_endpoint *ep);
 
@@ -704,6 +707,59 @@ void trpc_node_unregister(struct trpc_node *node)
 	mutex_unlock(&info->node_lock);
 }
 
+static int trpc_debug_ports_show(struct seq_file *s, void *data)
+{
+	struct tegra_rpc_info *info = s->private;
+	struct rb_node *n;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&info->ports_lock, flags);
+	for (n = rb_first(&info->ports); n; n = rb_next(n)) {
+		struct trpc_port *port = rb_entry(n, struct trpc_port, rb_node);
+		seq_printf(s, "port: %s\n closed:%s\n", port->name,
+			   port->closed ? "yes" : "no");
+
+		spin_lock(&port->lock);
+		for (i = 0; i < ARRAY_SIZE(port->peers); i++) {
+			struct trpc_endpoint *ep = &port->peers[i];
+			seq_printf(s, "  peer%d: %s\n    ready:%s\n", i,
+				   ep->owner ? ep->owner->name: "<none>",
+				   ep->ready ? "yes" : "no");
+			if (ep->ops && ep->ops->show)
+				ep->ops->show(s, ep);
+		}
+		spin_unlock(&port->lock);
+	}
+	spin_unlock_irqrestore(&info->ports_lock, flags);
+
+	return 0;
+}
+
+static int trpc_debug_ports_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, trpc_debug_ports_show, inode->i_private);
+}
+
+static struct file_operations trpc_debug_ports_fops = {
+	.open = trpc_debug_ports_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static void trpc_debug_init(struct tegra_rpc_info *info)
+{
+	trpc_debug_root = debugfs_create_dir("tegra_rpc", NULL);
+	if (IS_ERR_OR_NULL(trpc_debug_root)) {
+		pr_err("%s: couldn't create debug files\n", __func__);
+		return;
+	}
+
+	debugfs_create_file("ports", 0664, trpc_debug_root, info,
+			    &trpc_debug_ports_fops);
+}
+
 static int __init tegra_rpc_init(void)
 {
 	struct tegra_rpc_info *rpc_info;
@@ -726,6 +782,8 @@ static int __init tegra_rpc_init(void)
 		ret = -ENOMEM;
 		goto err_kmem_cache;
 	}
+
+	trpc_debug_init(rpc_info);
 	tegra_rpc = rpc_info;
 
 	return 0;

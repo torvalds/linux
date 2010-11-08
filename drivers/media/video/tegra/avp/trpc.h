@@ -19,6 +19,7 @@
 #define __ARM_MACH_TEGRA_RPC_H
 
 #include <linux/list.h>
+#include <linux/seq_file.h>
 #include <linux/tegra_rpc.h>
 
 struct trpc_endpoint;
@@ -29,6 +30,8 @@ struct trpc_ep_ops {
 	void	(*notify_recv)(struct trpc_endpoint *ep);
 	/* close is allowed to sleep */
 	void	(*close)(struct trpc_endpoint *ep);
+	/* not allowed to sleep, not allowed to call back into trpc */
+	void	(*show)(struct seq_file *s, struct trpc_endpoint *ep);
 };
 
 enum {
