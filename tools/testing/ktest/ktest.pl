@@ -230,7 +230,7 @@ sub read_config {
     }
 }
 
-sub logit {
+sub _logit {
     if (defined($opt{"LOG_FILE"})) {
 	open(OUT, ">> $opt{LOG_FILE}") or die "Can't write to $opt{LOG_FILE}";
 	print OUT @_;
@@ -238,9 +238,17 @@ sub logit {
     }
 }
 
+sub logit {
+    if (defined($opt{"LOG_FILE"})) {
+	_logit @_;
+    } else {
+	print @_;
+    }
+}
+
 sub doprint {
     print @_;
-    logit @_;
+    _logit @_;
 }
 
 sub run_command;
