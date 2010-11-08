@@ -126,9 +126,6 @@ static int tpa6130a2_power(int power)
 
 	mutex_lock(&data->mutex);
 	if (power) {
-		/* Power on */
-		if (data->power_gpio >= 0)
-			gpio_set_value(data->power_gpio, 1);
 
 		ret = regulator_enable(data->supply);
 		if (ret != 0) {
@@ -136,6 +133,9 @@ static int tpa6130a2_power(int power)
 				"Failed to enable supply: %d\n", ret);
 			goto exit;
 		}
+		/* Power on */
+		if (data->power_gpio >= 0)
+			gpio_set_value(data->power_gpio, 1);
 
 		data->power_state = 1;
 		ret = tpa6130a2_initialize();
