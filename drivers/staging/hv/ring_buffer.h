@@ -75,28 +75,28 @@ struct hv_ring_buffer_debug_info {
 /* Interface */
 
 
-int RingBufferInit(struct hv_ring_buffer_info *ring_info, void *buffer,
+int ringbuffer_init(struct hv_ring_buffer_info *ring_info, void *buffer,
 		   u32 buflen);
 
-void RingBufferCleanup(struct hv_ring_buffer_info *ring_info);
+void ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info);
 
-int RingBufferWrite(struct hv_ring_buffer_info *ring_info,
+int ringbuffer_write(struct hv_ring_buffer_info *ring_info,
 		    struct scatterlist *sglist,
 		    u32 sgcount);
 
-int RingBufferPeek(struct hv_ring_buffer_info *ring_info, void *buffer,
+int ringbuffer_peek(struct hv_ring_buffer_info *ring_info, void *buffer,
 		   u32 buflen);
 
-int RingBufferRead(struct hv_ring_buffer_info *ring_info,
+int ringbuffer_read(struct hv_ring_buffer_info *ring_info,
 		   void *buffer,
 		   u32 buflen,
 		   u32 offset);
 
-u32 GetRingBufferInterruptMask(struct hv_ring_buffer_info *ring_info);
+u32 get_ringbuffer_interrupt_mask(struct hv_ring_buffer_info *ring_info);
 
-void Dumpring_info(struct hv_ring_buffer_info *ring_info, char *prefix);
+void dump_ring_info(struct hv_ring_buffer_info *ring_info, char *prefix);
 
-void RingBufferGetDebugInfo(struct hv_ring_buffer_info *ring_info,
+void ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 			    struct hv_ring_buffer_debug_info *debug_info);
 
 #endif /* _RING_BUFFER_H_ */

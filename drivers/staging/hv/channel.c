@@ -155,8 +155,8 @@ void vmbus_get_debug_info(struct vmbus_channel *channel,
 			monitorpage->parameter[monitor_group]
 					[monitor_offset].connectionid.u.id;
 
-	RingBufferGetDebugInfo(&channel->inbound, &debuginfo->inbound);
-	RingBufferGetDebugInfo(&channel->outbound, &debuginfo->outbound);
+	ringbuffer_get_debuginfo(&channel->inbound, &debuginfo->inbound);
+	ringbuffer_get_debuginfo(&channel->outbound, &debuginfo->outbound);
 }
 
 /*
@@ -193,13 +193,13 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	newchannel->ringbuffer_pagecount = (send_ringbuffer_size +
 					   recv_ringbuffer_size) >> PAGE_SHIFT;
 
-	ret = RingBufferInit(&newchannel->outbound, out, send_ringbuffer_size);
+	ret = ringbuffer_init(&newchannel->outbound, out, send_ringbuffer_size);
 	if (ret != 0) {
 		err = ret;
 		goto errorout;
 	}
 
-	ret = RingBufferInit(&newchannel->inbound, in, recv_ringbuffer_size);
+	ret = ringbuffer_init(&newchannel->inbound, in, recv_ringbuffer_size);
 	if (ret != 0) {
 		err = ret;
 		goto errorout;
@@ -298,8 +298,8 @@ Cleanup:
 	return 0;
 
 errorout:
-	RingBufferCleanup(&newchannel->outbound);
-	RingBufferCleanup(&newchannel->inbound);
+	ringbuffer_cleanup(&newchannel->outbound);
+	ringbuffer_cleanup(&newchannel->inbound);
 	osd_page_free(out, (send_ringbuffer_size + recv_ringbuffer_size)
 		     >> PAGE_SHIFT);
 	kfree(openInfo);
@@ -683,8 +683,8 @@ void vmbus_close(struct vmbus_channel *channel)
 	/* TODO: Send a msg to release the childRelId */
 
 	/* Cleanup the ring buffers for this channel */
-	RingBufferCleanup(&channel->outbound);
-	RingBufferCleanup(&channel->inbound);
+	ringbuffer_cleanup(&channel->outbound);
+	ringbuffer_cleanup(&channel->inbound);
 
 	osd_page_free(channel->ringbuffer_pages, channel->ringbuffer_pagecount);
 
@@ -752,10 +752,10 @@ int vmbus_sendpacket(struct vmbus_channel *channel, const void *buffer,
 	sg_set_buf(&bufferlist[2], &aligned_data,
 		   packetlen_aligned - packetlen);
 
-	ret = RingBufferWrite(&channel->outbound, bufferlist, 3);
+	ret = ringbuffer_write(&channel->outbound, bufferlist, 3);
 
 	/* TODO: We should determine if this is optional */
-	if (ret == 0 && !GetRingBufferInterruptMask(&channel->outbound))
+	if (ret == 0 && !get_ringbuffer_interrupt_mask(&channel->outbound))
 		vmbus_setevent(channel);
 
 	return ret;
@@ -817,10 +817,10 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 	sg_set_buf(&bufferlist[2], &aligned_data,
 		packetlen_aligned - packetlen);
 
-	ret = RingBufferWrite(&channel->outbound, bufferlist, 3);
+	ret = ringbuffer_write(&channel->outbound, bufferlist, 3);
 
 	/* TODO: We should determine if this is optional */
-	if (ret == 0 && !GetRingBufferInterruptMask(&channel->outbound))
+	if (ret == 0 && !get_ringbuffer_interrupt_mask(&channel->outbound))
 		vmbus_setevent(channel);
 
 	return ret;
@@ -886,10 +886,10 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	sg_set_buf(&bufferlist[2], &aligned_data,
 		packetlen_aligned - packetlen);
 
-	ret = RingBufferWrite(&channel->outbound, bufferlist, 3);
+	ret = ringbuffer_write(&channel->outbound, bufferlist, 3);
 
 	/* TODO: We should determine if this is optional */
-	if (ret == 0 && !GetRingBufferInterruptMask(&channel->outbound))
+	if (ret == 0 && !get_ringbuffer_interrupt_mask(&channel->outbound))
 		vmbus_setevent(channel);
 
 	return ret;
@@ -923,7 +923,7 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 
 	spin_lock_irqsave(&channel->inbound_lock, flags);
 
-	ret = RingBufferPeek(&channel->inbound, &desc,
+	ret = ringbuffer_peek(&channel->inbound, &desc,
 			     sizeof(struct vmpacket_descriptor));
 	if (ret != 0) {
 		spin_unlock_irqrestore(&channel->inbound_lock, flags);
@@ -956,7 +956,7 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 	*requestid = desc.TransactionId;
 
 	/* Copy over the packet to the user buffer */
-	ret = RingBufferRead(&channel->inbound, buffer, userlen,
+	ret = ringbuffer_read(&channel->inbound, buffer, userlen,
 			     (desc.DataOffset8 << 3));
 
 	spin_unlock_irqrestore(&channel->inbound_lock, flags);
@@ -983,7 +983,7 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 
 	spin_lock_irqsave(&channel->inbound_lock, flags);
 
-	ret = RingBufferPeek(&channel->inbound, &desc,
+	ret = ringbuffer_peek(&channel->inbound, &desc,
 			     sizeof(struct vmpacket_descriptor));
 	if (ret != 0) {
 		spin_unlock_irqrestore(&channel->inbound_lock, flags);
@@ -1015,7 +1015,7 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 	*requestid = desc.TransactionId;
 
 	/* Copy over the entire packet to the user buffer */
-	ret = RingBufferRead(&channel->inbound, buffer, packetlen, 0);
+	ret = ringbuffer_read(&channel->inbound, buffer, packetlen, 0);
 
 	spin_unlock_irqrestore(&channel->inbound_lock, flags);
 	return 0;
@@ -1052,6 +1052,6 @@ void vmbus_ontimer(unsigned long data)
 static void dump_vmbus_channel(struct vmbus_channel *channel)
 {
 	DPRINT_DBG(VMBUS, "Channel (%d)", channel->offermsg.child_relid);
-	Dumpring_info(&channel->outbound, "Outbound ");
-	Dumpring_info(&channel->inbound, "Inbound ");
+	dump_ring_info(&channel->outbound, "Outbound ");
+	dump_ring_info(&channel->inbound, "Inbound ");
 }
