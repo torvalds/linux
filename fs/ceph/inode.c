@@ -567,12 +567,17 @@ static int fill_inode(struct inode *inode,
 
 	/*
 	 * provided version will be odd if inode value is projected,
-	 * even if stable.  skip the update if we have a newer info
-	 * (e.g., due to inode info racing form multiple MDSs), or if
-	 * we are getting projected (unstable) inode info.
+	 * even if stable.  skip the update if we have newer stable
+	 * info (ours>=theirs, e.g. due to racing mds replies), unless
+	 * we are getting projected (unstable) info (in which case the
+	 * version is odd, and we want ours>theirs).
+	 *   us   them
+	 *   2    2     skip
+	 *   3    2     skip
+	 *   3    3     update
 	 */
 	if (le64_to_cpu(info->version) > 0 &&
-	    (ci->i_version & ~1) > le64_to_cpu(info->version))
+	    (ci->i_version & ~1) >= le64_to_cpu(info->version))
 		goto no_change;
 
 	issued = __ceph_caps_issued(ci, &implemented);
