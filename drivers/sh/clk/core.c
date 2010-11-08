@@ -561,57 +561,74 @@ long clk_round_parent(struct clk *clk, unsigned long target,
 			continue;
 
 		if (unlikely(freq->frequency / target <= div_min - 1)) {
-			unsigned long freq_max = (freq->frequency + div_min / 2) / div_min;
+			unsigned long freq_max;
+
+			freq_max = (freq->frequency + div_min / 2) / div_min;
 			if (error > target - freq_max) {
 				error = target - freq_max;
 				best = freq;
 				if (best_freq)
 					*best_freq = freq_max;
 			}
-			pr_debug("too low freq %lu, error %lu\n", freq->frequency, target - freq_max);
+
+			pr_debug("too low freq %lu, error %lu\n", freq->frequency,
+				 target - freq_max);
+
 			if (!error)
 				break;
+
 			continue;
 		}
 
 		if (unlikely(freq->frequency / target >= div_max)) {
-			unsigned long freq_min = (freq->frequency + div_max / 2) / div_max;
+			unsigned long freq_min;
+
+			freq_min = (freq->frequency + div_max / 2) / div_max;
 			if (error > freq_min - target) {
 				error = freq_min - target;
 				best = freq;
 				if (best_freq)
 					*best_freq = freq_min;
 			}
-			pr_debug("too high freq %lu, error %lu\n", freq->frequency, freq_min - target);
+
+			pr_debug("too high freq %lu, error %lu\n", freq->frequency,
+				 freq_min - target);
+
 			if (!error)
 				break;
+
 			continue;
 		}
-
 
 		div = freq->frequency / target;
 		freq_high = freq->frequency / div;
 		freq_low = freq->frequency / (div + 1);
+
 		if (freq_high - target < error) {
 			error = freq_high - target;
 			best = freq;
 			if (best_freq)
 				*best_freq = freq_high;
 		}
+
 		if (target - freq_low < error) {
 			error = target - freq_low;
 			best = freq;
 			if (best_freq)
 				*best_freq = freq_low;
 		}
+
 		pr_debug("%u / %lu = %lu, / %lu = %lu, best %lu, parent %u\n",
 			 freq->frequency, div, freq_high, div + 1, freq_low,
 			 *best_freq, best->frequency);
+
 		if (!error)
 			break;
 	}
+
 	if (parent_freq)
 		*parent_freq = best->frequency;
+
 	return error;
 }
 EXPORT_SYMBOL_GPL(clk_round_parent);
