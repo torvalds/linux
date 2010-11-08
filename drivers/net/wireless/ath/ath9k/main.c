@@ -239,7 +239,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	 * hardware at the new frequency, and then re-enable
 	 * the relevant bits of the h/w.
 	 */
-	ath9k_hw_set_interrupts(ah, 0);
+	ath9k_hw_disable_interrupts(ah);
 	ath_drain_all_txq(sc, false);
 
 	spin_lock_bh(&sc->rx.pcu_lock);
@@ -653,7 +653,7 @@ void ath9k_tasklet(unsigned long data)
 			ath_gen_timer_isr(sc->sc_ah);
 
 	/* re-enable hardware interrupt */
-	ath9k_hw_set_interrupts(ah, ah->imask);
+	ath9k_hw_enable_interrupts(ah);
 	ath9k_ps_restore(sc);
 }
 
@@ -752,7 +752,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 		 * interrupt; otherwise it will continue to
 		 * fire.
 		 */
-		ath9k_hw_set_interrupts(ah, 0);
+		ath9k_hw_disable_interrupts(ah);
 		/*
 		 * Let the hal handle the event. We assume
 		 * it will clear whatever condition caused
@@ -761,7 +761,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 		spin_lock(&common->cc_lock);
 		ath9k_hw_proc_mib_event(ah);
 		spin_unlock(&common->cc_lock);
-		ath9k_hw_set_interrupts(ah, ah->imask);
+		ath9k_hw_enable_interrupts(ah);
 	}
 
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP))
@@ -778,8 +778,8 @@ chip_reset:
 	ath_debug_stat_interrupt(sc, status);
 
 	if (sched) {
-		/* turn off every interrupt except SWBA */
-		ath9k_hw_set_interrupts(ah, (ah->imask & ATH9K_INT_SWBA));
+		/* turn off every interrupt */
+		ath9k_hw_disable_interrupts(ah);
 		tasklet_schedule(&sc->intr_tq);
 	}
 
@@ -937,7 +937,7 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	}
 
 	/* Disable interrupts */
-	ath9k_hw_set_interrupts(ah, 0);
+	ath9k_hw_disable_interrupts(ah);
 
 	ath_drain_all_txq(sc, false);	/* clear pending tx frames */
 
@@ -980,7 +980,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 
 	ieee80211_stop_queues(hw);
 
-	ath9k_hw_set_interrupts(ah, 0);
+	ath9k_hw_disable_interrupts(ah);
 	ath_drain_all_txq(sc, retry_tx);
 
 	spin_lock_bh(&sc->rx.pcu_lock);
@@ -1394,7 +1394,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	/* make sure h/w will not generate any interrupt
 	 * before setting the invalid flag. */
-	ath9k_hw_set_interrupts(ah, 0);
+	ath9k_hw_disable_interrupts(ah);
 
 	spin_lock_bh(&sc->rx.pcu_lock);
 	if (!(sc->sc_flags & SC_OP_INVALID)) {

@@ -503,7 +503,7 @@ static void ath_beacon_config_ap(struct ath_softc *sc,
 
 	/* Set the computed AP beacon timers */
 
-	ath9k_hw_set_interrupts(ah, 0);
+	ath9k_hw_disable_interrupts(ah);
 	ath9k_beacon_init(sc, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
 	ath9k_hw_set_interrupts(ah, ah->imask);
@@ -638,7 +638,7 @@ static void ath_beacon_config_sta(struct ath_softc *sc,
 
 	/* Set the computed STA beacon timers */
 
-	ath9k_hw_set_interrupts(ah, 0);
+	ath9k_hw_disable_interrupts(ah);
 	ath9k_hw_set_sta_beacon_timers(ah, &bs);
 	ah->imask |= ATH9K_INT_BMISS;
 	ath9k_hw_set_interrupts(ah, ah->imask);
@@ -686,7 +686,7 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 
 	/* Set the computed ADHOC beacon timers */
 
-	ath9k_hw_set_interrupts(ah, 0);
+	ath9k_hw_disable_interrupts(ah);
 	ath9k_beacon_init(sc, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
 	ath9k_hw_set_interrupts(ah, ah->imask);

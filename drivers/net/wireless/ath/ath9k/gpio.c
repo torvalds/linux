@@ -259,7 +259,7 @@ static void ath9k_gen_timer_start(struct ath_hw *ah,
 	ath9k_hw_gen_timer_start(ah, timer, timer_next, timer_period);
 
 	if ((ah->imask & ATH9K_INT_GENTIMER) == 0) {
-		ath9k_hw_set_interrupts(ah, 0);
+		ath9k_hw_disable_interrupts(ah);
 		ah->imask |= ATH9K_INT_GENTIMER;
 		ath9k_hw_set_interrupts(ah, ah->imask);
 	}
@@ -273,7 +273,7 @@ static void ath9k_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 
 	/* if no timer is enabled, turn off interrupt mask */
 	if (timer_table->timer_mask.val == 0) {
-		ath9k_hw_set_interrupts(ah, 0);
+		ath9k_hw_disable_interrupts(ah);
 		ah->imask &= ~ATH9K_INT_GENTIMER;
 		ath9k_hw_set_interrupts(ah, ah->imask);
 	}
