@@ -78,7 +78,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	/* pgdir take page or two with 4K pages and a page fraction otherwise */
 #ifndef CONFIG_PPC_4K_PAGES
-	ret = (pgd_t *)kzalloc(1 << PGDIR_ORDER, GFP_KERNEL);
+	ret = kzalloc(1 << PGDIR_ORDER, GFP_KERNEL);
 #else
 	ret = (pgd_t *)__get_free_pages(GFP_KERNEL|__GFP_ZERO,
 			PGDIR_ORDER - PAGE_SHIFT);
