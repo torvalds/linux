@@ -637,11 +637,11 @@ cfq_set_prio_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 static inline bool cfq_slice_used(struct cfq_queue *cfqq)
 {
 	if (cfq_cfqq_slice_new(cfqq))
-		return 0;
+		return false;
 	if (time_before(jiffies, cfqq->slice_end))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /*
@@ -1892,10 +1892,10 @@ static bool cfq_should_idle(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * in their service tree.
 	 */
 	if (service_tree->count == 1 && cfq_cfqq_sync(cfqq))
-		return 1;
+		return true;
 	cfq_log_cfqq(cfqd, cfqq, "Not idling. st->count:%d",
 			service_tree->count);
-	return 0;
+	return false;
 }
 
 static void cfq_arm_slice_timer(struct cfq_data *cfqd)
@@ -2359,12 +2359,12 @@ static inline bool cfq_slice_used_soon(struct cfq_data *cfqd,
 {
 	/* the queue hasn't finished any request, can't estimate */
 	if (cfq_cfqq_slice_new(cfqq))
-		return 1;
+		return true;
 	if (time_after(jiffies + cfqd->cfq_slice_idle * cfqq->dispatched,
 		cfqq->slice_end))
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 static bool cfq_may_dispatch(struct cfq_data *cfqd, struct cfq_queue *cfqq)
