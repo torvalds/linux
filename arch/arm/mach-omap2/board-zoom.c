@@ -1,6 +1,7 @@
 /*
- * Copyright (C) 2009 Texas Instruments Inc.
+ * Copyright (C) 2009-2010 Texas Instruments Inc.
  * Mikkel Christensen <mlc@ti.com>
+ * Felipe Balbi <balbi@ti.com>
  *
  * Modified from mach-omap2/board-ldp.c
  *
@@ -21,17 +22,24 @@
 
 #include <plat/common.h>
 #include <plat/board.h>
+#include <plat/usb.h>
 
 #include <mach/board-zoom.h>
 
 #include "board-flash.h"
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
+#include "sdram-hynix-h8mbx00u0mer-0em.h"
 
-static void __init omap_zoom2_init_irq(void)
+static void __init omap_zoom_init_irq(void)
 {
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
-				 mt46h32m32lf6_sdrc_params);
+	if (machine_is_omap_zoom2())
+		omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
+				mt46h32m32lf6_sdrc_params);
+	else if (machine_is_omap_zoom3())
+		omap2_init_common_hw(h8mbx00u0mer0em_sdrc_params,
+				h8mbx00u0mer0em_sdrc_params);
+
 	omap_init_irq();
 	omap_gpio_init();
 }
@@ -98,20 +106,46 @@ static struct mtd_partition zoom_nand_partitions[] = {
 	},
 };
 
-static void __init omap_zoom2_init(void)
+static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
+	.port_mode[0]		= EHCI_HCD_OMAP_MODE_UNKNOWN,
+	.port_mode[1]		= EHCI_HCD_OMAP_MODE_PHY,
+	.port_mode[2]		= EHCI_HCD_OMAP_MODE_UNKNOWN,
+	.phy_reset		= true,
+	.reset_gpio_port[0]	= -EINVAL,
+	.reset_gpio_port[1]	= 64,
+	.reset_gpio_port[2]	= -EINVAL,
+};
+
+static void __init omap_zoom_init(void)
 {
-	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
-	zoom_peripherals_init();
+	if (machine_is_omap_zoom2()) {
+		omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+	} else if (machine_is_omap_zoom3()) {
+		omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
+		omap_mux_init_gpio(64, OMAP_PIN_OUTPUT);
+		usb_ehci_init(&ehci_pdata);
+	}
+
 	board_nand_init(zoom_nand_partitions,
 			ARRAY_SIZE(zoom_nand_partitions), ZOOM_NAND_CS);
 	zoom_debugboard_init();
+	zoom_peripherals_init();
 }
 
 MACHINE_START(OMAP_ZOOM2, "OMAP Zoom2 board")
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_zoom2_init_irq,
-	.init_machine	= omap_zoom2_init,
+	.init_irq	= omap_zoom_init_irq,
+	.init_machine	= omap_zoom_init,
+	.timer		= &omap_timer,
+MACHINE_END
+
+MACHINE_START(OMAP_ZOOM3, "OMAP Zoom3 board")
+	.boot_params	= 0x80000100,
+	.map_io		= omap3_map_io,
+	.reserve	= omap_reserve,
+	.init_irq	= omap_zoom_init_irq,
+	.init_machine	= omap_zoom_init,
 	.timer		= &omap_timer,
 MACHINE_END
