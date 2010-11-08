@@ -25,11 +25,11 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include "wl1271_init.h"
+#include "init.h"
 #include "wl12xx_80211.h"
-#include "wl1271_acx.h"
-#include "wl1271_cmd.h"
-#include "wl1271_reg.h"
+#include "acx.h"
+#include "cmd.h"
+#include "reg.h"
 
 static int wl1271_init_hwenc_config(struct wl1271 *wl)
 {

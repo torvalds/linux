@@ -31,20 +31,20 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include "wl1271.h"
+#include "wl12xx.h"
 #include "wl12xx_80211.h"
-#include "wl1271_reg.h"
-#include "wl1271_io.h"
-#include "wl1271_event.h"
-#include "wl1271_tx.h"
-#include "wl1271_rx.h"
-#include "wl1271_ps.h"
-#include "wl1271_init.h"
-#include "wl1271_debugfs.h"
-#include "wl1271_cmd.h"
-#include "wl1271_boot.h"
-#include "wl1271_testmode.h"
-#include "wl1271_scan.h"
+#include "reg.h"
+#include "io.h"
+#include "event.h"
+#include "tx.h"
+#include "rx.h"
+#include "ps.h"
+#include "init.h"
+#include "debugfs.h"
+#include "cmd.h"
+#include "boot.h"
+#include "testmode.h"
+#include "scan.h"
 
 #define WL1271_BOOT_RETRIES 3
 
@@ -884,7 +884,7 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		set_bit(WL1271_FLAG_STA_RATES_CHANGED, &wl->flags);
 	}
 
-#ifdef CONFIG_WL1271_HT
+#ifdef CONFIG_WL12XX_HT
 	if (sta &&
 	    sta->ht_cap.ht_supported &&
 	    ((wl->sta_rate_set >> HW_HT_RATES_OFFSET) !=
@@ -2247,8 +2247,8 @@ static const u8 wl1271_rate_to_idx_2ghz[] = {
 /* 11n STA capabilities */
 #define HW_RX_HIGHEST_RATE	72
 
-#ifdef CONFIG_WL1271_HT
-#define WL1271_HT_CAP { \
+#ifdef CONFIG_WL12XX_HT
+#define WL12XX_HT_CAP { \
 	.cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20, \
 	.ht_supported = true, \
 	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K, \
@@ -2260,7 +2260,7 @@ static const u8 wl1271_rate_to_idx_2ghz[] = {
 		}, \
 }
 #else
-#define WL1271_HT_CAP { \
+#define WL12XX_HT_CAP { \
 	.ht_supported = false, \
 }
 #endif
@@ -2271,7 +2271,7 @@ static struct ieee80211_supported_band wl1271_band_2ghz = {
 	.n_channels = ARRAY_SIZE(wl1271_channels),
 	.bitrates = wl1271_rates,
 	.n_bitrates = ARRAY_SIZE(wl1271_rates),
-	.ht_cap	= WL1271_HT_CAP,
+	.ht_cap	= WL12XX_HT_CAP,
 };
 
 /* 5 GHz data rates for WL1273 */
@@ -2386,7 +2386,7 @@ static struct ieee80211_supported_band wl1271_band_5ghz = {
 	.n_channels = ARRAY_SIZE(wl1271_channels_5ghz),
 	.bitrates = wl1271_rates_5ghz,
 	.n_bitrates = ARRAY_SIZE(wl1271_rates_5ghz),
-	.ht_cap	= WL1271_HT_CAP,
+	.ht_cap	= WL12XX_HT_CAP,
 };
 
 static const u8 *wl1271_band_rate_to_idx[] = {

@@ -22,10 +22,10 @@
  *
  */
 
-#ifndef __WL1271_CMD_H__
-#define __WL1271_CMD_H__
+#ifndef __CMD_H__
+#define __CMD_H__
 
-#include "wl1271.h"
+#include "wl12xx.h"
 
 struct acx_header;
 

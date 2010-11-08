@@ -22,11 +22,11 @@
  *
  */
 
-#ifndef __WL1271_ACX_H__
-#define __WL1271_ACX_H__
+#ifndef __ACX_H__
+#define __ACX_H__
 
-#include "wl1271.h"
-#include "wl1271_cmd.h"
+#include "wl12xx.h"
+#include "cmd.h"
 
 /*************************************************************************
 

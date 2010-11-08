@@ -21,7 +21,7 @@
  *
  */
 
-#include "wl1271_acx.h"
+#include "acx.h"
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -29,10 +29,10 @@
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 
-#include "wl1271.h"
+#include "wl12xx.h"
 #include "wl12xx_80211.h"
-#include "wl1271_reg.h"
-#include "wl1271_ps.h"
+#include "reg.h"
+#include "ps.h"
 
 int wl1271_acx_wake_up_conditions(struct wl1271 *wl)
 {

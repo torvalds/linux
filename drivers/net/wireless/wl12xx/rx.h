@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __WL1271_RX_H__
-#define __WL1271_RX_H__
+#ifndef __RX_H__
+#define __RX_H__
 
 #include <linux/bitops.h>
 

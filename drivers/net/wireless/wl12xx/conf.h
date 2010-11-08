@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef __WL1271_CONF_H__
-#define __WL1271_CONF_H__
+#ifndef __CONF_H__
+#define __CONF_H__
 
 enum {
 	CONF_HW_BIT_RATE_1MBPS   = BIT(0),
