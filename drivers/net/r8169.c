@@ -2931,7 +2931,7 @@ static const struct rtl_cfg_info {
 		.hw_start	= rtl_hw_start_8168,
 		.region		= 2,
 		.align		= 8,
-		.intr_event	= SYSErr | RxFIFOOver | LinkChg | RxOverflow |
+		.intr_event	= SYSErr | LinkChg | RxOverflow |
 				  TxErr | TxOK | RxOK | RxErr,
 		.napi_event	= TxErr | TxOK | RxOK | RxOverflow,
 		.features	= RTL_FEATURE_GMII | RTL_FEATURE_MSI,
@@ -4588,7 +4588,8 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 		}
 
 		/* Work around for rx fifo overflow */
-		if (unlikely(status & RxFIFOOver)) {
+		if (unlikely(status & RxFIFOOver) &&
+		(tp->mac_version == RTL_GIGA_MAC_VER_11)) {
 			netif_stop_queue(dev);
 			rtl8169_tx_timeout(dev);
 			break;
