@@ -2003,13 +2003,12 @@ bool dispc_alpha_blending_enabled(enum omap_channel ch)
 	if (ch == OMAP_DSS_CHANNEL_LCD)
 		enabled = REG_GET(DISPC_CONFIG, 18, 18);
 	else if (ch == OMAP_DSS_CHANNEL_DIGIT)
-		enabled = REG_GET(DISPC_CONFIG, 18, 18);
+		enabled = REG_GET(DISPC_CONFIG, 19, 19);
 	else
 		BUG();
 	enable_clocks(0);
 
 	return enabled;
-
 }
 
 
