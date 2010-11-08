@@ -51,13 +51,16 @@ int solo_p2m_dma_t(struct solo6010_dev *solo_dev, u8 id, int wr,
 		   dma_addr_t dma_addr, u32 ext_addr, u32 size)
 {
 	struct p2m_desc *desc = kzalloc(sizeof(*desc) * 2, GFP_DMA);
+	int ret;
 
 	if (desc == NULL)
 		return -ENOMEM;
 
 	solo_p2m_push_desc(&desc[1], wr, dma_addr, ext_addr, size, 0, 0);
+	ret = solo_p2m_dma_desc(solo_dev, id, desc, 2);
+	kfree(desc);
 
-	return solo_p2m_dma_desc(solo_dev, id, desc, 2);
+	return ret;
 }
 
 void solo_p2m_push_desc(struct p2m_desc *desc, int wr, dma_addr_t dma_addr,
