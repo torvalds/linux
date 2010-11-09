@@ -29,7 +29,6 @@
 #include <linux/gpio.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
-#include <linux/fsl_devices.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -297,7 +296,7 @@ static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 };
 #endif
 
-static struct fsl_usb2_platform_data otg_device_pdata = {
+static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
 	.phy_mode       = FSL_USB2_PHY_ULPI,
 };
@@ -419,7 +418,7 @@ static void __init pca100_init(void)
 #endif
 	if (!otg_mode_host) {
 		gpio_set_value(OTG_PHY_CS_GPIO, 0);
-		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
+		imx27_add_fsl_usb2_udc(&otg_device_pdata);
 	}
 
 	imx27_add_imx_fb(&pca100_fb_data);

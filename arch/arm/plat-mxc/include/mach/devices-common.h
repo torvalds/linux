@@ -44,6 +44,15 @@ struct platform_device *__init imx_add_flexcan(
 		const struct imx_flexcan_data *data,
 		const struct flexcan_platform_data *pdata);
 
+#include <linux/fsl_devices.h>
+struct imx_fsl_usb2_udc_data {
+	resource_size_t iobase;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_fsl_usb2_udc(
+		const struct imx_fsl_usb2_udc_data *data,
+		const struct fsl_usb2_platform_data *pdata);
+
 #include <linux/gpio_keys.h>
 struct platform_device *__init imx_add_gpio_keys(
 		const struct gpio_keys_platform_data *pdata);

@@ -13,6 +13,10 @@ extern const struct imx_fec_data imx27_fec_data __initconst;
 #define imx27_add_fec(pdata)	\
 	imx_add_fec(&imx27_fec_data, pdata)
 
+extern const struct imx_fsl_usb2_udc_data imx27_fsl_usb2_udc_data __initconst;
+#define imx27_add_fsl_usb2_udc(pdata)	\
+	imx_add_fsl_usb2_udc(&imx27_fsl_usb2_udc_data, pdata)
+
 extern const struct imx_imx2_wdt_data imx27_imx2_wdt_data __initconst;
 #define imx27_add_imx2_wdt(pdata)	\
 	imx_add_imx2_wdt(&imx27_imx2_wdt_data)

@@ -76,34 +76,6 @@ int __init imx1_register_gpios(void)
 }
 #endif
 
-#ifdef CONFIG_MACH_MX27
-static struct resource otg_resources[] = {
-	{
-		.start = MX27_USB_OTG_BASE_ADDR,
-		.end = MX27_USB_OTG_BASE_ADDR + 0x1ff,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX27_INT_USB_OTG,
-		.end = MX27_INT_USB_OTG,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static u64 otg_dmamask = DMA_BIT_MASK(32);
-
-/* OTG gadget device */
-struct platform_device mxc_otg_udc_device = {
-	.name		= "fsl-usb2-udc",
-	.id		= -1,
-	.dev		= {
-		.dma_mask		= &otg_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-	.resource	= otg_resources,
-	.num_resources	= ARRAY_SIZE(otg_resources),
-};
-#endif
-
 #if defined(CONFIG_MACH_MX21) || defined(CONFIG_MACH_MX27)
 /* GPIO port description */
 #define DEFINE_MXC_GPIO_PORT_IRQ(SOC, n, _irq)				\
