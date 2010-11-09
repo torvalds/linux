@@ -271,11 +271,6 @@ static u32 svm_msrpm_offset(u32 msr)
 
 #define MAX_INST_SIZE 15
 
-static inline u32 svm_has(u32 feat)
-{
-	return svm_features & feat;
-}
-
 static inline void clgi(void)
 {
 	asm volatile (__ex(SVM_CLGI));
@@ -381,7 +376,7 @@ static void svm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 	    nested_svm_check_exception(svm, nr, has_error_code, error_code))
 		return;
 
-	if (nr == BP_VECTOR && !svm_has(SVM_FEATURE_NRIP)) {
+	if (nr == BP_VECTOR && !static_cpu_has(X86_FEATURE_NRIPS)) {
 		unsigned long rip, old_rip = kvm_rip_read(&svm->vcpu);
 
 		/*
@@ -677,7 +672,7 @@ static __init int svm_hardware_setup(void)
 
 	svm_features = cpuid_edx(SVM_CPUID_FUNC);
 
-	if (!svm_has(SVM_FEATURE_NPT))
+	if (!boot_cpu_has(X86_FEATURE_NPT))
 		npt_enabled = false;
 
 	if (npt_enabled && !npt) {
@@ -876,7 +871,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	svm->nested.vmcb = 0;
 	svm->vcpu.arch.hflags = 0;
 
-	if (svm_has(SVM_FEATURE_PAUSE_FILTER)) {
+	if (boot_cpu_has(X86_FEATURE_PAUSEFILTER)) {
 		control->pause_filter_count = 3000;
 		control->intercept |= (1ULL << INTERCEPT_PAUSE);
 	}
@@ -2743,7 +2738,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 		svm->vmcb->save.sysenter_esp = data;
 		break;
 	case MSR_IA32_DEBUGCTLMSR:
-		if (!svm_has(SVM_FEATURE_LBRV)) {
+		if (!boot_cpu_has(X86_FEATURE_LBRV)) {
 			pr_unimpl(vcpu, "%s: MSR_IA32_DEBUGCTL 0x%llx, nop\n",
 					__func__, data);
 			break;
@@ -3533,7 +3528,7 @@ static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
 				   additional features */
 
 		/* Support next_rip if host supports it */
-		if (svm_has(SVM_FEATURE_NRIP))
+		if (boot_cpu_has(X86_FEATURE_NRIPS))
 			entry->edx |= SVM_FEATURE_NRIP;
 
 		/* Support NPT for the guest if enabled */
