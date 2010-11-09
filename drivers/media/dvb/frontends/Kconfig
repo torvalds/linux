@@ -12,9 +12,8 @@ config DVB_FE_CUSTOMISE
 
 	  If unsure say N.
 
-if DVB_FE_CUSTOMISE
-
 menu "Customise DVB Frontends"
+	visible if DVB_FE_CUSTOMISE
 
 comment "Multistandard (satellite) frontends"
 	depends on DVB_CORE
@@ -619,5 +618,3 @@ config DVB_DUMMY_FE
 	tristate "Dummy frontend driver"
 	default n
 endmenu
-
-endif
