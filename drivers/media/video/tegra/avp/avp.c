@@ -335,6 +335,10 @@ static int msg_wait_ack_locked(struct avp_info *avp, u32 cmd, u32 *arg)
 		usleep_range(1000, 5000);
 	} while (ret && time_before(jiffies, endtime));
 
+	/* if we timed out, try one more time */
+	if (ret)
+		ret = msg_check_ack(avp, cmd, arg);
+
 	/* clear out the ack */
 	*rem_ack = 0;
 	wmb();
@@ -396,10 +400,25 @@ static int _send_disconnect(struct avp_info *avp, u32 port_id)
 
 	mutex_lock(&avp->to_avp_lock);
 	ret = msg_write(avp, &msg, sizeof(msg), NULL, 0);
-	mutex_unlock(&avp->to_avp_lock);
+	if (ret) {
+		pr_err("%s: remote has not acked last message (%x)\n", __func__,
+		       port_id);
+		goto err_msg_write;
+	}
 
-	DBG(AVP_DBG_TRACE_XPC_CONN, "%s: sent disconnect msg for 0x%x\n",
+	ret = msg_wait_ack_locked(avp, CMD_ACK, NULL);
+	if (ret) {
+		pr_err("%s: remote end won't respond for %x\n", __func__,
+		       port_id);
+		goto err_wait_ack;
+	}
+
+	DBG(AVP_DBG_TRACE_XPC_CONN, "%s: sent disconnect msg for %x\n",
 	    __func__, port_id);
+
+err_wait_ack:
+err_msg_write:
+	mutex_unlock(&avp->to_avp_lock);
 	return ret;
 }
 
@@ -613,7 +632,7 @@ static void process_disconnect_locked(struct avp_info *avp,
 	rinfo = remote_find(avp, disconn_msg->port_id);
 	if (!rinfo) {
 		spin_unlock_irqrestore(&avp->state_lock, flags);
-		pr_warning("%s: got disconnect for unknown port 0x%x\n",
+		pr_warning("%s: got disconnect for unknown port %x\n",
 			   __func__, disconn_msg->port_id);
 		goto ack;
 	}
