@@ -53,23 +53,25 @@
 #define ACR_WPROTECT	0x00000004	/* Write protect region */
 
 /*
- * Set the cache controller settings we will use. This code is set to
- * only use the instruction cache, even on the controllers that support
- * split cache. (This setup is trying to preserve the existing behavior
- * for now, in the furture I hope to actually use the split cache mode).
+ * Set the cache controller settings we will use. On the cores that support
+ * a split cache configuration we allow all the combinations at Kconfig
+ * time. For those cores that only have an instruction cache we just set
+ * that as on.
  */
-#if defined(CONFIG_M5206) || defined(CONFIG_M5206e) || \
-    defined(CONFIG_M5249) || defined(CONFIG_M5272)
+#if defined(CONFIG_CACHE_I)
+#define CACHE_TYPE	CACR_DISD
+#elif defined(CONFIG_CACHE_D)
+#define CACHE_TYPE	CACR_DISI
+#else
+#define CACHE_TYPE
+#endif
+
+#if defined(CONFIG_HAVE_CACHE_SPLIT)
+#define CACHE_INIT	(CACR_CINV + CACHE_TYPE + CACR_EUSP)
+#define CACHE_MODE	(CACR_CENB + CACHE_TYPE + CACR_DCM + CACR_EUSP)
+#else
 #define CACHE_INIT	(CACR_CINV)
 #define CACHE_MODE	(CACR_CENB + CACR_DCM)
-#else
-#ifdef CONFIG_COLDFIRE_SW_A7
-#define CACHE_INIT	(CACR_CINV + CACR_DISD)
-#define CACHE_MODE	(CACR_CENB + CACR_DISD + CACR_DCM)
-#else
-#define CACHE_INIT	(CACR_CINV + CACR_DISD + CACR_EUSP)
-#define CACHE_MODE	(CACR_CENB + CACR_DISD + CACR_DCM + CACR_EUSP)
-#endif
 #endif
 
 #define CACHE_INVALIDATE (CACHE_MODE + CACR_CINV)

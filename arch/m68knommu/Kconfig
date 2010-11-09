@@ -79,6 +79,9 @@ config COLDFIRE_SW_A7
 	bool
 	default n
 
+config HAVE_CACHE_SPLIT
+	bool
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -124,12 +127,14 @@ config M5206e
 config M520x
 	bool "MCF520x"
 	select GENERIC_CLOCKEVENTS
+	select HAVE_CACHE_SPLIT
 	help
 	   Freescale Coldfire 5207/5208 processor support.
 
 config M523x
 	bool "MCF523x"
 	select GENERIC_CLOCKEVENTS
+	select HAVE_CACHE_SPLIT
 	help
 	  Freescale Coldfire 5230/1/2/4/5 processor support
 
@@ -141,6 +146,7 @@ config M5249
 
 config M5271
 	bool "MCF5271"
+	select HAVE_CACHE_SPLIT
 	help
 	  Freescale (Motorola) ColdFire 5270/5271 processor support.
 
@@ -152,12 +158,14 @@ config M5272
 
 config M5275
 	bool "MCF5275"
+	select HAVE_CACHE_SPLIT
 	help
 	  Freescale (Motorola) ColdFire 5274/5275 processor support.
 
 config M528x
 	bool "MCF528x"
 	select GENERIC_CLOCKEVENTS
+	select HAVE_CACHE_SPLIT
 	help
 	  Motorola ColdFire 5280/5282 processor support.
 
@@ -249,6 +257,30 @@ config OLDMASK
 	help
 	  Build support for the older revision ColdFire 5307 silicon.
 	  Specifically this is the 1H55J mask revision.
+
+if HAVE_CACHE_SPLIT
+choice
+	prompt "Split Cache Configuration"
+	default CACHE_I
+
+config CACHE_I
+	bool "Instruction"
+	help
+	  Use all of the ColdFire CPU cache memory as an instruction cache.
+
+config CACHE_D
+	bool "Data"
+	help
+	  Use all of the ColdFire CPU cache memory as a data cache.
+
+config CACHE_BOTH
+	bool "Both"
+	help
+	  Split the ColdFire CPU cache, and use half as an instruction cache
+	  and half as a data cache.
+endchoice
+
+endif
 
 comment "Platform"
 
