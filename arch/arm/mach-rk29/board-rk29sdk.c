@@ -22,8 +22,10 @@
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/mmc/host.h>
+#include <linux/android_pmem.h>
 
 #include <mach/hardware.h>
+#include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -42,6 +44,17 @@
 #include <linux/mtd/partitions.h>
 
 #include "devices.h"
+
+/* Set memory size of pmem */
+#define SDRAM_SIZE          SZ_128M
+#define PMEM_GPU_SIZE       (12 * SZ_1M)
+#define PMEM_UI_SIZE        SZ_16M
+#define PMEM_VPU_SIZE       SZ_32M
+
+#define PMEM_GPU_BASE       (RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
+#define PMEM_UI_BASE        (PMEM_GPU_BASE - PMEM_UI_SIZE)
+#define PMEM_VPU_BASE       (PMEM_UI_BASE - PMEM_VPU_SIZE)
+#define LINUX_SIZE          (PMEM_VPU_BASE - RK29_SDRAM_PHYS)
 
 extern struct sys_timer rk29_timer;
 
@@ -287,6 +300,53 @@ struct rk29fb_info rk29_fb_info = {
     .io_init   = rk29_fb_io_init,
 };
 
+static struct android_pmem_platform_data android_pmem_pdata = {
+	.name		= "pmem",
+	.start		= PMEM_UI_BASE,
+	.size		= PMEM_UI_SIZE,
+	.no_allocator	= 0,
+	.cached		= 1,
+};
+
+static struct platform_device android_pmem_device = {
+	.name		= "android_pmem",
+	.id		= 0,
+	.dev		= {
+		.platform_data = &android_pmem_pdata,
+	},
+};
+
+static struct android_pmem_platform_data android_pmem_gpu_pdata = {
+	.name		= "pmem_gpu",
+	.start		= PMEM_GPU_BASE,
+	.size		= PMEM_GPU_SIZE,
+	.no_allocator	= 0,
+	.cached		= 0,
+};
+
+static struct platform_device android_pmem_gpu_device = {
+	.name		= "android_pmem",
+	.id		= 1,
+	.dev		= {
+		.platform_data = &android_pmem_gpu_pdata,
+	},
+};
+
+static struct android_pmem_platform_data android_pmem_vpu_pdata = {
+	.name		= "pmem_vpu",
+	.start		= PMEM_VPU_BASE,
+	.size		= PMEM_VPU_SIZE,
+	.no_allocator	= 0,
+	.cached		= 1,
+};
+
+static struct platform_device android_pmem_vpu_device = {
+	.name		= "android_pmem",
+	.id		= 2,
+	.dev		= {
+		.platform_data = &android_pmem_vpu_pdata,
+	},
+};
 
 /*****************************************************************************************
  * SDMMC devices
@@ -347,6 +407,7 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 #endif
 };
 #endif
+
 static void __init rk29_board_iomux_init(void)
 {
 	#ifdef CONFIG_UART0_RK29	
@@ -380,7 +441,7 @@ static void __init rk29_board_iomux_init(void)
 }
 
 static struct platform_device *devices[] __initdata = {
-#ifdef CONFIG_UART1_RK29	
+#ifdef CONFIG_UART1_RK29
 	&rk29_device_uart1,
 #endif	
 #ifdef CONFIG_SDMMC0_RK29	
@@ -394,13 +455,14 @@ static struct platform_device *devices[] __initdata = {
 #endif
 
 #ifdef CONFIG_FB_RK29
-    &rk29_device_fb,
+	&rk29_device_fb,
 #endif
-
 #ifdef CONFIG_VIVANTE
 	&rk29_device_gpu,
 #endif
-
+	&android_pmem_device,
+	&android_pmem_gpu_device,
+	&android_pmem_vpu_device,
 };
 
 static void __init rk29_gic_init_irq(void)
@@ -415,10 +477,20 @@ static void __init machine_rk29_init_irq(void)
 	rk29_gpio_init(rk29_gpiobankinit, MAX_BANK);
 	rk29_gpio_irq_setup();
 }
+
 static void __init machine_rk29_board_init(void)
 { 
 	platform_add_devices(devices, ARRAY_SIZE(devices));	
 	rk29_board_iomux_init();
+}
+
+static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
+					char **cmdline, struct meminfo *mi)
+{
+	mi->nr_banks = 1;
+	mi->bank[0].start = RK29_SDRAM_PHYS;
+	mi->bank[0].node = PHYS_TO_NID(RK29_SDRAM_PHYS);
+	mi->bank[0].size = LINUX_SIZE;
 }
 
 static void __init machine_rk29_mapio(void)
@@ -429,11 +501,11 @@ static void __init machine_rk29_mapio(void)
 }
 
 MACHINE_START(RK29, "RK29board")
-
-/* UART for LL DEBUG */
+	/* UART for LL DEBUG */
 	.phys_io	= RK29_UART1_PHYS, 
 	.io_pg_offst	= ((RK29_UART1_BASE) >> 18) & 0xfffc,
 	.boot_params	= RK29_SDRAM_PHYS + 0x88000,
+	.fixup		= machine_rk29_fixup,
 	.map_io		= machine_rk29_mapio,
 	.init_irq	= machine_rk29_init_irq,
 	.init_machine	= machine_rk29_board_init,
