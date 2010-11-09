@@ -143,12 +143,16 @@ void ext3_journal_abort_handle(const char *caller, const char *err_fn,
 void ext3_msg(struct super_block *sb, const char *prefix,
 		const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	printk("%sEXT3-fs (%s): ", prefix, sb->s_id);
-	vprintk(fmt, args);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk("%sEXT3-fs (%s): %pV\n", prefix, sb->s_id, &vaf);
+
 	va_end(args);
 }
 
@@ -195,15 +199,20 @@ static void ext3_handle_error(struct super_block *sb)
 			sb->s_id);
 }
 
-void ext3_error (struct super_block * sb, const char * function,
-		 const char * fmt, ...)
+void ext3_error(struct super_block *sb, const char *function,
+		const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	printk(KERN_CRIT "EXT3-fs error (device %s): %s: ",sb->s_id, function);
-	vprintk(fmt, args);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_CRIT "EXT3-fs error (device %s): %s: %pV\n",
+	       sb->s_id, function, &vaf);
+
 	va_end(args);
 
 	ext3_handle_error(sb);
@@ -274,15 +283,20 @@ void __ext3_std_error (struct super_block * sb, const char * function,
  * case we take the easy way out and panic immediately.
  */
 
-void ext3_abort (struct super_block * sb, const char * function,
-		 const char * fmt, ...)
+void ext3_abort(struct super_block *sb, const char *function,
+		 const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	printk(KERN_CRIT "EXT3-fs (%s): error: %s: ", sb->s_id, function);
-	vprintk(fmt, args);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_CRIT "EXT3-fs (%s): error: %s: %pV\n",
+	       sb->s_id, function, &vaf);
+
 	va_end(args);
 
 	if (test_opt(sb, ERRORS_PANIC))
@@ -300,16 +314,20 @@ void ext3_abort (struct super_block * sb, const char * function,
 		journal_abort(EXT3_SB(sb)->s_journal, -EIO);
 }
 
-void ext3_warning (struct super_block * sb, const char * function,
-		   const char * fmt, ...)
+void ext3_warning(struct super_block *sb, const char *function,
+		  const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	printk(KERN_WARNING "EXT3-fs (%s): warning: %s: ",
-	       sb->s_id, function);
-	vprintk(fmt, args);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_WARNING "EXT3-fs (%s): warning: %s: %pV\n",
+	       sb->s_id, function, &vaf);
+
 	va_end(args);
 }
 
