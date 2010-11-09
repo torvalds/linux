@@ -225,6 +225,10 @@ int btrfs_zlib_compress_pages(struct address_space *mapping,
 	data_in = kmap(in_page);
 
 	out_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
+	if (out_page == NULL) {
+		ret = -1;
+		goto out;
+	}
 	cpage_out = kmap(out_page);
 	pages[0] = out_page;
 	nr_pages = 1;
@@ -263,6 +267,10 @@ int btrfs_zlib_compress_pages(struct address_space *mapping,
 				goto out;
 			}
 			out_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
+			if (out_page == NULL) {
+				ret = -1;
+				goto out;
+			}
 			cpage_out = kmap(out_page);
 			pages[nr_pages] = out_page;
 			nr_pages++;
