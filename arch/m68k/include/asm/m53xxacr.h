@@ -53,6 +53,12 @@
  * CACR is cache inhibited, we use the ACR register to set cacheing
  * enabled on the regions we want (eg RAM).
  */
+#if defined(CONFIG_CACHE_COPYBACK)
+#define CACHE_TYPE	ACR_CM_CB
+#else
+#define CACHE_TYPE	ACR_CM_WT
+#endif
+
 #ifdef CONFIG_COLDFIRE_SW_A7
 #define CACHE_MODE	(CACR_EC + CACR_ESB + CACR_DCM_PRE)
 #else
@@ -63,7 +69,7 @@
 
 #define ACR0_MODE	((CONFIG_RAMBASE & 0xff000000) + \
 			 (0x000f0000) + \
-			 (ACR_ENABLE + ACR_ANY + ACR_CM_CB))
+			 (ACR_ENABLE + ACR_ANY + CACHE_TYPE))
 #define ACR1_MODE	0
 
 /****************************************************************************/

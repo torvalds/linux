@@ -82,6 +82,9 @@ config COLDFIRE_SW_A7
 config HAVE_CACHE_SPLIT
 	bool
 
+config HAVE_CACHE_CB
+	bool
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -172,27 +175,32 @@ config M528x
 config M5307
 	bool "MCF5307"
 	select COLDFIRE_SW_A7
+	select HAVE_CACHE_CB
 	help
 	  Motorola ColdFire 5307 processor support.
 
 config M532x
 	bool "MCF532x"
+	select HAVE_CACHE_CB
 	help
 	  Freescale (Motorola) ColdFire 532x processor support.
 
 config M5407
 	bool "MCF5407"
 	select COLDFIRE_SW_A7
+	select HAVE_CACHE_CB
 	help
 	  Motorola ColdFire 5407 processor support.
 
 config M547x
 	bool "MCF547x"
+	select HAVE_CACHE_CB
 	help
 	  Freescale ColdFire 5470/5471/5472/5473/5474/5475 processor support.
 
 config M548x
 	bool "MCF548x"
+	select HAVE_CACHE_CB
 	help
 	  Freescale ColdFire 5480/5481/5482/5483/5484/5485 processor support.
 
@@ -279,7 +287,23 @@ config CACHE_BOTH
 	  Split the ColdFire CPU cache, and use half as an instruction cache
 	  and half as a data cache.
 endchoice
+endif
 
+if HAVE_CACHE_CB
+choice
+	prompt "Data cache mode"
+	default CACHE_WRITETHRU
+
+config CACHE_WRITETHRU
+	bool "Write-through"
+	help
+	  The ColdFire CPU cache is set into Write-through mode.
+
+config CACHE_COPYBACK
+	bool "Copy-back"
+	help
+	  The ColdFire CPU cache is set into Copy-back mode.
+endchoice
 endif
 
 comment "Platform"
