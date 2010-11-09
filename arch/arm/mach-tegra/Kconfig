@@ -68,6 +68,15 @@ config TEGRA_PWM
 
 endif
 
+config TEGRA_CPU_DVFS
+	bool "Enable voltage scaling on Tegra CPU"
+	default y
+
+config TEGRA_CORE_DVFS
+	bool "Enable voltage scaling on Tegra core"
+	depends on TEGRA_CORE_CPU
+	default y
+
 config TEGRA_IOVMM_GART
 	bool "Enable I/O virtual memory manager for GART"
 	depends on ARCH_TEGRA_2x_SOC
