@@ -40,6 +40,7 @@ struct dvfs_reg {
 	struct regulator *reg;
 	int max_millivolts;
 	int millivolts;
+	struct mutex lock;
 };
 
 static LIST_HEAD(dvfs_debug_list);
@@ -52,22 +53,29 @@ static int dvfs_reg_set_voltage(struct dvfs_reg *dvfs_reg)
 {
 	int millivolts = 0;
 	struct dvfs *d;
+	int ret = 0;
+
+	mutex_lock(&dvfs_reg->lock);
 
 	list_for_each_entry(d, &dvfs_reg->dvfs, reg_node)
 		millivolts = max(d->cur_millivolts, millivolts);
 
 	if (millivolts == dvfs_reg->millivolts)
-		return 0;
+		goto out;
 
 	dvfs_reg->millivolts = millivolts;
 
 	if (!dvfs_reg->reg) {
 		pr_warn("dvfs set voltage on %s ignored\n", dvfs_reg->reg_id);
-		return 0;
+		goto out;
 	}
 
-	return regulator_set_voltage(dvfs_reg->reg,
+	ret = regulator_set_voltage(dvfs_reg->reg,
 		millivolts * 1000, dvfs_reg->max_millivolts * 1000);
+
+out:
+	mutex_unlock(&dvfs_reg->lock);
+	return ret;
 }
 
 static int dvfs_reg_connect_to_regulator(struct dvfs_reg *dvfs_reg)
@@ -101,6 +109,7 @@ static struct dvfs_reg *get_dvfs_reg(struct dvfs *d)
 		goto out;
 	}
 
+	mutex_init(&dvfs_reg->lock);
 	INIT_LIST_HEAD(&dvfs_reg->dvfs);
 	dvfs_reg->reg_id = kstrdup(d->reg_id, GFP_KERNEL);
 
@@ -119,12 +128,15 @@ static struct dvfs_reg *attach_dvfs_reg(struct dvfs *d)
 	if (!dvfs_reg)
 		return NULL;
 
+	mutex_lock(&dvfs_reg->lock);
 	list_add_tail(&d->reg_node, &dvfs_reg->dvfs);
+
 	d->dvfs_reg = dvfs_reg;
 	if (d->max_millivolts > d->dvfs_reg->max_millivolts)
 		d->dvfs_reg->max_millivolts = d->max_millivolts;
 
 	d->cur_millivolts = d->max_millivolts;
+	mutex_unlock(&dvfs_reg->lock);
 
 	return dvfs_reg;
 }
