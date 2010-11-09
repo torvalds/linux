@@ -65,6 +65,7 @@
 #define   UTMIP_PHY_ENABLE		(1 << 12)
 #define   ULPI_PHY_ENABLE	(1 << 13)
 #define   USB_SUSP_SET		(1 << 14)
+#define   USB_WAKEUP_DEBOUNCE_COUNT(x)	(((x) & 0x7) << 16)
 
 #define USB1_LEGACY_CTRL	0x410
 #define   USB1_NO_LEGACY_MODE			(1 << 0)
@@ -449,9 +450,12 @@ static void utmi_phy_power_off(struct tegra_usb_phy *phy)
 
 	utmi_phy_clk_disable(phy);
 
-	val = readl(base + USB_SUSP_CTRL);
-	val |= USB_WAKE_ON_CNNT_EN_DEV | USB_WAKE_ON_DISCON_EN_DEV;
-	writel(val, base + USB_SUSP_CTRL);
+	if (phy->mode == TEGRA_USB_PHY_MODE_DEVICE) {
+		val = readl(base + USB_SUSP_CTRL);
+		val &= ~USB_WAKEUP_DEBOUNCE_COUNT(~0);
+		val |= USB_WAKE_ON_CNNT_EN_DEV | USB_WAKEUP_DEBOUNCE_COUNT(5);
+		writel(val, base + USB_SUSP_CTRL);
+	}
 
 	val = readl(base + USB_SUSP_CTRL);
 	val |= UTMIP_RESET;
