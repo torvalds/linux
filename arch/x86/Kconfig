@@ -377,6 +377,17 @@ config X86_ELAN
 
 	  If unsure, choose "PC-compatible" instead.
 
+config X86_INTEL_CE
+	bool "CE4100 TV platform"
+	depends on PCI
+	depends on PCI_GODIRECT
+	depends on X86_32
+	depends on X86_EXTENDED_PLATFORM
+	---help---
+	  Select for the Intel CE media processor (CE4100) SOC.
+	  This option compiles in support for the CE4100 SOC for settop
+	  boxes and media devices.
+
 config X86_MRST
        bool "Moorestown MID platform"
 	depends on PCI

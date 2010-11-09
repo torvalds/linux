@@ -1,4 +1,5 @@
 # Platform specific code goes here
+obj-y	+= ce4100/
 obj-y	+= efi/
 obj-y	+= mrst/
 obj-y	+= olpc/
