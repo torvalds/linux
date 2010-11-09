@@ -446,7 +446,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 		return;
 
 	/* skip meaningless 0xb1 0x60 header bytes on orig receiver */
-	if (ir->flags.microsoft_gen1 && !out)
+	if (ir->flags.microsoft_gen1 && !out && !offset)
 		skip = 2;
 
 	if (len <= skip)
@@ -806,6 +806,10 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 	/* skip meaningless 0xb1 0x60 header bytes on orig receiver */
 	if (ir->flags.microsoft_gen1)
 		i = 2;
+
+	/* if there's no data, just return now */
+	if (buf_len <= i)
+		return;
 
 	for (; i < buf_len; i++) {
 		switch (ir->parser_state) {
