@@ -62,25 +62,6 @@
 /* CE_BLOCK_SET */
 #define BLOCK_SIZE_MASK		0x0000ffff
 
-/* CE_CLK_CTRL */
-#define CLK_ENABLE		(1 << 24) /* 1: output mmc clock */
-#define CLK_CLEAR		((1 << 19) | (1 << 18) | (1 << 17) | (1 << 16))
-#define CLK_SUP_PCLK		((1 << 19) | (1 << 18) | (1 << 17) | (1 << 16))
-#define SRSPTO_256		((1 << 13) | (0 << 12)) /* resp timeout */
-#define SRBSYTO_29		((1 << 11) | (1 << 10) |	\
-				 (1 << 9) | (1 << 8)) /* resp busy timeout */
-#define SRWDTO_29		((1 << 7) | (1 << 6) |		\
-				 (1 << 5) | (1 << 4)) /* read/write timeout */
-#define SCCSTO_29		((1 << 3) | (1 << 2) |		\
-				 (1 << 1) | (1 << 0)) /* ccs timeout */
-
-/* CE_BUF_ACC */
-#define BUF_ACC_DMAWEN		(1 << 25)
-#define BUF_ACC_DMAREN		(1 << 24)
-#define BUF_ACC_BUSW_32		(0 << 17)
-#define BUF_ACC_BUSW_16		(1 << 17)
-#define BUF_ACC_ATYP		(1 << 16)
-
 /* CE_INT */
 #define INT_CCSDE		(1 << 29)
 #define INT_CMD12DRE		(1 << 26)
@@ -164,10 +145,6 @@
 				 STS2_DATBSYTO | STS2_CRCSTTO |		\
 				 STS2_AC12BSYTO | STS2_RSPBSYTO |	\
 				 STS2_AC12RSPTO | STS2_RSPTO)
-
-/* CE_VERSION */
-#define SOFT_RST_ON		(1 << 31)
-#define SOFT_RST_OFF		(0 << 31)
 
 #define CLKDEV_EMMC_DATA	52000000 /* 52MHz */
 #define CLKDEV_MMC_DATA		20000000 /* 20MHz */
