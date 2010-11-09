@@ -734,13 +734,19 @@ static ssize_t applesmc_show_temperature(struct device *dev,
 	entry = applesmc_get_entry_by_index(index);
 	if (IS_ERR(entry))
 		return PTR_ERR(entry);
+	if (entry->len > 2)
+		return -EINVAL;
 
-	ret = applesmc_read_entry(entry, buffer, 2);
+	ret = applesmc_read_entry(entry, buffer, entry->len);
 	if (ret)
 		return ret;
 
-	temp = buffer[0]*1000;
-	temp += (buffer[1] >> 6) * 250;
+	if (entry->len == 2) {
+		temp = buffer[0] * 1000;
+		temp += (buffer[1] >> 6) * 250;
+	} else {
+		temp = buffer[0] * 4000;
+	}
 
 	return snprintf(sysfsbuf, PAGE_SIZE, "%u\n", temp);
 }
