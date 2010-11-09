@@ -176,14 +176,17 @@ static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr)
 	struct lc_element *al_ext;
 	struct lc_element *tmp;
 	unsigned long     al_flags = 0;
+	int wake;
 
 	spin_lock_irq(&mdev->al_lock);
 	tmp = lc_find(mdev->resync, enr/AL_EXT_PER_BM_SECT);
 	if (unlikely(tmp != NULL)) {
 		struct bm_extent  *bm_ext = lc_entry(tmp, struct bm_extent, lce);
 		if (test_bit(BME_NO_WRITES, &bm_ext->flags)) {
-			set_bit(BME_PRIORITY, &bm_ext->flags);
+			wake = !test_and_set_bit(BME_PRIORITY, &bm_ext->flags);
 			spin_unlock_irq(&mdev->al_lock);
+			if (wake)
+				wake_up(&mdev->al_wait);
 			return NULL;
 		}
 	}
@@ -1135,7 +1138,10 @@ int drbd_rs_begin_io(struct drbd_conf *mdev, sector_t sector)
 	unsigned int enr = BM_SECT_TO_EXT(sector);
 	struct bm_extent *bm_ext;
 	int i, sig;
+	int sa = 200; /* Step aside 200 times, then grab the extent and let app-IO wait.
+			 200 times -> 20 seconds. */
 
+retry:
 	sig = wait_event_interruptible(mdev->al_wait,
 			(bm_ext = _bme_get(mdev, enr)));
 	if (sig)
@@ -1146,16 +1152,24 @@ int drbd_rs_begin_io(struct drbd_conf *mdev, sector_t sector)
 
 	for (i = 0; i < AL_EXT_PER_BM_SECT; i++) {
 		sig = wait_event_interruptible(mdev->al_wait,
-				!_is_in_al(mdev, enr * AL_EXT_PER_BM_SECT + i));
-		if (sig) {
+					       !_is_in_al(mdev, enr * AL_EXT_PER_BM_SECT + i) ||
+					       (test_bit(BME_PRIORITY, &bm_ext->flags) && sa));
+
+		if (sig || (test_bit(BME_PRIORITY, &bm_ext->flags) && sa)) {
 			spin_lock_irq(&mdev->al_lock);
 			if (lc_put(mdev->resync, &bm_ext->lce) == 0) {
-				clear_bit(BME_NO_WRITES, &bm_ext->flags);
+				bm_ext->flags = 0; /* clears BME_NO_WRITES and eventually BME_PRIORITY */
 				mdev->resync_locked--;
 				wake_up(&mdev->al_wait);
 			}
 			spin_unlock_irq(&mdev->al_lock);
-			return -EINTR;
+			if (sig)
+				return -EINTR;
+			if (schedule_timeout_interruptible(HZ/10))
+				return -EINTR;
+			if (--sa == 0)
+				dev_warn(DEV,"drbd_rs_begin_io() no longer stepping aside.\n");
+			goto retry;
 		}
 	}
 	set_bit(BME_LOCKED, &bm_ext->flags);
