@@ -30,6 +30,7 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/rbtree.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/tegra_rpc.h>
 #include <linux/types.h>
@@ -148,11 +149,13 @@ static struct avp_info *tegra_avp;
 
 static int avp_trpc_send(struct trpc_endpoint *ep, void *buf, size_t len);
 static void avp_trpc_close(struct trpc_endpoint *ep);
+static void avp_trpc_show(struct seq_file *s, struct trpc_endpoint *ep);
 static void libs_cleanup(struct avp_info *avp);
 
 static struct trpc_ep_ops remote_ep_ops = {
 	.send	= avp_trpc_send,
 	.close	= avp_trpc_close,
+	.show	= avp_trpc_show,
 };
 
 static struct remote_info *rinfo_alloc(struct avp_info *avp)
@@ -249,6 +252,24 @@ static struct remote_info *validate_trpc_ep(struct avp_info *avp,
 	if (rinfo && rinfo == tmp && rinfo->trpc_ep == ep)
 		return rinfo;
 	return NULL;
+}
+
+static void avp_trpc_show(struct seq_file *s, struct trpc_endpoint *ep)
+{
+	struct avp_info *avp = tegra_avp;
+	struct remote_info *rinfo;
+	unsigned long flags;
+
+	spin_lock_irqsave(&avp->state_lock, flags);
+	rinfo = validate_trpc_ep(avp, ep);
+	if (!rinfo) {
+		seq_printf(s, "    <unknown>\n");
+		goto out;
+	}
+	seq_printf(s, "    loc_id:0x%x\n    rem_id:0x%x\n",
+		   rinfo->loc_id, rinfo->rem_id);
+out:
+	spin_unlock_irqrestore(&avp->state_lock, flags);
 }
 
 static inline void mbox_writel(u32 val, void __iomem *mbox)
