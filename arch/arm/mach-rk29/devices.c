@@ -167,35 +167,6 @@ struct platform_device rk29_device_uart3 = {
 };
 #endif
 
-#ifdef CONFIG_VIVANTE
-static struct resource resources_gpu[] = {
-    [0] = {
-		.name 	= "gpu_irq",
-        .start 	= IRQ_GPU,
-        .end    = IRQ_GPU,
-        .flags  = IORESOURCE_IRQ,
-    },
-    [1] = {
-		.name = "gpu_base",
-        .start  = RK29_GPU_PHYS,
-        .end    = RK29_GPU_PHYS + (256 << 10),
-        .flags  = IORESOURCE_MEM,
-    },
-    [2] = {
-		.name = "gpu_mem",
-        .start  = 0x66400000,               //0x67C00000,
-        .end    = 0x66400000 + (28 << 20),  //0x67C00000 + (4 << 20),
-        .flags  = IORESOURCE_MEM,
-    },
-};
-struct platform_device rk29_device_gpu = {
-    .name             = "galcore",
-    .id               = 0,
-    .num_resources    = ARRAY_SIZE(resources_gpu),
-    .resource         = resources_gpu,
-};
-#endif
-
 #ifdef CONFIG_FB_RK29
 /* rk29 fb resource */
 static struct resource rk29_fb_resource[] = {

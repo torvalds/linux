@@ -316,21 +316,6 @@ static struct platform_device android_pmem_device = {
 	},
 };
 
-static struct android_pmem_platform_data android_pmem_gpu_pdata = {
-	.name		= "pmem_gpu",
-	.start		= PMEM_GPU_BASE,
-	.size		= PMEM_GPU_SIZE,
-	.no_allocator	= 0,
-	.cached		= 0,
-};
-
-static struct platform_device android_pmem_gpu_device = {
-	.name		= "android_pmem",
-	.id		= 1,
-	.dev		= {
-		.platform_data = &android_pmem_gpu_pdata,
-	},
-};
 
 static struct android_pmem_platform_data android_pmem_vpu_pdata = {
 	.name		= "pmem_vpu",
@@ -408,6 +393,35 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 };
 #endif
 
+#ifdef CONFIG_VIVANTE
+static struct resource resources_gpu[] = {
+    [0] = {
+		.name 	= "gpu_irq",
+        .start 	= IRQ_GPU,
+        .end    = IRQ_GPU,
+        .flags  = IORESOURCE_IRQ,
+    },
+    [1] = {
+		.name = "gpu_base",
+        .start  = RK29_GPU_PHYS,
+        .end    = RK29_GPU_PHYS + (256 << 10),
+        .flags  = IORESOURCE_MEM,
+    },
+    [2] = {
+		.name = "gpu_mem",
+        .start  = PMEM_GPU_BASE,
+        .end    = PMEM_GPU_BASE + PMEM_GPU_SIZE,
+        .flags  = IORESOURCE_MEM,
+    },
+};
+struct platform_device rk29_device_gpu = {
+    .name             = "galcore",
+    .id               = 0,
+    .num_resources    = ARRAY_SIZE(resources_gpu),
+    .resource         = resources_gpu,
+};
+#endif
+
 static void __init rk29_board_iomux_init(void)
 {
 	#ifdef CONFIG_UART0_RK29	
@@ -461,7 +475,6 @@ static struct platform_device *devices[] __initdata = {
 	&rk29_device_gpu,
 #endif
 	&android_pmem_device,
-	&android_pmem_gpu_device,
 	&android_pmem_vpu_device,
 };
 
