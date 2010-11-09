@@ -831,7 +831,7 @@ static int wm8350_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	}
 
 	/* MCLK direction */
-	if (dir == WM8350_MCLK_DIR_OUT)
+	if (dir == SND_SOC_CLOCK_OUT)
 		wm8350_set_bits(wm8350, WM8350_CLOCK_CONTROL_2,
 				WM8350_MCLK_DIR);
 	else
