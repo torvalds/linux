@@ -139,7 +139,12 @@ SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
 				break;
 
 			do_each_thread(g, p) {
-				if (__task_cred(p)->uid != who)
+				int match;
+
+				rcu_read_lock();
+				match = __task_cred(p)->uid == who;
+				rcu_read_unlock();
+				if (!match)
 					continue;
 				ret = set_task_ioprio(p, ioprio);
 				if (ret)
@@ -232,7 +237,12 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
 				break;
 
 			do_each_thread(g, p) {
-				if (__task_cred(p)->uid != user->uid)
+				int match;
+
+				rcu_read_lock();
+				match = __task_cred(p)->uid == user->uid;
+				rcu_read_unlock();
+				if (!match)
 					continue;
 				tmpio = get_task_ioprio(p);
 				if (tmpio < 0)
