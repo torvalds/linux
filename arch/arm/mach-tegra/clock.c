@@ -207,6 +207,22 @@ void clk_set_cansleep(struct clk *c)
 	mutex_unlock(&clock_list_lock);
 }
 
+int tegra_dvfs_set_rate(struct clk *c, unsigned long rate)
+{
+	unsigned long flags;
+	int ret;
+
+	if (!clk_is_dvfs(c))
+		return -EINVAL;
+
+	clk_lock_save(c, flags);
+	ret = tegra_dvfs_set_rate_locked(c, rate);
+	clk_unlock_restore(c, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(tegra_dvfs_set_rate);
+
 int clk_reparent(struct clk *c, struct clk *parent)
 {
 	c->parent = parent;
@@ -244,7 +260,7 @@ int clk_enable(struct clk *c)
 	clk_lock_save(c, flags);
 
 	if (clk_is_auto_dvfs(c)) {
-		ret = tegra_dvfs_set_rate(c, clk_get_rate_locked(c));
+		ret = tegra_dvfs_set_rate_locked(c, clk_get_rate_locked(c));
 		if (ret)
 			goto out;
 	}
@@ -297,7 +313,7 @@ void clk_disable(struct clk *c)
 	c->refcnt--;
 
 	if (clk_is_auto_dvfs(c) && c->refcnt == 0)
-		tegra_dvfs_set_rate(c, 0);
+		tegra_dvfs_set_rate_locked(c, 0);
 
 	clk_unlock_restore(c, flags);
 }
@@ -322,7 +338,7 @@ int clk_set_parent(struct clk *c, struct clk *parent)
 
 	if (clk_is_auto_dvfs(c) && c->refcnt > 0 &&
 			(!c->parent || new_rate > old_rate)) {
-		ret = tegra_dvfs_set_rate(c, new_rate);
+		ret = tegra_dvfs_set_rate_locked(c, new_rate);
 		if (ret)
 			goto out;
 	}
@@ -333,7 +349,7 @@ int clk_set_parent(struct clk *c, struct clk *parent)
 
 	if (clk_is_auto_dvfs(c) && c->refcnt > 0 &&
 			new_rate < old_rate)
-		ret = tegra_dvfs_set_rate(c, new_rate);
+		ret = tegra_dvfs_set_rate_locked(c, new_rate);
 
 out:
 	clk_unlock_restore(c, flags);
@@ -366,7 +382,7 @@ int clk_set_rate(struct clk *c, unsigned long rate)
 		rate = c->max_rate;
 
 	if (clk_is_auto_dvfs(c) && rate > old_rate && c->refcnt > 0) {
-		ret = tegra_dvfs_set_rate(c, rate);
+		ret = tegra_dvfs_set_rate_locked(c, rate);
 		if (ret)
 			goto out;
 	}
@@ -376,7 +392,7 @@ int clk_set_rate(struct clk *c, unsigned long rate)
 		goto out;
 
 	if (clk_is_auto_dvfs(c) && rate < old_rate && c->refcnt > 0)
-		ret = tegra_dvfs_set_rate(c, rate);
+		ret = tegra_dvfs_set_rate_locked(c, rate);
 
 out:
 	clk_unlock_restore(c, flags);
@@ -527,11 +543,12 @@ void __init tegra_clk_set_dvfs_rates(void)
 		clk_lock_save(c, flags);
 		if (clk_is_auto_dvfs(c)) {
 			if (c->refcnt > 0)
-				tegra_dvfs_set_rate(c, clk_get_rate_locked(c));
+				tegra_dvfs_set_rate_locked(c,
+					clk_get_rate_locked(c));
 			else
-				tegra_dvfs_set_rate(c, 0);
+				tegra_dvfs_set_rate_locked(c, 0);
 		} else if (clk_is_dvfs(c)) {
-			tegra_dvfs_set_rate(c, c->dvfs_rate);
+			tegra_dvfs_set_rate_locked(c, c->dvfs_rate);
 		}
 		clk_unlock_restore(c, flags);
 	}
