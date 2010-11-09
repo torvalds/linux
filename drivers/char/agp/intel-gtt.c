@@ -334,7 +334,7 @@ static void i810_write_entry(dma_addr_t addr, unsigned int entry,
 	writel(addr | pte_flags, intel_private.gtt + entry);
 }
 
-static const struct aper_size_info_fixed const intel_fake_agp_sizes[] = {
+static const struct aper_size_info_fixed intel_fake_agp_sizes[] = {
 	{32, 8192, 3},
 	{64, 16384, 4},
 	{128, 32768, 5},
