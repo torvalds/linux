@@ -111,12 +111,14 @@ SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
 	read_lock(&tasklist_lock);
 	switch (which) {
 		case IOPRIO_WHO_PROCESS:
+			rcu_read_lock();
 			if (!who)
 				p = current;
 			else
 				p = find_task_by_vpid(who);
 			if (p)
 				ret = set_task_ioprio(p, ioprio);
+			rcu_read_unlock();
 			break;
 		case IOPRIO_WHO_PGRP:
 			if (!who)
@@ -205,12 +207,14 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
 	read_lock(&tasklist_lock);
 	switch (which) {
 		case IOPRIO_WHO_PROCESS:
+			rcu_read_lock();
 			if (!who)
 				p = current;
 			else
 				p = find_task_by_vpid(who);
 			if (p)
 				ret = get_task_ioprio(p);
+			rcu_read_unlock();
 			break;
 		case IOPRIO_WHO_PGRP:
 			if (!who)
