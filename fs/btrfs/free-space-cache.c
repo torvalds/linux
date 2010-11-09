@@ -1363,22 +1363,14 @@ out:
 	return ret;
 }
 
-int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
-			 u64 offset, u64 bytes)
+bool try_merge_free_space(struct btrfs_block_group_cache *block_group,
+			  struct btrfs_free_space *info)
 {
-	struct btrfs_free_space *right_info = NULL;
-	struct btrfs_free_space *left_info = NULL;
-	struct btrfs_free_space *info = NULL;
-	int ret = 0;
-
-	info = kzalloc(sizeof(struct btrfs_free_space), GFP_NOFS);
-	if (!info)
-		return -ENOMEM;
-
-	info->offset = offset;
-	info->bytes = bytes;
-
-	spin_lock(&block_group->tree_lock);
+	struct btrfs_free_space *left_info;
+	struct btrfs_free_space *right_info;
+	bool merged = false;
+	u64 offset = info->offset;
+	u64 bytes = info->bytes;
 
 	/*
 	 * first we want to see if there is free space adjacent to the range we
@@ -1392,27 +1384,11 @@ int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
 	else
 		left_info = tree_search_offset(block_group, offset - 1, 0, 0);
 
-	/*
-	 * If there was no extent directly to the left or right of this new
-	 * extent then we know we're going to have to allocate a new extent, so
-	 * before we do that see if we need to drop this into a bitmap
-	 */
-	if ((!left_info || left_info->bitmap) &&
-	    (!right_info || right_info->bitmap)) {
-		ret = insert_into_bitmap(block_group, info);
-
-		if (ret < 0) {
-			goto out;
-		} else if (ret) {
-			ret = 0;
-			goto out;
-		}
-	}
-
 	if (right_info && !right_info->bitmap) {
 		unlink_free_space(block_group, right_info);
 		info->bytes += right_info->bytes;
 		kfree(right_info);
+		merged = true;
 	}
 
 	if (left_info && !left_info->bitmap &&
@@ -1421,8 +1397,43 @@ int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
 		info->offset = left_info->offset;
 		info->bytes += left_info->bytes;
 		kfree(left_info);
+		merged = true;
 	}
 
+	return merged;
+}
+
+int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
+			 u64 offset, u64 bytes)
+{
+	struct btrfs_free_space *info;
+	int ret = 0;
+
+	info = kzalloc(sizeof(struct btrfs_free_space), GFP_NOFS);
+	if (!info)
+		return -ENOMEM;
+
+	info->offset = offset;
+	info->bytes = bytes;
+
+	spin_lock(&block_group->tree_lock);
+
+	if (try_merge_free_space(block_group, info))
+		goto link;
+
+	/*
+	 * There was no extent directly to the left or right of this new
+	 * extent then we know we're going to have to allocate a new extent, so
+	 * before we do that see if we need to drop this into a bitmap
+	 */
+	ret = insert_into_bitmap(block_group, info);
+	if (ret < 0) {
+		goto out;
+	} else if (ret) {
+		ret = 0;
+		goto out;
+	}
+link:
 	ret = link_free_space(block_group, info);
 	if (ret)
 		kfree(info);
