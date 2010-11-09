@@ -1102,8 +1102,10 @@ static int tegra_dc_suspend(struct nvhost_device *ndev, pm_message_t state)
 	dev_info(&ndev->dev, "suspend\n");
 
 	mutex_lock(&dc->lock);
-	if (dc->enabled)
+	if (dc->enabled) {
+		tegra_fb_suspend(dc->fb);
 		_tegra_dc_disable(dc);
+	}
 	mutex_unlock(&dc->lock);
 
 	return 0;

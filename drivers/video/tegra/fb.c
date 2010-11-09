@@ -216,6 +216,7 @@ static int tegra_fb_blank(int blank, struct fb_info *info)
 
 	case FB_BLANK_POWERDOWN:
 		dev_dbg(&tegra_fb->ndev->dev, "blank\n");
+		flush_workqueue(tegra_fb->flip_wq);
 		tegra_dc_disable(tegra_fb->win->dc);
 		return 0;
 
@@ -223,6 +224,12 @@ static int tegra_fb_blank(int blank, struct fb_info *info)
 		return -ENOTTY;
 	}
 }
+
+void tegra_fb_suspend(struct tegra_fb_info *tegra_fb)
+{
+	flush_workqueue(tegra_fb->flip_wq);
+}
+
 
 static int tegra_fb_pan_display(struct fb_var_screeninfo *var,
 				struct fb_info *info)
@@ -604,15 +611,21 @@ void tegra_fb_update_monspecs(struct tegra_fb_info *fb_info,
 		}
 	}
 
-	/* in case the first mode was not matched */
-	m = list_first_entry(&fb_info->info->modelist, struct fb_modelist, list);
-	m->mode.flag |= FB_MODE_IS_FIRST;
+	if (list_empty(&fb_info->info->modelist)) {
+		struct tegra_dc_mode mode;
+		memset(&fb_info->info->var, 0x0, sizeof(fb_info->info->var));
+		memset(&mode, 0x0, sizeof(mode));
+		tegra_dc_set_mode(fb_info->win->dc, &mode);
+	} else {
+		/* in case the first mode was not matched */
+		m = list_first_entry(&fb_info->info->modelist, struct fb_modelist, list);
+		m->mode.flag |= FB_MODE_IS_FIRST;
+		fb_info->info->mode = (struct fb_videomode *)
+			fb_find_best_display(specs, &fb_info->info->modelist);
 
-	fb_info->info->mode = (struct fb_videomode *)
-		fb_find_best_display(specs, &fb_info->info->modelist);
-
-	fb_videomode_to_var(&fb_info->info->var, fb_info->info->mode);
-	tegra_fb_set_par(fb_info->info);
+		fb_videomode_to_var(&fb_info->info->var, fb_info->info->mode);
+		tegra_fb_set_par(fb_info->info);
+	}
 
 	event.info = fb_info->info;
 	fb_notifier_call_chain(FB_EVENT_NEW_MODELIST, &event);
