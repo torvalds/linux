@@ -1281,8 +1281,6 @@ static int __init applesmc_init(void)
 		goto out_light_ledclass;
 	}
 
-	pr_info("driver successfully loaded\n");
-
 	return 0;
 
 out_light_ledclass:
@@ -1323,8 +1321,6 @@ static void __exit applesmc_exit(void)
 	platform_device_unregister(pdev);
 	platform_driver_unregister(&applesmc_driver);
 	release_region(APPLESMC_DATA_PORT, APPLESMC_NR_PORTS);
-
-	pr_info("driver unloaded\n");
 }
 
 module_init(applesmc_init);
