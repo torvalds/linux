@@ -80,7 +80,7 @@ static struct vpu_client client;
 
 static void vpu_release_io(void);
 #ifdef CONFIG_RK29_VPU_DEBUG
-static void dump_regs(unsigned long data);
+static void dump_regs(struct vpu_device *);
 #endif
 
 static long vpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
