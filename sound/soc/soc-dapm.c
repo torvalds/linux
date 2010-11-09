@@ -91,17 +91,24 @@ static void pop_wait(u32 pop_time)
 		schedule_timeout_uninterruptible(msecs_to_jiffies(pop_time));
 }
 
-static void pop_dbg(u32 pop_time, const char *fmt, ...)
+static void pop_dbg(struct device *dev, u32 pop_time, const char *fmt, ...)
 {
 	va_list args;
+	char *buf;
+
+	if (!pop_time)
+		return;
+
+	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (buf == NULL)
+		return;
 
 	va_start(args, fmt);
-
-	if (pop_time) {
-		vprintk(fmt, args);
-	}
-
+	vsnprintf(buf, PAGE_SIZE, fmt, args);
+	dev_info(dev, buf);
 	va_end(args);
+
+	kfree(buf);
 }
 
 /* create a new dapm widget */
@@ -313,7 +320,8 @@ static int dapm_update_bits(struct snd_soc_dapm_widget *widget)
 
 	change = old != new;
 	if (change) {
-		pop_dbg(card->pop_time, "pop test %s : %s in %d ms\n",
+		pop_dbg(dapm->dev, card->pop_time,
+			"pop test %s : %s in %d ms\n",
 			widget->name, widget->power ? "on" : "off",
 			card->pop_time);
 		pop_wait(card->pop_time);
@@ -745,15 +753,15 @@ static void dapm_seq_run_coalesced(struct snd_soc_dapm_context *dapm,
 		if (power)
 			value |= cur_mask;
 
-		pop_dbg(card->pop_time,
+		pop_dbg(dapm->dev, card->pop_time,
 			"pop test : Queue %s: reg=0x%x, 0x%x/0x%x\n",
 			w->name, reg, value, mask);
 
 		/* power up pre event */
 		if (w->power && w->event &&
 		    (w->event_flags & SND_SOC_DAPM_PRE_PMU)) {
-			pop_dbg(card->pop_time, "pop test : %s PRE_PMU\n",
-				w->name);
+			pop_dbg(dapm->dev, card->pop_time,
+				"pop test : %s PRE_PMU\n", w->name);
 			ret = w->event(w, NULL, SND_SOC_DAPM_PRE_PMU);
 			if (ret < 0)
 				dev_err(dapm->dev,
@@ -764,8 +772,8 @@ static void dapm_seq_run_coalesced(struct snd_soc_dapm_context *dapm,
 		/* power down pre event */
 		if (!w->power && w->event &&
 		    (w->event_flags & SND_SOC_DAPM_PRE_PMD)) {
-			pop_dbg(card->pop_time, "pop test : %s PRE_PMD\n",
-				w->name);
+			pop_dbg(dapm->dev, card->pop_time,
+				"pop test : %s PRE_PMD\n", w->name);
 			ret = w->event(w, NULL, SND_SOC_DAPM_PRE_PMD);
 			if (ret < 0)
 				dev_err(dapm->dev,
@@ -775,7 +783,7 @@ static void dapm_seq_run_coalesced(struct snd_soc_dapm_context *dapm,
 	}
 
 	if (reg >= 0) {
-		pop_dbg(card->pop_time,
+		pop_dbg(dapm->dev, card->pop_time,
 			"pop test : Applying 0x%x/0x%x to %x in %dms\n",
 			value, mask, reg, card->pop_time);
 		pop_wait(card->pop_time);
@@ -786,8 +794,8 @@ static void dapm_seq_run_coalesced(struct snd_soc_dapm_context *dapm,
 		/* power up post event */
 		if (w->power && w->event &&
 		    (w->event_flags & SND_SOC_DAPM_POST_PMU)) {
-			pop_dbg(card->pop_time, "pop test : %s POST_PMU\n",
-				w->name);
+			pop_dbg(dapm->dev, card->pop_time,
+				"pop test : %s POST_PMU\n", w->name);
 			ret = w->event(w,
 				       NULL, SND_SOC_DAPM_POST_PMU);
 			if (ret < 0)
@@ -799,8 +807,8 @@ static void dapm_seq_run_coalesced(struct snd_soc_dapm_context *dapm,
 		/* power down post event */
 		if (!w->power && w->event &&
 		    (w->event_flags & SND_SOC_DAPM_POST_PMD)) {
-			pop_dbg(card->pop_time, "pop test : %s POST_PMD\n",
-				w->name);
+			pop_dbg(dapm->dev, card->pop_time,
+				"pop test : %s POST_PMD\n", w->name);
 			ret = w->event(w, NULL, SND_SOC_DAPM_POST_PMD);
 			if (ret < 0)
 				dev_err(dapm->dev,
@@ -1025,8 +1033,8 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 				"Failed to apply active bias: %d\n", ret);
 	}
 
-	pop_dbg(card->pop_time, "DAPM sequencing finished, waiting %dms\n",
-		card->pop_time);
+	pop_dbg(dapm->dev, card->pop_time,
+		"DAPM sequencing finished, waiting %dms\n", card->pop_time);
 	pop_wait(card->pop_time);
 
 	return 0;
