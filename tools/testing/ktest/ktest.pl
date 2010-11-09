@@ -1735,9 +1735,9 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	$minconfig = $addconfig;
 
     } elsif (defined($addconfig)) {
-	run_command "cat $addconfig $minconfig > $tmpdir/use_config" or
+	run_command "cat $addconfig $minconfig > $tmpdir/add_config" or
 	    dodie "Failed to create temp config";
-	$minconfig = "$tmpdir/use_config";
+	$minconfig = "$tmpdir/add_config";
     }
 
     my $checkout = $opt{"CHECKOUT[$i]"};
