@@ -916,17 +916,8 @@ static int __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 	if (error)
 		return error;
 
-	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		error = vmtruncate(inode, attr->ia_size);
-		if (error)
-			return error;
-	}
-
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
-
-	gfs2_assert_warn(GFS2_SB(inode), !error);
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);

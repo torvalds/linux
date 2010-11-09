@@ -1104,17 +1104,8 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	if (error)
 		goto out_end_trans;
 
-	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		int error;
-
-		error = vmtruncate(inode, attr->ia_size);
-		gfs2_assert_warn(sdp, !error);
-	}
-
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
-
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
