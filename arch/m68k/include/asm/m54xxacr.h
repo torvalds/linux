@@ -83,46 +83,12 @@
 #define ACR2_MODE	(0x000f0000+INSN_CACHE_MODE)
 #define ACR3_MODE	0
 
-#ifndef __ASSEMBLY__
-
 #if ((DATA_CACHE_MODE & ACR_CM) == ACR_CM_WT)
 #define flush_dcache_range(a, l) do { asm("nop"); } while (0)
 #endif
-
-static inline void __m54xx_flush_cache_all(void)
-{
-	__asm__ __volatile__ (
 #if ((DATA_CACHE_MODE & ACR_CM) == ACR_CM_CP)
-	/*
-	 *	Use cpushl to push and invalidate all cache lines.
-	 *	Gas doesn't seem to know how to generate the ColdFire
-	 *	cpushl instruction... Oh well, bit stuff it for now.
-	 */
-		"clrl	%%d0\n\t"
-		"1:\n\t"
-		"movel	%%d0,%%a0\n\t"
-		"2:\n\t"
-		".word	0xf468\n\t"
-		"addl	%0,%%a0\n\t"
-		"cmpl	%1,%%a0\n\t"
-		"blt	2b\n\t"
-		"addql	#1,%%d0\n\t"
-		"cmpil	%2,%%d0\n\t"
-		"bne	1b\n\t"
+/* Copyback cache mode must push dirty cache lines first */
+#define	CACHE_PUSH
 #endif
-		"movel	%3,%%d0\n\t"
-		"movec	%%d0,%%CACR\n\t"
-		"nop\n\t"	/* forces flush of Store Buffer */
-		: /* No output */
-		: "i" (CACHE_LINE_SIZE),
-		  "i" (DCACHE_SIZE / CACHE_WAYS),
-		  "i" (CACHE_WAYS),
-		  "i" (CACHE_INVALIDATE)
-		: "d0", "a0" );
-}
-
-#define __flush_cache_all() __m54xx_flush_cache_all()
-
-#endif /* __ASSEMBLY__ */
 
 #endif	/* m54xxacr_h */

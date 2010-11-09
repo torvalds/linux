@@ -30,9 +30,13 @@
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 	memcpy(dst, src, len)
 
-#ifndef __flush_cache_all
+void mcf_cache_push(void);
+
 static inline void __flush_cache_all(void)
 {
+#ifdef CACHE_PUSH
+	mcf_cache_push();
+#endif
 #ifdef CACHE_INVALIDATE
 	__asm__ __volatile__ (
 		"movel	%0, %%d0\n\t"
@@ -41,6 +45,5 @@ static inline void __flush_cache_all(void)
 		: : "i" (CACHE_INVALIDATE) : "d0" );
 #endif
 }
-#endif /* __flush_cache_all */
 
 #endif /* _M68KNOMMU_CACHEFLUSH_H */
