@@ -1144,6 +1144,10 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	if (num_pages == 0) {
 		printk(KERN_ERR TTM_PFX "Illegal buffer object size.\n");
+		if (destroy)
+			(*destroy)(bo);
+		else
+			kfree(bo);
 		return -EINVAL;
 	}
 	bo->destroy = destroy;
