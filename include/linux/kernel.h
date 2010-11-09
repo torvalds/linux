@@ -58,6 +58,8 @@ extern const char linux_proc_banner[];
 
 #define FIELD_SIZEOF(t, f) (sizeof(((t*)0)->f))
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
+
+/* The `const' in roundup() prevents gcc-3.3 from calling __divdi3 */
 #define roundup(x, y) (					\
 {							\
 	const typeof(y) __y = y;			\
