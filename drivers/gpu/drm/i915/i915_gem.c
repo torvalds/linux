@@ -41,9 +41,6 @@ struct change_domains {
 	uint32_t flush_rings;
 };
 
-static uint32_t i915_gem_get_gtt_alignment(struct drm_i915_gem_object *obj);
-static uint32_t i915_gem_get_gtt_size(struct drm_i915_gem_object *obj);
-
 static int i915_gem_object_flush_gpu_write_domain(struct drm_i915_gem_object *obj,
 						  bool pipelined);
 static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
@@ -1443,6 +1440,28 @@ i915_gem_free_mmap_offset(struct drm_i915_gem_object *obj)
 	list->map = NULL;
 }
 
+static uint32_t
+i915_gem_get_gtt_size(struct drm_i915_gem_object *obj)
+{
+	struct drm_device *dev = obj->base.dev;
+	uint32_t size;
+
+	if (INTEL_INFO(dev)->gen >= 4 ||
+	    obj->tiling_mode == I915_TILING_NONE)
+		return obj->base.size;
+
+	/* Previous chips need a power-of-two fence region when tiling */
+	if (INTEL_INFO(dev)->gen == 3)
+		size = 1024*1024;
+	else
+		size = 512*1024;
+
+	while (size < obj->base.size)
+		size <<= 1;
+
+	return size;
+}
+
 /**
  * i915_gem_get_gtt_alignment - return required GTT alignment for an object
  * @obj: object to check
@@ -1503,34 +1522,6 @@ i915_gem_get_unfenced_gtt_alignment(struct drm_i915_gem_object *obj)
 		tile_height = 8;
 
 	return tile_height * obj->stride * 2;
-}
-
-static uint32_t
-i915_gem_get_gtt_size(struct drm_i915_gem_object *obj)
-{
-	struct drm_device *dev = obj->base.dev;
-	uint32_t size;
-
-	/*
-	 * Minimum alignment is 4k (GTT page size), but might be greater
-	 * if a fence register is needed for the object.
-	 */
-	if (INTEL_INFO(dev)->gen >= 4)
-		return obj->base.size;
-
-	/*
-	 * Previous chips need to be aligned to the size of the smallest
-	 * fence register that can contain the object.
-	 */
-	if (INTEL_INFO(dev)->gen == 3)
-		size = 1024*1024;
-	else
-		size = 512*1024;
-
-	while (size < obj->base.size)
-		size <<= 1;
-
-	return size;
 }
 
 /**
