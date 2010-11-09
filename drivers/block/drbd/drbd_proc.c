@@ -259,8 +259,9 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			   mdev->epochs,
 			   write_ordering_chars[mdev->write_ordering]
 			);
-			seq_printf(seq, " oos:%lu\n",
-				   Bit2KB(drbd_bm_total_weight(mdev)));
+			seq_printf(seq, " oos:%llu\n",
+				   Bit2KB((unsigned long long)
+					   drbd_bm_total_weight(mdev)));
 		}
 		if (mdev->state.conn == C_SYNC_SOURCE ||
 		    mdev->state.conn == C_SYNC_TARGET ||
