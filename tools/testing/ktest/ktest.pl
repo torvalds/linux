@@ -45,6 +45,8 @@ $default{"DIE_ON_FAILURE"}	= 1;
 $default{"SSH_EXEC"}		= "ssh \$SSH_USER\@\$MACHINE \$SSH_COMMAND";
 $default{"SCP_TO_TARGET"}	= "scp \$SRC_FILE \$SSH_USER\@\$MACHINE:\$DST_FILE";
 $default{"REBOOT"}		= "ssh \$SSH_USER\@\$MACHINE reboot";
+$default{"STOP_AFTER_SUCCESS"}	= 10;
+$default{"STOP_AFTER_FAILURE"}	= 60;
 
 my $version;
 my $machine;
@@ -94,6 +96,8 @@ my $timeout;
 my $booted_timeout;
 my $console;
 my $success_line;
+my $stop_after_success;
+my $stop_after_failure;
 my $build_target;
 my $target_image;
 my $localversion;
@@ -601,6 +605,9 @@ sub monitor {
 
     reboot_to;
 
+    my $success_start;
+    my $failure_start;
+
     for (;;) {
 
 	if ($booted) {
@@ -619,6 +626,16 @@ sub monitor {
 
 	if ($full_line =~ /$success_line/) {
 	    $booted = 1;
+	    $success_start = time;
+	}
+
+	if ($booted && defined($stop_after_success) &&
+	    $stop_after_success >= 0) {
+	    my $now = time;
+	    if ($now - $success_start >= $stop_after_success) {
+		doprint "Test forced to stop after $stop_after_success seconds after success\n";
+		last;
+	    }
 	}
 
 	if ($full_line =~ /\[ backtrace testing \]/) {
@@ -626,7 +643,19 @@ sub monitor {
 	}
 
 	if ($full_line =~ /call trace:/i) {
-	    $bug = 1 if (!$skip_call_trace);
+	    if (!$skip_call_trace) {
+		$bug = 1;
+		$failure_start = time;
+	    }
+	}
+
+	if ($bug && defined($stop_after_failure) &&
+	    $stop_after_failure >= 0) {
+	    my $now = time;
+	    if ($now - $failure_start >= $stop_after_failure) {
+		doprint "Test forced to stop after $stop_after_failure seconds after failure\n";
+		last;
+	    }
 	}
 
 	if ($full_line =~ /\[ end of backtrace testing \]/) {
@@ -1687,6 +1716,8 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $booted_timeout = set_test_option("BOOTED_TIMEOUT", $i);
     $console = set_test_option("CONSOLE", $i);
     $success_line = set_test_option("SUCCESS_LINE", $i);
+    $stop_after_success = set_test_option("STOP_AFTER_SUCCESS", $i);
+    $stop_after_failure = set_test_option("STOP_AFTER_FAILURE", $i);
     $build_target = set_test_option("BUILD_TARGET", $i);
     $ssh_exec = set_test_option("SSH_EXEC", $i);
     $scp_to_target = set_test_option("SCP_TO_TARGET", $i);
