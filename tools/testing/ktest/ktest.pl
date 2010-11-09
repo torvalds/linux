@@ -398,7 +398,12 @@ sub fail {
 	my $date = sprintf "%04d%02d%02d%02d%02d%02d",
 		1900+$t[5],$t[4],$t[3],$t[2],$t[1],$t[0];
 
-	my $dir = "$machine-$test_type-$build_type-fail-$date";
+	my $type = $build_type;
+	if ($type =~ /useconfig/) {
+	    $type = "useconfig";
+	}
+
+	my $dir = "$machine-$test_type-$type-fail-$date";
 	my $faildir = "$store_failures/$dir";
 
 	if (!-d $faildir) {
