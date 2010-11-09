@@ -5,9 +5,7 @@
  * (C) Copyright 2000-2004, Greg Ungerer <gerg@snapgear.com>
  */
 #include <linux/mm.h>
-#if defined(CONFIG_M5407) || defined(CONFIG_M54xx)
-#include <asm/m54xxacr.h>
-#endif
+#include <asm/mcfsim.h>
 
 #define flush_cache_all()			__flush_cache_all()
 #define flush_cache_mm(mm)			do { } while (0)

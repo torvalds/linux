@@ -109,8 +109,6 @@
 
 #if defined(CONFIG_M5407) || defined(CONFIG_M54xx)
 
-#include <asm/m54xxacr.h>
-
 .macro CACHE_ENABLE
 	/* invalidate whole cache */
 	movel	#(CACR_DCINVA+CACR_BCINVA+CACR_ICINVA),%d0
