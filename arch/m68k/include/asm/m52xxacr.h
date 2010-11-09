@@ -52,5 +52,32 @@
 #define ACR_BWE		0x00000020	/* Write buffer enabled */
 #define ACR_WPROTECT	0x00000004	/* Write protect region */
 
+/*
+ * Set the cache controller settings we will use. This code is set to
+ * only use the instruction cache, even on the controllers that support
+ * split cache. (This setup is trying to preserve the existing behavior
+ * for now, in the furture I hope to actually use the split cache mode).
+ */
+#if defined(CONFIG_M5206) || defined(CONFIG_M5206e) || \
+    defined(CONFIG_M5249) || defined(CONFIG_M5272)
+#define CACHE_INIT	(CACR_CINV)
+#define CACHE_MODE	(CACR_CENB + CACR_DCM)
+#else
+#ifdef CONFIG_COLDFIRE_SW_A7
+#define CACHE_INIT	(CACR_CINV + CACR_DISD)
+#define CACHE_MODE	(CACR_CENB + CACR_DISD + CACR_DCM)
+#else
+#define CACHE_INIT	(CACR_CINV + CACR_DISD + CACR_EUSP)
+#define CACHE_MODE	(CACR_CENB + CACR_DISD + CACR_DCM + CACR_EUSP)
+#endif
+#endif
+
+#define CACHE_INVALIDATE (CACHE_MODE + CACR_CINV)
+
+#define ACR0_MODE	((CONFIG_RAMBASE & 0xff000000) + \
+			 (0x000f0000) + \
+			 (ACR_ENABLE + ACR_ANY + ACR_CENB + ACR_BWE))
+#define ACR1_MODE	0
+
 /****************************************************************************/
 #endif  /* m52xxsim_h */

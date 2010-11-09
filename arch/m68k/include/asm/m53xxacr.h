@@ -48,5 +48,23 @@
 #define ACR_CM_IMPRE	0x00000060	/* Cache inhibited, imprecise */
 #define ACR_WPROTECT	0x00000004	/* Write protect region */
 
+/*
+ * Set the cache controller settings we will use. This default in the
+ * CACR is cache inhibited, we use the ACR register to set cacheing
+ * enabled on the regions we want (eg RAM).
+ */
+#ifdef CONFIG_COLDFIRE_SW_A7
+#define CACHE_MODE	(CACR_EC + CACR_ESB + CACR_DCM_PRE)
+#else
+#define CACHE_MODE	(CACR_EC + CACR_ESB + CACR_DCM_PRE + CACR_EUSP)
+#endif
+
+#define CACHE_INIT	CACR_CINVA
+
+#define ACR0_MODE	((CONFIG_RAMBASE & 0xff000000) + \
+			 (0x000f0000) + \
+			 (ACR_ENABLE + ACR_ANY + ACR_CM_CB))
+#define ACR1_MODE	0
+
 /****************************************************************************/
 #endif  /* m53xxsim_h */
