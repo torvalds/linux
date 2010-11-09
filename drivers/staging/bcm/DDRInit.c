@@ -1,6 +1,5 @@
 #include "headers.h"
 
-#ifndef BCM_SHM_INTERFACE
 
 
 #define DDR_DUMP_INTERNAL_DEVICE_MEMORY 0xBFC02B00
@@ -188,17 +187,6 @@ static DDR_SET_NODE asDPLL_266MHZ[] = {
                                         {0x0f000840,0x0FFF1B00},
                                         {0x0f000870,0x00000002}
 									  };
-#if 0
-static DDR_SET_NODE asDPLL_800MHZ[] = {
-										{0x0f000810,0x00000F95},
-										{0x0f000810,0x00000F95},
-                                        {0x0f000810,0x00000F95},
-                                        {0x0f000820,0x03F1365B},
-                                        {0x0f000840,0x0FFF0000},
-                                        {0x0f000880,0x000003DD},
-                                        {0x0f000860,0x00000000}
-									  };
-#endif
 
 #define T3B_SKIP_CLOCK_PROGRAM_DUMP_133MHZ 11  //index for 0x0F007000
 static DDR_SET_NODE asT3B_DDRSetting133MHz[] = {//      # DPLL Clock Setting
@@ -1298,5 +1286,4 @@ int download_ddr_settings(PMINI_ADAPTER Adapter)
 	return retval;
 }
 
-#endif
 

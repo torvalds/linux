@@ -1,9 +1,6 @@
 #ifndef __INTERFACE_MISC_H
 #define __INTERFACE_MISC_H
 
-PS_INTERFACE_ADAPTER
-InterfaceAdapterGet(PMINI_ADAPTER psAdapter);
-
 INT
 InterfaceRDM(PS_INTERFACE_ADAPTER psIntfAdapter,
 			UINT addr,

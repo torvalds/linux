@@ -1,12 +1,15 @@
 #include "headers.h"
 
-#ifndef BCM_SHM_INTERFACE
 
 static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 {
 	int		status = urb->status;
 	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)urb->context;
 	PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter ;
+
+	if (netif_msg_intr(Adapter))
+		pr_info(PFX "%s: interrupt status %d\n",
+			Adapter->dev->name, status);
 
 	if(Adapter->device_removed == TRUE)
 	{
@@ -163,41 +166,4 @@ INT StartInterruptUrb(PS_INTERFACE_ADAPTER psIntfAdapter)
 	}
 	return status;
 }
-
-/*
-Function:				InterfaceEnableInterrupt
-
-Description:			This is the hardware specific Function for configuring
-						and enabling the interrupts on the device.
-
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
-
-
-Return:				BCM_STATUS_SUCCESS - If configuring the interrupts was successful.
-						Other           - If an error occured.
-*/
-
-void InterfaceEnableInterrupt(PMINI_ADAPTER Adapter)
-{
-
-}
-
-/*
-Function:				InterfaceDisableInterrupt
-
-Description:			This is the hardware specific Function for disabling the interrupts on the device.
-
-Input parameters:		IN PMINI_ADAPTER Adapter   - Miniport Adapter Context
-
-
-Return:				BCM_STATUS_SUCCESS - If disabling the interrupts was successful.
-						Other           - If an error occured.
-*/
-
-void InterfaceDisableInterrupt(PMINI_ADAPTER Adapter)
-{
-
-}
-
-#endif
 

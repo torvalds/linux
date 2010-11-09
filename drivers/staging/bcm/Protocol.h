@@ -85,10 +85,10 @@ typedef struct _ETH_CS_ETH2_FRAME
 	ETH_HEADER_STRUC EThHdr;
 } __attribute__((packed)) ETH_CS_ETH2_FRAME;
 
+#define ETHERNET_FRAMETYPE_IPV4		ntohs(0x0800)
+#define ETHERNET_FRAMETYPE_IPV6 	ntohs(0x86dd)
+#define ETHERNET_FRAMETYPE_802QVLAN 	ntohs(0x8100)
 
-#define ETHERNET_FRAMETYPE_IPV4 ntohs(0x0800)
-#define ETHERNET_FRAMETYPE_IPV6 ntohs(0x86dd)
-#define ETHERNET_FRAMETYPE_802QVLAN 0x8100
 //Per SF CS Specification Encodings
 typedef enum _E_SERVICEFLOW_CS_SPEC_
 {
