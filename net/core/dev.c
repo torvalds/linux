@@ -5136,10 +5136,6 @@ int register_netdevice(struct net_device *dev)
 	if (ret)
 		goto out;
 
-	ret = netif_alloc_netdev_queues(dev);
-	if (ret)
-		goto out;
-
 	netdev_init_queues(dev);
 
 	/* Init, if this function is available */
@@ -5599,6 +5595,8 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 	dev->num_tx_queues = queue_count;
 	dev->real_num_tx_queues = queue_count;
+	if (netif_alloc_netdev_queues(dev))
+		goto free_pcpu;
 
 #ifdef CONFIG_RPS
 	dev->num_rx_queues = queue_count;
@@ -5619,6 +5617,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 free_pcpu:
 	free_percpu(dev->pcpu_refcnt);
+	kfree(dev->_tx);
 free_p:
 	kfree(p);
 	return NULL;
