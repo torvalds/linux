@@ -708,7 +708,7 @@ static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
 int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 {
 	struct drm_device *dev = ring->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long end;
 	u32 head;
 

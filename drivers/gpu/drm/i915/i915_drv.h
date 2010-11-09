@@ -876,6 +876,67 @@ enum intel_chip_family {
 	CHIP_I965 = 0x08,
 };
 
+#define INTEL_INFO(dev)	(((struct drm_i915_private *) (dev)->dev_private)->info)
+
+#define IS_I830(dev)		((dev)->pci_device == 0x3577)
+#define IS_845G(dev)		((dev)->pci_device == 0x2562)
+#define IS_I85X(dev)		(INTEL_INFO(dev)->is_i85x)
+#define IS_I865G(dev)		((dev)->pci_device == 0x2572)
+#define IS_I915G(dev)		(INTEL_INFO(dev)->is_i915g)
+#define IS_I915GM(dev)		((dev)->pci_device == 0x2592)
+#define IS_I945G(dev)		((dev)->pci_device == 0x2772)
+#define IS_I945GM(dev)		(INTEL_INFO(dev)->is_i945gm)
+#define IS_BROADWATER(dev)	(INTEL_INFO(dev)->is_broadwater)
+#define IS_CRESTLINE(dev)	(INTEL_INFO(dev)->is_crestline)
+#define IS_GM45(dev)		((dev)->pci_device == 0x2A42)
+#define IS_G4X(dev)		(INTEL_INFO(dev)->is_g4x)
+#define IS_PINEVIEW_G(dev)	((dev)->pci_device == 0xa001)
+#define IS_PINEVIEW_M(dev)	((dev)->pci_device == 0xa011)
+#define IS_PINEVIEW(dev)	(INTEL_INFO(dev)->is_pineview)
+#define IS_G33(dev)		(INTEL_INFO(dev)->is_g33)
+#define IS_IRONLAKE_D(dev)	((dev)->pci_device == 0x0042)
+#define IS_IRONLAKE_M(dev)	((dev)->pci_device == 0x0046)
+#define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
+
+#define IS_GEN2(dev)	(INTEL_INFO(dev)->gen == 2)
+#define IS_GEN3(dev)	(INTEL_INFO(dev)->gen == 3)
+#define IS_GEN4(dev)	(INTEL_INFO(dev)->gen == 4)
+#define IS_GEN5(dev)	(INTEL_INFO(dev)->gen == 5)
+#define IS_GEN6(dev)	(INTEL_INFO(dev)->gen == 6)
+
+#define HAS_BSD(dev)            (INTEL_INFO(dev)->has_bsd_ring)
+#define HAS_BLT(dev)            (INTEL_INFO(dev)->has_blt_ring)
+#define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
+
+#define HAS_OVERLAY(dev) 		(INTEL_INFO(dev)->has_overlay)
+#define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)
+
+/* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
+ * rows, which changed the alignment requirements and fence programming.
+ */
+#define HAS_128_BYTE_Y_TILING(dev) (!IS_GEN2(dev) && !(IS_I915G(dev) || \
+						      IS_I915GM(dev)))
+#define SUPPORTS_DIGITAL_OUTPUTS(dev)	(!IS_GEN2(dev) && !IS_PINEVIEW(dev))
+#define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_GEN5(dev))
+#define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_GEN5(dev))
+#define SUPPORTS_EDP(dev)		(IS_IRONLAKE_M(dev))
+#define SUPPORTS_TV(dev)		(INTEL_INFO(dev)->supports_tv)
+#define I915_HAS_HOTPLUG(dev)		 (INTEL_INFO(dev)->has_hotplug)
+/* dsparb controlled by hw only */
+#define DSPARB_HWCONTROL(dev) (IS_G4X(dev) || IS_IRONLAKE(dev))
+
+#define HAS_FW_BLC(dev) (INTEL_INFO(dev)->gen > 2)
+#define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
+#define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
+#define I915_HAS_RC6(dev) (INTEL_INFO(dev)->has_rc6)
+
+#define HAS_PCH_SPLIT(dev) (IS_GEN5(dev) || IS_GEN6(dev))
+#define HAS_PIPE_CONTROL(dev) (IS_GEN5(dev) || IS_GEN6(dev))
+
+#define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
+#define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
+#define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
+
 extern struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
 extern unsigned int i915_fbpercrtc;
@@ -1174,6 +1235,23 @@ extern void intel_overlay_print_error_state(struct seq_file *m, struct intel_ove
 		LOCK_TEST_WITH_RETURN(dev, file_priv);			\
 } while (0)
 
+#define I915_READ(reg)		i915_read(dev_priv, (reg), 4)
+#define I915_WRITE(reg, val)	i915_write(dev_priv, (reg), (val), 4)
+#define I915_READ16(reg)	i915_read(dev_priv, (reg), 2)
+#define I915_WRITE16(reg, val)	i915_write(dev_priv, (reg), (val), 2)
+#define I915_READ8(reg)		i915_read(dev_priv, (reg), 1)
+#define I915_WRITE8(reg, val)	i915_write(dev_priv, (reg), (val), 1)
+#define I915_WRITE64(reg, val)	i915_write(dev_priv, (reg), (val), 8)
+#define I915_READ64(reg)	i915_read(dev_priv, (reg), 8)
+
+#define I915_READ_NOTRACE(reg)		readl(dev_priv->regs + (reg))
+#define I915_WRITE_NOTRACE(reg, val)	writel(val, dev_priv->regs + (reg))
+#define I915_READ16_NOTRACE(reg)		readw(dev_priv->regs + (reg))
+#define I915_WRITE16_NOTRACE(reg, val)	writew(val, dev_priv->regs + (reg))
+
+#define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
+#define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
+
 static inline u32 i915_read(struct drm_i915_private *dev_priv, u32 reg, int len)
 {
        u64 val = 0;
@@ -1197,6 +1275,23 @@ static inline u32 i915_read(struct drm_i915_private *dev_priv, u32 reg, int len)
        return val;
 }
 
+/* On SNB platform, before reading ring registers forcewake bit
+ * must be set to prevent GT core from power down and stale values being
+ * returned.
+ */
+static inline u32 i915_safe_read(struct drm_i915_private *dev_priv, u32 reg)
+{
+	if (IS_GEN6(dev_priv->dev)) {
+		I915_WRITE_NOTRACE(FORCEWAKE, 1);
+		POSTING_READ(FORCEWAKE);
+		/* XXX How long do we really need to wait here?
+		 * Will different registers/engines require different periods?
+		 */
+		udelay(100);
+	}
+	return I915_READ(reg);
+}
+
 static inline void
 i915_write(struct drm_i915_private *dev_priv, u32 reg, u64 val, int len)
 {
@@ -1217,24 +1312,6 @@ i915_write(struct drm_i915_private *dev_priv, u32 reg, u64 val, int len)
                break;
        }
 }
-
-#define I915_READ(reg)		i915_read(dev_priv, (reg), 4)
-#define I915_WRITE(reg, val)	i915_write(dev_priv, (reg), (val), 4)
-#define I915_READ16(reg)	i915_read(dev_priv, (reg), 2)
-#define I915_WRITE16(reg, val)	i915_write(dev_priv, (reg), (val), 2)
-#define I915_READ8(reg)		i915_read(dev_priv, (reg), 1)
-#define I915_WRITE8(reg, val)	i915_write(dev_priv, (reg), (val), 1)
-#define I915_WRITE64(reg, val)	i915_write(dev_priv, (reg), (val), 8)
-#define I915_READ64(reg)	i915_read(dev_priv, (reg), 8)
-
-#define I915_READ_NOTRACE(reg)		readl(dev_priv->regs + (reg))
-#define I915_WRITE_NOTRACE(reg, val)	writel(val, dev_priv->regs + (reg))
-#define I915_READ16_NOTRACE(reg)		readw(dev_priv->regs + (reg))
-#define I915_WRITE16_NOTRACE(reg, val)	writew(val, dev_priv->regs + (reg))
-
-#define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
-#define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
-
 
 #define BEGIN_LP_RING(n) \
 	intel_ring_begin(&dev_priv->render_ring, (n))
@@ -1265,68 +1342,5 @@ i915_write(struct drm_i915_private *dev_priv, u32 reg, u64 val, int len)
 #define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
 #define I915_GEM_HWS_INDEX		0x20
 #define I915_BREADCRUMB_INDEX		0x21
-
-#define INTEL_INFO(dev)	(((struct drm_i915_private *) (dev)->dev_private)->info)
-
-#define IS_I830(dev)		((dev)->pci_device == 0x3577)
-#define IS_845G(dev)		((dev)->pci_device == 0x2562)
-#define IS_I85X(dev)		(INTEL_INFO(dev)->is_i85x)
-#define IS_I865G(dev)		((dev)->pci_device == 0x2572)
-#define IS_I915G(dev)		(INTEL_INFO(dev)->is_i915g)
-#define IS_I915GM(dev)		((dev)->pci_device == 0x2592)
-#define IS_I945G(dev)		((dev)->pci_device == 0x2772)
-#define IS_I945GM(dev)		(INTEL_INFO(dev)->is_i945gm)
-#define IS_BROADWATER(dev)	(INTEL_INFO(dev)->is_broadwater)
-#define IS_CRESTLINE(dev)	(INTEL_INFO(dev)->is_crestline)
-#define IS_GM45(dev)		((dev)->pci_device == 0x2A42)
-#define IS_G4X(dev)		(INTEL_INFO(dev)->is_g4x)
-#define IS_PINEVIEW_G(dev)	((dev)->pci_device == 0xa001)
-#define IS_PINEVIEW_M(dev)	((dev)->pci_device == 0xa011)
-#define IS_PINEVIEW(dev)	(INTEL_INFO(dev)->is_pineview)
-#define IS_G33(dev)		(INTEL_INFO(dev)->is_g33)
-#define IS_IRONLAKE_D(dev)	((dev)->pci_device == 0x0042)
-#define IS_IRONLAKE_M(dev)	((dev)->pci_device == 0x0046)
-#define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
-
-#define IS_GEN2(dev)	(INTEL_INFO(dev)->gen == 2)
-#define IS_GEN3(dev)	(INTEL_INFO(dev)->gen == 3)
-#define IS_GEN4(dev)	(INTEL_INFO(dev)->gen == 4)
-#define IS_GEN5(dev)	(INTEL_INFO(dev)->gen == 5)
-#define IS_GEN6(dev)	(INTEL_INFO(dev)->gen == 6)
-
-#define HAS_BSD(dev)            (INTEL_INFO(dev)->has_bsd_ring)
-#define HAS_BLT(dev)            (INTEL_INFO(dev)->has_blt_ring)
-#define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
-
-#define HAS_OVERLAY(dev) 		(INTEL_INFO(dev)->has_overlay)
-#define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)
-
-/* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
- * rows, which changed the alignment requirements and fence programming.
- */
-#define HAS_128_BYTE_Y_TILING(dev) (!IS_GEN2(dev) && !(IS_I915G(dev) || \
-						      IS_I915GM(dev)))
-#define SUPPORTS_DIGITAL_OUTPUTS(dev)	(!IS_GEN2(dev) && !IS_PINEVIEW(dev))
-#define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev) || IS_GEN5(dev))
-#define SUPPORTS_INTEGRATED_DP(dev)	(IS_G4X(dev) || IS_GEN5(dev))
-#define SUPPORTS_EDP(dev)		(IS_IRONLAKE_M(dev))
-#define SUPPORTS_TV(dev)		(INTEL_INFO(dev)->supports_tv)
-#define I915_HAS_HOTPLUG(dev)		 (INTEL_INFO(dev)->has_hotplug)
-/* dsparb controlled by hw only */
-#define DSPARB_HWCONTROL(dev) (IS_G4X(dev) || IS_IRONLAKE(dev))
-
-#define HAS_FW_BLC(dev) (INTEL_INFO(dev)->gen > 2)
-#define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
-#define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
-#define I915_HAS_RC6(dev) (INTEL_INFO(dev)->has_rc6)
-
-#define HAS_PCH_SPLIT(dev) (IS_GEN5(dev) || IS_GEN6(dev))
-#define HAS_PIPE_CONTROL(dev) (IS_GEN5(dev) || IS_GEN6(dev))
-
-#define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
-#define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
-#define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
-
-#define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 
 #endif

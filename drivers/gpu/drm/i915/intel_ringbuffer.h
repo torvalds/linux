@@ -7,13 +7,18 @@ struct  intel_hw_status_page {
 	struct		drm_gem_object *obj;
 };
 
-#define I915_READ_TAIL(ring) I915_READ(RING_TAIL(ring->mmio_base))
+#define I915_RING_READ(reg) i915_safe_read(dev_priv, reg)
+
+#define I915_READ_TAIL(ring) I915_RING_READ(RING_TAIL(ring->mmio_base))
 #define I915_WRITE_TAIL(ring, val) I915_WRITE(RING_TAIL(ring->mmio_base), val)
-#define I915_READ_START(ring) I915_READ(RING_START(ring->mmio_base))
+
+#define I915_READ_START(ring) I915_RING_READ(RING_START(ring->mmio_base))
 #define I915_WRITE_START(ring, val) I915_WRITE(RING_START(ring->mmio_base), val)
-#define I915_READ_HEAD(ring) I915_READ(RING_HEAD(ring->mmio_base))
+
+#define I915_READ_HEAD(ring)  I915_RING_READ(RING_HEAD(ring->mmio_base))
 #define I915_WRITE_HEAD(ring, val) I915_WRITE(RING_HEAD(ring->mmio_base), val)
-#define I915_READ_CTL(ring) I915_READ(RING_CTL(ring->mmio_base))
+
+#define I915_READ_CTL(ring) I915_RING_READ(RING_CTL(ring->mmio_base))
 #define I915_WRITE_CTL(ring, val) I915_WRITE(RING_CTL(ring->mmio_base), val)
 
 struct drm_i915_gem_execbuffer2;
