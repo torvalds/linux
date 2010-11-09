@@ -401,6 +401,14 @@ static inline void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 static inline void soc_cleanup_codec_debugfs(struct snd_soc_codec *codec)
 {
 }
+
+static inline void soc_init_card_debugfs(struct snd_soc_card *card)
+{
+}
+
+static inline void soc_cleanup_card_debugfs(struct snd_soc_card *card)
+{
+}
 #endif
 
 #ifdef CONFIG_SND_SOC_AC97_BUS
