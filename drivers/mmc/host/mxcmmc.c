@@ -150,7 +150,6 @@ static void mxcmci_set_clk_rate(struct mxcmci_host *host, unsigned int clk_ios);
 
 static inline void mxcmci_init_ocr(struct mxcmci_host *host)
 {
-#ifdef CONFIG_REGULATOR
 	host->vcc = regulator_get(mmc_dev(host->mmc), "vmmc");
 
 	if (IS_ERR(host->vcc)) {
@@ -161,7 +160,7 @@ static inline void mxcmci_init_ocr(struct mxcmci_host *host)
 			dev_warn(mmc_dev(host->mmc),
 				"pdata->ocr_avail will not be used\n");
 	}
-#endif
+
 	if (host->vcc == NULL) {
 		/* fall-back to platform data */
 		if (host->pdata && host->pdata->ocr_avail)
@@ -171,12 +170,17 @@ static inline void mxcmci_init_ocr(struct mxcmci_host *host)
 	}
 }
 
-static inline void mxcmci_set_power(struct mxcmci_host *host, unsigned int vdd)
+static inline void mxcmci_set_power(struct mxcmci_host *host,
+				    unsigned char power_mode,
+				    unsigned int vdd)
 {
-#ifdef CONFIG_REGULATOR
-	if (host->vcc)
-		mmc_regulator_set_ocr(host->vcc, vdd);
-#endif
+	if (host->vcc) {
+		if (power_mode == MMC_POWER_UP)
+			mmc_regulator_set_ocr(host->mmc, host->vcc, vdd);
+		else if (power_mode == MMC_POWER_OFF)
+			mmc_regulator_set_ocr(host->mmc, host->vcc, 0);
+	}
+
 	if (host->pdata && host->pdata->setpower)
 		host->pdata->setpower(mmc_dev(host->mmc), vdd);
 }
@@ -716,7 +720,7 @@ static void mxcmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		host->cmdat &= ~CMD_DAT_CONT_BUS_WIDTH_4;
 
 	if (host->power_mode != ios->power_mode) {
-		mxcmci_set_power(host, ios->vdd);
+		mxcmci_set_power(host, ios->power_mode, ios->vdd);
 		host->power_mode = ios->power_mode;
 
 		if (ios->power_mode == MMC_POWER_ON)
