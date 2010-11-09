@@ -45,9 +45,8 @@
 /* default: IWL_LED_BLINK(0) using blinking index table */
 static int led_mode;
 module_param(led_mode, int, S_IRUGO);
-MODULE_PARM_DESC(led_mode, "led mode: 0=blinking, 1=On(RF On)/Off(RF Off), "
-			   "(default 0)");
-
+MODULE_PARM_DESC(led_mode, "led mode: 0=system default, "
+		"1=On(RF On)/Off(RF Off), 2=blinking");
 
 static const struct {
 	u16 tpt;	/* Mb/s */
@@ -128,7 +127,7 @@ EXPORT_SYMBOL(iwl_led_start);
 int iwl_led_associate(struct iwl_priv *priv)
 {
 	IWL_DEBUG_LED(priv, "Associated\n");
-	if (led_mode == IWL_LED_BLINK)
+	if (priv->cfg->led_mode == IWL_LED_BLINK)
 		priv->allow_blinking = 1;
 	priv->last_blink_time = jiffies;
 
@@ -223,5 +222,8 @@ void iwl_leds_init(struct iwl_priv *priv)
 	priv->last_blink_rate = 0;
 	priv->last_blink_time = 0;
 	priv->allow_blinking = 0;
+	if (led_mode != IWL_LED_DEFAULT &&
+	    led_mode != priv->cfg->led_mode)
+		priv->cfg->led_mode = led_mode;
 }
 EXPORT_SYMBOL(iwl_leds_init);

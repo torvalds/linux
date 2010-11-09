@@ -2636,6 +2636,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.ops = &iwl4965_ops,
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl4965_base_params,
+	.led_mode = IWL_LED_BLINK,
 	/*
 	 * Force use of chains B and C for scan RX on 5 GHz band
 	 * because the device has off-channel reception on chain A.

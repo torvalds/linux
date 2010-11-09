@@ -536,6 +536,7 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl5000_base_params,
 	.ht_params = &iwl5000_ht_params,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl5100_bgn_cfg = {
@@ -552,6 +553,7 @@ struct iwl_cfg iwl5100_bgn_cfg = {
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl5000_base_params,
 	.ht_params = &iwl5000_ht_params,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl5100_abg_cfg = {
@@ -567,6 +569,7 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.ops = &iwl5000_ops,
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl5000_base_params,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl5100_agn_cfg = {
@@ -583,6 +586,7 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl5000_base_params,
 	.ht_params = &iwl5000_ht_params,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
@@ -599,6 +603,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl5000_base_params,
 	.ht_params = &iwl5000_ht_params,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl5150_agn_cfg = {
@@ -616,6 +621,7 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.base_params = &iwl5000_base_params,
 	.ht_params = &iwl5000_ht_params,
 	.need_dc_calib = true,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl5150_abg_cfg = {
@@ -632,6 +638,7 @@ struct iwl_cfg iwl5150_abg_cfg = {
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl5000_base_params,
 	.need_dc_calib = true,
+	.led_mode = IWL_LED_BLINK,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));
