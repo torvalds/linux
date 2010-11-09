@@ -3054,6 +3054,14 @@ int net_os_send_hang_message(struct net_device *dev)
 	return ret;
 }
 
+void dhd_bus_country_set(struct net_device *dev, char *country_code)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+
+	if (dhd && dhd->pub.up)
+		strncpy(dhd->pub.country_code, country_code, WLC_CNTRY_BUF_SZ);
+}
+
 void dhd_os_start_lock(dhd_pub_t *pub)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
