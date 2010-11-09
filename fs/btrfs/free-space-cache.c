@@ -1788,6 +1788,8 @@ static u64 btrfs_alloc_from_bitmap(struct btrfs_block_group_cache *block_group,
 
 	ret = search_start;
 	bitmap_clear_bits(block_group, entry, ret, bytes);
+	if (entry->bytes == 0)
+		free_bitmap(block_group, entry);
 out:
 	spin_unlock(&cluster->lock);
 	spin_unlock(&block_group->tree_lock);
