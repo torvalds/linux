@@ -383,11 +383,15 @@ static int kvm_init_mmu_notifier(struct kvm *kvm)
 
 static struct kvm *kvm_create_vm(void)
 {
-	int r = 0, i;
-	struct kvm *kvm = kvm_arch_create_vm();
+	int r, i;
+	struct kvm *kvm = kvm_arch_alloc_vm();
 
-	if (IS_ERR(kvm))
-		goto out;
+	if (!kvm)
+		return ERR_PTR(-ENOMEM);
+
+	r = kvm_arch_init_vm(kvm);
+	if (r)
+		goto out_err_nodisable;
 
 	r = hardware_enable_all();
 	if (r)
@@ -427,7 +431,7 @@ static struct kvm *kvm_create_vm(void)
 	spin_lock(&kvm_lock);
 	list_add(&kvm->vm_list, &vm_list);
 	spin_unlock(&kvm_lock);
-out:
+
 	return kvm;
 
 out_err:
@@ -438,7 +442,7 @@ out_err_nodisable:
 	for (i = 0; i < KVM_NR_BUSES; i++)
 		kfree(kvm->buses[i]);
 	kfree(kvm->memslots);
-	kfree(kvm);
+	kvm_arch_free_vm(kvm);
 	return ERR_PTR(r);
 }
 
@@ -512,6 +516,9 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	kvm_arch_flush_shadow(kvm);
 #endif
 	kvm_arch_destroy_vm(kvm);
+	kvm_free_physmem(kvm);
+	cleanup_srcu_struct(&kvm->srcu);
+	kvm_arch_free_vm(kvm);
 	hardware_disable_all();
 	mmdrop(mm);
 }

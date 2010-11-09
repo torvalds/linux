@@ -16,6 +16,7 @@
 #include <linux/mm.h>
 #include <linux/preempt.h>
 #include <linux/msi.h>
+#include <linux/slab.h>
 #include <asm/signal.h>
 
 #include <linux/kvm.h>
@@ -441,7 +442,19 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu);
 
 void kvm_free_physmem(struct kvm *kvm);
 
-struct  kvm *kvm_arch_create_vm(void);
+#ifndef __KVM_HAVE_ARCH_VM_ALLOC
+static inline struct kvm *kvm_arch_alloc_vm(void)
+{
+	return kzalloc(sizeof(struct kvm), GFP_KERNEL);
+}
+
+static inline void kvm_arch_free_vm(struct kvm *kvm)
+{
+	kfree(kvm);
+}
+#endif
+
+int kvm_arch_init_vm(struct kvm *kvm);
 void kvm_arch_destroy_vm(struct kvm *kvm);
 void kvm_free_all_assigned_devices(struct kvm *kvm);
 void kvm_arch_sync_events(struct kvm *kvm);
