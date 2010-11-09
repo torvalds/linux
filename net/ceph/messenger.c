@@ -540,8 +540,7 @@ static void prepare_write_message(struct ceph_connection *con)
 		/* initialize page iterator */
 		con->out_msg_pos.page = 0;
 		if (m->pages)
-			con->out_msg_pos.page_pos =
-				le16_to_cpu(m->hdr.data_off) & ~PAGE_MASK;
+			con->out_msg_pos.page_pos = m->page_alignment;
 		else
 			con->out_msg_pos.page_pos = 0;
 		con->out_msg_pos.data_pos = 0;
@@ -1491,7 +1490,7 @@ static int read_partial_message(struct ceph_connection *con)
 	struct ceph_msg *m = con->in_msg;
 	int ret;
 	int to, left;
-	unsigned front_len, middle_len, data_len, data_off;
+	unsigned front_len, middle_len, data_len;
 	int datacrc = con->msgr->nocrc;
 	int skip;
 	u64 seq;
@@ -1527,7 +1526,6 @@ static int read_partial_message(struct ceph_connection *con)
 	data_len = le32_to_cpu(con->in_hdr.data_len);
 	if (data_len > CEPH_MSG_MAX_DATA_LEN)
 		return -EIO;
-	data_off = le16_to_cpu(con->in_hdr.data_off);
 
 	/* verify seq# */
 	seq = le64_to_cpu(con->in_hdr.seq);
@@ -1575,7 +1573,7 @@ static int read_partial_message(struct ceph_connection *con)
 
 		con->in_msg_pos.page = 0;
 		if (m->pages)
-			con->in_msg_pos.page_pos = data_off & ~PAGE_MASK;
+			con->in_msg_pos.page_pos = m->page_alignment;
 		else
 			con->in_msg_pos.page_pos = 0;
 		con->in_msg_pos.data_pos = 0;
@@ -2300,6 +2298,7 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags)
 
 	/* data */
 	m->nr_pages = 0;
+	m->page_alignment = 0;
 	m->pages = NULL;
 	m->pagelist = NULL;
 	m->bio = NULL;
@@ -2369,6 +2368,7 @@ static struct ceph_msg *ceph_alloc_msg(struct ceph_connection *con,
 			       type, front_len);
 			return NULL;
 		}
+		msg->page_alignment = le16_to_cpu(hdr->data_off);
 	}
 	memcpy(&msg->hdr, &con->in_hdr, sizeof(con->in_hdr));
 

@@ -391,6 +391,8 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 		req->r_request->hdr.data_len = cpu_to_le32(data_len);
 	}
 
+	req->r_request->page_alignment = req->r_page_alignment;
+
 	BUG_ON(p > msg->front.iov_base + msg->front.iov_len);
 	msg_size = p - msg->front.iov_base;
 	msg->front.iov_len = msg_size;
@@ -1657,6 +1659,7 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 		}
 		m->pages = req->r_pages;
 		m->nr_pages = req->r_num_pages;
+		m->page_alignment = req->r_page_alignment;
 #ifdef CONFIG_BLOCK
 		m->bio = req->r_bio;
 #endif
