@@ -706,7 +706,6 @@ static struct attribute *rx_queue_default_attrs[] = {
 static void rx_queue_release(struct kobject *kobj)
 {
 	struct netdev_rx_queue *queue = to_rx_queue(kobj);
-	struct netdev_rx_queue *first = queue->first;
 	struct rps_map *map;
 	struct rps_dev_flow_table *flow_table;
 
@@ -719,8 +718,7 @@ static void rx_queue_release(struct kobject *kobj)
 	if (flow_table)
 		call_rcu(&flow_table->rcu, rps_dev_flow_table_release);
 
-	if (atomic_dec_and_test(&first->count))
-		kfree(first);
+	dev_put(queue->dev);
 }
 
 static struct kobj_type rx_queue_ktype = {
@@ -732,7 +730,6 @@ static struct kobj_type rx_queue_ktype = {
 static int rx_queue_add_kobject(struct net_device *net, int index)
 {
 	struct netdev_rx_queue *queue = net->_rx + index;
-	struct netdev_rx_queue *first = queue->first;
 	struct kobject *kobj = &queue->kobj;
 	int error = 0;
 
@@ -745,7 +742,7 @@ static int rx_queue_add_kobject(struct net_device *net, int index)
 	}
 
 	kobject_uevent(kobj, KOBJ_ADD);
-	atomic_inc(&first->count);
+	dev_hold(queue->dev);
 
 	return error;
 }

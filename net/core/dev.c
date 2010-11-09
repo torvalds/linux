@@ -5051,12 +5051,8 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 	}
 	dev->_rx = rx;
 
-	/*
-	 * Set a pointer to first element in the array which holds the
-	 * reference count.
-	 */
 	for (i = 0; i < count; i++)
-		rx[i].first = rx;
+		rx[i].dev = dev;
 #endif
 	return 0;
 }
@@ -5131,10 +5127,6 @@ int register_netdevice(struct net_device *dev)
 	netdev_set_addr_lockdep_class(dev);
 
 	dev->iflink = -1;
-
-	ret = netif_alloc_rx_queues(dev);
-	if (ret)
-		goto out;
 
 	netdev_init_queues(dev);
 
@@ -5601,6 +5593,8 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 #ifdef CONFIG_RPS
 	dev->num_rx_queues = queue_count;
 	dev->real_num_rx_queues = queue_count;
+	if (netif_alloc_rx_queues(dev))
+		goto free_pcpu;
 #endif
 
 	dev->gso_max_size = GSO_MAX_SIZE;
@@ -5618,6 +5612,10 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 free_pcpu:
 	free_percpu(dev->pcpu_refcnt);
 	kfree(dev->_tx);
+#ifdef CONFIG_RPS
+	kfree(dev->_rx);
+#endif
+
 free_p:
 	kfree(p);
 	return NULL;
@@ -5639,6 +5637,9 @@ void free_netdev(struct net_device *dev)
 	release_net(dev_net(dev));
 
 	kfree(dev->_tx);
+#ifdef CONFIG_RPS
+	kfree(dev->_rx);
+#endif
 
 	kfree(rcu_dereference_raw(dev->ingress_queue));
 
