@@ -26,6 +26,7 @@
 #include <linux/sfi.h>
 #include <asm/mrst.h>
 #include <asm/intel_scu_ipc.h>
+#include <asm/mrst.h>
 
 /* IPC defines the following message types */
 #define IPCMSG_WATCHDOG_TIMER 0xF8 /* Set Kernel Watchdog Threshold */
@@ -699,6 +700,9 @@ static int ipc_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		iounmap(ipcdev.ipc_base);
 		return -ENOMEM;
 	}
+
+	intel_scu_devices_create();
+
 	return 0;
 }
 
@@ -720,6 +724,7 @@ static void ipc_remove(struct pci_dev *pdev)
 	iounmap(ipcdev.ipc_base);
 	iounmap(ipcdev.i2c_base);
 	ipcdev.pdev = NULL;
+	intel_scu_devices_destroy();
 }
 
 static const struct pci_device_id pci_ids[] = {
