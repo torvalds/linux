@@ -221,6 +221,7 @@ static unsigned long __init mrst_calibrate_tsc(void)
 
 void __init mrst_time_init(void)
 {
+	sfi_table_parse(SFI_SIG_MTMR, NULL, NULL, sfi_parse_mtmr);
 	switch (mrst_timer_options) {
 	case MRST_TIMER_APBT_ONLY:
 		break;
@@ -236,7 +237,6 @@ void __init mrst_time_init(void)
 		return;
 	}
 	/* we need at least one APB timer */
-	sfi_table_parse(SFI_SIG_MTMR, NULL, NULL, sfi_parse_mtmr);
 	pre_init_apic_IRQ0();
 	apbt_time_init();
 }
