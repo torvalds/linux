@@ -74,7 +74,7 @@ config TEGRA_CPU_DVFS
 
 config TEGRA_CORE_DVFS
 	bool "Enable voltage scaling on Tegra core"
-	depends on TEGRA_CORE_CPU
+	depends on TEGRA_CPU_DVFS
 	default y
 
 config TEGRA_IOVMM_GART
