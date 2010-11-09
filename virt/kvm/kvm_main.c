@@ -401,23 +401,19 @@ static struct kvm *kvm_create_vm(void)
 	r = -ENOMEM;
 	kvm->memslots = kzalloc(sizeof(struct kvm_memslots), GFP_KERNEL);
 	if (!kvm->memslots)
-		goto out_err;
+		goto out_err_nosrcu;
 	if (init_srcu_struct(&kvm->srcu))
-		goto out_err;
+		goto out_err_nosrcu;
 	for (i = 0; i < KVM_NR_BUSES; i++) {
 		kvm->buses[i] = kzalloc(sizeof(struct kvm_io_bus),
 					GFP_KERNEL);
-		if (!kvm->buses[i]) {
-			cleanup_srcu_struct(&kvm->srcu);
+		if (!kvm->buses[i])
 			goto out_err;
-		}
 	}
 
 	r = kvm_init_mmu_notifier(kvm);
-	if (r) {
-		cleanup_srcu_struct(&kvm->srcu);
+	if (r)
 		goto out_err;
-	}
 
 	kvm->mm = current->mm;
 	atomic_inc(&kvm->mm->mm_count);
@@ -435,6 +431,8 @@ out:
 	return kvm;
 
 out_err:
+	cleanup_srcu_struct(&kvm->srcu);
+out_err_nosrcu:
 	hardware_disable_all();
 out_err_nodisable:
 	for (i = 0; i < KVM_NR_BUSES; i++)
