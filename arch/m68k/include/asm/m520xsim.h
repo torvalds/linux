@@ -14,6 +14,8 @@
 #define	CPU_NAME		"COLDFIRE(m520x)"
 #define	CPU_INSTR_PER_JIFFY	3
 
+#include <asm/m52xxacr.h>
+
 /*
  *  Define the 520x SIM register set addresses.
  */
@@ -57,6 +59,9 @@
 #define MCFSIM_SDCS0        0x000a8110	/* SDRAM Chip Select 0 Configuration */
 #define MCFSIM_SDCS1        0x000a8114	/* SDRAM Chip Select 1 Configuration */
 
+/*
+ * EPORT and GPIO registers.
+ */
 #define MCFEPORT_EPDDR			0xFC088002
 #define MCFEPORT_EPDR			0xFC088004
 #define MCFEPORT_EPPDR			0xFC088005

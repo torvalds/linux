@@ -14,6 +14,8 @@
 #define	CPU_NAME		"COLDFIRE(m5249)"
 #define	CPU_INSTR_PER_JIFFY	3
 
+#include <asm/m52xxacr.h>
+
 /*
  *	Define the 5249 SIM register set addresses.
  */
