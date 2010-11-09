@@ -1843,14 +1843,25 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
 		entry->offset += bytes;
 		entry->bytes -= bytes;
 
-		if (entry->bytes == 0) {
+		if (entry->bytes == 0)
 			rb_erase(&entry->offset_index, &cluster->root);
-			kfree(entry);
-		}
 		break;
 	}
 out:
 	spin_unlock(&cluster->lock);
+
+	if (!ret)
+		return 0;
+
+	spin_lock(&block_group->tree_lock);
+
+	block_group->free_space -= bytes;
+	if (entry->bytes == 0) {
+		block_group->free_extents--;
+		kfree(entry);
+	}
+
+	spin_unlock(&block_group->tree_lock);
 
 	return ret;
 }
