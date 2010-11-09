@@ -987,11 +987,18 @@ tree_search_offset(struct btrfs_block_group_cache *block_group,
 	return entry;
 }
 
-static void unlink_free_space(struct btrfs_block_group_cache *block_group,
-			      struct btrfs_free_space *info)
+static inline void
+__unlink_free_space(struct btrfs_block_group_cache *block_group,
+		    struct btrfs_free_space *info)
 {
 	rb_erase(&info->offset_index, &block_group->free_space_offset);
 	block_group->free_extents--;
+}
+
+static void unlink_free_space(struct btrfs_block_group_cache *block_group,
+			      struct btrfs_free_space *info)
+{
+	__unlink_free_space(block_group, info);
 	block_group->free_space -= info->bytes;
 }
 
@@ -1364,7 +1371,7 @@ out:
 }
 
 bool try_merge_free_space(struct btrfs_block_group_cache *block_group,
-			  struct btrfs_free_space *info)
+			  struct btrfs_free_space *info, bool update_stat)
 {
 	struct btrfs_free_space *left_info;
 	struct btrfs_free_space *right_info;
@@ -1385,7 +1392,10 @@ bool try_merge_free_space(struct btrfs_block_group_cache *block_group,
 		left_info = tree_search_offset(block_group, offset - 1, 0, 0);
 
 	if (right_info && !right_info->bitmap) {
-		unlink_free_space(block_group, right_info);
+		if (update_stat)
+			unlink_free_space(block_group, right_info);
+		else
+			__unlink_free_space(block_group, right_info);
 		info->bytes += right_info->bytes;
 		kfree(right_info);
 		merged = true;
@@ -1393,7 +1403,10 @@ bool try_merge_free_space(struct btrfs_block_group_cache *block_group,
 
 	if (left_info && !left_info->bitmap &&
 	    left_info->offset + left_info->bytes == offset) {
-		unlink_free_space(block_group, left_info);
+		if (update_stat)
+			unlink_free_space(block_group, left_info);
+		else
+			__unlink_free_space(block_group, left_info);
 		info->offset = left_info->offset;
 		info->bytes += left_info->bytes;
 		kfree(left_info);
@@ -1418,7 +1431,7 @@ int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
 
 	spin_lock(&block_group->tree_lock);
 
-	if (try_merge_free_space(block_group, info))
+	if (try_merge_free_space(block_group, info, true))
 		goto link;
 
 	/*
@@ -1636,6 +1649,7 @@ __btrfs_return_cluster_to_free_space(
 		node = rb_next(&entry->offset_index);
 		rb_erase(&entry->offset_index, &cluster->root);
 		BUG_ON(entry->bitmap);
+		try_merge_free_space(block_group, entry, false);
 		tree_insert_offset(&block_group->free_space_offset,
 				   entry->offset, &entry->offset_index, 0);
 	}
