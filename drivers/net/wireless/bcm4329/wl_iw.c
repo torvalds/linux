@@ -7514,6 +7514,12 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 	WL_TRACE(("%s: dev=%s event=%d \n", __FUNCTION__, dev->name, event_type));
 
 	switch (event_type) {
+
+	case WLC_E_RELOAD:
+		WL_ERROR(("%s: Firmware ERROR %d\n", __FUNCTION__, status));
+		net_os_send_hang_message(dev);
+		goto wl_iw_event_end;
+
 #if defined(SOFTAP)
 	case WLC_E_PRUNE:
 		if (ap_cfg_running) {
