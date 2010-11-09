@@ -521,13 +521,6 @@ int tm6000_cards_setup(struct tm6000_core *dev)
 				printk(KERN_ERR "Error %i doing tuner reset\n", rc);
 				return rc;
 			}
-			msleep(10);
-
-			if (!i) {
-				rc = tm6000_get_reg32(dev, REQ_40_GET_VERSION, 0, 0);
-				if (rc >= 0)
-					printk(KERN_DEBUG "board=0x%08x\n", rc);
-			}
 		}
 	} else {
 		printk(KERN_ERR "Tuner reset is not configured\n");
