@@ -1016,14 +1016,18 @@ static void recalculate_thresholds(struct btrfs_block_group_cache *block_group)
 	u64 max_bytes;
 	u64 bitmap_bytes;
 	u64 extent_bytes;
+	u64 size = block_group->key.offset;
 
 	/*
 	 * The goal is to keep the total amount of memory used per 1gb of space
 	 * at or below 32k, so we need to adjust how much memory we allow to be
 	 * used by extent based free space tracking
 	 */
-	max_bytes = MAX_CACHE_BYTES_PER_GIG *
-		(div64_u64(block_group->key.offset, 1024 * 1024 * 1024));
+	if (size < 1024 * 1024 * 1024)
+		max_bytes = MAX_CACHE_BYTES_PER_GIG;
+	else
+		max_bytes = MAX_CACHE_BYTES_PER_GIG *
+			div64_u64(size, 1024 * 1024 * 1024);
 
 	/*
 	 * we want to account for 1 more bitmap than what we have so we can make
