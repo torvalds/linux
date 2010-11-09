@@ -47,6 +47,7 @@
 #include <linux/delay.h>
 #include <linux/tegra_audio.h>
 #include <linux/workqueue.h>
+#include <linux/pm.h>
 
 #include <mach/dma.h>
 #include <mach/iomap.h>
@@ -106,6 +107,7 @@ struct audio_driver_state {
 
 	bool using_dma;
 	unsigned long dma_req_sel;
+	bool fifo_init;
 
 	int irq; /* for pio mode */
 	struct spdif_pio_stats pio_stats;
@@ -229,7 +231,11 @@ static int spdif_fifo_set_attention_level(unsigned long base,
 static void spdif_fifo_enable(unsigned long base, int on)
 {
 	u32 val = spdif_readl(base, SPDIF_CTRL_0);
-	val &= ~(SPDIF_CTRL_0_TX_EN | SPDIF_CTRL_0_TC_EN);
+
+	if (on && (val & SPDIF_CTRL_0_TX_EN))
+		return;
+
+	val &= ~(SPDIF_CTRL_0_TX_EN | SPDIF_CTRL_0_TC_EN | SPDIF_CTRL_0_TU_EN);
 	val |= on ? (SPDIF_CTRL_0_TX_EN) : 0;
 	val |= on ? (SPDIF_CTRL_0_TC_EN) : 0;
 
@@ -339,12 +345,11 @@ static int spdif_set_sample_rate(struct audio_driver_state *state,
 				unsigned int sample_rate)
 {
 	unsigned int clock_freq = 0;
-	unsigned int parent_clock_freq = 0;
 	struct clk *spdif_clk;
 
 	unsigned int ch_sta[] = {
 		0x0, /* 44.1, default values */
-		0xf << 4, /* bits 36-39, original sample freq -- 44.1 */
+		0x0,
 		0x0,
 		0x0,
 		0x0,
@@ -354,37 +359,30 @@ static int spdif_set_sample_rate(struct audio_driver_state *state,
 	switch (sample_rate) {
 	case 32000:
 		clock_freq = 4096000; /* 4.0960 MHz */
-		parent_clock_freq = 12288000;
 		ch_sta[0] = 0x3 << 24;
-		ch_sta[1] = 0xC << 4;
+		/*ch_sta[1] = 0xC << 4;*/
 		break;
 	case 44100:
 		clock_freq = 5644800; /* 5.6448 MHz */
-		parent_clock_freq = 11289600;
 		ch_sta[0] = 0x0;
-		ch_sta[1] = 0xF << 4;
+		/*ch_sta[1] = 0xF << 4;*/
 		break;
 	case 48000:
 		clock_freq = 6144000; /* 6.1440MHz */
-		parent_clock_freq = 12288000;
 		ch_sta[0] = 0x2 << 24;
-		ch_sta[1] = 0xD << 4;
+		/*ch_sta[1] = 0xD << 4;*/
 		break;
 	case 88200:
 		clock_freq = 11289600; /* 11.2896 MHz */
-		parent_clock_freq = 11289600;
 		break;
 	case 96000:
 		clock_freq = 12288000; /* 12.288 MHz */
-		parent_clock_freq = 12288000;
 		break;
 	case 176400:
 		clock_freq = 22579200; /* 22.5792 MHz */
-		parent_clock_freq = 11289600;
 		break;
 	case 192000:
 		clock_freq = 24576000; /* 24.5760 MHz */
-		parent_clock_freq = 12288000;
 		break;
 	default:
 		return -1;
@@ -412,6 +410,31 @@ static int spdif_set_sample_rate(struct audio_driver_state *state,
 	spdif_writel(state->spdif_base, ch_sta[4], SPDIF_CH_STA_TX_E_0);
 	spdif_writel(state->spdif_base, ch_sta[5], SPDIF_CH_STA_TX_F_0);
 
+	return 0;
+}
+
+static int spdif_configure(struct platform_device *pdev)
+{
+	struct tegra_audio_platform_data *pdata = pdev->dev.platform_data;
+	struct audio_driver_state *state = pdata->driver_data;
+
+	if (!state)
+		return -ENOMEM;
+
+	/* disable interrupts from SPDIF */
+	spdif_writel(state->spdif_base, 0x0, SPDIF_CTRL_0);
+	spdif_fifo_clear(state->spdif_base);
+	spdif_enable_fifos(state->spdif_base, 0);
+
+	spdif_set_bit_mode(state->spdif_base, state->pdata->mode);
+	spdif_set_fifo_packed(state->spdif_base, state->pdata->fifo_fmt);
+
+	spdif_fifo_set_attention_level(state->spdif_base,
+				state->out.spdif_fifo_atn_level);
+
+	spdif_set_sample_rate(state, 44100);
+
+	state->fifo_init = true;
 	return 0;
 }
 
@@ -623,9 +646,14 @@ static void setup_dma_tx_request(struct tegra_dma_req *req,
 	req->to_memory = false;
 	req->dest_addr = spdif_get_fifo_phy_base(ads->spdif_phys);
 	req->dest_wrap = 4;
-	req->dest_bus_width = 16;
-	req->source_bus_width = 32;
+	if (ads->pdata->mode != SPDIF_BIT_MODE_MODE16BIT ||
+			ads->pdata->fifo_fmt)
+		req->dest_bus_width = 32;
+	else
+		req->dest_bus_width = 16;
+
 	req->source_wrap = 0;
+	req->source_bus_width = 32;
 	req->req_sel = ads->dma_req_sel;
 }
 
@@ -657,8 +685,6 @@ static int resume_dma_playback(struct audio_stream *aos)
 #if 0
 	spdif_fifo_clear(ads->spdif_base);
 #endif
-	spdif_fifo_set_attention_level(ads->spdif_base,
-			aos->spdif_fifo_atn_level);
 
 	req->source_addr = sg_dma_address(&aos->sg);
 	req->size = sg_dma_len(&aos->sg);
@@ -671,7 +697,12 @@ static int resume_dma_playback(struct audio_stream *aos)
 	pr_debug("%s resume playback (%d in fifo, writing %d)\n",
 			__func__, kfifo_len(&aos->fifo), req->size);
 
-	spdif_fifo_enable(ads->spdif_base, 1);
+	if (ads->fifo_init) {
+		spdif_set_bit_mode(ads->spdif_base, ads->pdata->mode);
+		spdif_set_fifo_packed(ads->spdif_base, ads->pdata->fifo_fmt);
+		spdif_fifo_enable(ads->spdif_base, 1);
+		ads->fifo_init = false;
+	}
 
 	aos->last_dma_ts = ktime_get_real();
 	rc = tegra_dma_enqueue_req(aos->dma_chan, req);
@@ -702,6 +733,7 @@ static void stop_dma_playback(struct audio_stream *aos)
 	}
 	if (spin == 100)
 		pr_warn("%s: spinny\n", __func__);
+	ads->fifo_init = true;
 }
 
 /* PIO (non-DMA) */
@@ -944,7 +976,7 @@ static int tegra_spdif_out_open(struct inode *inode, struct file *file)
 		ads->out.stop = false;
 		kfifo_reset(&ads->out.fifo);
 
-	rc = spdif_set_sample_rate(ads, 44100);
+		rc = spdif_set_sample_rate(ads, 44100);
 	}
 
 	mutex_unlock(&ads->out.lock);
@@ -1234,8 +1266,6 @@ static int tegra_spdif_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 
-	state->out.spdif_fifo_atn_level = SPDIF_FIFO_ATN_LVL_FOUR_SLOTS;
-
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "no dma resource!\n");
@@ -1252,12 +1282,10 @@ static int tegra_spdif_probe(struct platform_device *pdev)
 
 	memset(&state->pio_stats, 0, sizeof(state->pio_stats));
 
-	/* disable interrupts from SPDIF */
-	spdif_fifo_clear(state->spdif_base);
-	spdif_enable_fifos(state->spdif_base, 0);
 
-	spdif_set_bit_mode(state->spdif_base, state->pdata->mode);
-	spdif_set_fifo_packed(state->spdif_base, state->pdata->fifo_fmt);
+	rc = spdif_configure(pdev);
+	if (rc < 0)
+		return rc;
 
 	state->out.opened = 0;
 	state->out.active = false;
@@ -1320,12 +1348,29 @@ static int tegra_spdif_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int tegra_spdif_suspend(struct platform_device *pdev, pm_message_t mesg)
+{
+	/* dev_info(&pdev->dev, "%s\n", __func__); */
+	return 0;
+}
+
+static int tegra_spdif_resume(struct platform_device *pdev)
+{
+	return spdif_configure(pdev);
+}
+#endif /* CONFIG_PM */
+
 static struct platform_driver tegra_spdif_driver = {
 	.driver = {
 		.name = "spdif_out",
 		.owner = THIS_MODULE,
 	},
 	.probe = tegra_spdif_probe,
+#ifdef CONFIG_PM
+	.suspend = tegra_spdif_suspend,
+	.resume = tegra_spdif_resume,
+#endif
 };
 
 static int __init tegra_spdif_init(void)
