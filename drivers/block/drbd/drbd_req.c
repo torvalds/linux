@@ -757,7 +757,7 @@ static int drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int s
 	return 0 == drbd_bm_count_bits(mdev, sbnr, ebnr);
 }
 
-static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
+static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
 {
 	const int rw = bio_rw(bio);
 	const int size = bio->bi_size;
@@ -778,6 +778,7 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio)
 		bio_endio(bio, -ENOMEM);
 		return 0;
 	}
+	req->start_time = start_time;
 
 	local = get_ldev(mdev);
 	if (!local) {
@@ -1076,11 +1077,14 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
 {
 	unsigned int s_enr, e_enr;
 	struct drbd_conf *mdev = (struct drbd_conf *) q->queuedata;
+	unsigned long start_time;
 
 	if (drbd_fail_request_early(mdev, bio_data_dir(bio) & WRITE)) {
 		bio_endio(bio, -EPERM);
 		return 0;
 	}
+
+	start_time = jiffies;
 
 	/*
 	 * what we "blindly" assume:
@@ -1096,7 +1100,7 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
 
 	if (likely(s_enr == e_enr)) {
 		inc_ap_bio(mdev, 1);
-		return drbd_make_request_common(mdev, bio);
+		return drbd_make_request_common(mdev, bio, start_time);
 	}
 
 	/* can this bio be split generically?
@@ -1138,10 +1142,10 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
 
 		D_ASSERT(e_enr == s_enr + 1);
 
-		while (drbd_make_request_common(mdev, &bp->bio1))
+		while (drbd_make_request_common(mdev, &bp->bio1, start_time))
 			inc_ap_bio(mdev, 1);
 
-		while (drbd_make_request_common(mdev, &bp->bio2))
+		while (drbd_make_request_common(mdev, &bp->bio2, start_time))
 			inc_ap_bio(mdev, 1);
 
 		dec_ap_bio(mdev);
