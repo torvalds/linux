@@ -71,6 +71,7 @@ void ceph_calc_raw_layout(struct ceph_osd_client *osdc,
 		op->extent.length = objlen;
 	}
 	req->r_num_pages = calc_pages_for(off, *plen);
+	req->r_page_alignment = off & ~PAGE_MASK;
 	if (op->op == CEPH_OSD_OP_WRITE)
 		op->payload_len = *plen;
 
@@ -419,7 +420,8 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					       u32 truncate_seq,
 					       u64 truncate_size,
 					       struct timespec *mtime,
-					       bool use_mempool, int num_reply)
+					       bool use_mempool, int num_reply,
+					       int page_align)
 {
 	struct ceph_osd_req_op ops[3];
 	struct ceph_osd_request *req;
@@ -446,6 +448,10 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	/* calculate max write size */
 	calc_layout(osdc, vino, layout, off, plen, req, ops);
 	req->r_file_layout = *layout;  /* keep a copy */
+
+	/* in case it differs from natural alignment that calc_layout
+	   filled in for us */
+	req->r_page_alignment = page_align;
 
 	ceph_osdc_build_request(req, off, plen, ops,
 				snapc,
@@ -1489,7 +1495,7 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 			struct ceph_vino vino, struct ceph_file_layout *layout,
 			u64 off, u64 *plen,
 			u32 truncate_seq, u64 truncate_size,
-			struct page **pages, int num_pages)
+			struct page **pages, int num_pages, int page_align)
 {
 	struct ceph_osd_request *req;
 	int rc = 0;
@@ -1499,15 +1505,15 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 	req = ceph_osdc_new_request(osdc, layout, vino, off, plen,
 				    CEPH_OSD_OP_READ, CEPH_OSD_FLAG_READ,
 				    NULL, 0, truncate_seq, truncate_size, NULL,
-				    false, 1);
+				    false, 1, page_align);
 	if (!req)
 		return -ENOMEM;
 
 	/* it may be a short read due to an object boundary */
 	req->r_pages = pages;
 
-	dout("readpages  final extent is %llu~%llu (%d pages)\n",
-	     off, *plen, req->r_num_pages);
+	dout("readpages  final extent is %llu~%llu (%d pages align %d)\n",
+	     off, *plen, req->r_num_pages, page_align);
 
 	rc = ceph_osdc_start_request(osdc, req, false);
 	if (!rc)
@@ -1533,6 +1539,7 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 {
 	struct ceph_osd_request *req;
 	int rc = 0;
+	int page_align = off & ~PAGE_MASK;
 
 	BUG_ON(vino.snap != CEPH_NOSNAP);
 	req = ceph_osdc_new_request(osdc, layout, vino, off, &len,
@@ -1541,7 +1548,7 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 					    CEPH_OSD_FLAG_WRITE,
 				    snapc, do_sync,
 				    truncate_seq, truncate_size, mtime,
-				    nofail, 1);
+				    nofail, 1, page_align);
 	if (!req)
 		return -ENOMEM;
 
@@ -1638,8 +1645,7 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 	m = ceph_msg_get(req->r_reply);
 
 	if (data_len > 0) {
-		unsigned data_off = le16_to_cpu(hdr->data_off);
-		int want = calc_pages_for(data_off & ~PAGE_MASK, data_len);
+		int want = calc_pages_for(req->r_page_alignment, data_len);
 
 		if (unlikely(req->r_num_pages < want)) {
 			pr_warning("tid %lld reply %d > expected %d pages\n",
