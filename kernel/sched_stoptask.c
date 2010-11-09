@@ -26,7 +26,7 @@ static struct task_struct *pick_next_task_stop(struct rq *rq)
 {
 	struct task_struct *stop = rq->stop;
 
-	if (stop && stop->state == TASK_RUNNING)
+	if (stop && stop->se.on_rq)
 		return stop;
 
 	return NULL;
