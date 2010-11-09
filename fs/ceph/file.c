@@ -376,21 +376,19 @@ static ssize_t ceph_sync_read(struct file *file, char __user *data,
 	dout("sync_read on file %p %llu~%u %s\n", file, off, len,
 	     (file->f_flags & O_DIRECT) ? "O_DIRECT" : "");
 
-	if (file->f_flags & O_DIRECT) {
-		pages = ceph_get_direct_page_vector(data, num_pages, off, len);
-
-		/*
-		 * flush any page cache pages in this range.  this
-		 * will make concurrent normal and O_DIRECT io slow,
-		 * but it will at least behave sensibly when they are
-		 * in sequence.
-		 */
-	} else {
+	if (file->f_flags & O_DIRECT)
+		pages = ceph_get_direct_page_vector(data, num_pages);
+	else
 		pages = ceph_alloc_page_vector(num_pages, GFP_NOFS);
-	}
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
+	/*
+	 * flush any page cache pages in this range.  this
+	 * will make concurrent normal and sync io slow,
+	 * but it will at least behave sensibly when they are
+	 * in sequence.
+	 */
 	ret = filemap_write_and_wait(inode->i_mapping);
 	if (ret < 0)
 		goto done;
