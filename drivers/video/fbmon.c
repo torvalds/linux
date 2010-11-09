@@ -976,6 +976,7 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 {
 	unsigned char *block;
+	unsigned char *dtd_block;
 	struct fb_videomode *mode, *m;
 	int num = 0, i, first = 1;
 
@@ -992,14 +993,42 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 	if (mode == NULL)
 		return;
 
-	block = edid + edid[0x2];
+	block = edid + 0x4;
+	dtd_block = edid + edid[0x2];
+
+	DPRINTK("  Short Video Modes\n");
+	while (block < dtd_block) {
+		unsigned tag = block[0] >> 5;
+		unsigned len = block[0] & 0x1f;
+
+		block++;
+		if (dtd_block - block < len)
+			break;
+
+		if (tag == 0x2) {
+			for (i = 0; i < len; i++) {
+				unsigned m = block[i];
+				if (m > 0 && m < CEA_MODEDB_SIZE) {
+					memcpy(&mode[num], &cea_modes[m],
+					       sizeof(mode[num]));
+					DPRINTK("  %d: %dx%d @ %d\n", m,
+						cea_modes[m].xres, cea_modes[m].yres,
+						cea_modes[m].refresh);
+
+					num++;
+				}
+			}
+		}
+
+		block += len;
+	}
 
 	DPRINTK("  Extended Detailed Timings\n");
 
 	for (i = 0; i < (128 - edid[0x2]) / DETAILED_TIMING_DESCRIPTION_SIZE;
-	     i++, block += DETAILED_TIMING_DESCRIPTION_SIZE) {
-		if (!(block[0] == 0x00 && block[1] == 0x00)) {
-			get_detailed_timing(block, &mode[num]);
+	     i++, dtd_block += DETAILED_TIMING_DESCRIPTION_SIZE) {
+		if (!(dtd_block[0] == 0x00 && dtd_block[1] == 0x00)) {
+			get_detailed_timing(dtd_block, &mode[num]);
 			if (first) {
 			        mode[num].flag |= FB_MODE_IS_FIRST;
 				first = 0;
