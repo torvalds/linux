@@ -180,30 +180,14 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 	if ((I915_READ_CTL(ring) & RING_VALID) == 0 ||
 	    I915_READ_START(ring) != obj_priv->gtt_offset ||
 	    (I915_READ_HEAD(ring) & HEAD_ADDR) != 0) {
-		if (IS_GEN6(ring->dev) && ring->dev->pdev->revision <= 8) {
-			/* Early revisions of Sandybridge do not like
-			 * revealing the contents of the ring buffer
-			 * registers whilst idle. Fortunately, the
-			 * auto-reporting mechanism prevents most hangs,
-			 * but this will bite us eventually...
-			 */
-			DRM_DEBUG("%s initialization failed "
-				  "ctl %08x head %08x tail %08x start %08x. Ignoring, hope for the best!\n",
-				  ring->name,
-				  I915_READ_CTL(ring),
-				  I915_READ_HEAD(ring),
-				  I915_READ_TAIL(ring),
-				  I915_READ_START(ring));
-		} else {
-			DRM_ERROR("%s initialization failed "
-				  "ctl %08x head %08x tail %08x start %08x\n",
-				  ring->name,
-				  I915_READ_CTL(ring),
-				  I915_READ_HEAD(ring),
-				  I915_READ_TAIL(ring),
-				  I915_READ_START(ring));
-			return -EIO;
-		}
+		DRM_ERROR("%s initialization failed "
+				"ctl %08x head %08x tail %08x start %08x\n",
+				ring->name,
+				I915_READ_CTL(ring),
+				I915_READ_HEAD(ring),
+				I915_READ_TAIL(ring),
+				I915_READ_START(ring));
+		return -EIO;
 	}
 
 	if (!drm_core_check_feature(ring->dev, DRIVER_MODESET))
