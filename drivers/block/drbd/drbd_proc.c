@@ -84,7 +84,12 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 		seq_printf(seq, ".");
 	seq_printf(seq, "] ");
 
-	seq_printf(seq, "sync'ed:%3u.%u%% ", res / 10, res % 10);
+	if (mdev->state.conn == C_VERIFY_S || mdev->state.conn == C_VERIFY_T)
+		seq_printf(seq, "verified:");
+	else
+		seq_printf(seq, "sync'ed:");
+	seq_printf(seq, "%3u.%u%% ", res / 10, res % 10);
+
 	/* if more than 1 GB display in MB */
 	if (mdev->rs_total > 0x100000L)
 		seq_printf(seq, "(%lu/%lu)M\n\t",
@@ -130,14 +135,9 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 		/* this is what drbd_rs_should_slow_down() uses */
 		i = (mdev->rs_last_mark + DRBD_SYNC_MARKS-1) % DRBD_SYNC_MARKS;
 		dt = (jiffies - mdev->rs_mark_time[i]) / HZ;
-		if (dt > (DRBD_SYNC_MARK_STEP * DRBD_SYNC_MARKS))
-			stalled = 1;
-
 		if (!dt)
 			dt++;
 		db = mdev->rs_mark_left[i] - rs_left;
-		rt = (dt * (rs_left / (db/100+1)))/100; /* seconds */
-
 		dbdt = Bit2KB(db/dt);
 		seq_printf_with_thousands_grouping(seq, dbdt);
 		seq_printf(seq, " -- ");
@@ -156,13 +156,29 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 
 	if (mdev->state.conn == C_SYNC_TARGET ||
 	    mdev->state.conn == C_VERIFY_S) {
-		if (mdev->c_sync_rate > 1000)
-			seq_printf(seq, " want: %d,%03d",
-				   mdev->c_sync_rate / 1000, mdev->c_sync_rate % 1000);
-		else
-			seq_printf(seq, " want: %d", mdev->c_sync_rate);
+		seq_printf(seq, " want: ");
+		seq_printf_with_thousands_grouping(seq, mdev->c_sync_rate);
 	}
 	seq_printf(seq, " K/sec%s\n", stalled ? " (stalled)" : "");
+
+	if (proc_details >= 1) {
+		/* 64 bit:
+		 * we convert to sectors in the display below. */
+		u64 bm_bits = drbd_bm_bits(mdev);
+		u64 bit_pos;
+		if (mdev->state.conn == C_VERIFY_S ||
+		    mdev->state.conn == C_VERIFY_T)
+			bit_pos = bm_bits - mdev->ov_left;
+		else
+			bit_pos = mdev->bm_resync_fo;
+		/* Total sectors may be slightly off for oddly
+		 * sized devices. So what. */
+		seq_printf(seq,
+			"\t%3d%% sector pos: %llu/%llu\n",
+			(int)(bit_pos / (bm_bits/100+1)),
+			(unsigned long long) BM_BIT_TO_SECT(bit_pos),
+			(unsigned long long) BM_BIT_TO_SECT(bm_bits));
+	}
 }
 
 static void resync_dump_detail(struct seq_file *seq, struct lc_element *e)
@@ -268,14 +284,6 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 		    mdev->state.conn == C_VERIFY_S ||
 		    mdev->state.conn == C_VERIFY_T)
 			drbd_syncer_progress(mdev, seq);
-
-		if (mdev->state.conn == C_VERIFY_S || mdev->state.conn == C_VERIFY_T) {
-			unsigned long bm_bits = drbd_bm_bits(mdev);
-			seq_printf(seq, "\t%3d%%      %lu/%lu\n",
-				   (int)((bm_bits-mdev->ov_left) /
-					 (bm_bits/100+1)),
-				   bm_bits - mdev->ov_left, bm_bits);
-		}
 
 		if (proc_details >= 1 && get_ldev_if_state(mdev, D_FAILED)) {
 			lc_seq_printf_stats(seq, mdev->resync);

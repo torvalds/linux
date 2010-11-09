@@ -1974,6 +1974,8 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packets cmd, un
 	case P_RS_DATA_REQUEST:
 		e->w.cb = w_e_end_rsdata_req;
 		fault_type = DRBD_FAULT_RS_RD;
+		/* used in the sector offset progress display */
+		mdev->bm_resync_fo = BM_SECT_TO_BIT(sector);
 		break;
 
 	case P_OV_REPLY:
@@ -1995,6 +1997,8 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packets cmd, un
 		if (cmd == P_CSUM_RS_REQUEST) {
 			D_ASSERT(mdev->agreed_pro_version >= 89);
 			e->w.cb = w_e_end_csum_rs_req;
+			/* used in the sector offset progress display */
+			mdev->bm_resync_fo = BM_SECT_TO_BIT(sector);
 		} else if (cmd == P_OV_REPLY) {
 			/* track progress, we may need to throttle */
 			atomic_add(size >> 9, &mdev->rs_sect_in);
