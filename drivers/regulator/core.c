@@ -25,6 +25,9 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/regulator.h>
+
 #include "dummy.h"
 
 #define REGULATOR_VERSION "0.5"
@@ -1310,6 +1313,8 @@ static int _regulator_enable(struct regulator_dev *rdev)
 				delay = 0;
 			}
 
+			trace_regulator_enable(rdev_get_name(rdev));
+
 			/* Allow the regulator to ramp; it would be useful
 			 * to extend this for bulk operations so that the
 			 * regulators can ramp together.  */
@@ -1317,12 +1322,16 @@ static int _regulator_enable(struct regulator_dev *rdev)
 			if (ret < 0)
 				return ret;
 
+			trace_regulator_enable_delay(rdev_get_name(rdev));
+
 			if (delay >= 1000) {
 				mdelay(delay / 1000);
 				udelay(delay % 1000);
 			} else if (delay) {
 				udelay(delay);
 			}
+
+			trace_regulator_enable_complete(rdev_get_name(rdev));
 
 		} else if (ret < 0) {
 			printk(KERN_ERR "%s: is_enabled() failed for %s: %d\n",
@@ -1379,12 +1388,16 @@ static int _regulator_disable(struct regulator_dev *rdev,
 		/* we are last user */
 		if (_regulator_can_change_status(rdev) &&
 		    rdev->desc->ops->disable) {
+			trace_regulator_disable(rdev_get_name(rdev));
+
 			ret = rdev->desc->ops->disable(rdev);
 			if (ret < 0) {
 				printk(KERN_ERR "%s: failed to disable %s\n",
 				       __func__, rdev_get_name(rdev));
 				return ret;
 			}
+
+			trace_regulator_disable_complete(rdev_get_name(rdev));
 
 			_notifier_call_chain(rdev, REGULATOR_EVENT_DISABLE,
 					     NULL);
@@ -1645,12 +1658,16 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	regulator->min_uV = min_uV;
 	regulator->max_uV = max_uV;
 
+	trace_regulator_set_voltage(rdev_get_name(rdev), min_uV, max_uV);
+
 	ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV, &selector);
 
 	if (rdev->desc->ops->list_voltage)
 		selector = rdev->desc->ops->list_voltage(rdev, selector);
 	else
 		selector = -1;
+
+	trace_regulator_set_voltage_complete(rdev_get_name(rdev), selector);
 
 out:
 	_notifier_call_chain(rdev, REGULATOR_EVENT_VOLTAGE_CHANGE, NULL);
