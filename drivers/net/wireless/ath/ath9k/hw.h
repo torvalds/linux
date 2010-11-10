@@ -803,6 +803,9 @@ struct ath_hw {
 	 * this register when in sleep states.
 	 */
 	u32 WARegVal;
+
+	/* Enterprise mode cap */
+	u32 ent_mode;
 };
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
