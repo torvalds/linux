@@ -916,7 +916,7 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 
 	if (var->xres > MAX_XRES || var->yres > MAX_YRES ||
 	    var->xres * var->yres * (ch->cfg.bpp / 8) * 2 > info->fix.smem_len) {
-		dev_warn(info->dev, "Invalid info: %u-%u-%u-%u x %u-%u-%u-%u @ %ukHz!\n",
+		dev_warn(info->dev, "Invalid info: %u-%u-%u-%u x %u-%u-%u-%u @ %lukHz!\n",
 			 var->left_margin, var->xres, var->right_margin, var->hsync_len,
 			 var->upper_margin, var->yres, var->lower_margin, var->vsync_len,
 			 PICOS2KHZ(var->pixclock));
