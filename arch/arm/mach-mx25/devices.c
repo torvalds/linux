@@ -22,63 +22,6 @@
 #include <mach/mx25.h>
 #include <mach/irqs.h>
 
-static struct resource mxc_pwm_resources0[] = {
-	{
-		.start	= 0x53fe0000,
-		.end	= 0x53fe3fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start   = 26,
-		.end     = 26,
-		.flags   = IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_pwm_device0 = {
-	.name = "mxc_pwm",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_pwm_resources0),
-	.resource = mxc_pwm_resources0,
-};
-
-static struct resource mxc_pwm_resources1[] = {
-	{
-		.start	= 0x53fa0000,
-		.end	= 0x53fa3fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start   = 36,
-		.end     = 36,
-		.flags   = IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_pwm_device1 = {
-	.name = "mxc_pwm",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(mxc_pwm_resources1),
-	.resource = mxc_pwm_resources1,
-};
-
-static struct resource mxc_pwm_resources2[] = {
-	{
-		.start	= 0x53fa8000,
-		.end	= 0x53fabfff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start   = 41,
-		.end     = 41,
-		.flags   = IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_pwm_device2 = {
-	.name = "mxc_pwm",
-	.id = 2,
-	.num_resources = ARRAY_SIZE(mxc_pwm_resources2),
-	.resource = mxc_pwm_resources2,
-};
-
 static struct resource mxc_keypad_resources[] = {
 	{
 		.start	= 0x43fa8000,
@@ -96,25 +39,6 @@ struct platform_device mxc_keypad_device = {
 	.id = -1,
 	.num_resources = ARRAY_SIZE(mxc_keypad_resources),
 	.resource = mxc_keypad_resources,
-};
-
-static struct resource mxc_pwm_resources3[] = {
-	{
-		.start	= 0x53fc8000,
-		.end	= 0x53fcbfff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start   = 42,
-		.end     = 42,
-		.flags   = IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_pwm_device3 = {
-	.name = "mxc_pwm",
-	.id = 3,
-	.num_resources = ARRAY_SIZE(mxc_pwm_resources3),
-	.resource = mxc_pwm_resources3,
 };
 
 static struct mxc_gpio_port imx_gpio_ports[] = {

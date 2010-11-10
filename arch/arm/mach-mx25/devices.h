@@ -1,7 +1,3 @@
-extern struct platform_device mxc_pwm_device0;
-extern struct platform_device mxc_pwm_device1;
-extern struct platform_device mxc_pwm_device2;
-extern struct platform_device mxc_pwm_device3;
 extern struct platform_device mxc_keypad_device;
 extern struct platform_device mx25_rtc_device;
 extern struct platform_device mx25_fb_device;
