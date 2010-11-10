@@ -1194,13 +1194,6 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	int where = ELEVATOR_INSERT_SORT;
 	int rw_flags;
 
-	/* REQ_HARDBARRIER is no more */
-	if (WARN_ONCE(bio->bi_rw & REQ_HARDBARRIER,
-		"block: HARDBARRIER is deprecated, use FLUSH/FUA instead\n")) {
-		bio_endio(bio, -EOPNOTSUPP);
-		return 0;
-	}
-
 	/*
 	 * low level driver can indicate that it wants pages above a
 	 * certain limit bounced to low memory (ie for highmem, or even

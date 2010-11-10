@@ -331,10 +331,7 @@ static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 
 	iu->iu_id = IU_ID_COMMAND;
 	iu->tag = cpu_to_be16(stream_id);
-	if (sdev->ordered_tags && (cmnd->request->cmd_flags & REQ_HARDBARRIER))
-		iu->prio_attr = UAS_ORDERED_TAG;
-	else
-		iu->prio_attr = UAS_SIMPLE_TAG;
+	iu->prio_attr = UAS_SIMPLE_TAG;
 	iu->len = len;
 	int_to_scsilun(sdev->lun, &iu->lun);
 	memcpy(iu->cdb, cmnd->cmnd, cmnd->cmd_len);
