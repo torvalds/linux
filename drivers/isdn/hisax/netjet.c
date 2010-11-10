@@ -254,7 +254,7 @@ static int make_raw_data(struct BCState *bcs) {
 		val >>= 1;
 	}
 	if (bcs->cs->debug & L1_DEB_HSCX)
-		debugl1(bcs->cs,"tiger make_raw: in %ld out %d.%d",
+		debugl1(bcs->cs,"tiger make_raw: in %u out %d.%d",
 			bcs->tx_skb->len, s_cnt, bitcnt);
 	if (bitcnt) {
 		while (8>bitcnt++) {
@@ -361,7 +361,7 @@ static int make_raw_data_56k(struct BCState *bcs) {
 		val >>= 1;
 	}
 	if (bcs->cs->debug & L1_DEB_HSCX)
-		debugl1(bcs->cs,"tiger make_raw_56k: in %ld out %d.%d",
+		debugl1(bcs->cs,"tiger make_raw_56k: in %u out %d.%d",
 			bcs->tx_skb->len, s_cnt, bitcnt);
 	if (bitcnt) {
 		while (8>bitcnt++) {
@@ -612,7 +612,7 @@ void netjet_fill_dma(struct BCState *bcs)
 	if (!bcs->tx_skb)
 		return;
 	if (bcs->cs->debug & L1_DEB_HSCX)
-		debugl1(bcs->cs,"tiger fill_dma1: c%d %4x", bcs->channel,
+		debugl1(bcs->cs,"tiger fill_dma1: c%d %4lx", bcs->channel,
 			bcs->Flag);
 	if (test_and_set_bit(BC_FLG_BUSY, &bcs->Flag))
 		return;
@@ -625,7 +625,7 @@ void netjet_fill_dma(struct BCState *bcs)
 			return;		
 	};
 	if (bcs->cs->debug & L1_DEB_HSCX)
-		debugl1(bcs->cs,"tiger fill_dma2: c%d %4x", bcs->channel,
+		debugl1(bcs->cs,"tiger fill_dma2: c%d %4lx", bcs->channel,
 			bcs->Flag);
 	if (test_and_clear_bit(BC_FLG_NOFRAME, &bcs->Flag)) {
 		write_raw(bcs, bcs->hw.tiger.sendp, bcs->hw.tiger.free);
@@ -667,7 +667,7 @@ void netjet_fill_dma(struct BCState *bcs)
 		write_raw(bcs, p, cnt);
 	}
 	if (bcs->cs->debug & L1_DEB_HSCX)
-		debugl1(bcs->cs,"tiger fill_dma3: c%d %4x", bcs->channel,
+		debugl1(bcs->cs,"tiger fill_dma3: c%d %4lx", bcs->channel,
 			bcs->Flag);
 }
 

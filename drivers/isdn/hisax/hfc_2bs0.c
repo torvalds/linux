@@ -282,7 +282,7 @@ hfc_fill_fifo(struct BCState *bcs)
 	    count += cs->hw.hfc.fifosize; 
 	} /* L1_MODE_TRANS */
 	if (cs->debug & L1_DEB_HSCX)
-		debugl1(cs, "hfc_fill_fifo %d count(%ld/%d)",
+		debugl1(cs, "hfc_fill_fifo %d count(%u/%d)",
 			bcs->channel, bcs->tx_skb->len,
 			count);
 	if (count < bcs->tx_skb->len) {
