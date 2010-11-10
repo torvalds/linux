@@ -335,6 +335,27 @@ out:
 	return NOTIFY_OK;
 }
 
+static int wl1271_reg_notify(struct wiphy *wiphy,
+			     struct regulatory_request *request) {
+	struct ieee80211_supported_band *band;
+	struct ieee80211_channel *ch;
+	int i;
+
+	band = wiphy->bands[IEEE80211_BAND_5GHZ];
+	for (i = 0; i < band->n_channels; i++) {
+		ch = &band->channels[i];
+		if (ch->flags & IEEE80211_CHAN_DISABLED)
+			continue;
+
+		if (ch->flags & IEEE80211_CHAN_RADAR)
+			ch->flags |= IEEE80211_CHAN_NO_IBSS |
+				     IEEE80211_CHAN_PASSIVE_SCAN;
+
+	}
+
+	return 0;
+}
+
 static void wl1271_conf_init(struct wl1271 *wl)
 {
 
@@ -2589,6 +2610,8 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 
 	wl->hw->queues = 4;
 	wl->hw->max_rates = 1;
+
+	wl->hw->wiphy->reg_notifier = wl1271_reg_notify;
 
 	SET_IEEE80211_DEV(wl->hw, wl1271_wl_to_dev(wl));
 
