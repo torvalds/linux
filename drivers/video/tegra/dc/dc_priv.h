@@ -42,6 +42,11 @@ struct tegra_dc_out_ops {
 	void (*enable)(struct tegra_dc *dc);
 	/* disable output.  dc clocks are on at this point */
 	void (*disable)(struct tegra_dc *dc);
+
+	/* suspend output.  dc clocks are on at this point */
+	void (*suspend)(struct tegra_dc *dc);
+	/* resume output.  dc clocks are on at this point */
+	void (*resume)(struct tegra_dc *dc);
 };
 
 struct tegra_dc {

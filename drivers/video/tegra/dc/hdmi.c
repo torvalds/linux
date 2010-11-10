@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
 #include <mach/clk.h>
@@ -52,6 +53,10 @@ struct tegra_dc_hdmi_data {
 
 	struct clk			*disp1_clk;
 	struct clk			*disp2_clk;
+
+	spinlock_t			suspend_lock;
+	bool				suspended;
+	bool				hpd_pending;
 };
 
 const struct fb_videomode tegra_dc_hdmi_supported_modes[] = {
@@ -470,13 +475,47 @@ static irqreturn_t tegra_dc_hdmi_irq(int irq, void *ptr)
 {
 	struct tegra_dc *dc = ptr;
 	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
+	unsigned long flags;
 
-	if (tegra_dc_hdmi_hpd(dc))
-		schedule_delayed_work(&hdmi->work, msecs_to_jiffies(100));
-	else
-		schedule_delayed_work(&hdmi->work, msecs_to_jiffies(0));
+	spin_lock_irqsave(&hdmi->suspend_lock, flags);
+	if (hdmi->suspended) {
+		hdmi->hpd_pending = true;
+	} else {
+		if (tegra_dc_hdmi_hpd(dc))
+			schedule_delayed_work(&hdmi->work, msecs_to_jiffies(100));
+		else
+			schedule_delayed_work(&hdmi->work, msecs_to_jiffies(0));
+	}
+	spin_unlock_irqrestore(&hdmi->suspend_lock, flags);
 
 	return IRQ_HANDLED;
+}
+
+static void tegra_dc_hdmi_suspend(struct tegra_dc *dc)
+{
+	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
+	unsigned long flags;
+
+	spin_lock_irqsave(&hdmi->suspend_lock, flags);
+	hdmi->suspended = true;
+	spin_unlock_irqrestore(&hdmi->suspend_lock, flags);
+}
+
+static void tegra_dc_hdmi_resume(struct tegra_dc *dc)
+{
+	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
+	unsigned long flags;
+
+	spin_lock_irqsave(&hdmi->suspend_lock, flags);
+	hdmi->suspended = false;
+	if (hdmi->hpd_pending) {
+		if (tegra_dc_hdmi_hpd(dc))
+			schedule_delayed_work(&hdmi->work, msecs_to_jiffies(100));
+		else
+			schedule_delayed_work(&hdmi->work, msecs_to_jiffies(0));
+		hdmi->hpd_pending = false;
+	}
+	spin_unlock_irqrestore(&hdmi->suspend_lock, flags);
 }
 
 static int tegra_dc_hdmi_init(struct tegra_dc *dc)
@@ -561,6 +600,9 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 	hdmi->clk = clk;
 	hdmi->disp1_clk = disp1_clk;
 	hdmi->disp2_clk = disp2_clk;
+	hdmi->suspended = false;
+	hdmi->hpd_pending = false;
+	spin_lock_init(&hdmi->suspend_lock);
 
 	dc->out->depth = 24;
 
@@ -1054,5 +1096,7 @@ struct tegra_dc_out_ops tegra_dc_hdmi_ops = {
 	.enable = tegra_dc_hdmi_enable,
 	.disable = tegra_dc_hdmi_disable,
 	.detect = tegra_dc_hdmi_detect,
+	.suspend = tegra_dc_hdmi_suspend,
+	.resume = tegra_dc_hdmi_resume,
 };
 
