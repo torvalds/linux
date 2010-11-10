@@ -32,7 +32,6 @@
 #include <mach/mxc_nand.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 /*
  * Base address of PBC controller, CS4

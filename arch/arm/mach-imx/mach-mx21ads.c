@@ -28,7 +28,6 @@
 #include <mach/mxc_nand.h>
 
 #include "devices-imx21.h"
-#include "devices.h"
 
 /*
  * Memory-mapped I/O on MX21ADS base board

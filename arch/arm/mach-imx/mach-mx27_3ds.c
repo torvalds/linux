@@ -31,7 +31,6 @@
 #include <mach/iomux-mx27.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 #define SD1_EN_GPIO (GPIO_PORTB + 25)
 

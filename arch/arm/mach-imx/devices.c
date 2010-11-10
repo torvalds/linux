@@ -42,8 +42,6 @@
 #include <mach/common.h>
 #include <mach/mmc.h>
 
-#include "devices.h"
-
 #if defined(CONFIG_ARCH_MX1)
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {

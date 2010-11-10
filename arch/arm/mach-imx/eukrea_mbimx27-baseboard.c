@@ -36,7 +36,6 @@
 #include <mach/audmux.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 static const int eukrea_mbimx27_pins[] __initconst = {
 	/* UART2 */

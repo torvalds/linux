@@ -33,7 +33,6 @@
 #include <linux/i2c/pca953x.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 static const int mxt_td60_pins[] __initconst = {
 	/* UART0 */

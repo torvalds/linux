@@ -37,7 +37,6 @@
 #include <mach/iomux.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 #define OTG_PHY_CS_GPIO (GPIO_PORTF + 17)
 #define SDHC1_IRQ IRQ_GPIOB(25)

@@ -28,7 +28,6 @@
 #include <mach/hardware.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 static const int pcm970_pins[] __initconst = {
 	/* SDHC */

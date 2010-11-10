@@ -40,7 +40,6 @@
 #include <mach/ulpi.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 static const int pcm038_pins[] __initconst = {
 	/* UART1 */
