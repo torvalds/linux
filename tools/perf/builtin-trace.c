@@ -570,7 +570,11 @@ out:
 }
 
 static const char * const trace_usage[] = {
-	"perf trace [<options>] <command>",
+	"perf trace [<options>]",
+	"perf trace [<options>] record <script> [<record-options>] <command>",
+	"perf trace [<options>] report <script> [script-args]",
+	"perf trace [<options>] <script> [<record-options>] <command>",
+	"perf trace [<options>] <top-script> [script-args]",
 	NULL
 };
 
