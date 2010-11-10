@@ -212,6 +212,8 @@ int gfs2_glock_nq_num(struct gfs2_sbd *sdp,
 int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs);
+
+__attribute__ ((format(printf, 2, 3)))
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
 
 /**
