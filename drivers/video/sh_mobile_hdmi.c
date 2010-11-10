@@ -536,7 +536,6 @@ static void sh_hdmi_phy_config(struct sh_hdmi *hdmi)
  */
 static void sh_hdmi_avi_infoframe_setup(struct sh_hdmi *hdmi)
 {
-	struct fb_var_screeninfo *var = &hdmi->var;
 	u8 vic;
 
 	/* AVI InfoFrame */
@@ -1018,7 +1017,6 @@ static bool sh_hdmi_must_reconfigure(struct sh_hdmi *hdmi)
 static long sh_hdmi_clk_configure(struct sh_hdmi *hdmi, unsigned long hdmi_rate,
 				  unsigned long parent_rate)
 {
-	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
 	int ret;
 
 	if (parent_rate && clk_get_parent(hdmi->hdmi_clk)) {
