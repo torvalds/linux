@@ -2982,6 +2982,16 @@ static int ath9k_hw_ar9300_check_eeprom(struct ath_hw *ah)
 	return 0;
 }
 
+static int interpolate(int x, int xa, int xb, int ya, int yb)
+{
+	int bf, factor, plus;
+
+	bf = 2 * (yb - ya) * (x - xa) / (xb - xa);
+	factor = bf / 2;
+	plus = bf % 2;
+	return ya + factor + plus;
+}
+
 static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 				      enum eeprom_param param)
 {
@@ -3614,7 +3624,7 @@ static int ar9003_hw_power_interpolate(int32_t x,
 			if (hx == lx)
 				y = ly;
 			else	/* interpolate  */
-				y = ly + (((x - lx) * (hy - ly)) / (hx - lx));
+				y = interpolate(x, lx, hx, ly, hy);
 		} else		/* only low is good, use it */
 			y = ly;
 	} else if (hhave)	/* only high is good, use it */
@@ -4204,25 +4214,23 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 			/* so is the high frequency, interpolate */
 			if (hfrequency[ichain] - frequency < 1000) {
 
-				correction[ichain] = lcorrection[ichain] +
-				    (((frequency - lfrequency[ichain]) *
-				      (hcorrection[ichain] -
-				       lcorrection[ichain])) /
-				     (hfrequency[ichain] - lfrequency[ichain]));
+				correction[ichain] = interpolate(frequency,
+						lfrequency[ichain],
+						hfrequency[ichain],
+						lcorrection[ichain],
+						hcorrection[ichain]);
 
-				temperature[ichain] = ltemperature[ichain] +
-				    (((frequency - lfrequency[ichain]) *
-				      (htemperature[ichain] -
-				       ltemperature[ichain])) /
-				     (hfrequency[ichain] - lfrequency[ichain]));
+				temperature[ichain] = interpolate(frequency,
+						lfrequency[ichain],
+						hfrequency[ichain],
+						ltemperature[ichain],
+						htemperature[ichain]);
 
-				voltage[ichain] =
-				    lvoltage[ichain] +
-				    (((frequency -
-				       lfrequency[ichain]) * (hvoltage[ichain] -
-							      lvoltage[ichain]))
-				     / (hfrequency[ichain] -
-					lfrequency[ichain]));
+				voltage[ichain] = interpolate(frequency,
+						lfrequency[ichain],
+						hfrequency[ichain],
+						lvoltage[ichain],
+						hvoltage[ichain]);
 			}
 			/* only low is good, use it */
 			else {
