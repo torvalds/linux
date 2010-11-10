@@ -153,7 +153,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q
 	} else {
 		/* Device expects a multiple of 8 */
 		q->write_actual = (q->write & ~0x7);
-		iwl_write_direct32(priv, rx_wrt_ptr_reg, q->write_actual);
+		iwl_write32(priv, rx_wrt_ptr_reg, q->write_actual);
 	}
 
 	q->need_update = 0;
