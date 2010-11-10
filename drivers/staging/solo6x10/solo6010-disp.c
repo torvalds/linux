@@ -198,7 +198,7 @@ static void solo_motion_config(struct solo6010_dev *solo_dev)
 	}
 
 	/* Default motion settings */
-        solo_reg_write(solo_dev, SOLO_VI_MOT_ADR, SOLO_VI_MOTION_EN(0) |
+	solo_reg_write(solo_dev, SOLO_VI_MOT_ADR, SOLO_VI_MOTION_EN(0) |
 		       (SOLO_MOTION_EXT_ADDR(solo_dev) >> 16));
 	solo_reg_write(solo_dev, SOLO_VI_MOT_CTRL,
 		       SOLO_VI_MOTION_FRAME_COUNT(3) |

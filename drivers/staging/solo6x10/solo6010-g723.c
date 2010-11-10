@@ -158,7 +158,7 @@ static int snd_solo_pcm_close(struct snd_pcm_substream *ss)
 	snd_pcm_substream_chip(ss) = solo_pcm->solo_dev;
 	kfree(solo_pcm);
 
-        return 0;
+	return 0;
 }
 
 static int snd_solo_pcm_trigger(struct snd_pcm_substream *ss, int cmd)
@@ -197,7 +197,7 @@ static int snd_solo_pcm_trigger(struct snd_pcm_substream *ss, int cmd)
 
 static int snd_solo_pcm_prepare(struct snd_pcm_substream *ss)
 {
-        return 0;
+	return 0;
 }
 
 static snd_pcm_uframes_t snd_solo_pcm_pointer(struct snd_pcm_substream *ss)
@@ -271,7 +271,7 @@ static int snd_solo_capture_volume_get(struct snd_kcontrol *kcontrol,
 
 	value->value.integer.value[0] = tw28_get_audio_gain(solo_dev, ch);
 
-        return 0;
+	return 0;
 }
 
 static int snd_solo_capture_volume_put(struct snd_kcontrol *kcontrol,
@@ -279,15 +279,15 @@ static int snd_solo_capture_volume_put(struct snd_kcontrol *kcontrol,
 {
 	struct solo6010_dev *solo_dev = snd_kcontrol_chip(kcontrol);
 	u8 ch = value->id.numid - 1;
-        u8 old_val;
+	u8 old_val;
 
-        old_val = tw28_get_audio_gain(solo_dev, ch);
+	old_val = tw28_get_audio_gain(solo_dev, ch);
 	if (old_val == value->value.integer.value[0])
 		return 0;
 
 	tw28_set_audio_gain(solo_dev, ch, value->value.integer.value[0]);
 
-        return 1;
+	return 1;
 }
 
 static struct snd_kcontrol_new snd_solo_capture_volume = {
@@ -368,7 +368,7 @@ int solo_g723_init(struct solo6010_dev *solo_dev)
 	strcpy(card->mixername, "SOLO-6010");
 	kctl = snd_solo_capture_volume;
 	kctl.count = solo_dev->nr_chans;
-        ret = snd_ctl_add(card, snd_ctl_new1(&kctl, solo_dev));
+	ret = snd_ctl_add(card, snd_ctl_new1(&kctl, solo_dev));
 	if (ret < 0)
 		return ret;
 
