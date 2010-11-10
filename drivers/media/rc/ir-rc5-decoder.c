@@ -20,7 +20,7 @@
  * the first two bits are start bits, and a third one is a filing bit
  */
 
-#include "ir-core-priv.h"
+#include "rc-core-priv.h"
 
 #define RC5_NBITS		14
 #define RC5X_NBITS		20

@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/device.h>
-#include "ir-core-priv.h"
+#include "rc-core-priv.h"
 
 #define IRRCV_NUM_DEVICES	256
 

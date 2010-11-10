@@ -16,7 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/freezer.h>
-#include "ir-core-priv.h"
+#include "rc-core-priv.h"
 
 /* Define the max number of pulse/space transitions to buffer */
 #define MAX_IR_EVENT_SIZE      512

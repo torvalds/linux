@@ -17,7 +17,7 @@
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
 #include <media/ir-core.h>
-#include "ir-core-priv.h"
+#include "rc-core-priv.h"
 
 #define LIRCBUF_SIZE 256
 

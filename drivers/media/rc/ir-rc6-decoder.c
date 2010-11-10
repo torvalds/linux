@@ -12,7 +12,7 @@
  * GNU General Public License for more details.
  */
 
-#include "ir-core-priv.h"
+#include "rc-core-priv.h"
 
 /*
  * This decoder currently supports:

@@ -13,7 +13,7 @@
  */
 
 #include <linux/bitrev.h>
-#include "ir-core-priv.h"
+#include "rc-core-priv.h"
 
 #define NEC_NBITS		32
 #define NEC_UNIT		562500  /* ns */

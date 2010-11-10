@@ -13,7 +13,7 @@
  */
 
 #include <linux/bitrev.h>
-#include "ir-core-priv.h"
+#include "rc-core-priv.h"
 
 #define JVC_NBITS		16		/* dev(8) + func(8) */
 #define JVC_UNIT		525000		/* ns */

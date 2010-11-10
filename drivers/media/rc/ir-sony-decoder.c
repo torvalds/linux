@@ -13,7 +13,7 @@
  */
 
 #include <linux/bitrev.h>
-#include "ir-core-priv.h"
+#include "rc-core-priv.h"
 
 #define SONY_UNIT		600000 /* ns */
 #define SONY_HEADER_PULSE	(4 * SONY_UNIT)
