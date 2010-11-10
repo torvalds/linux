@@ -22,32 +22,6 @@
 #include <mach/mx25.h>
 #include <mach/irqs.h>
 
-static u64 otg_dmamask = DMA_BIT_MASK(32);
-
-static struct resource mxc_otg_resources[] = {
-	{
-		.start = MX25_USB_OTG_BASE_ADDR,
-		.end = MX25_USB_OTG_BASE_ADDR + 0x1ff,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX25_INT_USB_OTG,
-		.end = MX25_INT_USB_OTG,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-/* OTG gadget device */
-struct platform_device otg_udc_device = {
-	.name = "fsl-usb2-udc",
-	.id   = -1,
-	.dev  = {
-		.dma_mask          = &otg_dmamask,
-		.coherent_dma_mask = 0xffffffff,
-	},
-	.resource = mxc_otg_resources,
-	.num_resources = ARRAY_SIZE(mxc_otg_resources),
-};
-
 static struct resource mxc_pwm_resources0[] = {
 	{
 		.start	= 0x53fe0000,

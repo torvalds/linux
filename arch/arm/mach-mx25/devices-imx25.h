@@ -19,6 +19,10 @@ extern const struct imx_flexcan_data imx25_flexcan_data[] __initconst;
 #define imx25_add_flexcan0(pdata)	imx25_add_flexcan(0, pdata)
 #define imx25_add_flexcan1(pdata)	imx25_add_flexcan(1, pdata)
 
+extern const struct imx_fsl_usb2_udc_data imx25_fsl_usb2_udc_data __initconst;
+#define imx25_add_fsl_usb2_udc(pdata)	\
+	imx_add_fsl_usb2_udc(&imx25_fsl_usb2_udc_data, pdata)
+
 extern const struct imx_imx_i2c_data imx25_imx_i2c_data[] __initconst;
 #define imx25_add_imx_i2c(id, pdata)	\
 	imx_add_imx_i2c(&imx25_imx_i2c_data[id], pdata)

@@ -26,7 +26,6 @@
 #include <linux/platform_device.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
-#include <linux/fsl_devices.h>
 
 #include <mach/eukrea-baseboards.h>
 #include <mach/hardware.h>
@@ -97,7 +96,7 @@ static const struct mxc_usbh_platform_data usbh2_pdata __initconst = {
 		  MXC_EHCI_IPPUE_DOWN,
 };
 
-static struct fsl_usb2_platform_data otg_device_pdata = {
+static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
 	.phy_mode       = FSL_USB2_PHY_UTMI,
 };
@@ -135,7 +134,7 @@ static void __init eukrea_cpuimx25_init(void)
 	if (otg_mode_host)
 		imx25_add_mxc_ehci_otg(&otg_pdata);
 	else
-		mxc_register_device(&otg_udc_device, &otg_device_pdata);
+		imx25_add_fsl_usb2_udc(&otg_device_pdata);
 
 	imx25_add_mxc_ehci_hs(&usbh2_pdata);
 
