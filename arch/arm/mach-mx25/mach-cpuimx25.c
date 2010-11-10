@@ -39,7 +39,6 @@
 #include <mach/mx25.h>
 #include <mach/mxc_nand.h>
 #include <mach/imxfb.h>
-#include <mach/mxc_ehci.h>
 #include <mach/iomux-mx25.h>
 
 #include "devices-imx25.h"
@@ -87,12 +86,12 @@ static struct i2c_board_info eukrea_cpuimx25_i2c_devices[] = {
 	},
 };
 
-static struct mxc_usbh_platform_data otg_pdata = {
+static const struct mxc_usbh_platform_data otg_pdata __initconst = {
 	.portsc	= MXC_EHCI_MODE_UTMI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
-static struct mxc_usbh_platform_data usbh2_pdata = {
+static const struct mxc_usbh_platform_data usbh2_pdata __initconst = {
 	.portsc	= MXC_EHCI_MODE_SERIAL,
 	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
 		  MXC_EHCI_IPPUE_DOWN,
@@ -134,11 +133,11 @@ static void __init eukrea_cpuimx25_init(void)
 	imx25_add_imx_i2c0(&eukrea_cpuimx25_i2c0_data);
 
 	if (otg_mode_host)
-		mxc_register_device(&mxc_otg, &otg_pdata);
+		imx25_add_mxc_ehci_otg(&otg_pdata);
 	else
 		mxc_register_device(&otg_udc_device, &otg_device_pdata);
 
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+	imx25_add_mxc_ehci_hs(&usbh2_pdata);
 
 #ifdef CONFIG_MACH_EUKREA_MBIMXSD25_BASEBOARD
 	eukrea_mbimxsd25_baseboard_init();

@@ -71,7 +71,7 @@ int mxc_initialize_usb_hw(int port, unsigned int flags)
 	unsigned int v;
 #if defined(CONFIG_ARCH_MX25)
 	if (cpu_is_mx25()) {
-		v = readl(MX25_IO_ADDRESS(MX25_OTG_BASE_ADDR +
+		v = readl(MX25_IO_ADDRESS(MX25_USB_BASE_ADDR +
 				     USBCTRL_OTGBASE_OFFSET));
 
 		switch (port) {
@@ -108,7 +108,7 @@ int mxc_initialize_usb_hw(int port, unsigned int flags)
 			return -EINVAL;
 		}
 
-		writel(v, MX25_IO_ADDRESS(MX25_OTG_BASE_ADDR +
+		writel(v, MX25_IO_ADDRESS(MX25_USB_BASE_ADDR +
 				     USBCTRL_OTGBASE_OFFSET));
 		return 0;
 	}

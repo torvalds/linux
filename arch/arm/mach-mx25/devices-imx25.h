@@ -39,6 +39,13 @@ extern const struct imx_imx_uart_1irq_data imx25_imx_uart_data[] __initconst;
 #define imx25_add_imx_uart3(pdata)	imx25_add_imx_uart(3, pdata)
 #define imx25_add_imx_uart4(pdata)	imx25_add_imx_uart(4, pdata)
 
+extern const struct imx_mxc_ehci_data imx25_mxc_ehci_otg_data __initconst;
+#define imx25_add_mxc_ehci_otg(pdata)	\
+	imx_add_mxc_ehci(&imx25_mxc_ehci_otg_data, pdata)
+extern const struct imx_mxc_ehci_data imx25_mxc_ehci_hs_data __initconst;
+#define imx25_add_mxc_ehci_hs(pdata)	\
+	imx_add_mxc_ehci(&imx25_mxc_ehci_hs_data, pdata)
+
 extern const struct imx_mxc_nand_data imx25_mxc_nand_data __initconst;
 #define imx25_add_mxc_nand(pdata)	\
 	imx_add_mxc_nand(&imx25_mxc_nand_data, pdata)

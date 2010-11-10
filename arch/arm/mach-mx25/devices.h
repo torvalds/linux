@@ -1,6 +1,4 @@
-extern struct platform_device mxc_otg;
 extern struct platform_device otg_udc_device;
-extern struct platform_device mxc_usbh2;
 extern struct platform_device mxc_pwm_device0;
 extern struct platform_device mxc_pwm_device1;
 extern struct platform_device mxc_pwm_device2;

@@ -26,25 +26,14 @@ static u64 otg_dmamask = DMA_BIT_MASK(32);
 
 static struct resource mxc_otg_resources[] = {
 	{
-		.start = MX25_OTG_BASE_ADDR,
-		.end = MX25_OTG_BASE_ADDR + 0x1ff,
+		.start = MX25_USB_OTG_BASE_ADDR,
+		.end = MX25_USB_OTG_BASE_ADDR + 0x1ff,
 		.flags = IORESOURCE_MEM,
 	}, {
-		.start = 37,
-		.end = 37,
+		.start = MX25_INT_USB_OTG,
+		.end = MX25_INT_USB_OTG,
 		.flags = IORESOURCE_IRQ,
 	},
-};
-
-struct platform_device mxc_otg = {
-	.name = "mxc-ehci",
-	.id = 0,
-	.dev = {
-		.coherent_dma_mask = 0xffffffff,
-		.dma_mask = &otg_dmamask,
-	},
-	.resource = mxc_otg_resources,
-	.num_resources = ARRAY_SIZE(mxc_otg_resources),
 };
 
 /* OTG gadget device */
@@ -57,31 +46,6 @@ struct platform_device otg_udc_device = {
 	},
 	.resource = mxc_otg_resources,
 	.num_resources = ARRAY_SIZE(mxc_otg_resources),
-};
-
-static u64 usbh2_dmamask = DMA_BIT_MASK(32);
-
-static struct resource mxc_usbh2_resources[] = {
-	{
-		.start = MX25_OTG_BASE_ADDR + 0x400,
-		.end = MX25_OTG_BASE_ADDR + 0x5ff,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = 35,
-		.end = 35,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_usbh2 = {
-	.name = "mxc-ehci",
-	.id = 1,
-	.dev = {
-		.coherent_dma_mask = 0xffffffff,
-		.dma_mask = &usbh2_dmamask,
-	},
-	.resource = mxc_usbh2_resources,
-	.num_resources = ARRAY_SIZE(mxc_usbh2_resources),
 };
 
 static struct resource mxc_pwm_resources0[] = {

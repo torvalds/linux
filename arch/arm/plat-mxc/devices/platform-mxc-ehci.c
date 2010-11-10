@@ -16,6 +16,13 @@
 		.irq = soc ## _INT_USB_ ## hs,				\
 	}
 
+#ifdef CONFIG_ARCH_MX25
+const struct imx_mxc_ehci_data imx25_mxc_ehci_otg_data __initconst =
+	imx_mxc_ehci_data_entry_single(MX25, 0, OTG);
+const struct imx_mxc_ehci_data imx25_mxc_ehci_hs_data __initconst =
+	imx_mxc_ehci_data_entry_single(MX25, 1, HS);
+#endif /* ifdef CONFIG_ARCH_MX25 */
+
 #ifdef CONFIG_SOC_IMX27
 const struct imx_mxc_ehci_data imx27_mxc_ehci_otg_data __initconst =
 	imx_mxc_ehci_data_entry_single(MX27, 0, OTG);

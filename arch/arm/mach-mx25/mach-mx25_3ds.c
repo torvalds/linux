@@ -192,7 +192,7 @@ static void __init mx25pdk_init(void)
 			ARRAY_SIZE(mx25pdk_pads));
 
 	imx25_add_imx_uart0(&uart_pdata);
-	mxc_register_device(&mxc_usbh2, NULL);
+	imx25_add_mxc_ehci_hs(NULL);
 	imx25_add_mxc_nand(&mx25pdk_nand_board_info);
 	mxc_register_device(&mx25_rtc_device, NULL);
 	mxc_register_device(&mx25_fb_device, &mx25pdk_fb_pdata);
