@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sfi.h>
+#include <linux/platform_device.h>
 
 #include <asm/mrst.h>
 #include <asm/mrst-vrtc.h>
@@ -118,3 +119,48 @@ void __init mrst_rtc_init(void)
 	x86_platform.get_wallclock = vrtc_get_time;
 	x86_platform.set_wallclock = vrtc_set_mmss;
 }
+
+/*
+ * The Moorestown platform has a memory mapped virtual RTC device that emulates
+ * the programming interface of the RTC.
+ */
+
+static struct resource vrtc_resources[] = {
+	[0] = {
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device vrtc_device = {
+	.name		= "rtc_mrst",
+	.id		= -1,
+	.resource	= vrtc_resources,
+	.num_resources	= ARRAY_SIZE(vrtc_resources),
+};
+
+/* Register the RTC device if appropriate */
+static int __init mrst_device_create(void)
+{
+	/* No Moorestown, no device */
+	if (!mrst_identify_cpu())
+		return -ENODEV;
+	/* No timer, no device */
+	if (!sfi_mrtc_num)
+		return -ENODEV;
+
+	/* iomem resource */
+	vrtc_resources[0].start = sfi_mrtc_array[0].phys_addr;
+	vrtc_resources[0].end = sfi_mrtc_array[0].phys_addr +
+				MRST_VRTC_MAP_SZ;
+	/* irq resource */
+	vrtc_resources[1].start = sfi_mrtc_array[0].irq;
+	vrtc_resources[1].end = sfi_mrtc_array[0].irq;
+
+	platform_device_register(&vrtc_device);
+	return 0;
+}
+
+module_init(mrst_device_create);
