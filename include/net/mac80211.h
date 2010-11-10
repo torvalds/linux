@@ -1799,6 +1799,8 @@ struct ieee80211_ops {
 	void (*channel_switch)(struct ieee80211_hw *hw,
 			       struct ieee80211_channel_switch *ch_switch);
 	int (*napi_poll)(struct ieee80211_hw *hw, int budget);
+	int (*set_antenna)(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant);
+	int (*get_antenna)(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant);
 };
 
 /**
