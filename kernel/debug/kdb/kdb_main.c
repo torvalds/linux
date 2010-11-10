@@ -82,7 +82,7 @@ static kdbtab_t kdb_base_commands[50];
 #define for_each_kdbcmd(cmd, num)					\
 	for ((cmd) = kdb_base_commands, (num) = 0;			\
 	     num < kdb_max_commands;					\
-	     num == KDB_BASE_CMD_MAX ? cmd = kdb_commands : cmd++, num++)
+	     num++, num == KDB_BASE_CMD_MAX ? cmd = kdb_commands : cmd++)
 
 typedef struct _kdbmsg {
 	int	km_diag;	/* kdb diagnostic */
@@ -646,7 +646,7 @@ static int kdb_defcmd2(const char *cmdstr, const char *argv0)
 	}
 	if (!s->usable)
 		return KDB_NOTIMP;
-	s->command = kmalloc((s->count + 1) * sizeof(*(s->command)), GFP_KDB);
+	s->command = kzalloc((s->count + 1) * sizeof(*(s->command)), GFP_KDB);
 	if (!s->command) {
 		kdb_printf("Could not allocate new kdb_defcmd table for %s\n",
 			   cmdstr);
@@ -2740,13 +2740,13 @@ int kdb_register_repeat(char *cmd,
 		}
 		if (kdb_commands) {
 			memcpy(new, kdb_commands,
-			       kdb_max_commands * sizeof(*new));
+			  (kdb_max_commands - KDB_BASE_CMD_MAX) * sizeof(*new));
 			kfree(kdb_commands);
 		}
 		memset(new + kdb_max_commands, 0,
 		       kdb_command_extend * sizeof(*new));
 		kdb_commands = new;
-		kp = kdb_commands + kdb_max_commands;
+		kp = kdb_commands + kdb_max_commands - KDB_BASE_CMD_MAX;
 		kdb_max_commands += kdb_command_extend;
 	}
 
