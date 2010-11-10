@@ -175,6 +175,12 @@ static int ft1000_probe(struct usb_interface *interface,
 	gPollingfailed = FALSE;
 	pft1000info->pPollThread =
 	    kthread_run(ft1000_poll_thread, ft1000dev, "ft1000_poll");
+
+	if (IS_ERR(pft1000info->pPollThread)) {
+		ret = PTR_ERR(pft1000info->pPollThread);
+		goto err_load;
+	}
+
 	msleep(500);
 
 	while (!pft1000info->CardReady) {
