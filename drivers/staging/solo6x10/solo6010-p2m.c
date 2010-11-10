@@ -22,7 +22,7 @@
 
 #include "solo6010.h"
 
-// #define SOLO_TEST_P2M
+/* #define SOLO_TEST_P2M */
 
 int solo_p2m_dma(struct solo6010_dev *solo_dev, u8 id, int wr,
 		 void *sys_addr, u32 ext_addr, u32 size)
@@ -244,7 +244,7 @@ static void run_p2m_test(struct solo6010_dev *solo_dev)
 	return;
 }
 #else
-#define run_p2m_test(__solo)	do{}while(0)
+#define run_p2m_test(__solo)	do {} while (0)
 #endif
 
 void solo_p2m_isr(struct solo6010_dev *solo_dev, int id)

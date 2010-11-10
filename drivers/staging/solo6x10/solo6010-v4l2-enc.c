@@ -598,7 +598,8 @@ static void solo_enc_fillbuf(struct solo_enc_fh *fh,
 		goto buf_err;
 	}
 
-	if (WARN_ON_ONCE(!(vbuf = videobuf_to_dma(vb))))
+	vbuf = videobuf_to_dma(vb);
+	if (WARN_ON_ONCE(!vbuf))
 		goto buf_err;
 
 	if (fh->fmt == V4L2_PIX_FMT_MPEG)
@@ -731,7 +732,8 @@ void solo_enc_v4l2_isr(struct solo6010_dev *solo_dev)
 		jpeg_next = solo_reg_read(solo_dev,
 					SOLO_VE_JPEG_QUE(solo_dev->enc_idx));
 
-		if ((ch = (mpeg_current >> 24) & 0x1f) >= SOLO_MAX_CHANNELS) {
+		ch = (mpeg_current >> 24) & 0x1f;
+		if (ch >= SOLO_MAX_CHANNELS) {
 			ch -= SOLO_MAX_CHANNELS;
 			enc_type = SOLO_ENC_TYPE_EXT;
 		} else
@@ -872,7 +874,8 @@ static int solo_enc_open(struct file *file)
 	struct solo_enc_dev *solo_enc = video_drvdata(file);
 	struct solo_enc_fh *fh;
 
-	if ((fh = kzalloc(sizeof(*fh), GFP_KERNEL)) == NULL)
+	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
+	if (fh == NULL)
 		return -ENOMEM;
 
 	fh->enc = solo_enc;
@@ -1042,9 +1045,8 @@ static int solo_enc_try_fmt_cap(struct file *file, void *priv,
 
 	if (pix->field == V4L2_FIELD_ANY)
 		pix->field = V4L2_FIELD_INTERLACED;
-	else if (pix->field != V4L2_FIELD_INTERLACED) {
+	else if (pix->field != V4L2_FIELD_INTERLACED)
 		pix->field = V4L2_FIELD_INTERLACED;
-	}
 
 	/* Just set these */
 	pix->colorspace = V4L2_COLORSPACE_SMPTE170M;
@@ -1064,7 +1066,8 @@ static int solo_enc_set_fmt_cap(struct file *file, void *priv,
 
 	spin_lock(&solo_enc->lock);
 
-	if ((ret = solo_enc_try_fmt_cap(file, priv, f))) {
+	ret = solo_enc_try_fmt_cap(file, priv, f);
+	if (ret) {
 		spin_unlock(&solo_enc->lock);
 		return ret;
 	}
@@ -1107,7 +1110,7 @@ static int solo_enc_get_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int solo_enc_reqbufs(struct file *file, void *priv, 
+static int solo_enc_reqbufs(struct file *file, void *priv,
 			    struct v4l2_requestbuffers *req)
 {
 	struct solo_enc_fh *fh = priv;
@@ -1388,7 +1391,8 @@ static int solo_querymenu(struct file *file, void *priv,
 	int err;
 
 	qctrl.id = qmenu->id;
-	if ((err = solo_queryctrl(file, priv, &qctrl)))
+	err = solo_queryctrl(file, priv, &qctrl);
+	if (err)
 		return err;
 
 	return v4l2_ctrl_query_menu(qmenu, &qctrl, NULL);

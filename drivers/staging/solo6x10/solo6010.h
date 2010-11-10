@@ -68,7 +68,7 @@
 #define SOLO6010_VER_MINOR		0
 #define SOLO6010_VER_SUB		0
 #define SOLO6010_VER_NUM \
-    KERNEL_VERSION(SOLO6010_VER_MAJOR, SOLO6010_VER_MINOR, SOLO6010_VER_SUB)
+	KERNEL_VERSION(SOLO6010_VER_MAJOR, SOLO6010_VER_MINOR, SOLO6010_VER_SUB)
 
 /*
  * The SOLO6010 actually has 8 i2c channels, but we only use 2.
@@ -221,7 +221,7 @@ struct solo6010_dev {
 	struct solo_enc_buf	enc_buf[SOLO_NR_RING_BUFS];
 
 	/* Current video settings */
-	u32 			video_type;
+	u32			video_type;
 	u16			video_hsize, video_vsize;
 	u16			vout_hstart, vout_vstart;
 	u16			vin_hstart, vin_vstart;

@@ -22,7 +22,7 @@
 #include "solo6010.h"
 #include "solo6010-osd-font.h"
 
-#define CAPTURE_MAX_BANDWIDTH		32	// D1 4channel (D1 == 4)
+#define CAPTURE_MAX_BANDWIDTH		32	/* D1 4channel (D1 == 4) */
 #define OSG_BUFFER_SIZE			1024
 
 #define VI_PROG_HSIZE			(1280 - 16)

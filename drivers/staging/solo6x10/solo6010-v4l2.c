@@ -245,15 +245,16 @@ static void solo_fillbuf(struct solo_filehandle *fh,
 			 struct videobuf_buffer *vb)
 {
 	struct solo6010_dev *solo_dev = fh->solo_dev;
-	struct videobuf_dmabuf* vbuf;
+	struct videobuf_dmabuf *vbuf;
 	unsigned int fdma_addr;
 	int error = 1;
 	int i;
-	struct scatterlist* sg;
+	struct scatterlist *sg;
 	dma_addr_t sg_dma;
 	int sg_size_left;
 
-	if (!(vbuf = videobuf_to_dma(vb)))
+	vbuf = videobuf_to_dma(vb);
+	if (!vbuf)
 		goto finish_buf;
 
 	if (erase_off(solo_dev)) {
@@ -524,7 +525,8 @@ static int solo_v4l2_open(struct file *file)
 	struct solo_filehandle *fh;
 	int ret;
 
-	if ((fh = kzalloc(sizeof(*fh), GFP_KERNEL)) == NULL)
+	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
+	if (fh == NULL)
 		return -ENOMEM;
 
 	spin_lock_init(&fh->slock);
@@ -532,7 +534,8 @@ static int solo_v4l2_open(struct file *file)
 	fh->solo_dev = solo_dev;
 	file->private_data = fh;
 
-	if ((ret = solo_start_thread(fh))) {
+	ret = solo_start_thread(fh);
+	if (ret) {
 		kfree(fh);
 		return ret;
 	}
@@ -726,7 +729,7 @@ static int solo_get_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int solo_reqbufs(struct file *file, void *priv, 
+static int solo_reqbufs(struct file *file, void *priv,
 			struct v4l2_requestbuffers *req)
 {
 	struct solo_filehandle *fh = priv;
@@ -940,13 +943,13 @@ int solo_v4l2_init(struct solo6010_dev *solo_dev)
 	for (i = 0; i < solo_dev->nr_chans; i++) {
 		solo_v4l2_set_ch(solo_dev, i);
 		while (erase_off(solo_dev))
-			;// Do nothing
+			;/* Do nothing */
 	}
 
 	/* Set the default display channel */
 	solo_v4l2_set_ch(solo_dev, 0);
 	while (erase_off(solo_dev))
-		;// Do nothing
+		;/* Do nothing */
 
 	solo6010_irq_on(solo_dev, SOLO_IRQ_VIDEO_IN);
 

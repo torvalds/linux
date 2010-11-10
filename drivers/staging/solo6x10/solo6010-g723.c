@@ -47,7 +47,7 @@
  * is broken down to 20 * 48 byte regions (one for each channel possible)
  * with the rest of the page being dummy data. */
 #define MAX_BUFFER		(G723_PERIOD_BYTES * PERIODS_MAX)
-#define IRQ_PAGES		4 // 0 - 4
+#define IRQ_PAGES		4 /* 0 - 4 */
 #define PERIODS_MIN		(1 << IRQ_PAGES)
 #define PERIODS_MAX		G723_FDMA_PAGES
 
@@ -372,10 +372,12 @@ int solo_g723_init(struct solo6010_dev *solo_dev)
 	if (ret < 0)
 		return ret;
 
-	if ((ret = solo_snd_pcm_init(solo_dev)) < 0)
+	ret = solo_snd_pcm_init(solo_dev);
+	if (ret < 0)
 		goto snd_error;
 
-	if ((ret = snd_card_register(card)) < 0)
+	ret = snd_card_register(card);
+	if (ret < 0)
 		goto snd_error;
 
 	solo_g723_config(solo_dev);

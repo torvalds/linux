@@ -164,21 +164,21 @@ static int __devinit solo6010_pci_probe(struct pci_dev *pdev,
 	chip_id = solo_reg_read(solo_dev, SOLO_CHIP_OPTION) &
 					SOLO_CHIP_ID_MASK;
 	switch (chip_id) {
-		case 7:
-			solo_dev->nr_chans = 16;
-			solo_dev->nr_ext = 5;
-			break;
-		case 6:
-			solo_dev->nr_chans = 8;
-			solo_dev->nr_ext = 2;
-			break;
-		default:
-			dev_warn(&pdev->dev, "Invalid chip_id 0x%02x, "
-				 "defaulting to 4 channels\n",
-				 chip_id);
-		case 5:
-			solo_dev->nr_chans = 4;
-			solo_dev->nr_ext = 1;
+	case 7:
+		solo_dev->nr_chans = 16;
+		solo_dev->nr_ext = 5;
+		break;
+	case 6:
+		solo_dev->nr_chans = 8;
+		solo_dev->nr_ext = 2;
+		break;
+	default:
+		dev_warn(&pdev->dev, "Invalid chip_id 0x%02x, "
+			 "defaulting to 4 channels\n",
+			 chip_id);
+	case 5:
+		solo_dev->nr_chans = 4;
+		solo_dev->nr_ext = 1;
 	}
 
 	/* Disable all interrupts to start */

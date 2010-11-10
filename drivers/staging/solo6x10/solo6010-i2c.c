@@ -225,7 +225,7 @@ static int solo_i2c_master_xfer(struct i2c_adapter *adap,
 	}
 
 	if (i == SOLO_I2C_ADAPTERS)
-		return num; // XXX Right return value for failure?
+		return num; /* XXX Right return value for failure? */
 
 	mutex_lock(&solo_dev->i2c_mutex);
 	solo_dev->i2c_id = i;
@@ -296,7 +296,8 @@ int solo_i2c_init(struct solo6010_dev *solo_dev)
 		adap->retries = 1;
 		adap->dev.parent = &solo_dev->pdev->dev;
 
-		if ((ret = i2c_add_adapter(adap))) {
+		ret = i2c_add_adapter(adap);
+		if (ret) {
 			adap->algo_data = NULL;
 			break;
 		}
