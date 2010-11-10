@@ -487,6 +487,7 @@ static struct iwl_base_params iwl6000_base_params = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.shadow_reg_enable = true,
 };
 
 static struct iwl_base_params iwl6050_base_params = {
@@ -510,6 +511,7 @@ static struct iwl_base_params iwl6050_base_params = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.shadow_reg_enable = true,
 };
 static struct iwl_base_params iwl6000_coex_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
@@ -532,6 +534,7 @@ static struct iwl_base_params iwl6000_coex_base_params = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.shadow_reg_enable = true,
 };
 
 static struct iwl_ht_params iwl6000_ht_params = {

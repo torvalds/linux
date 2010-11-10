@@ -753,6 +753,12 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 	} else
 		iwlagn_txq_ctx_reset(priv);
 
+	if (priv->cfg->base_params->shadow_reg_enable) {
+		/* enable shadow regs in HW */
+		iwl_set_bit(priv, CSR_MAC_SHADOW_REG_CTRL,
+			0x800FFFFF);
+	}
+
 	set_bit(STATUS_INIT, &priv->status);
 
 	return 0;

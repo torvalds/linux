@@ -290,6 +290,7 @@ struct iwl_mod_params {
  *	sensitivity calibration operation
  * @chain_noise_calib_by_driver: driver has the capability to perform
  *	chain noise calibration operation
+ * @shadow_reg_enable: HW shadhow register bit
 */
 struct iwl_base_params {
 	int eeprom_size;
@@ -320,6 +321,7 @@ struct iwl_base_params {
 	const bool ucode_tracing;
 	const bool sensitivity_calib_by_driver;
 	const bool chain_noise_calib_by_driver;
+	const bool shadow_reg_enable;
 };
 /*
  * @advanced_bt_coexist: support advanced bt coexist
