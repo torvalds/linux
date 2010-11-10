@@ -4062,6 +4062,7 @@ static int ar9003_hw_power_control_override(struct ath_hw *ah,
 {
 	int tempSlope = 0;
 	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+	int f[3], t[3];
 
 	REG_RMW(ah, AR_PHY_TPC_11_B0,
 		(correction[0] << AR_PHY_TPC_OLPC_GAIN_DELTA_S),
@@ -4090,7 +4091,16 @@ static int ar9003_hw_power_control_override(struct ath_hw *ah,
 	 */
 	if (frequency < 4000)
 		tempSlope = eep->modalHeader2G.tempSlope;
-	else
+	else if (eep->base_ext2.tempSlopeLow != 0) {
+		t[0] = eep->base_ext2.tempSlopeLow;
+		f[0] = 5180;
+		t[1] = eep->modalHeader5G.tempSlope;
+		f[1] = 5500;
+		t[2] = eep->base_ext2.tempSlopeHigh;
+		f[2] = 5785;
+		tempSlope = ar9003_hw_power_interpolate((s32) frequency,
+							f, t, 3);
+	} else
 		tempSlope = eep->modalHeader5G.tempSlope;
 
 	REG_RMW_FIELD(ah, AR_PHY_TPC_19, AR_PHY_TPC_19_ALPHA_THERM, tempSlope);
