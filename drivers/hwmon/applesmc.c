@@ -174,9 +174,8 @@ static int __wait_status(u8 val)
 
 	for (us = APPLESMC_MIN_WAIT; us < APPLESMC_MAX_WAIT; us <<= 1) {
 		udelay(us);
-		if ((inb(APPLESMC_CMD_PORT) & APPLESMC_STATUS_MASK) == val) {
+		if ((inb(APPLESMC_CMD_PORT) & APPLESMC_STATUS_MASK) == val)
 			return 0;
-		}
 	}
 
 	return -EIO;
@@ -431,7 +430,7 @@ static int applesmc_has_key(const char *key, bool *value)
 /*
  * applesmc_read_motion_sensor - Read motion sensor (X, Y or Z).
  */
-static int applesmc_read_motion_sensor(int index, s16* value)
+static int applesmc_read_motion_sensor(int index, s16 *value)
 {
 	u8 buffer[2];
 	int ret;
@@ -779,14 +778,12 @@ static ssize_t applesmc_store_fan_speed(struct device *dev,
 					const char *sysfsbuf, size_t count)
 {
 	int ret;
-	u32 speed;
+	unsigned long speed;
 	char newkey[5];
 	u8 buffer[2];
 
-	speed = simple_strtoul(sysfsbuf, NULL, 10);
-
-	if (speed > 0x4000) /* Bigger than a 14-bit value */
-		return -EINVAL;
+	if (strict_strtoul(sysfsbuf, 10, &speed) < 0 || speed >= 0x4000)
+		return -EINVAL;		/* Bigger than a 14-bit value */
 
 	sprintf(newkey, fan_speed_fmt[to_option(attr)], to_index(attr));
 
@@ -822,10 +819,11 @@ static ssize_t applesmc_store_fan_manual(struct device *dev,
 {
 	int ret;
 	u8 buffer[2];
-	u32 input;
+	unsigned long input;
 	u16 val;
 
-	input = simple_strtoul(sysfsbuf, NULL, 10);
+	if (strict_strtoul(sysfsbuf, 10, &input) < 0)
+		return -EINVAL;
 
 	ret = applesmc_read_key(FANS_MANUAL, buffer, 2);
 	val = (buffer[0] << 8 | buffer[1]);
@@ -1198,24 +1196,24 @@ static __initdata struct dmi_system_id applesmc_whitelist[] = {
 	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBookAir") },
 	},
 	{ applesmc_dmi_match, "Apple MacBook Pro", {
-	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
-	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBookPro") },
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro") },
 	},
 	{ applesmc_dmi_match, "Apple MacBook", {
-	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
-	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBook") },
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBook") },
 	},
 	{ applesmc_dmi_match, "Apple Macmini", {
-	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
-	  DMI_MATCH(DMI_PRODUCT_NAME,"Macmini") },
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "Macmini") },
 	},
 	{ applesmc_dmi_match, "Apple MacPro", {
 	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME, "MacPro") },
 	},
 	{ applesmc_dmi_match, "Apple iMac", {
-	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
-	  DMI_MATCH(DMI_PRODUCT_NAME,"iMac") },
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "iMac") },
 	},
 	{ .ident = NULL }
 };
