@@ -1162,33 +1162,33 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
-	if (conn) {
-		if (!ev->status)
-			memcpy(conn->features, ev->features, 8);
+	if (!conn)
+		goto unlock;
 
-		if (conn->state == BT_CONFIG) {
-			if (!ev->status && lmp_ssp_capable(hdev) &&
-						lmp_ssp_capable(conn)) {
-				struct hci_cp_read_remote_ext_features cp;
-				cp.handle = ev->handle;
-				cp.page = 0x01;
-				hci_send_cmd(hdev,
-					HCI_OP_READ_REMOTE_EXT_FEATURES,
+	if (!ev->status)
+		memcpy(conn->features, ev->features, 8);
+
+	if (conn->state != BT_CONFIG)
+		goto unlock;
+
+	if (!ev->status && lmp_ssp_capable(hdev) && lmp_ssp_capable(conn)) {
+		struct hci_cp_read_remote_ext_features cp;
+		cp.handle = ev->handle;
+		cp.page = 0x01;
+		hci_send_cmd(hdev, HCI_OP_READ_REMOTE_EXT_FEATURES,
 							sizeof(cp), &cp);
-			} else if (!ev->status && conn->out &&
-					conn->sec_level == BT_SECURITY_HIGH) {
-				struct hci_cp_auth_requested cp;
-				cp.handle = ev->handle;
-				hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED,
-							sizeof(cp), &cp);
-			} else {
-				conn->state = BT_CONNECTED;
-				hci_proto_connect_cfm(conn, ev->status);
-				hci_conn_put(conn);
-			}
-		}
+	} else if (!ev->status && conn->out &&
+			conn->sec_level == BT_SECURITY_HIGH) {
+		struct hci_cp_auth_requested cp;
+		cp.handle = ev->handle;
+		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
+	} else {
+		conn->state = BT_CONNECTED;
+		hci_proto_connect_cfm(conn, ev->status);
+		hci_conn_put(conn);
 	}
 
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -1646,32 +1646,35 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
-	if (conn) {
-		if (!ev->status && ev->page == 0x01) {
-			struct inquiry_entry *ie;
+	if (!conn)
+		goto unlock;
 
-			if ((ie = hci_inquiry_cache_lookup(hdev, &conn->dst)))
-				ie->data.ssp_mode = (ev->features[0] & 0x01);
+	if (!ev->status && ev->page == 0x01) {
+		struct inquiry_entry *ie;
 
-			conn->ssp_mode = (ev->features[0] & 0x01);
-		}
+		if ((ie = hci_inquiry_cache_lookup(hdev, &conn->dst)))
+			ie->data.ssp_mode = (ev->features[0] & 0x01);
 
-		if (conn->state == BT_CONFIG) {
-			if (!ev->status && hdev->ssp_mode > 0 &&
-					conn->ssp_mode > 0 && conn->out &&
-					conn->sec_level != BT_SECURITY_SDP) {
-				struct hci_cp_auth_requested cp;
-				cp.handle = ev->handle;
-				hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED,
-							sizeof(cp), &cp);
-			} else {
-				conn->state = BT_CONNECTED;
-				hci_proto_connect_cfm(conn, ev->status);
-				hci_conn_put(conn);
-			}
-		}
+		conn->ssp_mode = (ev->features[0] & 0x01);
 	}
 
+	if (conn->state != BT_CONFIG)
+		goto unlock;
+
+	if (!ev->status && hdev->ssp_mode > 0 &&
+			conn->ssp_mode > 0 && conn->out &&
+			conn->sec_level != BT_SECURITY_SDP) {
+		struct hci_cp_auth_requested cp;
+		cp.handle = ev->handle;
+		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED,
+				sizeof(cp), &cp);
+	} else {
+		conn->state = BT_CONNECTED;
+		hci_proto_connect_cfm(conn, ev->status);
+		hci_conn_put(conn);
+	}
+
+unlock:
 	hci_dev_unlock(hdev);
 }
 
