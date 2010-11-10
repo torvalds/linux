@@ -306,6 +306,7 @@ static const struct ar9300_eeprom ar9300_default = {
 
 		 { { {60, 0}, {60, 1}, {60, 0}, {60, 0} } },
 		 { { {60, 0}, {60, 1}, {60, 1}, {60, 1} } },
+		 { { {60, 0}, {60, 1}, {60, 1}, {60, 1} } },
 	 },
 	.modalHeader5G = {
 		/* 4 idle,t1,t2,b (4 bits per setting) */
