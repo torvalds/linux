@@ -164,6 +164,5 @@ void tegra_clk_init_from_table(struct tegra_clk_init_table *table);
 void tegra_clk_set_dvfs_rates(void);
 void clk_set_cansleep(struct clk *c);
 unsigned long clk_get_rate_locked(struct clk *c);
-int tegra_dvfs_set_rate_locked(struct clk *c, unsigned long rate);
 
 #endif

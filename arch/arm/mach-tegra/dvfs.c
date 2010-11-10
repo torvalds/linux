@@ -178,7 +178,7 @@ __tegra_dvfs_set_rate(struct clk *c, struct dvfs *d, unsigned long rate)
 	return ret;
 }
 
-int tegra_dvfs_set_rate_locked(struct clk *c, unsigned long rate)
+int tegra_dvfs_set_rate(struct clk *c, unsigned long rate)
 {
 	struct dvfs *d;
 	int ret = 0;
@@ -204,6 +204,7 @@ int tegra_dvfs_set_rate_locked(struct clk *c, unsigned long rate)
 
 	return 0;
 }
+EXPORT_SYMBOL(tegra_dvfs_set_rate);
 
 /* May only be called during clock init, does not take any locks on clock c. */
 int __init tegra_enable_dvfs_on_clk(struct clk *c, struct dvfs *d)
