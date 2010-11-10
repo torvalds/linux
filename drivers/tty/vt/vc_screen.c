@@ -553,12 +553,12 @@ static unsigned int
 vcs_poll(struct file *file, poll_table *wait)
 {
 	struct vcs_poll_data *poll = vcs_poll_data_get(file);
-	int ret = 0;
+	int ret = DEFAULT_POLLMASK|POLLERR|POLLPRI;
 
 	if (poll) {
 		poll_wait(file, &poll->waitq, wait);
-		if (!poll->seen_last_update)
-			ret = POLLIN | POLLRDNORM;
+		if (poll->seen_last_update)
+			ret = DEFAULT_POLLMASK;
 	}
 	return ret;
 }
