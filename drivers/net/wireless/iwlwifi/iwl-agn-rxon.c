@@ -96,7 +96,6 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	/* cast away the const for active_rxon in this function */
 	struct iwl_rxon_cmd *active = (void *)&ctx->active;
-	bool old_assoc = !!(ctx->active.filter_flags & RXON_FILTER_ASSOC_MSK);
 	bool new_assoc = !!(ctx->staging.filter_flags & RXON_FILTER_ASSOC_MSK);
 	int ret;
 
@@ -172,37 +171,30 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		       ctx->staging.bssid_addr);
 
 	/*
-	 * If we are currently associated and the new config is also
-	 * going to be associated, OR if the new config is simply not
-	 * associated, clear associated.
+	 * Always clear associated first, but with the correct config.
+	 * This is required as for example station addition for the
+	 * AP station must be done after the BSSID is set to correctly
+	 * set up filters in the device.
 	 */
-	if ((old_assoc && new_assoc) || !new_assoc) {
-		struct iwl_rxon_cmd *send = active;
+	if (ctx->ctxid == IWL_RXON_CTX_BSS)
+		ret = iwlagn_disable_bss(priv, ctx, &ctx->staging);
+	else
+		ret = iwlagn_disable_pan(priv, ctx, &ctx->staging);
+	if (ret)
+		return ret;
 
-		if (!new_assoc)
-			send = &ctx->staging;
+	memcpy(active, &ctx->staging, sizeof(*active));
 
-		if (ctx->ctxid == IWL_RXON_CTX_BSS)
-			ret = iwlagn_disable_bss(priv, ctx, send);
-		else
-			ret = iwlagn_disable_pan(priv, ctx, send);
-		if (ret)
-			return ret;
-
-		if (send != active)
-			memcpy(active, send, sizeof(*active));
-
-		/*
-		 * Un-assoc RXON clears the station table and WEP
-		 * keys, so we have to restore those afterwards.
-		 */
-		iwl_clear_ucode_stations(priv, ctx);
-		iwl_restore_stations(priv, ctx);
-		ret = iwl_restore_default_wep_keys(priv, ctx);
-		if (ret) {
-			IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
-			return ret;
-		}
+	/*
+	 * Un-assoc RXON clears the station table and WEP
+	 * keys, so we have to restore those afterwards.
+	 */
+	iwl_clear_ucode_stations(priv, ctx);
+	iwl_restore_stations(priv, ctx);
+	ret = iwl_restore_default_wep_keys(priv, ctx);
+	if (ret) {
+		IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
+		return ret;
 	}
 
 	/* RXON timing must be before associated RXON */
