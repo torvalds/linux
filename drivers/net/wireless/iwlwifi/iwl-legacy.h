@@ -71,4 +71,6 @@ void iwl_legacy_mac_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_bss_conf *bss_conf,
 				     u32 changes);
 
+irqreturn_t iwl_isr_legacy(int irq, void *data);
+
 #endif /* __iwl_legacy_h__ */

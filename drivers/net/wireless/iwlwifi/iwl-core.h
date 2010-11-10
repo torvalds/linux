@@ -596,7 +596,6 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 /*****************************************************
  * PCI						     *
  *****************************************************/
-irqreturn_t iwl_isr_legacy(int irq, void *data);
 
 static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
 {
