@@ -301,9 +301,12 @@ int iwl_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
 			 int tid, u16 ssn);
 int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
 			int tid);
-void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id);
 void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt);
 int iwl_update_bcast_stations(struct iwl_priv *priv);
+void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif,
+			   enum sta_notify_cmd cmd,
+			   struct ieee80211_sta *sta);
 
 /* rate */
 static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)

@@ -3474,36 +3474,6 @@ int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	return ret;
 }
 
-static void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
-				  struct ieee80211_vif *vif,
-				  enum sta_notify_cmd cmd,
-				  struct ieee80211_sta *sta)
-{
-	struct iwl_priv *priv = hw->priv;
-	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
-	int sta_id;
-
-	switch (cmd) {
-	case STA_NOTIFY_SLEEP:
-		WARN_ON(!sta_priv->client);
-		sta_priv->asleep = true;
-		if (atomic_read(&sta_priv->pending_frames) > 0)
-			ieee80211_sta_block_awake(hw, sta, true);
-		break;
-	case STA_NOTIFY_AWAKE:
-		WARN_ON(!sta_priv->client);
-		if (!sta_priv->asleep)
-			break;
-		sta_priv->asleep = false;
-		sta_id = iwl_sta_id(sta);
-		if (sta_id != IWL_INVALID_STATION)
-			iwl_sta_modify_ps_wake(priv, sta_id);
-		break;
-	default:
-		break;
-	}
-}
-
 int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta)
@@ -3903,6 +3873,7 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 	kfree(priv->scan_cmd);
 }
 
+#ifdef CONFIG_IWL5000
 struct ieee80211_ops iwlagn_hw_ops = {
 	.tx = iwlagn_mac_tx,
 	.start = iwlagn_mac_start,
@@ -3925,6 +3896,7 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.flush = iwlagn_mac_flush,
 	.tx_last_beacon = iwl_mac_tx_last_beacon,
 };
+#endif
 
 static void iwl_hw_detect(struct iwl_priv *priv)
 {
@@ -3992,7 +3964,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (cfg->mod_params->disable_hw_scan) {
 		dev_printk(KERN_DEBUG, &(pdev->dev),
 			"sw scan support is deprecated\n");
+#ifdef CONFIG_IWL5000
 		iwlagn_hw_ops.hw_scan = NULL;
+#endif
 #ifdef CONFIG_IWL4965
 		iwl4965_hw_ops.hw_scan = NULL;
 #endif

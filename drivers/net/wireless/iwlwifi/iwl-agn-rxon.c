@@ -585,3 +585,19 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_unlock(&priv->mutex);
 }
+
+void iwlagn_post_scan(struct iwl_priv *priv)
+{
+	struct iwl_rxon_context *ctx;
+
+	/*
+	 * Since setting the RXON may have been deferred while
+	 * performing the scan, fire one off if needed
+	 */
+	for_each_context(priv, ctx)
+		if (memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
+			iwlagn_commit_rxon(priv, ctx);
+
+	if (priv->cfg->ops->hcmd->set_pan_params)
+		priv->cfg->ops->hcmd->set_pan_params(priv);
+}
