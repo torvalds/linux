@@ -1304,6 +1304,9 @@ struct cfg80211_ops {
 	void	(*mgmt_frame_register)(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       u16 frame_type, bool reg);
+
+	int	(*set_antenna)(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant);
+	int	(*get_antenna)(struct wiphy *wiphy, u32 *tx_ant, u32 *rx_ant);
 };
 
 /*

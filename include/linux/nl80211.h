@@ -804,6 +804,28 @@ enum nl80211_commands {
  * @NL80211_ATTR_SUPPORT_IBSS_RSN: The device supports IBSS RSN, which mostly
  *	means support for per-station GTKs.
  *
+ * @NL80211_ATTR_WIPHY_ANTENNA_TX: Bitmap of allowed antennas for transmitting.
+ *	This can be used to mask out antennas which are not attached or should
+ *	not be used for transmitting. If an antenna is not selected in this
+ *	bitmap the hardware is not allowed to transmit on this antenna.
+ *
+ *	Each bit represents one antenna, starting with antenna 1 at the first
+ *	bit. Depending on which antennas are selected in the bitmap, 802.11n
+ *	drivers can derive which chainmasks to use (if all antennas belonging to
+ *	a particular chain are disabled this chain should be disabled) and if
+ *	a chain has diversity antennas wether diversity should be used or not.
+ *	HT capabilities (STBC, TX Beamforming, Antenna selection) can be
+ *	derived from the available chains after applying the antenna mask.
+ *	Non-802.11n drivers can derive wether to use diversity or not.
+ *	Drivers may reject configurations or RX/TX mask combinations they cannot
+ *	support by returning -EINVAL.
+ *
+ * @NL80211_ATTR_WIPHY_ANTENNA_RX: Bitmap of allowed antennas for receiving.
+ *	This can be used to mask out antennas which are not attached or should
+ *	not be used for receiving. If an antenna is not selected in this bitmap
+ *	the hardware should not be configured to receive on this antenna.
+ *	For a more detailed descripton see @NL80211_ATTR_WIPHY_ANTENNA_TX.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -972,6 +994,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT,
 
 	NL80211_ATTR_SUPPORT_IBSS_RSN,
+
+	NL80211_ATTR_WIPHY_ANTENNA_TX,
+	NL80211_ATTR_WIPHY_ANTENNA_RX,
 
 	/* add attributes here, update the policy in nl80211.c */
 

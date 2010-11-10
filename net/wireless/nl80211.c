@@ -166,7 +166,11 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 
 	[NL80211_ATTR_WIPHY_TX_POWER_SETTING] = { .type = NLA_U32 },
 	[NL80211_ATTR_WIPHY_TX_POWER_LEVEL] = { .type = NLA_U32 },
+
 	[NL80211_ATTR_FRAME_TYPE] = { .type = NLA_U16 },
+
+	[NL80211_ATTR_WIPHY_ANTENNA_TX] = { .type = NLA_U32 },
+	[NL80211_ATTR_WIPHY_ANTENNA_RX] = { .type = NLA_U32 },
 };
 
 /* policy for the key attributes */
@@ -526,7 +530,6 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		    dev->wiphy.rts_threshold);
 	NLA_PUT_U8(msg, NL80211_ATTR_WIPHY_COVERAGE_CLASS,
 		    dev->wiphy.coverage_class);
-
 	NLA_PUT_U8(msg, NL80211_ATTR_MAX_NUM_SCAN_SSIDS,
 		   dev->wiphy.max_scan_ssids);
 	NLA_PUT_U16(msg, NL80211_ATTR_MAX_SCAN_IE_LEN,
@@ -544,6 +547,16 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 
 	if (dev->wiphy.flags & WIPHY_FLAG_CONTROL_PORT_PROTOCOL)
 		NLA_PUT_FLAG(msg, NL80211_ATTR_CONTROL_PORT_ETHERTYPE);
+
+	if (dev->ops->get_antenna) {
+		u32 tx_ant = 0, rx_ant = 0;
+		int res;
+		res = dev->ops->get_antenna(&dev->wiphy, &tx_ant, &rx_ant);
+		if (!res) {
+			NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_ANTENNA_TX, tx_ant);
+			NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_ANTENNA_RX, rx_ant);
+		}
+	}
 
 	nl_modes = nla_nest_start(msg, NL80211_ATTR_SUPPORTED_IFTYPES);
 	if (!nl_modes)
@@ -1020,6 +1033,22 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		}
 
 		result = rdev->ops->set_tx_power(&rdev->wiphy, type, mbm);
+		if (result)
+			goto bad_res;
+	}
+
+	if (info->attrs[NL80211_ATTR_WIPHY_ANTENNA_TX] &&
+	    info->attrs[NL80211_ATTR_WIPHY_ANTENNA_RX]) {
+		u32 tx_ant, rx_ant;
+		if (!rdev->ops->set_antenna) {
+			result = -EOPNOTSUPP;
+			goto bad_res;
+		}
+
+		tx_ant = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_ANTENNA_TX]);
+		rx_ant = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_ANTENNA_RX]);
+
+		result = rdev->ops->set_antenna(&rdev->wiphy, tx_ant, rx_ant);
 		if (result)
 			goto bad_res;
 	}
