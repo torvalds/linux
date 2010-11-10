@@ -731,6 +731,10 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	if (ret)
 		return ret;
 
+	node->page_shift = 12;
+	if (nvbo->vma.node)
+		node->page_shift = nvbo->vma.node->type;
+
 	mem->mm_node = node;
 	mem->start   = node->offset >> PAGE_SHIFT;
 	return 0;

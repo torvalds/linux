@@ -909,8 +909,9 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 			break;
 		}
 
-		ret = nouveau_vm_get(dev_priv->bar1_vm, mem->bus.size, 12,
-				     NV_MEM_ACCESS_RW, &vram->bar_vma);
+		ret = nouveau_vm_get(dev_priv->bar1_vm, mem->bus.size,
+				     vram->page_shift, NV_MEM_ACCESS_RW,
+				     &vram->bar_vma);
 		if (ret)
 			return ret;
 

@@ -295,7 +295,34 @@ nouveau_vm_new(struct drm_device *dev, u64 offset, u64 length, u64 mm_offset,
 		vm->flush = nv50_vm_flush;
 		vm->spg_shift = 12;
 		vm->lpg_shift = 16;
+
 		pgt_bits = 29;
+		block = (1 << pgt_bits);
+		if (length < block)
+			block = length;
+
+	} else
+	if (dev_priv->card_type == NV_C0) {
+		vm->map_pgt = nvc0_vm_map_pgt;
+		vm->map = nvc0_vm_map;
+		vm->map_sg = nvc0_vm_map_sg;
+		vm->unmap = nvc0_vm_unmap;
+		vm->flush = nvc0_vm_flush;
+		vm->spg_shift = 12;
+		vm->lpg_shift = 17;
+		pgt_bits = 27;
+
+		/* Should be 4096 everywhere, this is a hack that's
+		 * currently necessary to avoid an elusive bug that
+		 * causes corruption when mixing small/large pages
+		 */
+		if (length < (1ULL << 40))
+			block = 4096;
+		else {
+			block = (1 << pgt_bits);
+			if (length < block)
+				block = length;
+		}
 	} else {
 		kfree(vm);
 		return -ENOSYS;
@@ -313,10 +340,6 @@ nouveau_vm_new(struct drm_device *dev, u64 offset, u64 length, u64 mm_offset,
 	vm->dev = dev;
 	vm->refcount = 1;
 	vm->pgt_bits = pgt_bits - 12;
-
-	block = (1 << pgt_bits);
-	if (length < block)
-		block = length;
 
 	ret = nouveau_mm_init(&vm->mm, mm_offset >> 12, mm_length >> 12,
 			      block >> 12);

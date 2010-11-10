@@ -69,6 +69,7 @@ struct nouveau_vram {
 	struct drm_device *dev;
 
 	struct nouveau_vma bar_vma;
+	u8  page_shift;
 
 	struct list_head regions;
 	u32 memtype;
