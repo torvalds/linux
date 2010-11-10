@@ -26,7 +26,7 @@
 #include <linux/sm501-regs.h>
 #include <linux/serial_8250.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 struct sm501_device {
 	struct list_head		list;
