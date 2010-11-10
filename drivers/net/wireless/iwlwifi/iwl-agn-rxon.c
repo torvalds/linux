@@ -458,11 +458,13 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 					>> IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT;
 			maxstreams += 1;
 
+			need_multiple = true;
+
 			if ((ht_cap->mcs.rx_mask[1] == 0) &&
 			    (ht_cap->mcs.rx_mask[2] == 0))
 				need_multiple = false;
 			if (maxstreams <= 1)
-				need_multiple = true;
+				need_multiple = false;
 		} else {
 			/*
 			 * If at all, this can only happen through a race
