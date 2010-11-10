@@ -447,9 +447,7 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw,
 			     enum nl80211_iftype newtype, bool newp2p);
 int iwl_alloc_txq_mem(struct iwl_priv *priv);
 void iwl_free_txq_mem(struct iwl_priv *priv);
-void iwlcore_tx_cmd_protection(struct iwl_priv *priv,
-			       struct ieee80211_tx_info *info,
-			       __le16 fc, __le32 *tx_flags);
+
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_alloc_traffic_mem(struct iwl_priv *priv);
 void iwl_free_traffic_mem(struct iwl_priv *priv);
