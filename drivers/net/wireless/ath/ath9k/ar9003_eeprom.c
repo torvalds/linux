@@ -144,8 +144,8 @@ static const struct ar9300_eeprom ar9300_default = {
 		.txEndToRxOn = 0x2,
 		.txFrameToXpaOn = 0xe,
 		.thresh62 = 28,
-		.papdRateMaskHt20 = LE32(0x80c080),
-		.papdRateMaskHt40 = LE32(0x80c080),
+		.papdRateMaskHt20 = LE32(0x0cf0e0e0),
+		.papdRateMaskHt40 = LE32(0x6cf0e0e0),
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		},
@@ -346,8 +346,8 @@ static const struct ar9300_eeprom ar9300_default = {
 		.txEndToRxOn = 0x2,
 		.txFrameToXpaOn = 0xe,
 		.thresh62 = 28,
-		.papdRateMaskHt20 = LE32(0xf0e0e0),
-		.papdRateMaskHt40 = LE32(0xf0e0e0),
+		.papdRateMaskHt20 = LE32(0x0c80c080),
+		.papdRateMaskHt40 = LE32(0x0080c080),
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		},
