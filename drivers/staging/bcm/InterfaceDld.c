@@ -5,15 +5,14 @@ int InterfaceFileDownload( PVOID arg,
                         struct file *flp,
                         unsigned int on_chip_loc)
 {
-    char            *buff=NULL;
    // unsigned int    reg=0;
     mm_segment_t    oldfs={0};
     int             errno=0, len=0 /*,is_config_file = 0*/;
     loff_t          pos=0;
 	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)arg;
 	//PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter;
+    char            *buff=kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
 
-    buff=(PCHAR)kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
     if(!buff)
     {
         return -ENOMEM;
@@ -56,7 +55,7 @@ int InterfaceFileReadbackFromChip( PVOID arg,
                         struct file *flp,
                         unsigned int on_chip_loc)
 {
-    char            *buff=NULL, *buff_readback=NULL;
+    char            *buff, *buff_readback;
     unsigned int    reg=0;
     mm_segment_t    oldfs={0};
     int             errno=0, len=0, is_config_file = 0;
@@ -65,8 +64,8 @@ int InterfaceFileReadbackFromChip( PVOID arg,
 	INT				Status = STATUS_SUCCESS;
 	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)arg;
 
-    buff=(PCHAR)kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_DMA);
-    buff_readback=(PCHAR)kmalloc(MAX_TRANSFER_CTRL_BYTE_USB , GFP_DMA);
+    buff=kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_DMA);
+    buff_readback=kmalloc(MAX_TRANSFER_CTRL_BYTE_USB , GFP_DMA);
     if(!buff || !buff_readback)
     {
         kfree(buff);
@@ -287,7 +286,7 @@ int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
 	else
 	{
 
-		buff = (PUCHAR)kzalloc(psFwInfo->u32FirmwareLength,GFP_KERNEL);
+		buff = kzalloc(psFwInfo->u32FirmwareLength,GFP_KERNEL);
 		if(buff==NULL)
 		{
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL,"Failed in allocation memory");
@@ -345,11 +344,10 @@ static INT buffRdbkVerify(PMINI_ADAPTER Adapter,
 			PUCHAR mappedbuffer, UINT u32FirmwareLength,
 			ULONG u32StartingAddress)
 {
-	PUCHAR readbackbuff = NULL;
 	UINT len = u32FirmwareLength;
 	INT retval = STATUS_SUCCESS;
+	PUCHAR readbackbuff = kzalloc(MAX_TRANSFER_CTRL_BYTE_USB,GFP_KERNEL);
 
-	readbackbuff = (PUCHAR)kzalloc(MAX_TRANSFER_CTRL_BYTE_USB,GFP_KERNEL);
 	if(NULL == readbackbuff)
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "MEMORY ALLOCATION FAILED");

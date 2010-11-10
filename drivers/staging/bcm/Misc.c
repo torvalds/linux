@@ -71,8 +71,7 @@ InitAdapter(PMINI_ADAPTER psAdapter)
 	default_wimax_protocol_initialize(psAdapter);
 	for (i=0;i<MAX_CNTRL_PKTS;i++)
 	{
-		psAdapter->txctlpacket[i] = (char *)kmalloc(MAX_CNTL_PKT_SIZE,
-												GFP_KERNEL);
+		psAdapter->txctlpacket[i] = kmalloc(MAX_CNTL_PKT_SIZE, GFP_KERNEL);
 		if(!psAdapter->txctlpacket[i])
 		{
 			BCM_DEBUG_PRINT(psAdapter,DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "No More Cntl pkts got, max got is %d", i);
@@ -1228,11 +1227,11 @@ static int bcm_parse_target_params(PMINI_ADAPTER Adapter)
 {
 	struct file 		*flp=NULL;
 	mm_segment_t 	oldfs={0};
-	char *buff = NULL;
+	char *buff;
 	int len = 0;
 	loff_t	pos = 0;
 
-	buff=(PCHAR)kmalloc(BUFFER_1K, GFP_KERNEL);
+	buff=kmalloc(BUFFER_1K, GFP_KERNEL);
 	if(!buff)
 	{
 		return -ENOMEM;
@@ -1393,12 +1392,10 @@ static VOID doPowerAutoCorrection(PMINI_ADAPTER psAdapter)
 #if 0
 static unsigned char *ReadMacAddrEEPROM(PMINI_ADAPTER Adapter, ulong dwAddress)
 {
-	unsigned char *pucmacaddr = NULL;
-	int status = 0, i=0;
-	unsigned int temp =0;
+	int status = 0, i = 0;
+	unsigned int temp = 0;
+	unsigned char *pucmacaddr = kmalloc(MAC_ADDRESS_SIZE, GFP_KERNEL);
 
-
-	pucmacaddr = (unsigned char *)kmalloc(MAC_ADDRESS_SIZE, GFP_KERNEL);
 	if(!pucmacaddr)
 	{
 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "No Buffers to Read the EEPROM Address\n");
