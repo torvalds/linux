@@ -35,6 +35,7 @@
 #include <asm/i8259.h>
 #include <asm/intel_scu_ipc.h>
 #include <asm/apb_timer.h>
+#include <asm/reboot.h>
 
 
 /*
@@ -268,6 +269,17 @@ static int mrst_i8042_detect(void)
 	return 0;
 }
 
+/* Reboot and power off are handled by the SCU on a MID device */
+static void mrst_power_off(void)
+{
+	intel_scu_ipc_simple_command(0xf1, 1);
+}
+
+static void mrst_reboot(void)
+{
+	intel_scu_ipc_simple_command(0xf1, 0);
+}
+
 /*
  * Moorestown specific x86_init function overrides and early setup
  * calls.
@@ -292,6 +304,10 @@ void __init x86_mrst_early_setup(void)
 	x86_init.pci.fixup_irqs = x86_init_noop;
 
 	legacy_pic = &null_legacy_pic;
+
+	/* Moorestown specific power_off/restart method */
+	pm_power_off = mrst_power_off;
+	machine_ops.emergency_restart  = mrst_reboot;
 
 	/* Avoid searching for BIOS MP tables */
 	x86_init.mpparse.find_smp_config = x86_init_noop;
