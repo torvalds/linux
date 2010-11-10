@@ -538,6 +538,7 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 		ctx->ht.non_gf_sta_present = !!(bss_conf->ht_operation_mode &
 					IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 		iwlagn_check_needed_chains(priv, ctx, bss_conf);
+		iwl_set_rxon_ht(priv, &priv->current_ht_config);
 	}
 
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
