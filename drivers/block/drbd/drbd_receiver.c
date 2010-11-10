@@ -3468,9 +3468,7 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packets cmd, unsigne
 	int ok = FALSE;
 	struct p_header80 *h = &mdev->data.rbuf.header.h80;
 
-	wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_bio_cnt));
-
-	drbd_bm_lock(mdev, "receive bitmap");
+	/* drbd_bm_lock(mdev, "receive bitmap"); By intention no bm_lock */
 
 	/* maybe we should use some per thread scratch page,
 	 * and allocate that during initial device creation? */
@@ -3542,7 +3540,7 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packets cmd, unsigne
 
 	ok = TRUE;
  out:
-	drbd_bm_unlock(mdev);
+	/* drbd_bm_unlock(mdev); by intention no lock */
 	if (ok && mdev->state.conn == C_WF_BITMAP_S)
 		drbd_start_resync(mdev, C_SYNC_SOURCE);
 	free_page((unsigned long) buffer);
@@ -3803,13 +3801,6 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 
 	if (os.conn == C_DISCONNECTING) {
 		wait_event(mdev->net_cnt_wait, atomic_read(&mdev->net_cnt) == 0);
-
-		if (!is_susp(mdev->state)) {
-			/* we must not free the tl_hash
-			 * while application io is still on the fly */
-			wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_bio_cnt));
-			drbd_free_tl_hash(mdev);
-		}
 
 		crypto_free_hash(mdev->cram_hmac_tfm);
 		mdev->cram_hmac_tfm = NULL;

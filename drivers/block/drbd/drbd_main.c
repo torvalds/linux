@@ -3334,6 +3334,7 @@ void drbd_free_mdev(struct drbd_conf *mdev)
 	put_disk(mdev->vdisk);
 	blk_cleanup_queue(mdev->rq_queue);
 	free_cpumask_var(mdev->cpu_mask);
+	drbd_free_tl_hash(mdev);
 	kfree(mdev);
 }
 

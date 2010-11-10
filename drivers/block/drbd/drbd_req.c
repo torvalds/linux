@@ -142,7 +142,7 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 
 	/* before we can signal completion to the upper layers,
 	 * we may need to close the current epoch */
-	if (mdev->state.conn >= C_CONNECTED && mdev->state.conn < C_AHEAD &&
+	if (mdev->state.conn >= C_WF_BITMAP_T && mdev->state.conn < C_AHEAD &&
 	    req->epoch == mdev->newest_tle->br_number)
 		queue_barrier(mdev);
 
@@ -757,6 +757,23 @@ static int drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int s
 	return 0 == drbd_bm_count_bits(mdev, sbnr, ebnr);
 }
 
+static int drbd_should_do_remote(struct drbd_conf *mdev)
+{
+	union drbd_state s = mdev->state;
+
+	return s.pdsk == D_UP_TO_DATE ||
+		(s.pdsk >= D_INCONSISTENT &&
+		 s.conn >= C_WF_BITMAP_T &&
+		 s.conn < C_AHEAD);
+}
+static int drbd_should_send_oos(struct drbd_conf *mdev)
+{
+	union drbd_state s = mdev->state;
+
+	return s.pdsk >= D_INCONSISTENT &&
+		(s.conn == C_AHEAD || s.conn == C_WF_BITMAP_S);
+}
+
 static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
 {
 	const int rw = bio_rw(bio);
@@ -828,12 +845,9 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio, uns
 		drbd_al_begin_io(mdev, sector);
 	}
 
-	remote = remote && (mdev->state.pdsk == D_UP_TO_DATE ||
-			    (mdev->state.pdsk >= D_INCONSISTENT &&
-			     mdev->state.conn >= C_CONNECTED &&
-			     mdev->state.conn < C_AHEAD));
-	send_oos = (rw == WRITE && mdev->state.conn == C_AHEAD &&
-		    mdev->state.pdsk >= D_INCONSISTENT);
+	remote = remote && drbd_should_do_remote(mdev);
+	send_oos = rw == WRITE && drbd_should_send_oos(mdev);
+	D_ASSERT(!(remote && send_oos));
 
 	if (!(local || remote) && !is_susp(mdev->state)) {
 		if (__ratelimit(&drbd_ratelimit_state))
@@ -873,12 +887,9 @@ allocate_barrier:
 	}
 
 	if (remote || send_oos) {
-		remote = (mdev->state.pdsk == D_UP_TO_DATE ||
-			    (mdev->state.pdsk >= D_INCONSISTENT &&
-			     mdev->state.conn >= C_CONNECTED &&
-			     mdev->state.conn < C_AHEAD));
-		send_oos = (rw == WRITE && mdev->state.conn == C_AHEAD &&
-			    mdev->state.pdsk >= D_INCONSISTENT);
+		remote = drbd_should_do_remote(mdev);
+		send_oos = rw == WRITE && drbd_should_send_oos(mdev);
+		D_ASSERT(!(remote && send_oos));
 
 		if (!(remote || send_oos))
 			dev_warn(DEV, "lost connection while grabbing the req_lock!\n");

@@ -2213,8 +2213,9 @@ static inline int drbd_get_max_buffers(struct drbd_conf *mdev)
 	return mxb;
 }
 
-static inline int drbd_state_is_stable(union drbd_state s)
+static inline int drbd_state_is_stable(struct drbd_conf *mdev)
 {
+	union drbd_state s = mdev->state;
 
 	/* DO NOT add a default clause, we want the compiler to warn us
 	 * for any newly introduced state we may have forgotten to add here */
@@ -2233,11 +2234,7 @@ static inline int drbd_state_is_stable(union drbd_state s)
 	case C_PAUSED_SYNC_T:
 	case C_AHEAD:
 	case C_BEHIND:
-		/* maybe stable, look at the disk state */
-		break;
-
-	/* no new io accepted during tansitional states
-	 * like handshake or teardown */
+		/* transitional states, IO allowed */
 	case C_DISCONNECTING:
 	case C_UNCONNECTED:
 	case C_TIMEOUT:
@@ -2248,7 +2245,15 @@ static inline int drbd_state_is_stable(union drbd_state s)
 	case C_WF_REPORT_PARAMS:
 	case C_STARTING_SYNC_S:
 	case C_STARTING_SYNC_T:
+		break;
+
+		/* Allow IO in BM exchange states with new protocols */
 	case C_WF_BITMAP_S:
+		if (mdev->agreed_pro_version < 96)
+			return 0;
+		break;
+
+		/* no new io accepted in these states */
 	case C_WF_BITMAP_T:
 	case C_WF_SYNC_UUID:
 	case C_MASK:
@@ -2297,7 +2302,7 @@ static inline int __inc_ap_bio_cond(struct drbd_conf *mdev)
 	 * to start during "stable" states. */
 
 	/* no new io accepted when attaching or detaching the disk */
-	if (!drbd_state_is_stable(mdev->state))
+	if (!drbd_state_is_stable(mdev))
 		return 0;
 
 	/* since some older kernels don't have atomic_add_unless,
