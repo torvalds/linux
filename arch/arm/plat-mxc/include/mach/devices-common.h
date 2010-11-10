@@ -57,6 +57,15 @@ struct platform_device *__init imx_add_fsl_usb2_udc(
 struct platform_device *__init imx_add_gpio_keys(
 		const struct gpio_keys_platform_data *pdata);
 
+#include <mach/mx21-usbhost.h>
+struct imx_imx21_hcd_data {
+	resource_size_t iobase;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_imx21_hcd(
+		const struct imx_imx21_hcd_data *data,
+		const struct mx21_usbh_platform_data *pdata);
+
 struct imx_imx2_wdt_data {
 	resource_size_t iobase;
 };

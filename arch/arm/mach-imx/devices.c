@@ -123,30 +123,4 @@ int __init imx27_register_gpios(void)
 }
 #endif
 
-#ifdef CONFIG_MACH_MX21
-static struct resource mx21_usbhc_resources[] = {
-	{
-		.start	= MX21_USBOTG_BASE_ADDR,
-		.end	= MX21_USBOTG_BASE_ADDR + SZ_8K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start		= MX21_INT_USBHOST,
-		.end		= MX21_INT_USBHOST,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mx21_usbhc_device = {
-	.name		= "imx21-hcd",
-	.id		= 0,
-	.dev		= {
-		.dma_mask = &mx21_usbhc_device.dev.coherent_dma_mask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-	},
-	.num_resources	= ARRAY_SIZE(mx21_usbhc_resources),
-	.resource	= mx21_usbhc_resources,
-};
-#endif
-
 #endif

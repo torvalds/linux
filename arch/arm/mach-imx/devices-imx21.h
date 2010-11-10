@@ -9,6 +9,10 @@
 #include <mach/mx21.h>
 #include <mach/devices-common.h>
 
+extern const struct imx_imx21_hcd_data imx21_imx21_hcd_data __initconst;
+#define imx21_add_imx21_hcd(pdata)	\
+	imx_add_imx21_hcd(&imx21_imx21_hcd_data, pdata)
+
 extern const struct imx_imx2_wdt_data imx21_imx2_wdt_data __initconst;
 #define imx21_add_imx2_wdt(pdata)	\
 	imx_add_imx2_wdt(&imx21_imx2_wdt_data)
