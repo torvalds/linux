@@ -499,6 +499,11 @@ static void __init *lis331dl_platform_data(void *info)
 	return &intr2nd_pdata;
 }
 
+static void __init *no_platform_data(void *info)
+{
+	return NULL;
+}
+
 static const struct devs_id __initconst device_ids[] = {
 	{"pmic_gpio", SFI_DEV_TYPE_SPI, 1, &pmic_gpio_platform_data},
 	{"spi_max3111", SFI_DEV_TYPE_SPI, 0, &max3111_platform_data},
@@ -506,6 +511,8 @@ static const struct devs_id __initconst device_ids[] = {
 	{"i2c_max7315_2", SFI_DEV_TYPE_I2C, 1, &max7315_platform_data},
 	{"emc1403", SFI_DEV_TYPE_I2C, 1, &emc1403_platform_data},
 	{"i2c_accel", SFI_DEV_TYPE_I2C, 0, &lis331dl_platform_data},
+	{"pmic_audio", SFI_DEV_TYPE_IPC, 1, &no_platform_data},
+	{"msic_audio", SFI_DEV_TYPE_IPC, 1, &no_platform_data},
 	{},
 };
 
