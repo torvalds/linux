@@ -2561,7 +2561,9 @@ static struct iwl_lib_ops iwl4965_lib = {
 	},
 	.send_tx_power	= iwl4965_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
-	.isr = iwl_isr_legacy,
+	.isr_ops = {
+		.isr = iwl_isr_legacy,
+	},
 	.temp_ops = {
 		.temperature = iwl4965_temperature_calib,
 	},
