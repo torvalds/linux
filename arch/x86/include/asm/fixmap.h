@@ -117,6 +117,10 @@ enum fixed_addresses {
 	FIX_TEXT_POKE1,	/* reserve 2 pages for text_poke() */
 	FIX_TEXT_POKE0, /* first page is last, because allocation is backward */
 	__end_of_permanent_fixed_addresses,
+
+#ifdef	CONFIG_X86_MRST
+	FIX_LNW_VRTC,
+#endif
 	/*
 	 * 256 temporary boot-time mappings, used by early_ioremap(),
 	 * before ioremap() is functional.

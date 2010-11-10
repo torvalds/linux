@@ -37,7 +37,6 @@
 #include <asm/apb_timer.h>
 #include <asm/reboot.h>
 
-
 /*
  * the clockevent devices on Moorestown/Medfield can be APBT or LAPIC clock,
  * cmdline option x86_mrst_timer can be used to override the configuration
@@ -240,11 +239,6 @@ void __init mrst_time_init(void)
 	/* we need at least one APB timer */
 	pre_init_apic_IRQ0();
 	apbt_time_init();
-}
-
-void __init mrst_rtc_init(void)
-{
-	sfi_table_parse(SFI_SIG_MRTC, NULL, NULL, sfi_parse_mrtc);
 }
 
 void __cpuinit mrst_arch_setup(void)
