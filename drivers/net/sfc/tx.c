@@ -240,8 +240,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 				 * of read_count. */
 				smp_mb();
 				tx_queue->old_read_count =
-					*(volatile unsigned *)
-					&tx_queue->read_count;
+					ACCESS_ONCE(tx_queue->read_count);
 				fill_level = (tx_queue->insert_count
 					      - tx_queue->old_read_count);
 				q_space = efx->txq_entries - 1 - fill_level;
@@ -764,7 +763,7 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 			 * stopped from the access of read_count. */
 			smp_mb();
 			tx_queue->old_read_count =
-				*(volatile unsigned *)&tx_queue->read_count;
+				ACCESS_ONCE(tx_queue->read_count);
 			fill_level = (tx_queue->insert_count
 				      - tx_queue->old_read_count);
 			q_space = efx->txq_entries - 1 - fill_level;
