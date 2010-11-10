@@ -147,10 +147,13 @@ static const struct ar9300_eeprom ar9300_default = {
 		.papdRateMaskHt20 = LE32(0x80c080),
 		.papdRateMaskHt40 = LE32(0x80c080),
 		.futureModal = {
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		},
 	 },
+	.base_ext1 = {
+		.ant_div_control = 0,
+		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	},
 	.calFreqPier2G = {
 		FREQ2FBIN(2412, 1),
 		FREQ2FBIN(2437, 1),
@@ -285,8 +288,7 @@ static const struct ar9300_eeprom ar9300_default = {
 			/* Data[11].ctlEdges[0].bChannel */ FREQ2FBIN(2422, 1),
 			/* Data[11].ctlEdges[1].bChannel */ FREQ2FBIN(2427, 1),
 			/* Data[11].ctlEdges[2].bChannel */ FREQ2FBIN(2447, 1),
-			/* Data[11].ctlEdges[3].bChannel */
-			FREQ2FBIN(2462, 1),
+			/* Data[11].ctlEdges[3].bChannel */ FREQ2FBIN(2462, 1),
 		}
 	 },
 	.ctlPowerData_2G = {
@@ -346,10 +348,17 @@ static const struct ar9300_eeprom ar9300_default = {
 		.papdRateMaskHt20 = LE32(0xf0e0e0),
 		.papdRateMaskHt40 = LE32(0xf0e0e0),
 		.futureModal = {
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		},
 	 },
+	.base_ext2 = {
+		.tempSlopeLow = 0,
+		.tempSlopeHigh = 0,
+		.xatten1DBLow = {0, 0, 0},
+		.xatten1MarginLow = {0, 0, 0},
+		.xatten1DBHigh = {0, 0, 0},
+		.xatten1MarginHigh = {0, 0, 0}
+	},
 	.calFreqPier5G = {
 		FREQ2FBIN(5180, 0),
 		FREQ2FBIN(5220, 0),
