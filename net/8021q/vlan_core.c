@@ -9,7 +9,7 @@ bool vlan_hwaccel_do_receive(struct sk_buff **skbp)
 	struct sk_buff *skb = *skbp;
 	u16 vlan_id = skb->vlan_tci & VLAN_VID_MASK;
 	struct net_device *vlan_dev;
-	struct vlan_rx_stats *rx_stats;
+	struct vlan_pcpu_stats *rx_stats;
 
 	vlan_dev = vlan_find_dev(skb->dev, vlan_id);
 	if (!vlan_dev) {
@@ -26,7 +26,7 @@ bool vlan_hwaccel_do_receive(struct sk_buff **skbp)
 	skb->priority = vlan_get_ingress_priority(vlan_dev, skb->vlan_tci);
 	skb->vlan_tci = 0;
 
-	rx_stats = this_cpu_ptr(vlan_dev_info(vlan_dev)->vlan_rx_stats);
+	rx_stats = this_cpu_ptr(vlan_dev_info(vlan_dev)->vlan_pcpu_stats);
 
 	u64_stats_update_begin(&rx_stats->syncp);
 	rx_stats->rx_packets++;

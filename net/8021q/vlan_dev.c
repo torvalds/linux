@@ -141,7 +141,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		  struct packet_type *ptype, struct net_device *orig_dev)
 {
 	struct vlan_hdr *vhdr;
-	struct vlan_rx_stats *rx_stats;
+	struct vlan_pcpu_stats *rx_stats;
 	struct net_device *vlan_dev;
 	u16 vlan_id;
 	u16 vlan_tci;
@@ -177,7 +177,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	} else {
 		skb->dev = vlan_dev;
 
-		rx_stats = this_cpu_ptr(vlan_dev_info(skb->dev)->vlan_rx_stats);
+		rx_stats = this_cpu_ptr(vlan_dev_info(skb->dev)->vlan_pcpu_stats);
 
 		u64_stats_update_begin(&rx_stats->syncp);
 		rx_stats->rx_packets++;
@@ -310,8 +310,6 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 					    struct net_device *dev)
 {
-	int i = skb_get_queue_mapping(skb);
-	struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)(skb->data);
 	unsigned int len;
 	int ret;
@@ -334,10 +332,16 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 	ret = dev_queue_xmit(skb);
 
 	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
-		txq->tx_packets++;
-		txq->tx_bytes += len;
-	} else
-		txq->tx_dropped++;
+		struct vlan_pcpu_stats *stats;
+
+		stats = this_cpu_ptr(vlan_dev_info(dev)->vlan_pcpu_stats);
+		u64_stats_update_begin(&stats->syncp);
+		stats->tx_packets++;
+		stats->tx_bytes += len;
+		u64_stats_update_begin(&stats->syncp);
+	} else {
+		this_cpu_inc(vlan_dev_info(dev)->vlan_pcpu_stats->tx_dropped);
+	}
 
 	return ret;
 }
@@ -696,6 +700,7 @@ static int vlan_dev_init(struct net_device *dev)
 		      (1<<__LINK_STATE_PRESENT);
 
 	dev->features |= real_dev->features & real_dev->vlan_features;
+	dev->features |= NETIF_F_LLTX;
 	dev->gso_max_size = real_dev->gso_max_size;
 
 	/* ipv6 shared card related stuff */
@@ -728,8 +733,8 @@ static int vlan_dev_init(struct net_device *dev)
 
 	vlan_dev_set_lockdep_class(dev, subclass);
 
-	vlan_dev_info(dev)->vlan_rx_stats = alloc_percpu(struct vlan_rx_stats);
-	if (!vlan_dev_info(dev)->vlan_rx_stats)
+	vlan_dev_info(dev)->vlan_pcpu_stats = alloc_percpu(struct vlan_pcpu_stats);
+	if (!vlan_dev_info(dev)->vlan_pcpu_stats)
 		return -ENOMEM;
 
 	return 0;
@@ -741,8 +746,8 @@ static void vlan_dev_uninit(struct net_device *dev)
 	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	int i;
 
-	free_percpu(vlan->vlan_rx_stats);
-	vlan->vlan_rx_stats = NULL;
+	free_percpu(vlan->vlan_pcpu_stats);
+	vlan->vlan_pcpu_stats = NULL;
 	for (i = 0; i < ARRAY_SIZE(vlan->egress_priority_map); i++) {
 		while ((pm = vlan->egress_priority_map[i]) != NULL) {
 			vlan->egress_priority_map[i] = pm->next;
@@ -780,33 +785,37 @@ static u32 vlan_ethtool_get_flags(struct net_device *dev)
 
 static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
-	dev_txq_stats_fold(dev, stats);
 
-	if (vlan_dev_info(dev)->vlan_rx_stats) {
-		struct vlan_rx_stats *p, accum = {0};
+	if (vlan_dev_info(dev)->vlan_pcpu_stats) {
+		struct vlan_pcpu_stats *p;
+		u32 rx_errors = 0, tx_dropped = 0;
 		int i;
 
 		for_each_possible_cpu(i) {
-			u64 rxpackets, rxbytes, rxmulticast;
+			u64 rxpackets, rxbytes, rxmulticast, txpackets, txbytes;
 			unsigned int start;
 
-			p = per_cpu_ptr(vlan_dev_info(dev)->vlan_rx_stats, i);
+			p = per_cpu_ptr(vlan_dev_info(dev)->vlan_pcpu_stats, i);
 			do {
 				start = u64_stats_fetch_begin_bh(&p->syncp);
 				rxpackets	= p->rx_packets;
 				rxbytes		= p->rx_bytes;
 				rxmulticast	= p->rx_multicast;
+				txpackets	= p->tx_packets;
+				txbytes		= p->tx_bytes;
 			} while (u64_stats_fetch_retry_bh(&p->syncp, start));
-			accum.rx_packets += rxpackets;
-			accum.rx_bytes   += rxbytes;
-			accum.rx_multicast += rxmulticast;
-			/* rx_errors is ulong, not protected by syncp */
-			accum.rx_errors  += p->rx_errors;
+
+			stats->rx_packets	+= rxpackets;
+			stats->rx_bytes		+= rxbytes;
+			stats->multicast	+= rxmulticast;
+			stats->tx_packets	+= txpackets;
+			stats->tx_bytes		+= txbytes;
+			/* rx_errors & tx_dropped are u32 */
+			rx_errors	+= p->rx_errors;
+			tx_dropped	+= p->tx_dropped;
 		}
-		stats->rx_packets = accum.rx_packets;
-		stats->rx_bytes   = accum.rx_bytes;
-		stats->rx_errors  = accum.rx_errors;
-		stats->multicast  = accum.rx_multicast;
+		stats->rx_errors  = rx_errors;
+		stats->tx_dropped = tx_dropped;
 	}
 	return stats;
 }

@@ -272,13 +272,11 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 		snprintf(name, IFNAMSIZ, "vlan%.4i", vlan_id);
 	}
 
-	new_dev = alloc_netdev_mq(sizeof(struct vlan_dev_info), name,
-				  vlan_setup, real_dev->num_tx_queues);
+	new_dev = alloc_netdev(sizeof(struct vlan_dev_info), name, vlan_setup);
 
 	if (new_dev == NULL)
 		return -ENOBUFS;
 
-	netif_copy_real_num_queues(new_dev, real_dev);
 	dev_net_set(new_dev, net);
 	/* need 4 bytes for extra VLAN header info,
 	 * hope the underlying device can handle it.
