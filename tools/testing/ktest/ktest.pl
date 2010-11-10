@@ -561,7 +561,7 @@ sub wait_for_input
 
 sub reboot_to {
     if ($reboot_type eq "grub") {
-	run_command "$ssh_exec '(echo \"savedefault --default=$grub_number --once\" | grub --batch; reboot)'";
+	run_ssh "'(echo \"savedefault --default=$grub_number --once\" | grub --batch; reboot)'";
 	return;
     }
 
