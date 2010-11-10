@@ -340,6 +340,7 @@ static inline int dccp_elapsed_time_len(const u32 elapsed_time)
 	return elapsed_time == 0 ? 0 : elapsed_time <= 0xFFFF ? 2 : 4;
 }
 
+/* FIXME: This function is currently not used anywhere */
 int dccp_insert_option_elapsed_time(struct sk_buff *skb, u32 elapsed_time)
 {
 	const int elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
