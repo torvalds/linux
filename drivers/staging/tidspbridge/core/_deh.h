@@ -32,6 +32,4 @@ struct deh_mgr {
 	struct tasklet_struct dpc_tasklet;
 };
 
-int mmu_fault_isr(struct iommu *mmu);
-
 #endif /* _DEH_ */
