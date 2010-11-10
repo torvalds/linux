@@ -10,6 +10,7 @@
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/trace-event.h"
+#include "util/parse-options.h"
 #include "util/util.h"
 
 static char const		*script_name;
@@ -17,6 +18,7 @@ static char const		*generate_script_lang;
 static bool			debug_mode;
 static u64			last_timestamp;
 static u64			nr_unordered;
+extern const struct option	record_options[];
 
 static int default_start_script(const char *script __unused,
 				int argc __unused,
@@ -566,6 +568,20 @@ static const struct option options[] = {
 	OPT_END()
 };
 
+static bool have_cmd(int argc, const char **argv)
+{
+	char **__argv = malloc(sizeof(const char *) * argc);
+
+	if (!__argv)
+		die("malloc");
+	memcpy(__argv, argv, sizeof(const char *) * argc);
+	argc = parse_options(argc, (const char **)__argv, record_options,
+			     NULL, PARSE_OPT_STOP_AT_NON_OPTION);
+	free(__argv);
+
+	return argc != 0;
+}
+
 int cmd_trace(int argc, const char **argv, const char *prefix __used)
 {
 	struct perf_session *session;
@@ -663,20 +679,28 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 	}
 
 	if (suffix) {
+		bool system_wide = false;
+		int j = 0;
+
 		script_path = get_script_path(argv[2], suffix);
 		if (!script_path) {
 			fprintf(stderr, "script not found\n");
 			return -1;
 		}
 
+		if (!strcmp(suffix, RECORD_SUFFIX))
+			system_wide = !have_cmd(argc - 2, &argv[2]);
+
 		__argv = malloc((argc + 1) * sizeof(const char *));
 		if (!__argv)
 			die("malloc");
-		__argv[0] = "/bin/sh";
-		__argv[1] = script_path;
+		__argv[j++] = "/bin/sh";
+		__argv[j++] = script_path;
+		if (system_wide)
+			__argv[j++] = "-a";
 		for (i = 3; i < argc; i++)
-			__argv[i - 1] = argv[i];
-		__argv[argc - 1] = NULL;
+			__argv[j++] = argv[i];
+		__argv[j++] = NULL;
 
 		execvp("/bin/sh", (char **)__argv);
 		free(__argv);
