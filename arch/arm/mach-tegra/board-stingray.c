@@ -14,6 +14,7 @@
  *
  */
 
+#include <linux/console.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -939,6 +940,9 @@ static void __init tegra_stingray_init(void)
 {
 	struct clk *clk;
 	struct resource *res;
+
+	/* force consoles to stay enabled across suspend/resume */
+	console_suspend_enabled = 0;
 
 	tegra_common_init();
 	tegra_init_suspend(&stingray_suspend);
