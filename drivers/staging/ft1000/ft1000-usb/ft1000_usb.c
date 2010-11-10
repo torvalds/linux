@@ -178,15 +178,13 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	if (IS_ERR(pft1000info->pPollThread)) {
 		ret = PTR_ERR(pft1000info->pPollThread);
-		goto err_load;
+		goto err_thread;
 	}
 
 	msleep(500);
 
 	while (!pft1000info->CardReady) {
 		if (gPollingfailed) {
-			if (pft1000info->pPollThread)
-				kthread_stop(pft1000info->pPollThread);
 			ret = -EIO;
 			goto err_load;
 		}
@@ -207,6 +205,8 @@ static int ft1000_probe(struct usb_interface *interface,
 	return 0;
 
 err_load:
+	kthread_stop(pft1000info->pPollThread);
+err_thread:
 	kfree(pFileStart);
 err_fw:
 	kfree(ft1000dev);
