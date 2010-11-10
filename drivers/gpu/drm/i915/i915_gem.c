@@ -1664,9 +1664,7 @@ i915_gem_next_request_seqno(struct drm_device *dev,
 			    struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	ring->outstanding_lazy_request = true;
-	return dev_priv->next_seqno;
+	return ring->outstanding_lazy_request = dev_priv->next_seqno;
 }
 
 static void
@@ -2072,7 +2070,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 	if (atomic_read(&dev_priv->mm.wedged))
 		return -EAGAIN;
 
-	if (ring->outstanding_lazy_request) {
+	if (seqno == ring->outstanding_lazy_request) {
 		struct drm_i915_gem_request *request;
 
 		request = kzalloc(sizeof(*request), GFP_KERNEL);
@@ -2087,7 +2085,6 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 
 		seqno = request->seqno;
 	}
-	BUG_ON(seqno == dev_priv->next_seqno);
 
 	if (!i915_seqno_passed(ring->get_seqno(ring), seqno)) {
 		if (HAS_PCH_SPLIT(dev))
@@ -3973,7 +3970,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	i915_retire_commands(dev, ring);
 
 	if (i915_add_request(dev, file, request, ring))
-		ring->outstanding_lazy_request = true;
+		i915_gem_next_request_seqno(dev, ring);
 	else
 		request = NULL;
 

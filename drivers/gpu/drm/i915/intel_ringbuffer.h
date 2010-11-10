@@ -87,7 +87,7 @@ struct  intel_ring_buffer {
 	/**
 	 * Do we have some not yet emitted requests outstanding?
 	 */
-	bool outstanding_lazy_request;
+	u32 outstanding_lazy_request;
 
 	wait_queue_head_t irq_queue;
 	drm_local_map_t map;
