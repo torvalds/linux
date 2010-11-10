@@ -79,7 +79,8 @@ struct regulator_ops {
 	int (*list_voltage) (struct regulator_dev *, unsigned selector);
 
 	/* get/set regulator voltage */
-	int (*set_voltage) (struct regulator_dev *, int min_uV, int max_uV);
+	int (*set_voltage) (struct regulator_dev *, int min_uV, int max_uV,
+			    unsigned *selector);
 	int (*get_voltage) (struct regulator_dev *);
 
 	/* get/set regulator current  */

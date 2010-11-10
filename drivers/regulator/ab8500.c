@@ -215,7 +215,8 @@ static int ab8500_get_best_voltage_index(struct regulator_dev *rdev,
 }
 
 static int ab8500_regulator_set_voltage(struct regulator_dev *rdev,
-		int min_uV, int max_uV)
+					int min_uV, int max_uV,
+					unsigned *selector)
 {
 	int regulator_id, ret;
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
@@ -231,6 +232,8 @@ static int ab8500_regulator_set_voltage(struct regulator_dev *rdev,
 				"couldn't get best voltage for regulator\n");
 		return ret;
 	}
+
+	*selector = ret;
 
 	/* set the registers for the request */
 	ret = abx500_mask_and_set_register_interruptible(info->dev,

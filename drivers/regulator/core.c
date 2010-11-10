@@ -723,13 +723,16 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 	struct regulator_ops *ops = rdev->desc->ops;
 	const char *name = rdev_get_name(rdev);
 	int ret;
+	unsigned selector;
 
 	/* do we need to apply the constraint voltage */
 	if (rdev->constraints->apply_uV &&
 		rdev->constraints->min_uV == rdev->constraints->max_uV &&
 		ops->set_voltage) {
 		ret = ops->set_voltage(rdev,
-			rdev->constraints->min_uV, rdev->constraints->max_uV);
+				       rdev->constraints->min_uV,
+				       rdev->constraints->max_uV,
+				       &selector);
 			if (ret < 0) {
 				printk(KERN_ERR "%s: failed to apply %duV constraint to %s\n",
 				       __func__,
@@ -1625,6 +1628,7 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 {
 	struct regulator_dev *rdev = regulator->rdev;
 	int ret;
+	unsigned selector;
 
 	mutex_lock(&rdev->mutex);
 
@@ -1640,7 +1644,13 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 		goto out;
 	regulator->min_uV = min_uV;
 	regulator->max_uV = max_uV;
-	ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV);
+
+	ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV, &selector);
+
+	if (rdev->desc->ops->list_voltage)
+		selector = rdev->desc->ops->list_voltage(rdev, selector);
+	else
+		selector = -1;
 
 out:
 	_notifier_call_chain(rdev, REGULATOR_EVENT_VOLTAGE_CHANGE, NULL);

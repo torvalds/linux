@@ -360,7 +360,7 @@ int wm8350_isink_set_flash(struct wm8350 *wm8350, int isink, u16 mode,
 EXPORT_SYMBOL_GPL(wm8350_isink_set_flash);
 
 static int wm8350_dcdc_set_voltage(struct regulator_dev *rdev, int min_uV,
-	int max_uV)
+				   int max_uV, unsigned *selector)
 {
 	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 	int volt_reg, dcdc = rdev_get_id(rdev), mV,
@@ -396,6 +396,8 @@ static int wm8350_dcdc_set_voltage(struct regulator_dev *rdev, int min_uV,
 	default:
 		return -EINVAL;
 	}
+
+	*selector = mV;
 
 	/* all DCDCs have same mV bits */
 	val = wm8350_reg_read(wm8350, volt_reg) & ~WM8350_DC1_VSEL_MASK;
@@ -754,7 +756,7 @@ static int wm8350_ldo_set_suspend_disable(struct regulator_dev *rdev)
 }
 
 static int wm8350_ldo_set_voltage(struct regulator_dev *rdev, int min_uV,
-	int max_uV)
+				  int max_uV, unsigned *selector)
 {
 	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 	int volt_reg, ldo = rdev_get_id(rdev), mV, min_mV = min_uV / 1000,
@@ -796,6 +798,8 @@ static int wm8350_ldo_set_voltage(struct regulator_dev *rdev, int min_uV,
 	default:
 		return -EINVAL;
 	}
+
+	*selector = mV;
 
 	/* all LDOs have same mV bits */
 	val = wm8350_reg_read(wm8350, volt_reg) & ~WM8350_LDO1_VSEL_MASK;

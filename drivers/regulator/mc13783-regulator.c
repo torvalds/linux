@@ -373,7 +373,8 @@ static int mc13783_get_best_voltage_index(struct regulator_dev *rdev,
 }
 
 static int mc13783_regulator_set_voltage(struct regulator_dev *rdev,
-						int min_uV, int max_uV)
+					 int min_uV, int max_uV,
+					 unsigned *selector)
 {
 	struct mc13783_regulator_priv *priv = rdev_get_drvdata(rdev);
 	int value, id = rdev_get_id(rdev);
@@ -387,6 +388,8 @@ static int mc13783_regulator_set_voltage(struct regulator_dev *rdev,
 	dev_dbg(rdev_get_dev(rdev), "%s best value: %d \n", __func__, value);
 	if (value < 0)
 		return value;
+
+	*selector = value;
 
 	mc13783_lock(priv->mc13783);
 	ret = mc13783_reg_rmw(priv->mc13783, mc13783_regulators[id].vsel_reg,
@@ -433,12 +436,15 @@ static struct regulator_ops mc13783_regulator_ops = {
 };
 
 static int mc13783_fixed_regulator_set_voltage(struct regulator_dev *rdev,
-						int min_uV, int max_uV)
+					       int min_uV, int max_uV,
+					       unsigned int *selector)
 {
 	int id = rdev_get_id(rdev);
 
 	dev_dbg(rdev_get_dev(rdev), "%s id: %d min_uV: %d max_uV: %d\n",
 		__func__, id, min_uV, max_uV);
+
+	*selector = 0;
 
 	if (min_uV >= mc13783_regulators[id].voltages[0] &&
 	    max_uV <= mc13783_regulators[id].voltages[0])

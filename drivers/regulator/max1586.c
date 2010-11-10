@@ -63,12 +63,12 @@ static int max1586_v3_calc_voltage(struct max1586_data *max1586,
 	return max1586->min_uV + (selector * range_uV / MAX1586_V3_MAX_VSEL);
 }
 
-static int max1586_v3_set(struct regulator_dev *rdev, int min_uV, int max_uV)
+static int max1586_v3_set(struct regulator_dev *rdev, int min_uV, int max_uV,
+			  unsigned *selector)
 {
 	struct max1586_data *max1586 = rdev_get_drvdata(rdev);
 	struct i2c_client *client = max1586->client;
 	unsigned range_uV = max1586->max_uV - max1586->min_uV;
-	unsigned selector;
 	u8 v3_prog;
 
 	if (min_uV > max1586->max_uV || max_uV < max1586->min_uV)
@@ -76,15 +76,15 @@ static int max1586_v3_set(struct regulator_dev *rdev, int min_uV, int max_uV)
 	if (min_uV < max1586->min_uV)
 		min_uV = max1586->min_uV;
 
-	selector = ((min_uV - max1586->min_uV) * MAX1586_V3_MAX_VSEL +
+	*selector = ((min_uV - max1586->min_uV) * MAX1586_V3_MAX_VSEL +
 			range_uV - 1) / range_uV;
-	if (max1586_v3_calc_voltage(max1586, selector) > max_uV)
+	if (max1586_v3_calc_voltage(max1586, *selector) > max_uV)
 		return -EINVAL;
 
 	dev_dbg(&client->dev, "changing voltage v3 to %dmv\n",
-		max1586_v3_calc_voltage(max1586, selector) / 1000);
+		max1586_v3_calc_voltage(max1586, *selector) / 1000);
 
-	v3_prog = I2C_V3_SELECT | (u8) selector;
+	v3_prog = I2C_V3_SELECT | (u8) *selector;
 	return i2c_smbus_write_byte(client, v3_prog);
 }
 
@@ -110,10 +110,10 @@ static int max1586_v6_calc_voltage(unsigned selector)
 	return voltages_uv[selector];
 }
 
-static int max1586_v6_set(struct regulator_dev *rdev, int min_uV, int max_uV)
+static int max1586_v6_set(struct regulator_dev *rdev, int min_uV, int max_uV,
+			  unsigned int *selector)
 {
 	struct i2c_client *client = rdev_get_drvdata(rdev);
-	unsigned selector;
 	u8 v6_prog;
 
 	if (min_uV < MAX1586_V6_MIN_UV || min_uV > MAX1586_V6_MAX_UV)
@@ -122,21 +122,21 @@ static int max1586_v6_set(struct regulator_dev *rdev, int min_uV, int max_uV)
 		return -EINVAL;
 
 	if (min_uV < 1800000)
-		selector = 0;
+		*selector = 0;
 	else if (min_uV < 2500000)
-		selector = 1;
+		*selector = 1;
 	else if (min_uV < 3000000)
-		selector = 2;
+		*selector = 2;
 	else if (min_uV >= 3000000)
-		selector = 3;
+		*selector = 3;
 
-	if (max1586_v6_calc_voltage(selector) > max_uV)
+	if (max1586_v6_calc_voltage(*selector) > max_uV)
 		return -EINVAL;
 
 	dev_dbg(&client->dev, "changing voltage v6 to %dmv\n",
-		max1586_v6_calc_voltage(selector) / 1000);
+		max1586_v6_calc_voltage(*selector) / 1000);
 
-	v6_prog = I2C_V6_SELECT | (u8) selector;
+	v6_prog = I2C_V6_SELECT | (u8) *selector;
 	return i2c_smbus_write_byte(client, v6_prog);
 }
 

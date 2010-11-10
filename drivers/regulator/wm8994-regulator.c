@@ -101,7 +101,7 @@ static int wm8994_ldo1_get_voltage(struct regulator_dev *rdev)
 }
 
 static int wm8994_ldo1_set_voltage(struct regulator_dev *rdev,
-				   int min_uV, int max_uV)
+				   int min_uV, int max_uV, unsigned *s)
 {
 	struct wm8994_ldo *ldo = rdev_get_drvdata(rdev);
 	int selector, v;
@@ -111,6 +111,7 @@ static int wm8994_ldo1_set_voltage(struct regulator_dev *rdev,
 	if (v < 0 || v > max_uV)
 		return -EINVAL;
 
+	*s = selector;
 	selector <<= WM8994_LDO1_VSEL_SHIFT;
 
 	return wm8994_set_bits(ldo->wm8994, WM8994_LDO_1,
@@ -152,7 +153,7 @@ static int wm8994_ldo2_get_voltage(struct regulator_dev *rdev)
 }
 
 static int wm8994_ldo2_set_voltage(struct regulator_dev *rdev,
-				   int min_uV, int max_uV)
+				   int min_uV, int max_uV, unsigned *s)
 {
 	struct wm8994_ldo *ldo = rdev_get_drvdata(rdev);
 	int selector, v;
@@ -162,6 +163,7 @@ static int wm8994_ldo2_set_voltage(struct regulator_dev *rdev,
 	if (v < 0 || v > max_uV)
 		return -EINVAL;
 
+	*s = selector;
 	selector <<= WM8994_LDO2_VSEL_SHIFT;
 
 	return wm8994_set_bits(ldo->wm8994, WM8994_LDO_2,
