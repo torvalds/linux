@@ -111,6 +111,8 @@ struct extent_position {
 };
 
 /* super.c */
+
+__attribute__((format(printf, 3, 4)))
 extern void udf_warning(struct super_block *, const char *, const char *, ...);
 static inline void udf_updated_lvid(struct super_block *sb)
 {
