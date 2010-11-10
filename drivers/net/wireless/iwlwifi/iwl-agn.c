@@ -4134,6 +4134,10 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto out_free_eeprom;
 
+	err = iwl_eeprom_check_sku(priv);
+	if (err)
+		goto out_free_eeprom;
+
 	/* extract MAC Address */
 	iwl_eeprom_get_mac(priv, priv->addresses[0].addr);
 	IWL_DEBUG_INFO(priv, "MAC address: %pM\n", priv->addresses[0].addr);
