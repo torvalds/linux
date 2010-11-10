@@ -2361,7 +2361,7 @@ static int kdb_pid(int argc, const char **argv)
  */
 static int kdb_ll(int argc, const char **argv)
 {
-	int diag;
+	int diag = 0;
 	unsigned long addr;
 	long offset = 0;
 	unsigned long va;
@@ -2400,20 +2400,21 @@ static int kdb_ll(int argc, const char **argv)
 		char buf[80];
 
 		if (KDB_FLAG(CMD_INTERRUPT))
-			return 0;
+			goto out;
 
 		sprintf(buf, "%s " kdb_machreg_fmt "\n", command, va);
 		diag = kdb_parse(buf);
 		if (diag)
-			return diag;
+			goto out;
 
 		addr = va + linkoffset;
 		if (kdb_getword(&va, addr, sizeof(va)))
-			return 0;
+			goto out;
 	}
-	kfree(command);
 
-	return 0;
+out:
+	kfree(command);
+	return diag;
 }
 
 static int kdb_kgdb(int argc, const char **argv)
