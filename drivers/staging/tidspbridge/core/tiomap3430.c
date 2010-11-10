@@ -23,7 +23,6 @@
 #include <dspbridge/host_os.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
-#include <plat/control.h>
 
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
@@ -67,6 +66,19 @@
 #define MMU_SMALL_PAGE_MASK      0xFFFFF000
 #define OMAP3_IVA2_BOOTADDR_MASK 0xFFFFFC00
 #define PAGES_II_LVL_TABLE   512
+
+/*
+ * This is a totally ugly layer violation, but needed until
+ * omap_ctrl_set_dsp_boot*() are provided.
+ */
+#define OMAP3_IVA2_BOOTMOD_IDLE 1
+#define OMAP2_CONTROL_GENERAL 0x270
+#define OMAP343X_CONTROL_IVA2_BOOTADDR (OMAP2_CONTROL_GENERAL + 0x0190)
+#define OMAP343X_CONTROL_IVA2_BOOTMOD (OMAP2_CONTROL_GENERAL + 0x0194)
+
+#define OMAP343X_CTRL_REGADDR(reg) \
+	OMAP2_L4_IO_ADDRESS(OMAP343X_CTRL_BASE + (reg))
+
 
 /* Forward Declarations: */
 static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt);
