@@ -331,11 +331,10 @@ static int technisat_usb2_identify_state(struct usb_device *udev,
 	u8 version[3];
 
 	/* first select the interface */
-	if (usb_set_interface(udev, 0, 1) != 0) {
+	if (usb_set_interface(udev, 0, 1) != 0)
 		err("could not set alternate setting to 0");
-	} else {
+	else
 		info("set alternate setting");
-	}
 
 	*cold = 0; /* by default do not download a firmware - just in case something is wrong */
 
@@ -378,7 +377,7 @@ static void technisat_usb2_eeprom_dump(struct dvb_usb_device *d)
 {
 	u8 reg;
 	u8 b[16];
-	int i,j;
+	int i, j;
 
 	/* full EEPROM dump */
 	for (j = 0; j < 256 * 4; j += 16) {
@@ -496,9 +495,9 @@ static struct stv090x_config technisat_usb2_stv090x_config = {
 };
 
 static struct stv6110x_config technisat_usb2_stv6110x_config = {
-    .addr           = 0x60,
-    .refclk         = 16000000,
-    .clk_div        = 2,
+	.addr           = 0x60,
+	.refclk         = 16000000,
+	.clk_div        = 2,
 };
 
 static int technisat_usb2_frontend_attach(struct dvb_usb_adapter *a)
