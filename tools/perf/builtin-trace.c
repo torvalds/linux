@@ -337,6 +337,8 @@ static struct script_desc *script_desc__new(const char *name)
 static void script_desc__delete(struct script_desc *s)
 {
 	free(s->name);
+	free(s->half_liner);
+	free(s->args);
 	free(s);
 }
 
@@ -626,6 +628,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 			close(live_pipe[0]);
 
 			__argv = malloc(6 * sizeof(const char *));
+			if (!__argv)
+				die("malloc");
+
 			__argv[0] = "/bin/sh";
 			__argv[1] = record_script_path;
 			__argv[2] = "-q";
@@ -634,6 +639,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 			__argv[5] = NULL;
 
 			execvp("/bin/sh", (char **)__argv);
+			free(__argv);
 			exit(-1);
 		}
 
@@ -641,6 +647,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		close(live_pipe[1]);
 
 		__argv = malloc((argc + 3) * sizeof(const char *));
+		if (!__argv)
+			die("malloc");
 		__argv[0] = "/bin/sh";
 		__argv[1] = report_script_path;
 		for (i = 2; i < argc; i++)
@@ -650,6 +658,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		__argv[i++] = NULL;
 
 		execvp("/bin/sh", (char **)__argv);
+		free(__argv);
 		exit(-1);
 	}
 
@@ -661,6 +670,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		}
 
 		__argv = malloc((argc + 1) * sizeof(const char *));
+		if (!__argv)
+			die("malloc");
 		__argv[0] = "/bin/sh";
 		__argv[1] = script_path;
 		for (i = 3; i < argc; i++)
@@ -668,6 +679,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		__argv[argc - 1] = NULL;
 
 		execvp("/bin/sh", (char **)__argv);
+		free(__argv);
 		exit(-1);
 	}
 
