@@ -49,12 +49,29 @@
 #define ACR_WPROTECT	0x00000004	/* Write protect region */
 
 /*
+ * Define the cache type and arrangement (needed for pushes).
+ */
+#if defined(CONFIG_M5307)
+#define	CACHE_SIZE	0x2000		/* 8k of unified cache */
+#define	ICACHE_SIZE	CACHE_SIZE
+#define	DCACHE_SIZE	CACHE_SIZE
+#elif defined(CONFIG_M532x)
+#define	CACHE_SIZE	0x4000		/* 32k of unified cache */
+#define	ICACHE_SIZE	CACHE_SIZE
+#define	DCACHE_SIZE	CACHE_SIZE
+#endif
+
+#define	CACHE_LINE_SIZE	16		/* 16 byte line size */
+#define	CACHE_WAYS	4		/* 4 ways - set associative */
+
+/*
  * Set the cache controller settings we will use. This default in the
  * CACR is cache inhibited, we use the ACR register to set cacheing
  * enabled on the regions we want (eg RAM).
  */
 #if defined(CONFIG_CACHE_COPYBACK)
 #define CACHE_TYPE	ACR_CM_CB
+#define CACHE_PUSH
 #else
 #define CACHE_TYPE	ACR_CM_WT
 #endif
@@ -65,7 +82,15 @@
 #define CACHE_MODE	(CACR_EC + CACR_ESB + CACR_DCM_PRE + CACR_EUSP)
 #endif
 
-#define CACHE_INIT	CACR_CINVA
+/*
+ * Unified cache means we will never need to flush for coherency of
+ * instruction fetch. We will need to flush to maintain memory/DMA
+ * coherency though in all cases. And for copyback caches we will need
+ * to push cached data as well.
+ */
+#define CACHE_INIT	  CACR_CINVA
+#define CACHE_INVALIDATE  CACR_CINVA
+#define CACHE_INVALIDATED CACR_CINVA
 
 #define ACR0_MODE	((CONFIG_RAMBASE & 0xff000000) + \
 			 (0x000f0000) + \
