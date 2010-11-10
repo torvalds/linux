@@ -2620,6 +2620,7 @@ static struct iwl_base_params iwl4965_base_params = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.no_agg_framecnt_info = true,
 };
 
 struct iwl_cfg iwl4965_agn_cfg = {

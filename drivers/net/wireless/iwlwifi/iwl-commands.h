@@ -2022,6 +2022,9 @@ struct iwl_compressed_ba_resp {
 	__le64 bitmap;
 	__le16 scd_flow;
 	__le16 scd_ssn;
+	/* following only for 5000 series and up */
+	u8 txed;	/* number of frames sent */
+	u8 txed_2_done; /* number of frames acked */
 } __packed;
 
 /*

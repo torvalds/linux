@@ -1241,37 +1241,61 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	if (sh < 0) /* tbw something is wrong with indices */
 		sh += 0x100;
 
-	/* don't use 64-bit values for now */
-	bitmap = le64_to_cpu(ba_resp->bitmap) >> sh;
-
 	if (agg->frame_count > (64 - sh)) {
 		IWL_DEBUG_TX_REPLY(priv, "more frames than bitmap size");
 		return -1;
 	}
+	if (!priv->cfg->base_params->no_agg_framecnt_info && ba_resp->txed) {
+		/*
+		 * sent and ack information provided by uCode
+		 * use it instead of figure out ourself
+		 */
+		if (ba_resp->txed_2_done > ba_resp->txed) {
+			IWL_DEBUG_TX_REPLY(priv,
+				"bogus sent(%d) and ack(%d) count\n",
+				ba_resp->txed, ba_resp->txed_2_done);
+			/*
+			 * set txed_2_done = txed,
+			 * so it won't impact rate scale
+			 */
+			ba_resp->txed = ba_resp->txed_2_done;
+		}
+		IWL_DEBUG_HT(priv, "agg frames sent:%d, acked:%d\n",
+				ba_resp->txed, ba_resp->txed_2_done);
+	} else {
+		/* don't use 64-bit values for now */
+		bitmap = le64_to_cpu(ba_resp->bitmap) >> sh;
 
-	/* check for success or failure according to the
-	 * transmitted bitmap and block-ack bitmap */
-	sent_bitmap = bitmap & agg->bitmap;
+		/* check for success or failure according to the
+		 * transmitted bitmap and block-ack bitmap */
+		sent_bitmap = bitmap & agg->bitmap;
 
-	/* For each frame attempted in aggregation,
-	 * update driver's record of tx frame's status. */
-	i = 0;
-	while (sent_bitmap) {
-		ack = sent_bitmap & 1ULL;
-		successes += ack;
-		IWL_DEBUG_TX_REPLY(priv, "%s ON i=%d idx=%d raw=%d\n",
-			ack ? "ACK" : "NACK", i, (agg->start_idx + i) & 0xff,
-			agg->start_idx + i);
-		sent_bitmap >>= 1;
-		++i;
+		/* For each frame attempted in aggregation,
+		 * update driver's record of tx frame's status. */
+		i = 0;
+		while (sent_bitmap) {
+			ack = sent_bitmap & 1ULL;
+			successes += ack;
+			IWL_DEBUG_TX_REPLY(priv, "%s ON i=%d idx=%d raw=%d\n",
+				ack ? "ACK" : "NACK", i,
+				(agg->start_idx + i) & 0xff,
+				agg->start_idx + i);
+			sent_bitmap >>= 1;
+			++i;
+		}
 	}
-
 	info = IEEE80211_SKB_CB(priv->txq[scd_flow].txb[agg->start_idx].skb);
 	memset(&info->status, 0, sizeof(info->status));
 	info->flags |= IEEE80211_TX_STAT_ACK;
 	info->flags |= IEEE80211_TX_STAT_AMPDU;
-	info->status.ampdu_ack_len = successes;
-	info->status.ampdu_len = agg->frame_count;
+	if (!priv->cfg->base_params->no_agg_framecnt_info && ba_resp->txed) {
+		info->status.ampdu_ack_len = ba_resp->txed_2_done;
+		info->status.ampdu_len = ba_resp->txed;
+
+	} else {
+		info->status.ampdu_ack_len = successes;
+		info->status.ampdu_len = agg->frame_count;
+	}
 	iwlagn_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
 
 	IWL_DEBUG_TX_REPLY(priv, "Bitmap %llx\n", (unsigned long long)bitmap);

@@ -291,7 +291,9 @@ struct iwl_mod_params {
  * @chain_noise_calib_by_driver: driver has the capability to perform
  *	chain noise calibration operation
  * @shadow_reg_enable: HW shadhow register bit
-*/
+ * @no_agg_framecnt_info: uCode do not provide aggregation frame count
+ *	information
+ */
 struct iwl_base_params {
 	int eeprom_size;
 	int num_of_queues;	/* def: HW dependent */
@@ -322,6 +324,7 @@ struct iwl_base_params {
 	const bool sensitivity_calib_by_driver;
 	const bool chain_noise_calib_by_driver;
 	const bool shadow_reg_enable;
+	const bool no_agg_framecnt_info;
 };
 /*
  * @advanced_bt_coexist: support advanced bt coexist
