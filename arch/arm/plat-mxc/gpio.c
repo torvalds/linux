@@ -349,3 +349,62 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 
 	return 0;
 }
+
+#define DEFINE_IMX_GPIO_PORT_IRQ(soc, n, _irq)				\
+	{								\
+		.chip.label = "gpio-" #n,				\
+		.irq = _irq,						\
+		.base = soc ## _IO_ADDRESS(soc ## _GPIO_BASE_ADDR +	\
+				(n) * SZ_256),				\
+		.virtual_irq_start = MXC_GPIO_IRQ_START + (n) * 32,	\
+	}
+
+#define DEFINE_IMX_GPIO_PORT(soc, n)					\
+	DEFINE_IMX_GPIO_PORT_IRQ(soc, n, 0)
+
+#define DEFINE_REGISTER_FUNCTION(prefix)				\
+int __init prefix ## _register_gpios(void)				\
+{									\
+	return mxc_gpio_init(prefix ## _gpio_ports,			\
+			ARRAY_SIZE(prefix ## _gpio_ports));		\
+}
+
+#if defined(CONFIG_SOC_IMX1)
+static struct mxc_gpio_port imx1_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX1, 0, MX1_GPIO_INT_PORTA),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX1, 1, MX1_GPIO_INT_PORTB),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX1, 2, MX1_GPIO_INT_PORTC),
+	DEFINE_IMX_GPIO_PORT_IRQ(MX1, 3, MX1_GPIO_INT_PORTD),
+};
+
+DEFINE_REGISTER_FUNCTION(imx1)
+
+#endif /* if defined(CONFIG_SOC_IMX1) */
+
+#if defined(CONFIG_SOC_IMX21)
+static struct mxc_gpio_port imx21_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX21, 0, MX21_INT_GPIO),
+	DEFINE_IMX_GPIO_PORT(MX21, 1),
+	DEFINE_IMX_GPIO_PORT(MX21, 2),
+	DEFINE_IMX_GPIO_PORT(MX21, 3),
+	DEFINE_IMX_GPIO_PORT(MX21, 4),
+	DEFINE_IMX_GPIO_PORT(MX21, 5),
+};
+
+DEFINE_REGISTER_FUNCTION(imx21)
+
+#endif /* if defined(CONFIG_SOC_IMX21) */
+
+#if defined(CONFIG_SOC_IMX27)
+static struct mxc_gpio_port imx27_gpio_ports[] = {
+	DEFINE_IMX_GPIO_PORT_IRQ(MX27, 0, MX27_INT_GPIO),
+	DEFINE_IMX_GPIO_PORT(MX27, 1),
+	DEFINE_IMX_GPIO_PORT(MX27, 2),
+	DEFINE_IMX_GPIO_PORT(MX27, 3),
+	DEFINE_IMX_GPIO_PORT(MX27, 4),
+	DEFINE_IMX_GPIO_PORT(MX27, 5),
+};
+
+DEFINE_REGISTER_FUNCTION(imx27)
+
+#endif /* if defined(CONFIG_SOC_IMX27) */

@@ -4,8 +4,6 @@
 
 # Object file lists.
 
-obj-y	:=  devices.o
-
 obj-$(CONFIG_IMX_HAVE_DMA_V1) += dma-v1.o
 
 obj-$(CONFIG_ARCH_MX1) += clock-imx1.o mm-imx1.o
