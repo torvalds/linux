@@ -810,9 +810,10 @@ static int __init ecryptfs_init(void)
 		ecryptfs_printk(KERN_ERR, "The eCryptfs extent size is "
 				"larger than the host's page size, and so "
 				"eCryptfs cannot run on this system. The "
-				"default eCryptfs extent size is [%d] bytes; "
-				"the page size is [%d] bytes.\n",
-				ECRYPTFS_DEFAULT_EXTENT_SIZE, PAGE_CACHE_SIZE);
+				"default eCryptfs extent size is [%u] bytes; "
+				"the page size is [%lu] bytes.\n",
+				ECRYPTFS_DEFAULT_EXTENT_SIZE,
+				(unsigned long)PAGE_CACHE_SIZE);
 		goto out;
 	}
 	rc = ecryptfs_init_kmem_caches();

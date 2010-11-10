@@ -59,7 +59,7 @@ static int process_request_key_err(long err_code)
 		break;
 	default:
 		ecryptfs_printk(KERN_WARNING, "Unknown error code: "
-				"[0x%.16x]\n", err_code);
+				"[0x%.16lx]\n", err_code);
 		rc = -EINVAL;
 	}
 	return rc;
@@ -1864,8 +1864,8 @@ found_matching_auth_tok:
 				"session key for authentication token with sig "
 				"[%.*s]; rc = [%d]. Removing auth tok "
 				"candidate from the list and searching for "
-				"the next match.\n", candidate_auth_tok_sig,
-				ECRYPTFS_SIG_SIZE_HEX, rc);
+				"the next match.\n", ECRYPTFS_SIG_SIZE_HEX,
+				candidate_auth_tok_sig,	rc);
 		list_for_each_entry_safe(auth_tok_list_item,
 					 auth_tok_list_item_tmp,
 					 &auth_tok_list, list) {
