@@ -424,7 +424,7 @@ i915_gem_execbuffer_relocate(struct drm_device *dev,
 }
 
 static int
-i915_gem_execbuffer_reserve(struct drm_device *dev,
+i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			    struct drm_file *file,
 			    struct list_head *objects,
 			    struct drm_i915_gem_exec_object2 *exec)
@@ -499,10 +499,15 @@ i915_gem_execbuffer_reserve(struct drm_device *dev,
 			}
 
 			if (need_fence) {
-				ret = i915_gem_object_get_fence_reg(obj, true);
+				ret = i915_gem_object_get_fence(obj, ring, 1);
 				if (ret)
 					break;
-
+			} else if (entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
+				   obj->tiling_mode == I915_TILING_NONE) {
+				/* XXX pipelined! */
+				ret = i915_gem_object_put_fence(obj);
+				if (ret)
+					break;
 			}
 			obj->pending_fenced_gpu_access = need_fence;
 
@@ -522,7 +527,7 @@ i915_gem_execbuffer_reserve(struct drm_device *dev,
 		/* First attempt, just clear anything that is purgeable.
 		 * Second attempt, clear the entire GTT.
 		 */
-		ret = i915_gem_evict_everything(dev, retry == 0);
+		ret = i915_gem_evict_everything(ring->dev, retry == 0);
 		if (ret)
 			return ret;
 
@@ -548,6 +553,7 @@ err:
 static int
 i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 				  struct drm_file *file,
+				  struct intel_ring_buffer *ring,
 				  struct list_head *objects,
 				  struct drm_i915_gem_exec_object2 *exec,
 				  int count)
@@ -590,7 +596,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 		goto err;
 	}
 
-	ret = i915_gem_execbuffer_reserve(dev, file, objects, exec);
+	ret = i915_gem_execbuffer_reserve(ring, file, objects, exec);
 	if (ret)
 		goto err;
 
@@ -930,7 +936,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	/* Move the objects en-masse into the GTT, evicting if necessary. */
-	ret = i915_gem_execbuffer_reserve(dev, file, &objects, exec);
+	ret = i915_gem_execbuffer_reserve(ring, file, &objects, exec);
 	if (ret)
 		goto err;
 
@@ -938,7 +944,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	ret = i915_gem_execbuffer_relocate(dev, file, &objects, exec);
 	if (ret) {
 		if (ret == -EFAULT) {
-			ret = i915_gem_execbuffer_relocate_slow(dev, file,
+			ret = i915_gem_execbuffer_relocate_slow(dev, file, ring,
 								&objects, exec,
 								args->buffer_count);
 			BUG_ON(!mutex_is_locked(&dev->struct_mutex));

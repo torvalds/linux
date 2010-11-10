@@ -244,9 +244,6 @@ i915_gem_object_fence_ok(struct drm_i915_gem_object *obj, int tiling_mode)
 	if (INTEL_INFO(obj->base.dev)->gen >= 4)
 		return true;
 
-	if (!obj->gtt_space)
-		return true;
-
 	if (INTEL_INFO(obj->base.dev)->gen == 3) {
 		if (obj->gtt_offset & ~I915_FENCE_START_MASK)
 			return false;
@@ -345,27 +342,21 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		 * tiling mode. Otherwise we can just leave it alone, but
 		 * need to ensure that any fence register is cleared.
 		 */
-		if (!i915_gem_object_fence_ok(obj, args->tiling_mode))
-			ret = i915_gem_object_unbind(obj);
-		else if (obj->fence_reg != I915_FENCE_REG_NONE)
-			ret = i915_gem_object_put_fence_reg(obj, true);
-		else
-			i915_gem_release_mmap(obj);
+		i915_gem_release_mmap(obj);
 
-		if (ret != 0) {
-			args->tiling_mode = obj->tiling_mode;
-			args->stride = obj->stride;
-			goto err;
-		}
+		obj->map_and_fenceable =
+			obj->gtt_space == NULL ||
+			(obj->gtt_offset + obj->base.size <= dev_priv->mm.gtt_mappable_end &&
+			 i915_gem_object_fence_ok(obj, args->tiling_mode));
 
+		obj->tiling_changed = true;
 		obj->tiling_mode = args->tiling_mode;
 		obj->stride = args->stride;
 	}
-err:
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
 
-	return ret;
+	return 0;
 }
 
 /**

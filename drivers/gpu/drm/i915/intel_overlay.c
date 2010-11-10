@@ -787,6 +787,10 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret != 0)
 		goto out_unpin;
 
+	ret = i915_gem_object_put_fence(new_bo);
+	if (ret)
+		goto out_unpin;
+
 	if (!overlay->active) {
 		regs = intel_overlay_map_regs(overlay);
 		if (!regs) {
@@ -1160,6 +1164,12 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 
 	mutex_lock(&dev->mode_config.mutex);
 	mutex_lock(&dev->struct_mutex);
+
+	if (new_bo->tiling_mode) {
+		DRM_ERROR("buffer used for overlay image can not be tiled\n");
+		ret = -EINVAL;
+		goto out_unlock;
+	}
 
 	ret = intel_overlay_recover_from_interrupt(overlay, true);
 	if (ret != 0)

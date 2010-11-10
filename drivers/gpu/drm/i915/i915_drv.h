@@ -126,6 +126,7 @@ struct drm_i915_master_private {
 struct drm_i915_fence_reg {
 	struct list_head lru_list;
 	struct drm_i915_gem_object *obj;
+	uint32_t setup_seqno;
 };
 
 struct sdvo_device_mapping {
@@ -752,6 +753,7 @@ struct drm_i915_gem_object {
 	 * Current tiling mode for the object.
 	 */
 	unsigned int tiling_mode : 2;
+	unsigned int tiling_changed : 1;
 
 	/** How many users have pinned this object in GTT space. The following
 	 * users can each hold at most one reference: pwrite/pread, pin_ioctl
@@ -1121,10 +1123,10 @@ i915_gem_next_request_seqno(struct drm_device *dev,
 	return ring->outstanding_lazy_request = dev_priv->next_seqno;
 }
 
-int __must_check i915_gem_object_get_fence_reg(struct drm_i915_gem_object *obj,
-					       bool interruptible);
-int __must_check i915_gem_object_put_fence_reg(struct drm_i915_gem_object *obj,
-					       bool interruptible);
+int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
+					   struct intel_ring_buffer *pipelined,
+					   bool interruptible);
+int __must_check i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
 
 void i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_reset(struct drm_device *dev);

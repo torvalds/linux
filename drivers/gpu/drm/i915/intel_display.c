@@ -1474,7 +1474,7 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 	 * a fence as the cost is not that onerous.
 	 */
 	if (obj->tiling_mode != I915_TILING_NONE) {
-		ret = i915_gem_object_get_fence_reg(obj, false);
+		ret = i915_gem_object_get_fence(obj, pipelined, false);
 		if (ret)
 			goto err_unpin;
 	}
@@ -4370,6 +4370,12 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	/* we only need to pin inside GTT if cursor is non-phy */
 	mutex_lock(&dev->struct_mutex);
 	if (!dev_priv->info->cursor_needs_physical) {
+		if (obj->tiling_mode) {
+			DRM_ERROR("cursor cannot be tiled\n");
+			ret = -EINVAL;
+			goto fail_locked;
+		}
+
 		ret = i915_gem_object_pin(obj, PAGE_SIZE, true);
 		if (ret) {
 			DRM_ERROR("failed to pin cursor bo\n");
@@ -4377,6 +4383,12 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		}
 
 		ret = i915_gem_object_set_to_gtt_domain(obj, 0);
+		if (ret) {
+			DRM_ERROR("failed to move cursor bo into the GTT\n");
+			goto fail_unpin;
+		}
+
+		ret = i915_gem_object_put_fence(obj);
 		if (ret) {
 			DRM_ERROR("failed to move cursor bo into the GTT\n");
 			goto fail_unpin;
@@ -4966,6 +4978,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	i915_gem_object_unpin(work->old_fb_obj);
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
 	drm_gem_object_unreference(&work->old_fb_obj->base);
+
 	mutex_unlock(&work->dev->struct_mutex);
 	kfree(work);
 }
@@ -5009,10 +5022,12 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	obj = work->old_fb_obj;
+
 	atomic_clear_mask(1 << intel_crtc->plane,
 			  &obj->pending_flip.counter);
 	if (atomic_read(&obj->pending_flip) == 0)
 		wake_up(&dev_priv->pending_flip_queue);
+
 	schedule_work(&work->work);
 
 	trace_i915_flip_complete(intel_crtc->plane, work->pending_flip_obj);
