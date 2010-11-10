@@ -28,7 +28,7 @@ config LIRC
 	   LIRC daemon handles protocol decoding for IR reception and
 	   encoding for IR transmitting (aka "blasting").
 
-source "drivers/media/IR/keymaps/Kconfig"
+source "drivers/media/rc/keymaps/Kconfig"
 
 config IR_NEC_DECODER
 	tristate "Enable IR raw decoder for the NEC protocol"
