@@ -776,7 +776,7 @@ int ddr_init(MINI_ADAPTER *Adapter)
 {
 	PDDR_SETTING psDDRSetting=NULL;
 	ULONG RegCount=0;
-	ULONG value = 0;
+	UINT value = 0;
 	UINT  uiResetValue = 0;
 	UINT uiClockSetting = 0;
 	int retval = STATUS_SUCCESS;
@@ -970,7 +970,7 @@ int ddr_init(MINI_ADAPTER *Adapter)
 		{
 			value = psDDRSetting->ulRegValue;
 		}
-		retval = wrmalt(Adapter, psDDRSetting->ulRegAddress, (PUINT)&value, sizeof(value));
+		retval = wrmalt(Adapter, psDDRSetting->ulRegAddress, &value, sizeof(value));
 		if(STATUS_SUCCESS != retval) {
 			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"%s:%d\n", __FUNCTION__, __LINE__);
 			break;

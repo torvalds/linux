@@ -601,8 +601,8 @@ typedef LINK_REQUEST CONTROL_MESSAGE;
 
 typedef struct _DDR_SETTING
 {
-	ULONG ulRegAddress;
-	ULONG ulRegValue;
+	UINT ulRegAddress;
+	UINT ulRegValue;
 }DDR_SETTING, *PDDR_SETTING;
 typedef DDR_SETTING DDR_SET_NODE, *PDDR_SET_NODE;
 INT
