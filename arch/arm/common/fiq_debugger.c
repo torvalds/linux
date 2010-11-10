@@ -95,8 +95,14 @@ static bool initial_no_sleep = true;
 #else
 static bool initial_no_sleep;
 #endif
+
+#ifdef CONFIG_FIQ_DEBUGGER_CONSOLE_DEFAULT_ENABLE
+static bool initial_debug_enable = true;
+static bool initial_console_enable = true;
+#else
 static bool initial_debug_enable;
 static bool initial_console_enable;
+#endif
 
 module_param_named(no_sleep, initial_no_sleep, bool, 0644);
 module_param_named(debug_enable, initial_debug_enable, bool, 0644);
