@@ -26,7 +26,6 @@
 #include <linux/spi/ads7846.h>
 #include <linux/backlight.h>
 #include <video/platform_lcd.h>
-#include <linux/input/matrix_keypad.h>
 
 #include <asm/mach/arch.h>
 
@@ -109,7 +108,8 @@ static const uint32_t eukrea_mbimx27_keymap[] = {
 	KEY(1, 1, KEY_LEFT),
 };
 
-static struct matrix_keymap_data eukrea_mbimx27_keymap_data = {
+static const struct matrix_keymap_data
+eukrea_mbimx27_keymap_data __initconst = {
 	.keymap         = eukrea_mbimx27_keymap,
 	.keymap_size    = ARRAY_SIZE(eukrea_mbimx27_keymap),
 };
@@ -384,7 +384,7 @@ void __init eukrea_mbimx27_baseboard_init(void)
 	gpio_request(GPIO_PORTA | 25, "lcd_enable");
 	platform_device_register(&eukrea_mbimx27_lcd_powerdev);
 
-	mxc_register_device(&imx_kpp_device, &eukrea_mbimx27_keymap_data);
+	imx27_add_imx_keypad(&eukrea_mbimx27_keymap_data);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }

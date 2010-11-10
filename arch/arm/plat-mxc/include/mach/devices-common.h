@@ -83,6 +83,15 @@ struct platform_device *__init imx_add_imx_i2c(
 		const struct imx_imx_i2c_data *data,
 		const struct imxi2c_platform_data *pdata);
 
+#include <linux/input/matrix_keypad.h>
+struct imx_imx_keypad_data {
+	resource_size_t iobase;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_imx_keypad(
+		const struct imx_imx_keypad_data *data,
+		const struct matrix_keymap_data *pdata);
+
 #include <mach/ssi.h>
 struct imx_imx_ssi_data {
 	int id;

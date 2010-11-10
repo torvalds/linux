@@ -22,7 +22,6 @@
 
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <linux/input/matrix_keypad.h>
 #include <linux/irq.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -91,7 +90,7 @@ static const uint32_t mx27_3ds_keymap[] = {
 	KEY(2, 3, KEY_F10),
 };
 
-static struct matrix_keymap_data mx27_3ds_keymap_data = {
+static const struct matrix_keymap_data mx27_3ds_keymap_data __initconst = {
 	.keymap		= mx27_3ds_keymap,
 	.keymap_size	= ARRAY_SIZE(mx27_3ds_keymap),
 };
@@ -127,7 +126,7 @@ static void __init mx27pdk_init(void)
 	mx27_3ds_sdhc1_enable_level_translator();
 	imx27_add_imx_uart0(&uart_pdata);
 	imx27_add_fec(NULL);
-	mxc_register_device(&imx_kpp_device, &mx27_3ds_keymap_data);
+	imx27_add_imx_keypad(&mx27_3ds_keymap_data);
 	imx27_add_mxc_mmc(0, &sdhc1_pdata);
 }
 
