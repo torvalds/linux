@@ -111,12 +111,17 @@ void nilfs_error(struct super_block *sb, const char *function,
 		 const char *fmt, ...)
 {
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	printk(KERN_CRIT "NILFS error (device %s): %s: ", sb->s_id, function);
-	vprintk(fmt, args);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_CRIT "NILFS error (device %s): %s: %pV\n",
+	       sb->s_id, function, &vaf);
+
 	va_end(args);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
@@ -136,13 +141,17 @@ void nilfs_error(struct super_block *sb, const char *function,
 void nilfs_warning(struct super_block *sb, const char *function,
 		   const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	printk(KERN_WARNING "NILFS warning (device %s): %s: ",
-	       sb->s_id, function);
-	vprintk(fmt, args);
-	printk("\n");
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_WARNING "NILFS warning (device %s): %s: %pV\n",
+	       sb->s_id, function, &vaf);
+
 	va_end(args);
 }
 
