@@ -22,12 +22,14 @@
 #define COMP_CKSUM_LEN 2
 
 #define AR_CH0_TOP (0x00016288)
-#define AR_CH0_TOP_XPABIASLVL (0x3)
+#define AR_CH0_TOP_XPABIASLVL (0x300)
 #define AR_CH0_TOP_XPABIASLVL_S (8)
 
 #define AR_CH0_THERM (0x00016290)
-#define AR_CH0_THERM_SPARE (0x3f)
-#define AR_CH0_THERM_SPARE_S (0)
+#define AR_CH0_THERM_XPABIASLVL_MSB 0x3
+#define AR_CH0_THERM_XPABIASLVL_MSB_S 0
+#define AR_CH0_THERM_XPASHORT2GND 0x4
+#define AR_CH0_THERM_XPASHORT2GND_S 2
 
 #define AR_SWITCH_TABLE_COM_ALL (0xffff)
 #define AR_SWITCH_TABLE_COM_ALL_S (0)
@@ -3336,9 +3338,9 @@ static s32 ar9003_hw_xpa_bias_level_get(struct ath_hw *ah, bool is2ghz)
 static void ar9003_hw_xpa_bias_level_apply(struct ath_hw *ah, bool is2ghz)
 {
 	int bias = ar9003_hw_xpa_bias_level_get(ah, is2ghz);
-	REG_RMW_FIELD(ah, AR_CH0_TOP, AR_CH0_TOP_XPABIASLVL, (bias & 0x3));
-	REG_RMW_FIELD(ah, AR_CH0_THERM, AR_CH0_THERM_SPARE,
-		      ((bias >> 2) & 0x3));
+	REG_RMW_FIELD(ah, AR_CH0_TOP, AR_CH0_TOP_XPABIASLVL, bias);
+	REG_RMW_FIELD(ah, AR_CH0_THERM, AR_CH0_THERM_XPABIASLVL_MSB, bias >> 2);
+	REG_RMW_FIELD(ah, AR_CH0_THERM, AR_CH0_THERM_XPASHORT2GND, 1);
 }
 
 static u32 ar9003_hw_ant_ctrl_common_get(struct ath_hw *ah, bool is2ghz)
