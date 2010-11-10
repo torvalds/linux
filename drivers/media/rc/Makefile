@@ -1,5 +1,5 @@
 ir-common-objs  := ir-functions.o
-rc-core-objs	:= rc-main.o rc-raw.o rc-map.o
+rc-core-objs	:= rc-main.o rc-raw.o
 
 obj-y += keymaps/
 
