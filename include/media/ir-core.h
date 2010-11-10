@@ -117,7 +117,6 @@ enum raw_event_type {
 
 #define to_ir_input_dev(_attr) container_of(_attr, struct ir_input_dev, attr)
 
-/* From ir-keytable.c */
 int __ir_input_register(struct input_dev *dev,
 		      const struct ir_scancode_table *ir_codes,
 		      struct ir_dev_props *props,
@@ -164,7 +163,6 @@ void ir_keyup(struct input_dev *dev);
 u32 ir_g_keycode_from_table(struct input_dev *input_dev, u32 scancode);
 
 /* From ir-raw-event.c */
-
 struct ir_raw_event {
 	union {
 		u32             duration;

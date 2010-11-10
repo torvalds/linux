@@ -32,9 +32,15 @@ static unsigned long ir_core_dev_number;
 /* FIXME: IR_KEYPRESS_TIMEOUT should be protocol specific */
 #define IR_KEYPRESS_TIMEOUT 250
 
-/* Used to handle IR raw handler extensions */
+/* Used to keep track of known keymaps */
 static LIST_HEAD(rc_map_list);
 static DEFINE_SPINLOCK(rc_map_lock);
+
+/* Forward declarations */
+static int ir_register_class(struct input_dev *input_dev);
+static void ir_unregister_class(struct input_dev *input_dev);
+static int ir_register_input(struct input_dev *input_dev);
+
 
 static struct rc_keymap *seek_rc_map(const char *name)
 {
@@ -111,16 +117,6 @@ static struct rc_keymap empty_map = {
 		.name    = RC_MAP_EMPTY,
 	}
 };
-
-int ir_rcmap_init(void)
-{
-	return ir_register_map(&empty_map);
-}
-
-void ir_rcmap_cleanup(void)
-{
-	ir_unregister_map(&empty_map);
-}
 
 /**
  * ir_create_table() - initializes a scancode table
@@ -265,7 +261,7 @@ static unsigned int ir_update_mapping(struct input_dev *dev,
 }
 
 /**
- * ir_locate_scancode() - set a keycode in the scancode->keycode table
+ * ir_establish_scancode() - set a keycode in the scancode->keycode table
  * @ir_dev:	the struct ir_input_dev device descriptor
  * @rc_tab:	scancode table to be searched
  * @scancode:	the desired scancode
@@ -1097,7 +1093,7 @@ static struct device_type rc_dev_type = {
  *
  * This routine is used to register the syfs code for IR class
  */
-int ir_register_class(struct input_dev *input_dev)
+static int ir_register_class(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 	int devno = find_first_zero_bit(&ir_core_dev_number,
@@ -1122,7 +1118,7 @@ int ir_register_class(struct input_dev *input_dev)
  * @input_dev:	the struct input_dev descriptor of the device
  */
 
-int ir_register_input(struct input_dev *input_dev)
+static int ir_register_input(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 	int rc;
@@ -1155,7 +1151,7 @@ int ir_register_input(struct input_dev *input_dev)
  *
  * This routine is used to unregister the syfs code for IR class
  */
-void ir_unregister_class(struct input_dev *input_dev)
+static void ir_unregister_class(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 
@@ -1181,7 +1177,7 @@ static int __init ir_core_init(void)
 
 	/* Initialize/load the decoders/keymap code that will be used */
 	ir_raw_init();
-	ir_rcmap_init();
+	ir_register_map(&empty_map);
 
 	return 0;
 }
@@ -1189,7 +1185,7 @@ static int __init ir_core_init(void)
 static void __exit ir_core_exit(void)
 {
 	class_unregister(&ir_input_class);
-	ir_rcmap_cleanup();
+	ir_unregister_map(&empty_map);
 }
 
 module_init(ir_core_init);

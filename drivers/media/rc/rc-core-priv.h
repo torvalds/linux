@@ -129,14 +129,6 @@ static inline bool is_timing_event(struct ir_raw_event ev)
 
 #define TO_US(duration)			DIV_ROUND_CLOSEST((duration), 1000)
 #define TO_STR(is_pulse)		((is_pulse) ? "pulse" : "space")
-/*
- * Routines from ir-sysfs.c - Meant to be called only internally inside
- * ir-core
- */
-int ir_register_input(struct input_dev *input_dev);
-
-int ir_register_class(struct input_dev *input_dev);
-void ir_unregister_class(struct input_dev *input_dev);
 
 /*
  * Routines from ir-raw-event.c to be used internally and by decoders
@@ -148,8 +140,6 @@ int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler);
 void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler);
 void ir_raw_init(void);
 
-int ir_rcmap_init(void);
-void ir_rcmap_cleanup(void);
 /*
  * Decoder initialization code
  *
