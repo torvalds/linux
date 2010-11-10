@@ -349,6 +349,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	struct hlist_node *node, *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address = (unsigned long)&kretprobe_trampoline;
+	kprobe_opcode_t *correct_ret_addr = NULL;
 
 	INIT_HLIST_HEAD(&empty_rp);
 	kretprobe_hash_lock(current, &head, &flags);
@@ -371,10 +372,32 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 			/* another task is sharing our hash bucket */
 			continue;
 
-		if (ri->rp && ri->rp->handler)
-			ri->rp->handler(ri, regs);
+		orig_ret_address = (unsigned long)ri->ret_addr;
+
+		if (orig_ret_address != trampoline_address)
+			/*
+			 * This is the real return address. Any other
+			 * instances associated with this task are for
+			 * other calls deeper on the call stack
+			 */
+			break;
+	}
+
+	kretprobe_assert(ri, orig_ret_address, trampoline_address);
+
+	correct_ret_addr = ri->ret_addr;
+	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+		if (ri->task != current)
+			/* another task is sharing our hash bucket */
+			continue;
 
 		orig_ret_address = (unsigned long)ri->ret_addr;
+
+		if (ri->rp && ri->rp->handler) {
+			ri->ret_addr = correct_ret_addr;
+			ri->rp->handler(ri, regs);
+		}
+
 		recycle_rp_inst(ri, &empty_rp);
 
 		if (orig_ret_address != trampoline_address) {
@@ -386,7 +409,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 			break;
 		}
 	}
-	kretprobe_assert(ri, orig_ret_address, trampoline_address);
+
 	regs->psw.addr = orig_ret_address | PSW_ADDR_AMODE;
 
 	reset_current_kprobe();
