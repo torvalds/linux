@@ -571,7 +571,7 @@ long clk_round_parent(struct clk *clk, unsigned long target,
 					*best_freq = freq_max;
 			}
 
-			pr_debug("too low freq %lu, error %lu\n", freq->frequency,
+			pr_debug("too low freq %u, error %lu\n", freq->frequency,
 				 target - freq_max);
 
 			if (!error)
@@ -591,7 +591,7 @@ long clk_round_parent(struct clk *clk, unsigned long target,
 					*best_freq = freq_min;
 			}
 
-			pr_debug("too high freq %lu, error %lu\n", freq->frequency,
+			pr_debug("too high freq %u, error %lu\n", freq->frequency,
 				 freq_min - target);
 
 			if (!error)
