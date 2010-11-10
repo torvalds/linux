@@ -34,6 +34,32 @@
 #include "iwl-helpers.h"
 #include "iwl-legacy.h"
 
+static void iwl_update_qos(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
+{
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	if (!ctx->is_active)
+		return;
+
+	ctx->qos_data.def_qos_parm.qos_flags = 0;
+
+	if (ctx->qos_data.qos_active)
+		ctx->qos_data.def_qos_parm.qos_flags |=
+			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
+
+	if (ctx->ht.enabled)
+		ctx->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
+
+	IWL_DEBUG_QOS(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
+		      ctx->qos_data.qos_active,
+		      ctx->qos_data.def_qos_parm.qos_flags);
+
+	iwl_send_cmd_pdu_async(priv, ctx->qos_cmd,
+			       sizeof(struct iwl_qosparam_cmd),
+			       &ctx->qos_data.def_qos_parm, NULL);
+}
+
 /**
  * iwl_legacy_mac_config - mac80211 config callback
  */
@@ -49,6 +75,7 @@ int iwl_legacy_mac_config(struct ieee80211_hw *hw, u32 changed)
 	int ret = 0;
 	u16 ch;
 	int scan_active = 0;
+	bool ht_changed[NUM_IWL_RXON_CTX] = {};
 
 	if (WARN_ON(!priv->cfg->ops->legacy))
 		return -EOPNOTSUPP;
@@ -100,7 +127,10 @@ int iwl_legacy_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 		for_each_context(priv, ctx) {
 			/* Configure HT40 channels */
-			ctx->ht.enabled = conf_is_ht(conf);
+			if (ctx->ht.enabled != conf_is_ht(conf)) {
+				ctx->ht.enabled = conf_is_ht(conf);
+				ht_changed[ctx->ctxid] = true;
+			}
 			if (ctx->ht.enabled) {
 				if (conf_is_ht40_minus(conf)) {
 					ctx->ht.extension_chan_offset =
@@ -177,6 +207,8 @@ int iwl_legacy_mac_config(struct ieee80211_hw *hw, u32 changed)
 		else
 			IWL_DEBUG_INFO(priv,
 				"Not re-sending same RXON configuration.\n");
+		if (ht_changed[ctx->ctxid])
+			iwl_update_qos(priv, ctx);
 	}
 
 out:
@@ -293,32 +325,6 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 	}
 
 	IWL_DEBUG_ASSOC(priv, "leave\n");
-}
-
-static void iwl_update_qos(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
-{
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	if (!ctx->is_active)
-		return;
-
-	ctx->qos_data.def_qos_parm.qos_flags = 0;
-
-	if (ctx->qos_data.qos_active)
-		ctx->qos_data.def_qos_parm.qos_flags |=
-			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
-
-	if (ctx->ht.enabled)
-		ctx->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
-
-	IWL_DEBUG_QOS(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
-		      ctx->qos_data.qos_active,
-		      ctx->qos_data.def_qos_parm.qos_flags);
-
-	iwl_send_cmd_pdu_async(priv, ctx->qos_cmd,
-			       sizeof(struct iwl_qosparam_cmd),
-			       &ctx->qos_data.def_qos_parm, NULL);
 }
 
 static inline void iwl_set_no_assoc(struct iwl_priv *priv,
