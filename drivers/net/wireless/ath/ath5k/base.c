@@ -549,21 +549,13 @@ static void ath_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	/* Calculate combined mode - when APs are active, operate in AP mode.
 	 * Otherwise use the mode of the new interface. This can currently
 	 * only deal with combinations of APs and STAs. Only one ad-hoc
-	 * interfaces is allowed above.
+	 * interfaces is allowed.
 	 */
 	if (avf->opmode == NL80211_IFTYPE_AP)
 		iter_data->opmode = NL80211_IFTYPE_AP;
 	else
 		if (iter_data->opmode == NL80211_IFTYPE_UNSPECIFIED)
 			iter_data->opmode = avf->opmode;
-}
-
-static void ath_do_set_opmode(struct ath5k_softc *sc)
-{
-	struct ath5k_hw *ah = sc->ah;
-	ath5k_hw_set_opmode(ah, sc->opmode);
-	ATH5K_DBG(sc, ATH5K_DEBUG_MODE, "mode setup opmode %d (%s)\n",
-		  sc->opmode, ath_opmode_to_string(sc->opmode));
 }
 
 static void ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,
@@ -595,7 +587,9 @@ static void ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,
 		/* Nothing active, default to station mode */
 		sc->opmode = NL80211_IFTYPE_STATION;
 
-	ath_do_set_opmode(sc);
+	ath5k_hw_set_opmode(sc->ah, sc->opmode);
+	ATH5K_DBG(sc, ATH5K_DEBUG_MODE, "mode setup opmode %d (%s)\n",
+		  sc->opmode, ath_opmode_to_string(sc->opmode));
 
 	if (iter_data.need_set_hw_addr && iter_data.found_active)
 		ath5k_hw_set_lladdr(sc->ah, iter_data.active_mac);
