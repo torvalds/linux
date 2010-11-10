@@ -569,6 +569,20 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 	if (force || memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
 		iwlagn_commit_rxon(priv, ctx);
 
+	if (changes & BSS_CHANGED_ASSOC && bss_conf->assoc) {
+		/*
+		 * The chain noise calibration will enable PM upon
+		 * completion. If calibration has already been run
+		 * then we need to enable power management here.
+		 */
+		if (priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE)
+			iwl_power_update_mode(priv, false);
+
+		/* Enable RX differential gain and sensitivity calibrations */
+		iwl_chain_noise_reset(priv);
+		priv->start_calib = 1;
+	}
+
 	if (changes & BSS_CHANGED_IBSS) {
 		ret = iwlagn_manage_ibss_station(priv, vif,
 						 bss_conf->ibss_joined);
