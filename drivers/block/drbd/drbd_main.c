@@ -2537,10 +2537,36 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 		ok = drbd_send(mdev, mdev->data.socket, dgb, dgs, 0);
 	}
 	if (ok) {
-		if (mdev->net_conf->wire_protocol == DRBD_PROT_A)
+		/* For protocol A, we have to memcpy the payload into
+		 * socket buffers, as we may complete right away
+		 * as soon as we handed it over to tcp, at which point the data
+		 * pages may become invalid.
+		 *
+		 * For data-integrity enabled, we copy it as well, so we can be
+		 * sure that even if the bio pages may still be modified, it
+		 * won't change the data on the wire, thus if the digest checks
+		 * out ok after sending on this side, but does not fit on the
+		 * receiving side, we sure have detected corruption elsewhere.
+		 */
+		if (mdev->net_conf->wire_protocol == DRBD_PROT_A || dgs)
 			ok = _drbd_send_bio(mdev, req->master_bio);
 		else
 			ok = _drbd_send_zc_bio(mdev, req->master_bio);
+
+		/* double check digest, sometimes buffers have been modified in flight. */
+		if (dgs > 0 && dgs <= 64) {
+			/* 64 byte, 512 bit, is the larges digest size
+			 * currently supported in kernel crypto. */
+			unsigned char digest[64];
+			drbd_csum_bio(mdev, mdev->integrity_w_tfm, req->master_bio, digest);
+			if (memcmp(mdev->int_dig_out, digest, dgs)) {
+				dev_warn(DEV,
+					"Digest mismatch, buffer modified by upper layers during write: %llus +%u\n",
+					(unsigned long long)req->sector, req->size);
+			}
+		} /* else if (dgs > 64) {
+		     ... Be noisy about digest too large ...
+		} */
 	}
 
 	drbd_put_data_sock(mdev);
