@@ -1233,10 +1233,10 @@ static int handle_load_lib_ioctl(struct avp_info *avp, unsigned long arg)
 	return 0;
 
 err_insert_lib:
-	send_unload_lib_msg(avp, lib.handle, lib.name);
 err_copy_to_user:
-	mutex_unlock(&avp->libs_lock);
+	send_unload_lib_msg(avp, lib.handle, lib.name);
 err_load_lib:
+	mutex_unlock(&avp->libs_lock);
 	return ret;
 }
 
@@ -1275,10 +1275,10 @@ static void libs_cleanup(struct avp_info *avp)
 	list_for_each_entry_safe(lib, lib_tmp, &avp->libs, list) {
 		_delete_lib_locked(avp, lib);
 	}
-	mutex_unlock(&avp->libs_lock);
 
 	nvmap_client_put(avp->nvmap_libs);
 	avp->nvmap_libs = NULL;
+	mutex_unlock(&avp->libs_lock);
 }
 
 static long tegra_avp_ioctl(struct file *file, unsigned int cmd,
