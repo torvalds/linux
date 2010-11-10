@@ -82,3 +82,11 @@ config FIQ_DEBUGGER_CONSOLE
 	help
 	  Enables a console so that printk messages are displayed on
 	  the debugger serial port as the occur.
+
+config FIQ_DEBUGGER_CONSOLE_DEFAULT_ENABLE
+	bool "Put the FIQ debugger into console mode by default"
+	depends on FIQ_DEBUGGER_CONSOLE
+	default n
+	help
+	  If enabled, this puts the fiq debugger into console mode by default.
+	  Otherwise, the fiq debugger will start out in debug mode.
