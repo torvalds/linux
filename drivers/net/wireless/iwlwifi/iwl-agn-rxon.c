@@ -72,6 +72,34 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	return ret;
 }
 
+static void iwlagn_update_qos(struct iwl_priv *priv,
+			      struct iwl_rxon_context *ctx)
+{
+	int ret;
+
+	if (!ctx->is_active)
+		return;
+
+	ctx->qos_data.def_qos_parm.qos_flags = 0;
+
+	if (ctx->qos_data.qos_active)
+		ctx->qos_data.def_qos_parm.qos_flags |=
+			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
+
+	if (ctx->ht.enabled)
+		ctx->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
+
+	IWL_DEBUG_QOS(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
+		      ctx->qos_data.qos_active,
+		      ctx->qos_data.def_qos_parm.qos_flags);
+
+	ret = iwl_send_cmd_pdu(priv, ctx->qos_cmd,
+			       sizeof(struct iwl_qosparam_cmd),
+			       &ctx->qos_data.def_qos_parm);
+	if (ret)
+		IWL_ERR(priv, "Failed to update QoS\n");
+}
+
 static int iwlagn_update_beacon(struct iwl_priv *priv,
 				struct ieee80211_vif *vif)
 {
@@ -208,6 +236,9 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	}
 
 	if (new_assoc) {
+		/* QoS info may be cleared by previous un-assoc RXON */
+		iwlagn_update_qos(priv, ctx);
+
 		/*
 		 * We'll run into this code path when beaconing is
 		 * enabled, but then we also need to send the beacon
@@ -264,34 +295,6 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	}
 
 	return 0;
-}
-
-static void iwlagn_update_qos(struct iwl_priv *priv,
-			      struct iwl_rxon_context *ctx)
-{
-	int ret;
-
-	if (!ctx->is_active)
-		return;
-
-	ctx->qos_data.def_qos_parm.qos_flags = 0;
-
-	if (ctx->qos_data.qos_active)
-		ctx->qos_data.def_qos_parm.qos_flags |=
-			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
-
-	if (ctx->ht.enabled)
-		ctx->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
-
-	IWL_DEBUG_QOS(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
-		      ctx->qos_data.qos_active,
-		      ctx->qos_data.def_qos_parm.qos_flags);
-
-	ret = iwl_send_cmd_pdu(priv, ctx->qos_cmd,
-			       sizeof(struct iwl_qosparam_cmd),
-			       &ctx->qos_data.def_qos_parm);
-	if (ret)
-		IWL_ERR(priv, "Failed to update QoS\n");
 }
 
 int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
