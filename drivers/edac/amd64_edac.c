@@ -487,9 +487,9 @@ int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 		return 1;
 	}
 
-	/* only valid for Fam10h */
-	if (boot_cpu_data.x86 == 0x10 &&
-	    (pvt->dhar & F10_DRAM_MEM_HOIST_VALID) == 0) {
+	/* valid for Fam10h and above */
+	if (boot_cpu_data.x86 >= 0x10 &&
+	    (pvt->dhar & DRAM_MEM_HOIST_VALID) == 0) {
 		debugf1("  Dram Memory Hoisting is DISABLED on this system\n");
 		return 1;
 	}
@@ -518,15 +518,15 @@ int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 	 * addresses in the hole so that they start at 0x100000000.
 	 */
 
-	base = dhar_base(pvt->dhar);
+	base = dhar_base(pvt);
 
 	*hole_base = base;
 	*hole_size = (0x1ull << 32) - base;
 
 	if (boot_cpu_data.x86 > 0xf)
-		*hole_offset = f10_dhar_offset(pvt->dhar);
+		*hole_offset = f10_dhar_offset(pvt);
 	else
-		*hole_offset = k8_dhar_offset(pvt->dhar);
+		*hole_offset = k8_dhar_offset(pvt);
 
 	debugf1("  DHAR info for node %d base 0x%lx offset 0x%lx size 0x%lx\n",
 		pvt->mc_node_id, (unsigned long)*hole_base,
@@ -884,10 +884,9 @@ static void dump_misc_regs(struct amd64_pvt *pvt)
 
 	debugf1("F1xF0 (DRAM Hole Address): 0x%08x, base: 0x%08x, "
 			"offset: 0x%08x\n",
-			pvt->dhar,
-			dhar_base(pvt->dhar),
-			(boot_cpu_data.x86 == 0xf) ? k8_dhar_offset(pvt->dhar)
-						   : f10_dhar_offset(pvt->dhar));
+			pvt->dhar, dhar_base(pvt),
+			(boot_cpu_data.x86 == 0xf) ? k8_dhar_offset(pvt)
+						   : f10_dhar_offset(pvt));
 
 	debugf1("  DramHoleValid: %s\n",
 		(pvt->dhar & DHAR_VALID) ? "yes" : "no");
@@ -1316,7 +1315,7 @@ static inline u32 f10_map_intlv_en_to_shift(u32 intlv_en)
 static inline u64 f10_get_base_addr_offset(u64 sys_addr, int hi_range_sel,
 						 u32 dct_sel_base_addr,
 						 u64 dct_sel_base_off,
-						 u32 hole_valid, u32 hole_off,
+						 u32 hole_valid, u64 hole_off,
 						 u64 dram_base)
 {
 	u64 chan_off;
@@ -1324,12 +1323,12 @@ static inline u64 f10_get_base_addr_offset(u64 sys_addr, int hi_range_sel,
 	if (hi_range_sel) {
 		if (!(dct_sel_base_addr & 0xFFFF0000) &&
 		   hole_valid && (sys_addr >= 0x100000000ULL))
-			chan_off = hole_off << 16;
+			chan_off = hole_off;
 		else
 			chan_off = dct_sel_base_off;
 	} else {
 		if (hole_valid && (sys_addr >= 0x100000000ULL))
-			chan_off = hole_off << 16;
+			chan_off = hole_off;
 		else
 			chan_off = dram_base & 0xFFFFF8000000ULL;
 	}
@@ -1435,7 +1434,8 @@ static int f10_match_to_this_node(struct amd64_pvt *pvt, int range,
 				  u64 sys_addr, int *nid, int *chan_sel)
 {
 	int cs_found = -EINVAL, high_range = 0;
-	u32 intlv_shift, hole_off;
+	u32 intlv_shift;
+	u64 hole_off;
 	u32 hole_valid, tmp, dct_sel_base, channel;
 	u64 chan_addr, dct_sel_base_off;
 
@@ -1451,11 +1451,11 @@ static int f10_match_to_this_node(struct amd64_pvt *pvt, int range,
 	 * This assumes that one node's DHAR is the same as all the other
 	 * nodes' DHAR.
 	 */
-	hole_off = (pvt->dhar & 0x0000FF80);
-	hole_valid = (pvt->dhar & 0x1);
+	hole_off = f10_dhar_offset(pvt);
+	hole_valid = (pvt->dhar & DHAR_VALID);
 	dct_sel_base_off = (pvt->dct_sel_hi & 0xFFFFFC00) << 16;
 
-	debugf1("   HoleOffset=0x%x  HoleValid=0x%x IntlvSel=0x%x\n",
+	debugf1("   HoleOffset=0x%016llx  HoleValid=%d IntlvSel=0x%x\n",
 			hole_off, hole_valid, intlv_sel);
 
 	if (intlv_en &&
@@ -2051,7 +2051,7 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 
 	read_dct_base_mask(pvt);
 
-	amd64_read_pci_cfg(pvt->F1, K8_DHAR, &pvt->dhar);
+	amd64_read_pci_cfg(pvt->F1, DHAR, &pvt->dhar);
 	amd64_read_dbam_reg(pvt);
 
 	amd64_read_pci_cfg(pvt->F3, F10_ONLINE_SPARE, &pvt->online_spare);
