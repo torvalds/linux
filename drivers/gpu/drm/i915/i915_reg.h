@@ -256,10 +256,6 @@
  * Instruction and interrupt control regs
  */
 #define PGTBL_ER	0x02024
-#define PRB0_TAIL	0x02030
-#define PRB0_HEAD	0x02034
-#define PRB0_START	0x02038
-#define PRB0_CTL	0x0203c
 #define RENDER_RING_BASE	0x02000
 #define BSD_RING_BASE		0x04000
 #define GEN6_BSD_RING_BASE	0x12000
@@ -285,10 +281,16 @@
 #define   RING_INVALID		0x00000000
 #define   RING_WAIT_I8XX	(1<<0) /* gen2, PRBx_HEAD */
 #define   RING_WAIT		(1<<11) /* gen3+, PRBx_CTL */
+#if 0
+#define PRB0_TAIL	0x02030
+#define PRB0_HEAD	0x02034
+#define PRB0_START	0x02038
+#define PRB0_CTL	0x0203c
 #define PRB1_TAIL	0x02040 /* 915+ only */
 #define PRB1_HEAD	0x02044 /* 915+ only */
 #define PRB1_START	0x02048 /* 915+ only */
 #define PRB1_CTL	0x0204c /* 915+ only */
+#endif
 #define IPEIR_I965	0x02064
 #define IPEHR_I965	0x02068
 #define INSTDONE_I965	0x0206c

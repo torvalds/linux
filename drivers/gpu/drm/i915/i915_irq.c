@@ -520,30 +520,30 @@ i915_get_bbaddr(struct drm_device *dev, u32 *ring)
 }
 
 static u32
-i915_ringbuffer_last_batch(struct drm_device *dev)
+i915_ringbuffer_last_batch(struct drm_device *dev,
+			   struct intel_ring_buffer *ring)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 head, bbaddr;
-	u32 *ring;
+	u32 *val;
 
 	/* Locate the current position in the ringbuffer and walk back
 	 * to find the most recently dispatched batch buffer.
 	 */
 	bbaddr = 0;
-	head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
-	ring = (u32 *)(dev_priv->render_ring.virtual_start + head);
+	head = I915_READ_HEAD(ring) & HEAD_ADDR;
+	val = (u32 *)(ring->virtual_start + head);
 
-	while (--ring >= (u32 *)dev_priv->render_ring.virtual_start) {
-		bbaddr = i915_get_bbaddr(dev, ring);
+	while (--val >= (u32 *)ring->virtual_start) {
+		bbaddr = i915_get_bbaddr(dev, val);
 		if (bbaddr)
 			break;
 	}
 
 	if (bbaddr == 0) {
-		ring = (u32 *)(dev_priv->render_ring.virtual_start
-				+ dev_priv->render_ring.size);
-		while (--ring >= (u32 *)dev_priv->render_ring.virtual_start) {
-			bbaddr = i915_get_bbaddr(dev, ring);
+		val = (u32 *)(ring->virtual_start + ring->size);
+		while (--val >= (u32 *)ring->virtual_start) {
+			bbaddr = i915_get_bbaddr(dev, val);
 			if (bbaddr)
 				break;
 		}
@@ -628,7 +628,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->bbaddr = 0;
 	}
 
-	bbaddr = i915_ringbuffer_last_batch(dev);
+	bbaddr = i915_ringbuffer_last_batch(dev, &dev_priv->render_ring);
 
 	/* Grab the current batchbuffer, most likely to have crashed. */
 	batchbuffer[0] = NULL;
@@ -1398,10 +1398,10 @@ void i915_hangcheck_elapsed(unsigned long data)
 				 * and break the hang. This should work on
 				 * all but the second generation chipsets.
 				 */
-				u32 tmp = I915_READ(PRB0_CTL);
+				struct intel_ring_buffer *ring = &dev_priv->render_ring;
+				u32 tmp = I915_READ_CTL(ring);
 				if (tmp & RING_WAIT) {
-					I915_WRITE(PRB0_CTL, tmp);
-					POSTING_READ(PRB0_CTL);
+					I915_WRITE_CTL(ring, tmp);
 					goto repeat;
 				}
 			}

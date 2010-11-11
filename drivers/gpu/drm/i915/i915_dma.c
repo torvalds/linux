@@ -106,8 +106,8 @@ void i915_kernel_lost_context(struct drm_device * dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	ring->head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
-	ring->tail = I915_READ(PRB0_TAIL) & TAIL_ADDR;
+	ring->head = I915_READ_HEAD(ring) & HEAD_ADDR;
+	ring->tail = I915_READ_TAIL(ring) & TAIL_ADDR;
 	ring->space = ring->head - (ring->tail + 8);
 	if (ring->space < 0)
 		ring->space += ring->size;

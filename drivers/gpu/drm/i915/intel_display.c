@@ -1983,17 +1983,17 @@ static void intel_flush_display_plane(struct drm_device *dev,
 static void intel_clear_scanline_wait(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
 	u32 tmp;
 
 	if (IS_GEN2(dev))
 		/* Can't break the hang on i8xx */
 		return;
 
-	tmp = I915_READ(PRB0_CTL);
-	if (tmp & RING_WAIT) {
-		I915_WRITE(PRB0_CTL, tmp);
-		POSTING_READ(PRB0_CTL);
-	}
+	ring = &dev_priv->render_ring;
+	tmp = I915_READ_CTL(ring);
+	if (tmp & RING_WAIT)
+		I915_WRITE_CTL(ring, tmp);
 }
 
 static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
