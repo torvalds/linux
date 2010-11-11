@@ -3279,28 +3279,20 @@ int snd_soc_register_codec(struct device *dev,
 	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 	codec->dapm.dev = dev;
 	codec->dapm.codec = codec;
-
-	/* allocate CODEC register cache */
-	if (codec_drv->reg_cache_size && codec_drv->reg_word_size) {
-
-		if (codec_drv->reg_cache_default)
-			codec->reg_cache = kmemdup(codec_drv->reg_cache_default,
-				codec_drv->reg_cache_size * codec_drv->reg_word_size, GFP_KERNEL);
-		else
-			codec->reg_cache = kzalloc(codec_drv->reg_cache_size *
-				codec_drv->reg_word_size, GFP_KERNEL);
-
-		if (codec->reg_cache == NULL) {
-			kfree(codec->name);
-			kfree(codec);
-			return -ENOMEM;
-		}
-	}
-
 	codec->dev = dev;
 	codec->driver = codec_drv;
 	codec->num_dai = num_dai;
 	mutex_init(&codec->mutex);
+
+	/* allocate CODEC register cache */
+	if (codec_drv->reg_cache_size && codec_drv->reg_word_size) {
+		ret = snd_soc_cache_init(codec);
+		if (ret < 0) {
+			dev_err(codec->dev, "Failed to set cache compression type: %d\n",
+				ret);
+			goto error_cache;
+		}
+	}
 
 	for (i = 0; i < num_dai; i++) {
 		fixup_codec_formats(&dai_drv[i].playback);
@@ -3311,7 +3303,7 @@ int snd_soc_register_codec(struct device *dev,
 	if (num_dai) {
 		ret = snd_soc_register_dais(dev, dai_drv, num_dai);
 		if (ret < 0)
-			goto error;
+			goto error_dais;
 	}
 
 	mutex_lock(&client_mutex);
@@ -3322,9 +3314,9 @@ int snd_soc_register_codec(struct device *dev,
 	pr_debug("Registered codec '%s'\n", codec->name);
 	return 0;
 
-error:
-	if (codec->reg_cache)
-		kfree(codec->reg_cache);
+error_dais:
+	snd_soc_cache_exit(codec);
+error_cache:
 	kfree(codec->name);
 	kfree(codec);
 	return ret;
@@ -3358,8 +3350,7 @@ found:
 
 	pr_debug("Unregistered codec '%s'\n", codec->name);
 
-	if (codec->reg_cache)
-		kfree(codec->reg_cache);
+	snd_soc_cache_exit(codec);
 	kfree(codec->name);
 	kfree(codec);
 }

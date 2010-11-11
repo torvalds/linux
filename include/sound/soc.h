@@ -238,6 +238,7 @@ struct soc_enum;
 struct snd_soc_ac97_ops;
 struct snd_soc_jack;
 struct snd_soc_jack_pin;
+struct snd_soc_cache_ops;
 #include <sound/soc-dapm.h>
 
 #ifdef CONFIG_GPIOLIB
@@ -254,6 +255,10 @@ enum snd_soc_control_type {
 	SND_SOC_SPI,
 };
 
+enum snd_soc_compress_type {
+	SND_SOC_NO_COMPRESSION
+};
+
 int snd_soc_register_platform(struct device *dev,
 		struct snd_soc_platform_driver *platform_drv);
 void snd_soc_unregister_platform(struct device *dev);
@@ -265,6 +270,13 @@ int snd_soc_codec_volatile_register(struct snd_soc_codec *codec, int reg);
 int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 			       int addr_bits, int data_bits,
 			       enum snd_soc_control_type control);
+int snd_soc_cache_sync(struct snd_soc_codec *codec);
+int snd_soc_cache_init(struct snd_soc_codec *codec);
+int snd_soc_cache_exit(struct snd_soc_codec *codec);
+int snd_soc_cache_write(struct snd_soc_codec *codec,
+			unsigned int reg, unsigned int value);
+int snd_soc_cache_read(struct snd_soc_codec *codec,
+		       unsigned int reg, unsigned int *value);
 
 /* Utility functions to get clock rates from various things */
 int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots);
@@ -421,6 +433,18 @@ struct snd_soc_ops {
 	int (*trigger)(struct snd_pcm_substream *, int);
 };
 
+/* SoC cache ops */
+struct snd_soc_cache_ops {
+	enum snd_soc_compress_type id;
+	int (*init)(struct snd_soc_codec *codec);
+	int (*exit)(struct snd_soc_codec *codec);
+	int (*read)(struct snd_soc_codec *codec, unsigned int reg,
+		unsigned int *value);
+	int (*write)(struct snd_soc_codec *codec, unsigned int reg,
+		unsigned int value);
+	int (*sync)(struct snd_soc_codec *codec);
+};
+
 /* SoC Audio Codec device */
 struct snd_soc_codec {
 	const char *name;
@@ -450,6 +474,8 @@ struct snd_soc_codec {
 	hw_write_t hw_write;
 	unsigned int (*hw_read)(struct snd_soc_codec *, unsigned int);
 	void *reg_cache;
+	const struct snd_soc_cache_ops *cache_ops;
+	struct mutex cache_rw_mutex;
 
 	/* dapm */
 	struct snd_soc_dapm_context dapm;
@@ -482,6 +508,7 @@ struct snd_soc_codec_driver {
 	short reg_cache_step;
 	short reg_word_size;
 	const void *reg_cache_default;
+	enum snd_soc_compress_type compress_type;
 
 	/* codec bias level */
 	int (*set_bias_level)(struct snd_soc_codec *,
