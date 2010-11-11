@@ -3357,7 +3357,7 @@ int ext4_alloc_da_blocks(struct inode *inode)
 	 * doing I/O at all.
 	 *
 	 * We could call write_cache_pages(), and then redirty all of
-	 * the pages by calling redirty_page_for_writeback() but that
+	 * the pages by calling redirty_page_for_writepage() but that
 	 * would be ugly in the extreme.  So instead we would need to
 	 * replicate parts of the code in the above functions,
 	 * simplifying them becuase we wouldn't actually intend to
