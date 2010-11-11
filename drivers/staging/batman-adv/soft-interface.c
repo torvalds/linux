@@ -140,7 +140,7 @@ int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 	hna_local_add(soft_iface, ethhdr->h_source);
 
 	/* ethernet packet should be broadcasted */
-	if (is_multicast_ether_addr(ethhdr->h_dest)) {
+	if (is_bcast(ethhdr->h_dest) || is_mcast(ethhdr->h_dest)) {
 		if (!bat_priv->primary_if)
 			goto dropped;
 
