@@ -41,35 +41,6 @@ struct platform_device mxc_keypad_device = {
 	.resource = mxc_keypad_resources,
 };
 
-static struct mxc_gpio_port imx_gpio_ports[] = {
-	{
-		.chip.label = "gpio-0",
-		.base = MX25_IO_ADDRESS(MX25_GPIO1_BASE_ADDR),
-		.irq = 52,
-		.virtual_irq_start = MXC_GPIO_IRQ_START,
-	}, {
-		.chip.label = "gpio-1",
-		.base = MX25_IO_ADDRESS(MX25_GPIO2_BASE_ADDR),
-		.irq = 51,
-		.virtual_irq_start = MXC_GPIO_IRQ_START + 32,
-	}, {
-		.chip.label = "gpio-2",
-		.base = MX25_IO_ADDRESS(MX25_GPIO3_BASE_ADDR),
-		.irq = 16,
-		.virtual_irq_start = MXC_GPIO_IRQ_START + 64,
-	}, {
-		.chip.label = "gpio-3",
-		.base = MX25_IO_ADDRESS(MX25_GPIO4_BASE_ADDR),
-		.irq = 23,
-		.virtual_irq_start = MXC_GPIO_IRQ_START + 96,
-	}
-};
-
-int __init imx25_register_gpios(void)
-{
-	return mxc_gpio_init(imx_gpio_ports, ARRAY_SIZE(imx_gpio_ports));
-}
-
 static struct resource mx25_rtc_resources[] = {
 	{
 		.start	= MX25_DRYICE_BASE_ADDR,

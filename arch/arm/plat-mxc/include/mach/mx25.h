@@ -66,8 +66,10 @@
 #define MX25_INT_SSI1		12
 #define MX25_INT_CSPI2		13
 #define MX25_INT_CSPI1		14
+#define MX25_INT_GPIO3		16
 #define MX25_INT_CSI		17
 #define MX25_INT_UART3		18
+#define MX25_INT_GPIO4		23
 #define MX25_INT_KPP		24
 #define MX25_INT_DRYICE		25
 #define MX25_INT_PWM1		26
@@ -84,6 +86,8 @@
 #define MX25_INT_CAN1		43
 #define MX25_INT_CAN2		44
 #define MX25_INT_UART1		45
+#define MX25_INT_GPIO2		51
+#define MX25_INT_GPIO1		52
 #define MX25_INT_FEC		57
 
 #define MX25_DMA_REQ_SSI2_RX1	22
