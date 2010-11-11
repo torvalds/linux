@@ -27,6 +27,10 @@ extern struct imx_imxdi_rtc_data imx25_imxdi_rtc_data __initconst;
 #define imx25_add_imxdi_rtc(pdata)	\
 	imx_add_imxdi_rtc(&imx25_imxdi_rtc_data)
 
+extern const struct imx_imx2_wdt_data imx25_imx2_wdt_data __initconst;
+#define imx25_add_imx2_wdt(pdata)	\
+	imx_add_imx2_wdt(&imx25_imx2_wdt_data)
+
 extern const struct imx_imx_fb_data imx25_imx_fb_data __initconst;
 #define imx25_add_imx_fb(pdata)	\
 	imx_add_imx_fb(&imx25_imx_fb_data, pdata)

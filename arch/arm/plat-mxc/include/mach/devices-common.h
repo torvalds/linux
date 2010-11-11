@@ -68,6 +68,7 @@ struct platform_device *__init imx_add_imx21_hcd(
 
 struct imx_imx2_wdt_data {
 	resource_size_t iobase;
+	resource_size_t iosize;
 };
 struct platform_device *__init imx_add_imx2_wdt(
 		const struct imx_imx2_wdt_data *data);
