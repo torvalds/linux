@@ -829,6 +829,9 @@ static int __devexit s6e63m0_remove(struct spi_device *spi)
 	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
 
 	s6e63m0_power(lcd, FB_BLANK_POWERDOWN);
+	device_remove_file(&spi->dev, &dev_attr_gamma_table);
+	device_remove_file(&spi->dev, &dev_attr_gamma_mode);
+	backlight_device_unregister(lcd->bd);
 	lcd_device_unregister(lcd->ld);
 	kfree(lcd);
 
