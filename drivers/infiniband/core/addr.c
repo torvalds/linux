@@ -200,7 +200,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	src_in->sin_family = AF_INET;
 	src_in->sin_addr.s_addr = rt->rt_src;
 
-	if (rt->idev->dev->flags & IFF_LOOPBACK) {
+	if (rt->dst.dev->flags & IFF_LOOPBACK) {
 		ret = rdma_translate_ip((struct sockaddr *) dst_in, addr);
 		if (!ret)
 			memcpy(addr->dst_dev_addr, addr->src_dev_addr, MAX_ADDR_LEN);
@@ -208,12 +208,12 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	}
 
 	/* If the device does ARP internally, return 'done' */
-	if (rt->idev->dev->flags & IFF_NOARP) {
-		rdma_copy_addr(addr, rt->idev->dev, NULL);
+	if (rt->dst.dev->flags & IFF_NOARP) {
+		rdma_copy_addr(addr, rt->dst.dev, NULL);
 		goto put;
 	}
 
-	neigh = neigh_lookup(&arp_tbl, &rt->rt_gateway, rt->idev->dev);
+	neigh = neigh_lookup(&arp_tbl, &rt->rt_gateway, rt->dst.dev);
 	if (!neigh || !(neigh->nud_state & NUD_VALID)) {
 		neigh_event_send(rt->dst.neighbour, NULL);
 		ret = -ENODATA;

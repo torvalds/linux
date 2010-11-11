@@ -140,13 +140,15 @@ static unsigned long expires_ljiffies;
 
 static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie);
 static void		 ipv4_dst_destroy(struct dst_entry *dst);
-static void		 ipv4_dst_ifdown(struct dst_entry *dst,
-					 struct net_device *dev, int how);
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst);
 static void		 ipv4_link_failure(struct sk_buff *skb);
 static void		 ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu);
 static int rt_garbage_collect(struct dst_ops *ops);
 
+static void ipv4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
+			    int how)
+{
+}
 
 static struct dst_ops ipv4_dst_ops = {
 	.family =		AF_INET,
@@ -1433,8 +1435,6 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 				rt->dst.child		= NULL;
 				if (rt->dst.dev)
 					dev_hold(rt->dst.dev);
-				if (rt->idev)
-					in_dev_hold(rt->idev);
 				rt->dst.obsolete	= -1;
 				rt->dst.lastuse	= jiffies;
 				rt->dst.path		= &rt->dst;
@@ -1728,33 +1728,13 @@ static void ipv4_dst_destroy(struct dst_entry *dst)
 {
 	struct rtable *rt = (struct rtable *) dst;
 	struct inet_peer *peer = rt->peer;
-	struct in_device *idev = rt->idev;
 
 	if (peer) {
 		rt->peer = NULL;
 		inet_putpeer(peer);
 	}
-
-	if (idev) {
-		rt->idev = NULL;
-		in_dev_put(idev);
-	}
 }
 
-static void ipv4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
-			    int how)
-{
-	struct rtable *rt = (struct rtable *) dst;
-	struct in_device *idev = rt->idev;
-	if (dev != dev_net(dev)->loopback_dev && idev && idev->dev == dev) {
-		struct in_device *loopback_idev =
-			in_dev_get(dev_net(dev)->loopback_dev);
-		if (loopback_idev) {
-			rt->idev = loopback_idev;
-			in_dev_put(idev);
-		}
-	}
-}
 
 static void ipv4_link_failure(struct sk_buff *skb)
 {
@@ -1910,7 +1890,6 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	rth->fl.iif	= dev->ifindex;
 	rth->dst.dev	= init_net.loopback_dev;
 	dev_hold(rth->dst.dev);
-	rth->idev	= in_dev_get(rth->dst.dev);
 	rth->fl.oif	= 0;
 	rth->rt_gateway	= daddr;
 	rth->rt_spec_dst= spec_dst;
@@ -2050,7 +2029,6 @@ static int __mkroute_input(struct sk_buff *skb,
 		rth->fl.iif	= in_dev->dev->ifindex;
 	rth->dst.dev	= (out_dev)->dev;
 	dev_hold(rth->dst.dev);
-	rth->idev	= in_dev_get(rth->dst.dev);
 	rth->fl.oif 	= 0;
 	rth->rt_spec_dst= spec_dst;
 
@@ -2231,7 +2209,6 @@ local_input:
 	rth->fl.iif	= dev->ifindex;
 	rth->dst.dev	= net->loopback_dev;
 	dev_hold(rth->dst.dev);
-	rth->idev	= in_dev_get(rth->dst.dev);
 	rth->rt_gateway	= daddr;
 	rth->rt_spec_dst= spec_dst;
 	rth->dst.input= ip_local_deliver;
@@ -2416,9 +2393,6 @@ static int __mkroute_output(struct rtable **result,
 	rth = dst_alloc(&ipv4_dst_ops);
 	if (!rth)
 		return -ENOBUFS;
-
-	in_dev_hold(in_dev);
-	rth->idev = in_dev;
 
 	atomic_set(&rth->dst.__refcnt, 1);
 	rth->dst.flags= DST_HOST;
@@ -2759,9 +2733,6 @@ static int ipv4_dst_blackhole(struct net *net, struct rtable **rp, struct flowi 
 
 		rt->fl = ort->fl;
 
-		rt->idev = ort->idev;
-		if (rt->idev)
-			in_dev_hold(rt->idev);
 		rt->rt_genid = rt_genid(net);
 		rt->rt_flags = ort->rt_flags;
 		rt->rt_type = ort->rt_type;

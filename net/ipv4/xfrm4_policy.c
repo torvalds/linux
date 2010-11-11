@@ -80,10 +80,6 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.dst.dev = dev;
 	dev_hold(dev);
 
-	xdst->u.rt.idev = in_dev_get(dev);
-	if (!xdst->u.rt.idev)
-		return -ENODEV;
-
 	xdst->u.rt.peer = rt->peer;
 	if (rt->peer)
 		atomic_inc(&rt->peer->refcnt);
@@ -189,8 +185,6 @@ static void xfrm4_dst_destroy(struct dst_entry *dst)
 {
 	struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
 
-	if (likely(xdst->u.rt.idev))
-		in_dev_put(xdst->u.rt.idev);
 	if (likely(xdst->u.rt.peer))
 		inet_putpeer(xdst->u.rt.peer);
 	xfrm_dst_destroy(xdst);
@@ -199,26 +193,8 @@ static void xfrm4_dst_destroy(struct dst_entry *dst)
 static void xfrm4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 			     int unregister)
 {
-	struct xfrm_dst *xdst;
-
 	if (!unregister)
 		return;
-
-	xdst = (struct xfrm_dst *)dst;
-	if (xdst->u.rt.idev->dev == dev) {
-		struct in_device *loopback_idev =
-			in_dev_get(dev_net(dev)->loopback_dev);
-		BUG_ON(!loopback_idev);
-
-		do {
-			in_dev_put(xdst->u.rt.idev);
-			xdst->u.rt.idev = loopback_idev;
-			in_dev_hold(loopback_idev);
-			xdst = (struct xfrm_dst *)xdst->u.dst.child;
-		} while (xdst->u.dst.xfrm);
-
-		__in_dev_put(loopback_idev);
-	}
 
 	xfrm_dst_ifdown(dst, dev);
 }
