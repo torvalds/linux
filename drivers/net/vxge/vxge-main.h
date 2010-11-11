@@ -248,8 +248,9 @@ struct vxge_ring {
 	 */
 	int driver_id;
 
-	 /* copy of the flag indicating whether rx_csum is to be used */
-	u32 rx_csum;
+	/* copy of the flag indicating whether rx_csum is to be used */
+	u32 rx_csum:1,
+	    rx_hwts:1;
 
 	int pkts_processed;
 	int budget;
@@ -327,7 +328,8 @@ struct vxgedev {
 	u16		all_multi_flg;
 
 	 /* A flag indicating whether rx_csum is to be used or not. */
-	u32	rx_csum;
+	u32	rx_csum:1,
+		rx_hwts:1;
 
 	struct vxge_msix_entry *vxge_entries;
 	struct msix_entry *entries;
