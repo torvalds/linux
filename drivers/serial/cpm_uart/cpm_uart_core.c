@@ -72,6 +72,8 @@ static void cpm_uart_initbd(struct uart_cpm_port *pinfo);
 
 /**************************************************************/
 
+#define HW_BUF_SPD_THRESHOLD    9600
+
 /*
  * Check, if transmit buffers are processed
 */
@@ -503,6 +505,11 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	pr_debug("CPM uart[%d]:set_termios\n", port->line);
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
+	if (baud <= HW_BUF_SPD_THRESHOLD ||
+	    (pinfo->port.state && pinfo->port.state->port.tty->low_latency))
+		pinfo->rx_fifosize = 1;
+	else
+		pinfo->rx_fifosize = RX_BUF_SIZE;
 
 	/* Character length programmed into the mode register is the
 	 * sum of: 1 start bit, number of data bits, 0 or 1 parity bit,
@@ -594,6 +601,17 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	 */
 	bits++;
 	if (IS_SMC(pinfo)) {
+		/*
+		 * MRBLR can be changed while an SMC/SCC is operating only
+		 * if it is done in a single bus cycle with one 16-bit move
+		 * (not two 8-bit bus cycles back-to-back). This occurs when
+		 * the cp shifts control to the next RxBD, so the change does
+		 * not take effect immediately. To guarantee the exact RxBD
+		 * on which the change occurs, change MRBLR only while the
+		 * SMC/SCC receiver is disabled.
+		 */
+		out_be16(&pinfo->smcup->smc_mrblr, pinfo->rx_fifosize);
+
 		/* Set the mode register.  We want to keep a copy of the
 		 * enables, because we want to put them back if they were
 		 * present.
@@ -604,6 +622,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		out_be16(&smcp->smc_smcmr, smcr_mk_clen(bits) | cval |
 		    SMCMR_SM_UART | prev_mode);
 	} else {
+		out_be16(&pinfo->sccup->scc_genscc.scc_mrblr, pinfo->rx_fifosize);
 		out_be16(&sccp->scc_psmr, (sbits << 12) | scval);
 	}
 
