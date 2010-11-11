@@ -51,7 +51,7 @@ struct nvram_partition {
 	unsigned int index;
 };
 
-static struct nvram_partition * nvram_part;
+static LIST_HEAD(nvram_partitions);
 
 static loff_t dev_nvram_llseek(struct file *file, loff_t offset, int origin)
 {
@@ -196,13 +196,11 @@ static struct miscdevice nvram_dev = {
 #ifdef DEBUG_NVRAM
 static void __init nvram_print_partitions(char * label)
 {
-	struct list_head * p;
 	struct nvram_partition * tmp_part;
 	
 	printk(KERN_WARNING "--------%s---------\n", label);
 	printk(KERN_WARNING "indx\t\tsig\tchks\tlen\tname\n");
-	list_for_each(p, &nvram_part->partition) {
-		tmp_part = list_entry(p, struct nvram_partition, partition);
+	list_for_each_entry(tmp_part, &nvram_partitions, partition) {
 		printk(KERN_WARNING "%4d    \t%02x\t%02x\t%d\t%s\n",
 		       tmp_part->index, tmp_part->header.signature,
 		       tmp_part->header.checksum, tmp_part->header.length,
@@ -250,7 +248,7 @@ int __init nvram_remove_partition(const char *name, int sig)
 	struct nvram_partition *part, *prev, *tmp;
 	int rc;
 
-	list_for_each_entry(part, &nvram_part->partition, partition) {
+	list_for_each_entry(part, &nvram_partitions, partition) {
 		if (part->header.signature != sig)
 			continue;
 		if (name && strncmp(name, part->header.name, 12))
@@ -269,7 +267,7 @@ int __init nvram_remove_partition(const char *name, int sig)
 
 	/* Merge contiguous ones */
 	prev = NULL;
-	list_for_each_entry_safe(part, tmp, &nvram_part->partition, partition) {
+	list_for_each_entry_safe(part, tmp, &nvram_partitions, partition) {
 		if (part->header.signature != NVRAM_SIG_FREE) {
 			prev = NULL;
 			continue;
@@ -333,7 +331,7 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 
 	/* Find a free partition that will give us the maximum needed size 
 	   If can't find one that will give us the minimum size needed */
-	list_for_each_entry(part, &nvram_part->partition, partition) {
+	list_for_each_entry(part, &nvram_partitions, partition) {
 		if (part->header.signature != NVRAM_SIG_FREE)
 			continue;
 
@@ -412,7 +410,7 @@ int nvram_get_partition_size(loff_t data_index)
 {
 	struct nvram_partition *part;
 	
-	list_for_each_entry(part, &nvram_part->partition, partition) {
+	list_for_each_entry(part, &nvram_partitions, partition) {
 		if (part->index + NVRAM_HEADER_LEN == data_index)
 			return (part->header.length - 1) * NVRAM_BLOCK_LEN;
 	}
@@ -430,7 +428,7 @@ loff_t nvram_find_partition(const char *name, int sig, int *out_size)
 {
 	struct nvram_partition *p;
 
-	list_for_each_entry(p, &nvram_part->partition, partition) {
+	list_for_each_entry(p, &nvram_partitions, partition) {
 		if (p->header.signature == sig &&
 		    (!name || !strncmp(p->header.name, name, 12))) {
 			if (out_size)
@@ -452,14 +450,6 @@ int __init nvram_scan_partitions(void)
 	int total_size;
 	int err;
 
-  	/* Initialize our anchor for the nvram partition list */
-  	nvram_part = kmalloc(sizeof(struct nvram_partition), GFP_KERNEL);
-  	if (!nvram_part) {
-  		printk(KERN_ERR "nvram_init: Failed kmalloc\n");
-  		return -ENOMEM;
-  	}
-  	INIT_LIST_HEAD(&nvram_part->partition);
-  
 	if (ppc_md.nvram_size == NULL || ppc_md.nvram_size() <= 0)
 		return -ENODEV;
 	total_size = ppc_md.nvram_size();
@@ -507,7 +497,7 @@ int __init nvram_scan_partitions(void)
 		
 		memcpy(&tmp_part->header, &phead, NVRAM_HEADER_LEN);
 		tmp_part->index = cur_index;
-		list_add_tail(&tmp_part->partition, &nvram_part->partition);
+		list_add_tail(&tmp_part->partition, &nvram_partitions);
 		
 		cur_index += phead.length * NVRAM_BLOCK_LEN;
 	}
