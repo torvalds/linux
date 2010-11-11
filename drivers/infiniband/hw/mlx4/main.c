@@ -242,7 +242,7 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	tmp = iboe_get_mtu(ndev->mtu);
 	props->active_mtu = tmp ? min(props->max_mtu, tmp) : IB_MTU_256;
 
-	props->state		= netif_running(ndev) &&  netif_oper_up(ndev) ?
+	props->state		= (netif_running(ndev) && netif_carrier_ok(ndev)) ?
 					IB_PORT_ACTIVE : IB_PORT_DOWN;
 	props->phys_state	= state_to_phys_state(props->state);
 
