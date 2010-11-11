@@ -3998,6 +3998,7 @@ struct vxge_hw_vpath_reg {
 #define	VXGE_HW_PRC_CFG6_L4_CPC_TRSFR_CODE_EN	vxge_mBIT(9)
 #define VXGE_HW_PRC_CFG6_RXD_CRXDT(val) vxge_vBIT(val, 23, 9)
 #define VXGE_HW_PRC_CFG6_RXD_SPAT(val) vxge_vBIT(val, 36, 9)
+#define VXGE_HW_PRC_CFG6_GET_RXD_SPAT(val)	vxge_bVALn(val, 36, 9)
 /*0x00a78*/	u64	prc_cfg7;
 #define VXGE_HW_PRC_CFG7_SCATTER_MODE(val) vxge_vBIT(val, 6, 2)
 #define	VXGE_HW_PRC_CFG7_SMART_SCAT_EN	vxge_mBIT(11)

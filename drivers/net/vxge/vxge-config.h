@@ -2051,4 +2051,11 @@ enum vxge_hw_status vxge_hw_vpath_rts_rth_set(
 
 enum vxge_hw_status
 __vxge_hw_device_is_privilaged(u32 host_type, u32 func_id);
+
+#define VXGE_HW_MIN_SUCCESSIVE_IDLE_COUNT 5
+#define VXGE_HW_MAX_POLLING_COUNT 100
+
+int vxge_hw_vpath_wait_receive_idle(struct __vxge_hw_device *hldev, u32 vp_id);
+
+void  vxge_hw_device_wait_receive_idle(struct __vxge_hw_device *hldev);
 #endif

@@ -397,6 +397,8 @@ struct vxge_tx_priv {
 	} while (0);
 
 extern void vxge_initialize_ethtool_ops(struct net_device *ndev);
+enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
+
 /**
  * #define VXGE_DEBUG_INIT: debug for initialization functions
  * #define VXGE_DEBUG_TX	 : debug transmit related functions

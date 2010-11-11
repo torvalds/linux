@@ -90,7 +90,6 @@ static int vxge_mac_list_add(struct vxge_vpath *vpath, struct macInfo *mac);
 static int vxge_mac_list_del(struct vxge_vpath *vpath, struct macInfo *mac);
 static enum vxge_hw_status vxge_restore_vpath_vid_table(struct vxge_vpath *vpath);
 static enum vxge_hw_status vxge_restore_vpath_mac_addr(struct vxge_vpath *vpath);
-static enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
 
 static inline int is_vxge_card_up(struct vxgedev *vdev)
 {
@@ -1299,7 +1298,12 @@ static void vxge_vpath_intr_enable(struct vxgedev *vdev, int vp_id)
 static void vxge_vpath_intr_disable(struct vxgedev *vdev, int vp_id)
 {
 	struct vxge_vpath *vpath = &vdev->vpaths[vp_id];
+	struct __vxge_hw_device *hldev;
 	int msix_id;
+
+	hldev = (struct __vxge_hw_device *)pci_get_drvdata(vdev->pdev);
+
+	vxge_hw_vpath_wait_receive_idle(hldev, vpath->device_id);
 
 	vxge_hw_vpath_intr_disable(vpath->handle);
 
@@ -1430,6 +1434,7 @@ static int do_vxge_reset(struct vxgedev *vdev, int event)
 	}
 
 	if (event == VXGE_LL_FULL_RESET) {
+		vxge_hw_device_wait_receive_idle(vdev->devh);
 		vxge_hw_device_intr_disable(vdev->devh);
 
 		switch (vdev->cric_err_event) {
@@ -1935,7 +1940,7 @@ static enum vxge_hw_status vxge_restore_vpath_mac_addr(struct vxge_vpath *vpath)
 }
 
 /* reset vpaths */
-static enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev)
+enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
 	struct vxge_vpath *vpath;
@@ -2080,7 +2085,7 @@ static irqreturn_t vxge_isr_napi(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	if (unlikely(!is_vxge_card_up(vdev)))
-		return IRQ_NONE;
+		return IRQ_HANDLED;
 
 	status = vxge_hw_device_begin_irq(hldev, vdev->exec_mode,
 			&reason);
@@ -2787,7 +2792,6 @@ static int do_vxge_close(struct net_device *dev, int do_io)
 	while (test_and_set_bit(__VXGE_STATE_RESET_CARD, &vdev->state))
 		msleep(50);
 
-	clear_bit(__VXGE_STATE_CARD_UP, &vdev->state);
 	if (do_io) {
 		/* Put the vpath back in normal mode */
 		vpath_vector = vxge_mBIT(vdev->vpaths[0].device_id);
@@ -2831,6 +2835,11 @@ static int do_vxge_close(struct net_device *dev, int do_io)
 
 	del_timer_sync(&vdev->vp_reset_timer);
 
+	if (do_io)
+		vxge_hw_device_wait_receive_idle(hldev);
+
+	clear_bit(__VXGE_STATE_CARD_UP, &vdev->state);
+
 	/* Disable napi */
 	if (vdev->config.intr_type != MSI_X)
 		napi_disable(&vdev->napi);
@@ -2846,8 +2855,6 @@ static int do_vxge_close(struct net_device *dev, int do_io)
 	/* Note that at this point xmit() is stopped by upper layer */
 	if (do_io)
 		vxge_hw_device_intr_disable(vdev->devh);
-
-	mdelay(1000);
 
 	vxge_rem_isr(vdev);
 

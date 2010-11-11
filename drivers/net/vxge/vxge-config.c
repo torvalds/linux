@@ -193,6 +193,88 @@ static enum vxge_hw_status
 __vxge_hw_vpath_xmac_rx_stats_get(struct __vxge_hw_virtualpath	*vpath,
 				  struct vxge_hw_xmac_vpath_rx_stats *vpath_rx_stats);
 
+static void
+vxge_hw_vpath_set_zero_rx_frm_len(struct vxge_hw_vpath_reg __iomem *vp_reg)
+{
+	u64 val64;
+
+	val64 = readq(&vp_reg->rxmac_vcfg0);
+	val64 &= ~VXGE_HW_RXMAC_VCFG0_RTS_MAX_FRM_LEN(0x3fff);
+	writeq(val64, &vp_reg->rxmac_vcfg0);
+	val64 = readq(&vp_reg->rxmac_vcfg0);
+
+	return;
+}
+
+/*
+ * vxge_hw_vpath_wait_receive_idle - Wait for Rx to become idle
+ */
+int vxge_hw_vpath_wait_receive_idle(struct __vxge_hw_device *hldev, u32 vp_id)
+{
+	struct vxge_hw_vpath_reg __iomem *vp_reg;
+	struct __vxge_hw_virtualpath *vpath;
+	u64 val64, rxd_count, rxd_spat;
+	int count = 0, total_count = 0;
+
+	vpath = &hldev->virtual_paths[vp_id];
+	vp_reg = vpath->vp_reg;
+
+	vxge_hw_vpath_set_zero_rx_frm_len(vp_reg);
+
+	/* Check that the ring controller for this vpath has enough free RxDs
+	 * to send frames to the host.  This is done by reading the
+	 * PRC_RXD_DOORBELL_VPn register and comparing the read value to the
+	 * RXD_SPAT value for the vpath.
+	 */
+	val64 = readq(&vp_reg->prc_cfg6);
+	rxd_spat = VXGE_HW_PRC_CFG6_GET_RXD_SPAT(val64) + 1;
+	/* Use a factor of 2 when comparing rxd_count against rxd_spat for some
+	 * leg room.
+	 */
+	rxd_spat *= 2;
+
+	do {
+		mdelay(1);
+
+		rxd_count = readq(&vp_reg->prc_rxd_doorbell);
+
+		/* Check that the ring controller for this vpath does
+		 * not have any frame in its pipeline.
+		 */
+		val64 = readq(&vp_reg->frm_in_progress_cnt);
+		if ((rxd_count <= rxd_spat) || (val64 > 0))
+			count = 0;
+		else
+			count++;
+		total_count++;
+	} while ((count < VXGE_HW_MIN_SUCCESSIVE_IDLE_COUNT) &&
+			(total_count < VXGE_HW_MAX_POLLING_COUNT));
+
+	if (total_count >= VXGE_HW_MAX_POLLING_COUNT)
+		printk(KERN_ALERT "%s: Still Receiving traffic. Abort wait\n",
+			__func__);
+
+	return total_count;
+}
+
+/* vxge_hw_device_wait_receive_idle - This function waits until all frames
+ * stored in the frame buffer for each vpath assigned to the given
+ * function (hldev) have been sent to the host.
+ */
+void vxge_hw_device_wait_receive_idle(struct __vxge_hw_device *hldev)
+{
+	int i, total_count = 0;
+
+	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
+		if (!(hldev->vpaths_deployed & vxge_mBIT(i)))
+			continue;
+
+		total_count += vxge_hw_vpath_wait_receive_idle(hldev, i);
+		if (total_count >= VXGE_HW_MAX_POLLING_COUNT)
+			break;
+	}
+}
+
 /*
  * __vxge_hw_channel_allocate - Allocate memory for channel
  * This function allocates required memory for the channel and various arrays
@@ -390,7 +472,7 @@ __vxge_hw_device_register_poll(void __iomem *reg, u64 mask, u32 max_millis)
 	return ret;
 }
 
- /* __vxge_hw_device_vpath_reset_in_prog_check - Check if vpath reset
+/* __vxge_hw_device_vpath_reset_in_prog_check - Check if vpath reset
  * in progress
  * This routine checks the vpath reset in progress register is turned zero
  */
@@ -1165,7 +1247,6 @@ exit:
  * It can be used to set or reset Pause frame generation or reception
  * support of the NIC.
  */
-
 enum vxge_hw_status vxge_hw_device_setpause_data(struct __vxge_hw_device *hldev,
 						 u32 port, u32 tx, u32 rx)
 {
@@ -1409,7 +1490,6 @@ exit:
 /*
  * __vxge_hw_ring_create - Create a Ring
  * This function creates Ring and initializes it.
- *
  */
 static enum vxge_hw_status
 __vxge_hw_ring_create(struct __vxge_hw_vpath_handle *vp,
