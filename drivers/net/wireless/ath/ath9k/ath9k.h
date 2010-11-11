@@ -229,6 +229,7 @@ struct ath_buf_state {
 	unsigned long bfs_paprd_timestamp;
 	u32 bfs_keyix;
 	enum ath9k_key_type bfs_keytype;
+	enum ath9k_internal_frame_type bfs_ftype;
 };
 
 struct ath_buf {
@@ -711,7 +712,7 @@ void ath9k_ps_restore(struct ath_softc *sc);
 void ath9k_set_bssid_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 int ath9k_wiphy_add(struct ath_softc *sc);
 int ath9k_wiphy_del(struct ath_wiphy *aphy);
-void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb);
+void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb, int ftype);
 int ath9k_wiphy_pause(struct ath_wiphy *aphy);
 int ath9k_wiphy_unpause(struct ath_wiphy *aphy);
 int ath9k_wiphy_select(struct ath_wiphy *aphy);

@@ -1580,17 +1580,6 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 	int padpos, padsize;
 	bool use_ldpc = false;
 
-	tx_info->pad[0] = 0;
-	switch (txctl->frame_type) {
-	case ATH9K_IFT_NOT_INTERNAL:
-		break;
-	case ATH9K_IFT_PAUSE:
-		tx_info->pad[0] |= ATH_TX_INFO_FRAME_TYPE_PAUSE;
-		/* fall through */
-	case ATH9K_IFT_UNPAUSE:
-		tx_info->pad[0] |= ATH_TX_INFO_FRAME_TYPE_INTERNAL;
-		break;
-	}
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 	fc = hdr->frame_control;
 
@@ -1711,6 +1700,7 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 					      tid, &bf_head);
 		}
 	} else {
+		bf->bf_state.bfs_ftype = txctl->frame_type;
 		ath_tx_send_normal(sc, txctl->txq, &bf_head);
 	}
 
@@ -1828,7 +1818,7 @@ exit:
 /*****************/
 
 static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
-			    struct ath_wiphy *aphy, int tx_flags,
+			    struct ath_wiphy *aphy, int tx_flags, int ftype,
 			    struct ath_txq *txq)
 {
 	struct ieee80211_hw *hw = sc->hw;
@@ -1872,8 +1862,8 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 					PS_WAIT_FOR_TX_ACK));
 	}
 
-	if (unlikely(tx_info->pad[0] & ATH_TX_INFO_FRAME_TYPE_INTERNAL))
-		ath9k_tx_status(hw, skb);
+	if (unlikely(ftype))
+		ath9k_tx_status(hw, skb, ftype);
 	else {
 		q = skb_get_queue_mapping(skb);
 		if (txq == sc->tx.txq_map[q]) {
@@ -1917,7 +1907,8 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 			complete(&sc->paprd_complete);
 	} else {
 		ath_debug_stat_tx(sc, bf, ts);
-		ath_tx_complete(sc, skb, bf->aphy, tx_flags, txq);
+		ath_tx_complete(sc, skb, bf->aphy, tx_flags,
+				bf->bf_state.bfs_ftype, txq);
 	}
 	/* At this point, skb (bf->bf_mpdu) is consumed...make sure we don't
 	 * accidentally reference it later.

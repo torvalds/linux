@@ -224,9 +224,6 @@ struct ath_rate_priv {
 	struct ath_rc_stats rcstats[RATE_TABLE_SIZE];
 };
 
-#define ATH_TX_INFO_FRAME_TYPE_INTERNAL	(1 << 0)
-#define ATH_TX_INFO_FRAME_TYPE_PAUSE	(1 << 1)
-
 enum ath9k_internal_frame_type {
 	ATH9K_IFT_NOT_INTERNAL,
 	ATH9K_IFT_PAUSE,
