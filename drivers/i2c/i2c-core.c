@@ -1091,7 +1091,7 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 				(msgs[ret].flags & I2C_M_RECV_LEN) ? "+" : "");
 		}
 #endif
-#ifdef CONFIG_I2C_RK2818
+#if defined (CONFIG_I2C_RK2818) || defined(CONFIG_I2C_RK29)
 		if (!(i2c_suspended(adap)) && (in_atomic() || irqs_disabled())) {
 #else
 		if (in_atomic() || irqs_disabled()) {
@@ -1123,7 +1123,7 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	}
 }
 EXPORT_SYMBOL(i2c_transfer);
-#if defined (CONFIG_I2C_RK2818)
+#if defined (CONFIG_I2C_RK2818) || defined(CONFIG_I2C_RK29)
 int i2c_master_send(struct i2c_client *client,const char *buf ,int count)
 {
 	int ret;

@@ -1,4 +1,4 @@
-/* drivers/i2c/busses/i2c_rockchip.c
+/* drivers/i2c/busses/i2c_rk29.c
  *
  * Copyright (C) 2010 ROCKCHIP, Inc.
  *
@@ -29,26 +29,26 @@
 #include <mach/board.h>
 #include <asm/io.h>
 
-#include "i2c-rockchip.h"
-#define DRV_NAME	"rockchip_i2c"
+#include "i2c-rk29.h"
+#define DRV_NAME	"rk29_i2c"
 
 #define RK2818_I2C_TIMEOUT		(msecs_to_jiffies(500))
 #define RK2818_DELAY_TIME		2
 
-#if 0
+#if 1
 #define i2c_dbg(dev, format, arg...)		\
 	dev_printk(KERN_INFO , dev , format , ## arg)
 #else
 #define i2c_dbg(dev, format, arg...)	
 #endif
 
-enum rockchip_error {
+enum rk29_error {
 	RK2818_ERROR_NONE = 0,
 	RK2818_ERROR_ARBITR_LOSE,
 	RK2818_ERROR_UNKNOWN
 };
 
-enum rockchip_event {
+enum rk29_event {
 	RK2818_EVENT_NONE = 0,
 	/* master has received ack(MTX mode) 
 	   means that data has been sent to slave.
@@ -61,7 +61,7 @@ enum rockchip_event {
 	RK2818_EVENT_MAX
 };
 
-struct rockchip_i2c_data {
+struct rk29_i2c_data {
 	struct device			*dev;  
 	struct i2c_adapter		adap;
 	void __iomem			*regs;
@@ -78,8 +78,8 @@ struct rockchip_i2c_data {
 
 	spinlock_t				cmd_lock;
 	struct completion		cmd_complete;
-	enum rockchip_event		cmd_event;
-	enum rockchip_error		cmd_err;
+	enum rk29_event		cmd_event;
+	enum rk29_error		cmd_err;
 
 	unsigned int			msg_idx;
 	unsigned int			msg_num;
@@ -88,16 +88,16 @@ struct rockchip_i2c_data {
 #endif	
 };
 
-static void rockchip_i2c_init_hw(struct rockchip_i2c_data *i2c);
+static void rk29_i2c_init_hw(struct rk29_i2c_data *i2c);
 
-static inline void rockchip_i2c_disable_irqs(struct rockchip_i2c_data *i2c)
+static inline void rk29_i2c_disable_irqs(struct rk29_i2c_data *i2c)
 {
 	unsigned long tmp;
 
 	tmp = readl(i2c->regs + I2C_IER);
 	writel(tmp & IRQ_ALL_DISABLE, i2c->regs + I2C_IER);
 }
-static inline void rockchip_i2c_enable_irqs(struct rockchip_i2c_data *i2c)
+static inline void rk29_i2c_enable_irqs(struct rk29_i2c_data *i2c)
 {
 	unsigned long tmp;
 
@@ -106,7 +106,7 @@ static inline void rockchip_i2c_enable_irqs(struct rockchip_i2c_data *i2c)
 }
 
 /* scl = pclk/(5 *(rem+1) * 2^(exp+1)) */
-static void rockchip_i2c_calcdivisor(unsigned long pclk, 
+static void rk29_i2c_calcdivisor(unsigned long pclk, 
 								unsigned long scl_rate, 
 								unsigned long *real_rate,
 								unsigned int *rem, unsigned int *exp)
@@ -131,7 +131,7 @@ static void rockchip_i2c_calcdivisor(unsigned long pclk,
 	return;
 }
 /* set i2c bus scl rate */
-static void  rockchip_i2c_clockrate(struct rockchip_i2c_data *i2c)
+static void  rk29_i2c_clockrate(struct rk29_i2c_data *i2c)
 {
 #ifdef CONFIG_ARCH_RK2818
 	struct rk2818_i2c_platform_data *pdata = i2c->dev->platform_data;
@@ -145,7 +145,7 @@ static void  rockchip_i2c_clockrate(struct rockchip_i2c_data *i2c)
 
 	scl_rate = (i2c->scl_rate) ? i2c->scl_rate : ((pdata->scl_rate)? pdata->scl_rate:100000);
 
-	rockchip_i2c_calcdivisor(i2c->i2c_rate, scl_rate, &real_rate, &rem, &exp);
+	rk29_i2c_calcdivisor(i2c->i2c_rate, scl_rate, &real_rate, &rem, &exp);
 
 	tmp = readl(i2c->regs + I2C_OPR);
 	tmp |= exp;
@@ -159,7 +159,7 @@ static void  rockchip_i2c_clockrate(struct rockchip_i2c_data *i2c)
 				i2c->i2c_rate/1000, scl_rate/1000, real_rate/1000);
 	return;
 }
-static int rockchip_event_occurred(struct rockchip_i2c_data *i2c)
+static int rk29_event_occurred(struct rk29_i2c_data *i2c)
 {
 	unsigned long isr;
 
@@ -199,28 +199,28 @@ static int rockchip_event_occurred(struct rockchip_i2c_data *i2c)
 	return 0;
 }
 
-static irqreturn_t rockchip_i2c_irq(int irq, void *data)
+static irqreturn_t rk29_i2c_irq(int irq, void *data)
 {
-	struct rockchip_i2c_data *i2c = (struct rockchip_i2c_data *)data;
+	struct rk29_i2c_data *i2c = (struct rk29_i2c_data *)data;
 	int res;
 	
-	rockchip_i2c_disable_irqs(i2c);
+	rk29_i2c_disable_irqs(i2c);
 	spin_lock(&i2c->cmd_lock);
-	res = rockchip_event_occurred(i2c);
+	res = rk29_event_occurred(i2c);
 	if(res)
 	//if(res || i2c->cmd_err != RK2818_ERROR_NONE)
 		complete(&i2c->cmd_complete);
 	spin_unlock(&i2c->cmd_lock);
 	return IRQ_HANDLED;
 }
-static int wait_for_completion_poll_timeout(struct rockchip_i2c_data *i2c, unsigned long timeout)
+static int wait_for_completion_poll_timeout(struct rk29_i2c_data *i2c, unsigned long timeout)
 {
 	unsigned int time = RK2818_DELAY_TIME;
 	int res;
 
 	while(!time_after(jiffies, jiffies + timeout))
 	{
-		res = rockchip_event_occurred(i2c);
+		res = rk29_event_occurred(i2c);
 		if(res)
 		//if(res || (i2c->cmd_err != RK2818_ERROR_NONE && i2c->cmd_err != RK2818_ERROR_UNKNOWN))
 			return 1;
@@ -230,8 +230,8 @@ static int wait_for_completion_poll_timeout(struct rockchip_i2c_data *i2c, unsig
 	return 0;
 
 }
-static int rockchip_wait_event(struct rockchip_i2c_data *i2c,
-					enum rockchip_event mr_event)
+static int rk29_wait_event(struct rk29_i2c_data *i2c,
+					enum rk29_event mr_event)
 {
 	int ret = 0;
 	unsigned long flags;
@@ -251,7 +251,7 @@ static int rockchip_wait_event(struct rockchip_i2c_data *i2c,
 
 	spin_unlock_irqrestore(&i2c->cmd_lock,flags);
 
-	rockchip_i2c_enable_irqs(i2c);
+	rk29_i2c_enable_irqs(i2c);
 	if(i2c->mode == I2C_MODE_IRQ)
 		ret = wait_for_completion_interruptible_timeout(&i2c->cmd_complete,
 								RK2818_I2C_TIMEOUT);
@@ -270,7 +270,7 @@ static int rockchip_wait_event(struct rockchip_i2c_data *i2c,
 	return 0;
 }
 
-static int rockchip_wait_while_busy(struct rockchip_i2c_data *i2c)
+static int rk29_wait_while_busy(struct rk29_i2c_data *i2c)
 {
 	unsigned long timeout = jiffies + RK2818_I2C_TIMEOUT;
 	unsigned long lsr;
@@ -286,7 +286,7 @@ static int rockchip_wait_while_busy(struct rockchip_i2c_data *i2c)
 	}
 	return -ETIMEDOUT;
 }
-static int rockchip_i2c_stop(struct rockchip_i2c_data *i2c)
+static int rk29_i2c_stop(struct rk29_i2c_data *i2c)
 {
 	unsigned long timeout = jiffies + RK2818_I2C_TIMEOUT;
 	unsigned int time = RK2818_DELAY_TIME;
@@ -305,7 +305,7 @@ static int rockchip_i2c_stop(struct rockchip_i2c_data *i2c)
 	return -ETIMEDOUT;
     
 }
-static int rockchip_send_2nd_addr(struct rockchip_i2c_data *i2c,
+static int rk29_send_2nd_addr(struct rk29_i2c_data *i2c,
 						struct i2c_msg *msg, int start)
 {
 	int ret = 0;
@@ -319,14 +319,14 @@ static int rockchip_send_2nd_addr(struct rockchip_i2c_data *i2c,
 	i2c_dbg(i2c->dev, "i2c send addr_2nd: %lx\n", addr_2nd);	
 	writel(addr_2nd, i2c->regs + I2C_MTXR);
 	writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
-	if((ret = rockchip_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK)) != 0)
+	if((ret = rk29_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK)) != 0)
 	{
 		dev_err(i2c->dev, "after sent addr_2nd, i2c wait for ACK timeout\n");
 		return ret;
 	}
 	return ret;
 }
-static int rockchip_send_address(struct rockchip_i2c_data *i2c,
+static int rk29_send_address(struct rk29_i2c_data *i2c,
 						struct i2c_msg *msg, int start)
 {
 	unsigned long addr_1st;
@@ -352,7 +352,7 @@ static int rockchip_send_address(struct rockchip_i2c_data *i2c,
 	
 	if (start)
 	{
-		if((ret = rockchip_wait_while_busy(i2c)) != 0)
+		if((ret = rk29_wait_while_busy(i2c)) != 0)
 		{
 			dev_err(i2c->dev, "i2c is busy, when send address\n");
 			return ret;
@@ -362,17 +362,17 @@ static int rockchip_send_address(struct rockchip_i2c_data *i2c,
 	else
 		writel(I2C_LCMR_START|I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 
-	if((ret = rockchip_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK)) != 0)
+	if((ret = rk29_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK)) != 0)
 	{
 		dev_err(i2c->dev, "after sent addr_1st, i2c wait for ACK timeout\n");
 		return ret;
 	}
 	if(start && (msg->flags & I2C_M_TEN))
-		ret = rockchip_send_2nd_addr(i2c, msg, start);
+		ret = rk29_send_2nd_addr(i2c, msg, start);
 	return ret;
 }
 
-static int rockchip_i2c_send_msg(struct rockchip_i2c_data *i2c, struct i2c_msg *msg)
+static int rk29_i2c_send_msg(struct rk29_i2c_data *i2c, struct i2c_msg *msg)
 {
 	int i, ret = 0;
 	unsigned long conr = readl(i2c->regs + I2C_CONR);
@@ -391,12 +391,12 @@ static int rockchip_i2c_send_msg(struct rockchip_i2c_data *i2c, struct i2c_msg *
 		*/
 		writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 
-		if((ret = rockchip_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK)) != 0)
+		if((ret = rk29_wait_event(i2c, RK2818_EVENT_MTX_RCVD_ACK)) != 0)
 			return ret;
 	}
 	return ret;
 }
-static int rockchip_i2c_recv_msg(struct rockchip_i2c_data *i2c, struct i2c_msg *msg)
+static int rk29_i2c_recv_msg(struct rk29_i2c_data *i2c, struct i2c_msg *msg)
 {
 	int i, ret = 0;
 	unsigned long conr = readl(i2c->regs + I2C_CONR);
@@ -408,7 +408,7 @@ static int rockchip_i2c_recv_msg(struct rockchip_i2c_data *i2c, struct i2c_msg *
 	for(i = 0; i < msg->len; i++)
 	{
 		writel(I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
-		if((ret = rockchip_wait_event(i2c, RK2818_EVENT_MRX_NEED_ACK)) != 0)
+		if((ret = rk29_wait_event(i2c, RK2818_EVENT_MRX_NEED_ACK)) != 0)
 			return ret;
 		conr = readl(i2c->regs + I2C_CONR);
 		conr &= I2C_CONR_ACK;
@@ -418,10 +418,10 @@ static int rockchip_i2c_recv_msg(struct rockchip_i2c_data *i2c, struct i2c_msg *
 	}
 	return ret;
 }
-static int rockchip_xfer_msg(struct i2c_adapter *adap, 
+static int rk29_xfer_msg(struct i2c_adapter *adap, 
 						 struct i2c_msg *msg, int start, int stop)
 {
-	struct rockchip_i2c_data *i2c = (struct rockchip_i2c_data *)adap->algo_data;
+	struct rk29_i2c_data *i2c = (struct rk29_i2c_data *)adap->algo_data;
 	unsigned long conr = readl(i2c->regs + I2C_CONR);
 	int ret = 0;
 	
@@ -436,24 +436,24 @@ static int rockchip_xfer_msg(struct i2c_adapter *adap,
 		goto exit;
 	}
 
-	if((ret = rockchip_send_address(i2c, msg, start))!= 0)
+	if((ret = rk29_send_address(i2c, msg, start))!= 0)
 	{
-		dev_err(i2c->dev, "<error>rockchip_send_address timeout\n");
+		dev_err(i2c->dev, "<error>rk29_send_address timeout\n");
 		goto exit;
 	}
 	if(msg->flags & I2C_M_RD)
 	{	
-		if((ret = rockchip_i2c_recv_msg(i2c, msg)) != 0)
+		if((ret = rk29_i2c_recv_msg(i2c, msg)) != 0)
 		{
-			dev_err(i2c->dev, "<error>rockchip_i2c_recv_msg timeout\n");
+			dev_err(i2c->dev, "<error>rk29_i2c_recv_msg timeout\n");
 			goto exit;
 		}
 	}
 	else
 	{
-		if((ret = rockchip_i2c_send_msg(i2c, msg)) != 0)
+		if((ret = rk29_i2c_send_msg(i2c, msg)) != 0)
 		{
-			dev_err(i2c->dev, "<error>rockchip_i2c_send_msg timeout\n");
+			dev_err(i2c->dev, "<error>rk29_i2c_send_msg timeout\n");
 			goto exit;
 		}
 	}
@@ -464,11 +464,11 @@ exit:
 		conr = readl(i2c->regs + I2C_CONR);
 		conr |= I2C_CONR_NAK;
 		writel(conr, i2c->regs + I2C_CONR);
-		if((ret = rockchip_i2c_stop(i2c)) != 0)
+		if((ret = rk29_i2c_stop(i2c)) != 0)
 		{
-			dev_err(i2c->dev, "<error>rockchip_i2c_stop timeout\n");
+			dev_err(i2c->dev, "<error>rk29_i2c_stop timeout\n");
 		}
-
+#if 0
 		//not I2C code,add by sxj,used for extend gpio intrrupt,set SCL and SDA pin.
 		if(msg->flags & I2C_M_RD)
 		{
@@ -478,18 +478,18 @@ exit:
 			}
 			#endif	
 		}
-			
+#endif			
 	}
 	return ret;
 
 }
 
-static int rockchip_i2c_xfer(struct i2c_adapter *adap,
+static int rk29_i2c_xfer(struct i2c_adapter *adap,
 			struct i2c_msg *msgs, int num)
 {
 	int ret = -1;
 	int i;
-	struct rockchip_i2c_data *i2c = (struct rockchip_i2c_data *)adap->algo_data;
+	struct rk29_i2c_data *i2c = (struct rk29_i2c_data *)adap->algo_data;
 	unsigned long conr = readl(i2c->regs + I2C_CONR);
 	/*
 	if(i2c->suspended ==1)
@@ -503,7 +503,7 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 	conr |= I2C_CONR_MPORT_ENABLE;
 	writel(conr, i2c->regs + I2C_CONR);
 	
-	rockchip_i2c_init_hw(i2c);
+	rk29_i2c_init_hw(i2c);
 	
 	conr = readl(i2c->regs + I2C_CONR);
 	conr &= I2C_CONR_ACK;
@@ -511,11 +511,11 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 
 	for (i = 0; i < num; i++) 
 	{
-		ret = rockchip_xfer_msg(adap, &msgs[i], (i == 0), (i == (num - 1)));
+		ret = rk29_xfer_msg(adap, &msgs[i], (i == 0), (i == (num - 1)));
 		if (ret != 0)
 		{
 			num = ret;
-			dev_err(i2c->dev, "rockchip_xfer_msg error, ret = %d\n", ret);
+			dev_err(i2c->dev, "rk29_xfer_msg error, ret = %d\n", ret);
 			break;
 		}
 	}
@@ -525,19 +525,19 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 	return num;
 }
 
-static u32 rockchip_i2c_func(struct i2c_adapter *adap)
+static u32 rk29_i2c_func(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_10BIT_ADDR;
 }
 
-static const struct i2c_algorithm rockchip_i2c_algorithm = {
-	.master_xfer		= rockchip_i2c_xfer,
-	.functionality		= rockchip_i2c_func,
+static const struct i2c_algorithm rk29_i2c_algorithm = {
+	.master_xfer		= rk29_i2c_xfer,
+	.functionality		= rk29_i2c_func,
 };
 
 int i2c_suspended(struct i2c_adapter *adap)
 {
-	struct rockchip_i2c_data *i2c = (struct rockchip_i2c_data *)adap->algo_data;
+	struct rk29_i2c_data *i2c = (struct rk29_i2c_data *)adap->algo_data;
 	if(adap->nr > 1)
 		return 1;
 	if(i2c == NULL)
@@ -546,7 +546,7 @@ int i2c_suspended(struct i2c_adapter *adap)
 }
 EXPORT_SYMBOL(i2c_suspended);
 	
-static void rockchip_i2c_init_hw(struct rockchip_i2c_data *i2c)
+static void rk29_i2c_init_hw(struct rk29_i2c_data *i2c)
 {
 	unsigned long lcmr = 0x00000000;
 
@@ -556,9 +556,9 @@ static void rockchip_i2c_init_hw(struct rockchip_i2c_data *i2c)
 	
 	writel(lcmr, i2c->regs + I2C_LCMR);
 
-	rockchip_i2c_disable_irqs(i2c);
+	rk29_i2c_disable_irqs(i2c);
 
-	rockchip_i2c_clockrate(i2c); 
+	rk29_i2c_clockrate(i2c); 
 
 	opr = readl(i2c->regs + I2C_OPR);
 	opr |= I2C_OPR_CORE_ENABLE;
@@ -569,12 +569,12 @@ static void rockchip_i2c_init_hw(struct rockchip_i2c_data *i2c)
 
 #ifdef CONFIG_CPU_FREQ
 
-#define freq_to_i2c(_n) container_of(_n, struct rockchip_i2c_data, freq_transition)
+#define freq_to_i2c(_n) container_of(_n, struct rk29_i2c_data, freq_transition)
 
-static int rockchip_i2c_cpufreq_transition(struct notifier_block *nb,
+static int rk29_i2c_cpufreq_transition(struct notifier_block *nb,
 					  unsigned long val, void *data)
 {
-	struct rockchip_i2c_data *i2c = freq_to_i2c(nb);
+	struct rk29_i2c_data *i2c = freq_to_i2c(nb);
 	unsigned long flags;
 	int delta_f;
 	delta_f = clk_get_rate(i2c->clk) - i2c->i2c_rate;
@@ -583,40 +583,41 @@ static int rockchip_i2c_cpufreq_transition(struct notifier_block *nb,
 	    (val == CPUFREQ_PRECHANGE && delta_f > 0)) 
 	{
 		spin_lock_irqsave(&i2c->cmd_lock, flags);
-		rockchip_i2c_clockrate(i2c);
+		rk29_i2c_clockrate(i2c);
 		spin_unlock_irqrestore(&i2c->cmd_lock, flags);
 	}
 	return 0;
 }
 
-static inline int rockchip_i2c_register_cpufreq(struct rockchip_i2c_data *i2c)
+static inline int rk29_i2c_register_cpufreq(struct rk29_i2c_data *i2c)
 {
-	i2c->freq_transition.notifier_call = rockchip_i2c_cpufreq_transition;
+	i2c->freq_transition.notifier_call = rk29_i2c_cpufreq_transition;
 
 	return cpufreq_register_notifier(&i2c->freq_transition,
 					 CPUFREQ_TRANSITION_NOTIFIER);
 }
 
-static inline void rockchip_i2c_unregister_cpufreq(struct rockchip_i2c_data *i2c)
+static inline void rk29_i2c_unregister_cpufreq(struct rk29_i2c_data *i2c)
 {
 	cpufreq_unregister_notifier(&i2c->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
 }
 
 #else
-static inline int rockchip_i2c_register_cpufreq(struct rockchip_i2c_data *i2c)
+static inline int rk29_i2c_register_cpufreq(struct rk29_i2c_data *i2c)
 {
 	return 0;
 }
 
-static inline void rockchip_i2c_unregister_cpufreq(struct rockchip_i2c_data *i2c)
+static inline void rk29_i2c_unregister_cpufreq(struct rk29_i2c_data *i2c)
 {
 	return;
 }
 #endif
-static int rockchip_i2c_probe(struct platform_device *pdev)
+
+static int rk29_i2c_probe(struct platform_device *pdev)
 {
-	struct rockchip_i2c_data *i2c;
+	struct rk29_i2c_data *i2c;
 #ifdef CONFIG_ARCH_RK2818
 	struct rk2818_i2c_platform_data *pdata = NULL;
 #else
@@ -631,7 +632,7 @@ static int rockchip_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "<error>no platform data\n");
 		return -EINVAL;
 	}
-	i2c = kzalloc(sizeof(struct rockchip_i2c_data), GFP_KERNEL);
+	i2c = kzalloc(sizeof(struct rk29_i2c_data), GFP_KERNEL);
 	if (!i2c) 
 	{
 		dev_err(&pdev->dev, "<error>no memory for state\n");
@@ -642,7 +643,7 @@ static int rockchip_i2c_probe(struct platform_device *pdev)
 
 	strlcpy(i2c->adap.name, DRV_NAME, sizeof(i2c->adap.name));
 	i2c->adap.owner   	= THIS_MODULE;
-	i2c->adap.algo    	= &rockchip_i2c_algorithm;
+	i2c->adap.algo    	= &rk29_i2c_algorithm;
 	i2c->adap.class   	= I2C_CLASS_HWMON;
 	spin_lock_init(&i2c->cmd_lock);
 
@@ -686,7 +687,7 @@ static int rockchip_i2c_probe(struct platform_device *pdev)
 	if(pdata->io_init)
 		pdata->io_init();
 	 
-	rockchip_i2c_init_hw(i2c);
+	rk29_i2c_init_hw(i2c);
 
 	i2c->irq = ret = platform_get_irq(pdev, 0);
 	if (ret <= 0) {
@@ -695,7 +696,7 @@ static int rockchip_i2c_probe(struct platform_device *pdev)
 	}
 	if(i2c->mode == I2C_MODE_IRQ)
 	{
-		ret = request_irq(i2c->irq, rockchip_i2c_irq, IRQF_DISABLED,
+		ret = request_irq(i2c->irq, rk29_i2c_irq, IRQF_DISABLED,
 			  	dev_name(&pdev->dev), i2c);
 
 		if (ret != 0) {
@@ -703,7 +704,7 @@ static int rockchip_i2c_probe(struct platform_device *pdev)
 			goto err_iomap;
 		}
 	}
-	ret = rockchip_i2c_register_cpufreq(i2c);
+	ret = rk29_i2c_register_cpufreq(i2c);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to register cpufreq notifier\n");
 		goto err_irq;
@@ -722,7 +723,7 @@ static int rockchip_i2c_probe(struct platform_device *pdev)
 	return 0;
 
  err_cpufreq:
-	rockchip_i2c_unregister_cpufreq(i2c);
+	rk29_i2c_unregister_cpufreq(i2c);
 
  err_irq:
  	if(i2c->mode == I2C_MODE_IRQ)
@@ -745,11 +746,11 @@ static int rockchip_i2c_probe(struct platform_device *pdev)
 }
 
 
-static int rockchip_i2c_remove(struct platform_device *pdev)
+static int rk29_i2c_remove(struct platform_device *pdev)
 {
-	struct rockchip_i2c_data *i2c = platform_get_drvdata(pdev);
+	struct rk29_i2c_data *i2c = platform_get_drvdata(pdev);
 
-	rockchip_i2c_unregister_cpufreq(i2c);
+	rk29_i2c_unregister_cpufreq(i2c);
 
 	i2c_del_adapter(&i2c->adap);
 	 if(i2c->mode == I2C_MODE_IRQ)
@@ -769,51 +770,51 @@ static int rockchip_i2c_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 
-static int rockchip_i2c_suspend(struct platform_device *pdev, pm_message_t state)
+static int rk29_i2c_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct rockchip_i2c_data *i2c = platform_get_drvdata(pdev);
+	struct rk29_i2c_data *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspended = 1;
 	return 0;
 }
-static int rockchip_i2c_resume(struct platform_device *pdev)
+static int rk29_i2c_resume(struct platform_device *pdev)
 {
-	struct rockchip_i2c_data *i2c = platform_get_drvdata(pdev);
+	struct rk29_i2c_data *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspended = 0;
-	rockchip_i2c_init_hw(i2c);
+	rk29_i2c_init_hw(i2c);
 
 	return 0;
 }
 #else
-#define rockchip_i2c_suspend		NULL
-#define rockchip_i2c_resume		NULL
+#define rk29_i2c_suspend		NULL
+#define rk29_i2c_resume		NULL
 #endif
 
 
-static struct platform_driver rockchip_i2c_driver = {
-	.probe		= rockchip_i2c_probe,
-	.remove		= rockchip_i2c_remove,
-	.suspend	= rockchip_i2c_suspend,
-	.resume		= rockchip_i2c_resume,
+static struct platform_driver rk29_i2c_driver = {
+	.probe		= rk29_i2c_probe,
+	.remove		= rk29_i2c_remove,
+	.suspend	= rk29_i2c_suspend,
+	.resume		= rk29_i2c_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= DRV_NAME,
 	},
 };
 
-static int __init rockchip_i2c_adap_init(void)
+static int __init rk29_i2c_adap_init(void)
 {
-	return platform_driver_register(&rockchip_i2c_driver);
+	return platform_driver_register(&rk29_i2c_driver);
 }
 
-static void __exit rockchip_i2c_adap_exit(void)
+static void __exit rk29_i2c_adap_exit(void)
 {
-	platform_driver_unregister(&rockchip_i2c_driver);
+	platform_driver_unregister(&rk29_i2c_driver);
 }
 
-subsys_initcall(rockchip_i2c_adap_init);
-module_exit(rockchip_i2c_adap_exit);
+subsys_initcall(rk29_i2c_adap_init);
+module_exit(rk29_i2c_adap_exit);
 
 MODULE_DESCRIPTION("Driver for RK2818 I2C Bus");
 MODULE_AUTHOR("kfx, kfx@rock-chips.com");

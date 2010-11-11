@@ -20,6 +20,93 @@
 #include <mach/irqs.h>
 #include <mach/rk29_iomap.h>
 #include "devices.h"
+#ifdef CONFIG_I2C_RK29
+static struct resource resources_i2c0[] = {
+	{
+		.start	= IRQ_I2C0,
+		.end	= IRQ_I2C0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK29_I2C0_PHYS,
+		.end	= RK29_I2C0_PHYS + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+static struct resource resources_i2c1[] = {
+	{
+		.start	= IRQ_I2C1,
+		.end	= IRQ_I2C1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK29_I2C1_PHYS,
+		.end	= RK29_I2C1_PHYS + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+static struct resource resources_i2c2[] = {
+	{
+		.start	= IRQ_I2C2,
+		.end	= IRQ_I2C2,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK29_I2C2_PHYS,
+		.end	= RK29_I2C2_PHYS + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+static struct resource resources_i2c3[] = {
+	{
+		.start	= IRQ_I2C3,
+		.end	= IRQ_I2C3,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK29_I2C3_PHYS,
+		.end	= RK29_I2C3_PHYS + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device rk29_device_i2c0 = {
+	.name	= "rk29_i2c",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(resources_i2c0),
+	.resource	= resources_i2c0,
+	.dev 			= {
+		.platform_data = &default_i2c0_data,
+	},
+};
+struct platform_device rk29_device_i2c1 = {
+	.name	= "rk29_i2c",
+	.id	= 1,
+	.num_resources	= ARRAY_SIZE(resources_i2c1),
+	.resource	= resources_i2c1,
+	.dev 			= {
+		.platform_data = &default_i2c1_data,
+	},
+};
+struct platform_device rk29_device_i2c2 = {
+	.name	= "rk29_i2c",
+	.id	= 2,
+	.num_resources	= ARRAY_SIZE(resources_i2c2),
+	.resource	= resources_i2c2,
+	.dev 			= {
+		.platform_data = &default_i2c2_data,
+	},
+};
+struct platform_device rk29_device_i2c3 = {
+	.name	= "rk29_i2c",
+	.id	= 3,
+	.num_resources	= ARRAY_SIZE(resources_i2c3),
+	.resource	= resources_i2c3,
+	.dev 			= {
+		.platform_data = &default_i2c3_data,
+	},
+};
+#endif
 
 #ifdef CONFIG_SDMMC0_RK29 
 static struct resource resources_sdmmc0[] = {

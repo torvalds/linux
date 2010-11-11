@@ -332,6 +332,90 @@ static struct platform_device android_pmem_vpu_device = {
 		.platform_data = &android_pmem_vpu_pdata,
 	},
 };
+/*****************************************************************************************
+ * i2c devices
+ * author: kfx@rock-chips.com
+*****************************************************************************************/
+static int rk29_i2c0_io_init(void)
+{
+	rk29_mux_api_set(GPIO2B7_I2C0SCL_NAME, GPIO2L_I2C0_SCL);
+	rk29_mux_api_set(GPIO2B6_I2C0SDA_NAME, GPIO2L_I2C0_SDA);
+	return 0;
+}
+
+static int rk29_i2c1_io_init(void)
+{
+	rk29_mux_api_set(GPIO1A7_I2C1SCL_NAME, GPIO1L_I2C1_SCL);
+	rk29_mux_api_set(GPIO1A6_I2C1SDA_NAME, GPIO1L_I2C1_SDA);
+	return 0;
+}
+static int rk29_i2c2_io_init(void)
+{
+	rk29_mux_api_set(GPIO5D4_I2C2SCL_NAME, GPIO5H_I2C2_SCL);
+	rk29_mux_api_set(GPIO5D3_I2C2SDA_NAME, GPIO5H_I2C2_SDA);
+	return 0;
+}
+
+static int rk29_i2c3_io_init(void)
+{
+	rk29_mux_api_set(GPIO2B5_UART3RTSN_I2C3SCL_NAME, GPIO2L_I2C3_SCL);
+	rk29_mux_api_set(GPIO2B4_UART3CTSN_I2C3SDA_NAME, GPIO2L_I2C3_SDA);
+	return 0;
+}
+
+struct rk29_i2c_platform_data default_i2c0_data = { 
+	.bus_num    = 0,
+	.flags      = 0,
+	.slave_addr = 0xff,
+	.scl_rate  = 400*1000,
+	.mode 		= I2C_MODE_IRQ,
+	.io_init = rk29_i2c0_io_init,
+};
+struct rk29_i2c_platform_data default_i2c1_data = { 
+	.bus_num    = 1,
+	.flags      = 0,
+	.slave_addr = 0xff,
+	.scl_rate  = 400*1000,
+	.mode 		= I2C_MODE_POLL,
+	.io_init = rk29_i2c1_io_init,
+};
+struct rk29_i2c_platform_data default_i2c2_data = { 
+	.bus_num    = 2,
+	.flags      = 0,
+	.slave_addr = 0xff,
+	.scl_rate  = 400*1000,
+	.mode 		= I2C_MODE_IRQ,
+	.io_init = rk29_i2c2_io_init,
+};
+struct rk29_i2c_platform_data default_i2c3_data = { 
+	.bus_num    = 3,
+	.flags      = 0,
+	.slave_addr = 0xff,
+	.scl_rate  = 400*1000,
+	.mode 		= I2C_MODE_POLL,
+	.io_init = rk29_i2c3_io_init,
+};
+
+
+static struct i2c_board_info __initdata board_i2c0_devices[] = {
+#if defined (CONFIG_RK1000_CONTROL)
+	{
+		.type    		= "rk1000_control",
+		.addr           = 0x40,
+		.flags			= 0,
+	},
+#endif
+};
+static struct i2c_board_info __initdata board_i2c1_devices[] = {
+
+};
+static struct i2c_board_info __initdata board_i2c2_devices[] = {
+
+};
+static struct i2c_board_info __initdata board_i2c3_devices[] = {
+
+};
+
 
 /*****************************************************************************************
  * SDMMC devices
@@ -345,7 +429,7 @@ void rk29_sdmmc0_cfg_gpio(struct platform_device *dev)
 	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
 	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
 	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
-	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N); 
 }
 
 #define CONFIG_SDMMC0_USE_DMA
@@ -373,7 +457,7 @@ void rk29_sdmmc1_cfg_gpio(struct platform_device *dev)
 	rk29_mux_api_set(GPIO1C3_SDMMC1DATA0_NAME, GPIO1H_SDMMC1_DATA0);
 	rk29_mux_api_set(GPIO1C4_SDMMC1DATA1_NAME, GPIO1H_SDMMC1_DATA1);
 	rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_SDMMC1_DATA2);
-	rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_SDMMC1_DATA3);
+	rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_SDMMC1_DATA3); 
 }
 
 struct rk29_sdmmc_platform_data default_sdmmc1_data = {
@@ -457,7 +541,21 @@ static void __init rk29_board_iomux_init(void)
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART1_RK29
 	&rk29_device_uart1,
-#endif	
+#endif
+
+#ifdef CONFIG_I2C0_RK29
+	&rk29_device_i2c0,
+#endif
+#ifdef CONFIG_I2C1_RK29
+	&rk29_device_i2c1,
+#endif
+#ifdef CONFIG_I2C2_RK29
+	&rk29_device_i2c2,
+#endif
+#ifdef CONFIG_I2C3_RK29
+	&rk29_device_i2c3,
+#endif
+
 #ifdef CONFIG_SDMMC0_RK29	
 	&rk29_device_sdmmc0,
 #endif
@@ -492,7 +590,23 @@ static void __init machine_rk29_init_irq(void)
 }
 
 static void __init machine_rk29_board_init(void)
-{ 
+{
+#ifdef CONFIG_I2C0_RK29
+	i2c_register_board_info(default_i2c0_data.bus_num, board_i2c0_devices,
+			ARRAY_SIZE(board_i2c0_devices));
+#endif
+#ifdef CONFIG_I2C1_RK29
+	i2c_register_board_info(default_i2c1_data.bus_num, board_i2c1_devices,
+			ARRAY_SIZE(board_i2c1_devices));
+#endif
+#ifdef CONFIG_I2C2_RK29
+	i2c_register_board_info(default_i2c2_data.bus_num, board_i2c2_devices,
+			ARRAY_SIZE(board_i2c2_devices));
+#endif
+#ifdef CONFIG_I2C3_RK29
+	i2c_register_board_info(default_i2c3_data.bus_num, board_i2c3_devices,
+			ARRAY_SIZE(board_i2c3_devices));
+#endif
 	platform_add_devices(devices, ARRAY_SIZE(devices));	
 	rk29_board_iomux_init();
 }

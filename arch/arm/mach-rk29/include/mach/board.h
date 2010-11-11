@@ -60,6 +60,17 @@ struct rk29_sdmmc_platform_data {
 	int (*status)(struct device *);
 	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
 };
+struct rk29_i2c_platform_data {
+	int     bus_num;        
+	unsigned int    flags;     
+	unsigned int    slave_addr; 
+	unsigned long   scl_rate;   
+#define I2C_MODE_IRQ    0
+#define I2C_MODE_POLL   1
+	unsigned int    mode:1;
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+};
 
 void __init rk29_map_common_io(void);
 void __init rk29_clock_init(void);
