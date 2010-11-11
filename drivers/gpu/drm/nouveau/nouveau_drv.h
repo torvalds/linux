@@ -376,13 +376,19 @@ struct nouveau_display_engine {
 };
 
 struct nouveau_gpio_engine {
+	void *priv;
+
 	int  (*init)(struct drm_device *);
 	void (*takedown)(struct drm_device *);
 
 	int  (*get)(struct drm_device *, enum dcb_gpio_tag);
 	int  (*set)(struct drm_device *, enum dcb_gpio_tag, int state);
 
-	void (*irq_enable)(struct drm_device *, enum dcb_gpio_tag, bool on);
+	int  (*irq_register)(struct drm_device *, enum dcb_gpio_tag,
+			     void (*)(void *, int), void *);
+	void (*irq_unregister)(struct drm_device *, enum dcb_gpio_tag,
+			       void (*)(void *, int), void *);
+	bool (*irq_enable)(struct drm_device *, enum dcb_gpio_tag, bool on);
 };
 
 struct nouveau_pm_voltage_level {
@@ -619,13 +625,6 @@ struct drm_nouveau_private {
 	bool msi_enabled;
 	struct workqueue_struct *wq;
 	struct work_struct irq_work;
-	struct work_struct hpd_work;
-
-	struct {
-		spinlock_t lock;
-		uint32_t hpd0_bits;
-		uint32_t hpd1_bits;
-	} hpd_state;
 
 	struct list_head vbl_waiting;
 
@@ -1366,7 +1365,11 @@ int nv50_gpio_init(struct drm_device *dev);
 void nv50_gpio_fini(struct drm_device *dev);
 int nv50_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
 int nv50_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
-void nv50_gpio_irq_enable(struct drm_device *, enum dcb_gpio_tag, bool on);
+int  nv50_gpio_irq_register(struct drm_device *, enum dcb_gpio_tag,
+			    void (*)(void *, int), void *);
+void nv50_gpio_irq_unregister(struct drm_device *, enum dcb_gpio_tag,
+			      void (*)(void *, int), void *);
+bool nv50_gpio_irq_enable(struct drm_device *, enum dcb_gpio_tag, bool on);
 
 /* nv50_calc. */
 int nv50_calc_pll(struct drm_device *, struct pll_lims *, int clk,

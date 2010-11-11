@@ -804,71 +804,6 @@ nv50_display_error_handler(struct drm_device *dev)
 	}
 }
 
-void
-nv50_display_irq_hotplug_bh(struct work_struct *work)
-{
-	struct drm_nouveau_private *dev_priv =
-		container_of(work, struct drm_nouveau_private, hpd_work);
-	struct drm_device *dev = dev_priv->dev;
-	struct drm_connector *connector;
-	const uint32_t gpio_reg[4] = { 0xe104, 0xe108, 0xe280, 0xe284 };
-	uint32_t unplug_mask, plug_mask, change_mask;
-	uint32_t hpd0, hpd1;
-
-	spin_lock_irq(&dev_priv->hpd_state.lock);
-	hpd0 = dev_priv->hpd_state.hpd0_bits;
-	dev_priv->hpd_state.hpd0_bits = 0;
-	hpd1 = dev_priv->hpd_state.hpd1_bits;
-	dev_priv->hpd_state.hpd1_bits = 0;
-	spin_unlock_irq(&dev_priv->hpd_state.lock);
-
-	hpd0 &= nv_rd32(dev, 0xe050);
-	if (dev_priv->chipset >= 0x90)
-		hpd1 &= nv_rd32(dev, 0xe070);
-
-	plug_mask   = (hpd0 & 0x0000ffff) | (hpd1 << 16);
-	unplug_mask = (hpd0 >> 16) | (hpd1 & 0xffff0000);
-	change_mask = plug_mask | unplug_mask;
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct drm_encoder_helper_funcs *helper;
-		struct nouveau_connector *nv_connector =
-			nouveau_connector(connector);
-		struct nouveau_encoder *nv_encoder;
-		struct dcb_gpio_entry *gpio;
-		uint32_t reg;
-		bool plugged;
-
-		if (!nv_connector->dcb)
-			continue;
-
-		gpio = nouveau_bios_gpio_entry(dev, nv_connector->dcb->gpio_tag);
-		if (!gpio || !(change_mask & (1 << gpio->line)))
-			continue;
-
-		reg = nv_rd32(dev, gpio_reg[gpio->line >> 3]);
-		plugged = !!(reg & (4 << ((gpio->line & 7) << 2)));
-		NV_INFO(dev, "%splugged %s\n", plugged ? "" : "un",
-			drm_get_connector_name(connector)) ;
-
-		if (!connector->encoder || !connector->encoder->crtc ||
-		    !connector->encoder->crtc->enabled)
-			continue;
-		nv_encoder = nouveau_encoder(connector->encoder);
-		helper = connector->encoder->helper_private;
-
-		if (nv_encoder->dcb->type != OUTPUT_DP)
-			continue;
-
-		if (plugged)
-			helper->dpms(connector->encoder, DRM_MODE_DPMS_ON);
-		else
-			helper->dpms(connector->encoder, DRM_MODE_DPMS_OFF);
-	}
-
-	drm_helper_hpd_irq_event(dev);
-}
-
 static void
 nv50_display_isr(struct drm_device *dev)
 {
@@ -918,4 +853,3 @@ nv50_display_isr(struct drm_device *dev)
 		}
 	}
 }
-

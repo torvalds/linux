@@ -396,6 +396,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.takedown		= nv50_gpio_fini;
 		engine->gpio.get		= nv50_gpio_get;
 		engine->gpio.set		= nv50_gpio_set;
+		engine->gpio.irq_register	= nv50_gpio_irq_register;
+		engine->gpio.irq_unregister	= nv50_gpio_irq_unregister;
 		engine->gpio.irq_enable		= nv50_gpio_irq_enable;
 		switch (dev_priv->chipset) {
 		case 0x84:
@@ -487,6 +489,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.takedown		= nouveau_stub_takedown;
 		engine->gpio.get		= nv50_gpio_get;
 		engine->gpio.set		= nv50_gpio_set;
+		engine->gpio.irq_register	= nv50_gpio_irq_register;
+		engine->gpio.irq_unregister	= nv50_gpio_irq_unregister;
 		engine->gpio.irq_enable		= nv50_gpio_irq_enable;
 		engine->crypt.init		= nouveau_stub_init;
 		engine->crypt.takedown		= nouveau_stub_takedown;
