@@ -864,10 +864,15 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 		goto host_free;
 
 	mmc->ops = &tmio_mmc_ops;
-	mmc->caps = MMC_CAP_4_BIT_DATA;
-	mmc->caps |= pdata->capabilities;
+	mmc->caps = MMC_CAP_4_BIT_DATA | pdata->capabilities;
 	mmc->f_max = pdata->hclk;
 	mmc->f_min = mmc->f_max / 512;
+	mmc->max_segs = 32;
+	mmc->max_blk_size = 512;
+	mmc->max_blk_count = (PAGE_CACHE_SIZE / mmc->max_blk_size) *
+		mmc->max_segs;
+	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
+	mmc->max_seg_size = mmc->max_req_size;
 	if (pdata->ocr_mask)
 		mmc->ocr_avail = pdata->ocr_mask;
 	else
