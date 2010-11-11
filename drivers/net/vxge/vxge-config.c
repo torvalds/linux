@@ -1107,8 +1107,9 @@ __vxge_hw_vpath_card_info_get(struct __vxge_hw_virtualpath *vpath,
  * __vxge_hw_vpath_pci_func_mode_get - Get the pci mode
  * Returns pci function mode
  */
-static u64
-__vxge_hw_vpath_pci_func_mode_get(struct __vxge_hw_virtualpath *vpath)
+static enum vxge_hw_status
+__vxge_hw_vpath_pci_func_mode_get(struct __vxge_hw_virtualpath *vpath,
+				  struct vxge_hw_device_hw_info *hw_info)
 {
 	u64 data0, data1 = 0, steer_ctrl = 0;
 	enum vxge_hw_status status;
@@ -1119,8 +1120,11 @@ __vxge_hw_vpath_pci_func_mode_get(struct __vxge_hw_virtualpath *vpath)
 			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_READ_MEMO_ENTRY,
 			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO,
 			0, &data0, &data1, &steer_ctrl);
+	if (status != VXGE_HW_OK)
+		return status;
 
-	return data0;
+	hw_info->function_mode = data0;
+	return status;
 }
 
 /*
@@ -1235,8 +1239,9 @@ vxge_hw_device_hw_info_get(void __iomem *bar0,
 			       (bar0 + val64);
 		vpath.vp_open = 0;
 
-		hw_info->function_mode =
-			__vxge_hw_vpath_pci_func_mode_get(&vpath);
+		status = __vxge_hw_vpath_pci_func_mode_get(&vpath, hw_info);
+		if (status != VXGE_HW_OK)
+			goto exit;
 
 		status = __vxge_hw_vpath_fw_ver_get(&vpath, hw_info);
 		if (status != VXGE_HW_OK)
