@@ -16,6 +16,7 @@
 #include <sound/soc.h>
 #include <linux/lzo.h>
 #include <linux/bitmap.h>
+#include <linux/rbtree.h>
 
 static unsigned int snd_soc_4_12_read(struct snd_soc_codec *codec,
 				     unsigned int reg)
@@ -760,6 +761,229 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_soc_codec_set_cache_io);
 
+struct snd_soc_rbtree_node {
+	struct rb_node node;
+	unsigned int reg;
+	unsigned int value;
+	unsigned int defval;
+} __attribute__ ((packed));
+
+struct snd_soc_rbtree_ctx {
+	struct rb_root root;
+};
+
+static struct snd_soc_rbtree_node *snd_soc_rbtree_lookup(
+	struct rb_root *root, unsigned int reg)
+{
+	struct rb_node *node;
+	struct snd_soc_rbtree_node *rbnode;
+
+	node = root->rb_node;
+	while (node) {
+		rbnode = container_of(node, struct snd_soc_rbtree_node, node);
+		if (rbnode->reg < reg)
+			node = node->rb_left;
+		else if (rbnode->reg > reg)
+			node = node->rb_right;
+		else
+			return rbnode;
+	}
+
+	return NULL;
+}
+
+
+static int snd_soc_rbtree_insert(struct rb_root *root,
+				 struct snd_soc_rbtree_node *rbnode)
+{
+	struct rb_node **new, *parent;
+	struct snd_soc_rbtree_node *rbnode_tmp;
+
+	parent = NULL;
+	new = &root->rb_node;
+	while (*new) {
+		rbnode_tmp = container_of(*new, struct snd_soc_rbtree_node,
+					  node);
+		parent = *new;
+		if (rbnode_tmp->reg < rbnode->reg)
+			new = &((*new)->rb_left);
+		else if (rbnode_tmp->reg > rbnode->reg)
+			new = &((*new)->rb_right);
+		else
+			return 0;
+	}
+
+	/* insert the node into the rbtree */
+	rb_link_node(&rbnode->node, parent, new);
+	rb_insert_color(&rbnode->node, root);
+
+	return 1;
+}
+
+static int snd_soc_rbtree_cache_sync(struct snd_soc_codec *codec)
+{
+	struct snd_soc_rbtree_ctx *rbtree_ctx;
+	struct rb_node *node;
+	struct snd_soc_rbtree_node *rbnode;
+	unsigned int val;
+
+	rbtree_ctx = codec->reg_cache;
+	for (node = rb_first(&rbtree_ctx->root); node; node = rb_next(node)) {
+		rbnode = rb_entry(node, struct snd_soc_rbtree_node, node);
+		if (rbnode->value == rbnode->defval)
+			continue;
+		snd_soc_cache_read(codec, rbnode->reg, &val);
+		snd_soc_write(codec, rbnode->reg, val);
+		dev_dbg(codec->dev, "Synced register %#x, value = %#x\n",
+			rbnode->reg, val);
+	}
+
+	return 0;
+}
+
+static int snd_soc_rbtree_cache_write(struct snd_soc_codec *codec,
+				      unsigned int reg, unsigned int value)
+{
+	struct snd_soc_rbtree_ctx *rbtree_ctx;
+	struct snd_soc_rbtree_node *rbnode;
+
+	rbtree_ctx = codec->reg_cache;
+	rbnode = snd_soc_rbtree_lookup(&rbtree_ctx->root, reg);
+	if (rbnode) {
+		if (rbnode->value == value)
+			return 0;
+		rbnode->value = value;
+	} else {
+		/* bail out early, no need to create the rbnode yet */
+		if (!value)
+			return 0;
+		/*
+		 * for uninitialized registers whose value is changed
+		 * from the default zero, create an rbnode and insert
+		 * it into the tree.
+		 */
+		rbnode = kzalloc(sizeof *rbnode, GFP_KERNEL);
+		if (!rbnode)
+			return -ENOMEM;
+		rbnode->reg = reg;
+		rbnode->value = value;
+		snd_soc_rbtree_insert(&rbtree_ctx->root, rbnode);
+	}
+
+	return 0;
+}
+
+static int snd_soc_rbtree_cache_read(struct snd_soc_codec *codec,
+				     unsigned int reg, unsigned int *value)
+{
+	struct snd_soc_rbtree_ctx *rbtree_ctx;
+	struct snd_soc_rbtree_node *rbnode;
+
+	rbtree_ctx = codec->reg_cache;
+	rbnode = snd_soc_rbtree_lookup(&rbtree_ctx->root, reg);
+	if (rbnode) {
+		*value = rbnode->value;
+	} else {
+		/* uninitialized registers default to 0 */
+		*value = 0;
+	}
+
+	return 0;
+}
+
+static int snd_soc_rbtree_cache_exit(struct snd_soc_codec *codec)
+{
+	struct rb_node *next;
+	struct snd_soc_rbtree_ctx *rbtree_ctx;
+	struct snd_soc_rbtree_node *rbtree_node;
+
+	/* if we've already been called then just return */
+	rbtree_ctx = codec->reg_cache;
+	if (!rbtree_ctx)
+		return 0;
+
+	/* free up the rbtree */
+	next = rb_first(&rbtree_ctx->root);
+	while (next) {
+		rbtree_node = rb_entry(next, struct snd_soc_rbtree_node, node);
+		next = rb_next(&rbtree_node->node);
+		rb_erase(&rbtree_node->node, &rbtree_ctx->root);
+		kfree(rbtree_node);
+	}
+
+	/* release the resources */
+	kfree(codec->reg_cache);
+	codec->reg_cache = NULL;
+
+	return 0;
+}
+
+static int snd_soc_rbtree_cache_init(struct snd_soc_codec *codec)
+{
+	struct snd_soc_rbtree_ctx *rbtree_ctx;
+
+	codec->reg_cache = kmalloc(sizeof *rbtree_ctx, GFP_KERNEL);
+	if (!codec->reg_cache)
+		return -ENOMEM;
+
+	rbtree_ctx = codec->reg_cache;
+	rbtree_ctx->root = RB_ROOT;
+
+	if (!codec->driver->reg_cache_default)
+		return 0;
+
+/*
+ * populate the rbtree with the initialized registers.  All other
+ * registers will be inserted into the tree when they are first written.
+ *
+ * The reasoning behind this, is that we need to step through and
+ * dereference the cache in u8/u16 increments without sacrificing
+ * portability.  This could also be done using memcpy() but that would
+ * be slightly more cryptic.
+ */
+#define snd_soc_rbtree_populate(cache)					\
+({									\
+	int ret, i;							\
+	struct snd_soc_rbtree_node *rbtree_node;			\
+									\
+	ret = 0;							\
+	cache = codec->driver->reg_cache_default;			\
+	for (i = 0; i < codec->driver->reg_cache_size; ++i) {		\
+		if (!cache[i])						\
+			continue;					\
+		rbtree_node = kzalloc(sizeof *rbtree_node, GFP_KERNEL);	\
+		if (!rbtree_node) {					\
+			ret = -ENOMEM;					\
+			snd_soc_cache_exit(codec);			\
+			break;						\
+		}							\
+		rbtree_node->reg = i;					\
+		rbtree_node->value = cache[i];				\
+		rbtree_node->defval = cache[i];				\
+		snd_soc_rbtree_insert(&rbtree_ctx->root,		\
+				      rbtree_node);			\
+	}								\
+	ret;								\
+})
+
+	switch (codec->driver->reg_word_size) {
+	case 1: {
+		const u8 *cache;
+
+		return snd_soc_rbtree_populate(cache);
+	}
+	case 2: {
+		const u16 *cache;
+
+		return snd_soc_rbtree_populate(cache);
+	}
+	default:
+		BUG();
+	}
+
+	return 0;
+}
+
 struct snd_soc_lzo_ctx {
 	void *wmem;
 	void *dst;
@@ -1296,6 +1520,14 @@ static const struct snd_soc_cache_ops cache_types[] = {
 		.read = snd_soc_lzo_cache_read,
 		.write = snd_soc_lzo_cache_write,
 		.sync = snd_soc_lzo_cache_sync
+	},
+	{
+		.id = SND_SOC_RBTREE_COMPRESSION,
+		.init = snd_soc_rbtree_cache_init,
+		.exit = snd_soc_rbtree_cache_exit,
+		.read = snd_soc_rbtree_cache_read,
+		.write = snd_soc_rbtree_cache_write,
+		.sync = snd_soc_rbtree_cache_sync
 	}
 };
 
