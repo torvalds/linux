@@ -826,6 +826,8 @@ enum nl80211_commands {
  *	the hardware should not be configured to receive on this antenna.
  *	For a more detailed descripton see @NL80211_ATTR_WIPHY_ANTENNA_TX.
  *
+ * @NL80211_ATTR_MCAST_RATE: Multicast tx rate (in 100 kbps) for IBSS
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -997,6 +999,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_WIPHY_ANTENNA_TX,
 	NL80211_ATTR_WIPHY_ANTENNA_RX,
+
+	NL80211_ATTR_MCAST_RATE,
 
 	/* add attributes here, update the policy in nl80211.c */
 

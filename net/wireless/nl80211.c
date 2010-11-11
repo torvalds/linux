@@ -171,6 +171,8 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 
 	[NL80211_ATTR_WIPHY_ANTENNA_TX] = { .type = NLA_U32 },
 	[NL80211_ATTR_WIPHY_ANTENNA_RX] = { .type = NLA_U32 },
+
+	[NL80211_ATTR_MCAST_RATE] = { .type = NLA_U32 },
 };
 
 /* policy for the key attributes */
@@ -3681,6 +3683,9 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 				return -EINVAL;
 		}
 	}
+	if (info->attrs[NL80211_ATTR_MCAST_RATE])
+		ibss.mcast_rate =
+			nla_get_u32(info->attrs[NL80211_ATTR_MCAST_RATE]);
 
 	if (ibss.privacy && info->attrs[NL80211_ATTR_KEYS]) {
 		connkeys = nl80211_parse_connkeys(rdev,

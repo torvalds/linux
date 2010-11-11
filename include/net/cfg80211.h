@@ -923,6 +923,7 @@ struct cfg80211_disassoc_request {
  * @privacy: this is a protected network, keys will be configured
  *	after joining
  * @basic_rates: bitmap of basic rates to use when creating the IBSS
+ * @mcast_rate: multicast tx rate (in 100 kbps)
  */
 struct cfg80211_ibss_params {
 	u8 *ssid;
@@ -934,6 +935,7 @@ struct cfg80211_ibss_params {
 	u32 basic_rates;
 	bool channel_fixed;
 	bool privacy;
+	int mcast_rate;
 };
 
 /**
