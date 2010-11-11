@@ -221,6 +221,8 @@ extern int dhd_os_wake_lock_timeout_enable(dhd_pub_t *pub);
 
 extern void dhd_os_start_lock(dhd_pub_t *pub);
 extern void dhd_os_start_unlock(dhd_pub_t *pub);
+extern unsigned long dhd_os_spin_lock(dhd_pub_t *pub);
+extern void dhd_os_spin_unlock(dhd_pub_t *pub, unsigned long flags);
 
 typedef struct dhd_if_event {
 	uint8 ifidx;

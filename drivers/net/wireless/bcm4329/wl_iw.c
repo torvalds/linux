@@ -98,8 +98,10 @@ typedef const struct si_pub  si_t;
 static struct net_device *priv_dev;
 static bool ap_cfg_running = FALSE;
 bool ap_fw_loaded = FALSE;
+static long ap_cfg_pid = -1;
 struct net_device *ap_net_dev = NULL;
 struct semaphore  ap_eth_sema;
+static struct completion ap_cfg_exited;
 static int wl_iw_set_ap_security(struct net_device *dev, struct ap_profile *ap);
 static int wl_iw_softap_deassoc_stations(struct net_device *dev, u8 *mac);
 #endif
@@ -5944,7 +5946,12 @@ exit_proc:
 
 static int thr_wait_for_2nd_eth_dev(void *data)
 {
+	struct net_device *dev = (struct net_device *)data;
+	wl_iw_t *iw;
 	int ret = 0;
+	unsigned long flags;
+
+	net_os_wake_lock(dev);
 
 	DAEMONIZE("wl0_eth_wthread");
 
@@ -5956,9 +5963,12 @@ static int thr_wait_for_2nd_eth_dev(void *data)
 		goto fail;
 	}
 
+	iw = *(wl_iw_t **)netdev_priv(dev);
+	flags = dhd_os_spin_lock(iw->pub);
 	if (!ap_net_dev) {
 		WL_ERROR((" ap_net_dev is null !!!"));
 		ret = -1;
+		dhd_os_spin_unlock(iw->pub, flags);
 		goto fail;
 	}
 
@@ -5967,6 +5977,8 @@ static int thr_wait_for_2nd_eth_dev(void *data)
 
 	ap_cfg_running = TRUE;
 
+	dhd_os_spin_unlock(iw->pub, flags);
+
 	bcm_mdelay(500);
 
 	wl_iw_send_priv_event(priv_dev, "AP_SET_CFG_OK");
@@ -5974,6 +5986,9 @@ static int thr_wait_for_2nd_eth_dev(void *data)
 fail:
 	WL_TRACE(("\n>%s, thread completed\n", __FUNCTION__));
 
+	net_os_wake_unlock(dev);
+
+	complete_and_exit(&ap_cfg_exited, 0);
 	return ret;
 }
 #endif 
@@ -6218,8 +6233,10 @@ static int set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 		goto fail;
 	}
 	if (ap_cfg_running == FALSE) {
-		kernel_thread(thr_wait_for_2nd_eth_dev, 0, 0);
+		init_completion(&ap_cfg_exited);
+		ap_cfg_pid = kernel_thread(thr_wait_for_2nd_eth_dev, dev, 0);
 	} else {
+		ap_cfg_pid = -1;
 		if (ap_net_dev == NULL) {
 			WL_ERROR(("%s ERROR: ap_net_dev is NULL !!!\n", __FUNCTION__));
 			goto fail;
@@ -6557,9 +6574,9 @@ static int iwpriv_softap_stop(struct net_device *dev,
 
 	if ((ap_cfg_running == TRUE)) {
 #ifdef AP_ONLY
-		 wl_iw_softap_deassoc_stations(dev, NULL);
+		wl_iw_softap_deassoc_stations(dev, NULL);
 #else
-		 wl_iw_softap_deassoc_stations(ap_net_dev, NULL);
+		wl_iw_softap_deassoc_stations(ap_net_dev, NULL);
 
 		if ((res = dev_iw_write_cfg1_bss_var(dev, 2)) < 0)
 			WL_ERROR(("%s failed to del BSS err = %d", __FUNCTION__, res));
@@ -6689,9 +6706,14 @@ iwpriv_en_ap_bss(
 
 	net_os_wake_lock(dev);
 
-	WL_TRACE(("%s: rcvd IWPRIV IOCTL:  for dev:%s\n", __FUNCTION__, dev->name));
+	WL_SOFTAP(("%s: rcvd IWPRIV IOCTL:  for dev:%s\n", __FUNCTION__, dev->name));
 
 #ifndef AP_ONLY
+	if (ap_cfg_pid >= 0) {
+		wait_for_completion(&ap_cfg_exited);
+		ap_cfg_pid = -1;
+	}
+
 	if ((res = wl_iw_set_ap_security(dev, &my_ap)) != 0) {
 		WL_ERROR((" %s ERROR setting SOFTAP security in :%d\n", __FUNCTION__, res));
 	}
