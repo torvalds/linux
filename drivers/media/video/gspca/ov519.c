@@ -3940,7 +3940,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	if (sd->bridge == BRIDGE_W9968CF)
 		w9968cf_stop0(sd);
 
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	/* If the last button state is pressed, release it now! */
 	if (sd->snapshot_pressed) {
 		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
