@@ -27,6 +27,13 @@ typedef enum eGPIOPinDirection
 	GPIO_OUT
 }eGPIOPinDirection_t;
 
+typedef enum GPIOPullType {
+	GPIONormal,
+	GPIOPullUp,
+	GPIOPullDown,
+	GPIONOInit
+}eGPIOPullType_t;
+
 typedef enum GPIOIntType {
 	GPIOLevelLow=0,
 	GPIOLevelHigh,	 
@@ -62,8 +69,8 @@ typedef enum GPIOIntType {
 
 #define	RK29_PIN0_PA0		(0*NUM_GROUP + PIN_BASE + 0);
 #define	RK29_PIN0_PA1		(0*NUM_GROUP + PIN_BASE + 1);
-#define	RK29_PIN0_PA2		(0*NUM_GROUP + PIN_BASE + 2);
-#define	RK29_PIN0_PA3		(0*NUM_GROUP + PIN_BASE + 3);
+#define	RK29_PIN0_PA2		(0*NUM_GROUP + PIN_BASE + 2)
+#define	RK29_PIN0_PA3		(0*NUM_GROUP + PIN_BASE + 3)
 #define	RK29_PIN0_PA4		(0*NUM_GROUP + PIN_BASE + 4);
 #define	RK29_PIN0_PA5		(0*NUM_GROUP + PIN_BASE + 5);
 #define	RK29_PIN0_PA6		(0*NUM_GROUP + PIN_BASE + 6);
@@ -94,10 +101,10 @@ typedef enum GPIOIntType {
 #define	RK29_PIN0_PD7		(0*NUM_GROUP + PIN_BASE + 31);
 
 #define	RK29_PIN1_PA0		(1*NUM_GROUP + PIN_BASE + 0); 
-#define	RK29_PIN1_PA1		(1*NUM_GROUP + PIN_BASE + 1); 
+#define	RK29_PIN1_PA1		(1*NUM_GROUP + PIN_BASE + 1)
 #define	RK29_PIN1_PA2		(1*NUM_GROUP + PIN_BASE + 2); 
-#define	RK29_PIN1_PA3		(1*NUM_GROUP + PIN_BASE + 3); 
-#define	RK29_PIN1_PA4		(1*NUM_GROUP + PIN_BASE + 4); 
+#define	RK29_PIN1_PA3		(1*NUM_GROUP + PIN_BASE + 3) 
+#define	RK29_PIN1_PA4		(1*NUM_GROUP + PIN_BASE + 4) 
 #define	RK29_PIN1_PA5		(1*NUM_GROUP + PIN_BASE + 5); 
 #define	RK29_PIN1_PA6		(1*NUM_GROUP + PIN_BASE + 6); 
 #define	RK29_PIN1_PA7		(1*NUM_GROUP + PIN_BASE + 7); 
@@ -143,11 +150,11 @@ typedef enum GPIOIntType {
 #define	RK29_PIN2_PB6		(2*NUM_GROUP + PIN_BASE + 14);
 #define	RK29_PIN2_PB7		(2*NUM_GROUP + PIN_BASE + 15);
 #define	RK29_PIN2_PC0		(2*NUM_GROUP + PIN_BASE + 16);
-#define	RK29_PIN2_PC1		(2*NUM_GROUP + PIN_BASE + 17);
+#define	RK29_PIN2_PC1		(2*NUM_GROUP + PIN_BASE + 17)
 #define	RK29_PIN2_PC2		(2*NUM_GROUP + PIN_BASE + 18);
 #define	RK29_PIN2_PC3		(2*NUM_GROUP + PIN_BASE + 19);
 #define	RK29_PIN2_PC4		(2*NUM_GROUP + PIN_BASE + 20);
-#define	RK29_PIN2_PC5		(2*NUM_GROUP + PIN_BASE + 21);
+#define	RK29_PIN2_PC5		(2*NUM_GROUP + PIN_BASE + 21)
 #define	RK29_PIN2_PC6		(2*NUM_GROUP + PIN_BASE + 22);
 #define	RK29_PIN2_PC7		(2*NUM_GROUP + PIN_BASE + 23);
 #define	RK29_PIN2_PD0		(2*NUM_GROUP + PIN_BASE + 24);
@@ -310,6 +317,7 @@ extern void __init rk29_gpio_irq_setup(void);
 
 #include <asm/errno.h>
 #include <asm-generic/gpio.h>		/* cansleep wrappers */
+#include <mach/irqs.h>
 
 #define gpio_get_value	__gpio_get_value
 #define gpio_set_value	__gpio_set_value
@@ -317,12 +325,12 @@ extern void __init rk29_gpio_irq_setup(void);
 
 static inline int gpio_to_irq(unsigned gpio)
 {
-	return gpio;
+	return gpio + NR_AIC_IRQS;
 }
 
 static inline int irq_to_gpio(unsigned irq)
 {
-	return irq;       
+	return irq - NR_AIC_IRQS;
 }
 
 #endif	/* __ASSEMBLY__ */     

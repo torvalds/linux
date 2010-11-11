@@ -19,7 +19,8 @@
 #include <linux/delay.h>
 #include <mach/irqs.h>
 #include <mach/rk29_iomap.h>
- 
+#include <mach/rk29-dma-pl330.h> 
+#include "devices.h"
  
 /*
  * rk29 4 uarts device
@@ -115,3 +116,74 @@ struct platform_device rk29_device_uart3 = {
 	.resource	= resources_uart3,
 };
 #endif
+
+/*
+ * rk29xx spi master device
+ */
+static struct resource rk29_spi0_resources[] = {
+	{
+		.start	= IRQ_SPI0,
+		.end	= IRQ_SPI0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK29_SPI0_PHYS,
+		.end	= RK29_SPI0_PHYS + RK29_SPI0_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start  = DMACH_SPI0_TX,
+		.end    = DMACH_SPI0_TX,
+		.flags  = IORESOURCE_DMA,
+	},
+	{
+		.start  = DMACH_SPI0_RX,
+		.end    = DMACH_SPI0_RX,
+		.flags  = IORESOURCE_DMA,
+	},
+};
+
+struct platform_device rk29xx_device_spi0m = {
+	.name	= "rk29xx_spim",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(rk29_spi0_resources),
+	.resource	= rk29_spi0_resources,
+	.dev			= {
+		.platform_data	= &rk29xx_spi0_platdata,
+	},
+};
+
+static struct resource rk29_spi1_resources[] = {
+	{
+		.start	= IRQ_SPI1,
+		.end	= IRQ_SPI1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK29_SPI1_PHYS,
+		.end	= RK29_SPI1_PHYS + RK29_SPI1_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start  = DMACH_SPI1_TX,
+		.end    = DMACH_SPI1_TX,
+		.flags  = IORESOURCE_DMA,
+	},
+	{
+		.start  = DMACH_SPI1_RX,
+		.end    = DMACH_SPI1_RX,
+		.flags  = IORESOURCE_DMA,
+	},
+};
+
+struct platform_device rk29xx_device_spi1m = {
+	.name	= "rk29xx_spim",
+	.id	= 1,
+	.num_resources	= ARRAY_SIZE(rk29_spi1_resources),
+	.resource	= rk29_spi1_resources,
+	.dev			= {
+		.platform_data	= &rk29xx_spi1_platdata,
+	},
+};
+
+

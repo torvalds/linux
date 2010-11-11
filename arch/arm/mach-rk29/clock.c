@@ -1180,8 +1180,8 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "spdif", &clk_spdif),
 
 	CLK1(spi_src),
-	CLK("rk29_spi.0", "spi", &clk_spi0),
-	CLK("rk29_spi.1", "spi", &clk_spi1),
+	CLK("rk29xx_spim.0", "spi0", &clk_spi0),
+	CLK("rk29xx_spim.1", "spi1", &clk_spi1),
 
 	CLK1(saradc),
 	CLK1(timer0),

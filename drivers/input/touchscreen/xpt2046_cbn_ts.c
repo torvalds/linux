@@ -46,7 +46,7 @@
  * note. The strength of filtering can be set in the board-* specific
  * files.
  */
-#define XPT2046_DEBUG		 0
+#define XPT2046_DEBUG		 1
 #if XPT2046_DEBUG
 	#define xpt2046printk(msg...)	printk(msg);
 #else
@@ -249,12 +249,14 @@ static int xpt2046_read12_dfr(struct device *dev, unsigned command)
 	CS_CHANGE(req->xfer[3]);
 	spi_message_add_tail(&req->xfer[3], &req->msg);
 
+    printk(KERN_INFO "req->command:%x, req->sample:%02x, req->pwrdown:%x, req->dummy:%02x\n", req->command, req->sample, req->pwrdown, req->dummy);
 	ts->irq_disabled = 1;
 	disable_irq(spi->irq);
 	status = spi_sync(spi, &req->msg);
 	ts->irq_disabled = 0;
 	enable_irq(spi->irq);
-	
+	printk(KERN_INFO "req->command:%x, req->sample:%02x, req->pwrdown:%x, req->dummy:%02x\n", req->command, req->sample, req->pwrdown, req->dummy);
+
 	if (status == 0) {
 		/* on-wire is a must-ignore bit, a BE12 value, then padding */
 		status = be16_to_cpu(req->sample);
@@ -507,6 +509,8 @@ static enum hrtimer_restart xpt2046_timer(struct hrtimer *handle)
 	int		status = 0;
 	
 	spin_lock(&ts->lock);
+
+	xpt2046printk("***>%s.....%s.....%d\n",__FILE__,__FUNCTION__,__LINE__);
 	
 	if (unlikely(!get_pendown_state(ts) ||
 		     device_suspended(&ts->spi->dev))) {
@@ -560,6 +564,7 @@ static irqreturn_t xpt2046_irq(int irq, void *handle)
 			ts->irq_disabled = 1;
 			disable_irq_nosync(ts->spi->irq);
 			ts->pending = 1;
+			
 			hrtimer_start(&ts->timer, ktime_set(0, TS_POLL_DELAY),
 					HRTIMER_MODE_REL);
 		}
@@ -695,7 +700,7 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 	struct spi_transfer		*x;
 	int				vref;
 	int				err;
-	
+	int             i;
 
 	
 	if (!spi->irq) {
@@ -888,7 +893,8 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 	err = input_register_device(input_dev);
 	if (err)
 		goto err_remove_attr_group;
-  printk("xpt2046_ts: driver initialized\n");
+	
+    printk("xpt2046_ts: driver initialized\n");
 	return 0;
 
  err_remove_attr_group:
