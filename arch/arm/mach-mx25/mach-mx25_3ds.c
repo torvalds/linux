@@ -42,7 +42,6 @@
 #include <mach/iomux-mx25.h>
 
 #include "devices-imx25.h"
-#include "devices.h"
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,

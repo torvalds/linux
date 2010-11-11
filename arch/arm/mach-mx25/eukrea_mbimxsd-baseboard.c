@@ -36,7 +36,6 @@
 #include <mach/audmux.h>
 
 #include "devices-imx25.h"
-#include "devices.h"
 
 static struct pad_desc eukrea_mbimxsd_pads[] = {
 	/* LCD */
