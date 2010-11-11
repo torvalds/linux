@@ -2065,6 +2065,22 @@ static int adap_init0(struct adapter *adapter)
 	}
 
 	/*
+	 * Some environments do not properly handle PCIE FLRs -- e.g. in Linux
+	 * 2.6.31 and later we can't call pci_reset_function() in order to
+	 * issue an FLR because of a self- deadlock on the device semaphore.
+	 * Meanwhile, the OS infrastructure doesn't issue FLRs in all the
+	 * cases where they're needed -- for instance, some versions of KVM
+	 * fail to reset "Assigned Devices" when the VM reboots.  Therefore we
+	 * use the firmware based reset in order to reset any per function
+	 * state.
+	 */
+	err = t4vf_fw_reset(adapter);
+	if (err < 0) {
+		dev_err(adapter->pdev_dev, "FW reset failed: err=%d\n", err);
+		return err;
+	}
+
+	/*
 	 * Grab basic operational parameters.  These will predominantly have
 	 * been set up by the Physical Function Driver or will be hard coded
 	 * into the adapter.  We just have to live with them ...  Note that
