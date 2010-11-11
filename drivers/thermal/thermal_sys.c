@@ -823,11 +823,8 @@ static struct class thermal_class = {
  * @devdata:	device private data.
  * @ops:		standard thermal cooling devices callbacks.
  */
-struct thermal_cooling_device *thermal_cooling_device_register(char *type,
-							       void *devdata,
-							       struct
-							       thermal_cooling_device_ops
-							       *ops)
+struct thermal_cooling_device *thermal_cooling_device_register(
+     char *type, void *devdata, const struct thermal_cooling_device_ops *ops)
 {
 	struct thermal_cooling_device *cdev;
 	struct thermal_zone_device *pos;
@@ -1048,13 +1045,9 @@ EXPORT_SYMBOL(thermal_zone_device_update);
  * section 11.1.5.1 of the ACPI specification 3.0.
  */
 struct thermal_zone_device *thermal_zone_device_register(char *type,
-							 int trips,
-							 void *devdata, struct
-							 thermal_zone_device_ops
-							 *ops, int tc1, int
-							 tc2,
-							 int passive_delay,
-							 int polling_delay)
+	int trips, void *devdata,
+	const struct thermal_zone_device_ops *ops,
+	int tc1, int tc2, int passive_delay, int polling_delay)
 {
 	struct thermal_zone_device *tz;
 	struct thermal_cooling_device *pos;

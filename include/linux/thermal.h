@@ -77,7 +77,7 @@ struct thermal_cooling_device {
 	char type[THERMAL_NAME_LENGTH];
 	struct device device;
 	void *devdata;
-	struct thermal_cooling_device_ops *ops;
+	const struct thermal_cooling_device_ops *ops;
 	struct list_head node;
 };
 
@@ -114,7 +114,7 @@ struct thermal_zone_device {
 	int last_temperature;
 	bool passive;
 	unsigned int forced_passive;
-	struct thermal_zone_device_ops *ops;
+	const struct thermal_zone_device_ops *ops;
 	struct list_head cooling_devices;
 	struct idr idr;
 	struct mutex lock;	/* protect cooling devices list */
@@ -129,11 +129,8 @@ struct thermal_zone_device {
 };
 
 struct thermal_zone_device *thermal_zone_device_register(char *, int, void *,
-							 struct
-							 thermal_zone_device_ops
-							 *, int tc1, int tc2,
-							 int passive_freq,
-							 int polling_freq);
+		const struct thermal_zone_device_ops *, int tc1, int tc2,
+		int passive_freq, int polling_freq);
 void thermal_zone_device_unregister(struct thermal_zone_device *);
 
 int thermal_zone_bind_cooling_device(struct thermal_zone_device *, int,
@@ -142,9 +139,7 @@ int thermal_zone_unbind_cooling_device(struct thermal_zone_device *, int,
 				       struct thermal_cooling_device *);
 void thermal_zone_device_update(struct thermal_zone_device *);
 struct thermal_cooling_device *thermal_cooling_device_register(char *, void *,
-							       struct
-							       thermal_cooling_device_ops
-							       *);
+		const struct thermal_cooling_device_ops *);
 void thermal_cooling_device_unregister(struct thermal_cooling_device *);
 
 #endif /* __THERMAL_H__ */
