@@ -182,32 +182,6 @@ module_param(phymsglevel, int, 0);
 #endif				/* WLC_HIGH_ONLY */
 #endif				/* BCMDBG */
 
-static int oneonly;
-module_param(oneonly, int, 0);
-
-static int piomode;
-module_param(piomode, int, 0);
-
-static int instance_base;	/* Starting instance number */
-module_param(instance_base, int, 0);
-
-#if defined(BCMDBG)
-static char *macaddr;
-module_param(macaddr, charp, S_IRUGO);
-#endif
-
-static int nompc = 1;
-module_param(nompc, int, 0);
-
-static char name[IFNAMSIZ] = "eth%d";
-module_param_string(name, name, IFNAMSIZ, 0);
-
-#ifndef	SRCBASE
-#define	SRCBASE "."
-#endif
-
-#define WL_MAGIC 	0xdeadbeef
-
 #define HW_TO_WL(hw)	 (hw->priv)
 #define WL_TO_HW(wl)	  (wl->pub->ieee_hw)
 #ifdef WLC_HIGH_ONLY
@@ -776,16 +750,11 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	struct ieee80211_hw *hw;
 	u8 perm[ETH_ALEN];
 
-	unit = wl_found + instance_base;
+	unit = wl_found;
 	err = 0;
 
 	if (unit < 0) {
 		WL_ERROR(("wl%d: unit number overflow, exiting\n", unit));
-		return NULL;
-	}
-
-	if (oneonly && (unit != instance_base)) {
-		WL_ERROR(("wl%d: wl_attach: oneonly is set, exiting\n", unit));
 		return NULL;
 	}
 
@@ -808,7 +777,6 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 #endif
 	ASSERT(wl);
 
-	wl->magic = WL_MAGIC;
 	wl->osh = osh;
 	atomic_set(&wl->callbacks, 0);
 
@@ -842,9 +810,7 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	base_addr = regs;
 
 	if (bustype == PCI_BUS) {
-		/* piomode can be overwritten by command argument */
-		wl->piomode = piomode;
-		WL_TRACE(("PCI/%s\n", wl->piomode ? "PIO" : "DMA"));
+		wl->piomode = false;
 	} else if (bustype == RPC_BUS) {
 		/* Do nothing */
 	} else {
@@ -911,11 +877,9 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 			  wl_rpc_down, NULL, NULL);
 #endif				/* WLC_HIGH_ONLY */
 
-	if (nompc) {
-		if (wlc_iovar_setint(wl->wlc, "mpc", 0)) {
-			WL_ERROR(("wl%d: Error setting MPC variable to 0\n",
-				  unit));
-		}
+	if (wlc_iovar_setint(wl->wlc, "mpc", 0)) {
+		WL_ERROR(("wl%d: Error setting MPC variable to 0\n",
+			  unit));
 	}
 #ifdef BCMSDIO
 	/* Set SDIO drive strength */
@@ -967,7 +931,7 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 #endif
 
 #ifdef BCMDBG
-	printf(" (Compiled in " SRCBASE " at " __TIME__ " on " __DATE__ ")");
+	printf(" (Compiled at " __TIME__ " on " __DATE__ ")");
 #endif				/* BCMDBG */
 	printf("\n");
 
