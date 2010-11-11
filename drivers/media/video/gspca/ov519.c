@@ -124,9 +124,9 @@ struct sd {
 #define SEN_OV8610 13
 
 	u8 sensor_addr;
-	int sensor_width;
-	int sensor_height;
-	int sensor_reg_cache[256];
+	u16 sensor_width;
+	u16 sensor_height;
+	s16 sensor_reg_cache[256];
 
 	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
