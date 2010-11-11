@@ -630,13 +630,13 @@ unsigned long long int remainder;
 
 #if defined(EASYCAP_DEBUG)
 #define JOT(n, format, args...) do { \
-	if (n <= debug) { \
+	if (n <= easycap_debug) { \
 		printk(KERN_DEBUG "easycap:: %s: " \
 			format, __func__, ##args);\
 	} \
 } while (0)
 #define JOM(n, format, args...) do { \
-	if (n <= debug) { \
+	if (n <= easycap_debug) { \
 		printk(KERN_DEBUG "easycap::%i%s: " \
 			format, peasycap->isdongle, __func__, ##args);\
 	} \

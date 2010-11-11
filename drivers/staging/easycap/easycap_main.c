@@ -32,12 +32,12 @@
 #include "easycap_standard.h"
 #include "easycap_ioctl.h"
 
-int debug;
-int bars;
-int gain = 16;
-module_param(debug, int, S_IRUGO | S_IWUSR);
-module_param(bars, int, S_IRUGO | S_IWUSR);
-module_param(gain, int, S_IRUGO | S_IWUSR);
+static int easycap_debug;
+static int easycap_bars;
+int easycap_gain = 16;
+module_param_named(debug, easycap_debug, int, S_IRUGO | S_IWUSR);
+module_param_named(bars, easycap_bars, int, S_IRUGO | S_IWUSR);
+module_param_named(gain, easycap_gain, int, S_IRUGO | S_IWUSR);
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -1464,7 +1464,7 @@ if (peasycap->field_read == peasycap->field_fill) {
 easycap_testcard(peasycap, peasycap->field_read);
 #else
 if (0 <= input && INPUT_MANY > input) {
-	if (bars && VIDEO_LOST_TOLERATE <= peasycap->lost[input])
+	if (easycap_bars && VIDEO_LOST_TOLERATE <= peasycap->lost[input])
 		easycap_testcard(peasycap, peasycap->field_read);
 }
 #endif /*EASYCAP_TESTCARD*/
@@ -5008,8 +5008,8 @@ easycap_module_init(void)
 int result;
 
 SAY("========easycap=======\n");
-JOT(4, "begins.  %i=debug %i=bars %i=gain\n", debug, bars, \
-						gain);
+JOT(4, "begins.  %i=debug %i=bars %i=gain\n", easycap_debug, easycap_bars, \
+						easycap_gain);
 SAY("version: " EASYCAP_DRIVER_VERSION "\n");
 /*---------------------------------------------------------------------------*/
 /*
