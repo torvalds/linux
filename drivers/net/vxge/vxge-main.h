@@ -145,15 +145,15 @@ struct vxge_config {
 
 	int		addr_learn_en;
 
-	int		rth_steering;
-	int		rth_algorithm;
-	int		rth_hash_type_tcpipv4;
-	int		rth_hash_type_ipv4;
-	int		rth_hash_type_tcpipv6;
-	int		rth_hash_type_ipv6;
-	int		rth_hash_type_tcpipv6ex;
-	int		rth_hash_type_ipv6ex;
-	int		rth_bkt_sz;
+	u32		rth_steering:2,
+			rth_algorithm:2,
+			rth_hash_type_tcpipv4:1,
+			rth_hash_type_ipv4:1,
+			rth_hash_type_tcpipv6:1,
+			rth_hash_type_ipv6:1,
+			rth_hash_type_tcpipv6ex:1,
+			rth_hash_type_ipv6ex:1,
+			rth_bkt_sz:8;
 	int		rth_jhash_golden_ratio;
 	int		tx_steering_type;
 	int 	fifo_indicate_max_pkts;

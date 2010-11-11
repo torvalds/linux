@@ -3204,6 +3204,8 @@ enum vxge_hw_status vxge_hw_vpath_rts_rth_set(
 		     VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_READ_ENTRY,
 		     VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_RTH_GEN_CFG,
 			0, &data0, &data1);
+	if (status != VXGE_HW_OK)
+		goto exit;
 
 	data0 &= ~(VXGE_HW_RTS_ACCESS_STEER_DATA0_RTH_GEN_BUCKET_SIZE(0xf) |
 			VXGE_HW_RTS_ACCESS_STEER_DATA0_RTH_GEN_ALG_SEL(0x3));

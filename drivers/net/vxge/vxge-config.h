@@ -1413,12 +1413,12 @@ enum vxge_hw_rth_algoritms {
  * See also: vxge_hw_vpath_rts_rth_set(), vxge_hw_vpath_rts_rth_get().
  */
 struct vxge_hw_rth_hash_types {
-	u8 hash_type_tcpipv4_en;
-	u8 hash_type_ipv4_en;
-	u8 hash_type_tcpipv6_en;
-	u8 hash_type_ipv6_en;
-	u8 hash_type_tcpipv6ex_en;
-	u8 hash_type_ipv6ex_en;
+	u8 hash_type_tcpipv4_en:1,
+	   hash_type_ipv4_en:1,
+	   hash_type_tcpipv6_en:1,
+	   hash_type_ipv6_en:1,
+	   hash_type_tcpipv6ex_en:1,
+	   hash_type_ipv6ex_en:1;
 };
 
 void vxge_hw_device_debug_set(

@@ -1904,34 +1904,6 @@ enum vxge_hw_ring_tcode {
 	VXGE_HW_RING_T_CODE_MULTI_ERR			= 0xF
 };
 
-/**
- * enum enum vxge_hw_ring_hash_type - RTH hash types
- * @VXGE_HW_RING_HASH_TYPE_NONE: No Hash
- * @VXGE_HW_RING_HASH_TYPE_TCP_IPV4: TCP IPv4
- * @VXGE_HW_RING_HASH_TYPE_UDP_IPV4: UDP IPv4
- * @VXGE_HW_RING_HASH_TYPE_IPV4: IPv4
- * @VXGE_HW_RING_HASH_TYPE_TCP_IPV6: TCP IPv6
- * @VXGE_HW_RING_HASH_TYPE_UDP_IPV6: UDP IPv6
- * @VXGE_HW_RING_HASH_TYPE_IPV6: IPv6
- * @VXGE_HW_RING_HASH_TYPE_TCP_IPV6_EX: TCP IPv6 extension
- * @VXGE_HW_RING_HASH_TYPE_UDP_IPV6_EX: UDP IPv6 extension
- * @VXGE_HW_RING_HASH_TYPE_IPV6_EX: IPv6 extension
- *
- * RTH hash types
- */
-enum vxge_hw_ring_hash_type {
-	VXGE_HW_RING_HASH_TYPE_NONE			= 0x0,
-	VXGE_HW_RING_HASH_TYPE_TCP_IPV4		= 0x1,
-	VXGE_HW_RING_HASH_TYPE_UDP_IPV4		= 0x2,
-	VXGE_HW_RING_HASH_TYPE_IPV4			= 0x3,
-	VXGE_HW_RING_HASH_TYPE_TCP_IPV6		= 0x4,
-	VXGE_HW_RING_HASH_TYPE_UDP_IPV6		= 0x5,
-	VXGE_HW_RING_HASH_TYPE_IPV6			= 0x6,
-	VXGE_HW_RING_HASH_TYPE_TCP_IPV6_EX	= 0x7,
-	VXGE_HW_RING_HASH_TYPE_UDP_IPV6_EX	= 0x8,
-	VXGE_HW_RING_HASH_TYPE_IPV6_EX		= 0x9
-};
-
 enum vxge_hw_status vxge_hw_ring_rxd_reserve(
 	struct __vxge_hw_ring *ring_handle,
 	void **rxdh);

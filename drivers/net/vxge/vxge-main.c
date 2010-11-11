@@ -513,6 +513,13 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 		else
 			skb_checksum_none_assert(skb);
 
+		/* rth_hash_type and rth_it_hit are non-zero regardless of
+		 * whether rss is enabled.  Only the rth_value is zero/non-zero
+		 * if rss is disabled/enabled, so key off of that.
+		 */
+		if (ext_info.rth_value)
+			skb->rxhash = ext_info.rth_value;
+
 		vxge_rx_complete(ring, skb, ext_info.vlan,
 			pkt_length, &ext_info);
 
@@ -1689,15 +1696,6 @@ static enum vxge_hw_status vxge_rth_configure(struct vxgedev *vdev)
 		mtable[index] = index % vdev->no_of_vpath;
 	}
 
-	/* Fill RTH hash types */
-	hash_types.hash_type_tcpipv4_en   = vdev->config.rth_hash_type_tcpipv4;
-	hash_types.hash_type_ipv4_en      = vdev->config.rth_hash_type_ipv4;
-	hash_types.hash_type_tcpipv6_en   = vdev->config.rth_hash_type_tcpipv6;
-	hash_types.hash_type_ipv6_en      = vdev->config.rth_hash_type_ipv6;
-	hash_types.hash_type_tcpipv6ex_en =
-					vdev->config.rth_hash_type_tcpipv6ex;
-	hash_types.hash_type_ipv6ex_en    = vdev->config.rth_hash_type_ipv6ex;
-
 	/* set indirection table, bucket-to-vpath mapping */
 	status = vxge_hw_vpath_rts_rth_itable_set(vdev->vp_handles,
 						vdev->no_of_vpath,
@@ -1710,12 +1708,21 @@ static enum vxge_hw_status vxge_rth_configure(struct vxgedev *vdev)
 		return status;
 	}
 
+	/* Fill RTH hash types */
+	hash_types.hash_type_tcpipv4_en   = vdev->config.rth_hash_type_tcpipv4;
+	hash_types.hash_type_ipv4_en      = vdev->config.rth_hash_type_ipv4;
+	hash_types.hash_type_tcpipv6_en   = vdev->config.rth_hash_type_tcpipv6;
+	hash_types.hash_type_ipv6_en      = vdev->config.rth_hash_type_ipv6;
+	hash_types.hash_type_tcpipv6ex_en =
+					vdev->config.rth_hash_type_tcpipv6ex;
+	hash_types.hash_type_ipv6ex_en    = vdev->config.rth_hash_type_ipv6ex;
+
 	/*
-	* Because the itable_set() method uses the active_table field
-	* for the target virtual path the RTH config should be updated
-	* for all VPATHs. The h/w only uses the lowest numbered VPATH
-	* when steering frames.
-	*/
+	 * Because the itable_set() method uses the active_table field
+	 * for the target virtual path the RTH config should be updated
+	 * for all VPATHs. The h/w only uses the lowest numbered VPATH
+	 * when steering frames.
+	 */
 	 for (index = 0; index < vdev->no_of_vpath; index++) {
 		status = vxge_hw_vpath_rts_rth_set(
 				vdev->vpaths[index].handle,
@@ -2598,6 +2605,8 @@ vxge_open(struct net_device *dev)
 			goto out2;
 		}
 	}
+	printk(KERN_INFO "%s: Receive Hashing Offload %s\n", dev->name,
+	       hldev->config.rth_en ? "enabled" : "disabled");
 
 	for (i = 0; i < vdev->no_of_vpath; i++) {
 		vpath = &vdev->vpaths[i];
@@ -3177,6 +3186,11 @@ static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 	ndev->watchdog_timeo = VXGE_LL_WATCH_DOG_TIMEOUT;
 
 	vxge_initialize_ethtool_ops(ndev);
+
+	if (vdev->config.rth_steering != NO_STEERING) {
+		ndev->features |= NETIF_F_RXHASH;
+		hldev->config.rth_en = VXGE_HW_RTH_ENABLE;
+	}
 
 	/* Allocate memory for vpath */
 	vdev->vpaths = kzalloc((sizeof(struct vxge_vpath)) *
@@ -4163,12 +4177,12 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	ll_config->fifo_indicate_max_pkts = VXGE_FIFO_INDICATE_MAX_PKTS;
 	ll_config->addr_learn_en = addr_learn_en;
 	ll_config->rth_algorithm = RTH_ALG_JENKINS;
-	ll_config->rth_hash_type_tcpipv4 = VXGE_HW_RING_HASH_TYPE_TCP_IPV4;
-	ll_config->rth_hash_type_ipv4 = VXGE_HW_RING_HASH_TYPE_NONE;
-	ll_config->rth_hash_type_tcpipv6 = VXGE_HW_RING_HASH_TYPE_NONE;
-	ll_config->rth_hash_type_ipv6 = VXGE_HW_RING_HASH_TYPE_NONE;
-	ll_config->rth_hash_type_tcpipv6ex = VXGE_HW_RING_HASH_TYPE_NONE;
-	ll_config->rth_hash_type_ipv6ex = VXGE_HW_RING_HASH_TYPE_NONE;
+	ll_config->rth_hash_type_tcpipv4 = 1;
+	ll_config->rth_hash_type_ipv4 = 0;
+	ll_config->rth_hash_type_tcpipv6 = 0;
+	ll_config->rth_hash_type_ipv6 = 0;
+	ll_config->rth_hash_type_tcpipv6ex = 0;
+	ll_config->rth_hash_type_ipv6ex = 0;
 	ll_config->rth_bkt_sz = RTH_BUCKET_SIZE;
 	ll_config->tx_pause_enable = VXGE_PAUSE_CTRL_ENABLE;
 	ll_config->rx_pause_enable = VXGE_PAUSE_CTRL_ENABLE;

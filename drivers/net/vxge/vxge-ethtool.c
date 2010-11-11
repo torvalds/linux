@@ -1119,6 +1119,40 @@ static int vxge_ethtool_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
+static int vxge_set_flags(struct net_device *dev, u32 data)
+{
+	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	enum vxge_hw_status status;
+
+	if (data & ~ETH_FLAG_RXHASH)
+		return -EOPNOTSUPP;
+
+	if (!!(data & ETH_FLAG_RXHASH) == vdev->devh->config.rth_en)
+		return 0;
+
+	if (netif_running(dev) || (vdev->config.rth_steering == NO_STEERING))
+		return -EINVAL;
+
+	vdev->devh->config.rth_en = !!(data & ETH_FLAG_RXHASH);
+
+	/* Enabling RTH requires some of the logic in vxge_device_register and a
+	 * vpath reset.  Due to these restrictions, only allow modification
+	 * while the interface is down.
+	 */
+	status = vxge_reset_all_vpaths(vdev);
+	if (status != VXGE_HW_OK) {
+		vdev->devh->config.rth_en = !vdev->devh->config.rth_en;
+		return -EFAULT;
+	}
+
+	if (vdev->devh->config.rth_en)
+		dev->features |= NETIF_F_RXHASH;
+	else
+		dev->features &= ~NETIF_F_RXHASH;
+
+	return 0;
+}
+
 static const struct ethtool_ops vxge_ethtool_ops = {
 	.get_settings		= vxge_ethtool_gset,
 	.set_settings		= vxge_ethtool_sset,
@@ -1140,6 +1174,7 @@ static const struct ethtool_ops vxge_ethtool_ops = {
 	.phys_id		= vxge_ethtool_idnic,
 	.get_sset_count		= vxge_ethtool_get_sset_count,
 	.get_ethtool_stats	= vxge_get_ethtool_stats,
+	.set_flags		= vxge_set_flags,
 };
 
 void vxge_initialize_ethtool_ops(struct net_device *ndev)
