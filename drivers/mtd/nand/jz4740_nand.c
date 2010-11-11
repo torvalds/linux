@@ -251,58 +251,6 @@ static int jz_nand_correct_ecc_rs(struct mtd_info *mtd, uint8_t *dat,
 	return 0;
 }
 
-
-/* Copy paste of nand_read_page_hwecc_oob_first except for different eccpos
- * handling. The ecc area is for 4k chips 72 bytes long and thus does not fit
- * into the eccpos array. */
-static int jz_nand_read_page_hwecc_oob_first(struct mtd_info *mtd,
-	struct nand_chip *chip, uint8_t *buf, int page)
-{
-	int i, eccsize = chip->ecc.size;
-	int eccbytes = chip->ecc.bytes;
-	int eccsteps = chip->ecc.steps;
-	uint8_t *p = buf;
-	unsigned int ecc_offset = chip->page_shift;
-
-	/* Read the OOB area first */
-	chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
-	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
-
-	for (i = ecc_offset; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
-		int stat;
-
-		chip->ecc.hwctl(mtd, NAND_ECC_READ);
-		chip->read_buf(mtd, p, eccsize);
-
-		stat = chip->ecc.correct(mtd, p, &chip->oob_poi[i], NULL);
-		if (stat < 0)
-			mtd->ecc_stats.failed++;
-		else
-			mtd->ecc_stats.corrected += stat;
-	}
-	return 0;
-}
-
-/* Copy-and-paste of nand_write_page_hwecc with different eccpos handling. */
-static void jz_nand_write_page_hwecc(struct mtd_info *mtd,
-	struct nand_chip *chip, const uint8_t *buf)
-{
-	int i, eccsize = chip->ecc.size;
-	int eccbytes = chip->ecc.bytes;
-	int eccsteps = chip->ecc.steps;
-	const uint8_t *p = buf;
-	unsigned int ecc_offset = chip->page_shift;
-
-	for (i = ecc_offset; eccsteps; eccsteps--, i += eccbytes, p += eccsize) {
-		chip->ecc.hwctl(mtd, NAND_ECC_WRITE);
-		chip->write_buf(mtd, p, eccsize);
-		chip->ecc.calculate(mtd, p, &chip->oob_poi[i]);
-	}
-
-	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
-}
-
 #ifdef CONFIG_MTD_CMDLINE_PARTS
 static const char *part_probes[] = {"cmdline", NULL};
 #endif
@@ -392,9 +340,6 @@ static int __devinit jz_nand_probe(struct platform_device *pdev)
 	chip->ecc.mode		= NAND_ECC_HW_OOB_FIRST;
 	chip->ecc.size		= 512;
 	chip->ecc.bytes		= 9;
-
-	chip->ecc.read_page	= jz_nand_read_page_hwecc_oob_first;
-	chip->ecc.write_page	= jz_nand_write_page_hwecc;
 
 	if (pdata)
 		chip->ecc.layout = pdata->ecc_layout;
