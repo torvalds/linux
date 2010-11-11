@@ -753,7 +753,9 @@ static int cxgb4vf_open(struct net_device *dev)
 	if (err)
 		return err;
 	set_bit(pi->port_id, &adapter->open_device_map);
-	link_start(dev);
+	err = link_start(dev);
+	if (err)
+		return err;
 	netif_tx_start_all_queues(dev);
 	return 0;
 }
