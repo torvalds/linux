@@ -155,7 +155,6 @@ __vxge_hw_vpath_reset_check(struct __vxge_hw_virtualpath *vpath);
 static enum vxge_hw_status
 __vxge_hw_vpath_sw_reset(struct __vxge_hw_device *devh, u32 vp_id);
 
-
 static enum vxge_hw_status
 __vxge_hw_vpath_mac_configure(struct __vxge_hw_device *devh, u32 vp_id);
 
@@ -319,6 +318,188 @@ vxge_hw_vpath_fw_api(struct __vxge_hw_virtualpath *vpath, u32 action,
 out:
 	if (vpath->vp_open)
 		spin_unlock(&vpath->lock);
+	return status;
+}
+
+enum vxge_hw_status
+vxge_hw_upgrade_read_version(struct __vxge_hw_device *hldev, u32 *major,
+			     u32 *minor, u32 *build)
+{
+	u64 data0 = 0, data1 = 0, steer_ctrl = 0;
+	struct __vxge_hw_virtualpath *vpath;
+	enum vxge_hw_status status;
+
+	vpath = &hldev->virtual_paths[hldev->first_vp_id];
+
+	status = vxge_hw_vpath_fw_api(vpath,
+				      VXGE_HW_FW_UPGRADE_ACTION,
+				      VXGE_HW_FW_UPGRADE_MEMO,
+				      VXGE_HW_FW_UPGRADE_OFFSET_READ,
+				      &data0, &data1, &steer_ctrl);
+	if (status != VXGE_HW_OK)
+		return status;
+
+	*major = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MAJOR(data0);
+	*minor = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MINOR(data0);
+	*build = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_BUILD(data0);
+
+	return status;
+}
+
+enum vxge_hw_status vxge_hw_flash_fw(struct __vxge_hw_device *hldev)
+{
+	u64 data0 = 0, data1 = 0, steer_ctrl = 0;
+	struct __vxge_hw_virtualpath *vpath;
+	enum vxge_hw_status status;
+	u32 ret;
+
+	vpath = &hldev->virtual_paths[hldev->first_vp_id];
+
+	status = vxge_hw_vpath_fw_api(vpath,
+				      VXGE_HW_FW_UPGRADE_ACTION,
+				      VXGE_HW_FW_UPGRADE_MEMO,
+				      VXGE_HW_FW_UPGRADE_OFFSET_COMMIT,
+				      &data0, &data1, &steer_ctrl);
+	if (status != VXGE_HW_OK) {
+		vxge_debug_init(VXGE_ERR, "%s: FW upgrade failed", __func__);
+		goto exit;
+	}
+
+	ret = VXGE_HW_RTS_ACCESS_STEER_CTRL_GET_ACTION(steer_ctrl) & 0x7F;
+	if (ret != 1) {
+		vxge_debug_init(VXGE_ERR, "%s: FW commit failed with error %d",
+				__func__, ret);
+		status = VXGE_HW_FAIL;
+	}
+
+exit:
+	return status;
+}
+
+enum vxge_hw_status
+vxge_update_fw_image(struct __vxge_hw_device *hldev, const u8 *fwdata, int size)
+{
+	u64 data0 = 0, data1 = 0, steer_ctrl = 0;
+	struct __vxge_hw_virtualpath *vpath;
+	enum vxge_hw_status status;
+	int ret_code, sec_code;
+
+	vpath = &hldev->virtual_paths[hldev->first_vp_id];
+
+	/* send upgrade start command */
+	status = vxge_hw_vpath_fw_api(vpath,
+				      VXGE_HW_FW_UPGRADE_ACTION,
+				      VXGE_HW_FW_UPGRADE_MEMO,
+				      VXGE_HW_FW_UPGRADE_OFFSET_START,
+				      &data0, &data1, &steer_ctrl);
+	if (status != VXGE_HW_OK) {
+		vxge_debug_init(VXGE_ERR, " %s: Upgrade start cmd failed",
+				__func__);
+		return status;
+	}
+
+	/* Transfer fw image to adapter 16 bytes at a time */
+	for (; size > 0; size -= VXGE_HW_FW_UPGRADE_BLK_SIZE) {
+		steer_ctrl = 0;
+
+		/* The next 128bits of fwdata to be loaded onto the adapter */
+		data0 = *((u64 *)fwdata);
+		data1 = *((u64 *)fwdata + 1);
+
+		status = vxge_hw_vpath_fw_api(vpath,
+					      VXGE_HW_FW_UPGRADE_ACTION,
+					      VXGE_HW_FW_UPGRADE_MEMO,
+					      VXGE_HW_FW_UPGRADE_OFFSET_SEND,
+					      &data0, &data1, &steer_ctrl);
+		if (status != VXGE_HW_OK) {
+			vxge_debug_init(VXGE_ERR, "%s: Upgrade send failed",
+					__func__);
+			goto out;
+		}
+
+		ret_code = VXGE_HW_UPGRADE_GET_RET_ERR_CODE(data0);
+		switch (ret_code) {
+		case VXGE_HW_FW_UPGRADE_OK:
+			/* All OK, send next 16 bytes. */
+			break;
+		case VXGE_FW_UPGRADE_BYTES2SKIP:
+			/* skip bytes in the stream */
+			fwdata += (data0 >> 8) & 0xFFFFFFFF;
+			break;
+		case VXGE_HW_FW_UPGRADE_DONE:
+			goto out;
+		case VXGE_HW_FW_UPGRADE_ERR:
+			sec_code = VXGE_HW_UPGRADE_GET_SEC_ERR_CODE(data0);
+			switch (sec_code) {
+			case VXGE_HW_FW_UPGRADE_ERR_CORRUPT_DATA_1:
+			case VXGE_HW_FW_UPGRADE_ERR_CORRUPT_DATA_7:
+				printk(KERN_ERR
+				       "corrupted data from .ncf file\n");
+				break;
+			case VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_3:
+			case VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_4:
+			case VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_5:
+			case VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_6:
+			case VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_8:
+				printk(KERN_ERR "invalid .ncf file\n");
+				break;
+			case VXGE_HW_FW_UPGRADE_ERR_BUFFER_OVERFLOW:
+				printk(KERN_ERR "buffer overflow\n");
+				break;
+			case VXGE_HW_FW_UPGRADE_ERR_FAILED_TO_FLASH:
+				printk(KERN_ERR "failed to flash the image\n");
+				break;
+			case VXGE_HW_FW_UPGRADE_ERR_GENERIC_ERROR_UNKNOWN:
+				printk(KERN_ERR
+				       "generic error. Unknown error type\n");
+				break;
+			default:
+				printk(KERN_ERR "Unknown error of type %d\n",
+				       sec_code);
+				break;
+			}
+			status = VXGE_HW_FAIL;
+			goto out;
+		default:
+			printk(KERN_ERR "Unknown FW error: %d\n", ret_code);
+			status = VXGE_HW_FAIL;
+			goto out;
+		}
+		/* point to next 16 bytes */
+		fwdata += VXGE_HW_FW_UPGRADE_BLK_SIZE;
+	}
+out:
+	return status;
+}
+
+enum vxge_hw_status
+vxge_hw_vpath_eprom_img_ver_get(struct __vxge_hw_device *hldev,
+				struct eprom_image *img)
+{
+	u64 data0 = 0, data1 = 0, steer_ctrl = 0;
+	struct __vxge_hw_virtualpath *vpath;
+	enum vxge_hw_status status;
+	int i;
+
+	vpath = &hldev->virtual_paths[hldev->first_vp_id];
+
+	for (i = 0; i < VXGE_HW_MAX_ROM_IMAGES; i++) {
+		data0 = VXGE_HW_RTS_ACCESS_STEER_ROM_IMAGE_INDEX(i);
+		data1 = steer_ctrl = 0;
+
+		status = vxge_hw_vpath_fw_api(vpath,
+			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO,
+			VXGE_HW_FW_API_GET_EPROM_REV,
+			0, &data0, &data1, &steer_ctrl);
+		if (status != VXGE_HW_OK)
+			break;
+
+		img[i].is_valid = VXGE_HW_GET_EPROM_IMAGE_VALID(data0);
+		img[i].index = VXGE_HW_GET_EPROM_IMAGE_INDEX(data0);
+		img[i].type = VXGE_HW_GET_EPROM_IMAGE_TYPE(data0);
+		img[i].version = VXGE_HW_GET_EPROM_IMAGE_REV(data0);
+	}
+
 	return status;
 }
 

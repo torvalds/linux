@@ -1153,6 +1153,25 @@ static int vxge_set_flags(struct net_device *dev, u32 data)
 	return 0;
 }
 
+static int vxge_fw_flash(struct net_device *dev, struct ethtool_flash *parms)
+{
+	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+
+	if (vdev->max_vpath_supported != VXGE_HW_MAX_VIRTUAL_PATHS) {
+		printk(KERN_INFO "Single Function Mode is required to flash the"
+		       " firmware\n");
+		return -EINVAL;
+	}
+
+	if (netif_running(dev)) {
+		printk(KERN_INFO "Interface %s must be down to flash the "
+		       "firmware\n", dev->name);
+		return -EBUSY;
+	}
+
+	return vxge_fw_upgrade(vdev, parms->data, 1);
+}
+
 static const struct ethtool_ops vxge_ethtool_ops = {
 	.get_settings		= vxge_ethtool_gset,
 	.set_settings		= vxge_ethtool_sset,
@@ -1175,6 +1194,7 @@ static const struct ethtool_ops vxge_ethtool_ops = {
 	.get_sset_count		= vxge_ethtool_get_sset_count,
 	.get_ethtool_stats	= vxge_get_ethtool_stats,
 	.set_flags		= vxge_set_flags,
+	.flash_device		= vxge_fw_flash,
 };
 
 void vxge_initialize_ethtool_ops(struct net_device *ndev)

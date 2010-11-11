@@ -29,6 +29,15 @@
 #define VXGE_HW_MAX_MTU				9600
 #define VXGE_HW_DEFAULT_MTU			1500
 
+#define VXGE_HW_MAX_ROM_IMAGES			8
+
+struct eprom_image {
+	u8 is_valid:1;
+	u8 index;
+	u8 type;
+	u16 version;
+};
+
 #ifdef VXGE_DEBUG_ASSERT
 /**
  * vxge_assert
@@ -145,6 +154,47 @@ enum vxge_hw_device_link_state {
 	VXGE_HW_LINK_NONE,
 	VXGE_HW_LINK_DOWN,
 	VXGE_HW_LINK_UP
+};
+
+/**
+ * enum enum vxge_hw_fw_upgrade_code - FW upgrade return codes.
+ * @VXGE_HW_FW_UPGRADE_OK: All OK send next 16 bytes
+ * @VXGE_HW_FW_UPGRADE_DONE:  upload completed
+ * @VXGE_HW_FW_UPGRADE_ERR:  upload error
+ * @VXGE_FW_UPGRADE_BYTES2SKIP:  skip bytes in the stream
+ *
+ */
+enum vxge_hw_fw_upgrade_code {
+	VXGE_HW_FW_UPGRADE_OK		= 0,
+	VXGE_HW_FW_UPGRADE_DONE		= 1,
+	VXGE_HW_FW_UPGRADE_ERR		= 2,
+	VXGE_FW_UPGRADE_BYTES2SKIP	= 3
+};
+
+/**
+ * enum enum vxge_hw_fw_upgrade_err_code - FW upgrade error codes.
+ * @VXGE_HW_FW_UPGRADE_ERR_CORRUPT_DATA_1: corrupt data
+ * @VXGE_HW_FW_UPGRADE_ERR_BUFFER_OVERFLOW: buffer overflow
+ * @VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_3: invalid .ncf file
+ * @VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_4: invalid .ncf file
+ * @VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_5: invalid .ncf file
+ * @VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_6: invalid .ncf file
+ * @VXGE_HW_FW_UPGRADE_ERR_CORRUPT_DATA_7: corrupt data
+ * @VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_8: invalid .ncf file
+ * @VXGE_HW_FW_UPGRADE_ERR_GENERIC_ERROR_UNKNOWN: generic error unknown type
+ * @VXGE_HW_FW_UPGRADE_ERR_FAILED_TO_FLASH: failed to flash image check failed
+ */
+enum vxge_hw_fw_upgrade_err_code {
+	VXGE_HW_FW_UPGRADE_ERR_CORRUPT_DATA_1		= 1,
+	VXGE_HW_FW_UPGRADE_ERR_BUFFER_OVERFLOW		= 2,
+	VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_3		= 3,
+	VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_4		= 4,
+	VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_5		= 5,
+	VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_6		= 6,
+	VXGE_HW_FW_UPGRADE_ERR_CORRUPT_DATA_7		= 7,
+	VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_8		= 8,
+	VXGE_HW_FW_UPGRADE_ERR_GENERIC_ERROR_UNKNOWN	= 9,
+	VXGE_HW_FW_UPGRADE_ERR_FAILED_TO_FLASH		= 10
 };
 
 /**
@@ -454,7 +504,6 @@ struct vxge_hw_device_config {
  * See also: vxge_hw_driver_initialize().
  */
 struct vxge_hw_uld_cbs {
-
 	void (*link_up)(struct __vxge_hw_device *devh);
 	void (*link_down)(struct __vxge_hw_device *devh);
 	void (*crit_err)(struct __vxge_hw_device *devh,
@@ -721,6 +770,7 @@ struct __vxge_hw_device {
 	u32				debug_level;
 	u32				level_err;
 	u32				level_trace;
+	u16 eprom_versions[VXGE_HW_MAX_ROM_IMAGES];
 };
 
 #define VXGE_HW_INFO_LEN	64
@@ -2032,7 +2082,22 @@ __vxge_hw_device_is_privilaged(u32 host_type, u32 func_id);
 #define VXGE_HW_MIN_SUCCESSIVE_IDLE_COUNT 5
 #define VXGE_HW_MAX_POLLING_COUNT 100
 
-int vxge_hw_vpath_wait_receive_idle(struct __vxge_hw_device *hldev, u32 vp_id);
+void
+vxge_hw_device_wait_receive_idle(struct __vxge_hw_device *hldev);
 
-void  vxge_hw_device_wait_receive_idle(struct __vxge_hw_device *hldev);
+enum vxge_hw_status
+vxge_hw_upgrade_read_version(struct __vxge_hw_device *hldev, u32 *major,
+			     u32 *minor, u32 *build);
+
+enum vxge_hw_status vxge_hw_flash_fw(struct __vxge_hw_device *hldev);
+
+enum vxge_hw_status
+vxge_update_fw_image(struct __vxge_hw_device *hldev, const u8 *filebuf,
+		     int size);
+
+enum vxge_hw_status
+vxge_hw_vpath_eprom_img_ver_get(struct __vxge_hw_device *hldev,
+				struct eprom_image *eprom_image_data);
+
+int vxge_hw_vpath_wait_receive_idle(struct __vxge_hw_device *hldev, u32 vp_id);
 #endif

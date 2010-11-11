@@ -50,6 +50,7 @@
 #include <net/ip.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/firmware.h>
 #include "vxge-main.h"
 #include "vxge-reg.h"
 
@@ -3248,6 +3249,7 @@ static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 		"%s: Ethernet device registered",
 		ndev->name);
 
+	hldev->ndev = ndev;
 	*vdev_out = vdev;
 
 	/* Resetting the Device stats */
@@ -3935,6 +3937,142 @@ static inline u32 vxge_get_num_vfs(u64 function_mode)
 	return num_functions;
 }
 
+int vxge_fw_upgrade(struct vxgedev *vdev, char *fw_name, int override)
+{
+	struct __vxge_hw_device *hldev = vdev->devh;
+	u32 maj, min, bld, cmaj, cmin, cbld;
+	enum vxge_hw_status status;
+	const struct firmware *fw;
+	int ret;
+
+	ret = request_firmware(&fw, fw_name, &vdev->pdev->dev);
+	if (ret) {
+		vxge_debug_init(VXGE_ERR, "%s: Firmware file '%s' not found",
+				VXGE_DRIVER_NAME, fw_name);
+		goto out;
+	}
+
+	/* Load the new firmware onto the adapter */
+	status = vxge_update_fw_image(hldev, fw->data, fw->size);
+	if (status != VXGE_HW_OK) {
+		vxge_debug_init(VXGE_ERR,
+				"%s: FW image download to adapter failed '%s'.",
+				VXGE_DRIVER_NAME, fw_name);
+		ret = -EIO;
+		goto out;
+	}
+
+	/* Read the version of the new firmware */
+	status = vxge_hw_upgrade_read_version(hldev, &maj, &min, &bld);
+	if (status != VXGE_HW_OK) {
+		vxge_debug_init(VXGE_ERR,
+				"%s: Upgrade read version failed '%s'.",
+				VXGE_DRIVER_NAME, fw_name);
+		ret = -EIO;
+		goto out;
+	}
+
+	cmaj = vdev->config.device_hw_info.fw_version.major;
+	cmin = vdev->config.device_hw_info.fw_version.minor;
+	cbld = vdev->config.device_hw_info.fw_version.build;
+	/* It's possible the version in /lib/firmware is not the latest version.
+	 * If so, we could get into a loop of trying to upgrade to the latest
+	 * and flashing the older version.
+	 */
+	if (VXGE_FW_VER(maj, min, bld) == VXGE_FW_VER(cmaj, cmin, cbld) &&
+	    !override) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	printk(KERN_NOTICE "Upgrade to firmware version %d.%d.%d commencing\n",
+	       maj, min, bld);
+
+	/* Flash the adapter with the new firmware */
+	status = vxge_hw_flash_fw(hldev);
+	if (status != VXGE_HW_OK) {
+		vxge_debug_init(VXGE_ERR, "%s: Upgrade commit failed '%s'.",
+				VXGE_DRIVER_NAME, fw_name);
+		ret = -EIO;
+		goto out;
+	}
+
+	printk(KERN_NOTICE "Upgrade of firmware successful!  Adapter must be "
+	       "hard reset before using, thus requiring a system reboot or a "
+	       "hotplug event.\n");
+
+out:
+	return ret;
+}
+
+static int vxge_probe_fw_update(struct vxgedev *vdev)
+{
+	u32 maj, min, bld;
+	int ret, gpxe = 0;
+	char *fw_name;
+
+	maj = vdev->config.device_hw_info.fw_version.major;
+	min = vdev->config.device_hw_info.fw_version.minor;
+	bld = vdev->config.device_hw_info.fw_version.build;
+
+	if (VXGE_FW_VER(maj, min, bld) == VXGE_CERT_FW_VER)
+		return 0;
+
+	/* Ignore the build number when determining if the current firmware is
+	 * "too new" to load the driver
+	 */
+	if (VXGE_FW_VER(maj, min, 0) > VXGE_CERT_FW_VER) {
+		vxge_debug_init(VXGE_ERR, "%s: Firmware newer than last known "
+				"version, unable to load driver\n",
+				VXGE_DRIVER_NAME);
+		return -EINVAL;
+	}
+
+	/* Firmware 1.4.4 and older cannot be upgraded, and is too ancient to
+	 * work with this driver.
+	 */
+	if (VXGE_FW_VER(maj, min, bld) <= VXGE_FW_DEAD_VER) {
+		vxge_debug_init(VXGE_ERR, "%s: Firmware %d.%d.%d cannot be "
+				"upgraded\n", VXGE_DRIVER_NAME, maj, min, bld);
+		return -EINVAL;
+	}
+
+	/* If file not specified, determine gPXE or not */
+	if (VXGE_FW_VER(maj, min, bld) >= VXGE_EPROM_FW_VER) {
+		int i;
+		for (i = 0; i < VXGE_HW_MAX_ROM_IMAGES; i++)
+			if (vdev->devh->eprom_versions[i]) {
+				gpxe = 1;
+				break;
+			}
+	}
+	if (gpxe)
+		fw_name = "vxge/X3fw-pxe.ncf";
+	else
+		fw_name = "vxge/X3fw.ncf";
+
+	ret = vxge_fw_upgrade(vdev, fw_name, 0);
+	/* -EINVAL and -ENOENT are not fatal errors for flashing firmware on
+	 * probe, so ignore them
+	 */
+	if (ret != -EINVAL && ret != -ENOENT)
+		return -EIO;
+	else
+		ret = 0;
+
+	if (VXGE_FW_VER(VXGE_CERT_FW_VER_MAJOR, VXGE_CERT_FW_VER_MINOR, 0) >
+	    VXGE_FW_VER(maj, min, 0)) {
+		vxge_debug_init(VXGE_ERR, "%s: Firmware %d.%d.%d is too old to"
+				" be used with this driver.\n"
+				"Please get the latest version from "
+				"ftp://ftp.s2io.com/pub/X3100-Drivers/FIRMWARE",
+				VXGE_DRIVER_NAME, maj, min, bld);
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 /**
  * vxge_probe
  * @pdev : structure containing the PCI related information of the device.
@@ -4093,16 +4231,6 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto _exit3;
 	}
 
-	if (ll_config->device_hw_info.fw_version.major !=
-		VXGE_DRIVER_FW_VERSION_MAJOR) {
-		vxge_debug_init(VXGE_ERR,
-			"%s: Incorrect firmware version."
-			"Please upgrade the firmware to version 1.x.x",
-			VXGE_DRIVER_NAME);
-		ret = -EINVAL;
-		goto _exit3;
-	}
-
 	vpath_mask = ll_config->device_hw_info.vpath_mask;
 	if (vpath_mask == 0) {
 		vxge_debug_ll_config(VXGE_TRACE,
@@ -4166,6 +4294,32 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 			goto _exit3;
 	}
 
+	if (VXGE_FW_VER(ll_config->device_hw_info.fw_version.major,
+			ll_config->device_hw_info.fw_version.minor,
+			ll_config->device_hw_info.fw_version.build) >=
+	    VXGE_EPROM_FW_VER) {
+		struct eprom_image img[VXGE_HW_MAX_ROM_IMAGES];
+
+		status = vxge_hw_vpath_eprom_img_ver_get(hldev, img);
+		if (status != VXGE_HW_OK) {
+			vxge_debug_init(VXGE_ERR, "%s: Reading of EPROM failed",
+					VXGE_DRIVER_NAME);
+			/* This is a non-fatal error, continue */
+		}
+
+		for (i = 0; i < VXGE_HW_MAX_ROM_IMAGES; i++) {
+			hldev->eprom_versions[i] = img[i].version;
+			if (!img[i].is_valid)
+				break;
+			vxge_debug_init(VXGE_TRACE, "%s: EPROM %d, version "
+					"%d.%d.%d.%d\n", VXGE_DRIVER_NAME, i,
+					VXGE_EPROM_IMG_MAJOR(img[i].version),
+					VXGE_EPROM_IMG_MINOR(img[i].version),
+					VXGE_EPROM_IMG_FIX(img[i].version),
+					VXGE_EPROM_IMG_BUILD(img[i].version));
+		}
+	}
+
 	/* if FCS stripping is not disabled in MAC fail driver load */
 	if (vxge_hw_vpath_strip_fcs_check(hldev, vpath_mask) != VXGE_HW_OK) {
 		vxge_debug_init(VXGE_ERR,
@@ -4194,18 +4348,22 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	ll_config->tx_pause_enable = VXGE_PAUSE_CTRL_ENABLE;
 	ll_config->rx_pause_enable = VXGE_PAUSE_CTRL_ENABLE;
 
-	if (vxge_device_register(hldev, ll_config, high_dma, no_of_vpath,
-		&vdev)) {
+	ret = vxge_device_register(hldev, ll_config, high_dma, no_of_vpath,
+				   &vdev);
+	if (ret) {
 		ret = -EINVAL;
 		goto _exit4;
 	}
+
+	ret = vxge_probe_fw_update(vdev);
+	if (ret)
+		goto _exit5;
 
 	vxge_hw_device_debug_set(hldev, VXGE_TRACE, VXGE_COMPONENT_LL);
 	VXGE_COPY_DEBUG_INFO_TO_LL(vdev, vxge_hw_device_error_level_get(hldev),
 		vxge_hw_device_trace_level_get(hldev));
 
 	/* set private HW device info */
-	hldev->ndev = vdev->ndev;
 	vdev->mtu = VXGE_HW_DEFAULT_MTU;
 	vdev->bar0 = attr.bar0;
 	vdev->max_vpath_supported = max_vpath_supported;
@@ -4307,7 +4465,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 				"%s: mac_addr_list : memory allocation failed",
 				vdev->ndev->name);
 			ret = -EPERM;
-			goto _exit5;
+			goto _exit6;
 		}
 		macaddr = (u8 *)&entry->macaddr;
 		memcpy(macaddr, vdev->ndev->dev_addr, ETH_ALEN);
@@ -4347,10 +4505,10 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	kfree(ll_config);
 	return 0;
 
-_exit5:
+_exit6:
 	for (i = 0; i < vdev->no_of_vpath; i++)
 		vxge_free_mac_add_list(&vdev->vpaths[i]);
-
+_exit5:
 	vxge_device_unregister(hldev);
 _exit4:
 	pci_disable_sriov(pdev);
