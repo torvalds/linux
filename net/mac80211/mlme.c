@@ -1108,6 +1108,30 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 	mutex_unlock(&ifmgd->mtx);
 }
 
+struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct sk_buff *skb;
+	const u8 *ssid;
+
+	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
+		return NULL;
+
+	ASSERT_MGD_MTX(ifmgd);
+
+	if (!ifmgd->associated)
+		return NULL;
+
+	ssid = ieee80211_bss_get_ie(ifmgd->associated, WLAN_EID_SSID);
+	skb = ieee80211_build_probe_req(sdata, ifmgd->associated->bssid,
+					ssid + 2, ssid[1], NULL, 0);
+
+	return skb;
+}
+EXPORT_SYMBOL(ieee80211_ap_probereq_get);
+
 static void __ieee80211_connection_loss(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;

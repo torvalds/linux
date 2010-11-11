@@ -2509,6 +2509,21 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 			       struct ieee80211_sta *pubsta, bool block);
 
 /**
+ * ieee80211_ap_probereq_get - retrieve a Probe Request template
+ * @hw: pointer obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * Creates a Probe Request template which can, for example, be uploaded to
+ * hardware. The template is filled with bssid, ssid and supported rate
+ * information. This function must only be called from within the
+ * .bss_info_changed callback function and only in managed mode. The function
+ * is only useful when the interface is associated, otherwise it will return
+ * NULL.
+ */
+struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif);
+
+/**
  * ieee80211_beacon_loss - inform hardware does not receive beacons
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
