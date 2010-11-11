@@ -181,7 +181,7 @@ static const uint32_t mx25pdk_keymap[] = {
 	KEY(3, 3, KEY_POWER),
 };
 
-static struct matrix_keymap_data mx25pdk_keymap_data = {
+static const struct matrix_keymap_data mx25pdk_keymap_data __initdata = {
 	.keymap		= mx25pdk_keymap,
 	.keymap_size	= ARRAY_SIZE(mx25pdk_keymap),
 };
@@ -200,7 +200,7 @@ static void __init mx25pdk_init(void)
 
 	mx25pdk_fec_reset();
 	imx25_add_fec(&mx25_fec_pdata);
-	mxc_register_device(&mx25_kpp_device, &mx25pdk_keymap_data);
+	imx25_add_imx_keypad(&mx25pdk_keymap_data);
 
 	imx25_add_esdhc(0, NULL);
 }

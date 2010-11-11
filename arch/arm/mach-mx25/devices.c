@@ -22,25 +22,6 @@
 #include <mach/mx25.h>
 #include <mach/irqs.h>
 
-static struct resource mxc_keypad_resources[] = {
-	{
-		.start	= 0x43fa8000,
-		.end	= 0x43fabfff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start   = 24,
-		.end     = 24,
-		.flags   = IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_keypad_device = {
-	.name = "mxc-keypad",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(mxc_keypad_resources),
-	.resource = mxc_keypad_resources,
-};
-
 static struct resource mx25_rtc_resources[] = {
 	{
 		.start	= MX25_DRYICE_BASE_ADDR,
@@ -96,26 +77,6 @@ struct platform_device mxc_wdt = {
 	.id = 0,
 	.num_resources = ARRAY_SIZE(mxc_wdt_resources),
 	.resource = mxc_wdt_resources,
-};
-
-static struct resource mx25_kpp_resources[] = {
-	{
-		.start	= MX25_KPP_BASE_ADDR,
-		.end	= MX25_KPP_BASE_ADDR + 0xf,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= MX25_INT_KPP,
-		.end	= MX25_INT_KPP,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mx25_kpp_device = {
-	.name	= "imx-keypad",
-	.id	= -1,
-	.num_resources	= ARRAY_SIZE(mx25_kpp_resources),
-	.resource	= mx25_kpp_resources,
 };
 
 static struct resource mx25_csi_resources[] = {

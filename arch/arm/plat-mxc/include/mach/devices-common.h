@@ -95,6 +95,7 @@ struct platform_device *__init imx_add_imx_i2c(
 #include <linux/input/matrix_keypad.h>
 struct imx_imx_keypad_data {
 	resource_size_t iobase;
+	resource_size_t iosize;
 	resource_size_t irq;
 };
 struct platform_device *__init imx_add_imx_keypad(
