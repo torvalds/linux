@@ -105,7 +105,7 @@ static struct pad_desc mx25pdk_pads[] = {
 };
 
 static const struct fec_platform_data mx25_fec_pdata __initconst = {
-        .phy    = PHY_INTERFACE_MODE_RMII,
+	.phy    = PHY_INTERFACE_MODE_RMII,
 };
 
 #define FEC_ENABLE_GPIO		35

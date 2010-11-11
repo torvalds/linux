@@ -1,13 +1,34 @@
 config IMX_HAVE_DMA_V1
 	bool
 
-if ARCH_MX1
-
 config SOC_IMX1
+	bool
 	select CPU_ARM920T
 	select IMX_HAVE_DMA_V1
 	select IMX_HAVE_IOMUX_V1
+
+config SOC_IMX21
 	bool
+	select CPU_ARM926T
+	select ARCH_MXC_AUDMUX_V1
+	select IMX_HAVE_DMA_V1
+	select IMX_HAVE_IOMUX_V1
+
+config SOC_IMX25
+	bool
+	select CPU_ARM926T
+	select ARCH_MXC_IOMUX_V3
+	select HAVE_FB_IMX
+	select ARCH_MXC_AUDMUX_V2
+
+config SOC_IMX27
+	bool
+	select CPU_ARM926T
+	select ARCH_MXC_AUDMUX_V1
+	select IMX_HAVE_DMA_V1
+	select IMX_HAVE_IOMUX_V1
+
+if ARCH_MX1
 
 comment "MX1 platforms:"
 config MACH_MXLADS
@@ -30,20 +51,6 @@ config MACH_SCB9328
 endif
 
 if ARCH_MX2
-
-config SOC_IMX21
-	select CPU_ARM926T
-	select ARCH_MXC_AUDMUX_V1
-	select IMX_HAVE_DMA_V1
-	select IMX_HAVE_IOMUX_V1
-	bool
-
-config SOC_IMX27
-	select CPU_ARM926T
-	select ARCH_MXC_AUDMUX_V1
-	select IMX_HAVE_DMA_V1
-	select IMX_HAVE_IOMUX_V1
-	bool
 
 choice
 	prompt "CPUs:"
@@ -78,6 +85,52 @@ config MACH_MX21ADS
 	help
 	  Include support for MX21ADS platform. This includes specific
 	  configurations for the board and its peripherals.
+
+endif
+
+if ARCH_MX25
+
+comment "MX25 platforms:"
+
+config MACH_MX25_3DS
+	bool "Support MX25PDK (3DS) Platform"
+	select SOC_IMX25
+	select IMX_HAVE_PLATFORM_ESDHC
+	select IMX_HAVE_PLATFORM_IMX2_WDT
+	select IMX_HAVE_PLATFORM_IMXDI_RTC
+	select IMX_HAVE_PLATFORM_IMX_FB
+	select IMX_HAVE_PLATFORM_IMX_KEYPAD
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_EHCI
+	select IMX_HAVE_PLATFORM_MXC_NAND
+
+config MACH_EUKREA_CPUIMX25
+	bool "Support Eukrea CPUIMX25 Platform"
+	select SOC_IMX25
+	select IMX_HAVE_PLATFORM_ESDHC
+	select IMX_HAVE_PLATFORM_FLEXCAN
+	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
+	select IMX_HAVE_PLATFORM_IMXDI_RTC
+	select IMX_HAVE_PLATFORM_IMX_FB
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_EHCI
+	select IMX_HAVE_PLATFORM_MXC_NAND
+	select MXC_ULPI if USB_ULPI
+
+choice
+	prompt "Baseboard"
+	depends on MACH_EUKREA_CPUIMX25
+	default MACH_EUKREA_MBIMXSD25_BASEBOARD
+
+config MACH_EUKREA_MBIMXSD25_BASEBOARD
+	bool "Eukrea MBIMXSD development board"
+	select IMX_HAVE_PLATFORM_IMX_SSI
+	help
+	  This adds board specific devices that can be found on Eukrea's
+	  MBIMXSD evaluation board.
+
+endchoice
 
 endif
 
