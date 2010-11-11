@@ -698,7 +698,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
 			break;
 
                 //if ( copy_from_user(&(dpram_command.dpram_blk), (PIOCTL_DPRAM_BLK)Argument, msgsz+2) ) {
-                if ( copy_from_user(&dpram_data, argp, msgsz+2) ) {
+                if ( copy_from_user(dpram_data, argp, msgsz+2) ) {
                     DEBUG("FT1000:ft1000_ChIoctl: copy fault occurred\n");
                     result = -EFAULT;
                 }
