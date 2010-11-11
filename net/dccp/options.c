@@ -340,6 +340,7 @@ static inline int dccp_elapsed_time_len(const u32 elapsed_time)
 	return elapsed_time == 0 ? 0 : elapsed_time <= 0xFFFF ? 2 : 4;
 }
 
+/* FIXME: This function is currently not used anywhere */
 int dccp_insert_option_elapsed_time(struct sk_buff *skb, u32 elapsed_time)
 {
 	const int elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
@@ -421,6 +422,67 @@ static int dccp_insert_option_timestamp_echo(struct dccp_sock *dp,
 		memcpy(to, &var32, 4);
 	}
 
+	return 0;
+}
+
+static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
+{
+	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_ackvec *av = dp->dccps_hc_rx_ackvec;
+	const u16 buflen = dccp_ackvec_buflen(av);
+	/* Figure out how many options do we need to represent the ackvec */
+	const u8 nr_opts = DIV_ROUND_UP(buflen, DCCP_SINGLE_OPT_MAXLEN);
+	u16 len = buflen + 2 * nr_opts;
+	u8 i, nonce = 0;
+	const unsigned char *tail, *from;
+	unsigned char *to;
+
+	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN)
+		return -1;
+
+	DCCP_SKB_CB(skb)->dccpd_opt_len += len;
+
+	to   = skb_push(skb, len);
+	len  = buflen;
+	from = av->av_buf + av->av_buf_head;
+	tail = av->av_buf + DCCPAV_MAX_ACKVEC_LEN;
+
+	for (i = 0; i < nr_opts; ++i) {
+		int copylen = len;
+
+		if (len > DCCP_SINGLE_OPT_MAXLEN)
+			copylen = DCCP_SINGLE_OPT_MAXLEN;
+
+		/*
+		 * RFC 4340, 12.2: Encode the Nonce Echo for this Ack Vector via
+		 * its type; ack_nonce is the sum of all individual buf_nonce's.
+		 */
+		nonce ^= av->av_buf_nonce[i];
+
+		*to++ = DCCPO_ACK_VECTOR_0 + av->av_buf_nonce[i];
+		*to++ = copylen + 2;
+
+		/* Check if buf_head wraps */
+		if (from + copylen > tail) {
+			const u16 tailsize = tail - from;
+
+			memcpy(to, from, tailsize);
+			to	+= tailsize;
+			len	-= tailsize;
+			copylen	-= tailsize;
+			from	= av->av_buf;
+		}
+
+		memcpy(to, from, copylen);
+		from += copylen;
+		to   += copylen;
+		len  -= copylen;
+	}
+	/*
+	 * Each sent Ack Vector is recorded in the list, as per A.2 of RFC 4340.
+	 */
+	if (dccp_ackvec_update_records(av, DCCP_SKB_CB(skb)->dccpd_seq, nonce))
+		return -ENOBUFS;
 	return 0;
 }
 
@@ -519,8 +581,7 @@ int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 			if (dccp_insert_option_timestamp(skb))
 				return -1;
 
-		} else if (dp->dccps_hc_rx_ackvec != NULL &&
-			   dccp_ackvec_pending(dp->dccps_hc_rx_ackvec) &&
+		} else if (dccp_ackvec_pending(sk) &&
 			   dccp_insert_option_ackvec(sk, skb)) {
 				return -1;
 		}

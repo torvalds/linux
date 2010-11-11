@@ -1,7 +1,8 @@
 /*
  *  net/dccp/ackvec.c
  *
- *  An implementation of the DCCP protocol
+ *  An implementation of Ack Vectors for the DCCP protocol
+ *  Copyright (c) 2007 University of Aberdeen, Scotland, UK
  *  Copyright (c) 2005 Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
  *
  *      This program is free software; you can redistribute it and/or modify it
@@ -23,173 +24,93 @@
 static struct kmem_cache *dccp_ackvec_slab;
 static struct kmem_cache *dccp_ackvec_record_slab;
 
-static struct dccp_ackvec_record *dccp_ackvec_record_new(void)
-{
-	struct dccp_ackvec_record *avr =
-			kmem_cache_alloc(dccp_ackvec_record_slab, GFP_ATOMIC);
-
-	if (avr != NULL)
-		INIT_LIST_HEAD(&avr->avr_node);
-
-	return avr;
-}
-
-static void dccp_ackvec_record_delete(struct dccp_ackvec_record *avr)
-{
-	if (unlikely(avr == NULL))
-		return;
-	/* Check if deleting a linked record */
-	WARN_ON(!list_empty(&avr->avr_node));
-	kmem_cache_free(dccp_ackvec_record_slab, avr);
-}
-
-static void dccp_ackvec_insert_avr(struct dccp_ackvec *av,
-				   struct dccp_ackvec_record *avr)
-{
-	/*
-	 * AVRs are sorted by seqno. Since we are sending them in order, we
-	 * just add the AVR at the head of the list.
-	 * -sorbo.
-	 */
-	if (!list_empty(&av->av_records)) {
-		const struct dccp_ackvec_record *head =
-					list_entry(av->av_records.next,
-						   struct dccp_ackvec_record,
-						   avr_node);
-		BUG_ON(before48(avr->avr_ack_seqno, head->avr_ack_seqno));
-	}
-
-	list_add(&avr->avr_node, &av->av_records);
-}
-
-int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
-{
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct dccp_ackvec *av = dp->dccps_hc_rx_ackvec;
-	/* Figure out how many options do we need to represent the ackvec */
-	const u8 nr_opts = DIV_ROUND_UP(av->av_vec_len, DCCP_SINGLE_OPT_MAXLEN);
-	u16 len = av->av_vec_len + 2 * nr_opts, i;
-	u32 elapsed_time;
-	const unsigned char *tail, *from;
-	unsigned char *to;
-	struct dccp_ackvec_record *avr;
-	suseconds_t delta;
-
-	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN)
-		return -1;
-
-	delta = ktime_us_delta(ktime_get_real(), av->av_time);
-	elapsed_time = delta / 10;
-
-	if (elapsed_time != 0 &&
-	    dccp_insert_option_elapsed_time(skb, elapsed_time))
-		return -1;
-
-	avr = dccp_ackvec_record_new();
-	if (avr == NULL)
-		return -1;
-
-	DCCP_SKB_CB(skb)->dccpd_opt_len += len;
-
-	to   = skb_push(skb, len);
-	len  = av->av_vec_len;
-	from = av->av_buf + av->av_buf_head;
-	tail = av->av_buf + DCCP_MAX_ACKVEC_LEN;
-
-	for (i = 0; i < nr_opts; ++i) {
-		int copylen = len;
-
-		if (len > DCCP_SINGLE_OPT_MAXLEN)
-			copylen = DCCP_SINGLE_OPT_MAXLEN;
-
-		*to++ = DCCPO_ACK_VECTOR_0;
-		*to++ = copylen + 2;
-
-		/* Check if buf_head wraps */
-		if (from + copylen > tail) {
-			const u16 tailsize = tail - from;
-
-			memcpy(to, from, tailsize);
-			to	+= tailsize;
-			len	-= tailsize;
-			copylen	-= tailsize;
-			from	= av->av_buf;
-		}
-
-		memcpy(to, from, copylen);
-		from += copylen;
-		to   += copylen;
-		len  -= copylen;
-	}
-
-	/*
-	 *	From RFC 4340, A.2:
-	 *
-	 *	For each acknowledgement it sends, the HC-Receiver will add an
-	 *	acknowledgement record.  ack_seqno will equal the HC-Receiver
-	 *	sequence number it used for the ack packet; ack_ptr will equal
-	 *	buf_head; ack_ackno will equal buf_ackno; and ack_nonce will
-	 *	equal buf_nonce.
-	 */
-	avr->avr_ack_seqno = DCCP_SKB_CB(skb)->dccpd_seq;
-	avr->avr_ack_ptr   = av->av_buf_head;
-	avr->avr_ack_ackno = av->av_buf_ackno;
-	avr->avr_ack_nonce = av->av_buf_nonce;
-	avr->avr_sent_len  = av->av_vec_len;
-
-	dccp_ackvec_insert_avr(av, avr);
-
-	dccp_pr_debug("%s ACK Vector 0, len=%d, ack_seqno=%llu, "
-		      "ack_ackno=%llu\n",
-		      dccp_role(sk), avr->avr_sent_len,
-		      (unsigned long long)avr->avr_ack_seqno,
-		      (unsigned long long)avr->avr_ack_ackno);
-	return 0;
-}
-
 struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority)
 {
-	struct dccp_ackvec *av = kmem_cache_alloc(dccp_ackvec_slab, priority);
+	struct dccp_ackvec *av = kmem_cache_zalloc(dccp_ackvec_slab, priority);
 
 	if (av != NULL) {
-		av->av_buf_head	 = DCCP_MAX_ACKVEC_LEN - 1;
-		av->av_buf_ackno = UINT48_MAX + 1;
-		av->av_buf_nonce = 0;
-		av->av_time	 = ktime_set(0, 0);
-		av->av_vec_len	 = 0;
+		av->av_buf_head	= av->av_buf_tail = DCCPAV_MAX_ACKVEC_LEN - 1;
 		INIT_LIST_HEAD(&av->av_records);
 	}
-
 	return av;
+}
+
+static void dccp_ackvec_purge_records(struct dccp_ackvec *av)
+{
+	struct dccp_ackvec_record *cur, *next;
+
+	list_for_each_entry_safe(cur, next, &av->av_records, avr_node)
+		kmem_cache_free(dccp_ackvec_record_slab, cur);
+	INIT_LIST_HEAD(&av->av_records);
 }
 
 void dccp_ackvec_free(struct dccp_ackvec *av)
 {
-	if (unlikely(av == NULL))
-		return;
-
-	if (!list_empty(&av->av_records)) {
-		struct dccp_ackvec_record *avr, *next;
-
-		list_for_each_entry_safe(avr, next, &av->av_records, avr_node) {
-			list_del_init(&avr->avr_node);
-			dccp_ackvec_record_delete(avr);
-		}
+	if (likely(av != NULL)) {
+		dccp_ackvec_purge_records(av);
+		kmem_cache_free(dccp_ackvec_slab, av);
 	}
-
-	kmem_cache_free(dccp_ackvec_slab, av);
 }
 
-static inline u8 dccp_ackvec_state(const struct dccp_ackvec *av,
-				   const u32 index)
+/**
+ * dccp_ackvec_update_records  -  Record information about sent Ack Vectors
+ * @av:		Ack Vector records to update
+ * @seqno:	Sequence number of the packet carrying the Ack Vector just sent
+ * @nonce_sum:	The sum of all buffer nonces contained in the Ack Vector
+ */
+int dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seqno, u8 nonce_sum)
 {
-	return av->av_buf[index] & DCCP_ACKVEC_STATE_MASK;
+	struct dccp_ackvec_record *avr;
+
+	avr = kmem_cache_alloc(dccp_ackvec_record_slab, GFP_ATOMIC);
+	if (avr == NULL)
+		return -ENOBUFS;
+
+	avr->avr_ack_seqno  = seqno;
+	avr->avr_ack_ptr    = av->av_buf_head;
+	avr->avr_ack_ackno  = av->av_buf_ackno;
+	avr->avr_ack_nonce  = nonce_sum;
+	avr->avr_ack_runlen = dccp_ackvec_runlen(av->av_buf + av->av_buf_head);
+	/*
+	 * When the buffer overflows, we keep no more than one record. This is
+	 * the simplest way of disambiguating sender-Acks dating from before the
+	 * overflow from sender-Acks which refer to after the overflow; a simple
+	 * solution is preferable here since we are handling an exception.
+	 */
+	if (av->av_overflow)
+		dccp_ackvec_purge_records(av);
+	/*
+	 * Since GSS is incremented for each packet, the list is automatically
+	 * arranged in descending order of @ack_seqno.
+	 */
+	list_add(&avr->avr_node, &av->av_records);
+
+	dccp_pr_debug("Added Vector, ack_seqno=%llu, ack_ackno=%llu (rl=%u)\n",
+		      (unsigned long long)avr->avr_ack_seqno,
+		      (unsigned long long)avr->avr_ack_ackno,
+		      avr->avr_ack_runlen);
+	return 0;
 }
 
-static inline u8 dccp_ackvec_len(const struct dccp_ackvec *av,
-				 const u32 index)
+/*
+ * Buffer index and length computation using modulo-buffersize arithmetic.
+ * Note that, as pointers move from right to left, head is `before' tail.
+ */
+static inline u16 __ackvec_idx_add(const u16 a, const u16 b)
 {
-	return av->av_buf[index] & DCCP_ACKVEC_LEN_MASK;
+	return (a + b) % DCCPAV_MAX_ACKVEC_LEN;
+}
+
+static inline u16 __ackvec_idx_sub(const u16 a, const u16 b)
+{
+	return __ackvec_idx_add(a, DCCPAV_MAX_ACKVEC_LEN - b);
+}
+
+u16 dccp_ackvec_buflen(const struct dccp_ackvec *av)
+{
+	if (unlikely(av->av_overflow))
+		return DCCPAV_MAX_ACKVEC_LEN;
+	return __ackvec_idx_sub(av->av_buf_tail, av->av_buf_head);
 }
 
 /*
@@ -204,7 +125,7 @@ static inline int dccp_ackvec_set_buf_head_state(struct dccp_ackvec *av,
 	long gap;
 	long new_head;
 
-	if (av->av_vec_len + packets > DCCP_MAX_ACKVEC_LEN)
+	if (av->av_vec_len + packets > DCCPAV_MAX_ACKVEC_LEN)
 		return -ENOBUFS;
 
 	gap	 = packets - 1;
@@ -212,18 +133,18 @@ static inline int dccp_ackvec_set_buf_head_state(struct dccp_ackvec *av,
 
 	if (new_head < 0) {
 		if (gap > 0) {
-			memset(av->av_buf, DCCP_ACKVEC_STATE_NOT_RECEIVED,
+			memset(av->av_buf, DCCPAV_NOT_RECEIVED,
 			       gap + new_head + 1);
 			gap = -new_head;
 		}
-		new_head += DCCP_MAX_ACKVEC_LEN;
+		new_head += DCCPAV_MAX_ACKVEC_LEN;
 	}
 
 	av->av_buf_head = new_head;
 
 	if (gap > 0)
 		memset(av->av_buf + av->av_buf_head + 1,
-		       DCCP_ACKVEC_STATE_NOT_RECEIVED, gap);
+		       DCCPAV_NOT_RECEIVED, gap);
 
 	av->av_buf[av->av_buf_head] = state;
 	av->av_vec_len += packets;
@@ -236,6 +157,8 @@ static inline int dccp_ackvec_set_buf_head_state(struct dccp_ackvec *av,
 int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 		    const u64 ackno, const u8 state)
 {
+	u8 *cur_head = av->av_buf + av->av_buf_head,
+	   *buf_end  = av->av_buf + DCCPAV_MAX_ACKVEC_LEN;
 	/*
 	 * Check at the right places if the buffer is full, if it is, tell the
 	 * caller to start dropping packets till the HC-Sender acks our ACK
@@ -260,7 +183,7 @@ int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 
 	/* See if this is the first ackno being inserted */
 	if (av->av_vec_len == 0) {
-		av->av_buf[av->av_buf_head] = state;
+		*cur_head = state;
 		av->av_vec_len = 1;
 	} else if (after48(ackno, av->av_buf_ackno)) {
 		const u64 delta = dccp_delta_seqno(av->av_buf_ackno, ackno);
@@ -269,10 +192,9 @@ int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 		 * Look if the state of this packet is the same as the
 		 * previous ackno and if so if we can bump the head len.
 		 */
-		if (delta == 1 &&
-		    dccp_ackvec_state(av, av->av_buf_head) == state &&
-		    dccp_ackvec_len(av, av->av_buf_head) < DCCP_ACKVEC_LEN_MASK)
-			av->av_buf[av->av_buf_head]++;
+		if (delta == 1 && dccp_ackvec_state(cur_head) == state &&
+		    dccp_ackvec_runlen(cur_head) < DCCPAV_MAX_RUNLEN)
+			*cur_head += 1;
 		else if (dccp_ackvec_set_buf_head_state(av, delta, state))
 			return -ENOBUFS;
 	} else {
@@ -285,21 +207,17 @@ int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 		 *	could reduce the complexity of this scan.)
 		 */
 		u64 delta = dccp_delta_seqno(ackno, av->av_buf_ackno);
-		u32 index = av->av_buf_head;
 
 		while (1) {
-			const u8 len = dccp_ackvec_len(av, index);
-			const u8 av_state = dccp_ackvec_state(av, index);
+			const u8 len = dccp_ackvec_runlen(cur_head);
 			/*
 			 * valid packets not yet in av_buf have a reserved
 			 * entry, with a len equal to 0.
 			 */
-			if (av_state == DCCP_ACKVEC_STATE_NOT_RECEIVED &&
-			    len == 0 && delta == 0) { /* Found our
-							 reserved seat! */
+			if (*cur_head == DCCPAV_NOT_RECEIVED && delta == 0) {
 				dccp_pr_debug("Found %llu reserved seat!\n",
 					      (unsigned long long)ackno);
-				av->av_buf[index] = state;
+				*cur_head = state;
 				goto out;
 			}
 			/* len == 0 means one packet */
@@ -307,13 +225,12 @@ int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 				goto out_duplicate;
 
 			delta -= len + 1;
-			if (++index == DCCP_MAX_ACKVEC_LEN)
-				index = 0;
+			if (++cur_head == buf_end)
+				cur_head = av->av_buf;
 		}
 	}
 
 	av->av_buf_ackno = ackno;
-	av->av_time = ktime_get_real();
 out:
 	return 0;
 
@@ -333,13 +250,13 @@ static void dccp_ackvec_throw_record(struct dccp_ackvec *av,
 	if (av->av_buf_head <= avr->avr_ack_ptr)
 		av->av_vec_len = avr->avr_ack_ptr - av->av_buf_head;
 	else
-		av->av_vec_len = DCCP_MAX_ACKVEC_LEN - 1 -
+		av->av_vec_len = DCCPAV_MAX_ACKVEC_LEN - 1 -
 				 av->av_buf_head + avr->avr_ack_ptr;
 
 	/* free records */
 	list_for_each_entry_safe_from(avr, next, &av->av_records, avr_node) {
-		list_del_init(&avr->avr_node);
-		dccp_ackvec_record_delete(avr);
+		list_del(&avr->avr_node);
+		kmem_cache_free(dccp_ackvec_record_slab, avr);
 	}
 }
 
@@ -357,7 +274,7 @@ void dccp_ackvec_check_rcv_ackno(struct dccp_ackvec *av, struct sock *sk,
 		if (ackno == avr->avr_ack_seqno) {
 			dccp_pr_debug("%s ACK packet 0, len=%d, ack_seqno=%llu, "
 				      "ack_ackno=%llu, ACKED!\n",
-				      dccp_role(sk), 1,
+				      dccp_role(sk), avr->avr_ack_runlen,
 				      (unsigned long long)avr->avr_ack_seqno,
 				      (unsigned long long)avr->avr_ack_ackno);
 			dccp_ackvec_throw_record(av, avr);
@@ -387,7 +304,7 @@ static void dccp_ackvec_check_rcv_ackvector(struct dccp_ackvec *av,
 	 */
 	avr = list_entry(av->av_records.next, struct dccp_ackvec_record, avr_node);
 	while (i--) {
-		const u8 rl = *vector & DCCP_ACKVEC_LEN_MASK;
+		const u8 rl = dccp_ackvec_runlen(vector);
 		u64 ackno_end_rl;
 
 		dccp_set_seqno(&ackno_end_rl, *ackno - rl);
@@ -404,8 +321,7 @@ static void dccp_ackvec_check_rcv_ackvector(struct dccp_ackvec *av,
 		break;
 found:
 		if (between48(avr->avr_ack_seqno, ackno_end_rl, *ackno)) {
-			const u8 state = *vector & DCCP_ACKVEC_STATE_MASK;
-			if (state != DCCP_ACKVEC_STATE_NOT_RECEIVED) {
+			if (dccp_ackvec_state(vector) != DCCPAV_NOT_RECEIVED) {
 				dccp_pr_debug("%s ACK vector 0, len=%d, "
 					      "ack_seqno=%llu, ack_ackno=%llu, "
 					      "ACKED!\n",
@@ -448,10 +364,9 @@ int __init dccp_ackvec_init(void)
 	if (dccp_ackvec_slab == NULL)
 		goto out_err;
 
-	dccp_ackvec_record_slab =
-			kmem_cache_create("dccp_ackvec_record",
-					  sizeof(struct dccp_ackvec_record),
-					  0, SLAB_HWCACHE_ALIGN, NULL);
+	dccp_ackvec_record_slab = kmem_cache_create("dccp_ackvec_record",
+					     sizeof(struct dccp_ackvec_record),
+					     0, SLAB_HWCACHE_ALIGN, NULL);
 	if (dccp_ackvec_record_slab == NULL)
 		goto out_destroy_slab;
 
