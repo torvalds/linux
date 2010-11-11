@@ -53,7 +53,7 @@ struct nmk_gpio_chip {
 	struct clk *clk;
 	unsigned int bank;
 	unsigned int parent_irq;
-	unsigned int secondary_parent_irq;
+	int secondary_parent_irq;
 	u32 (*get_secondary_status)(unsigned int bank);
 	spinlock_t lock;
 	/* Keep track of configured edges */
