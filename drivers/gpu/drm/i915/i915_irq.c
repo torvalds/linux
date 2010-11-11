@@ -891,7 +891,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
  * so userspace knows something bad happened (should trigger collection
  * of a ring dump etc.).
  */
-static void i915_handle_error(struct drm_device *dev, bool wedged)
+void i915_handle_error(struct drm_device *dev, bool wedged)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 

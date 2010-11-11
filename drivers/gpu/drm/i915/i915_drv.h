@@ -289,7 +289,6 @@ typedef struct drm_i915_private {
 	int current_page;
 	int page_flipping;
 
-	wait_queue_head_t irq_queue;
 	atomic_t irq_received;
 	/** Protects user_irq_refcount and irq_mask_reg */
 	spinlock_t user_irq_lock;
@@ -915,6 +914,7 @@ extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 
 /* i915_irq.c */
 void i915_hangcheck_elapsed(unsigned long data);
+void i915_handle_error(struct drm_device *dev, bool wedged);
 extern int i915_irq_emit(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 extern int i915_irq_wait(struct drm_device *dev, void *data,

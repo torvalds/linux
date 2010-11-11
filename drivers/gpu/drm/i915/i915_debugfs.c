@@ -1022,7 +1022,6 @@ i915_wedged_write(struct file *filp,
 		  loff_t *ppos)
 {
 	struct drm_device *dev = filp->private_data;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	char buf[20];
 	int val = 1;
 
@@ -1038,12 +1037,7 @@ i915_wedged_write(struct file *filp,
 	}
 
 	DRM_INFO("Manually setting wedged to %d\n", val);
-
-	atomic_set(&dev_priv->mm.wedged, val);
-	if (val) {
-		wake_up_all(&dev_priv->irq_queue);
-		queue_work(dev_priv->wq, &dev_priv->error_work);
-	}
+	i915_handle_error(dev, val);
 
 	return cnt;
 }
