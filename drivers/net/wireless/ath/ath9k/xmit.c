@@ -1993,9 +1993,6 @@ static void ath_tx_rc_status(struct ath_buf *bf, struct ath_tx_status *ts,
 			if (ts->ts_flags &
 			    (ATH9K_TX_DATA_UNDERRUN | ATH9K_TX_DELIM_UNDERRUN))
 				tx_info->pad[0] |= ATH_TX_INFO_UNDERRUN;
-			if ((ts->ts_status & ATH9K_TXERR_XRETRY) ||
-			    (ts->ts_status & ATH9K_TXERR_FIFO))
-				tx_info->pad[0] |= ATH_TX_INFO_XRETRY;
 		}
 	}
 

@@ -1370,7 +1370,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		is_underrun = 1;
 	}
 
-	if (tx_info->pad[0] & ATH_TX_INFO_XRETRY)
+	if (!(tx_info->flags & IEEE80211_TX_STAT_ACK))
 		tx_status = 1;
 
 	ath_rc_tx_status(sc, ath_rc_priv, tx_info, final_ts_idx, tx_status,
