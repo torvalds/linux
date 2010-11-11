@@ -2032,7 +2032,7 @@ static int __devinit setup_debugfs(struct adapter *adapter)
  * Tear down the /sys/kernel/debug/cxgb4vf sub-nodes created above.  We leave
  * it to our caller to tear down the directory (debugfs_root).
  */
-static void __devexit cleanup_debugfs(struct adapter *adapter)
+static void cleanup_debugfs(struct adapter *adapter)
 {
 	BUG_ON(adapter->debugfs_root == NULL);
 
@@ -2050,7 +2050,7 @@ static void __devexit cleanup_debugfs(struct adapter *adapter)
  * adapter parameters we're going to be using and initialize basic adapter
  * hardware support.
  */
-static int adap_init0(struct adapter *adapter)
+static int __devinit adap_init0(struct adapter *adapter)
 {
 	struct vf_resources *vfres = &adapter->params.vfres;
 	struct sge_params *sge_params = &adapter->params.sge;
