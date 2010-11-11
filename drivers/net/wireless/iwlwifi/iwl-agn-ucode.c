@@ -40,30 +40,36 @@
 #include "iwl-agn.h"
 #include "iwl-agn-calib.h"
 
-static const s8 iwlagn_default_queue_to_tx_fifo[] = {
-	IWL_TX_FIFO_VO,
-	IWL_TX_FIFO_VI,
-	IWL_TX_FIFO_BE,
-	IWL_TX_FIFO_BK,
-	IWLAGN_CMD_FIFO_NUM,
-	IWL_TX_FIFO_UNUSED,
-	IWL_TX_FIFO_UNUSED,
-	IWL_TX_FIFO_UNUSED,
-	IWL_TX_FIFO_UNUSED,
-	IWL_TX_FIFO_UNUSED,
+#define IWL_AC_UNSET -1
+
+struct queue_to_fifo_ac {
+	s8 fifo, ac;
 };
 
-static const s8 iwlagn_ipan_queue_to_tx_fifo[] = {
-	IWL_TX_FIFO_VO,
-	IWL_TX_FIFO_VI,
-	IWL_TX_FIFO_BE,
-	IWL_TX_FIFO_BK,
-	IWL_TX_FIFO_BK_IPAN,
-	IWL_TX_FIFO_BE_IPAN,
-	IWL_TX_FIFO_VI_IPAN,
-	IWL_TX_FIFO_VO_IPAN,
-	IWL_TX_FIFO_BE_IPAN,
-	IWLAGN_CMD_FIFO_NUM,
+static const struct queue_to_fifo_ac iwlagn_default_queue_to_tx_fifo[] = {
+	{ IWL_TX_FIFO_VO, 0, },
+	{ IWL_TX_FIFO_VI, 1, },
+	{ IWL_TX_FIFO_BE, 2, },
+	{ IWL_TX_FIFO_BK, 3, },
+	{ IWLAGN_CMD_FIFO_NUM, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+};
+
+static const struct queue_to_fifo_ac iwlagn_ipan_queue_to_tx_fifo[] = {
+	{ IWL_TX_FIFO_VO, 0, },
+	{ IWL_TX_FIFO_VI, 1, },
+	{ IWL_TX_FIFO_BE, 2, },
+	{ IWL_TX_FIFO_BK, 3, },
+	{ IWL_TX_FIFO_BK_IPAN, 3, },
+	{ IWL_TX_FIFO_BE_IPAN, 2, },
+	{ IWL_TX_FIFO_VI_IPAN, 1, },
+	{ IWL_TX_FIFO_VO_IPAN, 0, },
+	{ IWL_TX_FIFO_BE_IPAN, 2, },
+	{ IWLAGN_CMD_FIFO_NUM, IWL_AC_UNSET, },
 };
 
 static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
@@ -429,7 +435,7 @@ void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 
 int iwlagn_alive_notify(struct iwl_priv *priv)
 {
-	const s8 *queue_to_fifo;
+	const struct queue_to_fifo_ac *queue_to_fifo;
 	u32 a;
 	unsigned long flags;
 	int i, chan;
@@ -510,13 +516,16 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo) != 10);
 
 	for (i = 0; i < 10; i++) {
-		int fifo = queue_to_fifo[i];
+		int fifo = queue_to_fifo[i].fifo;
+		int ac = queue_to_fifo[i].ac;
 
 		iwl_txq_ctx_activate(priv, i);
 
 		if (fifo == IWL_TX_FIFO_UNUSED)
 			continue;
 
+		if (ac != IWL_AC_UNSET)
+			iwl_set_swq_id(&priv->txq[i], ac, i);
 		iwlagn_tx_queue_set_status(priv, &priv->txq[i], fifo, 0);
 	}
 
