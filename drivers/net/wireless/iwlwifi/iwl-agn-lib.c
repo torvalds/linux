@@ -445,12 +445,8 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 
 			if (priv->mac80211_registered &&
 			    (iwl_queue_space(&txq->q) > txq->q.low_mark) &&
-			    (agg->state != IWL_EMPTYING_HW_QUEUE_DELBA)) {
-				if (agg->state == IWL_AGG_OFF)
-					iwl_wake_queue(priv, txq_id);
-				else
-					iwl_wake_queue(priv, txq->swq_id);
-			}
+			    (agg->state != IWL_EMPTYING_HW_QUEUE_DELBA))
+				iwl_wake_queue(priv, txq->swq_id);
 		}
 	} else {
 		BUG_ON(txq_id != txq->swq_id);
