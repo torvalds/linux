@@ -60,7 +60,7 @@ enum {
 	 * MSI-X interrupt index usage.
 	 */
 	MSIX_FW		= 0,		/* MSI-X index for firmware Q */
-	MSIX_NIQFLINT	= 1,		/* MSI-X index base for Ingress Qs */
+	MSIX_IQFLINT	= 1,		/* MSI-X index base for Ingress Qs */
 	MSIX_EXTRAS	= 1,
 	MSIX_ENTRIES	= MAX_ETH_QSETS + MSIX_EXTRAS,
 

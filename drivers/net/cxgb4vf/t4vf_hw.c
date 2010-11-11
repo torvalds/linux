@@ -1276,7 +1276,7 @@ int t4vf_eth_eq_free(struct adapter *adapter, unsigned int eqid)
  */
 int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 {
-	struct fw_cmd_hdr *cmd_hdr = (struct fw_cmd_hdr *)rpl;
+	const struct fw_cmd_hdr *cmd_hdr = (const struct fw_cmd_hdr *)rpl;
 	u8 opcode = FW_CMD_OP_GET(be32_to_cpu(cmd_hdr->hi));
 
 	switch (opcode) {
@@ -1284,7 +1284,8 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 		/*
 		 * Link/module state change message.
 		 */
-		const struct fw_port_cmd *port_cmd = (void *)rpl;
+		const struct fw_port_cmd *port_cmd =
+			(const struct fw_port_cmd *)rpl;
 		u32 word;
 		int action, port_id, link_ok, speed, fc, pidx;
 
