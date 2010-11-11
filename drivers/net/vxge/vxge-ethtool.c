@@ -11,7 +11,7 @@
  *                 Virtualized Server Adapter.
  * Copyright(c) 2002-2010 Exar Corp.
  ******************************************************************************/
-#include<linux/ethtool.h>
+#include <linux/ethtool.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
@@ -29,7 +29,6 @@
  * Return value:
  * 0 on success.
  */
-
 static int vxge_ethtool_sset(struct net_device *dev, struct ethtool_cmd *info)
 {
 	/* We currently only support 10Gb/FULL */
@@ -79,10 +78,9 @@ static int vxge_ethtool_gset(struct net_device *dev, struct ethtool_cmd *info)
  * Returns driver specefic information like name, version etc.. to ethtool.
  */
 static void vxge_ethtool_gdrvinfo(struct net_device *dev,
-			struct ethtool_drvinfo *info)
+				  struct ethtool_drvinfo *info)
 {
-	struct vxgedev *vdev;
-	vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
 	strlcpy(info->driver, VXGE_DRIVER_NAME, sizeof(VXGE_DRIVER_NAME));
 	strlcpy(info->version, DRV_VERSION, sizeof(DRV_VERSION));
 	strlcpy(info->fw_version, vdev->fw_version, VXGE_HW_FW_STRLEN);
@@ -104,15 +102,14 @@ static void vxge_ethtool_gdrvinfo(struct net_device *dev,
  * buffer area.
  */
 static void vxge_ethtool_gregs(struct net_device *dev,
-			struct ethtool_regs *regs, void *space)
+			       struct ethtool_regs *regs, void *space)
 {
 	int index, offset;
 	enum vxge_hw_status status;
 	u64 reg;
-	u64 *reg_space = (u64 *) space;
+	u64 *reg_space = (u64 *)space;
 	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
-	struct __vxge_hw_device  *hldev = (struct __vxge_hw_device *)
-					pci_get_drvdata(vdev->pdev);
+	struct __vxge_hw_device *hldev = vdev->devh;
 
 	regs->len = sizeof(struct vxge_hw_vpath_reg) * vdev->no_of_vpath;
 	regs->version = vdev->pdev->subsystem_device;
@@ -148,8 +145,7 @@ static void vxge_ethtool_gregs(struct net_device *dev,
 static int vxge_ethtool_idnic(struct net_device *dev, u32 data)
 {
 	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
-	struct __vxge_hw_device  *hldev = (struct __vxge_hw_device  *)
-			pci_get_drvdata(vdev->pdev);
+	struct __vxge_hw_device *hldev = vdev->devh;
 
 	vxge_hw_device_flick_link_led(hldev, VXGE_FLICKER_ON);
 	msleep_interruptible(data ? (data * HZ) : VXGE_MAX_FLICKER_TIME);
@@ -168,11 +164,10 @@ static int vxge_ethtool_idnic(struct net_device *dev, u32 data)
  *  void
  */
 static void vxge_ethtool_getpause_data(struct net_device *dev,
-					struct ethtool_pauseparam *ep)
+				       struct ethtool_pauseparam *ep)
 {
 	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
-	struct __vxge_hw_device  *hldev = (struct __vxge_hw_device  *)
-			pci_get_drvdata(vdev->pdev);
+	struct __vxge_hw_device *hldev = vdev->devh;
 
 	vxge_hw_device_getpause_data(hldev, 0, &ep->tx_pause, &ep->rx_pause);
 }
@@ -188,11 +183,10 @@ static void vxge_ethtool_getpause_data(struct net_device *dev,
  * int, returns 0 on Success
  */
 static int vxge_ethtool_setpause_data(struct net_device *dev,
-					struct ethtool_pauseparam *ep)
+				      struct ethtool_pauseparam *ep)
 {
 	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
-	struct __vxge_hw_device  *hldev = (struct __vxge_hw_device  *)
-			pci_get_drvdata(vdev->pdev);
+	struct __vxge_hw_device *hldev = vdev->devh;
 
 	vxge_hw_device_setpause_data(hldev, 0, ep->tx_pause, ep->rx_pause);
 
@@ -209,9 +203,8 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 	enum vxge_hw_status status;
 	enum vxge_hw_status swstatus;
 	struct vxge_vpath *vpath = NULL;
-
 	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
-	struct __vxge_hw_device  *hldev = vdev->devh;
+	struct __vxge_hw_device *hldev = vdev->devh;
 	struct vxge_hw_xmac_stats *xmac_stats;
 	struct vxge_hw_device_stats_sw_info *sw_stats;
 	struct vxge_hw_device_stats_hw_info *hw_stats;
@@ -574,8 +567,8 @@ static void vxge_get_ethtool_stats(struct net_device *dev,
 	kfree(hw_stats);
 }
 
-static void vxge_ethtool_get_strings(struct net_device *dev,
-			      u32 stringset, u8 *data)
+static void vxge_ethtool_get_strings(struct net_device *dev, u32 stringset,
+				     u8 *data)
 {
 	int stat_size = 0;
 	int i, j;

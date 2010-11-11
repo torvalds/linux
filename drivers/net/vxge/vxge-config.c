@@ -22,19 +22,6 @@
 #include "vxge-main.h"
 
 static enum vxge_hw_status
-__vxge_hw_fifo_create(
-	struct __vxge_hw_vpath_handle *vpath_handle,
-	struct vxge_hw_fifo_attr *attr);
-
-static enum vxge_hw_status
-__vxge_hw_fifo_abort(
-	struct __vxge_hw_fifo *fifoh);
-
-static enum vxge_hw_status
-__vxge_hw_fifo_reset(
-	struct __vxge_hw_fifo *ringh);
-
-static enum vxge_hw_status
 __vxge_hw_fifo_delete(
 	struct __vxge_hw_vpath_handle *vpath_handle);
 
@@ -72,43 +59,14 @@ __vxge_hw_blockpool_free(struct __vxge_hw_device *hldev,
 			u32 size,
 			struct vxge_hw_mempool_dma *dma_object);
 
-
-static struct __vxge_hw_channel*
-__vxge_hw_channel_allocate(struct __vxge_hw_vpath_handle *vph,
-			enum __vxge_hw_channel_type type, u32 length,
-			u32 per_dtr_space, void *userdata);
-
 static void
 __vxge_hw_channel_free(
-	struct __vxge_hw_channel *channel);
-
-static enum vxge_hw_status
-__vxge_hw_channel_initialize(
-	struct __vxge_hw_channel *channel);
-
-static enum vxge_hw_status
-__vxge_hw_channel_reset(
 	struct __vxge_hw_channel *channel);
 
 static enum vxge_hw_status __vxge_hw_ring_delete(struct __vxge_hw_vpath_handle *vp);
 
 static enum vxge_hw_status
-__vxge_hw_device_fifo_config_check(struct vxge_hw_fifo_config *fifo_config);
-
-static enum vxge_hw_status
 __vxge_hw_device_config_check(struct vxge_hw_device_config *new_config);
-
-static void
-__vxge_hw_device_host_info_get(struct __vxge_hw_device *hldev);
-
-static enum vxge_hw_status
-__vxge_hw_device_initialize(struct __vxge_hw_device *hldev);
-
-static void
-__vxge_hw_device_pci_e_init(struct __vxge_hw_device *hldev);
-
-static enum vxge_hw_status
-__vxge_hw_device_reg_addr_get(struct __vxge_hw_device *hldev);
 
 static enum vxge_hw_status
 __vxge_hw_device_register_poll(
@@ -130,9 +88,10 @@ __vxge_hw_pio_mem_write64(u64 val64, void __iomem *addr,
 
 static struct vxge_hw_mempool*
 __vxge_hw_mempool_create(struct __vxge_hw_device *devh, u32 memblock_size,
-			 u32 item_size,	u32 private_size, u32 items_initial,
-			 u32 items_max,	struct vxge_hw_mempool_cbs *mp_callback,
-			 void *userdata);
+			u32 item_size, u32 private_size, u32 items_initial,
+			u32 items_max, struct vxge_hw_mempool_cbs *mp_callback,
+			void *userdata);
+
 static void __vxge_hw_mempool_destroy(struct vxge_hw_mempool *mempool);
 
 static enum vxge_hw_status
@@ -145,22 +104,8 @@ vxge_hw_vpath_stats_enable(struct __vxge_hw_vpath_handle *vpath_handle);
 static enum vxge_hw_status
 __vxge_hw_legacy_swapper_set(struct vxge_hw_legacy_reg __iomem *legacy_reg);
 
-static enum vxge_hw_status
-__vxge_hw_vpath_reset_check(struct __vxge_hw_virtualpath *vpath);
-
-
-static enum vxge_hw_status
-__vxge_hw_vpath_sw_reset(struct __vxge_hw_device *devh, u32 vp_id);
-
-static enum vxge_hw_status
-__vxge_hw_vpath_mac_configure(struct __vxge_hw_device *devh, u32 vp_id);
-
 static void
 __vxge_hw_vp_terminate(struct __vxge_hw_device *devh, u32 vp_id);
-
-static enum vxge_hw_status
-__vxge_hw_vpath_stats_access(struct __vxge_hw_virtualpath *vpath,
-			     u32 operation, u32 offset,	u64 *stat);
 
 static enum vxge_hw_status
 __vxge_hw_vpath_xmac_tx_stats_get(struct __vxge_hw_virtualpath	*vpath,
@@ -505,7 +450,7 @@ vxge_hw_vpath_eprom_img_ver_get(struct __vxge_hw_device *hldev,
  * This function allocates required memory for the channel and various arrays
  * in the channel
  */
-struct __vxge_hw_channel*
+static struct __vxge_hw_channel *
 __vxge_hw_channel_allocate(struct __vxge_hw_vpath_handle *vph,
 			   enum __vxge_hw_channel_type type,
 	u32 length, u32 per_dtr_space, void *userdata)
@@ -576,7 +521,7 @@ exit0:
  * This function deallocates memory from the channel and various arrays
  * in the channel
  */
-void __vxge_hw_channel_free(struct __vxge_hw_channel *channel)
+static void __vxge_hw_channel_free(struct __vxge_hw_channel *channel)
 {
 	kfree(channel->work_arr);
 	kfree(channel->free_arr);
@@ -590,7 +535,7 @@ void __vxge_hw_channel_free(struct __vxge_hw_channel *channel)
  * This function initializes a channel by properly setting the
  * various references
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 __vxge_hw_channel_initialize(struct __vxge_hw_channel *channel)
 {
 	u32 i;
@@ -625,7 +570,7 @@ __vxge_hw_channel_initialize(struct __vxge_hw_channel *channel)
  * __vxge_hw_channel_reset - Resets a channel
  * This function resets a channel by properly setting the various references
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 __vxge_hw_channel_reset(struct __vxge_hw_channel *channel)
 {
 	u32 i;
@@ -652,8 +597,7 @@ __vxge_hw_channel_reset(struct __vxge_hw_channel *channel)
  * Initialize certain PCI/PCI-X configuration registers
  * with recommended values. Save config space for future hw resets.
  */
-void
-__vxge_hw_device_pci_e_init(struct __vxge_hw_device *hldev)
+static void __vxge_hw_device_pci_e_init(struct __vxge_hw_device *hldev)
 {
 	u16 cmd = 0;
 
@@ -742,7 +686,7 @@ exit:
  * register location pointers in the device object. It waits until the ric is
  * completed initializing registers.
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 __vxge_hw_device_reg_addr_get(struct __vxge_hw_device *hldev)
 {
 	u64 val64;
@@ -938,7 +882,8 @@ __vxge_hw_verify_pci_e_info(struct __vxge_hw_device *hldev)
  * __vxge_hw_device_initialize
  * Initialize Titan-V hardware.
  */
-enum vxge_hw_status __vxge_hw_device_initialize(struct __vxge_hw_device *hldev)
+static enum vxge_hw_status
+__vxge_hw_device_initialize(struct __vxge_hw_device *hldev)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
 
@@ -2337,7 +2282,7 @@ static void __vxge_hw_mempool_destroy(struct vxge_hw_mempool *mempool)
  * __vxge_hw_device_fifo_config_check - Check fifo configuration.
  * Check the fifo configuration
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 __vxge_hw_device_fifo_config_check(struct vxge_hw_fifo_config *fifo_config)
 {
 	if ((fifo_config->fifo_blocks < VXGE_HW_MIN_FIFO_BLOCKS) ||
@@ -2385,7 +2330,7 @@ __vxge_hw_device_vpath_config_check(struct vxge_hw_vp_config *vp_config)
  * __vxge_hw_device_config_check - Check device configuration.
  * Check the device configuration
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 __vxge_hw_device_config_check(struct vxge_hw_device_config *new_config)
 {
 	u32 i;
@@ -2945,7 +2890,7 @@ __vxge_hw_fifo_mempool_item_alloc(
  * __vxge_hw_fifo_create - Create a FIFO
  * This function creates FIFO and initializes it.
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 __vxge_hw_fifo_create(struct __vxge_hw_vpath_handle *vp,
 		      struct vxge_hw_fifo_attr *attr)
 {
@@ -3109,7 +3054,8 @@ static enum vxge_hw_status __vxge_hw_fifo_reset(struct __vxge_hw_fifo *fifo)
  * __vxge_hw_fifo_delete - Removes the FIFO
  * This function freeup the memory pool and removes the FIFO
  */
-enum vxge_hw_status __vxge_hw_fifo_delete(struct __vxge_hw_vpath_handle *vp)
+static enum vxge_hw_status
+__vxge_hw_fifo_delete(struct __vxge_hw_vpath_handle *vp)
 {
 	struct __vxge_hw_fifo *fifo = vp->vpath->fifoh;
 
@@ -4897,7 +4843,7 @@ static void vxge_os_dma_free(struct pci_dev *pdev, const void *vaddr,
  * __vxge_hw_blockpool_create - Create block pool
  */
 
-enum vxge_hw_status
+static enum vxge_hw_status
 __vxge_hw_blockpool_create(struct __vxge_hw_device *hldev,
 			   struct __vxge_hw_blockpool *blockpool,
 			   u32 pool_size,
@@ -4997,7 +4943,7 @@ blockpool_create_exit:
  * __vxge_hw_blockpool_destroy - Deallocates the block pool
  */
 
-void __vxge_hw_blockpool_destroy(struct __vxge_hw_blockpool *blockpool)
+static void __vxge_hw_blockpool_destroy(struct __vxge_hw_blockpool *blockpool)
 {
 
 	struct __vxge_hw_device *hldev;
@@ -5163,7 +5109,7 @@ exit:
  * Allocates a block of memory of given size, either from block pool
  * or by calling vxge_os_dma_malloc()
  */
-void *
+static void *
 __vxge_hw_blockpool_malloc(struct __vxge_hw_device *devh, u32 size,
 				struct vxge_hw_mempool_dma *dma_object)
 {
@@ -5227,7 +5173,7 @@ exit:
  * __vxge_hw_blockpool_free - Frees the memory allcoated with
 				__vxge_hw_blockpool_malloc
  */
-void
+static void
 __vxge_hw_blockpool_free(struct __vxge_hw_device *devh,
 			void *memblock, u32 size,
 			struct vxge_hw_mempool_dma *dma_object)
@@ -5279,7 +5225,7 @@ __vxge_hw_blockpool_free(struct __vxge_hw_device *devh,
  * __vxge_hw_blockpool_block_allocate - Allocates a block from block pool
  * This function allocates a block from block pool or from the system
  */
-struct __vxge_hw_blockpool_entry *
+static struct __vxge_hw_blockpool_entry *
 __vxge_hw_blockpool_block_allocate(struct __vxge_hw_device *devh, u32 size)
 {
 	struct __vxge_hw_blockpool_entry *entry = NULL;
@@ -5314,7 +5260,7 @@ __vxge_hw_blockpool_block_allocate(struct __vxge_hw_device *devh, u32 size)
  *
  * This function frees a block from block pool
  */
-void
+static void
 __vxge_hw_blockpool_block_free(struct __vxge_hw_device *devh,
 			struct __vxge_hw_blockpool_entry *entry)
 {

@@ -688,7 +688,7 @@ static int vxge_learn_mac(struct vxgedev *vdev, u8 *mac_header)
 	struct vxge_vpath *vpath = NULL;
 	struct __vxge_hw_device *hldev;
 
-	hldev = (struct __vxge_hw_device *) pci_get_drvdata(vdev->pdev);
+	hldev = (struct __vxge_hw_device *)pci_get_drvdata(vdev->pdev);
 
 	mac_address = (u8 *)&mac_addr;
 	memcpy(mac_address, mac_header, ETH_ALEN);
@@ -1112,7 +1112,7 @@ static void vxge_set_multicast(struct net_device *dev)
 		/* Delete previous MC's */
 		for (i = 0; i < mcast_cnt; i++) {
 			list_for_each_safe(entry, next, list_head) {
-				mac_entry = (struct vxge_mac_addrs *) entry;
+				mac_entry = (struct vxge_mac_addrs *)entry;
 				/* Copy the mac address to delete */
 				mac_address = (u8 *)&mac_entry->macaddr;
 				memcpy(mac_info.macaddr, mac_address, ETH_ALEN);
@@ -1155,7 +1155,7 @@ _set_all_mcast:
 		/* Delete previous MC's */
 		for (i = 0; i < mcast_cnt; i++) {
 			list_for_each_safe(entry, next, list_head) {
-				mac_entry = (struct vxge_mac_addrs *) entry;
+				mac_entry = (struct vxge_mac_addrs *)entry;
 				/* Copy the mac address to delete */
 				mac_address = (u8 *)&mac_entry->macaddr;
 				memcpy(mac_info.macaddr, mac_address, ETH_ALEN);
@@ -1202,7 +1202,7 @@ static int vxge_set_mac_addr(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 	struct vxgedev *vdev;
-	struct __vxge_hw_device  *hldev;
+	struct __vxge_hw_device *hldev;
 	enum vxge_hw_status status = VXGE_HW_OK;
 	struct macInfo mac_info_new, mac_info_old;
 	int vpath_idx = 0;
@@ -1632,7 +1632,7 @@ static int vxge_poll_inta(struct napi_struct *napi, int budget)
 	int budget_org = budget;
 	struct vxge_ring *ring;
 
-	struct __vxge_hw_device  *hldev = (struct __vxge_hw_device *)
+	struct __vxge_hw_device *hldev = (struct __vxge_hw_device *)
 		pci_get_drvdata(vdev->pdev);
 
 	for (i = 0; i < vdev->no_of_vpath; i++) {
@@ -1669,7 +1669,7 @@ static int vxge_poll_inta(struct napi_struct *napi, int budget)
  */
 static void vxge_netpoll(struct net_device *dev)
 {
-	struct __vxge_hw_device  *hldev;
+	struct __vxge_hw_device *hldev;
 	struct vxgedev *vdev;
 
 	vdev = (struct vxgedev *)netdev_priv(dev);
@@ -1821,7 +1821,7 @@ static int vxge_mac_list_del(struct vxge_vpath *vpath, struct macInfo *mac)
 {
 	struct list_head *entry, *next;
 	u64 del_mac = 0;
-	u8 *mac_address = (u8 *) (&del_mac);
+	u8 *mac_address = (u8 *)(&del_mac);
 
 	/* Copy the mac address to delete from the list */
 	memcpy(mac_address, mac->macaddr, ETH_ALEN);
@@ -2102,7 +2102,7 @@ static irqreturn_t vxge_isr_napi(int irq, void *dev_id)
 	struct __vxge_hw_device *hldev;
 	u64 reason;
 	enum vxge_hw_status status;
-	struct vxgedev *vdev = (struct vxgedev *) dev_id;;
+	struct vxgedev *vdev = (struct vxgedev *)dev_id;
 
 	vxge_debug_intr(VXGE_TRACE, "%s:%d", __func__, __LINE__);
 
@@ -2341,8 +2341,8 @@ static void vxge_rem_msix_isr(struct vxgedev *vdev)
 
 static void vxge_rem_isr(struct vxgedev *vdev)
 {
-	struct __vxge_hw_device  *hldev;
-	hldev = (struct __vxge_hw_device  *) pci_get_drvdata(vdev->pdev);
+	struct __vxge_hw_device *hldev;
+	hldev = (struct __vxge_hw_device  *)pci_get_drvdata(vdev->pdev);
 
 #ifdef CONFIG_PCI_MSI
 	if (vdev->config.intr_type == MSI_X) {
@@ -2583,7 +2583,7 @@ vxge_open(struct net_device *dev)
 		"%s: %s:%d", dev->name, __func__, __LINE__);
 
 	vdev = (struct vxgedev *)netdev_priv(dev);
-	hldev = (struct __vxge_hw_device *) pci_get_drvdata(vdev->pdev);
+	hldev = (struct __vxge_hw_device *)pci_get_drvdata(vdev->pdev);
 	function_mode = vdev->config.device_hw_info.function_mode;
 
 	/* make sure you have link off by default every time Nic is
@@ -2811,7 +2811,7 @@ static int do_vxge_close(struct net_device *dev, int do_io)
 		dev->name, __func__, __LINE__);
 
 	vdev = (struct vxgedev *)netdev_priv(dev);
-	hldev = (struct __vxge_hw_device *) pci_get_drvdata(vdev->pdev);
+	hldev = (struct __vxge_hw_device *)pci_get_drvdata(vdev->pdev);
 
 	if (unlikely(!is_vxge_card_up(vdev)))
 		return 0;
@@ -3440,36 +3440,29 @@ _out0:
  *
  * This function will unregister and free network device
  */
-static void
-vxge_device_unregister(struct __vxge_hw_device *hldev)
+static void vxge_device_unregister(struct __vxge_hw_device *hldev)
 {
 	struct vxgedev *vdev;
 	struct net_device *dev;
 	char buf[IFNAMSIZ];
-#if ((VXGE_DEBUG_INIT & VXGE_DEBUG_MASK) || \
-	(VXGE_DEBUG_ENTRYEXIT & VXGE_DEBUG_MASK))
-	u32 level_trace;
-#endif
 
 	dev = hldev->ndev;
 	vdev = netdev_priv(dev);
-#if ((VXGE_DEBUG_INIT & VXGE_DEBUG_MASK) || \
-	(VXGE_DEBUG_ENTRYEXIT & VXGE_DEBUG_MASK))
-	level_trace = vdev->level_trace;
-#endif
-	vxge_debug_entryexit(level_trace,
-		"%s: %s:%d", vdev->ndev->name, __func__, __LINE__);
 
-	memcpy(buf, vdev->ndev->name, IFNAMSIZ);
+	vxge_debug_entryexit(vdev->level_trace,	"%s: %s:%d", vdev->ndev->name,
+			     __func__, __LINE__);
+
+	memcpy(buf, dev->name, IFNAMSIZ);
 
 	/* in 2.6 will call stop() if device is up */
 	unregister_netdev(dev);
 
 	flush_scheduled_work();
 
-	vxge_debug_init(level_trace, "%s: ethernet device unregistered", buf);
-	vxge_debug_entryexit(level_trace,
-		"%s: %s:%d  Exiting...", buf, __func__, __LINE__);
+	vxge_debug_init(vdev->level_trace, "%s: ethernet device unregistered",
+			buf);
+	vxge_debug_entryexit(vdev->level_trace,	"%s: %s:%d  Exiting...", buf,
+			     __func__, __LINE__);
 }
 
 /*
@@ -3992,8 +3985,8 @@ static int vxge_pm_resume(struct pci_dev *pdev)
 static pci_ers_result_t vxge_io_error_detected(struct pci_dev *pdev,
 						pci_channel_state_t state)
 {
-	struct __vxge_hw_device  *hldev =
-		(struct __vxge_hw_device  *) pci_get_drvdata(pdev);
+	struct __vxge_hw_device *hldev =
+		(struct __vxge_hw_device  *)pci_get_drvdata(pdev);
 	struct net_device *netdev = hldev->ndev;
 
 	netif_device_detach(netdev);
@@ -4022,8 +4015,8 @@ static pci_ers_result_t vxge_io_error_detected(struct pci_dev *pdev,
  */
 static pci_ers_result_t vxge_io_slot_reset(struct pci_dev *pdev)
 {
-	struct __vxge_hw_device  *hldev =
-		(struct __vxge_hw_device  *) pci_get_drvdata(pdev);
+	struct __vxge_hw_device *hldev =
+		(struct __vxge_hw_device  *)pci_get_drvdata(pdev);
 	struct net_device *netdev = hldev->ndev;
 
 	struct vxgedev *vdev = netdev_priv(netdev);
@@ -4048,8 +4041,8 @@ static pci_ers_result_t vxge_io_slot_reset(struct pci_dev *pdev)
  */
 static void vxge_io_resume(struct pci_dev *pdev)
 {
-	struct __vxge_hw_device  *hldev =
-		(struct __vxge_hw_device  *) pci_get_drvdata(pdev);
+	struct __vxge_hw_device *hldev =
+		(struct __vxge_hw_device  *)pci_get_drvdata(pdev);
 	struct net_device *netdev = hldev->ndev;
 
 	if (netif_running(netdev)) {
@@ -4243,7 +4236,7 @@ static int vxge_probe_fw_update(struct vxgedev *vdev)
 static int __devinit
 vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 {
-	struct __vxge_hw_device  *hldev;
+	struct __vxge_hw_device *hldev;
 	enum vxge_hw_status status;
 	int ret;
 	int high_dma = 0;
@@ -4689,34 +4682,25 @@ _exit0:
  * Description: This function is called by the Pci subsystem to release a
  * PCI device and free up all resource held up by the device.
  */
-static void __devexit
-vxge_remove(struct pci_dev *pdev)
+static void __devexit vxge_remove(struct pci_dev *pdev)
 {
-	struct __vxge_hw_device  *hldev;
+	struct __vxge_hw_device *hldev;
 	struct vxgedev *vdev = NULL;
 	struct net_device *dev;
 	int i = 0;
-#if ((VXGE_DEBUG_INIT & VXGE_DEBUG_MASK) || \
-	(VXGE_DEBUG_ENTRYEXIT & VXGE_DEBUG_MASK))
-	u32 level_trace;
-#endif
 
-	hldev = (struct __vxge_hw_device  *) pci_get_drvdata(pdev);
+	hldev = (struct __vxge_hw_device  *)pci_get_drvdata(pdev);
 
 	if (hldev == NULL)
 		return;
+
 	dev = hldev->ndev;
 	vdev = netdev_priv(dev);
 
-#if ((VXGE_DEBUG_INIT & VXGE_DEBUG_MASK) || \
-	(VXGE_DEBUG_ENTRYEXIT & VXGE_DEBUG_MASK))
-	level_trace = vdev->level_trace;
-#endif
-	vxge_debug_entryexit(level_trace,
-		"%s:%d", __func__, __LINE__);
+	vxge_debug_entryexit(vdev->level_trace,	"%s:%d", __func__, __LINE__);
 
-	vxge_debug_init(level_trace,
-		"%s : removing PCI device...", __func__);
+	vxge_debug_init(vdev->level_trace, "%s : removing PCI device...",
+			__func__);
 	vxge_device_unregister(hldev);
 
 	for (i = 0; i < vdev->no_of_vpath; i++) {
@@ -4734,16 +4718,16 @@ vxge_remove(struct pci_dev *pdev)
 	/* we are safe to free it now */
 	free_netdev(dev);
 
-	vxge_debug_init(level_trace,
-		"%s:%d  Device unregistered", __func__, __LINE__);
+	vxge_debug_init(vdev->level_trace, "%s:%d Device unregistered",
+			__func__, __LINE__);
 
 	vxge_hw_device_terminate(hldev);
 
 	pci_disable_device(pdev);
 	pci_release_regions(pdev);
 	pci_set_drvdata(pdev, NULL);
-	vxge_debug_entryexit(level_trace,
-		"%s:%d  Exiting...", __func__, __LINE__);
+	vxge_debug_entryexit(vdev->level_trace,	"%s:%d  Exiting...", __func__,
+			     __LINE__);
 }
 
 static struct pci_error_handlers vxge_err_handler = {
