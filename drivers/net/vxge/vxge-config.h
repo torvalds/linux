@@ -641,6 +641,7 @@ struct __vxge_hw_virtualpath {
 	struct vxge_hw_vpath_stats_hw_info	*hw_stats;
 	struct vxge_hw_vpath_stats_hw_info	*hw_stats_sav;
 	struct vxge_hw_vpath_stats_sw_info	*sw_stats;
+	spinlock_t lock;
 };
 
 /*
