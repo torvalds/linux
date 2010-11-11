@@ -1534,14 +1534,19 @@ static void cxgb4vf_get_wol(struct net_device *dev,
 }
 
 /*
+ * TCP Segmentation Offload flags which we support.
+ */
+#define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
+
+/*
  * Set TCP Segmentation Offloading feature capabilities.
  */
 static int cxgb4vf_set_tso(struct net_device *dev, u32 tso)
 {
 	if (tso)
-		dev->features |= NETIF_F_TSO | NETIF_F_TSO6;
+		dev->features |= TSO_FLAGS;
 	else
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
+		dev->features &= ~TSO_FLAGS;
 	return 0;
 }
 
@@ -2610,7 +2615,7 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netif_carrier_off(netdev);
 		netdev->irq = pdev->irq;
 
-		netdev->features = (NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
+		netdev->features = (NETIF_F_SG | TSO_FLAGS |
 				    NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 				    NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
 				    NETIF_F_GRO);
