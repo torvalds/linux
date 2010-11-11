@@ -3937,6 +3937,8 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	if (!sd->gspca_dev.present)
+		return;
 	if (sd->bridge == BRIDGE_W9968CF)
 		w9968cf_stop0(sd);
 

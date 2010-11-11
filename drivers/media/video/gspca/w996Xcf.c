@@ -549,10 +549,8 @@ static int w9968cf_mode_init_regs(struct sd *sd)
 
 static void w9968cf_stop0(struct sd *sd)
 {
-	if (sd->gspca_dev.present) {
-		reg_w(sd, 0x39, 0x0000); /* disable JPEG encoder */
-		reg_w(sd, 0x16, 0x0000); /* stop video capture */
-	}
+	reg_w(sd, 0x39, 0x0000); /* disable JPEG encoder */
+	reg_w(sd, 0x16, 0x0000); /* stop video capture */
 }
 
 /* The w9968cf docs say that a 0 sized packet means EOF (and also SOF
