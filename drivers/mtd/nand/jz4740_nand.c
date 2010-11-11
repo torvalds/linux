@@ -489,7 +489,7 @@ static int __devexit jz_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver jz_nand_driver = {
+static struct platform_driver jz_nand_driver = {
 	.probe = jz_nand_probe,
 	.remove = __devexit_p(jz_nand_remove),
 	.driver = {
