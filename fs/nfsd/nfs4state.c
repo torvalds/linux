@@ -1562,6 +1562,8 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	status = nfs_ok;
 	memcpy(cr_ses->sessionid.data, new->se_sessionid.data,
 	       NFS4_MAX_SESSIONID_LEN);
+	memcpy(&cr_ses->fore_channel, &new->se_fchannel,
+		sizeof(struct nfsd4_channel_attrs));
 	cs_slot->sl_seqid++;
 	cr_ses->seqid = cs_slot->sl_seqid;
 
