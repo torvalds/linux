@@ -973,6 +973,63 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 	DPRINTK("========================================\n");
 }
 
+void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
+{
+	unsigned char *block;
+	struct fb_videomode *mode, *m;
+	int num = 0, i, first = 1;
+
+	if (edid == NULL)
+		return;
+
+	if (!edid_checksum(edid))
+		return;
+
+	if (edid[0] != 0x2)
+		return;
+
+	mode = kzalloc(50 * sizeof(struct fb_videomode), GFP_KERNEL);
+	if (mode == NULL)
+		return;
+
+	block = edid + edid[0x2];
+
+	DPRINTK("  Extended Detailed Timings\n");
+
+	for (i = 0; i < (128 - edid[0x2]) / DETAILED_TIMING_DESCRIPTION_SIZE;
+	     i++, block += DETAILED_TIMING_DESCRIPTION_SIZE) {
+		if (!(block[0] == 0x00 && block[1] == 0x00)) {
+			get_detailed_timing(block, &mode[num]);
+			if (first) {
+			        mode[num].flag |= FB_MODE_IS_FIRST;
+				first = 0;
+			}
+			num++;
+		}
+	}
+
+	/* Yikes, EDID data is totally useless */
+	if (!num) {
+		kfree(mode);
+		return;
+	}
+
+	m = kzalloc((specs->modedb_len + num) *
+		       sizeof(struct fb_videomode), GFP_KERNEL);
+
+	if (!m) {
+		kfree(mode);
+		return;
+	}
+
+	memmove(m, specs->modedb, specs->modedb_len * sizeof(struct fb_videomode));
+	memmove(m + specs->modedb_len, mode, num * sizeof(struct fb_videomode));
+	kfree(mode);
+	kfree(specs->modedb);
+	specs->modedb = m;
+	specs->modedb_len = specs->modedb_len + num;
+}
+
 /*
  * VESA Generalized Timing Formula (GTF)
  */
