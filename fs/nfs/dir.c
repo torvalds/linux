@@ -34,6 +34,7 @@
 #include <linux/mount.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
+#include <linux/kmemleak.h>
 
 #include "delegation.h"
 #include "iostat.h"
@@ -238,6 +239,11 @@ int nfs_readdir_make_qstr(struct qstr *string, const char *name, unsigned int le
 	string->name = kmemdup(name, len, GFP_KERNEL);
 	if (string->name == NULL)
 		return -ENOMEM;
+	/*
+	 * Avoid a kmemleak false positive. The pointer to the name is stored
+	 * in a page cache page which kmemleak does not scan.
+	 */
+	kmemleak_not_leak(string->name);
 	string->hash = full_name_hash(name, len);
 	return 0;
 }
