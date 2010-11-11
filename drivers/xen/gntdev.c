@@ -564,7 +564,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 
 	vma->vm_ops = &gntdev_vmops;
 
-	vma->vm_flags |= VM_RESERVED|VM_DONTCOPY|VM_DONTEXPAND;
+	vma->vm_flags |= VM_RESERVED|VM_DONTCOPY|VM_DONTEXPAND|VM_PFNMAP;
 
 	vma->vm_private_data = map;
 	map->vma = vma;
