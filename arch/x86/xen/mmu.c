@@ -2299,7 +2299,8 @@ int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
 
 	prot = __pgprot(pgprot_val(prot) | _PAGE_IOMAP);
 
-	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
+	BUG_ON(!((vma->vm_flags & (VM_PFNMAP | VM_RESERVED | VM_IO)) ==
+				(VM_PFNMAP | VM_RESERVED | VM_IO)));
 
 	rmd.mfn = mfn;
 	rmd.prot = prot;
