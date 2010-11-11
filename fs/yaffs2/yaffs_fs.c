@@ -2189,7 +2189,7 @@ static struct super_block *yaffs_internal_read_super(int yaffsVersion,
 	dev->nReservedBlocks = 5;
 	dev->nShortOpCaches = (options.no_cache) ? 0 : 10;
 	dev->inbandTags = options.inband_tags;
-#ifdef CONFIG_ARCH_RK2818
+#if defined (CONFIG_ARCH_RK2818) || (CONFIG_ARCH_RK29)
 	dev->inbandTags = 1;
 #endif
 

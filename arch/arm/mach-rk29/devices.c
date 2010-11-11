@@ -21,7 +21,59 @@
 #include <mach/rk29_iomap.h>
 #include <mach/rk29-dma-pl330.h> 
 #include "devices.h"
- 
+
+
+#ifdef CONFIG_SDMMC0_RK29 
+static struct resource resources_sdmmc0[] = {
+	{
+		.start 	= IRQ_SDMMC,
+		.end 	= IRQ_SDMMC,
+		.flags 	= IORESOURCE_IRQ,
+	},
+	{
+		.start 	= RK29_SDMMC0_PHYS,
+		.end 	= RK29_SDMMC0_PHYS + RK29_SDMMC0_SIZE -1,
+		.flags 	= IORESOURCE_MEM,
+	}
+};
+#endif
+#ifdef CONFIG_SDMMC1_RK29
+static struct resource resources_sdmmc1[] = {
+	{
+		.start 	= IRQ_SDIO,
+		.end 	= IRQ_SDIO,
+		.flags 	= IORESOURCE_IRQ,
+	},
+	{
+		.start 	= RK29_SDMMC1_PHYS,
+		.end 	= RK29_SDMMC1_PHYS + RK29_SDMMC1_SIZE -1,
+		.flags 	= IORESOURCE_MEM,
+	}
+}; 
+#endif
+/* sdmmc */
+#ifdef CONFIG_SDMMC0_RK29
+struct platform_device rk29_device_sdmmc0 = {
+	.name			= "rk29_sdmmc",
+	.id				= 0,
+	.num_resources	= ARRAY_SIZE(resources_sdmmc0),
+	.resource		= resources_sdmmc0,
+	.dev 			= {
+		.platform_data = &default_sdmmc0_data,
+	},
+};
+#endif
+#ifdef CONFIG_SDMMC1_RK29
+struct platform_device rk29_device_sdmmc1 = {
+	.name			= "rk29_sdmmc",
+	.id				= 1,
+	.num_resources	= ARRAY_SIZE(resources_sdmmc1),
+	.resource		= resources_sdmmc1,
+	.dev 			= {
+		.platform_data = &default_sdmmc1_data,
+	},
+};
+#endif
 /*
  * rk29 4 uarts device
  */
@@ -34,7 +86,7 @@ static struct resource resources_uart0[] = {
 	},
 	{
 		.start	= RK29_UART0_PHYS,
-		.end	= RK29_UART0_PHYS + SZ_1K - 1,
+		.end	= RK29_UART0_PHYS + RK29_UART0_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -48,7 +100,7 @@ static struct resource resources_uart1[] = {
 	},
 	{
 		.start	= RK29_UART1_PHYS,
-		.end	= RK29_UART1_PHYS + SZ_1K - 1,
+		.end	= RK29_UART1_PHYS + RK29_UART1_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -62,7 +114,7 @@ static struct resource resources_uart2[] = {
 	},
 	{
 		.start	= RK29_UART2_PHYS,
-		.end	= RK29_UART2_PHYS + SZ_1K - 1,
+		.end	= RK29_UART2_PHYS + RK29_UART2_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -76,7 +128,7 @@ static struct resource resources_uart3[] = {
 	},
 	{
 		.start	= RK29_UART3_PHYS,
-		.end	= RK29_UART3_PHYS + SZ_1K - 1,
+		.end	= RK29_UART3_PHYS + RK29_UART3_SIZE - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -186,4 +238,51 @@ struct platform_device rk29xx_device_spi1m = {
 	},
 };
 
+#ifdef CONFIG_FB_RK29
+/* rk29 fb resource */
+static struct resource rk29_fb_resource[] = {
+	[0] = {
+		.start = RK29_LCDC_PHYS,
+		.end   = RK29_LCDC_PHYS + RK29_LCDC_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_LCDC,
+		.end   = IRQ_LCDC,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+/*platform_device*/
+extern struct rk29fb_info rk29_fb_info;
+struct platform_device rk29_device_fb = {
+	.name		  = "rk29-fb",
+	.id		  = 4,
+	.num_resources	  = ARRAY_SIZE(rk29_fb_resource),
+	.resource	  = rk29_fb_resource,
+	.dev            = {
+		.platform_data  = &rk29_fb_info,
+	}
+};
+#endif
+#if defined(CONFIG_MTD_NAND_RK29)  
+static struct resource nand_resources[] = {
+	{
+		.start	= RK29_NANDC_PHYS,
+		.end	= 	RK29_NANDC_PHYS+RK29_NANDC_SIZE -1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+struct platform_device rk29_device_nand = {
+	.name	= "rk29-nand",
+	.id		=  -1, 
+	.resource	= nand_resources,
+	.num_resources= ARRAY_SIZE(nand_resources),
+	.dev	= {
+		.platform_data= &rk29_nand_data,
+	},
+	
+};
+#endif
 

@@ -28,7 +28,7 @@
 #include <linux/mtd/partitions.h>
 
 #include <mach/gpio.h>
-#include <mach/rk2818_nand.h>
+#include <mach/rk29_nand.h>
 #include <mach/iomux.h>
 #include <mach/rk2818_camera.h>                          /* ddl@rock-chips.com : camera support */
 #include <linux/i2c.h>  

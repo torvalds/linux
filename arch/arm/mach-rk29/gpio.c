@@ -606,7 +606,8 @@ void __init rk29_gpio_irq_setup(void)
 				irq = IRQ_GPIO6;
 				break;		
 		}
-		set_irq_chip_data(irq+14, this);
+
+		set_irq_chip_data(NR_AIC_IRQS+this->bank->id,this);
 		set_irq_chained_handler(irq, gpio_irq_handler);
 		this += 1; 
 		pin += 32;

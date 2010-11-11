@@ -1,6 +1,6 @@
 #include <linux/fb.h>
 #include <linux/delay.h>
-#include "../../rk2818_fb.h"
+#include "../../rk29_fb.h"
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/board.h>
@@ -31,21 +31,24 @@
 #define CLK_PORT        gLcd_info->clk_pin
 #define CS_PORT         gLcd_info->cs_pin
 
+#if 0
 #define CS_OUT()        gpio_direction_output(CS_PORT, 0)
 #define CS_SET()        gpio_set_value(CS_PORT, GPIO_HIGH)
 #define CS_CLR()        gpio_set_value(CS_PORT, GPIO_LOW)
-#define CLK_OUT()       gpio_direction_output(CLK_PORT, 0) 
+#define CLK_OUT()       gpio_direction_output(CLK_PORT, 0)
 #define CLK_SET()       gpio_set_value(CLK_PORT, GPIO_HIGH)
 #define CLK_CLR()       gpio_set_value(CLK_PORT, GPIO_LOW)
-#define TXD_OUT()       gpio_direction_output(TXD_PORT, 0) 
+#define TXD_OUT()       gpio_direction_output(TXD_PORT, 0)
 #define TXD_SET()       gpio_set_value(TXD_PORT, GPIO_HIGH)
 #define TXD_CLR()       gpio_set_value(TXD_PORT, GPIO_LOW)
+#endif
 
-static struct rk2818lcd_info *gLcd_info = NULL;
+
+static struct rk29lcd_info *gLcd_info = NULL;
 int init(void);
 int standby(u8 enable);
 
-void set_lcd_info(struct rk28fb_screen *screen, struct rk2818lcd_info *lcd_info )
+void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 {
     /* screen type & face */
     screen->type = OUT_TYPE;
@@ -84,7 +87,7 @@ void set_lcd_info(struct rk28fb_screen *screen, struct rk2818lcd_info *lcd_info 
         gLcd_info = lcd_info;
 }
 
-
+#if 0
 void spi_screenreg_set(u32 Addr, u32 Data)
 {
 
@@ -155,13 +158,15 @@ void spi_screenreg_set(u32 Addr, u32 Data)
 	DRVDelayUs(2);
 
 }
+#endif
 
 
 int init(void)
-{    
+{
     if(gLcd_info)
         gLcd_info->io_init();
 
+#if 0
     spi_screenreg_set(0x02, 0x07);
     spi_screenreg_set(0x03, 0x5f);
     spi_screenreg_set(0x04, 0x17);
@@ -197,6 +202,7 @@ int init(void)
     spi_screenreg_set(0x20, 0xF0);
     spi_screenreg_set(0x21, 0xF0);
     spi_screenreg_set(0x22, 0x09);
+#endif
 
     if(gLcd_info)
         gLcd_info->io_deinit();
@@ -204,14 +210,16 @@ int init(void)
 }
 
 int standby(u8 enable)
-{       
+{
     if(gLcd_info)
         gLcd_info->io_init();
+#if 0
 	if(enable) {
 		spi_screenreg_set(0x03, 0xde);
 	} else {
 		spi_screenreg_set(0x03, 0x5f);
 	}
+#endif
     if(gLcd_info)
         gLcd_info->io_deinit();
     return 0;

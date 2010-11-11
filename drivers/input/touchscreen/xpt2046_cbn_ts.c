@@ -382,7 +382,7 @@ static int xpt2046_debounce(void *xpt, int data_idx, int *val)
 	static int average_val[2];
 	
 
-	xpt2046printk("***>%s:%d,%d,%d,%d,%d,%d,%d,%d\n",__FUNCTION__,
+	xpt2046printk("***>%s:%d,%d,%d,%d,%ld,%d,%d,%d\n",__FUNCTION__,
 		data_idx,ts->last_read,
 	  ts->read_cnt,ts->debounce_max,
 		abs(ts->last_read - *val),ts->debounce_tol,
@@ -700,8 +700,6 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 	struct spi_transfer		*x;
 	int				vref;
 	int				err;
-	int             i;
-
 	
 	if (!spi->irq) {
 		dev_dbg(&spi->dev, "no IRQ?\n");
@@ -955,12 +953,14 @@ static struct spi_driver xpt2046_driver = {
 
 static int __init xpt2046_init(void)
 {
+	int ret;
+	
 	xpt2046printk("Touch panel drive XPT2046 driver init...\n");
 	
 	gADPoint.x = 0;
 	gADPoint.y = 0;
 	
-	int ret = spi_register_driver(&xpt2046_driver);
+	ret = spi_register_driver(&xpt2046_driver);
     if (ret)
     {
  		printk("Register XPT2046 driver failed.\n");

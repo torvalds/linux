@@ -1,7 +1,7 @@
 /* This Lcd Driver is HSD070IDW1 write by cst 2009.10.27 */
 #include <linux/fb.h>
 #include <linux/delay.h>
-#include "../../rk2818_fb.h"
+#include "../../rk29_fb.h"
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/board.h>
@@ -35,21 +35,21 @@
 #define CS_OUT()        gpio_direction_output(CS_PORT, 0)
 #define CS_SET()        gpio_set_value(CS_PORT, GPIO_HIGH)
 #define CS_CLR()        gpio_set_value(CS_PORT, GPIO_LOW)
-#define CLK_OUT()       gpio_direction_output(CLK_PORT, 0) 
+#define CLK_OUT()       gpio_direction_output(CLK_PORT, 0)
 #define CLK_SET()       gpio_set_value(CLK_PORT, GPIO_HIGH)
 #define CLK_CLR()       gpio_set_value(CLK_PORT, GPIO_LOW)
-#define TXD_OUT()       gpio_direction_output(TXD_PORT, 0) 
+#define TXD_OUT()       gpio_direction_output(TXD_PORT, 0)
 #define TXD_SET()       gpio_set_value(TXD_PORT, GPIO_HIGH)
 #define TXD_CLR()       gpio_set_value(TXD_PORT, GPIO_LOW)
 
-static struct rk2818lcd_info *gLcd_info = NULL;
+static struct rk29lcd_info *gLcd_info = NULL;
 
 #define DRVDelayUs(i)   udelay(i*2)
 
 int init(void);
 int standby(u8 enable);
 
-void set_lcd_info(struct rk28fb_screen *screen, struct rk2818lcd_info *lcd_info )
+void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 {
     /* screen type & face */
     screen->type = OUT_TYPE;
@@ -83,12 +83,12 @@ void set_lcd_info(struct rk28fb_screen *screen, struct rk2818lcd_info *lcd_info 
 
     /* Operation function*/
     /*screen->init = init;*/
-    screen->init = NULL; 
+    screen->init = NULL;
     screen->standby = standby;
     if(lcd_info)
         gLcd_info = lcd_info;
 }
-//cannot need init,so set screen->init = null at rk28_fb.c file 
+//cannot need init,so set screen->init = null at rk29_fb.c file
 
 void spi_screenreg_set(u32 Addr, u32 Data)
 {
@@ -218,19 +218,19 @@ int standby(u8 enable)
     if(gLcd_info)
         gLcd_info->io_deinit();
 #else
-    
+
     GPIOSetPinDirection(GPIOPortB_Pin3, GPIO_OUT);
     GPIOSetPinDirection(GPIOPortB_Pin2, GPIO_OUT);
 
     if(enable)
        {
-        GPIOSetPinLevel(GPIOPortB_Pin3, GPIO_LOW);          
-        GPIOSetPinLevel(GPIOPortB_Pin2, GPIO_HIGH);          
+        GPIOSetPinLevel(GPIOPortB_Pin3, GPIO_LOW);
+        GPIOSetPinLevel(GPIOPortB_Pin2, GPIO_HIGH);
        }
     else
        {
-        GPIOSetPinLevel(GPIOPortB_Pin3, GPIO_HIGH);          
-        GPIOSetPinLevel(GPIOPortB_Pin2, GPIO_LOW);          
+        GPIOSetPinLevel(GPIOPortB_Pin3, GPIO_HIGH);
+        GPIOSetPinLevel(GPIOPortB_Pin2, GPIO_LOW);
         }
 #endif
     return 0;

@@ -365,6 +365,11 @@ config MTD_NAND_RK2818
         depends on ARCH_RK2818
         help
           This enables the NAND flash controller on the RK2818 SoC
+config MTD_NAND_RK29
+        tristate "NAND Flash support for RK29sdk"
+        depends on ARCH_RK29
+        help
+          This enables the NAND flash controller on the RK29 SoC
           
 config MTD_NAND_PXA3xx
 	tristate "Support for NAND flash devices on PXA3xx"

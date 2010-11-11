@@ -1126,6 +1126,19 @@ static struct clk clk_##NAME = { \
 	.gate_idx	= CLK_GATE_##ID, \
 }
 
+GATE_CLK(i2c0, pclk_cpu, I2C0);
+GATE_CLK(i2c1, pclk_periph, I2C1);
+GATE_CLK(i2c2, pclk_periph, I2C2);
+GATE_CLK(i2c3, pclk_periph, I2C3);
+
+GATE_CLK(gpio0, pclk_cpu, GPIO0);
+GATE_CLK(gpio1, pclk_periph, GPIO1);
+GATE_CLK(gpio2, pclk_periph, GPIO2);
+GATE_CLK(gpio3, pclk_periph, GPIO3);
+GATE_CLK(gpio4, pclk_cpu, GPIO4);
+GATE_CLK(gpio5, pclk_periph, GPIO5);
+GATE_CLK(gpio6, pclk_cpu, GPIO6);
+
 #define CLK(dev, con, ck) \
 	{ \
 		.dev_id = dev, \
@@ -1231,6 +1244,19 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "hclk_vdpu", &hclk_vdpu),
 	CLK1(gpu),
 	CLK(NULL, "aclk_gpu", &aclk_gpu),
+
+	CLK("rk29_i2c.0", "i2c", &clk_i2c0),
+	CLK("rk29_i2c.1", "i2c", &clk_i2c1),
+	CLK("rk29_i2c.2", "i2c", &clk_i2c2),
+	CLK("rk29_i2c.3", "i2c", &clk_i2c3),
+
+	CLK1(gpio0),
+	CLK1(gpio1),
+	CLK1(gpio2),
+	CLK1(gpio3),
+	CLK1(gpio4),
+	CLK1(gpio5),
+	CLK1(gpio6),
 };
 
 static LIST_HEAD(clocks);

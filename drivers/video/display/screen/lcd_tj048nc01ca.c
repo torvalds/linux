@@ -1,12 +1,12 @@
 #include <linux/fb.h>
 #include <linux/delay.h>
-#include "../../rk2818_fb.h"
+#include "../../rk29_fb.h"
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/board.h>
 #include "screen.h"
 
- 
+
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
 #define OUT_FACE		OUT_P888
@@ -34,20 +34,20 @@
 #define CS_OUT()        gpio_direction_output(CS_PORT, 0)
 #define CS_SET()        gpio_set_value(CS_PORT, GPIO_HIGH)
 #define CS_CLR()        gpio_set_value(CS_PORT, GPIO_LOW)
-#define CLK_OUT()       gpio_direction_output(CLK_PORT, 0) 
+#define CLK_OUT()       gpio_direction_output(CLK_PORT, 0)
 #define CLK_SET()       gpio_set_value(CLK_PORT, GPIO_HIGH)
 #define CLK_CLR()       gpio_set_value(CLK_PORT, GPIO_LOW)
-#define TXD_OUT()       gpio_direction_output(TXD_PORT, 0) 
+#define TXD_OUT()       gpio_direction_output(TXD_PORT, 0)
 #define TXD_SET()       gpio_set_value(TXD_PORT, GPIO_HIGH)
 #define TXD_CLR()       gpio_set_value(TXD_PORT, GPIO_LOW)
 
 #define DRVDelayUs(i)   udelay(i*2)
 
-static struct rk2818lcd_info *gLcd_info = NULL;
+static struct rk29lcd_info *gLcd_info = NULL;
 int lcd_init(void);
 int lcd_standby(u8 enable);
 
-void set_lcd_info(struct rk28fb_screen *screen, struct rk2818lcd_info *lcd_info )
+void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 {
     /* screen type & face */
     screen->type = OUT_TYPE;
