@@ -112,9 +112,7 @@ struct tmio_mmc_host {
 	struct tasklet_struct	dma_complete;
 	struct tasklet_struct	dma_issue;
 #ifdef CONFIG_TMIO_MMC_DMA
-	struct dma_async_tx_descriptor *desc;
 	unsigned int            dma_sglen;
-	dma_cookie_t		cookie;
 #endif
 };
 
