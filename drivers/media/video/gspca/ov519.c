@@ -75,7 +75,7 @@ struct sd {
 
 	struct gspca_ctrl ctrls[NCTRL];
 
-	__u8 packet_nr;
+	u8 packet_nr;
 
 	char bridge;
 #define BRIDGE_OV511		0
@@ -94,20 +94,20 @@ struct sd {
 	char snapshot_needs_reset;
 
 	/* Determined by sensor type */
-	__u8 sif;
+	u8 sif;
 
-	__u8 quality;
+	u8 quality;
 #define QUALITY_MIN 50
 #define QUALITY_MAX 70
 #define QUALITY_DEF 50
 
-	__u8 stopped;		/* Streaming is temporarily paused */
-	__u8 first_frame;
+	u8 stopped;		/* Streaming is temporarily paused */
+	u8 first_frame;
 
-	__u8 frame_rate;	/* current Framerate */
-	__u8 clockdiv;		/* clockdiv override */
+	u8 frame_rate;		/* current Framerate */
+	u8 clockdiv;		/* clockdiv override */
 
-	char sensor;		/* Type of image sensor chip (SEN_*) */
+	u8 sensor;		/* Type of image sensor chip (SEN_*) */
 #define SEN_UNKNOWN 0
 #define SEN_OV2610 1
 #define SEN_OV3610 2
@@ -594,12 +594,12 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 #define OV7670_REG_BD60MAX     0xab    /* 60hz banding step limit */
 
 struct ov_regvals {
-	__u8 reg;
-	__u8 val;
+	u8 reg;
+	u8 val;
 };
 struct ov_i2c_regvals {
-	__u8 reg;
-	__u8 val;
+	u8 reg;
+	u8 val;
 };
 
 /* Settings for OV2610 camera chip */
@@ -1825,7 +1825,7 @@ static unsigned char ov7670_abs_to_sm(unsigned char v)
 }
 
 /* Write a OV519 register */
-static int reg_w(struct sd *sd, __u16 index, __u16 value)
+static int reg_w(struct sd *sd, u16 index, u16 value)
 {
 	int ret, req = 0;
 
@@ -1868,7 +1868,7 @@ leave:
 
 /* Read from a OV519 register, note not valid for the w9968cf!! */
 /* returns: negative is error, pos or zero is data */
-static int reg_r(struct sd *sd, __u16 index)
+static int reg_r(struct sd *sd, u16 index)
 {
 	int ret;
 	int req;
@@ -1902,7 +1902,7 @@ static int reg_r(struct sd *sd, __u16 index)
 
 /* Read 8 values from a OV519 register */
 static int reg_r8(struct sd *sd,
-		  __u16 index)
+		  u16 index)
 {
 	int ret;
 
@@ -1927,12 +1927,12 @@ static int reg_r8(struct sd *sd,
  * of their respective state in "value".
  */
 static int reg_w_mask(struct sd *sd,
-			__u16 index,
-			__u8 value,
-			__u8 mask)
+			u16 index,
+			u8 value,
+			u8 mask)
 {
 	int ret;
-	__u8 oldval;
+	u8 oldval;
 
 	if (mask != 0xff) {
 		value &= mask;			/* Enforce mask on value */
@@ -1950,7 +1950,7 @@ static int reg_w_mask(struct sd *sd,
  * Writes multiple (n) byte value to a single register. Only valid with certain
  * registers (0x30 and 0xc4 - 0xce).
  */
-static int ov518_reg_w32(struct sd *sd, __u16 index, u32 value, int n)
+static int ov518_reg_w32(struct sd *sd, u16 index, u32 value, int n)
 {
 	int ret;
 
@@ -1970,7 +1970,7 @@ static int ov518_reg_w32(struct sd *sd, __u16 index, u32 value, int n)
 	return 0;
 }
 
-static int ov511_i2c_w(struct sd *sd, __u8 reg, __u8 value)
+static int ov511_i2c_w(struct sd *sd, u8 reg, u8 value)
 {
 	int rc, retries;
 
@@ -2011,7 +2011,7 @@ static int ov511_i2c_w(struct sd *sd, __u8 reg, __u8 value)
 	return 0;
 }
 
-static int ov511_i2c_r(struct sd *sd, __u8 reg)
+static int ov511_i2c_r(struct sd *sd, u8 reg)
 {
 	int rc, value, retries;
 
@@ -2092,8 +2092,8 @@ static int ov511_i2c_r(struct sd *sd, __u8 reg)
  * always succeeds regardless of whether the sensor is present and working.
  */
 static int ov518_i2c_w(struct sd *sd,
-		__u8 reg,
-		__u8 value)
+		u8 reg,
+		u8 value)
 {
 	int rc;
 
@@ -2126,7 +2126,7 @@ static int ov518_i2c_w(struct sd *sd,
  * This is normally only called from i2c_r(). Note that this function
  * always succeeds regardless of whether the sensor is present and working.
  */
-static int ov518_i2c_r(struct sd *sd, __u8 reg)
+static int ov518_i2c_r(struct sd *sd, u8 reg)
 {
 	int rc, value;
 
@@ -2149,7 +2149,7 @@ static int ov518_i2c_r(struct sd *sd, __u8 reg)
 	return value;
 }
 
-static int ovfx2_i2c_w(struct sd *sd, __u8 reg, __u8 value)
+static int ovfx2_i2c_w(struct sd *sd, u8 reg, u8 value)
 {
 	int ret;
 
@@ -2157,7 +2157,7 @@ static int ovfx2_i2c_w(struct sd *sd, __u8 reg, __u8 value)
 			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
 			0x02,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			(__u16)value, (__u16)reg, NULL, 0, 500);
+			(u16) value, (u16) reg, NULL, 0, 500);
 
 	if (ret < 0) {
 		err("i2c 0x%02x -> [0x%02x] failed", value, reg);
@@ -2168,7 +2168,7 @@ static int ovfx2_i2c_w(struct sd *sd, __u8 reg, __u8 value)
 	return 0;
 }
 
-static int ovfx2_i2c_r(struct sd *sd, __u8 reg)
+static int ovfx2_i2c_r(struct sd *sd, u8 reg)
 {
 	int ret;
 
@@ -2176,7 +2176,7 @@ static int ovfx2_i2c_r(struct sd *sd, __u8 reg)
 			usb_rcvctrlpipe(sd->gspca_dev.dev, 0),
 			0x03,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0, (__u16)reg, sd->gspca_dev.usb_buf, 1, 500);
+			0, (u16) reg, sd->gspca_dev.usb_buf, 1, 500);
 
 	if (ret >= 0) {
 		ret = sd->gspca_dev.usb_buf[0];
@@ -2187,7 +2187,7 @@ static int ovfx2_i2c_r(struct sd *sd, __u8 reg)
 	return ret;
 }
 
-static int i2c_w(struct sd *sd, __u8 reg, __u8 value)
+static int i2c_w(struct sd *sd, u8 reg, u8 value)
 {
 	int ret = -1;
 
@@ -2224,7 +2224,7 @@ static int i2c_w(struct sd *sd, __u8 reg, __u8 value)
 	return ret;
 }
 
-static int i2c_r(struct sd *sd, __u8 reg)
+static int i2c_r(struct sd *sd, u8 reg)
 {
 	int ret = -1;
 
@@ -2261,12 +2261,12 @@ static int i2c_r(struct sd *sd, __u8 reg)
  * of their respective state in "value".
  */
 static int i2c_w_mask(struct sd *sd,
-		   __u8 reg,
-		   __u8 value,
-		   __u8 mask)
+			u8 reg,
+			u8 value,
+			u8 mask)
 {
 	int rc;
-	__u8 oldval;
+	u8 oldval;
 
 	value &= mask;			/* Enforce mask on value */
 	rc = i2c_r(sd, reg);
@@ -2334,12 +2334,12 @@ static inline int ov51x_restart(struct sd *sd)
 	return 0;
 }
 
-static int ov51x_set_slave_ids(struct sd *sd, __u8 slave);
+static int ov51x_set_slave_ids(struct sd *sd, u8 slave);
 
 /* This does an initial reset of an OmniVision sensor and ensures that I2C
  * is synchronized. Returns <0 on failure.
  */
-static int init_ov_sensor(struct sd *sd, __u8 slave)
+static int init_ov_sensor(struct sd *sd, u8 slave)
 {
 	int i;
 
@@ -2378,7 +2378,7 @@ static int init_ov_sensor(struct sd *sd, __u8 slave)
  * Sets I2C read and write slave IDs. Returns <0 for error
  */
 static int ov51x_set_slave_ids(struct sd *sd,
-				__u8 slave)
+				u8 slave)
 {
 	int rc;
 
@@ -3601,7 +3601,7 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 {
 	struct gspca_dev *gspca_dev;
 	int qvga, xstart, xend, ystart, yend;
-	__u8 v;
+	u8 v;
 
 	gspca_dev = &sd->gspca_dev;
 	qvga = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv & 1;
@@ -4213,7 +4213,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		i2c_w_mask(sd, OV7610_REG_CNT, val >> 4, 0x0f);
 		break;
 	case SEN_OV8610: {
-		static const __u8 ctab[] = {
+		static const u8 ctab[] = {
 			0x03, 0x09, 0x0b, 0x0f, 0x53, 0x6f, 0x35, 0x7f
 		};
 
@@ -4223,7 +4223,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	    }
 	case SEN_OV7620:
 	case SEN_OV7620AE: {
-		static const __u8 ctab[] = {
+		static const u8 ctab[] = {
 			0x01, 0x05, 0x09, 0x11, 0x15, 0x35, 0x37, 0x57,
 			0x5b, 0xa5, 0xa7, 0xc7, 0xc9, 0xcf, 0xef, 0xff
 		};

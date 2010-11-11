@@ -59,7 +59,7 @@ static const struct v4l2_pix_format w9968cf_vga_mode[] = {
 		.colorspace = V4L2_COLORSPACE_JPEG},
 };
 
-static int reg_w(struct sd *sd, __u16 index, __u16 value);
+static int reg_w(struct sd *sd, u16 index, u16 value);
 
 /*--------------------------------------------------------------------------
   Write 64-bit data to the fast serial bus registers.
