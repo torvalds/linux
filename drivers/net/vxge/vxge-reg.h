@@ -62,6 +62,9 @@
 #define VXGE_HW_GET_EPROM_IMAGE_REV(val)		vxge_bVALn(val, 48, 16)
 #define VXGE_HW_RTS_ACCESS_STEER_ROM_IMAGE_INDEX(val)	vxge_vBIT(val, 16, 8)
 
+#define VXGE_HW_FW_API_GET_FUNC_MODE			29
+#define VXGE_HW_GET_FUNC_MODE_VAL(val)			(val & 0xFF)
+
 #define VXGE_HW_FW_UPGRADE_MEMO				13
 #define VXGE_HW_FW_UPGRADE_ACTION			16
 #define VXGE_HW_FW_UPGRADE_OFFSET_START			2

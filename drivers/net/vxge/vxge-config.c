@@ -1091,16 +1091,16 @@ __vxge_hw_vpath_pci_func_mode_get(struct __vxge_hw_virtualpath *vpath,
 	u64 data0, data1 = 0, steer_ctrl = 0;
 	enum vxge_hw_status status;
 
-	data0 = VXGE_HW_RTS_ACCESS_STEER_DATA0_MEMO_ITEM_PCI_MODE;
+	data0 = 0;
 
 	status = vxge_hw_vpath_fw_api(vpath,
-			VXGE_HW_RTS_ACCESS_STEER_CTRL_ACTION_READ_MEMO_ENTRY,
+			VXGE_HW_FW_API_GET_FUNC_MODE,
 			VXGE_HW_RTS_ACCESS_STEER_CTRL_DATA_STRUCT_SEL_FW_MEMO,
 			0, &data0, &data1, &steer_ctrl);
 	if (status != VXGE_HW_OK)
 		return status;
 
-	hw_info->function_mode = data0;
+	hw_info->function_mode = VXGE_HW_GET_FUNC_MODE_VAL(data0);
 	return status;
 }
 
