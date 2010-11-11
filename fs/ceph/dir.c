@@ -414,6 +414,7 @@ static void reset_readdir(struct ceph_file_info *fi)
 		fi->last_readdir = NULL;
 	}
 	kfree(fi->last_name);
+	fi->last_name = NULL;
 	fi->next_offset = 2;  /* compensate for . and .. */
 	if (fi->dentry) {
 		dput(fi->dentry);
