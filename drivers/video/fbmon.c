@@ -983,7 +983,8 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 	unsigned char *block;
 	struct fb_videomode *m;
 	int num = 0, i;
-	u8 edt[(128 - 4) / DETAILED_TIMING_DESCRIPTION_SIZE];
+	u8 svd[64], edt[(128 - 4) / DETAILED_TIMING_DESCRIPTION_SIZE];
+	u8 pos = 4, svd_n = 0;
 
 	if (!edid)
 		return;
@@ -995,6 +996,21 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 	    edid[2] < 4 || edid[2] > 128 - DETAILED_TIMING_DESCRIPTION_SIZE)
 		return;
 
+	DPRINTK("  Short Video Descriptors\n");
+
+	while (pos < edid[2]) {
+		u8 len = edid[pos] & 0x1f, type = (edid[pos] >> 5) & 7;
+		pr_debug("Data block %u of %u bytes\n", type, len);
+		if (type == 2)
+			for (i = pos; i < pos + len; i++) {
+				u8 idx = edid[pos + i] & 0x7f;
+				svd[svd_n++] = idx;
+				pr_debug("N%sative mode #%d\n",
+					 edid[pos + i] & 0x80 ? "" : "on-n", idx);
+			}
+		pos += len + 1;
+	}
+
 	block = edid + edid[2];
 
 	DPRINTK("  Extended Detailed Timings\n");
@@ -1005,10 +1021,10 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 			edt[num++] = block - edid;
 
 	/* Yikes, EDID data is totally useless */
-	if (!num)
+	if (!(num + svd_n))
 		return;
 
-	m = kzalloc((specs->modedb_len + num) *
+	m = kzalloc((specs->modedb_len + num + svd_n) *
 		       sizeof(struct fb_videomode), GFP_KERNEL);
 
 	if (!m)
@@ -1023,9 +1039,22 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 		pr_debug("Adding %ux%u@%u\n", m[i].xres, m[i].yres, m[i].refresh);
 	}
 
+	for (i = specs->modedb_len + num; i < specs->modedb_len + num + svd_n; i++) {
+		int idx = svd[i - specs->modedb_len - num];
+		if (!idx || idx > 63) {
+			pr_warning("Reserved SVD code %d\n", idx);
+		} else if (idx > ARRAY_SIZE(cea_modes) || !cea_modes[idx].xres) {
+			pr_warning("Unimplemented SVD code %d\n", idx);
+		} else {
+			memcpy(&m[i], cea_modes + idx, sizeof(m[i]));
+			pr_debug("Adding SVD #%d: %ux%u@%u\n", idx,
+				 m[i].xres, m[i].yres, m[i].refresh);
+		}
+	}
+
 	kfree(specs->modedb);
 	specs->modedb = m;
-	specs->modedb_len = specs->modedb_len + num;
+	specs->modedb_len = specs->modedb_len + num + svd_n;
 }
 
 /*
