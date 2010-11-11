@@ -495,6 +495,28 @@ config USB_LANGWELL
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_EG20T
+	boolean "Intel EG20T(Topcliff) USB Device controller"
+	depends on PCI
+	select USB_GADGET_DUALSPEED
+	help
+	  This is a USB device driver for EG20T PCH.
+	  EG20T PCH is the platform controller hub that is used in Intel's
+	  general embedded platform. EG20T PCH has USB device interface.
+	  Using this interface, it is able to access system devices connected
+	  to USB device.
+	  This driver enables USB device function.
+	  USB device is a USB peripheral controller which
+	  supports both full and high speed USB 2.0 data transfers.
+	  This driver supports both control transfer and bulk transfer modes.
+	  This driver dose not support interrupt transfer or isochronous
+	  transfer modes.
+
+config USB_EG20T
+	tristate
+	depends on USB_GADGET_EG20T
+	default USB_GADGET
+	select USB_GADGET_SELECTED
 
 #
 # LAST -- dummy/emulated controller
