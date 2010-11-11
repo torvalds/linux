@@ -97,6 +97,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	/* cast away the const for active_rxon in this function */
 	struct iwl_rxon_cmd *active = (void *)&ctx->active;
 	bool new_assoc = !!(ctx->staging.filter_flags & RXON_FILTER_ASSOC_MSK);
+	bool old_assoc = !!(ctx->active.filter_flags & RXON_FILTER_ASSOC_MSK);
 	int ret;
 
 	lockdep_assert_held(&priv->mutex);
@@ -176,25 +177,27 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	 * AP station must be done after the BSSID is set to correctly
 	 * set up filters in the device.
 	 */
-	if (ctx->ctxid == IWL_RXON_CTX_BSS)
-		ret = iwlagn_disable_bss(priv, ctx, &ctx->staging);
-	else
-		ret = iwlagn_disable_pan(priv, ctx, &ctx->staging);
-	if (ret)
-		return ret;
+	if ((old_assoc && new_assoc) || !new_assoc) {
+		if (ctx->ctxid == IWL_RXON_CTX_BSS)
+			ret = iwlagn_disable_bss(priv, ctx, &ctx->staging);
+		else
+			ret = iwlagn_disable_pan(priv, ctx, &ctx->staging);
+		if (ret)
+			return ret;
 
-	memcpy(active, &ctx->staging, sizeof(*active));
+		memcpy(active, &ctx->staging, sizeof(*active));
 
-	/*
-	 * Un-assoc RXON clears the station table and WEP
-	 * keys, so we have to restore those afterwards.
-	 */
-	iwl_clear_ucode_stations(priv, ctx);
-	iwl_restore_stations(priv, ctx);
-	ret = iwl_restore_default_wep_keys(priv, ctx);
-	if (ret) {
-		IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
-		return ret;
+		/*
+		 * Un-assoc RXON clears the station table and WEP
+		 * keys, so we have to restore those afterwards.
+		 */
+		iwl_clear_ucode_stations(priv, ctx);
+		iwl_restore_stations(priv, ctx);
+		ret = iwl_restore_default_wep_keys(priv, ctx);
+		if (ret) {
+			IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
+			return ret;
+		}
 	}
 
 	/* RXON timing must be before associated RXON */
@@ -234,6 +237,8 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			return ret;
 		}
 		memcpy(active, &ctx->staging, sizeof(*active));
+
+		iwl_reprogram_ap_sta(priv, ctx);
 
 		/* IBSS beacon needs to be sent after setting assoc */
 		if (ctx->vif && (ctx->vif->type == NL80211_IFTYPE_ADHOC))
