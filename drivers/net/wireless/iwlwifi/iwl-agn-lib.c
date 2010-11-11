@@ -449,7 +449,6 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 				iwl_wake_queue(priv, txq);
 		}
 	} else {
-		BUG_ON(txq_id != txq->swq_id);
 		iwlagn_set_tx_status(priv, info, tx_resp, txq_id, false);
 		freed = iwlagn_tx_queue_reclaim(priv, txq_id, index);
 		iwl_free_tfds_in_queue(priv, sta_id, tid, freed);

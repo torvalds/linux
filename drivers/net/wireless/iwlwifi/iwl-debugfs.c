@@ -992,11 +992,8 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 				" swq_id=%#.2x (ac %d/hwq %d)\n",
 				cnt, q->read_ptr, q->write_ptr,
 				!!test_bit(cnt, priv->queue_stopped),
-				txq->swq_id,
-				txq->swq_id & 0x80 ? txq->swq_id & 3 :
-				txq->swq_id,
-				txq->swq_id & 0x80 ? (txq->swq_id >> 2) &
-				0x1f : txq->swq_id);
+				txq->swq_id, txq->swq_id & 3,
+				(txq->swq_id >> 2) & 0x1f);
 		if (cnt >= 4)
 			continue;
 		/* for the ACs, display the stop count too */
