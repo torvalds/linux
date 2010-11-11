@@ -16,10 +16,10 @@
 		.irq = soc ## _INT_DRYICE,				\
 	}
 
-#ifdef CONFIG_ARCH_MX25
+#ifdef CONFIG_SOC_IMX25
 const struct imx_imxdi_rtc_data imx25_imxdi_rtc_data __initconst =
 	imx_imxdi_rtc_data_entry_single(MX25);
-#endif /* ifdef CONFIG_ARCH_MX25 */
+#endif /* ifdef CONFIG_SOC_IMX25 */
 
 struct platform_device *__init imx_add_imxdi_rtc(
 		const struct imx_imxdi_rtc_data *data)

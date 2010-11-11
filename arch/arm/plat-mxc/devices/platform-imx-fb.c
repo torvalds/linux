@@ -21,10 +21,10 @@ const struct imx_imx_fb_data imx21_imx_fb_data __initconst =
 	imx_imx_fb_data_entry_single(MX21, SZ_4K);
 #endif /* ifdef CONFIG_SOC_IMX21 */
 
-#ifdef CONFIG_ARCH_MX25
+#ifdef CONFIG_SOC_IMX25
 const struct imx_imx_fb_data imx25_imx_fb_data __initconst =
 	imx_imx_fb_data_entry_single(MX25, SZ_16K);
-#endif
+#endif /* ifdef CONFIG_SOC_IMX25 */
 
 #ifdef CONFIG_SOC_IMX27
 const struct imx_imx_fb_data imx27_imx_fb_data __initconst =

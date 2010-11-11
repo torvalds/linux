@@ -16,10 +16,10 @@
 		.irq = soc ## _INT_FEC,					\
 	}
 
-#ifdef CONFIG_ARCH_MX25
+#ifdef CONFIG_SOC_IMX25
 const struct imx_fec_data imx25_fec_data __initconst =
 	imx_fec_data_entry_single(MX25);
-#endif /* ifdef CONFIG_ARCH_MX25 */
+#endif /* ifdef CONFIG_SOC_IMX25 */
 
 #ifdef CONFIG_SOC_IMX27
 const struct imx_fec_data imx27_fec_data __initconst =

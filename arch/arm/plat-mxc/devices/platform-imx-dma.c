@@ -39,10 +39,10 @@ struct imx_imx_sdma_data {
 		},							\
 	}
 
-#ifdef CONFIG_ARCH_MX25
+#ifdef CONFIG_SOC_IMX25
 const struct imx_imx_sdma_data imx25_imx_sdma_data __initconst =
 	imx_imx_sdma_data_entry_single(MX25, 1, "imx25", 0);
-#endif /* ifdef CONFIG_ARCH_MX25 */
+#endif /* ifdef CONFIG_SOC_IMX25 */
 
 #ifdef CONFIG_ARCH_MX31
 struct imx_imx_sdma_data imx31_imx_sdma_data __initdata =
@@ -94,7 +94,7 @@ static int __init imxXX_add_imx_dma(void)
 	else
 #endif
 
-#if defined(CONFIG_ARCH_MX25)
+#if defined(CONFIG_SOC_IMX25)
 	if (cpu_is_mx25())
 		ret = imx_add_imx_sdma(&imx25_imx_sdma_data);
 	else

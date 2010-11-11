@@ -20,14 +20,14 @@
 #define imx_esdhc_imx_data_entry(soc, id, hwid)	\
 	[id] = imx_esdhc_imx_data_entry_single(soc, id, hwid)
 
-#ifdef CONFIG_ARCH_MX25
+#ifdef CONFIG_SOC_IMX25
 const struct imx_esdhc_imx_data imx25_esdhc_data[] __initconst = {
 #define imx25_esdhc_data_entry(_id, _hwid)				\
 	imx_esdhc_imx_data_entry(MX25, _id, _hwid)
 	imx25_esdhc_data_entry(0, 1),
 	imx25_esdhc_data_entry(1, 2),
 };
-#endif /* ifdef CONFIG_ARCH_MX25 */
+#endif /* ifdef CONFIG_SOC_IMX25 */
 
 #ifdef CONFIG_ARCH_MX35
 const struct imx_esdhc_imx_data imx35_esdhc_data[] __initconst = {
