@@ -2398,10 +2398,11 @@ void drbd_bcast_ee(struct drbd_conf *mdev,
 	tl = tl_add_int(tl, T_ee_sector, &e->sector);
 	tl = tl_add_int(tl, T_ee_block_id, &e->block_id);
 
+	/* dump the first 32k */
+	len = min_t(unsigned, e->size, 32 << 10);
 	put_unaligned(T_ee_data, tl++);
-	put_unaligned(e->size, tl++);
+	put_unaligned(len, tl++);
 
-	len = e->size;
 	page = e->pages;
 	page_chain_for_each(page) {
 		void *d = kmap_atomic(page, KM_USER0);
@@ -2410,6 +2411,8 @@ void drbd_bcast_ee(struct drbd_conf *mdev,
 		kunmap_atomic(d, KM_USER0);
 		tl = (unsigned short*)((char*)tl + l);
 		len -= l;
+		if (len == 0)
+			break;
 	}
 	put_unaligned(TT_END, tl++); /* Close the tag list */
 
