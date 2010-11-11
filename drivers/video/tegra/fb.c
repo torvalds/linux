@@ -348,6 +348,7 @@ static int tegra_fb_set_windowattr(struct tegra_fb_info *tegra_fb,
 {
 	if (flip_win->handle == NULL) {
 		win->flags = 0;
+		win->cur_handle = NULL;
 		return 0;
 	}
 
