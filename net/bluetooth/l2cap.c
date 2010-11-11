@@ -2421,11 +2421,11 @@ static inline int l2cap_get_conf_opt(void **ptr, int *type, int *olen, unsigned 
 		break;
 
 	case 2:
-		*val = __le16_to_cpu(*((__le16 *) opt->val));
+		*val = get_unaligned_le16(opt->val);
 		break;
 
 	case 4:
-		*val = __le32_to_cpu(*((__le32 *) opt->val));
+		*val = get_unaligned_le32(opt->val);
 		break;
 
 	default:
@@ -2452,11 +2452,11 @@ static void l2cap_add_conf_opt(void **ptr, u8 type, u8 len, unsigned long val)
 		break;
 
 	case 2:
-		*((__le16 *) opt->val) = cpu_to_le16(val);
+		put_unaligned_le16(val, opt->val);
 		break;
 
 	case 4:
-		*((__le32 *) opt->val) = cpu_to_le32(val);
+		put_unaligned_le32(val, opt->val);
 		break;
 
 	default:
