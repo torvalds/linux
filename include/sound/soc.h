@@ -256,7 +256,8 @@ enum snd_soc_control_type {
 };
 
 enum snd_soc_compress_type {
-	SND_SOC_NO_COMPRESSION
+	SND_SOC_NO_COMPRESSION,
+	SND_SOC_LZO_COMPRESSION
 };
 
 int snd_soc_register_platform(struct device *dev,
