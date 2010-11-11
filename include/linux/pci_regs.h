@@ -315,6 +315,7 @@
 #define  PCI_MSIX_ENTRY_UPPER_ADDR	4
 #define  PCI_MSIX_ENTRY_DATA		8
 #define  PCI_MSIX_ENTRY_VECTOR_CTRL	12
+#define   PCI_MSIX_ENTRY_CTRL_MASKBIT	1
 
 /* CompactPCI Hotswap Register */
 
