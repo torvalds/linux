@@ -7,23 +7,63 @@ menu "I2C Hardware Bus support"
 config I2C_RK2818
 	tristate "RK2818 i2c interface (I2C)"
 	depends on ARCH_RK2818
+	default y
 	help
 		This supports the use of the I2C interface on rk2818 processors.
 
 if I2C_RK2818
-	comment "Now, there are two I2C interfaces selected by developer, I2C0 and I2C1."
+	comment "Now, there are two I2C interfaces selected by developer."
 	
-	menuconfig I2C0_RK2818
-		tristate "RK2818 I2C0 interface support"
+	config I2C0_RK2818
+		bool "RK2818 I2C0 interface support"
 		default y
 		depends on ARCH_RK2818
 		help
 			This supports the use of the I2C0 interface on rk2818 processors.
-	menuconfig I2C1_RK2818
-		tristate "RK2818 I2C1 interface support"
+	config I2C1_RK2818
+		bool "RK2818 I2C1 interface support"
 		default y
 		depends on ARCH_RK2818
 		help
 			This supports the use of the I2C1 interface on rk2818 processors.
 endif
+config I2C_RK29
+	tristate "RK29 i2c interface (I2C)"
+	depends on ARCH_RK29
+	default y
+	help
+		This supports the use of the I2C interface(i2c0 ~ i2c3) on rk29 processors.
+
+if I2C_RK29
+	comment "Now, there are four I2C interfaces selected by developer."
+	
+	config I2C0_RK29
+		bool "RK29 I2C0 interface support"
+		default y
+		depends on ARCH_RK29
+		help
+			This supports the use of the I2C0 interface on rk29 processors.
+
+	config I2C1_RK29
+		bool "RK29 I2C1 interface support"
+		default y
+		depends on ARCH_RK29
+		help
+			This supports the use of the I2C1 interface on rk29 processors.
+
+	config I2C2_RK29
+		bool "RK29 I2C2 interface support"
+		default y
+		depends on ARCH_RK29
+		help
+			This supports the use of the I2C2 interface on rk29 processors.
+
+	config I2C3_RK29
+		bool "RK29 I2C3 interface support"
+		default y
+		depends on ARCH_RK29 && !UART3_CTS_RTS_RK29
+		help
+			This supports the use of the I2C3 interface on rk29 processors.
+endif
+
 endmenu
