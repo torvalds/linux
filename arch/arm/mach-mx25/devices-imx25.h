@@ -59,6 +59,10 @@ extern const struct imx_imx_uart_1irq_data imx25_imx_uart_data[] __initconst;
 #define imx25_add_imx_uart3(pdata)	imx25_add_imx_uart(3, pdata)
 #define imx25_add_imx_uart4(pdata)	imx25_add_imx_uart(4, pdata)
 
+extern const struct imx_mx2_camera_data imx25_mx2_camera_data __initconst;
+#define imx25_add_mx2_camera(pdata)	\
+	imx_add_mx2_camera(&imx25_mx2_camera_data, pdata)
+
 extern const struct imx_mxc_ehci_data imx25_mxc_ehci_otg_data __initconst;
 #define imx25_add_mxc_ehci_otg(pdata)	\
 	imx_add_mxc_ehci(&imx25_mxc_ehci_otg_data, pdata)
