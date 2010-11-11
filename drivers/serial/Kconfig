@@ -1644,7 +1644,7 @@ config SERIAL_ALTERA_UART_CONSOLE
 
 config SERIAL_IFX6X60
         tristate "SPI protocol driver for Infineon 6x60 modem (EXPERIMENTAL)"
-	depends on GPIOLIB && EXPERIMENTAL
+	depends on GPIOLIB && SPI && EXPERIMENTAL
 	help
 	  Support for the IFX6x60 modem devices on Intel MID platforms.
 
