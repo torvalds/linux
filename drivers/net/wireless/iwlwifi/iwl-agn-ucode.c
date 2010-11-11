@@ -429,7 +429,7 @@ void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 
 int iwlagn_alive_notify(struct iwl_priv *priv)
 {
-	const s8 *queues;
+	const s8 *queue_to_fifo;
 	u32 a;
 	unsigned long flags;
 	int i, chan;
@@ -492,9 +492,9 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 
 	/* map queues to FIFOs */
 	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
-		queues = iwlagn_ipan_queue_to_tx_fifo;
+		queue_to_fifo = iwlagn_ipan_queue_to_tx_fifo;
 	else
-		queues = iwlagn_default_queue_to_tx_fifo;
+		queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
 
 	iwlagn_set_wr_ptrs(priv, priv->cmd_queue, 0);
 
@@ -510,14 +510,14 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo) != 10);
 
 	for (i = 0; i < 10; i++) {
-		int ac = queues[i];
+		int fifo = queue_to_fifo[i];
 
 		iwl_txq_ctx_activate(priv, i);
 
-		if (ac == IWL_TX_FIFO_UNUSED)
+		if (fifo == IWL_TX_FIFO_UNUSED)
 			continue;
 
-		iwlagn_tx_queue_set_status(priv, &priv->txq[i], ac, 0);
+		iwlagn_tx_queue_set_status(priv, &priv->txq[i], fifo, 0);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
