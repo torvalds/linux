@@ -29,6 +29,8 @@ static int get_key_isdbt(struct IR_i2c *ir, u32 *ir_key,
 {
 	u8	cmd;
 
+	dev_dbg(&ir->rc->input_dev->dev, "%s\n", __func__);
+
 		/* poll IR chip */
 	if (1 != i2c_master_recv(ir->c, &cmd, 1))
 		return -EIO;
@@ -40,7 +42,7 @@ static int get_key_isdbt(struct IR_i2c *ir, u32 *ir_key,
 	if (cmd == 0xff)
 		return 0;
 
-	dev_dbg(&ir->input->dev, "scancode = %02x\n", cmd);
+	dev_dbg(&ir->rc->input_dev->dev, "scancode = %02x\n", cmd);
 
 	*ir_key = cmd;
 	*ir_raw = cmd;
@@ -49,9 +51,7 @@ static int get_key_isdbt(struct IR_i2c *ir, u32 *ir_key,
 
 int cx231xx_ir_init(struct cx231xx *dev)
 {
-	struct input_dev *input_dev;
 	struct i2c_board_info info;
-	int rc;
 	u8 ir_i2c_bus;
 
 	dev_dbg(&dev->udev->dev, "%s\n", __func__);
@@ -60,34 +60,18 @@ int cx231xx_ir_init(struct cx231xx *dev)
 	if (!cx231xx_boards[dev->model].rc_map)
 		return -ENODEV;
 
-	input_dev = input_allocate_device();
-	if (!input_dev)
-		return -ENOMEM;
-
 	request_module("ir-kbd-i2c");
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
-	memset(&dev->ir.init_data, 0, sizeof(dev->ir.init_data));
+	memset(&dev->init_data, 0, sizeof(dev->init_data));
+	dev->init_data.rc_dev = rc_allocate_device();
+	if (!dev->init_data.rc_dev)
+		return -ENOMEM;
 
-	dev->ir.input_dev = input_dev;
-	dev->ir.init_data.name = cx231xx_boards[dev->model].name;
-	dev->ir.props.priv = dev;
-	dev->ir.props.allowed_protos = IR_TYPE_NEC;
-	snprintf(dev->ir.name, sizeof(dev->ir.name),
-		 "cx231xx IR (%s)", cx231xx_boards[dev->model].name);
-	usb_make_path(dev->udev, dev->ir.phys, sizeof(dev->ir.phys));
-	strlcat(dev->ir.phys, "/input0", sizeof(dev->ir.phys));
+	dev->init_data.name = cx231xx_boards[dev->model].name;
 
 	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
-	info.platform_data = &dev->ir.init_data;
-
-	input_dev->name = dev->ir.name;
-	input_dev->phys = dev->ir.phys;
-	input_dev->dev.parent = &dev->udev->dev;
-	input_dev->id.bustype = BUS_USB;
-	input_dev->id.version = 1;
-	input_dev->id.vendor = le16_to_cpu(dev->udev->descriptor.idVendor);
-	input_dev->id.product = le16_to_cpu(dev->udev->descriptor.idProduct);
+	info.platform_data = &dev->init_data;
 
 	/*
 	 * Board-dependent values
@@ -95,28 +79,23 @@ int cx231xx_ir_init(struct cx231xx *dev)
 	 * For now, there's just one type of hardware design using
 	 * an i2c device.
 	 */
-	dev->ir.init_data.get_key = get_key_isdbt;
-	dev->ir.init_data.ir_codes = cx231xx_boards[dev->model].rc_map;
+	dev->init_data.get_key = get_key_isdbt;
+	dev->init_data.ir_codes = cx231xx_boards[dev->model].rc_map;
 	/* The i2c micro-controller only outputs the cmd part of NEC protocol */
-	dev->ir.props.scanmask = 0xff;
+	dev->init_data.rc_dev->scanmask = 0xff;
+	dev->init_data.rc_dev->driver_name = "cx231xx";
+	dev->init_data.type = IR_TYPE_NEC;
 	info.addr = 0x30;
-
-	rc = ir_input_register(input_dev, cx231xx_boards[dev->model].rc_map,
-			       &dev->ir.props, MODULE_NAME);
-	if (rc < 0)
-		return rc;
 
 	/* Load and bind ir-kbd-i2c */
 	ir_i2c_bus = cx231xx_boards[dev->model].ir_i2c_master;
+	dev_dbg(&dev->udev->dev, "Trying to bind ir at bus %d, addr 0x%02x\n",
+		ir_i2c_bus, info.addr);
 	i2c_new_device(&dev->i2c_bus[ir_i2c_bus].i2c_adap, &info);
 
-	return rc;
+	return 0;
 }
 
 void cx231xx_ir_exit(struct cx231xx *dev)
 {
-	if (dev->ir.input_dev) {
-		ir_input_unregister(dev->ir.input_dev);
-		dev->ir.input_dev = NULL;
-	}
 }
