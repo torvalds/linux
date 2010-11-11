@@ -729,7 +729,7 @@ static ssize_t s6e63m0_sysfs_show_gamma_table(struct device *dev,
 
 	return strlen(buf);
 }
-static DEVICE_ATTR(gamma_table, 0644,
+static DEVICE_ATTR(gamma_table, 0444,
 		s6e63m0_sysfs_show_gamma_table, NULL);
 
 static int __init s6e63m0_probe(struct spi_device *spi)
