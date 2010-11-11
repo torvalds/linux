@@ -614,7 +614,7 @@ static ssize_t adp8860_bl_ambient_light_zone_store(struct device *dev,
 	if (val == 0) {
 		/* Enable automatic ambient light sensing */
 		adp8860_set_bits(data->client, ADP8860_MDCR, CMP_AUTOEN);
-	} else if ((val > 0) && (val < 6)) {
+	} else if ((val > 0) && (val <= 3)) {
 		/* Disable automatic ambient light sensing */
 		adp8860_clr_bits(data->client, ADP8860_MDCR, CMP_AUTOEN);
 
@@ -622,7 +622,7 @@ static ssize_t adp8860_bl_ambient_light_zone_store(struct device *dev,
 		mutex_lock(&data->lock);
 		adp8860_read(data->client, ADP8860_CFGR, &reg_val);
 		reg_val &= ~(CFGR_BLV_MASK << CFGR_BLV_SHIFT);
-		reg_val |= val << CFGR_BLV_SHIFT;
+		reg_val |= (val - 1) << CFGR_BLV_SHIFT;
 		adp8860_write(data->client, ADP8860_CFGR, reg_val);
 		mutex_unlock(&data->lock);
 	}
