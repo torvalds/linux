@@ -29,31 +29,6 @@
 
 #include "devices.h"
 
-/* GPIO port description */
-static struct mxc_gpio_port imx_gpio_ports[] = {
-	{
-		.chip.label = "gpio-0",
-		.base = MX31_IO_ADDRESS(MX31_GPIO1_BASE_ADDR),
-		.irq = MX3x_INT_GPIO1,
-		.virtual_irq_start = MXC_GPIO_IRQ_START,
-	}, {
-		.chip.label = "gpio-1",
-		.base = MX31_IO_ADDRESS(MX31_GPIO2_BASE_ADDR),
-		.irq = MX3x_INT_GPIO2,
-		.virtual_irq_start = MXC_GPIO_IRQ_START + 32,
-	}, {
-		.chip.label = "gpio-2",
-		.base = MX31_IO_ADDRESS(MX31_GPIO3_BASE_ADDR),
-		.irq = MX3x_INT_GPIO3,
-		.virtual_irq_start = MXC_GPIO_IRQ_START + 64,
-	}
-};
-
-int __init imx3x_register_gpios(void)
-{
-	return mxc_gpio_init(imx_gpio_ports, ARRAY_SIZE(imx_gpio_ports));
-}
-
 #ifdef CONFIG_ARCH_MX31
 static struct resource mxcsdhc0_resources[] = {
 	{
@@ -330,9 +305,6 @@ static int __init mx3_devices_init(void)
 #endif
 #if defined(CONFIG_ARCH_MX35)
 	if (cpu_is_mx35()) {
-		imx_gpio_ports[0].base = MX35_IO_ADDRESS(MX35_GPIO1_BASE_ADDR),
-		imx_gpio_ports[1].base = MX35_IO_ADDRESS(MX35_GPIO2_BASE_ADDR),
-		imx_gpio_ports[2].base = MX35_IO_ADDRESS(MX35_GPIO3_BASE_ADDR),
 		otg_resources[0].start = MX35_OTG_BASE_ADDR;
 		otg_resources[0].end = MX35_OTG_BASE_ADDR + 0x1ff;
 		otg_resources[1].start = MX35_INT_USBOTG;

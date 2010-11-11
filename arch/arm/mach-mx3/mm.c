@@ -57,7 +57,14 @@ void __init mx31_map_io(void)
 
 	iotable_init(mx31_io_desc, ARRAY_SIZE(mx31_io_desc));
 }
-#endif
+
+int imx31_register_gpios(void);
+void __init mx31_init_irq(void)
+{
+	mxc_init_irq(MX31_IO_ADDRESS(MX31_AVIC_BASE_ADDR));
+	imx31_register_gpios();
+}
+#endif /* ifdef CONFIG_ARCH_MX31 */
 
 #ifdef CONFIG_ARCH_MX35
 static struct map_desc mx35_io_desc[] __initdata = {
@@ -76,20 +83,14 @@ void __init mx35_map_io(void)
 
 	iotable_init(mx35_io_desc, ARRAY_SIZE(mx35_io_desc));
 }
-#endif
 
-int imx3x_register_gpios(void);
-
-void __init mx31_init_irq(void)
-{
-	mxc_init_irq(MX31_IO_ADDRESS(MX3x_AVIC_BASE_ADDR));
-	imx3x_register_gpios();
-}
-
+int imx35_register_gpios(void);
 void __init mx35_init_irq(void)
 {
-	mx31_init_irq();
+	mxc_init_irq(MX35_IO_ADDRESS(MX35_AVIC_BASE_ADDR));
+	imx35_register_gpios();
 }
+#endif /* ifdef CONFIG_ARCH_MX35 */
 
 #ifdef CONFIG_CACHE_L2X0
 static int mxc_init_l2x0(void)
