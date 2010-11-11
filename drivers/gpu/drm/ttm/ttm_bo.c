@@ -378,8 +378,13 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 	int ret = 0;
 
 	if (old_is_pci || new_is_pci ||
-	    ((mem->placement & bo->mem.placement & TTM_PL_MASK_CACHING) == 0))
-		ttm_bo_unmap_virtual(bo);
+	    ((mem->placement & bo->mem.placement & TTM_PL_MASK_CACHING) == 0)) {
+		ret = ttm_mem_io_lock(old_man, true);
+		if (unlikely(ret != 0))
+			goto out_err;
+		ttm_bo_unmap_virtual_locked(bo);
+		ttm_mem_io_unlock(old_man);
+	}
 
 	/*
 	 * Create and bind a ttm if required.
@@ -466,7 +471,6 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 		ttm_tt_destroy(bo->ttm);
 		bo->ttm = NULL;
 	}
-
 	ttm_bo_mem_put(bo, &bo->mem);
 
 	atomic_set(&bo->reserved, 0);
@@ -665,6 +669,7 @@ static void ttm_bo_release(struct kref *kref)
 	struct ttm_buffer_object *bo =
 	    container_of(kref, struct ttm_buffer_object, kref);
 	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_mem_type_manager *man = &bdev->man[bo->mem.mem_type];
 
 	if (likely(bo->vm_node != NULL)) {
 		rb_erase(&bo->vm_rb, &bdev->addr_space_rb);
@@ -672,6 +677,9 @@ static void ttm_bo_release(struct kref *kref)
 		bo->vm_node = NULL;
 	}
 	write_unlock(&bdev->vm_lock);
+	ttm_mem_io_lock(man, false);
+	ttm_mem_io_free_vm(bo);
+	ttm_mem_io_unlock(man);
 	ttm_bo_cleanup_refs_or_queue(bo);
 	kref_put(&bo->list_kref, ttm_bo_release_list);
 	write_lock(&bdev->vm_lock);
@@ -728,7 +736,8 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 
 	evict_mem = bo->mem;
 	evict_mem.mm_node = NULL;
-	evict_mem.bus.io_reserved = false;
+	evict_mem.bus.io_reserved_vm = false;
+	evict_mem.bus.io_reserved_count = 0;
 
 	placement.fpfn = 0;
 	placement.lpfn = 0;
@@ -1065,7 +1074,8 @@ int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	mem.num_pages = bo->num_pages;
 	mem.size = mem.num_pages << PAGE_SHIFT;
 	mem.page_alignment = bo->mem.page_alignment;
-	mem.bus.io_reserved = false;
+	mem.bus.io_reserved_vm = false;
+	mem.bus.io_reserved_count = 0;
 	/*
 	 * Determine where to move the buffer.
 	 */
@@ -1184,6 +1194,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	INIT_LIST_HEAD(&bo->lru);
 	INIT_LIST_HEAD(&bo->ddestroy);
 	INIT_LIST_HEAD(&bo->swap);
+	INIT_LIST_HEAD(&bo->io_reserve_lru);
 	bo->bdev = bdev;
 	bo->glob = bdev->glob;
 	bo->type = type;
@@ -1193,7 +1204,8 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	bo->mem.num_pages = bo->num_pages;
 	bo->mem.mm_node = NULL;
 	bo->mem.page_alignment = page_alignment;
-	bo->mem.bus.io_reserved = false;
+	bo->mem.bus.io_reserved_vm = false;
+	bo->mem.bus.io_reserved_count = 0;
 	bo->buffer_start = buffer_start & PAGE_MASK;
 	bo->priv_flags = 0;
 	bo->mem.placement = (TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED);
@@ -1367,6 +1379,10 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 	BUG_ON(type >= TTM_NUM_MEM_TYPES);
 	man = &bdev->man[type];
 	BUG_ON(man->has_type);
+	man->io_reserve_fastpath = true;
+	man->use_io_reserve_lru = false;
+	mutex_init(&man->io_reserve_mutex);
+	INIT_LIST_HEAD(&man->io_reserve_lru);
 
 	ret = bdev->driver->init_mem_type(bdev, type, man);
 	if (ret)
@@ -1574,7 +1590,7 @@ bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 	return true;
 }
 
-void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
+void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
 	loff_t offset = (loff_t) bo->addr_space_offset;
@@ -1583,8 +1599,20 @@ void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 	if (!bdev->dev_mapping)
 		return;
 	unmap_mapping_range(bdev->dev_mapping, offset, holelen, 1);
-	ttm_mem_io_free(bdev, &bo->mem);
+	ttm_mem_io_free_vm(bo);
 }
+
+void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
+{
+	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_mem_type_manager *man = &bdev->man[bo->mem.mem_type];
+
+	ttm_mem_io_lock(man, false);
+	ttm_bo_unmap_virtual_locked(bo);
+	ttm_mem_io_unlock(man);
+}
+
+
 EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 
 static void ttm_bo_vm_insert_rb(struct ttm_buffer_object *bo)

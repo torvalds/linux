@@ -83,6 +83,8 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	int i;
 	unsigned long address = (unsigned long)vmf->virtual_address;
 	int retval = VM_FAULT_NOPAGE;
+	struct ttm_mem_type_manager *man =
+		&bdev->man[bo->mem.mem_type];
 
 	/*
 	 * Work around locking order reversal in fault / nopfn
@@ -130,11 +132,15 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	} else
 		spin_unlock(&bdev->fence_lock);
 
-
-	ret = ttm_mem_io_reserve(bdev, &bo->mem);
-	if (ret) {
-		retval = VM_FAULT_SIGBUS;
+	ret = ttm_mem_io_lock(man, true);
+	if (unlikely(ret != 0)) {
+		retval = VM_FAULT_NOPAGE;
 		goto out_unlock;
+	}
+	ret = ttm_mem_io_reserve_vm(bo);
+	if (unlikely(ret != 0)) {
+		retval = VM_FAULT_SIGBUS;
+		goto out_io_unlock;
 	}
 
 	page_offset = ((address - vma->vm_start) >> PAGE_SHIFT) +
@@ -144,7 +150,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	if (unlikely(page_offset >= bo->num_pages)) {
 		retval = VM_FAULT_SIGBUS;
-		goto out_unlock;
+		goto out_io_unlock;
 	}
 
 	/*
@@ -182,7 +188,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			page = ttm_tt_get_page(ttm, page_offset);
 			if (unlikely(!page && i == 0)) {
 				retval = VM_FAULT_OOM;
-				goto out_unlock;
+				goto out_io_unlock;
 			} else if (unlikely(!page)) {
 				break;
 			}
@@ -200,14 +206,15 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		else if (unlikely(ret != 0)) {
 			retval =
 			    (ret == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS;
-			goto out_unlock;
+			goto out_io_unlock;
 		}
 
 		address += PAGE_SIZE;
 		if (unlikely(++page_offset >= page_last))
 			break;
 	}
-
+out_io_unlock:
+	ttm_mem_io_unlock(man);
 out_unlock:
 	ttm_bo_unreserve(bo);
 	return retval;

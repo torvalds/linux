@@ -74,6 +74,8 @@ struct ttm_placement {
  * @is_iomem:		is this io memory ?
  * @size:		size in byte
  * @offset:		offset from the base address
+ * @io_reserved_vm:     The VM system has a refcount in @io_reserved_count
+ * @io_reserved_count:  Refcounting the numbers of callers to ttm_mem_io_reserve
  *
  * Structure indicating the bus placement of an object.
  */
@@ -83,7 +85,8 @@ struct ttm_bus_placement {
 	unsigned long	size;
 	unsigned long	offset;
 	bool		is_iomem;
-	bool		io_reserved;
+	bool		io_reserved_vm;
+	uint64_t        io_reserved_count;
 };
 
 
@@ -235,6 +238,7 @@ struct ttm_buffer_object {
 	struct list_head lru;
 	struct list_head ddestroy;
 	struct list_head swap;
+	struct list_head io_reserve_lru;
 	uint32_t val_seq;
 	bool seq_valid;
 
