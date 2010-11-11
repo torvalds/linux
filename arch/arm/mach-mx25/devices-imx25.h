@@ -23,6 +23,10 @@ extern const struct imx_fsl_usb2_udc_data imx25_fsl_usb2_udc_data __initconst;
 #define imx25_add_fsl_usb2_udc(pdata)	\
 	imx_add_fsl_usb2_udc(&imx25_fsl_usb2_udc_data, pdata)
 
+extern struct imx_imxdi_rtc_data imx25_imxdi_rtc_data __initconst;
+#define imx25_add_imxdi_rtc(pdata)	\
+	imx_add_imxdi_rtc(&imx25_imxdi_rtc_data)
+
 extern const struct imx_imx_i2c_data imx25_imx_i2c_data[] __initconst;
 #define imx25_add_imx_i2c(id, pdata)	\
 	imx_add_imx_i2c(&imx25_imx_i2c_data[id], pdata)

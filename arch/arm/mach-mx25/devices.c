@@ -22,25 +22,6 @@
 #include <mach/mx25.h>
 #include <mach/irqs.h>
 
-static struct resource mx25_rtc_resources[] = {
-	{
-		.start	= MX25_DRYICE_BASE_ADDR,
-		.end	= MX25_DRYICE_BASE_ADDR + 0x40,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= MX25_INT_DRYICE,
-		.flags	= IORESOURCE_IRQ
-	},
-};
-
-struct platform_device mx25_rtc_device = {
-	.name	= "imxdi_rtc",
-	.id	= 0,
-	.num_resources	= ARRAY_SIZE(mx25_rtc_resources),
-	.resource	= mx25_rtc_resources,
-};
-
 static struct resource mx25_fb_resources[] = {
 	{
 		.start	= MX25_LCDC_BASE_ADDR,

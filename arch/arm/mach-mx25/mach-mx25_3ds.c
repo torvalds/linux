@@ -194,7 +194,7 @@ static void __init mx25pdk_init(void)
 	imx25_add_imx_uart0(&uart_pdata);
 	imx25_add_mxc_ehci_hs(NULL);
 	imx25_add_mxc_nand(&mx25pdk_nand_board_info);
-	mxc_register_device(&mx25_rtc_device, NULL);
+	imx25_add_imxdi_rtc(NULL);
 	mxc_register_device(&mx25_fb_device, &mx25pdk_fb_pdata);
 	mxc_register_device(&mxc_wdt, NULL);
 

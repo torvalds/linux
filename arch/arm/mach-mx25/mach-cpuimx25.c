@@ -124,7 +124,7 @@ static void __init eukrea_cpuimx25_init(void)
 
 	imx25_add_imx_uart0(&uart_pdata);
 	imx25_add_mxc_nand(&eukrea_cpuimx25_nand_board_info);
-	mxc_register_device(&mx25_rtc_device, NULL);
+	imx25_add_imxdi_rtc(NULL);
 	imx25_add_fec(&mx25_fec_pdata);
 
 	i2c_register_board_info(0, eukrea_cpuimx25_i2c_devices,
