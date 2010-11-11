@@ -195,7 +195,7 @@ int __init sfi_parse_mrtc(struct sfi_table_header *table)
 			totallen, (u32)pentry->phys_addr, pentry->irq);
 		mp_irq.type = MP_IOAPIC;
 		mp_irq.irqtype = mp_INT;
-		mp_irq.irqflag = 0;
+		mp_irq.irqflag = 0xf;	/* level trigger and active low */
 		mp_irq.srcbus = 0;
 		mp_irq.srcbusirq = pentry->irq;	/* IRQ */
 		mp_irq.dstapic = MP_APIC_ALL;
