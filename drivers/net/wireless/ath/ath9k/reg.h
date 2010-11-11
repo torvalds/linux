@@ -1065,6 +1065,8 @@ enum {
 #define AR_INTR_PRIO_ASYNC_MASK   0x40c8
 #define AR_INTR_PRIO_SYNC_MASK    0x40cc
 #define AR_INTR_PRIO_ASYNC_ENABLE 0x40d4
+#define AR_ENT_OTP		  0x40d8
+#define AR_ENT_OTP_CHAIN2_DISABLE               0x00020000
 
 #define AR_RTC_9300_PLL_DIV          0x000003ff
 #define AR_RTC_9300_PLL_DIV_S        0
