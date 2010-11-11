@@ -507,6 +507,11 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
+	if (WARN_ON(!ctx->vif)) {
+		mutex_unlock(&priv->mutex);
+		return;
+	}
+
 	if (changes & BSS_CHANGED_BEACON_INT)
 		force = true;
 
