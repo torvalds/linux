@@ -1103,18 +1103,6 @@ static int cxgb4vf_set_mac_addr(struct net_device *dev, void *_addr)
 	return 0;
 }
 
-/*
- * Return a TX Queue on which to send the specified skb.
- */
-static u16 cxgb4vf_select_queue(struct net_device *dev, struct sk_buff *skb)
-{
-	/*
-	 * XXX For now just use the default hash but we probably want to
-	 * XXX look at other possibilities ...
-	 */
-	return skb_tx_hash(dev, skb);
-}
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Poll all of our receive queues.  This is called outside of normal interrupt
@@ -2417,7 +2405,6 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
 	.ndo_get_stats		= cxgb4vf_get_stats,
 	.ndo_set_rx_mode	= cxgb4vf_set_rxmode,
 	.ndo_set_mac_address	= cxgb4vf_set_mac_addr,
-	.ndo_select_queue	= cxgb4vf_select_queue,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= cxgb4vf_do_ioctl,
 	.ndo_change_mtu		= cxgb4vf_change_mtu,
@@ -2624,7 +2611,6 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netdev->do_ioctl = cxgb4vf_do_ioctl;
 		netdev->change_mtu = cxgb4vf_change_mtu;
 		netdev->set_mac_address = cxgb4vf_set_mac_addr;
-		netdev->select_queue = cxgb4vf_select_queue;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 		netdev->poll_controller = cxgb4vf_poll_controller;
 #endif
