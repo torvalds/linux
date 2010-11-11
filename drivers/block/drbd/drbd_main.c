@@ -1924,7 +1924,7 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags fl
 	p.d_size = cpu_to_be64(d_size);
 	p.u_size = cpu_to_be64(u_size);
 	p.c_size = cpu_to_be64(trigger_reply ? 0 : drbd_get_capacity(mdev->this_bdev));
-	p.max_segment_size = cpu_to_be32(queue_max_segment_size(mdev->rq_queue));
+	p.max_bio_size = cpu_to_be32(queue_max_hw_sectors(mdev->rq_queue) << 9);
 	p.queue_order_type = cpu_to_be16(q_order_type);
 	p.dds_flags = cpu_to_be16(flags);
 
@@ -2952,7 +2952,7 @@ static void drbd_destroy_mempools(void)
 static int drbd_create_mempools(void)
 {
 	struct page *page;
-	const int number = (DRBD_MAX_SEGMENT_SIZE/PAGE_SIZE) * minor_count;
+	const int number = (DRBD_MAX_BIO_SIZE/PAGE_SIZE) * minor_count;
 	int i;
 
 	/* prepare our caches and mempools */
@@ -3218,7 +3218,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 	q->backing_dev_info.congested_data = mdev;
 
 	blk_queue_make_request(q, drbd_make_request_26);
-	blk_queue_max_segment_size(q, DRBD_MAX_SEGMENT_SIZE);
+	blk_queue_max_hw_sectors(q, DRBD_MAX_BIO_SIZE >> 9);
 	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
 	blk_queue_merge_bvec(q, drbd_merge_bvec);
 	q->queue_lock = &mdev->req_lock;

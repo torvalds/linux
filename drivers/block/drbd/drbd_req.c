@@ -1047,7 +1047,7 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
 
 	/* can this bio be split generically?
 	 * Maybe add our own split-arbitrary-bios function. */
-	if (bio->bi_vcnt != 1 || bio->bi_idx != 0 || bio->bi_size > DRBD_MAX_SEGMENT_SIZE) {
+	if (bio->bi_vcnt != 1 || bio->bi_idx != 0 || bio->bi_size > DRBD_MAX_BIO_SIZE) {
 		/* rather error out here than BUG in bio_split */
 		dev_err(DEV, "bio would need to, but cannot, be split: "
 		    "(vcnt=%u,idx=%u,size=%u,sector=%llu)\n",
@@ -1098,7 +1098,7 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
 }
 
 /* This is called by bio_add_page().  With this function we reduce
- * the number of BIOs that span over multiple DRBD_MAX_SEGMENT_SIZEs
+ * the number of BIOs that span over multiple DRBD_MAX_BIO_SIZEs
  * units (was AL_EXTENTs).
  *
  * we do the calculation within the lower 32bit of the byte offsets,
@@ -1118,8 +1118,8 @@ int drbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bvm, struct
 	unsigned int bio_size = bvm->bi_size;
 	int limit, backing_limit;
 
-	limit = DRBD_MAX_SEGMENT_SIZE
-	      - ((bio_offset & (DRBD_MAX_SEGMENT_SIZE-1)) + bio_size);
+	limit = DRBD_MAX_BIO_SIZE
+	      - ((bio_offset & (DRBD_MAX_BIO_SIZE-1)) + bio_size);
 	if (limit < 0)
 		limit = 0;
 	if (bio_size == 0) {

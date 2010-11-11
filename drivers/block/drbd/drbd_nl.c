@@ -765,22 +765,21 @@ static int drbd_check_al_size(struct drbd_conf *mdev)
 	return 0;
 }
 
-void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_seg_s) __must_hold(local)
+void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_bio_size) __must_hold(local)
 {
 	struct request_queue * const q = mdev->rq_queue;
 	struct request_queue * const b = mdev->ldev->backing_bdev->bd_disk->queue;
 	int max_segments = mdev->ldev->dc.max_bio_bvecs;
+	int max_hw_sectors = min(queue_max_hw_sectors(b), max_bio_size >> 9);
 
-	max_seg_s = min(queue_max_sectors(b) * queue_logical_block_size(b), max_seg_s);
-
-	blk_queue_max_hw_sectors(q, max_seg_s >> 9);
-	blk_queue_max_segments(q, max_segments ? max_segments : BLK_MAX_SEGMENTS);
-	blk_queue_max_segment_size(q, max_seg_s);
 	blk_queue_logical_block_size(q, 512);
-	blk_queue_segment_boundary(q, PAGE_SIZE-1);
-	blk_stack_limits(&q->limits, &b->limits, 0);
+	blk_queue_max_hw_sectors(q, max_hw_sectors);
+	/* This is the workaround for "bio would need to, but cannot, be split" */
+	blk_queue_max_segments(q, max_segments ? max_segments : BLK_MAX_SEGMENTS);
+	blk_queue_segment_boundary(q, PAGE_CACHE_SIZE-1);
+	blk_queue_stack_limits(q, b);
 
-	dev_info(DEV, "max_segment_size ( = BIO size ) = %u\n", queue_max_segment_size(q));
+	dev_info(DEV, "max BIO size = %u\n", queue_max_hw_sectors(q) << 9);
 
 	if (q->backing_dev_info.ra_pages != b->backing_dev_info.ra_pages) {
 		dev_info(DEV, "Adjusting my ra_pages to backing device's (%lu -> %lu)\n",
@@ -858,7 +857,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	struct block_device *bdev;
 	struct lru_cache *resync_lru = NULL;
 	union drbd_state ns, os;
-	unsigned int max_seg_s;
+	unsigned int max_bio_size;
 	int rv;
 	int cp_discovered = 0;
 	int logical_block_size;
@@ -1109,20 +1108,20 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	mdev->read_cnt = 0;
 	mdev->writ_cnt = 0;
 
-	max_seg_s = DRBD_MAX_SEGMENT_SIZE;
+	max_bio_size = DRBD_MAX_BIO_SIZE;
 	if (mdev->state.conn == C_CONNECTED) {
 		/* We are Primary, Connected, and now attach a new local
 		 * backing store. We must not increase the user visible maximum
 		 * bio size on this device to something the peer may not be
 		 * able to handle. */
 		if (mdev->agreed_pro_version < 94)
-			max_seg_s = queue_max_segment_size(mdev->rq_queue);
+			max_bio_size = queue_max_hw_sectors(mdev->rq_queue) << 9;
 		else if (mdev->agreed_pro_version == 94)
-			max_seg_s = DRBD_MAX_SIZE_H80_PACKET;
+			max_bio_size = DRBD_MAX_SIZE_H80_PACKET;
 		/* else: drbd 8.3.9 and later, stay with default */
 	}
 
-	drbd_setup_queue_param(mdev, max_seg_s);
+	drbd_setup_queue_param(mdev, max_bio_size);
 
 	/* If I am currently not R_PRIMARY,
 	 * but meta data primary indicator is set,

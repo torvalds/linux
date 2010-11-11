@@ -277,7 +277,7 @@ static void drbd_pp_free(struct drbd_conf *mdev, struct page *page, int is_net)
 	atomic_t *a = is_net ? &mdev->pp_in_use_by_net : &mdev->pp_in_use;
 	int i;
 
-	if (drbd_pp_vacant > (DRBD_MAX_SEGMENT_SIZE/PAGE_SIZE)*minor_count)
+	if (drbd_pp_vacant > (DRBD_MAX_BIO_SIZE/PAGE_SIZE)*minor_count)
 		i = page_chain_free(page);
 	else {
 		struct page *tmp;
@@ -1240,7 +1240,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __
 	data_size -= dgs;
 
 	ERR_IF(data_size &  0x1ff) return NULL;
-	ERR_IF(data_size >  DRBD_MAX_SEGMENT_SIZE) return NULL;
+	ERR_IF(data_size >  DRBD_MAX_BIO_SIZE) return NULL;
 
 	/* even though we trust out peer,
 	 * we sometimes have to double check. */
@@ -1917,7 +1917,7 @@ static int receive_DataRequest(struct drbd_conf *mdev, enum drbd_packets cmd, un
 	sector = be64_to_cpu(p->sector);
 	size   = be32_to_cpu(p->blksize);
 
-	if (size <= 0 || (size & 0x1ff) != 0 || size > DRBD_MAX_SEGMENT_SIZE) {
+	if (size <= 0 || (size & 0x1ff) != 0 || size > DRBD_MAX_BIO_SIZE) {
 		dev_err(DEV, "%s:%d: sector: %llus, size: %u\n", __FILE__, __LINE__,
 				(unsigned long long)sector, size);
 		return FALSE;
@@ -2897,7 +2897,7 @@ static int receive_sizes(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 {
 	struct p_sizes *p = &mdev->data.rbuf.sizes;
 	enum determine_dev_size dd = unchanged;
-	unsigned int max_seg_s;
+	unsigned int max_bio_size;
 	sector_t p_size, p_usize, my_usize;
 	int ldsc = 0; /* local disk size changed */
 	enum dds_flags ddsf;
@@ -2970,14 +2970,14 @@ static int receive_sizes(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 		}
 
 		if (mdev->agreed_pro_version < 94)
-			max_seg_s = be32_to_cpu(p->max_segment_size);
+			max_bio_size = be32_to_cpu(p->max_bio_size);
 		else if (mdev->agreed_pro_version == 94)
-			max_seg_s = DRBD_MAX_SIZE_H80_PACKET;
+			max_bio_size = DRBD_MAX_SIZE_H80_PACKET;
 		else /* drbd 8.3.8 onwards */
-			max_seg_s = DRBD_MAX_SEGMENT_SIZE;
+			max_bio_size = DRBD_MAX_BIO_SIZE;
 
-		if (max_seg_s != queue_max_segment_size(mdev->rq_queue))
-			drbd_setup_queue_param(mdev, max_seg_s);
+		if (max_bio_size != queue_max_hw_sectors(mdev->rq_queue) << 9)
+			drbd_setup_queue_param(mdev, max_bio_size);
 
 		drbd_setup_order_type(mdev, be16_to_cpu(p->queue_order_type));
 		put_ldev(mdev);

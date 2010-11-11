@@ -512,7 +512,7 @@ struct p_sizes {
 	u64	    d_size;  /* size of disk */
 	u64	    u_size;  /* user requested size */
 	u64	    c_size;  /* current exported size */
-	u32	    max_segment_size;  /* Maximal size of a BIO */
+	u32	    max_bio_size;  /* Maximal size of a BIO */
 	u16	    queue_order_type;  /* not yet implemented in DRBD*/
 	u16	    dds_flags; /* use enum dds_flags here. */
 } __packed;
@@ -1398,7 +1398,7 @@ struct bm_extent {
  * With a value of 8 all IO in one 128K block make it to the same slot of the
  * hash table. */
 #define HT_SHIFT 8
-#define DRBD_MAX_SEGMENT_SIZE (1U<<(9+HT_SHIFT))
+#define DRBD_MAX_BIO_SIZE (1U<<(9+HT_SHIFT))
 
 #define DRBD_MAX_SIZE_H80_PACKET (1 << 15) /* The old header only allows packets up to 32Kib data */
 

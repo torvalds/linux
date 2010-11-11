@@ -524,7 +524,7 @@ int w_make_resync_request(struct drbd_conf *mdev,
 	unsigned long bit;
 	sector_t sector;
 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
-	int max_segment_size;
+	int max_bio_size;
 	int number, rollback_i, size;
 	int align, queued, sndbuf;
 	int i = 0;
@@ -559,9 +559,9 @@ int w_make_resync_request(struct drbd_conf *mdev,
 
 	/* starting with drbd 8.3.8, we can handle multi-bio EEs,
 	 * if it should be necessary */
-	max_segment_size =
-		mdev->agreed_pro_version < 94 ? queue_max_segment_size(mdev->rq_queue) :
-		mdev->agreed_pro_version < 95 ?	DRBD_MAX_SIZE_H80_PACKET : DRBD_MAX_SEGMENT_SIZE;
+	max_bio_size =
+		mdev->agreed_pro_version < 94 ? queue_max_hw_sectors(mdev->rq_queue) << 9 :
+		mdev->agreed_pro_version < 95 ?	DRBD_MAX_SIZE_H80_PACKET : DRBD_MAX_BIO_SIZE;
 
 	number = drbd_rs_number_requests(mdev);
 	if (number == 0)
@@ -605,7 +605,7 @@ next_sector:
 			goto next_sector;
 		}
 
-#if DRBD_MAX_SEGMENT_SIZE > BM_BLOCK_SIZE
+#if DRBD_MAX_BIO_SIZE > BM_BLOCK_SIZE
 		/* try to find some adjacent bits.
 		 * we stop if we have already the maximum req size.
 		 *
@@ -615,7 +615,7 @@ next_sector:
 		align = 1;
 		rollback_i = i;
 		for (;;) {
-			if (size + BM_BLOCK_SIZE > max_segment_size)
+			if (size + BM_BLOCK_SIZE > max_bio_size)
 				break;
 
 			/* Be always aligned */
