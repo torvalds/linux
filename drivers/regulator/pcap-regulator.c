@@ -152,7 +152,7 @@ static struct pcap_regulator vreg_table[] = {
 
 static int pcap_regulator_set_voltage(struct regulator_dev *rdev,
 				      int min_uV, int max_uV,
-				      unsiged *selector)
+				      unsigned *selector)
 {
 	struct pcap_regulator *vreg = &vreg_table[rdev_get_id(rdev)];
 	void *pcap = rdev_get_drvdata(rdev);
