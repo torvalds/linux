@@ -54,10 +54,9 @@
 #include "./display/screen/screen.h"
 
 
-#define WIN1_USE_DOUBLE_BUF     0       //win1 use double buf to accelerate display
 #define CURSOR_BUF_SIZE         256     //rk29 cursor need 256B buf
 
-#if 0
+#if 1
 	#define fbprintk(msg...)	printk(msg);
 #else
 	#define fbprintk(msg...)
@@ -1197,14 +1196,9 @@ static int win1fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
     u8 trspmode = (var->grayscale>>8) & 0xff;
     u8 trspval = (var->grayscale) & 0xff;
 
-    fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
+    //fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
 	CHK_SUSPEND(inf);
-
-#if (0==WIN1_USE_DOUBLE_BUF)
-    if(var->yres_virtual>ylcd)
-        var->yres_virtual = ylcd;
-#endif
 
     if( 0==var->xres_virtual || 0==var->yres_virtual ||
         0==var->xres || 0==var->yres || var->xres<16 ||
@@ -1270,7 +1264,7 @@ static int win1fb_set_par(struct fb_info *info)
     u8 trspmode = TRSP_CLOSE;
     u8 trspval = 0;
 
-    fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
+    //fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
 	CHK_SUSPEND(inf);
 
@@ -1292,22 +1286,8 @@ static int win1fb_set_par(struct fb_info *info)
     smem_len = fix->line_length * var->yres_virtual + CURSOR_BUF_SIZE;   //cursor buf also alloc here
     map_size = PAGE_ALIGN(smem_len);
 
-#if WIN1_USE_DOUBLE_BUF
-    if( var->yres_virtual == 2*screen->y_res ) {
-        inf->mcu_usetimer = 0;
-    }
-    if(0==fix->smem_len) {
-        smem_len = smem_len*2;
-        map_size = PAGE_ALIGN(smem_len);
-        fbprintk(">>>>>> first alloc, alloc double!!! \n ");
-    }
-#endif
 
-#if WIN1_USE_DOUBLE_BUF
-    if (smem_len > fix->smem_len)     // buffer need realloc
-#else
     if (smem_len != fix->smem_len)     // buffer need realloc
-#endif
     {
         fbprintk(">>>>>> win1 buffer size is change(%d->%d)! remap memory!\n",fix->smem_len, smem_len);
         fbprintk(">>>>>> smem_len %d = %d * %d \n", smem_len, fix->line_length, var->yres_virtual);
@@ -1381,7 +1361,7 @@ static int win1fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
     int i;
     u32 offset = 0, addr = 0;
 
-	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
+	//fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
 	CHK_SUSPEND(inf);
 
@@ -1400,7 +1380,7 @@ static int win1fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 
     addr = fix1->smem_start + offset;
 
-    fbprintk("info->screen_base = %8x ; fix1->smem_len = %d , addr = %8x\n",(u32)info->screen_base, fix1->smem_len, addr);
+    //fbprintk("info->screen_base = %8x ; fix1->smem_len = %d , addr = %8x\n",(u32)info->screen_base, fix1->smem_len, addr);
 
     LcdWrReg(inf, WIN1_YRGB_MST, addr);
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
