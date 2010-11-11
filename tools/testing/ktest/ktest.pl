@@ -1281,6 +1281,8 @@ sub process_passed {
 	    delete $config_list{$config};
 	}
     }
+    doprint "config copied to $outputdir/config_good\n";
+    run_command "cp -f $output_config $outputdir/config_good";
 }
 
 sub process_failed {
@@ -1358,6 +1360,8 @@ sub run_config_bisect {
 
 	doprint "This config had a failure.\n";
 	doprint "Removing these configs that were not set in this config:\n";
+	doprint "config copied to $outputdir/config_bad\n";
+	run_command "cp -f $output_config $outputdir/config_bad";
 
 	# A config exists in this group that was bad.
 	foreach my $config (keys %config_list) {
