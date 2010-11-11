@@ -30,6 +30,7 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/rbtree.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/tegra_rpc.h>
 #include <linux/types.h>
@@ -148,11 +149,13 @@ static struct avp_info *tegra_avp;
 
 static int avp_trpc_send(struct trpc_endpoint *ep, void *buf, size_t len);
 static void avp_trpc_close(struct trpc_endpoint *ep);
+static void avp_trpc_show(struct seq_file *s, struct trpc_endpoint *ep);
 static void libs_cleanup(struct avp_info *avp);
 
 static struct trpc_ep_ops remote_ep_ops = {
 	.send	= avp_trpc_send,
 	.close	= avp_trpc_close,
+	.show	= avp_trpc_show,
 };
 
 static struct remote_info *rinfo_alloc(struct avp_info *avp)
@@ -251,6 +254,24 @@ static struct remote_info *validate_trpc_ep(struct avp_info *avp,
 	return NULL;
 }
 
+static void avp_trpc_show(struct seq_file *s, struct trpc_endpoint *ep)
+{
+	struct avp_info *avp = tegra_avp;
+	struct remote_info *rinfo;
+	unsigned long flags;
+
+	spin_lock_irqsave(&avp->state_lock, flags);
+	rinfo = validate_trpc_ep(avp, ep);
+	if (!rinfo) {
+		seq_printf(s, "    <unknown>\n");
+		goto out;
+	}
+	seq_printf(s, "    loc_id:0x%x\n    rem_id:0x%x\n",
+		   rinfo->loc_id, rinfo->rem_id);
+out:
+	spin_unlock_irqrestore(&avp->state_lock, flags);
+}
+
 static inline void mbox_writel(u32 val, void __iomem *mbox)
 {
 	writel(val, mbox);
@@ -335,6 +356,10 @@ static int msg_wait_ack_locked(struct avp_info *avp, u32 cmd, u32 *arg)
 		usleep_range(1000, 5000);
 	} while (ret && time_before(jiffies, endtime));
 
+	/* if we timed out, try one more time */
+	if (ret)
+		ret = msg_check_ack(avp, cmd, arg);
+
 	/* clear out the ack */
 	*rem_ack = 0;
 	wmb();
@@ -396,10 +421,25 @@ static int _send_disconnect(struct avp_info *avp, u32 port_id)
 
 	mutex_lock(&avp->to_avp_lock);
 	ret = msg_write(avp, &msg, sizeof(msg), NULL, 0);
-	mutex_unlock(&avp->to_avp_lock);
+	if (ret) {
+		pr_err("%s: remote has not acked last message (%x)\n", __func__,
+		       port_id);
+		goto err_msg_write;
+	}
 
-	DBG(AVP_DBG_TRACE_XPC_CONN, "%s: sent disconnect msg for 0x%x\n",
+	ret = msg_wait_ack_locked(avp, CMD_ACK, NULL);
+	if (ret) {
+		pr_err("%s: remote end won't respond for %x\n", __func__,
+		       port_id);
+		goto err_wait_ack;
+	}
+
+	DBG(AVP_DBG_TRACE_XPC_CONN, "%s: sent disconnect msg for %x\n",
 	    __func__, port_id);
+
+err_wait_ack:
+err_msg_write:
+	mutex_unlock(&avp->to_avp_lock);
 	return ret;
 }
 
@@ -613,7 +653,7 @@ static void process_disconnect_locked(struct avp_info *avp,
 	rinfo = remote_find(avp, disconn_msg->port_id);
 	if (!rinfo) {
 		spin_unlock_irqrestore(&avp->state_lock, flags);
-		pr_warning("%s: got disconnect for unknown port 0x%x\n",
+		pr_warning("%s: got disconnect for unknown port %x\n",
 			   __func__, disconn_msg->port_id);
 		goto ack;
 	}
@@ -1193,10 +1233,10 @@ static int handle_load_lib_ioctl(struct avp_info *avp, unsigned long arg)
 	return 0;
 
 err_insert_lib:
-	send_unload_lib_msg(avp, lib.handle, lib.name);
 err_copy_to_user:
-	mutex_unlock(&avp->libs_lock);
+	send_unload_lib_msg(avp, lib.handle, lib.name);
 err_load_lib:
+	mutex_unlock(&avp->libs_lock);
 	return ret;
 }
 
@@ -1235,10 +1275,10 @@ static void libs_cleanup(struct avp_info *avp)
 	list_for_each_entry_safe(lib, lib_tmp, &avp->libs, list) {
 		_delete_lib_locked(avp, lib);
 	}
-	mutex_unlock(&avp->libs_lock);
 
 	nvmap_client_put(avp->nvmap_libs);
 	avp->nvmap_libs = NULL;
+	mutex_unlock(&avp->libs_lock);
 }
 
 static long tegra_avp_ioctl(struct file *file, unsigned int cmd,
