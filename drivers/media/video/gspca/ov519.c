@@ -107,21 +107,7 @@ struct sd {
 	u8 frame_rate;		/* current Framerate */
 	u8 clockdiv;		/* clockdiv override */
 
-	u8 sensor;		/* Type of image sensor chip (SEN_*) */
-#define SEN_UNKNOWN 0
-#define SEN_OV2610 1
-#define SEN_OV3610 2
-#define SEN_OV6620 3
-#define SEN_OV6630 4
-#define SEN_OV66308AF 5
-#define SEN_OV7610 6
-#define SEN_OV7620 7
-#define SEN_OV7620AE 8
-#define SEN_OV7640 9
-#define SEN_OV7648 10
-#define SEN_OV7670 11
-#define SEN_OV76BE 12
-#define SEN_OV8610 13
+	s8 sensor;		/* Type of image sensor chip (SEN_*) */
 
 	u8 sensor_addr;
 	u16 sensor_width;
@@ -129,6 +115,21 @@ struct sd {
 	s16 sensor_reg_cache[256];
 
 	u8 jpeg_hdr[JPEG_HDR_SZ];
+};
+enum sensors {
+	SEN_OV2610,
+	SEN_OV3610,
+	SEN_OV6620,
+	SEN_OV6630,
+	SEN_OV66308AF,
+	SEN_OV7610,
+	SEN_OV7620,
+	SEN_OV7620AE,
+	SEN_OV7640,
+	SEN_OV7648,
+	SEN_OV7670,
+	SEN_OV76BE,
+	SEN_OV8610,
 };
 
 /* Note this is a bit of a hack, but the w9968cf driver needs the code for all
@@ -3010,6 +3011,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	/* The OV519 must be more aggressive about sensor detection since
 	 * I2C write will never fail if the sensor is not present. We have
 	 * to try to initialize the sensor to detect its presence */
+	sd->sensor = -1;
 
 	/* Test for 76xx */
 	if (init_ov_sensor(sd, OV7xx0_SID) >= 0) {
@@ -3039,6 +3041,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		err("Can't determine sensor slave IDs");
 		goto error;
 	}
+
+	if (sd->sensor < 0)
+		goto error;
 
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
@@ -3117,7 +3122,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 error:
 	PDEBUG(D_ERR, "OV519 Config failed");
-	return -EBUSY;
+	return -EINVAL;
 }
 
 /* this function is called at probe and resume time */
