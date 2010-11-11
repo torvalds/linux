@@ -1679,6 +1679,7 @@ int process_responses(struct sge_rspq *rspq, int budget)
 				}
 				len = RSPD_LEN(len);
 			}
+			gl.tot_len = len;
 
 			/*
 			 * Gather packet fragments.
