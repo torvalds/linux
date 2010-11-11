@@ -205,6 +205,7 @@ enum ieee80211_bss_change {
  * @basic_rates: bitmap of basic rates, each bit stands for an
  *	index into the rate table configured by the driver in
  *	the current band.
+ * @mcast_rate: multicast rate for AP and Ad-Hoc (in 100 kbps)
  * @bssid: The BSSID for this BSS
  * @enable_beacon: whether beaconing should be enabled or not
  * @channel_type: Channel type for this BSS -- the hardware might be
@@ -244,6 +245,7 @@ struct ieee80211_bss_conf {
 	u16 assoc_capability;
 	u64 timestamp;
 	u32 basic_rates;
+	u32 mcast_rate;
 	u16 ht_operation_mode;
 	s32 cqm_rssi_thold;
 	u32 cqm_rssi_hyst;
@@ -2663,7 +2665,7 @@ enum rate_control_changed {
  * @rate_idx_mask: user-requested rate mask (not MCS for now)
  * @skb: the skb that will be transmitted, the control information in it needs
  *	to be filled in
- * @ap: whether this frame is sent out in AP mode
+ * @bss: whether this frame is sent out in AP or IBSS mode
  */
 struct ieee80211_tx_rate_control {
 	struct ieee80211_hw *hw;
@@ -2674,7 +2676,7 @@ struct ieee80211_tx_rate_control {
 	bool rts, short_preamble;
 	u8 max_rate_idx;
 	u32 rate_idx_mask;
-	bool ap;
+	bool bss;
 };
 
 struct rate_control_ops {
