@@ -20,13 +20,6 @@
 #define VXGE_CACHE_LINE_SIZE 128
 #endif
 
-#define vxge_os_vaprintf(level, mask, fmt, ...) { \
-	char buff[255]; \
-		snprintf(buff, 255, fmt, __VA_ARGS__); \
-		printk(buff); \
-		printk("\n"); \
-}
-
 #ifndef VXGE_ALIGN
 #define VXGE_ALIGN(adrs, size) \
 	(((size) - (((u64)adrs) & ((size)-1))) & ((size)-1))
@@ -37,7 +30,6 @@
 #define VXGE_HW_DEFAULT_MTU			1500
 
 #ifdef VXGE_DEBUG_ASSERT
-
 /**
  * vxge_assert
  * @test: C-condition to check
@@ -48,16 +40,13 @@
  * compilation
  * time.
  */
-#define vxge_assert(test) { \
-	if (!(test)) \
-		vxge_os_bug("bad cond: "#test" at %s:%d\n", \
-				__FILE__, __LINE__); }
+#define vxge_assert(test) BUG_ON(!(test))
 #else
 #define vxge_assert(test)
 #endif /* end of VXGE_DEBUG_ASSERT */
 
 /**
- * enum enum vxge_debug_level
+ * enum vxge_debug_level
  * @VXGE_NONE: debug disabled
  * @VXGE_ERR: all errors going to be logged out
  * @VXGE_TRACE: all errors plus all kind of verbose tracing print outs
@@ -2000,7 +1989,7 @@ enum vxge_hw_status
 vxge_hw_vpath_strip_fcs_check(struct __vxge_hw_device *hldev, u64 vpath_mask);
 
 /**
- * vxge_debug
+ * vxge_debug_ll
  * @level: level of debug verbosity.
  * @mask: mask for the debug
  * @buf: Circular buffer for tracing
@@ -2012,26 +2001,13 @@ vxge_hw_vpath_strip_fcs_check(struct __vxge_hw_device *hldev, u64 vpath_mask);
  * may be compiled out if DEBUG macro was never defined.
  * See also: enum vxge_debug_level{}.
  */
-
-#define vxge_trace_aux(level, mask, fmt, ...) \
-{\
-		vxge_os_vaprintf(level, mask, fmt, __VA_ARGS__);\
-}
-
-#define vxge_debug(module, level, mask, fmt, ...) { \
-if ((level >= VXGE_TRACE && ((module & VXGE_DEBUG_TRACE_MASK) == module)) || \
-	(level >= VXGE_ERR && ((module & VXGE_DEBUG_ERR_MASK) == module))) {\
-	if ((mask & VXGE_DEBUG_MASK) == mask)\
-		vxge_trace_aux(level, mask, fmt, __VA_ARGS__); \
-} \
-}
-
 #if (VXGE_COMPONENT_LL & VXGE_DEBUG_MODULE_MASK)
-#define vxge_debug_ll(level, mask, fmt, ...) \
-{\
-	vxge_debug(VXGE_COMPONENT_LL, level, mask, fmt, __VA_ARGS__);\
-}
-
+#define vxge_debug_ll(level, mask, fmt, ...) do {			       \
+	if ((level >= VXGE_ERR && VXGE_COMPONENT_LL & VXGE_DEBUG_ERR_MASK) ||  \
+	    (level >= VXGE_TRACE && VXGE_COMPONENT_LL & VXGE_DEBUG_TRACE_MASK))\
+		if ((mask & VXGE_DEBUG_MASK) == mask)			       \
+			printk(fmt "\n", __VA_ARGS__);			       \
+} while (0)
 #else
 #define vxge_debug_ll(level, mask, fmt, ...)
 #endif

@@ -387,8 +387,6 @@ struct vxge_tx_priv {
 	static int p = val; \
 	module_param(p, int, 0)
 
-#define vxge_os_bug(fmt...)		{ printk(fmt); BUG(); }
-
 #define vxge_os_timer(timer, handle, arg, exp) do { \
 		init_timer(&timer); \
 		timer.function = handle; \
