@@ -446,7 +446,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 			if (priv->mac80211_registered &&
 			    (iwl_queue_space(&txq->q) > txq->q.low_mark) &&
 			    (agg->state != IWL_EMPTYING_HW_QUEUE_DELBA))
-				iwl_wake_queue(priv, txq->swq_id);
+				iwl_wake_queue(priv, txq);
 		}
 	} else {
 		BUG_ON(txq_id != txq->swq_id);
@@ -456,7 +456,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 
 		if (priv->mac80211_registered &&
 		    (iwl_queue_space(&txq->q) > txq->q.low_mark))
-			iwl_wake_queue(priv, txq_id);
+			iwl_wake_queue(priv, txq);
 	}
 
 	iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);

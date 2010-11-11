@@ -2239,7 +2239,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 			if (priv->mac80211_registered &&
 			    (iwl_queue_space(&txq->q) > txq->q.low_mark) &&
 			    (agg->state != IWL_EMPTYING_HW_QUEUE_DELBA))
-				iwl_wake_queue(priv, txq->swq_id);
+				iwl_wake_queue(priv, txq);
 		}
 	} else {
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
@@ -2263,7 +2263,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 
 		if (priv->mac80211_registered &&
 		    (iwl_queue_space(&txq->q) > txq->q.low_mark))
-			iwl_wake_queue(priv, txq_id);
+			iwl_wake_queue(priv, txq);
 	}
 	if (qc && likely(sta_id != IWL_INVALID_STATION))
 		iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);

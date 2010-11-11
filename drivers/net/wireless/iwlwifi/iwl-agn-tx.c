@@ -783,7 +783,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 			iwl_txq_update_write_ptr(priv, txq);
 			spin_unlock_irqrestore(&priv->lock, flags);
 		} else {
-			iwl_stop_queue(priv, txq->swq_id);
+			iwl_stop_queue(priv, txq);
 		}
 	}
 
@@ -1408,7 +1408,7 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 		if ((iwl_queue_space(&txq->q) > txq->q.low_mark) &&
 		    priv->mac80211_registered &&
 		    (agg->state != IWL_EMPTYING_HW_QUEUE_DELBA))
-			iwl_wake_queue(priv, txq->swq_id);
+			iwl_wake_queue(priv, txq);
 
 		iwlagn_txq_check_empty(priv, sta_id, tid, scd_flow);
 	}
