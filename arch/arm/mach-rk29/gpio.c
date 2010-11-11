@@ -502,24 +502,20 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 
 	rk29_gpio = get_irq_chip_data(irq+14);
 	gpioRegBase = rk29_gpio->regbase;
-	printk("Enter:%s--%d---gpioRegBase=0x%x\n",__FUNCTION__,__LINE__,rk29_gpio->regbase);
+
 	//屏蔽中断6或7
 	desc->chip->mask(irq);
-	printk("Enter:%s--%d\n",__FUNCTION__,__LINE__);
 	//读取当前中断状态，即查询具体是GPIO的哪个PIN引起的中断
 	isr = rk29_gpio_read(gpioRegBase,GPIO_INT_STATUS);
-	printk("Enter:%s--%d\n",__FUNCTION__,__LINE__);
 	if (!isr) {
 			desc->chip->unmask(irq);
 			return;
 	}
-printk("Enter:%s--%d\n",__FUNCTION__,__LINE__);
+
 	pin = rk29_gpio->chip.base;
-	printk("Enter:%s--%d\n",__FUNCTION__,__LINE__);
 	gpioToirq = gpio_to_irq(pin);
-	printk("Enter:%s--%d\n",__FUNCTION__,__LINE__);
 	gpio = &irq_desc[gpioToirq];
-printk("Enter:%s--%d\n",__FUNCTION__,__LINE__);
+
 	while (isr) {
 		if (isr & 1) {
 			{

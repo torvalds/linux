@@ -334,6 +334,7 @@ static struct platform_device android_pmem_vpu_device = {
 		.platform_data = &android_pmem_vpu_pdata,
 	},
 };
+
 /*****************************************************************************************
  * i2c devices
  * author: kfx@rock-chips.com
@@ -373,6 +374,7 @@ struct rk29_i2c_platform_data default_i2c0_data = {
 	.mode 		= I2C_MODE_IRQ,
 	.io_init = rk29_i2c0_io_init,
 };
+
 struct rk29_i2c_platform_data default_i2c1_data = { 
 	.bus_num    = 1,
 	.flags      = 0,
@@ -381,6 +383,7 @@ struct rk29_i2c_platform_data default_i2c1_data = {
 	.mode 		= I2C_MODE_POLL,
 	.io_init = rk29_i2c1_io_init,
 };
+
 struct rk29_i2c_platform_data default_i2c2_data = { 
 	.bus_num    = 2,
 	.flags      = 0,
@@ -389,6 +392,7 @@ struct rk29_i2c_platform_data default_i2c2_data = {
 	.mode 		= I2C_MODE_IRQ,
 	.io_init = rk29_i2c2_io_init,
 };
+
 struct rk29_i2c_platform_data default_i2c3_data = { 
 	.bus_num    = 3,
 	.flags      = 0,
@@ -398,7 +402,7 @@ struct rk29_i2c_platform_data default_i2c3_data = {
 	.io_init = rk29_i2c3_io_init,
 };
 
-
+#ifdef CONFIG_I2C0_RK29
 static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #if defined (CONFIG_RK1000_CONTROL)
 	{
@@ -408,22 +412,29 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 	},
 #endif
 };
+#endif
+
+#ifdef CONFIG_I2C1_RK29
 static struct i2c_board_info __initdata board_i2c1_devices[] = {
-
 };
+#endif
+
+#ifdef CONFIG_I2C2_RK29
 static struct i2c_board_info __initdata board_i2c2_devices[] = {
-
 };
+#endif
+
+#ifdef CONFIG_I2C3_RK29
 static struct i2c_board_info __initdata board_i2c3_devices[] = {
-
 };
+#endif
 
 
 /*****************************************************************************************
  * SDMMC devices
 *****************************************************************************************/
 #ifdef CONFIG_SDMMC0_RK29
-void rk29_sdmmc0_cfg_gpio(struct platform_device *dev)
+static int rk29_sdmmc0_cfg_gpio(void)
 {
 	rk29_mux_api_set(GPIO1D1_SDMMC0CMD_NAME, GPIO1H_SDMMC0_CMD);
 	rk29_mux_api_set(GPIO1D0_SDMMC0CLKOUT_NAME, GPIO1H_SDMMC0_CLKOUT);
@@ -431,7 +442,8 @@ void rk29_sdmmc0_cfg_gpio(struct platform_device *dev)
 	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
 	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
 	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
-	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N); 
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
+	return 0;
 }
 
 #define CONFIG_SDMMC0_USE_DMA
@@ -452,14 +464,15 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #endif
 #ifdef CONFIG_SDMMC1_RK29
 #define CONFIG_SDMMC1_USE_DMA
-void rk29_sdmmc1_cfg_gpio(struct platform_device *dev)
+static int rk29_sdmmc1_cfg_gpio(void)
 {
 	rk29_mux_api_set(GPIO1C2_SDMMC1CMD_NAME, GPIO1H_SDMMC1_CMD);
 	rk29_mux_api_set(GPIO1C7_SDMMC1CLKOUT_NAME, GPIO1H_SDMMC1_CLKOUT);
 	rk29_mux_api_set(GPIO1C3_SDMMC1DATA0_NAME, GPIO1H_SDMMC1_DATA0);
 	rk29_mux_api_set(GPIO1C4_SDMMC1DATA1_NAME, GPIO1H_SDMMC1_DATA1);
 	rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_SDMMC1_DATA2);
-	rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_SDMMC1_DATA3); 
+	rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_SDMMC1_DATA3);
+	return 0;
 }
 
 struct rk29_sdmmc_platform_data default_sdmmc1_data = {
