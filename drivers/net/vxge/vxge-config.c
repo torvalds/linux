@@ -99,9 +99,6 @@ static enum vxge_hw_status
 __vxge_hw_device_config_check(struct vxge_hw_device_config *new_config);
 
 static void
-__vxge_hw_device_id_get(struct __vxge_hw_device *hldev);
-
-static void
 __vxge_hw_device_host_info_get(struct __vxge_hw_device *hldev);
 
 static enum vxge_hw_status
@@ -806,26 +803,6 @@ exit:
 }
 
 /*
- * __vxge_hw_device_id_get
- * This routine returns sets the device id and revision numbers into the device
- * structure
- */
-void __vxge_hw_device_id_get(struct __vxge_hw_device *hldev)
-{
-	u64 val64;
-
-	val64 = readq(&hldev->common_reg->titan_asic_id);
-	hldev->device_id =
-		(u16)VXGE_HW_TITAN_ASIC_ID_GET_INITIAL_DEVICE_ID(val64);
-
-	hldev->major_revision =
-		(u8)VXGE_HW_TITAN_ASIC_ID_GET_INITIAL_MAJOR_REVISION(val64);
-
-	hldev->minor_revision =
-		(u8)VXGE_HW_TITAN_ASIC_ID_GET_INITIAL_MINOR_REVISION(val64);
-}
-
-/*
  * __vxge_hw_device_access_rights_get: Get Access Rights of the driver
  * This routine returns the Access Rights of the driver
  */
@@ -1327,7 +1304,6 @@ vxge_hw_device_initialize(
 		vfree(hldev);
 		goto exit;
 	}
-	__vxge_hw_device_id_get(hldev);
 
 	__vxge_hw_device_host_info_get(hldev);
 
@@ -4442,16 +4418,18 @@ vpath_open_exit1:
 void
 vxge_hw_vpath_rx_doorbell_init(struct __vxge_hw_vpath_handle *vp)
 {
-	struct __vxge_hw_virtualpath *vpath = NULL;
+	struct __vxge_hw_virtualpath *vpath = vp->vpath;
+	struct __vxge_hw_ring *ring = vpath->ringh;
+	struct vxgedev *vdev = netdev_priv(vpath->hldev->ndev);
 	u64 new_count, val64, val164;
-	struct __vxge_hw_ring *ring;
 
-	vpath = vp->vpath;
-	ring = vpath->ringh;
+	if (vdev->titan1) {
+		new_count = readq(&vpath->vp_reg->rxdmem_size);
+		new_count &= 0x1fff;
+	} else
+		new_count = ring->config->ring_blocks * VXGE_HW_BLOCK_SIZE / 8;
 
-	new_count = readq(&vpath->vp_reg->rxdmem_size);
-	new_count &= 0x1fff;
-	val164 = (VXGE_HW_RXDMEM_SIZE_PRC_RXDMEM_SIZE(new_count));
+	val164 = VXGE_HW_RXDMEM_SIZE_PRC_RXDMEM_SIZE(new_count);
 
 	writeq(VXGE_HW_PRC_RXD_DOORBELL_NEW_QW_CNT(val164),
 		&vpath->vp_reg->prc_rxd_doorbell);

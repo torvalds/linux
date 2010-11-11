@@ -2012,8 +2012,23 @@ static int vxge_open_vpaths(struct vxgedev *vdev)
 
 	for (i = 0; i < vdev->no_of_vpath; i++) {
 		vpath = &vdev->vpaths[i];
-
 		vxge_assert(vpath->is_configured);
+
+		if (!vdev->titan1) {
+			struct vxge_hw_vp_config *vcfg;
+			vcfg = &vdev->devh->config.vp_config[vpath->device_id];
+
+			vcfg->rti.urange_a = RTI_T1A_RX_URANGE_A;
+			vcfg->rti.urange_b = RTI_T1A_RX_URANGE_B;
+			vcfg->rti.urange_c = RTI_T1A_RX_URANGE_C;
+			vcfg->tti.uec_a = TTI_T1A_TX_UFC_A;
+			vcfg->tti.uec_b = TTI_T1A_TX_UFC_B;
+			vcfg->tti.uec_c = TTI_T1A_TX_UFC_C(vdev->mtu);
+			vcfg->tti.uec_d = TTI_T1A_TX_UFC_D(vdev->mtu);
+			vcfg->tti.ltimer_val = VXGE_T1A_TTI_LTIMER_VAL;
+			vcfg->tti.rtimer_val = VXGE_T1A_TTI_RTIMER_VAL;
+		}
+
 		attr.vp_id = vpath->device_id;
 		attr.fifo_attr.callback = vxge_xmit_compl;
 		attr.fifo_attr.txdl_term = vxge_tx_term;
@@ -2710,9 +2725,10 @@ vxge_open(struct net_device *dev)
 		vxge_os_timer(vdev->vp_reset_timer,
 			vxge_poll_vp_reset, vdev, (HZ/2));
 
-	if (vdev->vp_lockup_timer.function == NULL)
-		vxge_os_timer(vdev->vp_lockup_timer,
-			vxge_poll_vp_lockup, vdev, (HZ/2));
+	/* There is no need to check for RxD leak and RxD lookup on Titan1A */
+	if (vdev->titan1 && vdev->vp_lockup_timer.function == NULL)
+		vxge_os_timer(vdev->vp_lockup_timer, vxge_poll_vp_lockup, vdev,
+			      HZ / 2);
 
 	set_bit(__VXGE_STATE_CARD_UP, &vdev->state);
 
@@ -2844,7 +2860,9 @@ static int do_vxge_close(struct net_device *dev, int do_io)
 
 		smp_wmb();
 	}
-	del_timer_sync(&vdev->vp_lockup_timer);
+
+	if (vdev->titan1)
+		del_timer_sync(&vdev->vp_lockup_timer);
 
 	del_timer_sync(&vdev->vp_reset_timer);
 
@@ -3262,6 +3280,19 @@ static const struct net_device_ops vxge_netdev_ops = {
 #endif
 };
 
+static int __devinit vxge_device_revision(struct vxgedev *vdev)
+{
+	int ret;
+	u8 revision;
+
+	ret = pci_read_config_byte(vdev->pdev, PCI_REVISION_ID, &revision);
+	if (ret)
+		return -EIO;
+
+	vdev->titan1 = (revision == VXGE_HW_TITAN1_PCI_REVISION);
+	return 0;
+}
+
 static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 					  struct vxge_config *config,
 					  int high_dma, int no_of_vpath,
@@ -3301,6 +3332,10 @@ static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 	memcpy(&vdev->config, config, sizeof(struct vxge_config));
 	vdev->rx_csum = 1;	/* Enable Rx CSUM by default. */
 	vdev->rx_hwts = 0;
+
+	ret = vxge_device_revision(vdev);
+	if (ret < 0)
+		goto _out1;
 
 	SET_NETDEV_DEV(ndev, &vdev->pdev->dev);
 

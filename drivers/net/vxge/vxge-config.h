@@ -713,9 +713,6 @@ struct __vxge_hw_vpath_handle{
 /**
  * struct __vxge_hw_device  - Hal device object
  * @magic: Magic Number
- * @device_id: PCI Device Id of the adapter
- * @major_revision: PCI Device major revision
- * @minor_revision: PCI Device minor revision
  * @bar0: BAR0 virtual address.
  * @pdev: Physical device handle
  * @config: Confguration passed by the LL driver at initialization
@@ -727,9 +724,6 @@ struct __vxge_hw_device {
 	u32				magic;
 #define VXGE_HW_DEVICE_MAGIC		0x12345678
 #define VXGE_HW_DEVICE_DEAD		0xDEADDEAD
-	u16				device_id;
-	u8				major_revision;
-	u8				minor_revision;
 	void __iomem			*bar0;
 	struct pci_dev			*pdev;
 	struct net_device		*ndev;

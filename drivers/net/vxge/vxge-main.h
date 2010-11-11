@@ -29,6 +29,9 @@
 
 #define PCI_DEVICE_ID_TITAN_WIN		0x5733
 #define PCI_DEVICE_ID_TITAN_UNI		0x5833
+#define VXGE_HW_TITAN1_PCI_REVISION	1
+#define VXGE_HW_TITAN1A_PCI_REVISION	2
+
 #define	VXGE_USE_DEFAULT		0xffffffff
 #define VXGE_HW_VPATH_MSIX_ACTIVE	4
 #define VXGE_ALARM_MSIX_ID		2
@@ -53,11 +56,13 @@
 
 #define VXGE_TTI_BTIMER_VAL 250000
 
-#define VXGE_TTI_LTIMER_VAL 1000
-#define VXGE_TTI_RTIMER_VAL 0
-#define VXGE_RTI_BTIMER_VAL 250
-#define VXGE_RTI_LTIMER_VAL 100
-#define VXGE_RTI_RTIMER_VAL 0
+#define VXGE_TTI_LTIMER_VAL	1000
+#define VXGE_T1A_TTI_LTIMER_VAL	80
+#define VXGE_TTI_RTIMER_VAL	0
+#define VXGE_T1A_TTI_RTIMER_VAL	400
+#define VXGE_RTI_BTIMER_VAL	250
+#define VXGE_RTI_LTIMER_VAL	100
+#define VXGE_RTI_RTIMER_VAL	0
 #define VXGE_FIFO_INDICATE_MAX_PKTS VXGE_DEF_FIFO_LENGTH
 #define VXGE_ISR_POLLING_CNT 	8
 #define VXGE_MAX_CONFIG_DEV	0xFF
@@ -76,14 +81,32 @@
 #define TTI_TX_UFC_B	40
 #define TTI_TX_UFC_C	60
 #define TTI_TX_UFC_D	100
+#define TTI_T1A_TX_UFC_A	30
+#define TTI_T1A_TX_UFC_B	80
+/* Slope - (max_mtu - min_mtu)/(max_mtu_ufc - min_mtu_ufc) */
+/* Slope - 93 */
+/* 60 - 9k Mtu, 140 - 1.5k mtu */
+#define TTI_T1A_TX_UFC_C(mtu)	(60 + ((VXGE_HW_MAX_MTU - mtu) / 93))
 
-#define RTI_RX_URANGE_A	5
-#define RTI_RX_URANGE_B	15
-#define RTI_RX_URANGE_C	40
-#define RTI_RX_UFC_A	1
-#define RTI_RX_UFC_B	5
-#define RTI_RX_UFC_C	10
-#define RTI_RX_UFC_D	15
+/* Slope - 37 */
+/* 100 - 9k Mtu, 300 - 1.5k mtu */
+#define TTI_T1A_TX_UFC_D(mtu)	(100 + ((VXGE_HW_MAX_MTU - mtu) / 37))
+
+
+#define RTI_RX_URANGE_A		5
+#define RTI_RX_URANGE_B		15
+#define RTI_RX_URANGE_C		40
+#define RTI_T1A_RX_URANGE_A	1
+#define RTI_T1A_RX_URANGE_B	20
+#define RTI_T1A_RX_URANGE_C	50
+#define RTI_RX_UFC_A		1
+#define RTI_RX_UFC_B		5
+#define RTI_RX_UFC_C		10
+#define RTI_RX_UFC_D		15
+#define RTI_T1A_RX_UFC_B	20
+#define RTI_T1A_RX_UFC_C	50
+#define RTI_T1A_RX_UFC_D	60
+
 
 /* Milli secs timer period */
 #define VXGE_TIMER_DELAY		10000
@@ -329,7 +352,8 @@ struct vxgedev {
 
 	 /* A flag indicating whether rx_csum is to be used or not. */
 	u32	rx_csum:1,
-		rx_hwts:1;
+		rx_hwts:1,
+		titan1:1;
 
 	struct vxge_msix_entry *vxge_entries;
 	struct msix_entry *entries;
@@ -397,6 +421,7 @@ struct vxge_tx_priv {
 	} while (0);
 
 extern void vxge_initialize_ethtool_ops(struct net_device *ndev);
+
 enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
 
 int vxge_fw_upgrade(struct vxgedev *vdev, char *fw_name, int override);
