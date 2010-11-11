@@ -722,14 +722,15 @@ config SMSC37B787_WDT
 	  Most people will say N.
 
 config W83627HF_WDT
-	tristate "W83627HF Watchdog Timer"
+	tristate "W83627HF/W83627DHG Watchdog Timer"
 	depends on X86
 	---help---
 	  This is the driver for the hardware watchdog on the W83627HF chipset
 	  as used in Advantech PC-9578 and Tyan S2721-533 motherboards
-	  (and likely others).  This watchdog simply watches your kernel to
-	  make sure it doesn't freeze, and if it does, it reboots your computer
-	  after a certain amount of time.
+	  (and likely others). The driver also supports the W83627DHG chip.
+	  This watchdog simply watches your kernel to make sure it doesn't
+	  freeze, and if it does, it reboots your computer after a certain
+	  amount of time.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w83627hf_wdt.
