@@ -518,7 +518,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	struct iwl_cmd_meta *out_meta;
 	struct iwl_tx_cmd *tx_cmd;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-	int swq_id, txq_id;
+	int txq_id;
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
 	dma_addr_t scratch_phys;
@@ -620,7 +620,6 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	}
 
 	txq = &priv->txq[txq_id];
-	swq_id = txq->swq_id;
 	q = &txq->q;
 
 	if (unlikely(iwl_queue_space(q) < q->high_mark)) {
