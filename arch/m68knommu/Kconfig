@@ -321,16 +321,16 @@ config XCOPILOT_BUGS
 	  Support the bugs of Xcopilot.
 
 config UC5272
-        bool 'Arcturus Networks uC5272 dimm board support'
-        depends on M5272
-        help
-          Support for the Arcturus Networks uC5272 dimm board.
+	bool 'Arcturus Networks uC5272 dimm board support'
+	depends on M5272
+	help
+	  Support for the Arcturus Networks uC5272 dimm board.
 
 config UC5282
-       bool "Arcturus Networks uC5282 board support"
-          depends on M528x
-       help
-          Support for the Arcturus Networks uC5282 dimm board.
+	bool "Arcturus Networks uC5282 board support"
+	depends on M528x
+	help
+	  Support for the Arcturus Networks uC5282 dimm board.
 
 config UCSIMM
 	bool "uCsimm module support"
@@ -355,7 +355,7 @@ config DIRECT_IO_ACCESS
 	depends on (UCSIMM || UCDIMM || DRAGEN2)
 	help
 	  Disable the CPU internal registers protection in user mode,
-          to allow a user application to read/write them.
+	  to allow a user application to read/write them.
 
 config INIT_LCD
 	bool "Initialize LCD"
@@ -593,7 +593,7 @@ config EMAC_INC
 	depends on (SOM5282EM)
 
 config SNEHA
-        bool
+	bool
 	default y
 	depends on CPU16B
 
