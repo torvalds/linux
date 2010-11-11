@@ -33,7 +33,6 @@
 #include <asm/mach/arch.h>
 #include <mach/mx25.h>
 #include <mach/imx-uart.h>
-#include <mach/imxfb.h>
 #include <mach/audmux.h>
 
 #include "devices-imx25.h"
@@ -151,7 +150,7 @@ static struct imx_fb_videomode eukrea_mximxsd_modes[] = {
 	},
 };
 
-static struct imx_fb_platform_data eukrea_mximxsd_fb_pdata = {
+static const struct imx_fb_platform_data eukrea_mximxsd_fb_pdata __initconst = {
 	.mode		= eukrea_mximxsd_modes,
 	.num_modes	= ARRAY_SIZE(eukrea_mximxsd_modes),
 	.pwmr		= 0x00A903FF,
@@ -273,7 +272,7 @@ void __init eukrea_mbimxsd25_baseboard_init(void)
 #endif
 
 	imx25_add_imx_uart1(&uart_pdata);
-	mxc_register_device(&mx25_fb_device, &eukrea_mximxsd_fb_pdata);
+	imx25_add_imx_fb(&eukrea_mximxsd_fb_pdata);
 	imx25_add_imx_ssi(0, &eukrea_mbimxsd_ssi_pdata);
 
 	imx25_add_flexcan1(NULL);

@@ -39,7 +39,6 @@
 #include <asm/mach/map.h>
 #include <mach/common.h>
 #include <mach/mx25.h>
-#include <mach/imxfb.h>
 #include <mach/iomux-mx25.h>
 
 #include "devices-imx25.h"
@@ -154,7 +153,7 @@ static struct imx_fb_videomode mx25pdk_modes[] = {
 	},
 };
 
-static struct imx_fb_platform_data mx25pdk_fb_pdata = {
+static const struct imx_fb_platform_data mx25pdk_fb_pdata __initconst = {
 	.mode		= mx25pdk_modes,
 	.num_modes	= ARRAY_SIZE(mx25pdk_modes),
 	.pwmr		= 0x00A903FF,
@@ -195,7 +194,7 @@ static void __init mx25pdk_init(void)
 	imx25_add_mxc_ehci_hs(NULL);
 	imx25_add_mxc_nand(&mx25pdk_nand_board_info);
 	imx25_add_imxdi_rtc(NULL);
-	mxc_register_device(&mx25_fb_device, &mx25pdk_fb_pdata);
+	imx25_add_imx_fb(&mx25pdk_fb_pdata);
 	mxc_register_device(&mxc_wdt, NULL);
 
 	mx25pdk_fec_reset();
