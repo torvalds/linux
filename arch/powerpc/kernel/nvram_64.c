@@ -42,6 +42,7 @@ struct nvram_header {
 	unsigned char signature;
 	unsigned char checksum;
 	unsigned short length;
+	/* Terminating null required only for names < 12 chars. */
 	char name[12];
 };
 
@@ -201,7 +202,7 @@ static void __init nvram_print_partitions(char * label)
 	printk(KERN_WARNING "--------%s---------\n", label);
 	printk(KERN_WARNING "indx\t\tsig\tchks\tlen\tname\n");
 	list_for_each_entry(tmp_part, &nvram_partitions, partition) {
-		printk(KERN_WARNING "%4d    \t%02x\t%02x\t%d\t%s\n",
+		printk(KERN_WARNING "%4d    \t%02x\t%02x\t%d\t%12s\n",
 		       tmp_part->index, tmp_part->header.signature,
 		       tmp_part->header.checksum, tmp_part->header.length,
 		       tmp_part->header.name);
@@ -256,7 +257,7 @@ int __init nvram_remove_partition(const char *name, int sig)
 
 		/* Make partition a free partition */
 		part->header.signature = NVRAM_SIG_FREE;
-		sprintf(part->header.name, "wwwwwwwwwwww");
+		strncpy(part->header.name, "wwwwwwwwwwww", 12);
 		part->header.checksum = nvram_checksum(&part->header);
 		rc = nvram_write_header(part);
 		if (rc <= 0) {
