@@ -108,6 +108,7 @@ struct connection {
 #define CF_INIT_PENDING 4
 #define CF_IS_OTHERCON 5
 #define CF_CLOSE 6
+#define CF_APP_LIMITED 7
 	struct list_head writequeue;  /* List of outgoing writequeue_entries */
 	spinlock_t writequeue_lock;
 	int (*rx_action) (struct connection *);	/* What to do when active */
@@ -295,7 +296,17 @@ static void lowcomms_write_space(struct sock *sk)
 {
 	struct connection *con = sock2con(sk);
 
-	if (con && !test_and_set_bit(CF_WRITE_PENDING, &con->flags))
+	if (!con)
+		return;
+
+	clear_bit(SOCK_NOSPACE, &con->sock->flags);
+
+	if (test_and_clear_bit(CF_APP_LIMITED, &con->flags)) {
+		con->sock->sk->sk_write_pending--;
+		clear_bit(SOCK_ASYNC_NOSPACE, &con->sock->flags);
+	}
+
+	if (!test_and_set_bit(CF_WRITE_PENDING, &con->flags))
 		queue_work(send_workqueue, &con->swork);
 }
 
@@ -1319,6 +1330,15 @@ static void send_to_sock(struct connection *con)
 			ret = kernel_sendpage(con->sock, e->page, offset, len,
 					      msg_flags);
 			if (ret == -EAGAIN || ret == 0) {
+				if (ret == -EAGAIN &&
+				    test_bit(SOCK_ASYNC_NOSPACE, &con->sock->flags) &&
+				    !test_and_set_bit(CF_APP_LIMITED, &con->flags)) {
+					/* Notify TCP that we're limited by the
+					 * application window size.
+					 */
+					set_bit(SOCK_NOSPACE, &con->sock->flags);
+					con->sock->sk->sk_write_pending++;
+				}
 				cond_resched();
 				goto out;
 			}
