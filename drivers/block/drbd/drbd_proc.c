@@ -164,8 +164,8 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 	if (proc_details >= 1) {
 		/* 64 bit:
 		 * we convert to sectors in the display below. */
-		u64 bm_bits = drbd_bm_bits(mdev);
-		u64 bit_pos;
+		unsigned long bm_bits = drbd_bm_bits(mdev);
+		unsigned long bit_pos;
 		if (mdev->state.conn == C_VERIFY_S ||
 		    mdev->state.conn == C_VERIFY_T)
 			bit_pos = bm_bits - mdev->ov_left;
@@ -176,8 +176,8 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 		seq_printf(seq,
 			"\t%3d%% sector pos: %llu/%llu\n",
 			(int)(bit_pos / (bm_bits/100+1)),
-			(unsigned long long) BM_BIT_TO_SECT(bit_pos),
-			(unsigned long long) BM_BIT_TO_SECT(bm_bits));
+			(unsigned long long)bit_pos * BM_SECT_PER_BIT,
+			(unsigned long long)bm_bits * BM_SECT_PER_BIT);
 	}
 }
 
