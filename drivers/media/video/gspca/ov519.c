@@ -466,8 +466,8 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 #define OV519_R25_FORMAT		0x25
 
 /* OV519 System Controller register numbers */
-#define OV519_SYS_RESET1		0x51
-#define OV519_SYS_EN_CLK1		0x54
+#define OV519_R51_RESET1		0x51
+#define OV519_R54_EN_CLK1		0x54
 
 #define OV519_GPIO_DATA_OUT0		0x71
 #define OV519_GPIO_IO_CTRL0		0x72
@@ -527,71 +527,71 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 #define OV7610_REG_COM_I	0x29	/* misc settings */
 
 /* OV7670 registers */
-#define OV7670_REG_GAIN		0x00	/* Gain lower 8 bits (rest in vref) */
-#define OV7670_REG_BLUE		0x01	/* blue gain */
-#define OV7670_REG_RED		0x02	/* red gain */
-#define OV7670_REG_VREF		0x03	/* Pieces of GAIN, VSTART, VSTOP */
-#define OV7670_REG_COM1		0x04	/* Control 1 */
-/*#define OV7670_REG_AECHH	0x07	 * AEC MS 5 bits */
-#define OV7670_REG_COM3		0x0c	/* Control 3 */
-#define OV7670_REG_COM4		0x0d	/* Control 4 */
-#define OV7670_REG_COM5		0x0e	/* All "reserved" */
-#define OV7670_REG_COM6		0x0f	/* Control 6 */
-#define OV7670_REG_AECH		0x10	/* More bits of AEC value */
-#define OV7670_REG_CLKRC	0x11	/* Clock control */
-#define OV7670_REG_COM7		0x12	/* Control 7 */
+#define OV7670_R00_GAIN		0x00	/* Gain lower 8 bits (rest in vref) */
+#define OV7670_R01_BLUE		0x01	/* blue gain */
+#define OV7670_R02_RED		0x02	/* red gain */
+#define OV7670_R03_VREF		0x03	/* Pieces of GAIN, VSTART, VSTOP */
+#define OV7670_R04_COM1		0x04	/* Control 1 */
+/*#define OV7670_R07_AECHH	0x07	 * AEC MS 5 bits */
+#define OV7670_R0C_COM3		0x0c	/* Control 3 */
+#define OV7670_R0D_COM4		0x0d	/* Control 4 */
+#define OV7670_R0E_COM5		0x0e	/* All "reserved" */
+#define OV7670_R0F_COM6		0x0f	/* Control 6 */
+#define OV7670_R10_AECH		0x10	/* More bits of AEC value */
+#define OV7670_R11_CLKRC	0x11	/* Clock control */
+#define OV7670_R12_COM7		0x12	/* Control 7 */
 #define   OV7670_COM7_FMT_VGA	 0x00
 /*#define   OV7670_COM7_YUV	 0x00	 * YUV */
 #define   OV7670_COM7_FMT_QVGA	 0x10	/* QVGA format */
 #define   OV7670_COM7_FMT_MASK	 0x38
 #define   OV7670_COM7_RESET	 0x80	/* Register reset */
-#define OV7670_REG_COM8		0x13	/* Control 8 */
+#define OV7670_R13_COM8		0x13	/* Control 8 */
 #define   OV7670_COM8_AEC	 0x01	/* Auto exposure enable */
 #define   OV7670_COM8_AWB	 0x02	/* White balance enable */
 #define   OV7670_COM8_AGC	 0x04	/* Auto gain enable */
 #define   OV7670_COM8_BFILT	 0x20	/* Band filter enable */
 #define   OV7670_COM8_AECSTEP	 0x40	/* Unlimited AEC step size */
 #define   OV7670_COM8_FASTAEC	 0x80	/* Enable fast AGC/AEC */
-#define OV7670_REG_COM9		0x14	/* Control 9 - gain ceiling */
-#define OV7670_REG_COM10	0x15	/* Control 10 */
-#define OV7670_REG_HSTART	0x17	/* Horiz start high bits */
-#define OV7670_REG_HSTOP	0x18	/* Horiz stop high bits */
-#define OV7670_REG_VSTART	0x19	/* Vert start high bits */
-#define OV7670_REG_VSTOP	0x1a	/* Vert stop high bits */
-#define OV7670_REG_MVFP		0x1e	/* Mirror / vflip */
+#define OV7670_R14_COM9		0x14	/* Control 9 - gain ceiling */
+#define OV7670_R15_COM10	0x15	/* Control 10 */
+#define OV7670_R17_HSTART	0x17	/* Horiz start high bits */
+#define OV7670_R18_HSTOP	0x18	/* Horiz stop high bits */
+#define OV7670_R19_VSTART	0x19	/* Vert start high bits */
+#define OV7670_R1A_VSTOP	0x1a	/* Vert stop high bits */
+#define OV7670_R1E_MVFP		0x1e	/* Mirror / vflip */
 #define   OV7670_MVFP_VFLIP	 0x10	/* vertical flip */
 #define   OV7670_MVFP_MIRROR	 0x20	/* Mirror image */
-#define OV7670_REG_AEW		0x24	/* AGC upper limit */
-#define OV7670_REG_AEB		0x25	/* AGC lower limit */
-#define OV7670_REG_VPT		0x26	/* AGC/AEC fast mode op region */
-#define OV7670_REG_HREF		0x32	/* HREF pieces */
-#define OV7670_REG_TSLB		0x3a	/* lots of stuff */
-#define OV7670_REG_COM11	0x3b	/* Control 11 */
+#define OV7670_R24_AEW		0x24	/* AGC upper limit */
+#define OV7670_R25_AEB		0x25	/* AGC lower limit */
+#define OV7670_R26_VPT		0x26	/* AGC/AEC fast mode op region */
+#define OV7670_R32_HREF		0x32	/* HREF pieces */
+#define OV7670_R3A_TSLB		0x3a	/* lots of stuff */
+#define OV7670_R3B_COM11	0x3b	/* Control 11 */
 #define   OV7670_COM11_EXP	 0x02
 #define   OV7670_COM11_HZAUTO	 0x10	/* Auto detect 50/60 Hz */
-#define OV7670_REG_COM12	0x3c	/* Control 12 */
-#define OV7670_REG_COM13	0x3d	/* Control 13 */
+#define OV7670_R3C_COM12	0x3c	/* Control 12 */
+#define OV7670_R3D_COM13	0x3d	/* Control 13 */
 #define   OV7670_COM13_GAMMA	 0x80	/* Gamma enable */
 #define   OV7670_COM13_UVSAT	 0x40	/* UV saturation auto adjustment */
-#define OV7670_REG_COM14	0x3e	/* Control 14 */
-#define OV7670_REG_EDGE		0x3f	/* Edge enhancement factor */
-#define OV7670_REG_COM15	0x40	/* Control 15 */
+#define OV7670_R3E_COM14	0x3e	/* Control 14 */
+#define OV7670_R3F_EDGE		0x3f	/* Edge enhancement factor */
+#define OV7670_R40_COM15	0x40	/* Control 15 */
 /*#define   OV7670_COM15_R00FF	 0xc0	 *	00 to FF */
-#define OV7670_REG_COM16	0x41	/* Control 16 */
+#define OV7670_R41_COM16	0x41	/* Control 16 */
 #define   OV7670_COM16_AWBGAIN	 0x08	/* AWB gain enable */
-#define OV7670_REG_BRIGHT	0x55	/* Brightness */
-#define OV7670_REG_CONTRAS	0x56	/* Contrast control */
-#define OV7670_REG_GFIX		0x69	/* Fix gain control */
-#define OV7670_REG_RGB444	0x8c	/* RGB 444 control */
-#define OV7670_REG_HAECC1	0x9f	/* Hist AEC/AGC control 1 */
-#define OV7670_REG_HAECC2	0xa0	/* Hist AEC/AGC control 2 */
-#define OV7670_REG_BD50MAX	0xa5	/* 50hz banding step limit */
-#define OV7670_REG_HAECC3	0xa6	/* Hist AEC/AGC control 3 */
-#define OV7670_REG_HAECC4	0xa7	/* Hist AEC/AGC control 4 */
-#define OV7670_REG_HAECC5	0xa8	/* Hist AEC/AGC control 5 */
-#define OV7670_REG_HAECC6	0xa9	/* Hist AEC/AGC control 6 */
-#define OV7670_REG_HAECC7	0xaa	/* Hist AEC/AGC control 7 */
-#define OV7670_REG_BD60MAX	0xab	/* 60hz banding step limit */
+#define OV7670_R55_BRIGHT	0x55	/* Brightness */
+#define OV7670_R56_CONTRAS	0x56	/* Contrast control */
+#define OV7670_R69_GFIX		0x69	/* Fix gain control */
+/*#define OV7670_R8C_RGB444	0x8c	 * RGB 444 control */
+#define OV7670_R9F_HAECC1	0x9f	/* Hist AEC/AGC control 1 */
+#define OV7670_RA0_HAECC2	0xa0	/* Hist AEC/AGC control 2 */
+#define OV7670_RA5_BD50MAX	0xa5	/* 50hz banding step limit */
+#define OV7670_RA6_HAECC3	0xa6	/* Hist AEC/AGC control 3 */
+#define OV7670_RA7_HAECC4	0xa7	/* Hist AEC/AGC control 4 */
+#define OV7670_RA8_HAECC5	0xa8	/* Hist AEC/AGC control 5 */
+#define OV7670_RA9_HAECC6	0xa9	/* Hist AEC/AGC control 6 */
+#define OV7670_RAA_HAECC7	0xaa	/* Hist AEC/AGC control 7 */
+#define OV7670_RAB_BD60MAX	0xab	/* 60hz banding step limit */
 
 struct ov_regvals {
 	u8 reg;
@@ -1463,7 +1463,7 @@ static const struct ov_i2c_regvals norm_7620[] = {
 	{ 0x00, 0x00 },		/* gain */
 	{ 0x01, 0x80 },		/* blue gain */
 	{ 0x02, 0x80 },		/* red gain */
-	{ 0x03, 0xc0 },		/* OV7670_REG_VREF */
+	{ 0x03, 0xc0 },		/* OV7670_R03_VREF */
 	{ 0x06, 0x60 },
 	{ 0x07, 0x00 },
 	{ 0x0c, 0x24 },
@@ -1534,30 +1534,30 @@ static const struct ov_i2c_regvals norm_7640[] = {
 /* 7670. Defaults taken from OmniVision provided data,
 *  as provided by Jonathan Corbet of OLPC		*/
 static const struct ov_i2c_regvals norm_7670[] = {
-	{ OV7670_REG_COM7, OV7670_COM7_RESET },
-	{ OV7670_REG_TSLB, 0x04 },		/* OV */
-	{ OV7670_REG_COM7, OV7670_COM7_FMT_VGA }, /* VGA */
-	{ OV7670_REG_CLKRC, 0x01 },
+	{ OV7670_R12_COM7, OV7670_COM7_RESET },
+	{ OV7670_R3A_TSLB, 0x04 },		/* OV */
+	{ OV7670_R12_COM7, OV7670_COM7_FMT_VGA }, /* VGA */
+	{ OV7670_R11_CLKRC, 0x01 },
 /*
  * Set the hardware window.  These values from OV don't entirely
  * make sense - hstop is less than hstart.  But they work...
  */
-	{ OV7670_REG_HSTART, 0x13 },
-	{ OV7670_REG_HSTOP, 0x01 },
-	{ OV7670_REG_HREF, 0xb6 },
-	{ OV7670_REG_VSTART, 0x02 },
-	{ OV7670_REG_VSTOP, 0x7a },
-	{ OV7670_REG_VREF, 0x0a },
+	{ OV7670_R17_HSTART, 0x13 },
+	{ OV7670_R18_HSTOP, 0x01 },
+	{ OV7670_R32_HREF, 0xb6 },
+	{ OV7670_R19_VSTART, 0x02 },
+	{ OV7670_R1A_VSTOP, 0x7a },
+	{ OV7670_R03_VREF, 0x0a },
 
-	{ OV7670_REG_COM3, 0x00 },
-	{ OV7670_REG_COM14, 0x00 },
+	{ OV7670_R0C_COM3, 0x00 },
+	{ OV7670_R3E_COM14, 0x00 },
 /* Mystery scaling numbers */
 	{ 0x70, 0x3a },
 	{ 0x71, 0x35 },
 	{ 0x72, 0x11 },
 	{ 0x73, 0xf0 },
 	{ 0xa2, 0x02 },
-/*	{ OV7670_REG_COM10, 0x0 }, */
+/*	{ OV7670_R15_COM10, 0x0 }, */
 
 /* Gamma curve values */
 	{ 0x7a, 0x20 },
@@ -1579,37 +1579,37 @@ static const struct ov_i2c_regvals norm_7670[] = {
 
 /* AGC and AEC parameters.  Note we start by disabling those features,
    then turn them only after tweaking the values. */
-	{ OV7670_REG_COM8, OV7670_COM8_FASTAEC
+	{ OV7670_R13_COM8, OV7670_COM8_FASTAEC
 			 | OV7670_COM8_AECSTEP
 			 | OV7670_COM8_BFILT },
-	{ OV7670_REG_GAIN, 0x00 },
-	{ OV7670_REG_AECH, 0x00 },
-	{ OV7670_REG_COM4, 0x40 }, /* magic reserved bit */
-	{ OV7670_REG_COM9, 0x18 }, /* 4x gain + magic rsvd bit */
-	{ OV7670_REG_BD50MAX, 0x05 },
-	{ OV7670_REG_BD60MAX, 0x07 },
-	{ OV7670_REG_AEW, 0x95 },
-	{ OV7670_REG_AEB, 0x33 },
-	{ OV7670_REG_VPT, 0xe3 },
-	{ OV7670_REG_HAECC1, 0x78 },
-	{ OV7670_REG_HAECC2, 0x68 },
+	{ OV7670_R00_GAIN, 0x00 },
+	{ OV7670_R10_AECH, 0x00 },
+	{ OV7670_R0D_COM4, 0x40 }, /* magic reserved bit */
+	{ OV7670_R14_COM9, 0x18 }, /* 4x gain + magic rsvd bit */
+	{ OV7670_RA5_BD50MAX, 0x05 },
+	{ OV7670_RAB_BD60MAX, 0x07 },
+	{ OV7670_R24_AEW, 0x95 },
+	{ OV7670_R25_AEB, 0x33 },
+	{ OV7670_R26_VPT, 0xe3 },
+	{ OV7670_R9F_HAECC1, 0x78 },
+	{ OV7670_RA0_HAECC2, 0x68 },
 	{ 0xa1, 0x03 }, /* magic */
-	{ OV7670_REG_HAECC3, 0xd8 },
-	{ OV7670_REG_HAECC4, 0xd8 },
-	{ OV7670_REG_HAECC5, 0xf0 },
-	{ OV7670_REG_HAECC6, 0x90 },
-	{ OV7670_REG_HAECC7, 0x94 },
-	{ OV7670_REG_COM8, OV7670_COM8_FASTAEC
+	{ OV7670_RA6_HAECC3, 0xd8 },
+	{ OV7670_RA7_HAECC4, 0xd8 },
+	{ OV7670_RA8_HAECC5, 0xf0 },
+	{ OV7670_RA9_HAECC6, 0x90 },
+	{ OV7670_RAA_HAECC7, 0x94 },
+	{ OV7670_R13_COM8, OV7670_COM8_FASTAEC
 			| OV7670_COM8_AECSTEP
 			| OV7670_COM8_BFILT
 			| OV7670_COM8_AGC
 			| OV7670_COM8_AEC },
 
 /* Almost all of these are magic "reserved" values.  */
-	{ OV7670_REG_COM5, 0x61 },
-	{ OV7670_REG_COM6, 0x4b },
+	{ OV7670_R0E_COM5, 0x61 },
+	{ OV7670_R0F_COM6, 0x4b },
 	{ 0x16, 0x02 },
-	{ OV7670_REG_MVFP, 0x07 },
+	{ OV7670_R1E_MVFP, 0x07 },
 	{ 0x21, 0x02 },
 	{ 0x22, 0x91 },
 	{ 0x29, 0x07 },
@@ -1618,10 +1618,10 @@ static const struct ov_i2c_regvals norm_7670[] = {
 	{ 0x37, 0x1d },
 	{ 0x38, 0x71 },
 	{ 0x39, 0x2a },
-	{ OV7670_REG_COM12, 0x78 },
+	{ OV7670_R3C_COM12, 0x78 },
 	{ 0x4d, 0x40 },
 	{ 0x4e, 0x20 },
-	{ OV7670_REG_GFIX, 0x00 },
+	{ OV7670_R69_GFIX, 0x00 },
 	{ 0x6b, 0x4a },
 	{ 0x74, 0x10 },
 	{ 0x8d, 0x4f },
@@ -1656,9 +1656,9 @@ static const struct ov_i2c_regvals norm_7670[] = {
 	{ 0x6f, 0x9f },
 					/* "9e for advance AWB" */
 	{ 0x6a, 0x40 },
-	{ OV7670_REG_BLUE, 0x40 },
-	{ OV7670_REG_RED, 0x60 },
-	{ OV7670_REG_COM8, OV7670_COM8_FASTAEC
+	{ OV7670_R01_BLUE, 0x40 },
+	{ OV7670_R02_RED, 0x60 },
+	{ OV7670_R13_COM8, OV7670_COM8_FASTAEC
 			| OV7670_COM8_AECSTEP
 			| OV7670_COM8_BFILT
 			| OV7670_COM8_AGC
@@ -1674,22 +1674,22 @@ static const struct ov_i2c_regvals norm_7670[] = {
 	{ 0x54, 0x80 },
 	{ 0x58, 0x9e },
 
-	{ OV7670_REG_COM16, OV7670_COM16_AWBGAIN },
-	{ OV7670_REG_EDGE, 0x00 },
+	{ OV7670_R41_COM16, OV7670_COM16_AWBGAIN },
+	{ OV7670_R3F_EDGE, 0x00 },
 	{ 0x75, 0x05 },
 	{ 0x76, 0xe1 },
 	{ 0x4c, 0x00 },
 	{ 0x77, 0x01 },
-	{ OV7670_REG_COM13, OV7670_COM13_GAMMA
+	{ OV7670_R3D_COM13, OV7670_COM13_GAMMA
 			  | OV7670_COM13_UVSAT
 			  | 2},		/* was 3 */
 	{ 0x4b, 0x09 },
 	{ 0xc9, 0x60 },
-	{ OV7670_REG_COM16, 0x38 },
+	{ OV7670_R41_COM16, 0x38 },
 	{ 0x56, 0x40 },
 
 	{ 0x34, 0x11 },
-	{ OV7670_REG_COM11, OV7670_COM11_EXP|OV7670_COM11_HZAUTO },
+	{ OV7670_R3B_COM11, OV7670_COM11_EXP|OV7670_COM11_HZAUTO },
 	{ 0xa4, 0x88 },
 	{ 0x96, 0x00 },
 	{ 0x97, 0x30 },
@@ -2290,7 +2290,7 @@ static inline int ov51x_stop(struct sd *sd)
 	case BRIDGE_OV518PLUS:
 		return reg_w_mask(sd, R51x_SYS_RESET, 0x3a, 0x3a);
 	case BRIDGE_OV519:
-		return reg_w(sd, OV519_SYS_RESET1, 0x0f);
+		return reg_w(sd, OV519_R51_RESET1, 0x0f);
 	case BRIDGE_OVFX2:
 		return reg_w_mask(sd, 0x0f, 0x00, 0x02);
 	case BRIDGE_W9968CF:
@@ -2323,7 +2323,7 @@ static inline int ov51x_restart(struct sd *sd)
 			return rc;
 		return reg_w(sd, R51x_SYS_RESET, 0x00);
 	case BRIDGE_OV519:
-		return reg_w(sd, OV519_SYS_RESET1, 0x00);
+		return reg_w(sd, OV519_R51_RESET1, 0x00);
 	case BRIDGE_OVFX2:
 		return reg_w_mask(sd, 0x0f, 0x02, 0x02);
 	case BRIDGE_W9968CF:
@@ -2932,15 +2932,15 @@ static int ov519_configure(struct sd *sd)
 	static const struct ov_regvals init_519[] = {
 		{ 0x5a, 0x6d }, /* EnableSystem */
 		{ 0x53, 0x9b },
-		{ 0x54, 0xff }, /* set bit2 to enable jpeg */
+		{ OV519_R54_EN_CLK1, 0xff }, /* set bit2 to enable jpeg */
 		{ 0x5d, 0x03 },
 		{ 0x49, 0x01 },
 		{ 0x48, 0x00 },
 		/* Set LED pin to output mode. Bit 4 must be cleared or sensor
 		 * detection will fail. This deserves further investigation. */
 		{ OV519_GPIO_IO_CTRL0,   0xee },
-		{ 0x51, 0x0f }, /* SetUsbInit */
-		{ 0x51, 0x00 },
+		{ OV519_R51_RESET1, 0x0f },
+		{ OV519_R51_RESET1, 0x00 },
 		{ 0x22, 0x00 },
 		/* windows reads 0x55 at this point*/
 	};
@@ -3444,7 +3444,7 @@ static int ov519_mode_init_regs(struct sd *sd)
 	static const struct ov_regvals mode_init_519_ov7670[] = {
 		{ 0x5d,	0x03 }, /* Turn off suspend mode */
 		{ 0x53,	0x9f }, /* was 9b in 1.65-1.08 */
-		{ 0x54,	0x0f }, /* bit2 (jpeg enable) */
+		{ OV519_R54_EN_CLK1, 0x0f }, /* bit2 (jpeg enable) */
 		{ 0xa2,	0x20 }, /* a2-a5 are undocumented */
 		{ 0xa3,	0x18 },
 		{ 0xa4,	0x04 },
@@ -3467,7 +3467,7 @@ static int ov519_mode_init_regs(struct sd *sd)
 	static const struct ov_regvals mode_init_519[] = {
 		{ 0x5d,	0x03 }, /* Turn off suspend mode */
 		{ 0x53,	0x9f }, /* was 9b in 1.65-1.08 */
-		{ 0x54,	0x0f }, /* bit2 (jpeg enable) */
+		{ OV519_R54_EN_CLK1, 0x0f }, /* bit2 (jpeg enable) */
 		{ 0xa2,	0x20 }, /* a2-a5 are undocumented */
 		{ 0xa3,	0x18 },
 		{ 0xa4,	0x04 },
@@ -3687,11 +3687,11 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 		/* set COM7_FMT_VGA or COM7_FMT_QVGA
 		 * do we need to set anything else?
 		 *	HSTART etc are set in set_ov_sensor_window itself */
-		i2c_w_mask(sd, OV7670_REG_COM7,
+		i2c_w_mask(sd, OV7670_R12_COM7,
 			 qvga ? OV7670_COM7_FMT_QVGA : OV7670_COM7_FMT_VGA,
 			 OV7670_COM7_FMT_MASK);
 		i2c_w_mask(sd, 0x13, 0x00, 0x20); /* Select 16 bit data bus */
-		i2c_w_mask(sd, OV7670_REG_COM8, OV7670_COM8_AWB,
+		i2c_w_mask(sd, OV7670_R13_COM8, OV7670_COM8_AWB,
 				OV7670_COM8_AWB);
 		if (qvga) {		/* QVGA from ov7670.c by
 					 * Jonathan Corbet */
@@ -3707,21 +3707,21 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 		}
 		/* OV7670 hardware window registers are split across
 		 * multiple locations */
-		i2c_w(sd, OV7670_REG_HSTART, xstart >> 3);
-		i2c_w(sd, OV7670_REG_HSTOP, xend >> 3);
-		v = i2c_r(sd, OV7670_REG_HREF);
+		i2c_w(sd, OV7670_R17_HSTART, xstart >> 3);
+		i2c_w(sd, OV7670_R18_HSTOP, xend >> 3);
+		v = i2c_r(sd, OV7670_R32_HREF);
 		v = (v & 0xc0) | ((xend & 0x7) << 3) | (xstart & 0x07);
 		msleep(10);	/* need to sleep between read and write to
 				 * same reg! */
-		i2c_w(sd, OV7670_REG_HREF, v);
+		i2c_w(sd, OV7670_R32_HREF, v);
 
-		i2c_w(sd, OV7670_REG_VSTART, ystart >> 2);
-		i2c_w(sd, OV7670_REG_VSTOP, yend >> 2);
-		v = i2c_r(sd, OV7670_REG_VREF);
+		i2c_w(sd, OV7670_R19_VSTART, ystart >> 2);
+		i2c_w(sd, OV7670_R1A_VSTOP, yend >> 2);
+		v = i2c_r(sd, OV7670_R03_VREF);
 		v = (v & 0xc0) | ((yend & 0x3) << 2) | (ystart & 0x03);
 		msleep(10);	/* need to sleep between read and write to
 				 * same reg! */
-		i2c_w(sd, OV7670_REG_VREF, v);
+		i2c_w(sd, OV7670_R03_VREF, v);
 		break;
 	case SEN_OV6620:
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
@@ -3751,7 +3751,7 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 		return;
 	if (sd->gspca_dev.streaming)
 		ov51x_stop(sd);
-	i2c_w_mask(sd, OV7670_REG_MVFP,
+	i2c_w_mask(sd, OV7670_R1E_MVFP,
 		OV7670_MVFP_MIRROR * sd->ctrls[HFLIP].val
 			| OV7670_MVFP_VFLIP * sd->ctrls[VFLIP].val,
 		OV7670_MVFP_MIRROR | OV7670_MVFP_VFLIP);
@@ -4191,8 +4191,8 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		break;
 	case SEN_OV7670:
 /*win trace
- *		i2c_w_mask(sd, OV7670_REG_COM8, 0, OV7670_COM8_AEC); */
-		i2c_w(sd, OV7670_REG_BRIGHT, ov7670_abs_to_sm(val));
+ *		i2c_w_mask(sd, OV7670_R13_COM8, 0, OV7670_COM8_AEC); */
+		i2c_w(sd, OV7670_R55_BRIGHT, ov7670_abs_to_sm(val));
 		break;
 	}
 }
@@ -4234,7 +4234,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	    }
 	case SEN_OV7670:
 		/* check that this isn't just the same as ov7610 */
-		i2c_w(sd, OV7670_REG_CONTRAS, val >> 1);
+		i2c_w(sd, OV7670_R56_CONTRAS, val >> 1);
 		break;
 	}
 }
@@ -4294,22 +4294,22 @@ static void setfreq_i(struct sd *sd)
 	if (sd->sensor == SEN_OV7670) {
 		switch (sd->ctrls[FREQ].val) {
 		case 0: /* Banding filter disabled */
-			i2c_w_mask(sd, OV7670_REG_COM8, 0, OV7670_COM8_BFILT);
+			i2c_w_mask(sd, OV7670_R13_COM8, 0, OV7670_COM8_BFILT);
 			break;
 		case 1: /* 50 hz */
-			i2c_w_mask(sd, OV7670_REG_COM8, OV7670_COM8_BFILT,
+			i2c_w_mask(sd, OV7670_R13_COM8, OV7670_COM8_BFILT,
 				   OV7670_COM8_BFILT);
-			i2c_w_mask(sd, OV7670_REG_COM11, 0x08, 0x18);
+			i2c_w_mask(sd, OV7670_R3B_COM11, 0x08, 0x18);
 			break;
 		case 2: /* 60 hz */
-			i2c_w_mask(sd, OV7670_REG_COM8, OV7670_COM8_BFILT,
+			i2c_w_mask(sd, OV7670_R13_COM8, OV7670_COM8_BFILT,
 				   OV7670_COM8_BFILT);
-			i2c_w_mask(sd, OV7670_REG_COM11, 0x00, 0x18);
+			i2c_w_mask(sd, OV7670_R3B_COM11, 0x00, 0x18);
 			break;
-		case 3: /* Auto hz */
-			i2c_w_mask(sd, OV7670_REG_COM8, OV7670_COM8_BFILT,
+		case 3: /* Auto hz - ov7670 only */
+			i2c_w_mask(sd, OV7670_R13_COM8, OV7670_COM8_BFILT,
 				   OV7670_COM8_BFILT);
-			i2c_w_mask(sd, OV7670_REG_COM11, OV7670_COM11_HZAUTO,
+			i2c_w_mask(sd, OV7670_R3B_COM11, OV7670_COM11_HZAUTO,
 				   0x18);
 			break;
 		}
