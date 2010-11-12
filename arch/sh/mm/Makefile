@@ -42,6 +42,8 @@ obj-$(CONFIG_IOREMAP_FIXED)	+= ioremap_fixed.o
 obj-$(CONFIG_UNCACHED_MAPPING)	+= uncached.o
 obj-$(CONFIG_HAVE_SRAM_POOL)	+= sram.o
 
+GCOV_PROFILE_pmb.o := n
+
 # Special flags for fault_64.o.  This puts restrictions on the number of
 # caller-save registers that the compiler can target when building this file.
 # This is required because the code is called from a context in entry.S where
