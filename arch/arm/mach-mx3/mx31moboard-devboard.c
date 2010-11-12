@@ -18,7 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/fsl_devices.h>
 
 #include <linux/usb/otg.h>
 
@@ -210,7 +209,7 @@ static int __init devboard_usbh1_init(void)
 }
 
 
-static struct fsl_usb2_platform_data usb_pdata = {
+static const struct fsl_usb2_platform_data usb_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
@@ -231,7 +230,7 @@ void __init mx31moboard_devboard_init(void)
 
 	devboard_init_sel_gpios();
 
-	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
+	imx31_add_fsl_usb2_udc(&usb_pdata);
 
 	devboard_usbh1_init();
 }

@@ -9,6 +9,10 @@
 #include <mach/mx31.h>
 #include <mach/devices-common.h>
 
+extern const struct imx_fsl_usb2_udc_data imx31_fsl_usb2_udc_data __initconst;
+#define imx31_add_fsl_usb2_udc(pdata)	\
+	imx_add_fsl_usb2_udc(&imx31_fsl_usb2_udc_data, pdata)
+
 extern const struct imx_imx_i2c_data imx31_imx_i2c_data[] __initconst;
 #define imx31_add_imx_i2c(id, pdata)	\
 	imx_add_imx_i2c(&imx31_imx_i2c_data[id], pdata)

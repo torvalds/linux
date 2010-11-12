@@ -65,8 +65,14 @@
 #define MX35_CAN2_BASE_ADDR			(MX35_AIPS2_BASE_ADDR + 0xe8000)
 #define MX35_RTIC_BASE_ADDR			(MX35_AIPS2_BASE_ADDR + 0xec000)
 #define MX35_IIM_BASE_ADDR			(MX35_AIPS2_BASE_ADDR + 0xf0000)
-
-#define MX35_OTG_BASE_ADDR		0x53ff4000
+#define MX35_USB_BASE_ADDR			(MX35_AIPS2_BASE_ADDR + 0xf4000)
+#define MX35_USB_OTG_BASE_ADDR			(MX35_USB_BASE_ADDR + 0x0000)
+/*
+ * The Reference Manual (IMX35RM, Rev. 2, 3/2009) claims an offset of 0x200 for
+ * HS.  When host support was implemented only a preliminary document was
+ * available, which told 0x400.  This works fine.
+ */
+#define MX35_USB_HS_BASE_ADDR			(MX35_USB_BASE_ADDR + 0x0400)
 
 #define MX35_ROMP_BASE_ADDR		0x60000000
 #define MX35_ROMP_SIZE			SZ_1M
@@ -143,8 +149,8 @@
 #define MX35_INT_UART2		32
 #define MX35_INT_NFC		33
 #define MX35_INT_SDMA		34
-#define MX35_INT_USBHS		35
-#define MX35_INT_USBOTG		37
+#define MX35_INT_USB_HS		35
+#define MX35_INT_USB_OTG	37
 #define MX35_INT_MSHC1		39
 #define MX35_INT_ESAI		40
 #define MX35_INT_IPU_ERR	41

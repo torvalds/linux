@@ -30,7 +30,6 @@
 #include <linux/i2c/tsc2007.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
-#include <linux/fsl_devices.h>
 #include <linux/i2c-gpio.h>
 
 #include <asm/mach-types.h>
@@ -128,7 +127,7 @@ static struct mxc_usbh_platform_data __maybe_unused usbh1_pdata = {
 		  MXC_EHCI_IPPUE_DOWN,
 };
 
-static struct fsl_usb2_platform_data otg_device_pdata = {
+static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI,
 	.workaround	= FLS_USB2_WORKAROUND_ENGCM09152,
@@ -170,7 +169,7 @@ static void __init mxc_board_init(void)
 	if (otg_mode_host)
 		mxc_register_device(&mxc_otg_host, &otg_pdata);
 	else
-		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
+		imx35_add_fsl_usb2_udc(&otg_device_pdata);
 
 	mxc_register_device(&mxc_usbh1, &usbh1_pdata);
 

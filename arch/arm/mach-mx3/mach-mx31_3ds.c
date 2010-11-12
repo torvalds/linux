@@ -22,7 +22,6 @@
 #include <linux/mfd/mc13783.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/machine.h>
-#include <linux/fsl_devices.h>
 #include <linux/input/matrix_keypad.h>
 
 #include <mach/hardware.h>
@@ -214,7 +213,7 @@ usbotg_free_reset:
 	return err;
 }
 
-static struct fsl_usb2_platform_data usbotg_pdata = {
+static const struct fsl_usb2_platform_data usbotg_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
@@ -249,7 +248,7 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&imx_kpp_device, &mx31_3ds_keymap_data);
 
 	mx31_3ds_usbotg_init();
-	mxc_register_device(&mxc_otg_udc_device, &usbotg_pdata);
+	imx31_add_fsl_usb2_udc(&usbotg_pdata);
 
 	if (mxc_expio_init(MX31_CS5_BASE_ADDR, EXPIO_PARENT_INT))
 		printk(KERN_WARNING "Init of the debug board failed, all "

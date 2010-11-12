@@ -19,7 +19,6 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
-#include <linux/fsl_devices.h>
 
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
@@ -119,7 +118,7 @@ static int __init smartbot_cam_init(void)
 	return 0;
 }
 
-static struct fsl_usb2_platform_data usb_pdata = {
+static const struct fsl_usb2_platform_data usb_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
@@ -183,7 +182,7 @@ void __init mx31moboard_smartbot_init(int board)
 
 	switch (board) {
 	case MX31SMARTBOT:
-		mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
+		imx31_add_fsl_usb2_udc(&usb_pdata);
 		break;
 	case MX31EYEBOT:
 		smartbot_otg_host_init();

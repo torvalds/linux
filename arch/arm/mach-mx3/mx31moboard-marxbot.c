@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
-#include <linux/fsl_devices.h>
 
 #include <linux/usb/otg.h>
 
@@ -326,7 +325,7 @@ static int __init marxbot_usbh1_init(void)
 	return mxc_register_device(&mxc_usbh1, &usbh1_pdata);
 }
 
-static struct fsl_usb2_platform_data usb_pdata = {
+static const struct fsl_usb2_platform_data usb_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
@@ -358,7 +357,7 @@ void __init mx31moboard_marxbot_init(void)
 	gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_LCS0));
 	gpio_export(IOMUX_TO_GPIO(MX31_PIN_LCS0), false);
 
-	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
+	imx31_add_fsl_usb2_udc(&usb_pdata);
 
 	marxbot_usbh1_init();
 }

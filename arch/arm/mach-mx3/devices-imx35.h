@@ -13,6 +13,10 @@ extern const struct imx_fec_data imx35_fec_data __initconst;
 #define imx35_add_fec(pdata)	\
 	imx_add_fec(&imx35_fec_data, pdata)
 
+extern const struct imx_fsl_usb2_udc_data imx35_fsl_usb2_udc_data __initconst;
+#define imx35_add_fsl_usb2_udc(pdata)	\
+	imx_add_fsl_usb2_udc(&imx35_fsl_usb2_udc_data, pdata)
+
 extern const struct imx_flexcan_data imx35_flexcan_data[] __initconst;
 #define imx35_add_flexcan(id, pdata)	\
 	imx_add_flexcan(&imx35_flexcan_data[id], pdata)
