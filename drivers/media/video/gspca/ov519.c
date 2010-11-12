@@ -2639,14 +2639,14 @@ static void ov51x_led_control(struct sd *sd, int on)
 	switch (sd->bridge) {
 	/* OV511 has no LED control */
 	case BRIDGE_OV511PLUS:
-		reg_w(sd, R511_SYS_LED_CTL, on ? 1 : 0);
+		reg_w(sd, R511_SYS_LED_CTL, on);
 		break;
 	case BRIDGE_OV518:
 	case BRIDGE_OV518PLUS:
-		reg_w_mask(sd, R518_GPIO_OUT, on ? 0x02 : 0x00, 0x02);
+		reg_w_mask(sd, R518_GPIO_OUT, 0x02 * on, 0x02);
 		break;
 	case BRIDGE_OV519:
-		reg_w_mask(sd, OV519_GPIO_DATA_OUT0, !on, 1);	/* 0 / 1 */
+		reg_w_mask(sd, OV519_GPIO_DATA_OUT0, on, 1);
 		break;
 	}
 }
@@ -2938,7 +2938,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam = &gspca_dev->cam;
 
 	sd->bridge = id->driver_info & BRIDGE_MASK;
-	sd->invert_led = id->driver_info & BRIDGE_INVERT_LED;
+	sd->invert_led = (id->driver_info & BRIDGE_INVERT_LED) != 0;
 
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
