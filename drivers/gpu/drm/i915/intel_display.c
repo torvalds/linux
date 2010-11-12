@@ -1434,7 +1434,7 @@ out_disable:
 int
 intel_pin_and_fence_fb_obj(struct drm_device *dev,
 			   struct drm_i915_gem_object *obj,
-			   bool pipelined)
+			   struct intel_ring_buffer *pipelined)
 {
 	u32 alignment;
 	int ret;
@@ -1594,7 +1594,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	mutex_lock(&dev->struct_mutex);
 	ret = intel_pin_and_fence_fb_obj(dev,
 					 to_intel_framebuffer(crtc->fb)->obj,
-					 false);
+					 NULL);
 	if (ret != 0) {
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
@@ -5092,7 +5092,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	obj = intel_fb->obj;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = intel_pin_and_fence_fb_obj(dev, obj, true);
+	ret = intel_pin_and_fence_fb_obj(dev, obj, &dev_priv->render_ring);
 	if (ret)
 		goto cleanup_work;
 
