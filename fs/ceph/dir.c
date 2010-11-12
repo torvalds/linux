@@ -336,7 +336,10 @@ more:
 		if (req->r_reply_info.dir_end) {
 			kfree(fi->last_name);
 			fi->last_name = NULL;
-			fi->next_offset = 2;
+			if (ceph_frag_is_rightmost(frag))
+				fi->next_offset = 2;
+			else
+				fi->next_offset = 0;
 		} else {
 			rinfo = &req->r_reply_info;
 			err = note_last_dentry(fi,
