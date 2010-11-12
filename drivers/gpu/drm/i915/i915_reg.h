@@ -164,7 +164,13 @@
 #define   MI_MEM_VIRTUAL	(1 << 22) /* 965+ only */
 #define MI_STORE_DWORD_INDEX	MI_INSTR(0x21, 1)
 #define   MI_STORE_DWORD_INDEX_SHIFT 2
-#define MI_LOAD_REGISTER_IMM	MI_INSTR(0x22, 1)
+/* Official intel docs are somewhat sloppy concerning MI_LOAD_REGISTER_IMM:
+ * - Always issue a MI_NOOP _before_ the MI_LOAD_REGISTER_IMM - otherwise hw
+ *   simply ignores the register load under certain conditions.
+ * - One can actually load arbitrary many arbitrary registers: Simply issue x
+ *   address/value pairs. Don't overdue it, though, x <= 2^4 must hold!
+ */
+#define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*x-1)
 #define MI_FLUSH_DW		MI_INSTR(0x26, 2) /* for GEN6 */
 #define MI_BATCH_BUFFER		MI_INSTR(0x30, 1)
 #define   MI_BATCH_NON_SECURE	(1)

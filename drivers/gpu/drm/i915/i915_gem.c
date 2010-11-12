@@ -2322,7 +2322,8 @@ i915_gpu_idle(struct drm_device *dev)
 	return 0;
 }
 
-static void sandybridge_write_fence_reg(struct drm_i915_gem_object *obj)
+static int sandybridge_write_fence_reg(struct drm_i915_gem_object *obj,
+				       struct intel_ring_buffer *pipelined)
 {
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -2331,7 +2332,7 @@ static void sandybridge_write_fence_reg(struct drm_i915_gem_object *obj)
 	uint64_t val;
 
 	val = (uint64_t)((obj->gtt_offset + size - 4096) &
-		    0xfffff000) << 32;
+			 0xfffff000) << 32;
 	val |= obj->gtt_offset & 0xfffff000;
 	val |= (uint64_t)((obj->stride / 128) - 1) <<
 		SANDYBRIDGE_FENCE_PITCH_SHIFT;
@@ -2340,10 +2341,26 @@ static void sandybridge_write_fence_reg(struct drm_i915_gem_object *obj)
 		val |= 1 << I965_FENCE_TILING_Y_SHIFT;
 	val |= I965_FENCE_REG_VALID;
 
-	I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + (regnum * 8), val);
+	if (pipelined) {
+		int ret = intel_ring_begin(pipelined, 6);
+		if (ret)
+			return ret;
+
+		intel_ring_emit(pipelined, MI_NOOP);
+		intel_ring_emit(pipelined, MI_LOAD_REGISTER_IMM(2));
+		intel_ring_emit(pipelined, FENCE_REG_SANDYBRIDGE_0 + regnum*8);
+		intel_ring_emit(pipelined, (u32)val);
+		intel_ring_emit(pipelined, FENCE_REG_SANDYBRIDGE_0 + regnum*8 + 4);
+		intel_ring_emit(pipelined, (u32)(val >> 32));
+		intel_ring_advance(pipelined);
+	} else
+		I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + regnum * 8, val);
+
+	return 0;
 }
 
-static void i965_write_fence_reg(struct drm_i915_gem_object *obj)
+static int i965_write_fence_reg(struct drm_i915_gem_object *obj,
+				struct intel_ring_buffer *pipelined)
 {
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -2359,27 +2376,41 @@ static void i965_write_fence_reg(struct drm_i915_gem_object *obj)
 		val |= 1 << I965_FENCE_TILING_Y_SHIFT;
 	val |= I965_FENCE_REG_VALID;
 
-	I915_WRITE64(FENCE_REG_965_0 + (regnum * 8), val);
+	if (pipelined) {
+		int ret = intel_ring_begin(pipelined, 6);
+		if (ret)
+			return ret;
+
+		intel_ring_emit(pipelined, MI_NOOP);
+		intel_ring_emit(pipelined, MI_LOAD_REGISTER_IMM(2));
+		intel_ring_emit(pipelined, FENCE_REG_965_0 + regnum*8);
+		intel_ring_emit(pipelined, (u32)val);
+		intel_ring_emit(pipelined, FENCE_REG_965_0 + regnum*8 + 4);
+		intel_ring_emit(pipelined, (u32)(val >> 32));
+		intel_ring_advance(pipelined);
+	} else
+		I915_WRITE64(FENCE_REG_965_0 + regnum * 8, val);
+
+	return 0;
 }
 
-static void i915_write_fence_reg(struct drm_i915_gem_object *obj)
+static int i915_write_fence_reg(struct drm_i915_gem_object *obj,
+				struct intel_ring_buffer *pipelined)
 {
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 size = obj->gtt_space->size;
-	uint32_t fence_reg, val, pitch_val;
+	u32 fence_reg, val, pitch_val;
 	int tile_width;
 
-	if ((obj->gtt_offset & ~I915_FENCE_START_MASK) ||
-	    (obj->gtt_offset & (size - 1))) {
-		WARN(1, "%s: object 0x%08x [fenceable? %d] not 1M or size (0x%08x) aligned [gtt_space offset=%lx, size=%lx]\n",
-		     __func__, obj->gtt_offset, obj->map_and_fenceable, size,
-		     obj->gtt_space->start, obj->gtt_space->size);
-		return;
-	}
+	if (WARN((obj->gtt_offset & ~I915_FENCE_START_MASK) ||
+		 (size & -size) != size ||
+		 (obj->gtt_offset & (size - 1)),
+		 "object 0x%08x [fenceable? %d] not 1M or pot-size (0x%08x) aligned\n",
+		 obj->gtt_offset, obj->map_and_fenceable, size))
+		return -EINVAL;
 
-	if (obj->tiling_mode == I915_TILING_Y &&
-	    HAS_128_BYTE_Y_TILING(dev))
+	if (obj->tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev))
 		tile_width = 128;
 	else
 		tile_width = 512;
@@ -2387,12 +2418,6 @@ static void i915_write_fence_reg(struct drm_i915_gem_object *obj)
 	/* Note: pitch better be a power of two tile widths */
 	pitch_val = obj->stride / tile_width;
 	pitch_val = ffs(pitch_val) - 1;
-
-	if (obj->tiling_mode == I915_TILING_Y &&
-	    HAS_128_BYTE_Y_TILING(dev))
-		WARN_ON(pitch_val > I830_FENCE_MAX_PITCH_VAL);
-	else
-		WARN_ON(pitch_val > I915_FENCE_MAX_PITCH_VAL);
 
 	val = obj->gtt_offset;
 	if (obj->tiling_mode == I915_TILING_Y)
@@ -2406,10 +2431,25 @@ static void i915_write_fence_reg(struct drm_i915_gem_object *obj)
 		fence_reg = FENCE_REG_830_0 + fence_reg * 4;
 	else
 		fence_reg = FENCE_REG_945_8 + (fence_reg - 8) * 4;
-	I915_WRITE(fence_reg, val);
+
+	if (pipelined) {
+		int ret = intel_ring_begin(pipelined, 4);
+		if (ret)
+			return ret;
+
+		intel_ring_emit(pipelined, MI_NOOP);
+		intel_ring_emit(pipelined, MI_LOAD_REGISTER_IMM(1));
+		intel_ring_emit(pipelined, fence_reg);
+		intel_ring_emit(pipelined, val);
+		intel_ring_advance(pipelined);
+	} else
+		I915_WRITE(fence_reg, val);
+
+	return 0;
 }
 
-static void i830_write_fence_reg(struct drm_i915_gem_object *obj)
+static int i830_write_fence_reg(struct drm_i915_gem_object *obj,
+				struct intel_ring_buffer *pipelined)
 {
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -2417,29 +2457,38 @@ static void i830_write_fence_reg(struct drm_i915_gem_object *obj)
 	int regnum = obj->fence_reg;
 	uint32_t val;
 	uint32_t pitch_val;
-	uint32_t fence_size_bits;
 
-	if ((obj->gtt_offset & ~I830_FENCE_START_MASK) ||
-	    (obj->gtt_offset & (obj->base.size - 1))) {
-		WARN(1, "%s: object 0x%08x not 512K or size aligned\n",
-		     __func__, obj->gtt_offset);
-		return;
-	}
+	if (WARN((obj->gtt_offset & ~I830_FENCE_START_MASK) ||
+		 (size & -size) != size ||
+		 (obj->gtt_offset & (size - 1)),
+		 "object 0x%08x not 512K or pot-size 0x%08x aligned\n",
+		 obj->gtt_offset, size))
+		return -EINVAL;
 
 	pitch_val = obj->stride / 128;
 	pitch_val = ffs(pitch_val) - 1;
-	WARN_ON(pitch_val > I830_FENCE_MAX_PITCH_VAL);
 
 	val = obj->gtt_offset;
 	if (obj->tiling_mode == I915_TILING_Y)
 		val |= 1 << I830_FENCE_TILING_Y_SHIFT;
-	fence_size_bits = I830_FENCE_SIZE_BITS(size);
-	WARN_ON(fence_size_bits & ~0x00000f00);
-	val |= fence_size_bits;
+	val |= I830_FENCE_SIZE_BITS(size);
 	val |= pitch_val << I830_FENCE_PITCH_SHIFT;
 	val |= I830_FENCE_REG_VALID;
 
-	I915_WRITE(FENCE_REG_830_0 + (regnum * 4), val);
+	if (pipelined) {
+		int ret = intel_ring_begin(pipelined, 4);
+		if (ret)
+			return ret;
+
+		intel_ring_emit(pipelined, MI_NOOP);
+		intel_ring_emit(pipelined, MI_LOAD_REGISTER_IMM(1));
+		intel_ring_emit(pipelined, FENCE_REG_830_0 + regnum*4);
+		intel_ring_emit(pipelined, val);
+		intel_ring_advance(pipelined);
+	} else
+		I915_WRITE(FENCE_REG_830_0 + regnum * 4, val);
+
+	return 0;
 }
 
 static int i915_find_fence_reg(struct drm_device *dev,
@@ -2512,6 +2561,7 @@ i915_gem_object_get_fence_reg(struct drm_i915_gem_object *obj,
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_fence_reg *reg = NULL;
+	struct intel_ring_buffer *pipelined = NULL;
 	int ret;
 
 	/* Just update our place in the LRU if our fence is getting used. */
@@ -2553,25 +2603,24 @@ i915_gem_object_get_fence_reg(struct drm_i915_gem_object *obj,
 
 	switch (INTEL_INFO(dev)->gen) {
 	case 6:
-		sandybridge_write_fence_reg(obj);
+		ret = sandybridge_write_fence_reg(obj, pipelined);
 		break;
 	case 5:
 	case 4:
-		i965_write_fence_reg(obj);
+		ret = i965_write_fence_reg(obj, pipelined);
 		break;
 	case 3:
-		i915_write_fence_reg(obj);
+		ret = i915_write_fence_reg(obj, pipelined);
 		break;
 	case 2:
-		i830_write_fence_reg(obj);
+		ret = i830_write_fence_reg(obj, pipelined);
 		break;
 	}
 
 	trace_i915_gem_object_get_fence(obj,
 					obj->fence_reg,
 					obj->tiling_mode);
-
-	return 0;
+	return ret;
 }
 
 /**
