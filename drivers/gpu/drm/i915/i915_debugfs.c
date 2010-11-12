@@ -110,7 +110,7 @@ static const char *get_tiling_flag(struct drm_i915_gem_object *obj)
 static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
-	seq_printf(m, "%p: %s%s %8zd %08x %08x %d%s%s",
+	seq_printf(m, "%p: %s%s %8zd %04x %04x %d %d%s%s",
 		   &obj->base,
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
@@ -118,6 +118,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->base.read_domains,
 		   obj->base.write_domain,
 		   obj->last_rendering_seqno,
+		   obj->last_fenced_seqno,
 		   obj->dirty ? " dirty" : "",
 		   obj->madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)

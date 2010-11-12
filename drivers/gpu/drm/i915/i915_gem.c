@@ -1688,7 +1688,27 @@ i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 	/* Move from whatever list we were on to the tail of execution. */
 	list_move_tail(&obj->mm_list, &dev_priv->mm.active_list);
 	list_move_tail(&obj->ring_list, &ring->active_list);
+
 	obj->last_rendering_seqno = seqno;
+	if (obj->fenced_gpu_access) {
+		struct drm_i915_fence_reg *reg;
+
+		BUG_ON(obj->fence_reg == I915_FENCE_REG_NONE);
+
+		obj->last_fenced_seqno = seqno;
+		obj->last_fenced_ring = ring;
+
+		reg = &dev_priv->fence_regs[obj->fence_reg];
+		list_move_tail(&reg->lru_list, &dev_priv->mm.fence_list);
+	}
+}
+
+static void
+i915_gem_object_move_off_active(struct drm_i915_gem_object *obj)
+{
+	list_del_init(&obj->ring_list);
+	obj->last_rendering_seqno = 0;
+	obj->last_fenced_seqno = 0;
 }
 
 static void
@@ -1699,8 +1719,33 @@ i915_gem_object_move_to_flushing(struct drm_i915_gem_object *obj)
 
 	BUG_ON(!obj->active);
 	list_move_tail(&obj->mm_list, &dev_priv->mm.flushing_list);
-	list_del_init(&obj->ring_list);
-	obj->last_rendering_seqno = 0;
+
+	i915_gem_object_move_off_active(obj);
+}
+
+static void
+i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
+{
+	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (obj->pin_count != 0)
+		list_move_tail(&obj->mm_list, &dev_priv->mm.pinned_list);
+	else
+		list_move_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
+
+	BUG_ON(!list_empty(&obj->gpu_write_list));
+	BUG_ON(!obj->active);
+	obj->ring = NULL;
+
+	i915_gem_object_move_off_active(obj);
+	obj->fenced_gpu_access = false;
+	obj->last_fenced_ring = NULL;
+
+	obj->active = 0;
+	drm_gem_object_unreference(&obj->base);
+
+	WARN_ON(i915_verify_lists(dev));
 }
 
 /* Immediately discard the backing storage */
@@ -1730,34 +1775,10 @@ i915_gem_object_is_purgeable(struct drm_i915_gem_object *obj)
 }
 
 static void
-i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
-{
-	struct drm_device *dev = obj->base.dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	if (obj->pin_count != 0)
-		list_move_tail(&obj->mm_list, &dev_priv->mm.pinned_list);
-	else
-		list_move_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
-	list_del_init(&obj->ring_list);
-
-	BUG_ON(!list_empty(&obj->gpu_write_list));
-
-	obj->last_rendering_seqno = 0;
-	obj->ring = NULL;
-	if (obj->active) {
-		obj->active = 0;
-		drm_gem_object_unreference(&obj->base);
-	}
-	WARN_ON(i915_verify_lists(dev));
-}
-
-static void
 i915_gem_process_flushing_list(struct drm_device *dev,
 			       uint32_t flush_domains,
 			       struct intel_ring_buffer *ring)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj, *next;
 
 	list_for_each_entry_safe(obj, next,
@@ -1769,14 +1790,6 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 			obj->base.write_domain = 0;
 			list_del_init(&obj->gpu_write_list);
 			i915_gem_object_move_to_active(obj, ring);
-
-			/* update the fence lru list */
-			if (obj->fence_reg != I915_FENCE_REG_NONE) {
-				struct drm_i915_fence_reg *reg =
-					&dev_priv->fence_regs[obj->fence_reg];
-				list_move_tail(&reg->lru_list,
-						&dev_priv->mm.fence_list);
-			}
 
 			trace_i915_gem_object_change_domain(obj,
 							    obj->base.read_domains,
@@ -2615,8 +2628,7 @@ i915_gem_object_put_fence_reg(struct drm_i915_gem_object *obj,
 			      bool interruptible)
 {
 	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_fence_reg *reg;
+	int ret;
 
 	if (obj->fence_reg == I915_FENCE_REG_NONE)
 		return 0;
@@ -2631,19 +2643,23 @@ i915_gem_object_put_fence_reg(struct drm_i915_gem_object *obj,
 	 * therefore we must wait for any outstanding access to complete
 	 * before clearing the fence.
 	 */
-	reg = &dev_priv->fence_regs[obj->fence_reg];
-	if (reg->gpu) {
-		int ret;
-
+	if (obj->fenced_gpu_access) {
 		ret = i915_gem_object_flush_gpu_write_domain(obj, NULL);
 		if (ret)
 			return ret;
 
-		ret = i915_gem_object_wait_rendering(obj, interruptible);
+		obj->fenced_gpu_access = false;
+	}
+
+	if (obj->last_fenced_seqno) {
+		ret = i915_do_wait_request(dev,
+					   obj->last_fenced_seqno,
+					   interruptible,
+					   obj->last_fenced_ring);
 		if (ret)
 			return ret;
 
-		reg->gpu = false;
+		obj->last_fenced_seqno = false;
 	}
 
 	i915_gem_object_flush_gtt_write_domain(obj);
@@ -3166,8 +3182,9 @@ i915_gem_object_set_to_gpu_domain(struct drm_i915_gem_object *obj,
 	 * write domain
 	 */
 	if (obj->base.write_domain &&
-	    (obj->base.write_domain != obj->base.pending_read_domains ||
-	     obj->ring != ring)) {
+	    (((obj->base.write_domain != obj->base.pending_read_domains ||
+	       obj->ring != ring)) ||
+	     (obj->fenced_gpu_access && !obj->pending_fenced_gpu_access))) {
 		flush_domains |= obj->base.write_domain;
 		invalidate_domains |=
 			obj->base.pending_read_domains & ~obj->base.write_domain;
@@ -3528,7 +3545,6 @@ i915_gem_execbuffer_reserve(struct drm_device *dev,
 			    struct drm_i915_gem_exec_object2 *exec_list,
 			    int count)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i, retry;
 
 	/* Attempt to pin all of the buffers into the GTT.
@@ -3601,7 +3617,7 @@ i915_gem_execbuffer_reserve(struct drm_device *dev,
 				if (ret)
 					break;
 
-				dev_priv->fence_regs[obj->fence_reg].gpu = true;
+				obj->pending_fenced_gpu_access = true;
 			}
 
 			entry->offset = obj->gtt_offset;
@@ -3981,6 +3997,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			goto err;
 		}
 		obj->in_execbuffer = true;
+		obj->pending_fenced_gpu_access = false;
 	}
 
 	/* Move the objects en-masse into the GTT, evicting if necessary. */
@@ -4085,6 +4102,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 		obj->base.read_domains = obj->base.pending_read_domains;
 		obj->base.write_domain = obj->base.pending_write_domain;
+		obj->fenced_gpu_access = obj->pending_fenced_gpu_access;
 
 		i915_gem_object_move_to_active(obj, ring);
 		if (obj->base.write_domain) {

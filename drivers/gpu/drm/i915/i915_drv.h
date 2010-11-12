@@ -124,9 +124,8 @@ struct drm_i915_master_private {
 #define I915_FENCE_REG_NONE -1
 
 struct drm_i915_fence_reg {
-	struct drm_i915_gem_object *obj;
 	struct list_head lru_list;
-	bool gpu;
+	struct drm_i915_gem_object *obj;
 };
 
 struct sdvo_device_mapping {
@@ -787,6 +786,12 @@ struct drm_i915_gem_object {
 	unsigned int fault_mappable : 1;
 	unsigned int pin_mappable : 1;
 
+	/*
+	 * Is the GPU currently using a fence to access this buffer,
+	 */
+	unsigned int pending_fenced_gpu_access:1;
+	unsigned int fenced_gpu_access:1;
+
 	struct page **pages;
 
 	/**
@@ -802,11 +807,13 @@ struct drm_i915_gem_object {
 	 */
 	uint32_t gtt_offset;
 
-	/* Which ring is refering to is this object */
-	struct intel_ring_buffer *ring;
-
 	/** Breadcrumb of last rendering to the buffer. */
 	uint32_t last_rendering_seqno;
+	struct intel_ring_buffer *ring;
+
+	/** Breadcrumb of last fenced GPU access to the buffer. */
+	uint32_t last_fenced_seqno;
+	struct intel_ring_buffer *last_fenced_ring;
 
 	/** Current tiling stride for the object, if it's tiled. */
 	uint32_t stride;
