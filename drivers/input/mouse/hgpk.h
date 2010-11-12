@@ -42,6 +42,8 @@ struct hgpk_data {
 	struct delayed_work recalib_wq;
 	int abs_x, abs_y;
 	int dupe_count;
+	int xbigj, ybigj, xlast, ylast; /* jumpiness detection */
+	int xsaw_secondary, ysaw_secondary; /* jumpiness detection */
 };
 
 #define hgpk_dbg(psmouse, format, arg...)		\
