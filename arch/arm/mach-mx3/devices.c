@@ -29,23 +29,6 @@
 
 #include "devices.h"
 
-#ifdef CONFIG_ARCH_MX31
-static struct resource rnga_resources[] = {
-	{
-		.start = MX3x_RNGA_BASE_ADDR,
-		.end = MX3x_RNGA_BASE_ADDR + 0x28,
-		.flags = IORESOURCE_MEM,
-	},
-};
-
-struct platform_device mxc_rnga_device = {
-	.name = "mxc_rnga",
-	.id = -1,
-	.num_resources = 1,
-	.resource = rnga_resources,
-};
-#endif /* CONFIG_ARCH_MX31 */
-
 /* i.MX31 Image Processing Unit */
 
 /* The resource order is important! */
@@ -262,7 +245,6 @@ static int __init mx3_devices_init(void)
 	if (cpu_is_mx31()) {
 		imx_wdt_resources[0].start = MX31_WDOG_BASE_ADDR;
 		imx_wdt_resources[0].end = MX31_WDOG_BASE_ADDR + 0x3fff;
-		mxc_register_device(&mxc_rnga_device, NULL);
 	}
 #endif
 #if defined(CONFIG_ARCH_MX35)
