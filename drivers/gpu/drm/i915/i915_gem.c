@@ -1018,7 +1018,6 @@ int
 i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_set_domain *args = data;
 	struct drm_i915_gem_object *obj;
 	uint32_t read_domains = args->read_domains;
@@ -1051,20 +1050,8 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		goto unlock;
 	}
 
-	intel_mark_busy(dev, obj);
-
 	if (read_domains & I915_GEM_DOMAIN_GTT) {
 		ret = i915_gem_object_set_to_gtt_domain(obj, write_domain != 0);
-
-		/* Update the LRU on the fence for the CPU access that's
-		 * about to occur.
-		 */
-		if (obj->fence_reg != I915_FENCE_REG_NONE) {
-			struct drm_i915_fence_reg *reg =
-				&dev_priv->fence_regs[obj->fence_reg];
-			list_move_tail(&reg->lru_list,
-				       &dev_priv->mm.fence_list);
-		}
 
 		/* Silently promote "you're not bound, there was nothing to do"
 		 * to success, since the client was just asking us to
@@ -1075,10 +1062,6 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	} else {
 		ret = i915_gem_object_set_to_cpu_domain(obj, write_domain != 0);
 	}
-
-	/* Maintain LRU order of "inactive" objects */
-	if (ret == 0 && i915_gem_object_is_inactive(obj))
-		list_move_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
 
 	drm_gem_object_unreference(&obj->base);
 unlock:
