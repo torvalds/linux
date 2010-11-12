@@ -90,6 +90,14 @@ config SATA_INIC162X
 	help
 	  This option enables support for Initio 162x Serial ATA.
 
+config SATA_ACARD_AHCI
+	tristate "ACard AHCI variant (ATP 8620)"
+	depends on PCI
+	help
+	  This option enables support for Acard.
+
+	  If unsure, say N.
+
 config SATA_SIL24
 	tristate "Silicon Image 3124/3132 SATA support"
 	depends on PCI
