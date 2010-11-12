@@ -1344,7 +1344,7 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 	case SP4_NONE:
 		break;
 	case SP4_SSV:
-		return nfserr_encr_alg_unsupp;
+		return nfserr_serverfault;
 	default:
 		BUG();				/* checked by xdr code */
 	case SP4_MACH_CRED:
