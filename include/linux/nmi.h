@@ -25,8 +25,6 @@ static inline void touch_nmi_watchdog(void)
 #else
 extern void touch_nmi_watchdog(void);
 #endif
-static inline void acpi_nmi_disable(void) { }
-static inline void acpi_nmi_enable(void) { }
 
 /*
  * Create trigger_all_cpu_backtrace() out of the arch-provided

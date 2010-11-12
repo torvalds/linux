@@ -330,9 +330,6 @@ static bool reserve_pmc_hardware(void)
 {
 	int i;
 
-	if (nmi_watchdog == NMI_LOCAL_APIC)
-		disable_lapic_nmi_watchdog();
-
 	for (i = 0; i < x86_pmu.num_counters; i++) {
 		if (!reserve_perfctr_nmi(x86_pmu.perfctr + i))
 			goto perfctr_fail;
@@ -355,9 +352,6 @@ perfctr_fail:
 	for (i--; i >= 0; i--)
 		release_perfctr_nmi(x86_pmu.perfctr + i);
 
-	if (nmi_watchdog == NMI_LOCAL_APIC)
-		enable_lapic_nmi_watchdog();
-
 	return false;
 }
 
@@ -369,9 +363,6 @@ static void release_pmc_hardware(void)
 		release_perfctr_nmi(x86_pmu.perfctr + i);
 		release_evntsel_nmi(x86_pmu.eventsel + i);
 	}
-
-	if (nmi_watchdog == NMI_LOCAL_APIC)
-		enable_lapic_nmi_watchdog();
 }
 
 #else

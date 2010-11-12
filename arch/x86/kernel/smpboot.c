@@ -316,12 +316,6 @@ notrace static void __cpuinit start_secondary(void *unused)
 	 */
 	check_tsc_sync_target();
 
-	if (nmi_watchdog == NMI_IO_APIC) {
-		legacy_pic->mask(0);
-		enable_NMI_through_LVT0();
-		legacy_pic->unmask(0);
-	}
-
 	/* This must be done before setting cpu_online_mask */
 	set_cpu_sibling_map(raw_smp_processor_id());
 	wmb();
@@ -1061,8 +1055,6 @@ static int __init smp_sanity_check(unsigned max_cpus)
 		printk(KERN_INFO "SMP mode deactivated.\n");
 		smpboot_clear_io_apic();
 
-		localise_nmi_watchdog();
-
 		connect_bsp_APIC();
 		setup_local_APIC();
 		end_local_APIC_setup();
@@ -1196,7 +1188,6 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 #ifdef CONFIG_X86_IO_APIC
 	setup_ioapic_dest();
 #endif
-	check_nmi_watchdog();
 	mtrr_aps_init();
 }
 
@@ -1341,8 +1332,6 @@ int native_cpu_disable(void)
 	if (cpu == 0)
 		return -EBUSY;
 
-	if (nmi_watchdog == NMI_LOCAL_APIC)
-		stop_apic_nmi_watchdog(NULL);
 	clear_local_APIC();
 
 	cpu_disable_common();

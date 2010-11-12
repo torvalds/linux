@@ -58,9 +58,6 @@ static void timer_stop(void)
 
 int __init op_nmi_timer_init(struct oprofile_operations *ops)
 {
-	if ((nmi_watchdog != NMI_IO_APIC) || (atomic_read(&nmi_active) <= 0))
-		return -ENODEV;
-
 	ops->start = timer_start;
 	ops->stop = timer_stop;
 	ops->cpu_type = "timer";
