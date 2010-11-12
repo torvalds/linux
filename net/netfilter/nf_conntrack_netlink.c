@@ -1375,6 +1375,7 @@ ctnetlink_create_conntrack(struct net *net, u16 zone,
 	}
 #endif
 
+	memset(&ct->proto, 0, sizeof(ct->proto));
 	if (cda[CTA_PROTOINFO]) {
 		err = ctnetlink_change_protoinfo(ct, cda);
 		if (err < 0)

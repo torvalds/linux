@@ -651,7 +651,8 @@ __nf_conntrack_alloc(struct net *net, u16 zone,
 	 * and ct->tuplehash[IP_CT_DIR_REPLY].hnnode.next unchanged.
 	 */
 	memset(&ct->tuplehash[IP_CT_DIR_MAX], 0,
-	       sizeof(*ct) - offsetof(struct nf_conn, tuplehash[IP_CT_DIR_MAX]));
+	       offsetof(struct nf_conn, proto) -
+	       offsetof(struct nf_conn, tuplehash[IP_CT_DIR_MAX]));
 	spin_lock_init(&ct->lock);
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode.pprev = NULL;

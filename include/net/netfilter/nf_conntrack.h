@@ -116,14 +116,14 @@ struct nf_conn {
 	u_int32_t secmark;
 #endif
 
-	/* Storage reserved for other modules: */
-	union nf_conntrack_proto proto;
-
 	/* Extensions */
 	struct nf_ct_ext *ext;
 #ifdef CONFIG_NET_NS
 	struct net *ct_net;
 #endif
+
+	/* Storage reserved for other modules, must be the last member */
+	union nf_conntrack_proto proto;
 };
 
 static inline struct nf_conn *
