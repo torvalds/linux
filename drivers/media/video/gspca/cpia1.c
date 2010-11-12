@@ -829,7 +829,7 @@ static int goto_low_power(struct gspca_dev *gspca_dev)
 	if (ret)
 		return ret;
 
-	do_command(gspca_dev, CPIA_COMMAND_GetCameraStatus, 0, 0, 0, 0);
+	ret = do_command(gspca_dev, CPIA_COMMAND_GetCameraStatus, 0, 0, 0, 0);
 	if (ret)
 		return ret;
 
