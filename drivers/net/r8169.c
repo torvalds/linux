@@ -4440,8 +4440,7 @@ static inline void rtl8169_rx_csum(struct sk_buff *skb, u32 opts1)
 	u32 status = opts1 & RxProtoMask;
 
 	if (((status == RxProtoTCP) && !(opts1 & TCPFail)) ||
-	    ((status == RxProtoUDP) && !(opts1 & UDPFail)) ||
-	    ((status == RxProtoIP) && !(opts1 & IPFail)))
+	    ((status == RxProtoUDP) && !(opts1 & UDPFail)))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
 		skb_checksum_none_assert(skb);
