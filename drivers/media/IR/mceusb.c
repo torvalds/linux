@@ -49,6 +49,7 @@
 #define USB_BUFLEN		32 /* USB reception buffer length */
 #define USB_CTRL_MSG_SZ		2  /* Size of usb ctrl msg on gen1 hw */
 #define MCE_G1_INIT_MSGS	40 /* Init messages on gen1 hw to throw out */
+#define MS_TO_NS(msec)		((msec) * 1000)
 
 /* MCE constants */
 #define MCE_CMDBUF_SIZE		384  /* MCE Command buffer length */
@@ -92,6 +93,7 @@
 #define MCE_CMD_G_TXMASK	0x13	/* Set TX port bitmask */
 #define MCE_CMD_S_RXSENSOR	0x14	/* Set RX sensor (std/learning) */
 #define MCE_CMD_G_RXSENSOR	0x15	/* Get RX sensor (std/learning) */
+#define MCE_RSP_PULSE_COUNT	0x15	/* RX pulse count (only if learning) */
 #define MCE_CMD_TX_PORTS	0x16	/* Get number of TX ports */
 #define MCE_CMD_G_WAKESRC	0x17	/* Get wake source */
 #define MCE_CMD_UNKNOWN7	0x18	/* Unknown */
@@ -314,7 +316,10 @@ static struct usb_device_id mceusb_dev_table[] = {
 struct mceusb_dev {
 	/* ir-core bits */
 	struct ir_dev_props *props;
-	struct ir_raw_event rawir;
+
+	/* optional features we can enable */
+	bool carrier_report_enabled;
+	bool learning_enabled;
 
 	/* core device bits */
 	struct device *dev;
@@ -329,6 +334,8 @@ struct mceusb_dev {
 	/* buffers and dma */
 	unsigned char *buf_in;
 	unsigned int len_in;
+	dma_addr_t dma_in;
+	dma_addr_t dma_out;
 
 	enum {
 		CMD_HEADER = 0,
@@ -336,10 +343,8 @@ struct mceusb_dev {
 		CMD_DATA,
 		PARSE_IRDATA,
 	} parser_state;
-	u8 cmd, rem;		/* Remaining IR data bytes in packet */
 
-	dma_addr_t dma_in;
-	dma_addr_t dma_out;
+	u8 cmd, rem;		/* Remaining IR data bytes in packet */
 
 	struct {
 		u32 connected:1;
@@ -420,7 +425,7 @@ static int mceusb_cmdsize(u8 cmd, u8 subcmd)
 		case MCE_CMD_UNKNOWN:
 		case MCE_CMD_S_CARRIER:
 		case MCE_CMD_S_TIMEOUT:
-		case MCE_CMD_G_RXSENSOR:
+		case MCE_RSP_PULSE_COUNT:
 			datasize = 2;
 			break;
 		case MCE_CMD_SIG_END:
@@ -541,10 +546,11 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 				 inout, data1 == 0x02 ? "short" : "long");
 			break;
 		case MCE_CMD_G_RXSENSOR:
-			if (len == 2)
+		/* aka MCE_RSP_PULSE_COUNT */
+			if (out)
 				dev_info(dev, "Get receive sensor\n");
-			else
-				dev_info(dev, "Remaining pulse count is %d\n",
+			else if (ir->learning_enabled)
+				dev_info(dev, "RX pulse count: %d\n",
 					 ((data1 << 8) | data2));
 			break;
 		case MCE_RSP_CMD_INVALID:
@@ -798,6 +804,34 @@ static int mceusb_set_tx_carrier(void *priv, u32 carrier)
 	return carrier;
 }
 
+/*
+ * We don't do anything but print debug spew for many of the command bits
+ * we receive from the hardware, but some of them are useful information
+ * we want to store so that we can use them.
+ */
+static void mceusb_handle_command(struct mceusb_dev *ir, int index)
+{
+	u8 hi = ir->buf_in[index + 1] & 0xff;
+	u8 lo = ir->buf_in[index + 2] & 0xff;
+
+	switch (ir->buf_in[index]) {
+	/* 2-byte return value commands */
+	case MCE_CMD_S_TIMEOUT:
+		ir->props->timeout = MS_TO_NS((hi << 8 | lo) / 2);
+		break;
+
+	/* 1-byte return value commands */
+	case MCE_CMD_S_TXMASK:
+		ir->tx_mask = hi;
+		break;
+	case MCE_CMD_S_RXSENSOR:
+		ir->learning_enabled = (hi == 0x02);
+		break;
+	default:
+		break;
+	}
+}
+
 static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 {
 	DEFINE_IR_RAW_EVENT(rawir);
@@ -817,13 +851,14 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			ir->rem = mceusb_cmdsize(ir->cmd, ir->buf_in[i]);
 			mceusb_dev_printdata(ir, ir->buf_in, i - 1,
 					     ir->rem + 2, false);
+			mceusb_handle_command(ir, i);
 			ir->parser_state = CMD_DATA;
 			break;
 		case PARSE_IRDATA:
 			ir->rem--;
 			rawir.pulse = ((ir->buf_in[i] & MCE_PULSE_BIT) != 0);
 			rawir.duration = (ir->buf_in[i] & MCE_PULSE_MASK)
-					 * MCE_TIME_UNIT * 1000;
+					 * MS_TO_NS(MCE_TIME_UNIT);
 
 			dev_dbg(ir->dev, "Storing %s with duration %d\n",
 				rawir.pulse ? "pulse" : "space",
@@ -845,7 +880,8 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 				continue;
 			}
 			ir->rem = (ir->cmd & MCE_PACKET_LENGTH_MASK);
-			mceusb_dev_printdata(ir, ir->buf_in, i, ir->rem + 1, false);
+			mceusb_dev_printdata(ir, ir->buf_in,
+					     i, ir->rem + 1, false);
 			if (ir->rem)
 				ir->parser_state = PARSE_IRDATA;
 			break;
