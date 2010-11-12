@@ -226,7 +226,7 @@ static const struct ctrl sd_ctrls[] = {
 		.type    = V4L2_CTRL_TYPE_MENU,
 		.name    = "Light frequency filter",
 		.minimum = 0,
-		.maximum = 2,	/* 0: 0, 1: 50Hz, 2:60Hz */
+		.maximum = 2,	/* 0: no flicker, 1: 50Hz, 2:60Hz, 3: auto */
 		.step    = 1,
 		.default_value = 0,
 	    },
@@ -413,7 +413,6 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 		.priv = 0},
 };
 
-
 /* Registers common to OV511 / OV518 */
 #define R51x_FIFO_PSIZE			0x30	/* 2 bytes wide w/ OV518(+) */
 #define R51x_SYS_RESET			0x50
@@ -421,7 +420,7 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 	#define	OV511_RESET_OMNICE	0x08
 #define R51x_SYS_INIT			0x53
 #define R51x_SYS_SNAP			0x52
-#define R51x_SYS_CUST_ID		0x5F
+#define R51x_SYS_CUST_ID		0x5f
 #define R51x_COMP_LUT_BEGIN		0x80
 
 /* OV511 Camera interface register numbers */
@@ -436,13 +435,13 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 #define R511_CAM_OPTS			0x18
 
 #define R511_SNAP_FRAME			0x19
-#define R511_SNAP_PXCNT			0x1A
-#define R511_SNAP_LNCNT			0x1B
-#define R511_SNAP_PXDIV			0x1C
-#define R511_SNAP_LNDIV			0x1D
-#define R511_SNAP_UV_EN			0x1E
-#define R511_SNAP_UV_EN			0x1E
-#define R511_SNAP_OPTS			0x1F
+#define R511_SNAP_PXCNT			0x1a
+#define R511_SNAP_LNCNT			0x1b
+#define R511_SNAP_PXDIV			0x1c
+#define R511_SNAP_LNDIV			0x1d
+#define R511_SNAP_UV_EN			0x1e
+#define R511_SNAP_UV_EN			0x1e
+#define R511_SNAP_OPTS			0x1f
 
 #define R511_DRAM_FLOW_CTL		0x20
 #define R511_FIFO_OPTS			0x31
@@ -467,13 +466,13 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 #define OV519_R25_FORMAT		0x25
 
 /* OV519 System Controller register numbers */
-#define OV519_SYS_RESET1 0x51
-#define OV519_SYS_EN_CLK1 0x54
+#define OV519_SYS_RESET1		0x51
+#define OV519_SYS_EN_CLK1		0x54
 
 #define OV519_GPIO_DATA_OUT0		0x71
 #define OV519_GPIO_IO_CTRL0		0x72
 
-#define OV511_ENDPOINT_ADDRESS  1	/* Isoc endpoint number */
+/*#define OV511_ENDPOINT_ADDRESS 1	 * Isoc endpoint number */
 
 /*
  * The FX2 chip does not give us a zero length read at end of frame.
@@ -528,71 +527,71 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 #define OV7610_REG_COM_I	0x29	/* misc settings */
 
 /* OV7670 registers */
-#define OV7670_REG_GAIN        0x00    /* Gain lower 8 bits (rest in vref) */
-#define OV7670_REG_BLUE        0x01    /* blue gain */
-#define OV7670_REG_RED         0x02    /* red gain */
-#define OV7670_REG_VREF        0x03    /* Pieces of GAIN, VSTART, VSTOP */
-#define OV7670_REG_COM1        0x04    /* Control 1 */
-#define OV7670_REG_AECHH       0x07    /* AEC MS 5 bits */
-#define OV7670_REG_COM3        0x0c    /* Control 3 */
-#define OV7670_REG_COM4        0x0d    /* Control 4 */
-#define OV7670_REG_COM5        0x0e    /* All "reserved" */
-#define OV7670_REG_COM6        0x0f    /* Control 6 */
-#define OV7670_REG_AECH        0x10    /* More bits of AEC value */
-#define OV7670_REG_CLKRC       0x11    /* Clock control */
-#define OV7670_REG_COM7        0x12    /* Control 7 */
-#define   OV7670_COM7_FMT_VGA    0x00
-#define   OV7670_COM7_YUV        0x00    /* YUV */
-#define   OV7670_COM7_FMT_QVGA   0x10    /* QVGA format */
-#define   OV7670_COM7_FMT_MASK   0x38
-#define   OV7670_COM7_RESET      0x80    /* Register reset */
-#define OV7670_REG_COM8        0x13    /* Control 8 */
-#define   OV7670_COM8_AEC        0x01    /* Auto exposure enable */
-#define   OV7670_COM8_AWB        0x02    /* White balance enable */
-#define   OV7670_COM8_AGC        0x04    /* Auto gain enable */
-#define   OV7670_COM8_BFILT      0x20    /* Band filter enable */
-#define   OV7670_COM8_AECSTEP    0x40    /* Unlimited AEC step size */
-#define   OV7670_COM8_FASTAEC    0x80    /* Enable fast AGC/AEC */
-#define OV7670_REG_COM9        0x14    /* Control 9  - gain ceiling */
-#define OV7670_REG_COM10       0x15    /* Control 10 */
-#define OV7670_REG_HSTART      0x17    /* Horiz start high bits */
-#define OV7670_REG_HSTOP       0x18    /* Horiz stop high bits */
-#define OV7670_REG_VSTART      0x19    /* Vert start high bits */
-#define OV7670_REG_VSTOP       0x1a    /* Vert stop high bits */
-#define OV7670_REG_MVFP        0x1e    /* Mirror / vflip */
-#define   OV7670_MVFP_VFLIP	 0x10    /* vertical flip */
-#define   OV7670_MVFP_MIRROR     0x20    /* Mirror image */
-#define OV7670_REG_AEW         0x24    /* AGC upper limit */
-#define OV7670_REG_AEB         0x25    /* AGC lower limit */
-#define OV7670_REG_VPT         0x26    /* AGC/AEC fast mode op region */
-#define OV7670_REG_HREF        0x32    /* HREF pieces */
-#define OV7670_REG_TSLB        0x3a    /* lots of stuff */
-#define OV7670_REG_COM11       0x3b    /* Control 11 */
-#define   OV7670_COM11_EXP       0x02
-#define   OV7670_COM11_HZAUTO    0x10    /* Auto detect 50/60 Hz */
-#define OV7670_REG_COM12       0x3c    /* Control 12 */
-#define OV7670_REG_COM13       0x3d    /* Control 13 */
-#define   OV7670_COM13_GAMMA     0x80    /* Gamma enable */
-#define   OV7670_COM13_UVSAT     0x40    /* UV saturation auto adjustment */
-#define OV7670_REG_COM14       0x3e    /* Control 14 */
-#define OV7670_REG_EDGE        0x3f    /* Edge enhancement factor */
-#define OV7670_REG_COM15       0x40    /* Control 15 */
-#define   OV7670_COM15_R00FF     0xc0    /*            00 to FF */
-#define OV7670_REG_COM16       0x41    /* Control 16 */
-#define   OV7670_COM16_AWBGAIN   0x08    /* AWB gain enable */
-#define OV7670_REG_BRIGHT      0x55    /* Brightness */
-#define OV7670_REG_CONTRAS     0x56    /* Contrast control */
-#define OV7670_REG_GFIX        0x69    /* Fix gain control */
-#define OV7670_REG_RGB444      0x8c    /* RGB 444 control */
-#define OV7670_REG_HAECC1      0x9f    /* Hist AEC/AGC control 1 */
-#define OV7670_REG_HAECC2      0xa0    /* Hist AEC/AGC control 2 */
-#define OV7670_REG_BD50MAX     0xa5    /* 50hz banding step limit */
-#define OV7670_REG_HAECC3      0xa6    /* Hist AEC/AGC control 3 */
-#define OV7670_REG_HAECC4      0xa7    /* Hist AEC/AGC control 4 */
-#define OV7670_REG_HAECC5      0xa8    /* Hist AEC/AGC control 5 */
-#define OV7670_REG_HAECC6      0xa9    /* Hist AEC/AGC control 6 */
-#define OV7670_REG_HAECC7      0xaa    /* Hist AEC/AGC control 7 */
-#define OV7670_REG_BD60MAX     0xab    /* 60hz banding step limit */
+#define OV7670_REG_GAIN		0x00	/* Gain lower 8 bits (rest in vref) */
+#define OV7670_REG_BLUE		0x01	/* blue gain */
+#define OV7670_REG_RED		0x02	/* red gain */
+#define OV7670_REG_VREF		0x03	/* Pieces of GAIN, VSTART, VSTOP */
+#define OV7670_REG_COM1		0x04	/* Control 1 */
+/*#define OV7670_REG_AECHH	0x07	 * AEC MS 5 bits */
+#define OV7670_REG_COM3		0x0c	/* Control 3 */
+#define OV7670_REG_COM4		0x0d	/* Control 4 */
+#define OV7670_REG_COM5		0x0e	/* All "reserved" */
+#define OV7670_REG_COM6		0x0f	/* Control 6 */
+#define OV7670_REG_AECH		0x10	/* More bits of AEC value */
+#define OV7670_REG_CLKRC	0x11	/* Clock control */
+#define OV7670_REG_COM7		0x12	/* Control 7 */
+#define   OV7670_COM7_FMT_VGA	 0x00
+/*#define   OV7670_COM7_YUV	 0x00	 * YUV */
+#define   OV7670_COM7_FMT_QVGA	 0x10	/* QVGA format */
+#define   OV7670_COM7_FMT_MASK	 0x38
+#define   OV7670_COM7_RESET	 0x80	/* Register reset */
+#define OV7670_REG_COM8		0x13	/* Control 8 */
+#define   OV7670_COM8_AEC	 0x01	/* Auto exposure enable */
+#define   OV7670_COM8_AWB	 0x02	/* White balance enable */
+#define   OV7670_COM8_AGC	 0x04	/* Auto gain enable */
+#define   OV7670_COM8_BFILT	 0x20	/* Band filter enable */
+#define   OV7670_COM8_AECSTEP	 0x40	/* Unlimited AEC step size */
+#define   OV7670_COM8_FASTAEC	 0x80	/* Enable fast AGC/AEC */
+#define OV7670_REG_COM9		0x14	/* Control 9 - gain ceiling */
+#define OV7670_REG_COM10	0x15	/* Control 10 */
+#define OV7670_REG_HSTART	0x17	/* Horiz start high bits */
+#define OV7670_REG_HSTOP	0x18	/* Horiz stop high bits */
+#define OV7670_REG_VSTART	0x19	/* Vert start high bits */
+#define OV7670_REG_VSTOP	0x1a	/* Vert stop high bits */
+#define OV7670_REG_MVFP		0x1e	/* Mirror / vflip */
+#define   OV7670_MVFP_VFLIP	 0x10	/* vertical flip */
+#define   OV7670_MVFP_MIRROR	 0x20	/* Mirror image */
+#define OV7670_REG_AEW		0x24	/* AGC upper limit */
+#define OV7670_REG_AEB		0x25	/* AGC lower limit */
+#define OV7670_REG_VPT		0x26	/* AGC/AEC fast mode op region */
+#define OV7670_REG_HREF		0x32	/* HREF pieces */
+#define OV7670_REG_TSLB		0x3a	/* lots of stuff */
+#define OV7670_REG_COM11	0x3b	/* Control 11 */
+#define   OV7670_COM11_EXP	 0x02
+#define   OV7670_COM11_HZAUTO	 0x10	/* Auto detect 50/60 Hz */
+#define OV7670_REG_COM12	0x3c	/* Control 12 */
+#define OV7670_REG_COM13	0x3d	/* Control 13 */
+#define   OV7670_COM13_GAMMA	 0x80	/* Gamma enable */
+#define   OV7670_COM13_UVSAT	 0x40	/* UV saturation auto adjustment */
+#define OV7670_REG_COM14	0x3e	/* Control 14 */
+#define OV7670_REG_EDGE		0x3f	/* Edge enhancement factor */
+#define OV7670_REG_COM15	0x40	/* Control 15 */
+/*#define   OV7670_COM15_R00FF	 0xc0	 *	00 to FF */
+#define OV7670_REG_COM16	0x41	/* Control 16 */
+#define   OV7670_COM16_AWBGAIN	 0x08	/* AWB gain enable */
+#define OV7670_REG_BRIGHT	0x55	/* Brightness */
+#define OV7670_REG_CONTRAS	0x56	/* Contrast control */
+#define OV7670_REG_GFIX		0x69	/* Fix gain control */
+#define OV7670_REG_RGB444	0x8c	/* RGB 444 control */
+#define OV7670_REG_HAECC1	0x9f	/* Hist AEC/AGC control 1 */
+#define OV7670_REG_HAECC2	0xa0	/* Hist AEC/AGC control 2 */
+#define OV7670_REG_BD50MAX	0xa5	/* 50hz banding step limit */
+#define OV7670_REG_HAECC3	0xa6	/* Hist AEC/AGC control 3 */
+#define OV7670_REG_HAECC4	0xa7	/* Hist AEC/AGC control 4 */
+#define OV7670_REG_HAECC5	0xa8	/* Hist AEC/AGC control 5 */
+#define OV7670_REG_HAECC6	0xa9	/* Hist AEC/AGC control 6 */
+#define OV7670_REG_HAECC7	0xaa	/* Hist AEC/AGC control 7 */
+#define OV7670_REG_BD60MAX	0xab	/* 60hz banding step limit */
 
 struct ov_regvals {
 	u8 reg;
@@ -618,7 +617,6 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 * "wait 4096 external clock ... to make sure the sensor is
 	 * stable and ready to access registers" i.e. 160us at 24MHz
 	 */
-
 	{ 0x12, 0x80 }, /* COMH reset */
 	{ 0x12, 0x00 }, /* QXGA, master */
 
@@ -651,7 +649,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    COMI[0] "Exposure control"
 	 *                  =   0 (0x00) .......0 "Manual"
 	 */
-	{ 0x13, 0xC0 },
+	{ 0x13, 0xc0 },
 
 	/*
 	 * 09 COMC "Common Control C"
@@ -707,7 +705,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    COME[0] "Auto zero circuit select"
 	 *                  =   1 (0x01) .......1 "On"
 	 */
-	{ 0x0d, 0xA1 },
+	{ 0x0d, 0xa1 },
 
 	/*
 	 * 0E COMF "Common Control F"
@@ -771,7 +769,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    COMJ[0] "Reserved"
 	 *                  =   0 (0x00) .......0
 	 */
-	{ 0x14, 0xC6 },
+	{ 0x14, 0xc6 },
 
 	/*
 	 * 15 COMK "Common Control K"
@@ -877,7 +875,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    FVOPT[7:0] "Range"
 	 *                  =  31 (0x1F) 00011111
 	 */
-	{ 0x3c, 0x1F },
+	{ 0x3c, 0x1f },
 
 	/*
 	 * 44 Undocumented  =   0 (0x00) 00000000
@@ -926,7 +924,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    48[7:0] "It's a secret"
 	 *                  = 192 (0xC0) 11000000
 	 */
-	{ 0x48, 0xC0 },
+	{ 0x48, 0xc0 },
 
 	/*
 	 * 49 Undocumented  =  25 (0x19) 00011001
@@ -940,18 +938,18 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    4B[7:0] "It's a secret"
 	 *                  = 128 (0x80) 10000000
 	 */
-	{ 0x4B, 0x80 },
+	{ 0x4b, 0x80 },
 
 	/*
 	 * 4D Undocumented  = 196 (0xC4) 11000100
 	 *    4D[7:0] "It's a secret"
 	 *                  = 196 (0xC4) 11000100
 	 */
-	{ 0x4D, 0xC4 },
+	{ 0x4d, 0xc4 },
 
 	/*
 	 * 35 VREF "Reference Voltage Control"
-	 *                  =  76 (0x4C) 01001100
+	 *                  =  76 (0x4c) 01001100
 	 *    VREF[7:5] "Column high reference control"
 	 *                  =   2 (0x02) 010..... "higher voltage"
 	 *    VREF[4:2] "Column low reference control"
@@ -959,21 +957,21 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    VREF[1:0] "Reserved"
 	 *                  =   0 (0x00) ......00
 	 */
-	{ 0x35, 0x4C },
+	{ 0x35, 0x4c },
 
 	/*
 	 * 3D Undocumented  =   0 (0x00) 00000000
 	 *    3D[7:0] "It's a secret"
 	 *                  =   0 (0x00) 00000000
 	 */
-	{ 0x3D, 0x00 },
+	{ 0x3d, 0x00 },
 
 	/*
 	 * 3E Undocumented  =   0 (0x00) 00000000
 	 *    3E[7:0] "It's a secret"
 	 *                  =   0 (0x00) 00000000
 	 */
-	{ 0x3E, 0x00 },
+	{ 0x3e, 0x00 },
 
 	/*
 	 * 3B FREFB "Internal Reference Adjustment"
@@ -1013,7 +1011,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    VBLM[3:0] "Sensor current control"
 	 *                  =  10 (0x0A) ....1010
 	 */
-	{ 0x34, 0x5A },
+	{ 0x34, 0x5a },
 
 	/*
 	 * 3B FREFB "Internal Reference Adjustment"
@@ -1079,7 +1077,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    HREFST[7:0] "Horizontal window start, 8 MSBs"
 	 *                  =  31 (0x1F) 00011111
 	 */
-	{ 0x17, 0x1F },
+	{ 0x17, 0x1f },
 
 	/*
 	 * 18 HREFEND "Horizontal window end"
@@ -1087,7 +1085,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    HREFEND[7:0] "Horizontal Window End, 8 MSBs"
 	 *                  =  95 (0x5F) 01011111
 	 */
-	{ 0x18, 0x5F },
+	{ 0x18, 0x5f },
 
 	/*
 	 * 19 VSTRT "Vertical window start"
@@ -1127,7 +1125,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    COMA[1:0] "Vertical window start line control 2 LSBs"
 	 *                  =   2 (0x02) ......10
 	 */
-	{ 0x03, 0x4A },
+	{ 0x03, 0x4a },
 
 	/*
 	 * 11 CLKRC "Clock Rate Control"
@@ -1184,7 +1182,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    HREFST[7:0] "Horizontal window start, 8 MSBs"
 	 *                  =  31 (0x1F) 00011111
 	 */
-	{ 0x17, 0x1F },
+	{ 0x17, 0x1f },
 
 	/*
 	 * 18 HREFEND "Horizontal window end"
@@ -1192,7 +1190,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    HREFEND[7:0] "Horizontal Window End, 8 MSBs"
 	 *                  =  95 (0x5F) 01011111
 	 */
-	{ 0x18, 0x5F },
+	{ 0x18, 0x5f },
 
 	/*
 	 * 19 VSTRT "Vertical window start"
@@ -1232,7 +1230,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    COMA[1:0] "Vertical window start line control 2 LSBs"
 	 *                  =   2 (0x02) ......10
 	 */
-	{ 0x03, 0x4A },
+	{ 0x03, 0x4a },
 
 	/*
 	 * 02 RED "Red Gain Control"
@@ -1242,7 +1240,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    RED[6:0] "Value"
 	 *                  =  47 (0x2F) .0101111
 	 */
-	{ 0x02, 0xAF },
+	{ 0x02, 0xaf },
 
 	/*
 	 * 2D ADDVSL "VSYNC Pulse Width"
@@ -1250,7 +1248,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    ADDVSL[7:0] "VSYNC pulse width, LSB"
 	 *                  = 210 (0xD2) 11010010
 	 */
-	{ 0x2d, 0xD2 },
+	{ 0x2d, 0xd2 },
 
 	/*
 	 * 00 GAIN          =  24 (0x18) 00011000
@@ -1273,7 +1271,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    BLUE[6:0] "Value"
 	 *                  = 112 (0x70) .1110000
 	 */
-	{ 0x01, 0xF0 },
+	{ 0x01, 0xf0 },
 
 	/*
 	 * 10 AEC "Automatic Exposure Control"
@@ -1281,14 +1279,14 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    AEC[7:0] "Automatic Exposure Control, 8 MSBs"
 	 *                  =  10 (0x0A) 00001010
 	 */
-	{ 0x10, 0x0A },
+	{ 0x10, 0x0a },
 
-	{ 0xE1, 0x67 },
-	{ 0xE3, 0x03 },
-	{ 0xE4, 0x26 },
-	{ 0xE5, 0x3E },
-	{ 0xF8, 0x01 },
-	{ 0xFF, 0x01 },
+	{ 0xe1, 0x67 },
+	{ 0xe3, 0x03 },
+	{ 0xe4, 0x26 },
+	{ 0xe5, 0x3e },
+	{ 0xf8, 0x01 },
+	{ 0xff, 0x01 },
 };
 
 static const struct ov_i2c_regvals norm_6x20[] = {
@@ -1297,7 +1295,7 @@ static const struct ov_i2c_regvals norm_6x20[] = {
 	{ 0x03, 0x60 },
 	{ 0x05, 0x7f }, /* For when autoadjust is off */
 	{ 0x07, 0xa8 },
-	/* The ratio of 0x0c and 0x0d  controls the white point */
+	/* The ratio of 0x0c and 0x0d controls the white point */
 	{ 0x0c, 0x24 },
 	{ 0x0d, 0x24 },
 	{ 0x0f, 0x15 }, /* COMS */
@@ -2217,7 +2215,7 @@ static int i2c_w(struct sd *sd, u8 reg, u8 value)
 		/* Up on sensor reset empty the register cache */
 		if (reg == 0x12 && (value & 0x80))
 			memset(sd->sensor_reg_cache, -1,
-			       sizeof(sd->sensor_reg_cache));
+				sizeof(sd->sensor_reg_cache));
 		else
 			sd->sensor_reg_cache[reg] = value;
 	}
@@ -2366,6 +2364,7 @@ static int init_ov_sensor(struct sd *sd, u8 slave)
 			return -EIO;
 		/* Wait for it to initialize */
 		msleep(150);
+
 		/* Dummy read to sync I2C */
 		if (i2c_r(sd, 0x00) < 0)
 			return -EIO;
@@ -2457,7 +2456,7 @@ static int ov_hires_configure(struct sd *sd)
 		sd->sensor = SEN_OV3610;
 	} else {
 		err("Error unknown sensor type: 0x%02x%02x",
-		       high, low);
+			high, low);
 		return -1;
 	}
 
@@ -2498,7 +2497,6 @@ static int ov8xx0_configure(struct sd *sd)
 static int ov7xx0_configure(struct sd *sd)
 {
 	int rc, high, low;
-
 
 	PDEBUG(D_PROBE, "starting OV7xx0 configuration");
 
@@ -2711,7 +2709,6 @@ static int ov51x_upload_quan_tables(struct sd *sd)
 		6, 6, 6, 6, 7, 7, 7, 8,
 		7, 7, 6, 7, 7, 7, 8, 8
 	};
-
 	const unsigned char uvQuanTable518[] = {
 		6, 6, 6, 7, 7, 7, 7, 7,
 		6, 6, 6, 7, 7, 7, 7, 7,
@@ -2728,11 +2725,11 @@ static int ov51x_upload_quan_tables(struct sd *sd)
 	if (sd->bridge == BRIDGE_OV511 || sd->bridge == BRIDGE_OV511PLUS) {
 		pYTable = yQuanTable511;
 		pUVTable = uvQuanTable511;
-		size  = 32;
+		size = 32;
 	} else {
 		pYTable = yQuanTable518;
 		pUVTable = uvQuanTable518;
-		size  = 16;
+		size = 16;
 	}
 
 	for (i = 0; i < size; i++) {
@@ -2893,7 +2890,7 @@ static int ov518_configure(struct gspca_dev *gspca_dev)
 
 	/* First 5 bits of custom ID reg are a revision ID on OV518 */
 	PDEBUG(D_PROBE, "Device revision %d",
-	       0x1F & reg_r(sd, R51x_SYS_CUST_ID));
+		0x1f & reg_r(sd, R51x_SYS_CUST_ID));
 
 	rc = write_regvals(sd, init_518, ARRAY_SIZE(init_518));
 	if (rc < 0)
@@ -2933,18 +2930,18 @@ static int ov518_configure(struct gspca_dev *gspca_dev)
 static int ov519_configure(struct sd *sd)
 {
 	static const struct ov_regvals init_519[] = {
-		{ 0x5a,  0x6d }, /* EnableSystem */
-		{ 0x53,  0x9b },
-		{ 0x54,  0xff }, /* set bit2 to enable jpeg */
-		{ 0x5d,  0x03 },
-		{ 0x49,  0x01 },
-		{ 0x48,  0x00 },
+		{ 0x5a, 0x6d }, /* EnableSystem */
+		{ 0x53, 0x9b },
+		{ 0x54, 0xff }, /* set bit2 to enable jpeg */
+		{ 0x5d, 0x03 },
+		{ 0x49, 0x01 },
+		{ 0x48, 0x00 },
 		/* Set LED pin to output mode. Bit 4 must be cleared or sensor
 		 * detection will fail. This deserves further investigation. */
 		{ OV519_GPIO_IO_CTRL0,   0xee },
-		{ 0x51,  0x0f }, /* SetUsbInit */
-		{ 0x51,  0x00 },
-		{ 0x22,  0x00 },
+		{ 0x51, 0x0f }, /* SetUsbInit */
+		{ 0x51, 0x00 },
+		{ 0x22, 0x00 },
 		/* windows reads 0x55 at this point*/
 	};
 
@@ -3335,7 +3332,6 @@ static int ov518_mode_init_regs(struct sd *sd)
 	ov518_reg_w32(sd, R51x_FIFO_PSIZE, packet_size & ~7, 2);
 
 	/******** Set the mode ********/
-
 	reg_w(sd, 0x2b, 0);
 	reg_w(sd, 0x2c, 0);
 	reg_w(sd, 0x2d, 0);
@@ -3369,7 +3365,7 @@ static int ov518_mode_init_regs(struct sd *sd)
 	/* Windows driver does this here; who knows why */
 	reg_w(sd, 0x2f, 0x80);
 
-	/******** Set the framerate  ********/
+	/******** Set the framerate ********/
 	sd->clockdiv = 1;
 
 	/* Mode independent, but framerate dependent, regs */
@@ -3435,7 +3431,6 @@ static int ov518_mode_init_regs(struct sd *sd)
 
 	return 0;
 }
-
 
 /* Sets up the OV519 with the given image parameters
  *
@@ -3609,7 +3604,7 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 	u8 v;
 
 	gspca_dev = &sd->gspca_dev;
-	qvga = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv & 1;
+	qvga = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv & 1;
 
 	/******** Mode (VGA/QVGA) and sensor specific regs ********/
 	switch (sd->sensor) {
@@ -3777,8 +3772,8 @@ static int set_ov_sensor_window(struct sd *sd)
 		return mode_init_ov_sensor_regs(sd);
 
 	gspca_dev = &sd->gspca_dev;
-	qvga = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv & 1;
-	crop = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv & 2;
+	qvga = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv & 1;
+	crop = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv & 2;
 
 	/* The different sensor ICs handle setting up of window differently.
 	 * IF YOU SET IT WRONG, YOU WILL GET ALL ZERO ISOC DATA FROM OV51x!! */
@@ -4458,14 +4453,14 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4060), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4061), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4064),
-	 .driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
+		.driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
 	{USB_DEVICE(0x041e, 0x4067), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4068),
-	 .driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
+		.driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
 	{USB_DEVICE(0x045e, 0x028c), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x054c, 0x0154), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x054c, 0x0155),
-	 .driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
+		.driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
 	{USB_DEVICE(0x05a9, 0x0511), .driver_info = BRIDGE_OV511 },
 	{USB_DEVICE(0x05a9, 0x0518), .driver_info = BRIDGE_OV518 },
 	{USB_DEVICE(0x05a9, 0x0519), .driver_info = BRIDGE_OV519 },
@@ -4479,7 +4474,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0b62, 0x0059), .driver_info = BRIDGE_OVFX2 },
 	{USB_DEVICE(0x0e96, 0xc001), .driver_info = BRIDGE_OVFX2 },
 	{USB_DEVICE(0x1046, 0x9967), .driver_info = BRIDGE_W9968CF },
-	{USB_DEVICE(0x8020, 0xEF04), .driver_info = BRIDGE_OVFX2 },
+	{USB_DEVICE(0x8020, 0xef04), .driver_info = BRIDGE_OVFX2 },
 	{}
 };
 

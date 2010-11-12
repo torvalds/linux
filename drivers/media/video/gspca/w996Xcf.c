@@ -150,10 +150,10 @@ static int w9968cf_upload_quantizationtables(struct sd *sd)
 	ret += reg_w(sd, 0x39, 0x0010); /* JPEG clock enable */
 
 	for (i = 0, j = 0; i < 32; i++, j += 2) {
-		a = Y_QUANTABLE[j] | ((unsigned)(Y_QUANTABLE[j+1]) << 8);
-		b = UV_QUANTABLE[j] | ((unsigned)(UV_QUANTABLE[j+1]) << 8);
-		ret += reg_w(sd, 0x40+i, a);
-		ret += reg_w(sd, 0x60+i, b);
+		a = Y_QUANTABLE[j] | ((unsigned)(Y_QUANTABLE[j + 1]) << 8);
+		b = UV_QUANTABLE[j] | ((unsigned)(UV_QUANTABLE[j + 1]) << 8);
+		reg_w(sd, 0x40 + i, a);
+		reg_w(sd, 0x60 + i, b);
 	}
 	ret += reg_w(sd, 0x39, 0x0012); /* JPEG encoder enable */
 
@@ -351,7 +351,6 @@ static int w9968cf_i2c_r(struct sd *sd, u8 reg)
 	return ret;
 }
 
-
 /*--------------------------------------------------------------------------
   Turn on the LED on some webcams. A beep should be heard too.
   Return 0 on success, a negative number otherwise.
@@ -381,11 +380,11 @@ static int w9968cf_init(struct sd *sd)
 	int ret = 0;
 	unsigned long hw_bufsize = sd->sif ? (352 * 288 * 2) : (640 * 480 * 2),
 		      y0 = 0x0000,
-		      u0 = y0 + hw_bufsize/2,
-		      v0 = u0 + hw_bufsize/4,
-		      y1 = v0 + hw_bufsize/4,
-		      u1 = y1 + hw_bufsize/2,
-		      v1 = u1 + hw_bufsize/4;
+		      u0 = y0 + hw_bufsize / 2,
+		      v0 = u0 + hw_bufsize / 4,
+		      y1 = v0 + hw_bufsize / 4,
+		      u1 = y1 + hw_bufsize / 2,
+		      v1 = u1 + hw_bufsize / 4;
 
 	ret += reg_w(sd, 0x00, 0xff00); /* power off */
 	ret += reg_w(sd, 0x00, 0xbf10); /* power on */
@@ -456,8 +455,8 @@ static int w9968cf_set_crop_window(struct sd *sd)
 	fw = SC(sd->gspca_dev.width) / max_width;
 	fh = SC(sd->gspca_dev.height) / max_height;
 
-	cw = (fw >= fh) ? max_width : SC(sd->gspca_dev.width)/fh;
-	ch = (fw >= fh) ? SC(sd->gspca_dev.height)/fw : max_height;
+	cw = (fw >= fh) ? max_width : SC(sd->gspca_dev.width) / fh;
+	ch = (fw >= fh) ? SC(sd->gspca_dev.height) / fw : max_height;
 
 	sd->sensor_width = max_width;
 	sd->sensor_height = max_height;
@@ -489,8 +488,8 @@ static int w9968cf_mode_init_regs(struct sd *sd)
 	/* Y & UV frame buffer strides (in WORD) */
 	if (w9968cf_vga_mode[sd->gspca_dev.curr_mode].pixelformat ==
 	    V4L2_PIX_FMT_JPEG) {
-		ret += reg_w(sd, 0x2c, sd->gspca_dev.width/2);
-		ret += reg_w(sd, 0x2d, sd->gspca_dev.width/4);
+		ret += reg_w(sd, 0x2c, sd->gspca_dev.width / 2);
+		ret += reg_w(sd, 0x2d, sd->gspca_dev.width / 4);
 	} else
 		ret += reg_w(sd, 0x2c, sd->gspca_dev.width);
 
