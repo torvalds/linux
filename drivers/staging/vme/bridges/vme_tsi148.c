@@ -2480,7 +2480,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
-	vme_unregister_bridge(tsi148_bridge);
 err_reg:
 	tsi148_crcsr_exit(tsi148_bridge, pdev);
 err_crcsr:
