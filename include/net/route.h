@@ -71,6 +71,16 @@ struct rtable {
 	struct inet_peer	*peer; /* long-living peer info */
 };
 
+static inline bool rt_is_input_route(struct rtable *rt)
+{
+	return rt->fl.iif != 0;
+}
+
+static inline bool rt_is_output_route(struct rtable *rt)
+{
+	return rt->fl.iif == 0;
+}
+
 struct ip_rt_acct {
 	__u32 	o_bytes;
 	__u32 	o_packets;

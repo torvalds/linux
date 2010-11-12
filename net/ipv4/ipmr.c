@@ -1654,7 +1654,7 @@ static int ip_mr_forward(struct net *net, struct mr_table *mrt,
 	if (mrt->vif_table[vif].dev != skb->dev) {
 		int true_vifi;
 
-		if (skb_rtable(skb)->fl.iif == 0) {
+		if (rt_is_output_route(skb_rtable(skb))) {
 			/* It is our own packet, looped back.
 			 * Very complicated situation...
 			 *

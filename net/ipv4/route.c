@@ -623,7 +623,7 @@ static inline int rt_fast_clean(struct rtable *rth)
 	/* Kill broadcast/multicast entries very aggresively, if they
 	   collide in hash table with more useful entries */
 	return (rth->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST)) &&
-		rth->fl.iif && rth->dst.rt_next;
+		rt_is_input_route(rth) && rth->dst.rt_next;
 }
 
 static inline int rt_valuable(struct rtable *rth)
@@ -668,7 +668,7 @@ static inline u32 rt_score(struct rtable *rt)
 	if (rt_valuable(rt))
 		score |= (1<<31);
 
-	if (!rt->fl.iif ||
+	if (rt_is_output_route(rt) ||
 	    !(rt->rt_flags & (RTCF_BROADCAST|RTCF_MULTICAST|RTCF_LOCAL)))
 		score |= (1<<30);
 
@@ -1126,7 +1126,7 @@ restart:
 		 */
 
 		rt->dst.flags |= DST_NOCACHE;
-		if (rt->rt_type == RTN_UNICAST || rt->fl.iif == 0) {
+		if (rt->rt_type == RTN_UNICAST || rt_is_output_route(rt)) {
 			int err = arp_bind_neighbour(&rt->dst);
 			if (err) {
 				if (net_ratelimit())
@@ -1224,7 +1224,7 @@ restart:
 	/* Try to bind route to arp only if it is output
 	   route or unicast forwarding path.
 	 */
-	if (rt->rt_type == RTN_UNICAST || rt->fl.iif == 0) {
+	if (rt->rt_type == RTN_UNICAST || rt_is_output_route(rt)) {
 		int err = arp_bind_neighbour(&rt->dst);
 		if (err) {
 			spin_unlock_bh(rt_hash_lock_addr(hash));
@@ -1406,7 +1406,7 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 				if (rth->fl.fl4_dst != daddr ||
 				    rth->fl.fl4_src != skeys[i] ||
 				    rth->fl.oif != ikeys[k] ||
-				    rth->fl.iif != 0 ||
+				    rt_is_input_route(rth) ||
 				    rt_is_expired(rth) ||
 				    !net_eq(dev_net(rth->dst.dev), net)) {
 					rthp = &rth->dst.rt_next;
@@ -1666,7 +1666,7 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 				    rth->rt_dst != daddr ||
 				    rth->rt_src != iph->saddr ||
 				    rth->fl.oif != ikeys[k] ||
-				    rth->fl.iif != 0 ||
+				    rt_is_input_route(rth) ||
 				    dst_metric_locked(&rth->dst, RTAX_MTU) ||
 				    !net_eq(dev_net(rth->dst.dev), net) ||
 				    rt_is_expired(rth))
@@ -1770,7 +1770,7 @@ void ip_rt_get_source(u8 *addr, struct rtable *rt)
 	__be32 src;
 	struct fib_result res;
 
-	if (rt->fl.iif == 0)
+	if (rt_is_output_route(rt))
 		src = rt->rt_src;
 	else {
 		rcu_read_lock();
@@ -2669,7 +2669,7 @@ int __ip_route_output_key(struct net *net, struct rtable **rp,
 		rth = rcu_dereference_bh(rth->dst.rt_next)) {
 		if (rth->fl.fl4_dst == flp->fl4_dst &&
 		    rth->fl.fl4_src == flp->fl4_src &&
-		    rth->fl.iif == 0 &&
+		    rt_is_output_route(rth) &&
 		    rth->fl.oif == flp->oif &&
 		    rth->fl.mark == flp->mark &&
 		    !((rth->fl.fl4_tos ^ flp->fl4_tos) &
@@ -2824,7 +2824,7 @@ static int rt_fill_info(struct net *net,
 	if (rt->dst.tclassid)
 		NLA_PUT_U32(skb, RTA_FLOW, rt->dst.tclassid);
 #endif
-	if (rt->fl.iif)
+	if (rt_is_input_route(rt))
 		NLA_PUT_BE32(skb, RTA_PREFSRC, rt->rt_spec_dst);
 	else if (rt->rt_src != rt->fl.fl4_src)
 		NLA_PUT_BE32(skb, RTA_PREFSRC, rt->rt_src);
@@ -2849,7 +2849,7 @@ static int rt_fill_info(struct net *net,
 		}
 	}
 
-	if (rt->fl.iif) {
+	if (rt_is_input_route(rt)) {
 #ifdef CONFIG_IP_MROUTE
 		__be32 dst = rt->rt_dst;
 
