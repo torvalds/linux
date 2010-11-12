@@ -290,6 +290,9 @@ int module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
 	for (s = sechdrs; s < sechdrs_end; s++) {
 		const char *secname = secstrs + s->sh_name;
 
+		if (!(s->sh_flags & SHF_ALLOC))
+			continue;
+
 		if (strcmp(".ARM.exidx.init.text", secname) == 0)
 			maps[ARM_SEC_INIT].unw_sec = s;
 		else if (strcmp(".ARM.exidx.devinit.text", secname) == 0)
