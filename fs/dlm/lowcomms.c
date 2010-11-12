@@ -1451,14 +1451,16 @@ static void work_stop(void)
 static int work_start(void)
 {
 	int error;
-	recv_workqueue = create_workqueue("dlm_recv");
+	recv_workqueue = alloc_workqueue("dlm_recv", WQ_MEM_RECLAIM |
+					 WQ_HIGHPRI | WQ_FREEZEABLE, 0);
 	error = IS_ERR(recv_workqueue);
 	if (error) {
 		log_print("can't start dlm_recv %d", error);
 		return error;
 	}
 
-	send_workqueue = create_singlethread_workqueue("dlm_send");
+	send_workqueue = alloc_workqueue("dlm_send", WQ_MEM_RECLAIM |
+					 WQ_HIGHPRI | WQ_FREEZEABLE, 0);
 	error = IS_ERR(send_workqueue);
 	if (error) {
 		log_print("can't start dlm_send %d", error);
