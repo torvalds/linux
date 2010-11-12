@@ -270,8 +270,10 @@ void smsm_print_sleep_info(void)
 {
 	unsigned long flags;
 	uint32_t *ptr;
+#ifndef CONFIG_ARCH_MSM_SCORPION
 	struct tramp_gpio_smem *gpio;
 	struct smsm_interrupt_info *int_info;
+#endif
 
 
 	spin_lock_irqsave(&smem_lock, flags);
