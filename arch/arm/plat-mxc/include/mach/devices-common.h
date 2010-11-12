@@ -202,6 +202,7 @@ struct platform_device *__init imx_add_mxc_ehci(
 struct imx_mxc_mmc_data {
 	int id;
 	resource_size_t iobase;
+	resource_size_t iosize;
 	resource_size_t irq;
 	resource_size_t dmareq;
 };

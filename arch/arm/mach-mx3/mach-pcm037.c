@@ -43,7 +43,6 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx3.h>
 #include <mach/ipu.h>
-#include <mach/mmc.h>
 #include <mach/mx3_camera.h>
 #include <mach/mx3fb.h>
 #include <mach/mxc_ehci.h>
@@ -401,7 +400,7 @@ static void pcm970_sdhc1_exit(struct device *dev, void *data)
 	gpio_free(SDHC1_GPIO_WP);
 }
 
-static struct imxmmc_platform_data sdhc_pdata = {
+static const struct imxmmc_platform_data sdhc_pdata __initconst = {
 #ifdef PCM970_SDHC_RW_SWITCH
 	.get_ro = pcm970_sdhc1_get_ro,
 #endif
@@ -634,7 +633,7 @@ static void __init mxc_board_init(void)
 	imx31_add_imx_i2c2(&pcm037_i2c2_data);
 
 	imx31_add_mxc_nand(&pcm037_nand_board_info);
-	mxc_register_device(&mxcsdhc_device0, &sdhc_pdata);
+	imx31_add_mxc_mmc(0, &sdhc_pdata);
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 	mxc_register_device(&mx3_fb, &mx3fb_pdata);
 

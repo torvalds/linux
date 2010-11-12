@@ -30,44 +30,6 @@
 #include "devices.h"
 
 #ifdef CONFIG_ARCH_MX31
-static struct resource mxcsdhc0_resources[] = {
-	{
-		.start = MX31_MMC_SDHC1_BASE_ADDR,
-		.end = MX31_MMC_SDHC1_BASE_ADDR + SZ_16K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX31_INT_MMC_SDHC1,
-		.end = MX31_INT_MMC_SDHC1,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct resource mxcsdhc1_resources[] = {
-	{
-		.start = MX31_MMC_SDHC2_BASE_ADDR,
-		.end = MX31_MMC_SDHC2_BASE_ADDR + SZ_16K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX31_INT_MMC_SDHC2,
-		.end = MX31_INT_MMC_SDHC2,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxcsdhc_device0 = {
-	.name = "mxc-mmc",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxcsdhc0_resources),
-	.resource = mxcsdhc0_resources,
-};
-
-struct platform_device mxcsdhc_device1 = {
-	.name = "mxc-mmc",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(mxcsdhc1_resources),
-	.resource = mxcsdhc1_resources,
-};
-
 static struct resource rnga_resources[] = {
 	{
 		.start = MX3x_RNGA_BASE_ADDR,
