@@ -2325,6 +2325,8 @@ static inline void ov51x_stop(struct sd *sd)
 		break;
 	case BRIDGE_OV519:
 		reg_w(sd, OV519_R51_RESET1, 0x0f);
+		reg_w(sd, OV519_R51_RESET1, 0x00);
+		reg_w(sd, 0x22, 0x00);		/* FRAR */
 		break;
 	case BRIDGE_OVFX2:
 		reg_w_mask(sd, 0x0f, 0x00, 0x02);
@@ -2356,7 +2358,9 @@ static inline void ov51x_restart(struct sd *sd)
 		reg_w(sd, R51x_SYS_RESET, 0x00);
 		break;
 	case BRIDGE_OV519:
+		reg_w(sd, OV519_R51_RESET1, 0x0f);
 		reg_w(sd, OV519_R51_RESET1, 0x00);
+		reg_w(sd, 0x22, 0x1d);		/* FRAR */
 		break;
 	case BRIDGE_OVFX2:
 		reg_w_mask(sd, 0x0f, 0x02, 0x02);
@@ -3668,13 +3672,13 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (sd->gspca_dev.streaming)
-		ov51x_stop(sd);
+		reg_w(sd, OV519_R51_RESET1, 0x0f);	/* block stream */
 	i2c_w_mask(sd, OV7670_R1E_MVFP,
 		OV7670_MVFP_MIRROR * sd->ctrls[HFLIP].val
 			| OV7670_MVFP_VFLIP * sd->ctrls[VFLIP].val,
 		OV7670_MVFP_MIRROR | OV7670_MVFP_VFLIP);
 	if (sd->gspca_dev.streaming)
-		ov51x_restart(sd);
+		reg_w(sd, OV519_R51_RESET1, 0x00);	/* restart stream */
 }
 
 static void set_ov_sensor_window(struct sd *sd)
