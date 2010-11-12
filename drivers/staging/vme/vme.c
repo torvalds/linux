@@ -1326,7 +1326,7 @@ static int vme_alloc_bus_num(void)
 static void vme_free_bus_num(int bus)
 {
 	mutex_lock(&vme_bus_num_mtx);
-	vme_bus_numbers |= ~(0x1 << bus);
+	vme_bus_numbers &= ~(0x1 << bus);
 	mutex_unlock(&vme_bus_num_mtx);
 }
 
