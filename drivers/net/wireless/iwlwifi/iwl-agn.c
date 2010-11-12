@@ -97,7 +97,8 @@ void iwl_update_chain_flags(struct iwl_priv *priv)
 	if (priv->cfg->ops->hcmd->set_rxon_chain) {
 		for_each_context(priv, ctx) {
 			priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
-			iwlcore_commit_rxon(priv, ctx);
+			if (ctx->active.rx_chain != ctx->staging.rx_chain)
+				iwlcore_commit_rxon(priv, ctx);
 		}
 	}
 }
