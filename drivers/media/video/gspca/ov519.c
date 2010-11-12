@@ -1885,6 +1885,8 @@ static void reg_w(struct sd *sd, u16 index, u16 value)
 		req = 0x0a;
 		/* fall through */
 	case BRIDGE_W9968CF:
+		PDEBUG(D_USBO, "SET %02x %04x %04x",
+				req, value, index);
 		ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
 			req,
@@ -1895,6 +1897,8 @@ static void reg_w(struct sd *sd, u16 index, u16 value)
 		req = 1;
 	}
 
+	PDEBUG(D_USBO, "SET %02x 0000 %04x %02x",
+			req, index, value);
 	sd->gspca_dev.usb_buf[0] = value;
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
@@ -1904,13 +1908,10 @@ static void reg_w(struct sd *sd, u16 index, u16 value)
 			sd->gspca_dev.usb_buf, 1, 500);
 leave:
 	if (ret < 0) {
-		err("Write reg 0x%04x -> [0x%02x] failed",
-		       value, index);
+		err("reg_w %02x failed %d", index, ret);
 		sd->gspca_dev.usb_err = ret;
 		return;
 	}
-
-	PDEBUG(D_USBO, "Write reg 0x%04x -> [0x%02x]", value, index);
 }
 
 /* Read from a OV519 register, note not valid for the w9968cf!! */
@@ -1943,9 +1944,10 @@ static int reg_r(struct sd *sd, u16 index)
 
 	if (ret >= 0) {
 		ret = sd->gspca_dev.usb_buf[0];
-		PDEBUG(D_USBI, "Read reg [0x%02X] -> 0x%04X", index, ret);
+		PDEBUG(D_USBI, "GET %02x 0000 %04x %02x",
+			req, index, ret);
 	} else {
-		err("Read reg [0x%02x] failed", index);
+		err("reg_r %02x failed %d", index, ret);
 		sd->gspca_dev.usb_err = ret;
 	}
 
@@ -1970,7 +1972,7 @@ static int reg_r8(struct sd *sd,
 	if (ret >= 0) {
 		ret = sd->gspca_dev.usb_buf[0];
 	} else {
-		err("Read reg 8 [0x%02x] failed", index);
+		err("reg_r8 %02x failed %d", index, ret);
 		sd->gspca_dev.usb_err = ret;
 	}
 
@@ -2023,7 +2025,7 @@ static void ov518_reg_w32(struct sd *sd, u16 index, u32 value, int n)
 			0, index,
 			sd->gspca_dev.usb_buf, n, 500);
 	if (ret < 0) {
-		err("Write reg32 [%02x] %08x failed", index, value);
+		err("reg_w32 %02x failed %d", index, ret);
 		sd->gspca_dev.usb_err = ret;
 	}
 }
@@ -2032,7 +2034,7 @@ static void ov511_i2c_w(struct sd *sd, u8 reg, u8 value)
 {
 	int rc, retries;
 
-	PDEBUG(D_USBO, "i2c 0x%02x -> [0x%02x]", value, reg);
+	PDEBUG(D_USBO, "ov511_i2c_w %02x %02x", reg, value);
 
 	/* Three byte write cycle */
 	for (retries = 6; ; ) {
@@ -2118,7 +2120,7 @@ static int ov511_i2c_r(struct sd *sd, u8 reg)
 
 	value = reg_r(sd, R51x_I2C_DATA);
 
-	PDEBUG(D_USBI, "i2c [0x%02X] -> 0x%02X", reg, value);
+	PDEBUG(D_USBI, "ov511_i2c_r %02x %02x", reg, value);
 
 	/* This is needed to make i2c_w() work */
 	reg_w(sd, R511_I2C_CTL, 0x05);
@@ -2135,7 +2137,7 @@ static void ov518_i2c_w(struct sd *sd,
 		u8 reg,
 		u8 value)
 {
-	PDEBUG(D_USBO, "i2c 0x%02x -> [0x%02x]", value, reg);
+	PDEBUG(D_USBO, "ov518_i2c_w %02x %02x", reg, value);
 
 	/* Select camera register */
 	reg_w(sd, R51x_I2C_SADDR_3, reg);
@@ -2171,7 +2173,7 @@ static int ov518_i2c_r(struct sd *sd, u8 reg)
 	/* Initiate 2-byte read cycle */
 	reg_w(sd, R518_I2C_CTL, 0x05);
 	value = reg_r(sd, R51x_I2C_DATA);
-	PDEBUG(D_USBI, "i2c [0x%02X] -> 0x%02X", reg, value);
+	PDEBUG(D_USBI, "ov518_i2c_r %02x %02x", reg, value);
 	return value;
 }
 
@@ -2189,11 +2191,11 @@ static void ovfx2_i2c_w(struct sd *sd, u8 reg, u8 value)
 			(u16) value, (u16) reg, NULL, 0, 500);
 
 	if (ret < 0) {
-		err("i2c 0x%02x -> [0x%02x] failed", value, reg);
+		err("ovfx2_i2c_w %02x failed %d", reg, ret);
 		sd->gspca_dev.usb_err = ret;
 	}
 
-	PDEBUG(D_USBO, "i2c 0x%02x -> [0x%02x]", value, reg);
+	PDEBUG(D_USBO, "ovfx2_i2c_w %02x %02x", reg, value);
 }
 
 static int ovfx2_i2c_r(struct sd *sd, u8 reg)
@@ -2211,9 +2213,9 @@ static int ovfx2_i2c_r(struct sd *sd, u8 reg)
 
 	if (ret >= 0) {
 		ret = sd->gspca_dev.usb_buf[0];
-		PDEBUG(D_USBI, "i2c [0x%02X] -> 0x%02X", reg, ret);
+		PDEBUG(D_USBI, "ovfx2_i2c_r %02x %02x", reg, ret);
 	} else {
-		err("i2c read [0x%02x] failed", reg);
+		err("ovfx2_i2c_r %02x failed %d", reg, ret);
 		sd->gspca_dev.usb_err = ret;
 	}
 
@@ -2472,7 +2474,7 @@ static void ov_hires_configure(struct sd *sd)
 		PDEBUG(D_PROBE, "Sensor is an OV3610");
 		sd->sensor = SEN_OV3610;
 	} else {
-		err("Error unknown sensor type: 0x%02x%02x",
+		err("Error unknown sensor type: %02x%02x",
 			high, low);
 	}
 }
