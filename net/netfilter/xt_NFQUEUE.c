@@ -72,10 +72,12 @@ nfqueue_tg_v1(struct sk_buff *skb, const struct xt_action_param *par)
 
 	if (info->queues_total > 1) {
 		if (par->family == NFPROTO_IPV4)
-			queue = hash_v4(skb) % info->queues_total + queue;
+			queue = (((u64) hash_v4(skb) * info->queues_total) >>
+				 32) + queue;
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 		else if (par->family == NFPROTO_IPV6)
-			queue = hash_v6(skb) % info->queues_total + queue;
+			queue = (((u64) hash_v6(skb) * info->queues_total) >>
+				 32) + queue;
 #endif
 	}
 	return NF_QUEUE_NR(queue);
