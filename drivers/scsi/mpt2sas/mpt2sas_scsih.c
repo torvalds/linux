@@ -2274,13 +2274,13 @@ _scsih_dev_reset(struct scsi_cmnd *scmd)
 
 	struct scsi_target *starget = scmd->device->sdev_target;
 
-	starget_printk(KERN_INFO, starget, "attempting target reset! "
+	starget_printk(KERN_INFO, starget, "attempting device reset! "
 	    "scmd(%p)\n", scmd);
 	_scsih_tm_display_info(ioc, scmd);
 
 	sas_device_priv_data = scmd->device->hostdata;
 	if (!sas_device_priv_data || !sas_device_priv_data->sas_target) {
-		starget_printk(KERN_INFO, starget, "target been deleted! "
+		starget_printk(KERN_INFO, starget, "device been deleted! "
 		    "scmd(%p)\n", scmd);
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
