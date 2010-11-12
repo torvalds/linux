@@ -710,8 +710,8 @@ static int dapm_seq_compare(struct snd_soc_dapm_widget *a,
 		return sort[a->id] - sort[b->id];
 	if (a->reg != b->reg)
 		return a->reg - b->reg;
-	if (a->codec != b->codec)
-		return (unsigned long)a->codec - (unsigned long)b->codec;
+	if (a->dapm != b->dapm)
+		return (unsigned long)a->dapm - (unsigned long)b->dapm;
 
 	return 0;
 }
