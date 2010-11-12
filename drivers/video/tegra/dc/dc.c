@@ -1046,6 +1046,17 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 	dev_info(&ndev->dev, "probed\n");
 
 	if (dc->pdata->fb) {
+		if (dc->pdata->fb->bits_per_pixel == -1) {
+			unsigned long fmt;
+			tegra_dc_writel(dc,
+					WINDOW_A_SELECT << dc->pdata->fb->win,
+					DC_CMD_DISPLAY_WINDOW_HEADER);
+
+			fmt = tegra_dc_readl(dc, DC_WIN_COLOR_DEPTH);
+			dc->pdata->fb->bits_per_pixel =
+				tegra_dc_fmt_bpp(fmt);
+		}
+
 		dc->fb = tegra_fb_register(ndev, dc, dc->pdata->fb, fb_mem);
 		if (IS_ERR_OR_NULL(dc->fb))
 			dc->fb = NULL;
