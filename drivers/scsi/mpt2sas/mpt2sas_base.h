@@ -737,6 +737,8 @@ struct MPT2SAS_ADAPTER {
 	u16		reply_sz;
 	u8		*reply;
 	dma_addr_t	reply_dma;
+	u32		reply_dma_max_address;
+	u32		reply_dma_min_address;
 	struct dma_pool *reply_dma_pool;
 
 	/* reply free queue */

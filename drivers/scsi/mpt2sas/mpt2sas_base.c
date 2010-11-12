@@ -758,7 +758,7 @@ _base_get_cb_idx(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 		if (smid < ioc->internal_smid) {
 			i = smid - ioc->hi_priority_smid;
 			cb_idx = ioc->hpr_lookup[i].cb_idx;
-		} else {
+		} else if (smid <= ioc->hba_queue_depth)  {
 			i = smid - ioc->internal_smid;
 			cb_idx = ioc->internal_lookup[i].cb_idx;
 		}
@@ -848,6 +848,7 @@ _base_interrupt(int irq, void *bus_id)
 		return IRQ_NONE;
 
 	completed_cmds = 0;
+	cb_idx = 0xFF;
 	do {
 		rd.word = rpf->Words;
 		if (rd.u.low == UINT_MAX || rd.u.high == UINT_MAX)
@@ -860,6 +861,9 @@ _base_interrupt(int irq, void *bus_id)
 		    MPI2_RPY_DESCRIPT_FLAGS_ADDRESS_REPLY) {
 			reply = le32_to_cpu
 				(rpf->AddressReply.ReplyFrameAddress);
+			if (reply > ioc->reply_dma_max_address ||
+			    reply < ioc->reply_dma_min_address)
+				reply = 0;
 		} else if (request_desript_type ==
 		    MPI2_RPY_DESCRIPT_FLAGS_TARGET_COMMAND_BUFFER)
 			goto next;
@@ -2221,6 +2225,8 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 		    ioc->name);
 		goto out;
 	}
+	ioc->reply_dma_min_address = (u32)(ioc->reply_dma);
+	ioc->reply_dma_max_address = (u32)(ioc->reply_dma) + sz;
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "reply pool(0x%p): depth"
 	    "(%d), frame_size(%d), pool_size(%d kB)\n", ioc->name, ioc->reply,
 	    ioc->reply_free_queue_depth, ioc->reply_sz, sz/1024));
