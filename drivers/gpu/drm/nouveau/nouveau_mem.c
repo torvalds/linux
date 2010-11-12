@@ -715,7 +715,8 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	struct nouveau_vram *vram;
 	int ret;
 
-	ret = nv50_vram_new(dev, mem->num_pages << PAGE_SHIFT, 65536, 0,
+	ret = nv50_vram_new(dev, mem->num_pages << PAGE_SHIFT,
+			    mem->page_alignment << PAGE_SHIFT, 0,
 			    (nvbo->tile_flags >> 8) & 0x7f, &vram);
 	if (ret)
 		return ret;

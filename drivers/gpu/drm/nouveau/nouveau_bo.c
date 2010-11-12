@@ -54,39 +54,45 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 }
 
 static void
-nouveau_bo_fixup_align(struct drm_device *dev,
-		       uint32_t tile_mode, uint32_t tile_flags,
-		       int *align, int *size)
+nouveau_bo_fixup_align(struct nouveau_bo *nvbo, int *align, int *size,
+		       int *page_shift)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(nvbo->bo.bdev);
 
 	if (dev_priv->card_type < NV_50) {
-		if (tile_mode) {
+		if (nvbo->tile_mode) {
 			if (dev_priv->chipset >= 0x40) {
 				*align = 65536;
-				*size = roundup(*size, 64 * tile_mode);
+				*size = roundup(*size, 64 * nvbo->tile_mode);
 
 			} else if (dev_priv->chipset >= 0x30) {
 				*align = 32768;
-				*size = roundup(*size, 64 * tile_mode);
+				*size = roundup(*size, 64 * nvbo->tile_mode);
 
 			} else if (dev_priv->chipset >= 0x20) {
 				*align = 16384;
-				*size = roundup(*size, 64 * tile_mode);
+				*size = roundup(*size, 64 * nvbo->tile_mode);
 
 			} else if (dev_priv->chipset >= 0x10) {
 				*align = 16384;
-				*size = roundup(*size, 32 * tile_mode);
+				*size = roundup(*size, 32 * nvbo->tile_mode);
 			}
 		}
+	} else {
+		if (likely(dev_priv->chan_vm)) {
+			if (*size > 256 * 1024)
+				*page_shift = dev_priv->chan_vm->lpg_shift;
+			else
+				*page_shift = dev_priv->chan_vm->spg_shift;
+		} else {
+			*page_shift = 12;
+		}
+
+		*size = roundup(*size, (1 << *page_shift));
+		*align = max((1 << *page_shift), *align);
 	}
 
-	/* ALIGN works only on powers of two. */
 	*size = roundup(*size, PAGE_SIZE);
-	if (dev_priv->card_type == NV_50) {
-		*size = roundup(*size, 65536);
-		*align = max(65536, *align);
-	}
 }
 
 int
@@ -97,7 +103,7 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *nvbo;
-	int ret = 0;
+	int ret = 0, page_shift = 0;
 
 	nvbo = kzalloc(sizeof(struct nouveau_bo), GFP_KERNEL);
 	if (!nvbo)
@@ -110,12 +116,11 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	nvbo->tile_flags = tile_flags;
 	nvbo->bo.bdev = &dev_priv->ttm.bdev;
 
-	nouveau_bo_fixup_align(dev, tile_mode, nouveau_bo_tile_layout(nvbo),
-			       &align, &size);
+	nouveau_bo_fixup_align(nvbo, &align, &size, &page_shift);
 	align >>= PAGE_SHIFT;
 
 	if (!nvbo->no_vm && dev_priv->chan_vm) {
-		ret = nouveau_vm_get(dev_priv->chan_vm, size, 16,
+		ret = nouveau_vm_get(dev_priv->chan_vm, size, page_shift,
 				     NV_MEM_ACCESS_RW, &nvbo->vma);
 		if (ret) {
 			kfree(nvbo);
