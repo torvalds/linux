@@ -732,7 +732,7 @@ static void xpad_led_disconnect(struct usb_xpad *xpad)
 
 	if (xpad_led) {
 		led_classdev_unregister(&xpad_led->led_cdev);
-		kfree(xpad_led->name);
+		kfree(xpad_led);
 	}
 }
 #else
@@ -921,7 +921,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	usb_set_intfdata(intf, xpad);
 
 	/*
-	 * Submit the int URB immediatly rather than waiting for open
+	 * Submit the int URB immediately rather than waiting for open
 	 * because we get status messages from the device whether
 	 * or not any controllers are attached.  In fact, it's
 	 * exactly the message that a controller has arrived that
@@ -1000,6 +1000,7 @@ static void xpad_disconnect(struct usb_interface *intf)
 		usb_free_urb(xpad->irq_in);
 		usb_free_coherent(xpad->udev, XPAD_PKT_LEN,
 				xpad->idata, xpad->idata_dma);
+		kfree(xpad->bdata);
 		kfree(xpad);
 	}
 }
