@@ -178,7 +178,7 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	if (IS_ERR(pft1000info->pPollThread)) {
 		ret = PTR_ERR(pft1000info->pPollThread);
-		goto err_thread;
+		goto err_load;
 	}
 
 	msleep(500);
@@ -186,7 +186,7 @@ static int ft1000_probe(struct usb_interface *interface,
 	while (!pft1000info->CardReady) {
 		if (gPollingfailed) {
 			ret = -EIO;
-			goto err_load;
+			goto err_thread;
 		}
 		msleep(100);
 		DEBUG("ft1000_probe::Waiting for Card Ready\n");
@@ -196,7 +196,7 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	ret = reg_ft1000_netdev(ft1000dev, interface);
 	if (ret)
-		goto err_load;
+		goto err_thread;
 
 	pft1000info->NetDevRegDone = 1;
 
