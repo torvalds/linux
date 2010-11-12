@@ -520,6 +520,9 @@ int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 
 	kvm_x86_ops->set_cr0(vcpu, cr0);
 
+	if ((cr0 ^ old_cr0) & X86_CR0_PG)
+		kvm_clear_async_pf_completion_queue(vcpu);
+
 	if ((cr0 ^ old_cr0) & update_bits)
 		kvm_mmu_reset_context(vcpu);
 	return 0;
