@@ -3413,7 +3413,7 @@ again:
 	 * our reservation.
 	 */
 	if (unused <= space_info->total_bytes) {
-		unused -= space_info->total_bytes;
+		unused = space_info->total_bytes - unused;
 		if (unused >= num_bytes) {
 			if (!reserved)
 				space_info->bytes_reserved += orig_bytes;
