@@ -654,7 +654,6 @@ static int __init vme_user_init(void)
 
 	return retval;
 
-	vme_unregister_driver(&vme_user_driver);
 err_reg:
 	kfree(ids);
 err_id:
