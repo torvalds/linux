@@ -52,6 +52,8 @@ source "drivers/i2c/Kconfig"
 
 source "drivers/spi/Kconfig"
 
+source "drivers/adc/Kconfig"
+
 source "drivers/fpga/Kconfig"
 
 source "drivers/headset_observe/Kconfig"

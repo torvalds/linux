@@ -39,5 +39,6 @@ extern struct rk29_sdmmc_platform_data default_sdmmc0_data;
 extern struct rk29_sdmmc_platform_data default_sdmmc1_data;
 extern struct platform_device rk29_device_sdmmc0;
 extern struct platform_device rk29_device_sdmmc1;
+extern struct platform_device rk29_device_adc;
 
 #endif

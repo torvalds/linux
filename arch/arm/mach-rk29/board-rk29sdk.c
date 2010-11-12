@@ -561,7 +561,9 @@ static struct platform_device *devices[] __initdata = {
     &rk29xx_device_spi0m,
     &rk29xx_device_spi1m,
 #endif
-
+#ifdef CONFIG_ADC_RK29
+	&rk29_device_adc,
+#endif
 #ifdef CONFIG_I2C0_RK29
 	&rk29_device_i2c0,
 #endif
