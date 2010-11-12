@@ -713,10 +713,14 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	struct drm_device *dev = dev_priv->dev;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_vram *vram;
+	u32 size_nc = 0;
 	int ret;
 
+	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG)
+		size_nc = 1 << nvbo->vma.node->type;
+
 	ret = nv50_vram_new(dev, mem->num_pages << PAGE_SHIFT,
-			    mem->page_alignment << PAGE_SHIFT, 0,
+			    mem->page_alignment << PAGE_SHIFT, size_nc,
 			    (nvbo->tile_flags >> 8) & 0x7f, &vram);
 	if (ret)
 		return ret;
