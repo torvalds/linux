@@ -226,26 +226,29 @@ static int initiate_cifs_search(const int xid, struct file *file)
 	char *full_path = NULL;
 	struct cifsFileInfo *cifsFile;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-	struct tcon_link *tlink;
+	struct tcon_link *tlink = NULL;
 	struct cifsTconInfo *pTcon;
 
-	tlink = cifs_sb_tlink(cifs_sb);
-	if (IS_ERR(tlink))
-		return PTR_ERR(tlink);
-	pTcon = tlink_tcon(tlink);
-
-	if (file->private_data == NULL)
-		file->private_data =
-			kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
 	if (file->private_data == NULL) {
-		rc = -ENOMEM;
-		goto error_exit;
+		tlink = cifs_sb_tlink(cifs_sb);
+		if (IS_ERR(tlink))
+			return PTR_ERR(tlink);
+
+		cifsFile = kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
+		if (cifsFile == NULL) {
+			rc = -ENOMEM;
+			goto error_exit;
+		}
+		file->private_data = cifsFile;
+		cifsFile->tlink = cifs_get_tlink(tlink);
+		pTcon = tlink_tcon(tlink);
+	} else {
+		cifsFile = file->private_data;
+		pTcon = tlink_tcon(cifsFile->tlink);
 	}
 
-	cifsFile = file->private_data;
 	cifsFile->invalidHandle = true;
 	cifsFile->srch_inf.endOfSearch = false;
-	cifsFile->tlink = cifs_get_tlink(tlink);
 
 	full_path = build_path_from_dentry(file->f_path.dentry);
 	if (full_path == NULL) {
