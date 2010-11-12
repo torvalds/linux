@@ -684,17 +684,17 @@ static inline bool rt_caching(const struct net *net)
 static inline bool compare_hash_inputs(const struct flowi *fl1,
 					const struct flowi *fl2)
 {
-	return ((((__force u32)fl1->nl_u.ip4_u.daddr ^ (__force u32)fl2->nl_u.ip4_u.daddr) |
-		((__force u32)fl1->nl_u.ip4_u.saddr ^ (__force u32)fl2->nl_u.ip4_u.saddr) |
+	return ((((__force u32)fl1->fl4_dst ^ (__force u32)fl2->fl4_dst) |
+		((__force u32)fl1->fl4_src ^ (__force u32)fl2->fl4_src) |
 		(fl1->iif ^ fl2->iif)) == 0);
 }
 
 static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 {
-	return (((__force u32)fl1->nl_u.ip4_u.daddr ^ (__force u32)fl2->nl_u.ip4_u.daddr) |
-		((__force u32)fl1->nl_u.ip4_u.saddr ^ (__force u32)fl2->nl_u.ip4_u.saddr) |
+	return (((__force u32)fl1->fl4_dst ^ (__force u32)fl2->fl4_dst) |
+		((__force u32)fl1->fl4_src ^ (__force u32)fl2->fl4_src) |
 		(fl1->mark ^ fl2->mark) |
-		(*(u16 *)&fl1->nl_u.ip4_u.tos ^ *(u16 *)&fl2->nl_u.ip4_u.tos) |
+		(*(u16 *)&fl1->fl4_tos ^ *(u16 *)&fl2->fl4_tos) |
 		(fl1->oif ^ fl2->oif) |
 		(fl1->iif ^ fl2->iif)) == 0;
 }
@@ -2089,12 +2089,10 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 {
 	struct fib_result res;
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
-	struct flowi fl = { .nl_u = { .ip4_u =
-				      { .daddr = daddr,
-					.saddr = saddr,
-					.tos = tos,
-					.scope = RT_SCOPE_UNIVERSE,
-				      } },
+	struct flowi fl = { .fl4_dst	= daddr,
+			    .fl4_src	= saddr,
+			    .fl4_tos	= tos,
+			    .fl4_scope	= RT_SCOPE_UNIVERSE,
 			    .mark = skb->mark,
 			    .iif = dev->ifindex };
 	unsigned	flags = 0;
@@ -2480,14 +2478,11 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 				const struct flowi *oldflp)
 {
 	u32 tos	= RT_FL_TOS(oldflp);
-	struct flowi fl = { .nl_u = { .ip4_u =
-				      { .daddr = oldflp->fl4_dst,
-					.saddr = oldflp->fl4_src,
-					.tos = tos & IPTOS_RT_MASK,
-					.scope = ((tos & RTO_ONLINK) ?
-						  RT_SCOPE_LINK :
-						  RT_SCOPE_UNIVERSE),
-				      } },
+	struct flowi fl = { .fl4_dst = oldflp->fl4_dst,
+			    .fl4_src = oldflp->fl4_src,
+			    .fl4_tos = tos & IPTOS_RT_MASK,
+			    .fl4_scope = ((tos & RTO_ONLINK) ?
+					  RT_SCOPE_LINK : RT_SCOPE_UNIVERSE),
 			    .mark = oldflp->mark,
 			    .iif = net->loopback_dev->ifindex,
 			    .oif = oldflp->oif };
@@ -2944,13 +2939,9 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void 
 			err = -rt->dst.error;
 	} else {
 		struct flowi fl = {
-			.nl_u = {
-				.ip4_u = {
-					.daddr = dst,
-					.saddr = src,
-					.tos = rtm->rtm_tos,
-				},
-			},
+			.fl4_dst = dst,
+			.fl4_src = src,
+			.fl4_tos = rtm->rtm_tos,
 			.oif = tb[RTA_OIF] ? nla_get_u32(tb[RTA_OIF]) : 0,
 			.mark = mark,
 		};

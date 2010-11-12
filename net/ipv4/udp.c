@@ -890,15 +890,13 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	if (rt == NULL) {
 		struct flowi fl = { .oif = ipc.oif,
 				    .mark = sk->sk_mark,
-				    .nl_u = { .ip4_u =
-					      { .daddr = faddr,
-						.saddr = saddr,
-						.tos = tos } },
+				    .fl4_dst = faddr,
+				    .fl4_src = saddr,
+				    .fl4_tos = tos,
 				    .proto = sk->sk_protocol,
 				    .flags = inet_sk_flowi_flags(sk),
-				    .uli_u = { .ports =
-					       { .sport = inet->inet_sport,
-						 .dport = dport } } };
+				    .fl_ip_sport = inet->inet_sport,
+				    .fl_ip_dport = dport };
 		struct net *net = sock_net(sk);
 
 		security_sk_classify_flow(sk, &fl);

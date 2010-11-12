@@ -23,12 +23,8 @@ static struct dst_entry *xfrm4_dst_lookup(struct net *net, int tos,
 					  xfrm_address_t *daddr)
 {
 	struct flowi fl = {
-		.nl_u = {
-			.ip4_u = {
-				.tos = tos,
-				.daddr = daddr->a4,
-			},
-		},
+		.fl4_dst = daddr->a4,
+		.fl4_tos = tos,
 	};
 	struct dst_entry *dst;
 	struct rtable *rt;

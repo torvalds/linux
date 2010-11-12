@@ -169,14 +169,12 @@ static inline int ip_route_connect(struct rtable **rp, __be32 dst,
 {
 	struct flowi fl = { .oif = oif,
 			    .mark = sk->sk_mark,
-			    .nl_u = { .ip4_u = { .daddr = dst,
-						 .saddr = src,
-						 .tos   = tos } },
+			    .fl4_dst = dst,
+			    .fl4_src = src,
+			    .fl4_tos = tos,
 			    .proto = protocol,
-			    .uli_u = { .ports =
-				       { .sport = sport,
-					 .dport = dport } } };
-
+			    .fl_ip_sport = sport,
+			    .fl_ip_dport = dport };
 	int err;
 	struct net *net = sock_net(sk);
 

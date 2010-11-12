@@ -413,13 +413,8 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 	if (dnat_took_place(skb)) {
 		if ((err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))) {
 			struct flowi fl = {
-				.nl_u = {
-					.ip4_u = {
-						 .daddr = iph->daddr,
-						 .saddr = 0,
-						 .tos = RT_TOS(iph->tos) },
-				},
-				.proto = 0,
+				.fl4_dst = iph->daddr,
+				.fl4_tos = RT_TOS(iph->tos),
 			};
 			struct in_device *in_dev = __in_dev_get_rcu(dev);
 

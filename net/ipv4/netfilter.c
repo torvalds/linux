@@ -31,10 +31,10 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 	 * packets with foreign saddr to appear on the NF_INET_LOCAL_OUT hook.
 	 */
 	if (addr_type == RTN_LOCAL) {
-		fl.nl_u.ip4_u.daddr = iph->daddr;
+		fl.fl4_dst = iph->daddr;
 		if (type == RTN_LOCAL)
-			fl.nl_u.ip4_u.saddr = iph->saddr;
-		fl.nl_u.ip4_u.tos = RT_TOS(iph->tos);
+			fl.fl4_src = iph->saddr;
+		fl.fl4_tos = RT_TOS(iph->tos);
 		fl.oif = skb->sk ? skb->sk->sk_bound_dev_if : 0;
 		fl.mark = skb->mark;
 		fl.flags = skb->sk ? inet_sk_flowi_flags(skb->sk) : 0;
@@ -47,7 +47,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 	} else {
 		/* non-local src, find valid iif to satisfy
 		 * rp-filter when calling ip_route_input. */
-		fl.nl_u.ip4_u.daddr = iph->saddr;
+		fl.fl4_dst = iph->saddr;
 		if (ip_route_output_key(net, &rt, &fl) != 0)
 			return -1;
 

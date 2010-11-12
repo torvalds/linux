@@ -433,8 +433,8 @@ static int arp_ignore(struct in_device *in_dev, __be32 sip, __be32 tip)
 
 static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 {
-	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = sip,
-						 .saddr = tip } } };
+	struct flowi fl = { .fl4_dst = sip,
+			    .fl4_src = tip };
 	struct rtable *rt;
 	int flag = 0;
 	/*unsigned long now; */
@@ -1061,8 +1061,8 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 	if (r->arp_flags & ATF_PERM)
 		r->arp_flags |= ATF_COM;
 	if (dev == NULL) {
-		struct flowi fl = { .nl_u.ip4_u = { .daddr = ip,
-						    .tos = RTO_ONLINK } };
+		struct flowi fl = { .fl4_dst = ip,
+				    .fl4_tos = RTO_ONLINK };
 		struct rtable *rt;
 		err = ip_route_output_key(net, &rt, &fl);
 		if (err != 0)
@@ -1169,8 +1169,8 @@ static int arp_req_delete(struct net *net, struct arpreq *r,
 
 	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
 	if (dev == NULL) {
-		struct flowi fl = { .nl_u.ip4_u = { .daddr = ip,
-						    .tos = RTO_ONLINK } };
+		struct flowi fl = { .fl4_dst = ip,
+				    .fl4_tos = RTO_ONLINK };
 		struct rtable *rt;
 		err = ip_route_output_key(net, &rt, &fl);
 		if (err != 0)

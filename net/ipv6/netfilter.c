@@ -18,10 +18,8 @@ int ip6_route_me_harder(struct sk_buff *skb)
 	struct flowi fl = {
 		.oif = skb->sk ? skb->sk->sk_bound_dev_if : 0,
 		.mark = skb->mark,
-		.nl_u =
-		{ .ip6_u =
-		  { .daddr = iph->daddr,
-		    .saddr = iph->saddr, } },
+		.fl6_dst = iph->daddr,
+		.fl6_src = iph->saddr,
 	};
 
 	dst = ip6_route_output(net, skb->sk, &fl);

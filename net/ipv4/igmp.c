@@ -314,8 +314,7 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 
 	{
 		struct flowi fl = { .oif = dev->ifindex,
-				    .nl_u = { .ip4_u = {
-				    .daddr = IGMPV3_ALL_MCR } },
+				    .fl4_dst = IGMPV3_ALL_MCR,
 				    .proto = IPPROTO_IGMP };
 		if (ip_route_output_key(net, &rt, &fl)) {
 			kfree_skb(skb);
@@ -660,7 +659,7 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 
 	{
 		struct flowi fl = { .oif = dev->ifindex,
-				    .nl_u = { .ip4_u = { .daddr = dst } },
+				    .fl4_dst = dst,
 				    .proto = IPPROTO_IGMP };
 		if (ip_route_output_key(net, &rt, &fl))
 			return -1;
@@ -1425,8 +1424,7 @@ void ip_mc_destroy_dev(struct in_device *in_dev)
 /* RTNL is locked */
 static struct in_device *ip_mc_find_dev(struct net *net, struct ip_mreqn *imr)
 {
-	struct flowi fl = { .nl_u = { .ip4_u =
-				      { .daddr = imr->imr_multiaddr.s_addr } } };
+	struct flowi fl = { .fl4_dst = imr->imr_multiaddr.s_addr };
 	struct rtable *rt;
 	struct net_device *dev = NULL;
 	struct in_device *idev = NULL;

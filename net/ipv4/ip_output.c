@@ -341,15 +341,13 @@ int ip_queue_xmit(struct sk_buff *skb)
 		{
 			struct flowi fl = { .oif = sk->sk_bound_dev_if,
 					    .mark = sk->sk_mark,
-					    .nl_u = { .ip4_u =
-						      { .daddr = daddr,
-							.saddr = inet->inet_saddr,
-							.tos = RT_CONN_FLAGS(sk) } },
+					    .fl4_dst = daddr,
+					    .fl4_src = inet->inet_saddr,
+					    .fl4_tos = RT_CONN_FLAGS(sk),
 					    .proto = sk->sk_protocol,
 					    .flags = inet_sk_flowi_flags(sk),
-					    .uli_u = { .ports =
-						       { .sport = inet->inet_sport,
-							 .dport = inet->inet_dport } } };
+					    .fl_ip_sport = inet->inet_sport,
+					    .fl_ip_dport = inet->inet_dport };
 
 			/* If this fails, retransmit mechanism of transport layer will
 			 * keep trying until route appears or the connection times
@@ -1404,14 +1402,11 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 
 	{
 		struct flowi fl = { .oif = arg->bound_dev_if,
-				    .nl_u = { .ip4_u =
-					      { .daddr = daddr,
-						.saddr = rt->rt_spec_dst,
-						.tos = RT_TOS(ip_hdr(skb)->tos) } },
-				    /* Not quite clean, but right. */
-				    .uli_u = { .ports =
-					       { .sport = tcp_hdr(skb)->dest,
-						 .dport = tcp_hdr(skb)->source } },
+				    .fl4_dst = daddr,
+				    .fl4_src = rt->rt_spec_dst,
+				    .fl4_tos = RT_TOS(ip_hdr(skb)->tos),
+				    .fl_ip_sport = tcp_hdr(skb)->dest,
+				    .fl_ip_dport = tcp_hdr(skb)->source,
 				    .proto = sk->sk_protocol,
 				    .flags = ip_reply_arg_flowi_flags(arg) };
 		security_skb_classify_flow(skb, &fl);

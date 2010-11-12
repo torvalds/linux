@@ -271,10 +271,10 @@ static void dn_dst_link_failure(struct sk_buff *skb)
 
 static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 {
-	return ((fl1->nl_u.dn_u.daddr ^ fl2->nl_u.dn_u.daddr) |
-		(fl1->nl_u.dn_u.saddr ^ fl2->nl_u.dn_u.saddr) |
+	return ((fl1->fld_dst ^ fl2->fld_dst) |
+		(fl1->fld_src ^ fl2->fld_src) |
 		(fl1->mark ^ fl2->mark) |
-		(fl1->nl_u.dn_u.scope ^ fl2->nl_u.dn_u.scope) |
+		(fl1->fld_scope ^ fl2->fld_scope) |
 		(fl1->oif ^ fl2->oif) |
 		(fl1->iif ^ fl2->iif)) == 0;
 }
@@ -882,11 +882,9 @@ static inline __le16 dn_fib_rules_map_destination(__le16 daddr, struct dn_fib_re
 
 static int dn_route_output_slow(struct dst_entry **pprt, const struct flowi *oldflp, int try_hard)
 {
-	struct flowi fl = { .nl_u = { .dn_u =
-				      { .daddr = oldflp->fld_dst,
-					.saddr = oldflp->fld_src,
-					.scope = RT_SCOPE_UNIVERSE,
-				     } },
+	struct flowi fl = { .fld_dst = oldflp->fld_dst,
+			    .fld_src = oldflp->fld_src,
+			    .fld_scope = RT_SCOPE_UNIVERSE,
 			    .mark = oldflp->mark,
 			    .iif = init_net.loopback_dev->ifindex,
 			    .oif = oldflp->oif };
@@ -1230,11 +1228,9 @@ static int dn_route_input_slow(struct sk_buff *skb)
 	int flags = 0;
 	__le16 gateway = 0;
 	__le16 local_src = 0;
-	struct flowi fl = { .nl_u = { .dn_u =
-				     { .daddr = cb->dst,
-				       .saddr = cb->src,
-				       .scope = RT_SCOPE_UNIVERSE,
-				    } },
+	struct flowi fl = { .fld_dst = cb->dst,
+			    .fld_src = cb->src,
+			    .fld_scope = RT_SCOPE_UNIVERSE,
 			    .mark = skb->mark,
 			    .iif = skb->dev->ifindex };
 	struct dn_fib_res res = { .fi = NULL, .type = RTN_UNREACHABLE };

@@ -772,14 +772,9 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 	{
 		struct flowi fl = {
 			.oif = tunnel->parms.link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = dst,
-					.saddr = tiph->saddr,
-					.tos = RT_TOS(tos)
-				}
-			},
-			.proto = IPPROTO_GRE,
+			.fl4_dst = dst,
+			.fl4_src = tiph->saddr,
+			.fl4_tos = RT_TOS(tos),
 			.fl_gre_key = tunnel->parms.o_key
 		};
 		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
@@ -951,13 +946,9 @@ static int ipgre_tunnel_bind_dev(struct net_device *dev)
 	if (iph->daddr) {
 		struct flowi fl = {
 			.oif = tunnel->parms.link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = iph->daddr,
-					.saddr = iph->saddr,
-					.tos = RT_TOS(iph->tos)
-				}
-			},
+			.fl4_dst = iph->daddr,
+			.fl4_src = iph->saddr,
+			.fl4_tos = RT_TOS(iph->tos),
 			.proto = IPPROTO_GRE,
 			.fl_gre_key = tunnel->parms.o_key
 		};
@@ -1217,13 +1208,9 @@ static int ipgre_open(struct net_device *dev)
 	if (ipv4_is_multicast(t->parms.iph.daddr)) {
 		struct flowi fl = {
 			.oif = t->parms.link,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = t->parms.iph.daddr,
-					.saddr = t->parms.iph.saddr,
-					.tos = RT_TOS(t->parms.iph.tos)
-				}
-			},
+			.fl4_dst = t->parms.iph.daddr,
+			.fl4_src = t->parms.iph.saddr,
+			.fl4_tos = RT_TOS(t->parms.iph.tos),
 			.proto = IPPROTO_GRE,
 			.fl_gre_key = t->parms.o_key
 		};
