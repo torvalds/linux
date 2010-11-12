@@ -202,6 +202,78 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 	return 0;
 }
 
+/*
+ * 965+ support PIPE_CONTROL commands, which provide finer grained control
+ * over cache flushing.
+ */
+struct pipe_control {
+	struct drm_i915_gem_object *obj;
+	volatile u32 *cpu_page;
+	u32 gtt_offset;
+};
+
+static int
+init_pipe_control(struct intel_ring_buffer *ring)
+{
+	struct pipe_control *pc;
+	struct drm_i915_gem_object *obj;
+	int ret;
+
+	if (ring->private)
+		return 0;
+
+	pc = kmalloc(sizeof(*pc), GFP_KERNEL);
+	if (!pc)
+		return -ENOMEM;
+
+	obj = i915_gem_alloc_object(ring->dev, 4096);
+	if (obj == NULL) {
+		DRM_ERROR("Failed to allocate seqno page\n");
+		ret = -ENOMEM;
+		goto err;
+	}
+	obj->agp_type = AGP_USER_CACHED_MEMORY;
+
+	ret = i915_gem_object_pin(obj, 4096, true);
+	if (ret)
+		goto err_unref;
+
+	pc->gtt_offset = obj->gtt_offset;
+	pc->cpu_page =  kmap(obj->pages[0]);
+	if (pc->cpu_page == NULL)
+		goto err_unpin;
+
+	pc->obj = obj;
+	ring->private = pc;
+	return 0;
+
+err_unpin:
+	i915_gem_object_unpin(obj);
+err_unref:
+	drm_gem_object_unreference(&obj->base);
+err:
+	kfree(pc);
+	return ret;
+}
+
+static void
+cleanup_pipe_control(struct intel_ring_buffer *ring)
+{
+	struct pipe_control *pc = ring->private;
+	struct drm_i915_gem_object *obj;
+
+	if (!ring->private)
+		return;
+
+	obj = pc->obj;
+	kunmap(obj->pages[0]);
+	i915_gem_object_unpin(obj);
+	drm_gem_object_unreference(&obj->base);
+
+	kfree(pc);
+	ring->private = NULL;
+}
+
 static int init_render_ring(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
@@ -215,7 +287,21 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 		I915_WRITE(MI_MODE, mode);
 	}
 
+	if (HAS_PIPE_CONTROL(dev)) {
+		ret = init_pipe_control(ring);
+		if (ret)
+			return ret;
+	}
+
 	return ret;
+}
+
+static void render_ring_cleanup(struct intel_ring_buffer *ring)
+{
+	if (!ring->private)
+		return;
+
+	cleanup_pipe_control(ring);
 }
 
 #define PIPE_CONTROL_FLUSH(ring__, addr__)					\
@@ -240,8 +326,8 @@ render_ring_add_request(struct intel_ring_buffer *ring,
 			u32 *result)
 {
 	struct drm_device *dev = ring->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 seqno = i915_gem_get_seqno(dev);
+	struct pipe_control *pc = ring->private;
 	int ret;
 
 	if (IS_GEN6(dev)) {
@@ -253,12 +339,12 @@ render_ring_add_request(struct intel_ring_buffer *ring,
 		intel_ring_emit(ring, PIPE_CONTROL_QW_WRITE |
 				PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_IS_FLUSH |
 				PIPE_CONTROL_NOTIFY);
-		intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
+		intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
 		intel_ring_emit(ring, seqno);
 		intel_ring_emit(ring, 0);
 		intel_ring_emit(ring, 0);
 	} else if (HAS_PIPE_CONTROL(dev)) {
-		u32 scratch_addr = dev_priv->seqno_gfx_addr + 128;
+		u32 scratch_addr = pc->gtt_offset + 128;
 
 		/*
 		 * Workaround qword write incoherence by flushing the
@@ -271,7 +357,7 @@ render_ring_add_request(struct intel_ring_buffer *ring,
 
 		intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
 				PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH);
-		intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
+		intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
 		intel_ring_emit(ring, seqno);
 		intel_ring_emit(ring, 0);
 		PIPE_CONTROL_FLUSH(ring, scratch_addr);
@@ -288,7 +374,7 @@ render_ring_add_request(struct intel_ring_buffer *ring,
 		intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
 				PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH |
 				PIPE_CONTROL_NOTIFY);
-		intel_ring_emit(ring, dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
+		intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
 		intel_ring_emit(ring, seqno);
 		intel_ring_emit(ring, 0);
 	} else {
@@ -312,10 +398,10 @@ static u32
 render_ring_get_seqno(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	if (HAS_PIPE_CONTROL(dev))
-		return ((volatile u32 *)(dev_priv->seqno_page))[0];
-	else
+	if (HAS_PIPE_CONTROL(dev)) {
+		struct pipe_control *pc = ring->private;
+		return pc->cpu_page[0];
+	} else
 		return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
 }
 
@@ -767,6 +853,7 @@ static const struct intel_ring_buffer render_ring = {
 	.user_irq_get		= render_ring_get_user_irq,
 	.user_irq_put		= render_ring_put_user_irq,
 	.dispatch_execbuffer	= render_ring_dispatch_execbuffer,
+       .cleanup			= render_ring_cleanup,
 };
 
 /* ring buffer for bit-stream decoder */

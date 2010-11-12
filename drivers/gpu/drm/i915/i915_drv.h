@@ -275,12 +275,9 @@ typedef struct drm_i915_private {
 	uint32_t next_seqno;
 
 	drm_dma_handle_t *status_page_dmah;
-	void *seqno_page;
 	dma_addr_t dma_status_page;
 	uint32_t counter;
-	unsigned int seqno_gfx_addr;
 	drm_local_map_t hws_map;
-	struct drm_i915_gem_object *seqno_obj;
 	struct drm_i915_gem_object *pwrctx;
 	struct drm_i915_gem_object *renderctx;
 

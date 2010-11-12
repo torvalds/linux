@@ -4625,78 +4625,15 @@ i915_gem_idle(struct drm_device *dev)
 	return 0;
 }
 
-/*
- * 965+ support PIPE_CONTROL commands, which provide finer grained control
- * over cache flushing.
- */
-static int
-i915_gem_init_pipe_control(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj;
-	int ret;
-
-	obj = i915_gem_alloc_object(dev, 4096);
-	if (obj == NULL) {
-		DRM_ERROR("Failed to allocate seqno page\n");
-		ret = -ENOMEM;
-		goto err;
-	}
-	obj->agp_type = AGP_USER_CACHED_MEMORY;
-
-	ret = i915_gem_object_pin(obj, 4096, true);
-	if (ret)
-		goto err_unref;
-
-	dev_priv->seqno_gfx_addr = obj->gtt_offset;
-	dev_priv->seqno_page =  kmap(obj->pages[0]);
-	if (dev_priv->seqno_page == NULL)
-		goto err_unpin;
-
-	dev_priv->seqno_obj = obj;
-	memset(dev_priv->seqno_page, 0, PAGE_SIZE);
-
-	return 0;
-
-err_unpin:
-	i915_gem_object_unpin(obj);
-err_unref:
-	drm_gem_object_unreference(&obj->base);
-err:
-	return ret;
-}
-
-
-static void
-i915_gem_cleanup_pipe_control(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj;
-
-	obj = dev_priv->seqno_obj;
-	kunmap(obj->pages[0]);
-	i915_gem_object_unpin(obj);
-	drm_gem_object_unreference(&obj->base);
-	dev_priv->seqno_obj = NULL;
-
-	dev_priv->seqno_page = NULL;
-}
-
 int
 i915_gem_init_ringbuffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
-	if (HAS_PIPE_CONTROL(dev)) {
-		ret = i915_gem_init_pipe_control(dev);
-		if (ret)
-			return ret;
-	}
-
 	ret = intel_init_render_ring_buffer(dev);
 	if (ret)
-		goto cleanup_pipe_control;
+		return ret;
 
 	if (HAS_BSD(dev)) {
 		ret = intel_init_bsd_ring_buffer(dev);
@@ -4718,9 +4655,6 @@ cleanup_bsd_ring:
 	intel_cleanup_ring_buffer(&dev_priv->bsd_ring);
 cleanup_render_ring:
 	intel_cleanup_ring_buffer(&dev_priv->render_ring);
-cleanup_pipe_control:
-	if (HAS_PIPE_CONTROL(dev))
-		i915_gem_cleanup_pipe_control(dev);
 	return ret;
 }
 
@@ -4732,8 +4666,6 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 	intel_cleanup_ring_buffer(&dev_priv->render_ring);
 	intel_cleanup_ring_buffer(&dev_priv->bsd_ring);
 	intel_cleanup_ring_buffer(&dev_priv->blt_ring);
-	if (HAS_PIPE_CONTROL(dev))
-		i915_gem_cleanup_pipe_control(dev);
 }
 
 int
