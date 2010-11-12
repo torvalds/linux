@@ -3667,8 +3667,6 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (sd->sensor != SEN_OV7670)
-		return;
 	if (sd->gspca_dev.streaming)
 		ov51x_stop(sd);
 	i2c_w_mask(sd, OV7670_R1E_MVFP,
@@ -3812,12 +3810,18 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	set_ov_sensor_window(sd);
 
-	setcontrast(gspca_dev);
-	setbrightness(gspca_dev);
-	setcolors(gspca_dev);
-	sethvflip(gspca_dev);
-	setautobright(gspca_dev);
-	setfreq_i(sd);
+	if (!(sd->gspca_dev.ctrl_dis & (1 << CONTRAST)))
+		setcontrast(gspca_dev);
+	if (!(sd->gspca_dev.ctrl_dis & (1 << BRIGHTNESS)))
+		setbrightness(gspca_dev);
+	if (!(sd->gspca_dev.ctrl_dis & (1 << COLORS)))
+		setcolors(gspca_dev);
+	if (!(sd->gspca_dev.ctrl_dis & ((1 << HFLIP) | (1 << VFLIP))))
+		sethvflip(gspca_dev);
+	if (!(sd->gspca_dev.ctrl_dis & (1 << AUTOBRIGHT)))
+		setautobright(gspca_dev);
+	if (!(sd->gspca_dev.ctrl_dis & (1 << FREQ)))
+		setfreq_i(sd);
 
 	/* Force clear snapshot state in case the snapshot button was
 	   pressed while we weren't streaming */
@@ -4184,19 +4188,11 @@ static void setautobright(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (sd->sensor == SEN_OV7640 || sd->sensor == SEN_OV7648 ||
-	    sd->sensor == SEN_OV7670 ||
-	    sd->sensor == SEN_OV2610 || sd->sensor == SEN_OV3610)
-		return;
-
 	i2c_w_mask(sd, 0x2d, sd->ctrls[AUTOBRIGHT].val ? 0x10 : 0x00, 0x10);
 }
 
 static void setfreq_i(struct sd *sd)
 {
-	if (sd->sensor == SEN_OV2610 || sd->sensor == SEN_OV3610)
-		return;
-
 	if (sd->sensor == SEN_OV7670) {
 		switch (sd->ctrls[FREQ].val) {
 		case 0: /* Banding filter disabled */
