@@ -2717,6 +2717,8 @@ static void iwl_alive_start(struct iwl_priv *priv)
 
 	iwl_reset_run_time_calib(priv);
 
+	set_bit(STATUS_READY, &priv->status);
+
 	/* Configure the adapter for unassociated operation */
 	iwlcore_commit_rxon(priv, ctx);
 
@@ -2726,7 +2728,6 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	iwl_leds_init(priv);
 
 	IWL_DEBUG_INFO(priv, "ALIVE processing complete.\n");
-	set_bit(STATUS_READY, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
 
 	iwl_power_update_mode(priv, true);
