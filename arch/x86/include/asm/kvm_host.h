@@ -600,6 +600,7 @@ struct kvm_x86_ops {
 struct kvm_arch_async_pf {
 	u32 token;
 	gfn_t gfn;
+	bool direct_map;
 };
 
 extern struct kvm_x86_ops *kvm_x86_ops;
