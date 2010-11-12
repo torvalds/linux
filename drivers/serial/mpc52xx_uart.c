@@ -838,7 +838,11 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 static const char *
 mpc52xx_uart_type(struct uart_port *port)
 {
-	return port->type == PORT_MPC52xx ? "MPC52xx PSC" : NULL;
+	/*
+	 * We keep using PORT_MPC52xx for historic reasons although it applies
+	 * for MPC512x, too, but print "MPC5xxx" to not irritate users
+	 */
+	return port->type == PORT_MPC52xx ? "MPC5xxx PSC" : NULL;
 }
 
 static void
