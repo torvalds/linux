@@ -234,6 +234,51 @@ static const struct ctrl sd_ctrls[] = {
 	},
 };
 
+/* table of the disabled controls */
+static const unsigned ctrl_dis[] = {
+[SEN_OV2610] =		(1 << NCTRL) - 1,	/* no control */
+
+[SEN_OV3610] =		(1 << NCTRL) - 1,	/* no control */
+
+[SEN_OV6620] =		(1 << HFLIP) |
+			(1 << VFLIP),
+
+[SEN_OV6630] =		(1 << HFLIP) |
+			(1 << VFLIP),
+
+[SEN_OV66308AF] =	(1 << HFLIP) |
+			(1 << VFLIP),
+
+[SEN_OV7610] =		(1 << HFLIP) |
+			(1 << VFLIP),
+
+[SEN_OV7620] =		(1 << HFLIP) |
+			(1 << VFLIP),
+
+[SEN_OV7620AE] =	(1 << HFLIP) |
+			(1 << VFLIP),
+
+[SEN_OV7640] =		(1 << HFLIP) |
+			(1 << VFLIP) |
+			(1 << AUTOBRIGHT) |
+			(1 << CONTRAST),
+
+[SEN_OV7648] =		(1 << HFLIP) |
+			(1 << VFLIP) |
+			(1 << AUTOBRIGHT) |
+			(1 << CONTRAST),
+
+[SEN_OV7670] =		(1 << COLORS) |
+			(1 << AUTOBRIGHT),
+
+[SEN_OV76BE] =		(1 << HFLIP) |
+			(1 << VFLIP),
+
+[SEN_OV8610] =		(1 << HFLIP) |
+			(1 << VFLIP) |
+			(1 << FREQ),
+};
+
 static const struct v4l2_pix_format ov519_vga_mode[] = {
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
@@ -3099,22 +3144,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		break;
 	}
 	gspca_dev->cam.ctrls = sd->ctrls;
-	if (sd->sensor == SEN_OV7670)
-		gspca_dev->ctrl_dis = 1 << COLORS;
-	else
-		gspca_dev->ctrl_dis = (1 << HFLIP) | (1 << VFLIP);
 	sd->quality = QUALITY_DEF;
-	if (sd->sensor == SEN_OV7640 ||
-	    sd->sensor == SEN_OV7648)
-		gspca_dev->ctrl_dis |= (1 << AUTOBRIGHT) | (1 << CONTRAST);
-	if (sd->sensor == SEN_OV7670)
-		gspca_dev->ctrl_dis |= 1 << AUTOBRIGHT;
-	/* OV8610 Frequency filter control should work but needs testing */
-	if (sd->sensor == SEN_OV8610)
-		gspca_dev->ctrl_dis |= 1 << FREQ;
-	/* No controls for the OV2610/OV3610 */
-	if (sd->sensor == SEN_OV2610 || sd->sensor == SEN_OV3610)
-		gspca_dev->ctrl_dis |= (1 << NCTRL) - 1;
+
+	gspca_dev->ctrl_dis = ctrl_dis[sd->sensor];
 
 	return 0;
 error:
