@@ -2050,11 +2050,15 @@ static void ucc_geth_stop(struct ucc_geth_private *ugeth)
 
 	ugeth_vdbg("%s: IN", __func__);
 
+	/*
+	 * Tell the kernel the link is down.
+	 * Must be done before disabling the controller
+	 * or deadlock may happen.
+	 */
+	phy_stop(phydev);
+
 	/* Disable the controller */
 	ugeth_disable(ugeth, COMM_DIR_RX_AND_TX);
-
-	/* Tell the kernel the link is down */
-	phy_stop(phydev);
 
 	/* Mask all interrupts */
 	out_be32(ugeth->uccf->p_uccm, 0x00000000);
