@@ -114,9 +114,9 @@ typedef struct {
 } driver_stats_t;
 static driver_stats_t statistics;
 
-struct cdev *vme_user_cdev;		/* Character device */
-struct class *vme_user_sysfs_class;	/* Sysfs class */
-struct device *vme_user_bridge;		/* Pointer to the bridge device */
+static struct cdev *vme_user_cdev;		/* Character device */
+static struct class *vme_user_sysfs_class;	/* Sysfs class */
+static struct device *vme_user_bridge;		/* Pointer to bridge device */
 
 
 static const int type[VME_DEVS] = {	MASTER_MINOR,	MASTER_MINOR,
