@@ -92,7 +92,7 @@ static unsigned int bus_num;
  * Structure to handle image related parameters.
  */
 typedef struct {
-	void __iomem *kern_buf;	/* Buffer address in kernel space */
+	void *kern_buf;	/* Buffer address in kernel space */
 	dma_addr_t pci_buf;	/* Buffer address in PCI address space */
 	unsigned long long size_buf;	/* Buffer size */
 	struct semaphore sem;	/* Semaphore for locking image */
@@ -277,7 +277,7 @@ static ssize_t resource_from_user(unsigned int minor, const char *buf,
 static ssize_t buffer_to_user(unsigned int minor, char __user *buf,
 	size_t count, loff_t *ppos)
 {
-	void __iomem *image_ptr;
+	void *image_ptr;
 	ssize_t retval;
 
 	image_ptr = image[minor].kern_buf + *ppos;
@@ -296,7 +296,7 @@ static ssize_t buffer_to_user(unsigned int minor, char __user *buf,
 static ssize_t buffer_from_user(unsigned int minor, const char *buf,
 	size_t count, loff_t *ppos)
 {
-	void __iomem *image_ptr;
+	void *image_ptr;
 	size_t retval;
 
 	image_ptr = image[minor].kern_buf + *ppos;
