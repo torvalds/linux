@@ -543,21 +543,25 @@ exit:
 static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad)
 {
 	struct usb_endpoint_descriptor *ep_irq_out;
-	int error = -ENOMEM;
+	int error;
 
 	if (xpad->xtype != XTYPE_XBOX360 && xpad->xtype != XTYPE_XBOX)
 		return 0;
 
 	xpad->odata = usb_alloc_coherent(xpad->udev, XPAD_PKT_LEN,
 					 GFP_KERNEL, &xpad->odata_dma);
-	if (!xpad->odata)
+	if (!xpad->odata) {
+		error = -ENOMEM;
 		goto fail1;
+	}
 
 	mutex_init(&xpad->odata_mutex);
 
 	xpad->irq_out = usb_alloc_urb(0, GFP_KERNEL);
-	if (!xpad->irq_out)
+	if (!xpad->irq_out) {
+		error = -ENOMEM;
 		goto fail2;
+	}
 
 	ep_irq_out = &intf->cur_altsetting->endpoint[1].desc;
 	usb_fill_int_urb(xpad->irq_out, xpad->udev,
@@ -789,8 +793,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	struct usb_xpad *xpad;
 	struct input_dev *input_dev;
 	struct usb_endpoint_descriptor *ep_irq_in;
-	int i;
-	int error = -ENOMEM;
+	int i, error;
 
 	for (i = 0; xpad_device[i].idVendor; i++) {
 		if ((le16_to_cpu(udev->descriptor.idVendor) == xpad_device[i].idVendor) &&
@@ -800,17 +803,23 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	xpad = kzalloc(sizeof(struct usb_xpad), GFP_KERNEL);
 	input_dev = input_allocate_device();
-	if (!xpad || !input_dev)
+	if (!xpad || !input_dev) {
+		error = -ENOMEM;
 		goto fail1;
+	}
 
 	xpad->idata = usb_alloc_coherent(udev, XPAD_PKT_LEN,
 					 GFP_KERNEL, &xpad->idata_dma);
-	if (!xpad->idata)
+	if (!xpad->idata) {
+		error = -ENOMEM;
 		goto fail1;
+	}
 
 	xpad->irq_in = usb_alloc_urb(0, GFP_KERNEL);
-	if (!xpad->irq_in)
+	if (!xpad->irq_in) {
+		error = -ENOMEM;
 		goto fail2;
+	}
 
 	xpad->udev = udev;
 	xpad->mapping = xpad_device[i].mapping;
@@ -929,12 +938,16 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		 * controller when it shows up
 		 */
 		xpad->bulk_out = usb_alloc_urb(0, GFP_KERNEL);
-		if(!xpad->bulk_out)
+		if (!xpad->bulk_out) {
+			error = -ENOMEM;
 			goto fail5;
+		}
 
 		xpad->bdata = kzalloc(XPAD_PKT_LEN, GFP_KERNEL);
-		if(!xpad->bdata)
+		if (!xpad->bdata) {
+			error = -ENOMEM;
 			goto fail6;
+		}
 
 		xpad->bdata[2] = 0x08;
 		switch (intf->cur_altsetting->desc.bInterfaceNumber) {
