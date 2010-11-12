@@ -222,7 +222,7 @@ int wl1271_cmd_ext_radio_parms(struct wl1271 *wl)
  * Poll the mailbox event field until any of the bits in the mask is set or a
  * timeout occurs (WL1271_EVENT_TIMEOUT in msecs)
  */
-static int wl1271_cmd_wait_for_event(struct wl1271 *wl, u32 mask)
+static int wl1271_cmd_wait_for_event_or_timeout(struct wl1271 *wl, u32 mask)
 {
 	u32 events_vector, event;
 	unsigned long timeout;
@@ -231,7 +231,8 @@ static int wl1271_cmd_wait_for_event(struct wl1271 *wl, u32 mask)
 
 	do {
 		if (time_after(jiffies, timeout)) {
-			ieee80211_queue_work(wl->hw, &wl->recovery_work);
+			wl1271_debug(DEBUG_CMD, "timeout waiting for event %d",
+				     (int)mask);
 			return -ETIMEDOUT;
 		}
 
@@ -245,6 +246,19 @@ static int wl1271_cmd_wait_for_event(struct wl1271 *wl, u32 mask)
 			    sizeof(events_vector), false);
 		event |= events_vector & mask;
 	} while (!event);
+
+	return 0;
+}
+
+static int wl1271_cmd_wait_for_event(struct wl1271 *wl, u32 mask)
+{
+	int ret;
+
+	ret = wl1271_cmd_wait_for_event_or_timeout(wl, mask);
+	if (ret != 0) {
+		ieee80211_queue_work(wl->hw, &wl->recovery_work);
+		return ret;
+	}
 
 	return 0;
 }
@@ -1108,9 +1122,11 @@ int wl1271_cmd_remove_sta(struct wl1271 *wl, u8 hlid)
 		goto out_free;
 	}
 
-	ret = wl1271_cmd_wait_for_event(wl, STA_REMOVE_COMPLETE_EVENT_ID);
-	if (ret < 0)
-		wl1271_error("cmd remove sta event completion error");
+	/*
+	 * We are ok with a timeout here. The event is sometimes not sent
+	 * due to a firmware bug.
+	 */
+	wl1271_cmd_wait_for_event_or_timeout(wl, STA_REMOVE_COMPLETE_EVENT_ID);
 
 out_free:
 	kfree(cmd);
