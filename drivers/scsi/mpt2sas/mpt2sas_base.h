@@ -419,6 +419,18 @@ enum reset_type {
 };
 
 /**
+ * struct chain_tracker - firmware chain tracker
+ * @chain_buffer: chain buffer
+ * @chain_buffer_dma: physical address
+ * @tracker_list: list of free request (ioc->free_chain_list)
+ */
+struct chain_tracker {
+	void *chain_buffer;
+	dma_addr_t chain_buffer_dma;
+	struct list_head tracker_list;
+};
+
+/**
  * struct request_tracker - firmware request tracker
  * @smid: system message id
  * @scmd: scsi request pointer
@@ -430,6 +442,7 @@ struct request_tracker {
 	u16	smid;
 	struct scsi_cmnd *scmd;
 	u8	cb_idx;
+	struct list_head chain_list;
 	struct list_head tracker_list;
 };
 
@@ -704,8 +717,10 @@ struct MPT2SAS_ADAPTER {
 	wait_queue_head_t reset_wq;
 
 	/* chain */
-	u8		*chain;
-	dma_addr_t	chain_dma;
+	struct chain_tracker *chain_lookup;
+	struct list_head free_chain_list;
+	struct dma_pool *chain_dma_pool;
+	ulong		chain_pages;
 	u16 		max_sges_in_main_message;
 	u16		max_sges_in_chain_message;
 	u16		chains_needed_per_io;

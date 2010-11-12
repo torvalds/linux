@@ -931,31 +931,32 @@ _scsih_scsi_lookup_find_by_lun(struct MPT2SAS_ADAPTER *ioc, int id,
 }
 
 /**
- * _scsih_get_chain_buffer_dma - obtain block of chains (dma address)
+ * _scsih_get_chain_buffer_tracker - obtain chain tracker
  * @ioc: per adapter object
- * @smid: system request message index
+ * @smid: smid associated to an IO request
  *
- * Returns phys pointer to chain buffer.
+ * Returns chain tracker(from ioc->free_chain_list)
  */
-static dma_addr_t
-_scsih_get_chain_buffer_dma(struct MPT2SAS_ADAPTER *ioc, u16 smid)
+static struct chain_tracker *
+_scsih_get_chain_buffer_tracker(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 {
-	return ioc->chain_dma + ((smid - 1) * (ioc->request_sz *
-	    ioc->chains_needed_per_io));
-}
+	struct chain_tracker *chain_req;
+	unsigned long flags;
 
-/**
- * _scsih_get_chain_buffer - obtain block of chains assigned to a mf request
- * @ioc: per adapter object
- * @smid: system request message index
- *
- * Returns virt pointer to chain buffer.
- */
-static void *
-_scsih_get_chain_buffer(struct MPT2SAS_ADAPTER *ioc, u16 smid)
-{
-	return (void *)(ioc->chain + ((smid - 1) * (ioc->request_sz *
-	    ioc->chains_needed_per_io)));
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	if (list_empty(&ioc->free_chain_list)) {
+		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+		printk(MPT2SAS_WARN_FMT "chain buffers not available\n",
+		    ioc->name);
+		return NULL;
+	}
+	chain_req = list_entry(ioc->free_chain_list.next,
+	    struct chain_tracker, tracker_list);
+	list_del_init(&chain_req->tracker_list);
+	list_add_tail(&chain_req->tracker_list,
+	    &ioc->scsi_lookup[smid - 1].chain_list);
+	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+	return chain_req;
 }
 
 /**
@@ -986,6 +987,7 @@ _scsih_build_scatter_gather(struct MPT2SAS_ADAPTER *ioc,
 	u32 sgl_flags;
 	u32 sgl_flags_last_element;
 	u32 sgl_flags_end_buffer;
+	struct chain_tracker *chain_req;
 
 	mpi_request = mpt2sas_base_get_msg_frame(ioc, smid);
 
@@ -1033,8 +1035,11 @@ _scsih_build_scatter_gather(struct MPT2SAS_ADAPTER *ioc,
 
 	/* initializing the chain flags and pointers */
 	chain_flags = MPI2_SGE_FLAGS_CHAIN_ELEMENT << MPI2_SGE_FLAGS_SHIFT;
-	chain = _scsih_get_chain_buffer(ioc, smid);
-	chain_dma = _scsih_get_chain_buffer_dma(ioc, smid);
+	chain_req = _scsih_get_chain_buffer_tracker(ioc, smid);
+	if (!chain_req)
+		return -1;
+	chain = chain_req->chain_buffer;
+	chain_dma = chain_req->chain_buffer_dma;
 	do {
 		sges_in_segment = (sges_left <=
 		    ioc->max_sges_in_chain_message) ? sges_left :
@@ -1070,8 +1075,11 @@ _scsih_build_scatter_gather(struct MPT2SAS_ADAPTER *ioc,
 			sges_in_segment--;
 		}
 
-		chain_dma += ioc->request_sz;
-		chain += ioc->request_sz;
+		chain_req = _scsih_get_chain_buffer_tracker(ioc, smid);
+		if (!chain_req)
+			return -1;
+		chain = chain_req->chain_buffer;
+		chain_dma = chain_req->chain_buffer_dma;
 	} while (1);
 
 

@@ -65,7 +65,6 @@
 static MPT_CALLBACK	mpt_callbacks[MPT_MAX_CALLBACKS];
 
 #define FAULT_POLLING_INTERVAL 1000 /* in milliseconds */
-#define MPT2SAS_MAX_REQUEST_QUEUE 600 /* maximum controller queue depth */
 
 static int max_queue_depth = -1;
 module_param(max_queue_depth, int, 0);
@@ -1497,6 +1496,7 @@ mpt2sas_base_free_smid(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 {
 	unsigned long flags;
 	int i;
+	struct chain_tracker *chain_req, *next;
 
 	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 	if (smid >= ioc->hi_priority_smid) {
@@ -1519,6 +1519,14 @@ mpt2sas_base_free_smid(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 
 	/* scsiio queue */
 	i = smid - 1;
+	if (!list_empty(&ioc->scsi_lookup[i].chain_list)) {
+		list_for_each_entry_safe(chain_req, next,
+		    &ioc->scsi_lookup[i].chain_list, tracker_list) {
+			list_del_init(&chain_req->tracker_list);
+			list_add_tail(&chain_req->tracker_list,
+			    &ioc->free_chain_list);
+		}
+	}
 	ioc->scsi_lookup[i].cb_idx = 0xFF;
 	ioc->scsi_lookup[i].scmd = NULL;
 	list_add_tail(&ioc->scsi_lookup[i].tracker_list,
@@ -1968,6 +1976,8 @@ _base_static_config_pages(struct MPT2SAS_ADAPTER *ioc)
 static void
 _base_release_memory_pools(struct MPT2SAS_ADAPTER *ioc)
 {
+	int i;
+
 	dexitprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 	    __func__));
 
@@ -2032,6 +2042,20 @@ _base_release_memory_pools(struct MPT2SAS_ADAPTER *ioc)
 	}
 	kfree(ioc->hpr_lookup);
 	kfree(ioc->internal_lookup);
+	if (ioc->chain_lookup) {
+		for (i = 0; i < ioc->chain_depth; i++) {
+			if (ioc->chain_lookup[i].chain_buffer)
+				pci_pool_free(ioc->chain_dma_pool,
+				    ioc->chain_lookup[i].chain_buffer,
+				    ioc->chain_lookup[i].chain_buffer_dma);
+		}
+		if (ioc->chain_dma_pool)
+			pci_pool_destroy(ioc->chain_dma_pool);
+	}
+	if (ioc->chain_lookup) {
+		free_pages((ulong)ioc->chain_lookup, ioc->chain_pages);
+		ioc->chain_lookup = NULL;
+	}
 }
 
 
@@ -2053,6 +2077,7 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	u32 sz, total_sz;
 	u32 retry_sz;
 	u16 max_request_credit;
+	int i;
 
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 	    __func__));
@@ -2070,14 +2095,11 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	}
 
 	/* command line tunables  for max controller queue depth */
-	if (max_queue_depth != -1) {
+	if (max_queue_depth != -1)
 		max_request_credit = (max_queue_depth < facts->RequestCredit)
 		    ? max_queue_depth : facts->RequestCredit;
-	} else {
-		max_request_credit = (facts->RequestCredit >
-		    MPT2SAS_MAX_REQUEST_QUEUE) ? MPT2SAS_MAX_REQUEST_QUEUE :
-		    facts->RequestCredit;
-	}
+	else
+		max_request_credit = facts->RequestCredit;
 
 	ioc->hba_queue_depth = max_request_credit;
 	ioc->hi_priority_depth = facts->HighPriorityCredit;
@@ -2183,7 +2205,7 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	 * "frame for smid=0
 	 */
 	ioc->chain_depth = ioc->chains_needed_per_io * ioc->scsiio_depth;
-	sz = ((ioc->scsiio_depth + 1 + ioc->chain_depth) * ioc->request_sz);
+	sz = ((ioc->scsiio_depth + 1) * ioc->request_sz);
 
 	/* hi-priority queue */
 	sz += (ioc->hi_priority_depth * ioc->request_sz);
@@ -2224,19 +2246,11 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	ioc->internal_dma = ioc->hi_priority_dma + (ioc->hi_priority_depth *
 	    ioc->request_sz);
 
-	ioc->chain = ioc->internal + (ioc->internal_depth *
-	    ioc->request_sz);
-	ioc->chain_dma = ioc->internal_dma + (ioc->internal_depth *
-	    ioc->request_sz);
 
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "request pool(0x%p): "
 	    "depth(%d), frame_size(%d), pool_size(%d kB)\n", ioc->name,
 	    ioc->request, ioc->hba_queue_depth, ioc->request_sz,
 	    (ioc->hba_queue_depth * ioc->request_sz)/1024));
-	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "chain pool(0x%p): depth"
-	    "(%d), frame_size(%d), pool_size(%d kB)\n", ioc->name, ioc->chain,
-	    ioc->chain_depth, ioc->request_sz, ((ioc->chain_depth *
-	    ioc->request_sz))/1024));
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "request pool: dma(0x%llx)\n",
 	    ioc->name, (unsigned long long) ioc->request_dma));
 	total_sz += sz;
@@ -2254,6 +2268,38 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "scsiio(0x%p): "
 	    "depth(%d)\n", ioc->name, ioc->request,
 	    ioc->scsiio_depth));
+
+	/* loop till the allocation succeeds */
+	do {
+		sz = ioc->chain_depth * sizeof(struct chain_tracker);
+		ioc->chain_pages = get_order(sz);
+		ioc->chain_lookup = (struct chain_tracker *)__get_free_pages(
+		    GFP_KERNEL, ioc->chain_pages);
+		if (ioc->chain_lookup == NULL)
+			ioc->chain_depth -= 100;
+	} while (ioc->chain_lookup == NULL);
+	ioc->chain_dma_pool = pci_pool_create("chain pool", ioc->pdev,
+	    ioc->request_sz, 16, 0);
+	if (!ioc->chain_dma_pool) {
+		printk(MPT2SAS_ERR_FMT "chain_dma_pool: pci_pool_create "
+		    "failed\n", ioc->name);
+		goto out;
+	}
+	for (i = 0; i < ioc->chain_depth; i++) {
+		ioc->chain_lookup[i].chain_buffer = pci_pool_alloc(
+		    ioc->chain_dma_pool , GFP_KERNEL,
+		    &ioc->chain_lookup[i].chain_buffer_dma);
+		if (!ioc->chain_lookup[i].chain_buffer) {
+			ioc->chain_depth = i;
+			goto chain_done;
+		}
+		total_sz += ioc->request_sz;
+	}
+chain_done:
+	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "chain pool depth"
+	    "(%d), frame_size(%d), pool_size(%d kB)\n", ioc->name,
+	    ioc->chain_depth, ioc->request_sz, ((ioc->chain_depth *
+	    ioc->request_sz))/1024));
 
 	/* initialize hi-priority queue smid's */
 	ioc->hpr_lookup = kcalloc(ioc->hi_priority_depth,
@@ -2404,7 +2450,6 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	return 0;
 
  out:
-	_base_release_memory_pools(ioc);
 	return -ENOMEM;
 }
 
@@ -3587,6 +3632,7 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	INIT_LIST_HEAD(&ioc->free_list);
 	smid = 1;
 	for (i = 0; i < ioc->scsiio_depth; i++, smid++) {
+		INIT_LIST_HEAD(&ioc->scsi_lookup[i].chain_list);
 		ioc->scsi_lookup[i].cb_idx = 0xFF;
 		ioc->scsi_lookup[i].smid = smid;
 		ioc->scsi_lookup[i].scmd = NULL;
@@ -3613,6 +3659,13 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 		list_add_tail(&ioc->internal_lookup[i].tracker_list,
 		    &ioc->internal_free_list);
 	}
+
+	/* chain pool */
+	INIT_LIST_HEAD(&ioc->free_chain_list);
+	for (i = 0; i < ioc->chain_depth; i++)
+		list_add_tail(&ioc->chain_lookup[i].tracker_list,
+		    &ioc->free_chain_list);
+
 	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 
 	/* initialize Reply Free Queue */
