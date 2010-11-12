@@ -80,28 +80,6 @@ TRACE_EVENT(i915_gem_object_change_domain,
 		      __entry->read_domains, __entry->write_domain)
 );
 
-TRACE_EVENT(i915_gem_object_get_fence,
-
-	    TP_PROTO(struct drm_i915_gem_object *obj, int fence, int tiling_mode),
-
-	    TP_ARGS(obj, fence, tiling_mode),
-
-	    TP_STRUCT__entry(
-			     __field(struct drm_i915_gem_object *, obj)
-			     __field(int, fence)
-			     __field(int, tiling_mode)
-			     ),
-
-	    TP_fast_assign(
-			   __entry->obj = obj;
-			   __entry->fence = fence;
-			   __entry->tiling_mode = tiling_mode;
-			   ),
-
-	    TP_printk("obj=%p, fence=%d, tiling=%d",
-		      __entry->obj, __entry->fence, __entry->tiling_mode)
-);
-
 DECLARE_EVENT_CLASS(i915_gem_object,
 
 	    TP_PROTO(struct drm_i915_gem_object *obj),

@@ -2603,9 +2603,6 @@ update:
 		break;
 	}
 
-	trace_i915_gem_object_get_fence(obj,
-					obj->fence_reg,
-					obj->tiling_mode);
 	return ret;
 }
 
