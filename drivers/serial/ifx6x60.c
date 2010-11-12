@@ -60,6 +60,7 @@
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/ifx_modem.h>
+#include <linux/delay.h>
 
 #include "ifx6x60.h"
 
