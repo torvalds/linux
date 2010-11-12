@@ -513,6 +513,7 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
 /* OV519 System Controller register numbers */
 #define OV519_R51_RESET1		0x51
 #define OV519_R54_EN_CLK1		0x54
+#define OV519_R57_SNAPSHOT		0x57
 
 #define OV519_GPIO_DATA_OUT0		0x71
 #define OV519_GPIO_IO_CTRL0		0x72
@@ -3864,6 +3865,8 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		sd->snapshot_pressed = 0;
 	}
 #endif
+	if (sd->bridge == BRIDGE_OV519)
+		reg_w(sd, OV519_R57_SNAPSHOT, 0x23);
 }
 
 static void ov51x_handle_button(struct gspca_dev *gspca_dev, u8 state)
