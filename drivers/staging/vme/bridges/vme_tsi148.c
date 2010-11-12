@@ -374,8 +374,11 @@ static int tsi148_irq_init(struct vme_bridge *tsi148_bridge)
 	return 0;
 }
 
-static void tsi148_irq_exit(struct tsi148_driver *bridge, struct pci_dev *pdev)
+static void tsi148_irq_exit(struct vme_bridge *tsi148_bridge,
+	struct pci_dev *pdev)
 {
+	struct tsi148_driver *bridge = tsi148_bridge->driver_priv;
+
 	/* Turn off interrupts */
 	iowrite32be(0x0, bridge->base + TSI148_LCSR_INTEO);
 	iowrite32be(0x0, bridge->base + TSI148_LCSR_INTEN);
@@ -384,7 +387,7 @@ static void tsi148_irq_exit(struct tsi148_driver *bridge, struct pci_dev *pdev)
 	iowrite32be(0xFFFFFFFF, bridge->base + TSI148_LCSR_INTC);
 
 	/* Detach interrupt handler */
-	free_irq(pdev->irq, pdev);
+	free_irq(pdev->irq, tsi148_bridge);
 }
 
 /*
@@ -2511,7 +2514,7 @@ err_master:
 		kfree(master_image);
 	}
 
-	tsi148_irq_exit(tsi148_device, pdev);
+	tsi148_irq_exit(tsi148_bridge, pdev);
 err_irq:
 err_test:
 	iounmap(tsi148_device->base);
@@ -2583,7 +2586,7 @@ static void tsi148_remove(struct pci_dev *pdev)
 	iowrite32be(0x0, bridge->base + TSI148_LCSR_INTM1);
 	iowrite32be(0x0, bridge->base + TSI148_LCSR_INTM2);
 
-	tsi148_irq_exit(bridge, pdev);
+	tsi148_irq_exit(tsi148_bridge, pdev);
 
 	vme_unregister_bridge(tsi148_bridge);
 
