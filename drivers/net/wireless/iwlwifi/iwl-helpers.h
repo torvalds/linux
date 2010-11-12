@@ -44,15 +44,6 @@ static inline struct ieee80211_conf *ieee80211_get_hw_conf(
 	return &hw->conf;
 }
 
-static inline unsigned long elapsed_jiffies(unsigned long start,
-					    unsigned long end)
-{
-	if (end >= start)
-		return end - start;
-
-	return end + (MAX_JIFFY_OFFSET - start) + 1;
-}
-
 /**
  * iwl_queue_inc_wrap - increment queue index, wrap back to beginning
  * @index -- current index

@@ -252,8 +252,7 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 
 	IWL_DEBUG_SCAN(priv, "Scan on %sGHz took %dms\n",
 		       (priv->scan_band == IEEE80211_BAND_2GHZ) ? "2.4" : "5.2",
-		       jiffies_to_msecs(elapsed_jiffies
-					(priv->scan_start, jiffies)));
+		       jiffies_to_msecs(jiffies - priv->scan_start));
 
 	queue_work(priv->workqueue, &priv->scan_completed);
 
