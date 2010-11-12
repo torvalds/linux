@@ -30,8 +30,6 @@
 #include <pcicfg.h>
 
 
-#define PCI_CFG_RETRY 		10
-
 #define OS_HANDLE_MAGIC		0x1234abcd	/* Magic # to recognise osh */
 #define BCM_MEM_FILENAME_LEN 	24	/* Mem. filename length */
 
@@ -139,51 +137,16 @@ void BCMFASTPATH osl_pktfree(osl_t *osh, void *p, bool send)
 
 u32 osl_pci_read_config(osl_t *osh, uint offset, uint size)
 {
-	uint val = 0;
-	uint retry = PCI_CFG_RETRY;
-
-	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
-
-	/* only 4byte access supported */
-	ASSERT(size == 4);
-
-	do {
-		pci_read_config_dword(osh->pdev, offset, &val);
-		if (val != 0xffffffff)
-			break;
-	} while (retry--);
-
-#ifdef BCMDBG
-	if (retry < PCI_CFG_RETRY)
-		printk("PCI CONFIG READ access to %d required %d retries\n",
-		       offset, (PCI_CFG_RETRY - retry));
-#endif				/* BCMDBG */
-
+	uint val;
+	pci_read_config_dword(osh->pdev, offset, &val);
 	return val;
 }
 
 void osl_pci_write_config(osl_t *osh, uint offset, uint size, uint val)
 {
-	uint retry = PCI_CFG_RETRY;
-
-	ASSERT((osh && (osh->magic == OS_HANDLE_MAGIC)));
-
-	/* only 4byte access supported */
-	ASSERT(size == 4);
-
-	do {
-		pci_write_config_dword(osh->pdev, offset, val);
-		if (offset != PCI_BAR0_WIN)
-			break;
-		if (osl_pci_read_config(osh, offset, size) == val)
-			break;
-	} while (retry--);
-
-#if defined(BCMDBG) && !defined(BRCM_FULLMAC)
-	if (retry < PCI_CFG_RETRY)
-		printk("PCI CONFIG WRITE access to %d required %d retries\n",
-		       offset, (PCI_CFG_RETRY - retry));
-#endif				/* BCMDBG */
+	pci_write_config_dword(osh->pdev, offset, val);
+	if (offset == PCI_BAR0_WIN)
+		ASSERT(osl_pci_read_config(osh, offset, size) == val);
 }
 
 /* return bus # for the pci device pointed by osh->pdev */
