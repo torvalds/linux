@@ -141,7 +141,7 @@ struct inet_sock {
 				nodefrag:1;
 	int			mc_index;
 	__be32			mc_addr;
-	struct ip_mc_socklist	*mc_list;
+	struct ip_mc_socklist __rcu	*mc_list;
 	struct {
 		unsigned int		flags;
 		unsigned int		fragsize;
