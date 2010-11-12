@@ -5817,90 +5817,6 @@ _scsih_sas_ir_operation_status_event(struct MPT2SAS_ADAPTER *ioc,
 }
 
 /**
- * _scsih_task_set_full - handle task set full
- * @ioc: per adapter object
- * @fw_event: The fw_event_work object
- * Context: user.
- *
- * Throttle back qdepth.
- */
-static void
-_scsih_task_set_full(struct MPT2SAS_ADAPTER *ioc, struct fw_event_work
-	*fw_event)
-{
-	unsigned long flags;
-	struct _sas_device *sas_device;
-	static struct _raid_device *raid_device;
-	struct scsi_device *sdev;
-	int depth;
-	u16 current_depth;
-	u16 handle;
-	int id, channel;
-	u64 sas_address;
-	Mpi2EventDataTaskSetFull_t *event_data = fw_event->event_data;
-
-	current_depth = le16_to_cpu(event_data->CurrentDepth);
-	handle = le16_to_cpu(event_data->DevHandle);
-	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	sas_device = _scsih_sas_device_find_by_handle(ioc, handle);
-	if (!sas_device) {
-		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
-		return;
-	}
-	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
-	id = sas_device->id;
-	channel = sas_device->channel;
-	sas_address = sas_device->sas_address;
-
-	/* if hidden raid component, then change to volume characteristics */
-	if (test_bit(handle, ioc->pd_handles) && sas_device->volume_handle) {
-		spin_lock_irqsave(&ioc->raid_device_lock, flags);
-		raid_device = _scsih_raid_device_find_by_handle(
-		    ioc, sas_device->volume_handle);
-		spin_unlock_irqrestore(&ioc->raid_device_lock, flags);
-		if (raid_device) {
-			id = raid_device->id;
-			channel = raid_device->channel;
-			handle = raid_device->handle;
-			sas_address = raid_device->wwid;
-		}
-	}
-
-	if (ioc->logging_level & MPT_DEBUG_TASK_SET_FULL)
-		starget_printk(KERN_INFO, sas_device->starget, "task set "
-		    "full: handle(0x%04x), sas_addr(0x%016llx), depth(%d)\n",
-		    handle, (unsigned long long)sas_address, current_depth);
-
-	shost_for_each_device(sdev, ioc->shost) {
-		if (sdev->id == id && sdev->channel == channel) {
-			if (current_depth > sdev->queue_depth) {
-				if (ioc->logging_level &
-				    MPT_DEBUG_TASK_SET_FULL)
-					sdev_printk(KERN_INFO, sdev, "strange "
-					    "observation, the queue depth is"
-					    " (%d) meanwhile fw queue depth "
-					    "is (%d)\n", sdev->queue_depth,
-					    current_depth);
-				continue;
-			}
-			depth = scsi_track_queue_full(sdev,
-			    current_depth - 1);
-			if (depth > 0)
-				sdev_printk(KERN_INFO, sdev, "Queue depth "
-				    "reduced to (%d)\n", depth);
-			else if (depth < 0)
-				sdev_printk(KERN_INFO, sdev, "Tagged Command "
-				    "Queueing is being disabled\n");
-			else if (depth == 0)
-				if (ioc->logging_level &
-				     MPT_DEBUG_TASK_SET_FULL)
-					sdev_printk(KERN_INFO, sdev,
-					     "Queue depth not changed yet\n");
-		}
-	}
-}
-
-/**
  * _scsih_prep_device_scan - initialize parameters prior to device scan
  * @ioc: per adapter object
  *
@@ -6387,9 +6303,6 @@ _firmware_event_work(struct work_struct *work)
 	case MPI2_EVENT_IR_OPERATION_STATUS:
 		_scsih_sas_ir_operation_status_event(ioc, fw_event);
 		break;
-	case MPI2_EVENT_TASK_SET_FULL:
-		_scsih_task_set_full(ioc, fw_event);
-		break;
 	}
 	_scsih_fw_event_free(ioc, fw_event);
 }
@@ -6459,7 +6372,6 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	case MPI2_EVENT_SAS_DISCOVERY:
 	case MPI2_EVENT_SAS_ENCL_DEVICE_STATUS_CHANGE:
 	case MPI2_EVENT_IR_PHYSICAL_DISK:
-	case MPI2_EVENT_TASK_SET_FULL:
 		break;
 
 	default: /* ignore the rest */
