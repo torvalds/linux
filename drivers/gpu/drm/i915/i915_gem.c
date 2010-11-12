@@ -3531,44 +3531,75 @@ i915_gem_execbuffer_reserve(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i, retry;
 
-	/* attempt to pin all of the buffers into the GTT */
+	/* Attempt to pin all of the buffers into the GTT.
+	 * This is done in 3 phases:
+	 *
+	 * 1a. Unbind all objects that do not match the GTT constraints for
+	 *     the execbuffer (fenceable, mappable, alignment etc).
+	 * 1b. Increment pin count for already bound objects.
+	 * 2.  Bind new objects.
+	 * 3.  Decrement pin count.
+	 *
+	 * This avoid unnecessary unbinding of later objects in order to makr
+	 * room for the earlier objects *unless* we need to defragment.
+	 */
 	retry = 0;
 	do {
 		ret = 0;
+
+		/* Unbind any ill-fitting objects or pin. */
+		for (i = 0; i < count; i++) {
+			struct drm_i915_gem_object *obj = object_list[i];
+			struct drm_i915_gem_exec_object2 *entry = &exec_list[i];
+			bool need_fence, need_mappable;
+
+			if (!obj->gtt_space)
+				continue;
+
+			need_fence =
+				entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
+				obj->tiling_mode != I915_TILING_NONE;
+			need_mappable =
+				entry->relocation_count ? true : need_fence;
+
+			if ((entry->alignment && obj->gtt_offset & (entry->alignment - 1)) ||
+			    (need_mappable && !obj->map_and_fenceable))
+				ret = i915_gem_object_unbind(obj);
+			else
+				ret = i915_gem_object_pin(obj,
+							  entry->alignment,
+							  need_mappable);
+			if (ret) {
+				count = i;
+				goto err;
+			}
+		}
+
+		/* Bind fresh objects */
 		for (i = 0; i < count; i++) {
 			struct drm_i915_gem_exec_object2 *entry = &exec_list[i];
 			struct drm_i915_gem_object *obj = object_list[i];
-			bool need_fence =
+			bool need_fence;
+
+			need_fence =
 				entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
 				obj->tiling_mode != I915_TILING_NONE;
 
-			/* g33/pnv can't fence buffers in the unmappable part */
-			bool need_mappable =
-				entry->relocation_count ? true : need_fence;
+			if (!obj->gtt_space) {
+				bool need_mappable =
+					entry->relocation_count ? true : need_fence;
 
-			/* Check fence reg constraints and rebind if necessary */
-			if (need_mappable && !obj->map_and_fenceable) {
-				ret = i915_gem_object_unbind(obj);
+				ret = i915_gem_object_pin(obj,
+							  entry->alignment,
+							  need_mappable);
 				if (ret)
 					break;
 			}
 
-			ret = i915_gem_object_pin(obj,
-						  entry->alignment,
-						  need_mappable);
-			if (ret)
-				break;
-
-			/*
-			 * Pre-965 chips need a fence register set up in order
-			 * to properly handle blits to/from tiled surfaces.
-			 */
 			if (need_fence) {
 				ret = i915_gem_object_get_fence_reg(obj, true);
-				if (ret) {
-					i915_gem_object_unpin(obj);
+				if (ret)
 					break;
-				}
 
 				dev_priv->fence_regs[obj->fence_reg].gpu = true;
 			}
@@ -3576,8 +3607,12 @@ i915_gem_execbuffer_reserve(struct drm_device *dev,
 			entry->offset = obj->gtt_offset;
 		}
 
-		while (i--)
-			i915_gem_object_unpin(object_list[i]);
+err:		/* Decrement pin count for bound objects */
+		for (i = 0; i < count; i++) {
+			struct drm_i915_gem_object *obj = object_list[i];
+			if (obj->gtt_space)
+				i915_gem_object_unpin(obj);
+		}
 
 		if (ret != -ENOSPC || retry > 1)
 			return ret;
