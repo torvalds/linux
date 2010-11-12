@@ -1,6 +1,26 @@
+/*
+ * g_ffs.c -- user mode file system API for USB composite function controllers
+ *
+ * Copyright (C) 2010 Samsung Electronics
+ * Author: Michal Nazarewicz <m.nazarewicz@samsung.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include <linux/module.h>
 #include <linux/utsname.h>
-
 
 /*
  * kbuild is not very cooperative with respect to linking separately
@@ -43,7 +63,6 @@ static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
 
 #include "f_fs.c"
 
-
 #define DRIVER_NAME	"g_ffs"
 #define DRIVER_DESC	"USB Function Filesystem"
 #define DRIVER_VERSION	"24 Aug 2004"
@@ -73,8 +92,6 @@ MODULE_PARM_DESC(bDeviceSubClass, "USB Device subclass");
 module_param_named(bDeviceProtocol, gfs_dev_desc.bDeviceProtocol, byte,   0644);
 MODULE_PARM_DESC(bDeviceProtocol, "USB Device protocol");
 
-
-
 static const struct usb_descriptor_header *gfs_otg_desc[] = {
 	(const struct usb_descriptor_header *)
 	&(const struct usb_otg_descriptor) {
@@ -91,8 +108,7 @@ static const struct usb_descriptor_header *gfs_otg_desc[] = {
 	NULL
 };
 
-/* string IDs are assigned dynamically */
-
+/* String IDs are assigned dynamically */
 static struct usb_string gfs_strings[] = {
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
 	{ .s = "FunctionFS + RNDIS" },
@@ -113,8 +129,6 @@ static struct usb_gadget_strings *gfs_dev_strings[] = {
 	},
 	NULL,
 };
-
-
 
 struct gfs_configuration {
 	struct usb_configuration c;
@@ -138,7 +152,6 @@ struct gfs_configuration {
 #endif
 };
 
-
 static int gfs_bind(struct usb_composite_dev *cdev);
 static int gfs_unbind(struct usb_composite_dev *cdev);
 static int gfs_do_config(struct usb_configuration *c);
@@ -151,10 +164,8 @@ static struct usb_composite_driver gfs_driver = {
 	.iProduct	= DRIVER_DESC,
 };
 
-
 static struct ffs_data *gfs_ffs_data;
 static unsigned long gfs_registered;
-
 
 static int  gfs_init(void)
 {
@@ -174,7 +185,6 @@ static void  gfs_exit(void)
 	functionfs_cleanup();
 }
 module_exit(gfs_exit);
-
 
 static int functionfs_ready_callback(struct ffs_data *ffs)
 {
@@ -200,13 +210,10 @@ static void functionfs_closed_callback(struct ffs_data *ffs)
 		usb_composite_unregister(&gfs_driver);
 }
 
-
 static int functionfs_check_dev_callback(const char *dev_name)
 {
 	return 0;
 }
-
-
 
 static int gfs_bind(struct usb_composite_dev *cdev)
 {
@@ -274,7 +281,6 @@ static int gfs_unbind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-
 static int gfs_do_config(struct usb_configuration *c)
 {
 	struct gfs_configuration *gc =
@@ -314,7 +320,6 @@ static int gfs_do_config(struct usb_configuration *c)
 
 	return 0;
 }
-
 
 #ifdef CONFIG_USB_FUNCTIONFS_ETH
 
