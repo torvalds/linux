@@ -16,10 +16,7 @@
  */
 #ifdef ARCH_HAS_NMI_WATCHDOG
 #include <asm/nmi.h>
-extern void touch_nmi_watchdog(void);
-extern void acpi_nmi_disable(void);
-extern void acpi_nmi_enable(void);
-#else
+#endif
 #ifndef CONFIG_HARDLOCKUP_DETECTOR
 static inline void touch_nmi_watchdog(void)
 {
@@ -30,7 +27,6 @@ extern void touch_nmi_watchdog(void);
 #endif
 static inline void acpi_nmi_disable(void) { }
 static inline void acpi_nmi_enable(void) { }
-#endif
 
 /*
  * Create trigger_all_cpu_backtrace() out of the arch-provided

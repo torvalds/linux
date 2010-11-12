@@ -20,12 +20,14 @@
 /* For reliability, we're prepared to waste bits here. */
 static DECLARE_BITMAP(backtrace_mask, NR_CPUS) __read_mostly;
 
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
 u64 hw_nmi_get_sample_period(void)
 {
 	return (u64)(cpu_khz) * 1000 * 60;
 }
+#endif
 
-#ifdef ARCH_HAS_NMI_WATCHDOG
+#ifdef arch_trigger_all_cpu_backtrace
 void arch_trigger_all_cpu_backtrace(void)
 {
 	int i;
@@ -95,8 +97,6 @@ early_initcall(register_trigger_all_cpu_backtrace);
 #if defined(CONFIG_X86_LOCAL_APIC)
 unsigned int nmi_watchdog = NMI_NONE;
 EXPORT_SYMBOL(nmi_watchdog);
-void acpi_nmi_enable(void) { return; }
-void acpi_nmi_disable(void) { return; }
 #endif
 atomic_t nmi_active = ATOMIC_INIT(0);           /* oprofile uses this */
 EXPORT_SYMBOL(nmi_active);
