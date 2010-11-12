@@ -1102,27 +1102,23 @@ _scsih_build_scatter_gather(struct MPT2SAS_ADAPTER *ioc,
 }
 
 /**
- * _scsih_change_queue_depth - setting device queue depth
+ * _scsih_adjust_queue_depth - setting device queue depth
  * @sdev: scsi device struct
  * @qdepth: requested queue depth
- * @reason: calling context
  *
- * Returns queue depth.
+ *
+ * Returns nothing
  */
-static int
-_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
+static void
+_scsih_adjust_queue_depth(struct scsi_device *sdev, int qdepth)
 {
 	struct Scsi_Host *shost = sdev->host;
 	int max_depth;
-	int tag_type;
 	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
 	struct MPT2SAS_DEVICE *sas_device_priv_data;
 	struct MPT2SAS_TARGET *sas_target_priv_data;
 	struct _sas_device *sas_device;
 	unsigned long flags;
-
-	if (reason != SCSI_QDEPTH_DEFAULT)
-		return -EOPNOTSUPP;
 
 	max_depth = shost->can_queue;
 
@@ -1149,8 +1145,27 @@ _scsih_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 		max_depth = 1;
 	if (qdepth > max_depth)
 		qdepth = max_depth;
-	tag_type = (qdepth == 1) ? 0 : MSG_SIMPLE_TAG;
-	scsi_adjust_queue_depth(sdev, tag_type, qdepth);
+	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+}
+
+/**
+ * _scsih_change_queue_depth - setting device queue depth
+ * @sdev: scsi device struct
+ * @qdepth: requested queue depth
+ * @reason: SCSI_QDEPTH_DEFAULT/SCSI_QDEPTH_QFULL/SCSI_QDEPTH_RAMP_UP
+ * (see include/scsi/scsi_host.h for definition)
+ *
+ * Returns queue depth.
+ */
+static int
+_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
+{
+	if (reason == SCSI_QDEPTH_DEFAULT || reason == SCSI_QDEPTH_RAMP_UP)
+		_scsih_adjust_queue_depth(sdev, qdepth);
+	else if (reason == SCSI_QDEPTH_QFULL)
+		scsi_track_queue_full(sdev, qdepth);
+	else
+		return -EOPNOTSUPP;
 
 	if (sdev->inquiry_len > 7)
 		sdev_printk(KERN_INFO, sdev, "qdepth(%d), tagged(%d), "
