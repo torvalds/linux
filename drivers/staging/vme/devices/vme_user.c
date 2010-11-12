@@ -611,6 +611,7 @@ static int __init vme_user_init(void)
 	if (bus_num == 0) {
 		printk(KERN_ERR "%s: No cards, skipping registration\n",
 			driver_name);
+		retval = -ENODEV;
 		goto err_nocard;
 	}
 
@@ -629,6 +630,7 @@ static int __init vme_user_init(void)
 	if (ids == NULL) {
 		printk(KERN_ERR "%s: Unable to allocate ID table\n",
 			driver_name);
+		retval = -ENOMEM;
 		goto err_id;
 	}
 
