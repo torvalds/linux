@@ -44,15 +44,15 @@ const struct imx_imx_sdma_data imx25_imx_sdma_data __initconst =
 	imx_imx_sdma_data_entry_single(MX25, 1, "imx25", 0);
 #endif /* ifdef CONFIG_SOC_IMX25 */
 
-#ifdef CONFIG_ARCH_MX31
+#ifdef CONFIG_SOC_IMX31
 struct imx_imx_sdma_data imx31_imx_sdma_data __initdata =
 	imx_imx_sdma_data_entry_single(MX31, 1, "imx31", 0);
-#endif /* ifdef CONFIG_ARCH_MX31 */
+#endif /* ifdef CONFIG_SOC_IMX31 */
 
-#ifdef CONFIG_ARCH_MX35
+#ifdef CONFIG_SOC_IMX35
 struct imx_imx_sdma_data imx35_imx_sdma_data __initdata =
 	imx_imx_sdma_data_entry_single(MX35, 2, "imx35", 0);
-#endif /* ifdef CONFIG_ARCH_MX35 */
+#endif /* ifdef CONFIG_SOC_IMX35 */
 
 #ifdef CONFIG_ARCH_MX51
 const struct imx_imx_sdma_data imx51_imx_sdma_data __initconst =
@@ -100,14 +100,14 @@ static int __init imxXX_add_imx_dma(void)
 	else
 #endif
 
-#if defined(CONFIG_ARCH_MX31)
+#if defined(CONFIG_SOC_IMX31)
 	if (cpu_is_mx31()) {
 		imx31_imx_sdma_data.pdata.to_version = mx31_revision() >> 4;
 		ret = imx_add_imx_sdma(&imx31_imx_sdma_data);
 	} else
 #endif
 
-#if defined(CONFIG_ARCH_MX35)
+#if defined(CONFIG_SOC_IMX35)
 	if (cpu_is_mx35()) {
 		imx35_imx_sdma_data.pdata.to_version = mx35_revision() >> 4;
 		ret = imx_add_imx_sdma(&imx35_imx_sdma_data);

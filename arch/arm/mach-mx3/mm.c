@@ -36,7 +36,7 @@
  * @ingroup Memory
  */
 
-#ifdef CONFIG_ARCH_MX31
+#ifdef CONFIG_SOC_IMX31
 static struct map_desc mx31_io_desc[] __initdata = {
 	imx_map_entry(MX31, X_MEMC, MT_DEVICE),
 	imx_map_entry(MX31, AVIC, MT_DEVICE_NONSHARED),
@@ -64,9 +64,9 @@ void __init mx31_init_irq(void)
 	mxc_init_irq(MX31_IO_ADDRESS(MX31_AVIC_BASE_ADDR));
 	imx31_register_gpios();
 }
-#endif /* ifdef CONFIG_ARCH_MX31 */
+#endif /* ifdef CONFIG_SOC_IMX31 */
 
-#ifdef CONFIG_ARCH_MX35
+#ifdef CONFIG_SOC_IMX35
 static struct map_desc mx35_io_desc[] __initdata = {
 	imx_map_entry(MX35, X_MEMC, MT_DEVICE),
 	imx_map_entry(MX35, AVIC, MT_DEVICE_NONSHARED),
@@ -90,7 +90,7 @@ void __init mx35_init_irq(void)
 	mxc_init_irq(MX35_IO_ADDRESS(MX35_AVIC_BASE_ADDR));
 	imx35_register_gpios();
 }
-#endif /* ifdef CONFIG_ARCH_MX35 */
+#endif /* ifdef CONFIG_SOC_IMX35 */
 
 #ifdef CONFIG_CACHE_L2X0
 static int mxc_init_l2x0(void)

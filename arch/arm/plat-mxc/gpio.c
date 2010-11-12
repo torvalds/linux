@@ -421,7 +421,7 @@ DEFINE_REGISTER_FUNCTION(imx27)
 
 #endif /* if defined(CONFIG_SOC_IMX27) */
 
-#if defined(CONFIG_ARCH_MX31)
+#if defined(CONFIG_SOC_IMX31)
 static struct mxc_gpio_port imx31_gpio_ports[] = {
 	DEFINE_IMX_GPIO_PORT_IRQ(MX31, 0, 1, MX31_INT_GPIO1),
 	DEFINE_IMX_GPIO_PORT_IRQ(MX31, 1, 2, MX31_INT_GPIO2),
@@ -430,9 +430,9 @@ static struct mxc_gpio_port imx31_gpio_ports[] = {
 
 DEFINE_REGISTER_FUNCTION(imx31)
 
-#endif /* if defined(CONFIG_ARCH_MX31) */
+#endif /* if defined(CONFIG_SOC_IMX31) */
 
-#if defined(CONFIG_ARCH_MX35)
+#if defined(CONFIG_SOC_IMX35)
 static struct mxc_gpio_port imx35_gpio_ports[] = {
 	DEFINE_IMX_GPIO_PORT_IRQ(MX35, 0, 1, MX35_INT_GPIO1),
 	DEFINE_IMX_GPIO_PORT_IRQ(MX35, 1, 2, MX35_INT_GPIO2),
@@ -441,4 +441,4 @@ static struct mxc_gpio_port imx35_gpio_ports[] = {
 
 DEFINE_REGISTER_FUNCTION(imx35)
 
-#endif /* if defined(CONFIG_ARCH_MX35) */
+#endif /* if defined(CONFIG_SOC_IMX35) */

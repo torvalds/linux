@@ -29,7 +29,7 @@ const struct imx_esdhc_imx_data imx25_esdhc_data[] __initconst = {
 };
 #endif /* ifdef CONFIG_SOC_IMX25 */
 
-#ifdef CONFIG_ARCH_MX35
+#ifdef CONFIG_SOC_IMX35
 const struct imx_esdhc_imx_data imx35_esdhc_data[] __initconst = {
 #define imx35_esdhc_data_entry(_id, _hwid)                           \
 	imx_esdhc_imx_data_entry(MX35, _id, _hwid)
@@ -37,7 +37,7 @@ const struct imx_esdhc_imx_data imx35_esdhc_data[] __initconst = {
 	imx35_esdhc_data_entry(1, 2),
 	imx35_esdhc_data_entry(2, 3),
 };
-#endif /* ifdef CONFIG_ARCH_MX35 */
+#endif /* ifdef CONFIG_SOC_IMX35 */
 
 #ifdef CONFIG_ARCH_MX51
 const struct imx_esdhc_imx_data imx51_esdhc_data[] __initconst = {

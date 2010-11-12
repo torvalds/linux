@@ -49,7 +49,7 @@ const struct imx_spi_imx_data imx27_cspi_data[] __initconst = {
 };
 #endif /* ifdef CONFIG_SOC_IMX27 */
 
-#ifdef CONFIG_ARCH_MX31
+#ifdef CONFIG_SOC_IMX31
 const struct imx_spi_imx_data imx31_cspi_data[] __initconst = {
 #define imx31_cspi_data_entry(_id, _hwid)				\
 	imx_spi_imx_data_entry(MX31, CSPI, "imx31-cspi", _id, _hwid, SZ_4K)
@@ -57,16 +57,16 @@ const struct imx_spi_imx_data imx31_cspi_data[] __initconst = {
 	imx31_cspi_data_entry(1, 2),
 	imx31_cspi_data_entry(2, 3),
 };
-#endif /* ifdef CONFIG_ARCH_MX31 */
+#endif /* ifdef CONFIG_SOC_IMX31 */
 
-#ifdef CONFIG_ARCH_MX35
+#ifdef CONFIG_SOC_IMX35
 const struct imx_spi_imx_data imx35_cspi_data[] __initconst = {
 #define imx35_cspi_data_entry(_id, _hwid)                           \
 	imx_spi_imx_data_entry(MX35, CSPI, "imx35-cspi", _id, _hwid, SZ_4K)
 	imx35_cspi_data_entry(0, 1),
 	imx35_cspi_data_entry(1, 2),
 };
-#endif /* ifdef CONFIG_ARCH_MX35 */
+#endif /* ifdef CONFIG_SOC_IMX35 */
 
 #ifdef CONFIG_ARCH_MX51
 const struct imx_spi_imx_data imx51_cspi_data __initconst =

@@ -26,7 +26,7 @@ const struct imx_fec_data imx27_fec_data __initconst =
 	imx_fec_data_entry_single(MX27);
 #endif /* ifdef CONFIG_SOC_IMX27 */
 
-#ifdef CONFIG_ARCH_MX35
+#ifdef CONFIG_SOC_IMX35
 const struct imx_fec_data imx35_fec_data __initconst =
 	imx_fec_data_entry_single(MX35);
 #endif

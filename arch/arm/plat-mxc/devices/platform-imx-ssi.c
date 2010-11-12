@@ -48,23 +48,23 @@ const struct imx_imx_ssi_data imx27_imx_ssi_data[] __initconst = {
 };
 #endif /* ifdef CONFIG_SOC_IMX27 */
 
-#ifdef CONFIG_ARCH_MX31
+#ifdef CONFIG_SOC_IMX31
 const struct imx_imx_ssi_data imx31_imx_ssi_data[] __initconst = {
 #define imx31_imx_ssi_data_entry(_id, _hwid)				\
 	imx_imx_ssi_data_entry(MX31, _id, _hwid, SZ_4K)
 	imx31_imx_ssi_data_entry(0, 1),
 	imx31_imx_ssi_data_entry(1, 2),
 };
-#endif /* ifdef CONFIG_ARCH_MX31 */
+#endif /* ifdef CONFIG_SOC_IMX31 */
 
-#ifdef CONFIG_ARCH_MX35
+#ifdef CONFIG_SOC_IMX35
 const struct imx_imx_ssi_data imx35_imx_ssi_data[] __initconst = {
 #define imx35_imx_ssi_data_entry(_id, _hwid)				\
 	imx_imx_ssi_data_entry(MX35, _id, _hwid, SZ_4K)
 	imx35_imx_ssi_data_entry(0, 1),
 	imx35_imx_ssi_data_entry(1, 2),
 };
-#endif /* ifdef CONFIG_ARCH_MX35 */
+#endif /* ifdef CONFIG_SOC_IMX35 */
 
 #ifdef CONFIG_ARCH_MX51
 const struct imx_imx_ssi_data imx51_imx_ssi_data[] __initconst = {

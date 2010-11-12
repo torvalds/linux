@@ -5,8 +5,8 @@
 # Object file lists.
 
 obj-y				:= mm.o devices.o cpu.o
-obj-$(CONFIG_ARCH_MX31)		+= clock-imx31.o iomux-imx31.o
-obj-$(CONFIG_ARCH_MX35)		+= clock-imx35.o
+obj-$(CONFIG_SOC_IMX31)		+= clock-imx31.o iomux-imx31.o
+obj-$(CONFIG_SOC_IMX35)		+= clock-imx35.o
 obj-$(CONFIG_MACH_MX31ADS)	+= mach-mx31ads.o
 obj-$(CONFIG_MACH_MX31LILLY)	+= mach-mx31lilly.o mx31lilly-db.o
 obj-$(CONFIG_MACH_MX31LITE)	+= mach-mx31lite.o mx31lite-db.o
