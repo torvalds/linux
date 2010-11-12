@@ -993,22 +993,24 @@ static void xpad_disconnect(struct usb_interface *intf)
 {
 	struct usb_xpad *xpad = usb_get_intfdata (intf);
 
-	usb_set_intfdata(intf, NULL);
-	if (xpad) {
-		xpad_led_disconnect(xpad);
-		input_unregister_device(xpad->dev);
-		xpad_deinit_output(xpad);
-		if (xpad->xtype == XTYPE_XBOX360W) {
-			usb_kill_urb(xpad->bulk_out);
-			usb_free_urb(xpad->bulk_out);
-			usb_kill_urb(xpad->irq_in);
-		}
-		usb_free_urb(xpad->irq_in);
-		usb_free_coherent(xpad->udev, XPAD_PKT_LEN,
-				xpad->idata, xpad->idata_dma);
-		kfree(xpad->bdata);
-		kfree(xpad);
+	xpad_led_disconnect(xpad);
+	input_unregister_device(xpad->dev);
+	xpad_deinit_output(xpad);
+
+	if (xpad->xtype == XTYPE_XBOX360W) {
+		usb_kill_urb(xpad->bulk_out);
+		usb_free_urb(xpad->bulk_out);
+		usb_kill_urb(xpad->irq_in);
 	}
+
+	usb_free_urb(xpad->irq_in);
+	usb_free_coherent(xpad->udev, XPAD_PKT_LEN,
+			xpad->idata, xpad->idata_dma);
+
+	kfree(xpad->bdata);
+	kfree(xpad);
+
+	usb_set_intfdata(intf, NULL);
 }
 
 static struct usb_driver xpad_driver = {
@@ -1020,10 +1022,7 @@ static struct usb_driver xpad_driver = {
 
 static int __init usb_xpad_init(void)
 {
-	int result = usb_register(&xpad_driver);
-	if (result == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
-	return result;
+	return usb_register(&xpad_driver);
 }
 
 static void __exit usb_xpad_exit(void)
