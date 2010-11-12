@@ -4796,7 +4796,7 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 	int i;
 	u16 parent_handle, handle;
 	u16 reason_code;
-	u8 phy_number;
+	u8 phy_number, max_phys;
 	struct _sas_node *sas_expander;
 	struct _sas_device *sas_device;
 	u64 sas_address;
@@ -4834,11 +4834,13 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 	sas_expander = mpt2sas_scsih_expander_find_by_handle(ioc,
 	    parent_handle);
 	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
-	if (sas_expander)
+	if (sas_expander) {
 		sas_address = sas_expander->sas_address;
-	else if (parent_handle < ioc->sas_hba.num_phys)
+		max_phys = sas_expander->num_phys;
+	} else if (parent_handle < ioc->sas_hba.num_phys) {
 		sas_address = ioc->sas_hba.sas_address;
-	else
+		max_phys = ioc->sas_hba.num_phys;
+	} else
 		return;
 
 	/* handle siblings events */
@@ -4852,6 +4854,8 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 		    ioc->pci_error_recovery)
 			return;
 		phy_number = event_data->StartPhyNum + i;
+		if (phy_number >= max_phys)
+			continue;
 		reason_code = event_data->PHY[i].PhyStatus &
 		    MPI2_EVENT_SAS_TOPO_RC_MASK;
 		if ((event_data->PHY[i].PhyStatus &
