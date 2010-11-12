@@ -65,9 +65,7 @@ static const struct usb_device_id mdm6600_id_table[] = {
 MODULE_DEVICE_TABLE(usb, mdm6600_id_table);
 
 struct mdm6600_urb_write_pool {
-	spinlock_t busy_lock;  /* protects busy flags */
-	bool busy[WRITE_POOL_SZ];
-	struct urb *urb[WRITE_POOL_SZ];
+	struct usb_anchor free_list;
 	struct usb_anchor in_flight;
 	struct usb_anchor delayed;
 	int buffer_sz;  /* allocated urb buffer size */
@@ -76,10 +74,10 @@ struct mdm6600_urb_write_pool {
 };
 
 struct mdm6600_urb_read_pool {
-	struct urb *urb[READ_POOL_SZ];
+	struct usb_anchor free_list;
 	struct usb_anchor in_flight;  /* urb's owned by USB core */
-	struct work_struct work;  /* bottom half */
 	struct usb_anchor pending;  /* urb's waiting for driver bottom half */
+	struct work_struct work;  /* bottom half */
 	int buffer_sz;  /* allocated urb buffer size */
 };
 
@@ -171,7 +169,7 @@ static int mdm6600_attach(struct usb_serial *serial)
 	}
 
 	/* setup write pool */
-	spin_lock_init(&modem->write.busy_lock);
+	init_usb_anchor(&modem->write.free_list);
 	init_usb_anchor(&modem->write.in_flight);
 	init_usb_anchor(&modem->write.delayed);
 	modem->write.buffer_sz = le16_to_cpu(epwrite->wMaxPacketSize) * 4;
@@ -194,12 +192,12 @@ static int mdm6600_attach(struct usb_serial *serial)
 			usb_sndbulkpipe(serial->dev, epwrite->bEndpointAddress),
 			u->transfer_buffer, modem->write.buffer_sz,
 			mdm6600_write_bulk_cb, modem);
-		modem->write.urb[i] = u;
-		modem->write.busy[i] = false;
+		usb_anchor_urb(u, &modem->write.free_list);
 	}
 
 	/* read pool */
 	INIT_WORK(&modem->read.work, mdm6600_read_bulk_work);
+	init_usb_anchor(&modem->read.free_list);
 	init_usb_anchor(&modem->read.in_flight);
 	init_usb_anchor(&modem->read.pending);
 	modem->read.buffer_sz = le16_to_cpu(epread->wMaxPacketSize) * 4;
@@ -221,7 +219,7 @@ static int mdm6600_attach(struct usb_serial *serial)
 			usb_rcvbulkpipe(serial->dev, epread->bEndpointAddress),
 			u->transfer_buffer, modem->read.buffer_sz,
 			mdm6600_read_bulk_cb, modem);
-		modem->read.urb[i] = u;
+		usb_anchor_urb(u, &modem->read.free_list);
 	}
 
 	spin_lock_init(&modem->susp_lock);
@@ -266,20 +264,25 @@ err_out:
 
 static void mdm6600_kill_urbs(struct mdm6600_port *modem)
 {
+	struct urb *u;
+
 	dbg("%s: port %d", __func__, modem->number);
 
 	/* cancel pending writes */
 	usb_kill_anchored_urbs(&modem->write.in_flight);
-	usb_scuttle_anchored_urbs(&modem->write.in_flight);
 
 	/* stop reading from mdm6600 */
 	usb_kill_anchored_urbs(&modem->read.in_flight);
-	usb_scuttle_anchored_urbs(&modem->read.in_flight);
 
 	usb_kill_urb(modem->port->interrupt_in_urb);
 
-	if (!usb_wait_anchor_empty_timeout(&modem->read.pending, 1000))
-		usb_scuttle_anchored_urbs(&modem->read.pending);
+	if (!usb_wait_anchor_empty_timeout(&modem->read.pending, 1000)) {
+		WARN_ON_ONCE(1);
+		while ((u = usb_get_from_anchor(&modem->read.pending))) {
+			usb_anchor_urb(u, &modem->read.free_list);
+			usb_put_urb(u);
+		}
+	}
 
 	/* cancel read bottom half */
 	cancel_work_sync(&modem->read.work);
@@ -322,30 +325,27 @@ static void mdm6600_release_urb(struct urb *u, int sz)
 static void mdm6600_release(struct usb_serial *serial)
 {
 	struct mdm6600_port *modem = usb_get_serial_data(serial);
-	int i;
+	struct urb *u;
 
 	dbg("%s: port %d", __func__, modem->number);
 
-	for (i = 0; i < WRITE_POOL_SZ; i++) {
-		if (!modem->write.urb[i])
-			continue;
-		mdm6600_release_urb(modem->write.urb[i],
-			modem->write.buffer_sz);
-		modem->write.urb[i] = NULL;
-	}
-	for (i = 0; i < READ_POOL_SZ; i++) {
-		if (!modem->read.urb[i])
-			continue;
-		mdm6600_release_urb(modem->read.urb[i], modem->read.buffer_sz);
-		modem->read.urb[i] = NULL;
+	while ((u = usb_get_from_anchor(&modem->write.free_list))) {
+		mdm6600_release_urb(u, modem->write.buffer_sz);
+		usb_put_urb(u);
 	}
 
+	while ((u = usb_get_from_anchor(&modem->read.free_list))) {
+		mdm6600_release_urb(u, modem->read.buffer_sz);
+		usb_put_urb(u);
+	}
+
+	usb_set_serial_data(serial, NULL);
 	kfree(modem);
 }
 
 static int mdm6600_submit_urbs(struct mdm6600_port *modem)
 {
-	int i;
+	struct urb *u;
 	int rc;
 
 	dbg("%s: port %d", __func__, modem->number);
@@ -358,18 +358,20 @@ static int mdm6600_submit_urbs(struct mdm6600_port *modem)
 			return rc;
 		}
 	}
-	for (i = 0; i < READ_POOL_SZ; i++) {
-		usb_anchor_urb(modem->read.urb[i], &modem->read.in_flight);
-		rc = usb_submit_urb(modem->read.urb[i], GFP_KERNEL);
+	while ((u = usb_get_from_anchor(&modem->read.free_list))) {
+		usb_anchor_urb(u, &modem->read.in_flight);
+		rc = usb_submit_urb(u, GFP_KERNEL);
 		if (rc) {
-			usb_unanchor_urb(modem->read.urb[i]);
+			usb_unanchor_urb(u);
+			usb_anchor_urb(u, &modem->read.free_list);
+			usb_put_urb(u);
 			usb_kill_anchored_urbs(&modem->read.in_flight);
-			usb_scuttle_anchored_urbs(&modem->read.in_flight);
 			usb_kill_urb(modem->port->interrupt_in_urb);
 			pr_err("%s: failed to submit bulk read urb, error %d\n",
 			    __func__, rc);
 			return rc;
 		}
+		usb_put_urb(u);
 	}
 
 	return 0;
@@ -415,74 +417,19 @@ static void mdm6600_close(struct usb_serial_port *port)
 	modem->tiocm_status = 0;
 }
 
-static struct urb *mdm6600_get_unused_write_urb(
-	struct mdm6600_urb_write_pool *p)
-{
-	int i;
-	unsigned long flags;
-	struct urb *u = NULL;
-
-	spin_lock_irqsave(&p->busy_lock, flags);
-
-	for (i = 0; i < WRITE_POOL_SZ; i++)
-		if (!p->busy[i])
-			break;
-	if (i >= WRITE_POOL_SZ)
-		goto out;
-
-	u = p->urb[i];
-	p->busy[i] = true;
-	usb_get_urb(u);
-
-out:
-	spin_unlock_irqrestore(&p->busy_lock, flags);
-	return u;
-}
-
-static int mdm6600_mark_write_urb_unused(struct mdm6600_urb_write_pool *p,
-	struct urb *u)
-{
-	int i;
-	unsigned long flags;
-	int rc = -EINVAL;
-
-	spin_lock_irqsave(&p->busy_lock, flags);
-
-	for (i = 0; i < WRITE_POOL_SZ; i++)
-		if (p->urb[i] == u)
-			break;
-	if (i >= WRITE_POOL_SZ)
-		goto out;
-
-	p->busy[i] = false;
-	usb_put_urb(u);
-	rc = 0;
-
-out:
-	spin_unlock_irqrestore(&p->busy_lock, flags);
-	return rc;
-}
-
 static void mdm6600_write_bulk_cb(struct urb *u)
 {
-	int status;
 	unsigned long flags;
 	struct mdm6600_port *modem = u->context;
 
 	dbg("%s: urb %p status %d", __func__, u, u->status);
 
-	/* remove urb from in_flight list */
-	usb_unanchor_urb(u);
-
-	status = u->status;
-	if (status)
+	if (!u->status)
+		usb_serial_port_softint(modem->port);
+	else
 		pr_warn("%s non-zero status %d\n", __func__, u->status);
 
-	if (!status)
-		usb_serial_port_softint(modem->port);
-
-	if (mdm6600_mark_write_urb_unused(&modem->write, u))
-		pr_warn("%s unknown urb %p\n", __func__, u);
+	usb_anchor_urb(u, &modem->write.free_list);
 
 	spin_lock_irqsave(&modem->write.pending_lock, flags);
 	if (--modem->write.pending == 0) {
@@ -507,7 +454,7 @@ static int mdm6600_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (!count || !serial->num_bulk_out)
 		return 0;
 
-	u = mdm6600_get_unused_write_urb(&modem->write);
+	u = usb_get_from_anchor(&modem->write.free_list);
 	if (!u) {
 		pr_info("%s: port %d all buffers busy!\n", __func__, modem->number);
 		return 0;
@@ -530,6 +477,7 @@ static int mdm6600_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (modem->susp_count) {
 		usb_anchor_urb(u, &modem->write.delayed);
 		spin_unlock_irqrestore(&modem->susp_lock, flags);
+		usb_put_urb(u);
 		return count;
 	}
 	spin_unlock_irqrestore(&modem->susp_lock, flags);
@@ -540,7 +488,8 @@ static int mdm6600_write(struct tty_struct *tty, struct usb_serial_port *port,
 		pr_err("%s: submit bulk urb failed %d\n", __func__, rc);
 
 		usb_unanchor_urb(u);
-		mdm6600_mark_write_urb_unused(&modem->write, u);
+		usb_anchor_urb(u, &modem->write.free_list);
+		usb_put_urb(u);
 
 		spin_lock_irqsave(&modem->write.pending_lock, flags);
 		if (--modem->write.pending == 0) {
@@ -550,6 +499,7 @@ static int mdm6600_write(struct tty_struct *tty, struct usb_serial_port *port,
 		spin_unlock_irqrestore(&modem->write.pending_lock, flags);
 		return rc;
 	}
+	usb_put_urb(u);
 	return count;
 }
 
@@ -559,6 +509,9 @@ static int mdm6600_write_room(struct tty_struct *tty)
 	struct mdm6600_port *modem = usb_get_serial_data(port->serial);
 	unsigned long flags;
 	int room = 0;
+
+	if (!modem)
+		return 0;
 
 	dbg("%s - port %d", __func__, modem->number);
 
@@ -608,6 +561,8 @@ static int mdm6600_dtr_control(struct usb_serial_port *port, int ctrl)
 	u8 request_type = USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT;
 	int timeout = HZ * 5;
 	int rc;
+
+	dbg("%s - port %d", __func__, modem->number);
 
 	rc = usb_autopm_get_interface(iface);
 	if (rc < 0) {
@@ -726,9 +681,9 @@ static size_t mdm6600_pass_to_tty(struct tty_struct *tty, void *buf, size_t sz)
 {
 	unsigned char *b = buf;
 	size_t c;
-	size_t s = sz;
+	size_t s;
 
-	tty_buffer_request_room(tty, sz);
+	s = tty_buffer_request_room(tty, sz);
 	while (s > 0) {
 		c = tty_insert_flip_string(tty, b, s);
 		if (c != s)
@@ -766,6 +721,9 @@ static void mdm6600_read_bulk_work(struct work_struct *work)
 			pr_warn("%s: could not find tty\n", __func__);
 			goto next;
 		}
+
+		BUG_ON(u->actual_length > modem->read.buffer_sz);
+
 		c = mdm6600_pass_to_tty(tty, u->transfer_buffer,
 			u->actual_length);
 		if (c != u->actual_length)
@@ -778,6 +736,7 @@ next:
 		spin_lock_irqsave(&modem->susp_lock, flags);
 		if (modem->susp_count || !modem->opened) {
 			spin_unlock_irqrestore(&modem->susp_lock, flags);
+			usb_anchor_urb(u, &modem->read.free_list);
 			usb_put_urb(u);
 			continue;
 		}
@@ -789,6 +748,7 @@ next:
 			pr_err("%s: Error %d re-submitting read urb %p\n",
 				__func__, rc, u);
 			usb_unanchor_urb(u);
+			usb_anchor_urb(u, &modem->read.free_list);
 		}
 		usb_put_urb(u);
 	}
@@ -808,26 +768,26 @@ static void mdm6600_read_bulk_cb(struct urb *u)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		dbg("%s: urb terminated, status %d", __func__, u->status);
+		usb_anchor_urb(u, &modem->read.free_list);
 		return;
 	default:
 		pr_warn("%s non-zero status %d\n", __func__, u->status);
 		/* straight back into use */
+		usb_anchor_urb(u, &modem->read.in_flight);
 		rc = usb_submit_urb(u, GFP_ATOMIC);
-		if (rc)
+		if (rc) {
+			usb_unanchor_urb(u);
+			usb_anchor_urb(u, &modem->read.free_list);
 			pr_err("%s: Error %d re-submitting read urb\n",
 				__func__, rc);
+		}
 		return;
 	}
 
 	wake_lock_timeout(&modem->readlock, MODEM_WAKELOCK_TIME);
 	usb_mark_last_busy(modem->serial->dev);
 
-	usb_get_urb(u);
-	/* remove urb from in_flight list */
-	usb_unanchor_urb(u);
-	/* process urb in bottom half */
 	usb_anchor_urb(u, &modem->read.pending);
-	usb_put_urb(u);
 
 	schedule_work(&modem->read.work);
 }
@@ -880,10 +840,11 @@ static int mdm6600_resume(struct usb_interface *intf)
 			rc = usb_submit_urb(u, GFP_KERNEL);
 			if (rc < 0) {
 				usb_unanchor_urb(u);
+				usb_anchor_urb(u, &modem->read.free_list);
 				usb_put_urb(u);
-				usb_scuttle_anchored_urbs(&modem->write.delayed);
-				pr_err("%s: submit bulk urb failed %d\n", __func__, rc);
-				return rc;
+				pr_err("%s: submit bulk urb failed %d\n",
+							__func__, rc);
+				goto err;
 			}
 			usb_put_urb(u);
 		}
@@ -893,6 +854,13 @@ static int mdm6600_resume(struct usb_interface *intf)
 
 	spin_unlock_irq(&modem->susp_lock);
 	return 0;
+
+err:
+	while ((u = usb_get_from_anchor(&modem->write.delayed))) {
+		usb_anchor_urb(u, &modem->write.free_list);
+		usb_put_urb(u);
+	}
+	return rc;
 }
 
 static int mdm6600_reset_resume(struct usb_interface *intf)
