@@ -79,7 +79,7 @@ void __init mx35_map_io(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX35);
 	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
-	mxc_arch_reset_init(MX35_IO_ADDRESS(MX3x_WDOG_BASE_ADDR));
+	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
 
 	iotable_init(mx35_io_desc, ARRAY_SIZE(mx35_io_desc));
 }
