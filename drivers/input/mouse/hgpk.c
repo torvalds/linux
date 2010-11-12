@@ -54,7 +54,7 @@ module_param(jumpy_delay, int, 0644);
 MODULE_PARM_DESC(jumpy_delay,
 	"delay (ms) before recal after jumpiness detected");
 
-static int spew_delay = 1000;
+static int spew_delay = 1;
 module_param(spew_delay, int, 0644);
 MODULE_PARM_DESC(spew_delay,
 	"delay (ms) before recal after packet spew detected");
@@ -117,6 +117,23 @@ static void hgpk_jumpy_hack(struct psmouse *psmouse, int x, int y)
 	}
 }
 
+static void hgpk_reset_spew_detection(struct hgpk_data *priv)
+{
+	priv->spew_count = 0;
+	priv->dupe_count = 0;
+	priv->x_tally = 0;
+	priv->y_tally = 0;
+	priv->spew_flag = NO_SPEW;
+}
+
+static void hgpk_reset_hack_state(struct psmouse *psmouse)
+{
+	struct hgpk_data *priv = psmouse->private;
+
+	priv->abs_x = priv->abs_y = -1;
+	hgpk_reset_spew_detection(priv);
+}
+
 /*
  * We have no idea why this particular hardware bug occurs.  The touchpad
  * will randomly start spewing packets without anything touching the
@@ -142,20 +159,57 @@ static void hgpk_spewing_hack(struct psmouse *psmouse,
 	if (l || r)
 		return;
 
+	/* don't track spew if the workaround feature has been turned off */
+	if (!spew_delay)
+		return;
+
+	if (abs(x) > 3 || abs(y) > 3) {
+		/* no spew, or spew ended */
+		hgpk_reset_spew_detection(priv);
+		return;
+	}
+
+	/* Keep a tally of the overall delta to the cursor position caused by
+	 * the spew */
 	priv->x_tally += x;
 	priv->y_tally += y;
 
-	if (++priv->count > 100) {
+	switch (priv->spew_flag) {
+	case NO_SPEW:
+		/* we're not spewing, but this packet might be the start */
+		priv->spew_flag = MAYBE_SPEWING;
+
+		/* fall-through */
+
+	case MAYBE_SPEWING:
+		priv->spew_count++;
+
+		if (priv->spew_count < SPEW_WATCH_COUNT)
+			break;
+
+		/* excessive spew detected, request recalibration */
+		priv->spew_flag = SPEW_DETECTED;
+
+		/* fall-through */
+
+	case SPEW_DETECTED:
+		/* only recalibrate when the overall delta to the cursor
+		 * is really small. if the spew is causing significant cursor
+		 * movement, it is probably a case of the user moving the
+		 * cursor very slowly across the screen. */
 		if (abs(priv->x_tally) < 3 && abs(priv->y_tally) < 3) {
-			hgpk_dbg(psmouse, "packet spew detected (%d,%d)\n",
+			hgpk_err(psmouse, "packet spew detected (%d,%d)\n",
 				 priv->x_tally, priv->y_tally);
+			priv->spew_flag = RECALIBRATING;
 			psmouse_queue_work(psmouse, &priv->recalib_wq,
 					   msecs_to_jiffies(spew_delay));
 		}
-		/* reset every 100 packets */
-		priv->count = 0;
-		priv->x_tally = 0;
-		priv->y_tally = 0;
+
+		break;
+	case RECALIBRATING:
+		/* we already detected a spew and requested a recalibration,
+		 * just wait for the queue to kick into action. */
+		break;
 	}
 }
 
@@ -267,30 +321,43 @@ static void hgpk_process_advanced_packet(struct psmouse *psmouse)
 	 * If this packet says that the finger was removed, reset our position
 	 * tracking so that we don't erroneously detect a jump on next press.
 	 */
-	if (!down)
-		priv->abs_x = priv->abs_y = -1;
-
-	/*
-	 * Report position if finger/pen is down, but weed out duplicate
-	 * packets (we get quite a few in this mode, and they mess up our
-	 * jump detection.
-	 */
-	if (down && (x != priv->abs_x || y != priv->abs_y)) {
-
-		/* Don't apply hacks in PT mode, it seems reliable */
-		if (priv->mode != HGPK_MODE_PENTABLET && priv->abs_x != -1) {
-			hgpk_jumpy_hack(psmouse,
-					priv->abs_x - x, priv->abs_y - y);
-			hgpk_spewing_hack(psmouse, left, right,
-					  priv->abs_x - x, priv->abs_y - y);
-		}
-
-		input_report_abs(idev, ABS_X, x);
-		input_report_abs(idev, ABS_Y, y);
-		priv->abs_x = x;
-		priv->abs_y = y;
+	if (!down) {
+		hgpk_reset_hack_state(priv);
+		goto done;
 	}
 
+	/*
+	 * Weed out duplicate packets (we get quite a few, and they mess up
+	 * our jump detection)
+	 */
+	if (x == priv->abs_x && y == priv->abs_y) {
+		if (++priv->dupe_count > SPEW_WATCH_COUNT) {
+			if (tpdebug)
+				hgpk_dbg(psmouse, "hard spew detected\n");
+			priv->spew_flag = RECALIBRATING;
+			psmouse_queue_work(psmouse, &priv->recalib_wq,
+					   msecs_to_jiffies(spew_delay));
+		}
+		goto done;
+	}
+
+	/* not a duplicate, continue with position reporting */
+	priv->dupe_count = 0;
+
+	/* Don't apply hacks in PT mode, it seems reliable */
+	if (priv->mode != HGPK_MODE_PENTABLET && priv->abs_x != -1) {
+		hgpk_jumpy_hack(psmouse,
+				priv->abs_x - x, priv->abs_y - y);
+		hgpk_spewing_hack(psmouse, left, right,
+				  priv->abs_x - x, priv->abs_y - y);
+	}
+
+	input_report_abs(idev, ABS_X, x);
+	input_report_abs(idev, ABS_Y, y);
+	priv->abs_x = x;
+	priv->abs_y = y;
+
+done:
 	input_sync(idev);
 }
 
@@ -460,13 +527,6 @@ static void hgpk_setup_input_device(struct input_dev *input,
 	default:
 		BUG();
 	}
-}
-
-static void hgpk_reset_hack_state(struct psmouse *psmouse)
-{
-	struct hgpk_data *priv = psmouse->private;
-
-	priv->abs_x = priv->abs_y = -1;
 }
 
 static int hgpk_reset_device(struct psmouse *psmouse, bool recalibrate)

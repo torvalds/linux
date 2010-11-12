@@ -16,6 +16,15 @@ enum hgpk_model_t {
 	HGPK_MODEL_D = 0x50,	/* C1, mass production */
 };
 
+enum hgpk_spew_flag {
+	NO_SPEW,
+	MAYBE_SPEWING,
+	SPEW_DETECTED,
+	RECALIBRATING,
+};
+
+#define SPEW_WATCH_COUNT 42  /* at 12ms/packet, this is 1/2 second */
+
 enum hgpk_mode {
 	HGPK_MODE_MOUSE,
 	HGPK_MODE_GLIDESENSOR,
@@ -27,10 +36,12 @@ struct hgpk_data {
 	struct psmouse *psmouse;
 	enum hgpk_mode mode;
 	bool powered;
-	int count, x_tally, y_tally;	/* hardware workaround stuff */
+	enum hgpk_spew_flag spew_flag;
+	int spew_count, x_tally, y_tally;	/* spew detection */
 	unsigned long recalib_window;
 	struct delayed_work recalib_wq;
 	int abs_x, abs_y;
+	int dupe_count;
 };
 
 #define hgpk_dbg(psmouse, format, arg...)		\
