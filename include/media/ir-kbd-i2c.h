@@ -46,5 +46,7 @@ struct IR_i2c_init_data {
 	 */
 	int                    (*get_key)(struct IR_i2c*, u32*, u32*);
 	enum ir_kbd_get_key_fn internal_get_key_func;
+
+	struct rc_dev		*rc_dev;
 };
 #endif
