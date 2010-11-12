@@ -470,9 +470,9 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 			 *	to userspace as they are
 			 */
 			retval = vme_master_get(image[minor].resource,
-				&(master.enable), &(master.vme_addr),
-				&(master.size), &(master.aspace),
-				&(master.cycle), &(master.dwidth));
+				&master.enable, &master.vme_addr,
+				&master.size, &master.aspace,
+				&master.cycle, &master.dwidth);
 
 			copied = copy_to_user((char *)arg, &master,
 				sizeof(struct vme_master));
@@ -514,9 +514,9 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 			 *	to userspace as they are
 			 */
 			retval = vme_slave_get(image[minor].resource,
-				&(slave.enable), &(slave.vme_addr),
-				&(slave.size), &pci_addr, &(slave.aspace),
-				&(slave.cycle));
+				&slave.enable, &slave.vme_addr,
+				&slave.size, &pci_addr, &slave.aspace,
+				&slave.cycle);
 
 			copied = copy_to_user((char *)arg, &slave,
 				sizeof(struct vme_slave));
@@ -683,7 +683,7 @@ static int __init vme_user_probe(struct device *dev, int cur_bus, int cur_slot)
 	for (i = 0; i < VME_DEVS; i++) {
 		image[i].kern_buf = NULL;
 		image[i].pci_buf = 0;
-		sema_init(&(image[i].sem), 1);
+		sema_init(&image[i].sem, 1);
 		image[i].device = NULL;
 		image[i].resource = NULL;
 		image[i].users = 0;
@@ -727,7 +727,7 @@ static int __init vme_user_probe(struct device *dev, int cur_bus, int cur_slot)
 		}
 		image[i].size_buf = PCI_BUF_SIZE;
 		image[i].kern_buf = vme_alloc_consistent(image[i].resource,
-			image[i].size_buf, &(image[i].pci_buf));
+			image[i].size_buf, &image[i].pci_buf);
 		if (image[i].kern_buf == NULL) {
 			printk(KERN_WARNING "Unable to allocate memory for "
 				"buffer\n");
