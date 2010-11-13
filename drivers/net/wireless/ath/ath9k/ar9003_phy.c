@@ -1144,6 +1144,20 @@ static void ar9003_hw_set_radar_params(struct ath_hw *ah,
 		REG_CLR_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
 }
 
+static void ar9003_hw_set_radar_conf(struct ath_hw *ah)
+{
+	struct ath_hw_radar_conf *conf = &ah->radar_conf;
+
+	conf->fir_power = -28;
+	conf->radar_rssi = 0;
+	conf->pulse_height = 10;
+	conf->pulse_rssi = 24;
+	conf->pulse_inband = 8;
+	conf->pulse_maxlen = 255;
+	conf->pulse_inband_step = 12;
+	conf->radar_inband = 8;
+}
+
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
@@ -1175,6 +1189,7 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->set_radar_params = ar9003_hw_set_radar_params;
 
 	ar9003_hw_set_nf_limits(ah);
+	ar9003_hw_set_radar_conf(ah);
 	memcpy(ah->nf_regs, ar9300_cca_regs, sizeof(ah->nf_regs));
 }
 

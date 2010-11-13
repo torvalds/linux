@@ -782,6 +782,8 @@ struct ath_hw {
 	u8 txchainmask;
 	u8 rxchainmask;
 
+	struct ath_hw_radar_conf radar_conf;
+
 	u32 originalGain[22];
 	int initPDADC;
 	int PDADCdelta;
