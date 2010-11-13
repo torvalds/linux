@@ -64,7 +64,7 @@ config RT2800PCI_SOC
 	default y
 
 config RT2800PCI
-	tristate "Ralink rt27xx/rt28xx (PCI/PCIe/PCMCIA) support"
+	tristate "Ralink rt27xx/rt28xx/rt30xx (PCI/PCIe/PCMCIA) support"
 	depends on RT2800PCI_PCI || RT2800PCI_SOC
 	select RT2800_LIB
 	select RT2X00_LIB_PCI if RT2800PCI_PCI
@@ -75,20 +75,13 @@ config RT2800PCI
 	select CRC_CCITT
 	select EEPROM_93CX6
 	---help---
-	  This adds support for rt27xx/rt28xx wireless chipset family.
-	  Supported chips: RT2760, RT2790, RT2860, RT2880, RT2890 & RT3052
+	  This adds support for rt27xx/rt28xx/rt30xx wireless chipset family.
+	  Supported chips: RT2760, RT2790, RT2860, RT2880, RT2890, RT3052,
+			   RT3090, RT3091 & RT3092
 
 	  When compiled as a module, this driver will be called "rt2800pci.ko".
 
 if RT2800PCI
-
-config RT2800PCI_RT30XX
-	bool "rt2800pci - Include support for rt30xx devices"
-	default y
-	---help---
-	  This adds support for rt30xx wireless chipset family to the
-	  rt2800pci driver.
-	  Supported chips: RT3090, RT3091 & RT3092
 
 config RT2800PCI_RT33XX
 	bool "rt2800pci - Include support for rt33xx devices (EXPERIMENTAL)"
@@ -141,7 +134,7 @@ config RT73USB
 	  When compiled as a module, this driver will be called rt73usb.
 
 config RT2800USB
-	tristate "Ralink rt27xx/rt28xx (USB) support"
+	tristate "Ralink rt27xx/rt28xx/rt30xx (USB) support"
 	depends on USB
 	select RT2800_LIB
 	select RT2X00_LIB_USB
@@ -150,20 +143,12 @@ config RT2800USB
 	select RT2X00_LIB_CRYPTO
 	select CRC_CCITT
 	---help---
-	  This adds support for rt27xx/rt28xx wireless chipset family.
-	  Supported chips: RT2770, RT2870 & RT3070.
+	  This adds support for rt27xx/rt28xx/rt30xx wireless chipset family.
+	  Supported chips: RT2770, RT2870 & RT3070, RT3071 & RT3072
 
 	  When compiled as a module, this driver will be called "rt2800usb.ko".
 
 if RT2800USB
-
-config RT2800USB_RT30XX
-	bool "rt2800usb - Include support for rt30xx devices"
-	default y
-	---help---
-	  This adds support for rt30xx wireless chipset family to the
-	  rt2800usb driver.
-	  Supported chips: RT3070, RT3071 & RT3072
 
 config RT2800USB_RT33XX
 	bool "rt2800usb - Include support for rt33xx devices (EXPERIMENTAL)"
