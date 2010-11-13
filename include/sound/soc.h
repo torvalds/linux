@@ -450,6 +450,7 @@ struct snd_soc_cache_ops {
 /* SoC Audio Codec device */
 struct snd_soc_codec {
 	const char *name;
+	const char *name_prefix;
 	int id;
 	struct device *dev;
 	struct snd_soc_codec_driver *driver;
@@ -577,6 +578,11 @@ struct snd_soc_dai_link {
 	struct snd_soc_ops *ops;
 };
 
+struct snd_soc_prefix_map {
+	const char *dev_name;
+	const char *name_prefix;
+};
+
 /* SoC card */
 struct snd_soc_card {
 	const char *name;
@@ -610,6 +616,13 @@ struct snd_soc_card {
 	int num_links;
 	struct snd_soc_pcm_runtime *rtd;
 	int num_rtd;
+
+	/*
+	 * optional map of kcontrol, widget and path name prefixes that are
+	 * associated per device
+	 */
+	struct snd_soc_prefix_map *prefix_map;
+	int num_prefixes;
 
 	struct work_struct deferred_resume_work;
 

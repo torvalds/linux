@@ -1397,6 +1397,23 @@ static void soc_remove_dai_link(struct snd_soc_card *card, int num)
 	}
 }
 
+static void soc_set_name_prefix(struct snd_soc_card *card,
+				struct snd_soc_codec *codec)
+{
+	int i;
+
+	if (card->prefix_map == NULL)
+		return;
+
+	for (i = 0; i < card->num_prefixes; i++) {
+		struct snd_soc_prefix_map *map = &card->prefix_map[i];
+		if (map->dev_name && !strcmp(codec->name, map->dev_name)) {
+			codec->name_prefix = map->name_prefix;
+			break;
+		}
+	}
+}
+
 static void rtd_release(struct device *dev) {}
 
 static int soc_probe_dai_link(struct snd_soc_card *card, int num)
@@ -1406,6 +1423,7 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai, *cpu_dai = rtd->cpu_dai;
+	const char *temp;
 	int ret;
 
 	dev_dbg(card->dev, "probe %s dai link %d\n", card->name, num);
@@ -1440,6 +1458,7 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num)
 	/* probe the CODEC */
 	if (!codec->probed) {
 		codec->dapm.card = card;
+		soc_set_name_prefix(card, codec);
 		if (codec->driver->probe) {
 			ret = codec->driver->probe(codec);
 			if (ret < 0) {
@@ -1492,11 +1511,15 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num)
 
 	/* now that all clients have probed, initialise the DAI link */
 	if (dai_link->init) {
+		/* machine controls, routes and widgets are not prefixed */
+		temp = rtd->codec->name_prefix;
+		rtd->codec->name_prefix = NULL;
 		ret = dai_link->init(rtd);
 		if (ret < 0) {
 			printk(KERN_ERR "asoc: failed to init %s\n", dai_link->stream_name);
 			return ret;
 		}
+		rtd->codec->name_prefix = temp;
 	}
 
 	/* Make sure all DAPM widgets are instantiated */
@@ -2072,14 +2095,22 @@ int snd_soc_add_controls(struct snd_soc_codec *codec,
 	const struct snd_kcontrol_new *controls, int num_controls)
 {
 	struct snd_card *card = codec->card->snd_card;
+	char prefixed_name[44], *name;
 	int err, i;
 
 	for (i = 0; i < num_controls; i++) {
 		const struct snd_kcontrol_new *control = &controls[i];
-		err = snd_ctl_add(card, snd_soc_cnew(control, codec, NULL));
+		if (codec->name_prefix) {
+			snprintf(prefixed_name, sizeof(prefixed_name), "%s %s",
+				 codec->name_prefix, control->name);
+			name = prefixed_name;
+		} else {
+			name = control->name;
+		}
+		err = snd_ctl_add(card, snd_soc_cnew(control, codec, name));
 		if (err < 0) {
 			dev_err(codec->dev, "%s: Failed to add %s: %d\n",
-				codec->name, control->name, err);
+				codec->name, name, err);
 			return err;
 		}
 	}
