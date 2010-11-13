@@ -146,6 +146,28 @@ int ubi_io_read(const struct ubi_device *ubi, void *buf, int pnum, int offset,
 	if (err)
 		return err;
 
+	/*
+	 * Deliberately corrupt the buffer to improve robustness. Indeed, if we
+	 * do not do this, the following may happen:
+	 * 1. The buffer contains data from previous operation, e.g., read from
+	 *    another PEB previously. The data looks like expected, e.g., if we
+	 *    just do not read anything and return - the caller would not
+	 *    notice this. E.g., if we are reading a VID header, the buffer may
+	 *    contain a valid VID header from another PEB.
+	 * 2. The driver is buggy and returns us success or -EBADMSG or
+	 *    -EUCLEAN, but it does not actually put any data to the buffer.
+	 *
+	 * This may confuse UBI or upper layers - they may think the buffer
+	 * contains valid data while in fact it is just old data. This is
+	 * especially possible because UBI (and UBIFS) relies on CRC, and
+	 * treats data as correct even in case of ECC errors if the CRC is
+	 * correct.
+	 *
+	 * Try to prevent this situation by changing the first byte of the
+	 * buffer.
+	 */
+	*((uint8_t *)buf) ^= 0xFF;
+
 	addr = (loff_t)pnum * ubi->peb_size + offset;
 retry:
 	err = ubi->mtd->read(ubi->mtd, addr, len, &read, buf);
