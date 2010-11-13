@@ -11,7 +11,7 @@ config SND_KIRKWOOD_SOC_I2S
 
 config SND_KIRKWOOD_SOC_OPENRD
 	tristate "SoC Audio support for Kirkwood Openrd Client"
-	depends on SND_KIRKWOOD_SOC && MACH_OPENRD_CLIENT
+	depends on SND_KIRKWOOD_SOC && (MACH_OPENRD_CLIENT || MACH_OPENRD_ULTIMATE)
 	select SND_KIRKWOOD_SOC_I2S
 	select SND_SOC_CS42L51
 	help
