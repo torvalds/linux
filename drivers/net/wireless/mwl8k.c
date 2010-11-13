@@ -144,8 +144,8 @@ struct mwl8k_priv {
 	void __iomem *regs;
 
 	/* firmware */
-	struct firmware *fw_helper;
-	struct firmware *fw_ucode;
+	const struct firmware *fw_helper;
+	const struct firmware *fw_ucode;
 
 	/* hardware/firmware parameters */
 	bool ap_fw;
@@ -395,7 +395,7 @@ static void mwl8k_hw_reset(struct mwl8k_priv *priv)
 }
 
 /* Release fw image */
-static void mwl8k_release_fw(struct firmware **fw)
+static void mwl8k_release_fw(const struct firmware **fw)
 {
 	if (*fw == NULL)
 		return;
@@ -420,7 +420,7 @@ enum {
 
 /* Request fw image */
 static int mwl8k_request_fw(struct mwl8k_priv *priv,
-			    const char *fname, struct firmware **fw,
+			    const char *fname, const struct firmware **fw,
 			    bool nowait)
 {
 	/* release current image */
@@ -432,8 +432,7 @@ static int mwl8k_request_fw(struct mwl8k_priv *priv,
 					       &priv->pdev->dev, GFP_KERNEL,
 					       priv, mwl8k_fw_state_machine);
 	else
-		return request_firmware((const struct firmware **)fw,
-					fname, &priv->pdev->dev);
+		return request_firmware(fw, fname, &priv->pdev->dev);
 }
 
 static int mwl8k_request_firmware(struct mwl8k_priv *priv, char *fw_image,
@@ -632,12 +631,12 @@ static int mwl8k_feed_fw_image(struct mwl8k_priv *priv,
 static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 {
 	struct mwl8k_priv *priv = hw->priv;
-	struct firmware *fw = priv->fw_ucode;
+	const struct firmware *fw = priv->fw_ucode;
 	int rc;
 	int loops;
 
 	if (!memcmp(fw->data, "\x01\x00\x00\x00", 4)) {
-		struct firmware *helper = priv->fw_helper;
+		const struct firmware *helper = priv->fw_helper;
 
 		if (helper == NULL) {
 			printk(KERN_ERR "%s: helper image needed but none "
