@@ -328,12 +328,22 @@ static int open_dev(struct dm_dev_internal *d, dev_t dev,
 	bdev = open_by_devnum(dev, d->dm_dev.mode);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
-	r = bd_claim_by_disk(bdev, _claim_ptr, dm_disk(md));
-	if (r)
+
+	r = bd_claim(bdev, _claim_ptr);
+	if (r) {
 		blkdev_put(bdev, d->dm_dev.mode);
-	else
-		d->dm_dev.bdev = bdev;
-	return r;
+		return r;
+	}
+
+	r = bd_link_disk_holder(bdev, dm_disk(md));
+	if (r) {
+		bd_release(bdev);
+		blkdev_put(bdev, d->dm_dev.mode);
+		return r;
+	}
+
+	d->dm_dev.bdev = bdev;
+	return 0;
 }
 
 /*
@@ -344,7 +354,8 @@ static void close_dev(struct dm_dev_internal *d, struct mapped_device *md)
 	if (!d->dm_dev.bdev)
 		return;
 
-	bd_release_from_disk(d->dm_dev.bdev, dm_disk(md));
+	bd_unlink_disk_holder(d->dm_dev.bdev);
+	bd_release(d->dm_dev.bdev);
 	blkdev_put(d->dm_dev.bdev, d->dm_dev.mode);
 	d->dm_dev.bdev = NULL;
 }
