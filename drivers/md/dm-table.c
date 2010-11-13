@@ -325,7 +325,7 @@ static int open_dev(struct dm_dev_internal *d, dev_t dev,
 
 	BUG_ON(d->dm_dev.bdev);
 
-	bdev = open_by_devnum(dev, d->dm_dev.mode | FMODE_EXCL, _claim_ptr);
+	bdev = blkdev_get_by_dev(dev, d->dm_dev.mode | FMODE_EXCL, _claim_ptr);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
 

@@ -49,7 +49,7 @@ struct btrfs_device {
 
 	struct block_device *bdev;
 
-	/* the mode sent to open_bdev_exclusive */
+	/* the mode sent to blkdev_get */
 	fmode_t mode;
 
 	char *name;

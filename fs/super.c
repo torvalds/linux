@@ -766,13 +766,13 @@ struct dentry *mount_bdev(struct file_system_type *fs_type,
 {
 	struct block_device *bdev;
 	struct super_block *s;
-	fmode_t mode = FMODE_READ;
+	fmode_t mode = FMODE_READ | FMODE_EXCL;
 	int error = 0;
 
 	if (!(flags & MS_RDONLY))
 		mode |= FMODE_WRITE;
 
-	bdev = open_bdev_exclusive(dev_name, mode, fs_type);
+	bdev = blkdev_get_by_path(dev_name, mode, fs_type);
 	if (IS_ERR(bdev))
 		return ERR_CAST(bdev);
 
@@ -807,7 +807,7 @@ struct dentry *mount_bdev(struct file_system_type *fs_type,
 		 * holding an active reference.
 		 */
 		up_write(&s->s_umount);
-		blkdev_put(bdev, mode | FMODE_EXCL);
+		blkdev_put(bdev, mode);
 		down_write(&s->s_umount);
 	} else {
 		char b[BDEVNAME_SIZE];
@@ -831,7 +831,7 @@ struct dentry *mount_bdev(struct file_system_type *fs_type,
 error_s:
 	error = PTR_ERR(s);
 error_bdev:
-	blkdev_put(bdev, mode | FMODE_EXCL);
+	blkdev_put(bdev, mode);
 error:
 	return ERR_PTR(error);
 }
@@ -862,6 +862,7 @@ void kill_block_super(struct super_block *sb)
 	bdev->bd_super = NULL;
 	generic_shutdown_super(sb);
 	sync_blockdev(bdev);
+	WARN_ON_ONCE(!(mode & FMODE_EXCL));
 	blkdev_put(bdev, mode | FMODE_EXCL);
 }
 

@@ -325,7 +325,8 @@ int logfs_get_sb_bdev(struct logfs_super *p, struct file_system_type *type,
 {
 	struct block_device *bdev;
 
-	bdev = open_bdev_exclusive(devname, FMODE_READ|FMODE_WRITE, type);
+	bdev = blkdev_get_by_path(devname, FMODE_READ|FMODE_WRITE|FMODE_EXCL,
+				  type);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
 

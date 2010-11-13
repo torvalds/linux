@@ -902,8 +902,8 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		}
 	}
 
-	bdev = open_bdev_exclusive(nbc->dc.backing_dev,
-				   FMODE_READ | FMODE_WRITE, mdev);
+	bdev = blkdev_get_by_path(nbc->dc.backing_dev,
+				  FMODE_READ | FMODE_WRITE | FMODE_EXCL, mdev);
 	if (IS_ERR(bdev)) {
 		dev_err(DEV, "open(\"%s\") failed with %ld\n", nbc->dc.backing_dev,
 			PTR_ERR(bdev));
@@ -920,10 +920,10 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	 * should check it for you already; but if you don't, or
 	 * someone fooled it, we need to double check here)
 	 */
-	bdev = open_bdev_exclusive(nbc->dc.meta_dev,
-				   FMODE_READ | FMODE_WRITE,
-				   (nbc->dc.meta_dev_idx < 0) ?
-				   (void *)mdev : (void *)drbd_m_holder);
+	bdev = blkdev_get_by_path(nbc->dc.meta_dev,
+				  FMODE_READ | FMODE_WRITE | FMODE_EXCL,
+				  (nbc->dc.meta_dev_idx < 0) ?
+				  (void *)mdev : (void *)drbd_m_holder);
 	if (IS_ERR(bdev)) {
 		dev_err(DEV, "open(\"%s\") failed with %ld\n", nbc->dc.meta_dev,
 			PTR_ERR(bdev));

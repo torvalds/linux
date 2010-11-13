@@ -609,7 +609,8 @@ xfs_blkdev_get(
 {
 	int			error = 0;
 
-	*bdevp = open_bdev_exclusive(name, FMODE_READ|FMODE_WRITE, mp);
+	*bdevp = blkdev_get_by_path(name, FMODE_READ|FMODE_WRITE|FMODE_EXCL,
+				    mp);
 	if (IS_ERR(*bdevp)) {
 		error = PTR_ERR(*bdevp);
 		printk("XFS: Invalid device [%s], error=%d\n", name, error);

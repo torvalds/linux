@@ -1934,8 +1934,8 @@ static int lock_rdev(mdk_rdev_t *rdev, dev_t dev, int shared)
 	struct block_device *bdev;
 	char b[BDEVNAME_SIZE];
 
-	bdev = open_by_devnum(dev, FMODE_READ|FMODE_WRITE|FMODE_EXCL,
-			      shared ? (mdk_rdev_t *)lock_rdev : rdev);
+	bdev = blkdev_get_by_dev(dev, FMODE_READ|FMODE_WRITE|FMODE_EXCL,
+				 shared ? (mdk_rdev_t *)lock_rdev : rdev);
 	if (IS_ERR(bdev)) {
 		printk(KERN_ERR "md: could not open %s.\n",
 			__bdevname(dev, b));

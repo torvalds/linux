@@ -854,24 +854,6 @@ static inline void bd_unlink_disk_holder(struct block_device *bdev)
 { }
 #endif
 
-/*
- * Tries to open block device by device number.  Use it ONLY if you
- * really do not have anything better - i.e. when you are behind a
- * truly sucky interface and all you are given is a device number.  _Never_
- * to be used for internal purposes.  If you ever need it - reconsider
- * your API.
- */
-struct block_device *open_by_devnum(dev_t dev, fmode_t mode, void *holder)
-{
-	struct block_device *bdev = bdget(dev);
-	int err = -ENOMEM;
-	if (bdev)
-		err = blkdev_get(bdev, mode, holder);
-	return err ? ERR_PTR(err) : bdev;
-}
-
-EXPORT_SYMBOL(open_by_devnum);
-
 /**
  * flush_disk - invalidates all buffer-cache entries on a disk
  *
@@ -1132,6 +1114,25 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	return ret;
 }
 
+/**
+ * blkdev_get - open a block device
+ * @bdev: block_device to open
+ * @mode: FMODE_* mask
+ * @holder: exclusive holder identifier
+ *
+ * Open @bdev with @mode.  If @mode includes %FMODE_EXCL, @bdev is
+ * open with exclusive access.  Specifying %FMODE_EXCL with %NULL
+ * @holder is invalid.  Exclusive opens may nest for the same @holder.
+ *
+ * On success, the reference count of @bdev is unchanged.  On failure,
+ * @bdev is put.
+ *
+ * CONTEXT:
+ * Might sleep.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
+ */
 int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 {
 	struct block_device *whole = NULL;
@@ -1185,6 +1186,80 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 	return res;
 }
 EXPORT_SYMBOL(blkdev_get);
+
+/**
+ * blkdev_get_by_path - open a block device by name
+ * @path: path to the block device to open
+ * @mode: FMODE_* mask
+ * @holder: exclusive holder identifier
+ *
+ * Open the blockdevice described by the device file at @path.  @mode
+ * and @holder are identical to blkdev_get().
+ *
+ * On success, the returned block_device has reference count of one.
+ *
+ * CONTEXT:
+ * Might sleep.
+ *
+ * RETURNS:
+ * Pointer to block_device on success, ERR_PTR(-errno) on failure.
+ */
+struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
+					void *holder)
+{
+	struct block_device *bdev;
+	int err;
+
+	bdev = lookup_bdev(path);
+	if (IS_ERR(bdev))
+		return bdev;
+
+	err = blkdev_get(bdev, mode, holder);
+	if (err)
+		return ERR_PTR(err);
+
+	return bdev;
+}
+EXPORT_SYMBOL(blkdev_get_by_path);
+
+/**
+ * blkdev_get_by_dev - open a block device by device number
+ * @dev: device number of block device to open
+ * @mode: FMODE_* mask
+ * @holder: exclusive holder identifier
+ *
+ * Open the blockdevice described by device number @dev.  @mode and
+ * @holder are identical to blkdev_get().
+ *
+ * Use it ONLY if you really do not have anything better - i.e. when
+ * you are behind a truly sucky interface and all you are given is a
+ * device number.  _Never_ to be used for internal purposes.  If you
+ * ever need it - reconsider your API.
+ *
+ * On success, the returned block_device has reference count of one.
+ *
+ * CONTEXT:
+ * Might sleep.
+ *
+ * RETURNS:
+ * Pointer to block_device on success, ERR_PTR(-errno) on failure.
+ */
+struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder)
+{
+	struct block_device *bdev;
+	int err;
+
+	bdev = bdget(dev);
+	if (!bdev)
+		return ERR_PTR(-ENOMEM);
+
+	err = blkdev_get(bdev, mode, holder);
+	if (err)
+		return ERR_PTR(err);
+
+	return bdev;
+}
+EXPORT_SYMBOL(blkdev_get_by_dev);
 
 static int blkdev_open(struct inode * inode, struct file * filp)
 {
@@ -1435,34 +1510,6 @@ fail:
 	goto out;
 }
 EXPORT_SYMBOL(lookup_bdev);
-
-/**
- * open_bdev_exclusive  -  open a block device by name and set it up for use
- *
- * @path:	special file representing the block device
- * @mode:	FMODE_... combination to pass be used
- * @holder:	owner for exclusion
- *
- * Open the blockdevice described by the special file at @path, claim it
- * for the @holder.
- */
-struct block_device *open_bdev_exclusive(const char *path, fmode_t mode, void *holder)
-{
-	struct block_device *bdev;
-	int error;
-
-	bdev = lookup_bdev(path);
-	if (IS_ERR(bdev))
-		return bdev;
-
-	error = blkdev_get(bdev, mode | FMODE_EXCL, holder);
-	if (error)
-		return ERR_PTR(error);
-
-	return bdev;
-}
-
-EXPORT_SYMBOL(open_bdev_exclusive);
 
 int __invalidate_device(struct block_device *bdev)
 {

@@ -2585,7 +2585,8 @@ static int journal_init_dev(struct super_block *super,
 	if ((!jdev_name || !jdev_name[0])) {
 		if (jdev == super->s_dev)
 			blkdev_mode &= ~FMODE_EXCL;
-		journal->j_dev_bd = open_by_devnum(jdev, blkdev_mode, journal);
+		journal->j_dev_bd = blkdev_get_by_dev(jdev, blkdev_mode,
+						      journal);
 		journal->j_dev_mode = blkdev_mode;
 		if (IS_ERR(journal->j_dev_bd)) {
 			result = PTR_ERR(journal->j_dev_bd);
@@ -2601,8 +2602,7 @@ static int journal_init_dev(struct super_block *super,
 	}
 
 	journal->j_dev_mode = blkdev_mode;
-	journal->j_dev_bd = open_bdev_exclusive(jdev_name,
-						blkdev_mode, journal);
+	journal->j_dev_bd = blkdev_get_by_path(jdev_name, blkdev_mode, journal);
 	if (IS_ERR(journal->j_dev_bd)) {
 		result = PTR_ERR(journal->j_dev_bd);
 		journal->j_dev_bd = NULL;
