@@ -53,22 +53,12 @@ config RT61PCI
 
 	  When compiled as a module, this driver will be called rt61pci.
 
-config RT2800PCI_PCI
-	boolean
-	depends on PCI
-	default y
-
-config RT2800PCI_SOC
-	boolean
-	depends on RALINK_RT288X || RALINK_RT305X
-	default y
-
 config RT2800PCI
 	tristate "Ralink rt27xx/rt28xx/rt30xx (PCI/PCIe/PCMCIA) support"
-	depends on RT2800PCI_PCI || RT2800PCI_SOC
+	depends on PCI || RALINK_RT288X || RALINK_RT305X
 	select RT2800_LIB
-	select RT2X00_LIB_PCI if RT2800PCI_PCI
-	select RT2X00_LIB_SOC if RT2800PCI_SOC
+	select RT2X00_LIB_PCI if PCI
+	select RT2X00_LIB_SOC if RALINK_RT288X || RALINK_RT305X
 	select RT2X00_LIB_HT
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
