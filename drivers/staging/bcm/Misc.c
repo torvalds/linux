@@ -1079,7 +1079,7 @@ int run_card_proc(PMINI_ADAPTER ps_adapter )
 int InitCardAndDownloadFirmware(PMINI_ADAPTER ps_adapter)
 {
 
-	UINT status = STATUS_SUCCESS;
+	int status;
 	UINT value = 0;
 	/*
  	 * Create the threads first and then download the
