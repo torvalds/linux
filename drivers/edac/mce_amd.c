@@ -776,8 +776,8 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 
 	if (c->x86 == 0x15)
 		pr_cont("|%s|%s",
-			((m->status & BIT(44))	? "Deferred" : "-"),
-			((m->status & BIT(43))	? "Poison"   : "-"));
+			((m->status & BIT_64(44)) ? "Deferred" : "-"),
+			((m->status & BIT_64(43)) ? "Poison"   : "-"));
 
 	/* do the two bits[14:13] together */
 	ecc = (m->status >> 45) & 0x3;
