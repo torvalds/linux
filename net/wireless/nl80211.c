@@ -224,8 +224,8 @@ static int nl80211_prepare_netdev_dump(struct sk_buff *skb,
 	}
 
 	*rdev = cfg80211_get_dev_from_ifindex(sock_net(skb->sk), ifidx);
-	if (IS_ERR(dev)) {
-		err = PTR_ERR(dev);
+	if (IS_ERR(*rdev)) {
+		err = PTR_ERR(*rdev);
 		goto out_rtnl;
 	}
 
