@@ -250,10 +250,9 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
-	unsigned int header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
+	unsigned int header_length, i;
 	u8 rate_idx, rate_flags, retry_rates;
 	u8 skbdesc_flags = skbdesc->flags;
-	unsigned int i;
 	bool success;
 
 	/*
@@ -270,6 +269,11 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * Signal that the TX descriptor is no longer in the skb.
 	 */
 	skbdesc->flags &= ~SKBDESC_DESC_IN_SKB;
+
+	/*
+	 * Determine the length of 802.11 header.
+	 */
+	header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
 
 	/*
 	 * Remove L2 padding which was added during
