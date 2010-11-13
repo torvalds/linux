@@ -1649,17 +1649,17 @@ static inline ULONG RestoreSFParam(PMINI_ADAPTER Adapter, ULONG ulAddrSFParamSet
 static ULONG StoreSFParam(PMINI_ADAPTER Adapter,PUCHAR pucSrcBuffer,ULONG  ulAddrSFParamSet)
 {
     UINT	nBytesToWrite = sizeof(stServiceFlowParamSI);
-	UINT 	uiRetVal =0;
+	int ret = 0;
 
 	if(ulAddrSFParamSet == 0 || NULL == pucSrcBuffer)
 	{
 		return 0;
 	}
 
-	uiRetVal = wrm(Adapter,ulAddrSFParamSet,(PUCHAR)pucSrcBuffer, nBytesToWrite);
-	if(uiRetVal < 0) {
+	ret = wrm(Adapter, ulAddrSFParamSet, (u8 *)pucSrcBuffer, nBytesToWrite);
+	if (ret < 0) {
 		BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL,  "%s:%d WRM failed",__FUNCTION__, __LINE__);
-		return uiRetVal;
+		return ret;
 	}
 	return 1;
 }
