@@ -1656,9 +1656,6 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 			    bf->bf_buf_addr,
 			    txctl->txq->axq_qnum);
 
-	if (bf->bf_state.bfs_paprd)
-		ar9003_hw_set_paprd_txdesc(ah, ds, bf->bf_state.bfs_paprd);
-
 	spin_lock_bh(&txctl->txq->axq_lock);
 
 	if (bf_isht(bf) && (sc->sc_flags & SC_OP_TXAGGR) &&
@@ -1683,6 +1680,9 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 	} else {
 		bf->bf_state.bfs_ftype = txctl->frame_type;
 		bf->bf_state.bfs_paprd = txctl->paprd;
+
+		if (bf->bf_state.bfs_paprd)
+			ar9003_hw_set_paprd_txdesc(ah, ds, bf->bf_state.bfs_paprd);
 
 		if (txctl->paprd)
 			bf->bf_state.bfs_paprd_timestamp = jiffies;
