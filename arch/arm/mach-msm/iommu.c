@@ -585,7 +585,7 @@ static struct iommu_ops msm_iommu_ops = {
 	.domain_has_cap = msm_iommu_domain_has_cap
 };
 
-static int msm_iommu_init(void)
+static int __init msm_iommu_init(void)
 {
 	register_iommu(&msm_iommu_ops);
 	return 0;

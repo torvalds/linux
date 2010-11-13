@@ -826,7 +826,7 @@ static struct msm_iommu_ctx_dev *msm_iommu_ctx_data[] = {
 	&gfx2d1_2d1_ctx,
 };
 
-static int msm8x60_iommu_init(void)
+static int __init msm8x60_iommu_init(void)
 {
 	int ret, i;
 
@@ -886,7 +886,7 @@ failure:
 	return ret;
 }
 
-static void msm8x60_iommu_exit(void)
+static void __exit msm8x60_iommu_exit(void)
 {
 	int i;
 
