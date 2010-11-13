@@ -2948,6 +2948,48 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
 	case BRIDGE_OV511PLUS:
+		cam->cam_mode = ov511_vga_mode;
+		cam->nmodes = ARRAY_SIZE(ov511_vga_mode);
+		break;
+	case BRIDGE_OV518:
+	case BRIDGE_OV518PLUS:
+		cam->cam_mode = ov518_vga_mode;
+		cam->nmodes = ARRAY_SIZE(ov518_vga_mode);
+		break;
+	case BRIDGE_OV519:
+		cam->cam_mode = ov519_vga_mode;
+		cam->nmodes = ARRAY_SIZE(ov519_vga_mode);
+		sd->invert_led = !sd->invert_led;
+		break;
+	case BRIDGE_OVFX2:
+		cam->cam_mode = ov519_vga_mode;
+		cam->nmodes = ARRAY_SIZE(ov519_vga_mode);
+		cam->bulk_size = OVFX2_BULK_SIZE;
+		cam->bulk_nurbs = MAX_NURBS;
+		cam->bulk = 1;
+		break;
+	case BRIDGE_W9968CF:
+		cam->cam_mode = w9968cf_vga_mode;
+		cam->nmodes = ARRAY_SIZE(w9968cf_vga_mode);
+		cam->reverse_alts = 1;
+		break;
+	}
+
+	gspca_dev->cam.ctrls = sd->ctrls;
+	sd->quality = QUALITY_DEF;
+
+	return 0;
+}
+
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	struct cam *cam = &gspca_dev->cam;
+
+	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
 		ov511_configure(gspca_dev);
 		break;
 	case BRIDGE_OV518:
@@ -2959,17 +3001,11 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		break;
 	case BRIDGE_OVFX2:
 		ovfx2_configure(sd);
-		cam->bulk_size = OVFX2_BULK_SIZE;
-		cam->bulk_nurbs = MAX_NURBS;
-		cam->bulk = 1;
 		break;
 	case BRIDGE_W9968CF:
 		w9968cf_configure(sd);
-		cam->reverse_alts = 1;
 		break;
 	}
-
-	ov51x_led_control(sd, 0);	/* turn LED off */
 
 	/* The OV519 must be more aggressive about sensor detection since
 	 * I2C write will never fail if the sensor is not present. We have
@@ -2999,32 +3035,25 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if (sd->sensor < 0)
 		goto error;
 
+	ov51x_led_control(sd, 0);	/* turn LED off */
+
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
 	case BRIDGE_OV511PLUS:
-		if (!sd->sif) {
-			cam->cam_mode = ov511_vga_mode;
-			cam->nmodes = ARRAY_SIZE(ov511_vga_mode);
-		} else {
+		if (sd->sif) {
 			cam->cam_mode = ov511_sif_mode;
 			cam->nmodes = ARRAY_SIZE(ov511_sif_mode);
 		}
 		break;
 	case BRIDGE_OV518:
 	case BRIDGE_OV518PLUS:
-		if (!sd->sif) {
-			cam->cam_mode = ov518_vga_mode;
-			cam->nmodes = ARRAY_SIZE(ov518_vga_mode);
-		} else {
+		if (sd->sif) {
 			cam->cam_mode = ov518_sif_mode;
 			cam->nmodes = ARRAY_SIZE(ov518_sif_mode);
 		}
 		break;
 	case BRIDGE_OV519:
-		if (!sd->sif) {
-			cam->cam_mode = ov519_vga_mode;
-			cam->nmodes = ARRAY_SIZE(ov519_vga_mode);
-		} else {
+		if (sd->sif) {
 			cam->cam_mode = ov519_sif_mode;
 			cam->nmodes = ARRAY_SIZE(ov519_sif_mode);
 		}
@@ -3036,39 +3065,21 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		} else if (sd->sensor == SEN_OV3610) {
 			cam->cam_mode = ovfx2_ov3610_mode;
 			cam->nmodes = ARRAY_SIZE(ovfx2_ov3610_mode);
-		} else if (!sd->sif) {
-			cam->cam_mode = ov519_vga_mode;
-			cam->nmodes = ARRAY_SIZE(ov519_vga_mode);
-		} else {
+		} else if (sd->sif) {
 			cam->cam_mode = ov519_sif_mode;
 			cam->nmodes = ARRAY_SIZE(ov519_sif_mode);
 		}
 		break;
 	case BRIDGE_W9968CF:
-		cam->cam_mode = w9968cf_vga_mode;
-		cam->nmodes = ARRAY_SIZE(w9968cf_vga_mode);
 		if (sd->sif)
-			cam->nmodes--;
+			cam->nmodes = ARRAY_SIZE(w9968cf_vga_mode) - 1;
 
 		/* w9968cf needs initialisation once the sensor is known */
 		w9968cf_init(sd);
 		break;
 	}
-	gspca_dev->cam.ctrls = sd->ctrls;
-	sd->quality = QUALITY_DEF;
 
 	gspca_dev->ctrl_dis = ctrl_dis[sd->sensor];
-
-	return gspca_dev->usb_err;
-error:
-	PDEBUG(D_ERR, "OV519 Config failed");
-	return -EINVAL;
-}
-
-/* this function is called at probe and resume time */
-static int sd_init(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
 
 	/* initialize the sensor */
 	switch (sd->sensor) {
@@ -3117,6 +3128,9 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		break;
 	}
 	return gspca_dev->usb_err;
+error:
+	PDEBUG(D_ERR, "OV519 Config failed");
+	return -EINVAL;
 }
 
 /* Set up the OV511/OV511+ with the given image parameters.
