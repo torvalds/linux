@@ -6233,7 +6233,7 @@ USB SUBSYSTEM
 M:	Greg Kroah-Hartman <gregkh@suse.de>
 L:	linux-usb@vger.kernel.org
 W:	http://www.linux-usb.org
-T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/usb-2.6.git
 S:	Supported
 F:	Documentation/usb/
 F:	drivers/net/usb/
