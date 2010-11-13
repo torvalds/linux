@@ -1121,7 +1121,7 @@ armv6pmu_start(void)
 	spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
-void
+static void
 armv6pmu_stop(void)
 {
 	unsigned long flags, val;
