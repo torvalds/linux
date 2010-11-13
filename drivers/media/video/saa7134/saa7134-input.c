@@ -767,9 +767,10 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_ENCORE_ENLTV_FM53:
 		ir_codes     = RC_MAP_ENCORE_ENLTV_FM53;
-		mask_keydown = 0x0040000;
-		mask_keycode = 0x00007f;
-		nec_gpio = 1;
+		mask_keydown = 0x0040000;	/* Enable GPIO18 line on both edges */
+		mask_keyup   = 0x0040000;
+		mask_keycode = 0xffff;
+		raw_decode   = 1;
 		break;
 	case SAA7134_BOARD_10MOONSTVMASTER3:
 		ir_codes     = RC_MAP_ENCORE_ENLTV;
