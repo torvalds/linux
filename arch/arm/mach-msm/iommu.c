@@ -241,6 +241,11 @@ static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		goto fail;
 	}
 
+	if (!list_empty(&ctx_drvdata->attached_elm)) {
+		ret = -EBUSY;
+		goto fail;
+	}
+
 	list_for_each_entry(tmp_drvdata, &priv->list_attached, attached_elm)
 		if (tmp_drvdata == ctx_drvdata) {
 			ret = -EBUSY;
