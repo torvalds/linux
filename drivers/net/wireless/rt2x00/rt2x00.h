@@ -915,7 +915,7 @@ struct rt2x00_dev {
  * in those cases REGISTER_BUSY_COUNT attempts should be
  * taken with a REGISTER_BUSY_DELAY interval.
  */
-#define REGISTER_BUSY_COUNT	5
+#define REGISTER_BUSY_COUNT	100
 #define REGISTER_BUSY_DELAY	100
 
 /*
