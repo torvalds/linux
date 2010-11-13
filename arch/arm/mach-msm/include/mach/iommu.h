@@ -26,7 +26,7 @@
  * be present. These mappings are typically determined at design time and are
  * not expected to change at run time.
  */
-#define MAX_NUM_MIDS	16
+#define MAX_NUM_MIDS	32
 
 /**
  * struct msm_iommu_dev - a single IOMMU hardware instance
