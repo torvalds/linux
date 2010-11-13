@@ -2907,6 +2907,20 @@ i915_gem_object_set_to_display_plane(struct drm_gem_object *obj,
 	return 0;
 }
 
+int
+i915_gem_object_flush_gpu(struct drm_i915_gem_object *obj,
+			  bool interruptible)
+{
+	if (!obj->active)
+		return 0;
+
+	if (obj->base.write_domain & I915_GEM_GPU_DOMAINS)
+		i915_gem_flush_ring(obj->base.dev, NULL, obj->ring,
+				    0, obj->base.write_domain);
+
+	return i915_gem_object_wait_rendering(&obj->base, interruptible);
+}
+
 /**
  * Moves a single object to the CPU read, and possibly write domain.
  *
