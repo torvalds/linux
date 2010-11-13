@@ -145,8 +145,6 @@ u32 osl_pci_read_config(osl_t *osh, uint offset, uint size)
 void osl_pci_write_config(osl_t *osh, uint offset, uint size, uint val)
 {
 	pci_write_config_dword(osh->pdev, offset, val);
-	if (offset == PCI_BAR0_WIN)
-		ASSERT(osl_pci_read_config(osh, offset, size) == val);
 }
 
 /* return bus # for the pci device pointed by osh->pdev */
