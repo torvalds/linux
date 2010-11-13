@@ -50,12 +50,12 @@ struct msm_priv {
 	struct list_head list_attached;
 };
 
-static void __flush_iotlb(struct iommu_domain *domain)
+static int __flush_iotlb(struct iommu_domain *domain)
 {
 	struct msm_priv *priv = domain->priv;
 	struct msm_iommu_drvdata *iommu_drvdata;
 	struct msm_iommu_ctx_drvdata *ctx_drvdata;
-
+	int ret = 0;
 #ifndef CONFIG_IOMMU_PGTABLES_L2
 	unsigned long *fl_table = priv->pgtable;
 	int i;
@@ -79,6 +79,8 @@ static void __flush_iotlb(struct iommu_domain *domain)
 		iommu_drvdata = dev_get_drvdata(ctx_drvdata->pdev->dev.parent);
 		SET_CTX_TLBIALL(iommu_drvdata->base, ctx_drvdata->num, 0);
 	}
+
+	return ret;
 }
 
 static void __reset_context(void __iomem *base, int ctx)
@@ -267,7 +269,7 @@ static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 			  __pa(priv->pgtable));
 
 	list_add(&(ctx_drvdata->attached_elm), &priv->list_attached);
-	__flush_iotlb(domain);
+	ret = __flush_iotlb(domain);
 
 fail:
 	spin_unlock_irqrestore(&msm_iommu_lock, flags);
@@ -282,6 +284,7 @@ static void msm_iommu_detach_dev(struct iommu_domain *domain,
 	struct msm_iommu_drvdata *iommu_drvdata;
 	struct msm_iommu_ctx_drvdata *ctx_drvdata;
 	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&msm_iommu_lock, flags);
 	priv = domain->priv;
@@ -296,7 +299,10 @@ static void msm_iommu_detach_dev(struct iommu_domain *domain,
 	if (!iommu_drvdata || !ctx_drvdata || !ctx_dev)
 		goto fail;
 
-	__flush_iotlb(domain);
+	ret = __flush_iotlb(domain);
+	if (ret)
+		goto fail;
+
 	__reset_context(iommu_drvdata->base, ctx_dev->num);
 	list_del_init(&ctx_drvdata->attached_elm);
 
@@ -410,7 +416,7 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 				SL_AP1 | SL_SHARED | SL_TYPE_LARGE | pgprot;
 	}
 
-	__flush_iotlb(domain);
+	ret = __flush_iotlb(domain);
 fail:
 	spin_unlock_irqrestore(&msm_iommu_lock, flags);
 	return ret;
@@ -495,7 +501,7 @@ static int msm_iommu_unmap(struct iommu_domain *domain, unsigned long va,
 		}
 	}
 
-	__flush_iotlb(domain);
+	ret = __flush_iotlb(domain);
 fail:
 	spin_unlock_irqrestore(&msm_iommu_lock, flags);
 	return ret;
@@ -530,9 +536,6 @@ static phys_addr_t msm_iommu_iova_to_phys(struct iommu_domain *domain,
 	SET_CTX_TLBIALL(base, ctx, 0);
 	SET_V2PPR_VA(base, ctx, va >> V2Pxx_VA_SHIFT);
 
-	if (GET_FAULT(base, ctx))
-		goto fail;
-
 	par = GET_PAR(base, ctx);
 
 	/* We are dealing with a supersection */
@@ -540,6 +543,9 @@ static phys_addr_t msm_iommu_iova_to_phys(struct iommu_domain *domain,
 		ret = (par & 0xFF000000) | (va & 0x00FFFFFF);
 	else	/* Upper 20 bits from PAR, lower 12 from VA */
 		ret = (par & 0xFFFFF000) | (va & 0x00000FFF);
+
+	if (GET_FAULT(base, ctx))
+		ret = 0;
 
 fail:
 	spin_unlock_irqrestore(&msm_iommu_lock, flags);
@@ -583,8 +589,8 @@ irqreturn_t msm_iommu_fault_handler(int irq, void *dev_id)
 {
 	struct msm_iommu_drvdata *drvdata = dev_id;
 	void __iomem *base;
-	unsigned int fsr = 0;
-	int ncb = 0, i = 0;
+	unsigned int fsr;
+	int ncb, i;
 
 	spin_lock(&msm_iommu_lock);
 
@@ -595,7 +601,6 @@ irqreturn_t msm_iommu_fault_handler(int irq, void *dev_id)
 
 	base = drvdata->base;
 
-	pr_err("===== WOAH! =====\n");
 	pr_err("Unexpected IOMMU page fault!\n");
 	pr_err("base = %08x\n", (unsigned int) base);
 
