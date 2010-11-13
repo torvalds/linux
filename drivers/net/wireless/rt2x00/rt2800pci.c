@@ -87,9 +87,11 @@ static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 #if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
 static void rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
 {
-	u32 *base_addr = (u32 *) KSEG1ADDR(0x1F040000); /* XXX for RT3052 */
+	void __iomem *base_addr = ioremap(0x1F040000, EEPROM_SIZE);
 
 	memcpy_fromio(rt2x00dev->eeprom, base_addr, EEPROM_SIZE);
+
+	iounmap(base_addr);
 }
 #else
 static inline void rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
