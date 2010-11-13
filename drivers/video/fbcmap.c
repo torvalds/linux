@@ -90,32 +90,38 @@ static const struct fb_cmap default_16_colors = {
 
 int fb_alloc_cmap(struct fb_cmap *cmap, int len, int transp)
 {
-    int size = len*sizeof(u16);
+	int size = len * sizeof(u16);
 
-    if (cmap->len != len) {
-	fb_dealloc_cmap(cmap);
-	if (!len)
-	    return 0;
-	if (!(cmap->red = kmalloc(size, GFP_ATOMIC)))
-	    goto fail;
-	if (!(cmap->green = kmalloc(size, GFP_ATOMIC)))
-	    goto fail;
-	if (!(cmap->blue = kmalloc(size, GFP_ATOMIC)))
-	    goto fail;
-	if (transp) {
-	    if (!(cmap->transp = kmalloc(size, GFP_ATOMIC)))
-		goto fail;
-	} else
-	    cmap->transp = NULL;
-    }
-    cmap->start = 0;
-    cmap->len = len;
-    fb_copy_cmap(fb_default_cmap(len), cmap);
-    return 0;
+	if (cmap->len != len) {
+		fb_dealloc_cmap(cmap);
+		if (!len)
+			return 0;
+
+		cmap->red = kmalloc(size, GFP_ATOMIC);
+		if (!cmap->red)
+			goto fail;
+		cmap->green = kmalloc(size, GFP_ATOMIC);
+		if (!cmap->green)
+			goto fail;
+		cmap->blue = kmalloc(size, GFP_ATOMIC);
+		if (!cmap->blue)
+			goto fail;
+		if (transp) {
+			cmap->transp = kmalloc(size, GFP_ATOMIC);
+			if (!cmap->transp)
+				goto fail;
+		} else {
+			cmap->transp = NULL;
+		}
+	}
+	cmap->start = 0;
+	cmap->len = len;
+	fb_copy_cmap(fb_default_cmap(len), cmap);
+	return 0;
 
 fail:
-    fb_dealloc_cmap(cmap);
-    return -ENOMEM;
+	fb_dealloc_cmap(cmap);
+	return -ENOMEM;
 }
 
 /**
