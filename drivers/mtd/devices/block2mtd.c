@@ -224,7 +224,7 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
 	if (dev->blkdev) {
 		invalidate_mapping_pages(dev->blkdev->bd_inode->i_mapping,
 					0, -1);
-		close_bdev_exclusive(dev->blkdev, FMODE_READ|FMODE_WRITE);
+		blkdev_put(dev->blkdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 	}
 
 	kfree(dev);
@@ -234,7 +234,7 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
 /* FIXME: ensure that mtd->size % erase_size == 0 */
 static struct block2mtd_dev *add_device(char *devname, int erase_size)
 {
-	const fmode_t mode = FMODE_READ | FMODE_WRITE;
+	const fmode_t mode = FMODE_READ | FMODE_WRITE | FMODE_EXCL;
 	struct block_device *bdev;
 	struct block2mtd_dev *dev;
 	char *name;
@@ -255,17 +255,8 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 		   to resolve the device name by other means. */
 
 		dev_t devt = name_to_dev_t(devname);
-		if (devt) {
-			bdev = open_by_devnum(devt, mode);
-			if (!IS_ERR(bdev)) {
-				int ret;
-				ret = bd_claim(bdev, dev);
-				if (ret) {
-					blkdev_put(bdev, mode);
-					bdev = ERR_PTR(ret);
-				}
-			}
-		}
+		if (devt)
+			bdev = open_by_devnum(devt, mode, dev);
 	}
 #endif
 

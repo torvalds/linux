@@ -660,7 +660,7 @@ static bool bd_may_claim(struct block_device *bdev, struct block_device *whole,
 	else if (bdev->bd_contains == bdev)
 		return true;  	 /* is a whole device which isn't held */
 
-	else if (whole->bd_holder == bd_claim)
+	else if (whole->bd_holder == bd_may_claim)
 		return true; 	 /* is a partition of a device that is being partitioned */
 	else if (whole->bd_holder != NULL)
 		return false;	 /* is a partition of a held device */
@@ -807,10 +807,10 @@ static void __bd_claim(struct block_device *bdev, struct block_device *whole,
 {
 	/* note that for a whole device bd_holders
 	 * will be incremented twice, and bd_holder will
-	 * be set to bd_claim before being set to holder
+	 * be set to bd_may_claim before being set to holder
 	 */
 	whole->bd_holders++;
-	whole->bd_holder = bd_claim;
+	whole->bd_holder = bd_may_claim;
 	bdev->bd_holders++;
 	bdev->bd_holder = holder;
 }
@@ -835,37 +835,7 @@ static void bd_finish_claiming(struct block_device *bdev,
 	__bd_abort_claiming(whole, holder); /* not actually an abort */
 }
 
-/**
- * bd_claim - claim a block device
- * @bdev: block device to claim
- * @holder: holder trying to claim @bdev
- *
- * Try to claim @bdev which must have been opened successfully.
- *
- * CONTEXT:
- * Might sleep.
- *
- * RETURNS:
- * 0 if successful, -EBUSY if @bdev is already claimed.
- */
-int bd_claim(struct block_device *bdev, void *holder)
-{
-	struct block_device *whole = bdev->bd_contains;
-	int res;
-
-	might_sleep();
-
-	spin_lock(&bdev_lock);
-	res = bd_prepare_to_claim(bdev, whole, holder);
-	if (res == 0)
-		__bd_claim(bdev, whole, holder);
-	spin_unlock(&bdev_lock);
-
-	return res;
-}
-EXPORT_SYMBOL(bd_claim);
-
-void bd_release(struct block_device *bdev)
+static void bd_release(struct block_device *bdev)
 {
 	spin_lock(&bdev_lock);
 	if (!--bdev->bd_contains->bd_holders)
@@ -874,8 +844,6 @@ void bd_release(struct block_device *bdev)
 		bdev->bd_holder = NULL;
 	spin_unlock(&bdev_lock);
 }
-
-EXPORT_SYMBOL(bd_release);
 
 #ifdef CONFIG_SYSFS
 static int add_symlink(struct kobject *from, struct kobject *to)
@@ -943,7 +911,7 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(bd_link_disk_holder);
 
-void bd_unlink_disk_holder(struct block_device *bdev)
+static void bd_unlink_disk_holder(struct block_device *bdev)
 {
 	struct gendisk *disk = bdev->bd_holder_disk;
 
@@ -954,7 +922,9 @@ void bd_unlink_disk_holder(struct block_device *bdev)
 	del_symlink(disk->slave_dir, &part_to_dev(bdev->bd_part)->kobj);
 	del_symlink(bdev->bd_part->holder_dir, &disk_to_dev(disk)->kobj);
 }
-EXPORT_SYMBOL_GPL(bd_unlink_disk_holder);
+#else
+static inline void bd_unlink_disk_holder(struct block_device *bdev)
+{ }
 #endif
 
 /*
@@ -964,12 +934,12 @@ EXPORT_SYMBOL_GPL(bd_unlink_disk_holder);
  * to be used for internal purposes.  If you ever need it - reconsider
  * your API.
  */
-struct block_device *open_by_devnum(dev_t dev, fmode_t mode)
+struct block_device *open_by_devnum(dev_t dev, fmode_t mode, void *holder)
 {
 	struct block_device *bdev = bdget(dev);
 	int err = -ENOMEM;
 	if (bdev)
-		err = blkdev_get(bdev, mode);
+		err = blkdev_get(bdev, mode, holder);
 	return err ? ERR_PTR(err) : bdev;
 }
 
@@ -1235,17 +1205,37 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	return ret;
 }
 
-int blkdev_get(struct block_device *bdev, fmode_t mode)
+int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 {
-	return __blkdev_get(bdev, mode, 0);
+	struct block_device *whole = NULL;
+	int res;
+
+	WARN_ON_ONCE((mode & FMODE_EXCL) && !holder);
+
+	if ((mode & FMODE_EXCL) && holder) {
+		whole = bd_start_claiming(bdev, holder);
+		if (IS_ERR(whole)) {
+			bdput(bdev);
+			return PTR_ERR(whole);
+		}
+	}
+
+	res = __blkdev_get(bdev, mode, 0);
+
+	if (whole) {
+		if (res == 0)
+			bd_finish_claiming(bdev, whole, holder);
+		else
+			bd_abort_claiming(whole, holder);
+	}
+
+	return res;
 }
 EXPORT_SYMBOL(blkdev_get);
 
 static int blkdev_open(struct inode * inode, struct file * filp)
 {
-	struct block_device *whole = NULL;
 	struct block_device *bdev;
-	int res;
 
 	/*
 	 * Preserve backwards compatibility and allow large file access
@@ -1266,26 +1256,9 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	if (bdev == NULL)
 		return -ENOMEM;
 
-	if (filp->f_mode & FMODE_EXCL) {
-		whole = bd_start_claiming(bdev, filp);
-		if (IS_ERR(whole)) {
-			bdput(bdev);
-			return PTR_ERR(whole);
-		}
-	}
-
 	filp->f_mapping = bdev->bd_inode->i_mapping;
 
-	res = blkdev_get(bdev, filp->f_mode);
-
-	if (whole) {
-		if (res == 0)
-			bd_finish_claiming(bdev, whole, filp);
-		else
-			bd_abort_claiming(whole, filp);
-	}
-
-	return res;
+	return blkdev_get(bdev, filp->f_mode, filp);
 }
 
 static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
@@ -1329,6 +1302,13 @@ static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 
 int blkdev_put(struct block_device *bdev, fmode_t mode)
 {
+	if (mode & FMODE_EXCL) {
+		mutex_lock(&bdev->bd_mutex);
+		bd_release(bdev);
+		if (!bdev->bd_holders)
+			bd_unlink_disk_holder(bdev);
+		mutex_unlock(&bdev->bd_mutex);
+	}
 	return __blkdev_put(bdev, mode, 0);
 }
 EXPORT_SYMBOL(blkdev_put);
@@ -1336,8 +1316,7 @@ EXPORT_SYMBOL(blkdev_put);
 static int blkdev_close(struct inode * inode, struct file * filp)
 {
 	struct block_device *bdev = I_BDEV(filp->f_mapping->host);
-	if (bdev->bd_holder == filp)
-		bd_release(bdev);
+
 	return blkdev_put(bdev, filp->f_mode);
 }
 
@@ -1494,54 +1473,26 @@ EXPORT_SYMBOL(lookup_bdev);
  */
 struct block_device *open_bdev_exclusive(const char *path, fmode_t mode, void *holder)
 {
-	struct block_device *bdev, *whole;
+	struct block_device *bdev;
 	int error;
 
 	bdev = lookup_bdev(path);
 	if (IS_ERR(bdev))
 		return bdev;
 
-	whole = bd_start_claiming(bdev, holder);
-	if (IS_ERR(whole)) {
-		bdput(bdev);
-		return whole;
+	error = blkdev_get(bdev, mode | FMODE_EXCL, holder);
+	if (error)
+		return ERR_PTR(error);
+
+	if ((mode & FMODE_WRITE) && bdev_read_only(bdev)) {
+		blkdev_put(bdev, mode);
+		return ERR_PTR(-EACCES);
 	}
 
-	error = blkdev_get(bdev, mode);
-	if (error)
-		goto out_abort_claiming;
-
-	error = -EACCES;
-	if ((mode & FMODE_WRITE) && bdev_read_only(bdev))
-		goto out_blkdev_put;
-
-	bd_finish_claiming(bdev, whole, holder);
 	return bdev;
-
-out_blkdev_put:
-	blkdev_put(bdev, mode);
-out_abort_claiming:
-	bd_abort_claiming(whole, holder);
-	return ERR_PTR(error);
 }
 
 EXPORT_SYMBOL(open_bdev_exclusive);
-
-/**
- * close_bdev_exclusive  -  close a blockdevice opened by open_bdev_exclusive()
- *
- * @bdev:	blockdevice to close
- * @mode:	mode, must match that used to open.
- *
- * This is the counterpart to open_bdev_exclusive().
- */
-void close_bdev_exclusive(struct block_device *bdev, fmode_t mode)
-{
-	bd_release(bdev);
-	blkdev_put(bdev, mode);
-}
-
-EXPORT_SYMBOL(close_bdev_exclusive);
 
 int __invalidate_device(struct block_device *bdev)
 {

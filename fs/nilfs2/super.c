@@ -1233,7 +1233,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 	}
 
 	if (!s_new)
-		close_bdev_exclusive(sd.bdev, mode);
+		blkdev_put(sd.bdev, mode | FMODE_EXCL);
 
 	return root_dentry;
 
@@ -1242,7 +1242,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 
  failed:
 	if (!s_new)
-		close_bdev_exclusive(sd.bdev, mode);
+		blkdev_put(sd.bdev, mode | FMODE_EXCL);
 	return ERR_PTR(err);
 }
 

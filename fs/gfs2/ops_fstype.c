@@ -1298,7 +1298,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 		goto error_bdev;
 
 	if (s->s_root)
-		close_bdev_exclusive(bdev, mode);
+		blkdev_put(bdev, mode | FMODE_EXCL);
 
 	memset(&args, 0, sizeof(args));
 	args.ar_quota = GFS2_QUOTA_DEFAULT;
@@ -1342,7 +1342,7 @@ error_super:
 	deactivate_locked_super(s);
 	return ERR_PTR(error);
 error_bdev:
-	close_bdev_exclusive(bdev, mode);
+	blkdev_put(bdev, mode | FMODE_EXCL);
 	return ERR_PTR(error);
 }
 

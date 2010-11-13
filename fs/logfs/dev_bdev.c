@@ -300,7 +300,7 @@ static int bdev_write_sb(struct super_block *sb, struct page *page)
 
 static void bdev_put_device(struct logfs_super *s)
 {
-	close_bdev_exclusive(s->s_bdev, FMODE_READ|FMODE_WRITE);
+	blkdev_put(s->s_bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 }
 
 static int bdev_can_write_buf(struct super_block *sb, u64 ofs)
@@ -331,7 +331,7 @@ int logfs_get_sb_bdev(struct logfs_super *p, struct file_system_type *type,
 
 	if (MAJOR(bdev->bd_dev) == MTD_BLOCK_MAJOR) {
 		int mtdnr = MINOR(bdev->bd_dev);
-		close_bdev_exclusive(bdev, FMODE_READ|FMODE_WRITE);
+		blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 		return logfs_get_sb_mtd(p, mtdnr);
 	}
 

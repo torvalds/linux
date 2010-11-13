@@ -1907,7 +1907,6 @@ static void unbind_rdev_from_array(mdk_rdev_t * rdev)
 		MD_BUG();
 		return;
 	}
-	bd_unlink_disk_holder(rdev->bdev);
 	list_del_rcu(&rdev->same_set);
 	printk(KERN_INFO "md: unbind<%s>\n", bdevname(rdev->bdev,b));
 	rdev->mddev = NULL;
@@ -1935,18 +1934,12 @@ static int lock_rdev(mdk_rdev_t *rdev, dev_t dev, int shared)
 	struct block_device *bdev;
 	char b[BDEVNAME_SIZE];
 
-	bdev = open_by_devnum(dev, FMODE_READ|FMODE_WRITE);
+	bdev = open_by_devnum(dev, FMODE_READ|FMODE_WRITE|FMODE_EXCL,
+			      shared ? (mdk_rdev_t *)lock_rdev : rdev);
 	if (IS_ERR(bdev)) {
 		printk(KERN_ERR "md: could not open %s.\n",
 			__bdevname(dev, b));
 		return PTR_ERR(bdev);
-	}
-	err = bd_claim(bdev, shared ? (mdk_rdev_t *)lock_rdev : rdev);
-	if (err) {
-		printk(KERN_ERR "md: could not bd_claim %s.\n",
-			bdevname(bdev, b));
-		blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
-		return err;
 	}
 	if (!shared)
 		set_bit(AllReserved, &rdev->flags);
@@ -1960,8 +1953,7 @@ static void unlock_rdev(mdk_rdev_t *rdev)
 	rdev->bdev = NULL;
 	if (!bdev)
 		MD_BUG();
-	bd_release(bdev);
-	blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
+	blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 }
 
 void md_autodetect_dev(dev_t dev);
