@@ -1005,6 +1005,9 @@ int event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
 
 	ev = malloc(size);
 
+	if (ev == NULL)
+		return -ENOMEM;
+
 	ev->attr.attr = *attr;
 	memcpy(ev->attr.id, id, ids * sizeof(u64));
 
