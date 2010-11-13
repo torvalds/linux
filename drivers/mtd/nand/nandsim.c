@@ -210,12 +210,12 @@ MODULE_PARM_DESC(bbt,		 "0 OOB, 1 BBT with marker in OOB, 2 BBT with marker in d
 #define STATE_CMD_READ0        0x00000001 /* read data from the beginning of page */
 #define STATE_CMD_READ1        0x00000002 /* read data from the second half of page */
 #define STATE_CMD_READSTART    0x00000003 /* read data second command (large page devices) */
-#define STATE_CMD_PAGEPROG     0x00000004 /* start page programm */
+#define STATE_CMD_PAGEPROG     0x00000004 /* start page program */
 #define STATE_CMD_READOOB      0x00000005 /* read OOB area */
 #define STATE_CMD_ERASE1       0x00000006 /* sector erase first command */
 #define STATE_CMD_STATUS       0x00000007 /* read status */
 #define STATE_CMD_STATUS_M     0x00000008 /* read multi-plane status (isn't implemented) */
-#define STATE_CMD_SEQIN        0x00000009 /* sequential data imput */
+#define STATE_CMD_SEQIN        0x00000009 /* sequential data input */
 #define STATE_CMD_READID       0x0000000A /* read ID */
 #define STATE_CMD_ERASE2       0x0000000B /* sector erase second command */
 #define STATE_CMD_RESET        0x0000000C /* reset */
@@ -230,7 +230,7 @@ MODULE_PARM_DESC(bbt,		 "0 OOB, 1 BBT with marker in OOB, 2 BBT with marker in d
 #define STATE_ADDR_ZERO        0x00000040 /* one byte zero address was accepted */
 #define STATE_ADDR_MASK        0x00000070 /* address states mask */
 
-/* Durind data input/output the simulator is in these states */
+/* During data input/output the simulator is in these states */
 #define STATE_DATAIN           0x00000100 /* waiting for data input */
 #define STATE_DATAIN_MASK      0x00000100 /* data input states mask */
 
@@ -248,7 +248,7 @@ MODULE_PARM_DESC(bbt,		 "0 OOB, 1 BBT with marker in OOB, 2 BBT with marker in d
 
 /* Simulator's actions bit masks */
 #define ACTION_CPY       0x00100000 /* copy page/OOB to the internal buffer */
-#define ACTION_PRGPAGE   0x00200000 /* programm the internal buffer to flash */
+#define ACTION_PRGPAGE   0x00200000 /* program the internal buffer to flash */
 #define ACTION_SECERASE  0x00300000 /* erase sector */
 #define ACTION_ZEROOFF   0x00400000 /* don't add any offset to address */
 #define ACTION_HALFOFF   0x00500000 /* add to address half of page */
@@ -263,18 +263,18 @@ MODULE_PARM_DESC(bbt,		 "0 OOB, 1 BBT with marker in OOB, 2 BBT with marker in d
 #define OPT_PAGE512      0x00000002 /* 512-byte  page chips */
 #define OPT_PAGE2048     0x00000008 /* 2048-byte page chips */
 #define OPT_SMARTMEDIA   0x00000010 /* SmartMedia technology chips */
-#define OPT_AUTOINCR     0x00000020 /* page number auto inctimentation is possible */
+#define OPT_AUTOINCR     0x00000020 /* page number auto incrementation is possible */
 #define OPT_PAGE512_8BIT 0x00000040 /* 512-byte page chips with 8-bit bus width */
 #define OPT_PAGE4096     0x00000080 /* 4096-byte page chips */
 #define OPT_LARGEPAGE    (OPT_PAGE2048 | OPT_PAGE4096) /* 2048 & 4096-byte page chips */
 #define OPT_SMALLPAGE    (OPT_PAGE256  | OPT_PAGE512)  /* 256 and 512-byte page chips */
 
-/* Remove action bits ftom state */
+/* Remove action bits from state */
 #define NS_STATE(x) ((x) & ~ACTION_MASK)
 
 /*
  * Maximum previous states which need to be saved. Currently saving is
- * only needed for page programm operation with preceeded read command
+ * only needed for page program operation with preceded read command
  * (which is only valid for 512-byte pages).
  */
 #define NS_MAX_PREVSTATES 1
@@ -380,16 +380,16 @@ static struct nandsim_operations {
 	/* Read OOB */
 	{OPT_SMALLPAGE, {STATE_CMD_READOOB | ACTION_OOBOFF, STATE_ADDR_PAGE | ACTION_CPY,
 			STATE_DATAOUT, STATE_READY}},
-	/* Programm page starting from the beginning */
+	/* Program page starting from the beginning */
 	{OPT_ANY, {STATE_CMD_SEQIN, STATE_ADDR_PAGE, STATE_DATAIN,
 			STATE_CMD_PAGEPROG | ACTION_PRGPAGE, STATE_READY}},
-	/* Programm page starting from the beginning */
+	/* Program page starting from the beginning */
 	{OPT_SMALLPAGE, {STATE_CMD_READ0, STATE_CMD_SEQIN | ACTION_ZEROOFF, STATE_ADDR_PAGE,
 			      STATE_DATAIN, STATE_CMD_PAGEPROG | ACTION_PRGPAGE, STATE_READY}},
-	/* Programm page starting from the second half */
+	/* Program page starting from the second half */
 	{OPT_PAGE512, {STATE_CMD_READ1, STATE_CMD_SEQIN | ACTION_HALFOFF, STATE_ADDR_PAGE,
 			      STATE_DATAIN, STATE_CMD_PAGEPROG | ACTION_PRGPAGE, STATE_READY}},
-	/* Programm OOB */
+	/* Program OOB */
 	{OPT_SMALLPAGE, {STATE_CMD_READOOB, STATE_CMD_SEQIN | ACTION_OOBOFF, STATE_ADDR_PAGE,
 			      STATE_DATAIN, STATE_CMD_PAGEPROG | ACTION_PRGPAGE, STATE_READY}},
 	/* Erase sector */
@@ -1171,9 +1171,9 @@ static inline void switch_to_ready_state(struct nandsim *ns, u_char status)
  * of supported operations.
  *
  * Operation can be unknown because of the following.
- *   1. New command was accepted and this is the firs call to find the
+ *   1. New command was accepted and this is the first call to find the
  *      correspondent states chain. In this case ns->npstates = 0;
- *   2. There is several operations which begin with the same command(s)
+ *   2. There are several operations which begin with the same command(s)
  *      (for example program from the second half and read from the
  *      second half operations both begin with the READ1 command). In this
  *      case the ns->pstates[] array contains previous states.
@@ -1186,7 +1186,7 @@ static inline void switch_to_ready_state(struct nandsim *ns, u_char status)
  * ns->ops, ns->state, ns->nxstate are initialized, ns->npstate is
  * zeroed).
  *
- * If there are several maches, the current state is pushed to the
+ * If there are several matches, the current state is pushed to the
  * ns->pstates.
  *
  * The operation can be unknown only while commands are input to the chip.
@@ -1195,10 +1195,10 @@ static inline void switch_to_ready_state(struct nandsim *ns, u_char status)
  * operation is searched using the following pattern:
  *     ns->pstates[0], ... ns->pstates[ns->npstates], <address input>
  *
- * It is supposed that this pattern must either match one operation on
+ * It is supposed that this pattern must either match one operation or
  * none. There can't be ambiguity in that case.
  *
- * If no matches found, the functions does the following:
+ * If no matches found, the function does the following:
  *   1. if there are saved states present, try to ignore them and search
  *      again only using the last command. If nothing was found, switch
  *      to the STATE_READY state.
@@ -1668,7 +1668,7 @@ static int do_state_action(struct nandsim *ns, uint32_t action)
 
 	case ACTION_PRGPAGE:
 		/*
-		 * Programm page - move internal buffer data to the page.
+		 * Program page - move internal buffer data to the page.
 		 */
 
 		if (ns->lines.wp) {
@@ -1933,7 +1933,7 @@ static u_char ns_nand_read_byte(struct mtd_info *mtd)
 		NS_DBG("read_byte: all bytes were read\n");
 
 		/*
-		 * The OPT_AUTOINCR allows to read next conseqitive pages without
+		 * The OPT_AUTOINCR allows to read next consecutive pages without
 		 * new read operation cycle.
 		 */
 		if ((ns->options & OPT_AUTOINCR) && NS_STATE(ns->state) == STATE_DATAOUT) {
