@@ -234,6 +234,7 @@ static void block2mtd_free_device(struct block2mtd_dev *dev)
 /* FIXME: ensure that mtd->size % erase_size == 0 */
 static struct block2mtd_dev *add_device(char *devname, int erase_size)
 {
+	const fmode_t mode = FMODE_READ | FMODE_WRITE;
 	struct block_device *bdev;
 	struct block2mtd_dev *dev;
 	char *name;
@@ -246,7 +247,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 		return NULL;
 
 	/* Get a handle on the device */
-	bdev = open_bdev_exclusive(devname, FMODE_READ|FMODE_WRITE, NULL);
+	bdev = open_bdev_exclusive(devname, mode, dev);
 #ifndef MODULE
 	if (IS_ERR(bdev)) {
 
@@ -255,7 +256,15 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 
 		dev_t devt = name_to_dev_t(devname);
 		if (devt) {
-			bdev = open_by_devnum(devt, FMODE_WRITE | FMODE_READ);
+			bdev = open_by_devnum(devt, mode);
+			if (!IS_ERR(bdev)) {
+				int ret;
+				ret = bd_claim(bdev, dev);
+				if (ret) {
+					blkdev_put(bdev, mode);
+					bdev = ERR_PTR(ret);
+				}
+			}
 		}
 	}
 #endif
