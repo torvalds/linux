@@ -39,6 +39,10 @@
 #include <dspbridge/ntfy.h>
 #include <dspbridge/sync.h>
 
+/* Hardware Abstraction Layer */
+#include <hw_defs.h>
+#include <hw_mmu.h>
+
 /* Bridge Driver */
 #include <dspbridge/dspdeh.h>
 #include <dspbridge/dspio.h>
@@ -287,7 +291,6 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	struct cod_manager *cod_man;
 	struct chnl_mgr *hchnl_mgr;
 	struct msg_mgr *hmsg_mgr;
-	struct shm_segs *sm_sg;
 	u32 ul_shm_base;
 	u32 ul_shm_base_offset;
 	u32 ul_shm_limit;
@@ -310,9 +313,18 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	struct bridge_ioctl_extproc ae_proc[BRDIOCTL_NUMOFMMUTLB];
 	struct cfg_hostres *host_res;
 	struct bridge_dev_context *pbridge_context;
+	u32 map_attrs;
 	u32 shm0_end;
 	u32 ul_dyn_ext_base;
 	u32 ul_seg1_size = 0;
+	u32 pa_curr = 0;
+	u32 va_curr = 0;
+	u32 gpp_va_curr = 0;
+	u32 num_bytes = 0;
+	u32 all_bits = 0;
+	u32 page_size[] = { HW_PAGE_SIZE16MB, HW_PAGE_SIZE1MB,
+		HW_PAGE_SIZE64KB, HW_PAGE_SIZE4KB
+	};
 
 	status = dev_get_bridge_context(hio_mgr->hdev_obj, &pbridge_context);
 	if (!pbridge_context) {
@@ -325,8 +337,6 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		status = -EFAULT;
 		goto func_end;
 	}
-	sm_sg = &pbridge_context->sh_s;
-
 	status = dev_get_cod_mgr(hio_mgr->hdev_obj, &cod_man);
 	if (!cod_man) {
 		status = -EFAULT;
@@ -461,14 +471,129 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 	if (status)
 		goto func_end;
 
-	sm_sg->seg1_pa = ul_gpp_pa;
-	sm_sg->seg1_da = ul_dyn_ext_base;
-	sm_sg->seg1_va = ul_gpp_va;
-	sm_sg->seg1_size = ul_seg1_size;
-	sm_sg->seg0_pa = ul_gpp_pa + ul_pad_size + ul_seg1_size;
-	sm_sg->seg0_da = ul_dsp_va;
-	sm_sg->seg0_va = ul_gpp_va + ul_pad_size + ul_seg1_size;
-	sm_sg->seg0_size = ul_seg_size;
+	pa_curr = ul_gpp_pa;
+	va_curr = ul_dyn_ext_base * hio_mgr->word_size;
+	gpp_va_curr = ul_gpp_va;
+	num_bytes = ul_seg1_size;
+
+	/*
+	 * Try to fit into TLB entries. If not possible, push them to page
+	 * tables. It is quite possible that if sections are not on
+	 * bigger page boundary, we may end up making several small pages.
+	 * So, push them onto page tables, if that is the case.
+	 */
+	map_attrs = 0x00000000;
+	map_attrs = DSP_MAPLITTLEENDIAN;
+	map_attrs |= DSP_MAPPHYSICALADDR;
+	map_attrs |= DSP_MAPELEMSIZE32;
+	map_attrs |= DSP_MAPDONOTLOCK;
+
+	while (num_bytes) {
+		/*
+		 * To find the max. page size with which both PA & VA are
+		 * aligned.
+		 */
+		all_bits = pa_curr | va_curr;
+		dev_dbg(bridge, "all_bits %x, pa_curr %x, va_curr %x, "
+			"num_bytes %x\n", all_bits, pa_curr, va_curr,
+			num_bytes);
+		for (i = 0; i < 4; i++) {
+			if ((num_bytes >= page_size[i]) && ((all_bits &
+							     (page_size[i] -
+							      1)) == 0)) {
+				status =
+				    hio_mgr->intf_fxns->
+				    pfn_brd_mem_map(hio_mgr->hbridge_context,
+						    pa_curr, va_curr,
+						    page_size[i], map_attrs,
+						    NULL);
+				if (status)
+					goto func_end;
+				pa_curr += page_size[i];
+				va_curr += page_size[i];
+				gpp_va_curr += page_size[i];
+				num_bytes -= page_size[i];
+				/*
+				 * Don't try smaller sizes. Hopefully we have
+				 * reached an address aligned to a bigger page
+				 * size.
+				 */
+				break;
+			}
+		}
+	}
+	pa_curr += ul_pad_size;
+	va_curr += ul_pad_size;
+	gpp_va_curr += ul_pad_size;
+
+	/* Configure the TLB entries for the next cacheable segment */
+	num_bytes = ul_seg_size;
+	va_curr = ul_dsp_va * hio_mgr->word_size;
+	while (num_bytes) {
+		/*
+		 * To find the max. page size with which both PA & VA are
+		 * aligned.
+		 */
+		all_bits = pa_curr | va_curr;
+		dev_dbg(bridge, "all_bits for Seg1 %x, pa_curr %x, "
+			"va_curr %x, num_bytes %x\n", all_bits, pa_curr,
+			va_curr, num_bytes);
+		for (i = 0; i < 4; i++) {
+			if (!(num_bytes >= page_size[i]) ||
+			    !((all_bits & (page_size[i] - 1)) == 0))
+				continue;
+			if (ndx < MAX_LOCK_TLB_ENTRIES) {
+				/*
+				 * This is the physical address written to
+				 * DSP MMU.
+				 */
+				ae_proc[ndx].ul_gpp_pa = pa_curr;
+				/*
+				 * This is the virtual uncached ioremapped
+				 * address!!!
+				 */
+				ae_proc[ndx].ul_gpp_va = gpp_va_curr;
+				ae_proc[ndx].ul_dsp_va =
+				    va_curr / hio_mgr->word_size;
+				ae_proc[ndx].ul_size = page_size[i];
+				ae_proc[ndx].endianism = HW_LITTLE_ENDIAN;
+				ae_proc[ndx].elem_size = HW_ELEM_SIZE16BIT;
+				ae_proc[ndx].mixed_mode = HW_MMU_CPUES;
+				dev_dbg(bridge, "shm MMU TLB entry PA %x"
+					" VA %x DSP_VA %x Size %x\n",
+					ae_proc[ndx].ul_gpp_pa,
+					ae_proc[ndx].ul_gpp_va,
+					ae_proc[ndx].ul_dsp_va *
+					hio_mgr->word_size, page_size[i]);
+				ndx++;
+			} else {
+				status =
+				    hio_mgr->intf_fxns->
+				    pfn_brd_mem_map(hio_mgr->hbridge_context,
+						    pa_curr, va_curr,
+						    page_size[i], map_attrs,
+						    NULL);
+				dev_dbg(bridge,
+					"shm MMU PTE entry PA %x"
+					" VA %x DSP_VA %x Size %x\n",
+					ae_proc[ndx].ul_gpp_pa,
+					ae_proc[ndx].ul_gpp_va,
+					ae_proc[ndx].ul_dsp_va *
+					hio_mgr->word_size, page_size[i]);
+				if (status)
+					goto func_end;
+			}
+			pa_curr += page_size[i];
+			va_curr += page_size[i];
+			gpp_va_curr += page_size[i];
+			num_bytes -= page_size[i];
+			/*
+			 * Don't try smaller sizes. Hopefully we have reached
+			 * an address aligned to a bigger page size.
+			 */
+			break;
+		}
+	}
 
 	/*
 	 * Copy remaining entries from CDB. All entries are 1 MB and
@@ -509,10 +634,36 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 					"DSP_VA 0x%x\n", ae_proc[ndx].ul_gpp_pa,
 					ae_proc[ndx].ul_dsp_va);
 				ndx++;
+			} else {
+				status = hio_mgr->intf_fxns->pfn_brd_mem_map
+				    (hio_mgr->hbridge_context,
+				     hio_mgr->ext_proc_info.ty_tlb[i].
+				     ul_gpp_phys,
+				     hio_mgr->ext_proc_info.ty_tlb[i].
+				     ul_dsp_virt, 0x100000, map_attrs,
+				     NULL);
 			}
 		}
 		if (status)
 			goto func_end;
+	}
+
+	map_attrs = 0x00000000;
+	map_attrs = DSP_MAPLITTLEENDIAN;
+	map_attrs |= DSP_MAPPHYSICALADDR;
+	map_attrs |= DSP_MAPELEMSIZE32;
+	map_attrs |= DSP_MAPDONOTLOCK;
+
+	/* Map the L4 peripherals */
+	i = 0;
+	while (l4_peripheral_table[i].phys_addr) {
+		status = hio_mgr->intf_fxns->pfn_brd_mem_map
+		    (hio_mgr->hbridge_context, l4_peripheral_table[i].phys_addr,
+		     l4_peripheral_table[i].dsp_virt_addr, HW_PAGE_SIZE4KB,
+		     map_attrs, NULL);
+		if (status)
+			goto func_end;
+		i++;
 	}
 
 	for (i = ndx; i < BRDIOCTL_NUMOFMMUTLB; i++) {
@@ -537,12 +688,12 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		status = -EFAULT;
 		goto func_end;
 	} else {
-		if (sm_sg->seg0_da > ul_shm_base) {
+		if (ae_proc[0].ul_dsp_va > ul_shm_base) {
 			status = -EPERM;
 			goto func_end;
 		}
 		/* ul_shm_base may not be at ul_dsp_va address */
-		ul_shm_base_offset = (ul_shm_base - sm_sg->seg0_da) *
+		ul_shm_base_offset = (ul_shm_base - ae_proc[0].ul_dsp_va) *
 		    hio_mgr->word_size;
 		/*
 		 * bridge_dev_ctrl() will set dev context dsp-mmu info. In
@@ -566,7 +717,8 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 			goto func_end;
 		}
 		/* Register SM */
-		status = register_shm_segs(hio_mgr, cod_man, sm_sg->seg0_pa);
+		status =
+		    register_shm_segs(hio_mgr, cod_man, ae_proc[0].ul_gpp_pa);
 	}
 
 	hio_mgr->shared_mem = (struct shm *)ul_shm_base;
