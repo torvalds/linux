@@ -96,6 +96,17 @@ config RT2800PCI_RT30XX
 	  Support for these devices is non-functional at the moment and is
 	  intended for testers and developers.
 
+config RT2800PCI_RT33XX
+	bool "rt2800pci - Include support for rt33xx (PCI/PCIe/PCMCIA) devices"
+	default n
+	---help---
+	  This adds support for rt33xx wireless chipset family to the
+	  rt2800pci driver.
+	  Supported chips: RT3390
+
+	  Support for these devices is non-functional at the moment and is
+	  intended for testers and developers.
+
 config RT2800PCI_RT35XX
 	bool "rt2800pci - Include support for rt35xx (PCI/PCIe/PCMCIA) devices"
 	default n
@@ -161,6 +172,17 @@ config RT2800USB_RT30XX
 	  This adds support for rt30xx wireless chipset family to the
 	  rt2800usb driver.
 	  Supported chips: RT3070, RT3071 & RT3072
+
+	  Support for these devices is non-functional at the moment and is
+	  intended for testers and developers.
+
+config RT2800USB_RT33XX
+	bool "rt2800usb - Include support for rt33xx (USB) devices"
+	default n
+	---help---
+	  This adds support for rt33xx wireless chipset family to the
+	  rt2800usb driver.
+	  Supported chips: RT3370
 
 	  Support for these devices is non-functional at the moment and is
 	  intended for testers and developers.
