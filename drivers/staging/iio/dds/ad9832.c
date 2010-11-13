@@ -166,8 +166,6 @@ static void ad9832_init(struct ad9832_state *st)
 
 	config = 0x3 << 14;
 
-	mutex_lock(&st->lock);
-
 	xfer.len = 2;
 	xfer.tx_buf = &config;
 

@@ -79,7 +79,6 @@ static ssize_t ad9951_set_parameter(struct device *dev,
 
 	xfer.len = 2;
 	xfer.tx_buf = &config->arr[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -89,7 +88,6 @@ static ssize_t ad9951_set_parameter(struct device *dev,
 
 	xfer.len = 5;
 	xfer.tx_buf = &config->ftw0[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -99,7 +97,6 @@ static ssize_t ad9951_set_parameter(struct device *dev,
 
 	xfer.len = 3;
 	xfer.tx_buf = &config->ftw1[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -142,8 +139,6 @@ static void ad9951_init(struct ad9951_state *st)
 	cfr[1] = VCO_RANGE;
 	cfr[2] = HSPD_SYNC;
 	cfr[3] = 0;
-
-	mutex_lock(&st->lock);
 
 	xfer.len = 4;
 	xfer.tx_buf = &cfr;

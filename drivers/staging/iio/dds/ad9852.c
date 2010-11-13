@@ -86,7 +86,6 @@ static ssize_t ad9852_set_parameter(struct device *dev,
 
 	xfer.len = 3;
 	xfer.tx_buf = &config->phajst1[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -96,7 +95,6 @@ static ssize_t ad9852_set_parameter(struct device *dev,
 
 	xfer.len = 6;
 	xfer.tx_buf = &config->fretun1[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -106,7 +104,6 @@ static ssize_t ad9852_set_parameter(struct device *dev,
 
 	xfer.len = 6;
 	xfer.tx_buf = &config->fretun2[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -116,7 +113,6 @@ static ssize_t ad9852_set_parameter(struct device *dev,
 
 	xfer.len = 6;
 	xfer.tx_buf = &config->dltafre[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -126,7 +122,6 @@ static ssize_t ad9852_set_parameter(struct device *dev,
 
 	xfer.len = 5;
 	xfer.tx_buf = &config->updtclk[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -136,7 +131,6 @@ static ssize_t ad9852_set_parameter(struct device *dev,
 
 	xfer.len = 4;
 	xfer.tx_buf = &config->ramprat[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -146,7 +140,6 @@ static ssize_t ad9852_set_parameter(struct device *dev,
 
 	xfer.len = 5;
 	xfer.tx_buf = &config->control[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -156,7 +149,6 @@ static ssize_t ad9852_set_parameter(struct device *dev,
 
 	xfer.len = 3;
 	xfer.tx_buf = &config->outpskm[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -166,16 +158,15 @@ static ssize_t ad9852_set_parameter(struct device *dev,
 
 	xfer.len = 2;
 	xfer.tx_buf = &config->outpskr[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
 	ret = spi_sync(st->sdev, &msg);
 	if (ret)
 		goto error_ret;
+
 	xfer.len = 3;
 	xfer.tx_buf = &config->daccntl[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);

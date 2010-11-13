@@ -138,7 +138,6 @@ static ssize_t ad9910_set_parameter(struct device *dev,
 
 	xfer.len = 5;
 	xfer.tx_buf = &config->ioupd[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -148,7 +147,6 @@ static ssize_t ad9910_set_parameter(struct device *dev,
 
 	xfer.len = 5;
 	xfer.tx_buf = &config->ftw[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -158,7 +156,6 @@ static ssize_t ad9910_set_parameter(struct device *dev,
 
 	xfer.len = 3;
 	xfer.tx_buf = &config->pow[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -168,7 +165,6 @@ static ssize_t ad9910_set_parameter(struct device *dev,
 
 	xfer.len = 5;
 	xfer.tx_buf = &config->asf[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -178,7 +174,6 @@ static ssize_t ad9910_set_parameter(struct device *dev,
 
 	xfer.len = 5;
 	xfer.tx_buf = &config->multc[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -188,7 +183,6 @@ static ssize_t ad9910_set_parameter(struct device *dev,
 
 	xfer.len = 9;
 	xfer.tx_buf = &config->dig_rampl[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -198,7 +192,6 @@ static ssize_t ad9910_set_parameter(struct device *dev,
 
 	xfer.len = 9;
 	xfer.tx_buf = &config->dig_ramps[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -208,7 +201,6 @@ static ssize_t ad9910_set_parameter(struct device *dev,
 
 	xfer.len = 5;
 	xfer.tx_buf = &config->dig_rampr[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -218,25 +210,24 @@ static ssize_t ad9910_set_parameter(struct device *dev,
 
 	xfer.len = 9;
 	xfer.tx_buf = &config->sin_tonep0[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
 	ret = spi_sync(st->sdev, &msg);
 	if (ret)
 		goto error_ret;
+
 	xfer.len = 9;
 	xfer.tx_buf = &config->sin_tonep1[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
 	ret = spi_sync(st->sdev, &msg);
 	if (ret)
 		goto error_ret;
+
 	xfer.len = 9;
 	xfer.tx_buf = &config->sin_tonep2[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -245,43 +236,42 @@ static ssize_t ad9910_set_parameter(struct device *dev,
 		goto error_ret;
 	xfer.len = 9;
 	xfer.tx_buf = &config->sin_tonep3[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
 	ret = spi_sync(st->sdev, &msg);
 	if (ret)
 		goto error_ret;
+
 	xfer.len = 9;
 	xfer.tx_buf = &config->sin_tonep4[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
 	ret = spi_sync(st->sdev, &msg);
 	if (ret)
 		goto error_ret;
+
 	xfer.len = 9;
 	xfer.tx_buf = &config->sin_tonep5[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
 	ret = spi_sync(st->sdev, &msg);
 	if (ret)
 		goto error_ret;
+
 	xfer.len = 9;
 	xfer.tx_buf = &config->sin_tonep6[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
 	ret = spi_sync(st->sdev, &msg);
 	if (ret)
 		goto error_ret;
+
 	xfer.len = 9;
 	xfer.tx_buf = &config->sin_tonep7[0];
-	mutex_lock(&st->lock);
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
@@ -326,8 +316,6 @@ static void ad9910_init(struct ad9910_state *st)
 	cfr[3] = TX_ENA | PDCLK_INV | PDCLK_ENB;
 	cfr[4] = PARA_ENA;
 
-	mutex_lock(&st->lock);
-
 	xfer.len = 5;
 	xfer.tx_buf = &cfr;
 
@@ -342,8 +330,6 @@ static void ad9910_init(struct ad9910_state *st)
 	cfr[2] = 0;
 	cfr[3] = REFCLK_RST | REFCLK_BYP;
 	cfr[4] = 0;
-
-	mutex_lock(&st->lock);
 
 	xfer.len = 5;
 	xfer.tx_buf = &cfr;
