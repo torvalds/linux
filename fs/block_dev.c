@@ -1149,6 +1149,12 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 
 	res = __blkdev_get(bdev, mode, 0);
 
+	/* __blkdev_get() may alter read only status, check it afterwards */
+	if (!res && (mode & FMODE_WRITE) && bdev_read_only(bdev)) {
+		__blkdev_put(bdev, mode, 0);
+		res = -EACCES;
+	}
+
 	if (whole) {
 		/* finish claiming */
 		spin_lock(&bdev_lock);
@@ -1452,11 +1458,6 @@ struct block_device *open_bdev_exclusive(const char *path, fmode_t mode, void *h
 	error = blkdev_get(bdev, mode | FMODE_EXCL, holder);
 	if (error)
 		return ERR_PTR(error);
-
-	if ((mode & FMODE_WRITE) && bdev_read_only(bdev)) {
-		blkdev_put(bdev, mode);
-		return ERR_PTR(-EACCES);
-	}
 
 	return bdev;
 }
