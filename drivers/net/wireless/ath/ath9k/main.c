@@ -375,6 +375,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 		}
 
 		init_completion(&sc->paprd_complete);
+		sc->paprd_pending = true;
 		ar9003_paprd_setup_gain_table(ah, chain);
 		txctl.paprd = BIT(chain);
 		if (ath_tx_start(hw, skb, &txctl) != 0)
@@ -382,6 +383,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 
 		time_left = wait_for_completion_timeout(&sc->paprd_complete,
 				msecs_to_jiffies(ATH_PAPRD_TIMEOUT));
+		sc->paprd_pending = false;
 		if (!time_left) {
 			ath_print(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
 				  "Timeout waiting for paprd training on "

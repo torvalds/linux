@@ -221,7 +221,6 @@ struct ath_buf_state {
 	int bfs_retries;
 	u8 bf_type;
 	u8 bfs_paprd;
-	unsigned long bfs_paprd_timestamp;
 	u32 bfs_keyix;
 	enum ath9k_internal_frame_type bfs_ftype;
 };
@@ -598,6 +597,7 @@ struct ath_softc {
 	struct work_struct paprd_work;
 	struct work_struct hw_check_work;
 	struct completion paprd_complete;
+	bool paprd_pending;
 
 	u32 intrstatus;
 	u32 sc_flags; /* SC_OP_* */
