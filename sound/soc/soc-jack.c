@@ -209,6 +209,10 @@ static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
 static irqreturn_t gpio_handler(int irq, void *data)
 {
 	struct snd_soc_jack_gpio *gpio = data;
+	struct device *dev = gpio->jack->codec->card->dev;
+
+	if (device_may_wakeup(dev))
+		pm_wakeup_event(dev, gpio->debounce_time + 50);
 
 	schedule_delayed_work(&gpio->work,
 			      msecs_to_jiffies(gpio->debounce_time));
