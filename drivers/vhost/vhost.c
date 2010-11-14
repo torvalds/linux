@@ -30,8 +30,6 @@
 #include <linux/if_packet.h>
 #include <linux/if_arp.h>
 
-#include <net/sock.h>
-
 #include "vhost.h"
 
 enum {
