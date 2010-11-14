@@ -1467,7 +1467,7 @@ i915_gem_free_mmap_offset(struct drm_gem_object *obj)
  * @obj: object to check
  *
  * Return the required GTT alignment for an object, taking into account
- * potential fence register mapping if needed.
+ * potential fence register mapping.
  */
 static uint32_t
 i915_gem_get_gtt_alignment(struct drm_i915_gem_object *obj_priv)
@@ -1487,6 +1487,41 @@ i915_gem_get_gtt_alignment(struct drm_i915_gem_object *obj_priv)
 	 * fence register that can contain the object.
 	 */
 	return i915_gem_get_gtt_size(obj_priv);
+}
+
+/**
+ * i915_gem_get_unfenced_gtt_alignment - return required GTT alignment for an
+ *					 unfenced object
+ * @obj: object to check
+ *
+ * Return the required GTT alignment for an object, only taking into account
+ * unfenced tiled surface requirements.
+ */
+static uint32_t
+i915_gem_get_unfenced_gtt_alignment(struct drm_i915_gem_object *obj_priv)
+{
+	struct drm_device *dev = obj_priv->base.dev;
+	int tile_height;
+
+	/*
+	 * Minimum alignment is 4k (GTT page size) for sane hw.
+	 */
+	if (INTEL_INFO(dev)->gen >= 4 || IS_G33(dev) ||
+	    obj_priv->tiling_mode == I915_TILING_NONE)
+		return 4096;
+
+	/*
+	 * Older chips need unfenced tiled buffers to be aligned to the left
+	 * edge of an even tile row (where tile rows are counted as if the bo is
+	 * placed in a fenced gtt region).
+	 */
+	if (IS_GEN2(dev) ||
+	    (obj_priv->tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev)))
+		tile_height = 32;
+	else
+		tile_height = 8;
+
+	return tile_height * obj_priv->stride * 2;
 }
 
 static uint32_t
@@ -2689,7 +2724,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	struct drm_mm_node *free_space;
 	gfp_t gfpmask = __GFP_NORETRY | __GFP_NOWARN;
-	u32 size, fence_size, fence_alignment;
+	u32 size, fence_size, fence_alignment, unfenced_alignment;
 	bool mappable, fenceable;
 	int ret;
 
@@ -2700,9 +2735,11 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 
 	fence_size = i915_gem_get_gtt_size(obj_priv);
 	fence_alignment = i915_gem_get_gtt_alignment(obj_priv);
+	unfenced_alignment = i915_gem_get_unfenced_gtt_alignment(obj_priv);
 
 	if (alignment == 0)
-		alignment = map_and_fenceable ? fence_alignment : 4096;
+		alignment = map_and_fenceable ? fence_alignment :
+						unfenced_alignment;
 	if (map_and_fenceable && alignment & (fence_alignment - 1)) {
 		DRM_ERROR("Invalid object alignment requested %u\n", alignment);
 		return -EINVAL;
