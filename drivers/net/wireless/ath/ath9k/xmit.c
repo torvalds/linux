@@ -630,7 +630,7 @@ static int ath_compute_num_delims(struct ath_softc *sc, struct ath_atx_tid *tid,
 	 * TODO - this could be improved to be dependent on the rate.
 	 *      The hardware can keep up at lower rates, but not higher rates
 	 */
-	if (bf->bf_keytype != ATH9K_KEY_TYPE_CLEAR)
+	if (tx_info->control.hw_key)
 		ndelim += ATH_AGGR_ENCRYPTDELIM;
 
 	/*
@@ -1604,8 +1604,7 @@ static struct ath_buf *ath_tx_setup_buffer(struct ieee80211_hw *hw,
 
 	bf->bf_flags = setup_tx_flags(skb);
 
-	bf->bf_keytype = ath9k_cmn_get_hw_crypto_keytype(skb);
-	if (bf->bf_keytype != ATH9K_KEY_TYPE_CLEAR) {
+	if (tx_info->control.hw_key) {
 		bf->bf_frmlen += tx_info->control.hw_key->icv_len;
 		bf->bf_keyix = tx_info->control.hw_key->hw_key_idx;
 	} else {
@@ -1642,6 +1641,7 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 	struct ath_desc *ds;
 	struct ath_atx_tid *tid;
 	struct ath_hw *ah = sc->sc_ah;
+	enum ath9k_key_type keytype;
 	int frm_type;
 	__le16 fc;
 	u8 tidno;
@@ -1655,8 +1655,9 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 	ds = bf->bf_desc;
 	ath9k_hw_set_desc_link(ah, ds, 0);
 
+	keytype = ath9k_cmn_get_hw_crypto_keytype(skb);
 	ath9k_hw_set11n_txdesc(ah, ds, bf->bf_frmlen, frm_type, MAX_RATE_POWER,
-			       bf->bf_keyix, bf->bf_keytype, bf->bf_flags);
+			       bf->bf_keyix, keytype, bf->bf_flags);
 
 	ath9k_hw_filltxdesc(ah, ds,
 			    skb->len,	/* segment length */

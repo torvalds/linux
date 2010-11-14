@@ -106,7 +106,6 @@ enum buffer_type {
 #define bf_frmlen       	bf_state.bfs_frmlen
 #define bf_retries      	bf_state.bfs_retries
 #define bf_keyix                bf_state.bfs_keyix
-#define bf_keytype      	bf_state.bfs_keytype
 #define bf_isht(bf)		(bf->bf_state.bf_type & BUF_HT)
 #define bf_isampdu(bf)		(bf->bf_state.bf_type & BUF_AMPDU)
 #define bf_isaggr(bf)		(bf->bf_state.bf_type & BUF_AGGR)
@@ -224,7 +223,6 @@ struct ath_buf_state {
 	u8 bfs_paprd;
 	unsigned long bfs_paprd_timestamp;
 	u32 bfs_keyix;
-	enum ath9k_key_type bfs_keytype;
 	enum ath9k_internal_frame_type bfs_ftype;
 };
 
