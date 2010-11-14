@@ -4595,7 +4595,7 @@ dma_error:
 			i += tx_ring->count;
 		i--;
 		buffer_info = &tx_ring->buffer_info[i];
-		e1000_put_txbuf(adapter, buffer_info);;
+		e1000_put_txbuf(adapter, buffer_info);
 	}
 
 	return 0;
