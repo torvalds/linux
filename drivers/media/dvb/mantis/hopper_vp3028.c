@@ -57,7 +57,7 @@ static int vp3028_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 	if (err == 0) {
 		msleep(250);
 		dprintk(MANTIS_ERROR, 1, "Probing for 10353 (DVB-T)");
-		fe = zl10353_attach(&hopper_vp3028_config, adapter);
+		fe = dvb_attach(zl10353_attach, &hopper_vp3028_config, adapter);
 
 		if (!fe)
 			return -1;

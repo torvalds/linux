@@ -82,7 +82,7 @@ static int vp1034_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 		msleep(250);
 
 		dprintk(MANTIS_ERROR, 1, "Probing for MB86A16 (DVB-S/DSS)");
-		fe = mb86a16_attach(&vp1034_mb86a16_config, adapter);
+		fe = dvb_attach(mb86a16_attach, &vp1034_mb86a16_config, adapter);
 		if (fe) {
 			dprintk(MANTIS_ERROR, 1,
 			"found MB86A16 DVB-S/DSS frontend @0x%02x",

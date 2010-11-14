@@ -68,12 +68,12 @@ static int vp3030_frontend_init(struct mantis_pci *mantis, struct dvb_frontend *
 	if (err == 0) {
 		msleep(250);
 		dprintk(MANTIS_ERROR, 1, "Probing for 10353 (DVB-T)");
-		fe = zl10353_attach(&mantis_vp3030_config, adapter);
+		fe = dvb_attach(zl10353_attach, &mantis_vp3030_config, adapter);
 
 		if (!fe)
 			return -1;
 
-		tda665x_attach(fe, &env57h12d5_config, adapter);
+		dvb_attach(tda665x_attach, fe, &env57h12d5_config, adapter);
 	} else {
 		dprintk(MANTIS_ERROR, 1, "Frontend on <%s> POWER ON failed! <%d>",
 			adapter->name,
