@@ -334,9 +334,6 @@ static void ath_tx_count_frames(struct ath_softc *sc, struct ath_buf *bf,
 	*nbad = 0;
 	*nframes = 0;
 
-	if (bf->bf_lastbf->bf_tx_aborted)
-		return;
-
 	isaggr = bf_isaggr(bf);
 	if (isaggr) {
 		seq_st = ts->ts_seqnum;
@@ -357,7 +354,7 @@ static void ath_tx_count_frames(struct ath_softc *sc, struct ath_buf *bf,
 
 static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				 struct ath_buf *bf, struct list_head *bf_q,
-				 struct ath_tx_status *ts, int txok)
+				 struct ath_tx_status *ts, int txok, bool retry)
 {
 	struct ath_node *an = NULL;
 	struct sk_buff *skb;
@@ -461,8 +458,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			/* transmit completion */
 			acked_cnt++;
 		} else {
-			if (!(tid->state & AGGR_CLEANUP) &&
-			    !bf_last->bf_tx_aborted) {
+			if (!(tid->state & AGGR_CLEANUP) && retry) {
 				if (bf->bf_retries < ATH_MAX_SW_RETRIES) {
 					ath_tx_set_retry(sc, txq, bf);
 					txpending = 1;
@@ -1132,8 +1128,6 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 		}
 
 		lastbf = bf->bf_lastbf;
-		if (!retry_tx)
-			lastbf->bf_tx_aborted = true;
 
 		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 			list_cut_position(&bf_head,
@@ -1150,7 +1144,8 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 		spin_unlock_bh(&txq->axq_lock);
 
 		if (bf_isampdu(bf))
-			ath_tx_complete_aggr(sc, txq, bf, &bf_head, &ts, 0);
+			ath_tx_complete_aggr(sc, txq, bf, &bf_head, &ts, 0,
+					     retry_tx);
 		else
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0, 0);
 	}
@@ -1171,7 +1166,7 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 
 			if (bf_isampdu(bf))
 				ath_tx_complete_aggr(sc, txq, bf, &bf_head,
-						     &ts, 0);
+						     &ts, 0, retry_tx);
 			else
 				ath_tx_complete_buf(sc, bf, txq, &bf_head,
 						    &ts, 0, 0);
@@ -1657,8 +1652,6 @@ static struct ath_buf *ath_tx_setup_buffer(struct ieee80211_hw *hw,
 		return NULL;
 	}
 
-	bf->bf_tx_aborted = false;
-
 	return bf;
 }
 
@@ -2094,7 +2087,8 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		qnum = skb_get_queue_mapping(bf->bf_mpdu);
 
 		if (bf_isampdu(bf))
-			ath_tx_complete_aggr(sc, txq, bf, &bf_head, &ts, txok);
+			ath_tx_complete_aggr(sc, txq, bf, &bf_head, &ts, txok,
+					     true);
 		else
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, txok, 0);
 
@@ -2216,7 +2210,8 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 		qnum = skb_get_queue_mapping(bf->bf_mpdu);
 
 		if (bf_isampdu(bf))
-			ath_tx_complete_aggr(sc, txq, bf, &bf_head, &txs, txok);
+			ath_tx_complete_aggr(sc, txq, bf, &bf_head, &txs,
+					     txok, true);
 		else
 			ath_tx_complete_buf(sc, bf, txq, &bf_head,
 					    &txs, txok, 0);
