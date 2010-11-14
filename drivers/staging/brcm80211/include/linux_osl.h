@@ -291,9 +291,6 @@ extern void *osl_pktget(osl_t *osh, uint len);
 extern void osl_pktfree(osl_t *osh, void *skb, bool send);
 
 #ifdef BRCM_FULLMAC
-extern void *osl_pktget_static(osl_t *osh, uint len);
-extern void osl_pktfree_static(osl_t *osh, void *skb, bool send);
-
 static inline void *
 osl_pkt_frmnative(osl_pubinfo_t *osh, struct sk_buff *skb)
 {
