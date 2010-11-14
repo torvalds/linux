@@ -117,6 +117,7 @@ static int mantis_dvb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (mantis->feeds == 1)	 {
 		dprintk(MANTIS_DEBUG, 1, "mantis start feed & dma");
 		mantis_dma_start(mantis);
+		tasklet_enable(&mantis->tasklet);
 	}
 
 	return mantis->feeds;
@@ -136,6 +137,7 @@ static int mantis_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	mantis->feeds--;
 	if (mantis->feeds == 0) {
 		dprintk(MANTIS_DEBUG, 1, "mantis stop feed and dma");
+		tasklet_disable(&mantis->tasklet);
 		mantis_dma_stop(mantis);
 	}
 
@@ -216,6 +218,7 @@ int __devinit mantis_dvb_init(struct mantis_pci *mantis)
 
 	dvb_net_init(&mantis->dvb_adapter, &mantis->dvbnet, &mantis->demux.dmx);
 	tasklet_init(&mantis->tasklet, mantis_dma_xfer, (unsigned long) mantis);
+	tasklet_disable(&mantis->tasklet);
 	if (mantis->hwconfig) {
 		result = config->frontend_init(mantis, mantis->fe);
 		if (result < 0) {
