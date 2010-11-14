@@ -89,20 +89,16 @@ struct ath_config {
  * @BUF_AMPDU: This buffer is an ampdu, as part of an aggregate (during TX)
  * @BUF_AGGR: Indicates whether the buffer can be aggregated
  *	(used in aggregation scheduling)
- * @BUF_RETRY: Indicates whether the buffer is retried
  * @BUF_XRETRY: To denote excessive retries of the buffer
  */
 enum buffer_type {
 	BUF_AMPDU		= BIT(2),
 	BUF_AGGR		= BIT(3),
-	BUF_RETRY		= BIT(4),
 	BUF_XRETRY		= BIT(5),
 };
 
-#define bf_retries      	bf_state.bfs_retries
 #define bf_isampdu(bf)		(bf->bf_state.bf_type & BUF_AMPDU)
 #define bf_isaggr(bf)		(bf->bf_state.bf_type & BUF_AGGR)
-#define bf_isretried(bf)	(bf->bf_state.bf_type & BUF_RETRY)
 #define bf_isxretried(bf)	(bf->bf_state.bf_type & BUF_XRETRY)
 
 #define ATH_TXSTATUS_RING_SIZE 64
@@ -207,8 +203,15 @@ struct ath_atx_ac {
 	struct list_head tid_q;
 };
 
+struct ath_frame_info {
+	int framelen;
+	u32 keyix;
+	enum ath9k_key_type keytype;
+	u8 retries;
+	u16 seqno;
+};
+
 struct ath_buf_state {
-	int bfs_retries;
 	u8 bf_type;
 	u8 bfs_paprd;
 	enum ath9k_internal_frame_type bfs_ftype;
@@ -260,9 +263,9 @@ struct ath_node {
 
 struct ath_tx_control {
 	struct ath_txq *txq;
+	struct ath_node *an;
 	int if_id;
 	enum ath9k_internal_frame_type frame_type;
-	int frmlen;
 	u8 paprd;
 };
 
