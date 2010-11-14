@@ -138,17 +138,6 @@ static int __devexit bcmsdh_remove(struct device *dev);
 #endif				/* BCMLXSDMMC */
 
 #ifndef BCMLXSDMMC
-static struct device_driver bcmsdh_driver = {
-	.name = "pxa2xx-mci",
-	.bus = &platform_bus_type,
-	.probe = bcmsdh_probe,
-	.remove = bcmsdh_remove,
-	.suspend = NULL,
-	.resume = NULL,
-};
-#endif				/* BCMLXSDMMC */
-
-#ifndef BCMLXSDMMC
 static
 #endif				/* BCMLXSDMMC */
 int bcmsdh_probe(struct device *dev)
@@ -522,9 +511,6 @@ int bcmsdh_register(bcmsdh_driver_t *driver)
 #if defined(BCMLXSDMMC)
 	SDLX_MSG(("Linux Kernel SDIO/MMC Driver\n"));
 	error = sdio_function_init();
-#else
-	SDLX_MSG(("Intel PXA270 SDIO Driver\n"));
-	error = driver_register(&bcmsdh_driver);
 #endif				/* defined(BCMLXSDMMC) */
 	return error;
 #endif				/* defined(BCMPLATFORM_BUS) */
@@ -544,9 +530,6 @@ extern void sdio_function_cleanup(void);
 
 void bcmsdh_unregister(void)
 {
-#if defined(BCMPLATFORM_BUS) && !defined(BCMLXSDMMC)
-		driver_unregister(&bcmsdh_driver);
-#endif
 #if defined(BCMLXSDMMC)
 	sdio_function_cleanup();
 #endif				/* BCMLXSDMMC */
