@@ -276,10 +276,10 @@ static void lx_graphics_enable(struct fb_info *info)
 		write_fp(par, FP_PT1, 0);
 		temp = FP_PT2_SCRC;
 
-		if (info->var.sync & FB_SYNC_HOR_HIGH_ACT)
+		if (!(info->var.sync & FB_SYNC_HOR_HIGH_ACT))
 			temp |= FP_PT2_HSP;
 
-		if (info->var.sync & FB_SYNC_VERT_HIGH_ACT)
+		if (!(info->var.sync & FB_SYNC_VERT_HIGH_ACT))
 			temp |= FP_PT2_VSP;
 
 		write_fp(par, FP_PT2, temp);
