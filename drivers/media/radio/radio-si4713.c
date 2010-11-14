@@ -53,7 +53,8 @@ struct radio_si4713_device {
 /* radio_si4713_fops - file operations interface */
 static const struct v4l2_file_operations radio_si4713_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
+	/* Note: locking is done at the subdev level in the i2c driver. */
+	.unlocked_ioctl	= video_ioctl2,
 };
 
 /* Video4Linux Interface */
