@@ -68,7 +68,7 @@ static int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
 	 * addresses
 	 */
 	for (i = 0; i < entries; i++) {
-		vfinfo->vf_mc_hashes[i] = hash_list[i];;
+		vfinfo->vf_mc_hashes[i] = hash_list[i];
 	}
 
 	for (i = 0; i < vfinfo->num_vf_mc_hashes; i++) {
