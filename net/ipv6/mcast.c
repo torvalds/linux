@@ -257,7 +257,7 @@ static struct inet6_dev *ip6_mc_find_dev_rcu(struct net *net,
 		return NULL;
 	idev = __in6_dev_get(dev);
 	if (!idev)
-		return NULL;;
+		return NULL;
 	read_lock_bh(&idev->lock);
 	if (idev->dead) {
 		read_unlock_bh(&idev->lock);
