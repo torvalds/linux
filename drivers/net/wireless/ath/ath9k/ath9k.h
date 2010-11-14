@@ -101,7 +101,6 @@ enum buffer_type {
 	BUF_XRETRY		= BIT(5),
 };
 
-#define bf_nframes      	bf_state.bfs_nframes
 #define bf_frmlen       	bf_state.bfs_frmlen
 #define bf_retries      	bf_state.bfs_retries
 #define bf_isht(bf)		(bf->bf_state.bf_type & BUF_HT)
@@ -213,7 +212,6 @@ struct ath_atx_ac {
 };
 
 struct ath_buf_state {
-	int bfs_nframes;
 	int bfs_retries;
 	u8 bf_type;
 	u8 bfs_paprd;
