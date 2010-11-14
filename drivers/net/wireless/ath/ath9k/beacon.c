@@ -109,6 +109,25 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 				     series, 4, 0);
 }
 
+static void ath_tx_cabq(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_tx_control txctl;
+
+	memset(&txctl, 0, sizeof(struct ath_tx_control));
+	txctl.txq = sc->beacon.cabq;
+
+	ath_print(common, ATH_DBG_XMIT,
+		  "transmitting CABQ packet, skb: %p\n", skb);
+
+	if (ath_tx_start(hw, skb, &txctl) != 0) {
+		ath_print(common, ATH_DBG_XMIT, "CABQ TX failed\n");
+		dev_kfree_skb_any(skb);
+	}
+}
+
 static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif)
 {

@@ -1187,12 +1187,10 @@ mutex_unlock:
 static int ath9k_tx(struct ieee80211_hw *hw,
 		    struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_tx_control txctl;
-	int padpos, padsize;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 
 	if (aphy->state != ATH_WIPHY_ACTIVE && aphy->state != ATH_WIPHY_SCAN) {
@@ -1243,29 +1241,6 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	}
 
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
-
-	/*
-	 * As a temporary workaround, assign seq# here; this will likely need
-	 * to be cleaned up to work better with Beacon transmission and virtual
-	 * BSSes.
-	 */
-	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
-		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
-			sc->tx.seq_no += 0x10;
-		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		hdr->seq_ctrl |= cpu_to_le16(sc->tx.seq_no);
-	}
-
-	/* Add the padding after the header if this is not already done */
-	padpos = ath9k_cmn_padpos(hdr->frame_control);
-	padsize = padpos & 3;
-	if (padsize && skb->len>padpos) {
-		if (skb_headroom(skb) < padsize)
-			return -1;
-		skb_push(skb, padsize);
-		memmove(skb->data, skb->data + padsize, padpos);
-	}
-
 	txctl.txq = sc->tx.txq_map[skb_get_queue_mapping(skb)];
 
 	ath_print(common, ATH_DBG_XMIT, "transmitting packet, skb: %p\n", skb);
