@@ -815,7 +815,7 @@ out:
 
 static const struct v4l2_file_operations w9966_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl          = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 	.read           = w9966_v4l_read,
 };
 
