@@ -1604,12 +1604,8 @@ static struct ath_buf *ath_tx_setup_buffer(struct ieee80211_hw *hw,
 
 	bf->bf_flags = setup_tx_flags(skb);
 
-	if (tx_info->control.hw_key) {
+	if (tx_info->control.hw_key)
 		bf->bf_frmlen += tx_info->control.hw_key->icv_len;
-		bf->bf_keyix = tx_info->control.hw_key->hw_key_idx;
-	} else {
-		bf->bf_keyix = ATH9K_TXKEYIX_INVALID;
-	}
 
 	bf->bf_mpdu = skb;
 
@@ -1642,6 +1638,7 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 	struct ath_atx_tid *tid;
 	struct ath_hw *ah = sc->sc_ah;
 	enum ath9k_key_type keytype;
+	u32 keyix;
 	int frm_type;
 	__le16 fc;
 	u8 tidno;
@@ -1656,8 +1653,13 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 	ath9k_hw_set_desc_link(ah, ds, 0);
 
 	keytype = ath9k_cmn_get_hw_crypto_keytype(skb);
+	if (tx_info->control.hw_key)
+		keyix = tx_info->control.hw_key->hw_key_idx;
+	else
+		keyix = ATH9K_TXKEYIX_INVALID;
+
 	ath9k_hw_set11n_txdesc(ah, ds, bf->bf_frmlen, frm_type, MAX_RATE_POWER,
-			       bf->bf_keyix, keytype, bf->bf_flags);
+			       keyix, keytype, bf->bf_flags);
 
 	ath9k_hw_filltxdesc(ah, ds,
 			    skb->len,	/* segment length */
