@@ -8078,7 +8078,7 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 	int port = BP_PORT(bp);
 	u32 val, val2;
 	u32 config;
-	u32 ext_phy_type, ext_phy_config;;
+	u32 ext_phy_type, ext_phy_config;
 
 	bp->link_params.bp = bp;
 	bp->link_params.port = port;
