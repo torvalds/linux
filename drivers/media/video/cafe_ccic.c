@@ -1775,7 +1775,7 @@ static const struct v4l2_file_operations cafe_v4l_fops = {
 	.read = cafe_v4l_read,
 	.poll = cafe_v4l_poll,
 	.mmap = cafe_v4l_mmap,
-	.ioctl = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops cafe_v4l_ioctl_ops = {
