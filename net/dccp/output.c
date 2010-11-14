@@ -283,6 +283,15 @@ static void dccp_xmit_packet(struct sock *sk)
 	 * any local drop will eventually be reported via receiver feedback.
 	 */
 	ccid_hc_tx_packet_sent(dp->dccps_hc_tx_ccid, sk, len);
+
+	/*
+	 * If the CCID needs to transfer additional header options out-of-band
+	 * (e.g. Ack Vectors or feature-negotiation options), it activates this
+	 * flag to schedule a Sync. The Sync will automatically incorporate all
+	 * currently pending header options, thus clearing the backlog.
+	 */
+	if (dp->dccps_sync_scheduled)
+		dccp_send_sync(sk, dp->dccps_gsr, DCCP_PKT_SYNC);
 }
 
 /**
@@ -635,6 +644,12 @@ void dccp_send_sync(struct sock *sk, const u64 ackno,
 	skb_reserve(skb, sk->sk_prot->max_header);
 	DCCP_SKB_CB(skb)->dccpd_type = pkt_type;
 	DCCP_SKB_CB(skb)->dccpd_ack_seq = ackno;
+
+	/*
+	 * Clear the flag in case the Sync was scheduled for out-of-band data,
+	 * such as carrying a long Ack Vector.
+	 */
+	dccp_sk(sk)->dccps_sync_scheduled = 0;
 
 	dccp_transmit_skb(sk, skb);
 }
