@@ -50,13 +50,13 @@ int vp1034_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 	switch (voltage) {
 	case SEC_VOLTAGE_13:
 		dprintk(MANTIS_ERROR, 1, "Polarization=[13V]");
-		gpio_set_bits(mantis, 13, 1);
-		gpio_set_bits(mantis, 14, 0);
+		mantis_gpio_set_bits(mantis, 13, 1);
+		mantis_gpio_set_bits(mantis, 14, 0);
 		break;
 	case SEC_VOLTAGE_18:
 		dprintk(MANTIS_ERROR, 1, "Polarization=[18V]");
-		gpio_set_bits(mantis, 13, 1);
-		gpio_set_bits(mantis, 14, 1);
+		mantis_gpio_set_bits(mantis, 13, 1);
+		mantis_gpio_set_bits(mantis, 14, 1);
 		break;
 	case SEC_VOLTAGE_OFF:
 		dprintk(MANTIS_ERROR, 1, "Frontend (dummy) POWERDOWN");

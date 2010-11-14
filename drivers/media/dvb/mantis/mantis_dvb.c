@@ -47,15 +47,15 @@ int mantis_frontend_power(struct mantis_pci *mantis, enum mantis_power power)
 	switch (power) {
 	case POWER_ON:
 		dprintk(MANTIS_DEBUG, 1, "Power ON");
-		gpio_set_bits(mantis, config->power, POWER_ON);
+		mantis_gpio_set_bits(mantis, config->power, POWER_ON);
 		msleep(100);
-		gpio_set_bits(mantis, config->power, POWER_ON);
+		mantis_gpio_set_bits(mantis, config->power, POWER_ON);
 		msleep(100);
 		break;
 
 	case POWER_OFF:
 		dprintk(MANTIS_DEBUG, 1, "Power OFF");
-		gpio_set_bits(mantis, config->power, POWER_OFF);
+		mantis_gpio_set_bits(mantis, config->power, POWER_OFF);
 		msleep(100);
 		break;
 
@@ -73,13 +73,13 @@ void mantis_frontend_soft_reset(struct mantis_pci *mantis)
 	struct mantis_hwconfig *config = mantis->hwconfig;
 
 	dprintk(MANTIS_DEBUG, 1, "Frontend RESET");
-	gpio_set_bits(mantis, config->reset, 0);
+	mantis_gpio_set_bits(mantis, config->reset, 0);
 	msleep(100);
-	gpio_set_bits(mantis, config->reset, 0);
+	mantis_gpio_set_bits(mantis, config->reset, 0);
 	msleep(100);
-	gpio_set_bits(mantis, config->reset, 1);
+	mantis_gpio_set_bits(mantis, config->reset, 1);
 	msleep(100);
-	gpio_set_bits(mantis, config->reset, 1);
+	mantis_gpio_set_bits(mantis, config->reset, 1);
 	msleep(100);
 
 	return;
