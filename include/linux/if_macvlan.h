@@ -69,7 +69,7 @@ static inline void macvlan_count_rx(const struct macvlan_dev *vlan,
 	rx_stats = this_cpu_ptr(vlan->rx_stats);
 	if (likely(success)) {
 		u64_stats_update_begin(&rx_stats->syncp);
-		rx_stats->rx_packets++;;
+		rx_stats->rx_packets++;
 		rx_stats->rx_bytes += len;
 		if (multicast)
 			rx_stats->rx_multicast++;
