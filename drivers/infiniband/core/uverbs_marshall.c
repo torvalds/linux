@@ -40,18 +40,21 @@ void ib_copy_ah_attr_to_user(struct ib_uverbs_ah_attr *dst,
 	dst->grh.sgid_index        = src->grh.sgid_index;
 	dst->grh.hop_limit         = src->grh.hop_limit;
 	dst->grh.traffic_class     = src->grh.traffic_class;
+	memset(&dst->grh.reserved, 0, sizeof(dst->grh.reserved));
 	dst->dlid 	    	   = src->dlid;
 	dst->sl   	    	   = src->sl;
 	dst->src_path_bits 	   = src->src_path_bits;
 	dst->static_rate   	   = src->static_rate;
 	dst->is_global             = src->ah_flags & IB_AH_GRH ? 1 : 0;
 	dst->port_num 	    	   = src->port_num;
+	dst->reserved 		   = 0;
 }
 EXPORT_SYMBOL(ib_copy_ah_attr_to_user);
 
 void ib_copy_qp_attr_to_user(struct ib_uverbs_qp_attr *dst,
 			     struct ib_qp_attr *src)
 {
+	dst->qp_state	        = src->qp_state;
 	dst->cur_qp_state	= src->cur_qp_state;
 	dst->path_mtu		= src->path_mtu;
 	dst->path_mig_state	= src->path_mig_state;
@@ -83,6 +86,7 @@ void ib_copy_qp_attr_to_user(struct ib_uverbs_qp_attr *dst,
 	dst->rnr_retry		= src->rnr_retry;
 	dst->alt_port_num	= src->alt_port_num;
 	dst->alt_timeout	= src->alt_timeout;
+	memset(dst->reserved, 0, sizeof(dst->reserved));
 }
 EXPORT_SYMBOL(ib_copy_qp_attr_to_user);
 
