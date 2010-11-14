@@ -113,6 +113,8 @@ static struct board_type products[] = {
 	{0x409D0E11, "Smart Array 6400 EM", &SA5_access},
 	{0x40910E11, "Smart Array 6i", &SA5_access},
 	{0x3225103C, "Smart Array P600", &SA5_access},
+	{0x3223103C, "Smart Array P800", &SA5_access},
+	{0x3234103C, "Smart Array P400", &SA5_access},
 	{0x3235103C, "Smart Array P400i", &SA5_access},
 	{0x3211103C, "Smart Array E200i", &SA5_access},
 	{0x3212103C, "Smart Array E200", &SA5_access},
@@ -3753,7 +3755,7 @@ static void __devinit cciss_wait_for_mode_change_ack(ctlr_info_t *h)
 	for (i = 0; i < MAX_CONFIG_WAIT; i++) {
 		if (!(readl(h->vaddr + SA5_DOORBELL) & CFGTBL_ChangeReq))
 			break;
-		msleep(10);
+		usleep_range(10000, 20000);
 	}
 }
 
@@ -3937,10 +3939,9 @@ static int __devinit cciss_lookup_board_id(struct pci_dev *pdev, u32 *board_id)
 	*board_id = ((subsystem_device_id << 16) & 0xffff0000) |
 			subsystem_vendor_id;
 
-	for (i = 0; i < ARRAY_SIZE(products); i++) {
+	for (i = 0; i < ARRAY_SIZE(products); i++)
 		if (*board_id == products[i].board_id)
 			return i;
-	}
 	dev_warn(&pdev->dev, "unrecognized board ID: 0x%08x, ignoring.\n",
 		*board_id);
 	return -ENODEV;
@@ -3971,18 +3972,31 @@ static int __devinit cciss_pci_find_memory_BAR(struct pci_dev *pdev,
 	return -ENODEV;
 }
 
-static int __devinit cciss_wait_for_board_ready(ctlr_info_t *h)
+static int __devinit cciss_wait_for_board_state(struct pci_dev *pdev,
+	void __iomem *vaddr, int wait_for_ready)
+#define BOARD_READY 1
+#define BOARD_NOT_READY 0
 {
-	int i;
+	int i, iterations;
 	u32 scratchpad;
 
-	for (i = 0; i < CCISS_BOARD_READY_ITERATIONS; i++) {
-		scratchpad = readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
-		if (scratchpad == CCISS_FIRMWARE_READY)
-			return 0;
+	if (wait_for_ready)
+		iterations = CCISS_BOARD_READY_ITERATIONS;
+	else
+		iterations = CCISS_BOARD_NOT_READY_ITERATIONS;
+
+	for (i = 0; i < iterations; i++) {
+		scratchpad = readl(vaddr + SA5_SCRATCHPAD_OFFSET);
+		if (wait_for_ready) {
+			if (scratchpad == CCISS_FIRMWARE_READY)
+				return 0;
+		} else {
+			if (scratchpad != CCISS_FIRMWARE_READY)
+				return 0;
+		}
 		msleep(CCISS_BOARD_READY_POLL_INTERVAL_MSECS);
 	}
-	dev_warn(&h->pdev->dev, "board not ready, timed out.\n");
+	dev_warn(&pdev->dev, "board not ready, timed out.\n");
 	return -ENODEV;
 }
 
@@ -4031,6 +4045,11 @@ static int __devinit cciss_find_cfgtables(ctlr_info_t *h)
 static void __devinit cciss_get_max_perf_mode_cmds(struct ctlr_info *h)
 {
 	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
+
+	/* Limit commands in memory limited kdump scenario. */
+	if (reset_devices && h->max_commands > 32)
+		h->max_commands = 32;
+
 	if (h->max_commands < 16) {
 		dev_warn(&h->pdev->dev, "Controller reports "
 			"max supported commands of %d, an obvious lie. "
@@ -4148,7 +4167,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *h)
 		err = -ENOMEM;
 		goto err_out_free_res;
 	}
-	err = cciss_wait_for_board_ready(h);
+	err = cciss_wait_for_board_state(h->pdev, h->vaddr, BOARD_READY);
 	if (err)
 		goto err_out_free_res;
 	err = cciss_find_cfgtables(h);
@@ -4313,36 +4332,6 @@ static __devinit int cciss_message(struct pci_dev *pdev, unsigned char opcode, u
 #define cciss_soft_reset_controller(p) cciss_message(p, 1, 0)
 #define cciss_noop(p) cciss_message(p, 3, 0)
 
-static __devinit int cciss_reset_msi(struct pci_dev *pdev)
-{
-/* the #defines are stolen from drivers/pci/msi.h. */
-#define msi_control_reg(base)		(base + PCI_MSI_FLAGS)
-#define PCI_MSIX_FLAGS_ENABLE		(1 << 15)
-
-	int pos;
-	u16 control = 0;
-
-	pos = pci_find_capability(pdev, PCI_CAP_ID_MSI);
-	if (pos) {
-		pci_read_config_word(pdev, msi_control_reg(pos), &control);
-		if (control & PCI_MSI_FLAGS_ENABLE) {
-			dev_info(&pdev->dev, "resetting MSI\n");
-			pci_write_config_word(pdev, msi_control_reg(pos), control & ~PCI_MSI_FLAGS_ENABLE);
-		}
-	}
-
-	pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
-	if (pos) {
-		pci_read_config_word(pdev, msi_control_reg(pos), &control);
-		if (control & PCI_MSIX_FLAGS_ENABLE) {
-			dev_info(&pdev->dev, "resetting MSI-X\n");
-			pci_write_config_word(pdev, msi_control_reg(pos), control & ~PCI_MSIX_FLAGS_ENABLE);
-		}
-	}
-
-	return 0;
-}
-
 static int cciss_controller_hard_reset(struct pci_dev *pdev,
 	void * __iomem vaddr, bool use_doorbell)
 {
@@ -4397,17 +4386,17 @@ static int cciss_controller_hard_reset(struct pci_dev *pdev,
  * states or using the doorbell register. */
 static __devinit int cciss_kdump_hard_reset_controller(struct pci_dev *pdev)
 {
-	u16 saved_config_space[32];
 	u64 cfg_offset;
 	u32 cfg_base_addr;
 	u64 cfg_base_addr_index;
 	void __iomem *vaddr;
 	unsigned long paddr;
 	u32 misc_fw_support, active_transport;
-	int rc, i;
+	int rc;
 	CfgTable_struct __iomem *cfgtable;
 	bool use_doorbell;
 	u32 board_id;
+	u16 command_register;
 
 	/* For controllers as old a the p600, this is very nearly
 	 * the same thing as
@@ -4416,14 +4405,6 @@ static __devinit int cciss_kdump_hard_reset_controller(struct pci_dev *pdev)
 	 * pci_set_power_state(pci_dev, PCI_D3hot);
 	 * pci_set_power_state(pci_dev, PCI_D0);
 	 * pci_restore_state(pci_dev);
-	 *
-	 * but we can't use these nice canned kernel routines on
-	 * kexec, because they also check the MSI/MSI-X state in PCI
-	 * configuration space and do the wrong thing when it is
-	 * set/cleared.  Also, the pci_save/restore_state functions
-	 * violate the ordering requirements for restoring the
-	 * configuration space from the CCISS document (see the
-	 * comment below).  So we roll our own ....
 	 *
 	 * For controllers newer than the P600, the pci power state
 	 * method of resetting doesn't work so we have another way
@@ -4443,8 +4424,13 @@ static __devinit int cciss_kdump_hard_reset_controller(struct pci_dev *pdev)
 		return -ENODEV;
 	}
 
-	for (i = 0; i < 32; i++)
-		pci_read_config_word(pdev, 2*i, &saved_config_space[i]);
+	/* Save the PCI command register */
+	pci_read_config_word(pdev, 4, &command_register);
+	/* Turn the board off.  This is so that later pci_restore_state()
+	 * won't turn the board on before the rest of config space is ready.
+	 */
+	pci_disable_device(pdev);
+	pci_save_state(pdev);
 
 	/* find the first memory BAR, so we can find the cfg table */
 	rc = cciss_pci_find_memory_BAR(pdev, &paddr);
@@ -4479,25 +4465,31 @@ static __devinit int cciss_kdump_hard_reset_controller(struct pci_dev *pdev)
 	rc = cciss_controller_hard_reset(pdev, vaddr, use_doorbell);
 	if (rc)
 		goto unmap_cfgtable;
-
-	/* Restore the PCI configuration space.  The Open CISS
-	 * Specification says, "Restore the PCI Configuration
-	 * Registers, offsets 00h through 60h. It is important to
-	 * restore the command register, 16-bits at offset 04h,
-	 * last. Do not restore the configuration status register,
-	 * 16-bits at offset 06h."  Note that the offset is 2*i.
-	 */
-	for (i = 0; i < 32; i++) {
-		if (i == 2 || i == 3)
-			continue;
-		pci_write_config_word(pdev, 2*i, saved_config_space[i]);
+	pci_restore_state(pdev);
+	rc = pci_enable_device(pdev);
+	if (rc) {
+		dev_warn(&pdev->dev, "failed to enable device.\n");
+		goto unmap_cfgtable;
 	}
-	wmb();
-	pci_write_config_word(pdev, 4, saved_config_space[2]);
+	pci_write_config_word(pdev, 4, command_register);
 
 	/* Some devices (notably the HP Smart Array 5i Controller)
 	   need a little pause here */
 	msleep(CCISS_POST_RESET_PAUSE_MSECS);
+
+	/* Wait for board to become not ready, then ready. */
+	dev_info(&pdev->dev, "Waiting for board to become ready.\n");
+	rc = cciss_wait_for_board_state(pdev, vaddr, BOARD_NOT_READY);
+	if (rc) /* Don't bail, might be E500, etc. which can't be reset */
+		dev_warn(&pdev->dev,
+			"failed waiting for board to become not ready\n");
+	rc = cciss_wait_for_board_state(pdev, vaddr, BOARD_READY);
+	if (rc) {
+		dev_warn(&pdev->dev,
+			"failed waiting for board to become ready\n");
+		goto unmap_cfgtable;
+	}
+	dev_info(&pdev->dev, "board ready.\n");
 
 	/* Controller should be in simple mode at this point.  If it's not,
 	 * It means we're on one of those controllers which doesn't support
@@ -4538,8 +4530,6 @@ static __devinit int cciss_init_reset_devices(struct pci_dev *pdev)
 	if (rc == -ENOTSUPP)
 		return 0; /* just try to do the kdump anyhow. */
 	if (rc)
-		return -ENODEV;
-	if (cciss_reset_msi(pdev))
 		return -ENODEV;
 
 	/* Now try to get the controller to respond to a no-op */
@@ -4936,7 +4926,8 @@ static void __exit cciss_cleanup(void)
 		}
 	}
 	kthread_stop(cciss_scan_thread);
-	remove_proc_entry("driver/cciss", NULL);
+	if (proc_cciss)
+		remove_proc_entry("driver/cciss", NULL);
 	bus_unregister(&cciss_bus_type);
 }
 

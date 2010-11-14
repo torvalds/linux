@@ -1,2 +1,2 @@
 #!/bin/bash
-perf record -a -e raw_syscalls:sys_enter $@
+perf record -e raw_syscalls:sys_enter $@

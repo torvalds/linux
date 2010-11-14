@@ -91,7 +91,7 @@ int rv370_pcie_gart_init(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->gart.table.vram.robj) {
-		WARN(1, "RV370 PCIE GART already initialized.\n");
+		WARN(1, "RV370 PCIE GART already initialized\n");
 		return 0;
 	}
 	/* Initialize common gart structure */

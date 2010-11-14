@@ -1126,7 +1126,7 @@ ar6000_transfer_bin_file(AR_SOFTC_T *ar, AR6K_BIN_FILE file, A_UINT32 address, A
         if ((board_ext_address) && (fw_entry->size == (board_data_size + board_ext_data_size))) {
             A_UINT32 param;
 
-            status = BMIWriteMemory(ar->arHifDevice, board_ext_address, (A_UCHAR *)(((A_UINT32)fw_entry->data) + board_data_size), board_ext_data_size);
+            status = BMIWriteMemory(ar->arHifDevice, board_ext_address, (A_UCHAR *)(fw_entry->data + board_data_size), board_ext_data_size);
 
             if (status != A_OK) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("BMI operation failed: %d\n", __LINE__));
@@ -3030,7 +3030,8 @@ ar6000_data_tx(struct sk_buff *skb, struct net_device *dev)
         A_UINT8 csumDest=0;
         A_UINT8 csum=skb->ip_summed;
         if(csumOffload && (csum==CHECKSUM_PARTIAL)){
-            csumStart=skb->csum_start-(skb->network_header-skb->head)+sizeof(ATH_LLC_SNAP_HDR);
+            csumStart = (skb->head + skb->csum_start - skb_network_header(skb) +
+			 sizeof(ATH_LLC_SNAP_HDR));
             csumDest=skb->csum_offset+csumStart;
         }
 #endif

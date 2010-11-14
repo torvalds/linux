@@ -69,7 +69,6 @@ static int			target_tid			=     -1;
 static pid_t			*all_tids			=      NULL;
 static int			thread_num			=      0;
 static bool			inherit				=  false;
-static int			profile_cpu			=     -1;
 static int			nr_cpus				=      0;
 static int			realtime_prio			=      0;
 static bool			group				=  false;
@@ -558,13 +557,13 @@ static void print_sym_table(void)
 	else
 		printf(" (all");
 
-	if (profile_cpu != -1)
-		printf(", cpu: %d)\n", profile_cpu);
+	if (cpu_list)
+		printf(", CPU%s: %s)\n", nr_cpus > 1 ? "s" : "", cpu_list);
 	else {
 		if (target_tid != -1)
 			printf(")\n");
 		else
-			printf(", %d CPUs)\n", nr_cpus);
+			printf(", %d CPU%s)\n", nr_cpus, nr_cpus > 1 ? "s" : "");
 	}
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
@@ -1187,11 +1186,10 @@ int group_fd;
 static void start_counter(int i, int counter)
 {
 	struct perf_event_attr *attr;
-	int cpu;
+	int cpu = -1;
 	int thread_index;
 
-	cpu = profile_cpu;
-	if (target_tid == -1 && profile_cpu == -1)
+	if (target_tid == -1)
 		cpu = cpumap[i];
 
 	attr = attrs + counter;

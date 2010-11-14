@@ -522,8 +522,8 @@ static int p80211netdev_ethtool(wlandevice_t *wlandev, void __user *useraddr)
 		if (copy_to_user(useraddr, &edata, sizeof(edata)))
 			return -EFAULT;
 		return 0;
-	}
 #endif
+	}
 
 	return -EOPNOTSUPP;
 }

@@ -347,16 +347,17 @@ static size_t rtnl_link_get_size(const struct net_device *dev)
 	if (!ops)
 		return 0;
 
-	size = nlmsg_total_size(sizeof(struct nlattr)) + /* IFLA_LINKINFO */
-	       nlmsg_total_size(strlen(ops->kind) + 1);	 /* IFLA_INFO_KIND */
+	size = nla_total_size(sizeof(struct nlattr)) + /* IFLA_LINKINFO */
+	       nla_total_size(strlen(ops->kind) + 1);  /* IFLA_INFO_KIND */
 
 	if (ops->get_size)
 		/* IFLA_INFO_DATA + nested data */
-		size += nlmsg_total_size(sizeof(struct nlattr)) +
+		size += nla_total_size(sizeof(struct nlattr)) +
 			ops->get_size(dev);
 
 	if (ops->get_xstats_size)
-		size += ops->get_xstats_size(dev);	/* IFLA_INFO_XSTATS */
+		/* IFLA_INFO_XSTATS */
+		size += nla_total_size(ops->get_xstats_size(dev));
 
 	return size;
 }
