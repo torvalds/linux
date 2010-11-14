@@ -1695,7 +1695,7 @@ static int cnic_bnx2x_iscsi_ofld1(struct cnic_dev *dev, struct kwqe *wqes[],
 		*work = num;
 		return -EINVAL;
 	}
-	*work = 2 + req2->num_additional_wqes;;
+	*work = 2 + req2->num_additional_wqes;
 
 	l5_cid = req1->iscsi_conn_id;
 	if (l5_cid >= MAX_ISCSI_TBL_SZ)
