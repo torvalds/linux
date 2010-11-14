@@ -128,13 +128,6 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			if (rc)
 				goto out_featneg_failed;
 			break;
-		case DCCPO_ACK_VECTOR_0:
-		case DCCPO_ACK_VECTOR_1:
-			if (dccp_packet_without_ack(skb))   /* RFC 4340, 11.4 */
-				break;
-			dccp_pr_debug("%s Ack Vector (len=%u)\n", dccp_role(sk),
-				      len);
-			break;
 		case DCCPO_TIMESTAMP:
 			if (len != 4)
 				goto out_invalid_option;
@@ -224,6 +217,16 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 						     pkt_type, opt, value, len))
 				goto out_invalid_option;
 			break;
+		case DCCPO_ACK_VECTOR_0:
+		case DCCPO_ACK_VECTOR_1:
+			if (dccp_packet_without_ack(skb))   /* RFC 4340, 11.4 */
+				break;
+			/*
+			 * Ack vectors are processed by the TX CCID if it is
+			 * interested. The RX CCID need not parse Ack Vectors,
+			 * since it is only interested in clearing old state.
+			 * Fall through.
+			 */
 		case DCCPO_MIN_TX_CCID_SPECIFIC ... DCCPO_MAX_TX_CCID_SPECIFIC:
 			if (ccid_hc_tx_parse_options(dp->dccps_hc_tx_ccid, sk,
 						     pkt_type, opt, value, len))

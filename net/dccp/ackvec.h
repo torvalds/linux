@@ -114,4 +114,23 @@ static inline bool dccp_ackvec_is_empty(const struct dccp_ackvec *av)
 {
 	return av->av_overflow == 0 && av->av_buf_head == av->av_buf_tail;
 }
+
+/**
+ * struct dccp_ackvec_parsed  -  Record offsets of Ack Vectors in skb
+ * @vec:	start of vector (offset into skb)
+ * @len:	length of @vec
+ * @nonce:	whether @vec had an ECN nonce of 0 or 1
+ * @node:	FIFO - arranged in descending order of ack_ackno
+ * This structure is used by CCIDs to access Ack Vectors in a received skb.
+ */
+struct dccp_ackvec_parsed {
+	u8		 *vec,
+			 len,
+			 nonce:1;
+	struct list_head node;
+};
+
+extern int dccp_ackvec_parsed_add(struct list_head *head,
+				  u8 *vec, u8 len, u8 nonce);
+extern void dccp_ackvec_parsed_cleanup(struct list_head *parsed_chunks);
 #endif /* _ACKVEC_H */

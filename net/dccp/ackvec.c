@@ -343,6 +343,34 @@ free_records:
 	}
 }
 
+/*
+ *	Routines to keep track of Ack Vectors received in an skb
+ */
+int dccp_ackvec_parsed_add(struct list_head *head, u8 *vec, u8 len, u8 nonce)
+{
+	struct dccp_ackvec_parsed *new = kmalloc(sizeof(*new), GFP_ATOMIC);
+
+	if (new == NULL)
+		return -ENOBUFS;
+	new->vec   = vec;
+	new->len   = len;
+	new->nonce = nonce;
+
+	list_add_tail(&new->node, head);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dccp_ackvec_parsed_add);
+
+void dccp_ackvec_parsed_cleanup(struct list_head *parsed_chunks)
+{
+	struct dccp_ackvec_parsed *cur, *next;
+
+	list_for_each_entry_safe(cur, next, parsed_chunks, node)
+		kfree(cur);
+	INIT_LIST_HEAD(parsed_chunks);
+}
+EXPORT_SYMBOL_GPL(dccp_ackvec_parsed_cleanup);
+
 int __init dccp_ackvec_init(void)
 {
 	dccp_ackvec_slab = kmem_cache_create("dccp_ackvec",
