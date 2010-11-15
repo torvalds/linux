@@ -48,18 +48,18 @@
 /*
  * Connection hash size. Default is what was selected at compile time.
 */
-int ip_vs_conn_tab_bits = CONFIG_IP_VS_TAB_BITS;
+static int ip_vs_conn_tab_bits = CONFIG_IP_VS_TAB_BITS;
 module_param_named(conn_tab_bits, ip_vs_conn_tab_bits, int, 0444);
 MODULE_PARM_DESC(conn_tab_bits, "Set connections' hash size");
 
 /* size and mask values */
-int ip_vs_conn_tab_size;
-int ip_vs_conn_tab_mask;
+int ip_vs_conn_tab_size __read_mostly;
+static int ip_vs_conn_tab_mask __read_mostly;
 
 /*
  *  Connection hash table: for input and output packets lookups of IPVS
  */
-static struct list_head *ip_vs_conn_tab;
+static struct list_head *ip_vs_conn_tab __read_mostly;
 
 /*  SLAB cache for IPVS connections */
 static struct kmem_cache *ip_vs_conn_cachep __read_mostly;
@@ -71,7 +71,7 @@ static atomic_t ip_vs_conn_count = ATOMIC_INIT(0);
 static atomic_t ip_vs_conn_no_cport_cnt = ATOMIC_INIT(0);
 
 /* random value for IPVS connection hash */
-static unsigned int ip_vs_conn_rnd;
+static unsigned int ip_vs_conn_rnd __read_mostly;
 
 /*
  *  Fine locking granularity for big connection hash table
