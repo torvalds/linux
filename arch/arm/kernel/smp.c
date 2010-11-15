@@ -46,15 +46,6 @@
  */
 struct secondary_data secondary_data;
 
-/*
- * structures for inter-processor calls
- */
-struct ipi_data {
-	unsigned long ipi_count;
-};
-
-static DEFINE_PER_CPU(struct ipi_data, ipi_data);
-
 enum ipi_msg_type {
 	IPI_TIMER = 2,
 	IPI_RESCHEDULE,
@@ -398,7 +389,7 @@ void show_ipi_list(struct seq_file *p)
 	seq_puts(p, "IPI:");
 
 	for_each_present_cpu(cpu)
-		seq_printf(p, " %10lu", per_cpu(ipi_data, cpu).ipi_count);
+		seq_printf(p, " %10u", __get_irq_stat(cpu, ipi_irqs));
 
 	seq_putc(p, '\n');
 }
@@ -513,10 +504,9 @@ static void ipi_cpu_stop(unsigned int cpu)
 asmlinkage void __exception do_IPI(int ipinr, struct pt_regs *regs)
 {
 	unsigned int cpu = smp_processor_id();
-	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
-	ipi->ipi_count++;
+	__inc_irq_stat(cpu, ipi_irqs);
 
 	switch (ipinr) {
 	case IPI_TIMER:
