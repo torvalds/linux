@@ -55,7 +55,10 @@ struct nouveau_fpriv {
 #include "nouveau_reg.h"
 #include "nouveau_bios.h"
 #include "nouveau_util.h"
+
 struct nouveau_grctx;
+struct nouveau_vram;
+#include "nouveau_vm.h"
 
 #define MAX_NUM_DCB_ENTRIES 16
 
@@ -68,6 +71,8 @@ struct nouveau_grctx;
 
 struct nouveau_vram {
 	struct drm_device *dev;
+
+	struct nouveau_vma bar_vma;
 
 	struct list_head regions;
 	u32 memtype;
@@ -244,6 +249,7 @@ struct nouveau_channel {
 	void *pgraph_ctx;
 
 	/* NV50 VM */
+	struct nouveau_vm     *vm;
 	struct nouveau_gpuobj *vm_pd;
 	struct nouveau_gpuobj *vm_gart_pt;
 	struct nouveau_gpuobj *vm_vram_pt[NV50_VM_VRAM_NR];
@@ -700,6 +706,10 @@ struct drm_nouveau_private {
 	uint64_t fb_mappable_pages;
 	uint64_t fb_aper_free;
 	int fb_mtrr;
+
+	/* BAR control (NV50-) */
+	struct nouveau_vm *bar1_vm;
+	struct nouveau_vm *bar3_vm;
 
 	/* G8x/G9x virtual address space */
 	uint64_t vm_gart_base;

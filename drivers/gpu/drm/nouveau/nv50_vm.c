@@ -151,7 +151,6 @@ nv50_vm_flush(struct nouveau_vm *vm)
 	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
 
 	pinstmem->flush(vm->dev);
-
 	nv50_vm_flush_engine(vm->dev, 6);
 }
 

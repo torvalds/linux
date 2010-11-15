@@ -32,6 +32,8 @@
 #include "nouveau_drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
+#include "nouveau_mm.h"
+#include "nouveau_vm.h"
 
 #include <linux/log2.h>
 #include <linux/slab.h>
@@ -386,10 +388,13 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_VRAM:
-		if (dev_priv->card_type == NV_50)
+		if (dev_priv->card_type == NV_50) {
 			man->func = &nouveau_vram_manager;
-		else
+			man->io_reserve_fastpath = false;
+			man->use_io_reserve_lru = true;
+		} else {
 			man->func = &ttm_bo_manager_func;
+		}
 		man->flags = TTM_MEMTYPE_FLAG_FIXED |
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
@@ -858,6 +863,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 	struct ttm_mem_type_manager *man = &bdev->man[mem->mem_type];
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bdev);
 	struct drm_device *dev = dev_priv->dev;
+	int ret;
 
 	mem->bus.addr = NULL;
 	mem->bus.offset = 0;
@@ -880,9 +886,32 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 #endif
 		break;
 	case TTM_PL_VRAM:
-		mem->bus.offset = mem->start << PAGE_SHIFT;
+	{
+		struct nouveau_vram *vram = mem->mm_node;
+
+		if (!dev_priv->bar1_vm) {
+			mem->bus.offset = mem->start << PAGE_SHIFT;
+			mem->bus.base = pci_resource_start(dev->pdev, 1);
+			mem->bus.is_iomem = true;
+			break;
+		}
+
+		ret = nouveau_vm_get(dev_priv->bar1_vm, mem->bus.size, 12,
+				     NV_MEM_ACCESS_RW, &vram->bar_vma);
+		if (ret)
+			return ret;
+
+		nouveau_vm_map(&vram->bar_vma, vram);
+		if (ret) {
+			nouveau_vm_put(&vram->bar_vma);
+			return ret;
+		}
+
+		mem->bus.offset  = vram->bar_vma.offset;
+		mem->bus.offset -= 0x0020000000ULL;
 		mem->bus.base = pci_resource_start(dev->pdev, 1);
 		mem->bus.is_iomem = true;
+	}
 		break;
 	default:
 		return -EINVAL;
@@ -893,6 +922,17 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 static void
 nouveau_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 {
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(bdev);
+	struct nouveau_vram *vram = mem->mm_node;
+
+	if (!dev_priv->bar1_vm || mem->mem_type != TTM_PL_VRAM)
+		return;
+
+	if (!vram->bar_vma.node)
+		return;
+
+	nouveau_vm_unmap(&vram->bar_vma);
+	nouveau_vm_put(&vram->bar_vma);
 }
 
 static int
