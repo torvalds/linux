@@ -956,7 +956,7 @@ static int configure_dma(struct pl022 *pl022)
 		tx_conf.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 		break;
 	case WRITING_U32:
-		tx_conf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;;
+		tx_conf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
 	}
 
