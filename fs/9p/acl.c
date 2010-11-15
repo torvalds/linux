@@ -28,7 +28,7 @@ static struct posix_acl *__v9fs_get_acl(struct p9_fid *fid, char *name)
 {
 	ssize_t size;
 	void *value = NULL;
-	struct posix_acl *acl = NULL;;
+	struct posix_acl *acl = NULL;
 
 	size = v9fs_fid_xattr_get(fid, name, NULL, 0);
 	if (size > 0) {
