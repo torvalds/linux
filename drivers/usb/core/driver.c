@@ -27,7 +27,6 @@
 #include <linux/usb.h>
 #include <linux/usb/quirks.h>
 #include <linux/usb/hcd.h>
-#include <linux/pm_runtime.h>
 
 #include "usb.h"
 
@@ -1329,7 +1328,7 @@ int usb_resume(struct device *dev, pm_message_t msg)
 			pm_runtime_disable(dev);
 			pm_runtime_set_active(dev);
 			pm_runtime_enable(dev);
-			udev->last_busy = jiffies;
+			usb_mark_last_busy(udev);
 			do_unbind_rebind(udev, DO_REBIND);
 		}
 	}
@@ -1397,7 +1396,7 @@ void usb_autosuspend_device(struct usb_device *udev)
 {
 	int	status;
 
-	udev->last_busy = jiffies;
+	usb_mark_last_busy(udev);
 	status = pm_runtime_put_sync(&udev->dev);
 	dev_vdbg(&udev->dev, "%s: cnt %d -> %d\n",
 			__func__, atomic_read(&udev->dev.power.usage_count),
@@ -1482,7 +1481,7 @@ void usb_autopm_put_interface(struct usb_interface *intf)
 	struct usb_device	*udev = interface_to_usbdev(intf);
 	int			status;
 
-	udev->last_busy = jiffies;
+	usb_mark_last_busy(udev);
 	atomic_dec(&intf->pm_usage_cnt);
 	status = pm_runtime_put_sync(&intf->dev);
 	dev_vdbg(&intf->dev, "%s: cnt %d -> %d\n",
@@ -1512,8 +1511,8 @@ void usb_autopm_put_interface_async(struct usb_interface *intf)
 	unsigned long		last_busy;
 	int			status = 0;
 
-	last_busy = udev->last_busy;
-	udev->last_busy = jiffies;
+	last_busy = udev->dev.power.last_busy;
+	usb_mark_last_busy(udev);
 	atomic_dec(&intf->pm_usage_cnt);
 	pm_runtime_put_noidle(&intf->dev);
 
@@ -1554,7 +1553,7 @@ void usb_autopm_put_interface_no_suspend(struct usb_interface *intf)
 {
 	struct usb_device	*udev = interface_to_usbdev(intf);
 
-	udev->last_busy = jiffies;
+	usb_mark_last_busy(udev);
 	atomic_dec(&intf->pm_usage_cnt);
 	pm_runtime_put_noidle(&intf->dev);
 }
@@ -1641,7 +1640,7 @@ void usb_autopm_get_interface_no_resume(struct usb_interface *intf)
 {
 	struct usb_device	*udev = interface_to_usbdev(intf);
 
-	udev->last_busy = jiffies;
+	usb_mark_last_busy(udev);
 	atomic_inc(&intf->pm_usage_cnt);
 	pm_runtime_get_noresume(&intf->dev);
 }
@@ -1697,7 +1696,7 @@ static int autosuspend_check(struct usb_device *udev)
 	 * enough, queue a delayed autosuspend request.
 	 */
 	j = ACCESS_ONCE(jiffies);
-	suspend_time = udev->last_busy + udev->autosuspend_delay;
+	suspend_time = udev->dev.power.last_busy + udev->autosuspend_delay;
 	if (time_before(j, suspend_time)) {
 		pm_schedule_suspend(&udev->dev, jiffies_to_msecs(
 				round_jiffies_up_relative(suspend_time - j)));
@@ -1725,13 +1724,13 @@ static int usb_runtime_suspend(struct device *dev)
 	 * away.
 	 */
 	if (status) {
-		udev->last_busy = jiffies +
+		udev->dev.power.last_busy = jiffies +
 				(udev->autosuspend_delay == 0 ? HZ/2 : 0);
 	}
 
 	/* Prevent the parent from suspending immediately after */
 	else if (udev->parent)
-		udev->parent->last_busy = jiffies;
+		usb_mark_last_busy(udev->parent);
 
 	return status;
 }
@@ -1745,7 +1744,7 @@ static int usb_runtime_resume(struct device *dev)
 	 * and all its interfaces.
 	 */
 	status = usb_resume_both(udev, PMSG_AUTO_RESUME);
-	udev->last_busy = jiffies;
+	usb_mark_last_busy(udev);
 	return status;
 }
 

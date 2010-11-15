@@ -12,7 +12,6 @@
 #include <linux/ctype.h>
 #include <linux/nls.h>
 #include <linux/device.h>
-#include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
 #include <linux/usb/quirks.h>
 #include <linux/usb/hcd.h>	/* for usbcore internals */

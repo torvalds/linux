@@ -38,7 +38,6 @@
 #include <asm/unaligned.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
-#include <linux/pm_runtime.h>
 
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
