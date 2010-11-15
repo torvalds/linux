@@ -290,6 +290,7 @@ static int ecryptfs_write_begin(struct file *file,
 		return -ENOMEM;
 	*pagep = page;
 
+	prev_page_end_size = ((loff_t)index << PAGE_CACHE_SHIFT);
 	if (!PageUptodate(page)) {
 		struct ecryptfs_crypt_stat *crypt_stat =
 			&ecryptfs_inode_to_private(mapping->host)->crypt_stat;
@@ -335,18 +336,23 @@ static int ecryptfs_write_begin(struct file *file,
 				SetPageUptodate(page);
 			}
 		} else {
-			rc = ecryptfs_decrypt_page(page);
-			if (rc) {
-				printk(KERN_ERR "%s: Error decrypting page "
-				       "at index [%ld]; rc = [%d]\n",
-				       __func__, page->index, rc);
-				ClearPageUptodate(page);
-				goto out;
+			if (prev_page_end_size
+			    >= i_size_read(page->mapping->host)) {
+				zero_user(page, 0, PAGE_CACHE_SIZE);
+			} else {
+				rc = ecryptfs_decrypt_page(page);
+				if (rc) {
+					printk(KERN_ERR "%s: Error decrypting "
+					       "page at index [%ld]; "
+					       "rc = [%d]\n",
+					       __func__, page->index, rc);
+					ClearPageUptodate(page);
+					goto out;
+				}
 			}
 			SetPageUptodate(page);
 		}
 	}
-	prev_page_end_size = ((loff_t)index << PAGE_CACHE_SHIFT);
 	/* If creating a page or more of holes, zero them out via truncate.
 	 * Note, this will increase i_size. */
 	if (index != 0) {
