@@ -2042,7 +2042,7 @@ static int enic_dev_hang_reset(struct enic *enic)
 
 static int enic_set_rsskey(struct enic *enic)
 {
-	u64 rss_key_buf_pa;
+	dma_addr_t rss_key_buf_pa;
 	union vnic_rss_key *rss_key_buf_va = NULL;
 	union vnic_rss_key rss_key = {
 		.key[0].b = {85, 67, 83, 97, 119, 101, 115, 111, 109, 101},
@@ -2073,7 +2073,7 @@ static int enic_set_rsskey(struct enic *enic)
 
 static int enic_set_rsscpu(struct enic *enic, u8 rss_hash_bits)
 {
-	u64 rss_cpu_buf_pa;
+	dma_addr_t rss_cpu_buf_pa;
 	union vnic_rss_cpu *rss_cpu_buf_va = NULL;
 	unsigned int i;
 	int err;
