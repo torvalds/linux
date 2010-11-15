@@ -31,6 +31,16 @@ const struct imx_imx2_wdt_data imx27_imx2_wdt_data __initconst =
 	imx_imx2_wdt_data_entry_single(MX27, SZ_4K);
 #endif /* ifdef CONFIG_SOC_IMX27 */
 
+#ifdef CONFIG_SOC_IMX31
+const struct imx_imx2_wdt_data imx31_imx2_wdt_data __initconst =
+	imx_imx2_wdt_data_entry_single(MX31, SZ_16K);
+#endif /* ifdef CONFIG_SOC_IMX31 */
+
+#ifdef CONFIG_SOC_IMX35
+const struct imx_imx2_wdt_data imx35_imx2_wdt_data __initconst =
+	imx_imx2_wdt_data_entry_single(MX35, SZ_16K);
+#endif /* ifdef CONFIG_SOC_IMX35 */
+
 struct platform_device *__init imx_add_imx2_wdt(
 		const struct imx_imx2_wdt_data *data)
 {

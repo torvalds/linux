@@ -13,6 +13,10 @@ extern const struct imx_fsl_usb2_udc_data imx31_fsl_usb2_udc_data __initconst;
 #define imx31_add_fsl_usb2_udc(pdata)	\
 	imx_add_fsl_usb2_udc(&imx31_fsl_usb2_udc_data, pdata)
 
+extern const struct imx_imx2_wdt_data imx31_imx2_wdt_data __initconst;
+#define imx31_add_imx2_wdt(pdata)       \
+	imx_add_imx2_wdt(&imx31_imx2_wdt_data)
+
 extern const struct imx_imx_i2c_data imx31_imx_i2c_data[] __initconst;
 #define imx31_add_imx_i2c(id, pdata)	\
 	imx_add_imx_i2c(&imx31_imx_i2c_data[id], pdata)

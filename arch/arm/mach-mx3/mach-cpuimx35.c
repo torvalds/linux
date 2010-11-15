@@ -72,10 +72,6 @@ static struct i2c_board_info eukrea_cpuimx35_i2c_devices[] = {
 	},
 };
 
-static struct platform_device *devices[] __initdata = {
-	&imx_wdt_device0,
-};
-
 static struct pad_desc eukrea_cpuimx35_pads[] = {
 	/* UART1 */
 	MX35_PAD_CTS1__UART1_CTS,
@@ -156,7 +152,7 @@ static void __init mxc_board_init(void)
 			ARRAY_SIZE(eukrea_cpuimx35_pads));
 
 	imx35_add_fec(NULL);
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	imx35_add_imx2_wdt(NULL);
 
 	imx35_add_imx_uart0(&uart_pdata);
 	imx35_add_mxc_nand(&eukrea_cpuimx35_nand_board_info);

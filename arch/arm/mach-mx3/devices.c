@@ -95,19 +95,6 @@ struct platform_device mx3_camera = {
 	},
 };
 
-static struct resource imx_wdt_resources[] = {
-	{
-		.flags = IORESOURCE_MEM,
-	},
-};
-
-struct platform_device imx_wdt_device0 = {
-	.name           = "imx2-wdt",
-	.id             = 0,
-	.num_resources  = ARRAY_SIZE(imx_wdt_resources),
-	.resource       = imx_wdt_resources,
-};
-
 static struct resource imx_rtc_resources[] = {
 	{
 		.start  = MX31_RTC_BASE_ADDR,
@@ -145,23 +132,3 @@ struct platform_device imx_kpp_device = {
 	.num_resources = ARRAY_SIZE(imx_kpp_resources),
 	.resource = imx_kpp_resources,
 };
-
-static int __init mx3_devices_init(void)
-{
-#if defined(CONFIG_ARCH_MX31)
-	if (cpu_is_mx31()) {
-		imx_wdt_resources[0].start = MX31_WDOG_BASE_ADDR;
-		imx_wdt_resources[0].end = MX31_WDOG_BASE_ADDR + 0x3fff;
-	}
-#endif
-#if defined(CONFIG_ARCH_MX35)
-	if (cpu_is_mx35()) {
-		imx_wdt_resources[0].start = MX35_WDOG_BASE_ADDR;
-		imx_wdt_resources[0].end = MX35_WDOG_BASE_ADDR + 0x3fff;
-	}
-#endif
-
-	return 0;
-}
-
-subsys_initcall(mx3_devices_init);

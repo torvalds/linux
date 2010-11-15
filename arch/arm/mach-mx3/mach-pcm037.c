@@ -440,7 +440,6 @@ static int __init pcm037_camera_alloc_dma(const size_t buf_size)
 static struct platform_device *devices[] __initdata = {
 	&pcm037_flash,
 	&pcm037_sram_device,
-	&imx_wdt_device0,
 	&pcm037_mt9t031,
 	&pcm037_mt9v022,
 };
@@ -606,6 +605,7 @@ static void __init mxc_board_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
+	imx31_add_imx2_wdt(NULL);
 	imx31_add_imx_uart0(&uart_pdata);
 	/* XXX: should't this have .flags = 0 (i.e. no RTSCTS) on PCM037_EET? */
 	imx31_add_imx_uart1(&uart_pdata);

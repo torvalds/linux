@@ -138,7 +138,6 @@ static struct i2c_board_info pcm043_i2c_devices[] = {
 
 static struct platform_device *devices[] __initdata = {
 	&pcm043_flash,
-	&imx_wdt_device0,
 };
 
 static struct pad_desc pcm043_pads[] = {
@@ -362,6 +361,7 @@ static void __init mxc_board_init(void)
 
 	imx35_add_fec(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	imx35_add_imx2_wdt(NULL);
 
 	imx35_add_imx_uart0(&uart_pdata);
 	imx35_add_mxc_nand(&pcm037_nand_board_info);
