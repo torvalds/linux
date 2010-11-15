@@ -65,10 +65,6 @@ struct nouveau_vram;
 #define NOUVEAU_MAX_CHANNEL_NR 128
 #define NOUVEAU_MAX_TILE_NR 15
 
-#define NV50_VM_MAX_VRAM (2*1024*1024*1024ULL)
-#define NV50_VM_BLOCK    (512*1024*1024ULL)
-#define NV50_VM_VRAM_NR  (NV50_VM_MAX_VRAM / NV50_VM_BLOCK)
-
 struct nouveau_vram {
 	struct drm_device *dev;
 
@@ -106,6 +102,7 @@ struct nouveau_bo {
 
 	struct nouveau_channel *channel;
 
+	struct nouveau_vma vma;
 	bool mappable;
 	bool no_vm;
 
@@ -252,7 +249,6 @@ struct nouveau_channel {
 	struct nouveau_vm     *vm;
 	struct nouveau_gpuobj *vm_pd;
 	struct nouveau_gpuobj *vm_gart_pt;
-	struct nouveau_gpuobj *vm_vram_pt[NV50_VM_VRAM_NR];
 
 	/* Objects */
 	struct nouveau_gpuobj *ramin; /* Private instmem */
@@ -712,13 +708,9 @@ struct drm_nouveau_private {
 	struct nouveau_vm *bar3_vm;
 
 	/* G8x/G9x virtual address space */
+	struct nouveau_vm *chan_vm;
 	uint64_t vm_gart_base;
 	uint64_t vm_gart_size;
-	uint64_t vm_vram_base;
-	uint64_t vm_vram_size;
-	uint64_t vm_end;
-	struct nouveau_gpuobj *vm_vram_pt[NV50_VM_VRAM_NR];
-	int vm_vram_pt_nr;
 
 	struct nvbios vbios;
 
@@ -836,11 +828,6 @@ extern struct nouveau_tile_reg *nv10_mem_set_tiling(
 extern void nv10_mem_put_tile_region(struct drm_device *dev,
 				     struct nouveau_tile_reg *tile,
 				     struct nouveau_fence *fence);
-extern int  nv50_mem_vm_bind_linear(struct drm_device *, uint64_t virt,
-				    uint32_t size, uint32_t flags,
-				    uint64_t phys);
-extern void nv50_mem_vm_unbind(struct drm_device *, uint64_t virt,
-			       uint32_t size);
 extern const struct ttm_mem_type_manager_func nouveau_vram_manager;
 
 /* nouveau_notifier.c */

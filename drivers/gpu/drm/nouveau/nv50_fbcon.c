@@ -3,6 +3,7 @@
 #include "nouveau_dma.h"
 #include "nouveau_ramht.h"
 #include "nouveau_fbcon.h"
+#include "nouveau_mm.h"
 
 int
 nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
@@ -134,10 +135,8 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
+	struct nouveau_bo *nvbo = nfbdev->nouveau_fb.nvbo;
 	int ret, format;
-	uint64_t fb;
-
-	fb = info->fix.smem_start - dev_priv->fb_phys + dev_priv->vm_vram_base;
 
 	switch (info->var.bits_per_pixel) {
 	case 8:
@@ -224,8 +223,8 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, info->fix.line_length);
 	OUT_RING(chan, info->var.xres_virtual);
 	OUT_RING(chan, info->var.yres_virtual);
-	OUT_RING(chan, upper_32_bits(fb));
-	OUT_RING(chan, lower_32_bits(fb));
+	OUT_RING(chan, upper_32_bits(nvbo->vma.offset));
+	OUT_RING(chan, lower_32_bits(nvbo->vma.offset));
 	BEGIN_RING(chan, NvSub2D, 0x0230, 2);
 	OUT_RING(chan, format);
 	OUT_RING(chan, 1);
@@ -233,8 +232,8 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, info->fix.line_length);
 	OUT_RING(chan, info->var.xres_virtual);
 	OUT_RING(chan, info->var.yres_virtual);
-	OUT_RING(chan, upper_32_bits(fb));
-	OUT_RING(chan, lower_32_bits(fb));
+	OUT_RING(chan, upper_32_bits(nvbo->vma.offset));
+	OUT_RING(chan, lower_32_bits(nvbo->vma.offset));
 
 	return 0;
 }

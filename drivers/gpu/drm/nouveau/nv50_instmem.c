@@ -131,6 +131,7 @@ nv50_instmem_init(struct drm_device *dev)
 	struct nouveau_channel *chan;
 	struct nouveau_vm *vm;
 	int ret, i;
+	u64 nongart_o;
 	u32 tmp;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -215,37 +216,18 @@ nv50_instmem_init(struct drm_device *dev)
 	for (i = 0; i < 8; i++)
 		nv_wr32(dev, 0x1900 + (i*4), 0);
 
-	/* Determine VM layout */
-	dev_priv->vm_gart_base = roundup(NV50_VM_BLOCK, NV50_VM_BLOCK);
-	dev_priv->vm_gart_size = NV50_VM_BLOCK;
+	/* Create shared channel VM, space is reserved for GART mappings at
+	 * the beginning of this address space, it's managed separately
+	 * because TTM makes life painful
+	 */
+	dev_priv->vm_gart_base = 0x0020000000ULL;
+	dev_priv->vm_gart_size = 512 * 1024 * 1024;
+	nongart_o = dev_priv->vm_gart_base + dev_priv->vm_gart_size;
 
-	dev_priv->vm_vram_base = dev_priv->vm_gart_base + dev_priv->vm_gart_size;
-	dev_priv->vm_vram_size = dev_priv->vram_size;
-	if (dev_priv->vm_vram_size > NV50_VM_MAX_VRAM)
-		dev_priv->vm_vram_size = NV50_VM_MAX_VRAM;
-	dev_priv->vm_vram_size = roundup(dev_priv->vm_vram_size, NV50_VM_BLOCK);
-	dev_priv->vm_vram_pt_nr = dev_priv->vm_vram_size / NV50_VM_BLOCK;
-
-	dev_priv->vm_end = dev_priv->vm_vram_base + dev_priv->vm_vram_size;
-
-	NV_DEBUG(dev, "NV50VM: GART 0x%016llx-0x%016llx\n",
-		 dev_priv->vm_gart_base,
-		 dev_priv->vm_gart_base + dev_priv->vm_gart_size - 1);
-	NV_DEBUG(dev, "NV50VM: VRAM 0x%016llx-0x%016llx\n",
-		 dev_priv->vm_vram_base,
-		 dev_priv->vm_vram_base + dev_priv->vm_vram_size - 1);
-
-	/* VRAM page table(s), mapped into VM at +1GiB  */
-	for (i = 0; i < dev_priv->vm_vram_pt_nr; i++) {
-		ret = nouveau_gpuobj_new(dev, NULL, NV50_VM_BLOCK / 0x10000 * 8,
-					 0, NVOBJ_FLAG_ZERO_ALLOC,
-					 &dev_priv->vm_vram_pt[i]);
-		if (ret) {
-			NV_ERROR(dev, "Error creating VRAM PGT: %d\n", ret);
-			dev_priv->vm_vram_pt_nr = i;
-			return ret;
-		}
-	}
+	ret = nouveau_vm_new(dev, 0, (1ULL << 40), nongart_o,
+			     29, 12, 16, &dev_priv->chan_vm);
+	if (ret)
+		return ret;
 
 	return 0;
 
@@ -269,9 +251,7 @@ nv50_instmem_takedown(struct drm_device *dev)
 
 	dev_priv->ramin_available = false;
 
-	for (i = 0; i < dev_priv->vm_vram_pt_nr; i++)
-		nouveau_gpuobj_ref(NULL, &dev_priv->vm_vram_pt[i]);
-	dev_priv->vm_vram_pt_nr = 0;
+	nouveau_vm_ref(NULL, &dev_priv->chan_vm, NULL);
 
 	for (i = 0x1700; i <= 0x1710; i += 4)
 		nv_wr32(dev, i, priv->save1700[(i - 0x1700) / 4]);

@@ -39,7 +39,7 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 
 	if (dev_priv->card_type >= NV_50) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
-					     dev_priv->vm_end, NV_MEM_ACCESS_RO,
+					     (1ULL << 40), NV_MEM_ACCESS_RO,
 					     NV_MEM_TARGET_VM, &pushbuf);
 		chan->pushbuf_base = pb->bo.offset;
 	} else

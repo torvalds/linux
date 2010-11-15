@@ -246,6 +246,7 @@ nv50_graph_create_context(struct nouveau_channel *chan)
 	nv_wo32(chan->ramin_grctx, 0x00000, chan->ramin->vinst >> 12);
 
 	dev_priv->engine.instmem.flush(dev);
+	atomic_inc(&chan->vm->pgraph_refs);
 	return 0;
 }
 
@@ -277,6 +278,8 @@ nv50_graph_destroy_context(struct nouveau_channel *chan)
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	nouveau_gpuobj_ref(NULL, &chan->ramin_grctx);
+
+	atomic_dec(&chan->vm->pgraph_refs);
 }
 
 static int

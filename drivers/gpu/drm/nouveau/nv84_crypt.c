@@ -53,6 +53,7 @@ nv84_crypt_create_context(struct nouveau_channel *chan)
 	nv_wo32(ramin, 0xb4, 0);
 
 	dev_priv->engine.instmem.flush(dev);
+	atomic_inc(&chan->vm->pcrypt_refs);
 	return 0;
 }
 
@@ -80,6 +81,7 @@ nv84_crypt_destroy_context(struct nouveau_channel *chan)
 	nv_wr32(dev, 0x10200c, 0x00000010);
 
 	nouveau_gpuobj_ref(NULL, &chan->crypt_ctx);
+	atomic_dec(&chan->vm->pcrypt_refs);
 }
 
 void

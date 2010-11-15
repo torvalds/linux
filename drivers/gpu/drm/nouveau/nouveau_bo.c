@@ -49,6 +49,7 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
 
 	nv10_mem_put_tile_region(dev, nvbo->tile, NULL);
+	nouveau_vm_put(&nvbo->vma);
 	kfree(nvbo);
 }
 
@@ -113,6 +114,15 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 			       &align, &size);
 	align >>= PAGE_SHIFT;
 
+	if (!nvbo->no_vm && dev_priv->chan_vm) {
+		ret = nouveau_vm_get(dev_priv->chan_vm, size, 16,
+				     NV_MEM_ACCESS_RW, &nvbo->vma);
+		if (ret) {
+			kfree(nvbo);
+			return ret;
+		}
+	}
+
 	nouveau_bo_placement_set(nvbo, flags, 0);
 
 	nvbo->channel = chan;
@@ -124,6 +134,11 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 		return ret;
 	}
 	nvbo->channel = NULL;
+
+	if (nvbo->vma.node) {
+		if (nvbo->bo.mem.mem_type == TTM_PL_VRAM)
+			nvbo->bo.offset = nvbo->vma.offset;
+	}
 
 	*pnvbo = nvbo;
 	return 0;
@@ -294,6 +309,11 @@ nouveau_bo_validate(struct nouveau_bo *nvbo, bool interruptible,
 	if (ret)
 		return ret;
 
+	if (nvbo->vma.node) {
+		if (nvbo->bo.mem.mem_type == TTM_PL_VRAM)
+			nvbo->bo.offset = nvbo->vma.offset;
+	}
+
 	return 0;
 }
 
@@ -400,10 +420,7 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
 					 TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
-		if (dev_priv->card_type == NV_50)
-			man->gpu_offset = 0x40000000;
-		else
-			man->gpu_offset = 0;
+		man->gpu_offset = 0;
 		break;
 	case TTM_PL_TT:
 		man->func = &ttm_bo_manager_func;
@@ -507,12 +524,12 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 	dst_offset = new_mem->start << PAGE_SHIFT;
 	if (!nvbo->no_vm) {
 		if (old_mem->mem_type == TTM_PL_VRAM)
-			src_offset += dev_priv->vm_vram_base;
+			src_offset  = nvbo->vma.offset;
 		else
 			src_offset += dev_priv->vm_gart_base;
 
 		if (new_mem->mem_type == TTM_PL_VRAM)
-			dst_offset += dev_priv->vm_vram_base;
+			dst_offset  = nvbo->vma.offset;
 		else
 			dst_offset += dev_priv->vm_gart_base;
 	}
@@ -756,7 +773,6 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem,
 	struct drm_device *dev = dev_priv->dev;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	uint64_t offset;
-	int ret;
 
 	if (nvbo->no_vm || new_mem->mem_type != TTM_PL_VRAM) {
 		/* Nothing to do. */
@@ -766,15 +782,8 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem,
 
 	offset = new_mem->start << PAGE_SHIFT;
 
-	if (dev_priv->card_type == NV_50) {
-		ret = nv50_mem_vm_bind_linear(dev,
-					      offset + dev_priv->vm_vram_base,
-					      new_mem->size,
-					      nouveau_bo_tile_layout(nvbo),
-					      offset);
-		if (ret)
-			return ret;
-
+	if (dev_priv->chan_vm) {
+		nouveau_vm_map(&nvbo->vma, new_mem->mm_node);
 	} else if (dev_priv->card_type >= NV_10) {
 		*new_tile = nv10_mem_set_tiling(dev, offset, new_mem->size,
 						nvbo->tile_mode,

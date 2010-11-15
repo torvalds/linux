@@ -339,13 +339,11 @@ nouveau_pci_resume(struct pci_dev *pdev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+		u32 offset = nv_crtc->cursor.nvbo->bo.mem.start << PAGE_SHIFT;
 
-		nv_crtc->cursor.set_offset(nv_crtc,
-					nv_crtc->cursor.nvbo->bo.offset -
-					dev_priv->vm_vram_base);
-
+		nv_crtc->cursor.set_offset(nv_crtc, offset);
 		nv_crtc->cursor.set_pos(nv_crtc, nv_crtc->cursor_saved_x,
-			nv_crtc->cursor_saved_y);
+						 nv_crtc->cursor_saved_y);
 	}
 
 	/* Force CLUT to get re-loaded during modeset */

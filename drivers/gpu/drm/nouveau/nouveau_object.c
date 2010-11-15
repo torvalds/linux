@@ -35,6 +35,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 #include "nouveau_ramht.h"
+#include "nouveau_vm.h"
 
 struct nouveau_gpuobj_method {
 	struct list_head head;
@@ -770,9 +771,8 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_instmem_engine *instmem = &dev_priv->engine.instmem;
 	struct nouveau_gpuobj *vram = NULL, *tt = NULL;
-	int ret, i;
+	int ret;
 
 	NV_DEBUG(dev, "ch%d vram=0x%08x tt=0x%08x\n", chan->id, vram_h, tt_h);
 
@@ -783,16 +783,14 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 		return ret;
 	}
 
-	/* NV50 VM
+	/* NV50/NVC0 VM
 	 *  - Allocate per-channel page-directory
-	 *  - Map GART and VRAM into the channel's address space at the
-	 *    locations determined during init.
+	 *  - Link with shared channel VM
 	 */
-	if (dev_priv->card_type >= NV_50) {
+	if (dev_priv->chan_vm) {
 		u32 pgd_offs = (dev_priv->chipset == 0x50) ? 0x1400 : 0x0200;
 		u64 vm_vinst = chan->ramin->vinst + pgd_offs;
 		u32 vm_pinst = chan->ramin->pinst;
-		u32 pde;
 
 		if (vm_pinst != ~0)
 			vm_pinst += pgd_offs;
@@ -801,29 +799,9 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 					      0, &chan->vm_pd);
 		if (ret)
 			return ret;
-		for (i = 0; i < 0x4000; i += 8) {
-			nv_wo32(chan->vm_pd, i + 0, 0x00000000);
-			nv_wo32(chan->vm_pd, i + 4, 0xdeadcafe);
-		}
 
-		nouveau_gpuobj_ref(dev_priv->gart_info.sg_ctxdma,
-				   &chan->vm_gart_pt);
-		pde = (dev_priv->vm_gart_base / (512*1024*1024)) * 8;
-		nv_wo32(chan->vm_pd, pde + 0, chan->vm_gart_pt->vinst | 3);
-		nv_wo32(chan->vm_pd, pde + 4, 0x00000000);
-
-		pde = (dev_priv->vm_vram_base / (512*1024*1024)) * 8;
-		for (i = 0; i < dev_priv->vm_vram_pt_nr; i++) {
-			nouveau_gpuobj_ref(dev_priv->vm_vram_pt[i],
-					   &chan->vm_vram_pt[i]);
-
-			nv_wo32(chan->vm_pd, pde + 0,
-				chan->vm_vram_pt[i]->vinst | 0x61);
-			nv_wo32(chan->vm_pd, pde + 4, 0x00000000);
-			pde += 8;
-		}
-
-		instmem->flush(dev);
+		nouveau_vm_ref(dev_priv->chan_vm, &chan->vm, chan->vm_pd);
+		chan->vm->map_pgt(chan->vm_pd, 12, 1, dev_priv->gart_info.sg_ctxdma);
 	}
 
 	/* RAMHT */
@@ -846,8 +824,7 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	/* VRAM ctxdma */
 	if (dev_priv->card_type >= NV_50) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
-					     0, dev_priv->vm_end,
-					     NV_MEM_ACCESS_RW,
+					     0, (1ULL << 40), NV_MEM_ACCESS_RW,
 					     NV_MEM_TARGET_VM, &vram);
 		if (ret) {
 			NV_ERROR(dev, "Error creating VRAM ctxdma: %d\n", ret);
@@ -874,8 +851,7 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	/* TT memory ctxdma */
 	if (dev_priv->card_type >= NV_50) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
-					     0, dev_priv->vm_end,
-					     NV_MEM_ACCESS_RW,
+					     0, (1ULL << 40), NV_MEM_ACCESS_RW,
 					     NV_MEM_TARGET_VM, &tt);
 	} else {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
@@ -902,9 +878,7 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 void
 nouveau_gpuobj_channel_takedown(struct nouveau_channel *chan)
 {
-	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct drm_device *dev = chan->dev;
-	int i;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
@@ -913,10 +887,9 @@ nouveau_gpuobj_channel_takedown(struct nouveau_channel *chan)
 
 	nouveau_ramht_ref(NULL, &chan->ramht, chan);
 
+	nouveau_vm_ref(NULL, &chan->vm, chan->vm_pd);
 	nouveau_gpuobj_ref(NULL, &chan->vm_pd);
 	nouveau_gpuobj_ref(NULL, &chan->vm_gart_pt);
-	for (i = 0; i < dev_priv->vm_vram_pt_nr; i++)
-		nouveau_gpuobj_ref(NULL, &chan->vm_vram_pt[i]);
 
 	if (chan->ramin_heap.free_stack.next)
 		drm_mm_takedown(&chan->ramin_heap);
