@@ -153,7 +153,7 @@ static void
 vxge_callback_link_up(struct __vxge_hw_device *hldev)
 {
 	struct net_device *dev = hldev->ndev;
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 
 	vxge_debug_entryexit(VXGE_TRACE, "%s: %s:%d",
 		vdev->ndev->name, __func__, __LINE__);
@@ -177,7 +177,7 @@ static void
 vxge_callback_link_down(struct __vxge_hw_device *hldev)
 {
 	struct net_device *dev = hldev->ndev;
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s: %s:%d", vdev->ndev->name, __func__, __LINE__);
@@ -787,7 +787,7 @@ vxge_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
-	vdev = (struct vxgedev *)netdev_priv(dev);
+	vdev = netdev_priv(dev);
 
 	if (unlikely(!is_vxge_card_up(vdev))) {
 		vxge_debug_tx(VXGE_ERR,
@@ -1052,7 +1052,7 @@ static void vxge_set_multicast(struct net_device *dev)
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s:%d", __func__, __LINE__);
 
-	vdev = (struct vxgedev *)netdev_priv(dev);
+	vdev = netdev_priv(dev);
 	hldev = (struct __vxge_hw_device  *)vdev->devh;
 
 	if (unlikely(!is_vxge_card_up(vdev)))
@@ -1209,7 +1209,7 @@ static int vxge_set_mac_addr(struct net_device *dev, void *p)
 
 	vxge_debug_entryexit(VXGE_TRACE, "%s:%d", __func__, __LINE__);
 
-	vdev = (struct vxgedev *)netdev_priv(dev);
+	vdev = netdev_priv(dev);
 	hldev = vdev->devh;
 
 	if (!is_valid_ether_addr(addr->sa_data))
@@ -1672,7 +1672,7 @@ static void vxge_netpoll(struct net_device *dev)
 	struct __vxge_hw_device *hldev;
 	struct vxgedev *vdev;
 
-	vdev = (struct vxgedev *)netdev_priv(dev);
+	vdev = netdev_priv(dev);
 	hldev = (struct __vxge_hw_device  *)pci_get_drvdata(vdev->pdev);
 
 	vxge_debug_entryexit(VXGE_TRACE, "%s:%d", __func__, __LINE__);
@@ -2582,7 +2582,7 @@ vxge_open(struct net_device *dev)
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s: %s:%d", dev->name, __func__, __LINE__);
 
-	vdev = (struct vxgedev *)netdev_priv(dev);
+	vdev = netdev_priv(dev);
 	hldev = (struct __vxge_hw_device *)pci_get_drvdata(vdev->pdev);
 	function_mode = vdev->config.device_hw_info.function_mode;
 
@@ -2810,7 +2810,7 @@ static int do_vxge_close(struct net_device *dev, int do_io)
 	vxge_debug_entryexit(VXGE_TRACE, "%s: %s:%d",
 		dev->name, __func__, __LINE__);
 
-	vdev = (struct vxgedev *)netdev_priv(dev);
+	vdev = netdev_priv(dev);
 	hldev = (struct __vxge_hw_device *)pci_get_drvdata(vdev->pdev);
 
 	if (unlikely(!is_vxge_card_up(vdev)))
@@ -3139,7 +3139,7 @@ vxge_tx_watchdog(struct net_device *dev)
 
 	vxge_debug_entryexit(VXGE_TRACE, "%s:%d", __func__, __LINE__);
 
-	vdev = (struct vxgedev *)netdev_priv(dev);
+	vdev = netdev_priv(dev);
 
 	vdev->cric_err_event = VXGE_HW_EVENT_RESET_START;
 
@@ -3167,7 +3167,7 @@ vxge_vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 
 	vxge_debug_entryexit(VXGE_TRACE, "%s:%d", __func__, __LINE__);
 
-	vdev = (struct vxgedev *)netdev_priv(dev);
+	vdev = netdev_priv(dev);
 
 	vpath = &vdev->vpaths[0];
 	if ((NULL == grp) && (vpath->is_open)) {
@@ -3216,7 +3216,7 @@ vxge_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	struct vxge_vpath *vpath;
 	int vp_id;
 
-	vdev = (struct vxgedev *)netdev_priv(dev);
+	vdev = netdev_priv(dev);
 
 	/* Add these vlan to the vid table */
 	for (vp_id = 0; vp_id < vdev->no_of_vpath; vp_id++) {
@@ -3243,7 +3243,7 @@ vxge_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 
 	vxge_debug_entryexit(VXGE_TRACE, "%s:%d", __func__, __LINE__);
 
-	vdev = (struct vxgedev *)netdev_priv(dev);
+	vdev = netdev_priv(dev);
 
 	vlan_group_set_device(vdev->vlgrp, vid, NULL);
 
@@ -3476,7 +3476,7 @@ vxge_callback_crit_err(struct __vxge_hw_device *hldev,
 			enum vxge_hw_event type, u64 vp_id)
 {
 	struct net_device *dev = hldev->ndev;
-	struct vxgedev *vdev = (struct vxgedev *)netdev_priv(dev);
+	struct vxgedev *vdev = netdev_priv(dev);
 	struct vxge_vpath *vpath = NULL;
 	int vpath_idx;
 
