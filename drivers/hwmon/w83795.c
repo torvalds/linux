@@ -755,6 +755,10 @@ store_chassis_clear(struct device *dev,
 	val = w83795_read(client, W83795_REG_CLR_CHASSIS);
 	val |= 0x80;
 	w83795_write(client, W83795_REG_CLR_CHASSIS, val);
+
+	/* Clear status and force cache refresh */
+	w83795_read(client, W83795_REG_ALARM(5));
+	data->valid = 0;
 	mutex_unlock(&data->update_lock);
 	return count;
 }
