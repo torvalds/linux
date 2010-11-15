@@ -245,6 +245,17 @@ i915_gem_object_fence_ok(struct drm_gem_object *obj, int tiling_mode)
 	if (INTEL_INFO(obj->dev)->gen >= 4)
 		return true;
 
+	if (!obj_priv->gtt_space)
+		return true;
+
+	if (INTEL_INFO(obj->dev)->gen == 3) {
+		if (obj_priv->gtt_offset & ~I915_FENCE_START_MASK)
+			return false;
+	} else {
+		if (obj_priv->gtt_offset & ~I830_FENCE_START_MASK)
+			return false;
+	}
+
 	/*
 	 * Previous chips need to be aligned to the size of the smallest
 	 * fence register that can contain the object.
@@ -257,16 +268,11 @@ i915_gem_object_fence_ok(struct drm_gem_object *obj, int tiling_mode)
 	while (size < obj_priv->base.size)
 		size <<= 1;
 
-	if (obj_priv->gtt_offset & (size - 1))
+	if (obj_priv->gtt_space->size != size)
 		return false;
 
-	if (INTEL_INFO(obj->dev)->gen == 3) {
-		if (obj_priv->gtt_offset & ~I915_FENCE_START_MASK)
-			return false;
-	} else {
-		if (obj_priv->gtt_offset & ~I830_FENCE_START_MASK)
-			return false;
-	}
+	if (obj_priv->gtt_offset & (size - 1))
+		return false;
 
 	return true;
 }
