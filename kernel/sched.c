@@ -279,13 +279,6 @@ static DEFINE_SPINLOCK(task_group_lock);
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
-#ifdef CONFIG_SMP
-static int root_task_group_empty(void)
-{
-	return list_empty(&root_task_group.children);
-}
-#endif
-
 # define INIT_TASK_GROUP_LOAD	NICE_0_LOAD
 
 /*
@@ -1546,48 +1539,6 @@ static unsigned long cpu_avg_load_per_task(int cpu)
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
-static void update_cfs_load(struct cfs_rq *cfs_rq, int lb);
-static void update_cfs_shares(struct cfs_rq *cfs_rq);
-
-/*
- * update tg->load_weight by folding this cpu's load_avg
- */
-static int tg_shares_up(struct task_group *tg, void *data)
-{
-	long load_avg;
-	struct cfs_rq *cfs_rq;
-	unsigned long flags;
-	int cpu = (long)data;
-	struct rq *rq;
-
-	if (!tg->se[cpu])
-		return 0;
-
-	rq = cpu_rq(cpu);
-	cfs_rq = tg->cfs_rq[cpu];
-
-	raw_spin_lock_irqsave(&rq->lock, flags);
-
-	update_rq_clock(rq);
-	update_cfs_load(cfs_rq, 1);
-
-	load_avg = div64_u64(cfs_rq->load_avg, cfs_rq->load_period+1);
-	load_avg -= cfs_rq->load_contribution;
-
-	atomic_add(load_avg, &tg->load_weight);
-	cfs_rq->load_contribution += load_avg;
-
-	/*
-	 * We need to update shares after updating tg->load_weight in
-	 * order to adjust the weight of groups with long running tasks.
-	 */
-	update_cfs_shares(cfs_rq);
-
-	raw_spin_unlock_irqrestore(&rq->lock, flags);
-
-	return 0;
-}
-
 /*
  * Compute the cpu's hierarchical load factor for each task group.
  * This needs to be done in a top-down fashion because the load of a child
@@ -1611,27 +1562,9 @@ static int tg_load_down(struct task_group *tg, void *data)
 	return 0;
 }
 
-static void update_shares(long cpu)
-{
-	if (root_task_group_empty())
-		return;
-
-	/*
-	 * XXX: replace with an on-demand list
-	 */
-
-	walk_tg_tree(tg_nop, tg_shares_up, (void *)cpu);
-}
-
 static void update_h_load(long cpu)
 {
 	walk_tg_tree(tg_load_down, tg_nop, (void *)cpu);
-}
-
-#else
-
-static inline void update_shares(int cpu)
-{
 }
 
 #endif
