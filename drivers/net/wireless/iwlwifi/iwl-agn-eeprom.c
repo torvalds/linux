@@ -251,6 +251,7 @@ err:
 int iwl_eeprom_check_sku(struct iwl_priv *priv)
 {
 	u16 eeprom_sku;
+	u16 radio_cfg;
 
 	eeprom_sku = iwl_eeprom_query16(priv, EEPROM_SKU_CAP);
 
@@ -266,6 +267,25 @@ int iwl_eeprom_check_sku(struct iwl_priv *priv)
 
 	IWL_INFO(priv, "Device SKU: 0X%x\n", priv->cfg->sku);
 
+	if (!priv->cfg->valid_tx_ant && !priv->cfg->valid_rx_ant) {
+		/* not using .cfg overwrite */
+		radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
+		priv->cfg->valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
+		priv->cfg->valid_rx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
+		if (!priv->cfg->valid_tx_ant || !priv->cfg->valid_rx_ant) {
+			IWL_ERR(priv, "Invalid chain (0X%x, 0X%x)\n",
+				priv->cfg->valid_tx_ant,
+				priv->cfg->valid_rx_ant);
+			return -EINVAL;
+		}
+		IWL_INFO(priv, "Valid Tx ant: 0X%x, Valid Rx ant: 0X%x\n",
+			 priv->cfg->valid_tx_ant, priv->cfg->valid_rx_ant);
+	}
+	/*
+	 * for some special cases,
+	 * EEPROM did not reflect the correct antenna setting
+	 * so overwrite the valid tx/rx antenna from .cfg
+	 */
 	return 0;
 }
 
