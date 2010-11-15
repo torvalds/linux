@@ -1515,7 +1515,7 @@ static int init_channels(struct ngene *dev)
 
 void __devexit ngene_remove(struct pci_dev *pdev)
 {
-	struct ngene *dev = (struct ngene *)pci_get_drvdata(pdev);
+	struct ngene *dev = pci_get_drvdata(pdev);
 	int i;
 
 	tasklet_kill(&dev->event_tasklet);
