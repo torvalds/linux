@@ -286,7 +286,7 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 		return NULL;
 	}
 
-	return (struct bonding *)netdev_priv(slave->dev->master);
+	return netdev_priv(slave->dev->master);
 }
 
 static inline bool bond_is_lb(const struct bonding *bond)
