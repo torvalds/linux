@@ -126,7 +126,6 @@ static APBC_CLK(twsi3, MMP2_TWSI3, 0, 26000000);
 static APBC_CLK(twsi4, MMP2_TWSI4, 0, 26000000);
 static APBC_CLK(twsi5, MMP2_TWSI5, 0, 26000000);
 static APBC_CLK(twsi6, MMP2_TWSI6, 0, 26000000);
-static APBC_CLK(rtc, MMP2_RTC, 0, 32768);
 
 static APMU_CLK(nand, NAND, 0xbf, 100000000);
 
