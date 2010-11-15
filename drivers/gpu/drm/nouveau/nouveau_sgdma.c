@@ -144,19 +144,15 @@ nouveau_sgdma_unbind(struct ttm_backend *be)
 
 	pte = nvbe->pte_start;
 	for (i = 0; i < nvbe->nr_pages; i++) {
-		dma_addr_t dma_offset = dev_priv->gart_info.sg_dummy_bus;
-
 		for (j = 0; j < PAGE_SIZE / NV_CTXDMA_PAGE_SIZE; j++) {
 			if (dev_priv->card_type < NV_50) {
-				nv_wo32(gpuobj, (pte * 4) + 0, dma_offset | 3);
+				nv_wo32(gpuobj, (pte * 4) + 0, 0x00000000);
 				pte += 1;
 			} else {
 				nv_wo32(gpuobj, (pte * 4) + 0, 0x00000000);
 				nv_wo32(gpuobj, (pte * 4) + 4, 0x00000000);
 				pte += 2;
 			}
-
-			dma_offset += NV_CTXDMA_PAGE_SIZE;
 		}
 	}
 	dev_priv->engine.instmem.flush(nvbe->dev);
@@ -218,7 +214,6 @@ int
 nouveau_sgdma_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct pci_dev *pdev = dev->pdev;
 	struct nouveau_gpuobj *gpuobj = NULL;
 	uint32_t aper_size, obj_size;
 	int i, ret;
@@ -245,22 +240,6 @@ nouveau_sgdma_init(struct drm_device *dev)
 		return ret;
 	}
 
-	dev_priv->gart_info.sg_dummy_page =
-		alloc_page(GFP_KERNEL|__GFP_DMA32|__GFP_ZERO);
-	if (!dev_priv->gart_info.sg_dummy_page) {
-		nouveau_gpuobj_ref(NULL, &gpuobj);
-		return -ENOMEM;
-	}
-
-	set_bit(PG_locked, &dev_priv->gart_info.sg_dummy_page->flags);
-	dev_priv->gart_info.sg_dummy_bus =
-		pci_map_page(pdev, dev_priv->gart_info.sg_dummy_page, 0,
-			     PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	if (pci_dma_mapping_error(pdev, dev_priv->gart_info.sg_dummy_bus)) {
-		nouveau_gpuobj_ref(NULL, &gpuobj);
-		return -EFAULT;
-	}
-
 	if (dev_priv->card_type < NV_50) {
 		/* special case, allocated from global instmem heap so
 		 * cinst is invalid, we use it on all channels though so
@@ -277,10 +256,8 @@ nouveau_sgdma_init(struct drm_device *dev)
 				   (NV_DMA_ACCESS_RW  << 14) |
 				   (NV_DMA_TARGET_PCI << 16));
 		nv_wo32(gpuobj, 4, aper_size - 1);
-		for (i = 2; i < 2 + (aper_size >> 12); i++) {
-			nv_wo32(gpuobj, i * 4,
-				dev_priv->gart_info.sg_dummy_bus | 3);
-		}
+		for (i = 2; i < 2 + (aper_size >> 12); i++)
+			nv_wo32(gpuobj, i * 4, 0x00000000);
 	} else {
 		for (i = 0; i < obj_size; i += 8) {
 			nv_wo32(gpuobj, i + 0, 0x00000000);
@@ -300,15 +277,6 @@ void
 nouveau_sgdma_takedown(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	if (dev_priv->gart_info.sg_dummy_page) {
-		pci_unmap_page(dev->pdev, dev_priv->gart_info.sg_dummy_bus,
-			       NV_CTXDMA_PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-		unlock_page(dev_priv->gart_info.sg_dummy_page);
-		__free_page(dev_priv->gart_info.sg_dummy_page);
-		dev_priv->gart_info.sg_dummy_page = NULL;
-		dev_priv->gart_info.sg_dummy_bus = 0;
-	}
 
 	nouveau_gpuobj_ref(NULL, &dev_priv->gart_info.sg_ctxdma);
 }

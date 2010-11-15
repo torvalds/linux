@@ -672,8 +672,6 @@ struct drm_nouveau_private {
 		uint64_t aper_free;
 
 		struct nouveau_gpuobj *sg_ctxdma;
-		struct page *sg_dummy_page;
-		dma_addr_t sg_dummy_bus;
 	} gart_info;
 
 	/* nv10-nv40 tiling regions */
