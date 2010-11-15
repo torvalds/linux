@@ -188,7 +188,6 @@ __ip_vs_reroute_locally(struct sk_buff *skb)
 			},
 			.mark = skb->mark,
 		};
-		struct rtable *rt;
 
 		if (ip_route_output_key(net, &rt, &fl))
 			return 0;
