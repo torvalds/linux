@@ -355,7 +355,7 @@ struct cfs_rq {
 
 	u64 load_avg;
 	u64 load_period;
-	u64 load_stamp;
+	u64 load_stamp, load_last;
 
 	unsigned long load_contribution;
 #endif

@@ -674,10 +674,11 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 }
 
 #if defined CONFIG_SMP && defined CONFIG_FAIR_GROUP_SCHED
-static void update_cfs_load(struct cfs_rq *cfs_rq, int lb)
+static void update_cfs_load(struct cfs_rq *cfs_rq)
 {
 	u64 period = sched_avg_period();
 	u64 now, delta;
+	unsigned long load = cfs_rq->load.weight;
 
 	if (!cfs_rq)
 		return;
@@ -685,9 +686,19 @@ static void update_cfs_load(struct cfs_rq *cfs_rq, int lb)
 	now = rq_of(cfs_rq)->clock;
 	delta = now - cfs_rq->load_stamp;
 
+	/* truncate load history at 4 idle periods */
+	if (cfs_rq->load_stamp > cfs_rq->load_last &&
+	    now - cfs_rq->load_last > 4 * period) {
+		cfs_rq->load_period = 0;
+		cfs_rq->load_avg = 0;
+	}
+
 	cfs_rq->load_stamp = now;
 	cfs_rq->load_period += delta;
-	cfs_rq->load_avg += delta * cfs_rq->load.weight;
+	if (load) {
+		cfs_rq->load_last = now;
+		cfs_rq->load_avg += delta * load;
+	}
 
 	while (cfs_rq->load_period > period) {
 		/*
@@ -700,10 +711,8 @@ static void update_cfs_load(struct cfs_rq *cfs_rq, int lb)
 		cfs_rq->load_avg /= 2;
 	}
 
-	if (lb && !cfs_rq->nr_running) {
-		if (cfs_rq->load_avg < (period / 8))
-			list_del_leaf_cfs_rq(cfs_rq);
-	}
+	if (!cfs_rq->curr && !cfs_rq->nr_running && !cfs_rq->load_avg)
+		list_del_leaf_cfs_rq(cfs_rq);
 }
 
 static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
@@ -750,7 +759,7 @@ static void update_cfs_shares(struct cfs_rq *cfs_rq, long weight_delta)
 	reweight_entity(cfs_rq_of(se), se, shares);
 }
 #else /* CONFIG_FAIR_GROUP_SCHED */
-static inline void update_cfs_load(struct cfs_rq *cfs_rq, int lb)
+static inline void update_cfs_load(struct cfs_rq *cfs_rq)
 {
 }
 
@@ -880,7 +889,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	 * Update run-time statistics of the 'current'.
 	 */
 	update_curr(cfs_rq);
-	update_cfs_load(cfs_rq, 0);
+	update_cfs_load(cfs_rq);
 	update_cfs_shares(cfs_rq, se->load.weight);
 	account_entity_enqueue(cfs_rq, se);
 
@@ -941,7 +950,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	if (se != cfs_rq->curr)
 		__dequeue_entity(cfs_rq, se);
 	se->on_rq = 0;
-	update_cfs_load(cfs_rq, 0);
+	update_cfs_load(cfs_rq);
 	account_entity_dequeue(cfs_rq, se);
 	update_min_vruntime(cfs_rq);
 	update_cfs_shares(cfs_rq, 0);
@@ -1176,7 +1185,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	for_each_sched_entity(se) {
 		struct cfs_rq *cfs_rq = cfs_rq_of(se);
 
-		update_cfs_load(cfs_rq, 0);
+		update_cfs_load(cfs_rq);
 		update_cfs_shares(cfs_rq, 0);
 	}
 
@@ -1206,7 +1215,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	for_each_sched_entity(se) {
 		struct cfs_rq *cfs_rq = cfs_rq_of(se);
 
-		update_cfs_load(cfs_rq, 0);
+		update_cfs_load(cfs_rq);
 		update_cfs_shares(cfs_rq, 0);
 	}
 
@@ -2023,7 +2032,7 @@ static int tg_shares_up(struct task_group *tg, int cpu)
 	raw_spin_lock_irqsave(&rq->lock, flags);
 
 	update_rq_clock(rq);
-	update_cfs_load(cfs_rq, 1);
+	update_cfs_load(cfs_rq);
 
 	load_avg = div64_u64(cfs_rq->load_avg, cfs_rq->load_period+1);
 	load_avg -= cfs_rq->load_contribution;
