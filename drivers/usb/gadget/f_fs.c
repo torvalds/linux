@@ -2096,7 +2096,7 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 		ep = usb_ep_autoconfig(func->gadget, ds);
 		if (unlikely(!ep))
 			return -ENOTSUPP;
-		ep->driver_data = func->eps + idx;;
+		ep->driver_data = func->eps + idx;
 
 		req = usb_ep_alloc_request(ep, GFP_KERNEL);
 		if (unlikely(!req))
