@@ -857,20 +857,20 @@ show_pwm_enable(struct device *dev, struct device_attribute *attr, char *buf)
 	int index = sensor_attr->index;
 	u8 tmp;
 
-	if (1 == (data->pwm_fcms[0] & (1 << index))) {
+	/* Speed cruise mode */
+	if (data->pwm_fcms[0] & (1 << index)) {
 		tmp = 2;
 		goto out;
 	}
+	/* Thermal cruise or SmartFan IV mode */
 	for (tmp = 0; tmp < 6; tmp++) {
 		if (data->pwm_tfmr[tmp] & (1 << index)) {
 			tmp = 3;
 			goto out;
 		}
 	}
-	if (data->pwm_fomc & (1 << index))
-		tmp = 0;
-	else
-		tmp = 1;
+	/* Manual mode */
+	tmp = 1;
 
 out:
 	return sprintf(buf, "%u\n", tmp);
@@ -890,23 +890,21 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 
 	if (strict_strtoul(buf, 10, &val) < 0)
 		return -EINVAL;
-	if (val > 2)
+	if (val < 1 || val > 2)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 	switch (val) {
-	case 0:
 	case 1:
+		/* Clear speed cruise mode bits */
 		data->pwm_fcms[0] &= ~(1 << index);
 		w83795_write(client, W83795_REG_FCMS1, data->pwm_fcms[0]);
+		/* Clear thermal cruise mode bits */
 		for (i = 0; i < 6; i++) {
 			data->pwm_tfmr[i] &= ~(1 << index);
 			w83795_write(client, W83795_REG_TFMR(i),
 				data->pwm_tfmr[i]);
 		}
-		data->pwm_fomc |= 1 << index;
-		data->pwm_fomc ^= val << index;
-		w83795_write(client, W83795_REG_FOMC, data->pwm_fomc);
 		break;
 	case 2:
 		data->pwm_fcms[0] |= (1 << index);
