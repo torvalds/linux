@@ -966,17 +966,18 @@ show_temp_src(struct device *dev, struct device_attribute *attr, char *buf)
 	    to_sensor_dev_attr_2(attr);
 	struct w83795_data *data = w83795_update_pwm_config(dev);
 	int index = sensor_attr->index;
-	u8 val = index / 2;
-	u8 tmp = data->temp_src[val];
+	u8 tmp = data->temp_src[index / 2];
 
 	if (index & 1)
-		val = 4;
+		tmp >>= 4;	/* Pick high nibble */
 	else
-		val = 0;
-	tmp >>= val;
-	tmp &= 0x0f;
+		tmp &= 0x0f;	/* Pick low nibble */
 
-	return sprintf(buf, "%u\n", tmp);
+	/* Look-up the actual temperature channel number */
+	if (tmp >= 4 || tss_map[tmp][index] == TSS_MAP_RESERVED)
+		return -EINVAL;		/* Shouldn't happen */
+
+	return sprintf(buf, "%u\n", (unsigned int)tss_map[tmp][index] + 1);
 }
 
 static ssize_t
@@ -988,12 +989,21 @@ store_temp_src(struct device *dev, struct device_attribute *attr,
 	struct sensor_device_attribute_2 *sensor_attr =
 	    to_sensor_dev_attr_2(attr);
 	int index = sensor_attr->index;
-	unsigned long tmp;
+	int tmp;
+	unsigned long channel;
 	u8 val = index / 2;
 
-	if (strict_strtoul(buf, 10, &tmp) < 0)
+	if (strict_strtoul(buf, 10, &channel) < 0 ||
+	    channel < 1 || channel > 14)
 		return -EINVAL;
-	tmp = SENSORS_LIMIT(tmp, 0, 15);
+
+	/* Check if request can be fulfilled */
+	for (tmp = 0; tmp < 4; tmp++) {
+		if (tss_map[tmp][index] == channel - 1)
+			break;
+	}
+	if (tmp == 4)	/* No match */
+		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 	if (index & 1) {
