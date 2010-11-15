@@ -244,10 +244,6 @@ static inline void mx27_setup_weimcs(size_t cs,
 #define MX27_DMA_REQ_SDHC3	36
 #define MX27_DMA_REQ_NFC	37
 
-/* silicon revisions specific to i.MX27 */
-#define CHIP_REV_1_0		0x00
-#define CHIP_REV_2_0		0x01
-
 #ifndef __ASSEMBLY__
 extern int mx27_revision(void);
 #endif

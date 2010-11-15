@@ -780,6 +780,12 @@ static struct clk ahb_clk = {
 	.round_rate = _clk_ahb_round_rate,
 };
 
+static struct clk iim_clk = {
+	.parent = &ipg_clk,
+	.enable_reg = MXC_CCM_CCGR0,
+	.enable_shift = MXC_CCM_CCGRx_CG15_OFFSET,
+};
+
 /* Main IP interface clock for access to registers */
 static struct clk ipg_clk = {
 	.parent = &ahb_clk,
@@ -1099,6 +1105,7 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK("sdhci-esdhc-imx.0", NULL, esdhc1_clk)
 	_REGISTER_CLOCK("sdhci-esdhc-imx.1", NULL, esdhc2_clk)
 	_REGISTER_CLOCK(NULL, "cpu_clk", cpu_clk)
+	_REGISTER_CLOCK(NULL, "iim_clk", iim_clk)
 };
 
 static struct clk_lookup mx53_lookups[] = {
@@ -1107,6 +1114,7 @@ static struct clk_lookup mx53_lookups[] = {
 	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
 	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
+	_REGISTER_CLOCK(NULL, "iim_clk", iim_clk)
 };
 
 static void clk_tree_init(void)
@@ -1147,6 +1155,10 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 	clk_enable(&cpu_clk);
 	clk_enable(&main_bus_clk);
 
+	clk_enable(&iim_clk);
+	mx51_revision();
+	clk_disable(&iim_clk);
+
 	/* set the usboh3_clk parent to pll2_sw_clk */
 	clk_set_parent(&usboh3_clk, &pll2_sw_clk);
 
@@ -1181,6 +1193,10 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc,
 
 	clk_enable(&cpu_clk);
 	clk_enable(&main_bus_clk);
+
+	clk_enable(&iim_clk);
+	mx53_revision();
+	clk_disable(&iim_clk);
 
 	/* System timer */
 	mxc_timer_init(&gpt_clk, MX53_IO_ADDRESS(MX53_GPT1_BASE_ADDR),

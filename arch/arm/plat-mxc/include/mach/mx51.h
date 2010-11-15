@@ -345,19 +345,6 @@
 #define MX51_MXC_INT_EMI_NFC		101
 #define MX51_MXC_INT_GPU_IDLE		102
 
-/* silicon revisions specific to i.MX51 */
-#define MX51_CHIP_REV_1_0		0x10
-#define MX51_CHIP_REV_1_1		0x11
-#define MX51_CHIP_REV_1_2		0x12
-#define MX51_CHIP_REV_1_3		0x13
-#define MX51_CHIP_REV_2_0		0x20
-#define MX51_CHIP_REV_2_1		0x21
-#define MX51_CHIP_REV_2_2		0x22
-#define MX51_CHIP_REV_2_3		0x23
-#define MX51_CHIP_REV_3_0		0x30
-#define MX51_CHIP_REV_3_1		0x31
-#define MX51_CHIP_REV_3_2		0x32
-
 #if !defined(__ASSEMBLY__) && !defined(__MXC_BOOT_UNCOMPRESS)
 extern int mx51_revision(void);
 #endif

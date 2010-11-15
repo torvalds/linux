@@ -68,7 +68,7 @@ void __init mx51_init_irq(void)
 	unsigned long tzic_addr;
 	void __iomem *tzic_virt;
 
-	if (mx51_revision() < MX51_CHIP_REV_2_0)
+	if (mx51_revision() < IMX_CHIP_REVISION_2_0)
 		tzic_addr = MX51_TZIC_BASE_ADDR_TO1;
 	else
 		tzic_addr = MX51_TZIC_BASE_ADDR;

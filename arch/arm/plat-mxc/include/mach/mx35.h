@@ -186,7 +186,4 @@
 
 #define MX35_PROD_SIGNATURE		0x1	/* For MX31 */
 
-#define MX35_SYSTEM_REV_MIN		MX3x_CHIP_REV_1_0
-#define MX35_SYSTEM_REV_NUM		3
-
 #endif /* ifndef __MACH_MX35_H__ */

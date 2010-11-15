@@ -203,20 +203,4 @@ static inline void mx31_setup_weimcs(size_t cs,
 
 #define MX31_PROD_SIGNATURE		0x1	/* For MX31 */
 
-/* silicon revisions specific to i.MX31 */
-#define MX31_CHIP_REV_1_0		0x10
-#define MX31_CHIP_REV_1_1		0x11
-#define MX31_CHIP_REV_1_2		0x12
-#define MX31_CHIP_REV_1_3		0x13
-#define MX31_CHIP_REV_2_0		0x20
-#define MX31_CHIP_REV_2_1		0x21
-#define MX31_CHIP_REV_2_2		0x22
-#define MX31_CHIP_REV_2_3		0x23
-#define MX31_CHIP_REV_3_0		0x30
-#define MX31_CHIP_REV_3_1		0x31
-#define MX31_CHIP_REV_3_2		0x32
-
-#define MX31_SYSTEM_REV_MIN		MX31_CHIP_REV_1_0
-#define MX31_SYSTEM_REV_NUM		3
-
 #endif /* ifndef __MACH_MX31_H__ */

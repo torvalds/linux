@@ -615,7 +615,7 @@ int __init mx31_clocks_init(unsigned long fref)
 
 	mx31_read_cpu_rev();
 
-	if (mx31_revision() >= MX31_CHIP_REV_2_0) {
+	if (mx31_revision() >= IMX_CHIP_REVISION_2_0) {
 		reg = __raw_readl(MXC_CCM_PMCR1);
 		/* No PLL restart on DVFS switch; enable auto EMI handshake */
 		reg |= MXC_CCM_PMCR1_PLLRDIS | MXC_CCM_PMCR1_EMIRQ_EN;
