@@ -5,13 +5,15 @@
 #include <linux/threads.h>
 #include <asm/irq.h>
 
+#define NR_IPI	5
+
 typedef struct {
 	unsigned int __softirq_pending;
 #ifdef CONFIG_LOCAL_TIMERS
 	unsigned int local_timer_irqs;
 #endif
 #ifdef CONFIG_SMP
-	unsigned int ipi_irqs;
+	unsigned int ipi_irqs[NR_IPI];
 #endif
 } ____cacheline_aligned irq_cpustat_t;
 

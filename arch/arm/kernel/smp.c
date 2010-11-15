@@ -382,16 +382,28 @@ void arch_send_call_function_single_ipi(int cpu)
 	smp_cross_call(cpumask_of(cpu), IPI_CALL_FUNC_SINGLE);
 }
 
+static const char *ipi_types[NR_IPI] = {
+#define S(x,s)	[x - IPI_TIMER] = s
+	S(IPI_TIMER, "Timer broadcast interrupts"),
+	S(IPI_RESCHEDULE, "Rescheduling interrupts"),
+	S(IPI_CALL_FUNC, "Function call interrupts"),
+	S(IPI_CALL_FUNC_SINGLE, "Single function call interrupts"),
+	S(IPI_CPU_STOP, "CPU stop interrupts"),
+};
+
 void show_ipi_list(struct seq_file *p, int prec)
 {
-	unsigned int cpu;
+	unsigned int cpu, i;
 
-	seq_printf(p, "%*s: ", prec, "IPI");
+	for (i = 0; i < NR_IPI; i++) {
+		seq_printf(p, "%*s%u: ", prec - 1, "IPI", i);
 
-	for_each_present_cpu(cpu)
-		seq_printf(p, "%10u ", __get_irq_stat(cpu, ipi_irqs));
+		for_each_present_cpu(cpu)
+			seq_printf(p, "%10u ",
+				   __get_irq_stat(cpu, ipi_irqs[i]));
 
-	seq_printf(p, " Inter-processor interrupts\n");
+		seq_printf(p, " %s\n", ipi_types[i]);
+	}
 }
 
 /*
@@ -506,7 +518,8 @@ asmlinkage void __exception do_IPI(int ipinr, struct pt_regs *regs)
 	unsigned int cpu = smp_processor_id();
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
-	__inc_irq_stat(cpu, ipi_irqs);
+	if (ipinr >= IPI_TIMER && ipinr < IPI_TIMER + NR_IPI)
+		__inc_irq_stat(cpu, ipi_irqs[ipinr - IPI_TIMER]);
 
 	switch (ipinr) {
 	case IPI_TIMER:

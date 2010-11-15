@@ -62,6 +62,11 @@ int show_interrupts(struct seq_file *p, void *v)
 	for (prec = 3, n = 1000; prec < 10 && n <= nr_irqs; prec++)
 		n *= 10;
 
+#ifdef CONFIG_SMP
+	if (prec < 4)
+		prec = 4;
+#endif
+
 	if (i == 0) {
 		char cpuname[12];
 
