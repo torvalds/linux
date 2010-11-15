@@ -219,7 +219,7 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	struct net_device *ndev;
 	enum ib_mtu tmp;
 
-	props->active_width	= IB_WIDTH_4X;
+	props->active_width	= IB_WIDTH_1X;
 	props->active_speed	= 4;
 	props->port_cap_flags	= IB_PORT_CM_SUP;
 	props->gid_tbl_len	= to_mdev(ibdev)->dev->caps.gid_table_len[port];
