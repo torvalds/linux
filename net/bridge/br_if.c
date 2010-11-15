@@ -475,7 +475,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 {
 	struct net_bridge_port *p;
 
-	p = br_port_get(dev);
+	p = br_port_get_rtnl(dev);
 	if (!p || p->br != br)
 		return -EINVAL;
 

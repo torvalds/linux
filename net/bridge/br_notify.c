@@ -37,10 +37,10 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	int err;
 
 	/* not a port of a bridge */
-	if (!br_port_exists(dev))
+	p = br_port_get_rtnl(dev);
+	if (!p)
 		return NOTIFY_DONE;
 
-	p = br_port_get(dev);
 	br = p->br;
 
 	switch (event) {
