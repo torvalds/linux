@@ -431,6 +431,11 @@ static void hgpk_process_simple_packet(struct psmouse *psmouse)
 	int x = packet[1] - ((packet[0] << 4) & 0x100);
 	int y = ((packet[0] << 3) & 0x100) - packet[2];
 
+	if (packet[0] & 0xc0)
+		hgpk_dbg(psmouse,
+			 "overflow -- 0x%02x 0x%02x 0x%02x\n",
+			 packet[0], packet[1], packet[2]);
+
 	if (hgpk_discard_decay_hack(psmouse, x, y)) {
 		if (tpdebug)
 			hgpk_dbg(psmouse, "discarding\n");
