@@ -142,6 +142,12 @@ struct efx_tx_buffer {
  * @flushed: Used when handling queue flushing
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
+ * @old_write_count: The value of @write_count when last checked.
+ *	This is here for performance reasons.  The xmit path will
+ *	only get the up-to-date value of @write_count if this
+ *	variable indicates that the queue is empty.  This is to
+ *	avoid cache-line ping-pong between the xmit path and the
+ *	completion path.
  * @stopped: Stopped count.
  *	Set if this TX queue is currently stopping its port.
  * @insert_count: Current insert pointer
@@ -163,6 +169,10 @@ struct efx_tx_buffer {
  * @tso_long_headers: Number of packets with headers too long for standard
  *	blocks
  * @tso_packets: Number of packets via the TSO xmit path
+ * @pushes: Number of times the TX push feature has been used
+ * @empty_read_count: If the completion path has seen the queue as empty
+ *	and the transmission path has not yet checked this, the value of
+ *	@read_count bitwise-added to %EFX_EMPTY_COUNT_VALID; otherwise 0.
  */
 struct efx_tx_queue {
 	/* Members which don't change on the fast path */
@@ -177,6 +187,7 @@ struct efx_tx_queue {
 
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
+	unsigned int old_write_count;
 	int stopped;
 
 	/* Members used only on the xmit path */
@@ -187,6 +198,11 @@ struct efx_tx_queue {
 	unsigned int tso_bursts;
 	unsigned int tso_long_headers;
 	unsigned int tso_packets;
+	unsigned int pushes;
+
+	/* Members shared between paths and sometimes updated */
+	unsigned int empty_read_count ____cacheline_aligned_in_smp;
+#define EFX_EMPTY_COUNT_VALID 0x80000000
 };
 
 /**
