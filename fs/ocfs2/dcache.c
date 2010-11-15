@@ -476,7 +476,6 @@ static void ocfs2_dentry_iput(struct dentry *dentry, struct inode *inode)
 
 out:
 	iput(inode);
-	ocfs2_dentry_attach_gen(dentry);
 }
 
 /*
