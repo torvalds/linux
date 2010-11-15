@@ -67,36 +67,6 @@ int clk_register(struct clk *);
 void clk_unregister(struct clk *);
 void clk_enable_init_clocks(void);
 
-/**
- * clk_set_rate_ex - set the clock rate for a clock source, with additional parameter
- * @clk: clock source
- * @rate: desired clock rate in Hz
- * @algo_id: algorithm id to be passed down to ops->set_rate
- *
- * Returns success (0) or negative errno.
- */
-int clk_set_rate_ex(struct clk *clk, unsigned long rate, int algo_id);
-
-enum clk_sh_algo_id {
-	NO_CHANGE = 0,
-
-	IUS_N1_N1,
-	IUS_322,
-	IUS_522,
-	IUS_N11,
-
-	SB_N1,
-
-	SB3_N1,
-	SB3_32,
-	SB3_43,
-	SB3_54,
-
-	BP_N1,
-
-	IP_N1,
-};
-
 struct clk_div_mult_table {
 	unsigned int *divisors;
 	unsigned int nr_divisors;
