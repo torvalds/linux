@@ -916,6 +916,21 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
+show_pwm_mode(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct w83795_data *data = w83795_update_pwm_config(dev);
+	int index = to_sensor_dev_attr_2(attr)->index;
+	unsigned int mode;
+
+	if (data->pwm_fomc & (1 << index))
+		mode = 0;	/* DC */
+	else
+		mode = 1;	/* PWM */
+
+	return sprintf(buf, "%u\n", mode);
+}
+
+static ssize_t
 show_temp_src(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct sensor_device_attribute_2 *sensor_attr =
@@ -1551,6 +1566,8 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 		show_pwm, store_pwm, PWM_FREQ, index - 1),	 \
 	SENSOR_ATTR_2(pwm##index##_enable, S_IWUSR | S_IRUGO,		\
 		show_pwm_enable, store_pwm_enable, NOT_USED, index - 1), \
+	SENSOR_ATTR_2(pwm##index##_mode, S_IRUGO,			\
+		show_pwm_mode, NULL, NOT_USED, index - 1),		\
 	SENSOR_ATTR_2(fan##index##_target, S_IWUSR | S_IRUGO, \
 		show_fanin, store_fanin, FANIN_TARGET, index - 1) }
 
@@ -1698,7 +1715,7 @@ static const struct sensor_device_attribute_2 w83795_dts[][8] = {
 	SENSOR_ATTR_DTS(14),
 };
 
-static const struct sensor_device_attribute_2 w83795_pwm[][7] = {
+static const struct sensor_device_attribute_2 w83795_pwm[][8] = {
 	SENSOR_ATTR_PWM(1),
 	SENSOR_ATTR_PWM(2),
 	SENSOR_ATTR_PWM(3),
