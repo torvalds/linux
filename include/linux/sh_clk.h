@@ -19,7 +19,9 @@ struct clk_mapping {
 };
 
 struct clk_ops {
+#ifdef CONFIG_SH_CLK_CPG_LEGACY
 	void (*init)(struct clk *clk);
+#endif
 	int (*enable)(struct clk *clk);
 	void (*disable)(struct clk *clk);
 	unsigned long (*recalc)(struct clk *clk);
