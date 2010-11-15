@@ -297,6 +297,7 @@ struct snd_pcm_runtime {
 	unsigned int info;
 	unsigned int rate_num;
 	unsigned int rate_den;
+	unsigned int no_period_wakeup: 1;
 
 	/* -- SW params -- */
 	int tstamp_mode;		/* mmap timestamp is updated */
