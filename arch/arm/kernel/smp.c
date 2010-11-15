@@ -423,7 +423,7 @@ asmlinkage void __exception do_local_timer(struct pt_regs *regs)
 	int cpu = smp_processor_id();
 
 	if (local_timer_ack()) {
-		irq_stat[cpu].local_timer_irqs++;
+		__inc_irq_stat(cpu, local_timer_irqs);
 		ipi_timer();
 	}
 
@@ -437,7 +437,7 @@ void show_local_irqs(struct seq_file *p)
 	seq_printf(p, "LOC: ");
 
 	for_each_present_cpu(cpu)
-		seq_printf(p, "%10u ", irq_stat[cpu].local_timer_irqs);
+		seq_printf(p, "%10u ", __get_irq_stat(cpu, local_timer_irqs));
 
 	seq_putc(p, '\n');
 }
