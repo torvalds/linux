@@ -33,6 +33,13 @@ extern const struct imx_imx_uart_1irq_data imx31_imx_uart_data[] __initconst;
 #define imx31_add_imx_uart3(pdata)	imx31_add_imx_uart(3, pdata)
 #define imx31_add_imx_uart4(pdata)	imx31_add_imx_uart(4, pdata)
 
+extern const struct imx_mxc_ehci_data imx31_mxc_ehci_otg_data __initconst;
+#define imx31_add_mxc_ehci_otg(pdata)	\
+	imx_add_mxc_ehci(&imx31_mxc_ehci_otg_data, pdata)
+extern const struct imx_mxc_ehci_data imx31_mxc_ehci_hs_data[] __initconst;
+#define imx31_add_mxc_ehci_hs(id, pdata)	\
+	imx_add_mxc_ehci(&imx31_mxc_ehci_hs_data[id - 1], pdata)
+
 extern const struct imx_mxc_mmc_data imx31_mxc_mmc_data[] __initconst;
 #define imx31_add_mxc_mmc(id, pdata)	\
 	imx_add_mxc_mmc(&imx31_mxc_mmc_data[id], pdata)

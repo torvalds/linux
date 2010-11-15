@@ -27,7 +27,6 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx3.h>
 #include <mach/board-mx31moboard.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
 #include <media/soc_camera.h>
@@ -125,17 +124,23 @@ static const struct fsl_usb2_platform_data usb_pdata __initconst = {
 
 #if defined(CONFIG_USB_ULPI)
 
-static struct mxc_usbh_platform_data otg_host_pdata = {
+static struct mxc_usbh_platform_data otg_host_pdata __initdata = {
 	.portsc = MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
 };
 
 static int __init smartbot_otg_host_init(void)
 {
+	struct platform_device *pdev;
+
 	otg_host_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 			ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-	return mxc_register_device(&mxc_otg_host, &otg_host_pdata);
+	pdev = imx31_add_mxc_ehci_otg(&otg_host_pdata);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return 0;
 }
 #else
 static inline int smartbot_otg_host_init(void) { return 0; }

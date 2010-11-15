@@ -39,7 +39,6 @@
 #include <mach/iomux-mx35.h>
 #include <mach/irqs.h>
 #include <mach/3ds_debugboard.h>
-#include <mach/mxc_ehci.h>
 
 #include "devices-imx35.h"
 #include "devices.h"
@@ -127,7 +126,7 @@ static const struct fsl_usb2_platform_data usb_otg_pdata __initconst = {
 };
 
 /* USB HOST config */
-static struct mxc_usbh_platform_data usb_host_pdata = {
+static const struct mxc_usbh_platform_data usb_host_pdata __initconst = {
 	.portsc		= MXC_EHCI_MODE_SERIAL,
 	.flags		= MXC_EHCI_INTERFACE_SINGLE_UNI |
 			  MXC_EHCI_INTERNAL_PHY,
@@ -147,7 +146,7 @@ static void __init mxc_board_init(void)
 
 	imx35_add_fsl_usb2_udc(&usb_otg_pdata);
 
-	mxc_register_device(&mxc_usbh1, &usb_host_pdata);
+	imx35_add_mxc_ehci_hs(&usb_host_pdata);
 
 	imx35_add_mxc_nand(&mx35pdk_nand_board_info);
 	imx35_add_esdhc(0, NULL);
