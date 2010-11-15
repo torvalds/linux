@@ -146,8 +146,20 @@ static inline struct cfs_rq *cpu_cfs_rq(struct cfs_rq *cfs_rq, int this_cpu)
 static inline void list_add_leaf_cfs_rq(struct cfs_rq *cfs_rq)
 {
 	if (!cfs_rq->on_list) {
-		list_add_rcu(&cfs_rq->leaf_cfs_rq_list,
+		/*
+		 * Ensure we either appear before our parent (if already
+		 * enqueued) or force our parent to appear after us when it is
+		 * enqueued.  The fact that we always enqueue bottom-up
+		 * reduces this to two cases.
+		 */
+		if (cfs_rq->tg->parent &&
+		    cfs_rq->tg->parent->cfs_rq[cpu_of(rq_of(cfs_rq))]->on_list) {
+			list_add_rcu(&cfs_rq->leaf_cfs_rq_list,
 				&rq_of(cfs_rq)->leaf_cfs_rq_list);
+		} else {
+			list_add_tail_rcu(&cfs_rq->leaf_cfs_rq_list,
+				&rq_of(cfs_rq)->leaf_cfs_rq_list);
+		}
 
 		cfs_rq->on_list = 1;
 	}
@@ -2016,7 +2028,7 @@ out:
 /*
  * update tg->load_weight by folding this cpu's load_avg
  */
-static int tg_shares_up(struct task_group *tg, int cpu)
+static int update_shares_cpu(struct task_group *tg, int cpu)
 {
 	struct cfs_rq *cfs_rq;
 	unsigned long flags;
@@ -2056,14 +2068,8 @@ static void update_shares(int cpu)
 	struct rq *rq = cpu_rq(cpu);
 
 	rcu_read_lock();
-	for_each_leaf_cfs_rq(rq, cfs_rq) {
-		struct task_group *tg = cfs_rq->tg;
-
-		do {
-			tg_shares_up(tg, cpu);
-			tg = tg->parent;
-		} while (tg);
-	}
+	for_each_leaf_cfs_rq(rq, cfs_rq)
+		update_shares_cpu(cfs_rq->tg, cpu);
 	rcu_read_unlock();
 }
 
