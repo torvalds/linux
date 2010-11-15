@@ -2049,7 +2049,7 @@ int __init omap3_mux_init(struct omap_board_mux *board_subset, int flags)
 		package_balls = omap36xx_cbp_ball;
 		break;
 	default:
-		printk(KERN_ERR "mux: Unknown omap package, mux disabled\n");
+		pr_err("%s Unknown omap package, mux disabled\n", __func__);
 		return -EINVAL;
 	}
 

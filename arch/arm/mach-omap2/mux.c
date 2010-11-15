@@ -114,12 +114,12 @@ static int __init _omap_mux_init_gpio(struct omap_mux_partition *partition,
 	}
 
 	if (found == 0) {
-		pr_err("mux: Could not set gpio%i\n", gpio);
+		pr_err("%s: Could not set gpio%i\n", __func__, gpio);
 		return -ENODEV;
 	}
 
 	if (found > 1) {
-		pr_info("mux: Multiple gpio paths (%d) for gpio%i\n",
+		pr_info("%s: Multiple gpio paths (%d) for gpio%i\n", __func__,
 			found, gpio);
 		return -EINVAL;
 	}
@@ -130,7 +130,7 @@ static int __init _omap_mux_init_gpio(struct omap_mux_partition *partition,
 		mux_mode |= OMAP_MUX_MODE3;
 	else
 		mux_mode |= OMAP_MUX_MODE4;
-	pr_debug("mux: Setting signal %s.gpio%i 0x%04x -> 0x%04x\n",
+	pr_debug("%s: Setting signal %s.gpio%i 0x%04x -> 0x%04x\n", __func__,
 		 gpio_mux->muxnames[0], gpio, old_mode, mux_mode);
 	omap_mux_write(partition, mux_mode, gpio_mux->reg_offset);
 
@@ -190,8 +190,8 @@ static int __init _omap_mux_init_signal(struct omap_mux_partition *partition,
 				old_mode = omap_mux_read(partition,
 							 m->reg_offset);
 				mux_mode = val | i;
-				pr_debug("mux: Setting signal "
-					 "%s.%s 0x%04x -> 0x%04x\n",
+				pr_debug("%s: Setting signal "
+					 "%s.%s 0x%04x -> 0x%04x\n", __func__,
 					 m0_entry, muxname, old_mode, mux_mode);
 				omap_mux_write(partition, mux_mode,
 					       m->reg_offset);
@@ -204,12 +204,12 @@ static int __init _omap_mux_init_signal(struct omap_mux_partition *partition,
 		return 0;
 
 	if (found > 1) {
-		pr_err("mux: Multiple signal paths (%i) for %s\n",
+		pr_err("%s: Multiple signal paths (%i) for %s\n", __func__,
 		       found, muxname);
 		return -EINVAL;
 	}
 
-	pr_err("mux: Could not set signal %s\n", muxname);
+	pr_err("%s: Could not set signal %s\n", __func__, muxname);
 
 	return -ENODEV;
 }
@@ -561,7 +561,7 @@ static void __init omap_mux_package_fixup(struct omap_mux *p,
 			s++;
 		}
 		if (!found)
-			pr_err("mux: Unknown entry offset 0x%x\n",
+			pr_err("%s: Unknown entry offset 0x%x\n", __func__,
 			       p->reg_offset);
 		p++;
 	}
@@ -586,7 +586,7 @@ static void __init omap_mux_package_init_balls(struct omap_ball *b,
 			s++;
 		}
 		if (!found)
-			pr_err("mux: Unknown ball offset 0x%x\n",
+			pr_err("%s: Unknown ball offset 0x%x\n", __func__,
 			       b->reg_offset);
 		b++;
 	}
@@ -722,7 +722,7 @@ u16 omap_mux_get_gpio(int gpio)
 	}
 
 	if (!m || m->reg_offset == OMAP_MUX_TERMINATOR)
-		pr_err("mux: Could not get gpio%i\n", gpio);
+		pr_err("%s: Could not get gpio%i\n", __func__, gpio);
 
 	return OMAP_MUX_TERMINATOR;
 }
@@ -742,7 +742,7 @@ void omap_mux_set_gpio(u16 val, int gpio)
 	}
 
 	if (!m || m->reg_offset == OMAP_MUX_TERMINATOR)
-		pr_err("mux: Could not set gpio%i\n", gpio);
+		pr_err("%s: Could not set gpio%i\n", __func__, gpio);
 }
 
 static struct omap_mux * __init omap_mux_list_add(
@@ -800,7 +800,7 @@ static void __init omap_mux_init_list(struct omap_mux_partition *partition,
 
 		entry = omap_mux_list_add(partition, superset);
 		if (!entry) {
-			pr_err("mux: Could not add entry\n");
+			pr_err("%s: Could not add entry\n", __func__);
 			return;
 		}
 		superset++;
@@ -862,8 +862,8 @@ int __init omap_mux_init(const char *name, u32 flags,
 	partition->phys = mux_pbase;
 	partition->base = ioremap(mux_pbase, mux_size);
 	if (!partition->base) {
-		pr_err("mux: Could not ioremap mux partition at 0x%08x\n",
-			partition->phys);
+		pr_err("%s: Could not ioremap mux partition at 0x%08x\n",
+			__func__, partition->phys);
 		return -ENODEV;
 	}
 
@@ -871,7 +871,7 @@ int __init omap_mux_init(const char *name, u32 flags,
 
 	list_add_tail(&partition->node, &mux_partitions);
 	mux_partitions_cnt++;
-	pr_info("MUX: Add partition: #%d: %s, flags: %x\n",
+	pr_info("%s: Add partition: #%d: %s, flags: %x\n", __func__,
 		mux_partitions_cnt, partition->name, partition->flags);
 
 	omap_mux_init_package(superset, package_subset, package_balls);

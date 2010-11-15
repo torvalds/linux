@@ -781,7 +781,8 @@ int __init omap2430_mux_init(struct omap_board_mux *board_subset, int flags)
 		package_balls = omap2430_pop_ball;
 		break;
 	default:
-		pr_warning("mux: No ball data available for omap2420 package\n");
+		pr_warning("%s: No ball data available for omap2420 package\n",
+				__func__);
 	}
 
 	return omap_mux_init("core", OMAP_MUX_REG_8BIT | OMAP_MUX_GPIO_IN_MODE3,
