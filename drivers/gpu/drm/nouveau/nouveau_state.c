@@ -464,11 +464,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.takedown	= nvc0_instmem_takedown;
 		engine->instmem.suspend		= nvc0_instmem_suspend;
 		engine->instmem.resume		= nvc0_instmem_resume;
-		engine->instmem.get		= nvc0_instmem_get;
-		engine->instmem.put		= nvc0_instmem_put;
-		engine->instmem.map		= nvc0_instmem_map;
-		engine->instmem.unmap		= nvc0_instmem_unmap;
-		engine->instmem.flush		= nvc0_instmem_flush;
+		engine->instmem.get		= nv50_instmem_get;
+		engine->instmem.put		= nv50_instmem_put;
+		engine->instmem.map		= nv50_instmem_map;
+		engine->instmem.unmap		= nv50_instmem_unmap;
+		engine->instmem.flush		= nv84_instmem_flush;
 		engine->mc.init			= nv50_mc_init;
 		engine->mc.takedown		= nv50_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
@@ -509,8 +509,10 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.irq_enable		= nv50_gpio_irq_enable;
 		engine->crypt.init		= nouveau_stub_init;
 		engine->crypt.takedown		= nouveau_stub_takedown;
-		engine->vram.init		= nouveau_mem_detect;
-		engine->vram.flags_valid	= nouveau_mem_flags_valid;
+		engine->vram.init		= nvc0_vram_init;
+		engine->vram.get		= nvc0_vram_new;
+		engine->vram.put		= nv50_vram_del;
+		engine->vram.flags_valid	= nvc0_vram_flags_valid;
 		break;
 	default:
 		NV_ERROR(dev, "NV%02x unsupported\n", dev_priv->chipset);
