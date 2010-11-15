@@ -66,6 +66,9 @@ MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
 /* The one and only one */
 static struct netvsc_driver_context g_netvsc_drv;
 
+/* no-op so the netdev core doesn't return -EINVAL when modifying the the
+ * multicast address list in SIOCADDMULTI. hv is setup to get all multicast
+ * when it calls RndisFilterOnOpen() */
 static void netvsc_set_multicast_list(struct net_device *net)
 {
 }
