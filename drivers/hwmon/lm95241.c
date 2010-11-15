@@ -128,9 +128,12 @@ static ssize_t set_interval(struct device *dev, struct device_attribute *attr,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm95241_data *data = i2c_get_clientdata(client);
+	unsigned long val;
 
-	strict_strtol(buf, 10, &data->interval);
-	data->interval = data->interval * HZ / 1000;
+	if (strict_strtoul(buf, 10, &val) < 0)
+		return -EINVAL;
+
+	data->interval = val * HZ / 1000;
 
 	return count;
 }
@@ -188,7 +191,9 @@ static ssize_t set_type##flag(struct device *dev, \
 	struct lm95241_data *data = i2c_get_clientdata(client); \
 \
 	long val; \
-	strict_strtol(buf, 10, &val); \
+\
+	if (strict_strtol(buf, 10, &val) < 0) \
+		return -EINVAL; \
 \
 	if ((val == 1) || (val == 2)) { \
 \
@@ -227,7 +232,9 @@ static ssize_t set_min##flag(struct device *dev, \
 	struct lm95241_data *data = i2c_get_clientdata(client); \
 \
 	long val; \
-	strict_strtol(buf, 10, &val); \
+\
+	if (strict_strtol(buf, 10, &val) < 0) \
+		return -EINVAL;\
 \
 	mutex_lock(&data->update_lock); \
 \
@@ -256,7 +263,9 @@ static ssize_t set_max##flag(struct device *dev, \
 	struct lm95241_data *data = i2c_get_clientdata(client); \
 \
 	long val; \
-	strict_strtol(buf, 10, &val); \
+\
+	if (strict_strtol(buf, 10, &val) < 0) \
+		return -EINVAL; \
 \
 	mutex_lock(&data->update_lock); \
 \
