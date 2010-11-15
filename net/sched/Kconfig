@@ -24,7 +24,7 @@ menuconfig NET_SCHED
 	  To administer these schedulers, you'll need the user-level utilities
 	  from the package iproute2+tc at <ftp://ftp.tux.org/pub/net/ip-routing/>.
 	  That package also contains some documentation; for more, check out
-	  <http://linux-net.osdl.org/index.php/Iproute2>.
+	  <http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2>.
 
 	  This Quality of Service (QoS) support will enable you to use
 	  Differentiated Services (diffserv) and Resource Reservation Protocol
