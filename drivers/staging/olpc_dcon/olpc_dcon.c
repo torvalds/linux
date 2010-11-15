@@ -17,7 +17,6 @@
 #include <linux/console.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
-#include <linux/i2c-id.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/interrupt.h>
@@ -733,7 +732,6 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
  edev:
 	platform_device_unregister(dcon_device);
 	dcon_device = NULL;
-	i2c_set_clientdata(client, NULL);
  eirq:
 	free_irq(DCON_IRQ, &dcon_driver);
  einit:
@@ -756,8 +754,6 @@ static int dcon_remove(struct i2c_client *client)
 	if (dcon_device != NULL)
 		platform_device_unregister(dcon_device);
 	cancel_work_sync(&dcon_work);
-
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }
