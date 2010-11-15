@@ -60,15 +60,18 @@ nv50_fb_init(struct drm_device *dev)
 	 * on traps. No idea what these values mean exactly. */
 	switch (dev_priv->chipset) {
 	case 0x50:
-		nv_wr32(dev, 0x100c90, 0x0707ff);
+		nv_wr32(dev, 0x100c90, 0x000707ff);
 		break;
 	case 0xa3:
 	case 0xa5:
 	case 0xa8:
-		nv_wr32(dev, 0x100c90, 0x0d0fff);
+		nv_wr32(dev, 0x100c90, 0x000d0fff);
+		break;
+	case 0xaf:
+		nv_wr32(dev, 0x100c90, 0x089d1fff);
 		break;
 	default:
-		nv_wr32(dev, 0x100c90, 0x1d07ff);
+		nv_wr32(dev, 0x100c90, 0x001d07ff);
 		break;
 	}
 
