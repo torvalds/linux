@@ -994,8 +994,8 @@ struct net_device {
 	unsigned int		real_num_rx_queues;
 #endif
 
-	rx_handler_func_t	*rx_handler;
-	void			*rx_handler_data;
+	rx_handler_func_t __rcu	*rx_handler;
+	void __rcu		*rx_handler_data;
 
 	struct netdev_queue __rcu *ingress_queue;
 
