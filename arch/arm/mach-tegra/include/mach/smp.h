@@ -12,11 +12,4 @@ static inline void smp_cross_call(const struct cpumask *mask)
 	gic_raise_softirq(mask, 1);
 }
 
-/*
- * Do nothing on MPcore.
- */
-static inline void smp_cross_call_done(cpumask_t callmap)
-{
-}
-
 #endif
