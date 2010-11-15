@@ -76,7 +76,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	omap_modify_auxcoreboot0(0x200, 0xfffffdff);
 	flush_cache_all();
 	smp_wmb();
-	smp_cross_call(cpumask_of(cpu));
+	smp_cross_call(cpumask_of(cpu), 1);
 
 	/*
 	 * Now the secondary core is starting up let it run its

@@ -404,7 +404,7 @@ static void send_ipi_message(const struct cpumask *mask, enum ipi_msg_type msg)
 	/*
 	 * Call the platform specific cross-CPU call function.
 	 */
-	smp_cross_call(mask);
+	smp_cross_call(mask, 1);
 
 	local_irq_restore(flags);
 }
@@ -537,14 +537,8 @@ static void ipi_cpu_stop(unsigned int cpu)
 
 /*
  * Main handler for inter-processor interrupts
- *
- * For ARM, the ipimask now only identifies a single
- * category of IPI (Bit 1 IPIs have been replaced by a
- * different mechanism):
- *
- *  Bit 0 - Inter-processor function call
  */
-asmlinkage void __exception do_IPI(struct pt_regs *regs)
+asmlinkage void __exception do_IPI(int ipinr, struct pt_regs *regs)
 {
 	unsigned int cpu = smp_processor_id();
 	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);

@@ -116,7 +116,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * Use smp_cross_call() for this, since there's little
 	 * point duplicating the code here
 	 */
-	smp_cross_call(cpumask_of(cpu));
+	smp_cross_call(cpumask_of(cpu), 1);
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
