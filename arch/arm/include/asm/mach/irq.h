@@ -20,7 +20,7 @@ struct seq_file;
 extern unsigned int arch_nr_irqs;
 extern void (*init_arch_irq)(void);
 extern void init_FIQ(void);
-extern int show_fiq_list(struct seq_file *, void *);
+extern int show_fiq_list(struct seq_file *, int);
 
 /*
  * This is for easy migration, but should be changed in the source

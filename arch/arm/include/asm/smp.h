@@ -33,7 +33,7 @@ struct seq_file;
 /*
  * generate IPI list text
  */
-extern void show_ipi_list(struct seq_file *p);
+extern void show_ipi_list(struct seq_file *, int);
 
 /*
  * Called from assembly code, this handles an IPI.
@@ -97,6 +97,6 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 /*
  * show local interrupt info
  */
-extern void show_local_irqs(struct seq_file *);
+extern void show_local_irqs(struct seq_file *, int);
 
 #endif /* ifndef __ASM_ARM_SMP_H */
