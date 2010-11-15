@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * The code contained herein is licensed under the GNU General Public
  * License.  You may obtain a copy of the GNU General Public License
@@ -32,6 +32,15 @@ static struct map_desc mx51_io_desc[] __initdata = {
 };
 
 /*
+ * Define the MX53 memory map.
+ */
+static struct map_desc mx53_io_desc[] __initdata = {
+	imx_map_entry(MX53, AIPS1, MT_DEVICE),
+	imx_map_entry(MX53, SPBA0, MT_DEVICE),
+	imx_map_entry(MX53, AIPS2, MT_DEVICE),
+};
+
+/*
  * This function initializes the memory map. It is called during the
  * system startup to create static physical to virtual memory mappings
  * for the IO modules.
@@ -42,6 +51,14 @@ void __init mx51_map_io(void)
 	mxc_iomux_v3_init(MX51_IO_ADDRESS(MX51_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX51_IO_ADDRESS(MX51_WDOG_BASE_ADDR));
 	iotable_init(mx51_io_desc, ARRAY_SIZE(mx51_io_desc));
+}
+
+void __init mx53_map_io(void)
+{
+	mxc_set_cpu_type(MXC_CPU_MX53);
+	mxc_iomux_v3_init(MX53_IO_ADDRESS(MX53_IOMUXC_BASE_ADDR));
+	mxc_arch_reset_init(MX53_IO_ADDRESS(MX53_WDOG_BASE_ADDR));
+	iotable_init(mx53_io_desc, ARRAY_SIZE(mx53_io_desc));
 }
 
 int imx51_register_gpios(void);

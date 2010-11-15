@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2008-2010 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -91,6 +91,23 @@ static int __init mx51_neon_fixup(void)
 
 late_initcall(mx51_neon_fixup);
 #endif
+
+/*
+ * Returns:
+ *	the silicon revision of the cpu
+ *	-EINVAL - not a mx53
+ */
+int mx53_revision(void)
+{
+	if (!cpu_is_mx53())
+		return -EINVAL;
+
+	if (cpu_silicon_rev == -1)
+		query_silicon_parameter();
+
+	return cpu_silicon_rev;
+}
+EXPORT_SYMBOL(mx53_revision);
 
 static int __init post_cpu_init(void)
 {
