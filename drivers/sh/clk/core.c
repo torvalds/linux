@@ -461,7 +461,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	spin_lock_irqsave(&clock_lock, flags);
 
 	if (likely(clk->ops && clk->ops->set_rate)) {
-		ret = clk->ops->set_rate(clk, rate, 0);
+		ret = clk->ops->set_rate(clk, rate);
 		if (ret != 0)
 			goto out_unlock;
 	} else {
@@ -647,8 +647,7 @@ static int clks_sysdev_suspend(struct sys_device *dev, pm_message_t state)
 					clkp->ops->set_parent(clkp,
 						clkp->parent);
 				if (likely(clkp->ops->set_rate))
-					clkp->ops->set_rate(clkp,
-						rate, 0);
+					clkp->ops->set_rate(clkp, rate);
 				else if (likely(clkp->ops->recalc))
 					clkp->rate = clkp->ops->recalc(clkp);
 			}
