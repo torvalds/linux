@@ -93,6 +93,8 @@ unlock:
 #endif
 #ifdef CONFIG_SMP
 		show_ipi_list(p);
+#endif
+#ifdef CONFIG_LOCAL_TIMERS
 		show_local_irqs(p);
 #endif
 		seq_printf(p, "Err: %10lu\n", irq_err_count);

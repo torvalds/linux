@@ -7,7 +7,9 @@
 
 typedef struct {
 	unsigned int __softirq_pending;
+#ifdef CONFIG_LOCAL_TIMERS
 	unsigned int local_timer_irqs;
+#endif
 } ____cacheline_aligned irq_cpustat_t;
 
 #include <linux/irq_cpustat.h>	/* Standard mappings for irq_cpustat_t above */
