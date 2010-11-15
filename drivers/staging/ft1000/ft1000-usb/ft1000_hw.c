@@ -786,7 +786,7 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 	return -ENOMEM;
     }
 
-	pInfo = (struct ft1000_info *) netdev_priv(netdev);
+	pInfo = netdev_priv(netdev);
 
     //DEBUG("init_ft1000_netdev: gFt1000Info=%x, netdev=%x, ft1000dev=%x\n", gFt1000Info, netdev, ft1000dev);
 
@@ -1345,7 +1345,7 @@ static int ft1000_submit_rx_urb(struct ft1000_info *info)
 //---------------------------------------------------------------------------
 static int ft1000_open (struct net_device *dev)
 {
-	struct ft1000_info *pInfo = (struct ft1000_info *)netdev_priv(dev);
+	struct ft1000_info *pInfo = netdev_priv(dev);
     struct timeval tv; //mbelian
 	int ret;
 
@@ -1386,7 +1386,7 @@ static int ft1000_open (struct net_device *dev)
 //---------------------------------------------------------------------------
 int ft1000_close(struct net_device *net)
 {
-	struct ft1000_info *pInfo = (struct ft1000_info *) netdev_priv(net);
+	struct ft1000_info *pInfo = netdev_priv(net);
     struct ft1000_device *ft1000dev = pInfo->pFt1000Dev;
 
     //DEBUG ("ft1000_close: netdev->refcnt=%d\n", net->refcnt);
@@ -1409,7 +1409,7 @@ int ft1000_close(struct net_device *net)
 
 static struct net_device_stats *ft1000_netdev_stats(struct net_device *dev)
 {
-	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 
 	return &(info->stats); //mbelian
 }
@@ -1435,7 +1435,7 @@ Jim
 static int ft1000_chkcard (struct ft1000_device *dev) {
     u16 tempword;
     u16 status;
-	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev->net);
+	struct ft1000_info *info = netdev_priv(dev->net);
 
     if (info->fCondResetPend)
     {
@@ -1535,7 +1535,7 @@ static bool ft1000_receive_cmd (struct ft1000_device *dev, u16 *pbuffer, int max
 static int ft1000_dsp_prov(void *arg)
 {
     struct ft1000_device *dev = (struct ft1000_device *)arg;
-	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev->net);
+	struct ft1000_info *info = netdev_priv(dev->net);
     u16 tempword;
     u16 len;
     u16 i=0;
@@ -1618,7 +1618,7 @@ static int ft1000_dsp_prov(void *arg)
 
 
 static int ft1000_proc_drvmsg (struct ft1000_device *dev, u16 size) {
-	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev->net);
+	struct ft1000_info *info = netdev_priv(dev->net);
     u16 msgtype;
     u16 tempword;
 	struct media_msg *pmediamsg;
@@ -1901,7 +1901,7 @@ out:
 int ft1000_poll(void* dev_id) {
 
     struct ft1000_device *dev = (struct ft1000_device *)dev_id;
-	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev->net);
+	struct ft1000_info *info = netdev_priv(dev->net);
 
     u16 tempword;
     u16 status;

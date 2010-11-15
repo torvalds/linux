@@ -163,7 +163,7 @@ static int ft1000_probe(struct usb_interface *interface,
 	if (ret)
 		goto err_load;
 
-	pft1000info = (struct ft1000_info *) netdev_priv(ft1000dev->net);
+	pft1000info = netdev_priv(ft1000dev->net);
 
 	DEBUG("In probe: pft1000info=%p\n", pft1000info);
 	ret = dsp_reload(ft1000dev);

@@ -65,7 +65,7 @@ ft1000ReadProc (char *page, char **start, off_t off, int count, int *eof,
   time_t delta;
 
   dev = (struct net_device *) data;
-	info = (struct ft1000_info *) netdev_priv(dev);
+	info = netdev_priv(dev);
 
   if (off > 0)
     {
@@ -172,7 +172,7 @@ ft1000NotifyProc (struct notifier_block *this, unsigned long event, void *ptr)
 	struct ft1000_info *info;
   struct proc_dir_entry *ft1000_proc_file;
 
-info = (struct ft1000_info *) netdev_priv(dev);
+info = netdev_priv(dev);
 
 
   switch (event)
@@ -198,7 +198,7 @@ ft1000InitProc (struct net_device *dev)
 {
 	struct ft1000_info *info;
   struct proc_dir_entry *ft1000_proc_file;
-	info = (struct ft1000_info *) netdev_priv(dev);
+	info = netdev_priv(dev);
 
 
   info->ft1000_proc_dir = proc_mkdir (FT1000_PROC_DIR, FTNET_PROC);

@@ -423,7 +423,7 @@ static int ft1000_ChOpen (struct inode *Inode, struct file *File)
 
     if ( pdevobj[num] != NULL )
         //info = (struct ft1000_info *)(pdevobj[num]->net->priv);
-		info = (struct ft1000_info *)netdev_priv(pdevobj[num]->net);
+		info = netdev_priv(pdevobj[num]->net);
     else
     {
         DEBUG("ft1000_ChOpen: can not find device object %d\n", num);
@@ -488,7 +488,7 @@ static unsigned int ft1000_ChPoll(struct file *file, poll_table *wait)
         return (-EBADF);
     }
 
-	info = (struct ft1000_info *) netdev_priv(dev);
+	info = netdev_priv(dev);
 
     // Search for matching file object
     for (i=0; i<MAX_NUM_APP; i++) {
@@ -560,7 +560,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
     //DEBUG("FT1000:ft1000_ChIoctl:Command = 0x%x Argument = 0x%8x\n", Command, (u32)Argument);
 
     dev = File->private_data;
-	info = (struct ft1000_info *) netdev_priv(dev);
+	info = netdev_priv(dev);
     ft1000dev = info->pFt1000Dev;
     cmd = _IOC_NR(Command);
     //DEBUG("FT1000:ft1000_ChIoctl:cmd = 0x%x\n", cmd);
@@ -900,7 +900,7 @@ static int ft1000_ChRelease (struct inode *Inode, struct file *File)
     DEBUG("ft1000_ChRelease called\n");
 
     dev = File->private_data;
-	info = (struct ft1000_info *) netdev_priv(dev);
+	info = netdev_priv(dev);
 
     if (ft1000_flarion_cnt == 0) {
         info->appcnt--;
