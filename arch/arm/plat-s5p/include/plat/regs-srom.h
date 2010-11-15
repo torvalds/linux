@@ -36,6 +36,8 @@
 #define S5P_SROM_BW__NCS1__SHIFT		4
 #define S5P_SROM_BW__NCS2__SHIFT		8
 #define S5P_SROM_BW__NCS3__SHIFT		12
+#define S5P_SROM_BW__NCS4__SHIFT		16
+#define S5P_SROM_BW__NCS5__SHIFT		20
 
 /* applies to same to BCS0 - BCS3 */
 
