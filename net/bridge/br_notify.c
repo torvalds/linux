@@ -32,7 +32,7 @@ struct notifier_block br_device_notifier = {
 static int br_device_event(struct notifier_block *unused, unsigned long event, void *ptr)
 {
 	struct net_device *dev = ptr;
-	struct net_bridge_port *p = br_port_get(dev);
+	struct net_bridge_port *p;
 	struct net_bridge *br;
 	int err;
 

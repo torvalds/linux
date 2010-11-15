@@ -151,10 +151,18 @@ struct net_bridge_port
 #endif
 };
 
-#define br_port_get_rcu(dev) \
-	((struct net_bridge_port *) rcu_dereference(dev->rx_handler_data))
-#define br_port_get(dev) ((struct net_bridge_port *) dev->rx_handler_data)
 #define br_port_exists(dev) (dev->priv_flags & IFF_BRIDGE_PORT)
+
+static inline struct net_bridge_port *br_port_get_rcu(const struct net_device *dev)
+{
+	struct net_bridge_port *port = rcu_dereference(dev->rx_handler_data);
+	return br_port_exists(dev) ? port : NULL;
+}
+
+static inline struct net_bridge_port *br_port_get(struct net_device *dev)
+{
+	return br_port_exists(dev) ? dev->rx_handler_data : NULL;
+}
 
 struct br_cpu_netstats {
 	u64			rx_packets;
