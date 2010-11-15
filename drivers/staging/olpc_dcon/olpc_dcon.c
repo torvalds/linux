@@ -17,7 +17,6 @@
 #include <linux/console.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
-#include <linux/i2c-id.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/interrupt.h>
