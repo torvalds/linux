@@ -539,6 +539,9 @@ static u64 sched_vslice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	return calc_delta_fair(sched_slice(cfs_rq, se), se);
 }
 
+static void update_cfs_load(struct cfs_rq *cfs_rq);
+static void update_cfs_shares(struct cfs_rq *cfs_rq, long weight_delta);
+
 /*
  * Update the current task's runtime statistics. Skip current tasks that
  * are not in our scheduling class.
@@ -558,6 +561,14 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 
 	curr->vruntime += delta_exec_weighted;
 	update_min_vruntime(cfs_rq);
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	cfs_rq->load_unacc_exec_time += delta_exec;
+	if (cfs_rq->load_unacc_exec_time > sysctl_sched_shares_window) {
+		update_cfs_load(cfs_rq);
+		update_cfs_shares(cfs_rq, 0);
+	}
+#endif
 }
 
 static void update_curr(struct cfs_rq *cfs_rq)
@@ -713,6 +724,7 @@ static void update_cfs_load(struct cfs_rq *cfs_rq)
 	}
 
 	cfs_rq->load_stamp = now;
+	cfs_rq->load_unacc_exec_time = 0;
 	cfs_rq->load_period += delta;
 	if (load) {
 		cfs_rq->load_last = now;
