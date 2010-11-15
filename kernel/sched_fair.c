@@ -417,7 +417,6 @@ int sched_proc_update_handler(struct ctl_table *table, int write,
 	WRT_SYSCTL(sched_min_granularity);
 	WRT_SYSCTL(sched_latency);
 	WRT_SYSCTL(sched_wakeup_granularity);
-	WRT_SYSCTL(sched_shares_ratelimit);
 #undef WRT_SYSCTL
 
 	return 0;
@@ -633,7 +632,6 @@ account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		list_add(&se->group_node, &cfs_rq->tasks);
 	}
 	cfs_rq->nr_running++;
-	se->on_rq = 1;
 }
 
 static void
@@ -647,8 +645,88 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		list_del_init(&se->group_node);
 	}
 	cfs_rq->nr_running--;
-	se->on_rq = 0;
 }
+
+#if defined CONFIG_SMP && defined CONFIG_FAIR_GROUP_SCHED
+static void update_cfs_load(struct cfs_rq *cfs_rq)
+{
+	u64 period = sched_avg_period();
+	u64 now, delta;
+
+	if (!cfs_rq)
+		return;
+
+	now = rq_of(cfs_rq)->clock;
+	delta = now - cfs_rq->load_stamp;
+
+	cfs_rq->load_stamp = now;
+	cfs_rq->load_period += delta;
+	cfs_rq->load_avg += delta * cfs_rq->load.weight;
+
+	while (cfs_rq->load_period > period) {
+		/*
+		 * Inline assembly required to prevent the compiler
+		 * optimising this loop into a divmod call.
+		 * See __iter_div_u64_rem() for another example of this.
+		 */
+		asm("" : "+rm" (cfs_rq->load_period));
+		cfs_rq->load_period /= 2;
+		cfs_rq->load_avg /= 2;
+	}
+}
+
+static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
+			    unsigned long weight)
+{
+	if (se->on_rq)
+		account_entity_dequeue(cfs_rq, se);
+
+	update_load_set(&se->load, weight);
+
+	if (se->on_rq)
+		account_entity_enqueue(cfs_rq, se);
+}
+
+static void update_cfs_shares(struct cfs_rq *cfs_rq)
+{
+	struct task_group *tg;
+	struct sched_entity *se;
+	long load_weight, load, shares;
+
+	if (!cfs_rq)
+		return;
+
+	tg = cfs_rq->tg;
+	se = tg->se[cpu_of(rq_of(cfs_rq))];
+	if (!se)
+		return;
+
+	load = cfs_rq->load.weight;
+
+	load_weight = atomic_read(&tg->load_weight);
+	load_weight -= cfs_rq->load_contribution;
+	load_weight += load;
+
+	shares = (tg->shares * load);
+	if (load_weight)
+		shares /= load_weight;
+
+	if (shares < MIN_SHARES)
+		shares = MIN_SHARES;
+	if (shares > tg->shares)
+		shares = tg->shares;
+
+	reweight_entity(cfs_rq_of(se), se, shares);
+}
+#else /* CONFIG_FAIR_GROUP_SCHED */
+static inline void update_cfs_load(struct cfs_rq *cfs_rq)
+{
+}
+
+static inline void update_cfs_shares(struct cfs_rq *cfs_rq)
+{
+}
+#endif /* CONFIG_FAIR_GROUP_SCHED */
 
 static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -771,7 +849,9 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	 * Update run-time statistics of the 'current'.
 	 */
 	update_curr(cfs_rq);
+	update_cfs_load(cfs_rq);
 	account_entity_enqueue(cfs_rq, se);
+	update_cfs_shares(cfs_rq);
 
 	if (flags & ENQUEUE_WAKEUP) {
 		place_entity(cfs_rq, se, 0);
@@ -782,6 +862,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	check_spread(cfs_rq, se);
 	if (se != cfs_rq->curr)
 		__enqueue_entity(cfs_rq, se);
+	se->on_rq = 1;
 }
 
 static void __clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
@@ -825,8 +906,11 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 
 	if (se != cfs_rq->curr)
 		__dequeue_entity(cfs_rq, se);
+	se->on_rq = 0;
+	update_cfs_load(cfs_rq);
 	account_entity_dequeue(cfs_rq, se);
 	update_min_vruntime(cfs_rq);
+	update_cfs_shares(cfs_rq);
 
 	/*
 	 * Normalize the entity after updating the min_vruntime because the
@@ -1055,6 +1139,13 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		flags = ENQUEUE_WAKEUP;
 	}
 
+	for_each_sched_entity(se) {
+		struct cfs_rq *cfs_rq = cfs_rq_of(se);
+
+		update_cfs_load(cfs_rq);
+		update_cfs_shares(cfs_rq);
+	}
+
 	hrtick_update(rq);
 }
 
@@ -1071,10 +1162,18 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);
 		dequeue_entity(cfs_rq, se, flags);
+
 		/* Don't dequeue parent if it has other entities besides us */
 		if (cfs_rq->load.weight)
 			break;
 		flags |= DEQUEUE_SLEEP;
+	}
+
+	for_each_sched_entity(se) {
+		struct cfs_rq *cfs_rq = cfs_rq_of(se);
+
+		update_cfs_load(cfs_rq);
+		update_cfs_shares(cfs_rq);
 	}
 
 	hrtick_update(rq);
@@ -1143,51 +1242,20 @@ static void task_waking_fair(struct rq *rq, struct task_struct *p)
  * Adding load to a group doesn't make a group heavier, but can cause movement
  * of group shares between cpus. Assuming the shares were perfectly aligned one
  * can calculate the shift in shares.
- *
- * The problem is that perfectly aligning the shares is rather expensive, hence
- * we try to avoid doing that too often - see update_shares(), which ratelimits
- * this change.
- *
- * We compensate this by not only taking the current delta into account, but
- * also considering the delta between when the shares were last adjusted and
- * now.
- *
- * We still saw a performance dip, some tracing learned us that between
- * cgroup:/ and cgroup:/foo balancing the number of affine wakeups increased
- * significantly. Therefore try to bias the error in direction of failing
- * the affine wakeup.
- *
  */
-static long effective_load(struct task_group *tg, int cpu,
-		long wl, long wg)
+static long effective_load(struct task_group *tg, int cpu, long wl, long wg)
 {
 	struct sched_entity *se = tg->se[cpu];
 
 	if (!tg->parent)
 		return wl;
 
-	/*
-	 * By not taking the decrease of shares on the other cpu into
-	 * account our error leans towards reducing the affine wakeups.
-	 */
-	if (!wl && sched_feat(ASYM_EFF_LOAD))
-		return wl;
-
 	for_each_sched_entity(se) {
 		long S, rw, s, a, b;
-		long more_w;
-
-		/*
-		 * Instead of using this increment, also add the difference
-		 * between when the shares were last updated and now.
-		 */
-		more_w = se->my_q->load.weight - se->my_q->rq_weight;
-		wl += more_w;
-		wg += more_w;
 
 		S = se->my_q->tg->shares;
-		s = se->my_q->shares;
-		rw = se->my_q->rq_weight;
+		s = se->load.weight;
+		rw = se->my_q->load.weight;
 
 		a = S*(rw + wl);
 		b = S*rw + s*wg;
@@ -1507,23 +1575,6 @@ select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_
 		if (want_sd)
 			sd = tmp;
 	}
-
-#ifdef CONFIG_FAIR_GROUP_SCHED
-	if (sched_feat(LB_SHARES_UPDATE)) {
-		/*
-		 * Pick the largest domain to update shares over
-		 */
-		tmp = sd;
-		if (affine_sd && (!tmp || affine_sd->span_weight > sd->span_weight))
-			tmp = affine_sd;
-
-		if (tmp) {
-			raw_spin_unlock(&rq->lock);
-			update_shares(tmp);
-			raw_spin_lock(&rq->lock);
-		}
-	}
-#endif
 
 	if (affine_sd) {
 		if (cpu == prev_cpu || wake_affine(affine_sd, p, sync))
@@ -3014,7 +3065,6 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 	schedstat_inc(sd, lb_count[idle]);
 
 redo:
-	update_shares(sd);
 	group = find_busiest_group(sd, this_cpu, &imbalance, idle, &sd_idle,
 				   cpus, balance);
 
@@ -3156,8 +3206,6 @@ out_one_pinned:
 	else
 		ld_moved = 0;
 out:
-	if (ld_moved)
-		update_shares(sd);
 	return ld_moved;
 }
 
@@ -3548,6 +3596,8 @@ static void rebalance_domains(int cpu, enum cpu_idle_type idle)
 	unsigned long next_balance = jiffies + 60*HZ;
 	int update_next_balance = 0;
 	int need_serialize;
+
+	update_shares(cpu);
 
 	for_each_domain(cpu, sd) {
 		if (!(sd->flags & SD_LOAD_BALANCE))
