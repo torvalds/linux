@@ -233,8 +233,6 @@ static DEVICE_ATTR(urbnum, S_IRUGO, show_urbnum, NULL);
 
 #ifdef	CONFIG_PM
 
-static const char power_group[] = "power";
-
 static ssize_t
 show_persist(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -278,7 +276,7 @@ static int add_persist_attributes(struct device *dev)
 		if (udev->descriptor.bDeviceClass != USB_CLASS_HUB)
 			rc = sysfs_add_file_to_group(&dev->kobj,
 					&dev_attr_persist.attr,
-					power_group);
+					power_group_name);
 	}
 	return rc;
 }
@@ -287,7 +285,7 @@ static void remove_persist_attributes(struct device *dev)
 {
 	sysfs_remove_file_from_group(&dev->kobj,
 			&dev_attr_persist.attr,
-			power_group);
+			power_group_name);
 }
 #else
 
@@ -438,44 +436,30 @@ set_level(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(level, S_IRUGO | S_IWUSR, show_level, set_level);
 
+static struct attribute *power_attrs[] = {
+	&dev_attr_autosuspend.attr,
+	&dev_attr_level.attr,
+	&dev_attr_connected_duration.attr,
+	&dev_attr_active_duration.attr,
+	NULL,
+};
+static struct attribute_group power_attr_group = {
+	.name	= power_group_name,
+	.attrs	= power_attrs,
+};
+
 static int add_power_attributes(struct device *dev)
 {
 	int rc = 0;
 
-	if (is_usb_device(dev)) {
-		rc = sysfs_add_file_to_group(&dev->kobj,
-				&dev_attr_autosuspend.attr,
-				power_group);
-		if (rc == 0)
-			rc = sysfs_add_file_to_group(&dev->kobj,
-					&dev_attr_level.attr,
-					power_group);
-		if (rc == 0)
-			rc = sysfs_add_file_to_group(&dev->kobj,
-					&dev_attr_connected_duration.attr,
-					power_group);
-		if (rc == 0)
-			rc = sysfs_add_file_to_group(&dev->kobj,
-					&dev_attr_active_duration.attr,
-					power_group);
-	}
+	if (is_usb_device(dev))
+		rc = sysfs_merge_group(&dev->kobj, &power_attr_group);
 	return rc;
 }
 
 static void remove_power_attributes(struct device *dev)
 {
-	sysfs_remove_file_from_group(&dev->kobj,
-			&dev_attr_active_duration.attr,
-			power_group);
-	sysfs_remove_file_from_group(&dev->kobj,
-			&dev_attr_connected_duration.attr,
-			power_group);
-	sysfs_remove_file_from_group(&dev->kobj,
-			&dev_attr_level.attr,
-			power_group);
-	sysfs_remove_file_from_group(&dev->kobj,
-			&dev_attr_autosuspend.attr,
-			power_group);
+	sysfs_unmerge_group(&dev->kobj, &power_attr_group);
 }
 
 #else
