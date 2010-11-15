@@ -3,16 +3,58 @@
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 
+struct nv50_fb_priv {
+	struct page *r100c08_page;
+	dma_addr_t r100c08;
+};
+
+static int
+nv50_fb_create(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv50_fb_priv *priv;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (!priv->r100c08_page) {
+		kfree(priv);
+		return -ENOMEM;
+	}
+
+	priv->r100c08 = pci_map_page(dev->pdev, priv->r100c08_page, 0,
+				     PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+	if (pci_dma_mapping_error(dev->pdev, priv->r100c08)) {
+		__free_page(priv->r100c08_page);
+		kfree(priv);
+		return -EFAULT;
+	}
+
+	dev_priv->engine.fb.priv = priv;
+	return 0;
+}
+
 int
 nv50_fb_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv50_fb_priv *priv;
+	int ret;
+
+	if (!dev_priv->engine.fb.priv) {
+		ret = nv50_fb_create(dev);
+		if (ret)
+			return ret;
+	}
+	priv = dev_priv->engine.fb.priv;
 
 	/* Not a clue what this is exactly.  Without pointing it at a
 	 * scratch page, VRAM->GART blits with M2MF (as in DDX DFS)
 	 * cause IOMMU "read from address 0" errors (rh#561267)
 	 */
-	nv_wr32(dev, 0x100c08, dev_priv->gart_info.sg_dummy_bus >> 8);
+	nv_wr32(dev, 0x100c08, priv->r100c08 >> 8);
 
 	/* This is needed to get meaningful information from 100c90
 	 * on traps. No idea what these values mean exactly. */
@@ -36,6 +78,18 @@ nv50_fb_init(struct drm_device *dev)
 void
 nv50_fb_takedown(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nv50_fb_priv *priv;
+
+	priv = dev_priv->engine.fb.priv;
+	if (!priv)
+		return;
+	dev_priv->engine.fb.priv = NULL;
+
+	pci_unmap_page(dev->pdev, priv->r100c08, PAGE_SIZE,
+		       PCI_DMA_BIDIRECTIONAL);
+	__free_page(priv->r100c08_page);
+	kfree(priv);
 }
 
 void

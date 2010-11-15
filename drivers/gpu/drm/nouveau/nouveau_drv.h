@@ -311,6 +311,7 @@ struct nouveau_timer_engine {
 struct nouveau_fb_engine {
 	int num_tiles;
 	struct drm_mm tag_heap;
+	void *priv;
 
 	int  (*init)(struct drm_device *dev);
 	void (*takedown)(struct drm_device *dev);
