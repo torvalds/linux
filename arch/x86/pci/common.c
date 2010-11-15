@@ -421,15 +421,9 @@ struct pci_bus * __devinit pcibios_scan_root(int busnum)
 
 	return bus;
 }
-
-int __init pcibios_init(void)
+void __init pcibios_set_cache_line_size(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
-
-	if (!raw_pci_ops) {
-		printk(KERN_WARNING "PCI: System does not support PCI\n");
-		return 0;
-	}
 
 	/*
 	 * Set PCI cacheline size to that of the CPU if the CPU has reported it.
@@ -445,7 +439,16 @@ int __init pcibios_init(void)
  		pci_dfl_cache_line_size = 32 >> 2;
 		printk(KERN_DEBUG "PCI: Unknown cacheline size. Setting to 32 bytes\n");
 	}
+}
 
+int __init pcibios_init(void)
+{
+	if (!raw_pci_ops) {
+		printk(KERN_WARNING "PCI: System does not support PCI\n");
+		return 0;
+	}
+
+	pcibios_set_cache_line_size();
 	pcibios_resource_survey();
 
 	if (pci_bf_sort >= pci_force_bf)

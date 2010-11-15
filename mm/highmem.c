@@ -29,6 +29,11 @@
 #include <linux/kgdb.h>
 #include <asm/tlbflush.h>
 
+
+#if defined(CONFIG_HIGHMEM) || defined(CONFIG_X86_32)
+DEFINE_PER_CPU(int, __kmap_atomic_idx);
+#endif
+
 /*
  * Virtual_count is not a pure "count".
  *  0 means that it is not mapped, and has not been mapped
@@ -43,7 +48,6 @@ unsigned long totalhigh_pages __read_mostly;
 EXPORT_SYMBOL(totalhigh_pages);
 
 
-DEFINE_PER_CPU(int, __kmap_atomic_idx);
 EXPORT_PER_CPU_SYMBOL(__kmap_atomic_idx);
 
 unsigned int nr_free_highpages (void)

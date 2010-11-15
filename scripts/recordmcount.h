@@ -19,20 +19,28 @@
  * Licensed under the GNU General Public License, version 2 (GPLv2).
  */
 #undef append_func
+#undef is_fake_mcount
+#undef fn_is_fake_mcount
+#undef MIPS_is_fake_mcount
 #undef sift_rel_mcount
 #undef find_secsym_ndx
 #undef __has_rel_mcount
 #undef has_rel_mcount
 #undef tot_relsize
 #undef do_func
+#undef Elf_Addr
 #undef Elf_Ehdr
 #undef Elf_Shdr
 #undef Elf_Rel
 #undef Elf_Rela
 #undef Elf_Sym
 #undef ELF_R_SYM
+#undef Elf_r_sym
 #undef ELF_R_INFO
+#undef Elf_r_info
 #undef ELF_ST_BIND
+#undef fn_ELF_R_SYM
+#undef fn_ELF_R_INFO
 #undef uint_t
 #undef _w
 #undef _align
@@ -46,14 +54,22 @@
 # define has_rel_mcount		has64_rel_mcount
 # define tot_relsize		tot64_relsize
 # define do_func		do64
+# define is_fake_mcount		is_fake_mcount64
+# define fn_is_fake_mcount	fn_is_fake_mcount64
+# define MIPS_is_fake_mcount	MIPS64_is_fake_mcount
+# define Elf_Addr		Elf64_Addr
 # define Elf_Ehdr		Elf64_Ehdr
 # define Elf_Shdr		Elf64_Shdr
 # define Elf_Rel		Elf64_Rel
 # define Elf_Rela		Elf64_Rela
 # define Elf_Sym		Elf64_Sym
 # define ELF_R_SYM		ELF64_R_SYM
+# define Elf_r_sym		Elf64_r_sym
 # define ELF_R_INFO		ELF64_R_INFO
+# define Elf_r_info		Elf64_r_info
 # define ELF_ST_BIND		ELF64_ST_BIND
+# define fn_ELF_R_SYM		fn_ELF64_R_SYM
+# define fn_ELF_R_INFO		fn_ELF64_R_INFO
 # define uint_t			uint64_t
 # define _w			w8
 # define _align			7u
@@ -66,19 +82,80 @@
 # define has_rel_mcount		has32_rel_mcount
 # define tot_relsize		tot32_relsize
 # define do_func		do32
+# define is_fake_mcount		is_fake_mcount32
+# define fn_is_fake_mcount	fn_is_fake_mcount32
+# define MIPS_is_fake_mcount	MIPS32_is_fake_mcount
+# define Elf_Addr		Elf32_Addr
 # define Elf_Ehdr		Elf32_Ehdr
 # define Elf_Shdr		Elf32_Shdr
 # define Elf_Rel		Elf32_Rel
 # define Elf_Rela		Elf32_Rela
 # define Elf_Sym		Elf32_Sym
 # define ELF_R_SYM		ELF32_R_SYM
+# define Elf_r_sym		Elf32_r_sym
 # define ELF_R_INFO		ELF32_R_INFO
+# define Elf_r_info		Elf32_r_info
 # define ELF_ST_BIND		ELF32_ST_BIND
+# define fn_ELF_R_SYM		fn_ELF32_R_SYM
+# define fn_ELF_R_INFO		fn_ELF32_R_INFO
 # define uint_t			uint32_t
 # define _w			w
 # define _align			3u
 # define _size			4
 #endif
+
+/* Functions and pointers that do_file() may override for specific e_machine. */
+static int fn_is_fake_mcount(Elf_Rel const *rp)
+{
+	return 0;
+}
+static int (*is_fake_mcount)(Elf_Rel const *rp) = fn_is_fake_mcount;
+
+static uint_t fn_ELF_R_SYM(Elf_Rel const *rp)
+{
+	return ELF_R_SYM(_w(rp->r_info));
+}
+static uint_t (*Elf_r_sym)(Elf_Rel const *rp) = fn_ELF_R_SYM;
+
+static void fn_ELF_R_INFO(Elf_Rel *const rp, unsigned sym, unsigned type)
+{
+	rp->r_info = ELF_R_INFO(sym, type);
+}
+static void (*Elf_r_info)(Elf_Rel *const rp, unsigned sym, unsigned type) = fn_ELF_R_INFO;
+
+/*
+ * MIPS mcount long call has 2 _mcount symbols, only the position of the 1st
+ * _mcount symbol is needed for dynamic function tracer, with it, to disable
+ * tracing(ftrace_make_nop), the instruction in the position is replaced with
+ * the "b label" instruction, to enable tracing(ftrace_make_call), replace the
+ * instruction back. So, here, we set the 2nd one as fake and filter it.
+ *
+ * c:	3c030000	lui	v1,0x0		<-->	b	label
+ *		c: R_MIPS_HI16	_mcount
+ *		c: R_MIPS_NONE	*ABS*
+ *		c: R_MIPS_NONE	*ABS*
+ * 10:	64630000	daddiu	v1,v1,0
+ *		10: R_MIPS_LO16	_mcount
+ *		10: R_MIPS_NONE	*ABS*
+ *		10: R_MIPS_NONE	*ABS*
+ * 14:	03e0082d	move	at,ra
+ * 18:	0060f809	jalr	v1
+ * label:
+ */
+#define MIPS_FAKEMCOUNT_OFFSET	4
+
+static int MIPS_is_fake_mcount(Elf_Rel const *rp)
+{
+	static Elf_Addr old_r_offset;
+	Elf_Addr current_r_offset = _w(rp->r_offset);
+	int is_fake;
+
+	is_fake = old_r_offset &&
+		(current_r_offset - old_r_offset == MIPS_FAKEMCOUNT_OFFSET);
+	old_r_offset = current_r_offset;
+
+	return is_fake;
+}
 
 /* Append the new shstrtab, Elf_Shdr[], __mcount_loc and its relocations. */
 static void append_func(Elf_Ehdr *const ehdr,
@@ -157,7 +234,6 @@ static void append_func(Elf_Ehdr *const ehdr,
 	uwrite(fd_map, ehdr, sizeof(*ehdr));
 }
 
-
 /*
  * Look at the relocations in order to find the calls to mcount.
  * Accumulate the section offsets that are found, and their relocation info,
@@ -197,22 +273,22 @@ static uint_t *sift_rel_mcount(uint_t *mlocp,
 	for (t = nrel; t; --t) {
 		if (!mcountsym) {
 			Elf_Sym const *const symp =
-				&sym0[ELF_R_SYM(_w(relp->r_info))];
+				&sym0[Elf_r_sym(relp)];
 			char const *symname = &str0[w(symp->st_name)];
 
 			if ('.' == symname[0])
 				++symname;  /* ppc64 hack */
 			if (0 == strcmp((('_' == gpfx) ? "_mcount" : "mcount"),
 					symname))
-				mcountsym = ELF_R_SYM(_w(relp->r_info));
+				mcountsym = Elf_r_sym(relp);
 		}
 
-		if (mcountsym == ELF_R_SYM(_w(relp->r_info))) {
+		if (mcountsym == Elf_r_sym(relp) && !is_fake_mcount(relp)) {
 			uint_t const addend = _w(_w(relp->r_offset) - recval);
 
 			mrelp->r_offset = _w(offbase
 				+ ((void *)mlocp - (void *)mloc0));
-			mrelp->r_info = _w(ELF_R_INFO(recsym, reltype));
+			Elf_r_info(mrelp, recsym, reltype);
 			if (sizeof(Elf_Rela) == rel_entsize) {
 				((Elf_Rela *)mrelp)->r_addend = addend;
 				*mlocp++ = 0;

@@ -158,6 +158,43 @@ static struct mfd_cell onkey_devs[] = {
 	},
 };
 
+static struct resource codec_resources[] = {
+	{
+		/* Headset microphone insertion or removal */
+		.name		= "micin",
+		.start		= PM8607_IRQ_MICIN,
+		.end		= PM8607_IRQ_MICIN,
+		.flags		= IORESOURCE_IRQ,
+	}, {
+		/* Hook-switch press or release */
+		.name		= "hook",
+		.start		= PM8607_IRQ_HOOK,
+		.end		= PM8607_IRQ_HOOK,
+		.flags		= IORESOURCE_IRQ,
+	}, {
+		/* Headset insertion or removal */
+		.name		= "headset",
+		.start		= PM8607_IRQ_HEADSET,
+		.end		= PM8607_IRQ_HEADSET,
+		.flags		= IORESOURCE_IRQ,
+	}, {
+		/* Audio short */
+		.name		= "audio-short",
+		.start		= PM8607_IRQ_AUDIO_SHORT,
+		.end		= PM8607_IRQ_AUDIO_SHORT,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct mfd_cell codec_devs[] = {
+	{
+		.name		= "88pm860x-codec",
+		.num_resources	= ARRAY_SIZE(codec_resources),
+		.resources	= &codec_resources[0],
+		.id		= -1,
+	},
+};
+
 static struct resource regulator_resources[] = {
 	PM8607_REG_RESOURCE(BUCK1, BUCK1),
 	PM8607_REG_RESOURCE(BUCK2, BUCK2),
@@ -608,10 +645,13 @@ static void __devinit device_8607_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to read CHIP ID: %d\n", ret);
 		goto out;
 	}
-	if ((ret & PM8607_VERSION_MASK) == PM8607_VERSION)
+	switch (ret & PM8607_VERSION_MASK) {
+	case 0x40:
+	case 0x50:
 		dev_info(chip->dev, "Marvell 88PM8607 (ID: %02x) detected\n",
 			 ret);
-	else {
+		break;
+	default:
 		dev_err(chip->dev, "Failed to detect Marvell 88PM8607. "
 			"Chip ID: %02x\n", ret);
 		goto out;
@@ -687,6 +727,13 @@ static void __devinit device_8607_init(struct pm860x_chip *chip,
 		goto out_dev;
 	}
 
+	ret = mfd_add_devices(chip->dev, 0, &codec_devs[0],
+			      ARRAY_SIZE(codec_devs),
+			      &codec_resources[0], 0);
+	if (ret < 0) {
+		dev_err(chip->dev, "Failed to add codec subdev\n");
+		goto out_dev;
+	}
 	return;
 out_dev:
 	mfd_remove_devices(chip->dev);

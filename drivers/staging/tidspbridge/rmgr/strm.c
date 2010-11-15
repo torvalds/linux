@@ -42,7 +42,6 @@
 /*  ----------------------------------- This */
 #include <dspbridge/strm.h>
 
-#include <dspbridge/cfg.h>
 #include <dspbridge/resourcecleanup.h>
 
 /*  ----------------------------------- Defines, Data Structures, Typedefs */
@@ -835,16 +834,9 @@ static int delete_strm(struct strm_object *stream_obj)
 			 * is invalid. */
 			status = (*intf_fxns->pfn_chnl_close)
 					(stream_obj->chnl_obj);
-			/* Free all SM address translator resources */
-			if (!status) {
-				if (stream_obj->xlator) {
-					/* force free */
-					(void)cmm_xlator_delete(stream_obj->
-								xlator,
-								true);
-				}
-			}
 		}
+		/* Free all SM address translator resources */
+		kfree(stream_obj->xlator);
 		kfree(stream_obj);
 	} else {
 		status = -EFAULT;

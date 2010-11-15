@@ -1,4 +1,4 @@
-w35und-objs :=			\
+w35und-y :=			\
 	mds.o			\
 	mlmetxrx.o		\
 	mto.o			\

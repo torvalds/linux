@@ -677,10 +677,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	/*
 	 * Calculate scan IE length -- we need this to alloc
 	 * memory and to subtract from the driver limit. It
-	 * includes the (extended) supported rates and HT
+	 * includes the DS Params, (extended) supported rates, and HT
 	 * information -- SSID is the driver's responsibility.
 	 */
-	local->scan_ies_len = 4 + max_bitrates; /* (ext) supp rates */
+	local->scan_ies_len = 4 + max_bitrates /* (ext) supp rates */ +
+		3 /* DS Params */;
 	if (supp_ht)
 		local->scan_ies_len += 2 + sizeof(struct ieee80211_ht_cap);
 
@@ -748,7 +749,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		hw->queues = IEEE80211_MAX_QUEUES;
 
 	local->workqueue =
-		create_singlethread_workqueue(wiphy_name(local->hw.wiphy));
+		alloc_ordered_workqueue(wiphy_name(local->hw.wiphy), 0);
 	if (!local->workqueue) {
 		result = -ENOMEM;
 		goto fail_workqueue;
@@ -961,12 +962,6 @@ static void __exit ieee80211_exit(void)
 	rc80211_pid_exit();
 	rc80211_minstrel_ht_exit();
 	rc80211_minstrel_exit();
-
-	/*
-	 * For key todo, it'll be empty by now but the work
-	 * might still be scheduled.
-	 */
-	flush_scheduled_work();
 
 	if (mesh_allocated)
 		ieee80211s_stop();

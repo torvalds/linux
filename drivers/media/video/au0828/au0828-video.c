@@ -965,7 +965,7 @@ static int au0828_v4l2_open(struct file *filp)
 				    NULL, &dev->slock,
 				    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				    V4L2_FIELD_INTERLACED,
-				    sizeof(struct au0828_buffer), fh);
+				    sizeof(struct au0828_buffer), fh, NULL);
 
 	/* VBI Setup */
 	dev->vbi_width = 720;
@@ -974,7 +974,7 @@ static int au0828_v4l2_open(struct file *filp)
 				    NULL, &dev->slock,
 				    V4L2_BUF_TYPE_VBI_CAPTURE,
 				    V4L2_FIELD_SEQ_TB,
-				    sizeof(struct au0828_buffer), fh);
+				    sizeof(struct au0828_buffer), fh, NULL);
 
 
 	return ret;

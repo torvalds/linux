@@ -18,9 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifdef CONFIG_INPUT
 #include <linux/input.h>
-#endif
 
 #include "gspca.h"
 #include "jpeg.h"
@@ -347,8 +345,8 @@ static const struct ctrl sd_ctrls[] = {
 
 static const struct v4l2_pix_format vga_mode[] = {
 	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
-		.bytesperline = 240,
-		.sizeimage = 240 * 120,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0 | MODE_JPEG},
 	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
@@ -357,13 +355,13 @@ static const struct v4l2_pix_format vga_mode[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0 | MODE_RAW},
 	{160, 120, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
-		.bytesperline = 240,
+		.bytesperline = 160,
 		.sizeimage = 240 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
-		.bytesperline = 480,
-		.sizeimage = 480 * 240 ,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1 | MODE_JPEG},
 	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
@@ -372,13 +370,13 @@ static const struct v4l2_pix_format vga_mode[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1 | MODE_RAW},
 	{320, 240, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
-		.bytesperline = 480,
+		.bytesperline = 320,
 		.sizeimage = 480 * 240 ,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
 	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
-		.bytesperline = 960,
-		.sizeimage = 960 * 480,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2 | MODE_JPEG},
 	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
@@ -387,7 +385,7 @@ static const struct v4l2_pix_format vga_mode[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2 | MODE_RAW},
 	{640, 480, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
-		.bytesperline = 960,
+		.bytesperline = 640,
 		.sizeimage = 960 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
@@ -395,8 +393,8 @@ static const struct v4l2_pix_format vga_mode[] = {
 
 static const struct v4l2_pix_format sxga_mode[] = {
 	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
-		.bytesperline = 240,
-		.sizeimage = 240 * 120,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0 | MODE_JPEG},
 	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
@@ -405,13 +403,13 @@ static const struct v4l2_pix_format sxga_mode[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0 | MODE_RAW},
 	{160, 120, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
-		.bytesperline = 240,
+		.bytesperline = 160,
 		.sizeimage = 240 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
-		.bytesperline = 480,
-		.sizeimage = 480 * 240 ,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 1 | MODE_JPEG},
 	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
@@ -420,13 +418,13 @@ static const struct v4l2_pix_format sxga_mode[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1 | MODE_RAW},
 	{320, 240, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
-		.bytesperline = 480,
+		.bytesperline = 320,
 		.sizeimage = 480 * 240 ,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
 	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
-		.bytesperline = 960,
-		.sizeimage = 960 * 480,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 2 | MODE_JPEG},
 	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
@@ -435,13 +433,13 @@ static const struct v4l2_pix_format sxga_mode[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2 | MODE_RAW},
 	{640, 480, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
-		.bytesperline = 960,
+		.bytesperline = 640,
 		.sizeimage = 960 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
 	{1280, 1024, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 1280,
-		.sizeimage = (1280 * 1024) + 64,
+		.sizeimage = 1280 * 1024,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 3 | MODE_RAW | MODE_SXGA},
 };
@@ -1272,7 +1270,8 @@ static int soi968_init_sensor(struct gspca_dev *gspca_dev)
 		}
 	}
 	/* disable hflip and vflip */
-	gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX) | (1 << EXPOSURE_IDX);
+	gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX)
+				| (1 << EXPOSURE_IDX);
 	sd->hstart = 60;
 	sd->vstart = 11;
 	return 0;
@@ -1351,7 +1350,9 @@ static int mt9v_init_sensor(struct gspca_dev *gspca_dev)
 				return -ENODEV;
 			}
 		}
-		gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX) | (1 << GAIN_IDX);
+		gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX)
+					| (1 << AUTOGAIN_IDX)
+					| (1 << GAIN_IDX);
 		sd->hstart = 2;
 		sd->vstart = 2;
 		sd->sensor = SENSOR_MT9V111;
@@ -1395,7 +1396,8 @@ static int mt9m112_init_sensor(struct gspca_dev *gspca_dev)
 			return -ENODEV;
 		}
 	}
-	gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX) | (1 << GAIN_IDX);
+	gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX)
+				| (1 << GAIN_IDX);
 	sd->hstart = 0;
 	sd->vstart = 2;
 	return 0;
@@ -1412,7 +1414,8 @@ static int mt9m111_init_sensor(struct gspca_dev *gspca_dev)
 			return -ENODEV;
 		}
 	}
-	gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX) | (1 << GAIN_IDX);
+	gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX)
+				| (1 << GAIN_IDX);
 	sd->hstart = 0;
 	sd->vstart = 2;
 	return 0;
@@ -2304,7 +2307,7 @@ static void sd_dqcallback(struct gspca_dev *gspca_dev)
 		do_autoexposure(gspca_dev, avg_lum);
 }
 
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet */
 			int len)		/* interrupt packet length */
@@ -2386,7 +2389,7 @@ static const struct sd_desc sd_desc = {
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	.int_pkt_scan = sd_int_pkt_scan,
 #endif
 	.dq_callback = sd_dqcallback,
@@ -2467,17 +2470,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	info("registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	info("deregistered");
 }
 
 module_init(sd_mod_init);

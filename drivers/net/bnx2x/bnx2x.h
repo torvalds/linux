@@ -20,8 +20,8 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.60.00-3"
-#define DRV_MODULE_RELDATE      "2010/10/19"
+#define DRV_MODULE_VERSION      "1.60.00-4"
+#define DRV_MODULE_RELDATE      "2010/11/01"
 #define BNX2X_BC_VER            0x040200
 
 #define BNX2X_MULTI_QUEUE
@@ -1288,15 +1288,11 @@ struct bnx2x_func_init_params {
 
 #define WAIT_RAMROD_POLL	0x01
 #define WAIT_RAMROD_COMMON	0x02
-int bnx2x_wait_ramrod(struct bnx2x *bp, int state, int idx,
-			     int *state_p, int flags);
 
 /* dmae */
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);
 void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 		      u32 len32);
-void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
-			       u32 addr, u32 len);
 void bnx2x_post_dmae(struct bnx2x *bp, struct dmae_command *dmae, int idx);
 u32 bnx2x_dmae_opcode_add_comp(u32 opcode, u8 comp_type);
 u32 bnx2x_dmae_opcode_clr_src_reset(u32 opcode);
@@ -1307,7 +1303,6 @@ int bnx2x_get_gpio(struct bnx2x *bp, int gpio_num, u8 port);
 int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
 int bnx2x_set_gpio_int(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
 u32 bnx2x_fw_command(struct bnx2x *bp, u32 command, u32 param);
-void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val);
 
 void bnx2x_calc_fc_adv(struct bnx2x *bp);
 int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,

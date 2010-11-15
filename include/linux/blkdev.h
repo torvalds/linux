@@ -552,8 +552,7 @@ static inline void blk_clear_queue_full(struct request_queue *q, int sync)
  * it already be started by driver.
  */
 #define RQ_NOMERGE_FLAGS	\
-	(REQ_NOMERGE | REQ_STARTED | REQ_HARDBARRIER | REQ_SOFTBARRIER | \
-	 REQ_FLUSH | REQ_FUA)
+	(REQ_NOMERGE | REQ_STARTED | REQ_SOFTBARRIER | REQ_FLUSH | REQ_FUA)
 #define rq_mergeable(rq)	\
 	(!((rq)->cmd_flags & RQ_NOMERGE_FLAGS) && \
 	 (((rq)->cmd_flags & REQ_DISCARD) || \
@@ -890,6 +889,14 @@ static inline int sb_issue_discard(struct super_block *sb, sector_t block,
 	return blkdev_issue_discard(sb->s_bdev, block << (sb->s_blocksize_bits - 9),
 				    nr_blocks << (sb->s_blocksize_bits - 9),
 				    gfp_mask, flags);
+}
+static inline int sb_issue_zeroout(struct super_block *sb, sector_t block,
+		sector_t nr_blocks, gfp_t gfp_mask)
+{
+	return blkdev_issue_zeroout(sb->s_bdev,
+				    block << (sb->s_blocksize_bits - 9),
+				    nr_blocks << (sb->s_blocksize_bits - 9),
+				    gfp_mask);
 }
 
 extern int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm);

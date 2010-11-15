@@ -279,12 +279,6 @@ u8 bnx2x_phy_read(struct link_params *params, u8 phy_addr,
 
 u8 bnx2x_phy_write(struct link_params *params, u8 phy_addr,
 		   u8 devad, u16 reg, u16 val);
-
-u8 bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
-		   u8 devad, u16 reg, u16 *ret_val);
-
-u8 bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
-		    u8 devad, u16 reg, u16 val);
 /* Reads the link_status from the shmem,
    and update the link vars accordingly */
 void bnx2x_link_status_update(struct link_params *input,
@@ -303,8 +297,6 @@ u8 bnx2x_set_led(struct link_params *params, struct link_vars *vars,
 #define LED_MODE_ON			1
 #define LED_MODE_OPER			2
 #define LED_MODE_FRONT_PANEL_OFF	3
-
-u8 bnx2x_override_led_value(struct bnx2x *bp, u8 port, u32 led_idx, u32 value);
 
 /* bnx2x_handle_module_detect_int should be called upon module detection
    interrupt */
@@ -325,18 +317,11 @@ void bnx2x_ext_phy_hw_reset(struct bnx2x *bp, u8 port);
 /* Reset the external of SFX7101 */
 void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, struct bnx2x_phy *phy);
 
-u8 bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
-				struct link_params *params, u16 addr,
-			      u8 byte_cnt, u8 *o_buf);
-
 void bnx2x_hw_reset_phy(struct link_params *params);
 
 /* Checks if HW lock is required for this phy/board type */
 u8 bnx2x_hw_lock_required(struct bnx2x *bp, u32 shmem_base,
 			  u32 shmem2_base);
-
-/* Returns the aggregative supported attributes of the phys on board */
-u32 bnx2x_supported_attr(struct link_params *params, u8 phy_idx);
 
 /* Check swap bit and adjust PHY order */
 u32 bnx2x_phy_selection(struct link_params *params);

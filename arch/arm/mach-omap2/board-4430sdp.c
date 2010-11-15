@@ -269,9 +269,14 @@ static int omap4_twl6030_hsmmc_late_init(struct device *dev)
 	struct omap_mmc_platform_data *pdata = dev->platform_data;
 
 	/* Setting MMC1 Card detect Irq */
-	if (pdev->id == 0)
+	if (pdev->id == 0) {
+		ret = twl6030_mmc_card_detect_config();
+		if (ret)
+			pr_err("Failed configuring MMC1 card detect\n");
 		pdata->slots[0].card_detect_irq = TWL6030_IRQ_BASE +
 						MMCDETECT_INTR_OFFSET;
+		pdata->slots[0].card_detect = twl6030_mmc_card_detect;
+	}
 	return ret;
 }
 

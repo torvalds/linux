@@ -20,18 +20,25 @@
 /* serial port 0 */
 #define	SC0CTR			__SYSREG(0xd4002000, u16)	/* control reg */
 #define	SC01CTR_CK		0x0007	/* clock source select */
-#define	SC0CTR_CK_TM8UFLOW_8	0x0000	/* - 1/8 timer 8 underflow (serial port 0 only) */
-#define	SC1CTR_CK_TM9UFLOW_8	0x0000	/* - 1/8 timer 9 underflow (serial port 1 only) */
 #define	SC01CTR_CK_IOCLK_8	0x0001	/* - 1/8 IOCLK */
 #define	SC01CTR_CK_IOCLK_32	0x0002	/* - 1/32 IOCLK */
-#define	SC0CTR_CK_TM2UFLOW_2	0x0003	/* - 1/2 timer 2 underflow (serial port 0 only) */
-#define	SC1CTR_CK_TM3UFLOW_2	0x0003	/* - 1/2 timer 3 underflow (serial port 1 only) */
-#define	SC0CTR_CK_TM0UFLOW_8	0x0004	/* - 1/8 timer 1 underflow (serial port 0 only) */
-#define	SC1CTR_CK_TM1UFLOW_8	0x0004	/* - 1/8 timer 2 underflow (serial port 1 only) */
-#define	SC0CTR_CK_TM2UFLOW_8	0x0005	/* - 1/8 timer 2 underflow (serial port 0 only) */
-#define	SC1CTR_CK_TM3UFLOW_8	0x0005	/* - 1/8 timer 3 underflow (serial port 1 only) */
 #define	SC01CTR_CK_EXTERN_8	0x0006	/* - 1/8 external closk */
 #define	SC01CTR_CK_EXTERN	0x0007	/* - external closk */
+#if defined(CONFIG_AM33_2) || defined(CONFIG_AM33_3)
+#define	SC0CTR_CK_TM8UFLOW_8	0x0000	/* - 1/8 timer 8 underflow (serial port 0 only) */
+#define	SC0CTR_CK_TM2UFLOW_2	0x0003	/* - 1/2 timer 2 underflow (serial port 0 only) */
+#define	SC0CTR_CK_TM0UFLOW_8	0x0004	/* - 1/8 timer 0 underflow (serial port 0 only) */
+#define	SC0CTR_CK_TM2UFLOW_8	0x0005	/* - 1/8 timer 2 underflow (serial port 0 only) */
+#define	SC1CTR_CK_TM9UFLOW_8	0x0000	/* - 1/8 timer 9 underflow (serial port 1 only) */
+#define	SC1CTR_CK_TM3UFLOW_2	0x0003	/* - 1/2 timer 3 underflow (serial port 1 only) */
+#define	SC1CTR_CK_TM1UFLOW_8	0x0004	/* - 1/8 timer 1 underflow (serial port 1 only) */
+#define	SC1CTR_CK_TM3UFLOW_8	0x0005	/* - 1/8 timer 3 underflow (serial port 1 only) */
+#else  /* CONFIG_AM33_2 || CONFIG_AM33_3 */
+#define	SC0CTR_CK_TM8UFLOW_8	0x0000	/* - 1/8 timer 8 underflow (serial port 0 only) */
+#define	SC0CTR_CK_TM0UFLOW_8	0x0004	/* - 1/8 timer 0 underflow (serial port 0 only) */
+#define	SC0CTR_CK_TM2UFLOW_8	0x0005	/* - 1/8 timer 2 underflow (serial port 0 only) */
+#define	SC1CTR_CK_TM12UFLOW_8	0x0000	/* - 1/8 timer 12 underflow (serial port 1 only) */
+#endif /* CONFIG_AM33_2 || CONFIG_AM33_3 */
 #define	SC01CTR_STB		0x0008	/* stop bit select */
 #define	SC01CTR_STB_1BIT	0x0000	/* - 1 stop bit */
 #define	SC01CTR_STB_2BIT	0x0008	/* - 2 stop bits */
@@ -100,11 +107,23 @@
 
 /* serial port 2 */
 #define	SC2CTR			__SYSREG(0xd4002020, u16)	/* control reg */
+#ifdef CONFIG_AM33_2
 #define	SC2CTR_CK		0x0003	/* clock source select */
 #define	SC2CTR_CK_TM10UFLOW	0x0000	/* - timer 10 underflow */
 #define	SC2CTR_CK_TM2UFLOW	0x0001	/* - timer 2 underflow */
 #define	SC2CTR_CK_EXTERN	0x0002	/* - external closk */
 #define	SC2CTR_CK_TM3UFLOW	0x0003	/* - timer 3 underflow */
+#else  /* CONFIG_AM33_2 */
+#define	SC2CTR_CK		0x0007	/* clock source select */
+#define	SC2CTR_CK_TM9UFLOW_8	0x0000	/* - 1/8 timer 9 underflow */
+#define	SC2CTR_CK_IOCLK_8	0x0001	/* - 1/8 IOCLK */
+#define	SC2CTR_CK_IOCLK_32	0x0002	/* - 1/32 IOCLK */
+#define	SC2CTR_CK_TM3UFLOW_2	0x0003	/* - 1/2 timer 3 underflow */
+#define	SC2CTR_CK_TM1UFLOW_8	0x0004	/* - 1/8 timer 1 underflow */
+#define	SC2CTR_CK_TM3UFLOW_8	0x0005	/* - 1/8 timer 3 underflow */
+#define	SC2CTR_CK_EXTERN_8	0x0006	/* - 1/8 external closk */
+#define	SC2CTR_CK_EXTERN	0x0007	/* - external closk */
+#endif /* CONFIG_AM33_2 */
 #define	SC2CTR_STB		0x0008	/* stop bit select */
 #define	SC2CTR_STB_1BIT		0x0000	/* - 1 stop bit */
 #define	SC2CTR_STB_2BIT		0x0008	/* - 2 stop bits */
@@ -134,9 +153,14 @@
 #define SC2ICR_RES		0x04	/* receive error select */
 #define SC2ICR_RI		0x01	/* receive interrupt cause */
 
-#define	SC2TXB			__SYSREG(0xd4002018, u8)	/* transmit buffer reg */
-#define	SC2RXB			__SYSREG(0xd4002019, u8)	/* receive buffer reg */
-#define	SC2STR			__SYSREG(0xd400201c, u8)	/* status reg */
+#define	SC2TXB			__SYSREG(0xd4002028, u8)	/* transmit buffer reg */
+#define	SC2RXB			__SYSREG(0xd4002029, u8)	/* receive buffer reg */
+
+#ifdef CONFIG_AM33_2
+#define	SC2STR			__SYSREG(0xd400202c, u8)	/* status reg */
+#else  /* CONFIG_AM33_2 */
+#define	SC2STR			__SYSREG(0xd400202c, u16)	/* status reg */
+#endif /* CONFIG_AM33_2 */
 #define SC2STR_OEF		0x0001	/* overrun error found */
 #define SC2STR_PEF		0x0002	/* parity error found */
 #define SC2STR_FEF		0x0004	/* framing error found */
@@ -146,10 +170,17 @@
 #define SC2STR_RXF		0x0040	/* receive status */
 #define SC2STR_TXF		0x0080	/* transmit status */
 
+#ifdef CONFIG_AM33_2
 #define	SC2TIM			__SYSREG(0xd400202d, u8)	/* status reg */
+#endif
 
+#ifdef CONFIG_AM33_2
 #define SC2RXIRQ		24	/* serial 2 Receive IRQ */
 #define SC2TXIRQ		25	/* serial 2 Transmit IRQ */
+#else  /* CONFIG_AM33_2 */
+#define SC2RXIRQ		68	/* serial 2 Receive IRQ */
+#define SC2TXIRQ		69	/* serial 2 Transmit IRQ */
+#endif /* CONFIG_AM33_2 */
 
 #define	SC2RXICR		GxICR(SC2RXIRQ)	/* serial 2 receive intr ctrl reg */
 #define	SC2TXICR		GxICR(SC2TXIRQ)	/* serial 2 transmit intr ctrl reg */

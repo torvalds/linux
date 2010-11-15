@@ -962,11 +962,11 @@ out:
 	return err;
 }
 
-static int hostfs_read_sb(struct file_system_type *type,
+static struct dentry *hostfs_read_sb(struct file_system_type *type,
 			  int flags, const char *dev_name,
-			  void *data, struct vfsmount *mnt)
+			  void *data)
 {
-	return get_sb_nodev(type, flags, data, hostfs_fill_sb_common, mnt);
+	return mount_nodev(type, flags, data, hostfs_fill_sb_common);
 }
 
 static void hostfs_kill_sb(struct super_block *s)
@@ -978,7 +978,7 @@ static void hostfs_kill_sb(struct super_block *s)
 static struct file_system_type hostfs_type = {
 	.owner 		= THIS_MODULE,
 	.name 		= "hostfs",
-	.get_sb 	= hostfs_read_sb,
+	.mount	 	= hostfs_read_sb,
 	.kill_sb	= hostfs_kill_sb,
 	.fs_flags 	= 0,
 };

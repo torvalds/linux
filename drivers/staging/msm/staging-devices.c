@@ -166,7 +166,7 @@ static void __init qsd8x50_allocate_memory_regions(void)
 
 	msm_fb_resources[0].start = __pa(addr);
 	msm_fb_resources[0].end = msm_fb_resources[0].start + size - 1;
-	pr_info(KERN_ERR "using %lu bytes of SMI at %lx physical for fb\n",
+	pr_info("using %lu bytes of SMI at %lx physical for fb\n",
 		size, (unsigned long)addr);
 }
 

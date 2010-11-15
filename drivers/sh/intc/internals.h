@@ -152,7 +152,7 @@ intc_set_dist_handle(unsigned int irq, struct intc_desc *desc,
 
 /* chip.c */
 extern struct irq_chip intc_irq_chip;
-void _intc_enable(unsigned int irq, unsigned long handle);
+void _intc_enable(struct irq_data *data, unsigned long handle);
 
 /* core.c */
 extern struct list_head intc_list;

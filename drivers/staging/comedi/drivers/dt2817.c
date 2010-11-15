@@ -82,13 +82,13 @@ static int dt2817_dio_insn_config(struct comedi_device *dev,
 		return -EINVAL;
 
 	chan = CR_CHAN(insn->chanspec);
-	if (chan < 8) {
+	if (chan < 8)
 		mask = 0xff;
-	} else if (chan < 16) {
+	else if (chan < 16)
 		mask = 0xff00;
-	} else if (chan < 24) {
+	else if (chan < 24)
 		mask = 0xff0000;
-	} else
+	else
 		mask = 0xff000000;
 	if (data[0])
 		s->io_bits |= mask;
@@ -152,7 +152,7 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long iobase;
 
 	iobase = it->options[0];
-	printk("comedi%d: dt2817: 0x%04lx ", dev->minor, iobase);
+	printk(KERN_INFO "comedi%d: dt2817: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, DT2817_SIZE, "dt2817")) {
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -177,14 +177,14 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->state = 0;
 	outb(0, dev->iobase + DT2817_CR);
 
-	printk("\n");
+	printk(KERN_INFO "\n");
 
 	return 0;
 }
 
 static int dt2817_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: dt2817: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: dt2817: remove\n", dev->minor);
 
 	if (dev->iobase)
 		release_region(dev->iobase, DT2817_SIZE);

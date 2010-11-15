@@ -26,12 +26,10 @@ static struct vfsmount *anon_inode_mnt __read_mostly;
 static struct inode *anon_inode_inode;
 static const struct file_operations anon_inode_fops;
 
-static int anon_inodefs_get_sb(struct file_system_type *fs_type, int flags,
-			       const char *dev_name, void *data,
-			       struct vfsmount *mnt)
+static struct dentry *anon_inodefs_mount(struct file_system_type *fs_type,
+				int flags, const char *dev_name, void *data)
 {
-	return get_sb_pseudo(fs_type, "anon_inode:", NULL, ANON_INODE_FS_MAGIC,
-			     mnt);
+	return mount_pseudo(fs_type, "anon_inode:", NULL, ANON_INODE_FS_MAGIC);
 }
 
 /*
@@ -45,7 +43,7 @@ static char *anon_inodefs_dname(struct dentry *dentry, char *buffer, int buflen)
 
 static struct file_system_type anon_inode_fs_type = {
 	.name		= "anon_inodefs",
-	.get_sb		= anon_inodefs_get_sb,
+	.mount		= anon_inodefs_mount,
 	.kill_sb	= kill_anon_super,
 };
 static const struct dentry_operations anon_inodefs_dentry_operations = {

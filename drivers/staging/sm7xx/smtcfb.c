@@ -848,7 +848,6 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		"Silicon Motion display driver " SMTC_LINUX_FB_VERSION "\n");
 
 	err = pci_enable_device(pdev);	/* enable SMTC chip */
-
 	if (err)
 		return err;
 	err = -ENOMEM;
@@ -859,7 +858,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 	sfb = smtc_alloc_fb_info(pdev, name);
 
 	if (!sfb)
-		goto failed;
+		goto failed_free;
 	/* Jason (08/13/2009)
 	 * Store fb_info to be further used when suspending and resuming
 	 */
@@ -917,7 +916,8 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 			printk(KERN_INFO
 				"%s: unable to map memory mapped IO\n",
 				sfb->fb.fix.id);
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto failed_fb;
 		}
 
 		/* set MCLK = 14.31818 * (0x16 / 0x2) */
@@ -951,8 +951,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		printk(KERN_INFO
 		"No valid Silicon Motion display chip was detected!\n");
 
-		smtc_free_fb_info(sfb);
-		return err;
+		goto failed_fb;
 	}
 
 	/* can support 32 bpp */
@@ -986,7 +985,11 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 
 	smtc_unmap_smem(sfb);
 	smtc_unmap_mmio(sfb);
+failed_fb:
 	smtc_free_fb_info(sfb);
+
+failed_free:
+	pci_disable_device(pdev);
 
 	return err;
 }

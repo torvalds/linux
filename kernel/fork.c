@@ -908,6 +908,8 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	sig->oom_adj = current->signal->oom_adj;
 	sig->oom_score_adj = current->signal->oom_score_adj;
 
+	mutex_init(&sig->cred_guard_mutex);
+
 	return 0;
 }
 

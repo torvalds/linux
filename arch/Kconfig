@@ -42,6 +42,20 @@ config KPROBES
 	  for kernel debugging, non-intrusive instrumentation and testing.
 	  If in doubt, say "N".
 
+config JUMP_LABEL
+       bool "Optimize trace point call sites"
+       depends on HAVE_ARCH_JUMP_LABEL
+       help
+         If it is detected that the compiler has support for "asm goto",
+	 the kernel will compile trace point locations with just a
+	 nop instruction. When trace points are enabled, the nop will
+	 be converted to a jump to the trace function. This technique
+	 lowers overhead and stress on the branch prediction of the
+	 processor.
+
+	 On i386, options added to the compiler flags may increase
+	 the size of the kernel slightly.
+
 config OPTPROBES
 	def_bool y
 	depends on KPROBES && HAVE_OPTPROBES

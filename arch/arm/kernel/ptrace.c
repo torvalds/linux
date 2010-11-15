@@ -1075,13 +1075,15 @@ out:
 }
 #endif
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	int ret;
+	unsigned long __user *datap = (unsigned long __user *) data;
 
 	switch (request) {
 		case PTRACE_PEEKUSR:
-			ret = ptrace_read_user(child, addr, (unsigned long __user *)data);
+			ret = ptrace_read_user(child, addr, datap);
 			break;
 
 		case PTRACE_POKEUSR:
@@ -1089,34 +1091,34 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 
 		case PTRACE_GETREGS:
-			ret = ptrace_getregs(child, (void __user *)data);
+			ret = ptrace_getregs(child, datap);
 			break;
 
 		case PTRACE_SETREGS:
-			ret = ptrace_setregs(child, (void __user *)data);
+			ret = ptrace_setregs(child, datap);
 			break;
 
 		case PTRACE_GETFPREGS:
-			ret = ptrace_getfpregs(child, (void __user *)data);
+			ret = ptrace_getfpregs(child, datap);
 			break;
 		
 		case PTRACE_SETFPREGS:
-			ret = ptrace_setfpregs(child, (void __user *)data);
+			ret = ptrace_setfpregs(child, datap);
 			break;
 
 #ifdef CONFIG_IWMMXT
 		case PTRACE_GETWMMXREGS:
-			ret = ptrace_getwmmxregs(child, (void __user *)data);
+			ret = ptrace_getwmmxregs(child, datap);
 			break;
 
 		case PTRACE_SETWMMXREGS:
-			ret = ptrace_setwmmxregs(child, (void __user *)data);
+			ret = ptrace_setwmmxregs(child, datap);
 			break;
 #endif
 
 		case PTRACE_GET_THREAD_AREA:
 			ret = put_user(task_thread_info(child)->tp_value,
-				       (unsigned long __user *) data);
+				       datap);
 			break;
 
 		case PTRACE_SET_SYSCALL:
@@ -1126,21 +1128,21 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 #ifdef CONFIG_CRUNCH
 		case PTRACE_GETCRUNCHREGS:
-			ret = ptrace_getcrunchregs(child, (void __user *)data);
+			ret = ptrace_getcrunchregs(child, datap);
 			break;
 
 		case PTRACE_SETCRUNCHREGS:
-			ret = ptrace_setcrunchregs(child, (void __user *)data);
+			ret = ptrace_setcrunchregs(child, datap);
 			break;
 #endif
 
 #ifdef CONFIG_VFP
 		case PTRACE_GETVFPREGS:
-			ret = ptrace_getvfpregs(child, (void __user *)data);
+			ret = ptrace_getvfpregs(child, datap);
 			break;
 
 		case PTRACE_SETVFPREGS:
-			ret = ptrace_setvfpregs(child, (void __user *)data);
+			ret = ptrace_setvfpregs(child, datap);
 			break;
 #endif
 

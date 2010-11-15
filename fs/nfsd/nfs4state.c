@@ -673,16 +673,17 @@ static void nfsd4_hash_conn(struct nfsd4_conn *conn, struct nfsd4_session *ses)
 	spin_unlock(&clp->cl_lock);
 }
 
-static void nfsd4_register_conn(struct nfsd4_conn *conn)
+static int nfsd4_register_conn(struct nfsd4_conn *conn)
 {
 	conn->cn_xpt_user.callback = nfsd4_conn_lost;
-	register_xpt_user(conn->cn_xprt, &conn->cn_xpt_user);
+	return register_xpt_user(conn->cn_xprt, &conn->cn_xpt_user);
 }
 
 static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
 {
 	struct nfsd4_conn *conn;
 	u32 flags = NFS4_CDFC4_FORE;
+	int ret;
 
 	if (ses->se_flags & SESSION4_BACK_CHAN)
 		flags |= NFS4_CDFC4_BACK;
@@ -690,7 +691,10 @@ static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
 	if (!conn)
 		return nfserr_jukebox;
 	nfsd4_hash_conn(conn, ses);
-	nfsd4_register_conn(conn);
+	ret = nfsd4_register_conn(conn);
+	if (ret)
+		/* oops; xprt is already down: */
+		nfsd4_conn_lost(&conn->cn_xpt_user);
 	return nfs_ok;
 }
 
@@ -1644,6 +1648,7 @@ static void nfsd4_sequence_check_conn(struct nfsd4_conn *new, struct nfsd4_sessi
 {
 	struct nfs4_client *clp = ses->se_client;
 	struct nfsd4_conn *c;
+	int ret;
 
 	spin_lock(&clp->cl_lock);
 	c = __nfsd4_find_conn(new->cn_xprt, ses);
@@ -1654,7 +1659,10 @@ static void nfsd4_sequence_check_conn(struct nfsd4_conn *new, struct nfsd4_sessi
 	}
 	__nfsd4_hash_conn(new, ses);
 	spin_unlock(&clp->cl_lock);
-	nfsd4_register_conn(new);
+	ret = nfsd4_register_conn(new);
+	if (ret)
+		/* oops; xprt is already down: */
+		nfsd4_conn_lost(&new->cn_xpt_user);
 	return;
 }
 
@@ -2310,22 +2318,6 @@ void nfsd_release_deleg_cb(struct file_lock *fl)
 }
 
 /*
- * Set the delegation file_lock back pointer.
- *
- * Called from setlease() with lock_kernel() held.
- */
-static
-void nfsd_copy_lock_deleg_cb(struct file_lock *new, struct file_lock *fl)
-{
-	struct nfs4_delegation *dp = (struct nfs4_delegation *)new->fl_owner;
-
-	dprintk("NFSD: nfsd_copy_lock_deleg_cb: new fl %p dp %p\n", new, dp);
-	if (!dp)
-		return;
-	dp->dl_flock = new;
-}
-
-/*
  * Called from setlease() with lock_kernel() held
  */
 static
@@ -2355,7 +2347,6 @@ int nfsd_change_deleg_cb(struct file_lock **onlist, int arg)
 static const struct lock_manager_operations nfsd_lease_mng_ops = {
 	.fl_break = nfsd_break_deleg_cb,
 	.fl_release_private = nfsd_release_deleg_cb,
-	.fl_copy_lock = nfsd_copy_lock_deleg_cb,
 	.fl_mylease = nfsd_same_client_deleg_cb,
 	.fl_change = nfsd_change_deleg_cb,
 };
@@ -2614,7 +2605,7 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 	struct nfs4_delegation *dp;
 	struct nfs4_stateowner *sop = stp->st_stateowner;
 	int cb_up = atomic_read(&sop->so_client->cl_cb_set);
-	struct file_lock fl, *flp = &fl;
+	struct file_lock *fl;
 	int status, flag = 0;
 
 	flag = NFS4_OPEN_DELEGATE_NONE;
@@ -2648,21 +2639,28 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 		flag = NFS4_OPEN_DELEGATE_NONE;
 		goto out;
 	}
-	locks_init_lock(&fl);
-	fl.fl_lmops = &nfsd_lease_mng_ops;
-	fl.fl_flags = FL_LEASE;
-	fl.fl_type = flag == NFS4_OPEN_DELEGATE_READ? F_RDLCK: F_WRLCK;
-	fl.fl_end = OFFSET_MAX;
-	fl.fl_owner =  (fl_owner_t)dp;
-	fl.fl_file = find_readable_file(stp->st_file);
-	BUG_ON(!fl.fl_file);
-	fl.fl_pid = current->tgid;
+	status = -ENOMEM;
+	fl = locks_alloc_lock();
+	if (!fl)
+		goto out;
+	locks_init_lock(fl);
+	fl->fl_lmops = &nfsd_lease_mng_ops;
+	fl->fl_flags = FL_LEASE;
+	fl->fl_type = flag == NFS4_OPEN_DELEGATE_READ? F_RDLCK: F_WRLCK;
+	fl->fl_end = OFFSET_MAX;
+	fl->fl_owner =  (fl_owner_t)dp;
+	fl->fl_file = find_readable_file(stp->st_file);
+	BUG_ON(!fl->fl_file);
+	fl->fl_pid = current->tgid;
+	dp->dl_flock = fl;
 
 	/* vfs_setlease checks to see if delegation should be handed out.
 	 * the lock_manager callbacks fl_mylease and fl_change are used
 	 */
-	if ((status = vfs_setlease(fl.fl_file, fl.fl_type, &flp))) {
+	if ((status = vfs_setlease(fl->fl_file, fl->fl_type, &fl))) {
 		dprintk("NFSD: setlease failed [%d], no delegation\n", status);
+		dp->dl_flock = NULL;
+		locks_free_lock(fl);
 		unhash_delegation(dp);
 		flag = NFS4_OPEN_DELEGATE_NONE;
 		goto out;

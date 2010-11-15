@@ -1700,9 +1700,7 @@ typedef struct fc_port {
 	atomic_t state;
 	uint32_t flags;
 
-	int port_login_retry_count;
 	int login_retry;
-	atomic_t port_down_timer;
 
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;

@@ -25,6 +25,9 @@
 #include <linux/workqueue.h>
 #include "cifs_fs_sb.h"
 #include "cifsacl.h"
+#include <crypto/internal/hash.h>
+#include <linux/scatterlist.h>
+
 /*
  * The sizes of various internal tables and strings
  */
@@ -74,7 +77,7 @@
  * CIFS vfs client Status information (based on what we know.)
  */
 
- /* associated with each tcp and smb session */
+/* associated with each tcp and smb session */
 enum statusEnum {
 	CifsNew = 0,
 	CifsGood,
@@ -99,14 +102,29 @@ enum protocolEnum {
 
 struct session_key {
 	unsigned int len;
-	union {
-		char ntlm[CIFS_SESS_KEY_SIZE + 16];
-		char krb5[CIFS_SESS_KEY_SIZE + 16]; /* BB: length correct? */
-		struct {
-			char key[16];
-			struct ntlmv2_resp resp;
-		} ntlmv2;
-	} data;
+	char *response;
+};
+
+/* crypto security descriptor definition */
+struct sdesc {
+	struct shash_desc shash;
+	char ctx[];
+};
+
+/* crypto hashing related structure/fields, not specific to a sec mech */
+struct cifs_secmech {
+	struct crypto_shash *hmacmd5; /* hmac-md5 hash function */
+	struct crypto_shash *md5; /* md5 hash function */
+	struct sdesc *sdeschmacmd5;  /* ctxt to generate ntlmv2 hash, CR1 */
+	struct sdesc *sdescmd5; /* ctxt to generate cifs/smb signature */
+};
+
+/* per smb session structure/fields */
+struct ntlmssp_auth {
+	__u32 client_flags; /* sent by client in type 1 ntlmsssp exchange */
+	__u32 server_flags; /* sent by server in type 2 ntlmssp exchange */
+	unsigned char ciphertext[CIFS_CPHTXT_SIZE]; /* sent to server */
+	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlmssp */
 };
 
 struct cifs_cred {
@@ -179,12 +197,14 @@ struct TCP_Server_Info {
 	int capabilities; /* allow selective disabling of caps by smb sess */
 	int timeAdj;  /* Adjust for difference in server time zone in sec */
 	__u16 CurrentMid;         /* multiplex id - rotating counter */
+	char cryptkey[CIFS_CRYPTO_KEY_SIZE]; /* used by ntlm, ntlmv2 etc */
 	/* 16th byte of RFC1001 workstation name is always null */
 	char workstation_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
 	__u32 sequence_number; /* needed for CIFS PDU signature */
 	struct session_key session_key;
 	unsigned long lstrp; /* when we got last response from this server */
 	u16 dialect; /* dialect index that server chose */
+	struct cifs_secmech secmech; /* crypto sec mech functs, descriptors */
 	/* extended security flavors that server supports */
 	bool	sec_kerberos;		/* supports plain Kerberos */
 	bool	sec_mskerberos;		/* supports legacy MS Kerberos */
@@ -222,11 +242,8 @@ struct cifsSesInfo {
 	char userName[MAX_USERNAME_SIZE + 1];
 	char *domainName;
 	char *password;
-	char cryptKey[CIFS_CRYPTO_KEY_SIZE];
 	struct session_key auth_key;
-	char ntlmv2_hash[16];
-	unsigned int tilen; /* length of the target info blob */
-	unsigned char *tiblob; /* target info blob in challenge response */
+	struct ntlmssp_auth *ntlmssp; /* ciphertext, flags, server challenge */
 	bool need_reconnect:1; /* connection reset, uid now invalid */
 };
 /* no more than one of the following three session flags may be set */
@@ -319,7 +336,8 @@ struct cifsTconInfo {
  * "get" on the container.
  */
 struct tcon_link {
-	unsigned long		tl_index;
+	struct rb_node		tl_rbnode;
+	uid_t			tl_uid;
 	unsigned long		tl_flags;
 #define TCON_LINK_MASTER	0
 #define TCON_LINK_PENDING	1
@@ -395,16 +413,19 @@ struct cifsFileInfo {
 	struct list_head llist; /* list of byte range locks we have. */
 	bool invalidHandle:1;	/* file closed via session abend */
 	bool oplock_break_cancelled:1;
-	atomic_t count;		/* reference count */
+	int count;		/* refcount protected by cifs_file_list_lock */
 	struct mutex fh_mutex; /* prevents reopen race after dead ses*/
 	struct cifs_search_info srch_inf;
 	struct work_struct oplock_break; /* work for oplock breaks */
 };
 
-/* Take a reference on the file private data */
+/*
+ * Take a reference on the file private data. Must be called with
+ * cifs_file_list_lock held.
+ */
 static inline void cifsFileInfo_get(struct cifsFileInfo *cifs_file)
 {
-	atomic_inc(&cifs_file->count);
+	++cifs_file->count;
 }
 
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
@@ -417,7 +438,6 @@ struct cifsInodeInfo {
 	struct list_head lockList;
 	/* BB add in lists for dirty pages i.e. write caching info for oplock */
 	struct list_head openFileList;
-	int write_behind_rc;
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
 	unsigned long time;	/* jiffies of last update/check of inode */
 	bool clientCanCacheRead:1;	/* read oplock */
@@ -668,7 +688,7 @@ require use of the stronger protocol */
  *  GlobalMid_Lock protects:
  *	list operations on pending_mid_q and oplockQ
  *      updates to XID counters, multiplex id  and SMB sequence numbers
- *  GlobalSMBSesLock protects:
+ *  cifs_file_list_lock protects:
  *	list operations on tcp and SMB session lists and tCon lists
  *  f_owner.lock protects certain per file struct operations
  *  mapping->page_lock protects certain per page operations

@@ -184,16 +184,15 @@ static int sa1100_target(struct cpufreq_policy *policy,
 {
 	unsigned int cur = sa11x0_getspeed(0);
 	unsigned int new_ppcr;
-
 	struct cpufreq_freqs freqs;
+
+	new_ppcr = sa11x0_freq_to_ppcr(target_freq);
 	switch(relation){
 	case CPUFREQ_RELATION_L:
-		new_ppcr = sa11x0_freq_to_ppcr(target_freq);
 		if (sa11x0_ppcr_to_freq(new_ppcr) > policy->max)
 			new_ppcr--;
 		break;
 	case CPUFREQ_RELATION_H:
-		new_ppcr = sa11x0_freq_to_ppcr(target_freq);
 		if ((sa11x0_ppcr_to_freq(new_ppcr) > target_freq) &&
 		    (sa11x0_ppcr_to_freq(new_ppcr - 1) >= policy->min))
 			new_ppcr--;

@@ -372,7 +372,7 @@ static unsigned long conv_us_to_clocks;
 static int init_timing_params(unsigned int new_duty_cycle,
 		unsigned int new_freq)
 {
-	unsigned long long loops_per_sec, work;
+	__u64 loops_per_sec, work;
 
 	duty_cycle = new_duty_cycle;
 	freq = new_freq;
@@ -987,8 +987,7 @@ static ssize_t lirc_write(struct file *file, const char *buf,
 static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	int result;
-	unsigned long value;
-	unsigned int ivalue;
+	__u32 value;
 
 	switch (cmd) {
 	case LIRC_GET_SEND_MODE:
@@ -997,7 +996,7 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 		result = put_user(LIRC_SEND2MODE
 				  (hardware[type].features&LIRC_CAN_SEND_MASK),
-				  (unsigned long *) arg);
+				  (__u32 *) arg);
 		if (result)
 			return result;
 		break;
@@ -1006,7 +1005,7 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		if (!(hardware[type].features&LIRC_CAN_SEND_MASK))
 			return -ENOIOCTLCMD;
 
-		result = get_user(value, (unsigned long *) arg);
+		result = get_user(value, (__u32 *) arg);
 		if (result)
 			return result;
 		/* only LIRC_MODE_PULSE supported */
@@ -1023,12 +1022,12 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		if (!(hardware[type].features&LIRC_CAN_SET_SEND_DUTY_CYCLE))
 			return -ENOIOCTLCMD;
 
-		result = get_user(ivalue, (unsigned int *) arg);
+		result = get_user(value, (__u32 *) arg);
 		if (result)
 			return result;
-		if (ivalue <= 0 || ivalue > 100)
+		if (value <= 0 || value > 100)
 			return -EINVAL;
-		return init_timing_params(ivalue, freq);
+		return init_timing_params(value, freq);
 		break;
 
 	case LIRC_SET_SEND_CARRIER:
@@ -1036,12 +1035,12 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		if (!(hardware[type].features&LIRC_CAN_SET_SEND_CARRIER))
 			return -ENOIOCTLCMD;
 
-		result = get_user(ivalue, (unsigned int *) arg);
+		result = get_user(value, (__u32 *) arg);
 		if (result)
 			return result;
-		if (ivalue > 500000 || ivalue < 20000)
+		if (value > 500000 || value < 20000)
 			return -EINVAL;
-		return init_timing_params(duty_cycle, ivalue);
+		return init_timing_params(duty_cycle, value);
 		break;
 
 	default:
@@ -1054,6 +1053,9 @@ static const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= lirc_write,
 	.unlocked_ioctl	= lirc_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= lirc_ioctl,
+#endif
 	.read		= lirc_dev_fop_read,
 	.poll		= lirc_dev_fop_poll,
 	.open		= lirc_dev_fop_open,

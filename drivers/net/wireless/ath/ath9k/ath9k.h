@@ -310,7 +310,7 @@ struct ath_rx {
 	u8 rxotherant;
 	u32 *rxlink;
 	unsigned int rxfilter;
-	spinlock_t rxflushlock;
+	spinlock_t pcu_lock;
 	spinlock_t rxbuflock;
 	struct list_head rxbuf;
 	struct ath_descdma rxdma;
@@ -675,6 +675,7 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 }
 
 extern struct ieee80211_ops ath9k_ops;
+extern struct pm_qos_request_list ath9k_pm_qos_req;
 extern int modparam_nohwcrypt;
 extern int led_blink;
 

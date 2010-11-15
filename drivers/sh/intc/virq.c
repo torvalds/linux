@@ -83,11 +83,11 @@ EXPORT_SYMBOL_GPL(intc_irq_lookup);
 static int add_virq_to_pirq(unsigned int irq, unsigned int virq)
 {
 	struct intc_virq_list **last, *entry;
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_data *data = irq_get_irq_data(irq);
 
 	/* scan for duplicates */
-	last = (struct intc_virq_list **)&desc->handler_data;
-	for_each_virq(entry, desc->handler_data) {
+	last = (struct intc_virq_list **)&data->handler_data;
+	for_each_virq(entry, data->handler_data) {
 		if (entry->irq == virq)
 			return 0;
 		last = &entry->next;
@@ -108,10 +108,12 @@ static int add_virq_to_pirq(unsigned int irq, unsigned int virq)
 
 static void intc_virq_handler(unsigned int irq, struct irq_desc *desc)
 {
-	struct intc_virq_list *entry, *vlist = get_irq_data(irq);
+	struct irq_data *data = irq_get_irq_data(irq);
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
+	struct intc_virq_list *entry, *vlist = irq_data_get_irq_data(data);
 	struct intc_desc_int *d = get_intc_desc(irq);
 
-	desc->chip->mask_ack(irq);
+	chip->irq_mask_ack(data);
 
 	for_each_virq(entry, vlist) {
 		unsigned long addr, handle;
@@ -123,7 +125,7 @@ static void intc_virq_handler(unsigned int irq, struct irq_desc *desc)
 			generic_handle_irq(entry->irq);
 	}
 
-	desc->chip->unmask(irq);
+	chip->irq_unmask(data);
 }
 
 static unsigned long __init intc_subgroup_data(struct intc_subgroup *subgroup,

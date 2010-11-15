@@ -93,8 +93,9 @@ config USB_EHCI_TT_NEWSCHED
 
 config USB_EHCI_BIG_ENDIAN_MMIO
 	bool
-	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX || ARCH_IXP4XX || \
-				    XPS_USB_HCD_XILINX || PPC_MPC512x)
+	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX || \
+				    ARCH_IXP4XX || XPS_USB_HCD_XILINX || \
+				    PPC_MPC512x || CPU_CAVIUM_OCTEON)
 	default y
 
 config USB_EHCI_BIG_ENDIAN_DESC
@@ -121,7 +122,7 @@ config USB_EHCI_FSL
 	bool "Support for Freescale on-chip EHCI USB controller"
 	depends on USB_EHCI_HCD && FSL_SOC
 	select USB_EHCI_ROOT_HUB_TT
-	select USB_FSL_MPH_DR_OF
+	select USB_FSL_MPH_DR_OF if OF
 	---help---
 	  Variation of ARC USB block used in some Freescale chips.
 
@@ -434,3 +435,28 @@ config USB_IMX21_HCD
          To compile this driver as a module, choose M here: the
          module will be called "imx21-hcd".
 
+config USB_OCTEON_EHCI
+	bool "Octeon on-chip EHCI support"
+	depends on USB && USB_EHCI_HCD && CPU_CAVIUM_OCTEON
+	default n
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	help
+	  Enable support for the Octeon II SOC's on-chip EHCI
+	  controller.  It is needed for high-speed (480Mbit/sec)
+	  USB 2.0 device support.  All CN6XXX based chips with USB are
+	  supported.
+
+config USB_OCTEON_OHCI
+	bool "Octeon on-chip OHCI support"
+	depends on USB && USB_OHCI_HCD && CPU_CAVIUM_OCTEON
+	default USB_OCTEON_EHCI
+	select USB_OHCI_BIG_ENDIAN_MMIO
+	select USB_OHCI_LITTLE_ENDIAN
+	help
+	  Enable support for the Octeon II SOC's on-chip OHCI
+	  controller.  It is needed for low-speed USB 1.0 device
+	  support.  All CN6XXX based chips with USB are supported.
+
+config USB_OCTEON2_COMMON
+	bool
+	default y if USB_OCTEON_EHCI || USB_OCTEON_OHCI

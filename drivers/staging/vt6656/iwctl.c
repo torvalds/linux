@@ -49,7 +49,6 @@
 
 /*---------------------  Static Definitions -------------------------*/
 
-//2008-0409-07, <Add> by Einsn Liu
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 #define SUPPORTED_WIRELESS_EXT                  18
 #else
@@ -155,7 +154,6 @@ int iwctl_siwscan(struct net_device *dev,
 	BYTE                abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
 	PWLAN_IE_SSID       pItemSSID=NULL;
 
-//2008-0920-01<Add>by MikeLiu
   if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
         return -EINVAL;
 
@@ -285,7 +283,6 @@ int iwctl_giwscan(struct net_device *dev,
            	iwe.u.freq.e = 0;
            	iwe.u.freq.i = 0;
                   current_ev = iwe_stream_add_event(info,current_ev,end_buf, &iwe, IW_EV_FREQ_LEN);
-            //2008-0409-04, <Add> by Einsn Liu
 			{
 			int f = (int)pBSS->uChannel - 1;
 			if(f < 0)f = 0;
@@ -299,7 +296,7 @@ int iwctl_giwscan(struct net_device *dev,
 	        RFvRSSITodBm(pDevice, (BYTE)(pBSS->uRSSI), &ldBm);
 		    iwe.u.qual.level = ldBm;
 	        iwe.u.qual.noise = 0;
-//2008-0409-01, <Add> by Einsn Liu
+
 			if(-ldBm<50){
 				iwe.u.qual.qual = 100;
 			}else  if(-ldBm > 90) {
@@ -803,7 +800,6 @@ int iwctl_siwessid(struct net_device *dev,
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
     PWLAN_IE_SSID       pItemSSID;
 
-//2008-0920-01<Add>by MikeLiu
   if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
         return -EINVAL;
 
@@ -931,10 +927,9 @@ int iwctl_giwessid(struct net_device *dev,
 	//pItemSSID = (PWLAN_IE_SSID)pMgmt->abyDesireSSID;
 	memcpy(extra, pItemSSID->abySSID , pItemSSID->len);
 	extra[pItemSSID->len] = '\0';
-        //2008-0409-03, <Add> by Einsn Liu
+
         wrq->length = pItemSSID->len;
 	wrq->flags = 1; // active
-
 
 	return 0;
 }
@@ -1392,8 +1387,6 @@ int iwctl_giwencode(struct net_device *dev,
 }
 */
 
-//2008-0409-06, <Add> by Einsn Liu
-
 int iwctl_giwencode(struct net_device *dev,
 			struct iw_request_info *info,
 			struct iw_point *wrq,
@@ -1561,7 +1554,6 @@ int iwctl_giwsens(struct net_device *dev,
 	return 0;
 }
 
-//2008-0409-07, <Add> by Einsn Liu
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 
 int iwctl_siwauth(struct net_device *dev,
@@ -1598,7 +1590,8 @@ int iwctl_siwauth(struct net_device *dev,
 			pDevice->eEncryptionStatus = Ndis802_11Encryption3Enabled;
 		}else if(pairwise == IW_AUTH_CIPHER_TKIP){
 			pDevice->eEncryptionStatus = Ndis802_11Encryption2Enabled;
-		}else if(pairwise == IW_AUTH_CIPHER_WEP40||pairwise == IW_AUTH_CIPHER_WEP104){
+		} else if (pairwise == IW_AUTH_CIPHER_WEP40 ||
+			   pairwise == IW_AUTH_CIPHER_WEP104) {
 			pDevice->eEncryptionStatus = Ndis802_11Encryption1Enabled;
 		}else if(pairwise == IW_AUTH_CIPHER_NONE){
 			//do nothing,einsn liu
@@ -1726,7 +1719,7 @@ int iwctl_siwgenie(struct net_device *dev,
 	}
 
 	out://not completely ...not necessary in wpa_supplicant 0.5.8
-	return 0;
+	return ret;
 }
 
 int iwctl_giwgenie(struct net_device *dev,
@@ -1933,9 +1926,6 @@ int iwctl_siwmlme(struct net_device *dev,
 }
 
 #endif
-//End Add --//2008-0409-07, <Add> by Einsn Liu
-
-
 
 /*------------------------------------------------------------------*/
 /*

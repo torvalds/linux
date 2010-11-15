@@ -179,4 +179,11 @@ config MEDIA_TUNER_MAX2165
 	help
 	  A driver for the silicon tuner MAX2165 from Maxim.
 
+config MEDIA_TUNER_TDA18218
+	tristate "NXP TDA18218 silicon tuner"
+	depends on VIDEO_MEDIA && I2C
+	default m if MEDIA_TUNER_CUSTOMISE
+	help
+	  NXP TDA18218 silicon tuner driver.
+
 endif # MEDIA_TUNER_CUSTOMISE

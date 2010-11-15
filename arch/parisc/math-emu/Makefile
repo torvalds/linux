@@ -3,7 +3,7 @@
 #
 
 # See arch/parisc/math-emu/README
-EXTRA_CFLAGS += -Wno-parentheses -Wno-implicit-function-declaration \
+ccflags-y := -Wno-parentheses -Wno-implicit-function-declaration \
 	-Wno-uninitialized -Wno-strict-prototypes -Wno-return-type \
 	-Wno-implicit-int
 

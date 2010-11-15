@@ -992,8 +992,8 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	ha = vha->hw;
 
 	DEBUG18(printk(KERN_DEBUG
-	    "%s(%ld): Executing cmd sp %p, pid=%ld, prot_op=%u.\n", __func__,
-	    vha->host_no, sp, cmd->serial_number, scsi_get_prot_op(sp->cmd)));
+	    "%s(%ld): Executing cmd sp %p, prot_op=%u.\n", __func__,
+	    vha->host_no, sp, scsi_get_prot_op(sp->cmd)));
 
 	cmd_pkt->vp_index = sp->fcport->vp_idx;
 

@@ -23,7 +23,7 @@
 
 #pragma pack(1)
 
-/**
+/*
  * BFI FW image type
  */
 #define	BFI_FLASH_CHUNK_SZ			256	/*  Flash chunk size */
@@ -35,7 +35,7 @@ enum {
 	BFI_IMAGE_MAX,
 };
 
-/**
+/*
  * Msg header common to all msgs
  */
 struct bfi_mhdr_s {
@@ -68,7 +68,7 @@ struct bfi_mhdr_s {
 #define BFI_I2H_OPCODE_BASE	128
 #define BFA_I2HM(_x)		((_x) + BFI_I2H_OPCODE_BASE)
 
-/**
+/*
  ****************************************************************************
  *
  * Scatter Gather Element and Page definition
@@ -79,7 +79,7 @@ struct bfi_mhdr_s {
 #define BFI_SGE_INLINE	1
 #define BFI_SGE_INLINE_MAX	(BFI_SGE_INLINE + 1)
 
-/**
+/*
  * SG Flags
  */
 enum {
@@ -90,7 +90,7 @@ enum {
 	BFI_SGE_PGDLEN		= 2,	/*  cumulative data length for page */
 };
 
-/**
+/*
  * DMA addresses
  */
 union bfi_addr_u {
@@ -100,7 +100,7 @@ union bfi_addr_u {
 	} a32;
 };
 
-/**
+/*
  * Scatter Gather Element
  */
 struct bfi_sge_s {
@@ -116,7 +116,7 @@ struct bfi_sge_s {
 	union bfi_addr_u sga;
 };
 
-/**
+/*
  * Scatter Gather Page
  */
 #define BFI_SGPG_DATA_SGES		7
@@ -139,7 +139,7 @@ struct bfi_msg_s {
 	u32	pl[BFI_LMSG_PL_WSZ];
 };
 
-/**
+/*
  * Mailbox message structure
  */
 #define BFI_MBMSG_SZ		7
@@ -148,7 +148,7 @@ struct bfi_mbmsg_s {
 	u32		pl[BFI_MBMSG_SZ];
 };
 
-/**
+/*
  * Message Classes
  */
 enum bfi_mclass {
@@ -186,7 +186,7 @@ enum bfi_mclass {
 #define BFI_BOOT_LOADER_BIOS		1
 #define BFI_BOOT_LOADER_UEFI		2
 
-/**
+/*
  *----------------------------------------------------------------------
  *				IOC
  *----------------------------------------------------------------------
@@ -208,7 +208,7 @@ enum bfi_ioc_i2h_msgs {
 	BFI_IOC_I2H_HBEAT		= BFA_I2HM(5),
 };
 
-/**
+/*
  * BFI_IOC_H2I_GETATTR_REQ message
  */
 struct bfi_ioc_getattr_req_s {
@@ -242,7 +242,7 @@ struct bfi_ioc_attr_s {
 	u32	card_type;	/*  card type			*/
 };
 
-/**
+/*
  * BFI_IOC_I2H_GETATTR_REPLY message
  */
 struct bfi_ioc_getattr_reply_s {
@@ -251,19 +251,19 @@ struct bfi_ioc_getattr_reply_s {
 	u8			rsvd[3];
 };
 
-/**
+/*
  * Firmware memory page offsets
  */
 #define BFI_IOC_SMEM_PG0_CB	(0x40)
 #define BFI_IOC_SMEM_PG0_CT	(0x180)
 
-/**
+/*
  * Firmware statistic offset
  */
 #define BFI_IOC_FWSTATS_OFF	(0x6B40)
 #define BFI_IOC_FWSTATS_SZ	(4096)
 
-/**
+/*
  * Firmware trace offset
  */
 #define BFI_IOC_TRC_OFF		(0x4b00)
@@ -280,7 +280,7 @@ struct bfi_ioc_image_hdr_s {
 	u32	md5sum[BFI_IOC_MD5SUM_SZ];
 };
 
-/**
+/*
  *  BFI_IOC_I2H_READY_EVENT message
  */
 struct bfi_ioc_rdy_event_s {
@@ -294,7 +294,7 @@ struct bfi_ioc_hbeat_s {
 	u32	   hb_count;	/*  current heart beat count	*/
 };
 
-/**
+/*
  * IOC hardware/firmware state
  */
 enum bfi_ioc_state {
@@ -340,7 +340,7 @@ enum {
 	((__adap_type) & (BFI_ADAPTER_TTV | BFI_ADAPTER_PROTO |	\
 			BFI_ADAPTER_UNSUPP))
 
-/**
+/*
  * BFI_IOC_H2I_ENABLE_REQ & BFI_IOC_H2I_DISABLE_REQ messages
  */
 struct bfi_ioc_ctrl_req_s {
@@ -352,7 +352,7 @@ struct bfi_ioc_ctrl_req_s {
 #define bfi_ioc_enable_req_t struct bfi_ioc_ctrl_req_s;
 #define bfi_ioc_disable_req_t struct bfi_ioc_ctrl_req_s;
 
-/**
+/*
  * BFI_IOC_I2H_ENABLE_REPLY & BFI_IOC_I2H_DISABLE_REPLY messages
  */
 struct bfi_ioc_ctrl_reply_s {
@@ -364,7 +364,7 @@ struct bfi_ioc_ctrl_reply_s {
 #define bfi_ioc_disable_reply_t struct bfi_ioc_ctrl_reply_s;
 
 #define BFI_IOC_MSGSZ   8
-/**
+/*
  * H2I Messages
  */
 union bfi_ioc_h2i_msg_u {
@@ -375,7 +375,7 @@ union bfi_ioc_h2i_msg_u {
 	u32			mboxmsg[BFI_IOC_MSGSZ];
 };
 
-/**
+/*
  * I2H Messages
  */
 union bfi_ioc_i2h_msg_u {
@@ -385,7 +385,7 @@ union bfi_ioc_i2h_msg_u {
 };
 
 
-/**
+/*
  *----------------------------------------------------------------------
  *				PBC
  *----------------------------------------------------------------------
@@ -394,7 +394,7 @@ union bfi_ioc_i2h_msg_u {
 #define BFI_PBC_MAX_BLUNS	8
 #define BFI_PBC_MAX_VPORTS	16
 
-/**
+/*
  * PBC boot lun configuration
  */
 struct bfi_pbc_blun_s {
@@ -402,7 +402,7 @@ struct bfi_pbc_blun_s {
 	lun_t		tgt_lun;
 };
 
-/**
+/*
  * PBC virtual port configuration
  */
 struct bfi_pbc_vport_s {
@@ -410,7 +410,7 @@ struct bfi_pbc_vport_s {
 	wwn_t		vp_nwwn;
 };
 
-/**
+/*
  * BFI pre-boot configuration information
  */
 struct bfi_pbc_s {
@@ -427,7 +427,7 @@ struct bfi_pbc_s {
 	struct bfi_pbc_vport_s vport[BFI_PBC_MAX_VPORTS];
 };
 
-/**
+/*
  *----------------------------------------------------------------------
  *				MSGQ
  *----------------------------------------------------------------------
@@ -531,7 +531,7 @@ enum bfi_port_i2h {
 	BFI_PORT_I2H_CLEAR_STATS_RSP    = BFA_I2HM(4),
 };
 
-/**
+/*
  * Generic REQ type
  */
 struct bfi_port_generic_req_s {
@@ -540,7 +540,7 @@ struct bfi_port_generic_req_s {
 	u32     rsvd;
 };
 
-/**
+/*
  * Generic RSP type
  */
 struct bfi_port_generic_rsp_s {
@@ -550,7 +550,7 @@ struct bfi_port_generic_rsp_s {
 	u32     msgtag;         /*  msgtag for reply                */
 };
 
-/**
+/*
  * BFI_PORT_H2I_GET_STATS_REQ
  */
 struct bfi_port_get_stats_req_s {

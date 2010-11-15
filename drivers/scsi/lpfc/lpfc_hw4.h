@@ -424,79 +424,6 @@ struct lpfc_rcqe {
 #define FCOE_SOFn3	0x36
 };
 
-struct lpfc_wqe_generic{
-	struct ulp_bde64 bde;
-	uint32_t word3;
-	uint32_t word4;
-	uint32_t word5;
-	uint32_t word6;
-#define lpfc_wqe_gen_context_SHIFT	16
-#define lpfc_wqe_gen_context_MASK	0x0000FFFF
-#define lpfc_wqe_gen_context_WORD	word6
-#define lpfc_wqe_gen_xri_SHIFT		0
-#define lpfc_wqe_gen_xri_MASK		0x0000FFFF
-#define lpfc_wqe_gen_xri_WORD		word6
-	uint32_t word7;
-#define lpfc_wqe_gen_lnk_SHIFT		23
-#define lpfc_wqe_gen_lnk_MASK		0x00000001
-#define lpfc_wqe_gen_lnk_WORD		word7
-#define lpfc_wqe_gen_erp_SHIFT		22
-#define lpfc_wqe_gen_erp_MASK		0x00000001
-#define lpfc_wqe_gen_erp_WORD		word7
-#define lpfc_wqe_gen_pu_SHIFT		20
-#define lpfc_wqe_gen_pu_MASK		0x00000003
-#define lpfc_wqe_gen_pu_WORD		word7
-#define lpfc_wqe_gen_class_SHIFT	16
-#define lpfc_wqe_gen_class_MASK		0x00000007
-#define lpfc_wqe_gen_class_WORD		word7
-#define lpfc_wqe_gen_command_SHIFT	8
-#define lpfc_wqe_gen_command_MASK	0x000000FF
-#define lpfc_wqe_gen_command_WORD	word7
-#define lpfc_wqe_gen_status_SHIFT	4
-#define lpfc_wqe_gen_status_MASK	0x0000000F
-#define lpfc_wqe_gen_status_WORD	word7
-#define lpfc_wqe_gen_ct_SHIFT		2
-#define lpfc_wqe_gen_ct_MASK		0x00000003
-#define lpfc_wqe_gen_ct_WORD		word7
-	uint32_t abort_tag;
-	uint32_t word9;
-#define lpfc_wqe_gen_request_tag_SHIFT	0
-#define lpfc_wqe_gen_request_tag_MASK	0x0000FFFF
-#define lpfc_wqe_gen_request_tag_WORD	word9
-	uint32_t word10;
-#define lpfc_wqe_gen_ccp_SHIFT		24
-#define lpfc_wqe_gen_ccp_MASK		0x000000FF
-#define lpfc_wqe_gen_ccp_WORD		word10
-#define lpfc_wqe_gen_ccpe_SHIFT		23
-#define lpfc_wqe_gen_ccpe_MASK		0x00000001
-#define lpfc_wqe_gen_ccpe_WORD		word10
-#define lpfc_wqe_gen_pv_SHIFT		19
-#define lpfc_wqe_gen_pv_MASK		0x00000001
-#define lpfc_wqe_gen_pv_WORD		word10
-#define lpfc_wqe_gen_pri_SHIFT		16
-#define lpfc_wqe_gen_pri_MASK		0x00000007
-#define lpfc_wqe_gen_pri_WORD		word10
-	uint32_t word11;
-#define lpfc_wqe_gen_cq_id_SHIFT	16
-#define lpfc_wqe_gen_cq_id_MASK		0x0000FFFF
-#define lpfc_wqe_gen_cq_id_WORD		word11
-#define LPFC_WQE_CQ_ID_DEFAULT	0xffff
-#define lpfc_wqe_gen_wqec_SHIFT		7
-#define lpfc_wqe_gen_wqec_MASK		0x00000001
-#define lpfc_wqe_gen_wqec_WORD		word11
-#define ELS_ID_FLOGI 3
-#define ELS_ID_FDISC 2
-#define ELS_ID_LOGO  1
-#define ELS_ID_DEFAULT 0
-#define lpfc_wqe_gen_els_id_SHIFT	4
-#define lpfc_wqe_gen_els_id_MASK	0x00000003
-#define lpfc_wqe_gen_els_id_WORD	word11
-#define lpfc_wqe_gen_cmd_type_SHIFT	0
-#define lpfc_wqe_gen_cmd_type_MASK	0x0000000F
-#define lpfc_wqe_gen_cmd_type_WORD	word11
-	uint32_t payload[4];
-};
-
 struct lpfc_rqe {
 	uint32_t address_hi;
 	uint32_t address_lo;
@@ -2279,9 +2206,36 @@ struct wqe_common {
 #define wqe_reqtag_MASK       0x0000FFFF
 #define wqe_reqtag_WORD       word9
 #define wqe_rcvoxid_SHIFT     16
-#define wqe_rcvoxid_MASK       0x0000FFFF
-#define wqe_rcvoxid_WORD       word9
+#define wqe_rcvoxid_MASK      0x0000FFFF
+#define wqe_rcvoxid_WORD      word9
 	uint32_t word10;
+#define wqe_ebde_cnt_SHIFT    0
+#define wqe_ebde_cnt_MASK     0x00000007
+#define wqe_ebde_cnt_WORD     word10
+#define wqe_lenloc_SHIFT      7
+#define wqe_lenloc_MASK       0x00000003
+#define wqe_lenloc_WORD       word10
+#define LPFC_WQE_LENLOC_NONE		0
+#define LPFC_WQE_LENLOC_WORD3	1
+#define LPFC_WQE_LENLOC_WORD12	2
+#define LPFC_WQE_LENLOC_WORD4	3
+#define wqe_qosd_SHIFT        9
+#define wqe_qosd_MASK         0x00000001
+#define wqe_qosd_WORD         word10
+#define wqe_xbl_SHIFT         11
+#define wqe_xbl_MASK          0x00000001
+#define wqe_xbl_WORD          word10
+#define wqe_iod_SHIFT         13
+#define wqe_iod_MASK          0x00000001
+#define wqe_iod_WORD          word10
+#define LPFC_WQE_IOD_WRITE	0
+#define LPFC_WQE_IOD_READ	1
+#define wqe_dbde_SHIFT        14
+#define wqe_dbde_MASK         0x00000001
+#define wqe_dbde_WORD         word10
+#define wqe_wqes_SHIFT        15
+#define wqe_wqes_MASK         0x00000001
+#define wqe_wqes_WORD         word10
 #define wqe_pri_SHIFT         16
 #define wqe_pri_MASK          0x00000007
 #define wqe_pri_WORD          word10
@@ -2295,18 +2249,26 @@ struct wqe_common {
 #define wqe_ccpe_MASK         0x00000001
 #define wqe_ccpe_WORD         word10
 #define wqe_ccp_SHIFT         24
-#define wqe_ccp_MASK         0x000000ff
-#define wqe_ccp_WORD         word10
+#define wqe_ccp_MASK          0x000000ff
+#define wqe_ccp_WORD          word10
 	uint32_t word11;
-#define wqe_cmd_type_SHIFT  0
-#define wqe_cmd_type_MASK   0x0000000f
-#define wqe_cmd_type_WORD   word11
-#define wqe_wqec_SHIFT      7
-#define wqe_wqec_MASK       0x00000001
-#define wqe_wqec_WORD       word11
-#define wqe_cqid_SHIFT      16
-#define wqe_cqid_MASK       0x0000ffff
-#define wqe_cqid_WORD       word11
+#define wqe_cmd_type_SHIFT    0
+#define wqe_cmd_type_MASK     0x0000000f
+#define wqe_cmd_type_WORD     word11
+#define wqe_els_id_SHIFT      4
+#define wqe_els_id_MASK       0x00000003
+#define wqe_els_id_WORD       word11
+#define LPFC_ELS_ID_FLOGI	3
+#define LPFC_ELS_ID_FDISC	2
+#define LPFC_ELS_ID_LOGO	1
+#define LPFC_ELS_ID_DEFAULT	0
+#define wqe_wqec_SHIFT        7
+#define wqe_wqec_MASK         0x00000001
+#define wqe_wqec_WORD         word11
+#define wqe_cqid_SHIFT        16
+#define wqe_cqid_MASK         0x0000ffff
+#define wqe_cqid_WORD         word11
+#define LPFC_WQE_CQ_ID_DEFAULT	0xffff
 };
 
 struct wqe_did {
@@ -2323,6 +2285,15 @@ struct wqe_did {
 #define wqe_xmit_bls_xo_SHIFT         31
 #define wqe_xmit_bls_xo_MASK          0x00000001
 #define wqe_xmit_bls_xo_WORD          word5
+};
+
+struct lpfc_wqe_generic{
+	struct ulp_bde64 bde;
+	uint32_t word3;
+	uint32_t word4;
+	uint32_t word5;
+	struct wqe_common wqe_com;
+	uint32_t payload[4];
 };
 
 struct els_request64_wqe {
@@ -2356,9 +2327,9 @@ struct els_request64_wqe {
 
 struct xmit_els_rsp64_wqe {
 	struct ulp_bde64 bde;
-	uint32_t rsvd3;
+	uint32_t response_payload_len;
 	uint32_t rsvd4;
-	struct wqe_did	wqe_dest;
+	struct wqe_did wqe_dest;
 	struct wqe_common wqe_com; /* words 6-11 */
 	uint32_t rsvd_12_15[4];
 };
@@ -2427,7 +2398,7 @@ struct wqe_rctl_dfctl {
 
 struct xmit_seq64_wqe {
 	struct ulp_bde64 bde;
-	uint32_t paylaod_offset;
+	uint32_t rsvd3;
 	uint32_t relative_offset;
 	struct wqe_rctl_dfctl wge_ctl;
 	struct wqe_common wqe_com; /* words 6-11 */
@@ -2437,7 +2408,7 @@ struct xmit_seq64_wqe {
 };
 struct xmit_bcast64_wqe {
 	struct ulp_bde64 bde;
-	uint32_t paylaod_len;
+	uint32_t seq_payload_len;
 	uint32_t rsvd4;
 	struct wqe_rctl_dfctl wge_ctl; /* word 5 */
 	struct wqe_common wqe_com;     /* words 6-11 */
@@ -2446,8 +2417,8 @@ struct xmit_bcast64_wqe {
 
 struct gen_req64_wqe {
 	struct ulp_bde64 bde;
-	uint32_t command_len;
-	uint32_t payload_len;
+	uint32_t request_payload_len;
+	uint32_t relative_offset;
 	struct wqe_rctl_dfctl wge_ctl; /* word 5 */
 	struct wqe_common wqe_com;     /* words 6-11 */
 	uint32_t rsvd_12_15[4];
@@ -2480,7 +2451,7 @@ struct abort_cmd_wqe {
 
 struct fcp_iwrite64_wqe {
 	struct ulp_bde64 bde;
-	uint32_t payload_len;
+	uint32_t payload_offset_len;
 	uint32_t total_xfer_len;
 	uint32_t initial_xfer_len;
 	struct wqe_common wqe_com;     /* words 6-11 */
@@ -2489,7 +2460,7 @@ struct fcp_iwrite64_wqe {
 
 struct fcp_iread64_wqe {
 	struct ulp_bde64 bde;
-	uint32_t payload_len;          /* word 3 */
+	uint32_t payload_offset_len;   /* word 3 */
 	uint32_t total_xfer_len;       /* word 4 */
 	uint32_t rsrvd5;               /* word 5 */
 	struct wqe_common wqe_com;     /* words 6-11 */
@@ -2497,10 +2468,12 @@ struct fcp_iread64_wqe {
 };
 
 struct fcp_icmnd64_wqe {
-	struct ulp_bde64 bde;	 /* words 0-2 */
-	uint32_t rsrvd[3];             /* words 3-5 */
+	struct ulp_bde64 bde;          /* words 0-2 */
+	uint32_t rsrvd3;               /* word 3 */
+	uint32_t rsrvd4;               /* word 4 */
+	uint32_t rsrvd5;               /* word 5 */
 	struct wqe_common wqe_com;     /* words 6-11 */
-	uint32_t rsvd_12_15[4];         /* word 12-15 */
+	uint32_t rsvd_12_15[4];        /* word 12-15 */
 };
 
 

@@ -20,6 +20,13 @@ config RAPIDIO_TSI568
 	---help---
 	  Includes support for IDT Tsi568 serial RapidIO switch.
 
+config RAPIDIO_CPS_GEN2
+	bool "IDT CPS Gen.2 SRIO switch support"
+	depends on RAPIDIO
+	default n
+	---help---
+	  Includes support for ITD CPS Gen.2 serial RapidIO switches.
+
 config RAPIDIO_TSI500
 	bool "Tsi500 Parallel RapidIO switch support"
 	depends on RAPIDIO

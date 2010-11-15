@@ -112,7 +112,7 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 
 	ASSERT_RTNL();
 
-	grp = real_dev->vlgrp;
+	grp = rtnl_dereference(real_dev->vlgrp);
 	BUG_ON(!grp);
 
 	/* Take it out of our own structures, but be sure to interlock with
@@ -177,7 +177,7 @@ int register_vlan_dev(struct net_device *dev)
 	struct vlan_group *grp, *ngrp = NULL;
 	int err;
 
-	grp = real_dev->vlgrp;
+	grp = rtnl_dereference(real_dev->vlgrp);
 	if (!grp) {
 		ngrp = grp = vlan_group_alloc(real_dev);
 		if (!grp)
@@ -385,7 +385,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		dev->netdev_ops->ndo_vlan_rx_add_vid(dev, 0);
 	}
 
-	grp = dev->vlgrp;
+	grp = rtnl_dereference(dev->vlgrp);
 	if (!grp)
 		goto out;
 

@@ -1334,12 +1334,7 @@ out_finish:
 
 static void fuse_retrieve_end(struct fuse_conn *fc, struct fuse_req *req)
 {
-	int i;
-
-	for (i = 0; i < req->num_pages; i++) {
-		struct page *page = req->pages[i];
-		page_cache_release(page);
-	}
+	release_pages(req->pages, req->num_pages, 0);
 }
 
 static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,

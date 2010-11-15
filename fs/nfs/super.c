@@ -260,8 +260,8 @@ static int  nfs_statfs(struct dentry *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
 static int  nfs_show_stats(struct seq_file *, struct vfsmount *);
 static int nfs_get_sb(struct file_system_type *, int, const char *, void *, struct vfsmount *);
-static int nfs_xdev_get_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
+static struct dentry *nfs_xdev_mount(struct file_system_type *fs_type,
+		int flags, const char *dev_name, void *raw_data);
 static void nfs_put_super(struct super_block *);
 static void nfs_kill_super(struct super_block *);
 static int nfs_remount(struct super_block *sb, int *flags, char *raw_data);
@@ -277,7 +277,7 @@ static struct file_system_type nfs_fs_type = {
 struct file_system_type nfs_xdev_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfs",
-	.get_sb		= nfs_xdev_get_sb,
+	.mount		= nfs_xdev_mount,
 	.kill_sb	= nfs_kill_super,
 	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
@@ -302,14 +302,14 @@ static int nfs4_try_mount(int flags, const char *dev_name,
 	struct nfs_parsed_mount_data *data, struct vfsmount *mnt);
 static int nfs4_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
-static int nfs4_remote_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
-static int nfs4_xdev_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
+static struct dentry *nfs4_remote_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *raw_data);
+static struct dentry *nfs4_xdev_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *raw_data);
 static int nfs4_referral_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
-static int nfs4_remote_referral_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
+static struct dentry *nfs4_remote_referral_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *raw_data);
 static void nfs4_kill_super(struct super_block *sb);
 
 static struct file_system_type nfs4_fs_type = {
@@ -323,7 +323,7 @@ static struct file_system_type nfs4_fs_type = {
 static struct file_system_type nfs4_remote_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfs4",
-	.get_sb		= nfs4_remote_get_sb,
+	.mount		= nfs4_remote_mount,
 	.kill_sb	= nfs4_kill_super,
 	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
@@ -331,7 +331,7 @@ static struct file_system_type nfs4_remote_fs_type = {
 struct file_system_type nfs4_xdev_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfs4",
-	.get_sb		= nfs4_xdev_get_sb,
+	.mount		= nfs4_xdev_mount,
 	.kill_sb	= nfs4_kill_super,
 	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
@@ -339,7 +339,7 @@ struct file_system_type nfs4_xdev_fs_type = {
 static struct file_system_type nfs4_remote_referral_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfs4",
-	.get_sb		= nfs4_remote_referral_get_sb,
+	.mount		= nfs4_remote_referral_mount,
 	.kill_sb	= nfs4_kill_super,
 	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
@@ -2397,9 +2397,9 @@ static void nfs_kill_super(struct super_block *s)
 /*
  * Clone an NFS2/3 server record on xdev traversal (FSID-change)
  */
-static int nfs_xdev_get_sb(struct file_system_type *fs_type, int flags,
-			   const char *dev_name, void *raw_data,
-			   struct vfsmount *mnt)
+static struct dentry *
+nfs_xdev_mount(struct file_system_type *fs_type, int flags,
+		const char *dev_name, void *raw_data)
 {
 	struct nfs_clone_mount *data = raw_data;
 	struct super_block *s;
@@ -2411,7 +2411,7 @@ static int nfs_xdev_get_sb(struct file_system_type *fs_type, int flags,
 	};
 	int error;
 
-	dprintk("--> nfs_xdev_get_sb()\n");
+	dprintk("--> nfs_xdev_mount()\n");
 
 	/* create a new volume representation */
 	server = nfs_clone_server(NFS_SB(data->sb), data->fh, data->fattr);
@@ -2458,28 +2458,26 @@ static int nfs_xdev_get_sb(struct file_system_type *fs_type, int flags,
 	}
 
 	s->s_flags |= MS_ACTIVE;
-	mnt->mnt_sb = s;
-	mnt->mnt_root = mntroot;
 
 	/* clone any lsm security options from the parent to the new sb */
 	security_sb_clone_mnt_opts(data->sb, s);
 
-	dprintk("<-- nfs_xdev_get_sb() = 0\n");
-	return 0;
+	dprintk("<-- nfs_xdev_mount() = 0\n");
+	return mntroot;
 
 out_err_nosb:
 	nfs_free_server(server);
 out_err_noserver:
-	dprintk("<-- nfs_xdev_get_sb() = %d [error]\n", error);
-	return error;
+	dprintk("<-- nfs_xdev_mount() = %d [error]\n", error);
+	return ERR_PTR(error);
 
 error_splat_super:
 	if (server && !s->s_root)
 		bdi_unregister(&server->backing_dev_info);
 error_splat_bdi:
 	deactivate_locked_super(s);
-	dprintk("<-- nfs_xdev_get_sb() = %d [splat]\n", error);
-	return error;
+	dprintk("<-- nfs_xdev_mount() = %d [splat]\n", error);
+	return ERR_PTR(error);
 }
 
 #ifdef CONFIG_NFS_V4
@@ -2649,8 +2647,9 @@ out_no_address:
 /*
  * Get the superblock for the NFS4 root partition
  */
-static int nfs4_remote_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt)
+static struct dentry *
+nfs4_remote_mount(struct file_system_type *fs_type, int flags,
+		  const char *dev_name, void *raw_data)
 {
 	struct nfs_parsed_mount_data *data = raw_data;
 	struct super_block *s;
@@ -2714,15 +2713,16 @@ static int nfs4_remote_get_sb(struct file_system_type *fs_type,
 		goto error_splat_root;
 
 	s->s_flags |= MS_ACTIVE;
-	mnt->mnt_sb = s;
-	mnt->mnt_root = mntroot;
-	error = 0;
+
+	security_free_mnt_opts(&data->lsm_opts);
+	nfs_free_fhandle(mntfh);
+	return mntroot;
 
 out:
 	security_free_mnt_opts(&data->lsm_opts);
 out_free_fh:
 	nfs_free_fhandle(mntfh);
-	return error;
+	return ERR_PTR(error);
 
 out_free:
 	nfs_free_server(server);
@@ -2968,9 +2968,9 @@ static void nfs4_kill_super(struct super_block *sb)
 /*
  * Clone an NFS4 server record on xdev traversal (FSID-change)
  */
-static int nfs4_xdev_get_sb(struct file_system_type *fs_type, int flags,
-			    const char *dev_name, void *raw_data,
-			    struct vfsmount *mnt)
+static struct dentry *
+nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
+		 const char *dev_name, void *raw_data)
 {
 	struct nfs_clone_mount *data = raw_data;
 	struct super_block *s;
@@ -2982,7 +2982,7 @@ static int nfs4_xdev_get_sb(struct file_system_type *fs_type, int flags,
 	};
 	int error;
 
-	dprintk("--> nfs4_xdev_get_sb()\n");
+	dprintk("--> nfs4_xdev_mount()\n");
 
 	/* create a new volume representation */
 	server = nfs_clone_server(NFS_SB(data->sb), data->fh, data->fattr);
@@ -3029,32 +3029,30 @@ static int nfs4_xdev_get_sb(struct file_system_type *fs_type, int flags,
 	}
 
 	s->s_flags |= MS_ACTIVE;
-	mnt->mnt_sb = s;
-	mnt->mnt_root = mntroot;
 
 	security_sb_clone_mnt_opts(data->sb, s);
 
-	dprintk("<-- nfs4_xdev_get_sb() = 0\n");
-	return 0;
+	dprintk("<-- nfs4_xdev_mount() = 0\n");
+	return mntroot;
 
 out_err_nosb:
 	nfs_free_server(server);
 out_err_noserver:
-	dprintk("<-- nfs4_xdev_get_sb() = %d [error]\n", error);
-	return error;
+	dprintk("<-- nfs4_xdev_mount() = %d [error]\n", error);
+	return ERR_PTR(error);
 
 error_splat_super:
 	if (server && !s->s_root)
 		bdi_unregister(&server->backing_dev_info);
 error_splat_bdi:
 	deactivate_locked_super(s);
-	dprintk("<-- nfs4_xdev_get_sb() = %d [splat]\n", error);
-	return error;
+	dprintk("<-- nfs4_xdev_mount() = %d [splat]\n", error);
+	return ERR_PTR(error);
 }
 
-static int nfs4_remote_referral_get_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *raw_data,
-		struct vfsmount *mnt)
+static struct dentry *
+nfs4_remote_referral_mount(struct file_system_type *fs_type, int flags,
+			   const char *dev_name, void *raw_data)
 {
 	struct nfs_clone_mount *data = raw_data;
 	struct super_block *s;
@@ -3118,14 +3116,12 @@ static int nfs4_remote_referral_get_sb(struct file_system_type *fs_type,
 	}
 
 	s->s_flags |= MS_ACTIVE;
-	mnt->mnt_sb = s;
-	mnt->mnt_root = mntroot;
 
 	security_sb_clone_mnt_opts(data->sb, s);
 
 	nfs_free_fhandle(mntfh);
 	dprintk("<-- nfs4_referral_get_sb() = 0\n");
-	return 0;
+	return mntroot;
 
 out_err_nosb:
 	nfs_free_server(server);
@@ -3133,7 +3129,7 @@ out_err_noserver:
 	nfs_free_fhandle(mntfh);
 out_err_nofh:
 	dprintk("<-- nfs4_referral_get_sb() = %d [error]\n", error);
-	return error;
+	return ERR_PTR(error);
 
 error_splat_super:
 	if (server && !s->s_root)
@@ -3142,7 +3138,7 @@ error_splat_bdi:
 	deactivate_locked_super(s);
 	nfs_free_fhandle(mntfh);
 	dprintk("<-- nfs4_referral_get_sb() = %d [splat]\n", error);
-	return error;
+	return ERR_PTR(error);
 }
 
 /*

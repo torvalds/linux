@@ -42,7 +42,7 @@ static unsigned int card[] = {[0 ... (CX25821_MAXBOARDS - 1)] = UNSET };
 module_param_array(card, int, NULL, 0444);
 MODULE_PARM_DESC(card, "card type");
 
-static unsigned int cx25821_devcount = 0;
+static unsigned int cx25821_devcount;
 
 static DEFINE_MUTEX(devlist);
 LIST_HEAD(cx25821_devlist);
@@ -781,14 +781,14 @@ static void cx25821_shutdown(struct cx25821_dev *dev)
 
 	/* Disable Video A/B activity */
 	for (i = 0; i < VID_CHANNEL_NUM; i++) {
-	       cx_write(dev->channels[i].sram_channels->dma_ctl, 0);
-	       cx_write(dev->channels[i].sram_channels->int_msk, 0);
+		cx_write(dev->channels[i].sram_channels->dma_ctl, 0);
+		cx_write(dev->channels[i].sram_channels->int_msk, 0);
 	}
 
-	for (i = VID_UPSTREAM_SRAM_CHANNEL_I; i <= VID_UPSTREAM_SRAM_CHANNEL_J;
-	     i++) {
-	       cx_write(dev->channels[i].sram_channels->dma_ctl, 0);
-	       cx_write(dev->channels[i].sram_channels->int_msk, 0);
+	for (i = VID_UPSTREAM_SRAM_CHANNEL_I;
+		i <= VID_UPSTREAM_SRAM_CHANNEL_J; i++) {
+		cx_write(dev->channels[i].sram_channels->dma_ctl, 0);
+		cx_write(dev->channels[i].sram_channels->int_msk, 0);
 	}
 
 	/* Disable Audio activity */
@@ -806,9 +806,9 @@ void cx25821_set_pixel_format(struct cx25821_dev *dev, int channel_select,
 			      u32 format)
 {
 	if (channel_select <= 7 && channel_select >= 0) {
-	       cx_write(dev->channels[channel_select].
-			       sram_channels->pix_frmt, format);
-	       dev->channels[channel_select].pixel_formats = format;
+		cx_write(dev->channels[channel_select].
+			sram_channels->pix_frmt, format);
+		dev->channels[channel_select].pixel_formats = format;
 	}
 }
 
@@ -829,7 +829,7 @@ static void cx25821_initialize(struct cx25821_dev *dev)
 	cx_write(PCI_INT_STAT, 0xffffffff);
 
 	for (i = 0; i < VID_CHANNEL_NUM; i++)
-	       cx_write(dev->channels[i].sram_channels->int_stat, 0xffffffff);
+		cx_write(dev->channels[i].sram_channels->int_stat, 0xffffffff);
 
 	cx_write(AUD_A_INT_STAT, 0xffffffff);
 	cx_write(AUD_B_INT_STAT, 0xffffffff);
@@ -843,22 +843,22 @@ static void cx25821_initialize(struct cx25821_dev *dev)
 	mdelay(100);
 
 	for (i = 0; i < VID_CHANNEL_NUM; i++) {
-	       cx25821_set_vip_mode(dev, dev->channels[i].sram_channels);
-	       cx25821_sram_channel_setup(dev, dev->channels[i].sram_channels,
-					       1440, 0);
-	       dev->channels[i].pixel_formats = PIXEL_FRMT_422;
-	       dev->channels[i].use_cif_resolution = FALSE;
+		cx25821_set_vip_mode(dev, dev->channels[i].sram_channels);
+		cx25821_sram_channel_setup(dev, dev->channels[i].sram_channels,
+						1440, 0);
+		dev->channels[i].pixel_formats = PIXEL_FRMT_422;
+		dev->channels[i].use_cif_resolution = FALSE;
 	}
 
 	/* Probably only affect Downstream */
-	for (i = VID_UPSTREAM_SRAM_CHANNEL_I; i <= VID_UPSTREAM_SRAM_CHANNEL_J;
-	     i++) {
-	       cx25821_set_vip_mode(dev, dev->channels[i].sram_channels);
+	for (i = VID_UPSTREAM_SRAM_CHANNEL_I;
+		i <= VID_UPSTREAM_SRAM_CHANNEL_J; i++) {
+		cx25821_set_vip_mode(dev, dev->channels[i].sram_channels);
 	}
 
-       cx25821_sram_channel_setup_audio(dev,
-			       dev->channels[SRAM_CH08].sram_channels,
-			       128, 0);
+	cx25821_sram_channel_setup_audio(dev,
+				dev->channels[SRAM_CH08].sram_channels,
+				128, 0);
 
 	cx25821_gpio_init(dev);
 }
@@ -931,8 +931,8 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 
 	/* Apply a sensible clock frequency for the PCIe bridge */
 	dev->clk_freq = 28000000;
-       for (i = 0; i < MAX_VID_CHANNEL_NUM; i++)
-	       dev->channels[i].sram_channels = &cx25821_sram_channels[i];
+	for (i = 0; i < MAX_VID_CHANNEL_NUM; i++)
+		dev->channels[i].sram_channels = &cx25821_sram_channels[i];
 
 	if (dev->nr > 1)
 		CX25821_INFO("dev->nr > 1!");
@@ -962,7 +962,7 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 		       dev->pci->subsystem_device);
 
 		cx25821_devcount--;
-		return -ENODEV;
+		return -EBUSY;
 	}
 
 	/* PCIe stuff */
@@ -1003,11 +1003,11 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 
 	cx25821_card_setup(dev);
 
-       if (medusa_video_init(dev) < 0)
-	       CX25821_ERR("%s() Failed to initialize medusa!\n"
-	       , __func__);
+	if (medusa_video_init(dev) < 0)
+		CX25821_ERR("%s() Failed to initialize medusa!\n"
+		, __func__);
 
-       cx25821_video_register(dev);
+	cx25821_video_register(dev);
 
 	/* register IOCTL device */
 	dev->ioctl_dev =
@@ -1319,7 +1319,7 @@ void cx25821_free_buffer(struct videobuf_queue *q, struct cx25821_buffer *buf)
 	struct videobuf_dmabuf *dma = videobuf_to_dma(&buf->vb);
 
 	BUG_ON(in_interrupt());
-	videobuf_waiton(&buf->vb, 0, 0);
+	videobuf_waiton(q, &buf->vb, 0, 0);
 	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
 	btcx_riscmem_free(to_pci_dev(q->dev), &buf->risc);
@@ -1342,12 +1342,12 @@ static irqreturn_t cx25821_irq(int irq, void *dev_id)
 
 	for (i = 0; i < VID_CHANNEL_NUM; i++) {
 		if (pci_status & mask[i]) {
-		       vid_status = cx_read(dev->channels[i].
-			       sram_channels->int_stat);
+			vid_status = cx_read(dev->channels[i].
+				sram_channels->int_stat);
 
 			if (vid_status)
 				handled +=
-				    cx25821_video_irq(dev, i, vid_status);
+				cx25821_video_irq(dev, i, vid_status);
 
 			cx_write(PCI_INT_STAT, mask[i]);
 		}
@@ -1412,9 +1412,12 @@ static int __devinit cx25821_initdev(struct pci_dev *pci_dev,
 
 	printk(KERN_INFO "cx25821 Athena pci enable !\n");
 
-	if (cx25821_dev_setup(dev) < 0) {
-		err = -EINVAL;
-		goto fail_unregister_device;
+	err = cx25821_dev_setup(dev);
+	if (err) {
+		if (err == -EBUSY)
+			goto fail_unregister_device;
+		else
+			goto fail_unregister_pci;
 	}
 
 	/* print pci info */
@@ -1448,6 +1451,8 @@ fail_irq:
 	printk(KERN_INFO "cx25821 cx25821_initdev() can't get IRQ !\n");
 	cx25821_dev_unregister(dev);
 
+fail_unregister_pci:
+	pci_disable_device(pci_dev);
 fail_unregister_device:
 	v4l2_device_unregister(&dev->v4l2_dev);
 

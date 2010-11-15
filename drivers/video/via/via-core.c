@@ -20,7 +20,7 @@
  * The default port config.
  */
 static struct via_port_cfg adap_configs[] = {
-	[VIA_PORT_26]	= { VIA_PORT_I2C,  VIA_MODE_OFF, VIASR, 0x26 },
+	[VIA_PORT_26]	= { VIA_PORT_I2C,  VIA_MODE_I2C, VIASR, 0x26 },
 	[VIA_PORT_31]	= { VIA_PORT_I2C,  VIA_MODE_I2C, VIASR, 0x31 },
 	[VIA_PORT_25]	= { VIA_PORT_GPIO, VIA_MODE_GPIO, VIASR, 0x25 },
 	[VIA_PORT_2C]	= { VIA_PORT_GPIO, VIA_MODE_I2C, VIASR, 0x2c },
@@ -94,6 +94,13 @@ void viafb_irq_disable(u32 mask)
 EXPORT_SYMBOL_GPL(viafb_irq_disable);
 
 /* ---------------------------------------------------------------------- */
+/*
+ * Currently, the camera driver is the only user of the DMA code, so we
+ * only compile it in if the camera driver is being built.  Chances are,
+ * most viafb systems will not need to have this extra code for a while.
+ * As soon as another user comes long, the ifdef can be removed.
+ */
+#if defined(CONFIG_VIDEO_VIA_CAMERA) || defined(CONFIG_VIDEO_VIA_CAMERA_MODULE)
 /*
  * Access to the DMA engine.  This currently provides what the camera
  * driver needs (i.e. outgoing only) but is easily expandable if need
@@ -322,7 +329,7 @@ int viafb_dma_copy_out_sg(unsigned int offset, struct scatterlist *sg, int nsg)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(viafb_dma_copy_out_sg);
-
+#endif /* CONFIG_VIDEO_VIA_CAMERA */
 
 /* ---------------------------------------------------------------------- */
 /*
@@ -333,7 +340,7 @@ EXPORT_SYMBOL_GPL(viafb_dma_copy_out_sg);
 static u16 via_function3[] = {
 	CLE266_FUNCTION3, KM400_FUNCTION3, CN400_FUNCTION3, CN700_FUNCTION3,
 	CX700_FUNCTION3, KM800_FUNCTION3, KM890_FUNCTION3, P4M890_FUNCTION3,
-	P4M900_FUNCTION3, VX800_FUNCTION3, VX855_FUNCTION3,
+	P4M900_FUNCTION3, VX800_FUNCTION3, VX855_FUNCTION3, VX900_FUNCTION3,
 };
 
 /* Get the BIOS-configured framebuffer size from PCI configuration space
@@ -370,6 +377,7 @@ static int viafb_get_fb_size_from_pci(int chip_type)
 		case P4M900_FUNCTION3:
 		case VX800_FUNCTION3:
 		case VX855_FUNCTION3:
+		case VX900_FUNCTION3:
 		/*case CN750_FUNCTION3: */
 			offset = 0xA0;
 			break;
@@ -474,7 +482,10 @@ static int __devinit via_pci_setup_mmio(struct viafb_dev *vdev)
 	 * Eventually we want to move away from mapping this
 	 * entire region.
 	 */
-	vdev->fbmem_start = pci_resource_start(vdev->pdev, 0);
+	if (vdev->chip_type == UNICHROME_VX900)
+		vdev->fbmem_start = pci_resource_start(vdev->pdev, 2);
+	else
+		vdev->fbmem_start = pci_resource_start(vdev->pdev, 0);
 	ret = vdev->fbmem_len = viafb_get_fb_size_from_pci(vdev->chip_type);
 	if (ret < 0)
 		goto out_unmap;
@@ -507,7 +518,12 @@ static struct viafb_subdev_info {
 	},
 	{
 		.name = "viafb-i2c",
-	}
+	},
+#if defined(CONFIG_VIDEO_VIA_CAMERA) || defined(CONFIG_VIDEO_VIA_CAMERA_MODULE)
+	{
+		.name = "viafb-camera",
+	},
+#endif
 };
 #define N_SUBDEVS ARRAY_SIZE(viafb_subdevs)
 
@@ -635,6 +651,8 @@ static struct pci_device_id via_pci_table[] __devinitdata = {
 	  .driver_data = UNICHROME_VX800 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_VX855_DID),
 	  .driver_data = UNICHROME_VX855 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, UNICHROME_VX900_DID),
+	  .driver_data = UNICHROME_VX900 },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, via_pci_table);
@@ -644,6 +662,10 @@ static struct pci_driver via_driver = {
 	.id_table	= via_pci_table,
 	.probe		= via_pci_probe,
 	.remove		= __devexit_p(via_pci_remove),
+#ifdef CONFIG_PM
+	.suspend	= viafb_suspend,
+	.resume		= viafb_resume,
+#endif
 };
 
 static int __init via_core_init(void)

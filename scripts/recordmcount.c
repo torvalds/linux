@@ -217,6 +217,39 @@ is_mcounted_section_name(char const *const txtname)
 #define RECORD_MCOUNT_64
 #include "recordmcount.h"
 
+/* 64-bit EM_MIPS has weird ELF64_Rela.r_info.
+ * http://techpubs.sgi.com/library/manuals/4000/007-4658-001/pdf/007-4658-001.pdf
+ * We interpret Table 29 Relocation Operation (Elf64_Rel, Elf64_Rela) [p.40]
+ * to imply the order of the members; the spec does not say so.
+ *	typedef unsigned char Elf64_Byte;
+ * fails on MIPS64 because their <elf.h> already has it!
+ */
+
+typedef uint8_t myElf64_Byte;		/* Type for a 8-bit quantity.  */
+
+union mips_r_info {
+	Elf64_Xword r_info;
+	struct {
+		Elf64_Word r_sym;		/* Symbol index.  */
+		myElf64_Byte r_ssym;		/* Special symbol.  */
+		myElf64_Byte r_type3;		/* Third relocation.  */
+		myElf64_Byte r_type2;		/* Second relocation.  */
+		myElf64_Byte r_type;		/* First relocation.  */
+	} r_mips;
+};
+
+static uint64_t MIPS64_r_sym(Elf64_Rel const *rp)
+{
+	return w(((union mips_r_info){ .r_info = rp->r_info }).r_mips.r_sym);
+}
+
+static void MIPS64_r_info(Elf64_Rel *const rp, unsigned sym, unsigned type)
+{
+	rp->r_info = ((union mips_r_info){
+		.r_mips = { .r_sym = w(sym), .r_type = type }
+	}).r_info;
+}
+
 static void
 do_file(char const *const fname)
 {
@@ -268,6 +301,7 @@ do_file(char const *const fname)
 	case EM_386:	 reltype = R_386_32;                   break;
 	case EM_ARM:	 reltype = R_ARM_ABS32;                break;
 	case EM_IA_64:	 reltype = R_IA64_IMM64;   gpfx = '_'; break;
+	case EM_MIPS:	 /* reltype: e_class    */ gpfx = '_'; break;
 	case EM_PPC:	 reltype = R_PPC_ADDR32;   gpfx = '_'; break;
 	case EM_PPC64:	 reltype = R_PPC64_ADDR64; gpfx = '_'; break;
 	case EM_S390:    /* reltype: e_class    */ gpfx = '_'; break;
@@ -291,6 +325,10 @@ do_file(char const *const fname)
 		}
 		if (EM_S390 == w2(ehdr->e_machine))
 			reltype = R_390_32;
+		if (EM_MIPS == w2(ehdr->e_machine)) {
+			reltype = R_MIPS_32;
+			is_fake_mcount32 = MIPS32_is_fake_mcount;
+		}
 		do32(ehdr, fname, reltype);
 	} break;
 	case ELFCLASS64: {
@@ -303,6 +341,12 @@ do_file(char const *const fname)
 		}
 		if (EM_S390 == w2(ghdr->e_machine))
 			reltype = R_390_64;
+		if (EM_MIPS == w2(ghdr->e_machine)) {
+			reltype = R_MIPS_64;
+			Elf64_r_sym = MIPS64_r_sym;
+			Elf64_r_info = MIPS64_r_info;
+			is_fake_mcount64 = MIPS64_is_fake_mcount;
+		}
 		do64(ghdr, fname, reltype);
 	} break;
 	}  /* end switch */

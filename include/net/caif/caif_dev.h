@@ -28,7 +28,7 @@ struct caif_param {
  * @sockaddr:		Socket address to connect.
  * @priority:		Priority of the connection.
  * @link_selector:	Link selector (high bandwidth or low latency)
- * @link_name:		Name of the CAIF Link Layer to use.
+ * @ifindex:		kernel index of the interface.
  * @param:		Connect Request parameters (CAIF_SO_REQ_PARAM).
  *
  * This struct is used when connecting a CAIF channel.
@@ -39,7 +39,7 @@ struct caif_connect_request {
 	struct sockaddr_caif sockaddr;
 	enum caif_channel_priority priority;
 	enum caif_link_selector link_selector;
-	char link_name[16];
+	int ifindex;
 	struct caif_param param;
 };
 

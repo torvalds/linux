@@ -42,7 +42,7 @@
 #include <media/videobuf-dma-sg.h>
 #include <media/tveeprom.h>
 #include <media/ir-common.h>
-
+#include <media/ir-kbd-i2c.h>
 
 #include "bt848.h"
 #include "bttv.h"
@@ -271,6 +271,12 @@ int bttv_sub_del_devices(struct bttv_core *core);
 extern int no_overlay;
 
 /* ---------------------------------------------------------- */
+/* bttv-input.c                                               */
+
+extern void init_bttv_i2c_ir(struct bttv *btv);
+extern int fini_bttv_i2c(struct bttv *btv);
+
+/* ---------------------------------------------------------- */
 /* bttv-driver.c                                              */
 
 /* insmod options */
@@ -279,8 +285,6 @@ extern unsigned int bttv_debug;
 extern unsigned int bttv_gpio;
 extern void bttv_gpio_tracking(struct bttv *btv, char *comment);
 extern int init_bttv_i2c(struct bttv *btv);
-extern void init_bttv_i2c_ir(struct bttv *btv);
-extern int fini_bttv_i2c(struct bttv *btv);
 
 #define bttv_printk if (bttv_verbose) printk
 #define dprintk  if (bttv_debug >= 1) printk
@@ -365,6 +369,9 @@ struct bttv {
 	/* infrared remote */
 	int has_remote;
 	struct card_ir *remote;
+
+	/* I2C remote data */
+	struct IR_i2c_init_data    init_data;
 
 	/* locking */
 	spinlock_t s_lock;

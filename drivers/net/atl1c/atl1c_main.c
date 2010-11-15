@@ -66,6 +66,8 @@ static void atl1c_set_aspm(struct atl1c_hw *hw, bool linkup);
 static void atl1c_setup_mac_ctrl(struct atl1c_adapter *adapter);
 static void atl1c_clean_rx_irq(struct atl1c_adapter *adapter, u8 que,
 		   int *work_done, int work_to_do);
+static int atl1c_up(struct atl1c_adapter *adapter);
+static void atl1c_down(struct atl1c_adapter *adapter);
 
 static const u16 atl1c_pay_load_size[] = {
 	128, 256, 512, 1024, 2048, 4096,
@@ -2309,7 +2311,7 @@ static int atl1c_request_irq(struct atl1c_adapter *adapter)
 	return err;
 }
 
-int atl1c_up(struct atl1c_adapter *adapter)
+static int atl1c_up(struct atl1c_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	int num;
@@ -2351,7 +2353,7 @@ err_alloc_rx:
 	return err;
 }
 
-void atl1c_down(struct atl1c_adapter *adapter)
+static void atl1c_down(struct atl1c_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 

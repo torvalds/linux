@@ -282,8 +282,6 @@ static noinline __init void setup_facility_list(void)
 static noinline __init void setup_hpage(void)
 {
 #ifndef CONFIG_DEBUG_PAGEALLOC
-	unsigned int facilities;
-
 	if (!test_facility(2) || !test_facility(8))
 		return;
 	S390_lowcore.machine_flags |= MACHINE_FLAG_HPAGE;

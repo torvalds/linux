@@ -835,6 +835,15 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 	    ns.conn != C_UNCONNECTED && ns.conn != C_DISCONNECTING && ns.conn <= C_TEAR_DOWN)
 		ns.conn = os.conn;
 
+	/* we cannot fail (again) if we already detached */
+	if (ns.disk == D_FAILED && os.disk == D_DISKLESS)
+		ns.disk = D_DISKLESS;
+
+	/* if we are only D_ATTACHING yet,
+	 * we can (and should) go directly to D_DISKLESS. */
+	if (ns.disk == D_FAILED && os.disk == D_ATTACHING)
+		ns.disk = D_DISKLESS;
+
 	/* After C_DISCONNECTING only C_STANDALONE may follow */
 	if (os.conn == C_DISCONNECTING && ns.conn != C_STANDALONE)
 		ns.conn = os.conn;
@@ -1056,7 +1065,15 @@ int __drbd_set_state(struct drbd_conf *mdev,
 	    !test_and_set_bit(CONFIG_PENDING, &mdev->flags))
 		set_bit(DEVICE_DYING, &mdev->flags);
 
-	mdev->state.i = ns.i;
+	/* if we are going -> D_FAILED or D_DISKLESS, grab one extra reference
+	 * on the ldev here, to be sure the transition -> D_DISKLESS resp.
+	 * drbd_ldev_destroy() won't happen before our corresponding
+	 * after_state_ch works run, where we put_ldev again. */
+	if ((os.disk != D_FAILED && ns.disk == D_FAILED) ||
+	    (os.disk != D_DISKLESS && ns.disk == D_DISKLESS))
+		atomic_inc(&mdev->local_cnt);
+
+	mdev->state = ns;
 	wake_up(&mdev->misc_wait);
 	wake_up(&mdev->state_wait);
 
@@ -1268,7 +1285,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			if (test_bit(NEW_CUR_UUID, &mdev->flags)) {
 				drbd_uuid_new_current(mdev);
 				clear_bit(NEW_CUR_UUID, &mdev->flags);
-				drbd_md_sync(mdev);
 			}
 			spin_lock_irq(&mdev->req_lock);
 			_drbd_set_state(_NS(mdev, susp_fen, 0), CS_VERBOSE, NULL);
@@ -1365,63 +1381,64 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	    os.disk > D_INCONSISTENT && ns.disk == D_INCONSISTENT)
 		drbd_queue_bitmap_io(mdev, &drbd_bmio_set_n_write, NULL, "set_n_write from invalidate");
 
-	/* first half of local IO error */
-	if (os.disk > D_FAILED && ns.disk == D_FAILED) {
-		enum drbd_io_error_p eh = EP_PASS_ON;
+	/* first half of local IO error, failure to attach,
+	 * or administrative detach */
+	if (os.disk != D_FAILED && ns.disk == D_FAILED) {
+		enum drbd_io_error_p eh;
+		int was_io_error;
+		/* corresponding get_ldev was in __drbd_set_state, to serialize
+		 * our cleanup here with the transition to D_DISKLESS,
+		 * so it is safe to dreference ldev here. */
+		eh = mdev->ldev->dc.on_io_error;
+		was_io_error = test_and_clear_bit(WAS_IO_ERROR, &mdev->flags);
+
+		/* current state still has to be D_FAILED,
+		 * there is only one way out: to D_DISKLESS,
+		 * and that may only happen after our put_ldev below. */
+		if (mdev->state.disk != D_FAILED)
+			dev_err(DEV,
+				"ASSERT FAILED: disk is %s during detach\n",
+				drbd_disk_str(mdev->state.disk));
 
 		if (drbd_send_state(mdev))
-			dev_warn(DEV, "Notified peer that my disk is broken.\n");
+			dev_warn(DEV, "Notified peer that I am detaching my disk\n");
 		else
-			dev_err(DEV, "Sending state for drbd_io_error() failed\n");
+			dev_err(DEV, "Sending state for detaching disk failed\n");
 
 		drbd_rs_cancel_all(mdev);
 
-		if (get_ldev_if_state(mdev, D_FAILED)) {
-			eh = mdev->ldev->dc.on_io_error;
-			put_ldev(mdev);
-		}
-		if (eh == EP_CALL_HELPER)
+		/* In case we want to get something to stable storage still,
+		 * this may be the last chance.
+		 * Following put_ldev may transition to D_DISKLESS. */
+		drbd_md_sync(mdev);
+		put_ldev(mdev);
+
+		if (was_io_error && eh == EP_CALL_HELPER)
 			drbd_khelper(mdev, "local-io-error");
 	}
 
+        /* second half of local IO error, failure to attach,
+         * or administrative detach,
+         * after local_cnt references have reached zero again */
+        if (os.disk != D_DISKLESS && ns.disk == D_DISKLESS) {
+                /* We must still be diskless,
+                 * re-attach has to be serialized with this! */
+                if (mdev->state.disk != D_DISKLESS)
+                        dev_err(DEV,
+                                "ASSERT FAILED: disk is %s while going diskless\n",
+                                drbd_disk_str(mdev->state.disk));
 
-	/* second half of local IO error handling,
-	 * after local_cnt references have reached zero: */
-	if (os.disk == D_FAILED && ns.disk == D_DISKLESS) {
-		mdev->rs_total = 0;
-		mdev->rs_failed = 0;
-		atomic_set(&mdev->rs_pending_cnt, 0);
-	}
+                mdev->rs_total = 0;
+                mdev->rs_failed = 0;
+                atomic_set(&mdev->rs_pending_cnt, 0);
 
-	if (os.disk > D_DISKLESS && ns.disk == D_DISKLESS) {
-		/* We must still be diskless,
-		 * re-attach has to be serialized with this! */
-		if (mdev->state.disk != D_DISKLESS)
-			dev_err(DEV,
-				"ASSERT FAILED: disk is %s while going diskless\n",
-				drbd_disk_str(mdev->state.disk));
-
-		/* we cannot assert local_cnt == 0 here, as get_ldev_if_state
-		 * will inc/dec it frequently. Since we became D_DISKLESS, no
-		 * one has touched the protected members anymore, though, so we
-		 * are safe to free them here. */
 		if (drbd_send_state(mdev))
-			dev_warn(DEV, "Notified peer that I detached my disk.\n");
+			dev_warn(DEV, "Notified peer that I'm now diskless.\n");
 		else
-			dev_err(DEV, "Sending state for detach failed\n");
-
-		lc_destroy(mdev->resync);
-		mdev->resync = NULL;
-		lc_destroy(mdev->act_log);
-		mdev->act_log = NULL;
-		__no_warn(local,
-			drbd_free_bc(mdev->ldev);
-			mdev->ldev = NULL;);
-
-		if (mdev->md_io_tmpp) {
-			__free_page(mdev->md_io_tmpp);
-			mdev->md_io_tmpp = NULL;
-		}
+			dev_err(DEV, "Sending state for being diskless failed\n");
+		/* corresponding get_ldev in __drbd_set_state
+		 * this may finaly trigger drbd_ldev_destroy. */
+		put_ldev(mdev);
 	}
 
 	/* Disks got bigger while they were detached */
@@ -2772,11 +2789,6 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 
 	drbd_set_defaults(mdev);
 
-	/* for now, we do NOT yet support it,
-	 * even though we start some framework
-	 * to eventually support barriers */
-	set_bit(NO_BARRIER_SUPP, &mdev->flags);
-
 	atomic_set(&mdev->ap_bio_cnt, 0);
 	atomic_set(&mdev->ap_pending_cnt, 0);
 	atomic_set(&mdev->rs_pending_cnt, 0);
@@ -2842,7 +2854,7 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	drbd_thread_init(mdev, &mdev->asender, drbd_asender);
 
 	mdev->agreed_pro_version = PRO_VERSION_MAX;
-	mdev->write_ordering = WO_bio_barrier;
+	mdev->write_ordering = WO_bdev_flush;
 	mdev->resync_wenr = LC_FREE;
 }
 
@@ -2899,7 +2911,6 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
 	D_ASSERT(list_empty(&mdev->resync_work.list));
 	D_ASSERT(list_empty(&mdev->unplug_work.list));
 	D_ASSERT(list_empty(&mdev->go_diskless.list));
-
 }
 
 
@@ -2982,7 +2993,7 @@ static int drbd_create_mempools(void)
 
 	drbd_ee_mempool = mempool_create(number,
 		mempool_alloc_slab, mempool_free_slab, drbd_ee_cache);
-	if (drbd_request_mempool == NULL)
+	if (drbd_ee_mempool == NULL)
 		goto Enomem;
 
 	/* drbd's page pool */
@@ -3660,6 +3671,8 @@ void drbd_uuid_new_current(struct drbd_conf *mdev) __must_hold(local)
 
 	get_random_bytes(&val, sizeof(u64));
 	_drbd_uuid_set(mdev, UI_CURRENT, val);
+	/* get it to stable storage _now_ */
+	drbd_md_sync(mdev);
 }
 
 void drbd_uuid_set_bm(struct drbd_conf *mdev, u64 val) __must_hold(local)
@@ -3756,19 +3769,31 @@ static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 	return 1;
 }
 
+void drbd_ldev_destroy(struct drbd_conf *mdev)
+{
+	lc_destroy(mdev->resync);
+	mdev->resync = NULL;
+	lc_destroy(mdev->act_log);
+	mdev->act_log = NULL;
+	__no_warn(local,
+		drbd_free_bc(mdev->ldev);
+		mdev->ldev = NULL;);
+
+	if (mdev->md_io_tmpp) {
+		__free_page(mdev->md_io_tmpp);
+		mdev->md_io_tmpp = NULL;
+	}
+	clear_bit(GO_DISKLESS, &mdev->flags);
+}
+
 static int w_go_diskless(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 {
 	D_ASSERT(mdev->state.disk == D_FAILED);
 	/* we cannot assert local_cnt == 0 here, as get_ldev_if_state will
 	 * inc/dec it frequently. Once we are D_DISKLESS, no one will touch
-	 * the protected members anymore, though, so in the after_state_ch work
-	 * it will be safe to free them. */
+	 * the protected members anymore, though, so once put_ldev reaches zero
+	 * again, it will be safe to free them. */
 	drbd_force_state(mdev, NS(disk, D_DISKLESS));
-	/* We need to wait for return of references checked out while we still
-	 * have been D_FAILED, though (drbd_md_sync, bitmap io). */
-	wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
-
-	clear_bit(GO_DISKLESS, &mdev->flags);
 	return 1;
 }
 
@@ -3777,9 +3802,6 @@ void drbd_go_diskless(struct drbd_conf *mdev)
 	D_ASSERT(mdev->state.disk == D_FAILED);
 	if (!test_and_set_bit(GO_DISKLESS, &mdev->flags))
 		drbd_queue_work(&mdev->data.work, &mdev->go_diskless);
-		/* don't drbd_queue_work_front,
-		 * we need to serialize with the after_state_ch work
-		 * of the -> D_FAILED transition. */
 }
 
 /**

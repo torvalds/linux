@@ -330,8 +330,6 @@ void construct_mic_iv(unsigned char *mic_iv,
 	for (i = 8; i < 14; i++)
 		mic_iv[i] = pn_vector[13 - i];	/* mic_iv[8:13] = PN[5:0] */
 #endif
-	i = (payload_length / 256);
-	i = (payload_length % 256);
 	mic_iv[14] = (unsigned char)(payload_length / 256);
 	mic_iv[15] = (unsigned char)(payload_length % 256);
 

@@ -1427,8 +1427,8 @@ modeisar(struct BCState *bcs, int mode, int bc)
 					&bcs->hw.isar.reg->Flags))
 					bcs->hw.isar.dpath = 1;
 				else {
-					printk(KERN_WARNING"isar modeisar analog funktions only with DP1\n");
-					debugl1(cs, "isar modeisar analog funktions only with DP1");
+					printk(KERN_WARNING"isar modeisar analog functions only with DP1\n");
+					debugl1(cs, "isar modeisar analog functions only with DP1");
 					return(1);
 				}
 				break;

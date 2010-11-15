@@ -45,19 +45,20 @@ void ptrace_disable(struct task_struct *child)
 	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	unsigned long __user *datap = (long __user __force *)data;
 	unsigned long tmp;
-	int i;
 	long ret = -EIO;
-	unsigned long *childregs;
 	char *childreg;
+	struct pt_regs copyregs;
+	int ex1_offset;
 
 	switch (request) {
 
 	case PTRACE_PEEKUSR:  /* Read register from pt_regs. */
-		if (addr < 0 || addr >= PTREGS_SIZE)
+		if (addr >= PTREGS_SIZE)
 			break;
 		childreg = (char *)task_pt_regs(child) + addr;
 #ifdef CONFIG_COMPAT
@@ -76,9 +77,19 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	case PTRACE_POKEUSR:  /* Write register in pt_regs. */
-		if (addr < 0 || addr >= PTREGS_SIZE)
+		if (addr >= PTREGS_SIZE)
 			break;
 		childreg = (char *)task_pt_regs(child) + addr;
+
+		/* Guard against overwrites of the privilege level. */
+		ex1_offset = PTREGS_OFFSET_EX1;
+#if defined(CONFIG_COMPAT) && defined(__BIG_ENDIAN)
+		if (is_compat_task())   /* point at low word */
+			ex1_offset += sizeof(compat_long_t);
+#endif
+		if (addr == ex1_offset)
+			data = PL_ICS_EX1(USER_PL, EX1_ICS(data));
+
 #ifdef CONFIG_COMPAT
 		if (is_compat_task()) {
 			if (addr & (sizeof(compat_long_t)-1))
@@ -95,24 +106,19 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	case PTRACE_GETREGS:  /* Get all registers from the child. */
-		if (!access_ok(VERIFY_WRITE, datap, PTREGS_SIZE))
-			break;
-		childregs = (long *)task_pt_regs(child);
-		for (i = 0; i < sizeof(struct pt_regs)/sizeof(long); ++i) {
-			ret = __put_user(childregs[i], &datap[i]);
-			if (ret != 0)
-				break;
+		if (copy_to_user(datap, task_pt_regs(child),
+				 sizeof(struct pt_regs)) == 0) {
+			ret = 0;
 		}
 		break;
 
 	case PTRACE_SETREGS:  /* Set all registers in the child. */
-		if (!access_ok(VERIFY_READ, datap, PTREGS_SIZE))
-			break;
-		childregs = (long *)task_pt_regs(child);
-		for (i = 0; i < sizeof(struct pt_regs)/sizeof(long); ++i) {
-			ret = __get_user(childregs[i], &datap[i]);
-			if (ret != 0)
-				break;
+		if (copy_from_user(&copyregs, datap,
+				   sizeof(struct pt_regs)) == 0) {
+			copyregs.ex1 =
+				PL_ICS_EX1(USER_PL, EX1_ICS(copyregs.ex1));
+			*task_pt_regs(child) = copyregs;
+			ret = 0;
 		}
 		break;
 

@@ -30,7 +30,6 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/v4l2-ctrls.h>
 
 MODULE_DESCRIPTION("wm8739 driver");
@@ -282,9 +281,25 @@ static const struct i2c_device_id wm8739_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8739_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "wm8739",
-	.probe = wm8739_probe,
-	.remove = wm8739_remove,
-	.id_table = wm8739_id,
+static struct i2c_driver wm8739_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "wm8739",
+	},
+	.probe		= wm8739_probe,
+	.remove		= wm8739_remove,
+	.id_table	= wm8739_id,
 };
+
+static __init int init_wm8739(void)
+{
+	return i2c_add_driver(&wm8739_driver);
+}
+
+static __exit void exit_wm8739(void)
+{
+	i2c_del_driver(&wm8739_driver);
+}
+
+module_init(init_wm8739);
+module_exit(exit_wm8739);

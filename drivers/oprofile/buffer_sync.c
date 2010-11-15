@@ -190,7 +190,7 @@ void sync_stop(void)
 	profile_event_unregister(PROFILE_TASK_EXIT, &task_exit_nb);
 	task_handoff_unregister(&task_free_nb);
 	mutex_unlock(&buffer_mutex);
-	flush_scheduled_work();
+	flush_cpu_work();
 
 	/* make sure we don't leak task structs */
 	process_task_mortuary();

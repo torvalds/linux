@@ -856,7 +856,7 @@ static int video_open(struct file *file)
 			      &dev->pci->dev, &dev->slock,
 			      V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			      V4L2_FIELD_INTERLACED,
-			      sizeof(struct cx25821_buffer), fh);
+			      sizeof(struct cx25821_buffer), fh, NULL);
 
        dprintk(1, "post videobuf_queue_init()\n");
        unlock_kernel();
@@ -993,6 +993,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 {
        struct cx25821_fh *fh = priv;
        struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
+	struct v4l2_mbus_framefmt mbus_fmt;
        int err;
        int pix_format = PIXEL_FRMT_422;
 
@@ -1039,7 +1040,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
        dprintk(2, "%s() width=%d height=%d field=%d\n", __func__, fh->width,
 	       fh->height, fh->vidq.field);
-       cx25821_call_all(dev, video, s_fmt, f);
+	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
+	cx25821_call_all(dev, video, s_mbus_fmt, &mbus_fmt);
 
        return 0;
 }

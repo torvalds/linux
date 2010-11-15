@@ -73,18 +73,18 @@ cputime64_to_jiffies64(cputime64_t cputime)
 }
 
 /*
- * Convert cputime to milliseconds and back.
+ * Convert cputime to microseconds and back.
  */
 static inline unsigned int
-cputime_to_msecs(const cputime_t cputime)
+cputime_to_usecs(const cputime_t cputime)
 {
-	return cputime_div(cputime, 4096000);
+	return cputime_div(cputime, 4096);
 }
 
 static inline cputime_t
-msecs_to_cputime(const unsigned int m)
+usecs_to_cputime(const unsigned int m)
 {
-	return (cputime_t) m * 4096000;
+	return (cputime_t) m * 4096;
 }
 
 /*

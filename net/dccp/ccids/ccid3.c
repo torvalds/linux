@@ -268,11 +268,11 @@ out:
 	sock_put(sk);
 }
 
-/*
- * returns
- *   > 0: delay (in msecs) that should pass before actually sending
- *   = 0: can send immediately
- *   < 0: error condition; do not send packet
+/**
+ * ccid3_hc_tx_send_packet  -  Delay-based dequeueing of TX packets
+ * @skb: next packet candidate to send on @sk
+ * This function uses the convention of ccid_packet_dequeue_eval() and
+ * returns a millisecond-delay value between 0 and t_mbi = 64000 msec.
  */
 static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 {
@@ -348,7 +348,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 
 	/* set the nominal send time for the next following packet */
 	hc->tx_t_nom = ktime_add_us(hc->tx_t_nom, hc->tx_t_ipi);
-	return 0;
+	return CCID_PACKET_SEND_AT_ONCE;
 }
 
 static void ccid3_hc_tx_packet_sent(struct sock *sk, unsigned int len)

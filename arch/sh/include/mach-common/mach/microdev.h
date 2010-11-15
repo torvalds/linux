@@ -68,13 +68,4 @@ extern void microdev_print_fpga_intc_status(void);
 #define __IO_PREFIX microdev
 #include <asm/io_generic.h>
 
-#if defined(CONFIG_PCI)
-unsigned char  microdev_pci_inb(unsigned long port);
-unsigned short microdev_pci_inw(unsigned long port);
-unsigned long  microdev_pci_inl(unsigned long port);
-void           microdev_pci_outb(unsigned char  data, unsigned long port);
-void           microdev_pci_outw(unsigned short data, unsigned long port);
-void           microdev_pci_outl(unsigned long  data, unsigned long port);
-#endif
-
 #endif /* __ASM_SH_MICRODEV_H */

@@ -407,7 +407,7 @@ static noinline int __init addr_accessible(volatile void *regp, int wordflag,
 					   int writeflag)
 {
 	int		ret;
-	long	flags;
+	unsigned long	flags;
 	long	*vbr, save_berr;
 
 	local_irq_save(flags);

@@ -896,15 +896,15 @@ void hugetlb_put_quota(struct address_space *mapping, long delta)
 	}
 }
 
-static int hugetlbfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *hugetlbfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, hugetlbfs_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, hugetlbfs_fill_super);
 }
 
 static struct file_system_type hugetlbfs_fs_type = {
 	.name		= "hugetlbfs",
-	.get_sb		= hugetlbfs_get_sb,
+	.mount		= hugetlbfs_mount,
 	.kill_sb	= kill_litter_super,
 };
 
@@ -932,8 +932,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size, int acctflag,
 	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
 		*user = current_user();
 		if (user_shm_lock(size, *user)) {
-			WARN_ONCE(1,
-			  "Using mlock ulimits for SHM_HUGETLB deprecated\n");
+			printk_once(KERN_WARNING "Using mlock ulimits for SHM_HUGETLB is deprecated\n");
 		} else {
 			*user = NULL;
 			return ERR_PTR(-EPERM);

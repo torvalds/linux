@@ -926,6 +926,7 @@ static void __devexit pch_dma_remove(struct pci_dev *pdev)
 static const struct pci_device_id pch_dma_id_table[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH_DMA_8CH), 8 },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH_DMA_4CH), 4 },
+	{ 0, },
 };
 
 static struct pci_driver pch_dma_driver = {

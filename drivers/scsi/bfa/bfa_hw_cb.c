@@ -22,7 +22,7 @@ void
 bfa_hwcb_reginit(struct bfa_s *bfa)
 {
 	struct bfa_iocfc_regs_s	*bfa_regs = &bfa->iocfc.bfa_regs;
-	bfa_os_addr_t		kva = bfa_ioc_bar0(&bfa->ioc);
+	void __iomem *kva = bfa_ioc_bar0(&bfa->ioc);
 	int			i, q, fn = bfa_ioc_pcifn(&bfa->ioc);
 
 	if (fn == 0) {
@@ -60,8 +60,8 @@ bfa_hwcb_reqq_ack(struct bfa_s *bfa, int reqq)
 static void
 bfa_hwcb_reqq_ack_msix(struct bfa_s *bfa, int reqq)
 {
-	bfa_reg_write(bfa->iocfc.bfa_regs.intr_status,
-		__HFN_INT_CPE_Q0 << CPE_Q_NUM(bfa_ioc_pcifn(&bfa->ioc), reqq));
+	writel(__HFN_INT_CPE_Q0 << CPE_Q_NUM(bfa_ioc_pcifn(&bfa->ioc), reqq),
+			bfa->iocfc.bfa_regs.intr_status);
 }
 
 void
@@ -72,8 +72,8 @@ bfa_hwcb_rspq_ack(struct bfa_s *bfa, int rspq)
 static void
 bfa_hwcb_rspq_ack_msix(struct bfa_s *bfa, int rspq)
 {
-	bfa_reg_write(bfa->iocfc.bfa_regs.intr_status,
-		__HFN_INT_RME_Q0 << RME_Q_NUM(bfa_ioc_pcifn(&bfa->ioc), rspq));
+	writel(__HFN_INT_RME_Q0 << RME_Q_NUM(bfa_ioc_pcifn(&bfa->ioc), rspq),
+			bfa->iocfc.bfa_regs.intr_status);
 }
 
 void
@@ -102,7 +102,7 @@ bfa_hwcb_msix_getvecs(struct bfa_s *bfa, u32 *msix_vecs_bmap,
 	*num_vecs = __HFN_NUMINTS;
 }
 
-/**
+/*
  * No special setup required for crossbow -- vector assignments are implicit.
  */
 void
@@ -129,7 +129,7 @@ bfa_hwcb_msix_init(struct bfa_s *bfa, int nvecs)
 		bfa->msix.handler[i] = bfa_msix_lpu_err;
 }
 
-/**
+/*
  * Crossbow -- dummy, interrupts are masked
  */
 void
@@ -142,7 +142,7 @@ bfa_hwcb_msix_uninstall(struct bfa_s *bfa)
 {
 }
 
-/**
+/*
  * No special enable/disable -- vector assignments are implicit.
  */
 void
