@@ -1261,6 +1261,7 @@ static int usb_resume_both(struct usb_device *udev, pm_message_t msg)
 					udev->reset_resume);
 		}
 	}
+	usb_mark_last_busy(udev);
 
  done:
 	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);
@@ -1328,7 +1329,6 @@ int usb_resume(struct device *dev, pm_message_t msg)
 			pm_runtime_disable(dev);
 			pm_runtime_set_active(dev);
 			pm_runtime_enable(dev);
-			usb_mark_last_busy(udev);
 			do_unbind_rebind(udev, DO_REBIND);
 		}
 	}
@@ -1660,11 +1660,6 @@ static int usb_runtime_suspend(struct device *dev)
 		return -EAGAIN;
 
 	status = usb_suspend_both(udev, PMSG_AUTO_SUSPEND);
-
-	/* Prevent the parent from suspending immediately after */
-	if (status == 0 && udev->parent)
-		usb_mark_last_busy(udev->parent);
-
 	return status;
 }
 
@@ -1677,7 +1672,6 @@ static int usb_runtime_resume(struct device *dev)
 	 * and all its interfaces.
 	 */
 	status = usb_resume_both(udev, PMSG_AUTO_RESUME);
-	usb_mark_last_busy(udev);
 	return status;
 }
 
