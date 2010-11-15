@@ -351,8 +351,6 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 		dprintk("svc: transport %p busy, not enqueued\n", xprt);
 		goto out_unlock;
 	}
-	BUG_ON(xprt->xpt_pool != NULL);
-	xprt->xpt_pool = pool;
 
 	if (!list_empty(&pool->sp_threads)) {
 		rqstp = list_entry(pool->sp_threads.next,
@@ -370,13 +368,11 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 		rqstp->rq_reserved = serv->sv_max_mesg;
 		atomic_add(rqstp->rq_reserved, &xprt->xpt_reserved);
 		pool->sp_stats.threads_woken++;
-		BUG_ON(xprt->xpt_pool != pool);
 		wake_up(&rqstp->rq_wait);
 	} else {
 		dprintk("svc: transport %p put into queue\n", xprt);
 		list_add_tail(&xprt->xpt_ready, &pool->sp_sockets);
 		pool->sp_stats.sockets_queued++;
-		BUG_ON(xprt->xpt_pool != pool);
 	}
 
 out_unlock:
@@ -415,7 +411,6 @@ static struct svc_xprt *svc_xprt_dequeue(struct svc_pool *pool)
 void svc_xprt_received(struct svc_xprt *xprt)
 {
 	BUG_ON(!test_bit(XPT_BUSY, &xprt->xpt_flags));
-	xprt->xpt_pool = NULL;
 	/* As soon as we clear busy, the xprt could be closed and
 	 * 'put', so we need a reference to call svc_xprt_enqueue with:
 	 */
