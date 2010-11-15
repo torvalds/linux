@@ -61,7 +61,7 @@ nv84_crypt_destroy_context(struct nouveau_channel *chan)
 	struct drm_device *dev = chan->dev;
 	u32 inst;
 
-	if (!chan->ramin)
+	if (!chan->crypt_ctx)
 		return;
 
 	inst  = (chan->ramin->vinst >> 12);

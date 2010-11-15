@@ -437,6 +437,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 			engine->crypt.takedown	= nv84_crypt_fini;
 			engine->crypt.create_context = nv84_crypt_create_context;
 			engine->crypt.destroy_context = nv84_crypt_destroy_context;
+			engine->crypt.tlb_flush	= nv84_crypt_tlb_flush;
 			break;
 		default:
 			engine->crypt.init	= nouveau_stub_init;
