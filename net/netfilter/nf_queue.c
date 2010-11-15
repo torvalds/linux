@@ -27,14 +27,17 @@ static DEFINE_MUTEX(queue_handler_mutex);
 int nf_register_queue_handler(u_int8_t pf, const struct nf_queue_handler *qh)
 {
 	int ret;
+	const struct nf_queue_handler *old;
 
 	if (pf >= ARRAY_SIZE(queue_handler))
 		return -EINVAL;
 
 	mutex_lock(&queue_handler_mutex);
-	if (queue_handler[pf] == qh)
+	old = rcu_dereference_protected(queue_handler[pf],
+					lockdep_is_held(&queue_handler_mutex));
+	if (old == qh)
 		ret = -EEXIST;
-	else if (queue_handler[pf])
+	else if (old)
 		ret = -EBUSY;
 	else {
 		rcu_assign_pointer(queue_handler[pf], qh);
@@ -49,11 +52,15 @@ EXPORT_SYMBOL(nf_register_queue_handler);
 /* The caller must flush their queue before this */
 int nf_unregister_queue_handler(u_int8_t pf, const struct nf_queue_handler *qh)
 {
+	const struct nf_queue_handler *old;
+
 	if (pf >= ARRAY_SIZE(queue_handler))
 		return -EINVAL;
 
 	mutex_lock(&queue_handler_mutex);
-	if (queue_handler[pf] && queue_handler[pf] != qh) {
+	old = rcu_dereference_protected(queue_handler[pf],
+					lockdep_is_held(&queue_handler_mutex));
+	if (old && old != qh) {
 		mutex_unlock(&queue_handler_mutex);
 		return -EINVAL;
 	}
@@ -73,7 +80,10 @@ void nf_unregister_queue_handlers(const struct nf_queue_handler *qh)
 
 	mutex_lock(&queue_handler_mutex);
 	for (pf = 0; pf < ARRAY_SIZE(queue_handler); pf++)  {
-		if (queue_handler[pf] == qh)
+		if (rcu_dereference_protected(
+				queue_handler[pf],
+				lockdep_is_held(&queue_handler_mutex)
+				) == qh)
 			rcu_assign_pointer(queue_handler[pf], NULL);
 	}
 	mutex_unlock(&queue_handler_mutex);

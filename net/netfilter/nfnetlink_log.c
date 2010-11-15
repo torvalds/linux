@@ -874,19 +874,19 @@ static struct hlist_node *get_first(struct iter_state *st)
 
 	for (st->bucket = 0; st->bucket < INSTANCE_BUCKETS; st->bucket++) {
 		if (!hlist_empty(&instance_table[st->bucket]))
-			return rcu_dereference_bh(instance_table[st->bucket].first);
+			return rcu_dereference_bh(hlist_first_rcu(&instance_table[st->bucket]));
 	}
 	return NULL;
 }
 
 static struct hlist_node *get_next(struct iter_state *st, struct hlist_node *h)
 {
-	h = rcu_dereference_bh(h->next);
+	h = rcu_dereference_bh(hlist_next_rcu(h));
 	while (!h) {
 		if (++st->bucket >= INSTANCE_BUCKETS)
 			return NULL;
 
-		h = rcu_dereference_bh(instance_table[st->bucket].first);
+		h = rcu_dereference_bh(hlist_first_rcu(&instance_table[st->bucket]));
 	}
 	return h;
 }
