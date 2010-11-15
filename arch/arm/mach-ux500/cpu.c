@@ -75,14 +75,14 @@ void __init ux500_init_irq(void)
 static inline void ux500_cache_wait(void __iomem *reg, unsigned long mask)
 {
 	/* wait for the operation to complete */
-	while (readl(reg) & mask)
+	while (readl_relaxed(reg) & mask)
 		;
 }
 
 static inline void ux500_cache_sync(void)
 {
 	void __iomem *base = __io_address(UX500_L2CC_BASE);
-	writel(0, base + L2X0_CACHE_SYNC);
+	writel_relaxed(0, base + L2X0_CACHE_SYNC);
 	ux500_cache_wait(base + L2X0_CACHE_SYNC, 1);
 }
 
@@ -107,7 +107,7 @@ static void ux500_l2x0_inv_all(void)
 	uint32_t l2x0_way_mask = (1<<16) - 1;	/* Bitmask of active ways */
 
 	/* invalidate all ways */
-	writel(l2x0_way_mask, l2x0_base + L2X0_INV_WAY);
+	writel_relaxed(l2x0_way_mask, l2x0_base + L2X0_INV_WAY);
 	ux500_cache_wait(l2x0_base + L2X0_INV_WAY, l2x0_way_mask);
 	ux500_cache_sync();
 }
