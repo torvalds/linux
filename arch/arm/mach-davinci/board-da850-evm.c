@@ -266,7 +266,7 @@ static inline void da850_evm_setup_emac_rmii(int rmii_sel)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	soc_info->emac_pdata->rmii_en = 1;
-	gpio_set_value(rmii_sel, 0);
+	gpio_set_value_cansleep(rmii_sel, 0);
 }
 #else
 static inline void da850_evm_setup_emac_rmii(int rmii_sel) { }
@@ -325,9 +325,9 @@ static int da850_evm_ui_expander_teardown(struct i2c_client *client,
 					unsigned gpio, unsigned ngpio, void *c)
 {
 	/* deselect all functionalities */
-	gpio_set_value(gpio + 5, 1);
-	gpio_set_value(gpio + 6, 1);
-	gpio_set_value(gpio + 7, 1);
+	gpio_set_value_cansleep(gpio + 5, 1);
+	gpio_set_value_cansleep(gpio + 6, 1);
+	gpio_set_value_cansleep(gpio + 7, 1);
 
 	gpio_free(gpio + 5);
 	gpio_free(gpio + 6);
