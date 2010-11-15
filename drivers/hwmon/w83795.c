@@ -165,10 +165,11 @@ static const u8 IN_LSB_SHIFT_IDX[][2] = {
 
 #define W83795_REG_VID_CTRL		0x6A
 
+#define W83795_REG_ALARM_CTRL		0x40
+#define ALARM_CTRL_RTSACS		(1 << 7)
 #define W83795_REG_ALARM(index)		(0x41 + (index))
-#define W83795_REG_BEEP(index)		(0x50 + (index))
-
 #define W83795_REG_CLR_CHASSIS		0x4D
+#define W83795_REG_BEEP(index)		(0x50 + (index))
 
 
 #define W83795_REG_FCMS1		0x201
@@ -585,6 +586,7 @@ static struct w83795_data *w83795_update_device(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct w83795_data *data = i2c_get_clientdata(client);
 	u16 tmp;
+	u8 intrusion;
 	int i;
 
 	mutex_lock(&data->update_lock);
@@ -656,9 +658,24 @@ static struct w83795_data *w83795_update_device(struct device *dev)
 		    w83795_read(client, W83795_REG_PWM(i, PWM_OUTPUT));
 	}
 
-	/* update alarm */
+	/* Update intrusion and alarms
+	 * It is important to read intrusion first, because reading from
+	 * register SMI STS6 clears the interrupt status temporarily. */
+	tmp = w83795_read(client, W83795_REG_ALARM_CTRL);
+	/* Switch to interrupt status for intrusion if needed */
+	if (tmp & ALARM_CTRL_RTSACS)
+		w83795_write(client, W83795_REG_ALARM_CTRL,
+			     tmp & ~ALARM_CTRL_RTSACS);
+	intrusion = w83795_read(client, W83795_REG_ALARM(5)) & (1 << 6);
+	/* Switch to real-time alarms */
+	w83795_write(client, W83795_REG_ALARM_CTRL, tmp | ALARM_CTRL_RTSACS);
 	for (i = 0; i < ARRAY_SIZE(data->alarms); i++)
 		data->alarms[i] = w83795_read(client, W83795_REG_ALARM(i));
+	data->alarms[5] |= intrusion;
+	/* Restore original configuration if needed */
+	if (!(tmp & ALARM_CTRL_RTSACS))
+		w83795_write(client, W83795_REG_ALARM_CTRL,
+			     tmp & ~ALARM_CTRL_RTSACS);
 
 	data->last_updated = jiffies;
 	data->valid = 1;
