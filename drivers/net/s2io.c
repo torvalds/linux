@@ -8321,8 +8321,7 @@ mem_alloc_failed:
 
 static void __devexit s2io_rem_nic(struct pci_dev *pdev)
 {
-	struct net_device *dev =
-		(struct net_device *)pci_get_drvdata(pdev);
+	struct net_device *dev = pci_get_drvdata(pdev);
 	struct s2io_nic *sp;
 
 	if (dev == NULL) {
