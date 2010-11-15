@@ -89,6 +89,33 @@ Throttling/Upper Limit policy
 
  Limits for writes can be put using blkio.write_bps_device file.
 
+Hierarchical Cgroups
+====================
+- Currently none of the IO control policy supports hierarhical groups. But
+  cgroup interface does allow creation of hierarhical cgroups and internally
+  IO policies treat them as flat hierarchy.
+
+  So this patch will allow creation of cgroup hierarhcy but at the backend
+  everything will be treated as flat. So if somebody created a hierarchy like
+  as follows.
+
+			root
+			/  \
+		     test1 test2
+			|
+		     test3
+
+  CFQ and throttling will practically treat all groups at same level.
+
+				pivot
+			     /  |   \  \
+			root  test1 test2  test3
+
+  Down the line we can implement hierarchical accounting/control support
+  and also introduce a new cgroup file "use_hierarchy" which will control
+  whether cgroup hierarchy is viewed as flat or hierarchical by the policy..
+  This is how memory controller also has implemented the things.
+
 Various user visible config options
 ===================================
 CONFIG_BLK_CGROUP
