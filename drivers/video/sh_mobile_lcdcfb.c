@@ -860,7 +860,7 @@ static void sh_mobile_fb_reconfig(struct fb_info *info)
 		/* Couldn't reconfigure, hopefully, can continue as before */
 		return;
 
-	info->fix.line_length = mode2.xres * (ch->cfg.bpp / 8);
+	info->fix.line_length = mode1.xres * (ch->cfg.bpp / 8);
 
 	/*
 	 * fb_set_var() calls the notifier change internally, only if
@@ -868,7 +868,7 @@ static void sh_mobile_fb_reconfig(struct fb_info *info)
 	 * user event, we have to call the chain ourselves.
 	 */
 	event.info = info;
-	event.data = &mode2;
+	event.data = &mode1;
 	fb_notifier_call_chain(evnt, &event);
 }
 
