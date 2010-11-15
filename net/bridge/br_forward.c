@@ -223,7 +223,7 @@ static void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 	struct net_bridge_port_group *p;
 	struct hlist_node *rp;
 
-	rp = rcu_dereference(br->router_list.first);
+	rp = rcu_dereference(hlist_first_rcu(&br->router_list));
 	p = mdst ? rcu_dereference(mdst->ports) : NULL;
 	while (p || rp) {
 		struct net_bridge_port *port, *lport, *rport;
@@ -242,7 +242,7 @@ static void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 		if ((unsigned long)lport >= (unsigned long)port)
 			p = rcu_dereference(p->next);
 		if ((unsigned long)rport >= (unsigned long)port)
-			rp = rcu_dereference(rp->next);
+			rp = rcu_dereference(hlist_next_rcu(rp));
 	}
 
 	if (!prev)

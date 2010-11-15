@@ -72,7 +72,7 @@ struct net_bridge_fdb_entry
 
 struct net_bridge_port_group {
 	struct net_bridge_port		*port;
-	struct net_bridge_port_group	*next;
+	struct net_bridge_port_group __rcu *next;
 	struct hlist_node		mglist;
 	struct rcu_head			rcu;
 	struct timer_list		timer;
@@ -86,7 +86,7 @@ struct net_bridge_mdb_entry
 	struct hlist_node		hlist[2];
 	struct hlist_node		mglist;
 	struct net_bridge		*br;
-	struct net_bridge_port_group	*ports;
+	struct net_bridge_port_group __rcu *ports;
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct timer_list		query_timer;
@@ -227,7 +227,7 @@ struct net_bridge
 	unsigned long			multicast_startup_query_interval;
 
 	spinlock_t			multicast_lock;
-	struct net_bridge_mdb_htable	*mdb;
+	struct net_bridge_mdb_htable __rcu *mdb;
 	struct hlist_head		router_list;
 	struct hlist_head		mglist;
 
