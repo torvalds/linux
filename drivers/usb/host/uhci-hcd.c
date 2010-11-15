@@ -569,7 +569,7 @@ static int uhci_init(struct usb_hcd *hcd)
  */
 static void uhci_shutdown(struct pci_dev *pdev)
 {
-	struct usb_hcd *hcd = (struct usb_hcd *) pci_get_drvdata(pdev);
+	struct usb_hcd *hcd = pci_get_drvdata(pdev);
 
 	uhci_hc_died(hcd_to_uhci(hcd));
 }
