@@ -337,7 +337,10 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	setup_timer(&exp->timeout, nf_ct_expectation_timed_out,
 		    (unsigned long)exp);
 	if (master_help) {
-		p = &master_help->helper->expect_policy[exp->class];
+		p = &rcu_dereference_protected(
+				master_help->helper,
+				lockdep_is_held(&nf_conntrack_lock)
+				)->expect_policy[exp->class];
 		exp->timeout.expires = jiffies + p->timeout * HZ;
 	}
 	add_timer(&exp->timeout);
@@ -373,7 +376,10 @@ static inline int refresh_timer(struct nf_conntrack_expect *i)
 	if (!del_timer(&i->timeout))
 		return 0;
 
-	p = &master_help->helper->expect_policy[i->class];
+	p = &rcu_dereference_protected(
+		master_help->helper,
+		lockdep_is_held(&nf_conntrack_lock)
+		)->expect_policy[i->class];
 	i->timeout.expires = jiffies + p->timeout * HZ;
 	add_timer(&i->timeout);
 	return 1;
@@ -411,7 +417,10 @@ static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect)
 	}
 	/* Will be over limit? */
 	if (master_help) {
-		p = &master_help->helper->expect_policy[expect->class];
+		p = &rcu_dereference_protected(
+			master_help->helper,
+			lockdep_is_held(&nf_conntrack_lock)
+			)->expect_policy[expect->class];
 		if (p->max_expected &&
 		    master_help->expecting[expect->class] >= p->max_expected) {
 			evict_oldest_expect(master, expect);
