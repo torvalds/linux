@@ -165,10 +165,7 @@ int sysfs_merge_group(struct kobject *kobj,
 	struct attribute *const *attr;
 	int i;
 
-	if (grp)
-		dir_sd = sysfs_get_dirent(kobj->sd, NULL, grp->name);
-	else
-		dir_sd = sysfs_get(kobj->sd);
+	dir_sd = sysfs_get_dirent(kobj->sd, NULL, grp->name);
 	if (!dir_sd)
 		return -ENOENT;
 
@@ -195,10 +192,7 @@ void sysfs_unmerge_group(struct kobject *kobj,
 	struct sysfs_dirent *dir_sd;
 	struct attribute *const *attr;
 
-	if (grp)
-		dir_sd = sysfs_get_dirent(kobj->sd, NULL, grp->name);
-	else
-		dir_sd = sysfs_get(kobj->sd);
+	dir_sd = sysfs_get_dirent(kobj->sd, NULL, grp->name);
 	if (dir_sd) {
 		for (attr = grp->attrs; *attr; ++attr)
 			sysfs_hash_and_remove(dir_sd, NULL, (*attr)->name);
