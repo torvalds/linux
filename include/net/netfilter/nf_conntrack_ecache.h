@@ -23,12 +23,17 @@ struct nf_conntrack_ecache {
 static inline struct nf_conntrack_ecache *
 nf_ct_ecache_find(const struct nf_conn *ct)
 {
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
 	return nf_ct_ext_find(ct, NF_CT_EXT_ECACHE);
+#else
+	return NULL;
+#endif
 }
 
 static inline struct nf_conntrack_ecache *
 nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp)
 {
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
 	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_ecache *e;
 
@@ -45,6 +50,9 @@ nf_ct_ecache_ext_add(struct nf_conn *ct, u16 ctmask, u16 expmask, gfp_t gfp)
 		e->expmask = expmask;
 	}
 	return e;
+#else
+	return NULL;
+#endif
 };
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS

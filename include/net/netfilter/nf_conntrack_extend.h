@@ -7,10 +7,16 @@
 
 enum nf_ct_ext_id {
 	NF_CT_EXT_HELPER,
+#if defined(CONFIG_NF_NAT) || defined(CONFIG_NF_NAT_MODULE)
 	NF_CT_EXT_NAT,
+#endif
 	NF_CT_EXT_ACCT,
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
 	NF_CT_EXT_ECACHE,
+#endif
+#ifdef CONFIG_NF_CONNTRACK_ZONES
 	NF_CT_EXT_ZONE,
+#endif
 	NF_CT_EXT_NUM,
 };
 
