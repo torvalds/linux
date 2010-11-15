@@ -399,6 +399,7 @@ config X86_MRST
 	select APB_TIMER
 	select I2C
 	select SPI
+	select INTEL_SCU_IPC
 	---help---
 	  Moorestown is Intel's Low Power Intel Architecture (LPIA) based Moblin
 	  Internet Device(MID) platform. Moorestown consists of two chips:
