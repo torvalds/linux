@@ -62,15 +62,19 @@ module_param(spew_delay, int, 0644);
 MODULE_PARM_DESC(spew_delay,
 	"delay (ms) before recal after packet spew detected");
 
-static int recal_guard_time = 2000;
+static int recal_guard_time;
 module_param(recal_guard_time, int, 0644);
 MODULE_PARM_DESC(recal_guard_time,
 	"interval (ms) during which recal will be restarted if packet received");
 
-static int post_interrupt_delay = 1000;
+static int post_interrupt_delay = 40;
 module_param(post_interrupt_delay, int, 0644);
 MODULE_PARM_DESC(post_interrupt_delay,
 	"delay (ms) before recal after recal interrupt detected");
+
+static bool autorecal = true;
+module_param(autorecal, bool, 0644);
+MODULE_PARM_DESC(autorecal, "enable recalibration in the driver");
 
 static char hgpk_mode_name[16];
 module_param_string(hgpk_mode, hgpk_mode_name, sizeof(hgpk_mode_name), 0644);
@@ -642,6 +646,13 @@ static int hgpk_force_recalibrate(struct psmouse *psmouse)
 	if (psmouse->model < HGPK_MODEL_C)
 		return 0;
 
+	if (!autorecal) {
+		hgpk_dbg(psmouse, "recalibrations disabled, ignoring\n");
+		return 0;
+	}
+
+	hgpk_dbg(psmouse, "recalibrating touchpad..\n");
+
 	/* we don't want to race with the irq handler, nor with resyncs */
 	psmouse_set_state(psmouse, PSMOUSE_INITIALIZING);
 
@@ -662,13 +673,17 @@ static int hgpk_force_recalibrate(struct psmouse *psmouse)
 
 	psmouse_set_state(psmouse, PSMOUSE_ACTIVATED);
 
+	if (tpdebug)
+		hgpk_dbg(psmouse, "touchpad reactivated\n");
+
 	/*
-	 * After we recalibrate, we shouldn't get any packets for 2s.  If
-	 * we do, it's likely that someone's finger was on the touchpad.
-	 * If someone's finger *was* on the touchpad, it's probably
-	 * miscalibrated.  So, we should schedule another recalibration
+	 * If we get packets right away after recalibrating, it's likely
+	 * that a finger was on the touchpad.  If so, it's probably
+	 * miscalibrated, so we optionally schedule another.
 	 */
-	priv->recalib_window = jiffies + msecs_to_jiffies(recal_guard_time);
+	if (recal_guard_time)
+		priv->recalib_window = jiffies +
+			msecs_to_jiffies(recal_guard_time);
 
 	return 0;
 }
@@ -897,8 +912,6 @@ static void hgpk_recalib_work(struct work_struct *work)
 	struct delayed_work *w = to_delayed_work(work);
 	struct hgpk_data *priv = container_of(w, struct hgpk_data, recalib_wq);
 	struct psmouse *psmouse = priv->psmouse;
-
-	hgpk_dbg(psmouse, "recalibrating touchpad..\n");
 
 	if (hgpk_force_recalibrate(psmouse))
 		hgpk_err(psmouse, "recalibration failed!\n");
