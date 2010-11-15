@@ -1612,18 +1612,9 @@ EXPORT_SYMBOL_GPL(usb_autopm_get_interface);
  */
 int usb_autopm_get_interface_async(struct usb_interface *intf)
 {
-	int		status = 0;
-	enum rpm_status	s;
+	int	status;
 
-	/* Don't request a resume unless the interface is already suspending
-	 * or suspended.  Doing so would force a running suspend timer to be
-	 * cancelled.
-	 */
-	pm_runtime_get_noresume(&intf->dev);
-	s = ACCESS_ONCE(intf->dev.power.runtime_status);
-	if (s == RPM_SUSPENDING || s == RPM_SUSPENDED)
-		status = pm_request_resume(&intf->dev);
-
+	status = pm_runtime_get(&intf->dev);
 	if (status < 0 && status != -EINPROGRESS)
 		pm_runtime_put_noidle(&intf->dev);
 	else
@@ -1717,71 +1708,56 @@ static int autosuspend_check(struct usb_device *udev)
 
 static int usb_runtime_suspend(struct device *dev)
 {
-	int	status = 0;
+	struct usb_device	*udev = to_usb_device(dev);
+	int			status;
 
 	/* A USB device can be suspended if it passes the various autosuspend
 	 * checks.  Runtime suspend for a USB device means suspending all the
 	 * interfaces and then the device itself.
 	 */
-	if (is_usb_device(dev)) {
-		struct usb_device	*udev = to_usb_device(dev);
+	if (autosuspend_check(udev) != 0)
+		return -EAGAIN;
 
-		if (autosuspend_check(udev) != 0)
-			return -EAGAIN;
+	status = usb_suspend_both(udev, PMSG_AUTO_SUSPEND);
 
-		status = usb_suspend_both(udev, PMSG_AUTO_SUSPEND);
-
-		/* If an interface fails the suspend, adjust the last_busy
-		 * time so that we don't get another suspend attempt right
-		 * away.
-		 */
-		if (status) {
-			udev->last_busy = jiffies +
-					(udev->autosuspend_delay == 0 ?
-						HZ/2 : 0);
-		}
-
-		/* Prevent the parent from suspending immediately after */
-		else if (udev->parent)
-			udev->parent->last_busy = jiffies;
+	/* If an interface fails the suspend, adjust the last_busy
+	 * time so that we don't get another suspend attempt right
+	 * away.
+	 */
+	if (status) {
+		udev->last_busy = jiffies +
+				(udev->autosuspend_delay == 0 ? HZ/2 : 0);
 	}
 
-	/* Runtime suspend for a USB interface doesn't mean anything. */
+	/* Prevent the parent from suspending immediately after */
+	else if (udev->parent)
+		udev->parent->last_busy = jiffies;
+
 	return status;
 }
 
 static int usb_runtime_resume(struct device *dev)
 {
+	struct usb_device	*udev = to_usb_device(dev);
+	int			status;
+
 	/* Runtime resume for a USB device means resuming both the device
 	 * and all its interfaces.
 	 */
-	if (is_usb_device(dev)) {
-		struct usb_device	*udev = to_usb_device(dev);
-		int			status;
-
-		status = usb_resume_both(udev, PMSG_AUTO_RESUME);
-		udev->last_busy = jiffies;
-		return status;
-	}
-
-	/* Runtime resume for a USB interface doesn't mean anything. */
-	return 0;
+	status = usb_resume_both(udev, PMSG_AUTO_RESUME);
+	udev->last_busy = jiffies;
+	return status;
 }
 
 static int usb_runtime_idle(struct device *dev)
 {
+	struct usb_device	*udev = to_usb_device(dev);
+
 	/* An idle USB device can be suspended if it passes the various
-	 * autosuspend checks.  An idle interface can be suspended at
-	 * any time.
+	 * autosuspend checks.
 	 */
-	if (is_usb_device(dev)) {
-		struct usb_device	*udev = to_usb_device(dev);
-
-		if (autosuspend_check(udev) != 0)
-			return 0;
-	}
-
-	pm_runtime_suspend(dev);
+	if (autosuspend_check(udev) == 0)
+		pm_runtime_suspend(dev);
 	return 0;
 }
 
