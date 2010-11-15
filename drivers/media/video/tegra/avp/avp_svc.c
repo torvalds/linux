@@ -624,6 +624,8 @@ void avp_svc_stop(struct avp_svc_info *avp_svc)
 			pr_info("%s: remote left clock '%s' on\n", __func__,
 				aclk->mod->name);
 			clk_disable(aclk->clk);
+			/* sclk was enabled once for every clock */
+			clk_disable(avp_svc->sclk);
 		}
 		aclk->refcnt = 0;
 	}
