@@ -583,6 +583,10 @@ static int fsi_set_rate(int is_porta, int rate)
 		return -EINVAL;
 
 	switch (rate) {
+	case 44100:
+		clk_set_rate(fsib_clk, clk_round_rate(fsib_clk, 11283000));
+		ret = SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
+		break;
 	case 48000:
 		clk_set_rate(fsib_clk, clk_round_rate(fsib_clk, 85428000));
 		clk_set_rate(fdiv_clk, clk_round_rate(fdiv_clk, 12204000));
