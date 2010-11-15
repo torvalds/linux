@@ -323,9 +323,9 @@ nf_nat_setup_info(struct nf_conn *ct,
 
 	/* It's done. */
 	if (maniptype == IP_NAT_MANIP_DST)
-		set_bit(IPS_DST_NAT_DONE_BIT, &ct->status);
+		ct->status |= IPS_DST_NAT_DONE_BIT;
 	else
-		set_bit(IPS_SRC_NAT_DONE_BIT, &ct->status);
+		ct->status |= IPS_SRC_NAT_DONE_BIT;
 
 	return NF_ACCEPT;
 }
