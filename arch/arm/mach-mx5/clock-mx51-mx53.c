@@ -33,6 +33,7 @@ static struct clk pll1_main_clk;
 static struct clk pll1_sw_clk;
 static struct clk pll2_sw_clk;
 static struct clk pll3_sw_clk;
+static struct clk mx53_pll4_sw_clk;
 static struct clk lp_apm_clk;
 static struct clk periph_apm_clk;
 static struct clk ahb_clk;
@@ -131,6 +132,8 @@ static inline void __iomem *_get_pll_base(struct clk *pll)
 		return MX51_DPLL2_BASE;
 	else if (pll == &pll3_sw_clk)
 		return MX51_DPLL3_BASE;
+	else if (pll == &mx53_pll4_sw_clk)
+		return MX53_DPLL4_BASE;
 	else
 		BUG();
 
@@ -514,7 +517,10 @@ static int _clk_max_enable(struct clk *clk)
 
 	/* Handshake with MAX when LPM is entered. */
 	reg = __raw_readl(MXC_CCM_CLPCR);
-	reg &= ~MXC_CCM_CLPCR_BYPASS_MAX_LPM_HS;
+	if (cpu_is_mx51())
+		reg &= ~MX51_CCM_CLPCR_BYPASS_MAX_LPM_HS;
+	else if (cpu_is_mx53())
+		reg &= ~MX53_CCM_CLPCR_BYPASS_MAX_LPM_HS;
 	__raw_writel(reg, MXC_CCM_CLPCR);
 
 	return 0;
@@ -528,7 +534,10 @@ static void _clk_max_disable(struct clk *clk)
 
 	/* No Handshake with MAX when LPM is entered as its disabled. */
 	reg = __raw_readl(MXC_CCM_CLPCR);
-	reg |= MXC_CCM_CLPCR_BYPASS_MAX_LPM_HS;
+	if (cpu_is_mx51())
+		reg |= MX51_CCM_CLPCR_BYPASS_MAX_LPM_HS;
+	else if (cpu_is_mx53())
+		reg &= ~MX53_CCM_CLPCR_BYPASS_MAX_LPM_HS;
 	__raw_writel(reg, MXC_CCM_CLPCR);
 }
 
@@ -735,6 +744,14 @@ static struct clk pll3_sw_clk = {
 	.parent = &osc_clk,
 	.set_rate = _clk_pll_set_rate,
 	.get_rate = clk_pll_get_rate,
+	.enable = _clk_pll_enable,
+	.disable = _clk_pll_disable,
+};
+
+/* PLL4 SW supplies to LVDS Display Bridge(LDB) */
+static struct clk mx53_pll4_sw_clk = {
+	.parent = &osc_clk,
+	.set_rate = _clk_pll_set_rate,
 	.enable = _clk_pll_enable,
 	.disable = _clk_pll_disable,
 };
@@ -1053,7 +1070,7 @@ DEFINE_CLOCK_MAX(esdhc2_clk, 1, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG3_OFFSET,
 		.clk = &c,   \
        },
 
-static struct clk_lookup lookups[] = {
+static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
 	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
 	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
@@ -1082,6 +1099,14 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("sdhci-esdhc-imx.0", NULL, esdhc1_clk)
 	_REGISTER_CLOCK("sdhci-esdhc-imx.1", NULL, esdhc2_clk)
 	_REGISTER_CLOCK(NULL, "cpu_clk", cpu_clk)
+};
+
+static struct clk_lookup mx53_lookups[] = {
+	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
+	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
+	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
+	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
+	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
 };
 
 static void clk_tree_init(void)
@@ -1114,8 +1139,8 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 	ckih2_reference = ckih2;
 	oscillator_reference = osc;
 
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	for (i = 0; i < ARRAY_SIZE(mx51_lookups); i++)
+		clkdev_add(&mx51_lookups[i]);
 
 	clk_tree_init();
 
@@ -1136,5 +1161,29 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 	/* System timer */
 	mxc_timer_init(&gpt_clk, MX51_IO_ADDRESS(MX51_GPT1_BASE_ADDR),
 		MX51_MXC_INT_GPT);
+	return 0;
+}
+
+int __init mx53_clocks_init(unsigned long ckil, unsigned long osc,
+			unsigned long ckih1, unsigned long ckih2)
+{
+	int i;
+
+	external_low_reference = ckil;
+	external_high_reference = ckih1;
+	ckih2_reference = ckih2;
+	oscillator_reference = osc;
+
+	for (i = 0; i < ARRAY_SIZE(mx53_lookups); i++)
+		clkdev_add(&mx53_lookups[i]);
+
+	clk_tree_init();
+
+	clk_enable(&cpu_clk);
+	clk_enable(&main_bus_clk);
+
+	/* System timer */
+	mxc_timer_init(&gpt_clk, MX53_IO_ADDRESS(MX53_GPT1_BASE_ADDR),
+		MX53_INT_GPT);
 	return 0;
 }

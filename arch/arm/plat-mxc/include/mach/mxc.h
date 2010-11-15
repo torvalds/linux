@@ -33,6 +33,7 @@
 #define MXC_CPU_MX31		31
 #define MXC_CPU_MX35		35
 #define MXC_CPU_MX51		51
+#define MXC_CPU_MX53		53
 #define MXC_CPU_MXC91231	91231
 
 #ifndef __ASSEMBLY__
@@ -119,6 +120,7 @@ extern unsigned int __mxc_cpu_type;
 #  define mxc_cpu_type MXC_CPU_MX51
 # endif
 # define cpu_is_mx51()		(mxc_cpu_type == MXC_CPU_MX51)
+# define cpu_is_mx53()		(mxc_cpu_type == MXC_CPU_MX53)
 #else
 # define cpu_is_mx51()		(0)
 #endif

@@ -101,6 +101,7 @@
 
 #ifdef CONFIG_ARCH_MX5
 #include <mach/mx51.h>
+#include <mach/mx53.h>
 #endif
 
 #ifdef CONFIG_ARCH_MX3

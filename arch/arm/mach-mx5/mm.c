@@ -63,3 +63,20 @@ void __init mx51_init_irq(void)
 	tzic_init_irq(tzic_virt);
 	imx51_register_gpios();
 }
+
+int imx53_register_gpios(void);
+
+void __init mx53_init_irq(void)
+{
+	unsigned long tzic_addr;
+	void __iomem *tzic_virt;
+
+	tzic_addr = MX53_TZIC_BASE_ADDR;
+
+	tzic_virt = ioremap(tzic_addr, SZ_16K);
+	if (!tzic_virt)
+		panic("unable to map TZIC interrupt controller\n");
+
+	tzic_init_irq(tzic_virt);
+	imx53_register_gpios();
+}
