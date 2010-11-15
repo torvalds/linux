@@ -124,12 +124,6 @@ void usb_detect_quirks(struct usb_device *udev)
 	 */
 	usb_disable_autosuspend(udev);
 
-	/* Autosuspend can also be disabled if the initial autosuspend_delay
-	 * is negative.
-	 */
-	if (udev->autosuspend_delay < 0)
-		usb_autoresume_device(udev);
-
 #endif
 
 	/* For the present, all devices default to USB-PERSIST enabled */

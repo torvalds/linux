@@ -1397,32 +1397,7 @@ void usb_autosuspend_device(struct usb_device *udev)
 	int	status;
 
 	usb_mark_last_busy(udev);
-	status = pm_runtime_put_sync(&udev->dev);
-	dev_vdbg(&udev->dev, "%s: cnt %d -> %d\n",
-			__func__, atomic_read(&udev->dev.power.usage_count),
-			status);
-}
-
-/**
- * usb_try_autosuspend_device - attempt an autosuspend of a USB device and its interfaces
- * @udev: the usb_device to autosuspend
- *
- * This routine should be called when a core subsystem thinks @udev may
- * be ready to autosuspend.
- *
- * @udev's usage counter left unchanged.  If it is 0 and all the interfaces
- * are inactive then an autosuspend will be attempted.  The attempt may
- * fail or be delayed.
- *
- * The caller must hold @udev's device lock.
- *
- * This routine can run only in process context.
- */
-void usb_try_autosuspend_device(struct usb_device *udev)
-{
-	int	status;
-
-	status = pm_runtime_idle(&udev->dev);
+	status = pm_runtime_put_sync_autosuspend(&udev->dev);
 	dev_vdbg(&udev->dev, "%s: cnt %d -> %d\n",
 			__func__, atomic_read(&udev->dev.power.usage_count),
 			status);
@@ -1508,32 +1483,11 @@ EXPORT_SYMBOL_GPL(usb_autopm_put_interface);
 void usb_autopm_put_interface_async(struct usb_interface *intf)
 {
 	struct usb_device	*udev = interface_to_usbdev(intf);
-	unsigned long		last_busy;
-	int			status = 0;
+	int			status;
 
-	last_busy = udev->dev.power.last_busy;
 	usb_mark_last_busy(udev);
 	atomic_dec(&intf->pm_usage_cnt);
-	pm_runtime_put_noidle(&intf->dev);
-
-	if (udev->dev.power.runtime_auto) {
-		/* Optimization: Don't schedule a delayed autosuspend if
-		 * the timer is already running and the expiration time
-		 * wouldn't change.
-		 *
-		 * We have to use the interface's timer.  Attempts to
-		 * schedule a suspend for the device would fail because
-		 * the interface is still active.
-		 */
-		if (intf->dev.power.timer_expires == 0 ||
-				round_jiffies_up(last_busy) !=
-				round_jiffies_up(jiffies)) {
-			status = pm_schedule_suspend(&intf->dev,
-					jiffies_to_msecs(
-					round_jiffies_up_relative(
-						udev->autosuspend_delay)));
-		}
-	}
+	status = pm_runtime_put(&intf->dev);
 	dev_vdbg(&intf->dev, "%s: cnt %d -> %d\n",
 			__func__, atomic_read(&intf->dev.power.usage_count),
 			status);
@@ -1651,7 +1605,6 @@ static int autosuspend_check(struct usb_device *udev)
 {
 	int			w, i;
 	struct usb_interface	*intf;
-	unsigned long		suspend_time, j;
 
 	/* Fail if autosuspend is disabled, or any interfaces are in use, or
 	 * any interface drivers require remote wakeup but it isn't available.
@@ -1691,17 +1644,6 @@ static int autosuspend_check(struct usb_device *udev)
 		return -EOPNOTSUPP;
 	}
 	udev->do_remote_wakeup = w;
-
-	/* If everything is okay but the device hasn't been idle for long
-	 * enough, queue a delayed autosuspend request.
-	 */
-	j = ACCESS_ONCE(jiffies);
-	suspend_time = udev->dev.power.last_busy + udev->autosuspend_delay;
-	if (time_before(j, suspend_time)) {
-		pm_schedule_suspend(&udev->dev, jiffies_to_msecs(
-				round_jiffies_up_relative(suspend_time - j)));
-		return -EAGAIN;
-	}
 	return 0;
 }
 
@@ -1719,17 +1661,8 @@ static int usb_runtime_suspend(struct device *dev)
 
 	status = usb_suspend_both(udev, PMSG_AUTO_SUSPEND);
 
-	/* If an interface fails the suspend, adjust the last_busy
-	 * time so that we don't get another suspend attempt right
-	 * away.
-	 */
-	if (status) {
-		udev->dev.power.last_busy = jiffies +
-				(udev->autosuspend_delay == 0 ? HZ/2 : 0);
-	}
-
 	/* Prevent the parent from suspending immediately after */
-	else if (udev->parent)
+	if (status == 0 && udev->parent)
 		usb_mark_last_busy(udev->parent);
 
 	return status;
@@ -1756,7 +1689,7 @@ static int usb_runtime_idle(struct device *dev)
 	 * autosuspend checks.
 	 */
 	if (autosuspend_check(udev) == 0)
-		pm_runtime_suspend(dev);
+		pm_runtime_autosuspend(dev);
 	return 0;
 }
 

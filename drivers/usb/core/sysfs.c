@@ -334,44 +334,20 @@ static DEVICE_ATTR(active_duration, S_IRUGO, show_active_duration, NULL);
 static ssize_t
 show_autosuspend(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct usb_device *udev = to_usb_device(dev);
-
-	return sprintf(buf, "%d\n", udev->autosuspend_delay / HZ);
+	return sprintf(buf, "%d\n", dev->power.autosuspend_delay / 1000);
 }
 
 static ssize_t
 set_autosuspend(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	struct usb_device *udev = to_usb_device(dev);
-	int value, old_delay;
-	int rc;
+	int value;
 
-	if (sscanf(buf, "%d", &value) != 1 || value >= INT_MAX/HZ ||
-			value <= - INT_MAX/HZ)
+	if (sscanf(buf, "%d", &value) != 1 || value >= INT_MAX/1000 ||
+			value <= -INT_MAX/1000)
 		return -EINVAL;
-	value *= HZ;
 
-	usb_lock_device(udev);
-	old_delay = udev->autosuspend_delay;
-	udev->autosuspend_delay = value;
-
-	if (old_delay < 0) {	/* Autosuspend wasn't allowed */
-		if (value >= 0)
-			usb_autosuspend_device(udev);
-	} else {		/* Autosuspend was allowed */
-		if (value < 0) {
-			rc = usb_autoresume_device(udev);
-			if (rc < 0) {
-				count = rc;
-				udev->autosuspend_delay = old_delay;
-			}
-		} else {
-			usb_try_autosuspend_device(udev);
-		}
-	}
-
-	usb_unlock_device(udev);
+	pm_runtime_set_autosuspend_delay(dev, value * 1000);
 	return count;
 }
 
