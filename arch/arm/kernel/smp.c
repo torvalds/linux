@@ -48,20 +48,15 @@ struct secondary_data secondary_data;
 
 /*
  * structures for inter-processor calls
- * - A collection of single bit ipi messages.
  */
 struct ipi_data {
-	spinlock_t lock;
 	unsigned long ipi_count;
-	unsigned long bits;
 };
 
-static DEFINE_PER_CPU(struct ipi_data, ipi_data) = {
-	.lock	= SPIN_LOCK_UNLOCKED,
-};
+static DEFINE_PER_CPU(struct ipi_data, ipi_data);
 
 enum ipi_msg_type {
-	IPI_TIMER,
+	IPI_TIMER = 2,
 	IPI_RESCHEDULE,
 	IPI_CALL_FUNC,
 	IPI_CALL_FUNC_SINGLE,
@@ -389,22 +384,13 @@ void __init smp_prepare_boot_cpu(void)
 static void send_ipi_message(const struct cpumask *mask, enum ipi_msg_type msg)
 {
 	unsigned long flags;
-	unsigned int cpu;
 
 	local_irq_save(flags);
-
-	for_each_cpu(cpu, mask) {
-		struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
-
-		spin_lock(&ipi->lock);
-		ipi->bits |= 1 << msg;
-		spin_unlock(&ipi->lock);
-	}
 
 	/*
 	 * Call the platform specific cross-CPU call function.
 	 */
-	smp_cross_call(mask, 1);
+	smp_cross_call(mask, msg);
 
 	local_irq_restore(flags);
 }
@@ -546,56 +532,35 @@ asmlinkage void __exception do_IPI(int ipinr, struct pt_regs *regs)
 
 	ipi->ipi_count++;
 
-	for (;;) {
-		unsigned long msgs;
+	switch (ipinr) {
+	case IPI_TIMER:
+		ipi_timer();
+		break;
 
-		spin_lock(&ipi->lock);
-		msgs = ipi->bits;
-		ipi->bits = 0;
-		spin_unlock(&ipi->lock);
+	case IPI_RESCHEDULE:
+		/*
+		 * nothing more to do - eveything is
+		 * done on the interrupt return path
+		 */
+		break;
 
-		if (!msgs)
-			break;
+	case IPI_CALL_FUNC:
+		generic_smp_call_function_interrupt();
+		break;
 
-		do {
-			unsigned nextmsg;
+	case IPI_CALL_FUNC_SINGLE:
+		generic_smp_call_function_single_interrupt();
+		break;
 
-			nextmsg = msgs & -msgs;
-			msgs &= ~nextmsg;
-			nextmsg = ffz(~nextmsg);
+	case IPI_CPU_STOP:
+		ipi_cpu_stop(cpu);
+		break;
 
-			switch (nextmsg) {
-			case IPI_TIMER:
-				ipi_timer();
-				break;
-
-			case IPI_RESCHEDULE:
-				/*
-				 * nothing more to do - eveything is
-				 * done on the interrupt return path
-				 */
-				break;
-
-			case IPI_CALL_FUNC:
-				generic_smp_call_function_interrupt();
-				break;
-
-			case IPI_CALL_FUNC_SINGLE:
-				generic_smp_call_function_single_interrupt();
-				break;
-
-			case IPI_CPU_STOP:
-				ipi_cpu_stop(cpu);
-				break;
-
-			default:
-				printk(KERN_CRIT "CPU%u: Unknown IPI message 0x%x\n",
-				       cpu, nextmsg);
-				break;
-			}
-		} while (msgs);
+	default:
+		printk(KERN_CRIT "CPU%u: Unknown IPI message 0x%x\n",
+		       cpu, ipinr);
+		break;
 	}
-
 	set_irq_regs(old_regs);
 }
 
