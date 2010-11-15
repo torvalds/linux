@@ -736,7 +736,6 @@ static int wm8940_probe(struct snd_soc_codec *codec)
 		return ret;
 
 	return ret;
-;
 }
 
 static int wm8940_remove(struct snd_soc_codec *codec)

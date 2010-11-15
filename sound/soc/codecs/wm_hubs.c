@@ -119,7 +119,7 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 	switch (hubs->dcs_readback_mode) {
 	case 0:
 		reg_l = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_1)
-			& WM8993_DCS_INTEG_CHAN_0_MASK;;
+			& WM8993_DCS_INTEG_CHAN_0_MASK;
 		reg_r = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_2)
 			& WM8993_DCS_INTEG_CHAN_1_MASK;
 		break;
