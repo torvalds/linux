@@ -963,7 +963,7 @@ BBvSetAntennaMode (PSDevice pDevice, BYTE byAntennaMode)
             break;
         case ANT_RXB:
             pDevice->byBBRxConf &= 0xFE;
-            pDevice->byBBRxConf |= 0x02;;
+            pDevice->byBBRxConf |= 0x02;
             break;
     }
 

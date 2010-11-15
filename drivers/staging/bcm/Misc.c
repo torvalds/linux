@@ -706,7 +706,7 @@ void SendIdleModeResponse(PMINI_ADAPTER Adapter)
 
 			/* Wake the LED Thread with IDLEMODE_ENTER State */
 			Adapter->DriverState = LOWPOWER_MODE_ENTER;
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL,"LED Thread is Running..Hence Setting LED Event as IDLEMODE_ENTER jiffies:%ld",jiffies);;
+			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL,"LED Thread is Running..Hence Setting LED Event as IDLEMODE_ENTER jiffies:%ld",jiffies);
 			wake_up(&Adapter->LEDInfo.notify_led_event);
 
 			/* Wait for 1 SEC for LED to OFF */
@@ -1277,7 +1277,7 @@ static int bcm_parse_target_params(PMINI_ADAPTER Adapter)
 
 void beceem_parse_target_struct(PMINI_ADAPTER Adapter)
 {
-	UINT uiHostDrvrCfg6 =0, uiEEPROMFlag = 0;;
+	UINT uiHostDrvrCfg6 =0, uiEEPROMFlag = 0;
 
 	if(ntohl(Adapter->pstargetparams->m_u32PhyParameter2) & AUTO_SYNC_DISABLE)
 	{

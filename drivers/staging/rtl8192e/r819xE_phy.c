@@ -2596,7 +2596,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	
 			break;
 	}
 
-	return ret;;
+	return ret;
 
 }
 /******************************************************************************

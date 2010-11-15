@@ -2979,7 +2979,7 @@ void LinkDown(struct rt_rtmp_adapter *pAd, IN BOOLEAN IsReqFromAP);
 
 void IterateOnBssTab(struct rt_rtmp_adapter *pAd);
 
-void IterateOnBssTab2(struct rt_rtmp_adapter *pAd);;
+void IterateOnBssTab2(struct rt_rtmp_adapter *pAd);
 
 void JoinParmFill(struct rt_rtmp_adapter *pAd,
 		  struct rt_mlme_join_req *JoinReq, unsigned long BssIdx);

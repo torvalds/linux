@@ -763,8 +763,8 @@ int Ssfdc_D_WriteSectForCopy(struct us_data *us, BYTE *buf, BYTE *redundant)
 	bcb->CDB[7]			= (BYTE)addr;
 	bcb->CDB[6]			= (BYTE)(addr/0x0100);
 	bcb->CDB[5]			= Media.Zone/2;
-	bcb->CDB[8]			= *(redundant+REDT_ADDR1H);;
-	bcb->CDB[9]			= *(redundant+REDT_ADDR1L);;
+	bcb->CDB[8]			= *(redundant+REDT_ADDR1H);
+	bcb->CDB[9]			= *(redundant+REDT_ADDR1L);
 
 	result = ENE_SendScsiCmd(us, FDIR_WRITE, buf, 0);
 	if (result != USB_STOR_XFER_GOOD)

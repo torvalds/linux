@@ -90,7 +90,7 @@ static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, INTF_INIT, DBG_LVL_ALL,"Interrupt IN endPoint  has got halted/stalled...need to clear this");
 				Adapter->bEndPointHalted = TRUE ;
 				wake_up(&Adapter->tx_packet_wait_queue);
-				urb->status = STATUS_SUCCESS ;;
+				urb->status = STATUS_SUCCESS ;
 				return;
 		}
 	    /* software-driven interface shutdown */

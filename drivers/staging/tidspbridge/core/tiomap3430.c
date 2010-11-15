@@ -596,7 +596,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		dev_dbg(bridge, "DSP c_int00 Address =  0x%x\n", dsp_addr);
 		if (dsp_debug)
 			while (__raw_readw(dw_sync_addr))
-				;;
+				;
 
 		/* Wait for DSP to clear word in shared memory */
 		/* Read the Location */
@@ -1671,7 +1671,7 @@ static int pte_set(struct pg_table_attrs *pt, u32 pa, u32 va,
 			/* Find a free L2 PT. */
 			for (i = 0; (i < pt->l2_num_pages) &&
 			     (pt->pg_info[i].num_entries != 0); i++)
-				;;
+				;
 			if (i < pt->l2_num_pages) {
 				l2_page_num = i;
 				l2_base_pa = pt->l2_base_pa + (l2_page_num *

@@ -876,7 +876,7 @@ HIFAckInterrupt(HIF_DEVICE *device)
 void
 HIFUnMaskInterrupt(HIF_DEVICE *device)
 {
-    int ret;;
+    int ret;
 
     AR_DEBUG_ASSERT(device != NULL);
     AR_DEBUG_ASSERT(device->func != NULL);

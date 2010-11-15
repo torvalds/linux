@@ -854,7 +854,7 @@ void send_monitor_packets(struct rt_rtmp_adapter *pAd, struct rt_rx_blk *pRxBlk)
 									 RSSI1,
 									 RSSI_1),
 				    ConvertToRssi(pAd, pRxBlk->pRxWI->RSSI2,
-						  RSSI_2));;
+						  RSSI_2));
 
 	ph->signal.did = DIDmsg_lnxind_wlansniffrm_signal;
 	ph->signal.status = 0;

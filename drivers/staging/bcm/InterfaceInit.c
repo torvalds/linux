@@ -236,7 +236,7 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		uint32_t uiNackZeroLengthInt=4;
 		if(wrmalt(psAdapter, DISABLE_USB_ZERO_LEN_INT, &uiNackZeroLengthInt, sizeof(uiNackZeroLengthInt)))
 		{
-			return -EIO;;
+			return -EIO;
 		}
 	}
 

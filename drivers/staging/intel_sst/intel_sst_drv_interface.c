@@ -173,9 +173,9 @@ static int sst_get_sfreq(struct snd_sst_params *str_param)
 	case SST_CODEC_TYPE_MP3:
 		return str_param->sparams.uc.mp3_params.sfreq;
 	case SST_CODEC_TYPE_AAC:
-		return str_param->sparams.uc.aac_params.sfreq;;
+		return str_param->sparams.uc.aac_params.sfreq;
 	case SST_CODEC_TYPE_WMA9:
-		return str_param->sparams.uc.wma_params.sfreq;;
+		return str_param->sparams.uc.wma_params.sfreq;
 	default:
 		return 0;
 	}
