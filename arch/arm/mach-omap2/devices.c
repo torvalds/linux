@@ -38,7 +38,7 @@
 
 #if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
 
-static struct resource cam_resources[] = {
+static struct resource omap2cam_resources[] = {
 	{
 		.start		= OMAP24XX_CAMERA_BASE,
 		.end		= OMAP24XX_CAMERA_BASE + 0xfff,
@@ -50,21 +50,12 @@ static struct resource cam_resources[] = {
 	}
 };
 
-static struct platform_device omap_cam_device = {
+static struct platform_device omap2cam_device = {
 	.name		= "omap24xxcam",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(cam_resources),
-	.resource	= cam_resources,
+	.num_resources	= ARRAY_SIZE(omap2cam_resources),
+	.resource	= omap2cam_resources,
 };
-
-static inline void omap_init_camera(void)
-{
-	platform_device_register(&omap_cam_device);
-}
-#else
-static inline void omap_init_camera(void)
-{
-}
 #endif
 
 static struct resource omap3isp_resources[] = {
@@ -155,6 +146,14 @@ int omap3_init_camera(struct isp_platform_data *pdata)
 {
 	omap3isp_device.dev.platform_data = pdata;
 	return platform_device_register(&omap3isp_device);
+}
+
+static inline void omap_init_camera(void)
+{
+#if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
+	if (cpu_is_omap24xx())
+		platform_device_register(&omap2cam_device);
+#endif
 }
 
 #if defined(CONFIG_OMAP_MBOX_FWK) || defined(CONFIG_OMAP_MBOX_FWK_MODULE)
