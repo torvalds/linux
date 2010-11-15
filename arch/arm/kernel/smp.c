@@ -406,6 +406,21 @@ void show_ipi_list(struct seq_file *p, int prec)
 	}
 }
 
+u64 smp_irq_stat_cpu(unsigned int cpu)
+{
+	u64 sum = 0;
+	int i;
+
+	for (i = 0; i < NR_IPI; i++)
+		sum += __get_irq_stat(cpu, ipi_irqs[i]);
+
+#ifdef CONFIG_LOCAL_TIMERS
+	sum += __get_irq_stat(cpu, local_timer_irqs);
+#endif
+
+	return sum;
+}
+
 /*
  * Timer (local or broadcast) support
  */
