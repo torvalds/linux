@@ -144,9 +144,8 @@ static void update_alloc_size(struct nf_ct_ext_type *type)
 		if (!t1)
 			continue;
 
-		t1->alloc_size = sizeof(struct nf_ct_ext)
-				 + ALIGN(sizeof(struct nf_ct_ext), t1->align)
-				 + t1->len;
+		t1->alloc_size = ALIGN(sizeof(struct nf_ct_ext), t1->align) +
+				 t1->len;
 		for (j = 0; j < NF_CT_EXT_NUM; j++) {
 			t2 = nf_ct_ext_types[j];
 			if (t2 == NULL || t2 == t1 ||
