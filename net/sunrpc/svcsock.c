@@ -324,19 +324,21 @@ int svc_sock_names(struct svc_serv *serv, char *buf, const size_t buflen,
 			len = onelen;
 			break;
 		}
-		if (toclose && strcmp(toclose, buf + len) == 0)
+		if (toclose && strcmp(toclose, buf + len) == 0) {
 			closesk = svsk;
-		else
+			svc_xprt_get(&closesk->sk_xprt);
+		} else
 			len += onelen;
 	}
 	spin_unlock_bh(&serv->sv_lock);
 
-	if (closesk)
+	if (closesk) {
 		/* Should unregister with portmap, but you cannot
 		 * unregister just one protocol...
 		 */
 		svc_close_xprt(&closesk->sk_xprt);
-	else if (toclose)
+		svc_xprt_put(&closesk->sk_xprt);
+	} else if (toclose)
 		return -ENOENT;
 	return len;
 }
