@@ -1605,7 +1605,7 @@ static int veth_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	}
 	veth_dev[i] = dev;
 
-	port = (struct veth_port*)netdev_priv(dev);
+	port = netdev_priv(dev);
 
 	/* Start the state machine on each connection on this vlan. If we're
 	 * the first dev to do so this will commence link negotiation */
