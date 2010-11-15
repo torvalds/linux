@@ -653,7 +653,7 @@ static void cmpc_keys_handler(struct acpi_device *dev, u32 event)
 
 	if ((event & 0x0F) < ARRAY_SIZE(cmpc_keys_codes))
 		code = cmpc_keys_codes[event & 0x0F];
-	inputdev = dev_get_drvdata(&dev->dev);;
+	inputdev = dev_get_drvdata(&dev->dev);
 	input_report_key(inputdev, code, !(event & 0x10));
 }
 
