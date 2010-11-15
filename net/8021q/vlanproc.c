@@ -280,7 +280,6 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 	const struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
 	struct rtnl_link_stats64 temp;
 	const struct rtnl_link_stats64 *stats;
-	static const char fmt[] = "%30s %12lu\n";
 	static const char fmt64[] = "%30s %12llu\n";
 	int i;
 
