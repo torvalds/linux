@@ -54,7 +54,6 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 	struct dccp_sock *dp = dccp_sk(sk);
 	const struct dccp_hdr *dh = dccp_hdr(skb);
 	const u8 pkt_type = DCCP_SKB_CB(skb)->dccpd_type;
-	u64 ackno = DCCP_SKB_CB(skb)->dccpd_ack_seq;
 	unsigned char *options = (unsigned char *)dh + dccp_hdr_len(skb);
 	unsigned char *opt_ptr = options;
 	const unsigned char *opt_end = (unsigned char *)dh +
@@ -128,14 +127,6 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 						    *value, value + 1, len - 1);
 			if (rc)
 				goto out_featneg_failed;
-			break;
-		case DCCPO_ACK_VECTOR_0:
-		case DCCPO_ACK_VECTOR_1:
-			if (dccp_packet_without_ack(skb))   /* RFC 4340, 11.4 */
-				break;
-			if (dp->dccps_hc_rx_ackvec != NULL &&
-			    dccp_ackvec_parse(sk, skb, &ackno, opt, value, len))
-				goto out_invalid_option;
 			break;
 		case DCCPO_TIMESTAMP:
 			if (len != 4)
@@ -226,6 +217,16 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 						     pkt_type, opt, value, len))
 				goto out_invalid_option;
 			break;
+		case DCCPO_ACK_VECTOR_0:
+		case DCCPO_ACK_VECTOR_1:
+			if (dccp_packet_without_ack(skb))   /* RFC 4340, 11.4 */
+				break;
+			/*
+			 * Ack vectors are processed by the TX CCID if it is
+			 * interested. The RX CCID need not parse Ack Vectors,
+			 * since it is only interested in clearing old state.
+			 * Fall through.
+			 */
 		case DCCPO_MIN_TX_CCID_SPECIFIC ... DCCPO_MAX_TX_CCID_SPECIFIC:
 			if (ccid_hc_tx_parse_options(dp->dccps_hc_tx_ccid, sk,
 						     pkt_type, opt, value, len))
@@ -429,6 +430,7 @@ static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_ackvec *av = dp->dccps_hc_rx_ackvec;
+	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 	const u16 buflen = dccp_ackvec_buflen(av);
 	/* Figure out how many options do we need to represent the ackvec */
 	const u8 nr_opts = DIV_ROUND_UP(buflen, DCCP_SINGLE_OPT_MAXLEN);
@@ -437,10 +439,25 @@ static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	const unsigned char *tail, *from;
 	unsigned char *to;
 
-	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN)
+	if (dcb->dccpd_opt_len + len > DCCP_MAX_OPT_LEN) {
+		DCCP_WARN("Lacking space for %u bytes on %s packet\n", len,
+			  dccp_packet_name(dcb->dccpd_type));
 		return -1;
-
-	DCCP_SKB_CB(skb)->dccpd_opt_len += len;
+	}
+	/*
+	 * Since Ack Vectors are variable-length, we can not always predict
+	 * their size. To catch exception cases where the space is running out
+	 * on the skb, a separate Sync is scheduled to carry the Ack Vector.
+	 */
+	if (len > DCCPAV_MIN_OPTLEN &&
+	    len + dcb->dccpd_opt_len + skb->len > dp->dccps_mss_cache) {
+		DCCP_WARN("No space left for Ack Vector (%u) on skb (%u+%u), "
+			  "MPS=%u ==> reduce payload size?\n", len, skb->len,
+			  dcb->dccpd_opt_len, dp->dccps_mss_cache);
+		dp->dccps_sync_scheduled = 1;
+		return 0;
+	}
+	dcb->dccpd_opt_len += len;
 
 	to   = skb_push(skb, len);
 	len  = buflen;
@@ -481,7 +498,7 @@ static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	/*
 	 * Each sent Ack Vector is recorded in the list, as per A.2 of RFC 4340.
 	 */
-	if (dccp_ackvec_update_records(av, DCCP_SKB_CB(skb)->dccpd_seq, nonce))
+	if (dccp_ackvec_update_records(av, dcb->dccpd_seq, nonce))
 		return -ENOBUFS;
 	return 0;
 }
