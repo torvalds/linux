@@ -480,7 +480,7 @@ static void mmc_davinci_send_dma_request(struct mmc_davinci_host *host,
 	struct scatterlist	*sg;
 	unsigned		sg_len;
 	unsigned		bytes_left = host->bytes_left;
-	const unsigned		shift = ffs(rw_threshold) - 1;;
+	const unsigned		shift = ffs(rw_threshold) - 1;
 
 	if (host->data_dir == DAVINCI_MMC_DATADIR_WRITE) {
 		template = &host->tx_template;
