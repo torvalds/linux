@@ -1111,11 +1111,12 @@ xfs_vm_writepage(
 			uptodate = 0;
 
 		/*
-		 * A hole may still be marked uptodate because discard_buffer
-		 * leaves the flag set.
+		 * set_page_dirty dirties all buffers in a page, independent
+		 * of their state.  The dirty state however is entirely
+		 * meaningless for holes (!mapped && uptodate), so skip
+		 * buffers covering holes here.
 		 */
 		if (!buffer_mapped(bh) && buffer_uptodate(bh)) {
-			ASSERT(!buffer_dirty(bh));
 			imap_valid = 0;
 			continue;
 		}

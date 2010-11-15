@@ -744,13 +744,13 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		bdi->ra_pages = (arg * 512) / PAGE_CACHE_SIZE;
 		return 0;
 	case BLKGETSIZE:
-		size = bdev->bd_inode->i_size;
+		size = i_size_read(bdev->bd_inode);
 		if ((size >> 9) > ~0UL)
 			return -EFBIG;
 		return compat_put_ulong(arg, size >> 9);
 
 	case BLKGETSIZE64_32:
-		return compat_put_u64(arg, bdev->bd_inode->i_size);
+		return compat_put_u64(arg, i_size_read(bdev->bd_inode));
 
 	case BLKTRACESETUP32:
 	case BLKTRACESTART: /* compatible */

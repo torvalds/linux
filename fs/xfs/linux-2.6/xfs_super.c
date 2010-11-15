@@ -353,9 +353,6 @@ xfs_parseargs(
 			mp->m_qflags &= ~XFS_OQUOTA_ENFD;
 		} else if (!strcmp(this_char, MNTOPT_DELAYLOG)) {
 			mp->m_flags |= XFS_MOUNT_DELAYLOG;
-			cmn_err(CE_WARN,
-				"Enabling EXPERIMENTAL delayed logging feature "
-				"- use at your own risk.\n");
 		} else if (!strcmp(this_char, MNTOPT_NODELAYLOG)) {
 			mp->m_flags &= ~XFS_MOUNT_DELAYLOG;
 		} else if (!strcmp(this_char, "ihashsize")) {
