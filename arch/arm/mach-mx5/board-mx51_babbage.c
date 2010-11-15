@@ -1,5 +1,5 @@
 /*
- * Copyright 2009 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright (C) 2009-2010 Amit Kucheria <amit.kucheria@canonical.com>
  *
  * The code contained herein is licensed under the GNU General Public
@@ -18,6 +18,8 @@
 #include <linux/io.h>
 #include <linux/fsl_devices.h>
 #include <linux/fec.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
@@ -32,11 +34,13 @@
 
 #include "devices-imx51.h"
 #include "devices.h"
+#include "cpu_op-mx51.h"
 
 #define BABBAGE_USB_HUB_RESET	(0*32 + 7)	/* GPIO_1_7 */
 #define BABBAGE_USBH1_STP	(0*32 + 27)	/* GPIO_1_27 */
 #define BABBAGE_PHY_RESET	(1*32 + 5)	/* GPIO_2_5 */
 #define BABBAGE_FEC_PHY_RESET	(1*32 + 14)	/* GPIO_2_14 */
+#define BABBAGE_POWER_KEY	(1*32 + 21)	/* GPIO_2_21 */
 
 /* USB_CTRL_1 */
 #define MX51_USB_CTRL_1_OFFSET			0x10
@@ -45,6 +49,21 @@
 #define	MX51_USB_PLLDIV_12_MHZ		0x00
 #define	MX51_USB_PLL_DIV_19_2_MHZ	0x01
 #define	MX51_USB_PLL_DIV_24_MHZ	0x02
+
+static struct gpio_keys_button babbage_buttons[] = {
+	{
+		.gpio		= BABBAGE_POWER_KEY,
+		.code		= BTN_0,
+		.desc		= "PWR",
+		.active_low	= 1,
+		.wakeup		= 1,
+	},
+};
+
+static const struct gpio_keys_platform_data imx_button_data __initconst = {
+	.buttons	= babbage_buttons,
+	.nbuttons	= ARRAY_SIZE(babbage_buttons),
+};
 
 static struct pad_desc mx51babbage_pads[] = {
 	/* UART1 */
@@ -112,6 +131,22 @@ static struct pad_desc mx51babbage_pads[] = {
 
 	/* FEC PHY reset line */
 	MX51_PAD_EIM_A20__GPIO_2_14,
+
+	/* SD 1 */
+	MX51_PAD_SD1_CMD__SD1_CMD,
+	MX51_PAD_SD1_CLK__SD1_CLK,
+	MX51_PAD_SD1_DATA0__SD1_DATA0,
+	MX51_PAD_SD1_DATA1__SD1_DATA1,
+	MX51_PAD_SD1_DATA2__SD1_DATA2,
+	MX51_PAD_SD1_DATA3__SD1_DATA3,
+
+	/* SD 2 */
+	MX51_PAD_SD2_CMD__SD2_CMD,
+	MX51_PAD_SD2_CLK__SD2_CLK,
+	MX51_PAD_SD2_DATA0__SD2_DATA0,
+	MX51_PAD_SD2_DATA1__SD2_DATA1,
+	MX51_PAD_SD2_DATA2__SD2_DATA2,
+	MX51_PAD_SD2_DATA3__SD2_DATA3,
 };
 
 /* Serial ports */
@@ -281,12 +316,21 @@ __setup("otg_mode=", babbage_otg_mode);
 static void __init mxc_board_init(void)
 {
 	struct pad_desc usbh1stp = MX51_PAD_USBH1_STP__USBH1_STP;
+	struct pad_desc power_key = MX51_PAD_EIM_A27__GPIO_2_21;
 
+#if defined(CONFIG_CPU_FREQ_IMX)
+	get_cpu_op = mx51_get_cpu_op;
+#endif
 	mxc_iomux_v3_setup_multiple_pads(mx51babbage_pads,
 					ARRAY_SIZE(mx51babbage_pads));
 	mxc_init_imx_uart();
 	babbage_fec_reset();
 	imx51_add_fec(NULL);
+
+	/* Set the PAD settings for the pwr key. */
+	power_key.pad_ctrl = MX51_GPIO_PAD_CTRL_2;
+	mxc_iomux_v3_setup_pad(&power_key);
+	imx51_add_gpio_keys(&imx_button_data);
 
 	imx51_add_imx_i2c(0, &babbage_i2c_data);
 	imx51_add_imx_i2c(1, &babbage_i2c_data);
@@ -304,6 +348,9 @@ static void __init mxc_board_init(void)
 	/* setback USBH1_STP to be function */
 	mxc_iomux_v3_setup_pad(&usbh1stp);
 	babbage_usbhub_reset();
+
+	imx51_add_esdhc(0, NULL);
+	imx51_add_esdhc(1, NULL);
 }
 
 static void __init mx51_babbage_timer_init(void)

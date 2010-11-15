@@ -2,8 +2,6 @@ TODO:
 	- fix remaining checkpatch warnings and errors
 	- audit the vmbus to verify it is working properly with the
 	  driver model
-	- convert vmbus driver interface function pointer tables
-          to constant, a.k.a vmbus_ops
 	- see if the vmbus can be merged with the other virtual busses
 	  in the kernel
 	- audit the network driver

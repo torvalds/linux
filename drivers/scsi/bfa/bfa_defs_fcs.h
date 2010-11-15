@@ -21,7 +21,7 @@
 #include "bfa_fc.h"
 #include "bfa_defs_svc.h"
 
-/**
+/*
  * VF states
  */
 enum bfa_vf_state {
@@ -35,7 +35,7 @@ enum bfa_vf_state {
 	BFA_VF_ISOLATED  = 7,	/*  port isolated due to vf_id mismatch */
 };
 
-/**
+/*
  * VF statistics
  */
 struct bfa_vf_stats_s {
@@ -55,7 +55,7 @@ struct bfa_vf_stats_s {
 	u32	resvd; /*  padding for 64 bit alignment */
 };
 
-/**
+/*
  * VF attributes returned in queries
  */
 struct bfa_vf_attr_s {
@@ -67,7 +67,7 @@ struct bfa_vf_attr_s {
 #define BFA_FCS_MAX_LPORTS 256
 #define BFA_FCS_FABRIC_IPADDR_SZ  16
 
-/**
+/*
  * symbolic names for base port/virtual port
  */
 #define BFA_SYMNAME_MAXLEN	128	/* 128 bytes */
@@ -75,7 +75,7 @@ struct bfa_lport_symname_s {
 	char	    symname[BFA_SYMNAME_MAXLEN];
 };
 
-/**
+/*
 * Roles of FCS port:
  *     - FCP IM and FCP TM roles cannot be enabled together for a FCS port
  *     - Create multiple ports if both IM and TM functions required.
@@ -86,19 +86,19 @@ enum bfa_lport_role {
 	BFA_LPORT_ROLE_FCP_MAX	= BFA_LPORT_ROLE_FCP_IM,
 };
 
-/**
+/*
  * FCS port configuration.
  */
 struct bfa_lport_cfg_s {
     wwn_t	       pwwn;       /*  port wwn */
     wwn_t	       nwwn;       /*  node wwn */
     struct bfa_lport_symname_s  sym_name;   /*  vm port symbolic name */
-	bfa_boolean_t       preboot_vp;  /*  vport created from PBC */
+    bfa_boolean_t       preboot_vp;  /*  vport created from PBC */
     enum bfa_lport_role     roles;      /*  FCS port roles */
     u8	     tag[16];	/*  opaque tag from application */
 };
 
-/**
+/*
  * FCS port states
  */
 enum bfa_lport_state {
@@ -108,7 +108,7 @@ enum bfa_lport_state {
 	BFA_LPORT_OFFLINE = 3,	/*  No login to fabric */
 };
 
-/**
+/*
  * FCS port type.
  */
 enum bfa_lport_type {
@@ -116,7 +116,7 @@ enum bfa_lport_type {
 	BFA_LPORT_TYPE_VIRTUAL,
 };
 
-/**
+/*
  * FCS port offline reason.
  */
 enum bfa_lport_offline_reason {
@@ -128,7 +128,7 @@ enum bfa_lport_offline_reason {
 	BFA_LPORT_OFFLINE_FAB_LOGOUT,
 };
 
-/**
+/*
  * FCS lport info.
  */
 struct bfa_lport_info_s {
@@ -150,7 +150,7 @@ struct bfa_lport_info_s {
 
 };
 
-/**
+/*
  * FCS port statistics
  */
 struct bfa_lport_stats_s {
@@ -222,7 +222,7 @@ struct bfa_lport_stats_s {
 					    * (max retry of plogi) */
 };
 
-/**
+/*
  * BFA port attribute returned in queries
  */
 struct bfa_lport_attr_s {
@@ -239,7 +239,7 @@ struct bfa_lport_attr_s {
 };
 
 
-/**
+/*
  * VPORT states
  */
 enum bfa_vport_state {
@@ -258,7 +258,7 @@ enum bfa_vport_state {
 	BFA_FCS_VPORT_MAX_STATE,
 };
 
-/**
+/*
  * vport statistics
  */
 struct bfa_vport_stats_s {
@@ -296,7 +296,7 @@ struct bfa_vport_stats_s {
 	u32        rsvd;
 };
 
-/**
+/*
  * BFA vport attribute returned in queries
  */
 struct bfa_vport_attr_s {
@@ -305,7 +305,7 @@ struct bfa_vport_attr_s {
 	u32          rsvd;
 };
 
-/**
+/*
  * FCS remote port states
  */
 enum bfa_rport_state {
@@ -321,7 +321,7 @@ enum bfa_rport_state {
 	BFA_RPORT_NSDISC	= 9,	/*  re-discover rport */
 };
 
-/**
+/*
  *  Rport Scsi Function : Initiator/Target.
  */
 enum bfa_rport_function {
@@ -329,7 +329,7 @@ enum bfa_rport_function {
 	BFA_RPORT_TARGET	= 0x02,	/*  SCSI Target	*/
 };
 
-/**
+/*
  * port/node symbolic names for rport
  */
 #define BFA_RPORT_SYMNAME_MAXLEN	255
@@ -337,7 +337,7 @@ struct bfa_rport_symname_s {
 	char            symname[BFA_RPORT_SYMNAME_MAXLEN];
 };
 
-/**
+/*
  * FCS remote port statistics
  */
 struct bfa_rport_stats_s {
@@ -374,7 +374,7 @@ struct bfa_rport_stats_s {
 	struct bfa_rport_hal_stats_s	hal_stats;  /*  BFA rport stats    */
 };
 
-/**
+/*
  * FCS remote port attributes returned in queries
  */
 struct bfa_rport_attr_s {
@@ -411,7 +411,7 @@ struct bfa_rport_remote_link_stats_s {
 #define BFA_MAX_IO_INDEX 7
 #define BFA_NO_IO_INDEX 9
 
-/**
+/*
  * FCS itnim states
  */
 enum bfa_itnim_state {
@@ -425,7 +425,7 @@ enum bfa_itnim_state {
 	BFA_ITNIM_INITIATIOR	= 7,	/*  initiator */
 };
 
-/**
+/*
  * FCS remote port statistics
  */
 struct bfa_itnim_stats_s {
@@ -443,7 +443,7 @@ struct bfa_itnim_stats_s {
 	u32	rsvd;		/* padding for 64 bit alignment */
 };
 
-/**
+/*
  * FCS itnim attributes returned in queries
  */
 struct bfa_itnim_attr_s {

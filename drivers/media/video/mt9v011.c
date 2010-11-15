@@ -11,9 +11,8 @@
 #include <linux/delay.h>
 #include <asm/div64.h>
 #include <media/v4l2-device.h>
-#include "mt9v011.h"
-#include <media/v4l2-i2c-drv.h>
 #include <media/v4l2-chip-ident.h>
+#include "mt9v011.h"
 
 MODULE_DESCRIPTION("Micron mt9v011 sensor driver");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
@@ -624,9 +623,25 @@ static const struct i2c_device_id mt9v011_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mt9v011_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "mt9v011",
-	.probe = mt9v011_probe,
-	.remove = mt9v011_remove,
-	.id_table = mt9v011_id,
+static struct i2c_driver mt9v011_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "mt9v011",
+	},
+	.probe		= mt9v011_probe,
+	.remove		= mt9v011_remove,
+	.id_table	= mt9v011_id,
 };
+
+static __init int init_mt9v011(void)
+{
+	return i2c_add_driver(&mt9v011_driver);
+}
+
+static __exit void exit_mt9v011(void)
+{
+	i2c_del_driver(&mt9v011_driver);
+}
+
+module_init(init_mt9v011);
+module_exit(exit_mt9v011);

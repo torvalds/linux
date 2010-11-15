@@ -110,7 +110,7 @@
 struct udp_table udp_table __read_mostly;
 EXPORT_SYMBOL(udp_table);
 
-int sysctl_udp_mem[3] __read_mostly;
+long sysctl_udp_mem[3] __read_mostly;
 EXPORT_SYMBOL(sysctl_udp_mem);
 
 int sysctl_udp_rmem_min __read_mostly;
@@ -119,7 +119,7 @@ EXPORT_SYMBOL(sysctl_udp_rmem_min);
 int sysctl_udp_wmem_min __read_mostly;
 EXPORT_SYMBOL(sysctl_udp_wmem_min);
 
-atomic_t udp_memory_allocated;
+atomic_long_t udp_memory_allocated;
 EXPORT_SYMBOL(udp_memory_allocated);
 
 #define MAX_UDP_PORTS 65536
@@ -1413,7 +1413,7 @@ int udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		}
 	}
 
-	if (sk->sk_filter) {
+	if (rcu_dereference_raw(sk->sk_filter)) {
 		if (udp_lib_checksum_complete(skb))
 			goto drop;
 	}

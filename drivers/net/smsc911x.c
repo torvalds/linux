@@ -2075,7 +2075,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	} else {
 		/* Try reading mac address from device. if EEPROM is present
 		 * it will already have been set */
-		smsc911x_read_mac_address(dev);
+		smsc_get_mac(dev);
 
 		if (is_valid_ether_addr(dev->dev_addr)) {
 			/* eeprom values are valid  so use them */
@@ -2176,6 +2176,7 @@ static struct platform_driver smsc911x_driver = {
 /* Entry point for loading the module */
 static int __init smsc911x_init_module(void)
 {
+	SMSC_INITIALIZE();
 	return platform_driver_register(&smsc911x_driver);
 }
 

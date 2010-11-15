@@ -3,10 +3,10 @@ TODO:
 	- checkpatch cleanups
 	- kerneldoc cleanups
 	- fix severeCamelCaseInfestation
-	- remove typedefs
 	- remove unused ioctls
 	- use cfg80211 for regulatory stuff
 	- fix 4k stack problems
+	- fix locking problems (it's done using atomics...)
 
 Please send patches to Greg Kroah-Hartman <greg@kroah.com> and
 Pavel Machek <pavel@ucw.cz>

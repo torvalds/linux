@@ -949,7 +949,7 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
 	v[PGPGIN] /= 2;		/* sectors -> kbytes */
 	v[PGPGOUT] /= 2;
 #endif
-	return m->private + *pos;
+	return (unsigned long *)m->private + *pos;
 }
 
 static void *vmstat_next(struct seq_file *m, void *arg, loff_t *pos)

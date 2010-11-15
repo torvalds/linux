@@ -11,11 +11,7 @@
   -T initramfs_data.scr initramfs_data.cpio.gz -o initramfs_data.o
    ld -m elf_i386  -r -o built-in.o initramfs_data.o
 
-  initramfs_data.scr looks like this:
-SECTIONS
-{
-       .init.ramfs : { *(.data) }
-}
+  For including the .init.ramfs sections, see include/asm-generic/vmlinux.lds.
 
   The above example is for i386 - the parameters vary from architectures.
   Eventually look up LDFLAGS_BLOB in an older version of the
@@ -25,6 +21,17 @@ SECTIONS
   in the ELF header, as required by certain architectures.
 */
 
-.section .init.ramfs,"a"
-.incbin "usr/initramfs_data.cpio"
+#include <linux/stringify.h>
 
+.section .init.ramfs,"a"
+__irf_start:
+.incbin __stringify(INITRAMFS_IMAGE)
+__irf_end:
+.section .init.ramfs.info,"a"
+.globl __initramfs_size
+__initramfs_size:
+#ifdef CONFIG_64BIT
+	.quad __irf_end - __irf_start
+#else
+	.long __irf_end - __irf_start
+#endif

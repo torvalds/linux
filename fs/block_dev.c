@@ -464,15 +464,15 @@ static const struct super_operations bdev_sops = {
 	.evict_inode = bdev_evict_inode,
 };
 
-static int bd_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *bd_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_pseudo(fs_type, "bdev:", &bdev_sops, 0x62646576, mnt);
+	return mount_pseudo(fs_type, "bdev:", &bdev_sops, 0x62646576);
 }
 
 static struct file_system_type bd_type = {
 	.name		= "bdev",
-	.get_sb		= bd_get_sb,
+	.mount		= bd_mount,
 	.kill_sb	= kill_anon_super,
 };
 

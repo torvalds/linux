@@ -318,7 +318,7 @@ bfad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	regbuf =  (u32 *)bfad->regdata;
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	for (i = 0; i < len; i++) {
-		*regbuf = bfa_reg_read(reg_addr);
+		*regbuf = readl(reg_addr);
 		regbuf++;
 		reg_addr += sizeof(u32);
 	}
@@ -361,7 +361,7 @@ bfad_debugfs_write_regwr(struct file *file, const char __user *buf,
 
 	reg_addr = (u32 *) ((u8 *) bfa_ioc_bar0(ioc) + addr);
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	bfa_reg_write(reg_addr, val);
+	writel(val, reg_addr);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	return nbytes;

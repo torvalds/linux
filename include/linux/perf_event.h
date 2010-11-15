@@ -747,6 +747,16 @@ struct perf_event {
 	u64				tstamp_running;
 	u64				tstamp_stopped;
 
+	/*
+	 * timestamp shadows the actual context timing but it can
+	 * be safely used in NMI interrupt context. It reflects the
+	 * context time as it was when the event was last scheduled in.
+	 *
+	 * ctx_time already accounts for ctx->timestamp. Therefore to
+	 * compute ctx_time for a sample, simply add perf_clock().
+	 */
+	u64				shadow_ctx_time;
+
 	struct perf_event_attr		attr;
 	struct hw_perf_event		hw;
 

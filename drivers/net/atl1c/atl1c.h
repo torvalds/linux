@@ -631,8 +631,6 @@ struct atl1c_adapter {
 extern char atl1c_driver_name[];
 extern char atl1c_driver_version[];
 
-extern int atl1c_up(struct atl1c_adapter *adapter);
-extern void atl1c_down(struct atl1c_adapter *adapter);
 extern void atl1c_reinit_locked(struct atl1c_adapter *adapter);
 extern s32 atl1c_reset_hw(struct atl1c_hw *hw);
 extern void atl1c_set_ethtool_ops(struct net_device *netdev);

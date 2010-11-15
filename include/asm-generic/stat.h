@@ -33,18 +33,18 @@ struct stat {
 	int		st_blksize;	/* Optimal block size for I/O.  */
 	int		__pad2;
 	long		st_blocks;	/* Number 512-byte blocks allocated. */
-	int		st_atime;	/* Time of last access.  */
-	unsigned int	st_atime_nsec;
-	int		st_mtime;	/* Time of last modification.  */
-	unsigned int	st_mtime_nsec;
-	int		st_ctime;	/* Time of last status change.  */
-	unsigned int	st_ctime_nsec;
+	long		st_atime;	/* Time of last access.  */
+	unsigned long	st_atime_nsec;
+	long		st_mtime;	/* Time of last modification.  */
+	unsigned long	st_mtime_nsec;
+	long		st_ctime;	/* Time of last status change.  */
+	unsigned long	st_ctime_nsec;
 	unsigned int	__unused4;
 	unsigned int	__unused5;
 };
 
-#if __BITS_PER_LONG != 64
 /* This matches struct stat64 in glibc2.1. Only used for 32 bit. */
+#if __BITS_PER_LONG != 64 || defined(__ARCH_WANT_STAT64)
 struct stat64 {
 	unsigned long long st_dev;	/* Device.  */
 	unsigned long long st_ino;	/* File serial number.  */

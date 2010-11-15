@@ -91,11 +91,10 @@ static const struct pcidio_board pcidio_boards[] = {
 /* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
  * upstream. */
 static DEFINE_PCI_DEVICE_TABLE(pcidio_pci_table) = {
-	{
-	PCI_VENDOR_ID_CB, 0x0028, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x0014, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_CB, 0x000b, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0028) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0014) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x000b) },
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, pcidio_pci_table);

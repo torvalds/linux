@@ -1299,7 +1299,6 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 {
 	struct async_struct * info = tty->driver_data;
 	struct async_icount cprev, cnow;	/* kernel counter temps */
-	struct serial_icounter_struct icount;
 	void __user *argp = (void __user *)arg;
 	unsigned long flags;
 

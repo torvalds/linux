@@ -1072,6 +1072,7 @@ ipgre_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 					break;
 				}
 				ipgre_tunnel_unlink(ign, t);
+				synchronize_net();
 				t->parms.iph.saddr = p.iph.saddr;
 				t->parms.iph.daddr = p.iph.daddr;
 				t->parms.i_key = p.i_key;
@@ -1324,7 +1325,6 @@ static void ipgre_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
-	struct ipgre_net *ign = net_generic(dev_net(dev), ipgre_net_id);
 
 	tunnel->dev = dev;
 	strcpy(tunnel->parms.name, dev->name);
@@ -1335,7 +1335,6 @@ static void ipgre_fb_tunnel_init(struct net_device *dev)
 	tunnel->hlen		= sizeof(struct iphdr) + 4;
 
 	dev_hold(dev);
-	rcu_assign_pointer(ign->tunnels_wc[0], tunnel);
 }
 
 
@@ -1382,10 +1381,12 @@ static int __net_init ipgre_init_net(struct net *net)
 	if ((err = register_netdev(ign->fb_tunnel_dev)))
 		goto err_reg_dev;
 
+	rcu_assign_pointer(ign->tunnels_wc[0],
+			   netdev_priv(ign->fb_tunnel_dev));
 	return 0;
 
 err_reg_dev:
-	free_netdev(ign->fb_tunnel_dev);
+	ipgre_dev_free(ign->fb_tunnel_dev);
 err_alloc_dev:
 	return err;
 }

@@ -1496,9 +1496,6 @@ Your cooperation is appreciated.
 		 64 = /dev/radio0	Radio device
 		    ...
 		127 = /dev/radio63	Radio device
-		192 = /dev/vtx0		Teletext device
-		    ...
-		223 = /dev/vtx31	Teletext device
 		224 = /dev/vbi0		Vertical blank interrupt
 		    ...
 		255 = /dev/vbi31	Vertical blank interrupt
@@ -2519,6 +2516,12 @@ Your cooperation is appreciated.
 		  1 = /dev/mmcblk0p1    First partition on first MMC card
 		  8 = /dev/mmcblk1      Second SD/MMC card
 		    ...
+
+		The start of next SD/MMC card can be configured with
+		CONFIG_MMC_BLOCK_MINORS, or overridden at boot/modprobe
+		time using the mmcblk.perdev_minors option. That would
+		bump the offset between each card to be the configured
+		value instead of the default 8.
 
 179 char	CCube DVXChip-based PCI products
 		  0 = /dev/dvxirq0	First DVX device

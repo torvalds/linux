@@ -67,7 +67,7 @@ static struct spi_board_info u300_spi_devices[] = {
 		.bus_num        = 0, /* Only one bus on this chip */
 		.chip_select    = 0,
 		/* Means SPI_CS_HIGH, change if e.g low CS */
-		.mode           = SPI_MODE_1 | SPI_LSB_FIRST | SPI_LOOP,
+		.mode           = SPI_MODE_1 | SPI_LOOP,
 	},
 #endif
 };

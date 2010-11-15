@@ -39,9 +39,8 @@ MODULE_DESCRIPTION("v4l2 driver module for cx25821 based TV cards");
 MODULE_AUTHOR("Hiep Huynh <hiep.huynh@conexant.com>");
 MODULE_LICENSE("GPL");
 
-static int _intr_msk =
-    FLD_AUD_SRC_RISCI1 | FLD_AUD_SRC_OF | FLD_AUD_SRC_SYNC |
-    FLD_AUD_SRC_OPC_ERR;
+static int _intr_msk = FLD_AUD_SRC_RISCI1 | FLD_AUD_SRC_OF |
+			FLD_AUD_SRC_SYNC | FLD_AUD_SRC_OPC_ERR;
 
 int cx25821_sram_channel_setup_upstream_audio(struct cx25821_dev *dev,
 					      struct sram_channel *ch,
@@ -506,7 +505,7 @@ int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 {
 	int i = 0;
 	u32 int_msk_tmp;
-       struct sram_channel *channel = dev->channels[chan_num].sram_channels;
+	struct sram_channel *channel = dev->channels[chan_num].sram_channels;
 	dma_addr_t risc_phys_jump_addr;
 	__le32 *rp;
 
@@ -608,8 +607,7 @@ static irqreturn_t cx25821_upstream_irq_audio(int irq, void *dev_id)
 	if (!dev)
 		return -1;
 
-       sram_ch = dev->channels[dev->_audio_upstream_channel_select].
-				       sram_channels;
+	sram_ch = dev->channels[dev->_audio_upstream_channel_select].sram_channels;
 
 	msk_stat = cx_read(sram_ch->int_mstat);
 	audio_status = cx_read(sram_ch->int_stat);
@@ -733,7 +731,7 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 	}
 
 	dev->_audio_upstream_channel_select = channel_select;
-       sram_ch = dev->channels[channel_select].sram_channels;
+	sram_ch = dev->channels[channel_select].sram_channels;
 
 	/* Work queue */
 	INIT_WORK(&dev->_audio_work_entry, cx25821_audioups_handler);
@@ -764,9 +762,8 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 		       str_length + 1);
 
 		/* Default if filename is empty string */
-		if (strcmp(dev->input_audiofilename, "") == 0) {
+		if (strcmp(dev->input_audiofilename, "") == 0)
 			dev->_audiofilename = "/root/audioGOOD.wav";
-		}
 	} else {
 		str_length = strlen(_defaultAudioName);
 		dev->_audiofilename = kmalloc(str_length + 1, GFP_KERNEL);

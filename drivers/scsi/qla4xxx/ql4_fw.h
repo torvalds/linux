@@ -416,6 +416,8 @@ struct qla_flt_region {
 #define MBOX_ASTS_IPV6_ND_PREFIX_IGNORED	0x802C
 #define MBOX_ASTS_IPV6_LCL_PREFIX_IGNORED	0x802D
 #define MBOX_ASTS_ICMPV6_ERROR_MSG_RCVD		0x802E
+#define MBOX_ASTS_TXSCVR_INSERTED		0x8130
+#define MBOX_ASTS_TXSCVR_REMOVED		0x8131
 
 #define ISNS_EVENT_DATA_RECEIVED		0x0000
 #define ISNS_EVENT_CONNECTION_OPENED		0x0001
@@ -446,6 +448,7 @@ struct addr_ctrl_blk {
 #define	 FWOPT_SESSION_MODE		  0x0040
 #define	 FWOPT_INITIATOR_MODE		  0x0020
 #define	 FWOPT_TARGET_MODE		  0x0010
+#define	 FWOPT_ENABLE_CRBDB		  0x8000
 
 	uint16_t exec_throttle;	/* 04-05 */
 	uint8_t zio_count;	/* 06 */

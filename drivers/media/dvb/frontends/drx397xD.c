@@ -232,7 +232,7 @@ static int write_fw(struct drx397xD_state *s, enum blob_ix ix)
 exit_rc:
 	read_unlock(&fw[s->chip_rev].lock);
 
-	return 0;
+	return rc;
 }
 
 /* Function is not endian safe, use the RD16 wrapper below */

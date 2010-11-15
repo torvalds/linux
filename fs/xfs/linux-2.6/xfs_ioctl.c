@@ -416,7 +416,7 @@ xfs_attrlist_by_handle(
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	kbuf = kmalloc(al_hreq.buflen, GFP_KERNEL);
+	kbuf = kzalloc(al_hreq.buflen, GFP_KERNEL);
 	if (!kbuf)
 		goto out_dput;
 

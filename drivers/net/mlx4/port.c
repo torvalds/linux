@@ -111,6 +111,12 @@ int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *index)
 			goto out;
 		}
 	}
+
+	if (free < 0) {
+		err = -ENOMEM;
+		goto out;
+	}
+
 	mlx4_dbg(dev, "Free MAC index is %d\n", free);
 
 	if (table->total == table->max) {
@@ -222,6 +228,11 @@ int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index)
 			++table->refs[i];
 			goto out;
 		}
+	}
+
+	if (free < 0) {
+		err = -ENOMEM;
+		goto out;
 	}
 
 	if (table->total == table->max) {

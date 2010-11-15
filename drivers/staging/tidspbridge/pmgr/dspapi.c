@@ -28,9 +28,7 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/ntfy.h>
-#include <dspbridge/services.h>
 
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/chnl.h>
@@ -381,8 +379,8 @@ int api_init_complete2(void)
 	int status = 0;
 	struct cfg_devnode *dev_node;
 	struct dev_object *hdev_obj;
+	struct drv_data *drv_datap;
 	u8 dev_type;
-	u32 tmp;
 
 	DBC_REQUIRE(api_c_refs > 0);
 
@@ -397,10 +395,12 @@ int api_init_complete2(void)
 		if (dev_get_dev_type(hdev_obj, &dev_type))
 			continue;
 
-		if ((dev_type == DSP_UNIT) || (dev_type == IVA_UNIT))
-			if (cfg_get_auto_start(dev_node, &tmp) == 0
-									&& tmp)
+		if ((dev_type == DSP_UNIT) || (dev_type == IVA_UNIT)) {
+			drv_datap = dev_get_drvdata(bridge);
+
+			if (drv_datap && drv_datap->base_img)
 				proc_auto_start(dev_node, hdev_obj);
+		}
 	}
 
 	return status;
@@ -493,8 +493,10 @@ u32 mgrwrap_register_object(union trapped_args *args, void *pr_ctxt)
 				args->args_mgr_registerobject.psz_path_name) +
 	    1;
 	psz_path_name = kmalloc(path_size, GFP_KERNEL);
-	if (!psz_path_name)
+	if (!psz_path_name) {
+		status = -ENOMEM;
 		goto func_end;
+	}
 	ret = strncpy_from_user(psz_path_name,
 				(char *)args->args_mgr_registerobject.
 				psz_path_name, path_size);
@@ -503,8 +505,10 @@ u32 mgrwrap_register_object(union trapped_args *args, void *pr_ctxt)
 		goto func_end;
 	}
 
-	if (args->args_mgr_registerobject.obj_type >= DSP_DCDMAXOBJTYPE)
-		return -EINVAL;
+	if (args->args_mgr_registerobject.obj_type >= DSP_DCDMAXOBJTYPE) {
+		status = -EINVAL;
+		goto func_end;
+	}
 
 	status = dcd_register_object(&uuid_obj,
 				     args->args_mgr_registerobject.obj_type,
@@ -872,7 +876,11 @@ u32 procwrap_load(union trapped_args *args, void *pr_ctxt)
 		/* number of elements in the envp array including NULL */
 		count = 0;
 		do {
-			get_user(temp, args->args_proc_load.user_envp + count);
+			if (get_user(temp,
+				     args->args_proc_load.user_envp + count)) {
+				status = -EFAULT;
+				goto func_cont;
+			}
 			count++;
 		} while (temp);
 		envp = kmalloc(count * sizeof(u8 *), GFP_KERNEL);

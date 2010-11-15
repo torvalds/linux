@@ -60,6 +60,7 @@ enum rc_driver_type {
  * @s_idle: optional: enable/disable hardware idle mode, upon which,
 	device doesn't interrupt host until it sees IR pulses
  * @s_learning_mode: enable wide band receiver used for learning
+ * @s_carrier_report: enable carrier reports
  */
 struct ir_dev_props {
 	enum rc_driver_type	driver_type;
@@ -82,8 +83,9 @@ struct ir_dev_props {
 	int			(*s_tx_duty_cycle)(void *priv, u32 duty_cycle);
 	int			(*s_rx_carrier_range)(void *priv, u32 min, u32 max);
 	int			(*tx_ir)(void *priv, int *txbuf, u32 n);
-	void			(*s_idle)(void *priv, int enable);
+	void			(*s_idle)(void *priv, bool enable);
 	int			(*s_learning_mode)(void *priv, int enable);
+	int			(*s_carrier_report) (void *priv, int enable);
 };
 
 struct ir_input_dev {
@@ -157,27 +159,54 @@ void ir_input_unregister(struct input_dev *input_dev);
 
 void ir_repeat(struct input_dev *dev);
 void ir_keydown(struct input_dev *dev, int scancode, u8 toggle);
+void ir_keyup(struct ir_input_dev *ir);
 u32 ir_g_keycode_from_table(struct input_dev *input_dev, u32 scancode);
 
 /* From ir-raw-event.c */
 
 struct ir_raw_event {
-	unsigned                        pulse:1;
-	unsigned                        duration:31;
+	union {
+		u32             duration;
+
+		struct {
+			u32     carrier;
+			u8      duty_cycle;
+		};
+	};
+
+	unsigned                pulse:1;
+	unsigned                reset:1;
+	unsigned                timeout:1;
+	unsigned                carrier_report:1;
 };
 
-#define IR_MAX_DURATION                 0x7FFFFFFF      /* a bit more than 2 seconds */
+#define DEFINE_IR_RAW_EVENT(event) \
+	struct ir_raw_event event = { \
+		{ .duration = 0 } , \
+		.pulse = 0, \
+		.reset = 0, \
+		.timeout = 0, \
+		.carrier_report = 0 }
+
+static inline void init_ir_raw_event(struct ir_raw_event *ev)
+{
+	memset(ev, 0, sizeof(*ev));
+}
+
+#define IR_MAX_DURATION         0xFFFFFFFF      /* a bit more than 4 seconds */
 
 void ir_raw_event_handle(struct input_dev *input_dev);
 int ir_raw_event_store(struct input_dev *input_dev, struct ir_raw_event *ev);
 int ir_raw_event_store_edge(struct input_dev *input_dev, enum raw_event_type type);
 int ir_raw_event_store_with_filter(struct input_dev *input_dev,
 				struct ir_raw_event *ev);
-void ir_raw_event_set_idle(struct input_dev *input_dev, int idle);
+void ir_raw_event_set_idle(struct input_dev *input_dev, bool idle);
 
 static inline void ir_raw_event_reset(struct input_dev *input_dev)
 {
-	struct ir_raw_event ev = { .pulse = false, .duration = 0 };
+	DEFINE_IR_RAW_EVENT(ev);
+	ev.reset = true;
+
 	ir_raw_event_store(input_dev, &ev);
 	ir_raw_event_handle(input_dev);
 }

@@ -44,10 +44,10 @@
 /*
  * These will never work in 32-bit, don't even bother.
  */
-#define P1SEGADDR(a)	__futile_remapping_attempt
-#define P2SEGADDR(a)	__futile_remapping_attempt
-#define P3SEGADDR(a)	__futile_remapping_attempt
-#define P4SEGADDR(a)	__futile_remapping_attempt
+#define P1SEGADDR(a)	({ (void)(a); BUG(); NULL; })
+#define P2SEGADDR(a)	({ (void)(a); BUG(); NULL; })
+#define P3SEGADDR(a)	({ (void)(a); BUG(); NULL; })
+#define P4SEGADDR(a)	({ (void)(a); BUG(); NULL; })
 #endif
 #endif /* P1SEG */
 

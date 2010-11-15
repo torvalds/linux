@@ -24,7 +24,7 @@
 #define BFA_MFG_SERIALNUM_SIZE                  11
 #define STRSZ(_n)                               (((_n) + 4) & ~3)
 
-/**
+/*
  * Manufacturing card type
  */
 enum {
@@ -45,7 +45,7 @@ enum {
 
 #pragma pack(1)
 
-/**
+/*
  * Check if Mezz card
  */
 #define bfa_mfg_is_mezz(type) (( \
@@ -55,7 +55,7 @@ enum {
 	(type) == BFA_MFG_TYPE_LIGHTNING_P0 || \
 	(type) == BFA_MFG_TYPE_LIGHTNING))
 
-/**
+/*
  * Check if the card having old wwn/mac handling
  */
 #define bfa_mfg_is_old_wwn_mac_model(type) (( \
@@ -78,12 +78,12 @@ do {                                                            \
 	(m)[2] = t & 0xFF;                                      \
 } while (0)
 
-/**
+/*
  * VPD data length
  */
 #define BFA_MFG_VPD_LEN                 512
 
-/**
+/*
  * VPD vendor tag
  */
 enum {
@@ -97,7 +97,7 @@ enum {
 	BFA_MFG_VPD_PCI_BRCD    = 0xf8,  /*  PCI VPD Brocade            */
 };
 
-/**
+/*
  * All numerical fields are in big-endian format.
  */
 struct bfa_mfg_vpd_s {
@@ -112,7 +112,7 @@ struct bfa_mfg_vpd_s {
 
 #pragma pack()
 
-/**
+/*
  * Status return values
  */
 enum bfa_status {
@@ -167,11 +167,11 @@ enum bfa_boolean {
 #define BFA_STRING_32	32
 #define BFA_VERSION_LEN 64
 
-/**
+/*
  * ---------------------- adapter definitions ------------
  */
 
-/**
+/*
  * BFA adapter level attributes.
  */
 enum {
@@ -215,7 +215,7 @@ struct bfa_adapter_attr_s {
 	u8		trunk_capable;
 };
 
-/**
+/*
  * ---------------------- IOC definitions ------------
  */
 
@@ -224,7 +224,7 @@ enum {
 	BFA_IOC_CHIP_REV_LEN	= 8,
 };
 
-/**
+/*
  * Driver and firmware versions.
  */
 struct bfa_ioc_driver_attr_s {
@@ -236,7 +236,7 @@ struct bfa_ioc_driver_attr_s {
 	char		ob_ver[BFA_VERSION_LEN];	/*  openboot version */
 };
 
-/**
+/*
  * IOC PCI device attributes
  */
 struct bfa_ioc_pci_attr_s {
@@ -249,7 +249,7 @@ struct bfa_ioc_pci_attr_s {
 	char		chip_rev[BFA_IOC_CHIP_REV_LEN];	 /*  chip revision */
 };
 
-/**
+/*
  * IOC states
  */
 enum bfa_ioc_state {
@@ -267,7 +267,7 @@ enum bfa_ioc_state {
 	BFA_IOC_ENABLING	= 12,	/*  IOC is being enabled */
 };
 
-/**
+/*
  * IOC firmware stats
  */
 struct bfa_fw_ioc_stats_s {
@@ -279,7 +279,7 @@ struct bfa_fw_ioc_stats_s {
 	u32	unknown_reqs;
 };
 
-/**
+/*
  * IOC driver stats
  */
 struct bfa_ioc_drv_stats_s {
@@ -296,7 +296,7 @@ struct bfa_ioc_drv_stats_s {
 	u32	enable_replies;
 };
 
-/**
+/*
  * IOC statistics
  */
 struct bfa_ioc_stats_s {
@@ -310,7 +310,7 @@ enum bfa_ioc_type_e {
 	BFA_IOC_TYPE_LL		= 3,
 };
 
-/**
+/*
  * IOC attributes returned in queries
  */
 struct bfa_ioc_attr_s {
@@ -323,11 +323,11 @@ struct bfa_ioc_attr_s {
 	u8				rsvd[7];	/*  64bit align    */
 };
 
-/**
+/*
  * ---------------------- mfg definitions ------------
  */
 
-/**
+/*
  * Checksum size
  */
 #define BFA_MFG_CHKSUM_SIZE			16
@@ -340,7 +340,7 @@ struct bfa_ioc_attr_s {
 
 #pragma pack(1)
 
-/**
+/*
  * All numerical fields are in big-endian format.
  */
 struct bfa_mfg_block_s {
@@ -373,11 +373,11 @@ struct bfa_mfg_block_s {
 
 #pragma pack()
 
-/**
+/*
  * ---------------------- pci definitions ------------
  */
 
-/**
+/*
  * PCI device and vendor ID information
  */
 enum {
@@ -392,14 +392,14 @@ enum {
 	((devid) == BFA_PCI_DEVICE_ID_CT ||	\
 	 (devid) == BFA_PCI_DEVICE_ID_CT_FC)
 
-/**
+/*
  * PCI sub-system device and vendor ID information
  */
 enum {
 	BFA_PCI_FCOE_SSDEVICE_ID	= 0x14,
 };
 
-/**
+/*
  * Maximum number of device address ranges mapped through different BAR(s)
  */
 #define BFA_PCI_ACCESS_RANGES 1
@@ -430,7 +430,7 @@ enum {
 #define BOOT_CFG_REV1   1
 #define BOOT_CFG_VLAN   1
 
-/**
+/*
  *      Boot options setting. Boot options setting determines from where
  *      to get the boot lun information
  */
@@ -442,7 +442,7 @@ enum bfa_boot_bootopt {
 };
 
 #pragma pack(1)
-/**
+/*
  * Boot lun information.
  */
 struct bfa_boot_bootlun_s {
@@ -451,7 +451,7 @@ struct bfa_boot_bootlun_s {
 };
 #pragma pack()
 
-/**
+/*
  * BOOT boot configuraton
  */
 struct bfa_boot_pbc_s {

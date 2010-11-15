@@ -75,7 +75,7 @@ static int jdvbt90502_single_reg_write(struct jdvbt90502_state *state,
 	return 0;
 }
 
-static int _jdvbt90502_write(struct dvb_frontend *fe, u8 *buf, int len)
+static int _jdvbt90502_write(struct dvb_frontend *fe, const u8 buf[], int len)
 {
 	struct jdvbt90502_state *state = fe->demodulator_priv;
 	int err, i;

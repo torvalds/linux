@@ -625,6 +625,8 @@ static short create_adapter_obj(struct hpi_adapter_obj *pao,
 			control_cache_size, (struct hpi_control_cache_info *)
 			&phw->control_cache[0]
 			);
+		if (!phw->p_cache)
+			pao->has_control_cache = 0;
 	} else
 		pao->has_control_cache = 0;
 

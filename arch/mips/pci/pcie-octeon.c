@@ -75,6 +75,8 @@ union cvmx_pcie_address {
 	} mem;
 };
 
+#include <dma-coherence.h>
+
 /**
  * Return the Core virtual base address for PCIe IO access. IOs are
  * read/written as an offset from this address.
@@ -1391,6 +1393,9 @@ static int __init octeon_pcie_setup(void)
 			cvmx_pcie_get_io_size(1) - 1;
 		register_pci_controller(&octeon_pcie1_controller);
 	}
+
+	octeon_pci_dma_init();
+
 	return 0;
 }
 

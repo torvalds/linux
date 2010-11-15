@@ -65,7 +65,7 @@ struct stv0299_config
 	 * First of each pair is the register, second is the value.
 	 * List should be terminated with an 0xff, 0xff pair.
 	 */
-	u8* inittab;
+	const u8* inittab;
 
 	/* master clock to use */
 	u32 mclk;

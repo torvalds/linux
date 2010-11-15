@@ -138,13 +138,6 @@ static int __init pasic3_probe(struct platform_device *pdev)
 		irq = r->start;
 	}
 
-	r = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (r) {
-		ds1wm_resources[1].flags = IORESOURCE_IRQ | (r->flags &
-			(IORESOURCE_IRQ_HIGHEDGE | IORESOURCE_IRQ_LOWEDGE));
-		irq = r->start;
-	}
-
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r)
 		return -ENXIO;

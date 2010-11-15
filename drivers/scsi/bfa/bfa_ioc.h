@@ -22,29 +22,29 @@
 #include "bfa_cs.h"
 #include "bfi.h"
 
-/**
+/*
  * BFA timer declarations
  */
 typedef void (*bfa_timer_cbfn_t)(void *);
 
-/**
+/*
  * BFA timer data structure
  */
 struct bfa_timer_s {
 	struct list_head	qe;
 	bfa_timer_cbfn_t timercb;
 	void		*arg;
-	int		timeout;	/**< in millisecs. */
+	int		timeout;	/* in millisecs */
 };
 
-/**
+/*
  * Timer module structure
  */
 struct bfa_timer_mod_s {
 	struct list_head timer_q;
 };
 
-#define BFA_TIMER_FREQ 200 /**< specified in millisecs */
+#define BFA_TIMER_FREQ 200 /* specified in millisecs */
 
 void bfa_timer_beat(struct bfa_timer_mod_s *mod);
 void bfa_timer_init(struct bfa_timer_mod_s *mod);
@@ -53,7 +53,7 @@ void bfa_timer_begin(struct bfa_timer_mod_s *mod, struct bfa_timer_s *timer,
 			unsigned int timeout);
 void bfa_timer_stop(struct bfa_timer_s *timer);
 
-/**
+/*
  * Generic Scatter Gather Element used by driver
  */
 struct bfa_sge_s {
@@ -62,9 +62,9 @@ struct bfa_sge_s {
 };
 
 #define bfa_sge_word_swap(__sge) do {					     \
-	((u32 *)(__sge))[0] = bfa_os_swap32(((u32 *)(__sge))[0]);      \
-	((u32 *)(__sge))[1] = bfa_os_swap32(((u32 *)(__sge))[1]);      \
-	((u32 *)(__sge))[2] = bfa_os_swap32(((u32 *)(__sge))[2]);      \
+	((u32 *)(__sge))[0] = swab32(((u32 *)(__sge))[0]);      \
+	((u32 *)(__sge))[1] = swab32(((u32 *)(__sge))[1]);      \
+	((u32 *)(__sge))[2] = swab32(((u32 *)(__sge))[2]);      \
 } while (0)
 
 #define bfa_swap_words(_x)  (	\
@@ -80,17 +80,17 @@ struct bfa_sge_s {
 #define bfa_sgaddr_le(_x)	(_x)
 #endif
 
-/**
+/*
  * PCI device information required by IOC
  */
 struct bfa_pcidev_s {
 	int		pci_slot;
 	u8		pci_func;
-	u16	device_id;
-	bfa_os_addr_t   pci_bar_kva;
+	u16		device_id;
+	void __iomem	*pci_bar_kva;
 };
 
-/**
+/*
  * Structure used to remember the DMA-able memory block's KVA and Physical
  * Address
  */
@@ -102,7 +102,7 @@ struct bfa_dma_s {
 #define BFA_DMA_ALIGN_SZ	256
 #define BFA_ROUNDUP(_l, _s)	(((_l) + ((_s) - 1)) & ~((_s) - 1))
 
-/**
+/*
  * smem size for Crossbow and Catapult
  */
 #define BFI_SMEM_CB_SIZE	0x200000U	/* ! 2MB for crossbow	*/
@@ -125,40 +125,38 @@ __bfa_dma_addr_set(union bfi_addr_u *dma_addr, u64 pa)
 static inline void
 __bfa_dma_be_addr_set(union bfi_addr_u *dma_addr, u64 pa)
 {
-	dma_addr->a32.addr_lo = (u32) bfa_os_htonl(pa);
-	dma_addr->a32.addr_hi = (u32) bfa_os_htonl(bfa_os_u32(pa));
+	dma_addr->a32.addr_lo = (u32) cpu_to_be32(pa);
+	dma_addr->a32.addr_hi = (u32) cpu_to_be32(bfa_os_u32(pa));
 }
 
 struct bfa_ioc_regs_s {
-	bfa_os_addr_t   hfn_mbox_cmd;
-	bfa_os_addr_t   hfn_mbox;
-	bfa_os_addr_t   lpu_mbox_cmd;
-	bfa_os_addr_t   lpu_mbox;
-	bfa_os_addr_t   pss_ctl_reg;
-	bfa_os_addr_t   pss_err_status_reg;
-	bfa_os_addr_t   app_pll_fast_ctl_reg;
-	bfa_os_addr_t   app_pll_slow_ctl_reg;
-	bfa_os_addr_t   ioc_sem_reg;
-	bfa_os_addr_t   ioc_usage_sem_reg;
-	bfa_os_addr_t   ioc_init_sem_reg;
-	bfa_os_addr_t   ioc_usage_reg;
-	bfa_os_addr_t   host_page_num_fn;
-	bfa_os_addr_t   heartbeat;
-	bfa_os_addr_t   ioc_fwstate;
-	bfa_os_addr_t   ll_halt;
-	bfa_os_addr_t   err_set;
-	bfa_os_addr_t   shirq_isr_next;
-	bfa_os_addr_t   shirq_msk_next;
-	bfa_os_addr_t   smem_page_start;
+	void __iomem *hfn_mbox_cmd;
+	void __iomem *hfn_mbox;
+	void __iomem *lpu_mbox_cmd;
+	void __iomem *lpu_mbox;
+	void __iomem *pss_ctl_reg;
+	void __iomem *pss_err_status_reg;
+	void __iomem *app_pll_fast_ctl_reg;
+	void __iomem *app_pll_slow_ctl_reg;
+	void __iomem *ioc_sem_reg;
+	void __iomem *ioc_usage_sem_reg;
+	void __iomem *ioc_init_sem_reg;
+	void __iomem *ioc_usage_reg;
+	void __iomem *host_page_num_fn;
+	void __iomem *heartbeat;
+	void __iomem *ioc_fwstate;
+	void __iomem *ll_halt;
+	void __iomem *err_set;
+	void __iomem *shirq_isr_next;
+	void __iomem *shirq_msk_next;
+	void __iomem *smem_page_start;
 	u32	smem_pg0;
 };
 
-#define bfa_reg_read(_raddr)	bfa_os_reg_read(_raddr)
-#define bfa_reg_write(_raddr, _val)	bfa_os_reg_write(_raddr, _val)
-#define bfa_mem_read(_raddr, _off)	bfa_os_mem_read(_raddr, _off)
+#define bfa_mem_read(_raddr, _off)	swab32(readl(((_raddr) + (_off))))
 #define bfa_mem_write(_raddr, _off, _val)	\
-					bfa_os_mem_write(_raddr, _off, _val)
-/**
+			writel(swab32((_val)), ((_raddr) + (_off)))
+/*
  * IOC Mailbox structures
  */
 struct bfa_mbox_cmd_s {
@@ -166,7 +164,7 @@ struct bfa_mbox_cmd_s {
 	u32	msg[BFI_IOC_MSGSZ];
 };
 
-/**
+/*
  * IOC mailbox module
  */
 typedef void (*bfa_ioc_mbox_mcfunc_t)(void *cbarg, struct bfi_mbmsg_s *m);
@@ -179,7 +177,7 @@ struct bfa_ioc_mbox_mod_s {
 	} mbhdlr[BFI_MC_MAX];
 };
 
-/**
+/*
  * IOC callback function interfaces
  */
 typedef void (*bfa_ioc_enable_cbfn_t)(void *bfa, enum bfa_status status);
@@ -193,7 +191,7 @@ struct bfa_ioc_cbfn_s {
 	bfa_ioc_reset_cbfn_t	reset_cbfn;
 };
 
-/**
+/*
  * Heartbeat failure notification queue element.
  */
 struct bfa_ioc_hbfail_notify_s {
@@ -202,7 +200,7 @@ struct bfa_ioc_hbfail_notify_s {
 	void			*cbarg;
 };
 
-/**
+/*
  * Initialize a heartbeat failure notification structure
  */
 #define bfa_ioc_hbfail_init(__notify, __cbfn, __cbarg) do {	\
@@ -249,7 +247,7 @@ struct bfa_ioc_s {
 };
 
 struct bfa_ioc_hwif_s {
-	bfa_status_t (*ioc_pll_init) (bfa_os_addr_t rb, bfa_boolean_t fcmode);
+	bfa_status_t (*ioc_pll_init) (void __iomem *rb, bfa_boolean_t fcmode);
 	bfa_boolean_t	(*ioc_firmware_lock)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_firmware_unlock)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_reg_init)	(struct bfa_ioc_s *ioc);
@@ -267,7 +265,7 @@ struct bfa_ioc_hwif_s {
 #define bfa_ioc_fetch_stats(__ioc, __stats) \
 		(((__stats)->drv_stats) = (__ioc)->stats)
 #define bfa_ioc_clr_stats(__ioc)	\
-		bfa_os_memset(&(__ioc)->stats, 0, sizeof((__ioc)->stats))
+		memset(&(__ioc)->stats, 0, sizeof((__ioc)->stats))
 #define bfa_ioc_maxfrsize(__ioc)	((__ioc)->attr->maxfrsize)
 #define bfa_ioc_rx_bbcredit(__ioc)	((__ioc)->attr->rx_bbcredit)
 #define bfa_ioc_speed_sup(__ioc)	\
@@ -287,7 +285,7 @@ struct bfa_ioc_hwif_s {
 #define BFA_IOC_FLASH_OFFSET_IN_CHUNK(off)	(off % BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_CHUNK_ADDR(chunkno)  (chunkno * BFI_FLASH_CHUNK_SZ_WORDS)
 
-/**
+/*
  * IOC mailbox interface
  */
 void bfa_ioc_mbox_queue(struct bfa_ioc_s *ioc, struct bfa_mbox_cmd_s *cmd);
@@ -299,7 +297,7 @@ void bfa_ioc_msgget(struct bfa_ioc_s *ioc, void *mbmsg);
 void bfa_ioc_mbox_regisr(struct bfa_ioc_s *ioc, enum bfi_mclass mc,
 		bfa_ioc_mbox_mcfunc_t cbfn, void *cbarg);
 
-/**
+/*
  * IOC interfaces
  */
 
@@ -308,9 +306,9 @@ void bfa_ioc_mbox_regisr(struct bfa_ioc_s *ioc, enum bfi_mclass mc,
 			   (__ioc)->fcmode))
 
 bfa_status_t bfa_ioc_pll_init(struct bfa_ioc_s *ioc);
-bfa_status_t bfa_ioc_cb_pll_init(bfa_os_addr_t rb, bfa_boolean_t fcmode);
-bfa_boolean_t bfa_ioc_ct_pll_init_complete(bfa_os_addr_t rb);
-bfa_status_t bfa_ioc_ct_pll_init(bfa_os_addr_t rb, bfa_boolean_t fcmode);
+bfa_status_t bfa_ioc_cb_pll_init(void __iomem *rb, bfa_boolean_t fcmode);
+bfa_boolean_t bfa_ioc_ct_pll_init_complete(void __iomem *rb);
+bfa_status_t bfa_ioc_ct_pll_init(void __iomem *rb, bfa_boolean_t fcmode);
 
 #define	bfa_ioc_isr_mode_set(__ioc, __msix)			\
 			((__ioc)->ioc_hwif->ioc_isr_mode_set(__ioc, __msix))
@@ -370,8 +368,8 @@ void bfa_ioc_set_fcmode(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_get_fcmode(struct bfa_ioc_s *ioc);
 void bfa_ioc_hbfail_register(struct bfa_ioc_s *ioc,
 	struct bfa_ioc_hbfail_notify_s *notify);
-bfa_boolean_t bfa_ioc_sem_get(bfa_os_addr_t sem_reg);
-void bfa_ioc_sem_release(bfa_os_addr_t sem_reg);
+bfa_boolean_t bfa_ioc_sem_get(void __iomem *sem_reg);
+void bfa_ioc_sem_release(void __iomem *sem_reg);
 void bfa_ioc_hw_sem_release(struct bfa_ioc_s *ioc);
 void bfa_ioc_fwver_get(struct bfa_ioc_s *ioc,
 			struct bfi_ioc_image_hdr_s *fwhdr);
@@ -441,7 +439,7 @@ bfa_cb_image_get_size(int type)
 	}
 }
 
-/**
+/*
  * CNA TRCMOD declaration
  */
 /*

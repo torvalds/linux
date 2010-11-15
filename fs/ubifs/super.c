@@ -2038,8 +2038,8 @@ static int sb_test(struct super_block *sb, void *data)
 	return c->vi.cdev == *dev;
 }
 
-static int ubifs_get_sb(struct file_system_type *fs_type, int flags,
-			const char *name, void *data, struct vfsmount *mnt)
+static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
+			const char *name, void *data)
 {
 	struct ubi_volume_desc *ubi;
 	struct ubi_volume_info vi;
@@ -2057,7 +2057,7 @@ static int ubifs_get_sb(struct file_system_type *fs_type, int flags,
 	if (IS_ERR(ubi)) {
 		dbg_err("cannot open \"%s\", error %d",
 			name, (int)PTR_ERR(ubi));
-		return PTR_ERR(ubi);
+		return ERR_CAST(ubi);
 	}
 	ubi_get_volume_info(ubi, &vi);
 
@@ -2095,20 +2095,19 @@ static int ubifs_get_sb(struct file_system_type *fs_type, int flags,
 	/* 'fill_super()' opens ubi again so we must close it here */
 	ubi_close_volume(ubi);
 
-	simple_set_mnt(mnt, sb);
-	return 0;
+	return dget(sb->s_root);
 
 out_deact:
 	deactivate_locked_super(sb);
 out_close:
 	ubi_close_volume(ubi);
-	return err;
+	return ERR_PTR(err);
 }
 
 static struct file_system_type ubifs_fs_type = {
 	.name    = "ubifs",
 	.owner   = THIS_MODULE,
-	.get_sb  = ubifs_get_sb,
+	.mount   = ubifs_mount,
 	.kill_sb = kill_anon_super,
 };
 

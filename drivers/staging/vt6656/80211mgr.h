@@ -66,9 +66,9 @@
 #define WLAN_EID_RSN_WPA        221
 
 #ifdef Cisco_ccx
-#define WLAN_EID_CCX        133            //DavidWang
-#define WLAN_EID_CCX_IP        149            //DavidWang
-#define WLAN_EID_CCX_Ver        221            //DavidWang
+#define WLAN_EID_CCX        133
+#define WLAN_EID_CCX_IP        149
+#define WLAN_EID_CCX_Ver        221
 #endif
 
 #define WLAN_EID_ERP_NONERP_PRESENT             0x01
@@ -348,7 +348,7 @@ typedef struct tagWLAN_IE_RSN {
     BYTE   abyRSN[WLAN_MIN_ARRAY];
 } WLAN_IE_RSN, *PWLAN_IE_RSN;
 
-//DavidWang
+
 // CCX Identity DavidWang
 #pragma pack(1)
 typedef struct tagWLAN_IE_CCX {
@@ -371,7 +371,7 @@ BYTE   len;
 BYTE   abyCCXVer[5];
 } WLAN_IE_CCX_Ver, *PWLAN_IE_CCX_Ver;
 
-//DavidWang
+
 
 // ERP
 #pragma pack(1)

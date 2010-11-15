@@ -48,7 +48,7 @@ static struct clk r_clk = {
  * Default rate for the root input clock, reset this with clk_set_rate()
  * from the platform code.
  */
-struct clk extal_clk = {
+static struct clk extal_clk = {
 	.rate		= 33333333,
 };
 
@@ -111,7 +111,7 @@ static struct clk div3_clk = {
 	.parent		= &pll_clk,
 };
 
-struct clk *main_clks[] = {
+static struct clk *main_clks[] = {
 	&r_clk,
 	&extal_clk,
 	&fll_clk,
@@ -156,7 +156,7 @@ struct clk div4_clks[DIV4_NR] = {
 
 enum { DIV6_V, DIV6_FA, DIV6_FB, DIV6_I, DIV6_S, DIV6_NR };
 
-struct clk div6_clks[DIV6_NR] = {
+static struct clk div6_clks[DIV6_NR] = {
 	[DIV6_V] = SH_CLK_DIV6(&div3_clk, VCLKCR, 0),
 	[DIV6_FA] = SH_CLK_DIV6(&div3_clk, FCLKACR, 0),
 	[DIV6_FB] = SH_CLK_DIV6(&div3_clk, FCLKBCR, 0),

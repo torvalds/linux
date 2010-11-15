@@ -403,7 +403,7 @@ static int link_start(struct net_device *dev)
 	 * that step explicitly.
 	 */
 	ret = t4_set_rxmode(pi->adapter, mb, pi->viid, dev->mtu, -1, -1, -1,
-			    pi->vlan_grp != NULL, true);
+			    !!(dev->features & NETIF_F_HW_VLAN_RX), true);
 	if (ret == 0) {
 		ret = t4_change_mac(pi->adapter, mb, pi->viid,
 				    pi->xact_addr_filt, dev->dev_addr, true,
@@ -1881,7 +1881,24 @@ static int set_tso(struct net_device *dev, u32 value)
 
 static int set_flags(struct net_device *dev, u32 flags)
 {
-	return ethtool_op_set_flags(dev, flags, ETH_FLAG_RXHASH);
+	int err;
+	unsigned long old_feat = dev->features;
+
+	err = ethtool_op_set_flags(dev, flags, ETH_FLAG_RXHASH |
+				   ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN);
+	if (err)
+		return err;
+
+	if ((old_feat ^ dev->features) & NETIF_F_HW_VLAN_RX) {
+		const struct port_info *pi = netdev_priv(dev);
+
+		err = t4_set_rxmode(pi->adapter, pi->adapter->fn, pi->viid, -1,
+				    -1, -1, -1, !!(flags & ETH_FLAG_RXVLAN),
+				    true);
+		if (err)
+			dev->features = old_feat;
+	}
+	return err;
 }
 
 static int get_rss_table(struct net_device *dev, struct ethtool_rxfh_indir *p)
@@ -2842,15 +2859,6 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 	return 0;
 }
 
-static void vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
-{
-	struct port_info *pi = netdev_priv(dev);
-
-	pi->vlan_grp = grp;
-	t4_set_rxmode(pi->adapter, pi->adapter->fn, pi->viid, -1, -1, -1, -1,
-		      grp != NULL, true);
-}
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void cxgb_netpoll(struct net_device *dev)
 {
@@ -2878,7 +2886,6 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 	.ndo_validate_addr    = eth_validate_addr,
 	.ndo_do_ioctl         = cxgb_ioctl,
 	.ndo_change_mtu       = cxgb_change_mtu,
-	.ndo_vlan_rx_register = vlan_rx_register,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller  = cxgb_netpoll,
 #endif
@@ -3658,7 +3665,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 		pi->rx_offload = RX_CSO;
 		pi->port_id = i;
 		netif_carrier_off(netdev);
-		netif_tx_stop_all_queues(netdev);
 		netdev->irq = pdev->irq;
 
 		netdev->features |= NETIF_F_SG | TSO_FLAGS;

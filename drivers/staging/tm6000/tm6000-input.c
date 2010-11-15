@@ -1,20 +1,20 @@
 /*
-   tm6000-input.c - driver for TM5600/TM6000/TM6010 USB video capture devices
-
-   Copyright (C) 2010 Stefan Ringel <stefan.ringel@arcor.de>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation version 2
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  tm6000-input.c - driver for TM5600/TM6000/TM6010 USB video capture devices
+ *
+ *  Copyright (C) 2010 Stefan Ringel <stefan.ringel@arcor.de>
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation version 2
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -36,7 +36,7 @@ MODULE_PARM_DESC(ir_debug, "enable debug message [IR]");
 
 static unsigned int enable_ir = 1;
 module_param(enable_ir, int, 0644);
-MODULE_PARM_DESC(enable_ir, "enable ir (default is enable");
+MODULE_PARM_DESC(enable_ir, "enable ir (default is enable)");
 
 #undef dprintk
 

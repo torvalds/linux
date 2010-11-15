@@ -31,7 +31,6 @@
 #include <linux/perf_event.h>
 #include <linux/stringify.h>
 #include <linux/limits.h>
-#include <linux/uaccess.h>
 #include <asm/bitsperlong.h>
 
 #include "trace.h"

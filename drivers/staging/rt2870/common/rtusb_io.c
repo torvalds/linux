@@ -1879,13 +1879,10 @@ void CMDHandler(struct rt_rtmp_adapter *pAd)
 					AsicUpdateRxWCIDTable(pAd, pEntry->Aid,
 							      pEntry->Addr);
 					DBGPRINT(RT_DEBUG_TRACE,
-						 ("UpdateRxWCIDTable(): Aid=%d, Addr=%02x:%02x:%02x:%02x:%02x:%02x!\n",
-						  pEntry->Aid, pEntry->Addr[0],
-						  pEntry->Addr[1],
-						  pEntry->Addr[2],
-						  pEntry->Addr[3],
-						  pEntry->Addr[4],
-						  pEntry->Addr[5]));
+						("UpdateRxWCIDTable(): Aid=%d, "
+							"Addr=%pM!\n",
+							pEntry->Aid,
+							pEntry->Addr));
 				}
 				break;
 

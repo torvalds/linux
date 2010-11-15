@@ -1264,7 +1264,7 @@ struct xfrm_tunnel {
 	int (*handler)(struct sk_buff *skb);
 	int (*err_handler)(struct sk_buff *skb, u32 info);
 
-	struct xfrm_tunnel *next;
+	struct xfrm_tunnel __rcu *next;
 	int priority;
 };
 
@@ -1272,7 +1272,7 @@ struct xfrm6_tunnel {
 	int (*handler)(struct sk_buff *skb);
 	int (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			   u8 type, u8 code, int offset, __be32 info);
-	struct xfrm6_tunnel *next;
+	struct xfrm6_tunnel __rcu *next;
 	int priority;
 };
 

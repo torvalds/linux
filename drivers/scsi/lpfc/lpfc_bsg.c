@@ -3142,12 +3142,12 @@ lpfc_bsg_menlo_cmd_cmp(struct lpfc_hba *phba,
 	job = menlo->set_job;
 	job->dd_data = NULL; /* so timeout handler does not reply */
 
-	spin_lock_irqsave(&phba->hbalock, flags);
+	spin_lock(&phba->hbalock);
 	cmdiocbq->iocb_flag |= LPFC_IO_WAKE;
 	if (cmdiocbq->context2 && rspiocbq)
 		memcpy(&((struct lpfc_iocbq *)cmdiocbq->context2)->iocb,
 		       &rspiocbq->iocb, sizeof(IOCB_t));
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock(&phba->hbalock);
 
 	bmp = menlo->bmp;
 	rspiocbq = menlo->rspiocbq;

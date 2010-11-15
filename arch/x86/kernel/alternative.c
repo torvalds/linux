@@ -638,71 +638,32 @@ void *__kprobes text_poke_smp(void *addr, const void *opcode, size_t len)
 	atomic_set(&stop_machine_first, 1);
 	wrote_text = 0;
 	/* Use __stop_machine() because the caller already got online_cpus. */
-	__stop_machine(stop_machine_text_poke, (void *)&tpp, NULL);
+	__stop_machine(stop_machine_text_poke, (void *)&tpp, cpu_online_mask);
 	return addr;
 }
 
 #if defined(CONFIG_DYNAMIC_FTRACE) || defined(HAVE_JUMP_LABEL)
 
-unsigned char ideal_nop5[IDEAL_NOP_SIZE_5];
+#ifdef CONFIG_X86_64
+unsigned char ideal_nop5[5] = { 0x66, 0x66, 0x66, 0x66, 0x90 };
+#else
+unsigned char ideal_nop5[5] = { 0x3e, 0x8d, 0x74, 0x26, 0x00 };
+#endif
 
 void __init arch_init_ideal_nop5(void)
 {
-	extern const unsigned char ftrace_test_p6nop[];
-	extern const unsigned char ftrace_test_nop5[];
-	extern const unsigned char ftrace_test_jmp[];
-	int faulted = 0;
-
 	/*
-	 * There is no good nop for all x86 archs.
-	 * We will default to using the P6_NOP5, but first we
-	 * will test to make sure that the nop will actually
-	 * work on this CPU. If it faults, we will then
-	 * go to a lesser efficient 5 byte nop. If that fails
-	 * we then just use a jmp as our nop. This isn't the most
-	 * efficient nop, but we can not use a multi part nop
-	 * since we would then risk being preempted in the middle
-	 * of that nop, and if we enabled tracing then, it might
-	 * cause a system crash.
+	 * There is no good nop for all x86 archs.  This selection
+	 * algorithm should be unified with the one in find_nop_table(),
+	 * but this should be good enough for now.
 	 *
-	 * TODO: check the cpuid to determine the best nop.
+	 * For cases other than the ones below, use the safe (as in
+	 * always functional) defaults above.
 	 */
-	asm volatile (
-		"ftrace_test_jmp:"
-		"jmp ftrace_test_p6nop\n"
-		"nop\n"
-		"nop\n"
-		"nop\n"  /* 2 byte jmp + 3 bytes */
-		"ftrace_test_p6nop:"
-		P6_NOP5
-		"jmp 1f\n"
-		"ftrace_test_nop5:"
-		".byte 0x66,0x66,0x66,0x66,0x90\n"
-		"1:"
-		".section .fixup, \"ax\"\n"
-		"2:	movl $1, %0\n"
-		"	jmp ftrace_test_nop5\n"
-		"3:	movl $2, %0\n"
-		"	jmp 1b\n"
-		".previous\n"
-		_ASM_EXTABLE(ftrace_test_p6nop, 2b)
-		_ASM_EXTABLE(ftrace_test_nop5, 3b)
-		: "=r"(faulted) : "0" (faulted));
-
-	switch (faulted) {
-	case 0:
-		pr_info("converting mcount calls to 0f 1f 44 00 00\n");
-		memcpy(ideal_nop5, ftrace_test_p6nop, IDEAL_NOP_SIZE_5);
-		break;
-	case 1:
-		pr_info("converting mcount calls to 66 66 66 66 90\n");
-		memcpy(ideal_nop5, ftrace_test_nop5, IDEAL_NOP_SIZE_5);
-		break;
-	case 2:
-		pr_info("converting mcount calls to jmp . + 5\n");
-		memcpy(ideal_nop5, ftrace_test_jmp, IDEAL_NOP_SIZE_5);
-		break;
-	}
-
+#ifdef CONFIG_X86_64
+	/* Don't use these on 32 bits due to broken virtualizers */
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		memcpy(ideal_nop5, p6_nops[5], 5);
+#endif
 }
 #endif

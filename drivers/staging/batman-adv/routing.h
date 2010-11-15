@@ -29,17 +29,17 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 				struct batman_packet *batman_packet,
 				unsigned char *hna_buff, int hna_buff_len,
 				struct batman_if *if_incoming);
-void update_routes(struct orig_node *orig_node,
-				struct neigh_node *neigh_node,
-				unsigned char *hna_buff, int hna_buff_len);
-int recv_icmp_packet(struct sk_buff *skb);
+void update_routes(struct bat_priv *bat_priv, struct orig_node *orig_node,
+		   struct neigh_node *neigh_node, unsigned char *hna_buff,
+		   int hna_buff_len);
+int recv_icmp_packet(struct sk_buff *skb, struct batman_if *recv_if);
 int recv_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if);
-int recv_bcast_packet(struct sk_buff *skb);
-int recv_vis_packet(struct sk_buff *skb);
-int recv_bat_packet(struct sk_buff *skb,
-				struct batman_if *batman_if);
-struct neigh_node *find_router(struct orig_node *orig_node,
-		struct batman_if *recv_if);
+int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if);
+int recv_bcast_packet(struct sk_buff *skb, struct batman_if *recv_if);
+int recv_vis_packet(struct sk_buff *skb, struct batman_if *recv_if);
+int recv_bat_packet(struct sk_buff *skb, struct batman_if *recv_if);
+struct neigh_node *find_router(struct bat_priv *bat_priv,
+		struct orig_node *orig_node, struct batman_if *recv_if);
 void update_bonding_candidates(struct bat_priv *bat_priv,
 			       struct orig_node *orig_node);
 

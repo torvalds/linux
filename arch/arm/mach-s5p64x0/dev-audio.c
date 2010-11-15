@@ -24,13 +24,8 @@ static int s5p6440_cfg_i2s(struct platform_device *pdev)
 	/* configure GPIO for i2s port */
 	switch (pdev->id) {
 	case -1:
-		s3c_gpio_cfgpin(S5P6440_GPR(4), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5P6440_GPR(5), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5P6440_GPR(6), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5P6440_GPR(7), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5P6440_GPR(8), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5P6440_GPR(13), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5P6440_GPR(14), S3C_GPIO_SFN(5));
+		s3c_gpio_cfgpin_range(S5P6440_GPR(4), 5, S3C_GPIO_SFN(5));
+		s3c_gpio_cfgpin_range(S5P6440_GPR(13), 2, S3C_GPIO_SFN(5));
 		break;
 
 	default:
@@ -47,13 +42,9 @@ static int s5p6450_cfg_i2s(struct platform_device *pdev)
 	switch (pdev->id) {
 	case -1:
 		s3c_gpio_cfgpin(S5P6450_GPB(4), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5P6450_GPR(4), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5P6450_GPR(5), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5P6450_GPR(6), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5P6450_GPR(7), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5P6450_GPR(8), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5P6450_GPR(13), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5P6450_GPR(14), S3C_GPIO_SFN(5));
+		s3c_gpio_cfgpin_range(S5P6450_GPR(4), 5, S3C_GPIO_SFN(5));
+		s3c_gpio_cfgpin_range(S5P6450_GPR(13), 2, S3C_GPIO_SFN(5));
+
 		break;
 
 	default:
@@ -116,11 +107,8 @@ static int s5p6440_pcm_cfg_gpio(struct platform_device *pdev)
 {
 	switch (pdev->id) {
 	case 0:
-		s3c_gpio_cfgpin(S5P6440_GPR(7), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6440_GPR(13), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6440_GPR(14), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6440_GPR(8), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5P6440_GPR(6), S3C_GPIO_SFN(2));
+		s3c_gpio_cfgpin_range(S5P6440_GPR(6), 3, S3C_GPIO_SFN(2));
+		s3c_gpio_cfgpin_range(S5P6440_GPR(13), 2, S3C_GPIO_SFN(2));
 		break;
 
 	default:

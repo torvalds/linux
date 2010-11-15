@@ -7,7 +7,7 @@
 unsigned char Mds_initial(struct wbsoft_priv *adapter);
 void Mds_Destroy(struct wbsoft_priv *adapter);
 void Mds_Tx(struct wbsoft_priv *adapter);
-void Mds_SendComplete(struct wbsoft_priv *adapter, PT02_DESCRIPTOR pt02);
+void Mds_SendComplete(struct wbsoft_priv *adapter, struct T02_descriptor *pt02);
 void Mds_MpduProcess(struct wbsoft_priv *adapter, struct wb35_descriptor *prxdes);
 extern void DataDmp(u8 *pdata, u32 len, u32 offset);
 

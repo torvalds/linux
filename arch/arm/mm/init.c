@@ -18,6 +18,7 @@
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
+#include <linux/sort.h>
 
 #include <asm/mach-types.h>
 #include <asm/sections.h>
@@ -121,9 +122,10 @@ void show_mem(void)
 	printk("%d pages swap cached\n", cached);
 }
 
-static void __init find_limits(struct meminfo *mi,
-	unsigned long *min, unsigned long *max_low, unsigned long *max_high)
+static void __init find_limits(unsigned long *min, unsigned long *max_low,
+	unsigned long *max_high)
 {
+	struct meminfo *mi = &meminfo;
 	int i;
 
 	*min = -1UL;
@@ -147,14 +149,13 @@ static void __init find_limits(struct meminfo *mi,
 	}
 }
 
-static void __init arm_bootmem_init(struct meminfo *mi,
-	unsigned long start_pfn, unsigned long end_pfn)
+static void __init arm_bootmem_init(unsigned long start_pfn,
+	unsigned long end_pfn)
 {
 	struct memblock_region *reg;
 	unsigned int boot_pages;
 	phys_addr_t bitmap;
 	pg_data_t *pgdat;
-	int i;
 
 	/*
 	 * Allocate the bootmem bitmap page.  This must be in a region
@@ -172,30 +173,39 @@ static void __init arm_bootmem_init(struct meminfo *mi,
 	pgdat = NODE_DATA(0);
 	init_bootmem_node(pgdat, __phys_to_pfn(bitmap), start_pfn, end_pfn);
 
-	for_each_bank(i, mi) {
-		struct membank *bank = &mi->bank[i];
-		if (!bank->highmem)
-			free_bootmem(bank_phys_start(bank), bank_phys_size(bank));
+	/* Free the lowmem regions from memblock into bootmem. */
+	for_each_memblock(memory, reg) {
+		unsigned long start = memblock_region_memory_base_pfn(reg);
+		unsigned long end = memblock_region_memory_end_pfn(reg);
+
+		if (end >= end_pfn)
+			end = end_pfn;
+		if (start >= end)
+			break;
+
+		free_bootmem(__pfn_to_phys(start), (end - start) << PAGE_SHIFT);
 	}
 
-	/*
-	 * Reserve the memblock reserved regions in bootmem.
-	 */
+	/* Reserve the lowmem memblock reserved regions in bootmem. */
 	for_each_memblock(reserved, reg) {
-		phys_addr_t start = memblock_region_reserved_base_pfn(reg);
-		phys_addr_t end = memblock_region_reserved_end_pfn(reg);
-		if (start >= start_pfn && end <= end_pfn)
-			reserve_bootmem_node(pgdat, __pfn_to_phys(start),
-					     (end - start) << PAGE_SHIFT,
-					     BOOTMEM_DEFAULT);
+		unsigned long start = memblock_region_reserved_base_pfn(reg);
+		unsigned long end = memblock_region_reserved_end_pfn(reg);
+
+		if (end >= end_pfn)
+			end = end_pfn;
+		if (start >= end)
+			break;
+
+		reserve_bootmem(__pfn_to_phys(start),
+			        (end - start) << PAGE_SHIFT, BOOTMEM_DEFAULT);
 	}
 }
 
-static void __init arm_bootmem_free(struct meminfo *mi, unsigned long min,
-	unsigned long max_low, unsigned long max_high)
+static void __init arm_bootmem_free(unsigned long min, unsigned long max_low,
+	unsigned long max_high)
 {
 	unsigned long zone_size[MAX_NR_ZONES], zhole_size[MAX_NR_ZONES];
-	int i;
+	struct memblock_region *reg;
 
 	/*
 	 * initialise the zones.
@@ -217,13 +227,20 @@ static void __init arm_bootmem_free(struct meminfo *mi, unsigned long min,
 	 *  holes = node_size - sum(bank_sizes)
 	 */
 	memcpy(zhole_size, zone_size, sizeof(zhole_size));
-	for_each_bank(i, mi) {
-		int idx = 0;
+	for_each_memblock(memory, reg) {
+		unsigned long start = memblock_region_memory_base_pfn(reg);
+		unsigned long end = memblock_region_memory_end_pfn(reg);
+
+		if (start < max_low) {
+			unsigned long low_end = min(end, max_low);
+			zhole_size[0] -= low_end - start;
+		}
 #ifdef CONFIG_HIGHMEM
-		if (mi->bank[i].highmem)
-			idx = ZONE_HIGHMEM;
+		if (end > max_low) {
+			unsigned long high_start = max(start, max_low);
+			zhole_size[ZONE_HIGHMEM] -= end - high_start;
+		}
 #endif
-		zhole_size[idx] -= bank_pfn_size(&mi->bank[i]);
 	}
 
 	/*
@@ -256,9 +273,18 @@ static void arm_memory_present(void)
 }
 #endif
 
+static int __init meminfo_cmp(const void *_a, const void *_b)
+{
+	const struct membank *a = _a, *b = _b;
+	long cmp = bank_pfn_start(a) - bank_pfn_start(b);
+	return cmp < 0 ? -1 : cmp > 0 ? 1 : 0;
+}
+
 void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
 {
 	int i;
+
+	sort(&meminfo.bank, meminfo.nr_banks, sizeof(meminfo.bank[0]), meminfo_cmp, NULL);
 
 	memblock_init();
 	for (i = 0; i < mi->nr_banks; i++)
@@ -292,14 +318,13 @@ void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
 
 void __init bootmem_init(void)
 {
-	struct meminfo *mi = &meminfo;
 	unsigned long min, max_low, max_high;
 
 	max_low = max_high = 0;
 
-	find_limits(mi, &min, &max_low, &max_high);
+	find_limits(&min, &max_low, &max_high);
 
-	arm_bootmem_init(mi, min, max_low);
+	arm_bootmem_init(min, max_low);
 
 	/*
 	 * Sparsemem tries to allocate bootmem in memory_present(),
@@ -317,7 +342,7 @@ void __init bootmem_init(void)
 	 * the sparse mem_map arrays initialized by sparse_init()
 	 * for memmap_init_zone(), otherwise all PFNs are invalid.
 	 */
-	arm_bootmem_free(mi, min, max_low, max_high);
+	arm_bootmem_free(min, max_low, max_high);
 
 	high_memory = __va((max_low << PAGE_SHIFT) - 1) + 1;
 
@@ -411,6 +436,56 @@ static void __init free_unused_memmap(struct meminfo *mi)
 	}
 }
 
+static void __init free_highpages(void)
+{
+#ifdef CONFIG_HIGHMEM
+	unsigned long max_low = max_low_pfn + PHYS_PFN_OFFSET;
+	struct memblock_region *mem, *res;
+
+	/* set highmem page free */
+	for_each_memblock(memory, mem) {
+		unsigned long start = memblock_region_memory_base_pfn(mem);
+		unsigned long end = memblock_region_memory_end_pfn(mem);
+
+		/* Ignore complete lowmem entries */
+		if (end <= max_low)
+			continue;
+
+		/* Truncate partial highmem entries */
+		if (start < max_low)
+			start = max_low;
+
+		/* Find and exclude any reserved regions */
+		for_each_memblock(reserved, res) {
+			unsigned long res_start, res_end;
+
+			res_start = memblock_region_reserved_base_pfn(res);
+			res_end = memblock_region_reserved_end_pfn(res);
+
+			if (res_end < start)
+				continue;
+			if (res_start < start)
+				res_start = start;
+			if (res_start > end)
+				res_start = end;
+			if (res_end > end)
+				res_end = end;
+			if (res_start != start)
+				totalhigh_pages += free_area(start, res_start,
+							     NULL);
+			start = res_end;
+			if (start == end)
+				break;
+		}
+
+		/* And now free anything which remains */
+		if (start < end)
+			totalhigh_pages += free_area(start, end, NULL);
+	}
+	totalram_pages += totalhigh_pages;
+#endif
+}
+
 /*
  * mem_init() marks the free areas in the mem_map and tells us how much
  * memory is free.  This is done after various parts of the system have
@@ -419,6 +494,7 @@ static void __init free_unused_memmap(struct meminfo *mi)
 void __init mem_init(void)
 {
 	unsigned long reserved_pages, free_pages;
+	struct memblock_region *reg;
 	int i;
 #ifdef CONFIG_HAVE_TCM
 	/* These pointers are filled in on TCM detection */
@@ -439,16 +515,7 @@ void __init mem_init(void)
 				    __phys_to_pfn(__pa(swapper_pg_dir)), NULL);
 #endif
 
-#ifdef CONFIG_HIGHMEM
-	/* set highmem page free */
-	for_each_bank (i, &meminfo) {
-		unsigned long start = bank_pfn_start(&meminfo.bank[i]);
-		unsigned long end = bank_pfn_end(&meminfo.bank[i]);
-		if (start >= max_low_pfn + PHYS_PFN_OFFSET)
-			totalhigh_pages += free_area(start, end, NULL);
-	}
-	totalram_pages += totalhigh_pages;
-#endif
+	free_highpages();
 
 	reserved_pages = free_pages = 0;
 
@@ -478,9 +545,11 @@ void __init mem_init(void)
 	 */
 	printk(KERN_INFO "Memory:");
 	num_physpages = 0;
-	for (i = 0; i < meminfo.nr_banks; i++) {
-		num_physpages += bank_pfn_size(&meminfo.bank[i]);
-		printk(" %ldMB", bank_phys_size(&meminfo.bank[i]) >> 20);
+	for_each_memblock(memory, reg) {
+		unsigned long pages = memblock_region_memory_end_pfn(reg) -
+			memblock_region_memory_base_pfn(reg);
+		num_physpages += pages;
+		printk(" %ldMB", pages >> (20 - PAGE_SHIFT));
 	}
 	printk(" = %luMB total\n", num_physpages >> (20 - PAGE_SHIFT));
 

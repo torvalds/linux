@@ -88,7 +88,7 @@ struct net {
 #ifdef CONFIG_WEXT_CORE
 	struct sk_buff_head	wext_nlevents;
 #endif
-	struct net_generic	*gen;
+	struct net_generic __rcu	*gen;
 
 	/* Note : following structs are cache line aligned */
 #ifdef CONFIG_XFRM

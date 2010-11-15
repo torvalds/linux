@@ -58,6 +58,9 @@ config ARCH_SUPPORTS_OPTIMIZED_INLINING
 config ARCH_PHYS_ADDR_T_64BIT
 	def_bool y
 
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool y
+
 config LOCKDEP_SUPPORT
 	def_bool y
 
@@ -113,8 +116,6 @@ config TILE
 #       config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 #       config HUGETLB_PAGE_SIZE_VARIABLE
 
-
-mainmenu "Linux/TILE Kernel Configuration"
 
 # Please note: TILE-Gx support is not yet finalized; this is
 # the preliminary support.  TILE-Gx drivers are only provided

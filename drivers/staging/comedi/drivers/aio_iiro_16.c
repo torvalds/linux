@@ -2,7 +2,7 @@
 
     comedi/drivers/aio_iiro_16.c
 
-    Driver for Acces I/O Products PC-104 AIO-IIRO-16 Digital I/O board
+    Driver for Access I/O Products PC-104 AIO-IIRO-16 Digital I/O board
     Copyright (C) 2006 C&C Technologies, Inc.
 
     This program is free software; you can redistribute it and/or modify
@@ -23,10 +23,10 @@
 /*
 
 Driver: aio_iiro_16
-Description: Acces I/O Products PC-104 IIRO16 Relay And Isolated Input Board
+Description: Access I/O Products PC-104 IIRO16 Relay And Isolated Input Board
 Author: Zachary Ware <zach.ware@cctechnol.com>
 Devices:
- [Acces I/O] PC-104 AIO12-8
+ [Access I/O] PC-104 AIO12-8
 Status: experimental
 
 Configuration Options:

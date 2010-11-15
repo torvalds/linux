@@ -38,10 +38,12 @@ static int mfd_add_device(struct device *parent, int id,
 	pdev->dev.parent = parent;
 	platform_set_drvdata(pdev, cell->driver_data);
 
-	ret = platform_device_add_data(pdev,
-			cell->platform_data, cell->data_size);
-	if (ret)
-		goto fail_res;
+	if (cell->data_size) {
+		ret = platform_device_add_data(pdev,
+					cell->platform_data, cell->data_size);
+		if (ret)
+			goto fail_res;
+	}
 
 	for (r = 0; r < cell->num_resources; r++) {
 		res[r].name = cell->resources[r].name;
@@ -65,9 +67,11 @@ static int mfd_add_device(struct device *parent, int id,
 			res[r].end   = cell->resources[r].end;
 		}
 
-		ret = acpi_check_resource_conflict(res);
-		if (ret)
-			goto fail_res;
+		if (!cell->ignore_resource_conflicts) {
+			ret = acpi_check_resource_conflict(res);
+			if (ret)
+				goto fail_res;
+		}
 	}
 
 	ret = platform_device_add_resources(pdev, res, cell->num_resources);

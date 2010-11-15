@@ -1077,15 +1077,14 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		/* FIXME: What to do with the request? */
 		switch (PTR_ERR(irb)) {
 			case -ETIMEDOUT:
-				DBF_LH(1, "(%s): Request timed out\n",
-					dev_name(&cdev->dev));
+				DBF_LH(1, "(%08x): Request timed out\n",
+				       device->cdev_id);
 			case -EIO:
 				__tape_end_request(device, request, -EIO);
 				break;
 			default:
-				DBF_LH(1, "(%s): Unexpected i/o error %li\n",
-					dev_name(&cdev->dev),
-					PTR_ERR(irb));
+				DBF_LH(1, "(%08x): Unexpected i/o error %li\n",
+				       device->cdev_id,	PTR_ERR(irb));
 		}
 		return;
 	}

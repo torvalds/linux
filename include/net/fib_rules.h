@@ -20,7 +20,7 @@ struct fib_rule {
 	u32			table;
 	u8			action;
 	u32			target;
-	struct fib_rule *	ctarget;
+	struct fib_rule __rcu	*ctarget;
 	char			iifname[IFNAMSIZ];
 	char			oifname[IFNAMSIZ];
 	struct rcu_head		rcu;

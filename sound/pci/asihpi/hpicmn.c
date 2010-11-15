@@ -571,14 +571,20 @@ struct hpi_control_cache *hpi_alloc_control_cache(const u32
 {
 	struct hpi_control_cache *p_cache =
 		kmalloc(sizeof(*p_cache), GFP_KERNEL);
+	if (!p_cache)
+		return NULL;
+	p_cache->p_info =
+		kmalloc(sizeof(*p_cache->p_info) * number_of_controls,
+			GFP_KERNEL);
+	if (!p_cache->p_info) {
+		kfree(p_cache);
+		return NULL;
+	}
 	p_cache->cache_size_in_bytes = size_in_bytes;
 	p_cache->control_count = number_of_controls;
 	p_cache->p_cache =
 		(struct hpi_control_cache_single *)pDSP_control_buffer;
 	p_cache->init = 0;
-	p_cache->p_info =
-		kmalloc(sizeof(*p_cache->p_info) * p_cache->control_count,
-		GFP_KERNEL);
 	return p_cache;
 }
 

@@ -34,6 +34,89 @@
 
 #include <trace/events/ext4.h>
 
+static void dump_completed_IO(struct inode * inode)
+{
+#ifdef	EXT4_DEBUG
+	struct list_head *cur, *before, *after;
+	ext4_io_end_t *io, *io0, *io1;
+	unsigned long flags;
+
+	if (list_empty(&EXT4_I(inode)->i_completed_io_list)){
+		ext4_debug("inode %lu completed_io list is empty\n", inode->i_ino);
+		return;
+	}
+
+	ext4_debug("Dump inode %lu completed_io list \n", inode->i_ino);
+	spin_lock_irqsave(&EXT4_I(inode)->i_completed_io_lock, flags);
+	list_for_each_entry(io, &EXT4_I(inode)->i_completed_io_list, list){
+		cur = &io->list;
+		before = cur->prev;
+		io0 = container_of(before, ext4_io_end_t, list);
+		after = cur->next;
+		io1 = container_of(after, ext4_io_end_t, list);
+
+		ext4_debug("io 0x%p from inode %lu,prev 0x%p,next 0x%p\n",
+			    io, inode->i_ino, io0, io1);
+	}
+	spin_unlock_irqrestore(&EXT4_I(inode)->i_completed_io_lock, flags);
+#endif
+}
+
+/*
+ * This function is called from ext4_sync_file().
+ *
+ * When IO is completed, the work to convert unwritten extents to
+ * written is queued on workqueue but may not get immediately
+ * scheduled. When fsync is called, we need to ensure the
+ * conversion is complete before fsync returns.
+ * The inode keeps track of a list of pending/completed IO that
+ * might needs to do the conversion. This function walks through
+ * the list and convert the related unwritten extents for completed IO
+ * to written.
+ * The function return the number of pending IOs on success.
+ */
+static int flush_completed_IO(struct inode *inode)
+{
+	ext4_io_end_t *io;
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	unsigned long flags;
+	int ret = 0;
+	int ret2 = 0;
+
+	if (list_empty(&ei->i_completed_io_list))
+		return ret;
+
+	dump_completed_IO(inode);
+	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
+	while (!list_empty(&ei->i_completed_io_list)){
+		io = list_entry(ei->i_completed_io_list.next,
+				ext4_io_end_t, list);
+		/*
+		 * Calling ext4_end_io_nolock() to convert completed
+		 * IO to written.
+		 *
+		 * When ext4_sync_file() is called, run_queue() may already
+		 * about to flush the work corresponding to this io structure.
+		 * It will be upset if it founds the io structure related
+		 * to the work-to-be schedule is freed.
+		 *
+		 * Thus we need to keep the io structure still valid here after
+		 * convertion finished. The io structure has a flag to
+		 * avoid double converting from both fsync and background work
+		 * queue work.
+		 */
+		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
+		ret = ext4_end_io_nolock(io);
+		spin_lock_irqsave(&ei->i_completed_io_lock, flags);
+		if (ret < 0)
+			ret2 = ret;
+		else
+			list_del_init(&io->list);
+	}
+	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
+	return (ret2 < 0) ? ret2 : 0;
+}
+
 /*
  * If we're not journaling and this is a just-created file, we have to
  * sync our parent directory (if it was freshly created) since

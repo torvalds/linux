@@ -692,6 +692,9 @@ static void do_act_open_rpl(struct cxgbi_device *cdev, struct sk_buff *skb)
 		&csk->daddr.sin_addr.s_addr, ntohs(csk->daddr.sin_port),
 		atid, tid, status, csk, csk->state, csk->flags);
 
+	if (status == CPL_ERR_RTX_NEG_ADVICE)
+		goto rel_skb;
+
 	if (status && status != CPL_ERR_TCAM_FULL &&
 	    status != CPL_ERR_CONN_EXIST &&
 	    status != CPL_ERR_ARP_MISS)

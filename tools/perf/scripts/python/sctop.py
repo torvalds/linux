@@ -8,10 +8,7 @@
 # will be refreshed every [interval] seconds.  The default interval is
 # 3 seconds.
 
-import thread
-import time
-import os
-import sys
+import os, sys, thread, time
 
 sys.path.append(os.environ['PERF_EXEC_PATH'] + \
 	'/scripts/python/Perf-Trace-Util/lib/Perf/Trace')
@@ -20,7 +17,7 @@ from perf_trace_context import *
 from Core import *
 from Util import *
 
-usage = "perf trace -s syscall-counts.py [comm] [interval]\n";
+usage = "perf trace -s sctop.py [comm] [interval]\n";
 
 for_comm = None
 default_interval = 3
@@ -71,7 +68,7 @@ def print_syscall_totals(interval):
 		for id, val in sorted(syscalls.iteritems(), key = lambda(k, v): (v, k), \
 					      reverse = True):
 			try:
-				print "%-40d  %10d\n" % (id, val),
+				print "%-40s  %10d\n" % (syscall_name(id), val),
 			except TypeError:
 				pass
 		syscalls.clear()

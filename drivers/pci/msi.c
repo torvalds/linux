@@ -35,7 +35,12 @@ int arch_msi_check_device(struct pci_dev *dev, int nvec, int type)
 #endif
 
 #ifndef arch_setup_msi_irqs
-int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+# define arch_setup_msi_irqs default_setup_msi_irqs
+# define HAVE_DEFAULT_MSI_SETUP_IRQS
+#endif
+
+#ifdef HAVE_DEFAULT_MSI_SETUP_IRQS
+int default_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *entry;
 	int ret;
@@ -60,7 +65,12 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 #endif
 
 #ifndef arch_teardown_msi_irqs
-void arch_teardown_msi_irqs(struct pci_dev *dev)
+# define arch_teardown_msi_irqs default_teardown_msi_irqs
+# define HAVE_DEFAULT_MSI_TEARDOWN_IRQS
+#endif
+
+#ifdef HAVE_DEFAULT_MSI_TEARDOWN_IRQS
+void default_teardown_msi_irqs(struct pci_dev *dev)
 {
 	struct msi_desc *entry;
 

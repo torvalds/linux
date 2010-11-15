@@ -29,6 +29,7 @@
 #include <linux/personality.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
+#include <linux/audit.h>
 
 #include <asm/uaccess.h>
 #include <asm/tlb.h>
@@ -1458,6 +1459,7 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 	struct file *file = NULL;
 	unsigned long retval = -EBADF;
 
+	audit_mmap_fd(fd, flags);
 	if (!(flags & MAP_ANONYMOUS)) {
 		file = fget(fd);
 		if (!file)

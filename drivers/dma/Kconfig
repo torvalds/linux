@@ -46,15 +46,22 @@ config INTEL_MID_DMAC
 
 	  If unsure, say N.
 
-config ASYNC_TX_DISABLE_CHANNEL_SWITCH
+config ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	bool
+
+config AMBA_PL08X
+	bool "ARM PrimeCell PL080 or PL081 support"
+	depends on ARM_AMBA && EXPERIMENTAL
+	select DMA_ENGINE
+	help
+	  Platform has a PL08x DMAC device
+	  which can provide DMA engine support
 
 config INTEL_IOATDMA
 	tristate "Intel I/OAT DMA support"
 	depends on PCI && X86
 	select DMA_ENGINE
 	select DCA
-	select ASYNC_TX_DISABLE_CHANNEL_SWITCH
 	select ASYNC_TX_DISABLE_PQ_VAL_DMA
 	select ASYNC_TX_DISABLE_XOR_VAL_DMA
 	help
@@ -69,6 +76,7 @@ config INTEL_IOP_ADMA
 	tristate "Intel IOP ADMA support"
 	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX
 	select DMA_ENGINE
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	help
 	  Enable support for the Intel(R) IOP Series RAID engines.
 
@@ -93,6 +101,7 @@ config FSL_DMA
 	tristate "Freescale Elo and Elo Plus DMA support"
 	depends on FSL_SOC
 	select DMA_ENGINE
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	---help---
 	  Enable support for the Freescale Elo and Elo Plus DMA controllers.
 	  The Elo is the DMA controller on some 82xx and 83xx parts, and the
@@ -109,6 +118,7 @@ config MV_XOR
 	bool "Marvell XOR engine support"
 	depends on PLAT_ORION
 	select DMA_ENGINE
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	---help---
 	  Enable support for the Marvell XOR engine.
 
@@ -166,6 +176,7 @@ config AMCC_PPC440SPE_ADMA
 	depends on 440SPe || 440SP
 	select DMA_ENGINE
 	select ARCH_HAS_ASYNC_TX_FIND_CHANNEL
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	help
 	  Enable support for the AMCC PPC440SPe RAID engines.
 
@@ -189,11 +200,27 @@ config PL330_DMA
 	  platform_data for a dma-pl330 device.
 
 config PCH_DMA
-	tristate "Topcliff PCH DMA support"
+	tristate "Topcliff (Intel EG20T) PCH DMA support"
 	depends on PCI && X86
 	select DMA_ENGINE
 	help
-	  Enable support for the Topcliff PCH DMA engine.
+	  Enable support for the Topcliff (Intel EG20T) PCH DMA engine.
+
+config IMX_SDMA
+	tristate "i.MX SDMA support"
+	depends on ARCH_MX25 || ARCH_MX3 || ARCH_MX5
+	select DMA_ENGINE
+	help
+	  Support the i.MX SDMA engine. This engine is integrated into
+	  Freescale i.MX25/31/35/51 chips.
+
+config IMX_DMA
+	tristate "i.MX DMA support"
+	depends on ARCH_MX1 || ARCH_MX21 || MACH_MX27
+	select DMA_ENGINE
+	help
+	  Support the i.MX DMA engine. This engine is integrated into
+	  Freescale i.MX1/21/27 chips.
 
 config DMA_ENGINE
 	bool

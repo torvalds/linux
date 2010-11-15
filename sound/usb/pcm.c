@@ -237,6 +237,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	subs->datainterval = fmt->datainterval;
 	subs->syncpipe = subs->syncinterval = 0;
 	subs->maxpacksize = fmt->maxpacksize;
+	subs->syncmaxsize = 0;
 	subs->fill_max = 0;
 
 	/* we need a sync pipe in async OUT or adaptive IN mode */
@@ -283,6 +284,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 			subs->syncinterval = get_endpoint(alts, 1)->bInterval - 1;
 		else
 			subs->syncinterval = 3;
+		subs->syncmaxsize = le16_to_cpu(get_endpoint(alts, 1)->wMaxPacketSize);
 	}
 
 	/* always fill max packet size */
@@ -674,8 +676,10 @@ static int snd_usb_pcm_check_knot(struct snd_pcm_runtime *runtime,
 	if (!needs_knot)
 		return 0;
 
-	subs->rate_list.count = count;
 	subs->rate_list.list = kmalloc(sizeof(int) * count, GFP_KERNEL);
+	if (!subs->rate_list.list)
+		return -ENOMEM;
+	subs->rate_list.count = count;
 	subs->rate_list.mask = 0;
 	count = 0;
 	list_for_each_entry(fp, &subs->fmt_list, list) {

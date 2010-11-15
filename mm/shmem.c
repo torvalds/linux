@@ -2538,16 +2538,16 @@ static const struct vm_operations_struct shmem_vm_ops = {
 };
 
 
-static int shmem_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *shmem_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, shmem_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, shmem_fill_super);
 }
 
 static struct file_system_type tmpfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "tmpfs",
-	.get_sb		= shmem_get_sb,
+	.mount		= shmem_mount,
 	.kill_sb	= kill_litter_super,
 };
 
@@ -2643,7 +2643,7 @@ out:
 
 static struct file_system_type tmpfs_fs_type = {
 	.name		= "tmpfs",
-	.get_sb		= ramfs_get_sb,
+	.mount		= ramfs_mount,
 	.kill_sb	= kill_litter_super,
 };
 

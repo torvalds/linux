@@ -86,76 +86,62 @@ TRACE_EVENT(irq_handler_exit,
 
 DECLARE_EVENT_CLASS(softirq,
 
-	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
+	TP_PROTO(unsigned int vec_nr),
 
-	TP_ARGS(h, vec),
+	TP_ARGS(vec_nr),
 
 	TP_STRUCT__entry(
-		__field(	int,	vec			)
+		__field(	unsigned int,	vec	)
 	),
 
 	TP_fast_assign(
-		if (vec)
-			__entry->vec = (int)(h - vec);
-		else
-			__entry->vec = (int)(long)h;
+		__entry->vec = vec_nr;
 	),
 
-	TP_printk("vec=%d [action=%s]", __entry->vec,
+	TP_printk("vec=%u [action=%s]", __entry->vec,
 		  show_softirq_name(__entry->vec))
 );
 
 /**
  * softirq_entry - called immediately before the softirq handler
- * @h: pointer to struct softirq_action
- * @vec: pointer to first struct softirq_action in softirq_vec array
+ * @vec_nr:  softirq vector number
  *
- * The @h parameter, contains a pointer to the struct softirq_action
- * which has a pointer to the action handler that is called. By subtracting
- * the @vec pointer from the @h pointer, we can determine the softirq
- * number. Also, when used in combination with the softirq_exit tracepoint
- * we can determine the softirq latency.
+ * When used in combination with the softirq_exit tracepoint
+ * we can determine the softirq handler runtine.
  */
 DEFINE_EVENT(softirq, softirq_entry,
 
-	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
+	TP_PROTO(unsigned int vec_nr),
 
-	TP_ARGS(h, vec)
+	TP_ARGS(vec_nr)
 );
 
 /**
  * softirq_exit - called immediately after the softirq handler returns
- * @h: pointer to struct softirq_action
- * @vec: pointer to first struct softirq_action in softirq_vec array
+ * @vec_nr:  softirq vector number
  *
- * The @h parameter contains a pointer to the struct softirq_action
- * that has handled the softirq. By subtracting the @vec pointer from
- * the @h pointer, we can determine the softirq number. Also, when used in
- * combination with the softirq_entry tracepoint we can determine the softirq
- * latency.
+ * When used in combination with the softirq_entry tracepoint
+ * we can determine the softirq handler runtine.
  */
 DEFINE_EVENT(softirq, softirq_exit,
 
-	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
+	TP_PROTO(unsigned int vec_nr),
 
-	TP_ARGS(h, vec)
+	TP_ARGS(vec_nr)
 );
 
 /**
  * softirq_raise - called immediately when a softirq is raised
- * @h: pointer to struct softirq_action
- * @vec: pointer to first struct softirq_action in softirq_vec array
+ * @vec_nr:  softirq vector number
  *
- * The @h parameter contains a pointer to the softirq vector number which is
- * raised. @vec is NULL and it means @h includes vector number not
- * softirq_action. When used in combination with the softirq_entry tracepoint
- * we can determine the softirq raise latency.
+ * When used in combination with the softirq_entry tracepoint
+ * we can determine the softirq raise to run latency.
  */
 DEFINE_EVENT(softirq, softirq_raise,
 
-	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
+	TP_PROTO(unsigned int vec_nr),
 
-	TP_ARGS(h, vec)
+	TP_ARGS(vec_nr)
 );
 
 #endif /*  _TRACE_IRQ_H */

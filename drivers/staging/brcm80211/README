@@ -1,0 +1,94 @@
+Broadcom Mac80211 driver
+
+This is a driver in progress.  It has features still to be implemented well as
+bugs in current code.
+
+
+What's here and not here
+=======================
+- Completely open source host driver, no binary object files
+- Features Broadcom's OneDriver architecture (single source base for
+  supported chips and architectures)
+- On-chip firmware loaded using standard request_firmware()
+- Support for BCM43224, BCM43225, BCM4313 (PCIe NIC)
+- Framework for supporting new chips, including mac80211-aware embedded chips
+- Does not support older PCI/PCIe chips with SSB backplane
+- Driver includes BMAC interface for transparent dongle support
+- Uses minstrel_ht rate algorithm
+- HW based encryption not enabled yet
+
+
+What's done
+==========
+- Integration with mac80211 stack
+- A-MPDU single & dual stream rates
+- BCM43224:	Dualband, Dual stream, 20MHz channels
+	Throughput (in chamber): ~85-90 Mbits/sec (in both 2.4 & 5 GHz bands)
+- BCM43225:	2.4 GHz, Dual Stream, 20MHz channels
+	Throughput (in chamber): ~85-90 Mbits/sec
+- BCM4313:		2.4 GHz, Single Stream
+	Throughput (in chamber): ~40 Mbits/sec
+
+
+Things To Be Done
+=================
+See the TODO file
+
+
+Firmware installation
+======================
+Firmware is available from the Linux firmware repository at:
+
+	git://git.kernel.org/pub/scm/linux/kernel/git/dwmw2/linux-firmware.git
+	http://git.kernel.org/?p=linux/kernel/git/dwmw2/linux-firmware.git
+	https://git.kernel.org/?p=linux/kernel/git/dwmw2/linux-firmware.git
+
+For all chips, copy brcm/bcm43xx-0-610-809-0.fw and
+brcm/bcm43xx_hdr-0-610-809-0.fw to /lib/firmware/brcm (or wherever firmware is
+normally installed on the system).  In the /lib/firmware/brcm directory, then
+create the following symlinks:
+
+	ln -s bcm43xx-0-610-809-0.fw bcm43xx-0.fw
+	ln -s bcm43xx_hdr-0-610-809-0.fw bcm43xx_hdr-0.fw
+
+
+Currently supported chips
+==============
+PCI
+Name		Device ID
+BCM4313		0x4727
+BCM43224	0x4353
+BCM43225	0x4357
+
+
+Bugs/Problems
+==============
+- Driver can get confused while scanning during high throughput, can cause
+  burping, hanging, and possible crashing.
+- Occasional hangs & burps with BCM43224 on 2.4 GHz with dual stream rates.
+- Occasional crashes with BCM43224 on multicore machines.
+
+
+Note on Regulatory Implementation
+================================
+This generation of chips contain additional regulatory support independent of
+the driver. The devices use a single worldwide regulatory domain, with channels
+12-14 (2.4 GHz band) and channels 52-64 and 100-140 (5 GHz band) restricted to
+passive operation. Transmission on those channels is suppressed until
+appropriate other traffic is observed on those channels.
+
+Within the driver, we use the ficticious country code "X2" to represent this
+worldwide regulatory domain. There is currently no interface to configure a
+different domain.
+
+The driver reads the SROM country code from the chip and hands it up to
+mac80211 as the regulatory hint, however this information is otherwise unused
+with the driver.
+
+
+Contact Info:
+=============
+Brett Rudley	brudley@broadcom.com
+Henry Ptasinski henryp@broadcom.com
+Dowan Kim 	dowan@broadcom.com
+

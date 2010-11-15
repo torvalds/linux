@@ -1,0 +1,39 @@
+config VIDEO_CPIA
+	tristate "CPiA Video For Linux (DEPRECATED)"
+	depends on VIDEO_V4L1
+	default n
+	---help---
+	  This driver is DEPRECATED please use the gspca cpia1 module
+	  instead. Note that you need atleast version 0.6.4 of libv4l for
+	  the cpia1 gspca module.
+
+	  This is the video4linux driver for cameras based on Vision's CPiA
+	  (Colour Processor Interface ASIC), such as the Creative Labs Video
+	  Blaster Webcam II. If you have one of these cameras, say Y here
+	  and select parallel port and/or USB lowlevel support below,
+	  otherwise say N. This will not work with the Creative Webcam III.
+
+	  Please read <file:Documentation/video4linux/README.cpia> for more
+	  information.
+
+	  This driver is also available as a module (cpia).
+
+config VIDEO_CPIA_PP
+	tristate "CPiA Parallel Port Lowlevel Support"
+	depends on PARPORT_1284 && VIDEO_CPIA && PARPORT
+	help
+	  This is the lowlevel parallel port support for cameras based on
+	  Vision's CPiA (Colour Processor Interface ASIC), such as the
+	  Creative Webcam II. If you have the parallel port version of one
+	  of these cameras, say Y here, otherwise say N. It is also available
+	  as a module (cpia_pp).
+
+config VIDEO_CPIA_USB
+	tristate "CPiA USB Lowlevel Support"
+	depends on VIDEO_CPIA && USB
+	help
+	  This is the lowlevel USB support for cameras based on Vision's CPiA
+	  (Colour Processor Interface ASIC), such as the Creative Webcam II.
+	  If you have the USB version of one of these cameras, say Y here,
+	  otherwise say N. This will not work with the Creative Webcam III.
+	  It is also available as a module (cpia_usb).

@@ -18,9 +18,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION			"00.00.04.17.1-rc1"
-#define MEGASAS_RELDATE			"Oct. 29, 2009"
-#define MEGASAS_EXT_VERSION		"Thu. Oct. 29, 11:41:51 PST 2009"
+#define MEGASAS_VERSION			"00.00.04.31-rc1"
+#define MEGASAS_RELDATE			"May 3, 2010"
+#define MEGASAS_EXT_VERSION		"Mon. May 3, 11:41:51 PST 2010"
 
 /*
  * Device IDs
@@ -706,6 +706,7 @@ struct megasas_ctrl_info {
 #define MEGASAS_MAX_LD_IDS			(MEGASAS_MAX_LD_CHANNELS * \
 						MEGASAS_MAX_DEV_PER_CHANNEL)
 
+#define MEGASAS_MAX_SECTORS                    (2*1024)
 #define MEGASAS_DBG_LVL				1
 
 #define MEGASAS_FW_BUSY				1

@@ -92,3 +92,5 @@ unmap:
 }
 
 arch_initcall(soekris_init);
+
+MODULE_LICENSE("GPL");

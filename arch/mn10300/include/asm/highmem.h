@@ -87,7 +87,7 @@ static inline unsigned long __kmap_atomic(struct page *page)
 		BUG();
 #endif
 	set_pte(kmap_pte - idx, mk_pte(page, kmap_prot));
-	__flush_tlb_one(vaddr);
+	local_flush_tlb_one(vaddr);
 
 	return vaddr;
 }
@@ -101,7 +101,7 @@ static inline void __kunmap_atomic(unsigned long vaddr)
 		return;
 	}
 
-	type = kmap_atomic_idx_pop();
+	type = kmap_atomic_idx();
 
 #if HIGHMEM_DEBUG
 	{
@@ -116,9 +116,11 @@ static inline void __kunmap_atomic(unsigned long vaddr)
 		 * this pte without first remap it
 		 */
 		pte_clear(kmap_pte - idx);
-		__flush_tlb_one(vaddr);
+		local_flush_tlb_one(vaddr);
 	}
 #endif
+
+	kmap_atomic_idx_pop();
 	pagefault_enable();
 }
 #endif /* __KERNEL__ */

@@ -52,8 +52,8 @@ static int __init sh7760_ac97_init(void)
 	unsigned short ipsel;
 
 	/* enable both AC97 controllers in pinmux reg */
-	ipsel = ctrl_inw(IPSEL);
-	ctrl_outw(ipsel | (3 << 10), IPSEL);
+	ipsel = __raw_readw(IPSEL);
+	__raw_writew(ipsel | (3 << 10), IPSEL);
 
 	ret = -ENOMEM;
 	sh7760_ac97_snd_device = platform_device_alloc("soc-audio", -1);

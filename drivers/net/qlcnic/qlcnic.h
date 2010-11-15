@@ -146,11 +146,13 @@
 #define MAX_CMD_DESCRIPTORS		1024
 #define MAX_RCV_DESCRIPTORS_1G		4096
 #define MAX_RCV_DESCRIPTORS_10G 	8192
+#define MAX_RCV_DESCRIPTORS_VF		2048
 #define MAX_JUMBO_RCV_DESCRIPTORS_1G	512
 #define MAX_JUMBO_RCV_DESCRIPTORS_10G	1024
 
 #define DEFAULT_RCV_DESCRIPTORS_1G	2048
 #define DEFAULT_RCV_DESCRIPTORS_10G	4096
+#define DEFAULT_RCV_DESCRIPTORS_VF	1024
 #define MAX_RDS_RINGS                   2
 
 #define get_next_index(index, length)	\
@@ -942,6 +944,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_LOOPBACK_TEST		2
 
 #define QLCNIC_FILTER_AGE	80
+#define QLCNIC_READD_AGE	20
 #define QLCNIC_LB_MAX_FILTERS	64
 
 struct qlcnic_filter {
@@ -970,6 +973,8 @@ struct qlcnic_adapter {
 	u16 num_txd;
 	u16 num_rxd;
 	u16 num_jumbo_rxd;
+	u16 max_rxd;
+	u16 max_jumbo_rxd;
 
 	u8 max_rds_rings;
 	u8 max_sds_rings;
@@ -1129,7 +1134,7 @@ struct qlcnic_eswitch {
 #define MAX_RX_QUEUES		4
 #define DEFAULT_MAC_LEARN	1
 
-#define IS_VALID_VLAN(vlan)	(vlan >= MIN_VLAN_ID && vlan <= MAX_VLAN_ID)
+#define IS_VALID_VLAN(vlan)	(vlan >= MIN_VLAN_ID && vlan < MAX_VLAN_ID)
 #define IS_VALID_BW(bw)		(bw >= MIN_BW && bw <= MAX_BW)
 #define IS_VALID_TX_QUEUES(que)	(que > 0 && que <= MAX_TX_QUEUES)
 #define IS_VALID_RX_QUEUES(que)	(que > 0 && que <= MAX_RX_QUEUES)

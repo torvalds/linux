@@ -36,7 +36,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	int ret = 0;
 	int wret;
 	int level;
-	int orig_level;
 	int is_extent = 0;
 	int next_key_ret = 0;
 	u64 last_ret = 0;
@@ -64,7 +63,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	level = btrfs_header_level(root->node);
-	orig_level = level;
 
 	if (level == 0)
 		goto out;

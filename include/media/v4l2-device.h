@@ -101,46 +101,67 @@ void v4l2_device_unregister_subdev(struct v4l2_subdev *sd);
 /* Call the specified callback for all subdevs matching the condition.
    Ignore any errors. Note that you cannot add or delete a subdev
    while walking the subdevs list. */
-#define __v4l2_device_call_subdevs(v4l2_dev, cond, o, f, args...) 	\
+#define __v4l2_device_call_subdevs_p(v4l2_dev, sd, cond, o, f, args...)	\
 	do { 								\
-		struct v4l2_subdev *sd; 				\
+		list_for_each_entry((sd), &(v4l2_dev)->subdevs, list)	\
+			if ((cond) && (sd)->ops->o && (sd)->ops->o->f)	\
+				(sd)->ops->o->f((sd) , ##args);		\
+	} while (0)
+
+#define __v4l2_device_call_subdevs(v4l2_dev, cond, o, f, args...)	\
+	do {								\
+		struct v4l2_subdev *__sd;				\
 									\
-		list_for_each_entry(sd, &(v4l2_dev)->subdevs, list)   	\
-			if ((cond) && sd->ops->o && sd->ops->o->f) 	\
-				sd->ops->o->f(sd , ##args); 		\
+		__v4l2_device_call_subdevs_p(v4l2_dev, __sd, cond, o,	\
+						f , ##args);		\
 	} while (0)
 
 /* Call the specified callback for all subdevs matching the condition.
    If the callback returns an error other than 0 or -ENOIOCTLCMD, then
    return with that error code. Note that you cannot add or delete a
    subdev while walking the subdevs list. */
-#define __v4l2_device_call_subdevs_until_err(v4l2_dev, cond, o, f, args...) \
+#define __v4l2_device_call_subdevs_until_err_p(v4l2_dev, sd, cond, o, f, args...) \
 ({ 									\
-	struct v4l2_subdev *sd; 					\
-	long err = 0; 							\
+	long __err = 0;							\
 									\
-	list_for_each_entry(sd, &(v4l2_dev)->subdevs, list) { 		\
-		if ((cond) && sd->ops->o && sd->ops->o->f) 		\
-			err = sd->ops->o->f(sd , ##args); 		\
-		if (err && err != -ENOIOCTLCMD)				\
+	list_for_each_entry((sd), &(v4l2_dev)->subdevs, list) {		\
+		if ((cond) && (sd)->ops->o && (sd)->ops->o->f)		\
+			__err = (sd)->ops->o->f((sd) , ##args);		\
+		if (__err && __err != -ENOIOCTLCMD)			\
 			break; 						\
 	} 								\
-	(err == -ENOIOCTLCMD) ? 0 : err; 				\
+	(__err == -ENOIOCTLCMD) ? 0 : __err;				\
+})
+
+#define __v4l2_device_call_subdevs_until_err(v4l2_dev, cond, o, f, args...) \
+({									\
+	struct v4l2_subdev *__sd;					\
+	__v4l2_device_call_subdevs_until_err_p(v4l2_dev, __sd, cond, o,	\
+						f, args...);		\
 })
 
 /* Call the specified callback for all subdevs matching grp_id (if 0, then
    match them all). Ignore any errors. Note that you cannot add or delete
    a subdev while walking the subdevs list. */
-#define v4l2_device_call_all(v4l2_dev, grpid, o, f, args...) 		\
-	__v4l2_device_call_subdevs(v4l2_dev, 				\
-			!(grpid) || sd->grp_id == (grpid), o, f , ##args)
+#define v4l2_device_call_all(v4l2_dev, grpid, o, f, args...)		\
+	do {								\
+		struct v4l2_subdev *__sd;				\
+									\
+		__v4l2_device_call_subdevs_p(v4l2_dev, __sd,		\
+			!(grpid) || __sd->grp_id == (grpid), o, f ,	\
+			##args);					\
+	} while (0)
 
 /* Call the specified callback for all subdevs matching grp_id (if 0, then
    match them all). If the callback returns an error other than 0 or
    -ENOIOCTLCMD, then return with that error code. Note that you cannot
    add or delete a subdev while walking the subdevs list. */
 #define v4l2_device_call_until_err(v4l2_dev, grpid, o, f, args...) 	\
-	__v4l2_device_call_subdevs_until_err(v4l2_dev,			\
-		       !(grpid) || sd->grp_id == (grpid), o, f , ##args)
+({									\
+	struct v4l2_subdev *__sd;					\
+	__v4l2_device_call_subdevs_until_err_p(v4l2_dev, __sd,		\
+			!(grpid) || __sd->grp_id == (grpid), o, f ,	\
+			##args);					\
+})
 
 #endif

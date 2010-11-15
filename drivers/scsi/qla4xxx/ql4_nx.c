@@ -839,8 +839,11 @@ qla4_8xxx_rom_lock(struct scsi_qla_host *ha)
 		done = qla4_8xxx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_LOCK));
 		if (done == 1)
 			break;
-		if (timeout >= qla4_8xxx_rom_lock_timeout)
+		if (timeout >= qla4_8xxx_rom_lock_timeout) {
+			ql4_printk(KERN_WARNING, ha,
+			    "%s: Failed to acquire rom lock", __func__);
 			return -1;
+		}
 
 		timeout++;
 
@@ -1075,21 +1078,6 @@ qla4_8xxx_pinit_from_rom(struct scsi_qla_host *ha, int verbose)
 	qla4_8xxx_wr_32(ha, QLA82XX_CRB_PEG_NET_3+0x8, 0);
 	qla4_8xxx_wr_32(ha, QLA82XX_CRB_PEG_NET_3+0xc, 0);
 
-	return 0;
-}
-
-static int qla4_8xxx_check_for_bad_spd(struct scsi_qla_host *ha)
-{
-	u32 val = 0;
-	val = qla4_8xxx_rd_32(ha, BOOT_LOADER_DIMM_STATUS) ;
-	val &= QLA82XX_BOOT_LOADER_MN_ISSUE;
-	if (val & QLA82XX_PEG_TUNE_MN_SPD_ZEROED) {
-		printk("Memory DIMM SPD not programmed.  Assumed valid.\n");
-		return 1;
-	} else if (val) {
-		printk("Memory DIMM type incorrect.  Info:%08X.\n", val);
-		return 2;
-	}
 	return 0;
 }
 
@@ -1377,8 +1365,6 @@ static int qla4_8xxx_cmdpeg_ready(struct scsi_qla_host *ha, int pegtune_val)
 
 		} while (--retries);
 
-		qla4_8xxx_check_for_bad_spd(ha);
-
 		if (!retries) {
 			pegtune_val = qla4_8xxx_rd_32(ha,
 				QLA82XX_ROMUSB_GLB_PEGTUNE_DONE);
@@ -1540,12 +1526,29 @@ qla4_8xxx_try_start_fw(struct scsi_qla_host *ha)
 	ql4_printk(KERN_INFO, ha,
 	    "FW: Attempting to load firmware from flash...\n");
 	rval = qla4_8xxx_start_firmware(ha, ha->hw.flt_region_fw);
-	if (rval == QLA_SUCCESS)
-		return rval;
 
-	ql4_printk(KERN_ERR, ha, "FW: Load firmware from flash FAILED...\n");
+	if (rval != QLA_SUCCESS) {
+		ql4_printk(KERN_ERR, ha, "FW: Load firmware from flash"
+		    " FAILED...\n");
+		return rval;
+	}
 
 	return rval;
+}
+
+static void qla4_8xxx_rom_lock_recovery(struct scsi_qla_host *ha)
+{
+	if (qla4_8xxx_rom_lock(ha)) {
+		/* Someone else is holding the lock. */
+		dev_info(&ha->pdev->dev, "Resetting rom_lock\n");
+	}
+
+	/*
+	 * Either we got the lock, or someone
+	 * else died while holding it.
+	 * In either case, unlock.
+	 */
+	qla4_8xxx_rom_unlock(ha);
 }
 
 /**
@@ -1557,11 +1560,12 @@ qla4_8xxx_try_start_fw(struct scsi_qla_host *ha)
 static int
 qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha)
 {
-	int rval, i, timeout;
+	int rval = QLA_ERROR;
+	int i, timeout;
 	uint32_t old_count, count;
+	int need_reset = 0, peg_stuck = 1;
 
-	if (qla4_8xxx_need_reset(ha))
-		goto dev_initialize;
+	need_reset = qla4_8xxx_need_reset(ha);
 
 	old_count = qla4_8xxx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
 
@@ -1570,12 +1574,30 @@ qla4_8xxx_device_bootstrap(struct scsi_qla_host *ha)
 		if (timeout) {
 			qla4_8xxx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
 			   QLA82XX_DEV_FAILED);
-			return QLA_ERROR;
+			return rval;
 		}
 
 		count = qla4_8xxx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
 		if (count != old_count)
+			peg_stuck = 0;
+	}
+
+	if (need_reset) {
+		/* We are trying to perform a recovery here. */
+		if (peg_stuck)
+			qla4_8xxx_rom_lock_recovery(ha);
+		goto dev_initialize;
+	} else  {
+		/* Start of day for this ha context. */
+		if (peg_stuck) {
+			/* Either we are the first or recovery in progress. */
+			qla4_8xxx_rom_lock_recovery(ha);
+			goto dev_initialize;
+		} else {
+			/* Firmware already running. */
+			rval = QLA_SUCCESS;
 			goto dev_ready;
+		}
 	}
 
 dev_initialize:
@@ -1601,7 +1623,7 @@ dev_ready:
 	ql4_printk(KERN_INFO, ha, "HW State: READY\n");
 	qla4_8xxx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_READY);
 
-	return QLA_SUCCESS;
+	return rval;
 }
 
 /**
@@ -1764,20 +1786,9 @@ int qla4_8xxx_load_risc(struct scsi_qla_host *ha)
 	int retval;
 	retval = qla4_8xxx_device_state_handler(ha);
 
-	if (retval == QLA_SUCCESS &&
-	    !test_bit(AF_INIT_DONE, &ha->flags)) {
+	if (retval == QLA_SUCCESS && !test_bit(AF_INIT_DONE, &ha->flags))
 		retval = qla4xxx_request_irqs(ha);
-		if (retval != QLA_SUCCESS) {
-			ql4_printk(KERN_WARNING, ha,
-			    "Failed to reserve interrupt %d already in use.\n",
-			    ha->pdev->irq);
-		} else {
-			set_bit(AF_IRQ_ATTACHED, &ha->flags);
-			ha->host->irq = ha->pdev->irq;
-			ql4_printk(KERN_INFO, ha, "%s: irq %d attached\n",
-			    __func__, ha->pdev->irq);
-		}
-	}
+
 	return retval;
 }
 

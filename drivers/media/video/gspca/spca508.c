@@ -92,8 +92,7 @@ static const struct v4l2_pix_format sif_mode[] = {
  * Initialization data: this is the first set-up data written to the
  * device (before the open data).
  */
-static const u16 spca508_init_data[][2] =
-{
+static const u16 spca508_init_data[][2] = {
 	{0x0000, 0x870b},
 
 	{0x0020, 0x8112},	/* Video drop enable, ISO streaming disable */
@@ -1276,7 +1275,7 @@ static int reg_write(struct usb_device *dev,
 	PDEBUG(D_USBO, "reg write i:0x%04x = 0x%02x",
 		index, value);
 	if (ret < 0)
-		PDEBUG(D_ERR|D_USBO, "reg write: error %d", ret);
+		err("reg write: error %d", ret);
 	return ret;
 }
 
@@ -1298,7 +1297,7 @@ static int reg_read(struct gspca_dev *gspca_dev,
 	PDEBUG(D_USBI, "reg read i:%04x --> %02x",
 		index, gspca_dev->usb_buf[0]);
 	if (ret < 0) {
-		PDEBUG(D_ERR|D_USBI, "reg_read err %d", ret);
+		err("reg_read err %d", ret);
 		return ret;
 	}
 	return gspca_dev->usb_buf[0];
@@ -1543,18 +1542,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

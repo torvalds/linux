@@ -215,6 +215,16 @@ struct symbol *map_groups__find_function_by_name(struct map_groups *self,
 	return map_groups__find_symbol_by_name(self, MAP__FUNCTION, name, mapp, filter);
 }
 
+static inline
+struct symbol *machine__find_kernel_function_by_name(struct machine *self,
+						     const char *name,
+						     struct map **mapp,
+						     symbol_filter_t filter)
+{
+	return map_groups__find_function_by_name(&self->kmaps, name, mapp,
+						 filter);
+}
+
 int map_groups__fixup_overlappings(struct map_groups *self, struct map *map,
 				   int verbose, FILE *fp);
 

@@ -113,10 +113,10 @@
 #endif
 #define PTRS_PER_PTE	((PAGE_SIZE << PTE_ORDER) / sizeof(pte_t))
 
-#if PGDIR_SIZE >= TASK_SIZE
+#if PGDIR_SIZE >= TASK_SIZE64
 #define USER_PTRS_PER_PGD       (1)
 #else
-#define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
+#define USER_PTRS_PER_PGD	(TASK_SIZE64 / PGDIR_SIZE)
 #endif
 #define FIRST_USER_ADDRESS	0UL
 

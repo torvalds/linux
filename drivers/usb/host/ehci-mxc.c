@@ -36,6 +36,8 @@ struct ehci_mxc_priv {
 static int ehci_mxc_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	struct device *dev = hcd->self.controller;
+	struct mxc_usbh_platform_data *pdata = dev_get_platdata(dev);
 	int retval;
 
 	/* EHCI registers start at offset 0x100 */
@@ -62,6 +64,12 @@ static int ehci_mxc_setup(struct usb_hcd *hcd)
 	ehci->sbrn = 0x20;
 
 	ehci_reset(ehci);
+
+	/* set up the PORTSCx register */
+	ehci_writel(ehci, pdata->portsc, &ehci->regs->port_status[0]);
+
+	/* is this really needed? */
+	msleep(10);
 
 	ehci_port_power(ehci, 0);
 	return 0;
@@ -114,7 +122,7 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	struct mxc_usbh_platform_data *pdata = pdev->dev.platform_data;
 	struct usb_hcd *hcd;
 	struct resource *res;
-	int irq, ret, temp;
+	int irq, ret;
 	struct ehci_mxc_priv *priv;
 	struct device *dev = &pdev->dev;
 
@@ -187,10 +195,6 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		}
 		clk_enable(priv->ahbclk);
 	}
-
-	/* set up the PORTSCx register */
-	ehci_writel(ehci, pdata->portsc, &ehci->regs->port_status[0]);
-	mdelay(10);
 
 	/* setup specific usb hw */
 	ret = mxc_initialize_usb_hw(pdev->id, pdata->flags);

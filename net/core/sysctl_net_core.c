@@ -34,7 +34,8 @@ static int rps_sock_flow_sysctl(ctl_table *table, int write,
 
 	mutex_lock(&sock_flow_mutex);
 
-	orig_sock_table = rps_sock_flow_table;
+	orig_sock_table = rcu_dereference_protected(rps_sock_flow_table,
+					lockdep_is_held(&sock_flow_mutex));
 	size = orig_size = orig_sock_table ? orig_sock_table->mask + 1 : 0;
 
 	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);

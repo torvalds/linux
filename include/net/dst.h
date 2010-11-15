@@ -95,7 +95,7 @@ struct dst_entry {
 	unsigned long		lastuse;
 	union {
 		struct dst_entry *next;
-		struct rtable    *rt_next;
+		struct rtable __rcu *rt_next;
 		struct rt6_info   *rt6_next;
 		struct dn_route  *dn_next;
 	};

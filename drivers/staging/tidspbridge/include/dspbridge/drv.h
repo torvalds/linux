@@ -193,7 +193,7 @@ struct process_context {
  *  Ensures:
  *      0:        - *drv_obj is a valid DRV interface to the device.
  *                      - List of DevObject Created and Initialized.
- *                      - List of dev_node String created and intialized.
+ *                      - List of dev_node String created and initialized.
  *                      - Registry is updated with the DRV Object.
  *      !0:       DRV Object not created
  *  Details:

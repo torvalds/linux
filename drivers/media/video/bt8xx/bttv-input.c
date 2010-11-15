@@ -245,6 +245,83 @@ static void bttv_ir_stop(struct bttv *btv)
 	}
 }
 
+/*
+ * Get_key functions used by I2C remotes
+ */
+
+static int get_key_pv951(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+	unsigned char b;
+
+	/* poll IR chip */
+	if (1 != i2c_master_recv(ir->c, &b, 1)) {
+		dprintk(KERN_INFO DEVNAME ": read error\n");
+		return -EIO;
+	}
+
+	/* ignore 0xaa */
+	if (b==0xaa)
+		return 0;
+	dprintk(KERN_INFO DEVNAME ": key %02x\n", b);
+
+	*ir_key = b;
+	*ir_raw = b;
+	return 1;
+}
+
+/* Instantiate the I2C IR receiver device, if present */
+void __devinit init_bttv_i2c_ir(struct bttv *btv)
+{
+	const unsigned short addr_list[] = {
+		0x1a, 0x18, 0x64, 0x30, 0x71,
+		I2C_CLIENT_END
+	};
+	struct i2c_board_info info;
+
+	if (0 != btv->i2c_rc)
+		return;
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	memset(&btv->init_data, 0, sizeof(btv->init_data));
+	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+
+	switch (btv->c.type) {
+	case BTTV_BOARD_PV951:
+		btv->init_data.name = "PV951";
+		btv->init_data.get_key = get_key_pv951;
+		btv->init_data.ir_codes = RC_MAP_PV951;
+		btv->init_data.type = IR_TYPE_OTHER;
+		info.addr = 0x4b;
+		break;
+	default:
+		/*
+		 * The external IR receiver is at i2c address 0x34 (0x35 for
+                 * reads).  Future Hauppauge cards will have an internal
+                 * receiver at 0x30 (0x31 for reads).  In theory, both can be
+                 * fitted, and Hauppauge suggest an external overrides an
+                 * internal.
+		 * That's why we probe 0x1a (~0x34) first. CB
+		 */
+
+		i2c_new_probed_device(&btv->c.i2c_adap, &info, addr_list, NULL);
+		return;
+	}
+
+	if (btv->init_data.name)
+		info.platform_data = &btv->init_data;
+	i2c_new_device(&btv->c.i2c_adap, &info);
+
+	return;
+}
+
+int __devexit fini_bttv_i2c(struct bttv *btv)
+{
+	if (0 != btv->i2c_rc)
+		return 0;
+
+	return i2c_del_adapter(&btv->c.i2c_adap);
+}
+
 int bttv_input_init(struct bttv *btv)
 {
 	struct card_ir *ir;
@@ -420,10 +497,3 @@ void bttv_input_fini(struct bttv *btv)
 	kfree(btv->remote);
 	btv->remote = NULL;
 }
-
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

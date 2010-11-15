@@ -286,7 +286,7 @@ found:
 
 	/* Check for overlap with preceding fragment. */
 	if (prev &&
-	    (NFCT_FRAG6_CB(prev)->offset + prev->len) - offset > 0)
+	    (NFCT_FRAG6_CB(prev)->offset + prev->len) > offset)
 		goto discard_fq;
 
 	/* Look for overlap with succeeding segment. */
@@ -625,21 +625,24 @@ int nf_ct_frag6_init(void)
 	inet_frags_init_net(&nf_init_frags);
 	inet_frags_init(&nf_frags);
 
+#ifdef CONFIG_SYSCTL
 	nf_ct_frag6_sysctl_header = register_sysctl_paths(nf_net_netfilter_sysctl_path,
 							  nf_ct_frag6_sysctl_table);
 	if (!nf_ct_frag6_sysctl_header) {
 		inet_frags_fini(&nf_frags);
 		return -ENOMEM;
 	}
+#endif
 
 	return 0;
 }
 
 void nf_ct_frag6_cleanup(void)
 {
+#ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(nf_ct_frag6_sysctl_header);
 	nf_ct_frag6_sysctl_header = NULL;
-
+#endif
 	inet_frags_fini(&nf_frags);
 
 	nf_init_frags.low_thresh = 0;

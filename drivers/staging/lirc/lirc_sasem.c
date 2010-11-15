@@ -387,8 +387,10 @@ static ssize_t vfd_write(struct file *file, const char *buf,
 	}
 
 	data_buf = memdup_user(buf, n_bytes);
-	if (PTR_ERR(data_buf))
-		return PTR_ERR(data_buf);
+	if (IS_ERR(data_buf)) {
+		retval = PTR_ERR(data_buf);
+		goto exit;
+	}
 
 	memcpy(context->tx.data_buf, data_buf, n_bytes);
 
@@ -513,7 +515,7 @@ exit:
 	mutex_unlock(&context->ctx_lock);
 
 	mutex_unlock(&disconnect_lock);
-	return 0;
+	return retval;
 }
 
 /**
@@ -804,7 +806,8 @@ static int sasem_probe(struct usb_interface *interface,
 	if (lirc_minor < 0) {
 		err("%s: lirc_register_driver failed", __func__);
 		alloc_status = 7;
-		mutex_unlock(&context->ctx_lock);
+		retval = lirc_minor;
+		goto unlock;
 	} else
 		printk(KERN_INFO "%s: Registered Sasem driver (minor:%d)\n",
 			__func__, lirc_minor);
@@ -829,7 +832,7 @@ alloc_status_switch:
 		context = NULL;
 	case 1:
 		retval = -ENOMEM;
-		goto exit;
+		goto unlock;
 	}
 
 	/* Needed while unregistering! */
@@ -860,7 +863,7 @@ alloc_status_switch:
 
 	printk(KERN_INFO "%s: Sasem device on usb<%d:%d> initialized\n",
 			__func__, dev->bus->busnum, dev->devnum);
-
+unlock:
 	mutex_unlock(&context->ctx_lock);
 exit:
 	return retval;

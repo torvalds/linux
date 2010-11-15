@@ -259,17 +259,17 @@ static int oprofilefs_fill_super(struct super_block *sb, void *data, int silent)
 }
 
 
-static int oprofilefs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *oprofilefs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_single(fs_type, flags, data, oprofilefs_fill_super, mnt);
+	return mount_single(fs_type, flags, data, oprofilefs_fill_super);
 }
 
 
 static struct file_system_type oprofilefs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "oprofilefs",
-	.get_sb		= oprofilefs_get_sb,
+	.mount		= oprofilefs_mount,
 	.kill_sb	= kill_litter_super,
 };
 

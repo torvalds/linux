@@ -9,6 +9,7 @@
 #include <linux/limits.h>
 #include <linux/ioctl.h>
 #include <linux/blk_types.h>
+#include <linux/types.h>
 
 /*
  * It's silly to have NR_OPEN bigger than NR_FILE, but you can change
@@ -31,6 +32,12 @@
 #define SEEK_CUR	1	/* seek relative to current file position */
 #define SEEK_END	2	/* seek relative to end of file */
 #define SEEK_MAX	SEEK_END
+
+struct fstrim_range {
+	uint64_t start;
+	uint64_t len;
+	uint64_t minlen;
+};
 
 /* And dynamically-tunable limits and defaults: */
 struct files_stat_struct {
@@ -317,6 +324,7 @@ struct inodes_stat_t {
 #define FIGETBSZ   _IO(0x00,2)	/* get the block size used for bmap */
 #define FIFREEZE	_IOWR('X', 119, int)	/* Freeze */
 #define FITHAW		_IOWR('X', 120, int)	/* Thaw */
+#define FITRIM		_IOWR('X', 121, struct fstrim_range)	/* Trim */
 
 #define	FS_IOC_GETFLAGS			_IOR('f', 1, long)
 #define	FS_IOC_SETFLAGS			_IOW('f', 2, long)
@@ -1048,7 +1056,6 @@ struct lock_manager_operations {
 	int (*fl_compare_owner)(struct file_lock *, struct file_lock *);
 	void (*fl_notify)(struct file_lock *);	/* unblock callback */
 	int (*fl_grant)(struct file_lock *, struct file_lock *, int);
-	void (*fl_copy_lock)(struct file_lock *, struct file_lock *);
 	void (*fl_release_private)(struct file_lock *);
 	void (*fl_break)(struct file_lock *);
 	int (*fl_mylease)(struct file_lock *, struct file_lock *);
@@ -1121,7 +1128,9 @@ extern int fcntl_setlease(unsigned int fd, struct file *filp, long arg);
 extern int fcntl_getlease(struct file *filp);
 
 /* fs/locks.c */
+void locks_free_lock(struct file_lock *fl);
 extern void locks_init_lock(struct file_lock *);
+extern struct file_lock * locks_alloc_lock(void);
 extern void locks_copy_lock(struct file_lock *, struct file_lock *);
 extern void __locks_copy_lock(struct file_lock *, const struct file_lock *);
 extern void locks_remove_posix(struct file *, fl_owner_t);
@@ -1310,6 +1319,11 @@ struct fasync_struct {
 
 /* SMP safe fasync helpers: */
 extern int fasync_helper(int, struct file *, int, struct fasync_struct **);
+extern struct fasync_struct *fasync_insert_entry(int, struct file *, struct fasync_struct **, struct fasync_struct *);
+extern int fasync_remove_entry(struct file *, struct fasync_struct **);
+extern struct fasync_struct *fasync_alloc(void);
+extern void fasync_free(struct fasync_struct *);
+
 /* can be called from interrupts */
 extern void kill_fasync(struct fasync_struct **, int, int);
 
@@ -1598,6 +1612,7 @@ struct super_operations {
 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
 #endif
 	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);
+	int (*trim_fs) (struct super_block *, struct fstrim_range *);
 };
 
 /*
@@ -1757,6 +1772,8 @@ struct file_system_type {
 	int fs_flags;
 	int (*get_sb) (struct file_system_type *, int,
 		       const char *, void *, struct vfsmount *);
+	struct dentry *(*mount) (struct file_system_type *, int,
+		       const char *, void *);
 	void (*kill_sb) (struct super_block *);
 	struct module *owner;
 	struct file_system_type * next;
@@ -1772,17 +1789,25 @@ struct file_system_type {
 	struct lock_class_key i_alloc_sem_key;
 };
 
-extern int get_sb_ns(struct file_system_type *fs_type, int flags, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt);
+extern struct dentry *mount_ns(struct file_system_type *fs_type, int flags,
+	void *data, int (*fill_super)(struct super_block *, void *, int));
+extern struct dentry *mount_bdev(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data,
+	int (*fill_super)(struct super_block *, void *, int));
 extern int get_sb_bdev(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data,
 	int (*fill_super)(struct super_block *, void *, int),
 	struct vfsmount *mnt);
+extern struct dentry *mount_single(struct file_system_type *fs_type,
+	int flags, void *data,
+	int (*fill_super)(struct super_block *, void *, int));
 extern int get_sb_single(struct file_system_type *fs_type,
 	int flags, void *data,
 	int (*fill_super)(struct super_block *, void *, int),
 	struct vfsmount *mnt);
+extern struct dentry *mount_nodev(struct file_system_type *fs_type,
+	int flags, void *data,
+	int (*fill_super)(struct super_block *, void *, int));
 extern int get_sb_nodev(struct file_system_type *fs_type,
 	int flags, void *data,
 	int (*fill_super)(struct super_block *, void *, int),
@@ -1798,9 +1823,8 @@ struct super_block *sget(struct file_system_type *type,
 			int (*test)(struct super_block *,void *),
 			int (*set)(struct super_block *,void *),
 			void *data);
-extern int get_sb_pseudo(struct file_system_type *, char *,
-	const struct super_operations *ops, unsigned long,
-	struct vfsmount *mnt);
+extern struct dentry *mount_pseudo(struct file_system_type *, char *,
+	const struct super_operations *ops, unsigned long);
 extern void simple_set_mnt(struct vfsmount *mnt, struct super_block *sb);
 
 static inline void sb_mark_dirty(struct super_block *sb)
@@ -1843,6 +1867,7 @@ extern int current_umask(void);
 /* /sys/fs */
 extern struct kobject *fs_kobj;
 
+#define MAX_RW_COUNT (INT_MAX & PAGE_CACHE_MASK)
 extern int rw_verify_area(int, struct file *, loff_t *, size_t);
 
 #define FLOCK_VERIFY_READ  1

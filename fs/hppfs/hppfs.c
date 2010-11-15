@@ -748,17 +748,17 @@ static int hppfs_fill_super(struct super_block *sb, void *d, int silent)
 	return(err);
 }
 
-static int hppfs_read_super(struct file_system_type *type,
+static struct dentry *hppfs_read_super(struct file_system_type *type,
 			    int flags, const char *dev_name,
-			    void *data, struct vfsmount *mnt)
+			    void *data)
 {
-	return get_sb_nodev(type, flags, data, hppfs_fill_super, mnt);
+	return mount_nodev(type, flags, data, hppfs_fill_super);
 }
 
 static struct file_system_type hppfs_type = {
 	.owner 		= THIS_MODULE,
 	.name 		= "hppfs",
-	.get_sb 	= hppfs_read_super,
+	.mount 		= hppfs_read_super,
 	.kill_sb	= kill_anon_super,
 	.fs_flags 	= 0,
 };
