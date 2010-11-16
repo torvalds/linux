@@ -32,7 +32,6 @@
 #include <linux/string.h> /* memset */
 #include <linux/capability.h>
 #include <linux/errno.h>
-#include <linux/smp_lock.h>
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/aio.h>
@@ -149,8 +148,6 @@ long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	long old_block, new_block;
 	int result = -EINVAL;
 
-	lock_kernel();
-
 	if (file_permission(filp, MAY_READ) != 0) {
 		udf_debug("no permission to access inode %lu\n", inode->i_ino);
 		result = -EPERM;
@@ -196,7 +193,6 @@ long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 
 out:
-	unlock_kernel();
 	return result;
 }
 

@@ -31,7 +31,6 @@
 
 #include "udfdecl.h"
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
@@ -96,9 +95,7 @@ void udf_evict_inode(struct inode *inode)
 	kfree(iinfo->i_ext.i_data);
 	iinfo->i_ext.i_data = NULL;
 	if (want_delete) {
-		lock_kernel();
 		udf_free_inode(inode);
-		unlock_kernel();
 	}
 }
 
