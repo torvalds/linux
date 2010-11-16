@@ -107,7 +107,7 @@ struct mtp_dev {
 	struct work_struct receive_file_work;
 	struct file *xfer_file;
 	loff_t xfer_file_offset;
-	size_t xfer_file_length;
+	int64_t xfer_file_length;
 	int xfer_result;
 };
 
@@ -558,7 +558,8 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 	dev->state = STATE_BUSY;
 	spin_unlock_irq(&dev->lock);
 
-	while (count > 0) {
+	/* condition check at bottom to allow zero length packet write */
+	do {
 		if (dev->state != STATE_BUSY) {
 			DBG(cdev, "mtp_write dev->error\n");
 			r = -EIO;
@@ -579,7 +580,7 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 			xfer = BULK_BUFFER_SIZE;
 		else
 			xfer = count;
-		if (copy_from_user(req->buf, buf, xfer)) {
+		if (xfer && copy_from_user(req->buf, buf, xfer)) {
 			r = -EFAULT;
 			break;
 		}
@@ -597,7 +598,7 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 
 		/* zero this so we don't try to free it on error exit */
 		req = 0;
-	}
+	} while (count > 0);
 
 	if (req)
 		req_put(dev, &dev->tx_idle, req);
@@ -620,9 +621,10 @@ static void send_file_work(struct work_struct *data) {
 	struct usb_request *req = 0;
 	struct file *filp;
 	loff_t offset;
-	size_t count;
+	int64_t count;
 	int xfer, ret;
 	int r = 0;
+	int sendZLP = 0;
 
 	/* read our parameters */
 	smp_rmb();
@@ -630,9 +632,22 @@ static void send_file_work(struct work_struct *data) {
 	offset = dev->xfer_file_offset;
 	count = dev->xfer_file_length;
 
-	DBG(cdev, "send_file_work(%lld %u)\n", offset, count);
+	DBG(cdev, "send_file_work(%lld %lld)\n", offset, count);
 
-	while (count > 0) {
+	/* we need to send a zero length packet to signal the end of transfer
+	 * if the length is > 4 gig and the last packet is aligned to a
+	 * packet boundary.
+	 */
+	if (dev->xfer_file_length >= 0xFFFFFFFF
+		&& (dev->xfer_file_length & (dev->ep_in->maxpacket - 1)) == 0) {
+		sendZLP = 1;
+	}
+
+	while (count > 0 || sendZLP) {
+		/* so we exit after sending ZLP */
+		if (count == 0)
+			sendZLP = 0;
+
 		/* get an idle tx request to use */
 		req = 0;
 		ret = wait_event_interruptible(dev->write_wq,
@@ -686,7 +701,7 @@ static void receive_file_work(struct work_struct *data)
 	struct usb_request *read_req = NULL, *write_req = NULL;
 	struct file *filp;
 	loff_t offset;
-	size_t count;
+	int64_t count;
 	int ret, cur_buf = 0;
 	int r = 0;
 
@@ -696,7 +711,7 @@ static void receive_file_work(struct work_struct *data)
 	offset = dev->xfer_file_offset;
 	count = dev->xfer_file_length;
 
-	DBG(cdev, "receive_file_work(%u)\n", count);
+	DBG(cdev, "receive_file_work(%lld)\n", count);
 
 	while (count > 0 || write_req) {
 		if (count > 0) {
@@ -713,7 +728,6 @@ static void receive_file_work(struct work_struct *data)
 				dev->state = STATE_ERROR;
 				break;
 			}
-			count -= ret;
 		}
 
 		if (write_req) {
@@ -737,7 +751,17 @@ static void receive_file_work(struct work_struct *data)
 				r = ret;
 				break;
 			}
-			count -= read_req->actual;
+			/* if xfer_file_length is 0xFFFFFFFF, then we read until
+			 * we get a zero length packet
+			 */
+			if (count != 0xFFFFFFFF)
+				count -= read_req->actual;
+			if (read_req->actual < read_req->length) {
+				/* short packet is used to signal EOF for sizes > 4 gig */
+				DBG(cdev, "got short packet\n");
+				count = 0;
+			}
+
 			write_req = read_req;
 			read_req = NULL;
 		}
