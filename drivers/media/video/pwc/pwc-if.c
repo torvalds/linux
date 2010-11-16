@@ -966,36 +966,6 @@ void pwc_isoc_cleanup(struct pwc_device *pdev)
 	PWC_DEBUG_OPEN("<< pwc_isoc_cleanup()\n");
 }
 
-int pwc_try_video_mode(struct pwc_device *pdev, int width, int height, int new_fps, int new_compression, int new_snapshot)
-{
-	int ret, start;
-
-	/* Stop isoc stuff */
-	pwc_isoc_cleanup(pdev);
-	/* Reset parameters */
-	pwc_reset_buffers(pdev);
-	/* Try to set video mode... */
-	start = ret = pwc_set_video_mode(pdev, width, height, new_fps, new_compression, new_snapshot);
-	if (ret) {
-		PWC_DEBUG_FLOW("pwc_set_video_mode attempt 1 failed.\n");
-		/* That failed... restore old mode (we know that worked) */
-		start = pwc_set_video_mode(pdev, pdev->view.x, pdev->view.y, pdev->vframes, pdev->vcompression, pdev->vsnapshot);
-		if (start) {
-			PWC_DEBUG_FLOW("pwc_set_video_mode attempt 2 failed.\n");
-		}
-	}
-	if (start == 0)
-	{
-		if (pwc_isoc_init(pdev) < 0)
-		{
-			PWC_WARNING("Failed to restart ISOC transfers in pwc_try_video_mode.\n");
-			ret = -EAGAIN; /* let's try again, who knows if it works a second time */
-		}
-	}
-	pdev->drop_frames++; /* try to avoid garbage during switch */
-	return ret; /* Return original error code */
-}
-
 /*********
  * sysfs
  *********/
@@ -1175,7 +1145,7 @@ static int pwc_video_open(struct file *file)
 	/* Set some defaults */
 	pdev->vsnapshot = 0;
 
-	/* Start iso pipe for video; first try the last used video size
+	/* Set video size, first try the last used video size
 	   (or the default one); if that fails try QCIF/10 or QSIF/10;
 	   it that fails too, give up.
 	 */
@@ -1197,15 +1167,6 @@ static int pwc_video_open(struct file *file)
 	}
 	if (i) {
 		PWC_DEBUG_OPEN("Second attempt at set_video_mode failed.\n");
-		pwc_free_buffers(pdev);
-		mutex_unlock(&pdev->modlock);
-		return i;
-	}
-
-	i = pwc_isoc_init(pdev);
-	if (i) {
-		PWC_DEBUG_OPEN("Failed to init ISOC stuff = %d.\n", i);
-		pwc_isoc_cleanup(pdev);
 		pwc_free_buffers(pdev);
 		mutex_unlock(&pdev->modlock);
 		return i;
@@ -1325,6 +1286,11 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 		goto err_out;
 	}
 
+	/* Start the stream (if not already started) */
+	rv = pwc_isoc_init(pdev);
+	if (rv)
+		goto err_out;
+
 	/* In case we're doing partial reads, we don't have to wait for a frame */
 	if (pdev->image_read_pos == 0) {
 		/* Do wait queueing according to the (doc)book */
@@ -1394,12 +1360,20 @@ static unsigned int pwc_video_poll(struct file *file, poll_table *wait)
 {
 	struct video_device *vdev = file->private_data;
 	struct pwc_device *pdev;
+	int ret;
 
 	if (vdev == NULL)
 		return -EFAULT;
 	pdev = video_get_drvdata(vdev);
 	if (pdev == NULL)
 		return -EFAULT;
+
+	/* Start the stream (if not already started) */
+	mutex_lock(&pdev->modlock);
+	ret = pwc_isoc_init(pdev);
+	mutex_unlock(&pdev->modlock);
+	if (ret)
+		return ret;
 
 	poll_wait(file, &pdev->frameq, wait);
 	if (pdev->error_status)
