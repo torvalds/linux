@@ -35,7 +35,7 @@ typedef struct {
 	} regs;			/* Memory mapped register to the core */
 
 	si_t *sih;		/* System interconnect handle */
-	osl_t *osh;		/* OSL handle */
+	struct osl_info *osh;		/* OSL handle */
 	u8 pciecap_lcreg_offset;	/* PCIE capability LCreg offset in the config space */
 	bool pcie_pr42767;
 	u8 pcie_polarity;
@@ -107,7 +107,7 @@ static bool pcicore_pmecap(pcicore_info_t *pi);
 /* Initialize the PCI core. It's caller's responsibility to make sure that this is done
  * only once
  */
-void *pcicore_init(si_t *sih, osl_t *osh, void *regs)
+void *pcicore_init(si_t *sih, struct osl_info *osh, void *regs)
 {
 	pcicore_info_t *pi;
 
@@ -149,8 +149,8 @@ void pcicore_deinit(void *pch)
 /* return cap_offset if requested capability exists in the PCI config space */
 /* Note that it's caller's responsibility to make sure it's a pci bus */
 u8
-pcicore_find_pci_capability(osl_t *osh, u8 req_cap_id, unsigned char *buf,
-			    u32 *buflen)
+pcicore_find_pci_capability(struct osl_info *osh, u8 req_cap_id,
+			    unsigned char *buf, u32 *buflen)
 {
 	u8 cap_id;
 	u8 cap_ptr = 0;
@@ -210,7 +210,8 @@ pcicore_find_pci_capability(osl_t *osh, u8 req_cap_id, unsigned char *buf,
 
 /* ***** Register Access API */
 uint
-pcie_readreg(osl_t *osh, sbpcieregs_t *pcieregs, uint addrtype, uint offset)
+pcie_readreg(struct osl_info *osh, sbpcieregs_t *pcieregs, uint addrtype,
+	     uint offset)
 {
 	uint retval = 0xFFFFFFFF;
 
@@ -236,8 +237,8 @@ pcie_readreg(osl_t *osh, sbpcieregs_t *pcieregs, uint addrtype, uint offset)
 }
 
 uint
-pcie_writereg(osl_t *osh, sbpcieregs_t *pcieregs, uint addrtype, uint offset,
-	      uint val)
+pcie_writereg(struct osl_info *osh, sbpcieregs_t *pcieregs, uint addrtype,
+	      uint offset, uint val)
 {
 	ASSERT(pcieregs != NULL);
 
@@ -393,7 +394,7 @@ static void pcie_extendL1timer(pcicore_info_t *pi, bool extend)
 {
 	u32 w;
 	si_t *sih = pi->sih;
-	osl_t *osh = pi->osh;
+	struct osl_info *osh = pi->osh;
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
 
 	if (!PCIE_PUB(sih) || sih->buscorerev < 7)
@@ -577,7 +578,7 @@ static void pcie_war_noplldown(pcicore_info_t *pi)
 static void pcie_war_pci_setup(pcicore_info_t *pi)
 {
 	si_t *sih = pi->sih;
-	osl_t *osh = pi->osh;
+	struct osl_info *osh = pi->osh;
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
 	u32 w;
 
@@ -718,7 +719,7 @@ void pcicore_down(void *pch, int state)
 
 /* ***** Wake-on-wireless-LAN (WOWL) support functions ***** */
 /* Just uses PCI config accesses to find out, when needed before sb_attach is done */
-bool pcicore_pmecap_fast(osl_t *osh)
+bool pcicore_pmecap_fast(struct osl_info *osh)
 {
 	u8 cap_ptr;
 	u32 pmecap;
@@ -842,7 +843,7 @@ pcicore_pciereg(void *pch, u32 offset, u32 mask, u32 val, uint type)
 	u32 reg_val = 0;
 	pcicore_info_t *pi = (pcicore_info_t *) pch;
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
-	osl_t *osh = pi->osh;
+	struct osl_info *osh = pi->osh;
 
 	if (mask) {
 		PCI_ERROR(("PCIEREG: 0x%x writeval  0x%x\n", offset, val));

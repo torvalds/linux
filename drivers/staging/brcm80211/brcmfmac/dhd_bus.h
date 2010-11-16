@@ -26,8 +26,8 @@ extern int dhd_bus_register(void);
 extern void dhd_bus_unregister(void);
 
 /* Download firmware image and nvram image */
-extern bool dhd_bus_download_firmware(struct dhd_bus *bus, osl_t * osh,
-				      char *fw_path, char *nv_path);
+extern bool dhd_bus_download_firmware(struct dhd_bus *bus,
+	      struct osl_info *osh, char *fw_path, char *nv_path);
 
 /* Stop bus module: clear pending frames, disable data flow */
 extern void dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex);

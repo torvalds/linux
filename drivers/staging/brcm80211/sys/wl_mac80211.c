@@ -743,7 +743,7 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 			    uint bustype, void *btparam, uint irq)
 {
 	wl_info_t *wl;
-	osl_t *osh;
+	struct osl_info *osh;
 	int unit, err;
 
 	unsigned long base_addr;
@@ -1512,7 +1512,7 @@ module_exit(wl_module_exit);
 void wl_free(wl_info_t *wl)
 {
 	wl_timer_t *t, *next;
-	osl_t *osh;
+	struct osl_info *osh;
 
 	ASSERT(wl);
 #ifndef WLC_HIGH_ONLY

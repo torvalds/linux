@@ -1863,12 +1863,12 @@ static int dhd_open(struct net_device *net)
 	return ret;
 }
 
-osl_t *dhd_osl_attach(void *pdev, uint bustype)
+struct osl_info *dhd_osl_attach(void *pdev, uint bustype)
 {
 	return osl_attach(pdev, bustype);
 }
 
-void dhd_osl_detach(osl_t *osh)
+void dhd_osl_detach(struct osl_info *osh)
 {
 	osl_detach(osh);
 }
@@ -1926,7 +1926,8 @@ void dhd_del_if(dhd_info_t *dhd, int ifidx)
 	up(&dhd->sysioc_sem);
 }
 
-dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
+dhd_pub_t *dhd_attach(struct osl_info *osh, struct dhd_bus *bus,
+			uint bus_hdrlen)
 {
 	dhd_info_t *dhd = NULL;
 	struct net_device *net;

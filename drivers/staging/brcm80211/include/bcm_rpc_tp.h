@@ -57,7 +57,7 @@ typedef void (*rpc_rx_fn_t) (void *, rpc_buf_t *);
 typedef void (*rpc_txflowctl_cb_t) (void *ctx, bool on);
 #endif
 
-extern rpc_tp_info_t *bcm_rpc_tp_attach(osl_t *osh, void *bus);
+extern rpc_tp_info_t *bcm_rpc_tp_attach(struct osl_info *osh, void *bus);
 extern void bcm_rpc_tp_detach(rpc_tp_info_t *rpcb);
 extern void bcm_rpc_tp_down(rpc_tp_info_t *rpcb);
 extern void bcm_rpc_tp_watchdog(rpc_tp_info_t *rpcb);

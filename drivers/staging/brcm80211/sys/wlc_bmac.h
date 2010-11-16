@@ -131,8 +131,8 @@ typedef enum {
 } wlc_bmac_state_id_t;
 
 extern int wlc_bmac_attach(wlc_info_t *wlc, u16 vendor, u16 device,
-			   uint unit, bool piomode, osl_t *osh, void *regsva,
-			   uint bustype, void *btparam);
+			   uint unit, bool piomode, struct osl_info *osh,
+			   void *regsva, uint bustype, void *btparam);
 extern int wlc_bmac_detach(wlc_info_t *wlc);
 extern void wlc_bmac_watchdog(void *arg);
 extern void wlc_bmac_info_init(wlc_hw_info_t *wlc_hw);

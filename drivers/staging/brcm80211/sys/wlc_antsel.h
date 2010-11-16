@@ -16,7 +16,7 @@
 
 #ifndef _wlc_antsel_h_
 #define _wlc_antsel_h_
-extern antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, osl_t *osh,
+extern antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, struct osl_info *osh,
 					wlc_pub_t *pub,
 					wlc_hw_info_t *wlc_hw);
 extern void wlc_antsel_detach(antsel_info_t *asi);

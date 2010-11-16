@@ -26,7 +26,7 @@ typedef void (*rpc_dispatch_cb_t) (void *ctx, struct rpc_buf *buf);
 typedef void (*rpc_resync_cb_t) (void *ctx);
 typedef void (*rpc_down_cb_t) (void *ctx);
 typedef void (*rpc_txdone_cb_t) (void *ctx, struct rpc_buf *buf);
-extern struct rpc_info *bcm_rpc_attach(void *pdev, osl_t *osh,
+extern struct rpc_info *bcm_rpc_attach(void *pdev, struct osl_info *osh,
 				       struct rpc_transport_info *rpc_th);
 
 extern void bcm_rpc_detach(struct rpc_info *rpc);

@@ -56,7 +56,7 @@ struct bcmsdh_hc {
 #else
 	struct pci_dev *dev;	/* pci device handle */
 #endif				/* BCMPLATFORM_BUS */
-	osl_t *osh;
+	struct osl_info *osh;
 	void *regs;		/* SDIO Host Controller address */
 	bcmsdh_info_t *sdh;	/* SDIO Host Controller handle */
 	void *ch;
@@ -142,7 +142,7 @@ static
 #endif				/* BCMLXSDMMC */
 int bcmsdh_probe(struct device *dev)
 {
-	osl_t *osh = NULL;
+	struct osl_info *osh = NULL;
 	bcmsdh_hc_t *sdhc = NULL;
 	unsigned long regs = 0;
 	bcmsdh_info_t *sdh = NULL;
@@ -246,7 +246,7 @@ static
 int bcmsdh_remove(struct device *dev)
 {
 	bcmsdh_hc_t *sdhc, *prev;
-	osl_t *osh;
+	struct osl_info *osh;
 
 	sdhc = sdhcinfo;
 	drvinfo.detach(sdhc->ch);
@@ -339,7 +339,7 @@ module_param(sd_pci_slot, uint, 0);
 static int __devinit
 bcmsdh_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	osl_t *osh = NULL;
+	struct osl_info *osh = NULL;
 	bcmsdh_hc_t *sdhc = NULL;
 	unsigned long regs;
 	bcmsdh_info_t *sdh = NULL;
@@ -470,7 +470,7 @@ err:
 static void __devexit bcmsdh_pci_remove(struct pci_dev *pdev)
 {
 	bcmsdh_hc_t *sdhc, *prev;
-	osl_t *osh;
+	struct osl_info *osh;
 
 	/* find the SDIO Host Controller state for this
 		 pdev and take it out from the list */

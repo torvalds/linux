@@ -44,23 +44,23 @@
 #define	PMU_NONE(args)
 
 /* PLL controls/clocks */
-static void si_pmu1_pllinit0(si_t *sih, osl_t *osh, chipcregs_t *cc,
+static void si_pmu1_pllinit0(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
 			     u32 xtal);
-static u32 si_pmu1_cpuclk0(si_t *sih, osl_t *osh, chipcregs_t *cc);
-static u32 si_pmu1_alpclk0(si_t *sih, osl_t *osh, chipcregs_t *cc);
+static u32 si_pmu1_cpuclk0(si_t *sih, struct osl_info *osh, chipcregs_t *cc);
+static u32 si_pmu1_alpclk0(si_t *sih, struct osl_info *osh, chipcregs_t *cc);
 
 /* PMU resources */
 static bool si_pmu_res_depfltr_bb(si_t *sih);
 static bool si_pmu_res_depfltr_ncb(si_t *sih);
 static bool si_pmu_res_depfltr_paldo(si_t *sih);
 static bool si_pmu_res_depfltr_npaldo(si_t *sih);
-static u32 si_pmu_res_deps(si_t *sih, osl_t *osh, chipcregs_t *cc,
+static u32 si_pmu_res_deps(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
 			      u32 rsrcs, bool all);
-static uint si_pmu_res_uptime(si_t *sih, osl_t *osh, chipcregs_t *cc,
+static uint si_pmu_res_uptime(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
 			      u8 rsrc);
 static void si_pmu_res_masks(si_t *sih, u32 * pmin, u32 * pmax);
 static void si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc,
-				       osl_t *osh, u8 spuravoid);
+				       struct osl_info *osh, u8 spuravoid);
 
 static void si_pmu_set_4330_plldivs(si_t *sih);
 
@@ -105,7 +105,7 @@ void si_pmu_pllupd(si_t *sih)
 }
 
 /* Setup switcher voltage */
-void si_pmu_set_switcher_voltage(si_t *sih, osl_t *osh, u8 bb_voltage,
+void si_pmu_set_switcher_voltage(si_t *sih, struct osl_info *osh, u8 bb_voltage,
 				 u8 rf_voltage)
 {
 	chipcregs_t *cc;
@@ -128,7 +128,7 @@ void si_pmu_set_switcher_voltage(si_t *sih, osl_t *osh, u8 bb_voltage,
 	si_setcoreidx(sih, origidx);
 }
 
-void si_pmu_set_ldo_voltage(si_t *sih, osl_t *osh, u8 ldo, u8 voltage)
+void si_pmu_set_ldo_voltage(si_t *sih, struct osl_info *osh, u8 ldo, u8 voltage)
 {
 	u8 sr_cntl_shift = 0, rc_shift = 0, shift = 0, mask = 0;
 	u8 addr = 0;
@@ -186,7 +186,7 @@ void si_pmu_set_ldo_voltage(si_t *sih, osl_t *osh, u8 ldo, u8 voltage)
 /* d11 slow to fast clock transition time in slow clock cycles */
 #define D11SCC_SLOW2FAST_TRANSITION	2
 
-u16 si_pmu_fast_pwrup_delay(si_t *sih, osl_t *osh)
+u16 si_pmu_fast_pwrup_delay(si_t *sih, struct osl_info *osh)
 {
 	uint delay = PMU_MAX_TRANSITION_DLY;
 	chipcregs_t *cc;
@@ -263,7 +263,7 @@ u16 si_pmu_fast_pwrup_delay(si_t *sih, osl_t *osh)
 	return (u16) delay;
 }
 
-u32 si_pmu_force_ilp(si_t *sih, osl_t *osh, bool force)
+u32 si_pmu_force_ilp(si_t *sih, struct osl_info *osh, bool force)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -681,7 +681,7 @@ static void si_pmu_res_masks(si_t *sih, u32 * pmin, u32 * pmax)
 }
 
 /* initialize PMU resources */
-void si_pmu_res_init(si_t *sih, osl_t *osh)
+void si_pmu_res_init(si_t *sih, struct osl_info *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1182,7 +1182,7 @@ static u32 si_pmu1_pllfvco0(si_t *sih)
 
 /* query alp/xtal clock frequency */
 static u32
-si_pmu1_alpclk0(si_t *sih, osl_t *osh, chipcregs_t *cc)
+si_pmu1_alpclk0(si_t *sih, struct osl_info *osh, chipcregs_t *cc)
 {
 	const pmu1_xtaltab0_t *xt;
 	u32 xf;
@@ -1207,7 +1207,8 @@ si_pmu1_alpclk0(si_t *sih, osl_t *osh, chipcregs_t *cc)
  * case the xtal frequency is unknown to the s/w so we need to call
  * si_pmu1_xtaldef0() wherever it is needed to return a default value.
  */
-static void si_pmu1_pllinit0(si_t *sih, osl_t *osh, chipcregs_t *cc, u32 xtal)
+static void si_pmu1_pllinit0(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
+			     u32 xtal)
 {
 	const pmu1_xtaltab0_t *xt;
 	u32 tmp;
@@ -1452,7 +1453,7 @@ static void si_pmu1_pllinit0(si_t *sih, osl_t *osh, chipcregs_t *cc, u32 xtal)
 
 /* query the CPU clock frequency */
 static u32
-si_pmu1_cpuclk0(si_t *sih, osl_t *osh, chipcregs_t *cc)
+si_pmu1_cpuclk0(si_t *sih, struct osl_info *osh, chipcregs_t *cc)
 {
 	u32 tmp, m1div;
 #ifdef BCMDBG
@@ -1506,7 +1507,7 @@ si_pmu1_cpuclk0(si_t *sih, osl_t *osh, chipcregs_t *cc)
 }
 
 /* initialize PLL */
-void si_pmu_pll_init(si_t *sih, osl_t *osh, uint xtalfreq)
+void si_pmu_pll_init(si_t *sih, struct osl_info *osh, uint xtalfreq)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1559,7 +1560,7 @@ void si_pmu_pll_init(si_t *sih, osl_t *osh, uint xtalfreq)
 }
 
 /* query alp/xtal clock frequency */
-u32 si_pmu_alp_clock(si_t *sih, osl_t *osh)
+u32 si_pmu_alp_clock(si_t *sih, struct osl_info *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1620,7 +1621,7 @@ u32 si_pmu_alp_clock(si_t *sih, osl_t *osh)
  * pllreg "pll0" i.e. 12 for main 6 for phy, 0 for misc.
  */
 static u32
-si_pmu5_clock(si_t *sih, osl_t *osh, chipcregs_t *cc, uint pll0,
+si_pmu5_clock(si_t *sih, struct osl_info *osh, chipcregs_t *cc, uint pll0,
 			  uint m) {
 	u32 tmp, div, ndiv, p1, p2, fc;
 
@@ -1673,7 +1674,7 @@ si_pmu5_clock(si_t *sih, osl_t *osh, chipcregs_t *cc, uint pll0,
 /* For designs that feed the same clock to both backplane
  * and CPU just return the CPU clock speed.
  */
-u32 si_pmu_si_clock(si_t *sih, osl_t *osh)
+u32 si_pmu_si_clock(si_t *sih, struct osl_info *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1752,7 +1753,7 @@ u32 si_pmu_si_clock(si_t *sih, osl_t *osh)
 }
 
 /* query CPU clock frequency */
-u32 si_pmu_cpu_clock(si_t *sih, osl_t *osh)
+u32 si_pmu_cpu_clock(si_t *sih, struct osl_info *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1796,7 +1797,7 @@ u32 si_pmu_cpu_clock(si_t *sih, osl_t *osh)
 }
 
 /* query memory clock frequency */
-u32 si_pmu_mem_clock(si_t *sih, osl_t *osh)
+u32 si_pmu_mem_clock(si_t *sih, struct osl_info *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1845,7 +1846,7 @@ u32 si_pmu_mem_clock(si_t *sih, osl_t *osh)
 
 static u32 ilpcycles_per_sec;
 
-u32 si_pmu_ilp_clock(si_t *sih, osl_t *osh)
+u32 si_pmu_ilp_clock(si_t *sih, struct osl_info *osh)
 {
 	if (ISSIM_ENAB(sih))
 		return ILP_CLOCK;
@@ -1909,7 +1910,7 @@ static const sdiod_drive_str_t sdiod_drive_strength_tab3[] = {
 #define SDIOD_DRVSTR_KEY(chip, pmu)	(((chip) << 16) | (pmu))
 
 void
-si_sdiod_drive_strength_init(si_t *sih, osl_t *osh,
+si_sdiod_drive_strength_init(si_t *sih, struct osl_info *osh,
 					 u32 drivestrength) {
 	chipcregs_t *cc;
 	uint origidx, intr_val = 0;
@@ -1980,7 +1981,7 @@ si_sdiod_drive_strength_init(si_t *sih, osl_t *osh,
 }
 
 /* initialize PMU */
-void si_pmu_init(si_t *sih, osl_t *osh)
+void si_pmu_init(si_t *sih, struct osl_info *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2012,7 +2013,7 @@ void si_pmu_init(si_t *sih, osl_t *osh)
 
 /* Return up time in ILP cycles for the given resource. */
 static uint
-si_pmu_res_uptime(si_t *sih, osl_t *osh, chipcregs_t *cc,
+si_pmu_res_uptime(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
 			      u8 rsrc) {
 	u32 deps;
 	uint up, i, dup, dmax;
@@ -2049,7 +2050,7 @@ si_pmu_res_uptime(si_t *sih, osl_t *osh, chipcregs_t *cc,
 
 /* Return dependancies (direct or all/indirect) for the given resources */
 static u32
-si_pmu_res_deps(si_t *sih, osl_t *osh, chipcregs_t *cc, u32 rsrcs,
+si_pmu_res_deps(si_t *sih, struct osl_info *osh, chipcregs_t *cc, u32 rsrcs,
 		bool all)
 {
 	u32 deps = 0;
@@ -2069,7 +2070,7 @@ si_pmu_res_deps(si_t *sih, osl_t *osh, chipcregs_t *cc, u32 rsrcs,
 }
 
 /* power up/down OTP through PMU resources */
-void si_pmu_otp_power(si_t *sih, osl_t *osh, bool on)
+void si_pmu_otp_power(si_t *sih, struct osl_info *osh, bool on)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2139,7 +2140,7 @@ void si_pmu_otp_power(si_t *sih, osl_t *osh, bool on)
 	si_setcoreidx(sih, origidx);
 }
 
-void si_pmu_rcal(si_t *sih, osl_t *osh)
+void si_pmu_rcal(si_t *sih, struct osl_info *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2222,7 +2223,7 @@ void si_pmu_rcal(si_t *sih, osl_t *osh)
 	si_setcoreidx(sih, origidx);
 }
 
-void si_pmu_spuravoid(si_t *sih, osl_t *osh, u8 spuravoid)
+void si_pmu_spuravoid(si_t *sih, struct osl_info *osh, u8 spuravoid)
 {
 	chipcregs_t *cc;
 	uint origidx, intr_val;
@@ -2259,7 +2260,7 @@ void si_pmu_spuravoid(si_t *sih, osl_t *osh, u8 spuravoid)
 }
 
 static void
-si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc, osl_t *osh,
+si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc, struct osl_info *osh,
 			   u8 spuravoid)
 {
 	u32 tmp = 0;
@@ -2455,7 +2456,7 @@ si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc, osl_t *osh,
 	W_REG(osh, &cc->pmucontrol, tmp);
 }
 
-bool si_pmu_is_otp_powered(si_t *sih, osl_t *osh)
+bool si_pmu_is_otp_powered(si_t *sih, struct osl_info *osh)
 {
 	uint idx;
 	chipcregs_t *cc;
@@ -2507,9 +2508,9 @@ bool si_pmu_is_otp_powered(si_t *sih, osl_t *osh)
 
 void
 #if defined(BCMDBG)
-si_pmu_sprom_enable(si_t *sih, osl_t *osh, bool enable)
+si_pmu_sprom_enable(si_t *sih, struct osl_info *osh, bool enable)
 #else
-si_pmu_sprom_enable(si_t *sih, osl_t *osh, bool enable)
+si_pmu_sprom_enable(si_t *sih, struct osl_info *osh, bool enable)
 #endif
 {
 	chipcregs_t *cc;
@@ -2525,7 +2526,7 @@ si_pmu_sprom_enable(si_t *sih, osl_t *osh, bool enable)
 }
 
 /* initialize PMU chip controls and other chip level stuff */
-void si_pmu_chip_init(si_t *sih, osl_t *osh)
+void si_pmu_chip_init(si_t *sih, struct osl_info *osh)
 {
 	uint origidx;
 
@@ -2547,7 +2548,7 @@ void si_pmu_chip_init(si_t *sih, osl_t *osh)
 }
 
 /* initialize PMU switch/regulators */
-void si_pmu_swreg_init(si_t *sih, osl_t *osh)
+void si_pmu_swreg_init(si_t *sih, struct osl_info *osh)
 {
 	ASSERT(sih->cccaps & CC_CAP_PMU);
 
@@ -2591,7 +2592,7 @@ void si_pmu_radio_enable(si_t *sih, bool enable)
 
 /* Wait for a particular clock level to be on the backplane */
 u32
-si_pmu_waitforclk_on_backplane(si_t *sih, osl_t *osh, u32 clk,
+si_pmu_waitforclk_on_backplane(si_t *sih, struct osl_info *osh, u32 clk,
 			       u32 delay)
 {
 	chipcregs_t *cc;
@@ -2620,7 +2621,7 @@ si_pmu_waitforclk_on_backplane(si_t *sih, osl_t *osh, u32 clk,
 
 #define EXT_ILP_HZ 32768
 
-u32 si_pmu_measure_alpclk(si_t *sih, osl_t *osh)
+u32 si_pmu_measure_alpclk(si_t *sih, struct osl_info *osh)
 {
 	chipcregs_t *cc;
 	uint origidx;

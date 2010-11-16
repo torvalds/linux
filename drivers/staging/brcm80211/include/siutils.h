@@ -128,8 +128,8 @@ typedef void (*gpio_handler_t) (u32 stat, void *arg);
 #define GPIO_CTRL_EPA_EN_MASK 0x40
 
 /* === exported functions === */
-extern si_t *si_attach(uint pcidev, osl_t *osh, void *regs, uint bustype,
-		       void *sdh, char **vars, uint *varsz);
+extern si_t *si_attach(uint pcidev, struct osl_info *osh, void *regs,
+		       uint bustype, void *sdh, char **vars, uint *varsz);
 
 extern void si_detach(si_t *sih);
 extern bool si_pci_war16165(si_t *sih);
@@ -344,9 +344,9 @@ extern void si_epa_4313war(si_t *sih);
 char *si_getnvramflvar(si_t *sih, const char *name);
 
 /* AMBA Interconnect exported externs */
-extern si_t *ai_attach(uint pcidev, osl_t *osh, void *regs, uint bustype,
-		       void *sdh, char **vars, uint *varsz);
-extern si_t *ai_kattach(osl_t *osh);
+extern si_t *ai_attach(uint pcidev, struct osl_info *osh, void *regs,
+		       uint bustype, void *sdh, char **vars, uint *varsz);
+extern si_t *ai_kattach(struct osl_info *osh);
 extern void ai_scan(si_t *sih, void *regs, uint devid);
 
 extern uint ai_flag(si_t *sih);

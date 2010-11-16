@@ -112,7 +112,7 @@ static int sdioh_sdmmc_card_enablefuncs(sdioh_info_t *sd)
 /*
  *	Public entry points & extern's
  */
-extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq)
+extern sdioh_info_t *sdioh_attach(struct osl_info *osh, void *bar0, uint irq)
 {
 	sdioh_info_t *sd;
 	int err_ret;
@@ -175,7 +175,7 @@ extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq)
 	return sd;
 }
 
-extern SDIOH_API_RC sdioh_detach(osl_t *osh, sdioh_info_t *sd)
+extern SDIOH_API_RC sdioh_detach(struct osl_info *osh, sdioh_info_t *sd)
 {
 	sd_trace(("%s\n", __func__));
 

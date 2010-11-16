@@ -431,15 +431,16 @@ static int dhdsdio_mem_dump(dhd_bus_t *bus);
 #endif				/* DHD_DEBUG  */
 static int dhdsdio_download_state(dhd_bus_t *bus, bool enter);
 
-static void dhdsdio_release(dhd_bus_t *bus, osl_t *osh);
-static void dhdsdio_release_malloc(dhd_bus_t *bus, osl_t *osh);
+static void dhdsdio_release(dhd_bus_t *bus, struct osl_info *osh);
+static void dhdsdio_release_malloc(dhd_bus_t *bus, struct osl_info *osh);
 static void dhdsdio_disconnect(void *ptr);
 static bool dhdsdio_chipmatch(u16 chipid);
-static bool dhdsdio_probe_attach(dhd_bus_t *bus, osl_t *osh, void *sdh,
-				 void *regsva, u16 devid);
-static bool dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh);
-static bool dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh);
-static void dhdsdio_release_dongle(dhd_bus_t *bus, osl_t * osh);
+static bool dhdsdio_probe_attach(dhd_bus_t *bus, struct osl_info *osh,
+				 void *sdh, void *regsva, u16 devid);
+static bool dhdsdio_probe_malloc(dhd_bus_t *bus, struct osl_info *osh,
+				 void *sdh);
+static bool dhdsdio_probe_init(dhd_bus_t *bus, struct osl_info *osh, void *sdh);
+static void dhdsdio_release_dongle(dhd_bus_t *bus, struct osl_info * osh);
 
 static uint process_nvram_vars(char *varbuf, uint len);
 
@@ -451,7 +452,7 @@ static int dhd_bcmsdh_send_buf(dhd_bus_t *bus, u32 addr, uint fn,
 			       uint flags, u8 *buf, uint nbytes, void *pkt,
 			       bcmsdh_cmplt_fn_t complete, void *handle);
 
-static bool dhdsdio_download_firmware(struct dhd_bus *bus, osl_t *osh,
+static bool dhdsdio_download_firmware(struct dhd_bus *bus, struct osl_info *osh,
 				      void *sdh);
 static int _dhdsdio_download_firmware(struct dhd_bus *bus);
 
@@ -904,7 +905,7 @@ void dhd_enable_oob_intr(struct dhd_bus *bus, bool enable)
 static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 {
 	int ret;
-	osl_t *osh;
+	struct osl_info *osh;
 	u8 *frame;
 	u16 len, pad = 0;
 	u32 swheader;
@@ -1065,7 +1066,7 @@ done:
 int dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 {
 	int ret = BCME_ERROR;
-	osl_t *osh;
+	struct osl_info *osh;
 	uint datalen, prec;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
@@ -2824,7 +2825,7 @@ exit:
 
 void dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 {
-	osl_t *osh = bus->dhd->osh;
+	struct osl_info *osh = bus->dhd->osh;
 	u32 local_hostintmask;
 	u8 saveclk;
 	uint retries;
@@ -3180,7 +3181,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 
 	u16 sublen, check;
 	void *pfirst, *plast, *pnext, *save_pfirst;
-	osl_t *osh = bus->dhd->osh;
+	struct osl_info *osh = bus->dhd->osh;
 
 	int errcode;
 	u8 chan, seq, doff, sfdoff;
@@ -3581,7 +3582,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 /* Return true if there may be more frames to read */
 static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 {
-	osl_t *osh = bus->dhd->osh;
+	struct osl_info *osh = bus->dhd->osh;
 	bcmsdh_info_t *sdh = bus->sdh;
 
 	u16 len, check;	/* Extracted hardware header fields */
@@ -4631,7 +4632,7 @@ static void dhdsdio_pktgen(dhd_bus_t *bus)
 	u8 *data;
 	uint pktcount;
 	uint fillbyte;
-	osl_t *osh = bus->dhd->osh;
+	struct osl_info *osh = bus->dhd->osh;
 	u16 len;
 
 	/* Display current count if appropriate */
@@ -4736,7 +4737,7 @@ static void dhdsdio_sdtest_set(dhd_bus_t *bus, bool start)
 {
 	void *pkt;
 	u8 *data;
-	osl_t *osh = bus->dhd->osh;
+	struct osl_info *osh = bus->dhd->osh;
 
 	/* Allocate the packet */
 	pkt = PKTGET(osh, SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + DHD_SDALIGN,
@@ -4761,7 +4762,7 @@ static void dhdsdio_sdtest_set(dhd_bus_t *bus, bool start)
 
 static void dhdsdio_testrcv(dhd_bus_t *bus, void *pkt, uint seq)
 {
-	osl_t *osh = bus->dhd->osh;
+	struct osl_info *osh = bus->dhd->osh;
 	u8 *data;
 	uint pktlen;
 
@@ -5062,7 +5063,7 @@ static bool dhdsdio_chipmatch(u16 chipid)
 
 static void *dhdsdio_probe(u16 venid, u16 devid, u16 bus_no,
 			   u16 slot, u16 func, uint bustype, void *regsva,
-			   osl_t *osh, void *sdh)
+			   struct osl_info *osh, void *sdh)
 {
 	int ret;
 	dhd_bus_t *bus;
@@ -5221,8 +5222,8 @@ fail:
 }
 
 static bool
-dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
-		     u16 devid)
+dhdsdio_probe_attach(struct dhd_bus *bus, struct osl_info *osh, void *sdh,
+			void *regsva, u16 devid)
 {
 	u8 clkctl = 0;
 	int err = 0;
@@ -5379,7 +5380,8 @@ fail:
 	return false;
 }
 
-static bool dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh)
+static bool dhdsdio_probe_malloc(dhd_bus_t *bus, struct osl_info *osh,
+				 void *sdh)
 {
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -5420,7 +5422,7 @@ fail:
 	return false;
 }
 
-static bool dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh)
+static bool dhdsdio_probe_init(dhd_bus_t *bus, struct osl_info *osh, void *sdh)
 {
 	s32 fnum;
 
@@ -5497,7 +5499,7 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh)
 }
 
 bool
-dhd_bus_download_firmware(struct dhd_bus *bus, osl_t *osh,
+dhd_bus_download_firmware(struct dhd_bus *bus, struct osl_info *osh,
 			  char *fw_path, char *nv_path)
 {
 	bool ret;
@@ -5510,7 +5512,7 @@ dhd_bus_download_firmware(struct dhd_bus *bus, osl_t *osh,
 }
 
 static bool
-dhdsdio_download_firmware(struct dhd_bus *bus, osl_t *osh, void *sdh)
+dhdsdio_download_firmware(struct dhd_bus *bus, struct osl_info *osh, void *sdh)
 {
 	bool ret;
 
@@ -5525,7 +5527,7 @@ dhdsdio_download_firmware(struct dhd_bus *bus, osl_t *osh, void *sdh)
 }
 
 /* Detach and free everything */
-static void dhdsdio_release(dhd_bus_t *bus, osl_t *osh)
+static void dhdsdio_release(dhd_bus_t *bus, struct osl_info *osh)
 {
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -5555,7 +5557,7 @@ static void dhdsdio_release(dhd_bus_t *bus, osl_t *osh)
 	DHD_TRACE(("%s: Disconnected\n", __func__));
 }
 
-static void dhdsdio_release_malloc(dhd_bus_t *bus, osl_t *osh)
+static void dhdsdio_release_malloc(dhd_bus_t *bus, struct osl_info *osh)
 {
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -5574,7 +5576,7 @@ static void dhdsdio_release_malloc(dhd_bus_t *bus, osl_t *osh)
 	}
 }
 
-static void dhdsdio_release_dongle(dhd_bus_t *bus, osl_t *osh)
+static void dhdsdio_release_dongle(dhd_bus_t *bus, struct osl_info *osh)
 {
 	DHD_TRACE(("%s: Enter\n", __func__));
 

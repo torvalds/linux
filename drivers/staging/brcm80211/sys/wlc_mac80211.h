@@ -433,7 +433,7 @@ struct wlc_hw_info {
 #ifdef WLC_SPLIT
 	rpc_info_t *rpc;	/* Handle to RPC module */
 #endif
-	osl_t *osh;		/* pointer to os handle */
+	struct osl_info *osh;		/* pointer to os handle */
 	bool _piomode;		/* true if pio mode */
 	wlc_info_t *wlc;
 
@@ -536,7 +536,7 @@ typedef struct wlc_txq_info {
  */
 struct wlc_info {
 	wlc_pub_t *pub;		/* pointer to wlc public state */
-	osl_t *osh;		/* pointer to os handle */
+	struct osl_info *osh;		/* pointer to os handle */
 	struct wl_info *wl;	/* pointer to os-specific private state */
 	d11regs_t *regs;	/* pointer to device registers */
 

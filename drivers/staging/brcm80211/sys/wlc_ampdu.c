@@ -504,7 +504,7 @@ int BCMFASTPATH
 wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 {
 	wlc_info_t *wlc;
-	osl_t *osh;
+	struct osl_info *osh;
 	void *p, *pkt[AMPDU_MAX_MPDU];
 	u8 tid, ndelim;
 	int err = 0;

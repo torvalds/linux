@@ -78,7 +78,7 @@ typedef struct {
 	uint ccrev;		/* chipc revision */
 	otp_fn_t *fn;		/* OTP functions */
 	si_t *sih;		/* Saved sb handle */
-	osl_t *osh;
+	struct osl_info *osh;
 
 #ifdef BCMIPXOTP
 	/* IPX OTP section */
@@ -570,7 +570,7 @@ static int hndotp_size(void *oh)
 static u16 hndotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
-	osl_t *osh;
+	struct osl_info *osh;
 	volatile u16 *ptr;
 
 	ASSERT(wn < ((oi->size / 2) + OTP_RC_LIM_OFF));
@@ -585,7 +585,7 @@ static u16 hndotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 static u16 hndotp_otproff(void *oh, chipcregs_t *cc, int woff)
 {
 	otpinfo_t *oi = (otpinfo_t *) oh;
-	osl_t *osh;
+	struct osl_info *osh;
 	volatile u16 *ptr;
 
 	ASSERT(woff >= (-((int)oi->size / 2)));
@@ -604,7 +604,7 @@ static u16 hndotp_read_bit(void *oh, chipcregs_t *cc, uint idx)
 	otpinfo_t *oi = (otpinfo_t *) oh;
 	uint k, row, col;
 	u32 otpp, st;
-	osl_t *osh;
+	struct osl_info *osh;
 
 	osh = si_osh(oi->sih);
 	row = idx / 65;
@@ -637,7 +637,7 @@ static void *hndotp_init(si_t *sih)
 	otpinfo_t *oi;
 	u32 cap = 0, clkdiv, otpdiv = 0;
 	void *ret = NULL;
-	osl_t *osh;
+	struct osl_info *osh;
 
 	oi = &otpinfo;
 

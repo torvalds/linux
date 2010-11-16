@@ -141,7 +141,7 @@ struct hnddma_pub {
 	uint txnobuf;		/* tx out of dma descriptors */
 };
 
-extern hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih,
+extern hnddma_t *dma_attach(struct osl_info *osh, char *name, si_t *sih,
 			    void *dmaregstx, void *dmaregsrx, uint ntxd,
 			    uint nrxd, uint rxbufsize, int rxextheadroom,
 			    uint nrxpost, uint rxoffset, uint *msg_level);
@@ -238,6 +238,6 @@ extern const di_fcn_t dma64proc;
 extern uint dma_addrwidth(si_t *sih, void *dmaregs);
 
 /* pio helpers */
-extern void dma_txpioloopback(osl_t *osh, dma32regs_t *);
+extern void dma_txpioloopback(struct osl_info *osh, dma32regs_t *);
 
 #endif				/* _hnddma_h_ */

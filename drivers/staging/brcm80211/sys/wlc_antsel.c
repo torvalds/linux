@@ -93,7 +93,7 @@ const u8 mimo_2x3_div_antselid_tbl[16] = {
 	0, 0, 0, 0, 0, 0, 0, 0	/* pat to antselid */
 };
 
-antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, osl_t *osh,
+antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, struct osl_info *osh,
 						  wlc_pub_t *pub,
 						  wlc_hw_info_t *wlc_hw) {
 	antsel_info_t *asi;

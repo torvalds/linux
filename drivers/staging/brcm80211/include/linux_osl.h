@@ -18,8 +18,8 @@
 #define _linux_osl_h_
 
 
-extern osl_t *osl_attach(void *pdev, uint bustype);
-extern void osl_detach(osl_t *osh);
+extern struct osl_info *osl_attach(void *pdev, uint bustype);
+extern void osl_detach(struct osl_info *osh);
 
 extern u32 g_assert_type;
 
@@ -45,14 +45,15 @@ extern void osl_assert(char *exp, char *file, int line);
 	osl_pci_read_config((osh), (offset), (size))
 #define	OSL_PCI_WRITE_CONFIG(osh, offset, size, val) \
 	osl_pci_write_config((osh), (offset), (size), (val))
-extern u32 osl_pci_read_config(osl_t *osh, uint offset, uint size);
-extern void osl_pci_write_config(osl_t *osh, uint offset, uint size, uint val);
+extern u32 osl_pci_read_config(struct osl_info *osh, uint offset, uint size);
+extern void osl_pci_write_config(struct osl_info *osh, uint offset, uint size,
+				 uint val);
 
 /* PCI device bus # and slot # */
 #define OSL_PCI_BUS(osh)	osl_pci_bus(osh)
 #define OSL_PCI_SLOT(osh)	osl_pci_slot(osh)
-extern uint osl_pci_bus(osl_t *osh);
-extern uint osl_pci_slot(osl_t *osh);
+extern uint osl_pci_bus(struct osl_info *osh);
+extern uint osl_pci_slot(struct osl_info *osh);
 
 #define PKTFREESETCB(osh, _tx_fn, _tx_ctx)			\
 	do {							\
@@ -71,8 +72,8 @@ extern uint osl_pci_slot(osl_t *osh);
 
 #define BUS_SWAP32(v)		(v)
 
-extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, u16 align,
-				      uint *tot, unsigned long *pap);
+extern void *osl_dma_alloc_consistent(struct osl_info *osh, uint size,
+				      u16 align, uint *tot, unsigned long *pap);
 
 #ifdef BRCM_FULLMAC
 #define	DMA_ALLOC_CONSISTENT(osh, size, pap, dmah, alignbits) \
@@ -84,7 +85,8 @@ extern void *osl_dma_alloc_consistent(osl_t *osh, uint size, u16 align,
 
 #define	DMA_FREE_CONSISTENT(osh, va, size, pa, dmah) \
 	osl_dma_free_consistent((osh), (void *)(va), (size), (pa))
-extern void osl_dma_free_consistent(osl_t *osh, void *va, uint size, unsigned long pa);
+extern void osl_dma_free_consistent(struct osl_info *osh, void *va,
+				    uint size, unsigned long pa);
 
 /* map/unmap direction */
 #define	DMA_TX	1		/* TX direction for DMA */
@@ -95,8 +97,10 @@ extern void osl_dma_free_consistent(osl_t *osh, void *va, uint size, unsigned lo
 	osl_dma_map((osh), (va), (size), (direction))
 #define	DMA_UNMAP(osh, pa, size, direction, p, dmah) \
 	osl_dma_unmap((osh), (pa), (size), (direction))
-extern uint osl_dma_map(osl_t *osh, void *va, uint size, int direction);
-extern void osl_dma_unmap(osl_t *osh, uint pa, uint size, int direction);
+extern uint osl_dma_map(struct osl_info *osh, void *va, uint size,
+			int direction);
+extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
+			  int direction);
 
 /* API for DMA addressing capability */
 #define OSL_DMADDRWIDTH(osh, addrwidth) do {} while (0)
@@ -275,8 +279,8 @@ extern void osl_dma_unmap(osl_t *osh, uint pa, uint size, int direction);
 #define PKTALLOCED(osh)		(((struct osl_pubinfo *)(osh))->pktalloced)
 #define PKTSETPOOL(osh, skb, x, y)	do {} while (0)
 #define PKTPOOL(osh, skb)		false
-extern void *osl_pktget(osl_t *osh, uint len);
-extern void osl_pktfree(osl_t *osh, void *skb, bool send);
+extern void *osl_pktget(struct osl_info *osh, uint len);
+extern void osl_pktfree(struct osl_info *osh, void *skb, bool send);
 
 #ifdef BRCM_FULLMAC
 static inline void *
@@ -342,12 +346,12 @@ osl_pkt_tonative(struct osl_pubinfo *osh, void *pkt)
 	} \
 } while (0)
 
-extern u8 osl_readb(osl_t *osh, volatile u8 *r);
-extern u16 osl_readw(osl_t *osh, volatile u16 *r);
-extern u32 osl_readl(osl_t *osh, volatile u32 *r);
-extern void osl_writeb(osl_t *osh, volatile u8 *r, u8 v);
-extern void osl_writew(osl_t *osh, volatile u16 *r, u16 v);
-extern void osl_writel(osl_t *osh, volatile u32 *r, u32 v);
+extern u8 osl_readb(struct osl_info *osh, volatile u8 *r);
+extern u16 osl_readw(struct osl_info *osh, volatile u16 *r);
+extern u32 osl_readl(struct osl_info *osh, volatile u32 *r);
+extern void osl_writeb(struct osl_info *osh, volatile u8 *r, u8 v);
+extern void osl_writew(struct osl_info *osh, volatile u16 *r, u16 v);
+extern void osl_writel(struct osl_info *osh, volatile u32 *r, u32 v);
 #endif				/* BCMSDIO */
 
 #endif				/* _linux_osl_h_ */

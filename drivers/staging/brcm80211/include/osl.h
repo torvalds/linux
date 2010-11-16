@@ -41,7 +41,6 @@ struct osl_info {
 	uint bustype;
 };
 
-typedef struct osl_info osl_t;
 typedef struct osl_dmainfo osldma_t;
 
 

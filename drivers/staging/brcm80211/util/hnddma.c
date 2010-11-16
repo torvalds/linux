@@ -223,7 +223,7 @@ static void _dma_counterreset(dma_info_t *di);
 static void _dma_fifoloopbackenable(dma_info_t *di);
 static uint _dma_ctrlflags(dma_info_t *di, uint mask, uint flags);
 static u8 dma_align_sizetobits(uint size);
-static void *dma_ringalloc(osl_t *osh, u32 boundary, uint size,
+static void *dma_ringalloc(struct osl_info *osh, u32 boundary, uint size,
 			   u16 *alignbits, uint *alloced,
 			   dmaaddr_t *descpa, osldma_t **dmah);
 
@@ -247,7 +247,7 @@ static bool dma32_txstopped(dma_info_t *di);
 static bool dma32_rxstopped(dma_info_t *di);
 static bool dma32_rxenabled(dma_info_t *di);
 
-static bool _dma32_addrext(osl_t *osh, dma32regs_t *dma32regs);
+static bool _dma32_addrext(struct osl_info *osh, dma32regs_t *dma32regs);
 
 /* Prototypes for 64-bit routines */
 static bool dma64_alloc(dma_info_t *di, uint direction);
@@ -271,7 +271,7 @@ static void dma64_txreclaim(dma_info_t *di, txd_range_t range);
 static bool dma64_txstopped(dma_info_t *di);
 static bool dma64_rxstopped(dma_info_t *di);
 static bool dma64_rxenabled(dma_info_t *di);
-static bool _dma64_addrext(osl_t *osh, dma64regs_t *dma64regs);
+static bool _dma64_addrext(struct osl_info *osh, dma64regs_t *dma64regs);
 
 static inline u32 parity32(u32 data);
 
@@ -369,10 +369,10 @@ static const di_fcn_t dma32proc = {
 	39
 };
 
-hnddma_t *dma_attach(osl_t *osh, char *name, si_t *sih, void *dmaregstx,
-		     void *dmaregsrx, uint ntxd, uint nrxd, uint rxbufsize,
-		     int rxextheadroom, uint nrxpost, uint rxoffset,
-		     uint *msg_level)
+hnddma_t *dma_attach(struct osl_info *osh, char *name, si_t *sih,
+		     void *dmaregstx, void *dmaregsrx, uint ntxd,
+		     uint nrxd, uint rxbufsize, int rxextheadroom,
+		     uint nrxpost, uint rxoffset, uint *msg_level)
 {
 	dma_info_t *di;
 	uint size;
@@ -664,7 +664,7 @@ dma64_dd_upd(dma_info_t *di, dma64dd_t *ddring, dmaaddr_t pa, uint outidx,
 	}
 }
 
-static bool _dma32_addrext(osl_t *osh, dma32regs_t *dma32regs)
+static bool _dma32_addrext(struct osl_info *osh, dma32regs_t *dma32regs)
 {
 	u32 w;
 
@@ -1373,7 +1373,7 @@ static unsigned long _dma_getvar(dma_info_t *di, const char *name)
 	return 0;
 }
 
-void dma_txpioloopback(osl_t *osh, dma32regs_t *regs)
+void dma_txpioloopback(struct osl_info *osh, dma32regs_t *regs)
 {
 	OR_REG(osh, &regs->control, XC_LE);
 }
@@ -1396,7 +1396,7 @@ u8 dma_align_sizetobits(uint size)
  * descriptor ring size aligned location. This will ensure that the ring will
  * not cross page boundary
  */
-static void *dma_ringalloc(osl_t *osh, u32 boundary, uint size,
+static void *dma_ringalloc(struct osl_info *osh, u32 boundary, uint size,
 			   u16 *alignbits, uint *alloced,
 			   dmaaddr_t *descpa, osldma_t **dmah)
 {
@@ -2564,7 +2564,7 @@ static void *BCMFASTPATH dma64_getnextrxp(dma_info_t *di, bool forceall)
 	return rxp;
 }
 
-static bool _dma64_addrext(osl_t *osh, dma64regs_t * dma64regs)
+static bool _dma64_addrext(struct osl_info *osh, dma64regs_t * dma64regs)
 {
 	u32 w;
 	OR_REG(osh, &dma64regs->control, D64_XC_AE);
@@ -2655,7 +2655,7 @@ static void dma64_txrotate(dma_info_t *di)
 uint dma_addrwidth(si_t *sih, void *dmaregs)
 {
 	dma32regs_t *dma32regs;
-	osl_t *osh;
+	struct osl_info *osh;
 
 	osh = si_osh(sih);
 

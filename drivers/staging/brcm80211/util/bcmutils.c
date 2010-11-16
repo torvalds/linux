@@ -33,7 +33,8 @@
 #include <proto/802.11.h>
 
 /* copy a buffer into a pkt buffer chain */
-uint pktfrombuf(osl_t *osh, void *p, uint offset, int len, unsigned char *buf)
+uint pktfrombuf(struct osl_info *osh, void *p, uint offset, int len,
+		unsigned char *buf)
 {
 	uint n, ret = 0;
 
@@ -60,7 +61,7 @@ uint pktfrombuf(osl_t *osh, void *p, uint offset, int len, unsigned char *buf)
 	return ret;
 }
 /* return total length of buffer chain */
-uint BCMFASTPATH pkttotlen(osl_t *osh, void *p)
+uint BCMFASTPATH pkttotlen(struct osl_info *osh, void *p)
 {
 	uint total;
 
@@ -185,7 +186,7 @@ void *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 }
 
 #ifdef BRCM_FULLMAC
-void pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir)
+void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir)
 {
 	struct pktq_prec *q;
 	void *p;
@@ -204,7 +205,7 @@ void pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir)
 	q->tail = NULL;
 }
 
-void pktq_flush(osl_t *osh, struct pktq *pq, bool dir)
+void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir)
 {
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)
@@ -213,8 +214,8 @@ void pktq_flush(osl_t *osh, struct pktq *pq, bool dir)
 }
 #else /* !BRCM_FULLMAC */
 void
-pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir, ifpkt_cb_t fn,
-	    int arg)
+pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir,
+	    ifpkt_cb_t fn, int arg)
 {
 	struct pktq_prec *q;
 	void *p, *prev = NULL;
@@ -245,7 +246,8 @@ pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir, ifpkt_cb_t fn,
 	}
 }
 
-void pktq_flush(osl_t *osh, struct pktq *pq, bool dir, ifpkt_cb_t fn, int arg)
+void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir,
+		ifpkt_cb_t fn, int arg)
 {
 	int prec;
 	for (prec = 0; prec < pq->num_prec; prec++)
@@ -405,7 +407,7 @@ int getintvar(char *vars, const char *name)
 
 #if defined(BCMDBG)
 /* pretty hex print a pkt buffer chain */
-void prpkt(const char *msg, osl_t *osh, void *p0)
+void prpkt(const char *msg, struct osl_info *osh, void *p0)
 {
 	void *p;
 

@@ -77,7 +77,7 @@ enum dhd_prealloc_index {
 /* Common structure for module and instance linkage */
 typedef struct dhd_pub {
 	/* Linkage ponters */
-	osl_t *osh;		/* OSL handle */
+	struct osl_info *osh;		/* OSL handle */
 	struct dhd_bus *bus;	/* Bus module handle */
 	struct dhd_prot *prot;	/* Protocol module handle */
 	struct dhd_info *info;	/* Info module handle */
@@ -277,15 +277,16 @@ typedef struct dhd_if_event {
  */
 
 /* To allow osl_attach/detach calls from os-independent modules */
-osl_t *dhd_osl_attach(void *pdev, uint bustype);
-void dhd_osl_detach(osl_t *osh);
+struct osl_info *dhd_osl_attach(void *pdev, uint bustype);
+void dhd_osl_detach(struct osl_info *osh);
 
 /* Indication from bus module regarding presence/insertion of dongle.
  * Return dhd_pub_t pointer, used as handle to OS module in later calls.
  * Returned structure should have bus and prot pointers filled in.
  * bus_hdrlen specifies required headroom for bus module header.
  */
-extern dhd_pub_t *dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen);
+extern dhd_pub_t *dhd_attach(struct osl_info *osh, struct dhd_bus *bus,
+				uint bus_hdrlen);
 extern int dhd_net_attach(dhd_pub_t *dhdp, int idx);
 
 /* Indication from bus module regarding removal/absence of dongle */

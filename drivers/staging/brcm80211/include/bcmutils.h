@@ -110,10 +110,10 @@
 	extern void *pktq_pdeq_tail(struct pktq *pq, int prec);
 /* Empty the queue at particular precedence level */
 #ifdef BRCM_FULLMAC
-	extern void pktq_pflush(osl_t *osh, struct pktq *pq, int prec,
+	extern void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec,
 		bool dir);
 #else
-	extern void pktq_pflush(osl_t *osh, struct pktq *pq, int prec,
+	extern void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec,
 		bool dir, ifpkt_cb_t fn, int arg);
 #endif /* BRCM_FULLMAC */
 
@@ -141,18 +141,18 @@
 /* prec_out may be NULL if caller is not interested in return value */
 	extern void *pktq_peek_tail(struct pktq *pq, int *prec_out);
 #ifdef BRCM_FULLMAC
-	extern void pktq_flush(osl_t *osh, struct pktq *pq, bool dir);
+	extern void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir);
 #else
-	extern void pktq_flush(osl_t *osh, struct pktq *pq, bool dir,
+	extern void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir,
 		ifpkt_cb_t fn, int arg);
 #endif
 
 /* externs */
 /* packet */
-	extern uint pktfrombuf(osl_t *osh, void *p, uint offset, int len,
-			       unsigned char *buf);
-	extern uint pktsegcnt(osl_t *osh, void *p);
-	extern uint pkttotlen(osl_t *osh, void *p);
+	extern uint pktfrombuf(struct osl_info *osh, void *p, uint offset,
+			       int len, unsigned char *buf);
+	extern uint pktsegcnt(struct osl_info *osh, void *p);
+	extern uint pkttotlen(struct osl_info *osh, void *p);
 
 /* ethernet address */
 	extern int bcm_ether_atoe(char *p, struct ether_addr *ea);
@@ -165,7 +165,7 @@
 	extern char *getvar(char *vars, const char *name);
 	extern int getintvar(char *vars, const char *name);
 #ifdef BCMDBG
-	extern void prpkt(const char *msg, osl_t *osh, void *p0);
+	extern void prpkt(const char *msg, struct osl_info *osh, void *p0);
 #endif				/* BCMDBG */
 #define bcm_perf_enable()
 #define bcmstats(fmt)

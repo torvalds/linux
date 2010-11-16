@@ -57,7 +57,7 @@
 #endif
 
 /* local prototypes */
-static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
+static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 			      void *regs, uint bustype, void *sdh, char **vars,
 			      uint *varsz);
 static bool si_buscore_prep(si_info_t *sii, uint bustype, uint devid,
@@ -85,8 +85,8 @@ static u32 si_gpioreservation;
  * vars - pointer to a pointer area for "environment" variables
  * varsz - pointer to int to return the size of the vars
  */
-si_t *si_attach(uint devid, osl_t *osh, void *regs, uint bustype, void *sdh,
-		char **vars, uint *varsz)
+si_t *si_attach(uint devid, struct osl_info *osh, void *regs, uint bustype,
+		void *sdh, char **vars, uint *varsz)
 {
 	si_info_t *sii;
 
@@ -368,7 +368,7 @@ static __used void si_nvram_process(si_info_t *sii, char *pvars)
 /* this is will make Sonics calls directly, since Sonics is no longer supported in the Si abstraction */
 /* this has been customized for the bcm 4329 ONLY */
 #ifdef BCMSDIO
-static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
+static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 			      void *regs, uint bustype, void *sdh,
 			      char **vars, uint *varsz)
 {
@@ -503,7 +503,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
 }
 
 #else				/* BCMSDIO */
-static si_info_t *si_doattach(si_info_t *sii, uint devid, osl_t *osh,
+static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 			      void *regs, uint bustype, void *sdh,
 			      char **vars, uint *varsz)
 {
