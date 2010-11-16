@@ -307,6 +307,9 @@ static struct i2c_board_info __initdata stingray_i2c_bus4_sensor_info[] = {
 		.platform_data = &stingray_kxtf9_pdata,
 		.irq = TEGRA_GPIO_TO_IRQ(KXTF9_IRQ_GPIO),
 	},
+	{
+		I2C_BOARD_INFO("nct1008", 0x4C),
+	},
 };
 
 static struct i2c_board_info __initdata stingray_i2c_bus1_sensor_info[] = {
