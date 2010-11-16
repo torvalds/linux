@@ -70,7 +70,7 @@ ironlake_enable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask)
 	if ((dev_priv->gt_irq_mask_reg & mask) != 0) {
 		dev_priv->gt_irq_mask_reg &= ~mask;
 		I915_WRITE(GTIMR, dev_priv->gt_irq_mask_reg);
-		(void) I915_READ(GTIMR);
+		POSTING_READ(GTIMR);
 	}
 }
 
@@ -80,7 +80,7 @@ ironlake_disable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask)
 	if ((dev_priv->gt_irq_mask_reg & mask) != mask) {
 		dev_priv->gt_irq_mask_reg |= mask;
 		I915_WRITE(GTIMR, dev_priv->gt_irq_mask_reg);
-		(void) I915_READ(GTIMR);
+		POSTING_READ(GTIMR);
 	}
 }
 
@@ -91,7 +91,7 @@ ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 	if ((dev_priv->irq_mask_reg & mask) != 0) {
 		dev_priv->irq_mask_reg &= ~mask;
 		I915_WRITE(DEIMR, dev_priv->irq_mask_reg);
-		(void) I915_READ(DEIMR);
+		POSTING_READ(DEIMR);
 	}
 }
 
@@ -101,7 +101,7 @@ ironlake_disable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 	if ((dev_priv->irq_mask_reg & mask) != mask) {
 		dev_priv->irq_mask_reg |= mask;
 		I915_WRITE(DEIMR, dev_priv->irq_mask_reg);
-		(void) I915_READ(DEIMR);
+		POSTING_READ(DEIMR);
 	}
 }
 
@@ -111,7 +111,7 @@ i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask)
 	if ((dev_priv->irq_mask_reg & mask) != 0) {
 		dev_priv->irq_mask_reg &= ~mask;
 		I915_WRITE(IMR, dev_priv->irq_mask_reg);
-		(void) I915_READ(IMR);
+		POSTING_READ(IMR);
 	}
 }
 
@@ -121,7 +121,7 @@ i915_disable_irq(drm_i915_private_t *dev_priv, u32 mask)
 	if ((dev_priv->irq_mask_reg & mask) != mask) {
 		dev_priv->irq_mask_reg |= mask;
 		I915_WRITE(IMR, dev_priv->irq_mask_reg);
-		(void) I915_READ(IMR);
+		POSTING_READ(IMR);
 	}
 }
 
@@ -144,7 +144,7 @@ i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask)
 		dev_priv->pipestat[pipe] |= mask;
 		/* Enable the interrupt, clear any pending status */
 		I915_WRITE(reg, dev_priv->pipestat[pipe] | (mask >> 16));
-		(void) I915_READ(reg);
+		POSTING_READ(reg);
 	}
 }
 
@@ -156,7 +156,7 @@ i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask)
 
 		dev_priv->pipestat[pipe] &= ~mask;
 		I915_WRITE(reg, dev_priv->pipestat[pipe]);
-		(void) I915_READ(reg);
+		POSTING_READ(reg);
 	}
 }
 
@@ -321,7 +321,7 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	/* disable master interrupt before clearing iir  */
 	de_ier = I915_READ(DEIER);
 	I915_WRITE(DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
-	(void)I915_READ(DEIER);
+	POSTING_READ(DEIER);
 
 	de_iir = I915_READ(DEIIR);
 	gt_iir = I915_READ(GTIIR);
@@ -386,7 +386,7 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 
 done:
 	I915_WRITE(DEIER, de_ier);
-	(void)I915_READ(DEIER);
+	POSTING_READ(DEIER);
 
 	return ret;
 }
@@ -796,7 +796,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 			printk(KERN_ERR "  ACTHD: 0x%08x\n",
 			       I915_READ(ACTHD_I965));
 			I915_WRITE(IPEIR_I965, ipeir);
-			(void)I915_READ(IPEIR_I965);
+			POSTING_READ(IPEIR_I965);
 		}
 		if (eir & GM45_ERROR_PAGE_TABLE) {
 			u32 pgtbl_err = I915_READ(PGTBL_ER);
@@ -804,7 +804,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 			printk(KERN_ERR "  PGTBL_ER: 0x%08x\n",
 			       pgtbl_err);
 			I915_WRITE(PGTBL_ER, pgtbl_err);
-			(void)I915_READ(PGTBL_ER);
+			POSTING_READ(PGTBL_ER);
 		}
 	}
 
@@ -815,7 +815,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 			printk(KERN_ERR "  PGTBL_ER: 0x%08x\n",
 			       pgtbl_err);
 			I915_WRITE(PGTBL_ER, pgtbl_err);
-			(void)I915_READ(PGTBL_ER);
+			POSTING_READ(PGTBL_ER);
 		}
 	}
 
@@ -846,7 +846,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 			printk(KERN_ERR "  ACTHD: 0x%08x\n",
 			       I915_READ(ACTHD));
 			I915_WRITE(IPEIR, ipeir);
-			(void)I915_READ(IPEIR);
+			POSTING_READ(IPEIR);
 		} else {
 			u32 ipeir = I915_READ(IPEIR_I965);
 
@@ -863,12 +863,12 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 			printk(KERN_ERR "  ACTHD: 0x%08x\n",
 			       I915_READ(ACTHD_I965));
 			I915_WRITE(IPEIR_I965, ipeir);
-			(void)I915_READ(IPEIR_I965);
+			POSTING_READ(IPEIR_I965);
 		}
 	}
 
 	I915_WRITE(EIR, eir);
-	(void)I915_READ(EIR);
+	POSTING_READ(EIR);
 	eir = I915_READ(EIR);
 	if (eir) {
 		/*
@@ -1435,17 +1435,17 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 
 	I915_WRITE(DEIMR, 0xffffffff);
 	I915_WRITE(DEIER, 0x0);
-	(void) I915_READ(DEIER);
+	POSTING_READ(DEIER);
 
 	/* and GT */
 	I915_WRITE(GTIMR, 0xffffffff);
 	I915_WRITE(GTIER, 0x0);
-	(void) I915_READ(GTIER);
+	POSTING_READ(GTIER);
 
 	/* south display irq */
 	I915_WRITE(SDEIMR, 0xffffffff);
 	I915_WRITE(SDEIER, 0x0);
-	(void) I915_READ(SDEIER);
+	POSTING_READ(SDEIER);
 }
 
 static int ironlake_irq_postinstall(struct drm_device *dev)
@@ -1464,7 +1464,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(DEIIR, I915_READ(DEIIR));
 	I915_WRITE(DEIMR, dev_priv->irq_mask_reg);
 	I915_WRITE(DEIER, dev_priv->de_irq_enable_reg);
-	(void) I915_READ(DEIER);
+	POSTING_READ(DEIER);
 
 	if (IS_GEN6(dev)) {
 		render_mask =
@@ -1485,7 +1485,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	}
 
 	I915_WRITE(GTIER, dev_priv->gt_irq_enable_reg);
-	(void) I915_READ(GTIER);
+	POSTING_READ(GTIER);
 
 	if (HAS_PCH_CPT(dev)) {
 		hotplug_mask = SDE_CRT_HOTPLUG_CPT | SDE_PORTB_HOTPLUG_CPT  |
@@ -1501,7 +1501,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
 	I915_WRITE(SDEIMR, dev_priv->pch_irq_mask_reg);
 	I915_WRITE(SDEIER, dev_priv->pch_irq_enable_reg);
-	(void) I915_READ(SDEIER);
+	POSTING_READ(SDEIER);
 
 	if (IS_IRONLAKE_M(dev)) {
 		/* Clear & enable PCU event interrupts */
@@ -1537,7 +1537,7 @@ void i915_driver_irq_preinstall(struct drm_device * dev)
 	I915_WRITE(PIPEBSTAT, 0);
 	I915_WRITE(IMR, 0xffffffff);
 	I915_WRITE(IER, 0x0);
-	(void) I915_READ(IER);
+	POSTING_READ(IER);
 }
 
 /*
@@ -1591,7 +1591,7 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 
 	I915_WRITE(IMR, dev_priv->irq_mask_reg);
 	I915_WRITE(IER, enable_mask);
-	(void) I915_READ(IER);
+	POSTING_READ(IER);
 
 	if (I915_HAS_HOTPLUG(dev)) {
 		u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
