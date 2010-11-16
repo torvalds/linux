@@ -279,7 +279,6 @@ extern phandle prom_finddevice(const char *name);
 extern int prom_setprop(phandle node, const char *prop_name, char *prop_value,
 			int value_size);
 
-extern phandle prom_pathtoinode(const char *path);
 extern phandle prom_inst2pkg(int);
 extern int prom_service_exists(const char *service_name);
 extern void prom_sun4v_guest_soft_state(void);

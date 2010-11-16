@@ -238,7 +238,6 @@ extern int prom_node_has_property(phandle node, char *property);
 extern int prom_setprop(phandle node, const char *prop_name, char *prop_value,
 			int value_size);
 
-extern phandle prom_pathtoinode(char *path);
 extern phandle prom_inst2pkg(int);
 
 /* Dorking with Bus ranges... */
