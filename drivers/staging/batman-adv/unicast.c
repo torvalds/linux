@@ -224,7 +224,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	if (!orig_node)
 		orig_node = transtable_search(bat_priv, ethhdr->h_dest);
 
-	router = find_router(orig_node, NULL);
+	router = find_router(bat_priv, orig_node, NULL);
 
 	if (!router)
 		goto unlock;

@@ -212,9 +212,6 @@ static void heartbeat_onchannelcallback(void *context)
 			   recvlen, requestid);
 
 		icmsghdrp = (struct icmsg_hdr *)&buf[
-			sizeof(struct vmbuspipe_hdr)];
-
-		icmsghdrp = (struct icmsg_hdr *)&buf[
 				sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {

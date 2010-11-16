@@ -504,7 +504,6 @@ err:
 
 static void pcrypt_fini_padata(struct padata_pcrypt *pcrypt)
 {
-	kobject_put(&pcrypt->pinst->kobj);
 	free_cpumask_var(pcrypt->cb_cpumask->mask);
 	kfree(pcrypt->cb_cpumask);
 

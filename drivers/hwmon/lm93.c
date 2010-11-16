@@ -20,7 +20,7 @@
     Adapted to 2.6.20 by Carsten Emde <cbe@osadl.org>
         Copyright (c) 2006 Carsten Emde, Open Source Automation Development Lab
 
-    Modified for mainline integration by Hans J. Koch <hjk@linutronix.de>
+    Modified for mainline integration by Hans J. Koch <hjk@hansjkoch.de>
         Copyright (c) 2007 Hans J. Koch, Linutronix GmbH
 
     This program is free software; you can redistribute it and/or modify
@@ -2629,7 +2629,7 @@ static void __exit lm93_exit(void)
 }
 
 MODULE_AUTHOR("Mark M. Hoffman <mhoffman@lightlink.com>, "
-		"Hans J. Koch <hjk@linutronix.de");
+		"Hans J. Koch <hjk@hansjkoch.de>");
 MODULE_DESCRIPTION("LM93 driver");
 MODULE_LICENSE("GPL");
 

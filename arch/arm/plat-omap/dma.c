@@ -1983,6 +1983,8 @@ static int omap2_dma_handle_ch(int ch)
 
 	dma_write(OMAP2_DMA_CSR_CLEAR_MASK, CSR(ch));
 	dma_write(1 << ch, IRQSTATUS_L0);
+	/* read back the register to flush the write */
+	dma_read(IRQSTATUS_L0);
 
 	/* If the ch is not chained then chain_id will be -1 */
 	if (dma_chan[ch].chain_id != -1) {

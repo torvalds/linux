@@ -286,7 +286,6 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
     pid = kernel_thread (exec_mknod, (void *)info, 0);
 
     // initialize application information
-    info->appcnt = 0;
 
 //    if (ft1000_flarion_cnt == 0) {
 //

@@ -198,7 +198,7 @@ __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot)
 	 * fragmentation of the DMA space, and also prevents allocations
 	 * smaller than a section from crossing a section boundary.
 	 */
-	bit = fls(size - 1) + 1;
+	bit = fls(size - 1);
 	if (bit > SECTION_SHIFT)
 		bit = SECTION_SHIFT;
 	align = 1 << bit;

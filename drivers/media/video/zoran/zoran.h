@@ -388,6 +388,7 @@ struct zoran {
 	struct videocodec *vfe;	/* video front end */
 
 	struct mutex resource_lock;	/* prevent evil stuff */
+	struct mutex other_lock;	/* please merge with above */
 
 	u8 initialized;		/* flag if zoran has been correctly initialized */
 	int user;		/* number of current users */

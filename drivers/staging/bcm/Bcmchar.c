@@ -908,13 +908,15 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 			break;
 		}
 		case IOCTL_BE_BUCKET_SIZE:
-			Adapter->BEBucketSize = *(PULONG)arg;
-			Status = STATUS_SUCCESS;
+			Status = 0;
+			if (get_user(Adapter->BEBucketSize, (unsigned long __user *)arg))
+				Status = -EFAULT;
 			break;
 
 		case IOCTL_RTPS_BUCKET_SIZE:
-			Adapter->rtPSBucketSize = *(PULONG)arg;
-			Status = STATUS_SUCCESS;
+			Status = 0;
+			if (get_user(Adapter->rtPSBucketSize, (unsigned long __user *)arg))
+				Status = -EFAULT;
 			break;
 		case IOCTL_CHIP_RESET:
 	    {
@@ -935,11 +937,15 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		case IOCTL_QOS_THRESHOLD:
 		{
 			USHORT uiLoopIndex;
-			for(uiLoopIndex = 0 ; uiLoopIndex < NO_OF_QUEUES ; uiLoopIndex++)
-			{
-				Adapter->PackInfo[uiLoopIndex].uiThreshold = *(PULONG)arg;
+
+			Status = 0;
+			for (uiLoopIndex = 0; uiLoopIndex < NO_OF_QUEUES; uiLoopIndex++) {
+				if (get_user(Adapter->PackInfo[uiLoopIndex].uiThreshold,
+						(unsigned long __user *)arg)) {
+					Status = -EFAULT;
+					break;
+				}
 			}
-			Status = STATUS_SUCCESS;
 			break;
 		}
 
@@ -997,7 +1003,10 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				Status = -EFAULT;
 				break;
 			}
-
+			if (IoBuffer.OutputLength != sizeof(link_state)) {
+				Status = -EINVAL;
+				break;
+			}
 
 			memset(&link_state, 0, sizeof(link_state));
 			link_state.bIdleMode = Adapter->IdleMode;

@@ -28,6 +28,7 @@ show up in /proc/sys/kernel:
 - core_uses_pid
 - ctrl-alt-del
 - dentry-state
+- dmesg_restrict
 - domainname
 - hostname
 - hotplug
@@ -210,6 +211,19 @@ Note: when a program (like dosemu) has the keyboard in 'raw'
 mode, the ctrl-alt-del is intercepted by the program before it
 ever reaches the kernel tty layer, and it's up to the program
 to decide what to do with it.
+
+==============================================================
+
+dmesg_restrict:
+
+This toggle indicates whether unprivileged users are prevented from using
+dmesg(8) to view messages from the kernel's log buffer.  When
+dmesg_restrict is set to (0) there are no restrictions.  When
+dmesg_restrict is set set to (1), users must have CAP_SYS_ADMIN to use
+dmesg(8).
+
+The kernel config option CONFIG_SECURITY_DMESG_RESTRICT sets the default
+value of dmesg_restrict.
 
 ==============================================================
 
