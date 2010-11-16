@@ -328,6 +328,20 @@ static int GPIOInmarkIntr(struct gpio_chip *chip, unsigned int mask)
 	return 0;
 }
 
+static int GPIOAckIntr(struct gpio_chip *chip, unsigned int mask)
+{
+	struct rk29_gpio_chip *rk29_gpio = to_rk29_gpio_chip(chip);
+	unsigned char  __iomem	*gpioRegBase = rk29_gpio->regbase;
+
+	if(!rk29_gpio || !gpioRegBase)
+	{
+		return -1;
+	}
+	
+	rk29_gpio_bitOp(gpioRegBase,GPIO_PORTS_EOI,mask,1);
+	return 0;
+}
+
 static void gpio_irq_unmask(unsigned irq)
 {
 	unsigned int pin = irq_to_gpio(irq);
@@ -346,6 +360,16 @@ static void gpio_irq_mask(unsigned irq)
 
 	if(chip && mask)
 		GPIOInmarkIntr(chip,mask);
+}
+
+static void gpio_ack_irq(u32 irq)
+{
+	unsigned int pin = irq_to_gpio(irq);
+	struct gpio_chip *chip = pin_to_gpioChip(pin);
+	unsigned	mask = pin_to_mask(pin);
+
+	if(chip && mask)
+		GPIOAckIntr(chip,mask);
 }
 
 static int GPIODisableIntr(struct gpio_chip *chip, unsigned int mask)
@@ -554,6 +578,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 
 static struct irq_chip rk29gpio_irqchip = {
 	.name		= "RK29_GPIOIRQ",
+	.ack 		= gpio_ack_irq,
 	.enable 	= gpio_irq_enable,
 	.disable	= gpio_irq_disable,
 	.mask		= gpio_irq_mask,
@@ -576,7 +601,7 @@ void __init rk29_gpio_irq_setup(void)
 		{
 			lockdep_set_class(&irq_desc[pin+j].lock, &gpio_lock_class);
 			set_irq_chip(pin+j, &rk29gpio_irqchip);
-			set_irq_handler(pin+j, handle_simple_irq);
+			set_irq_handler(pin+j, handle_edge_irq);
 			set_irq_flags(pin+j, IRQF_VALID);
 		}
 		
