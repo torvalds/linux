@@ -155,7 +155,7 @@ out:
 	return -EINVAL;
 }
 
-static struct backlight_ops pm860x_backlight_ops = {
+static const struct backlight_ops pm860x_backlight_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 	.update_status	= pm860x_backlight_update_status,
 	.get_brightness	= pm860x_backlight_get_brightness,
