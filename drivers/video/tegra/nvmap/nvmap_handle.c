@@ -81,11 +81,6 @@ void _nvmap_handle_free(struct nvmap_handle *h)
 		goto out;
 
 	if (!h->heap_pgalloc) {
-		mutex_lock(&h->lock);
-		nvmap_carveout_commit_subtract(h->owner,
-			nvmap_heap_to_arg(nvmap_block_to_heap(h->carveout)),
-			h->size);
-		mutex_unlock(&h->lock);
 		nvmap_heap_free(h->carveout);
 		goto out;
 	}
@@ -213,6 +208,9 @@ static void alloc_handle(struct nvmap_client *client, size_t align,
 			h->carveout = b;
 			h->heap_pgalloc = false;
 			h->alloc = true;
+			nvmap_carveout_commit_add(client,
+				nvmap_heap_to_arg(nvmap_block_to_heap(b)),
+				h->size);
 		}
 	} else if (type & NVMAP_HEAP_IOVMM) {
 		size_t reserved = PAGE_ALIGN(h->size);
@@ -367,6 +365,11 @@ void nvmap_free_handle_id(struct nvmap_client *client, unsigned long id)
 	if (h->alloc && h->heap_pgalloc && !h->pgalloc.contig)
 		atomic_sub(h->size, &client->iovm_commit);
 
+	if (h->alloc && !h->heap_pgalloc)
+		nvmap_carveout_commit_subtract(client,
+		nvmap_heap_to_arg(nvmap_block_to_heap(h->carveout)),
+		h->size);
+
 	nvmap_ref_unlock(client);
 
 	if (pins)
@@ -498,6 +501,11 @@ struct nvmap_handle_ref *nvmap_duplicate_handle_id(struct nvmap_client *client,
 		nvmap_handle_put(h);
 		return ERR_PTR(-ENOMEM);
 	}
+
+	if (!h->heap_pgalloc)
+		nvmap_carveout_commit_add(client,
+			nvmap_heap_to_arg(nvmap_block_to_heap(h->carveout)),
+			h->size);
 
 	atomic_set(&ref->dupes, 1);
 	ref->handle = h;
