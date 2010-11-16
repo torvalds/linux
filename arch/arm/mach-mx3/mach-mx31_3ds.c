@@ -22,7 +22,6 @@
 #include <linux/mfd/mc13783.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/machine.h>
-#include <linux/input/matrix_keypad.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -101,7 +100,7 @@ static const uint32_t mx31_3ds_keymap[] = {
 	KEY(2, 3, KEY_F10),
 };
 
-static struct matrix_keymap_data mx31_3ds_keymap_data = {
+static const struct matrix_keymap_data mx31_3ds_keymap_data __initconst = {
 	.keymap		= mx31_3ds_keymap,
 	.keymap_size	= ARRAY_SIZE(mx31_3ds_keymap),
 };
@@ -245,7 +244,7 @@ static void __init mxc_board_init(void)
 	spi_register_board_info(mx31_3ds_spi_devs,
 						ARRAY_SIZE(mx31_3ds_spi_devs));
 
-	mxc_register_device(&imx_kpp_device, &mx31_3ds_keymap_data);
+	imx31_add_imx_keypad(&mx31_3ds_keymap_data);
 
 	mx31_3ds_usbotg_init();
 	imx31_add_fsl_usb2_udc(&usbotg_pdata);

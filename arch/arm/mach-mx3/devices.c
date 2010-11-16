@@ -113,22 +113,3 @@ struct platform_device imx_rtc_device0 = {
 	.num_resources  = ARRAY_SIZE(imx_rtc_resources),
 	.resource       = imx_rtc_resources,
 };
-
-static struct resource imx_kpp_resources[] = {
-	{
-		.start	= MX3x_KPP_BASE_ADDR,
-		.end	= MX3x_KPP_BASE_ADDR + 0xf,
-		.flags	= IORESOURCE_MEM
-	}, {
-		.start	= MX3x_INT_KPP,
-		.end	= MX3x_INT_KPP,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device imx_kpp_device = {
-	.name = "imx-keypad",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(imx_kpp_resources),
-	.resource = imx_kpp_resources,
-};

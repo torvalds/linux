@@ -34,6 +34,10 @@ extern const struct imx_imx_i2c_data imx35_imx_i2c_data[] __initconst;
 #define imx35_add_imx_i2c1(pdata)	imx35_add_imx_i2c(1, pdata)
 #define imx35_add_imx_i2c2(pdata)	imx35_add_imx_i2c(2, pdata)
 
+extern const struct imx_imx_keypad_data imx35_imx_keypad_data __initconst;
+#define imx31_add_imx_keypad(pdata)	\
+	imx_add_imx_keypad(&imx35_imx_keypad_data, pdata)
+
 extern const struct imx_imx_ssi_data imx35_imx_ssi_data[] __initconst;
 #define imx35_add_imx_ssi(id, pdata)    \
 	imx_add_imx_ssi(&imx35_imx_ssi_data[id], pdata)
