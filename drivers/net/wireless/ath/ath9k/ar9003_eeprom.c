@@ -3104,6 +3104,36 @@ error:
 	return false;
 }
 
+static bool ar9300_otp_read_word(struct ath_hw *ah, int addr, u32 *data)
+{
+	REG_READ(ah, AR9300_OTP_BASE + (4 * addr));
+
+	if (!ath9k_hw_wait(ah, AR9300_OTP_STATUS, AR9300_OTP_STATUS_TYPE,
+			   AR9300_OTP_STATUS_VALID, 1000))
+		return false;
+
+	*data = REG_READ(ah, AR9300_OTP_READ_DATA);
+	return true;
+}
+
+static bool ar9300_read_otp(struct ath_hw *ah, int address, u8 *buffer,
+			    int count)
+{
+	u32 data;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		int offset = 8 * ((address - i) % 4);
+		if (!ar9300_otp_read_word(ah, (address - i) / 4, &data))
+			return false;
+
+		buffer[i] = (data >> offset) & 0xff;
+	}
+
+	return true;
+}
+
+
 static void ar9300_comp_hdr_unpack(u8 *best, int *code, int *reference,
 				   int *length, int *major, int *minor)
 {
@@ -3221,6 +3251,26 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 	return 0;
 }
 
+typedef bool (*eeprom_read_op)(struct ath_hw *ah, int address, u8 *buffer,
+			       int count);
+
+static bool ar9300_check_header(void *data)
+{
+	u32 *word = data;
+	return !(*word == 0 || *word == ~0);
+}
+
+static bool ar9300_check_eeprom_header(struct ath_hw *ah, eeprom_read_op read,
+				       int base_addr)
+{
+	u8 header[4];
+
+	if (!read(ah, base_addr, header, 4))
+		return false;
+
+	return ar9300_check_header(header);
+}
+
 /*
  * Read the configuration data from the eeprom.
  * The data can be put in any specified memory buffer.
@@ -3241,6 +3291,7 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 	int it;
 	u16 checksum, mchecksum;
 	struct ath_common *common = ath9k_hw_common(ah);
+	eeprom_read_op read;
 
 	word = kzalloc(2048, GFP_KERNEL);
 	if (!word)
@@ -3248,14 +3299,42 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 
 	memcpy(mptr, &ar9300_default, mdata_size);
 
+	read = ar9300_read_eeprom;
 	cptr = AR9300_BASE_ADDR;
+	ath_print(common, ATH_DBG_EEPROM,
+		"Trying EEPROM accesss at Address 0x%04x\n", cptr);
+	if (ar9300_check_eeprom_header(ah, read, cptr))
+		goto found;
+
+	cptr = AR9300_BASE_ADDR_512;
+	ath_print(common, ATH_DBG_EEPROM,
+		"Trying EEPROM accesss at Address 0x%04x\n", cptr);
+	if (ar9300_check_eeprom_header(ah, read, cptr))
+		goto found;
+
+	read = ar9300_read_otp;
+	cptr = AR9300_BASE_ADDR;
+	ath_print(common, ATH_DBG_EEPROM,
+		"Trying OTP accesss at Address 0x%04x\n", cptr);
+	if (ar9300_check_eeprom_header(ah, read, cptr))
+		goto found;
+
+	cptr = AR9300_BASE_ADDR_512;
+	ath_print(common, ATH_DBG_EEPROM,
+		"Trying OTP accesss at Address 0x%04x\n", cptr);
+	if (ar9300_check_eeprom_header(ah, read, cptr))
+		goto found;
+
+	goto fail;
+
+found:
+	ath_print(common, ATH_DBG_EEPROM, "Found valid EEPROM data");
+
 	for (it = 0; it < MSTATE; it++) {
-		if (!ar9300_read_eeprom(ah, cptr, word, COMP_HDR_LEN))
+		if (!read(ah, cptr, word, COMP_HDR_LEN))
 			goto fail;
 
-		if ((word[0] == 0 && word[1] == 0 && word[2] == 0 &&
-		     word[3] == 0) || (word[0] == 0xff && word[1] == 0xff
-				       && word[2] == 0xff && word[3] == 0xff))
+		if (!ar9300_check_header(word))
 			break;
 
 		ar9300_comp_hdr_unpack(word, &code, &reference,
@@ -3272,8 +3351,7 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 		}
 
 		osize = length;
-		ar9300_read_eeprom(ah, cptr, word,
-				   COMP_HDR_LEN + osize + COMP_CKSUM_LEN);
+		read(ah, cptr, word, COMP_HDR_LEN + osize + COMP_CKSUM_LEN);
 		checksum = ar9300_comp_cksum(&word[COMP_HDR_LEN], length);
 		mchecksum = word[COMP_HDR_LEN + osize] |
 		    (word[COMP_HDR_LEN + osize + 1] << 8);
