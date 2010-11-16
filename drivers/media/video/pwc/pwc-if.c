@@ -898,10 +898,13 @@ int pwc_isoc_init(struct pwc_device *pdev)
 	/* link */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		ret = usb_submit_urb(pdev->sbuf[i].urb, GFP_KERNEL);
-		if (ret)
+		if (ret) {
 			PWC_ERROR("isoc_init() submit_urb %d failed with error %d\n", i, ret);
-		else
-			PWC_DEBUG_MEMORY("URB 0x%p submitted.\n", pdev->sbuf[i].urb);
+			pdev->iso_init = 1;
+			pwc_isoc_cleanup(pdev);
+			return ret;
+		}
+		PWC_DEBUG_MEMORY("URB 0x%p submitted.\n", pdev->sbuf[i].urb);
 	}
 
 	/* All is done... */
