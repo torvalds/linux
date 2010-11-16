@@ -55,58 +55,31 @@ static int find_index_from_host_irq(struct kvm_assigned_dev_kernel
 	return index;
 }
 
-static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
+static irqreturn_t kvm_assigned_dev_thread(int irq, void *dev_id)
 {
-	struct kvm_assigned_dev_kernel *assigned_dev;
-	int i;
+	struct kvm_assigned_dev_kernel *assigned_dev = dev_id;
+	u32 vector;
+	int index;
 
-	assigned_dev = container_of(work, struct kvm_assigned_dev_kernel,
-				    interrupt_work);
+	if (assigned_dev->irq_requested_type & KVM_DEV_IRQ_HOST_INTX) {
+		spin_lock(&assigned_dev->intx_lock);
+		disable_irq_nosync(irq);
+		assigned_dev->host_irq_disabled = true;
+		spin_unlock(&assigned_dev->intx_lock);
+	}
 
-	spin_lock_irq(&assigned_dev->assigned_dev_lock);
 	if (assigned_dev->irq_requested_type & KVM_DEV_IRQ_HOST_MSIX) {
-		struct kvm_guest_msix_entry *guest_entries =
-			assigned_dev->guest_msix_entries;
-		for (i = 0; i < assigned_dev->entries_nr; i++) {
-			if (!(guest_entries[i].flags &
-					KVM_ASSIGNED_MSIX_PENDING))
-				continue;
-			guest_entries[i].flags &= ~KVM_ASSIGNED_MSIX_PENDING;
+		index = find_index_from_host_irq(assigned_dev, irq);
+		if (index >= 0) {
+			vector = assigned_dev->
+					guest_msix_entries[index].vector;
 			kvm_set_irq(assigned_dev->kvm,
-				    assigned_dev->irq_source_id,
-				    guest_entries[i].vector, 1);
+				    assigned_dev->irq_source_id, vector, 1);
 		}
 	} else
 		kvm_set_irq(assigned_dev->kvm, assigned_dev->irq_source_id,
 			    assigned_dev->guest_irq, 1);
 
-	spin_unlock_irq(&assigned_dev->assigned_dev_lock);
-}
-
-static irqreturn_t kvm_assigned_dev_intr(int irq, void *dev_id)
-{
-	unsigned long flags;
-	struct kvm_assigned_dev_kernel *assigned_dev =
-		(struct kvm_assigned_dev_kernel *) dev_id;
-
-	spin_lock_irqsave(&assigned_dev->assigned_dev_lock, flags);
-	if (assigned_dev->irq_requested_type & KVM_DEV_IRQ_HOST_MSIX) {
-		int index = find_index_from_host_irq(assigned_dev, irq);
-		if (index < 0)
-			goto out;
-		assigned_dev->guest_msix_entries[index].flags |=
-			KVM_ASSIGNED_MSIX_PENDING;
-	}
-
-	schedule_work(&assigned_dev->interrupt_work);
-
-	if (assigned_dev->irq_requested_type & KVM_DEV_IRQ_GUEST_INTX) {
-		disable_irq_nosync(irq);
-		assigned_dev->host_irq_disabled = true;
-	}
-
-out:
-	spin_unlock_irqrestore(&assigned_dev->assigned_dev_lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -114,7 +87,6 @@ out:
 static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 {
 	struct kvm_assigned_dev_kernel *dev;
-	unsigned long flags;
 
 	if (kian->gsi == -1)
 		return;
@@ -127,12 +99,12 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 	/* The guest irq may be shared so this ack may be
 	 * from another device.
 	 */
-	spin_lock_irqsave(&dev->assigned_dev_lock, flags);
+	spin_lock(&dev->intx_lock);
 	if (dev->host_irq_disabled) {
 		enable_irq(dev->host_irq);
 		dev->host_irq_disabled = false;
 	}
-	spin_unlock_irqrestore(&dev->assigned_dev_lock, flags);
+	spin_unlock(&dev->intx_lock);
 }
 
 static void deassign_guest_irq(struct kvm *kvm,
@@ -155,28 +127,19 @@ static void deassign_host_irq(struct kvm *kvm,
 			      struct kvm_assigned_dev_kernel *assigned_dev)
 {
 	/*
-	 * In kvm_free_device_irq, cancel_work_sync return true if:
-	 * 1. work is scheduled, and then cancelled.
-	 * 2. work callback is executed.
-	 *
-	 * The first one ensured that the irq is disabled and no more events
-	 * would happen. But for the second one, the irq may be enabled (e.g.
-	 * for MSI). So we disable irq here to prevent further events.
+	 * We disable irq here to prevent further events.
 	 *
 	 * Notice this maybe result in nested disable if the interrupt type is
 	 * INTx, but it's OK for we are going to free it.
 	 *
 	 * If this function is a part of VM destroy, please ensure that till
 	 * now, the kvm state is still legal for probably we also have to wait
-	 * interrupt_work done.
+	 * on a currently running IRQ handler.
 	 */
 	if (assigned_dev->irq_requested_type & KVM_DEV_IRQ_HOST_MSIX) {
 		int i;
 		for (i = 0; i < assigned_dev->entries_nr; i++)
-			disable_irq_nosync(assigned_dev->
-					   host_msix_entries[i].vector);
-
-		cancel_work_sync(&assigned_dev->interrupt_work);
+			disable_irq(assigned_dev->host_msix_entries[i].vector);
 
 		for (i = 0; i < assigned_dev->entries_nr; i++)
 			free_irq(assigned_dev->host_msix_entries[i].vector,
@@ -188,8 +151,7 @@ static void deassign_host_irq(struct kvm *kvm,
 		pci_disable_msix(assigned_dev->dev);
 	} else {
 		/* Deal with MSI and INTx */
-		disable_irq_nosync(assigned_dev->host_irq);
-		cancel_work_sync(&assigned_dev->interrupt_work);
+		disable_irq(assigned_dev->host_irq);
 
 		free_irq(assigned_dev->host_irq, (void *)assigned_dev);
 
@@ -268,8 +230,9 @@ static int assigned_device_enable_host_intx(struct kvm *kvm,
 	 * on the same interrupt line is not a happy situation: there
 	 * are going to be long delays in accepting, acking, etc.
 	 */
-	if (request_irq(dev->host_irq, kvm_assigned_dev_intr,
-			0, "kvm_assigned_intx_device", (void *)dev))
+	if (request_threaded_irq(dev->host_irq, NULL, kvm_assigned_dev_thread,
+				 IRQF_ONESHOT, "kvm_assigned_intx_device",
+				 (void *)dev))
 		return -EIO;
 	return 0;
 }
@@ -287,8 +250,8 @@ static int assigned_device_enable_host_msi(struct kvm *kvm,
 	}
 
 	dev->host_irq = dev->dev->irq;
-	if (request_irq(dev->host_irq, kvm_assigned_dev_intr, 0,
-			"kvm_assigned_msi_device", (void *)dev)) {
+	if (request_threaded_irq(dev->host_irq, NULL, kvm_assigned_dev_thread,
+				 0, "kvm_assigned_msi_device", (void *)dev)) {
 		pci_disable_msi(dev->dev);
 		return -EIO;
 	}
@@ -313,10 +276,10 @@ static int assigned_device_enable_host_msix(struct kvm *kvm,
 		return r;
 
 	for (i = 0; i < dev->entries_nr; i++) {
-		r = request_irq(dev->host_msix_entries[i].vector,
-				kvm_assigned_dev_intr, 0,
-				"kvm_assigned_msix_device",
-				(void *)dev);
+		r = request_threaded_irq(dev->host_msix_entries[i].vector,
+					 NULL, kvm_assigned_dev_thread,
+					 0, "kvm_assigned_msix_device",
+					 (void *)dev);
 		if (r)
 			goto err;
 	}
@@ -557,12 +520,10 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	match->host_devfn = assigned_dev->devfn;
 	match->flags = assigned_dev->flags;
 	match->dev = dev;
-	spin_lock_init(&match->assigned_dev_lock);
+	spin_lock_init(&match->intx_lock);
 	match->irq_source_id = -1;
 	match->kvm = kvm;
 	match->ack_notifier.irq_acked = kvm_assigned_dev_ack_irq;
-	INIT_WORK(&match->interrupt_work,
-		  kvm_assigned_dev_interrupt_work_handler);
 
 	list_add(&match->list, &kvm->arch.assigned_dev_head);
 
@@ -654,9 +615,9 @@ static int kvm_vm_ioctl_set_msix_nr(struct kvm *kvm,
 			r = -ENOMEM;
 			goto msix_nr_out;
 		}
-		adev->guest_msix_entries = kzalloc(
-				sizeof(struct kvm_guest_msix_entry) *
-				entry_nr->entry_nr, GFP_KERNEL);
+		adev->guest_msix_entries =
+			kzalloc(sizeof(struct msix_entry) * entry_nr->entry_nr,
+				GFP_KERNEL);
 		if (!adev->guest_msix_entries) {
 			kfree(adev->host_msix_entries);
 			r = -ENOMEM;

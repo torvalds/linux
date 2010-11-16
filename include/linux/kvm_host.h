@@ -470,16 +470,8 @@ struct kvm_irq_ack_notifier {
 	void (*irq_acked)(struct kvm_irq_ack_notifier *kian);
 };
 
-#define KVM_ASSIGNED_MSIX_PENDING		0x1
-struct kvm_guest_msix_entry {
-	u32 vector;
-	u16 entry;
-	u16 flags;
-};
-
 struct kvm_assigned_dev_kernel {
 	struct kvm_irq_ack_notifier ack_notifier;
-	struct work_struct interrupt_work;
 	struct list_head list;
 	int assigned_dev_id;
 	int host_segnr;
@@ -490,13 +482,13 @@ struct kvm_assigned_dev_kernel {
 	bool host_irq_disabled;
 	struct msix_entry *host_msix_entries;
 	int guest_irq;
-	struct kvm_guest_msix_entry *guest_msix_entries;
+	struct msix_entry *guest_msix_entries;
 	unsigned long irq_requested_type;
 	int irq_source_id;
 	int flags;
 	struct pci_dev *dev;
 	struct kvm *kvm;
-	spinlock_t assigned_dev_lock;
+	spinlock_t intx_lock;
 };
 
 struct kvm_irq_mask_notifier {
