@@ -49,30 +49,39 @@ void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	if (txq->need_update == 0)
 		return;
 
-	/* if we're trying to save power */
-	if (test_bit(STATUS_POWER_PMI, &priv->status)) {
-		/* wake up nic if it's powered down ...
-		 * uCode will wake up, and interrupt us again, so next
-		 * time we'll skip this part. */
-		reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
-
-		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-			IWL_DEBUG_INFO(priv, "Tx queue %d requesting wakeup, GP1 = 0x%x\n",
-				      txq_id, reg);
-			iwl_set_bit(priv, CSR_GP_CNTRL,
-				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-			return;
-		}
-
-		iwl_write_direct32(priv, HBUS_TARG_WRPTR,
-				     txq->q.write_ptr | (txq_id << 8));
-
-	/* else not in power-save mode, uCode will never sleep when we're
-	 * trying to tx (during RFKILL, we're not trying to tx). */
-	} else
+	if (priv->cfg->base_params->shadow_reg_enable) {
+		/* shadow register enabled */
 		iwl_write32(priv, HBUS_TARG_WRPTR,
 			    txq->q.write_ptr | (txq_id << 8));
+	} else {
+		/* if we're trying to save power */
+		if (test_bit(STATUS_POWER_PMI, &priv->status)) {
+			/* wake up nic if it's powered down ...
+			 * uCode will wake up, and interrupt us again, so next
+			 * time we'll skip this part. */
+			reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
 
+			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
+				IWL_DEBUG_INFO(priv,
+					"Tx queue %d requesting wakeup,"
+					" GP1 = 0x%x\n", txq_id, reg);
+				iwl_set_bit(priv, CSR_GP_CNTRL,
+					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+				return;
+			}
+
+			iwl_write_direct32(priv, HBUS_TARG_WRPTR,
+				     txq->q.write_ptr | (txq_id << 8));
+
+		/*
+		 * else not in power-save mode,
+		 * uCode will never sleep when we're
+		 * trying to tx (during RFKILL, we're not trying to tx).
+		 */
+		} else
+			iwl_write32(priv, HBUS_TARG_WRPTR,
+				    txq->q.write_ptr | (txq_id << 8));
+	}
 	txq->need_update = 0;
 }
 EXPORT_SYMBOL(iwl_txq_update_write_ptr);

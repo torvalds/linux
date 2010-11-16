@@ -68,7 +68,8 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Enable RX.
 	 */
-	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
+	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_RX_ON);
+	rt2x00link_start_tuner(rt2x00dev);
 
 	/*
 	 * Start watchdog monitoring.
@@ -102,7 +103,8 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Disable RX.
 	 */
-	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
+	rt2x00link_stop_tuner(rt2x00dev);
+	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_RX_OFF);
 
 	/*
 	 * Disable radio.
@@ -111,23 +113,6 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_IRQ_OFF);
 	rt2x00led_led_activity(rt2x00dev, false);
 	rt2x00leds_led_radio(rt2x00dev, false);
-}
-
-void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state)
-{
-	/*
-	 * When we are disabling the RX, we should also stop the link tuner.
-	 */
-	if (state == STATE_RADIO_RX_OFF)
-		rt2x00link_stop_tuner(rt2x00dev);
-
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev, state);
-
-	/*
-	 * When we are enabling the RX, we should also start the link tuner.
-	 */
-	if (state == STATE_RADIO_RX_ON)
-		rt2x00link_start_tuner(rt2x00dev);
 }
 
 static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
@@ -483,6 +468,10 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	unsigned int header_length;
 	int rate_idx;
 
+	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) ||
+	    !test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		goto submit_entry;
+
 	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
 		goto submit_entry;
 
@@ -567,9 +556,13 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	entry->skb = skb;
 
 submit_entry:
-	rt2x00dev->ops->lib->clear_entry(entry);
-	rt2x00queue_index_inc(entry->queue, Q_INDEX);
+	entry->flags = 0;
 	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
+	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
+	    test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags)) {
+		rt2x00dev->ops->lib->clear_entry(entry);
+		rt2x00queue_index_inc(entry->queue, Q_INDEX);
+	}
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
 
@@ -678,7 +671,7 @@ static void rt2x00lib_rate(struct ieee80211_rate *entry,
 {
 	entry->flags = 0;
 	entry->bitrate = rate->bitrate;
-	entry->hw_value =index;
+	entry->hw_value = index;
 	entry->hw_value_short = index;
 
 	if (rate->flags & DEV_RATE_SHORT_PREAMBLE)

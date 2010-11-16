@@ -117,12 +117,11 @@ EXPORT_SYMBOL(ath9k_hw_numtxpending);
 bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 {
 	u32 txcfg, curLevel, newLevel;
-	enum ath9k_int omask;
 
 	if (ah->tx_trig_level >= ah->config.max_txtrig_level)
 		return false;
 
-	omask = ath9k_hw_set_interrupts(ah, ah->imask & ~ATH9K_INT_GLOBAL);
+	ath9k_hw_disable_interrupts(ah);
 
 	txcfg = REG_READ(ah, AR_TXCFG);
 	curLevel = MS(txcfg, AR_FTRIG);
@@ -136,7 +135,7 @@ bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 		REG_WRITE(ah, AR_TXCFG,
 			  (txcfg & ~AR_FTRIG) | SM(newLevel, AR_FTRIG));
 
-	ath9k_hw_set_interrupts(ah, omask);
+	ath9k_hw_enable_interrupts(ah);
 
 	ah->tx_trig_level = newLevel;
 
@@ -849,28 +848,59 @@ bool ath9k_hw_intrpend(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_intrpend);
 
-enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah,
-					      enum ath9k_int ints)
+void ath9k_hw_disable_interrupts(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	ath_print(common, ATH_DBG_INTERRUPT, "disable IER\n");
+	REG_WRITE(ah, AR_IER, AR_IER_DISABLE);
+	(void) REG_READ(ah, AR_IER);
+	if (!AR_SREV_9100(ah)) {
+		REG_WRITE(ah, AR_INTR_ASYNC_ENABLE, 0);
+		(void) REG_READ(ah, AR_INTR_ASYNC_ENABLE);
+
+		REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
+		(void) REG_READ(ah, AR_INTR_SYNC_ENABLE);
+	}
+}
+EXPORT_SYMBOL(ath9k_hw_disable_interrupts);
+
+void ath9k_hw_enable_interrupts(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!(ah->imask & ATH9K_INT_GLOBAL))
+		return;
+
+	ath_print(common, ATH_DBG_INTERRUPT, "enable IER\n");
+	REG_WRITE(ah, AR_IER, AR_IER_ENABLE);
+	if (!AR_SREV_9100(ah)) {
+		REG_WRITE(ah, AR_INTR_ASYNC_ENABLE,
+			  AR_INTR_MAC_IRQ);
+		REG_WRITE(ah, AR_INTR_ASYNC_MASK, AR_INTR_MAC_IRQ);
+
+
+		REG_WRITE(ah, AR_INTR_SYNC_ENABLE,
+			  AR_INTR_SYNC_DEFAULT);
+		REG_WRITE(ah, AR_INTR_SYNC_MASK,
+			  AR_INTR_SYNC_DEFAULT);
+	}
+	ath_print(common, ATH_DBG_INTERRUPT, "AR_IMR 0x%x IER 0x%x\n",
+		  REG_READ(ah, AR_IMR), REG_READ(ah, AR_IER));
+}
+EXPORT_SYMBOL(ath9k_hw_enable_interrupts);
+
+void ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 {
 	enum ath9k_int omask = ah->imask;
 	u32 mask, mask2;
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_common *common = ath9k_hw_common(ah);
 
+	if (!(ints & ATH9K_INT_GLOBAL))
+		ath9k_hw_enable_interrupts(ah);
+
 	ath_print(common, ATH_DBG_INTERRUPT, "0x%x => 0x%x\n", omask, ints);
-
-	if (omask & ATH9K_INT_GLOBAL) {
-		ath_print(common, ATH_DBG_INTERRUPT, "disable IER\n");
-		REG_WRITE(ah, AR_IER, AR_IER_DISABLE);
-		(void) REG_READ(ah, AR_IER);
-		if (!AR_SREV_9100(ah)) {
-			REG_WRITE(ah, AR_INTR_ASYNC_ENABLE, 0);
-			(void) REG_READ(ah, AR_INTR_ASYNC_ENABLE);
-
-			REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
-			(void) REG_READ(ah, AR_INTR_SYNC_ENABLE);
-		}
-	}
 
 	/* TODO: global int Ref count */
 	mask = ints & ATH9K_INT_COMMON;
@@ -946,24 +976,8 @@ enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah,
 			REG_CLR_BIT(ah, AR_IMR_S5, AR_IMR_S5_TIM_TIMER);
 	}
 
-	if (ints & ATH9K_INT_GLOBAL) {
-		ath_print(common, ATH_DBG_INTERRUPT, "enable IER\n");
-		REG_WRITE(ah, AR_IER, AR_IER_ENABLE);
-		if (!AR_SREV_9100(ah)) {
-			REG_WRITE(ah, AR_INTR_ASYNC_ENABLE,
-				  AR_INTR_MAC_IRQ);
-			REG_WRITE(ah, AR_INTR_ASYNC_MASK, AR_INTR_MAC_IRQ);
+	ath9k_hw_enable_interrupts(ah);
 
-
-			REG_WRITE(ah, AR_INTR_SYNC_ENABLE,
-				  AR_INTR_SYNC_DEFAULT);
-			REG_WRITE(ah, AR_INTR_SYNC_MASK,
-				  AR_INTR_SYNC_DEFAULT);
-		}
-		ath_print(common, ATH_DBG_INTERRUPT, "AR_IMR 0x%x IER 0x%x\n",
-			  REG_READ(ah, AR_IMR), REG_READ(ah, AR_IER));
-	}
-
-	return omask;
+	return;
 }
 EXPORT_SYMBOL(ath9k_hw_set_interrupts);

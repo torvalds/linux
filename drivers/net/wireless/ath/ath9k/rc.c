@@ -381,25 +381,6 @@ static const struct ath_rate_table ar5416_11g_ratetable = {
 static int ath_rc_get_rateindex(const struct ath_rate_table *rate_table,
 				struct ieee80211_tx_rate *rate);
 
-static inline int8_t median(int8_t a, int8_t b, int8_t c)
-{
-	if (a >= b) {
-		if (b >= c)
-			return b;
-		else if (a > c)
-			return c;
-		else
-			return a;
-	} else {
-		if (a >= c)
-			return a;
-		else if (b >= c)
-			return c;
-		else
-			return b;
-	}
-}
-
 static void ath_rc_sort_validrates(const struct ath_rate_table *rate_table,
 				   struct ath_rate_priv *ath_rc_priv)
 {
@@ -1444,12 +1425,12 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 		ath_rc_priv->neg_ht_rates.rs_nrates = j;
 	}
 
-	is_cw40 = sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+	is_cw40 = !!(sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40);
 
 	if (is_cw40)
-		is_sgi = sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40;
+		is_sgi = !!(sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
 	else if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_SGI_20)
-		is_sgi = sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20;
+		is_sgi = !!(sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
 
 	/* Choose rate table first */
 
@@ -1468,10 +1449,8 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
 	const struct ath_rate_table *rate_table = NULL;
 	bool oper_cw40 = false, oper_sgi;
-	bool local_cw40 = (ath_rc_priv->ht_cap & WLAN_RC_40_FLAG) ?
-		true : false;
-	bool local_sgi = (ath_rc_priv->ht_cap & WLAN_RC_SGI_FLAG) ?
-		true : false;
+	bool local_cw40 = !!(ath_rc_priv->ht_cap & WLAN_RC_40_FLAG);
+	bool local_sgi = !!(ath_rc_priv->ht_cap & WLAN_RC_SGI_FLAG);
 
 	/* FIXME: Handle AP mode later when we support CWM */
 

@@ -116,6 +116,6 @@ struct wl1271_rx_descriptor {
 } __packed;
 
 void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status);
-u8 wl1271_rate_to_idx(struct wl1271 *wl, int rate);
+u8 wl1271_rate_to_idx(int rate, enum ieee80211_band band);
 
 #endif

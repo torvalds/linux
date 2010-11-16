@@ -1321,13 +1321,14 @@ struct cfg80211_ops {
  * 	initiator is %REGDOM_SET_BY_CORE).
  * @WIPHY_FLAG_STRICT_REGULATORY: tells us the driver for this device will
  *	ignore regulatory domain settings until it gets its own regulatory
- *	domain via its regulatory_hint(). After its gets its own regulatory
- *	domain it will only allow further regulatory domain settings to
- *	further enhance compliance. For example if channel 13 and 14 are
- *	disabled by this regulatory domain no user regulatory domain can
- *	enable these channels at a later time. This can be used for devices
- *	which do not have calibration information gauranteed for frequencies
- *	or settings outside of its regulatory domain.
+ *	domain via its regulatory_hint() unless the regulatory hint is
+ *	from a country IE. After its gets its own regulatory domain it will
+ *	only allow further regulatory domain settings to further enhance
+ *	compliance. For example if channel 13 and 14 are disabled by this
+ *	regulatory domain no user regulatory domain can enable these channels
+ *	at a later time. This can be used for devices which do not have
+ *	calibration information guaranteed for frequencies or settings
+ *	outside of its regulatory domain.
  * @WIPHY_FLAG_DISABLE_BEACON_HINTS: enable this if your driver needs to ensure
  *	that passive scan flags and beaconing flags may not be lifted by
  *	cfg80211 due to regulatory beacon hints. For more information on beacon

@@ -53,13 +53,11 @@
 #define IWL6000_UCODE_API_MAX 4
 #define IWL6050_UCODE_API_MAX 5
 #define IWL6000G2_UCODE_API_MAX 5
-#define IWL130_UCODE_API_MAX 5
 
 /* Lowest firmware API version supported */
 #define IWL6000_UCODE_API_MIN 4
 #define IWL6050_UCODE_API_MIN 4
 #define IWL6000G2_UCODE_API_MIN 4
-#define IWL130_UCODE_API_MIN 5
 
 #define IWL6000_FW_PRE "iwlwifi-6000-"
 #define _IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE #api ".ucode"
@@ -76,10 +74,6 @@
 #define IWL6000G2B_FW_PRE "iwlwifi-6000g2b-"
 #define _IWL6000G2B_MODULE_FIRMWARE(api) IWL6000G2B_FW_PRE #api ".ucode"
 #define IWL6000G2B_MODULE_FIRMWARE(api) _IWL6000G2B_MODULE_FIRMWARE(api)
-
-#define IWL130_FW_PRE "iwlwifi-130-"
-#define _IWL130_MODULE_FIRMWARE(api) IWL130_FW_PRE #api ".ucode"
-#define IWL130_MODULE_FIRMWARE(api) _IWL130_MODULE_FIRMWARE(api)
 
 static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 {
@@ -328,14 +322,16 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
-	.post_associate = iwl_post_associate,
-	.isr = iwl_isr_ict,
-	.config_ap = iwl_config_ap,
+	.isr_ops = {
+		.isr = iwl_isr_ict,
+		.free = iwl_free_isr_ict,
+		.alloc = iwl_alloc_isr_ict,
+		.reset = iwl_reset_ict,
+		.disable = iwl_disable_ict,
+	},
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
 	 },
-	.manage_ibss_station = iwlagn_manage_ibss_station,
-	.update_bcast_stations = iwl_update_bcast_stations,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
@@ -399,14 +395,16 @@ static struct iwl_lib_ops iwl6000g2b_lib = {
 		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
-	.post_associate = iwl_post_associate,
-	.isr = iwl_isr_ict,
-	.config_ap = iwl_config_ap,
+	.isr_ops = {
+		.isr = iwl_isr_ict,
+		.free = iwl_free_isr_ict,
+		.alloc = iwl_alloc_isr_ict,
+		.reset = iwl_reset_ict,
+		.disable = iwl_disable_ict,
+	},
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
 	 },
-	.manage_ibss_station = iwlagn_manage_ibss_station,
-	.update_bcast_stations = iwl_update_bcast_stations,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
@@ -439,6 +437,7 @@ static const struct iwl_ops iwl6000_ops = {
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
+	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static const struct iwl_ops iwl6050_ops = {
@@ -447,6 +446,7 @@ static const struct iwl_ops iwl6050_ops = {
 	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
 	.nic = &iwl6050_nic_ops,
+	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static const struct iwl_ops iwl6050g2_ops = {
@@ -455,6 +455,7 @@ static const struct iwl_ops iwl6050g2_ops = {
 	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
 	.nic = &iwl6050g2_nic_ops,
+	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static const struct iwl_ops iwl6000g2b_ops = {
@@ -462,6 +463,7 @@ static const struct iwl_ops iwl6000g2b_ops = {
 	.hcmd = &iwlagn_bt_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
+	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static struct iwl_base_params iwl6000_base_params = {
@@ -485,6 +487,7 @@ static struct iwl_base_params iwl6000_base_params = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.shadow_reg_enable = true,
 };
 
 static struct iwl_base_params iwl6050_base_params = {
@@ -508,6 +511,7 @@ static struct iwl_base_params iwl6050_base_params = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.shadow_reg_enable = true,
 };
 static struct iwl_base_params iwl6000_coex_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
@@ -530,6 +534,7 @@ static struct iwl_base_params iwl6000_coex_base_params = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.shadow_reg_enable = true,
 };
 
 static struct iwl_ht_params iwl6000_ht_params = {
@@ -842,8 +847,8 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 struct iwl_cfg iwl130_bgn_cfg = {
 	.name = "Intel(R) 130 Series 1x1 BGN",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
-	.ucode_api_max = IWL130_UCODE_API_MAX,
-	.ucode_api_min = IWL130_UCODE_API_MIN,
+	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
+	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
 	.sku = IWL_SKU_G|IWL_SKU_N,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_A,
@@ -862,8 +867,8 @@ struct iwl_cfg iwl130_bgn_cfg = {
 struct iwl_cfg iwl130_bg_cfg = {
 	.name = "Intel(R) 130 Series 1x2 BG",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
-	.ucode_api_max = IWL130_UCODE_API_MAX,
-	.ucode_api_min = IWL130_UCODE_API_MIN,
+	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
+	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
 	.sku = IWL_SKU_G,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_A,
@@ -882,4 +887,3 @@ MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL6050_MODULE_FIRMWARE(IWL6050_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL6000G2A_MODULE_FIRMWARE(IWL6000G2_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL6000G2B_MODULE_FIRMWARE(IWL6000G2_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL130_MODULE_FIRMWARE(IWL130_UCODE_API_MAX));

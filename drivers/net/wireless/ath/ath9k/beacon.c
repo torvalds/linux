@@ -28,7 +28,7 @@ int ath_beaconq_config(struct ath_softc *sc)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_tx_queue_info qi, qi_be;
-	int qnum;
+	struct ath_txq *txq;
 
 	ath9k_hw_get_txq_props(ah, sc->beacon.beaconq, &qi);
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP) {
@@ -38,8 +38,8 @@ int ath_beaconq_config(struct ath_softc *sc)
 		qi.tqi_cwmax = 0;
 	} else {
 		/* Adhoc mode; important thing is to use 2x cwmin. */
-		qnum = sc->tx.hwq_map[WME_AC_BE];
-		ath9k_hw_get_txq_props(ah, qnum, &qi_be);
+		txq = sc->tx.txq_map[WME_AC_BE];
+		ath9k_hw_get_txq_props(ah, txq->axq_qnum, &qi_be);
 		qi.tqi_aifs = qi_be.tqi_aifs;
 		qi.tqi_cwmin = 4*qi_be.tqi_cwmin;
 		qi.tqi_cwmax = qi_be.tqi_cwmax;
@@ -503,7 +503,7 @@ static void ath_beacon_config_ap(struct ath_softc *sc,
 
 	/* Set the computed AP beacon timers */
 
-	ath9k_hw_set_interrupts(ah, 0);
+	ath9k_hw_disable_interrupts(ah);
 	ath9k_beacon_init(sc, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
 	ath9k_hw_set_interrupts(ah, ah->imask);
@@ -638,7 +638,7 @@ static void ath_beacon_config_sta(struct ath_softc *sc,
 
 	/* Set the computed STA beacon timers */
 
-	ath9k_hw_set_interrupts(ah, 0);
+	ath9k_hw_disable_interrupts(ah);
 	ath9k_hw_set_sta_beacon_timers(ah, &bs);
 	ah->imask |= ATH9K_INT_BMISS;
 	ath9k_hw_set_interrupts(ah, ah->imask);
@@ -686,7 +686,7 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 
 	/* Set the computed ADHOC beacon timers */
 
-	ath9k_hw_set_interrupts(ah, 0);
+	ath9k_hw_disable_interrupts(ah);
 	ath9k_beacon_init(sc, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
 	ath9k_hw_set_interrupts(ah, ah->imask);

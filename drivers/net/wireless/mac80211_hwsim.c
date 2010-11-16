@@ -309,6 +309,8 @@ struct mac80211_hwsim_data {
 	 */
 	u64 group;
 	struct dentry *debugfs_group;
+
+	int power_level;
 };
 
 
@@ -497,7 +499,7 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 	rx_status.band = data->channel->band;
 	rx_status.rate_idx = info->control.rates[0].idx;
 	/* TODO: simulate real signal strength (and optional packet loss) */
-	rx_status.signal = -50;
+	rx_status.signal = data->power_level - 50;
 
 	if (data->ps != PS_DISABLED)
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
@@ -698,6 +700,7 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 	data->idle = !!(conf->flags & IEEE80211_CONF_IDLE);
 
 	data->channel = conf->channel;
+	data->power_level = conf->power_level;
 	if (!data->started || !data->beacon_int)
 		del_timer(&data->beacon_timer);
 	else

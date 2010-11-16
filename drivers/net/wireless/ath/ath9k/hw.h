@@ -157,6 +157,13 @@
 #define PAPRD_GAIN_TABLE_ENTRIES    32
 #define PAPRD_TABLE_SZ              24
 
+enum ath_hw_txq_subtype {
+	ATH_TXQ_AC_BE = 0,
+	ATH_TXQ_AC_BK = 1,
+	ATH_TXQ_AC_VI = 2,
+	ATH_TXQ_AC_VO = 3,
+};
+
 enum ath_ini_subsys {
 	ATH_INI_PRE = 0,
 	ATH_INI_CORE,
@@ -819,12 +826,6 @@ static inline struct ath_hw_ops *ath9k_hw_ops(struct ath_hw *ah)
 	return &ah->ops;
 }
 
-static inline int sign_extend(int val, const int nbits)
-{
-	int order = BIT(nbits-1);
-	return (val ^ order) - order;
-}
-
 /* Initialization, Detach, Reset */
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_deinit(struct ath_hw *ah);
@@ -861,7 +862,7 @@ u32 ath9k_hw_getrxfilter(struct ath_hw *ah);
 void ath9k_hw_setrxfilter(struct ath_hw *ah, u32 bits);
 bool ath9k_hw_phy_disable(struct ath_hw *ah);
 bool ath9k_hw_disable(struct ath_hw *ah);
-void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit);
+void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit, bool test);
 void ath9k_hw_setopmode(struct ath_hw *ah);
 void ath9k_hw_setmcastfilter(struct ath_hw *ah, u32 filter0, u32 filter1);
 void ath9k_hw_setbssidmask(struct ath_hw *ah);
@@ -893,7 +894,6 @@ void ath9k_hw_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer);
 
 void ath_gen_timer_free(struct ath_hw *ah, struct ath_gen_timer *timer);
 void ath_gen_timer_isr(struct ath_hw *hw);
-u32 ath9k_hw_gettsf32(struct ath_hw *ah);
 
 void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len);
 

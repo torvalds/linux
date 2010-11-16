@@ -1102,18 +1102,12 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
   PHY calibration
 \*****************/
 
-static int sign_extend(int val, const int nbits)
-{
-	int order = BIT(nbits-1);
-	return (val ^ order) - order;
-}
-
 static s32 ath5k_hw_read_measured_noise_floor(struct ath5k_hw *ah)
 {
 	s32 val;
 
 	val = ath5k_hw_reg_read(ah, AR5K_PHY_NF);
-	return sign_extend(AR5K_REG_MS(val, AR5K_PHY_NF_MINCCA_PWR), 9);
+	return sign_extend32(AR5K_REG_MS(val, AR5K_PHY_NF_MINCCA_PWR), 8);
 }
 
 void ath5k_hw_init_nfcal_hist(struct ath5k_hw *ah)

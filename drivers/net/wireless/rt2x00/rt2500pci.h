@@ -1088,8 +1088,8 @@
 /*
  * DMA descriptor defines.
  */
-#define TXD_DESC_SIZE			( 11 * sizeof(__le32) )
-#define RXD_DESC_SIZE			( 11 * sizeof(__le32) )
+#define TXD_DESC_SIZE			(11 * sizeof(__le32))
+#define RXD_DESC_SIZE			(11 * sizeof(__le32))
 
 /*
  * TX descriptor format for TX, PRIO, ATIM and Beacon Ring.

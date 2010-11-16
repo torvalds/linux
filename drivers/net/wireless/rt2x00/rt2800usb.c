@@ -45,7 +45,7 @@
 /*
  * Allow hardware encryption to be disabled.
  */
-static int modparam_nohwcrypt = 0;
+static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
@@ -114,8 +114,7 @@ static void rt2800usb_toggle_rx(struct rt2x00_dev *rt2x00dev,
 
 	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX,
-			   (state == STATE_RADIO_RX_ON) ||
-			   (state == STATE_RADIO_RX_ON_LINK));
+			   (state == STATE_RADIO_RX_ON));
 	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 }
 
@@ -165,7 +164,8 @@ static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 	 * this limit so reduce the number to prevent errors.
 	 */
 	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_AGG_LIMIT,
-			   ((RX_ENTRIES * DATA_FRAME_SIZE) / 1024) - 3);
+			   ((rt2x00dev->ops->rx->entry_num * DATA_FRAME_SIZE)
+			    / 1024) - 3);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_EN, 1);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_TX_BULK_EN, 1);
 	rt2800_register_write(rt2x00dev, USB_DMA_CFG, reg);
@@ -183,9 +183,9 @@ static int rt2800usb_set_state(struct rt2x00_dev *rt2x00dev,
 			       enum dev_state state)
 {
 	if (state == STATE_AWAKE)
-		rt2800_mcu_request(rt2x00dev, MCU_WAKEUP, 0xff, 0, 0);
+		rt2800_mcu_request(rt2x00dev, MCU_WAKEUP, 0xff, 0, 2);
 	else
-		rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0, 2);
+		rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0xff, 2);
 
 	return 0;
 }
@@ -215,9 +215,7 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt2800usb_set_state(rt2x00dev, STATE_SLEEP);
 		break;
 	case STATE_RADIO_RX_ON:
-	case STATE_RADIO_RX_ON_LINK:
 	case STATE_RADIO_RX_OFF:
-	case STATE_RADIO_RX_OFF_LINK:
 		rt2800usb_toggle_rx(rt2x00dev, state);
 		break;
 	case STATE_RADIO_IRQ_ON:
@@ -242,6 +240,49 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		      state, retval);
 
 	return retval;
+}
+
+/*
+ * Watchdog handlers
+ */
+static void rt2800usb_watchdog(struct rt2x00_dev *rt2x00dev)
+{
+	unsigned int i;
+	u32 reg;
+
+	rt2800_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
+	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX0Q)) {
+		WARNING(rt2x00dev, "TX HW queue 0 timed out,"
+			" invoke forced kick");
+
+		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf40012);
+
+		for (i = 0; i < 10; i++) {
+			udelay(10);
+			if (!rt2x00_get_field32(reg, TXRXQ_PCNT_TX0Q))
+				break;
+		}
+
+		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf40006);
+	}
+
+	rt2800_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
+	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX1Q)) {
+		WARNING(rt2x00dev, "TX HW queue 1 timed out,"
+			" invoke forced kick");
+
+		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf4000a);
+
+		for (i = 0; i < 10; i++) {
+			udelay(10);
+			if (!rt2x00_get_field32(reg, TXRXQ_PCNT_TX1Q))
+				break;
+		}
+
+		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf40006);
+	}
+
+	rt2x00usb_watchdog(rt2x00dev);
 }
 
 /*
@@ -507,6 +548,7 @@ static const struct ieee80211_ops rt2800usb_mac80211_ops = {
 	.get_tsf		= rt2800_get_tsf,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
 	.ampdu_action		= rt2800_ampdu_action,
+	.flush			= rt2x00mac_flush,
 };
 
 static const struct rt2800_ops rt2800usb_rt2800_ops = {
@@ -535,7 +577,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.link_stats		= rt2800_link_stats,
 	.reset_tuner		= rt2800_reset_tuner,
 	.link_tuner		= rt2800_link_tuner,
-	.watchdog		= rt2x00usb_watchdog,
+	.watchdog		= rt2800usb_watchdog,
 	.write_tx_desc		= rt2800usb_write_tx_desc,
 	.write_tx_data		= rt2800_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
@@ -553,21 +595,21 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 };
 
 static const struct data_queue_desc rt2800usb_queue_rx = {
-	.entry_num		= RX_ENTRIES,
+	.entry_num		= 128,
 	.data_size		= AGGREGATION_SIZE,
 	.desc_size		= RXINFO_DESC_SIZE + RXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt2800usb_queue_tx = {
-	.entry_num		= TX_ENTRIES,
+	.entry_num		= 64,
 	.data_size		= AGGREGATION_SIZE,
 	.desc_size		= TXINFO_DESC_SIZE + TXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt2800usb_queue_bcn = {
-	.entry_num		= 8 * BEACON_ENTRIES,
+	.entry_num		= 8,
 	.data_size		= MGMT_FRAME_SIZE,
 	.desc_size		= TXINFO_DESC_SIZE + TXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),

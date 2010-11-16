@@ -48,10 +48,24 @@ static void wl1271_rx_status(struct wl1271 *wl,
 			     struct ieee80211_rx_status *status,
 			     u8 beacon)
 {
+	enum ieee80211_band desc_band;
+
 	memset(status, 0, sizeof(struct ieee80211_rx_status));
 
 	status->band = wl->band;
-	status->rate_idx = wl1271_rate_to_idx(wl, desc->rate);
+
+	if ((desc->flags & WL1271_RX_DESC_BAND_MASK) == WL1271_RX_DESC_BAND_BG)
+		desc_band = IEEE80211_BAND_2GHZ;
+	else
+		desc_band = IEEE80211_BAND_5GHZ;
+
+	status->rate_idx = wl1271_rate_to_idx(desc->rate, desc_band);
+
+#ifdef CONFIG_WL1271_HT
+	/* 11n support */
+	if (desc->rate <= CONF_HW_RXTX_RATE_MCS0)
+		status->flag |= RX_FLAG_HT;
+#endif
 
 	status->signal = desc->rssi;
 
@@ -170,10 +184,14 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 		while (pkt_offset < buf_size) {
 			pkt_length = wl1271_rx_get_buf_size(status,
 					drv_rx_counter);
-			if (wl1271_rx_handle_data(wl,
-					wl->aggr_buf + pkt_offset,
-					pkt_length) < 0)
-				break;
+			/*
+			 * the handle data call can only fail in memory-outage
+			 * conditions, in that case the received frame will just
+			 * be dropped.
+			 */
+			wl1271_rx_handle_data(wl,
+					      wl->aggr_buf + pkt_offset,
+					      pkt_length);
 			wl->rx_counter++;
 			drv_rx_counter++;
 			drv_rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;

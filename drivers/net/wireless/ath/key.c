@@ -67,7 +67,8 @@ bool ath_hw_keyreset(struct ath_common *common, u16 entry)
 }
 EXPORT_SYMBOL(ath_hw_keyreset);
 
-bool ath_hw_keysetmac(struct ath_common *common, u16 entry, const u8 *mac)
+static bool ath_hw_keysetmac(struct ath_common *common,
+			     u16 entry, const u8 *mac)
 {
 	u32 macHi, macLo;
 	u32 unicast_flag = AR_KEYTABLE_VALID;
@@ -107,9 +108,9 @@ bool ath_hw_keysetmac(struct ath_common *common, u16 entry, const u8 *mac)
 	return true;
 }
 
-bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
-				 const struct ath_keyval *k,
-				 const u8 *mac)
+static bool ath_hw_set_keycache_entry(struct ath_common *common, u16 entry,
+				      const struct ath_keyval *k,
+				      const u8 *mac)
 {
 	void *ah = common->ah;
 	u32 key0, key1, key2, key3, key4;

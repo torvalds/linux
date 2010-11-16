@@ -51,6 +51,7 @@
 #include "iwl-led.h"
 #include "iwl-3945-led.h"
 #include "iwl-3945-debugfs.h"
+#include "iwl-legacy.h"
 
 #define IWL_DECLARE_RATE_INFO(r, ip, in, rp, rn, pp, np)    \
 	[IWL_RATE_##r##M_INDEX] = { IWL_RATE_##r##M_PLCP,   \
@@ -1451,6 +1452,10 @@ static int iwl3945_send_tx_power(struct iwl_priv *priv)
 	};
 	u16 chan;
 
+	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &priv->status),
+		      "TX Power requested while scanning!\n"))
+		return -EAGAIN;
+
 	chan = le16_to_cpu(priv->contexts[IWL_RXON_CTX_BSS].active.channel);
 
 	txpower.band = (priv->band == IEEE80211_BAND_5GHZ) ? 0 : 1;
@@ -2722,10 +2727,9 @@ static struct iwl_lib_ops iwl3945_lib = {
 	},
 	.send_tx_power	= iwl3945_send_tx_power,
 	.is_valid_rtc_data_addr = iwl3945_hw_valid_rtc_data_addr,
-	.post_associate = iwl3945_post_associate,
-	.isr = iwl_isr_legacy,
-	.config_ap = iwl3945_config_ap,
-	.manage_ibss_station = iwl3945_manage_ibss_station,
+	.isr_ops = {
+		.isr = iwl_isr_legacy,
+	},
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl3945_good_plcp_health,
 
@@ -2736,10 +2740,16 @@ static struct iwl_lib_ops iwl3945_lib = {
 	},
 };
 
+static const struct iwl_legacy_ops iwl3945_legacy_ops = {
+	.post_associate = iwl3945_post_associate,
+	.config_ap = iwl3945_config_ap,
+	.manage_ibss_station = iwl3945_manage_ibss_station,
+};
+
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 	.get_hcmd_size = iwl3945_get_hcmd_size,
 	.build_addsta_hcmd = iwl3945_build_addsta_hcmd,
-	.tx_cmd_protection = iwlcore_tx_cmd_protection,
+	.tx_cmd_protection = iwl_legacy_tx_cmd_protection,
 	.request_scan = iwl3945_request_scan,
 	.post_scan = iwl3945_post_scan,
 };
@@ -2749,6 +2759,8 @@ static const struct iwl_ops iwl3945_ops = {
 	.hcmd = &iwl3945_hcmd,
 	.utils = &iwl3945_hcmd_utils,
 	.led = &iwl3945_led_ops,
+	.legacy = &iwl3945_legacy_ops,
+	.ieee80211_ops = &iwl3945_hw_ops,
 };
 
 static struct iwl_base_params iwl3945_base_params = {

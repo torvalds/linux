@@ -853,7 +853,7 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 					struct ath9k_channel *chan, u16 cfgCtl,
 					u8 twiceAntennaReduction,
 					u8 twiceMaxRegulatoryPower,
-					u8 powerLimit)
+					u8 powerLimit, bool test)
 {
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ar9287_eeprom *pEepData = &ah->eeprom.map9287;
@@ -877,11 +877,25 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 
 	ath9k_hw_set_ar9287_power_cal_table(ah, chan, &txPowerIndexOffset);
 
+	regulatory->max_power_level = 0;
 	for (i = 0; i < ARRAY_SIZE(ratesArray); i++) {
 		ratesArray[i] = (int16_t)(txPowerIndexOffset + ratesArray[i]);
 		if (ratesArray[i] > AR9287_MAX_RATE_POWER)
 			ratesArray[i] = AR9287_MAX_RATE_POWER;
+
+		if (ratesArray[i] > regulatory->max_power_level)
+			regulatory->max_power_level = ratesArray[i];
 	}
+
+	if (test)
+		return;
+
+	if (IS_CHAN_2GHZ(chan))
+		i = rate1l;
+	else
+		i = rate6mb;
+
+	regulatory->max_power_level = ratesArray[i];
 
 	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		for (i = 0; i < Ar5416RateSize; i++)
@@ -971,17 +985,6 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 			  | ATH9K_POW_SM(ratesArray[rateDupOfdm], 8)
 			  | ATH9K_POW_SM(ratesArray[rateDupCck], 0));
 	}
-
-	if (IS_CHAN_2GHZ(chan))
-		i = rate1l;
-	else
-		i = rate6mb;
-
-	if (AR_SREV_9280_20_OR_LATER(ah))
-		regulatory->max_power_level =
-			ratesArray[i] + AR9287_PWR_TABLE_OFFSET_DB * 2;
-	else
-		regulatory->max_power_level = ratesArray[i];
 }
 
 static void ath9k_hw_ar9287_set_addac(struct ath_hw *ah,

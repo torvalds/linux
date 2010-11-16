@@ -873,7 +873,7 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 				 channel->max_antenna_gain * 2,
 				 channel->max_power * 2,
 				 min((u32) MAX_RATE_POWER,
-				 (u32) regulatory->power_limit));
+				 (u32) regulatory->power_limit), false);
 
 	/* Write analog registers */
 	if (!ath9k_hw_set_rf_regs(ah, chan, freqIndex)) {
@@ -1490,25 +1490,25 @@ static void ar5008_hw_do_getnf(struct ath_hw *ah,
 	int16_t nf;
 
 	nf = MS(REG_READ(ah, AR_PHY_CCA), AR_PHY_MINCCA_PWR);
-	nfarray[0] = sign_extend(nf, 9);
+	nfarray[0] = sign_extend32(nf, 8);
 
 	nf = MS(REG_READ(ah, AR_PHY_CH1_CCA), AR_PHY_CH1_MINCCA_PWR);
-	nfarray[1] = sign_extend(nf, 9);
+	nfarray[1] = sign_extend32(nf, 8);
 
 	nf = MS(REG_READ(ah, AR_PHY_CH2_CCA), AR_PHY_CH2_MINCCA_PWR);
-	nfarray[2] = sign_extend(nf, 9);
+	nfarray[2] = sign_extend32(nf, 8);
 
 	if (!IS_CHAN_HT40(ah->curchan))
 		return;
 
 	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA), AR_PHY_EXT_MINCCA_PWR);
-	nfarray[3] = sign_extend(nf, 9);
+	nfarray[3] = sign_extend32(nf, 8);
 
 	nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA), AR_PHY_CH1_EXT_MINCCA_PWR);
-	nfarray[4] = sign_extend(nf, 9);
+	nfarray[4] = sign_extend32(nf, 8);
 
 	nf = MS(REG_READ(ah, AR_PHY_CH2_EXT_CCA), AR_PHY_CH2_EXT_MINCCA_PWR);
-	nfarray[5] = sign_extend(nf, 9);
+	nfarray[5] = sign_extend32(nf, 8);
 }
 
 /*

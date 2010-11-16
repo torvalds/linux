@@ -20,8 +20,15 @@
 /* TX */
 /******/
 
+static const int subtype_txq_to_hwq[] = {
+	[WME_AC_BE] = ATH_TXQ_AC_BE,
+	[WME_AC_BK] = ATH_TXQ_AC_BK,
+	[WME_AC_VI] = ATH_TXQ_AC_VI,
+	[WME_AC_VO] = ATH_TXQ_AC_VO,
+};
+
 #define ATH9K_HTC_INIT_TXQ(subtype) do {			\
-		qi.tqi_subtype = subtype;			\
+		qi.tqi_subtype = subtype_txq_to_hwq[subtype];	\
 		qi.tqi_aifs = ATH9K_TXQ_USEDEFAULT;		\
 		qi.tqi_cwmin = ATH9K_TXQ_USEDEFAULT;		\
 		qi.tqi_cwmax = ATH9K_TXQ_USEDEFAULT;		\

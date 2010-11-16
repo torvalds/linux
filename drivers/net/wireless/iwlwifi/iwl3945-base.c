@@ -61,6 +61,7 @@
 #include "iwl-helpers.h"
 #include "iwl-dev.h"
 #include "iwl-spectrum.h"
+#include "iwl-legacy.h"
 
 /*
  * module name, copyright, version, etc.
@@ -3057,22 +3058,22 @@ static void iwl3945_bg_rx_replenish(struct work_struct *data)
 	mutex_unlock(&priv->mutex);
 }
 
-void iwl3945_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
+void iwl3945_post_associate(struct iwl_priv *priv)
 {
 	int rc = 0;
 	struct ieee80211_conf *conf = NULL;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
-	if (!vif || !priv->is_open)
+	if (!ctx->vif || !priv->is_open)
 		return;
 
-	if (vif->type == NL80211_IFTYPE_AP) {
+	if (ctx->vif->type == NL80211_IFTYPE_AP) {
 		IWL_ERR(priv, "%s Should not be called in AP mode\n", __func__);
 		return;
 	}
 
 	IWL_DEBUG_ASSOC(priv, "Associated as %d to: %pM\n",
-			vif->bss_conf.aid, ctx->active.bssid_addr);
+			ctx->vif->bss_conf.aid, ctx->active.bssid_addr);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
@@ -3091,18 +3092,18 @@ void iwl3945_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 
-	ctx->staging.assoc_id = cpu_to_le16(vif->bss_conf.aid);
+	ctx->staging.assoc_id = cpu_to_le16(ctx->vif->bss_conf.aid);
 
 	IWL_DEBUG_ASSOC(priv, "assoc id %d beacon interval %d\n",
-			vif->bss_conf.aid, vif->bss_conf.beacon_int);
+			ctx->vif->bss_conf.aid, ctx->vif->bss_conf.beacon_int);
 
-	if (vif->bss_conf.use_short_preamble)
+	if (ctx->vif->bss_conf.use_short_preamble)
 		ctx->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 	else
 		ctx->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
 
 	if (ctx->staging.flags & RXON_FLG_BAND_24G_MSK) {
-		if (vif->bss_conf.use_short_slot)
+		if (ctx->vif->bss_conf.use_short_slot)
 			ctx->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
 		else
 			ctx->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
@@ -3110,7 +3111,7 @@ void iwl3945_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	iwl3945_commit_rxon(priv, ctx);
 
-	switch (vif->type) {
+	switch (ctx->vif->type) {
 	case NL80211_IFTYPE_STATION:
 		iwl3945_rate_scale_init(priv->hw, IWL_AP_ID);
 		break;
@@ -3119,7 +3120,7 @@ void iwl3945_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		break;
 	default:
 		IWL_ERR(priv, "%s Should not be called in %d mode\n",
-			__func__, vif->type);
+			__func__, ctx->vif->type);
 		break;
 	}
 }
@@ -3234,9 +3235,10 @@ static int iwl3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	return NETDEV_TX_OK;
 }
 
-void iwl3945_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif)
+void iwl3945_config_ap(struct iwl_priv *priv)
 {
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+	struct ieee80211_vif *vif = ctx->vif;
 	int rc = 0;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
@@ -3407,9 +3409,9 @@ static void iwl3945_configure_filter(struct ieee80211_hw *hw,
 	ctx->staging.filter_flags |= filter_or;
 
 	/*
-	 * Committing directly here breaks for some reason,
-	 * but we'll eventually commit the filter flags
-	 * change anyway.
+	 * Not committing directly because hardware can perform a scan,
+	 * but even if hw is ready, committing here breaks for some reason,
+	 * we'll eventually commit the filter flags change anyway.
 	 */
 
 	mutex_unlock(&priv->mutex);
@@ -3824,18 +3826,19 @@ static struct attribute_group iwl3945_attribute_group = {
 	.attrs = iwl3945_sysfs_entries,
 };
 
-static struct ieee80211_ops iwl3945_hw_ops = {
+struct ieee80211_ops iwl3945_hw_ops = {
 	.tx = iwl3945_mac_tx,
 	.start = iwl3945_mac_start,
 	.stop = iwl3945_mac_stop,
 	.add_interface = iwl_mac_add_interface,
 	.remove_interface = iwl_mac_remove_interface,
-	.config = iwl_mac_config,
+	.change_interface = iwl_mac_change_interface,
+	.config = iwl_legacy_mac_config,
 	.configure_filter = iwl3945_configure_filter,
 	.set_key = iwl3945_mac_set_key,
 	.conf_tx = iwl_mac_conf_tx,
-	.reset_tsf = iwl_mac_reset_tsf,
-	.bss_info_changed = iwl_bss_info_changed,
+	.reset_tsf = iwl_legacy_mac_reset_tsf,
+	.bss_info_changed = iwl_legacy_mac_bss_info_changed,
 	.hw_scan = iwl_mac_hw_scan,
 	.sta_add = iwl3945_mac_sta_add,
 	.sta_remove = iwl_mac_sta_remove,
@@ -3866,6 +3869,7 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	priv->missed_beacon_threshold = IWL_MISSED_BEACON_THRESHOLD_DEF;
 
 	priv->tx_power_user_lmt = IWL_DEFAULT_TX_POWER;
+	priv->tx_power_next = IWL_DEFAULT_TX_POWER;
 
 	if (eeprom->version < EEPROM_3945_EEPROM_VERSION) {
 		IWL_WARN(priv, "Unsupported EEPROM version: 0x%04X\n",
@@ -3965,7 +3969,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	/* mac80211 allocates memory for this device instance, including
 	 *   space for this driver's private structure */
-	hw = iwl_alloc_all(cfg, &iwl3945_hw_ops);
+	hw = iwl_alloc_all(cfg);
 	if (hw == NULL) {
 		pr_err("Can not allocate network device\n");
 		err = -ENOMEM;
@@ -4117,7 +4121,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	pci_enable_msi(priv->pci_dev);
 
-	err = request_irq(priv->pci_dev->irq, priv->cfg->ops->lib->isr,
+	err = request_irq(priv->pci_dev->irq, priv->cfg->ops->lib->isr_ops.isr,
 			  IRQF_SHARED, DRV_NAME, priv);
 	if (err) {
 		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->pci_dev->irq);
@@ -4275,10 +4279,7 @@ static struct pci_driver iwl3945_driver = {
 	.id_table = iwl3945_hw_card_ids,
 	.probe = iwl3945_pci_probe,
 	.remove = __devexit_p(iwl3945_pci_remove),
-#ifdef CONFIG_PM
-	.suspend = iwl_pci_suspend,
-	.resume = iwl_pci_resume,
-#endif
+	.driver.pm = IWL_PM_OPS,
 };
 
 static int __init iwl3945_init(void)

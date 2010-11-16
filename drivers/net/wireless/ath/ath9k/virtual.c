@@ -107,6 +107,7 @@ int ath9k_wiphy_add(struct ath_softc *sc)
 	aphy->sc = sc;
 	aphy->hw = hw;
 	sc->sec_wiphy[i] = aphy;
+	aphy->last_rssi = ATH_RSSI_DUMMY_MARKER;
 	spin_unlock_bh(&sc->wiphy_lock);
 
 	memcpy(addr, common->macaddr, ETH_ALEN);
@@ -186,7 +187,7 @@ static int ath9k_send_nullfunc(struct ath_wiphy *aphy,
 	info->control.rates[1].idx = -1;
 
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
-	txctl.txq = &sc->tx.txq[sc->tx.hwq_map[WME_AC_VO]];
+	txctl.txq = sc->tx.txq_map[WME_AC_VO];
 	txctl.frame_type = ps ? ATH9K_IFT_PAUSE : ATH9K_IFT_UNPAUSE;
 
 	if (ath_tx_start(aphy->hw, skb, &txctl) != 0)

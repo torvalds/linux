@@ -433,7 +433,7 @@ static void carl9170_usb_rx_complete(struct urb *urb)
 			 * device.
 			 */
 
-			carl9170_restart(ar, CARL9170_RR_SLOW_SYSTEM);
+			ieee80211_queue_work(ar->hw, &ar->ping_work);
 		}
 	} else {
 		/*

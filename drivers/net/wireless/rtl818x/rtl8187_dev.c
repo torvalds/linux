@@ -553,6 +553,46 @@ static int rtl8187b_init_status_urb(struct ieee80211_hw *dev)
 	return ret;
 }
 
+static void rtl8187_set_anaparam(struct rtl8187_priv *priv, bool rfon)
+{
+	u32 anaparam, anaparam2;
+	u8 anaparam3, reg;
+
+	if (!priv->is_rtl8187b) {
+		if (rfon) {
+			anaparam = RTL8187_RTL8225_ANAPARAM_ON;
+			anaparam2 = RTL8187_RTL8225_ANAPARAM2_ON;
+		} else {
+			anaparam = RTL8187_RTL8225_ANAPARAM_OFF;
+			anaparam2 = RTL8187_RTL8225_ANAPARAM2_OFF;
+		}
+	} else {
+		if (rfon) {
+			anaparam = RTL8187B_RTL8225_ANAPARAM_ON;
+			anaparam2 = RTL8187B_RTL8225_ANAPARAM2_ON;
+			anaparam3 = RTL8187B_RTL8225_ANAPARAM3_ON;
+		} else {
+			anaparam = RTL8187B_RTL8225_ANAPARAM_OFF;
+			anaparam2 = RTL8187B_RTL8225_ANAPARAM2_OFF;
+			anaparam3 = RTL8187B_RTL8225_ANAPARAM3_OFF;
+		}
+	}
+
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
+			 RTL818X_EEPROM_CMD_CONFIG);
+	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
+	reg |= RTL818X_CONFIG3_ANAPARAM_WRITE;
+	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg);
+	rtl818x_iowrite32(priv, &priv->map->ANAPARAM, anaparam);
+	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2, anaparam2);
+	if (priv->is_rtl8187b)
+		rtl818x_iowrite8(priv, &priv->map->ANAPARAM3, anaparam3);
+	reg &= ~RTL818X_CONFIG3_ANAPARAM_WRITE;
+	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg);
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
+			 RTL818X_EEPROM_CMD_NORMAL);
+}
+
 static int rtl8187_cmd_reset(struct ieee80211_hw *dev)
 {
 	struct rtl8187_priv *priv = dev->priv;
@@ -603,19 +643,7 @@ static int rtl8187_init_hw(struct ieee80211_hw *dev)
 	int res;
 
 	/* reset */
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
-			 RTL818X_EEPROM_CMD_CONFIG);
-	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
-	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg |
-			 RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM,
-			  RTL8187_RTL8225_ANAPARAM_ON);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2,
-			  RTL8187_RTL8225_ANAPARAM2_ON);
-	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg &
-			 ~RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
-			 RTL818X_EEPROM_CMD_NORMAL);
+	rtl8187_set_anaparam(priv, true);
 
 	rtl818x_iowrite16(priv, &priv->map->INT_MASK, 0);
 
@@ -629,17 +657,7 @@ static int rtl8187_init_hw(struct ieee80211_hw *dev)
 	if (res)
 		return res;
 
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
-	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
-	rtl818x_iowrite8(priv, &priv->map->CONFIG3,
-			reg | RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM,
-			  RTL8187_RTL8225_ANAPARAM_ON);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2,
-			  RTL8187_RTL8225_ANAPARAM2_ON);
-	rtl818x_iowrite8(priv, &priv->map->CONFIG3,
-			reg & ~RTL818X_CONFIG3_ANAPARAM_WRITE);
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
+	rtl8187_set_anaparam(priv, true);
 
 	/* setup card */
 	rtl818x_iowrite16(priv, &priv->map->RFPinsSelect, 0);
@@ -712,10 +730,9 @@ static const u8 rtl8187b_reg_table[][3] = {
 
 	{0x58, 0x4B, 1}, {0x59, 0x00, 1}, {0x5A, 0x4B, 1}, {0x5B, 0x00, 1},
 	{0x60, 0x4B, 1}, {0x61, 0x09, 1}, {0x62, 0x4B, 1}, {0x63, 0x09, 1},
-	{0xCE, 0x0F, 1}, {0xCF, 0x00, 1}, {0xE0, 0xFF, 1}, {0xE1, 0x0F, 1},
-	{0xE2, 0x00, 1}, {0xF0, 0x4E, 1}, {0xF1, 0x01, 1}, {0xF2, 0x02, 1},
-	{0xF3, 0x03, 1}, {0xF4, 0x04, 1}, {0xF5, 0x05, 1}, {0xF6, 0x06, 1},
-	{0xF7, 0x07, 1}, {0xF8, 0x08, 1},
+	{0xCE, 0x0F, 1}, {0xCF, 0x00, 1}, {0xF0, 0x4E, 1}, {0xF1, 0x01, 1},
+	{0xF2, 0x02, 1}, {0xF3, 0x03, 1}, {0xF4, 0x04, 1}, {0xF5, 0x05, 1},
+	{0xF6, 0x06, 1}, {0xF7, 0x07, 1}, {0xF8, 0x08, 1},
 
 	{0x4E, 0x00, 2}, {0x0C, 0x04, 2}, {0x21, 0x61, 2}, {0x22, 0x68, 2},
 	{0x23, 0x6F, 2}, {0x24, 0x76, 2}, {0x25, 0x7D, 2}, {0x26, 0x84, 2},
@@ -723,14 +740,13 @@ static const u8 rtl8187b_reg_table[][3] = {
 	{0x52, 0x04, 2}, {0x53, 0xA0, 2}, {0x54, 0x1F, 2}, {0x55, 0x23, 2},
 	{0x56, 0x45, 2}, {0x57, 0x67, 2}, {0x58, 0x08, 2}, {0x59, 0x08, 2},
 	{0x5A, 0x08, 2}, {0x5B, 0x08, 2}, {0x60, 0x08, 2}, {0x61, 0x08, 2},
-	{0x62, 0x08, 2}, {0x63, 0x08, 2}, {0x64, 0xCF, 2}, {0x72, 0x56, 2},
-	{0x73, 0x9A, 2},
+	{0x62, 0x08, 2}, {0x63, 0x08, 2}, {0x64, 0xCF, 2},
 
-	{0x34, 0xF0, 0}, {0x35, 0x0F, 0}, {0x5B, 0x40, 0}, {0x84, 0x88, 0},
-	{0x85, 0x24, 0}, {0x88, 0x54, 0}, {0x8B, 0xB8, 0}, {0x8C, 0x07, 0},
-	{0x8D, 0x00, 0}, {0x94, 0x1B, 0}, {0x95, 0x12, 0}, {0x96, 0x00, 0},
-	{0x97, 0x06, 0}, {0x9D, 0x1A, 0}, {0x9F, 0x10, 0}, {0xB4, 0x22, 0},
-	{0xBE, 0x80, 0}, {0xDB, 0x00, 0}, {0xEE, 0x00, 0}, {0x4C, 0x00, 2},
+	{0x5B, 0x40, 0}, {0x84, 0x88, 0}, {0x85, 0x24, 0}, {0x88, 0x54, 0},
+	{0x8B, 0xB8, 0}, {0x8C, 0x07, 0}, {0x8D, 0x00, 0}, {0x94, 0x1B, 0},
+	{0x95, 0x12, 0}, {0x96, 0x00, 0}, {0x97, 0x06, 0}, {0x9D, 0x1A, 0},
+	{0x9F, 0x10, 0}, {0xB4, 0x22, 0}, {0xBE, 0x80, 0}, {0xDB, 0x00, 0},
+	{0xEE, 0x00, 0}, {0x4C, 0x00, 2},
 
 	{0x9F, 0x00, 3}, {0x8C, 0x01, 0}, {0x8D, 0x10, 0}, {0x8E, 0x08, 0},
 	{0x8F, 0x00, 0}
@@ -742,48 +758,34 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 	int res, i;
 	u8 reg;
 
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
-			 RTL818X_EEPROM_CMD_CONFIG);
+	rtl8187_set_anaparam(priv, true);
 
-	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
-	reg |= RTL818X_CONFIG3_ANAPARAM_WRITE | RTL818X_CONFIG3_GNT_SELECT;
-	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM2,
-			  RTL8187B_RTL8225_ANAPARAM2_ON);
-	rtl818x_iowrite32(priv, &priv->map->ANAPARAM,
-			  RTL8187B_RTL8225_ANAPARAM_ON);
-	rtl818x_iowrite8(priv, &priv->map->ANAPARAM3,
-			 RTL8187B_RTL8225_ANAPARAM3_ON);
-
+	/* Reset PLL sequence on 8187B. Realtek note: reduces power
+	 * consumption about 30 mA */
 	rtl818x_iowrite8(priv, (u8 *)0xFF61, 0x10);
 	reg = rtl818x_ioread8(priv, (u8 *)0xFF62);
 	rtl818x_iowrite8(priv, (u8 *)0xFF62, reg & ~(1 << 5));
 	rtl818x_iowrite8(priv, (u8 *)0xFF62, reg | (1 << 5));
 
-	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
-	reg &= ~RTL818X_CONFIG3_ANAPARAM_WRITE;
-	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg);
-
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
-			 RTL818X_EEPROM_CMD_NORMAL);
-
 	res = rtl8187_cmd_reset(dev);
 	if (res)
 		return res;
 
-	rtl818x_iowrite16(priv, (__le16 *)0xFF2D, 0x0FFF);
+	rtl8187_set_anaparam(priv, true);
+
+	/* BRSR (Basic Rate Set Register) on 8187B looks to be the same as
+	 * RESP_RATE on 8187L in Realtek sources: each bit should be each
+	 * one of the 12 rates, all are enabled */
+	rtl818x_iowrite16(priv, (__le16 *)0xFF34, 0x0FFF);
+
 	reg = rtl818x_ioread8(priv, &priv->map->CW_CONF);
 	reg |= RTL818X_CW_CONF_PERPACKET_RETRY_SHIFT;
 	rtl818x_iowrite8(priv, &priv->map->CW_CONF, reg);
-	reg = rtl818x_ioread8(priv, &priv->map->TX_AGC_CTL);
-	reg |= RTL818X_TX_AGC_CTL_PERPACKET_GAIN_SHIFT |
-	       RTL818X_TX_AGC_CTL_PERPACKET_ANTSEL_SHIFT;
-	rtl818x_iowrite8(priv, &priv->map->TX_AGC_CTL, reg);
 
+	/* Auto Rate Fallback Register (ARFR): 1M-54M setting */
 	rtl818x_iowrite16_idx(priv, (__le16 *)0xFFE0, 0x0FFF, 1);
+	rtl818x_iowrite8_idx(priv, (u8 *)0xFFE2, 0x00, 1);
 
-	rtl818x_iowrite16(priv, &priv->map->BEACON_INTERVAL, 100);
-	rtl818x_iowrite16(priv, &priv->map->ATIM_WND, 2);
 	rtl818x_iowrite16_idx(priv, (__le16 *)0xFFD4, 0xFFFF, 1);
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
@@ -811,15 +813,8 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 
 	rtl818x_iowrite32(priv, &priv->map->RF_TIMING, 0x00004001);
 
+	/* RFSW_CTRL register */
 	rtl818x_iowrite16_idx(priv, (__le16 *)0xFF72, 0x569A, 2);
-
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
-			 RTL818X_EEPROM_CMD_CONFIG);
-	reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
-	reg |= RTL818X_CONFIG3_ANAPARAM_WRITE;
-	rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg);
-	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD,
-			 RTL818X_EEPROM_CMD_NORMAL);
 
 	rtl818x_iowrite16(priv, &priv->map->RFPinsOutput, 0x0480);
 	rtl818x_iowrite16(priv, &priv->map->RFPinsSelect, 0x2488);
@@ -929,6 +924,12 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 		priv->rx_conf = reg;
 		rtl818x_iowrite32(priv, &priv->map->RX_CONF, reg);
 
+		reg = rtl818x_ioread8(priv, &priv->map->TX_AGC_CTL);
+		reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_GAIN_SHIFT;
+		reg &= ~RTL818X_TX_AGC_CTL_PERPACKET_ANTSEL_SHIFT;
+		reg &= ~RTL818X_TX_AGC_CTL_FEEDBACK_ANT;
+		rtl818x_iowrite8(priv, &priv->map->TX_AGC_CTL, reg);
+
 		rtl818x_iowrite32(priv, &priv->map->TX_CONF,
 				  RTL818X_TX_CONF_HW_SEQNUM |
 				  RTL818X_TX_CONF_DISREQQSIZE |
@@ -1002,6 +1003,7 @@ static void rtl8187_stop(struct ieee80211_hw *dev)
 	rtl818x_iowrite8(priv, &priv->map->CMD, reg);
 
 	priv->rf->stop(dev);
+	rtl8187_set_anaparam(priv, false);
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	reg = rtl818x_ioread8(priv, &priv->map->CONFIG4);

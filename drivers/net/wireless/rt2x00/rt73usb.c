@@ -40,7 +40,7 @@
 /*
  * Allow hardware encryption to be disabled.
  */
-static int modparam_nohwcrypt = 0;
+static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
@@ -1331,8 +1331,7 @@ static void rt73usb_toggle_rx(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00usb_register_read(rt2x00dev, TXRX_CSR0, &reg);
 	rt2x00_set_field32(&reg, TXRX_CSR0_DISABLE_RX,
-			   (state == STATE_RADIO_RX_OFF) ||
-			   (state == STATE_RADIO_RX_OFF_LINK));
+			   (state == STATE_RADIO_RX_OFF));
 	rt2x00usb_register_write(rt2x00dev, TXRX_CSR0, reg);
 }
 
@@ -1403,9 +1402,7 @@ static int rt73usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt73usb_disable_radio(rt2x00dev);
 		break;
 	case STATE_RADIO_RX_ON:
-	case STATE_RADIO_RX_ON_LINK:
 	case STATE_RADIO_RX_OFF:
-	case STATE_RADIO_RX_OFF_LINK:
 		rt73usb_toggle_rx(rt2x00dev, state);
 		break;
 	case STATE_RADIO_IRQ_ON:
@@ -1472,10 +1469,10 @@ static void rt73usb_write_tx_desc(struct queue_entry *entry,
 	rt2x00_desc_write(txd, 0, word);
 
 	rt2x00_desc_read(txd, 1, &word);
-	rt2x00_set_field32(&word, TXD_W1_HOST_Q_ID, txdesc->qid);
-	rt2x00_set_field32(&word, TXD_W1_AIFSN, txdesc->aifs);
-	rt2x00_set_field32(&word, TXD_W1_CWMIN, txdesc->cw_min);
-	rt2x00_set_field32(&word, TXD_W1_CWMAX, txdesc->cw_max);
+	rt2x00_set_field32(&word, TXD_W1_HOST_Q_ID, entry->queue->qid);
+	rt2x00_set_field32(&word, TXD_W1_AIFSN, entry->queue->aifs);
+	rt2x00_set_field32(&word, TXD_W1_CWMIN, entry->queue->cw_min);
+	rt2x00_set_field32(&word, TXD_W1_CWMAX, entry->queue->cw_max);
 	rt2x00_set_field32(&word, TXD_W1_IV_OFFSET, txdesc->iv_offset);
 	rt2x00_set_field32(&word, TXD_W1_HW_SEQUENCE,
 			   test_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags));
@@ -2264,6 +2261,7 @@ static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.conf_tx		= rt73usb_conf_tx,
 	.get_tsf		= rt73usb_get_tsf,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
+	.flush			= rt2x00mac_flush,
 };
 
 static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
@@ -2296,21 +2294,21 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 };
 
 static const struct data_queue_desc rt73usb_queue_rx = {
-	.entry_num		= RX_ENTRIES,
+	.entry_num		= 32,
 	.data_size		= DATA_FRAME_SIZE,
 	.desc_size		= RXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt73usb_queue_tx = {
-	.entry_num		= TX_ENTRIES,
+	.entry_num		= 32,
 	.data_size		= DATA_FRAME_SIZE,
 	.desc_size		= TXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt73usb_queue_bcn = {
-	.entry_num		= 4 * BEACON_ENTRIES,
+	.entry_num		= 4,
 	.data_size		= MGMT_FRAME_SIZE,
 	.desc_size		= TXINFO_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),

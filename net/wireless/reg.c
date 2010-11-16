@@ -48,7 +48,7 @@
 #ifdef CONFIG_CFG80211_REG_DEBUG
 #define REG_DBG_PRINT(format, args...) \
 	do { \
-		printk(KERN_DEBUG format , ## args); \
+		printk(KERN_DEBUG "cfg80211: " format , ## args); \
 	} while (0)
 #else
 #define REG_DBG_PRINT(args...)
@@ -711,6 +711,60 @@ int freq_reg_info(struct wiphy *wiphy,
 }
 EXPORT_SYMBOL(freq_reg_info);
 
+#ifdef CONFIG_CFG80211_REG_DEBUG
+static const char *reg_initiator_name(enum nl80211_reg_initiator initiator)
+{
+	switch (initiator) {
+	case NL80211_REGDOM_SET_BY_CORE:
+		return "Set by core";
+	case NL80211_REGDOM_SET_BY_USER:
+		return "Set by user";
+	case NL80211_REGDOM_SET_BY_DRIVER:
+		return "Set by driver";
+	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
+		return "Set by country IE";
+	default:
+		WARN_ON(1);
+		return "Set by bug";
+	}
+}
+
+static void chan_reg_rule_print_dbg(struct ieee80211_channel *chan,
+				    u32 desired_bw_khz,
+				    const struct ieee80211_reg_rule *reg_rule)
+{
+	const struct ieee80211_power_rule *power_rule;
+	const struct ieee80211_freq_range *freq_range;
+	char max_antenna_gain[32];
+
+	power_rule = &reg_rule->power_rule;
+	freq_range = &reg_rule->freq_range;
+
+	if (!power_rule->max_antenna_gain)
+		snprintf(max_antenna_gain, 32, "N/A");
+	else
+		snprintf(max_antenna_gain, 32, "%d", power_rule->max_antenna_gain);
+
+	REG_DBG_PRINT("Updating information on frequency %d MHz "
+		      "for %d a MHz width channel with regulatory rule:\n",
+		      chan->center_freq,
+		      KHZ_TO_MHZ(desired_bw_khz));
+
+	REG_DBG_PRINT("%d KHz - %d KHz @  KHz), (%s mBi, %d mBm)\n",
+		      freq_range->start_freq_khz,
+		      freq_range->end_freq_khz,
+		      max_antenna_gain,
+		      power_rule->max_eirp);
+}
+#else
+static void chan_reg_rule_print_dbg(struct ieee80211_channel *chan,
+				    u32 desired_bw_khz,
+				    const struct ieee80211_reg_rule *reg_rule)
+{
+	return;
+}
+#endif
+
 /*
  * Note that right now we assume the desired channel bandwidth
  * is always 20 MHz for each individual channel (HT40 uses 20 MHz
@@ -720,7 +774,9 @@ EXPORT_SYMBOL(freq_reg_info);
  * on the wiphy with the target_bw specified. Then we can simply use
  * that below for the desired_bw_khz below.
  */
-static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
+static void handle_channel(struct wiphy *wiphy,
+			   enum nl80211_reg_initiator initiator,
+			   enum ieee80211_band band,
 			   unsigned int chan_idx)
 {
 	int r;
@@ -748,8 +804,27 @@ static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
 			  desired_bw_khz,
 			  &reg_rule);
 
-	if (r)
+	if (r) {
+		/*
+		 * We will disable all channels that do not match our
+		 * recieved regulatory rule unless the hint is coming
+		 * from a Country IE and the Country IE had no information
+		 * about a band. The IEEE 802.11 spec allows for an AP
+		 * to send only a subset of the regulatory rules allowed,
+		 * so an AP in the US that only supports 2.4 GHz may only send
+		 * a country IE with information for the 2.4 GHz band
+		 * while 5 GHz is still supported.
+		 */
+		if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+		    r == -ERANGE)
+			return;
+
+		REG_DBG_PRINT("Disabling freq %d MHz\n", chan->center_freq);
+		chan->flags = IEEE80211_CHAN_DISABLED;
 		return;
+	}
+
+	chan_reg_rule_print_dbg(chan, desired_bw_khz, reg_rule);
 
 	power_rule = &reg_rule->power_rule;
 	freq_range = &reg_rule->freq_range;
@@ -784,7 +859,9 @@ static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
 		chan->max_power = (int) MBM_TO_DBM(power_rule->max_eirp);
 }
 
-static void handle_band(struct wiphy *wiphy, enum ieee80211_band band)
+static void handle_band(struct wiphy *wiphy,
+			enum ieee80211_band band,
+			enum nl80211_reg_initiator initiator)
 {
 	unsigned int i;
 	struct ieee80211_supported_band *sband;
@@ -793,24 +870,42 @@ static void handle_band(struct wiphy *wiphy, enum ieee80211_band band)
 	sband = wiphy->bands[band];
 
 	for (i = 0; i < sband->n_channels; i++)
-		handle_channel(wiphy, band, i);
+		handle_channel(wiphy, initiator, band, i);
 }
 
 static bool ignore_reg_update(struct wiphy *wiphy,
 			      enum nl80211_reg_initiator initiator)
 {
-	if (!last_request)
+	if (!last_request) {
+		REG_DBG_PRINT("Ignoring regulatory request %s since "
+			      "last_request is not set\n",
+			      reg_initiator_name(initiator));
 		return true;
+	}
+
 	if (initiator == NL80211_REGDOM_SET_BY_CORE &&
-	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY)
+	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY) {
+		REG_DBG_PRINT("Ignoring regulatory request %s "
+			      "since the driver uses its own custom "
+			      "regulatory domain ",
+			      reg_initiator_name(initiator));
 		return true;
+	}
+
 	/*
 	 * wiphy->regd will be set once the device has its own
 	 * desired regulatory domain set
 	 */
 	if (wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY && !wiphy->regd &&
-	    !is_world_regdom(last_request->alpha2))
+	    initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+	    !is_world_regdom(last_request->alpha2)) {
+		REG_DBG_PRINT("Ignoring regulatory request %s "
+			      "since the driver requires its own regulaotry "
+			      "domain to be set first",
+			      reg_initiator_name(initiator));
 		return true;
+	}
+
 	return false;
 }
 
@@ -1030,7 +1125,7 @@ void wiphy_update_regulatory(struct wiphy *wiphy,
 		goto out;
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (wiphy->bands[band])
-			handle_band(wiphy, band);
+			handle_band(wiphy, band, initiator);
 	}
 out:
 	reg_process_beacons(wiphy);
@@ -1066,9 +1161,16 @@ static void handle_channel_custom(struct wiphy *wiphy,
 			       regd);
 
 	if (r) {
+		REG_DBG_PRINT("Disabling freq %d MHz as custom "
+			      "regd has no rule that fits a %d MHz "
+			      "wide channel\n",
+			      chan->center_freq,
+			      KHZ_TO_MHZ(desired_bw_khz));
 		chan->flags = IEEE80211_CHAN_DISABLED;
 		return;
 	}
+
+	chan_reg_rule_print_dbg(chan, desired_bw_khz, reg_rule);
 
 	power_rule = &reg_rule->power_rule;
 	freq_range = &reg_rule->freq_range;
@@ -1559,7 +1661,7 @@ static void restore_alpha2(char *alpha2, bool reset_user)
 	if (is_user_regdom_saved()) {
 		/* Unless we're asked to ignore it and reset it */
 		if (reset_user) {
-			REG_DBG_PRINT("cfg80211: Restoring regulatory settings "
+			REG_DBG_PRINT("Restoring regulatory settings "
 			       "including user preference\n");
 			user_alpha2[0] = '9';
 			user_alpha2[1] = '7';
@@ -1570,7 +1672,7 @@ static void restore_alpha2(char *alpha2, bool reset_user)
 			 * back as they were for a full restore.
 			 */
 			if (!is_world_regdom(ieee80211_regdom)) {
-				REG_DBG_PRINT("cfg80211: Keeping preference on "
+				REG_DBG_PRINT("Keeping preference on "
 				       "module parameter ieee80211_regdom: %c%c\n",
 				       ieee80211_regdom[0],
 				       ieee80211_regdom[1]);
@@ -1578,7 +1680,7 @@ static void restore_alpha2(char *alpha2, bool reset_user)
 				alpha2[1] = ieee80211_regdom[1];
 			}
 		} else {
-			REG_DBG_PRINT("cfg80211: Restoring regulatory settings "
+			REG_DBG_PRINT("Restoring regulatory settings "
 			       "while preserving user preference for: %c%c\n",
 			       user_alpha2[0],
 			       user_alpha2[1]);
@@ -1586,14 +1688,14 @@ static void restore_alpha2(char *alpha2, bool reset_user)
 			alpha2[1] = user_alpha2[1];
 		}
 	} else if (!is_world_regdom(ieee80211_regdom)) {
-		REG_DBG_PRINT("cfg80211: Keeping preference on "
+		REG_DBG_PRINT("Keeping preference on "
 		       "module parameter ieee80211_regdom: %c%c\n",
 		       ieee80211_regdom[0],
 		       ieee80211_regdom[1]);
 		alpha2[0] = ieee80211_regdom[0];
 		alpha2[1] = ieee80211_regdom[1];
 	} else
-		REG_DBG_PRINT("cfg80211: Restoring regulatory settings\n");
+		REG_DBG_PRINT("Restoring regulatory settings\n");
 }
 
 /*
@@ -1661,7 +1763,7 @@ static void restore_regulatory_settings(bool reset_user)
 
 void regulatory_hint_disconnect(void)
 {
-	REG_DBG_PRINT("cfg80211: All devices are disconnected, going to "
+	REG_DBG_PRINT("All devices are disconnected, going to "
 		      "restore regulatory settings\n");
 	restore_regulatory_settings(false);
 }
@@ -1691,7 +1793,7 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
 	if (!reg_beacon)
 		return -ENOMEM;
 
-	REG_DBG_PRINT("cfg80211: Found new beacon on "
+	REG_DBG_PRINT("Found new beacon on "
 		      "frequency: %d MHz (Ch %d) on %s\n",
 		      beacon_chan->center_freq,
 		      ieee80211_frequency_to_channel(beacon_chan->center_freq),

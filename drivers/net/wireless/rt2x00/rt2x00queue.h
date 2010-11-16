@@ -43,22 +43,6 @@
 #define AGGREGATION_SIZE	3840
 
 /**
- * DOC: Number of entries per queue
- *
- * Under normal load without fragmentation, 12 entries are sufficient
- * without the queue being filled up to the maximum. When using fragmentation
- * and the queue threshold code, we need to add some additional margins to
- * make sure the queue will never (or only under extreme load) fill up
- * completely.
- * Since we don't use preallocated DMA, having a large number of queue entries
- * will have minimal impact on the memory requirements for the queue.
- */
-#define RX_ENTRIES	24
-#define TX_ENTRIES	24
-#define BEACON_ENTRIES	1
-#define ATIM_ENTRIES	8
-
-/**
  * enum data_queue_qid: Queue identification
  *
  * @QID_AC_BE: AC BE queue
@@ -296,7 +280,6 @@ enum txentry_desc_flags {
  * Summary of information for the frame descriptor before sending a TX frame.
  *
  * @flags: Descriptor flags (See &enum queue_entry_flags).
- * @qid: Queue identification (See &enum data_queue_qid).
  * @length: Length of the entire frame.
  * @header_length: Length of 802.11 header.
  * @length_high: PLCP length high word.
@@ -309,11 +292,8 @@ enum txentry_desc_flags {
  * @rate_mode: Rate mode (See @enum rate_modulation).
  * @mpdu_density: MDPU density.
  * @retry_limit: Max number of retries.
- * @aifs: AIFS value.
  * @ifs: IFS value.
  * @txop: IFS value for 11n capable chips.
- * @cw_min: cwmin value.
- * @cw_max: cwmax value.
  * @cipher: Cipher type used for encryption.
  * @key_idx: Key index used for encryption.
  * @iv_offset: Position where IV should be inserted by hardware.
@@ -321,8 +301,6 @@ enum txentry_desc_flags {
  */
 struct txentry_desc {
 	unsigned long flags;
-
-	enum data_queue_qid qid;
 
 	u16 length;
 	u16 header_length;
@@ -339,11 +317,8 @@ struct txentry_desc {
 	u16 mpdu_density;
 
 	short retry_limit;
-	short aifs;
 	short ifs;
 	short txop;
-	short cw_min;
-	short cw_max;
 
 	enum cipher cipher;
 	u16 key_idx;
@@ -423,7 +398,7 @@ enum queue_index {
  * @entries: Base address of the &struct queue_entry which are
  *	part of this queue.
  * @qid: The queue identification, see &enum data_queue_qid.
- * @lock: Spinlock to protect index handling. Whenever @index, @index_done or
+ * @index_lock: Spinlock to protect index handling. Whenever @index, @index_done or
  *	@index_crypt needs to be changed this lock should be grabbed to prevent
  *	index corruption due to concurrency.
  * @count: Number of frames handled in the queue.
@@ -447,7 +422,7 @@ struct data_queue {
 
 	enum data_queue_qid qid;
 
-	spinlock_t lock;
+	spinlock_t index_lock;
 	unsigned int count;
 	unsigned short limit;
 	unsigned short threshold;
@@ -618,10 +593,10 @@ static inline int rt2x00queue_threshold(struct data_queue *queue)
 }
 
 /**
- * rt2x00queue_timeout - Check if a timeout occured for STATUS reorts
+ * rt2x00queue_status_timeout - Check if a timeout occured for STATUS reports
  * @queue: Queue to check.
  */
-static inline int rt2x00queue_timeout(struct data_queue *queue)
+static inline int rt2x00queue_status_timeout(struct data_queue *queue)
 {
 	return time_after(queue->last_action[Q_INDEX_DMA_DONE],
 			  queue->last_action[Q_INDEX_DONE] + (HZ / 10));

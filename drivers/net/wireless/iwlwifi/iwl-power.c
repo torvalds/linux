@@ -263,69 +263,94 @@ static int iwl_set_power(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd)
 				sizeof(struct iwl_powertable_cmd), cmd);
 }
 
-/* priv->mutex must be held */
-int iwl_power_update_mode(struct iwl_priv *priv, bool force)
+static void iwl_power_build_cmd(struct iwl_priv *priv,
+				struct iwl_powertable_cmd *cmd)
 {
-	int ret = 0;
 	bool enabled = priv->hw->conf.flags & IEEE80211_CONF_PS;
-	bool update_chains;
-	struct iwl_powertable_cmd cmd;
 	int dtimper;
+
+	dtimper = priv->hw->conf.ps_dtim_period ?: 1;
+
+	if (priv->cfg->base_params->broken_powersave)
+		iwl_power_sleep_cam_cmd(priv, cmd);
+	else if (priv->cfg->base_params->supports_idle &&
+		 priv->hw->conf.flags & IEEE80211_CONF_IDLE)
+		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_5, 20);
+	else if (priv->cfg->ops->lib->tt_ops.lower_power_detection &&
+		 priv->cfg->ops->lib->tt_ops.tt_power_mode &&
+		 priv->cfg->ops->lib->tt_ops.lower_power_detection(priv)) {
+		/* in thermal throttling low power state */
+		iwl_static_sleep_cmd(priv, cmd,
+		    priv->cfg->ops->lib->tt_ops.tt_power_mode(priv), dtimper);
+	} else if (!enabled)
+		iwl_power_sleep_cam_cmd(priv, cmd);
+	else if (priv->power_data.debug_sleep_level_override >= 0)
+		iwl_static_sleep_cmd(priv, cmd,
+				     priv->power_data.debug_sleep_level_override,
+				     dtimper);
+	else if (no_sleep_autoadjust)
+		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_1, dtimper);
+	else
+		iwl_power_fill_sleep_cmd(priv, cmd,
+					 priv->hw->conf.dynamic_ps_timeout,
+					 priv->hw->conf.max_sleep_period);
+}
+
+int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
+		       bool force)
+{
+	int ret;
+	bool update_chains;
+
+	lockdep_assert_held(&priv->mutex);
 
 	/* Don't update the RX chain when chain noise calibration is running */
 	update_chains = priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE ||
 			priv->chain_noise_data.state == IWL_CHAIN_NOISE_ALIVE;
 
-	dtimper = priv->hw->conf.ps_dtim_period ?: 1;
+	if (!memcmp(&priv->power_data.sleep_cmd, cmd, sizeof(*cmd)) && !force)
+		return 0;
 
-	if (priv->cfg->base_params->broken_powersave)
-		iwl_power_sleep_cam_cmd(priv, &cmd);
-	else if (priv->cfg->base_params->supports_idle &&
-		 priv->hw->conf.flags & IEEE80211_CONF_IDLE)
-		iwl_static_sleep_cmd(priv, &cmd, IWL_POWER_INDEX_5, 20);
-	else if (priv->cfg->ops->lib->tt_ops.lower_power_detection &&
-		 priv->cfg->ops->lib->tt_ops.tt_power_mode &&
-		 priv->cfg->ops->lib->tt_ops.lower_power_detection(priv)) {
-		/* in thermal throttling low power state */
-		iwl_static_sleep_cmd(priv, &cmd,
-		    priv->cfg->ops->lib->tt_ops.tt_power_mode(priv), dtimper);
-	} else if (!enabled)
-		iwl_power_sleep_cam_cmd(priv, &cmd);
-	else if (priv->power_data.debug_sleep_level_override >= 0)
-		iwl_static_sleep_cmd(priv, &cmd,
-				     priv->power_data.debug_sleep_level_override,
-				     dtimper);
-	else if (no_sleep_autoadjust)
-		iwl_static_sleep_cmd(priv, &cmd, IWL_POWER_INDEX_1, dtimper);
-	else
-		iwl_power_fill_sleep_cmd(priv, &cmd,
-					 priv->hw->conf.dynamic_ps_timeout,
-					 priv->hw->conf.max_sleep_period);
+	if (!iwl_is_ready_rf(priv))
+		return -EIO;
 
-	if (iwl_is_ready_rf(priv) &&
-	    (memcmp(&priv->power_data.sleep_cmd, &cmd, sizeof(cmd)) || force)) {
-		if (cmd.flags & IWL_POWER_DRIVER_ALLOW_SLEEP_MSK)
-			set_bit(STATUS_POWER_PMI, &priv->status);
+	/* scan complete use sleep_power_next, need to be updated */
+	memcpy(&priv->power_data.sleep_cmd_next, cmd, sizeof(*cmd));
+	if (test_bit(STATUS_SCANNING, &priv->status) && !force) {
+		IWL_DEBUG_INFO(priv, "Defer power set mode while scanning\n");
+		return 0;
+	}
 
-		ret = iwl_set_power(priv, &cmd);
-		if (!ret) {
-			if (!(cmd.flags & IWL_POWER_DRIVER_ALLOW_SLEEP_MSK))
-				clear_bit(STATUS_POWER_PMI, &priv->status);
+	if (cmd->flags & IWL_POWER_DRIVER_ALLOW_SLEEP_MSK)
+		set_bit(STATUS_POWER_PMI, &priv->status);
 
-			if (priv->cfg->ops->lib->update_chain_flags &&
-			    update_chains)
-				priv->cfg->ops->lib->update_chain_flags(priv);
-			else if (priv->cfg->ops->lib->update_chain_flags)
-				IWL_DEBUG_POWER(priv,
+	ret = iwl_set_power(priv, cmd);
+	if (!ret) {
+		if (!(cmd->flags & IWL_POWER_DRIVER_ALLOW_SLEEP_MSK))
+			clear_bit(STATUS_POWER_PMI, &priv->status);
+
+		if (priv->cfg->ops->lib->update_chain_flags && update_chains)
+			priv->cfg->ops->lib->update_chain_flags(priv);
+		else if (priv->cfg->ops->lib->update_chain_flags)
+			IWL_DEBUG_POWER(priv,
 					"Cannot update the power, chain noise "
 					"calibration running: %d\n",
 					priv->chain_noise_data.state);
-			memcpy(&priv->power_data.sleep_cmd, &cmd, sizeof(cmd));
-		} else
-			IWL_ERR(priv, "set power fail, ret = %d", ret);
-	}
+
+		memcpy(&priv->power_data.sleep_cmd, cmd, sizeof(*cmd));
+	} else
+		IWL_ERR(priv, "set power fail, ret = %d", ret);
 
 	return ret;
+}
+EXPORT_SYMBOL(iwl_power_set_mode);
+
+int iwl_power_update_mode(struct iwl_priv *priv, bool force)
+{
+	struct iwl_powertable_cmd cmd;
+
+	iwl_power_build_cmd(priv, &cmd);
+	return iwl_power_set_mode(priv, &cmd, force);
 }
 EXPORT_SYMBOL(iwl_power_update_mode);
 

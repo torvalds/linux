@@ -726,7 +726,7 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 				    u16 cfgCtl,
 				    u8 twiceAntennaReduction,
 				    u8 twiceMaxRegulatoryPower,
-				    u8 powerLimit)
+				    u8 powerLimit, bool test)
 {
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ar5416_eeprom_4k *pEepData = &ah->eeprom.map4k;
@@ -751,15 +751,20 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 
 	ath9k_hw_set_4k_power_cal_table(ah, chan, &txPowerIndexOffset);
 
+	regulatory->max_power_level = 0;
 	for (i = 0; i < ARRAY_SIZE(ratesArray); i++) {
 		ratesArray[i] =	(int16_t)(txPowerIndexOffset + ratesArray[i]);
 		if (ratesArray[i] > AR5416_MAX_RATE_POWER)
 			ratesArray[i] = AR5416_MAX_RATE_POWER;
+
+		if (ratesArray[i] > regulatory->max_power_level)
+			regulatory->max_power_level = ratesArray[i];
 	}
 
+	if (test)
+	    return;
 
 	/* Update regulatory */
-
 	i = rate6mb;
 	if (IS_CHAN_HT40(chan))
 		i = rateHt40_0;

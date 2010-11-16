@@ -134,6 +134,7 @@ int iwl_led_associate(struct iwl_priv *priv)
 
 	return 0;
 }
+EXPORT_SYMBOL(iwl_led_associate);
 
 int iwl_led_disassociate(struct iwl_priv *priv)
 {
@@ -141,6 +142,7 @@ int iwl_led_disassociate(struct iwl_priv *priv)
 
 	return 0;
 }
+EXPORT_SYMBOL(iwl_led_disassociate);
 
 /*
  * calculate blink rate according to last second Tx/Rx activities

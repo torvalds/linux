@@ -1125,10 +1125,12 @@ struct mwl8k_tx_desc {
 	__le32 reserved;
 	__le16 rate_info;
 	__u8 peer_id;
-	__u8 tx_frag_cnt;
+	__u8 xmitcontrol;
 } __packed;
 
 #define MWL8K_TX_DESCS		128
+#define MWL8K_XMITCONTROL_NON_AMPDU	0x04
+
 
 static int mwl8k_txq_init(struct ieee80211_hw *hw, int index)
 {
@@ -1448,6 +1450,9 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 		tx->peer_id = MWL8K_STA(tx_info->control.sta)->peer_id;
 	else
 		tx->peer_id = 0;
+
+	if (priv->ap_fw)
+		tx->xmitcontrol = MWL8K_XMITCONTROL_NON_AMPDU;
 	wmb();
 	tx->status = cpu_to_le32(MWL8K_TXD_STATUS_FW_OWNED | txstatus);
 

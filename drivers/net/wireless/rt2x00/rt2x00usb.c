@@ -226,9 +226,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	 * Schedule the delayed work for reading the TX status
 	 * from the device.
 	 */
-	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
-	    test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
-		ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->txdone_work);
+	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->txdone_work);
 }
 
 static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
@@ -323,21 +321,6 @@ static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 	rt2x00dev->txdone_work.func(&rt2x00dev->txdone_work);
 
 	/*
-	 * Security measure: if the driver did override the
-	 * txdone_work function, and the hardware did arrive
-	 * in a state which causes it to malfunction, it is
-	 * possible that the driver couldn't handle the txdone
-	 * event correctly. So after giving the driver the
-	 * chance to cleanup, we now force a cleanup of any
-	 * leftovers.
-	 */
-	if (!rt2x00queue_empty(queue)) {
-		WARNING(queue->rt2x00dev, "TX queue %d DMA timed out,"
-			" status handling failed, invoke hard reset", queue->qid);
-		rt2x00usb_work_txdone(&rt2x00dev->txdone_work);
-	}
-
-	/*
 	 * The queue has been reset, and mac80211 is allowed to use the
 	 * queue again.
 	 */
@@ -361,7 +344,7 @@ void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev)
 		if (!rt2x00queue_empty(queue)) {
 			if (rt2x00queue_dma_timeout(queue))
 				rt2x00usb_watchdog_tx_dma(queue);
-			if (rt2x00queue_timeout(queue))
+			if (rt2x00queue_status_timeout(queue))
 				rt2x00usb_watchdog_tx_status(queue);
 		}
 	}
@@ -424,9 +407,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * Schedule the delayed work for reading the RX status
 	 * from the device.
 	 */
-	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
-	    test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
-		ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->rxdone_work);
+	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->rxdone_work);
 }
 
 /*

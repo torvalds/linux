@@ -398,7 +398,8 @@ static void ath9k_init_crypto(struct ath_softc *sc)
 
 static int ath9k_init_btcoex(struct ath_softc *sc)
 {
-	int r, qnum;
+	struct ath_txq *txq;
+	int r;
 
 	switch (sc->sc_ah->btcoex_hw.scheme) {
 	case ATH_BTCOEX_CFG_NONE:
@@ -411,8 +412,8 @@ static int ath9k_init_btcoex(struct ath_softc *sc)
 		r = ath_init_btcoex_timer(sc);
 		if (r)
 			return -1;
-		qnum = sc->tx.hwq_map[WME_AC_BE];
-		ath9k_hw_init_btcoex_hw(sc->sc_ah, qnum);
+		txq = sc->tx.txq_map[WME_AC_BE];
+		ath9k_hw_init_btcoex_hw(sc->sc_ah, txq->axq_qnum);
 		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
 		break;
 	default:
@@ -425,59 +426,18 @@ static int ath9k_init_btcoex(struct ath_softc *sc)
 
 static int ath9k_init_queues(struct ath_softc *sc)
 {
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int i = 0;
 
-	for (i = 0; i < ARRAY_SIZE(sc->tx.hwq_map); i++)
-		sc->tx.hwq_map[i] = -1;
-
 	sc->beacon.beaconq = ath9k_hw_beaconq_setup(sc->sc_ah);
-	if (sc->beacon.beaconq == -1) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup a beacon xmit queue\n");
-		goto err;
-	}
-
 	sc->beacon.cabq = ath_txq_setup(sc, ATH9K_TX_QUEUE_CAB, 0);
-	if (sc->beacon.cabq == NULL) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup CAB xmit queue\n");
-		goto err;
-	}
 
 	sc->config.cabqReadytime = ATH_CABQ_READY_TIME;
 	ath_cabq_update(sc);
 
-	if (!ath_tx_setup(sc, WME_AC_BK)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for BK traffic\n");
-		goto err;
-	}
-
-	if (!ath_tx_setup(sc, WME_AC_BE)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for BE traffic\n");
-		goto err;
-	}
-	if (!ath_tx_setup(sc, WME_AC_VI)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for VI traffic\n");
-		goto err;
-	}
-	if (!ath_tx_setup(sc, WME_AC_VO)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for VO traffic\n");
-		goto err;
-	}
+	for (i = 0; i < WME_NUM_AC; i++)
+		sc->tx.txq_map[i] = ath_txq_setup(sc, ATH9K_TX_QUEUE_DATA, i);
 
 	return 0;
-
-err:
-	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
-		if (ATH_TXQ_SETUP(sc, i))
-			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
-
-	return -EIO;
 }
 
 static int ath9k_init_channels_rates(struct ath_softc *sc)
@@ -583,7 +543,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	spin_lock_init(&common->cc_lock);
 
 	spin_lock_init(&sc->wiphy_lock);
-	spin_lock_init(&sc->sc_resetlock);
 	spin_lock_init(&sc->sc_serial_rw);
 	spin_lock_init(&sc->sc_pm_lock);
 	mutex_init(&sc->mutex);
@@ -643,6 +602,37 @@ err_hw:
 	sc->sc_ah = NULL;
 
 	return ret;
+}
+
+static void ath9k_init_band_txpower(struct ath_softc *sc, int band)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *chan;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
+	int i;
+
+	sband = &sc->sbands[band];
+	for (i = 0; i < sband->n_channels; i++) {
+		chan = &sband->channels[i];
+		ah->curchan = &ah->channels[chan->hw_value];
+		ath9k_cmn_update_ichannel(ah->curchan, chan, NL80211_CHAN_HT20);
+		ath9k_hw_set_txpowerlimit(ah, MAX_RATE_POWER, true);
+		chan->max_power = reg->max_power_level / 2;
+	}
+}
+
+static void ath9k_init_txpower_limits(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_channel *curchan = ah->curchan;
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
+		ath9k_init_band_txpower(sc, IEEE80211_BAND_2GHZ);
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
+		ath9k_init_band_txpower(sc, IEEE80211_BAND_5GHZ);
+
+	ah->curchan = curchan;
 }
 
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
@@ -706,6 +696,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 		    const struct ath_bus_ops *bus_ops)
 {
 	struct ieee80211_hw *hw = sc->hw;
+	struct ath_wiphy *aphy = hw->priv;
 	struct ath_common *common;
 	struct ath_hw *ah;
 	int error = 0;
@@ -738,6 +729,8 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 	if (error != 0)
 		goto error_rx;
 
+	ath9k_init_txpower_limits(sc);
+
 	/* Register with mac80211 */
 	error = ieee80211_register_hw(hw);
 	if (error)
@@ -755,6 +748,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
 	INIT_DELAYED_WORK(&sc->wiphy_work, ath9k_wiphy_work);
 	sc->wiphy_scheduler_int = msecs_to_jiffies(500);
+	aphy->last_rssi = ATH_RSSI_DUMMY_MARKER;
 
 	ath_init_leds(sc);
 	ath_start_rfkill_poll(sc);

@@ -328,8 +328,7 @@ static void rt2800pci_toggle_rx(struct rt2x00_dev *rt2x00dev,
 
 	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX,
-			   (state == STATE_RADIO_RX_ON) ||
-			   (state == STATE_RADIO_RX_ON_LINK));
+			   (state == STATE_RADIO_RX_ON));
 	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 }
 
@@ -442,7 +441,7 @@ static int rt2800pci_set_state(struct rt2x00_dev *rt2x00dev,
 	 * if the device is booting and wasn't asleep it will return
 	 * failure when attempting to wakeup.
 	 */
-	rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0, 2);
+	rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0xff, 2);
 
 	if (state == STATE_AWAKE) {
 		rt2800_mcu_request(rt2x00dev, MCU_WAKEUP, TOKEN_WAKUP, 0, 0);
@@ -477,9 +476,7 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt2800pci_set_state(rt2x00dev, STATE_SLEEP);
 		break;
 	case STATE_RADIO_RX_ON:
-	case STATE_RADIO_RX_ON_LINK:
 	case STATE_RADIO_RX_OFF:
-	case STATE_RADIO_RX_OFF_LINK:
 		rt2800pci_toggle_rx(rt2x00dev, state);
 		break;
 	case STATE_RADIO_IRQ_ON:
@@ -777,7 +774,7 @@ static void rt2800pci_txstatus_interrupt(struct rt2x00_dev *rt2x00dev)
 	 * Since we have only one producer and one consumer we don't
 	 * need to lock the kfifo.
 	 */
-	for (i = 0; i < TX_ENTRIES; i++) {
+	for (i = 0; i < rt2x00dev->ops->tx->entry_num; i++) {
 		rt2800_register_read(rt2x00dev, TX_STA_FIFO, &status);
 
 		if (!rt2x00_get_field32(status, TX_STA_FIFO_VALID))
@@ -943,6 +940,7 @@ static const struct ieee80211_ops rt2800pci_mac80211_ops = {
 	.get_tsf		= rt2800_get_tsf,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
 	.ampdu_action		= rt2800_ampdu_action,
+	.flush			= rt2x00mac_flush,
 };
 
 static const struct rt2800_ops rt2800pci_rt2800_ops = {
@@ -991,21 +989,21 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 };
 
 static const struct data_queue_desc rt2800pci_queue_rx = {
-	.entry_num		= RX_ENTRIES,
+	.entry_num		= 128,
 	.data_size		= AGGREGATION_SIZE,
 	.desc_size		= RXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_pci),
 };
 
 static const struct data_queue_desc rt2800pci_queue_tx = {
-	.entry_num		= TX_ENTRIES,
+	.entry_num		= 64,
 	.data_size		= AGGREGATION_SIZE,
 	.desc_size		= TXD_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_pci),
 };
 
 static const struct data_queue_desc rt2800pci_queue_bcn = {
-	.entry_num		= 8 * BEACON_ENTRIES,
+	.entry_num		= 8,
 	.data_size		= 0, /* No DMA required for beacons */
 	.desc_size		= TXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_pci),

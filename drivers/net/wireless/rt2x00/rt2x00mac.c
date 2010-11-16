@@ -283,14 +283,8 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	 * invalid behavior in the device.
 	 */
 	memcpy(&intf->mac, vif->addr, ETH_ALEN);
-	if (vif->type == NL80211_IFTYPE_AP) {
-		memcpy(&intf->bssid, vif->addr, ETH_ALEN);
-		rt2x00lib_config_intf(rt2x00dev, intf, vif->type,
-				      intf->mac, intf->bssid);
-	} else {
-		rt2x00lib_config_intf(rt2x00dev, intf, vif->type,
-				      intf->mac, NULL);
-	}
+	rt2x00lib_config_intf(rt2x00dev, intf, vif->type,
+			      intf->mac, NULL);
 
 	/*
 	 * Some filters depend on the current working mode. We can force
@@ -358,7 +352,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 * if for any reason the link tuner must be reset, this will be
 	 * handled by rt2x00lib_config().
 	 */
-	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF_LINK);
+	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_RX_OFF);
 
 	/*
 	 * When we've just turned on the radio, we want to reprogram
@@ -376,7 +370,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	rt2x00lib_config_antenna(rt2x00dev, rt2x00dev->default_ant);
 
 	/* Turn RX back on */
-	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON_LINK);
+	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_RX_ON);
 
 	return 0;
 }
@@ -719,3 +713,41 @@ void rt2x00mac_rfkill_poll(struct ieee80211_hw *hw)
 	wiphy_rfkill_set_hw_state(hw->wiphy, !active);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_rfkill_poll);
+
+void rt2x00mac_flush(struct ieee80211_hw *hw, bool drop)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct data_queue *queue;
+	unsigned int i = 0;
+
+	ieee80211_stop_queues(hw);
+
+	/*
+	 * Run over all queues to kick them, this will force
+	 * any pending frames to be transmitted.
+	 */
+	tx_queue_for_each(rt2x00dev, queue) {
+		rt2x00dev->ops->lib->kick_tx_queue(queue);
+	}
+
+	/**
+	 * All queues have been kicked, now wait for each queue
+	 * to become empty. With a bit of luck, we only have to wait
+	 * for the first queue to become empty, because while waiting
+	 * for the that queue, the other queues will have transmitted
+	 * all their frames as well (since they were already kicked).
+	 */
+	tx_queue_for_each(rt2x00dev, queue) {
+		for (i = 0; i < 10; i++) {
+			if (rt2x00queue_empty(queue))
+				break;
+			msleep(100);
+		}
+
+		if (!rt2x00queue_empty(queue))
+			WARNING(rt2x00dev, "Failed to flush queue %d", queue->qid);
+	}
+
+	ieee80211_wake_queues(hw);
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_flush);

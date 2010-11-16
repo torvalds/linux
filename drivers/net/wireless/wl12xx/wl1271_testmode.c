@@ -37,6 +37,7 @@ enum wl1271_tm_commands {
 	WL1271_TM_CMD_CONFIGURE,
 	WL1271_TM_CMD_NVS_PUSH,
 	WL1271_TM_CMD_SET_PLT_MODE,
+	WL1271_TM_CMD_RECOVER,
 
 	__WL1271_TM_CMD_AFTER_LAST
 };
@@ -248,6 +249,15 @@ static int wl1271_tm_cmd_set_plt_mode(struct wl1271 *wl, struct nlattr *tb[])
 	return ret;
 }
 
+static int wl1271_tm_cmd_recover(struct wl1271 *wl, struct nlattr *tb[])
+{
+	wl1271_debug(DEBUG_TESTMODE, "testmode cmd recover");
+
+	ieee80211_queue_work(wl->hw, &wl->recovery_work);
+
+	return 0;
+}
+
 int wl1271_tm_cmd(struct ieee80211_hw *hw, void *data, int len)
 {
 	struct wl1271 *wl = hw->priv;
@@ -272,6 +282,8 @@ int wl1271_tm_cmd(struct ieee80211_hw *hw, void *data, int len)
 		return wl1271_tm_cmd_nvs_push(wl, tb);
 	case WL1271_TM_CMD_SET_PLT_MODE:
 		return wl1271_tm_cmd_set_plt_mode(wl, tb);
+	case WL1271_TM_CMD_RECOVER:
+		return wl1271_tm_cmd_recover(wl, tb);
 	default:
 		return -EOPNOTSUPP;
 	}

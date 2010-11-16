@@ -1226,6 +1226,89 @@ out:
 	return ret;
 }
 
+int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
+				    struct ieee80211_sta_ht_cap *ht_cap,
+				    bool allow_ht_operation)
+{
+	struct wl1271_acx_ht_capabilities *acx;
+	u8 mac_address[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx ht capabilities setting");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* Allow HT Operation ? */
+	if (allow_ht_operation) {
+		acx->ht_capabilites =
+			WL1271_ACX_FW_CAP_HT_OPERATION;
+		if (ht_cap->cap & IEEE80211_HT_CAP_GRN_FLD)
+			acx->ht_capabilites |=
+				WL1271_ACX_FW_CAP_GREENFIELD_FRAME_FORMAT;
+		if (ht_cap->cap & IEEE80211_HT_CAP_SGI_20)
+			acx->ht_capabilites |=
+				WL1271_ACX_FW_CAP_SHORT_GI_FOR_20MHZ_PACKETS;
+		if (ht_cap->cap & IEEE80211_HT_CAP_LSIG_TXOP_PROT)
+			acx->ht_capabilites |=
+				WL1271_ACX_FW_CAP_LSIG_TXOP_PROTECTION;
+
+		/* get data from A-MPDU parameters field */
+		acx->ampdu_max_length = ht_cap->ampdu_factor;
+		acx->ampdu_min_spacing = ht_cap->ampdu_density;
+
+		memcpy(acx->mac_address, mac_address, ETH_ALEN);
+	} else { /* HT operations are not allowed */
+		acx->ht_capabilites = 0;
+	}
+
+	ret = wl1271_cmd_configure(wl, ACX_PEER_HT_CAP, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx ht capabilities setting failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_set_ht_information(struct wl1271 *wl,
+				   u16 ht_operation_mode)
+{
+	struct wl1271_acx_ht_information *acx;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx ht information setting");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->ht_protection =
+		(u8)(ht_operation_mode & IEEE80211_HT_OP_MODE_PROTECTION);
+	acx->rifs_mode = 0;
+	acx->gf_protection = 0;
+	acx->ht_tx_burst_limit = 0;
+	acx->dual_cts_protection = 0;
+
+	ret = wl1271_cmd_configure(wl, ACX_HT_BSS_OPERATION, acx, sizeof(*acx));
+
+	if (ret < 0) {
+		wl1271_warning("acx ht information setting failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
 int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime)
 {
 	struct wl1271_acx_fw_tsf_information *tsf_info;

@@ -712,7 +712,8 @@ struct ar9170_stream {
 	__le16 tag;
 
 	u8 payload[0];
-};
+} __packed __aligned(4);
+#define AR9170_STREAM_LEN				4
 
 #define AR9170_MAX_ACKTABLE_ENTRIES			8
 #define AR9170_MAX_VIRTUAL_MAC				7
@@ -736,4 +737,8 @@ struct ar9170_stream {
 
 #define MOD_VAL(reg, value, newvalue)					\
 	(((value) & ~reg) | (((newvalue) << reg##_S) & reg))
+
+#define GET_VAL(reg, value)						\
+	(((value) & reg) >> reg##_S)
+
 #endif	/* __CARL9170_SHARED_HW_H */
