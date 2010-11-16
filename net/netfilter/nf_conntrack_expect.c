@@ -323,7 +323,8 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	const struct nf_conntrack_expect_policy *p;
 	unsigned int h = nf_ct_expect_dst_hash(&exp->tuple);
 
-	atomic_inc(&exp->use);
+	/* two references : one for hash insert, one for the timer */
+	atomic_add(2, &exp->use);
 
 	if (master_help) {
 		hlist_add_head(&exp->lnode, &master_help->expectations);
@@ -345,7 +346,6 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	}
 	add_timer(&exp->timeout);
 
-	atomic_inc(&exp->use);
 	NF_CT_STAT_INC(net, expect_create);
 }
 
