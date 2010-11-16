@@ -141,6 +141,9 @@ static void deassign_guest_irq(struct kvm *kvm,
 	kvm_unregister_irq_ack_notifier(kvm, &assigned_dev->ack_notifier);
 	assigned_dev->ack_notifier.gsi = -1;
 
+	kvm_set_irq(assigned_dev->kvm, assigned_dev->irq_source_id,
+		    assigned_dev->guest_irq, 0);
+
 	if (assigned_dev->irq_source_id != -1)
 		kvm_free_irq_source_id(kvm, assigned_dev->irq_source_id);
 	assigned_dev->irq_source_id = -1;
