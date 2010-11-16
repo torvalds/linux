@@ -2536,7 +2536,7 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 	/* Get signal quality, in case of error use rssi=0 and ignore error. */
 	len = sizeof(rssi);
 	rssi = 0;
-	rndis_query_oid(usbdev, OID_802_11_RSSI, &rssi, &len);
+	ret = rndis_query_oid(usbdev, OID_802_11_RSSI, &rssi, &len);
 	signal = level_to_qual(le32_to_cpu(rssi));
 
 	netdev_dbg(usbdev->net, "%s(): OID_802_11_RSSI -> %d, "
