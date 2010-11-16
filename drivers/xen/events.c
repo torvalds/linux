@@ -278,8 +278,8 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 	cpumask_copy(irq_to_desc(irq)->affinity, cpumask_of(cpu));
 #endif
 
-	__clear_bit(chn, cpu_evtchn_mask(cpu_from_irq(irq)));
-	__set_bit(chn, cpu_evtchn_mask(cpu));
+	clear_bit(chn, cpu_evtchn_mask(cpu_from_irq(irq)));
+	set_bit(chn, cpu_evtchn_mask(cpu));
 
 	irq_info[irq].cpu = cpu;
 }
