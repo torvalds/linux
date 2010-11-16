@@ -229,6 +229,27 @@ radeon_get_connector_for_encoder(struct drm_encoder *encoder)
 	return NULL;
 }
 
+struct drm_encoder *radeon_atom_get_external_encoder(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_encoder *other_encoder;
+	struct radeon_encoder *other_radeon_encoder;
+
+	if (radeon_encoder->is_ext_encoder)
+		return NULL;
+
+	list_for_each_entry(other_encoder, &dev->mode_config.encoder_list, head) {
+		if (other_encoder == encoder)
+			continue;
+		other_radeon_encoder = to_radeon_encoder(other_encoder);
+		if (other_radeon_encoder->is_ext_encoder &&
+		    (radeon_encoder->devices & other_radeon_encoder->devices))
+			return other_encoder;
+	}
+	return NULL;
+}
+
 void radeon_panel_mode_fixup(struct drm_encoder *encoder,
 			     struct drm_display_mode *adjusted_mode)
 {
@@ -1021,6 +1042,75 @@ atombios_set_edp_panel_power(struct drm_connector *connector, int action)
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
+union external_encoder_control {
+	EXTERNAL_ENCODER_CONTROL_PS_ALLOCATION v1;
+};
+
+static void
+atombios_external_encoder_setup(struct drm_encoder *encoder,
+				struct drm_encoder *ext_encoder,
+				int action)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	union external_encoder_control args;
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+	int index = GetIndexIntoMasterTable(COMMAND, ExternalEncoderControl);
+	u8 frev, crev;
+	int dp_clock = 0;
+	int dp_lane_count = 0;
+	int connector_object_id = 0;
+
+	if (connector) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		struct radeon_connector_atom_dig *dig_connector =
+			radeon_connector->con_priv;
+
+		dp_clock = dig_connector->dp_clock;
+		dp_lane_count = dig_connector->dp_lane_count;
+		connector_object_id =
+			(radeon_connector->connector_object_id & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
+	}
+
+	memset(&args, 0, sizeof(args));
+
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return;
+
+	switch (frev) {
+	case 1:
+		/* no params on frev 1 */
+		break;
+	case 2:
+		switch (crev) {
+		case 1:
+		case 2:
+			args.v1.sDigEncoder.ucAction = action;
+			args.v1.sDigEncoder.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+			args.v1.sDigEncoder.ucEncoderMode = atombios_get_encoder_mode(encoder);
+
+			if (args.v1.sDigEncoder.ucEncoderMode == ATOM_ENCODER_MODE_DP) {
+				if (dp_clock == 270000)
+					args.v1.sDigEncoder.ucConfig |= ATOM_ENCODER_CONFIG_DPLINKRATE_2_70GHZ;
+				args.v1.sDigEncoder.ucLaneNum = dp_lane_count;
+			} else if (radeon_encoder->pixel_clock > 165000)
+				args.v1.sDigEncoder.ucLaneNum = 8;
+			else
+				args.v1.sDigEncoder.ucLaneNum = 4;
+			break;
+		default:
+			DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
+			return;
+		}
+		break;
+	default:
+		DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
+		return;
+	}
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+}
+
 static void
 atombios_yuv_setup(struct drm_encoder *encoder, bool enable)
 {
@@ -1064,6 +1154,7 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_encoder *ext_encoder = radeon_atom_get_external_encoder(encoder);
 	DISPLAY_DEVICE_OUTPUT_CONTROL_PS_ALLOCATION args;
 	int index = 0;
 	bool is_dig = false;
@@ -1191,6 +1282,24 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 			break;
 		}
 	}
+
+	if (ext_encoder) {
+		int action;
+
+		switch (mode) {
+		case DRM_MODE_DPMS_ON:
+		default:
+			action = ATOM_ENABLE;
+			break;
+		case DRM_MODE_DPMS_STANDBY:
+		case DRM_MODE_DPMS_SUSPEND:
+		case DRM_MODE_DPMS_OFF:
+			action = ATOM_DISABLE;
+			break;
+		}
+		atombios_external_encoder_setup(encoder, ext_encoder, action);
+	}
+
 	radeon_atombios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
 
 }
@@ -1438,6 +1547,7 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_encoder *ext_encoder = radeon_atom_get_external_encoder(encoder);
 
 	radeon_encoder->pixel_clock = adjusted_mode->clock;
 
@@ -1498,6 +1608,11 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 		}
 		break;
 	}
+
+	if (ext_encoder) {
+		atombios_external_encoder_setup(encoder, ext_encoder, ATOM_ENABLE);
+	}
+
 	atombios_apply_encoder_quirks(encoder, adjusted_mode);
 
 	if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI) {
@@ -1698,6 +1813,53 @@ disable_done:
 	radeon_encoder->active_device = 0;
 }
 
+/* these are handled by the primary encoders */
+static void radeon_atom_ext_prepare(struct drm_encoder *encoder)
+{
+
+}
+
+static void radeon_atom_ext_commit(struct drm_encoder *encoder)
+{
+
+}
+
+static void
+radeon_atom_ext_mode_set(struct drm_encoder *encoder,
+			 struct drm_display_mode *mode,
+			 struct drm_display_mode *adjusted_mode)
+{
+
+}
+
+static void radeon_atom_ext_disable(struct drm_encoder *encoder)
+{
+
+}
+
+static void
+radeon_atom_ext_dpms(struct drm_encoder *encoder, int mode)
+{
+
+}
+
+static bool radeon_atom_ext_mode_fixup(struct drm_encoder *encoder,
+				       struct drm_display_mode *mode,
+				       struct drm_display_mode *adjusted_mode)
+{
+	return true;
+}
+
+static const struct drm_encoder_helper_funcs radeon_atom_ext_helper_funcs = {
+	.dpms = radeon_atom_ext_dpms,
+	.mode_fixup = radeon_atom_ext_mode_fixup,
+	.prepare = radeon_atom_ext_prepare,
+	.mode_set = radeon_atom_ext_mode_set,
+	.commit = radeon_atom_ext_commit,
+	.disable = radeon_atom_ext_disable,
+	/* no detect for TMDS/LVDS yet */
+};
+
 static const struct drm_encoder_helper_funcs radeon_atom_dig_helper_funcs = {
 	.dpms = radeon_atom_encoder_dpms,
 	.mode_fixup = radeon_atom_mode_fixup,
@@ -1807,6 +1969,7 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum, uint32_t 
 	radeon_encoder->devices = supported_device;
 	radeon_encoder->rmx_type = RMX_OFF;
 	radeon_encoder->underscan_type = UNDERSCAN_OFF;
+	radeon_encoder->is_ext_encoder = false;
 
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
@@ -1848,6 +2011,9 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum, uint32_t 
 			radeon_encoder->rmx_type = RMX_FULL;
 			drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_LVDS);
 			radeon_encoder->enc_priv = radeon_atombios_get_lvds_info(radeon_encoder);
+		} else if (radeon_encoder->devices & (ATOM_DEVICE_CRT_SUPPORT)) {
+			drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_DAC);
+			radeon_encoder->enc_priv = radeon_atombios_set_dig_info(radeon_encoder);
 		} else {
 			drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_TMDS);
 			radeon_encoder->enc_priv = radeon_atombios_set_dig_info(radeon_encoder);
@@ -1855,6 +2021,23 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum, uint32_t 
 				radeon_encoder->underscan_type = UNDERSCAN_AUTO;
 		}
 		drm_encoder_helper_add(encoder, &radeon_atom_dig_helper_funcs);
+		break;
+	case ENCODER_OBJECT_ID_SI170B:
+	case ENCODER_OBJECT_ID_CH7303:
+	case ENCODER_OBJECT_ID_EXTERNAL_SDVOA:
+	case ENCODER_OBJECT_ID_EXTERNAL_SDVOB:
+	case ENCODER_OBJECT_ID_TITFP513:
+	case ENCODER_OBJECT_ID_VT1623:
+	case ENCODER_OBJECT_ID_HDMI_SI1930:
+		/* these are handled by the primary encoders */
+		radeon_encoder->is_ext_encoder = true;
+		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
+			drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_LVDS);
+		else if (radeon_encoder->devices & (ATOM_DEVICE_CRT_SUPPORT))
+			drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_DAC);
+		else
+			drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_TMDS);
+		drm_encoder_helper_add(encoder, &radeon_atom_ext_helper_funcs);
 		break;
 	}
 }

@@ -375,6 +375,7 @@ struct radeon_encoder {
 	int hdmi_config_offset;
 	int hdmi_audio_workaround;
 	int hdmi_buffer_status;
+	bool is_ext_encoder;
 };
 
 struct radeon_connector_atom_dig {
