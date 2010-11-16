@@ -266,10 +266,8 @@ static void ttm_bo_ref_bug(struct kref *list_kref)
 void ttm_bo_list_ref_sub(struct ttm_buffer_object *bo, int count,
 			 bool never_free)
 {
-	while (count--)
-		kref_put(&bo->list_kref,
-			 (never_free || (count >= 0)) ? ttm_bo_ref_bug :
-			 ttm_bo_release_list);
+	kref_sub(&bo->list_kref, count,
+		 (never_free) ? ttm_bo_ref_bug : ttm_bo_release_list);
 }
 
 int ttm_bo_reserve(struct ttm_buffer_object *bo,
