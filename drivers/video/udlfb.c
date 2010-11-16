@@ -26,8 +26,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-
-#include "udlfb.h"
+#include <video/udlfb.h>
 
 static struct fb_fix_screeninfo dlfb_fix = {
 	.id =           "udlfb",
