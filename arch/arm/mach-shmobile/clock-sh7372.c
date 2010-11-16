@@ -220,8 +220,7 @@ static void pllc2_disable(struct clk *clk)
 	__raw_writel(__raw_readl(PLLC2CR) & ~0x80000000, PLLC2CR);
 }
 
-static int pllc2_set_rate(struct clk *clk,
-			  unsigned long rate, int algo_id)
+static int pllc2_set_rate(struct clk *clk, unsigned long rate)
 {
 	unsigned long value;
 	int idx;
@@ -463,8 +462,7 @@ static int fsidiv_enable(struct clk *clk)
 	return 0;
 }
 
-static int fsidiv_set_rate(struct clk *clk,
-			   unsigned long rate, int algo_id)
+static int fsidiv_set_rate(struct clk *clk, unsigned long rate)
 {
 	int idx;
 
