@@ -122,6 +122,10 @@ config MACH_MSM8X60_FFA
 
 endmenu
 
+config IOMMU_PGTABLES_L2
+	def_bool y
+	depends on ARCH_MSM8X60 && MMU && SMP && CPU_DCACHE_DISABLE=n
+
 config MSM_DEBUG_UART
 	int
 	default 1 if MSM_DEBUG_UART1
