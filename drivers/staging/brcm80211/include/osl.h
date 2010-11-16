@@ -42,7 +42,6 @@ struct osl_info {
 };
 
 typedef struct osl_info osl_t;
-typedef struct osl_pubinfo osl_pubinfo_t;
 typedef struct osl_dmainfo osldma_t;
 
 

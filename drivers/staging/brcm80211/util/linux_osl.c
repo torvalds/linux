@@ -245,48 +245,48 @@ void osl_assert(char *exp, char *file, int line)
 #if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
 u8 osl_readb(osl_t *osh, volatile u8 *r)
 {
-	osl_rreg_fn_t rreg = ((osl_pubinfo_t *) osh)->rreg_fn;
-	void *ctx = ((osl_pubinfo_t *) osh)->reg_ctx;
+	osl_rreg_fn_t rreg = ((struct osl_pubinfo *) osh)->rreg_fn;
+	void *ctx = ((struct osl_pubinfo *) osh)->reg_ctx;
 
 	return (u8) ((rreg) (ctx, (void *)r, sizeof(u8)));
 }
 
 u16 osl_readw(osl_t *osh, volatile u16 *r)
 {
-	osl_rreg_fn_t rreg = ((osl_pubinfo_t *) osh)->rreg_fn;
-	void *ctx = ((osl_pubinfo_t *) osh)->reg_ctx;
+	osl_rreg_fn_t rreg = ((struct osl_pubinfo *) osh)->rreg_fn;
+	void *ctx = ((struct osl_pubinfo *) osh)->reg_ctx;
 
 	return (u16) ((rreg) (ctx, (void *)r, sizeof(u16)));
 }
 
 u32 osl_readl(osl_t *osh, volatile u32 *r)
 {
-	osl_rreg_fn_t rreg = ((osl_pubinfo_t *) osh)->rreg_fn;
-	void *ctx = ((osl_pubinfo_t *) osh)->reg_ctx;
+	osl_rreg_fn_t rreg = ((struct osl_pubinfo *) osh)->rreg_fn;
+	void *ctx = ((struct osl_pubinfo *) osh)->reg_ctx;
 
 	return (u32) ((rreg) (ctx, (void *)r, sizeof(u32)));
 }
 
 void osl_writeb(osl_t *osh, volatile u8 *r, u8 v)
 {
-	osl_wreg_fn_t wreg = ((osl_pubinfo_t *) osh)->wreg_fn;
-	void *ctx = ((osl_pubinfo_t *) osh)->reg_ctx;
+	osl_wreg_fn_t wreg = ((struct osl_pubinfo *) osh)->wreg_fn;
+	void *ctx = ((struct osl_pubinfo *) osh)->reg_ctx;
 
 	((wreg) (ctx, (void *)r, v, sizeof(u8)));
 }
 
 void osl_writew(osl_t *osh, volatile u16 *r, u16 v)
 {
-	osl_wreg_fn_t wreg = ((osl_pubinfo_t *) osh)->wreg_fn;
-	void *ctx = ((osl_pubinfo_t *) osh)->reg_ctx;
+	osl_wreg_fn_t wreg = ((struct osl_pubinfo *) osh)->wreg_fn;
+	void *ctx = ((struct osl_pubinfo *) osh)->reg_ctx;
 
 	((wreg) (ctx, (void *)r, v, sizeof(u16)));
 }
 
 void osl_writel(osl_t *osh, volatile u32 *r, u32 v)
 {
-	osl_wreg_fn_t wreg = ((osl_pubinfo_t *) osh)->wreg_fn;
-	void *ctx = ((osl_pubinfo_t *) osh)->reg_ctx;
+	osl_wreg_fn_t wreg = ((struct osl_pubinfo *) osh)->wreg_fn;
+	void *ctx = ((struct osl_pubinfo *) osh)->reg_ctx;
 
 	((wreg) (ctx, (void *)r, v, sizeof(u32)));
 }

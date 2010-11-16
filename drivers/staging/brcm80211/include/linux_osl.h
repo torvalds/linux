@@ -56,16 +56,16 @@ extern uint osl_pci_slot(osl_t *osh);
 
 #define PKTFREESETCB(osh, _tx_fn, _tx_ctx)			\
 	do {							\
-		((osl_pubinfo_t *)osh)->tx_fn = _tx_fn;		\
-		((osl_pubinfo_t *)osh)->tx_ctx = _tx_ctx;	\
+		((struct osl_pubinfo *)osh)->tx_fn = _tx_fn;		\
+		((struct osl_pubinfo *)osh)->tx_ctx = _tx_ctx;	\
 	} while (0)
 
 #if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
 #define REGOPSSET(osh, rreg, wreg, ctx)			\
 	do {						\
-		((osl_pubinfo_t *)osh)->rreg_fn = rreg;	\
-		((osl_pubinfo_t *)osh)->wreg_fn = wreg;	\
-		((osl_pubinfo_t *)osh)->reg_ctx = ctx;	\
+		((struct osl_pubinfo *)osh)->rreg_fn = rreg;	\
+		((struct osl_pubinfo *)osh)->wreg_fn = wreg;	\
+		((struct osl_pubinfo *)osh)->reg_ctx = ctx;	\
 	} while (0)
 #endif
 
@@ -111,10 +111,11 @@ extern void osl_dma_unmap(osl_t *osh, uint pa, uint size, int direction);
 #endif
 
 #if defined(BCMSDIO)
-#define SELECT_BUS_WRITE(osh, mmap_op, bus_op) if (((osl_pubinfo_t *)(osh))->mmbus) \
+#define SELECT_BUS_WRITE(osh, mmap_op, bus_op) \
+	if (((struct osl_pubinfo *)(osh))->mmbus) \
 		mmap_op else bus_op
-#define SELECT_BUS_READ(osh, mmap_op, bus_op) (((osl_pubinfo_t *)(osh))->mmbus) ? \
-		mmap_op : bus_op
+#define SELECT_BUS_READ(osh, mmap_op, bus_op) \
+	(((struct osl_pubinfo *)(osh))->mmbus) ?  mmap_op : bus_op
 #else
 #define SELECT_BUS_WRITE(osh, mmap_op, bus_op) mmap_op
 #define SELECT_BUS_READ(osh, mmap_op, bus_op) mmap_op
@@ -271,7 +272,7 @@ extern void osl_dma_unmap(osl_t *osh, uint pa, uint size, int direction);
 #define	PKTSETLEN(skb, len)	__skb_trim((struct sk_buff *)(skb), (len))
 #define	PKTPUSH(skb, bytes)	skb_push((struct sk_buff *)(skb), (bytes))
 #define	PKTPULL(skb, bytes)	skb_pull((struct sk_buff *)(skb), (bytes))
-#define PKTALLOCED(osh)		(((osl_pubinfo_t *)(osh))->pktalloced)
+#define PKTALLOCED(osh)		(((struct osl_pubinfo *)(osh))->pktalloced)
 #define PKTSETPOOL(osh, skb, x, y)	do {} while (0)
 #define PKTPOOL(osh, skb)		false
 extern void *osl_pktget(osl_t *osh, uint len);
@@ -279,7 +280,7 @@ extern void osl_pktfree(osl_t *osh, void *skb, bool send);
 
 #ifdef BRCM_FULLMAC
 static inline void *
-osl_pkt_frmnative(osl_pubinfo_t *osh, struct sk_buff *skb)
+osl_pkt_frmnative(struct osl_pubinfo *osh, struct sk_buff *skb)
 {
 	struct sk_buff *nskb;
 
@@ -289,10 +290,10 @@ osl_pkt_frmnative(osl_pubinfo_t *osh, struct sk_buff *skb)
 	return (void *)skb;
 }
 #define PKTFRMNATIVE(osh, skb)	\
-	osl_pkt_frmnative(((osl_pubinfo_t *)osh), (struct sk_buff*)(skb))
+	osl_pkt_frmnative(((struct osl_pubinfo *)osh), (struct sk_buff*)(skb))
 
 static inline struct sk_buff *
-osl_pkt_tonative(osl_pubinfo_t *osh, void *pkt)
+osl_pkt_tonative(struct osl_pubinfo *osh, void *pkt)
 {
 	struct sk_buff *nskb;
 
@@ -302,9 +303,9 @@ osl_pkt_tonative(osl_pubinfo_t *osh, void *pkt)
 	return (struct sk_buff *)pkt;
 }
 #define PKTTONATIVE(osh, pkt)	\
-	osl_pkt_tonative((osl_pubinfo_t *)(osh), (pkt))
+	osl_pkt_tonative((struct osl_pubinfo *)(osh), (pkt))
 #else /* !BRCM_FULLMAC */
-#define PKTUNALLOC(osh)			(((osl_pubinfo_t *)(osh))->pktalloced--)
+#define PKTUNALLOC(osh)		(((struct osl_pubinfo *)(osh))->pktalloced--)
 
 #define	PKTSETSKIPCT(osh, skb)
 #define	PKTCLRSKIPCT(osh, skb)
