@@ -3831,6 +3831,15 @@ static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
 	array[DEVCONF_FORCE_TLLAO] = cnf->force_tllao;
 }
 
+static inline size_t inet6_ifla6_size(void)
+{
+	return nla_total_size(4) /* IFLA_INET6_FLAGS */
+	     + nla_total_size(sizeof(struct ifla_cacheinfo))
+	     + nla_total_size(DEVCONF_MAX * 4) /* IFLA_INET6_CONF */
+	     + nla_total_size(IPSTATS_MIB_MAX * 8) /* IFLA_INET6_STATS */
+	     + nla_total_size(ICMP6_MIB_MAX * 8); /* IFLA_INET6_ICMP6STATS */
+}
+
 static inline size_t inet6_if_nlmsg_size(void)
 {
 	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
@@ -3838,13 +3847,7 @@ static inline size_t inet6_if_nlmsg_size(void)
 	       + nla_total_size(MAX_ADDR_LEN) /* IFLA_ADDRESS */
 	       + nla_total_size(4) /* IFLA_MTU */
 	       + nla_total_size(4) /* IFLA_LINK */
-	       + nla_total_size( /* IFLA_PROTINFO */
-			nla_total_size(4) /* IFLA_INET6_FLAGS */
-			+ nla_total_size(sizeof(struct ifla_cacheinfo))
-			+ nla_total_size(DEVCONF_MAX * 4) /* IFLA_INET6_CONF */
-			+ nla_total_size(IPSTATS_MIB_MAX * 8) /* IFLA_INET6_STATS */
-			+ nla_total_size(ICMP6_MIB_MAX * 8) /* IFLA_INET6_ICMP6STATS */
-		 );
+	       + nla_total_size(inet6_ifla6_size()); /* IFLA_PROTINFO */
 }
 
 static inline void __snmp6_fill_stats(u64 *stats, void __percpu **mib,
@@ -3891,40 +3894,10 @@ static void snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype,
 	}
 }
 
-static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
-			     u32 pid, u32 seq, int event, unsigned int flags)
+static int inet6_fill_ifla6_attrs(struct sk_buff *skb, struct inet6_dev *idev)
 {
-	struct net_device *dev = idev->dev;
 	struct nlattr *nla;
-	struct ifinfomsg *hdr;
-	struct nlmsghdr *nlh;
-	void *protoinfo;
 	struct ifla_cacheinfo ci;
-
-	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*hdr), flags);
-	if (nlh == NULL)
-		return -EMSGSIZE;
-
-	hdr = nlmsg_data(nlh);
-	hdr->ifi_family = AF_INET6;
-	hdr->__ifi_pad = 0;
-	hdr->ifi_type = dev->type;
-	hdr->ifi_index = dev->ifindex;
-	hdr->ifi_flags = dev_get_flags(dev);
-	hdr->ifi_change = 0;
-
-	NLA_PUT_STRING(skb, IFLA_IFNAME, dev->name);
-
-	if (dev->addr_len)
-		NLA_PUT(skb, IFLA_ADDRESS, dev->addr_len, dev->dev_addr);
-
-	NLA_PUT_U32(skb, IFLA_MTU, dev->mtu);
-	if (dev->ifindex != dev->iflink)
-		NLA_PUT_U32(skb, IFLA_LINK, dev->iflink);
-
-	protoinfo = nla_nest_start(skb, IFLA_PROTINFO);
-	if (protoinfo == NULL)
-		goto nla_put_failure;
 
 	NLA_PUT_U32(skb, IFLA_INET6_FLAGS, idev->if_flags);
 
@@ -3951,6 +3924,74 @@ static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 	if (nla == NULL)
 		goto nla_put_failure;
 	snmp6_fill_stats(nla_data(nla), idev, IFLA_INET6_ICMP6STATS, nla_len(nla));
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
+static size_t inet6_get_link_af_size(const struct net_device *dev)
+{
+	if (!__in6_dev_get(dev))
+		return 0;
+
+	return inet6_ifla6_size();
+}
+
+static int inet6_fill_link_af(struct sk_buff *skb, const struct net_device *dev)
+{
+	struct inet6_dev *idev = __in6_dev_get(dev);
+
+	if (!idev)
+		return -ENODATA;
+
+	if (inet6_fill_ifla6_attrs(skb, idev) < 0)
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int inet6_parse_link_af(struct net_device *dev, const struct nlattr *nla)
+{
+	return -EOPNOTSUPP;
+}
+
+static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
+			     u32 pid, u32 seq, int event, unsigned int flags)
+{
+	struct net_device *dev = idev->dev;
+	struct ifinfomsg *hdr;
+	struct nlmsghdr *nlh;
+	void *protoinfo;
+
+	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*hdr), flags);
+	if (nlh == NULL)
+		return -EMSGSIZE;
+
+	hdr = nlmsg_data(nlh);
+	hdr->ifi_family = AF_INET6;
+	hdr->__ifi_pad = 0;
+	hdr->ifi_type = dev->type;
+	hdr->ifi_index = dev->ifindex;
+	hdr->ifi_flags = dev_get_flags(dev);
+	hdr->ifi_change = 0;
+
+	NLA_PUT_STRING(skb, IFLA_IFNAME, dev->name);
+
+	if (dev->addr_len)
+		NLA_PUT(skb, IFLA_ADDRESS, dev->addr_len, dev->dev_addr);
+
+	NLA_PUT_U32(skb, IFLA_MTU, dev->mtu);
+	if (dev->ifindex != dev->iflink)
+		NLA_PUT_U32(skb, IFLA_LINK, dev->iflink);
+
+	protoinfo = nla_nest_start(skb, IFLA_PROTINFO);
+	if (protoinfo == NULL)
+		goto nla_put_failure;
+
+	if (inet6_fill_ifla6_attrs(skb, idev) < 0)
+		goto nla_put_failure;
 
 	nla_nest_end(skb, protoinfo);
 	return nlmsg_end(skb, nlh);
@@ -4621,6 +4662,13 @@ int unregister_inet6addr_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL(unregister_inet6addr_notifier);
 
+static struct rtnl_af_ops inet6_ops = {
+	.family		  = AF_INET6,
+	.fill_link_af	  = inet6_fill_link_af,
+	.get_link_af_size = inet6_get_link_af_size,
+	.parse_link_af	  = inet6_parse_link_af,
+};
+
 /*
  *	Init / cleanup code
  */
@@ -4672,6 +4720,10 @@ int __init addrconf_init(void)
 
 	addrconf_verify(0);
 
+	err = rtnl_af_register(&inet6_ops);
+	if (err < 0)
+		goto errout_af;
+
 	err = __rtnl_register(PF_INET6, RTM_GETLINK, NULL, inet6_dump_ifinfo);
 	if (err < 0)
 		goto errout;
@@ -4687,6 +4739,8 @@ int __init addrconf_init(void)
 
 	return 0;
 errout:
+	rtnl_af_unregister(&inet6_ops);
+errout_af:
 	unregister_netdevice_notifier(&ipv6_dev_notf);
 errlo:
 	unregister_pernet_subsys(&addrconf_ops);
@@ -4706,6 +4760,8 @@ void addrconf_cleanup(void)
 	ipv6_addr_label_cleanup();
 
 	rtnl_lock();
+
+	__rtnl_af_unregister(&inet6_ops);
 
 	/* clean dev list */
 	for_each_netdev(&init_net, dev) {
