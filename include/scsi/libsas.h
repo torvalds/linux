@@ -621,8 +621,7 @@ int sas_set_phy_speed(struct sas_phy *phy,
 int sas_phy_enable(struct sas_phy *phy, int enabled);
 int sas_phy_reset(struct sas_phy *phy, int hard_reset);
 int sas_queue_up(struct sas_task *task);
-extern int sas_queuecommand(struct scsi_cmnd *,
-		     void (*scsi_done)(struct scsi_cmnd *));
+extern int sas_queuecommand(struct Scsi_Host * ,struct scsi_cmnd *);
 extern int sas_target_alloc(struct scsi_target *);
 extern int sas_slave_alloc(struct scsi_device *);
 extern int sas_slave_configure(struct scsi_device *);

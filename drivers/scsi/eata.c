@@ -505,8 +505,7 @@
 
 static int eata2x_detect(struct scsi_host_template *);
 static int eata2x_release(struct Scsi_Host *);
-static int eata2x_queuecommand(struct scsi_cmnd *,
-			       void (*done) (struct scsi_cmnd *));
+static int eata2x_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
 static int eata2x_eh_abort(struct scsi_cmnd *);
 static int eata2x_eh_host_reset(struct scsi_cmnd *);
 static int eata2x_bios_param(struct scsi_device *, struct block_device *,
@@ -1758,7 +1757,7 @@ static void scsi_to_dev_dir(unsigned int i, struct hostdata *ha)
 
 }
 
-static int eata2x_queuecommand(struct scsi_cmnd *SCpnt,
+static int eata2x_queuecommand_lck(struct scsi_cmnd *SCpnt,
 			       void (*done) (struct scsi_cmnd *))
 {
 	struct Scsi_Host *shost = SCpnt->device->host;
@@ -1842,6 +1841,8 @@ static int eata2x_queuecommand(struct scsi_cmnd *SCpnt,
 	ha->cp_stat[i] = IN_USE;
 	return 0;
 }
+
+static DEF_SCSI_QCMD(eata2x_queuecommand)
 
 static int eata2x_eh_abort(struct scsi_cmnd *SCarg)
 {
