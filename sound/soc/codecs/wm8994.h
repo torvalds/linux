@@ -31,4 +31,13 @@
 int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		      int micbias, int det, int shrt);
 
+#define WM8994_CACHE_SIZE 1570
+
+struct wm8994_access_mask {
+	unsigned short readable;   /* Mask of readable bits */
+	unsigned short writable;   /* Mask of writable bits */
+};
+
+extern const struct wm8994_access_mask wm8994_access_masks[WM8994_CACHE_SIZE];
+
 #endif
