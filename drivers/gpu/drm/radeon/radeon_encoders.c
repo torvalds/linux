@@ -1086,6 +1086,8 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 				if (ASIC_IS_DCE4(rdev))
 					atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_ON);
 			}
+			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
+				atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_LCD_BLON, 0, 0);
 			break;
 		case DRM_MODE_DPMS_STANDBY:
 		case DRM_MODE_DPMS_SUSPEND:
@@ -1095,20 +1097,31 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 				if (ASIC_IS_DCE4(rdev))
 					atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_VIDEO_OFF);
 			}
+			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
+				atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_LCD_BLOFF, 0, 0);
 			break;
 		}
 	} else {
 		switch (mode) {
 		case DRM_MODE_DPMS_ON:
 			args.ucAction = ATOM_ENABLE;
+			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+				args.ucAction = ATOM_LCD_BLON;
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+			}
 			break;
 		case DRM_MODE_DPMS_STANDBY:
 		case DRM_MODE_DPMS_SUSPEND:
 		case DRM_MODE_DPMS_OFF:
 			args.ucAction = ATOM_DISABLE;
+			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+				args.ucAction = ATOM_LCD_BLOFF;
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+			}
 			break;
 		}
-		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 	}
 	radeon_atombios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
 
