@@ -157,12 +157,23 @@ static int evm_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* davinci-evm digital audio interface glue - connects codec <--> CPU */
-static struct snd_soc_dai_link evm_dai = {
+static struct snd_soc_dai_link dm6446_evm_dai = {
 	.name = "TLV320AIC3X",
 	.stream_name = "AIC3X",
-	.cpu_dai_name = "davinci-mcasp.0",
+	.cpu_dai_name = "davinci-mcbsp",
 	.codec_dai_name = "tlv320aic3x-hifi",
-	.codec_name = "tlv320aic3x-codec.0-001a",
+	.codec_name = "tlv320aic3x-codec.1-001b",
+	.platform_name = "davinci-pcm-audio",
+	.init = evm_aic3x_init,
+	.ops = &evm_ops,
+};
+
+static struct snd_soc_dai_link dm355_evm_dai = {
+	.name = "TLV320AIC3X",
+	.stream_name = "AIC3X",
+	.cpu_dai_name = "davinci-mcbsp.1",
+	.codec_dai_name = "tlv320aic3x-hifi",
+	.codec_name = "tlv320aic3x-codec.1-001b",
 	.platform_name = "davinci-pcm-audio",
 	.init = evm_aic3x_init,
 	.ops = &evm_ops,
@@ -172,10 +183,10 @@ static struct snd_soc_dai_link dm365_evm_dai = {
 #ifdef CONFIG_SND_DM365_AIC3X_CODEC
 	.name = "TLV320AIC3X",
 	.stream_name = "AIC3X",
-	.cpu_dai_name = "davinci-i2s",
+	.cpu_dai_name = "davinci-mcbsp",
 	.codec_dai_name = "tlv320aic3x-hifi",
 	.init = evm_aic3x_init,
-	.codec_name = "tlv320aic3x-codec.0-001a",
+	.codec_name = "tlv320aic3x-codec.1-0018",
 	.ops = &evm_ops,
 #elif defined(CONFIG_SND_DM365_VOICE_CODEC)
 	.name = "Voice Codec - CQ93VC",
@@ -219,10 +230,17 @@ static struct snd_soc_dai_link da8xx_evm_dai = {
 	.ops = &evm_ops,
 };
 
-/* davinci dm6446, dm355 evm audio machine driver */
-static struct snd_soc_card snd_soc_card_evm = {
-	.name = "DaVinci EVM",
-	.dai_link = &evm_dai,
+/* davinci dm6446 evm audio machine driver */
+static struct snd_soc_card dm6446_snd_soc_card_evm = {
+	.name = "DaVinci DM6446 EVM",
+	.dai_link = &dm6446_evm_dai,
+	.num_links = 1,
+};
+
+/* davinci dm355 evm audio machine driver */
+static struct snd_soc_card dm355_snd_soc_card_evm = {
+	.name = "DaVinci DM355 EVM",
+	.dai_link = &dm355_evm_dai,
 	.num_links = 1,
 };
 
@@ -261,10 +279,10 @@ static int __init evm_init(void)
 	int ret;
 
 	if (machine_is_davinci_evm()) {
-		evm_snd_dev_data = &snd_soc_card_evm;
+		evm_snd_dev_data = &dm6446_snd_soc_card_evm;
 		index = 0;
 	} else if (machine_is_davinci_dm355_evm()) {
-		evm_snd_dev_data = &snd_soc_card_evm;
+		evm_snd_dev_data = &dm355_snd_soc_card_evm;
 		index = 1;
 	} else if (machine_is_davinci_dm365_evm()) {
 		evm_snd_dev_data = &dm365_snd_soc_card_evm;
