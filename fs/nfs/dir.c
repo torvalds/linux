@@ -573,11 +573,13 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 	if (!pages_ptr)
 		goto out_release_array;
 	do {
+		unsigned int pglen;
 		status = nfs_readdir_xdr_filler(pages, desc, &entry, file, inode);
 
 		if (status < 0)
 			break;
-		status = nfs_readdir_page_filler(desc, &entry, pages_ptr, page, array_size * PAGE_SIZE);
+		pglen = status;
+		status = nfs_readdir_page_filler(desc, &entry, pages_ptr, page, pglen);
 		if (status < 0) {
 			if (status == -ENOSPC)
 				status = 0;
