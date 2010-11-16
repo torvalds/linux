@@ -197,7 +197,8 @@ static void kvm_free_assigned_device(struct kvm *kvm,
 {
 	kvm_free_assigned_irq(kvm, assigned_dev);
 
-	pci_reset_function(assigned_dev->dev);
+	__pci_reset_function(assigned_dev->dev);
+	pci_restore_state(assigned_dev->dev);
 
 	pci_release_regions(assigned_dev->dev);
 	pci_disable_device(assigned_dev->dev);
@@ -514,6 +515,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	}
 
 	pci_reset_function(dev);
+	pci_save_state(dev);
 
 	match->assigned_dev_id = assigned_dev->assigned_dev_id;
 	match->host_segnr = assigned_dev->segnr;
@@ -544,6 +546,7 @@ out:
 	mutex_unlock(&kvm->lock);
 	return r;
 out_list_del:
+	pci_restore_state(dev);
 	list_del(&match->list);
 	pci_release_regions(dev);
 out_disable:
