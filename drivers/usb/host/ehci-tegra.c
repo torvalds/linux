@@ -201,18 +201,6 @@ static int tegra_usb_resume(struct usb_hcd *hcd)
 	writel(val, &hw->port_status[0]);
 	udelay(10);
 
-	/* Program the field PTC in PORTSC based on the saved speed mode */
-	val = readl(&hw->port_status[0]);
-	val &= ~(TEGRA_USB_PORTSC1_PTC(~0));
-	if (context->port_speed == TEGRA_USB_PHY_PORT_HIGH)
-		val |= TEGRA_USB_PORTSC1_PTC(5);
-	else if (context->port_speed == TEGRA_USB_PHY_PORT_SPEED_FULL)
-		val |= TEGRA_USB_PORTSC1_PTC(6);
-	else if (context->port_speed == TEGRA_USB_PHY_PORT_SPEED_LOW)
-		val |= TEGRA_USB_PORTSC1_PTC(7);
-	writel(val, &hw->port_status[0]);
-	udelay(10);
-
 	/* Disable test mode by setting PTC field to NORMAL_OP */
 	val = readl(&hw->port_status[0]);
 	val &= ~(TEGRA_USB_PORTSC1_PTC(~0));
