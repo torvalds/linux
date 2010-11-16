@@ -3772,6 +3772,7 @@ static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 	drbd_bm_unlock(mdev);
 
 	clear_bit(BITMAP_IO, &mdev->flags);
+	smp_mb__after_clear_bit();
 	wake_up(&mdev->misc_wait);
 
 	if (work->done)
@@ -3850,11 +3851,8 @@ void drbd_queue_bitmap_io(struct drbd_conf *mdev,
 
 	set_bit(BITMAP_IO, &mdev->flags);
 	if (atomic_read(&mdev->ap_bio_cnt) == 0) {
-		if (list_empty(&mdev->bm_io_work.w.list)) {
-			set_bit(BITMAP_IO_QUEUED, &mdev->flags);
+		if (!test_and_set_bit(BITMAP_IO_QUEUED, &mdev->flags))
 			drbd_queue_work(&mdev->data.work, &mdev->bm_io_work.w);
-		} else
-			dev_err(DEV, "FIXME avoided double queuing bm_io_work\n");
 	}
 }
 
