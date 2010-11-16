@@ -409,11 +409,11 @@ config ALIM7101_WDT
 	  Most people will say N.
 
 config F71808E_WDT
-	tristate "Fintek F71808E and F71882FG Watchdog"
+	tristate "Fintek F71808E, F71882FG and F71889FG Watchdog"
 	depends on X86 && EXPERIMENTAL
 	help
 	  This is the driver for the hardware watchdog on the Fintek
-	  F71808E and F71882FG Super I/O controllers.
+	  F71808E, F71882FG and F71889FG Super I/O controllers.
 
 	  You can compile this driver directly into the kernel, or use
 	  it as a module.  The module will be called f71808e_wdt.
@@ -565,10 +565,11 @@ config IT87_WDT
 	tristate "IT87 Watchdog Timer"
 	depends on X86 && EXPERIMENTAL
 	---help---
-	  This is the driver for the hardware watchdog on the ITE IT8716,
-	  IT8718, IT8726, IT8712(Version J,K) Super I/O chips. This watchdog
-	  simply watches your kernel to make sure it doesn't freeze, and if
-	  it does, it reboots your computer after a certain amount of time.
+	  This is the driver for the hardware watchdog on the ITE IT8702,
+	  IT8712, IT8716, IT8718, IT8720, IT8726, IT8712 Super I/O chips.
+	  This watchdog simply watches your kernel to make sure it doesn't
+	  freeze, and if it does, it reboots your computer after a certain
+	  amount of time.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called it87_wdt.
@@ -916,6 +917,16 @@ config OCTEON_WDT
 	  from the first interrupt, it is then only poked when the
 	  device is written.
 
+config BCM63XX_WDT
+	tristate "Broadcom BCM63xx hardware watchdog"
+	depends on BCM63XX
+	help
+	  Watchdog driver for the built in watchdog hardware in Broadcom
+	  BCM63xx SoC.
+
+	  To compile this driver as a loadable module, choose M here.
+	  The module will be called bcm63xx_wdt.
+
 # PARISC Architecture
 
 # POWERPC Architecture
@@ -957,11 +968,31 @@ config PIKA_WDT
 	  the Warp platform.
 
 config BOOKE_WDT
-	bool "PowerPC Book-E Watchdog Timer"
+	tristate "PowerPC Book-E Watchdog Timer"
 	depends on BOOKE || 4xx
 	---help---
+	  Watchdog driver for PowerPC Book-E chips, such as the Freescale
+	  MPC85xx SOCs and the IBM PowerPC 440.
+
 	  Please see Documentation/watchdog/watchdog-api.txt for
 	  more information.
+
+config BOOKE_WDT_DEFAULT_TIMEOUT
+	int "PowerPC Book-E Watchdog Timer Default Timeout"
+	depends on BOOKE_WDT
+	default 38 if FSL_BOOKE
+	range 0 63 if FSL_BOOKE
+	default 3 if !FSL_BOOKE
+	range 0 3 if !FSL_BOOKE
+	help
+	  Select the default watchdog timer period to be used by the PowerPC
+	  Book-E watchdog driver.  A watchdog "event" occurs when the bit
+	  position represented by this number transitions from zero to one.
+
+	  For Freescale Book-E processors, this is a number between 0 and 63.
+	  For other Book-E processors, this is a number between 0 and 3.
+
+	  The value can be overidden by the wdt_period command-line parameter.
 
 # PPC64 Architecture
 

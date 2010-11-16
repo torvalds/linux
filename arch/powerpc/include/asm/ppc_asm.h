@@ -9,6 +9,7 @@
 #include <asm/asm-compat.h>
 #include <asm/processor.h>
 #include <asm/ppc-opcode.h>
+#include <asm/firmware.h>
 
 #ifndef __ASSEMBLY__
 #error __FILE__ should only be used in assembler files
@@ -26,17 +27,13 @@
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
 #define ACCOUNT_CPU_USER_ENTRY(ra, rb)
 #define ACCOUNT_CPU_USER_EXIT(ra, rb)
+#define ACCOUNT_STOLEN_TIME
 #else
 #define ACCOUNT_CPU_USER_ENTRY(ra, rb)					\
 	beq	2f;			/* if from kernel mode */	\
-BEGIN_FTR_SECTION;							\
-	mfspr	ra,SPRN_PURR;		/* get processor util. reg */	\
-END_FTR_SECTION_IFSET(CPU_FTR_PURR);					\
-BEGIN_FTR_SECTION;							\
-	MFTB(ra);			/* or get TB if no PURR */	\
-END_FTR_SECTION_IFCLR(CPU_FTR_PURR);					\
-	ld	rb,PACA_STARTPURR(r13);					\
-	std	ra,PACA_STARTPURR(r13);					\
+	MFTB(ra);			/* get timebase */		\
+	ld	rb,PACA_STARTTIME_USER(r13);				\
+	std	ra,PACA_STARTTIME(r13);					\
 	subf	rb,rb,ra;		/* subtract start value */	\
 	ld	ra,PACA_USER_TIME(r13);					\
 	add	ra,ra,rb;		/* add on to user time */	\
@@ -44,19 +41,34 @@ END_FTR_SECTION_IFCLR(CPU_FTR_PURR);					\
 2:
 
 #define ACCOUNT_CPU_USER_EXIT(ra, rb)					\
-BEGIN_FTR_SECTION;							\
-	mfspr	ra,SPRN_PURR;		/* get processor util. reg */	\
-END_FTR_SECTION_IFSET(CPU_FTR_PURR);					\
-BEGIN_FTR_SECTION;							\
-	MFTB(ra);			/* or get TB if no PURR */	\
-END_FTR_SECTION_IFCLR(CPU_FTR_PURR);					\
-	ld	rb,PACA_STARTPURR(r13);					\
-	std	ra,PACA_STARTPURR(r13);					\
+	MFTB(ra);			/* get timebase */		\
+	ld	rb,PACA_STARTTIME(r13);					\
+	std	ra,PACA_STARTTIME_USER(r13);				\
 	subf	rb,rb,ra;		/* subtract start value */	\
 	ld	ra,PACA_SYSTEM_TIME(r13);				\
-	add	ra,ra,rb;		/* add on to user time */	\
-	std	ra,PACA_SYSTEM_TIME(r13);
-#endif
+	add	ra,ra,rb;		/* add on to system time */	\
+	std	ra,PACA_SYSTEM_TIME(r13)
+
+#ifdef CONFIG_PPC_SPLPAR
+#define ACCOUNT_STOLEN_TIME						\
+BEGIN_FW_FTR_SECTION;							\
+	beq	33f;							\
+	/* from user - see if there are any DTL entries to process */	\
+	ld	r10,PACALPPACAPTR(r13);	/* get ptr to VPA */		\
+	ld	r11,PACA_DTL_RIDX(r13);	/* get log read index */	\
+	ld	r10,LPPACA_DTLIDX(r10);	/* get log write index */	\
+	cmpd	cr1,r11,r10;						\
+	beq+	cr1,33f;						\
+	bl	.accumulate_stolen_time;				\
+33:									\
+END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
+
+#else  /* CONFIG_PPC_SPLPAR */
+#define ACCOUNT_STOLEN_TIME
+
+#endif /* CONFIG_PPC_SPLPAR */
+
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
 
 /*
  * Macros for storing registers into and loading registers from

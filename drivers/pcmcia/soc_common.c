@@ -57,11 +57,16 @@ module_param(pc_debug, int, 0644);
 void soc_pcmcia_debug(struct soc_pcmcia_socket *skt, const char *func,
 		      int lvl, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 	if (pc_debug > lvl) {
-		printk(KERN_DEBUG "skt%u: %s: ", skt->nr, func);
 		va_start(args, fmt);
-		vprintk(fmt, args);
+
+		vaf.fmt = fmt;
+		vaf.va = &args;
+
+		printk(KERN_DEBUG "skt%u: %s: %pV", skt->nr, func, &vaf);
+
 		va_end(args);
 	}
 }
@@ -627,8 +632,6 @@ void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt)
 
 	pcmcia_unregister_socket(&skt->socket);
 
-	flush_scheduled_work();
-
 	skt->ops->hw_shutdown(skt);
 
 	soc_common_pcmcia_config_skt(skt, &dead_socket);
@@ -720,8 +723,6 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 	pcmcia_unregister_socket(&skt->socket);
 
  out_err_7:
-	flush_scheduled_work();
-
 	skt->ops->hw_shutdown(skt);
  out_err_6:
 	list_del(&skt->node);

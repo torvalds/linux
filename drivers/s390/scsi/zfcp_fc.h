@@ -270,7 +270,7 @@ void zfcp_fc_eval_fcp_rsp(struct fcp_resp_with_ext *fcp_rsp,
 	if (unlikely(rsp_flags & FCP_SNS_LEN_VAL)) {
 		sense = (char *) &fcp_rsp[1];
 		if (rsp_flags & FCP_RSP_LEN_VAL)
-			sense += fcp_rsp->ext.fr_sns_len;
+			sense += fcp_rsp->ext.fr_rsp_len;
 		sense_len = min(fcp_rsp->ext.fr_sns_len,
 				(u32) SCSI_SENSE_BUFFERSIZE);
 		memcpy(scsi->sense_buffer, sense, sense_len);

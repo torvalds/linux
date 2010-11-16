@@ -1,7 +1,7 @@
 /*
  * For documentation on the i460 AGP interface, see Chapter 7 (AGP Subsystem) of
  * the "Intel 460GTX Chipset Software Developer's Manual":
- * http://developer.intel.com/design/itanium/downloads/24870401s.htm
+ * http://www.intel.com/design/archives/itanium/downloads/248704.htm 
  */
 /*
  * 460GX support by Chris Ahna <christopher.j.ahna@intel.com>

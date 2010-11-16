@@ -35,8 +35,6 @@ static void __init nuc932evb_init(void)
 
 MACHINE_START(NUC932EVB, "NUC932EVB")
 	/* Maintainer: Wan ZongShun */
-	.phys_io	= NUC93X_PA_UART,
-	.io_pg_offst	= (((u32)NUC93X_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= 0,
 	.map_io		= nuc932evb_map_io,
 	.init_irq	= nuc93x_init_irq,

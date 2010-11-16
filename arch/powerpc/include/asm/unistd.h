@@ -348,10 +348,29 @@
 #define __NR_fanotify_init	323
 #define __NR_fanotify_mark	324
 #define __NR_prlimit64		325
+#define __NR_socket		326
+#define __NR_bind		327
+#define __NR_connect		328
+#define __NR_listen		329
+#define __NR_accept		330
+#define __NR_getsockname	331
+#define __NR_getpeername	332
+#define __NR_socketpair		333
+#define __NR_send		334
+#define __NR_sendto		335
+#define __NR_recv		336
+#define __NR_recvfrom		337
+#define __NR_shutdown		338
+#define __NR_setsockopt		339
+#define __NR_getsockopt		340
+#define __NR_sendmsg		341
+#define __NR_recvmsg		342
+#define __NR_recvmmsg		343
+#define __NR_accept4		344
 
 #ifdef __KERNEL__
 
-#define __NR_syscalls		326
+#define __NR_syscalls		345
 
 #define __NR__exit __NR_exit
 #define NR_syscalls	__NR_syscalls

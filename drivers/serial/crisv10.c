@@ -1411,11 +1411,12 @@ e100_enable_rs485(struct tty_struct *tty, struct serial_rs485 *r)
 		       CONFIG_ETRAX_RS485_LTC1387_RXEN_PORT_G_BIT, 1);
 #endif
 
-	info->rs485.flags = r->flags;
-	if (r->delay_rts_before_send >= 1000)
+	info->rs485 = *r;
+
+	/* Maximum delay before RTS equal to 1000 */
+	if (info->rs485.delay_rts_before_send >= 1000)
 		info->rs485.delay_rts_before_send = 1000;
-	else
-		info->rs485.delay_rts_before_send = r->delay_rts_before_send;
+
 /*	printk("rts: on send = %i, after = %i, enabled = %i",
 		    info->rs485.rts_on_send,
 		    info->rs485.rts_after_sent,
@@ -3234,9 +3235,9 @@ rs_write(struct tty_struct *tty,
 		e100_disable_rx(info);
 		e100_enable_rx_irq(info);
 #endif
-
-		if (info->rs485.delay_rts_before_send > 0)
-			msleep(info->rs485.delay_rts_before_send);
+		if ((info->rs485.flags & SER_RS485_RTS_BEFORE_SEND) &&
+			(info->rs485.delay_rts_before_send > 0))
+				msleep(info->rs485.delay_rts_before_send);
 	}
 #endif /* CONFIG_ETRAX_RS485 */
 
@@ -3694,6 +3695,11 @@ rs_ioctl(struct tty_struct *tty, struct file * file,
 
 		rs485data.delay_rts_before_send = rs485ctrl.delay_rts_before_send;
 		rs485data.flags = 0;
+		if (rs485data.delay_rts_before_send != 0)
+			rs485data.flags |= SER_RS485_RTS_BEFORE_SEND;
+		else
+			rs485data.flags &= ~(SER_RS485_RTS_BEFORE_SEND);
+
 		if (rs485ctrl.enabled)
 			rs485data.flags |= SER_RS485_ENABLED;
 		else
@@ -3731,7 +3737,7 @@ rs_ioctl(struct tty_struct *tty, struct file * file,
 		/* This is the ioctl to get RS485 data from user-space */
 		if (copy_to_user((struct serial_rs485 *) arg,
 					rs485data,
-					sizeof(serial_rs485)))
+					sizeof(struct serial_rs485)))
 			return -EFAULT;
 		break;
 	}
@@ -4527,6 +4533,7 @@ static int __init rs_init(void)
 		/* Set sane defaults */
 		info->rs485.flags &= ~(SER_RS485_RTS_ON_SEND);
 		info->rs485.flags |= SER_RS485_RTS_AFTER_SEND;
+		info->rs485.flags &= ~(SER_RS485_RTS_BEFORE_SEND);
 		info->rs485.delay_rts_before_send = 0;
 		info->rs485.flags &= ~(SER_RS485_ENABLED);
 #endif

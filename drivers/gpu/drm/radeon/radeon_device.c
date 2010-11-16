@@ -117,9 +117,10 @@ void radeon_scratch_init(struct radeon_device *rdev)
 	} else {
 		rdev->scratch.num_reg = 7;
 	}
+	rdev->scratch.reg_base = RADEON_SCRATCH_REG0;
 	for (i = 0; i < rdev->scratch.num_reg; i++) {
 		rdev->scratch.free[i] = true;
-		rdev->scratch.reg[i] = RADEON_SCRATCH_REG0 + (i * 4);
+		rdev->scratch.reg[i] = rdev->scratch.reg_base + (i * 4);
 	}
 }
 
@@ -147,6 +148,86 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
 			return;
 		}
 	}
+}
+
+void radeon_wb_disable(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->wb.wb_obj) {
+		r = radeon_bo_reserve(rdev->wb.wb_obj, false);
+		if (unlikely(r != 0))
+			return;
+		radeon_bo_kunmap(rdev->wb.wb_obj);
+		radeon_bo_unpin(rdev->wb.wb_obj);
+		radeon_bo_unreserve(rdev->wb.wb_obj);
+	}
+	rdev->wb.enabled = false;
+}
+
+void radeon_wb_fini(struct radeon_device *rdev)
+{
+	radeon_wb_disable(rdev);
+	if (rdev->wb.wb_obj) {
+		radeon_bo_unref(&rdev->wb.wb_obj);
+		rdev->wb.wb = NULL;
+		rdev->wb.wb_obj = NULL;
+	}
+}
+
+int radeon_wb_init(struct radeon_device *rdev)
+{
+	int r;
+
+	if (rdev->wb.wb_obj == NULL) {
+		r = radeon_bo_create(rdev, NULL, RADEON_GPU_PAGE_SIZE, true,
+				RADEON_GEM_DOMAIN_GTT, &rdev->wb.wb_obj);
+		if (r) {
+			dev_warn(rdev->dev, "(%d) create WB bo failed\n", r);
+			return r;
+		}
+	}
+	r = radeon_bo_reserve(rdev->wb.wb_obj, false);
+	if (unlikely(r != 0)) {
+		radeon_wb_fini(rdev);
+		return r;
+	}
+	r = radeon_bo_pin(rdev->wb.wb_obj, RADEON_GEM_DOMAIN_GTT,
+			  &rdev->wb.gpu_addr);
+	if (r) {
+		radeon_bo_unreserve(rdev->wb.wb_obj);
+		dev_warn(rdev->dev, "(%d) pin WB bo failed\n", r);
+		radeon_wb_fini(rdev);
+		return r;
+	}
+	r = radeon_bo_kmap(rdev->wb.wb_obj, (void **)&rdev->wb.wb);
+	radeon_bo_unreserve(rdev->wb.wb_obj);
+	if (r) {
+		dev_warn(rdev->dev, "(%d) map WB bo failed\n", r);
+		radeon_wb_fini(rdev);
+		return r;
+	}
+
+	/* disable event_write fences */
+	rdev->wb.use_event = false;
+	/* disabled via module param */
+	if (radeon_no_wb == 1)
+		rdev->wb.enabled = false;
+	else {
+		/* often unreliable on AGP */
+		if (rdev->flags & RADEON_IS_AGP) {
+			rdev->wb.enabled = false;
+		} else {
+			rdev->wb.enabled = true;
+			/* event_write fences are only available on r600+ */
+			if (rdev->family >= CHIP_R600)
+				rdev->wb.use_event = true;
+		}
+	}
+
+	dev_info(rdev->dev, "WB %sabled\n", rdev->wb.enabled ? "en" : "dis");
+
+	return 0;
 }
 
 /**

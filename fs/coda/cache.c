@@ -17,6 +17,7 @@
 #include <linux/string.h>
 #include <linux/list.h>
 #include <linux/sched.h>
+#include <linux/spinlock.h>
 
 #include <linux/coda.h>
 #include <linux/coda_linux.h>
@@ -31,19 +32,23 @@ void coda_cache_enter(struct inode *inode, int mask)
 {
 	struct coda_inode_info *cii = ITOC(inode);
 
+	spin_lock(&cii->c_lock);
 	cii->c_cached_epoch = atomic_read(&permission_epoch);
 	if (cii->c_uid != current_fsuid()) {
 		cii->c_uid = current_fsuid();
                 cii->c_cached_perm = mask;
         } else
                 cii->c_cached_perm |= mask;
+	spin_unlock(&cii->c_lock);
 }
 
 /* remove cached acl from an inode */
 void coda_cache_clear_inode(struct inode *inode)
 {
 	struct coda_inode_info *cii = ITOC(inode);
+	spin_lock(&cii->c_lock);
 	cii->c_cached_epoch = atomic_read(&permission_epoch) - 1;
+	spin_unlock(&cii->c_lock);
 }
 
 /* remove all acl caches */
@@ -57,13 +62,15 @@ void coda_cache_clear_all(struct super_block *sb)
 int coda_cache_check(struct inode *inode, int mask)
 {
 	struct coda_inode_info *cii = ITOC(inode);
-        int hit;
+	int hit;
 	
-        hit = (mask & cii->c_cached_perm) == mask &&
-		cii->c_uid == current_fsuid() &&
-		cii->c_cached_epoch == atomic_read(&permission_epoch);
+	spin_lock(&cii->c_lock);
+	hit = (mask & cii->c_cached_perm) == mask &&
+	    cii->c_uid == current_fsuid() &&
+	    cii->c_cached_epoch == atomic_read(&permission_epoch);
+	spin_unlock(&cii->c_lock);
 
-        return hit;
+	return hit;
 }
 
 

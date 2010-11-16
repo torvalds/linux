@@ -1,0 +1,13 @@
+TODO
+----
+
+Get the memrar driver cleaned up and upstream (dependancy blocking SST)
+Replace long/short press with two virtual buttons
+Review the printks and kill off any left over ST_ERR: messages
+Review the misc device ioctls for 32/64bit safety and sanity
+Review the misc device ioctls for size safety depending on config and decide
+	if space/unused areas should be left
+What the sound folks turn up on full review
+Using the ALSA frameworks properly
+
+

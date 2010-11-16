@@ -617,7 +617,7 @@ static void bigmac_begin_auto_negotiation(struct bigmac *bp)
 	bp->timer_ticks = 0;
 	bp->bigmac_timer.expires = jiffies + (12 * HZ) / 10;
 	bp->bigmac_timer.data = (unsigned long) bp;
-	bp->bigmac_timer.function = &bigmac_timer;
+	bp->bigmac_timer.function = bigmac_timer;
 	add_timer(&bp->bigmac_timer);
 }
 

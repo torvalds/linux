@@ -224,7 +224,7 @@ static noinline int xen_spin_lock_slow(struct arch_spinlock *lock, bool irq_enab
 			goto out;
 		}
 
-		flags = __raw_local_save_flags();
+		flags = arch_local_save_flags();
 		if (irq_enable) {
 			ADD_STATS(taken_slow_irqenable, 1);
 			raw_local_irq_enable();

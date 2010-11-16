@@ -306,6 +306,20 @@ static inline void trun_key_init(const struct ubifs_info *c,
 }
 
 /**
+ * invalid_key_init - initialize invalid node key.
+ * @c: UBIFS file-system description object
+ * @key: key to initialize
+ *
+ * This is a helper function which marks a @key object as invalid.
+ */
+static inline void invalid_key_init(const struct ubifs_info *c,
+				    union ubifs_key *key)
+{
+	key->u32[0] = 0xDEADBEAF;
+	key->u32[1] = UBIFS_INVALID_KEY;
+}
+
+/**
  * key_type - get key type.
  * @c: UBIFS file-system description object
  * @key: key to get type of

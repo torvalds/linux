@@ -132,15 +132,15 @@ struct rss_params {
 	unsigned int mode;		/* RSS mode */
 	union {
 	    struct {
-		int synmapen:1;		/* SYN Map Enable */
-		int syn4tupenipv6:1;	/* enable hashing 4-tuple IPv6 SYNs */
-		int syn2tupenipv6:1;	/* enable hashing 2-tuple IPv6 SYNs */
-		int syn4tupenipv4:1;	/* enable hashing 4-tuple IPv4 SYNs */
-		int syn2tupenipv4:1;	/* enable hashing 2-tuple IPv4 SYNs */
-		int ofdmapen:1;		/* Offload Map Enable */
-		int tnlmapen:1;		/* Tunnel Map Enable */
-		int tnlalllookup:1;	/* Tunnel All Lookup */
-		int hashtoeplitz:1;	/* use Toeplitz hash */
+		unsigned int synmapen:1;	/* SYN Map Enable */
+		unsigned int syn4tupenipv6:1;	/* enable hashing 4-tuple IPv6 SYNs */
+		unsigned int syn2tupenipv6:1;	/* enable hashing 2-tuple IPv6 SYNs */
+		unsigned int syn4tupenipv4:1;	/* enable hashing 4-tuple IPv4 SYNs */
+		unsigned int syn2tupenipv4:1;	/* enable hashing 2-tuple IPv4 SYNs */
+		unsigned int ofdmapen:1;	/* Offload Map Enable */
+		unsigned int tnlmapen:1;	/* Tunnel Map Enable */
+		unsigned int tnlalllookup:1;	/* Tunnel All Lookup */
+		unsigned int hashtoeplitz:1;	/* use Toeplitz hash */
 	    } basicvirtual;
 	} u;
 };
@@ -151,10 +151,10 @@ struct rss_params {
 union rss_vi_config {
     struct {
 	u16 defaultq;			/* Ingress Queue ID for !tnlalllookup */
-	int ip6fourtupen:1;		/* hash 4-tuple IPv6 ingress packets */
-	int ip6twotupen:1;		/* hash 2-tuple IPv6 ingress packets */
-	int ip4fourtupen:1;		/* hash 4-tuple IPv4 ingress packets */
-	int ip4twotupen:1;		/* hash 2-tuple IPv4 ingress packets */
+	unsigned int ip6fourtupen:1;	/* hash 4-tuple IPv6 ingress packets */
+	unsigned int ip6twotupen:1;	/* hash 2-tuple IPv6 ingress packets */
+	unsigned int ip4fourtupen:1;	/* hash 4-tuple IPv4 ingress packets */
+	unsigned int ip4twotupen:1;	/* hash 2-tuple IPv4 ingress packets */
 	int udpen;			/* hash 4-tuple UDP ingress packets */
     } basicvirtual;
 };
@@ -235,6 +235,7 @@ static inline int t4vf_wr_mbox_ns(struct adapter *adapter, const void *cmd,
 int __devinit t4vf_wait_dev_ready(struct adapter *);
 int __devinit t4vf_port_init(struct adapter *, int);
 
+int t4vf_fw_reset(struct adapter *);
 int t4vf_query_params(struct adapter *, unsigned int, const u32 *, u32 *);
 int t4vf_set_params(struct adapter *, unsigned int, const u32 *, const u32 *);
 

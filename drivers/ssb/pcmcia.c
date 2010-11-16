@@ -13,7 +13,6 @@
 #include <linux/io.h>
 #include <linux/etherdevice.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>

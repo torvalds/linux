@@ -441,7 +441,6 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 		spcp8x5_set_workMode(serial->dev, 0x000a,
 				     SET_WORKING_MODE_U2C, priv->type);
 	}
-	return;
 }
 
 /* open the serial port. do some usb system call. set termios and get the line

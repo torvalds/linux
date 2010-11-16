@@ -126,14 +126,20 @@ int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus);
 
 #else	 /* CONFIG_STOP_MACHINE && CONFIG_SMP */
 
-static inline int stop_machine(int (*fn)(void *), void *data,
-			       const struct cpumask *cpus)
+static inline int __stop_machine(int (*fn)(void *), void *data,
+				 const struct cpumask *cpus)
 {
 	int ret;
 	local_irq_disable();
 	ret = fn(data);
 	local_irq_enable();
 	return ret;
+}
+
+static inline int stop_machine(int (*fn)(void *), void *data,
+			       const struct cpumask *cpus)
+{
+	return __stop_machine(fn, data, cpus);
 }
 
 #endif	/* CONFIG_STOP_MACHINE && CONFIG_SMP */

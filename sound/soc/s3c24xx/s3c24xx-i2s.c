@@ -252,7 +252,7 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	else
 		dma_data = &s3c24xx_i2s_pcm_stereo_in;
 
-	snd_soc_dai_set_dma_data(rtd->dai->cpu_dai, substream, dma_data);
+	snd_soc_dai_set_dma_data(rtd->cpu_dai, substream, dma_data);
 
 	/* Working copies of register */
 	iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
@@ -280,9 +280,8 @@ static int s3c24xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			       struct snd_soc_dai *dai)
 {
 	int ret = 0;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct s3c_dma_params *dma_data =
-		snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
+		snd_soc_dai_get_dma_data(dai, substream);
 
 	pr_debug("Entered %s\n", __func__);
 
@@ -387,8 +386,7 @@ u32 s3c24xx_i2s_get_clockrate(void)
 }
 EXPORT_SYMBOL_GPL(s3c24xx_i2s_get_clockrate);
 
-static int s3c24xx_i2s_probe(struct platform_device *pdev,
-			     struct snd_soc_dai *dai)
+static int s3c24xx_i2s_probe(struct snd_soc_dai *dai)
 {
 	pr_debug("Entered %s\n", __func__);
 
@@ -396,7 +394,7 @@ static int s3c24xx_i2s_probe(struct platform_device *pdev,
 	if (s3c24xx_i2s.regs == NULL)
 		return -ENXIO;
 
-	s3c24xx_i2s.iis_clk = clk_get(&pdev->dev, "iis");
+	s3c24xx_i2s.iis_clk = clk_get(dai->dev, "iis");
 	if (s3c24xx_i2s.iis_clk == NULL) {
 		pr_err("failed to get iis_clock\n");
 		iounmap(s3c24xx_i2s.regs);
@@ -465,9 +463,7 @@ static struct snd_soc_dai_ops s3c24xx_i2s_dai_ops = {
 	.set_sysclk	= s3c24xx_i2s_set_sysclk,
 };
 
-struct snd_soc_dai s3c24xx_i2s_dai = {
-	.name = "s3c24xx-i2s",
-	.id = 0,
+static struct snd_soc_dai_driver s3c24xx_i2s_dai = {
 	.probe = s3c24xx_i2s_probe,
 	.suspend = s3c24xx_i2s_suspend,
 	.resume = s3c24xx_i2s_resume,
@@ -483,17 +479,36 @@ struct snd_soc_dai s3c24xx_i2s_dai = {
 		.formats = SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = &s3c24xx_i2s_dai_ops,
 };
-EXPORT_SYMBOL_GPL(s3c24xx_i2s_dai);
+
+static __devinit int s3c24xx_iis_dev_probe(struct platform_device *pdev)
+{
+	return snd_soc_register_dai(&pdev->dev, &s3c24xx_i2s_dai);
+}
+
+static __devexit int s3c24xx_iis_dev_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_dai(&pdev->dev);
+	return 0;
+}
+
+static struct platform_driver s3c24xx_iis_driver = {
+	.probe  = s3c24xx_iis_dev_probe,
+	.remove = s3c24xx_iis_dev_remove,
+	.driver = {
+		.name = "s3c24xx-iis",
+		.owner = THIS_MODULE,
+	},
+};
 
 static int __init s3c24xx_i2s_init(void)
 {
-	return snd_soc_register_dai(&s3c24xx_i2s_dai);
+	return platform_driver_register(&s3c24xx_iis_driver);
 }
 module_init(s3c24xx_i2s_init);
 
 static void __exit s3c24xx_i2s_exit(void)
 {
-	snd_soc_unregister_dai(&s3c24xx_i2s_dai);
+	platform_driver_unregister(&s3c24xx_iis_driver);
 }
 module_exit(s3c24xx_i2s_exit);
 
@@ -501,3 +516,4 @@ module_exit(s3c24xx_i2s_exit);
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("s3c24xx I2S SoC Interface");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:s3c24xx-iis");

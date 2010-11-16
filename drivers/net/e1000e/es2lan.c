@@ -1494,6 +1494,7 @@ struct e1000_info e1000_es2_info = {
 				  | FLAG_APME_CHECK_PORT_B
 				  | FLAG_DISABLE_FC_PAUSE_TIME /* errata */
 				  | FLAG_TIPG_MEDIUM_FOR_80003ESLAN,
+	.flags2			= FLAG2_DMA_BURST,
 	.pba			= 38,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_80003es2lan,

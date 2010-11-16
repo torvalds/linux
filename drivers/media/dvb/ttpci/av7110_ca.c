@@ -25,7 +25,7 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org/dvb/
+ * the project's page is at http://www.linuxtv.org/ 
  */
 
 #include <linux/kernel.h>
@@ -353,6 +353,7 @@ static const struct file_operations dvb_ca_fops = {
 	.open		= dvb_ca_open,
 	.release	= dvb_generic_release,
 	.poll		= dvb_ca_poll,
+	.llseek		= default_llseek,
 };
 
 static struct dvb_device dvbdev_ca = {

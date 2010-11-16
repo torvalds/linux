@@ -28,6 +28,9 @@ bool ip_callchain__valid(struct ip_callchain *chain, const event_t *event)
 #define chain_for_each_child(child, parent)	\
 	list_for_each_entry(child, &parent->children, brothers)
 
+#define chain_for_each_child_safe(child, next, parent)	\
+	list_for_each_entry_safe(child, next, &parent->children, brothers)
+
 static void
 rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
 		    enum chain_mode mode)
@@ -86,10 +89,10 @@ __sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node,
  * sort them by hit
  */
 static void
-sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node,
+sort_chain_flat(struct rb_root *rb_root, struct callchain_root *root,
 		u64 min_hit, struct callchain_param *param __used)
 {
-	__sort_chain_flat(rb_root, node, min_hit);
+	__sort_chain_flat(rb_root, &root->node, min_hit);
 }
 
 static void __sort_chain_graph_abs(struct callchain_node *node,
@@ -108,11 +111,11 @@ static void __sort_chain_graph_abs(struct callchain_node *node,
 }
 
 static void
-sort_chain_graph_abs(struct rb_root *rb_root, struct callchain_node *chain_root,
+sort_chain_graph_abs(struct rb_root *rb_root, struct callchain_root *chain_root,
 		     u64 min_hit, struct callchain_param *param __used)
 {
-	__sort_chain_graph_abs(chain_root, min_hit);
-	rb_root->rb_node = chain_root->rb_root.rb_node;
+	__sort_chain_graph_abs(&chain_root->node, min_hit);
+	rb_root->rb_node = chain_root->node.rb_root.rb_node;
 }
 
 static void __sort_chain_graph_rel(struct callchain_node *node,
@@ -133,11 +136,11 @@ static void __sort_chain_graph_rel(struct callchain_node *node,
 }
 
 static void
-sort_chain_graph_rel(struct rb_root *rb_root, struct callchain_node *chain_root,
+sort_chain_graph_rel(struct rb_root *rb_root, struct callchain_root *chain_root,
 		     u64 min_hit __used, struct callchain_param *param)
 {
-	__sort_chain_graph_rel(chain_root, param->min_percent / 100.0);
-	rb_root->rb_node = chain_root->rb_root.rb_node;
+	__sort_chain_graph_rel(&chain_root->node, param->min_percent / 100.0);
+	rb_root->rb_node = chain_root->node.rb_root.rb_node;
 }
 
 int register_callchain_param(struct callchain_param *param)
@@ -284,19 +287,18 @@ split_add_child(struct callchain_node *parent, struct resolved_chain *chain,
 }
 
 static int
-__append_chain(struct callchain_node *root, struct resolved_chain *chain,
-	       unsigned int start, u64 period);
+append_chain(struct callchain_node *root, struct resolved_chain *chain,
+	     unsigned int start, u64 period);
 
 static void
-__append_chain_children(struct callchain_node *root,
-			struct resolved_chain *chain,
-			unsigned int start, u64 period)
+append_chain_children(struct callchain_node *root, struct resolved_chain *chain,
+		      unsigned int start, u64 period)
 {
 	struct callchain_node *rnode;
 
 	/* lookup in childrens */
 	chain_for_each_child(rnode, root) {
-		unsigned int ret = __append_chain(rnode, chain, start, period);
+		unsigned int ret = append_chain(rnode, chain, start, period);
 
 		if (!ret)
 			goto inc_children_hit;
@@ -309,8 +311,8 @@ inc_children_hit:
 }
 
 static int
-__append_chain(struct callchain_node *root, struct resolved_chain *chain,
-	       unsigned int start, u64 period)
+append_chain(struct callchain_node *root, struct resolved_chain *chain,
+	     unsigned int start, u64 period)
 {
 	struct callchain_list *cnode;
 	unsigned int i = start;
@@ -357,7 +359,7 @@ __append_chain(struct callchain_node *root, struct resolved_chain *chain,
 	}
 
 	/* We match the node and still have a part remaining */
-	__append_chain_children(root, chain, i, period);
+	append_chain_children(root, chain, i, period);
 
 	return 0;
 }
@@ -380,8 +382,8 @@ static void filter_context(struct ip_callchain *old, struct resolved_chain *new,
 }
 
 
-int append_chain(struct callchain_node *root, struct ip_callchain *chain,
-		 struct map_symbol *syms, u64 period)
+int callchain_append(struct callchain_root *root, struct ip_callchain *chain,
+		     struct map_symbol *syms, u64 period)
 {
 	struct resolved_chain *filtered;
 
@@ -398,9 +400,65 @@ int append_chain(struct callchain_node *root, struct ip_callchain *chain,
 	if (!filtered->nr)
 		goto end;
 
-	__append_chain_children(root, filtered, 0, period);
+	append_chain_children(&root->node, filtered, 0, period);
+
+	if (filtered->nr > root->max_depth)
+		root->max_depth = filtered->nr;
 end:
 	free(filtered);
 
 	return 0;
+}
+
+static int
+merge_chain_branch(struct callchain_node *dst, struct callchain_node *src,
+		   struct resolved_chain *chain)
+{
+	struct callchain_node *child, *next_child;
+	struct callchain_list *list, *next_list;
+	int old_pos = chain->nr;
+	int err = 0;
+
+	list_for_each_entry_safe(list, next_list, &src->val, list) {
+		chain->ips[chain->nr].ip = list->ip;
+		chain->ips[chain->nr].ms = list->ms;
+		chain->nr++;
+		list_del(&list->list);
+		free(list);
+	}
+
+	if (src->hit)
+		append_chain_children(dst, chain, 0, src->hit);
+
+	chain_for_each_child_safe(child, next_child, src) {
+		err = merge_chain_branch(dst, child, chain);
+		if (err)
+			break;
+
+		list_del(&child->brothers);
+		free(child);
+	}
+
+	chain->nr = old_pos;
+
+	return err;
+}
+
+int callchain_merge(struct callchain_root *dst, struct callchain_root *src)
+{
+	struct resolved_chain *chain;
+	int err;
+
+	chain = malloc(sizeof(*chain) +
+		       src->max_depth * sizeof(struct resolved_ip));
+	if (!chain)
+		return -ENOMEM;
+
+	chain->nr = 0;
+
+	err = merge_chain_branch(&dst->node, &src->node, chain);
+
+	free(chain);
+
+	return err;
 }

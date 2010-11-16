@@ -63,15 +63,12 @@ static const char mlx4_en_version[] =
  */
 
 
-/* Use a XOR rathern than Toeplitz hash function for RSS */
-MLX4_EN_PARM_INT(rss_xor, 0, "Use XOR hash function for RSS");
-
-/* RSS hash type mask - default to <saddr, daddr, sport, dport> */
-MLX4_EN_PARM_INT(rss_mask, 0xf, "RSS hash type bitmask");
-
-/* Number of LRO sessions per Rx ring (rounded up to a power of two) */
-MLX4_EN_PARM_INT(num_lro, MLX4_EN_MAX_LRO_DESCRIPTORS,
-		 "Number of LRO sessions per ring or disabled (0)");
+/* Enable RSS TCP traffic */
+MLX4_EN_PARM_INT(tcp_rss, 1,
+		 "Enable RSS for incomming TCP traffic or disabled (0)");
+/* Enable RSS UDP traffic */
+MLX4_EN_PARM_INT(udp_rss, 1,
+		 "Enable RSS for incomming UDP traffic or disabled (0)");
 
 /* Priority pausing */
 MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
@@ -107,9 +104,12 @@ static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 	struct mlx4_en_profile *params = &mdev->profile;
 	int i;
 
-	params->rss_xor = (rss_xor != 0);
-	params->rss_mask = rss_mask & 0x1f;
-	params->num_lro = min_t(int, num_lro , MLX4_EN_MAX_LRO_DESCRIPTORS);
+	params->tcp_rss = tcp_rss;
+	params->udp_rss = udp_rss;
+	if (params->udp_rss && !mdev->dev->caps.udp_rss) {
+		mlx4_warn(mdev, "UDP RSS is not supported on this device.\n");
+		params->udp_rss = 0;
+	}
 	for (i = 1; i <= MLX4_MAX_PORTS; i++) {
 		params->prof[i].rx_pause = 1;
 		params->prof[i].rx_ppp = pfcrx;
@@ -122,6 +122,13 @@ static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 	}
 
 	return 0;
+}
+
+static void *mlx4_en_get_netdev(struct mlx4_dev *dev, void *ctx, u8 port)
+{
+	struct mlx4_en_dev *endev = ctx;
+
+	return endev->pndev[port];
 }
 
 static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
@@ -282,9 +289,11 @@ err_free_res:
 }
 
 static struct mlx4_interface mlx4_en_interface = {
-	.add	= mlx4_en_add,
-	.remove	= mlx4_en_remove,
-	.event	= mlx4_en_event,
+	.add		= mlx4_en_add,
+	.remove		= mlx4_en_remove,
+	.event		= mlx4_en_event,
+	.get_dev	= mlx4_en_get_netdev,
+	.protocol	= MLX4_PROTOCOL_EN,
 };
 
 static int __init mlx4_en_init(void)

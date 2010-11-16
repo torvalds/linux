@@ -10,6 +10,7 @@
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/wait.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
 #include <asm/unaligned.h>
@@ -480,7 +481,6 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 	struct cmd_ds_802_11_scan_rsp *scanresp = (void *)resp;
 	int bsssize;
 	const u8 *pos;
-	u16 nr_sets;
 	const u8 *tsfdesc;
 	int tsfsize;
 	int i;
@@ -489,12 +489,11 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
 	bsssize = get_unaligned_le16(&scanresp->bssdescriptsize);
-	nr_sets = le16_to_cpu(scanresp->nr_sets);
 
 	lbs_deb_scan("scan response: %d BSSs (%d bytes); resp size %d bytes\n",
-			nr_sets, bsssize, le16_to_cpu(resp->size));
+			scanresp->nr_sets, bsssize, le16_to_cpu(resp->size));
 
-	if (nr_sets == 0) {
+	if (scanresp->nr_sets == 0) {
 		ret = 0;
 		goto done;
 	}
@@ -526,20 +525,31 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 
 	pos = scanresp->bssdesc_and_tlvbuffer;
 
+	lbs_deb_hex(LBS_DEB_SCAN, "SCAN_RSP", scanresp->bssdesc_and_tlvbuffer,
+			scanresp->bssdescriptsize);
+
 	tsfdesc = pos + bsssize;
 	tsfsize = 4 + 8 * scanresp->nr_sets;
+	lbs_deb_hex(LBS_DEB_SCAN, "SCAN_TSF", (u8 *) tsfdesc, tsfsize);
 
 	/* Validity check: we expect a Marvell-Local TLV */
 	i = get_unaligned_le16(tsfdesc);
 	tsfdesc += 2;
-	if (i != TLV_TYPE_TSFTIMESTAMP)
+	if (i != TLV_TYPE_TSFTIMESTAMP) {
+		lbs_deb_scan("scan response: invalid TSF Timestamp %d\n", i);
 		goto done;
+	}
+
 	/* Validity check: the TLV holds TSF values with 8 bytes each, so
 	 * the size in the TLV must match the nr_sets value */
 	i = get_unaligned_le16(tsfdesc);
 	tsfdesc += 2;
-	if (i / 8 != scanresp->nr_sets)
+	if (i / 8 != scanresp->nr_sets) {
+		lbs_deb_scan("scan response: invalid number of TSF timestamp "
+			     "sets (expected %d got %d)\n", scanresp->nr_sets,
+			     i / 8);
 		goto done;
+	}
 
 	for (i = 0; i < scanresp->nr_sets; i++) {
 		const u8 *bssid;
@@ -581,8 +591,11 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 			id = *pos++;
 			elen = *pos++;
 			left -= 2;
-			if (elen > left || elen == 0)
+			if (elen > left || elen == 0) {
+				lbs_deb_scan("scan response: invalid IE fmt\n");
 				goto done;
+			}
+
 			if (id == WLAN_EID_DS_PARAMS)
 				chan_no = *pos;
 			if (id == WLAN_EID_SSID) {
@@ -613,7 +626,9 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 					capa, intvl, ie, ielen,
 					LBS_SCAN_RSSI_TO_MBM(rssi),
 					GFP_KERNEL);
-		}
+		} else
+			lbs_deb_scan("scan response: missing BSS channel IE\n");
+
 		tsfdesc += 8;
 	}
 	ret = 0;
@@ -685,8 +700,9 @@ static void lbs_scan_worker(struct work_struct *work)
 
 	if (priv->scan_channel < priv->scan_req->n_channels) {
 		cancel_delayed_work(&priv->scan_work);
-		queue_delayed_work(priv->work_thread, &priv->scan_work,
-			msecs_to_jiffies(300));
+		if (!priv->stopping)
+			queue_delayed_work(priv->work_thread, &priv->scan_work,
+				msecs_to_jiffies(300));
 	}
 
 	/* This is the final data we are about to send */
@@ -1103,7 +1119,7 @@ static int lbs_associate(struct lbs_private *priv,
 	lbs_deb_hex(LBS_DEB_ASSOC, "Common Rates", tmp, pos - tmp);
 
 	/* add auth type TLV */
-	if (priv->fwrelease >= 0x09000000)
+	if (MRVL_FW_MAJOR_REV(priv->fwrelease) >= 9)
 		pos += lbs_add_auth_type_tlv(pos, sme->auth_type);
 
 	/* add WPA/WPA2 TLV */
@@ -1114,6 +1130,9 @@ static int lbs_associate(struct lbs_private *priv,
 		(u16)(pos - (u8 *) &cmd->iebuf);
 	cmd->hdr.size = cpu_to_le16(len);
 
+	lbs_deb_hex(LBS_DEB_ASSOC, "ASSOC_CMD", (u8 *) cmd,
+			le16_to_cpu(cmd->hdr.size));
+
 	/* store for later use */
 	memcpy(priv->assoc_bss, bss->bssid, ETH_ALEN);
 
@@ -1121,14 +1140,28 @@ static int lbs_associate(struct lbs_private *priv,
 	if (ret)
 		goto done;
 
-
 	/* generate connect message to cfg80211 */
 
 	resp = (void *) cmd; /* recast for easier field access */
 	status = le16_to_cpu(resp->statuscode);
 
-	/* Convert statis code of old firmware */
-	if (priv->fwrelease < 0x09000000)
+	/* Older FW versions map the IEEE 802.11 Status Code in the association
+	 * response to the following values returned in resp->statuscode:
+	 *
+	 *    IEEE Status Code                Marvell Status Code
+	 *    0                       ->      0x0000 ASSOC_RESULT_SUCCESS
+	 *    13                      ->      0x0004 ASSOC_RESULT_AUTH_REFUSED
+	 *    14                      ->      0x0004 ASSOC_RESULT_AUTH_REFUSED
+	 *    15                      ->      0x0004 ASSOC_RESULT_AUTH_REFUSED
+	 *    16                      ->      0x0004 ASSOC_RESULT_AUTH_REFUSED
+	 *    others                  ->      0x0003 ASSOC_RESULT_REFUSED
+	 *
+	 * Other response codes:
+	 *    0x0001 -> ASSOC_RESULT_INVALID_PARAMETERS (unused)
+	 *    0x0002 -> ASSOC_RESULT_TIMEOUT (internal timer expired waiting for
+	 *                                    association response from the AP)
+	 */
+	if (MRVL_FW_MAJOR_REV(priv->fwrelease) <= 8) {
 		switch (status) {
 		case 0:
 			break;
@@ -1150,11 +1183,16 @@ static int lbs_associate(struct lbs_private *priv,
 			break;
 		default:
 			lbs_deb_assoc("association failure %d\n", status);
-			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+			/* v5 OLPC firmware does return the AP status code if
+			 * it's not one of the values above.  Let that through.
+			 */
+			break;
+		}
 	}
 
-	lbs_deb_assoc("status %d, capability 0x%04x\n", status,
-		      le16_to_cpu(resp->capability));
+	lbs_deb_assoc("status %d, statuscode 0x%04x, capability 0x%04x, "
+		      "aid 0x%04x\n", status, le16_to_cpu(resp->statuscode),
+		      le16_to_cpu(resp->capability), le16_to_cpu(resp->aid));
 
 	resp_ie_len = le16_to_cpu(resp->hdr.size)
 		- sizeof(resp->hdr)
@@ -1173,7 +1211,6 @@ static int lbs_associate(struct lbs_private *priv,
 		if (!priv->tx_pending_len)
 			netif_tx_wake_all_queues(priv->dev);
 	}
-
 
 done:
 	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
@@ -1404,7 +1441,7 @@ static int lbs_cfg_set_default_key(struct wiphy *wiphy,
 
 
 static int lbs_cfg_add_key(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 idx, const u8 *mac_addr,
+			   u8 idx, bool pairwise, const u8 *mac_addr,
 			   struct key_params *params)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
@@ -1464,7 +1501,7 @@ static int lbs_cfg_add_key(struct wiphy *wiphy, struct net_device *netdev,
 
 
 static int lbs_cfg_del_key(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 key_index, const u8 *mac_addr)
+			   u8 key_index, bool pairwise, const u8 *mac_addr)
 {
 
 	lbs_deb_enter(LBS_DEB_CFG80211);

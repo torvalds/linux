@@ -23,6 +23,7 @@
 #define MAP_POPULATE	0x0040		/* populate (prefault) pagetables */
 #define MAP_NONBLOCK	0x0080		/* do not block on IO */
 #define MAP_GROWSDOWN	0x0100		/* stack-like segment */
+#define MAP_STACK	MAP_GROWSDOWN	/* provide convenience alias */
 #define MAP_LOCKED	0x0200		/* pages are locked */
 #define MAP_NORESERVE	0x0400		/* don't check for reservations */
 #define MAP_DENYWRITE	0x0800		/* ETXTBSY */

@@ -30,22 +30,20 @@
 /* Todo: test this */
 int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
 {
-	unsigned long numvals;
+	struct iio_ring_buffer *ring = st->indio_dev->ring;
 	int count = 0, ret;
 	u8 *ring_data;
 	if (!(st->current_mode->modemask & mask)) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
-	numvals = hweight_long(st->current_mode->modemask);
 
-	ring_data = kmalloc(numvals*2, GFP_KERNEL);
+	ring_data = kmalloc(ring->access.get_bytes_per_datum(ring), GFP_KERNEL);
 	if (ring_data == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-	ret = st->indio_dev->ring->access.read_last(st->indio_dev->ring,
-						ring_data);
+	ret = ring->access.read_last(ring, ring_data);
 	if (ret)
 		goto error_free_ring_data;
 	/* Need a count of channels prior to this one */
@@ -77,6 +75,7 @@ error_ret:
 static int max1363_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct max1363_state *st = indio_dev->dev_data;
+	struct iio_ring_buffer *ring = indio_dev->ring;
 	size_t d_size;
 	unsigned long numvals;
 
@@ -84,7 +83,7 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 	 * Need to figure out the current mode based upon the requested
 	 * scan mask in iio_dev
 	 */
-	st->current_mode = max1363_match_mode(st->indio_dev->scan_mask,
+	st->current_mode = max1363_match_mode(ring->scan_mask,
 					st->chip_info);
 	if (!st->current_mode)
 		return -EINVAL;
@@ -92,14 +91,14 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 	max1363_set_scan_mode(st);
 
 	numvals = hweight_long(st->current_mode->modemask);
-	if (indio_dev->ring->access.set_bpd) {
+	if (ring->access.set_bytes_per_datum) {
 		if (st->chip_info->bits != 8)
 			d_size = numvals*2 + sizeof(s64);
 		else
 			d_size = numvals + sizeof(s64);
 		if (d_size % 8)
 			d_size += 8 - (d_size % 8);
-		indio_dev->ring->access.set_bpd(indio_dev->ring, d_size);
+		ring->access.set_bytes_per_datum(ring, d_size);
 	}
 
 	return 0;
@@ -135,7 +134,7 @@ static void max1363_poll_bh_to_ring(struct work_struct *work_s)
 	struct max1363_state *st = container_of(work_s, struct max1363_state,
 						  poll_work);
 	struct iio_dev *indio_dev = st->indio_dev;
-	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(indio_dev->ring);
+	struct iio_sw_ring_buffer *sw_ring = iio_to_sw_ring(indio_dev->ring);
 	s64 time_ns;
 	__u8 *rxbuf;
 	int b_sent;
@@ -175,7 +174,7 @@ static void max1363_poll_bh_to_ring(struct work_struct *work_s)
 
 	memcpy(rxbuf + d_size - sizeof(s64), &time_ns, sizeof(time_ns));
 
-	indio_dev->ring->access.store_to(&ring->buf, rxbuf, time_ns);
+	indio_dev->ring->access.store_to(&sw_ring->buf, rxbuf, time_ns);
 done:
 	kfree(rxbuf);
 	atomic_dec(&st->protect_ring);
@@ -193,12 +192,13 @@ int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_ret;
 	}
 	/* Effectively select the ring buffer implementation */
-	iio_ring_sw_register_funcs(&st->indio_dev->ring->access);
+	iio_ring_sw_register_funcs(&indio_dev->ring->access);
 	ret = iio_alloc_pollfunc(indio_dev, NULL, &max1363_poll_func_th);
 	if (ret)
 		goto error_deallocate_sw_rb;
 
 	/* Ring buffer functions - here trigger setup related */
+	indio_dev->ring->scan_el_attrs = st->chip_info->scan_attrs;
 	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
 	indio_dev->ring->preenable = &max1363_ring_preenable;
 	indio_dev->ring->predisable = &iio_triggered_ring_predisable;

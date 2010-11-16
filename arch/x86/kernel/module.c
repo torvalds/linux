@@ -239,6 +239,9 @@ int module_finalize(const Elf_Ehdr *hdr,
 		apply_paravirt(pseg, pseg + para->sh_size);
 	}
 
+	/* make jump label nops */
+	jump_label_apply_nops(me);
+
 	return 0;
 }
 

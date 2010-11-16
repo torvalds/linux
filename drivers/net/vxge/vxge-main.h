@@ -172,7 +172,6 @@ struct vxge_msix_entry {
 
 struct vxge_sw_stats {
 	/* Network Stats (interface stats) */
-	struct net_device_stats net_stats;
 
 	/* Tx */
 	u64 tx_frms;
@@ -397,64 +396,7 @@ struct vxge_tx_priv {
 		mod_timer(&timer, (jiffies + exp)); \
 	} while (0);
 
-int __devinit vxge_device_register(struct __vxge_hw_device *devh,
-				    struct vxge_config *config,
-				    int high_dma, int no_of_vpath,
-				    struct vxgedev **vdev);
-
-void vxge_device_unregister(struct __vxge_hw_device *devh);
-
-void vxge_vpath_intr_enable(struct vxgedev *vdev, int vp_id);
-
-void vxge_vpath_intr_disable(struct vxgedev *vdev, int vp_id);
-
-void vxge_callback_link_up(struct __vxge_hw_device *devh);
-
-void vxge_callback_link_down(struct __vxge_hw_device *devh);
-
-enum vxge_hw_status vxge_add_mac_addr(struct vxgedev *vdev,
-	struct macInfo *mac);
-
-int vxge_mac_list_del(struct vxge_vpath *vpath, struct macInfo *mac);
-
-int vxge_reset(struct vxgedev *vdev);
-
-enum vxge_hw_status
-vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
-	u8 t_code, void *userdata);
-
-enum vxge_hw_status
-vxge_xmit_compl(struct __vxge_hw_fifo *fifo_hw, void *dtr,
-	enum vxge_hw_fifo_tcode t_code, void *userdata,
-	struct sk_buff ***skb_ptr, int nr_skbs, int *more);
-
-int vxge_close(struct net_device *dev);
-
-int vxge_open(struct net_device *dev);
-
-void vxge_close_vpaths(struct vxgedev *vdev, int index);
-
-int vxge_open_vpaths(struct vxgedev *vdev);
-
-enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
-
-enum vxge_hw_status vxge_add_mac_addr(struct vxgedev *vdev,
-	struct macInfo *mac);
-
-enum vxge_hw_status vxge_del_mac_addr(struct vxgedev *vdev,
-	struct macInfo *mac);
-
-int vxge_mac_list_add(struct vxge_vpath *vpath,
-	struct macInfo *mac);
-
-void vxge_free_mac_add_list(struct vxge_vpath *vpath);
-
-enum vxge_hw_status vxge_restore_vpath_mac_addr(struct vxge_vpath *vpath);
-
-enum vxge_hw_status vxge_restore_vpath_vid_table(struct vxge_vpath *vpath);
-
-int do_vxge_close(struct net_device *dev, int do_io);
-extern void initialize_ethtool_ops(struct net_device *ndev);
+extern void vxge_initialize_ethtool_ops(struct net_device *ndev);
 /**
  * #define VXGE_DEBUG_INIT: debug for initialization functions
  * #define VXGE_DEBUG_TX	 : debug transmit related functions

@@ -4,7 +4,7 @@
 	Copyright (C) 2009 T. Mertelj <tomaz.mertelj@guest.arnes.si>
 
 	Based on max6650.c:
-	Copyright (C) 2007 Hans J. Koch <hjk@linutronix.de>
+	Copyright (C) 2007 Hans J. Koch <hjk@hansjkoch.de>
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by

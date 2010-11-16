@@ -523,9 +523,9 @@ struct Vmxnet3_RxFilterConf {
 #define VMXNET3_PM_MAX_PATTERN_SIZE   128
 #define VMXNET3_PM_MAX_MASK_SIZE      (VMXNET3_PM_MAX_PATTERN_SIZE / 8)
 
-#define VMXNET3_PM_WAKEUP_MAGIC       0x01  /* wake up on magic pkts */
-#define VMXNET3_PM_WAKEUP_FILTER      0x02  /* wake up on pkts matching
-					     * filters */
+#define VMXNET3_PM_WAKEUP_MAGIC       cpu_to_le16(0x01)  /* wake up on magic pkts */
+#define VMXNET3_PM_WAKEUP_FILTER      cpu_to_le16(0x02)  /* wake up on pkts matching
+							  * filters */
 
 
 struct Vmxnet3_PM_PktFilter {

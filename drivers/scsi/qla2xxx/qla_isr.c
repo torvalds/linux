@@ -412,8 +412,14 @@ skip_rio:
 				    "Unrecoverable Hardware Error: adapter "
 				    "marked OFFLINE!\n");
 				vha->flags.online = 0;
-			} else
+			} else {
+				/* Check to see if MPI timeout occured */
+				if ((mbx & MBX_3) && (ha->flags.port0))
+					set_bit(MPI_RESET_NEEDED,
+					    &vha->dpc_flags);
+
 				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+			}
 		} else if (mb[1] == 0) {
 			qla_printk(KERN_INFO, ha,
 			    "Unrecoverable Hardware Error: adapter marked "
@@ -1234,12 +1240,6 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	case LSC_SCODE_NPORT_USED:
 		data[0] = MBS_LOOP_ID_USED;
 		break;
-	case LSC_SCODE_CMD_FAILED:
-		if ((iop[1] & 0xff) == 0x05) {
-			data[0] = MBS_NOT_LOGGED_IN;
-			break;
-		}
-		/* Fall through. */
 	default:
 		data[0] = MBS_COMMAND_ERROR;
 		break;
@@ -1425,9 +1425,8 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
 		rsp->status_srb = sp;
 
 	DEBUG5(printk("%s(): Check condition Sense data, scsi(%ld:%d:%d:%d) "
-	    "cmd=%p pid=%ld\n", __func__, sp->fcport->vha->host_no,
-	    cp->device->channel, cp->device->id, cp->device->lun, cp,
-	    cp->serial_number));
+	    "cmd=%p\n", __func__, sp->fcport->vha->host_no,
+	    cp->device->channel, cp->device->id, cp->device->lun, cp));
 	if (sense_len)
 		DEBUG5(qla2x00_dump_buffer(cp->sense_buffer, sense_len));
 }
@@ -1751,6 +1750,8 @@ check_scsi_status:
 	case CS_INCOMPLETE:
 	case CS_PORT_UNAVAILABLE:
 	case CS_TIMEOUT:
+	case CS_RESET:
+
 		/*
 		 * We are going to have the fc class block the rport
 		 * while we try to recover so instruct the mid layer
@@ -1775,10 +1776,6 @@ check_scsi_status:
 			qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
 		break;
 
-	case CS_RESET:
-		cp->result = DID_TRANSPORT_DISRUPTED << 16;
-		break;
-
 	case CS_ABORTED:
 		cp->result = DID_RESET << 16;
 		break;
@@ -1795,10 +1792,10 @@ out:
 	if (logit)
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "scsi(%ld:%d:%d) FCP command status: 0x%x-0x%x (0x%x) "
-		    "oxid=0x%x ser=0x%lx cdb=%02x%02x%02x len=0x%x "
+		    "oxid=0x%x cdb=%02x%02x%02x len=0x%x "
 		    "rsp_info=0x%x resid=0x%x fw_resid=0x%x\n", vha->host_no,
 		    cp->device->id, cp->device->lun, comp_status, scsi_status,
-		    cp->result, ox_id, cp->serial_number, cp->cmnd[0],
+		    cp->result, ox_id, cp->cmnd[0],
 		    cp->cmnd[1], cp->cmnd[2], scsi_bufflen(cp), rsp_info_len,
 		    resid_len, fw_resid_len));
 

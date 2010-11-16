@@ -11,7 +11,7 @@ __ieee80211_get_channel_mode(struct ieee80211_local *local,
 {
 	struct ieee80211_sub_if_data *sdata;
 
-	WARN_ON(!mutex_is_locked(&local->iflist_mtx));
+	lockdep_assert_held(&local->iflist_mtx);
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata == ignore)

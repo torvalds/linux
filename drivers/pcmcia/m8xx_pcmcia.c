@@ -59,7 +59,6 @@
 #include <asm/irq.h>
 #include <asm/fs_pd.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/ss.h>
 
 #define pcmcia_info(args...) printk(KERN_INFO "m8xx_pcmcia: "args)

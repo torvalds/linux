@@ -14,9 +14,8 @@
 /*
  * User space memory access functions
  */
-#include <linux/sched.h>
+#include <linux/thread_info.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/errno.h>
 
 #define VERIFY_READ 0
@@ -29,7 +28,6 @@
  *
  * For historical reasons, these macros are grossly misnamed.
  */
-
 #define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
 
 #define KERNEL_XDS	MAKE_MM_SEG(0xBFFFFFFF)
@@ -377,7 +375,7 @@ unsigned long __generic_copy_to_user_nocheck(void *to, const void *from,
 
 
 #if 0
-#error don't use - these macros don't increment to & from pointers
+#error "don't use - these macros don't increment to & from pointers"
 /* Optimize just a little bit when we know the size of the move. */
 #define __constant_copy_user(to, from, size)	\
 do {						\

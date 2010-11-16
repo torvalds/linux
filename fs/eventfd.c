@@ -293,6 +293,7 @@ static const struct file_operations eventfd_fops = {
 	.poll		= eventfd_poll,
 	.read		= eventfd_read,
 	.write		= eventfd_write,
+	.llseek		= noop_llseek,
 };
 
 /**

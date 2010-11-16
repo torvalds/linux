@@ -36,6 +36,7 @@
  * @ATH_DBG_PS: power save processing
  * @ATH_DBG_HWTIMER: hardware timer handling
  * @ATH_DBG_BTCOEX: bluetooth coexistance
+ * @ATH_DBG_BSTUCK: stuck beacons
  * @ATH_DBG_ANY: enable all debugging
  *
  * The debug level is used to control the amount and type of debugging output
@@ -60,6 +61,7 @@ enum ATH_DEBUG {
 	ATH_DBG_HWTIMER		= 0x00001000,
 	ATH_DBG_BTCOEX		= 0x00002000,
 	ATH_DBG_WMI		= 0x00004000,
+	ATH_DBG_BSTUCK		= 0x00008000,
 	ATH_DBG_ANY		= 0xffffffff
 };
 
@@ -74,5 +76,15 @@ ath_print(struct ath_common *common, int dbg_mask, const char *fmt, ...)
 {
 }
 #endif /* CONFIG_ATH_DEBUG */
+
+/** Returns string describing opmode, or NULL if unknown mode. */
+#ifdef CONFIG_ATH_DEBUG
+const char *ath_opmode_to_string(enum nl80211_iftype opmode);
+#else
+static inline const char *ath_opmode_to_string(enum nl80211_iftype opmode)
+{
+	return "UNKNOWN";
+}
+#endif
 
 #endif /* ATH_DEBUG_H */

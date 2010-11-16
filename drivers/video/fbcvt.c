@@ -5,7 +5,7 @@
  *
  *      Based from the VESA(TM) Coordinated Video Timing Generator by
  *      Graham Loveridge April 9, 2003 available at
- *      http://www.vesa.org/public/CVT/CVTd6r1.xls
+ *      http://www.elo.utfsm.cl/~elo212/docs/CVTd6r1.xls
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive

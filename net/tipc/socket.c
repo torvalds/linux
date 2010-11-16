@@ -64,6 +64,7 @@ struct tipc_sock {
 	struct sock sk;
 	struct tipc_port *p;
 	struct tipc_portid peer_name;
+	long conn_timeout;
 };
 
 #define tipc_sk(sk) ((struct tipc_sock *)(sk))
@@ -240,9 +241,9 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol,
 	sock->state = state;
 
 	sock_init_data(sock, sk);
-	sk->sk_rcvtimeo = msecs_to_jiffies(CONN_TIMEOUT_DEFAULT);
 	sk->sk_backlog_rcv = backlog_rcv;
 	tipc_sk(sk)->p = tp_ptr;
+	tipc_sk(sk)->conn_timeout = msecs_to_jiffies(CONN_TIMEOUT_DEFAULT);
 
 	spin_unlock_bh(tp_ptr->lock);
 
@@ -395,6 +396,7 @@ static int get_name(struct socket *sock, struct sockaddr *uaddr,
 	struct sockaddr_tipc *addr = (struct sockaddr_tipc *)uaddr;
 	struct tipc_sock *tsock = tipc_sk(sock->sk);
 
+	memset(addr, 0, sizeof(*addr));
 	if (peer) {
 		if ((sock->state != SS_CONNECTED) &&
 			((peer != 2) || (sock->state != SS_DISCONNECTING)))
@@ -429,36 +431,55 @@ static int get_name(struct socket *sock, struct sockaddr *uaddr,
  * to handle any preventable race conditions, so TIPC will do the same ...
  *
  * TIPC sets the returned events as follows:
- * a) POLLRDNORM and POLLIN are set if the socket's receive queue is non-empty
- *    or if a connection-oriented socket is does not have an active connection
- *    (i.e. a read operation will not block).
- * b) POLLOUT is set except when a socket's connection has been terminated
- *    (i.e. a write operation will not block).
- * c) POLLHUP is set when a socket's connection has been terminated.
  *
- * IMPORTANT: The fact that a read or write operation will not block does NOT
- * imply that the operation will succeed!
+ * socket state		flags set
+ * ------------		---------
+ * unconnected		no read flags
+ *			no write flags
+ *
+ * connecting		POLLIN/POLLRDNORM if ACK/NACK in rx queue
+ *			no write flags
+ *
+ * connected		POLLIN/POLLRDNORM if data in rx queue
+ *			POLLOUT if port is not congested
+ *
+ * disconnecting	POLLIN/POLLRDNORM/POLLHUP
+ *			no write flags
+ *
+ * listening		POLLIN if SYN in rx queue
+ *			no write flags
+ *
+ * ready		POLLIN/POLLRDNORM if data in rx queue
+ * [connectionless]	POLLOUT (since port cannot be congested)
+ *
+ * IMPORTANT: The fact that a read or write operation is indicated does NOT
+ * imply that the operation will succeed, merely that it should be performed
+ * and will not block.
  */
 
 static unsigned int poll(struct file *file, struct socket *sock,
 			 poll_table *wait)
 {
 	struct sock *sk = sock->sk;
-	u32 mask;
+	u32 mask = 0;
 
 	poll_wait(file, sk_sleep(sk), wait);
 
-	if (!skb_queue_empty(&sk->sk_receive_queue) ||
-	    (sock->state == SS_UNCONNECTED) ||
-	    (sock->state == SS_DISCONNECTING))
-		mask = (POLLRDNORM | POLLIN);
-	else
-		mask = 0;
-
-	if (sock->state == SS_DISCONNECTING)
-		mask |= POLLHUP;
-	else
-		mask |= POLLOUT;
+	switch ((int)sock->state) {
+	case SS_READY:
+	case SS_CONNECTED:
+		if (!tipc_sk_port(sk)->congested)
+			mask |= POLLOUT;
+		/* fall thru' */
+	case SS_CONNECTING:
+	case SS_LISTENING:
+		if (!skb_queue_empty(&sk->sk_receive_queue))
+			mask |= (POLLIN | POLLRDNORM);
+		break;
+	case SS_DISCONNECTING:
+		mask = (POLLIN | POLLRDNORM | POLLHUP);
+		break;
+	}
 
 	return mask;
 }
@@ -1026,9 +1047,8 @@ static int recv_stream(struct kiocb *iocb, struct socket *sock,
 	struct sk_buff *buf;
 	struct tipc_msg *msg;
 	unsigned int sz;
-	int sz_to_copy;
+	int sz_to_copy, target, needed;
 	int sz_copied = 0;
-	int needed;
 	char __user *crs = m->msg_iov->iov_base;
 	unsigned char *buf_crs;
 	u32 err;
@@ -1049,6 +1069,8 @@ static int recv_stream(struct kiocb *iocb, struct socket *sock,
 		res = -ENOTCONN;
 		goto exit;
 	}
+
+	target = sock_rcvlowat(sk, flags & MSG_WAITALL, buf_len);
 
 restart:
 
@@ -1138,7 +1160,7 @@ restart:
 
 	if ((sz_copied < buf_len) &&	/* didn't get all requested data */
 	    (!skb_queue_empty(&sk->sk_receive_queue) ||
-	     (flags & MSG_WAITALL)) &&	/* and more is ready or required */
+	    (sz_copied < target)) &&	/* and more is ready or required */
 	    (!(flags & MSG_PEEK)) &&	/* and aren't just peeking at data */
 	    (!err))			/* and haven't reached a FIN */
 		goto restart;
@@ -1174,7 +1196,7 @@ static int rx_queue_full(struct tipc_msg *msg, u32 queue_size, u32 base)
 	if (msg_connected(msg))
 		threshold *= 4;
 
-	return (queue_size >= threshold);
+	return queue_size >= threshold;
 }
 
 /**
@@ -1365,6 +1387,7 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	struct msghdr m = {NULL,};
 	struct sk_buff *buf;
 	struct tipc_msg *msg;
+	long timeout;
 	int res;
 
 	lock_sock(sk);
@@ -1379,7 +1402,7 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	/* For now, TIPC does not support the non-blocking form of connect() */
 
 	if (flags & O_NONBLOCK) {
-		res = -EWOULDBLOCK;
+		res = -EOPNOTSUPP;
 		goto exit;
 	}
 
@@ -1425,11 +1448,12 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 
 	/* Wait until an 'ACK' or 'RST' arrives, or a timeout occurs */
 
+	timeout = tipc_sk(sk)->conn_timeout;
 	release_sock(sk);
 	res = wait_event_interruptible_timeout(*sk_sleep(sk),
 			(!skb_queue_empty(&sk->sk_receive_queue) ||
 			(sock->state != SS_CONNECTING)),
-			sk->sk_rcvtimeo);
+			timeout ? timeout : MAX_SCHEDULE_TIMEOUT);
 	lock_sock(sk);
 
 	if (res > 0) {
@@ -1692,7 +1716,7 @@ static int setsockopt(struct socket *sock,
 		res = tipc_set_portunreturnable(tport->ref, value);
 		break;
 	case TIPC_CONN_TIMEOUT:
-		sk->sk_rcvtimeo = msecs_to_jiffies(value);
+		tipc_sk(sk)->conn_timeout = msecs_to_jiffies(value);
 		/* no need to set "res", since already 0 at this point */
 		break;
 	default:
@@ -1747,7 +1771,7 @@ static int getsockopt(struct socket *sock,
 		res = tipc_portunreturnable(tport->ref, &value);
 		break;
 	case TIPC_CONN_TIMEOUT:
-		value = jiffies_to_msecs(sk->sk_rcvtimeo);
+		value = jiffies_to_msecs(tipc_sk(sk)->conn_timeout);
 		/* no need to set "res", since already 0 at this point */
 		break;
 	 case TIPC_NODE_RECVQ_DEPTH:

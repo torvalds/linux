@@ -505,7 +505,7 @@ int nilfs_sufile_get_stat(struct inode *sufile, struct nilfs_sustat *sustat)
 {
 	struct buffer_head *header_bh;
 	struct nilfs_sufile_header *header;
-	struct the_nilfs *nilfs = NILFS_MDT(sufile)->mi_nilfs;
+	struct the_nilfs *nilfs = NILFS_I_NILFS(sufile);
 	void *kaddr;
 	int ret;
 
@@ -583,7 +583,7 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
 	struct nilfs_segment_usage *su;
 	struct nilfs_suinfo *si = buf;
 	size_t susz = NILFS_MDT(sufile)->mi_entry_size;
-	struct the_nilfs *nilfs = NILFS_MDT(sufile)->mi_nilfs;
+	struct the_nilfs *nilfs = NILFS_I_NILFS(sufile);
 	void *kaddr;
 	unsigned long nsegs, segusages_per_block;
 	ssize_t n;
@@ -635,46 +635,55 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
 }
 
 /**
- * nilfs_sufile_read - read sufile inode
- * @sufile: sufile inode
+ * nilfs_sufile_read - read or get sufile inode
+ * @sb: super block instance
+ * @susize: size of a segment usage entry
  * @raw_inode: on-disk sufile inode
+ * @inodep: buffer to store the inode
  */
-int nilfs_sufile_read(struct inode *sufile, struct nilfs_inode *raw_inode)
+int nilfs_sufile_read(struct super_block *sb, size_t susize,
+		      struct nilfs_inode *raw_inode, struct inode **inodep)
 {
-	struct nilfs_sufile_info *sui = NILFS_SUI(sufile);
+	struct inode *sufile;
+	struct nilfs_sufile_info *sui;
 	struct buffer_head *header_bh;
 	struct nilfs_sufile_header *header;
 	void *kaddr;
-	int ret;
+	int err;
 
-	ret = nilfs_read_inode_common(sufile, raw_inode);
-	if (ret < 0)
-		return ret;
+	sufile = nilfs_iget_locked(sb, NULL, NILFS_SUFILE_INO);
+	if (unlikely(!sufile))
+		return -ENOMEM;
+	if (!(sufile->i_state & I_NEW))
+		goto out;
 
-	ret = nilfs_sufile_get_header_block(sufile, &header_bh);
-	if (!ret) {
-		kaddr = kmap_atomic(header_bh->b_page, KM_USER0);
-		header = kaddr + bh_offset(header_bh);
-		sui->ncleansegs = le64_to_cpu(header->sh_ncleansegs);
-		kunmap_atomic(kaddr, KM_USER0);
-		brelse(header_bh);
-	}
-	return ret;
-}
+	err = nilfs_mdt_init(sufile, NILFS_MDT_GFP, sizeof(*sui));
+	if (err)
+		goto failed;
 
-/**
- * nilfs_sufile_new - create sufile
- * @nilfs: nilfs object
- * @susize: size of a segment usage entry
- */
-struct inode *nilfs_sufile_new(struct the_nilfs *nilfs, size_t susize)
-{
-	struct inode *sufile;
+	nilfs_mdt_set_entry_size(sufile, susize,
+				 sizeof(struct nilfs_sufile_header));
 
-	sufile = nilfs_mdt_new(nilfs, NULL, NILFS_SUFILE_INO,
-			       sizeof(struct nilfs_sufile_info));
-	if (sufile)
-		nilfs_mdt_set_entry_size(sufile, susize,
-					 sizeof(struct nilfs_sufile_header));
-	return sufile;
+	err = nilfs_read_inode_common(sufile, raw_inode);
+	if (err)
+		goto failed;
+
+	err = nilfs_sufile_get_header_block(sufile, &header_bh);
+	if (err)
+		goto failed;
+
+	sui = NILFS_SUI(sufile);
+	kaddr = kmap_atomic(header_bh->b_page, KM_USER0);
+	header = kaddr + bh_offset(header_bh);
+	sui->ncleansegs = le64_to_cpu(header->sh_ncleansegs);
+	kunmap_atomic(kaddr, KM_USER0);
+	brelse(header_bh);
+
+	unlock_new_inode(sufile);
+ out:
+	*inodep = sufile;
+	return 0;
+ failed:
+	iget_failed(sufile);
+	return err;
 }

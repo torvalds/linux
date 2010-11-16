@@ -31,11 +31,35 @@
 #define EXTASR		0x110
 #define SPCAR		0x120
 #define INTMSR		0x130
+
 #define PCIECR		0x140
+#define  PCIECR_PCIEMUX1	BIT(15)
+#define  PCIECR_PCIEMUX0	BIT(14)
+#define  PCIECR_PRST4		BIT(12) /* slot 4 card present */
+#define  PCIECR_PRST3		BIT(11) /* slot 3 card present */
+#define  PCIECR_PRST2		BIT(10) /* slot 2 card present */
+#define  PCIECR_PRST1		BIT(9)  /* slot 1 card present */
+#define  PCIECR_CLKEN		BIT(4)	/* oscillator enable */
+
 #define FAER		0x150
 #define USRGPIR		0x160
+
 /* 0x170 reserved */
-#define LCLASR		0x180
+
+#define LCLASR			0x180
+#define  LCLASR_FRAMEN		BIT(15)
+
+#define  LCLASR_FPGA_SEL_SHIFT	12
+#define  LCLASR_NAND_SEL_SHIFT	8
+#define  LCLASR_NORB_SEL_SHIFT	4
+#define  LCLASR_NORA_SEL_SHIFT	0
+
+#define  LCLASR_AREA_MASK	0x7
+
+#define  LCLASR_FPGA_SEL_MASK	(LCLASR_AREA_MASK << LCLASR_FPGA_SEL_SHIFT)
+#define  LCLASR_NAND_SEL_MASK	(LCLASR_AREA_MASK << LCLASR_NAND_SEL_SHIFT)
+#define  LCLASR_NORB_SEL_MASK	(LCLASR_AREA_MASK << LCLASR_NORB_SEL_SHIFT)
+#define  LCLASR_NORA_SEL_MASK	(LCLASR_AREA_MASK << LCLASR_NORA_SEL_SHIFT)
 
 #define SBCR		0x190
 #define  SCBR_I2CMEN	BIT(0)	/* FPGA I2C master enable */

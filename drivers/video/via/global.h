@@ -48,7 +48,6 @@
 #include "via_utility.h"
 #include "vt1636.h"
 #include "tblDPASetting.h"
-#include "tbl1636.h"
 
 /* External struct*/
 

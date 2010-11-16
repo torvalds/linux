@@ -776,9 +776,15 @@ static struct platform_device ep93xx_i2s_device = {
 	.resource	= ep93xx_i2s_resource,
 };
 
+static struct platform_device ep93xx_pcm_device = {
+	.name		= "ep93xx-pcm-audio",
+	.id		= -1,
+};
+
 void __init ep93xx_register_i2s(void)
 {
 	platform_device_register(&ep93xx_i2s_device);
+	platform_device_register(&ep93xx_pcm_device);
 }
 
 #define EP93XX_SYSCON_DEVCFG_I2S_MASK	(EP93XX_SYSCON_DEVCFG_I2SONSSP | \
@@ -825,6 +831,40 @@ void ep93xx_i2s_release(void)
 	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_I2S_MASK);
 }
 EXPORT_SYMBOL(ep93xx_i2s_release);
+
+/*************************************************************************
+ * EP93xx AC97 audio peripheral handling
+ *************************************************************************/
+static struct resource ep93xx_ac97_resources[] = {
+	{
+		.start	= EP93XX_AAC_PHYS_BASE,
+		.end	= EP93XX_AAC_PHYS_BASE + 0xb0 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_EP93XX_AACINTR,
+		.end	= IRQ_EP93XX_AACINTR,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ep93xx_ac97_device = {
+	.name		= "ep93xx-ac97",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ep93xx_ac97_resources),
+	.resource	= ep93xx_ac97_resources,
+};
+
+void __init ep93xx_register_ac97(void)
+{
+	/*
+	 * Make sure that the AC97 pins are not used by I2S.
+	 */
+	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_I2SONAC97);
+
+	platform_device_register(&ep93xx_ac97_device);
+	platform_device_register(&ep93xx_pcm_device);
+}
 
 extern void ep93xx_gpio_init(void);
 

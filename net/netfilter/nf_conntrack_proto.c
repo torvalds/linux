@@ -28,8 +28,8 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
 
-static struct nf_conntrack_l4proto **nf_ct_protos[PF_MAX] __read_mostly;
-struct nf_conntrack_l3proto *nf_ct_l3protos[AF_MAX] __read_mostly;
+static struct nf_conntrack_l4proto __rcu **nf_ct_protos[PF_MAX] __read_mostly;
+struct nf_conntrack_l3proto __rcu *nf_ct_l3protos[AF_MAX] __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_l3protos);
 
 static DEFINE_MUTEX(nf_ct_proto_mutex);
@@ -292,6 +292,12 @@ int nf_conntrack_l4proto_register(struct nf_conntrack_l4proto *l4proto)
 
 		for (i = 0; i < MAX_NF_CT_PROTO; i++)
 			proto_array[i] = &nf_conntrack_l4proto_generic;
+
+		/* Before making proto_array visible to lockless readers,
+		 * we must make sure its content is committed to memory.
+		 */
+		smp_wmb();
+
 		nf_ct_protos[l4proto->l3proto] = proto_array;
 	} else if (nf_ct_protos[l4proto->l3proto][l4proto->l4proto] !=
 					&nf_conntrack_l4proto_generic) {

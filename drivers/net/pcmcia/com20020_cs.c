@@ -43,7 +43,6 @@
 #include <linux/arcdevice.h>
 #include <linux/com20020.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
@@ -52,23 +51,23 @@
 
 #define VERSION "arcnet: COM20020 PCMCIA support loaded.\n"
 
-#ifdef DEBUG
 
 static void regdump(struct net_device *dev)
 {
+#ifdef DEBUG
     int ioaddr = dev->base_addr;
     int count;
     
-    printk("com20020 register dump:\n");
+    netdev_dbg(dev, "register dump:\n");
     for (count = ioaddr; count < ioaddr + 16; count++)
     {
 	if (!(count % 16))
-	    printk("\n%04X: ", count);
-	printk("%02X ", inb(count));
+	    pr_cont("%04X:", count);
+	pr_cont(" %02X", inb(count));
     }
-    printk("\n");
+    pr_cont("\n");
     
-    printk("buffer0 dump:\n");
+    netdev_dbg(dev, "buffer0 dump:\n");
 	/* set up the address register */
         count = 0;
 	outb((count >> 8) | RDDATAflag | AUTOINCflag, _ADDR_HI);
@@ -77,19 +76,15 @@ static void regdump(struct net_device *dev)
     for (count = 0; count < 256+32; count++)
     {
 	if (!(count % 16))
-	    printk("\n%04X: ", count);
+	    pr_cont("%04X:", count);
 	
 	/* copy the data */
-	printk("%02X ", inb(_MEMDATA));
+	pr_cont(" %02X", inb(_MEMDATA));
     }
-    printk("\n");
+    pr_cont("\n");
+#endif
 }
 
-#else
-
-static inline void regdump(struct net_device *dev) { }
-
-#endif
 
 
 /*====================================================================*/
@@ -123,14 +118,6 @@ typedef struct com20020_dev_t {
     struct net_device       *dev;
 } com20020_dev_t;
 
-/*======================================================================
-
-    com20020_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static int com20020_probe(struct pcmcia_device *p_dev)
 {
     com20020_dev_t *info;
@@ -160,8 +147,7 @@ static int com20020_probe(struct pcmcia_device *p_dev)
 
     p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
     p_dev->resource[0]->end = 16;
-    p_dev->conf.Attributes = CONF_ENABLE_IRQ;
-    p_dev->conf.IntType = INT_MEMORY_AND_IO;
+    p_dev->config_flags |= CONF_ENABLE_IRQ;
 
     info->dev = dev;
     p_dev->priv = info;
@@ -173,15 +159,6 @@ fail_alloc_dev:
 fail_alloc_info:
     return -ENOMEM;
 } /* com20020_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void com20020_detach(struct pcmcia_device *link)
 {
@@ -220,14 +197,6 @@ static void com20020_detach(struct pcmcia_device *link)
     }
 
 } /* com20020_detach */
-
-/*======================================================================
-
-    com20020_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    device available to the system.
-
-======================================================================*/
 
 static int com20020_config(struct pcmcia_device *link)
 {
@@ -282,7 +251,7 @@ static int com20020_config(struct pcmcia_device *link)
 
     dev->irq = link->irq;
 
-    ret = pcmcia_request_configuration(link, &link->conf);
+    ret = pcmcia_enable_device(link);
     if (ret)
 	    goto failed;
 
@@ -301,13 +270,13 @@ static int com20020_config(struct pcmcia_device *link)
     i = com20020_found(dev, 0);	/* calls register_netdev */
     
     if (i != 0) {
-	dev_printk(KERN_NOTICE, &link->dev,
-		"com20020_cs: com20020_found() failed\n");
+	dev_notice(&link->dev,
+		   "com20020_found() failed\n");
 	goto failed;
     }
 
-    dev_dbg(&link->dev,KERN_INFO "%s: port %#3lx, irq %d\n",
-           dev->name, dev->base_addr, dev->irq);
+    netdev_dbg(dev, "port %#3lx, irq %d\n",
+	       dev->base_addr, dev->irq);
     return 0;
 
 failed:
@@ -315,14 +284,6 @@ failed:
     com20020_release(link);
     return -ENODEV;
 } /* com20020_config */
-
-/*======================================================================
-
-    After a card is removed, com20020_release() will unregister the net
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
 
 static void com20020_release(struct pcmcia_device *link)
 {
@@ -366,9 +327,7 @@ MODULE_DEVICE_TABLE(pcmcia, com20020_ids);
 
 static struct pcmcia_driver com20020_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "com20020_cs",
-	},
+	.name		= "com20020_cs",
 	.probe		= com20020_probe,
 	.remove		= com20020_detach,
 	.id_table	= com20020_ids,

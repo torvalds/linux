@@ -746,7 +746,6 @@ static int ncp_do_request(struct ncp_server *server, int size,
 		return -EIO;
 	}
 	if (!ncp_conn_valid(server)) {
-		printk(KERN_ERR "ncpfs: Connection invalid!\n");
 		return -EIO;
 	}
 	{

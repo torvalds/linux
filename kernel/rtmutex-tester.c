@@ -76,7 +76,9 @@ static int handle_op(struct test_thread_data *td, int lockwakeup)
 		}
 
 		if (!lockwakeup && td->bkl == 4) {
+#ifdef CONFIG_LOCK_KERNEL
 			unlock_kernel();
+#endif
 			td->bkl = 0;
 		}
 		return 0;
@@ -133,14 +135,18 @@ static int handle_op(struct test_thread_data *td, int lockwakeup)
 		if (td->bkl)
 			return 0;
 		td->bkl = 1;
+#ifdef CONFIG_LOCK_KERNEL
 		lock_kernel();
+#endif
 		td->bkl = 4;
 		return 0;
 
 	case RTTEST_UNLOCKBKL:
 		if (td->bkl != 4)
 			break;
+#ifdef CONFIG_LOCK_KERNEL
 		unlock_kernel();
+#endif
 		td->bkl = 0;
 		return 0;
 

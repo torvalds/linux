@@ -110,15 +110,6 @@ static const unsigned short bfin_nfc_pin_req[] =
 	 0};
 
 #ifdef CONFIG_MTD_NAND_BF5XX_BOOTROM_ECC
-static uint8_t bbt_pattern[] = { 0xff };
-
-static struct nand_bbt_descr bootrom_bbt = {
-	.options = 0,
-	.offs = 63,
-	.len = 1,
-	.pattern = bbt_pattern,
-};
-
 static struct nand_ecclayout bootrom_ecclayout = {
 	.eccbytes = 24,
 	.eccpos = {
@@ -809,7 +800,6 @@ static int __devinit bf5xx_nand_probe(struct platform_device *pdev)
 	/* setup hardware ECC data struct */
 	if (hardware_ecc) {
 #ifdef CONFIG_MTD_NAND_BF5XX_BOOTROM_ECC
-		chip->badblock_pattern = &bootrom_bbt;
 		chip->ecc.layout = &bootrom_ecclayout;
 #endif
 		chip->read_buf      = bf5xx_nand_dma_read_buf;
@@ -829,6 +819,10 @@ static int __devinit bf5xx_nand_probe(struct platform_device *pdev)
 		err = -ENXIO;
 		goto out_err_nand_scan;
 	}
+
+#ifdef CONFIG_MTD_NAND_BF5XX_BOOTROM_ECC
+	chip->badblockpos = 63;
+#endif
 
 	/* add NAND partition */
 	bf5xx_nand_add_partition(info);

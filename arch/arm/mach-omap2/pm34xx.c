@@ -32,13 +32,11 @@
 #include <plat/sram.h>
 #include <plat/clockdomain.h>
 #include <plat/powerdomain.h>
-#include <plat/control.h>
 #include <plat/serial.h>
 #include <plat/sdrc.h>
 #include <plat/prcm.h>
 #include <plat/gpmc.h>
 #include <plat/dma.h>
-#include <plat/dmtimer.h>
 
 #include <asm/tlbflush.h>
 
@@ -49,16 +47,12 @@
 #include "prm.h"
 #include "pm.h"
 #include "sdrc.h"
+#include "control.h"
 
 /* Scratchpad offsets */
-#define OMAP343X_TABLE_ADDRESS_OFFSET	   0x31
-#define OMAP343X_TABLE_VALUE_OFFSET	   0x30
-#define OMAP343X_CONTROL_REG_VALUE_OFFSET  0x32
-
-u32 enable_off_mode;
-u32 sleep_while_idle;
-u32 wakeup_timer_seconds;
-u32 wakeup_timer_milliseconds;
+#define OMAP343X_TABLE_ADDRESS_OFFSET	   0xc4
+#define OMAP343X_TABLE_VALUE_OFFSET	   0xc0
+#define OMAP343X_CONTROL_REG_VALUE_OFFSET  0xc8
 
 struct power_state {
 	struct powerdomain *pwrdm;
@@ -316,7 +310,7 @@ static void restore_control_register(u32 val)
 /* Function to restore the table entry that was modified for enabling MMU */
 static void restore_table_entry(void)
 {
-	u32 *scratchpad_address;
+	void __iomem *scratchpad_address;
 	u32 previous_value, control_reg_value;
 	u32 *address;
 
@@ -351,7 +345,6 @@ void omap_sram_idle(void)
 	int core_next_state = PWRDM_POWER_ON;
 	int core_prev_state, per_prev_state;
 	u32 sdrc_pwr = 0;
-	int per_state_modified = 0;
 
 	if (!_omap_sram_idle)
 		return;
@@ -385,9 +378,9 @@ void omap_sram_idle(void)
 	/* Enable IO-PAD and IO-CHAIN wakeups */
 	per_next_state = pwrdm_read_next_pwrst(per_pwrdm);
 	core_next_state = pwrdm_read_next_pwrst(core_pwrdm);
-	if (omap3_has_io_wakeup() && \
-			(per_next_state < PWRDM_POWER_ON ||
-			core_next_state < PWRDM_POWER_ON)) {
+	if (omap3_has_io_wakeup() &&
+	    (per_next_state < PWRDM_POWER_ON ||
+	     core_next_state < PWRDM_POWER_ON)) {
 		prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD, PM_WKEN);
 		omap3_enable_io_chain();
 	}
@@ -395,19 +388,11 @@ void omap_sram_idle(void)
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
 		omap_uart_prepare_idle(2);
+		omap_uart_prepare_idle(3);
 		omap2_gpio_prepare_for_idle(per_next_state);
-		if (per_next_state == PWRDM_POWER_OFF) {
-			if (core_next_state == PWRDM_POWER_ON) {
-				per_next_state = PWRDM_POWER_RET;
-				pwrdm_set_next_pwrst(per_pwrdm, per_next_state);
-				per_state_modified = 1;
-			} else
+		if (per_next_state == PWRDM_POWER_OFF)
 				omap3_per_save_context();
-		}
 	}
-
-	if (pwrdm_read_pwrst(cam_pwrdm) == PWRDM_POWER_ON)
-		omap2_clkdm_deny_idle(mpu_pwrdm->pwrdm_clkdms[0]);
 
 	/* CORE */
 	if (core_next_state < PWRDM_POWER_ON) {
@@ -475,8 +460,7 @@ void omap_sram_idle(void)
 		if (per_prev_state == PWRDM_POWER_OFF)
 			omap3_per_restore_context();
 		omap_uart_resume_idle(2);
-		if (per_state_modified)
-			pwrdm_set_next_pwrst(per_pwrdm, PWRDM_POWER_OFF);
+		omap_uart_resume_idle(3);
 	}
 
 	/* Disable IO-PAD and IO-CHAIN wakeup */
@@ -501,51 +485,6 @@ int omap3_can_sleep(void)
 	return 1;
 }
 
-/* This sets pwrdm state (other than mpu & core. Currently only ON &
- * RET are supported. Function is assuming that clkdm doesn't have
- * hw_sup mode enabled. */
-int set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
-{
-	u32 cur_state;
-	int sleep_switch = 0;
-	int ret = 0;
-
-	if (pwrdm == NULL || IS_ERR(pwrdm))
-		return -EINVAL;
-
-	while (!(pwrdm->pwrsts & (1 << state))) {
-		if (state == PWRDM_POWER_OFF)
-			return ret;
-		state--;
-	}
-
-	cur_state = pwrdm_read_next_pwrst(pwrdm);
-	if (cur_state == state)
-		return ret;
-
-	if (pwrdm_read_pwrst(pwrdm) < PWRDM_POWER_ON) {
-		omap2_clkdm_wakeup(pwrdm->pwrdm_clkdms[0]);
-		sleep_switch = 1;
-		pwrdm_wait_transition(pwrdm);
-	}
-
-	ret = pwrdm_set_next_pwrst(pwrdm, state);
-	if (ret) {
-		printk(KERN_ERR "Unable to set state of powerdomain: %s\n",
-		       pwrdm->name);
-		goto err;
-	}
-
-	if (sleep_switch) {
-		omap2_clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
-		pwrdm_wait_transition(pwrdm);
-		pwrdm_state_switch(pwrdm);
-	}
-
-err:
-	return ret;
-}
-
 static void omap3_pm_idle(void)
 {
 	local_irq_disable();
@@ -567,23 +506,6 @@ out:
 #ifdef CONFIG_SUSPEND
 static suspend_state_t suspend_state;
 
-static void omap2_pm_wakeup_on_timer(u32 seconds, u32 milliseconds)
-{
-	u32 tick_rate, cycles;
-
-	if (!seconds && !milliseconds)
-		return;
-
-	tick_rate = clk_get_rate(omap_dm_timer_get_fclk(gptimer_wakeup));
-	cycles = tick_rate * seconds + tick_rate * milliseconds / 1000;
-	omap_dm_timer_stop(gptimer_wakeup);
-	omap_dm_timer_set_load_start(gptimer_wakeup, 0, 0xffffffff - cycles);
-
-	pr_info("PM: Resume timer in %u.%03u secs"
-		" (%d ticks at %d ticks/sec.)\n",
-		seconds, milliseconds, cycles, tick_rate);
-}
-
 static int omap3_pm_prepare(void)
 {
 	disable_hlt();
@@ -604,7 +526,7 @@ static int omap3_pm_suspend(void)
 		pwrst->saved_state = pwrdm_read_next_pwrst(pwrst->pwrdm);
 	/* Set ones wanted by suspend */
 	list_for_each_entry(pwrst, &pwrst_list, node) {
-		if (set_pwrdm_state(pwrst->pwrdm, pwrst->next_state))
+		if (omap_set_pwrdm_state(pwrst->pwrdm, pwrst->next_state))
 			goto restore;
 		if (pwrdm_clear_all_prev_pwrst(pwrst->pwrdm))
 			goto restore;
@@ -625,7 +547,7 @@ restore:
 			       pwrst->pwrdm->name, pwrst->next_state);
 			ret = -1;
 		}
-		set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
+		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
 	}
 	if (ret)
 		printk(KERN_ERR "Could not enter target state in pm_suspend\n");
@@ -756,6 +678,14 @@ static void __init omap3_d2d_idle(void)
 
 static void __init prcm_setup_regs(void)
 {
+	u32 omap3630_auto_uart4_mask = cpu_is_omap3630() ?
+					OMAP3630_AUTO_UART4_MASK : 0;
+	u32 omap3630_en_uart4_mask = cpu_is_omap3630() ?
+					OMAP3630_EN_UART4_MASK : 0;
+	u32 omap3630_grpsel_uart4_mask = cpu_is_omap3630() ?
+					OMAP3630_GRPSEL_UART4_MASK : 0;
+
+
 	/* XXX Reset all wkdeps. This should be done when initializing
 	 * powerdomains */
 	prm_write_mod_reg(0, OMAP3430_IVA2_MOD, PM_WKDEP);
@@ -842,6 +772,7 @@ static void __init prcm_setup_regs(void)
 		CM_AUTOIDLE);
 
 	cm_write_mod_reg(
+		omap3630_auto_uart4_mask |
 		OMAP3430_AUTO_GPIO6_MASK |
 		OMAP3430_AUTO_GPIO5_MASK |
 		OMAP3430_AUTO_GPIO4_MASK |
@@ -918,14 +849,16 @@ static void __init prcm_setup_regs(void)
 				OMAP3430_DSS_MOD, PM_WKEN);
 
 	/* Enable wakeups in PER */
-	prm_write_mod_reg(OMAP3430_EN_GPIO2_MASK | OMAP3430_EN_GPIO3_MASK |
+	prm_write_mod_reg(omap3630_en_uart4_mask |
+			  OMAP3430_EN_GPIO2_MASK | OMAP3430_EN_GPIO3_MASK |
 			  OMAP3430_EN_GPIO4_MASK | OMAP3430_EN_GPIO5_MASK |
 			  OMAP3430_EN_GPIO6_MASK | OMAP3430_EN_UART3_MASK |
 			  OMAP3430_EN_MCBSP2_MASK | OMAP3430_EN_MCBSP3_MASK |
 			  OMAP3430_EN_MCBSP4_MASK,
 			  OMAP3430_PER_MOD, PM_WKEN);
 	/* and allow them to wake up MPU */
-	prm_write_mod_reg(OMAP3430_GRPSEL_GPIO2_MASK |
+	prm_write_mod_reg(omap3630_grpsel_uart4_mask |
+			  OMAP3430_GRPSEL_GPIO2_MASK |
 			  OMAP3430_GRPSEL_GPIO3_MASK |
 			  OMAP3430_GRPSEL_GPIO4_MASK |
 			  OMAP3430_GRPSEL_GPIO5_MASK |
@@ -974,7 +907,7 @@ void omap3_pm_off_mode_enable(int enable)
 
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		pwrst->next_state = state;
-		set_pwrdm_state(pwrst->pwrdm, state);
+		omap_set_pwrdm_state(pwrst->pwrdm, state);
 	}
 }
 
@@ -1019,7 +952,7 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 	if (pwrdm_has_hdwr_sar(pwrdm))
 		pwrdm_enable_hdwr_sar(pwrdm);
 
-	return set_pwrdm_state(pwrst->pwrdm, pwrst->next_state);
+	return omap_set_pwrdm_state(pwrst->pwrdm, pwrst->next_state);
 }
 
 /*
@@ -1029,9 +962,6 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
  */
 static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
 {
-	clkdm_clear_all_wkdeps(clkdm);
-	clkdm_clear_all_sleepdeps(clkdm);
-
 	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
 		omap2_clkdm_allow_idle(clkdm);
 	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&

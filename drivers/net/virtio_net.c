@@ -705,19 +705,6 @@ static int virtnet_close(struct net_device *dev)
 	return 0;
 }
 
-static void virtnet_get_drvinfo(struct net_device *dev,
-				struct ethtool_drvinfo *drvinfo)
-{
-	struct virtnet_info *vi = netdev_priv(dev);
-	struct virtio_device *vdev = vi->vdev;
-
-	strncpy(drvinfo->driver, KBUILD_MODNAME, ARRAY_SIZE(drvinfo->driver));
-	strncpy(drvinfo->version, "N/A", ARRAY_SIZE(drvinfo->version));
-	strncpy(drvinfo->fw_version, "N/A", ARRAY_SIZE(drvinfo->fw_version));
-	strncpy(drvinfo->bus_info, dev_name(&vdev->dev),
-		ARRAY_SIZE(drvinfo->bus_info));
-}
-
 static int virtnet_set_tx_csum(struct net_device *dev, u32 data)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
@@ -830,7 +817,6 @@ static void virtnet_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 }
 
 static const struct ethtool_ops virtnet_ethtool_ops = {
-	.get_drvinfo = virtnet_get_drvinfo,
 	.set_tx_csum = virtnet_set_tx_csum,
 	.set_sg = ethtool_op_set_sg,
 	.set_tso = ethtool_op_set_tso,
@@ -1000,9 +986,15 @@ static int virtnet_probe(struct virtio_device *vdev)
 		goto unregister;
 	}
 
-	vi->status = VIRTIO_NET_S_LINK_UP;
-	virtnet_update_status(vi);
-	netif_carrier_on(dev);
+	/* Assume link up if device can't report link status,
+	   otherwise get link status from config. */
+	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_STATUS)) {
+		netif_carrier_off(dev);
+		virtnet_update_status(vi);
+	} else {
+		vi->status = VIRTIO_NET_S_LINK_UP;
+		netif_carrier_on(dev);
+	}
 
 	pr_debug("virtnet: registered device %s\n", dev->name);
 	return 0;

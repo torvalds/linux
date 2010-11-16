@@ -251,7 +251,6 @@ static ssize_t dasd_stats_proc_write(struct file *file,
 	buffer = dasd_get_user_string(user_buf, user_len);
 	if (IS_ERR(buffer))
 		return PTR_ERR(buffer);
-	DBF_EVENT(DBF_DEBUG, "/proc/dasd/statictics: '%s'\n", buffer);
 
 	/* check for valid verbs */
 	str = skip_spaces(buffer);

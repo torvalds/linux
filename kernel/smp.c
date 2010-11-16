@@ -267,7 +267,7 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(struct call_single_data, csd_data);
  *
  * Returns 0 on success, else a negative status code.
  */
-int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
+int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 			     int wait)
 {
 	struct call_single_data d = {
@@ -336,7 +336,7 @@ EXPORT_SYMBOL(smp_call_function_single);
  *	3) any other online cpu in @mask
  */
 int smp_call_function_any(const struct cpumask *mask,
-			  void (*func)(void *info), void *info, int wait)
+			  smp_call_func_t func, void *info, int wait)
 {
 	unsigned int cpu;
 	const struct cpumask *nodemask;
@@ -416,7 +416,7 @@ void __smp_call_function_single(int cpu, struct call_single_data *data,
  * must be disabled when calling this function.
  */
 void smp_call_function_many(const struct cpumask *mask,
-			    void (*func)(void *), void *info, bool wait)
+			    smp_call_func_t func, void *info, bool wait)
 {
 	struct call_function_data *data;
 	unsigned long flags;
@@ -500,7 +500,7 @@ EXPORT_SYMBOL(smp_call_function_many);
  * You must not call this function with disabled interrupts or from a
  * hardware interrupt handler or from a bottom half handler.
  */
-int smp_call_function(void (*func)(void *), void *info, int wait)
+int smp_call_function(smp_call_func_t func, void *info, int wait)
 {
 	preempt_disable();
 	smp_call_function_many(cpu_online_mask, func, info, wait);

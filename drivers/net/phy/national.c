@@ -151,7 +151,7 @@ MODULE_LICENSE("GPL");
 module_init(ns_init);
 module_exit(ns_exit);
 
-static struct mdio_device_id ns_tbl[] = {
+static struct mdio_device_id __maybe_unused ns_tbl[] = {
 	{ DP83865_PHY_ID, 0xfffffff0 },
 	{ }
 };

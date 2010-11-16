@@ -20,11 +20,9 @@
  * Debug output is hardcoded to standard UART 5
 */
 
-	.macro	addruart,rx, tmp
-	mrc	p15, 0, \rx, c1, c0
-	tst	\rx, #1				@ MMU enabled?
-	ldreq	\rx, =0x40090000
-	ldrne	\rx, =0xF4090000
+	.macro	addruart, rp, rv
+	ldreq	\rp, =0x40090000
+	ldrne	\rv, =0xF4090000
 	.endm
 
 #define UART_SHIFT	2

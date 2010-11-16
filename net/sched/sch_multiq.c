@@ -227,8 +227,7 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
 	for (i = 0; i < q->bands; i++) {
 		if (q->queues[i] == &noop_qdisc) {
 			struct Qdisc *child, *old;
-			child = qdisc_create_dflt(qdisc_dev(sch),
-						  sch->dev_queue,
+			child = qdisc_create_dflt(sch->dev_queue,
 						  &pfifo_qdisc_ops,
 						  TC_H_MAKE(sch->handle,
 							    i + 1));

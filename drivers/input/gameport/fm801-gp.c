@@ -133,11 +133,11 @@ static void __devexit fm801_gp_remove(struct pci_dev *pci)
 {
 	struct fm801_gp *gp = pci_get_drvdata(pci);
 
-	if (gp) {
-		gameport_unregister_port(gp->gameport);
-		release_resource(gp->res_port);
-		kfree(gp);
-	}
+	gameport_unregister_port(gp->gameport);
+	release_resource(gp->res_port);
+	kfree(gp);
+
+	pci_disable_device(pci);
 }
 
 static const struct pci_device_id fm801_gp_id_table[] = {

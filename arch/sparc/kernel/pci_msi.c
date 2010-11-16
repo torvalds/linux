@@ -114,10 +114,10 @@ static void free_msi(struct pci_pbm_info *pbm, int msi_num)
 
 static struct irq_chip msi_irq = {
 	.name		= "PCI-MSI",
-	.mask		= mask_msi_irq,
-	.unmask		= unmask_msi_irq,
-	.enable		= unmask_msi_irq,
-	.disable	= mask_msi_irq,
+	.irq_mask	= mask_msi_irq,
+	.irq_unmask	= unmask_msi_irq,
+	.irq_enable	= unmask_msi_irq,
+	.irq_disable	= mask_msi_irq,
 	/* XXX affinity XXX */
 };
 

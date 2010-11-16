@@ -66,10 +66,6 @@
 #define bio_offset(bio)		bio_iovec((bio))->bv_offset
 #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_idx)
 #define bio_sectors(bio)	((bio)->bi_size >> 9)
-#define bio_empty_barrier(bio) \
-	((bio->bi_rw & REQ_HARDBARRIER) && \
-	 !bio_has_data(bio) && \
-	 !(bio->bi_rw & REQ_DISCARD))
 
 static inline unsigned int bio_cur_bytes(struct bio *bio)
 {
@@ -346,8 +342,15 @@ static inline void bvec_kunmap_irq(char *buffer, unsigned long *flags)
 }
 
 #else
-#define bvec_kmap_irq(bvec, flags)	(page_address((bvec)->bv_page) + (bvec)->bv_offset)
-#define bvec_kunmap_irq(buf, flags)	do { *(flags) = 0; } while (0)
+static inline char *bvec_kmap_irq(struct bio_vec *bvec, unsigned long *flags)
+{
+	return page_address(bvec->bv_page) + bvec->bv_offset;
+}
+
+static inline void bvec_kunmap_irq(char *buffer, unsigned long *flags)
+{
+	*flags = 0;
+}
 #endif
 
 static inline char *__bio_kmap_irq(struct bio *bio, unsigned short idx,
@@ -495,6 +498,10 @@ static inline struct bio *bio_list_get(struct bio_list *bl)
 
 #define bip_for_each_vec(bvl, bip, i)					\
 	__bip_for_each_vec(bvl, bip, i, (bip)->bip_idx)
+
+#define bio_for_each_integrity_vec(_bvl, _bio, _iter)			\
+	for_each_bio(_bio)						\
+		bip_for_each_vec(_bvl, _bio->bi_integrity, _iter)
 
 #define bio_integrity(bio) (bio->bi_integrity != NULL)
 

@@ -101,7 +101,7 @@ static int minix_link(struct dentry * old_dentry, struct inode * dir,
 
 	inode->i_ctime = CURRENT_TIME_SEC;
 	inode_inc_link_count(inode);
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 	return add_nondir(dentry, inode);
 }
 

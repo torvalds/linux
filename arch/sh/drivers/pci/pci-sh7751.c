@@ -81,7 +81,7 @@ static int __init sh7751_pci_init(void)
 	unsigned int id;
 	u32 word, reg;
 
-	printk(KERN_NOTICE "PCI: Starting intialization.\n");
+	printk(KERN_NOTICE "PCI: Starting initialization.\n");
 
 	chan->reg_base = 0xfe200000;
 

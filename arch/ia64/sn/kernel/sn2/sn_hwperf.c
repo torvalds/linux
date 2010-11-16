@@ -860,6 +860,7 @@ error:
 
 static const struct file_operations sn_hwperf_fops = {
 	.unlocked_ioctl = sn_hwperf_ioctl,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice sn_hwperf_dev = {

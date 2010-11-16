@@ -692,8 +692,7 @@ xfs_buf_item_init(
 	 * the first.  If we do already have one, there is
 	 * nothing to do here so return.
 	 */
-	if (bp->b_mount != mp)
-		bp->b_mount = mp;
+	ASSERT(bp->b_target->bt_mount == mp);
 	if (XFS_BUF_FSPRIVATE(bp, void *) != NULL) {
 		lip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
 		if (lip->li_type == XFS_LI_BUF) {
@@ -974,7 +973,7 @@ xfs_buf_iodone_callbacks(
 			xfs_buf_do_callbacks(bp, lip);
 			XFS_BUF_SET_FSPRIVATE(bp, NULL);
 			XFS_BUF_CLR_IODONE_FUNC(bp);
-			xfs_biodone(bp);
+			xfs_buf_ioend(bp, 0);
 			return;
 		}
 
@@ -1033,7 +1032,7 @@ xfs_buf_iodone_callbacks(
 	xfs_buf_do_callbacks(bp, lip);
 	XFS_BUF_SET_FSPRIVATE(bp, NULL);
 	XFS_BUF_CLR_IODONE_FUNC(bp);
-	xfs_biodone(bp);
+	xfs_buf_ioend(bp, 0);
 }
 
 /*

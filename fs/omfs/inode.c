@@ -557,17 +557,16 @@ end:
 	return ret;
 }
 
-static int omfs_get_sb(struct file_system_type *fs_type,
-			int flags, const char *dev_name,
-			void *data, struct vfsmount *m)
+static struct dentry *omfs_mount(struct file_system_type *fs_type,
+			int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, omfs_fill_super, m);
+	return mount_bdev(fs_type, flags, dev_name, data, omfs_fill_super);
 }
 
 static struct file_system_type omfs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "omfs",
-	.get_sb = omfs_get_sb,
+	.mount = omfs_mount,
 	.kill_sb = kill_block_super,
 	.fs_flags = FS_REQUIRES_DEV,
 };

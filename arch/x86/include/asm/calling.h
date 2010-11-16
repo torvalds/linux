@@ -48,36 +48,38 @@ For 32-bit we have the following conventions - kernel is built with
 
 
 /*
- * 64-bit system call stack frame layout defines and helpers,
- * for assembly code:
+ * 64-bit system call stack frame layout defines and helpers, for
+ * assembly code (note that the seemingly unnecessary parentheses
+ * are to prevent cpp from inserting spaces in expressions that get
+ * passed to macros):
  */
 
-#define R15		  0
-#define R14		  8
-#define R13		 16
-#define R12		 24
-#define RBP		 32
-#define RBX		 40
+#define R15		  (0)
+#define R14		  (8)
+#define R13		 (16)
+#define R12		 (24)
+#define RBP		 (32)
+#define RBX		 (40)
 
 /* arguments: interrupts/non tracing syscalls only save up to here: */
-#define R11		 48
-#define R10		 56
-#define R9		 64
-#define R8		 72
-#define RAX		 80
-#define RCX		 88
-#define RDX		 96
-#define RSI		104
-#define RDI		112
-#define ORIG_RAX	120       /* + error_code */
+#define R11		 (48)
+#define R10		 (56)
+#define R9		 (64)
+#define R8		 (72)
+#define RAX		 (80)
+#define RCX		 (88)
+#define RDX		 (96)
+#define RSI		(104)
+#define RDI		(112)
+#define ORIG_RAX	(120)       /* + error_code */
 /* end of arguments */
 
 /* cpu exception frame or undefined in case of fast syscall: */
-#define RIP		128
-#define CS		136
-#define EFLAGS		144
-#define RSP		152
-#define SS		160
+#define RIP		(128)
+#define CS		(136)
+#define EFLAGS		(144)
+#define RSP		(152)
+#define SS		(160)
 
 #define ARGOFFSET	R11
 #define SWFRAME		ORIG_RAX
@@ -111,7 +113,7 @@ For 32-bit we have the following conventions - kernel is built with
 	.endif
 	.endm
 
-#define ARG_SKIP	9*8
+#define ARG_SKIP	(9*8)
 
 	.macro RESTORE_ARGS skiprax=0, addskip=0, skiprcx=0, skipr11=0, \
 			    skipr8910=0, skiprdx=0
@@ -169,7 +171,7 @@ For 32-bit we have the following conventions - kernel is built with
 	.endif
 	.endm
 
-#define REST_SKIP	6*8
+#define REST_SKIP	(6*8)
 
 	.macro SAVE_REST
 	subq $REST_SKIP, %rsp

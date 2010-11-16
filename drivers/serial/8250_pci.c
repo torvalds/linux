@@ -2285,6 +2285,8 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 
 static const struct pci_device_id softmodem_blacklist[] = {
 	{ PCI_VDEVICE(AL, 0x5457), }, /* ALi Corporation M5457 AC'97 Modem */
+	{ PCI_VDEVICE(MOTOROLA, 0x3052), }, /* Motorola Si3052-based modem */
+	{ PCI_DEVICE(0x1543, 0x3052), }, /* Si3052-based modem, default IDs */
 };
 
 /*
@@ -2863,6 +2865,9 @@ static struct pci_device_id serial_pci_tbl[] = {
 		PCI_SUBVENDOR_ID_SIIG, PCI_SUBDEVICE_ID_SIIG_QUARTET_SERIAL,
 		0, 0,
 		pbn_b0_4_1152000 },
+	{	PCI_VENDOR_ID_OXSEMI, 0x9505,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b0_bt_2_921600 },
 
 		/*
 		 * The below card is a little controversial since it is the

@@ -47,8 +47,8 @@ tape_std_assign_timeout(unsigned long data)
 			device->cdev_id);
 	rc = tape_cancel_io(device, request);
 	if(rc)
-		DBF_EVENT(3, "(%s): Assign timeout: Cancel failed with rc = %i\n",
-			dev_name(&device->cdev->dev), rc);
+		DBF_EVENT(3, "(%08x): Assign timeout: Cancel failed with rc = "
+			  "%i\n", device->cdev_id, rc);
 }
 
 int

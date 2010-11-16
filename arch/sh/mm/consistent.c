@@ -38,11 +38,12 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 	void *ret, *ret_nocache;
 	int order = get_order(size);
 
+	gfp |= __GFP_ZERO;
+
 	ret = (void *)__get_free_pages(gfp, order);
 	if (!ret)
 		return NULL;
 
-	memset(ret, 0, size);
 	/*
 	 * Pages from the page allocator may have data present in
 	 * cache. So flush the cache before using uncached memory.
@@ -78,21 +79,20 @@ void dma_generic_free_coherent(struct device *dev, size_t size,
 void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		    enum dma_data_direction direction)
 {
-#if defined(CONFIG_CPU_SH5) || defined(CONFIG_PMB)
-	void *p1addr = vaddr;
-#else
-	void *p1addr = (void*) P1SEGADDR((unsigned long)vaddr);
-#endif
+	void *addr;
+
+	addr = __in_29bit_mode() ?
+	       (void *)P1SEGADDR((unsigned long)vaddr) : vaddr;
 
 	switch (direction) {
 	case DMA_FROM_DEVICE:		/* invalidate only */
-		__flush_invalidate_region(p1addr, size);
+		__flush_invalidate_region(addr, size);
 		break;
 	case DMA_TO_DEVICE:		/* writeback only */
-		__flush_wback_region(p1addr, size);
+		__flush_wback_region(addr, size);
 		break;
 	case DMA_BIDIRECTIONAL:		/* writeback and invalidate */
-		__flush_purge_region(p1addr, size);
+		__flush_purge_region(addr, size);
 		break;
 	default:
 		BUG();

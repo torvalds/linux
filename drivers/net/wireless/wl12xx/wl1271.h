@@ -117,10 +117,7 @@ enum {
 #define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
 #define WL1271_TX_SECURITY_HI32(s) ((u32)(((s) >> 16) & 0xffffffff))
 
-/*
- * Enable/disable 802.11a support for WL1273
- */
-#undef WL1271_80211A_ENABLED
+#define WL1271_CIPHER_SUITE_GEM 0x00147201
 
 #define WL1271_BUSY_WORD_CNT 1
 #define WL1271_BUSY_WORD_LEN (WL1271_BUSY_WORD_CNT * sizeof(u32))
@@ -132,6 +129,8 @@ enum {
 #define WL1271_DEFAULT_DTIM_PERIOD 1
 
 #define ACX_TX_DESCRIPTORS         32
+
+#define WL1271_AGGR_BUFFER_SIZE (4 * PAGE_SIZE)
 
 enum wl1271_state {
 	WL1271_STATE_OFF,
@@ -301,6 +300,7 @@ struct wl1271_rx_mem_pool_addr {
 struct wl1271_scan {
 	struct cfg80211_scan_request *req;
 	bool *scanned_ch;
+	bool failed;
 	u8 state;
 	u8 ssid[IW_ESSID_MAX_SIZE+1];
 	size_t ssid_len;
@@ -313,7 +313,7 @@ struct wl1271_if_operations {
 		     bool fixed);
 	void (*reset)(struct wl1271 *wl);
 	void (*init)(struct wl1271 *wl);
-	void (*power)(struct wl1271 *wl, bool enable);
+	int (*power)(struct wl1271 *wl, bool enable);
 	struct device* (*dev)(struct wl1271 *wl);
 	void (*enable_irq)(struct wl1271 *wl);
 	void (*disable_irq)(struct wl1271 *wl);
@@ -330,6 +330,7 @@ struct wl1271 {
 
 	void (*set_power)(bool enable);
 	int irq;
+	int ref_clock;
 
 	spinlock_t wl_lock;
 
@@ -349,6 +350,7 @@ struct wl1271 {
 #define WL1271_FLAG_IDLE              (10)
 #define WL1271_FLAG_IDLE_REQUESTED    (11)
 #define WL1271_FLAG_PSPOLL_FAILURE    (12)
+#define WL1271_FLAG_STA_STATE_SENT    (13)
 	unsigned long flags;
 
 	struct wl1271_partition_set part;
@@ -361,6 +363,7 @@ struct wl1271 {
 	u8 *fw;
 	size_t fw_len;
 	struct wl1271_nvs_file *nvs;
+	size_t nvs_len;
 
 	s8 hw_pg_ver;
 
@@ -407,8 +410,14 @@ struct wl1271 {
 	/* Rx memory pool address */
 	struct wl1271_rx_mem_pool_addr rx_mem_pool_addr;
 
+	/* Intermediate buffer, used for packet aggregation */
+	u8 *aggr_buf;
+
 	/* The target interrupt mask */
 	struct work_struct irq_work;
+
+	/* Hardware recovery work */
+	struct work_struct recovery_work;
 
 	/* The mbox event mask */
 	u32 event_mask;
@@ -418,6 +427,7 @@ struct wl1271 {
 
 	/* Are we currently scanning */
 	struct wl1271_scan scan;
+	struct delayed_work scan_complete_work;
 
 	/* Our association ID */
 	u16 aid;
@@ -474,6 +484,8 @@ struct wl1271 {
 
 	bool sg_enabled;
 
+	bool enable_11a;
+
 	struct list_head list;
 
 	/* Most recently reported noise in dBm */
@@ -496,15 +508,5 @@ int wl1271_plt_stop(struct wl1271 *wl);
    on in case is has been shut down shortly before */
 #define WL1271_PRE_POWER_ON_SLEEP 20 /* in miliseconds */
 #define WL1271_POWER_ON_SLEEP 200 /* in miliseconds */
-
-static inline bool wl1271_11a_enabled(void)
-{
-	/* FIXME: this could be determined based on the NVS-INI file */
-#ifdef WL1271_80211A_ENABLED
-	return true;
-#else
-	return false;
-#endif
-}
 
 #endif

@@ -728,6 +728,22 @@ struct t3_cq {
 #define CQ_VLD_ENTRY(ptr,size_log2,cqe) (Q_GENBIT(ptr,size_log2) == \
 					 CQE_GENBIT(*cqe))
 
+struct t3_cq_status_page {
+	u32 cq_err;
+};
+
+static inline int cxio_cq_in_error(struct t3_cq *cq)
+{
+	return ((struct t3_cq_status_page *)
+		&cq->queue[1 << cq->size_log2])->cq_err;
+}
+
+static inline void cxio_set_cq_in_error(struct t3_cq *cq)
+{
+	((struct t3_cq_status_page *)
+	 &cq->queue[1 << cq->size_log2])->cq_err = 1;
+}
+
 static inline void cxio_set_wq_in_error(struct t3_wq *wq)
 {
 	wq->queue->wq_in_err.err |= 1;

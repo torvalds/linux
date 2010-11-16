@@ -36,7 +36,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/i2c-addr.h>
-#include <media/v4l2-i2c-drv.h>
 
 #ifndef VIDEO_AUDIO_BALANCE
 # define VIDEO_AUDIO_BALANCE 32
@@ -472,9 +471,25 @@ static const struct i2c_device_id tda7432_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tda7432_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "tda7432",
-	.probe = tda7432_probe,
-	.remove = tda7432_remove,
-	.id_table = tda7432_id,
+static struct i2c_driver tda7432_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tda7432",
+	},
+	.probe		= tda7432_probe,
+	.remove		= tda7432_remove,
+	.id_table	= tda7432_id,
 };
+
+static __init int init_tda7432(void)
+{
+	return i2c_add_driver(&tda7432_driver);
+}
+
+static __exit void exit_tda7432(void)
+{
+	i2c_del_driver(&tda7432_driver);
+}
+
+module_init(init_tda7432);
+module_exit(exit_tda7432);

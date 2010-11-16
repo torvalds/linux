@@ -24,7 +24,6 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-#include <sound/soc-of-simple.h>
 
 #include "mpc5200_dma.h"
 #include "mpc5200_psc_ac97.h"
@@ -32,21 +31,24 @@
 
 #define DRV_NAME "pcm030-audio-fabric"
 
-static struct snd_soc_device device;
 static struct snd_soc_card card;
 
 static struct snd_soc_dai_link pcm030_fabric_dai[] = {
 {
 	.name = "AC97",
 	.stream_name = "AC97 Analog",
-	.codec_dai = &wm9712_dai[WM9712_DAI_AC97_HIFI],
-	.cpu_dai = &psc_ac97_dai[MPC5200_AC97_NORMAL],
+	.codec_dai_name = "wm9712-hifi",
+	.cpu_dai_name = "mpc5200-psc-ac97.0",
+	.platform_name = "mpc5200-pcm-audio",
+	.codec_name = "wm9712-codec",
 },
 {
 	.name = "AC97",
 	.stream_name = "AC97 IEC958",
-	.codec_dai = &wm9712_dai[WM9712_DAI_AC97_AUX],
-	.cpu_dai = &psc_ac97_dai[MPC5200_AC97_SPDIF],
+	.codec_dai_name = "wm9712-aux",
+	.cpu_dai_name = "mpc5200-psc-ac97.1",
+	.platform_name = "mpc5200-pcm-audio",
+	.codec_name = "wm9712-codec",
 },
 };
 
@@ -58,13 +60,10 @@ static __init int pcm030_fabric_init(void)
 	if (!of_machine_is_compatible("phytec,pcm030"))
 		return -ENODEV;
 
-	card.platform = &mpc5200_audio_dma_platform;
+
 	card.name = "pcm030";
 	card.dai_link = pcm030_fabric_dai;
 	card.num_links = ARRAY_SIZE(pcm030_fabric_dai);
-
-	device.card = &card;
-	device.codec_dev = &soc_codec_dev_wm9712;
 
 	pdev = platform_device_alloc("soc-audio", 1);
 	if (!pdev) {
@@ -72,8 +71,7 @@ static __init int pcm030_fabric_init(void)
 		return -ENODEV;
 	}
 
-	platform_set_drvdata(pdev, &device);
-	device.dev = &pdev->dev;
+	platform_set_drvdata(pdev, &card);
 
 	rc = platform_device_add(pdev);
 	if (rc) {

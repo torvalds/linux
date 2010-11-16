@@ -6,7 +6,7 @@
 #include "event.h"
 
 extern int verbose;
-extern bool dump_trace;
+extern bool quiet, dump_trace;
 
 int dump_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 void trace_event(event_t *event);

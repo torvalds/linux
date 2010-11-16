@@ -41,6 +41,17 @@
 #define CACHE_DLIMIT	16384
 
 /*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(v4wt_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(v4wt_flush_icache_all)
+
+/*
  *	flush_user_cache_all()
  *
  *	Invalidate all cache entries in a particular address
@@ -188,6 +199,7 @@ ENDPROC(v4wt_dma_map_area)
 
 	.type	v4wt_cache_fns, #object
 ENTRY(v4wt_cache_fns)
+	.long	v4wt_flush_icache_all
 	.long	v4wt_flush_kern_cache_all
 	.long	v4wt_flush_user_cache_all
 	.long	v4wt_flush_user_cache_range

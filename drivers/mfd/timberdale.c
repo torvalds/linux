@@ -43,6 +43,8 @@
 
 #include <linux/timb_dma.h>
 
+#include <linux/ks8842.h>
+
 #include "timberdale.h"
 
 #define DRIVER_NAME "timberdale"
@@ -159,6 +161,12 @@ static const __devinitconst struct resource timberdale_spi_resources[] = {
 		.end	= IRQ_TIMBERDALE_SPI,
 		.flags	= IORESOURCE_IRQ,
 	},
+};
+
+static __devinitdata struct ks8842_platform_data
+	timberdale_ks8842_platform_data = {
+	.rx_dma_channel = DMA_ETH_RX,
+	.tx_dma_channel = DMA_ETH_TX
 };
 
 static const __devinitconst struct resource timberdale_eth_resources[] = {
@@ -389,6 +397,8 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg0[] = {
 		.name = "ks8842",
 		.num_resources = ARRAY_SIZE(timberdale_eth_resources),
 		.resources = timberdale_eth_resources,
+		.platform_data = &timberdale_ks8842_platform_data,
+		.data_size = sizeof(timberdale_ks8842_platform_data)
 	},
 };
 
@@ -447,6 +457,8 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg1[] = {
 		.name = "ks8842",
 		.num_resources = ARRAY_SIZE(timberdale_eth_resources),
 		.resources = timberdale_eth_resources,
+		.platform_data = &timberdale_ks8842_platform_data,
+		.data_size = sizeof(timberdale_ks8842_platform_data)
 	},
 };
 
@@ -538,6 +550,8 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg3[] = {
 		.name = "ks8842",
 		.num_resources = ARRAY_SIZE(timberdale_eth_resources),
 		.resources = timberdale_eth_resources,
+		.platform_data = &timberdale_ks8842_platform_data,
+		.data_size = sizeof(timberdale_ks8842_platform_data)
 	},
 };
 

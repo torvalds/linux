@@ -203,7 +203,92 @@ struct ttm_tt {
  * It's set up by the ttm_bo_driver::init_mem_type method.
  */
 
+struct ttm_mem_type_manager;
+
+struct ttm_mem_type_manager_func {
+	/**
+	 * struct ttm_mem_type_manager member init
+	 *
+	 * @man: Pointer to a memory type manager.
+	 * @p_size: Implementation dependent, but typically the size of the
+	 * range to be managed in pages.
+	 *
+	 * Called to initialize a private range manager. The function is
+	 * expected to initialize the man::priv member.
+	 * Returns 0 on success, negative error code on failure.
+	 */
+	int  (*init)(struct ttm_mem_type_manager *man, unsigned long p_size);
+
+	/**
+	 * struct ttm_mem_type_manager member takedown
+	 *
+	 * @man: Pointer to a memory type manager.
+	 *
+	 * Called to undo the setup done in init. All allocated resources
+	 * should be freed.
+	 */
+	int  (*takedown)(struct ttm_mem_type_manager *man);
+
+	/**
+	 * struct ttm_mem_type_manager member get_node
+	 *
+	 * @man: Pointer to a memory type manager.
+	 * @bo: Pointer to the buffer object we're allocating space for.
+	 * @placement: Placement details.
+	 * @mem: Pointer to a struct ttm_mem_reg to be filled in.
+	 *
+	 * This function should allocate space in the memory type managed
+	 * by @man. Placement details if
+	 * applicable are given by @placement. If successful,
+	 * @mem::mm_node should be set to a non-null value, and
+	 * @mem::start should be set to a value identifying the beginning
+	 * of the range allocated, and the function should return zero.
+	 * If the memory region accomodate the buffer object, @mem::mm_node
+	 * should be set to NULL, and the function should return 0.
+	 * If a system error occured, preventing the request to be fulfilled,
+	 * the function should return a negative error code.
+	 *
+	 * Note that @mem::mm_node will only be dereferenced by
+	 * struct ttm_mem_type_manager functions and optionally by the driver,
+	 * which has knowledge of the underlying type.
+	 *
+	 * This function may not be called from within atomic context, so
+	 * an implementation can and must use either a mutex or a spinlock to
+	 * protect any data structures managing the space.
+	 */
+	int  (*get_node)(struct ttm_mem_type_manager *man,
+			 struct ttm_buffer_object *bo,
+			 struct ttm_placement *placement,
+			 struct ttm_mem_reg *mem);
+
+	/**
+	 * struct ttm_mem_type_manager member put_node
+	 *
+	 * @man: Pointer to a memory type manager.
+	 * @mem: Pointer to a struct ttm_mem_reg to be filled in.
+	 *
+	 * This function frees memory type resources previously allocated
+	 * and that are identified by @mem::mm_node and @mem::start. May not
+	 * be called from within atomic context.
+	 */
+	void (*put_node)(struct ttm_mem_type_manager *man,
+			 struct ttm_mem_reg *mem);
+
+	/**
+	 * struct ttm_mem_type_manager member debug
+	 *
+	 * @man: Pointer to a memory type manager.
+	 * @prefix: Prefix to be used in printout to identify the caller.
+	 *
+	 * This function is called to print out the state of the memory
+	 * type manager to aid debugging of out-of-memory conditions.
+	 * It may not be called from within atomic context.
+	 */
+	void (*debug)(struct ttm_mem_type_manager *man, const char *prefix);
+};
+
 struct ttm_mem_type_manager {
+	struct ttm_bo_device *bdev;
 
 	/*
 	 * No protection. Constant from start.
@@ -216,14 +301,13 @@ struct ttm_mem_type_manager {
 	uint64_t size;
 	uint32_t available_caching;
 	uint32_t default_caching;
+	const struct ttm_mem_type_manager_func *func;
+	void *priv;
 
 	/*
-	 * Protected by the bdev->lru_lock.
-	 * TODO: Consider one lru_lock per ttm_mem_type_manager.
-	 * Plays ill with list removal, though.
+	 * Protected by the global->lru_lock.
 	 */
 
-	struct drm_mm manager;
 	struct list_head lru;
 };
 
@@ -649,6 +733,12 @@ extern int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 				struct ttm_mem_reg *mem,
 				bool interruptible,
 				bool no_wait_reserve, bool no_wait_gpu);
+
+extern void ttm_bo_mem_put(struct ttm_buffer_object *bo,
+			   struct ttm_mem_reg *mem);
+extern void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
+				  struct ttm_mem_reg *mem);
+
 /**
  * ttm_bo_wait_for_cpu
  *
@@ -890,6 +980,8 @@ extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
  * setting up a PTE with the caching model indicated by @c_state.
  */
 extern pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
+
+extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
 
 #if (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
 #define TTM_HAS_AGP

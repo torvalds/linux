@@ -759,7 +759,7 @@ static int __devinit td_probe(struct platform_device *pdev)
 			pdata->channels + i;
 
 		/* even channels are RX, odd are TX */
-		if (((i % 2) && pchan->rx) || (!(i % 2) && !pchan->rx)) {
+		if ((i % 2) == pchan->rx) {
 			dev_err(&pdev->dev, "Wrong channel configuration\n");
 			err = -EINVAL;
 			goto err_tasklet_kill;

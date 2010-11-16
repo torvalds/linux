@@ -71,6 +71,7 @@ ssize_t iwmct_dbgfs_##name##_write(struct file *file,			\
 	static const struct file_operations iwmct_dbgfs_##name##_ops = {  \
 		.read = iwmct_dbgfs_##name##_read,			\
 		.open = iwmct_dbgfs_open_file_generic,			\
+		.llseek = generic_file_llseek,				\
 	};
 
 #define DEBUGFS_WRITE_FILE_OPS(name)					\
@@ -78,6 +79,7 @@ ssize_t iwmct_dbgfs_##name##_write(struct file *file,			\
 	static const struct file_operations iwmct_dbgfs_##name##_ops = {  \
 		.write = iwmct_dbgfs_##name##_write,			\
 		.open = iwmct_dbgfs_open_file_generic,			\
+		.llseek = generic_file_llseek,				\
 	};
 
 #define DEBUGFS_READ_WRITE_FILE_OPS(name)				\
@@ -87,6 +89,7 @@ ssize_t iwmct_dbgfs_##name##_write(struct file *file,			\
 		.write = iwmct_dbgfs_##name##_write,			\
 		.read = iwmct_dbgfs_##name##_read,			\
 		.open = iwmct_dbgfs_open_file_generic,			\
+		.llseek = generic_file_llseek,				\
 	};
 
 

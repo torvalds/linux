@@ -43,7 +43,6 @@
  *                 using separate functional clock
  *   0x3 disabled: Module is disabled and cannot be accessed
  *
- * TODO: Need to handle module accessible in idle state
  */
 int omap4_cm_wait_module_ready(void __iomem *clkctrl_reg)
 {
@@ -52,9 +51,11 @@ int omap4_cm_wait_module_ready(void __iomem *clkctrl_reg)
 	if (!clkctrl_reg)
 		return 0;
 
-	omap_test_timeout(((__raw_readl(clkctrl_reg) &
-			    OMAP4430_IDLEST_MASK) == 0),
-			  MAX_MODULE_READY_TIME, i);
+	omap_test_timeout((
+		((__raw_readl(clkctrl_reg) & OMAP4430_IDLEST_MASK) == 0) ||
+		 (((__raw_readl(clkctrl_reg) & OMAP4430_IDLEST_MASK) >>
+		  OMAP4430_IDLEST_SHIFT) == 0x2)),
+		MAX_MODULE_READY_TIME, i);
 
 	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
 }

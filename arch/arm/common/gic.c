@@ -67,25 +67,11 @@ static inline unsigned int gic_irq(unsigned int irq)
 
 /*
  * Routines to acknowledge, disable and enable interrupts
- *
- * Linux assumes that when we're done with an interrupt we need to
- * unmask it, in the same way we need to unmask an interrupt when
- * we first enable it.
- *
- * The GIC has a separate notion of "end of interrupt" to re-enable
- * an interrupt after handling, in order to support hardware
- * prioritisation.
- *
- * We can make the GIC behave in the way that Linux expects by making
- * our "acknowledge" routine disable the interrupt, then mark it as
- * complete.
  */
 static void gic_ack_irq(unsigned int irq)
 {
-	u32 mask = 1 << (irq % 32);
 
 	spin_lock(&irq_controller_lock);
-	writel(mask, gic_dist_base(irq) + GIC_DIST_ENABLE_CLEAR + (gic_irq(irq) / 32) * 4);
 	writel(gic_irq(irq), gic_cpu_base(irq) + GIC_CPU_EOI);
 	spin_unlock(&irq_controller_lock);
 }
@@ -265,15 +251,16 @@ void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
 		writel(cpumask, base + GIC_DIST_TARGET + i * 4 / 4);
 
 	/*
-	 * Set priority on all interrupts.
+	 * Set priority on all global interrupts.
 	 */
-	for (i = 0; i < max_irq; i += 4)
+	for (i = 32; i < max_irq; i += 4)
 		writel(0xa0a0a0a0, base + GIC_DIST_PRI + i * 4 / 4);
 
 	/*
-	 * Disable all interrupts.
+	 * Disable all interrupts.  Leave the PPI and SGIs alone
+	 * as these enables are banked registers.
 	 */
-	for (i = 0; i < max_irq; i += 32)
+	for (i = 32; i < max_irq; i += 32)
 		writel(0xffffffff, base + GIC_DIST_ENABLE_CLEAR + i * 4 / 32);
 
 	/*
@@ -291,10 +278,29 @@ void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
 
 void __cpuinit gic_cpu_init(unsigned int gic_nr, void __iomem *base)
 {
+	void __iomem *dist_base;
+	int i;
+
 	if (gic_nr >= MAX_GIC_NR)
 		BUG();
 
+	dist_base = gic_data[gic_nr].dist_base;
+	BUG_ON(!dist_base);
+
 	gic_data[gic_nr].cpu_base = base;
+
+	/*
+	 * Deal with the banked PPI and SGI interrupts - disable all
+	 * PPI interrupts, ensure all SGI interrupts are enabled.
+	 */
+	writel(0xffff0000, dist_base + GIC_DIST_ENABLE_CLEAR);
+	writel(0x0000ffff, dist_base + GIC_DIST_ENABLE_SET);
+
+	/*
+	 * Set priority on PPI and SGI interrupts
+	 */
+	for (i = 0; i < 32; i += 4)
+		writel(0xa0a0a0a0, dist_base + GIC_DIST_PRI + i * 4 / 4);
 
 	writel(0xf0, base + GIC_CPU_PRIMASK);
 	writel(1, base + GIC_CPU_CTRL);

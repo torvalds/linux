@@ -6,6 +6,7 @@ config VIDEO_CX231XX
 	depends on VIDEO_IR
 	select VIDEOBUF_VMALLOC
 	select VIDEO_CX25840
+	select VIDEO_CX2341X
 
 	---help---
 	  This is a video4linux driver for Conexant 231xx USB based TV cards.

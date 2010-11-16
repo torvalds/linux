@@ -104,6 +104,9 @@ enum drbd_req_event {
 	read_ahead_completed_with_error,
 	write_completed_with_error,
 	completed_ok,
+	resend,
+	fail_frozen_disk_io,
+	restart_frozen_disk_io,
 	nothing, /* for tracing only */
 };
 
@@ -183,6 +186,12 @@ enum drbd_req_state_bits {
 
 	/* keep this last, its for the RQ_NET_MASK */
 	__RQ_NET_MAX,
+
+	/* Set when this is a write, clear for a read */
+	__RQ_WRITE,
+
+	/* Should call drbd_al_complete_io() for this request... */
+	__RQ_IN_ACT_LOG,
 };
 
 #define RQ_LOCAL_PENDING   (1UL << __RQ_LOCAL_PENDING)
@@ -200,6 +209,16 @@ enum drbd_req_state_bits {
 
 /* 0x1f8 */
 #define RQ_NET_MASK        (((1UL << __RQ_NET_MAX)-1) & ~RQ_LOCAL_MASK)
+
+#define RQ_WRITE           (1UL << __RQ_WRITE)
+#define RQ_IN_ACT_LOG      (1UL << __RQ_IN_ACT_LOG)
+
+/* For waking up the frozen transfer log mod_req() has to return if the request
+   should be counted in the epoch object*/
+#define MR_WRITE_SHIFT 0
+#define MR_WRITE       (1 << MR_WRITE_SHIFT)
+#define MR_READ_SHIFT  1
+#define MR_READ        (1 << MR_READ_SHIFT)
 
 /* epoch entries */
 static inline
@@ -244,30 +263,36 @@ static inline struct drbd_request *_ar_id_to_req(struct drbd_conf *mdev,
 	return NULL;
 }
 
+static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bio *bio_src)
+{
+	struct bio *bio;
+	bio = bio_clone(bio_src, GFP_NOIO); /* XXX cannot fail?? */
+
+	req->private_bio = bio;
+
+	bio->bi_private  = req;
+	bio->bi_end_io   = drbd_endio_pri;
+	bio->bi_next     = NULL;
+}
+
 static inline struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 	struct bio *bio_src)
 {
-	struct bio *bio;
 	struct drbd_request *req =
 		mempool_alloc(drbd_request_mempool, GFP_NOIO);
 	if (likely(req)) {
-		bio = bio_clone(bio_src, GFP_NOIO); /* XXX cannot fail?? */
+		drbd_req_make_private_bio(req, bio_src);
 
-		req->rq_state    = 0;
+		req->rq_state    = bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0;
 		req->mdev        = mdev;
 		req->master_bio  = bio_src;
-		req->private_bio = bio;
 		req->epoch       = 0;
-		req->sector      = bio->bi_sector;
-		req->size        = bio->bi_size;
+		req->sector      = bio_src->bi_sector;
+		req->size        = bio_src->bi_size;
 		req->start_time  = jiffies;
 		INIT_HLIST_NODE(&req->colision);
 		INIT_LIST_HEAD(&req->tl_requests);
 		INIT_LIST_HEAD(&req->w.list);
-
-		bio->bi_private  = req;
-		bio->bi_end_io   = drbd_endio_pri;
-		bio->bi_next     = NULL;
 	}
 	return req;
 }
@@ -292,36 +317,43 @@ struct bio_and_error {
 
 extern void _req_may_be_done(struct drbd_request *req,
 		struct bio_and_error *m);
-extern void __req_mod(struct drbd_request *req, enum drbd_req_event what,
+extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		struct bio_and_error *m);
 extern void complete_master_bio(struct drbd_conf *mdev,
 		struct bio_and_error *m);
 
 /* use this if you don't want to deal with calling complete_master_bio()
  * outside the spinlock, e.g. when walking some list on cleanup. */
-static inline void _req_mod(struct drbd_request *req, enum drbd_req_event what)
+static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what)
 {
 	struct drbd_conf *mdev = req->mdev;
 	struct bio_and_error m;
+	int rv;
 
 	/* __req_mod possibly frees req, do not touch req after that! */
-	__req_mod(req, what, &m);
+	rv = __req_mod(req, what, &m);
 	if (m.bio)
 		complete_master_bio(mdev, &m);
+
+	return rv;
 }
 
 /* completion of master bio is outside of spinlock.
  * If you need it irqsave, do it your self! */
-static inline void req_mod(struct drbd_request *req,
+static inline int req_mod(struct drbd_request *req,
 		enum drbd_req_event what)
 {
 	struct drbd_conf *mdev = req->mdev;
 	struct bio_and_error m;
+	int rv;
+
 	spin_lock_irq(&mdev->req_lock);
-	__req_mod(req, what, &m);
+	rv = __req_mod(req, what, &m);
 	spin_unlock_irq(&mdev->req_lock);
 
 	if (m.bio)
 		complete_master_bio(mdev, &m);
+
+	return rv;
 }
 #endif

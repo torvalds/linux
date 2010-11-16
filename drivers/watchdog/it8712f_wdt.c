@@ -75,15 +75,23 @@ static unsigned short address;
 #define WDT_CONFIG	0x72	/* WDT Register: Configuration */
 #define WDT_TIMEOUT	0x73	/* WDT Register: Timeout Value */
 
-#define WDT_RESET_GAME	0x10
-#define WDT_RESET_KBD	0x20
-#define WDT_RESET_MOUSE	0x40
-#define WDT_RESET_CIR	0x80
+#define WDT_RESET_GAME	0x10	/* Reset timer on read or write to game port */
+#define WDT_RESET_KBD	0x20	/* Reset timer on keyboard interrupt */
+#define WDT_RESET_MOUSE	0x40	/* Reset timer on mouse interrupt */
+#define WDT_RESET_CIR	0x80	/* Reset timer on consumer IR interrupt */
 
 #define WDT_UNIT_SEC	0x80	/* If 0 in MINUTES */
 
-#define WDT_OUT_PWROK	0x10
-#define WDT_OUT_KRST	0x40
+#define WDT_OUT_PWROK	0x10	/* Pulse PWROK on timeout */
+#define WDT_OUT_KRST	0x40	/* Pulse reset on timeout */
+
+static int wdt_control_reg = WDT_RESET_GAME;
+module_param(wdt_control_reg, int, 0);
+MODULE_PARM_DESC(wdt_control_reg, "Value to write to watchdog control "
+		"register. The default WDT_RESET_GAME resets the timer on "
+		"game port reads that this driver generates. You can also "
+		"use KBD, MOUSE or CIR if you have some external way to "
+		"generate those interrupts.");
 
 static int superio_inb(int reg)
 {
@@ -131,7 +139,8 @@ static inline void superio_exit(void)
 
 static inline void it8712f_wdt_ping(void)
 {
-	inb(address);
+	if (wdt_control_reg & WDT_RESET_GAME)
+		inb(address);
 }
 
 static void it8712f_wdt_update_margin(void)
@@ -170,7 +179,7 @@ static void it8712f_wdt_enable(void)
 	superio_enter();
 	superio_select(LDN_GPIO);
 
-	superio_outb(WDT_RESET_GAME, WDT_CONTROL);
+	superio_outb(wdt_control_reg, WDT_CONTROL);
 
 	it8712f_wdt_update_margin();
 

@@ -16,6 +16,8 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <plat/dsp.h>
+
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
@@ -27,7 +29,6 @@
 #include <dspbridge/drv.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/wdt.h>
 
 /*  ----------------------------------- specific to this file */
@@ -388,7 +389,7 @@ int sm_interrupt_dsp(struct bridge_dev_context *dev_context, u16 mb_val)
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 	u32 opplevel = 0;
 #endif
-	struct dspbridge_platform_data *pdata =
+	struct omap_dsp_platform_data *pdata =
 		omap_dspbridge_dev->dev.platform_data;
 	struct cfg_hostres *resources = dev_context->resources;
 	int status = 0;

@@ -52,16 +52,11 @@ STATIC void	xfs_icsb_balance_counter(xfs_mount_t *, xfs_sb_field_t,
 						int);
 STATIC void	xfs_icsb_balance_counter_locked(xfs_mount_t *, xfs_sb_field_t,
 						int);
-STATIC int	xfs_icsb_modify_counters(xfs_mount_t *, xfs_sb_field_t,
-						int64_t, int);
 STATIC void	xfs_icsb_disable_counter(xfs_mount_t *, xfs_sb_field_t);
-
 #else
 
 #define xfs_icsb_balance_counter(mp, a, b)		do { } while (0)
 #define xfs_icsb_balance_counter_locked(mp, a, b)	do { } while (0)
-#define xfs_icsb_modify_counters(mp, a, b, c)		do { } while (0)
-
 #endif
 
 static const struct {
@@ -199,6 +194,8 @@ xfs_uuid_unmount(
 
 /*
  * Reference counting access wrappers to the perag structures.
+ * Because we never free per-ag structures, the only thing we
+ * have to protect against changes is the tree structure itself.
  */
 struct xfs_perag *
 xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno)
@@ -206,16 +203,40 @@ xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno)
 	struct xfs_perag	*pag;
 	int			ref = 0;
 
-	spin_lock(&mp->m_perag_lock);
+	rcu_read_lock();
 	pag = radix_tree_lookup(&mp->m_perag_tree, agno);
 	if (pag) {
 		ASSERT(atomic_read(&pag->pag_ref) >= 0);
-		/* catch leaks in the positive direction during testing */
-		ASSERT(atomic_read(&pag->pag_ref) < 1000);
 		ref = atomic_inc_return(&pag->pag_ref);
 	}
-	spin_unlock(&mp->m_perag_lock);
+	rcu_read_unlock();
 	trace_xfs_perag_get(mp, agno, ref, _RET_IP_);
+	return pag;
+}
+
+/*
+ * search from @first to find the next perag with the given tag set.
+ */
+struct xfs_perag *
+xfs_perag_get_tag(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		first,
+	int			tag)
+{
+	struct xfs_perag	*pag;
+	int			found;
+	int			ref;
+
+	rcu_read_lock();
+	found = radix_tree_gang_lookup_tag(&mp->m_perag_tree,
+					(void **)&pag, first, 1, tag);
+	if (found <= 0) {
+		rcu_read_unlock();
+		return NULL;
+	}
+	ref = atomic_inc_return(&pag->pag_ref);
+	rcu_read_unlock();
+	trace_xfs_perag_get_tag(mp, pag->pag_agno, ref, _RET_IP_);
 	return pag;
 }
 
@@ -229,10 +250,18 @@ xfs_perag_put(struct xfs_perag *pag)
 	trace_xfs_perag_put(pag->pag_mount, pag->pag_agno, ref, _RET_IP_);
 }
 
+STATIC void
+__xfs_free_perag(
+	struct rcu_head	*head)
+{
+	struct xfs_perag *pag = container_of(head, struct xfs_perag, rcu_head);
+
+	ASSERT(atomic_read(&pag->pag_ref) == 0);
+	kmem_free(pag);
+}
+
 /*
- * Free up the resources associated with a mount structure.  Assume that
- * the structure was initially zeroed, so we can tell which fields got
- * initialized.
+ * Free up the per-ag resources associated with the mount structure.
  */
 STATIC void
 xfs_free_perag(
@@ -244,10 +273,10 @@ xfs_free_perag(
 	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
 		spin_lock(&mp->m_perag_lock);
 		pag = radix_tree_delete(&mp->m_perag_tree, agno);
+		spin_unlock(&mp->m_perag_lock);
 		ASSERT(pag);
 		ASSERT(atomic_read(&pag->pag_ref) == 0);
-		spin_unlock(&mp->m_perag_lock);
-		kmem_free(pag);
+		call_rcu(&pag->rcu_head, __xfs_free_perag);
 	}
 }
 
@@ -444,7 +473,10 @@ xfs_initialize_perag(
 		pag->pag_agno = index;
 		pag->pag_mount = mp;
 		rwlock_init(&pag->pag_ici_lock);
+		mutex_init(&pag->pag_ici_reclaim_lock);
 		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
+		spin_lock_init(&pag->pag_buf_lock);
+		pag->pag_buf_tree = RB_ROOT;
 
 		if (radix_tree_preload(GFP_NOFS))
 			goto out_unwind;
@@ -639,7 +671,6 @@ int
 xfs_readsb(xfs_mount_t *mp, int flags)
 {
 	unsigned int	sector_size;
-	unsigned int	extra_flags;
 	xfs_buf_t	*bp;
 	int		error;
 
@@ -652,28 +683,24 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 	 * access to the superblock.
 	 */
 	sector_size = xfs_getsize_buftarg(mp->m_ddev_targp);
-	extra_flags = XBF_LOCK | XBF_FS_MANAGED | XBF_MAPPED;
 
-	bp = xfs_buf_read(mp->m_ddev_targp, XFS_SB_DADDR, BTOBB(sector_size),
-			  extra_flags);
-	if (!bp || XFS_BUF_ISERROR(bp)) {
-		xfs_fs_mount_cmn_err(flags, "SB read failed");
-		error = bp ? XFS_BUF_GETERROR(bp) : ENOMEM;
-		goto fail;
+reread:
+	bp = xfs_buf_read_uncached(mp, mp->m_ddev_targp,
+					XFS_SB_DADDR, sector_size, 0);
+	if (!bp) {
+		xfs_fs_mount_cmn_err(flags, "SB buffer read failed");
+		return EIO;
 	}
-	ASSERT(XFS_BUF_ISBUSY(bp));
-	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
 
 	/*
 	 * Initialize the mount structure from the superblock.
 	 * But first do some basic consistency checking.
 	 */
 	xfs_sb_from_disk(&mp->m_sb, XFS_BUF_TO_SBP(bp));
-
 	error = xfs_mount_validate_sb(mp, &(mp->m_sb), flags);
 	if (error) {
 		xfs_fs_mount_cmn_err(flags, "SB validate failed");
-		goto fail;
+		goto release_buf;
 	}
 
 	/*
@@ -684,7 +711,7 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 			"device supports only %u byte sectors (not %u)",
 			sector_size, mp->m_sb.sb_sectsize);
 		error = ENOSYS;
-		goto fail;
+		goto release_buf;
 	}
 
 	/*
@@ -692,33 +719,20 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 	 * re-read the superblock so the buffer is correctly sized.
 	 */
 	if (sector_size < mp->m_sb.sb_sectsize) {
-		XFS_BUF_UNMANAGE(bp);
 		xfs_buf_relse(bp);
 		sector_size = mp->m_sb.sb_sectsize;
-		bp = xfs_buf_read(mp->m_ddev_targp, XFS_SB_DADDR,
-				  BTOBB(sector_size), extra_flags);
-		if (!bp || XFS_BUF_ISERROR(bp)) {
-			xfs_fs_mount_cmn_err(flags, "SB re-read failed");
-			error = bp ? XFS_BUF_GETERROR(bp) : ENOMEM;
-			goto fail;
-		}
-		ASSERT(XFS_BUF_ISBUSY(bp));
-		ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+		goto reread;
 	}
 
 	/* Initialize per-cpu counters */
 	xfs_icsb_reinit_counters(mp);
 
 	mp->m_sb_bp = bp;
-	xfs_buf_relse(bp);
-	ASSERT(XFS_BUF_VALUSEMA(bp) > 0);
+	xfs_buf_unlock(bp);
 	return 0;
 
- fail:
-	if (bp) {
-		XFS_BUF_UNMANAGE(bp);
-		xfs_buf_relse(bp);
-	}
+release_buf:
+	xfs_buf_relse(bp);
 	return error;
 }
 
@@ -991,42 +1005,35 @@ xfs_check_sizes(xfs_mount_t *mp)
 {
 	xfs_buf_t	*bp;
 	xfs_daddr_t	d;
-	int		error;
 
 	d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks);
 	if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_dblocks) {
-		cmn_err(CE_WARN, "XFS: size check 1 failed");
+		cmn_err(CE_WARN, "XFS: filesystem size mismatch detected");
 		return XFS_ERROR(EFBIG);
 	}
-	error = xfs_read_buf(mp, mp->m_ddev_targp,
-			     d - XFS_FSS_TO_BB(mp, 1),
-			     XFS_FSS_TO_BB(mp, 1), 0, &bp);
-	if (!error) {
-		xfs_buf_relse(bp);
-	} else {
-		cmn_err(CE_WARN, "XFS: size check 2 failed");
-		if (error == ENOSPC)
-			error = XFS_ERROR(EFBIG);
-		return error;
+	bp = xfs_buf_read_uncached(mp, mp->m_ddev_targp,
+					d - XFS_FSS_TO_BB(mp, 1),
+					BBTOB(XFS_FSS_TO_BB(mp, 1)), 0);
+	if (!bp) {
+		cmn_err(CE_WARN, "XFS: last sector read failed");
+		return EIO;
 	}
+	xfs_buf_relse(bp);
 
 	if (mp->m_logdev_targp != mp->m_ddev_targp) {
 		d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_logblocks);
 		if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_logblocks) {
-			cmn_err(CE_WARN, "XFS: size check 3 failed");
+			cmn_err(CE_WARN, "XFS: log size mismatch detected");
 			return XFS_ERROR(EFBIG);
 		}
-		error = xfs_read_buf(mp, mp->m_logdev_targp,
-				     d - XFS_FSB_TO_BB(mp, 1),
-				     XFS_FSB_TO_BB(mp, 1), 0, &bp);
-		if (!error) {
-			xfs_buf_relse(bp);
-		} else {
-			cmn_err(CE_WARN, "XFS: size check 3 failed");
-			if (error == ENOSPC)
-				error = XFS_ERROR(EFBIG);
-			return error;
+		bp = xfs_buf_read_uncached(mp, mp->m_logdev_targp,
+					d - XFS_FSB_TO_BB(mp, 1),
+					XFS_FSB_TO_B(mp, 1), 0);
+		if (!bp) {
+			cmn_err(CE_WARN, "XFS: log device read failed");
+			return EIO;
 		}
+		xfs_buf_relse(bp);
 	}
 	return 0;
 }
@@ -1601,7 +1608,7 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 		XFS_BUF_UNASYNC(sbp);
 		ASSERT(XFS_BUF_TARGET(sbp) == mp->m_ddev_targp);
 		xfsbdstrat(mp, sbp);
-		error = xfs_iowait(sbp);
+		error = xfs_buf_iowait(sbp);
 		if (error)
 			xfs_ioerror_alert("xfs_unmountfs_writesb",
 					  mp, sbp, XFS_BUF_ADDR(sbp));
@@ -1832,135 +1839,72 @@ xfs_mod_incore_sb_unlocked(
  */
 int
 xfs_mod_incore_sb(
-	xfs_mount_t	*mp,
-	xfs_sb_field_t	field,
-	int64_t		delta,
-	int		rsvd)
+	struct xfs_mount	*mp,
+	xfs_sb_field_t		field,
+	int64_t			delta,
+	int			rsvd)
 {
-	int	status;
+	int			status;
 
-	/* check for per-cpu counters */
-	switch (field) {
 #ifdef HAVE_PERCPU_SB
-	case XFS_SBS_ICOUNT:
-	case XFS_SBS_IFREE:
-	case XFS_SBS_FDBLOCKS:
-		if (!(mp->m_flags & XFS_MOUNT_NO_PERCPU_SB)) {
-			status = xfs_icsb_modify_counters(mp, field,
-							delta, rsvd);
-			break;
-		}
-		/* FALLTHROUGH */
+	ASSERT(field < XFS_SBS_ICOUNT || field > XFS_SBS_FDBLOCKS);
 #endif
-	default:
-		spin_lock(&mp->m_sb_lock);
-		status = xfs_mod_incore_sb_unlocked(mp, field, delta, rsvd);
-		spin_unlock(&mp->m_sb_lock);
-		break;
-	}
+	spin_lock(&mp->m_sb_lock);
+	status = xfs_mod_incore_sb_unlocked(mp, field, delta, rsvd);
+	spin_unlock(&mp->m_sb_lock);
 
 	return status;
 }
 
 /*
- * xfs_mod_incore_sb_batch() is used to change more than one field
- * in the in-core superblock structure at a time.  This modification
- * is protected by a lock internal to this module.  The fields and
- * changes to those fields are specified in the array of xfs_mod_sb
- * structures passed in.
+ * Change more than one field in the in-core superblock structure at a time.
  *
- * Either all of the specified deltas will be applied or none of
- * them will.  If any modified field dips below 0, then all modifications
- * will be backed out and EINVAL will be returned.
+ * The fields and changes to those fields are specified in the array of
+ * xfs_mod_sb structures passed in.  Either all of the specified deltas
+ * will be applied or none of them will.  If any modified field dips below 0,
+ * then all modifications will be backed out and EINVAL will be returned.
+ *
+ * Note that this function may not be used for the superblock values that
+ * are tracked with the in-memory per-cpu counters - a direct call to
+ * xfs_icsb_modify_counters is required for these.
  */
 int
-xfs_mod_incore_sb_batch(xfs_mount_t *mp, xfs_mod_sb_t *msb, uint nmsb, int rsvd)
+xfs_mod_incore_sb_batch(
+	struct xfs_mount	*mp,
+	xfs_mod_sb_t		*msb,
+	uint			nmsb,
+	int			rsvd)
 {
-	int		status=0;
-	xfs_mod_sb_t	*msbp;
+	xfs_mod_sb_t		*msbp = &msb[0];
+	int			error = 0;
 
 	/*
-	 * Loop through the array of mod structures and apply each
-	 * individually.  If any fail, then back out all those
-	 * which have already been applied.  Do all of this within
-	 * the scope of the m_sb_lock so that all of the changes will
-	 * be atomic.
+	 * Loop through the array of mod structures and apply each individually.
+	 * If any fail, then back out all those which have already been applied.
+	 * Do all of this within the scope of the m_sb_lock so that all of the
+	 * changes will be atomic.
 	 */
 	spin_lock(&mp->m_sb_lock);
-	msbp = &msb[0];
 	for (msbp = &msbp[0]; msbp < (msb + nmsb); msbp++) {
-		/*
-		 * Apply the delta at index n.  If it fails, break
-		 * from the loop so we'll fall into the undo loop
-		 * below.
-		 */
-		switch (msbp->msb_field) {
-#ifdef HAVE_PERCPU_SB
-		case XFS_SBS_ICOUNT:
-		case XFS_SBS_IFREE:
-		case XFS_SBS_FDBLOCKS:
-			if (!(mp->m_flags & XFS_MOUNT_NO_PERCPU_SB)) {
-				spin_unlock(&mp->m_sb_lock);
-				status = xfs_icsb_modify_counters(mp,
-							msbp->msb_field,
-							msbp->msb_delta, rsvd);
-				spin_lock(&mp->m_sb_lock);
-				break;
-			}
-			/* FALLTHROUGH */
-#endif
-		default:
-			status = xfs_mod_incore_sb_unlocked(mp,
-						msbp->msb_field,
-						msbp->msb_delta, rsvd);
-			break;
-		}
+		ASSERT(msbp->msb_field < XFS_SBS_ICOUNT ||
+		       msbp->msb_field > XFS_SBS_FDBLOCKS);
 
-		if (status != 0) {
-			break;
-		}
-	}
-
-	/*
-	 * If we didn't complete the loop above, then back out
-	 * any changes made to the superblock.  If you add code
-	 * between the loop above and here, make sure that you
-	 * preserve the value of status. Loop back until
-	 * we step below the beginning of the array.  Make sure
-	 * we don't touch anything back there.
-	 */
-	if (status != 0) {
-		msbp--;
-		while (msbp >= msb) {
-			switch (msbp->msb_field) {
-#ifdef HAVE_PERCPU_SB
-			case XFS_SBS_ICOUNT:
-			case XFS_SBS_IFREE:
-			case XFS_SBS_FDBLOCKS:
-				if (!(mp->m_flags & XFS_MOUNT_NO_PERCPU_SB)) {
-					spin_unlock(&mp->m_sb_lock);
-					status = xfs_icsb_modify_counters(mp,
-							msbp->msb_field,
-							-(msbp->msb_delta),
-							rsvd);
-					spin_lock(&mp->m_sb_lock);
-					break;
-				}
-				/* FALLTHROUGH */
-#endif
-			default:
-				status = xfs_mod_incore_sb_unlocked(mp,
-							msbp->msb_field,
-							-(msbp->msb_delta),
-							rsvd);
-				break;
-			}
-			ASSERT(status == 0);
-			msbp--;
-		}
+		error = xfs_mod_incore_sb_unlocked(mp, msbp->msb_field,
+						   msbp->msb_delta, rsvd);
+		if (error)
+			goto unwind;
 	}
 	spin_unlock(&mp->m_sb_lock);
-	return status;
+	return 0;
+
+unwind:
+	while (--msbp >= msb) {
+		error = xfs_mod_incore_sb_unlocked(mp, msbp->msb_field,
+						   -msbp->msb_delta, rsvd);
+		ASSERT(error == 0);
+	}
+	spin_unlock(&mp->m_sb_lock);
+	return error;
 }
 
 /*
@@ -1998,18 +1942,13 @@ xfs_getsb(
  */
 void
 xfs_freesb(
-	xfs_mount_t	*mp)
+	struct xfs_mount	*mp)
 {
-	xfs_buf_t	*bp;
+	struct xfs_buf		*bp = mp->m_sb_bp;
 
-	/*
-	 * Use xfs_getsb() so that the buffer will be locked
-	 * when we call xfs_buf_relse().
-	 */
-	bp = xfs_getsb(mp, 0);
-	XFS_BUF_UNMANAGE(bp);
-	xfs_buf_relse(bp);
+	xfs_buf_lock(bp);
 	mp->m_sb_bp = NULL;
+	xfs_buf_relse(bp);
 }
 
 /*
@@ -2496,7 +2435,7 @@ xfs_icsb_balance_counter(
 	spin_unlock(&mp->m_sb_lock);
 }
 
-STATIC int
+int
 xfs_icsb_modify_counters(
 	xfs_mount_t	*mp,
 	xfs_sb_field_t	field,

@@ -111,6 +111,12 @@ int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *index)
 			goto out;
 		}
 	}
+
+	if (free < 0) {
+		err = -ENOMEM;
+		goto out;
+	}
+
 	mlx4_dbg(dev, "Free MAC index is %d\n", free);
 
 	if (table->total == table->max) {
@@ -182,6 +188,25 @@ static int mlx4_set_port_vlan_table(struct mlx4_dev *dev, u8 port,
 	return err;
 }
 
+int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx)
+{
+	struct mlx4_vlan_table *table = &mlx4_priv(dev)->port[port].vlan_table;
+	int i;
+
+	for (i = 0; i < MLX4_MAX_VLAN_NUM; ++i) {
+		if (table->refs[i] &&
+		    (vid == (MLX4_VLAN_MASK &
+			      be32_to_cpu(table->entries[i])))) {
+			/* VLAN already registered, increase reference count */
+			*idx = i;
+			return 0;
+		}
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL_GPL(mlx4_find_cached_vlan);
+
 int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index)
 {
 	struct mlx4_vlan_table *table = &mlx4_priv(dev)->port[port].vlan_table;
@@ -203,6 +228,11 @@ int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index)
 			++table->refs[i];
 			goto out;
 		}
+	}
+
+	if (free < 0) {
+		err = -ENOMEM;
+		goto out;
 	}
 
 	if (table->total == table->max) {

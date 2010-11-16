@@ -602,27 +602,14 @@ static struct page *next_active_pageblock(struct page *page)
 /* Checks if this range of memory is likely to be hot-removable. */
 int is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
 {
-	int type;
 	struct page *page = pfn_to_page(start_pfn);
 	struct page *end_page = page + nr_pages;
 
 	/* Check the starting page of each pageblock within the range */
 	for (; page < end_page; page = next_active_pageblock(page)) {
-		type = get_pageblock_migratetype(page);
-
-		/*
-		 * A pageblock containing MOVABLE or free pages is considered
-		 * removable
-		 */
-		if (type != MIGRATE_MOVABLE && !pageblock_free(page))
+		if (!is_pageblock_removable_nolock(page))
 			return 0;
-
-		/*
-		 * A pageblock starting with a PageReserved page is not
-		 * considered removable.
-		 */
-		if (PageReserved(page))
-			return 0;
+		cond_resched();
 	}
 
 	/* All pageblocks in the memory block are likely to be hot-removable */
@@ -659,7 +646,7 @@ static int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
  * Scanning pfn is much easier than scanning lru list.
  * Scan pfn from start to end and Find LRU page.
  */
-int scan_lru_pages(unsigned long start, unsigned long end)
+static unsigned long scan_lru_pages(unsigned long start, unsigned long end)
 {
 	unsigned long pfn;
 	struct page *page;
@@ -709,29 +696,30 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 					    page_is_file_cache(page));
 
 		} else {
-			/* Becasue we don't have big zone->lock. we should
-			   check this again here. */
-			if (page_count(page))
-				not_managed++;
 #ifdef CONFIG_DEBUG_VM
 			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
 			       pfn);
 			dump_page(page);
 #endif
+			/* Becasue we don't have big zone->lock. we should
+			   check this again here. */
+			if (page_count(page)) {
+				not_managed++;
+				ret = -EBUSY;
+				break;
+			}
 		}
 	}
-	ret = -EBUSY;
-	if (not_managed) {
-		if (!list_empty(&source))
+	if (!list_empty(&source)) {
+		if (not_managed) {
 			putback_lru_pages(&source);
-		goto out;
+			goto out;
+		}
+		/* this function returns # of failed pages */
+		ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
+		if (ret)
+			putback_lru_pages(&source);
 	}
-	ret = 0;
-	if (list_empty(&source))
-		goto out;
-	/* this function returns # of failed pages */
-	ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
-
 out:
 	return ret;
 }
@@ -840,7 +828,6 @@ repeat:
 	ret = 0;
 	if (drain) {
 		lru_add_drain_all();
-		flush_scheduled_work();
 		cond_resched();
 		drain_all_pages();
 	}
@@ -862,7 +849,6 @@ repeat:
 	}
 	/* drain all zone's lru pagevec, this is asyncronous... */
 	lru_add_drain_all();
-	flush_scheduled_work();
 	yield();
 	/* drain pcp pages , this is synchrouns. */
 	drain_all_pages();

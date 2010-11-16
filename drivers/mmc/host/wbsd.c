@@ -1235,8 +1235,7 @@ static int __devinit wbsd_alloc_mmc(struct device *dev)
 	 * Maximum number of segments. Worst case is one sector per segment
 	 * so this will be 64kB/512.
 	 */
-	mmc->max_hw_segs = 128;
-	mmc->max_phys_segs = 128;
+	mmc->max_segs = 128;
 
 	/*
 	 * Maximum request size. Also limited by 64KiB buffer.

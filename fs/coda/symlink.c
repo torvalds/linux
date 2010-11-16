@@ -14,7 +14,6 @@
 #include <linux/stat.h>
 #include <linux/errno.h>
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 
 #include <linux/coda.h>
 #include <linux/coda_linux.h>
@@ -29,11 +28,9 @@ static int coda_symlink_filler(struct file *file, struct page *page)
 	unsigned int len = PAGE_SIZE;
 	char *p = kmap(page);
 
-	lock_kernel();
 	cii = ITOC(inode);
 
 	error = venus_readlink(inode->i_sb, &cii->c_fid, p, &len);
-	unlock_kernel();
 	if (error)
 		goto fail;
 	SetPageUptodate(page);

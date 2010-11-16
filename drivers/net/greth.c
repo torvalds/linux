@@ -893,7 +893,7 @@ static int greth_rx_gbit(struct net_device *dev, int limit)
 				if (greth->flags & GRETH_FLAG_RX_CSUM && hw_checksummed(status))
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
 				else
-					skb->ip_summed = CHECKSUM_NONE;
+					skb_checksum_none_assert(skb);
 
 				skb->protocol = eth_type_trans(skb, dev);
 				dev->stats.rx_packets++;
@@ -1547,10 +1547,10 @@ static int __devinit greth_of_probe(struct platform_device *ofdev, const struct 
 	dev->netdev_ops = &greth_netdev_ops;
 	dev->ethtool_ops = &greth_ethtool_ops;
 
-	if (register_netdev(dev)) {
+	err = register_netdev(dev);
+	if (err) {
 		if (netif_msg_probe(greth))
 			dev_err(greth->dev, "netdevice registration failed.\n");
-		err = -ENOMEM;
 		goto error5;
 	}
 

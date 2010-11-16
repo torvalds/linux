@@ -66,9 +66,9 @@ int main(void)
 	DEFINE(__VDSO_ECTG_BASE, offsetof(struct vdso_per_cpu_data, ectg_timer_base));
 	DEFINE(__VDSO_ECTG_USER, offsetof(struct vdso_per_cpu_data, ectg_user_time));
 	/* constants used by the vdso */
-	DEFINE(CLOCK_REALTIME, CLOCK_REALTIME);
-	DEFINE(CLOCK_MONOTONIC, CLOCK_MONOTONIC);
-	DEFINE(CLOCK_REALTIME_RES, MONOTONIC_RES_NSEC);
+	DEFINE(__CLOCK_REALTIME, CLOCK_REALTIME);
+	DEFINE(__CLOCK_MONOTONIC, CLOCK_MONOTONIC);
+	DEFINE(__CLOCK_REALTIME_RES, MONOTONIC_RES_NSEC);
 	BLANK();
 	/* constants for SIGP */
 	DEFINE(__SIGP_STOP, sigp_stop);
@@ -84,6 +84,7 @@ int main(void)
 	DEFINE(__LC_SVC_INT_CODE, offsetof(struct _lowcore, svc_code));
 	DEFINE(__LC_PGM_ILC, offsetof(struct _lowcore, pgm_ilc));
 	DEFINE(__LC_PGM_INT_CODE, offsetof(struct _lowcore, pgm_code));
+	DEFINE(__LC_TRANS_EXC_CODE, offsetof(struct _lowcore, trans_exc_code));
 	DEFINE(__LC_PER_ATMID, offsetof(struct _lowcore, per_perc_atmid));
 	DEFINE(__LC_PER_ADDRESS, offsetof(struct _lowcore, per_address));
 	DEFINE(__LC_PER_ACCESS_ID, offsetof(struct _lowcore, per_access_id));
@@ -142,10 +143,8 @@ int main(void)
 	DEFINE(__LC_GPREGS_SAVE_AREA, offsetof(struct _lowcore, gpregs_save_area));
 	DEFINE(__LC_CREGS_SAVE_AREA, offsetof(struct _lowcore, cregs_save_area));
 #ifdef CONFIG_32BIT
-	DEFINE(__LC_PFAULT_INTPARM, offsetof(struct _lowcore, ext_params));
 	DEFINE(SAVE_AREA_BASE, offsetof(struct _lowcore, extended_save_area_addr));
 #else /* CONFIG_32BIT */
-	DEFINE(__LC_PFAULT_INTPARM, offsetof(struct _lowcore, ext_params2));
 	DEFINE(__LC_EXT_PARAMS2, offsetof(struct _lowcore, ext_params2));
 	DEFINE(SAVE_AREA_BASE, offsetof(struct _lowcore, floating_pt_save_area));
 	DEFINE(__LC_PASTE, offsetof(struct _lowcore, paste));

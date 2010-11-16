@@ -18,6 +18,8 @@
 
 /*  ----------------------------------- Host OS */
 
+#include <plat/dsp.h>
+
 #include <dspbridge/host_os.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
@@ -39,7 +41,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/services.h>
 #include <dspbridge/clk.h>
 #include <dspbridge/sync.h>
 
@@ -54,7 +55,6 @@
 /*  ----------------------------------- This */
 #include <drv_interface.h>
 
-#include <dspbridge/cfg.h>
 #include <dspbridge/resourcecleanup.h>
 #include <dspbridge/chnl.h>
 #include <dspbridge/proc.h>
@@ -66,7 +66,6 @@
 #include <mach-omap2/omap3-opp.h>
 #endif
 
-#define BRIDGE_NAME "C6410"
 /*  ----------------------------------- Globals */
 #define DRIVER_NAME  "DspBridge"
 #define DSPBRIDGE_VERSION	"0.3"
@@ -144,6 +143,7 @@ static const struct file_operations bridge_fops = {
 	.release = bridge_release,
 	.unlocked_ioctl = bridge_ioctl,
 	.mmap = bridge_mmap,
+	.llseek = noop_llseek,
 };
 
 #ifdef CONFIG_PM
@@ -171,7 +171,7 @@ const struct omap_opp vdd1_rate_table_bridge[] = {
 #endif
 #endif
 
-struct dspbridge_platform_data *omap_dspbridge_pdata;
+struct omap_dsp_platform_data *omap_dspbridge_pdata;
 
 u32 vdd1_dsp_freq[6][4] = {
 	{0, 0, 0, 0},
@@ -218,8 +218,8 @@ void bridge_recover_schedule(void)
 static int dspbridge_scale_notification(struct notifier_block *op,
 		unsigned long val, void *ptr)
 {
-	struct dspbridge_platform_data *pdata =
-					omap_dspbridge_dev->dev.platform_data;
+	struct omap_dsp_platform_data *pdata =
+		omap_dspbridge_dev->dev.platform_data;
 
 	if (CPUFREQ_POSTCHANGE == val && pdata->dsp_get_opp)
 		pwr_pm_post_scale(PRCM_VDD1, pdata->dsp_get_opp());
@@ -242,7 +242,7 @@ static struct notifier_block iva_clk_notifier = {
  */
 static int omap3_bridge_startup(struct platform_device *pdev)
 {
-	struct dspbridge_platform_data *pdata = pdev->dev.platform_data;
+	struct omap_dsp_platform_data *pdata = pdev->dev.platform_data;
 	struct drv_data *drv_datap = NULL;
 	u32 phys_membase, phys_memsize;
 	int err;
@@ -271,7 +271,6 @@ static int omap3_bridge_startup(struct platform_device *pdev)
 #endif
 
 	dsp_clk_init();
-	services_init();
 
 	drv_datap = kzalloc(sizeof(struct drv_data), GFP_KERNEL);
 	if (!drv_datap) {
@@ -328,7 +327,6 @@ err1:
 					CPUFREQ_TRANSITION_NOTIFIER);
 #endif
 	dsp_clk_exit();
-	services_exit();
 
 	return err;
 }
@@ -394,11 +392,14 @@ static int __devexit omap34_xx_bridge_remove(struct platform_device *pdev)
 	dev_t devno;
 	bool ret;
 	int status = 0;
-	void *hdrv_obj = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
-	status = cfg_get_object((u32 *) &hdrv_obj, REG_DRV_OBJECT);
-	if (status)
+	/* Retrieve the Object handle from the driver data */
+	if (!drv_datap || !drv_datap->drv_object) {
+		status = -ENODATA;
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 		goto func_cont;
+	}
 
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 	if (cpufreq_unregister_notifier(&iva_clk_notifier,
@@ -418,7 +419,6 @@ func_cont:
 	mem_ext_phys_pool_release();
 
 	dsp_clk_exit();
-	services_exit();
 
 	devno = MKDEV(driver_major, 0);
 	cdev_del(&bridge_cdev);
@@ -465,7 +465,7 @@ static int BRIDGE_RESUME(struct platform_device *pdev)
 
 static struct platform_driver bridge_driver = {
 	.driver = {
-		   .name = BRIDGE_NAME,
+		   .name = "omap-dsp",
 		   },
 	.probe = omap34_xx_bridge_probe,
 	.remove = __devexit_p(omap34_xx_bridge_remove),

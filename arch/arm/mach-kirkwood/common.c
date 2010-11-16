@@ -854,10 +854,9 @@ int __init kirkwood_find_tclk(void)
 
 	kirkwood_pcie_id(&dev, &rev);
 
-	if ((dev == MV88F6281_DEV_ID && (rev == MV88F6281_REV_A0 ||
-					rev == MV88F6281_REV_A1)) ||
-	    (dev == MV88F6282_DEV_ID))
-		return 200000000;
+	if (dev == MV88F6281_DEV_ID || dev == MV88F6282_DEV_ID)
+		if (((readl(SAMPLE_AT_RESET) >> 21) & 1) == 0)
+			return 200000000;
 
 	return 166666667;
 }
@@ -903,10 +902,16 @@ static struct platform_device kirkwood_i2s_device = {
 	},
 };
 
+static struct platform_device kirkwood_pcm_device = {
+	.name		= "kirkwood-pcm-audio",
+	.id		= -1,
+};
+
 void __init kirkwood_audio_init(void)
 {
 	kirkwood_clk_ctrl |= CGC_AUDIO;
 	platform_device_register(&kirkwood_i2s_device);
+	platform_device_register(&kirkwood_pcm_device);
 }
 
 /*****************************************************************************

@@ -16,11 +16,18 @@ int connect_req_to_link_param(struct cfcnfg *cnfg,
 {
 	struct dev_info *dev_info;
 	enum cfcnfg_phy_preference pref;
-	memset(l, 0, sizeof(*l));
-	l->priority = s->priority;
+	int res;
 
-	if (s->link_name[0] != '\0')
-		l->phyid = cfcnfg_get_named(cnfg, s->link_name);
+	memset(l, 0, sizeof(*l));
+	/* In caif protocol low value is high priority */
+	l->priority = CAIF_PRIO_MAX - s->priority + 1;
+
+	if (s->ifindex != 0){
+		res = cfcnfg_get_id_from_ifi(cnfg, s->ifindex);
+		if (res < 0)
+			return res;
+		l->phyid = res;
+	}
 	else {
 		switch (s->link_selector) {
 		case CAIF_LINK_HIGH_BANDW:

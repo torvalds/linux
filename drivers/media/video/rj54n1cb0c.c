@@ -493,7 +493,7 @@ static int rj54n1_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 
 static int rj54n1_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	/* Switch between preview and still shot modes */
 	return reg_set(client, RJ54N1_STILL_CONTROL, (!enable) << 7, 0x80);
@@ -503,7 +503,7 @@ static int rj54n1_set_bus_param(struct soc_camera_device *icd,
 				unsigned long flags)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	/* Figures 2.5-1 to 2.5-3 - default falling pixclk edge */
 
 	if (flags & SOCAM_PCLK_SAMPLE_RISING)
@@ -560,7 +560,7 @@ static int rj54n1_sensor_scale(struct v4l2_subdev *sd, s32 *in_w, s32 *in_h,
 
 static int rj54n1_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
 	struct v4l2_rect *rect = &a->c;
 	int dummy = 0, output_w, output_h,
@@ -595,7 +595,7 @@ static int rj54n1_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 
 static int rj54n1_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
 
 	a->c	= rj54n1->rect;
@@ -621,7 +621,7 @@ static int rj54n1_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 static int rj54n1_g_fmt(struct v4l2_subdev *sd,
 			struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
 
 	mf->code	= rj54n1->fmt->code;
@@ -641,7 +641,7 @@ static int rj54n1_g_fmt(struct v4l2_subdev *sd,
 static int rj54n1_sensor_scale(struct v4l2_subdev *sd, s32 *in_w, s32 *in_h,
 			       s32 *out_w, s32 *out_h)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
 	unsigned int skip, resize, input_w = *in_w, input_h = *in_h,
 		output_w = *out_w, output_h = *out_h;
@@ -983,7 +983,7 @@ static int rj54n1_reg_init(struct i2c_client *client)
 static int rj54n1_try_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
 	const struct rj54n1_datafmt *fmt;
 	int align = mf->code == V4L2_MBUS_FMT_SBGGR10_1X10 ||
@@ -1014,7 +1014,7 @@ static int rj54n1_try_fmt(struct v4l2_subdev *sd,
 static int rj54n1_s_fmt(struct v4l2_subdev *sd,
 			struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
 	const struct rj54n1_datafmt *fmt;
 	int output_w, output_h, max_w, max_h,
@@ -1145,7 +1145,7 @@ static int rj54n1_s_fmt(struct v4l2_subdev *sd,
 static int rj54n1_g_chip_ident(struct v4l2_subdev *sd,
 			       struct v4l2_dbg_chip_ident *id)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
 		return -EINVAL;
@@ -1163,7 +1163,7 @@ static int rj54n1_g_chip_ident(struct v4l2_subdev *sd,
 static int rj54n1_g_register(struct v4l2_subdev *sd,
 			     struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR ||
 	    reg->reg < 0x400 || reg->reg > 0x1fff)
@@ -1185,7 +1185,7 @@ static int rj54n1_g_register(struct v4l2_subdev *sd,
 static int rj54n1_s_register(struct v4l2_subdev *sd,
 			     struct v4l2_dbg_register *reg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR ||
 	    reg->reg < 0x400 || reg->reg > 0x1fff)
@@ -1248,7 +1248,7 @@ static struct soc_camera_ops rj54n1_ops = {
 
 static int rj54n1_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
 	int data;
 
@@ -1283,7 +1283,7 @@ static int rj54n1_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 static int rj54n1_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	int data;
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
 	const struct v4l2_queryctrl *qctrl;
 

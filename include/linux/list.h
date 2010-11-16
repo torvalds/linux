@@ -5,7 +5,6 @@
 #include <linux/stddef.h>
 #include <linux/poison.h>
 #include <linux/prefetch.h>
-#include <asm/system.h>
 
 /*
  * Simple doubly linked list implementation.
@@ -635,6 +634,12 @@ static inline void hlist_add_after(struct hlist_node *n,
 
 	if(next->next)
 		next->next->pprev  = &next->next;
+}
+
+/* after that we'll appear to be on some hlist and hlist_del will work */
+static inline void hlist_add_fake(struct hlist_node *n)
+{
+	n->pprev = &n->next;
 }
 
 /*

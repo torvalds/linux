@@ -183,11 +183,6 @@ struct vxge_hw_device_version {
 	char    version[VXGE_HW_FW_STRLEN];
 };
 
-u64
-__vxge_hw_vpath_pci_func_mode_get(
-	u32 vp_id,
-	struct vxge_hw_vpath_reg __iomem *vpath_reg);
-
 /**
  * struct vxge_hw_fifo_config - Configuration of fifo.
  * @enable: Is this fifo to be commissioned
@@ -1426,9 +1421,6 @@ struct vxge_hw_rth_hash_types {
 	u8 hash_type_ipv6ex_en;
 };
 
-u32
-vxge_hw_device_debug_mask_get(struct __vxge_hw_device *devh);
-
 void vxge_hw_device_debug_set(
 	struct __vxge_hw_device *devh,
 	enum vxge_debug_level level,
@@ -1439,9 +1431,6 @@ vxge_hw_device_error_level_get(struct __vxge_hw_device *devh);
 
 u32
 vxge_hw_device_trace_level_get(struct __vxge_hw_device *devh);
-
-u32
-vxge_hw_device_debug_mask_get(struct __vxge_hw_device *devh);
 
 /**
  * vxge_hw_ring_rxd_size_get	- Get the size of ring descriptor.
@@ -1817,58 +1806,8 @@ struct vxge_hw_vpath_attr {
 	struct vxge_hw_fifo_attr	fifo_attr;
 };
 
-enum vxge_hw_status
-__vxge_hw_blockpool_create(struct __vxge_hw_device *hldev,
-			struct __vxge_hw_blockpool  *blockpool,
-			u32 pool_size,
-			u32 pool_max);
-
-void
-__vxge_hw_blockpool_destroy(struct __vxge_hw_blockpool  *blockpool);
-
-struct __vxge_hw_blockpool_entry *
-__vxge_hw_blockpool_block_allocate(struct __vxge_hw_device *hldev,
-			u32 size);
-
-void
-__vxge_hw_blockpool_block_free(struct __vxge_hw_device *hldev,
-			struct __vxge_hw_blockpool_entry *entry);
-
-void *
-__vxge_hw_blockpool_malloc(struct __vxge_hw_device *hldev,
-			u32 size,
-			struct vxge_hw_mempool_dma *dma_object);
-
-void
-__vxge_hw_blockpool_free(struct __vxge_hw_device *hldev,
-			void *memblock,
-			u32 size,
-			struct vxge_hw_mempool_dma *dma_object);
-
-enum vxge_hw_status
-__vxge_hw_device_fifo_config_check(struct vxge_hw_fifo_config *fifo_config);
-
-enum vxge_hw_status
-__vxge_hw_device_config_check(struct vxge_hw_device_config *new_config);
-
-enum vxge_hw_status
-vxge_hw_mgmt_device_config(struct __vxge_hw_device *devh,
-		struct vxge_hw_device_config	*dev_config, int size);
-
 enum vxge_hw_status __devinit vxge_hw_device_hw_info_get(
 	void __iomem *bar0,
-	struct vxge_hw_device_hw_info *hw_info);
-
-enum vxge_hw_status
-__vxge_hw_vpath_fw_ver_get(
-	u32	vp_id,
-	struct vxge_hw_vpath_reg __iomem *vpath_reg,
-	struct vxge_hw_device_hw_info *hw_info);
-
-enum vxge_hw_status
-__vxge_hw_vpath_card_info_get(
-	u32 vp_id,
-	struct vxge_hw_vpath_reg __iomem *vpath_reg,
 	struct vxge_hw_device_hw_info *hw_info);
 
 enum vxge_hw_status __devinit vxge_hw_device_config_default_get(
@@ -1954,38 +1893,6 @@ out:
 	return vaddr;
 }
 
-extern void vxge_hw_blockpool_block_add(
-			struct __vxge_hw_device *devh,
-			void *block_addr,
-			u32 length,
-			struct pci_dev *dma_h,
-			struct pci_dev *acc_handle);
-
-static inline void vxge_os_dma_malloc_async(struct pci_dev *pdev, void *devh,
-					unsigned long size)
-{
-	gfp_t flags;
-	void *vaddr;
-
-	if (in_interrupt())
-		flags = GFP_ATOMIC | GFP_DMA;
-	else
-		flags = GFP_KERNEL | GFP_DMA;
-
-	vaddr = kmalloc((size), flags);
-
-	vxge_hw_blockpool_block_add(devh, vaddr, size, pdev, pdev);
-}
-
-static inline void vxge_os_dma_free(struct pci_dev *pdev, const void *vaddr,
-			struct pci_dev **p_dma_acch)
-{
-	unsigned long misaligned = *(unsigned long *)p_dma_acch;
-	u8 *tmp = (u8 *)vaddr;
-	tmp -= misaligned;
-	kfree((void *)tmp);
-}
-
 /*
  * __vxge_hw_mempool_item_priv - will return pointer on per item private space
  */
@@ -2010,40 +1917,6 @@ __vxge_hw_mempool_item_priv(
 			    (*memblock_item_idx) * mempool->items_priv_size;
 }
 
-enum vxge_hw_status
-__vxge_hw_mempool_grow(
-	struct vxge_hw_mempool *mempool,
-	u32 num_allocate,
-	u32 *num_allocated);
-
-struct vxge_hw_mempool*
-__vxge_hw_mempool_create(
-	struct __vxge_hw_device *devh,
-	u32 memblock_size,
-	u32 item_size,
-	u32 private_size,
-	u32 items_initial,
-	u32 items_max,
-	struct vxge_hw_mempool_cbs *mp_callback,
-	void *userdata);
-
-struct __vxge_hw_channel*
-__vxge_hw_channel_allocate(struct __vxge_hw_vpath_handle *vph,
-			enum __vxge_hw_channel_type type, u32 length,
-			u32 per_dtr_space, void *userdata);
-
-void
-__vxge_hw_channel_free(
-	struct __vxge_hw_channel *channel);
-
-enum vxge_hw_status
-__vxge_hw_channel_initialize(
-	struct __vxge_hw_channel *channel);
-
-enum vxge_hw_status
-__vxge_hw_channel_reset(
-	struct __vxge_hw_channel *channel);
-
 /*
  * __vxge_hw_fifo_txdl_priv - Return the max fragments allocated
  * for the fifo.
@@ -2064,9 +1937,6 @@ enum vxge_hw_status vxge_hw_vpath_open(
 	struct __vxge_hw_device *devh,
 	struct vxge_hw_vpath_attr *attr,
 	struct __vxge_hw_vpath_handle **vpath_handle);
-
-enum vxge_hw_status
-__vxge_hw_device_vpath_reset_in_prog_check(u64 __iomem *vpath_rst_in_prog);
 
 enum vxge_hw_status vxge_hw_vpath_close(
 	struct __vxge_hw_vpath_handle *vpath_handle);
@@ -2089,54 +1959,9 @@ enum vxge_hw_status vxge_hw_vpath_mtu_set(
 	struct __vxge_hw_vpath_handle *vpath_handle,
 	u32 new_mtu);
 
-enum vxge_hw_status vxge_hw_vpath_stats_enable(
-	struct __vxge_hw_vpath_handle *vpath_handle);
-
-enum vxge_hw_status
-__vxge_hw_vpath_stats_access(
-	struct __vxge_hw_virtualpath	*vpath,
-	u32			operation,
-	u32			offset,
-	u64			*stat);
-
-enum vxge_hw_status
-__vxge_hw_vpath_xmac_tx_stats_get(
-	struct __vxge_hw_virtualpath	*vpath,
-	struct vxge_hw_xmac_vpath_tx_stats *vpath_tx_stats);
-
-enum vxge_hw_status
-__vxge_hw_vpath_xmac_rx_stats_get(
-	struct __vxge_hw_virtualpath	*vpath,
-	struct vxge_hw_xmac_vpath_rx_stats *vpath_rx_stats);
-
-enum vxge_hw_status
-__vxge_hw_vpath_stats_get(
-	struct __vxge_hw_virtualpath *vpath,
-	struct vxge_hw_vpath_stats_hw_info *hw_stats);
-
 void
 vxge_hw_vpath_rx_doorbell_init(struct __vxge_hw_vpath_handle *vp);
 
-enum vxge_hw_status
-__vxge_hw_device_vpath_config_check(struct vxge_hw_vp_config *vp_config);
-
-void
-__vxge_hw_device_pci_e_init(struct __vxge_hw_device *hldev);
-
-enum vxge_hw_status
-__vxge_hw_legacy_swapper_set(struct vxge_hw_legacy_reg __iomem *legacy_reg);
-
-enum vxge_hw_status
-__vxge_hw_vpath_swapper_set(struct vxge_hw_vpath_reg __iomem *vpath_reg);
-
-enum vxge_hw_status
-__vxge_hw_kdfc_swapper_set(struct vxge_hw_legacy_reg __iomem *legacy_reg,
-	struct vxge_hw_vpath_reg __iomem *vpath_reg);
-
-enum vxge_hw_status
-__vxge_hw_device_register_poll(
-	void __iomem	*reg,
-	u64 mask, u32 max_millis);
 
 #ifndef readq
 static inline u64 readq(void __iomem *addr)
@@ -2168,62 +1993,12 @@ static inline void __vxge_hw_pio_mem_write32_lower(u32 val, void __iomem *addr)
 	writel(val, addr);
 }
 
-static inline enum vxge_hw_status
-__vxge_hw_pio_mem_write64(u64 val64, void __iomem *addr,
-			  u64 mask, u32 max_millis)
-{
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	__vxge_hw_pio_mem_write32_lower((u32)vxge_bVALn(val64, 32, 32), addr);
-	wmb();
-	__vxge_hw_pio_mem_write32_upper((u32)vxge_bVALn(val64, 0, 32), addr);
-	wmb();
-
-	status = __vxge_hw_device_register_poll(addr, mask, max_millis);
-	return status;
-}
-
-struct vxge_hw_toc_reg __iomem *
-__vxge_hw_device_toc_get(void __iomem *bar0);
-
-enum vxge_hw_status
-__vxge_hw_device_reg_addr_get(struct __vxge_hw_device *hldev);
-
-void
-__vxge_hw_device_id_get(struct __vxge_hw_device *hldev);
-
-void
-__vxge_hw_device_host_info_get(struct __vxge_hw_device *hldev);
-
 enum vxge_hw_status
 vxge_hw_device_flick_link_led(struct __vxge_hw_device *devh, u64 on_off);
 
 enum vxge_hw_status
-__vxge_hw_device_initialize(struct __vxge_hw_device *hldev);
-
-enum vxge_hw_status
-__vxge_hw_vpath_pci_read(
-	struct __vxge_hw_virtualpath	*vpath,
-	u32			phy_func_0,
-	u32			offset,
-	u32			*val);
-
-enum vxge_hw_status
-__vxge_hw_vpath_addr_get(
-	u32 vp_id,
-	struct vxge_hw_vpath_reg __iomem *vpath_reg,
-	u8 (macaddr)[ETH_ALEN],
-	u8 (macaddr_mask)[ETH_ALEN]);
-
-u32
-__vxge_hw_vpath_func_id_get(
-	u32 vp_id, struct vxge_hw_vpmgmt_reg __iomem *vpmgmt_reg);
-
-enum vxge_hw_status
-__vxge_hw_vpath_reset_check(struct __vxge_hw_virtualpath *vpath);
-
-enum vxge_hw_status
 vxge_hw_vpath_strip_fcs_check(struct __vxge_hw_device *hldev, u64 vpath_mask);
+
 /**
  * vxge_debug
  * @level: level of debug verbosity.

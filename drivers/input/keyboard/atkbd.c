@@ -63,6 +63,10 @@ static bool atkbd_extra;
 module_param_named(extra, atkbd_extra, bool, 0);
 MODULE_PARM_DESC(extra, "Enable extra LEDs and keys on IBM RapidAcces, EzKey and similar keyboards");
 
+static bool atkbd_terminal;
+module_param_named(terminal, atkbd_terminal, bool, 0);
+MODULE_PARM_DESC(terminal, "Enable break codes on an IBM Terminal keyboard connected via AT/PS2");
+
 /*
  * Scancode to keycode tables. These are just the default setting, and
  * are loadable via a userland utility.
@@ -136,7 +140,8 @@ static const unsigned short atkbd_unxlate_table[128] = {
 #define ATKBD_CMD_ENABLE	0x00f4
 #define ATKBD_CMD_RESET_DIS	0x00f5	/* Reset to defaults and disable */
 #define ATKBD_CMD_RESET_DEF	0x00f6	/* Reset to defaults */
-#define ATKBD_CMD_SETALL_MBR	0x00fa
+#define ATKBD_CMD_SETALL_MB	0x00f8	/* Set all keys to give break codes */
+#define ATKBD_CMD_SETALL_MBR	0x00fa  /* ... and repeat */
 #define ATKBD_CMD_RESET_BAT	0x02ff
 #define ATKBD_CMD_RESEND	0x00fe
 #define ATKBD_CMD_EX_ENABLE	0x10ea
@@ -762,6 +767,11 @@ static int atkbd_select_set(struct atkbd *atkbd, int target_set, int allow_extra
 			atkbd->extra = true;
 			return 2;
 		}
+	}
+
+	if (atkbd_terminal) {
+		ps2_command(ps2dev, param, ATKBD_CMD_SETALL_MB);
+		return 3;
 	}
 
 	if (target_set != 3)

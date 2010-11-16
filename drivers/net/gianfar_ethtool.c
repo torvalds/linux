@@ -254,7 +254,7 @@ static unsigned int gfar_usecs2ticks(struct gfar_private *priv, unsigned int use
 
 	/* Make sure we return a number greater than 0
 	 * if usecs > 0 */
-	return ((usecs * 1000 + count - 1) / count);
+	return (usecs * 1000 + count - 1) / count;
 }
 
 /* Convert ethernet clock ticks to microseconds */
@@ -278,7 +278,7 @@ static unsigned int gfar_ticks2usecs(struct gfar_private *priv, unsigned int tic
 
 	/* Make sure we return a number greater than 0 */
 	/* if ticks is > 0 */
-	return ((ticks * count) / 1000);
+	return (ticks * count) / 1000;
 }
 
 /* Get the coalescing parameters, and put them in the cvals
@@ -538,7 +538,7 @@ static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 
 		unlock_tx_qs(priv);
 		unlock_rx_qs(priv);
-		local_irq_save(flags);
+		local_irq_restore(flags);
 
 		for (i = 0; i < priv->num_rx_queues; i++)
 			gfar_clean_rx_ring(priv->rx_queue[i],
@@ -635,9 +635,10 @@ static int gfar_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EINVAL;
 
+	device_set_wakeup_enable(&dev->dev, wol->wolopts & WAKE_MAGIC);
+
 	spin_lock_irqsave(&priv->bflock, flags);
-	priv->wol_en = wol->wolopts & WAKE_MAGIC ? 1 : 0;
-	device_set_wakeup_enable(&dev->dev, priv->wol_en);
+	priv->wol_en =  !!device_may_wakeup(&dev->dev);
 	spin_unlock_irqrestore(&priv->bflock, flags);
 
 	return 0;

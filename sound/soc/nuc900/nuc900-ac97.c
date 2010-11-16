@@ -20,7 +20,6 @@
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-#include <linux/device.h>
 #include <linux/clk.h>
 
 #include <mach/mfp.h>
@@ -297,8 +296,7 @@ static struct snd_soc_dai_ops nuc900_ac97_dai_ops = {
 	.trigger	= nuc900_ac97_trigger,
 };
 
-struct snd_soc_dai nuc900_ac97_dai = {
-	.name			= "nuc900-ac97",
+static struct snd_soc_dai_driver nuc900_ac97_dai = {
 	.probe			= nuc900_ac97_probe,
 	.remove			= nuc900_ac97_remove,
 	.ac97_control		= 1,
@@ -316,7 +314,6 @@ struct snd_soc_dai nuc900_ac97_dai = {
 	},
 	.ops = &nuc900_ac97_dai_ops,
 }
-EXPORT_SYMBOL_GPL(nuc900_ac97_dai);
 
 static int __devinit nuc900_ac97_drvprobe(struct platform_device *pdev)
 {
@@ -365,9 +362,7 @@ static int __devinit nuc900_ac97_drvprobe(struct platform_device *pdev)
 
 	nuc900_ac97_data = nuc900_audio;
 
-	nuc900_audio->dev = nuc900_ac97_dai.dev =  &pdev->dev;
-
-	ret = snd_soc_register_dai(&nuc900_ac97_dai);
+	ret = snd_soc_register_dai(&pdev->dev, &nuc900_ac97_dai);
 	if (ret)
 		goto out3;
 
@@ -390,7 +385,7 @@ out0:
 static int __devexit nuc900_ac97_drvremove(struct platform_device *pdev)
 {
 
-	snd_soc_unregister_dai(&nuc900_ac97_dai);
+	snd_soc_unregister_dai(&pdev->dev);
 
 	clk_put(nuc900_ac97_data->clk);
 	iounmap(nuc900_ac97_data->mmio);
@@ -404,7 +399,7 @@ static int __devexit nuc900_ac97_drvremove(struct platform_device *pdev)
 
 static struct platform_driver nuc900_ac97_driver = {
 	.driver	= {
-		.name	= "nuc900-audio",
+		.name	= "nuc900-ac97",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= nuc900_ac97_drvprobe,

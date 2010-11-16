@@ -1121,11 +1121,13 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 static struct dentry *__lookup_hash(struct qstr *name,
 		struct dentry *base, struct nameidata *nd)
 {
+	struct inode *inode = base->d_inode;
 	struct dentry *dentry;
-	struct inode *inode;
 	int err;
 
-	inode = base->d_inode;
+	err = exec_permission(inode);
+	if (err)
+		return ERR_PTR(err);
 
 	/*
 	 * See if the low-level filesystem might want
@@ -1161,11 +1163,6 @@ out:
  */
 static struct dentry *lookup_hash(struct nameidata *nd)
 {
-	int err;
-
-	err = exec_permission(nd->path.dentry->d_inode);
-	if (err)
-		return ERR_PTR(err);
 	return __lookup_hash(&nd->last, nd->path.dentry, nd);
 }
 
@@ -1213,9 +1210,6 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 	if (err)
 		return ERR_PTR(err);
 
-	err = exec_permission(base->d_inode);
-	if (err)
-		return ERR_PTR(err);
 	return __lookup_hash(&this, base, NULL);
 }
 
@@ -1580,6 +1574,7 @@ static struct file *finish_open(struct nameidata *nd,
 	 */
 	if (will_truncate)
 		mnt_drop_write(nd->path.mnt);
+	path_put(&nd->path);
 	return filp;
 
 exit:
@@ -1681,6 +1676,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		}
 		filp = nameidata_to_filp(nd);
 		mnt_drop_write(nd->path.mnt);
+		path_put(&nd->path);
 		if (!IS_ERR(filp)) {
 			error = ima_file_check(filp, acc_mode);
 			if (error) {
@@ -2291,7 +2287,7 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 			goto slashes;
 		inode = dentry->d_inode;
 		if (inode)
-			atomic_inc(&inode->i_count);
+			ihold(inode);
 		error = mnt_want_write(nd.path.mnt);
 		if (error)
 			goto exit2;

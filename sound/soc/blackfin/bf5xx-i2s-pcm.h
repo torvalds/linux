@@ -23,7 +23,4 @@ struct bf5xx_gpio {
 	u32 frm;
 };
 
-/* platform data */
-extern struct snd_soc_platform bf5xx_i2s_soc_platform;
-
 #endif

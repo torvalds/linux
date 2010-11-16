@@ -1,6 +1,8 @@
 b43-y				+= main.o
 b43-y				+= tables.o
 b43-$(CONFIG_B43_NPHY)		+= tables_nphy.o
+b43-$(CONFIG_B43_NPHY)		+= radio_2055.o
+b43-$(CONFIG_B43_NPHY)		+= radio_2056.o
 b43-y				+= phy_common.o
 b43-y				+= phy_g.o
 b43-y				+= phy_a.o

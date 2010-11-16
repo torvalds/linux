@@ -25,6 +25,7 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
+#include "nouveau_ramht.h"
 #include "nouveau_fbcon.h"
 
 void
@@ -169,11 +170,9 @@ nv04_fbcon_grobj_new(struct drm_device *dev, int class, uint32_t handle)
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_ref_add(dev, dev_priv->channel, handle, obj, NULL);
-	if (ret)
-		return ret;
-
-	return 0;
+	ret = nouveau_ramht_insert(dev_priv->channel, handle, obj);
+	nouveau_gpuobj_ref(NULL, &obj);
+	return ret;
 }
 
 int

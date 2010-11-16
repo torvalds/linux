@@ -154,7 +154,6 @@ static struct sh_timer_config cmt10_platform_data = {
 	.name = "CMT10",
 	.channel_offset = 0x10,
 	.timer_bit = 0,
-	.clk = "r_clk",
 	.clockevent_rating = 125,
 	.clocksource_rating = 125,
 };

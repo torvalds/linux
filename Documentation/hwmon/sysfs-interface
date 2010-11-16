@@ -309,6 +309,20 @@ temp[1-*]_crit_hyst
 		from the critical value.
 		RW
 
+temp[1-*]_emergency
+		Temperature emergency max value, for chips supporting more than
+		two upper temperature limits. Must be equal or greater than
+		corresponding temp_crit values.
+		Unit: millidegree Celsius
+		RW
+
+temp[1-*]_emergency_hyst
+		Temperature hysteresis value for emergency limit.
+		Unit: millidegree Celsius
+		Must be reported as an absolute temperature, NOT a delta
+		from the emergency value.
+		RW
+
 temp[1-*]_lcrit	Temperature critical min value, typically lower than
 		corresponding temp_min values.
 		Unit: millidegree Celsius
@@ -505,6 +519,7 @@ fan[1-*]_max_alarm
 temp[1-*]_min_alarm
 temp[1-*]_max_alarm
 temp[1-*]_crit_alarm
+temp[1-*]_emergency_alarm
 		Limit alarm
 		0: no alarm
 		1: alarm

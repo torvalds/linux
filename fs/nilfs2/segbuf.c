@@ -371,7 +371,8 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
 	struct bio *bio = wi->bio;
 	int err;
 
-	if (segbuf->sb_nbio > 0 && bdi_write_congested(wi->nilfs->ns_bdi)) {
+	if (segbuf->sb_nbio > 0 &&
+	    bdi_write_congested(segbuf->sb_super->s_bdi)) {
 		wait_for_completion(&segbuf->sb_bio_event);
 		segbuf->sb_nbio--;
 		if (unlikely(atomic_read(&segbuf->sb_err))) {

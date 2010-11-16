@@ -1,0 +1,7 @@
+config SCSI_CXGB4_ISCSI
+	tristate "Chelsio T4 iSCSI support"
+	depends on CHELSIO_T4_DEPENDS
+	select CHELSIO_T4
+	select SCSI_ISCSI_ATTRS
+	---help---
+	  This driver supports iSCSI offload for the Chelsio T4 devices.

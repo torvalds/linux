@@ -185,14 +185,8 @@ static int vt596_transaction(u8 size)
 	}
 
 	if (temp & 0x04) {
-		int read = inb_p(SMBHSTADD) & 0x01;
 		result = -ENXIO;
-		/* The quick and receive byte commands are used to probe
-		   for chips, so errors are expected, and we don't want
-		   to frighten the user. */
-		if (!((size == VT596_QUICK && !read) ||
-		      (size == VT596_BYTE && read)))
-			dev_err(&vt596_adapter.dev, "Transaction error!\n");
+		dev_dbg(&vt596_adapter.dev, "No response\n");
 	}
 
 	/* Resetting status register */

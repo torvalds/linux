@@ -13,12 +13,12 @@ int ipv6_ext_hdr(u8 nexthdr)
 	/*
 	 * find out if nexthdr is an extension header or a protocol
 	 */
-	return ( (nexthdr == NEXTHDR_HOP)	||
+	return   (nexthdr == NEXTHDR_HOP)	||
 		 (nexthdr == NEXTHDR_ROUTING)	||
 		 (nexthdr == NEXTHDR_FRAGMENT)	||
 		 (nexthdr == NEXTHDR_AUTH)	||
 		 (nexthdr == NEXTHDR_NONE)	||
-		 (nexthdr == NEXTHDR_DEST) );
+		 (nexthdr == NEXTHDR_DEST);
 }
 
 /*

@@ -156,6 +156,9 @@ static void fsl_emb_pmu_read(struct perf_event *event)
 {
 	s64 val, delta, prev;
 
+	if (event->hw.state & PERF_HES_STOPPED)
+		return;
+
 	/*
 	 * Performance monitor interrupts come even when interrupts
 	 * are soft-disabled, as long as interrupts are hard-enabled.
@@ -177,7 +180,7 @@ static void fsl_emb_pmu_read(struct perf_event *event)
  * Disable all events to prevent PMU interrupts and to allow
  * events to be added or removed.
  */
-void hw_perf_disable(void)
+static void fsl_emb_pmu_disable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw;
 	unsigned long flags;
@@ -216,7 +219,7 @@ void hw_perf_disable(void)
  * If we were previously disabled and events were added, then
  * put the new config on the PMU.
  */
-void hw_perf_enable(void)
+static void fsl_emb_pmu_enable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw;
 	unsigned long flags;
@@ -262,8 +265,8 @@ static int collect_events(struct perf_event *group, int max_count,
 	return n;
 }
 
-/* perf must be disabled, context locked on entry */
-static int fsl_emb_pmu_enable(struct perf_event *event)
+/* context locked on entry */
+static int fsl_emb_pmu_add(struct perf_event *event, int flags)
 {
 	struct cpu_hw_events *cpuhw;
 	int ret = -EAGAIN;
@@ -271,6 +274,7 @@ static int fsl_emb_pmu_enable(struct perf_event *event)
 	u64 val;
 	int i;
 
+	perf_pmu_disable(event->pmu);
 	cpuhw = &get_cpu_var(cpu_hw_events);
 
 	if (event->hw.config & FSL_EMB_EVENT_RESTRICTED)
@@ -301,6 +305,12 @@ static int fsl_emb_pmu_enable(struct perf_event *event)
 			val = 0x80000000L - left;
 	}
 	local64_set(&event->hw.prev_count, val);
+
+	if (!(flags & PERF_EF_START)) {
+		event->hw.state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
+		val = 0;
+	}
+
 	write_pmc(i, val);
 	perf_event_update_userpage(event);
 
@@ -310,15 +320,17 @@ static int fsl_emb_pmu_enable(struct perf_event *event)
 	ret = 0;
  out:
 	put_cpu_var(cpu_hw_events);
+	perf_pmu_enable(event->pmu);
 	return ret;
 }
 
-/* perf must be disabled, context locked on entry */
-static void fsl_emb_pmu_disable(struct perf_event *event)
+/* context locked on entry */
+static void fsl_emb_pmu_del(struct perf_event *event, int flags)
 {
 	struct cpu_hw_events *cpuhw;
 	int i = event->hw.idx;
 
+	perf_pmu_disable(event->pmu);
 	if (i < 0)
 		goto out;
 
@@ -346,44 +358,57 @@ static void fsl_emb_pmu_disable(struct perf_event *event)
 	cpuhw->n_events--;
 
  out:
+	perf_pmu_enable(event->pmu);
 	put_cpu_var(cpu_hw_events);
 }
 
-/*
- * Re-enable interrupts on a event after they were throttled
- * because they were coming too fast.
- *
- * Context is locked on entry, but perf is not disabled.
- */
-static void fsl_emb_pmu_unthrottle(struct perf_event *event)
+static void fsl_emb_pmu_start(struct perf_event *event, int ef_flags)
 {
-	s64 val, left;
+	unsigned long flags;
+	s64 left;
+
+	if (event->hw.idx < 0 || !event->hw.sample_period)
+		return;
+
+	if (!(event->hw.state & PERF_HES_STOPPED))
+		return;
+
+	if (ef_flags & PERF_EF_RELOAD)
+		WARN_ON_ONCE(!(event->hw.state & PERF_HES_UPTODATE));
+
+	local_irq_save(flags);
+	perf_pmu_disable(event->pmu);
+
+	event->hw.state = 0;
+	left = local64_read(&event->hw.period_left);
+	write_pmc(event->hw.idx, left);
+
+	perf_event_update_userpage(event);
+	perf_pmu_enable(event->pmu);
+	local_irq_restore(flags);
+}
+
+static void fsl_emb_pmu_stop(struct perf_event *event, int ef_flags)
+{
 	unsigned long flags;
 
 	if (event->hw.idx < 0 || !event->hw.sample_period)
 		return;
+
+	if (event->hw.state & PERF_HES_STOPPED)
+		return;
+
 	local_irq_save(flags);
-	perf_disable();
+	perf_pmu_disable(event->pmu);
+
 	fsl_emb_pmu_read(event);
-	left = event->hw.sample_period;
-	event->hw.last_period = left;
-	val = 0;
-	if (left < 0x80000000L)
-		val = 0x80000000L - left;
-	write_pmc(event->hw.idx, val);
-	local64_set(&event->hw.prev_count, val);
-	local64_set(&event->hw.period_left, left);
+	event->hw.state |= PERF_HES_STOPPED | PERF_HES_UPTODATE;
+	write_pmc(event->hw.idx, 0);
+
 	perf_event_update_userpage(event);
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);
 }
-
-static struct pmu fsl_emb_pmu = {
-	.enable		= fsl_emb_pmu_enable,
-	.disable	= fsl_emb_pmu_disable,
-	.read		= fsl_emb_pmu_read,
-	.unthrottle	= fsl_emb_pmu_unthrottle,
-};
 
 /*
  * Release the PMU if this is the last perf_event.
@@ -428,7 +453,7 @@ static int hw_perf_cache_event(u64 config, u64 *eventp)
 	return 0;
 }
 
-const struct pmu *hw_perf_event_init(struct perf_event *event)
+static int fsl_emb_pmu_event_init(struct perf_event *event)
 {
 	u64 ev;
 	struct perf_event *events[MAX_HWEVENTS];
@@ -441,14 +466,14 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
 	case PERF_TYPE_HARDWARE:
 		ev = event->attr.config;
 		if (ev >= ppmu->n_generic || ppmu->generic_events[ev] == 0)
-			return ERR_PTR(-EOPNOTSUPP);
+			return -EOPNOTSUPP;
 		ev = ppmu->generic_events[ev];
 		break;
 
 	case PERF_TYPE_HW_CACHE:
 		err = hw_perf_cache_event(event->attr.config, &ev);
 		if (err)
-			return ERR_PTR(err);
+			return err;
 		break;
 
 	case PERF_TYPE_RAW:
@@ -456,12 +481,12 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
 		break;
 
 	default:
-		return ERR_PTR(-EINVAL);
+		return -ENOENT;
 	}
 
 	event->hw.config = ppmu->xlate_event(ev);
 	if (!(event->hw.config & FSL_EMB_EVENT_VALID))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	/*
 	 * If this is in a group, check if it can go on with all the
@@ -473,7 +498,7 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
 		n = collect_events(event->group_leader,
 		                   ppmu->n_counter - 1, events);
 		if (n < 0)
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 	}
 
 	if (event->hw.config & FSL_EMB_EVENT_RESTRICTED) {
@@ -484,7 +509,7 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
 		}
 
 		if (num_restricted >= ppmu->n_restricted)
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 	}
 
 	event->hw.idx = -1;
@@ -497,7 +522,7 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
 	if (event->attr.exclude_kernel)
 		event->hw.config_base |= PMLCA_FCS;
 	if (event->attr.exclude_idle)
-		return ERR_PTR(-ENOTSUPP);
+		return -ENOTSUPP;
 
 	event->hw.last_period = event->hw.sample_period;
 	local64_set(&event->hw.period_left, event->hw.last_period);
@@ -523,10 +548,19 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
 	}
 	event->destroy = hw_perf_event_destroy;
 
-	if (err)
-		return ERR_PTR(err);
-	return &fsl_emb_pmu;
+	return err;
 }
+
+static struct pmu fsl_emb_pmu = {
+	.pmu_enable	= fsl_emb_pmu_enable,
+	.pmu_disable	= fsl_emb_pmu_disable,
+	.event_init	= fsl_emb_pmu_event_init,
+	.add		= fsl_emb_pmu_add,
+	.del		= fsl_emb_pmu_del,
+	.start		= fsl_emb_pmu_start,
+	.stop		= fsl_emb_pmu_stop,
+	.read		= fsl_emb_pmu_read,
+};
 
 /*
  * A counter has overflowed; update its count and record
@@ -539,6 +573,11 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 	u64 period = event->hw.sample_period;
 	s64 prev, delta, left;
 	int record = 0;
+
+	if (event->hw.state & PERF_HES_STOPPED) {
+		write_pmc(event->hw.idx, 0);
+		return;
+	}
 
 	/* we don't have to worry about interrupts here */
 	prev = local64_read(&event->hw.prev_count);
@@ -562,6 +601,11 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 			val = 0x80000000LL - left;
 	}
 
+	write_pmc(event->hw.idx, val);
+	local64_set(&event->hw.prev_count, val);
+	local64_set(&event->hw.period_left, left);
+	perf_event_update_userpage(event);
+
 	/*
 	 * Finally record data if requested.
 	 */
@@ -571,23 +615,9 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 		perf_sample_data_init(&data, 0);
 		data.period = event->hw.last_period;
 
-		if (perf_event_overflow(event, nmi, &data, regs)) {
-			/*
-			 * Interrupts are coming too fast - throttle them
-			 * by setting the event to 0, so it will be
-			 * at least 2^30 cycles until the next interrupt
-			 * (assuming each event counts at most 2 counts
-			 * per cycle).
-			 */
-			val = 0;
-			left = ~0ULL >> 1;
-		}
+		if (perf_event_overflow(event, nmi, &data, regs))
+			fsl_emb_pmu_stop(event, 0);
 	}
-
-	write_pmc(event->hw.idx, val);
-	local64_set(&event->hw.prev_count, val);
-	local64_set(&event->hw.period_left, left);
-	perf_event_update_userpage(event);
 }
 
 static void perf_event_interrupt(struct pt_regs *regs)
@@ -650,6 +680,8 @@ int register_fsl_emb_pmu(struct fsl_emb_pmu *pmu)
 	ppmu = pmu;
 	pr_info("%s performance monitor hardware support registered\n",
 		pmu->name);
+
+	perf_pmu_register(&fsl_emb_pmu);
 
 	return 0;
 }

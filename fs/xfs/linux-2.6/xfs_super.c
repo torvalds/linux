@@ -44,7 +44,6 @@
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
 #include "xfs_vnodeops.h"
-#include "xfs_version.h"
 #include "xfs_log_priv.h"
 #include "xfs_trans_priv.h"
 #include "xfs_filestream.h"
@@ -354,9 +353,6 @@ xfs_parseargs(
 			mp->m_qflags &= ~XFS_OQUOTA_ENFD;
 		} else if (!strcmp(this_char, MNTOPT_DELAYLOG)) {
 			mp->m_flags |= XFS_MOUNT_DELAYLOG;
-			cmn_err(CE_WARN,
-				"Enabling EXPERIMENTAL delayed logging feature "
-				"- use at your own risk.\n");
 		} else if (!strcmp(this_char, MNTOPT_NODELAYLOG)) {
 			mp->m_flags &= ~XFS_MOUNT_DELAYLOG;
 		} else if (!strcmp(this_char, "ihashsize")) {
@@ -577,7 +573,7 @@ xfs_max_file_offset(
 
 	/* Figure out maximum filesize, on Linux this can depend on
 	 * the filesystem blocksize (on 32 bit platforms).
-	 * __block_prepare_write does this in an [unsigned] long...
+	 * __block_write_begin does this in an [unsigned] long...
 	 *      page->index << (PAGE_CACHE_SHIFT - bbits)
 	 * So, for page sized blocks (4K on 32 bit platforms),
 	 * this wraps at around 8Tb (hence MAX_LFS_FILESIZE which is
@@ -645,7 +641,7 @@ xfs_barrier_test(
 	XFS_BUF_ORDERED(sbp);
 
 	xfsbdstrat(mp, sbp);
-	error = xfs_iowait(sbp);
+	error = xfs_buf_iowait(sbp);
 
 	/*
 	 * Clear all the flags we set and possible error state in the
@@ -693,8 +689,7 @@ void
 xfs_blkdev_issue_flush(
 	xfs_buftarg_t		*buftarg)
 {
-	blkdev_issue_flush(buftarg->bt_bdev, GFP_KERNEL, NULL,
-			BLKDEV_IFL_WAIT);
+	blkdev_issue_flush(buftarg->bt_bdev, GFP_KERNEL, NULL);
 }
 
 STATIC void
@@ -758,18 +753,20 @@ xfs_open_devices(
 	 * Setup xfs_mount buffer target pointers
 	 */
 	error = ENOMEM;
-	mp->m_ddev_targp = xfs_alloc_buftarg(ddev, 0, mp->m_fsname);
+	mp->m_ddev_targp = xfs_alloc_buftarg(mp, ddev, 0, mp->m_fsname);
 	if (!mp->m_ddev_targp)
 		goto out_close_rtdev;
 
 	if (rtdev) {
-		mp->m_rtdev_targp = xfs_alloc_buftarg(rtdev, 1, mp->m_fsname);
+		mp->m_rtdev_targp = xfs_alloc_buftarg(mp, rtdev, 1,
+							mp->m_fsname);
 		if (!mp->m_rtdev_targp)
 			goto out_free_ddev_targ;
 	}
 
 	if (logdev && logdev != ddev) {
-		mp->m_logdev_targp = xfs_alloc_buftarg(logdev, 1, mp->m_fsname);
+		mp->m_logdev_targp = xfs_alloc_buftarg(mp, logdev, 1,
+							mp->m_fsname);
 		if (!mp->m_logdev_targp)
 			goto out_free_rtdev_targ;
 	} else {
@@ -972,12 +969,7 @@ xfs_fs_inode_init_once(
 
 /*
  * Dirty the XFS inode when mark_inode_dirty_sync() is called so that
- * we catch unlogged VFS level updates to the inode. Care must be taken
- * here - the transaction code calls mark_inode_dirty_sync() to mark the
- * VFS inode dirty in a transaction and clears the i_update_core field;
- * it must clear the field after calling mark_inode_dirty_sync() to
- * correctly indicate that the dirty state has been propagated into the
- * inode log item.
+ * we catch unlogged VFS level updates to the inode.
  *
  * We need the barrier() to maintain correct ordering between unlogged
  * updates and the transaction commit code that clears the i_update_core
@@ -1521,8 +1513,9 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_free_fsname;
 
-	if (xfs_icsb_init_counters(mp))
-		mp->m_flags |= XFS_MOUNT_NO_PERCPU_SB;
+	error = xfs_icsb_init_counters(mp);
+	if (error)
+		goto out_close_devices;
 
 	error = xfs_readsb(mp, flags);
 	if (error)
@@ -1583,6 +1576,7 @@ xfs_fs_fill_super(
 	xfs_freesb(mp);
  out_destroy_counters:
 	xfs_icsb_destroy_counters(mp);
+ out_close_devices:
 	xfs_close_devices(mp);
  out_free_fsname:
 	xfs_free_fsname(mp);
@@ -1612,16 +1606,14 @@ xfs_fs_fill_super(
 	goto out_free_sb;
 }
 
-STATIC int
-xfs_fs_get_sb(
+STATIC struct dentry *
+xfs_fs_mount(
 	struct file_system_type	*fs_type,
 	int			flags,
 	const char		*dev_name,
-	void			*data,
-	struct vfsmount		*mnt)
+	void			*data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, xfs_fs_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, xfs_fs_fill_super);
 }
 
 static const struct super_operations xfs_super_operations = {
@@ -1642,7 +1634,7 @@ static const struct super_operations xfs_super_operations = {
 static struct file_system_type xfs_fs_type = {
 	.owner			= THIS_MODULE,
 	.name			= "xfs",
-	.get_sb			= xfs_fs_get_sb,
+	.mount			= xfs_fs_mount,
 	.kill_sb		= kill_block_super,
 	.fs_flags		= FS_REQUIRES_DEV,
 };

@@ -19,16 +19,12 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include "ads117x.h"
-
 #define ADS117X_RATES (SNDRV_PCM_RATE_8000_48000)
-
 #define ADS117X_FORMATS (SNDRV_PCM_FMTBIT_S16_LE)
 
-struct snd_soc_dai ads117x_dai = {
+static struct snd_soc_dai_driver ads117x_dai = {
 /* ADC */
-	.name = "ADS117X ADC",
-	.id = 1,
+	.name = "ads117x-hifi",
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 1,
@@ -36,75 +32,29 @@ struct snd_soc_dai ads117x_dai = {
 		.rates = ADS117X_RATES,
 		.formats = ADS117X_FORMATS,},
 };
-EXPORT_SYMBOL_GPL(ads117x_dai);
 
-static int ads117x_probe(struct platform_device *pdev)
+static struct snd_soc_codec_driver soc_codec_dev_ads117x;
+
+static __devinit int ads117x_probe(struct platform_device *pdev)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	int ret;
-
-	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (codec == NULL)
-		return -ENOMEM;
-
-	socdev->card->codec = codec;
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-	codec->name = "ADS117X";
-	codec->owner = THIS_MODULE;
-	codec->dai = &ads117x_dai;
-	codec->num_dai = 1;
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		printk(KERN_ERR "ads117x: failed to create pcms\n");
-		kfree(codec);
-		return ret;
-	}
-
-	return 0;
+	return snd_soc_register_codec(&pdev->dev,
+			&soc_codec_dev_ads117x, &ads117x_dai, 1);
 }
 
-static int ads117x_remove(struct platform_device *pdev)
+static int __devexit ads117x_remove(struct platform_device *pdev)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	snd_soc_free_pcms(socdev);
-	kfree(codec);
-
-	return 0;
-}
-
-struct snd_soc_codec_device soc_codec_dev_ads117x = {
-	.probe =	ads117x_probe,
-	.remove =	ads117x_remove,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_ads117x);
-
-static __devinit int ads117x_platform_probe(struct platform_device *pdev)
-{
-	ads117x_dai.dev = &pdev->dev;
-	return snd_soc_register_dai(&ads117x_dai);
-}
-
-static int __devexit ads117x_platform_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_dai(&ads117x_dai);
+	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
 
 static struct platform_driver ads117x_codec_driver = {
 	.driver = {
-			.name = "ads117x",
+			.name = "ads117x-codec",
 			.owner = THIS_MODULE,
 	},
 
-	.probe = ads117x_platform_probe,
-	.remove = __devexit_p(ads117x_platform_remove),
+	.probe = ads117x_probe,
+	.remove = __devexit_p(ads117x_remove),
 };
 
 static int __init ads117x_init(void)

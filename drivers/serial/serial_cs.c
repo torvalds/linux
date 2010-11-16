@@ -45,7 +45,6 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
@@ -183,10 +182,8 @@ static void quirk_config_socket(struct pcmcia_device *link)
 {
 	struct serial_info *info = link->priv;
 
-	if (info->multi) {
-		link->conf.Present |= PRESENT_EXT_STATUS;
-		link->conf.ExtStatus = ESR_REQ_ATTN_ENA;
-	}
+	if (info->multi)
+		link->config_flags |= CONF_ENABLE_ESR;
 }
 
 static const struct serial_quirk quirks[] = {
@@ -265,13 +262,6 @@ static const struct serial_quirk quirks[] = {
 static int serial_config(struct pcmcia_device * link);
 
 
-/*======================================================================
-
-    After a card is removed, serial_remove() will unregister
-    the serial device(s), and release the PCMCIA configuration.
-    
-======================================================================*/
-
 static void serial_remove(struct pcmcia_device *link)
 {
 	struct serial_info *info = link->priv;
@@ -314,14 +304,6 @@ static int serial_resume(struct pcmcia_device *link)
 	return 0;
 }
 
-/*======================================================================
-
-    serial_attach() creates an "instance" of the driver, allocating
-    local data structures for one device.  The device is registered
-    with Card Services.
-
-======================================================================*/
-
 static int serial_probe(struct pcmcia_device *link)
 {
 	struct serial_info *info;
@@ -335,35 +317,18 @@ static int serial_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->conf.Attributes = CONF_ENABLE_IRQ;
-	if (do_sound) {
-		link->conf.Attributes |= CONF_ENABLE_SPKR;
-		link->conf.Status = CCSR_AUDIO_ENA;
-	}
-	link->conf.IntType = INT_MEMORY_AND_IO;
+	link->config_flags |= CONF_ENABLE_IRQ;
+	if (do_sound)
+		link->config_flags |= CONF_ENABLE_SPKR;
 
 	return serial_config(link);
 }
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
 
 static void serial_detach(struct pcmcia_device *link)
 {
 	struct serial_info *info = link->priv;
 
 	dev_dbg(&link->dev, "serial_detach\n");
-
-	/*
-	 * Ensure any outstanding scheduled tasks are completed.
-	 */
-	flush_scheduled_work();
 
 	/*
 	 * Ensure that the ports have been released.
@@ -430,47 +395,45 @@ static int pfc_config(struct pcmcia_device *p_dev)
 	return -ENODEV;
 }
 
-static int simple_config_check(struct pcmcia_device *p_dev,
-			       cistpl_cftable_entry_t *cf,
-			       cistpl_cftable_entry_t *dflt,
-			       unsigned int vcc,
-			       void *priv_data)
+static int simple_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
 	static const int size_table[2] = { 8, 16 };
 	int *try = priv_data;
 
-	if (cf->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp =
-			cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+	if (p_dev->resource[0]->start == 0)
+		return -ENODEV;
 
-	p_dev->io_lines = ((*try & 0x1) == 0) ?
-			16 : cf->io.flags & CISTPL_IO_LINES_MASK;
+	if ((*try & 0x1) == 0)
+		p_dev->io_lines = 16;
 
-	if ((cf->io.nwin > 0) && (cf->io.win[0].len == size_table[(*try >> 1)])
-	    && (cf->io.win[0].base != 0)) {
-		p_dev->resource[0]->start = cf->io.win[0].base;
-		if (!pcmcia_request_io(p_dev))
-			return 0;
-	}
-	return -EINVAL;
+	if (p_dev->resource[0]->end != size_table[(*try >> 1)])
+		return -ENODEV;
+
+	p_dev->resource[0]->end = 8;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+
+	return pcmcia_request_io(p_dev);
 }
 
 static int simple_config_check_notpicky(struct pcmcia_device *p_dev,
-					cistpl_cftable_entry_t *cf,
-					cistpl_cftable_entry_t *dflt,
-					unsigned int vcc,
 					void *priv_data)
 {
 	static const unsigned int base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
 	int j;
 
-	if ((cf->io.nwin > 0) && ((cf->io.flags & CISTPL_IO_LINES_MASK) <= 3)) {
-		for (j = 0; j < 5; j++) {
-			p_dev->resource[0]->start = base[j];
-			p_dev->io_lines = base[j] ? 16 : 3;
-			if (!pcmcia_request_io(p_dev))
-				return 0;
-		}
+	if (p_dev->io_lines > 3)
+		return -ENODEV;
+
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->resource[0]->end = 8;
+
+	for (j = 0; j < 5; j++) {
+		p_dev->resource[0]->start = base[j];
+		p_dev->io_lines = base[j] ? 16 : 3;
+		if (!pcmcia_request_io(p_dev))
+			return 0;
 	}
 	return -ENODEV;
 }
@@ -480,11 +443,9 @@ static int simple_config(struct pcmcia_device *link)
 	struct serial_info *info = link->priv;
 	int i = -ENODEV, try;
 
-	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
-	link->resource[0]->end = 8;
-
 	/* First pass: look for a config entry that looks normal.
 	 * Two tries: without IO aliases, then with aliases */
+	link->config_flags |= CONF_AUTO_SET_VPP | CONF_AUTO_SET_IO;
 	for (try = 0; try < 4; try++)
 		if (!pcmcia_loop_config(link, simple_config_check, &try))
 			goto found_port;
@@ -500,7 +461,7 @@ static int simple_config(struct pcmcia_device *link)
 
 found_port:
 	if (info->multi && (info->manfid == MANFID_3COM))
-		link->conf.ConfigIndex &= ~(0x08);
+		link->config_index &= ~(0x08);
 
 	/*
 	 * Apply any configuration quirks.
@@ -508,51 +469,50 @@ found_port:
 	if (info->quirk && info->quirk->config)
 		info->quirk->config(link);
 
-	i = pcmcia_request_configuration(link, &link->conf);
+	i = pcmcia_enable_device(link);
 	if (i != 0)
 		return -1;
 	return setup_serial(link, info, link->resource[0]->start, link->irq);
 }
 
-static int multi_config_check(struct pcmcia_device *p_dev,
-			      cistpl_cftable_entry_t *cf,
-			      cistpl_cftable_entry_t *dflt,
-			      unsigned int vcc,
-			      void *priv_data)
+static int multi_config_check(struct pcmcia_device *p_dev, void *priv_data)
 {
-	int *base2 = priv_data;
+	int *multi = priv_data;
+
+	if (p_dev->resource[1]->end)
+		return -EINVAL;
 
 	/* The quad port cards have bad CIS's, so just look for a
 	   window larger than 8 ports and assume it will be right */
-	if ((cf->io.nwin == 1) && (cf->io.win[0].len > 8)) {
-		p_dev->resource[0]->start = cf->io.win[0].base;
-		p_dev->io_lines = cf->io.flags & CISTPL_IO_LINES_MASK;
-		if (!pcmcia_request_io(p_dev)) {
-			*base2 = p_dev->resource[0]->start + 8;
-			return 0;
-		}
-	}
-	return -ENODEV;
+	if (p_dev->resource[0]->end <= 8)
+		return -EINVAL;
+
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->resource[0]->end = *multi * 8;
+
+	if (pcmcia_request_io(p_dev))
+		return -ENODEV;
+	return 0;
 }
 
 static int multi_config_check_notpicky(struct pcmcia_device *p_dev,
-				       cistpl_cftable_entry_t *cf,
-				       cistpl_cftable_entry_t *dflt,
-				       unsigned int vcc,
 				       void *priv_data)
 {
 	int *base2 = priv_data;
 
-	if (cf->io.nwin == 2) {
-		p_dev->resource[0]->start = cf->io.win[0].base;
-		p_dev->resource[1]->start = cf->io.win[1].base;
-		p_dev->io_lines = cf->io.flags & CISTPL_IO_LINES_MASK;
-		if (!pcmcia_request_io(p_dev)) {
-			*base2 = p_dev->resource[1]->start;
-			return 0;
-		}
-	}
-	return -ENODEV;
+	if (!p_dev->resource[0]->end || !p_dev->resource[1]->end)
+		return -ENODEV;
+
+	p_dev->resource[0]->end = p_dev->resource[1]->end = 8;
+	p_dev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+
+	if (pcmcia_request_io(p_dev))
+		return -ENODEV;
+
+	*base2 = p_dev->resource[0]->start + 8;
+	return 0;
 }
 
 static int multi_config(struct pcmcia_device *link)
@@ -560,12 +520,12 @@ static int multi_config(struct pcmcia_device *link)
 	struct serial_info *info = link->priv;
 	int i, base2 = 0;
 
+	link->config_flags |= CONF_AUTO_SET_IO;
 	/* First, look for a generic full-sized window */
-	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
-	link->resource[0]->end = info->multi * 8;
-	if (pcmcia_loop_config(link, multi_config_check, &base2)) {
+	if (!pcmcia_loop_config(link, multi_config_check, &info->multi))
+		base2 = link->resource[0]->start + 8;
+	else {
 		/* If that didn't work, look for two windows */
-		link->resource[0]->end = link->resource[1]->end = 8;
 		info->multi = 2;
 		if (pcmcia_loop_config(link, multi_config_check_notpicky,
 				       &base2)) {
@@ -584,7 +544,7 @@ static int multi_config(struct pcmcia_device *link)
 	if (info->quirk && info->quirk->config)
 		info->quirk->config(link);
 
-	i = pcmcia_request_configuration(link, &link->conf);
+	i = pcmcia_enable_device(link);
 	if (i != 0)
 		return -ENODEV;
 
@@ -596,11 +556,11 @@ static int multi_config(struct pcmcia_device *link)
 				info->prodid == PRODID_POSSIO_GCC)) {
 		int err;
 
-		if (link->conf.ConfigIndex == 1 ||
-		    link->conf.ConfigIndex == 3) {
+		if (link->config_index == 1 ||
+		    link->config_index == 3) {
 			err = setup_serial(link, info, base2,
 					link->irq);
-			base2 = link->resource[0]->start;;
+			base2 = link->resource[0]->start;
 		} else {
 			err = setup_serial(link, info, link->resource[0]->start,
 					link->irq);
@@ -624,32 +584,23 @@ static int multi_config(struct pcmcia_device *link)
 	return 0;
 }
 
-static int serial_check_for_multi(struct pcmcia_device *p_dev,
-				  cistpl_cftable_entry_t *cf,
-				  cistpl_cftable_entry_t *dflt,
-				  unsigned int vcc,
-				  void *priv_data)
+static int serial_check_for_multi(struct pcmcia_device *p_dev,  void *priv_data)
 {
 	struct serial_info *info = p_dev->priv;
 
-	if ((cf->io.nwin == 1) && (cf->io.win[0].len % 8 == 0))
-		info->multi = cf->io.win[0].len >> 3;
+	if (!p_dev->resource[0]->end)
+		return -EINVAL;
 
-	if ((cf->io.nwin == 2) && (cf->io.win[0].len == 8) &&
-		(cf->io.win[1].len == 8))
+	if ((!p_dev->resource[1]->end) && (p_dev->resource[0]->end % 8 == 0))
+		info->multi = p_dev->resource[0]->end >> 3;
+
+	if ((p_dev->resource[1]->end) && (p_dev->resource[0]->end == 8)
+		&& (p_dev->resource[1]->end == 8))
 		info->multi = 2;
 
 	return 0; /* break */
 }
 
-
-/*======================================================================
-
-    serial_config() is scheduled to run after a CARD_INSERTION event
-    is received, to configure the PCMCIA socket, and to make the
-    serial device available to the system.
-
-======================================================================*/
 
 static int serial_config(struct pcmcia_device * link)
 {
@@ -894,9 +845,7 @@ MODULE_FIRMWARE("cis/RS-COM-2P.cis");
 
 static struct pcmcia_driver serial_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "serial_cs",
-	},
+	.name		= "serial_cs",
 	.probe		= serial_probe,
 	.remove		= serial_detach,
 	.id_table	= serial_ids,

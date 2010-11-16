@@ -141,6 +141,16 @@
 #define TWL6030_CHARGER_CTRL_INT_MASK 	0x10
 #define TWL6030_CHARGER_FAULT_INT_MASK 	0x60
 
+#define TWL6030_MMCCTRL		0xEE
+#define VMMC_AUTO_OFF			(0x1 << 3)
+#define SW_FC				(0x1 << 2)
+#define STS_MMC			0x1
+
+#define TWL6030_CFG_INPUT_PUPD3	0xF2
+#define MMC_PU				(0x1 << 3)
+#define MMC_PD				(0x1 << 2)
+
+
 
 #define TWL4030_CLASS_ID 		0x4030
 #define TWL6030_CLASS_ID 		0x6030
@@ -173,6 +183,27 @@ int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 int twl6030_interrupt_unmask(u8 bit_mask, u8 offset);
 int twl6030_interrupt_mask(u8 bit_mask, u8 offset);
 
+/* Card detect Configuration for MMC1 Controller on OMAP4 */
+#ifdef CONFIG_TWL4030_CORE
+int twl6030_mmc_card_detect_config(void);
+#else
+static inline int twl6030_mmc_card_detect_config(void)
+{
+	pr_debug("twl6030_mmc_card_detect_config not supported\n");
+	return 0;
+}
+#endif
+
+/* MMC1 Controller on OMAP4 uses Phoenix irq for Card detect */
+#ifdef CONFIG_TWL4030_CORE
+int twl6030_mmc_card_detect(struct device *dev, int slot);
+#else
+static inline int twl6030_mmc_card_detect(struct device *dev, int slot)
+{
+	pr_debug("Call back twl6030_mmc_card_detect not supported\n");
+	return -EIO;
+}
+#endif
 /*----------------------------------------------------------------------*/
 
 /*
@@ -354,6 +385,52 @@ int twl6030_interrupt_mask(u8 bit_mask, u8 offset);
 #define TWL5031_INTERRUPTS_BCIEDR1	0x5
 #define TWL5031_INTERRUPTS_BCIEDR2	0x6
 #define TWL5031_INTERRUPTS_BCISIHCTRL	0x7
+
+/*----------------------------------------------------------------------*/
+
+/*
+ * PM Master module register offsets (use TWL4030_MODULE_PM_MASTER)
+ */
+
+#define TWL4030_PM_MASTER_CFG_P1_TRANSITION	0x00
+#define TWL4030_PM_MASTER_CFG_P2_TRANSITION	0x01
+#define TWL4030_PM_MASTER_CFG_P3_TRANSITION	0x02
+#define TWL4030_PM_MASTER_CFG_P123_TRANSITION	0x03
+#define TWL4030_PM_MASTER_STS_BOOT		0x04
+#define TWL4030_PM_MASTER_CFG_BOOT		0x05
+#define TWL4030_PM_MASTER_SHUNDAN		0x06
+#define TWL4030_PM_MASTER_BOOT_BCI		0x07
+#define TWL4030_PM_MASTER_CFG_PWRANA1		0x08
+#define TWL4030_PM_MASTER_CFG_PWRANA2		0x09
+#define TWL4030_PM_MASTER_BACKUP_MISC_STS	0x0b
+#define TWL4030_PM_MASTER_BACKUP_MISC_CFG	0x0c
+#define TWL4030_PM_MASTER_BACKUP_MISC_TST	0x0d
+#define TWL4030_PM_MASTER_PROTECT_KEY		0x0e
+#define TWL4030_PM_MASTER_STS_HW_CONDITIONS	0x0f
+#define TWL4030_PM_MASTER_P1_SW_EVENTS		0x10
+#define TWL4030_PM_MASTER_P2_SW_EVENTS		0x11
+#define TWL4030_PM_MASTER_P3_SW_EVENTS		0x12
+#define TWL4030_PM_MASTER_STS_P123_STATE	0x13
+#define TWL4030_PM_MASTER_PB_CFG		0x14
+#define TWL4030_PM_MASTER_PB_WORD_MSB		0x15
+#define TWL4030_PM_MASTER_PB_WORD_LSB		0x16
+#define TWL4030_PM_MASTER_SEQ_ADD_W2P		0x1c
+#define TWL4030_PM_MASTER_SEQ_ADD_P2A		0x1d
+#define TWL4030_PM_MASTER_SEQ_ADD_A2W		0x1e
+#define TWL4030_PM_MASTER_SEQ_ADD_A2S		0x1f
+#define TWL4030_PM_MASTER_SEQ_ADD_S2A12		0x20
+#define TWL4030_PM_MASTER_SEQ_ADD_S2A3		0x21
+#define TWL4030_PM_MASTER_SEQ_ADD_WARM		0x22
+#define TWL4030_PM_MASTER_MEMORY_ADDRESS	0x23
+#define TWL4030_PM_MASTER_MEMORY_DATA		0x24
+
+#define TWL4030_PM_MASTER_KEY_CFG1		0xc0
+#define TWL4030_PM_MASTER_KEY_CFG2		0x0c
+
+#define TWL4030_PM_MASTER_KEY_TST1		0xe0
+#define TWL4030_PM_MASTER_KEY_TST2		0x0e
+
+#define TWL4030_PM_MASTER_GLOBAL_TST		0xb6
 
 /*----------------------------------------------------------------------*/
 
@@ -553,8 +630,12 @@ extern void twl4030_power_init(struct twl4030_power_data *triton2_scripts);
 extern int twl4030_remove_script(u8 flags);
 
 struct twl4030_codec_audio_data {
-	unsigned int	audio_mclk;
+	unsigned int audio_mclk; /* not used, will be removed */
+	unsigned int digimic_delay; /* in ms */
 	unsigned int ramp_delay_value;
+	unsigned int offset_cncl_path;
+	unsigned int check_defaults:1;
+	unsigned int reset_registers:1;
 	unsigned int hs_extmute:1;
 	void (*set_hs_extmute)(int mute);
 };

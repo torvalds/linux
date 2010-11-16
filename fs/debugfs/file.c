@@ -43,6 +43,7 @@ const struct file_operations debugfs_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		default_open,
+	.llseek =	noop_llseek,
 };
 
 static void *debugfs_follow_link(struct dentry *dentry, struct nameidata *nd)
@@ -454,6 +455,7 @@ static const struct file_operations fops_bool = {
 	.read =		read_file_bool,
 	.write =	write_file_bool,
 	.open =		default_open,
+	.llseek =	default_llseek,
 };
 
 /**
@@ -498,6 +500,7 @@ static ssize_t read_file_blob(struct file *file, char __user *user_buf,
 static const struct file_operations fops_blob = {
 	.read =		read_file_blob,
 	.open =		default_open,
+	.llseek =	default_llseek,
 };
 
 /**

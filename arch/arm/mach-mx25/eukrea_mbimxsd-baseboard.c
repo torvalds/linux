@@ -34,7 +34,6 @@
 #include <mach/mx25.h>
 #include <mach/imx-uart.h>
 #include <mach/imxfb.h>
-#include <mach/ssi.h>
 #include <mach/audmux.h>
 
 #include "devices-imx25.h"
@@ -90,6 +89,9 @@ static struct pad_desc eukrea_mbimxsd_pads[] = {
 	MX25_PAD_KPP_COL2__AUD5_TXC,
 	MX25_PAD_KPP_COL1__AUD5_RXD,
 	MX25_PAD_KPP_COL0__AUD5_TXD,
+	/* CAN */
+	MX25_PAD_GPIO_D__CAN2_RX,
+	MX25_PAD_GPIO_C__CAN2_TX,
 };
 
 #define GPIO_LED1	83
@@ -114,6 +116,38 @@ static struct imx_fb_videomode eukrea_mximxsd_modes[] = {
 		},
 		.bpp	= 16,
 		.pcr	= 0xCAD08B80,
+	}, {
+		.mode = {
+			.name		= "DVI-VGA",
+			.refresh	= 60,
+			.xres		= 640,
+			.yres		= 480,
+			.pixclock	= 32000,
+			.hsync_len	= 7,
+			.left_margin	= 100,
+			.right_margin	= 100,
+			.vsync_len	= 7,
+			.upper_margin	= 7,
+			.lower_margin	= 100,
+		},
+		.pcr		= 0xFA208B80,
+		.bpp		= 16,
+	}, {
+		.mode = {
+			.name		= "DVI-SVGA",
+			.refresh	= 60,
+			.xres		= 800,
+			.yres		= 600,
+			.pixclock	= 25000,
+			.hsync_len	= 7,
+			.left_margin	= 75,
+			.right_margin	= 75,
+			.vsync_len	= 7,
+			.upper_margin	= 7,
+			.lower_margin	= 75,
+		},
+		.pcr		= 0xFA208B80,
+		.bpp		= 16,
 	},
 };
 
@@ -205,7 +239,8 @@ static struct i2c_board_info eukrea_mbimxsd_i2c_devices[] = {
 	},
 };
 
-struct imx_ssi_platform_data eukrea_mbimxsd_ssi_pdata = {
+static const
+struct imx_ssi_platform_data eukrea_mbimxsd_ssi_pdata __initconst = {
 	.flags = IMX_SSI_SYN | IMX_SSI_NET | IMX_SSI_USE_I2S_SLAVE,
 };
 
@@ -239,7 +274,10 @@ void __init eukrea_mbimxsd25_baseboard_init(void)
 
 	imx25_add_imx_uart1(&uart_pdata);
 	mxc_register_device(&mx25_fb_device, &eukrea_mximxsd_fb_pdata);
-	mxc_register_device(&imx_ssi_device0, &eukrea_mbimxsd_ssi_pdata);
+	imx25_add_imx_ssi(0, &eukrea_mbimxsd_ssi_pdata);
+
+	imx25_add_flexcan1(NULL);
+	imx25_add_esdhc(0, NULL);
 
 	gpio_request(GPIO_LED1, "LED1");
 	gpio_direction_output(GPIO_LED1, 1);

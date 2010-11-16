@@ -162,13 +162,10 @@ static int ibmebus_create_device(struct device_node *dn)
 	dev->dev.bus = &ibmebus_bus_type;
 	dev->dev.archdata.dma_ops = &ibmebus_dma_ops;
 
-	ret = of_device_register(dev);
-	if (ret) {
-		of_device_free(dev);
-		return ret;
-	}
-
-	return 0;
+	ret = of_device_add(dev);
+	if (ret)
+		platform_device_put(dev);
+	return ret;
 }
 
 static int ibmebus_create_devices(const struct of_device_id *matches)

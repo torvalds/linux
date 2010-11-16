@@ -196,6 +196,9 @@
 /* High Speed UART for Medfield */
 #define PORT_MFD	95
 
+/* TI OMAP-UART */
+#define PORT_OMAP	96
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>
@@ -289,6 +292,8 @@ struct uart_port {
 	void			(*set_termios)(struct uart_port *,
 				               struct ktermios *new,
 				               struct ktermios *old);
+	void			(*pm)(struct uart_port *, unsigned int state,
+				      unsigned int old);
 	unsigned int		irq;			/* irq number */
 	unsigned long		irqflags;		/* irq flags  */
 	unsigned int		uartclk;		/* base uart clock */
@@ -410,6 +415,14 @@ unsigned int uart_get_baud_rate(struct uart_port *port, struct ktermios *termios
 				struct ktermios *old, unsigned int min,
 				unsigned int max);
 unsigned int uart_get_divisor(struct uart_port *port, unsigned int baud);
+
+/* Base timer interval for polling */
+static inline int uart_poll_timeout(struct uart_port *port)
+{
+	int timeout = port->timeout;
+
+	return timeout > 6 ? (timeout / 2 - 2) : 1;
+}
 
 /*
  * Console helpers.

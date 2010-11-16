@@ -144,6 +144,7 @@ static const struct file_operations rtc_fops = {
 	.unlocked_ioctl	= rtc_ioctl,
 	.open		= rtc_open,
 	.release	= rtc_release,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice rtc_dev=

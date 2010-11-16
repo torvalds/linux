@@ -34,9 +34,6 @@
 #include <linux/slab.h>
 
 #include "rds.h"
-#include "rdma.h"
-
-static DECLARE_WAIT_QUEUE_HEAD(rds_message_flush_waitq);
 
 static unsigned int	rds_exthdr_size[__RDS_EXTHDR_MAX] = {
 [RDS_EXTHDR_NONE]	= 0,
@@ -63,29 +60,31 @@ static void rds_message_purge(struct rds_message *rm)
 	if (unlikely(test_bit(RDS_MSG_PAGEVEC, &rm->m_flags)))
 		return;
 
-	for (i = 0; i < rm->m_nents; i++) {
-		rdsdebug("putting data page %p\n", (void *)sg_page(&rm->m_sg[i]));
+	for (i = 0; i < rm->data.op_nents; i++) {
+		rdsdebug("putting data page %p\n", (void *)sg_page(&rm->data.op_sg[i]));
 		/* XXX will have to put_page for page refs */
-		__free_page(sg_page(&rm->m_sg[i]));
+		__free_page(sg_page(&rm->data.op_sg[i]));
 	}
-	rm->m_nents = 0;
+	rm->data.op_nents = 0;
 
-	if (rm->m_rdma_op)
-		rds_rdma_free_op(rm->m_rdma_op);
-	if (rm->m_rdma_mr)
-		rds_mr_put(rm->m_rdma_mr);
-}
+	if (rm->rdma.op_active)
+		rds_rdma_free_op(&rm->rdma);
+	if (rm->rdma.op_rdma_mr)
+		rds_mr_put(rm->rdma.op_rdma_mr);
 
-void rds_message_inc_purge(struct rds_incoming *inc)
-{
-	struct rds_message *rm = container_of(inc, struct rds_message, m_inc);
-	rds_message_purge(rm);
+	if (rm->atomic.op_active)
+		rds_atomic_free_op(&rm->atomic);
+	if (rm->atomic.op_rdma_mr)
+		rds_mr_put(rm->atomic.op_rdma_mr);
 }
 
 void rds_message_put(struct rds_message *rm)
 {
 	rdsdebug("put rm %p ref %d\n", rm, atomic_read(&rm->m_refcount));
-
+	if (atomic_read(&rm->m_refcount) == 0) {
+printk(KERN_CRIT "danger refcount zero on %p\n", rm);
+WARN_ON(1);
+	}
 	if (atomic_dec_and_test(&rm->m_refcount)) {
 		BUG_ON(!list_empty(&rm->m_sock_item));
 		BUG_ON(!list_empty(&rm->m_conn_item));
@@ -95,12 +94,6 @@ void rds_message_put(struct rds_message *rm)
 	}
 }
 EXPORT_SYMBOL_GPL(rds_message_put);
-
-void rds_message_inc_free(struct rds_incoming *inc)
-{
-	struct rds_message *rm = container_of(inc, struct rds_message, m_inc);
-	rds_message_put(rm);
-}
 
 void rds_message_populate_header(struct rds_header *hdr, __be16 sport,
 				 __be16 dport, u64 seq)
@@ -113,8 +106,8 @@ void rds_message_populate_header(struct rds_header *hdr, __be16 sport,
 }
 EXPORT_SYMBOL_GPL(rds_message_populate_header);
 
-int rds_message_add_extension(struct rds_header *hdr,
-		unsigned int type, const void *data, unsigned int len)
+int rds_message_add_extension(struct rds_header *hdr, unsigned int type,
+			      const void *data, unsigned int len)
 {
 	unsigned int ext_len = sizeof(u8) + len;
 	unsigned char *dst;
@@ -184,26 +177,6 @@ none:
 	return RDS_EXTHDR_NONE;
 }
 
-int rds_message_add_version_extension(struct rds_header *hdr, unsigned int version)
-{
-	struct rds_ext_header_version ext_hdr;
-
-	ext_hdr.h_version = cpu_to_be32(version);
-	return rds_message_add_extension(hdr, RDS_EXTHDR_VERSION, &ext_hdr, sizeof(ext_hdr));
-}
-
-int rds_message_get_version_extension(struct rds_header *hdr, unsigned int *version)
-{
-	struct rds_ext_header_version ext_hdr;
-	unsigned int pos = 0, len = sizeof(ext_hdr);
-
-	/* We assume the version extension is the only one present */
-	if (rds_message_next_extension(hdr, &pos, &ext_hdr, &len) != RDS_EXTHDR_VERSION)
-		return 0;
-	*version = be32_to_cpu(ext_hdr.h_version);
-	return 1;
-}
-
 int rds_message_add_rdma_dest_extension(struct rds_header *hdr, u32 r_key, u32 offset)
 {
 	struct rds_ext_header_rdma_dest ext_hdr;
@@ -214,41 +187,75 @@ int rds_message_add_rdma_dest_extension(struct rds_header *hdr, u32 r_key, u32 o
 }
 EXPORT_SYMBOL_GPL(rds_message_add_rdma_dest_extension);
 
-struct rds_message *rds_message_alloc(unsigned int nents, gfp_t gfp)
+/*
+ * Each rds_message is allocated with extra space for the scatterlist entries
+ * rds ops will need. This is to minimize memory allocation count. Then, each rds op
+ * can grab SGs when initializing its part of the rds_message.
+ */
+struct rds_message *rds_message_alloc(unsigned int extra_len, gfp_t gfp)
 {
 	struct rds_message *rm;
 
-	rm = kzalloc(sizeof(struct rds_message) +
-		     (nents * sizeof(struct scatterlist)), gfp);
+	rm = kzalloc(sizeof(struct rds_message) + extra_len, gfp);
 	if (!rm)
 		goto out;
 
-	if (nents)
-		sg_init_table(rm->m_sg, nents);
+	rm->m_used_sgs = 0;
+	rm->m_total_sgs = extra_len / sizeof(struct scatterlist);
+
 	atomic_set(&rm->m_refcount, 1);
 	INIT_LIST_HEAD(&rm->m_sock_item);
 	INIT_LIST_HEAD(&rm->m_conn_item);
 	spin_lock_init(&rm->m_rs_lock);
+	init_waitqueue_head(&rm->m_flush_wait);
 
 out:
 	return rm;
+}
+
+/*
+ * RDS ops use this to grab SG entries from the rm's sg pool.
+ */
+struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents)
+{
+	struct scatterlist *sg_first = (struct scatterlist *) &rm[1];
+	struct scatterlist *sg_ret;
+
+	WARN_ON(rm->m_used_sgs + nents > rm->m_total_sgs);
+	WARN_ON(!nents);
+
+	if (rm->m_used_sgs + nents > rm->m_total_sgs)
+		return NULL;
+
+	sg_ret = &sg_first[rm->m_used_sgs];
+	sg_init_table(sg_ret, nents);
+	rm->m_used_sgs += nents;
+
+	return sg_ret;
 }
 
 struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned int total_len)
 {
 	struct rds_message *rm;
 	unsigned int i;
+	int num_sgs = ceil(total_len, PAGE_SIZE);
+	int extra_bytes = num_sgs * sizeof(struct scatterlist);
 
-	rm = rds_message_alloc(ceil(total_len, PAGE_SIZE), GFP_KERNEL);
-	if (rm == NULL)
+	rm = rds_message_alloc(extra_bytes, GFP_NOWAIT);
+	if (!rm)
 		return ERR_PTR(-ENOMEM);
 
 	set_bit(RDS_MSG_PAGEVEC, &rm->m_flags);
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(total_len);
-	rm->m_nents = ceil(total_len, PAGE_SIZE);
+	rm->data.op_nents = ceil(total_len, PAGE_SIZE);
+	rm->data.op_sg = rds_message_alloc_sgs(rm, num_sgs);
+	if (!rm->data.op_sg) {
+		rds_message_put(rm);
+		return ERR_PTR(-ENOMEM);
+	}
 
-	for (i = 0; i < rm->m_nents; ++i) {
-		sg_set_page(&rm->m_sg[i],
+	for (i = 0; i < rm->data.op_nents; ++i) {
+		sg_set_page(&rm->data.op_sg[i],
 				virt_to_page(page_addrs[i]),
 				PAGE_SIZE, 0);
 	}
@@ -256,40 +263,33 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 	return rm;
 }
 
-struct rds_message *rds_message_copy_from_user(struct iovec *first_iov,
+int rds_message_copy_from_user(struct rds_message *rm, struct iovec *first_iov,
 					       size_t total_len)
 {
 	unsigned long to_copy;
 	unsigned long iov_off;
 	unsigned long sg_off;
-	struct rds_message *rm;
 	struct iovec *iov;
 	struct scatterlist *sg;
-	int ret;
-
-	rm = rds_message_alloc(ceil(total_len, PAGE_SIZE), GFP_KERNEL);
-	if (rm == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	int ret = 0;
 
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(total_len);
 
 	/*
 	 * now allocate and copy in the data payload.
 	 */
-	sg = rm->m_sg;
+	sg = rm->data.op_sg;
 	iov = first_iov;
 	iov_off = 0;
 	sg_off = 0; /* Dear gcc, sg->page will be null from kzalloc. */
 
 	while (total_len) {
-		if (sg_page(sg) == NULL) {
+		if (!sg_page(sg)) {
 			ret = rds_page_remainder_alloc(sg, total_len,
 						       GFP_HIGHUSER);
 			if (ret)
 				goto out;
-			rm->m_nents++;
+			rm->data.op_nents++;
 			sg_off = 0;
 		}
 
@@ -320,14 +320,8 @@ struct rds_message *rds_message_copy_from_user(struct iovec *first_iov,
 			sg++;
 	}
 
-	ret = 0;
 out:
-	if (ret) {
-		if (rm)
-			rds_message_put(rm);
-		rm = ERR_PTR(ret);
-	}
-	return rm;
+	return ret;
 }
 
 int rds_message_inc_copy_to_user(struct rds_incoming *inc,
@@ -348,7 +342,7 @@ int rds_message_inc_copy_to_user(struct rds_incoming *inc,
 
 	iov = first_iov;
 	iov_off = 0;
-	sg = rm->m_sg;
+	sg = rm->data.op_sg;
 	vec_off = 0;
 	copied = 0;
 
@@ -394,15 +388,14 @@ int rds_message_inc_copy_to_user(struct rds_incoming *inc,
  */
 void rds_message_wait(struct rds_message *rm)
 {
-	wait_event(rds_message_flush_waitq,
+	wait_event_interruptible(rm->m_flush_wait,
 			!test_bit(RDS_MSG_MAPPED, &rm->m_flags));
 }
 
 void rds_message_unmapped(struct rds_message *rm)
 {
 	clear_bit(RDS_MSG_MAPPED, &rm->m_flags);
-	if (waitqueue_active(&rds_message_flush_waitq))
-		wake_up(&rds_message_flush_waitq);
+	wake_up_interruptible(&rm->m_flush_wait);
 }
 EXPORT_SYMBOL_GPL(rds_message_unmapped);
 

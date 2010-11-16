@@ -44,34 +44,34 @@
  * Data Buffer Descriptor. Data buffers must be aligned on 32 byte
  * boundary for both, receive and transmit.
  */
-typedef struct db_dest {
+struct db_dest {
 	struct db_dest *pnext;
-	volatile u32 *vaddr;
+	u32 *vaddr;
 	dma_addr_t dma_addr;
-} db_dest_t;
+};
 
 /*
  * The transmit and receive descriptors are memory
  * mapped registers.
  */
-typedef struct tx_dma {
+struct tx_dma {
 	u32 status;
 	u32 buff_stat;
 	u32 len;
 	u32 pad;
-} tx_dma_t;
+};
 
-typedef struct rx_dma {
+struct rx_dma {
 	u32 status;
 	u32 buff_stat;
 	u32 pad[2];
-} rx_dma_t;
+};
 
 
 /*
  * MAC control registers, memory mapped.
  */
-typedef struct mac_reg {
+struct mac_reg {
 	u32 control;
 	u32 mac_addr_high;
 	u32 mac_addr_low;
@@ -82,16 +82,16 @@ typedef struct mac_reg {
 	u32 flow_control;
 	u32 vlan1_tag;
 	u32 vlan2_tag;
-} mac_reg_t;
+};
 
 
 struct au1000_private {
-	db_dest_t *pDBfree;
-	db_dest_t db[NUM_RX_BUFFS+NUM_TX_BUFFS];
-	volatile rx_dma_t *rx_dma_ring[NUM_RX_DMA];
-	volatile tx_dma_t *tx_dma_ring[NUM_TX_DMA];
-	db_dest_t *rx_db_inuse[NUM_RX_DMA];
-	db_dest_t *tx_db_inuse[NUM_TX_DMA];
+	struct db_dest *pDBfree;
+	struct db_dest db[NUM_RX_BUFFS+NUM_TX_BUFFS];
+	struct rx_dma *rx_dma_ring[NUM_RX_DMA];
+	struct tx_dma *tx_dma_ring[NUM_TX_DMA];
+	struct db_dest *rx_db_inuse[NUM_RX_DMA];
+	struct db_dest *tx_db_inuse[NUM_TX_DMA];
 	u32 rx_head;
 	u32 tx_head;
 	u32 tx_tail;
@@ -99,7 +99,9 @@ struct au1000_private {
 
 	int mac_id;
 
-	int mac_enabled;       /* whether MAC is currently enabled and running (req. for mdio) */
+	int mac_enabled;       /* whether MAC is currently enabled and running
+				* (req. for mdio)
+				*/
 
 	int old_link;          /* used by au1000_adjust_link */
 	int old_speed;
@@ -117,9 +119,11 @@ struct au1000_private {
 	int phy_busid;
 	int phy_irq;
 
-	/* These variables are just for quick access to certain regs addresses. */
-	volatile mac_reg_t *mac;  /* mac registers                      */
-	volatile u32 *enable;     /* address of MAC Enable Register     */
+	/* These variables are just for quick access
+	 * to certain regs addresses.
+	 */
+	struct mac_reg *mac;  /* mac registers                      */
+	u32 *enable;     /* address of MAC Enable Register     */
 
 	u32 vaddr;                /* virtual address of rx/tx buffers   */
 	dma_addr_t dma_addr;      /* dma address of rx/tx buffers       */

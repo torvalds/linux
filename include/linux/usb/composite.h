@@ -161,8 +161,6 @@ ep_choose(struct usb_gadget *g, struct usb_endpoint_descriptor *hs,
  *	and by language IDs provided in control requests.
  * @descriptors: Table of descriptors preceding all function descriptors.
  *	Examples include OTG and vendor-specific descriptors.
- * @bind: Called from @usb_add_config() to allocate resources unique to this
- *	configuration and to call @usb_add_function() for each function used.
  * @unbind: Reverses @bind; called as a side effect of unregistering the
  *	driver which added this configuration.
  * @setup: Used to delegate control requests that aren't handled by standard
@@ -207,8 +205,7 @@ struct usb_configuration {
 	 * we can't restructure things to avoid mismatching...
 	 */
 
-	/* configuration management:  bind/unbind */
-	int			(*bind)(struct usb_configuration *);
+	/* configuration management: unbind/setup */
 	void			(*unbind)(struct usb_configuration *);
 	int			(*setup)(struct usb_configuration *,
 					const struct usb_ctrlrequest *);
@@ -232,20 +229,24 @@ struct usb_configuration {
 };
 
 int usb_add_config(struct usb_composite_dev *,
-		struct usb_configuration *);
+		struct usb_configuration *,
+		int (*)(struct usb_configuration *));
 
 /**
  * struct usb_composite_driver - groups configurations into a gadget
  * @name: For diagnostics, identifies the driver.
+ * @iProduct: Used as iProduct override if @dev->iProduct is not set.
+ *	If NULL value of @name is taken.
+ * @iManufacturer: Used as iManufacturer override if @dev->iManufacturer is
+ *	not set. If NULL a default "<system> <release> with <udc>" value
+ *	will be used.
  * @dev: Template descriptor for the device, including default device
  *	identifiers.
  * @strings: tables of strings, keyed by identifiers assigned during bind()
  *	and language IDs provided in control requests
- * @bind: (REQUIRED) Used to allocate resources that are shared across the
- *	whole device, such as string IDs, and add its configurations using
- *	@usb_add_config().  This may fail by returning a negative errno
- *	value; it should return zero on successful initialization.
- * @unbind: Reverses @bind(); called as a side effect of unregistering
+ * @needs_serial: set to 1 if the gadget needs userspace to provide
+ * 	a serial number.  If one is not provided, warning will be printed.
+ * @unbind: Reverses bind; called as a side effect of unregistering
  *	this driver.
  * @disconnect: optional driver disconnect method
  * @suspend: Notifies when the host stops sending USB traffic,
@@ -256,7 +257,7 @@ int usb_add_config(struct usb_composite_dev *,
  * Devices default to reporting self powered operation.  Devices which rely
  * on bus powered operation should report this in their @bind() method.
  *
- * Before returning from @bind, various fields in the template descriptor
+ * Before returning from bind, various fields in the template descriptor
  * may be overridden.  These include the idVendor/idProduct/bcdDevice values
  * normally to bind the appropriate host side driver, and the three strings
  * (iManufacturer, iProduct, iSerialNumber) normally used to provide user
@@ -266,15 +267,12 @@ int usb_add_config(struct usb_composite_dev *,
  */
 struct usb_composite_driver {
 	const char				*name;
+	const char				*iProduct;
+	const char				*iManufacturer;
 	const struct usb_device_descriptor	*dev;
 	struct usb_gadget_strings		**strings;
+	unsigned		needs_serial:1;
 
-	/* REVISIT:  bind() functions can be marked __init, which
-	 * makes trouble for section mismatch analysis.  See if
-	 * we can't restructure things to avoid mismatching...
-	 */
-
-	int			(*bind)(struct usb_composite_dev *);
 	int			(*unbind)(struct usb_composite_dev *);
 
 	void			(*disconnect)(struct usb_composite_dev *);
@@ -284,8 +282,9 @@ struct usb_composite_driver {
 	void			(*resume)(struct usb_composite_dev *);
 };
 
-extern int usb_composite_register(struct usb_composite_driver *);
-extern void usb_composite_unregister(struct usb_composite_driver *);
+extern int usb_composite_probe(struct usb_composite_driver *driver,
+			       int (*bind)(struct usb_composite_dev *cdev));
+extern void usb_composite_unregister(struct usb_composite_driver *driver);
 
 
 /**
@@ -334,6 +333,9 @@ struct usb_composite_dev {
 	struct list_head		configs;
 	struct usb_composite_driver	*driver;
 	u8				next_string_id;
+	u8				manufacturer_override;
+	u8				product_override;
+	u8				serial_override;
 
 	/* the gadget driver won't enable the data pullup
 	 * while the deactivation count is nonzero.

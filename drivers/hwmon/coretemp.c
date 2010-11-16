@@ -21,7 +21,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
@@ -280,16 +279,23 @@ static int __devinit get_tjmax(struct cpuinfo_x86 *c, u32 id,
 	case 0x1a:
 		dev_warn(dev, "TjMax is assumed as 100 C!\n");
 		return 100000;
-		break;
 	case 0x17:
 	case 0x1c:		/* Atom CPUs */
 		return adjust_tjmax(c, id, dev);
-		break;
 	default:
 		dev_warn(dev, "CPU (model=0x%x) is not supported yet,"
 			" using default TjMax of 100C.\n", c->x86_model);
 		return 100000;
 	}
+}
+
+static void __devinit get_ucode_rev_on_cpu(void *edx)
+{
+	u32 eax;
+
+	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
+	sync_core();
+	rdmsr(MSR_IA32_UCODE_REV, eax, *(u32 *)edx);
 }
 
 static int __devinit coretemp_probe(struct platform_device *pdev)
@@ -327,8 +333,15 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 
 	if ((c->x86_model == 0xe) && (c->x86_mask < 0xc)) {
 		/* check for microcode update */
-		rdmsr_on_cpu(data->id, MSR_IA32_UCODE_REV, &eax, &edx);
-		if (edx < 0x39) {
+		err = smp_call_function_single(data->id, get_ucode_rev_on_cpu,
+					       &edx, 1);
+		if (err) {
+			dev_err(&pdev->dev,
+				"Cannot determine microcode revision of "
+				"CPU#%u (%d)!\n", data->id, err);
+			err = -ENODEV;
+			goto exit_free;
+		} else if (edx < 0x39) {
 			err = -ENODEV;
 			dev_err(&pdev->dev,
 				"Errata AE18 not fixed, update BIOS or "
@@ -490,7 +503,7 @@ exit:
 	return err;
 }
 
-static void coretemp_device_remove(unsigned int cpu)
+static void __cpuinit coretemp_device_remove(unsigned int cpu)
 {
 	struct pdev_entry *p;
 	unsigned int i;
@@ -569,9 +582,8 @@ exit:
 static void __exit coretemp_exit(void)
 {
 	struct pdev_entry *p, *n;
-#ifdef CONFIG_HOTPLUG_CPU
+
 	unregister_hotcpu_notifier(&coretemp_cpu_notifier);
-#endif
 	mutex_lock(&pdev_list_mutex);
 	list_for_each_entry_safe(p, n, &pdev_list, list) {
 		platform_device_unregister(p->pdev);

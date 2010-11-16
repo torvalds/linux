@@ -31,6 +31,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
+#include <media/videobuf-core.h>
 #include <media/videobuf-dma-contig.h>
 #include <media/soc_camera.h>
 #include <media/soc_mediabus.h>
@@ -461,9 +462,9 @@ static void free_buffer(struct videobuf_queue *vq, struct mx2_buffer *buf)
 
 	/*
 	 * This waits until this buffer is out of danger, i.e., until it is no
-	 * longer in STATE_QUEUED or STATE_ACTIVE
+	 * longer in state VIDEOBUF_QUEUED or VIDEOBUF_ACTIVE
 	 */
-	videobuf_waiton(vb, 0, 0);
+	videobuf_waiton(vq, vb, 0, 0);
 
 	videobuf_dma_contig_free(vq, vb);
 	dev_dbg(&icd->dev, "%s freed\n", __func__);
@@ -640,14 +641,26 @@ static void mx2_videobuf_release(struct videobuf_queue *vq,
 	 * Terminate only queued but inactive buffers. Active buffers are
 	 * released when they become inactive after videobuf_waiton().
 	 *
-	 * FIXME: implement forced termination of active buffers, so that the
-	 * user won't get stuck in an uninterruptible state. This requires a
-	 * specific handling for each of the three DMA types that this driver
-	 * supports.
+	 * FIXME: implement forced termination of active buffers for mx27 and
+	 * mx27 eMMA, so that the user won't get stuck in an uninterruptible
+	 * state. This requires a specific handling for each of the these DMA
+	 * types.
 	 */
 	spin_lock_irqsave(&pcdev->lock, flags);
 	if (vb->state == VIDEOBUF_QUEUED) {
 		list_del(&vb->queue);
+		vb->state = VIDEOBUF_ERROR;
+	} else if (cpu_is_mx25() && vb->state == VIDEOBUF_ACTIVE) {
+		if (pcdev->fb1_active == buf) {
+			pcdev->csicr1 &= ~CSICR1_FB1_DMA_INTEN;
+			writel(0, pcdev->base_csi + CSIDMASA_FB1);
+			pcdev->fb1_active = NULL;
+		} else if (pcdev->fb2_active == buf) {
+			pcdev->csicr1 &= ~CSICR1_FB2_DMA_INTEN;
+			writel(0, pcdev->base_csi + CSIDMASA_FB2);
+			pcdev->fb2_active = NULL;
+		}
+		writel(pcdev->csicr1, pcdev->base_csi + CSICR1);
 		vb->state = VIDEOBUF_ERROR;
 	}
 	spin_unlock_irqrestore(&pcdev->lock, flags);
@@ -670,7 +683,7 @@ static void mx2_camera_init_videobuf(struct videobuf_queue *q,
 
 	videobuf_queue_dma_contig_init(q, &mx2_videobuf_ops, pcdev->dev,
 			&pcdev->lock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			V4L2_FIELD_NONE, sizeof(struct mx2_buffer), icd);
+			V4L2_FIELD_NONE, sizeof(struct mx2_buffer), icd, NULL);
 }
 
 #define MX2_BUS_FLAGS	(SOCAM_DATAWIDTH_8 | \
@@ -716,8 +729,11 @@ static void mx27_camera_emma_buf_init(struct soc_camera_device *icd,
 	/*
 	 * We only use the EMMA engine to get rid of the broken
 	 * DMA Engine. No color space consversion at the moment.
-	 * We adjust incoming and outgoing pixelformat to rgb16
-	 * and adjust the bytesperline accordingly.
+	 * We set the incomming and outgoing pixelformat to an
+	 * 16 Bit wide format and adjust the bytesperline
+	 * accordingly. With this configuration the inputdata
+	 * will not be changed by the emma and could be any type
+	 * of 16 Bit Pixelformat.
 	 */
 	writel(PRP_CNTL_CH1EN |
 			PRP_CNTL_CSIEN |
@@ -888,8 +904,6 @@ static int mx2_camera_set_crop(struct soc_camera_device *icd,
 static int mx2_camera_set_fmt(struct soc_camera_device *icd,
 			       struct v4l2_format *f)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	struct mx2_camera_dev *pcdev = ici->priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
@@ -902,10 +916,6 @@ static int mx2_camera_set_fmt(struct soc_camera_device *icd,
 				pix->pixelformat);
 		return -EINVAL;
 	}
-
-	/* eMMA can only do RGB565 */
-	if (mx27_camera_emma(pcdev) && pix->pixelformat != V4L2_PIX_FMT_RGB565)
-		return -EINVAL;
 
 	mf.width	= pix->width;
 	mf.height	= pix->height;
@@ -932,8 +942,6 @@ static int mx2_camera_set_fmt(struct soc_camera_device *icd,
 static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 				  struct v4l2_format *f)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	struct mx2_camera_dev *pcdev = ici->priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
@@ -949,10 +957,6 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 	}
 
 	/* FIXME: implement MX27 limits */
-
-	/* eMMA can only do RGB565 */
-	if (mx27_camera_emma(pcdev) && pixfmt != V4L2_PIX_FMT_RGB565)
-		return -EINVAL;
 
 	/* limit to MX25 hardware capabilities */
 	if (cpu_is_mx25()) {
@@ -1017,13 +1021,13 @@ static int mx2_camera_querycap(struct soc_camera_host *ici,
 	return 0;
 }
 
-static int mx2_camera_reqbufs(struct soc_camera_file *icf,
+static int mx2_camera_reqbufs(struct soc_camera_device *icd,
 			      struct v4l2_requestbuffers *p)
 {
 	int i;
 
 	for (i = 0; i < p->count; i++) {
-		struct mx2_buffer *buf = container_of(icf->vb_vidq.bufs[i],
+		struct mx2_buffer *buf = container_of(icd->vb_vidq.bufs[i],
 						      struct mx2_buffer, vb);
 		INIT_LIST_HEAD(&buf->vb.queue);
 	}
@@ -1144,9 +1148,9 @@ err_out:
 
 static unsigned int mx2_camera_poll(struct file *file, poll_table *pt)
 {
-	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = file->private_data;
 
-	return videobuf_poll_stream(file, &icf->vb_vidq, pt);
+	return videobuf_poll_stream(file, &icd->vb_vidq, pt);
 }
 
 static struct soc_camera_host_ops mx2_soc_camera_host_ops = {
@@ -1425,6 +1429,9 @@ static int __devinit mx2_camera_probe(struct platform_device *pdev)
 	err = soc_camera_host_register(&pcdev->soc_host);
 	if (err)
 		goto exit_free_emma;
+
+	dev_info(&pdev->dev, "MX2 Camera (CSI) driver probed, clock frequency: %ld\n",
+			clk_get_rate(pcdev->clk_csi));
 
 	return 0;
 

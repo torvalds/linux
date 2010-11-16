@@ -42,22 +42,8 @@
 
 #ifdef __BIG_ENDIAN
 
-#define TYPE_PKT_IP         0x0800      //
-#define TYPE_PKT_ARP        0x0806      //
-#define TYPE_PKT_RARP       0x8035      //
-#define TYPE_PKT_IPX	    0x8137	    //
-#define TYPE_PKT_802_1x     0x888e
-#define TYPE_PKT_PreAuth    0x88C7
-
-#define TYPE_PKT_PING_M_REQ 0x8011      // master reguest
-#define TYPE_PKT_PING_S_GNT 0x8022      // slave grant
-#define TYPE_PKT_PING_M     0x8077      // pingpong master packet
-#define TYPE_PKT_PING_S     0x8088      // pingpong slave packet
-#define TYPE_PKT_WOL_M_REQ  0x8033      // WOL waker request
-#define TYPE_PKT_WOL_S_GNT  0x8044      // WOL sleeper grant
 #define TYPE_MGMT_PROBE_RSP 0x5000
-#define TYPE_PKT_VNT_DIAG   0x8011      // Diag Pkt
-#define TYPE_PKT_VNT_PER    0x8888      // Diag PER Pkt
+
 //
 // wFrameCtl field in the S802_11Header
 //
@@ -94,23 +80,9 @@
 //
 // NOTE....
 //   in network byte order, high byte is going first
-#define TYPE_PKT_IP         0x0008      //
-#define TYPE_PKT_ARP        0x0608      //
-#define TYPE_PKT_RARP       0x3580      //
-#define TYPE_PKT_IPX	    0x3781	    //
 
-#define TYPE_PKT_802_1x     0x8e88
-#define TYPE_PKT_PreAuth    0xC788
-
-#define TYPE_PKT_PING_M_REQ 0x1180      // master reguest
-#define TYPE_PKT_PING_S_GNT 0x2280      // slave grant
-#define TYPE_PKT_PING_M     0x7780      // pingpong master packet
-#define TYPE_PKT_PING_S     0x8880      // pingpong slave packet
-#define TYPE_PKT_WOL_M_REQ  0x3380      // WOL waker request
-#define TYPE_PKT_WOL_S_GNT  0x4480      // WOL sleeper grant
 #define TYPE_MGMT_PROBE_RSP 0x0050
-#define TYPE_PKT_VNT_DIAG   0x1180      // Diag Pkt
-#define TYPE_PKT_VNT_PER    0x8888      // Diag PER Pkt
+
 //
 // wFrameCtl field in the S802_11Header
 //

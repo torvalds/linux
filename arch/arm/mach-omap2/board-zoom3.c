@@ -22,6 +22,7 @@
 #include <plat/board.h>
 #include <plat/usb.h>
 
+#include "board-flash.h"
 #include "mux.h"
 #include "sdram-hynix-h8mbx00u0mer-0em.h"
 
@@ -123,8 +124,6 @@ static void __init omap_zoom_init(void)
 }
 
 MACHINE_START(OMAP_ZOOM3, "OMAP Zoom3 board")
-	.phys_io	= ZOOM_UART_BASE,
-	.io_pg_offst	= (ZOOM_UART_VIRT >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,

@@ -165,7 +165,8 @@ extern inline void pte_free(struct mm_struct *mm, struct page *ptepage)
 
 #define __pte_free_tlb(tlb, pte, addr)	pte_free((tlb)->mm, (pte))
 
-#define pmd_populate(mm, pmd, pte)	(pmd_val(*(pmd)) = page_address(pte))
+#define pmd_populate(mm, pmd, pte) \
+			(pmd_val(*(pmd)) = (unsigned long)page_address(pte))
 
 #define pmd_populate_kernel(mm, pmd, pte) \
 		(pmd_val(*(pmd)) = (unsigned long) (pte))

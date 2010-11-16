@@ -188,6 +188,7 @@ static const struct file_operations ep93xx_wdt_fops = {
 	.unlocked_ioctl	= ep93xx_wdt_ioctl,
 	.open		= ep93xx_wdt_open,
 	.release	= ep93xx_wdt_release,
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice ep93xx_wdt_miscdev = {

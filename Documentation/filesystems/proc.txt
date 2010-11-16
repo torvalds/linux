@@ -136,6 +136,7 @@ Table 1-1: Process specific entries in /proc
  statm		Process memory status information
  status		Process status in human readable form
  wchan		If CONFIG_KALLSYMS is set, a pre-decoded wchan
+ pagemap	Page table
  stack		Report full stack trace, enable via CONFIG_STACKTRACE
  smaps		a extension based on maps, showing the memory consumption of
 		each mapping
@@ -370,17 +371,24 @@ Shared_Dirty:          0 kB
 Private_Clean:         0 kB
 Private_Dirty:         0 kB
 Referenced:          892 kB
+Anonymous:             0 kB
 Swap:                  0 kB
 KernelPageSize:        4 kB
 MMUPageSize:           4 kB
 
-The first  of these lines shows  the same information  as is displayed for the
-mapping in /proc/PID/maps.  The remaining lines show  the size of the mapping,
-the amount of the mapping that is currently resident in RAM, the "proportional
-set size” (divide each shared page by the number of processes sharing it), the
-number of clean and dirty shared pages in the mapping, and the number of clean
-and dirty private pages in the mapping.  The "Referenced" indicates the amount
-of memory currently marked as referenced or accessed.
+The first of these lines shows the same information as is displayed for the
+mapping in /proc/PID/maps.  The remaining lines show the size of the mapping
+(size), the amount of the mapping that is currently resident in RAM (RSS), the
+process' proportional share of this mapping (PSS), the number of clean and
+dirty private pages in the mapping.  Note that even a page which is part of a
+MAP_SHARED mapping, but has only a single pte mapped, i.e.  is currently used
+by only one process, is accounted as private and not as shared.  "Referenced"
+indicates the amount of memory currently marked as referenced or accessed.
+"Anonymous" shows the amount of memory that does not belong to any file.  Even
+a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
+and a page is modified, the file page is replaced by a private anonymous copy.
+"Swap" shows how much would-be-anonymous memory is also used, but out on
+swap.
 
 This file is only present if the CONFIG_MMU kernel configuration option is
 enabled.
@@ -397,6 +405,9 @@ To clear the bits for the file mapped pages associated with the process
     > echo 3 > /proc/PID/clear_refs
 Any other value written to /proc/PID/clear_refs will have no effect.
 
+The /proc/pid/pagemap gives the PFN, which can be used to find the pageflags
+using /proc/kpageflags and number of times a page is mapped using
+/proc/kpagecount. For detailed explanation, see Documentation/vm/pagemap.txt.
 
 1.2 Kernel data
 ---------------

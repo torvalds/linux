@@ -282,7 +282,7 @@ static int n2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		    new_line.clock_type != CLOCK_TXFROMRX &&
 		    new_line.clock_type != CLOCK_INT &&
 		    new_line.clock_type != CLOCK_TXINT)
-		return -EINVAL;	/* No such clock setting */
+			return -EINVAL;	/* No such clock setting */
 
 		if (new_line.loopback != 0 && new_line.loopback != 1)
 			return -EINVAL;
@@ -379,14 +379,14 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 	if (request_irq(irq, sca_intr, 0, devname, card)) {
 		printk(KERN_ERR "n2: could not allocate IRQ\n");
 		n2_destroy_card(card);
-		return(-EBUSY);
+		return -EBUSY;
 	}
 	card->irq = irq;
 
 	if (!request_mem_region(winbase, USE_WINDOWSIZE, devname)) {
 		printk(KERN_ERR "n2: could not request RAM window\n");
 		n2_destroy_card(card);
-		return(-EBUSY);
+		return -EBUSY;
 	}
 	card->phy_winbase = winbase;
 	card->winbase = ioremap(winbase, USE_WINDOWSIZE);

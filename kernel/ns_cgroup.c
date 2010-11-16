@@ -85,6 +85,14 @@ static struct cgroup_subsys_state *ns_create(struct cgroup_subsys *ss,
 		return ERR_PTR(-EPERM);
 	if (!cgroup_is_descendant(cgroup, current))
 		return ERR_PTR(-EPERM);
+	if (test_bit(CGRP_CLONE_CHILDREN, &cgroup->flags)) {
+		printk("ns_cgroup can't be created with parent "
+		       "'clone_children' set.\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	printk_once("ns_cgroup deprecated: consider using the "
+		    "'clone_children' flag without the ns_cgroup.\n");
 
 	ns_cgroup = kzalloc(sizeof(*ns_cgroup), GFP_KERNEL);
 	if (!ns_cgroup)

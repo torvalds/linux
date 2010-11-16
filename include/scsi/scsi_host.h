@@ -388,6 +388,7 @@ struct scsi_host_template {
 	 * of scatter-gather.
 	 */
 	unsigned short sg_tablesize;
+	unsigned short sg_prot_tablesize;
 
 	/*
 	 * Set this if the host adapter has limitations beside segment count.
@@ -599,6 +600,7 @@ struct Scsi_Host {
 	int can_queue;
 	short cmd_per_lun;
 	short unsigned int sg_tablesize;
+	short unsigned int sg_prot_tablesize;
 	short unsigned int max_sectors;
 	unsigned long dma_boundary;
 	/* 
@@ -821,6 +823,11 @@ static inline void scsi_host_set_prot(struct Scsi_Host *shost, unsigned int mask
 static inline unsigned int scsi_host_get_prot(struct Scsi_Host *shost)
 {
 	return shost->prot_capabilities;
+}
+
+static inline int scsi_host_prot_dma(struct Scsi_Host *shost)
+{
+	return shost->prot_capabilities >= SHOST_DIX_TYPE0_PROTECTION;
 }
 
 static inline unsigned int scsi_host_dif_capable(struct Scsi_Host *shost, unsigned int target_type)

@@ -153,20 +153,6 @@ struct io_context *get_io_context(gfp_t gfp_flags, int node)
 }
 EXPORT_SYMBOL(get_io_context);
 
-void copy_io_context(struct io_context **pdst, struct io_context **psrc)
-{
-	struct io_context *src = *psrc;
-	struct io_context *dst = *pdst;
-
-	if (src) {
-		BUG_ON(atomic_long_read(&src->refcount) == 0);
-		atomic_long_inc(&src->refcount);
-		put_io_context(dst);
-		*pdst = src;
-	}
-}
-EXPORT_SYMBOL(copy_io_context);
-
 static int __init blk_ioc_init(void)
 {
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",

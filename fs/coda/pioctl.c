@@ -23,8 +23,6 @@
 #include <linux/coda_fs_i.h>
 #include <linux/coda_psdev.h>
 
-#include <linux/smp_lock.h>
-
 /* pioctl ops */
 static int coda_ioctl_permission(struct inode *inode, int mask);
 static long coda_pioctl(struct file *filp, unsigned int cmd,
@@ -39,6 +37,7 @@ const struct inode_operations coda_ioctl_inode_operations = {
 const struct file_operations coda_ioctl_operations = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= coda_pioctl,
+	.llseek		= noop_llseek,
 };
 
 /* the coda pioctl inode ops */
@@ -57,13 +56,9 @@ static long coda_pioctl(struct file *filp, unsigned int cmd,
 	struct inode *target_inode = NULL;
 	struct coda_inode_info *cnp;
 
-	lock_kernel();
-
 	/* get the Pioctl data arguments from user space */
-	if (copy_from_user(&data, (void __user *)user_data, sizeof(data))) {
-		error = -EINVAL;
-		goto out;
-	}
+	if (copy_from_user(&data, (void __user *)user_data, sizeof(data)))
+		return -EINVAL;
 
 	/*
 	 * Look up the pathname. Note that the pathname is in
@@ -75,13 +70,12 @@ static long coda_pioctl(struct file *filp, unsigned int cmd,
 		error = user_lpath(data.path, &path);
 
 	if (error)
-		goto out;
-	else
-		target_inode = path.dentry->d_inode;
+		return error;
+
+	target_inode = path.dentry->d_inode;
 
 	/* return if it is not a Coda inode */
 	if (target_inode->i_sb != inode->i_sb) {
-		path_put(&path);
 		error = -EINVAL;
 		goto out;
 	}
@@ -90,10 +84,7 @@ static long coda_pioctl(struct file *filp, unsigned int cmd,
 	cnp = ITOC(target_inode);
 
 	error = venus_pioctl(inode->i_sb, &(cnp->c_fid), cmd, &data);
-
-	path_put(&path);
-
 out:
-	unlock_kernel();
+	path_put(&path);
 	return error;
 }

@@ -1,7 +1,7 @@
 /**************************************************************************************************
  * Procedure:    Init boot code/firmware code/data session
  *
- * Description: This routine will intialize firmware. If any error occurs during the initialization
+ * Description: This routine will initialize firmware. If any error occurs during the initialization
  * 		process, the routine shall terminate immediately and return fail.
  *		NIC driver should call NdisOpenFile only from MiniportInitialize.
  *
