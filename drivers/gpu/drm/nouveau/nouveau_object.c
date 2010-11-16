@@ -404,113 +404,157 @@ nouveau_gpuobj_class_instmem_size(struct drm_device *dev, int class)
    The method below creates a DMA object in instance RAM and returns a handle
    to it that can be used to set up context objects.
 */
-int
-nouveau_gpuobj_dma_new(struct nouveau_channel *chan, int class,
-		       uint64_t offset, uint64_t size, int access,
-		       int target, struct nouveau_gpuobj **gpuobj)
-{
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_instmem_engine *instmem = &dev_priv->engine.instmem;
-	int ret;
 
-	NV_DEBUG(dev, "ch%d class=0x%04x offset=0x%llx size=0x%llx\n",
-		 chan->id, class, offset, size);
-	NV_DEBUG(dev, "access=%d target=%d\n", access, target);
+void
+nv50_gpuobj_dma_init(struct nouveau_gpuobj *obj, u32 offset, int class,
+		     u64 base, u64 size, int target, int access,
+		     u32 type, u32 comp)
+{
+	struct drm_nouveau_private *dev_priv = obj->dev->dev_private;
+	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
+	u32 flags0;
+
+	flags0  = (comp << 29) | (type << 22) | class;
+	flags0 |= 0x00100000;
+
+	switch (access) {
+	case NV_MEM_ACCESS_RO: flags0 |= 0x00040000; break;
+	case NV_MEM_ACCESS_RW:
+	case NV_MEM_ACCESS_WO: flags0 |= 0x00080000; break;
+	default:
+		break;
+	}
 
 	switch (target) {
-	case NV_DMA_TARGET_AGP:
-		offset += dev_priv->gart_info.aper_base;
+	case NV_MEM_TARGET_VRAM:
+		flags0 |= 0x00010000;
+		break;
+	case NV_MEM_TARGET_PCI:
+		flags0 |= 0x00020000;
+		break;
+	case NV_MEM_TARGET_PCI_NOSNOOP:
+		flags0 |= 0x00030000;
+		break;
+	case NV_MEM_TARGET_GART:
+		base += dev_priv->vm_gart_base;
+	default:
+		flags0 &= ~0x00100000;
+		break;
+	}
+
+	/* convert to base + limit */
+	size = (base + size) - 1;
+
+	nv_wo32(obj, offset + 0x00, flags0);
+	nv_wo32(obj, offset + 0x04, lower_32_bits(size));
+	nv_wo32(obj, offset + 0x08, lower_32_bits(base));
+	nv_wo32(obj, offset + 0x0c, upper_32_bits(size) << 24 |
+				    upper_32_bits(base));
+	nv_wo32(obj, offset + 0x10, 0x00000000);
+	nv_wo32(obj, offset + 0x14, 0x00000000);
+
+	pinstmem->flush(obj->dev);
+}
+
+int
+nv50_gpuobj_dma_new(struct nouveau_channel *chan, int class, u64 base, u64 size,
+		    int target, int access, u32 type, u32 comp,
+		    struct nouveau_gpuobj **pobj)
+{
+	struct drm_device *dev = chan->dev;
+	int ret;
+
+	ret = nouveau_gpuobj_new(dev, chan, 24, 16, NVOBJ_FLAG_ZERO_ALLOC |
+				 NVOBJ_FLAG_ZERO_FREE, pobj);
+	if (ret)
+		return ret;
+
+	nv50_gpuobj_dma_init(*pobj, 0, class, base, size, target,
+			     access, type, comp);
+	return 0;
+}
+
+int
+nouveau_gpuobj_dma_new(struct nouveau_channel *chan, int class, u64 base,
+		       u64 size, int access, int target,
+		       struct nouveau_gpuobj **pobj)
+{
+	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
+	struct drm_device *dev = chan->dev;
+	struct nouveau_gpuobj *obj;
+	u32 page_addr, flags0, flags2;
+	int ret;
+
+	if (dev_priv->card_type >= NV_50) {
+		u32 comp = (target == NV_MEM_TARGET_VM) ? NV_MEM_COMP_VM : 0;
+		u32 type = (target == NV_MEM_TARGET_VM) ? NV_MEM_TYPE_VM : 0;
+
+		return nv50_gpuobj_dma_new(chan, class, base, size,
+					   target, access, type, comp, pobj);
+	}
+
+	if (target == NV_MEM_TARGET_GART) {
+		if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
+			target = NV_MEM_TARGET_PCI_NOSNOOP;
+			base  += dev_priv->gart_info.aper_base;
+		} else
+		if (base != 0) {
+			ret = nouveau_sgdma_get_page(dev, base, &page_addr);
+			if (ret)
+				return ret;
+
+			target = NV_MEM_TARGET_PCI;
+			base   = page_addr;
+		} else {
+			nouveau_gpuobj_ref(dev_priv->gart_info.sg_ctxdma, pobj);
+			return 0;
+		}
+	}
+
+	flags0  = class;
+	flags0 |= 0x00003000; /* PT present, PT linear */
+	flags2  = 0;
+
+	switch (target) {
+	case NV_MEM_TARGET_PCI:
+		flags0 |= 0x00020000;
+		break;
+	case NV_MEM_TARGET_PCI_NOSNOOP:
+		flags0 |= 0x00030000;
 		break;
 	default:
 		break;
 	}
 
-	ret = nouveau_gpuobj_new(dev, chan,
-				 nouveau_gpuobj_class_instmem_size(dev, class),
-				 16, NVOBJ_FLAG_ZERO_ALLOC |
-				 NVOBJ_FLAG_ZERO_FREE, gpuobj);
-	if (ret) {
-		NV_ERROR(dev, "Error creating gpuobj: %d\n", ret);
+	switch (access) {
+	case NV_MEM_ACCESS_RO:
+		flags0 |= 0x00004000;
+		break;
+	case NV_MEM_ACCESS_WO:
+		flags0 |= 0x00008000;
+	default:
+		flags2 |= 0x00000002;
+		break;
+	}
+
+	flags0 |= (base & 0x00000fff) << 20;
+	flags2 |= (base & 0xfffff000);
+
+	ret = nouveau_gpuobj_new(dev, chan, (dev_priv->card_type >= NV_40) ?
+				 32 : 16, 16, NVOBJ_FLAG_ZERO_ALLOC |
+				 NVOBJ_FLAG_ZERO_FREE, &obj);
+	if (ret)
 		return ret;
-	}
 
-	if (dev_priv->card_type < NV_50) {
-		uint32_t frame, adjust, pte_flags = 0;
+	nv_wo32(obj, 0x00, flags0);
+	nv_wo32(obj, 0x04, size - 1);
+	nv_wo32(obj, 0x08, flags2);
+	nv_wo32(obj, 0x0c, flags2);
 
-		if (access != NV_DMA_ACCESS_RO)
-			pte_flags |= (1<<1);
-		adjust = offset &  0x00000fff;
-		frame  = offset & ~0x00000fff;
-
-		nv_wo32(*gpuobj,  0, ((1<<12) | (1<<13) | (adjust << 20) |
-				      (access << 14) | (target << 16) |
-				      class));
-		nv_wo32(*gpuobj,  4, size - 1);
-		nv_wo32(*gpuobj,  8, frame | pte_flags);
-		nv_wo32(*gpuobj, 12, frame | pte_flags);
-	} else {
-		uint64_t limit = offset + size - 1;
-		uint32_t flags0, flags5;
-
-		if (target == NV_DMA_TARGET_VIDMEM) {
-			flags0 = 0x00190000;
-			flags5 = 0x00010000;
-		} else {
-			flags0 = 0x7fc00000;
-			flags5 = 0x00080000;
-		}
-
-		nv_wo32(*gpuobj,  0, flags0 | class);
-		nv_wo32(*gpuobj,  4, lower_32_bits(limit));
-		nv_wo32(*gpuobj,  8, lower_32_bits(offset));
-		nv_wo32(*gpuobj, 12, ((upper_32_bits(limit) & 0xff) << 24) |
-				      (upper_32_bits(offset) & 0xff));
-		nv_wo32(*gpuobj, 20, flags5);
-	}
-
-	instmem->flush(dev);
-
-	(*gpuobj)->engine = NVOBJ_ENGINE_SW;
-	(*gpuobj)->class  = class;
+	obj->engine = NVOBJ_ENGINE_SW;
+	obj->class  = class;
+	*pobj = obj;
 	return 0;
-}
-
-int
-nouveau_gpuobj_gart_dma_new(struct nouveau_channel *chan,
-			    uint64_t offset, uint64_t size, int access,
-			    struct nouveau_gpuobj **gpuobj,
-			    uint32_t *o_ret)
-{
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int ret;
-
-	if (dev_priv->gart_info.type == NOUVEAU_GART_AGP ||
-	    (dev_priv->card_type >= NV_50 &&
-	     dev_priv->gart_info.type == NOUVEAU_GART_SGDMA)) {
-		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
-					     offset + dev_priv->vm_gart_base,
-					     size, access, NV_DMA_TARGET_AGP,
-					     gpuobj);
-		if (o_ret)
-			*o_ret = 0;
-	} else
-	if (dev_priv->gart_info.type == NOUVEAU_GART_SGDMA) {
-		nouveau_gpuobj_ref(dev_priv->gart_info.sg_ctxdma, gpuobj);
-		if (offset & ~0xffffffffULL) {
-			NV_ERROR(dev, "obj offset exceeds 32-bits\n");
-			return -EINVAL;
-		}
-		if (o_ret)
-			*o_ret = (uint32_t)offset;
-		ret = (*gpuobj != NULL) ? 0 : -EINVAL;
-	} else {
-		NV_ERROR(dev, "Invalid GART type %d\n", dev_priv->gart_info.type);
-		return -EINVAL;
-	}
-
-	return ret;
 }
 
 /* Context objects in the instance RAM have the following structure.
@@ -806,8 +850,8 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	if (dev_priv->card_type >= NV_50) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
 					     0, dev_priv->vm_end,
-					     NV_DMA_ACCESS_RW,
-					     NV_DMA_TARGET_AGP, &vram);
+					     NV_MEM_ACCESS_RW,
+					     NV_MEM_TARGET_VM, &vram);
 		if (ret) {
 			NV_ERROR(dev, "Error creating VRAM ctxdma: %d\n", ret);
 			return ret;
@@ -815,8 +859,8 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	} else {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
 					     0, dev_priv->fb_available_size,
-					     NV_DMA_ACCESS_RW,
-					     NV_DMA_TARGET_VIDMEM, &vram);
+					     NV_MEM_ACCESS_RW,
+					     NV_MEM_TARGET_VRAM, &vram);
 		if (ret) {
 			NV_ERROR(dev, "Error creating VRAM ctxdma: %d\n", ret);
 			return ret;
@@ -834,20 +878,13 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	if (dev_priv->card_type >= NV_50) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
 					     0, dev_priv->vm_end,
-					     NV_DMA_ACCESS_RW,
-					     NV_DMA_TARGET_AGP, &tt);
-		if (ret) {
-			NV_ERROR(dev, "Error creating VRAM ctxdma: %d\n", ret);
-			return ret;
-		}
-	} else
-	if (dev_priv->gart_info.type != NOUVEAU_GART_NONE) {
-		ret = nouveau_gpuobj_gart_dma_new(chan, 0,
-						  dev_priv->gart_info.aper_size,
-						  NV_DMA_ACCESS_RW, &tt, NULL);
+					     NV_MEM_ACCESS_RW,
+					     NV_MEM_TARGET_VM, &tt);
 	} else {
-		NV_ERROR(dev, "Invalid GART type %d\n", dev_priv->gart_info.type);
-		ret = -EINVAL;
+		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
+					     0, dev_priv->gart_info.aper_size,
+					     NV_MEM_ACCESS_RW,
+					     NV_MEM_TARGET_GART, &tt);
 	}
 
 	if (ret) {

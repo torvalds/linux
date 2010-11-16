@@ -99,7 +99,6 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 		       int size, uint32_t *b_offset)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *nobj = NULL;
 	struct drm_mm_node *mem;
 	uint32_t offset;
@@ -113,31 +112,15 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 		return -ENOMEM;
 	}
 
-	offset = chan->notifier_bo->bo.mem.start << PAGE_SHIFT;
-	if (chan->notifier_bo->bo.mem.mem_type == TTM_PL_VRAM) {
-		target = NV_DMA_TARGET_VIDMEM;
-	} else
-	if (chan->notifier_bo->bo.mem.mem_type == TTM_PL_TT) {
-		if (dev_priv->gart_info.type == NOUVEAU_GART_SGDMA &&
-		    dev_priv->card_type < NV_50) {
-			ret = nouveau_sgdma_get_page(dev, offset, &offset);
-			if (ret)
-				return ret;
-			target = NV_DMA_TARGET_PCI;
-		} else {
-			target = NV_DMA_TARGET_AGP;
-			if (dev_priv->card_type >= NV_50)
-				offset += dev_priv->vm_gart_base;
-		}
-	} else {
-		NV_ERROR(dev, "Bad DMA target, mem_type %d!\n",
-			 chan->notifier_bo->bo.mem.mem_type);
-		return -EINVAL;
-	}
+	if (chan->notifier_bo->bo.mem.mem_type == TTM_PL_VRAM)
+		target = NV_MEM_TARGET_VRAM;
+	else
+		target = NV_MEM_TARGET_GART;
+	offset  = chan->notifier_bo->bo.mem.start << PAGE_SHIFT;
 	offset += mem->start;
 
 	ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, offset,
-				     mem->size, NV_DMA_ACCESS_RW, target,
+				     mem->size, NV_MEM_ACCESS_RW, target,
 				     &nobj);
 	if (ret) {
 		drm_mm_put_block(mem);

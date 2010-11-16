@@ -536,7 +536,7 @@ nouveau_card_init_channel(struct drm_device *dev)
 
 	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
 				     0, dev_priv->vram_size,
-				     NV_DMA_ACCESS_RW, NV_DMA_TARGET_VIDMEM,
+				     NV_MEM_ACCESS_RW, NV_MEM_TARGET_VRAM,
 				     &gpuobj);
 	if (ret)
 		goto out_err;
@@ -546,9 +546,10 @@ nouveau_card_init_channel(struct drm_device *dev)
 	if (ret)
 		goto out_err;
 
-	ret = nouveau_gpuobj_gart_dma_new(dev_priv->channel, 0,
-					  dev_priv->gart_info.aper_size,
-					  NV_DMA_ACCESS_RW, &gpuobj, NULL);
+	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
+				     0, dev_priv->gart_info.aper_size,
+				     NV_MEM_ACCESS_RW, NV_MEM_TARGET_GART,
+				     &gpuobj);
 	if (ret)
 		goto out_err;
 

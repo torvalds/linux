@@ -247,14 +247,11 @@ nouveau_sgdma_init(struct drm_device *dev)
 		 */
 		gpuobj->cinst = gpuobj->pinst;
 
-		/* Maybe use NV_DMA_TARGET_AGP for PCIE? NVIDIA do this, and
-		 * confirmed to work on c51.  Perhaps means NV_DMA_TARGET_PCIE
-		 * on those cards? */
 		nv_wo32(gpuobj, 0, NV_CLASS_DMA_IN_MEMORY |
 				   (1 << 12) /* PT present */ |
 				   (0 << 13) /* PT *not* linear */ |
-				   (NV_DMA_ACCESS_RW  << 14) |
-				   (NV_DMA_TARGET_PCI << 16));
+				   (0 << 14) /* RW */ |
+				   (2 << 16) /* PCI */);
 		nv_wo32(gpuobj, 4, aper_size - 1);
 		for (i = 2; i < 2 + (aper_size >> 12); i++)
 			nv_wo32(gpuobj, i * 4, 0x00000000);

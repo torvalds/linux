@@ -886,12 +886,14 @@ extern int nouveau_gpuobj_new_fake(struct drm_device *, u32 pinst, u64 vinst,
 extern int nouveau_gpuobj_dma_new(struct nouveau_channel *, int class,
 				  uint64_t offset, uint64_t size, int access,
 				  int target, struct nouveau_gpuobj **);
-extern int nouveau_gpuobj_gart_dma_new(struct nouveau_channel *,
-				       uint64_t offset, uint64_t size,
-				       int access, struct nouveau_gpuobj **,
-				       uint32_t *o_ret);
 extern int nouveau_gpuobj_gr_new(struct nouveau_channel *, int class,
 				 struct nouveau_gpuobj **);
+extern int nv50_gpuobj_dma_new(struct nouveau_channel *, int class, u64 base,
+			       u64 size, int target, int access, u32 type,
+			       u32 comp, struct nouveau_gpuobj **pobj);
+extern void nv50_gpuobj_dma_init(struct nouveau_gpuobj *, u32 offset,
+				 int class, u64 base, u64 size, int target,
+				 int access, u32 type, u32 comp);
 extern int nouveau_ioctl_grobj_alloc(struct drm_device *, void *data,
 				     struct drm_file *);
 extern int nouveau_ioctl_gpuobj_free(struct drm_device *, void *data,
@@ -1545,6 +1547,22 @@ nv_match_device(struct drm_device *dev, unsigned device,
 		dev->pdev->subsystem_device == sub_device;
 }
 
+/* memory type/access flags, do not match hardware values */
+#define NV_MEM_ACCESS_RO 1
+#define NV_MEM_ACCESS_WO 2
+#define NV_MEM_ACCESS_RW (NV_MEM_ACCESS_RO | NV_MEM_ACCESS_WO)
+#define NV_MEM_ACCESS_VM 4
+
+#define NV_MEM_TARGET_VRAM        0
+#define NV_MEM_TARGET_PCI         1
+#define NV_MEM_TARGET_PCI_NOSNOOP 2
+#define NV_MEM_TARGET_VM          3
+#define NV_MEM_TARGET_GART        4
+
+#define NV_MEM_TYPE_VM 0x7f
+#define NV_MEM_COMP_VM 0x03
+
+/* NV_SW object class */
 #define NV_SW                                                        0x0000506e
 #define NV_SW_DMA_SEMAPHORE                                          0x00000060
 #define NV_SW_SEMAPHORE_OFFSET                                       0x00000064

@@ -39,22 +39,22 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 
 	if (dev_priv->card_type >= NV_50) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
-					     dev_priv->vm_end, NV_DMA_ACCESS_RO,
-					     NV_DMA_TARGET_AGP, &pushbuf);
+					     dev_priv->vm_end, NV_MEM_ACCESS_RO,
+					     NV_MEM_TARGET_VM, &pushbuf);
 		chan->pushbuf_base = pb->bo.offset;
 	} else
 	if (pb->bo.mem.mem_type == TTM_PL_TT) {
-		ret = nouveau_gpuobj_gart_dma_new(chan, 0,
-						  dev_priv->gart_info.aper_size,
-						  NV_DMA_ACCESS_RO, &pushbuf,
-						  NULL);
+		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
+					     dev_priv->gart_info.aper_size,
+					     NV_MEM_ACCESS_RO,
+					     NV_MEM_TARGET_GART, &pushbuf);
 		chan->pushbuf_base = pb->bo.mem.start << PAGE_SHIFT;
 	} else
 	if (dev_priv->card_type != NV_04) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
 					     dev_priv->fb_available_size,
-					     NV_DMA_ACCESS_RO,
-					     NV_DMA_TARGET_VIDMEM, &pushbuf);
+					     NV_MEM_ACCESS_RO,
+					     NV_MEM_TARGET_VRAM, &pushbuf);
 		chan->pushbuf_base = pb->bo.mem.start << PAGE_SHIFT;
 	} else {
 		/* NV04 cmdbuf hack, from original ddx.. not sure of it's
@@ -62,11 +62,10 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 		 * VRAM.
 		 */
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
-					     pci_resource_start(dev->pdev,
-					     1),
+					     pci_resource_start(dev->pdev, 1),
 					     dev_priv->fb_available_size,
-					     NV_DMA_ACCESS_RO,
-					     NV_DMA_TARGET_PCI, &pushbuf);
+					     NV_MEM_ACCESS_RO,
+					     NV_MEM_TARGET_PCI, &pushbuf);
 		chan->pushbuf_base = pb->bo.mem.start << PAGE_SHIFT;
 	}
 
