@@ -1126,8 +1126,7 @@ struct qlcnic_eswitch {
 /* Return codes for Error handling */
 #define QL_STATUS_INVALID_PARAM	-1
 
-#define MAX_BW			100
-#define MIN_BW			1
+#define MAX_BW			100	/* % of link speed */
 #define MAX_VLAN_ID		4095
 #define MIN_VLAN_ID		2
 #define MAX_TX_QUEUES		1
@@ -1135,7 +1134,7 @@ struct qlcnic_eswitch {
 #define DEFAULT_MAC_LEARN	1
 
 #define IS_VALID_VLAN(vlan)	(vlan >= MIN_VLAN_ID && vlan < MAX_VLAN_ID)
-#define IS_VALID_BW(bw)		(bw >= MIN_BW && bw <= MAX_BW)
+#define IS_VALID_BW(bw)		(bw <= MAX_BW)
 #define IS_VALID_TX_QUEUES(que)	(que > 0 && que <= MAX_TX_QUEUES)
 #define IS_VALID_RX_QUEUES(que)	(que > 0 && que <= MAX_RX_QUEUES)
 
