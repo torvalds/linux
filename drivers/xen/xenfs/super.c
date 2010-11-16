@@ -121,9 +121,9 @@ static int xenfs_fill_super(struct super_block *sb, void *data, int silent)
 	return rc;
 }
 
-static int xenfs_mount(struct file_system_type *fs_type,
-			int flags, const char *dev_name,
-			void *data)
+static struct dentry *xenfs_mount(struct file_system_type *fs_type,
+				  int flags, const char *dev_name,
+				  void *data)
 {
 	return mount_single(fs_type, flags, data, xenfs_fill_super);
 }
