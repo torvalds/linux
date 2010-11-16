@@ -131,7 +131,6 @@ nv50_instmem_init(struct drm_device *dev)
 	struct nouveau_channel *chan;
 	struct nouveau_vm *vm;
 	int ret, i;
-	u64 nongart_o;
 	u32 tmp;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -216,15 +215,10 @@ nv50_instmem_init(struct drm_device *dev)
 	for (i = 0; i < 8; i++)
 		nv_wr32(dev, 0x1900 + (i*4), 0);
 
-	/* Create shared channel VM, space is reserved for GART mappings at
-	 * the beginning of this address space, it's managed separately
-	 * because TTM makes life painful
+	/* Create shared channel VM, space is reserved at the beginning
+	 * to catch "NULL pointer" references
 	 */
-	dev_priv->vm_gart_base = 0x0020000000ULL;
-	dev_priv->vm_gart_size = 512 * 1024 * 1024;
-	nongart_o = dev_priv->vm_gart_base + dev_priv->vm_gart_size;
-
-	ret = nouveau_vm_new(dev, 0, (1ULL << 40), nongart_o,
+	ret = nouveau_vm_new(dev, 0, (1ULL << 40), 0x0020000000ULL,
 			     29, 12, 16, &dev_priv->chan_vm);
 	if (ret)
 		return ret;

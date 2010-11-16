@@ -433,7 +433,7 @@ nv50_gpuobj_dma_init(struct nouveau_gpuobj *obj, u32 offset, int class,
 		flags0 |= 0x00030000;
 		break;
 	case NV_MEM_TARGET_GART:
-		base += dev_priv->vm_gart_base;
+		base += dev_priv->gart_info.aper_base;
 	default:
 		flags0 &= ~0x00100000;
 		break;
@@ -801,7 +801,6 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 			return ret;
 
 		nouveau_vm_ref(dev_priv->chan_vm, &chan->vm, chan->vm_pd);
-		chan->vm->map_pgt(chan->vm_pd, 12, 1, dev_priv->gart_info.sg_ctxdma);
 	}
 
 	/* RAMHT */
@@ -889,7 +888,6 @@ nouveau_gpuobj_channel_takedown(struct nouveau_channel *chan)
 
 	nouveau_vm_ref(NULL, &chan->vm, chan->vm_pd);
 	nouveau_gpuobj_ref(NULL, &chan->vm_pd);
-	nouveau_gpuobj_ref(NULL, &chan->vm_gart_pt);
 
 	if (chan->ramin_heap.free_stack.next)
 		drm_mm_takedown(&chan->ramin_heap);

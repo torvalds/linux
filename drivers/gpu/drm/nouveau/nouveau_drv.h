@@ -248,7 +248,6 @@ struct nouveau_channel {
 	/* NV50 VM */
 	struct nouveau_vm     *vm;
 	struct nouveau_gpuobj *vm_pd;
-	struct nouveau_gpuobj *vm_gart_pt;
 
 	/* Objects */
 	struct nouveau_gpuobj *ramin; /* Private instmem */
@@ -684,6 +683,7 @@ struct drm_nouveau_private {
 		uint64_t aper_free;
 
 		struct nouveau_gpuobj *sg_ctxdma;
+		struct nouveau_vma vma;
 	} gart_info;
 
 	/* nv10-nv40 tiling regions */
@@ -709,8 +709,6 @@ struct drm_nouveau_private {
 
 	/* G8x/G9x virtual address space */
 	struct nouveau_vm *chan_vm;
-	uint64_t vm_gart_base;
-	uint64_t vm_gart_size;
 
 	struct nvbios vbios;
 

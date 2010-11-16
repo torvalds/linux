@@ -425,7 +425,6 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
 					 TTM_PL_FLAG_WC;
 		man->default_caching = TTM_PL_FLAG_WC;
-		man->gpu_offset = 0;
 		break;
 	case TTM_PL_TT:
 		man->func = &ttm_bo_manager_func;
@@ -441,13 +440,13 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 				     TTM_MEMTYPE_FLAG_CMA;
 			man->available_caching = TTM_PL_MASK_CACHING;
 			man->default_caching = TTM_PL_FLAG_CACHED;
+			man->gpu_offset = dev_priv->gart_info.aper_base;
 			break;
 		default:
 			NV_ERROR(dev, "Unknown GART type: %d\n",
 				 dev_priv->gart_info.type);
 			return -EINVAL;
 		}
-		man->gpu_offset = dev_priv->vm_gart_base;
 		break;
 	default:
 		NV_ERROR(dev, "Unsupported memory type %u\n", (unsigned)type);
@@ -531,12 +530,12 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		if (old_mem->mem_type == TTM_PL_VRAM)
 			src_offset  = nvbo->vma.offset;
 		else
-			src_offset += dev_priv->vm_gart_base;
+			src_offset += dev_priv->gart_info.aper_base;
 
 		if (new_mem->mem_type == TTM_PL_VRAM)
 			dst_offset  = nvbo->vma.offset;
 		else
-			dst_offset += dev_priv->vm_gart_base;
+			dst_offset += dev_priv->gart_info.aper_base;
 	}
 
 	ret = RING_SPACE(chan, 3);
