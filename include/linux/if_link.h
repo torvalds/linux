@@ -80,6 +80,24 @@ struct rtnl_link_ifmap {
 	__u8	port;
 };
 
+/*
+ * IFLA_AF_SPEC
+ *   Contains nested attributes for address family specific attributes.
+ *   Each address family may create a attribute with the address family
+ *   number as type and create its own attribute structure in it.
+ *
+ *   Example:
+ *   [IFLA_AF_SPEC] = {
+ *       [AF_INET] = {
+ *           [IFLA_INET_CONF] = ...,
+ *       },
+ *       [AF_INET6] = {
+ *           [IFLA_INET6_FLAGS] = ...,
+ *           [IFLA_INET6_CONF] = ...,
+ *       }
+ *   }
+ */
+
 enum {
 	IFLA_UNSPEC,
 	IFLA_ADDRESS,
@@ -116,6 +134,7 @@ enum {
 	IFLA_STATS64,
 	IFLA_VF_PORTS,
 	IFLA_PORT_SELF,
+	IFLA_AF_SPEC,
 	__IFLA_MAX
 };
 
