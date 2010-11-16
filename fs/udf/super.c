@@ -135,6 +135,7 @@ static struct inode *udf_alloc_inode(struct super_block *sb)
 	ei->i_next_alloc_block = 0;
 	ei->i_next_alloc_goal = 0;
 	ei->i_strat4096 = 0;
+	init_rwsem(&ei->i_data_sem);
 
 	return &ei->vfs_inode;
 }

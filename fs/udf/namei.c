@@ -893,18 +893,18 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 	struct udf_inode_info *iinfo;
 	struct super_block *sb = dir->i_sb;
 
-	lock_kernel();
 	inode = udf_new_inode(dir, S_IFLNK | S_IRWXUGO, &err);
 	if (!inode)
 		goto out;
 
+	iinfo = UDF_I(inode);
+	down_write(&iinfo->i_data_sem);
 	name = kmalloc(UDF_NAME_LEN, GFP_NOFS);
 	if (!name) {
 		err = -ENOMEM;
 		goto out_no_entry;
 	}
 
-	iinfo = UDF_I(inode);
 	inode->i_data.a_ops = &udf_symlink_aops;
 	inode->i_op = &udf_symlink_inode_operations;
 
@@ -1024,6 +1024,7 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 	udf_write_fi(dir, &cfi, fi, &fibh, NULL, NULL);
 	if (UDF_I(dir)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
 		mark_inode_dirty(dir);
+	up_write(&iinfo->i_data_sem);
 	if (fibh.sbh != fibh.ebh)
 		brelse(fibh.ebh);
 	brelse(fibh.sbh);
@@ -1032,10 +1033,10 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 
 out:
 	kfree(name);
-	unlock_kernel();
 	return err;
 
 out_no_entry:
+	up_write(&iinfo->i_data_sem);
 	inode_dec_link_count(inode);
 	iput(inode);
 	goto out;
