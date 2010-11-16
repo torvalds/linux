@@ -535,7 +535,7 @@ static pte_t * __init early_pte_alloc(pmd_t *pmd, unsigned long addr, unsigned l
 {
 	if (pmd_none(*pmd)) {
 		pte_t *pte = early_alloc(2 * PTRS_PER_PTE * sizeof(pte_t));
-		__pmd_populate(pmd, __pa(pte) | prot);
+		__pmd_populate(pmd, __pa(pte), prot);
 	}
 	BUG_ON(pmd_bad(*pmd));
 	return pte_offset_kernel(pmd, addr);
@@ -553,7 +553,7 @@ static void __init alloc_init_pte(pmd_t *pmd, unsigned long addr,
 }
 
 static void __init alloc_init_section(pgd_t *pgd, unsigned long addr,
-				      unsigned long end, unsigned long phys,
+				      unsigned long end, phys_addr_t phys,
 				      const struct mem_type *type)
 {
 	pmd_t *pmd = pmd_offset(pgd, addr);
@@ -588,7 +588,8 @@ static void __init alloc_init_section(pgd_t *pgd, unsigned long addr,
 static void __init create_36bit_mapping(struct map_desc *md,
 					const struct mem_type *type)
 {
-	unsigned long phys, addr, length, end;
+	unsigned long addr, length, end;
+	phys_addr_t phys;
 	pgd_t *pgd;
 
 	addr = md->virtual;

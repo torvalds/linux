@@ -103,8 +103,10 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 	__free_page(pte);
 }
 
-static inline void __pmd_populate(pmd_t *pmdp, unsigned long pmdval)
+static inline void __pmd_populate(pmd_t *pmdp, phys_addr_t pte,
+	unsigned long prot)
 {
+	unsigned long pmdval = pte | prot;
 	pmdp[0] = __pmd(pmdval);
 	pmdp[1] = __pmd(pmdval + 256 * sizeof(pte_t));
 	flush_pmd_entry(pmdp);
@@ -126,13 +128,13 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmdp, pte_t *ptep)
 	 * address of the PTE table
 	 */
 	pte_ptr -= PTRS_PER_PTE * sizeof(void *);
-	__pmd_populate(pmdp, __pa(pte_ptr) | _PAGE_KERNEL_TABLE);
+	__pmd_populate(pmdp, __pa(pte_ptr), _PAGE_KERNEL_TABLE);
 }
 
 static inline void
 pmd_populate(struct mm_struct *mm, pmd_t *pmdp, pgtable_t ptep)
 {
-	__pmd_populate(pmdp, page_to_pfn(ptep) << PAGE_SHIFT | _PAGE_USER_TABLE);
+	__pmd_populate(pmdp, page_to_phys(ptep), _PAGE_USER_TABLE);
 }
 #define pmd_pgtable(pmd) pmd_page(pmd)
 
