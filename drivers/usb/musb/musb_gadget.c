@@ -765,10 +765,11 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 			 if (is_dma_capable() && musb_ep->dma) {
 				unmap_dma_buffer(req, musb);
 
-				/* Clear DMAENAB for the
+				/*
+				 * Clear DMAENAB and AUTOCLEAR for the
 				 * PIO mode transfer
 				 */
-				csr &= ~MUSB_RXCSR_DMAENAB;
+				csr &= ~(MUSB_RXCSR_DMAENAB | MUSB_RXCSR_AUTOCLEAR);
 				musb_writew(epio, MUSB_RXCSR, csr);
 			}
 
