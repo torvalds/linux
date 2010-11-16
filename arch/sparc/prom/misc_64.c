@@ -18,7 +18,7 @@
 #include <asm/system.h>
 #include <asm/ldc.h>
 
-int prom_service_exists(const char *service_name)
+static int prom_service_exists(const char *service_name)
 {
 	unsigned long args[5];
 
