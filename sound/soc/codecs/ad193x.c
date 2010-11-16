@@ -364,7 +364,6 @@ static int ad193x_probe(struct snd_soc_codec *codec)
 	if (ret < 0) {
 		dev_err(codec->dev, "failed to set cache I/O: %d\n",
 				ret);
-		kfree(ad193x);
 		return ret;
 	}
 
