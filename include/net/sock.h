@@ -241,6 +241,47 @@ struct sock {
 #define sk_bind_node		__sk_common.skc_bind_node
 #define sk_prot			__sk_common.skc_prot
 #define sk_net			__sk_common.skc_net
+	socket_lock_t		sk_lock;
+	struct sk_buff_head	sk_receive_queue;
+	/*
+	 * The backlog queue is special, it is always used with
+	 * the per-socket spinlock held and requires low latency
+	 * access. Therefore we special case it's implementation.
+	 * Note : rmem_alloc is in this structure to fill a hole
+	 * on 64bit arches, not because its logically part of
+	 * backlog.
+	 */
+	struct {
+		atomic_t	rmem_alloc;
+		int		len;
+		struct sk_buff	*head;
+		struct sk_buff	*tail;
+	} sk_backlog;
+#define sk_rmem_alloc sk_backlog.rmem_alloc
+	int			sk_forward_alloc;
+#ifdef CONFIG_RPS
+	__u32			sk_rxhash;
+#endif
+	atomic_t		sk_drops;
+	int			sk_rcvbuf;
+
+	struct sk_filter __rcu	*sk_filter;
+	struct socket_wq	*sk_wq;
+
+#ifdef CONFIG_NET_DMA
+	struct sk_buff_head	sk_async_wait_queue;
+#endif
+
+#ifdef CONFIG_XFRM
+	struct xfrm_policy	*sk_policy[2];
+#endif
+	unsigned long 		sk_flags;
+	struct dst_entry	*sk_dst_cache;
+	spinlock_t		sk_dst_lock;
+	atomic_t		sk_wmem_alloc;
+	atomic_t		sk_omem_alloc;
+	int			sk_sndbuf;
+	struct sk_buff_head	sk_write_queue;
 	kmemcheck_bitfield_begin(flags);
 	unsigned int		sk_shutdown  : 2,
 				sk_no_check  : 2,
@@ -248,52 +289,19 @@ struct sock {
 				sk_protocol  : 8,
 				sk_type      : 16;
 	kmemcheck_bitfield_end(flags);
-	int			sk_rcvbuf;
-	socket_lock_t		sk_lock;
-	/*
-	 * The backlog queue is special, it is always used with
-	 * the per-socket spinlock held and requires low latency
-	 * access. Therefore we special case it's implementation.
-	 */
-	struct {
-		struct sk_buff *head;
-		struct sk_buff *tail;
-		int len;
-	} sk_backlog;
-	struct socket_wq	*sk_wq;
-	struct dst_entry	*sk_dst_cache;
-#ifdef CONFIG_XFRM
-	struct xfrm_policy	*sk_policy[2];
-#endif
-	spinlock_t		sk_dst_lock;
-	atomic_t		sk_rmem_alloc;
-	atomic_t		sk_wmem_alloc;
-	atomic_t		sk_omem_alloc;
-	int			sk_sndbuf;
-	struct sk_buff_head	sk_receive_queue;
-	struct sk_buff_head	sk_write_queue;
-#ifdef CONFIG_NET_DMA
-	struct sk_buff_head	sk_async_wait_queue;
-#endif
 	int			sk_wmem_queued;
-	int			sk_forward_alloc;
 	gfp_t			sk_allocation;
 	int			sk_route_caps;
 	int			sk_route_nocaps;
 	int			sk_gso_type;
 	unsigned int		sk_gso_max_size;
 	int			sk_rcvlowat;
-#ifdef CONFIG_RPS
-	__u32			sk_rxhash;
-#endif
-	unsigned long 		sk_flags;
 	unsigned long	        sk_lingertime;
 	struct sk_buff_head	sk_error_queue;
 	struct proto		*sk_prot_creator;
 	rwlock_t		sk_callback_lock;
 	int			sk_err,
 				sk_err_soft;
-	atomic_t		sk_drops;
 	unsigned short		sk_ack_backlog;
 	unsigned short		sk_max_ack_backlog;
 	__u32			sk_priority;
@@ -301,7 +309,6 @@ struct sock {
 	const struct cred	*sk_peer_cred;
 	long			sk_rcvtimeo;
 	long			sk_sndtimeo;
-	struct sk_filter __rcu	*sk_filter;
 	void			*sk_protinfo;
 	struct timer_list	sk_timer;
 	ktime_t			sk_stamp;
