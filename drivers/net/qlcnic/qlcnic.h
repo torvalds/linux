@@ -1376,6 +1376,8 @@ static const struct qlcnic_brdinfo qlcnic_boards[] = {
 		"3200 Series Single Port 10Gb Intelligent Ethernet Adapter"},
 	{0x1077, 0x8020, 0x103c, 0x3733,
 		"NC523SFP 10Gb 2-port Server Adapter"},
+	{0x1077, 0x8020, 0x103c, 0x3346,
+		"CN1000Q Dual Port Converged Network Adapter"},
 	{0x1077, 0x8020, 0x0, 0x0, "cLOM8214 1/10GbE Controller"},
 };
 
