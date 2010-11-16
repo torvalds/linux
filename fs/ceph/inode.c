@@ -297,6 +297,8 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_release_count = 0;
 	ci->i_symlink = NULL;
 
+	memset(&ci->i_dir_layout, 0, sizeof(ci->i_dir_layout));
+
 	ci->i_fragtree = RB_ROOT;
 	mutex_init(&ci->i_fragtree_mutex);
 

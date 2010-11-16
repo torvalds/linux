@@ -1216,6 +1216,26 @@ void ceph_dentry_lru_del(struct dentry *dn)
 	}
 }
 
+/*
+ * Return name hash for a given dentry.  This is dependent on
+ * the parent directory's hash function.
+ */
+unsigned ceph_dentry_hash(struct dentry *dn)
+{
+	struct inode *dir = dn->d_parent->d_inode;
+	struct ceph_inode_info *dci = ceph_inode(dir);
+
+	switch (dci->i_dir_layout.dl_dir_hash) {
+	case 0:	/* for backward compat */
+	case CEPH_STR_HASH_LINUX:
+		return dn->d_name.hash;
+
+	default:
+		return ceph_str_hash(dci->i_dir_layout.dl_dir_hash,
+				     dn->d_name.name, dn->d_name.len);
+	}
+}
+
 const struct file_operations ceph_dir_fops = {
 	.read = ceph_read_dir,
 	.readdir = ceph_readdir,
