@@ -109,7 +109,7 @@ static inline osd_id exofs_oi_objno(struct exofs_i_info *oi)
 }
 
 struct exofs_io_state;
-typedef void (*exofs_io_done_fn)(struct exofs_io_state *or, void *private);
+typedef void (*exofs_io_done_fn)(struct exofs_io_state *ios, void *private);
 
 struct exofs_io_state {
 	struct kref		kref;
@@ -136,6 +136,8 @@ struct exofs_io_state {
 	struct osd_attr 	*in_attr;
 	unsigned		out_attr_len;
 	struct osd_attr 	*out_attr;
+
+	bool			reading;
 
 	/* Variable array of size numdevs */
 	unsigned numdevs;
@@ -218,6 +220,8 @@ void exofs_make_credential(u8 cred_a[OSD_CAP_LEN],
 int exofs_read_kern(struct osd_dev *od, u8 *cred, struct osd_obj_id *obj,
 		    u64 offset, void *p, unsigned length);
 
+int  exofs_get_rw_state(struct exofs_layout *layout, bool is_reading,
+			u64 offset, u64 length, struct exofs_io_state **ios);
 int  exofs_get_io_state(struct exofs_layout *layout,
 			struct exofs_io_state **ios);
 void exofs_put_io_state(struct exofs_io_state *ios);

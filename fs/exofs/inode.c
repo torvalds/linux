@@ -110,13 +110,6 @@ static int pcol_try_alloc(struct page_collect *pcol)
 {
 	unsigned pages;
 
-	if (!pcol->ios) { /* First time allocate io_state */
-		int ret = exofs_get_io_state(&pcol->sbi->layout, &pcol->ios);
-
-		if (ret)
-			return ret;
-	}
-
 	/* TODO: easily support bio chaining */
 	pages =  exofs_max_io_pages(&pcol->sbi->layout, pcol->expected_pages);
 
@@ -269,17 +262,25 @@ static void _unlock_pcol_pages(struct page_collect *pcol, int ret, int rw)
 static int read_exec(struct page_collect *pcol)
 {
 	struct exofs_i_info *oi = exofs_i(pcol->inode);
-	struct exofs_io_state *ios = pcol->ios;
+	struct exofs_io_state *ios;
 	struct page_collect *pcol_copy = NULL;
 	int ret;
 
 	if (!pcol->pages)
 		return 0;
 
+	if (!pcol->ios) {
+		int ret = exofs_get_rw_state(&pcol->sbi->layout, true,
+					     pcol->pg_first << PAGE_CACHE_SHIFT,
+					     pcol->length, &pcol->ios);
+
+		if (ret)
+			return ret;
+	}
+
+	ios = pcol->ios;
 	ios->pages = pcol->pages;
 	ios->nr_pages = pcol->nr_pages;
-	ios->length = pcol->length;
-	ios->offset = pcol->pg_first << PAGE_CACHE_SHIFT;
 
 	if (pcol->read_4_write) {
 		exofs_oi_read(oi, pcol->ios);
@@ -507,12 +508,20 @@ static void writepages_done(struct exofs_io_state *ios, void *p)
 static int write_exec(struct page_collect *pcol)
 {
 	struct exofs_i_info *oi = exofs_i(pcol->inode);
-	struct exofs_io_state *ios = pcol->ios;
+	struct exofs_io_state *ios;
 	struct page_collect *pcol_copy = NULL;
 	int ret;
 
 	if (!pcol->pages)
 		return 0;
+
+	BUG_ON(pcol->ios);
+	ret = exofs_get_rw_state(&pcol->sbi->layout, false,
+				 pcol->pg_first << PAGE_CACHE_SHIFT,
+				 pcol->length, &pcol->ios);
+
+	if (unlikely(ret))
+		goto err;
 
 	pcol_copy = kmalloc(sizeof(*pcol_copy), GFP_KERNEL);
 	if (!pcol_copy) {
@@ -523,10 +532,9 @@ static int write_exec(struct page_collect *pcol)
 
 	*pcol_copy = *pcol;
 
+	ios = pcol->ios;
 	ios->pages = pcol_copy->pages;
 	ios->nr_pages = pcol_copy->nr_pages;
-	ios->offset = pcol_copy->pg_first << PAGE_CACHE_SHIFT;
-	ios->length = pcol_copy->length;
 	ios->done = writepages_done;
 	ios->private = pcol_copy;
 

@@ -69,8 +69,8 @@ out:
 	return ret;
 }
 
-int exofs_get_io_state(struct exofs_layout *layout,
-		       struct exofs_io_state **pios)
+int  exofs_get_rw_state(struct exofs_layout *layout, bool is_reading,
+			u64 offset, u64 length, struct exofs_io_state **pios)
 {
 	struct exofs_io_state *ios;
 
@@ -87,8 +87,18 @@ int exofs_get_io_state(struct exofs_layout *layout,
 
 	ios->layout = layout;
 	ios->obj.partition = layout->s_pid;
+	ios->offset = offset;
+	ios->length = length;
+	ios->reading = is_reading;
+
 	*pios = ios;
 	return 0;
+}
+
+int  exofs_get_io_state(struct exofs_layout *layout,
+			struct exofs_io_state **ios)
+{
+	return exofs_get_rw_state(layout, true, 0, 0, ios);
 }
 
 void exofs_put_io_state(struct exofs_io_state *ios)
