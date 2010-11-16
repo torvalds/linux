@@ -311,7 +311,7 @@ static int mpc83xx_is_pci_agent(void)
 	return ret;
 }
 
-static struct platform_suspend_ops mpc83xx_suspend_ops = {
+static const struct platform_suspend_ops mpc83xx_suspend_ops = {
 	.valid = mpc83xx_suspend_valid,
 	.begin = mpc83xx_suspend_begin,
 	.enter = mpc83xx_suspend_enter,

@@ -153,7 +153,7 @@ static struct sysdev_class suspend_sysdev_class = {
 	.name = "power",
 };
 
-static struct platform_suspend_ops pseries_suspend_ops = {
+static const struct platform_suspend_ops pseries_suspend_ops = {
 	.valid		= suspend_valid_only_mem,
 	.begin		= pseries_suspend_begin,
 	.prepare_late	= pseries_prepare_late,

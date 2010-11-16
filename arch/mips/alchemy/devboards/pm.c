@@ -110,7 +110,7 @@ static void db1x_pm_end(void)
 
 }
 
-static struct platform_suspend_ops db1x_pm_ops = {
+static const struct platform_suspend_ops db1x_pm_ops = {
 	.valid		= suspend_valid_only_mem,
 	.begin		= db1x_pm_begin,
 	.enter		= db1x_pm_enter,

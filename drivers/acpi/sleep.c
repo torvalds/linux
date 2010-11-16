@@ -319,7 +319,7 @@ static int acpi_suspend_state_valid(suspend_state_t pm_state)
 	}
 }
 
-static struct platform_suspend_ops acpi_suspend_ops = {
+static const struct platform_suspend_ops acpi_suspend_ops = {
 	.valid = acpi_suspend_state_valid,
 	.begin = acpi_suspend_begin,
 	.prepare_late = acpi_pm_prepare,
@@ -347,7 +347,7 @@ static int acpi_suspend_begin_old(suspend_state_t pm_state)
  * The following callbacks are used if the pre-ACPI 2.0 suspend ordering has
  * been requested.
  */
-static struct platform_suspend_ops acpi_suspend_ops_old = {
+static const struct platform_suspend_ops acpi_suspend_ops_old = {
 	.valid = acpi_suspend_state_valid,
 	.begin = acpi_suspend_begin_old,
 	.prepare_late = acpi_pm_pre_suspend,
