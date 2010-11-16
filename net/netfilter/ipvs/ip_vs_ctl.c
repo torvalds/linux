@@ -1139,7 +1139,7 @@ ip_vs_add_service(struct ip_vs_service_user_kern *u,
 	}
 
 	if (u->pe_name && *u->pe_name) {
-		pe = ip_vs_pe_get(u->pe_name);
+		pe = ip_vs_pe_getbyname(u->pe_name);
 		if (pe == NULL) {
 			pr_info("persistence engine module ip_vs_pe_%s "
 				"not found\n", u->pe_name);
@@ -1250,7 +1250,7 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 	old_sched = sched;
 
 	if (u->pe_name && *u->pe_name) {
-		pe = ip_vs_pe_get(u->pe_name);
+		pe = ip_vs_pe_getbyname(u->pe_name);
 		if (pe == NULL) {
 			pr_info("persistence engine module ip_vs_pe_%s "
 				"not found\n", u->pe_name);

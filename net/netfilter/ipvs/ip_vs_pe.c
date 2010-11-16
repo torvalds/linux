@@ -30,7 +30,7 @@ void ip_vs_unbind_pe(struct ip_vs_service *svc)
 
 /* Get pe in the pe list by name */
 static struct ip_vs_pe *
-ip_vs_pe_getbyname(const char *pe_name)
+__ip_vs_pe_getbyname(const char *pe_name)
 {
 	struct ip_vs_pe *pe;
 
@@ -60,26 +60,20 @@ ip_vs_pe_getbyname(const char *pe_name)
 }
 
 /* Lookup pe and try to load it if it doesn't exist */
-struct ip_vs_pe *ip_vs_pe_get(const char *name)
+struct ip_vs_pe *ip_vs_pe_getbyname(const char *name)
 {
 	struct ip_vs_pe *pe;
 
 	/* Search for the pe by name */
-	pe = ip_vs_pe_getbyname(name);
+	pe = __ip_vs_pe_getbyname(name);
 
 	/* If pe not found, load the module and search again */
 	if (!pe) {
 		request_module("ip_vs_pe_%s", name);
-		pe = ip_vs_pe_getbyname(name);
+		pe = __ip_vs_pe_getbyname(name);
 	}
 
 	return pe;
-}
-
-void ip_vs_pe_put(struct ip_vs_pe *pe)
-{
-	if (pe && pe->module)
-		module_put(pe->module);
 }
 
 /* Register a pe in the pe list */
