@@ -34,8 +34,17 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
+/* Here's the desired hotplug mode */
+#define ADPA_HOTPLUG_BITS (ADPA_CRT_HOTPLUG_PERIOD_128 |		\
+			   ADPA_CRT_HOTPLUG_WARMUP_10MS |		\
+			   ADPA_CRT_HOTPLUG_SAMPLE_4S |			\
+			   ADPA_CRT_HOTPLUG_VOLTAGE_50 |		\
+			   ADPA_CRT_HOTPLUG_VOLREF_325MV |		\
+			   ADPA_CRT_HOTPLUG_ENABLE)
+
 struct intel_crt {
 	struct intel_encoder base;
+	bool force_hotplug_required;
 };
 
 static struct intel_crt *intel_attached_crt(struct drm_connector *connector)
@@ -139,7 +148,7 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 			   dpll_md & ~DPLL_MD_UDI_MULTIPLIER_MASK);
 	}
 
-	adpa = 0;
+	adpa = ADPA_HOTPLUG_BITS;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		adpa |= ADPA_HSYNC_ACTIVE_HIGH;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
@@ -167,53 +176,44 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
+	struct intel_crt *crt = intel_attached_crt(connector);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 adpa, temp;
+	u32 adpa;
 	bool ret;
-	bool turn_off_dac = false;
 
-	temp = adpa = I915_READ(PCH_ADPA);
+	/* The first time through, trigger an explicit detection cycle */
+	if (crt->force_hotplug_required) {
+		bool turn_off_dac = HAS_PCH_SPLIT(dev);
+		u32 save_adpa;
 
-	if (HAS_PCH_SPLIT(dev))
-		turn_off_dac = true;
+		crt->force_hotplug_required = 0;
 
-	adpa &= ~ADPA_CRT_HOTPLUG_MASK;
-	if (turn_off_dac)
-		adpa &= ~ADPA_DAC_ENABLE;
+		save_adpa = adpa = I915_READ(PCH_ADPA);
+		DRM_DEBUG_KMS("trigger hotplug detect cycle: adpa=0x%x\n", adpa);
 
-	/* disable HPD first */
-	I915_WRITE(PCH_ADPA, adpa);
-	(void)I915_READ(PCH_ADPA);
+		adpa |= ADPA_CRT_HOTPLUG_FORCE_TRIGGER;
+		if (turn_off_dac)
+			adpa &= ~ADPA_DAC_ENABLE;
 
-	adpa |= (ADPA_CRT_HOTPLUG_PERIOD_128 |
-			ADPA_CRT_HOTPLUG_WARMUP_10MS |
-			ADPA_CRT_HOTPLUG_SAMPLE_4S |
-			ADPA_CRT_HOTPLUG_VOLTAGE_50 | /* default */
-			ADPA_CRT_HOTPLUG_VOLREF_325MV |
-			ADPA_CRT_HOTPLUG_ENABLE |
-			ADPA_CRT_HOTPLUG_FORCE_TRIGGER);
+		I915_WRITE(PCH_ADPA, adpa);
 
-	DRM_DEBUG_KMS("pch crt adpa 0x%x", adpa);
-	I915_WRITE(PCH_ADPA, adpa);
+		if (wait_for((I915_READ(PCH_ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) == 0,
+			     1000))
+			DRM_DEBUG_KMS("timed out waiting for FORCE_TRIGGER");
 
-	if (wait_for((I915_READ(PCH_ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) == 0,
-		     1000))
-		DRM_DEBUG_KMS("timed out waiting for FORCE_TRIGGER");
-
-	if (turn_off_dac) {
-		/* Make sure hotplug is enabled */
-		I915_WRITE(PCH_ADPA, temp | ADPA_CRT_HOTPLUG_ENABLE);
-		(void)I915_READ(PCH_ADPA);
+		if (turn_off_dac) {
+			I915_WRITE(PCH_ADPA, save_adpa);
+			POSTING_READ(PCH_ADPA);
+		}
 	}
 
 	/* Check the status to see if both blue and green are on now */
 	adpa = I915_READ(PCH_ADPA);
-	adpa &= ADPA_CRT_HOTPLUG_MONITOR_MASK;
-	if ((adpa == ADPA_CRT_HOTPLUG_MONITOR_COLOR) ||
-		(adpa == ADPA_CRT_HOTPLUG_MONITOR_MONO))
+	if ((adpa & ADPA_CRT_HOTPLUG_MONITOR_MASK) != 0)
 		ret = true;
 	else
 		ret = false;
+	DRM_DEBUG_KMS("ironlake hotplug adpa=0x%x, result %d\n", adpa, ret);
 
 	return ret;
 }
@@ -452,8 +452,10 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		if (intel_crt_detect_hotplug(connector)) {
 			DRM_DEBUG_KMS("CRT detected via hotplug\n");
 			return connector_status_connected;
-		} else
+		} else {
+			DRM_DEBUG_KMS("CRT not detected via hotplug\n");
 			return connector_status_disconnected;
+		}
 	}
 
 	if (intel_crt_detect_ddc(crt))
@@ -586,6 +588,23 @@ void intel_crt_init(struct drm_device *dev)
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
 	else
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+
+	/*
+	 * Configure the automatic hotplug detection stuff
+	 */
+	crt->force_hotplug_required = 0;
+	if (HAS_PCH_SPLIT(dev)) {
+		u32 adpa;
+
+		adpa = I915_READ(PCH_ADPA);
+		adpa &= ~ADPA_CRT_HOTPLUG_MASK;
+		adpa |= ADPA_HOTPLUG_BITS;
+		I915_WRITE(PCH_ADPA, adpa);
+		POSTING_READ(PCH_ADPA);
+
+		DRM_DEBUG_KMS("pch crt adpa set to 0x%x\n", adpa);
+		crt->force_hotplug_required = 1;
+	}
 
 	dev_priv->hotplug_supported_mask |= CRT_HOTPLUG_INT_STATUS;
 }
