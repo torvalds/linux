@@ -1762,7 +1762,7 @@ static int ext3_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 {
 	handle_t *handle;
 	struct inode * inode;
-	struct buffer_head * dir_block;
+	struct buffer_head * dir_block = NULL;
 	struct ext3_dir_entry_2 * de;
 	int err, retries = 0;
 
@@ -1790,15 +1790,14 @@ retry:
 	inode->i_fop = &ext3_dir_operations;
 	inode->i_size = EXT3_I(inode)->i_disksize = inode->i_sb->s_blocksize;
 	dir_block = ext3_bread (handle, inode, 0, 1, &err);
-	if (!dir_block) {
-		drop_nlink(inode); /* is this nlink == 0? */
-		unlock_new_inode(inode);
-		ext3_mark_inode_dirty(handle, inode);
-		iput (inode);
-		goto out_stop;
-	}
+	if (!dir_block)
+		goto out_clear_inode;
+
 	BUFFER_TRACE(dir_block, "get_write_access");
-	ext3_journal_get_write_access(handle, dir_block);
+	err = ext3_journal_get_write_access(handle, dir_block);
+	if (err)
+		goto out_clear_inode;
+
 	de = (struct ext3_dir_entry_2 *) dir_block->b_data;
 	de->inode = cpu_to_le32(inode->i_ino);
 	de->name_len = 1;
@@ -1814,11 +1813,16 @@ retry:
 	ext3_set_de_type(dir->i_sb, de, S_IFDIR);
 	inode->i_nlink = 2;
 	BUFFER_TRACE(dir_block, "call ext3_journal_dirty_metadata");
-	ext3_journal_dirty_metadata(handle, dir_block);
-	brelse (dir_block);
-	ext3_mark_inode_dirty(handle, inode);
-	err = ext3_add_entry (handle, dentry, inode);
+	err = ext3_journal_dirty_metadata(handle, dir_block);
+	if (err)
+		goto out_clear_inode;
+
+	err = ext3_mark_inode_dirty(handle, inode);
+	if (!err)
+		err = ext3_add_entry (handle, dentry, inode);
+
 	if (err) {
+out_clear_inode:
 		inode->i_nlink = 0;
 		unlock_new_inode(inode);
 		ext3_mark_inode_dirty(handle, inode);
@@ -1827,10 +1831,14 @@ retry:
 	}
 	inc_nlink(dir);
 	ext3_update_dx_flag(dir);
-	ext3_mark_inode_dirty(handle, dir);
+	err = ext3_mark_inode_dirty(handle, dir);
+	if (err)
+		goto out_clear_inode;
+
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
 out_stop:
+	brelse(dir_block);
 	ext3_journal_stop(handle);
 	if (err == -ENOSPC && ext3_should_retry_alloc(dir->i_sb, &retries))
 		goto retry;
