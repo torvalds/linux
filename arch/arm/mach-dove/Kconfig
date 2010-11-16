@@ -9,6 +9,12 @@ config MACH_DOVE_DB
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell DB-MV88AP510 Development Board.
 
+ config MACH_CM_A510
+	bool "CompuLab CM-A510 Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  CompuLab CM-A510 Board.
+
 endmenu
 
 endif
