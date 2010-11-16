@@ -33,6 +33,16 @@
 #include <mach/iommu_hw-8xxx.h>
 #include <mach/iommu.h>
 
+#define MRC(reg, processor, op1, crn, crm, op2)				\
+__asm__ __volatile__ (							\
+"   mrc   "   #processor "," #op1 ", %0,"  #crn "," #crm "," #op2 "\n"  \
+: "=r" (reg))
+
+#define RCP15_PRRR(reg)		MRC(reg, p15, 0, c10, c2, 0)
+#define RCP15_NMRR(reg)		MRC(reg, p15, 0, c10, c2, 1)
+
+static int msm_iommu_tex_class[4];
+
 DEFINE_SPINLOCK(msm_iommu_lock);
 
 struct msm_priv {
@@ -98,6 +108,7 @@ static void __reset_context(void __iomem *base, int ctx)
 
 static void __program_context(void __iomem *base, int ctx, phys_addr_t pgtable)
 {
+	unsigned int prrr, nmrr;
 	__reset_context(base, ctx);
 
 	/* Set up HTW mode */
@@ -130,11 +141,11 @@ static void __program_context(void __iomem *base, int ctx, phys_addr_t pgtable)
 	/* Turn on TEX Remap */
 	SET_TRE(base, ctx, 1);
 
-	/* Do not configure PRRR / NMRR on the IOMMU for now. We will assume
-	 * TEX class 0 for everything until attributes are properly worked out
-	 */
-	SET_PRRR(base, ctx, 0);
-	SET_NMRR(base, ctx, 0);
+	/* Set TEX remap attributes */
+	RCP15_PRRR(prrr);
+	RCP15_NMRR(nmrr);
+	SET_PRRR(base, ctx, prrr);
+	SET_NMRR(base, ctx, nmrr);
 
 	/* Turn on BFB prefetch */
 	SET_BFBDFE(base, ctx, 1);
@@ -304,12 +315,21 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 	unsigned long *sl_table;
 	unsigned long *sl_pte;
 	unsigned long sl_offset;
+	unsigned int pgprot;
 	size_t len = 0x1000UL << order;
-	int ret = 0;
+	int ret = 0, tex, sh;
 
 	spin_lock_irqsave(&msm_iommu_lock, flags);
-	priv = domain->priv;
 
+	sh = (prot & MSM_IOMMU_ATTR_SH) ? 1 : 0;
+	tex = msm_iommu_tex_class[prot & MSM_IOMMU_CP_MASK];
+
+	if (tex < 0 || tex > NUM_TEX_CLASS - 1) {
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	priv = domain->priv;
 	if (!priv) {
 		ret = -EINVAL;
 		goto fail;
@@ -330,6 +350,18 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 		goto fail;
 	}
 
+	if (len == SZ_16M || len == SZ_1M) {
+		pgprot = sh ? FL_SHARED : 0;
+		pgprot |= tex & 0x01 ? FL_BUFFERABLE : 0;
+		pgprot |= tex & 0x02 ? FL_CACHEABLE : 0;
+		pgprot |= tex & 0x04 ? FL_TEX0 : 0;
+	} else	{
+		pgprot = sh ? SL_SHARED : 0;
+		pgprot |= tex & 0x01 ? SL_BUFFERABLE : 0;
+		pgprot |= tex & 0x02 ? SL_CACHEABLE : 0;
+		pgprot |= tex & 0x04 ? SL_TEX0 : 0;
+	}
+
 	fl_offset = FL_OFFSET(va);	/* Upper 12 bits */
 	fl_pte = fl_table + fl_offset;	/* int pointers, 4 bytes */
 
@@ -338,12 +370,12 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 		for (i = 0; i < 16; i++)
 			*(fl_pte+i) = (pa & 0xFF000000) | FL_SUPERSECTION |
 				  FL_AP_READ | FL_AP_WRITE | FL_TYPE_SECT |
-				  FL_SHARED;
+				  FL_SHARED | pgprot;
 	}
 
 	if (len == SZ_1M)
 		*fl_pte = (pa & 0xFFF00000) | FL_AP_READ | FL_AP_WRITE |
-						FL_TYPE_SECT | FL_SHARED;
+					    FL_TYPE_SECT | FL_SHARED | pgprot;
 
 	/* Need a 2nd level table */
 	if ((len == SZ_4K || len == SZ_64K) && (*fl_pte) == 0) {
@@ -368,14 +400,14 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 
 	if (len == SZ_4K)
 		*sl_pte = (pa & SL_BASE_MASK_SMALL) | SL_AP0 | SL_AP1 |
-					  SL_SHARED | SL_TYPE_SMALL;
+					  SL_SHARED | SL_TYPE_SMALL | pgprot;
 
 	if (len == SZ_64K) {
 		int i;
 
 		for (i = 0; i < 16; i++)
 			*(sl_pte+i) = (pa & SL_BASE_MASK_LARGE) | SL_AP0 |
-					    SL_AP1 | SL_SHARED | SL_TYPE_LARGE;
+				SL_AP1 | SL_SHARED | SL_TYPE_LARGE | pgprot;
 	}
 
 	__flush_iotlb(domain);
@@ -593,8 +625,47 @@ static struct iommu_ops msm_iommu_ops = {
 	.domain_has_cap = msm_iommu_domain_has_cap
 };
 
+static int __init get_tex_class(int icp, int ocp, int mt, int nos)
+{
+	int i = 0;
+	unsigned int prrr = 0;
+	unsigned int nmrr = 0;
+	int c_icp, c_ocp, c_mt, c_nos;
+
+	RCP15_PRRR(prrr);
+	RCP15_NMRR(nmrr);
+
+	for (i = 0; i < NUM_TEX_CLASS; i++) {
+		c_nos = PRRR_NOS(prrr, i);
+		c_mt = PRRR_MT(prrr, i);
+		c_icp = NMRR_ICP(nmrr, i);
+		c_ocp = NMRR_OCP(nmrr, i);
+
+		if (icp == c_icp && ocp == c_ocp && c_mt == mt && c_nos == nos)
+			return i;
+	}
+
+	return -ENODEV;
+}
+
+static void __init setup_iommu_tex_classes(void)
+{
+	msm_iommu_tex_class[MSM_IOMMU_ATTR_NONCACHED] =
+			get_tex_class(CP_NONCACHED, CP_NONCACHED, MT_NORMAL, 1);
+
+	msm_iommu_tex_class[MSM_IOMMU_ATTR_CACHED_WB_WA] =
+			get_tex_class(CP_WB_WA, CP_WB_WA, MT_NORMAL, 1);
+
+	msm_iommu_tex_class[MSM_IOMMU_ATTR_CACHED_WB_NWA] =
+			get_tex_class(CP_WB_NWA, CP_WB_NWA, MT_NORMAL, 1);
+
+	msm_iommu_tex_class[MSM_IOMMU_ATTR_CACHED_WT] =
+			get_tex_class(CP_WT, CP_WT, MT_NORMAL, 1);
+}
+
 static int __init msm_iommu_init(void)
 {
+	setup_iommu_tex_classes();
 	register_iommu(&msm_iommu_ops);
 	return 0;
 }
