@@ -61,6 +61,7 @@
 #include <linux/kernel.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -163,8 +164,14 @@ struct packet_mreq_max {
 static int packet_set_ring(struct sock *sk, struct tpacket_req *req,
 		int closing, int tx_ring);
 
+#define PGV_FROM_VMALLOC 1
+struct pgv {
+	char *buffer;
+	unsigned char flags;
+};
+
 struct packet_ring_buffer {
-	char			**pg_vec;
+	struct pgv		*pg_vec;
 	unsigned int		head;
 	unsigned int		frames_per_block;
 	unsigned int		frame_size;
@@ -283,7 +290,8 @@ static void *packet_lookup_frame(struct packet_sock *po,
 	pg_vec_pos = position / rb->frames_per_block;
 	frame_offset = position % rb->frames_per_block;
 
-	h.raw = rb->pg_vec[pg_vec_pos] + (frame_offset * rb->frame_size);
+	h.raw = rb->pg_vec[pg_vec_pos].buffer +
+		(frame_offset * rb->frame_size);
 
 	if (status != __packet_get_status(po, h.raw))
 		return NULL;
@@ -2325,37 +2333,74 @@ static const struct vm_operations_struct packet_mmap_ops = {
 	.close	=	packet_mm_close,
 };
 
-static void free_pg_vec(char **pg_vec, unsigned int order, unsigned int len)
+static void free_pg_vec(struct pgv *pg_vec, unsigned int order,
+			unsigned int len)
 {
 	int i;
 
 	for (i = 0; i < len; i++) {
-		if (likely(pg_vec[i]))
-			free_pages((unsigned long) pg_vec[i], order);
+		if (likely(pg_vec[i].buffer)) {
+			if (pg_vec[i].flags & PGV_FROM_VMALLOC)
+				vfree(pg_vec[i].buffer);
+			else
+				free_pages((unsigned long)pg_vec[i].buffer,
+					   order);
+			pg_vec[i].buffer = NULL;
+		}
 	}
 	kfree(pg_vec);
 }
 
-static inline char *alloc_one_pg_vec_page(unsigned long order)
+static inline char *alloc_one_pg_vec_page(unsigned long order,
+					  unsigned char *flags)
 {
-	gfp_t gfp_flags = GFP_KERNEL | __GFP_COMP | __GFP_ZERO | __GFP_NOWARN;
+	char *buffer = NULL;
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_COMP |
+			  __GFP_ZERO | __GFP_NOWARN | __GFP_NORETRY;
 
-	return (char *) __get_free_pages(gfp_flags, order);
+	buffer = (char *) __get_free_pages(gfp_flags, order);
+
+	if (buffer)
+		return buffer;
+
+	/*
+	 * __get_free_pages failed, fall back to vmalloc
+	 */
+	*flags |= PGV_FROM_VMALLOC;
+	buffer = vmalloc((1 << order) * PAGE_SIZE);
+
+	if (buffer)
+		return buffer;
+
+	/*
+	 * vmalloc failed, lets dig into swap here
+	 */
+	*flags = 0;
+	gfp_flags &= ~__GFP_NORETRY;
+	buffer = (char *)__get_free_pages(gfp_flags, order);
+	if (buffer)
+		return buffer;
+
+	/*
+	 * complete and utter failure
+	 */
+	return NULL;
 }
 
-static char **alloc_pg_vec(struct tpacket_req *req, int order)
+static struct pgv *alloc_pg_vec(struct tpacket_req *req, int order)
 {
 	unsigned int block_nr = req->tp_block_nr;
-	char **pg_vec;
+	struct pgv *pg_vec;
 	int i;
 
-	pg_vec = kzalloc(block_nr * sizeof(char *), GFP_KERNEL);
+	pg_vec = kcalloc(block_nr, sizeof(struct pgv), GFP_KERNEL);
 	if (unlikely(!pg_vec))
 		goto out;
 
 	for (i = 0; i < block_nr; i++) {
-		pg_vec[i] = alloc_one_pg_vec_page(order);
-		if (unlikely(!pg_vec[i]))
+		pg_vec[i].buffer = alloc_one_pg_vec_page(order,
+							 &pg_vec[i].flags);
+		if (unlikely(!pg_vec[i].buffer))
 			goto out_free_pgvec;
 	}
 
@@ -2364,6 +2409,7 @@ out:
 
 out_free_pgvec:
 	free_pg_vec(pg_vec, order, block_nr);
+	kfree(pg_vec);
 	pg_vec = NULL;
 	goto out;
 }
@@ -2371,7 +2417,7 @@ out_free_pgvec:
 static int packet_set_ring(struct sock *sk, struct tpacket_req *req,
 		int closing, int tx_ring)
 {
-	char **pg_vec = NULL;
+	struct pgv *pg_vec = NULL;
 	struct packet_sock *po = pkt_sk(sk);
 	int was_running, order = 0;
 	struct packet_ring_buffer *rb;
@@ -2533,15 +2579,22 @@ static int packet_mmap(struct file *file, struct socket *sock,
 			continue;
 
 		for (i = 0; i < rb->pg_vec_len; i++) {
-			struct page *page = virt_to_page(rb->pg_vec[i]);
+			struct page *page;
+			void *kaddr = rb->pg_vec[i].buffer;
 			int pg_num;
 
 			for (pg_num = 0; pg_num < rb->pg_vec_pages;
-					pg_num++, page++) {
+					pg_num++) {
+				if (rb->pg_vec[i].flags & PGV_FROM_VMALLOC)
+					page = vmalloc_to_page(kaddr);
+				else
+					page = virt_to_page(kaddr);
+
 				err = vm_insert_page(vma, start, page);
 				if (unlikely(err))
 					goto out;
 				start += PAGE_SIZE;
+				kaddr += PAGE_SIZE;
 			}
 		}
 	}
