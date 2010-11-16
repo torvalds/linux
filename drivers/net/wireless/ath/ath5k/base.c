@@ -1301,8 +1301,7 @@ ath5k_update_beacon_rssi(struct ath5k_softc *sc, struct sk_buff *skb, int rssi)
 	    memcmp(mgmt->bssid, common->curbssid, ETH_ALEN) != 0)
 		return;
 
-	ah->ah_beacon_rssi_avg = ath5k_moving_average(ah->ah_beacon_rssi_avg,
-						      rssi);
+	ewma_add(&ah->ah_beacon_rssi_avg, rssi);
 
 	/* in IBSS mode we should keep RSSI statistics per neighbour */
 	/* le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS */
@@ -2556,6 +2555,7 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 	ah->ah_cal_next_full = jiffies;
 	ah->ah_cal_next_ani = jiffies;
 	ah->ah_cal_next_nf = jiffies;
+	ewma_init(&ah->ah_beacon_rssi_avg, 1000, 8);
 
 	/*
 	 * Change channels and update the h/w rate map if we're switching;
