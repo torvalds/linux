@@ -674,7 +674,7 @@ long kvm_vm_ioctl_assigned_device(struct kvm *kvm, unsigned ioctl,
 				  unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
-	int r = -ENOTTY;
+	int r;
 
 	switch (ioctl) {
 	case KVM_ASSIGN_PCI_DEVICE: {
@@ -692,7 +692,6 @@ long kvm_vm_ioctl_assigned_device(struct kvm *kvm, unsigned ioctl,
 		r = -EOPNOTSUPP;
 		break;
 	}
-#ifdef KVM_CAP_ASSIGN_DEV_IRQ
 	case KVM_ASSIGN_DEV_IRQ: {
 		struct kvm_assigned_irq assigned_irq;
 
@@ -715,8 +714,6 @@ long kvm_vm_ioctl_assigned_device(struct kvm *kvm, unsigned ioctl,
 			goto out;
 		break;
 	}
-#endif
-#ifdef KVM_CAP_DEVICE_DEASSIGNMENT
 	case KVM_DEASSIGN_PCI_DEVICE: {
 		struct kvm_assigned_pci_dev assigned_dev;
 
@@ -728,7 +725,6 @@ long kvm_vm_ioctl_assigned_device(struct kvm *kvm, unsigned ioctl,
 			goto out;
 		break;
 	}
-#endif
 #ifdef KVM_CAP_IRQ_ROUTING
 	case KVM_SET_GSI_ROUTING: {
 		struct kvm_irq_routing routing;
@@ -781,6 +777,9 @@ long kvm_vm_ioctl_assigned_device(struct kvm *kvm, unsigned ioctl,
 		break;
 	}
 #endif
+	default:
+		r = -ENOTTY;
+		break;
 	}
 out:
 	return r;
