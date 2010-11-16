@@ -33,13 +33,6 @@
 #define OS_HANDLE_MAGIC		0x1234abcd	/* Magic # to recognise osh */
 #define BCM_MEM_FILENAME_LEN 	24	/* Mem. filename length */
 
-struct osl_info {
-	osl_pubinfo_t pub;
-	uint magic;
-	void *pdev;
-	uint bustype;
-};
-
 /* Global ASSERT type flag */
 u32 g_assert_type;
 

@@ -17,12 +17,34 @@
 #ifndef _osl_h_
 #define _osl_h_
 
+/* Drivers use PKTFREESETCB to register a callback function
+   when a packet is freed by OSL */
+typedef void (*pktfree_cb_fn_t) (void *ctx, void *pkt, unsigned int status);
+
+struct osl_pubinfo {
+	uint pktalloced;	/* Number of allocated packet buffers */
+	bool mmbus;		/* Bus supports memory-mapped registers */
+	pktfree_cb_fn_t tx_fn;	/* Callback function for PKTFREE */
+	void *tx_ctx;		/* Context to the callback function */
+#if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
+	osl_rreg_fn_t rreg_fn;	/* Read Register function */
+	osl_wreg_fn_t wreg_fn;	/* Write Register function */
+	void *reg_ctx;		/* Context to the reg callback functions */
+#endif
+};
+
 /* osl handle type forward declaration */
+struct osl_info {
+	struct osl_pubinfo pub;
+	uint magic;
+	void *pdev;
+	uint bustype;
+};
+
 typedef struct osl_info osl_t;
+typedef struct osl_pubinfo osl_pubinfo_t;
 typedef struct osl_dmainfo osldma_t;
 
-/* Drivers use PKTFREESETCB to register a callback function when a packet is freed by OSL */
-typedef void (*pktfree_cb_fn_t) (void *ctx, void *pkt, unsigned int status);
 
 #ifdef BCMSDIO
 /* Drivers use REGOPSSET() to register register read/write funcitons */

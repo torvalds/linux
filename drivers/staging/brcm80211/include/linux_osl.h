@@ -54,19 +54,6 @@ extern void osl_pci_write_config(osl_t *osh, uint offset, uint size, uint val);
 extern uint osl_pci_bus(osl_t *osh);
 extern uint osl_pci_slot(osl_t *osh);
 
-/* Pkttag flag should be part of public information */
-typedef struct {
-	uint pktalloced;	/* Number of allocated packet buffers */
-	bool mmbus;		/* Bus supports memory-mapped register accesses */
-	pktfree_cb_fn_t tx_fn;	/* Callback function for PKTFREE */
-	void *tx_ctx;		/* Context to the callback function */
-#if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
-	osl_rreg_fn_t rreg_fn;	/* Read Register function */
-	osl_wreg_fn_t wreg_fn;	/* Write Register function */
-	void *reg_ctx;		/* Context to the reg callback functions */
-#endif
-} osl_pubinfo_t;
-
 #define PKTFREESETCB(osh, _tx_fn, _tx_ctx)			\
 	do {							\
 		((osl_pubinfo_t *)osh)->tx_fn = _tx_fn;		\
