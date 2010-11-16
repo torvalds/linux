@@ -62,7 +62,7 @@ struct cachepolicy {
 	const char	policy[16];
 	unsigned int	cr_mask;
 	unsigned int	pmd;
-	unsigned int	pte;
+	pteval_t	pte;
 };
 
 static struct cachepolicy cache_policies[] __initdata = {
