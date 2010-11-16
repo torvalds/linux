@@ -550,7 +550,7 @@ EXPORT_SYMBOL(irttp_close_tsap);
  */
 int irttp_udata_request(struct tsap_cb *self, struct sk_buff *skb)
 {
-	int ret = -1;
+	int ret;
 
 	IRDA_ASSERT(self != NULL, return -1;);
 	IRDA_ASSERT(self->magic == TTP_TSAP_MAGIC, return -1;);
@@ -566,13 +566,14 @@ int irttp_udata_request(struct tsap_cb *self, struct sk_buff *skb)
 
 	/* Check that nothing bad happens */
 	if (!self->connected) {
-		IRDA_DEBUG(1, "%s(), Not connected\n", __func__);
+		IRDA_WARNING("%s(), Not connected\n", __func__);
+		ret = -ENOTCONN;
 		goto err;
 	}
 
 	if (skb->len > self->max_seg_size) {
-		IRDA_DEBUG(1, "%s(), UData is too large for IrLAP!\n",
-			   __func__);
+		IRDA_ERROR("%s(), UData is too large for IrLAP!\n", __func__);
+		ret = -EMSGSIZE;
 		goto err;
 	}
 
