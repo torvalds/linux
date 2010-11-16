@@ -1143,7 +1143,7 @@ static struct device_attribute fb_device_attrs[] = {
 	__ATTR_RO(metrics_bytes_sent),
 	__ATTR_RO(metrics_cpu_kcycles_used),
 	__ATTR_RO(metrics_misc),
-	__ATTR(metrics_reset, S_IWUGO, NULL, metrics_reset_store),
+	__ATTR(metrics_reset, S_IWUSR, NULL, metrics_reset_store),
 	__ATTR_RW(use_defio),
 };
 
