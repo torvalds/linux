@@ -238,7 +238,6 @@ extern int prom_node_has_property(int node, char *property);
 extern int prom_setprop(int node, const char *prop_name, char *prop_value,
 			int value_size);
 
-extern int prom_pathtoinode(char *path);
 extern int prom_inst2pkg(int);
 
 /* Dorking with Bus ranges... */
