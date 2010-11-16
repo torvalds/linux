@@ -1419,7 +1419,6 @@ err_get:
 	if (aic3x->gpio_reset >= 0)
 		gpio_free(aic3x->gpio_reset);
 err_gpio:
-	kfree(aic3x);
 	return ret;
 }
 
