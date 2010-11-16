@@ -1859,13 +1859,15 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		goto failed_mount;
 	}
 
-	if (generic_check_addressable(sb->s_blocksize_bits,
-				      le32_to_cpu(es->s_blocks_count))) {
+	err = generic_check_addressable(sb->s_blocksize_bits,
+					le32_to_cpu(es->s_blocks_count));
+	if (err) {
 		ext3_msg(sb, KERN_ERR,
 			"error: filesystem is too large to mount safely");
 		if (sizeof(sector_t) < 8)
 			ext3_msg(sb, KERN_ERR,
 				"error: CONFIG_LBDAF not enabled");
+		ret = err;
 		goto failed_mount;
 	}
 
