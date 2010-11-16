@@ -3849,11 +3849,13 @@ void drbd_queue_bitmap_io(struct drbd_conf *mdev,
 	mdev->bm_io_work.done = done;
 	mdev->bm_io_work.why = why;
 
+	spin_lock_irq(&mdev->req_lock);
 	set_bit(BITMAP_IO, &mdev->flags);
 	if (atomic_read(&mdev->ap_bio_cnt) == 0) {
 		if (!test_and_set_bit(BITMAP_IO_QUEUED, &mdev->flags))
 			drbd_queue_work(&mdev->data.work, &mdev->bm_io_work.w);
 	}
+	spin_unlock_irq(&mdev->req_lock);
 }
 
 /**
