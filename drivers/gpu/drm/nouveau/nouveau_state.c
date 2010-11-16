@@ -1074,21 +1074,6 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 		else
 			getparam->value = NV_PCI;
 		break;
-	case NOUVEAU_GETPARAM_FB_PHYSICAL:
-		getparam->value = dev_priv->fb_phys;
-		break;
-	case NOUVEAU_GETPARAM_AGP_PHYSICAL:
-		getparam->value = dev_priv->gart_info.aper_base;
-		break;
-	case NOUVEAU_GETPARAM_PCI_PHYSICAL:
-		if (dev->sg) {
-			getparam->value = (unsigned long)dev->sg->virtual;
-		} else {
-			NV_ERROR(dev, "Requested PCIGART address, "
-					"while no PCIGART was created\n");
-			return -EINVAL;
-		}
-		break;
 	case NOUVEAU_GETPARAM_FB_SIZE:
 		getparam->value = dev_priv->fb_available_size;
 		break;
@@ -1096,7 +1081,7 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 		getparam->value = dev_priv->gart_info.aper_size;
 		break;
 	case NOUVEAU_GETPARAM_VM_VRAM_BASE:
-		getparam->value = dev_priv->vm_vram_base;
+		getparam->value = 0; /* deprecated */
 		break;
 	case NOUVEAU_GETPARAM_PTIMER_TIME:
 		getparam->value = dev_priv->engine.timer.read(dev);
