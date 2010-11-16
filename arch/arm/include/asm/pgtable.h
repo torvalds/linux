@@ -55,7 +55,7 @@
  * Therefore, we tweak the implementation slightly - we tell Linux that we
  * have 2048 entries in the first level, each of which is 8 bytes (iow, two
  * hardware pointers to the second level.)  The second level contains two
- * hardware PTE tables arranged contiguously, followed by Linux versions
+ * hardware PTE tables arranged contiguously, preceded by Linux versions
  * which contain the state information Linux needs.  We, therefore, end up
  * with 512 entries in the "PTE" level.
  *
@@ -63,15 +63,15 @@
  *
  *    pgd             pte
  * |        |
- * +--------+ +0
- * |        |-----> +------------+ +0
- * +- - - - + +4    |  h/w pt 0  |
- * |        |-----> +------------+ +1024
- * +--------+ +8    |  h/w pt 1  |
- * |        |       +------------+ +2048
+ * +--------+
+ * |        |       +------------+ +0
  * +- - - - +       | Linux pt 0 |
- * |        |       +------------+ +3072
- * +--------+       | Linux pt 1 |
+ * |        |       +------------+ +1024
+ * +--------+ +0    | Linux pt 1 |
+ * |        |-----> +------------+ +2048
+ * +- - - - + +4    |  h/w pt 0  |
+ * |        |-----> +------------+ +3072
+ * +--------+ +8    |  h/w pt 1  |
  * |        |       +------------+ +4096
  *
  * See L_PTE_xxx below for definitions of bits in the "Linux pt", and
@@ -102,6 +102,10 @@
 #define PTRS_PER_PTE		512
 #define PTRS_PER_PMD		1
 #define PTRS_PER_PGD		2048
+
+#define PTE_HWTABLE_PTRS	(PTRS_PER_PTE)
+#define PTE_HWTABLE_OFF		(PTE_HWTABLE_PTRS * sizeof(pte_t))
+#define PTE_HWTABLE_SIZE	(PTRS_PER_PTE * sizeof(u32))
 
 /*
  * PMD_SHIFT determines the size of the area a second-level page table can map
@@ -323,12 +327,7 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 {
-	phys_addr_t ptr;
-
-	ptr = pmd_val(pmd) & ~(PTRS_PER_PTE * sizeof(void *) - 1);
-	ptr += PTRS_PER_PTE * sizeof(void *);
-
-	return __va(ptr);
+	return __va(pmd_val(pmd) & PAGE_MASK);
 }
 
 #define pmd_page(pmd)		pfn_to_page(__phys_to_pfn(pmd_val(pmd)))
@@ -341,8 +340,8 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 #define __pte_map(pmd)		pmd_page_vaddr(*(pmd))
 #define __pte_unmap(pte)	do { } while (0)
 #else
-#define __pte_map(pmd)		((pte_t *)kmap_atomic(pmd_page(*(pmd))) + PTRS_PER_PTE)
-#define __pte_unmap(pte)	kunmap_atomic((pte - PTRS_PER_PTE))
+#define __pte_map(pmd)		(pte_t *)kmap_atomic(pmd_page(*(pmd)))
+#define __pte_unmap(pte)	kunmap_atomic(pte)
 #endif
 
 #define pte_index(addr)		(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))

@@ -121,7 +121,7 @@
 	.endm
 
 	.macro	armv6_set_pte_ext pfx
-	str	r1, [r0], #-2048		@ linux version
+	str	r1, [r0], #2048			@ linux version
 
 	bic	r3, r1, #0x000003fc
 	bic	r3, r3, #PTE_TYPE_MASK
@@ -170,7 +170,7 @@
  *  1111  0xff	r/w	r/w
  */
 	.macro	armv3_set_pte_ext wc_disable=1
-	str	r1, [r0], #-2048		@ linux version
+	str	r1, [r0], #2048			@ linux version
 
 	eor	r3, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
 
@@ -193,7 +193,7 @@
 	bicne	r2, r2, #PTE_BUFFERABLE
 #endif
 	.endif
-	str	r2, [r0]			@ hardware version
+	str	r2, [r0]		@ hardware version
 	.endm
 
 
@@ -213,7 +213,7 @@
  *  1111  11	r/w	r/w
  */
 	.macro	xscale_set_pte_ext_prologue
-	str	r1, [r0], #-2048		@ linux version
+	str	r1, [r0]			@ linux version
 
 	eor	r3, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
 
@@ -232,7 +232,7 @@
 	tst	r3, #L_PTE_PRESENT | L_PTE_YOUNG	@ present and young?
 	movne	r2, #0				@ no -> fault
 
-	str	r2, [r0]			@ hardware version
+	str	r2, [r0, #2048]!		@ hardware version
 	mov	ip, #0
 	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
 	mcr	p15, 0, ip, c7, c10, 4		@ data write barrier
