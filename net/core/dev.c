@@ -1983,6 +1983,7 @@ int netif_get_vlan_features(struct sk_buff *skb, struct net_device *dev)
 	else
 		return 0;
 }
+EXPORT_SYMBOL(netif_get_vlan_features);
 
 /*
  * Returns true if either:
