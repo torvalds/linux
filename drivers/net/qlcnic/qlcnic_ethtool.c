@@ -925,9 +925,10 @@ static int qlcnic_set_rx_csum(struct net_device *dev, u32 data)
 
 		dev->features &= ~NETIF_F_LRO;
 		qlcnic_send_lro_cleanup(adapter);
+		dev_info(&adapter->pdev->dev,
+					"disabling LRO as rx_csum is off\n");
 	}
 	adapter->rx_csum = !!data;
-	dev_info(&adapter->pdev->dev, "disabling LRO as rx_csum is off\n");
 	return 0;
 }
 
