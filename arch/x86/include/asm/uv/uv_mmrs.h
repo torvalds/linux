@@ -5,7 +5,7 @@
  *
  * SGI UV MMR definitions
  *
- * Copyright (C) 2007-2008 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2007-2010 Silicon Graphics, Inc. All rights reserved.
  */
 
 #ifndef _ASM_X86_UV_UV_MMRS_H
@@ -751,6 +751,23 @@ union uvh_lb_bau_sb_descriptor_base_u {
 	unsigned long	node_id      : 14;  /* RW */
 	unsigned long	rsvd_63      :  1;  /*    */
     } s;
+};
+
+/* ========================================================================= */
+/*                   UVH_LB_TARGET_PHYSICAL_APIC_ID_MASK                     */
+/* ========================================================================= */
+#define UVH_LB_TARGET_PHYSICAL_APIC_ID_MASK 0x320130UL
+#define UVH_LB_TARGET_PHYSICAL_APIC_ID_MASK_32 0x009f0
+
+#define UVH_LB_TARGET_PHYSICAL_APIC_ID_MASK_BIT_ENABLES_SHFT 0
+#define UVH_LB_TARGET_PHYSICAL_APIC_ID_MASK_BIT_ENABLES_MASK 0x00000000ffffffffUL
+
+union uvh_lb_target_physical_apic_id_mask_u {
+	unsigned long v;
+	struct uvh_lb_target_physical_apic_id_mask_s {
+		unsigned long bit_enables : 32;  /* RW */
+		unsigned long rsvd_32_63  : 32;  /*    */
+	} s;
 };
 
 /* ========================================================================= */
