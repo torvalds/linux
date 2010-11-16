@@ -375,6 +375,14 @@ config SENSORS_MAX9635
 	 Say yes here if you wish to include the Maxim
 	 MAX9635 ambient light sensor driver.
 
+config SENSORS_NCT1008
+	tristate "ON Semiconductor Temperature Sensor"
+	default n
+	depends on I2C
+	help
+	 Say yes here if you wish to include the ON Semiconductor
+	 NCT1008 Temperature sensor.
+
 config SENSORS_MOTO_BMP085
 	tristate "BMP085 Barometer (moto driver)"
 	default n
