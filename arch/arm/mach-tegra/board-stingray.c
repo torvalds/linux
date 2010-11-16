@@ -1105,7 +1105,7 @@ void __init stingray_reserve(void)
 		pr_info("Reserved %08lx@%08lx for ram console\n",
 			ramconsole_start, ramconsole_size);
 
-	tegra_reserve(SZ_128M, SZ_8M, SZ_16M);
+	tegra_reserve(SZ_256M, SZ_8M, SZ_16M);
 
 	/*
 	 * Bootloader 1021 passes the wrong address for the bootloader's
