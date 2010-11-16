@@ -81,19 +81,3 @@ prom_putchar(char c)
 {
 	prom_nbputchar(c);
 }
-
-void
-prom_puts(const char *s, int len)
-{
-	unsigned long args[7];
-
-	args[0] = (unsigned long) "write";
-	args[1] = 3;
-	args[2] = 1;
-	args[3] = (unsigned int) prom_stdout;
-	args[4] = (unsigned long) s;
-	args[5] = len;
-	args[6] = (unsigned long) -1;
-
-	p1275_cmd_direct(args);
-}
