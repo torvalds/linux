@@ -29,10 +29,10 @@
 #include <plat/irqs.h>
 #include <plat/powerdomain.h>
 #include <plat/clockdomain.h>
-#include <plat/control.h>
 #include <plat/serial.h>
 
 #include "pm.h"
+#include "control.h"
 
 #ifdef CONFIG_CPU_IDLE
 
@@ -60,7 +60,8 @@ struct omap3_processor_cx {
 
 struct omap3_processor_cx omap3_power_states[OMAP3_MAX_STATES];
 struct omap3_processor_cx current_cx_state;
-struct powerdomain *mpu_pd, *core_pd;
+struct powerdomain *mpu_pd, *core_pd, *per_pd;
+struct powerdomain *cam_pd;
 
 /*
  * The latencies/thresholds for various C states have
@@ -233,14 +234,60 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 			       struct cpuidle_state *state)
 {
 	struct cpuidle_state *new_state = next_valid_state(dev, state);
+	u32 core_next_state, per_next_state = 0, per_saved_state = 0;
+	u32 cam_state;
+	struct omap3_processor_cx *cx;
+	int ret;
 
 	if ((state->flags & CPUIDLE_FLAG_CHECK_BM) && omap3_idle_bm_check()) {
 		BUG_ON(!dev->safe_state);
 		new_state = dev->safe_state;
+		goto select_state;
 	}
 
+	cx = cpuidle_get_statedata(state);
+	core_next_state = cx->core_state;
+
+	/*
+	 * FIXME: we currently manage device-specific idle states
+	 *        for PER and CORE in combination with CPU-specific
+	 *        idle states.  This is wrong, and device-specific
+	 *        idle managment needs to be separated out into 
+	 *        its own code.
+	 */
+
+	/*
+	 * Prevent idle completely if CAM is active.
+	 * CAM does not have wakeup capability in OMAP3.
+	 */
+	cam_state = pwrdm_read_pwrst(cam_pd);
+	if (cam_state == PWRDM_POWER_ON) {
+		new_state = dev->safe_state;
+		goto select_state;
+	}
+
+	/*
+	 * Prevent PER off if CORE is not in retention or off as this
+	 * would disable PER wakeups completely.
+	 */
+	per_next_state = per_saved_state = pwrdm_read_next_pwrst(per_pd);
+	if ((per_next_state == PWRDM_POWER_OFF) &&
+	    (core_next_state > PWRDM_POWER_RET))
+		per_next_state = PWRDM_POWER_RET;
+
+	/* Are we changing PER target state? */
+	if (per_next_state != per_saved_state)
+		pwrdm_set_next_pwrst(per_pd, per_next_state);
+
+select_state:
 	dev->last_state = new_state;
-	return omap3_enter_idle(dev, new_state);
+	ret = omap3_enter_idle(dev, new_state);
+
+	/* Restore original PER state if it was modified */
+	if (per_next_state != per_saved_state)
+		pwrdm_set_next_pwrst(per_pd, per_saved_state);
+
+	return ret;
 }
 
 DEFINE_PER_CPU(struct cpuidle_device, omap3_idle_dev);
@@ -328,7 +375,8 @@ void omap_init_power_states(void)
 			cpuidle_params_table[OMAP3_STATE_C2].threshold;
 	omap3_power_states[OMAP3_STATE_C2].mpu_state = PWRDM_POWER_ON;
 	omap3_power_states[OMAP3_STATE_C2].core_state = PWRDM_POWER_ON;
-	omap3_power_states[OMAP3_STATE_C2].flags = CPUIDLE_FLAG_TIME_VALID;
+	omap3_power_states[OMAP3_STATE_C2].flags = CPUIDLE_FLAG_TIME_VALID |
+				CPUIDLE_FLAG_CHECK_BM;
 
 	/* C3 . MPU CSWR + Core inactive */
 	omap3_power_states[OMAP3_STATE_C3].valid =
@@ -426,6 +474,8 @@ int __init omap3_idle_init(void)
 
 	mpu_pd = pwrdm_lookup("mpu_pwrdm");
 	core_pd = pwrdm_lookup("core_pwrdm");
+	per_pd = pwrdm_lookup("per_pwrdm");
+	cam_pd = pwrdm_lookup("cam_pwrdm");
 
 	omap_init_power_states();
 	cpuidle_register_driver(&omap3_idle_driver);

@@ -220,7 +220,6 @@ static unsigned char *get_tr_dst(unsigned char *packet, unsigned char *rdesc)
 static int lec_open(struct net_device *dev)
 {
 	netif_start_queue(dev);
-	memset(&dev->stats, 0, sizeof(struct net_device_stats));
 
 	return 0;
 }

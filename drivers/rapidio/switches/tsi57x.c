@@ -166,7 +166,8 @@ tsi57x_em_init(struct rio_dev *rdev)
 
 	pr_debug("TSI578 %s [%d:%d]\n", __func__, destid, hopcount);
 
-	for (portnum = 0; portnum < 16; portnum++) {
+	for (portnum = 0;
+	     portnum < RIO_GET_TOTAL_PORTS(rdev->swpinfo); portnum++) {
 		/* Make sure that Port-Writes are enabled (for all ports) */
 		rio_mport_read_config_32(mport, destid, hopcount,
 				TSI578_SP_MODE(portnum), &regval);
@@ -204,6 +205,10 @@ tsi57x_em_init(struct rio_dev *rdev)
 		if ((regval & RIO_PORT_N_CTL_PWIDTH) == RIO_PORT_N_CTL_PWIDTH_4)
 			portnum++;
 	}
+
+	/* set TVAL = ~50us */
+	rio_mport_write_config_32(mport, destid, hopcount,
+		rdev->phys_efptr + RIO_PORT_LINKTO_CTL_CSR, 0x9a << 8);
 
 	return 0;
 }

@@ -125,6 +125,7 @@ config 8xx
 
 config E500
 	select FSL_EMB_PERFMON
+	select PPC_FSL_BOOK3E
 	bool
 
 config PPC_E500MC
@@ -166,9 +167,14 @@ config BOOKE
 
 config FSL_BOOKE
 	bool
-	depends on E200 || E500
+	depends on (E200 || E500) && PPC32
 	default y
 
+# this is for common code between PPC32 & PPC64 FSL BOOKE
+config PPC_FSL_BOOK3E
+	bool
+	select FSL_EMB_PERFMON
+	default y if FSL_BOOKE
 
 config PTE_64BIT
 	bool

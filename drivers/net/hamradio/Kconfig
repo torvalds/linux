@@ -73,7 +73,7 @@ config DMASCC
 	  certain parameters, such as channel access timing, clock mode, and
 	  DMA channel. This is accomplished with a small utility program,
 	  dmascc_cfg, available at
-	  <http://cacofonix.nt.tuwien.ac.at/~oe1kib/Linux/>. Please be sure to
+	  <http://www.linux-ax25.org/wiki/Ax25-tools>. Please be sure to
 	  get at least version 1.27 of dmascc_cfg, as older versions will not
 	  work with the current driver.
 

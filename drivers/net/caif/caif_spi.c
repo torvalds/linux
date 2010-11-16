@@ -33,6 +33,9 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Daniel Martensson<daniel.martensson@stericsson.com>");
 MODULE_DESCRIPTION("CAIF SPI driver");
 
+/* Returns the number of padding bytes for alignment. */
+#define PAD_POW2(x, pow) ((((x)&((pow)-1))==0) ? 0 : (((pow)-((x)&((pow)-1)))))
+
 static int spi_loop;
 module_param(spi_loop, bool, S_IRUGO);
 MODULE_PARM_DESC(spi_loop, "SPI running in loopback mode.");
@@ -41,7 +44,10 @@ MODULE_PARM_DESC(spi_loop, "SPI running in loopback mode.");
 module_param(spi_frm_align, int, S_IRUGO);
 MODULE_PARM_DESC(spi_frm_align, "SPI frame alignment.");
 
-/* SPI padding options. */
+/*
+ * SPI padding options.
+ * Warning: must be a base of 2 (& operation used) and can not be zero !
+ */
 module_param(spi_up_head_align, int, S_IRUGO);
 MODULE_PARM_DESC(spi_up_head_align, "SPI uplink head alignment.");
 
@@ -335,6 +341,9 @@ int cfspi_xmitfrm(struct cfspi *cfspi, u8 *buf, size_t len)
 	u8 *dst = buf;
 	caif_assert(buf);
 
+	if (cfspi->slave && !cfspi->slave_talked)
+		cfspi->slave_talked = true;
+
 	do {
 		struct sk_buff *skb;
 		struct caif_payload_info *info;
@@ -355,8 +364,8 @@ int cfspi_xmitfrm(struct cfspi *cfspi, u8 *buf, size_t len)
 		 * Compute head offset i.e. number of bytes to add to
 		 * get the start of the payload aligned.
 		 */
-		if (spi_up_head_align) {
-			spad = 1 + ((info->hdr_len + 1) & spi_up_head_align);
+		if (spi_up_head_align > 1) {
+			spad = 1 + PAD_POW2((info->hdr_len + 1), spi_up_head_align);
 			*dst = (u8)(spad - 1);
 			dst += spad;
 		}
@@ -371,7 +380,7 @@ int cfspi_xmitfrm(struct cfspi *cfspi, u8 *buf, size_t len)
 		 * Compute tail offset i.e. number of bytes to add to
 		 * get the complete CAIF frame aligned.
 		 */
-		epad = (skb->len + spad) & spi_up_tail_align;
+		epad = PAD_POW2((skb->len + spad), spi_up_tail_align);
 		dst += epad;
 
 		dev_kfree_skb(skb);
@@ -415,14 +424,14 @@ int cfspi_xmitlen(struct cfspi *cfspi)
 		 * Compute head offset i.e. number of bytes to add to
 		 * get the start of the payload aligned.
 		 */
-		if (spi_up_head_align)
-			spad = 1 + ((info->hdr_len + 1) & spi_up_head_align);
+		if (spi_up_head_align > 1)
+			spad = 1 + PAD_POW2((info->hdr_len + 1), spi_up_head_align);
 
 		/*
 		 * Compute tail offset i.e. number of bytes to add to
 		 * get the complete CAIF frame aligned.
 		 */
-		epad = (skb->len + spad) & spi_up_tail_align;
+		epad = PAD_POW2((skb->len + spad), spi_up_tail_align);
 
 		if ((skb->len + spad + epad + frm_len) <= CAIF_MAX_SPI_FRAME) {
 			skb_queue_tail(&cfspi->chead, skb);
@@ -431,6 +440,7 @@ int cfspi_xmitlen(struct cfspi *cfspi)
 		} else {
 			/* Put back packet. */
 			skb_queue_head(&cfspi->qhead, skb);
+			break;
 		}
 	} while (pkts <= CAIF_MAX_SPI_PKTS);
 
@@ -451,6 +461,15 @@ static void cfspi_ss_cb(bool assert, struct cfspi_ifc *ifc)
 {
 	struct cfspi *cfspi = (struct cfspi *)ifc->priv;
 
+	/*
+	 * The slave device is the master on the link. Interrupts before the
+	 * slave has transmitted are considered spurious.
+	 */
+	if (cfspi->slave && !cfspi->slave_talked) {
+		printk(KERN_WARNING "CFSPI: Spurious SS interrupt.\n");
+		return;
+	}
+
 	if (!in_interrupt())
 		spin_lock(&cfspi->lock);
 	if (assert) {
@@ -463,7 +482,8 @@ static void cfspi_ss_cb(bool assert, struct cfspi_ifc *ifc)
 		spin_unlock(&cfspi->lock);
 
 	/* Wake up the xfer thread. */
-	wake_up_interruptible(&cfspi->wait);
+	if (assert)
+		wake_up_interruptible(&cfspi->wait);
 }
 
 static void cfspi_xfer_done_cb(struct cfspi_ifc *ifc)
@@ -521,7 +541,7 @@ int cfspi_rxfrm(struct cfspi *cfspi, u8 *buf, size_t len)
 		 * Compute head offset i.e. number of bytes added to
 		 * get the start of the payload aligned.
 		 */
-		if (spi_down_head_align) {
+		if (spi_down_head_align > 1) {
 			spad = 1 + *src;
 			src += spad;
 		}
@@ -562,7 +582,7 @@ int cfspi_rxfrm(struct cfspi *cfspi, u8 *buf, size_t len)
 		 * Compute tail offset i.e. number of bytes added to
 		 * get the complete CAIF frame aligned.
 		 */
-		epad = (pkt_len + spad) & spi_down_tail_align;
+		epad = PAD_POW2((pkt_len + spad), spi_down_tail_align);
 		src += epad;
 	} while ((src - buf) < len);
 
@@ -623,10 +643,19 @@ int cfspi_spi_probe(struct platform_device *pdev)
 	cfspi->ndev = ndev;
 	cfspi->pdev = pdev;
 
-	/* Set flow info */
+	/* Set flow info. */
 	cfspi->flow_off_sent = 0;
 	cfspi->qd_low_mark = LOW_WATER_MARK;
 	cfspi->qd_high_mark = HIGH_WATER_MARK;
+
+	/* Set slave info. */
+	if (!strncmp(cfspi_spi_driver.driver.name, "cfspi_sspi", 10)) {
+		cfspi->slave = true;
+		cfspi->slave_talked = false;
+	} else {
+		cfspi->slave = false;
+		cfspi->slave_talked = false;
+	}
 
 	/* Assign the SPI device. */
 	cfspi->dev = dev;

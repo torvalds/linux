@@ -146,7 +146,7 @@
 #define TEMP_OFFSET_REG(idx) (REG_TEMP_OFFSET_BASE + (idx))
 #define TEMP_TRANGE_REG(idx) (REG_TEMP_TRANGE_BASE + (idx))
 
-static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 enum chips { adt7473, adt7475, adt7476, adt7490 };
 

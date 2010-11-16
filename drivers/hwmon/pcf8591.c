@@ -23,10 +23,8 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
-
-/* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
-					0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
+#include <linux/err.h>
+#include <linux/hwmon.h>
 
 /* Insmod parameters */
 
@@ -71,6 +69,7 @@ MODULE_PARM_DESC(input_mode,
 #define REG_TO_SIGNED(reg)	(((reg) & 0x80)?((reg) - 256):(reg))
 
 struct pcf8591_data {
+	struct device *hwmon_dev;
 	struct mutex update_lock;
 
 	u8 control;
@@ -167,24 +166,6 @@ static const struct attribute_group pcf8591_attr_group_opt = {
  * Real code
  */
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
-static int pcf8591_detect(struct i2c_client *client,
-			  struct i2c_board_info *info)
-{
-	struct i2c_adapter *adapter = client->adapter;
-
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE
-				     | I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
-		return -ENODEV;
-
-	/* Now, we would do the remaining detection. But the PCF8591 is plainly
-	   impossible to detect! Stupid chip. */
-
-	strlcpy(info->type, "pcf8591", I2C_NAME_SIZE);
-
-	return 0;
-}
-
 static int pcf8591_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -221,6 +202,12 @@ static int pcf8591_probe(struct i2c_client *client,
 			goto exit_sysfs_remove;
 	}
 
+	data->hwmon_dev = hwmon_device_register(&client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
+		goto exit_sysfs_remove;
+	}
+
 	return 0;
 
 exit_sysfs_remove:
@@ -234,6 +221,9 @@ exit:
 
 static int pcf8591_remove(struct i2c_client *client)
 {
+	struct pcf8591_data *data = i2c_get_clientdata(client);
+
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group_opt);
 	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group);
 	kfree(i2c_get_clientdata(client));
@@ -295,10 +285,6 @@ static struct i2c_driver pcf8591_driver = {
 	.probe		= pcf8591_probe,
 	.remove		= pcf8591_remove,
 	.id_table	= pcf8591_id,
-
-	.class		= I2C_CLASS_HWMON,	/* Nearest choice */
-	.detect		= pcf8591_detect,
-	.address_list	= normal_i2c,
 };
 
 static int __init pcf8591_init(void)

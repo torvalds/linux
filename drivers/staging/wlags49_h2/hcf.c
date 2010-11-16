@@ -92,6 +92,7 @@
 #include "hcf.h"				// HCF and MSF common include file
 #include "hcfdef.h"				// HCF specific include file
 #include "mmd.h"				// MoreModularDriver common include file
+#include <linux/kernel.h>
 
 #if ! defined offsetof
 #define offsetof(s,m)   ((unsigned int)&(((s *)0)->m))

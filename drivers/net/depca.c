@@ -1487,7 +1487,7 @@ static void __init depca_platform_probe (void)
 		if (!pldev->dev.driver) {
 		/* The driver was not bound to this device, there was
 		 * no hardware at this address. Unregister it, as the
-		 * release fuction will take care of freeing the
+		 * release function will take care of freeing the
 		 * allocated structure */
 
 			depca_io_ports[i].device = NULL;

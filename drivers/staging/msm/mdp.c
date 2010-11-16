@@ -669,24 +669,24 @@ static void mdp_drv_init(void)
 
 	/* initialize semaphore */
 	init_completion(&mdp_ppp_comp);
-	init_MUTEX(&mdp_ppp_mutex);
-	init_MUTEX(&mdp_pipe_ctrl_mutex);
+	sema_init(&mdp_ppp_mutex, 1);
+	sema_init(&mdp_pipe_ctrl_mutex, 1);
 
 	dma2_data.busy = FALSE;
 	dma2_data.waiting = FALSE;
 	init_completion(&dma2_data.comp);
-	init_MUTEX(&dma2_data.mutex);
+	sema_init(&dma2_data.mutex, 1);
 	mutex_init(&dma2_data.ov_mutex);
 
 	dma3_data.busy = FALSE;
 	dma3_data.waiting = FALSE;
 	init_completion(&dma3_data.comp);
-	init_MUTEX(&dma3_data.mutex);
+	sema_init(&dma3_data.mutex, 1);
 
 	dma_s_data.busy = FALSE;
 	dma_s_data.waiting = FALSE;
 	init_completion(&dma_s_data.comp);
-	init_MUTEX(&dma_s_data.mutex);
+	sema_init(&dma_s_data.mutex, 1);
 
 	dma_e_data.busy = FALSE;
 	dma_e_data.waiting = FALSE;

@@ -726,15 +726,16 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 			(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK);
 
 	/*
-	 * If the GPE is associated with a method and it cannot wake up the
-	 * system from sleep states, it was enabled automatically during
-	 * initialization, so it has to be disabled now to avoid spurious
-	 * execution of the handler.
+	 * If the GPE is associated with a method, it might have been enabled
+	 * automatically during initialization, in which case it has to be
+	 * disabled now to avoid spurious execution of the handler.
 	 */
 
 	if ((handler->orig_flags & ACPI_GPE_DISPATCH_METHOD)
-	    && !(gpe_event_info->flags & ACPI_GPE_CAN_WAKE))
+	    && gpe_event_info->runtime_count) {
+		handler->orig_enabled = 1;
 		(void)acpi_raw_disable_gpe(gpe_event_info);
+	}
 
 	/* Install the handler */
 
@@ -837,13 +838,13 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 	gpe_event_info->flags |= handler->orig_flags;
 
 	/*
-	 * If the GPE was previously associated with a method and it cannot wake
-	 * up the system from sleep states, it should be enabled at this point
-	 * to restore the post-initialization configuration.
+	 * If the GPE was previously associated with a method and it was
+	 * enabled, it should be enabled at this point to restore the
+	 * post-initialization configuration.
 	 */
 
 	if ((handler->orig_flags & ACPI_GPE_DISPATCH_METHOD)
-	    && !(gpe_event_info->flags & ACPI_GPE_CAN_WAKE))
+	    && handler->orig_enabled)
 		(void)acpi_raw_enable_gpe(gpe_event_info);
 
 	/* Now we can free the handler object */

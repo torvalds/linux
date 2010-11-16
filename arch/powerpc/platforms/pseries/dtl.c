@@ -23,30 +23,14 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
+#include <linux/spinlock.h>
 #include <asm/smp.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/firmware.h>
+#include <asm/lppaca.h>
 
 #include "plpar_wrappers.h"
-
-/*
- * Layout of entries in the hypervisor's DTL buffer. Although we don't
- * actually access the internals of an entry (we only need to know the size),
- * we might as well define it here for reference.
- */
-struct dtl_entry {
-	u8	dispatch_reason;
-	u8	preempt_reason;
-	u16	processor_id;
-	u32	enqueue_to_dispatch_time;
-	u32	ready_to_enqueue_time;
-	u32	waiting_to_ready_time;
-	u64	timebase;
-	u64	fault_addr;
-	u64	srr0;
-	u64	srr1;
-};
 
 struct dtl {
 	struct dtl_entry	*buf;
@@ -54,6 +38,7 @@ struct dtl {
 	int			cpu;
 	int			buf_entries;
 	u64			last_idx;
+	spinlock_t		lock;
 };
 static DEFINE_PER_CPU(struct dtl, cpu_dtl);
 
@@ -72,25 +57,97 @@ static u8 dtl_event_mask = 0x7;
 static int dtl_buf_entries = (16 * 85);
 
 
-static int dtl_enable(struct dtl *dtl)
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+struct dtl_ring {
+	u64	write_index;
+	struct dtl_entry *write_ptr;
+	struct dtl_entry *buf;
+	struct dtl_entry *buf_end;
+	u8	saved_dtl_mask;
+};
+
+static DEFINE_PER_CPU(struct dtl_ring, dtl_rings);
+
+static atomic_t dtl_count;
+
+/*
+ * The cpu accounting code controls the DTL ring buffer, and we get
+ * given entries as they are processed.
+ */
+static void consume_dtle(struct dtl_entry *dtle, u64 index)
+{
+	struct dtl_ring *dtlr = &__get_cpu_var(dtl_rings);
+	struct dtl_entry *wp = dtlr->write_ptr;
+	struct lppaca *vpa = local_paca->lppaca_ptr;
+
+	if (!wp)
+		return;
+
+	*wp = *dtle;
+	barrier();
+
+	/* check for hypervisor ring buffer overflow, ignore this entry if so */
+	if (index + N_DISPATCH_LOG < vpa->dtl_idx)
+		return;
+
+	++wp;
+	if (wp == dtlr->buf_end)
+		wp = dtlr->buf;
+	dtlr->write_ptr = wp;
+
+	/* incrementing write_index makes the new entry visible */
+	smp_wmb();
+	++dtlr->write_index;
+}
+
+static int dtl_start(struct dtl *dtl)
+{
+	struct dtl_ring *dtlr = &per_cpu(dtl_rings, dtl->cpu);
+
+	dtlr->buf = dtl->buf;
+	dtlr->buf_end = dtl->buf + dtl->buf_entries;
+	dtlr->write_index = 0;
+
+	/* setting write_ptr enables logging into our buffer */
+	smp_wmb();
+	dtlr->write_ptr = dtl->buf;
+
+	/* enable event logging */
+	dtlr->saved_dtl_mask = lppaca_of(dtl->cpu).dtl_enable_mask;
+	lppaca_of(dtl->cpu).dtl_enable_mask |= dtl_event_mask;
+
+	dtl_consumer = consume_dtle;
+	atomic_inc(&dtl_count);
+	return 0;
+}
+
+static void dtl_stop(struct dtl *dtl)
+{
+	struct dtl_ring *dtlr = &per_cpu(dtl_rings, dtl->cpu);
+
+	dtlr->write_ptr = NULL;
+	smp_wmb();
+
+	dtlr->buf = NULL;
+
+	/* restore dtl_enable_mask */
+	lppaca_of(dtl->cpu).dtl_enable_mask = dtlr->saved_dtl_mask;
+
+	if (atomic_dec_and_test(&dtl_count))
+		dtl_consumer = NULL;
+}
+
+static u64 dtl_current_index(struct dtl *dtl)
+{
+	return per_cpu(dtl_rings, dtl->cpu).write_index;
+}
+
+#else /* CONFIG_VIRT_CPU_ACCOUNTING */
+
+static int dtl_start(struct dtl *dtl)
 {
 	unsigned long addr;
 	int ret, hwcpu;
-
-	/* only allow one reader */
-	if (dtl->buf)
-		return -EBUSY;
-
-	/* we need to store the original allocation size for use during read */
-	dtl->buf_entries = dtl_buf_entries;
-
-	dtl->buf = kmalloc_node(dtl->buf_entries * sizeof(struct dtl_entry),
-			GFP_KERNEL, cpu_to_node(dtl->cpu));
-	if (!dtl->buf) {
-		printk(KERN_WARNING "%s: buffer alloc failed for cpu %d\n",
-				__func__, dtl->cpu);
-		return -ENOMEM;
-	}
 
 	/* Register our dtl buffer with the hypervisor. The HV expects the
 	 * buffer size to be passed in the second word of the buffer */
@@ -102,34 +159,82 @@ static int dtl_enable(struct dtl *dtl)
 	if (ret) {
 		printk(KERN_WARNING "%s: DTL registration for cpu %d (hw %d) "
 		       "failed with %d\n", __func__, dtl->cpu, hwcpu, ret);
-		kfree(dtl->buf);
 		return -EIO;
 	}
 
 	/* set our initial buffer indices */
-	dtl->last_idx = lppaca[dtl->cpu].dtl_idx = 0;
+	lppaca_of(dtl->cpu).dtl_idx = 0;
 
 	/* ensure that our updates to the lppaca fields have occurred before
 	 * we actually enable the logging */
 	smp_wmb();
 
 	/* enable event logging */
-	lppaca[dtl->cpu].dtl_enable_mask = dtl_event_mask;
+	lppaca_of(dtl->cpu).dtl_enable_mask = dtl_event_mask;
 
 	return 0;
 }
 
-static void dtl_disable(struct dtl *dtl)
+static void dtl_stop(struct dtl *dtl)
 {
 	int hwcpu = get_hard_smp_processor_id(dtl->cpu);
 
-	lppaca[dtl->cpu].dtl_enable_mask = 0x0;
+	lppaca_of(dtl->cpu).dtl_enable_mask = 0x0;
 
 	unregister_dtl(hwcpu, __pa(dtl->buf));
+}
 
+static u64 dtl_current_index(struct dtl *dtl)
+{
+	return lppaca_of(dtl->cpu).dtl_idx;
+}
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
+
+static int dtl_enable(struct dtl *dtl)
+{
+	long int n_entries;
+	long int rc;
+	struct dtl_entry *buf = NULL;
+
+	/* only allow one reader */
+	if (dtl->buf)
+		return -EBUSY;
+
+	n_entries = dtl_buf_entries;
+	buf = kmalloc_node(n_entries * sizeof(struct dtl_entry),
+			GFP_KERNEL, cpu_to_node(dtl->cpu));
+	if (!buf) {
+		printk(KERN_WARNING "%s: buffer alloc failed for cpu %d\n",
+				__func__, dtl->cpu);
+		return -ENOMEM;
+	}
+
+	spin_lock(&dtl->lock);
+	rc = -EBUSY;
+	if (!dtl->buf) {
+		/* store the original allocation size for use during read */
+		dtl->buf_entries = n_entries;
+		dtl->buf = buf;
+		dtl->last_idx = 0;
+		rc = dtl_start(dtl);
+		if (rc)
+			dtl->buf = NULL;
+	}
+	spin_unlock(&dtl->lock);
+
+	if (rc)
+		kfree(buf);
+	return rc;
+}
+
+static void dtl_disable(struct dtl *dtl)
+{
+	spin_lock(&dtl->lock);
+	dtl_stop(dtl);
 	kfree(dtl->buf);
 	dtl->buf = NULL;
 	dtl->buf_entries = 0;
+	spin_unlock(&dtl->lock);
 }
 
 /* file interface */
@@ -157,8 +262,9 @@ static int dtl_file_release(struct inode *inode, struct file *filp)
 static ssize_t dtl_file_read(struct file *filp, char __user *buf, size_t len,
 		loff_t *pos)
 {
-	int rc, cur_idx, last_idx, n_read, n_req, read_size;
+	long int rc, n_read, n_req, read_size;
 	struct dtl *dtl;
+	u64 cur_idx, last_idx, i;
 
 	if ((len % sizeof(struct dtl_entry)) != 0)
 		return -EINVAL;
@@ -171,41 +277,48 @@ static ssize_t dtl_file_read(struct file *filp, char __user *buf, size_t len,
 	/* actual number of entries read */
 	n_read = 0;
 
-	cur_idx = lppaca[dtl->cpu].dtl_idx;
+	spin_lock(&dtl->lock);
+
+	cur_idx = dtl_current_index(dtl);
 	last_idx = dtl->last_idx;
 
-	if (cur_idx - last_idx > dtl->buf_entries) {
-		pr_debug("%s: hv buffer overflow for cpu %d, samples lost\n",
-				__func__, dtl->cpu);
-	}
+	if (last_idx + dtl->buf_entries <= cur_idx)
+		last_idx = cur_idx - dtl->buf_entries + 1;
 
-	cur_idx  %= dtl->buf_entries;
-	last_idx %= dtl->buf_entries;
+	if (last_idx + n_req > cur_idx)
+		n_req = cur_idx - last_idx;
+
+	if (n_req > 0)
+		dtl->last_idx = last_idx + n_req;
+
+	spin_unlock(&dtl->lock);
+
+	if (n_req <= 0)
+		return 0;
+
+	i = last_idx % dtl->buf_entries;
 
 	/* read the tail of the buffer if we've wrapped */
-	if (last_idx > cur_idx) {
-		read_size = min(n_req, dtl->buf_entries - last_idx);
+	if (i + n_req > dtl->buf_entries) {
+		read_size = dtl->buf_entries - i;
 
-		rc = copy_to_user(buf, &dtl->buf[last_idx],
+		rc = copy_to_user(buf, &dtl->buf[i],
 				read_size * sizeof(struct dtl_entry));
 		if (rc)
 			return -EFAULT;
 
-		last_idx = 0;
+		i = 0;
 		n_req -= read_size;
 		n_read += read_size;
 		buf += read_size * sizeof(struct dtl_entry);
 	}
 
 	/* .. and now the head */
-	read_size = min(n_req, cur_idx - last_idx);
-	rc = copy_to_user(buf, &dtl->buf[last_idx],
-			read_size * sizeof(struct dtl_entry));
+	rc = copy_to_user(buf, &dtl->buf[i], n_req * sizeof(struct dtl_entry));
 	if (rc)
 		return -EFAULT;
 
-	n_read += read_size;
-	dtl->last_idx += n_read;
+	n_read += n_req;
 
 	return n_read * sizeof(struct dtl_entry);
 }
@@ -263,6 +376,7 @@ static int dtl_init(void)
 	/* set up the per-cpu log structures */
 	for_each_possible_cpu(i) {
 		struct dtl *dtl = &per_cpu(cpu_dtl, i);
+		spin_lock_init(&dtl->lock);
 		dtl->cpu = i;
 
 		rc = dtl_setup_file(dtl);

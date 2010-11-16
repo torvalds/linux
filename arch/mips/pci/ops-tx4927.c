@@ -17,6 +17,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <asm/txx9/pci.h>
 #include <asm/txx9/tx4927pcic.h>
 

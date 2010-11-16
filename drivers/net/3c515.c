@@ -662,7 +662,9 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 		pr_warning(" *** Warning: this IRQ is unlikely to work! ***\n");
 
 	{
-		char *ram_split[] = { "5:3", "3:1", "1:1", "3:5" };
+		static const char * const ram_split[] = {
+			"5:3", "3:1", "1:1", "3:5"
+		};
 		__u32 config;
 		EL3WINDOW(3);
 		vp->available_media = inw(ioaddr + Wn3_Options);
@@ -734,7 +736,7 @@ static int corkscrew_open(struct net_device *dev)
 		init_timer(&vp->timer);
 		vp->timer.expires = jiffies + media_tbl[dev->if_port].wait;
 		vp->timer.data = (unsigned long) dev;
-		vp->timer.function = &corkscrew_timer;	/* timer handler */
+		vp->timer.function = corkscrew_timer;	/* timer handler */
 		add_timer(&vp->timer);
 	} else
 		dev->if_port = vp->default_media;

@@ -691,7 +691,7 @@ int dma_init(void)
 
 	memset(&gDMA, 0, sizeof(gDMA));
 
-	init_MUTEX_LOCKED(&gDMA.lock);
+	sema_init(&gDMA.lock, 0);
 	init_waitqueue_head(&gDMA.freeChannelQ);
 
 	/* Initialize the Hardware */
@@ -1574,7 +1574,7 @@ int dma_init_mem_map(DMA_MemMap_t *memMap)
 {
 	memset(memMap, 0, sizeof(*memMap));
 
-	init_MUTEX(&memMap->lock);
+	sema_init(&memMap->lock, 1);
 
 	return 0;
 }

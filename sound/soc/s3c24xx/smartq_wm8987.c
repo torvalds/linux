@@ -211,8 +211,10 @@ static struct snd_soc_dai_link smartq_dai[] = {
 	{
 		.name		= "wm8987",
 		.stream_name	= "SmartQ Hi-Fi",
-		.cpu_dai	= &s3c64xx_i2s_dai[0],
-		.codec_dai	= &wm8750_dai,
+		.cpu_dai_name	= "s3c64xx-i2s.0",
+		.codec_dai_name	= "wm8750-hifi",
+		.platform_name	= "s3c24xx-pcm-audio",
+		.codec_name	= "wm8750-codec.0-0x1a",
 		.init		= smartq_wm8987_init,
 		.ops		= &smartq_hifi_ops,
 	},
@@ -220,14 +222,8 @@ static struct snd_soc_dai_link smartq_dai[] = {
 
 static struct snd_soc_card snd_soc_smartq = {
 	.name = "SmartQ",
-	.platform = &s3c24xx_soc_platform,
 	.dai_link = smartq_dai,
 	.num_links = ARRAY_SIZE(smartq_dai),
-};
-
-static struct snd_soc_device smartq_snd_devdata = {
-	.card = &snd_soc_smartq,
-	.codec_dev = &soc_codec_dev_wm8750,
 };
 
 static struct platform_device *smartq_snd_device;
@@ -245,8 +241,7 @@ static int __init smartq_init(void)
 	if (!smartq_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(smartq_snd_device, &smartq_snd_devdata);
-	smartq_snd_devdata.dev = &smartq_snd_device->dev;
+	platform_set_drvdata(smartq_snd_device, &snd_soc_smartq);
 
 	ret = platform_device_add(smartq_snd_device);
 	if (ret) {

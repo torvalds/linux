@@ -134,7 +134,7 @@ static void __exit ip175c_exit(void)
 module_init(ip175c_init);
 module_exit(ip175c_exit);
 
-static struct mdio_device_id icplus_tbl[] = {
+static struct mdio_device_id __maybe_unused icplus_tbl[] = {
 	{ 0x02430d80, 0x0ffffff0 },
 	{ }
 };

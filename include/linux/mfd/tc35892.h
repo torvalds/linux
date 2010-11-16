@@ -111,9 +111,13 @@ extern int tc35892_set_bits(struct tc35892 *tc35892, u8 reg, u8 mask, u8 val);
  * struct tc35892_gpio_platform_data - TC35892 GPIO platform data
  * @gpio_base: first gpio number assigned to TC35892.  A maximum of
  *	       %TC35892_NR_GPIOS GPIOs will be allocated.
+ * @setup: callback for board-specific initialization
+ * @remove: callback for board-specific teardown
  */
 struct tc35892_gpio_platform_data {
 	int gpio_base;
+	void (*setup)(struct tc35892 *tc35892, unsigned gpio_base);
+	void (*remove)(struct tc35892 *tc35892, unsigned gpio_base);
 };
 
 /**

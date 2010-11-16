@@ -139,35 +139,35 @@ static void jornada_scan_keyb(unsigned char *s)
 	}, *y = matrix_PDE;
 
 	/* Save these control reg bits */
-	dc_static = (ctrl_inw(PDCR) & (~0xcc0c));
-	ec_static = (ctrl_inw(PECR) & (~0xf0cf));
+	dc_static = (__raw_readw(PDCR) & (~0xcc0c));
+	ec_static = (__raw_readw(PECR) & (~0xf0cf));
 
 	for (i = 0; i < 8; i++) {
 		/* disable output for all but the one we want to scan */
-		ctrl_outw((dc_static | *y++), PDCR);
-		ctrl_outw((ec_static | *y++), PECR);
+		__raw_writew((dc_static | *y++), PDCR);
+		__raw_writew((ec_static | *y++), PECR);
 		udelay(5);
 
 		/* Get scanline row */
-		ctrl_outb(*t++, PDDR);
-		ctrl_outb(*t++, PEDR);
+		__raw_writeb(*t++, PDDR);
+		__raw_writeb(*t++, PEDR);
 		udelay(50);
 
 		/* Read data */
-		*s++ = ctrl_inb(PCDR);
-		*s++ = ctrl_inb(PFDR);
+		*s++ = __raw_readb(PCDR);
+		*s++ = __raw_readb(PFDR);
 	}
 	/* Scan no lines */
-	ctrl_outb(0xff, PDDR);
-	ctrl_outb(0xff, PEDR);
+	__raw_writeb(0xff, PDDR);
+	__raw_writeb(0xff, PEDR);
 
 	/* Enable all scanlines */
-	ctrl_outw((dc_static | (0x5555 & 0xcc0c)),PDCR);
-	ctrl_outw((ec_static | (0x5555 & 0xf0cf)),PECR);
+	__raw_writew((dc_static | (0x5555 & 0xcc0c)),PDCR);
+	__raw_writew((ec_static | (0x5555 & 0xf0cf)),PECR);
 
 	/* Ignore extra keys and events */
-	*s++ = ctrl_inb(PGDR);
-	*s++ = ctrl_inb(PHDR);
+	*s++ = __raw_readb(PGDR);
+	*s++ = __raw_readb(PHDR);
 }
 
 static void jornadakbd680_poll(struct input_polled_dev *dev)

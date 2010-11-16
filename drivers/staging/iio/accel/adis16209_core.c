@@ -391,51 +391,43 @@ err_ret:
 	return ret;
 }
 
-static IIO_DEV_ATTR_IN_NAMED_RAW(supply, adis16209_read_14bit_unsigned,
+static IIO_DEV_ATTR_IN_NAMED_RAW(0, supply, adis16209_read_14bit_unsigned,
 		ADIS16209_SUPPLY_OUT);
-static IIO_CONST_ATTR(in_supply_scale, "0.30518");
-static IIO_DEV_ATTR_IN_RAW(0, adis16209_read_12bit_unsigned,
+static IIO_CONST_ATTR_IN_NAMED_SCALE(0, supply, "0.30518");
+static IIO_DEV_ATTR_IN_RAW(1, adis16209_read_12bit_unsigned,
 		ADIS16209_AUX_ADC);
-static IIO_CONST_ATTR(in0_scale, "0.6105");
+static IIO_CONST_ATTR(in1_scale, "0.6105");
 
 static IIO_DEV_ATTR_ACCEL_X(adis16209_read_14bit_signed,
 		ADIS16209_XACCL_OUT);
 static IIO_DEV_ATTR_ACCEL_Y(adis16209_read_14bit_signed,
 		ADIS16209_YACCL_OUT);
-static IIO_DEV_ATTR_ACCEL_X_OFFSET(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_ACCEL_X_CALIBBIAS(S_IWUSR | S_IRUGO,
 		adis16209_read_14bit_signed,
 		adis16209_write_16bit,
 		ADIS16209_XACCL_NULL);
-static IIO_DEV_ATTR_ACCEL_Y_OFFSET(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_ACCEL_Y_CALIBBIAS(S_IWUSR | S_IRUGO,
 		adis16209_read_14bit_signed,
 		adis16209_write_16bit,
 		ADIS16209_YACCL_NULL);
-static IIO_CONST_ATTR(accel_scale, "0.24414");
+static IIO_CONST_ATTR_ACCEL_SCALE("0.002394195531");
 
 static IIO_DEV_ATTR_INCLI_X(adis16209_read_14bit_signed,
 		ADIS16209_XINCL_OUT);
 static IIO_DEV_ATTR_INCLI_Y(adis16209_read_14bit_signed,
 		ADIS16209_YINCL_OUT);
-static IIO_DEV_ATTR_INCLI_X_OFFSET(S_IWUSR | S_IRUGO,
-		adis16209_read_14bit_signed,
-		adis16209_write_16bit,
-		ADIS16209_XACCL_NULL);
-static IIO_DEV_ATTR_INCLI_Y_OFFSET(S_IWUSR | S_IRUGO,
-		adis16209_read_14bit_signed,
-		adis16209_write_16bit,
-		ADIS16209_YACCL_NULL);
-static IIO_CONST_ATTR(incli_scale, "0.025");
+static IIO_CONST_ATTR(incli_scale, "0.00043633231");
 
 static IIO_DEVICE_ATTR(rot_raw, S_IRUGO, adis16209_read_14bit_signed,
 		       NULL, ADIS16209_ROT_OUT);
 
-static IIO_DEV_ATTR_TEMP(adis16209_read_temp);
-static IIO_CONST_ATTR(temp_offset, "25");
-static IIO_CONST_ATTR(temp_scale, "-0.47");
+static IIO_DEV_ATTR_TEMP_RAW(adis16209_read_temp);
+static IIO_CONST_ATTR_TEMP_OFFSET("25");
+static IIO_CONST_ATTR_TEMP_SCALE("-0.47");
 
 static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16209_write_reset, 0);
 
-static IIO_CONST_ATTR(name, "adis16209");
+static IIO_CONST_ATTR_NAME("adis16209");
 
 static struct attribute *adis16209_event_attributes[] = {
 	NULL
@@ -446,24 +438,22 @@ static struct attribute_group adis16209_event_attribute_group = {
 };
 
 static struct attribute *adis16209_attributes[] = {
-	&iio_dev_attr_in_supply_raw.dev_attr.attr,
-	&iio_const_attr_in_supply_scale.dev_attr.attr,
-	&iio_dev_attr_temp.dev_attr.attr,
+	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
+	&iio_const_attr_in0_supply_scale.dev_attr.attr,
+	&iio_dev_attr_temp_raw.dev_attr.attr,
 	&iio_const_attr_temp_offset.dev_attr.attr,
 	&iio_const_attr_temp_scale.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_const_attr_name.dev_attr.attr,
-	&iio_dev_attr_in0_raw.dev_attr.attr,
-	&iio_const_attr_in0_scale.dev_attr.attr,
+	&iio_dev_attr_in1_raw.dev_attr.attr,
+	&iio_const_attr_in1_scale.dev_attr.attr,
 	&iio_dev_attr_accel_x_raw.dev_attr.attr,
 	&iio_dev_attr_accel_y_raw.dev_attr.attr,
-	&iio_dev_attr_accel_x_offset.dev_attr.attr,
-	&iio_dev_attr_accel_y_offset.dev_attr.attr,
+	&iio_dev_attr_accel_x_calibbias.dev_attr.attr,
+	&iio_dev_attr_accel_y_calibbias.dev_attr.attr,
 	&iio_const_attr_accel_scale.dev_attr.attr,
 	&iio_dev_attr_incli_x_raw.dev_attr.attr,
 	&iio_dev_attr_incli_y_raw.dev_attr.attr,
-	&iio_dev_attr_incli_x_offset.dev_attr.attr,
-	&iio_dev_attr_incli_y_offset.dev_attr.attr,
 	&iio_const_attr_incli_scale.dev_attr.attr,
 	&iio_dev_attr_rot_raw.dev_attr.attr,
 	NULL

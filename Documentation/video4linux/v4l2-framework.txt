@@ -44,8 +44,8 @@ All drivers have the following structure:
 
 2) A way of initializing and commanding sub-devices (if any).
 
-3) Creating V4L2 device nodes (/dev/videoX, /dev/vbiX, /dev/radioX and
-   /dev/vtxX) and keeping track of device-node specific data.
+3) Creating V4L2 device nodes (/dev/videoX, /dev/vbiX and /dev/radioX)
+   and keeping track of device-node specific data.
 
 4) Filehandle-specific structs containing per-filehandle data;
 
@@ -191,6 +191,11 @@ from a v4l2_subdev to the actual low-level bus-specific device data.
 You also need a way to go from the low-level struct to v4l2_subdev. For the
 common i2c_client struct the i2c_set_clientdata() call is used to store a
 v4l2_subdev pointer, for other busses you may have to use other methods.
+
+Bridges might also need to store per-subdev private data, such as a pointer to
+bridge-specific per-subdev private data. The v4l2_subdev structure provides
+host private data for that purpose that can be accessed with
+v4l2_get_subdev_hostdata() and v4l2_set_subdev_hostdata().
 
 From the bridge driver perspective you load the sub-device module and somehow
 obtain the v4l2_subdev pointer. For i2c devices this is easy: you call
@@ -448,6 +453,10 @@ You should also set these fields:
 - ioctl_ops: if you use the v4l2_ioctl_ops to simplify ioctl maintenance
   (highly recommended to use this and it might become compulsory in the
   future!), then set this to your v4l2_ioctl_ops struct.
+- lock: leave to NULL if you want to do all the locking in the driver.
+  Otherwise you give it a pointer to a struct mutex_lock and before any
+  of the v4l2_file_operations is called this lock will be taken by the
+  core and released afterwards.
 - parent: you only set this if v4l2_device was registered with NULL as
   the parent device struct. This only happens in cases where one hardware
   device has multiple PCI devices that all share the same v4l2_device core.
@@ -464,6 +473,22 @@ If you use v4l2_ioctl_ops, then you should set either .unlocked_ioctl or
 The v4l2_file_operations struct is a subset of file_operations. The main
 difference is that the inode argument is omitted since it is never used.
 
+v4l2_file_operations and locking
+--------------------------------
+
+You can set a pointer to a mutex_lock in struct video_device. Usually this
+will be either a top-level mutex or a mutex per device node. If you want
+finer-grained locking then you have to set it to NULL and do you own locking.
+
+If a lock is specified then all file operations will be serialized on that
+lock. If you use videobuf then you must pass the same lock to the videobuf
+queue initialize function: if videobuf has to wait for a frame to arrive, then
+it will temporarily unlock the lock and relock it afterwards. If your driver
+also waits in the code, then you should do the same to allow other processes
+to access the device node while the first process is waiting for something.
+
+The implementation of a hotplug disconnect should also take the lock before
+calling v4l2_device_disconnect.
 
 video_device registration
 -------------------------
@@ -483,7 +508,6 @@ types exist:
 VFL_TYPE_GRABBER: videoX for video input/output devices
 VFL_TYPE_VBI: vbiX for vertical blank data (i.e. closed captions, teletext)
 VFL_TYPE_RADIO: radioX for radio tuners
-VFL_TYPE_VTX: vtxX for teletext devices (deprecated, don't use)
 
 The last argument gives you a certain amount of control over the device
 device node number used (i.e. the X in videoX). Normally you will pass -1
@@ -547,9 +571,8 @@ from /dev).
 
 After video_unregister_device() returns no new opens can be done. However,
 in the case of USB devices some application might still have one of these
-device nodes open. So after the unregister all file operations will return
-an error as well, except for the ioctl and unlocked_ioctl file operations:
-those will still be passed on since some buffer ioctls may still be needed.
+device nodes open. So after the unregister all file operations (except
+release, of course) will return an error as well.
 
 When the last user of the video device node exits, then the vdev->release()
 callback is called and you can do the final cleanup there.

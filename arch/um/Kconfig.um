@@ -120,6 +120,9 @@ config SMP
 
 	  If you don't know what to do, say N.
 
+config GENERIC_HARDIRQS_NO__DO_IRQ
+	def_bool y
+
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
@@ -147,3 +150,6 @@ config KERNEL_STACK_ORDER
 	  This option determines the size of UML kernel stacks.  They will
 	  be 1 << order pages.  The default is OK unless you're running Valgrind
 	  on UML, in which case, set this to 3.
+
+config NO_DMA
+	def_bool y

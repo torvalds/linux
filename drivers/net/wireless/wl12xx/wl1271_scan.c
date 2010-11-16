@@ -28,11 +28,43 @@
 #include "wl1271_scan.h"
 #include "wl1271_acx.h"
 
+void wl1271_scan_complete_work(struct work_struct *work)
+{
+	struct delayed_work *dwork;
+	struct wl1271 *wl;
+
+	dwork = container_of(work, struct delayed_work, work);
+	wl = container_of(dwork, struct wl1271, scan_complete_work);
+
+	wl1271_debug(DEBUG_SCAN, "Scanning complete");
+
+	mutex_lock(&wl->mutex);
+
+	if (wl->scan.state == WL1271_SCAN_STATE_IDLE) {
+		mutex_unlock(&wl->mutex);
+		return;
+	}
+
+	wl->scan.state = WL1271_SCAN_STATE_IDLE;
+	kfree(wl->scan.scanned_ch);
+	wl->scan.scanned_ch = NULL;
+	mutex_unlock(&wl->mutex);
+
+	ieee80211_scan_completed(wl->hw, false);
+
+	if (wl->scan.failed) {
+		wl1271_info("Scan completed due to error.");
+		ieee80211_queue_work(wl->hw, &wl->recovery_work);
+	}
+}
+
+
 static int wl1271_get_scan_channels(struct wl1271 *wl,
 				    struct cfg80211_scan_request *req,
 				    struct basic_scan_channel_params *channels,
 				    enum ieee80211_band band, bool passive)
 {
+	struct conf_scan_settings *c = &wl->conf.scan;
 	int i, j;
 	u32 flags;
 
@@ -60,10 +92,17 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 			wl1271_debug(DEBUG_SCAN, "beacon_found %d",
 				     req->channels[i]->beacon_found);
 
-			channels[j].min_duration =
-				cpu_to_le32(WL1271_SCAN_CHAN_MIN_DURATION);
-			channels[j].max_duration =
-				cpu_to_le32(WL1271_SCAN_CHAN_MAX_DURATION);
+			if (!passive) {
+				channels[j].min_duration =
+					cpu_to_le32(c->min_dwell_time_active);
+				channels[j].max_duration =
+					cpu_to_le32(c->max_dwell_time_active);
+			} else {
+				channels[j].min_duration =
+					cpu_to_le32(c->min_dwell_time_passive);
+				channels[j].max_duration =
+					cpu_to_le32(c->max_dwell_time_passive);
+			}
 			channels[j].early_termination = 0;
 			channels[j].tx_power_att = req->channels[i]->max_power;
 			channels[j].channel = req->channels[i]->hw_value;
@@ -100,8 +139,11 @@ static int wl1271_scan_send(struct wl1271 *wl, enum ieee80211_band band,
 
 	/* We always use high priority scans */
 	scan_options = WL1271_SCAN_OPT_PRIORITY_HIGH;
-	if(passive)
+
+	/* No SSIDs means that we have a forced passive scan */
+	if (passive || wl->scan.req->n_ssids == 0)
 		scan_options |= WL1271_SCAN_OPT_PASSIVE;
+
 	cmd->params.scan_options = cpu_to_le16(scan_options);
 
 	cmd->params.n_ch = wl1271_get_scan_channels(wl, wl->scan.req,
@@ -117,7 +159,7 @@ static int wl1271_scan_send(struct wl1271 *wl, enum ieee80211_band band,
 	cmd->params.rx_filter_options =
 		cpu_to_le32(CFG_RX_PRSP_EN | CFG_RX_MGMT_EN | CFG_RX_BCN_EN);
 
-	cmd->params.n_probe_reqs = WL1271_SCAN_PROBE_REQS;
+	cmd->params.n_probe_reqs = wl->conf.scan.num_probe_reqs;
 	cmd->params.tx_rate = cpu_to_le32(basic_rate);
 	cmd->params.tid_trigger = 0;
 	cmd->params.scan_tag = WL1271_SCAN_DEFAULT_TAG;
@@ -165,7 +207,7 @@ out:
 
 void wl1271_scan_stm(struct wl1271 *wl)
 {
-	int ret;
+	int ret = 0;
 
 	switch (wl->scan.state) {
 	case WL1271_SCAN_STATE_IDLE:
@@ -185,7 +227,7 @@ void wl1271_scan_stm(struct wl1271 *wl)
 		ret = wl1271_scan_send(wl, IEEE80211_BAND_2GHZ, true,
 				       wl->conf.tx.basic_rate);
 		if (ret == WL1271_NOTHING_TO_SCAN) {
-			if (wl1271_11a_enabled())
+			if (wl->enable_11a)
 				wl->scan.state = WL1271_SCAN_STATE_5GHZ_ACTIVE;
 			else
 				wl->scan.state = WL1271_SCAN_STATE_DONE;
@@ -215,19 +257,21 @@ void wl1271_scan_stm(struct wl1271 *wl)
 		break;
 
 	case WL1271_SCAN_STATE_DONE:
-		mutex_unlock(&wl->mutex);
-		ieee80211_scan_completed(wl->hw, false);
-		mutex_lock(&wl->mutex);
-
-		kfree(wl->scan.scanned_ch);
-		wl->scan.scanned_ch = NULL;
-
-		wl->scan.state = WL1271_SCAN_STATE_IDLE;
+		wl->scan.failed = false;
+		cancel_delayed_work(&wl->scan_complete_work);
+		ieee80211_queue_delayed_work(wl->hw, &wl->scan_complete_work,
+					     msecs_to_jiffies(0));
 		break;
 
 	default:
 		wl1271_error("invalid scan state");
 		break;
+	}
+
+	if (ret < 0) {
+		cancel_delayed_work(&wl->scan_complete_work);
+		ieee80211_queue_delayed_work(wl->hw, &wl->scan_complete_work,
+					     msecs_to_jiffies(0));
 	}
 }
 
@@ -248,9 +292,14 @@ int wl1271_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 
 	wl->scan.req = req;
 
-	wl->scan.scanned_ch = kzalloc(req->n_channels *
+	wl->scan.scanned_ch = kcalloc(req->n_channels,
 				      sizeof(*wl->scan.scanned_ch),
 				      GFP_KERNEL);
+	/* we assume failure so that timeout scenarios are handled correctly */
+	wl->scan.failed = true;
+	ieee80211_queue_delayed_work(wl->hw, &wl->scan_complete_work,
+				     msecs_to_jiffies(WL1271_SCAN_TIMEOUT));
+
 	wl1271_scan_stm(wl);
 
 	return 0;

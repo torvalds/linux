@@ -60,13 +60,11 @@ static inline void zfcp_qdio_account(struct zfcp_qdio *qdio)
 	unsigned long long now, span;
 	int used;
 
-	spin_lock(&qdio->stat_lock);
 	now = get_clock_monotonic();
 	span = (now - qdio->req_q_time) >> 12;
 	used = QDIO_MAX_BUFFERS_PER_Q - atomic_read(&qdio->req_q_free);
 	qdio->req_q_util += used * span;
 	qdio->req_q_time = now;
-	spin_unlock(&qdio->stat_lock);
 }
 
 static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int qdio_err,
@@ -84,7 +82,9 @@ static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int qdio_err,
 	/* cleanup all SBALs being program-owned now */
 	zfcp_qdio_zero_sbals(qdio->req_q, idx, count);
 
+	spin_lock_irq(&qdio->stat_lock);
 	zfcp_qdio_account(qdio);
+	spin_unlock_irq(&qdio->stat_lock);
 	atomic_add(count, &qdio->req_q_free);
 	wake_up(&qdio->req_q_wq);
 }
@@ -201,11 +201,11 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 
 static int zfcp_qdio_sbal_check(struct zfcp_qdio *qdio)
 {
-	spin_lock_bh(&qdio->req_q_lock);
+	spin_lock_irq(&qdio->req_q_lock);
 	if (atomic_read(&qdio->req_q_free) ||
 	    !(atomic_read(&qdio->adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP))
 		return 1;
-	spin_unlock_bh(&qdio->req_q_lock);
+	spin_unlock_irq(&qdio->req_q_lock);
 	return 0;
 }
 
@@ -223,7 +223,7 @@ int zfcp_qdio_sbal_get(struct zfcp_qdio *qdio)
 {
 	long ret;
 
-	spin_unlock_bh(&qdio->req_q_lock);
+	spin_unlock_irq(&qdio->req_q_lock);
 	ret = wait_event_interruptible_timeout(qdio->req_q_wq,
 			       zfcp_qdio_sbal_check(qdio), 5 * HZ);
 
@@ -239,7 +239,7 @@ int zfcp_qdio_sbal_get(struct zfcp_qdio *qdio)
 		zfcp_erp_adapter_reopen(qdio->adapter, 0, "qdsbg_1", NULL);
 	}
 
-	spin_lock_bh(&qdio->req_q_lock);
+	spin_lock_irq(&qdio->req_q_lock);
 	return -EIO;
 }
 
@@ -254,7 +254,9 @@ int zfcp_qdio_send(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 	int retval;
 	u8 sbal_number = q_req->sbal_number;
 
+	spin_lock(&qdio->stat_lock);
 	zfcp_qdio_account(qdio);
+	spin_unlock(&qdio->stat_lock);
 
 	retval = do_QDIO(qdio->adapter->ccw_device, QDIO_FLAG_SYNC_OUTPUT, 0,
 			 q_req->sbal_first, sbal_number);
@@ -277,16 +279,12 @@ int zfcp_qdio_send(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 static void zfcp_qdio_setup_init_data(struct qdio_initialize *id,
 				      struct zfcp_qdio *qdio)
 {
-
+	memset(id, 0, sizeof(*id));
 	id->cdev = qdio->adapter->ccw_device;
 	id->q_format = QDIO_ZFCP_QFMT;
 	memcpy(id->adapter_name, dev_name(&id->cdev->dev), 8);
 	ASCEBC(id->adapter_name, 8);
 	id->qib_rflags = QIB_RFLAGS_ENABLE_DATA_DIV;
-	id->qib_param_field_format = 0;
-	id->qib_param_field = NULL;
-	id->input_slib_elements = NULL;
-	id->output_slib_elements = NULL;
 	id->no_input_qs = 1;
 	id->no_output_qs = 1;
 	id->input_handler = zfcp_qdio_int_resp;
@@ -328,9 +326,9 @@ void zfcp_qdio_close(struct zfcp_qdio *qdio)
 		return;
 
 	/* clear QDIOUP flag, thus do_QDIO is not called during qdio_shutdown */
-	spin_lock_bh(&qdio->req_q_lock);
+	spin_lock_irq(&qdio->req_q_lock);
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &adapter->status);
-	spin_unlock_bh(&qdio->req_q_lock);
+	spin_unlock_irq(&qdio->req_q_lock);
 
 	wake_up(&qdio->req_q_wq);
 

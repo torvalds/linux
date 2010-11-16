@@ -440,10 +440,8 @@ int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 		return ret;
 
 	ret = be->func->bind(be, bo_mem);
-	if (ret) {
-		printk(KERN_ERR TTM_PFX "Couldn't bind backend.\n");
+	if (unlikely(ret != 0))
 		return ret;
-	}
 
 	ttm->state = tt_bound;
 

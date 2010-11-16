@@ -877,8 +877,8 @@ out:
 	return;
 }
 
-static void __qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
-		 struct qeth_qdio_out_buffer *buf, unsigned int qeth_skip_skb)
+static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
+		struct qeth_qdio_out_buffer *buf)
 {
 	int i;
 	struct sk_buff *skb;
@@ -887,13 +887,11 @@ static void __qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 	if (buf->buffer->element[0].flags & 0x40)
 		atomic_dec(&queue->set_pci_flags_count);
 
-	if (!qeth_skip_skb) {
+	skb = skb_dequeue(&buf->skb_list);
+	while (skb) {
+		atomic_dec(&skb->users);
+		dev_kfree_skb_any(skb);
 		skb = skb_dequeue(&buf->skb_list);
-		while (skb) {
-			atomic_dec(&skb->users);
-			dev_kfree_skb_any(skb);
-			skb = skb_dequeue(&buf->skb_list);
-		}
 	}
 	for (i = 0; i < QETH_MAX_BUFFER_ELEMENTS(queue->card); ++i) {
 		if (buf->buffer->element[i].addr && buf->is_header[i])
@@ -907,12 +905,6 @@ static void __qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 	buf->buffer->element[15].flags = 0;
 	buf->next_element_to_fill = 0;
 	atomic_set(&buf->state, QETH_QDIO_BUF_EMPTY);
-}
-
-static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
-		struct qeth_qdio_out_buffer *buf)
-{
-	__qeth_clear_output_buffer(queue, buf, 0);
 }
 
 void qeth_clear_qdio_buffers(struct qeth_card *card)
@@ -2833,7 +2825,6 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		}
 	}
 
-	queue->sync_iqdio_error = 0;
 	queue->card->dev->trans_start = jiffies;
 	if (queue->card->options.performance_stats) {
 		queue->card->perf_stats.outbound_do_qdio_cnt++;
@@ -2849,10 +2840,6 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		queue->card->perf_stats.outbound_do_qdio_time +=
 			qeth_get_micros() -
 			queue->card->perf_stats.outbound_do_qdio_start_time;
-	if (rc > 0) {
-		if (!(rc & QDIO_ERROR_SIGA_BUSY))
-			queue->sync_iqdio_error = rc & 3;
-	}
 	if (rc) {
 		queue->card->stats.tx_errors += count;
 		/* ignore temporary SIGA errors without busy condition */
@@ -2911,6 +2898,27 @@ static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 	}
 }
 
+void qeth_qdio_start_poll(struct ccw_device *ccwdev, int queue,
+		unsigned long card_ptr)
+{
+	struct qeth_card *card = (struct qeth_card *)card_ptr;
+
+	if (card->dev && (card->dev->flags & IFF_UP))
+		napi_schedule(&card->napi);
+}
+EXPORT_SYMBOL_GPL(qeth_qdio_start_poll);
+
+void qeth_qdio_input_handler(struct ccw_device *ccwdev, unsigned int qdio_err,
+		unsigned int queue, int first_element, int count,
+		unsigned long card_ptr)
+{
+	struct qeth_card *card = (struct qeth_card *)card_ptr;
+
+	if (qdio_err)
+		qeth_schedule_recovery(card);
+}
+EXPORT_SYMBOL_GPL(qeth_qdio_input_handler);
+
 void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 		unsigned int qdio_error, int __queue, int first_element,
 		int count, unsigned long card_ptr)
@@ -2919,7 +2927,6 @@ void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 	struct qeth_qdio_out_q *queue = card->qdio.out_qs[__queue];
 	struct qeth_qdio_out_buffer *buffer;
 	int i;
-	unsigned qeth_send_err;
 
 	QETH_CARD_TEXT(card, 6, "qdouhdl");
 	if (qdio_error & QDIO_ERROR_ACTIVATE_CHECK_CONDITION) {
@@ -2935,9 +2942,8 @@ void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 	}
 	for (i = first_element; i < (first_element + count); ++i) {
 		buffer = &queue->bufs[i % QDIO_MAX_BUFFERS_PER_Q];
-		qeth_send_err = qeth_handle_send_error(card, buffer, qdio_error);
-		__qeth_clear_output_buffer(queue, buffer,
-			(qeth_send_err == QETH_SEND_ERROR_RETRY) ? 1 : 0);
+		qeth_handle_send_error(card, buffer, qdio_error);
+		qeth_clear_output_buffer(queue, buffer);
 	}
 	atomic_sub(count, &queue->used_buffers);
 	/* check if we need to do something on this outbound queue */
@@ -3162,10 +3168,7 @@ int qeth_do_send_packet_fast(struct qeth_card *card,
 		int offset, int hd_len)
 {
 	struct qeth_qdio_out_buffer *buffer;
-	struct sk_buff *skb1;
-	struct qeth_skb_data *retry_ctrl;
 	int index;
-	int rc;
 
 	/* spin until we get the queue ... */
 	while (atomic_cmpxchg(&queue->state, QETH_OUT_Q_UNLOCKED,
@@ -3184,25 +3187,6 @@ int qeth_do_send_packet_fast(struct qeth_card *card,
 	atomic_set(&queue->state, QETH_OUT_Q_UNLOCKED);
 	qeth_fill_buffer(queue, buffer, skb, hdr, offset, hd_len);
 	qeth_flush_buffers(queue, index, 1);
-	if (queue->sync_iqdio_error == 2) {
-		skb1 = skb_dequeue(&buffer->skb_list);
-		while (skb1) {
-			atomic_dec(&skb1->users);
-			skb1 = skb_dequeue(&buffer->skb_list);
-		}
-		retry_ctrl = (struct qeth_skb_data *) &skb->cb[16];
-		if (retry_ctrl->magic != QETH_SKB_MAGIC) {
-			retry_ctrl->magic = QETH_SKB_MAGIC;
-			retry_ctrl->count = 0;
-		}
-		if (retry_ctrl->count < QETH_SIGA_CC2_RETRIES) {
-			retry_ctrl->count++;
-			rc = dev_queue_xmit(skb);
-		} else {
-			dev_kfree_skb_any(skb);
-			QETH_CARD_TEXT(card, 2, "qrdrop");
-		}
-	}
 	return 0;
 out:
 	atomic_set(&queue->state, QETH_OUT_Q_UNLOCKED);
@@ -3843,6 +3827,7 @@ static int qeth_qdio_establish(struct qeth_card *card)
 	init_data.no_output_qs           = card->qdio.no_out_queues;
 	init_data.input_handler          = card->discipline.input_handler;
 	init_data.output_handler         = card->discipline.output_handler;
+	init_data.queue_start_poll	 = card->discipline.start_poll;
 	init_data.int_parm               = (unsigned long) card;
 	init_data.input_sbal_addr_array  = (void **) in_sbal_ptrs;
 	init_data.output_sbal_addr_array = (void **) out_sbal_ptrs;
@@ -4513,8 +4498,8 @@ static struct {
 /* 20 */{"queue 1 buffer usage"},
 	{"queue 2 buffer usage"},
 	{"queue 3 buffer usage"},
-	{"rx handler time"},
-	{"rx handler count"},
+	{"rx poll time"},
+	{"rx poll count"},
 	{"rx do_QDIO time"},
 	{"rx do_QDIO count"},
 	{"tx handler time"},

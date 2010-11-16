@@ -12,7 +12,6 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/sem.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
@@ -377,7 +376,6 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
 	struct vm_area_struct *vma;
 	int ret = -EINVAL;
 
-	lock_kernel();
 	if (scope < FLUSH_SCOPE_LINE || scope > FLUSH_SCOPE_ALL ||
 	    cache & ~FLUSH_CACHE_BOTH)
 		goto out;
@@ -446,7 +444,6 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
 	    }
 	}
 out:
-	unlock_kernel();
 	return ret;
 }
 

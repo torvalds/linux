@@ -34,12 +34,13 @@
  *
  */
 
+#include <linux/kernel.h>
 #include "country.h"
 #include "channel.h"
 #include "rf.h"
 
 /*---------------------  Static Definitions -------------------------*/
-static int          msglevel                =MSG_LEVEL_INFO;
+static int          msglevel                = MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
 /*---------------------  Static Classes  ----------------------------*/
@@ -367,7 +368,7 @@ static  struct
 /*                                           1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19  20  21  22  23  24  25  26  27  28  29  30  31  32  33  34  35  36  37  38  39  40  41  42  43  44  45  46  47  48  49  50  51  52  53  54  55  56  */
 };
 
-#define NUM_RULES	(sizeof(ChannelRuleTab) / sizeof(ChannelRuleTab[0]))
+#define NUM_RULES	ARRAY_SIZE(ChannelRuleTab)
 
 /*---------------------  Export function  -------------------------*/
 /************************************************************************
@@ -515,10 +516,9 @@ BYTE CHbyGetChannelMapping(BYTE byChannelNumber)
 BYTE    ii;
 BYTE    byCHMapping = 0;
 
-    for (ii=1; ii<=CB_MAX_CHANNEL; ii++ ) {
-        if ( sChannelTbl[ii].byChannelNumber == byChannelNumber ) {
-            byCHMapping = ii;
-        }
+	for (ii = 1; ii <= CB_MAX_CHANNEL; ii++) {
+		if (sChannelTbl[ii].byChannelNumber == byChannelNumber)
+			byCHMapping = ii;
     }
     return byCHMapping;
 }

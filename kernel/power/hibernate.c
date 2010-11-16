@@ -29,6 +29,7 @@
 #include "power.h"
 
 
+static int nocompress = 0;
 static int noresume = 0;
 static char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;
@@ -638,6 +639,8 @@ int hibernate(void)
 
 		if (hibernation_mode == HIBERNATION_PLATFORM)
 			flags |= SF_PLATFORM_MODE;
+		if (nocompress)
+			flags |= SF_NOCOMPRESS_MODE;
 		pr_debug("PM: writing image.\n");
 		error = swsusp_write(flags);
 		swsusp_free();
@@ -705,7 +708,7 @@ static int software_resume(void)
 		goto Unlock;
 	}
 
-	pr_debug("PM: Checking image partition %s\n", resume_file);
+	pr_debug("PM: Checking hibernation image partition %s\n", resume_file);
 
 	/* Check if the device is there */
 	swsusp_resume_device = name_to_dev_t(resume_file);
@@ -730,10 +733,10 @@ static int software_resume(void)
 	}
 
  Check_image:
-	pr_debug("PM: Resume from partition %d:%d\n",
+	pr_debug("PM: Hibernation image partition %d:%d present\n",
 		MAJOR(swsusp_resume_device), MINOR(swsusp_resume_device));
 
-	pr_debug("PM: Checking hibernation image.\n");
+	pr_debug("PM: Looking for hibernation image.\n");
 	error = swsusp_check();
 	if (error)
 		goto Unlock;
@@ -765,14 +768,14 @@ static int software_resume(void)
 		goto Done;
 	}
 
-	pr_debug("PM: Reading hibernation image.\n");
+	pr_debug("PM: Loading hibernation image.\n");
 
 	error = swsusp_read(&flags);
 	swsusp_close(FMODE_READ);
 	if (!error)
 		hibernation_restore(flags & SF_PLATFORM_MODE);
 
-	printk(KERN_ERR "PM: Restore failed, recovering.\n");
+	printk(KERN_ERR "PM: Failed to load hibernation image, recovering.\n");
 	swsusp_free();
 	thaw_processes();
  Done:
@@ -785,7 +788,7 @@ static int software_resume(void)
 	/* For success case, the suspend path will release the lock */
  Unlock:
 	mutex_unlock(&pm_mutex);
-	pr_debug("PM: Resume from disk failed.\n");
+	pr_debug("PM: Hibernation image not present or could not be loaded.\n");
 	return error;
 close_finish:
 	swsusp_close(FMODE_READ);
@@ -1004,6 +1007,15 @@ static int __init resume_offset_setup(char *str)
 	return 1;
 }
 
+static int __init hibernate_setup(char *str)
+{
+	if (!strncmp(str, "noresume", 8))
+		noresume = 1;
+	else if (!strncmp(str, "nocompress", 10))
+		nocompress = 1;
+	return 1;
+}
+
 static int __init noresume_setup(char *str)
 {
 	noresume = 1;
@@ -1013,3 +1025,4 @@ static int __init noresume_setup(char *str)
 __setup("noresume", noresume_setup);
 __setup("resume_offset=", resume_offset_setup);
 __setup("resume=", resume_setup);
+__setup("hibernate=", hibernate_setup);

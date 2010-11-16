@@ -128,17 +128,18 @@ static int __devinit probe(struct pci_dev *pdev,
 	struct uio_pci_generic_dev *gdev;
 	int err;
 
-	if (!pdev->irq) {
-		dev_warn(&pdev->dev, "No IRQ assigned to device: "
-			 "no support for interrupts?\n");
-		return -ENODEV;
-	}
-
 	err = pci_enable_device(pdev);
 	if (err) {
 		dev_err(&pdev->dev, "%s: pci_enable_device failed: %d\n",
 			__func__, err);
 		return err;
+	}
+
+	if (!pdev->irq) {
+		dev_warn(&pdev->dev, "No IRQ assigned to device: "
+			 "no support for interrupts?\n");
+		pci_disable_device(pdev);
+		return -ENODEV;
 	}
 
 	err = verify_pci_2_3(pdev);

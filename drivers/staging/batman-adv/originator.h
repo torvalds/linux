@@ -22,10 +22,10 @@
 #ifndef _NET_BATMAN_ADV_ORIGINATOR_H_
 #define _NET_BATMAN_ADV_ORIGINATOR_H_
 
-int originator_init(void);
-void originator_free(void);
-void purge_orig(struct work_struct *work);
-struct orig_node *get_orig_node(uint8_t *addr);
+int originator_init(struct bat_priv *bat_priv);
+void originator_free(struct bat_priv *bat_priv);
+void purge_orig_ref(struct bat_priv *bat_priv);
+struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr);
 struct neigh_node *
 create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
 		uint8_t *neigh, struct batman_if *if_incoming);

@@ -208,7 +208,4 @@
 
 #define  WM8741_SYSCLK 0
 
-extern struct snd_soc_dai wm8741_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8741;
-
 #endif

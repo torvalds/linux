@@ -1167,7 +1167,7 @@ static void print_eth(const u8 *add)
 static int tc35815_tx_full(struct net_device *dev)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
-	return ((lp->tfd_start + 1) % TX_FD_NUM == lp->tfd_end);
+	return (lp->tfd_start + 1) % TX_FD_NUM == lp->tfd_end;
 }
 
 static void tc35815_restart(struct net_device *dev)

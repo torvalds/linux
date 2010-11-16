@@ -171,7 +171,8 @@ config RTC_DRV_DS3232
 	depends on RTC_CLASS && I2C
 	help
 	  If you say yes here you get support for Dallas Semiconductor
-	  DS3232 real-time clock chips.
+	  DS3232 real-time clock chips. If an interrupt is associated
+	  with the device, the alarm functionality is supported.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called rtc-ds3232.
@@ -194,6 +195,16 @@ config RTC_DRV_MAX8925
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max8925.
+
+config RTC_DRV_MAX8998
+	tristate "Maxim MAX8998"
+	depends on MFD_MAX8998
+	help
+	  If you say yes here you will get support for the
+	  RTC of Maxim MAX8998 PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max8998.
 
 config RTC_DRV_RS5C372
 	tristate "Ricoh R2025S/D, RS5C372A/B, RV5C386, RV5C387A"
@@ -765,15 +776,15 @@ config RTC_DRV_AT32AP700X
 	  AT32AP700x family processors.
 
 config RTC_DRV_AT91RM9200
-	tristate "AT91RM9200 or AT91SAM9RL"
-	depends on ARCH_AT91RM9200 || ARCH_AT91SAM9RL
+	tristate "AT91RM9200 or some AT91SAM9 RTC"
+	depends on ARCH_AT91RM9200 || ARCH_AT91SAM9RL || ARCH_AT91SAM9G45
 	help
 	  Driver for the internal RTC (Realtime Clock) module found on
-	  Atmel AT91RM9200's and AT91SAM9RL chips. On SAM9RL chips
+	  Atmel AT91RM9200's and some  AT91SAM9 chips. On AT91SAM9 chips
 	  this is powered by the backup power supply.
 
 config RTC_DRV_AT91SAM9
-	tristate "AT91SAM9x/AT91CAP9"
+	tristate "AT91SAM9x/AT91CAP9 RTT as RTC"
 	depends on ARCH_AT91 && !(ARCH_AT91RM9200 || ARCH_AT91X40)
 	help
 	  RTC driver for the Atmel AT91SAM9x and AT91CAP9 internal RTT
@@ -781,8 +792,8 @@ config RTC_DRV_AT91SAM9
 	  supply (such as a small coin cell battery), but do not need to
 	  be used as RTCs.
 
-	  (On AT91SAM9rl chips you probably want to use the dedicated RTC
-	  module and leave the RTT available for other uses.)
+	  (On AT91SAM9rl and AT91SAM9G45 chips you probably want to use the
+	  dedicated RTC module and leave the RTT available for other uses.)
 
 config RTC_DRV_AT91SAM9_RTT
 	int
@@ -925,11 +936,12 @@ config RTC_DRV_PCAP
 	  If you say Y here you will get support for the RTC found on
 	  the PCAP2 ASIC used on some Motorola phones.
 
-config RTC_DRV_MC13783
-	depends on MFD_MC13783
-	tristate "Freescale MC13783 RTC"
+config RTC_DRV_MC13XXX
+	depends on MFD_MC13XXX
+	tristate "Freescale MC13xxx RTC"
 	help
-	  This enables support for the Freescale MC13783 PMIC RTC
+	  This enables support for the RTCs found on Freescale's PMICs
+	  MC13783 and MC13892.
 
 config RTC_DRV_MPC5121
 	tristate "Freescale MPC5121 built-in RTC"
@@ -951,5 +963,14 @@ config RTC_DRV_JZ4740
 
 	  This driver can also be buillt as a module. If so, the module
 	  will be called rtc-jz4740.
+
+config RTC_DRV_LPC32XX
+	depends on ARCH_LPC32XX
+	tristate "NXP LPC32XX RTC"
+	help
+	  This enables support for the NXP RTC in the LPC32XX
+
+	  This driver can also be buillt as a module. If so, the module
+	  will be called rtc-lpc32xx.
 
 endif # RTC_CLASS

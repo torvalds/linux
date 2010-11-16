@@ -114,6 +114,7 @@ static void via_i2c_setsda(void *data, int state)
 
 int viafb_i2c_readbyte(u8 adap, u8 slave_addr, u8 index, u8 *pdata)
 {
+	int ret;
 	u8 mm1[] = {0x00};
 	struct i2c_msg msgs[2];
 
@@ -126,11 +127,18 @@ int viafb_i2c_readbyte(u8 adap, u8 slave_addr, u8 index, u8 *pdata)
 	mm1[0] = index;
 	msgs[0].len = 1; msgs[1].len = 1;
 	msgs[0].buf = mm1; msgs[1].buf = pdata;
-	return i2c_transfer(&via_i2c_par[adap].adapter, msgs, 2);
+	ret = i2c_transfer(&via_i2c_par[adap].adapter, msgs, 2);
+	if (ret == 2)
+		ret = 0;
+	else if (ret >= 0)
+		ret = -EIO;
+
+	return ret;
 }
 
 int viafb_i2c_writebyte(u8 adap, u8 slave_addr, u8 index, u8 data)
 {
+	int ret;
 	u8 msg[2] = { index, data };
 	struct i2c_msg msgs;
 
@@ -140,11 +148,18 @@ int viafb_i2c_writebyte(u8 adap, u8 slave_addr, u8 index, u8 data)
 	msgs.addr = slave_addr / 2;
 	msgs.len = 2;
 	msgs.buf = msg;
-	return i2c_transfer(&via_i2c_par[adap].adapter, &msgs, 1);
+	ret = i2c_transfer(&via_i2c_par[adap].adapter, &msgs, 1);
+	if (ret == 1)
+		ret = 0;
+	else if (ret >= 0)
+		ret = -EIO;
+
+	return ret;
 }
 
 int viafb_i2c_readbytes(u8 adap, u8 slave_addr, u8 index, u8 *buff, int buff_len)
 {
+	int ret;
 	u8 mm1[] = {0x00};
 	struct i2c_msg msgs[2];
 
@@ -156,7 +171,13 @@ int viafb_i2c_readbytes(u8 adap, u8 slave_addr, u8 index, u8 *buff, int buff_len
 	mm1[0] = index;
 	msgs[0].len = 1; msgs[1].len = buff_len;
 	msgs[0].buf = mm1; msgs[1].buf = buff;
-	return i2c_transfer(&via_i2c_par[adap].adapter, msgs, 2);
+	ret = i2c_transfer(&via_i2c_par[adap].adapter, msgs, 2);
+	if (ret == 2)
+		ret = 0;
+	else if (ret >= 0)
+		ret = -EIO;
+
+	return ret;
 }
 
 /*
@@ -181,8 +202,8 @@ static int create_i2c_bus(struct i2c_adapter *adapter,
 	algo->setscl = via_i2c_setscl;
 	algo->getsda = via_i2c_getsda;
 	algo->getscl = via_i2c_getscl;
-	algo->udelay = 40;
-	algo->timeout = 20;
+	algo->udelay = 10;
+	algo->timeout = 2;
 	algo->data = adap_cfg;
 
 	sprintf(adapter->name, "viafb i2c io_port idx 0x%02x",

@@ -85,12 +85,12 @@ static const int bitrate_list[] = {
  */
 static inline int wpa2_capable(void)
 {
-	return (0 <= ps3_compare_firmware_version(2, 0, 0));
+	return 0 <= ps3_compare_firmware_version(2, 0, 0);
 }
 
 static inline int precise_ie(void)
 {
-	return (0 <= ps3_compare_firmware_version(2, 2, 0));
+	return 0 <= ps3_compare_firmware_version(2, 2, 0);
 }
 /*
  * post_eurus_cmd helpers
@@ -506,7 +506,7 @@ static size_t gelic_wl_synthesize_ie(u8 *buf,
 	start[1] = (buf - start - 2);
 
 	pr_debug("%s: ->\n", __func__);
-	return (buf - start);
+	return buf - start;
 }
 
 struct ie_item {

@@ -27,6 +27,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/vfs.h>
@@ -606,7 +607,8 @@ static void coda_unblock_signals(sigset_t *old)
 				 (r)->uc_opcode != CODA_RELEASE) || \
 				(r)->uc_flags & CODA_REQ_READ))
 
-static inline void coda_waitfor_upcall(struct upc_req *req)
+static inline void coda_waitfor_upcall(struct venus_comm *vcp,
+				       struct upc_req *req)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long timeout = jiffies + coda_timeout * HZ;
@@ -639,10 +641,12 @@ static inline void coda_waitfor_upcall(struct upc_req *req)
 			break;
 		}
 
+		mutex_unlock(&vcp->vc_mutex);
 		if (blocked)
 			schedule_timeout(HZ);
 		else
 			schedule();
+		mutex_lock(&vcp->vc_mutex);
 	}
 	if (blocked)
 		coda_unblock_signals(&old);
@@ -667,18 +671,23 @@ static int coda_upcall(struct venus_comm *vcp,
 {
 	union outputArgs *out;
 	union inputArgs *sig_inputArgs;
-	struct upc_req *req, *sig_req;
-	int error = 0;
+	struct upc_req *req = NULL, *sig_req;
+	int error;
+
+	mutex_lock(&vcp->vc_mutex);
 
 	if (!vcp->vc_inuse) {
 		printk(KERN_NOTICE "coda: Venus dead, not sending upcall\n");
-		return -ENXIO;
+		error = -ENXIO;
+		goto exit;
 	}
 
 	/* Format the request message. */
 	req = kmalloc(sizeof(struct upc_req), GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
+	if (!req) {
+		error = -ENOMEM;
+		goto exit;
+	}
 
 	req->uc_data = (void *)buffer;
 	req->uc_flags = 0;
@@ -705,7 +714,7 @@ static int coda_upcall(struct venus_comm *vcp,
 	 * ENODEV.  */
 
 	/* Go to sleep.  Wake up on signals only after the timeout. */
-	coda_waitfor_upcall(req);
+	coda_waitfor_upcall(vcp, req);
 
 	/* Op went through, interrupt or not... */
 	if (req->uc_flags & CODA_REQ_WRITE) {
@@ -759,6 +768,7 @@ static int coda_upcall(struct venus_comm *vcp,
 
 exit:
 	kfree(req);
+	mutex_unlock(&vcp->vc_mutex);
 	return error;
 }
 
@@ -796,21 +806,24 @@ exit:
  *
  * CODA_REPLACE -- replace one CodaFid with another throughout the name cache */
 
-int coda_downcall(int opcode, union outputArgs * out, struct super_block *sb)
+int coda_downcall(struct venus_comm *vcp, int opcode, union outputArgs *out)
 {
 	struct inode *inode = NULL;
-	struct CodaFid *fid, *newfid;
+	struct CodaFid *fid = NULL, *newfid;
+	struct super_block *sb;
 
 	/* Handle invalidation requests. */
-	if ( !sb || !sb->s_root)
-		return 0;
+	mutex_lock(&vcp->vc_mutex);
+	sb = vcp->vc_sb;
+	if (!sb || !sb->s_root)
+		goto unlock_out;
 
 	switch (opcode) {
 	case CODA_FLUSH:
 		coda_cache_clear_all(sb);
 		shrink_dcache_sb(sb);
 		if (sb->s_root->d_inode)
-		    coda_flag_inode(sb->s_root->d_inode, C_FLUSH);
+			coda_flag_inode(sb->s_root->d_inode, C_FLUSH);
 		break;
 
 	case CODA_PURGEUSER:
@@ -819,45 +832,53 @@ int coda_downcall(int opcode, union outputArgs * out, struct super_block *sb)
 
 	case CODA_ZAPDIR:
 		fid = &out->coda_zapdir.CodaFid;
-		inode = coda_fid_to_inode(fid, sb);
-		if (inode) {
-			coda_flag_inode_children(inode, C_PURGE);
-			coda_flag_inode(inode, C_VATTR);
-		}
 		break;
 
 	case CODA_ZAPFILE:
 		fid = &out->coda_zapfile.CodaFid;
-		inode = coda_fid_to_inode(fid, sb);
-		if (inode)
-			coda_flag_inode(inode, C_VATTR);
 		break;
 
 	case CODA_PURGEFID:
 		fid = &out->coda_purgefid.CodaFid;
-		inode = coda_fid_to_inode(fid, sb);
-		if (inode) {
-			coda_flag_inode_children(inode, C_PURGE);
-
-			/* catch the dentries later if some are still busy */
-			coda_flag_inode(inode, C_PURGE);
-			d_prune_aliases(inode);
-
-		}
 		break;
 
 	case CODA_REPLACE:
 		fid = &out->coda_replace.OldFid;
-		newfid = &out->coda_replace.NewFid;
-		inode = coda_fid_to_inode(fid, sb);
-		if (inode)
-			coda_replace_fid(inode, fid, newfid);
 		break;
 	}
+	if (fid)
+		inode = coda_fid_to_inode(fid, sb);
 
-	if (inode)
-		iput(inode);
+unlock_out:
+	mutex_unlock(&vcp->vc_mutex);
 
+	if (!inode)
+		return 0;
+
+	switch (opcode) {
+	case CODA_ZAPDIR:
+		coda_flag_inode_children(inode, C_PURGE);
+		coda_flag_inode(inode, C_VATTR);
+		break;
+
+	case CODA_ZAPFILE:
+		coda_flag_inode(inode, C_VATTR);
+		break;
+
+	case CODA_PURGEFID:
+		coda_flag_inode_children(inode, C_PURGE);
+
+		/* catch the dentries later if some are still busy */
+		coda_flag_inode(inode, C_PURGE);
+		d_prune_aliases(inode);
+		break;
+
+	case CODA_REPLACE:
+		newfid = &out->coda_replace.NewFid;
+		coda_replace_fid(inode, fid, newfid);
+		break;
+	}
+	iput(inode);
 	return 0;
 }
 

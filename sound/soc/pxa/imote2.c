@@ -6,14 +6,13 @@
 
 #include "../codecs/wm8940.h"
 #include "pxa2xx-i2s.h"
-#include "pxa2xx-pcm.h"
 
 static int imote2_asoc_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int clk = 0;
 	int ret;
 
@@ -64,21 +63,17 @@ static struct snd_soc_ops imote2_asoc_ops = {
 static struct snd_soc_dai_link imote2_dai = {
 	.name = "WM8940",
 	.stream_name = "WM8940",
-	.cpu_dai = &pxa_i2s_dai,
-	.codec_dai = &wm8940_dai,
+	.cpu_dai_name = "pxa2xx-i2s",
+	.codec_dai_name = "wm8940-hifi",
+	.platform_name = "pxa-pcm-audio",
+	.codec_name = "wm8940-codec.0-0034",
 	.ops = &imote2_asoc_ops,
 };
 
 static struct snd_soc_card snd_soc_imote2 = {
 	.name = "Imote2",
-	.platform = &pxa2xx_soc_platform,
 	.dai_link = &imote2_dai,
 	.num_links = 1,
-};
-
-static struct snd_soc_device imote2_snd_devdata = {
-	.card = &snd_soc_imote2,
-	.codec_dev = &soc_codec_dev_wm8940,
 };
 
 static struct platform_device *imote2_snd_device;
@@ -93,8 +88,7 @@ static int __init imote2_asoc_init(void)
 	if (!imote2_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(imote2_snd_device, &imote2_snd_devdata);
-	imote2_snd_devdata.dev = &imote2_snd_device->dev;
+	platform_set_drvdata(imote2_snd_device, &snd_soc_imote2);
 	ret = platform_device_add(imote2_snd_device);
 	if (ret)
 		platform_device_put(imote2_snd_device);

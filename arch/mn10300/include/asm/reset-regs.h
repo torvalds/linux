@@ -50,7 +50,7 @@ static inline void mn10300_proc_hard_reset(void)
 	RSTCTR |= RSTCTR_CHIPRST;
 }
 
-extern unsigned int watchdog_alert_counter;
+extern unsigned int watchdog_alert_counter[];
 
 extern void watchdog_go(void);
 extern asmlinkage void watchdog_handler(void);

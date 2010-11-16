@@ -519,6 +519,18 @@ static int serial_tiocmset(struct tty_struct *tty, struct file *file,
 	return -EINVAL;
 }
 
+static int serial_get_icount(struct tty_struct *tty,
+				struct serial_icounter_struct *icount)
+{
+	struct usb_serial_port *port = tty->driver_data;
+
+	dbg("%s - port %d", __func__, port->number);
+
+	if (port->serial->type->get_icount)
+		return port->serial->type->get_icount(tty, icount);
+	return -EINVAL;
+}
+
 /*
  * We would be calling tty_wakeup here, but unfortunately some line
  * disciplines have an annoying habit of calling tty->write from
@@ -1195,6 +1207,7 @@ static const struct tty_operations serial_ops = {
 	.chars_in_buffer =	serial_chars_in_buffer,
 	.tiocmget =		serial_tiocmget,
 	.tiocmset =		serial_tiocmset,
+	.get_icount = 		serial_get_icount,
 	.cleanup = 		serial_cleanup,
 	.install = 		serial_install,
 	.proc_fops =		&serial_proc_fops,

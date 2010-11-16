@@ -9,6 +9,7 @@
 #include <asm/addrspace.h>
 #include <asm/reboot.h>
 #include <asm/system.h>
+#include <asm/tlbflush.h>
 
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
@@ -24,6 +25,9 @@ static void watchdog_trigger_immediate(void)
 static void native_machine_restart(char * __unused)
 {
 	local_irq_disable();
+
+	/* Destroy all of the TLBs in preparation for reset by MMU */
+	__flush_tlb_global();
 
 	/* Address error with SR.BL=1 first. */
 	trigger_address_error();

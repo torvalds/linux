@@ -69,6 +69,7 @@ static ssize_t cm_write(struct file *file, const char __user * user_buf,
 
 static const struct file_operations cm_fops = {
 	.write = cm_write,
+	.llseek = default_llseek,
 };
 
 int __init acpi_debugfs_init(void)
@@ -79,7 +80,7 @@ int __init acpi_debugfs_init(void)
 	if (!acpi_dir)
 		goto err;
 
-	cm_dentry = debugfs_create_file("custom_method", S_IWUGO,
+	cm_dentry = debugfs_create_file("custom_method", S_IWUSR,
 					acpi_dir, NULL, &cm_fops);
 	if (!cm_dentry)
 		goto err;

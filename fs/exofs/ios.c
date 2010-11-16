@@ -55,7 +55,7 @@ int exofs_read_kern(struct osd_dev *od, u8 *cred, struct osd_obj_id *obj,
 
 	ret = osd_finalize_request(or, 0, cred, NULL);
 	if (unlikely(ret)) {
-		EXOFS_DBGMSG("Faild to osd_finalize_request() => %d\n", ret);
+		EXOFS_DBGMSG("Failed to osd_finalize_request() => %d\n", ret);
 		goto out;
 	}
 
@@ -79,7 +79,7 @@ int exofs_get_io_state(struct exofs_layout *layout,
 	 */
 	ios = kzalloc(exofs_io_state_size(layout->s_numdevs), GFP_KERNEL);
 	if (unlikely(!ios)) {
-		EXOFS_DBGMSG("Faild kzalloc bytes=%d\n",
+		EXOFS_DBGMSG("Failed kzalloc bytes=%d\n",
 			     exofs_io_state_size(layout->s_numdevs));
 		*pios = NULL;
 		return -ENOMEM;
@@ -172,7 +172,7 @@ static int exofs_io_execute(struct exofs_io_state *ios)
 
 		ret = osd_finalize_request(or, 0, ios->cred, NULL);
 		if (unlikely(ret)) {
-			EXOFS_DBGMSG("Faild to osd_finalize_request() => %d\n",
+			EXOFS_DBGMSG("Failed to osd_finalize_request() => %d\n",
 				     ret);
 			return ret;
 		}
@@ -361,7 +361,7 @@ static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_pg,
 
 		per_dev->bio = bio_kmalloc(GFP_KERNEL, bio_size);
 		if (unlikely(!per_dev->bio)) {
-			EXOFS_DBGMSG("Faild to allocate BIO size=%u\n",
+			EXOFS_DBGMSG("Failed to allocate BIO size=%u\n",
 				     bio_size);
 			return -ENOMEM;
 		}
@@ -564,7 +564,7 @@ static int _sbi_write_mirror(struct exofs_io_state *ios, int cur_comp)
 						  master_dev->bio->bi_max_vecs);
 				if (unlikely(!bio)) {
 					EXOFS_DBGMSG(
-					      "Faild to allocate BIO size=%u\n",
+					      "Failed to allocate BIO size=%u\n",
 					      master_dev->bio->bi_max_vecs);
 					ret = -ENOMEM;
 					goto out;

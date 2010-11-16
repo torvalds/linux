@@ -1,6 +1,6 @@
 #!/bin/bash
 # description: system-wide r/w activity
-perf trace $@ -s ~/libexec/perf-core/scripts/perl/rw-by-pid.pl
+perf trace $@ -s "$PERF_EXEC_PATH"/scripts/perl/rw-by-pid.pl
 
 
 

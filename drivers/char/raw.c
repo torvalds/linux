@@ -19,8 +19,8 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 #include <linux/gfp.h>
+#include <linux/compat.h>
 
 #include <asm/uaccess.h>
 
@@ -55,7 +55,6 @@ static int raw_open(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
-	lock_kernel();
 	mutex_lock(&raw_mutex);
 
 	/*
@@ -82,7 +81,6 @@ static int raw_open(struct inode *inode, struct file *filp)
 			bdev->bd_inode->i_mapping;
 	filp->private_data = bdev;
 	mutex_unlock(&raw_mutex);
-	unlock_kernel();
 	return 0;
 
 out2:
@@ -91,7 +89,6 @@ out1:
 	blkdev_put(bdev, filp->f_mode);
 out:
 	mutex_unlock(&raw_mutex);
-	unlock_kernel();
 	return err;
 }
 
@@ -125,20 +122,84 @@ static long
 raw_ioctl(struct file *filp, unsigned int command, unsigned long arg)
 {
 	struct block_device *bdev = filp->private_data;
-	int ret;
-
-	lock_kernel();
-	ret = blkdev_ioctl(bdev, 0, command, arg);
-	unlock_kernel();
-
-	return ret;
+	return blkdev_ioctl(bdev, 0, command, arg);
 }
 
-static void bind_device(struct raw_config_request *rq)
+static int bind_set(int number, u64 major, u64 minor)
 {
-	device_destroy(raw_class, MKDEV(RAW_MAJOR, rq->raw_minor));
-	device_create(raw_class, NULL, MKDEV(RAW_MAJOR, rq->raw_minor), NULL,
-		      "raw%d", rq->raw_minor);
+	dev_t dev = MKDEV(major, minor);
+	struct raw_device_data *rawdev;
+	int err = 0;
+
+	if (number <= 0 || number >= MAX_RAW_MINORS)
+		return -EINVAL;
+
+	if (MAJOR(dev) != major || MINOR(dev) != minor)
+		return -EINVAL;
+
+	rawdev = &raw_devices[number];
+
+	/*
+	 * This is like making block devices, so demand the
+	 * same capability
+	 */
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	/*
+	 * For now, we don't need to check that the underlying
+	 * block device is present or not: we can do that when
+	 * the raw device is opened.  Just check that the
+	 * major/minor numbers make sense.
+	 */
+
+	if (MAJOR(dev) == 0 && dev != 0)
+		return -EINVAL;
+
+	mutex_lock(&raw_mutex);
+	if (rawdev->inuse) {
+		mutex_unlock(&raw_mutex);
+		return -EBUSY;
+	}
+	if (rawdev->binding) {
+		bdput(rawdev->binding);
+		module_put(THIS_MODULE);
+	}
+	if (!dev) {
+		/* unbind */
+		rawdev->binding = NULL;
+		device_destroy(raw_class, MKDEV(RAW_MAJOR, number));
+	} else {
+		rawdev->binding = bdget(dev);
+		if (rawdev->binding == NULL) {
+			err = -ENOMEM;
+		} else {
+			dev_t raw = MKDEV(RAW_MAJOR, number);
+			__module_get(THIS_MODULE);
+			device_destroy(raw_class, raw);
+			device_create(raw_class, NULL, raw, NULL,
+				      "raw%d", number);
+		}
+	}
+	mutex_unlock(&raw_mutex);
+	return err;
+}
+
+static int bind_get(int number, dev_t *dev)
+{
+	struct raw_device_data *rawdev;
+	struct block_device *bdev;
+
+	if (number <= 0 || number >= MAX_RAW_MINORS)
+		return -EINVAL;
+
+	rawdev = &raw_devices[number];
+
+	mutex_lock(&raw_mutex);
+	bdev = rawdev->binding;
+	*dev = bdev ? bdev->bd_dev : 0;
+	mutex_unlock(&raw_mutex);
+	return 0;
 }
 
 /*
@@ -149,105 +210,78 @@ static long raw_ctl_ioctl(struct file *filp, unsigned int command,
 			  unsigned long arg)
 {
 	struct raw_config_request rq;
-	struct raw_device_data *rawdev;
-	int err = 0;
+	dev_t dev;
+	int err;
 
-	lock_kernel();
 	switch (command) {
 	case RAW_SETBIND:
+		if (copy_from_user(&rq, (void __user *) arg, sizeof(rq)))
+			return -EFAULT;
+
+		return bind_set(rq.raw_minor, rq.block_major, rq.block_minor);
+
 	case RAW_GETBIND:
+		if (copy_from_user(&rq, (void __user *) arg, sizeof(rq)))
+			return -EFAULT;
 
-		/* First, find out which raw minor we want */
+		err = bind_get(rq.raw_minor, &dev);
+		if (err)
+			return err;
 
-		if (copy_from_user(&rq, (void __user *) arg, sizeof(rq))) {
-			err = -EFAULT;
-			goto out;
-		}
+		rq.block_major = MAJOR(dev);
+		rq.block_minor = MINOR(dev);
 
-		if (rq.raw_minor <= 0 || rq.raw_minor >= MAX_RAW_MINORS) {
-			err = -EINVAL;
-			goto out;
-		}
-		rawdev = &raw_devices[rq.raw_minor];
+		if (copy_to_user((void __user *)arg, &rq, sizeof(rq)))
+			return -EFAULT;
 
-		if (command == RAW_SETBIND) {
-			dev_t dev;
-
-			/*
-			 * This is like making block devices, so demand the
-			 * same capability
-			 */
-			if (!capable(CAP_SYS_ADMIN)) {
-				err = -EPERM;
-				goto out;
-			}
-
-			/*
-			 * For now, we don't need to check that the underlying
-			 * block device is present or not: we can do that when
-			 * the raw device is opened.  Just check that the
-			 * major/minor numbers make sense.
-			 */
-
-			dev = MKDEV(rq.block_major, rq.block_minor);
-			if ((rq.block_major == 0 && rq.block_minor != 0) ||
-					MAJOR(dev) != rq.block_major ||
-					MINOR(dev) != rq.block_minor) {
-				err = -EINVAL;
-				goto out;
-			}
-
-			mutex_lock(&raw_mutex);
-			if (rawdev->inuse) {
-				mutex_unlock(&raw_mutex);
-				err = -EBUSY;
-				goto out;
-			}
-			if (rawdev->binding) {
-				bdput(rawdev->binding);
-				module_put(THIS_MODULE);
-			}
-			if (rq.block_major == 0 && rq.block_minor == 0) {
-				/* unbind */
-				rawdev->binding = NULL;
-				device_destroy(raw_class,
-						MKDEV(RAW_MAJOR, rq.raw_minor));
-			} else {
-				rawdev->binding = bdget(dev);
-				if (rawdev->binding == NULL)
-					err = -ENOMEM;
-				else {
-					__module_get(THIS_MODULE);
-					bind_device(&rq);
-				}
-			}
-			mutex_unlock(&raw_mutex);
-		} else {
-			struct block_device *bdev;
-
-			mutex_lock(&raw_mutex);
-			bdev = rawdev->binding;
-			if (bdev) {
-				rq.block_major = MAJOR(bdev->bd_dev);
-				rq.block_minor = MINOR(bdev->bd_dev);
-			} else {
-				rq.block_major = rq.block_minor = 0;
-			}
-			mutex_unlock(&raw_mutex);
-			if (copy_to_user((void __user *)arg, &rq, sizeof(rq))) {
-				err = -EFAULT;
-				goto out;
-			}
-		}
-		break;
-	default:
-		err = -EINVAL;
-		break;
+		return 0;
 	}
-out:
-	unlock_kernel();
-	return err;
+
+	return -EINVAL;
 }
+
+#ifdef CONFIG_COMPAT
+struct raw32_config_request {
+	compat_int_t	raw_minor;
+	compat_u64	block_major;
+	compat_u64	block_minor;
+};
+
+static long raw_ctl_compat_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
+{
+	struct raw32_config_request __user *user_req = compat_ptr(arg);
+	struct raw32_config_request rq;
+	dev_t dev;
+	int err = 0;
+
+	switch (cmd) {
+	case RAW_SETBIND:
+		if (copy_from_user(&rq, user_req, sizeof(rq)))
+			return -EFAULT;
+
+		return bind_set(rq.raw_minor, rq.block_major, rq.block_minor);
+
+	case RAW_GETBIND:
+		if (copy_from_user(&rq, user_req, sizeof(rq)))
+			return -EFAULT;
+
+		err = bind_get(rq.raw_minor, &dev);
+		if (err)
+			return err;
+
+		rq.block_major = MAJOR(dev);
+		rq.block_minor = MINOR(dev);
+
+		if (copy_to_user(user_req, &rq, sizeof(rq)))
+			return -EFAULT;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+#endif
 
 static const struct file_operations raw_fops = {
 	.read		= do_sync_read,
@@ -258,13 +292,18 @@ static const struct file_operations raw_fops = {
 	.open		= raw_open,
 	.release	= raw_release,
 	.unlocked_ioctl = raw_ioctl,
+	.llseek		= default_llseek,
 	.owner		= THIS_MODULE,
 };
 
 static const struct file_operations raw_ctl_fops = {
 	.unlocked_ioctl = raw_ctl_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= raw_ctl_compat_ioctl,
+#endif
 	.open		= raw_open,
 	.owner		= THIS_MODULE,
+	.llseek		= noop_llseek,
 };
 
 static struct cdev raw_cdev;

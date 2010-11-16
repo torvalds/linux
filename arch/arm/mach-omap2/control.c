@@ -16,15 +16,18 @@
 #include <linux/io.h>
 
 #include <plat/common.h>
-#include <plat/control.h>
 #include <plat/sdrc.h>
+
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
 #include "cm.h"
 #include "prm.h"
 #include "sdrc.h"
+#include "pm.h"
+#include "control.h"
 
 static void __iomem *omap2_ctrl_base;
+static void __iomem *omap4_ctrl_pad_base;
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 struct omap3_scratchpad {
@@ -137,6 +140,7 @@ static struct omap3_control_regs control_context;
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */
 
 #define OMAP_CTRL_REGADDR(reg)		(omap2_ctrl_base + (reg))
+#define OMAP4_CTRL_PAD_REGADDR(reg)	(omap4_ctrl_pad_base + (reg))
 
 void __init omap2_set_globals_control(struct omap_globals *omap2_globals)
 {
@@ -144,6 +148,12 @@ void __init omap2_set_globals_control(struct omap_globals *omap2_globals)
 	if (omap2_globals->ctrl) {
 		omap2_ctrl_base = ioremap(omap2_globals->ctrl, SZ_4K);
 		WARN_ON(!omap2_ctrl_base);
+	}
+
+	/* Static mapping, never released */
+	if (omap2_globals->ctrl_pad) {
+		omap4_ctrl_pad_base = ioremap(omap2_globals->ctrl_pad, SZ_4K);
+		WARN_ON(!omap4_ctrl_pad_base);
 	}
 }
 
@@ -182,6 +192,23 @@ void omap_ctrl_writel(u32 val, u16 offset)
 	__raw_writel(val, OMAP_CTRL_REGADDR(offset));
 }
 
+/*
+ * On OMAP4 control pad are not addressable from control
+ * core base. So the common omap_ctrl_read/write APIs breaks
+ * Hence export separate APIs to manage the omap4 pad control
+ * registers. This APIs will work only for OMAP4
+ */
+
+u32 omap4_ctrl_pad_readl(u16 offset)
+{
+	return __raw_readl(OMAP4_CTRL_PAD_REGADDR(offset));
+}
+
+void omap4_ctrl_pad_writel(u32 val, u16 offset)
+{
+	__raw_writel(val, OMAP4_CTRL_PAD_REGADDR(offset));
+}
+
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 /*
  * Clears the scratchpad contents in case of cold boot-
@@ -190,7 +217,7 @@ void omap_ctrl_writel(u32 val, u16 offset)
 void omap3_clear_scratchpad_contents(void)
 {
 	u32 max_offset = OMAP343X_SCRATCHPAD_ROM_OFFSET;
-	u32 *v_addr;
+	void __iomem *v_addr;
 	u32 offset = 0;
 	v_addr = OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD_ROM);
 	if (prm_read_mod_reg(OMAP3430_GR_MOD, OMAP3_PRM_RSTST_OFFSET) &
@@ -206,7 +233,7 @@ void omap3_clear_scratchpad_contents(void)
 /* Populate the scratchpad structure with restore structure */
 void omap3_save_scratchpad_contents(void)
 {
-	void * __iomem scratchpad_address;
+	void  __iomem *scratchpad_address;
 	u32 arm_context_addr;
 	struct omap3_scratchpad scratchpad_contents;
 	struct omap3_scratchpad_prcm_block prcm_block_contents;

@@ -1696,6 +1696,9 @@ static void o2net_hb_node_down_cb(struct o2nm_node *node, int node_num,
 {
 	o2quo_hb_down(node_num);
 
+	if (!node)
+		return;
+
 	if (node_num != o2nm_this_node())
 		o2net_disconnect_node(node);
 
@@ -1708,6 +1711,8 @@ static void o2net_hb_node_up_cb(struct o2nm_node *node, int node_num,
 	struct o2net_node *nn = o2net_nn_from_num(node_num);
 
 	o2quo_hb_up(node_num);
+
+	BUG_ON(!node);
 
 	/* ensure an immediate connect attempt */
 	nn->nn_last_connect_attempt = jiffies -

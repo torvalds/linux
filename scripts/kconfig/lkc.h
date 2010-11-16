@@ -31,12 +31,18 @@ extern "C" {
 
 #define SRCTREE "srctree"
 
+#ifndef PACKAGE
 #define PACKAGE "linux"
+#endif
+
 #define LOCALEDIR "/usr/share/locale"
 
 #define _(text) gettext(text)
 #define N_(text) (text)
 
+#ifndef CONFIG_
+#define CONFIG_ "CONFIG_"
+#endif
 
 #define TF_COMMAND	0x0001
 #define TF_PARAM	0x0002
@@ -70,7 +76,7 @@ FILE *zconf_fopen(const char *name);
 void zconf_initscan(const char *name);
 void zconf_nextfile(const char *name);
 int zconf_lineno(void);
-char *zconf_curname(void);
+const char *zconf_curname(void);
 
 /* conf.c */
 void xfgets(char *str, int size, FILE *in);

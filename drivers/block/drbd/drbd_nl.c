@@ -33,10 +33,13 @@
 #include <linux/blkpg.h>
 #include <linux/cpumask.h>
 #include "drbd_int.h"
+#include "drbd_req.h"
 #include "drbd_wrappers.h"
 #include <asm/unaligned.h>
 #include <linux/drbd_tag_magic.h>
 #include <linux/drbd_limits.h>
+#include <linux/compiler.h>
+#include <linux/kthread.h>
 
 static unsigned short *tl_add_blob(unsigned short *, enum drbd_tags, const void *, int);
 static unsigned short *tl_add_str(unsigned short *, enum drbd_tags, const char *);
@@ -169,6 +172,10 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 		put_net_conf(mdev);
 	}
 
+	/* The helper may take some time.
+	 * write out any unsynced meta data changes now */
+	drbd_md_sync(mdev);
+
 	dev_info(DEV, "helper command: %s %s %s\n", usermode_helper, cmd, mb);
 
 	drbd_bcast_ev_helper(mdev, cmd);
@@ -202,11 +209,9 @@ enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev)
 		put_ldev(mdev);
 	} else {
 		dev_warn(DEV, "Not fencing peer, I'm not even Consistent myself.\n");
-		return mdev->state.pdsk;
+		nps = mdev->state.pdsk;
+		goto out;
 	}
-
-	if (fp == FP_STONITH)
-		_drbd_request_state(mdev, NS(susp, 1), CS_WAIT_COMPLETE);
 
 	r = drbd_khelper(mdev, "fence-peer");
 
@@ -252,9 +257,36 @@ enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev)
 
 	dev_info(DEV, "fence-peer helper returned %d (%s)\n",
 			(r>>8) & 0xff, ex_to_string);
+
+out:
+	if (mdev->state.susp_fen && nps >= D_UNKNOWN) {
+		/* The handler was not successful... unfreeze here, the
+		   state engine can not unfreeze... */
+		_drbd_request_state(mdev, NS(susp_fen, 0), CS_VERBOSE);
+	}
+
 	return nps;
 }
 
+static int _try_outdate_peer_async(void *data)
+{
+	struct drbd_conf *mdev = (struct drbd_conf *)data;
+	enum drbd_disk_state nps;
+
+	nps = drbd_try_outdate_peer(mdev);
+	drbd_request_state(mdev, NS(pdsk, nps));
+
+	return 0;
+}
+
+void drbd_try_outdate_peer_async(struct drbd_conf *mdev)
+{
+	struct task_struct *opa;
+
+	opa = kthread_run(_try_outdate_peer_async, mdev, "drbd%d_a_helper", mdev_to_minor(mdev));
+	if (IS_ERR(opa))
+		dev_err(DEV, "out of mem, failed to invoke fence-peer helper\n");
+}
 
 int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 {
@@ -394,6 +426,39 @@ int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 	return r;
 }
 
+static struct drbd_conf *ensure_mdev(int minor, int create)
+{
+	struct drbd_conf *mdev;
+
+	if (minor >= minor_count)
+		return NULL;
+
+	mdev = minor_to_mdev(minor);
+
+	if (!mdev && create) {
+		struct gendisk *disk = NULL;
+		mdev = drbd_new_device(minor);
+
+		spin_lock_irq(&drbd_pp_lock);
+		if (minor_table[minor] == NULL) {
+			minor_table[minor] = mdev;
+			disk = mdev->vdisk;
+			mdev = NULL;
+		} /* else: we lost the race */
+		spin_unlock_irq(&drbd_pp_lock);
+
+		if (disk) /* we won the race above */
+			/* in case we ever add a drbd_delete_device(),
+			 * don't forget the del_gendisk! */
+			add_disk(disk);
+		else /* we lost the race above */
+			drbd_free_mdev(mdev);
+
+		mdev = minor_to_mdev(minor);
+	}
+
+	return mdev;
+}
 
 static int drbd_nl_primary(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			   struct drbd_nl_cfg_reply *reply)
@@ -494,6 +559,8 @@ char *ppsize(char *buf, unsigned long long size)
 void drbd_suspend_io(struct drbd_conf *mdev)
 {
 	set_bit(SUSPEND_IO, &mdev->flags);
+	if (is_susp(mdev->state))
+		return;
 	wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_bio_cnt));
 }
 
@@ -713,9 +780,6 @@ void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_seg_s) __mu
 	blk_queue_segment_boundary(q, PAGE_SIZE-1);
 	blk_stack_limits(&q->limits, &b->limits, 0);
 
-	if (b->merge_bvec_fn)
-		dev_warn(DEV, "Backing device's merge_bvec_fn() = %p\n",
-		     b->merge_bvec_fn);
 	dev_info(DEV, "max_segment_size ( = BIO size ) = %u\n", queue_max_segment_size(q));
 
 	if (q->backing_dev_info.ra_pages != b->backing_dev_info.ra_pages) {
@@ -729,14 +793,16 @@ void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_seg_s) __mu
 /* serialize deconfig (worker exiting, doing cleanup)
  * and reconfig (drbdsetup disk, drbdsetup net)
  *
- * wait for a potentially exiting worker, then restart it,
- * or start a new one.
+ * Wait for a potentially exiting worker, then restart it,
+ * or start a new one.  Flush any pending work, there may still be an
+ * after_state_change queued.
  */
 static void drbd_reconfig_start(struct drbd_conf *mdev)
 {
 	wait_event(mdev->state_wait, !test_and_set_bit(CONFIG_PENDING, &mdev->flags));
 	wait_event(mdev->state_wait, !test_bit(DEVICE_DYING, &mdev->flags));
 	drbd_thread_start(&mdev->worker);
+	drbd_flush_workqueue(mdev);
 }
 
 /* if still unconfigured, stops worker again.
@@ -756,6 +822,29 @@ static void drbd_reconfig_done(struct drbd_conf *mdev)
 	wake_up(&mdev->state_wait);
 }
 
+/* Make sure IO is suspended before calling this function(). */
+static void drbd_suspend_al(struct drbd_conf *mdev)
+{
+	int s = 0;
+
+	if (lc_try_lock(mdev->act_log)) {
+		drbd_al_shrink(mdev);
+		lc_unlock(mdev->act_log);
+	} else {
+		dev_warn(DEV, "Failed to lock al in drbd_suspend_al()\n");
+		return;
+	}
+
+	spin_lock_irq(&mdev->req_lock);
+	if (mdev->state.conn < C_CONNECTED)
+		s = !test_and_set_bit(AL_SUSPENDED, &mdev->flags);
+
+	spin_unlock_irq(&mdev->req_lock);
+
+	if (s)
+		dev_info(DEV, "Suspended AL updates\n");
+}
+
 /* does always return 0;
  * interesting return code is in reply->ret_code */
 static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
@@ -769,6 +858,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	struct inode *inode, *inode2;
 	struct lru_cache *resync_lru = NULL;
 	union drbd_state ns, os;
+	unsigned int max_seg_s;
 	int rv;
 	int cp_discovered = 0;
 	int logical_block_size;
@@ -780,6 +870,11 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		retcode = ERR_DISK_CONFIGURED;
 		goto fail;
 	}
+	/* It may just now have detached because of IO error.  Make sure
+	 * drbd_ldev_destroy is done already, we may end up here very fast,
+	 * e.g. if someone calls attach from the on-io-error handler,
+	 * to realize a "hot spare" feature (not that I'd recommend that) */
+	wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
 
 	/* allocation not in the IO path, cqueue thread context */
 	nbc = kzalloc(sizeof(struct drbd_backing_dev), GFP_KERNEL);
@@ -801,6 +896,15 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	if (nbc->dc.meta_dev_idx < DRBD_MD_INDEX_FLEX_INT) {
 		retcode = ERR_MD_IDX_INVALID;
 		goto fail;
+	}
+
+	if (get_net_conf(mdev)) {
+		int prot = mdev->net_conf->wire_protocol;
+		put_net_conf(mdev);
+		if (nbc->dc.fencing == FP_STONITH && prot == DRBD_PROT_A) {
+			retcode = ERR_STONITH_AND_PROT_A;
+			goto fail;
+		}
 	}
 
 	nbc->lo_file = filp_open(nbc->dc.backing_dev, O_RDWR, 0);
@@ -924,7 +1028,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 
 	drbd_suspend_io(mdev);
 	/* also wait for the last barrier ack. */
-	wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_pending_cnt));
+	wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_pending_cnt) || is_susp(mdev->state));
 	/* and for any other previously queued work */
 	drbd_flush_workqueue(mdev);
 
@@ -999,9 +1103,9 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	/* Reset the "barriers don't work" bits here, then force meta data to
 	 * be written, to ensure we determine if barriers are supported. */
 	if (nbc->dc.no_md_flush)
-		set_bit(MD_NO_BARRIER, &mdev->flags);
+		set_bit(MD_NO_FUA, &mdev->flags);
 	else
-		clear_bit(MD_NO_BARRIER, &mdev->flags);
+		clear_bit(MD_NO_FUA, &mdev->flags);
 
 	/* Point of no return reached.
 	 * Devices and memory are no longer released by error cleanup below.
@@ -1013,15 +1117,16 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	nbc = NULL;
 	resync_lru = NULL;
 
-	mdev->write_ordering = WO_bio_barrier;
-	drbd_bump_write_ordering(mdev, WO_bio_barrier);
+	mdev->write_ordering = WO_bdev_flush;
+	drbd_bump_write_ordering(mdev, WO_bdev_flush);
 
 	if (drbd_md_test_flag(mdev->ldev, MDF_CRASHED_PRIMARY))
 		set_bit(CRASHED_PRIMARY, &mdev->flags);
 	else
 		clear_bit(CRASHED_PRIMARY, &mdev->flags);
 
-	if (drbd_md_test_flag(mdev->ldev, MDF_PRIMARY_IND)) {
+	if (drbd_md_test_flag(mdev->ldev, MDF_PRIMARY_IND) &&
+	    !(mdev->state.role == R_PRIMARY && mdev->state.susp_nod)) {
 		set_bit(CRASHED_PRIMARY, &mdev->flags);
 		cp_discovered = 1;
 	}
@@ -1031,7 +1136,20 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	mdev->read_cnt = 0;
 	mdev->writ_cnt = 0;
 
-	drbd_setup_queue_param(mdev, DRBD_MAX_SEGMENT_SIZE);
+	max_seg_s = DRBD_MAX_SEGMENT_SIZE;
+	if (mdev->state.conn == C_CONNECTED) {
+		/* We are Primary, Connected, and now attach a new local
+		 * backing store. We must not increase the user visible maximum
+		 * bio size on this device to something the peer may not be
+		 * able to handle. */
+		if (mdev->agreed_pro_version < 94)
+			max_seg_s = queue_max_segment_size(mdev->rq_queue);
+		else if (mdev->agreed_pro_version == 94)
+			max_seg_s = DRBD_MAX_SIZE_H80_PACKET;
+		/* else: drbd 8.3.9 and later, stay with default */
+	}
+
+	drbd_setup_queue_param(mdev, max_seg_s);
 
 	/* If I am currently not R_PRIMARY,
 	 * but meta data primary indicator is set,
@@ -1078,6 +1196,9 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		drbd_al_apply_to_bm(mdev);
 		drbd_al_to_on_disk_bm(mdev);
 	}
+
+	if (_drbd_bm_total_weight(mdev) == drbd_bm_bits(mdev))
+		drbd_suspend_al(mdev); /* IO is still suspended here... */
 
 	spin_lock_irq(&mdev->req_lock);
 	os = mdev->state;
@@ -1146,7 +1267,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
  force_diskless_dec:
 	put_ldev(mdev);
  force_diskless:
-	drbd_force_state(mdev, NS(disk, D_DISKLESS));
+	drbd_force_state(mdev, NS(disk, D_FAILED));
 	drbd_md_sync(mdev);
  release_bdev2_fail:
 	if (nbc)
@@ -1169,10 +1290,19 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	return 0;
 }
 
+/* Detaching the disk is a process in multiple stages.  First we need to lock
+ * out application IO, in-flight IO, IO stuck in drbd_al_begin_io.
+ * Then we transition to D_DISKLESS, and wait for put_ldev() to return all
+ * internal references as well.
+ * Only then we have finally detached. */
 static int drbd_nl_detach(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			  struct drbd_nl_cfg_reply *reply)
 {
+	drbd_suspend_io(mdev); /* so no-one is stuck in drbd_al_begin_io */
 	reply->ret_code = drbd_request_state(mdev, NS(disk, D_DISKLESS));
+	if (mdev->state.disk == D_DISKLESS)
+		wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
+	drbd_resume_io(mdev);
 	return 0;
 }
 
@@ -1235,7 +1365,16 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	    && (new_conf->wire_protocol != DRBD_PROT_C)) {
 		retcode = ERR_NOT_PROTO_C;
 		goto fail;
-	};
+	}
+
+	if (get_ldev(mdev)) {
+		enum drbd_fencing_p fp = mdev->ldev->dc.fencing;
+		put_ldev(mdev);
+		if (new_conf->wire_protocol == DRBD_PROT_A && fp == FP_STONITH) {
+			retcode = ERR_STONITH_AND_PROT_A;
+			goto fail;
+		}
+	}
 
 	if (mdev->state.role == R_PRIMARY && new_conf->want_lose) {
 		retcode = ERR_DISCARD;
@@ -1350,6 +1489,7 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 		}
 	}
 
+	drbd_flush_workqueue(mdev);
 	spin_lock_irq(&mdev->req_lock);
 	if (mdev->net_conf != NULL) {
 		retcode = ERR_NET_CONFIGURED;
@@ -1388,9 +1528,8 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	mdev->int_dig_out=int_dig_out;
 	mdev->int_dig_in=int_dig_in;
 	mdev->int_dig_vv=int_dig_vv;
+	retcode = _drbd_set_state(_NS(mdev, conn, C_UNCONNECTED), CS_VERBOSE, NULL);
 	spin_unlock_irq(&mdev->req_lock);
-
-	retcode = _drbd_request_state(mdev, NS(conn, C_UNCONNECTED), CS_VERBOSE);
 
 	kobject_uevent(&disk_to_dev(mdev->vdisk)->kobj, KOBJ_CHANGE);
 	reply->ret_code = retcode;
@@ -1546,6 +1685,8 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 	struct crypto_hash *csums_tfm = NULL;
 	struct syncer_conf sc;
 	cpumask_var_t new_cpu_mask;
+	int *rs_plan_s = NULL;
+	int fifo_size;
 
 	if (!zalloc_cpumask_var(&new_cpu_mask, GFP_KERNEL)) {
 		retcode = ERR_NOMEM;
@@ -1557,6 +1698,12 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 		sc.rate       = DRBD_RATE_DEF;
 		sc.after      = DRBD_AFTER_DEF;
 		sc.al_extents = DRBD_AL_EXTENTS_DEF;
+		sc.on_no_data  = DRBD_ON_NO_DATA_DEF;
+		sc.c_plan_ahead = DRBD_C_PLAN_AHEAD_DEF;
+		sc.c_delay_target = DRBD_C_DELAY_TARGET_DEF;
+		sc.c_fill_target = DRBD_C_FILL_TARGET_DEF;
+		sc.c_max_rate = DRBD_C_MAX_RATE_DEF;
+		sc.c_min_rate = DRBD_C_MIN_RATE_DEF;
 	} else
 		memcpy(&sc, &mdev->sync_conf, sizeof(struct syncer_conf));
 
@@ -1634,12 +1781,28 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 	}
 #undef AL_MAX
 
+	/* to avoid spurious errors when configuring minors before configuring
+	 * the minors they depend on: if necessary, first create the minor we
+	 * depend on */
+	if (sc.after >= 0)
+		ensure_mdev(sc.after, 1);
+
 	/* most sanity checks done, try to assign the new sync-after
 	 * dependency.  need to hold the global lock in there,
 	 * to avoid a race in the dependency loop check. */
 	retcode = drbd_alter_sa(mdev, sc.after);
 	if (retcode != NO_ERROR)
 		goto fail;
+
+	fifo_size = (sc.c_plan_ahead * 10 * SLEEP_TIME) / HZ;
+	if (fifo_size != mdev->rs_plan_s.size && fifo_size > 0) {
+		rs_plan_s   = kzalloc(sizeof(int) * fifo_size, GFP_KERNEL);
+		if (!rs_plan_s) {
+			dev_err(DEV, "kmalloc of fifo_buffer failed");
+			retcode = ERR_NOMEM;
+			goto fail;
+		}
+	}
 
 	/* ok, assign the rest of it as well.
 	 * lock against receive_SyncParam() */
@@ -1657,6 +1820,15 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 		mdev->verify_tfm = verify_tfm;
 		verify_tfm = NULL;
 	}
+
+	if (fifo_size != mdev->rs_plan_s.size) {
+		kfree(mdev->rs_plan_s.values);
+		mdev->rs_plan_s.values = rs_plan_s;
+		mdev->rs_plan_s.size   = fifo_size;
+		mdev->rs_planed = 0;
+		rs_plan_s = NULL;
+	}
+
 	spin_unlock(&mdev->peer_seq_lock);
 
 	if (get_ldev(mdev)) {
@@ -1688,6 +1860,7 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 
 	kobject_uevent(&disk_to_dev(mdev->vdisk)->kobj, KOBJ_CHANGE);
 fail:
+	kfree(rs_plan_s);
 	free_cpumask_var(new_cpu_mask);
 	crypto_free_hash(csums_tfm);
 	crypto_free_hash(verify_tfm);
@@ -1721,12 +1894,38 @@ static int drbd_nl_invalidate(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 	return 0;
 }
 
+static int drbd_bmio_set_susp_al(struct drbd_conf *mdev)
+{
+	int rv;
+
+	rv = drbd_bmio_set_n_write(mdev);
+	drbd_suspend_al(mdev);
+	return rv;
+}
+
 static int drbd_nl_invalidate_peer(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 				   struct drbd_nl_cfg_reply *reply)
 {
+	int retcode;
 
-	reply->ret_code = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S));
+	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S), CS_ORDERED);
 
+	if (retcode < SS_SUCCESS) {
+		if (retcode == SS_NEED_CONNECTION && mdev->state.role == R_PRIMARY) {
+			/* The peer will get a resync upon connect anyways. Just make that
+			   into a full resync. */
+			retcode = drbd_request_state(mdev, NS(pdsk, D_INCONSISTENT));
+			if (retcode >= SS_SUCCESS) {
+				/* open coded drbd_bitmap_io() */
+				if (drbd_bitmap_io(mdev, &drbd_bmio_set_susp_al,
+						   "set_n_write from invalidate_peer"))
+					retcode = ERR_IO_MD_DISK;
+			}
+		} else
+			retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S));
+	}
+
+	reply->ret_code = retcode;
 	return 0;
 }
 
@@ -1765,7 +1964,20 @@ static int drbd_nl_suspend_io(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 static int drbd_nl_resume_io(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			     struct drbd_nl_cfg_reply *reply)
 {
-	reply->ret_code = drbd_request_state(mdev, NS(susp, 0));
+	if (test_bit(NEW_CUR_UUID, &mdev->flags)) {
+		drbd_uuid_new_current(mdev);
+		clear_bit(NEW_CUR_UUID, &mdev->flags);
+	}
+	drbd_suspend_io(mdev);
+	reply->ret_code = drbd_request_state(mdev, NS3(susp, 0, susp_nod, 0, susp_fen, 0));
+	if (reply->ret_code == SS_SUCCESS) {
+		if (mdev->state.conn < C_CONNECTED)
+			tl_clear(mdev);
+		if (mdev->state.disk == D_DISKLESS || mdev->state.disk == D_FAILED)
+			tl_restart(mdev, fail_frozen_disk_io);
+	}
+	drbd_resume_io(mdev);
+
 	return 0;
 }
 
@@ -1941,40 +2153,6 @@ out:
 	return 0;
 }
 
-static struct drbd_conf *ensure_mdev(struct drbd_nl_cfg_req *nlp)
-{
-	struct drbd_conf *mdev;
-
-	if (nlp->drbd_minor >= minor_count)
-		return NULL;
-
-	mdev = minor_to_mdev(nlp->drbd_minor);
-
-	if (!mdev && (nlp->flags & DRBD_NL_CREATE_DEVICE)) {
-		struct gendisk *disk = NULL;
-		mdev = drbd_new_device(nlp->drbd_minor);
-
-		spin_lock_irq(&drbd_pp_lock);
-		if (minor_table[nlp->drbd_minor] == NULL) {
-			minor_table[nlp->drbd_minor] = mdev;
-			disk = mdev->vdisk;
-			mdev = NULL;
-		} /* else: we lost the race */
-		spin_unlock_irq(&drbd_pp_lock);
-
-		if (disk) /* we won the race above */
-			/* in case we ever add a drbd_delete_device(),
-			 * don't forget the del_gendisk! */
-			add_disk(disk);
-		else /* we lost the race above */
-			drbd_free_mdev(mdev);
-
-		mdev = minor_to_mdev(nlp->drbd_minor);
-	}
-
-	return mdev;
-}
-
 struct cn_handler_struct {
 	int (*function)(struct drbd_conf *,
 			 struct drbd_nl_cfg_req *,
@@ -2035,7 +2213,8 @@ static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms
 		goto fail;
 	}
 
-	mdev = ensure_mdev(nlp);
+	mdev = ensure_mdev(nlp->drbd_minor,
+			(nlp->flags & DRBD_NL_CREATE_DEVICE));
 	if (!mdev) {
 		retcode = ERR_MINOR_INVALID;
 		goto fail;

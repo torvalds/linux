@@ -16,6 +16,11 @@
 
 #include <irq.h>
 
+static inline void irq_dispose_mapping(unsigned int virq)
+{
+	return;
+}
+
 #ifdef CONFIG_I8259
 static inline int irq_canonicalize(int irq)
 {

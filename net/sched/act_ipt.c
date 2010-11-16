@@ -39,7 +39,7 @@ static struct tcf_hashinfo ipt_hash_info = {
 	.lock	=	&ipt_lock,
 };
 
-static int ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int hook)
+static int ipt_init_target(struct xt_entry_target *t, char *table, unsigned int hook)
 {
 	struct xt_tgchk_param par;
 	struct xt_target *target;
@@ -66,7 +66,7 @@ static int ipt_init_target(struct ipt_entry_target *t, char *table, unsigned int
 	return 0;
 }
 
-static void ipt_destroy_target(struct ipt_entry_target *t)
+static void ipt_destroy_target(struct xt_entry_target *t)
 {
 	struct xt_tgdtor_param par = {
 		.target   = t->u.kernel.target,
@@ -99,7 +99,7 @@ static const struct nla_policy ipt_policy[TCA_IPT_MAX + 1] = {
 	[TCA_IPT_TABLE]	= { .type = NLA_STRING, .len = IFNAMSIZ },
 	[TCA_IPT_HOOK]	= { .type = NLA_U32 },
 	[TCA_IPT_INDEX]	= { .type = NLA_U32 },
-	[TCA_IPT_TARG]	= { .len = sizeof(struct ipt_entry_target) },
+	[TCA_IPT_TARG]	= { .len = sizeof(struct xt_entry_target) },
 };
 
 static int tcf_ipt_init(struct nlattr *nla, struct nlattr *est,
@@ -108,7 +108,7 @@ static int tcf_ipt_init(struct nlattr *nla, struct nlattr *est,
 	struct nlattr *tb[TCA_IPT_MAX + 1];
 	struct tcf_ipt *ipt;
 	struct tcf_common *pc;
-	struct ipt_entry_target *td, *t;
+	struct xt_entry_target *td, *t;
 	char *tname;
 	int ret = 0, err;
 	u32 hook = 0;
@@ -126,7 +126,7 @@ static int tcf_ipt_init(struct nlattr *nla, struct nlattr *est,
 	if (tb[TCA_IPT_TARG] == NULL)
 		return -EINVAL;
 
-	td = (struct ipt_entry_target *)nla_data(tb[TCA_IPT_TARG]);
+	td = (struct xt_entry_target *)nla_data(tb[TCA_IPT_TARG]);
 	if (nla_len(tb[TCA_IPT_TARG]) < td->u.target_size)
 		return -EINVAL;
 
@@ -230,7 +230,7 @@ static int tcf_ipt(struct sk_buff *skb, struct tc_action *a,
 		result = TC_ACT_SHOT;
 		ipt->tcf_qstats.drops++;
 		break;
-	case IPT_CONTINUE:
+	case XT_CONTINUE:
 		result = TC_ACT_PIPE;
 		break;
 	default:
@@ -249,7 +249,7 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind, int 
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_ipt *ipt = a->priv;
-	struct ipt_entry_target *t;
+	struct xt_entry_target *t;
 	struct tcf_t tm;
 	struct tc_cnt c;
 

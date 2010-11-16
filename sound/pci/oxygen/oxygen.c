@@ -79,6 +79,7 @@ static DEFINE_PCI_DEVICE_TABLE(oxygen_ids) = {
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x0001), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x0010), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x13f6, 0x8788), .driver_data = MODEL_CMEDIA_REF },
+	{ OXYGEN_PCI_SUBID(0x13f6, 0xffff), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x147a, 0xa017), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x1a58, 0x0910), .driver_data = MODEL_CMEDIA_REF },
 	{ OXYGEN_PCI_SUBID(0x415a, 0x5431), .driver_data = MODEL_MERIDIAN },
@@ -505,7 +506,8 @@ static const struct oxygen_model model_generic = {
 			 PLAYBACK_2_TO_AC97_1 |
 			 CAPTURE_0_FROM_I2S_1 |
 			 CAPTURE_1_FROM_SPDIF |
-			 CAPTURE_2_FROM_AC97_1,
+			 CAPTURE_2_FROM_AC97_1 |
+			 AC97_CD_INPUT,
 	.dac_channels = 8,
 	.dac_volume_min = 0,
 	.dac_volume_max = 255,

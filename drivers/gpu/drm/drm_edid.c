@@ -30,7 +30,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
 #include "drmP.h"
 #include "drm_edid.h"
 #include "drm_edid_modes.h"
@@ -241,7 +240,7 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 			.addr	= DDC_ADDR,
 			.flags	= I2C_M_RD,
 			.len	= len,
-			.buf	= buf + start,
+			.buf	= buf,
 		}
 	};
 
@@ -254,7 +253,7 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 static u8 *
 drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 {
-	int i, j = 0;
+	int i, j = 0, valid_extensions = 0;
 	u8 *block, *new;
 
 	if ((block = kmalloc(EDID_LENGTH, GFP_KERNEL)) == NULL)
@@ -281,14 +280,28 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 
 	for (j = 1; j <= block[0x7e]; j++) {
 		for (i = 0; i < 4; i++) {
-			if (drm_do_probe_ddc_edid(adapter, block, j,
-						  EDID_LENGTH))
+			if (drm_do_probe_ddc_edid(adapter,
+				  block + (valid_extensions + 1) * EDID_LENGTH,
+				  j, EDID_LENGTH))
 				goto out;
-			if (drm_edid_block_valid(block + j * EDID_LENGTH))
+			if (drm_edid_block_valid(block + (valid_extensions + 1) * EDID_LENGTH)) {
+				valid_extensions++;
 				break;
+			}
 		}
 		if (i == 4)
-			goto carp;
+			dev_warn(connector->dev->dev,
+			 "%s: Ignoring invalid EDID block %d.\n",
+			 drm_get_connector_name(connector), j);
+	}
+
+	if (valid_extensions != block[0x7e]) {
+		block[EDID_LENGTH-1] += block[0x7e] - valid_extensions;
+		block[0x7e] = valid_extensions;
+		new = krealloc(block, (valid_extensions + 1) * EDID_LENGTH, GFP_KERNEL);
+		if (!new)
+			goto out;
+		block = new;
 	}
 
 	return block;
@@ -1268,7 +1281,35 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 }
 
 #define HDMI_IDENTIFIER 0x000C03
+#define AUDIO_BLOCK	0x01
 #define VENDOR_BLOCK    0x03
+#define EDID_BASIC_AUDIO	(1 << 6)
+
+/**
+ * Search EDID for CEA extension block.
+ */
+static u8 *drm_find_cea_extension(struct edid *edid)
+{
+	u8 *edid_ext = NULL;
+	int i;
+
+	/* No EDID or EDID extensions */
+	if (edid == NULL || edid->extensions == 0)
+		return NULL;
+
+	/* Find CEA extension */
+	for (i = 0; i < edid->extensions; i++) {
+		edid_ext = (u8 *)edid + EDID_LENGTH * (i + 1);
+		if (edid_ext[0] == CEA_EXT)
+			break;
+	}
+
+	if (i == edid->extensions)
+		return NULL;
+
+	return edid_ext;
+}
+
 /**
  * drm_detect_hdmi_monitor - detect whether monitor is hdmi.
  * @edid: monitor EDID information
@@ -1278,24 +1319,13 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
  */
 bool drm_detect_hdmi_monitor(struct edid *edid)
 {
-	char *edid_ext = NULL;
+	u8 *edid_ext;
 	int i, hdmi_id;
 	int start_offset, end_offset;
 	bool is_hdmi = false;
 
-	/* No EDID or EDID extensions */
-	if (edid == NULL || edid->extensions == 0)
-		goto end;
-
-	/* Find CEA extension */
-	for (i = 0; i < edid->extensions; i++) {
-		edid_ext = (char *)edid + EDID_LENGTH * (i + 1);
-		/* This block is CEA extension */
-		if (edid_ext[0] == 0x02)
-			break;
-	}
-
-	if (i == edid->extensions)
+	edid_ext = drm_find_cea_extension(edid);
+	if (!edid_ext)
 		goto end;
 
 	/* Data block offset in CEA extension block */
@@ -1324,6 +1354,53 @@ end:
 	return is_hdmi;
 }
 EXPORT_SYMBOL(drm_detect_hdmi_monitor);
+
+/**
+ * drm_detect_monitor_audio - check monitor audio capability
+ *
+ * Monitor should have CEA extension block.
+ * If monitor has 'basic audio', but no CEA audio blocks, it's 'basic
+ * audio' only. If there is any audio extension block and supported
+ * audio format, assume at least 'basic audio' support, even if 'basic
+ * audio' is not defined in EDID.
+ *
+ */
+bool drm_detect_monitor_audio(struct edid *edid)
+{
+	u8 *edid_ext;
+	int i, j;
+	bool has_audio = false;
+	int start_offset, end_offset;
+
+	edid_ext = drm_find_cea_extension(edid);
+	if (!edid_ext)
+		goto end;
+
+	has_audio = ((edid_ext[3] & EDID_BASIC_AUDIO) != 0);
+
+	if (has_audio) {
+		DRM_DEBUG_KMS("Monitor has basic audio support\n");
+		goto end;
+	}
+
+	/* Data block offset in CEA extension block */
+	start_offset = 4;
+	end_offset = edid_ext[2];
+
+	for (i = start_offset; i < end_offset;
+			i += ((edid_ext[i] & 0x1f) + 1)) {
+		if ((edid_ext[i] >> 5) == AUDIO_BLOCK) {
+			has_audio = true;
+			for (j = 1; j < (edid_ext[i] & 0x1f); j += 3)
+				DRM_DEBUG_KMS("CEA audio format %d\n",
+					      (edid_ext[i + j] >> 3) & 0xf);
+			goto end;
+		}
+	}
+end:
+	return has_audio;
+}
+EXPORT_SYMBOL(drm_detect_monitor_audio);
 
 /**
  * drm_add_edid_modes - add modes from EDID data, if available

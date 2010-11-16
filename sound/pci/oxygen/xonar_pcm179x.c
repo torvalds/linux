@@ -132,6 +132,18 @@
  * GPIO 5 <- 0
  */
 
+/*
+ * Xonar HDAV1.3 Slim
+ * ------------------
+ *
+ * CMI8788:
+ *
+ * GPIO 1 -> enable output
+ *
+ * TXD -> HDMI controller
+ * RXD <- HDMI controller
+ */
+
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
@@ -362,7 +374,6 @@ static void xonar_st_init_common(struct oxygen *chip)
 {
 	struct xonar_pcm179x *data = chip->model_data;
 
-	data->generic.anti_pop_delay = 100;
 	data->generic.output_enable_bit = GPIO_ST_OUTPUT_ENABLE;
 	data->dacs = chip->model.private_data ? 4 : 1;
 	data->hp_gain_offset = 2*-18;
@@ -408,6 +419,7 @@ static void xonar_st_init(struct oxygen *chip)
 {
 	struct xonar_pcm179x *data = chip->model_data;
 
+	data->generic.anti_pop_delay = 100;
 	data->has_cs2000 = 1;
 	data->cs2000_fun_cfg_1 = CS2000_REF_CLK_DIV_1;
 
@@ -428,6 +440,7 @@ static void xonar_stx_init(struct oxygen *chip)
 	struct xonar_pcm179x *data = chip->model_data;
 
 	xonar_st_init_i2c(chip);
+	data->generic.anti_pop_delay = 800;
 	data->generic.ext_power_reg = OXYGEN_GPI_DATA;
 	data->generic.ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
 	data->generic.ext_power_bit = GPI_EXT_POWER;
@@ -915,13 +928,6 @@ static int xonar_d2_control_filter(struct snd_kcontrol_new *template)
 	return 0;
 }
 
-static int xonar_st_control_filter(struct snd_kcontrol_new *template)
-{
-	if (!strncmp(template->name, "CD Capture ", 11))
-		return 1; /* no CD input */
-	return 0;
-}
-
 static int add_pcm1796_controls(struct oxygen *chip)
 {
 	int err;
@@ -991,7 +997,8 @@ static const struct oxygen_model model_xonar_d2 = {
 			 CAPTURE_0_FROM_I2S_2 |
 			 CAPTURE_1_FROM_SPDIF |
 			 MIDI_OUTPUT |
-			 MIDI_INPUT,
+			 MIDI_INPUT |
+			 AC97_CD_INPUT,
 	.dac_channels = 8,
 	.dac_volume_min = 255 - 2*60,
 	.dac_volume_max = 255,
@@ -1037,7 +1044,6 @@ static const struct oxygen_model model_xonar_st = {
 	.longname = "Asus Virtuoso 100",
 	.chip = "AV200",
 	.init = xonar_st_init,
-	.control_filter = xonar_st_control_filter,
 	.mixer_init = xonar_st_mixer_init,
 	.cleanup = xonar_st_cleanup,
 	.suspend = xonar_st_suspend,
@@ -1108,6 +1114,9 @@ int __devinit get_xonar_pcm179x_model(struct oxygen *chip,
 		chip->model.resume = xonar_stx_resume;
 		chip->model.set_dac_params = set_pcm1796_params;
 		break;
+	case 0x835e:
+		snd_printk(KERN_ERR "the HDAV1.3 Slim is not supported\n");
+		return -ENODEV;
 	default:
 		return -EINVAL;
 	}

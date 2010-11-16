@@ -30,6 +30,13 @@
 #include <mach/hardware.h>
 #include <plat/clock.h>
 
+/* macro for building platform_device for McBSP ports */
+#define OMAP_MCBSP_PLATFORM_DEVICE(port_nr)		\
+static struct platform_device omap_mcbsp##port_nr = {	\
+	.name	= "omap-mcbsp-dai",			\
+	.id	= OMAP_MCBSP##port_nr,			\
+}
+
 #define OMAP7XX_MCBSP1_BASE	0xfffb1000
 #define OMAP7XX_MCBSP2_BASE	0xfffb1800
 
@@ -312,6 +319,18 @@
 #define RFSREN			0x0002
 #define RSYNCERREN		0x0001
 
+/* CLKR signal muxing options */
+#define CLKR_SRC_CLKR		0
+#define CLKR_SRC_CLKX		1
+
+/* FSR signal muxing options */
+#define FSR_SRC_FSR		0
+#define FSR_SRC_FSX		1
+
+/* McBSP functional clock sources */
+#define MCBSP_CLKS_PRCM_SRC	0
+#define MCBSP_CLKS_PAD_SRC	1
+
 /* we don't do multichannel for now */
 struct omap_mcbsp_reg_cfg {
 	u16 spcr2;
@@ -398,6 +417,7 @@ struct omap_mcbsp_spi_cfg {
 struct omap_mcbsp_ops {
 	void (*request)(unsigned int);
 	void (*free)(unsigned int);
+	int (*set_clks_src)(u8, u8);
 };
 
 struct omap_mcbsp_platform_data {
@@ -464,6 +484,9 @@ struct omap_mcbsp {
 extern struct omap_mcbsp **mcbsp_ptr;
 extern int omap_mcbsp_count, omap_mcbsp_cache_size;
 
+#define omap_mcbsp_check_valid_id(id)	(id < omap_mcbsp_count)
+#define id_to_mcbsp_ptr(id)		mcbsp_ptr[id];
+
 int omap_mcbsp_init(void);
 void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 					int size);
@@ -502,6 +525,8 @@ int omap_mcbsp_spi_master_xmit_word_poll(unsigned int id, u32 word);
 int omap_mcbsp_spi_master_recv_word_poll(unsigned int id, u32 * word);
 
 
+/* McBSP functional clock source changing function */
+extern int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id);
 /* SPI specific API */
 void omap_mcbsp_set_spi_mode(unsigned int id, const struct omap_mcbsp_spi_cfg * spi_cfg);
 
@@ -509,6 +534,10 @@ void omap_mcbsp_set_spi_mode(unsigned int id, const struct omap_mcbsp_spi_cfg * 
 int omap_mcbsp_pollread(unsigned int id, u16 * buf);
 int omap_mcbsp_pollwrite(unsigned int id, u16 buf);
 int omap_mcbsp_set_io_type(unsigned int id, omap_mcbsp_io_type_t io_type);
+
+/* McBSP signal muxing API */
+void omap2_mcbsp1_mux_clkr_src(u8 mux);
+void omap2_mcbsp1_mux_fsr_src(u8 mux);
 
 #ifdef CONFIG_ARCH_OMAP3
 /* Sidetone specific API */

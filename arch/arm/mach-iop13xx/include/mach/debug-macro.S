@@ -11,15 +11,13 @@
  * published by the Free Software Foundation.
  */
 
-	.macro	addruart, rx, tmp
-	mrc	p15, 0, \rx, c1, c0
-	tst	\rx, #1			@ mmu enabled?
-	moveq	\rx, #0xff000000	@ physical
-	orreq	\rx, \rx, #0x00d80000
-	movne	\rx, #0xfe000000	@ virtual
-	orrne	\rx, \rx, #0x00e80000
-	orr	\rx, \rx, #0x00002300
-	orr	\rx, \rx, #0x00000040
+	.macro	addruart, rp, rv
+	mov	\rp, #0x00002300
+	orr	\rp, \rp, #0x00000040
+	orr	\rv, \rp, #0xfe000000	@ virtual
+	orr	\rv, \rv, #0x00e80000
+	orr	\rp, \rp, #0xff000000	@ physical
+	orr	\rp, \rp, #0x00d80000
 	.endm
 
 #define UART_SHIFT	2

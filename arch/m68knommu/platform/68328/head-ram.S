@@ -67,33 +67,6 @@ pclp1:
 	beq	pclp1
 #endif /* DEBUG */
 
-#ifdef CONFIG_RELOCATE
-	/* Copy me to RAM */
-	moveal	#__rom_start, %a0
-	moveal	#_stext, %a1
-	moveal	#_edata, %a2
-
-	/* Copy %a0 to %a1 until %a1 == %a2 */
-LD1:
-	movel	%a0@+, %d0
-	movel	%d0, %a1@+
-	cmpal	%a1, %a2
-	bhi	LD1
-	
-#ifdef DEBUG
-	moveq	#74, %d7		/* 'J' */
-	moveb	%d7,0xfffff907          /* No absolute addresses */
-pclp2:
-	movew	0xfffff906, %d7
-	andw	#0x2000, %d7
-	beq	pclp2
-#endif /* DEBUG */
-	/* jump into the RAM copy */
-	jmp     ram_jump
-ram_jump:
-
-#endif /* CONFIG_RELOCATE */
-
 #ifdef DEBUG
 	moveq	#82, %d7		/* 'R' */
 	moveb	%d7,0xfffff907          /* No absolute addresses */

@@ -126,9 +126,11 @@ ptrace_disable(struct task_struct *child)
 }
 
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	int ret;
+	unsigned int regno = addr >> 2;
 	unsigned long __user *datap = (unsigned long __user *)data;
 
 	switch (request) {
@@ -163,10 +165,10 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			unsigned long tmp;
 
 			ret = -EIO;
-			if ((addr & 3) || addr < 0 || addr > PT_MAX << 2)
+			if ((addr & 3) || regno > PT_MAX)
 				break;
 
-			tmp = get_reg(child, addr >> 2);
+			tmp = get_reg(child, regno);
 			ret = put_user(tmp, datap);
 			break;
 		}
@@ -180,19 +182,17 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		/* Write the word at location address in the USER area. */
 		case PTRACE_POKEUSR:
 			ret = -EIO;
-			if ((addr & 3) || addr < 0 || addr > PT_MAX << 2)
+			if ((addr & 3) || regno > PT_MAX)
 				break;
 
-			addr >>= 2;
-
-			if (addr == PT_CCS) {
+			if (regno == PT_CCS) {
 				/* don't allow the tracing process to change stuff like
 				 * interrupt enable, kernel/user bit, dma enables etc.
 				 */
 				data &= CCS_MASK;
 				data |= get_reg(child, PT_CCS) & ~CCS_MASK;
 			}
-			if (put_reg(child, addr, data))
+			if (put_reg(child, regno, data))
 				break;
 			ret = 0;
 			break;

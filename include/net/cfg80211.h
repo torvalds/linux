@@ -25,6 +25,43 @@
 #include <linux/wireless.h>
 
 
+/**
+ * DOC: Introduction
+ *
+ * cfg80211 is the configuration API for 802.11 devices in Linux. It bridges
+ * userspace and drivers, and offers some utility functionality associated
+ * with 802.11. cfg80211 must, directly or indirectly via mac80211, be used
+ * by all modern wireless drivers in Linux, so that they offer a consistent
+ * API through nl80211. For backward compatibility, cfg80211 also offers
+ * wireless extensions to userspace, but hides them from drivers completely.
+ *
+ * Additionally, cfg80211 contains code to help enforce regulatory spectrum
+ * use restrictions.
+ */
+
+
+/**
+ * DOC: Device registration
+ *
+ * In order for a driver to use cfg80211, it must register the hardware device
+ * with cfg80211. This happens through a number of hardware capability structs
+ * described below.
+ *
+ * The fundamental structure for each device is the 'wiphy', of which each
+ * instance describes a physical wireless device connected to the system. Each
+ * such wiphy can have zero, one, or many virtual interfaces associated with
+ * it, which need to be identified as such by pointing the network interface's
+ * @ieee80211_ptr pointer to a &struct wireless_dev which further describes
+ * the wireless part of the interface, normally this struct is embedded in the
+ * network interface's private data area. Drivers can optionally allow creating
+ * or destroying virtual interfaces on the fly, but without at least one or the
+ * ability to create some the wireless device isn't useful.
+ *
+ * Each wiphy structure contains device capability information, and also has
+ * a pointer to the various operations the driver offers. The definitions and
+ * structures here describe these capabilities in detail.
+ */
+
 /*
  * wireless hardware capability structures
  */
@@ -205,6 +242,21 @@ struct ieee80211_supported_band {
  */
 
 /**
+ * DOC: Actions and configuration
+ *
+ * Each wireless device and each virtual interface offer a set of configuration
+ * operations and other actions that are invoked by userspace. Each of these
+ * actions is described in the operations structure, and the parameters these
+ * operations use are described separately.
+ *
+ * Additionally, some operations are asynchronous and expect to get status
+ * information via some functions that drivers need to call.
+ *
+ * Scanning and BSS list handling with its associated functionality is described
+ * in a separate chapter.
+ */
+
+/**
  * struct vif_params - describes virtual interface parameters
  * @mesh_id: mesh ID to use
  * @mesh_id_len: length of the mesh ID
@@ -241,12 +293,24 @@ struct key_params {
  * enum survey_info_flags - survey information flags
  *
  * @SURVEY_INFO_NOISE_DBM: noise (in dBm) was filled in
+ * @SURVEY_INFO_IN_USE: channel is currently being used
+ * @SURVEY_INFO_CHANNEL_TIME: channel active time (in ms) was filled in
+ * @SURVEY_INFO_CHANNEL_TIME_BUSY: channel busy time was filled in
+ * @SURVEY_INFO_CHANNEL_TIME_EXT_BUSY: extension channel busy time was filled in
+ * @SURVEY_INFO_CHANNEL_TIME_RX: channel receive time was filled in
+ * @SURVEY_INFO_CHANNEL_TIME_TX: channel transmit time was filled in
  *
  * Used by the driver to indicate which info in &struct survey_info
  * it has filled in during the get_survey().
  */
 enum survey_info_flags {
 	SURVEY_INFO_NOISE_DBM = 1<<0,
+	SURVEY_INFO_IN_USE = 1<<1,
+	SURVEY_INFO_CHANNEL_TIME = 1<<2,
+	SURVEY_INFO_CHANNEL_TIME_BUSY = 1<<3,
+	SURVEY_INFO_CHANNEL_TIME_EXT_BUSY = 1<<4,
+	SURVEY_INFO_CHANNEL_TIME_RX = 1<<5,
+	SURVEY_INFO_CHANNEL_TIME_TX = 1<<6,
 };
 
 /**
@@ -256,6 +320,11 @@ enum survey_info_flags {
  * @filled: bitflag of flags from &enum survey_info_flags
  * @noise: channel noise in dBm. This and all following fields are
  *     optional
+ * @channel_time: amount of time in ms the radio spent on the channel
+ * @channel_time_busy: amount of time the primary channel was sensed busy
+ * @channel_time_ext_busy: amount of time the extension channel was sensed busy
+ * @channel_time_rx: amount of time the radio spent receiving data
+ * @channel_time_tx: amount of time the radio spent transmitting data
  *
  * Used by dump_survey() to report back per-channel survey information.
  *
@@ -264,6 +333,11 @@ enum survey_info_flags {
  */
 struct survey_info {
 	struct ieee80211_channel *channel;
+	u64 channel_time;
+	u64 channel_time_busy;
+	u64 channel_time_ext_busy;
+	u64 channel_time_rx;
+	u64 channel_time_tx;
 	u32 filled;
 	s8 noise;
 };
@@ -347,6 +421,9 @@ struct station_parameters {
  *  (tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
  * @STATION_INFO_RX_PACKETS: @rx_packets filled
  * @STATION_INFO_TX_PACKETS: @tx_packets filled
+ * @STATION_INFO_TX_RETRIES: @tx_retries filled
+ * @STATION_INFO_TX_FAILED: @tx_failed filled
+ * @STATION_INFO_RX_DROP_MISC: @rx_dropped_misc filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -359,6 +436,9 @@ enum station_info_flags {
 	STATION_INFO_TX_BITRATE		= 1<<7,
 	STATION_INFO_RX_PACKETS		= 1<<8,
 	STATION_INFO_TX_PACKETS		= 1<<9,
+	STATION_INFO_TX_RETRIES		= 1<<10,
+	STATION_INFO_TX_FAILED		= 1<<11,
+	STATION_INFO_RX_DROP_MISC	= 1<<12,
 };
 
 /**
@@ -408,6 +488,9 @@ struct rate_info {
  * @txrate: current unicast bitrate to this station
  * @rx_packets: packets received from this station
  * @tx_packets: packets transmitted to this station
+ * @tx_retries: cumulative retry counts
+ * @tx_failed: number of failed transmissions (retries exceeded, no ACK)
+ * @rx_dropped_misc:  Dropped for un-specified reason.
  * @generation: generation number for nl80211 dumps.
  *	This number should increase every time the list of stations
  *	changes, i.e. when a station is added or removed, so that
@@ -425,6 +508,9 @@ struct station_info {
 	struct rate_info txrate;
 	u32 rx_packets;
 	u32 tx_packets;
+	u32 tx_retries;
+	u32 tx_failed;
+	u32 rx_dropped_misc;
 
 	int generation;
 };
@@ -570,8 +656,28 @@ struct ieee80211_txq_params {
 /* from net/wireless.h */
 struct wiphy;
 
-/* from net/ieee80211.h */
-struct ieee80211_channel;
+/**
+ * DOC: Scanning and BSS list handling
+ *
+ * The scanning process itself is fairly simple, but cfg80211 offers quite
+ * a bit of helper functionality. To start a scan, the scan operation will
+ * be invoked with a scan definition. This scan definition contains the
+ * channels to scan, and the SSIDs to send probe requests for (including the
+ * wildcard, if desired). A passive scan is indicated by having no SSIDs to
+ * probe. Additionally, a scan request may contain extra information elements
+ * that should be added to the probe request. The IEs are guaranteed to be
+ * well-formed, and will not exceed the maximum length the driver advertised
+ * in the wiphy structure.
+ *
+ * When scanning finds a BSS, cfg80211 needs to be notified of that, because
+ * it is responsible for maintaining the BSS list; the driver should not
+ * maintain a list itself. For this notification, various functions exist.
+ *
+ * Since drivers do not maintain a BSS list, there are also a number of
+ * functions to search for a BSS and obtain information about it from the
+ * BSS structure cfg80211 maintains. The BSS list is also made available
+ * to userspace.
+ */
 
 /**
  * struct cfg80211_ssid - SSID description
@@ -691,6 +797,10 @@ const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie);
  *	sets/clears %NL80211_STA_FLAG_AUTHORIZED. If true, the driver is
  *	required to assume that the port is unauthorized until authorized by
  *	user space. Otherwise, port is marked authorized by default.
+ * @control_port_ethertype: the control port protocol that should be
+ *	allowed through even on unauthorized ports
+ * @control_port_no_encrypt: TRUE to prevent encryption of control port
+ *	protocol frames.
  */
 struct cfg80211_crypto_settings {
 	u32 wpa_versions;
@@ -700,6 +810,8 @@ struct cfg80211_crypto_settings {
 	int n_akm_suites;
 	u32 akm_suites[NL80211_MAX_NR_AKM_SUITES];
 	bool control_port;
+	__be16 control_port_ethertype;
+	bool control_port_no_encrypt;
 };
 
 /**
@@ -1020,7 +1132,7 @@ struct cfg80211_pmksa {
  * @cancel_remain_on_channel: Cancel an on-going remain-on-channel operation.
  *	This allows the operation to be terminated prior to timeout based on
  *	the duration value.
- * @action: Transmit an action frame
+ * @mgmt_tx: Transmit a management frame
  *
  * @testmode_cmd: run a test mode command
  *
@@ -1035,6 +1147,9 @@ struct cfg80211_pmksa {
  *	allows the driver to adjust the dynamic ps timeout value.
  * @set_cqm_rssi_config: Configure connection quality monitor RSSI threshold.
  *
+ * @mgmt_frame_register: Notify driver that a management frame type was
+ *	registered. Note that this callback may not sleep, and cannot run
+ *	concurrently with itself.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy);
@@ -1050,13 +1165,14 @@ struct cfg80211_ops {
 				       struct vif_params *params);
 
 	int	(*add_key)(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 key_index, const u8 *mac_addr,
+			   u8 key_index, bool pairwise, const u8 *mac_addr,
 			   struct key_params *params);
 	int	(*get_key)(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 key_index, const u8 *mac_addr, void *cookie,
+			   u8 key_index, bool pairwise, const u8 *mac_addr,
+			   void *cookie,
 			   void (*callback)(void *cookie, struct key_params*));
 	int	(*del_key)(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 key_index, const u8 *mac_addr);
+			   u8 key_index, bool pairwise, const u8 *mac_addr);
 	int	(*set_default_key)(struct wiphy *wiphy,
 				   struct net_device *netdev,
 				   u8 key_index);
@@ -1140,7 +1256,7 @@ struct cfg80211_ops {
 	int	(*get_tx_power)(struct wiphy *wiphy, int *dbm);
 
 	int	(*set_wds_peer)(struct wiphy *wiphy, struct net_device *dev,
-				u8 *addr);
+				const u8 *addr);
 
 	void	(*rfkill_poll)(struct wiphy *wiphy);
 
@@ -1172,7 +1288,7 @@ struct cfg80211_ops {
 					    struct net_device *dev,
 					    u64 cookie);
 
-	int	(*action)(struct wiphy *wiphy, struct net_device *dev,
+	int	(*mgmt_tx)(struct wiphy *wiphy, struct net_device *dev,
 			  struct ieee80211_channel *chan,
 			  enum nl80211_channel_type channel_type,
 			  bool channel_type_valid,
@@ -1184,6 +1300,10 @@ struct cfg80211_ops {
 	int	(*set_cqm_rssi_config)(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       s32 rssi_thold, u32 rssi_hyst);
+
+	void	(*mgmt_frame_register)(struct wiphy *wiphy,
+				       struct net_device *dev,
+				       u16 frame_type, bool reg);
 };
 
 /*
@@ -1221,19 +1341,29 @@ struct cfg80211_ops {
  * @WIPHY_FLAG_4ADDR_AP: supports 4addr mode even on AP (with a single station
  *	on a VLAN interface)
  * @WIPHY_FLAG_4ADDR_STATION: supports 4addr mode even as a station
+ * @WIPHY_FLAG_CONTROL_PORT_PROTOCOL: This device supports setting the
+ *	control port protocol ethertype. The device also honours the
+ *	control_port_no_encrypt flag.
+ * @WIPHY_FLAG_IBSS_RSN: The device supports IBSS RSN.
  */
 enum wiphy_flags {
-	WIPHY_FLAG_CUSTOM_REGULATORY	= BIT(0),
-	WIPHY_FLAG_STRICT_REGULATORY	= BIT(1),
-	WIPHY_FLAG_DISABLE_BEACON_HINTS	= BIT(2),
-	WIPHY_FLAG_NETNS_OK		= BIT(3),
-	WIPHY_FLAG_PS_ON_BY_DEFAULT	= BIT(4),
-	WIPHY_FLAG_4ADDR_AP		= BIT(5),
-	WIPHY_FLAG_4ADDR_STATION	= BIT(6),
+	WIPHY_FLAG_CUSTOM_REGULATORY		= BIT(0),
+	WIPHY_FLAG_STRICT_REGULATORY		= BIT(1),
+	WIPHY_FLAG_DISABLE_BEACON_HINTS		= BIT(2),
+	WIPHY_FLAG_NETNS_OK			= BIT(3),
+	WIPHY_FLAG_PS_ON_BY_DEFAULT		= BIT(4),
+	WIPHY_FLAG_4ADDR_AP			= BIT(5),
+	WIPHY_FLAG_4ADDR_STATION		= BIT(6),
+	WIPHY_FLAG_CONTROL_PORT_PROTOCOL	= BIT(7),
+	WIPHY_FLAG_IBSS_RSN			= BIT(7),
 };
 
 struct mac_address {
 	u8 addr[ETH_ALEN];
+};
+
+struct ieee80211_txrx_stypes {
+	u16 tx, rx;
 };
 
 /**
@@ -1286,6 +1416,10 @@ struct mac_address {
  * @privid: a pointer that drivers can use to identify if an arbitrary
  *	wiphy is theirs, e.g. in global notifiers
  * @bands: information about bands/channels supported by this device
+ *
+ * @mgmt_stypes: bitmasks of frame subtypes that can be subscribed to or
+ *	transmitted through nl80211, points to an array indexed by interface
+ *	type
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -1294,8 +1428,11 @@ struct wiphy {
 	u8 perm_addr[ETH_ALEN];
 	u8 addr_mask[ETH_ALEN];
 
-	u16 n_addresses;
 	struct mac_address *addresses;
+
+	const struct ieee80211_txrx_stypes *mgmt_stypes;
+
+	u16 n_addresses;
 
 	/* Supported interface modes, OR together BIT(NL80211_IFTYPE_...) */
 	u16 interface_modes;
@@ -1492,8 +1629,8 @@ struct cfg80211_cached_keys;
  *	set by driver (if supported) on add_interface BEFORE registering the
  *	netdev and may otherwise be used by driver read-only, will be update
  *	by cfg80211 on change_interface
- * @action_registrations: list of registrations for action frames
- * @action_registrations_lock: lock for the list
+ * @mgmt_registrations: list of registrations for management frames
+ * @mgmt_registrations_lock: lock for the list
  * @mtx: mutex used to lock data in this struct
  * @cleanup_work: work struct used for cleanup that can't be done directly
  */
@@ -1505,8 +1642,8 @@ struct wireless_dev {
 	struct list_head list;
 	struct net_device *netdev;
 
-	struct list_head action_registrations;
-	spinlock_t action_registrations_lock;
+	struct list_head mgmt_registrations;
+	spinlock_t mgmt_registrations_lock;
 
 	struct mutex mtx;
 
@@ -1563,8 +1700,10 @@ static inline void *wdev_priv(struct wireless_dev *wdev)
 	return wiphy_priv(wdev->wiphy);
 }
 
-/*
- * Utility functions
+/**
+ * DOC: Utility functions
+ *
+ * cfg80211 offers a number of utility functions that can be useful.
  */
 
 /**
@@ -1715,7 +1854,15 @@ unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb);
  * ieee80211_hdrlen - get header length in bytes from frame control
  * @fc: frame control field in little-endian format
  */
-unsigned int ieee80211_hdrlen(__le16 fc);
+unsigned int __attribute_const__ ieee80211_hdrlen(__le16 fc);
+
+/**
+ * DOC: Data path helpers
+ *
+ * In addition to generic utilities, cfg80211 also offers
+ * functions that help implement the data path for devices
+ * that do not do the 802.11/802.3 conversion on the device.
+ */
 
 /**
  * ieee80211_data_to_8023 - convert an 802.11 data frame to 802.3
@@ -1777,8 +1924,10 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb);
  */
 const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len);
 
-/*
- * Regulatory helper functions for wiphys
+/**
+ * DOC: Regulatory enforcement infrastructure
+ *
+ * TODO
  */
 
 /**
@@ -2181,6 +2330,20 @@ void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
 void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp);
 
 /**
+ * DOC: RFkill integration
+ *
+ * RFkill integration in cfg80211 is almost invisible to drivers,
+ * as cfg80211 automatically registers an rfkill instance for each
+ * wireless device it knows about. Soft kill is also translated
+ * into disconnecting and turning all interfaces off, drivers are
+ * expected to turn off the device when all interfaces are down.
+ *
+ * However, devices may have a hard RFkill line, in which case they
+ * also need to interact with the rfkill subsystem, via cfg80211.
+ * They can do this with a few helper functions documented here.
+ */
+
+/**
  * wiphy_rfkill_set_hw_state - notify cfg80211 about hw block state
  * @wiphy: the wiphy
  * @blocked: block status
@@ -2200,6 +2363,17 @@ void wiphy_rfkill_start_polling(struct wiphy *wiphy);
 void wiphy_rfkill_stop_polling(struct wiphy *wiphy);
 
 #ifdef CONFIG_NL80211_TESTMODE
+/**
+ * DOC: Test mode
+ *
+ * Test mode is a set of utility functions to allow drivers to
+ * interact with driver-specific tools to aid, for instance,
+ * factory programming.
+ *
+ * This chapter describes how drivers interact with it, for more
+ * information see the nl80211 book's chapter on it.
+ */
+
 /**
  * cfg80211_testmode_alloc_reply_skb - allocate testmode reply
  * @wiphy: the wiphy
@@ -2373,38 +2547,39 @@ void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 		      struct station_info *sinfo, gfp_t gfp);
 
 /**
- * cfg80211_rx_action - notification of received, unprocessed Action frame
+ * cfg80211_rx_mgmt - notification of received, unprocessed management frame
  * @dev: network device
  * @freq: Frequency on which the frame was received in MHz
- * @buf: Action frame (header + body)
+ * @buf: Management frame (header + body)
  * @len: length of the frame data
  * @gfp: context flags
- * Returns %true if a user space application is responsible for rejecting the
- *	unrecognized Action frame; %false if no such application is registered
- *	(i.e., the driver is responsible for rejecting the unrecognized Action
- *	frame)
+ *
+ * Returns %true if a user space application has registered for this frame.
+ * For action frames, that makes it responsible for rejecting unrecognized
+ * action frames; %false otherwise, in which case for action frames the
+ * driver is responsible for rejecting the frame.
  *
  * This function is called whenever an Action frame is received for a station
  * mode interface, but is not processed in kernel.
  */
-bool cfg80211_rx_action(struct net_device *dev, int freq, const u8 *buf,
-			size_t len, gfp_t gfp);
+bool cfg80211_rx_mgmt(struct net_device *dev, int freq, const u8 *buf,
+		      size_t len, gfp_t gfp);
 
 /**
- * cfg80211_action_tx_status - notification of TX status for Action frame
+ * cfg80211_mgmt_tx_status - notification of TX status for management frame
  * @dev: network device
- * @cookie: Cookie returned by cfg80211_ops::action()
- * @buf: Action frame (header + body)
+ * @cookie: Cookie returned by cfg80211_ops::mgmt_tx()
+ * @buf: Management frame (header + body)
  * @len: length of the frame data
  * @ack: Whether frame was acknowledged
  * @gfp: context flags
  *
- * This function is called whenever an Action frame was requested to be
- * transmitted with cfg80211_ops::action() to report the TX status of the
+ * This function is called whenever a management frame was requested to be
+ * transmitted with cfg80211_ops::mgmt_tx() to report the TX status of the
  * transmission attempt.
  */
-void cfg80211_action_tx_status(struct net_device *dev, u64 cookie,
-			       const u8 *buf, size_t len, bool ack, gfp_t gfp);
+void cfg80211_mgmt_tx_status(struct net_device *dev, u64 cookie,
+			     const u8 *buf, size_t len, bool ack, gfp_t gfp);
 
 
 /**
@@ -2420,56 +2595,41 @@ void cfg80211_cqm_rssi_notify(struct net_device *dev,
 			      enum nl80211_cqm_rssi_threshold_event rssi_event,
 			      gfp_t gfp);
 
-#ifdef __KERNEL__
-
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 
 /* wiphy_printk helpers, similar to dev_printk */
 
 #define wiphy_printk(level, wiphy, format, args...)		\
-	printk(level "%s: " format, wiphy_name(wiphy), ##args)
+	dev_printk(level, &(wiphy)->dev, format, ##args)
 #define wiphy_emerg(wiphy, format, args...)			\
-	wiphy_printk(KERN_EMERG, wiphy, format, ##args)
+	dev_emerg(&(wiphy)->dev, format, ##args)
 #define wiphy_alert(wiphy, format, args...)			\
-	wiphy_printk(KERN_ALERT, wiphy, format, ##args)
+	dev_alert(&(wiphy)->dev, format, ##args)
 #define wiphy_crit(wiphy, format, args...)			\
-	wiphy_printk(KERN_CRIT, wiphy, format, ##args)
+	dev_crit(&(wiphy)->dev, format, ##args)
 #define wiphy_err(wiphy, format, args...)			\
-	wiphy_printk(KERN_ERR, wiphy, format, ##args)
+	dev_err(&(wiphy)->dev, format, ##args)
 #define wiphy_warn(wiphy, format, args...)			\
-	wiphy_printk(KERN_WARNING, wiphy, format, ##args)
+	dev_warn(&(wiphy)->dev, format, ##args)
 #define wiphy_notice(wiphy, format, args...)			\
-	wiphy_printk(KERN_NOTICE, wiphy, format, ##args)
+	dev_notice(&(wiphy)->dev, format, ##args)
 #define wiphy_info(wiphy, format, args...)			\
-	wiphy_printk(KERN_INFO, wiphy, format, ##args)
+	dev_info(&(wiphy)->dev, format, ##args)
 
-int wiphy_debug(const struct wiphy *wiphy, const char *format, ...)
-	__attribute__ ((format (printf, 2, 3)));
-
-#if defined(DEBUG)
-#define wiphy_dbg(wiphy, format, args...)			\
+#define wiphy_debug(wiphy, format, args...)			\
 	wiphy_printk(KERN_DEBUG, wiphy, format, ##args)
-#elif defined(CONFIG_DYNAMIC_DEBUG)
+
 #define wiphy_dbg(wiphy, format, args...)			\
-	dynamic_pr_debug("%s: " format,	wiphy_name(wiphy), ##args)
-#else
-#define wiphy_dbg(wiphy, format, args...)				\
-({									\
-	if (0)								\
-		wiphy_printk(KERN_DEBUG, wiphy, format, ##args);	\
-	0;								\
-})
-#endif
+	dev_dbg(&(wiphy)->dev, format, ##args)
 
 #if defined(VERBOSE_DEBUG)
 #define wiphy_vdbg	wiphy_dbg
 #else
-
 #define wiphy_vdbg(wiphy, format, args...)				\
 ({									\
 	if (0)								\
 		wiphy_printk(KERN_DEBUG, wiphy, format, ##args);	\
-		0;							\
+	0;								\
 })
 #endif
 
@@ -2480,7 +2640,5 @@ int wiphy_debug(const struct wiphy *wiphy, const char *format, ...)
  */
 #define wiphy_WARN(wiphy, format, args...)			\
 	WARN(1, "wiphy: %s\n" format, wiphy_name(wiphy), ##args);
-
-#endif
 
 #endif /* __NET_CFG80211_H */

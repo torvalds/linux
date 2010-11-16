@@ -89,6 +89,8 @@ extern int olpc_ec_mask_unset(uint8_t bits);
 /* EC commands */
 
 #define EC_FIRMWARE_REV		0x08
+#define EC_WLAN_ENTER_RESET	0x35
+#define EC_WLAN_LEAVE_RESET	0x25
 
 /* SCI source values */
 

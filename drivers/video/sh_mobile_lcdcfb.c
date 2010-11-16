@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
-#include <linux/fb.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
@@ -21,10 +20,12 @@
 #include <linux/vmalloc.h>
 #include <linux/ioctl.h>
 #include <linux/slab.h>
+#include <linux/console.h>
 #include <video/sh_mobile_lcdc.h>
 #include <asm/atomic.h>
 
-#define PALETTE_NR 16
+#include "sh_mobile_lcdcfb.h"
+
 #define SIDE_B_OFFSET 0x1000
 #define MIRROR_OFFSET 0x2000
 
@@ -53,11 +54,8 @@ static int lcdc_shared_regs[] = {
 };
 #define NR_SHARED_REGS ARRAY_SIZE(lcdc_shared_regs)
 
-/* per-channel registers */
-enum { LDDCKPAT1R, LDDCKPAT2R, LDMT1R, LDMT2R, LDMT3R, LDDFR, LDSM1R,
-       LDSM2R, LDSA1R, LDMLSR, LDHCNR, LDHSYNR, LDVLNR, LDVSYNR, LDPMR,
-       LDHAJR,
-       NR_CH_REGS };
+#define DEFAULT_XRES 1280
+#define DEFAULT_YRES 1024
 
 static unsigned long lcdc_offs_mainlcd[NR_CH_REGS] = {
 	[LDDCKPAT1R] = 0x400,
@@ -112,23 +110,22 @@ static unsigned long lcdc_offs_sublcd[NR_CH_REGS] = {
 #define LDRCNTR_MRC	0x00000001
 #define LDSR_MRS	0x00000100
 
-struct sh_mobile_lcdc_priv;
-struct sh_mobile_lcdc_chan {
-	struct sh_mobile_lcdc_priv *lcdc;
-	unsigned long *reg_offs;
-	unsigned long ldmt1r_value;
-	unsigned long enabled; /* ME and SE in LDCNT2R */
-	struct sh_mobile_lcdc_chan_cfg cfg;
-	u32 pseudo_palette[PALETTE_NR];
-	unsigned long saved_ch_regs[NR_CH_REGS];
-	struct fb_info *info;
-	dma_addr_t dma_handle;
-	struct fb_deferred_io defio;
-	struct scatterlist *sglist;
-	unsigned long frame_end;
-	unsigned long pan_offset;
-	wait_queue_head_t frame_end_wait;
-	struct completion vsync_completion;
+static const struct fb_videomode default_720p = {
+	.name = "HDMI 720p",
+	.xres = 1280,
+	.yres = 720,
+
+	.left_margin = 220,
+	.right_margin = 110,
+	.hsync_len = 40,
+
+	.upper_margin = 20,
+	.lower_margin = 5,
+	.vsync_len = 5,
+
+	.pixclock = 13468,
+	.refresh = 60,
+	.sync = FB_SYNC_VERT_HIGH_ACT | FB_SYNC_HOR_HIGH_ACT,
 };
 
 struct sh_mobile_lcdc_priv {
@@ -409,8 +406,8 @@ static void sh_mobile_lcdc_start_stop(struct sh_mobile_lcdc_priv *priv,
 
 static void sh_mobile_lcdc_geometry(struct sh_mobile_lcdc_chan *ch)
 {
-	struct fb_var_screeninfo *var = &ch->info->var;
-	unsigned long h_total, hsync_pos;
+	struct fb_var_screeninfo *var = &ch->info->var, *display_var = &ch->display_var;
+	unsigned long h_total, hsync_pos, display_h_total;
 	u32 tmp;
 
 	tmp = ch->ldmt1r_value;
@@ -428,31 +425,33 @@ static void sh_mobile_lcdc_geometry(struct sh_mobile_lcdc_chan *ch)
 	lcdc_write_chan(ch, LDMT3R, ch->cfg.sys_bus_cfg.ldmt3r);
 
 	/* horizontal configuration */
-	h_total = var->xres + var->hsync_len +
-		var->left_margin + var->right_margin;
+	h_total = display_var->xres + display_var->hsync_len +
+		display_var->left_margin + display_var->right_margin;
 	tmp = h_total / 8; /* HTCN */
-	tmp |= (var->xres / 8) << 16; /* HDCN */
+	tmp |= (min(display_var->xres, var->xres) / 8) << 16; /* HDCN */
 	lcdc_write_chan(ch, LDHCNR, tmp);
 
-	hsync_pos = var->xres + var->right_margin;
+	hsync_pos = display_var->xres + display_var->right_margin;
 	tmp = hsync_pos / 8; /* HSYNP */
-	tmp |= (var->hsync_len / 8) << 16; /* HSYNW */
+	tmp |= (display_var->hsync_len / 8) << 16; /* HSYNW */
 	lcdc_write_chan(ch, LDHSYNR, tmp);
 
 	/* vertical configuration */
-	tmp = var->yres + var->vsync_len +
-		var->upper_margin + var->lower_margin; /* VTLN */
-	tmp |= var->yres << 16; /* VDLN */
+	tmp = display_var->yres + display_var->vsync_len +
+		display_var->upper_margin + display_var->lower_margin; /* VTLN */
+	tmp |= min(display_var->yres, var->yres) << 16; /* VDLN */
 	lcdc_write_chan(ch, LDVLNR, tmp);
 
-	tmp = var->yres + var->lower_margin; /* VSYNP */
-	tmp |= var->vsync_len << 16; /* VSYNW */
+	tmp = display_var->yres + display_var->lower_margin; /* VSYNP */
+	tmp |= display_var->vsync_len << 16; /* VSYNW */
 	lcdc_write_chan(ch, LDVSYNR, tmp);
 
 	/* Adjust horizontal synchronisation for HDMI */
-	tmp = ((var->xres & 7) << 24) |
-		((h_total & 7) << 16) |
-		((var->hsync_len & 7) << 8) |
+	display_h_total = display_var->xres + display_var->hsync_len +
+		display_var->left_margin + display_var->right_margin;
+	tmp = ((display_var->xres & 7) << 24) |
+		((display_h_total & 7) << 16) |
+		((display_var->hsync_len & 7) << 8) |
 		hsync_pos;
 	lcdc_write_chan(ch, LDHAJR, tmp);
 }
@@ -460,7 +459,6 @@ static void sh_mobile_lcdc_geometry(struct sh_mobile_lcdc_chan *ch)
 static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 {
 	struct sh_mobile_lcdc_chan *ch;
-	struct fb_videomode *lcd_cfg;
 	struct sh_mobile_lcdc_board_cfg	*board_cfg;
 	unsigned long tmp;
 	int k, m;
@@ -503,7 +501,8 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			m = 1 << 6;
 		tmp |= m << (lcdc_chan_is_sublcd(ch) ? 8 : 0);
 
-		lcdc_write_chan(ch, LDDCKPAT1R, 0x00000000);
+		/* FIXME: sh7724 can only use 42, 48, 54 and 60 for the divider denominator */
+		lcdc_write_chan(ch, LDDCKPAT1R, 0);
 		lcdc_write_chan(ch, LDDCKPAT2R, (1 << (m/2)) - 1);
 	}
 
@@ -518,7 +517,6 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
 		ch = &priv->ch[k];
-		lcd_cfg = &ch->cfg.lcd_cfg;
 
 		if (!ch->enabled)
 			continue;
@@ -547,7 +545,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 		/* set bpp format in PKF[4:0] */
 		tmp = lcdc_read_chan(ch, LDDFR);
-		tmp &= ~(0x0001001f);
+		tmp &= ~0x0001001f;
 		tmp |= (ch->info->var.bits_per_pixel == 16) ? 3 : 0;
 		lcdc_write_chan(ch, LDDFR, tmp);
 
@@ -591,8 +589,10 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			continue;
 
 		board_cfg = &ch->cfg.board_cfg;
-		if (board_cfg->display_on)
+		if (try_module_get(board_cfg->owner) && board_cfg->display_on) {
 			board_cfg->display_on(board_cfg->board_data, ch->info);
+			module_put(board_cfg->owner);
+		}
 	}
 
 	return 0;
@@ -614,7 +614,7 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 		 * flush frame, and wait for frame end interrupt
 		 * clean up deferred io and enable clock
 		 */
-		if (ch->info->fbdefio) {
+		if (ch->info && ch->info->fbdefio) {
 			ch->frame_end = 0;
 			schedule_delayed_work(&ch->info->deferred_work, 0);
 			wait_event(ch->frame_end_wait, ch->frame_end);
@@ -624,8 +624,10 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 		}
 
 		board_cfg = &ch->cfg.board_cfg;
-		if (board_cfg->display_off)
+		if (try_module_get(board_cfg->owner) && board_cfg->display_off) {
 			board_cfg->display_off(board_cfg->board_data);
+			module_put(board_cfg->owner);
+		}
 	}
 
 	/* stop the lcdc */
@@ -704,7 +706,6 @@ static int sh_mobile_lcdc_setup_clocks(struct platform_device *pdev,
 			return PTR_ERR(priv->dot_clk);
 		}
 	}
-	atomic_set(&priv->hw_usecnt, -1);
 
 	/* Runtime PM support involves two step for this driver:
 	 * 1) Enable Runtime PM
@@ -837,6 +838,102 @@ static int sh_mobile_ioctl(struct fb_info *info, unsigned int cmd,
 	return retval;
 }
 
+static void sh_mobile_fb_reconfig(struct fb_info *info)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+	struct fb_videomode mode1, mode2;
+	struct fb_event event;
+	int evnt = FB_EVENT_MODE_CHANGE_ALL;
+
+	if (ch->use_count > 1 || (ch->use_count == 1 && !info->fbcon_par))
+		/* More framebuffer users are active */
+		return;
+
+	fb_var_to_videomode(&mode1, &ch->display_var);
+	fb_var_to_videomode(&mode2, &info->var);
+
+	if (fb_mode_is_equal(&mode1, &mode2))
+		return;
+
+	/* Display has been re-plugged, framebuffer is free now, reconfigure */
+	if (fb_set_var(info, &ch->display_var) < 0)
+		/* Couldn't reconfigure, hopefully, can continue as before */
+		return;
+
+	info->fix.line_length = mode2.xres * (ch->cfg.bpp / 8);
+
+	/*
+	 * fb_set_var() calls the notifier change internally, only if
+	 * FBINFO_MISC_USEREVENT flag is set. Since we do not want to fake a
+	 * user event, we have to call the chain ourselves.
+	 */
+	event.info = info;
+	event.data = &mode2;
+	fb_notifier_call_chain(evnt, &event);
+}
+
+/*
+ * Locking: both .fb_release() and .fb_open() are called with info->lock held if
+ * user == 1, or with console sem held, if user == 0.
+ */
+static int sh_mobile_release(struct fb_info *info, int user)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+
+	mutex_lock(&ch->open_lock);
+	dev_dbg(info->dev, "%s(): %d users\n", __func__, ch->use_count);
+
+	ch->use_count--;
+
+	/* Nothing to reconfigure, when called from fbcon */
+	if (user) {
+		acquire_console_sem();
+		sh_mobile_fb_reconfig(info);
+		release_console_sem();
+	}
+
+	mutex_unlock(&ch->open_lock);
+
+	return 0;
+}
+
+static int sh_mobile_open(struct fb_info *info, int user)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+
+	mutex_lock(&ch->open_lock);
+	ch->use_count++;
+
+	dev_dbg(info->dev, "%s(): %d users\n", __func__, ch->use_count);
+	mutex_unlock(&ch->open_lock);
+
+	return 0;
+}
+
+static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+
+	if (var->xres < 160 || var->xres > 1920 ||
+	    var->yres < 120 || var->yres > 1080 ||
+	    var->left_margin < 32 || var->left_margin > 320 ||
+	    var->right_margin < 12 || var->right_margin > 240 ||
+	    var->upper_margin < 12 || var->upper_margin > 120 ||
+	    var->lower_margin < 1 || var->lower_margin > 64 ||
+	    var->hsync_len < 32 || var->hsync_len > 240 ||
+	    var->vsync_len < 2 || var->vsync_len > 64 ||
+	    var->pixclock < 6000 || var->pixclock > 40000 ||
+	    var->xres * var->yres * (ch->cfg.bpp / 8) * 2 > info->fix.smem_len) {
+		dev_warn(info->dev, "Invalid info: %u %u %u %u %u %u %u %u %u!\n",
+			 var->xres, var->yres,
+			 var->left_margin, var->right_margin,
+			 var->upper_margin, var->lower_margin,
+			 var->hsync_len, var->vsync_len,
+			 var->pixclock);
+		return -EINVAL;
+	}
+	return 0;
+}
 
 static struct fb_ops sh_mobile_lcdc_ops = {
 	.owner          = THIS_MODULE,
@@ -848,6 +945,9 @@ static struct fb_ops sh_mobile_lcdc_ops = {
 	.fb_imageblit	= sh_mobile_lcdc_imageblit,
 	.fb_pan_display = sh_mobile_fb_pan_display,
 	.fb_ioctl       = sh_mobile_ioctl,
+	.fb_open	= sh_mobile_open,
+	.fb_release	= sh_mobile_release,
+	.fb_check_var	= sh_mobile_check_var,
 };
 
 static int sh_mobile_lcdc_set_bpp(struct fb_var_screeninfo *var, int bpp)
@@ -958,6 +1058,7 @@ static const struct dev_pm_ops sh_mobile_lcdc_dev_pm_ops = {
 	.runtime_resume = sh_mobile_lcdc_runtime_resume,
 };
 
+/* locking: called with info->lock held */
 static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 				 unsigned long action, void *data)
 {
@@ -965,53 +1066,40 @@ static int sh_mobile_lcdc_notify(struct notifier_block *nb,
 	struct fb_info *info = event->info;
 	struct sh_mobile_lcdc_chan *ch = info->par;
 	struct sh_mobile_lcdc_board_cfg	*board_cfg = &ch->cfg.board_cfg;
-	struct fb_var_screeninfo *var;
+	int ret;
 
 	if (&ch->lcdc->notifier != nb)
-		return 0;
+		return NOTIFY_DONE;
 
 	dev_dbg(info->dev, "%s(): action = %lu, data = %p\n",
 		__func__, action, event->data);
 
 	switch(action) {
 	case FB_EVENT_SUSPEND:
-		if (board_cfg->display_off)
+		if (try_module_get(board_cfg->owner) && board_cfg->display_off) {
 			board_cfg->display_off(board_cfg->board_data);
+			module_put(board_cfg->owner);
+		}
 		pm_runtime_put(info->device);
+		sh_mobile_lcdc_stop(ch->lcdc);
 		break;
 	case FB_EVENT_RESUME:
-		var = &info->var;
+		mutex_lock(&ch->open_lock);
+		sh_mobile_fb_reconfig(info);
+		mutex_unlock(&ch->open_lock);
 
 		/* HDMI must be enabled before LCDC configuration */
-		if (board_cfg->display_on)
-			board_cfg->display_on(board_cfg->board_data, ch->info);
-
-		/* Check if the new display is not in our modelist */
-		if (ch->info->modelist.next &&
-		    !fb_match_mode(var, &ch->info->modelist)) {
-			struct fb_videomode mode;
-			int ret;
-
-			/* Can we handle this display? */
-			if (var->xres > ch->cfg.lcd_cfg.xres ||
-			    var->yres > ch->cfg.lcd_cfg.yres)
-				return -ENOMEM;
-
-			/* Add to the modelist */
-			fb_var_to_videomode(&mode, var);
-			ret = fb_add_videomode(&mode, &ch->info->modelist);
-			if (ret < 0)
-				return ret;
+		if (try_module_get(board_cfg->owner) && board_cfg->display_on) {
+			board_cfg->display_on(board_cfg->board_data, info);
+			module_put(board_cfg->owner);
 		}
 
-		pm_runtime_get_sync(info->device);
-
-		sh_mobile_lcdc_geometry(ch);
-
-		break;
+		ret = sh_mobile_lcdc_start(ch->lcdc);
+		if (!ret)
+			pm_runtime_get_sync(info->device);
 	}
 
-	return 0;
+	return NOTIFY_OK;
 }
 
 static int sh_mobile_lcdc_remove(struct platform_device *pdev);
@@ -1020,14 +1108,13 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 {
 	struct fb_info *info;
 	struct sh_mobile_lcdc_priv *priv;
-	struct sh_mobile_lcdc_info *pdata;
-	struct sh_mobile_lcdc_chan_cfg *cfg;
+	struct sh_mobile_lcdc_info *pdata = pdev->dev.platform_data;
 	struct resource *res;
 	int error;
 	void *buf;
 	int i, j;
 
-	if (!pdev->dev.platform_data) {
+	if (!pdata) {
 		dev_err(&pdev->dev, "no platform data defined\n");
 		return -EINVAL;
 	}
@@ -1055,31 +1142,33 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 	}
 
 	priv->irq = i;
-	pdata = pdev->dev.platform_data;
+	atomic_set(&priv->hw_usecnt, -1);
 
 	j = 0;
 	for (i = 0; i < ARRAY_SIZE(pdata->ch); i++) {
-		priv->ch[j].lcdc = priv;
-		memcpy(&priv->ch[j].cfg, &pdata->ch[i], sizeof(pdata->ch[i]));
+		struct sh_mobile_lcdc_chan *ch = priv->ch + j;
 
-		error = sh_mobile_lcdc_check_interface(&priv->ch[j]);
+		ch->lcdc = priv;
+		memcpy(&ch->cfg, &pdata->ch[i], sizeof(pdata->ch[i]));
+
+		error = sh_mobile_lcdc_check_interface(ch);
 		if (error) {
 			dev_err(&pdev->dev, "unsupported interface type\n");
 			goto err1;
 		}
-		init_waitqueue_head(&priv->ch[j].frame_end_wait);
-		init_completion(&priv->ch[j].vsync_completion);
-		priv->ch[j].pan_offset = 0;
+		init_waitqueue_head(&ch->frame_end_wait);
+		init_completion(&ch->vsync_completion);
+		ch->pan_offset = 0;
 
 		switch (pdata->ch[i].chan) {
 		case LCDC_CHAN_MAINLCD:
-			priv->ch[j].enabled = 1 << 1;
-			priv->ch[j].reg_offs = lcdc_offs_mainlcd;
+			ch->enabled = 1 << 1;
+			ch->reg_offs = lcdc_offs_mainlcd;
 			j++;
 			break;
 		case LCDC_CHAN_SUBLCD:
-			priv->ch[j].enabled = 1 << 2;
-			priv->ch[j].reg_offs = lcdc_offs_sublcd;
+			ch->enabled = 1 << 2;
+			ch->reg_offs = lcdc_offs_sublcd;
 			j++;
 			break;
 		}
@@ -1103,69 +1192,90 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 
 	for (i = 0; i < j; i++) {
 		struct fb_var_screeninfo *var;
-		struct fb_videomode *lcd_cfg;
-		cfg = &priv->ch[i].cfg;
+		const struct fb_videomode *lcd_cfg, *max_cfg = NULL;
+		struct sh_mobile_lcdc_chan *ch = priv->ch + i;
+		struct sh_mobile_lcdc_chan_cfg *cfg = &ch->cfg;
+		const struct fb_videomode *mode = cfg->lcd_cfg;
+		unsigned long max_size = 0;
+		int k;
+		int num_cfg;
 
-		priv->ch[i].info = framebuffer_alloc(0, &pdev->dev);
-		if (!priv->ch[i].info) {
+		ch->info = framebuffer_alloc(0, &pdev->dev);
+		if (!ch->info) {
 			dev_err(&pdev->dev, "unable to allocate fb_info\n");
 			error = -ENOMEM;
 			break;
 		}
 
-		info = priv->ch[i].info;
+		info = ch->info;
 		var = &info->var;
-		lcd_cfg = &cfg->lcd_cfg;
 		info->fbops = &sh_mobile_lcdc_ops;
-		var->xres = var->xres_virtual = lcd_cfg->xres;
-		var->yres = lcd_cfg->yres;
+		info->par = ch;
+
+		mutex_init(&ch->open_lock);
+
+		for (k = 0, lcd_cfg = mode;
+		     k < cfg->num_cfg && lcd_cfg;
+		     k++, lcd_cfg++) {
+			unsigned long size = lcd_cfg->yres * lcd_cfg->xres;
+
+			if (size > max_size) {
+				max_cfg = lcd_cfg;
+				max_size = size;
+			}
+		}
+
+		if (!mode)
+			max_size = DEFAULT_XRES * DEFAULT_YRES;
+		else if (max_cfg)
+			dev_dbg(&pdev->dev, "Found largest videomode %ux%u\n",
+				max_cfg->xres, max_cfg->yres);
+
+		info->fix = sh_mobile_lcdc_fix;
+		info->fix.smem_len = max_size * (cfg->bpp / 8) * 2;
+
+		if (!mode) {
+			mode = &default_720p;
+			num_cfg = 1;
+		} else {
+			num_cfg = ch->cfg.num_cfg;
+		}
+
+		fb_videomode_to_modelist(mode, num_cfg, &info->modelist);
+
+		fb_videomode_to_var(var, mode);
 		/* Default Y virtual resolution is 2x panel size */
 		var->yres_virtual = var->yres * 2;
-		var->width = cfg->lcd_size_cfg.width;
-		var->height = cfg->lcd_size_cfg.height;
 		var->activate = FB_ACTIVATE_NOW;
-		var->left_margin = lcd_cfg->left_margin;
-		var->right_margin = lcd_cfg->right_margin;
-		var->upper_margin = lcd_cfg->upper_margin;
-		var->lower_margin = lcd_cfg->lower_margin;
-		var->hsync_len = lcd_cfg->hsync_len;
-		var->vsync_len = lcd_cfg->vsync_len;
-		var->sync = lcd_cfg->sync;
-		var->pixclock = lcd_cfg->pixclock;
 
 		error = sh_mobile_lcdc_set_bpp(var, cfg->bpp);
 		if (error)
 			break;
 
-		info->fix = sh_mobile_lcdc_fix;
-		info->fix.line_length = lcd_cfg->xres * (cfg->bpp / 8);
-		info->fix.smem_len = info->fix.line_length *
-			var->yres_virtual;
-
 		buf = dma_alloc_coherent(&pdev->dev, info->fix.smem_len,
-					 &priv->ch[i].dma_handle, GFP_KERNEL);
+					 &ch->dma_handle, GFP_KERNEL);
 		if (!buf) {
 			dev_err(&pdev->dev, "unable to allocate buffer\n");
 			error = -ENOMEM;
 			break;
 		}
 
-		info->pseudo_palette = &priv->ch[i].pseudo_palette;
+		info->pseudo_palette = &ch->pseudo_palette;
 		info->flags = FBINFO_FLAG_DEFAULT;
 
 		error = fb_alloc_cmap(&info->cmap, PALETTE_NR, 0);
 		if (error < 0) {
 			dev_err(&pdev->dev, "unable to allocate cmap\n");
 			dma_free_coherent(&pdev->dev, info->fix.smem_len,
-					  buf, priv->ch[i].dma_handle);
+					  buf, ch->dma_handle);
 			break;
 		}
 
-		memset(buf, 0, info->fix.smem_len);
-		info->fix.smem_start = priv->ch[i].dma_handle;
+		info->fix.smem_start = ch->dma_handle;
+		info->fix.line_length = var->xres * (cfg->bpp / 8);
 		info->screen_base = buf;
 		info->device = &pdev->dev;
-		info->par = &priv->ch[i];
+		ch->display_var = *var;
 	}
 
 	if (error)
@@ -1200,8 +1310,7 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 			 pdev->name,
 			 (ch->cfg.chan == LCDC_CHAN_MAINLCD) ?
 			 "mainlcd" : "sublcd",
-			 (int) ch->cfg.lcd_cfg.xres,
-			 (int) ch->cfg.lcd_cfg.yres,
+			 info->var.xres, info->var.yres,
 			 ch->cfg.bpp);
 
 		/* deferred io mode: disable clock to save power */
@@ -1243,8 +1352,10 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 		if (priv->ch[i].sglist)
 			vfree(priv->ch[i].sglist);
 
-		dma_free_coherent(&pdev->dev, info->fix.smem_len,
-				  info->screen_base, priv->ch[i].dma_handle);
+		if (info->screen_base)
+			dma_free_coherent(&pdev->dev, info->fix.smem_len,
+					  info->screen_base,
+					  priv->ch[i].dma_handle);
 		fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
 	}

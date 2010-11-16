@@ -311,7 +311,8 @@ static int omap_sham_xmit_dma(struct omap_sham_dev *dd, dma_addr_t dma_addr,
 	len32 = DIV_ROUND_UP(length, sizeof(u32));
 
 	omap_set_dma_transfer_params(dd->dma_lch, OMAP_DMA_DATA_TYPE_S32, len32,
-			1, OMAP_DMA_SYNC_PACKET, dd->dma, OMAP_DMA_DST_SYNC);
+			1, OMAP_DMA_SYNC_PACKET, dd->dma,
+				OMAP_DMA_DST_SYNC_PREFETCH);
 
 	omap_set_dma_src_params(dd->dma_lch, 0, OMAP_DMA_AMODE_POST_INC,
 				dma_addr, 0, 0);
@@ -1071,6 +1072,9 @@ static int omap_sham_dma_init(struct omap_sham_dev *dd)
 
 	omap_set_dma_dest_burst_mode(dd->dma_lch,
 			OMAP_DMA_DATA_BURST_16);
+
+	omap_set_dma_src_burst_mode(dd->dma_lch,
+			OMAP_DMA_DATA_BURST_4);
 
 	return 0;
 }

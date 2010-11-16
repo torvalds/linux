@@ -73,6 +73,6 @@ int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	inet->inet_id = jiffies;
 
 	sk_dst_set(sk, &rt->dst);
-	return(0);
+	return 0;
 }
 EXPORT_SYMBOL(ip4_datagram_connect);

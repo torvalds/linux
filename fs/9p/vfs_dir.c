@@ -242,7 +242,8 @@ static int v9fs_dir_readdir_dotl(struct file *filp, void *dirent,
 		while (rdir->head < rdir->tail) {
 
 			err = p9dirent_read(rdir->buf + rdir->head,
-						buflen - rdir->head, &curdirent,
+						rdir->tail - rdir->head,
+						&curdirent,
 						fid->clnt->proto_version);
 			if (err < 0) {
 				P9_DPRINTK(P9_DEBUG_VFS, "returned %d\n", err);
@@ -314,4 +315,5 @@ const struct file_operations v9fs_dir_operations_dotl = {
 	.readdir = v9fs_dir_readdir_dotl,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
+        .fsync = v9fs_file_fsync_dotl,
 };

@@ -64,6 +64,7 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/fs.h>
+#include <linux/irq.h>
 
 #include <asm/mipsregs.h>
 #include <asm/uasm.h>
@@ -477,7 +478,7 @@ static void octeon_wdt_calc_parameters(int t)
 
 	countdown_reset = periods > 2 ? periods - 2 : 0;
 	heartbeat = t;
-	timeout_cnt = ((octeon_get_clock_rate() >> 8) * timeout_sec) >> 8;
+	timeout_cnt = ((octeon_get_io_clock_rate() >> 8) * timeout_sec) >> 8;
 }
 
 static int octeon_wdt_set_heartbeat(int t)
@@ -676,7 +677,7 @@ static int __init octeon_wdt_init(void)
 	max_timeout_sec = 6;
 	do {
 		max_timeout_sec--;
-		timeout_cnt = ((octeon_get_clock_rate() >> 8) * max_timeout_sec) >> 8;
+		timeout_cnt = ((octeon_get_io_clock_rate() >> 8) * max_timeout_sec) >> 8;
 	} while (timeout_cnt > 65535);
 
 	BUG_ON(timeout_cnt == 0);

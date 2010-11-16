@@ -19,6 +19,8 @@ extern int gfs2_releasepage(struct page *page, gfp_t gfp_mask);
 extern int gfs2_internal_read(struct gfs2_inode *ip,
 			      struct file_ra_state *ra_state,
 			      char *buf, loff_t *pos, unsigned size);
+extern void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
+				   unsigned int from, unsigned int to);
 extern void gfs2_set_aops(struct inode *inode);
 
 static inline int gfs2_is_stuffed(const struct gfs2_inode *ip)
@@ -80,11 +82,26 @@ static inline void gfs2_inum_out(const struct gfs2_inode *ip,
 	dent->de_inum.no_addr = cpu_to_be64(ip->i_no_addr);
 }
 
+static inline int gfs2_check_internal_file_size(struct inode *inode,
+						u64 minsize, u64 maxsize)
+{
+	u64 size = i_size_read(inode);
+	if (size < minsize || size > maxsize)
+		goto err;
+	if (size & ((1 << inode->i_blkbits) - 1))
+		goto err;
+	return 0;
+err:
+	gfs2_consist_inode(GFS2_I(inode));
+	return -EIO;
+}
 
 extern void gfs2_set_iop(struct inode *inode);
 extern struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned type, 
 				       u64 no_addr, u64 no_formal_ino);
-extern void gfs2_process_unlinked_inode(struct super_block *sb, u64 no_addr);
+extern struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
+					 u64 *no_formal_ino,
+					 unsigned int blktype);
 extern struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr);
 
 extern int gfs2_inode_refresh(struct gfs2_inode *ip);

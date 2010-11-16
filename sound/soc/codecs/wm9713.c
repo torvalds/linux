@@ -1057,9 +1057,9 @@ static struct snd_soc_dai_ops wm9713_dai_ops_voice = {
 	.set_tristate	= wm9713_set_dai_tristate,
 };
 
-struct snd_soc_dai wm9713_dai[] = {
+static struct snd_soc_dai_driver wm9713_dai[] = {
 {
-	.name = "AC97 HiFi",
+	.name = "wm9713-hifi",
 	.ac97_control = 1,
 	.playback = {
 		.stream_name = "HiFi Playback",
@@ -1076,7 +1076,7 @@ struct snd_soc_dai wm9713_dai[] = {
 	.ops = &wm9713_dai_ops_hifi,
 	},
 	{
-	.name = "AC97 Aux",
+	.name = "wm9713-aux",
 	.playback = {
 		.stream_name = "Aux Playback",
 		.channels_min = 1,
@@ -1086,7 +1086,7 @@ struct snd_soc_dai wm9713_dai[] = {
 	.ops = &wm9713_dai_ops_aux,
 	},
 	{
-	.name = "WM9713 Voice",
+	.name = "wm9713-voice",
 	.playback = {
 		.stream_name = "Voice Playback",
 		.channels_min = 1,
@@ -1103,7 +1103,6 @@ struct snd_soc_dai wm9713_dai[] = {
 	.symmetric_rates = 1,
 	},
 };
-EXPORT_SYMBOL_GPL(wm9713_dai);
 
 int wm9713_reset(struct snd_soc_codec *codec, int try_warm)
 {
@@ -1152,11 +1151,9 @@ static int wm9713_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm9713_soc_suspend(struct platform_device *pdev,
+static int wm9713_soc_suspend(struct snd_soc_codec *codec,
 	pm_message_t state)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
 	u16 reg;
 
 	/* Disable everything except touchpanel - that will be handled
@@ -1171,10 +1168,8 @@ static int wm9713_soc_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int wm9713_soc_resume(struct platform_device *pdev)
+static int wm9713_soc_resume(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm9713_priv *wm9713 = snd_soc_codec_get_drvdata(codec);
 	int i, ret;
 	u16 *cache = codec->reg_cache;
@@ -1204,52 +1199,19 @@ static int wm9713_soc_resume(struct platform_device *pdev)
 	return ret;
 }
 
-static int wm9713_soc_probe(struct platform_device *pdev)
+static int wm9713_soc_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
+	struct wm9713_priv *wm9713;
 	int ret = 0, reg;
 
-	socdev->card->codec = kzalloc(sizeof(struct snd_soc_codec),
-				      GFP_KERNEL);
-	if (socdev->card->codec == NULL)
+	wm9713 = kzalloc(sizeof(struct wm9713_priv), GFP_KERNEL);
+	if (wm9713 == NULL)
 		return -ENOMEM;
-	codec = socdev->card->codec;
-	mutex_init(&codec->mutex);
-
-	codec->reg_cache = kmemdup(wm9713_reg, sizeof(wm9713_reg), GFP_KERNEL);
-	if (codec->reg_cache == NULL) {
-		ret = -ENOMEM;
-		goto cache_err;
-	}
-	codec->reg_cache_size = sizeof(wm9713_reg);
-	codec->reg_cache_step = 2;
-
-	snd_soc_codec_set_drvdata(codec, kzalloc(sizeof(struct wm9713_priv),
-						 GFP_KERNEL));
-	if (snd_soc_codec_get_drvdata(codec) == NULL) {
-		ret = -ENOMEM;
-		goto priv_err;
-	}
-
-	codec->name = "WM9713";
-	codec->owner = THIS_MODULE;
-	codec->dai = wm9713_dai;
-	codec->num_dai = ARRAY_SIZE(wm9713_dai);
-	codec->write = ac97_write;
-	codec->read = ac97_read;
-	codec->set_bias_level = wm9713_set_bias_level;
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
+	snd_soc_codec_set_drvdata(codec, wm9713);
 
 	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
 	if (ret < 0)
 		goto codec_err;
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0)
-		goto pcm_err;
 
 	/* do a cold reset for the controller and then try
 	 * a warm reset followed by an optional cold reset for codec */
@@ -1273,46 +1235,67 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 	return 0;
 
 reset_err:
-	snd_soc_free_pcms(socdev);
-pcm_err:
 	snd_soc_free_ac97_codec(codec);
-
 codec_err:
-	kfree(snd_soc_codec_get_drvdata(codec));
-
-priv_err:
-	kfree(codec->reg_cache);
-
-cache_err:
-	kfree(socdev->card->codec);
-	socdev->card->codec = NULL;
+	kfree(wm9713);
 	return ret;
 }
 
-static int wm9713_soc_remove(struct platform_device *pdev)
+static int wm9713_soc_remove(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	if (codec == NULL)
-		return 0;
-
-	snd_soc_dapm_free(socdev);
-	snd_soc_free_pcms(socdev);
+	struct wm9713_priv *wm9713 = snd_soc_codec_get_drvdata(codec);
 	snd_soc_free_ac97_codec(codec);
-	kfree(snd_soc_codec_get_drvdata(codec));
-	kfree(codec->reg_cache);
-	kfree(codec);
+	kfree(wm9713);
 	return 0;
 }
 
-struct snd_soc_codec_device soc_codec_dev_wm9713 = {
+static struct snd_soc_codec_driver soc_codec_dev_wm9713 = {
 	.probe = 	wm9713_soc_probe,
 	.remove = 	wm9713_soc_remove,
 	.suspend =	wm9713_soc_suspend,
 	.resume = 	wm9713_soc_resume,
+	.read = ac97_read,
+	.write = ac97_write,
+	.set_bias_level = wm9713_set_bias_level,
+	.reg_cache_size = ARRAY_SIZE(wm9713_reg),
+	.reg_word_size = sizeof(u16),
+	.reg_cache_step = 2,
+	.reg_cache_default = wm9713_reg,
 };
-EXPORT_SYMBOL_GPL(soc_codec_dev_wm9713);
+
+static __devinit int wm9713_probe(struct platform_device *pdev)
+{
+	return snd_soc_register_codec(&pdev->dev,
+			&soc_codec_dev_wm9713, wm9713_dai, ARRAY_SIZE(wm9713_dai));
+}
+
+static int __devexit wm9713_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_codec(&pdev->dev);
+	return 0;
+}
+
+static struct platform_driver wm9713_codec_driver = {
+	.driver = {
+			.name = "wm9713-codec",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = wm9713_probe,
+	.remove = __devexit_p(wm9713_remove),
+};
+
+static int __init wm9713_init(void)
+{
+	return platform_driver_register(&wm9713_codec_driver);
+}
+module_init(wm9713_init);
+
+static void __exit wm9713_exit(void)
+{
+	platform_driver_unregister(&wm9713_codec_driver);
+}
+module_exit(wm9713_exit);
 
 MODULE_DESCRIPTION("ASoC WM9713/WM9714 driver");
 MODULE_AUTHOR("Liam Girdwood");

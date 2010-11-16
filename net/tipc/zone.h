@@ -61,7 +61,6 @@ void tipc_zone_send_external_routes(struct _zone *z_ptr, u32 dest);
 struct _zone *tipc_zone_create(u32 addr);
 void tipc_zone_delete(struct _zone *z_ptr);
 void tipc_zone_attach_cluster(struct _zone *z_ptr, struct cluster *c_ptr);
-u32 tipc_zone_next_node(u32 addr);
 
 static inline struct _zone *tipc_zone_find(u32 addr)
 {

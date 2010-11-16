@@ -139,23 +139,6 @@ static inline int wl1271_tx_get_queue(int queue)
 	}
 }
 
-/* wl1271 tx descriptor needs the tid and we need to convert it from ac */
-static inline int wl1271_tx_ac_to_tid(int ac)
-{
-	switch (ac) {
-	case 0:
-		return 0;
-	case 1:
-		return 2;
-	case 2:
-		return 4;
-	case 3:
-		return 6;
-	default:
-		return 0;
-	}
-}
-
 void wl1271_tx_work(struct work_struct *work);
 void wl1271_tx_complete(struct wl1271 *wl);
 void wl1271_tx_reset(struct wl1271 *wl);

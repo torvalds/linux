@@ -57,15 +57,15 @@ extern int dmar_table_init(void);
 extern int dmar_dev_scope_init(void);
 
 /* Intel IOMMU detection */
-extern void detect_intel_iommu(void);
+extern int detect_intel_iommu(void);
 extern int enable_drhd_fault_handling(void);
 
 extern int parse_ioapics_under_ir(void);
 extern int alloc_iommu(struct dmar_drhd_unit *);
 #else
-static inline void detect_intel_iommu(void)
+static inline int detect_intel_iommu(void)
 {
-	return;
+	return -ENODEV;
 }
 
 static inline int dmar_table_init(void)
@@ -106,6 +106,7 @@ struct irte {
 		__u64 high;
 	};
 };
+
 #ifdef CONFIG_INTR_REMAP
 extern int intr_remapping_enabled;
 extern int intr_remapping_supported(void);
@@ -119,11 +120,8 @@ extern int alloc_irte(struct intel_iommu *iommu, int irq, u16 count);
 extern int set_irte_irq(int irq, struct intel_iommu *iommu, u16 index,
    			u16 sub_handle);
 extern int map_irq_to_irte_handle(int irq, u16 *sub_handle);
-extern int clear_irte_irq(int irq, struct intel_iommu *iommu, u16 index);
-extern int flush_irte(int irq);
 extern int free_irte(int irq);
 
-extern int irq_remapped(int irq);
 extern struct intel_iommu *map_dev_to_ir(struct pci_dev *dev);
 extern struct intel_iommu *map_ioapic_to_ir(int apic);
 extern struct intel_iommu *map_hpet_to_ir(u8 id);
@@ -177,7 +175,6 @@ static inline int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 	return 0;
 }
 
-#define irq_remapped(irq)		(0)
 #define enable_intr_remapping(mode)	(-1)
 #define disable_intr_remapping()	(0)
 #define reenable_intr_remapping(mode)	(0)
@@ -187,8 +184,9 @@ static inline int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 /* Can't use the common MSI interrupt functions
  * since DMAR is not a pci device
  */
-extern void dmar_msi_unmask(unsigned int irq);
-extern void dmar_msi_mask(unsigned int irq);
+struct irq_data;
+extern void dmar_msi_unmask(struct irq_data *data);
+extern void dmar_msi_mask(struct irq_data *data);
 extern void dmar_msi_read(int irq, struct msi_msg *msg);
 extern void dmar_msi_write(int irq, struct msi_msg *msg);
 extern int dmar_set_interrupt(struct intel_iommu *iommu);

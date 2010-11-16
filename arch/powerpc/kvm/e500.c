@@ -117,8 +117,14 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto uninit_vcpu;
 
+	vcpu->arch.shared = (void*)__get_free_page(GFP_KERNEL|__GFP_ZERO);
+	if (!vcpu->arch.shared)
+		goto uninit_tlb;
+
 	return vcpu;
 
+uninit_tlb:
+	kvmppc_e500_tlb_uninit(vcpu_e500);
 uninit_vcpu:
 	kvm_vcpu_uninit(vcpu);
 free_vcpu:
@@ -131,8 +137,9 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 
-	kvmppc_e500_tlb_uninit(vcpu_e500);
+	free_page((unsigned long)vcpu->arch.shared);
 	kvm_vcpu_uninit(vcpu);
+	kvmppc_e500_tlb_uninit(vcpu_e500);
 	kmem_cache_free(kvm_vcpu_cache, vcpu_e500);
 }
 

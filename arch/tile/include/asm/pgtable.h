@@ -344,18 +344,11 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
 
 #if defined(CONFIG_HIGHPTE)
-extern pte_t *_pte_offset_map(pmd_t *, unsigned long address, enum km_type);
-#define pte_offset_map(dir, address) \
-	_pte_offset_map(dir, address, KM_PTE0)
-#define pte_offset_map_nested(dir, address) \
-	_pte_offset_map(dir, address, KM_PTE1)
-#define pte_unmap(pte) kunmap_atomic(pte, KM_PTE0)
-#define pte_unmap_nested(pte) kunmap_atomic(pte, KM_PTE1)
+extern pte_t *pte_offset_map(pmd_t *, unsigned long address);
+#define pte_unmap(pte) kunmap_atomic(pte)
 #else
 #define pte_offset_map(dir, address) pte_offset_kernel(dir, address)
-#define pte_offset_map_nested(dir, address) pte_offset_map(dir, address)
 #define pte_unmap(pte) do { } while (0)
-#define pte_unmap_nested(pte) do { } while (0)
 #endif
 
 /* Clear a non-executable kernel PTE and flush it from the TLB. */

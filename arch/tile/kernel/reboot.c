@@ -27,7 +27,7 @@
 void machine_halt(void)
 {
 	warn_early_printk();
-	raw_local_irq_disable_all();
+	arch_local_irq_disable_all();
 	smp_send_stop();
 	hv_halt();
 }
@@ -35,14 +35,14 @@ void machine_halt(void)
 void machine_power_off(void)
 {
 	warn_early_printk();
-	raw_local_irq_disable_all();
+	arch_local_irq_disable_all();
 	smp_send_stop();
 	hv_power_off();
 }
 
 void machine_restart(char *cmd)
 {
-	raw_local_irq_disable_all();
+	arch_local_irq_disable_all();
 	smp_send_stop();
 	hv_restart((HV_VirtAddr) "vmlinux", (HV_VirtAddr) cmd);
 }

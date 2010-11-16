@@ -20,7 +20,7 @@ enum prom_major_version prom_vers;
 unsigned int prom_rev, prom_prev;
 
 /* The root node of the prom device tree. */
-int prom_root_node;
+phandle prom_root_node;
 EXPORT_SYMBOL(prom_root_node);
 
 /* Pointer to the device tree operations structure. */

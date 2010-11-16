@@ -69,8 +69,8 @@ static int at91sam9g20ek_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret;
 
 	/* set codec DAI configuration */
@@ -136,16 +136,17 @@ static const struct snd_soc_dapm_route intercon[] = {
 /*
  * Logic for a wm8731 as connected on a at91sam9g20ek board.
  */
-static int at91sam9g20ek_wm8731_init(struct snd_soc_codec *codec)
+static int at91sam9g20ek_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = &codec->dai[0];
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
 
 	printk(KERN_DEBUG
 			"at91sam9g20ek_wm8731 "
 			": at91sam9g20ek_wm8731_init() called\n");
 
-	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK,
+	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK_XTAL,
 		MCLK_RATE, SND_SOC_CLOCK_IN);
 	if (ret < 0) {
 		printk(KERN_ERR "Failed to set WM8731 SYSCLK: %d\n", ret);
@@ -179,36 +180,36 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link at91sam9g20ek_dai = {
 	.name = "WM8731",
 	.stream_name = "WM8731 PCM",
-	.cpu_dai = &atmel_ssc_dai[0],
-	.codec_dai = &wm8731_dai,
+	.cpu_dai_name = "atmel-ssc-dai.0",
+	.codec_dai_name = "wm8731-hifi",
 	.init = at91sam9g20ek_wm8731_init,
+	.platform_name = "atmel-pcm-audio",
+	.codec_name = "wm8731-codec.0-001b",
 	.ops = &at91sam9g20ek_ops,
 };
 
 static struct snd_soc_card snd_soc_at91sam9g20ek = {
 	.name = "AT91SAMG20-EK",
-	.platform = &atmel_soc_platform,
 	.dai_link = &at91sam9g20ek_dai,
 	.num_links = 1,
 	.set_bias_level = at91sam9g20ek_set_bias_level,
-};
-
-static struct snd_soc_device at91sam9g20ek_snd_devdata = {
-	.card = &snd_soc_at91sam9g20ek,
-	.codec_dev = &soc_codec_dev_wm8731,
 };
 
 static struct platform_device *at91sam9g20ek_snd_device;
 
 static int __init at91sam9g20ek_init(void)
 {
-	struct atmel_ssc_info *ssc_p = at91sam9g20ek_dai.cpu_dai->private_data;
-	struct ssc_device *ssc = NULL;
 	struct clk *pllb;
 	int ret;
 
 	if (!(machine_is_at91sam9g20ek() || machine_is_at91sam9g20ek_2mmc()))
 		return -ENODEV;
+
+	ret = atmel_ssc_set_audio(0);
+	if (ret != 0) {
+		pr_err("Failed to set SSC 0 for audio: %d\n", ret);
+		return ret;
+	}
 
 	/*
 	 * Codec MCLK is supplied by PCK0 - set it up.
@@ -235,18 +236,6 @@ static int __init at91sam9g20ek_init(void)
 
 	clk_set_rate(mclk, MCLK_RATE);
 
-	/*
-	 * Request SSC device
-	 */
-	ssc = ssc_request(0);
-	if (IS_ERR(ssc)) {
-		printk(KERN_ERR "ASoC: Failed to request SSC 0\n");
-		ret = PTR_ERR(ssc);
-		ssc = NULL;
-		goto err_ssc;
-	}
-	ssc_p->ssc = ssc;
-
 	at91sam9g20ek_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!at91sam9g20ek_snd_device) {
 		printk(KERN_ERR "ASoC: Platform device allocation failed\n");
@@ -254,8 +243,7 @@ static int __init at91sam9g20ek_init(void)
 	}
 
 	platform_set_drvdata(at91sam9g20ek_snd_device,
-			&at91sam9g20ek_snd_devdata);
-	at91sam9g20ek_snd_devdata.dev = &at91sam9g20ek_snd_device->dev;
+			&snd_soc_at91sam9g20ek);
 
 	ret = platform_device_add(at91sam9g20ek_snd_device);
 	if (ret) {
@@ -265,9 +253,6 @@ static int __init at91sam9g20ek_init(void)
 
 	return ret;
 
-err_ssc:
-	ssc_free(ssc);
-	ssc_p->ssc = NULL;
 err_mclk:
 	clk_put(mclk);
 	mclk = NULL;
@@ -277,16 +262,6 @@ err:
 
 static void __exit at91sam9g20ek_exit(void)
 {
-	struct atmel_ssc_info *ssc_p = at91sam9g20ek_dai.cpu_dai->private_data;
-	struct ssc_device *ssc;
-
-	if (ssc_p != NULL) {
-		ssc = ssc_p->ssc;
-		if (ssc != NULL)
-			ssc_free(ssc);
-		ssc_p->ssc = NULL;
-	}
-
 	platform_device_unregister(at91sam9g20ek_snd_device);
 	at91sam9g20ek_snd_device = NULL;
 	clk_put(mclk);

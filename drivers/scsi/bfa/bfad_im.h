@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2009 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
  * All rights reserved
  * www.brocade.com
  *
@@ -18,20 +18,20 @@
 #ifndef __BFAD_IM_H__
 #define __BFAD_IM_H__
 
-#include "fcs/bfa_fcs_fcpim.h"
-#include "bfad_im_compat.h"
+#include "bfa_fcs.h"
 
 #define FCPI_NAME " fcpim"
+
+#ifndef KOBJ_NAME_LEN
+#define KOBJ_NAME_LEN           20
+#endif
 
 bfa_status_t bfad_im_module_init(void);
 void bfad_im_module_exit(void);
 bfa_status_t bfad_im_probe(struct bfad_s *bfad);
 void bfad_im_probe_undo(struct bfad_s *bfad);
-void bfad_im_probe_post(struct bfad_im_s *im);
 bfa_status_t bfad_im_port_new(struct bfad_s *bfad, struct bfad_port_s *port);
 void bfad_im_port_delete(struct bfad_s *bfad, struct bfad_port_s *port);
-void bfad_im_port_online(struct bfad_s *bfad, struct bfad_port_s *port);
-void bfad_im_port_offline(struct bfad_s *bfad, struct bfad_port_s *port);
 void bfad_im_port_clean(struct bfad_im_port_s *im_port);
 int  bfad_im_scsi_host_alloc(struct bfad_s *bfad,
 		struct bfad_im_port_s *im_port, struct device *dev);
@@ -44,14 +44,10 @@ void bfad_im_scsi_host_free(struct bfad_s *bfad,
 #define BFAD_LUN_RESET_TMO 60
 #define ScsiResult(host_code, scsi_code) (((host_code) << 16) | scsi_code)
 #define BFA_QUEUE_FULL_RAMP_UP_TIME 120
-#define BFAD_KOBJ_NAME_LEN 20
 
 /*
  * itnim flags
  */
-#define ITNIM_MAPPED		0x00000001
-
-#define SCSI_TASK_MGMT		0x00000001
 #define IO_DONE_BIT			0
 
 struct bfad_itnim_data_s {
@@ -64,7 +60,7 @@ struct bfad_im_port_s {
 	struct work_struct port_delete_work;
 	int             idr_id;
 	u16        cur_scsi_id;
-	u16	   flags;
+	u16	flags;
 	struct list_head binding_list;
 	struct Scsi_Host *shost;
 	struct list_head itnim_mapped_list;
@@ -118,14 +114,13 @@ struct bfad_fcp_binding {
 struct bfad_im_s {
 	struct bfad_s         *bfad;
 	struct workqueue_struct *drv_workq;
-	char   drv_workq_name[BFAD_KOBJ_NAME_LEN];
+	char            drv_workq_name[KOBJ_NAME_LEN];
 };
 
 struct Scsi_Host *bfad_os_scsi_host_alloc(struct bfad_im_port_s *im_port,
 				struct bfad_s *);
 bfa_status_t bfad_os_thread_workq(struct bfad_s *bfad);
 void bfad_os_destroy_workq(struct bfad_im_s *im);
-void bfad_os_itnim_process(struct bfad_itnim_s *itnim_drv);
 void bfad_os_fc_host_init(struct bfad_im_port_s *im_port);
 void bfad_os_scsi_host_free(struct bfad_s *bfad,
 				 struct bfad_im_port_s *im_port);
@@ -133,11 +128,6 @@ void bfad_os_ramp_up_qdepth(struct bfad_itnim_s *itnim,
 				 struct scsi_device *sdev);
 void bfad_os_handle_qfull(struct bfad_itnim_s *itnim, struct scsi_device *sdev);
 struct bfad_itnim_s *bfad_os_get_itnim(struct bfad_im_port_s *im_port, int id);
-int bfad_os_scsi_add_host(struct Scsi_Host *shost,
-		struct bfad_im_port_s *im_port, struct bfad_s *bfad);
-
-void bfad_im_itnim_unmap(struct bfad_im_port_s  *im_port,
-			 struct bfad_itnim_s *itnim);
 
 extern struct scsi_host_template bfad_im_scsi_host_template;
 extern struct scsi_host_template bfad_im_vport_template;
@@ -146,4 +136,34 @@ extern struct fc_function_template bfad_im_vport_fc_function_template;
 extern struct scsi_transport_template *bfad_im_scsi_transport_template;
 extern struct scsi_transport_template *bfad_im_scsi_vport_transport_template;
 
+extern struct device_attribute *bfad_im_host_attrs[];
+extern struct device_attribute *bfad_im_vport_attrs[];
+
+irqreturn_t bfad_intx(int irq, void *dev_id);
+
+/* Firmware releated */
+#define BFAD_FW_FILE_CT_FC      "ctfw_fc.bin"
+#define BFAD_FW_FILE_CT_CNA     "ctfw_cna.bin"
+#define BFAD_FW_FILE_CB_FC      "cbfw_fc.bin"
+
+u32 *bfad_get_firmware_buf(struct pci_dev *pdev);
+u32 *bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
+		u32 *bfi_image_size, char *fw_name);
+
+static inline u32 *
+bfad_load_fwimg(struct pci_dev *pdev)
+{
+	return bfad_get_firmware_buf(pdev);
+}
+
+static inline void
+bfad_free_fwimg(void)
+{
+	if (bfi_image_ct_fc_size && bfi_image_ct_fc)
+		vfree(bfi_image_ct_fc);
+	if (bfi_image_ct_cna_size && bfi_image_ct_cna)
+		vfree(bfi_image_ct_cna);
+	if (bfi_image_cb_fc_size && bfi_image_cb_fc)
+		vfree(bfi_image_cb_fc);
+}
 #endif

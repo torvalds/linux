@@ -82,8 +82,8 @@ static int wm1133_ev1_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int i, found = 0;
 	snd_pcm_format_t format = params_format(params);
 	unsigned int rate = params_rate(params);
@@ -210,9 +210,9 @@ static struct snd_soc_jack_pin mic_jack_pins[] = {
 	{ .pin = "Mic2 Jack", .mask = SND_JACK_MICROPHONE },
 };
 
-static int wm1133_ev1_init(struct snd_soc_codec *codec)
+static int wm1133_ev1_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_card *card = codec->socdev->card;
+	struct snd_soc_codec *codec = rtd->codec;
 
 	snd_soc_dapm_new_controls(codec, wm1133_ev1_widgets,
 				  ARRAY_SIZE(wm1133_ev1_widgets));
@@ -221,13 +221,13 @@ static int wm1133_ev1_init(struct snd_soc_codec *codec)
 				ARRAY_SIZE(wm1133_ev1_map));
 
 	/* Headphone jack detection */
-	snd_soc_jack_new(card, "Headphone", SND_JACK_HEADPHONE, &hp_jack);
+	snd_soc_jack_new(codec, "Headphone", SND_JACK_HEADPHONE, &hp_jack);
 	snd_soc_jack_add_pins(&hp_jack, ARRAY_SIZE(hp_jack_pins),
 			      hp_jack_pins);
 	wm8350_hp_jack_detect(codec, WM8350_JDR, &hp_jack, SND_JACK_HEADPHONE);
 
 	/* Microphone jack detection */
-	snd_soc_jack_new(card, "Microphone",
+	snd_soc_jack_new(codec, "Microphone",
 			 SND_JACK_MICROPHONE | SND_JACK_BTN_0, &mic_jack);
 	snd_soc_jack_add_pins(&mic_jack, ARRAY_SIZE(mic_jack_pins),
 			      mic_jack_pins);
@@ -243,8 +243,10 @@ static int wm1133_ev1_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link wm1133_ev1_dai = {
 	.name = "WM1133-EV1",
 	.stream_name = "Audio",
-	.cpu_dai = &imx_ssi_pcm_dai[0],
-	.codec_dai = &wm8350_dai,
+	.cpu_dai_name = "imx-ssi.0",
+	.codec_dai_name = "wm8350-hifi",
+	.platform_name = "imx-fiq-pcm-audio.0",
+	.codec_name = "wm8350-codec.0-0x1a",
 	.init = wm1133_ev1_init,
 	.ops = &wm1133_ev1_ops,
 	.symmetric_rates = 1,
@@ -252,14 +254,8 @@ static struct snd_soc_dai_link wm1133_ev1_dai = {
 
 static struct snd_soc_card wm1133_ev1 = {
 	.name = "WM1133-EV1",
-	.platform = &imx_soc_platform,
 	.dai_link = &wm1133_ev1_dai,
 	.num_links = 1,
-};
-
-static struct snd_soc_device wm1133_ev1_snd_devdata = {
-	.card = &wm1133_ev1,
-	.codec_dev = &soc_codec_dev_wm8350,
 };
 
 static struct platform_device *wm1133_ev1_snd_device;
@@ -286,8 +282,7 @@ static int __init wm1133_ev1_audio_init(void)
 	if (!wm1133_ev1_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(wm1133_ev1_snd_device, &wm1133_ev1_snd_devdata);
-	wm1133_ev1_snd_devdata.dev = &wm1133_ev1_snd_device->dev;
+	platform_set_drvdata(wm1133_ev1_snd_device, &wm1133_ev1);
 	ret = platform_device_add(wm1133_ev1_snd_device);
 
 	if (ret)

@@ -38,14 +38,14 @@
  * static struct mcp251x_platform_data mcp251x_info = {
  *         .oscillator_frequency = 8000000,
  *         .board_specific_setup = &mcp251x_setup,
- *         .model = CAN_MCP251X_MCP2510,
  *         .power_enable = mcp251x_power_enable,
  *         .transceiver_enable = NULL,
  * };
  *
  * static struct spi_board_info spi_board_info[] = {
  *         {
- *                 .modalias = "mcp251x",
+ *                 .modalias = "mcp2510",
+ *			// or "mcp2515" depending on your controller
  *                 .platform_data = &mcp251x_info,
  *                 .irq = IRQ_EINT13,
  *                 .max_speed_hz = 2*1000*1000,
@@ -125,6 +125,9 @@
 #  define CANINTF_TX0IF 0x04
 #  define CANINTF_RX1IF 0x02
 #  define CANINTF_RX0IF 0x01
+#  define CANINTF_RX (CANINTF_RX0IF | CANINTF_RX1IF)
+#  define CANINTF_TX (CANINTF_TX2IF | CANINTF_TX1IF | CANINTF_TX0IF)
+#  define CANINTF_ERR (CANINTF_ERRIF)
 #define EFLG	      0x2d
 #  define EFLG_EWARN	0x01
 #  define EFLG_RXWAR	0x02
@@ -166,6 +169,7 @@
 #  define RXBSIDH_SHIFT 3
 #define RXBSIDL(n)  (((n) * 0x10) + 0x60 + RXBSIDL_OFF)
 #  define RXBSIDL_IDE   0x08
+#  define RXBSIDL_SRR   0x10
 #  define RXBSIDL_EID   3
 #  define RXBSIDL_SHIFT 5
 #define RXBEID8(n)  (((n) * 0x10) + 0x60 + RXBEID8_OFF)
@@ -222,10 +226,16 @@ static struct can_bittiming_const mcp251x_bittiming_const = {
 	.brp_inc = 1,
 };
 
+enum mcp251x_model {
+	CAN_MCP251X_MCP2510	= 0x2510,
+	CAN_MCP251X_MCP2515	= 0x2515,
+};
+
 struct mcp251x_priv {
 	struct can_priv	   can;
 	struct net_device *net;
 	struct spi_device *spi;
+	enum mcp251x_model model;
 
 	struct mutex mcp_lock; /* SPI device lock */
 
@@ -249,6 +259,16 @@ struct mcp251x_priv {
 #define AFTER_SUSPEND_RESTART 8
 	int restart_tx;
 };
+
+#define MCP251X_IS(_model) \
+static inline int mcp251x_is_##_model(struct spi_device *spi) \
+{ \
+	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev); \
+	return priv->model == CAN_MCP251X_MCP##_model; \
+}
+
+MCP251X_IS(2510);
+MCP251X_IS(2515);
 
 static void mcp251x_clean(struct net_device *net)
 {
@@ -319,6 +339,20 @@ static u8 mcp251x_read_reg(struct spi_device *spi, uint8_t reg)
 	return val;
 }
 
+static void mcp251x_read_2regs(struct spi_device *spi, uint8_t reg,
+		uint8_t *v1, uint8_t *v2)
+{
+	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev);
+
+	priv->spi_tx_buf[0] = INSTRUCTION_READ;
+	priv->spi_tx_buf[1] = reg;
+
+	mcp251x_spi_trans(spi, 4);
+
+	*v1 = priv->spi_rx_buf[2];
+	*v2 = priv->spi_rx_buf[3];
+}
+
 static void mcp251x_write_reg(struct spi_device *spi, u8 reg, uint8_t val)
 {
 	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev);
@@ -346,10 +380,9 @@ static void mcp251x_write_bits(struct spi_device *spi, u8 reg,
 static void mcp251x_hw_tx_frame(struct spi_device *spi, u8 *buf,
 				int len, int tx_buf_idx)
 {
-	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
 	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev);
 
-	if (pdata->model == CAN_MCP251X_MCP2510) {
+	if (mcp251x_is_2510(spi)) {
 		int i;
 
 		for (i = 1; i < TXBDAT_OFF + len; i++)
@@ -392,9 +425,8 @@ static void mcp251x_hw_rx_frame(struct spi_device *spi, u8 *buf,
 				int buf_idx)
 {
 	struct mcp251x_priv *priv = dev_get_drvdata(&spi->dev);
-	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
 
-	if (pdata->model == CAN_MCP251X_MCP2510) {
+	if (mcp251x_is_2510(spi)) {
 		int i, len;
 
 		for (i = 1; i < RXBDAT_OFF; i++)
@@ -444,6 +476,8 @@ static void mcp251x_hw_rx(struct spi_device *spi, int buf_idx)
 		frame->can_id =
 			(buf[RXBSIDH_OFF] << RXBSIDH_SHIFT) |
 			(buf[RXBSIDL_OFF] >> RXBSIDL_SHIFT);
+		if (buf[RXBSIDL_OFF] & RXBSIDL_SRR)
+			frame->can_id |= CAN_RTR_FLAG;
 	}
 	/* Data length */
 	frame->can_dlc = get_can_dlc(buf[RXBDLC_OFF] & RXBDLC_LEN_MASK);
@@ -451,7 +485,7 @@ static void mcp251x_hw_rx(struct spi_device *spi, int buf_idx)
 
 	priv->net->stats.rx_packets++;
 	priv->net->stats.rx_bytes += frame->can_dlc;
-	netif_rx(skb);
+	netif_rx_ni(skb);
 }
 
 static void mcp251x_hw_sleep(struct spi_device *spi)
@@ -674,9 +708,9 @@ static void mcp251x_error_skb(struct net_device *net, int can_id, int data1)
 
 	skb = alloc_can_err_skb(net, &frame);
 	if (skb) {
-		frame->can_id = can_id;
+		frame->can_id |= can_id;
 		frame->data[1] = data1;
-		netif_rx(skb);
+		netif_rx_ni(skb);
 	} else {
 		dev_err(&net->dev,
 			"cannot allocate error skb\n");
@@ -754,24 +788,42 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 	mutex_lock(&priv->mcp_lock);
 	while (!priv->force_quit) {
 		enum can_state new_state;
-		u8 intf = mcp251x_read_reg(spi, CANINTF);
-		u8 eflag;
+		u8 intf, eflag;
+		u8 clear_intf = 0;
 		int can_id = 0, data1 = 0;
 
+		mcp251x_read_2regs(spi, CANINTF, &intf, &eflag);
+
+		/* mask out flags we don't care about */
+		intf &= CANINTF_RX | CANINTF_TX | CANINTF_ERR;
+
+		/* receive buffer 0 */
 		if (intf & CANINTF_RX0IF) {
 			mcp251x_hw_rx(spi, 0);
-			/* Free one buffer ASAP */
-			mcp251x_write_bits(spi, CANINTF, intf & CANINTF_RX0IF,
-					   0x00);
+			/*
+			 * Free one buffer ASAP
+			 * (The MCP2515 does this automatically.)
+			 */
+			if (mcp251x_is_2510(spi))
+				mcp251x_write_bits(spi, CANINTF, CANINTF_RX0IF, 0x00);
 		}
 
-		if (intf & CANINTF_RX1IF)
+		/* receive buffer 1 */
+		if (intf & CANINTF_RX1IF) {
 			mcp251x_hw_rx(spi, 1);
+			/* the MCP2515 does this automatically */
+			if (mcp251x_is_2510(spi))
+				clear_intf |= CANINTF_RX1IF;
+		}
 
-		mcp251x_write_bits(spi, CANINTF, intf, 0x00);
+		/* any error or tx interrupt we need to clear? */
+		if (intf & (CANINTF_ERR | CANINTF_TX))
+			clear_intf |= intf & (CANINTF_ERR | CANINTF_TX);
+		if (clear_intf)
+			mcp251x_write_bits(spi, CANINTF, clear_intf, 0x00);
 
-		eflag = mcp251x_read_reg(spi, EFLG);
-		mcp251x_write_reg(spi, EFLG, 0x00);
+		if (eflag)
+			mcp251x_write_bits(spi, EFLG, eflag, 0x00);
 
 		/* Update can state */
 		if (eflag & EFLG_TXBO) {
@@ -816,10 +868,14 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 		if (intf & CANINTF_ERRIF) {
 			/* Handle overflow counters */
 			if (eflag & (EFLG_RX0OVR | EFLG_RX1OVR)) {
-				if (eflag & EFLG_RX0OVR)
+				if (eflag & EFLG_RX0OVR) {
 					net->stats.rx_over_errors++;
-				if (eflag & EFLG_RX1OVR)
+					net->stats.rx_errors++;
+				}
+				if (eflag & EFLG_RX1OVR) {
 					net->stats.rx_over_errors++;
+					net->stats.rx_errors++;
+				}
 				can_id |= CAN_ERR_CRTL;
 				data1 |= CAN_ERR_CRTL_RX_OVERFLOW;
 			}
@@ -838,7 +894,7 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 		if (intf == 0)
 			break;
 
-		if (intf & (CANINTF_TX2IF | CANINTF_TX1IF | CANINTF_TX0IF)) {
+		if (intf & CANINTF_TX) {
 			net->stats.tx_packets++;
 			net->stats.tx_bytes += priv->tx_len - 1;
 			if (priv->tx_len) {
@@ -921,15 +977,11 @@ static int __devinit mcp251x_can_probe(struct spi_device *spi)
 	struct net_device *net;
 	struct mcp251x_priv *priv;
 	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
-	int model = spi_get_device_id(spi)->driver_data;
 	int ret = -ENODEV;
 
 	if (!pdata)
 		/* Platform data is required for osc freq */
 		goto error_out;
-
-	if (model)
-		pdata->model = model;
 
 	/* Allocate can/net device */
 	net = alloc_candev(sizeof(struct mcp251x_priv), TX_ECHO_SKB_MAX);
@@ -947,6 +999,7 @@ static int __devinit mcp251x_can_probe(struct spi_device *spi)
 	priv->can.clock.freq = pdata->oscillator_frequency / 2;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES |
 		CAN_CTRLMODE_LOOPBACK | CAN_CTRLMODE_LISTENONLY;
+	priv->model = spi_get_device_id(spi)->driver_data;
 	priv->net = net;
 	dev_set_drvdata(&spi->dev, priv);
 
@@ -1120,8 +1173,7 @@ static int mcp251x_can_resume(struct spi_device *spi)
 #define mcp251x_can_resume NULL
 #endif
 
-static struct spi_device_id mcp251x_id_table[] = {
-	{ "mcp251x", 	0 /* Use pdata.model */ },
+static const struct spi_device_id mcp251x_id_table[] = {
 	{ "mcp2510",	CAN_MCP251X_MCP2510 },
 	{ "mcp2515",	CAN_MCP251X_MCP2515 },
 	{ },

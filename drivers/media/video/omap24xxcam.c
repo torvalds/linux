@@ -420,7 +420,7 @@ static void omap24xxcam_vbq_release(struct videobuf_queue *vbq,
 	struct videobuf_dmabuf *dma = videobuf_to_dma(vb);
 
 	/* wait for buffer, especially to get out of the sgdma queue */
-	videobuf_waiton(vb, 0, 0);
+	videobuf_waiton(vbq, vb, 0, 0);
 	if (vb->memory == V4L2_MEMORY_MMAP) {
 		dma_unmap_sg(vbq->dev, dma->sglist, dma->sglen,
 			     dma->direction);
@@ -1491,7 +1491,7 @@ static int omap24xxcam_open(struct file *file)
 	videobuf_queue_sg_init(&fh->vbq, &omap24xxcam_vbq_ops, NULL,
 				&fh->vbq_lock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				V4L2_FIELD_NONE,
-				sizeof(struct videobuf_buffer), fh);
+				sizeof(struct videobuf_buffer), fh, NULL);
 
 	return 0;
 

@@ -297,8 +297,8 @@ qlcnic_pcie_sem_lock(struct qlcnic_adapter *adapter, int sem, u32 id_reg)
 			break;
 		if (++timeout >= QLCNIC_PCIE_SEM_TIMEOUT) {
 			dev_err(&adapter->pdev->dev,
-				"Failed to acquire sem=%d lock;reg_id=%d\n",
-				sem, id_reg);
+				"Failed to acquire sem=%d lock; holdby=%d\n",
+				sem, id_reg ? QLCRD32(adapter, id_reg) : -1);
 			return -EIO;
 		}
 		msleep(1);
@@ -375,10 +375,11 @@ qlcnic_send_cmd_descs(struct qlcnic_adapter *adapter,
 
 static int
 qlcnic_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
-				unsigned op)
+				__le16 vlan_id, unsigned op)
 {
 	struct qlcnic_nic_req req;
 	struct qlcnic_mac_req *mac_req;
+	struct qlcnic_vlan_req *vlan_req;
 	u64 word;
 
 	memset(&req, 0, sizeof(struct qlcnic_nic_req));
@@ -390,6 +391,9 @@ qlcnic_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
 	mac_req = (struct qlcnic_mac_req *)&req.words[0];
 	mac_req->op = op;
 	memcpy(mac_req->mac_addr, addr, 6);
+
+	vlan_req = (struct qlcnic_vlan_req *)&req.words[1];
+	vlan_req->vlan_id = vlan_id;
 
 	return qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 }
@@ -415,7 +419,7 @@ static int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, u8 *addr)
 	memcpy(cur->mac_addr, addr, ETH_ALEN);
 
 	if (qlcnic_sre_macaddr_change(adapter,
-				cur->mac_addr, QLCNIC_MAC_ADD)) {
+				cur->mac_addr, 0, QLCNIC_MAC_ADD)) {
 		kfree(cur);
 		return -EIO;
 	}
@@ -438,7 +442,8 @@ void qlcnic_set_multi(struct net_device *netdev)
 	qlcnic_nic_add_mac(adapter, bcast_addr);
 
 	if (netdev->flags & IFF_PROMISC) {
-		mode = VPORT_MISS_MODE_ACCEPT_ALL;
+		if (!(adapter->flags & QLCNIC_PROMISC_DISABLED))
+			mode = VPORT_MISS_MODE_ACCEPT_ALL;
 		goto send_fw_cmd;
 	}
 
@@ -485,9 +490,60 @@ void qlcnic_free_mac_list(struct qlcnic_adapter *adapter)
 	while (!list_empty(head)) {
 		cur = list_entry(head->next, struct qlcnic_mac_list_s, list);
 		qlcnic_sre_macaddr_change(adapter,
-				cur->mac_addr, QLCNIC_MAC_DEL);
+				cur->mac_addr, 0, QLCNIC_MAC_DEL);
 		list_del(&cur->list);
 		kfree(cur);
+	}
+}
+
+void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_filter *tmp_fil;
+	struct hlist_node *tmp_hnode, *n;
+	struct hlist_head *head;
+	int i;
+
+	for (i = 0; i < adapter->fhash.fmax; i++) {
+		head = &(adapter->fhash.fhead[i]);
+
+		hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode)
+		{
+			if (jiffies >
+				(QLCNIC_FILTER_AGE * HZ + tmp_fil->ftime)) {
+				qlcnic_sre_macaddr_change(adapter,
+					tmp_fil->faddr, tmp_fil->vlan_id,
+					tmp_fil->vlan_id ? QLCNIC_MAC_VLAN_DEL :
+					QLCNIC_MAC_DEL);
+				spin_lock_bh(&adapter->mac_learn_lock);
+				adapter->fhash.fnum--;
+				hlist_del(&tmp_fil->fnode);
+				spin_unlock_bh(&adapter->mac_learn_lock);
+				kfree(tmp_fil);
+			}
+		}
+	}
+}
+
+void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_filter *tmp_fil;
+	struct hlist_node *tmp_hnode, *n;
+	struct hlist_head *head;
+	int i;
+
+	for (i = 0; i < adapter->fhash.fmax; i++) {
+		head = &(adapter->fhash.fhead[i]);
+
+		hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode) {
+			qlcnic_sre_macaddr_change(adapter, tmp_fil->faddr,
+				tmp_fil->vlan_id, tmp_fil->vlan_id ?
+				QLCNIC_MAC_VLAN_DEL :  QLCNIC_MAC_DEL);
+			spin_lock_bh(&adapter->mac_learn_lock);
+			adapter->fhash.fnum--;
+			hlist_del(&tmp_fil->fnode);
+			spin_unlock_bh(&adapter->mac_learn_lock);
+			kfree(tmp_fil);
+		}
 	}
 }
 
@@ -527,9 +583,6 @@ int qlcnic_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 	u64 word;
 	int rv;
 
-	if ((adapter->flags & QLCNIC_LRO_ENABLED) == enable)
-		return 0;
-
 	memset(&req, 0, sizeof(struct qlcnic_nic_req));
 
 	req.qhdr = cpu_to_le64(QLCNIC_HOST_REQUEST << 23);
@@ -543,8 +596,6 @@ int qlcnic_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 	if (rv != 0)
 		dev_err(&adapter->netdev->dev,
 			"Could not send configure hw lro request\n");
-
-	adapter->flags ^= QLCNIC_LRO_ENABLED;
 
 	return rv;
 }
@@ -623,9 +674,10 @@ int qlcnic_config_rss(struct qlcnic_adapter *adapter, int enable)
 	return rv;
 }
 
-int qlcnic_config_ipaddr(struct qlcnic_adapter *adapter, u32 ip, int cmd)
+int qlcnic_config_ipaddr(struct qlcnic_adapter *adapter, __be32 ip, int cmd)
 {
 	struct qlcnic_nic_req req;
+	struct qlcnic_ipaddr *ipa;
 	u64 word;
 	int rv;
 
@@ -636,7 +688,8 @@ int qlcnic_config_ipaddr(struct qlcnic_adapter *adapter, u32 ip, int cmd)
 	req.req_hdr = cpu_to_le64(word);
 
 	req.words[0] = cpu_to_le64(cmd);
-	req.words[1] = cpu_to_le64(ip);
+	ipa = (struct qlcnic_ipaddr *)&req.words[1];
+	ipa->ipv4 = ip;
 
 	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0)
@@ -701,9 +754,9 @@ int qlcnic_change_mtu(struct net_device *netdev, int mtu)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int rc = 0;
 
-	if (mtu > P3_MAX_MTU) {
-		dev_err(&adapter->netdev->dev, "mtu > %d bytes unsupported\n",
-						P3_MAX_MTU);
+	if (mtu < P3P_MIN_MTU || mtu > P3P_MAX_MTU) {
+		dev_err(&adapter->netdev->dev, "%d bytes < mtu < %d bytes"
+			" not supported\n", P3P_MAX_MTU, P3P_MIN_MTU);
 		return -EINVAL;
 	}
 
@@ -713,19 +766,6 @@ int qlcnic_change_mtu(struct net_device *netdev, int mtu)
 		netdev->mtu = mtu;
 
 	return rc;
-}
-
-int qlcnic_get_mac_addr(struct qlcnic_adapter *adapter, u8 *mac)
-{
-	u32 crbaddr;
-	int pci_func = adapter->ahw.pci_func;
-
-	crbaddr = CRB_MAC_BLOCK_START +
-		(4 * ((pci_func/2) * 3)) + (4 * (pci_func & 1));
-
-	qlcnic_fetch_mac(adapter, crbaddr, crbaddr+4, pci_func & 1, mac);
-
-	return 0;
 }
 
 /*
@@ -1121,31 +1161,31 @@ int qlcnic_get_board_info(struct qlcnic_adapter *adapter)
 
 	adapter->ahw.board_type = board_type;
 
-	if (board_type == QLCNIC_BRDTYPE_P3_4_GB_MM) {
+	if (board_type == QLCNIC_BRDTYPE_P3P_4_GB_MM) {
 		u32 gpio = QLCRD32(adapter, QLCNIC_ROMUSB_GLB_PAD_GPIO_I);
 		if ((gpio & 0x8000) == 0)
-			board_type = QLCNIC_BRDTYPE_P3_10G_TP;
+			board_type = QLCNIC_BRDTYPE_P3P_10G_TP;
 	}
 
 	switch (board_type) {
-	case QLCNIC_BRDTYPE_P3_HMEZ:
-	case QLCNIC_BRDTYPE_P3_XG_LOM:
-	case QLCNIC_BRDTYPE_P3_10G_CX4:
-	case QLCNIC_BRDTYPE_P3_10G_CX4_LP:
-	case QLCNIC_BRDTYPE_P3_IMEZ:
-	case QLCNIC_BRDTYPE_P3_10G_SFP_PLUS:
-	case QLCNIC_BRDTYPE_P3_10G_SFP_CT:
-	case QLCNIC_BRDTYPE_P3_10G_SFP_QT:
-	case QLCNIC_BRDTYPE_P3_10G_XFP:
-	case QLCNIC_BRDTYPE_P3_10000_BASE_T:
+	case QLCNIC_BRDTYPE_P3P_HMEZ:
+	case QLCNIC_BRDTYPE_P3P_XG_LOM:
+	case QLCNIC_BRDTYPE_P3P_10G_CX4:
+	case QLCNIC_BRDTYPE_P3P_10G_CX4_LP:
+	case QLCNIC_BRDTYPE_P3P_IMEZ:
+	case QLCNIC_BRDTYPE_P3P_10G_SFP_PLUS:
+	case QLCNIC_BRDTYPE_P3P_10G_SFP_CT:
+	case QLCNIC_BRDTYPE_P3P_10G_SFP_QT:
+	case QLCNIC_BRDTYPE_P3P_10G_XFP:
+	case QLCNIC_BRDTYPE_P3P_10000_BASE_T:
 		adapter->ahw.port_type = QLCNIC_XGBE;
 		break;
-	case QLCNIC_BRDTYPE_P3_REF_QG:
-	case QLCNIC_BRDTYPE_P3_4_GB:
-	case QLCNIC_BRDTYPE_P3_4_GB_MM:
+	case QLCNIC_BRDTYPE_P3P_REF_QG:
+	case QLCNIC_BRDTYPE_P3P_4_GB:
+	case QLCNIC_BRDTYPE_P3P_4_GB_MM:
 		adapter->ahw.port_type = QLCNIC_GBE;
 		break;
-	case QLCNIC_BRDTYPE_P3_10G_TP:
+	case QLCNIC_BRDTYPE_P3P_10G_TP:
 		adapter->ahw.port_type = (adapter->portnum < 2) ?
 			QLCNIC_XGBE : QLCNIC_GBE;
 		break;
@@ -1245,4 +1285,5 @@ void qlcnic_clear_ilb_mode(struct qlcnic_adapter *adapter)
 		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
 
 	qlcnic_nic_set_promisc(adapter, mode);
+	msleep(1000);
 }

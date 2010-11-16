@@ -308,25 +308,46 @@ static void oxygen_restore_eeprom(struct oxygen *chip,
 	}
 }
 
-static void pci_bridge_magic(void)
+static void configure_pcie_bridge(struct pci_dev *pci)
 {
-	struct pci_dev *pci = NULL;
+	enum { PEX811X, PI7C9X110 };
+	static const struct pci_device_id bridge_ids[] = {
+		{ PCI_VDEVICE(PLX, 0x8111), .driver_data = PEX811X },
+		{ PCI_VDEVICE(PLX, 0x8112), .driver_data = PEX811X },
+		{ PCI_DEVICE(0x12d8, 0xe110), .driver_data = PI7C9X110 },
+		{ }
+	};
+	struct pci_dev *bridge;
+	const struct pci_device_id *id;
 	u32 tmp;
 
-	for (;;) {
-		/* If there is any Pericom PI7C9X110 PCI-E/PCI bridge ... */
-		pci = pci_get_device(0x12d8, 0xe110, pci);
-		if (!pci)
-			break;
-		/*
-		 * ... configure its secondary internal arbiter to park to
-		 * the secondary port, instead of to the last master.
-		 */
-		if (!pci_read_config_dword(pci, 0x40, &tmp)) {
-			tmp |= 1;
-			pci_write_config_dword(pci, 0x40, tmp);
-		}
-		/* Why?  Try asking C-Media. */
+	if (!pci->bus || !pci->bus->self)
+		return;
+	bridge = pci->bus->self;
+
+	id = pci_match_id(bridge_ids, bridge);
+	if (!id)
+		return;
+
+	switch (id->driver_data) {
+	case PEX811X:	/* PLX PEX8111/PEX8112 PCIe/PCI bridge */
+		pci_read_config_dword(bridge, 0x48, &tmp);
+		tmp |= 1;	/* enable blind prefetching */
+		tmp |= 1 << 11;	/* enable beacon generation */
+		pci_write_config_dword(bridge, 0x48, tmp);
+
+		pci_write_config_dword(bridge, 0x84, 0x0c);
+		pci_read_config_dword(bridge, 0x88, &tmp);
+		tmp &= ~(7 << 27);
+		tmp |= 2 << 27;	/* set prefetch size to 128 bytes */
+		pci_write_config_dword(bridge, 0x88, tmp);
+		break;
+
+	case PI7C9X110:	/* Pericom PI7C9X110 PCIe/PCI bridge */
+		pci_read_config_dword(bridge, 0x40, &tmp);
+		tmp |= 1;	/* park the PCI arbiter to the sound chip */
+		pci_write_config_dword(bridge, 0x40, tmp);
+		break;
 	}
 }
 
@@ -613,7 +634,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	snd_card_set_dev(card, &pci->dev);
 	card->private_free = oxygen_card_free;
 
-	pci_bridge_magic();
+	configure_pcie_bridge(pci);
 	oxygen_init(chip);
 	chip->model.init(chip);
 

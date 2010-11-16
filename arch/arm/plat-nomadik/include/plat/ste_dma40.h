@@ -1,10 +1,8 @@
 /*
- * arch/arm/plat-nomadik/include/plat/ste_dma40.h
- *
- * Copyright (C) ST-Ericsson 2007-2010
+ * Copyright (C) ST-Ericsson SA 2007-2010
+ * Author: Per Forlin <per.forlin@stericsson.com> for ST-Ericsson
+ * Author: Jonas Aaberg <jonas.aberg@stericsson.com> for ST-Ericsson
  * License terms: GNU General Public License (GPL) version 2
- * Author: Per Friden <per.friden@stericsson.com>
- * Author: Jonas Aaberg <jonas.aberg@stericsson.com>
  */
 
 
@@ -14,43 +12,25 @@
 #include <linux/dmaengine.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
-#include <linux/dmaengine.h>
 
 /* dev types for memcpy */
 #define STEDMA40_DEV_DST_MEMORY (-1)
 #define	STEDMA40_DEV_SRC_MEMORY (-1)
 
-/*
- * Description of bitfields of channel_type variable is available in
- * the info structure.
- */
+enum stedma40_mode {
+	STEDMA40_MODE_LOGICAL = 0,
+	STEDMA40_MODE_PHYSICAL,
+	STEDMA40_MODE_OPERATION,
+};
 
-/* Priority */
-#define STEDMA40_INFO_PRIO_TYPE_POS 2
-#define STEDMA40_HIGH_PRIORITY_CHANNEL (0x1 << STEDMA40_INFO_PRIO_TYPE_POS)
-#define STEDMA40_LOW_PRIORITY_CHANNEL (0x2 << STEDMA40_INFO_PRIO_TYPE_POS)
-
-/* Mode  */
-#define STEDMA40_INFO_CH_MODE_TYPE_POS 6
-#define STEDMA40_CHANNEL_IN_PHY_MODE (0x1 << STEDMA40_INFO_CH_MODE_TYPE_POS)
-#define STEDMA40_CHANNEL_IN_LOG_MODE (0x2 << STEDMA40_INFO_CH_MODE_TYPE_POS)
-#define STEDMA40_CHANNEL_IN_OPER_MODE (0x3 << STEDMA40_INFO_CH_MODE_TYPE_POS)
-
-/* Mode options */
-#define STEDMA40_INFO_CH_MODE_OPT_POS 8
-#define STEDMA40_PCHAN_BASIC_MODE (0x1 << STEDMA40_INFO_CH_MODE_OPT_POS)
-#define STEDMA40_PCHAN_MODULO_MODE (0x2 << STEDMA40_INFO_CH_MODE_OPT_POS)
-#define STEDMA40_PCHAN_DOUBLE_DST_MODE (0x3 << STEDMA40_INFO_CH_MODE_OPT_POS)
-#define STEDMA40_LCHAN_SRC_PHY_DST_LOG (0x1 << STEDMA40_INFO_CH_MODE_OPT_POS)
-#define STEDMA40_LCHAN_SRC_LOG_DST_PHS (0x2 << STEDMA40_INFO_CH_MODE_OPT_POS)
-#define STEDMA40_LCHAN_SRC_LOG_DST_LOG (0x3 << STEDMA40_INFO_CH_MODE_OPT_POS)
-
-/* Interrupt */
-#define STEDMA40_INFO_TIM_POS 10
-#define STEDMA40_NO_TIM_FOR_LINK (0x0 << STEDMA40_INFO_TIM_POS)
-#define STEDMA40_TIM_FOR_LINK (0x1 << STEDMA40_INFO_TIM_POS)
-
-/* End of channel_type configuration */
+enum stedma40_mode_opt {
+	STEDMA40_PCHAN_BASIC_MODE = 0,
+	STEDMA40_LCHAN_SRC_LOG_DST_LOG = 0,
+	STEDMA40_PCHAN_MODULO_MODE,
+	STEDMA40_PCHAN_DOUBLE_DST_MODE,
+	STEDMA40_LCHAN_SRC_PHY_DST_LOG,
+	STEDMA40_LCHAN_SRC_LOG_DST_PHY,
+};
 
 #define STEDMA40_ESIZE_8_BIT  0x0
 #define STEDMA40_ESIZE_16_BIT 0x1
@@ -73,14 +53,12 @@
 #define STEDMA40_PSIZE_LOG_8  STEDMA40_PSIZE_PHY_8
 #define STEDMA40_PSIZE_LOG_16 STEDMA40_PSIZE_PHY_16
 
+/* Maximum number of possible physical channels */
+#define STEDMA40_MAX_PHYS 32
+
 enum stedma40_flow_ctrl {
 	STEDMA40_NO_FLOW_CTRL,
 	STEDMA40_FLOW_CTRL,
-};
-
-enum stedma40_endianess {
-	STEDMA40_LITTLE_ENDIAN,
-	STEDMA40_BIG_ENDIAN
 };
 
 enum stedma40_periph_data_width {
@@ -90,15 +68,8 @@ enum stedma40_periph_data_width {
 	STEDMA40_DOUBLEWORD_WIDTH = STEDMA40_ESIZE_64_BIT
 };
 
-struct stedma40_half_channel_info {
-	enum stedma40_endianess endianess;
-	enum stedma40_periph_data_width data_width;
-	int psize;
-	enum stedma40_flow_ctrl flow_ctrl;
-};
-
 enum stedma40_xfer_dir {
-	STEDMA40_MEM_TO_MEM,
+	STEDMA40_MEM_TO_MEM = 1,
 	STEDMA40_MEM_TO_PERIPH,
 	STEDMA40_PERIPH_TO_MEM,
 	STEDMA40_PERIPH_TO_PERIPH
@@ -106,18 +77,31 @@ enum stedma40_xfer_dir {
 
 
 /**
+ * struct stedma40_chan_cfg - dst/src channel configuration
+ *
+ * @big_endian: true if the src/dst should be read as big endian
+ * @data_width: Data width of the src/dst hardware
+ * @p_size: Burst size
+ * @flow_ctrl: Flow control on/off.
+ */
+struct stedma40_half_channel_info {
+	bool big_endian;
+	enum stedma40_periph_data_width data_width;
+	int psize;
+	enum stedma40_flow_ctrl flow_ctrl;
+};
+
+/**
  * struct stedma40_chan_cfg - Structure to be filled by client drivers.
  *
  * @dir: MEM 2 MEM, PERIPH 2 MEM , MEM 2 PERIPH, PERIPH 2 PERIPH
- * @channel_type: priority, mode, mode options and interrupt configuration.
+ * @high_priority: true if high-priority
+ * @mode: channel mode: physical, logical, or operation
+ * @mode_opt: options for the chosen channel mode
  * @src_dev_type: Src device type
  * @dst_dev_type: Dst device type
  * @src_info: Parameters for dst half channel
  * @dst_info: Parameters for dst half channel
- * @pre_transfer_data: Data to be passed on to the pre_transfer() function.
- * @pre_transfer: Callback used if needed before preparation of transfer.
- * Only called if device is set. size of bytes to transfer
- * (in case of multiple element transfer size is size of the first element).
  *
  *
  * This structure has to be filled by the client drivers.
@@ -126,15 +110,13 @@ enum stedma40_xfer_dir {
  */
 struct stedma40_chan_cfg {
 	enum stedma40_xfer_dir			 dir;
-	unsigned int				 channel_type;
+	bool					 high_priority;
+	enum stedma40_mode			 mode;
+	enum stedma40_mode_opt			 mode_opt;
 	int					 src_dev_type;
 	int					 dst_dev_type;
 	struct stedma40_half_channel_info	 src_info;
 	struct stedma40_half_channel_info	 dst_info;
-	void					*pre_transfer_data;
-	int (*pre_transfer)			(struct dma_chan *chan,
-						 void *data,
-						 int size);
 };
 
 /**
@@ -147,7 +129,6 @@ struct stedma40_chan_cfg {
  * @memcpy_len: length of memcpy
  * @memcpy_conf_phy: default configuration of physical channel memcpy
  * @memcpy_conf_log: default configuration of logical channel memcpy
- * @llis_per_log: number of max linked list items per logical channel
  * @disabled_channels: A vector, ending with -1, that marks physical channels
  * that are for different reasons not available for the driver.
  */
@@ -159,23 +140,10 @@ struct stedma40_platform_data {
 	u32				 memcpy_len;
 	struct stedma40_chan_cfg	*memcpy_conf_phy;
 	struct stedma40_chan_cfg	*memcpy_conf_log;
-	unsigned int			 llis_per_log;
-	int				 disabled_channels[8];
+	int				 disabled_channels[STEDMA40_MAX_PHYS];
 };
 
-/**
- * setdma40_set_psize() - Used for changing the package size of an
- * already configured dma channel.
- *
- * @chan: dmaengine handle
- * @src_psize: new package side for src. (STEDMA40_PSIZE*)
- * @src_psize: new package side for dst. (STEDMA40_PSIZE*)
- *
- * returns 0 on ok, otherwise negative error number.
- */
-int stedma40_set_psize(struct dma_chan *chan,
-		       int src_psize,
-		       int dst_psize);
+#ifdef CONFIG_STE_DMA40
 
 /**
  * stedma40_filter() - Provides stedma40_chan_cfg to the
@@ -237,5 +205,22 @@ dma_async_tx_descriptor *stedma40_slave_mem(struct dma_chan *chan,
 	return chan->device->device_prep_slave_sg(chan, &sg, 1,
 						  direction, flags);
 }
+
+#else
+static inline bool stedma40_filter(struct dma_chan *chan, void *data)
+{
+	return false;
+}
+
+static inline struct
+dma_async_tx_descriptor *stedma40_slave_mem(struct dma_chan *chan,
+					    dma_addr_t addr,
+					    unsigned int size,
+					    enum dma_data_direction direction,
+					    unsigned long flags)
+{
+	return NULL;
+}
+#endif
 
 #endif

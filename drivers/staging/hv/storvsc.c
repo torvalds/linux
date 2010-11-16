@@ -28,6 +28,7 @@
 #include "storvsc_api.h"
 #include "vmbus_packet_format.h"
 #include "vstorage.h"
+#include "channel.h"
 
 
 struct storvsc_request_extension {
@@ -212,12 +213,11 @@ static int StorVscChannelInit(struct hv_device *Device)
 
 	DPRINT_INFO(STORVSC, "BEGIN_INITIALIZATION_OPERATION...");
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)request,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(Device->channel, vstorPacket,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VmbusPacketTypeDataInBand,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
 			   "unable to send BEGIN_INITIALIZATION_OPERATION");
@@ -244,12 +244,11 @@ static int StorVscChannelInit(struct hv_device *Device)
 	vstorPacket->Version.MajorMinor = VMSTOR_PROTOCOL_VERSION_CURRENT;
 	FILL_VMSTOR_REVISION(vstorPacket->Version.Revision);
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)request,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(Device->channel, vstorPacket,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VmbusPacketTypeDataInBand,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
 			   "unable to send BEGIN_INITIALIZATION_OPERATION");
@@ -276,12 +275,11 @@ static int StorVscChannelInit(struct hv_device *Device)
 	vstorPacket->StorageChannelProperties.PortNumber =
 					storDevice->PortNumber;
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)request,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(Device->channel, vstorPacket,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VmbusPacketTypeDataInBand,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
@@ -313,12 +311,11 @@ static int StorVscChannelInit(struct hv_device *Device)
 	vstorPacket->Operation = VStorOperationEndInitialization;
 	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)request,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(Device->channel, vstorPacket,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VmbusPacketTypeDataInBand,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC,
@@ -451,10 +448,9 @@ static void StorVscOnChannelCallback(void *context)
 	}
 
 	do {
-		ret = device->Driver->VmbusChannelInterface.RecvPacket(device,
-				packet,
-				ALIGN_UP(sizeof(struct vstor_packet), 8),
-				&bytesRecvd, &requestId);
+		ret = vmbus_recvpacket(device->channel, packet,
+				       ALIGN_UP(sizeof(struct vstor_packet), 8),
+				       &bytesRecvd, &requestId);
 		if (ret == 0 && bytesRecvd > 0) {
 			DPRINT_DBG(STORVSC, "receive %d bytes - tid %llx",
 				   bytesRecvd, requestId);
@@ -503,13 +499,11 @@ static int StorVscConnectToVsp(struct hv_device *Device)
 	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
 
 	/* Open the channel */
-	ret = Device->Driver->VmbusChannelInterface.Open(Device,
-			storDriver->RingBufferSize,
-			storDriver->RingBufferSize,
-			(void *)&props,
-			sizeof(struct vmstorage_channel_properties),
-			StorVscOnChannelCallback,
-			Device);
+	ret = vmbus_open(Device->channel,
+			 storDriver->RingBufferSize, storDriver->RingBufferSize,
+			 (void *)&props,
+			 sizeof(struct vmstorage_channel_properties),
+			 StorVscOnChannelCallback, Device);
 
 	DPRINT_DBG(STORVSC, "storage props: path id %d, tgt id %d, max xfer %d",
 		   props.PathId, props.TargetId, props.MaxTransferBytes);
@@ -603,7 +597,7 @@ static int StorVscOnDeviceRemove(struct hv_device *Device)
 	DPRINT_INFO(STORVSC, "storage device (%p) safe to remove", storDevice);
 
 	/* Close the channel */
-	Device->Driver->VmbusChannelInterface.Close(Device);
+	vmbus_close(Device->channel);
 
 	FreeStorDevice(storDevice);
 	return 0;
@@ -638,12 +632,11 @@ int StorVscOnHostReset(struct hv_device *Device)
 	vstorPacket->Flags = REQUEST_COMPLETION_FLAG;
 	vstorPacket->VmSrb.PathId = storDevice->PathId;
 
-	ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)&storDevice->ResetRequest,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	ret = vmbus_sendpacket(Device->channel, vstorPacket,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)&storDevice->ResetRequest,
+			       VmbusPacketTypeDataInBand,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC, "Unable to send reset packet %p ret %d",
 			   vstorPacket, ret);
@@ -735,19 +728,17 @@ static int StorVscOnIORequest(struct hv_device *Device,
 		   vstorPacket->VmSrb.CdbLength);
 
 	if (requestExtension->Request->DataBuffer.Length) {
-		ret = Device->Driver->VmbusChannelInterface.
-			SendPacketMultiPageBuffer(Device,
+		ret = vmbus_sendpacket_multipagebuffer(Device->channel,
 				&requestExtension->Request->DataBuffer,
 				vstorPacket,
 				sizeof(struct vstor_packet),
 				(unsigned long)requestExtension);
 	} else {
-		ret = Device->Driver->VmbusChannelInterface.SendPacket(Device,
-				vstorPacket,
-				sizeof(struct vstor_packet),
-				(unsigned long)requestExtension,
-				VmbusPacketTypeDataInBand,
-				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+		ret = vmbus_sendpacket(Device->channel, vstorPacket,
+				       sizeof(struct vstor_packet),
+				       (unsigned long)requestExtension,
+				       VmbusPacketTypeDataInBand,
+				       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	}
 
 	if (ret != 0) {
@@ -799,7 +790,7 @@ int StorVscInitialize(struct hv_driver *Driver)
 	 * Divide the ring buffer data size (which is 1 page less
 	 * than the ring buffer size since that page is reserved for
 	 * the ring buffer indices) by the max request size (which is
-	 * VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER + struct vstor_packet + u64)
+	 * vmbus_channel_packet_multipage_buffer + struct vstor_packet + u64)
 	 */
 	storDriver->MaxOutstandingRequestsPerChannel =
 		((storDriver->RingBufferSize - PAGE_SIZE) /

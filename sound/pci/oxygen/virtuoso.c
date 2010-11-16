@@ -25,9 +25,9 @@
 #include "xonar.h"
 
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
-MODULE_DESCRIPTION("Asus AVx00 driver");
+MODULE_DESCRIPTION("Asus Virtuoso driver");
 MODULE_LICENSE("GPL v2");
-MODULE_SUPPORTED_DEVICE("{{Asus,AV100},{Asus,AV200}}");
+MODULE_SUPPORTED_DEVICE("{{Asus,AV66},{Asus,AV100},{Asus,AV200}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
@@ -49,6 +49,7 @@ static DEFINE_PCI_DEVICE_TABLE(xonar_ids) = {
 	{ OXYGEN_PCI_SUBID(0x1043, 0x834f) },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x835c) },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x835d) },
+	{ OXYGEN_PCI_SUBID(0x1043, 0x835e) },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x838e) },
 	{ OXYGEN_PCI_SUBID_BROKEN_EEPROM },
 	{ }

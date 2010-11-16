@@ -432,13 +432,13 @@ int sysdev_suspend(pm_message_t state)
 	/* resume current sysdev */
 cls_driver:
 	drv = NULL;
-	printk(KERN_ERR "Class suspend failed for %s\n",
-		kobject_name(&sysdev->kobj));
+	printk(KERN_ERR "Class suspend failed for %s: %d\n",
+		kobject_name(&sysdev->kobj), ret);
 
 aux_driver:
 	if (drv)
-		printk(KERN_ERR "Class driver suspend failed for %s\n",
-				kobject_name(&sysdev->kobj));
+		printk(KERN_ERR "Class driver suspend failed for %s: %d\n",
+				kobject_name(&sysdev->kobj), ret);
 	list_for_each_entry(err_drv, &cls->drivers, entry) {
 		if (err_drv == drv)
 			break;

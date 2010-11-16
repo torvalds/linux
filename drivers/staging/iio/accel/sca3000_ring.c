@@ -53,7 +53,8 @@ static int sca3000_rip_hw_rb(struct iio_ring_buffer *r,
 	struct iio_dev *indio_dev = hw_ring->private;
 	struct sca3000_state *st = indio_dev->dev_data;
 	u8 *rx;
-	int ret, num_available, num_read = 0;
+	s16 *samples;
+	int ret, i, num_available, num_read = 0;
 	int bytes_per_sample = 1;
 
 	if (st->bpse == 11)
@@ -87,6 +88,17 @@ static int sca3000_rip_hw_rb(struct iio_ring_buffer *r,
 	ret = sca3000_read_data(st,
 				SCA3000_REG_ADDR_RING_OUT,
 				data, num_read);
+
+	/* Convert byte order and shift to default resolution */
+	if (st->bpse == 11) {
+		samples = (s16*)(*data+1);
+		for (i = 0; i < (num_read/2); i++) {
+			samples[i] = be16_to_cpup(
+					(__be16 *)&(samples[i]));
+			samples[i] >>= 3;
+		}
+	}
+
 error_ret:
 	mutex_unlock(&st->lock);
 
@@ -100,7 +112,7 @@ static int sca3000_ring_get_length(struct iio_ring_buffer *r)
 }
 
 /* only valid if resolution is kept at 11bits */
-static int sca3000_ring_get_bpd(struct iio_ring_buffer *r)
+static int sca3000_ring_get_bytes_per_datum(struct iio_ring_buffer *r)
 {
 	return 6;
 }
@@ -111,7 +123,7 @@ static void sca3000_ring_release(struct device *dev)
 }
 
 static IIO_RING_ENABLE_ATTR;
-static IIO_RING_BPS_ATTR;
+static IIO_RING_BYTES_PER_DATUM_ATTR;
 static IIO_RING_LENGTH_ATTR;
 
 /**
@@ -126,14 +138,18 @@ static ssize_t sca3000_show_ring_bpse(struct device *dev,
 {
 	int len = 0, ret;
 	u8 *rx;
-	struct iio_ring_buffer *r = dev_get_drvdata(dev);
-	struct sca3000_state *st = r->indio_dev->dev_data;
+	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = ring->indio_dev;
+	struct sca3000_state *st = indio_dev->dev_data;
 
 	mutex_lock(&st->lock);
 	ret = sca3000_read_data(st, SCA3000_REG_ADDR_MODE, &rx, 1);
 	if (ret)
 		goto error_ret;
-	len = sprintf(buf, "%d\n", (rx[1] & SCA3000_RING_BUF_8BIT) ? 8 : 11);
+	if (rx[1] & SCA3000_RING_BUF_8BIT)
+		len = sprintf(buf, "s8/8\n");
+	else
+		len = sprintf(buf, "s11/16\n");
 	kfree(rx);
 error_ret:
 	mutex_unlock(&st->lock);
@@ -153,44 +169,38 @@ static ssize_t sca3000_store_ring_bpse(struct device *dev,
 				      const char *buf,
 				      size_t len)
 {
-	struct iio_ring_buffer *r = dev_get_drvdata(dev);
-	struct sca3000_state *st = r->indio_dev->dev_data;
+	struct iio_ring_buffer *ring = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = ring->indio_dev;
+	struct sca3000_state *st = indio_dev->dev_data;
 	int ret;
 	u8 *rx;
-	long val;
-	ret = strict_strtol(buf, 10, &val);
-	if (ret)
-		return ret;
 
 	mutex_lock(&st->lock);
 
 	ret = sca3000_read_data(st, SCA3000_REG_ADDR_MODE, &rx, 1);
-	if (!ret)
-		switch (val) {
-		case 8:
-			ret = sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
-						rx[1] | SCA3000_RING_BUF_8BIT);
-			st->bpse = 8;
-			break;
-		case 11:
-			ret = sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
-						rx[1] & ~SCA3000_RING_BUF_8BIT);
-			st->bpse = 11;
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
+	if (ret)
+		goto error_ret;
+	if (strncmp(buf, "s8/8", 4) == 0) {
+		ret = sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
+					rx[1] | SCA3000_RING_BUF_8BIT);
+		st->bpse = 8;
+	} else if (strncmp(buf, "s11/16", 5) == 0) {
+		ret = sca3000_write_reg(st, SCA3000_REG_ADDR_MODE,
+					rx[1] & ~SCA3000_RING_BUF_8BIT);
+		st->bpse = 11;
+	} else
+		ret = -EINVAL;
+error_ret:
 	mutex_unlock(&st->lock);
 
 	return ret ? ret : len;
 }
 
-static IIO_SCAN_EL_C(accel_x, 0, 0, 0, NULL);
-static IIO_SCAN_EL_C(accel_y, 1, 0, 0, NULL);
-static IIO_SCAN_EL_C(accel_z, 2, 0, 0, NULL);
-static IIO_CONST_ATTR(accel_precision_available, "8 11");
-static IIO_DEVICE_ATTR(accel_precision,
+static IIO_SCAN_EL_C(accel_x, 0, 0, NULL);
+static IIO_SCAN_EL_C(accel_y, 1, 0, NULL);
+static IIO_SCAN_EL_C(accel_z, 2, 0, NULL);
+static IIO_CONST_ATTR(accel_type_available, "s8/8 s11/16");
+static IIO_DEVICE_ATTR(accel_type,
 		       S_IRUGO | S_IWUSR,
 		       sca3000_show_ring_bpse,
 		       sca3000_store_ring_bpse,
@@ -198,10 +208,13 @@ static IIO_DEVICE_ATTR(accel_precision,
 
 static struct attribute *sca3000_scan_el_attrs[] = {
 	&iio_scan_el_accel_x.dev_attr.attr,
+	&iio_const_attr_accel_x_index.dev_attr.attr,
 	&iio_scan_el_accel_y.dev_attr.attr,
+	&iio_const_attr_accel_y_index.dev_attr.attr,
 	&iio_scan_el_accel_z.dev_attr.attr,
-	&iio_const_attr_accel_precision_available.dev_attr.attr,
-	&iio_dev_attr_accel_precision.dev_attr.attr,
+	&iio_const_attr_accel_z_index.dev_attr.attr,
+	&iio_const_attr_accel_type_available.dev_attr.attr,
+	&iio_dev_attr_accel_type.dev_attr.attr,
 	NULL
 };
 
@@ -218,8 +231,8 @@ static struct attribute_group sca3000_scan_el_group = {
  */
 static struct attribute *sca3000_ring_attributes[] = {
 	&dev_attr_length.attr,
-	&dev_attr_bps.attr,
-	&dev_attr_ring_enable.attr,
+	&dev_attr_bytes_per_datum.attr,
+	&dev_attr_enable.attr,
 	NULL,
 };
 
@@ -264,15 +277,15 @@ static inline void sca3000_rb_free(struct iio_ring_buffer *r)
 
 int sca3000_configure_ring(struct iio_dev *indio_dev)
 {
-	indio_dev->scan_el_attrs = &sca3000_scan_el_group;
 	indio_dev->ring = sca3000_rb_allocate(indio_dev);
 	if (indio_dev->ring == NULL)
 		return -ENOMEM;
 	indio_dev->modes |= INDIO_RING_HARDWARE_BUFFER;
 
+	indio_dev->ring->scan_el_attrs = &sca3000_scan_el_group;
 	indio_dev->ring->access.rip_lots = &sca3000_rip_hw_rb;
 	indio_dev->ring->access.get_length = &sca3000_ring_get_length;
-	indio_dev->ring->access.get_bpd = &sca3000_ring_get_bpd;
+	indio_dev->ring->access.get_bytes_per_datum = &sca3000_ring_get_bytes_per_datum;
 
 	return 0;
 }

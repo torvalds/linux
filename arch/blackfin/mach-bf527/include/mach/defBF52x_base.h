@@ -749,51 +749,6 @@
 #define FFE			0x20		/* Force Framing Error On Transmit	*/
 
 
-/* ***********  SERIAL PERIPHERAL INTERFACE (SPI) MASKS  ****************************/
-/* SPI_CTL Masks																	*/
-#define	TIMOD		0x0003		/* Transfer Initiate Mode							*/
-#define RDBR_CORE	0x0000		/* 		RDBR Read Initiates, IRQ When RDBR Full		*/
-#define	TDBR_CORE	0x0001		/* 		TDBR Write Initiates, IRQ When TDBR Empty	*/
-#define RDBR_DMA	0x0002		/* 		DMA Read, DMA Until FIFO Empty				*/
-#define TDBR_DMA	0x0003		/* 		DMA Write, DMA Until FIFO Full				*/
-#define SZ			0x0004		/* Send Zero (When TDBR Empty, Send Zero/Last*)		*/
-#define GM			0x0008		/* Get More (When RDBR Full, Overwrite/Discard*)	*/
-#define PSSE		0x0010		/* Slave-Select Input Enable						*/
-#define EMISO		0x0020		/* Enable MISO As Output							*/
-#define SIZE		0x0100		/* Size of Words (16/8* Bits)						*/
-#define LSBF		0x0200		/* LSB First										*/
-#define CPHA		0x0400		/* Clock Phase										*/
-#define CPOL		0x0800		/* Clock Polarity									*/
-#define MSTR		0x1000		/* Master/Slave*									*/
-#define WOM			0x2000		/* Write Open Drain Master							*/
-#define SPE			0x4000		/* SPI Enable										*/
-
-/* SPI_FLG Masks																	*/
-#define FLS1		0x0002		/* Enables SPI_FLOUT1 as SPI Slave-Select Output	*/
-#define FLS2		0x0004		/* Enables SPI_FLOUT2 as SPI Slave-Select Output	*/
-#define FLS3		0x0008		/* Enables SPI_FLOUT3 as SPI Slave-Select Output	*/
-#define FLS4		0x0010		/* Enables SPI_FLOUT4 as SPI Slave-Select Output	*/
-#define FLS5		0x0020		/* Enables SPI_FLOUT5 as SPI Slave-Select Output	*/
-#define FLS6		0x0040		/* Enables SPI_FLOUT6 as SPI Slave-Select Output	*/
-#define FLS7		0x0080		/* Enables SPI_FLOUT7 as SPI Slave-Select Output	*/
-#define FLG1		0xFDFF		/* Activates SPI_FLOUT1 							*/
-#define FLG2		0xFBFF		/* Activates SPI_FLOUT2								*/
-#define FLG3		0xF7FF		/* Activates SPI_FLOUT3								*/
-#define FLG4		0xEFFF		/* Activates SPI_FLOUT4								*/
-#define FLG5		0xDFFF		/* Activates SPI_FLOUT5								*/
-#define FLG6		0xBFFF		/* Activates SPI_FLOUT6								*/
-#define FLG7		0x7FFF		/* Activates SPI_FLOUT7								*/
-
-/* SPI_STAT Masks																				*/
-#define SPIF		0x0001		/* SPI Finished (Single-Word Transfer Complete)					*/
-#define MODF		0x0002		/* Mode Fault Error (Another Device Tried To Become Master)		*/
-#define TXE			0x0004		/* Transmission Error (Data Sent With No New Data In TDBR)		*/
-#define TXS			0x0008		/* SPI_TDBR Data Buffer Status (Full/Empty*)					*/
-#define RBSY		0x0010		/* Receive Error (Data Received With RDBR Full)					*/
-#define RXS			0x0020		/* SPI_RDBR Data Buffer Status (Full/Empty*)					*/
-#define TXCOL		0x0040		/* Transmit Collision Error (Corrupt Data May Have Been Sent)	*/
-
-
 /*  ****************  GENERAL PURPOSE TIMER MASKS  **********************/
 /* TIMER_ENABLE Masks													*/
 #define TIMEN0			0x0001		/* Enable Timer 0					*/

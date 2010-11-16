@@ -75,7 +75,7 @@ config MFD_DAVINCI_VOICECODEC
 
 config MFD_DM355EVM_MSP
 	bool "DaVinci DM355 EVM microcontroller"
-	depends on I2C && MACH_DAVINCI_DM355_EVM
+	depends on I2C=y && MACH_DAVINCI_DM355_EVM
 	help
 	  This driver supports the MSP430 microcontroller used on these
 	  boards.  MSP430 firmware manages resets and power sequencing,
@@ -294,14 +294,15 @@ config MFD_MAX8925
 	  to use the functionality of the device.
 
 config MFD_MAX8998
-	bool "Maxim Semiconductor MAX8998 PMIC Support"
-	depends on I2C=y
+	bool "Maxim Semiconductor MAX8998/National LP3974 PMIC Support"
+	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
 	help
-	  Say yes here to support for Maxim Semiconductor MAX8998. This is
-	  a Power Management IC. This driver provies common support for
-	  accessing the device, additional drivers must be enabled in order
-	  to use the functionality of the device.
+	  Say yes here to support for Maxim Semiconductor MAX8998 and
+	  National Semiconductor LP3974. This is a Power Management IC.
+	  This driver provies common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
 
 config MFD_WM8400
 	tristate "Support Wolfson Microelectronics WM8400"
@@ -314,14 +315,30 @@ config MFD_WM8400
 	  the functionality of the device.
 
 config MFD_WM831X
-	bool "Support Wolfson Microelectronics WM831x/2x PMICs"
+	bool
+	depends on GENERIC_HARDIRQS
+
+config MFD_WM831X_I2C
+	bool "Support Wolfson Microelectronics WM831x/2x PMICs with I2C"
 	select MFD_CORE
+	select MFD_WM831X
 	depends on I2C=y && GENERIC_HARDIRQS
 	help
-	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs.
-	  This driver provides common support for accessing the device,
-	  additional drivers must be enabled in order to use the
-	  functionality of the device.
+	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs
+	  when controlled using I2C.  This driver provides common support
+	  for accessing the device, additional drivers must be enabled in
+	  order to use the functionality of the device.
+
+config MFD_WM831X_SPI
+	bool "Support Wolfson Microelectronics WM831x/2x PMICs with SPI"
+	select MFD_CORE
+	select MFD_WM831X
+	depends on SPI_MASTER && GENERIC_HARDIRQS
+	help
+	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs
+	  when controlled using SPI.  This driver provides common support
+	  for accessing the device, additional drivers must be enabled in
+	  order to use the functionality of the device.
 
 config MFD_WM8350
 	bool
@@ -408,11 +425,16 @@ config MFD_PCF50633
 	  so that function-specific drivers can bind to them.
 
 config MFD_MC13783
-	tristate "Support Freescale MC13783"
+	tristate
+
+config MFD_MC13XXX
+	tristate "Support Freescale MC13783 and MC13892"
 	depends on SPI_MASTER
 	select MFD_CORE
+	select MFD_MC13783
 	help
-	  Support for the Freescale (Atlas) MC13783 PMIC and audio CODEC.
+	  Support for the Freescale (Atlas) PMIC and audio CODECs
+	  MC13783 and MC13892.
 	  This driver provides common support for accessing  the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
@@ -433,7 +455,7 @@ config PCF50633_GPIO
 
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
-	default y if ARCH_U300
+	default y if ARCH_U300 || ARCH_U8500
 	help
 	  Say yes here if you have the ABX500 Mixed Signal IC family
 	  chips. This core driver expose register access functions.
@@ -444,6 +466,7 @@ config ABX500_CORE
 config AB3100_CORE
 	bool "ST-Ericsson AB3100 Mixed Signal Circuit core functions"
 	depends on I2C=y && ABX500_CORE
+	select MFD_CORE
 	default y if ARCH_U300
 	help
 	  Select this to enable the AB3100 Mixed Signal IC core
@@ -473,13 +496,32 @@ config EZX_PCAP
 
 config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
-	depends on SPI=y && GENERIC_HARDIRQS
+	depends on GENERIC_HARDIRQS && ABX500_CORE && SPI_MASTER && ARCH_U8500
 	select MFD_CORE
 	help
 	  Select this option to enable access to AB8500 power management
-	  chip. This connects to U8500 on the SSP/SPI bus and exports
-	  read/write functions for the devices to get access to this chip.
+	  chip. This connects to U8500 either on the SSP/SPI bus
+	  or the I2C bus via PRCMU. It also adds the irq_chip
+	  parts for handling the Mixed Signal chip events.
 	  This chip embeds various other multimedia funtionalities as well.
+
+config AB8500_I2C_CORE
+	bool "AB8500 register access via PRCMU I2C"
+	depends on AB8500_CORE && UX500_SOC_DB8500
+	default y
+	help
+	  This enables register access to the AB8500 chip via PRCMU I2C.
+	  The AB8500 chip can be accessed via SPI or I2C. On DB8500 hardware
+	  the I2C bus is connected to the Power Reset
+	  and Mangagement Unit, PRCMU.
+
+config AB8500_DEBUG
+       bool "Enable debug info via debugfs"
+       depends on AB8500_CORE && DEBUG_FS
+       default y if DEBUG_FS
+       help
+         Select this option if you want debug information using the debug
+         filesystem, debugfs.
 
 config AB3550_CORE
         bool "ST-Ericsson AB3550 Mixed Signal Circuit core functions"
@@ -542,8 +584,8 @@ config MFD_JZ4740_ADC
 	  This driver is necessary for jz4740-battery and jz4740-hwmon driver.
 
 config MFD_TPS6586X
-	tristate "TPS6586x Power Management chips"
-	depends on I2C && GPIOLIB
+	bool "TPS6586x Power Management chips"
+	depends on I2C=y && GPIOLIB && GENERIC_HARDIRQS
 	select MFD_CORE
 	help
 	  If you say yes here you get support for the TPS6586X series of
@@ -554,6 +596,15 @@ config MFD_TPS6586X
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps6586x.
+
+config MFD_VX855
+	tristate "Support for VIA VX855/VX875 integrated south bridge"
+	depends on PCI
+	select MFD_CORE
+	help
+	  Say yes here to enable support for various functions of the
+	  VIA VX855/VX875 south bridge. You will need to enable the vx855_spi
+	  and/or vx855_gpio drivers for this to do anything useful.
 
 endif # MFD_SUPPORT
 

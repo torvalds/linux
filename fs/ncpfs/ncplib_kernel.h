@@ -65,10 +65,11 @@ static inline void ncp_inode_close(struct inode *inode) {
 	atomic_dec(&NCP_FINFO(inode)->opened);
 }
 
-void ncp_extract_file_info(void* src, struct nw_info_struct* target);
-int ncp_obtain_info(struct ncp_server *server, struct inode *, char *,
+void ncp_extract_file_info(const void* src, struct nw_info_struct* target);
+int ncp_obtain_info(struct ncp_server *server, struct inode *, const char *,
 		struct nw_info_struct *target);
 int ncp_obtain_nfs_info(struct ncp_server *server, struct nw_info_struct *target);
+int ncp_update_known_namespace(struct ncp_server *server, __u8 volume, int *ret_ns);
 int ncp_get_volume_root(struct ncp_server *server, const char *volname,
 			__u32 *volume, __le32 *dirent, __le32 *dosdirent);
 int ncp_lookup_volume(struct ncp_server *, const char *, struct nw_info_struct *);
@@ -80,8 +81,8 @@ int ncp_modify_nfs_info(struct ncp_server *, __u8 volnum, __le32 dirent,
 			__u32 mode, __u32 rdev);
 
 int ncp_del_file_or_subdir2(struct ncp_server *, struct dentry*);
-int ncp_del_file_or_subdir(struct ncp_server *, struct inode *, char *);
-int ncp_open_create_file_or_subdir(struct ncp_server *, struct inode *, char *,
+int ncp_del_file_or_subdir(struct ncp_server *, struct inode *, const char *);
+int ncp_open_create_file_or_subdir(struct ncp_server *, struct inode *, const char *,
 				int, __le32, __le16, struct ncp_entry_info *);
 
 int ncp_initialize_search(struct ncp_server *, struct inode *,
@@ -93,7 +94,7 @@ int ncp_search_for_fileset(struct ncp_server *server,
 			   char** rbuf, size_t* rsize);
 
 int ncp_ren_or_mov_file_or_subdir(struct ncp_server *server,
-			      struct inode *, char *, struct inode *, char *);
+			      struct inode *, const char *, struct inode *, const char *);
 
 
 int
@@ -170,13 +171,13 @@ static inline int ncp_strnicmp(struct nls_table *t, const unsigned char *s1,
 #endif /* CONFIG_NCPFS_NLS */
 
 #define NCP_GET_AGE(dentry)	(jiffies - (dentry)->d_time)
-#define NCP_MAX_AGE(server)	((server)->dentry_ttl)
+#define NCP_MAX_AGE(server)	atomic_read(&(server)->dentry_ttl)
 #define NCP_TEST_AGE(server,dentry)	(NCP_GET_AGE(dentry) < NCP_MAX_AGE(server))
 
 static inline void
 ncp_age_dentry(struct ncp_server* server, struct dentry* dentry)
 {
-	dentry->d_time = jiffies - server->dentry_ttl;
+	dentry->d_time = jiffies - NCP_MAX_AGE(server);
 }
 
 static inline void

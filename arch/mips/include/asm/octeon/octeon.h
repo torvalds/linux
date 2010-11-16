@@ -35,6 +35,7 @@ extern int octeon_is_simulation(void);
 extern int octeon_is_pci_host(void);
 extern int octeon_usb_is_ref_clk(void);
 extern uint64_t octeon_get_clock_rate(void);
+extern u64 octeon_get_io_clock_rate(void);
 extern const char *octeon_board_type_string(void);
 extern const char *octeon_get_pci_interrupts(void);
 extern int octeon_get_southbridge_interrupt(void);

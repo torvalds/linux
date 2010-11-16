@@ -180,7 +180,7 @@ static void ehea_update_firmware_handles(void)
 			 num_portres * EHEA_NUM_PORTRES_FW_HANDLES;
 
 	if (num_fw_handles) {
-		arr = kzalloc(num_fw_handles * sizeof(*arr), GFP_KERNEL);
+		arr = kcalloc(num_fw_handles, sizeof(*arr), GFP_KERNEL);
 		if (!arr)
 			goto out;  /* Keep the existing array */
 	} else
@@ -265,7 +265,7 @@ static void ehea_update_bcmc_registrations(void)
 		}
 
 	if (num_registrations) {
-		arr = kzalloc(num_registrations * sizeof(*arr), GFP_ATOMIC);
+		arr = kcalloc(num_registrations, sizeof(*arr), GFP_ATOMIC);
 		if (!arr)
 			goto out;  /* Keep the existing array */
 	} else
@@ -330,7 +330,7 @@ static struct net_device_stats *ehea_get_stats(struct net_device *dev)
 	struct ehea_port *port = netdev_priv(dev);
 	struct net_device_stats *stats = &port->stats;
 	struct hcp_ehea_port_cb2 *cb2;
-	u64 hret, rx_packets, tx_packets;
+	u64 hret, rx_packets, tx_packets, rx_bytes = 0, tx_bytes = 0;
 	int i;
 
 	memset(stats, 0, sizeof(*stats));
@@ -353,18 +353,22 @@ static struct net_device_stats *ehea_get_stats(struct net_device *dev)
 		ehea_dump(cb2, sizeof(*cb2), "net_device_stats");
 
 	rx_packets = 0;
-	for (i = 0; i < port->num_def_qps; i++)
+	for (i = 0; i < port->num_def_qps; i++) {
 		rx_packets += port->port_res[i].rx_packets;
+		rx_bytes   += port->port_res[i].rx_bytes;
+	}
 
 	tx_packets = 0;
-	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++)
+	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++) {
 		tx_packets += port->port_res[i].tx_packets;
+		tx_bytes   += port->port_res[i].tx_bytes;
+	}
 
 	stats->tx_packets = tx_packets;
 	stats->multicast = cb2->rxmcp;
 	stats->rx_errors = cb2->rxuerr;
-	stats->rx_bytes = cb2->rxo;
-	stats->tx_bytes = cb2->txo;
+	stats->rx_bytes = rx_bytes;
+	stats->tx_bytes = tx_bytes;
 	stats->rx_packets = rx_packets;
 
 out_herr:
@@ -703,6 +707,7 @@ static int ehea_proc_rwqes(struct net_device *dev,
 	int skb_arr_rq2_len = pr->rq2_skba.len;
 	int skb_arr_rq3_len = pr->rq3_skba.len;
 	int processed, processed_rq1, processed_rq2, processed_rq3;
+	u64 processed_bytes = 0;
 	int wqe_index, last_wqe_index, rq, port_reset;
 
 	processed = processed_rq1 = processed_rq2 = processed_rq3 = 0;
@@ -760,6 +765,7 @@ static int ehea_proc_rwqes(struct net_device *dev,
 				processed_rq3++;
 			}
 
+			processed_bytes += skb->len;
 			ehea_proc_skb(pr, cqe, skb);
 		} else {
 			pr->p_stats.poll_receive_errors++;
@@ -775,6 +781,7 @@ static int ehea_proc_rwqes(struct net_device *dev,
 		lro_flush_all(&pr->lro_mgr);
 
 	pr->rx_packets += processed;
+	pr->rx_bytes += processed_bytes;
 
 	ehea_refill_rq1(pr, last_wqe_index, processed_rq1);
 	ehea_refill_rq2(pr, processed_rq2);
@@ -793,6 +800,7 @@ static void reset_sq_restart_flag(struct ehea_port *port)
 		struct ehea_port_res *pr = &port->port_res[i];
 		pr->sq_restart_flag = 0;
 	}
+	wake_up(&port->restart_wq);
 }
 
 static void check_sqs(struct ehea_port *port)
@@ -803,6 +811,7 @@ static void check_sqs(struct ehea_port *port)
 
 	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++) {
 		struct ehea_port_res *pr = &port->port_res[i];
+		int ret;
 		k = 0;
 		swqe = ehea_get_swqe(pr->qp, &swqe_index);
 		memset(swqe, 0, SWQE_HEADER_SIZE);
@@ -816,17 +825,16 @@ static void check_sqs(struct ehea_port *port)
 
 		ehea_post_swqe(pr->qp, swqe);
 
-		while (pr->sq_restart_flag == 0) {
-			msleep(5);
-			if (++k == 100) {
-				ehea_error("HW/SW queues out of sync");
-				ehea_schedule_port_reset(pr->port);
-				return;
-			}
+		ret = wait_event_timeout(port->restart_wq,
+					 pr->sq_restart_flag == 0,
+					 msecs_to_jiffies(100));
+
+		if (!ret) {
+			ehea_error("HW/SW queues out of sync");
+			ehea_schedule_port_reset(pr->port);
+			return;
 		}
 	}
-
-	return;
 }
 
 
@@ -897,6 +905,7 @@ static struct ehea_cqe *ehea_proc_cqes(struct ehea_port_res *pr, int my_quota)
 		pr->queue_stopped = 0;
 	}
 	spin_unlock_irqrestore(&pr->netif_queue, flags);
+	wake_up(&pr->port->swqe_avail_wq);
 
 	return cqe;
 }
@@ -1507,8 +1516,19 @@ static int ehea_init_port_res(struct ehea_port *port, struct ehea_port_res *pr,
 	enum ehea_eq_type eq_type = EHEA_EQ;
 	struct ehea_qp_init_attr *init_attr = NULL;
 	int ret = -EIO;
+	u64 tx_bytes, rx_bytes, tx_packets, rx_packets;
+
+	tx_bytes = pr->tx_bytes;
+	tx_packets = pr->tx_packets;
+	rx_bytes = pr->rx_bytes;
+	rx_packets = pr->rx_packets;
 
 	memset(pr, 0, sizeof(struct ehea_port_res));
+
+	pr->tx_bytes = rx_bytes;
+	pr->tx_packets = tx_packets;
+	pr->rx_bytes = rx_bytes;
+	pr->rx_packets = rx_packets;
 
 	pr->port = port;
 	spin_lock_init(&pr->xmit_lock);
@@ -1923,7 +1943,7 @@ static void ehea_promiscuous(struct net_device *dev, int enable)
 	struct hcp_ehea_port_cb7 *cb7;
 	u64 hret;
 
-	if ((enable && port->promisc) || (!enable && !port->promisc))
+	if (enable == port->promisc)
 		return;
 
 	cb7 = (void *)get_zeroed_page(GFP_ATOMIC);
@@ -2247,6 +2267,14 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	memset(swqe, 0, SWQE_HEADER_SIZE);
 	atomic_dec(&pr->swqe_avail);
 
+	if (vlan_tx_tag_present(skb)) {
+		swqe->tx_control |= EHEA_SWQE_VLAN_INSERT;
+		swqe->vlan_tag = vlan_tx_tag_get(skb);
+	}
+
+	pr->tx_packets++;
+	pr->tx_bytes += skb->len;
+
 	if (skb->len <= SWQE3_MAX_IMM) {
 		u32 sig_iv = port->sig_comp_iv;
 		u32 swqe_num = pr->swqe_id_counter;
@@ -2277,11 +2305,6 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	pr->swqe_id_counter += 1;
 
-	if (port->vgrp && vlan_tx_tag_present(skb)) {
-		swqe->tx_control |= EHEA_SWQE_VLAN_INSERT;
-		swqe->vlan_tag = vlan_tx_tag_get(skb);
-	}
-
 	if (netif_msg_tx_queued(port)) {
 		ehea_info("post swqe on QP %d", pr->qp->init_attr.qp_nr);
 		ehea_dump(swqe, 512, "swqe");
@@ -2293,7 +2316,6 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	ehea_post_swqe(pr->qp, swqe);
-	pr->tx_packets++;
 
 	if (unlikely(atomic_read(&pr->swqe_avail) <= 1)) {
 		spin_lock_irqsave(&pr->netif_queue, flags);
@@ -2661,6 +2683,9 @@ static int ehea_open(struct net_device *dev)
 		netif_start_queue(dev);
 	}
 
+	init_waitqueue_head(&port->swqe_avail_wq);
+	init_waitqueue_head(&port->restart_wq);
+
 	mutex_unlock(&port->port_lock);
 
 	return ret;
@@ -2733,13 +2758,15 @@ static void ehea_flush_sq(struct ehea_port *port)
 	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++) {
 		struct ehea_port_res *pr = &port->port_res[i];
 		int swqe_max = pr->sq_skba_size - 2 - pr->swqe_ll_count;
-		int k = 0;
-		while (atomic_read(&pr->swqe_avail) < swqe_max) {
-			msleep(5);
-			if (++k == 20) {
-				ehea_error("WARNING: sq not flushed completely");
-				break;
-			}
+		int ret;
+
+		ret = wait_event_timeout(port->swqe_avail_wq,
+			 atomic_read(&pr->swqe_avail) >= swqe_max,
+			 msecs_to_jiffies(100));
+
+		if (!ret) {
+			ehea_error("WARNING: sq not flushed completely");
+			break;
 		}
 	}
 }
@@ -3728,7 +3755,7 @@ int __init ehea_module_init(void)
 	if (ret)
 		ehea_info("failed registering memory remove notifier");
 
-	ret = crash_shutdown_register(&ehea_crash_handler);
+	ret = crash_shutdown_register(ehea_crash_handler);
 	if (ret)
 		ehea_info("failed registering crash handler");
 
@@ -3753,7 +3780,7 @@ out3:
 out2:
 	unregister_memory_notifier(&ehea_mem_nb);
 	unregister_reboot_notifier(&ehea_reboot_nb);
-	crash_shutdown_unregister(&ehea_crash_handler);
+	crash_shutdown_unregister(ehea_crash_handler);
 out:
 	return ret;
 }
@@ -3766,7 +3793,7 @@ static void __exit ehea_module_exit(void)
 	driver_remove_file(&ehea_driver.driver, &driver_attr_capabilities);
 	ibmebus_unregister_driver(&ehea_driver);
 	unregister_reboot_notifier(&ehea_reboot_nb);
-	ret = crash_shutdown_unregister(&ehea_crash_handler);
+	ret = crash_shutdown_unregister(ehea_crash_handler);
 	if (ret)
 		ehea_info("failed unregistering crash handler");
 	unregister_memory_notifier(&ehea_mem_nb);

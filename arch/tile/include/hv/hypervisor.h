@@ -1003,37 +1003,37 @@ int hv_console_write(HV_VirtAddr bytes, int len);
  *  when these occur in a client's interrupt critical section, they must
  *  be delivered through the downcall mechanism.
  *
- *  A downcall is initially delivered to the client as an INTCTRL_1
- *  interrupt.  Upon entry to the INTCTRL_1 vector, the client must
- *  immediately invoke the hv_downcall_dispatch service.  This service
- *  will not return; instead it will cause one of the client's actual
- *  downcall-handling interrupt vectors to be entered.  The EX_CONTEXT
- *  registers in the client will be set so that when the client irets,
- *  it will return to the code which was interrupted by the INTCTRL_1
- *  interrupt.
+ *  A downcall is initially delivered to the client as an INTCTRL_CL
+ *  interrupt, where CL is the client's PL.  Upon entry to the INTCTRL_CL
+ *  vector, the client must immediately invoke the hv_downcall_dispatch
+ *  service.  This service will not return; instead it will cause one of
+ *  the client's actual downcall-handling interrupt vectors to be entered.
+ *  The EX_CONTEXT registers in the client will be set so that when the
+ *  client irets, it will return to the code which was interrupted by the
+ *  INTCTRL_CL interrupt.
  *
- *  Under some circumstances, the firing of INTCTRL_1 can race with
+ *  Under some circumstances, the firing of INTCTRL_CL can race with
  *  the lowering of a device interrupt.  In such a case, the
  *  hv_downcall_dispatch service may issue an iret instruction instead
  *  of entering one of the client's actual downcall-handling interrupt
  *  vectors.  This will return execution to the location that was
- *  interrupted by INTCTRL_1.
+ *  interrupted by INTCTRL_CL.
  *
  *  Any saving of registers should be done by the actual handling
- *  vectors; no registers should be changed by the INTCTRL_1 handler.
+ *  vectors; no registers should be changed by the INTCTRL_CL handler.
  *  In particular, the client should not use a jal instruction to invoke
  *  the hv_downcall_dispatch service, as that would overwrite the client's
  *  lr register.  Note that the hv_downcall_dispatch service may overwrite
  *  one or more of the client's system save registers.
  *
- *  The client must not modify the INTCTRL_1_STATUS SPR.  The hypervisor
+ *  The client must not modify the INTCTRL_CL_STATUS SPR.  The hypervisor
  *  will set this register to cause a downcall to happen, and will clear
  *  it when no further downcalls are pending.
  *
- *  When a downcall vector is entered, the INTCTRL_1 interrupt will be
+ *  When a downcall vector is entered, the INTCTRL_CL interrupt will be
  *  masked.  When the client is done processing a downcall, and is ready
  *  to accept another, it must unmask this interrupt; if more downcalls
- *  are pending, this will cause the INTCTRL_1 vector to be reentered.
+ *  are pending, this will cause the INTCTRL_CL vector to be reentered.
  *  Currently the following interrupt vectors can be entered through a
  *  downcall:
  *

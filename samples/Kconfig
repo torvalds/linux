@@ -54,4 +54,11 @@ config SAMPLE_KFIFO
 
 	  If in doubt, say "N" here.
 
+config SAMPLE_KDB
+	tristate "Build kdb command exmaple -- loadable modules only"
+	depends on KGDB_KDB && m
+	help
+	  Build an example of how to dynamically add the hello
+	  command to the kdb shell.
+
 endif # SAMPLES

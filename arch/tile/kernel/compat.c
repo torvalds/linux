@@ -148,14 +148,20 @@ long tile_compat_sys_msgrcv(int msqid,
 #define compat_sys_readahead sys32_readahead
 #define compat_sys_sync_file_range compat_sys_sync_file_range2
 
-/* The native 64-bit "struct stat" matches the 32-bit "struct stat64". */
-#define compat_sys_stat64 sys_newstat
-#define compat_sys_lstat64 sys_newlstat
-#define compat_sys_fstat64 sys_newfstat
-#define compat_sys_fstatat64 sys_newfstatat
+/* We leverage the "struct stat64" type for 32-bit time_t/nsec. */
+#define compat_sys_stat64 sys_stat64
+#define compat_sys_lstat64 sys_lstat64
+#define compat_sys_fstat64 sys_fstat64
+#define compat_sys_fstatat64 sys_fstatat64
 
-/* Pass full 64-bit values through ptrace. */
-#define compat_sys_ptrace tile_compat_sys_ptrace
+/* The native sys_ptrace dynamically handles compat binaries. */
+#define compat_sys_ptrace sys_ptrace
+
+/* Call the trampolines to manage pt_regs where necessary. */
+#define compat_sys_execve _compat_sys_execve
+#define compat_sys_sigaltstack _compat_sys_sigaltstack
+#define compat_sys_rt_sigreturn _compat_sys_rt_sigreturn
+#define sys_clone _sys_clone
 
 /*
  * Note that we can't include <linux/unistd.h> here since the header

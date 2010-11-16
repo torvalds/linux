@@ -1,7 +1,7 @@
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
- *  Copyright (c) 2009 Steven Toth <stoth@kernellabs.com>
+ *  Copyright (c) 2010 Steven Toth <stoth@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -82,16 +82,17 @@ u32 saa7164_cmd_timeout_get(struct saa7164_dev *dev, u8 seqno)
  * -bus/c running buffer. */
 int saa7164_irq_dequeue(struct saa7164_dev *dev)
 {
-	int ret = SAA_OK;
+	int ret = SAA_OK, i = 0;
 	u32 timeout;
 	wait_queue_head_t *q = 0;
+	u8 tmp[512];
 	dprintk(DBGLVL_CMD, "%s()\n", __func__);
 
 	/* While any outstand message on the bus exists... */
 	do {
 
 		/* Peek the msg bus */
-		tmComResInfo_t tRsp = { 0, 0, 0, 0, 0, 0 };
+		struct tmComResInfo tRsp = { 0, 0, 0, 0, 0, 0 };
 		ret = saa7164_bus_get(dev, &tRsp, NULL, 1);
 		if (ret != SAA_OK)
 			break;
@@ -109,8 +110,22 @@ int saa7164_irq_dequeue(struct saa7164_dev *dev)
 			printk(KERN_ERR
 				"%s() found timed out command on the bus\n",
 					__func__);
+
+			/* Clean the bus */
+			ret = saa7164_bus_get(dev, &tRsp, &tmp, 0);
+			printk(KERN_ERR "%s() ret = %x\n", __func__, ret);
+			if (ret == SAA_ERR_EMPTY)
+				/* Someone else already fetched the response */
+				return SAA_OK;
+
+			if (ret != SAA_OK)
+				return ret;
 		}
-	} while (0);
+
+		/* It's unlikely to have more than 4 or 5 pending messages, ensure we exit
+		 * at some point regardles.
+		 */
+	} while (i++ < 32);
 
 	return ret;
 }
@@ -128,7 +143,7 @@ int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 
 	while (loop) {
 
-		tmComResInfo_t tRsp = { 0, 0, 0, 0, 0, 0 };
+		struct tmComResInfo tRsp = { 0, 0, 0, 0, 0, 0 };
 		ret = saa7164_bus_get(dev, &tRsp, NULL, 1);
 		if (ret == SAA_ERR_EMPTY)
 			return SAA_OK;
@@ -171,9 +186,9 @@ int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 	return SAA_OK;
 }
 
-int saa7164_cmd_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
+int saa7164_cmd_set(struct saa7164_dev *dev, struct tmComResInfo* msg, void *buf)
 {
-	tmComResBusInfo_t *bus = &dev->bus;
+	struct tmComResBusInfo *bus = &dev->bus;
 	u8 cmd_sent;
 	u16 size, idx;
 	u32 cmds;
@@ -324,11 +339,11 @@ void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqno)
 	mutex_unlock(&dev->lock);
 }
 
-int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, tmComResCmd_t command,
+int saa7164_cmd_send(struct saa7164_dev *dev, u8 id, enum tmComResCmd command,
 	u16 controlselector, u16 size, void *buf)
 {
-	tmComResInfo_t command_t, *pcommand_t;
-	tmComResInfo_t response_t, *presponse_t;
+	struct tmComResInfo command_t, *pcommand_t;
+	struct tmComResInfo response_t, *presponse_t;
 	u8 errdata[256];
 	u16 resp_dsize;
 	u16 data_recd;

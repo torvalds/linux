@@ -167,8 +167,6 @@ static void __init bcmring_fixup(struct machine_desc *desc,
 
 MACHINE_START(BCMRING, "BCMRING")
 	/* Maintainer: Broadcom Corporation */
-	.phys_io = MM_IO_START,
-	.io_pg_offst = (MM_IO_BASE >> 18) & 0xfffc,
 	.fixup = bcmring_fixup,
 	.map_io = bcmring_map_io,
 	.init_irq = bcmring_init_irq,

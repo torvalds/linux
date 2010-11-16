@@ -199,7 +199,8 @@ struct jffs2_inode_cache {
 #define RAWNODE_CLASS_XATTR_DATUM	1
 #define RAWNODE_CLASS_XATTR_REF		2
 
-#define INOCACHE_HASHSIZE 128
+#define INOCACHE_HASHSIZE_MIN 128
+#define INOCACHE_HASHSIZE_MAX 1024
 
 #define write_ofs(c) ((c)->nextblock->offset + (c)->sector_size - (c)->nextblock->free_size)
 

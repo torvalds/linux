@@ -24,7 +24,6 @@
 #include <linux/module.h>
 
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
@@ -555,18 +554,23 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 	int retry;
 	int ret;
 
+	clk_enable(i2c->clk);
+
 	for (retry = 0; retry < adap->retries; retry++) {
 
 		ret = s3c24xx_i2c_doxfer(i2c, msgs, num);
 
-		if (ret != -EAGAIN)
+		if (ret != -EAGAIN) {
+			clk_disable(i2c->clk);
 			return ret;
+		}
 
 		dev_dbg(i2c->dev, "Retrying transmission (%d)\n", retry);
 
 		udelay(100);
 	}
 
+	clk_disable(i2c->clk);
 	return -EREMOTEIO;
 }
 
@@ -911,6 +915,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, i2c);
 
 	dev_info(&pdev->dev, "%s: S3C I2C adapter\n", dev_name(&i2c->adap.dev));
+	clk_disable(i2c->clk);
 	return 0;
 
  err_cpufreq:
@@ -978,7 +983,9 @@ static int s3c24xx_i2c_resume(struct device *dev)
 	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspended = 0;
+	clk_enable(i2c->clk);
 	s3c24xx_i2c_init(i2c);
+	clk_disable(i2c->clk);
 
 	return 0;
 }

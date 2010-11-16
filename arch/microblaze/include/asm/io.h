@@ -243,6 +243,8 @@ static inline void __iomem *__ioremap(phys_addr_t address, unsigned long size,
 #define out_8(a, v) __raw_writeb((v), (a))
 #define in_8(a) __raw_readb(a)
 
+#define mmiowb()
+
 #define ioport_map(port, nr)	((void __iomem *)(port))
 #define ioport_unmap(addr)
 

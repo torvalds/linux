@@ -12,6 +12,7 @@
 
 struct svc_xprt_ops {
 	struct svc_xprt	*(*xpo_create)(struct svc_serv *,
+				       struct net *net,
 				       struct sockaddr *, int,
 				       int);
 	struct svc_xprt	*(*xpo_accept)(struct svc_xprt *);
@@ -30,6 +31,16 @@ struct svc_xprt_class {
 	struct svc_xprt_ops	*xcl_ops;
 	struct list_head	xcl_list;
 	u32			xcl_max_payload;
+};
+
+/*
+ * This is embedded in an object that wants a callback before deleting
+ * an xprt; intended for use by NFSv4.1, which needs to know when a
+ * client's tcp connection (and hence possibly a backchannel) goes away.
+ */
+struct svc_xpt_user {
+	struct list_head list;
+	void (*callback)(struct svc_xpt_user *);
 };
 
 struct svc_xprt {
@@ -66,14 +77,41 @@ struct svc_xprt {
 	struct sockaddr_storage	xpt_remote;	/* remote peer's address */
 	size_t			xpt_remotelen;	/* length of address */
 	struct rpc_wait_queue	xpt_bc_pending;	/* backchannel wait queue */
+	struct list_head	xpt_users;	/* callbacks on free */
+
+	struct net		*xpt_net;
 };
+
+static inline void unregister_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u)
+{
+	spin_lock(&xpt->xpt_lock);
+	list_del_init(&u->list);
+	spin_unlock(&xpt->xpt_lock);
+}
+
+static inline int register_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u)
+{
+	spin_lock(&xpt->xpt_lock);
+	if (test_bit(XPT_CLOSE, &xpt->xpt_flags)) {
+		/*
+		 * The connection is about to be deleted soon (or,
+		 * worse, may already be deleted--in which case we've
+		 * already notified the xpt_users).
+		 */
+		spin_unlock(&xpt->xpt_lock);
+		return -ENOTCONN;
+	}
+	list_add(&u->list, &xpt->xpt_users);
+	spin_unlock(&xpt->xpt_lock);
+	return 0;
+}
 
 int	svc_reg_xprt_class(struct svc_xprt_class *);
 void	svc_unreg_xprt_class(struct svc_xprt_class *);
 void	svc_xprt_init(struct svc_xprt_class *, struct svc_xprt *,
 		      struct svc_serv *);
-int	svc_create_xprt(struct svc_serv *, const char *, const int,
-			const unsigned short, int);
+int	svc_create_xprt(struct svc_serv *, const char *, struct net *,
+			const int, const unsigned short, int);
 void	svc_xprt_enqueue(struct svc_xprt *xprt);
 void	svc_xprt_received(struct svc_xprt *);
 void	svc_xprt_put(struct svc_xprt *xprt);

@@ -111,14 +111,18 @@ void start_cpu_work(void)
 
 void end_cpu_work(void)
 {
-	int i;
-
 	work_enabled = 0;
+}
+
+void flush_cpu_work(void)
+{
+	int i;
 
 	for_each_online_cpu(i) {
 		struct oprofile_cpu_buffer *b = &per_cpu(op_cpu_buffer, i);
 
-		cancel_delayed_work(&b->work);
+		/* these works are per-cpu, no need for flush_sync */
+		flush_delayed_work(&b->work);
 	}
 }
 

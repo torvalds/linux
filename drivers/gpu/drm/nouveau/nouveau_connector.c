@@ -76,6 +76,22 @@ nouveau_encoder_connector_get(struct nouveau_encoder *encoder)
 	return NULL;
 }
 
+/*TODO: This could use improvement, and learn to handle the fixed
+ *      BIOS tables etc.  It's fine currently, for its only user.
+ */
+int
+nouveau_connector_bpp(struct drm_connector *connector)
+{
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+
+	if (nv_connector->edid && nv_connector->edid->revision >= 4) {
+		u8 bpc = ((nv_connector->edid->input & 0x70) >> 3) + 4;
+		if (bpc > 4)
+			return bpc;
+	}
+
+	return 18;
+}
 
 static void
 nouveau_connector_destroy(struct drm_connector *drm_connector)
@@ -127,6 +143,36 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 		}
 	}
 
+	return NULL;
+}
+
+static struct nouveau_encoder *
+nouveau_connector_of_detect(struct drm_connector *connector)
+{
+#ifdef __powerpc__
+	struct drm_device *dev = connector->dev;
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct nouveau_encoder *nv_encoder;
+	struct device_node *cn, *dn = pci_device_to_OF_node(dev->pdev);
+
+	if (!dn ||
+	    !((nv_encoder = find_encoder_by_type(connector, OUTPUT_TMDS)) ||
+	      (nv_encoder = find_encoder_by_type(connector, OUTPUT_ANALOG))))
+		return NULL;
+
+	for_each_child_of_node(dn, cn) {
+		const char *name = of_get_property(cn, "name", NULL);
+		const void *edid = of_get_property(cn, "EDID", NULL);
+		int idx = name ? name[strlen(name) - 1] - 'A' : 0;
+
+		if (nv_encoder->dcb->i2c_index == idx && edid) {
+			nv_connector->edid =
+				kmemdup(edid, EDID_LENGTH, GFP_KERNEL);
+			of_node_put(cn);
+			return nv_encoder;
+		}
+	}
+#endif
 	return NULL;
 }
 
@@ -221,6 +267,12 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 			}
 		}
 
+		nouveau_connector_set_encoder(connector, nv_encoder);
+		return connector_status_connected;
+	}
+
+	nv_encoder = nouveau_connector_of_detect(connector);
+	if (nv_encoder) {
 		nouveau_connector_set_encoder(connector, nv_encoder);
 		return connector_status_connected;
 	}
@@ -630,7 +682,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 		else
 			max_clock = nv_encoder->dp.link_nr * 162000;
 
-		clock *= 3;
+		clock = clock * nouveau_connector_bpp(connector) / 8;
 		break;
 	default:
 		BUG_ON(1);

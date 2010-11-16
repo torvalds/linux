@@ -784,7 +784,7 @@ static struct usb_protocol_ops snd_usbmidi_novation_ops = {
 };
 
 /*
- * "raw" protocol: used by the MOTU FastLane.
+ * "raw" protocol: just move raw MIDI bytes from/to the endpoint
  */
 
 static void snd_usbmidi_raw_input(struct snd_usb_midi_in_endpoint* ep,
@@ -834,7 +834,14 @@ static void snd_usbmidi_us122l_output(struct snd_usb_midi_out_endpoint *ep,
 
 	if (!ep->ports[0].active)
 		return;
-	count = snd_usb_get_speed(ep->umidi->dev) == USB_SPEED_HIGH ? 1 : 2;
+	switch (snd_usb_get_speed(ep->umidi->dev)) {
+	case USB_SPEED_HIGH:
+	case USB_SPEED_SUPER:
+		count = 1;
+		break;
+	default:
+		count = 2;
+	}
 	count = snd_rawmidi_transmit(ep->ports[0].substream,
 				     urb->transfer_buffer,
 				     count);
@@ -2115,7 +2122,7 @@ int snd_usbmidi_create(struct snd_card *card,
 		umidi->usb_protocol_ops = &snd_usbmidi_novation_ops;
 		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
 		break;
-	case QUIRK_MIDI_FASTLANE:
+	case QUIRK_MIDI_RAW_BYTES:
 		umidi->usb_protocol_ops = &snd_usbmidi_raw_ops;
 		/*
 		 * Interface 1 contains isochronous endpoints, but with the same
@@ -2126,7 +2133,8 @@ int snd_usbmidi_create(struct snd_card *card,
 		 * interface 0, so we have to make sure that the USB core looks
 		 * again at interface 0 by calling usb_set_interface() on it.
 		 */
-		usb_set_interface(umidi->dev, 0, 0);
+		if (umidi->usb_id == USB_ID(0x07fd, 0x0001)) /* MOTU Fastlane */
+			usb_set_interface(umidi->dev, 0, 0);
 		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
 		break;
 	case QUIRK_MIDI_EMAGIC:

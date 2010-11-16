@@ -200,10 +200,9 @@ s_vProcessRxMACHeader (
     } else if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
         cbHeaderSize += 6;
         pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
-        if ((*pwType!= TYPE_PKT_IPX) && (*pwType != cpu_to_le16(0xF380))) {
-        }
-        else {
-            cbHeaderSize -= 8;
+	if ((*pwType == cpu_to_le16(ETH_P_IPX)) ||
+	    (*pwType == cpu_to_le16(0xF380))) {
+		cbHeaderSize -= 8;
             pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
             if (bIsWEP) {
                 if (bExtIV) {
@@ -377,9 +376,9 @@ RXbBulkInProcessData (
         return FALSE;
     }
 
-    if ((BytesToIndicate > 2372)||(BytesToIndicate <= 40)) {
+    if ((BytesToIndicate > 2372) || (BytesToIndicate <= 40)) {
         // Frame Size error drop this packet.
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---------- WRONG Length 2 \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---------- WRONG Length 2\n");
         return FALSE;
     }
 
@@ -865,7 +864,6 @@ RXbBulkInProcessData (
                             pDevice->dev->name);
                     }
                 }
-		//2008-0409-07, <Add> by Einsn Liu
        #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 				//send event to wpa_supplicant
 				//if(pDevice->bWPASuppWextEnabled == TRUE)
@@ -1524,7 +1522,8 @@ void RXvWorkItem(void *Context)
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");
     spin_lock_irq(&pDevice->lock);
-    while ( MP_TEST_FLAG(pDevice, fMP_POST_READS) &&
+
+    while ((pDevice->Flags & fMP_POST_READS) &&
             MP_IS_READY(pDevice) &&
             (pDevice->NumRecvFreeList != 0) ) {
         pRCB = pDevice->FirstRecvFreeList;
@@ -1569,7 +1568,7 @@ RXvFreeRCB(
     pDevice->NumRecvFreeList++;
 
 
-    if (MP_TEST_FLAG(pDevice, fMP_POST_READS) && MP_IS_READY(pDevice) &&
+    if ((pDevice->Flags & fMP_POST_READS) && MP_IS_READY(pDevice) &&
         (pDevice->bIsRxWorkItemQueued == FALSE) ) {
 
         pDevice->bIsRxWorkItemQueued = TRUE;

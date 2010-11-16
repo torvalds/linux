@@ -343,7 +343,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 			len ? gspca_dev->usb_buf : NULL, len,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r err %d", ret);
+		err("reg_r err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -368,7 +368,7 @@ static void reg_w_1(struct gspca_dev *gspca_dev,
 			gspca_dev->usb_buf, 1,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w_1 err %d", ret);
+		err("reg_w_1 err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -388,7 +388,7 @@ static void reg_w_riv(struct gspca_dev *gspca_dev,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			value, index, NULL, 0, 500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w_riv err %d", ret);
+		err("reg_w_riv err %d", ret);
 		gspca_dev->usb_err = ret;
 		return;
 	}
@@ -413,7 +413,7 @@ static u8 reg_r_1(struct gspca_dev *gspca_dev,
 			gspca_dev->usb_buf, 1,
 			500);			/* timeout */
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r_1 err %d", ret);
+		err("reg_r_1 err %d", ret);
 		gspca_dev->usb_err = ret;
 		return 0;
 	}
@@ -440,7 +440,7 @@ static u16 reg_r_12(struct gspca_dev *gspca_dev,
 			gspca_dev->usb_buf, length,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r_12 err %d", ret);
+		err("reg_r_12 err %d", ret);
 		gspca_dev->usb_err = ret;
 		return 0;
 	}
@@ -463,7 +463,7 @@ static void setup_qtable(struct gspca_dev *gspca_dev,
 
 	/* loop over y components */
 	for (i = 0; i < 64; i++)
-		 reg_w_riv(gspca_dev, 0x00, 0x2800 + i, qtable[0][i]);
+		reg_w_riv(gspca_dev, 0x00, 0x2800 + i, qtable[0][i]);
 
 	/* loop over c components */
 	for (i = 0; i < 64; i++)
@@ -712,8 +712,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->subtype = id->driver_info;
 
 	if (sd->subtype == AiptekMiniPenCam13) {
-/* try to get the firmware as some cam answer 2.0.1.2.2
- * and should be a spca504b then overwrite that setting */
+
+		/* try to get the firmware as some cam answer 2.0.1.2.2
+		 * and should be a spca504b then overwrite that setting */
 		reg_r(gspca_dev, 0x20, 0, 1);
 		switch (gspca_dev->usb_buf[0]) {
 		case 1:
@@ -733,7 +734,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /*	case BRIDGE_SPCA504: */
 /*	case BRIDGE_SPCA536: */
 		cam->cam_mode = vga_mode;
-		cam->nmodes =ARRAY_SIZE(vga_mode);
+		cam->nmodes = ARRAY_SIZE(vga_mode);
 		break;
 	case BRIDGE_SPCA533:
 		cam->cam_mode = custom_mode;
@@ -1247,17 +1248,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

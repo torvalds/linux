@@ -15,13 +15,13 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/memblock.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
 #include <plat/tc.h>
-#include <plat/control.h>
 #include <plat/board.h>
 #include <plat/mmc.h>
 #include <mach/gpio.h>
@@ -272,6 +272,37 @@ static void omap_init_wdt(void)
 static inline void omap_init_wdt(void) {}
 #endif
 
+#if defined(CONFIG_TIDSPBRIDGE) || defined(CONFIG_TIDSPBRIDGE_MODULE)
+
+static phys_addr_t omap_dsp_phys_mempool_base;
+
+void __init omap_dsp_reserve_sdram_memblock(void)
+{
+	phys_addr_t size = CONFIG_TIDSPBRIDGE_MEMPOOL_SIZE;
+	phys_addr_t paddr;
+
+	if (!size)
+		return;
+
+	paddr = memblock_alloc(size, SZ_1M);
+	if (!paddr) {
+		pr_err("%s: failed to reserve %x bytes\n",
+				__func__, size);
+		return;
+	}
+	memblock_free(paddr, size);
+	memblock_remove(paddr, size);
+
+	omap_dsp_phys_mempool_base = paddr;
+}
+
+phys_addr_t omap_dsp_get_mempool_base(void)
+{
+	return omap_dsp_phys_mempool_base;
+}
+EXPORT_SYMBOL(omap_dsp_get_mempool_base);
+#endif
+
 /*
  * This gets called after board-specific INIT_MACHINE, and initializes most
  * on-chip peripherals accessible on this board (except for few like USB):
@@ -300,7 +331,6 @@ static int __init omap_init_devices(void)
 	omap_init_rng();
 	omap_init_mcpdm();
 	omap_init_uwire();
-	omap_init_wdt();
 	return 0;
 }
 arch_initcall(omap_init_devices);

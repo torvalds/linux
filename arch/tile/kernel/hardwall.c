@@ -151,12 +151,12 @@ enum direction_protect {
 
 static void enable_firewall_interrupts(void)
 {
-	raw_local_irq_unmask_now(INT_UDN_FIREWALL);
+	arch_local_irq_unmask_now(INT_UDN_FIREWALL);
 }
 
 static void disable_firewall_interrupts(void)
 {
-	raw_local_irq_mask_now(INT_UDN_FIREWALL);
+	arch_local_irq_mask_now(INT_UDN_FIREWALL);
 }
 
 /* Set up hardwall on this cpu based on the passed hardwall_info. */
@@ -768,6 +768,7 @@ static int hardwall_release(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations dev_hardwall_fops = {
+	.open           = nonseekable_open,
 	.unlocked_ioctl = hardwall_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = hardwall_compat_ioctl,

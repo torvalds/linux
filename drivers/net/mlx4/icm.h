@@ -128,8 +128,6 @@ static inline unsigned long mlx4_icm_size(struct mlx4_icm_iter *iter)
 	return sg_dma_len(&iter->chunk->mem[iter->page_idx]);
 }
 
-int mlx4_UNMAP_ICM(struct mlx4_dev *dev, u64 virt, u32 page_count);
-int mlx4_MAP_ICM_page(struct mlx4_dev *dev, u64 dma_addr, u64 virt);
 int mlx4_MAP_ICM_AUX(struct mlx4_dev *dev, struct mlx4_icm *icm);
 int mlx4_UNMAP_ICM_AUX(struct mlx4_dev *dev);
 

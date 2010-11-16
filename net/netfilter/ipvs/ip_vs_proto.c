@@ -172,8 +172,8 @@ ip_vs_tcpudp_debug_packet_v4(struct ip_vs_protocol *pp,
 	else if (ih->frag_off & htons(IP_OFFSET))
 		sprintf(buf, "%pI4->%pI4 frag", &ih->saddr, &ih->daddr);
 	else {
-		__be16 _ports[2], *pptr
-;
+		__be16 _ports[2], *pptr;
+
 		pptr = skb_header_pointer(skb, offset + ih->ihl*4,
 					  sizeof(_ports), _ports);
 		if (pptr == NULL)
@@ -223,13 +223,13 @@ ip_vs_tcpudp_debug_packet_v6(struct ip_vs_protocol *pp,
 
 
 void
-ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp,
+ip_vs_tcpudp_debug_packet(int af, struct ip_vs_protocol *pp,
 			  const struct sk_buff *skb,
 			  int offset,
 			  const char *msg)
 {
 #ifdef CONFIG_IP_VS_IPV6
-	if (skb->protocol == htons(ETH_P_IPV6))
+	if (af == AF_INET6)
 		ip_vs_tcpudp_debug_packet_v6(pp, skb, offset, msg);
 	else
 #endif

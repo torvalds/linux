@@ -839,7 +839,7 @@ struct bridge_controller {
 	nasid_t			nasid;
 	unsigned int		widget_id;
 	unsigned int 		irq_cpu;
-	dma64_addr_t		baddr;
+	u64			baddr;
 	unsigned int		pci_int[8];
 };
 

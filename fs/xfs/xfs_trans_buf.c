@@ -336,7 +336,7 @@ xfs_trans_read_buf(
 			ASSERT(!XFS_BUF_ISASYNC(bp));
 			XFS_BUF_READ(bp);
 			xfsbdstrat(tp->t_mountp, bp);
-			error = xfs_iowait(bp);
+			error = xfs_buf_iowait(bp);
 			if (error) {
 				xfs_ioerror_alert("xfs_trans_read_buf", mp,
 						  bp, blkno);

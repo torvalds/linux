@@ -24,7 +24,7 @@ Dynamic debug has even more useful features:
    read to display the complete list of known debug statements, to help guide you
 
 Controlling dynamic debug Behaviour
-===============================
+===================================
 
 The behaviour of pr_debug()/dev_debug()s are controlled via writing to a
 control file in the 'debugfs' filesystem. Thus, you must first mount the debugfs
@@ -211,6 +211,26 @@ p
 Note the regexp ^[-+=][scp]+$ matches a flags specification.
 Note also that there is no convenient syntax to remove all
 the flags at once, you need to use "-psc".
+
+
+Debug messages during boot process
+==================================
+
+To be able to activate debug messages during the boot process,
+even before userspace and debugfs exists, use the boot parameter:
+ddebug_query="QUERY"
+
+QUERY follows the syntax described above, but must not exceed 1023
+characters. The enablement of debug messages is done as an arch_initcall.
+Thus you can enable debug messages in all code processed after this
+arch_initcall via this boot parameter.
+On an x86 system for example ACPI enablement is a subsys_initcall and
+ddebug_query="file ec.c +p"
+will show early Embedded Controller transactions during ACPI setup if
+your machine (typically a laptop) has an Embedded Controller.
+PCI (or other devices) initialization also is a hot candidate for using
+this boot parameter for debugging purposes.
+
 
 Examples
 ========

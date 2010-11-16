@@ -17,6 +17,4 @@ enum davinci_mcbsp_div {
 	DAVINCI_MCBSP_CLKGDV,              /* Sample rate generator divider */
 };
 
-extern struct snd_soc_dai davinci_i2s_dai;
-
 #endif

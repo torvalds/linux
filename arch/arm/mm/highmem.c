@@ -36,17 +36,16 @@ void kunmap(struct page *page)
 }
 EXPORT_SYMBOL(kunmap);
 
-void *kmap_atomic(struct page *page, enum km_type type)
+void *__kmap_atomic(struct page *page)
 {
 	unsigned int idx;
 	unsigned long vaddr;
 	void *kmap;
+	int type;
 
 	pagefault_disable();
 	if (!PageHighMem(page))
 		return page_address(page);
-
-	debug_kmap_atomic(type);
 
 #ifdef CONFIG_DEBUG_HIGHMEM
 	/*
@@ -60,6 +59,8 @@ void *kmap_atomic(struct page *page, enum km_type type)
 		kmap = kmap_high_get(page);
 	if (kmap)
 		return kmap;
+
+	type = kmap_atomic_idx_push();
 
 	idx = type + KM_TYPE_NR * smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
@@ -80,14 +81,17 @@ void *kmap_atomic(struct page *page, enum km_type type)
 
 	return (void *)vaddr;
 }
-EXPORT_SYMBOL(kmap_atomic);
+EXPORT_SYMBOL(__kmap_atomic);
 
-void kunmap_atomic_notypecheck(void *kvaddr, enum km_type type)
+void __kunmap_atomic(void *kvaddr)
 {
 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
-	unsigned int idx = type + KM_TYPE_NR * smp_processor_id();
+	int idx, type;
 
 	if (kvaddr >= (void *)FIXADDR_START) {
+		type = kmap_atomic_idx();
+		idx = type + KM_TYPE_NR * smp_processor_id();
+
 		if (cache_is_vivt())
 			__cpuc_flush_dcache_area((void *)vaddr, PAGE_SIZE);
 #ifdef CONFIG_DEBUG_HIGHMEM
@@ -97,21 +101,23 @@ void kunmap_atomic_notypecheck(void *kvaddr, enum km_type type)
 #else
 		(void) idx;  /* to kill a warning */
 #endif
+		kmap_atomic_idx_pop();
 	} else if (vaddr >= PKMAP_ADDR(0) && vaddr < PKMAP_ADDR(LAST_PKMAP)) {
 		/* this address was obtained through kmap_high_get() */
 		kunmap_high(pte_page(pkmap_page_table[PKMAP_NR(vaddr)]));
 	}
 	pagefault_enable();
 }
-EXPORT_SYMBOL(kunmap_atomic_notypecheck);
+EXPORT_SYMBOL(__kunmap_atomic);
 
-void *kmap_atomic_pfn(unsigned long pfn, enum km_type type)
+void *kmap_atomic_pfn(unsigned long pfn)
 {
-	unsigned int idx;
 	unsigned long vaddr;
+	int idx, type;
 
 	pagefault_disable();
 
+	type = kmap_atomic_idx_push();
 	idx = type + KM_TYPE_NR * smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 #ifdef CONFIG_DEBUG_HIGHMEM

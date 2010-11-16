@@ -30,7 +30,7 @@
 #include <mach/zylonite.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <plat/pxa3xx_nand.h>
 
 #include "devices.h"
@@ -44,6 +44,16 @@ int wm9713_irq;
 
 int lcd_id;
 int lcd_orientation;
+
+struct platform_device pxa_device_wm9713_audio = {
+	.name		= "wm9713-codec",
+	.id		= -1,
+};
+
+static void __init zylonite_init_wm9713_audio(void)
+{
+	platform_device_register(&pxa_device_wm9713_audio);
+}
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -408,13 +418,13 @@ static void __init zylonite_init(void)
 	zylonite_init_nand();
 	zylonite_init_leds();
 	zylonite_init_ohci();
+	zylonite_init_wm9713_audio();
 }
 
 MACHINE_START(ZYLONITE, "PXA3xx Platform Development Kit (aka Zylonite)")
-	.phys_io	= 0x40000000,
 	.boot_params	= 0xa0000100,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= pxa_map_io,
+	.nr_irqs	= ZYLONITE_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= zylonite_init,

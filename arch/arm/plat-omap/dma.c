@@ -30,6 +30,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 #include <asm/system.h>
 #include <mach/hardware.h>
@@ -996,11 +997,17 @@ void omap_start_dma(int lch)
 	l = dma_read(CCR(lch));
 
 	/*
-	 * Errata: On ES2.0 BUFFERING disable must be set.
-	 * This will always fail on ES1.0
+	 * Errata: Inter Frame DMA buffering issue (All OMAP2420 and
+	 * OMAP2430ES1.0): DMA will wrongly buffer elements if packing and
+	 * bursting is enabled. This might result in data gets stalled in
+	 * FIFO at the end of the block.
+	 * Workaround: DMA channels must have BUFFERING_DISABLED bit set to
+	 * guarantee no data will stay in the DMA FIFO in case inter frame
+	 * buffering occurs.
 	 */
-	if (cpu_is_omap24xx())
-		l |= OMAP_DMA_CCR_EN;
+	if (cpu_is_omap2420() ||
+	    (cpu_is_omap2430() && (omap_type() == OMAP2430_REV_ES1_0)))
+		l |= OMAP_DMA_CCR_BUFFERING_DISABLE;
 
 	l |= OMAP_DMA_CCR_EN;
 	dma_write(l, CCR(lch));
@@ -1018,8 +1025,39 @@ void omap_stop_dma(int lch)
 		dma_write(0, CICR(lch));
 
 	l = dma_read(CCR(lch));
-	l &= ~OMAP_DMA_CCR_EN;
-	dma_write(l, CCR(lch));
+	/* OMAP3 Errata i541: sDMA FIFO draining does not finish */
+	if (cpu_is_omap34xx() && (l & OMAP_DMA_CCR_SEL_SRC_DST_SYNC)) {
+		int i = 0;
+		u32 sys_cf;
+
+		/* Configure No-Standby */
+		l = dma_read(OCP_SYSCONFIG);
+		sys_cf = l;
+		l &= ~DMA_SYSCONFIG_MIDLEMODE_MASK;
+		l |= DMA_SYSCONFIG_MIDLEMODE(DMA_IDLEMODE_NO_IDLE);
+		dma_write(l , OCP_SYSCONFIG);
+
+		l = dma_read(CCR(lch));
+		l &= ~OMAP_DMA_CCR_EN;
+		dma_write(l, CCR(lch));
+
+		/* Wait for sDMA FIFO drain */
+		l = dma_read(CCR(lch));
+		while (i < 100 && (l & (OMAP_DMA_CCR_RD_ACTIVE |
+					OMAP_DMA_CCR_WR_ACTIVE))) {
+			udelay(5);
+			i++;
+			l = dma_read(CCR(lch));
+		}
+		if (i >= 100)
+			printk(KERN_ERR "DMA drain did not complete on "
+					"lch %d\n", lch);
+		/* Restore OCP_SYSCONFIG */
+		dma_write(sys_cf, OCP_SYSCONFIG);
+	} else {
+		l &= ~OMAP_DMA_CCR_EN;
+		dma_write(l, CCR(lch));
+	}
 
 	if (!omap_dma_in_1510_mode() && dma_chan[lch].next_lch != -1) {
 		int next_lch, cur_lch = lch;
@@ -1945,6 +1983,8 @@ static int omap2_dma_handle_ch(int ch)
 
 	dma_write(OMAP2_DMA_CSR_CLEAR_MASK, CSR(ch));
 	dma_write(1 << ch, IRQSTATUS_L0);
+	/* read back the register to flush the write */
+	dma_read(IRQSTATUS_L0);
 
 	/* If the ch is not chained then chain_id will be -1 */
 	if (dma_chan[ch].chain_id != -1) {
