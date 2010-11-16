@@ -368,8 +368,9 @@ void ieee80211_add_pending_skb(struct ieee80211_local *local,
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 }
 
-int ieee80211_add_pending_skbs(struct ieee80211_local *local,
-			       struct sk_buff_head *skbs)
+int ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
+				  struct sk_buff_head *skbs,
+				  void (*fn)(void *data), void *data)
 {
 	struct ieee80211_hw *hw = &local->hw;
 	struct sk_buff *skb;
@@ -394,12 +395,21 @@ int ieee80211_add_pending_skbs(struct ieee80211_local *local,
 		__skb_queue_tail(&local->pending[queue], skb);
 	}
 
+	if (fn)
+		fn(data);
+
 	for (i = 0; i < hw->queues; i++)
 		__ieee80211_wake_queue(hw, i,
 			IEEE80211_QUEUE_STOP_REASON_SKB_ADD);
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
 	return ret;
+}
+
+int ieee80211_add_pending_skbs(struct ieee80211_local *local,
+			       struct sk_buff_head *skbs)
+{
+	return ieee80211_add_pending_skbs_fn(local, skbs, NULL, NULL);
 }
 
 void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
