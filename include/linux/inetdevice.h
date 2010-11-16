@@ -41,10 +41,12 @@ enum
 	__IPV4_DEVCONF_MAX
 };
 
+#define IPV4_DEVCONF_MAX (__IPV4_DEVCONF_MAX - 1)
+
 struct ipv4_devconf {
 	void	*sysctl;
-	int	data[__IPV4_DEVCONF_MAX - 1];
-	DECLARE_BITMAP(state, __IPV4_DEVCONF_MAX - 1);
+	int	data[IPV4_DEVCONF_MAX];
+	DECLARE_BITMAP(state, IPV4_DEVCONF_MAX);
 };
 
 struct in_device {
@@ -90,7 +92,7 @@ static inline void ipv4_devconf_set(struct in_device *in_dev, int index,
 
 static inline void ipv4_devconf_setall(struct in_device *in_dev)
 {
-	bitmap_fill(in_dev->cnf.state, __IPV4_DEVCONF_MAX - 1);
+	bitmap_fill(in_dev->cnf.state, IPV4_DEVCONF_MAX);
 }
 
 #define IN_DEV_CONF_GET(in_dev, attr) \
