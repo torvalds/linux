@@ -410,7 +410,7 @@ static inline void _finish_off(struct rk29_pl330_xfer *xfer,
 
 	/* Do callback */
 	if (ch->callback_fn)
-		ch->callback_fn(NULL, xfer->token, xfer->px.bytes, res);
+		ch->callback_fn(xfer->token, xfer->px.bytes, res);
 
 	/* Force Free or if buffer is not needed anymore */
 	if (ffree || !(ch->options & RK29_DMAF_CIRCULAR))

@@ -126,7 +126,7 @@
 
 /* Specifies how often in millisecs to poll for card removal-insertion changes
  * when the timer switch is open */
-#define RK_SDMMC0_SWITCH_POLL_DELAY 3500
+#define RK_SDMMC0_SWITCH_POLL_DELAY 35
 
 
 #endif

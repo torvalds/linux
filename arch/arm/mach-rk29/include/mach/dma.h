@@ -41,19 +41,15 @@ struct rk29_dma_client {
 	char                *name;
 };
 
-struct rk29_dma_chan;
-
 /* rk29_dma_cbfn_t
  *
  * buffer callback routine type
 */
 
-typedef void (*rk29_dma_cbfn_t)(struct rk29_dma_chan *,
-				   void *buf, int size,
+typedef void (*rk29_dma_cbfn_t)(void *buf, int size,
 				   enum rk29_dma_buffresult result);
 
-typedef int  (*rk29_dma_opfn_t)(struct rk29_dma_chan *,
-				   enum rk29_chan_op );
+typedef int  (*rk29_dma_opfn_t)(enum rk29_chan_op );
 
 
 

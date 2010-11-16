@@ -500,11 +500,13 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	unsigned char  __iomem	*gpioRegBase;
 	u32		isr;
 
-	rk29_gpio = get_irq_chip_data(irq+14);
+	rk29_gpio = get_irq_chip_data(irq+13);
 	gpioRegBase = rk29_gpio->regbase;
 
 	//屏蔽中断6或7
 	desc->chip->mask(irq);
+	if(desc->chip->ack)
+		desc->chip->ack(irq);
 	//读取当前中断状态，即查询具体是GPIO的哪个PIN引起的中断
 	isr = rk29_gpio_read(gpioRegBase,GPIO_INT_STATUS);
 	if (!isr) {

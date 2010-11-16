@@ -134,6 +134,7 @@ struct platform_device rk29_device_i2c3 = {
 
 
 #ifdef CONFIG_SDMMC0_RK29 
+#ifndef CONFIG_EMMC_RK29 
 static struct resource resources_sdmmc0[] = {
 	{
 		.start 	= IRQ_SDMMC,
@@ -141,11 +142,25 @@ static struct resource resources_sdmmc0[] = {
 		.flags 	= IORESOURCE_IRQ,
 	},
 	{
-		.start 	= RK29_SDMMC0_PHYS,
+		.start 	= RK29_SDMMC0_PHYS,   
 		.end 	= RK29_SDMMC0_PHYS + RK29_SDMMC0_SIZE -1,
 		.flags 	= IORESOURCE_MEM,
 	}
 };
+#else
+static struct resource resources_sdmmc0[] = {
+	{
+		.start 	= IRQ_EMMC,
+		.end 	= IRQ_EMMC,
+		.flags 	= IORESOURCE_IRQ,
+	},
+	{
+		.start 	= RK29_EMMC_PHYS,   
+		.end 	= RK29_EMMC_PHYS + RK29_EMMC_SIZE -1,
+		.flags 	= IORESOURCE_MEM,
+	}
+};
+#endif
 #endif
 #ifdef CONFIG_SDMMC1_RK29
 static struct resource resources_sdmmc1[] = {

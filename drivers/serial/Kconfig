@@ -1512,6 +1512,10 @@ config UART0_RK29
 	bool "RockChip rk29 serial port 0 support"
 	depends on SERIAL_RK29
 	
+config UART0_CTS_RTS_RK29
+	bool "RockChip rk29 serial port 0 cts rts support"
+	depends on UART0_RK29	
+	
 config UART1_RK29
 	bool "RockChip rk29 serial port 1 support"
 	depends on SERIAL_RK29
@@ -1520,10 +1524,18 @@ config UART2_RK29
 	bool "RockChip rk29 serial port 2 support"
 	depends on SERIAL_RK29
 	
+config UART2_CTS_RTS_RK29
+	bool "RockChip rk29 serial port 2 cts rts support"
+	depends on UART2_RK29
+		
 config UART3_RK29
 	bool "RockChip rk29 serial port 3 support"
 	depends on SERIAL_RK29
-
+	
+config UART3_CTS_RTS_RK29
+	bool "RockChip rk29 serial port 3 cts rts support"
+	depends on UART3_RK29
+	
 config SERIAL_RK29_CONSOLE
 	bool "Rockchip rk29 serial console support"
 	depends on SERIAL_RK29=y
