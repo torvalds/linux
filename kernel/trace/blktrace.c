@@ -887,7 +887,7 @@ static void blk_add_trace_split(void *ignore,
 }
 
 /**
- * blk_add_trace_remap - Add a trace for a remap operation
+ * blk_add_trace_bio_remap - Add a trace for a bio-remap operation
  * @ignore:	trace callback data parameter (not used)
  * @q:		queue the io is for
  * @bio:	the source bio
@@ -899,9 +899,9 @@ static void blk_add_trace_split(void *ignore,
  *     it spans a stripe (or similar). Add a trace for that action.
  *
  **/
-static void blk_add_trace_remap(void *ignore,
-				struct request_queue *q, struct bio *bio,
-				dev_t dev, sector_t from)
+static void blk_add_trace_bio_remap(void *ignore,
+				    struct request_queue *q, struct bio *bio,
+				    dev_t dev, sector_t from)
 {
 	struct blk_trace *bt = q->blk_trace;
 	struct blk_io_trace_remap r;
@@ -1016,7 +1016,7 @@ static void blk_register_tracepoints(void)
 	WARN_ON(ret);
 	ret = register_trace_block_split(blk_add_trace_split, NULL);
 	WARN_ON(ret);
-	ret = register_trace_block_remap(blk_add_trace_remap, NULL);
+	ret = register_trace_block_bio_remap(blk_add_trace_bio_remap, NULL);
 	WARN_ON(ret);
 	ret = register_trace_block_rq_remap(blk_add_trace_rq_remap, NULL);
 	WARN_ON(ret);
@@ -1025,7 +1025,7 @@ static void blk_register_tracepoints(void)
 static void blk_unregister_tracepoints(void)
 {
 	unregister_trace_block_rq_remap(blk_add_trace_rq_remap, NULL);
-	unregister_trace_block_remap(blk_add_trace_remap, NULL);
+	unregister_trace_block_bio_remap(blk_add_trace_bio_remap, NULL);
 	unregister_trace_block_split(blk_add_trace_split, NULL);
 	unregister_trace_block_unplug_io(blk_add_trace_unplug_io, NULL);
 	unregister_trace_block_unplug_timer(blk_add_trace_unplug_timer, NULL);

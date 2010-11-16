@@ -486,16 +486,16 @@ TRACE_EVENT(block_split,
 );
 
 /**
- * block_remap - map request for a partition to the raw device
+ * block_bio_remap - map request for a logical device to the raw device
  * @q: queue holding the operation
  * @bio: revised operation
  * @dev: device for the operation
  * @from: original sector for the operation
  *
- * An operation for a partition on a block device has been mapped to the
+ * An operation for a logical device has been mapped to the
  * raw block device.
  */
-TRACE_EVENT(block_remap,
+TRACE_EVENT(block_bio_remap,
 
 	TP_PROTO(struct request_queue *q, struct bio *bio, dev_t dev,
 		 sector_t from),

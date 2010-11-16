@@ -33,7 +33,7 @@
 
 #include "blk.h"
 
-EXPORT_TRACEPOINT_SYMBOL_GPL(block_remap);
+EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_complete);
 
@@ -1329,9 +1329,9 @@ static inline void blk_partition_remap(struct bio *bio)
 		bio->bi_sector += p->start_sect;
 		bio->bi_bdev = bdev->bd_contains;
 
-		trace_block_remap(bdev_get_queue(bio->bi_bdev), bio,
-				    bdev->bd_dev,
-				    bio->bi_sector - p->start_sect);
+		trace_block_bio_remap(bdev_get_queue(bio->bi_bdev), bio,
+				      bdev->bd_dev,
+				      bio->bi_sector - p->start_sect);
 	}
 }
 
@@ -1500,7 +1500,7 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 
 		if (old_sector != -1)
-			trace_block_remap(q, bio, old_dev, old_sector);
+			trace_block_bio_remap(q, bio, old_dev, old_sector);
 
 		old_sector = bio->bi_sector;
 		old_dev = bio->bi_bdev->bd_dev;
