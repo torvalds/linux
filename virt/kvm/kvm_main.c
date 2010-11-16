@@ -2059,7 +2059,7 @@ static struct miscdevice kvm_dev = {
 	&kvm_chardev_ops,
 };
 
-static void hardware_enable(void *junk)
+static void hardware_enable_nolock(void *junk)
 {
 	int cpu = raw_smp_processor_id();
 	int r;
@@ -2079,7 +2079,14 @@ static void hardware_enable(void *junk)
 	}
 }
 
-static void hardware_disable(void *junk)
+static void hardware_enable(void *junk)
+{
+	spin_lock(&kvm_lock);
+	hardware_enable_nolock(junk);
+	spin_unlock(&kvm_lock);
+}
+
+static void hardware_disable_nolock(void *junk)
 {
 	int cpu = raw_smp_processor_id();
 
@@ -2089,13 +2096,20 @@ static void hardware_disable(void *junk)
 	kvm_arch_hardware_disable(NULL);
 }
 
+static void hardware_disable(void *junk)
+{
+	spin_lock(&kvm_lock);
+	hardware_disable_nolock(junk);
+	spin_unlock(&kvm_lock);
+}
+
 static void hardware_disable_all_nolock(void)
 {
 	BUG_ON(!kvm_usage_count);
 
 	kvm_usage_count--;
 	if (!kvm_usage_count)
-		on_each_cpu(hardware_disable, NULL, 1);
+		on_each_cpu(hardware_disable_nolock, NULL, 1);
 }
 
 static void hardware_disable_all(void)
@@ -2114,7 +2128,7 @@ static int hardware_enable_all(void)
 	kvm_usage_count++;
 	if (kvm_usage_count == 1) {
 		atomic_set(&hardware_enable_failed, 0);
-		on_each_cpu(hardware_enable, NULL, 1);
+		on_each_cpu(hardware_enable_nolock, NULL, 1);
 
 		if (atomic_read(&hardware_enable_failed)) {
 			hardware_disable_all_nolock();
@@ -2140,16 +2154,12 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 	case CPU_DYING:
 		printk(KERN_INFO "kvm: disabling virtualization on CPU%d\n",
 		       cpu);
-		spin_lock(&kvm_lock);
 		hardware_disable(NULL);
-		spin_unlock(&kvm_lock);
 		break;
 	case CPU_STARTING:
 		printk(KERN_INFO "kvm: enabling virtualization on CPU%d\n",
 		       cpu);
-		spin_lock(&kvm_lock);
 		hardware_enable(NULL);
-		spin_unlock(&kvm_lock);
 		break;
 	}
 	return NOTIFY_OK;
@@ -2180,7 +2190,7 @@ static int kvm_reboot(struct notifier_block *notifier, unsigned long val,
 	 */
 	printk(KERN_INFO "kvm: exiting hardware virtualization\n");
 	kvm_rebooting = true;
-	on_each_cpu(hardware_disable, NULL, 1);
+	on_each_cpu(hardware_disable_nolock, NULL, 1);
 	return NOTIFY_OK;
 }
 
@@ -2350,7 +2360,7 @@ static void kvm_exit_debug(void)
 static int kvm_suspend(struct sys_device *dev, pm_message_t state)
 {
 	if (kvm_usage_count)
-		hardware_disable(NULL);
+		hardware_disable_nolock(NULL);
 	return 0;
 }
 
@@ -2358,7 +2368,7 @@ static int kvm_resume(struct sys_device *dev)
 {
 	if (kvm_usage_count) {
 		WARN_ON(spin_is_locked(&kvm_lock));
-		hardware_enable(NULL);
+		hardware_enable_nolock(NULL);
 	}
 	return 0;
 }
@@ -2535,7 +2545,7 @@ void kvm_exit(void)
 	sysdev_class_unregister(&kvm_sysdev_class);
 	unregister_reboot_notifier(&kvm_reboot_notifier);
 	unregister_cpu_notifier(&kvm_cpu_notifier);
-	on_each_cpu(hardware_disable, NULL, 1);
+	on_each_cpu(hardware_disable_nolock, NULL, 1);
 	kvm_arch_hardware_unsetup();
 	kvm_arch_exit();
 	free_cpumask_var(cpus_hardware_enabled);
