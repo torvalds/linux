@@ -543,7 +543,6 @@ err_regulator_enable:
 err_regulator_get:
 	regulator_bulk_free(ARRAY_SIZE(wm8731->supplies), wm8731->supplies);
 
-	kfree(wm8731);
 	return ret;
 }
 
