@@ -3874,7 +3874,6 @@ err_enable:
 err_get:
 	regulator_bulk_free(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
 err:
-	kfree(wm8962);
 	return ret;
 }
 
