@@ -53,6 +53,11 @@ comma-sperated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2
 In per-thread mode, this option is ignored. The -a option is still necessary
 to activate system-wide monitoring. Default is to count on all CPUs.
 
+-A::
+--no-aggr::
+Do not aggregate counts across all monitored CPUs in system-wide mode (-a).
+This option is only valid in system-wide mode.
+
 EXAMPLES
 --------
 

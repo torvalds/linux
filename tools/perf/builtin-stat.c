@@ -75,6 +75,7 @@ static int			run_idx				=  0;
 static int			run_count			=  1;
 static bool			no_inherit			= false;
 static bool			scale				=  true;
+static bool			no_aggr				= false;
 static pid_t			target_pid			= -1;
 static pid_t			target_tid			= -1;
 static pid_t			*all_tids			=  NULL;
@@ -88,6 +89,12 @@ static const char		*cpu_list;
 static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
 
 static int			event_scaled[MAX_COUNTERS];
+
+static struct {
+	u64 val;
+	u64 ena;
+	u64 run;
+} cpu_counts[MAX_NR_CPUS][MAX_COUNTERS];
 
 static volatile int done = 0;
 
@@ -136,10 +143,10 @@ static double stddev_stats(struct stats *stats)
 }
 
 struct stats			event_res_stats[MAX_COUNTERS][3];
-struct stats			runtime_nsecs_stats;
+struct stats			runtime_nsecs_stats[MAX_NR_CPUS];
+struct stats			runtime_cycles_stats[MAX_NR_CPUS];
+struct stats			runtime_branches_stats[MAX_NR_CPUS];
 struct stats			walltime_nsecs_stats;
-struct stats			runtime_cycles_stats;
-struct stats			runtime_branches_stats;
 
 #define MATCH_EVENT(t, c, counter)			\
 	(attrs[counter].type == PERF_TYPE_##t &&	\
@@ -205,8 +212,9 @@ static inline int nsec_counter(int counter)
 
 /*
  * Read out the results of a single counter:
+ * aggregate counts across CPUs in system-wide mode
  */
-static void read_counter(int counter)
+static void read_counter_aggr(int counter)
 {
 	u64 count[3], single_count[3];
 	int cpu;
@@ -264,11 +272,58 @@ static void read_counter(int counter)
 	 * Save the full runtime - to allow normalization during printout:
 	 */
 	if (MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter))
-		update_stats(&runtime_nsecs_stats, count[0]);
+		update_stats(&runtime_nsecs_stats[0], count[0]);
 	if (MATCH_EVENT(HARDWARE, HW_CPU_CYCLES, counter))
-		update_stats(&runtime_cycles_stats, count[0]);
+		update_stats(&runtime_cycles_stats[0], count[0]);
 	if (MATCH_EVENT(HARDWARE, HW_BRANCH_INSTRUCTIONS, counter))
-		update_stats(&runtime_branches_stats, count[0]);
+		update_stats(&runtime_branches_stats[0], count[0]);
+}
+
+/*
+ * Read out the results of a single counter:
+ * do not aggregate counts across CPUs in system-wide mode
+ */
+static void read_counter(int counter)
+{
+	u64 count[3];
+	int cpu;
+	size_t res, nv;
+
+	count[0] = count[1] = count[2] = 0;
+
+	nv = scale ? 3 : 1;
+
+	for (cpu = 0; cpu < nr_cpus; cpu++) {
+
+		if (fd[cpu][counter][0] < 0)
+			continue;
+
+		res = read(fd[cpu][counter][0], count, nv * sizeof(u64));
+
+		assert(res == nv * sizeof(u64));
+
+		close(fd[cpu][counter][0]);
+		fd[cpu][counter][0] = -1;
+
+		if (scale) {
+			if (count[2] == 0) {
+				count[0] = 0;
+			} else if (count[2] < count[1]) {
+				count[0] = (unsigned long long)
+				((double)count[0] * count[1] / count[2] + 0.5);
+			}
+		}
+		cpu_counts[cpu][counter].val = count[0]; /* scaled count */
+		cpu_counts[cpu][counter].ena = count[1];
+		cpu_counts[cpu][counter].run = count[2];
+
+		if (MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter))
+			update_stats(&runtime_nsecs_stats[cpu], count[0]);
+		if (MATCH_EVENT(HARDWARE, HW_CPU_CYCLES, counter))
+			update_stats(&runtime_cycles_stats[cpu], count[0]);
+		if (MATCH_EVENT(HARDWARE, HW_BRANCH_INSTRUCTIONS, counter))
+			update_stats(&runtime_branches_stats[cpu], count[0]);
+	}
 }
 
 static int run_perf_stat(int argc __used, const char **argv)
@@ -362,9 +417,13 @@ static int run_perf_stat(int argc __used, const char **argv)
 
 	update_stats(&walltime_nsecs_stats, t1 - t0);
 
-	for (counter = 0; counter < nr_counters; counter++)
-		read_counter(counter);
-
+	if (no_aggr) {
+		for (counter = 0; counter < nr_counters; counter++)
+			read_counter(counter);
+	} else {
+		for (counter = 0; counter < nr_counters; counter++)
+			read_counter_aggr(counter);
+	}
 	return WEXITSTATUS(status);
 }
 
@@ -377,11 +436,15 @@ static void print_noise(int counter, double avg)
 			100 * stddev_stats(&event_res_stats[counter][0]) / avg);
 }
 
-static void nsec_printout(int counter, double avg)
+static void nsec_printout(int cpu, int counter, double avg)
 {
 	double msecs = avg / 1e6;
 
-	fprintf(stderr, " %18.6f  %-24s", msecs, event_name(counter));
+	if (no_aggr)
+		fprintf(stderr, "CPU%-4d %18.6f  %-24s",
+			cpumap[cpu], msecs, event_name(counter));
+	else
+		fprintf(stderr, " %18.6f  %-24s", msecs, event_name(counter));
 
 	if (MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter)) {
 		fprintf(stderr, " # %10.3f CPUs ",
@@ -389,33 +452,41 @@ static void nsec_printout(int counter, double avg)
 	}
 }
 
-static void abs_printout(int counter, double avg)
+static void abs_printout(int cpu, int counter, double avg)
 {
 	double total, ratio = 0.0;
+	char cpustr[16] = { '\0', };
+
+	if (no_aggr)
+		sprintf(cpustr, "CPU%-4d", cpumap[cpu]);
+	else
+		cpu = 0;
 
 	if (big_num)
-		fprintf(stderr, " %'18.0f  %-24s", avg, event_name(counter));
+		fprintf(stderr, "%s %'18.0f  %-24s",
+			cpustr, avg, event_name(counter));
 	else
-		fprintf(stderr, " %18.0f  %-24s", avg, event_name(counter));
+		fprintf(stderr, "%s %18.0f  %-24s",
+			cpustr, avg, event_name(counter));
 
 	if (MATCH_EVENT(HARDWARE, HW_INSTRUCTIONS, counter)) {
-		total = avg_stats(&runtime_cycles_stats);
+		total = avg_stats(&runtime_cycles_stats[cpu]);
 
 		if (total)
 			ratio = avg / total;
 
 		fprintf(stderr, " # %10.3f IPC  ", ratio);
 	} else if (MATCH_EVENT(HARDWARE, HW_BRANCH_MISSES, counter) &&
-			runtime_branches_stats.n != 0) {
-		total = avg_stats(&runtime_branches_stats);
+			runtime_branches_stats[cpu].n != 0) {
+		total = avg_stats(&runtime_branches_stats[cpu]);
 
 		if (total)
 			ratio = avg * 100 / total;
 
 		fprintf(stderr, " # %10.3f %%    ", ratio);
 
-	} else if (runtime_nsecs_stats.n != 0) {
-		total = avg_stats(&runtime_nsecs_stats);
+	} else if (runtime_nsecs_stats[cpu].n != 0) {
+		total = avg_stats(&runtime_nsecs_stats[cpu]);
 
 		if (total)
 			ratio = 1000.0 * avg / total;
@@ -426,8 +497,9 @@ static void abs_printout(int counter, double avg)
 
 /*
  * Print out the results of a single counter:
+ * aggregated counts in system-wide mode
  */
-static void print_counter(int counter)
+static void print_counter_aggr(int counter)
 {
 	double avg = avg_stats(&event_res_stats[counter][0]);
 	int scaled = event_scaled[counter];
@@ -439,9 +511,9 @@ static void print_counter(int counter)
 	}
 
 	if (nsec_counter(counter))
-		nsec_printout(counter, avg);
+		nsec_printout(-1, counter, avg);
 	else
-		abs_printout(counter, avg);
+		abs_printout(-1, counter, avg);
 
 	print_noise(counter, avg);
 
@@ -456,6 +528,42 @@ static void print_counter(int counter)
 	}
 
 	fprintf(stderr, "\n");
+}
+
+/*
+ * Print out the results of a single counter:
+ * does not use aggregated count in system-wide
+ */
+static void print_counter(int counter)
+{
+	u64 ena, run, val;
+	int cpu;
+
+	for (cpu = 0; cpu < nr_cpus; cpu++) {
+		val = cpu_counts[cpu][counter].val;
+		ena = cpu_counts[cpu][counter].ena;
+		run = cpu_counts[cpu][counter].run;
+		if (run == 0 || ena == 0) {
+			fprintf(stderr, "CPU%-4d %18s  %-24s", cpumap[cpu],
+					"<not counted>", event_name(counter));
+
+			fprintf(stderr, "\n");
+			continue;
+		}
+
+		if (nsec_counter(counter))
+			nsec_printout(cpu, counter, val);
+		else
+			abs_printout(cpu, counter, val);
+
+		print_noise(counter, 1.0);
+
+		if (run != ena) {
+			fprintf(stderr, "  (scaled from %.2f%%)",
+					100.0 * run / ena);
+		}
+		fprintf(stderr, "\n");
+	}
 }
 
 static void print_stat(int argc, const char **argv)
@@ -480,8 +588,13 @@ static void print_stat(int argc, const char **argv)
 		fprintf(stderr, " (%d runs)", run_count);
 	fprintf(stderr, ":\n\n");
 
-	for (counter = 0; counter < nr_counters; counter++)
-		print_counter(counter);
+	if (no_aggr) {
+		for (counter = 0; counter < nr_counters; counter++)
+			print_counter(counter);
+	} else {
+		for (counter = 0; counter < nr_counters; counter++)
+			print_counter_aggr(counter);
+	}
 
 	fprintf(stderr, "\n");
 	fprintf(stderr, " %18.9f  seconds time elapsed",
@@ -545,6 +658,8 @@ static const struct option options[] = {
 		    "print large numbers with thousands\' separators"),
 	OPT_STRING('C', "cpu", &cpu_list, "cpu",
 		    "list of cpus to monitor in system-wide"),
+	OPT_BOOLEAN('A', "no-aggr", &no_aggr,
+		    "disable CPU count aggregation"),
 	OPT_END()
 };
 
@@ -560,6 +675,10 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	if (!argc && target_pid == -1 && target_tid == -1)
 		usage_with_options(stat_usage, options);
 	if (run_count <= 0)
+		usage_with_options(stat_usage, options);
+
+	/* no_aggr is for system-wide only */
+	if (no_aggr && !system_wide)
 		usage_with_options(stat_usage, options);
 
 	/* Set attrs and nr_counters if no event is selected and !null_run */
