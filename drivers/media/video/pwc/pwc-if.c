@@ -957,7 +957,7 @@ void pwc_isoc_cleanup(struct pwc_device *pdev)
 	/* Stop camera, but only if we are sure the camera is still there (unplug
 	   is signalled by EPIPE)
 	 */
-	if (pdev->error_status && pdev->error_status != EPIPE) {
+	if (pdev->error_status != EPIPE) {
 		PWC_DEBUG_OPEN("Setting alternate interface 0.\n");
 		usb_set_interface(pdev->udev, 0, 0);
 	}
