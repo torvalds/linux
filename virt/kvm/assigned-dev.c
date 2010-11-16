@@ -231,8 +231,7 @@ static int assigned_device_enable_host_intx(struct kvm *kvm,
 	 * are going to be long delays in accepting, acking, etc.
 	 */
 	if (request_threaded_irq(dev->host_irq, NULL, kvm_assigned_dev_thread,
-				 IRQF_ONESHOT, "kvm_assigned_intx_device",
-				 (void *)dev))
+				 IRQF_ONESHOT, dev->irq_name, (void *)dev))
 		return -EIO;
 	return 0;
 }
@@ -251,7 +250,7 @@ static int assigned_device_enable_host_msi(struct kvm *kvm,
 
 	dev->host_irq = dev->dev->irq;
 	if (request_threaded_irq(dev->host_irq, NULL, kvm_assigned_dev_thread,
-				 0, "kvm_assigned_msi_device", (void *)dev)) {
+				 0, dev->irq_name, (void *)dev)) {
 		pci_disable_msi(dev->dev);
 		return -EIO;
 	}
@@ -278,8 +277,7 @@ static int assigned_device_enable_host_msix(struct kvm *kvm,
 	for (i = 0; i < dev->entries_nr; i++) {
 		r = request_threaded_irq(dev->host_msix_entries[i].vector,
 					 NULL, kvm_assigned_dev_thread,
-					 0, "kvm_assigned_msix_device",
-					 (void *)dev);
+					 0, dev->irq_name, (void *)dev);
 		if (r)
 			goto err;
 	}
@@ -335,6 +333,9 @@ static int assign_host_irq(struct kvm *kvm,
 
 	if (dev->irq_requested_type & KVM_DEV_IRQ_HOST_MASK)
 		return r;
+
+	snprintf(dev->irq_name, sizeof(dev->irq_name), "kvm:%s",
+		 pci_name(dev->dev));
 
 	switch (host_irq_type) {
 	case KVM_DEV_IRQ_HOST_INTX:
