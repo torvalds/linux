@@ -97,6 +97,20 @@ enum ieee80211_max_queues {
 };
 
 /**
+ * enum ieee80211_ac_numbers - AC numbers as used in mac80211
+ * @IEEE80211_AC_VO: voice
+ * @IEEE80211_AC_VI: video
+ * @IEEE80211_AC_BE: best effort
+ * @IEEE80211_AC_BK: background
+ */
+enum ieee80211_ac_numbers {
+	IEEE80211_AC_VO		= 0,
+	IEEE80211_AC_VI		= 1,
+	IEEE80211_AC_BE		= 2,
+	IEEE80211_AC_BK		= 3,
+};
+
+/**
  * struct ieee80211_tx_queue_params - transmit queue configuration
  *
  * The information provided in this structure is required for QoS

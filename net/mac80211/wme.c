@@ -21,7 +21,16 @@
 /* Default mapping in classifier to work with default
  * queue setup.
  */
-const int ieee802_1d_to_ac[8] = { 2, 3, 3, 2, 1, 1, 0, 0 };
+const int ieee802_1d_to_ac[8] = {
+	IEEE80211_AC_BE,
+	IEEE80211_AC_BK,
+	IEEE80211_AC_BK,
+	IEEE80211_AC_BE,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_VO,
+	IEEE80211_AC_VO
+};
 
 static int wme_downgrade_ac(struct sk_buff *skb)
 {
