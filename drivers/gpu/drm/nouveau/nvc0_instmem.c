@@ -32,6 +32,7 @@ struct nvc0_instmem_priv {
 	struct nouveau_channel *bar1;
 	struct nouveau_gpuobj  *bar3_pgd;
 	struct nouveau_channel *bar3;
+	struct nouveau_gpuobj  *chan_pgd;
 };
 
 int
@@ -179,6 +180,18 @@ nvc0_instmem_init(struct drm_device *dev)
 	if (ret)
 		goto error;
 
+	/* channel vm */
+	ret = nouveau_vm_new(dev, 0, (1ULL << 40), 0x0008000000ULL, &vm);
+	if (ret)
+		goto error;
+
+	ret = nouveau_gpuobj_new(dev, NULL, 0x8000, 4096, 0, &priv->chan_pgd);
+	if (ret)
+		goto error;
+
+	nouveau_vm_ref(vm, &dev_priv->chan_vm, priv->chan_pgd);
+	nouveau_vm_ref(NULL, &vm, NULL);
+
 	nvc0_instmem_resume(dev);
 	return 0;
 error:
@@ -197,6 +210,9 @@ nvc0_instmem_takedown(struct drm_device *dev)
 
 	nv_wr32(dev, 0x1704, 0x00000000);
 	nv_wr32(dev, 0x1714, 0x00000000);
+
+	nouveau_vm_ref(NULL, &dev_priv->chan_vm, priv->chan_pgd);
+	nouveau_gpuobj_ref(NULL, &priv->chan_pgd);
 
 	nvc0_channel_del(&priv->bar1);
 	nouveau_vm_ref(NULL, &dev_priv->bar1_vm, priv->bar1_pgd);
