@@ -176,6 +176,7 @@ static inline bool radeon_encoder_is_digital(struct drm_encoder *encoder)
 		return false;
 	}
 }
+
 void
 radeon_link_encoder_connector(struct drm_device *dev)
 {
@@ -426,52 +427,49 @@ atombios_tv_setup(struct drm_encoder *encoder, int action)
 
 }
 
+union dvo_encoder_control {
+	ENABLE_EXTERNAL_TMDS_ENCODER_PS_ALLOCATION ext_tmds;
+	DVO_ENCODER_CONTROL_PS_ALLOCATION dvo;
+	DVO_ENCODER_CONTROL_PS_ALLOCATION_V3 dvo_v3;
+};
+
 void
-atombios_external_tmds_setup(struct drm_encoder *encoder, int action)
+atombios_dvo_setup(struct drm_encoder *encoder, int action)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	ENABLE_EXTERNAL_TMDS_ENCODER_PS_ALLOCATION args;
-	int index = 0;
+	union dvo_encoder_control args;
+	int index = GetIndexIntoMasterTable(COMMAND, DVOEncoderControl);
 
 	memset(&args, 0, sizeof(args));
 
-	index = GetIndexIntoMasterTable(COMMAND, DVOEncoderControl);
+	if (ASIC_IS_DCE3(rdev)) {
+		/* DCE3+ */
+		args.dvo_v3.ucAction = action;
+		args.dvo_v3.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+		args.dvo_v3.ucDVOConfig = 0; /* XXX */
+	} else if (ASIC_IS_DCE2(rdev)) {
+		/* DCE2 (pre-DCE3 R6xx, RS600/690/740 */
+		args.dvo.sDVOEncoder.ucAction = action;
+		args.dvo.sDVOEncoder.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+		/* DFP1, CRT1, TV1 depending on the type of port */
+		args.dvo.sDVOEncoder.ucDeviceType = ATOM_DEVICE_DFP1_INDEX;
 
-	args.sXTmdsEncoder.ucEnable = action;
+		if (radeon_encoder->pixel_clock > 165000)
+			args.dvo.sDVOEncoder.usDevAttr.sDigAttrib.ucAttribute |= PANEL_ENCODER_MISC_DUAL;
+	} else {
+		/* R4xx, R5xx */
+		args.ext_tmds.sXTmdsEncoder.ucEnable = action;
 
-	if (radeon_encoder->pixel_clock > 165000)
-		args.sXTmdsEncoder.ucMisc = PANEL_ENCODER_MISC_DUAL;
+		if (radeon_encoder->pixel_clock > 165000)
+			args.ext_tmds.sXTmdsEncoder.ucMisc |= PANEL_ENCODER_MISC_DUAL;
 
-	/*if (pScrn->rgbBits == 8)*/
-	args.sXTmdsEncoder.ucMisc |= (1 << 1);
-
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-
-}
-
-static void
-atombios_ddia_setup(struct drm_encoder *encoder, int action)
-{
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	DVO_ENCODER_CONTROL_PS_ALLOCATION args;
-	int index = 0;
-
-	memset(&args, 0, sizeof(args));
-
-	index = GetIndexIntoMasterTable(COMMAND, DVOEncoderControl);
-
-	args.sDVOEncoder.ucAction = action;
-	args.sDVOEncoder.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
-
-	if (radeon_encoder->pixel_clock > 165000)
-		args.sDVOEncoder.usDevAttr.sDigAttrib.ucAttribute = PANEL_ENCODER_MISC_DUAL;
+		/*if (pScrn->rgbBits == 8)*/
+		args.ext_tmds.sXTmdsEncoder.ucMisc |= ATOM_PANEL_MISC_888RGB;
+	}
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-
 }
 
 union lvds_encoder_control {
@@ -532,14 +530,14 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 				if (dig->lcd_misc & ATOM_PANEL_MISC_DUAL)
 					args.v1.ucMisc |= PANEL_ENCODER_MISC_DUAL;
 				if (dig->lcd_misc & ATOM_PANEL_MISC_888RGB)
-					args.v1.ucMisc |= (1 << 1);
+					args.v1.ucMisc |= ATOM_PANEL_MISC_888RGB;
 			} else {
 				if (dig->linkb)
 					args.v1.ucMisc |= PANEL_ENCODER_MISC_TMDS_LINKB;
 				if (radeon_encoder->pixel_clock > 165000)
 					args.v1.ucMisc |= PANEL_ENCODER_MISC_DUAL;
 				/*if (pScrn->rgbBits == 8) */
-				args.v1.ucMisc |= (1 << 1);
+				args.v1.ucMisc |= ATOM_PANEL_MISC_888RGB;
 			}
 			break;
 		case 2:
@@ -846,6 +844,9 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	memset(&args, 0, sizeof(args));
 
 	switch (radeon_encoder->encoder_id) {
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
+		index = GetIndexIntoMasterTable(COMMAND, DVOOutputControl);
+		break;
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
@@ -1085,8 +1086,13 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DVO1:
 	case ENCODER_OBJECT_ID_INTERNAL_DDI:
-	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
 		index = GetIndexIntoMasterTable(COMMAND, DVOOutputControl);
+		break;
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
+		if (ASIC_IS_DCE3(rdev))
+			is_dig = true;
+		else
+			index = GetIndexIntoMasterTable(COMMAND, DVOOutputControl);
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
 		index = GetIndexIntoMasterTable(COMMAND, LCD1OutputControl);
@@ -1317,7 +1323,7 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 		break;
 	default:
 		DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
-		break;
+		return;
 	}
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
@@ -1475,11 +1481,9 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 		}
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DDI:
-		atombios_ddia_setup(encoder, ATOM_ENABLE);
-		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DVO1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
-		atombios_external_tmds_setup(encoder, ATOM_ENABLE);
+		atombios_dvo_setup(encoder, ATOM_ENABLE);
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
@@ -1670,11 +1674,9 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 		}
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DDI:
-		atombios_ddia_setup(encoder, ATOM_DISABLE);
-		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DVO1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
-		atombios_external_tmds_setup(encoder, ATOM_DISABLE);
+		atombios_dvo_setup(encoder, ATOM_DISABLE);
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
