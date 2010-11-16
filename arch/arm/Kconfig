@@ -606,9 +606,14 @@ config ARCH_MSM
 	  (clock and power control, etc).
 
 config ARCH_SHMOBILE
-	bool "Renesas SH-Mobile"
+	bool "Renesas SH-Mobile / R-Mobile"
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_CLOCKEVENTS
+	select NO_IOPORT
+	select SPARSE_IRQ
 	help
-	  Support for Renesas's SH-Mobile ARM platforms
+	  Support for Renesas's SH-Mobile and R-Mobile ARM platforms.
 
 config ARCH_RPC
 	bool "RiscPC"

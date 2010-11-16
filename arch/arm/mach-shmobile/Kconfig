@@ -5,26 +5,20 @@ comment "SH-Mobile System Type"
 config ARCH_SH7367
 	bool "SH-Mobile G3 (SH7367)"
 	select CPU_V6
-	select HAVE_CLK
-	select COMMON_CLKDEV
 	select SH_CLK_CPG
-	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config ARCH_SH7377
 	bool "SH-Mobile G4 (SH7377)"
 	select CPU_V7
-	select HAVE_CLK
-	select COMMON_CLKDEV
 	select SH_CLK_CPG
-	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config ARCH_SH7372
 	bool "SH-Mobile AP4 (SH7372)"
 	select CPU_V7
-	select HAVE_CLK
-	select COMMON_CLKDEV
 	select SH_CLK_CPG
-	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 comment "SH-Mobile Board Type"
 
