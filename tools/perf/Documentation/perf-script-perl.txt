@@ -1,19 +1,19 @@
-perf-trace-perl(1)
+perf-script-perl(1)
 ==================
 
 NAME
 ----
-perf-trace-perl - Process trace data with a Perl script
+perf-script-perl - Process trace data with a Perl script
 
 SYNOPSIS
 --------
 [verse]
-'perf trace' [-s [Perl]:script[.pl] ]
+'perf script' [-s [Perl]:script[.pl] ]
 
 DESCRIPTION
 -----------
 
-This perf trace option is used to process perf trace data using perf's
+This perf script option is used to process perf script data using perf's
 built-in Perl interpreter.  It reads and processes the input file and
 displays the results of the trace analysis implemented in the given
 Perl script, if any.
@@ -21,7 +21,7 @@ Perl script, if any.
 STARTER SCRIPTS
 ---------------
 
-You can avoid reading the rest of this document by running 'perf trace
+You can avoid reading the rest of this document by running 'perf script
 -g perl' in the same directory as an existing perf.data trace file.
 That will generate a starter script containing a handler for each of
 the event types in the trace file; it simply prints every available
@@ -30,13 +30,13 @@ field for each event in the trace file.
 You can also look at the existing scripts in
 ~/libexec/perf-core/scripts/perl for typical examples showing how to
 do basic things like aggregate event data, print results, etc.  Also,
-the check-perf-trace.pl script, while not interesting for its results,
+the check-perf-script.pl script, while not interesting for its results,
 attempts to exercise all of the main scripting features.
 
 EVENT HANDLERS
 --------------
 
-When perf trace is invoked using a trace script, a user-defined
+When perf script is invoked using a trace script, a user-defined
 'handler function' is called for each event in the trace.  If there's
 no handler function defined for a given event type, the event is
 ignored (or passed to a 'trace_handled' function, see below) and the
@@ -112,13 +112,13 @@ write a useful trace script.  The sections below cover the rest.
 SCRIPT LAYOUT
 -------------
 
-Every perf trace Perl script should start by setting up a Perl module
+Every perf script Perl script should start by setting up a Perl module
 search path and 'use'ing a few support modules (see module
 descriptions below):
 
 ----
- use lib "$ENV{'PERF_EXEC_PATH'}/scripts/perl/Perf-Trace-Util/lib";
- use lib "./Perf-Trace-Util/lib";
+ use lib "$ENV{'PERF_EXEC_PATH'}/scripts/perl/perf-script-Util/lib";
+ use lib "./perf-script-Util/lib";
  use Perf::Trace::Core;
  use Perf::Trace::Context;
  use Perf::Trace::Util;
@@ -162,7 +162,7 @@ sub trace_unhandled
 ----
 
 The remaining sections provide descriptions of each of the available
-built-in perf trace Perl modules and their associated functions.
+built-in perf script Perl modules and their associated functions.
 
 AVAILABLE MODULES AND FUNCTIONS
 -------------------------------
@@ -170,7 +170,7 @@ AVAILABLE MODULES AND FUNCTIONS
 The following sections describe the functions and variables available
 via the various Perf::Trace::* Perl modules.  To use the functions and
 variables from the given module, add the corresponding 'use
-Perf::Trace::XXX' line to your perf trace script.
+Perf::Trace::XXX' line to your perf script script.
 
 Perf::Trace::Core Module
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -204,7 +204,7 @@ argument.
 Perf::Trace::Util Module
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Various utility functions for use with perf trace:
+Various utility functions for use with perf script:
 
   nsecs($secs, $nsecs) - returns total nsecs given secs/nsecs pair
   nsecs_secs($nsecs) - returns whole secs portion given nsecs
@@ -214,4 +214,4 @@ Various utility functions for use with perf trace:
 
 SEE ALSO
 --------
-linkperf:perf-trace[1]
+linkperf:perf-script[1]
