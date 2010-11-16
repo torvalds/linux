@@ -113,6 +113,7 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	size_t count = iocb->ki_left;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
+	down_write(&iinfo->i_data_sem);
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		if (file->f_flags & O_APPEND)
 			pos = inode->i_size;
@@ -125,6 +126,7 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 			udf_expand_file_adinicb(inode, pos + count, &err);
 			if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 				udf_debug("udf_expand_adinicb: err=%d\n", err);
+				up_write(&iinfo->i_data_sem);
 				return err;
 			}
 		} else {
@@ -134,6 +136,7 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 				iinfo->i_lenAlloc = inode->i_size;
 		}
 	}
+	up_write(&iinfo->i_data_sem);
 
 	retval = generic_file_aio_write(iocb, iov, nr_segs, ppos);
 	if (retval > 0)
