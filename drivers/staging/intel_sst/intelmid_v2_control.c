@@ -873,7 +873,7 @@ static int nc_set_selected_input_dev(u8 value)
 		sc_access[2].mask = MASK6;
 		sc_access[3].reg_addr = 0x109;
 		sc_access[3].mask = MASK6;
-		sc_access[3].value = 0x40;
+		sc_access[3].value = 0x00;
 		num_val = 4;
 		break;
 	default:

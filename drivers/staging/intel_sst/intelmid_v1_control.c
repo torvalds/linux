@@ -134,56 +134,6 @@ static int mx_init_card(void)
 	return sst_sc_reg_access(sc_access, PMIC_WRITE, 47);
 }
 
-static int mx_init_capture_card(void)
-{
-	struct sc_reg_access sc_access[] = {
-		{0x206, 0x5a, 0x0},
-		{0x207, 0xbe, 0x0},
-		{0x208, 0x90, 0x0},
-		{0x209, 0x32, 0x0},
-		{0x20e, 0x22, 0x0},
-		{0x210, 0x84, 0x0},
-		{0x223, 0x20, 0x0},
-		{0x226, 0xC0, 0x0},
-	};
-
-	int retval = 0;
-
-	retval = sst_sc_reg_access(sc_access, PMIC_WRITE, 8);
-	if (0 != retval) {
-		/* pmic communication fails */
-		pr_debug("pmic commn failed\n");
-		return retval;
-	}
-
-	pr_debug("Capture configuration complete!!\n");
-	return 0;
-}
-
-static int mx_init_playback_card(void)
-{
-	struct sc_reg_access sc_access[] = {
-		{0x206, 0x00, 0x0},
-		{0x207, 0x00, 0x0},
-		{0x208, 0x00, 0x0},
-		{0x209, 0x51, 0x0},
-		{0x20e, 0x51, 0x0},
-		{0x210, 0x21, 0x0},
-		{0x223, 0x01, 0x0},
-	};
-	int retval = 0;
-
-	retval = sst_sc_reg_access(sc_access, PMIC_WRITE, 9);
-	if (0 != retval) {
-		/* pmic communication fails */
-		pr_debug("pmic commn failed\n");
-		return retval;
-	}
-
-	pr_debug("Playback configuration complete!!\n");
-	return 0;
-}
-
 static int mx_enable_audiodac(int value)
 {
 	struct sc_reg_access sc_access[3];
