@@ -650,7 +650,7 @@ static long ft1000_ChIoctl (struct file *File, unsigned int Command,
         break;
     case IOCTL_SET_DPRAM_CMD:
         {
-            IOCTL_DPRAM_BLK *dpram_data;
+            IOCTL_DPRAM_BLK *dpram_data = NULL;
             //IOCTL_DPRAM_COMMAND dpram_command;
             u16 qtype;
             u16 msgsz;
