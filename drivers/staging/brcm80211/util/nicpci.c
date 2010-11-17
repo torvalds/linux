@@ -71,35 +71,6 @@ static bool pcicore_pmecap(pcicore_info_t *pi);
 
 #define PCIE_ASPM(sih)	((PCIE_PUB(sih)) && (((sih)->buscorerev >= 3) && ((sih)->buscorerev <= 5)))
 
-#define DWORD_ALIGN(x)  (x & ~(0x03))
-#define BYTE_POS(x) (x & 0x3)
-#define WORD_POS(x) (x & 0x1)
-
-#define BYTE_SHIFT(x)  (8 * BYTE_POS(x))
-#define WORD_SHIFT(x)  (16 * WORD_POS(x))
-
-#define BYTE_VAL(a, x) ((a >> BYTE_SHIFT(x)) & 0xFF)
-#define WORD_VAL(a, x) ((a >> WORD_SHIFT(x)) & 0xFFFF)
-
-#define read_pci_cfg_byte(a) \
-	(BYTE_VAL(OSL_PCI_READ_CONFIG(osh, DWORD_ALIGN(a), 4), a) & 0xff)
-
-#define read_pci_cfg_word(a) \
-	(WORD_VAL(OSL_PCI_READ_CONFIG(osh, DWORD_ALIGN(a), 4), a) & 0xffff)
-
-#define write_pci_cfg_byte(a, val) do { \
-	u32 tmpval; \
-	tmpval = (OSL_PCI_READ_CONFIG(osh, DWORD_ALIGN(a), 4) & ~0xFF << BYTE_POS(a)) | \
-		val << BYTE_POS(a); \
-	OSL_PCI_WRITE_CONFIG(osh, DWORD_ALIGN(a), 4, tmpval); \
-	} while (0)
-
-#define write_pci_cfg_word(a, val) do { \
-	u32 tmpval; \
-	tmpval = (OSL_PCI_READ_CONFIG(osh, DWORD_ALIGN(a), 4) & ~0xFFFF << WORD_POS(a)) | \
-		val << WORD_POS(a); \
-	OSL_PCI_WRITE_CONFIG(osh, DWORD_ALIGN(a), 4, tmpval); \
-	} while (0)
 
 /* delay needed between the mdio control/ mdiodata register data access */
 #define PR28829_DELAY() udelay(10)
@@ -158,29 +129,29 @@ pcicore_find_pci_capability(struct osl_info *osh, u8 req_cap_id,
 	u8 byte_val;
 
 	/* check for Header type 0 */
-	byte_val = read_pci_cfg_byte(PCI_CFG_HDR);
+	pci_read_config_byte(osh->pdev, PCI_CFG_HDR, &byte_val);
 	if ((byte_val & 0x7f) != PCI_HEADER_NORMAL)
 		goto end;
 
 	/* check if the capability pointer field exists */
-	byte_val = read_pci_cfg_byte(PCI_CFG_STAT);
+	pci_read_config_byte(osh->pdev, PCI_CFG_STAT, &byte_val);
 	if (!(byte_val & PCI_CAPPTR_PRESENT))
 		goto end;
 
-	cap_ptr = read_pci_cfg_byte(PCI_CFG_CAPPTR);
+	pci_read_config_byte(osh->pdev, PCI_CFG_CAPPTR, &cap_ptr);
 	/* check if the capability pointer is 0x00 */
 	if (cap_ptr == 0x00)
 		goto end;
 
 	/* loop thr'u the capability list and see if the pcie capabilty exists */
 
-	cap_id = read_pci_cfg_byte(cap_ptr);
+	pci_read_config_byte(osh->pdev, cap_ptr, &cap_id);
 
 	while (cap_id != req_cap_id) {
-		cap_ptr = read_pci_cfg_byte((cap_ptr + 1));
+		pci_read_config_byte(osh->pdev, cap_ptr + 1, &cap_ptr);
 		if (cap_ptr == 0x00)
 			break;
-		cap_id = read_pci_cfg_byte(cap_ptr);
+		pci_read_config_byte(osh->pdev, cap_ptr, &cap_id);
 	}
 	if (cap_id != req_cap_id) {
 		goto end;
@@ -199,7 +170,7 @@ pcicore_find_pci_capability(struct osl_info *osh, u8 req_cap_id,
 			bufsize = SZPCR - cap_data;
 		*buflen = bufsize;
 		while (bufsize--) {
-			*buf = read_pci_cfg_byte(cap_data);
+			pci_read_config_byte(osh->pdev, cap_data, buf);
 			cap_data++;
 			buf++;
 		}
@@ -374,15 +345,15 @@ u8 pcie_clkreq(void *pch, u32 mask, u32 val)
 	if (!offset)
 		return 0;
 
-	reg_val = OSL_PCI_READ_CONFIG(pi->osh, offset, sizeof(u32));
+	pci_read_config_dword(pi->osh->pdev, offset, &reg_val);
 	/* set operation */
 	if (mask) {
 		if (val)
 			reg_val |= PCIE_CLKREQ_ENAB;
 		else
 			reg_val &= ~PCIE_CLKREQ_ENAB;
-		OSL_PCI_WRITE_CONFIG(pi->osh, offset, sizeof(u32), reg_val);
-		reg_val = OSL_PCI_READ_CONFIG(pi->osh, offset, sizeof(u32));
+		pci_write_config_dword(pi->osh->pdev, offset, reg_val);
+		pci_read_config_dword(pi->osh->pdev, offset, &reg_val);
 	}
 	if (reg_val & PCIE_CLKREQ_ENAB)
 		return 1;
@@ -503,12 +474,12 @@ static void pcie_war_aspm_clkreq(pcicore_info_t *pi)
 
 		W_REG(pi->osh, reg16, val16);
 
-		w = OSL_PCI_READ_CONFIG(pi->osh, pi->pciecap_lcreg_offset,
-					sizeof(u32));
+		pci_read_config_dword(pi->osh->pdev, pi->pciecap_lcreg_offset,
+					&w);
 		w &= ~PCIE_ASPM_ENAB;
 		w |= pi->pcie_war_aspm_ovr;
-		OSL_PCI_WRITE_CONFIG(pi->osh, pi->pciecap_lcreg_offset,
-				     sizeof(u32), w);
+		pci_write_config_dword(pi->osh->pdev,
+					pi->pciecap_lcreg_offset, w);
 	}
 
 	reg16 = &pcieregs->sprom[SRSH_CLKREQ_OFFSET_REV5];
@@ -695,11 +666,9 @@ void pcicore_sleep(void *pch)
 	if (!pi || !PCIE_ASPM(pi->sih))
 		return;
 
-	w = OSL_PCI_READ_CONFIG(pi->osh, pi->pciecap_lcreg_offset,
-				sizeof(u32));
+	pci_read_config_dword(pi->osh->pdev, pi->pciecap_lcreg_offset, &w);
 	w &= ~PCIE_CAP_LCREG_ASPML1;
-	OSL_PCI_WRITE_CONFIG(pi->osh, pi->pciecap_lcreg_offset, sizeof(u32),
-			     w);
+	pci_write_config_dword(pi->osh->pdev, pi->pciecap_lcreg_offset, w);
 
 	pi->pcie_pr42767 = false;
 }
@@ -731,7 +700,7 @@ bool pcicore_pmecap_fast(struct osl_info *osh)
 	if (!cap_ptr)
 		return false;
 
-	pmecap = OSL_PCI_READ_CONFIG(osh, cap_ptr, sizeof(u32));
+	pci_read_config_dword(osh->pdev, cap_ptr, &pmecap);
 
 	return (pmecap & PME_CAP_PM_STATES) != 0;
 }
@@ -754,9 +723,8 @@ static bool pcicore_pmecap(pcicore_info_t *pi)
 
 		pi->pmecap_offset = cap_ptr;
 
-		pmecap =
-		    OSL_PCI_READ_CONFIG(pi->osh, pi->pmecap_offset,
-					sizeof(u32));
+		pci_read_config_dword(pi->osh->pdev, pi->pmecap_offset,
+					&pmecap);
 
 		/* At least one state can generate PME */
 		pi->pmecap = (pmecap & PME_CAP_PM_STATES) != 0;
@@ -775,11 +743,11 @@ void pcicore_pmeen(void *pch)
 	if (!pcicore_pmecap(pi))
 		return;
 
-	w = OSL_PCI_READ_CONFIG(pi->osh, pi->pmecap_offset + PME_CSR_OFFSET,
-				sizeof(u32));
+	pci_read_config_dword(pi->osh->pdev, pi->pmecap_offset + PME_CSR_OFFSET,
+				&w);
 	w |= (PME_CSR_PME_EN);
-	OSL_PCI_WRITE_CONFIG(pi->osh, pi->pmecap_offset + PME_CSR_OFFSET,
-			     sizeof(u32), w);
+	pci_write_config_dword(pi->osh->pdev,
+				pi->pmecap_offset + PME_CSR_OFFSET, w);
 }
 
 /*
@@ -793,8 +761,8 @@ bool pcicore_pmestat(void *pch)
 	if (!pcicore_pmecap(pi))
 		return false;
 
-	w = OSL_PCI_READ_CONFIG(pi->osh, pi->pmecap_offset + PME_CSR_OFFSET,
-				sizeof(u32));
+	pci_read_config_dword(pi->osh->pdev, pi->pmecap_offset + PME_CSR_OFFSET,
+				&w);
 
 	return (w & PME_CSR_PME_STAT) == PME_CSR_PME_STAT;
 }
@@ -809,22 +777,23 @@ void pcicore_pmeclr(void *pch)
 	if (!pcicore_pmecap(pi))
 		return;
 
-	w = OSL_PCI_READ_CONFIG(pi->osh, pi->pmecap_offset + PME_CSR_OFFSET,
-				sizeof(u32));
+	pci_read_config_dword(pi->osh->pdev, pi->pmecap_offset + PME_CSR_OFFSET,
+				&w);
 
 	PCI_ERROR(("pcicore_pci_pmeclr PMECSR : 0x%x\n", w));
 
 	/* PMESTAT is cleared by writing 1 to it */
 	w &= ~(PME_CSR_PME_EN);
 
-	OSL_PCI_WRITE_CONFIG(pi->osh, pi->pmecap_offset + PME_CSR_OFFSET,
-			     sizeof(u32), w);
+	pci_write_config_dword(pi->osh->pdev,
+				pi->pmecap_offset + PME_CSR_OFFSET, w);
 }
 
 u32 pcie_lcreg(void *pch, u32 mask, u32 val)
 {
 	pcicore_info_t *pi = (pcicore_info_t *) pch;
 	u8 offset;
+	u32 tmpval;
 
 	offset = pi->pciecap_lcreg_offset;
 	if (!offset)
@@ -832,9 +801,10 @@ u32 pcie_lcreg(void *pch, u32 mask, u32 val)
 
 	/* set operation */
 	if (mask)
-		OSL_PCI_WRITE_CONFIG(pi->osh, offset, sizeof(u32), val);
+		pci_write_config_dword(pi->osh->pdev, offset, val);
 
-	return OSL_PCI_READ_CONFIG(pi->osh, offset, sizeof(u32));
+	pci_read_config_dword(pi->osh->pdev, offset, &tmpval);
+	return tmpval;
 }
 
 u32
