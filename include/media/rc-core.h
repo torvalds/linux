@@ -39,7 +39,7 @@ enum rc_driver_type {
  * @input_id: id of the input child device (struct input_id)
  * @driver_name: name of the hardware driver which registered this device
  * @map_name: name of the default keymap
- * @rc_tab: current scan/key table
+ * @rc_map: current scan/key table
  * @devno: unique remote control device number
  * @raw: additional data for raw pulse/space devices
  * @input_dev: the input child device used to communicate events to userspace
@@ -86,7 +86,7 @@ struct rc_dev {
 	struct input_id			input_id;
 	char				*driver_name;
 	const char			*map_name;
-	struct ir_scancode_table	rc_tab;
+	struct rc_map	rc_map;
 	unsigned long			devno;
 	struct ir_raw_event_ctrl	*raw;
 	struct input_dev		*input_dev;

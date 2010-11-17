@@ -47,7 +47,7 @@ static struct rc_keymap *seek_rc_map(const char *name)
 	return NULL;
 }
 
-struct ir_scancode_table *get_rc_map(const char *name)
+struct rc_map *get_rc_map(const char *name)
 {
 
 	struct rc_keymap *map;
@@ -109,71 +109,71 @@ static struct rc_keymap empty_map = {
 
 /**
  * ir_create_table() - initializes a scancode table
- * @rc_tab:	the ir_scancode_table to initialize
+ * @rc_map:	the rc_map to initialize
  * @name:	name to assign to the table
  * @rc_type:	ir type to assign to the new table
  * @size:	initial size of the table
  * @return:	zero on success or a negative error code
  *
- * This routine will initialize the ir_scancode_table and will allocate
+ * This routine will initialize the rc_map and will allocate
  * memory to hold at least the specified number of elements.
  */
-static int ir_create_table(struct ir_scancode_table *rc_tab,
+static int ir_create_table(struct rc_map *rc_map,
 			   const char *name, u64 rc_type, size_t size)
 {
-	rc_tab->name = name;
-	rc_tab->rc_type = rc_type;
-	rc_tab->alloc = roundup_pow_of_two(size * sizeof(struct ir_scancode));
-	rc_tab->size = rc_tab->alloc / sizeof(struct ir_scancode);
-	rc_tab->scan = kmalloc(rc_tab->alloc, GFP_KERNEL);
-	if (!rc_tab->scan)
+	rc_map->name = name;
+	rc_map->rc_type = rc_type;
+	rc_map->alloc = roundup_pow_of_two(size * sizeof(struct ir_scancode));
+	rc_map->size = rc_map->alloc / sizeof(struct ir_scancode);
+	rc_map->scan = kmalloc(rc_map->alloc, GFP_KERNEL);
+	if (!rc_map->scan)
 		return -ENOMEM;
 
 	IR_dprintk(1, "Allocated space for %u keycode entries (%u bytes)\n",
-		   rc_tab->size, rc_tab->alloc);
+		   rc_map->size, rc_map->alloc);
 	return 0;
 }
 
 /**
  * ir_free_table() - frees memory allocated by a scancode table
- * @rc_tab:	the table whose mappings need to be freed
+ * @rc_map:	the table whose mappings need to be freed
  *
  * This routine will free memory alloctaed for key mappings used by given
  * scancode table.
  */
-static void ir_free_table(struct ir_scancode_table *rc_tab)
+static void ir_free_table(struct rc_map *rc_map)
 {
-	rc_tab->size = 0;
-	kfree(rc_tab->scan);
-	rc_tab->scan = NULL;
+	rc_map->size = 0;
+	kfree(rc_map->scan);
+	rc_map->scan = NULL;
 }
 
 /**
  * ir_resize_table() - resizes a scancode table if necessary
- * @rc_tab:	the ir_scancode_table to resize
+ * @rc_map:	the rc_map to resize
  * @gfp_flags:	gfp flags to use when allocating memory
  * @return:	zero on success or a negative error code
  *
- * This routine will shrink the ir_scancode_table if it has lots of
+ * This routine will shrink the rc_map if it has lots of
  * unused entries and grow it if it is full.
  */
-static int ir_resize_table(struct ir_scancode_table *rc_tab, gfp_t gfp_flags)
+static int ir_resize_table(struct rc_map *rc_map, gfp_t gfp_flags)
 {
-	unsigned int oldalloc = rc_tab->alloc;
+	unsigned int oldalloc = rc_map->alloc;
 	unsigned int newalloc = oldalloc;
-	struct ir_scancode *oldscan = rc_tab->scan;
+	struct ir_scancode *oldscan = rc_map->scan;
 	struct ir_scancode *newscan;
 
-	if (rc_tab->size == rc_tab->len) {
+	if (rc_map->size == rc_map->len) {
 		/* All entries in use -> grow keytable */
-		if (rc_tab->alloc >= IR_TAB_MAX_SIZE)
+		if (rc_map->alloc >= IR_TAB_MAX_SIZE)
 			return -ENOMEM;
 
 		newalloc *= 2;
 		IR_dprintk(1, "Growing table to %u bytes\n", newalloc);
 	}
 
-	if ((rc_tab->len * 3 < rc_tab->size) && (oldalloc > IR_TAB_MIN_SIZE)) {
+	if ((rc_map->len * 3 < rc_map->size) && (oldalloc > IR_TAB_MIN_SIZE)) {
 		/* Less than 1/3 of entries in use -> shrink keytable */
 		newalloc /= 2;
 		IR_dprintk(1, "Shrinking table to %u bytes\n", newalloc);
@@ -188,10 +188,10 @@ static int ir_resize_table(struct ir_scancode_table *rc_tab, gfp_t gfp_flags)
 		return -ENOMEM;
 	}
 
-	memcpy(newscan, rc_tab->scan, rc_tab->len * sizeof(struct ir_scancode));
-	rc_tab->scan = newscan;
-	rc_tab->alloc = newalloc;
-	rc_tab->size = rc_tab->alloc / sizeof(struct ir_scancode);
+	memcpy(newscan, rc_map->scan, rc_map->len * sizeof(struct ir_scancode));
+	rc_map->scan = newscan;
+	rc_map->alloc = newalloc;
+	rc_map->size = rc_map->alloc / sizeof(struct ir_scancode);
 	kfree(oldscan);
 	return 0;
 }
@@ -199,7 +199,7 @@ static int ir_resize_table(struct ir_scancode_table *rc_tab, gfp_t gfp_flags)
 /**
  * ir_update_mapping() - set a keycode in the scancode->keycode table
  * @dev:	the struct rc_dev device descriptor
- * @rc_tab:	scancode table to be adjusted
+ * @rc_map:	scancode table to be adjusted
  * @index:	index of the mapping that needs to be updated
  * @keycode:	the desired keycode
  * @return:	previous keycode assigned to the mapping
@@ -208,26 +208,26 @@ static int ir_resize_table(struct ir_scancode_table *rc_tab, gfp_t gfp_flags)
  * position.
  */
 static unsigned int ir_update_mapping(struct rc_dev *dev,
-				      struct ir_scancode_table *rc_tab,
+				      struct rc_map *rc_map,
 				      unsigned int index,
 				      unsigned int new_keycode)
 {
-	int old_keycode = rc_tab->scan[index].keycode;
+	int old_keycode = rc_map->scan[index].keycode;
 	int i;
 
 	/* Did the user wish to remove the mapping? */
 	if (new_keycode == KEY_RESERVED || new_keycode == KEY_UNKNOWN) {
 		IR_dprintk(1, "#%d: Deleting scan 0x%04x\n",
-			   index, rc_tab->scan[index].scancode);
-		rc_tab->len--;
-		memmove(&rc_tab->scan[index], &rc_tab->scan[index+ 1],
-			(rc_tab->len - index) * sizeof(struct ir_scancode));
+			   index, rc_map->scan[index].scancode);
+		rc_map->len--;
+		memmove(&rc_map->scan[index], &rc_map->scan[index+ 1],
+			(rc_map->len - index) * sizeof(struct ir_scancode));
 	} else {
 		IR_dprintk(1, "#%d: %s scan 0x%04x with key 0x%04x\n",
 			   index,
 			   old_keycode == KEY_RESERVED ? "New" : "Replacing",
-			   rc_tab->scan[index].scancode, new_keycode);
-		rc_tab->scan[index].keycode = new_keycode;
+			   rc_map->scan[index].scancode, new_keycode);
+		rc_map->scan[index].keycode = new_keycode;
 		__set_bit(new_keycode, dev->input_dev->keybit);
 	}
 
@@ -235,15 +235,15 @@ static unsigned int ir_update_mapping(struct rc_dev *dev,
 		/* A previous mapping was updated... */
 		__clear_bit(old_keycode, dev->input_dev->keybit);
 		/* ... but another scancode might use the same keycode */
-		for (i = 0; i < rc_tab->len; i++) {
-			if (rc_tab->scan[i].keycode == old_keycode) {
+		for (i = 0; i < rc_map->len; i++) {
+			if (rc_map->scan[i].keycode == old_keycode) {
 				__set_bit(old_keycode, dev->input_dev->keybit);
 				break;
 			}
 		}
 
 		/* Possibly shrink the keytable, failure is not a problem */
-		ir_resize_table(rc_tab, GFP_ATOMIC);
+		ir_resize_table(rc_map, GFP_ATOMIC);
 	}
 
 	return old_keycode;
@@ -252,19 +252,19 @@ static unsigned int ir_update_mapping(struct rc_dev *dev,
 /**
  * ir_establish_scancode() - set a keycode in the scancode->keycode table
  * @dev:	the struct rc_dev device descriptor
- * @rc_tab:	scancode table to be searched
+ * @rc_map:	scancode table to be searched
  * @scancode:	the desired scancode
  * @resize:	controls whether we allowed to resize the table to
  *		accomodate not yet present scancodes
  * @return:	index of the mapping containing scancode in question
  *		or -1U in case of failure.
  *
- * This routine is used to locate given scancode in ir_scancode_table.
+ * This routine is used to locate given scancode in rc_map.
  * If scancode is not yet present the routine will allocate a new slot
  * for it.
  */
 static unsigned int ir_establish_scancode(struct rc_dev *dev,
-					  struct ir_scancode_table *rc_tab,
+					  struct rc_map *rc_map,
 					  unsigned int scancode,
 					  bool resize)
 {
@@ -282,28 +282,28 @@ static unsigned int ir_establish_scancode(struct rc_dev *dev,
 		scancode &= dev->scanmask;
 
 	/* First check if we already have a mapping for this ir command */
-	for (i = 0; i < rc_tab->len; i++) {
-		if (rc_tab->scan[i].scancode == scancode)
+	for (i = 0; i < rc_map->len; i++) {
+		if (rc_map->scan[i].scancode == scancode)
 			return i;
 
 		/* Keytable is sorted from lowest to highest scancode */
-		if (rc_tab->scan[i].scancode >= scancode)
+		if (rc_map->scan[i].scancode >= scancode)
 			break;
 	}
 
 	/* No previous mapping found, we might need to grow the table */
-	if (rc_tab->size == rc_tab->len) {
-		if (!resize || ir_resize_table(rc_tab, GFP_ATOMIC))
+	if (rc_map->size == rc_map->len) {
+		if (!resize || ir_resize_table(rc_map, GFP_ATOMIC))
 			return -1U;
 	}
 
 	/* i is the proper index to insert our new keycode */
-	if (i < rc_tab->len)
-		memmove(&rc_tab->scan[i + 1], &rc_tab->scan[i],
-			(rc_tab->len - i) * sizeof(struct ir_scancode));
-	rc_tab->scan[i].scancode = scancode;
-	rc_tab->scan[i].keycode = KEY_RESERVED;
-	rc_tab->len++;
+	if (i < rc_map->len)
+		memmove(&rc_map->scan[i + 1], &rc_map->scan[i],
+			(rc_map->len - i) * sizeof(struct ir_scancode));
+	rc_map->scan[i].scancode = scancode;
+	rc_map->scan[i].keycode = KEY_RESERVED;
+	rc_map->len++;
 
 	return i;
 }
@@ -322,17 +322,17 @@ static int ir_setkeycode(struct input_dev *idev,
 			 unsigned int *old_keycode)
 {
 	struct rc_dev *rdev = input_get_drvdata(idev);
-	struct ir_scancode_table *rc_tab = &rdev->rc_tab;
+	struct rc_map *rc_map = &rdev->rc_map;
 	unsigned int index;
 	unsigned int scancode;
 	int retval;
 	unsigned long flags;
 
-	spin_lock_irqsave(&rc_tab->lock, flags);
+	spin_lock_irqsave(&rc_map->lock, flags);
 
 	if (ke->flags & INPUT_KEYMAP_BY_INDEX) {
 		index = ke->index;
-		if (index >= rc_tab->len) {
+		if (index >= rc_map->len) {
 			retval = -EINVAL;
 			goto out;
 		}
@@ -341,83 +341,83 @@ static int ir_setkeycode(struct input_dev *idev,
 		if (retval)
 			goto out;
 
-		index = ir_establish_scancode(rdev, rc_tab, scancode, true);
-		if (index >= rc_tab->len) {
+		index = ir_establish_scancode(rdev, rc_map, scancode, true);
+		if (index >= rc_map->len) {
 			retval = -ENOMEM;
 			goto out;
 		}
 	}
 
-	*old_keycode = ir_update_mapping(rdev, rc_tab, index, ke->keycode);
+	*old_keycode = ir_update_mapping(rdev, rc_map, index, ke->keycode);
 
 out:
-	spin_unlock_irqrestore(&rc_tab->lock, flags);
+	spin_unlock_irqrestore(&rc_map->lock, flags);
 	return retval;
 }
 
 /**
  * ir_setkeytable() - sets several entries in the scancode->keycode table
  * @dev:	the struct rc_dev device descriptor
- * @to:		the struct ir_scancode_table to copy entries to
- * @from:	the struct ir_scancode_table to copy entries from
+ * @to:		the struct rc_map to copy entries to
+ * @from:	the struct rc_map to copy entries from
  * @return:	-ENOMEM if all keycodes could not be inserted, otherwise zero.
  *
  * This routine is used to handle table initialization.
  */
 static int ir_setkeytable(struct rc_dev *dev,
-			  const struct ir_scancode_table *from)
+			  const struct rc_map *from)
 {
-	struct ir_scancode_table *rc_tab = &dev->rc_tab;
+	struct rc_map *rc_map = &dev->rc_map;
 	unsigned int i, index;
 	int rc;
 
-	rc = ir_create_table(rc_tab, from->name,
+	rc = ir_create_table(rc_map, from->name,
 			     from->rc_type, from->size);
 	if (rc)
 		return rc;
 
 	IR_dprintk(1, "Allocated space for %u keycode entries (%u bytes)\n",
-		   rc_tab->size, rc_tab->alloc);
+		   rc_map->size, rc_map->alloc);
 
 	for (i = 0; i < from->size; i++) {
-		index = ir_establish_scancode(dev, rc_tab,
+		index = ir_establish_scancode(dev, rc_map,
 					      from->scan[i].scancode, false);
-		if (index >= rc_tab->len) {
+		if (index >= rc_map->len) {
 			rc = -ENOMEM;
 			break;
 		}
 
-		ir_update_mapping(dev, rc_tab, index,
+		ir_update_mapping(dev, rc_map, index,
 				  from->scan[i].keycode);
 	}
 
 	if (rc)
-		ir_free_table(rc_tab);
+		ir_free_table(rc_map);
 
 	return rc;
 }
 
 /**
  * ir_lookup_by_scancode() - locate mapping by scancode
- * @rc_tab:	the struct ir_scancode_table to search
+ * @rc_map:	the struct rc_map to search
  * @scancode:	scancode to look for in the table
  * @return:	index in the table, -1U if not found
  *
  * This routine performs binary search in RC keykeymap table for
  * given scancode.
  */
-static unsigned int ir_lookup_by_scancode(const struct ir_scancode_table *rc_tab,
+static unsigned int ir_lookup_by_scancode(const struct rc_map *rc_map,
 					  unsigned int scancode)
 {
 	int start = 0;
-	int end = rc_tab->len - 1;
+	int end = rc_map->len - 1;
 	int mid;
 
 	while (start <= end) {
 		mid = (start + end) / 2;
-		if (rc_tab->scan[mid].scancode < scancode)
+		if (rc_map->scan[mid].scancode < scancode)
 			start = mid + 1;
-		else if (rc_tab->scan[mid].scancode > scancode)
+		else if (rc_map->scan[mid].scancode > scancode)
 			end = mid - 1;
 		else
 			return mid;
@@ -439,14 +439,14 @@ static int ir_getkeycode(struct input_dev *idev,
 			 struct input_keymap_entry *ke)
 {
 	struct rc_dev *rdev = input_get_drvdata(idev);
-	struct ir_scancode_table *rc_tab = &rdev->rc_tab;
+	struct rc_map *rc_map = &rdev->rc_map;
 	struct ir_scancode *entry;
 	unsigned long flags;
 	unsigned int index;
 	unsigned int scancode;
 	int retval;
 
-	spin_lock_irqsave(&rc_tab->lock, flags);
+	spin_lock_irqsave(&rc_map->lock, flags);
 
 	if (ke->flags & INPUT_KEYMAP_BY_INDEX) {
 		index = ke->index;
@@ -455,10 +455,10 @@ static int ir_getkeycode(struct input_dev *idev,
 		if (retval)
 			goto out;
 
-		index = ir_lookup_by_scancode(rc_tab, scancode);
+		index = ir_lookup_by_scancode(rc_map, scancode);
 	}
 
-	if (index >= rc_tab->len) {
+	if (index >= rc_map->len) {
 		if (!(ke->flags & INPUT_KEYMAP_BY_INDEX))
 			IR_dprintk(1, "unknown key for scancode 0x%04x\n",
 				   scancode);
@@ -466,7 +466,7 @@ static int ir_getkeycode(struct input_dev *idev,
 		goto out;
 	}
 
-	entry = &rc_tab->scan[index];
+	entry = &rc_map->scan[index];
 
 	ke->index = index;
 	ke->keycode = entry->keycode;
@@ -476,7 +476,7 @@ static int ir_getkeycode(struct input_dev *idev,
 	retval = 0;
 
 out:
-	spin_unlock_irqrestore(&rc_tab->lock, flags);
+	spin_unlock_irqrestore(&rc_map->lock, flags);
 	return retval;
 }
 
@@ -492,18 +492,18 @@ out:
  */
 u32 rc_g_keycode_from_table(struct rc_dev *dev, u32 scancode)
 {
-	struct ir_scancode_table *rc_tab = &dev->rc_tab;
+	struct rc_map *rc_map = &dev->rc_map;
 	unsigned int keycode;
 	unsigned int index;
 	unsigned long flags;
 
-	spin_lock_irqsave(&rc_tab->lock, flags);
+	spin_lock_irqsave(&rc_map->lock, flags);
 
-	index = ir_lookup_by_scancode(rc_tab, scancode);
-	keycode = index < rc_tab->len ?
-			rc_tab->scan[index].keycode : KEY_RESERVED;
+	index = ir_lookup_by_scancode(rc_map, scancode);
+	keycode = index < rc_map->len ?
+			rc_map->scan[index].keycode : KEY_RESERVED;
 
-	spin_unlock_irqrestore(&rc_tab->lock, flags);
+	spin_unlock_irqrestore(&rc_map->lock, flags);
 
 	if (keycode != KEY_RESERVED)
 		IR_dprintk(1, "%s: scancode 0x%04x keycode 0x%02x\n",
@@ -755,7 +755,7 @@ static ssize_t show_protocols(struct device *device,
 		return -EINVAL;
 
 	if (dev->driver_type == RC_DRIVER_SCANCODE) {
-		enabled = dev->rc_tab.rc_type;
+		enabled = dev->rc_map.rc_type;
 		allowed = dev->allowed_protos;
 	} else {
 		enabled = dev->raw->enabled_protocols;
@@ -813,7 +813,7 @@ static ssize_t store_protocols(struct device *device,
 		return -EINVAL;
 
 	if (dev->driver_type == RC_DRIVER_SCANCODE)
-		type = dev->rc_tab.rc_type;
+		type = dev->rc_map.rc_type;
 	else if (dev->raw)
 		type = dev->raw->enabled_protocols;
 	else {
@@ -880,9 +880,9 @@ static ssize_t store_protocols(struct device *device,
 	}
 
 	if (dev->driver_type == RC_DRIVER_SCANCODE) {
-		spin_lock_irqsave(&dev->rc_tab.lock, flags);
-		dev->rc_tab.rc_type = type;
-		spin_unlock_irqrestore(&dev->rc_tab.lock, flags);
+		spin_lock_irqsave(&dev->rc_map.lock, flags);
+		dev->rc_map.rc_type = type;
+		spin_unlock_irqrestore(&dev->rc_map.lock, flags);
 	} else {
 		dev->raw->enabled_protocols = type;
 	}
@@ -912,8 +912,8 @@ static int rc_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 {
 	struct rc_dev *dev = to_rc_dev(device);
 
-	if (dev->rc_tab.name)
-		ADD_HOTPLUG_VAR("NAME=%s", dev->rc_tab.name);
+	if (dev->rc_map.name)
+		ADD_HOTPLUG_VAR("NAME=%s", dev->rc_map.name);
 	if (dev->driver_name)
 		ADD_HOTPLUG_VAR("DRV_NAME=%s", dev->driver_name);
 
@@ -964,7 +964,7 @@ struct rc_dev *rc_allocate_device(void)
 	dev->input_dev->setkeycode_new = ir_setkeycode;
 	input_set_drvdata(dev->input_dev, dev);
 
-	spin_lock_init(&dev->rc_tab.lock);
+	spin_lock_init(&dev->rc_map.lock);
 	spin_lock_init(&dev->keylock);
 	setup_timer(&dev->timer_keyup, ir_timer_keyup, (unsigned long)dev);
 
@@ -989,17 +989,17 @@ EXPORT_SYMBOL_GPL(rc_free_device);
 int rc_register_device(struct rc_dev *dev)
 {
 	static atomic_t devno = ATOMIC_INIT(0);
-	struct ir_scancode_table *rc_tab;
+	struct rc_map *rc_map;
 	const char *path;
 	int rc;
 
 	if (!dev || !dev->map_name)
 		return -EINVAL;
 
-	rc_tab = get_rc_map(dev->map_name);
-	if (!rc_tab)
-		rc_tab = get_rc_map(RC_MAP_EMPTY);
-	if (!rc_tab || !rc_tab->scan || rc_tab->size == 0)
+	rc_map = get_rc_map(dev->map_name);
+	if (!rc_map)
+		rc_map = get_rc_map(RC_MAP_EMPTY);
+	if (!rc_map || !rc_map->scan || rc_map->size == 0)
 		return -EINVAL;
 
 	set_bit(EV_KEY, dev->input_dev->evbit);
@@ -1018,7 +1018,7 @@ int rc_register_device(struct rc_dev *dev)
 	if (rc)
 		return rc;
 
-	rc = ir_setkeytable(dev, rc_tab);
+	rc = ir_setkeytable(dev, rc_map);
 	if (rc)
 		goto out_dev;
 
@@ -1052,7 +1052,7 @@ int rc_register_device(struct rc_dev *dev)
 	}
 
 	if (dev->change_protocol) {
-		rc = dev->change_protocol(dev, rc_tab->rc_type);
+		rc = dev->change_protocol(dev, rc_map->rc_type);
 		if (rc < 0)
 			goto out_raw;
 	}
@@ -1060,7 +1060,7 @@ int rc_register_device(struct rc_dev *dev)
 	IR_dprintk(1, "Registered rc%ld (driver: %s, remote: %s, mode %s)\n",
 		   dev->devno,
 		   dev->driver_name ? dev->driver_name : "unknown",
-		   rc_tab->name ? rc_tab->name : "unknown",
+		   rc_map->name ? rc_map->name : "unknown",
 		   dev->driver_type == RC_DRIVER_IR_RAW ? "raw" : "cooked");
 
 	return 0;
@@ -1072,7 +1072,7 @@ out_input:
 	input_unregister_device(dev->input_dev);
 	dev->input_dev = NULL;
 out_table:
-	ir_free_table(&dev->rc_tab);
+	ir_free_table(&dev->rc_map);
 out_dev:
 	device_del(&dev->dev);
 	return rc;
@@ -1092,7 +1092,7 @@ void rc_unregister_device(struct rc_dev *dev)
 	input_unregister_device(dev->input_dev);
 	dev->input_dev = NULL;
 
-	ir_free_table(&dev->rc_tab);
+	ir_free_table(&dev->rc_map);
 	IR_dprintk(1, "Freed keycode table\n");
 
 	device_unregister(&dev->dev);

@@ -30,7 +30,7 @@ struct ir_scancode {
 	u32	keycode;
 };
 
-struct ir_scancode_table {
+struct rc_map {
 	struct ir_scancode	*scan;
 	unsigned int		size;	/* Max number of entries */
 	unsigned int		len;	/* Used number of entries */
@@ -42,14 +42,14 @@ struct ir_scancode_table {
 
 struct rc_keymap {
 	struct list_head	 list;
-	struct ir_scancode_table map;
+	struct rc_map map;
 };
 
 /* Routines from rc-map.c */
 
 int ir_register_map(struct rc_keymap *map);
 void ir_unregister_map(struct rc_keymap *map);
-struct ir_scancode_table *get_rc_map(const char *name);
+struct rc_map *get_rc_map(const char *name);
 void rc_map_init(void);
 
 /* Names of the several keytables defined in-kernel */
