@@ -515,6 +515,7 @@ struct ttm_bo_global {
  * @addr_space_mm: Range manager for the device address space.
  * lru_lock: Spinlock that protects the buffer+device lru lists and
  * ddestroy lists.
+ * @val_seq: Current validation sequence.
  * @nice_mode: Try nicely to wait for buffer idle when cleaning a manager.
  * If a GPU lockup has been detected, this is forced to 0.
  * @dev_mapping: A pointer to the struct address_space representing the
@@ -544,6 +545,7 @@ struct ttm_bo_device {
 	 * Protected by the global:lru lock.
 	 */
 	struct list_head ddestroy;
+	uint32_t val_seq;
 
 	/*
 	 * Protected by load / firstopen / lastclose /unload sync.

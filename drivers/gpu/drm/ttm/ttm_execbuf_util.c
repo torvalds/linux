@@ -126,11 +126,12 @@ EXPORT_SYMBOL(ttm_eu_backoff_reservation);
  * buffers in different orders.
  */
 
-int ttm_eu_reserve_buffers(struct list_head *list, uint32_t val_seq)
+int ttm_eu_reserve_buffers(struct list_head *list)
 {
 	struct ttm_bo_global *glob;
 	struct ttm_validate_buffer *entry;
 	int ret;
+	uint32_t val_seq;
 
 	if (list_empty(list))
 		return 0;
@@ -146,6 +147,8 @@ int ttm_eu_reserve_buffers(struct list_head *list, uint32_t val_seq)
 
 retry:
 	spin_lock(&glob->lru_lock);
+	val_seq = entry->bo->bdev->val_seq++;
+
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
 

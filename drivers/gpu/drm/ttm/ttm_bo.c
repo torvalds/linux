@@ -1539,6 +1539,7 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	bdev->dev_mapping = NULL;
 	bdev->glob = glob;
 	bdev->need_dma32 = need_dma32;
+	bdev->val_seq = 0;
 	spin_lock_init(&bdev->fence_lock);
 	mutex_lock(&glob->device_list_mutex);
 	list_add_tail(&bdev->device_list, &glob->device_list);

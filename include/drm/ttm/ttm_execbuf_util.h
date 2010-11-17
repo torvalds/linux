@@ -72,7 +72,6 @@ extern void ttm_eu_backoff_reservation(struct list_head *list);
  * function ttm_eu_reserve_buffers
  *
  * @list:    thread private list of ttm_validate_buffer structs.
- * @val_seq: A unique sequence number.
  *
  * Tries to reserve bos pointed to by the list entries for validation.
  * If the function returns 0, all buffers are marked as "unfenced",
@@ -94,7 +93,7 @@ extern void ttm_eu_backoff_reservation(struct list_head *list);
  * has failed.
  */
 
-extern int ttm_eu_reserve_buffers(struct list_head *list, uint32_t val_seq);
+extern int ttm_eu_reserve_buffers(struct list_head *list);
 
 /**
  * function ttm_eu_fence_buffer_objects.
