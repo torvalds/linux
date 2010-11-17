@@ -783,7 +783,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		if (__netif_subqueue_stopped(netdev, tx_ring->queue_index) &&
 		    !test_bit(__IXGBE_DOWN, &adapter->state)) {
 			netif_wake_subqueue(netdev, tx_ring->queue_index);
-			++tx_ring->restart_queue;
+			++tx_ring->tx_stats.restart_queue;
 		}
 	}
 
@@ -1024,7 +1024,7 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 			skb = netdev_alloc_skb_ip_align(adapter->netdev,
 							rx_ring->rx_buf_len);
 			if (!skb) {
-				adapter->alloc_rx_buff_failed++;
+				rx_ring->rx_stats.alloc_rx_buff_failed++;
 				goto no_buffers;
 			}
 			/* initialize queue mapping */
@@ -1038,7 +1038,7 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 						 rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
 			if (dma_mapping_error(rx_ring->dev, bi->dma)) {
-				adapter->alloc_rx_buff_failed++;
+				rx_ring->rx_stats.alloc_rx_buff_failed++;
 				bi->dma = 0;
 				goto no_buffers;
 			}
@@ -1048,7 +1048,7 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 			if (!bi->page) {
 				bi->page = netdev_alloc_page(adapter->netdev);
 				if (!bi->page) {
-					adapter->alloc_rx_page_failed++;
+					rx_ring->rx_stats.alloc_rx_page_failed++;
 					goto no_buffers;
 				}
 			}
@@ -1063,7 +1063,7 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 							    DMA_FROM_DEVICE);
 				if (dma_mapping_error(rx_ring->dev,
 						      bi->page_dma)) {
-					adapter->alloc_rx_page_failed++;
+					rx_ring->rx_stats.alloc_rx_page_failed++;
 					bi->page_dma = 0;
 					goto no_buffers;
 				}
@@ -1258,7 +1258,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		if (staterr & IXGBE_RXD_STAT_EOP) {
 			if (skb->prev)
 				skb = ixgbe_transform_rsc_queue(skb,
-								&(rx_ring->rsc_count));
+						&(rx_ring->rx_stats.rsc_count));
 			if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
 				if (IXGBE_RSC_CB(skb)->delay_unmap) {
 					dma_unmap_single(rx_ring->dev,
@@ -1269,11 +1269,11 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 					IXGBE_RSC_CB(skb)->delay_unmap = false;
 				}
 				if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED)
-					rx_ring->rsc_count +=
-						skb_shinfo(skb)->nr_frags;
+					rx_ring->rx_stats.rsc_count +=
+						 skb_shinfo(skb)->nr_frags;
 				else
-					rx_ring->rsc_count++;
-				rx_ring->rsc_flush++;
+					rx_ring->rx_stats.rsc_count++;
+				rx_ring->rx_stats.rsc_flush++;
 			}
 			u64_stats_update_begin(&rx_ring->syncp);
 			rx_ring->stats.packets++;
@@ -1289,7 +1289,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 				skb->next = next_buffer->skb;
 				skb->next->prev = skb;
 			}
-			rx_ring->non_eop_descs++;
+			rx_ring->rx_stats.non_eop_descs++;
 			goto next_desc;
 		}
 
@@ -5406,10 +5406,12 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbe_hw_stats *hwstats = &adapter->stats;
 	u64 total_mpc = 0;
 	u32 i, missed_rx = 0, mpc, bprc, lxon, lxoff, xon_off_tot;
-	u64 non_eop_descs = 0, restart_queue = 0;
-	struct ixgbe_hw_stats *hwstats = &adapter->stats;
+	u64 non_eop_descs = 0, restart_queue = 0, tx_busy = 0;
+	u64 alloc_rx_page_failed = 0, alloc_rx_buff_failed = 0;
+	u64 bytes = 0, packets = 0;
 
 	if (test_bit(__IXGBE_DOWN, &adapter->state) ||
 	    test_bit(__IXGBE_RESETTING, &adapter->state))
@@ -5422,21 +5424,41 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 			adapter->hw_rx_no_dma_resources +=
 				IXGBE_READ_REG(hw, IXGBE_QPRDC(i));
 		for (i = 0; i < adapter->num_rx_queues; i++) {
-			rsc_count += adapter->rx_ring[i]->rsc_count;
-			rsc_flush += adapter->rx_ring[i]->rsc_flush;
+			rsc_count += adapter->rx_ring[i]->rx_stats.rsc_count;
+			rsc_flush += adapter->rx_ring[i]->rx_stats.rsc_flush;
 		}
 		adapter->rsc_total_count = rsc_count;
 		adapter->rsc_total_flush = rsc_flush;
 	}
 
-	/* gather some stats to the adapter struct that are per queue */
-	for (i = 0; i < adapter->num_tx_queues; i++)
-		restart_queue += adapter->tx_ring[i]->restart_queue;
-	adapter->restart_queue = restart_queue;
-
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		non_eop_descs += adapter->rx_ring[i]->non_eop_descs;
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		struct ixgbe_ring *rx_ring = adapter->rx_ring[i];
+		non_eop_descs += rx_ring->rx_stats.non_eop_descs;
+		alloc_rx_page_failed += rx_ring->rx_stats.alloc_rx_page_failed;
+		alloc_rx_buff_failed += rx_ring->rx_stats.alloc_rx_buff_failed;
+		bytes += rx_ring->stats.bytes;
+		packets += rx_ring->stats.packets;
+	}
 	adapter->non_eop_descs = non_eop_descs;
+	adapter->alloc_rx_page_failed = alloc_rx_page_failed;
+	adapter->alloc_rx_buff_failed = alloc_rx_buff_failed;
+	netdev->stats.rx_bytes = bytes;
+	netdev->stats.rx_packets = packets;
+
+	bytes = 0;
+	packets = 0;
+	/* gather some stats to the adapter struct that are per queue */
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct ixgbe_ring *tx_ring = adapter->tx_ring[i];
+		restart_queue += tx_ring->tx_stats.restart_queue;
+		tx_busy += tx_ring->tx_stats.tx_busy;
+		bytes += tx_ring->stats.bytes;
+		packets += tx_ring->stats.packets;
+	}
+	adapter->restart_queue = restart_queue;
+	adapter->tx_busy = tx_busy;
+	netdev->stats.tx_bytes = bytes;
+	netdev->stats.tx_packets = packets;
 
 	hwstats->crcerrs += IXGBE_READ_REG(hw, IXGBE_CRCERRS);
 	for (i = 0; i < 8; i++) {
@@ -6223,7 +6245,7 @@ static int __ixgbe_maybe_stop_tx(struct net_device *netdev,
 
 	/* A reprieve! - use start_queue because it doesn't call schedule */
 	netif_start_subqueue(netdev, tx_ring->queue_index);
-	++tx_ring->restart_queue;
+	++tx_ring->tx_stats.restart_queue;
 	return 0;
 }
 
@@ -6339,7 +6361,7 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb, struct net_device *netdev
 		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
 
 	if (ixgbe_maybe_stop_tx(netdev, tx_ring, count)) {
-		adapter->tx_busy++;
+		tx_ring->tx_stats.tx_busy++;
 		return NETDEV_TX_BUSY;
 	}
 

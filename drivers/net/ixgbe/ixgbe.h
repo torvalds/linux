@@ -146,6 +146,19 @@ struct ixgbe_queue_stats {
 	u64 bytes;
 };
 
+struct ixgbe_tx_queue_stats {
+	u64 restart_queue;
+	u64 tx_busy;
+};
+
+struct ixgbe_rx_queue_stats {
+	u64 rsc_count;
+	u64 rsc_flush;
+	u64 non_eop_descs;
+	u64 alloc_rx_page_failed;
+	u64 alloc_rx_buff_failed;
+};
+
 struct ixgbe_ring {
 	void *desc;			/* descriptor ring memory */
 	struct device *dev;             /* device for DMA mapping */
@@ -183,13 +196,12 @@ struct ixgbe_ring {
 
 	struct ixgbe_queue_stats stats;
 	struct u64_stats_sync syncp;
-	int numa_node;
+	union {
+		struct ixgbe_tx_queue_stats tx_stats;
+		struct ixgbe_rx_queue_stats rx_stats;
+	};
 	unsigned long reinit_state;
-	u64 rsc_count;			/* stat for coalesced packets */
-	u64 rsc_flush;			/* stats for flushed packets */
-	u32 restart_queue;		/* track tx queue restarts */
-	u32 non_eop_descs;		/* track hardware descriptor chaining */
-
+	int numa_node;
 	unsigned int size;		/* length in bytes */
 	dma_addr_t dma;			/* phys. address of descriptor ring */
 	struct rcu_head rcu;
