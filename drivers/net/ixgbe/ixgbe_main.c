@@ -1128,14 +1128,18 @@ no_buffers:
 	}
 }
 
-static inline u16 ixgbe_get_hdr_info(union ixgbe_adv_rx_desc *rx_desc)
+static inline u16 ixgbe_get_hlen(union ixgbe_adv_rx_desc *rx_desc)
 {
-	return rx_desc->wb.lower.lo_dword.hs_rss.hdr_info;
-}
-
-static inline u16 ixgbe_get_pkt_info(union ixgbe_adv_rx_desc *rx_desc)
-{
-	return rx_desc->wb.lower.lo_dword.hs_rss.pkt_info;
+	/* HW will not DMA in data larger than the given buffer, even if it
+	 * parses the (NFS, of course) header to be larger.  In that case, it
+	 * fills the header buffer and spills the rest into the page.
+	 */
+	u16 hdr_info = le16_to_cpu(rx_desc->wb.lower.lo_dword.hs_rss.hdr_info);
+	u16 hlen = (hdr_info &  IXGBE_RXDADV_HDRBUFLEN_MASK) >>
+		    IXGBE_RXDADV_HDRBUFLEN_SHIFT;
+	if (hlen > IXGBE_RX_HDR_SIZE)
+		hlen = IXGBE_RX_HDR_SIZE;
+	return hlen;
 }
 
 static inline u32 ixgbe_get_rsc_count(union ixgbe_adv_rx_desc *rx_desc)
@@ -1182,7 +1186,7 @@ struct ixgbe_rsc_cb {
 
 #define IXGBE_RSC_CB(skb) ((struct ixgbe_rsc_cb *)(skb)->cb)
 
-static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
+static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			       struct ixgbe_ring *rx_ring,
 			       int *work_done, int work_to_do)
 {
@@ -1190,49 +1194,40 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 	union ixgbe_adv_rx_desc *rx_desc, *next_rxd;
 	struct ixgbe_rx_buffer *rx_buffer_info, *next_buffer;
 	struct sk_buff *skb;
-	unsigned int i, rsc_count = 0;
-	u32 len, staterr;
-	u16 hdr_info;
-	bool cleaned = false;
-	int cleaned_count = 0;
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
+	const int current_node = numa_node_id();
+	unsigned int rsc_count = 0;
 #ifdef IXGBE_FCOE
 	int ddp_bytes = 0;
 #endif /* IXGBE_FCOE */
+	u32 staterr;
+	u16 i;
+	u16 cleaned_count = 0;
 
 	i = rx_ring->next_to_clean;
 	rx_desc = IXGBE_RX_DESC_ADV(rx_ring, i);
 	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
-	rx_buffer_info = &rx_ring->rx_buffer_info[i];
 
 	while (staterr & IXGBE_RXD_STAT_DD) {
 		u32 upper_len = 0;
-		if (*work_done >= work_to_do)
-			break;
-		(*work_done)++;
 
 		rmb(); /* read descriptor and rx_buffer_info after status DD */
-		if (ring_is_ps_enabled(rx_ring)) {
-			hdr_info = le16_to_cpu(ixgbe_get_hdr_info(rx_desc));
-			len = (hdr_info & IXGBE_RXDADV_HDRBUFLEN_MASK) >>
-			       IXGBE_RXDADV_HDRBUFLEN_SHIFT;
-			upper_len = le16_to_cpu(rx_desc->wb.upper.length);
-			if ((len > IXGBE_RX_HDR_SIZE) ||
-			    (upper_len && !(hdr_info & IXGBE_RXDADV_SPH)))
-				len = IXGBE_RX_HDR_SIZE;
-		} else {
-			len = le16_to_cpu(rx_desc->wb.upper.length);
-		}
 
-		cleaned = true;
+		rx_buffer_info = &rx_ring->rx_buffer_info[i];
+
 		skb = rx_buffer_info->skb;
-		prefetch(skb->data);
 		rx_buffer_info->skb = NULL;
+		prefetch(skb->data);
 
+		if (ring_is_rsc_enabled(rx_ring))
+			rsc_count = ixgbe_get_rsc_count(rx_desc);
+
+		/* if this is a skb from previous receive DMA will be 0 */
 		if (rx_buffer_info->dma) {
-			if ((adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) &&
-			    (!(staterr & IXGBE_RXD_STAT_EOP)) &&
-				 (!(skb->prev))) {
+			u16 hlen;
+			if (rsc_count &&
+			    !(staterr & IXGBE_RXD_STAT_EOP) &&
+			    !skb->prev) {
 				/*
 				 * When HWRSC is enabled, delay unmapping
 				 * of the first packet. It carries the
@@ -1249,7 +1244,18 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 						 DMA_FROM_DEVICE);
 			}
 			rx_buffer_info->dma = 0;
-			skb_put(skb, len);
+
+			if (ring_is_ps_enabled(rx_ring)) {
+				hlen = ixgbe_get_hlen(rx_desc);
+				upper_len = le16_to_cpu(rx_desc->wb.upper.length);
+			} else {
+				hlen = le16_to_cpu(rx_desc->wb.upper.length);
+			}
+
+			skb_put(skb, hlen);
+		} else {
+			/* assume packet split since header is unmapped */
+			upper_len = le16_to_cpu(rx_desc->wb.upper.length);
 		}
 
 		if (upper_len) {
@@ -1263,11 +1269,11 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 					   rx_buffer_info->page_offset,
 					   upper_len);
 
-			if ((rx_ring->rx_buf_len > (PAGE_SIZE / 2)) ||
-			    (page_count(rx_buffer_info->page) != 1))
-				rx_buffer_info->page = NULL;
-			else
+			if ((page_count(rx_buffer_info->page) == 1) &&
+			    (page_to_nid(rx_buffer_info->page) == current_node))
 				get_page(rx_buffer_info->page);
+			else
+				rx_buffer_info->page = NULL;
 
 			skb->len += upper_len;
 			skb->data_len += upper_len;
@@ -1282,9 +1288,6 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		prefetch(next_rxd);
 		cleaned_count++;
 
-		if (ring_is_rsc_enabled(rx_ring))
-			rsc_count = ixgbe_get_rsc_count(rx_desc);
-
 		if (rsc_count) {
 			u32 nextp = (staterr & IXGBE_RXDADV_NEXTP_MASK) >>
 				     IXGBE_RXDADV_NEXTP_SHIFT;
@@ -1293,31 +1296,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			next_buffer = &rx_ring->rx_buffer_info[i];
 		}
 
-		if (staterr & IXGBE_RXD_STAT_EOP) {
-			if (skb->prev)
-				skb = ixgbe_transform_rsc_queue(skb,
-						&(rx_ring->rx_stats.rsc_count));
-			if (ring_is_rsc_enabled(rx_ring)) {
-				if (IXGBE_RSC_CB(skb)->delay_unmap) {
-					dma_unmap_single(rx_ring->dev,
-							 IXGBE_RSC_CB(skb)->dma,
-							 rx_ring->rx_buf_len,
-							 DMA_FROM_DEVICE);
-					IXGBE_RSC_CB(skb)->dma = 0;
-					IXGBE_RSC_CB(skb)->delay_unmap = false;
-				}
-				if (ring_is_ps_enabled(rx_ring))
-					rx_ring->rx_stats.rsc_count +=
-						 skb_shinfo(skb)->nr_frags;
-				else
-					rx_ring->rx_stats.rsc_count++;
-				rx_ring->rx_stats.rsc_flush++;
-			}
-			u64_stats_update_begin(&rx_ring->syncp);
-			rx_ring->stats.packets++;
-			rx_ring->stats.bytes += skb->len;
-			u64_stats_update_end(&rx_ring->syncp);
-		} else {
+		if (!(staterr & IXGBE_RXD_STAT_EOP)) {
 			if (ring_is_ps_enabled(rx_ring)) {
 				rx_buffer_info->skb = next_buffer->skb;
 				rx_buffer_info->dma = next_buffer->dma;
@@ -1331,8 +1310,32 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			goto next_desc;
 		}
 
+		if (skb->prev)
+			skb = ixgbe_transform_rsc_queue(skb,
+						&(rx_ring->rx_stats.rsc_count));
+
+		if (ring_is_rsc_enabled(rx_ring)) {
+			if (IXGBE_RSC_CB(skb)->delay_unmap) {
+				dma_unmap_single(rx_ring->dev,
+						 IXGBE_RSC_CB(skb)->dma,
+						 rx_ring->rx_buf_len,
+						 DMA_FROM_DEVICE);
+				IXGBE_RSC_CB(skb)->dma = 0;
+				IXGBE_RSC_CB(skb)->delay_unmap = false;
+			}
+			if (ring_is_ps_enabled(rx_ring))
+				rx_ring->rx_stats.rsc_count +=
+					 skb_shinfo(skb)->nr_frags;
+			else
+				rx_ring->rx_stats.rsc_count++;
+			rx_ring->rx_stats.rsc_flush++;
+		}
+
+		/* ERR_MASK will only have valid bits if EOP set */
 		if (staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) {
-			dev_kfree_skb_irq(skb);
+			/* trim packet back to size 0 and recycle it */
+			__pskb_trim(skb, 0);
+			rx_buffer_info->skb = skb;
 			goto next_desc;
 		}
 
@@ -1356,6 +1359,10 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 next_desc:
 		rx_desc->wb.upper.status_error = 0;
 
+		(*work_done)++;
+		if (*work_done >= work_to_do)
+			break;
+
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= IXGBE_RX_BUFFER_WRITE) {
 			ixgbe_alloc_rx_buffers(rx_ring, cleaned_count);
@@ -1364,8 +1371,6 @@ next_desc:
 
 		/* use prefetched values */
 		rx_desc = next_rxd;
-		rx_buffer_info = &rx_ring->rx_buffer_info[i];
-
 		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	}
 
@@ -1392,8 +1397,10 @@ next_desc:
 
 	rx_ring->total_packets += total_rx_packets;
 	rx_ring->total_bytes += total_rx_bytes;
-
-	return cleaned;
+	u64_stats_update_begin(&rx_ring->syncp);
+	rx_ring->stats.packets += total_rx_packets;
+	rx_ring->stats.bytes += total_rx_bytes;
+	u64_stats_update_end(&rx_ring->syncp);
 }
 
 static int ixgbe_clean_rxonly(struct napi_struct *, int);
