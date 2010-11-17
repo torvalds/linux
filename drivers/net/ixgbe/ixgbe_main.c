@@ -647,8 +647,8 @@ static inline bool ixgbe_tx_xon_state(struct ixgbe_adapter *adapter,
 #ifdef CONFIG_IXGBE_DCB
 	if (adapter->dcb_cfg.pfc_mode_enable) {
 		int tc;
-		int reg_idx = tx_ring->reg_idx;
 		int dcb_i = adapter->ring_feature[RING_F_DCB].indices;
+		u8 reg_idx = tx_ring->reg_idx;
 
 		switch (adapter->hw.mac.type) {
 		case ixgbe_mac_82598EB:
@@ -1422,7 +1422,7 @@ static int ixgbe_clean_rxonly(struct napi_struct *, int);
 static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_q_vector *q_vector;
-	int i, j, q_vectors, v_idx, r_idx;
+	int i, q_vectors, v_idx, r_idx;
 	u32 mask;
 
 	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
@@ -1438,8 +1438,8 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 				       adapter->num_rx_queues);
 
 		for (i = 0; i < q_vector->rxr_count; i++) {
-			j = adapter->rx_ring[r_idx]->reg_idx;
-			ixgbe_set_ivar(adapter, 0, j, v_idx);
+			u8 reg_idx = adapter->rx_ring[r_idx]->reg_idx;
+			ixgbe_set_ivar(adapter, 0, reg_idx, v_idx);
 			r_idx = find_next_bit(q_vector->rxr_idx,
 					      adapter->num_rx_queues,
 					      r_idx + 1);
@@ -1448,8 +1448,8 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 				       adapter->num_tx_queues);
 
 		for (i = 0; i < q_vector->txr_count; i++) {
-			j = adapter->tx_ring[r_idx]->reg_idx;
-			ixgbe_set_ivar(adapter, 1, j, v_idx);
+			u8 reg_idx = adapter->tx_ring[r_idx]->reg_idx;
+			ixgbe_set_ivar(adapter, 1, reg_idx, v_idx);
 			r_idx = find_next_bit(q_vector->txr_idx,
 					      adapter->num_tx_queues,
 					      r_idx + 1);
@@ -2555,7 +2555,7 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 	u64 tdba = ring->dma;
 	int wait_loop = 10;
 	u32 txdctl;
-	u16 reg_idx = ring->reg_idx;
+	u8 reg_idx = ring->reg_idx;
 
 	/* disable queue to avoid issues while updating state */
 	txdctl = IXGBE_READ_REG(hw, IXGBE_TXDCTL(reg_idx));
@@ -2684,13 +2684,13 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
 				   struct ixgbe_ring *rx_ring)
 {
 	u32 srrctl;
-	int index = rx_ring->reg_idx;
+	u8 reg_idx = rx_ring->reg_idx;
 
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82598EB: {
 		struct ixgbe_ring_feature *feature = adapter->ring_feature;
 		const int mask = feature[RING_F_RSS].mask;
-		index = index & mask;
+		reg_idx = reg_idx & mask;
 	}
 		break;
 	case ixgbe_mac_82599EB:
@@ -2698,7 +2698,7 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
 		break;
 	}
 
-	srrctl = IXGBE_READ_REG(&adapter->hw, IXGBE_SRRCTL(index));
+	srrctl = IXGBE_READ_REG(&adapter->hw, IXGBE_SRRCTL(reg_idx));
 
 	srrctl &= ~IXGBE_SRRCTL_BSIZEHDR_MASK;
 	srrctl &= ~IXGBE_SRRCTL_BSIZEPKT_MASK;
@@ -2721,7 +2721,7 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
 		srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
 	}
 
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_SRRCTL(index), srrctl);
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_SRRCTL(reg_idx), srrctl);
 }
 
 static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
@@ -2801,7 +2801,7 @@ static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 rscctrl;
 	int rx_buf_len;
-	u16 reg_idx = ring->reg_idx;
+	u8 reg_idx = ring->reg_idx;
 
 	if (!ring_is_rsc_enabled(ring))
 		return;
@@ -2867,9 +2867,9 @@ static void ixgbe_rx_desc_queue_enable(struct ixgbe_adapter *adapter,
 				       struct ixgbe_ring *ring)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	int reg_idx = ring->reg_idx;
 	int wait_loop = IXGBE_MAX_RX_DESC_POLL;
 	u32 rxdctl;
+	u8 reg_idx = ring->reg_idx;
 
 	/* RXDCTL.EN will return 0 on 82598 if link is down, so skip it */
 	if (hw->mac.type == ixgbe_mac_82598EB &&
@@ -2893,7 +2893,7 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 	struct ixgbe_hw *hw = &adapter->hw;
 	u64 rdba = ring->dma;
 	u32 rxdctl;
-	u16 reg_idx = ring->reg_idx;
+	u8 reg_idx = ring->reg_idx;
 
 	/* disable queue to avoid issues while updating state */
 	rxdctl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(reg_idx));
@@ -3894,7 +3894,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 rxctrl;
 	u32 txdctl;
-	int i, j;
+	int i;
 	int num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 
 	/* signal that we are down to the interrupt handler */
@@ -3952,9 +3952,9 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 	/* disable transmits in the hardware now that interrupts are off */
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		j = adapter->tx_ring[i]->reg_idx;
-		txdctl = IXGBE_READ_REG(hw, IXGBE_TXDCTL(j));
-		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(j),
+		u8 reg_idx = adapter->tx_ring[i]->reg_idx;
+		txdctl = IXGBE_READ_REG(hw, IXGBE_TXDCTL(reg_idx));
+		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx),
 				(txdctl & ~IXGBE_TXDCTL_ENABLE));
 	}
 	/* Disable the Tx DMA engine on 82599 */
@@ -4420,55 +4420,55 @@ static inline bool ixgbe_cache_ring_fdir(struct ixgbe_adapter *adapter)
  */
 static inline bool ixgbe_cache_ring_fcoe(struct ixgbe_adapter *adapter)
 {
-	int i, fcoe_rx_i = 0, fcoe_tx_i = 0;
-	bool ret = false;
 	struct ixgbe_ring_feature *f = &adapter->ring_feature[RING_F_FCOE];
+	int i;
+	u8 fcoe_rx_i = 0, fcoe_tx_i = 0;
 
-	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
+		return false;
+
 #ifdef CONFIG_IXGBE_DCB
-		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-			struct ixgbe_fcoe *fcoe = &adapter->fcoe;
+	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+		struct ixgbe_fcoe *fcoe = &adapter->fcoe;
 
-			ixgbe_cache_ring_dcb(adapter);
-			/* find out queues in TC for FCoE */
-			fcoe_rx_i = adapter->rx_ring[fcoe->tc]->reg_idx + 1;
-			fcoe_tx_i = adapter->tx_ring[fcoe->tc]->reg_idx + 1;
-			/*
-			 * In 82599, the number of Tx queues for each traffic
-			 * class for both 8-TC and 4-TC modes are:
-			 * TCs  : TC0 TC1 TC2 TC3 TC4 TC5 TC6 TC7
-			 * 8 TCs:  32  32  16  16   8   8   8   8
-			 * 4 TCs:  64  64  32  32
-			 * We have max 8 queues for FCoE, where 8 the is
-			 * FCoE redirection table size. If TC for FCoE is
-			 * less than or equal to TC3, we have enough queues
-			 * to add max of 8 queues for FCoE, so we start FCoE
-			 * tx descriptor from the next one, i.e., reg_idx + 1.
-			 * If TC for FCoE is above TC3, implying 8 TC mode,
-			 * and we need 8 for FCoE, we have to take all queues
-			 * in that traffic class for FCoE.
-			 */
-			if ((f->indices == IXGBE_FCRETA_SIZE) && (fcoe->tc > 3))
-				fcoe_tx_i--;
-		}
-#endif /* CONFIG_IXGBE_DCB */
-		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-			if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
-			    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
-				ixgbe_cache_ring_fdir(adapter);
-			else
-				ixgbe_cache_ring_rss(adapter);
-
-			fcoe_rx_i = f->mask;
-			fcoe_tx_i = f->mask;
-		}
-		for (i = 0; i < f->indices; i++, fcoe_rx_i++, fcoe_tx_i++) {
-			adapter->rx_ring[f->mask + i]->reg_idx = fcoe_rx_i;
-			adapter->tx_ring[f->mask + i]->reg_idx = fcoe_tx_i;
-		}
-		ret = true;
+		ixgbe_cache_ring_dcb(adapter);
+		/* find out queues in TC for FCoE */
+		fcoe_rx_i = adapter->rx_ring[fcoe->tc]->reg_idx + 1;
+		fcoe_tx_i = adapter->tx_ring[fcoe->tc]->reg_idx + 1;
+		/*
+		 * In 82599, the number of Tx queues for each traffic
+		 * class for both 8-TC and 4-TC modes are:
+		 * TCs  : TC0 TC1 TC2 TC3 TC4 TC5 TC6 TC7
+		 * 8 TCs:  32  32  16  16   8   8   8   8
+		 * 4 TCs:  64  64  32  32
+		 * We have max 8 queues for FCoE, where 8 the is
+		 * FCoE redirection table size. If TC for FCoE is
+		 * less than or equal to TC3, we have enough queues
+		 * to add max of 8 queues for FCoE, so we start FCoE
+		 * Tx queue from the next one, i.e., reg_idx + 1.
+		 * If TC for FCoE is above TC3, implying 8 TC mode,
+		 * and we need 8 for FCoE, we have to take all queues
+		 * in that traffic class for FCoE.
+		 */
+		if ((f->indices == IXGBE_FCRETA_SIZE) && (fcoe->tc > 3))
+			fcoe_tx_i--;
 	}
-	return ret;
+#endif /* CONFIG_IXGBE_DCB */
+	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
+		if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
+		    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
+			ixgbe_cache_ring_fdir(adapter);
+		else
+			ixgbe_cache_ring_rss(adapter);
+
+		fcoe_rx_i = f->mask;
+		fcoe_tx_i = f->mask;
+	}
+	for (i = 0; i < f->indices; i++, fcoe_rx_i++, fcoe_tx_i++) {
+		adapter->rx_ring[f->mask + i]->reg_idx = fcoe_rx_i;
+		adapter->tx_ring[f->mask + i]->reg_idx = fcoe_tx_i;
+	}
+	return true;
 }
 
 #endif /* IXGBE_FCOE */
