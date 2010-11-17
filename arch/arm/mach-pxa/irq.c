@@ -37,6 +37,11 @@
 
 static int pxa_internal_irq_nr;
 
+static inline int cpu_has_ipr(void)
+{
+	return !cpu_is_pxa25x();
+}
+
 static void pxa_mask_irq(unsigned int irq)
 {
 	_ICMR(irq) &= ~(1 << IRQ_BIT(irq));
@@ -134,7 +139,7 @@ void __init pxa_init_irq(int irq_nr, set_wake_t fn)
 	}
 
 	/* initialize interrupt priority */
-	if (cpu_is_pxa27x() || cpu_is_pxa3xx()) {
+	if (cpu_has_ipr()) {
 		for (i = 0; i < irq_nr; i++)
 			IPR(i) = i | (1 << 31);
 	}
@@ -165,7 +170,7 @@ static int pxa_irq_suspend(struct sys_device *dev, pm_message_t state)
 		_ICMR(irq) = 0;
 	}
 
-	if (cpu_is_pxa27x() || cpu_is_pxa3xx()) {
+	if (cpu_has_ipr()) {
 		for (i = 0; i < pxa_internal_irq_nr; i++)
 			saved_ipr[i] = IPR(i);
 	}
@@ -177,7 +182,7 @@ static int pxa_irq_resume(struct sys_device *dev)
 {
 	int i, irq = PXA_IRQ(0);
 
-	if (cpu_is_pxa27x() || cpu_is_pxa3xx()) {
+	if (cpu_has_ipr()) {
 		for (i = 0; i < pxa_internal_irq_nr; i++)
 			IPR(i) = saved_ipr[i];
 	}
