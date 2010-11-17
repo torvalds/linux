@@ -9,24 +9,12 @@ config PANEL_GENERIC_DPI
 	  Supports LCD Panel used in TI SDP3430 and EVM boards,
 	  OMAP3517 EVM boards and CM-T35.
 
-config PANEL_GENERIC
-        tristate "Generic Panel"
-        help
-	  Generic panel driver.
-	  Used for DVI output for Beagle and OMAP3 SDP.
-
 config PANEL_SHARP_LS037V7DW01
         tristate "Sharp LS037V7DW01 LCD Panel"
         depends on OMAP2_DSS
         select BACKLIGHT_CLASS_DEVICE
         help
           LCD Panel used in TI's SDP3430 and EVM boards
-
-config PANEL_SHARP_LQ043T1DG01
-        tristate "Sharp LQ043T1DG01 LCD Panel"
-        depends on OMAP2_DSS
-        help
-          LCD Panel used in TI's OMAP3517 EVM boards
 
 config PANEL_NEC_NL8048HL11_01B
 	tristate "NEC NL8048HL11-01B Panel"
@@ -40,12 +28,6 @@ config PANEL_TAAL
         depends on OMAP2_DSS_DSI
         help
           Taal DSI command mode panel from TPO.
-
-config PANEL_TOPPOLY_TDO35S
-        tristate "Toppoly TDO35S LCD Panel support"
-        depends on OMAP2_DSS
-        help
-          LCD Panel used in CM-T35
 
 config PANEL_TPO_TD043MTEA1
         tristate "TPO TD043MTEA1 LCD Panel"
