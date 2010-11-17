@@ -148,6 +148,7 @@ struct ixgbe_queue_stats {
 
 struct ixgbe_ring {
 	void *desc;			/* descriptor ring memory */
+	struct device *dev;             /* device for DMA mapping */
 	union {
 		struct ixgbe_tx_buffer *tx_buffer_info;
 		struct ixgbe_rx_buffer *rx_buffer_info;
@@ -454,10 +455,10 @@ extern void ixgbe_down(struct ixgbe_adapter *adapter);
 extern void ixgbe_reinit_locked(struct ixgbe_adapter *adapter);
 extern void ixgbe_reset(struct ixgbe_adapter *adapter);
 extern void ixgbe_set_ethtool_ops(struct net_device *netdev);
-extern int ixgbe_setup_rx_resources(struct ixgbe_adapter *, struct ixgbe_ring *);
-extern int ixgbe_setup_tx_resources(struct ixgbe_adapter *, struct ixgbe_ring *);
-extern void ixgbe_free_rx_resources(struct ixgbe_adapter *, struct ixgbe_ring *);
-extern void ixgbe_free_tx_resources(struct ixgbe_adapter *, struct ixgbe_ring *);
+extern int ixgbe_setup_rx_resources(struct ixgbe_ring *);
+extern int ixgbe_setup_tx_resources(struct ixgbe_ring *);
+extern void ixgbe_free_rx_resources(struct ixgbe_ring *);
+extern void ixgbe_free_tx_resources(struct ixgbe_ring *);
 extern void ixgbe_configure_rx_ring(struct ixgbe_adapter *,struct ixgbe_ring *);
 extern void ixgbe_configure_tx_ring(struct ixgbe_adapter *,struct ixgbe_ring *);
 extern void ixgbe_update_stats(struct ixgbe_adapter *adapter);
@@ -467,7 +468,7 @@ extern netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *,
 					 struct net_device *,
 					 struct ixgbe_adapter *,
 					 struct ixgbe_ring *);
-extern void ixgbe_unmap_and_free_tx_resource(struct ixgbe_adapter *,
+extern void ixgbe_unmap_and_free_tx_resource(struct ixgbe_ring *,
                                              struct ixgbe_tx_buffer *);
 extern void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
                                    struct ixgbe_ring *rx_ring,

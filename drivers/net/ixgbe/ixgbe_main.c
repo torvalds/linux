@@ -600,18 +600,17 @@ static inline void ixgbe_irq_rearm_queues(struct ixgbe_adapter *adapter,
 	}
 }
 
-void ixgbe_unmap_and_free_tx_resource(struct ixgbe_adapter *adapter,
-				      struct ixgbe_tx_buffer
-				      *tx_buffer_info)
+void ixgbe_unmap_and_free_tx_resource(struct ixgbe_ring *tx_ring,
+				      struct ixgbe_tx_buffer *tx_buffer_info)
 {
 	if (tx_buffer_info->dma) {
 		if (tx_buffer_info->mapped_as_page)
-			dma_unmap_page(&adapter->pdev->dev,
+			dma_unmap_page(tx_ring->dev,
 				       tx_buffer_info->dma,
 				       tx_buffer_info->length,
 				       DMA_TO_DEVICE);
 		else
-			dma_unmap_single(&adapter->pdev->dev,
+			dma_unmap_single(tx_ring->dev,
 					 tx_buffer_info->dma,
 					 tx_buffer_info->length,
 					 DMA_TO_DEVICE);
@@ -764,7 +763,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 				total_packets += tx_buffer_info->gso_segs;
 			}
 
-			ixgbe_unmap_and_free_tx_resource(adapter,
+			ixgbe_unmap_and_free_tx_resource(tx_ring,
 							 tx_buffer_info);
 		}
 
@@ -1011,7 +1010,6 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 			    struct ixgbe_ring *rx_ring,
 			    u16 cleaned_count)
 {
-	struct pci_dev *pdev = adapter->pdev;
 	union ixgbe_adv_rx_desc *rx_desc;
 	struct ixgbe_rx_buffer *bi;
 	struct sk_buff *skb;
@@ -1035,11 +1033,11 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 		}
 
 		if (!bi->dma) {
-			bi->dma = dma_map_single(&pdev->dev,
+			bi->dma = dma_map_single(rx_ring->dev,
 						 skb->data,
 						 rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
-			if (dma_mapping_error(&pdev->dev, bi->dma)) {
+			if (dma_mapping_error(rx_ring->dev, bi->dma)) {
 				adapter->alloc_rx_buff_failed++;
 				bi->dma = 0;
 				goto no_buffers;
@@ -1058,12 +1056,12 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 			if (!bi->page_dma) {
 				/* use a half page if we're re-using */
 				bi->page_offset ^= PAGE_SIZE / 2;
-				bi->page_dma = dma_map_page(&pdev->dev,
+				bi->page_dma = dma_map_page(rx_ring->dev,
 							    bi->page,
 							    bi->page_offset,
 							    PAGE_SIZE / 2,
 							    DMA_FROM_DEVICE);
-				if (dma_mapping_error(&pdev->dev,
+				if (dma_mapping_error(rx_ring->dev,
 						      bi->page_dma)) {
 					adapter->alloc_rx_page_failed++;
 					bi->page_dma = 0;
@@ -1151,7 +1149,6 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			       int *work_done, int work_to_do)
 {
 	struct ixgbe_adapter *adapter = q_vector->adapter;
-	struct pci_dev *pdev = adapter->pdev;
 	union ixgbe_adv_rx_desc *rx_desc, *next_rxd;
 	struct ixgbe_rx_buffer *rx_buffer_info, *next_buffer;
 	struct sk_buff *skb;
@@ -1208,7 +1205,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 				IXGBE_RSC_CB(skb)->delay_unmap = true;
 				IXGBE_RSC_CB(skb)->dma = rx_buffer_info->dma;
 			} else {
-				dma_unmap_single(&pdev->dev,
+				dma_unmap_single(rx_ring->dev,
 						 rx_buffer_info->dma,
 						 rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
@@ -1218,8 +1215,10 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		}
 
 		if (upper_len) {
-			dma_unmap_page(&pdev->dev, rx_buffer_info->page_dma,
-				       PAGE_SIZE / 2, DMA_FROM_DEVICE);
+			dma_unmap_page(rx_ring->dev,
+				       rx_buffer_info->page_dma,
+				       PAGE_SIZE / 2,
+				       DMA_FROM_DEVICE);
 			rx_buffer_info->page_dma = 0;
 			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
 					   rx_buffer_info->page,
@@ -1262,7 +1261,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 								&(rx_ring->rsc_count));
 			if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
 				if (IXGBE_RSC_CB(skb)->delay_unmap) {
-					dma_unmap_single(&pdev->dev,
+					dma_unmap_single(rx_ring->dev,
 							 IXGBE_RSC_CB(skb)->dma,
 							 rx_ring->rx_buf_len,
 							 DMA_FROM_DEVICE);
@@ -3665,15 +3664,13 @@ void ixgbe_reset(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_clean_rx_ring - Free Rx Buffers per Queue
- * @adapter: board private structure
  * @rx_ring: ring to free buffers from
  **/
-static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
-				struct ixgbe_ring *rx_ring)
+static void ixgbe_clean_rx_ring(struct ixgbe_ring *rx_ring)
 {
-	struct pci_dev *pdev = adapter->pdev;
+	struct device *dev = rx_ring->dev;
 	unsigned long size;
-	unsigned int i;
+	u16 i;
 
 	/* ring already cleared, nothing to do */
 	if (!rx_ring->rx_buffer_info)
@@ -3685,7 +3682,7 @@ static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
 
 		rx_buffer_info = &rx_ring->rx_buffer_info[i];
 		if (rx_buffer_info->dma) {
-			dma_unmap_single(&pdev->dev, rx_buffer_info->dma,
+			dma_unmap_single(rx_ring->dev, rx_buffer_info->dma,
 					 rx_ring->rx_buf_len,
 					 DMA_FROM_DEVICE);
 			rx_buffer_info->dma = 0;
@@ -3696,7 +3693,7 @@ static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
 			do {
 				struct sk_buff *this = skb;
 				if (IXGBE_RSC_CB(this)->delay_unmap) {
-					dma_unmap_single(&pdev->dev,
+					dma_unmap_single(dev,
 							 IXGBE_RSC_CB(this)->dma,
 							 rx_ring->rx_buf_len,
 							 DMA_FROM_DEVICE);
@@ -3710,7 +3707,7 @@ static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
 		if (!rx_buffer_info->page)
 			continue;
 		if (rx_buffer_info->page_dma) {
-			dma_unmap_page(&pdev->dev, rx_buffer_info->page_dma,
+			dma_unmap_page(dev, rx_buffer_info->page_dma,
 				       PAGE_SIZE / 2, DMA_FROM_DEVICE);
 			rx_buffer_info->page_dma = 0;
 		}
@@ -3731,15 +3728,13 @@ static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
 
 /**
  * ixgbe_clean_tx_ring - Free Tx Buffers
- * @adapter: board private structure
  * @tx_ring: ring to be cleaned
  **/
-static void ixgbe_clean_tx_ring(struct ixgbe_adapter *adapter,
-				struct ixgbe_ring *tx_ring)
+static void ixgbe_clean_tx_ring(struct ixgbe_ring *tx_ring)
 {
 	struct ixgbe_tx_buffer *tx_buffer_info;
 	unsigned long size;
-	unsigned int i;
+	u16 i;
 
 	/* ring already cleared, nothing to do */
 	if (!tx_ring->tx_buffer_info)
@@ -3748,7 +3743,7 @@ static void ixgbe_clean_tx_ring(struct ixgbe_adapter *adapter,
 	/* Free all the Tx ring sk_buffs */
 	for (i = 0; i < tx_ring->count; i++) {
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
-		ixgbe_unmap_and_free_tx_resource(adapter, tx_buffer_info);
+		ixgbe_unmap_and_free_tx_resource(tx_ring, tx_buffer_info);
 	}
 
 	size = sizeof(struct ixgbe_tx_buffer) * tx_ring->count;
@@ -3770,7 +3765,7 @@ static void ixgbe_clean_all_rx_rings(struct ixgbe_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		ixgbe_clean_rx_ring(adapter, adapter->rx_ring[i]);
+		ixgbe_clean_rx_ring(adapter->rx_ring[i]);
 }
 
 /**
@@ -3782,7 +3777,7 @@ static void ixgbe_clean_all_tx_rings(struct ixgbe_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
-		ixgbe_clean_tx_ring(adapter, adapter->tx_ring[i]);
+		ixgbe_clean_tx_ring(adapter->tx_ring[i]);
 }
 
 void ixgbe_down(struct ixgbe_adapter *adapter)
@@ -4440,6 +4435,7 @@ static void ixgbe_cache_ring_register(struct ixgbe_adapter *adapter)
 static int ixgbe_alloc_queues(struct ixgbe_adapter *adapter)
 {
 	int i;
+	int rx_count;
 	int orig_node = adapter->node;
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
@@ -4458,6 +4454,7 @@ static int ixgbe_alloc_queues(struct ixgbe_adapter *adapter)
 			goto err_tx_ring_allocation;
 		ring->count = adapter->tx_ring_count;
 		ring->queue_index = i;
+		ring->dev = &adapter->pdev->dev;
 		ring->numa_node = adapter->node;
 
 		adapter->tx_ring[i] = ring;
@@ -4466,6 +4463,7 @@ static int ixgbe_alloc_queues(struct ixgbe_adapter *adapter)
 	/* Restore the adapter's original node */
 	adapter->node = orig_node;
 
+	rx_count = adapter->rx_ring_count;
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct ixgbe_ring *ring = adapter->rx_ring[i];
 		if (orig_node == -1) {
@@ -4480,8 +4478,9 @@ static int ixgbe_alloc_queues(struct ixgbe_adapter *adapter)
 			ring = kzalloc(sizeof(struct ixgbe_ring), GFP_KERNEL);
 		if (!ring)
 			goto err_rx_ring_allocation;
-		ring->count = adapter->rx_ring_count;
+		ring->count = rx_count;
 		ring->queue_index = i;
+		ring->dev = &adapter->pdev->dev;
 		ring->numa_node = adapter->node;
 
 		adapter->rx_ring[i] = ring;
@@ -4938,15 +4937,13 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_setup_tx_resources - allocate Tx resources (Descriptors)
- * @adapter: board private structure
  * @tx_ring:    tx descriptor ring (for a specific queue) to setup
  *
  * Return 0 on success, negative on failure
  **/
-int ixgbe_setup_tx_resources(struct ixgbe_adapter *adapter,
-			     struct ixgbe_ring *tx_ring)
+int ixgbe_setup_tx_resources(struct ixgbe_ring *tx_ring)
 {
-	struct pci_dev *pdev = adapter->pdev;
+	struct device *dev = tx_ring->dev;
 	int size;
 
 	size = sizeof(struct ixgbe_tx_buffer) * tx_ring->count;
@@ -4961,7 +4958,7 @@ int ixgbe_setup_tx_resources(struct ixgbe_adapter *adapter,
 	tx_ring->size = tx_ring->count * sizeof(union ixgbe_adv_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 
-	tx_ring->desc = dma_alloc_coherent(&pdev->dev, tx_ring->size,
+	tx_ring->desc = dma_alloc_coherent(dev, tx_ring->size,
 					   &tx_ring->dma, GFP_KERNEL);
 	if (!tx_ring->desc)
 		goto err;
@@ -4974,7 +4971,7 @@ int ixgbe_setup_tx_resources(struct ixgbe_adapter *adapter,
 err:
 	vfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
-	e_err(probe, "Unable to allocate memory for the Tx descriptor ring\n");
+	dev_err(dev, "Unable to allocate memory for the Tx descriptor ring\n");
 	return -ENOMEM;
 }
 
@@ -4993,7 +4990,7 @@ static int ixgbe_setup_all_tx_resources(struct ixgbe_adapter *adapter)
 	int i, err = 0;
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		err = ixgbe_setup_tx_resources(adapter, adapter->tx_ring[i]);
+		err = ixgbe_setup_tx_resources(adapter->tx_ring[i]);
 		if (!err)
 			continue;
 		e_err(probe, "Allocation for Tx Queue %u failed\n", i);
@@ -5005,48 +5002,41 @@ static int ixgbe_setup_all_tx_resources(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_setup_rx_resources - allocate Rx resources (Descriptors)
- * @adapter: board private structure
  * @rx_ring:    rx descriptor ring (for a specific queue) to setup
  *
  * Returns 0 on success, negative on failure
  **/
-int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
-			     struct ixgbe_ring *rx_ring)
+int ixgbe_setup_rx_resources(struct ixgbe_ring *rx_ring)
 {
-	struct pci_dev *pdev = adapter->pdev;
+	struct device *dev = rx_ring->dev;
 	int size;
 
 	size = sizeof(struct ixgbe_rx_buffer) * rx_ring->count;
-	rx_ring->rx_buffer_info = vmalloc_node(size, adapter->node);
+	rx_ring->rx_buffer_info = vmalloc_node(size, rx_ring->numa_node);
 	if (!rx_ring->rx_buffer_info)
 		rx_ring->rx_buffer_info = vmalloc(size);
-	if (!rx_ring->rx_buffer_info) {
-		e_err(probe, "vmalloc allocation failed for the Rx "
-		      "descriptor ring\n");
-		goto alloc_failed;
-	}
+	if (!rx_ring->rx_buffer_info)
+		goto err;
 	memset(rx_ring->rx_buffer_info, 0, size);
 
 	/* Round up to nearest 4K */
 	rx_ring->size = rx_ring->count * sizeof(union ixgbe_adv_rx_desc);
 	rx_ring->size = ALIGN(rx_ring->size, 4096);
 
-	rx_ring->desc = dma_alloc_coherent(&pdev->dev, rx_ring->size,
+	rx_ring->desc = dma_alloc_coherent(dev, rx_ring->size,
 					   &rx_ring->dma, GFP_KERNEL);
 
-	if (!rx_ring->desc) {
-		e_err(probe, "Memory allocation failed for the Rx "
-		      "descriptor ring\n");
-		vfree(rx_ring->rx_buffer_info);
-		goto alloc_failed;
-	}
+	if (!rx_ring->desc)
+		goto err;
 
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
 
 	return 0;
-
-alloc_failed:
+err:
+	vfree(rx_ring->rx_buffer_info);
+	rx_ring->rx_buffer_info = NULL;
+	dev_err(dev, "Unable to allocate memory for the Rx descriptor ring\n");
 	return -ENOMEM;
 }
 
@@ -5060,13 +5050,12 @@ alloc_failed:
  *
  * Return 0 on success, negative on failure
  **/
-
 static int ixgbe_setup_all_rx_resources(struct ixgbe_adapter *adapter)
 {
 	int i, err = 0;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		err = ixgbe_setup_rx_resources(adapter, adapter->rx_ring[i]);
+		err = ixgbe_setup_rx_resources(adapter->rx_ring[i]);
 		if (!err)
 			continue;
 		e_err(probe, "Allocation for Rx Queue %u failed\n", i);
@@ -5078,23 +5067,23 @@ static int ixgbe_setup_all_rx_resources(struct ixgbe_adapter *adapter)
 
 /**
  * ixgbe_free_tx_resources - Free Tx Resources per Queue
- * @adapter: board private structure
  * @tx_ring: Tx descriptor ring for a specific queue
  *
  * Free all transmit software resources
  **/
-void ixgbe_free_tx_resources(struct ixgbe_adapter *adapter,
-			     struct ixgbe_ring *tx_ring)
+void ixgbe_free_tx_resources(struct ixgbe_ring *tx_ring)
 {
-	struct pci_dev *pdev = adapter->pdev;
-
-	ixgbe_clean_tx_ring(adapter, tx_ring);
+	ixgbe_clean_tx_ring(tx_ring);
 
 	vfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
 
-	dma_free_coherent(&pdev->dev, tx_ring->size, tx_ring->desc,
-			  tx_ring->dma);
+	/* if not set, then don't free */
+	if (!tx_ring->desc)
+		return;
+
+	dma_free_coherent(tx_ring->dev, tx_ring->size,
+			  tx_ring->desc, tx_ring->dma);
 
 	tx_ring->desc = NULL;
 }
@@ -5111,28 +5100,28 @@ static void ixgbe_free_all_tx_resources(struct ixgbe_adapter *adapter)
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
 		if (adapter->tx_ring[i]->desc)
-			ixgbe_free_tx_resources(adapter, adapter->tx_ring[i]);
+			ixgbe_free_tx_resources(adapter->tx_ring[i]);
 }
 
 /**
  * ixgbe_free_rx_resources - Free Rx Resources
- * @adapter: board private structure
  * @rx_ring: ring to clean the resources from
  *
  * Free all receive software resources
  **/
-void ixgbe_free_rx_resources(struct ixgbe_adapter *adapter,
-			     struct ixgbe_ring *rx_ring)
+void ixgbe_free_rx_resources(struct ixgbe_ring *rx_ring)
 {
-	struct pci_dev *pdev = adapter->pdev;
-
-	ixgbe_clean_rx_ring(adapter, rx_ring);
+	ixgbe_clean_rx_ring(rx_ring);
 
 	vfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
 
-	dma_free_coherent(&pdev->dev, rx_ring->size, rx_ring->desc,
-			  rx_ring->dma);
+	/* if not set, then don't free */
+	if (!rx_ring->desc)
+		return;
+
+	dma_free_coherent(rx_ring->dev, rx_ring->size,
+			  rx_ring->desc, rx_ring->dma);
 
 	rx_ring->desc = NULL;
 }
@@ -5149,7 +5138,7 @@ static void ixgbe_free_all_rx_resources(struct ixgbe_adapter *adapter)
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
 		if (adapter->rx_ring[i]->desc)
-			ixgbe_free_rx_resources(adapter, adapter->rx_ring[i]);
+			ixgbe_free_rx_resources(adapter->rx_ring[i]);
 }
 
 /**
@@ -5985,7 +5974,7 @@ static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
 			struct sk_buff *skb, u32 tx_flags,
 			unsigned int first, const u8 hdr_len)
 {
-	struct pci_dev *pdev = adapter->pdev;
+	struct device *dev = tx_ring->dev;
 	struct ixgbe_tx_buffer *tx_buffer_info;
 	unsigned int len;
 	unsigned int total = skb->len;
@@ -6008,10 +5997,10 @@ static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
 
 		tx_buffer_info->length = size;
 		tx_buffer_info->mapped_as_page = false;
-		tx_buffer_info->dma = dma_map_single(&pdev->dev,
+		tx_buffer_info->dma = dma_map_single(dev,
 						     skb->data + offset,
 						     size, DMA_TO_DEVICE);
-		if (dma_mapping_error(&pdev->dev, tx_buffer_info->dma))
+		if (dma_mapping_error(dev, tx_buffer_info->dma))
 			goto dma_error;
 		tx_buffer_info->time_stamp = jiffies;
 		tx_buffer_info->next_to_watch = i;
@@ -6044,12 +6033,12 @@ static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
 			size = min(len, (uint)IXGBE_MAX_DATA_PER_TXD);
 
 			tx_buffer_info->length = size;
-			tx_buffer_info->dma = dma_map_page(&adapter->pdev->dev,
+			tx_buffer_info->dma = dma_map_page(dev,
 							   frag->page,
 							   offset, size,
 							   DMA_TO_DEVICE);
 			tx_buffer_info->mapped_as_page = true;
-			if (dma_mapping_error(&pdev->dev, tx_buffer_info->dma))
+			if (dma_mapping_error(dev, tx_buffer_info->dma))
 				goto dma_error;
 			tx_buffer_info->time_stamp = jiffies;
 			tx_buffer_info->next_to_watch = i;
@@ -6097,7 +6086,7 @@ dma_error:
 			i += tx_ring->count;
 		i--;
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
-		ixgbe_unmap_and_free_tx_resource(adapter, tx_buffer_info);
+		ixgbe_unmap_and_free_tx_resource(tx_ring, tx_buffer_info);
 	}
 
 	return 0;

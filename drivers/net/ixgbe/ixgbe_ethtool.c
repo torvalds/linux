@@ -900,13 +900,11 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 			memcpy(&temp_tx_ring[i], adapter->tx_ring[i],
 			       sizeof(struct ixgbe_ring));
 			temp_tx_ring[i].count = new_tx_count;
-			err = ixgbe_setup_tx_resources(adapter,
-			                               &temp_tx_ring[i]);
+			err = ixgbe_setup_tx_resources(&temp_tx_ring[i]);
 			if (err) {
 				while (i) {
 					i--;
-					ixgbe_free_tx_resources(adapter,
-					                      &temp_tx_ring[i]);
+					ixgbe_free_tx_resources(&temp_tx_ring[i]);
 				}
 				goto clear_reset;
 			}
@@ -925,13 +923,11 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 			memcpy(&temp_rx_ring[i], adapter->rx_ring[i],
 			       sizeof(struct ixgbe_ring));
 			temp_rx_ring[i].count = new_rx_count;
-			err = ixgbe_setup_rx_resources(adapter,
-			                               &temp_rx_ring[i]);
+			err = ixgbe_setup_rx_resources(&temp_rx_ring[i]);
 			if (err) {
 				while (i) {
 					i--;
-					ixgbe_free_rx_resources(adapter,
-					                      &temp_rx_ring[i]);
+					ixgbe_free_rx_resources(&temp_rx_ring[i]);
 				}
 				goto err_setup;
 			}
@@ -946,8 +942,7 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 		/* tx */
 		if (new_tx_count != adapter->tx_ring_count) {
 			for (i = 0; i < adapter->num_tx_queues; i++) {
-				ixgbe_free_tx_resources(adapter,
-				                        adapter->tx_ring[i]);
+				ixgbe_free_tx_resources(adapter->tx_ring[i]);
 				memcpy(adapter->tx_ring[i], &temp_tx_ring[i],
 				       sizeof(struct ixgbe_ring));
 			}
@@ -957,8 +952,7 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 		/* rx */
 		if (new_rx_count != adapter->rx_ring_count) {
 			for (i = 0; i < adapter->num_rx_queues; i++) {
-				ixgbe_free_rx_resources(adapter,
-				                        adapter->rx_ring[i]);
+				ixgbe_free_rx_resources(adapter->rx_ring[i]);
 				memcpy(adapter->rx_ring[i], &temp_rx_ring[i],
 				       sizeof(struct ixgbe_ring));
 			}
@@ -1463,8 +1457,8 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 
 	ixgbe_reset(adapter);
 
-	ixgbe_free_tx_resources(adapter, &adapter->test_tx_ring);
-	ixgbe_free_rx_resources(adapter, &adapter->test_rx_ring);
+	ixgbe_free_tx_resources(&adapter->test_tx_ring);
+	ixgbe_free_rx_resources(&adapter->test_rx_ring);
 }
 
 static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
@@ -1478,10 +1472,11 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	/* Setup Tx descriptor ring and Tx buffers */
 	tx_ring->count = IXGBE_DEFAULT_TXD;
 	tx_ring->queue_index = 0;
+	tx_ring->dev = &adapter->pdev->dev;
 	tx_ring->reg_idx = adapter->tx_ring[0]->reg_idx;
 	tx_ring->numa_node = adapter->node;
 
-	err = ixgbe_setup_tx_resources(adapter, tx_ring);
+	err = ixgbe_setup_tx_resources(tx_ring);
 	if (err)
 		return 1;
 
@@ -1496,11 +1491,12 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	/* Setup Rx Descriptor ring and Rx buffers */
 	rx_ring->count = IXGBE_DEFAULT_RXD;
 	rx_ring->queue_index = 0;
+	rx_ring->dev = &adapter->pdev->dev;
 	rx_ring->reg_idx = adapter->rx_ring[0]->reg_idx;
 	rx_ring->rx_buf_len = IXGBE_RXBUFFER_2048;
 	rx_ring->numa_node = adapter->node;
 
-	err = ixgbe_setup_rx_resources(adapter, rx_ring);
+	err = ixgbe_setup_rx_resources(rx_ring);
 	if (err) {
 		ret_val = 4;
 		goto err_nomem;
@@ -1622,7 +1618,7 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_adapter *adapter,
 		rx_buffer_info = &rx_ring->rx_buffer_info[rx_ntc];
 
 		/* unmap Rx buffer, will be remapped by alloc_rx_buffers */
-		dma_unmap_single(&adapter->pdev->dev,
+		dma_unmap_single(rx_ring->dev,
 		                 rx_buffer_info->dma,
 				 bufsz,
 				 DMA_FROM_DEVICE);
@@ -1634,7 +1630,7 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_adapter *adapter,
 
 		/* unmap buffer on Tx side */
 		tx_buffer_info = &tx_ring->tx_buffer_info[tx_ntc];
-		ixgbe_unmap_and_free_tx_resource(adapter, tx_buffer_info);
+		ixgbe_unmap_and_free_tx_resource(tx_ring, tx_buffer_info);
 
 		/* increment Rx/Tx next to clean counters */
 		rx_ntc++;
