@@ -43,6 +43,7 @@ struct nlm_host {
 	struct sockaddr_storage	h_addr;		/* peer address */
 	size_t			h_addrlen;
 	struct sockaddr_storage	h_srcaddr;	/* our address (optional) */
+	size_t			h_srcaddrlen;
 	struct rpc_clnt		*h_rpcclnt;	/* RPC client to talk to peer */
 	char			*h_name;		/* remote hostname */
 	u32			h_version;	/* interface version */
