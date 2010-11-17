@@ -2530,7 +2530,14 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 	}
 
 	/* reinitialize flowdirector state */
-	set_bit(__IXGBE_TX_FDIR_INIT_DONE, &ring->state);
+	if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) &&
+	    adapter->atr_sample_rate) {
+		ring->atr_sample_rate = adapter->atr_sample_rate;
+		ring->atr_count = 0;
+		set_bit(__IXGBE_TX_FDIR_INIT_DONE, &ring->state);
+	} else {
+		ring->atr_sample_rate = 0;
+	}
 
 	/* enable queue */
 	txdctl |= IXGBE_TXDCTL_ENABLE;
@@ -6227,47 +6234,34 @@ static void ixgbe_tx_queue(struct ixgbe_ring *tx_ring,
 }
 
 static void ixgbe_atr(struct ixgbe_adapter *adapter, struct sk_buff *skb,
-		      int queue, u32 tx_flags, __be16 protocol)
+		      u8 queue, u32 tx_flags, __be16 protocol)
 {
 	struct ixgbe_atr_input atr_input;
-	struct tcphdr *th;
 	struct iphdr *iph = ip_hdr(skb);
 	struct ethhdr *eth = (struct ethhdr *)skb->data;
-	u16 vlan_id, src_port, dst_port, flex_bytes;
-	u32 src_ipv4_addr, dst_ipv4_addr;
-	u8 l4type = 0;
+	struct tcphdr *th;
+	u16 vlan_id;
 
-	/* Right now, we support IPv4 only */
-	if (protocol != htons(ETH_P_IP))
+	/* Right now, we support IPv4 w/ TCP only */
+	if (protocol != htons(ETH_P_IP) ||
+	    iph->protocol != IPPROTO_TCP)
 		return;
-	/* check if we're UDP or TCP */
-	if (iph->protocol == IPPROTO_TCP) {
-		th = tcp_hdr(skb);
-		src_port = th->source;
-		dst_port = th->dest;
-		l4type |= IXGBE_ATR_L4TYPE_TCP;
-		/* l4type IPv4 type is 0, no need to assign */
-	} else {
-		/* Unsupported L4 header, just bail here */
-		return;
-	}
 
 	memset(&atr_input, 0, sizeof(struct ixgbe_atr_input));
 
 	vlan_id = (tx_flags & IXGBE_TX_FLAGS_VLAN_MASK) >>
 		   IXGBE_TX_FLAGS_VLAN_SHIFT;
-	src_ipv4_addr = iph->saddr;
-	dst_ipv4_addr = iph->daddr;
-	flex_bytes = eth->h_proto;
+
+	th = tcp_hdr(skb);
 
 	ixgbe_atr_set_vlan_id_82599(&atr_input, vlan_id);
-	ixgbe_atr_set_src_port_82599(&atr_input, dst_port);
-	ixgbe_atr_set_dst_port_82599(&atr_input, src_port);
-	ixgbe_atr_set_flex_byte_82599(&atr_input, flex_bytes);
-	ixgbe_atr_set_l4type_82599(&atr_input, l4type);
+	ixgbe_atr_set_src_port_82599(&atr_input, th->dest);
+	ixgbe_atr_set_dst_port_82599(&atr_input, th->source);
+	ixgbe_atr_set_flex_byte_82599(&atr_input, eth->h_proto);
+	ixgbe_atr_set_l4type_82599(&atr_input, IXGBE_ATR_L4TYPE_TCP);
 	/* src and dst are inverted, think how the receiver sees them */
-	ixgbe_atr_set_src_ipv4_82599(&atr_input, dst_ipv4_addr);
-	ixgbe_atr_set_dst_ipv4_82599(&atr_input, src_ipv4_addr);
+	ixgbe_atr_set_src_ipv4_82599(&atr_input, iph->daddr);
+	ixgbe_atr_set_dst_ipv4_82599(&atr_input, iph->saddr);
 
 	/* This assumes the Rx queue and Tx queue are bound to the same CPU */
 	ixgbe_fdir_add_signature_filter_82599(&adapter->hw, &atr_input, queue);
