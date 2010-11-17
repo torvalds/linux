@@ -502,7 +502,7 @@ int ieee80211_data_from_8023(struct sk_buff *skb, const u8 *addr,
 			skb_orphan(skb);
 
 		if (pskb_expand_head(skb, head_need, 0, GFP_ATOMIC)) {
-			printk(KERN_ERR "failed to reallocate Tx buffer\n");
+			pr_err("failed to reallocate Tx buffer\n");
 			return -ENOMEM;
 		}
 		skb->truesize += head_need;
@@ -685,20 +685,17 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 			continue;
 		if (rdev->ops->add_key(wdev->wiphy, dev, i, false, NULL,
 					&wdev->connect_keys->params[i])) {
-			printk(KERN_ERR "%s: failed to set key %d\n",
-				dev->name, i);
+			netdev_err(dev, "failed to set key %d\n", i);
 			continue;
 		}
 		if (wdev->connect_keys->def == i)
 			if (rdev->ops->set_default_key(wdev->wiphy, dev, i)) {
-				printk(KERN_ERR "%s: failed to set defkey %d\n",
-					dev->name, i);
+				netdev_err(dev, "failed to set defkey %d\n", i);
 				continue;
 			}
 		if (wdev->connect_keys->defmgmt == i)
 			if (rdev->ops->set_default_mgmt_key(wdev->wiphy, dev, i))
-				printk(KERN_ERR "%s: failed to set mgtdef %d\n",
-					dev->name, i);
+				netdev_err(dev, "failed to set mgtdef %d\n", i);
 	}
 
 	kfree(wdev->connect_keys);

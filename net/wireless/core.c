@@ -4,6 +4,8 @@
  * Copyright 2006-2010		Johannes Berg <johannes@sipsolutions.net>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/if.h>
 #include <linux/module.h>
 #include <linux/err.h>
@@ -216,8 +218,7 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 			    rdev->wiphy.debugfsdir,
 			    rdev->wiphy.debugfsdir->d_parent,
 			    newname))
-		printk(KERN_ERR "cfg80211: failed to rename debugfs dir to %s!\n",
-		       newname);
+		pr_err("failed to rename debugfs dir to %s!\n", newname);
 
 	nl80211_notify_dev_rename(rdev);
 
@@ -699,8 +700,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 
 		if (sysfs_create_link(&dev->dev.kobj, &rdev->wiphy.dev.kobj,
 				      "phy80211")) {
-			printk(KERN_ERR "wireless: failed to add phy80211 "
-				"symlink to netdev!\n");
+			pr_err("failed to add phy80211 symlink to netdev!\n");
 		}
 		wdev->netdev = dev;
 		wdev->sme_state = CFG80211_SME_IDLE;

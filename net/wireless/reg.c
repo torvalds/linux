@@ -32,6 +32,9 @@
  * rely on some SHA1 checksum of the regdomain for example.
  *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/list.h>
@@ -48,7 +51,7 @@
 #ifdef CONFIG_CFG80211_REG_DEBUG
 #define REG_DBG_PRINT(format, args...) \
 	do { \
-		printk(KERN_DEBUG "cfg80211: " format , ## args); \
+		printk(KERN_DEBUG pr_fmt(format), ##args);	\
 	} while (0)
 #else
 #define REG_DBG_PRINT(args...)
@@ -370,11 +373,10 @@ static int call_crda(const char *alpha2)
 	};
 
 	if (!is_world_regdom((char *) alpha2))
-		printk(KERN_INFO "cfg80211: Calling CRDA for country: %c%c\n",
+		pr_info("Calling CRDA for country: %c%c\n",
 			alpha2[0], alpha2[1]);
 	else
-		printk(KERN_INFO "cfg80211: Calling CRDA to update world "
-			"regulatory domain\n");
+		pr_info("Calling CRDA to update world regulatory domain\n");
 
 	/* query internal regulatory database (if it exists) */
 	reg_regdb_query(alpha2);
@@ -1851,8 +1853,7 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 	const struct ieee80211_freq_range *freq_range = NULL;
 	const struct ieee80211_power_rule *power_rule = NULL;
 
-	printk(KERN_INFO "    (start_freq - end_freq @ bandwidth), "
-		"(max_antenna_gain, max_eirp)\n");
+	pr_info("    (start_freq - end_freq @ bandwidth), (max_antenna_gain, max_eirp)\n");
 
 	for (i = 0; i < rd->n_reg_rules; i++) {
 		reg_rule = &rd->reg_rules[i];
@@ -1864,16 +1865,14 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 		 * in certain regions
 		 */
 		if (power_rule->max_antenna_gain)
-			printk(KERN_INFO "    (%d KHz - %d KHz @ %d KHz), "
-				"(%d mBi, %d mBm)\n",
+			pr_info("    (%d KHz - %d KHz @ %d KHz), (%d mBi, %d mBm)\n",
 				freq_range->start_freq_khz,
 				freq_range->end_freq_khz,
 				freq_range->max_bandwidth_khz,
 				power_rule->max_antenna_gain,
 				power_rule->max_eirp);
 		else
-			printk(KERN_INFO "    (%d KHz - %d KHz @ %d KHz), "
-				"(N/A, %d mBm)\n",
+			pr_info("    (%d KHz - %d KHz @ %d KHz), (N/A, %d mBm)\n",
 				freq_range->start_freq_khz,
 				freq_range->end_freq_khz,
 				freq_range->max_bandwidth_khz,
@@ -1892,27 +1891,20 @@ static void print_regdomain(const struct ieee80211_regdomain *rd)
 			rdev = cfg80211_rdev_by_wiphy_idx(
 				last_request->wiphy_idx);
 			if (rdev) {
-				printk(KERN_INFO "cfg80211: Current regulatory "
-					"domain updated by AP to: %c%c\n",
+				pr_info("Current regulatory domain updated by AP to: %c%c\n",
 					rdev->country_ie_alpha2[0],
 					rdev->country_ie_alpha2[1]);
 			} else
-				printk(KERN_INFO "cfg80211: Current regulatory "
-					"domain intersected:\n");
+				pr_info("Current regulatory domain intersected:\n");
 		} else
-			printk(KERN_INFO "cfg80211: Current regulatory "
-				"domain intersected:\n");
+			pr_info("Current regulatory domain intersected:\n");
 	} else if (is_world_regdom(rd->alpha2))
-		printk(KERN_INFO "cfg80211: World regulatory "
-			"domain updated:\n");
+		pr_info("World regulatory domain updated:\n");
 	else {
 		if (is_unknown_alpha2(rd->alpha2))
-			printk(KERN_INFO "cfg80211: Regulatory domain "
-				"changed to driver built-in settings "
-				"(unknown country)\n");
+			pr_info("Regulatory domain changed to driver built-in settings (unknown country)\n");
 		else
-			printk(KERN_INFO "cfg80211: Regulatory domain "
-				"changed to country: %c%c\n",
+			pr_info("Regulatory domain changed to country: %c%c\n",
 				rd->alpha2[0], rd->alpha2[1]);
 	}
 	print_rd_rules(rd);
@@ -1920,8 +1912,7 @@ static void print_regdomain(const struct ieee80211_regdomain *rd)
 
 static void print_regdomain_info(const struct ieee80211_regdomain *rd)
 {
-	printk(KERN_INFO "cfg80211: Regulatory domain: %c%c\n",
-		rd->alpha2[0], rd->alpha2[1]);
+	pr_info("Regulatory domain: %c%c\n", rd->alpha2[0], rd->alpha2[1]);
 	print_rd_rules(rd);
 }
 
@@ -1972,8 +1963,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		return -EINVAL;
 
 	if (!is_valid_rd(rd)) {
-		printk(KERN_ERR "cfg80211: Invalid "
-			"regulatory domain detected:\n");
+		pr_err("Invalid regulatory domain detected:\n");
 		print_regdomain_info(rd);
 		return -EINVAL;
 	}
@@ -2147,8 +2137,7 @@ int __init regulatory_init(void)
 		 * early boot for call_usermodehelper(). For now treat these
 		 * errors as non-fatal.
 		 */
-		printk(KERN_ERR "cfg80211: kobject_uevent_env() was unable "
-			"to call CRDA during init");
+		pr_err("kobject_uevent_env() was unable to call CRDA during init\n");
 #ifdef CONFIG_CFG80211_REG_DEBUG
 		/* We want to find out exactly why when debugging */
 		WARN_ON(err);
