@@ -124,13 +124,14 @@ static int tegra_fb_set_par(struct fb_info *info)
 		/* we only support RGB ordering for now */
 		switch (var->bits_per_pixel) {
 		case 32:
-		case 24:
 			var->red.offset = 0;
 			var->red.length = 8;
 			var->green.offset = 8;
 			var->green.length = 8;
 			var->blue.offset = 16;
 			var->blue.length = 8;
+			var->transp.offset = 24;
+			var->transp.length = 8;
 			tegra_fb->win->fmt = TEGRA_WIN_FMT_R8G8B8A8;
 			break;
 		case 16:
