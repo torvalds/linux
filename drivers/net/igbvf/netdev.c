@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 2009 Intel Corporation.
+  Copyright(c) 2009 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -44,12 +44,13 @@
 
 #include "igbvf.h"
 
-#define DRV_VERSION "1.0.0-k0"
+#define DRV_VERSION "1.0.8-k0"
 char igbvf_driver_name[] = "igbvf";
 const char igbvf_driver_version[] = DRV_VERSION;
 static const char igbvf_driver_string[] =
 				"Intel(R) Virtual Function Network Driver";
-static const char igbvf_copyright[] = "Copyright (c) 2009 Intel Corporation.";
+static const char igbvf_copyright[] =
+				"Copyright (c) 2009 - 2010 Intel Corporation.";
 
 static int igbvf_poll(struct napi_struct *napi, int budget);
 static void igbvf_reset(struct igbvf_adapter *);
