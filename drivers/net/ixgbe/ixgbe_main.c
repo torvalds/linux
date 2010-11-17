@@ -3661,7 +3661,7 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 		ixgbe_configure_msi_and_legacy(adapter);
 
 	/* enable the optics */
-	if (hw->phy.multispeed_fiber)
+	if (hw->phy.multispeed_fiber && hw->mac.ops.enable_tx_laser)
 		hw->mac.ops.enable_tx_laser(hw);
 
 	clear_bit(__IXGBE_DOWN, &adapter->state);
@@ -3973,7 +3973,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	}
 
 	/* power down the optics */
-	if (hw->phy.multispeed_fiber)
+	if (hw->phy.multispeed_fiber && hw->mac.ops.disable_tx_laser)
 		hw->mac.ops.disable_tx_laser(hw);
 
 	/* clear n-tuple filters that are cached */
@@ -7074,7 +7074,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	}
 
 	/* power down the optics */
-	if (hw->phy.multispeed_fiber)
+	if (hw->phy.multispeed_fiber && hw->mac.ops.disable_tx_laser)
 		hw->mac.ops.disable_tx_laser(hw);
 
 	init_timer(&adapter->watchdog_timer);
