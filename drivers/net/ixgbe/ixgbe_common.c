@@ -45,14 +45,12 @@ static u16 ixgbe_shift_in_eeprom_bits(struct ixgbe_hw *hw, u16 count);
 static void ixgbe_raise_eeprom_clk(struct ixgbe_hw *hw, u32 *eec);
 static void ixgbe_lower_eeprom_clk(struct ixgbe_hw *hw, u32 *eec);
 static void ixgbe_release_eeprom(struct ixgbe_hw *hw);
-static u16 ixgbe_calc_eeprom_checksum(struct ixgbe_hw *hw);
 
 static void ixgbe_enable_rar(struct ixgbe_hw *hw, u32 index);
 static void ixgbe_disable_rar(struct ixgbe_hw *hw, u32 index);
 static s32 ixgbe_mta_vector(struct ixgbe_hw *hw, u8 *mc_addr);
 static void ixgbe_add_uc_addr(struct ixgbe_hw *hw, u8 *addr, u32 vmdq);
 static s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num);
-static s32 ixgbe_poll_eerd_eewr_done(struct ixgbe_hw *hw, u32 ee_reg);
 
 /**
  *  ixgbe_start_hw_generic - Prepare hardware for Tx/Rx
@@ -638,7 +636,7 @@ out:
  *  Polls the status bit (bit 1) of the EERD or EEWR to determine when the
  *  read or write is done respectively.
  **/
-static s32 ixgbe_poll_eerd_eewr_done(struct ixgbe_hw *hw, u32 ee_reg)
+s32 ixgbe_poll_eerd_eewr_done(struct ixgbe_hw *hw, u32 ee_reg)
 {
 	u32 i;
 	u32 reg;
@@ -1009,7 +1007,7 @@ static void ixgbe_release_eeprom(struct ixgbe_hw *hw)
  *  ixgbe_calc_eeprom_checksum - Calculates and returns the checksum
  *  @hw: pointer to hardware structure
  **/
-static u16 ixgbe_calc_eeprom_checksum(struct ixgbe_hw *hw)
+u16 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw)
 {
 	u16 i;
 	u16 j;
@@ -1072,7 +1070,7 @@ s32 ixgbe_validate_eeprom_checksum_generic(struct ixgbe_hw *hw,
 	status = hw->eeprom.ops.read(hw, 0, &checksum);
 
 	if (status == 0) {
-		checksum = ixgbe_calc_eeprom_checksum(hw);
+		checksum = hw->eeprom.ops.calc_checksum(hw);
 
 		hw->eeprom.ops.read(hw, IXGBE_EEPROM_CHECKSUM, &read_checksum);
 
@@ -1110,7 +1108,7 @@ s32 ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw)
 	status = hw->eeprom.ops.read(hw, 0, &checksum);
 
 	if (status == 0) {
-		checksum = ixgbe_calc_eeprom_checksum(hw);
+		checksum = hw->eeprom.ops.calc_checksum(hw);
 		status = hw->eeprom.ops.write(hw, IXGBE_EEPROM_CHECKSUM,
 		                            checksum);
 	} else {
@@ -2684,5 +2682,50 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 		hw->fc.fc_was_autonegged = false;
 	}
 
+	return 0;
+}
+
+/**
+ *  ixgbe_get_wwn_prefix_generic Get alternative WWNN/WWPN prefix from
+ *  the EEPROM
+ *  @hw: pointer to hardware structure
+ *  @wwnn_prefix: the alternative WWNN prefix
+ *  @wwpn_prefix: the alternative WWPN prefix
+ *
+ *  This function will read the EEPROM from the alternative SAN MAC address
+ *  block to check the support for the alternative WWNN/WWPN prefix support.
+ **/
+s32 ixgbe_get_wwn_prefix_generic(struct ixgbe_hw *hw, u16 *wwnn_prefix,
+                                        u16 *wwpn_prefix)
+{
+	u16 offset, caps;
+	u16 alt_san_mac_blk_offset;
+
+	/* clear output first */
+	*wwnn_prefix = 0xFFFF;
+	*wwpn_prefix = 0xFFFF;
+
+	/* check if alternative SAN MAC is supported */
+	hw->eeprom.ops.read(hw, IXGBE_ALT_SAN_MAC_ADDR_BLK_PTR,
+	                    &alt_san_mac_blk_offset);
+
+	if ((alt_san_mac_blk_offset == 0) ||
+	    (alt_san_mac_blk_offset == 0xFFFF))
+		goto wwn_prefix_out;
+
+	/* check capability in alternative san mac address block */
+	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_CAPS_OFFSET;
+	hw->eeprom.ops.read(hw, offset, &caps);
+	if (!(caps & IXGBE_ALT_SAN_MAC_ADDR_CAPS_ALTWWN))
+		goto wwn_prefix_out;
+
+	/* get the corresponding prefix for WWNN/WWPN */
+	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_WWNN_OFFSET;
+	hw->eeprom.ops.read(hw, offset, wwnn_prefix);
+
+	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_WWPN_OFFSET;
+	hw->eeprom.ops.read(hw, offset, wwpn_prefix);
+
+wwn_prefix_out:
 	return 0;
 }

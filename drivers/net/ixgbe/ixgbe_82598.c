@@ -38,9 +38,6 @@
 #define IXGBE_82598_MC_TBL_SIZE  128
 #define IXGBE_82598_VFT_TBL_SIZE 128
 
-static s32 ixgbe_get_copper_link_capabilities_82598(struct ixgbe_hw *hw,
-                                             ixgbe_link_speed *speed,
-                                             bool *autoneg);
 static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
                                          ixgbe_link_speed speed,
                                          bool autoneg,
@@ -156,7 +153,7 @@ static s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
 	if (mac->ops.get_media_type(hw) == ixgbe_media_type_copper) {
 		mac->ops.setup_link = &ixgbe_setup_copper_link_82598;
 		mac->ops.get_link_capabilities =
-		                  &ixgbe_get_copper_link_capabilities_82598;
+			&ixgbe_get_copper_link_capabilities_generic;
 	}
 
 	switch (hw->phy.type) {
@@ -268,37 +265,6 @@ static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
 	default:
 		status = IXGBE_ERR_LINK_SETUP;
 		break;
-	}
-
-	return status;
-}
-
-/**
- *  ixgbe_get_copper_link_capabilities_82598 - Determines link capabilities
- *  @hw: pointer to hardware structure
- *  @speed: pointer to link speed
- *  @autoneg: boolean auto-negotiation value
- *
- *  Determines the link capabilities by reading the AUTOC register.
- **/
-static s32 ixgbe_get_copper_link_capabilities_82598(struct ixgbe_hw *hw,
-						    ixgbe_link_speed *speed,
-						    bool *autoneg)
-{
-	s32 status = IXGBE_ERR_LINK_SETUP;
-	u16 speed_ability;
-
-	*speed = 0;
-	*autoneg = true;
-
-	status = hw->phy.ops.read_reg(hw, MDIO_SPEED, MDIO_MMD_PMAPMD,
-	                              &speed_ability);
-
-	if (status == 0) {
-		if (speed_ability & MDIO_SPEED_10G)
-		    *speed |= IXGBE_LINK_SPEED_10GB_FULL;
-		if (speed_ability & MDIO_PMA_SPEED_1000)
-		    *speed |= IXGBE_LINK_SPEED_1GB_FULL;
 	}
 
 	return status;
@@ -1225,6 +1191,7 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 static struct ixgbe_eeprom_operations eeprom_ops_82598 = {
 	.init_params		= &ixgbe_init_eeprom_params_generic,
 	.read			= &ixgbe_read_eerd_generic,
+	.calc_checksum          = &ixgbe_calc_eeprom_checksum_generic,
 	.validate_checksum	= &ixgbe_validate_eeprom_checksum_generic,
 	.update_checksum	= &ixgbe_update_eeprom_checksum_generic,
 };

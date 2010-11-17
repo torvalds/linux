@@ -96,6 +96,9 @@ s32 ixgbe_setup_phy_link_speed_generic(struct ixgbe_hw *hw,
                                        ixgbe_link_speed speed,
                                        bool autoneg,
                                        bool autoneg_wait_to_complete);
+s32 ixgbe_get_copper_link_capabilities_generic(struct ixgbe_hw *hw,
+                                               ixgbe_link_speed *speed,
+                                               bool *autoneg);
 
 /* PHY specific */
 s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw,

@@ -454,7 +454,7 @@ void ixgbe_init_mbx_params_pf(struct ixgbe_hw *hw)
 	mbx->stats.rsts = 0;
 }
 
-struct ixgbe_mbx_operations mbx_ops_82599 = {
+struct ixgbe_mbx_operations mbx_ops_generic = {
 	.read                   = ixgbe_read_mbx_pf,
 	.write                  = ixgbe_write_mbx_pf,
 	.read_posted            = ixgbe_read_posted_mbx,

@@ -425,6 +425,39 @@ s32 ixgbe_setup_phy_link_speed_generic(struct ixgbe_hw *hw,
 }
 
 /**
+ * ixgbe_get_copper_link_capabilities_generic - Determines link capabilities
+ * @hw: pointer to hardware structure
+ * @speed: pointer to link speed
+ * @autoneg: boolean auto-negotiation value
+ *
+ * Determines the link capabilities by reading the AUTOC register.
+ */
+s32 ixgbe_get_copper_link_capabilities_generic(struct ixgbe_hw *hw,
+                                                      ixgbe_link_speed *speed,
+                                                      bool *autoneg)
+{
+	s32 status = IXGBE_ERR_LINK_SETUP;
+	u16 speed_ability;
+
+	*speed = 0;
+	*autoneg = true;
+
+	status = hw->phy.ops.read_reg(hw, MDIO_SPEED, MDIO_MMD_PMAPMD,
+	                              &speed_ability);
+
+	if (status == 0) {
+		if (speed_ability & MDIO_SPEED_10G)
+			*speed |= IXGBE_LINK_SPEED_10GB_FULL;
+		if (speed_ability & MDIO_PMA_SPEED_1000)
+			*speed |= IXGBE_LINK_SPEED_1GB_FULL;
+		if (speed_ability & MDIO_PMA_SPEED_100)
+			*speed |= IXGBE_LINK_SPEED_100_FULL;
+	}
+
+	return status;
+}
+
+/**
  *  ixgbe_reset_phy_nl - Performs a PHY reset
  *  @hw: pointer to hardware structure
  **/
