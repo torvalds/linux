@@ -66,7 +66,11 @@ static inline int is_intr(u8 rtc_intr)
  * rtc_time's year contains the increment over 1900, but vRTC's YEAR
  * register can't be programmed to value larger than 0x64, so vRTC
  * driver chose to use 1960 (1970 is UNIX time start point) as the base,
- * and does the translation at read/write time
+ * and does the translation at read/write time.
+ *
+ * Why not just use 1970 as the offset? it's because using 1960 will
+ * make it consistent in leap year setting for both vrtc and low-level
+ * physical rtc devices.
  */
 static int mrst_read_time(struct device *dev, struct rtc_time *time)
 {
