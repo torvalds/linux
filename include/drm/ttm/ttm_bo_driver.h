@@ -510,6 +510,8 @@ struct ttm_bo_global {
  *
  * @driver: Pointer to a struct ttm_bo_driver struct setup by the driver.
  * @man: An array of mem_type_managers.
+ * @fence_lock: Protects the synchronizing members on *all* bos belonging
+ * to this device.
  * @addr_space_mm: Range manager for the device address space.
  * lru_lock: Spinlock that protects the buffer+device lru lists and
  * ddestroy lists.
@@ -531,6 +533,7 @@ struct ttm_bo_device {
 	struct ttm_bo_driver *driver;
 	rwlock_t vm_lock;
 	struct ttm_mem_type_manager man[TTM_NUM_MEM_TYPES];
+	spinlock_t fence_lock;
 	/*
 	 * Protected by the vm lock.
 	 */

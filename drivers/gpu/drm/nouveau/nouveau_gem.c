@@ -234,10 +234,10 @@ validate_fini_list(struct list_head *list, struct nouveau_fence *fence)
 		if (likely(fence)) {
 			struct nouveau_fence *prev_fence;
 
-			spin_lock(&nvbo->bo.lock);
+			spin_lock(&nvbo->bo.bdev->fence_lock);
 			prev_fence = nvbo->bo.sync_obj;
 			nvbo->bo.sync_obj = nouveau_fence_ref(fence);
-			spin_unlock(&nvbo->bo.lock);
+			spin_unlock(&nvbo->bo.bdev->fence_lock);
 			nouveau_fence_unref((void *)&prev_fence);
 		}
 
@@ -557,9 +557,9 @@ nouveau_gem_pushbuf_reloc_apply(struct drm_device *dev,
 				data |= r->vor;
 		}
 
-		spin_lock(&nvbo->bo.lock);
+		spin_lock(&nvbo->bo.bdev->fence_lock);
 		ret = ttm_bo_wait(&nvbo->bo, false, false, false);
-		spin_unlock(&nvbo->bo.lock);
+		spin_unlock(&nvbo->bo.bdev->fence_lock);
 		if (ret) {
 			NV_ERROR(dev, "reloc wait_idle failed: %d\n", ret);
 			break;
@@ -791,9 +791,9 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 	}
 
 	if (req->flags & NOUVEAU_GEM_CPU_PREP_NOBLOCK) {
-		spin_lock(&nvbo->bo.lock);
+		spin_lock(&nvbo->bo.bdev->fence_lock);
 		ret = ttm_bo_wait(&nvbo->bo, false, false, no_wait);
-		spin_unlock(&nvbo->bo.lock);
+		spin_unlock(&nvbo->bo.bdev->fence_lock);
 	} else {
 		ret = ttm_bo_synccpu_write_grab(&nvbo->bo, no_wait);
 		if (ret == 0)

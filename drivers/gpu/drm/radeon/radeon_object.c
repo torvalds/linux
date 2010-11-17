@@ -369,11 +369,11 @@ void radeon_bo_list_fence(struct list_head *head, void *fence)
 
 	list_for_each_entry(lobj, head, list) {
 		bo = lobj->bo;
-		spin_lock(&bo->tbo.lock);
+		spin_lock(&bo->tbo.bdev->fence_lock);
 		old_fence = (struct radeon_fence *)bo->tbo.sync_obj;
 		bo->tbo.sync_obj = radeon_fence_ref(fence);
 		bo->tbo.sync_obj_arg = NULL;
-		spin_unlock(&bo->tbo.lock);
+		spin_unlock(&bo->tbo.bdev->fence_lock);
 		if (old_fence) {
 			radeon_fence_unref(&old_fence);
 		}

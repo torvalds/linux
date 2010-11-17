@@ -118,17 +118,17 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 * move.
 	 */
 
-	spin_lock(&bo->lock);
+	spin_lock(&bdev->fence_lock);
 	if (test_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags)) {
 		ret = ttm_bo_wait(bo, false, true, false);
-		spin_unlock(&bo->lock);
+		spin_unlock(&bdev->fence_lock);
 		if (unlikely(ret != 0)) {
 			retval = (ret != -ERESTARTSYS) ?
 			    VM_FAULT_SIGBUS : VM_FAULT_NOPAGE;
 			goto out_unlock;
 		}
 	} else
-		spin_unlock(&bo->lock);
+		spin_unlock(&bdev->fence_lock);
 
 
 	ret = ttm_mem_io_reserve(bdev, &bo->mem);

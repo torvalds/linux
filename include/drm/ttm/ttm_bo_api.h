@@ -154,7 +154,6 @@ struct ttm_tt;
  * keeps one refcount. When this refcount reaches zero,
  * the object is destroyed.
  * @event_queue: Queue for processes waiting on buffer object status change.
- * @lock: spinlock protecting mostly synchronization members.
  * @mem: structure describing current placement.
  * @persistant_swap_storage: Usually the swap storage is deleted for buffers
  * pinned in physical memory. If this behaviour is not desired, this member
@@ -213,7 +212,6 @@ struct ttm_buffer_object {
 	struct kref kref;
 	struct kref list_kref;
 	wait_queue_head_t event_queue;
-	spinlock_t lock;
 
 	/**
 	 * Members protected by the bo::reserved lock.
@@ -248,10 +246,10 @@ struct ttm_buffer_object {
 	atomic_t reserved;
 
 	/**
-	 * Members protected by the bo::lock
+	 * Members protected by struct buffer_object_device::fence_lock
 	 * In addition, setting sync_obj to anything else
 	 * than NULL requires bo::reserved to be held. This allows for
-	 * checking NULL while reserved but not holding bo::lock.
+	 * checking NULL while reserved but not holding the mentioned lock.
 	 */
 
 	void *sync_obj_arg;

@@ -203,14 +203,15 @@ void ttm_eu_fence_buffer_objects(struct list_head *list, void *sync_obj)
 
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
-		struct ttm_bo_driver *driver = bo->bdev->driver;
+		struct ttm_bo_device *bdev = bo->bdev;
+		struct ttm_bo_driver *driver = bdev->driver;
 		void *old_sync_obj;
 
-		spin_lock(&bo->lock);
+		spin_lock(&bdev->fence_lock);
 		old_sync_obj = bo->sync_obj;
 		bo->sync_obj = driver->sync_obj_ref(sync_obj);
 		bo->sync_obj_arg = entry->new_sync_obj_arg;
-		spin_unlock(&bo->lock);
+		spin_unlock(&bdev->fence_lock);
 		ttm_bo_unreserve(bo);
 		entry->reserved = false;
 		if (old_sync_obj)
