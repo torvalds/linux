@@ -7088,6 +7088,13 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		goto err_sw_init;
 
 	switch (pdev->device) {
+	case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
+		/* All except this subdevice support WOL */
+		if (pdev->subsystem_device ==
+		    IXGBE_SUBDEV_ID_82599_KX4_KR_MEZZ) {
+			adapter->wol = 0;
+			break;
+		}
 	case IXGBE_DEV_ID_82599_KX4:
 		adapter->wol = (IXGBE_WUFC_MAG | IXGBE_WUFC_EX |
 				IXGBE_WUFC_MC | IXGBE_WUFC_BC);
