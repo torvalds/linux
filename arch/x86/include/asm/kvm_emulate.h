@@ -159,7 +159,10 @@ struct operand {
 	};
 	union {
 		unsigned long *reg;
-		unsigned long mem;
+		struct segmented_address {
+			ulong ea;
+			unsigned seg;
+		} mem;
 	} addr;
 	union {
 		unsigned long val;
