@@ -589,14 +589,19 @@ static inline void ixgbe_irq_rearm_queues(struct ixgbe_adapter *adapter,
 {
 	u32 mask;
 
-	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82598EB:
 		mask = (IXGBE_EIMS_RTX_QUEUE & qmask);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS, mask);
-	} else {
+		break;
+	case ixgbe_mac_82599EB:
 		mask = (qmask & 0xFFFFFFFF);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS_EX(0), mask);
 		mask = (qmask >> 32);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS_EX(1), mask);
+		break;
+	default:
+		break;
 	}
 }
 
@@ -672,6 +677,7 @@ static inline bool ixgbe_tx_xon_state(struct ixgbe_adapter *adapter,
 			break;
 		default:
 			tc = 0;
+			break;
 		}
 		txoff <<= tc;
 	}
@@ -1474,11 +1480,18 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 		}
 	}
 
-	if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82598EB:
 		ixgbe_set_ivar(adapter, -1, IXGBE_IVAR_OTHER_CAUSES_INDEX,
 			       v_idx);
-	else if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+		break;
+	case ixgbe_mac_82599EB:
 		ixgbe_set_ivar(adapter, -1, 1, v_idx);
+		break;
+
+	default:
+		break;
+	}
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITR(v_idx), 1950);
 
 	/* set up to autoclear timer, and the vectors */
@@ -1574,10 +1587,12 @@ void ixgbe_write_eitr(struct ixgbe_q_vector *q_vector)
 	int v_idx = q_vector->v_idx;
 	u32 itr_reg = EITR_INTS_PER_SEC_TO_REG(q_vector->eitr);
 
-	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82598EB:
 		/* must write high and low 16 bits to reset counter */
 		itr_reg |= (itr_reg << 16);
-	} else if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+		break;
+	case ixgbe_mac_82599EB:
 		/*
 		 * 82599 can support a value of zero, so allow it for
 		 * max interrupt rate, but there is an errata where it can
@@ -1592,6 +1607,9 @@ void ixgbe_write_eitr(struct ixgbe_q_vector *q_vector)
 		 * immediate assertion of the interrupt
 		 */
 		itr_reg |= IXGBE_EITR_CNT_WDIS;
+		break;
+	default:
+		break;
 	}
 	IXGBE_WRITE_REG(hw, IXGBE_EITR(v_idx), itr_reg);
 }
@@ -1771,16 +1789,8 @@ static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
 	if (eicr & IXGBE_EICR_MAILBOX)
 		ixgbe_msg_task(adapter);
 
-	if (hw->mac.type == ixgbe_mac_82598EB)
-		ixgbe_check_fan_failure(adapter, eicr);
-
-	if (hw->mac.type == ixgbe_mac_82599EB) {
-		ixgbe_check_sfp_event(adapter, eicr);
-		adapter->interrupt_event = eicr;
-		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
-		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC)))
-			schedule_work(&adapter->check_overtemp_task);
-
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
 		/* Handle Flow Director Full threshold interrupt */
 		if (eicr & IXGBE_EICR_FLOW_DIR) {
 			int i;
@@ -1795,7 +1805,19 @@ static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
 					schedule_work(&adapter->fdir_reinit_task);
 			}
 		}
+		ixgbe_check_sfp_event(adapter, eicr);
+		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
+		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
+			adapter->interrupt_event = eicr;
+			schedule_work(&adapter->check_overtemp_task);
+		}
+		break;
+	default:
+		break;
 	}
+
+	ixgbe_check_fan_failure(adapter, eicr);
+
 	if (!test_bit(__IXGBE_DOWN, &adapter->state))
 		IXGBE_WRITE_REG(hw, IXGBE_EIMS, IXGBE_EIMS_OTHER);
 
@@ -1806,15 +1828,23 @@ static inline void ixgbe_irq_enable_queues(struct ixgbe_adapter *adapter,
 					   u64 qmask)
 {
 	u32 mask;
+	struct ixgbe_hw *hw = &adapter->hw;
 
-	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
 		mask = (IXGBE_EIMS_RTX_QUEUE & qmask);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, mask);
-	} else {
+		IXGBE_WRITE_REG(hw, IXGBE_EIMS, mask);
+		break;
+	case ixgbe_mac_82599EB:
 		mask = (qmask & 0xFFFFFFFF);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS_EX(0), mask);
+		if (mask)
+			IXGBE_WRITE_REG(hw, IXGBE_EIMS_EX(0), mask);
 		mask = (qmask >> 32);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS_EX(1), mask);
+		if (mask)
+			IXGBE_WRITE_REG(hw, IXGBE_EIMS_EX(1), mask);
+		break;
+	default:
+		break;
 	}
 	/* skip the flush */
 }
@@ -1823,15 +1853,23 @@ static inline void ixgbe_irq_disable_queues(struct ixgbe_adapter *adapter,
 					    u64 qmask)
 {
 	u32 mask;
+	struct ixgbe_hw *hw = &adapter->hw;
 
-	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
 		mask = (IXGBE_EIMS_RTX_QUEUE & qmask);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, mask);
-	} else {
+		IXGBE_WRITE_REG(hw, IXGBE_EIMC, mask);
+		break;
+	case ixgbe_mac_82599EB:
 		mask = (qmask & 0xFFFFFFFF);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(0), mask);
+		if (mask)
+			IXGBE_WRITE_REG(hw, IXGBE_EIMC_EX(0), mask);
 		mask = (qmask >> 32);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(1), mask);
+		if (mask)
+			IXGBE_WRITE_REG(hw, IXGBE_EIMC_EX(1), mask);
+		break;
+	default:
+		break;
 	}
 	/* skip the flush */
 }
@@ -2288,12 +2326,16 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 		mask |= IXGBE_EIMS_GPI_SDP0;
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE)
 		mask |= IXGBE_EIMS_GPI_SDP1;
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82599EB:
 		mask |= IXGBE_EIMS_ECC;
 		mask |= IXGBE_EIMS_GPI_SDP1;
 		mask |= IXGBE_EIMS_GPI_SDP2;
 		if (adapter->num_vfs)
 			mask |= IXGBE_EIMS_MAILBOX;
+		break;
+	default:
+		break;
 	}
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||
 	    adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)
@@ -2349,13 +2391,20 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 	if (eicr & IXGBE_EICR_LSC)
 		ixgbe_check_lsc(adapter);
 
-	if (hw->mac.type == ixgbe_mac_82599EB)
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
 		ixgbe_check_sfp_event(adapter, eicr);
+		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
+		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
+			adapter->interrupt_event = eicr;
+			schedule_work(&adapter->check_overtemp_task);
+		}
+		break;
+	default:
+		break;
+	}
 
 	ixgbe_check_fan_failure(adapter, eicr);
-	if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
-	    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC)))
-		schedule_work(&adapter->check_overtemp_task);
 
 	if (napi_schedule_prep(&(q_vector->napi))) {
 		adapter->tx_ring[0]->total_packets = 0;
@@ -2448,14 +2497,19 @@ static void ixgbe_free_irq(struct ixgbe_adapter *adapter)
  **/
 static inline void ixgbe_irq_disable(struct ixgbe_adapter *adapter)
 {
-	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82598EB:
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, ~0);
-	} else {
+		break;
+	case ixgbe_mac_82599EB:
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, 0xFFFF0000);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(0), ~0);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(1), ~0);
 		if (adapter->num_vfs > 32)
 			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITRSEL, 0);
+		break;
+	default:
+		break;
 	}
 	IXGBE_WRITE_FLUSH(&adapter->hw);
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
@@ -2630,15 +2684,20 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
 				   struct ixgbe_ring *rx_ring)
 {
 	u32 srrctl;
-	int index;
-	struct ixgbe_ring_feature *feature = adapter->ring_feature;
+	int index = rx_ring->reg_idx;
 
-	index = rx_ring->reg_idx;
-	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
-		unsigned long mask;
-		mask = (unsigned long) feature[RING_F_RSS].mask;
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82598EB: {
+		struct ixgbe_ring_feature *feature = adapter->ring_feature;
+		const int mask = feature[RING_F_RSS].mask;
 		index = index & mask;
 	}
+		break;
+	case ixgbe_mac_82599EB:
+	default:
+		break;
+	}
+
 	srrctl = IXGBE_READ_REG(&adapter->hw, IXGBE_SRRCTL(index));
 
 	srrctl &= ~IXGBE_SRRCTL_BSIZEHDR_MASK;
@@ -3899,10 +3958,15 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 				(txdctl & ~IXGBE_TXDCTL_ENABLE));
 	}
 	/* Disable the Tx DMA engine on 82599 */
-	if (hw->mac.type == ixgbe_mac_82599EB)
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
 		IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL,
 				(IXGBE_READ_REG(hw, IXGBE_DMATXCTL) &
 				 ~IXGBE_DMATXCTL_TE));
+		break;
+	default:
+		break;
+	}
 
 	/* power down the optics */
 	if (hw->phy.multispeed_fiber)
@@ -4260,71 +4324,66 @@ static inline bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 	bool ret = false;
 	int dcb_i = adapter->ring_feature[RING_F_DCB].indices;
 
-	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-		if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
-			/* the number of queues is assumed to be symmetric */
-			for (i = 0; i < dcb_i; i++) {
-				adapter->rx_ring[i]->reg_idx = i << 3;
-				adapter->tx_ring[i]->reg_idx = i << 2;
+	if (!(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
+		return false;
+
+	/* the number of queues is assumed to be symmetric */
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82598EB:
+		for (i = 0; i < dcb_i; i++) {
+			adapter->rx_ring[i]->reg_idx = i << 3;
+			adapter->tx_ring[i]->reg_idx = i << 2;
+		}
+		ret = true;
+		break;
+	case ixgbe_mac_82599EB:
+		if (dcb_i == 8) {
+			/*
+			 * Tx TC0 starts at: descriptor queue 0
+			 * Tx TC1 starts at: descriptor queue 32
+			 * Tx TC2 starts at: descriptor queue 64
+			 * Tx TC3 starts at: descriptor queue 80
+			 * Tx TC4 starts at: descriptor queue 96
+			 * Tx TC5 starts at: descriptor queue 104
+			 * Tx TC6 starts at: descriptor queue 112
+			 * Tx TC7 starts at: descriptor queue 120
+			 *
+			 * Rx TC0-TC7 are offset by 16 queues each
+			 */
+			for (i = 0; i < 3; i++) {
+				adapter->tx_ring[i]->reg_idx = i << 5;
+				adapter->rx_ring[i]->reg_idx = i << 4;
+			}
+			for ( ; i < 5; i++) {
+				adapter->tx_ring[i]->reg_idx = ((i + 2) << 4);
+				adapter->rx_ring[i]->reg_idx = i << 4;
+			}
+			for ( ; i < dcb_i; i++) {
+				adapter->tx_ring[i]->reg_idx = ((i + 8) << 3);
+				adapter->rx_ring[i]->reg_idx = i << 4;
 			}
 			ret = true;
-		} else if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-			if (dcb_i == 8) {
-				/*
-				 * Tx TC0 starts at: descriptor queue 0
-				 * Tx TC1 starts at: descriptor queue 32
-				 * Tx TC2 starts at: descriptor queue 64
-				 * Tx TC3 starts at: descriptor queue 80
-				 * Tx TC4 starts at: descriptor queue 96
-				 * Tx TC5 starts at: descriptor queue 104
-				 * Tx TC6 starts at: descriptor queue 112
-				 * Tx TC7 starts at: descriptor queue 120
-				 *
-				 * Rx TC0-TC7 are offset by 16 queues each
-				 */
-				for (i = 0; i < 3; i++) {
-					adapter->tx_ring[i]->reg_idx = i << 5;
-					adapter->rx_ring[i]->reg_idx = i << 4;
-				}
-				for ( ; i < 5; i++) {
-					adapter->tx_ring[i]->reg_idx =
-								 ((i + 2) << 4);
-					adapter->rx_ring[i]->reg_idx = i << 4;
-				}
-				for ( ; i < dcb_i; i++) {
-					adapter->tx_ring[i]->reg_idx =
-								 ((i + 8) << 3);
-					adapter->rx_ring[i]->reg_idx = i << 4;
-				}
-
-				ret = true;
-			} else if (dcb_i == 4) {
-				/*
-				 * Tx TC0 starts at: descriptor queue 0
-				 * Tx TC1 starts at: descriptor queue 64
-				 * Tx TC2 starts at: descriptor queue 96
-				 * Tx TC3 starts at: descriptor queue 112
-				 *
-				 * Rx TC0-TC3 are offset by 32 queues each
-				 */
-				adapter->tx_ring[0]->reg_idx = 0;
-				adapter->tx_ring[1]->reg_idx = 64;
-				adapter->tx_ring[2]->reg_idx = 96;
-				adapter->tx_ring[3]->reg_idx = 112;
-				for (i = 0 ; i < dcb_i; i++)
-					adapter->rx_ring[i]->reg_idx = i << 5;
-
-				ret = true;
-			} else {
-				ret = false;
-			}
-		} else {
-			ret = false;
+		} else if (dcb_i == 4) {
+			/*
+			 * Tx TC0 starts at: descriptor queue 0
+			 * Tx TC1 starts at: descriptor queue 64
+			 * Tx TC2 starts at: descriptor queue 96
+			 * Tx TC3 starts at: descriptor queue 112
+			 *
+			 * Rx TC0-TC3 are offset by 32 queues each
+			 */
+			adapter->tx_ring[0]->reg_idx = 0;
+			adapter->tx_ring[1]->reg_idx = 64;
+			adapter->tx_ring[2]->reg_idx = 96;
+			adapter->tx_ring[3]->reg_idx = 112;
+			for (i = 0 ; i < dcb_i; i++)
+				adapter->rx_ring[i]->reg_idx = i << 5;
+			ret = true;
 		}
-	} else {
-		ret = false;
+		break;
+	default:
+		break;
 	}
-
 	return ret;
 }
 #endif
@@ -4885,11 +4944,13 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->ring_feature[RING_F_RSS].indices = rss;
 	adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
 	adapter->ring_feature[RING_F_DCB].indices = IXGBE_MAX_DCB_INDICES;
-	if (hw->mac.type == ixgbe_mac_82598EB) {
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
 		if (hw->device_id == IXGBE_DEV_ID_82598AT)
 			adapter->flags |= IXGBE_FLAG_FAN_FAIL_CAPABLE;
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82598;
-	} else if (hw->mac.type == ixgbe_mac_82599EB) {
+		break;
+	case ixgbe_mac_82599EB:
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82599;
 		adapter->flags2 |= IXGBE_FLAG2_RSC_CAPABLE;
 		adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
@@ -4918,6 +4979,9 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->fcoe.up = IXGBE_FCOE_DEFTC;
 #endif
 #endif /* IXGBE_FCOE */
+		break;
+	default:
+		break;
 	}
 
 #ifdef CONFIG_IXGBE_DCB
@@ -5400,10 +5464,16 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		IXGBE_WRITE_REG(hw, IXGBE_WUFC, 0);
 	}
 
-	if (wufc && hw->mac.type == ixgbe_mac_82599EB)
-		pci_wake_from_d3(pdev, true);
-	else
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
 		pci_wake_from_d3(pdev, false);
+		break;
+	case ixgbe_mac_82599EB:
+		pci_wake_from_d3(pdev, !!wufc);
+		break;
+	default:
+		break;
+	}
 
 	*enable_wake = !!wufc;
 
@@ -5522,17 +5592,21 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 		hwstats->qbtc[i] += IXGBE_READ_REG(hw, IXGBE_QBTC(i));
 		hwstats->qprc[i] += IXGBE_READ_REG(hw, IXGBE_QPRC(i));
 		hwstats->qbrc[i] += IXGBE_READ_REG(hw, IXGBE_QBRC(i));
-		if (hw->mac.type == ixgbe_mac_82599EB) {
-			hwstats->pxonrxc[i] +=
-				IXGBE_READ_REG(hw, IXGBE_PXONRXCNT(i));
-			hwstats->pxoffrxc[i] +=
-				IXGBE_READ_REG(hw, IXGBE_PXOFFRXCNT(i));
-			hwstats->qprdc[i] += IXGBE_READ_REG(hw, IXGBE_QPRDC(i));
-		} else {
+		switch (hw->mac.type) {
+		case ixgbe_mac_82598EB:
 			hwstats->pxonrxc[i] +=
 				IXGBE_READ_REG(hw, IXGBE_PXONRXC(i));
 			hwstats->pxoffrxc[i] +=
 				IXGBE_READ_REG(hw, IXGBE_PXOFFRXC(i));
+			break;
+		case ixgbe_mac_82599EB:
+			hwstats->pxonrxc[i] +=
+				IXGBE_READ_REG(hw, IXGBE_PXONRXCNT(i));
+			hwstats->pxoffrxc[i] +=
+				IXGBE_READ_REG(hw, IXGBE_PXOFFRXCNT(i));
+			break;
+		default:
+			break;
 		}
 		hwstats->pxontxc[i] += IXGBE_READ_REG(hw, IXGBE_PXONTXC(i));
 		hwstats->pxofftxc[i] += IXGBE_READ_REG(hw, IXGBE_PXOFFTXC(i));
@@ -5542,18 +5616,21 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 	hwstats->gprc -= missed_rx;
 
 	/* 82598 hardware only has a 32 bit counter in the high register */
-	if (hw->mac.type == ixgbe_mac_82599EB) {
-		u64 tmp;
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
+		hwstats->lxonrxc += IXGBE_READ_REG(hw, IXGBE_LXONRXC);
+		hwstats->lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
+		hwstats->gorc += IXGBE_READ_REG(hw, IXGBE_GORCH);
+		hwstats->gotc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
+		hwstats->tor += IXGBE_READ_REG(hw, IXGBE_TORH);
+		break;
+	case ixgbe_mac_82599EB:
 		hwstats->gorc += IXGBE_READ_REG(hw, IXGBE_GORCL);
-		tmp = IXGBE_READ_REG(hw, IXGBE_GORCH) & 0xF;
-						/* 4 high bits of GORC */
-		hwstats->gorc += (tmp << 32);
+		IXGBE_READ_REG(hw, IXGBE_GORCH); /* to clear */
 		hwstats->gotc += IXGBE_READ_REG(hw, IXGBE_GOTCL);
-		tmp = IXGBE_READ_REG(hw, IXGBE_GOTCH) & 0xF;
-						/* 4 high bits of GOTC */
-		hwstats->gotc += (tmp << 32);
+		IXGBE_READ_REG(hw, IXGBE_GOTCH); /* to clear */
 		hwstats->tor += IXGBE_READ_REG(hw, IXGBE_TORL);
-		IXGBE_READ_REG(hw, IXGBE_TORH);	/* to clear */
+		IXGBE_READ_REG(hw, IXGBE_TORH); /* to clear */
 		hwstats->lxonrxc += IXGBE_READ_REG(hw, IXGBE_LXONRXCNT);
 		hwstats->lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXCNT);
 		hwstats->fdirmatch += IXGBE_READ_REG(hw, IXGBE_FDIRMATCH);
@@ -5566,12 +5643,9 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 		hwstats->fcoedwrc += IXGBE_READ_REG(hw, IXGBE_FCOEDWRC);
 		hwstats->fcoedwtc += IXGBE_READ_REG(hw, IXGBE_FCOEDWTC);
 #endif /* IXGBE_FCOE */
-	} else {
-		hwstats->lxonrxc += IXGBE_READ_REG(hw, IXGBE_LXONRXC);
-		hwstats->lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
-		hwstats->gorc += IXGBE_READ_REG(hw, IXGBE_GORCH);
-		hwstats->gotc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
-		hwstats->tor += IXGBE_READ_REG(hw, IXGBE_TORH);
+		break;
+	default:
+		break;
 	}
 	bprc = IXGBE_READ_REG(hw, IXGBE_BPRC);
 	hwstats->bprc += bprc;
@@ -5807,16 +5881,25 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 		if (!netif_carrier_ok(netdev)) {
 			bool flow_rx, flow_tx;
 
-			if (hw->mac.type == ixgbe_mac_82599EB) {
-				u32 mflcn = IXGBE_READ_REG(hw, IXGBE_MFLCN);
-				u32 fccfg = IXGBE_READ_REG(hw, IXGBE_FCCFG);
-				flow_rx = !!(mflcn & IXGBE_MFLCN_RFCE);
-				flow_tx = !!(fccfg & IXGBE_FCCFG_TFCE_802_3X);
-			} else {
+			switch (hw->mac.type) {
+			case ixgbe_mac_82598EB: {
 				u32 frctl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
 				u32 rmcs = IXGBE_READ_REG(hw, IXGBE_RMCS);
 				flow_rx = !!(frctl & IXGBE_FCTRL_RFCE);
 				flow_tx = !!(rmcs & IXGBE_RMCS_TFCE_802_3X);
+			}
+				break;
+			case ixgbe_mac_82599EB: {
+				u32 mflcn = IXGBE_READ_REG(hw, IXGBE_MFLCN);
+				u32 fccfg = IXGBE_READ_REG(hw, IXGBE_FCCFG);
+				flow_rx = !!(mflcn & IXGBE_MFLCN_RFCE);
+				flow_tx = !!(fccfg & IXGBE_FCCFG_TFCE_802_3X);
+			}
+				break;
+			default:
+				flow_tx = false;
+				flow_rx = false;
+				break;
 			}
 
 			e_info(drv, "NIC Link is Up %s, Flow Control: %s\n",

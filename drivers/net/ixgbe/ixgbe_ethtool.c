@@ -525,10 +525,20 @@ static void ixgbe_get_regs(struct net_device *netdev,
 	regs_buff[32] = IXGBE_READ_REG(hw, IXGBE_FCTTV(1));
 	regs_buff[33] = IXGBE_READ_REG(hw, IXGBE_FCTTV(2));
 	regs_buff[34] = IXGBE_READ_REG(hw, IXGBE_FCTTV(3));
-	for (i = 0; i < 8; i++)
-		regs_buff[35 + i] = IXGBE_READ_REG(hw, IXGBE_FCRTL(i));
-	for (i = 0; i < 8; i++)
-		regs_buff[43 + i] = IXGBE_READ_REG(hw, IXGBE_FCRTH(i));
+	for (i = 0; i < 8; i++) {
+		switch (hw->mac.type) {
+		case ixgbe_mac_82598EB:
+			regs_buff[35 + i] = IXGBE_READ_REG(hw, IXGBE_FCRTL(i));
+			regs_buff[43 + i] = IXGBE_READ_REG(hw, IXGBE_FCRTH(i));
+			break;
+		case ixgbe_mac_82599EB:
+			regs_buff[35 + i] = IXGBE_READ_REG(hw, IXGBE_FCRTL_82599(i));
+			regs_buff[43 + i] = IXGBE_READ_REG(hw, IXGBE_FCRTH_82599(i));
+			break;
+		default:
+			break;
+		}
+	}
 	regs_buff[51] = IXGBE_READ_REG(hw, IXGBE_FCRTV);
 	regs_buff[52] = IXGBE_READ_REG(hw, IXGBE_TFCS);
 
@@ -1226,12 +1236,19 @@ static int ixgbe_reg_test(struct ixgbe_adapter *adapter, u64 *data)
 	u32 value, before, after;
 	u32 i, toggle;
 
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-		toggle = 0x7FFFF30F;
-		test = reg_test_82599;
-	} else {
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82598EB:
 		toggle = 0x7FFFF3FF;
 		test = reg_test_82598;
+		break;
+	case ixgbe_mac_82599EB:
+		toggle = 0x7FFFF30F;
+		test = reg_test_82599;
+		break;
+	default:
+		*data = 1;
+		return 1;
+		break;
 	}
 
 	/*
@@ -1449,10 +1466,14 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 	reg_ctl &= ~IXGBE_TXDCTL_ENABLE;
 	IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(tx_ring->reg_idx), reg_ctl);
 
-	if (hw->mac.type == ixgbe_mac_82599EB) {
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
 		reg_ctl = IXGBE_READ_REG(hw, IXGBE_DMATXCTL);
 		reg_ctl &= ~IXGBE_DMATXCTL_TE;
 		IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL, reg_ctl);
+		break;
+	default:
+		break;
 	}
 
 	ixgbe_reset(adapter);
@@ -1481,10 +1502,14 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	if (err)
 		return 1;
 
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82599EB:
 		reg_data = IXGBE_READ_REG(&adapter->hw, IXGBE_DMATXCTL);
 		reg_data |= IXGBE_DMATXCTL_TE;
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DMATXCTL, reg_data);
+		break;
+	default:
+		break;
 	}
 
 	ixgbe_configure_tx_ring(adapter, tx_ring);
