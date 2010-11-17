@@ -28,6 +28,11 @@
 #include <sound/max98088.h>
 #include "max98088.h"
 
+enum max98088_type {
+       MAX98088,
+       MAX98089,
+};
+
 struct max98088_cdata {
        unsigned int rate;
        unsigned int fmt;
@@ -36,6 +41,7 @@ struct max98088_cdata {
 
 struct max98088_priv {
        u8 reg_cache[M98088_REG_CNT];
+       enum max98088_type devtype;
        void *control_data;
        struct max98088_pdata *pdata;
        unsigned int sysclk;
@@ -2040,6 +2046,8 @@ static int max98088_i2c_probe(struct i2c_client *i2c,
        if (max98088 == NULL)
                return -ENOMEM;
 
+       max98088->devtype = id->driver_data;
+
        i2c_set_clientdata(i2c, max98088);
        max98088->control_data = i2c;
        max98088->pdata = i2c->dev.platform_data;
@@ -2059,7 +2067,8 @@ static int __devexit max98088_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max98088_i2c_id[] = {
-       { "max98088", 0 },
+       { "max98088", MAX98088 },
+       { "max98089", MAX98089 },
        { }
 };
 MODULE_DEVICE_TABLE(i2c, max98088_i2c_id);
