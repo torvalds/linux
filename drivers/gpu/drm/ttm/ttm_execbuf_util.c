@@ -101,15 +101,16 @@ static int ttm_eu_wait_unreserved_locked(struct list_head *list,
 void ttm_eu_backoff_reservation(struct list_head *list)
 {
 	struct ttm_validate_buffer *entry;
+	struct ttm_bo_global *glob;
 
-	list_for_each_entry(entry, list, head) {
-		struct ttm_buffer_object *bo = entry->bo;
-		if (!entry->reserved)
-			continue;
+	if (list_empty(list))
+		return;
 
-		entry->reserved = false;
-		ttm_bo_unreserve(bo);
-	}
+	entry = list_first_entry(list, struct ttm_validate_buffer, head);
+	glob = entry->bo->glob;
+	spin_lock(&glob->lru_lock);
+	ttm_eu_backoff_reservation_locked(list);
+	spin_unlock(&glob->lru_lock);
 }
 EXPORT_SYMBOL(ttm_eu_backoff_reservation);
 
