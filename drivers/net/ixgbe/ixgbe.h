@@ -162,6 +162,7 @@ struct ixgbe_rx_queue_stats {
 struct ixgbe_ring {
 	void *desc;			/* descriptor ring memory */
 	struct device *dev;             /* device for DMA mapping */
+	struct net_device *netdev;      /* netdev ring belongs to */
 	union {
 		struct ixgbe_tx_buffer *tx_buffer_info;
 		struct ixgbe_rx_buffer *rx_buffer_info;
@@ -477,14 +478,11 @@ extern void ixgbe_update_stats(struct ixgbe_adapter *adapter);
 extern int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter);
 extern void ixgbe_clear_interrupt_scheme(struct ixgbe_adapter *adapter);
 extern netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *,
-					 struct net_device *,
 					 struct ixgbe_adapter *,
 					 struct ixgbe_ring *);
 extern void ixgbe_unmap_and_free_tx_resource(struct ixgbe_ring *,
                                              struct ixgbe_tx_buffer *);
-extern void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
-                                   struct ixgbe_ring *rx_ring,
-				   u16 cleaned_count);
+extern void ixgbe_alloc_rx_buffers(struct ixgbe_ring *, u16);
 extern void ixgbe_write_eitr(struct ixgbe_q_vector *);
 extern int ethtool_ioctl(struct ifreq *ifr);
 extern s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw);

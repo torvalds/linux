@@ -733,7 +733,6 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 			       struct ixgbe_ring *tx_ring)
 {
 	struct ixgbe_adapter *adapter = q_vector->adapter;
-	struct net_device *netdev = adapter->netdev;
 	union ixgbe_adv_tx_desc *tx_desc, *eop_desc;
 	struct ixgbe_tx_buffer *tx_buffer_info;
 	unsigned int i, eop, count = 0;
@@ -774,15 +773,15 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	tx_ring->next_to_clean = i;
 
 #define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
-	if (unlikely(count && netif_carrier_ok(netdev) &&
+	if (unlikely(count && netif_carrier_ok(tx_ring->netdev) &&
 		     (IXGBE_DESC_UNUSED(tx_ring) >= TX_WAKE_THRESHOLD))) {
 		/* Make sure that anybody stopping the queue after this
 		 * sees the new next_to_clean.
 		 */
 		smp_mb();
-		if (__netif_subqueue_stopped(netdev, tx_ring->queue_index) &&
+		if (__netif_subqueue_stopped(tx_ring->netdev, tx_ring->queue_index) &&
 		    !test_bit(__IXGBE_DOWN, &adapter->state)) {
-			netif_wake_subqueue(netdev, tx_ring->queue_index);
+			netif_wake_subqueue(tx_ring->netdev, tx_ring->queue_index);
 			++tx_ring->tx_stats.restart_queue;
 		}
 	}
@@ -1004,16 +1003,19 @@ static inline void ixgbe_release_rx_desc(struct ixgbe_ring *rx_ring, u32 val)
 
 /**
  * ixgbe_alloc_rx_buffers - Replace used receive buffers; packet split
- * @adapter: address of board private structure
+ * @rx_ring: ring to place buffers on
+ * @cleaned_count: number of buffers to replace
  **/
-void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
-			    struct ixgbe_ring *rx_ring,
-			    u16 cleaned_count)
+void ixgbe_alloc_rx_buffers(struct ixgbe_ring *rx_ring, u16 cleaned_count)
 {
 	union ixgbe_adv_rx_desc *rx_desc;
 	struct ixgbe_rx_buffer *bi;
 	struct sk_buff *skb;
 	u16 i = rx_ring->next_to_use;
+
+	/* do nothing if no valid netdev defined */
+	if (!rx_ring->netdev)
+		return;
 
 	while (cleaned_count--) {
 		rx_desc = IXGBE_RX_DESC_ADV(rx_ring, i);
@@ -1021,7 +1023,7 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 		skb = bi->skb;
 
 		if (!skb) {
-			skb = netdev_alloc_skb_ip_align(adapter->netdev,
+			skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
 							rx_ring->rx_buf_len);
 			if (!skb) {
 				rx_ring->rx_stats.alloc_rx_buff_failed++;
@@ -1046,7 +1048,7 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 
 		if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED) {
 			if (!bi->page) {
-				bi->page = netdev_alloc_page(adapter->netdev);
+				bi->page = netdev_alloc_page(rx_ring->netdev);
 				if (!bi->page) {
 					rx_ring->rx_stats.alloc_rx_page_failed++;
 					goto no_buffers;
@@ -1304,7 +1306,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		total_rx_bytes += skb->len;
 		total_rx_packets++;
 
-		skb->protocol = eth_type_trans(skb, adapter->netdev);
+		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 #ifdef IXGBE_FCOE
 		/* if ddp, not passing to ULD unless for FCP_RSP or error */
 		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
@@ -1320,7 +1322,7 @@ next_desc:
 
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= IXGBE_RX_BUFFER_WRITE) {
-			ixgbe_alloc_rx_buffers(adapter, rx_ring, cleaned_count);
+			ixgbe_alloc_rx_buffers(rx_ring, cleaned_count);
 			cleaned_count = 0;
 		}
 
@@ -1335,14 +1337,14 @@ next_desc:
 	cleaned_count = IXGBE_DESC_UNUSED(rx_ring);
 
 	if (cleaned_count)
-		ixgbe_alloc_rx_buffers(adapter, rx_ring, cleaned_count);
+		ixgbe_alloc_rx_buffers(rx_ring, cleaned_count);
 
 #ifdef IXGBE_FCOE
 	/* include DDPed FCoE data */
 	if (ddp_bytes > 0) {
 		unsigned int mss;
 
-		mss = adapter->netdev->mtu - sizeof(struct fcoe_hdr) -
+		mss = rx_ring->netdev->mtu - sizeof(struct fcoe_hdr) -
 			sizeof(struct fc_frame_header) -
 			sizeof(struct fcoe_crc_eof);
 		if (mss > 512)
@@ -2810,7 +2812,7 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 	IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(reg_idx), rxdctl);
 
 	ixgbe_rx_desc_queue_enable(adapter, ring);
-	ixgbe_alloc_rx_buffers(adapter, ring, IXGBE_DESC_UNUSED(ring));
+	ixgbe_alloc_rx_buffers(ring, IXGBE_DESC_UNUSED(ring));
 }
 
 static void ixgbe_setup_psrtype(struct ixgbe_adapter *adapter)
@@ -4455,6 +4457,7 @@ static int ixgbe_alloc_queues(struct ixgbe_adapter *adapter)
 		ring->count = adapter->tx_ring_count;
 		ring->queue_index = i;
 		ring->dev = &adapter->pdev->dev;
+		ring->netdev = adapter->netdev;
 		ring->numa_node = adapter->node;
 
 		adapter->tx_ring[i] = ring;
@@ -4481,6 +4484,7 @@ static int ixgbe_alloc_queues(struct ixgbe_adapter *adapter)
 		ring->count = rx_count;
 		ring->queue_index = i;
 		ring->dev = &adapter->pdev->dev;
+		ring->netdev = adapter->netdev;
 		ring->numa_node = adapter->node;
 
 		adapter->rx_ring[i] = ring;
@@ -6229,10 +6233,9 @@ static void ixgbe_atr(struct ixgbe_adapter *adapter, struct sk_buff *skb,
 	ixgbe_fdir_add_signature_filter_82599(&adapter->hw, &atr_input, queue);
 }
 
-static int __ixgbe_maybe_stop_tx(struct net_device *netdev,
-				 struct ixgbe_ring *tx_ring, int size)
+static int __ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, int size)
 {
-	netif_stop_subqueue(netdev, tx_ring->queue_index);
+	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
 	/* Herbert's original patch had:
 	 *  smp_mb__after_netif_stop_queue();
 	 * but since that doesn't exist yet, just open code it. */
@@ -6244,17 +6247,16 @@ static int __ixgbe_maybe_stop_tx(struct net_device *netdev,
 		return -EBUSY;
 
 	/* A reprieve! - use start_queue because it doesn't call schedule */
-	netif_start_subqueue(netdev, tx_ring->queue_index);
+	netif_start_subqueue(tx_ring->netdev, tx_ring->queue_index);
 	++tx_ring->tx_stats.restart_queue;
 	return 0;
 }
 
-static int ixgbe_maybe_stop_tx(struct net_device *netdev,
-			      struct ixgbe_ring *tx_ring, int size)
+static int ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, int size)
 {
 	if (likely(IXGBE_DESC_UNUSED(tx_ring) >= size))
 		return 0;
-	return __ixgbe_maybe_stop_tx(netdev, tx_ring, size);
+	return __ixgbe_maybe_stop_tx(tx_ring, size);
 }
 
 static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
@@ -6299,10 +6301,11 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 	return skb_tx_hash(dev, skb);
 }
 
-netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb, struct net_device *netdev,
+netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 			  struct ixgbe_adapter *adapter,
 			  struct ixgbe_ring *tx_ring)
 {
+	struct net_device *netdev = tx_ring->netdev;
 	struct netdev_queue *txq;
 	unsigned int first;
 	unsigned int tx_flags = 0;
@@ -6360,7 +6363,7 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb, struct net_device *netdev
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
 		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
 
-	if (ixgbe_maybe_stop_tx(netdev, tx_ring, count)) {
+	if (ixgbe_maybe_stop_tx(tx_ring, count)) {
 		tx_ring->tx_stats.tx_busy++;
 		return NETDEV_TX_BUSY;
 	}
@@ -6412,7 +6415,7 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb, struct net_device *netdev
 		txq->tx_bytes += skb->len;
 		txq->tx_packets++;
 		ixgbe_tx_queue(tx_ring, tx_flags, count, skb->len, hdr_len);
-		ixgbe_maybe_stop_tx(netdev, tx_ring, DESC_NEEDED);
+		ixgbe_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	} else {
 		dev_kfree_skb_any(skb);
@@ -6429,7 +6432,7 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netd
 	struct ixgbe_ring *tx_ring;
 
 	tx_ring = adapter->tx_ring[skb->queue_mapping];
-	return ixgbe_xmit_frame_ring(skb, netdev, adapter, tx_ring);
+	return ixgbe_xmit_frame_ring(skb, adapter, tx_ring);
 }
 
 /**

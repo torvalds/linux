@@ -1473,6 +1473,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	tx_ring->count = IXGBE_DEFAULT_TXD;
 	tx_ring->queue_index = 0;
 	tx_ring->dev = &adapter->pdev->dev;
+	tx_ring->netdev = adapter->netdev;
 	tx_ring->reg_idx = adapter->tx_ring[0]->reg_idx;
 	tx_ring->numa_node = adapter->node;
 
@@ -1492,6 +1493,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	rx_ring->count = IXGBE_DEFAULT_RXD;
 	rx_ring->queue_index = 0;
 	rx_ring->dev = &adapter->pdev->dev;
+	rx_ring->netdev = adapter->netdev;
 	rx_ring->reg_idx = adapter->rx_ring[0]->reg_idx;
 	rx_ring->rx_buf_len = IXGBE_RXBUFFER_2048;
 	rx_ring->numa_node = adapter->node;
@@ -1595,8 +1597,7 @@ static int ixgbe_check_lbtest_frame(struct sk_buff *skb,
 	return 13;
 }
 
-static u16 ixgbe_clean_test_rings(struct ixgbe_adapter *adapter,
-                                  struct ixgbe_ring *rx_ring,
+static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
                                   struct ixgbe_ring *tx_ring,
                                   unsigned int size)
 {
@@ -1646,7 +1647,7 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_adapter *adapter,
 	}
 
 	/* re-map buffers to ring, store next to clean values */
-	ixgbe_alloc_rx_buffers(adapter, rx_ring, count);
+	ixgbe_alloc_rx_buffers(rx_ring, count);
 	rx_ring->next_to_clean = rx_ntc;
 	tx_ring->next_to_clean = tx_ntc;
 
@@ -1690,7 +1691,6 @@ static int ixgbe_run_loopback_test(struct ixgbe_adapter *adapter)
 		for (i = 0; i < 64; i++) {
 			skb_get(skb);
 			tx_ret_val = ixgbe_xmit_frame_ring(skb,
-							   adapter->netdev,
 							   adapter,
 							   tx_ring);
 			if (tx_ret_val == NETDEV_TX_OK)
@@ -1705,8 +1705,7 @@ static int ixgbe_run_loopback_test(struct ixgbe_adapter *adapter)
 		/* allow 200 milliseconds for packets to go from Tx to Rx */
 		msleep(200);
 
-		good_cnt = ixgbe_clean_test_rings(adapter, rx_ring,
-						  tx_ring, size);
+		good_cnt = ixgbe_clean_test_rings(rx_ring, tx_ring, size);
 		if (good_cnt != 64) {
 			ret_val = 13;
 			break;
