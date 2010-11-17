@@ -185,7 +185,7 @@
 			reg = <0x1f00 0x100>;
 		};
 
-		ac97@2000 {	/* PSC1 is ac97 */
+		psc@2000 {	/* PSC1 is ac97 */
 			compatible = "fsl,mpc5200b-psc-ac97","fsl,mpc5200-psc-ac97";
 			cell-index = <0>;
 			reg = <0x2000 0x100>;
@@ -194,7 +194,7 @@
 
 		/* PSC2 port is used by CAN1/2 */
 
-		serial@2400 { /* PSC3 in UART mode */
+		psc@2400 { /* PSC3 in UART mode */
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
 			cell-index = <2>;
 			reg = <0x2400 0x100>;
@@ -205,7 +205,7 @@
 
 		/* PSC5 is ??? */
 
-		serial@2c00 { /* PSC6 in UART mode */
+		psc@2c00 { /* PSC6 in UART mode */
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
 			cell-index = <5>;
 			reg = <0x2c00 0x100>;

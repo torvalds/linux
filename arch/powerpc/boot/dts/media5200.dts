@@ -183,7 +183,7 @@
 		};
 
 		// PSC6 in uart mode
-		console: serial@2c00 {		// PSC6
+		console: psc@2c00 {		// PSC6
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
 			cell-index = <5>;
 			port-number = <0>;  // Logical port assignment

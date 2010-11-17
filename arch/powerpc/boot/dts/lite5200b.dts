@@ -172,7 +172,7 @@
 			reg = <0x1f00 0x100>;
 		};
 
-		serial@2000 {		// PSC1
+		psc@2000 {		// PSC1
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
 			cell-index = <0>;
 			reg = <0x2000 0x100>;

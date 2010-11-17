@@ -155,13 +155,13 @@
 			reg = <0x1f00 0x100>;
 		};
 
-		serial@2600 {		// PSC4
+		psc@2600 {		// PSC4
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
 			reg = <0x2600 0x100>;
 			interrupts = <2 11 0>;
 		};
 
-		serial@2800 {		// PSC5
+		psc@2800 {		// PSC5
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
 			reg = <0x2800 0x100>;
 			interrupts = <2 12 0>;
@@ -217,7 +217,7 @@
 		};
 	};
 
-	lpb {
+	localbus {
 		compatible = "fsl,mpc5200b-lpb","simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;

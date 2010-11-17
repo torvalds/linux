@@ -100,7 +100,7 @@
 			interrupts = <1 14 0>;
 		};
 
-		motionpro-led@660 {	// Motion-PRO status LED
+		timer@660 {	// Motion-PRO status LED
 			compatible = "promess,motionpro-led";
 			label = "motionpro-statusled";
 			reg = <0x660 0x10>;
@@ -108,7 +108,7 @@
 			blink-delay = <100>; // 100 msec
 		};
 
-		motionpro-led@670 {	// Motion-PRO ready LED
+		timer@670 {	// Motion-PRO ready LED
 			compatible = "promess,motionpro-led";
 			label = "motionpro-readyled";
 			reg = <0x670 0x10>;
@@ -169,14 +169,14 @@
 			reg = <0x1f00 0x100>;
 		};
 
-		serial@2000 {		// PSC1
+		psc@2000 {		// PSC1
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
 			reg = <0x2000 0x100>;
 			interrupts = <2 1 0>;
 		};
 
 		// PSC2 in spi master mode 
-		spi@2200 {		// PSC2
+		psc@2200 {		// PSC2
 			compatible = "fsl,mpc5200b-psc-spi","fsl,mpc5200-psc-spi";
 			cell-index = <1>;
 			reg = <0x2200 0x100>;
@@ -184,7 +184,7 @@
 		};
 
 		// PSC5 in uart mode
-		serial@2800 {		// PSC5
+		psc@2800 {		// PSC5
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
 			reg = <0x2800 0x100>;
 			interrupts = <2 12 0>;
