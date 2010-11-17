@@ -3034,7 +3034,7 @@ init_hw_perf_events(void)
 		pr_info("no hardware support available\n");
 	}
 
-	perf_pmu_register(&pmu);
+	perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
 
 	return 0;
 }

@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
+#include <linux/idr.h>
 #include <linux/file.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
@@ -4961,7 +4962,7 @@ static struct pmu perf_tracepoint = {
 
 static inline void perf_tp_register(void)
 {
-	perf_pmu_register(&perf_tracepoint);
+	perf_pmu_register(&perf_tracepoint, "tracepoint", PERF_TYPE_TRACEPOINT);
 }
 
 static int perf_event_set_filter(struct perf_event *event, void __user *arg)
@@ -5305,8 +5306,9 @@ static void free_pmu_context(struct pmu *pmu)
 out:
 	mutex_unlock(&pmus_lock);
 }
+static struct idr pmu_idr;
 
-int perf_pmu_register(struct pmu *pmu)
+int perf_pmu_register(struct pmu *pmu, char *name, int type)
 {
 	int cpu, ret;
 
@@ -5316,13 +5318,32 @@ int perf_pmu_register(struct pmu *pmu)
 	if (!pmu->pmu_disable_count)
 		goto unlock;
 
+	pmu->type = -1;
+	if (!name)
+		goto skip_type;
+	pmu->name = name;
+
+	if (type < 0) {
+		int err = idr_pre_get(&pmu_idr, GFP_KERNEL);
+		if (!err)
+			goto free_pdc;
+
+		err = idr_get_new_above(&pmu_idr, pmu, PERF_TYPE_MAX, &type);
+		if (err) {
+			ret = err;
+			goto free_pdc;
+		}
+	}
+	pmu->type = type;
+
+skip_type:
 	pmu->pmu_cpu_context = find_pmu_context(pmu->task_ctx_nr);
 	if (pmu->pmu_cpu_context)
 		goto got_cpu_context;
 
 	pmu->pmu_cpu_context = alloc_percpu(struct perf_cpu_context);
 	if (!pmu->pmu_cpu_context)
-		goto free_pdc;
+		goto free_ird;
 
 	for_each_possible_cpu(cpu) {
 		struct perf_cpu_context *cpuctx;
@@ -5366,6 +5387,10 @@ unlock:
 
 	return ret;
 
+free_idr:
+	if (pmu->type >= PERF_TYPE_MAX)
+		idr_remove(&pmu_idr, pmu->type);
+
 free_pdc:
 	free_percpu(pmu->pmu_disable_count);
 	goto unlock;
@@ -5385,6 +5410,8 @@ void perf_pmu_unregister(struct pmu *pmu)
 	synchronize_rcu();
 
 	free_percpu(pmu->pmu_disable_count);
+	if (pmu->type >= PERF_TYPE_MAX)
+		idr_remove(&pmu_idr, pmu->type);
 	free_pmu_context(pmu);
 }
 
@@ -5394,6 +5421,13 @@ struct pmu *perf_init_event(struct perf_event *event)
 	int idx;
 
 	idx = srcu_read_lock(&pmus_srcu);
+
+	rcu_read_lock();
+	pmu = idr_find(&pmu_idr, event->attr.type);
+	rcu_read_unlock();
+	if (pmu)
+		goto unlock;
+
 	list_for_each_entry_rcu(pmu, &pmus, entry) {
 		int ret = pmu->event_init(event);
 		if (!ret)
@@ -6555,11 +6589,13 @@ void __init perf_event_init(void)
 {
 	int ret;
 
+	idr_init(&pmu_idr);
+
 	perf_event_init_all_cpus();
 	init_srcu_struct(&pmus_srcu);
-	perf_pmu_register(&perf_swevent);
-	perf_pmu_register(&perf_cpu_clock);
-	perf_pmu_register(&perf_task_clock);
+	perf_pmu_register(&perf_swevent, "software", PERF_TYPE_SOFTWARE);
+	perf_pmu_register(&perf_cpu_clock, NULL, -1);
+	perf_pmu_register(&perf_task_clock, NULL, -1);
 	perf_tp_register();
 	perf_cpu_notifier(perf_cpu_notify);
 	register_reboot_notifier(&perf_reboot_notifier);
