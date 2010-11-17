@@ -735,8 +735,8 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	struct ixgbe_adapter *adapter = q_vector->adapter;
 	union ixgbe_adv_tx_desc *tx_desc, *eop_desc;
 	struct ixgbe_tx_buffer *tx_buffer_info;
-	unsigned int i, eop, count = 0;
 	unsigned int total_bytes = 0, total_packets = 0;
+	u16 i, eop, count = 0;
 
 	i = tx_ring->next_to_clean;
 	eop = tx_ring->tx_buffer_info[i].next_to_watch;
@@ -771,6 +771,23 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	}
 
 	tx_ring->next_to_clean = i;
+	tx_ring->total_bytes += total_bytes;
+	tx_ring->total_packets += total_packets;
+	u64_stats_update_begin(&tx_ring->syncp);
+	tx_ring->stats.packets += total_packets;
+	tx_ring->stats.bytes += total_bytes;
+	u64_stats_update_end(&tx_ring->syncp);
+
+	if (check_for_tx_hang(tx_ring) &&
+	    ixgbe_check_tx_hang(adapter, tx_ring, i)) {
+		/* schedule immediate reset if we believe we hung */
+		e_info(probe, "tx hang %d detected, resetting "
+		       "adapter\n", adapter->tx_timeout_count + 1);
+		ixgbe_tx_timeout(adapter->netdev);
+
+		/* the adapter is about to reset, no point in enabling stuff */
+		return true;
+	}
 
 #define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
 	if (unlikely(count && netif_carrier_ok(tx_ring->netdev) &&
@@ -786,24 +803,6 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		}
 	}
 
-	if (check_for_tx_hang(tx_ring) &&
-	    ixgbe_check_tx_hang(adapter, tx_ring, i)) {
-		/* schedule immediate reset if we believe we hung */
-		e_info(probe, "tx hang %d detected, resetting "
-		       "adapter\n", adapter->tx_timeout_count + 1);
-		ixgbe_tx_timeout(adapter->netdev);
-	}
-
-	/* re-arm the interrupt */
-	if (count >= tx_ring->work_limit)
-		ixgbe_irq_rearm_queues(adapter, ((u64)1 << q_vector->v_idx));
-
-	tx_ring->total_bytes += total_bytes;
-	tx_ring->total_packets += total_packets;
-	u64_stats_update_begin(&tx_ring->syncp);
-	tx_ring->stats.packets += total_packets;
-	tx_ring->stats.bytes += total_bytes;
-	u64_stats_update_end(&tx_ring->syncp);
 	return count < tx_ring->work_limit;
 }
 
