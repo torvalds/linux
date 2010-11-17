@@ -431,15 +431,21 @@ static u32 ixgbe_get_tx_csum(struct net_device *netdev)
 static int ixgbe_set_tx_csum(struct net_device *netdev, u32 data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	u32 feature_list;
 
-	if (data) {
-		netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-		if (adapter->hw.mac.type == ixgbe_mac_82599EB)
-			netdev->features |= NETIF_F_SCTP_CSUM;
-	} else {
-		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-				      NETIF_F_SCTP_CSUM);
+	feature_list = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		feature_list |= NETIF_F_SCTP_CSUM;
+		break;
+	default:
+		break;
 	}
+	if (data)
+		netdev->features |= feature_list;
+	else
+		netdev->features &= ~feature_list;
 
 	return 0;
 }
@@ -1250,6 +1256,7 @@ static int ixgbe_reg_test(struct ixgbe_adapter *adapter, u64 *data)
 		test = reg_test_82598;
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		toggle = 0x7FFFF30F;
 		test = reg_test_82599;
 		break;
@@ -1476,6 +1483,7 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		reg_ctl = IXGBE_READ_REG(hw, IXGBE_DMATXCTL);
 		reg_ctl &= ~IXGBE_DMATXCTL_TE;
 		IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL, reg_ctl);
@@ -1512,6 +1520,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		reg_data = IXGBE_READ_REG(&adapter->hw, IXGBE_DMATXCTL);
 		reg_data |= IXGBE_DMATXCTL_TE;
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DMATXCTL, reg_data);
@@ -2197,6 +2206,22 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 			switch (adapter->hw.mac.type) {
 			case ixgbe_mac_82599EB:
 				need_reset = true;
+				break;
+			case ixgbe_mac_X540: {
+				int i;
+				for (i = 0; i < adapter->num_rx_queues; i++) {
+					struct ixgbe_ring *ring =
+					                  adapter->rx_ring[i];
+					if (adapter->flags2 &
+					    IXGBE_FLAG2_RSC_ENABLED) {
+						ixgbe_configure_rscctl(adapter,
+						                       ring);
+					} else {
+						ixgbe_clear_rscctl(adapter,
+						                   ring);
+					}
+				}
+			}
 				break;
 			default:
 				break;

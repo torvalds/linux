@@ -152,10 +152,17 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
                         struct ixgbe_dcb_config *dcb_config)
 {
 	s32 ret = 0;
-	if (hw->mac.type == ixgbe_mac_82598EB)
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
 		ret = ixgbe_dcb_hw_config_82598(hw, dcb_config);
-	else if (hw->mac.type == ixgbe_mac_82599EB)
+		break;
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		ret = ixgbe_dcb_hw_config_82599(hw, dcb_config);
+		break;
+	default:
+		break;
+	}
 	return ret;
 }
 

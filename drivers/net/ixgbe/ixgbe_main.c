@@ -113,6 +113,8 @@ static DEFINE_PCI_DEVICE_TABLE(ixgbe_pci_tbl) = {
 	 board_82599 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_COMBO_BACKPLANE),
 	 board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T),
+	 board_82599 },
 
 	/* required last entry */
 	{0, }
@@ -561,6 +563,7 @@ static void ixgbe_set_ivar(struct ixgbe_adapter *adapter, s8 direction,
 		IXGBE_WRITE_REG(hw, IXGBE_IVAR(index), ivar);
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		if (direction == -1) {
 			/* other causes */
 			msix_vector |= IXGBE_IVAR_ALLOC_VAL;
@@ -596,6 +599,7 @@ static inline void ixgbe_irq_rearm_queues(struct ixgbe_adapter *adapter,
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS, mask);
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		mask = (qmask & 0xFFFFFFFF);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS_EX(0), mask);
 		mask = (qmask >> 32);
@@ -923,6 +927,7 @@ static void ixgbe_update_rx_dca(struct ixgbe_adapter *adapter,
 		rxctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		rxctrl &= ~IXGBE_DCA_RXCTRL_CPUID_MASK_82599;
 		rxctrl |= (dca3_get_tag(&adapter->pdev->dev, cpu) <<
 			   IXGBE_DCA_RXCTRL_CPUID_SHIFT_82599);
@@ -956,6 +961,7 @@ static void ixgbe_update_tx_dca(struct ixgbe_adapter *adapter,
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(reg_idx), txctrl);
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		txctrl = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(reg_idx));
 		txctrl &= ~IXGBE_DCA_TXCTRL_CPUID_MASK_82599;
 		txctrl |= (dca3_get_tag(&adapter->pdev->dev, cpu) <<
@@ -1581,6 +1587,7 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 			       v_idx);
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		ixgbe_set_ivar(adapter, -1, 1, v_idx);
 		break;
 
@@ -1688,8 +1695,9 @@ void ixgbe_write_eitr(struct ixgbe_q_vector *q_vector)
 		itr_reg |= (itr_reg << 16);
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		/*
-		 * 82599 can support a value of zero, so allow it for
+		 * 82599 and X540 can support a value of zero, so allow it for
 		 * max interrupt rate, but there is an errata where it can
 		 * not be zero with RSC
 		 */
@@ -1885,6 +1893,7 @@ static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		/* Handle Flow Director Full threshold interrupt */
 		if (eicr & IXGBE_EICR_FLOW_DIR) {
 			int i;
@@ -1930,6 +1939,7 @@ static inline void ixgbe_irq_enable_queues(struct ixgbe_adapter *adapter,
 		IXGBE_WRITE_REG(hw, IXGBE_EIMS, mask);
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		mask = (qmask & 0xFFFFFFFF);
 		if (mask)
 			IXGBE_WRITE_REG(hw, IXGBE_EIMS_EX(0), mask);
@@ -1955,6 +1965,7 @@ static inline void ixgbe_irq_disable_queues(struct ixgbe_adapter *adapter,
 		IXGBE_WRITE_REG(hw, IXGBE_EIMC, mask);
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		mask = (qmask & 0xFFFFFFFF);
 		if (mask)
 			IXGBE_WRITE_REG(hw, IXGBE_EIMC_EX(0), mask);
@@ -2427,6 +2438,7 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 		mask |= IXGBE_EIMS_GPI_SDP1;
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		mask |= IXGBE_EIMS_ECC;
 		mask |= IXGBE_EIMS_GPI_SDP1;
 		mask |= IXGBE_EIMS_GPI_SDP2;
@@ -2492,6 +2504,7 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		ixgbe_check_sfp_event(adapter, eicr);
 		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
 		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
@@ -2601,6 +2614,7 @@ static inline void ixgbe_irq_disable(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, ~0);
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, 0xFFFF0000);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(0), ~0);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(1), ~0);
@@ -2795,6 +2809,7 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
 	}
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 	default:
 		break;
 	}
@@ -2892,11 +2907,28 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 }
 
 /**
+ * ixgbe_clear_rscctl - disable RSC for the indicated ring
+ * @adapter: address of board private structure
+ * @ring: structure containing ring specific data
+ **/
+void ixgbe_clear_rscctl(struct ixgbe_adapter *adapter,
+                        struct ixgbe_ring *ring)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 rscctrl;
+	u8 reg_idx = ring->reg_idx;
+
+	rscctrl = IXGBE_READ_REG(hw, IXGBE_RSCCTL(reg_idx));
+	rscctrl &= ~IXGBE_RSCCTL_RSCEN;
+	IXGBE_WRITE_REG(hw, IXGBE_RSCCTL(reg_idx), rscctrl);
+}
+
+/**
  * ixgbe_configure_rscctl - enable RSC for the indicated ring
  * @adapter:    address of board private structure
  * @index:      index of ring to set
  **/
-static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
+void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
 				   struct ixgbe_ring *ring)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -3201,6 +3233,7 @@ static void ixgbe_setup_rdrxctl(struct ixgbe_adapter *adapter)
 		rdrxctl |= IXGBE_RDRXCTL_MVMEN;
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		/* Disable RSC for ACK packets */
 		IXGBE_WRITE_REG(hw, IXGBE_RSCDBU,
 		   (IXGBE_RSCDBU_RSCACKDIS | IXGBE_READ_REG(hw, IXGBE_RSCDBU)));
@@ -3328,6 +3361,7 @@ static void ixgbe_vlan_strip_disable(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			j = adapter->rx_ring[i]->reg_idx;
 			vlnctrl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(j));
@@ -3357,6 +3391,7 @@ static void ixgbe_vlan_strip_enable(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			j = adapter->rx_ring[i]->reg_idx;
 			vlnctrl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(j));
@@ -3712,8 +3747,9 @@ static void ixgbe_setup_gpie(struct ixgbe_adapter *adapter)
 		case ixgbe_mac_82598EB:
 			IXGBE_WRITE_REG(hw, IXGBE_EIAM, IXGBE_EICS_RTX_QUEUE);
 			break;
-		default:
 		case ixgbe_mac_82599EB:
+		case ixgbe_mac_X540:
+		default:
 			IXGBE_WRITE_REG(hw, IXGBE_EIAM_EX(0), 0xFFFFFFFF);
 			IXGBE_WRITE_REG(hw, IXGBE_EIAM_EX(1), 0xFFFFFFFF);
 			break;
@@ -4061,6 +4097,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	/* Disable the Tx DMA engine on 82599 */
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL,
 				(IXGBE_READ_REG(hw, IXGBE_DMATXCTL) &
 				 ~IXGBE_DMATXCTL_TE));
@@ -4435,6 +4472,7 @@ static inline bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 		ret = true;
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		if (dcb_i == 8) {
 			/*
 			 * Tx TC0 starts at: descriptor queue 0
@@ -5049,6 +5087,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82598;
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82599;
 		adapter->flags2 |= IXGBE_FLAG2_RSC_CAPABLE;
 		adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
@@ -5567,6 +5606,7 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		pci_wake_from_d3(pdev, false);
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		pci_wake_from_d3(pdev, !!wufc);
 		break;
 	default:
@@ -5696,6 +5736,7 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 				IXGBE_READ_REG(hw, IXGBE_PXONRXC(i));
 			break;
 		case ixgbe_mac_82599EB:
+		case ixgbe_mac_X540:
 			hwstats->pxonrxc[i] +=
 				IXGBE_READ_REG(hw, IXGBE_PXONRXCNT(i));
 			break;
@@ -5720,6 +5761,7 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 		hwstats->tor += IXGBE_READ_REG(hw, IXGBE_TORH);
 		break;
 	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		hwstats->gorc += IXGBE_READ_REG(hw, IXGBE_GORCL);
 		IXGBE_READ_REG(hw, IXGBE_GORCH); /* to clear */
 		hwstats->gotc += IXGBE_READ_REG(hw, IXGBE_GOTCL);
@@ -5983,7 +6025,8 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 				flow_tx = !!(rmcs & IXGBE_RMCS_TFCE_802_3X);
 			}
 				break;
-			case ixgbe_mac_82599EB: {
+			case ixgbe_mac_82599EB:
+			case ixgbe_mac_X540: {
 				u32 mflcn = IXGBE_READ_REG(hw, IXGBE_MFLCN);
 				u32 fccfg = IXGBE_READ_REG(hw, IXGBE_FCCFG);
 				flow_rx = !!(mflcn & IXGBE_MFLCN_RFCE);
@@ -7057,8 +7100,14 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		goto err_sw_init;
 
 	/* Make it possible the adapter to be woken up via WOL */
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_WUS, ~0);
+		break;
+	default:
+		break;
+	}
 
 	/*
 	 * If there is a fan on this device and it has failed log the

@@ -544,6 +544,10 @@ extern s32 ixgbe_atr_set_flex_byte_82599(struct ixgbe_atr_input *input,
                                          u16 flex_byte);
 extern s32 ixgbe_atr_set_l4type_82599(struct ixgbe_atr_input *input,
                                       u8 l4type);
+extern void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
+                                   struct ixgbe_ring *ring);
+extern void ixgbe_clear_rscctl(struct ixgbe_adapter *adapter,
+                               struct ixgbe_ring *ring);
 extern void ixgbe_set_rx_mode(struct net_device *netdev);
 #ifdef IXGBE_FCOE
 extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);

@@ -46,7 +46,7 @@ static void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u16 mask);
 static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw);
 static void ixgbe_release_swfw_sync_semaphore(struct ixgbe_hw *hw);
 
-enum ixgbe_media_type ixgbe_get_media_type_X540(struct ixgbe_hw *hw)
+static enum ixgbe_media_type ixgbe_get_media_type_X540(struct ixgbe_hw *hw)
 {
 	return ixgbe_media_type_copper;
 }
@@ -75,9 +75,9 @@ static s32 ixgbe_get_invariants_X540(struct ixgbe_hw *hw)
  *  @autoneg: true if autonegotiation enabled
  *  @autoneg_wait_to_complete: true when waiting for completion is needed
  **/
-s32 ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw,
-                              ixgbe_link_speed speed, bool autoneg,
-                              bool autoneg_wait_to_complete)
+static s32 ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw,
+                                     ixgbe_link_speed speed, bool autoneg,
+                                     bool autoneg_wait_to_complete)
 {
 	return hw->phy.ops.setup_link_speed(hw, speed, autoneg,
 	                                    autoneg_wait_to_complete);
@@ -91,7 +91,7 @@ s32 ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw,
  *  and clears all interrupts, perform a PHY reset, and perform a link (MAC)
  *  reset.
  **/
-s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
+static s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 {
 	ixgbe_link_speed link_speed;
 	s32 status = 0;
@@ -222,7 +222,7 @@ s32 ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
  *
  *  Determines physical layer capabilities of the current configuration.
  **/
-u32 ixgbe_get_supported_physical_layer_X540(struct ixgbe_hw *hw)
+static u32 ixgbe_get_supported_physical_layer_X540(struct ixgbe_hw *hw)
 {
 	u32 physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
 	u16 ext_ability = 0;
@@ -245,7 +245,7 @@ u32 ixgbe_get_supported_physical_layer_X540(struct ixgbe_hw *hw)
  * ixgbe_init_eeprom_params_X540 - Initialize EEPROM params
  * @hw: pointer to hardware structure
  **/
-s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
+static s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 {
 	struct ixgbe_eeprom_info *eeprom = &hw->eeprom;
 	u32 eec;
@@ -274,7 +274,7 @@ s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
  * @offset: offset of word in the EEPROM to read
  * @data: word read from the EERPOM
  **/
-s32 ixgbe_read_eerd_X540(struct ixgbe_hw *hw, u16 offset, u16 *data)
+static s32 ixgbe_read_eerd_X540(struct ixgbe_hw *hw, u16 offset, u16 *data)
 {
 	s32 status;
 
@@ -295,7 +295,7 @@ s32 ixgbe_read_eerd_X540(struct ixgbe_hw *hw, u16 offset, u16 *data)
  *
  * Write a 16 bit word to the EEPROM using the EEWR register.
  **/
-s32 ixgbe_write_eewr_X540(struct ixgbe_hw *hw, u16 offset, u16 data)
+static s32 ixgbe_write_eewr_X540(struct ixgbe_hw *hw, u16 offset, u16 data)
 {
 	u32 eewr;
 	s32 status;
@@ -406,7 +406,7 @@ static u16 ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw)
  * checksum and updates the EEPROM and instructs the hardware to update
  * the flash.
  **/
-s32 ixgbe_update_eeprom_checksum_X540(struct ixgbe_hw *hw)
+static s32 ixgbe_update_eeprom_checksum_X540(struct ixgbe_hw *hw)
 {
 	s32 status;
 
