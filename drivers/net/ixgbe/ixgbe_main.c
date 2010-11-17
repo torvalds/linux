@@ -887,8 +887,7 @@ static void ixgbe_setup_dca(struct ixgbe_adapter *adapter)
 
 static int __ixgbe_notify_dca(struct device *dev, void *data)
 {
-	struct net_device *netdev = dev_get_drvdata(dev);
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = dev_get_drvdata(dev);
 	unsigned long event = *(unsigned long *)data;
 
 	switch (event) {
@@ -5255,8 +5254,8 @@ static int ixgbe_close(struct net_device *netdev)
 #ifdef CONFIG_PM
 static int ixgbe_resume(struct pci_dev *pdev)
 {
-	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev = adapter->netdev;
 	u32 err;
 
 	pci_set_power_state(pdev, PCI_D0);
@@ -5287,7 +5286,7 @@ static int ixgbe_resume(struct pci_dev *pdev)
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_WUS, ~0);
 
 	if (netif_running(netdev)) {
-		err = ixgbe_open(adapter->netdev);
+		err = ixgbe_open(netdev);
 		if (err)
 			return err;
 	}
@@ -5300,8 +5299,8 @@ static int ixgbe_resume(struct pci_dev *pdev)
 
 static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 {
-	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 ctrl, fctrl;
 	u32 wufc = adapter->wol;
@@ -6762,8 +6761,8 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
-	pci_set_drvdata(pdev, netdev);
 	adapter = netdev_priv(netdev);
+	pci_set_drvdata(pdev, adapter);
 
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
@@ -7086,8 +7085,8 @@ err_dma:
  **/
 static void __devexit ixgbe_remove(struct pci_dev *pdev)
 {
-	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev = adapter->netdev;
 
 	set_bit(__IXGBE_DOWN, &adapter->state);
 	/* clear the module not found bit to make sure the worker won't
@@ -7157,8 +7156,8 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 static pci_ers_result_t ixgbe_io_error_detected(struct pci_dev *pdev,
 						pci_channel_state_t state)
 {
-	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev = adapter->netdev;
 
 	netif_device_detach(netdev);
 
@@ -7181,8 +7180,7 @@ static pci_ers_result_t ixgbe_io_error_detected(struct pci_dev *pdev,
  */
 static pci_ers_result_t ixgbe_io_slot_reset(struct pci_dev *pdev)
 {
-	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
 	pci_ers_result_t result;
 	int err;
 
@@ -7220,8 +7218,8 @@ static pci_ers_result_t ixgbe_io_slot_reset(struct pci_dev *pdev)
  */
 static void ixgbe_io_resume(struct pci_dev *pdev)
 {
-	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev = adapter->netdev;
 
 	if (netif_running(netdev)) {
 		if (ixgbe_up(adapter)) {
