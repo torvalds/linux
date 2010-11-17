@@ -259,6 +259,7 @@
 			eeprom@52 {
 				compatible = "catalyst,24c32";
 				reg = <0x52>;
+				pagesize = <32>;
 			};
 		};
 
