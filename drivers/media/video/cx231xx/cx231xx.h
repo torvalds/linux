@@ -349,7 +349,7 @@ struct cx231xx_board {
 	u8 ir_i2c_master;
 
 	/* for devices with I2C chips for IR */
-	char *rc_map;
+	char *rc_map_name;
 
 	unsigned int max_range_640_480:1;
 	unsigned int has_dvb:1;
