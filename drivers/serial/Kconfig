@@ -1648,4 +1648,12 @@ config SERIAL_IFX6X60
 	help
 	  Support for the IFX6x60 modem devices on Intel MID platforms.
 
+config SERIAL_PCH_UART
+	tristate "Intel EG20T PCH UART"
+	select SERIAL_CORE
+	depends on PCI
+	help
+	  This driver is for PCH(Platform controller Hub) UART of Intel EG20T
+	  which is an IOH(Input/Output Hub) for x86 embedded processor.
+	  Enabling PCH_DMA, this PCH UART works as DMA mode.
 endmenu
