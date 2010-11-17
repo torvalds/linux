@@ -322,7 +322,8 @@ int do_spe_mathemu(struct pt_regs *regs)
 			} else {
 				_FP_ROUND_ZERO(1, SB);
 			}
-			FP_TO_INT_S(vc.wp[1], SB, 32, ((func & 0x3) != 0));
+			FP_TO_INT_S(vc.wp[1], SB, 32,
+					(((func & 0x3) != 0) || SB_s));
 			goto update_regs;
 
 		default:
@@ -460,7 +461,8 @@ cmp_s:
 			} else {
 				_FP_ROUND_ZERO(2, DB);
 			}
-			FP_TO_INT_D(vc.wp[1], DB, 32, ((func & 0x3) != 0));
+			FP_TO_INT_D(vc.wp[1], DB, 32,
+					(((func & 0x3) != 0) || DB_s));
 			goto update_regs;
 
 		default:
@@ -591,8 +593,10 @@ cmp_d:
 				_FP_ROUND_ZERO(1, SB0);
 				_FP_ROUND_ZERO(1, SB1);
 			}
-			FP_TO_INT_S(vc.wp[0], SB0, 32, ((func & 0x3) != 0));
-			FP_TO_INT_S(vc.wp[1], SB1, 32, ((func & 0x3) != 0));
+			FP_TO_INT_S(vc.wp[0], SB0, 32,
+					(((func & 0x3) != 0) || SB0_s));
+			FP_TO_INT_S(vc.wp[1], SB1, 32,
+					(((func & 0x3) != 0) || SB1_s));
 			goto update_regs;
 
 		default:
