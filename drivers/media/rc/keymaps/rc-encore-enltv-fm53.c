@@ -16,7 +16,7 @@
    Mauro Carvalho Chehab <mchehab@infradead.org>
  */
 
-static struct ir_scancode encore_enltv_fm53[] = {
+static struct rc_map_table encore_enltv_fm53[] = {
 	{ 0x10, KEY_POWER2},
 	{ 0x06, KEY_MUTE},
 

@@ -94,7 +94,7 @@ void ir_unregister_map(struct rc_keymap *map)
 EXPORT_SYMBOL_GPL(ir_unregister_map);
 
 
-static struct ir_scancode empty[] = {
+static struct rc_map_table empty[] = {
 	{ 0x2a, KEY_COFFEE },
 };
 
@@ -123,8 +123,8 @@ static int ir_create_table(struct rc_map *rc_map,
 {
 	rc_map->name = name;
 	rc_map->rc_type = rc_type;
-	rc_map->alloc = roundup_pow_of_two(size * sizeof(struct ir_scancode));
-	rc_map->size = rc_map->alloc / sizeof(struct ir_scancode);
+	rc_map->alloc = roundup_pow_of_two(size * sizeof(struct rc_map_table));
+	rc_map->size = rc_map->alloc / sizeof(struct rc_map_table);
 	rc_map->scan = kmalloc(rc_map->alloc, GFP_KERNEL);
 	if (!rc_map->scan)
 		return -ENOMEM;
@@ -161,8 +161,8 @@ static int ir_resize_table(struct rc_map *rc_map, gfp_t gfp_flags)
 {
 	unsigned int oldalloc = rc_map->alloc;
 	unsigned int newalloc = oldalloc;
-	struct ir_scancode *oldscan = rc_map->scan;
-	struct ir_scancode *newscan;
+	struct rc_map_table *oldscan = rc_map->scan;
+	struct rc_map_table *newscan;
 
 	if (rc_map->size == rc_map->len) {
 		/* All entries in use -> grow keytable */
@@ -188,10 +188,10 @@ static int ir_resize_table(struct rc_map *rc_map, gfp_t gfp_flags)
 		return -ENOMEM;
 	}
 
-	memcpy(newscan, rc_map->scan, rc_map->len * sizeof(struct ir_scancode));
+	memcpy(newscan, rc_map->scan, rc_map->len * sizeof(struct rc_map_table));
 	rc_map->scan = newscan;
 	rc_map->alloc = newalloc;
-	rc_map->size = rc_map->alloc / sizeof(struct ir_scancode);
+	rc_map->size = rc_map->alloc / sizeof(struct rc_map_table);
 	kfree(oldscan);
 	return 0;
 }
@@ -221,7 +221,7 @@ static unsigned int ir_update_mapping(struct rc_dev *dev,
 			   index, rc_map->scan[index].scancode);
 		rc_map->len--;
 		memmove(&rc_map->scan[index], &rc_map->scan[index+ 1],
-			(rc_map->len - index) * sizeof(struct ir_scancode));
+			(rc_map->len - index) * sizeof(struct rc_map_table));
 	} else {
 		IR_dprintk(1, "#%d: %s scan 0x%04x with key 0x%04x\n",
 			   index,
@@ -300,7 +300,7 @@ static unsigned int ir_establish_scancode(struct rc_dev *dev,
 	/* i is the proper index to insert our new keycode */
 	if (i < rc_map->len)
 		memmove(&rc_map->scan[i + 1], &rc_map->scan[i],
-			(rc_map->len - i) * sizeof(struct ir_scancode));
+			(rc_map->len - i) * sizeof(struct rc_map_table));
 	rc_map->scan[i].scancode = scancode;
 	rc_map->scan[i].keycode = KEY_RESERVED;
 	rc_map->len++;
@@ -440,7 +440,7 @@ static int ir_getkeycode(struct input_dev *idev,
 {
 	struct rc_dev *rdev = input_get_drvdata(idev);
 	struct rc_map *rc_map = &rdev->rc_map;
-	struct ir_scancode *entry;
+	struct rc_map_table *entry;
 	unsigned long flags;
 	unsigned int index;
 	unsigned int scancode;

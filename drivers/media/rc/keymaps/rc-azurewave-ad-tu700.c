@@ -20,7 +20,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode azurewave_ad_tu700[] = {
+static struct rc_map_table azurewave_ad_tu700[] = {
 	{ 0x0000, KEY_TAB },             /* Tab */
 	{ 0x0001, KEY_2 },
 	{ 0x0002, KEY_CHANNELDOWN },

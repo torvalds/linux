@@ -161,7 +161,7 @@ static int digitv_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static struct ir_scancode ir_codes_digitv_table[] = {
+static struct rc_map_table rc_map_digitv_table[] = {
 	{ 0x5f55, KEY_0 },
 	{ 0x6f55, KEY_1 },
 	{ 0x9f55, KEY_2 },
@@ -237,10 +237,10 @@ static int digitv_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	/* if something is inside the buffer, simulate key press */
 	if (key[1] != 0)
 	{
-		  for (i = 0; i < d->props.rc.legacy.rc_key_map_size; i++) {
-			if (rc5_custom(&d->props.rc.legacy.rc_key_map[i]) == key[1] &&
-			    rc5_data(&d->props.rc.legacy.rc_key_map[i]) == key[2]) {
-				*event = d->props.rc.legacy.rc_key_map[i].keycode;
+		  for (i = 0; i < d->props.rc.legacy.rc_map_size; i++) {
+			if (rc5_custom(&d->props.rc.legacy.rc_map_table[i]) == key[1] &&
+			    rc5_data(&d->props.rc.legacy.rc_map_table[i]) == key[2]) {
+				*event = d->props.rc.legacy.rc_map_table[i].keycode;
 				*state = REMOTE_KEY_PRESSED;
 				return 0;
 			}
@@ -312,8 +312,8 @@ static struct dvb_usb_device_properties digitv_properties = {
 
 	.rc.legacy = {
 		.rc_interval      = 1000,
-		.rc_key_map       = ir_codes_digitv_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_digitv_table),
+		.rc_map_table     = rc_map_digitv_table,
+		.rc_map_size      = ARRAY_SIZE(rc_map_digitv_table),
 		.rc_query         = digitv_rc_query,
 	},
 

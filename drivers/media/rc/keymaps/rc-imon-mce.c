@@ -12,7 +12,7 @@
 #include <media/rc-map.h>
 
 /* mce-mode imon mce remote key table */
-static struct ir_scancode imon_mce[] = {
+static struct rc_map_table imon_mce[] = {
 	/* keys sorted mostly by frequency of use to optimize lookups */
 	{ 0x800ff415, KEY_REWIND },
 	{ 0x800ff414, KEY_FASTFORWARD },

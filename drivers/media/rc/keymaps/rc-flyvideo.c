@@ -12,7 +12,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode flyvideo[] = {
+static struct rc_map_table flyvideo[] = {
 	{ 0x0f, KEY_0 },
 	{ 0x03, KEY_1 },
 	{ 0x04, KEY_2 },

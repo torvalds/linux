@@ -12,7 +12,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode flydvb[] = {
+static struct rc_map_table flydvb[] = {
 	{ 0x01, KEY_ZOOM },		/* Full Screen */
 	{ 0x00, KEY_POWER },		/* Power */
 

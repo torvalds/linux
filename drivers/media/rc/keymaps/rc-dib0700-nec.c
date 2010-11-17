@@ -17,7 +17,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode dib0700_nec_table[] = {
+static struct rc_map_table dib0700_nec_table[] = {
 	/* Key codes for the Pixelview SBTVD remote */
 	{ 0x8613, KEY_MUTE },
 	{ 0x8612, KEY_POWER },

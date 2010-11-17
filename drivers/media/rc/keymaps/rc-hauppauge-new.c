@@ -16,7 +16,7 @@
  * slightly different versions), shipped with cx88+ivtv cards.
  * almost rc5 coding, but some non-standard keys */
 
-static struct ir_scancode hauppauge_new[] = {
+static struct rc_map_table hauppauge_new[] = {
 	/* Keys 0 to 9 */
 	{ 0x00, KEY_0 },
 	{ 0x01, KEY_1 },

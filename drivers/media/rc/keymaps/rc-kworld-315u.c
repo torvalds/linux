@@ -15,7 +15,7 @@
 /* Kworld 315U
  */
 
-static struct ir_scancode kworld_315u[] = {
+static struct rc_map_table kworld_315u[] = {
 	{ 0x6143, KEY_POWER },
 	{ 0x6101, KEY_TUNER },		/* source */
 	{ 0x610b, KEY_ZOOM },

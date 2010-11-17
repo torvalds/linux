@@ -14,7 +14,7 @@
 
 /* Oldrich Jedlicka <oldium.pro@seznam.cz> */
 
-static struct ir_scancode avermedia_cardbus[] = {
+static struct rc_map_table avermedia_cardbus[] = {
 	{ 0x00, KEY_POWER },
 	{ 0x01, KEY_TUNER },		/* TV/FM */
 	{ 0x03, KEY_TEXT },		/* Teletext */

@@ -14,7 +14,7 @@
 
 /* DViCO FUSION HDTV MCE remote */
 
-static struct ir_scancode fusionhdtv_mce[] = {
+static struct rc_map_table fusionhdtv_mce[] = {
 
 	{ 0x0b, KEY_1 },
 	{ 0x17, KEY_2 },

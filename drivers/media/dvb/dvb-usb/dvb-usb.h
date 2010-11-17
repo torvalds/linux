@@ -75,17 +75,17 @@ struct dvb_usb_device_description {
 	struct usb_device_id *warm_ids[DVB_USB_ID_MAX_NUM];
 };
 
-static inline u8 rc5_custom(struct ir_scancode *key)
+static inline u8 rc5_custom(struct rc_map_table *key)
 {
 	return (key->scancode >> 8) & 0xff;
 }
 
-static inline u8 rc5_data(struct ir_scancode *key)
+static inline u8 rc5_data(struct rc_map_table *key)
 {
 	return key->scancode & 0xff;
 }
 
-static inline u8 rc5_scan(struct ir_scancode *key)
+static inline u8 rc5_scan(struct rc_map_table *key)
 {
 	return key->scancode & 0xffff;
 }
@@ -159,9 +159,9 @@ struct dvb_usb_adapter_properties {
 
 /**
  * struct dvb_rc_legacy - old properties of remote controller
- * @rc_key_map: a hard-wired array of struct ir_scancode (NULL to disable
+ * @rc_map_table: a hard-wired array of struct rc_map_table (NULL to disable
  *  remote control handling).
- * @rc_key_map_size: number of items in @rc_key_map.
+ * @rc_map_size: number of items in @rc_map_table.
  * @rc_query: called to query an event event.
  * @rc_interval: time in ms between two queries.
  */
@@ -170,8 +170,8 @@ struct dvb_rc_legacy {
 #define REMOTE_NO_KEY_PRESSED      0x00
 #define REMOTE_KEY_PRESSED         0x01
 #define REMOTE_KEY_REPEAT          0x02
-	struct ir_scancode  *rc_key_map;
-	int rc_key_map_size;
+	struct rc_map_table  *rc_map_table;
+	int rc_map_size;
 	int (*rc_query) (struct dvb_usb_device *, u32 *, int *);
 	int rc_interval;
 };

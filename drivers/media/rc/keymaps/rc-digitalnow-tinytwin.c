@@ -20,7 +20,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode digitalnow_tinytwin[] = {
+static struct rc_map_table digitalnow_tinytwin[] = {
 	{ 0x0000, KEY_MUTE },            /* [symbol speaker] */
 	{ 0x0001, KEY_VOLUMEUP },
 	{ 0x0002, KEY_POWER2 },          /* TV [power button] */

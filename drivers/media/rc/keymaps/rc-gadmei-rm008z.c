@@ -16,7 +16,7 @@
    Shine Liu <shinel@foxmail.com>
  */
 
-static struct ir_scancode gadmei_rm008z[] = {
+static struct rc_map_table gadmei_rm008z[] = {
 	{ 0x14, KEY_POWER2},		/* POWER OFF */
 	{ 0x0c, KEY_MUTE},		/* MUTE */
 

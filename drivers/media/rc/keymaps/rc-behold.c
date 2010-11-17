@@ -24,7 +24,7 @@
  * helps to descide which keycodes to assign to the buttons.
  */
 
-static struct ir_scancode behold[] = {
+static struct rc_map_table behold[] = {
 
 	/*  0x1c            0x12  *
 	 *  TV/FM          POWER  *

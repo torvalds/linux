@@ -25,13 +25,13 @@
 		     RC_TYPE_JVC | RC_TYPE_SONY | RC_TYPE_LIRC | \
 		     RC_TYPE_RC5_SZ | RC_TYPE_OTHER)
 
-struct ir_scancode {
+struct rc_map_table {
 	u32	scancode;
 	u32	keycode;
 };
 
 struct rc_map {
-	struct ir_scancode	*scan;
+	struct rc_map_table	*scan;
 	unsigned int		size;	/* Max number of entries */
 	unsigned int		len;	/* Used number of entries */
 	unsigned int		alloc;	/* Size of *scan in bytes */

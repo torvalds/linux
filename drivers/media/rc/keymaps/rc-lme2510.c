@@ -12,7 +12,7 @@
 #include <media/rc-map.h>
 
 
-static struct ir_scancode lme2510_rc[] = {
+static struct rc_map_table lme2510_rc[] = {
 	{ 0xba45, KEY_0 },
 	{ 0xa05f, KEY_1 },
 	{ 0xaf50, KEY_2 },

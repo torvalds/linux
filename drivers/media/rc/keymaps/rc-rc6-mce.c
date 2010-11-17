@@ -11,7 +11,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode rc6_mce[] = {
+static struct rc_map_table rc6_mce[] = {
 
 	{ 0x800f0400, KEY_NUMERIC_0 },
 	{ 0x800f0401, KEY_NUMERIC_1 },

@@ -22,7 +22,7 @@
 
 /* TerraTec slim remote, 7 rows, 4 columns. */
 /* Uses NEC extended 0x02bd. */
-static struct ir_scancode terratec_slim[] = {
+static struct rc_map_table terratec_slim[] = {
 	{ 0x02bd00, KEY_1 },
 	{ 0x02bd01, KEY_2 },
 	{ 0x02bd02, KEY_3 },

@@ -16,7 +16,7 @@
    Mauro Carvalho Chehab <mchehab@infradead.org>
  */
 
-static struct ir_scancode kaiomy[] = {
+static struct rc_map_table kaiomy[] = {
 	{ 0x43, KEY_POWER2},
 	{ 0x01, KEY_LIST},
 	{ 0x0b, KEY_ZOOM},

@@ -14,7 +14,7 @@
 
 /* IO-DATA BCTV7E Remote */
 
-static struct ir_scancode iodata_bctv7e[] = {
+static struct rc_map_table iodata_bctv7e[] = {
 	{ 0x40, KEY_TV },
 	{ 0x20, KEY_RADIO },		/* FM */
 	{ 0x60, KEY_EPG },

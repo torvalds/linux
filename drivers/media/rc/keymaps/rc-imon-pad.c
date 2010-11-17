@@ -17,7 +17,7 @@
  * same remote to different hex codes, and the silkscreened names
  * vary a bit between the SoundGraph and Antec remotes... ugh.
  */
-static struct ir_scancode imon_pad[] = {
+static struct rc_map_table imon_pad[] = {
 	/* keys sorted mostly by frequency of use to optimize lookups */
 	{ 0x2a8195b7, KEY_REWIND },
 	{ 0x298315b7, KEY_REWIND },

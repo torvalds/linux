@@ -11,7 +11,7 @@
 
 #include <media/rc-core.h>
 
-static struct ir_scancode lirc[] = {
+static struct rc_map_table lirc[] = {
 	{ },
 };
 

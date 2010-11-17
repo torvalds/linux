@@ -14,7 +14,7 @@
 
 /* Pinnacle PCTV HD 800i mini remote */
 
-static struct ir_scancode pinnacle_pctv_hd[] = {
+static struct rc_map_table pinnacle_pctv_hd[] = {
 
 	{ 0x0f, KEY_1 },
 	{ 0x15, KEY_2 },

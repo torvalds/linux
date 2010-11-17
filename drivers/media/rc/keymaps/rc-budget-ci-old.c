@@ -18,7 +18,7 @@
  * This is a "middle of the road" approach, differences are noted
  */
 
-static struct ir_scancode budget_ci_old[] = {
+static struct rc_map_table budget_ci_old[] = {
 	{ 0x00, KEY_0 },
 	{ 0x01, KEY_1 },
 	{ 0x02, KEY_2 },

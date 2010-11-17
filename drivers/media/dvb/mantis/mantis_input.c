@@ -34,7 +34,7 @@
 #define MODULE_NAME "mantis_core"
 #define RC_MAP_MANTIS "rc-mantis"
 
-static struct ir_scancode mantis_ir_table[] = {
+static struct rc_map_table mantis_ir_table[] = {
 	{ 0x29, KEY_POWER	},
 	{ 0x28, KEY_FAVORITES	},
 	{ 0x30, KEY_TEXT	},

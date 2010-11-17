@@ -16,7 +16,7 @@
    Mauro Carvalho Chehab <mchehab@infradead.org>
  */
 
-static struct ir_scancode kworld_plus_tv_analog[] = {
+static struct rc_map_table kworld_plus_tv_analog[] = {
 	{ 0x0c, KEY_PROG1 },		/* Kworld key */
 	{ 0x16, KEY_CLOSECD },		/* -> ) */
 	{ 0x1d, KEY_POWER2 },

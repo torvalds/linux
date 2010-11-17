@@ -14,7 +14,7 @@
 
 /* DigitalNow DNTV Live! DVB-T Pro Remote */
 
-static struct ir_scancode dntv_live_dvbt_pro[] = {
+static struct rc_map_table dntv_live_dvbt_pro[] = {
 	{ 0x16, KEY_POWER },
 	{ 0x5b, KEY_HOME },
 

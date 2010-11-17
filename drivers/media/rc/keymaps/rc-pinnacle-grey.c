@@ -12,7 +12,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode pinnacle_grey[] = {
+static struct rc_map_table pinnacle_grey[] = {
 	{ 0x3a, KEY_0 },
 	{ 0x31, KEY_1 },
 	{ 0x32, KEY_2 },

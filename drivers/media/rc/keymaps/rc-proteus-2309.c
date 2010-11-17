@@ -14,7 +14,7 @@
 
 /* Michal Majchrowicz <mmajchrowicz@gmail.com> */
 
-static struct ir_scancode proteus_2309[] = {
+static struct rc_map_table proteus_2309[] = {
 	/* numeric */
 	{ 0x00, KEY_0 },
 	{ 0x01, KEY_1 },

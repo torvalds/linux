@@ -12,7 +12,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode cinergy[] = {
+static struct rc_map_table cinergy[] = {
 	{ 0x00, KEY_0 },
 	{ 0x01, KEY_1 },
 	{ 0x02, KEY_2 },

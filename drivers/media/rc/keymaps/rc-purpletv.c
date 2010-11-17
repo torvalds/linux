@@ -12,7 +12,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode purpletv[] = {
+static struct rc_map_table purpletv[] = {
 	{ 0x03, KEY_POWER },
 	{ 0x6f, KEY_MUTE },
 	{ 0x10, KEY_BACKSPACE },	/* Recall */

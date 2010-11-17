@@ -12,7 +12,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode videomate_s350[] = {
+static struct rc_map_table videomate_s350[] = {
 	{ 0x00, KEY_TV},
 	{ 0x01, KEY_DVD},
 	{ 0x04, KEY_RECORD},

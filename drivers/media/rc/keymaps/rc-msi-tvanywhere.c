@@ -14,7 +14,7 @@
 
 /* MSI TV@nywhere MASTER remote */
 
-static struct ir_scancode msi_tvanywhere[] = {
+static struct rc_map_table msi_tvanywhere[] = {
 	/* Keys 0 to 9 */
 	{ 0x00, KEY_0 },
 	{ 0x01, KEY_1 },

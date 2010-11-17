@@ -17,7 +17,7 @@
  * Daniel Fraga <fragabr@gmail.com>
  */
 
-static struct ir_scancode powercolor_real_angel[] = {
+static struct rc_map_table powercolor_real_angel[] = {
 	{ 0x38, KEY_SWITCHVIDEOMODE },	/* switch inputs */
 	{ 0x0c, KEY_MEDIA },		/* Turn ON/OFF App */
 	{ 0x00, KEY_0 },

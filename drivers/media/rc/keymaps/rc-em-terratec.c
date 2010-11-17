@@ -12,7 +12,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode em_terratec[] = {
+static struct rc_map_table em_terratec[] = {
 	{ 0x01, KEY_CHANNEL },
 	{ 0x02, KEY_SELECT },
 	{ 0x03, KEY_MUTE },

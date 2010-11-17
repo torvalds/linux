@@ -26,7 +26,7 @@
   Some changes to formatting and keycodes by Mark Schultz <n9xmj@yahoo.com>
 */
 
-static struct ir_scancode msi_tvanywhere_plus[] = {
+static struct rc_map_table msi_tvanywhere_plus[] = {
 
 /*  ---- Remote Button Layout ----
 

@@ -22,7 +22,7 @@
  * codes added by Herton Ronaldo Krzesinski <herton@mandriva.com.br>
  */
 
-static struct ir_scancode avermedia_m135a[] = {
+static struct rc_map_table avermedia_m135a[] = {
 	/* RM-JX */
 	{ 0x0200, KEY_POWER2 },
 	{ 0x022e, KEY_DOT },		/* '.' */

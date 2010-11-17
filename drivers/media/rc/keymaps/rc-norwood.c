@@ -16,7 +16,7 @@
    By Peter Naulls <peter@chocky.org>
    Key comments are the functions given in the manual */
 
-static struct ir_scancode norwood[] = {
+static struct rc_map_table norwood[] = {
 	/* Keys 0 to 9 */
 	{ 0x20, KEY_0 },
 	{ 0x21, KEY_1 },

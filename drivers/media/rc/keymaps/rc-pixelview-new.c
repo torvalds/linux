@@ -17,7 +17,7 @@
    present on PV MPEG 8000GT
  */
 
-static struct ir_scancode pixelview_new[] = {
+static struct rc_map_table pixelview_new[] = {
 	{ 0x3c, KEY_TIME },		/* Timeshift */
 	{ 0x12, KEY_POWER },
 

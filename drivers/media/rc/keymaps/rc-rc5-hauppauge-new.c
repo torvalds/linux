@@ -19,7 +19,7 @@
  * This table contains the complete RC5 code, instead of just the data part
  */
 
-static struct ir_scancode rc5_hauppauge_new[] = {
+static struct rc_map_table rc5_hauppauge_new[] = {
 	/* Keys 0 to 9 */
 	{ 0x1e00, KEY_0 },
 	{ 0x1e01, KEY_1 },

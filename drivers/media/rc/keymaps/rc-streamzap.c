@@ -11,7 +11,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode streamzap[] = {
+static struct rc_map_table streamzap[] = {
 /*
  * The Streamzap remote is almost, but not quite, RC-5, as it has an extra
  * bit in it, which throws the in-kernel RC-5 decoder for a loop. Currently,

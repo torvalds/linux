@@ -386,7 +386,7 @@ static int az6027_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 }
 
 /* keys for the enclosed remote control */
-static struct ir_scancode ir_codes_az6027_table[] = {
+static struct rc_map_table rc_map_az6027_table[] = {
 	{ 0x01, KEY_1 },
 	{ 0x02, KEY_2 },
 };
@@ -1126,8 +1126,8 @@ static struct dvb_usb_device_properties az6027_properties = {
 	.read_mac_address = az6027_read_mac_addr,
  */
 	.rc.legacy = {
-		.rc_key_map       = ir_codes_az6027_table,
-		.rc_key_map_size  = ARRAY_SIZE(ir_codes_az6027_table),
+		.rc_map_table     = rc_map_az6027_table,
+		.rc_map_size      = ARRAY_SIZE(rc_map_az6027_table),
 		.rc_interval      = 400,
 		.rc_query         = az6027_rc_query,
 	},

@@ -20,7 +20,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode msi_digivox_ii[] = {
+static struct rc_map_table msi_digivox_ii[] = {
 	{ 0x0002, KEY_2 },
 	{ 0x0003, KEY_UP },              /* up */
 	{ 0x0004, KEY_3 },

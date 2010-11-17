@@ -14,7 +14,7 @@
 
 /* Mike Baikov <mike@baikov.com> */
 
-static struct ir_scancode gotview7135[] = {
+static struct rc_map_table gotview7135[] = {
 
 	{ 0x11, KEY_POWER },
 	{ 0x35, KEY_TV },

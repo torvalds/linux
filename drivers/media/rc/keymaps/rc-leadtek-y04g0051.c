@@ -20,7 +20,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode leadtek_y04g0051[] = {
+static struct rc_map_table leadtek_y04g0051[] = {
 	{ 0x0300, KEY_POWER2 },
 	{ 0x0303, KEY_SCREEN },
 	{ 0x0304, KEY_RIGHT },

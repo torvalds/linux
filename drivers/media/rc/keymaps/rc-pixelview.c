@@ -12,7 +12,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode pixelview[] = {
+static struct rc_map_table pixelview[] = {
 
 	{ 0x1e, KEY_POWER },	/* power */
 	{ 0x07, KEY_MEDIA },	/* source */

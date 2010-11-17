@@ -25,7 +25,7 @@
    Initial keytable was from Alain Kalker <miki@dds.nl> */
 
 /* Digittrade DVB-T USB Stick */
-static struct ir_scancode digittrade[] = {
+static struct rc_map_table digittrade[] = {
 	{ 0x0000, KEY_9 },
 	{ 0x0001, KEY_EPG },             /* EPG */
 	{ 0x0002, KEY_VOLUMEDOWN },      /* Vol Dn */

@@ -14,7 +14,7 @@
 
 /* Cinergy 1400 DVB-T */
 
-static struct ir_scancode cinergy_1400[] = {
+static struct rc_map_table cinergy_1400[] = {
 	{ 0x01, KEY_POWER },
 	{ 0x02, KEY_1 },
 	{ 0x03, KEY_2 },

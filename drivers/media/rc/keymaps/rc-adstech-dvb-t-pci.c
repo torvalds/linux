@@ -14,7 +14,7 @@
 
 /* ADS Tech Instant TV DVB-T PCI Remote */
 
-static struct ir_scancode adstech_dvb_t_pci[] = {
+static struct rc_map_table adstech_dvb_t_pci[] = {
 	/* Keys 0 to 9 */
 	{ 0x4d, KEY_0 },
 	{ 0x57, KEY_1 },

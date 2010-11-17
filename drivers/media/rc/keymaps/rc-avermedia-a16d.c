@@ -12,7 +12,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode avermedia_a16d[] = {
+static struct rc_map_table avermedia_a16d[] = {
 	{ 0x20, KEY_LIST},
 	{ 0x00, KEY_POWER},
 	{ 0x28, KEY_1},

@@ -23,7 +23,7 @@
 /* Initial keytable is from Jose Alberto Reguero <jareguero@telefonica.net>
    and Felipe Morales Moreno <felipe.morales.moreno@gmail.com> */
 /* FIXME: mappings are not 100% correct? */
-static struct ir_scancode avermedia_rm_ks[] = {
+static struct rc_map_table avermedia_rm_ks[] = {
 	{ 0x0501, KEY_POWER2 },
 	{ 0x0502, KEY_CHANNELUP },
 	{ 0x0503, KEY_CHANNELDOWN },

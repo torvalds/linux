@@ -15,7 +15,7 @@
 /* Alfons Geser <a.geser@cox.net>
  * updates from Job D. R. Borges <jobdrb@ig.com.br> */
 
-static struct ir_scancode eztv[] = {
+static struct rc_map_table eztv[] = {
 	{ 0x12, KEY_POWER },
 	{ 0x01, KEY_TV },	/* DVR */
 	{ 0x15, KEY_DVD },	/* DVD */

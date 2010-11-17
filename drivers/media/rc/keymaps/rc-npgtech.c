@@ -12,7 +12,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode npgtech[] = {
+static struct rc_map_table npgtech[] = {
 	{ 0x1d, KEY_SWITCHVIDEOMODE },	/* switch inputs */
 	{ 0x2a, KEY_FRONT },
 

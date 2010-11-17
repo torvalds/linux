@@ -16,7 +16,7 @@
 /* see http://users.pandora.be/nenya/electronics/rc5/codes00.htm */
 /* used by old (black) Hauppauge remotes                         */
 
-static struct ir_scancode rc5_tv[] = {
+static struct rc_map_table rc5_tv[] = {
 	/* Keys 0 to 9 */
 	{ 0x00, KEY_0 },
 	{ 0x01, KEY_1 },

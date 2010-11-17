@@ -16,7 +16,7 @@
    Devin Heitmueller <devin.heitmueller@gmail.com>
  */
 
-static struct ir_scancode ati_tv_wonder_hd_600[] = {
+static struct rc_map_table ati_tv_wonder_hd_600[] = {
 	{ 0x00, KEY_RECORD},		/* Row 1 */
 	{ 0x01, KEY_PLAYPAUSE},
 	{ 0x02, KEY_STOP},

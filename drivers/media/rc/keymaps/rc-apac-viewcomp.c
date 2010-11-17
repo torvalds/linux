@@ -14,7 +14,7 @@
 
 /* Attila Kondoros <attila.kondoros@chello.hu> */
 
-static struct ir_scancode apac_viewcomp[] = {
+static struct rc_map_table apac_viewcomp[] = {
 
 	{ 0x01, KEY_1 },
 	{ 0x02, KEY_2 },

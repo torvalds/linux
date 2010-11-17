@@ -14,7 +14,7 @@
 
 /* Alex Hermann <gaaf@gmx.net> */
 
-static struct ir_scancode avermedia[] = {
+static struct rc_map_table avermedia[] = {
 	{ 0x28, KEY_1 },
 	{ 0x18, KEY_2 },
 	{ 0x38, KEY_3 },

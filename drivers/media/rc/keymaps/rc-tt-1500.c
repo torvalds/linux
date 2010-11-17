@@ -14,7 +14,7 @@
 
 /* for the Technotrend 1500 bundled remotes (grey and black): */
 
-static struct ir_scancode tt_1500[] = {
+static struct rc_map_table tt_1500[] = {
 	{ 0x01, KEY_POWER },
 	{ 0x02, KEY_SHUFFLE },		/* ? double-arrow key */
 	{ 0x03, KEY_1 },

@@ -21,7 +21,7 @@
 #include <media/rc-map.h>
 
 /* Uses NEC extended 0x02bd */
-static struct ir_scancode total_media_in_hand[] = {
+static struct rc_map_table total_media_in_hand[] = {
 	{ 0x02bd00, KEY_1 },
 	{ 0x02bd01, KEY_2 },
 	{ 0x02bd02, KEY_3 },

@@ -21,7 +21,7 @@
 #include <media/rc-map.h>
 
 /* A-Link DTU(m) slim remote, 6 rows, 3 columns. */
-static struct ir_scancode alink_dtu_m[] = {
+static struct rc_map_table alink_dtu_m[] = {
 	{ 0x0800, KEY_VOLUMEUP },
 	{ 0x0801, KEY_1 },
 	{ 0x0802, KEY_3 },

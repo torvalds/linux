@@ -14,7 +14,7 @@
 
 /* AVERTV STUDIO 303 Remote */
 
-static struct ir_scancode avertv_303[] = {
+static struct rc_map_table avertv_303[] = {
 	{ 0x2a, KEY_1 },
 	{ 0x32, KEY_2 },
 	{ 0x3a, KEY_3 },

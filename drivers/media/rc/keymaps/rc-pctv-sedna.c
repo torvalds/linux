@@ -17,7 +17,7 @@
    Pavel Mihaylov <bin@bash.info>
    Also for the remote bundled with Kozumi KTV-01C card */
 
-static struct ir_scancode pctv_sedna[] = {
+static struct rc_map_table pctv_sedna[] = {
 	{ 0x00, KEY_0 },
 	{ 0x01, KEY_1 },
 	{ 0x02, KEY_2 },

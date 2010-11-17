@@ -1,6 +1,6 @@
 #include <media/rc-map.h>
 
-static struct ir_scancode twinhan_vp1027[] = {
+static struct rc_map_table twinhan_vp1027[] = {
 	{ 0x16, KEY_POWER2 },
 	{ 0x17, KEY_FAVORITES },
 	{ 0x0f, KEY_TEXT },

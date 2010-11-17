@@ -15,7 +15,7 @@
 /* Encore ENLTV2-FM  - silver plastic - "Wand Media" written at the botton
     Mauro Carvalho Chehab <mchehab@infradead.org> */
 
-static struct ir_scancode encore_enltv2[] = {
+static struct rc_map_table encore_enltv2[] = {
 	{ 0x4c, KEY_POWER2 },
 	{ 0x4a, KEY_TUNER },
 	{ 0x40, KEY_1 },

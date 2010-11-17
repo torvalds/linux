@@ -16,7 +16,7 @@
    Mauro Carvalho Chehab <mchehab@redhat.com>
  */
 
-static struct ir_scancode nec_terratec_cinergy_xs[] = {
+static struct rc_map_table nec_terratec_cinergy_xs[] = {
 	{ 0x1441, KEY_HOME},
 	{ 0x1401, KEY_POWER2},
 

@@ -16,7 +16,7 @@
    Devin Heitmueller <devin.heitmueller@gmail.com>
  */
 
-static struct ir_scancode evga_indtube[] = {
+static struct rc_map_table evga_indtube[] = {
 	{ 0x12, KEY_POWER},
 	{ 0x02, KEY_MODE},	/* TV */
 	{ 0x14, KEY_MUTE},

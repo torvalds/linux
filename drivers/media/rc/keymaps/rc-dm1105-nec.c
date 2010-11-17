@@ -16,7 +16,7 @@
    Igor M. Liplianin <liplianin@me.by>
  */
 
-static struct ir_scancode dm1105_nec[] = {
+static struct rc_map_table dm1105_nec[] = {
 	{ 0x0a, KEY_POWER2},		/* power */
 	{ 0x0c, KEY_MUTE},		/* mute */
 	{ 0x11, KEY_1},

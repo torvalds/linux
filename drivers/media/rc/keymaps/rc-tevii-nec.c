@@ -12,7 +12,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode tevii_nec[] = {
+static struct rc_map_table tevii_nec[] = {
 	{ 0x0a, KEY_POWER2},
 	{ 0x0c, KEY_MUTE},
 	{ 0x11, KEY_1},

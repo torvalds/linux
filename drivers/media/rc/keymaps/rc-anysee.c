@@ -20,7 +20,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode anysee[] = {
+static struct rc_map_table anysee[] = {
 	{ 0x0800, KEY_0 },
 	{ 0x0801, KEY_1 },
 	{ 0x0802, KEY_2 },

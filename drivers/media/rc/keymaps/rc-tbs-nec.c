@@ -12,7 +12,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode tbs_nec[] = {
+static struct rc_map_table tbs_nec[] = {
 	{ 0x04, KEY_POWER2},	/*power*/
 	{ 0x14, KEY_MUTE},	/*mute*/
 	{ 0x07, KEY_1},

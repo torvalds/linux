@@ -14,7 +14,7 @@
 
 /* Mark Phalan <phalanm@o2.ie> */
 
-static struct ir_scancode pv951[] = {
+static struct rc_map_table pv951[] = {
 	{ 0x00, KEY_0 },
 	{ 0x01, KEY_1 },
 	{ 0x02, KEY_2 },

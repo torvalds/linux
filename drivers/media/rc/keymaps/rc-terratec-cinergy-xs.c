@@ -16,7 +16,7 @@
    Devin Heitmueller <dheitmueller@linuxtv.org>
  */
 
-static struct ir_scancode terratec_cinergy_xs[] = {
+static struct rc_map_table terratec_cinergy_xs[] = {
 	{ 0x41, KEY_HOME},
 	{ 0x01, KEY_POWER},
 	{ 0x42, KEY_MENU},

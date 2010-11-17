@@ -12,7 +12,7 @@
 
 #include <media/rc-map.h>
 
-static struct ir_scancode videomate_tv_pvr[] = {
+static struct rc_map_table videomate_tv_pvr[] = {
 	{ 0x14, KEY_MUTE },
 	{ 0x24, KEY_ZOOM },
 
