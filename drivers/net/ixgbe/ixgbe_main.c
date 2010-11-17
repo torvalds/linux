@@ -4295,19 +4295,16 @@ static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 static inline bool ixgbe_cache_ring_rss(struct ixgbe_adapter *adapter)
 {
 	int i;
-	bool ret = false;
 
-	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-		for (i = 0; i < adapter->num_rx_queues; i++)
-			adapter->rx_ring[i]->reg_idx = i;
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			adapter->tx_ring[i]->reg_idx = i;
-		ret = true;
-	} else {
-		ret = false;
-	}
+	if (!(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
+		return false;
 
-	return ret;
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		adapter->rx_ring[i]->reg_idx = i;
+	for (i = 0; i < adapter->num_tx_queues; i++)
+		adapter->tx_ring[i]->reg_idx = i;
+
+	return true;
 }
 
 #ifdef CONFIG_IXGBE_DCB
