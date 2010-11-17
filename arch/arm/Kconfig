@@ -6,7 +6,7 @@ config ARM
 	select HAVE_MEMBLOCK
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
-	select GENERIC_ATOMIC64 if (!CPU_32v6K)
+	select GENERIC_ATOMIC64 if (!CPU_32v6K || !AEABI)
 	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
 	select HAVE_ARCH_KGDB
 	select HAVE_KPROBES if (!XIP_KERNEL)
@@ -646,7 +646,7 @@ config ARCH_S3C2410
 	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
 	select ARCH_USES_GETTIMEOFFSET
-	select HAVE_S3C2410_I2C
+	select HAVE_S3C2410_I2C if I2C
 	help
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
@@ -676,8 +676,8 @@ config ARCH_S3C64XX
 	select S3C_DEV_NAND
 	select USB_ARCH_HAS_OHCI
 	select SAMSUNG_GPIOLIB_4BIT
-	select HAVE_S3C2410_I2C
-	select HAVE_S3C2410_WATCHDOG
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	help
 	  Samsung S3C64XX series based systems
 
@@ -686,10 +686,10 @@ config ARCH_S5P64X0
 	select CPU_V6
 	select GENERIC_GPIO
 	select HAVE_CLK
-	select HAVE_S3C2410_WATCHDOG
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select ARCH_USES_GETTIMEOFFSET
-	select HAVE_S3C2410_I2C
-	select HAVE_S3C_RTC
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
 	help
 	  Samsung S5P64X0 CPU based systems, such as the Samsung SMDK6440,
 	  SMDK6450.
@@ -700,7 +700,7 @@ config ARCH_S5P6442
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARCH_USES_GETTIMEOFFSET
-	select HAVE_S3C2410_WATCHDOG
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	help
 	  Samsung S5P6442 CPU based systems
 
@@ -711,9 +711,9 @@ config ARCH_S5PC100
 	select CPU_V7
 	select ARM_L1_CACHE_SHIFT_6
 	select ARCH_USES_GETTIMEOFFSET
-	select HAVE_S3C2410_I2C
-	select HAVE_S3C_RTC
-	select HAVE_S3C2410_WATCHDOG
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	help
 	  Samsung S5PC100 series based systems
 
@@ -726,9 +726,9 @@ config ARCH_S5PV210
 	select ARM_L1_CACHE_SHIFT_6
 	select ARCH_HAS_CPUFREQ
 	select ARCH_USES_GETTIMEOFFSET
-	select HAVE_S3C2410_I2C
-	select HAVE_S3C_RTC
-	select HAVE_S3C2410_WATCHDOG
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	help
 	  Samsung S5PV210/S5PC110 series based systems
 
@@ -739,9 +739,9 @@ config ARCH_S5PV310
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select GENERIC_CLOCKEVENTS
-	select HAVE_S3C_RTC
-	select HAVE_S3C2410_I2C
-	select HAVE_S3C2410_WATCHDOG
+	select HAVE_S3C_RTC if RTC_CLASS
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	help
 	  Samsung S5PV310 series based systems
 

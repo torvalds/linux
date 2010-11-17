@@ -266,7 +266,7 @@ int Ssfdc_D_ReadSect(struct us_data *us, BYTE *buf,BYTE *redundant)
 	addr = addr*(WORD)Ssfdc.MaxSectors+Media.Sector;
 
 	// Read sect data
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength	= 0x200;
 	bcb->Flags			= 0x80;
@@ -281,7 +281,7 @@ int Ssfdc_D_ReadSect(struct us_data *us, BYTE *buf,BYTE *redundant)
 		return USB_STOR_TRANSPORT_ERROR;
 
 	// Read redundant
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength	= 0x10;
 	bcb->Flags			= 0x80;
@@ -319,7 +319,7 @@ int Ssfdc_D_ReadBlock(struct us_data *us, WORD count, BYTE *buf,BYTE *redundant)
 	addr = addr*(WORD)Ssfdc.MaxSectors+Media.Sector;
 
 	// Read sect data
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength	= 0x200*count;
 	bcb->Flags			= 0x80;
@@ -334,7 +334,7 @@ int Ssfdc_D_ReadBlock(struct us_data *us, WORD count, BYTE *buf,BYTE *redundant)
 		return USB_STOR_TRANSPORT_ERROR;
 
 	// Read redundant
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength	= 0x10;
 	bcb->Flags			= 0x80;
@@ -536,7 +536,7 @@ int Ssfdc_D_CopyBlock(struct us_data *us, WORD count, BYTE *buf,BYTE *redundant)
 	WriteAddr = WriteAddr*(WORD)Ssfdc.MaxSectors;
 
 	// Write sect data
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength	= 0x200*count;
 	bcb->Flags			= 0x00;
@@ -754,7 +754,7 @@ int Ssfdc_D_WriteSectForCopy(struct us_data *us, BYTE *buf, BYTE *redundant)
 	addr = addr*(WORD)Ssfdc.MaxSectors+Media.Sector;
 
 	// Write sect data
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength	= 0x200;
 	bcb->Flags			= 0x00;
@@ -791,7 +791,7 @@ int Ssfdc_D_EraseBlock(struct us_data *us)
 	addr=(WORD)Media.Zone*Ssfdc.MaxBlocks+Media.PhyBlock;
 	addr=addr*(WORD)Ssfdc.MaxSectors;
 
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength	= 0x200;
 	bcb->Flags			= 0x80;
@@ -827,7 +827,7 @@ int Ssfdc_D_ReadRedtData(struct us_data *us, BYTE *redundant)
 	addr = (WORD)Media.Zone*Ssfdc.MaxBlocks+Media.PhyBlock;
 	addr = addr*(WORD)Ssfdc.MaxSectors+Media.Sector;
 
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength	= 0x10;
 	bcb->Flags			= 0x80;
@@ -870,7 +870,7 @@ int Ssfdc_D_WriteRedtData(struct us_data *us, BYTE *redundant)
 	addr = (WORD)Media.Zone*Ssfdc.MaxBlocks+Media.PhyBlock;
 	addr = addr*(WORD)Ssfdc.MaxSectors+Media.Sector;
 
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength	= 0x10;
 	bcb->Flags			= 0x80;

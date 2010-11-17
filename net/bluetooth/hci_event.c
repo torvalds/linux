@@ -1175,6 +1175,12 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 				hci_send_cmd(hdev,
 					HCI_OP_READ_REMOTE_EXT_FEATURES,
 							sizeof(cp), &cp);
+			} else if (!ev->status && conn->out &&
+					conn->sec_level == BT_SECURITY_HIGH) {
+				struct hci_cp_auth_requested cp;
+				cp.handle = ev->handle;
+				hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED,
+							sizeof(cp), &cp);
 			} else {
 				conn->state = BT_CONNECTED;
 				hci_proto_connect_cfm(conn, ev->status);

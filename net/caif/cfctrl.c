@@ -361,11 +361,10 @@ void cfctrl_cancel_req(struct cflayer *layr, struct cflayer *adap_layer)
 	struct cfctrl_request_info *p, *tmp;
 	struct cfctrl *ctrl = container_obj(layr);
 	spin_lock(&ctrl->info_list_lock);
-	pr_warn("enter\n");
 
 	list_for_each_entry_safe(p, tmp, &ctrl->list, list) {
 		if (p->client_layer == adap_layer) {
-			pr_warn("cancel req :%d\n", p->sequence_no);
+			pr_debug("cancel req :%d\n", p->sequence_no);
 			list_del(&p->list);
 			kfree(p);
 		}

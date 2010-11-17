@@ -22,7 +22,7 @@ int ENE_InitMedia(struct us_data *us)
 	int	result;
 	BYTE	MiscReg03 = 0;
 
-	printk("--- Initial Nedia ---\n");
+	printk("--- Init Media ---\n");
 	result = ENE_Read_BYTE(us, REG_CARD_STATUS, &MiscReg03);
 	if (result != USB_STOR_XFER_GOOD)
 	{
@@ -64,7 +64,7 @@ int ENE_Read_BYTE(struct us_data *us, WORD index, void *buf)
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	int result;
 
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength	= 0x01;
 	bcb->Flags			= 0x80;
@@ -92,7 +92,7 @@ int ENE_SDInit(struct us_data *us)
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->Flags = 0x80;
 	bcb->CDB[0] = 0xF2;
@@ -112,7 +112,7 @@ int ENE_SDInit(struct us_data *us)
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength	= 0x200;
 	bcb->Flags			= 0x80;
@@ -161,7 +161,7 @@ int ENE_MSInit(struct us_data *us)
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength	= 0x200;
 	bcb->Flags			= 0x80;
@@ -219,7 +219,7 @@ int ENE_SMInit(struct us_data *us)
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength	= 0x200;
 	bcb->Flags			= 0x80;
@@ -341,7 +341,7 @@ int ENE_LoadBinCode(struct us_data *us, BYTE flag)
 		break;
 	}
 
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = 0x800;
 	bcb->Flags =0x00;
@@ -433,7 +433,7 @@ int ENE_Read_Data(struct us_data *us, void *buf, unsigned int length)
 
 	//printk("transport --- ENE_Read_Data\n");
 	// set up the command wrapper
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = length;
 	bcb->Flags =0x80;
@@ -470,7 +470,7 @@ int ENE_Write_Data(struct us_data *us, void *buf, unsigned int length)
 
 	//printk("transport --- ENE_Write_Data\n");
 	// set up the command wrapper
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = length;
 	bcb->Flags =0x00;

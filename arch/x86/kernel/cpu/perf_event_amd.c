@@ -280,11 +280,11 @@ static struct amd_nb *amd_alloc_nb(int cpu, int nb_id)
 	struct amd_nb *nb;
 	int i;
 
-	nb = kmalloc(sizeof(struct amd_nb), GFP_KERNEL);
+	nb = kmalloc_node(sizeof(struct amd_nb), GFP_KERNEL | __GFP_ZERO,
+			  cpu_to_node(cpu));
 	if (!nb)
 		return NULL;
 
-	memset(nb, 0, sizeof(*nb));
 	nb->nb_id = nb_id;
 
 	/*

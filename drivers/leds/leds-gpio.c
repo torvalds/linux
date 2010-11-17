@@ -316,7 +316,7 @@ static struct of_platform_driver of_gpio_leds_driver = {
 
 static int __init gpio_led_init(void)
 {
-	int ret;
+	int ret = 0;
 
 #ifdef CONFIG_LEDS_GPIO_PLATFORM	
 	ret = platform_driver_register(&gpio_led_driver);

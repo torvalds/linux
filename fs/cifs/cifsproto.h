@@ -104,6 +104,7 @@ extern struct timespec cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
 extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
 				      int offset);
+extern void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
 
 extern struct cifsFileInfo *cifs_new_fileinfo(__u16 fileHandle,
 				struct file *file, struct tcon_link *tlink,

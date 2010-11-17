@@ -96,11 +96,15 @@
  */
 #define in_nmi()	(preempt_count() & NMI_MASK)
 
-#if defined(CONFIG_PREEMPT)
+#if defined(CONFIG_PREEMPT) && defined(CONFIG_BKL)
 # define PREEMPT_INATOMIC_BASE kernel_locked()
-# define PREEMPT_CHECK_OFFSET 1
 #else
 # define PREEMPT_INATOMIC_BASE 0
+#endif
+
+#if defined(CONFIG_PREEMPT)
+# define PREEMPT_CHECK_OFFSET 1
+#else
 # define PREEMPT_CHECK_OFFSET 0
 #endif
 
