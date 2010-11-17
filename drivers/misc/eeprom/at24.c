@@ -517,6 +517,11 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (!is_power_of_2(chip.byte_len))
 		dev_warn(&client->dev,
 			"byte_len looks suspicious (no power of 2)!\n");
+	if (!chip.page_size) {
+		dev_err(&client->dev, "page_size must not be 0!\n");
+		err = -EINVAL;
+		goto err_out;
+	}
 	if (!is_power_of_2(chip.page_size))
 		dev_warn(&client->dev,
 			"page_size looks suspicious (no power of 2)!\n");
@@ -681,6 +686,11 @@ static struct i2c_driver at24_driver = {
 
 static int __init at24_init(void)
 {
+	if (!io_limit) {
+		pr_err("at24: io_limit must not be 0!\n");
+		return -EINVAL;
+	}
+
 	io_limit = rounddown_pow_of_two(io_limit);
 	return i2c_add_driver(&at24_driver);
 }
