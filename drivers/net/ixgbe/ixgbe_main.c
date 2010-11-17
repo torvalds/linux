@@ -2182,9 +2182,11 @@ static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 		} else if (handler == &ixgbe_msix_clean_tx) {
 			sprintf(adapter->name[vector], "%s-%s-%d",
 				netdev->name, "tx", ti++);
-		} else
+		} else {
 			sprintf(adapter->name[vector], "%s-%s-%d",
-				netdev->name, "TxRx", vector);
+				netdev->name, "TxRx", ri++);
+			ti++;
+		}
 
 		err = request_irq(adapter->msix_entries[vector].vector,
 				  handler, 0, adapter->name[vector],
