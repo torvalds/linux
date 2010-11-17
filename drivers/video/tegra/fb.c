@@ -149,6 +149,9 @@ static int tegra_fb_set_par(struct fb_info *info)
 		}
 		info->fix.line_length = var->xres * var->bits_per_pixel / 8;
 		tegra_fb->win->stride = info->fix.line_length;
+		tegra_fb->win->stride_uv = 0;
+		tegra_fb->win->offset_u = 0;
+		tegra_fb->win->offset_v = 0;
 	}
 
 	if (var->pixclock) {
@@ -176,9 +179,9 @@ static int tegra_fb_set_par(struct fb_info *info)
 		tegra_dc_set_mode(tegra_fb->win->dc, &mode);
 
 		tegra_fb->win->w = info->mode->xres;
-		tegra_fb->win->h = info->mode->xres;
+		tegra_fb->win->h = info->mode->yres;
 		tegra_fb->win->out_w = info->mode->xres;
-		tegra_fb->win->out_h = info->mode->xres;
+		tegra_fb->win->out_h = info->mode->yres;
 	}
 	return 0;
 }
@@ -372,7 +375,10 @@ static int tegra_fb_set_windowattr(struct tegra_fb_info *tegra_fb,
 
 	/* STOPSHIP verify that this won't read outside of the surface */
 	win->phys_addr = flip_win->phys_addr + flip_win->attr.offset;
+	win->offset_u = flip_win->attr.offset_u + flip_win->attr.offset;
+	win->offset_v = flip_win->attr.offset_v + flip_win->attr.offset;
 	win->stride = flip_win->attr.stride;
+	win->stride_uv = flip_win->attr.stride_uv;
 
 	if ((s32)flip_win->attr.pre_syncpt_id >= 0) {
 		nvhost_syncpt_wait_timeout(&tegra_fb->ndev->host->syncpt,
@@ -737,7 +743,10 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	win->z = 0;
 	win->phys_addr = fb_phys;
 	win->virt_addr = fb_base;
+	win->offset_u = 0;
+	win->offset_v = 0;
 	win->stride = fb_data->xres * fb_data->bits_per_pixel / 8;
+	win->stride_uv = 0;
 	win->flags = TEGRA_WIN_FLAG_ENABLED;
 
 	if (fb_mem)

@@ -75,18 +75,33 @@ static inline int tegra_dc_fmt_bpp(int fmt)
 	case TEGRA_WIN_FMT_R6x2G6x2B6x2A8:
 		return 32;
 
-	case TEGRA_WIN_FMT_YCbCr422:
-	case TEGRA_WIN_FMT_YUV422:
+	/* for planar formats, size of the Y plane, 8bit */
 	case TEGRA_WIN_FMT_YCbCr420P:
 	case TEGRA_WIN_FMT_YUV420P:
 	case TEGRA_WIN_FMT_YCbCr422P:
 	case TEGRA_WIN_FMT_YUV422P:
+		return 8;
+
+	case TEGRA_WIN_FMT_YCbCr422:
+	case TEGRA_WIN_FMT_YUV422:
 	case TEGRA_WIN_FMT_YCbCr422R:
 	case TEGRA_WIN_FMT_YUV422R:
 	case TEGRA_WIN_FMT_YCbCr422RA:
 	case TEGRA_WIN_FMT_YUV422RA:
 		/* FIXME: need to know the bpp of these formats */
 		return 0;
+	}
+	return 0;
+}
+
+static inline int tegra_dc_is_yuv_planar(int fmt)
+{
+	switch (fmt) {
+	case TEGRA_WIN_FMT_YUV420P:
+	case TEGRA_WIN_FMT_YCbCr420P:
+	case TEGRA_WIN_FMT_YCbCr422P:
+	case TEGRA_WIN_FMT_YUV422P:
+		return 1;
 	}
 	return 0;
 }
@@ -219,15 +234,26 @@ static void _dump_regs(struct tegra_dc *dc, void *data,
 		DUMP_REG(DC_WIN_DDA_INCREMENT);
 		DUMP_REG(DC_WIN_LINE_STRIDE);
 		DUMP_REG(DC_WIN_BUF_STRIDE);
+		DUMP_REG(DC_WIN_UV_BUF_STRIDE);
 		DUMP_REG(DC_WIN_BLEND_NOKEY);
 		DUMP_REG(DC_WIN_BLEND_1WIN);
 		DUMP_REG(DC_WIN_BLEND_2WIN_X);
 		DUMP_REG(DC_WIN_BLEND_2WIN_Y);
 		DUMP_REG(DC_WIN_BLEND_3WIN_XY);
 		DUMP_REG(DC_WINBUF_START_ADDR);
+		DUMP_REG(DC_WINBUF_START_ADDR_U);
+		DUMP_REG(DC_WINBUF_START_ADDR_V);
 		DUMP_REG(DC_WINBUF_ADDR_H_OFFSET);
 		DUMP_REG(DC_WINBUF_ADDR_V_OFFSET);
 		DUMP_REG(DC_WINBUF_UFLOW_STATUS);
+		DUMP_REG(DC_WIN_CSC_YOF);
+		DUMP_REG(DC_WIN_CSC_KYRGB);
+		DUMP_REG(DC_WIN_CSC_KUR);
+		DUMP_REG(DC_WIN_CSC_KVR);
+		DUMP_REG(DC_WIN_CSC_KUG);
+		DUMP_REG(DC_WIN_CSC_KVG);
+		DUMP_REG(DC_WIN_CSC_KUB);
+		DUMP_REG(DC_WIN_CSC_KVB);
 	}
 
 	tegra_dc_io_end(dc);
@@ -414,6 +440,35 @@ static void tegra_dc_set_blending(struct tegra_dc *dc, struct tegra_dc_blend *bl
 	}
 }
 
+static void tegra_dc_set_csc(struct tegra_dc *dc)
+{
+	tegra_dc_writel(dc, 0x00f0, DC_WIN_CSC_YOF);
+	tegra_dc_writel(dc, 0x012a, DC_WIN_CSC_KYRGB);
+	tegra_dc_writel(dc, 0x0000, DC_WIN_CSC_KUR);
+	tegra_dc_writel(dc, 0x0198, DC_WIN_CSC_KVR);
+	tegra_dc_writel(dc, 0x039b, DC_WIN_CSC_KUG);
+	tegra_dc_writel(dc, 0x032f, DC_WIN_CSC_KVG);
+	tegra_dc_writel(dc, 0x0204, DC_WIN_CSC_KUB);
+	tegra_dc_writel(dc, 0x0000, DC_WIN_CSC_KVB);
+}
+
+static void tegra_dc_set_scaling_filter(struct tegra_dc *dc)
+{
+	unsigned i;
+	unsigned v0 = 128;
+	unsigned v1 = 0;
+	/* linear horizontal and vertical filters */
+	for (i = 0; i < 16; i++) {
+		tegra_dc_writel(dc, (v1 << 16) | (v0 << 8),
+				DC_WIN_H_FILTER_P(i));
+
+		tegra_dc_writel(dc, v0,
+				DC_WIN_V_FILTER_P(i));
+		v0 -= 8;
+		v1 += 8;
+	}
+}
+
 /* does not support updating windows on multiple dcs in one call */
 int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 {
@@ -441,6 +496,7 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 		struct tegra_dc_win *win = windows[i];
 		unsigned h_dda;
 		unsigned v_dda;
+		int yuvp = tegra_dc_is_yuv_planar(win->fmt);
 
 		if (win->z != dc->blend.z[win->idx]) {
 			dc->blend.z[win->idx] = win->z;
@@ -467,10 +523,6 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 		tegra_dc_writel(dc, win->fmt, DC_WIN_COLOR_DEPTH);
 		tegra_dc_writel(dc, 0, DC_WIN_BYTE_SWAP);
 
-		/* TODO: implement filter on settings */
-		h_dda = (win->w * 0x1000) / max_t(int, win->out_w - 1, 1);
-		v_dda = (win->h * 0x1000) / max_t(int, win->out_h - 1, 1);
-
 		tegra_dc_writel(dc,
 				V_POSITION(win->out_y) | H_POSITION(win->out_x),
 				DC_WIN_POSITION);
@@ -479,24 +531,53 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 				DC_WIN_SIZE);
 		tegra_dc_writel(dc,
 				V_PRESCALED_SIZE(win->h) |
-				H_PRESCALED_SIZE(win->w*tegra_dc_fmt_bpp(win->fmt)/8),
+				H_PRESCALED_SIZE(win->w * tegra_dc_fmt_bpp(win->fmt) / 8),
 				DC_WIN_PRESCALED_SIZE);
-		tegra_dc_writel(dc, 0, DC_WIN_H_INITIAL_DDA);
-		tegra_dc_writel(dc, 0, DC_WIN_V_INITIAL_DDA);
+
+		h_dda = ((win->w - 1) * 0x1000) / max_t(int, win->out_w - 1, 1);
+		v_dda = ((win->h - 1) * 0x1000) / max_t(int, win->out_h - 1, 1);
 		tegra_dc_writel(dc, V_DDA_INC(v_dda) | H_DDA_INC(h_dda),
 				DC_WIN_DDA_INCREMENT);
-		tegra_dc_writel(dc, win->stride, DC_WIN_LINE_STRIDE);
+		tegra_dc_writel(dc, 0, DC_WIN_H_INITIAL_DDA);
+		tegra_dc_writel(dc, 0, DC_WIN_V_INITIAL_DDA);
+
 		tegra_dc_writel(dc, 0, DC_WIN_BUF_STRIDE);
-
-
+		tegra_dc_writel(dc, 0, DC_WIN_UV_BUF_STRIDE);
 		tegra_dc_writel(dc, (unsigned long)win->phys_addr,
 				DC_WINBUF_START_ADDR);
-		tegra_dc_writel(dc, win->x, DC_WINBUF_ADDR_H_OFFSET);
+
+		if (!yuvp) {
+			tegra_dc_writel(dc, win->stride, DC_WIN_LINE_STRIDE);
+		} else {
+			tegra_dc_writel(dc,
+					(unsigned long)win->phys_addr +
+					(unsigned long)win->offset_u,
+					DC_WINBUF_START_ADDR_U);
+			tegra_dc_writel(dc,
+					(unsigned long)win->phys_addr +
+					(unsigned long)win->offset_v,
+					DC_WINBUF_START_ADDR_V);
+			tegra_dc_writel(dc,
+					LINE_STRIDE(win->stride) |
+					UV_LINE_STRIDE(win->stride_uv),
+					DC_WIN_LINE_STRIDE);
+		}
+
+		tegra_dc_writel(dc, win->x * tegra_dc_fmt_bpp(win->fmt) / 8,
+				DC_WINBUF_ADDR_H_OFFSET);
 		tegra_dc_writel(dc, win->y, DC_WINBUF_ADDR_V_OFFSET);
 
 		val = WIN_ENABLE;
-		if (tegra_dc_fmt_bpp(win->fmt) < 24)
+		if (yuvp)
+			val |= CSC_ENABLE;
+		else if (tegra_dc_fmt_bpp(win->fmt) < 24)
 			val |= COLOR_EXPAND;
+
+		if (win->w != win->out_w)
+			val |= H_FILTER_ENABLE;
+		if (win->h != win->out_h)
+			val |= V_FILTER_ENABLE;
+
 		tegra_dc_writel(dc, val, DC_WIN_WIN_OPTIONS);
 
 		win->dirty = no_vsync ? 0 : 1;
@@ -812,6 +893,7 @@ static void tegra_dc_init(struct tegra_dc *dc)
 {
 	u32 disp_syncpt;
 	u32 vblank_syncpt;
+	int i;
 
 	tegra_dc_writel(dc, 0x00000100, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
 	if (dc->ndev->id == 0) {
@@ -855,6 +937,13 @@ static void tegra_dc_init(struct tegra_dc *dc)
 	tegra_dc_writel(dc, 0x00000000, DC_DISP_BORDER_COLOR);
 
 	tegra_dc_set_color_control(dc);
+	for (i = 0; i < DC_N_WINDOWS; i++) {
+		tegra_dc_writel(dc, WINDOW_A_SELECT << i,
+				DC_CMD_DISPLAY_WINDOW_HEADER);
+		tegra_dc_set_csc(dc);
+		tegra_dc_set_scaling_filter(dc);
+	}
+
 
 	dc->syncpt_id = disp_syncpt;
 
