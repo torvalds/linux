@@ -219,7 +219,7 @@
 	};
 
 	localbus {
-		compatible = "fsl,mpc5200b-lpb","simple-bus";
+		compatible = "fsl,mpc5200b-lpb","fsl,mpc5200-lpb","simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges = <0 0 0xfc000000 0x2000000>;
