@@ -553,7 +553,7 @@ static struct iwl_bt_params iwl6000_bt_params = {
 };
 
 struct iwl_cfg iwl6000g2a_2agn_cfg = {
-	.name = "6000 Series 2x2 AGN Gen2a",
+	.name = "Intel(R) Centrino(R) Advanced-N 6205 AGN",
 	.fw_name_pre = IWL6000G2A_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
@@ -569,7 +569,7 @@ struct iwl_cfg iwl6000g2a_2agn_cfg = {
 };
 
 struct iwl_cfg iwl6000g2a_2abg_cfg = {
-	.name = "6000 Series 2x2 ABG Gen2a",
+	.name = "Intel(R) Centrino(R) Advanced-N 6205 ABG",
 	.fw_name_pre = IWL6000G2A_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
@@ -584,7 +584,7 @@ struct iwl_cfg iwl6000g2a_2abg_cfg = {
 };
 
 struct iwl_cfg iwl6000g2a_2bg_cfg = {
-	.name = "6000 Series 2x2 BG Gen2a",
+	.name = "Intel(R) Centrino(R) Advanced-N 6205 BG",
 	.fw_name_pre = IWL6000G2A_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
