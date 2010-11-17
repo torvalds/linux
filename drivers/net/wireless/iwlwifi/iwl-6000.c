@@ -599,7 +599,7 @@ struct iwl_cfg iwl6000g2a_2bg_cfg = {
 };
 
 struct iwl_cfg iwl6000g2b_2agn_cfg = {
-	.name = "6000 Series 2x2 AGN Gen2b",
+	.name = "Intel(R) Centrino(R) Advanced-N 6230 AGN",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
@@ -619,7 +619,7 @@ struct iwl_cfg iwl6000g2b_2agn_cfg = {
 };
 
 struct iwl_cfg iwl6000g2b_2abg_cfg = {
-	.name = "6000 Series 2x2 ABG Gen2b",
+	.name = "Intel(R) Centrino(R) Advanced-N 6230 ABG",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
@@ -638,7 +638,7 @@ struct iwl_cfg iwl6000g2b_2abg_cfg = {
 };
 
 struct iwl_cfg iwl6000g2b_2bgn_cfg = {
-	.name = "6000 Series 2x2 BGN Gen2b",
+	.name = "Intel(R) Centrino(R) Advanced-N 6230 BGN",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
@@ -658,7 +658,7 @@ struct iwl_cfg iwl6000g2b_2bgn_cfg = {
 };
 
 struct iwl_cfg iwl6000g2b_2bg_cfg = {
-	.name = "6000 Series 2x2 BG Gen2b",
+	.name = "Intel(R) Centrino(R) Advanced-N 6230 BG",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
@@ -677,7 +677,7 @@ struct iwl_cfg iwl6000g2b_2bg_cfg = {
 };
 
 struct iwl_cfg iwl6000g2b_bgn_cfg = {
-	.name = "6000 Series 1x2 BGN Gen2b",
+	.name = "Intel(R) Centrino(R) Wireless-N 1030 BGN",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
@@ -697,7 +697,7 @@ struct iwl_cfg iwl6000g2b_bgn_cfg = {
 };
 
 struct iwl_cfg iwl6000g2b_bg_cfg = {
-	.name = "6000 Series 1x2 BG Gen2b",
+	.name = "Intel(R) Centrino(R) Wireless-N 1030 BG",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
