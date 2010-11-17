@@ -200,22 +200,36 @@ EXPORT_SYMBOL(ttm_eu_reserve_buffers);
 void ttm_eu_fence_buffer_objects(struct list_head *list, void *sync_obj)
 {
 	struct ttm_validate_buffer *entry;
+	struct ttm_buffer_object *bo;
+	struct ttm_bo_global *glob;
+	struct ttm_bo_device *bdev;
+	struct ttm_bo_driver *driver;
+
+	if (list_empty(list))
+		return;
+
+	bo = list_first_entry(list, struct ttm_validate_buffer, head)->bo;
+	bdev = bo->bdev;
+	driver = bdev->driver;
+	glob = bo->glob;
+
+	spin_lock(&bdev->fence_lock);
+	spin_lock(&glob->lru_lock);
 
 	list_for_each_entry(entry, list, head) {
-		struct ttm_buffer_object *bo = entry->bo;
-		struct ttm_bo_device *bdev = bo->bdev;
-		struct ttm_bo_driver *driver = bdev->driver;
-		void *old_sync_obj;
-
-		spin_lock(&bdev->fence_lock);
-		old_sync_obj = bo->sync_obj;
+		bo = entry->bo;
+		entry->old_sync_obj = bo->sync_obj;
 		bo->sync_obj = driver->sync_obj_ref(sync_obj);
 		bo->sync_obj_arg = entry->new_sync_obj_arg;
-		spin_unlock(&bdev->fence_lock);
-		ttm_bo_unreserve(bo);
+		ttm_bo_unreserve_locked(bo);
 		entry->reserved = false;
-		if (old_sync_obj)
-			driver->sync_obj_unref(&old_sync_obj);
+	}
+	spin_unlock(&glob->lru_lock);
+	spin_unlock(&bdev->fence_lock);
+
+	list_for_each_entry(entry, list, head) {
+		if (entry->old_sync_obj)
+			driver->sync_obj_unref(&entry->old_sync_obj);
 	}
 }
 EXPORT_SYMBOL(ttm_eu_fence_buffer_objects);

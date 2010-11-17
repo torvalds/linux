@@ -44,6 +44,7 @@
  * @reserved:       Indicates whether @bo has been reserved for validation.
  * @removed:        Indicates whether @bo has been removed from lru lists.
  * @put_count:      Number of outstanding references on bo::list_kref.
+ * @old_sync_obj:   Pointer to a sync object about to be unreferenced
  */
 
 struct ttm_validate_buffer {
@@ -53,6 +54,7 @@ struct ttm_validate_buffer {
 	bool reserved;
 	bool removed;
 	int put_count;
+	void *old_sync_obj;
 };
 
 /**

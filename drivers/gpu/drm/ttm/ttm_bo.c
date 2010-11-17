@@ -299,14 +299,19 @@ int ttm_bo_reserve(struct ttm_buffer_object *bo,
 	return ret;
 }
 
+void ttm_bo_unreserve_locked(struct ttm_buffer_object *bo)
+{
+	ttm_bo_add_to_lru(bo);
+	atomic_set(&bo->reserved, 0);
+	wake_up_all(&bo->event_queue);
+}
+
 void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_global *glob = bo->glob;
 
 	spin_lock(&glob->lru_lock);
-	ttm_bo_add_to_lru(bo);
-	atomic_set(&bo->reserved, 0);
-	wake_up_all(&bo->event_queue);
+	ttm_bo_unreserve_locked(bo);
 	spin_unlock(&glob->lru_lock);
 }
 EXPORT_SYMBOL(ttm_bo_unreserve);
