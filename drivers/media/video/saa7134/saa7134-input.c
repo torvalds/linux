@@ -61,7 +61,7 @@ static int saa7134_raw_decode_irq(struct saa7134_dev *dev);
 
 static int build_key(struct saa7134_dev *dev)
 {
-	struct card_ir *ir = dev->remote;
+	struct saa7134_card_ir *ir = dev->remote;
 	u32 gpio, data;
 
 	/* here comes the additional handshake steps for some cards */
@@ -385,7 +385,7 @@ static int get_key_pinnacle_color(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 
 void saa7134_input_irq(struct saa7134_dev *dev)
 {
-	struct card_ir *ir;
+	struct saa7134_card_ir *ir;
 
 	if (!dev || !dev->remote)
 		return;
@@ -404,7 +404,7 @@ void saa7134_input_irq(struct saa7134_dev *dev)
 static void saa7134_input_timer(unsigned long data)
 {
 	struct saa7134_dev *dev = (struct saa7134_dev *)data;
-	struct card_ir *ir = dev->remote;
+	struct saa7134_card_ir *ir = dev->remote;
 
 	build_key(dev);
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
@@ -413,17 +413,17 @@ static void saa7134_input_timer(unsigned long data)
 static void ir_raw_decode_timer_end(unsigned long data)
 {
 	struct saa7134_dev *dev = (struct saa7134_dev *)data;
-	struct card_ir *ir = dev->remote;
+	struct saa7134_card_ir *ir = dev->remote;
 
 	ir_raw_event_handle(dev->remote->dev);
 
-	ir->active = 0;
+	ir->active = false;
 }
 
 static int __saa7134_ir_start(void *priv)
 {
 	struct saa7134_dev *dev = priv;
-	struct card_ir *ir;
+	struct saa7134_card_ir *ir;
 
 	if (!dev)
 		return -EINVAL;
@@ -435,7 +435,7 @@ static int __saa7134_ir_start(void *priv)
 	if (ir->running)
 		return 0;
 
-	ir->running = 1;
+	ir->running = true;
 	if (ir->polling) {
 		setup_timer(&ir->timer, saa7134_input_timer,
 			    (unsigned long)dev);
@@ -446,7 +446,7 @@ static int __saa7134_ir_start(void *priv)
 		init_timer(&ir->timer_end);
 		ir->timer_end.function = ir_raw_decode_timer_end;
 		ir->timer_end.data = (unsigned long)dev;
-		ir->active = 0;
+		ir->active = false;
 	}
 
 	return 0;
@@ -455,7 +455,7 @@ static int __saa7134_ir_start(void *priv)
 static void __saa7134_ir_stop(void *priv)
 {
 	struct saa7134_dev *dev = priv;
-	struct card_ir *ir;
+	struct saa7134_card_ir *ir;
 
 	if (!dev)
 		return;
@@ -470,10 +470,10 @@ static void __saa7134_ir_stop(void *priv)
 		del_timer_sync(&dev->remote->timer);
 	else if (ir->raw_decode) {
 		del_timer_sync(&ir->timer_end);
-		ir->active = 0;
+		ir->active = false;
 	}
 
-	ir->running = 0;
+	ir->running = false;
 
 	return;
 }
@@ -511,7 +511,7 @@ static void saa7134_ir_close(struct rc_dev *rc)
 
 int saa7134_input_init1(struct saa7134_dev *dev)
 {
-	struct card_ir *ir;
+	struct saa7134_card_ir *ir;
 	struct rc_dev *rc;
 	char *ir_codes = NULL;
 	u32 mask_keycode = 0;
@@ -764,7 +764,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	ir->dev = rc;
 	dev->remote = ir;
 
-	ir->running = 0;
+	ir->running = false;
 
 	/* init hardware-specific stuff */
 	ir->mask_keycode = mask_keycode;
@@ -934,7 +934,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 
 static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
 {
-	struct card_ir	*ir = dev->remote;
+	struct saa7134_card_ir	*ir = dev->remote;
 	unsigned long 	timeout;
 	int space;
 
@@ -953,7 +953,7 @@ static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
 	if (!ir->active) {
 		timeout = jiffies + jiffies_to_msecs(15);
 		mod_timer(&ir->timer_end, timeout);
-		ir->active = 1;
+		ir->active = true;
 	}
 
 	return 1;

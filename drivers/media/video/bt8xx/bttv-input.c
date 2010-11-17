@@ -147,6 +147,11 @@ static void bttv_input_timer(unsigned long data)
  * testing.
  */
 
+#define RC5_START(x)	(((x) >> 12) & 3)
+#define RC5_TOGGLE(x)	(((x) >> 11) & 1)
+#define RC5_ADDR(x)	(((x) >> 6) & 31)
+#define RC5_INSTR(x)	((x) & 63)
+
 /* decode raw bit pattern to RC5 code */
 static u32 bttv_rc5_decode(unsigned int code)
 {

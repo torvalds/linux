@@ -41,7 +41,7 @@
 #include <linux/device.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/tveeprom.h>
-#include <media/ir-common.h>
+#include <media/ir-core.h>
 #include <media/ir-kbd-i2c.h>
 
 #include "bt848.h"
@@ -119,6 +119,47 @@ struct bttv_format {
 	int  flags;
 	int  hshift,vshift;   /* for planar modes   */
 };
+
+struct card_ir {
+	struct rc_dev           *dev;
+
+	char                    name[32];
+	char                    phys[32];
+#if 0
+	int                     users;
+	u32                     running:1;
+#endif
+	/* Usual gpio signalling */
+	u32                     mask_keycode;
+	u32                     mask_keydown;
+	u32                     mask_keyup;
+	u32                     polling;
+	u32                     last_gpio;
+	int                     shift_by;
+	int                     start; // What should RC5_START() be
+	int                     addr; // What RC5_ADDR() should be.
+	int                     rc5_remote_gap;
+	struct work_struct      work;
+	struct timer_list       timer;
+
+	/* RC5 gpio */
+	u32 rc5_gpio;
+	struct timer_list timer_end;    /* timer_end for code completion */
+	u32 last_bit;                   /* last raw bit seen */
+	u32 code;                       /* raw code under construction */
+	struct timeval base_time;       /* time of last seen code */
+	int active;                     /* building raw code */
+
+#if 0
+	/* NEC decoding */
+	u32                     nec_gpio;
+	struct tasklet_struct   tlet;
+
+	/* IR core raw decoding */
+	u32                     raw_decode;
+#endif
+};
+
 
 /* ---------------------------------------------------------- */
 

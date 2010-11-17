@@ -1,7 +1,7 @@
 #ifndef _IR_I2C
 #define _IR_I2C
 
-#include <media/ir-common.h>
+#include <media/ir-core.h>
 
 #define DEFAULT_POLLING_INTERVAL	100	/* ms */
 

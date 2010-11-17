@@ -119,6 +119,27 @@ struct saa7134_format {
 	unsigned int   uvswap:1;
 };
 
+struct saa7134_card_ir {
+	struct rc_dev		*dev;
+
+	char                    name[32];
+	char                    phys[32];
+	int                     users;
+
+	u32			polling;
+        u32			last_gpio;
+        u32			mask_keycode, mask_keydown, mask_keyup;
+
+	bool                    running;
+	bool			active;
+
+	struct timer_list       timer;
+	struct timer_list	timer_end;    /* timer_end for code completion */
+
+	/* IR core raw decoding */
+	u32                     raw_decode;
+};
+
 /* ----------------------------------------------------------- */
 /* card configuration                                          */
 
@@ -530,7 +551,7 @@ struct saa7134_dev {
 
 	/* infrared remote */
 	int                        has_remote;
-	struct card_ir		   *remote;
+	struct saa7134_card_ir		   *remote;
 
 	/* pci i/o */
 	char                       name[32];
