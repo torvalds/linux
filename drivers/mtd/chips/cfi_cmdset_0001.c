@@ -162,7 +162,7 @@ static void cfi_tell_features(struct cfi_pri_intelext *extp)
 #endif
 
 /* Atmel chips don't use the same PRI format as Intel chips */
-static void fixup_convert_atmel_pri(struct mtd_info *mtd, void *param)
+static void fixup_convert_atmel_pri(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -202,7 +202,7 @@ static void fixup_convert_atmel_pri(struct mtd_info *mtd, void *param)
 	cfi->cfiq->BufWriteTimeoutMax = 0;
 }
 
-static void fixup_at49bv640dx_lock(struct mtd_info *mtd, void *param)
+static void fixup_at49bv640dx_lock(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -214,7 +214,7 @@ static void fixup_at49bv640dx_lock(struct mtd_info *mtd, void *param)
 
 #ifdef CMDSET0001_DISABLE_ERASE_SUSPEND_ON_WRITE
 /* Some Intel Strata Flash prior to FPO revision C has bugs in this area */
-static void fixup_intel_strataflash(struct mtd_info *mtd, void* param)
+static void fixup_intel_strataflash(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -227,7 +227,7 @@ static void fixup_intel_strataflash(struct mtd_info *mtd, void* param)
 #endif
 
 #ifdef CMDSET0001_DISABLE_WRITE_SUSPEND
-static void fixup_no_write_suspend(struct mtd_info *mtd, void* param)
+static void fixup_no_write_suspend(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -240,7 +240,7 @@ static void fixup_no_write_suspend(struct mtd_info *mtd, void* param)
 }
 #endif
 
-static void fixup_st_m28w320ct(struct mtd_info *mtd, void* param)
+static void fixup_st_m28w320ct(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -249,7 +249,7 @@ static void fixup_st_m28w320ct(struct mtd_info *mtd, void* param)
 	cfi->cfiq->BufWriteTimeoutMax = 0;	/* Not supported */
 }
 
-static void fixup_st_m28w320cb(struct mtd_info *mtd, void* param)
+static void fixup_st_m28w320cb(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -259,7 +259,7 @@ static void fixup_st_m28w320cb(struct mtd_info *mtd, void* param)
 		(cfi->cfiq->EraseRegionInfo[1] & 0xffff0000) | 0x3e;
 };
 
-static void fixup_use_point(struct mtd_info *mtd, void *param)
+static void fixup_use_point(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	if (!mtd->point && map_is_linear(map)) {
@@ -268,7 +268,7 @@ static void fixup_use_point(struct mtd_info *mtd, void *param)
 	}
 }
 
-static void fixup_use_write_buffers(struct mtd_info *mtd, void *param)
+static void fixup_use_write_buffers(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -282,7 +282,7 @@ static void fixup_use_write_buffers(struct mtd_info *mtd, void *param)
 /*
  * Some chips power-up with all sectors locked by default.
  */
-static void fixup_unlock_powerup_lock(struct mtd_info *mtd, void *param)
+static void fixup_unlock_powerup_lock(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -295,31 +295,31 @@ static void fixup_unlock_powerup_lock(struct mtd_info *mtd, void *param)
 }
 
 static struct cfi_fixup cfi_fixup_table[] = {
-	{ CFI_MFR_ATMEL, CFI_ID_ANY, fixup_convert_atmel_pri, NULL },
-	{ CFI_MFR_ATMEL, AT49BV640D, fixup_at49bv640dx_lock, NULL },
-	{ CFI_MFR_ATMEL, AT49BV640DT, fixup_at49bv640dx_lock, NULL },
+	{ CFI_MFR_ATMEL, CFI_ID_ANY, fixup_convert_atmel_pri },
+	{ CFI_MFR_ATMEL, AT49BV640D, fixup_at49bv640dx_lock },
+	{ CFI_MFR_ATMEL, AT49BV640DT, fixup_at49bv640dx_lock },
 #ifdef CMDSET0001_DISABLE_ERASE_SUSPEND_ON_WRITE
-	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_intel_strataflash, NULL },
+	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_intel_strataflash },
 #endif
 #ifdef CMDSET0001_DISABLE_WRITE_SUSPEND
-	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_no_write_suspend, NULL },
+	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_no_write_suspend },
 #endif
 #if !FORCE_WORD_WRITE
-	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_use_write_buffers, NULL },
+	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_use_write_buffers },
 #endif
-	{ CFI_MFR_ST, 0x00ba, /* M28W320CT */ fixup_st_m28w320ct, NULL },
-	{ CFI_MFR_ST, 0x00bb, /* M28W320CB */ fixup_st_m28w320cb, NULL },
-	{ CFI_MFR_INTEL, CFI_ID_ANY, fixup_unlock_powerup_lock, NULL, },
-	{ 0, 0, NULL, NULL }
+	{ CFI_MFR_ST, 0x00ba, /* M28W320CT */ fixup_st_m28w320ct },
+	{ CFI_MFR_ST, 0x00bb, /* M28W320CB */ fixup_st_m28w320cb },
+	{ CFI_MFR_INTEL, CFI_ID_ANY, fixup_unlock_powerup_lock },
+	{ 0, 0, NULL }
 };
 
 static struct cfi_fixup jedec_fixup_table[] = {
-	{ CFI_MFR_INTEL, I82802AB,   fixup_use_fwh_lock, NULL, },
-	{ CFI_MFR_INTEL, I82802AC,   fixup_use_fwh_lock, NULL, },
-	{ CFI_MFR_ST,    M50LPW080,  fixup_use_fwh_lock, NULL, },
-	{ CFI_MFR_ST,    M50FLW080A, fixup_use_fwh_lock, NULL, },
-	{ CFI_MFR_ST,    M50FLW080B, fixup_use_fwh_lock, NULL, },
-	{ 0, 0, NULL, NULL }
+	{ CFI_MFR_INTEL, I82802AB,   fixup_use_fwh_lock },
+	{ CFI_MFR_INTEL, I82802AC,   fixup_use_fwh_lock },
+	{ CFI_MFR_ST,    M50LPW080,  fixup_use_fwh_lock },
+	{ CFI_MFR_ST,    M50FLW080A, fixup_use_fwh_lock },
+	{ CFI_MFR_ST,    M50FLW080B, fixup_use_fwh_lock },
+	{ 0, 0, NULL }
 };
 static struct cfi_fixup fixup_table[] = {
 	/* The CFI vendor ids and the JEDEC vendor IDs appear
@@ -327,8 +327,8 @@ static struct cfi_fixup fixup_table[] = {
 	 * well.  This table is to pick all cases where
 	 * we know that is the case.
 	 */
-	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_use_point, NULL },
-	{ 0, 0, NULL, NULL }
+	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_use_point },
+	{ 0, 0, NULL }
 };
 
 static void cfi_fixup_major_minor(struct cfi_private *cfi,
