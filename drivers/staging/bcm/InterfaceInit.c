@@ -277,7 +277,7 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		if(psAdapter->bDoSuspend)
 		{
 #ifdef CONFIG_PM
-			udev->autosuspend_delay = 0;
+			pm_runtime_set_autosuspend_delay(&udev->dev, 0);
 			intf->needs_remote_wakeup = 1;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
  			udev->autosuspend_disabled = 0;
