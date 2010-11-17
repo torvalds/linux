@@ -29,4 +29,4 @@ obj-$(CONFIG_BACKLIGHT_WM831X)	+= wm831x_bl.o
 obj-$(CONFIG_BACKLIGHT_ADX)    += adx_bl.o
 obj-$(CONFIG_BACKLIGHT_ADP5520)	+= adp5520_bl.o
 obj-$(CONFIG_BACKLIGHT_RK2818_BL) += rk2818_backlight.o
-
+obj-$(CONFIG_BACKLIGHT_RK29_BL) += rk29_backlight.o

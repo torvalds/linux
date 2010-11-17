@@ -16,6 +16,8 @@
 #define __ASM_ARCH_RK29_BOARD_H
 
 #include <linux/types.h>
+#include <linux/timer.h>
+#include <linux/notifier.h>
 
 /*spi*/
 struct spi_cs_gpio {
@@ -64,6 +66,15 @@ struct rk29fb_info{
     struct rk29lcd_info *lcd_info;
     int (*io_init)(struct rk29_fb_setting_info *fb_setting);
     int (*io_deinit)(void);
+};
+
+struct rk29_bl_info{
+    u32 pwm_id;
+    u32 bl_ref;
+    int (*io_init)(void);
+    int (*io_deinit)(void);
+    struct timer_list timer;  
+    struct notifier_block freq_transition;
 };
 
 struct rk29_sdmmc_platform_data {

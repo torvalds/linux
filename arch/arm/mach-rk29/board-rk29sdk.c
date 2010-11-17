@@ -431,6 +431,69 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
 
 
 /*****************************************************************************************
+ * backlight  devices
+ * author: nzy@rock-chips.com
+ *****************************************************************************************/
+#ifdef CONFIG_BACKLIGHT_RK29_BL
+ /*
+ GPIO1B5_PWM0_NAME,       GPIO1L_PWM0
+ GPIO5D2_PWM1_UART1SIRIN_NAME,  GPIO5H_PWM1
+ GPIO2A3_SDMMC0WRITEPRT_PWM2_NAME,   GPIO2L_PWM2
+ GPIO1A5_EMMCPWREN_PWM3_NAME,     GPIO1L_PWM3
+ */
+ 
+#define PWM_ID            0  
+#define PWM_MUX_NAME      GPIO1B5_PWM0_NAME
+#define PWM_MUX_MODE      GPIO1L_PWM0
+#define PWM_MUX_MODE_GPIO GPIO1L_GPIO1B5
+#define PWM_EFFECT_VALUE  0
+
+//#define LCD_DISP_ON_PIN
+
+#ifdef  LCD_DISP_ON_PIN
+#define BL_EN_MUX_NAME    GPIOF34_UART3_SEL_NAME
+#define BL_EN_MUX_MODE    IOMUXB_GPIO1_B34
+
+#define BL_EN_PIN         GPIO0L_GPIO0A5
+#define BL_EN_VALUE       GPIO_HIGH
+#endif
+static int rk29_backlight_io_init(void)
+{
+    int ret = 0;
+    
+    rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
+	#ifdef  LCD_DISP_ON_PIN
+    rk29_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE); 
+	
+    ret = gpio_request(BL_EN_PIN, NULL); 
+    if(ret != 0)
+    {
+        gpio_free(BL_EN_PIN);   
+    }
+    
+    gpio_direction_output(BL_EN_PIN, 0);
+    gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
+	#endif
+    return ret;
+}
+
+static int rk29_backlight_io_deinit(void)
+{
+    int ret = 0;
+    #ifdef  LCD_DISP_ON_PIN
+    gpio_free(BL_EN_PIN);
+    #endif
+    rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
+    return ret;
+}
+struct rk29_bl_info rk29_bl_info = {
+    .pwm_id   = PWM_ID,
+    .bl_ref   = PWM_EFFECT_VALUE,
+    .io_init   = rk29_backlight_io_init,
+    .io_deinit = rk29_backlight_io_deinit, 
+};
+#endif
+/*****************************************************************************************
  * SDMMC devices
 *****************************************************************************************/
 #ifdef CONFIG_SDMMC0_RK29
@@ -589,6 +652,9 @@ static struct platform_device *devices[] __initdata = {
 
 #ifdef CONFIG_FB_RK29
 	&rk29_device_fb,
+#endif
+#ifdef CONFIG_BACKLIGHT_RK29_BL
+	&rk29_device_backlight,
 #endif
 #ifdef CONFIG_VIVANTE
 	&rk29_device_gpu,

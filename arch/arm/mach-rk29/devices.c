@@ -132,7 +132,18 @@ struct platform_device rk29_device_i2c3 = {
 };
 #endif
 
-
+/***********************************************************
+*	  backlight
+***************************************************************/
+#ifdef CONFIG_BACKLIGHT_RK29_BL
+struct platform_device rk29_device_backlight = {
+		.name	= "rk29_backlight",
+		.id 	= -1,
+        .dev    = {
+           .platform_data  = &rk29_bl_info,
+        }
+};
+#endif
 #ifdef CONFIG_SDMMC0_RK29 
 #ifndef CONFIG_EMMC_RK29 
 static struct resource resources_sdmmc0[] = {

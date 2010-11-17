@@ -36,6 +36,7 @@ static struct map_desc rk29_io_desc[] __initdata = {
 	RK29_DEVICE(TIMER1),
 	RK29_DEVICE(DDRC),
 	RK29_DEVICE(UART1),
+	RK29_DEVICE(PWM),
 	RK29_DEVICE(GRF),
 	RK29_DEVICE(CRU),
 	RK29_DEVICE(GPIO0),
