@@ -50,6 +50,9 @@ struct sh_mipi {
 	void __iomem	*linkbase;
 	struct clk	*dsit_clk;
 	struct clk	*dsip_clk;
+	void *next_board_data;
+	void (*next_display_on)(void *board_data, struct fb_info *info);
+	void (*next_display_off)(void *board_data);
 };
 
 static struct sh_mipi *mipi_dsi[MAX_SH_MIPI_DSI];
@@ -122,11 +125,17 @@ static void mipi_display_on(void *arg, struct fb_info *info)
 	struct sh_mipi *mipi = arg;
 
 	sh_mipi_dsi_enable(mipi, true);
+
+	if (mipi->next_display_on)
+		mipi->next_display_on(mipi->next_board_data, info);
 }
 
 static void mipi_display_off(void *arg)
 {
 	struct sh_mipi *mipi = arg;
+
+	if (mipi->next_display_off)
+		mipi->next_display_off(mipi->next_board_data);
 
 	sh_mipi_dsi_enable(mipi, false);
 }
@@ -442,6 +451,11 @@ static int __init sh_mipi_probe(struct platform_device *pdev)
 
 	mutex_unlock(&array_lock);
 	platform_set_drvdata(pdev, mipi);
+
+	/* Save original LCDC callbacks */
+	mipi->next_board_data = pdata->lcd_chan->board_cfg.board_data;
+	mipi->next_display_on = pdata->lcd_chan->board_cfg.display_on;
+	mipi->next_display_off = pdata->lcd_chan->board_cfg.display_off;
 
 	/* Set up LCDC callbacks */
 	pdata->lcd_chan->board_cfg.board_data = mipi;
