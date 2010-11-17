@@ -588,6 +588,7 @@ struct perf_event;
 struct pmu {
 	struct list_head		entry;
 
+	struct device			*dev;
 	char				*name;
 	int				type;
 

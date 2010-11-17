@@ -24,6 +24,7 @@
 #include <linux/ptrace.h>
 #include <linux/reboot.h>
 #include <linux/vmstat.h>
+#include <linux/device.h>
 #include <linux/vmalloc.h>
 #include <linux/hardirq.h>
 #include <linux/rculist.h>
@@ -5308,6 +5309,58 @@ out:
 }
 static struct idr pmu_idr;
 
+static ssize_t
+type_show(struct device *dev, struct device_attribute *attr, char *page)
+{
+	struct pmu *pmu = dev_get_drvdata(dev);
+
+	return snprintf(page, PAGE_SIZE-1, "%d\n", pmu->type);
+}
+
+static struct device_attribute pmu_dev_attrs[] = {
+       __ATTR_RO(type),
+       __ATTR_NULL,
+};
+
+static int pmu_bus_running;
+static struct bus_type pmu_bus = {
+	.name		= "event_source",
+	.dev_attrs	= pmu_dev_attrs,
+};
+
+static void pmu_dev_release(struct device *dev)
+{
+	kfree(dev);
+}
+
+static int pmu_dev_alloc(struct pmu *pmu)
+{
+	int ret = -ENOMEM;
+
+	pmu->dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+	if (!pmu->dev)
+		goto out;
+
+	device_initialize(pmu->dev);
+	ret = dev_set_name(pmu->dev, "%s", pmu->name);
+	if (ret)
+		goto free_dev;
+
+	dev_set_drvdata(pmu->dev, pmu);
+	pmu->dev->bus = &pmu_bus;
+	pmu->dev->release = pmu_dev_release;
+	ret = device_add(pmu->dev);
+	if (ret)
+		goto free_dev;
+
+out:
+	return ret;
+
+free_dev:
+	put_device(pmu->dev);
+	goto out;
+}
+
 int perf_pmu_register(struct pmu *pmu, char *name, int type)
 {
 	int cpu, ret;
@@ -5336,6 +5389,12 @@ int perf_pmu_register(struct pmu *pmu, char *name, int type)
 	}
 	pmu->type = type;
 
+	if (pmu_bus_running) {
+		ret = pmu_dev_alloc(pmu);
+		if (ret)
+			goto free_idr;
+	}
+
 skip_type:
 	pmu->pmu_cpu_context = find_pmu_context(pmu->task_ctx_nr);
 	if (pmu->pmu_cpu_context)
@@ -5343,7 +5402,7 @@ skip_type:
 
 	pmu->pmu_cpu_context = alloc_percpu(struct perf_cpu_context);
 	if (!pmu->pmu_cpu_context)
-		goto free_ird;
+		goto free_dev;
 
 	for_each_possible_cpu(cpu) {
 		struct perf_cpu_context *cpuctx;
@@ -5387,6 +5446,10 @@ unlock:
 
 	return ret;
 
+free_dev:
+	device_del(pmu->dev);
+	put_device(pmu->dev);
+
 free_idr:
 	if (pmu->type >= PERF_TYPE_MAX)
 		idr_remove(&pmu_idr, pmu->type);
@@ -5412,6 +5475,8 @@ void perf_pmu_unregister(struct pmu *pmu)
 	free_percpu(pmu->pmu_disable_count);
 	if (pmu->type >= PERF_TYPE_MAX)
 		idr_remove(&pmu_idr, pmu->type);
+	device_del(pmu->dev);
+	put_device(pmu->dev);
 	free_pmu_context(pmu);
 }
 
@@ -6603,3 +6668,31 @@ void __init perf_event_init(void)
 	ret = init_hw_breakpoint();
 	WARN(ret, "hw_breakpoint initialization failed with: %d", ret);
 }
+
+static int __init perf_event_sysfs_init(void)
+{
+	struct pmu *pmu;
+	int ret;
+
+	mutex_lock(&pmus_lock);
+
+	ret = bus_register(&pmu_bus);
+	if (ret)
+		goto unlock;
+
+	list_for_each_entry(pmu, &pmus, entry) {
+		if (!pmu->name || pmu->type < 0)
+			continue;
+
+		ret = pmu_dev_alloc(pmu);
+		WARN(ret, "Failed to register pmu: %s, reason %d\n", pmu->name, ret);
+	}
+	pmu_bus_running = 1;
+	ret = 0;
+
+unlock:
+	mutex_unlock(&pmus_lock);
+
+	return ret;
+}
+device_initcall(perf_event_sysfs_init);
