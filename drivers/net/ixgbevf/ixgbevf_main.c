@@ -3425,10 +3425,6 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	if (hw->mac.ops.get_bus_info)
 		hw->mac.ops.get_bus_info(hw);
 
-
-	netif_carrier_off(netdev);
-	netif_tx_stop_all_queues(netdev);
-
 	strcpy(netdev->name, "eth%d");
 
 	err = register_netdev(netdev);
@@ -3436,6 +3432,8 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 		goto err_register;
 
 	adapter->netdev_registered = true;
+
+	netif_carrier_off(netdev);
 
 	ixgbevf_init_last_counter_stats(adapter);
 
