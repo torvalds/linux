@@ -67,8 +67,14 @@
  */
 
 static const u8 tid_to_ac[] = {
-	/* this matches the mac80211 numbers */
-	2, 3, 3, 2, 1, 1, 0, 0
+	IEEE80211_AC_BE,
+	IEEE80211_AC_BK,
+	IEEE80211_AC_BK,
+	IEEE80211_AC_BE,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_VO,
+	IEEE80211_AC_VO
 };
 
 static inline int get_ac_from_tid(u16 tid)

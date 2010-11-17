@@ -47,10 +47,10 @@ struct queue_to_fifo_ac {
 };
 
 static const struct queue_to_fifo_ac iwlagn_default_queue_to_tx_fifo[] = {
-	{ IWL_TX_FIFO_VO, 0, },
-	{ IWL_TX_FIFO_VI, 1, },
-	{ IWL_TX_FIFO_BE, 2, },
-	{ IWL_TX_FIFO_BK, 3, },
+	{ IWL_TX_FIFO_VO, IEEE80211_AC_VO, },
+	{ IWL_TX_FIFO_VI, IEEE80211_AC_VI, },
+	{ IWL_TX_FIFO_BE, IEEE80211_AC_BE, },
+	{ IWL_TX_FIFO_BK, IEEE80211_AC_BK, },
 	{ IWLAGN_CMD_FIFO_NUM, IWL_AC_UNSET, },
 	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
 	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
@@ -60,14 +60,14 @@ static const struct queue_to_fifo_ac iwlagn_default_queue_to_tx_fifo[] = {
 };
 
 static const struct queue_to_fifo_ac iwlagn_ipan_queue_to_tx_fifo[] = {
-	{ IWL_TX_FIFO_VO, 0, },
-	{ IWL_TX_FIFO_VI, 1, },
-	{ IWL_TX_FIFO_BE, 2, },
-	{ IWL_TX_FIFO_BK, 3, },
-	{ IWL_TX_FIFO_BK_IPAN, 3, },
-	{ IWL_TX_FIFO_BE_IPAN, 2, },
-	{ IWL_TX_FIFO_VI_IPAN, 1, },
-	{ IWL_TX_FIFO_VO_IPAN, 0, },
+	{ IWL_TX_FIFO_VO, IEEE80211_AC_VO, },
+	{ IWL_TX_FIFO_VI, IEEE80211_AC_VI, },
+	{ IWL_TX_FIFO_BE, IEEE80211_AC_BE, },
+	{ IWL_TX_FIFO_BK, IEEE80211_AC_BK, },
+	{ IWL_TX_FIFO_BK_IPAN, IEEE80211_AC_BK, },
+	{ IWL_TX_FIFO_BE_IPAN, IEEE80211_AC_BE, },
+	{ IWL_TX_FIFO_VI_IPAN, IEEE80211_AC_VI, },
+	{ IWL_TX_FIFO_VO_IPAN, IEEE80211_AC_VO, },
 	{ IWL_TX_FIFO_BE_IPAN, 2, },
 	{ IWLAGN_CMD_FIFO_NUM, IWL_AC_UNSET, },
 };
