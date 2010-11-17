@@ -4751,6 +4751,11 @@ err_set_interrupt:
 	return err;
 }
 
+static void ring_free_rcu(struct rcu_head *head)
+{
+	kfree(container_of(head, struct ixgbe_ring, rcu));
+}
+
 /**
  * ixgbe_clear_interrupt_scheme - Clear the current interrupt scheme settings
  * @adapter: board private structure to clear interrupt scheme on
@@ -4767,7 +4772,12 @@ void ixgbe_clear_interrupt_scheme(struct ixgbe_adapter *adapter)
 		adapter->tx_ring[i] = NULL;
 	}
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		kfree(adapter->rx_ring[i]);
+		struct ixgbe_ring *ring = adapter->rx_ring[i];
+
+		/* ixgbe_get_stats64() might access this ring, we must wait
+		 * a grace period before freeing it.
+		 */
+		call_rcu(&ring->rcu, ring_free_rcu);
 		adapter->rx_ring[i] = NULL;
 	}
 
@@ -6563,20 +6573,23 @@ static struct rtnl_link_stats64 *ixgbe_get_stats64(struct net_device *netdev,
 
 	/* accurate rx/tx bytes/packets stats */
 	dev_txq_stats_fold(netdev, stats);
+	rcu_read_lock();
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		struct ixgbe_ring *ring = adapter->rx_ring[i];
+		struct ixgbe_ring *ring = ACCESS_ONCE(adapter->rx_ring[i]);
 		u64 bytes, packets;
 		unsigned int start;
 
-		do {
-			start = u64_stats_fetch_begin_bh(&ring->syncp);
-			packets = ring->stats.packets;
-			bytes   = ring->stats.bytes;
-		} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
-		stats->rx_packets += packets;
-		stats->rx_bytes   += bytes;
+		if (ring) {
+			do {
+				start = u64_stats_fetch_begin_bh(&ring->syncp);
+				packets = ring->stats.packets;
+				bytes   = ring->stats.bytes;
+			} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
+			stats->rx_packets += packets;
+			stats->rx_bytes   += bytes;
+		}
 	}
-
+	rcu_read_unlock();
 	/* following stats updated by ixgbe_watchdog_task() */
 	stats->multicast	= netdev->stats.multicast;
 	stats->rx_errors	= netdev->stats.rx_errors;
@@ -7282,6 +7295,7 @@ static void __exit ixgbe_exit_module(void)
 	dca_unregister_notify(&dca_notifier);
 #endif
 	pci_unregister_driver(&ixgbe_driver);
+	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 }
 
 #ifdef CONFIG_IXGBE_DCA

@@ -192,6 +192,7 @@ struct ixgbe_ring {
 
 	unsigned int size;		/* length in bytes */
 	dma_addr_t dma;			/* phys. address of descriptor ring */
+	struct rcu_head rcu;
 } ____cacheline_internodealigned_in_smp;
 
 enum ixgbe_ring_f_enum {
