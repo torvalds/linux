@@ -2113,18 +2113,22 @@ static inline void map_vector_to_rxq(struct ixgbe_adapter *a, int v_idx,
 				     int r_idx)
 {
 	struct ixgbe_q_vector *q_vector = a->q_vector[v_idx];
+	struct ixgbe_ring *rx_ring = a->rx_ring[r_idx];
 
 	set_bit(r_idx, q_vector->rxr_idx);
 	q_vector->rxr_count++;
+	rx_ring->q_vector = q_vector;
 }
 
 static inline void map_vector_to_txq(struct ixgbe_adapter *a, int v_idx,
 				     int t_idx)
 {
 	struct ixgbe_q_vector *q_vector = a->q_vector[v_idx];
+	struct ixgbe_ring *tx_ring = a->tx_ring[t_idx];
 
 	set_bit(t_idx, q_vector->txr_idx);
 	q_vector->txr_count++;
+	tx_ring->q_vector = q_vector;
 }
 
 /**
