@@ -1,6 +1,14 @@
 menu "OMAP2/3 Display Device Drivers"
         depends on OMAP2_DSS
 
+config PANEL_GENERIC_DPI
+        tristate "Generic DPI Panel"
+        help
+	  Generic DPI panel driver.
+	  Supports DVI output for Beagle and OMAP3 SDP.
+	  Supports LCD Panel used in TI SDP3430 and EVM boards,
+	  OMAP3517 EVM boards and CM-T35.
+
 config PANEL_GENERIC
         tristate "Generic Panel"
         help
