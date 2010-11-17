@@ -13,7 +13,7 @@
  *
  */
 
-#define pr_fmt(fmt) "%s:" fmt, __func__
+#define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -116,13 +116,11 @@ static int regulator_check_voltage(struct regulator_dev *rdev,
 	BUG_ON(*min_uV > *max_uV);
 
 	if (!rdev->constraints) {
-		printk(KERN_ERR "%s: no constraints for %s\n", __func__,
-		       rdev_get_name(rdev));
+		pr_err("no constraints for %s\n", rdev_get_name(rdev));
 		return -ENODEV;
 	}
 	if (!(rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE)) {
-		printk(KERN_ERR "%s: operation not allowed for %s\n",
-		       __func__, rdev_get_name(rdev));
+		pr_err("operation not allowed for %s\n", rdev_get_name(rdev));
 		return -EPERM;
 	}
 
@@ -144,13 +142,11 @@ static int regulator_check_current_limit(struct regulator_dev *rdev,
 	BUG_ON(*min_uA > *max_uA);
 
 	if (!rdev->constraints) {
-		printk(KERN_ERR "%s: no constraints for %s\n", __func__,
-		       rdev_get_name(rdev));
+		pr_err("no constraints for %s\n", rdev_get_name(rdev));
 		return -ENODEV;
 	}
 	if (!(rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_CURRENT)) {
-		printk(KERN_ERR "%s: operation not allowed for %s\n",
-		       __func__, rdev_get_name(rdev));
+		pr_err("operation not allowed for %s\n", rdev_get_name(rdev));
 		return -EPERM;
 	}
 
@@ -179,18 +175,15 @@ static int regulator_check_mode(struct regulator_dev *rdev, int mode)
 	}
 
 	if (!rdev->constraints) {
-		printk(KERN_ERR "%s: no constraints for %s\n", __func__,
-		       rdev_get_name(rdev));
+		pr_err("no constraints for %s\n", rdev_get_name(rdev));
 		return -ENODEV;
 	}
 	if (!(rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_MODE)) {
-		printk(KERN_ERR "%s: operation not allowed for %s\n",
-		       __func__, rdev_get_name(rdev));
+		pr_err("operation not allowed for %s\n", rdev_get_name(rdev));
 		return -EPERM;
 	}
 	if (!(rdev->constraints->valid_modes_mask & mode)) {
-		printk(KERN_ERR "%s: invalid mode %x for %s\n",
-		       __func__, mode, rdev_get_name(rdev));
+		pr_err("invalid mode %x for %s\n", mode, rdev_get_name(rdev));
 		return -EINVAL;
 	}
 	return 0;
@@ -200,13 +193,11 @@ static int regulator_check_mode(struct regulator_dev *rdev, int mode)
 static int regulator_check_drms(struct regulator_dev *rdev)
 {
 	if (!rdev->constraints) {
-		printk(KERN_ERR "%s: no constraints for %s\n", __func__,
-		       rdev_get_name(rdev));
+		pr_err("no constraints for %s\n", rdev_get_name(rdev));
 		return -ENODEV;
 	}
 	if (!(rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_DRMS)) {
-		printk(KERN_ERR "%s: operation not allowed for %s\n",
-		       __func__, rdev_get_name(rdev));
+		pr_err("operation not allowed for %s\n", rdev_get_name(rdev));
 		return -EPERM;
 	}
 	return 0;
@@ -603,20 +594,18 @@ static int suspend_set_state(struct regulator_dev *rdev,
 	 */
 	if (!rstate->enabled && !rstate->disabled) {
 		if (can_set_state)
-			printk(KERN_WARNING "%s: No configuration for %s\n",
-			       __func__, rdev_get_name(rdev));
+			pr_warning("No configuration for %s\n",
+				   rdev_get_name(rdev));
 		return 0;
 	}
 
 	if (rstate->enabled && rstate->disabled) {
-		printk(KERN_ERR "%s: invalid configuration for %s\n",
-		       __func__, rdev_get_name(rdev));
+		pr_err("invalid configuration for %s\n", rdev_get_name(rdev));
 		return -EINVAL;
 	}
 
 	if (!can_set_state) {
-		printk(KERN_ERR "%s: no way to set suspend state\n",
-			__func__);
+		pr_err("no way to set suspend state\n");
 		return -EINVAL;
 	}
 
@@ -625,15 +614,14 @@ static int suspend_set_state(struct regulator_dev *rdev,
 	else
 		ret = rdev->desc->ops->set_suspend_disable(rdev);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: failed to enabled/disable\n", __func__);
+		pr_err("failed to enabled/disable\n");
 		return ret;
 	}
 
 	if (rdev->desc->ops->set_suspend_voltage && rstate->uV > 0) {
 		ret = rdev->desc->ops->set_suspend_voltage(rdev, rstate->uV);
 		if (ret < 0) {
-			printk(KERN_ERR "%s: failed to set voltage\n",
-				__func__);
+			pr_err("failed to set voltage\n");
 			return ret;
 		}
 	}
@@ -641,7 +629,7 @@ static int suspend_set_state(struct regulator_dev *rdev,
 	if (rdev->desc->ops->set_suspend_mode && rstate->mode > 0) {
 		ret = rdev->desc->ops->set_suspend_mode(rdev, rstate->mode);
 		if (ret < 0) {
-			printk(KERN_ERR "%s: failed to set mode\n", __func__);
+			pr_err("failed to set mode\n");
 			return ret;
 		}
 	}
@@ -739,9 +727,8 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 				       rdev->constraints->max_uV,
 				       &selector);
 			if (ret < 0) {
-				printk(KERN_ERR "%s: failed to apply %duV constraint to %s\n",
-				       __func__,
-				       rdev->constraints->min_uV, name);
+				pr_err("failed to apply %duV constraint to %s\n",
+					rdev->constraints->min_uV, name);
 				rdev->constraints = NULL;
 				return ret;
 			}
@@ -848,8 +835,8 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	if (constraints->initial_state) {
 		ret = suspend_prepare(rdev, constraints->initial_state);
 		if (ret < 0) {
-			printk(KERN_ERR "%s: failed to set suspend state for %s\n",
-			       __func__, name);
+			pr_err("failed to set suspend state for %s\n",
+				name);
 			rdev->constraints = NULL;
 			goto out;
 		}
@@ -857,17 +844,16 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 
 	if (constraints->initial_mode) {
 		if (!ops->set_mode) {
-			printk(KERN_ERR "%s: no set_mode operation for %s\n",
-			       __func__, name);
+			pr_err("no set_mode operation for %s\n",
+				name);
 			ret = -EINVAL;
 			goto out;
 		}
 
 		ret = ops->set_mode(rdev, constraints->initial_mode);
 		if (ret < 0) {
-			printk(KERN_ERR
-			       "%s: failed to set initial mode for %s: %d\n",
-			       __func__, name, ret);
+			pr_err("failed to set initial mode for %s: %d\n",
+				name, ret);
 			goto out;
 		}
 	}
@@ -878,8 +864,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	if ((constraints->always_on || constraints->boot_on) && ops->enable) {
 		ret = ops->enable(rdev);
 		if (ret < 0) {
-			printk(KERN_ERR "%s: failed to enable %s\n",
-			       __func__, name);
+			pr_err("failed to enable %s\n", name);
 			rdev->constraints = NULL;
 			goto out;
 		}
@@ -907,9 +892,8 @@ static int set_supply(struct regulator_dev *rdev,
 	err = sysfs_create_link(&rdev->dev.kobj, &supply_rdev->dev.kobj,
 				"supply");
 	if (err) {
-		printk(KERN_ERR
-		       "%s: could not add device link %s err %d\n",
-		       __func__, supply_rdev->dev.kobj.name, err);
+		pr_err("could not add device link %s err %d\n",
+			supply_rdev->dev.kobj.name, err);
 		       goto out;
 	}
 	rdev->supply = supply_rdev;
@@ -1039,8 +1023,8 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 		regulator->dev_attr.show = device_requested_uA_show;
 		err = device_create_file(dev, &regulator->dev_attr);
 		if (err < 0) {
-			printk(KERN_WARNING "%s: could not add regulator_dev"
-				" load sysfs\n", __func__);
+			pr_warning("could not add regulator_dev"
+				" requested microamps sysfs entry\n");
 			goto attr_name_err;
 		}
 
@@ -1057,9 +1041,8 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 		err = sysfs_create_link(&rdev->dev.kobj, &dev->kobj,
 					buf);
 		if (err) {
-			printk(KERN_WARNING
-			       "%s: could not add device link %s err %d\n",
-			       __func__, dev->kobj.name, err);
+			pr_warning("could not add device link %s err %d\n",
+			       dev->kobj.name, err);
 			goto link_name_err;
 		}
 	}
@@ -1096,7 +1079,7 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 	int ret;
 
 	if (id == NULL) {
-		printk(KERN_ERR "regulator: get() with no identifier\n");
+		pr_err("regulator: get() with no identifier\n");
 		return regulator;
 	}
 
@@ -1282,8 +1265,8 @@ static int _regulator_enable(struct regulator_dev *rdev)
 			ret = _regulator_enable(rdev->supply);
 			mutex_unlock(&rdev->supply->mutex);
 			if (ret < 0) {
-				printk(KERN_ERR "%s: failed to enable %s: %d\n",
-				       __func__, rdev_get_name(rdev), ret);
+				pr_err("failed to enable %s: %d\n",
+				       rdev_get_name(rdev), ret);
 				return ret;
 			}
 		}
@@ -1310,10 +1293,9 @@ static int _regulator_enable(struct regulator_dev *rdev)
 			if (ret >= 0) {
 				delay = ret;
 			} else {
-				printk(KERN_WARNING
-					"%s: enable_time() failed for %s: %d\n",
-					__func__, rdev_get_name(rdev),
-					ret);
+				pr_warning("enable_time() failed for %s: %d\n",
+					   rdev_get_name(rdev),
+					   ret);
 				delay = 0;
 			}
 
@@ -1338,8 +1320,8 @@ static int _regulator_enable(struct regulator_dev *rdev)
 			trace_regulator_enable_complete(rdev_get_name(rdev));
 
 		} else if (ret < 0) {
-			printk(KERN_ERR "%s: is_enabled() failed for %s: %d\n",
-			       __func__, rdev_get_name(rdev), ret);
+			pr_err("is_enabled() failed for %s: %d\n",
+				rdev_get_name(rdev), ret);
 			return ret;
 		}
 		/* Fallthrough on positive return values - already enabled */
@@ -1396,8 +1378,8 @@ static int _regulator_disable(struct regulator_dev *rdev,
 
 			ret = rdev->desc->ops->disable(rdev);
 			if (ret < 0) {
-				printk(KERN_ERR "%s: failed to disable %s\n",
-				       __func__, rdev_get_name(rdev));
+				pr_err("failed to disable %s\n",
+					rdev_get_name(rdev));
 				return ret;
 			}
 
@@ -1469,8 +1451,8 @@ static int _regulator_force_disable(struct regulator_dev *rdev,
 		/* ah well, who wants to live forever... */
 		ret = rdev->desc->ops->disable(rdev);
 		if (ret < 0) {
-			printk(KERN_ERR "%s: failed to force disable %s\n",
-			       __func__, rdev_get_name(rdev));
+			pr_err("failed to force disable %s\n",
+				rdev_get_name(rdev));
 			return ret;
 		}
 		/* notify other consumers that power has been forced off */
@@ -1911,8 +1893,8 @@ int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
 	/* get output voltage */
 	output_uV = rdev->desc->ops->get_voltage(rdev);
 	if (output_uV <= 0) {
-		printk(KERN_ERR "%s: invalid output voltage found for %s\n",
-			__func__, rdev_get_name(rdev));
+		pr_err("invalid output voltage found for %s\n",
+			rdev_get_name(rdev));
 		goto out;
 	}
 
@@ -1922,8 +1904,8 @@ int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
 	else
 		input_uV = rdev->constraints->input_uV;
 	if (input_uV <= 0) {
-		printk(KERN_ERR "%s: invalid input voltage found for %s\n",
-			__func__, rdev_get_name(rdev));
+		pr_err("invalid input voltage found for %s\n",
+			rdev_get_name(rdev));
 		goto out;
 	}
 
@@ -1936,16 +1918,16 @@ int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
 						 total_uA_load);
 	ret = regulator_check_mode(rdev, mode);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: failed to get optimum mode for %s @"
-			" %d uA %d -> %d uV\n", __func__, rdev_get_name(rdev),
+		pr_err("failed to get optimum mode for %s @"
+			" %d uA %d -> %d uV\n",  rdev_get_name(rdev),
 			total_uA_load, input_uV, output_uV);
 		goto out;
 	}
 
 	ret = rdev->desc->ops->set_mode(rdev, mode);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: failed to set optimum mode %x for %s\n",
-			__func__, mode, rdev_get_name(rdev));
+		pr_err("failed to set optimum mode %x for %s\n",
+			 mode, rdev_get_name(rdev));
 		goto out;
 	}
 	ret = mode;
@@ -2494,8 +2476,7 @@ int regulator_suspend_prepare(suspend_state_t state)
 		mutex_unlock(&rdev->mutex);
 
 		if (ret < 0) {
-			printk(KERN_ERR "%s: failed to prepare %s\n",
-				__func__, rdev_get_name(rdev));
+			pr_err("failed to prepare %s\n", rdev_get_name(rdev));
 			goto out;
 		}
 	}
@@ -2653,13 +2634,10 @@ static int __init regulator_init_complete(void)
 		if (has_full_constraints) {
 			/* We log since this may kill the system if it
 			 * goes wrong. */
-			printk(KERN_INFO "%s: disabling %s\n",
-			       __func__, name);
+			pr_info("disabling %s\n", name);
 			ret = ops->disable(rdev);
 			if (ret != 0) {
-				printk(KERN_ERR
-				       "%s: couldn't disable %s: %d\n",
-				       __func__, name, ret);
+				pr_err("couldn't disable %s: %d\n", name, ret);
 			}
 		} else {
 			/* The intention is that in future we will
@@ -2667,9 +2645,8 @@ static int __init regulator_init_complete(void)
 			 * so warn even if we aren't going to do
 			 * anything here.
 			 */
-			printk(KERN_WARNING
-			       "%s: incomplete constraints, leaving %s on\n",
-			       __func__, name);
+			pr_warning("incomplete constraints, leaving %s on\n",
+				   name);
 		}
 
 unlock:
