@@ -199,7 +199,7 @@ static void tm6000_ir_handle_key(struct tm6000_IR *ir)
 	dprintk("ir->get_key result data=%04x\n", poll_result.rc_data);
 
 	if (ir->key) {
-		ir_keydown(ir->rc, poll_result.rc_data, 0);
+		rc_keydown(ir->rc, poll_result.rc_data, 0);
 		ir->key = 0;
 	}
 	return;

@@ -252,7 +252,7 @@ static void ir_key_poll(struct IR_i2c *ir)
 	}
 
 	if (rc)
-		ir_keydown(ir->rc, ir_key, 0);
+		rc_keydown(ir->rc, ir_key, 0);
 }
 
 static void ir_work(struct work_struct *work)

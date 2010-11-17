@@ -13,8 +13,8 @@
  *  GNU General Public License for more details.
  */
 
-#ifndef _IR_CORE
-#define _IR_CORE
+#ifndef _RC_CORE
+#define _RC_CORE
 
 #include <linux/spinlock.h>
 #include <linux/kfifo.h>
@@ -120,6 +120,32 @@ struct rc_dev {
 	int				(*s_carrier_report) (struct rc_dev *dev, int enable);
 };
 
+#define to_rc_dev(d) container_of(d, struct rc_dev, dev)
+
+/*
+ * From rc-main.c
+ * Those functions can be used on any type of Remote Controller. They
+ * basically creates an input_dev and properly reports the device as a
+ * Remote Controller, at sys/class/rc.
+ */
+
+struct rc_dev *rc_allocate_device(void);
+void rc_free_device(struct rc_dev *dev);
+int rc_register_device(struct rc_dev *dev);
+void rc_unregister_device(struct rc_dev *dev);
+
+void rc_repeat(struct rc_dev *dev);
+void rc_keydown(struct rc_dev *dev, int scancode, u8 toggle);
+void rc_keydown_notimeout(struct rc_dev *dev, int scancode, u8 toggle);
+void rc_keyup(struct rc_dev *dev);
+u32 rc_g_keycode_from_table(struct rc_dev *dev, u32 scancode);
+
+/*
+ * From rc-raw.c
+ * The Raw interface is specific to InfraRed. It may be a good idea to
+ * split it later into a separate header.
+ */
+
 enum raw_event_type {
 	IR_SPACE        = (1 << 0),
 	IR_PULSE        = (1 << 1),
@@ -127,16 +153,6 @@ enum raw_event_type {
 	IR_STOP_EVENT   = (1 << 3),
 };
 
-#define to_rc_dev(d) container_of(d, struct rc_dev, dev)
-
-
-void ir_repeat(struct rc_dev *dev);
-void ir_keydown(struct rc_dev *dev, int scancode, u8 toggle);
-void ir_keydown_notimeout(struct rc_dev *dev, int scancode, u8 toggle);
-void ir_keyup(struct rc_dev *dev);
-u32 ir_g_keycode_from_table(struct rc_dev *dev, u32 scancode);
-
-/* From ir-raw-event.c */
 struct ir_raw_event {
 	union {
 		u32             duration;
@@ -168,11 +184,6 @@ static inline void init_ir_raw_event(struct ir_raw_event *ev)
 
 #define IR_MAX_DURATION         0xFFFFFFFF      /* a bit more than 4 seconds */
 
-struct rc_dev *rc_allocate_device(void);
-void rc_free_device(struct rc_dev *dev);
-int rc_register_device(struct rc_dev *dev);
-void rc_unregister_device(struct rc_dev *dev);
-
 void ir_raw_event_handle(struct rc_dev *dev);
 int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev);
 int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type);
@@ -188,7 +199,6 @@ static inline void ir_raw_event_reset(struct rc_dev *dev)
 	ir_raw_event_store(dev, &ev);
 	ir_raw_event_handle(dev);
 }
-
 
 /* extract mask bits out of data and pack them into the result */
 static inline u32 ir_extract_bits(u32 data, u32 mask)
@@ -207,5 +217,4 @@ static inline u32 ir_extract_bits(u32 data, u32 mask)
 	return value;
 }
 
-
-#endif /* _IR_CORE */
+#endif /* _RC_CORE */

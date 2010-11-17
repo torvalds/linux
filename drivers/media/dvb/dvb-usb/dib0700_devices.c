@@ -520,13 +520,13 @@ static int dib0700_rc_query_old_firmware(struct dvb_usb_device *d)
 			d->last_event = keycode;
 		}
 
-		ir_keydown(d->rc_dev, keycode, 0);
+		rc_keydown(d->rc_dev, keycode, 0);
 		break;
 	default:
 		/* RC-5 protocol changes toggle bit on new keypress */
 		keycode = key[3-2] << 8 | key[3-3];
 		toggle = key[3-1];
-		ir_keydown(d->rc_dev, keycode, toggle);
+		rc_keydown(d->rc_dev, keycode, toggle);
 
 		break;
 	}

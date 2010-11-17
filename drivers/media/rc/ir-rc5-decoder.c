@@ -150,7 +150,7 @@ again:
 				   scancode, toggle);
 		}
 
-		ir_keydown(dev, scancode, toggle);
+		rc_keydown(dev, scancode, toggle);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}

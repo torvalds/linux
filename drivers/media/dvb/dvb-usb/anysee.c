@@ -394,7 +394,7 @@ static int anysee_rc_query(struct dvb_usb_device *d)
 
 	if (ircode[0]) {
 		deb_rc("%s: key pressed %02x\n", __func__, ircode[1]);
-		ir_keydown(d->rc_dev, 0x08 << 8 | ircode[1], 0);
+		rc_keydown(d->rc_dev, 0x08 << 8 | ircode[1], 0);
 	}
 
 	return 0;

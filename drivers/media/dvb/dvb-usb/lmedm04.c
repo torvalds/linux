@@ -198,7 +198,7 @@ static int lme2510_remote_keypress(struct dvb_usb_adapter *adap, u16 keypress)
 	deb_info(1, "INT Key Keypress =%04x", keypress);
 
 	if (keypress > 0)
-		ir_keydown(d->rc_dev, keypress, 0);
+		rc_keydown(d->rc_dev, keypress, 0);
 
 	return 0;
 }

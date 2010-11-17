@@ -531,7 +531,7 @@ static void dm1105_emit_key(struct work_struct *work)
 
 	data = (ircom >> 8) & 0x7f;
 
-	ir_keydown(ir->dev, data, 0);
+	rc_keydown(ir->dev, data, 0);
 }
 
 /* work handler */

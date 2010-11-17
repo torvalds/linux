@@ -70,14 +70,14 @@ static void ir_handle_key(struct bttv *btv)
 
 	if ((ir->mask_keydown && (gpio & ir->mask_keydown)) ||
 	    (ir->mask_keyup   && !(gpio & ir->mask_keyup))) {
-		ir_keydown_notimeout(ir->dev, data, 0);
+		rc_keydown_notimeout(ir->dev, data, 0);
 	} else {
 		/* HACK: Probably, ir->mask_keydown is missing
 		   for this board */
 		if (btv->c.type == BTTV_BOARD_WINFAST2000)
-			ir_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, data, 0);
 
-		ir_keyup(ir->dev);
+		rc_keyup(ir->dev);
 	}
 }
 
@@ -100,9 +100,9 @@ static void ir_enltv_handle_key(struct bttv *btv)
 			gpio, data,
 			(gpio & ir->mask_keyup) ? " up" : "up/down");
 
-		ir_keydown_notimeout(ir->dev, data, 0);
+		rc_keydown_notimeout(ir->dev, data, 0);
 		if (keyup)
-			ir_keyup(ir->dev);
+			rc_keyup(ir->dev);
 	} else {
 		if ((ir->last_gpio & 1 << 31) == keyup)
 			return;
@@ -112,9 +112,9 @@ static void ir_enltv_handle_key(struct bttv *btv)
 			(gpio & ir->mask_keyup) ? " up" : "down");
 
 		if (keyup)
-			ir_keyup(ir->dev);
+			rc_keyup(ir->dev);
 		else
-			ir_keydown_notimeout(ir->dev, data, 0);
+			rc_keydown_notimeout(ir->dev, data, 0);
 	}
 
 	ir->last_gpio = data | keyup;
@@ -232,7 +232,7 @@ void bttv_rc5_timer_end(unsigned long data)
 			u32 instr = RC5_INSTR(rc5);
 
 			/* Good code */
-			ir_keydown(ir->dev, instr, toggle);
+			rc_keydown(ir->dev, instr, toggle);
 			dprintk(KERN_INFO DEVNAME ":"
 				" instruction %x, toggle %x\n",
 				instr, toggle);

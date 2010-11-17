@@ -481,7 +481,7 @@ out:
 }
 
 /**
- * ir_g_keycode_from_table() - gets the keycode that corresponds to a scancode
+ * rc_g_keycode_from_table() - gets the keycode that corresponds to a scancode
  * @dev:	the struct rc_dev descriptor of the device
  * @scancode:	the scancode to look for
  * @return:	the corresponding keycode, or KEY_RESERVED
@@ -490,7 +490,7 @@ out:
  * keycode. Normally it should not be used since drivers should have no
  * interest in keycodes.
  */
-u32 ir_g_keycode_from_table(struct rc_dev *dev, u32 scancode)
+u32 rc_g_keycode_from_table(struct rc_dev *dev, u32 scancode)
 {
 	struct ir_scancode_table *rc_tab = &dev->rc_tab;
 	unsigned int keycode;
@@ -511,7 +511,7 @@ u32 ir_g_keycode_from_table(struct rc_dev *dev, u32 scancode)
 
 	return keycode;
 }
-EXPORT_SYMBOL_GPL(ir_g_keycode_from_table);
+EXPORT_SYMBOL_GPL(rc_g_keycode_from_table);
 
 /**
  * ir_do_keyup() - internal function to signal the release of a keypress
@@ -532,13 +532,13 @@ static void ir_do_keyup(struct rc_dev *dev)
 }
 
 /**
- * ir_keyup() - signals the release of a keypress
+ * rc_keyup() - signals the release of a keypress
  * @dev:	the struct rc_dev descriptor of the device
  *
  * This routine is used to signal that a key has been released on the
  * remote control.
  */
-void ir_keyup(struct rc_dev *dev)
+void rc_keyup(struct rc_dev *dev)
 {
 	unsigned long flags;
 
@@ -546,7 +546,7 @@ void ir_keyup(struct rc_dev *dev)
 	ir_do_keyup(dev);
 	spin_unlock_irqrestore(&dev->keylock, flags);
 }
-EXPORT_SYMBOL_GPL(ir_keyup);
+EXPORT_SYMBOL_GPL(rc_keyup);
 
 /**
  * ir_timer_keyup() - generates a keyup event after a timeout
@@ -577,14 +577,14 @@ static void ir_timer_keyup(unsigned long cookie)
 }
 
 /**
- * ir_repeat() - signals that a key is still pressed
+ * rc_repeat() - signals that a key is still pressed
  * @dev:	the struct rc_dev descriptor of the device
  *
  * This routine is used by IR decoders when a repeat message which does
  * not include the necessary bits to reproduce the scancode has been
  * received.
  */
-void ir_repeat(struct rc_dev *dev)
+void rc_repeat(struct rc_dev *dev)
 {
 	unsigned long flags;
 
@@ -601,7 +601,7 @@ void ir_repeat(struct rc_dev *dev)
 out:
 	spin_unlock_irqrestore(&dev->keylock, flags);
 }
-EXPORT_SYMBOL_GPL(ir_repeat);
+EXPORT_SYMBOL_GPL(rc_repeat);
 
 /**
  * ir_do_keydown() - internal function to process a keypress
@@ -643,7 +643,7 @@ static void ir_do_keydown(struct rc_dev *dev, int scancode,
 }
 
 /**
- * ir_keydown() - generates input event for a key press
+ * rc_keydown() - generates input event for a key press
  * @dev:	the struct rc_dev descriptor of the device
  * @scancode:   the scancode that we're seeking
  * @toggle:     the toggle value (protocol dependent, if the protocol doesn't
@@ -652,10 +652,10 @@ static void ir_do_keydown(struct rc_dev *dev, int scancode,
  * This routine is used to signal that a key has been pressed on the
  * remote control.
  */
-void ir_keydown(struct rc_dev *dev, int scancode, u8 toggle)
+void rc_keydown(struct rc_dev *dev, int scancode, u8 toggle)
 {
 	unsigned long flags;
-	u32 keycode = ir_g_keycode_from_table(dev, scancode);
+	u32 keycode = rc_g_keycode_from_table(dev, scancode);
 
 	spin_lock_irqsave(&dev->keylock, flags);
 	ir_do_keydown(dev, scancode, keycode, toggle);
@@ -666,10 +666,10 @@ void ir_keydown(struct rc_dev *dev, int scancode, u8 toggle)
 	}
 	spin_unlock_irqrestore(&dev->keylock, flags);
 }
-EXPORT_SYMBOL_GPL(ir_keydown);
+EXPORT_SYMBOL_GPL(rc_keydown);
 
 /**
- * ir_keydown_notimeout() - generates input event for a key press without
+ * rc_keydown_notimeout() - generates input event for a key press without
  *                          an automatic keyup event at a later time
  * @dev:	the struct rc_dev descriptor of the device
  * @scancode:   the scancode that we're seeking
@@ -677,18 +677,18 @@ EXPORT_SYMBOL_GPL(ir_keydown);
  *              support toggle values, this should be set to zero)
  *
  * This routine is used to signal that a key has been pressed on the
- * remote control. The driver must manually call ir_keyup() at a later stage.
+ * remote control. The driver must manually call rc_keyup() at a later stage.
  */
-void ir_keydown_notimeout(struct rc_dev *dev, int scancode, u8 toggle)
+void rc_keydown_notimeout(struct rc_dev *dev, int scancode, u8 toggle)
 {
 	unsigned long flags;
-	u32 keycode = ir_g_keycode_from_table(dev, scancode);
+	u32 keycode = rc_g_keycode_from_table(dev, scancode);
 
 	spin_lock_irqsave(&dev->keylock, flags);
 	ir_do_keydown(dev, scancode, keycode, toggle);
 	spin_unlock_irqrestore(&dev->keylock, flags);
 }
-EXPORT_SYMBOL_GPL(ir_keydown_notimeout);
+EXPORT_SYMBOL_GPL(rc_keydown_notimeout);
 
 static int ir_open(struct input_dev *idev)
 {
