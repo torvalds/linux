@@ -104,12 +104,6 @@ extern int prom_getprev(void);
 
 /* Character operations to/from the console.... */
 
-/* Non-blocking get character from console. */
-extern int prom_nbgetchar(void);
-
-/* Non-blocking put character to console. */
-extern int prom_nbputchar(char character);
-
 /* Blocking get character from console. */
 extern char prom_getchar(void);
 

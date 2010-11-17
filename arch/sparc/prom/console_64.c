@@ -18,8 +18,7 @@ extern int prom_stdin, prom_stdout;
 /* Non blocking get character from console input device, returns -1
  * if no input was taken.  This can be used for polling.
  */
-inline int
-prom_nbgetchar(void)
+static int prom_nbgetchar(void)
 {
 	unsigned long args[7];
 	char inc;
@@ -42,8 +41,7 @@ prom_nbgetchar(void)
 /* Non blocking put character to console device, returns -1 if
  * unsuccessful.
  */
-inline int
-prom_nbputchar(char c)
+static int prom_nbputchar(char c)
 {
 	unsigned long args[7];
 	char outc;
