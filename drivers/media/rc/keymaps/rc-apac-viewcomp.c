@@ -54,7 +54,7 @@ static struct rc_map_table apac_viewcomp[] = {
 	{ 0x18, KEY_KPMINUS },		/* fine tune <<<< */
 };
 
-static struct rc_keymap apac_viewcomp_map = {
+static struct rc_map_list apac_viewcomp_map = {
 	.map = {
 		.scan    = apac_viewcomp,
 		.size    = ARRAY_SIZE(apac_viewcomp),
@@ -65,12 +65,12 @@ static struct rc_keymap apac_viewcomp_map = {
 
 static int __init init_rc_map_apac_viewcomp(void)
 {
-	return ir_register_map(&apac_viewcomp_map);
+	return rc_map_register(&apac_viewcomp_map);
 }
 
 static void __exit exit_rc_map_apac_viewcomp(void)
 {
-	ir_unregister_map(&apac_viewcomp_map);
+	rc_map_unregister(&apac_viewcomp_map);
 }
 
 module_init(init_rc_map_apac_viewcomp)

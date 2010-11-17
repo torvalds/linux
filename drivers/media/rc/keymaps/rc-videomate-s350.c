@@ -59,7 +59,7 @@ static struct rc_map_table videomate_s350[] = {
 	{ 0x20, KEY_TEXT},
 };
 
-static struct rc_keymap videomate_s350_map = {
+static struct rc_map_list videomate_s350_map = {
 	.map = {
 		.scan    = videomate_s350,
 		.size    = ARRAY_SIZE(videomate_s350),
@@ -70,12 +70,12 @@ static struct rc_keymap videomate_s350_map = {
 
 static int __init init_rc_map_videomate_s350(void)
 {
-	return ir_register_map(&videomate_s350_map);
+	return rc_map_register(&videomate_s350_map);
 }
 
 static void __exit exit_rc_map_videomate_s350(void)
 {
-	ir_unregister_map(&videomate_s350_map);
+	rc_map_unregister(&videomate_s350_map);
 }
 
 module_init(init_rc_map_videomate_s350)

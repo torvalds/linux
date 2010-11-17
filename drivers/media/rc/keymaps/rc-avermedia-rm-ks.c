@@ -53,7 +53,7 @@ static struct rc_map_table avermedia_rm_ks[] = {
 	{ 0x0556, KEY_ZOOM },
 };
 
-static struct rc_keymap avermedia_rm_ks_map = {
+static struct rc_map_list avermedia_rm_ks_map = {
 	.map = {
 		.scan    = avermedia_rm_ks,
 		.size    = ARRAY_SIZE(avermedia_rm_ks),
@@ -64,12 +64,12 @@ static struct rc_keymap avermedia_rm_ks_map = {
 
 static int __init init_rc_map_avermedia_rm_ks(void)
 {
-	return ir_register_map(&avermedia_rm_ks_map);
+	return rc_map_register(&avermedia_rm_ks_map);
 }
 
 static void __exit exit_rc_map_avermedia_rm_ks(void)
 {
-	ir_unregister_map(&avermedia_rm_ks_map);
+	rc_map_unregister(&avermedia_rm_ks_map);
 }
 
 module_init(init_rc_map_avermedia_rm_ks)

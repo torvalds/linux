@@ -53,7 +53,7 @@ static struct rc_map_table terratec_slim[] = {
 	{ 0x02bd45, KEY_POWER2 },          /* [red power button] */
 };
 
-static struct rc_keymap terratec_slim_map = {
+static struct rc_map_list terratec_slim_map = {
 	.map = {
 		.scan    = terratec_slim,
 		.size    = ARRAY_SIZE(terratec_slim),
@@ -64,12 +64,12 @@ static struct rc_keymap terratec_slim_map = {
 
 static int __init init_rc_map_terratec_slim(void)
 {
-	return ir_register_map(&terratec_slim_map);
+	return rc_map_register(&terratec_slim_map);
 }
 
 static void __exit exit_rc_map_terratec_slim(void)
 {
-	ir_unregister_map(&terratec_slim_map);
+	rc_map_unregister(&terratec_slim_map);
 }
 
 module_init(init_rc_map_terratec_slim)

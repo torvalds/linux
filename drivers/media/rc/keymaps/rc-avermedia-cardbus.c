@@ -71,7 +71,7 @@ static struct rc_map_table avermedia_cardbus[] = {
 	{ 0x43, KEY_CHANNELUP },	/* Channel up */
 };
 
-static struct rc_keymap avermedia_cardbus_map = {
+static struct rc_map_list avermedia_cardbus_map = {
 	.map = {
 		.scan    = avermedia_cardbus,
 		.size    = ARRAY_SIZE(avermedia_cardbus),
@@ -82,12 +82,12 @@ static struct rc_keymap avermedia_cardbus_map = {
 
 static int __init init_rc_map_avermedia_cardbus(void)
 {
-	return ir_register_map(&avermedia_cardbus_map);
+	return rc_map_register(&avermedia_cardbus_map);
 }
 
 static void __exit exit_rc_map_avermedia_cardbus(void)
 {
-	ir_unregister_map(&avermedia_cardbus_map);
+	rc_map_unregister(&avermedia_cardbus_map);
 }
 
 module_init(init_rc_map_avermedia_cardbus)

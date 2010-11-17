@@ -76,7 +76,7 @@ static struct rc_map_table azurewave_ad_tu700[] = {
 	{ 0x005f, KEY_BLUE },
 };
 
-static struct rc_keymap azurewave_ad_tu700_map = {
+static struct rc_map_list azurewave_ad_tu700_map = {
 	.map = {
 		.scan    = azurewave_ad_tu700,
 		.size    = ARRAY_SIZE(azurewave_ad_tu700),
@@ -87,12 +87,12 @@ static struct rc_keymap azurewave_ad_tu700_map = {
 
 static int __init init_rc_map_azurewave_ad_tu700(void)
 {
-	return ir_register_map(&azurewave_ad_tu700_map);
+	return rc_map_register(&azurewave_ad_tu700_map);
 }
 
 static void __exit exit_rc_map_azurewave_ad_tu700(void)
 {
-	ir_unregister_map(&azurewave_ad_tu700_map);
+	rc_map_unregister(&azurewave_ad_tu700_map);
 }
 
 module_init(init_rc_map_azurewave_ad_tu700)

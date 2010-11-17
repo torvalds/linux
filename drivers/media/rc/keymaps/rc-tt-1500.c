@@ -56,7 +56,7 @@ static struct rc_map_table tt_1500[] = {
 	{ 0x3f, KEY_FORWARD },
 };
 
-static struct rc_keymap tt_1500_map = {
+static struct rc_map_list tt_1500_map = {
 	.map = {
 		.scan    = tt_1500,
 		.size    = ARRAY_SIZE(tt_1500),
@@ -67,12 +67,12 @@ static struct rc_keymap tt_1500_map = {
 
 static int __init init_rc_map_tt_1500(void)
 {
-	return ir_register_map(&tt_1500_map);
+	return rc_map_register(&tt_1500_map);
 }
 
 static void __exit exit_rc_map_tt_1500(void)
 {
-	ir_unregister_map(&tt_1500_map);
+	rc_map_unregister(&tt_1500_map);
 }
 
 module_init(init_rc_map_tt_1500)

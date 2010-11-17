@@ -115,7 +115,7 @@ static struct rc_map_table imon_mce[] = {
 
 };
 
-static struct rc_keymap imon_mce_map = {
+static struct rc_map_list imon_mce_map = {
 	.map = {
 		.scan    = imon_mce,
 		.size    = ARRAY_SIZE(imon_mce),
@@ -127,12 +127,12 @@ static struct rc_keymap imon_mce_map = {
 
 static int __init init_rc_map_imon_mce(void)
 {
-	return ir_register_map(&imon_mce_map);
+	return rc_map_register(&imon_mce_map);
 }
 
 static void __exit exit_rc_map_imon_mce(void)
 {
-	ir_unregister_map(&imon_mce_map);
+	rc_map_unregister(&imon_mce_map);
 }
 
 module_init(init_rc_map_imon_mce)

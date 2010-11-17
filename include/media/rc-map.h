@@ -40,16 +40,16 @@ struct rc_map {
 	spinlock_t		lock;
 };
 
-struct rc_keymap {
+struct rc_map_list {
 	struct list_head	 list;
 	struct rc_map map;
 };
 
 /* Routines from rc-map.c */
 
-int ir_register_map(struct rc_keymap *map);
-void ir_unregister_map(struct rc_keymap *map);
-struct rc_map *get_rc_map(const char *name);
+int rc_map_register(struct rc_map_list *map);
+void rc_map_unregister(struct rc_map_list *map);
+struct rc_map *rc_map_get(const char *name);
 void rc_map_init(void);
 
 /* Names of the several keytables defined in-kernel */

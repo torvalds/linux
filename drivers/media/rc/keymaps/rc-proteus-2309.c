@@ -43,7 +43,7 @@ static struct rc_map_table proteus_2309[] = {
 	{ 0x14, KEY_F1 },
 };
 
-static struct rc_keymap proteus_2309_map = {
+static struct rc_map_list proteus_2309_map = {
 	.map = {
 		.scan    = proteus_2309,
 		.size    = ARRAY_SIZE(proteus_2309),
@@ -54,12 +54,12 @@ static struct rc_keymap proteus_2309_map = {
 
 static int __init init_rc_map_proteus_2309(void)
 {
-	return ir_register_map(&proteus_2309_map);
+	return rc_map_register(&proteus_2309_map);
 }
 
 static void __exit exit_rc_map_proteus_2309(void)
 {
-	ir_unregister_map(&proteus_2309_map);
+	rc_map_unregister(&proteus_2309_map);
 }
 
 module_init(init_rc_map_proteus_2309)

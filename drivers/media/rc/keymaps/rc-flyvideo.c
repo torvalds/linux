@@ -44,7 +44,7 @@ static struct rc_map_table flyvideo[] = {
 	{ 0x0a, KEY_ANGLE },	/* no label, may be used as the PAUSE button */
 };
 
-static struct rc_keymap flyvideo_map = {
+static struct rc_map_list flyvideo_map = {
 	.map = {
 		.scan    = flyvideo,
 		.size    = ARRAY_SIZE(flyvideo),
@@ -55,12 +55,12 @@ static struct rc_keymap flyvideo_map = {
 
 static int __init init_rc_map_flyvideo(void)
 {
-	return ir_register_map(&flyvideo_map);
+	return rc_map_register(&flyvideo_map);
 }
 
 static void __exit exit_rc_map_flyvideo(void)
 {
-	ir_unregister_map(&flyvideo_map);
+	rc_map_unregister(&flyvideo_map);
 }
 
 module_init(init_rc_map_flyvideo)

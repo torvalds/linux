@@ -63,7 +63,7 @@ static struct rc_map_table adstech_dvb_t_pci[] = {
 	{ 0x1c, KEY_VOLUMEDOWN },
 };
 
-static struct rc_keymap adstech_dvb_t_pci_map = {
+static struct rc_map_list adstech_dvb_t_pci_map = {
 	.map = {
 		.scan    = adstech_dvb_t_pci,
 		.size    = ARRAY_SIZE(adstech_dvb_t_pci),
@@ -74,12 +74,12 @@ static struct rc_keymap adstech_dvb_t_pci_map = {
 
 static int __init init_rc_map_adstech_dvb_t_pci(void)
 {
-	return ir_register_map(&adstech_dvb_t_pci_map);
+	return rc_map_register(&adstech_dvb_t_pci_map);
 }
 
 static void __exit exit_rc_map_adstech_dvb_t_pci(void)
 {
-	ir_unregister_map(&adstech_dvb_t_pci_map);
+	rc_map_unregister(&adstech_dvb_t_pci_map);
 }
 
 module_init(init_rc_map_adstech_dvb_t_pci)

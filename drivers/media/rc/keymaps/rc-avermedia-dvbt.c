@@ -52,7 +52,7 @@ static struct rc_map_table avermedia_dvbt[] = {
 	{ 0x3e, KEY_VOLUMEUP },		/* 'volume +' */
 };
 
-static struct rc_keymap avermedia_dvbt_map = {
+static struct rc_map_list avermedia_dvbt_map = {
 	.map = {
 		.scan    = avermedia_dvbt,
 		.size    = ARRAY_SIZE(avermedia_dvbt),
@@ -63,12 +63,12 @@ static struct rc_keymap avermedia_dvbt_map = {
 
 static int __init init_rc_map_avermedia_dvbt(void)
 {
-	return ir_register_map(&avermedia_dvbt_map);
+	return rc_map_register(&avermedia_dvbt_map);
 }
 
 static void __exit exit_rc_map_avermedia_dvbt(void)
 {
-	ir_unregister_map(&avermedia_dvbt_map);
+	rc_map_unregister(&avermedia_dvbt_map);
 }
 
 module_init(init_rc_map_avermedia_dvbt)

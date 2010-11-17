@@ -31,9 +31,9 @@
 static LIST_HEAD(rc_map_list);
 static DEFINE_SPINLOCK(rc_map_lock);
 
-static struct rc_keymap *seek_rc_map(const char *name)
+static struct rc_map_list *seek_rc_map(const char *name)
 {
-	struct rc_keymap *map = NULL;
+	struct rc_map_list *map = NULL;
 
 	spin_lock(&rc_map_lock);
 	list_for_each_entry(map, &rc_map_list, list) {
@@ -47,10 +47,10 @@ static struct rc_keymap *seek_rc_map(const char *name)
 	return NULL;
 }
 
-struct rc_map *get_rc_map(const char *name)
+struct rc_map *rc_map_get(const char *name)
 {
 
-	struct rc_keymap *map;
+	struct rc_map_list *map;
 
 	map = seek_rc_map(name);
 #ifdef MODULE
@@ -74,31 +74,31 @@ struct rc_map *get_rc_map(const char *name)
 
 	return &map->map;
 }
-EXPORT_SYMBOL_GPL(get_rc_map);
+EXPORT_SYMBOL_GPL(rc_map_get);
 
-int ir_register_map(struct rc_keymap *map)
+int rc_map_register(struct rc_map_list *map)
 {
 	spin_lock(&rc_map_lock);
 	list_add_tail(&map->list, &rc_map_list);
 	spin_unlock(&rc_map_lock);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ir_register_map);
+EXPORT_SYMBOL_GPL(rc_map_register);
 
-void ir_unregister_map(struct rc_keymap *map)
+void rc_map_unregister(struct rc_map_list *map)
 {
 	spin_lock(&rc_map_lock);
 	list_del(&map->list);
 	spin_unlock(&rc_map_lock);
 }
-EXPORT_SYMBOL_GPL(ir_unregister_map);
+EXPORT_SYMBOL_GPL(rc_map_unregister);
 
 
 static struct rc_map_table empty[] = {
 	{ 0x2a, KEY_COFFEE },
 };
 
-static struct rc_keymap empty_map = {
+static struct rc_map_list empty_map = {
 	.map = {
 		.scan    = empty,
 		.size    = ARRAY_SIZE(empty),
@@ -996,9 +996,9 @@ int rc_register_device(struct rc_dev *dev)
 	if (!dev || !dev->map_name)
 		return -EINVAL;
 
-	rc_map = get_rc_map(dev->map_name);
+	rc_map = rc_map_get(dev->map_name);
 	if (!rc_map)
-		rc_map = get_rc_map(RC_MAP_EMPTY);
+		rc_map = rc_map_get(RC_MAP_EMPTY);
 	if (!rc_map || !rc_map->scan || rc_map->size == 0)
 		return -EINVAL;
 
@@ -1113,7 +1113,7 @@ static int __init rc_core_init(void)
 
 	/* Initialize/load the decoders/keymap code that will be used */
 	ir_raw_init();
-	ir_register_map(&empty_map);
+	rc_map_register(&empty_map);
 
 	return 0;
 }
@@ -1121,7 +1121,7 @@ static int __init rc_core_init(void)
 static void __exit rc_core_exit(void)
 {
 	class_unregister(&ir_input_class);
-	ir_unregister_map(&empty_map);
+	rc_map_unregister(&empty_map);
 }
 
 module_init(rc_core_init);

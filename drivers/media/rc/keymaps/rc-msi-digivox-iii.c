@@ -59,7 +59,7 @@ static struct rc_map_table msi_digivox_iii[] = {
 	{ 0x61d643, KEY_POWER2 },          /* [red power button] */
 };
 
-static struct rc_keymap msi_digivox_iii_map = {
+static struct rc_map_list msi_digivox_iii_map = {
 	.map = {
 		.scan    = msi_digivox_iii,
 		.size    = ARRAY_SIZE(msi_digivox_iii),
@@ -70,12 +70,12 @@ static struct rc_keymap msi_digivox_iii_map = {
 
 static int __init init_rc_map_msi_digivox_iii(void)
 {
-	return ir_register_map(&msi_digivox_iii_map);
+	return rc_map_register(&msi_digivox_iii_map);
 }
 
 static void __exit exit_rc_map_msi_digivox_iii(void)
 {
-	ir_unregister_map(&msi_digivox_iii_map);
+	rc_map_unregister(&msi_digivox_iii_map);
 }
 
 module_init(init_rc_map_msi_digivox_iii)

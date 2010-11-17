@@ -50,7 +50,7 @@ static struct rc_map_table dm1105_nec[] = {
 	{ 0x1b, KEY_B},			/* recall */
 };
 
-static struct rc_keymap dm1105_nec_map = {
+static struct rc_map_list dm1105_nec_map = {
 	.map = {
 		.scan    = dm1105_nec,
 		.size    = ARRAY_SIZE(dm1105_nec),
@@ -61,12 +61,12 @@ static struct rc_keymap dm1105_nec_map = {
 
 static int __init init_rc_map_dm1105_nec(void)
 {
-	return ir_register_map(&dm1105_nec_map);
+	return rc_map_register(&dm1105_nec_map);
 }
 
 static void __exit exit_rc_map_dm1105_nec(void)
 {
-	ir_unregister_map(&dm1105_nec_map);
+	rc_map_unregister(&dm1105_nec_map);
 }
 
 module_init(init_rc_map_dm1105_nec)

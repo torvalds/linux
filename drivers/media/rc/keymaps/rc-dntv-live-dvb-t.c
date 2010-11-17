@@ -52,7 +52,7 @@ static struct rc_map_table dntv_live_dvb_t[] = {
 	{ 0x1f, KEY_VOLUMEDOWN },
 };
 
-static struct rc_keymap dntv_live_dvb_t_map = {
+static struct rc_map_list dntv_live_dvb_t_map = {
 	.map = {
 		.scan    = dntv_live_dvb_t,
 		.size    = ARRAY_SIZE(dntv_live_dvb_t),
@@ -63,12 +63,12 @@ static struct rc_keymap dntv_live_dvb_t_map = {
 
 static int __init init_rc_map_dntv_live_dvb_t(void)
 {
-	return ir_register_map(&dntv_live_dvb_t_map);
+	return rc_map_register(&dntv_live_dvb_t_map);
 }
 
 static void __exit exit_rc_map_dntv_live_dvb_t(void)
 {
-	ir_unregister_map(&dntv_live_dvb_t_map);
+	rc_map_unregister(&dntv_live_dvb_t_map);
 }
 
 module_init(init_rc_map_dntv_live_dvb_t)

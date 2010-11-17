@@ -52,7 +52,7 @@ static struct rc_map_table pv951[] = {
 	{ 0x1c, KEY_MEDIA },		/* PC/TV */
 };
 
-static struct rc_keymap pv951_map = {
+static struct rc_map_list pv951_map = {
 	.map = {
 		.scan    = pv951,
 		.size    = ARRAY_SIZE(pv951),
@@ -63,12 +63,12 @@ static struct rc_keymap pv951_map = {
 
 static int __init init_rc_map_pv951(void)
 {
-	return ir_register_map(&pv951_map);
+	return rc_map_register(&pv951_map);
 }
 
 static void __exit exit_rc_map_pv951(void)
 {
-	ir_unregister_map(&pv951_map);
+	rc_map_unregister(&pv951_map);
 }
 
 module_init(init_rc_map_pv951)

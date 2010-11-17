@@ -59,7 +59,7 @@ static struct rc_map_table total_media_in_hand[] = {
 	{ 0x02bd45, KEY_INFO },            /* [red (I)] */
 };
 
-static struct rc_keymap total_media_in_hand_map = {
+static struct rc_map_list total_media_in_hand_map = {
 	.map = {
 		.scan    = total_media_in_hand,
 		.size    = ARRAY_SIZE(total_media_in_hand),
@@ -70,12 +70,12 @@ static struct rc_keymap total_media_in_hand_map = {
 
 static int __init init_rc_map_total_media_in_hand(void)
 {
-	return ir_register_map(&total_media_in_hand_map);
+	return rc_map_register(&total_media_in_hand_map);
 }
 
 static void __exit exit_rc_map_total_media_in_hand(void)
 {
-	ir_unregister_map(&total_media_in_hand_map);
+	rc_map_unregister(&total_media_in_hand_map);
 }
 
 module_init(init_rc_map_total_media_in_hand)

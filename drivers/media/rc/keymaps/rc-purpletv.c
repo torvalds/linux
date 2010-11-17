@@ -55,7 +55,7 @@ static struct rc_map_table purpletv[] = {
 
 };
 
-static struct rc_keymap purpletv_map = {
+static struct rc_map_list purpletv_map = {
 	.map = {
 		.scan    = purpletv,
 		.size    = ARRAY_SIZE(purpletv),
@@ -66,12 +66,12 @@ static struct rc_keymap purpletv_map = {
 
 static int __init init_rc_map_purpletv(void)
 {
-	return ir_register_map(&purpletv_map);
+	return rc_map_register(&purpletv_map);
 }
 
 static void __exit exit_rc_map_purpletv(void)
 {
-	ir_unregister_map(&purpletv_map);
+	rc_map_unregister(&purpletv_map);
 }
 
 module_init(init_rc_map_purpletv)

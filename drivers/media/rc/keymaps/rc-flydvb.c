@@ -51,7 +51,7 @@ static struct rc_map_table flydvb[] = {
 	{ 0x0e, KEY_NEXT },		/* End >>| */
 };
 
-static struct rc_keymap flydvb_map = {
+static struct rc_map_list flydvb_map = {
 	.map = {
 		.scan    = flydvb,
 		.size    = ARRAY_SIZE(flydvb),
@@ -62,12 +62,12 @@ static struct rc_keymap flydvb_map = {
 
 static int __init init_rc_map_flydvb(void)
 {
-	return ir_register_map(&flydvb_map);
+	return rc_map_register(&flydvb_map);
 }
 
 static void __exit exit_rc_map_flydvb(void)
 {
-	ir_unregister_map(&flydvb_map);
+	rc_map_unregister(&flydvb_map);
 }
 
 module_init(init_rc_map_flydvb)

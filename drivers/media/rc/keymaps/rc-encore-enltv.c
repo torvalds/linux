@@ -86,7 +86,7 @@ static struct rc_map_table encore_enltv[] = {
 	{ 0x57, KEY_BLUE },		/* AP4 */
 };
 
-static struct rc_keymap encore_enltv_map = {
+static struct rc_map_list encore_enltv_map = {
 	.map = {
 		.scan    = encore_enltv,
 		.size    = ARRAY_SIZE(encore_enltv),
@@ -97,12 +97,12 @@ static struct rc_keymap encore_enltv_map = {
 
 static int __init init_rc_map_encore_enltv(void)
 {
-	return ir_register_map(&encore_enltv_map);
+	return rc_map_register(&encore_enltv_map);
 }
 
 static void __exit exit_rc_map_encore_enltv(void)
 {
-	ir_unregister_map(&encore_enltv_map);
+	rc_map_unregister(&encore_enltv_map);
 }
 
 module_init(init_rc_map_encore_enltv)

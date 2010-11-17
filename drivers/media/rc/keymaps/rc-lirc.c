@@ -15,7 +15,7 @@ static struct rc_map_table lirc[] = {
 	{ },
 };
 
-static struct rc_keymap lirc_map = {
+static struct rc_map_list lirc_map = {
 	.map = {
 		.scan    = lirc,
 		.size    = ARRAY_SIZE(lirc),
@@ -26,12 +26,12 @@ static struct rc_keymap lirc_map = {
 
 static int __init init_rc_map_lirc(void)
 {
-	return ir_register_map(&lirc_map);
+	return rc_map_register(&lirc_map);
 }
 
 static void __exit exit_rc_map_lirc(void)
 {
-	ir_unregister_map(&lirc_map);
+	rc_map_unregister(&lirc_map);
 }
 
 module_init(init_rc_map_lirc)

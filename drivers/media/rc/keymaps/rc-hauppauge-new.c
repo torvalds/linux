@@ -74,7 +74,7 @@ static struct rc_map_table hauppauge_new[] = {
 	{ 0x3d, KEY_POWER },		/* system power (green button) */
 };
 
-static struct rc_keymap hauppauge_new_map = {
+static struct rc_map_list hauppauge_new_map = {
 	.map = {
 		.scan    = hauppauge_new,
 		.size    = ARRAY_SIZE(hauppauge_new),
@@ -85,12 +85,12 @@ static struct rc_keymap hauppauge_new_map = {
 
 static int __init init_rc_map_hauppauge_new(void)
 {
-	return ir_register_map(&hauppauge_new_map);
+	return rc_map_register(&hauppauge_new_map);
 }
 
 static void __exit exit_rc_map_hauppauge_new(void)
 {
-	ir_unregister_map(&hauppauge_new_map);
+	rc_map_unregister(&hauppauge_new_map);
 }
 
 module_init(init_rc_map_hauppauge_new)

@@ -72,7 +72,7 @@ static struct rc_map_table digitalnow_tinytwin[] = {
 	{ 0x005a, KEY_PREVIOUS },        /* REPLAY */
 };
 
-static struct rc_keymap digitalnow_tinytwin_map = {
+static struct rc_map_list digitalnow_tinytwin_map = {
 	.map = {
 		.scan    = digitalnow_tinytwin,
 		.size    = ARRAY_SIZE(digitalnow_tinytwin),
@@ -83,12 +83,12 @@ static struct rc_keymap digitalnow_tinytwin_map = {
 
 static int __init init_rc_map_digitalnow_tinytwin(void)
 {
-	return ir_register_map(&digitalnow_tinytwin_map);
+	return rc_map_register(&digitalnow_tinytwin_map);
 }
 
 static void __exit exit_rc_map_digitalnow_tinytwin(void)
 {
-	ir_unregister_map(&digitalnow_tinytwin_map);
+	rc_map_unregister(&digitalnow_tinytwin_map);
 }
 
 module_init(init_rc_map_digitalnow_tinytwin)

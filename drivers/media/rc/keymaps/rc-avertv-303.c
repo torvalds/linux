@@ -59,7 +59,7 @@ static struct rc_map_table avertv_303[] = {
 	{ 0x1b, KEY_UP },
 };
 
-static struct rc_keymap avertv_303_map = {
+static struct rc_map_list avertv_303_map = {
 	.map = {
 		.scan    = avertv_303,
 		.size    = ARRAY_SIZE(avertv_303),
@@ -70,12 +70,12 @@ static struct rc_keymap avertv_303_map = {
 
 static int __init init_rc_map_avertv_303(void)
 {
-	return ir_register_map(&avertv_303_map);
+	return rc_map_register(&avertv_303_map);
 }
 
 static void __exit exit_rc_map_avertv_303(void)
 {
-	ir_unregister_map(&avertv_303_map);
+	rc_map_unregister(&avertv_303_map);
 }
 
 module_init(init_rc_map_avertv_303)

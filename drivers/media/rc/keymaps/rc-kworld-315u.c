@@ -57,7 +57,7 @@ static struct rc_map_table kworld_315u[] = {
 	{ 0x611f, KEY_BLUE },
 };
 
-static struct rc_keymap kworld_315u_map = {
+static struct rc_map_list kworld_315u_map = {
 	.map = {
 		.scan    = kworld_315u,
 		.size    = ARRAY_SIZE(kworld_315u),
@@ -68,12 +68,12 @@ static struct rc_keymap kworld_315u_map = {
 
 static int __init init_rc_map_kworld_315u(void)
 {
-	return ir_register_map(&kworld_315u_map);
+	return rc_map_register(&kworld_315u_map);
 }
 
 static void __exit exit_rc_map_kworld_315u(void)
 {
-	ir_unregister_map(&kworld_315u_map);
+	rc_map_unregister(&kworld_315u_map);
 }
 
 module_init(init_rc_map_kworld_315u)

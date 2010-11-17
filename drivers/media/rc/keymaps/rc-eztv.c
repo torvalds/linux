@@ -70,7 +70,7 @@ static struct rc_map_table eztv[] = {
 	{ 0x21, KEY_DOT },	/* . (decimal dot) */
 };
 
-static struct rc_keymap eztv_map = {
+static struct rc_map_list eztv_map = {
 	.map = {
 		.scan    = eztv,
 		.size    = ARRAY_SIZE(eztv),
@@ -81,12 +81,12 @@ static struct rc_keymap eztv_map = {
 
 static int __init init_rc_map_eztv(void)
 {
-	return ir_register_map(&eztv_map);
+	return rc_map_register(&eztv_map);
 }
 
 static void __exit exit_rc_map_eztv(void)
 {
-	ir_unregister_map(&eztv_map);
+	rc_map_unregister(&eztv_map);
 }
 
 module_init(init_rc_map_eztv)

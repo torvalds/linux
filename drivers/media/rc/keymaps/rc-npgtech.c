@@ -54,7 +54,7 @@ static struct rc_map_table npgtech[] = {
 
 };
 
-static struct rc_keymap npgtech_map = {
+static struct rc_map_list npgtech_map = {
 	.map = {
 		.scan    = npgtech,
 		.size    = ARRAY_SIZE(npgtech),
@@ -65,12 +65,12 @@ static struct rc_keymap npgtech_map = {
 
 static int __init init_rc_map_npgtech(void)
 {
-	return ir_register_map(&npgtech_map);
+	return rc_map_register(&npgtech_map);
 }
 
 static void __exit exit_rc_map_npgtech(void)
 {
-	ir_unregister_map(&npgtech_map);
+	rc_map_unregister(&npgtech_map);
 }
 
 module_init(init_rc_map_npgtech)

@@ -79,7 +79,7 @@ static struct rc_map_table nec_terratec_cinergy_xs[] = {
 	{ 0x145c, KEY_NEXT},
 };
 
-static struct rc_keymap nec_terratec_cinergy_xs_map = {
+static struct rc_map_list nec_terratec_cinergy_xs_map = {
 	.map = {
 		.scan    = nec_terratec_cinergy_xs,
 		.size    = ARRAY_SIZE(nec_terratec_cinergy_xs),
@@ -90,12 +90,12 @@ static struct rc_keymap nec_terratec_cinergy_xs_map = {
 
 static int __init init_rc_map_nec_terratec_cinergy_xs(void)
 {
-	return ir_register_map(&nec_terratec_cinergy_xs_map);
+	return rc_map_register(&nec_terratec_cinergy_xs_map);
 }
 
 static void __exit exit_rc_map_nec_terratec_cinergy_xs(void)
 {
-	ir_unregister_map(&nec_terratec_cinergy_xs_map);
+	rc_map_unregister(&nec_terratec_cinergy_xs_map);
 }
 
 module_init(init_rc_map_nec_terratec_cinergy_xs)

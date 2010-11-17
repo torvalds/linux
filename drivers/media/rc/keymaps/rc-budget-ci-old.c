@@ -66,7 +66,7 @@ static struct rc_map_table budget_ci_old[] = {
 	{ 0x3e, KEY_TUNER },
 };
 
-static struct rc_keymap budget_ci_old_map = {
+static struct rc_map_list budget_ci_old_map = {
 	.map = {
 		.scan    = budget_ci_old,
 		.size    = ARRAY_SIZE(budget_ci_old),
@@ -77,12 +77,12 @@ static struct rc_keymap budget_ci_old_map = {
 
 static int __init init_rc_map_budget_ci_old(void)
 {
-	return ir_register_map(&budget_ci_old_map);
+	return rc_map_register(&budget_ci_old_map);
 }
 
 static void __exit exit_rc_map_budget_ci_old(void)
 {
-	ir_unregister_map(&budget_ci_old_map);
+	rc_map_unregister(&budget_ci_old_map);
 }
 
 module_init(init_rc_map_budget_ci_old)

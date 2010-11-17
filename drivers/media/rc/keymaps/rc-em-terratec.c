@@ -43,7 +43,7 @@ static struct rc_map_table em_terratec[] = {
 	{ 0x40, KEY_ZOOM },
 };
 
-static struct rc_keymap em_terratec_map = {
+static struct rc_map_list em_terratec_map = {
 	.map = {
 		.scan    = em_terratec,
 		.size    = ARRAY_SIZE(em_terratec),
@@ -54,12 +54,12 @@ static struct rc_keymap em_terratec_map = {
 
 static int __init init_rc_map_em_terratec(void)
 {
-	return ir_register_map(&em_terratec_map);
+	return rc_map_register(&em_terratec_map);
 }
 
 static void __exit exit_rc_map_em_terratec(void)
 {
-	ir_unregister_map(&em_terratec_map);
+	rc_map_unregister(&em_terratec_map);
 }
 
 module_init(init_rc_map_em_terratec)

@@ -68,7 +68,7 @@ static struct rc_map_table pinnacle_color[] = {
 	{ 0x0a, KEY_BACKSPACE },
 };
 
-static struct rc_keymap pinnacle_color_map = {
+static struct rc_map_list pinnacle_color_map = {
 	.map = {
 		.scan    = pinnacle_color,
 		.size    = ARRAY_SIZE(pinnacle_color),
@@ -79,12 +79,12 @@ static struct rc_keymap pinnacle_color_map = {
 
 static int __init init_rc_map_pinnacle_color(void)
 {
-	return ir_register_map(&pinnacle_color_map);
+	return rc_map_register(&pinnacle_color_map);
 }
 
 static void __exit exit_rc_map_pinnacle_color(void)
 {
-	ir_unregister_map(&pinnacle_color_map);
+	rc_map_unregister(&pinnacle_color_map);
 }
 
 module_init(init_rc_map_pinnacle_color)

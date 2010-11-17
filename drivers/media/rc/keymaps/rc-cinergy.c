@@ -52,7 +52,7 @@ static struct rc_map_table cinergy[] = {
 	{ 0x23, KEY_STOP },
 };
 
-static struct rc_keymap cinergy_map = {
+static struct rc_map_list cinergy_map = {
 	.map = {
 		.scan    = cinergy,
 		.size    = ARRAY_SIZE(cinergy),
@@ -63,12 +63,12 @@ static struct rc_keymap cinergy_map = {
 
 static int __init init_rc_map_cinergy(void)
 {
-	return ir_register_map(&cinergy_map);
+	return rc_map_register(&cinergy_map);
 }
 
 static void __exit exit_rc_map_cinergy(void)
 {
-	ir_unregister_map(&cinergy_map);
+	rc_map_unregister(&cinergy_map);
 }
 
 module_init(init_rc_map_cinergy)

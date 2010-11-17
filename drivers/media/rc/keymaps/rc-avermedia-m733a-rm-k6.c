@@ -69,7 +69,7 @@ static struct rc_map_table avermedia_m733a_rm_k6[] = {
 	{ 0x041e, KEY_NEXT },
 };
 
-static struct rc_keymap avermedia_m733a_rm_k6_map = {
+static struct rc_map_list avermedia_m733a_rm_k6_map = {
 	.map = {
 		.scan    = avermedia_m733a_rm_k6,
 		.size    = ARRAY_SIZE(avermedia_m733a_rm_k6),
@@ -80,12 +80,12 @@ static struct rc_keymap avermedia_m733a_rm_k6_map = {
 
 static int __init init_rc_map_avermedia_m733a_rm_k6(void)
 {
-	return ir_register_map(&avermedia_m733a_rm_k6_map);
+	return rc_map_register(&avermedia_m733a_rm_k6_map);
 }
 
 static void __exit exit_rc_map_avermedia_m733a_rm_k6(void)
 {
-	ir_unregister_map(&avermedia_m733a_rm_k6_map);
+	rc_map_unregister(&avermedia_m733a_rm_k6_map);
 }
 
 module_init(init_rc_map_avermedia_m733a_rm_k6)

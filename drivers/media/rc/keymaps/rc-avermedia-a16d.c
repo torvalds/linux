@@ -49,7 +49,7 @@ static struct rc_map_table avermedia_a16d[] = {
 	{ 0x2a, KEY_MENU},
 };
 
-static struct rc_keymap avermedia_a16d_map = {
+static struct rc_map_list avermedia_a16d_map = {
 	.map = {
 		.scan    = avermedia_a16d,
 		.size    = ARRAY_SIZE(avermedia_a16d),
@@ -60,12 +60,12 @@ static struct rc_keymap avermedia_a16d_map = {
 
 static int __init init_rc_map_avermedia_a16d(void)
 {
-	return ir_register_map(&avermedia_a16d_map);
+	return rc_map_register(&avermedia_a16d_map);
 }
 
 static void __exit exit_rc_map_avermedia_a16d(void)
 {
-	ir_unregister_map(&avermedia_a16d_map);
+	rc_map_unregister(&avermedia_a16d_map);
 }
 
 module_init(init_rc_map_avermedia_a16d)

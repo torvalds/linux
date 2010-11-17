@@ -61,7 +61,7 @@ static struct rc_map_table twinhan_vp1027[] = {
 	{ 0x5f, KEY_BLUE },
 };
 
-static struct rc_keymap twinhan_vp1027_map = {
+static struct rc_map_list twinhan_vp1027_map = {
 	.map = {
 		.scan    = twinhan_vp1027,
 		.size    = ARRAY_SIZE(twinhan_vp1027),
@@ -72,12 +72,12 @@ static struct rc_keymap twinhan_vp1027_map = {
 
 static int __init init_rc_map_twinhan_vp1027(void)
 {
-	return ir_register_map(&twinhan_vp1027_map);
+	return rc_map_register(&twinhan_vp1027_map);
 }
 
 static void __exit exit_rc_map_twinhan_vp1027(void)
 {
-	ir_unregister_map(&twinhan_vp1027_map);
+	rc_map_unregister(&twinhan_vp1027_map);
 }
 
 module_init(init_rc_map_twinhan_vp1027)

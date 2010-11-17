@@ -42,7 +42,7 @@ static struct rc_map_table lme2510_rc[] = {
 
 };
 
-static struct rc_keymap lme2510_map = {
+static struct rc_map_list lme2510_map = {
 	.map = {
 		.scan    = lme2510_rc,
 		.size    = ARRAY_SIZE(lme2510_rc),
@@ -53,12 +53,12 @@ static struct rc_keymap lme2510_map = {
 
 static int __init init_rc_lme2510_map(void)
 {
-	return ir_register_map(&lme2510_map);
+	return rc_map_register(&lme2510_map);
 }
 
 static void __exit exit_rc_lme2510_map(void)
 {
-	ir_unregister_map(&lme2510_map);
+	rc_map_unregister(&lme2510_map);
 }
 
 module_init(init_rc_lme2510_map)

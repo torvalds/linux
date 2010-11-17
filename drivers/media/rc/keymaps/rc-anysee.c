@@ -67,7 +67,7 @@ static struct rc_map_table anysee[] = {
 	{ 0x0851, KEY_PAUSE },
 };
 
-static struct rc_keymap anysee_map = {
+static struct rc_map_list anysee_map = {
 	.map = {
 		.scan    = anysee,
 		.size    = ARRAY_SIZE(anysee),
@@ -78,12 +78,12 @@ static struct rc_keymap anysee_map = {
 
 static int __init init_rc_map_anysee(void)
 {
-	return ir_register_map(&anysee_map);
+	return rc_map_register(&anysee_map);
 }
 
 static void __exit exit_rc_map_anysee(void)
 {
-	ir_unregister_map(&anysee_map);
+	rc_map_unregister(&anysee_map);
 }
 
 module_init(init_rc_map_anysee)

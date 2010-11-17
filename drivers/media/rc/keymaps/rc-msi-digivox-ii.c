@@ -41,7 +41,7 @@ static struct rc_map_table msi_digivox_ii[] = {
 	{ 0x001f, KEY_VOLUMEDOWN },
 };
 
-static struct rc_keymap msi_digivox_ii_map = {
+static struct rc_map_list msi_digivox_ii_map = {
 	.map = {
 		.scan    = msi_digivox_ii,
 		.size    = ARRAY_SIZE(msi_digivox_ii),
@@ -52,12 +52,12 @@ static struct rc_keymap msi_digivox_ii_map = {
 
 static int __init init_rc_map_msi_digivox_ii(void)
 {
-	return ir_register_map(&msi_digivox_ii_map);
+	return rc_map_register(&msi_digivox_ii_map);
 }
 
 static void __exit exit_rc_map_msi_digivox_ii(void)
 {
-	ir_unregister_map(&msi_digivox_ii_map);
+	rc_map_unregister(&msi_digivox_ii_map);
 }
 
 module_init(init_rc_map_msi_digivox_ii)

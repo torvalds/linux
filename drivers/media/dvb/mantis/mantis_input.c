@@ -95,7 +95,7 @@ static struct rc_map_table mantis_ir_table[] = {
 	{ 0x00, KEY_BLUE	},
 };
 
-static struct rc_keymap ir_mantis_map = {
+static struct rc_map_list ir_mantis_map = {
 	.map = {
 		.scan = mantis_ir_table,
 		.size = ARRAY_SIZE(mantis_ir_table),
@@ -109,7 +109,7 @@ int mantis_input_init(struct mantis_pci *mantis)
 	struct rc_dev *dev;
 	int err;
 
-	err = ir_register_map(&ir_mantis_map);
+	err = rc_map_register(&ir_mantis_map);
 	if (err)
 		goto out;
 
@@ -145,7 +145,7 @@ int mantis_input_init(struct mantis_pci *mantis)
 out_dev:
 	rc_free_device(dev);
 out_map:
-	ir_unregister_map(&ir_mantis_map);
+	rc_map_unregister(&ir_mantis_map);
 out:
 	return err;
 }
@@ -153,7 +153,7 @@ out:
 int mantis_exit(struct mantis_pci *mantis)
 {
 	rc_unregister_device(mantis->rc);
-	ir_unregister_map(&ir_mantis_map);
+	rc_map_unregister(&ir_mantis_map);
 	return 0;
 }
 

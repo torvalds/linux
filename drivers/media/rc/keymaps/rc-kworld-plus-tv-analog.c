@@ -73,7 +73,7 @@ static struct rc_map_table kworld_plus_tv_analog[] = {
 	{ 0x23, KEY_GREEN},		/* C */
 };
 
-static struct rc_keymap kworld_plus_tv_analog_map = {
+static struct rc_map_list kworld_plus_tv_analog_map = {
 	.map = {
 		.scan    = kworld_plus_tv_analog,
 		.size    = ARRAY_SIZE(kworld_plus_tv_analog),
@@ -84,12 +84,12 @@ static struct rc_keymap kworld_plus_tv_analog_map = {
 
 static int __init init_rc_map_kworld_plus_tv_analog(void)
 {
-	return ir_register_map(&kworld_plus_tv_analog_map);
+	return rc_map_register(&kworld_plus_tv_analog_map);
 }
 
 static void __exit exit_rc_map_kworld_plus_tv_analog(void)
 {
-	ir_unregister_map(&kworld_plus_tv_analog_map);
+	rc_map_unregister(&kworld_plus_tv_analog_map);
 }
 
 module_init(init_rc_map_kworld_plus_tv_analog)

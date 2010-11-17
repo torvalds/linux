@@ -54,7 +54,7 @@ static struct rc_map_table trekstor[] = {
 	{ 0x009f, KEY_LEFT },            /* Left */
 };
 
-static struct rc_keymap trekstor_map = {
+static struct rc_map_list trekstor_map = {
 	.map = {
 		.scan    = trekstor,
 		.size    = ARRAY_SIZE(trekstor),
@@ -65,12 +65,12 @@ static struct rc_keymap trekstor_map = {
 
 static int __init init_rc_map_trekstor(void)
 {
-	return ir_register_map(&trekstor_map);
+	return rc_map_register(&trekstor_map);
 }
 
 static void __exit exit_rc_map_trekstor(void)
 {
-	ir_unregister_map(&trekstor_map);
+	rc_map_unregister(&trekstor_map);
 }
 
 module_init(init_rc_map_trekstor)

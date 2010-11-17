@@ -76,7 +76,7 @@ static struct rc_map_table winfast[] = {
 	{ 0x3f, KEY_F24 }		/* MCE -CH,  on Y04G0033 */
 };
 
-static struct rc_keymap winfast_map = {
+static struct rc_map_list winfast_map = {
 	.map = {
 		.scan    = winfast,
 		.size    = ARRAY_SIZE(winfast),
@@ -87,12 +87,12 @@ static struct rc_keymap winfast_map = {
 
 static int __init init_rc_map_winfast(void)
 {
-	return ir_register_map(&winfast_map);
+	return rc_map_register(&winfast_map);
 }
 
 static void __exit exit_rc_map_winfast(void)
 {
-	ir_unregister_map(&winfast_map);
+	rc_map_unregister(&winfast_map);
 }
 
 module_init(init_rc_map_winfast)

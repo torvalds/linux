@@ -35,7 +35,7 @@ static struct rc_map_table evga_indtube[] = {
 	{ 0x13, KEY_CAMERA},
 };
 
-static struct rc_keymap evga_indtube_map = {
+static struct rc_map_list evga_indtube_map = {
 	.map = {
 		.scan    = evga_indtube,
 		.size    = ARRAY_SIZE(evga_indtube),
@@ -46,12 +46,12 @@ static struct rc_keymap evga_indtube_map = {
 
 static int __init init_rc_map_evga_indtube(void)
 {
-	return ir_register_map(&evga_indtube_map);
+	return rc_map_register(&evga_indtube_map);
 }
 
 static void __exit exit_rc_map_evga_indtube(void)
 {
-	ir_unregister_map(&evga_indtube_map);
+	rc_map_unregister(&evga_indtube_map);
 }
 
 module_init(init_rc_map_evga_indtube)

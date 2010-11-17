@@ -97,7 +97,7 @@ static struct rc_map_table msi_tvanywhere_plus[] = {
 	{ 0x1d, KEY_RESTART },		/* Reset */
 };
 
-static struct rc_keymap msi_tvanywhere_plus_map = {
+static struct rc_map_list msi_tvanywhere_plus_map = {
 	.map = {
 		.scan    = msi_tvanywhere_plus,
 		.size    = ARRAY_SIZE(msi_tvanywhere_plus),
@@ -108,12 +108,12 @@ static struct rc_keymap msi_tvanywhere_plus_map = {
 
 static int __init init_rc_map_msi_tvanywhere_plus(void)
 {
-	return ir_register_map(&msi_tvanywhere_plus_map);
+	return rc_map_register(&msi_tvanywhere_plus_map);
 }
 
 static void __exit exit_rc_map_msi_tvanywhere_plus(void)
 {
-	ir_unregister_map(&msi_tvanywhere_plus_map);
+	rc_map_unregister(&msi_tvanywhere_plus_map);
 }
 
 module_init(init_rc_map_msi_tvanywhere_plus)

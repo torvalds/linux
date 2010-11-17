@@ -58,7 +58,7 @@ static struct rc_map_table genius_tvgo_a11mce[] = {
 	{ 0x50, KEY_BLUE },
 };
 
-static struct rc_keymap genius_tvgo_a11mce_map = {
+static struct rc_map_list genius_tvgo_a11mce_map = {
 	.map = {
 		.scan    = genius_tvgo_a11mce,
 		.size    = ARRAY_SIZE(genius_tvgo_a11mce),
@@ -69,12 +69,12 @@ static struct rc_keymap genius_tvgo_a11mce_map = {
 
 static int __init init_rc_map_genius_tvgo_a11mce(void)
 {
-	return ir_register_map(&genius_tvgo_a11mce_map);
+	return rc_map_register(&genius_tvgo_a11mce_map);
 }
 
 static void __exit exit_rc_map_genius_tvgo_a11mce(void)
 {
-	ir_unregister_map(&genius_tvgo_a11mce_map);
+	rc_map_unregister(&genius_tvgo_a11mce_map);
 }
 
 module_init(init_rc_map_genius_tvgo_a11mce)

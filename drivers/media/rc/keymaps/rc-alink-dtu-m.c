@@ -42,7 +42,7 @@ static struct rc_map_table alink_dtu_m[] = {
 	{ 0x081d, KEY_CHANNELDOWN },
 };
 
-static struct rc_keymap alink_dtu_m_map = {
+static struct rc_map_list alink_dtu_m_map = {
 	.map = {
 		.scan    = alink_dtu_m,
 		.size    = ARRAY_SIZE(alink_dtu_m),
@@ -53,12 +53,12 @@ static struct rc_keymap alink_dtu_m_map = {
 
 static int __init init_rc_map_alink_dtu_m(void)
 {
-	return ir_register_map(&alink_dtu_m_map);
+	return rc_map_register(&alink_dtu_m_map);
 }
 
 static void __exit exit_rc_map_alink_dtu_m(void)
 {
-	ir_unregister_map(&alink_dtu_m_map);
+	rc_map_unregister(&alink_dtu_m_map);
 }
 
 module_init(init_rc_map_alink_dtu_m)

@@ -57,7 +57,7 @@ static struct rc_map_table pixelview_new[] = {
 	{ 0x34, KEY_RADIO },
 };
 
-static struct rc_keymap pixelview_new_map = {
+static struct rc_map_list pixelview_new_map = {
 	.map = {
 		.scan    = pixelview_new,
 		.size    = ARRAY_SIZE(pixelview_new),
@@ -68,12 +68,12 @@ static struct rc_keymap pixelview_new_map = {
 
 static int __init init_rc_map_pixelview_new(void)
 {
-	return ir_register_map(&pixelview_new_map);
+	return rc_map_register(&pixelview_new_map);
 }
 
 static void __exit exit_rc_map_pixelview_new(void)
 {
-	ir_unregister_map(&pixelview_new_map);
+	rc_map_unregister(&pixelview_new_map);
 }
 
 module_init(init_rc_map_pixelview_new)

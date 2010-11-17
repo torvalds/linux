@@ -108,7 +108,7 @@ static struct rc_map_table manli[] = {
 	/* 0x1d unused ? */
 };
 
-static struct rc_keymap manli_map = {
+static struct rc_map_list manli_map = {
 	.map = {
 		.scan    = manli,
 		.size    = ARRAY_SIZE(manli),
@@ -119,12 +119,12 @@ static struct rc_keymap manli_map = {
 
 static int __init init_rc_map_manli(void)
 {
-	return ir_register_map(&manli_map);
+	return rc_map_register(&manli_map);
 }
 
 static void __exit exit_rc_map_manli(void)
 {
-	ir_unregister_map(&manli_map);
+	rc_map_unregister(&manli_map);
 }
 
 module_init(init_rc_map_manli)

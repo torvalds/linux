@@ -87,7 +87,7 @@ static struct rc_map_table rc6_mce[] = {
 	{ 0x800f0481, KEY_PLAYPAUSE },
 };
 
-static struct rc_keymap rc6_mce_map = {
+static struct rc_map_list rc6_mce_map = {
 	.map = {
 		.scan    = rc6_mce,
 		.size    = ARRAY_SIZE(rc6_mce),
@@ -98,12 +98,12 @@ static struct rc_keymap rc6_mce_map = {
 
 static int __init init_rc_map_rc6_mce(void)
 {
-	return ir_register_map(&rc6_mce_map);
+	return rc_map_register(&rc6_mce_map);
 }
 
 static void __exit exit_rc_map_rc6_mce(void)
 {
-	ir_unregister_map(&rc6_mce_map);
+	rc_map_unregister(&rc6_mce_map);
 }
 
 module_init(init_rc_map_rc6_mce)

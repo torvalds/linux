@@ -43,7 +43,7 @@ static struct rc_map_table ati_tv_wonder_hd_600[] = {
 	{ 0x17, KEY_VOLUMEDOWN},
 };
 
-static struct rc_keymap ati_tv_wonder_hd_600_map = {
+static struct rc_map_list ati_tv_wonder_hd_600_map = {
 	.map = {
 		.scan    = ati_tv_wonder_hd_600,
 		.size    = ARRAY_SIZE(ati_tv_wonder_hd_600),
@@ -54,12 +54,12 @@ static struct rc_keymap ati_tv_wonder_hd_600_map = {
 
 static int __init init_rc_map_ati_tv_wonder_hd_600(void)
 {
-	return ir_register_map(&ati_tv_wonder_hd_600_map);
+	return rc_map_register(&ati_tv_wonder_hd_600_map);
 }
 
 static void __exit exit_rc_map_ati_tv_wonder_hd_600(void)
 {
-	ir_unregister_map(&ati_tv_wonder_hd_600_map);
+	rc_map_unregister(&ati_tv_wonder_hd_600_map);
 }
 
 module_init(init_rc_map_ati_tv_wonder_hd_600)
