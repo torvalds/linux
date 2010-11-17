@@ -1,16 +1,17 @@
-menuconfig IR_CORE
-	tristate "Infrared remote controller adapters"
+menuconfig RC_CORE
+	tristate "Remote Controller adapters"
 	depends on INPUT
 	default INPUT
 	---help---
 	  Enable support for Remote Controllers on Linux. This is
 	  needed in order to support several video capture adapters.
+	  Currently, all supported devices use InfraRed.
 
 	  Enable this option if you have a video capture board even
 	  if you don't need IR, as otherwise, you may not be able to
 	  compile the driver for your adapter.
 
-if IR_CORE
+if RC_CORE
 
 config LIRC
 	tristate
@@ -27,7 +28,7 @@ source "drivers/media/rc/keymaps/Kconfig"
 
 config IR_NEC_DECODER
 	tristate "Enable IR raw decoder for the NEC protocol"
-	depends on IR_CORE
+	depends on RC_CORE
 	select BITREVERSE
 	default y
 
@@ -37,7 +38,7 @@ config IR_NEC_DECODER
 
 config IR_RC5_DECODER
 	tristate "Enable IR raw decoder for the RC-5 protocol"
-	depends on IR_CORE
+	depends on RC_CORE
 	select BITREVERSE
 	default y
 
@@ -47,7 +48,7 @@ config IR_RC5_DECODER
 
 config IR_RC6_DECODER
 	tristate "Enable IR raw decoder for the RC6 protocol"
-	depends on IR_CORE
+	depends on RC_CORE
 	select BITREVERSE
 	default y
 
@@ -57,7 +58,7 @@ config IR_RC6_DECODER
 
 config IR_JVC_DECODER
 	tristate "Enable IR raw decoder for the JVC protocol"
-	depends on IR_CORE
+	depends on RC_CORE
 	select BITREVERSE
 	default y
 
@@ -67,7 +68,7 @@ config IR_JVC_DECODER
 
 config IR_SONY_DECODER
 	tristate "Enable IR raw decoder for the Sony protocol"
-	depends on IR_CORE
+	depends on RC_CORE
 	default y
 
 	---help---
@@ -76,7 +77,7 @@ config IR_SONY_DECODER
 
 config IR_RC5_SZ_DECODER
 	tristate "Enable IR raw decoder for the RC-5 (streamzap) protocol"
-	depends on IR_CORE
+	depends on RC_CORE
 	select BITREVERSE
 	default y
 
@@ -88,7 +89,7 @@ config IR_RC5_SZ_DECODER
 
 config IR_LIRC_CODEC
 	tristate "Enable IR to LIRC bridge"
-	depends on IR_CORE
+	depends on RC_CORE
 	depends on LIRC
 	default y
 
@@ -99,7 +100,7 @@ config IR_LIRC_CODEC
 config IR_ENE
 	tristate "ENE eHome Receiver/Transceiver (pnp id: ENE0100/ENE02xxx)"
 	depends on PNP
-	depends on IR_CORE
+	depends on RC_CORE
 	---help---
 	   Say Y here to enable support for integrated infrared receiver
 	   /transceiver made by ENE.
@@ -113,7 +114,7 @@ config IR_ENE
 config IR_IMON
 	tristate "SoundGraph iMON Receiver and Display"
 	depends on USB_ARCH_HAS_HCD
-	depends on IR_CORE
+	depends on RC_CORE
 	select USB
 	---help---
 	   Say Y here if you want to use a SoundGraph iMON (aka Antec Veris)
@@ -125,7 +126,7 @@ config IR_IMON
 config IR_MCEUSB
 	tristate "Windows Media Center Ed. eHome Infrared Transceiver"
 	depends on USB_ARCH_HAS_HCD
-	depends on IR_CORE
+	depends on RC_CORE
 	select USB
 	---help---
 	   Say Y here if you want to use a Windows Media Center Edition
@@ -137,7 +138,7 @@ config IR_MCEUSB
 config IR_NUVOTON
 	tristate "Nuvoton w836x7hg Consumer Infrared Transceiver"
 	depends on PNP
-	depends on IR_CORE
+	depends on RC_CORE
 	---help---
 	   Say Y here to enable support for integrated infrared receiver
 	   /transciever made by Nuvoton (formerly Winbond). This chip is
@@ -150,7 +151,7 @@ config IR_NUVOTON
 config IR_STREAMZAP
 	tristate "Streamzap PC Remote IR Receiver"
 	depends on USB_ARCH_HAS_HCD
-	depends on IR_CORE
+	depends on RC_CORE
 	select USB
 	---help---
 	   Say Y here if you want to use a Streamzap PC Remote
@@ -162,7 +163,7 @@ config IR_STREAMZAP
 config IR_WINBOND_CIR
         tristate "Winbond IR remote control"
         depends on X86 && PNP
-	depends on IR_CORE
+	depends on RC_CORE
         select NEW_LEDS
         select LEDS_CLASS
         select LEDS_TRIGGERS
@@ -176,4 +177,4 @@ config IR_WINBOND_CIR
            To compile this driver as a module, choose M here: the module will
 	   be called winbond_cir.
 
-endif #IR_CORE
+endif #RC_CORE

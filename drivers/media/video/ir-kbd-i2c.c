@@ -46,7 +46,7 @@
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
 
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 #include <media/ir-kbd-i2c.h>
 
 /* ----------------------------------------------------------------------- */

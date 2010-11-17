@@ -1,6 +1,6 @@
 config VIDEO_CX88
 	tristate "Conexant 2388x (bt878 successor) support"
-	depends on VIDEO_DEV && PCI && I2C && IR_CORE
+	depends on VIDEO_DEV && PCI && I2C && RC_CORE
 	select I2C_ALGOBIT
 	select VIDEO_BTCX
 	select VIDEOBUF_DMA_SG

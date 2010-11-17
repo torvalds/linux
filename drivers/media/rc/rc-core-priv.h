@@ -18,7 +18,7 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 struct ir_raw_handler {
 	struct list_head list;

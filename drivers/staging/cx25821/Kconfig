@@ -5,7 +5,7 @@ config VIDEO_CX25821
 	select I2C_ALGOBIT
 	select VIDEO_BTCX
 	select VIDEO_TVEEPROM
-	depends on IR_CORE
+	depends on RC_CORE
 	select VIDEOBUF_DVB
 	select VIDEOBUF_DMA_SG
 	select VIDEO_CX25840

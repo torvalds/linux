@@ -32,7 +32,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 #include <linux/pci_ids.h>
 
 #include "nuvoton-cir.h"

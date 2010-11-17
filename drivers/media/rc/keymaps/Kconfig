@@ -1,6 +1,6 @@
 config RC_MAP
 	tristate "Compile Remote Controller keymap modules"
-	depends on IR_CORE
+	depends on RC_CORE
 	default y
 
 	---help---

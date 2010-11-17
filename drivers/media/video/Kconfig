@@ -96,7 +96,7 @@ config VIDEO_HELPER_CHIPS_AUTO
 
 config VIDEO_IR_I2C
 	tristate "I2C module for IR" if !VIDEO_HELPER_CHIPS_AUTO
-	depends on I2C && IR_CORE
+	depends on I2C && RC_CORE
 	default y
 	---help---
 	  Most boards have an IR chip directly connected via GPIO. However,

@@ -36,7 +36,7 @@
  */
 
 #include <linux/slab.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 #include <media/v4l2-subdev.h>
 
 #include "cx23885.h"

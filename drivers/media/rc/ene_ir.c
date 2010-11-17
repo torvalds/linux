@@ -37,7 +37,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 #include "ene_ir.h"
 
 static int sample_period;

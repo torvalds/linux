@@ -357,7 +357,7 @@ static void init_decoders(struct work_struct *work)
 	load_lirc_codec();
 
 	/* If needed, we may later add some init code. In this case,
-	   it is needed to change the CONFIG_MODULE test at ir-core.h
+	   it is needed to change the CONFIG_MODULE test at rc-core.h
 	 */
 }
 #endif

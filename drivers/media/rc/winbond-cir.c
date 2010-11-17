@@ -50,7 +50,7 @@
 #include <linux/io.h>
 #include <linux/bitrev.h>
 #include <linux/slab.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #define DRVNAME "winbond-cir"
 

@@ -9,7 +9,7 @@
  * (at your option) any later version.
  */
 
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 static struct ir_scancode lirc[] = {
 	{ },

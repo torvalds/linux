@@ -38,7 +38,7 @@
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include <linux/time.h>
 #include <linux/timer.h>

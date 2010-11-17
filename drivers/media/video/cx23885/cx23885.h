@@ -30,7 +30,7 @@
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/videobuf-dvb.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include "btcx-risc.h"
 #include "cx23885-reg.h"

@@ -34,7 +34,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include "budget.h"
 

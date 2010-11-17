@@ -22,8 +22,8 @@
 #include <linux/timer.h>
 #include <media/rc-map.h>
 
-extern int ir_core_debug;
-#define IR_dprintk(level, fmt, arg...)	if (ir_core_debug >= level) \
+extern int rc_core_debug;
+#define IR_dprintk(level, fmt, arg...)	if (rc_core_debug >= level) \
 	printk(KERN_DEBUG "%s: " fmt , __func__, ## arg)
 
 enum rc_driver_type {

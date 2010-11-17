@@ -61,7 +61,7 @@
 #define DVB_USB_LOG_PREFIX "LME2510(C)"
 #include <linux/usb.h>
 #include <linux/usb/input.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include "dvb-usb.h"
 #include "lmedm04.h"

@@ -18,7 +18,7 @@
 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 #include <linux/pci.h>
 
 #include "dmxdev.h"

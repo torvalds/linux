@@ -28,7 +28,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define __SMS_IR_H__
 
 #include <linux/input.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #define IR_DEFAULT_TIMEOUT		100
 

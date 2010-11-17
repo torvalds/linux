@@ -12,7 +12,7 @@
  *  GNU General Public License for more details.
  */
 
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -1103,11 +1103,11 @@ EXPORT_SYMBOL_GPL(rc_unregister_device);
  * Init/exit code for the module. Basically, creates/removes /sys/class/rc
  */
 
-static int __init ir_core_init(void)
+static int __init rc_core_init(void)
 {
 	int rc = class_register(&ir_input_class);
 	if (rc) {
-		printk(KERN_ERR "ir_core: unable to register rc class\n");
+		printk(KERN_ERR "rc_core: unable to register rc class\n");
 		return rc;
 	}
 
@@ -1118,18 +1118,18 @@ static int __init ir_core_init(void)
 	return 0;
 }
 
-static void __exit ir_core_exit(void)
+static void __exit rc_core_exit(void)
 {
 	class_unregister(&ir_input_class);
 	ir_unregister_map(&empty_map);
 }
 
-module_init(ir_core_init);
-module_exit(ir_core_exit);
+module_init(rc_core_init);
+module_exit(rc_core_exit);
 
-int ir_core_debug;    /* ir_debug level (0,1,2) */
-EXPORT_SYMBOL_GPL(ir_core_debug);
-module_param_named(debug, ir_core_debug, int, 0644);
+int rc_core_debug;    /* ir_debug level (0,1,2) */
+EXPORT_SYMBOL_GPL(rc_core_debug);
+module_param_named(debug, rc_core_debug, int, 0644);
 
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
 MODULE_LICENSE("GPL");

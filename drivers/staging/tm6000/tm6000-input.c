@@ -24,7 +24,7 @@
 #include <linux/input.h>
 #include <linux/usb.h>
 
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include "tm6000.h"
 #include "tm6000-regs.h"

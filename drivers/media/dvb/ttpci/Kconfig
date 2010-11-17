@@ -97,7 +97,7 @@ config DVB_BUDGET_CI
 	select DVB_LNBP21 if !DVB_FE_CUSTOMISE
 	select DVB_TDA10023 if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_TDA827X if !MEDIA_TUNER_CUSTOMISE
-	depends on IR_CORE
+	depends on RC_CORE
 	help
 	  Support for simple SAA7146 based DVB cards
 	  (so called Budget- or Nova-PCI cards) without onboard

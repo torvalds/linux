@@ -27,7 +27,7 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include "demux.h"
 #include "dmxdev.h"

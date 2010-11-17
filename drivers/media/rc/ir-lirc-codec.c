@@ -16,7 +16,7 @@
 #include <linux/wait.h>
 #include <media/lirc.h>
 #include <media/lirc_dev.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 #include "rc-core-priv.h"
 
 #define LIRCBUF_SIZE 256

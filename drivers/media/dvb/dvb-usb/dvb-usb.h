@@ -14,7 +14,7 @@
 #include <linux/usb.h>
 #include <linux/firmware.h>
 #include <linux/mutex.h>
-#include <media/ir-core.h>
+#include <media/rc-core.h>
 
 #include "dvb_frontend.h"
 #include "dvb_demux.h"
