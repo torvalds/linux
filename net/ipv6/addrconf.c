@@ -3798,8 +3798,10 @@ static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
 	array[DEVCONF_AUTOCONF] = cnf->autoconf;
 	array[DEVCONF_DAD_TRANSMITS] = cnf->dad_transmits;
 	array[DEVCONF_RTR_SOLICITS] = cnf->rtr_solicits;
-	array[DEVCONF_RTR_SOLICIT_INTERVAL] = cnf->rtr_solicit_interval;
-	array[DEVCONF_RTR_SOLICIT_DELAY] = cnf->rtr_solicit_delay;
+	array[DEVCONF_RTR_SOLICIT_INTERVAL] =
+		jiffies_to_msecs(cnf->rtr_solicit_interval);
+	array[DEVCONF_RTR_SOLICIT_DELAY] =
+		jiffies_to_msecs(cnf->rtr_solicit_delay);
 	array[DEVCONF_FORCE_MLD_VERSION] = cnf->force_mld_version;
 #ifdef CONFIG_IPV6_PRIVACY
 	array[DEVCONF_USE_TEMPADDR] = cnf->use_tempaddr;
@@ -3813,7 +3815,8 @@ static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
 	array[DEVCONF_ACCEPT_RA_PINFO] = cnf->accept_ra_pinfo;
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	array[DEVCONF_ACCEPT_RA_RTR_PREF] = cnf->accept_ra_rtr_pref;
-	array[DEVCONF_RTR_PROBE_INTERVAL] = cnf->rtr_probe_interval;
+	array[DEVCONF_RTR_PROBE_INTERVAL] =
+		jiffies_to_msecs(cnf->rtr_probe_interval);
 #ifdef CONFIG_IPV6_ROUTE_INFO
 	array[DEVCONF_ACCEPT_RA_RT_INFO_MAX_PLEN] = cnf->accept_ra_rt_info_max_plen;
 #endif
