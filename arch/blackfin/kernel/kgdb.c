@@ -345,6 +345,18 @@ void kgdb_roundup_cpu(int cpu, unsigned long flags)
 }
 #endif
 
+#ifdef CONFIG_IPIPE
+static unsigned long kgdb_arch_imask;
+
+void kgdb_post_primary_code(struct pt_regs *regs, int e_vector, int err_code)
+{
+	if (kgdb_arch_imask) {
+		cpu_pda[raw_smp_processor_id()].ex_imask = kgdb_arch_imask;
+		kgdb_arch_imask = 0;
+	}
+}
+#endif
+
 int kgdb_arch_handle_exception(int vector, int signo,
 			       int err_code, char *remcom_in_buffer,
 			       char *remcom_out_buffer,
@@ -388,6 +400,11 @@ int kgdb_arch_handle_exception(int vector, int signo,
 			 * kgdb_single_step > 0 means in single step mode
 			 */
 			kgdb_single_step = i + 1;
+
+#ifdef CONFIG_IPIPE
+			kgdb_arch_imask = cpu_pda[raw_smp_processor_id()].ex_imask;
+			cpu_pda[raw_smp_processor_id()].ex_imask = 0;
+#endif
 		}
 
 		bfin_correct_hw_break();
@@ -448,6 +465,9 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 int kgdb_arch_init(void)
 {
 	kgdb_single_step = 0;
+#ifdef CONFIG_IPIPE
+	kgdb_arch_imask = 0;
+#endif
 
 	bfin_remove_all_hw_break();
 	return 0;
