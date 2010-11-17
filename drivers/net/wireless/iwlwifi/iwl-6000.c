@@ -783,7 +783,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 };
 
 struct iwl_cfg iwl6050g2_bgn_cfg = {
-	.name = "6050 Series 1x2 BGN Gen2",
+	.name = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BGN",
 	.fw_name_pre = IWL6050_FW_PRE,
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
