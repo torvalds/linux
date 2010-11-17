@@ -19,6 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#define pr_fmt(fmt) "g_ffs: " fmt
+
 #include <linux/module.h>
 #include <linux/utsname.h>
 
