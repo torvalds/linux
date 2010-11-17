@@ -3271,6 +3271,18 @@ static bool ar9300_check_eeprom_header(struct ath_hw *ah, eeprom_read_op read,
 	return ar9300_check_header(header);
 }
 
+static int ar9300_eeprom_restore_flash(struct ath_hw *ah, u8 *mptr,
+				       int mdata_size)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	u16 *data = (u16 *) mptr;
+	int i;
+
+	for (i = 0; i < mdata_size / 2; i++, data++)
+		ath9k_hw_nvram_read(common, i, data);
+
+	return 0;
+}
 /*
  * Read the configuration data from the eeprom.
  * The data can be put in any specified memory buffer.
@@ -3292,6 +3304,9 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 	u16 checksum, mchecksum;
 	struct ath_common *common = ath9k_hw_common(ah);
 	eeprom_read_op read;
+
+	if (ath9k_hw_use_flash(ah))
+		return ar9300_eeprom_restore_flash(ah, mptr, mdata_size);
 
 	word = kzalloc(2048, GFP_KERNEL);
 	if (!word)
