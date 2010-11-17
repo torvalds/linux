@@ -168,6 +168,11 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 		return 0;
 	}
 
+	/* no DDP if we are already down or resetting */
+	if (test_bit(__IXGBE_DOWN, &adapter->state) ||
+	    test_bit(__IXGBE_RESETTING, &adapter->state))
+		return 0;
+
 	fcoe = &adapter->fcoe;
 	if (!fcoe->pool) {
 		e_warn(drv, "xid=0x%x no ddp pool for fcoe\n", xid);
