@@ -2069,8 +2069,6 @@ static void zfcp_fsf_fcp_cmnd_handler(struct zfcp_fsf_req *req)
 	struct fcp_resp_with_ext *fcp_rsp;
 	unsigned long flags;
 
-	zfcp_fsf_fcp_handler_common(req);
-
 	read_lock_irqsave(&req->adapter->abort_lock, flags);
 
 	scpnt = req->data;
@@ -2078,6 +2076,8 @@ static void zfcp_fsf_fcp_cmnd_handler(struct zfcp_fsf_req *req)
 		read_unlock_irqrestore(&req->adapter->abort_lock, flags);
 		return;
 	}
+
+	zfcp_fsf_fcp_handler_common(req);
 
 	if (unlikely(req->status & ZFCP_STATUS_FSFREQ_ERROR)) {
 		set_host_byte(scpnt, DID_TRANSPORT_DISRUPTED);
