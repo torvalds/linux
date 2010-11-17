@@ -183,11 +183,6 @@ struct ixgbe_ring {
 	unsigned int total_bytes;
 	unsigned int total_packets;
 
-#ifdef CONFIG_IXGBE_DCA
-	/* cpu for tx queue */
-	int cpu;
-#endif
-
 	u16 work_limit;			/* max work per interrupt */
 	u16 reg_idx;			/* holds the special value that gets
 					 * the hardware register offset
@@ -206,6 +201,7 @@ struct ixgbe_ring {
 	unsigned int size;		/* length in bytes */
 	dma_addr_t dma;			/* phys. address of descriptor ring */
 	struct rcu_head rcu;
+	struct ixgbe_q_vector *q_vector; /* back-pointer to host q_vector */
 } ____cacheline_internodealigned_in_smp;
 
 enum ixgbe_ring_f_enum {
@@ -251,6 +247,9 @@ struct ixgbe_q_vector {
 	unsigned int v_idx; /* index of q_vector within array, also used for
 	                     * finding the bit in EICR and friends that
 	                     * represents the vector for this ring */
+#ifdef CONFIG_IXGBE_DCA
+	int cpu;	    /* CPU for DCA */
+#endif
 	struct napi_struct napi;
 	DECLARE_BITMAP(rxr_idx, MAX_RX_QUEUES); /* Rx ring indices */
 	DECLARE_BITMAP(txr_idx, MAX_TX_QUEUES); /* Tx ring indices */

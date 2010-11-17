@@ -810,63 +810,98 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 
 #ifdef CONFIG_IXGBE_DCA
 static void ixgbe_update_rx_dca(struct ixgbe_adapter *adapter,
-				struct ixgbe_ring *rx_ring)
+				struct ixgbe_ring *rx_ring,
+				int cpu)
 {
+	struct ixgbe_hw *hw = &adapter->hw;
 	u32 rxctrl;
-	int cpu = get_cpu();
-	int q = rx_ring->reg_idx;
+	u8 reg_idx = rx_ring->reg_idx;
 
-	if (rx_ring->cpu != cpu) {
-		rxctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_DCA_RXCTRL(q));
-		if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
-			rxctrl &= ~IXGBE_DCA_RXCTRL_CPUID_MASK;
-			rxctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
-		} else if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-			rxctrl &= ~IXGBE_DCA_RXCTRL_CPUID_MASK_82599;
-			rxctrl |= (dca3_get_tag(&adapter->pdev->dev, cpu) <<
-				   IXGBE_DCA_RXCTRL_CPUID_SHIFT_82599);
-		}
-		rxctrl |= IXGBE_DCA_RXCTRL_DESC_DCA_EN;
-		rxctrl |= IXGBE_DCA_RXCTRL_HEAD_DCA_EN;
-		rxctrl &= ~(IXGBE_DCA_RXCTRL_DESC_RRO_EN);
-		rxctrl &= ~(IXGBE_DCA_RXCTRL_DESC_WRO_EN |
-			    IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_RXCTRL(q), rxctrl);
-		rx_ring->cpu = cpu;
+	rxctrl = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(reg_idx));
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
+		rxctrl &= ~IXGBE_DCA_RXCTRL_CPUID_MASK;
+		rxctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
+		break;
+	case ixgbe_mac_82599EB:
+		rxctrl &= ~IXGBE_DCA_RXCTRL_CPUID_MASK_82599;
+		rxctrl |= (dca3_get_tag(&adapter->pdev->dev, cpu) <<
+			   IXGBE_DCA_RXCTRL_CPUID_SHIFT_82599);
+		break;
+	default:
+		break;
 	}
-	put_cpu();
+	rxctrl |= IXGBE_DCA_RXCTRL_DESC_DCA_EN;
+	rxctrl |= IXGBE_DCA_RXCTRL_HEAD_DCA_EN;
+	rxctrl &= ~(IXGBE_DCA_RXCTRL_DESC_RRO_EN);
+	rxctrl &= ~(IXGBE_DCA_RXCTRL_DESC_WRO_EN |
+		    IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
+	IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(reg_idx), rxctrl);
 }
 
 static void ixgbe_update_tx_dca(struct ixgbe_adapter *adapter,
-				struct ixgbe_ring *tx_ring)
+				struct ixgbe_ring *tx_ring,
+				int cpu)
 {
-	u32 txctrl;
-	int cpu = get_cpu();
-	int q = tx_ring->reg_idx;
 	struct ixgbe_hw *hw = &adapter->hw;
+	u32 txctrl;
+	u8 reg_idx = tx_ring->reg_idx;
 
-	if (tx_ring->cpu != cpu) {
-		if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
-			txctrl = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL(q));
-			txctrl &= ~IXGBE_DCA_TXCTRL_CPUID_MASK;
-			txctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
-			txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
-			IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(q), txctrl);
-		} else if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-			txctrl = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(q));
-			txctrl &= ~IXGBE_DCA_TXCTRL_CPUID_MASK_82599;
-			txctrl |= (dca3_get_tag(&adapter->pdev->dev, cpu) <<
-				  IXGBE_DCA_TXCTRL_CPUID_SHIFT_82599);
-			txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
-			IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL_82599(q), txctrl);
-		}
-		tx_ring->cpu = cpu;
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
+		txctrl = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL(reg_idx));
+		txctrl &= ~IXGBE_DCA_TXCTRL_CPUID_MASK;
+		txctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
+		txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
+		txctrl &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(reg_idx), txctrl);
+		break;
+	case ixgbe_mac_82599EB:
+		txctrl = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(reg_idx));
+		txctrl &= ~IXGBE_DCA_TXCTRL_CPUID_MASK_82599;
+		txctrl |= (dca3_get_tag(&adapter->pdev->dev, cpu) <<
+			   IXGBE_DCA_TXCTRL_CPUID_SHIFT_82599);
+		txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
+		txctrl &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL_82599(reg_idx), txctrl);
+		break;
+	default:
+		break;
 	}
+}
+
+static void ixgbe_update_dca(struct ixgbe_q_vector *q_vector)
+{
+	struct ixgbe_adapter *adapter = q_vector->adapter;
+	int cpu = get_cpu();
+	long r_idx;
+	int i;
+
+	if (q_vector->cpu == cpu)
+		goto out_no_update;
+
+	r_idx = find_first_bit(q_vector->txr_idx, adapter->num_tx_queues);
+	for (i = 0; i < q_vector->txr_count; i++) {
+		ixgbe_update_tx_dca(adapter, adapter->tx_ring[r_idx], cpu);
+		r_idx = find_next_bit(q_vector->txr_idx, adapter->num_tx_queues,
+				      r_idx + 1);
+	}
+
+	r_idx = find_first_bit(q_vector->rxr_idx, adapter->num_rx_queues);
+	for (i = 0; i < q_vector->rxr_count; i++) {
+		ixgbe_update_rx_dca(adapter, adapter->rx_ring[r_idx], cpu);
+		r_idx = find_next_bit(q_vector->rxr_idx, adapter->num_rx_queues,
+				      r_idx + 1);
+	}
+
+	q_vector->cpu = cpu;
+out_no_update:
 	put_cpu();
 }
 
 static void ixgbe_setup_dca(struct ixgbe_adapter *adapter)
 {
+	int num_q_vectors;
 	int i;
 
 	if (!(adapter->flags & IXGBE_FLAG_DCA_ENABLED))
@@ -875,13 +910,14 @@ static void ixgbe_setup_dca(struct ixgbe_adapter *adapter)
 	/* always use CB2 mode, difference is masked in the CB driver */
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL, 2);
 
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		adapter->tx_ring[i]->cpu = -1;
-		ixgbe_update_tx_dca(adapter, adapter->tx_ring[i]);
-	}
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		adapter->rx_ring[i]->cpu = -1;
-		ixgbe_update_rx_dca(adapter, adapter->rx_ring[i]);
+	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED)
+		num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	else
+		num_q_vectors = 1;
+
+	for (i = 0; i < num_q_vectors; i++) {
+		adapter->q_vector[i]->cpu = -1;
+		ixgbe_update_dca(adapter->q_vector[i]);
 	}
 }
 
@@ -889,6 +925,9 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
 {
 	struct ixgbe_adapter *adapter = dev_get_drvdata(dev);
 	unsigned long event = *(unsigned long *)data;
+
+	if (!(adapter->flags & IXGBE_FLAG_DCA_ENABLED))
+		return 0;
 
 	switch (event) {
 	case DCA_PROVIDER_ADD:
@@ -1827,8 +1866,13 @@ static irqreturn_t ixgbe_msix_clean_rx(int irq, void *data)
 	int r_idx;
 	int i;
 
+#ifdef CONFIG_IXGBE_DCA
+	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
+		ixgbe_update_dca(q_vector);
+#endif
+
 	r_idx = find_first_bit(q_vector->rxr_idx, adapter->num_rx_queues);
-	for (i = 0;  i < q_vector->rxr_count; i++) {
+	for (i = 0; i < q_vector->rxr_count; i++) {
 		rx_ring = adapter->rx_ring[r_idx];
 		rx_ring->total_bytes = 0;
 		rx_ring->total_packets = 0;
@@ -1839,7 +1883,6 @@ static irqreturn_t ixgbe_msix_clean_rx(int irq, void *data)
 	if (!q_vector->rxr_count)
 		return IRQ_HANDLED;
 
-	/* disable interrupts on this vector only */
 	/* EIAM disabled interrupts (on this vector) for us */
 	napi_schedule(&q_vector->napi);
 
@@ -1898,12 +1941,13 @@ static int ixgbe_clean_rxonly(struct napi_struct *napi, int budget)
 	int work_done = 0;
 	long r_idx;
 
-	r_idx = find_first_bit(q_vector->rxr_idx, adapter->num_rx_queues);
-	rx_ring = adapter->rx_ring[r_idx];
 #ifdef CONFIG_IXGBE_DCA
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
-		ixgbe_update_rx_dca(adapter, rx_ring);
+		ixgbe_update_dca(q_vector);
 #endif
+
+	r_idx = find_first_bit(q_vector->rxr_idx, adapter->num_rx_queues);
+	rx_ring = adapter->rx_ring[r_idx];
 
 	ixgbe_clean_rx_irq(q_vector, rx_ring, &work_done, budget);
 
@@ -1938,13 +1982,14 @@ static int ixgbe_clean_rxtx_many(struct napi_struct *napi, int budget)
 	long r_idx;
 	bool tx_clean_complete = true;
 
+#ifdef CONFIG_IXGBE_DCA
+	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
+		ixgbe_update_dca(q_vector);
+#endif
+
 	r_idx = find_first_bit(q_vector->txr_idx, adapter->num_tx_queues);
 	for (i = 0; i < q_vector->txr_count; i++) {
 		ring = adapter->tx_ring[r_idx];
-#ifdef CONFIG_IXGBE_DCA
-		if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
-			ixgbe_update_tx_dca(adapter, ring);
-#endif
 		tx_clean_complete &= ixgbe_clean_tx_irq(q_vector, ring);
 		r_idx = find_next_bit(q_vector->txr_idx, adapter->num_tx_queues,
 				      r_idx + 1);
@@ -1957,10 +2002,6 @@ static int ixgbe_clean_rxtx_many(struct napi_struct *napi, int budget)
 	r_idx = find_first_bit(q_vector->rxr_idx, adapter->num_rx_queues);
 	for (i = 0; i < q_vector->rxr_count; i++) {
 		ring = adapter->rx_ring[r_idx];
-#ifdef CONFIG_IXGBE_DCA
-		if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
-			ixgbe_update_rx_dca(adapter, ring);
-#endif
 		ixgbe_clean_rx_irq(q_vector, ring, &work_done, budget);
 		r_idx = find_next_bit(q_vector->rxr_idx, adapter->num_rx_queues,
 				      r_idx + 1);
@@ -1999,12 +2040,13 @@ static int ixgbe_clean_txonly(struct napi_struct *napi, int budget)
 	int work_done = 0;
 	long r_idx;
 
-	r_idx = find_first_bit(q_vector->txr_idx, adapter->num_tx_queues);
-	tx_ring = adapter->tx_ring[r_idx];
 #ifdef CONFIG_IXGBE_DCA
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
-		ixgbe_update_tx_dca(adapter, tx_ring);
+		ixgbe_update_dca(q_vector);
 #endif
+
+	r_idx = find_first_bit(q_vector->txr_idx, adapter->num_tx_queues);
+	tx_ring = adapter->tx_ring[r_idx];
 
 	if (!ixgbe_clean_tx_irq(q_vector, tx_ring))
 		work_done = budget;
@@ -3880,10 +3922,8 @@ static int ixgbe_poll(struct napi_struct *napi, int budget)
 	int tx_clean_complete, work_done = 0;
 
 #ifdef CONFIG_IXGBE_DCA
-	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {
-		ixgbe_update_tx_dca(adapter, adapter->tx_ring[0]);
-		ixgbe_update_rx_dca(adapter, adapter->rx_ring[0]);
-	}
+	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
+		ixgbe_update_dca(q_vector);
 #endif
 
 	tx_clean_complete = ixgbe_clean_tx_irq(q_vector, adapter->tx_ring[0]);
