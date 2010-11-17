@@ -156,6 +156,8 @@ static int zfcp_erp_required_act(int want, struct zfcp_adapter *adapter,
 		if (!(a_status & ZFCP_STATUS_COMMON_RUNNING) ||
 		      a_status & ZFCP_STATUS_COMMON_ERP_FAILED)
 			return 0;
+		if (p_status & ZFCP_STATUS_COMMON_NOESC)
+			return need;
 		if (!(a_status & ZFCP_STATUS_COMMON_UNBLOCKED))
 			need = ZFCP_ERP_ACTION_REOPEN_ADAPTER;
 		/* fall through */
