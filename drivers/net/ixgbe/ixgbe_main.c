@@ -630,93 +630,166 @@ void ixgbe_unmap_and_free_tx_resource(struct ixgbe_ring *tx_ring,
 }
 
 /**
- * ixgbe_tx_xon_state - check the tx ring xon state
- * @adapter: the ixgbe adapter
- * @tx_ring: the corresponding tx_ring
+ * ixgbe_dcb_txq_to_tc - convert a reg index to a traffic class
+ * @adapter: driver private struct
+ * @index: reg idx of queue to query (0-127)
  *
- * If not in DCB mode, checks TFCS.TXOFF, otherwise, find out the
- * corresponding TC of this tx_ring when checking TFCS.
+ * Helper function to determine the traffic index for a paticular
+ * register index.
  *
- * Returns : true if in xon state (currently not paused)
+ * Returns : a tc index for use in range 0-7, or 0-3
  */
-static inline bool ixgbe_tx_xon_state(struct ixgbe_adapter *adapter,
-				      struct ixgbe_ring *tx_ring)
+u8 ixgbe_dcb_txq_to_tc(struct ixgbe_adapter *adapter, u8 reg_idx)
 {
-	u32 txoff = IXGBE_TFCS_TXOFF;
+	int tc = -1;
+	int dcb_i = adapter->ring_feature[RING_F_DCB].indices;
 
-#ifdef CONFIG_IXGBE_DCB
-	if (adapter->dcb_cfg.pfc_mode_enable) {
-		int tc;
-		int dcb_i = adapter->ring_feature[RING_F_DCB].indices;
-		u8 reg_idx = tx_ring->reg_idx;
+	/* if DCB is not enabled the queues have no TC */
+	if (!(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
+		return tc;
 
-		switch (adapter->hw.mac.type) {
-		case ixgbe_mac_82598EB:
-			tc = reg_idx >> 2;
-			txoff = IXGBE_TFCS_TXOFF0;
+	/* check valid range */
+	if (reg_idx >= adapter->hw.mac.max_tx_queues)
+		return tc;
+
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82598EB:
+		tc = reg_idx >> 2;
+		break;
+	default:
+		if (dcb_i != 4 && dcb_i != 8)
 			break;
-		case ixgbe_mac_82599EB:
-			tc = 0;
-			txoff = IXGBE_TFCS_TXOFF;
-			if (dcb_i == 8) {
-				/* TC0, TC1 */
-				tc = reg_idx >> 5;
-				if (tc == 2) /* TC2, TC3 */
-					tc += (reg_idx - 64) >> 4;
-				else if (tc == 3) /* TC4, TC5, TC6, TC7 */
-					tc += 1 + ((reg_idx - 96) >> 3);
-			} else if (dcb_i == 4) {
-				/* TC0, TC1 */
-				tc = reg_idx >> 6;
-				if (tc == 1) {
-					tc += (reg_idx - 64) >> 5;
-					if (tc == 2) /* TC2, TC3 */
-						tc += (reg_idx - 96) >> 4;
-				}
-			}
-			break;
-		default:
-			tc = 0;
+
+		/* if VMDq is enabled the lowest order bits determine TC */
+		if (adapter->flags & (IXGBE_FLAG_SRIOV_ENABLED |
+				      IXGBE_FLAG_VMDQ_ENABLED)) {
+			tc = reg_idx & (dcb_i - 1);
 			break;
 		}
-		txoff <<= tc;
+
+		/*
+		 * Convert the reg_idx into the correct TC. This bitmask
+		 * targets the last full 32 ring traffic class and assigns
+		 * it a value of 1. From there the rest of the rings are
+		 * based on shifting the mask further up to include the
+		 * reg_idx / 16 and then reg_idx / 8. It assumes dcB_i
+		 * will only ever be 8 or 4 and that reg_idx will never
+		 * be greater then 128. The code without the power of 2
+		 * optimizations would be:
+		 * (((reg_idx % 32) + 32) * dcb_i) >> (9 - reg_idx / 32)
+		 */
+		tc = ((reg_idx & 0X1F) + 0x20) * dcb_i;
+		tc >>= 9 - (reg_idx >> 5);
 	}
-#endif
-	return IXGBE_READ_REG(&adapter->hw, IXGBE_TFCS) & txoff;
+
+	return tc;
 }
 
-static inline bool ixgbe_check_tx_hang(struct ixgbe_adapter *adapter,
-				       struct ixgbe_ring *tx_ring,
-				       unsigned int eop)
+static void ixgbe_update_xoff_received(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbe_hw_stats *hwstats = &adapter->stats;
+	u32 data = 0;
+	u32 xoff[8] = {0};
+	int i;
 
-	/* Detect a transmit hang in hardware, this serializes the
-	 * check with the clearing of time_stamp and movement of eop */
-	clear_check_for_tx_hang(tx_ring);
-	if (tx_ring->tx_buffer_info[eop].time_stamp &&
-	    time_after(jiffies, tx_ring->tx_buffer_info[eop].time_stamp + HZ) &&
-	    ixgbe_tx_xon_state(adapter, tx_ring)) {
-		/* detected Tx unit hang */
-		union ixgbe_adv_tx_desc *tx_desc;
-		tx_desc = IXGBE_TX_DESC_ADV(tx_ring, eop);
-		e_err(drv, "Detected Tx Unit Hang\n"
-		      "  Tx Queue             <%d>\n"
-		      "  TDH, TDT             <%x>, <%x>\n"
-		      "  next_to_use          <%x>\n"
-		      "  next_to_clean        <%x>\n"
-		      "tx_buffer_info[next_to_clean]\n"
-		      "  time_stamp           <%lx>\n"
-		      "  jiffies              <%lx>\n",
-		      tx_ring->queue_index,
-		      IXGBE_READ_REG(hw, IXGBE_TDH(tx_ring->reg_idx)),
-		      IXGBE_READ_REG(hw, IXGBE_TDT(tx_ring->reg_idx)),
-		      tx_ring->next_to_use, eop,
-		      tx_ring->tx_buffer_info[eop].time_stamp, jiffies);
-		return true;
+	if ((hw->fc.current_mode == ixgbe_fc_full) ||
+	    (hw->fc.current_mode == ixgbe_fc_rx_pause)) {
+		switch (hw->mac.type) {
+		case ixgbe_mac_82598EB:
+			data = IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
+			break;
+		default:
+			data = IXGBE_READ_REG(hw, IXGBE_LXOFFRXCNT);
+		}
+		hwstats->lxoffrxc += data;
+
+		/* refill credits (no tx hang) if we received xoff */
+		if (!data)
+			return;
+
+		for (i = 0; i < adapter->num_tx_queues; i++)
+			clear_bit(__IXGBE_HANG_CHECK_ARMED,
+				  &adapter->tx_ring[i]->state);
+		return;
+	} else if (!(adapter->dcb_cfg.pfc_mode_enable))
+		return;
+
+	/* update stats for each tc, only valid with PFC enabled */
+	for (i = 0; i < MAX_TX_PACKET_BUFFERS; i++) {
+		switch (hw->mac.type) {
+		case ixgbe_mac_82598EB:
+			xoff[i] = IXGBE_READ_REG(hw, IXGBE_PXOFFRXC(i));
+			break;
+		default:
+			xoff[i] = IXGBE_READ_REG(hw, IXGBE_PXOFFRXCNT(i));
+		}
+		hwstats->pxoffrxc[i] += xoff[i];
 	}
 
-	return false;
+	/* disarm tx queues that have received xoff frames */
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		struct ixgbe_ring *tx_ring = adapter->tx_ring[i];
+		u32 tc = ixgbe_dcb_txq_to_tc(adapter, tx_ring->reg_idx);
+
+		if (xoff[tc])
+			clear_bit(__IXGBE_HANG_CHECK_ARMED, &tx_ring->state);
+	}
+}
+
+static u64 ixgbe_get_tx_completed(struct ixgbe_ring *ring)
+{
+	return ring->tx_stats.completed;
+}
+
+static u64 ixgbe_get_tx_pending(struct ixgbe_ring *ring)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(ring->netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+
+	u32 head = IXGBE_READ_REG(hw, IXGBE_TDH(ring->reg_idx));
+	u32 tail = IXGBE_READ_REG(hw, IXGBE_TDT(ring->reg_idx));
+
+	if (head != tail)
+		return (head < tail) ?
+			tail - head : (tail + ring->count - head);
+
+	return 0;
+}
+
+static inline bool ixgbe_check_tx_hang(struct ixgbe_ring *tx_ring)
+{
+	u32 tx_done = ixgbe_get_tx_completed(tx_ring);
+	u32 tx_done_old = tx_ring->tx_stats.tx_done_old;
+	u32 tx_pending = ixgbe_get_tx_pending(tx_ring);
+	bool ret = false;
+
+	clear_check_for_tx_hang(tx_ring);
+
+	/*
+	 * Check for a hung queue, but be thorough. This verifies
+	 * that a transmit has been completed since the previous
+	 * check AND there is at least one packet pending. The
+	 * ARMED bit is set to indicate a potential hang. The
+	 * bit is cleared if a pause frame is received to remove
+	 * false hang detection due to PFC or 802.3x frames. By
+	 * requiring this to fail twice we avoid races with
+	 * pfc clearing the ARMED bit and conditions where we
+	 * run the check_tx_hang logic with a transmit completion
+	 * pending but without time to complete it yet.
+	 */
+	if ((tx_done_old == tx_done) && tx_pending) {
+		/* make sure it is true for two checks in a row */
+		ret = test_and_set_bit(__IXGBE_HANG_CHECK_ARMED,
+				       &tx_ring->state);
+	} else {
+		/* update completed stats and continue */
+		tx_ring->tx_stats.tx_done_old = tx_done;
+		/* reset the countdown */
+		clear_bit(__IXGBE_HANG_CHECK_ARMED, &tx_ring->state);
+	}
+
+	return ret;
 }
 
 #define IXGBE_MAX_TXD_PWR       14
@@ -772,6 +845,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 							 tx_buffer_info);
 		}
 
+		tx_ring->tx_stats.completed++;
 		eop = tx_ring->tx_buffer_info[i].next_to_watch;
 		eop_desc = IXGBE_TX_DESC_ADV(tx_ring, eop);
 	}
@@ -784,11 +858,31 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	tx_ring->stats.bytes += total_bytes;
 	u64_stats_update_end(&tx_ring->syncp);
 
-	if (check_for_tx_hang(tx_ring) &&
-	    ixgbe_check_tx_hang(adapter, tx_ring, i)) {
+	if (check_for_tx_hang(tx_ring) && ixgbe_check_tx_hang(tx_ring)) {
 		/* schedule immediate reset if we believe we hung */
-		e_info(probe, "tx hang %d detected, resetting "
-		       "adapter\n", adapter->tx_timeout_count + 1);
+		struct ixgbe_hw *hw = &adapter->hw;
+		tx_desc = IXGBE_TX_DESC_ADV(tx_ring, eop);
+		e_err(drv, "Detected Tx Unit Hang\n"
+			"  Tx Queue             <%d>\n"
+			"  TDH, TDT             <%x>, <%x>\n"
+			"  next_to_use          <%x>\n"
+			"  next_to_clean        <%x>\n"
+			"tx_buffer_info[next_to_clean]\n"
+			"  time_stamp           <%lx>\n"
+			"  jiffies              <%lx>\n",
+			tx_ring->queue_index,
+			IXGBE_READ_REG(hw, IXGBE_TDH(tx_ring->reg_idx)),
+			IXGBE_READ_REG(hw, IXGBE_TDT(tx_ring->reg_idx)),
+			tx_ring->next_to_use, eop,
+			tx_ring->tx_buffer_info[eop].time_stamp, jiffies);
+
+		netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
+
+		e_info(probe,
+		       "tx hang %d detected on queue %d, resetting adapter\n",
+			adapter->tx_timeout_count + 1, tx_ring->queue_index);
+
+		/* schedule immediate reset if we believe we hung */
 		ixgbe_tx_timeout(adapter->netdev);
 
 		/* the adapter is about to reset, no point in enabling stuff */
@@ -2599,6 +2693,8 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 		ring->atr_sample_rate = 0;
 	}
 
+	clear_bit(__IXGBE_HANG_CHECK_ARMED, &ring->state);
+
 	/* enable queue */
 	txdctl |= IXGBE_TXDCTL_ENABLE;
 	IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx), txdctl);
@@ -4034,6 +4130,8 @@ static void ixgbe_tx_timeout(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
+	adapter->tx_timeout_count++;
+
 	/* Do the reset outside of interrupt context */
 	schedule_work(&adapter->reset_task);
 }
@@ -4047,8 +4145,6 @@ static void ixgbe_reset_task(struct work_struct *work)
 	if (test_bit(__IXGBE_DOWN, &adapter->state) ||
 	    test_bit(__IXGBE_RESETTING, &adapter->state))
 		return;
-
-	adapter->tx_timeout_count++;
 
 	ixgbe_dump(adapter);
 	netdev_err(adapter->netdev, "Reset adapter\n");
@@ -5597,14 +5693,10 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 		case ixgbe_mac_82598EB:
 			hwstats->pxonrxc[i] +=
 				IXGBE_READ_REG(hw, IXGBE_PXONRXC(i));
-			hwstats->pxoffrxc[i] +=
-				IXGBE_READ_REG(hw, IXGBE_PXOFFRXC(i));
 			break;
 		case ixgbe_mac_82599EB:
 			hwstats->pxonrxc[i] +=
 				IXGBE_READ_REG(hw, IXGBE_PXONRXCNT(i));
-			hwstats->pxoffrxc[i] +=
-				IXGBE_READ_REG(hw, IXGBE_PXOFFRXCNT(i));
 			break;
 		default:
 			break;
@@ -5616,11 +5708,12 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 	/* work around hardware counting issue */
 	hwstats->gprc -= missed_rx;
 
+	ixgbe_update_xoff_received(adapter);
+
 	/* 82598 hardware only has a 32 bit counter in the high register */
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
 		hwstats->lxonrxc += IXGBE_READ_REG(hw, IXGBE_LXONRXC);
-		hwstats->lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
 		hwstats->gorc += IXGBE_READ_REG(hw, IXGBE_GORCH);
 		hwstats->gotc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
 		hwstats->tor += IXGBE_READ_REG(hw, IXGBE_TORH);
@@ -5633,7 +5726,6 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 		hwstats->tor += IXGBE_READ_REG(hw, IXGBE_TORL);
 		IXGBE_READ_REG(hw, IXGBE_TORH); /* to clear */
 		hwstats->lxonrxc += IXGBE_READ_REG(hw, IXGBE_LXONRXCNT);
-		hwstats->lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXCNT);
 		hwstats->fdirmatch += IXGBE_READ_REG(hw, IXGBE_FDIRMATCH);
 		hwstats->fdirmiss += IXGBE_READ_REG(hw, IXGBE_FDIRMISS);
 #ifdef IXGBE_FCOE

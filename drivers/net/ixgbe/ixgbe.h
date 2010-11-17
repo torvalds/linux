@@ -149,6 +149,8 @@ struct ixgbe_queue_stats {
 struct ixgbe_tx_queue_stats {
 	u64 restart_queue;
 	u64 tx_busy;
+	u64 completed;
+	u64 tx_done_old;
 };
 
 struct ixgbe_rx_queue_stats {
@@ -162,6 +164,7 @@ struct ixgbe_rx_queue_stats {
 enum ixbge_ring_state_t {
 	__IXGBE_TX_FDIR_INIT_DONE,
 	__IXGBE_TX_DETECT_HANG,
+	__IXGBE_HANG_CHECK_ARMED,
 	__IXGBE_RX_PS_ENABLED,
 	__IXGBE_RX_RSC_ENABLED,
 };
@@ -514,6 +517,7 @@ extern void ixgbe_unmap_and_free_tx_resource(struct ixgbe_ring *,
 extern void ixgbe_alloc_rx_buffers(struct ixgbe_ring *, u16);
 extern void ixgbe_write_eitr(struct ixgbe_q_vector *);
 extern int ethtool_ioctl(struct ifreq *ifr);
+extern u8 ixgbe_dcb_txq_to_tc(struct ixgbe_adapter *adapter, u8 index);
 extern s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw);
 extern s32 ixgbe_init_fdir_signature_82599(struct ixgbe_hw *hw, u32 pballoc);
 extern s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc);
