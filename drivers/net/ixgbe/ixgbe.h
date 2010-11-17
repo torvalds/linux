@@ -282,6 +282,7 @@ struct ixgbe_q_vector {
 	u8 rx_itr;
 	u32 eitr;
 	cpumask_var_t affinity_mask;
+	char name[IFNAMSIZ + 9];
 };
 
 /* Helper macros to switch between ints/sec and what the register uses.
@@ -330,7 +331,6 @@ struct ixgbe_adapter {
 	u16 bd_number;
 	struct work_struct reset_task;
 	struct ixgbe_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
-	char name[MAX_MSIX_COUNT][IFNAMSIZ + 9];
 	struct ixgbe_dcb_config dcb_cfg;
 	struct ixgbe_dcb_config temp_dcb_cfg;
 	u8 dcb_set_bitmap;
@@ -453,6 +453,7 @@ struct ixgbe_adapter {
 	int node;
 	struct work_struct check_overtemp_task;
 	u32 interrupt_event;
+	char lsc_int_name[IFNAMSIZ + 9];
 
 	/* SR-IOV */
 	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);

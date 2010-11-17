@@ -2130,7 +2130,6 @@ static inline void map_vector_to_txq(struct ixgbe_adapter *a, int v_idx,
 /**
  * ixgbe_map_rings_to_vectors - Maps descriptor rings to vectors
  * @adapter: board private structure to initialize
- * @vectors: allotted vector count for descriptor rings
  *
  * This function maps descriptor rings to the queue-specific vectors
  * we were allotted through the MSI-X enabling code.  Ideally, we'd have
@@ -2138,9 +2137,9 @@ static inline void map_vector_to_txq(struct ixgbe_adapter *a, int v_idx,
  * group the rings as "efficiently" as possible.  You would add new
  * mapping configurations in here.
  **/
-static int ixgbe_map_rings_to_vectors(struct ixgbe_adapter *adapter,
-				      int vectors)
+static int ixgbe_map_rings_to_vectors(struct ixgbe_adapter *adapter)
 {
+	int q_vectors;
 	int v_start = 0;
 	int rxr_idx = 0, txr_idx = 0;
 	int rxr_remaining = adapter->num_rx_queues;
@@ -2153,11 +2152,13 @@ static int ixgbe_map_rings_to_vectors(struct ixgbe_adapter *adapter,
 	if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED))
 		goto out;
 
+	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+
 	/*
 	 * The ideal configuration...
 	 * We have enough vectors to map one per queue.
 	 */
-	if (vectors == adapter->num_rx_queues + adapter->num_tx_queues) {
+	if (q_vectors == adapter->num_rx_queues + adapter->num_tx_queues) {
 		for (; rxr_idx < rxr_remaining; v_start++, rxr_idx++)
 			map_vector_to_rxq(adapter, v_start, rxr_idx);
 
@@ -2173,23 +2174,20 @@ static int ixgbe_map_rings_to_vectors(struct ixgbe_adapter *adapter,
 	 * multiple queues per vector.
 	 */
 	/* Re-adjusting *qpv takes care of the remainder. */
-	for (i = v_start; i < vectors; i++) {
-		rqpv = DIV_ROUND_UP(rxr_remaining, vectors - i);
+	for (i = v_start; i < q_vectors; i++) {
+		rqpv = DIV_ROUND_UP(rxr_remaining, q_vectors - i);
 		for (j = 0; j < rqpv; j++) {
 			map_vector_to_rxq(adapter, i, rxr_idx);
 			rxr_idx++;
 			rxr_remaining--;
 		}
-	}
-	for (i = v_start; i < vectors; i++) {
-		tqpv = DIV_ROUND_UP(txr_remaining, vectors - i);
+		tqpv = DIV_ROUND_UP(txr_remaining, q_vectors - i);
 		for (j = 0; j < tqpv; j++) {
 			map_vector_to_txq(adapter, i, txr_idx);
 			txr_idx++;
 			txr_remaining--;
 		}
 	}
-
 out:
 	return err;
 }
@@ -2211,32 +2209,36 @@ static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 	/* Decrement for Other and TCP Timer vectors */
 	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 
-	/* Map the Tx/Rx rings to the vectors we were allotted. */
-	err = ixgbe_map_rings_to_vectors(adapter, q_vectors);
+	err = ixgbe_map_rings_to_vectors(adapter);
 	if (err)
-		goto out;
+		return err;
 
-#define SET_HANDLER(_v) ((!(_v)->rxr_count) ? &ixgbe_msix_clean_tx : \
-			 (!(_v)->txr_count) ? &ixgbe_msix_clean_rx : \
-			 &ixgbe_msix_clean_many)
+#define SET_HANDLER(_v) (((_v)->rxr_count && (_v)->txr_count)        \
+					  ? &ixgbe_msix_clean_many : \
+			  (_v)->rxr_count ? &ixgbe_msix_clean_rx   : \
+			  (_v)->txr_count ? &ixgbe_msix_clean_tx   : \
+			  NULL)
 	for (vector = 0; vector < q_vectors; vector++) {
-		handler = SET_HANDLER(adapter->q_vector[vector]);
+		struct ixgbe_q_vector *q_vector = adapter->q_vector[vector];
+		handler = SET_HANDLER(q_vector);
 
 		if (handler == &ixgbe_msix_clean_rx) {
-			sprintf(adapter->name[vector], "%s-%s-%d",
+			sprintf(q_vector->name, "%s-%s-%d",
 				netdev->name, "rx", ri++);
 		} else if (handler == &ixgbe_msix_clean_tx) {
-			sprintf(adapter->name[vector], "%s-%s-%d",
+			sprintf(q_vector->name, "%s-%s-%d",
 				netdev->name, "tx", ti++);
-		} else {
-			sprintf(adapter->name[vector], "%s-%s-%d",
+		} else if (handler == &ixgbe_msix_clean_many) {
+			sprintf(q_vector->name, "%s-%s-%d",
 				netdev->name, "TxRx", ri++);
 			ti++;
+		} else {
+			/* skip this unused q_vector */
+			continue;
 		}
-
 		err = request_irq(adapter->msix_entries[vector].vector,
-				  handler, 0, adapter->name[vector],
-				  adapter->q_vector[vector]);
+				  handler, 0, q_vector->name,
+				  q_vector);
 		if (err) {
 			e_err(probe, "request_irq failed for MSIX interrupt "
 			      "Error: %d\n", err);
@@ -2244,9 +2246,9 @@ static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 		}
 	}
 
-	sprintf(adapter->name[vector], "%s:lsc", netdev->name);
+	sprintf(adapter->lsc_int_name, "%s:lsc", netdev->name);
 	err = request_irq(adapter->msix_entries[vector].vector,
-			  ixgbe_msix_lsc, 0, adapter->name[vector], netdev);
+			  ixgbe_msix_lsc, 0, adapter->lsc_int_name, netdev);
 	if (err) {
 		e_err(probe, "request_irq for msix_lsc failed: %d\n", err);
 		goto free_queue_irqs;
@@ -2262,7 +2264,6 @@ free_queue_irqs:
 	pci_disable_msix(adapter->pdev);
 	kfree(adapter->msix_entries);
 	adapter->msix_entries = NULL;
-out:
 	return err;
 }
 
