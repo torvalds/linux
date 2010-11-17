@@ -467,6 +467,13 @@ enum ixbge_state_t {
 	__IXGBE_SFP_MODULE_NOT_FOUND
 };
 
+struct ixgbe_rsc_cb {
+	dma_addr_t dma;
+	u16 skb_cnt;
+	bool delay_unmap;
+};
+#define IXGBE_RSC_CB(skb) ((struct ixgbe_rsc_cb *)(skb)->cb)
+
 enum ixgbe_boards {
 	board_82598,
 	board_82599,

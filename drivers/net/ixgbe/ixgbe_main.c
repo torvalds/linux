@@ -1142,33 +1142,25 @@ static inline u16 ixgbe_get_hlen(union ixgbe_adv_rx_desc *rx_desc)
 	return hlen;
 }
 
-static inline u32 ixgbe_get_rsc_count(union ixgbe_adv_rx_desc *rx_desc)
-{
-	return (le32_to_cpu(rx_desc->wb.lower.lo_dword.data) &
-		IXGBE_RXDADV_RSCCNT_MASK) >>
-		IXGBE_RXDADV_RSCCNT_SHIFT;
-}
-
 /**
  * ixgbe_transform_rsc_queue - change rsc queue into a full packet
  * @skb: pointer to the last skb in the rsc queue
- * @count: pointer to number of packets coalesced in this context
  *
  * This function changes a queue full of hw rsc buffers into a completed
  * packet.  It uses the ->prev pointers to find the first packet and then
  * turns it into the frag list owner.
  **/
-static inline struct sk_buff *ixgbe_transform_rsc_queue(struct sk_buff *skb,
-							u64 *count)
+static inline struct sk_buff *ixgbe_transform_rsc_queue(struct sk_buff *skb)
 {
 	unsigned int frag_list_size = 0;
+	unsigned int skb_cnt = 1;
 
 	while (skb->prev) {
 		struct sk_buff *prev = skb->prev;
 		frag_list_size += skb->len;
 		skb->prev = NULL;
 		skb = prev;
-		*count += 1;
+		skb_cnt++;
 	}
 
 	skb_shinfo(skb)->frag_list = skb->next;
@@ -1176,15 +1168,16 @@ static inline struct sk_buff *ixgbe_transform_rsc_queue(struct sk_buff *skb,
 	skb->len += frag_list_size;
 	skb->data_len += frag_list_size;
 	skb->truesize += frag_list_size;
+	IXGBE_RSC_CB(skb)->skb_cnt = skb_cnt;
+
 	return skb;
 }
 
-struct ixgbe_rsc_cb {
-	dma_addr_t dma;
-	bool delay_unmap;
-};
-
-#define IXGBE_RSC_CB(skb) ((struct ixgbe_rsc_cb *)(skb)->cb)
+static inline bool ixgbe_get_rsc_state(union ixgbe_adv_rx_desc *rx_desc)
+{
+	return !!(le32_to_cpu(rx_desc->wb.lower.lo_dword.data) &
+		IXGBE_RXDADV_RSCCNT_MASK);
+}
 
 static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			       struct ixgbe_ring *rx_ring,
@@ -1196,13 +1189,13 @@ static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 	struct sk_buff *skb;
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 	const int current_node = numa_node_id();
-	unsigned int rsc_count = 0;
 #ifdef IXGBE_FCOE
 	int ddp_bytes = 0;
 #endif /* IXGBE_FCOE */
 	u32 staterr;
 	u16 i;
 	u16 cleaned_count = 0;
+	bool pkt_is_rsc = false;
 
 	i = rx_ring->next_to_clean;
 	rx_desc = IXGBE_RX_DESC_ADV(rx_ring, i);
@@ -1220,12 +1213,12 @@ static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		prefetch(skb->data);
 
 		if (ring_is_rsc_enabled(rx_ring))
-			rsc_count = ixgbe_get_rsc_count(rx_desc);
+			pkt_is_rsc = ixgbe_get_rsc_state(rx_desc);
 
 		/* if this is a skb from previous receive DMA will be 0 */
 		if (rx_buffer_info->dma) {
 			u16 hlen;
-			if (rsc_count &&
+			if (pkt_is_rsc &&
 			    !(staterr & IXGBE_RXD_STAT_EOP) &&
 			    !skb->prev) {
 				/*
@@ -1288,7 +1281,7 @@ static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		prefetch(next_rxd);
 		cleaned_count++;
 
-		if (rsc_count) {
+		if (pkt_is_rsc) {
 			u32 nextp = (staterr & IXGBE_RXDADV_NEXTP_MASK) >>
 				     IXGBE_RXDADV_NEXTP_SHIFT;
 			next_buffer = &rx_ring->rx_buffer_info[nextp];
@@ -1310,9 +1303,15 @@ static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			goto next_desc;
 		}
 
-		if (skb->prev)
-			skb = ixgbe_transform_rsc_queue(skb,
-						&(rx_ring->rx_stats.rsc_count));
+		if (skb->prev) {
+			skb = ixgbe_transform_rsc_queue(skb);
+			/* if we got here without RSC the packet is invalid */
+			if (!pkt_is_rsc) {
+				__pskb_trim(skb, 0);
+				rx_buffer_info->skb = skb;
+				goto next_desc;
+			}
+		}
 
 		if (ring_is_rsc_enabled(rx_ring)) {
 			if (IXGBE_RSC_CB(skb)->delay_unmap) {
@@ -1323,11 +1322,14 @@ static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 				IXGBE_RSC_CB(skb)->dma = 0;
 				IXGBE_RSC_CB(skb)->delay_unmap = false;
 			}
+		}
+		if (pkt_is_rsc) {
 			if (ring_is_ps_enabled(rx_ring))
 				rx_ring->rx_stats.rsc_count +=
-					 skb_shinfo(skb)->nr_frags;
+					skb_shinfo(skb)->nr_frags;
 			else
-				rx_ring->rx_stats.rsc_count++;
+				rx_ring->rx_stats.rsc_count +=
+					IXGBE_RSC_CB(skb)->skb_cnt;
 			rx_ring->rx_stats.rsc_flush++;
 		}
 
@@ -3017,7 +3019,6 @@ static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
 		}
 #endif /* IXGBE_FCOE */
 	}
-
 }
 
 static void ixgbe_setup_rdrxctl(struct ixgbe_adapter *adapter)
