@@ -827,7 +827,7 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 };
 
 struct iwl_cfg iwl130_bgn_cfg = {
-	.name = "Intel(R) 130 Series 1x1 BGN",
+	.name = "Intel(R) Centrino(R) Wireless-N 130 BGN",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
@@ -846,7 +846,7 @@ struct iwl_cfg iwl130_bgn_cfg = {
 };
 
 struct iwl_cfg iwl130_bg_cfg = {
-	.name = "Intel(R) 130 Series 1x2 BG",
+	.name = "Intel(R) Centrino(R) Wireless-N 130 BG",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
