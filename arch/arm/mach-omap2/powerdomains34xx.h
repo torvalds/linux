@@ -80,6 +80,10 @@ static struct powerdomain mpu_3xxx_pwrdm = {
  * 3430s upto ES3.0 and 3630ES1.0. Hence this feature
  * needs to be disabled on these chips.
  * Refer: 3430 errata ID i459 and 3630 errata ID i579
+ *
+ * Note: setting the SAR flag could help for errata ID i478
+ *  which applies to 3430 <= ES3.1, but since the SAR feature
+ *  is broken, do not use it.
  */
 static struct powerdomain core_3xxx_pre_es3_1_pwrdm = {
 	.name		  = "core_pwrdm",
@@ -108,6 +112,10 @@ static struct powerdomain core_3xxx_es3_1_pwrdm = {
 					  CHIP_GE_OMAP3630ES1_1),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_OFF_RET,
+	/*
+	 * Setting the SAR flag for errata ID i478 which applies
+	 *  to 3430 <= ES3.1
+	 */
 	.flags		  = PWRDM_HAS_HDWR_SAR, /* for USBTLL only */
 	.banks		  = 2,
 	.pwrsts_mem_ret	  = {
