@@ -47,6 +47,10 @@ static int __init pci_stub_init(void)
 	if (rc)
 		return rc;
 
+	/* no ids passed actually */
+	if (ids[0] == '\0')
+		return 0;
+
 	/* add ids specified in the module parameter */
 	p = ids;
 	while ((id = strsep(&p, ","))) {
