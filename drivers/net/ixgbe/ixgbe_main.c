@@ -687,7 +687,7 @@ static inline bool ixgbe_check_tx_hang(struct ixgbe_adapter *adapter,
 
 	/* Detect a transmit hang in hardware, this serializes the
 	 * check with the clearing of time_stamp and movement of eop */
-	adapter->detect_tx_hung = false;
+	clear_check_for_tx_hang(tx_ring);
 	if (tx_ring->tx_buffer_info[eop].time_stamp &&
 	    time_after(jiffies, tx_ring->tx_buffer_info[eop].time_stamp + HZ) &&
 	    ixgbe_tx_xon_state(adapter, tx_ring)) {
@@ -786,13 +786,12 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		}
 	}
 
-	if (adapter->detect_tx_hung) {
-		if (ixgbe_check_tx_hang(adapter, tx_ring, i)) {
-			/* schedule immediate reset if we believe we hung */
-			e_info(probe, "tx hang %d detected, resetting "
-			       "adapter\n", adapter->tx_timeout_count + 1);
-			ixgbe_tx_timeout(adapter->netdev);
-		}
+	if (check_for_tx_hang(tx_ring) &&
+	    ixgbe_check_tx_hang(adapter, tx_ring, i)) {
+		/* schedule immediate reset if we believe we hung */
+		e_info(probe, "tx hang %d detected, resetting "
+		       "adapter\n", adapter->tx_timeout_count + 1);
+		ixgbe_tx_timeout(adapter->netdev);
 	}
 
 	/* re-arm the interrupt */
@@ -1084,7 +1083,7 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_ring *rx_ring, u16 cleaned_count)
 			}
 		}
 
-		if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED) {
+		if (ring_is_ps_enabled(rx_ring)) {
 			if (!bi->page) {
 				bi->page = netdev_alloc_page(rx_ring->netdev);
 				if (!bi->page) {
@@ -1214,7 +1213,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		(*work_done)++;
 
 		rmb(); /* read descriptor and rx_buffer_info after status DD */
-		if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED) {
+		if (ring_is_ps_enabled(rx_ring)) {
 			hdr_info = le16_to_cpu(ixgbe_get_hdr_info(rx_desc));
 			len = (hdr_info & IXGBE_RXDADV_HDRBUFLEN_MASK) >>
 			       IXGBE_RXDADV_HDRBUFLEN_SHIFT;
@@ -1284,7 +1283,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		prefetch(next_rxd);
 		cleaned_count++;
 
-		if (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE)
+		if (ring_is_rsc_enabled(rx_ring))
 			rsc_count = ixgbe_get_rsc_count(rx_desc);
 
 		if (rsc_count) {
@@ -1299,7 +1298,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			if (skb->prev)
 				skb = ixgbe_transform_rsc_queue(skb,
 						&(rx_ring->rx_stats.rsc_count));
-			if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
+			if (ring_is_rsc_enabled(rx_ring)) {
 				if (IXGBE_RSC_CB(skb)->delay_unmap) {
 					dma_unmap_single(rx_ring->dev,
 							 IXGBE_RSC_CB(skb)->dma,
@@ -1308,7 +1307,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 					IXGBE_RSC_CB(skb)->dma = 0;
 					IXGBE_RSC_CB(skb)->delay_unmap = false;
 				}
-				if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED)
+				if (ring_is_ps_enabled(rx_ring))
 					rx_ring->rx_stats.rsc_count +=
 						 skb_shinfo(skb)->nr_frags;
 				else
@@ -1320,7 +1319,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			rx_ring->stats.bytes += skb->len;
 			u64_stats_update_end(&rx_ring->syncp);
 		} else {
-			if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED) {
+			if (ring_is_ps_enabled(rx_ring)) {
 				rx_buffer_info->skb = next_buffer->skb;
 				rx_buffer_info->dma = next_buffer->dma;
 				next_buffer->skb = skb;
@@ -1782,8 +1781,8 @@ static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
 			for (i = 0; i < adapter->num_tx_queues; i++) {
 				struct ixgbe_ring *tx_ring =
 							    adapter->tx_ring[i];
-				if (test_and_clear_bit(__IXGBE_FDIR_INIT_DONE,
-						       &tx_ring->reinit_state))
+				if (test_and_clear_bit(__IXGBE_TX_FDIR_INIT_DONE,
+						       &tx_ring->state))
 					schedule_work(&adapter->fdir_reinit_task);
 			}
 		}
@@ -2522,7 +2521,7 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 	}
 
 	/* reinitialize flowdirector state */
-	set_bit(__IXGBE_FDIR_INIT_DONE, &ring->reinit_state);
+	set_bit(__IXGBE_TX_FDIR_INIT_DONE, &ring->state);
 
 	/* enable queue */
 	txdctl |= IXGBE_TXDCTL_ENABLE;
@@ -2632,7 +2631,7 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
 	srrctl |= (IXGBE_RX_HDR_SIZE << IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT) &
 		  IXGBE_SRRCTL_BSIZEHDR_MASK;
 
-	if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED) {
+	if (ring_is_ps_enabled(rx_ring)) {
 #if (PAGE_SIZE / 2) > IXGBE_MAX_RXBUFFER
 		srrctl |= IXGBE_MAX_RXBUFFER >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 #else
@@ -2727,7 +2726,7 @@ static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
 	int rx_buf_len;
 	u16 reg_idx = ring->reg_idx;
 
-	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))
+	if (!ring_is_rsc_enabled(ring))
 		return;
 
 	rx_buf_len = ring->rx_buf_len;
@@ -2738,7 +2737,7 @@ static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
 	 * total size of max desc * buf_len is not greater
 	 * than 65535
 	 */
-	if (ring->flags & IXGBE_RING_RX_PS_ENABLED) {
+	if (ring_is_ps_enabled(ring)) {
 #if (MAX_SKB_FRAGS > 16)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
 #elif (MAX_SKB_FRAGS > 8)
@@ -2976,18 +2975,27 @@ static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
 		rx_ring->rx_buf_len = rx_buf_len;
 
 		if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED)
-			rx_ring->flags |= IXGBE_RING_RX_PS_ENABLED;
+			set_ring_ps_enabled(rx_ring);
 		else
-			rx_ring->flags &= ~IXGBE_RING_RX_PS_ENABLED;
+			clear_ring_ps_enabled(rx_ring);
+
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
+			set_ring_rsc_enabled(rx_ring);
+		else
+			clear_ring_rsc_enabled(rx_ring);
 
 #ifdef IXGBE_FCOE
 		if (netdev->features & NETIF_F_FCOE_MTU) {
 			struct ixgbe_ring_feature *f;
 			f = &adapter->ring_feature[RING_F_FCOE];
 			if ((i >= f->mask) && (i < f->mask + f->indices)) {
-				rx_ring->flags &= ~IXGBE_RING_RX_PS_ENABLED;
+				clear_ring_ps_enabled(rx_ring);
 				if (rx_buf_len < IXGBE_FCOE_JUMBO_FRAME_SIZE)
 					rx_ring->rx_buf_len =
+						IXGBE_FCOE_JUMBO_FRAME_SIZE;
+			} else if (!ring_is_rsc_enabled(rx_ring) &&
+				   !ring_is_ps_enabled(rx_ring)) {
+				rx_ring->rx_buf_len =
 						IXGBE_FCOE_JUMBO_FRAME_SIZE;
 			}
 		}
@@ -5729,8 +5737,8 @@ static void ixgbe_fdir_reinit_task(struct work_struct *work)
 
 	if (ixgbe_reinit_fdir_tables_82599(hw) == 0) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
-			set_bit(__IXGBE_FDIR_INIT_DONE,
-				&(adapter->tx_ring[i]->reinit_state));
+			set_bit(__IXGBE_TX_FDIR_INIT_DONE,
+				&(adapter->tx_ring[i]->state));
 	} else {
 		e_err(probe, "failed to finish FDIR re-initialization, "
 		      "ignored adding FDIR ATR filters\n");
@@ -5816,7 +5824,10 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 			netif_carrier_on(netdev);
 		} else {
 			/* Force detection of hung controller */
-			adapter->detect_tx_hung = true;
+			for (i = 0; i < adapter->num_tx_queues; i++) {
+				tx_ring = adapter->tx_ring[i];
+				set_check_for_tx_hang(tx_ring);
+			}
 		}
 	} else {
 		adapter->link_up = false;
@@ -6434,8 +6445,8 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		if (tx_ring->atr_sample_rate) {
 			++tx_ring->atr_count;
 			if ((tx_ring->atr_count >= tx_ring->atr_sample_rate) &&
-			     test_bit(__IXGBE_FDIR_INIT_DONE,
-				      &tx_ring->reinit_state)) {
+			     test_bit(__IXGBE_TX_FDIR_INIT_DONE,
+				      &tx_ring->state)) {
 				ixgbe_atr(adapter, skb, tx_ring->queue_index,
 					  tx_flags, protocol);
 				tx_ring->atr_count = 0;

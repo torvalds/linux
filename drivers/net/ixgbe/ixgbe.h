@@ -159,6 +159,31 @@ struct ixgbe_rx_queue_stats {
 	u64 alloc_rx_buff_failed;
 };
 
+enum ixbge_ring_state_t {
+	__IXGBE_TX_FDIR_INIT_DONE,
+	__IXGBE_TX_DETECT_HANG,
+	__IXGBE_RX_PS_ENABLED,
+	__IXGBE_RX_RSC_ENABLED,
+};
+
+#define ring_is_ps_enabled(ring) \
+	test_bit(__IXGBE_RX_PS_ENABLED, &(ring)->state)
+#define set_ring_ps_enabled(ring) \
+	set_bit(__IXGBE_RX_PS_ENABLED, &(ring)->state)
+#define clear_ring_ps_enabled(ring) \
+	clear_bit(__IXGBE_RX_PS_ENABLED, &(ring)->state)
+#define check_for_tx_hang(ring) \
+	test_bit(__IXGBE_TX_DETECT_HANG, &(ring)->state)
+#define set_check_for_tx_hang(ring) \
+	set_bit(__IXGBE_TX_DETECT_HANG, &(ring)->state)
+#define clear_check_for_tx_hang(ring) \
+	clear_bit(__IXGBE_TX_DETECT_HANG, &(ring)->state)
+#define ring_is_rsc_enabled(ring) \
+	test_bit(__IXGBE_RX_RSC_ENABLED, &(ring)->state)
+#define set_ring_rsc_enabled(ring) \
+	set_bit(__IXGBE_RX_RSC_ENABLED, &(ring)->state)
+#define clear_ring_rsc_enabled(ring) \
+	clear_bit(__IXGBE_RX_RSC_ENABLED, &(ring)->state)
 struct ixgbe_ring {
 	void *desc;			/* descriptor ring memory */
 	struct device *dev;             /* device for DMA mapping */
@@ -167,6 +192,7 @@ struct ixgbe_ring {
 		struct ixgbe_tx_buffer *tx_buffer_info;
 		struct ixgbe_rx_buffer *rx_buffer_info;
 	};
+	unsigned long state;
 	u8 atr_sample_rate;
 	u8 atr_count;
 	u16 count;			/* amount of descriptors */
@@ -175,20 +201,18 @@ struct ixgbe_ring {
 	u16 next_to_clean;
 
 	u8 queue_index; /* needed for multiqueue queue management */
-
-#define IXGBE_RING_RX_PS_ENABLED                (u8)(1)
-	u8 flags;			/* per ring feature flags */
-	u8 __iomem *tail;
-
-	unsigned int total_bytes;
-	unsigned int total_packets;
-
-	u16 work_limit;			/* max work per interrupt */
-	u16 reg_idx;			/* holds the special value that gets
+	u8 reg_idx;			/* holds the special value that gets
 					 * the hardware register offset
 					 * associated with this ring, which is
 					 * different for DCB and RSS modes
 					 */
+
+	u16 work_limit;			/* max work per interrupt */
+
+	u8 __iomem *tail;
+
+	unsigned int total_bytes;
+	unsigned int total_packets;
 
 	struct ixgbe_queue_stats stats;
 	struct u64_stats_sync syncp;
@@ -196,7 +220,6 @@ struct ixgbe_ring {
 		struct ixgbe_tx_queue_stats tx_stats;
 		struct ixgbe_rx_queue_stats rx_stats;
 	};
-	unsigned long reinit_state;
 	int numa_node;
 	unsigned int size;		/* length in bytes */
 	dma_addr_t dma;			/* phys. address of descriptor ring */
@@ -441,7 +464,6 @@ enum ixbge_state_t {
 	__IXGBE_TESTING,
 	__IXGBE_RESETTING,
 	__IXGBE_DOWN,
-	__IXGBE_FDIR_INIT_DONE,
 	__IXGBE_SFP_MODULE_NOT_FOUND
 };
 
