@@ -80,5 +80,6 @@ extern int nand_debug_level;
 extern int GLOB_Calc_Used_Bits(u32 n);
 extern u64 GLOB_u64_Div(u64 addr, u32 divisor);
 extern u64 GLOB_u64_Remainder(u64 addr, u32 divisor_type);
+extern int register_spectra_ftl(void);
 
 #endif /* _FFSPORT_ */
