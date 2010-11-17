@@ -3328,8 +3328,6 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	int max_frame = adapter->netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
-	u32 txdctl;
-	int i, j;
 
 	if (!(adapter->flags & IXGBE_FLAG_DCB_ENABLED)) {
 		if (hw->mac.type == ixgbe_mac_82598EB)
@@ -3350,20 +3348,13 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 	ixgbe_dcb_calculate_tc_credits(hw, &adapter->dcb_cfg, max_frame,
 					DCB_RX_CONFIG);
 
-	/* reconfigure the hardware */
-	ixgbe_dcb_hw_config(&adapter->hw, &adapter->dcb_cfg);
-
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		j = adapter->tx_ring[i]->reg_idx;
-		txdctl = IXGBE_READ_REG(hw, IXGBE_TXDCTL(j));
-		/* PThresh workaround for Tx hang with DFP enabled. */
-		txdctl |= 32;
-		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(j), txdctl);
-	}
 	/* Enable VLAN tag insert/strip */
 	adapter->netdev->features |= NETIF_F_HW_VLAN_RX;
 
 	hw->mac.ops.set_vfta(&adapter->hw, 0, 0, true);
+
+	/* reconfigure the hardware */
+	ixgbe_dcb_hw_config(hw, &adapter->dcb_cfg);
 }
 
 #endif
