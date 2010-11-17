@@ -59,6 +59,7 @@ static char ixgbe_copyright[] = "Copyright (c) 1999-2010 Intel Corporation.";
 static const struct ixgbe_info *ixgbe_info_tbl[] = {
 	[board_82598] = &ixgbe_82598_info,
 	[board_82599] = &ixgbe_82599_info,
+	[board_X540] = &ixgbe_X540_info,
 };
 
 /* ixgbe_pci_tbl - PCI Device ID Table

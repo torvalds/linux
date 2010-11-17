@@ -115,6 +115,9 @@ static enum ixgbe_phy_type ixgbe_get_phy_type_from_id(u32 phy_id)
 	case TN1010_PHY_ID:
 		phy_type = ixgbe_phy_tn;
 		break;
+	case AQ1202_PHY_ID:
+		phy_type = ixgbe_phy_aq;
+		break;
 	case QT2022_PHY_ID:
 		phy_type = ixgbe_phy_qt;
 		break;
@@ -433,8 +436,8 @@ s32 ixgbe_setup_phy_link_speed_generic(struct ixgbe_hw *hw,
  * Determines the link capabilities by reading the AUTOC register.
  */
 s32 ixgbe_get_copper_link_capabilities_generic(struct ixgbe_hw *hw,
-                                                      ixgbe_link_speed *speed,
-                                                      bool *autoneg)
+                                               ixgbe_link_speed *speed,
+                                               bool *autoneg)
 {
 	s32 status = IXGBE_ERR_LINK_SETUP;
 	u16 speed_ability;
@@ -1405,6 +1408,22 @@ s32 ixgbe_get_phy_firmware_version_tnx(struct ixgbe_hw *hw,
 	s32 status = 0;
 
 	status = hw->phy.ops.read_reg(hw, TNX_FW_REV, MDIO_MMD_VEND1,
+	                              firmware_version);
+
+	return status;
+}
+
+/**
+ *  ixgbe_get_phy_firmware_version_generic - Gets the PHY Firmware Version
+ *  @hw: pointer to hardware structure
+ *  @firmware_version: pointer to the PHY Firmware Version
+**/
+s32 ixgbe_get_phy_firmware_version_generic(struct ixgbe_hw *hw,
+                                           u16 *firmware_version)
+{
+	s32 status = 0;
+
+	status = hw->phy.ops.read_reg(hw, AQ_FW_REV, MDIO_MMD_VEND1,
 	                              firmware_version);
 
 	return status;
