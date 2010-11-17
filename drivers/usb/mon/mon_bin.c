@@ -437,6 +437,28 @@ static unsigned int mon_bin_get_data(const struct mon_reader_bin *rp,
 	return length;
 }
 
+/*
+ * This is the look-ahead pass in case of 'C Zi', when actual_length cannot
+ * be used to determine the length of the whole contiguous buffer.
+ */
+static unsigned int mon_bin_collate_isodesc(const struct mon_reader_bin *rp,
+    struct urb *urb, unsigned int ndesc)
+{
+	struct usb_iso_packet_descriptor *fp;
+	unsigned int length;
+
+	length = 0;
+	fp = urb->iso_frame_desc;
+	while (ndesc-- != 0) {
+		if (fp->actual_length != 0) {
+			if (fp->offset + fp->actual_length > length)
+				length = fp->offset + fp->actual_length;
+		}
+		fp++;
+	}
+	return length;
+}
+
 static void mon_bin_get_isodesc(const struct mon_reader_bin *rp,
     unsigned int offset, struct urb *urb, char ev_type, unsigned int ndesc)
 {
@@ -479,6 +501,10 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	/*
 	 * Find the maximum allowable length, then allocate space.
 	 */
+	urb_length = (ev_type == 'S') ?
+	    urb->transfer_buffer_length : urb->actual_length;
+	length = urb_length;
+
 	if (usb_endpoint_xfer_isoc(epd)) {
 		if (urb->number_of_packets < 0) {
 			ndesc = 0;
@@ -487,14 +513,16 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 		} else {
 			ndesc = urb->number_of_packets;
 		}
+		if (ev_type == 'C' && usb_urb_dir_in(urb))
+			length = mon_bin_collate_isodesc(rp, urb, ndesc);
 	} else {
 		ndesc = 0;
 	}
 	lendesc = ndesc*sizeof(struct mon_bin_isodesc);
 
-	urb_length = (ev_type == 'S') ?
-	    urb->transfer_buffer_length : urb->actual_length;
-	length = urb_length;
+	/* not an issue unless there's a subtle bug in a HCD somewhere */
+	if (length >= urb->transfer_buffer_length)
+		length = urb->transfer_buffer_length;
 
 	if (length >= rp->b_size/5)
 		length = rp->b_size/5;
