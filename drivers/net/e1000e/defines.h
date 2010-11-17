@@ -516,6 +516,7 @@
 #define E1000_TXCW_ANE        0x80000000        /* Auto-neg enable */
 
 /* Receive Configuration Word */
+#define E1000_RXCW_CW         0x0000ffff        /* RxConfigWord mask */
 #define E1000_RXCW_IV         0x08000000        /* Receive config invalid */
 #define E1000_RXCW_C          0x20000000        /* Receive config */
 #define E1000_RXCW_SYNCH      0x40000000        /* Receive config synch */
