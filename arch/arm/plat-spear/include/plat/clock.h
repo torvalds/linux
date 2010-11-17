@@ -15,7 +15,7 @@
 #define __PLAT_CLOCK_H
 
 #include <linux/list.h>
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 #include <linux/types.h>
 
 /* clk structure flags */

@@ -21,8 +21,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <asm/div64.h>
 
 #include <mach/clock.h>

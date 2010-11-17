@@ -1,7 +1,5 @@
 /*
- * arch/sh/kernel/clkdev.c
- *
- * Cloned from arch/arm/common/clkdev.c:
+ * drivers/clk/clkdev.c
  *
  *  Copyright (C) 2008 Russell King.
  *
@@ -20,11 +18,7 @@
 #include <linux/string.h>
 #include <linux/mutex.h>
 #include <linux/clk.h>
-#include <linux/slab.h>
-#include <linux/bootmem.h>
-#include <linux/mm.h>
-#include <asm/clock.h>
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 
 static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);
@@ -56,12 +50,13 @@ static struct clk *clk_find(const char *dev_id, const char *con_id)
 				continue;
 			match += 1;
 		}
-		if (match == 0)
-			continue;
 
 		if (match > best) {
 			clk = p->clk;
-			best = match;
+			if (match != 3)
+				best = match;
+			else
+				break;
 		}
 	}
 	return clk;
@@ -73,11 +68,27 @@ struct clk *clk_get_sys(const char *dev_id, const char *con_id)
 
 	mutex_lock(&clocks_mutex);
 	clk = clk_find(dev_id, con_id);
+	if (clk && !__clk_get(clk))
+		clk = NULL;
 	mutex_unlock(&clocks_mutex);
 
 	return clk ? clk : ERR_PTR(-ENOENT);
 }
 EXPORT_SYMBOL(clk_get_sys);
+
+struct clk *clk_get(struct device *dev, const char *con_id)
+{
+	const char *dev_id = dev ? dev_name(dev) : NULL;
+
+	return clk_get_sys(dev_id, con_id);
+}
+EXPORT_SYMBOL(clk_get);
+
+void clk_put(struct clk *clk)
+{
+	__clk_put(clk);
+}
+EXPORT_SYMBOL(clk_put);
 
 void clkdev_add(struct clk_lookup *cl)
 {
@@ -111,11 +122,7 @@ clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
 {
 	struct clk_lookup_alloc *cla;
 
-	if (!slab_is_available())
-		cla = alloc_bootmem_low_pages(sizeof(*cla));
-	else
-		cla = kzalloc(sizeof(*cla), GFP_KERNEL);
-
+	cla = __clkdev_alloc(sizeof(*cla));
 	if (!cla)
 		return NULL;
 
@@ -161,11 +168,9 @@ EXPORT_SYMBOL(clk_add_alias);
  */
 void clkdev_drop(struct clk_lookup *cl)
 {
-	struct clk_lookup_alloc *cla = container_of(cl, struct clk_lookup_alloc, cl);
-
 	mutex_lock(&clocks_mutex);
 	list_del(&cl->node);
 	mutex_unlock(&clocks_mutex);
-	kfree(cla);
+	kfree(cl);
 }
 EXPORT_SYMBOL(clkdev_drop);

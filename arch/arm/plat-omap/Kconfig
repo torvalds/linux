@@ -11,13 +11,13 @@ choice
 
 config ARCH_OMAP1
 	bool "TI OMAP1"
-	select COMMON_CLKDEV
+	select CLKDEV_LOOKUP
 	help
 	  "Systems based on omap7xx, omap15xx or omap16xx"
 
 config ARCH_OMAP2PLUS
 	bool "TI OMAP2/3/4"
-	select COMMON_CLKDEV
+	select CLKDEV_LOOKUP
 	help
 	  "Systems based on OMAP2, OMAP3 or OMAP4"
 

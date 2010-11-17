@@ -30,8 +30,8 @@
 #include <linux/ata_platform.h>
 #include <linux/amba/mmci.h>
 #include <linux/gfp.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <asm/system.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -47,7 +47,6 @@
 
 #include <asm/hardware/gic.h>
 
-#include <mach/clkdev.h>
 #include <mach/platform.h>
 #include <mach/irqs.h>
 #include <plat/timer-sp.h>

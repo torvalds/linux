@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/clk.h>
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 #include "clock.h"
 
 /*

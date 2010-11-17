@@ -21,11 +21,11 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/clkdev.h>
 
 #include <mach/clock.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <asm/clkdev.h>
 #include <asm/div64.h>
 
 #define IO_ADDR_CCM(off)	(MX21_IO_ADDRESS(MX21_CCM_BASE_ADDR + (off)))

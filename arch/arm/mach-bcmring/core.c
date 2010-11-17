@@ -30,10 +30,10 @@
 #include <linux/amba/bus.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/clkdev.h>
 
 #include <mach/csp/mm_addr.h>
 #include <mach/hardware.h>
-#include <asm/clkdev.h>
 #include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/hardware/arm_timer.h>

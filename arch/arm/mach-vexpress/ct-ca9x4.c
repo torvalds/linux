@@ -8,8 +8,8 @@
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <asm/pgtable.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -18,7 +18,6 @@
 #include <asm/pmu.h>
 #include <asm/smp_twd.h>
 
-#include <mach/clkdev.h>
 #include <mach/ct-ca9x4.h>
 
 #include <plat/timer-sp.h>

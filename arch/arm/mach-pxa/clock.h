@@ -1,4 +1,4 @@
-#include <asm/clkdev.h>
+#include <linux/clkdev.h>
 
 struct clkops {
 	void			(*enable)(struct clk *);

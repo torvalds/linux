@@ -11,8 +11,8 @@
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/hardware.h>
 

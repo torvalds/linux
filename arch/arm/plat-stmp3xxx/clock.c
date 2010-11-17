@@ -25,9 +25,9 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/clkdev.h>
 
 #include <asm/mach-types.h>
-#include <asm/clkdev.h>
 #include <mach/platform.h>
 #include <mach/regs-clkctrl.h>
 
