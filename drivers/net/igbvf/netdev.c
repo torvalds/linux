@@ -1852,8 +1852,6 @@ static void igbvf_watchdog_task(struct work_struct *work)
 
 	if (link) {
 		if (!netif_carrier_ok(netdev)) {
-			bool txb2b = 1;
-
 			mac->ops.get_link_up_info(&adapter->hw,
 			                          &adapter->link_speed,
 			                          &adapter->link_duplex);
@@ -1863,11 +1861,9 @@ static void igbvf_watchdog_task(struct work_struct *work)
 			adapter->tx_timeout_factor = 1;
 			switch (adapter->link_speed) {
 			case SPEED_10:
-				txb2b = 0;
 				adapter->tx_timeout_factor = 16;
 				break;
 			case SPEED_100:
-				txb2b = 0;
 				/* maybe add some timeout factor ? */
 				break;
 			}
