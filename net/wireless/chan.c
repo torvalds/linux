@@ -54,8 +54,10 @@ static bool can_beacon_sec_chan(struct wiphy *wiphy,
 	switch (channel_type) {
 	case NL80211_CHAN_HT40PLUS:
 		diff = 20;
+		break;
 	case NL80211_CHAN_HT40MINUS:
 		diff = -20;
+		break;
 	default:
 		return false;
 	}
