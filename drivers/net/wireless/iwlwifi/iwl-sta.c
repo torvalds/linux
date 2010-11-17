@@ -647,6 +647,7 @@ void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	memcpy(&lq, priv->stations[sta_id].lq, sizeof(lq));
 
 	active = priv->stations[sta_id].used & IWL_STA_UCODE_ACTIVE;
+	priv->stations[sta_id].used &= ~IWL_STA_DRIVER_ACTIVE;
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	if (active) {
@@ -657,6 +658,10 @@ void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			IWL_ERR(priv, "failed to remove STA %pM (%d)\n",
 				priv->stations[sta_id].sta.sta.addr, ret);
 	}
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	priv->stations[sta_id].used |= IWL_STA_DRIVER_ACTIVE;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
 	ret = iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 	if (ret)
 		IWL_ERR(priv, "failed to re-add STA %pM (%d)\n",
@@ -776,6 +781,14 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 
 	if (WARN_ON(lq->sta_id == IWL_INVALID_STATION))
 		return -EINVAL;
+
+
+	spin_lock_irqsave(&priv->sta_lock, flags_spin);
+	if (!(priv->stations[lq->sta_id].used & IWL_STA_DRIVER_ACTIVE)) {
+		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+		return -EINVAL;
+	}
+	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
 
 	iwl_dump_lq_cmd(priv, lq);
 	BUG_ON(init && (cmd.flags & CMD_ASYNC));
