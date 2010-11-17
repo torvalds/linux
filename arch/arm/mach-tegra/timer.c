@@ -55,13 +55,17 @@
 #define TIMER_PTV 0x0
 #define TIMER_PCR 0x4
 
-static void __iomem *timer_base = IO_ADDRESS(TEGRA_TMR1_BASE);
+static void __iomem *timer_reg_base = IO_ADDRESS(TEGRA_TMR1_BASE);
 static void __iomem *rtc_base = IO_ADDRESS(TEGRA_RTC_BASE);
 
 #define timer_writel(value, reg) \
-	__raw_writel(value, (u32)timer_base + (reg))
+	__raw_writel(value, (u32)timer_reg_base + (reg))
 #define timer_readl(reg) \
-	__raw_readl((u32)timer_base + (reg))
+	__raw_readl((u32)timer_reg_base + (reg))
+
+static u64 tegra_sched_clock_offset;
+static u64 tegra_sched_clock_suspend_val;
+static u64 tegra_sched_clock_suspend_rtc;
 
 static int tegra_timer_set_next_event(unsigned long cycles,
 					 struct clock_event_device *evt)
@@ -95,25 +99,9 @@ static void tegra_timer_set_mode(enum clock_event_mode mode,
 	}
 }
 
-static u64 tegra_us_clocksource_offset;
-static u64 tegra_us_resume_offset;
-static cycle_t tegra_clocksource_us_read(struct clocksource *cs)
+static cycle_t tegra_clocksource_read(struct clocksource *cs)
 {
-	return tegra_us_clocksource_offset +
-		cnt32_to_63(timer_readl(TIMERUS_CNTR_1US));
-}
-
-void tegra_clocksource_us_suspend(struct clocksource *cs)
-{
-	tegra_us_resume_offset = tegra_clocksource_us_read(cs) -
-		tegra_rtc_read_ms() * 1000;
-}
-
-void tegra_clocksource_us_resume(struct clocksource *cs)
-{
-	tegra_us_clocksource_offset += tegra_us_resume_offset +
-		tegra_rtc_read_ms() * 1000 -
-		tegra_clocksource_us_read(cs);
+	return timer_readl(TIMERUS_CNTR_1US);
 }
 
 static struct clock_event_device tegra_clockevent = {
@@ -124,21 +112,33 @@ static struct clock_event_device tegra_clockevent = {
 	.set_mode	= tegra_timer_set_mode,
 };
 
-static struct clocksource tegra_clocksource_us = {
+static struct clocksource tegra_clocksource = {
 	.name	= "timer_us",
 	.rating	= 300,
-	.read	= tegra_clocksource_us_read,
-	.suspend= tegra_clocksource_us_suspend,
-	.resume	= tegra_clocksource_us_resume,
-	.mask	= 0x7FFFFFFFFFFFFFFFULL,
+	.read	= tegra_clocksource_read,
+	.mask	= CLOCKSOURCE_MASK(32),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 unsigned long long sched_clock(void)
 {
-	return tegra_clocksource_us.read(&tegra_clocksource_us) * 1000;
+	return tegra_sched_clock_offset +
+		cnt32_to_63(timer_readl(TIMERUS_CNTR_1US)) * NSEC_PER_USEC;
 }
 
+static void tegra_sched_clock_suspend(void)
+{
+	tegra_sched_clock_suspend_val = sched_clock();
+	tegra_sched_clock_suspend_rtc = tegra_rtc_read_ms();
+}
+
+static void tegra_sched_clock_resume(void)
+{
+	u64 rtc_offset_ms = tegra_rtc_read_ms() - tegra_sched_clock_suspend_rtc;
+	tegra_sched_clock_offset = tegra_sched_clock_suspend_val +
+		rtc_offset_ms * NSEC_PER_MSEC -
+		(sched_clock() - tegra_sched_clock_offset);
+}
 
 /*
  * tegra_rtc_read - Reads the Tegra RTC registers
@@ -150,7 +150,7 @@ u64 tegra_rtc_read_ms(void)
 {
 	u32 ms = readl(rtc_base + RTC_MILLISECONDS);
 	u32 s = readl(rtc_base + RTC_SHADOW_SECONDS);
-	return (u64)s * 1000 + ms;
+	return (u64)s * MSEC_PER_SEC + ms;
 }
 
 /*
@@ -174,7 +174,7 @@ void read_persistent_clock(struct timespec *ts)
 	persistent_ms = tegra_rtc_read_ms();
 	delta = persistent_ms - last_persistent_ms;
 
-	timespec_add_ns(tsp, delta * 1000000);
+	timespec_add_ns(tsp, delta * NSEC_PER_MSEC);
 	*ts = *tsp;
 }
 
@@ -234,8 +234,8 @@ static void __init tegra_init_timer(void)
 		WARN(1, "Unknown clock rate");
 	}
 
-	if (clocksource_register_hz(&tegra_clocksource_us, 1000000)) {
-		printk(KERN_ERR "Failed to register us clocksource\n");
+	if (clocksource_register_hz(&tegra_clocksource, 1000000)) {
+		printk(KERN_ERR "Failed to register clocksource\n");
 		BUG();
 	}
 
@@ -285,10 +285,12 @@ unsigned long tegra_lp2_timer_remain(void)
 static u32 usec_config;
 void tegra_timer_suspend(void)
 {
+	tegra_sched_clock_suspend();
 	usec_config = timer_readl(TIMERUS_USEC_CFG);
 }
 
 void tegra_timer_resume(void)
 {
 	timer_writel(usec_config, TIMERUS_USEC_CFG);
+	tegra_sched_clock_resume();
 }
