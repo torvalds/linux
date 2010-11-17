@@ -1612,15 +1612,15 @@ static int drbd_wait_peer_seq(struct drbd_conf *mdev, const u32 packet_seq)
 	return ret;
 }
 
-static unsigned long write_flags_to_bio(struct drbd_conf *mdev, u32 dpf)
+/* see also bio_flags_to_wire()
+ * DRBD_REQ_*, because we need to semantically map the flags to data packet
+ * flags and back. We may replicate to other kernel versions. */
+static unsigned long wire_flags_to_bio(struct drbd_conf *mdev, u32 dpf)
 {
-	if (mdev->agreed_pro_version >= 95)
-		return  (dpf & DP_RW_SYNC ? REQ_SYNC : 0) |
-			(dpf & DP_FUA ? REQ_FUA : 0) |
-			(dpf & DP_FLUSH ? REQ_FUA : 0) |
-			(dpf & DP_DISCARD ? REQ_DISCARD : 0);
-	else
-		return dpf & DP_RW_SYNC ? REQ_SYNC : 0;
+	return  (dpf & DP_RW_SYNC ? REQ_SYNC : 0) |
+		(dpf & DP_FUA ? REQ_FUA : 0) |
+		(dpf & DP_FLUSH ? REQ_FLUSH : 0) |
+		(dpf & DP_DISCARD ? REQ_DISCARD : 0);
 }
 
 /* mirrored write */
@@ -1660,17 +1660,17 @@ static int receive_Data(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 
 	e->w.cb = e_end_block;
 
+	dp_flags = be32_to_cpu(p->dp_flags);
+	rw |= wire_flags_to_bio(mdev, dp_flags);
+
+	if (dp_flags & DP_MAY_SET_IN_SYNC)
+		e->flags |= EE_MAY_SET_IN_SYNC;
+
 	spin_lock(&mdev->epoch_lock);
 	e->epoch = mdev->current_epoch;
 	atomic_inc(&e->epoch->epoch_size);
 	atomic_inc(&e->epoch->active);
 	spin_unlock(&mdev->epoch_lock);
-
-	dp_flags = be32_to_cpu(p->dp_flags);
-	rw |= write_flags_to_bio(mdev, dp_flags);
-
-	if (dp_flags & DP_MAY_SET_IN_SYNC)
-		e->flags |= EE_MAY_SET_IN_SYNC;
 
 	/* I'm the receiver, I do hold a net_cnt reference. */
 	if (!mdev->net_conf->two_primaries) {
