@@ -42,7 +42,8 @@
  * It should be called only after the rules are checked by
  * ixgbe_dcb_check_config().
  */
-s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_dcb_config *dcb_config,
+s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *hw,
+				   struct ixgbe_dcb_config *dcb_config,
 				   int max_frame, u8 direction)
 {
 	struct tc_bw_alloc *p;
@@ -124,7 +125,8 @@ s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_dcb_config *dcb_config,
 			 * credit may not be enough to send out a TSO
 			 * packet in descriptor plane arbitration.
 			 */
-			if (credit_max &&
+			if ((hw->mac.type == ixgbe_mac_82598EB) &&
+			    credit_max &&
 			    (credit_max < MINIMUM_CREDIT_FOR_TSO))
 				credit_max = MINIMUM_CREDIT_FOR_TSO;
 

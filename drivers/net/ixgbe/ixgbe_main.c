@@ -3366,9 +3366,9 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 		max_frame = max(max_frame, IXGBE_FCOE_JUMBO_FRAME_SIZE);
 #endif
 
-	ixgbe_dcb_calculate_tc_credits(&adapter->dcb_cfg, max_frame,
+	ixgbe_dcb_calculate_tc_credits(hw, &adapter->dcb_cfg, max_frame,
 					DCB_TX_CONFIG);
-	ixgbe_dcb_calculate_tc_credits(&adapter->dcb_cfg, max_frame,
+	ixgbe_dcb_calculate_tc_credits(hw, &adapter->dcb_cfg, max_frame,
 					DCB_RX_CONFIG);
 
 	/* reconfigure the hardware */
