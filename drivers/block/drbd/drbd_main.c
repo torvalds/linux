@@ -817,6 +817,7 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 				       union drbd_state ns, const char **warn_sync_abort)
 {
 	enum drbd_fencing_p fp;
+	enum drbd_disk_state disk_min, disk_max, pdsk_min, pdsk_max;
 
 	fp = FP_DONT_CARE;
 	if (get_ldev(mdev)) {
@@ -869,61 +870,6 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 		ns.conn = C_CONNECTED;
 	}
 
-	if (ns.conn >= C_CONNECTED &&
-	    ((ns.disk == D_CONSISTENT || ns.disk == D_OUTDATED) ||
-	     (ns.disk == D_NEGOTIATING && ns.conn == C_WF_BITMAP_T) ||
-	     ns.conn >= C_AHEAD)) {
-		switch (ns.conn) {
-		case C_WF_BITMAP_T:
-		case C_PAUSED_SYNC_T:
-		case C_BEHIND:
-			ns.disk = D_OUTDATED;
-			break;
-		case C_CONNECTED:
-		case C_WF_BITMAP_S:
-		case C_SYNC_SOURCE:
-		case C_PAUSED_SYNC_S:
-		case C_AHEAD:
-			ns.disk = D_UP_TO_DATE;
-			break;
-		case C_SYNC_TARGET:
-			ns.disk = D_INCONSISTENT;
-			dev_warn(DEV, "Implicitly set disk state Inconsistent!\n");
-			break;
-		}
-		if (os.disk == D_OUTDATED && ns.disk == D_UP_TO_DATE)
-			dev_warn(DEV, "Implicitly set disk from Outdated to UpToDate\n");
-	}
-
-	if (ns.conn >= C_CONNECTED &&
-	    (ns.pdsk == D_CONSISTENT || ns.pdsk == D_OUTDATED || ns.conn >= C_AHEAD)) {
-		switch (ns.conn) {
-		case C_CONNECTED:
-		case C_WF_BITMAP_T:
-		case C_PAUSED_SYNC_T:
-		case C_SYNC_TARGET:
-		case C_BEHIND:
-			ns.pdsk = D_UP_TO_DATE;
-			break;
-		case C_WF_BITMAP_S:
-		case C_PAUSED_SYNC_S:
-		case C_AHEAD:
-			/* remap any consistent state to D_OUTDATED,
-			 * but disallow "upgrade" of not even consistent states.
-			 */
-			ns.pdsk =
-				(D_DISKLESS < os.pdsk && os.pdsk < D_OUTDATED)
-				? os.pdsk : D_OUTDATED;
-			break;
-		case C_SYNC_SOURCE:
-			ns.pdsk = D_INCONSISTENT;
-			dev_warn(DEV, "Implicitly set pdsk Inconsistent!\n");
-			break;
-		}
-		if (os.pdsk == D_OUTDATED && ns.pdsk == D_UP_TO_DATE)
-			dev_warn(DEV, "Implicitly set pdsk from Outdated to UpToDate\n");
-	}
-
 	/* Connection breaks down before we finished "Negotiating" */
 	if (ns.conn < C_CONNECTED && ns.disk == D_NEGOTIATING &&
 	    get_ldev_if_state(mdev, D_NEGOTIATING)) {
@@ -936,6 +882,94 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 			ns.pdsk = D_UNKNOWN;
 		}
 		put_ldev(mdev);
+	}
+
+	/* D_CONSISTENT and D_OUTDATED vanish when we get connected */
+	if (ns.conn >= C_CONNECTED && ns.conn < C_AHEAD) {
+		if (ns.disk == D_CONSISTENT || ns.disk == D_OUTDATED)
+			ns.disk = D_UP_TO_DATE;
+		if (ns.pdsk == D_CONSISTENT || ns.pdsk == D_OUTDATED)
+			ns.pdsk = D_UP_TO_DATE;
+	}
+
+	/* Implications of the connection stat on the disk states */
+	disk_min = D_DISKLESS;
+	disk_max = D_UP_TO_DATE;
+	pdsk_min = D_INCONSISTENT;
+	pdsk_max = D_UNKNOWN;
+	switch ((enum drbd_conns)ns.conn) {
+	case C_WF_BITMAP_T:
+	case C_PAUSED_SYNC_T:
+	case C_STARTING_SYNC_T:
+	case C_WF_SYNC_UUID:
+	case C_BEHIND:
+		disk_min = D_INCONSISTENT;
+		disk_max = D_OUTDATED;
+		pdsk_min = D_UP_TO_DATE;
+		pdsk_max = D_UP_TO_DATE;
+		break;
+	case C_VERIFY_S:
+	case C_VERIFY_T:
+		disk_min = D_UP_TO_DATE;
+		disk_max = D_UP_TO_DATE;
+		pdsk_min = D_UP_TO_DATE;
+		pdsk_max = D_UP_TO_DATE;
+		break;
+	case C_CONNECTED:
+		disk_min = D_DISKLESS;
+		disk_max = D_UP_TO_DATE;
+		pdsk_min = D_DISKLESS;
+		pdsk_max = D_UP_TO_DATE;
+		break;
+	case C_WF_BITMAP_S:
+	case C_PAUSED_SYNC_S:
+	case C_STARTING_SYNC_S:
+	case C_AHEAD:
+		disk_min = D_UP_TO_DATE;
+		disk_max = D_UP_TO_DATE;
+		pdsk_min = D_INCONSISTENT;
+		pdsk_max = D_CONSISTENT; /* D_OUTDATED would be nice. But explicit outdate necessary*/
+		break;
+	case C_SYNC_TARGET:
+		disk_min = D_INCONSISTENT;
+		disk_max = D_INCONSISTENT;
+		pdsk_min = D_UP_TO_DATE;
+		pdsk_max = D_UP_TO_DATE;
+		break;
+	case C_SYNC_SOURCE:
+		disk_min = D_UP_TO_DATE;
+		disk_max = D_UP_TO_DATE;
+		pdsk_min = D_INCONSISTENT;
+		pdsk_max = D_INCONSISTENT;
+		break;
+	case C_STANDALONE:
+	case C_DISCONNECTING:
+	case C_UNCONNECTED:
+	case C_TIMEOUT:
+	case C_BROKEN_PIPE:
+	case C_NETWORK_FAILURE:
+	case C_PROTOCOL_ERROR:
+	case C_TEAR_DOWN:
+	case C_WF_CONNECTION:
+	case C_WF_REPORT_PARAMS:
+	case C_MASK:
+		break;
+	}
+	if (ns.disk > disk_max)
+		ns.disk = disk_max;
+
+	if (ns.disk < disk_min) {
+		dev_warn(DEV, "Implicitly set disk from %s to %s\n",
+			 drbd_disk_str(ns.disk), drbd_disk_str(disk_min));
+		ns.disk = disk_min;
+	}
+	if (ns.pdsk > pdsk_max)
+		ns.pdsk = pdsk_max;
+
+	if (ns.pdsk < pdsk_min) {
+		dev_warn(DEV, "Implicitly set pdsk from %s to %s\n",
+			 drbd_disk_str(ns.pdsk), drbd_disk_str(pdsk_min));
+		ns.pdsk = pdsk_min;
 	}
 
 	if (fp == FP_STONITH &&
