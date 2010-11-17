@@ -38,9 +38,9 @@ QUICK_TRANSFER用于快速传输，同时可指定半双工或全双工，
 默认使用半双工
 */
 
-#define QUICK_TRANSFER         
+//#define QUICK_TRANSFER         
 
-#if 1
+#if 0
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)
@@ -238,7 +238,7 @@ static int null_writer(struct rk29xx_spi *dws)
 		return 0;
 	rk29xx_writew(dws, SPIM_TXDR, 0);
 	dws->tx += n_bytes;
-	//wait_till_not_busy(dws);
+	wait_till_not_busy(dws);
 
 	return 1;
 }
@@ -264,7 +264,7 @@ static int u8_writer(struct rk29xx_spi *dws)
 	rk29xx_writew(dws, SPIM_TXDR, *(u8 *)(dws->tx));
 	DBG(KERN_INFO "dws->tx:%x\n", *(u8 *)(dws->tx));
 	++dws->tx;
-	//wait_till_not_busy(dws);
+	wait_till_not_busy(dws);
 
 	return 1;
 }
@@ -291,7 +291,7 @@ static int u16_writer(struct rk29xx_spi *dws)
 
 	rk29xx_writew(dws, SPIM_TXDR, *(u16 *)(dws->tx));
 	dws->tx += 2;
-	//wait_till_not_busy(dws);
+	wait_till_not_busy(dws);
 
 	return 1;
 }
@@ -374,7 +374,7 @@ static struct rk29_dma_client rk29_spi_dma_client = {
 };
 
 static int acquire_dma(struct rk29xx_spi *dws)
-{
+{	
 	#if 1
 	dws->dma_inited = 0;
 	return 1;
@@ -384,7 +384,6 @@ static int acquire_dma(struct rk29xx_spi *dws)
 		return 1;
 	}
 
-	printk(KERN_INFO "request dma\n");
 	if(rk29_dma_request(dws->rx_dmach, 
 		&rk29_spi_dma_client, NULL) < 0) {
 		dev_err(&dws->master->dev, "dws->rx_dmach : %d, cannot get RxDMA\n", dws->rx_dmach);
@@ -416,7 +415,7 @@ static int acquire_dma(struct rk29xx_spi *dws)
  * the virt addr to physical
  */
 static int map_dma_buffers(struct rk29xx_spi *dws)
-{		
+{
 	if (!dws->cur_msg->is_dma_mapped || !dws->dma_inited
 		|| !dws->cur_chip->enable_dma)
 		return 0;
@@ -835,7 +834,7 @@ static void do_read(struct rk29xx_spi *dws)
 	while (1) {
 		if (dws->read(dws))
 			break;
-		if (count ++ == 0x20) {
+		if (count++ == 0x20) {
 			dev_err(&dws->master->dev, "+++++++++++spi receive data time out+++++++++++++\n");
 			break;
 		}
@@ -967,10 +966,8 @@ static int rk29xx_pump_transfers(struct rk29xx_spi *dws, int mode)
 	chip = dws->cur_chip;
 	spi = message->spi;	
 
-	if (unlikely(!chip->clk_div)) {
+	if (unlikely(!chip->clk_div))
 		chip->clk_div = clk_get_rate(dws->clock_spim) / chip->speed_hz;
-		chip->clk_div = (chip->clk_div + 1) & 0xfffe;
-	}
 	if (message->state == ERROR_STATE) {
 		message->status = -EIO;
 		goto early_exit;

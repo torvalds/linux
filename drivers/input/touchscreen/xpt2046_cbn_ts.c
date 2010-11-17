@@ -556,11 +556,7 @@ static irqreturn_t xpt2046_irq(int irq, void *handle)
 
 	if (likely(get_pendown_state(ts))) {
 		if (!ts->irq_disabled) {
-			/* The ARM do_simple_IRQ() dispatcher doesn't act
-			 * like the other dispatchers:  it will report IRQs
-			 * even after they've been disabled.  We work around
-			 * that here.  (The "generic irq" framework may help...)
-			 */
+			
 			ts->irq_disabled = 1;
 			disable_irq_nosync(ts->spi->irq);
 			ts->pending = 1;
