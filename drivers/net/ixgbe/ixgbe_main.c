@@ -1617,14 +1617,13 @@ void ixgbe_write_eitr(struct ixgbe_q_vector *q_vector)
 static void ixgbe_set_itr_msix(struct ixgbe_q_vector *q_vector)
 {
 	struct ixgbe_adapter *adapter = q_vector->adapter;
+	int i, r_idx;
 	u32 new_itr;
 	u8 current_itr, ret_itr;
-	int i, r_idx;
-	struct ixgbe_ring *rx_ring, *tx_ring;
 
 	r_idx = find_first_bit(q_vector->txr_idx, adapter->num_tx_queues);
 	for (i = 0; i < q_vector->txr_count; i++) {
-		tx_ring = adapter->tx_ring[r_idx];
+		struct ixgbe_ring *tx_ring = adapter->tx_ring[r_idx];
 		ret_itr = ixgbe_update_itr(adapter, q_vector->eitr,
 					   q_vector->tx_itr,
 					   tx_ring->total_packets,
@@ -1639,7 +1638,7 @@ static void ixgbe_set_itr_msix(struct ixgbe_q_vector *q_vector)
 
 	r_idx = find_first_bit(q_vector->rxr_idx, adapter->num_rx_queues);
 	for (i = 0; i < q_vector->rxr_count; i++) {
-		rx_ring = adapter->rx_ring[r_idx];
+		struct ixgbe_ring *rx_ring = adapter->rx_ring[r_idx];
 		ret_itr = ixgbe_update_itr(adapter, q_vector->eitr,
 					   q_vector->rx_itr,
 					   rx_ring->total_packets,
@@ -1670,7 +1669,7 @@ static void ixgbe_set_itr_msix(struct ixgbe_q_vector *q_vector)
 
 	if (new_itr != q_vector->eitr) {
 		/* do an exponential smoothing */
-		new_itr = ((q_vector->eitr * 90)/100) + ((new_itr * 10)/100);
+		new_itr = ((q_vector->eitr * 9) + new_itr)/10;
 
 		/* save the algorithm value here, not the smoothed one */
 		q_vector->eitr = new_itr;
@@ -2270,10 +2269,10 @@ out:
 static void ixgbe_set_itr(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_q_vector *q_vector = adapter->q_vector[0];
-	u8 current_itr;
-	u32 new_itr = q_vector->eitr;
 	struct ixgbe_ring *rx_ring = adapter->rx_ring[0];
 	struct ixgbe_ring *tx_ring = adapter->tx_ring[0];
+	u32 new_itr = q_vector->eitr;
+	u8 current_itr;
 
 	q_vector->tx_itr = ixgbe_update_itr(adapter, new_itr,
 					    q_vector->tx_itr,
@@ -2303,9 +2302,9 @@ static void ixgbe_set_itr(struct ixgbe_adapter *adapter)
 
 	if (new_itr != q_vector->eitr) {
 		/* do an exponential smoothing */
-		new_itr = ((q_vector->eitr * 90)/100) + ((new_itr * 10)/100);
+		new_itr = ((q_vector->eitr * 9) + new_itr)/10;
 
-		/* save the algorithm value here, not the smoothed one */
+		/* save the algorithm value here */
 		q_vector->eitr = new_itr;
 
 		ixgbe_write_eitr(q_vector);
