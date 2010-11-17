@@ -223,9 +223,18 @@ int ttm_bo_reserve_locked(struct ttm_buffer_object *bo,
 		/**
 		 * Deadlock avoidance for multi-bo reserving.
 		 */
-		if (use_sequence && bo->seq_valid &&
-			(sequence - bo->val_seq < (1 << 31))) {
-			return -EAGAIN;
+		if (use_sequence && bo->seq_valid) {
+			/**
+			 * We've already reserved this one.
+			 */
+			if (unlikely(sequence == bo->val_seq))
+				return -EDEADLK;
+			/**
+			 * Already reserved by a thread that will not back
+			 * off for us. We need to back off.
+			 */
+			if (unlikely(sequence - bo->val_seq < (1 << 31)))
+				return -EAGAIN;
 		}
 
 		if (no_wait)

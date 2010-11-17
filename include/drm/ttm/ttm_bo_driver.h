@@ -859,6 +859,9 @@ extern void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
  * try again. (only if use_sequence == 1).
  * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
  * a signal. Release all buffer reservations and return to user-space.
+ * -EBUSY: The function needed to sleep, but @no_wait was true
+ * -EDEADLK: Bo already reserved using @sequence. This error code will only
+ * be returned if @use_sequence is set to true.
  */
 extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
 			  bool interruptible,
@@ -868,11 +871,27 @@ extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
 /**
  * ttm_bo_reserve_locked:
  *
- * Similar to ttm_bo_reserve, but must be called with the glob::lru_lock
- * spinlock held, and will not remove reserved buffers from the lru lists.
+ * @bo: A pointer to a struct ttm_buffer_object.
+ * @interruptible: Sleep interruptible if waiting.
+ * @no_wait: Don't sleep while trying to reserve, rather return -EBUSY.
+ * @use_sequence: If @bo is already reserved, Only sleep waiting for
+ * it to become unreserved if @sequence < (@bo)->sequence.
+ *
+ * Must be called with struct ttm_bo_global::lru_lock held,
+ * and will not remove reserved buffers from the lru lists.
  * The function may release the LRU spinlock if it needs to sleep.
+ * Otherwise identical to ttm_bo_reserve.
+ *
+ * Returns:
+ * -EAGAIN: The reservation may cause a deadlock.
+ * Release all buffer reservations, wait for @bo to become unreserved and
+ * try again. (only if use_sequence == 1).
+ * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
+ * a signal. Release all buffer reservations and return to user-space.
+ * -EBUSY: The function needed to sleep, but @no_wait was true
+ * -EDEADLK: Bo already reserved using @sequence. This error code will only
+ * be returned if @use_sequence is set to true.
  */
-
 extern int ttm_bo_reserve_locked(struct ttm_buffer_object *bo,
 				 bool interruptible,
 				 bool no_wait, bool use_sequence,
