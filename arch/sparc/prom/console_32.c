@@ -19,8 +19,7 @@ extern void restore_current(void);
 /* Non blocking get character from console input device, returns -1
  * if no input was taken.  This can be used for polling.
  */
-int
-prom_nbgetchar(void)
+static int prom_nbgetchar(void)
 {
 	static char inc;
 	int i = -1;
@@ -51,8 +50,7 @@ prom_nbgetchar(void)
 /* Non blocking put character to console device, returns -1 if
  * unsuccessful.
  */
-int
-prom_nbputchar(char c)
+static int prom_nbputchar(char c)
 {
 	static char outc;
 	unsigned long flags;
