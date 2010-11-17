@@ -749,45 +749,23 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		bool cleaned = false;
 		rmb(); /* read buffer_info after eop_desc */
 		for ( ; !cleaned; count++) {
-			struct sk_buff *skb;
 			tx_desc = IXGBE_TX_DESC_ADV(tx_ring, i);
 			tx_buffer_info = &tx_ring->tx_buffer_info[i];
-			cleaned = (i == eop);
-			skb = tx_buffer_info->skb;
-
-			if (cleaned && skb) {
-				unsigned int segs, bytecount;
-				unsigned int hlen = skb_headlen(skb);
-
-				/* gso_segs is currently only valid for tcp */
-				segs = skb_shinfo(skb)->gso_segs ?: 1;
-#ifdef IXGBE_FCOE
-				/* adjust for FCoE Sequence Offload */
-				if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
-				    && skb_is_gso(skb)
-				    && vlan_get_protocol(skb) ==
-				    htons(ETH_P_FCOE)) {
-					hlen = skb_transport_offset(skb) +
-						sizeof(struct fc_frame_header) +
-						sizeof(struct fcoe_crc_eof);
-					segs = DIV_ROUND_UP(skb->len - hlen,
-						skb_shinfo(skb)->gso_size);
-				}
-#endif /* IXGBE_FCOE */
-				/* multiply data chunks by size of headers */
-				bytecount = ((segs - 1) * hlen) + skb->len;
-				total_packets += segs;
-				total_bytes += bytecount;
-			}
-
-			ixgbe_unmap_and_free_tx_resource(adapter,
-							 tx_buffer_info);
 
 			tx_desc->wb.status = 0;
+			cleaned = (i == eop);
 
 			i++;
 			if (i == tx_ring->count)
 				i = 0;
+
+			if (cleaned && tx_buffer_info->skb) {
+				total_bytes += tx_buffer_info->bytecount;
+				total_packets += tx_buffer_info->gso_segs;
+			}
+
+			ixgbe_unmap_and_free_tx_resource(adapter,
+							 tx_buffer_info);
 		}
 
 		eop = tx_ring->tx_buffer_info[i].next_to_watch;
@@ -6015,7 +5993,7 @@ static bool ixgbe_tx_csum(struct ixgbe_adapter *adapter,
 static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
 			struct ixgbe_ring *tx_ring,
 			struct sk_buff *skb, u32 tx_flags,
-			unsigned int first)
+			unsigned int first, const u8 hdr_len)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct ixgbe_tx_buffer *tx_buffer_info;
@@ -6024,6 +6002,8 @@ static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
 	unsigned int offset = 0, size, count = 0, i;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int f;
+	unsigned int bytecount = skb->len;
+	u16 gso_segs = 1;
 
 	i = tx_ring->next_to_use;
 
@@ -6093,6 +6073,19 @@ static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
 			break;
 	}
 
+	if (tx_flags & IXGBE_TX_FLAGS_TSO)
+		gso_segs = skb_shinfo(skb)->gso_segs;
+#ifdef IXGBE_FCOE
+	/* adjust for FCoE Sequence Offload */
+	else if (tx_flags & IXGBE_TX_FLAGS_FSO)
+		gso_segs = DIV_ROUND_UP(skb->len - hdr_len,
+					skb_shinfo(skb)->gso_size);
+#endif /* IXGBE_FCOE */
+	bytecount += (gso_segs - 1) * hdr_len;
+
+	/* multiply data chunks by size of headers */
+	tx_ring->tx_buffer_info[i].bytecount = bytecount;
+	tx_ring->tx_buffer_info[i].gso_segs = gso_segs;
 	tx_ring->tx_buffer_info[i].skb = skb;
 	tx_ring->tx_buffer_info[first].next_to_watch = i;
 
@@ -6402,7 +6395,7 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb, struct net_device *netdev
 			tx_flags |= IXGBE_TX_FLAGS_CSUM;
 	}
 
-	count = ixgbe_tx_map(adapter, tx_ring, skb, tx_flags, first);
+	count = ixgbe_tx_map(adapter, tx_ring, skb, tx_flags, first, hdr_len);
 	if (count) {
 		/* add the ATR filter if ATR is on */
 		if (tx_ring->atr_sample_rate) {

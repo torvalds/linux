@@ -128,7 +128,9 @@ struct ixgbe_tx_buffer {
 	unsigned long time_stamp;
 	u16 length;
 	u16 next_to_watch;
-	u16 mapped_as_page;
+	unsigned int bytecount;
+	u16 gso_segs;
+	u8 mapped_as_page;
 };
 
 struct ixgbe_rx_buffer {
