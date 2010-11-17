@@ -540,6 +540,7 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 	struct usb_composite_dev *cdev = dev->cdev;
 	struct usb_request *req = 0;
 	int r = count, xfer;
+	int sendZLP = 0;
 	int ret;
 
 	DBG(cdev, "mtp_write(%d)\n", count);
@@ -558,8 +559,18 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 	dev->state = STATE_BUSY;
 	spin_unlock_irq(&dev->lock);
 
-	/* condition check at bottom to allow zero length packet write */
-	do {
+	/* we need to send a zero length packet to signal the end of transfer
+	 * if the transfer size is aligned to a packet boundary.
+	 */
+	if ((count & (dev->ep_in->maxpacket - 1)) == 0) {
+		sendZLP = 1;
+	}
+
+	while (count > 0 || sendZLP) {
+		/* so we exit after sending ZLP */
+		if (count == 0)
+			sendZLP = 0;
+
 		if (dev->state != STATE_BUSY) {
 			DBG(cdev, "mtp_write dev->error\n");
 			r = -EIO;
@@ -598,7 +609,7 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 
 		/* zero this so we don't try to free it on error exit */
 		req = 0;
-	} while (count > 0);
+	}
 
 	if (req)
 		req_put(dev, &dev->tx_idle, req);
@@ -635,11 +646,9 @@ static void send_file_work(struct work_struct *data) {
 	DBG(cdev, "send_file_work(%lld %lld)\n", offset, count);
 
 	/* we need to send a zero length packet to signal the end of transfer
-	 * if the length is > 4 gig and the last packet is aligned to a
-	 * packet boundary.
+	 * if the transfer size is aligned to a packet boundary.
 	 */
-	if (dev->xfer_file_length >= 0xFFFFFFFF
-		&& (dev->xfer_file_length & (dev->ep_in->maxpacket - 1)) == 0) {
+	if ((dev->xfer_file_length & (dev->ep_in->maxpacket - 1)) == 0) {
 		sendZLP = 1;
 	}
 
