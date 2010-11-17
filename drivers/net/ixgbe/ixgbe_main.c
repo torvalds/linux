@@ -4676,71 +4676,55 @@ static void ixgbe_cache_ring_register(struct ixgbe_adapter *adapter)
  **/
 static int ixgbe_alloc_queues(struct ixgbe_adapter *adapter)
 {
-	int i;
-	int rx_count;
-	int orig_node = adapter->node;
+	int rx = 0, tx = 0, nid = adapter->node;
 
-	for (i = 0; i < adapter->num_tx_queues; i++) {
-		struct ixgbe_ring *ring = adapter->tx_ring[i];
-		if (orig_node == -1) {
-			int cur_node = next_online_node(adapter->node);
-			if (cur_node == MAX_NUMNODES)
-				cur_node = first_online_node;
-			adapter->node = cur_node;
-		}
-		ring = kzalloc_node(sizeof(struct ixgbe_ring), GFP_KERNEL,
-				    adapter->node);
+	if (nid < 0 || !node_online(nid))
+		nid = first_online_node;
+
+	for (; tx < adapter->num_tx_queues; tx++) {
+		struct ixgbe_ring *ring;
+
+		ring = kzalloc_node(sizeof(*ring), GFP_KERNEL, nid);
 		if (!ring)
-			ring = kzalloc(sizeof(struct ixgbe_ring), GFP_KERNEL);
+			ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 		if (!ring)
-			goto err_tx_ring_allocation;
+			goto err_allocation;
 		ring->count = adapter->tx_ring_count;
-		ring->queue_index = i;
+		ring->queue_index = tx;
+		ring->numa_node = nid;
 		ring->dev = &adapter->pdev->dev;
 		ring->netdev = adapter->netdev;
-		ring->numa_node = adapter->node;
 
-		adapter->tx_ring[i] = ring;
+		adapter->tx_ring[tx] = ring;
 	}
 
-	/* Restore the adapter's original node */
-	adapter->node = orig_node;
+	for (; rx < adapter->num_rx_queues; rx++) {
+		struct ixgbe_ring *ring;
 
-	rx_count = adapter->rx_ring_count;
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		struct ixgbe_ring *ring = adapter->rx_ring[i];
-		if (orig_node == -1) {
-			int cur_node = next_online_node(adapter->node);
-			if (cur_node == MAX_NUMNODES)
-				cur_node = first_online_node;
-			adapter->node = cur_node;
-		}
-		ring = kzalloc_node(sizeof(struct ixgbe_ring), GFP_KERNEL,
-				    adapter->node);
+		ring = kzalloc_node(sizeof(*ring), GFP_KERNEL, nid);
 		if (!ring)
-			ring = kzalloc(sizeof(struct ixgbe_ring), GFP_KERNEL);
+			ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 		if (!ring)
-			goto err_rx_ring_allocation;
-		ring->count = rx_count;
-		ring->queue_index = i;
+			goto err_allocation;
+		ring->count = adapter->rx_ring_count;
+		ring->queue_index = rx;
+		ring->numa_node = nid;
 		ring->dev = &adapter->pdev->dev;
 		ring->netdev = adapter->netdev;
-		ring->numa_node = adapter->node;
 
-		adapter->rx_ring[i] = ring;
+		adapter->rx_ring[rx] = ring;
 	}
-
-	/* Restore the adapter's original node */
-	adapter->node = orig_node;
 
 	ixgbe_cache_ring_register(adapter);
 
 	return 0;
 
-err_rx_ring_allocation:
-	for (i = 0; i < adapter->num_tx_queues; i++)
-		kfree(adapter->tx_ring[i]);
-err_tx_ring_allocation:
+err_allocation:
+	while (tx)
+		kfree(adapter->tx_ring[--tx]);
+
+	while (rx)
+		kfree(adapter->rx_ring[--rx]);
 	return -ENOMEM;
 }
 
