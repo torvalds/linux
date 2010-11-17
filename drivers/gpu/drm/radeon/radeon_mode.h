@@ -385,6 +385,7 @@ struct radeon_connector_atom_dig {
 	u8 dp_sink_type;
 	int dp_clock;
 	int dp_lane_count;
+	bool edp_on;
 };
 
 struct radeon_gpio_rec {
@@ -526,6 +527,7 @@ struct drm_encoder *radeon_encoder_legacy_tmds_ext_add(struct drm_device *dev, i
 extern void atombios_external_tmds_setup(struct drm_encoder *encoder, int action);
 extern void atombios_digital_setup(struct drm_encoder *encoder, int action);
 extern int atombios_get_encoder_mode(struct drm_encoder *encoder);
+extern void atombios_set_edp_panel_power(struct drm_connector *connector, int action);
 extern void radeon_encoder_set_active_device(struct drm_encoder *encoder);
 
 extern void radeon_crtc_load_lut(struct drm_crtc *crtc);
