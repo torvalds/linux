@@ -6,7 +6,6 @@
 
 #include <linux/syscalls.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/capability.h>
 #include <linux/file.h>
 #include <linux/fs.h>

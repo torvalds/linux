@@ -3,7 +3,6 @@
 
 #include <linux/preempt.h>
 #ifdef CONFIG_PREEMPT
-#include <linux/smp_lock.h>
 #endif
 #include <linux/lockdep.h>
 #include <linux/ftrace_irq.h>

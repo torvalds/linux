@@ -31,7 +31,6 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/compat.h>
 #include <linux/blktrace_api.h>
 #include <linux/uaccess.h>

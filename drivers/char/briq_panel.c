@@ -6,7 +6,6 @@
 
 #include <linux/module.h>
 
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/tty.h>

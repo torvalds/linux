@@ -6,7 +6,6 @@
 #include <linux/sched.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 
 #include "super.h"
 #include "mds_client.h"

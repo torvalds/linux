@@ -30,7 +30,6 @@
 #include <linux/kmod.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/smp_lock.h>
 #include <linux/string.h>
 
 MODULE_AUTHOR
