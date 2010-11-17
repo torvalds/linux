@@ -2980,7 +2980,7 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 	struct kvm_run *kvm_run = vcpu->run;
 	u32 exit_code = svm->vmcb->control.exit_code;
 
-	trace_kvm_exit(exit_code, vcpu);
+	trace_kvm_exit(exit_code, vcpu, KVM_ISA_SVM);
 
 	if (!(svm->vmcb->control.intercept_cr_write & INTERCEPT_CR0_MASK))
 		vcpu->arch.cr0 = svm->vmcb->save.cr0;
