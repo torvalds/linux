@@ -4854,6 +4854,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	int j;
 	struct tc_configuration *tc;
 #endif
+	int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
 
 	/* PCI config space info */
 
@@ -4930,8 +4931,8 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 #ifdef CONFIG_DCB
 	adapter->last_lfc_mode = hw->fc.current_mode;
 #endif
-	hw->fc.high_water = IXGBE_DEFAULT_FCRTH;
-	hw->fc.low_water = IXGBE_DEFAULT_FCRTL;
+	hw->fc.high_water = FC_HIGH_WATER(max_frame);
+	hw->fc.low_water = FC_LOW_WATER(max_frame);
 	hw->fc.pause_time = IXGBE_DEFAULT_FCPAUSE;
 	hw->fc.send_xon = true;
 	hw->fc.disable_fc_autoneg = false;
@@ -5193,6 +5194,7 @@ static void ixgbe_free_all_rx_resources(struct ixgbe_adapter *adapter)
 static int ixgbe_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 
 	/* MTU < 68 is an error and causes problems on some kernels */
@@ -5202,6 +5204,9 @@ static int ixgbe_change_mtu(struct net_device *netdev, int new_mtu)
 	e_info(probe, "changing MTU from %d to %d\n", netdev->mtu, new_mtu);
 	/* must set new MTU before calling down or up */
 	netdev->mtu = new_mtu;
+
+	hw->fc.high_water = FC_HIGH_WATER(max_frame);
+	hw->fc.low_water = FC_LOW_WATER(max_frame);
 
 	if (netif_running(netdev))
 		ixgbe_reinit_locked(adapter);

@@ -1595,6 +1595,7 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	u32 mflcn_reg, fccfg_reg;
 	u32 reg;
 	u32 rx_pba_size;
+	u32 fcrtl, fcrth;
 
 #ifdef CONFIG_DCB
 	if (hw->fc.requested_mode == ixgbe_fc_pfc)
@@ -1671,40 +1672,20 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, mflcn_reg);
 	IXGBE_WRITE_REG(hw, IXGBE_FCCFG, fccfg_reg);
 
-	reg = IXGBE_READ_REG(hw, IXGBE_MTQC);
-	/* Thresholds are different for link flow control when in DCB mode */
-	if (reg & IXGBE_MTQC_RT_ENA) {
-		rx_pba_size = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(packetbuf_num));
+	rx_pba_size = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(packetbuf_num));
+	rx_pba_size >>= IXGBE_RXPBSIZE_SHIFT;
 
-		/* Always disable XON for LFC when in DCB mode */
-		reg = (rx_pba_size >> 5) & 0xFFE0;
-		IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num), reg);
+	fcrth = (rx_pba_size - hw->fc.high_water) << 10;
+	fcrtl = (rx_pba_size - hw->fc.low_water) << 10;
 
-		reg = (rx_pba_size >> 2) & 0xFFE0;
-		if (hw->fc.current_mode & ixgbe_fc_tx_pause)
-			reg |= IXGBE_FCRTH_FCEN;
-		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num), reg);
-	} else {
-		/*
-		 * Set up and enable Rx high/low water mark thresholds,
-		 * enable XON.
-		 */
-		if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
-			if (hw->fc.send_xon) {
-				IXGBE_WRITE_REG(hw,
-				              IXGBE_FCRTL_82599(packetbuf_num),
-			                      (hw->fc.low_water |
-				              IXGBE_FCRTL_XONE));
-			} else {
-				IXGBE_WRITE_REG(hw,
-				              IXGBE_FCRTL_82599(packetbuf_num),
-				              hw->fc.low_water);
-			}
-
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num),
-			               (hw->fc.high_water | IXGBE_FCRTH_FCEN));
-		}
+	if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
+		fcrth |= IXGBE_FCRTH_FCEN;
+		if (hw->fc.send_xon)
+			fcrtl |= IXGBE_FCRTL_XONE;
 	}
+
+	IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num), fcrth);
+	IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num), fcrtl);
 
 	/* Configure pause time (2 TCs per register) */
 	reg = IXGBE_READ_REG(hw, IXGBE_FCTTV(packetbuf_num / 2));
