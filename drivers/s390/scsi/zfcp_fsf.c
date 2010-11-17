@@ -851,7 +851,7 @@ struct zfcp_fsf_req *zfcp_fsf_abort_fcp_cmnd(struct scsi_cmnd *scmnd)
 
 	zfcp_qdio_set_sbale_last(qdio, &req->qdio_req);
 
-	req->data = zfcp_sdev;
+	req->data = sdev;
 	req->handler = zfcp_fsf_abort_fcp_command_handler;
 	req->qtcb->header.lun_handle = zfcp_sdev->lun_handle;
 	req->qtcb->header.port_handle = zfcp_sdev->port->handle;
