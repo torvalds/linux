@@ -22,7 +22,6 @@
 
 #include <linux/kvm_host.h>
 #include "kvm_cache_regs.h"
-#define DPRINTF(x...) do {} while (0)
 #include <linux/module.h>
 #include <asm/kvm_emulate.h>
 
@@ -2796,10 +2795,8 @@ done_prefixes:
 	c->execute = opcode.u.execute;
 
 	/* Unrecognised? */
-	if (c->d == 0 || (c->d & Undefined)) {
-		DPRINTF("Cannot emulate %02x\n", c->b);
+	if (c->d == 0 || (c->d & Undefined))
 		return -1;
-	}
 
 	if (mode == X86EMUL_MODE_PROT64 && (c->d & Stack))
 		c->op_bytes = 8;
@@ -3261,7 +3258,6 @@ special_insn:
 		break;
 	case 0xa6 ... 0xa7:	/* cmps */
 		c->dst.type = OP_NONE; /* Disable writeback. */
-		DPRINTF("cmps: mem1=0x%p mem2=0x%p\n", c->src.addr.mem, c->dst.addr.mem);
 		goto cmp;
 	case 0xa8 ... 0xa9:	/* test ax, imm */
 		goto test;
@@ -3778,6 +3774,5 @@ twobyte_insn:
 	goto writeback;
 
 cannot_emulate:
-	DPRINTF("Cannot emulate %02x\n", c->b);
 	return -1;
 }
