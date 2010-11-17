@@ -604,6 +604,7 @@ asmlinkage void __init start_kernel(void)
 				"enabled *very* early, fixing it\n");
 		local_irq_disable();
 	}
+	idr_init_cache();
 	perf_event_init();
 	rcu_init();
 	radix_tree_init();
@@ -660,7 +661,6 @@ asmlinkage void __init start_kernel(void)
 	enable_debug_pagealloc();
 	kmemleak_init();
 	debug_objects_mem_init();
-	idr_init_cache();
 	setup_per_cpu_pageset();
 	numa_policy_init();
 	if (late_time_init)
