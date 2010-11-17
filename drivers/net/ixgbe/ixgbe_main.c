@@ -704,8 +704,8 @@ static inline bool ixgbe_check_tx_hang(struct ixgbe_adapter *adapter,
 		      "  time_stamp           <%lx>\n"
 		      "  jiffies              <%lx>\n",
 		      tx_ring->queue_index,
-		      IXGBE_READ_REG(hw, tx_ring->head),
-		      IXGBE_READ_REG(hw, tx_ring->tail),
+		      IXGBE_READ_REG(hw, IXGBE_TDH(tx_ring->reg_idx)),
+		      IXGBE_READ_REG(hw, IXGBE_TDT(tx_ring->reg_idx)),
 		      tx_ring->next_to_use, eop,
 		      tx_ring->tx_buffer_info[eop].time_stamp, jiffies);
 		return true;
@@ -991,8 +991,7 @@ static inline void ixgbe_rx_checksum(struct ixgbe_adapter *adapter,
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
-static inline void ixgbe_release_rx_desc(struct ixgbe_hw *hw,
-					 struct ixgbe_ring *rx_ring, u32 val)
+static inline void ixgbe_release_rx_desc(struct ixgbe_ring *rx_ring, u32 val)
 {
 	/*
 	 * Force memory writes to complete before letting h/w
@@ -1001,7 +1000,7 @@ static inline void ixgbe_release_rx_desc(struct ixgbe_hw *hw,
 	 * such as IA-64).
 	 */
 	wmb();
-	IXGBE_WRITE_REG(hw, IXGBE_RDT(rx_ring->reg_idx), val);
+	writel(val, rx_ring->tail);
 }
 
 /**
@@ -1089,7 +1088,7 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 no_buffers:
 	if (rx_ring->next_to_use != i) {
 		rx_ring->next_to_use = i;
-		ixgbe_release_rx_desc(&adapter->hw, rx_ring, i);
+		ixgbe_release_rx_desc(rx_ring, i);
 	}
 }
 
@@ -2465,8 +2464,7 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 			ring->count * sizeof(union ixgbe_adv_tx_desc));
 	IXGBE_WRITE_REG(hw, IXGBE_TDH(reg_idx), 0);
 	IXGBE_WRITE_REG(hw, IXGBE_TDT(reg_idx), 0);
-	ring->head = IXGBE_TDH(reg_idx);
-	ring->tail = IXGBE_TDT(reg_idx);
+	ring->tail = hw->hw_addr + IXGBE_TDT(reg_idx);
 
 	/* configure fetching thresholds */
 	if (adapter->rx_itr_setting == 0) {
@@ -2791,8 +2789,7 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 			ring->count * sizeof(union ixgbe_adv_rx_desc));
 	IXGBE_WRITE_REG(hw, IXGBE_RDH(reg_idx), 0);
 	IXGBE_WRITE_REG(hw, IXGBE_RDT(reg_idx), 0);
-	ring->head = IXGBE_RDH(reg_idx);
-	ring->tail = IXGBE_RDT(reg_idx);
+	ring->tail = hw->hw_addr + IXGBE_RDT(reg_idx);
 
 	ixgbe_configure_srrctl(adapter, ring);
 	ixgbe_configure_rscctl(adapter, ring);
@@ -3730,11 +3727,6 @@ static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
 
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
-
-	if (rx_ring->head)
-		writel(0, adapter->hw.hw_addr + rx_ring->head);
-	if (rx_ring->tail)
-		writel(0, adapter->hw.hw_addr + rx_ring->tail);
 }
 
 /**
@@ -3767,11 +3759,6 @@ static void ixgbe_clean_tx_ring(struct ixgbe_adapter *adapter,
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
-
-	if (tx_ring->head)
-		writel(0, adapter->hw.hw_addr + tx_ring->head);
-	if (tx_ring->tail)
-		writel(0, adapter->hw.hw_addr + tx_ring->tail);
 }
 
 /**
@@ -6116,8 +6103,7 @@ dma_error:
 	return 0;
 }
 
-static void ixgbe_tx_queue(struct ixgbe_adapter *adapter,
-			   struct ixgbe_ring *tx_ring,
+static void ixgbe_tx_queue(struct ixgbe_ring *tx_ring,
 			   int tx_flags, int count, u32 paylen, u8 hdr_len)
 {
 	union ixgbe_adv_tx_desc *tx_desc = NULL;
@@ -6182,7 +6168,7 @@ static void ixgbe_tx_queue(struct ixgbe_adapter *adapter,
 	wmb();
 
 	tx_ring->next_to_use = i;
-	writel(i, adapter->hw.hw_addr + tx_ring->tail);
+	writel(i, tx_ring->tail);
 }
 
 static void ixgbe_atr(struct ixgbe_adapter *adapter, struct sk_buff *skb,
@@ -6414,8 +6400,7 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb, struct net_device *netdev
 		txq = netdev_get_tx_queue(netdev, tx_ring->queue_index);
 		txq->tx_bytes += skb->len;
 		txq->tx_packets++;
-		ixgbe_tx_queue(adapter, tx_ring, tx_flags, count, skb->len,
-			       hdr_len);
+		ixgbe_tx_queue(tx_ring, tx_flags, count, skb->len, hdr_len);
 		ixgbe_maybe_stop_tx(netdev, tx_ring, DESC_NEEDED);
 
 	} else {

@@ -163,8 +163,7 @@ struct ixgbe_ring {
 
 #define IXGBE_RING_RX_PS_ENABLED                (u8)(1)
 	u8 flags;			/* per ring feature flags */
-	u16 head;
-	u16 tail;
+	u8 __iomem *tail;
 
 	unsigned int total_bytes;
 	unsigned int total_packets;
