@@ -472,7 +472,7 @@ extern void ixgbe_unmap_and_free_tx_resource(struct ixgbe_adapter *,
                                              struct ixgbe_tx_buffer *);
 extern void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
                                    struct ixgbe_ring *rx_ring,
-                                   int cleaned_count);
+				   u16 cleaned_count);
 extern void ixgbe_write_eitr(struct ixgbe_q_vector *);
 extern int ethtool_ioctl(struct ifreq *ifr);
 extern s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw);

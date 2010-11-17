@@ -1010,63 +1010,70 @@ static inline void ixgbe_release_rx_desc(struct ixgbe_hw *hw,
  **/
 void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 			    struct ixgbe_ring *rx_ring,
-			    int cleaned_count)
+			    u16 cleaned_count)
 {
-	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	union ixgbe_adv_rx_desc *rx_desc;
 	struct ixgbe_rx_buffer *bi;
-	unsigned int i;
-	unsigned int bufsz = rx_ring->rx_buf_len;
-
-	i = rx_ring->next_to_use;
-	bi = &rx_ring->rx_buffer_info[i];
+	struct sk_buff *skb;
+	u16 i = rx_ring->next_to_use;
 
 	while (cleaned_count--) {
 		rx_desc = IXGBE_RX_DESC_ADV(rx_ring, i);
+		bi = &rx_ring->rx_buffer_info[i];
+		skb = bi->skb;
 
-		if (!bi->page_dma &&
-		    (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED)) {
-			if (!bi->page) {
-				bi->page = netdev_alloc_page(netdev);
-				if (!bi->page) {
-					adapter->alloc_rx_page_failed++;
-					goto no_buffers;
-				}
-				bi->page_offset = 0;
-			} else {
-				/* use a half page if we're re-using */
-				bi->page_offset ^= (PAGE_SIZE / 2);
-			}
-
-			bi->page_dma = dma_map_page(&pdev->dev, bi->page,
-						    bi->page_offset,
-						    (PAGE_SIZE / 2),
-						    DMA_FROM_DEVICE);
-		}
-
-		if (!bi->skb) {
-			struct sk_buff *skb = netdev_alloc_skb_ip_align(netdev,
-									bufsz);
-			bi->skb = skb;
-
+		if (!skb) {
+			skb = netdev_alloc_skb_ip_align(adapter->netdev,
+							rx_ring->rx_buf_len);
 			if (!skb) {
 				adapter->alloc_rx_buff_failed++;
 				goto no_buffers;
 			}
 			/* initialize queue mapping */
 			skb_record_rx_queue(skb, rx_ring->queue_index);
+			bi->skb = skb;
 		}
 
 		if (!bi->dma) {
 			bi->dma = dma_map_single(&pdev->dev,
-						 bi->skb->data,
+						 skb->data,
 						 rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev, bi->dma)) {
+				adapter->alloc_rx_buff_failed++;
+				bi->dma = 0;
+				goto no_buffers;
+			}
 		}
-		/* Refresh the desc even if buffer_addrs didn't change because
-		 * each write-back erases this info. */
+
 		if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED) {
+			if (!bi->page) {
+				bi->page = netdev_alloc_page(adapter->netdev);
+				if (!bi->page) {
+					adapter->alloc_rx_page_failed++;
+					goto no_buffers;
+				}
+			}
+
+			if (!bi->page_dma) {
+				/* use a half page if we're re-using */
+				bi->page_offset ^= PAGE_SIZE / 2;
+				bi->page_dma = dma_map_page(&pdev->dev,
+							    bi->page,
+							    bi->page_offset,
+							    PAGE_SIZE / 2,
+							    DMA_FROM_DEVICE);
+				if (dma_mapping_error(&pdev->dev,
+						      bi->page_dma)) {
+					adapter->alloc_rx_page_failed++;
+					bi->page_dma = 0;
+					goto no_buffers;
+				}
+			}
+
+			/* Refresh the desc even if buffer_addrs didn't change
+			 * because each write-back erases this info. */
 			rx_desc->read.pkt_addr = cpu_to_le64(bi->page_dma);
 			rx_desc->read.hdr_addr = cpu_to_le64(bi->dma);
 		} else {
@@ -1077,15 +1084,11 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
 		i++;
 		if (i == rx_ring->count)
 			i = 0;
-		bi = &rx_ring->rx_buffer_info[i];
 	}
 
 no_buffers:
 	if (rx_ring->next_to_use != i) {
 		rx_ring->next_to_use = i;
-		if (i-- == 0)
-			i = (rx_ring->count - 1);
-
 		ixgbe_release_rx_desc(&adapter->hw, rx_ring, i);
 	}
 }
