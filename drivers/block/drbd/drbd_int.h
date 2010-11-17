@@ -2309,15 +2309,21 @@ static inline int __inc_ap_bio_cond(struct drbd_conf *mdev)
 	return 1;
 }
 
-/* I'd like to use wait_event_lock_irq,
- * but I'm not sure when it got introduced,
- * and not sure when it has 3 or 4 arguments */
+static inline int _inc_ap_bio_cond(struct drbd_conf *mdev, int count)
+{
+	int rv = 0;
+
+	spin_lock_irq(&mdev->req_lock);
+	rv = __inc_ap_bio_cond(mdev);
+	if (rv)
+		atomic_add(count, &mdev->ap_bio_cnt);
+	spin_unlock_irq(&mdev->req_lock);
+
+	return rv;
+}
+
 static inline void inc_ap_bio(struct drbd_conf *mdev, int count)
 {
-	/* compare with after_state_ch,
-	 * os.conn != C_WF_BITMAP_S && ns.conn == C_WF_BITMAP_S */
-	DEFINE_WAIT(wait);
-
 	/* we wait here
 	 *    as long as the device is suspended
 	 *    until the bitmap is no longer on the fly during connection
@@ -2326,16 +2332,7 @@ static inline void inc_ap_bio(struct drbd_conf *mdev, int count)
 	 * to avoid races with the reconnect code,
 	 * we need to atomic_inc within the spinlock. */
 
-	spin_lock_irq(&mdev->req_lock);
-	while (!__inc_ap_bio_cond(mdev)) {
-		prepare_to_wait(&mdev->misc_wait, &wait, TASK_UNINTERRUPTIBLE);
-		spin_unlock_irq(&mdev->req_lock);
-		schedule();
-		finish_wait(&mdev->misc_wait, &wait);
-		spin_lock_irq(&mdev->req_lock);
-	}
-	atomic_add(count, &mdev->ap_bio_cnt);
-	spin_unlock_irq(&mdev->req_lock);
+	wait_event(mdev->misc_wait, _inc_ap_bio_cond(mdev, count));
 }
 
 static inline void dec_ap_bio(struct drbd_conf *mdev)
