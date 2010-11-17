@@ -1047,7 +1047,7 @@ static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
 
 	snprintf(ir->name, sizeof(ir->name), "%s (%04x:%04x)",
 		 mceusb_model[ir->model].name ?
-		 	mceusb_model[ir->model].name :
+			mceusb_model[ir->model].name :
 			"Media Center Ed. eHome Infrared Remote Transceiver",
 		 le16_to_cpu(ir->usbdev->descriptor.idVendor),
 		 le16_to_cpu(ir->usbdev->descriptor.idProduct));
