@@ -58,7 +58,7 @@ static struct rc_keymap apac_viewcomp_map = {
 	.map = {
 		.scan    = apac_viewcomp,
 		.size    = ARRAY_SIZE(apac_viewcomp),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_APAC_VIEWCOMP,
 	}
 };

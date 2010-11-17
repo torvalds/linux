@@ -51,7 +51,7 @@ static struct rc_keymap pinnacle_pctv_hd_map = {
 	.map = {
 		.scan    = pinnacle_pctv_hd,
 		.size    = ARRAY_SIZE(pinnacle_pctv_hd),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_PINNACLE_PCTV_HD,
 	}
 };

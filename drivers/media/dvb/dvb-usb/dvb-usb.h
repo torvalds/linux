@@ -190,7 +190,7 @@ struct dvb_rc {
 	char *rc_codes;
 	u64 protocol;
 	u64 allowed_protos;
-	int (*change_protocol)(struct rc_dev *dev, u64 ir_type);
+	int (*change_protocol)(struct rc_dev *dev, u64 rc_type);
 	char *module_name;
 	int (*rc_query) (struct dvb_usb_device *d);
 	int rc_interval;

@@ -69,7 +69,7 @@ static struct rc_keymap asus_pc39_map = {
 	.map = {
 		.scan    = asus_pc39,
 		.size    = ARRAY_SIZE(asus_pc39),
-		.ir_type = IR_TYPE_RC5,
+		.rc_type = RC_TYPE_RC5,
 		.name    = RC_MAP_ASUS_PC39,
 	}
 };

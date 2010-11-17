@@ -56,7 +56,7 @@ static struct rc_keymap real_audio_220_32_keys_map = {
 	.map = {
 		.scan    = real_audio_220_32_keys,
 		.size    = ARRAY_SIZE(real_audio_220_32_keys),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_REAL_AUDIO_220_32_KEYS,
 	}
 };

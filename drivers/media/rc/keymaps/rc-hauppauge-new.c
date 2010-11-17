@@ -78,7 +78,7 @@ static struct rc_keymap hauppauge_new_map = {
 	.map = {
 		.scan    = hauppauge_new,
 		.size    = ARRAY_SIZE(hauppauge_new),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_HAUPPAUGE_NEW,
 	}
 };

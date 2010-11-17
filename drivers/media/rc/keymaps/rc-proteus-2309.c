@@ -47,7 +47,7 @@ static struct rc_keymap proteus_2309_map = {
 	.map = {
 		.scan    = proteus_2309,
 		.size    = ARRAY_SIZE(proteus_2309),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_PROTEUS_2309,
 	}
 };

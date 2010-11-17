@@ -269,7 +269,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	char *ir_codes = NULL;
 	const char *name = NULL;
-	u64 ir_type = IR_TYPE_UNKNOWN;
+	u64 rc_type = RC_TYPE_UNKNOWN;
 	struct IR_i2c *ir;
 	struct rc_dev *rc = NULL;
 	struct i2c_adapter *adap = client->adapter;
@@ -288,7 +288,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	case 0x64:
 		name        = "Pixelview";
 		ir->get_key = get_key_pixelview;
-		ir_type     = IR_TYPE_OTHER;
+		rc_type     = RC_TYPE_OTHER;
 		ir_codes    = RC_MAP_EMPTY;
 		break;
 	case 0x18:
@@ -296,7 +296,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	case 0x1a:
 		name        = "Hauppauge";
 		ir->get_key = get_key_haup;
-		ir_type     = IR_TYPE_RC5;
+		rc_type     = RC_TYPE_RC5;
 		if (hauppauge == 1) {
 			ir_codes    = RC_MAP_HAUPPAUGE_NEW;
 		} else {
@@ -306,19 +306,19 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	case 0x30:
 		name        = "KNC One";
 		ir->get_key = get_key_knc1;
-		ir_type     = IR_TYPE_OTHER;
+		rc_type     = RC_TYPE_OTHER;
 		ir_codes    = RC_MAP_EMPTY;
 		break;
 	case 0x6b:
 		name        = "FusionHDTV";
 		ir->get_key = get_key_fusionhdtv;
-		ir_type     = IR_TYPE_RC5;
+		rc_type     = RC_TYPE_RC5;
 		ir_codes    = RC_MAP_FUSIONHDTV_MCE;
 		break;
 	case 0x40:
 		name        = "AVerMedia Cardbus remote";
 		ir->get_key = get_key_avermedia_cardbus;
-		ir_type     = IR_TYPE_OTHER;
+		rc_type     = RC_TYPE_OTHER;
 		ir_codes    = RC_MAP_AVERMEDIA_CARDBUS;
 		break;
 	}
@@ -333,7 +333,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 		name = init_data->name;
 		if (init_data->type)
-			ir_type = init_data->type;
+			rc_type = init_data->type;
 
 		if (init_data->polling_interval)
 			ir->polling_interval = init_data->polling_interval;
@@ -378,7 +378,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	ir->rc = rc;
 
 	/* Make sure we are all setup before going on */
-	if (!name || !ir->get_key || !ir_type || !ir_codes) {
+	if (!name || !ir->get_key || !rc_type || !ir_codes) {
 		dprintk(1, ": Unsupported device at address 0x%02x\n",
 			addr);
 		err = -ENODEV;
@@ -405,7 +405,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 * Initialize the other fields of rc_dev
 	 */
 	rc->map_name       = ir->ir_codes;
-	rc->allowed_protos = ir_type;
+	rc->allowed_protos = rc_type;
 	if (!rc->driver_name)
 		rc->driver_name = MODULE_NAME;
 

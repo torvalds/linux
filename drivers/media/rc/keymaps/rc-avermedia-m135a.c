@@ -125,7 +125,7 @@ static struct rc_keymap avermedia_m135a_map = {
 	.map = {
 		.scan    = avermedia_m135a,
 		.size    = ARRAY_SIZE(avermedia_m135a),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_AVERMEDIA_M135A,
 	}
 };

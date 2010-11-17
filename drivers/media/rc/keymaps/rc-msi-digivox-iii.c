@@ -63,7 +63,7 @@ static struct rc_keymap msi_digivox_iii_map = {
 	.map = {
 		.scan    = msi_digivox_iii,
 		.size    = ARRAY_SIZE(msi_digivox_iii),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_MSI_DIGIVOX_III,
 	}
 };

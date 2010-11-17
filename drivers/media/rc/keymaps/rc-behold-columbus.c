@@ -86,7 +86,7 @@ static struct rc_keymap behold_columbus_map = {
 	.map = {
 		.scan    = behold_columbus,
 		.size    = ARRAY_SIZE(behold_columbus),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_BEHOLD_COLUMBUS,
 	}
 };

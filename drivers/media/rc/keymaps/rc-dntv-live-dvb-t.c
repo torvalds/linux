@@ -56,7 +56,7 @@ static struct rc_keymap dntv_live_dvb_t_map = {
 	.map = {
 		.scan    = dntv_live_dvb_t,
 		.size    = ARRAY_SIZE(dntv_live_dvb_t),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_DNTV_LIVE_DVB_T,
 	}
 };

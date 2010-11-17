@@ -77,7 +77,7 @@ static struct rc_keymap kworld_plus_tv_analog_map = {
 	.map = {
 		.scan    = kworld_plus_tv_analog,
 		.size    = ARRAY_SIZE(kworld_plus_tv_analog),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_KWORLD_PLUS_TV_ANALOG,
 	}
 };

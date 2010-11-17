@@ -73,7 +73,7 @@ static struct rc_keymap avermedia_m733a_rm_k6_map = {
 	.map = {
 		.scan    = avermedia_m733a_rm_k6,
 		.size    = ARRAY_SIZE(avermedia_m733a_rm_k6),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_AVERMEDIA_M733A_RM_K6,
 	}
 };

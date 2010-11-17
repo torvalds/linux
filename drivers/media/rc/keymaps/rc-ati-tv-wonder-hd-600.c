@@ -47,7 +47,7 @@ static struct rc_keymap ati_tv_wonder_hd_600_map = {
 	.map = {
 		.scan    = ati_tv_wonder_hd_600,
 		.size    = ARRAY_SIZE(ati_tv_wonder_hd_600),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_ATI_TV_WONDER_HD_600,
 	}
 };

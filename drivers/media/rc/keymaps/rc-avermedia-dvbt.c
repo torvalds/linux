@@ -56,7 +56,7 @@ static struct rc_keymap avermedia_dvbt_map = {
 	.map = {
 		.scan    = avermedia_dvbt,
 		.size    = ARRAY_SIZE(avermedia_dvbt),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_AVERMEDIA_DVBT,
 	}
 };

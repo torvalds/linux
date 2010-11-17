@@ -67,7 +67,7 @@ static struct rc_keymap adstech_dvb_t_pci_map = {
 	.map = {
 		.scan    = adstech_dvb_t_pci,
 		.size    = ARRAY_SIZE(adstech_dvb_t_pci),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_ADSTECH_DVB_T_PCI,
 	}
 };

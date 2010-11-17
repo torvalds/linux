@@ -47,7 +47,7 @@ static struct rc_keymap msi_tvanywhere_map = {
 	.map = {
 		.scan    = msi_tvanywhere,
 		.size    = ARRAY_SIZE(msi_tvanywhere),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_MSI_TVANYWHERE,
 	}
 };

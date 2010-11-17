@@ -74,7 +74,7 @@ static struct rc_keymap eztv_map = {
 	.map = {
 		.scan    = eztv,
 		.size    = ARRAY_SIZE(eztv),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_EZTV,
 	}
 };

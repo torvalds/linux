@@ -99,7 +99,7 @@ static struct rc_keymap ir_mantis_map = {
 	.map = {
 		.scan = mantis_ir_table,
 		.size = ARRAY_SIZE(mantis_ir_table),
-		.ir_type = IR_TYPE_UNKNOWN,
+		.rc_type = RC_TYPE_UNKNOWN,
 		.name = RC_MAP_MANTIS,
 	}
 };

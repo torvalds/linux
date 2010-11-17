@@ -60,7 +60,7 @@ static struct rc_keymap tt_1500_map = {
 	.map = {
 		.scan    = tt_1500,
 		.size    = ARRAY_SIZE(tt_1500),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_TT_1500,
 	}
 };

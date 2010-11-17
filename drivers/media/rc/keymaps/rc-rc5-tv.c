@@ -59,7 +59,7 @@ static struct rc_keymap rc5_tv_map = {
 	.map = {
 		.scan    = rc5_tv,
 		.size    = ARRAY_SIZE(rc5_tv),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_RC5_TV,
 	}
 };

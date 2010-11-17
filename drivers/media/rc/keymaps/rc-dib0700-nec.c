@@ -102,7 +102,7 @@ static struct rc_keymap dib0700_nec_map = {
 	.map = {
 		.scan    = dib0700_nec_table,
 		.size    = ARRAY_SIZE(dib0700_nec_table),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_DIB0700_NEC_TABLE,
 	}
 };

@@ -53,7 +53,7 @@ static struct rc_keymap avermedia_a16d_map = {
 	.map = {
 		.scan    = avermedia_a16d,
 		.size    = ARRAY_SIZE(avermedia_a16d),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_AVERMEDIA_A16D,
 	}
 };

@@ -91,7 +91,7 @@ static struct rc_keymap rc6_mce_map = {
 	.map = {
 		.scan    = rc6_mce,
 		.size    = ARRAY_SIZE(rc6_mce),
-		.ir_type = IR_TYPE_RC6,
+		.rc_type = RC_TYPE_RC6,
 		.name    = RC_MAP_RC6_MCE,
 	}
 };

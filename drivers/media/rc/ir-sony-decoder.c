@@ -44,7 +44,7 @@ static int ir_sony_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u32 scancode;
 	u8 device, subdevice, function;
 
-	if (!(dev->raw->enabled_protocols & IR_TYPE_SONY))
+	if (!(dev->raw->enabled_protocols & RC_TYPE_SONY))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -156,7 +156,7 @@ out:
 }
 
 static struct ir_raw_handler sony_handler = {
-	.protocols	= IR_TYPE_SONY,
+	.protocols	= RC_TYPE_SONY,
 	.decode		= ir_sony_decode,
 };
 

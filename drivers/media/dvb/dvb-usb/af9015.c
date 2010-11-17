@@ -1344,11 +1344,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.identify_state = af9015_identify_state,
 
 		.rc.core = {
-			.protocol         = IR_TYPE_NEC,
+			.protocol         = RC_TYPE_NEC,
 			.module_name      = "af9015",
 			.rc_query         = af9015_rc_query,
 			.rc_interval      = AF9015_RC_INTERVAL,
-			.allowed_protos   = IR_TYPE_NEC,
+			.allowed_protos   = RC_TYPE_NEC,
 		},
 
 		.i2c_algo = &af9015_i2c_algo,
@@ -1472,11 +1472,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.identify_state = af9015_identify_state,
 
 		.rc.core = {
-			.protocol         = IR_TYPE_NEC,
+			.protocol         = RC_TYPE_NEC,
 			.module_name      = "af9015",
 			.rc_query         = af9015_rc_query,
 			.rc_interval      = AF9015_RC_INTERVAL,
-			.allowed_protos   = IR_TYPE_NEC,
+			.allowed_protos   = RC_TYPE_NEC,
 		},
 
 		.i2c_algo = &af9015_i2c_algo,
@@ -1584,11 +1584,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.identify_state = af9015_identify_state,
 
 		.rc.core = {
-			.protocol         = IR_TYPE_NEC,
+			.protocol         = RC_TYPE_NEC,
 			.module_name      = "af9015",
 			.rc_query         = af9015_rc_query,
 			.rc_interval      = AF9015_RC_INTERVAL,
-			.allowed_protos   = IR_TYPE_NEC,
+			.allowed_protos   = RC_TYPE_NEC,
 		},
 
 		.i2c_algo = &af9015_i2c_algo,

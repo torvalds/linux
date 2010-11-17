@@ -67,7 +67,7 @@ static struct rc_keymap pinnacle_grey_map = {
 	.map = {
 		.scan    = pinnacle_grey,
 		.size    = ARRAY_SIZE(pinnacle_grey),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_PINNACLE_GREY,
 	}
 };

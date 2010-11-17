@@ -11,19 +11,19 @@
 
 #include <linux/input.h>
 
-#define IR_TYPE_UNKNOWN	0
-#define IR_TYPE_RC5	(1  << 0)	/* Philips RC5 protocol */
-#define IR_TYPE_NEC	(1  << 1)
-#define IR_TYPE_RC6	(1  << 2)	/* Philips RC6 protocol */
-#define IR_TYPE_JVC	(1  << 3)	/* JVC protocol */
-#define IR_TYPE_SONY	(1  << 4)	/* Sony12/15/20 protocol */
-#define IR_TYPE_RC5_SZ	(1  << 5)	/* RC5 variant used by Streamzap */
-#define IR_TYPE_LIRC	(1  << 30)	/* Pass raw IR to lirc userspace */
-#define IR_TYPE_OTHER	(1u << 31)
+#define RC_TYPE_UNKNOWN	0
+#define RC_TYPE_RC5	(1  << 0)	/* Philips RC5 protocol */
+#define RC_TYPE_NEC	(1  << 1)
+#define RC_TYPE_RC6	(1  << 2)	/* Philips RC6 protocol */
+#define RC_TYPE_JVC	(1  << 3)	/* JVC protocol */
+#define RC_TYPE_SONY	(1  << 4)	/* Sony12/15/20 protocol */
+#define RC_TYPE_RC5_SZ	(1  << 5)	/* RC5 variant used by Streamzap */
+#define RC_TYPE_LIRC	(1  << 30)	/* Pass raw IR to lirc userspace */
+#define RC_TYPE_OTHER	(1u << 31)
 
-#define IR_TYPE_ALL (IR_TYPE_RC5 | IR_TYPE_NEC  | IR_TYPE_RC6  | \
-		     IR_TYPE_JVC | IR_TYPE_SONY | IR_TYPE_LIRC | \
-		     IR_TYPE_RC5_SZ | IR_TYPE_OTHER)
+#define RC_TYPE_ALL (RC_TYPE_RC5 | RC_TYPE_NEC  | RC_TYPE_RC6  | \
+		     RC_TYPE_JVC | RC_TYPE_SONY | RC_TYPE_LIRC | \
+		     RC_TYPE_RC5_SZ | RC_TYPE_OTHER)
 
 struct ir_scancode {
 	u32	scancode;
@@ -35,7 +35,7 @@ struct ir_scancode_table {
 	unsigned int		size;	/* Max number of entries */
 	unsigned int		len;	/* Used number of entries */
 	unsigned int		alloc;	/* Size of *scan in bytes */
-	u64			ir_type;
+	u64			rc_type;
 	const char		*name;
 	spinlock_t		lock;
 };

@@ -50,7 +50,7 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u32 scancode;
 	u8 address, not_address, command, not_command;
 
-	if (!(dev->raw->enabled_protocols & IR_TYPE_NEC))
+	if (!(dev->raw->enabled_protocols & RC_TYPE_NEC))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -190,7 +190,7 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 }
 
 static struct ir_raw_handler nec_handler = {
-	.protocols	= IR_TYPE_NEC,
+	.protocols	= RC_TYPE_NEC,
 	.decode		= ir_nec_decode,
 };
 

@@ -57,7 +57,7 @@ static struct rc_keymap terratec_slim_map = {
 	.map = {
 		.scan    = terratec_slim,
 		.size    = ARRAY_SIZE(terratec_slim),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_TERRATEC_SLIM,
 	}
 };

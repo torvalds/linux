@@ -343,7 +343,7 @@ static void em28xx_ir_stop(struct rc_dev *rc)
 	cancel_delayed_work_sync(&ir->work);
 }
 
-int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 ir_type)
+int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 rc_type)
 {
 	int rc = 0;
 	struct em28xx_IR *ir = rc_dev->priv;
@@ -352,14 +352,14 @@ int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 ir_type)
 
 	/* Adjust xclk based o IR table for RC5/NEC tables */
 
-	if (ir_type == IR_TYPE_RC5) {
+	if (rc_type == RC_TYPE_RC5) {
 		dev->board.xclk |= EM28XX_XCLK_IR_RC5_MODE;
 		ir->full_code = 1;
-	} else if (ir_type == IR_TYPE_NEC) {
+	} else if (rc_type == RC_TYPE_NEC) {
 		dev->board.xclk &= ~EM28XX_XCLK_IR_RC5_MODE;
 		ir_config = EM2874_IR_NEC;
 		ir->full_code = 1;
-	} else if (ir_type != IR_TYPE_UNKNOWN)
+	} else if (rc_type != RC_TYPE_UNKNOWN)
 		rc = -EINVAL;
 
 	em28xx_write_reg_bits(dev, EM28XX_R0F_XCLK, dev->board.xclk,
@@ -408,14 +408,14 @@ int em28xx_ir_init(struct em28xx *dev)
 	 * em2874 supports more protocols. For now, let's just announce
 	 * the two protocols that were already tested
 	 */
-	rc->allowed_protos = IR_TYPE_RC5 | IR_TYPE_NEC;
+	rc->allowed_protos = RC_TYPE_RC5 | RC_TYPE_NEC;
 	rc->priv = ir;
 	rc->change_protocol = em28xx_ir_change_protocol;
 	rc->open = em28xx_ir_start;
 	rc->close = em28xx_ir_stop;
 
 	/* By default, keep protocol field untouched */
-	err = em28xx_ir_change_protocol(rc, IR_TYPE_UNKNOWN);
+	err = em28xx_ir_change_protocol(rc, RC_TYPE_UNKNOWN);
 	if (err)
 		goto err_out_free;
 

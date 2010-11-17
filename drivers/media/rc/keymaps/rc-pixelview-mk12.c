@@ -61,7 +61,7 @@ static struct rc_keymap pixelview_map = {
 	.map = {
 		.scan    = pixelview_mk12,
 		.size    = ARRAY_SIZE(pixelview_mk12),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_PIXELVIEW_MK12,
 	}
 };

@@ -57,7 +57,7 @@ static struct rc_keymap gotview7135_map = {
 	.map = {
 		.scan    = gotview7135,
 		.size    = ARRAY_SIZE(gotview7135),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_GOTVIEW7135,
 	}
 };

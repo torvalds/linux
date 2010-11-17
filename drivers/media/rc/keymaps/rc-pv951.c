@@ -56,7 +56,7 @@ static struct rc_keymap pv951_map = {
 	.map = {
 		.scan    = pv951,
 		.size    = ARRAY_SIZE(pv951),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_PV951,
 	}
 };

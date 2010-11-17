@@ -58,7 +58,7 @@ static struct rc_keymap trekstor_map = {
 	.map = {
 		.scan    = trekstor,
 		.size    = ARRAY_SIZE(trekstor),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_TREKSTOR,
 	}
 };

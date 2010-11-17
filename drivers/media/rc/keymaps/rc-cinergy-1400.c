@@ -62,7 +62,7 @@ static struct rc_keymap cinergy_1400_map = {
 	.map = {
 		.scan    = cinergy_1400,
 		.size    = ARRAY_SIZE(cinergy_1400),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_CINERGY_1400,
 	}
 };

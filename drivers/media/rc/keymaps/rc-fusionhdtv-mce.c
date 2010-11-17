@@ -76,7 +76,7 @@ static struct rc_keymap fusionhdtv_mce_map = {
 	.map = {
 		.scan    = fusionhdtv_mce,
 		.size    = ARRAY_SIZE(fusionhdtv_mce),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_FUSIONHDTV_MCE,
 	}
 };

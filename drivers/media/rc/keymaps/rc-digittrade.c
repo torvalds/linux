@@ -60,7 +60,7 @@ static struct rc_keymap digittrade_map = {
 	.map = {
 		.scan    = digittrade,
 		.size    = ARRAY_SIZE(digittrade),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_DIGITTRADE,
 	}
 };

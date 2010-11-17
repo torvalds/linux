@@ -48,7 +48,7 @@ static struct rc_keymap flyvideo_map = {
 	.map = {
 		.scan    = flyvideo,
 		.size    = ARRAY_SIZE(flyvideo),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_FLYVIDEO,
 	}
 };

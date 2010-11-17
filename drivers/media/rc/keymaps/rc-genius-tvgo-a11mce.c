@@ -62,7 +62,7 @@ static struct rc_keymap genius_tvgo_a11mce_map = {
 	.map = {
 		.scan    = genius_tvgo_a11mce,
 		.size    = ARRAY_SIZE(genius_tvgo_a11mce),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_GENIUS_TVGO_A11MCE,
 	}
 };

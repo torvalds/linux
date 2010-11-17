@@ -70,7 +70,7 @@ static struct rc_keymap budget_ci_old_map = {
 	.map = {
 		.scan    = budget_ci_old,
 		.size    = ARRAY_SIZE(budget_ci_old),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_BUDGET_CI_OLD,
 	}
 };

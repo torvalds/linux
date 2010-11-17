@@ -65,7 +65,7 @@ static struct rc_keymap twinhan_vp1027_map = {
 	.map = {
 		.scan    = twinhan_vp1027,
 		.size    = ARRAY_SIZE(twinhan_vp1027),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_TWINHAN_VP1027_DVBS,
 	}
 };

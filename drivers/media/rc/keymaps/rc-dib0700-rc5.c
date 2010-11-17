@@ -213,7 +213,7 @@ static struct rc_keymap dib0700_rc5_map = {
 	.map = {
 		.scan    = dib0700_rc5_table,
 		.size    = ARRAY_SIZE(dib0700_rc5_table),
-		.ir_type = IR_TYPE_RC5,
+		.rc_type = RC_TYPE_RC5,
 		.name    = RC_MAP_DIB0700_RC5_TABLE,
 	}
 };

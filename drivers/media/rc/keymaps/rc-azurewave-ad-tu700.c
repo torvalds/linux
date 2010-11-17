@@ -80,7 +80,7 @@ static struct rc_keymap azurewave_ad_tu700_map = {
 	.map = {
 		.scan    = azurewave_ad_tu700,
 		.size    = ARRAY_SIZE(azurewave_ad_tu700),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_AZUREWAVE_AD_TU700,
 	}
 };

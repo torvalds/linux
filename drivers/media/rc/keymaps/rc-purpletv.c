@@ -59,7 +59,7 @@ static struct rc_keymap purpletv_map = {
 	.map = {
 		.scan    = purpletv,
 		.size    = ARRAY_SIZE(purpletv),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_PURPLETV,
 	}
 };

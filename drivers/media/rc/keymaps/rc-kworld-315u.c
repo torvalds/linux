@@ -61,7 +61,7 @@ static struct rc_keymap kworld_315u_map = {
 	.map = {
 		.scan    = kworld_315u,
 		.size    = ARRAY_SIZE(kworld_315u),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_KWORLD_315U,
 	}
 };

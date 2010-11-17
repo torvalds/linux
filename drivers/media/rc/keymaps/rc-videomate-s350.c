@@ -63,7 +63,7 @@ static struct rc_keymap videomate_s350_map = {
 	.map = {
 		.scan    = videomate_s350,
 		.size    = ARRAY_SIZE(videomate_s350),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_VIDEOMATE_S350,
 	}
 };

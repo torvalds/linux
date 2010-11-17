@@ -76,7 +76,7 @@ static struct rc_keymap digitalnow_tinytwin_map = {
 	.map = {
 		.scan    = digitalnow_tinytwin,
 		.size    = ARRAY_SIZE(digitalnow_tinytwin),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_DIGITALNOW_TINYTWIN,
 	}
 };

@@ -65,7 +65,7 @@ struct tm6000_IR {
 	int (*get_key) (struct tm6000_IR *, struct tm6000_ir_poll_result *);
 
 	/* IR device properties */
-	u64			ir_type;
+	u64			rc_type;
 };
 
 
@@ -143,7 +143,7 @@ static int default_polling_getkey(struct tm6000_IR *ir,
 		return 0;
 
 	if (&dev->int_in) {
-		if (ir->ir_type == IR_TYPE_RC5)
+		if (ir->rc_type == RC_TYPE_RC5)
 			poll_result->rc_data = ir->urb_data[0];
 		else
 			poll_result->rc_data = ir->urb_data[0] | ir->urb_data[1] << 8;
@@ -153,7 +153,7 @@ static int default_polling_getkey(struct tm6000_IR *ir,
 		tm6000_set_reg(dev, REQ_04_EN_DISABLE_MCU_INT, 2, 1);
 		msleep(10);
 
-		if (ir->ir_type == IR_TYPE_RC5) {
+		if (ir->rc_type == RC_TYPE_RC5) {
 			rc = tm6000_read_write_usb(dev, USB_DIR_IN |
 				USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				REQ_02_GET_IR_CODE, 0, 0, buf, 1);
@@ -230,7 +230,7 @@ static void tm6000_ir_stop(struct rc_dev *rc)
 	cancel_delayed_work_sync(&ir->work);
 }
 
-int tm6000_ir_change_protocol(struct rc_dev *rc, u64 ir_type)
+int tm6000_ir_change_protocol(struct rc_dev *rc, u64 rc_type)
 {
 	struct tm6000_IR *ir = rc->priv;
 
@@ -268,7 +268,7 @@ int tm6000_ir_init(struct tm6000_core *dev)
 	ir->rc = rc;
 
 	/* input einrichten */
-	rc->allowed_protos = IR_TYPE_RC5 | IR_TYPE_NEC;
+	rc->allowed_protos = RC_TYPE_RC5 | RC_TYPE_NEC;
 	rc->priv = ir;
 	rc->change_protocol = tm6000_ir_change_protocol;
 	rc->open = tm6000_ir_start;
@@ -283,7 +283,7 @@ int tm6000_ir_init(struct tm6000_core *dev)
 	usb_make_path(dev->udev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
-	tm6000_ir_change_protocol(rc, IR_TYPE_UNKNOWN);
+	tm6000_ir_change_protocol(rc, RC_TYPE_UNKNOWN);
 
 	rc->input_name = ir->name;
 	rc->input_phys = ir->phys;

@@ -46,7 +46,7 @@ static struct rc_keymap lme2510_map = {
 	.map = {
 		.scan    = lme2510_rc,
 		.size    = ARRAY_SIZE(lme2510_rc),
-		.ir_type = IR_TYPE_UNKNOWN,
+		.rc_type = RC_TYPE_UNKNOWN,
 		.name    = RC_MAP_LME2510,
 	}
 };

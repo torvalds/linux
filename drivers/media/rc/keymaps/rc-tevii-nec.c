@@ -66,7 +66,7 @@ static struct rc_keymap tevii_nec_map = {
 	.map = {
 		.scan    = tevii_nec,
 		.size    = ARRAY_SIZE(tevii_nec),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_TEVII_NEC,
 	}
 };

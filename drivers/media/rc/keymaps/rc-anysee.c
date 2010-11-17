@@ -71,7 +71,7 @@ static struct rc_keymap anysee_map = {
 	.map = {
 		.scan    = anysee,
 		.size    = ARRAY_SIZE(anysee),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_ANYSEE,
 	}
 };

@@ -19,7 +19,7 @@ static struct rc_keymap lirc_map = {
 	.map = {
 		.scan    = lirc,
 		.size    = ARRAY_SIZE(lirc),
-		.ir_type = IR_TYPE_LIRC,
+		.rc_type = RC_TYPE_LIRC,
 		.name    = RC_MAP_LIRC,
 	}
 };

@@ -51,7 +51,7 @@ static struct rc_keymap tbs_nec_map = {
 	.map = {
 		.scan    = tbs_nec,
 		.size    = ARRAY_SIZE(tbs_nec),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_TBS_NEC,
 	}
 };

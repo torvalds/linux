@@ -63,7 +63,7 @@ static struct rc_keymap total_media_in_hand_map = {
 	.map = {
 		.scan    = total_media_in_hand,
 		.size    = ARRAY_SIZE(total_media_in_hand),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_TOTAL_MEDIA_IN_HAND,
 	}
 };

@@ -47,7 +47,7 @@ static struct rc_keymap em_terratec_map = {
 	.map = {
 		.scan    = em_terratec,
 		.size    = ARRAY_SIZE(em_terratec),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_EM_TERRATEC,
 	}
 };

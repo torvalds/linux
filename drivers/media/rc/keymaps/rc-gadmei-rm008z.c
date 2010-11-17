@@ -59,7 +59,7 @@ static struct rc_keymap gadmei_rm008z_map = {
 	.map = {
 		.scan    = gadmei_rm008z,
 		.size    = ARRAY_SIZE(gadmei_rm008z),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_GADMEI_RM008Z,
 	}
 };

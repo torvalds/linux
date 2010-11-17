@@ -102,7 +102,7 @@ static struct rc_keymap empty_map = {
 	.map = {
 		.scan    = empty,
 		.size    = ARRAY_SIZE(empty),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_EMPTY,
 	}
 };
@@ -111,7 +111,7 @@ static struct rc_keymap empty_map = {
  * ir_create_table() - initializes a scancode table
  * @rc_tab:	the ir_scancode_table to initialize
  * @name:	name to assign to the table
- * @ir_type:	ir type to assign to the new table
+ * @rc_type:	ir type to assign to the new table
  * @size:	initial size of the table
  * @return:	zero on success or a negative error code
  *
@@ -119,10 +119,10 @@ static struct rc_keymap empty_map = {
  * memory to hold at least the specified number of elements.
  */
 static int ir_create_table(struct ir_scancode_table *rc_tab,
-			   const char *name, u64 ir_type, size_t size)
+			   const char *name, u64 rc_type, size_t size)
 {
 	rc_tab->name = name;
-	rc_tab->ir_type = ir_type;
+	rc_tab->rc_type = rc_type;
 	rc_tab->alloc = roundup_pow_of_two(size * sizeof(struct ir_scancode));
 	rc_tab->size = rc_tab->alloc / sizeof(struct ir_scancode);
 	rc_tab->scan = kmalloc(rc_tab->alloc, GFP_KERNEL);
@@ -372,7 +372,7 @@ static int ir_setkeytable(struct rc_dev *dev,
 	int rc;
 
 	rc = ir_create_table(rc_tab, from->name,
-			     from->ir_type, from->size);
+			     from->rc_type, from->size);
 	if (rc)
 		return rc;
 
@@ -719,14 +719,14 @@ static struct {
 	u64	type;
 	char	*name;
 } proto_names[] = {
-	{ IR_TYPE_UNKNOWN,	"unknown"	},
-	{ IR_TYPE_RC5,		"rc-5"		},
-	{ IR_TYPE_NEC,		"nec"		},
-	{ IR_TYPE_RC6,		"rc-6"		},
-	{ IR_TYPE_JVC,		"jvc"		},
-	{ IR_TYPE_SONY,		"sony"		},
-	{ IR_TYPE_RC5_SZ,	"rc-5-sz"	},
-	{ IR_TYPE_LIRC,		"lirc"		},
+	{ RC_TYPE_UNKNOWN,	"unknown"	},
+	{ RC_TYPE_RC5,		"rc-5"		},
+	{ RC_TYPE_NEC,		"nec"		},
+	{ RC_TYPE_RC6,		"rc-6"		},
+	{ RC_TYPE_JVC,		"jvc"		},
+	{ RC_TYPE_SONY,		"sony"		},
+	{ RC_TYPE_RC5_SZ,	"rc-5-sz"	},
+	{ RC_TYPE_LIRC,		"lirc"		},
 };
 
 #define PROTO_NONE	"none"
@@ -755,7 +755,7 @@ static ssize_t show_protocols(struct device *device,
 		return -EINVAL;
 
 	if (dev->driver_type == RC_DRIVER_SCANCODE) {
-		enabled = dev->rc_tab.ir_type;
+		enabled = dev->rc_tab.rc_type;
 		allowed = dev->allowed_protos;
 	} else {
 		enabled = dev->raw->enabled_protocols;
@@ -813,7 +813,7 @@ static ssize_t store_protocols(struct device *device,
 		return -EINVAL;
 
 	if (dev->driver_type == RC_DRIVER_SCANCODE)
-		type = dev->rc_tab.ir_type;
+		type = dev->rc_tab.rc_type;
 	else if (dev->raw)
 		type = dev->raw->enabled_protocols;
 	else {
@@ -881,7 +881,7 @@ static ssize_t store_protocols(struct device *device,
 
 	if (dev->driver_type == RC_DRIVER_SCANCODE) {
 		spin_lock_irqsave(&dev->rc_tab.lock, flags);
-		dev->rc_tab.ir_type = type;
+		dev->rc_tab.rc_type = type;
 		spin_unlock_irqrestore(&dev->rc_tab.lock, flags);
 	} else {
 		dev->raw->enabled_protocols = type;
@@ -1052,7 +1052,7 @@ int rc_register_device(struct rc_dev *dev)
 	}
 
 	if (dev->change_protocol) {
-		rc = dev->change_protocol(dev, rc_tab->ir_type);
+		rc = dev->change_protocol(dev, rc_tab->rc_type);
 		if (rc < 0)
 			goto out_raw;
 	}

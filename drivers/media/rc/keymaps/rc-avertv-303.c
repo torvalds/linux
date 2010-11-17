@@ -63,7 +63,7 @@ static struct rc_keymap avertv_303_map = {
 	.map = {
 		.scan    = avertv_303,
 		.size    = ARRAY_SIZE(avertv_303),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_AVERTV_303,
 	}
 };

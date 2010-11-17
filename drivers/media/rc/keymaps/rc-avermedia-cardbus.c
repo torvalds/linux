@@ -75,7 +75,7 @@ static struct rc_keymap avermedia_cardbus_map = {
 	.map = {
 		.scan    = avermedia_cardbus,
 		.size    = ARRAY_SIZE(avermedia_cardbus),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_AVERMEDIA_CARDBUS,
 	}
 };

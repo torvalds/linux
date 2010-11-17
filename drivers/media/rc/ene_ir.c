@@ -1052,7 +1052,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 		learning_mode_force = false;
 
 	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rdev->allowed_protos = IR_TYPE_ALL;
+	rdev->allowed_protos = RC_TYPE_ALL;
 	rdev->priv = dev;
 	rdev->open = ene_open;
 	rdev->close = ene_close;

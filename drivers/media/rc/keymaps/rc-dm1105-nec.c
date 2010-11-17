@@ -54,7 +54,7 @@ static struct rc_keymap dm1105_nec_map = {
 	.map = {
 		.scan    = dm1105_nec,
 		.size    = ARRAY_SIZE(dm1105_nec),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_DM1105_NEC,
 	}
 };

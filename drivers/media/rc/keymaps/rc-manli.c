@@ -112,7 +112,7 @@ static struct rc_keymap manli_map = {
 	.map = {
 		.scan    = manli,
 		.size    = ARRAY_SIZE(manli),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_MANLI,
 	}
 };

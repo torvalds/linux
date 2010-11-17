@@ -77,7 +77,7 @@ static struct rc_keymap leadtek_y04g0051_map = {
 	.map = {
 		.scan    = leadtek_y04g0051,
 		.size    = ARRAY_SIZE(leadtek_y04g0051),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_LEADTEK_Y04G0051,
 	}
 };

@@ -66,7 +66,7 @@ static struct rc_keymap iodata_bctv7e_map = {
 	.map = {
 		.scan    = iodata_bctv7e,
 		.size    = ARRAY_SIZE(iodata_bctv7e),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_IODATA_BCTV7E,
 	}
 };

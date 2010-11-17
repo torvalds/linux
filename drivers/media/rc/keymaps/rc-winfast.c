@@ -80,7 +80,7 @@ static struct rc_keymap winfast_map = {
 	.map = {
 		.scan    = winfast,
 		.size    = ARRAY_SIZE(winfast),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_WINFAST,
 	}
 };

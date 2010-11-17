@@ -60,7 +60,7 @@ static struct rc_keymap streamzap_map = {
 	.map = {
 		.scan    = streamzap,
 		.size    = ARRAY_SIZE(streamzap),
-		.ir_type = IR_TYPE_RC5_SZ,
+		.rc_type = RC_TYPE_RC5_SZ,
 		.name    = RC_MAP_STREAMZAP,
 	}
 };

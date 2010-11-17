@@ -59,7 +59,7 @@ static struct rc_keymap encore_enltv_fm53_map = {
 	.map = {
 		.scan    = encore_enltv_fm53,
 		.size    = ARRAY_SIZE(encore_enltv_fm53),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_ENCORE_ENLTV_FM53,
 	}
 };

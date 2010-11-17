@@ -58,7 +58,7 @@ static struct rc_keymap pctv_sedna_map = {
 	.map = {
 		.scan    = pctv_sedna,
 		.size    = ARRAY_SIZE(pctv_sedna),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_PCTV_SEDNA,
 	}
 };

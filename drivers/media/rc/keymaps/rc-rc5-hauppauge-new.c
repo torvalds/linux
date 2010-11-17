@@ -81,7 +81,7 @@ static struct rc_keymap rc5_hauppauge_new_map = {
 	.map = {
 		.scan    = rc5_hauppauge_new,
 		.size    = ARRAY_SIZE(rc5_hauppauge_new),
-		.ir_type = IR_TYPE_RC5,
+		.rc_type = RC_TYPE_RC5,
 		.name    = RC_MAP_RC5_HAUPPAUGE_NEW,
 	}
 };

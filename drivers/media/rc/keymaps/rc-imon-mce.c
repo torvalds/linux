@@ -120,7 +120,7 @@ static struct rc_keymap imon_mce_map = {
 		.scan    = imon_mce,
 		.size    = ARRAY_SIZE(imon_mce),
 		/* its RC6, but w/a hardware decoder */
-		.ir_type = IR_TYPE_RC6,
+		.rc_type = RC_TYPE_RC6,
 		.name    = RC_MAP_IMON_MCE,
 	}
 };

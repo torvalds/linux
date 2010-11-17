@@ -70,7 +70,7 @@ static struct rc_keymap terratec_cinergy_xs_map = {
 	.map = {
 		.scan    = terratec_cinergy_xs,
 		.size    = ARRAY_SIZE(terratec_cinergy_xs),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_TERRATEC_CINERGY_XS,
 	}
 };

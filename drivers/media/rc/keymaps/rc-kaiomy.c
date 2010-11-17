@@ -65,7 +65,7 @@ static struct rc_keymap kaiomy_map = {
 	.map = {
 		.scan    = kaiomy,
 		.size    = ARRAY_SIZE(kaiomy),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_KAIOMY,
 	}
 };

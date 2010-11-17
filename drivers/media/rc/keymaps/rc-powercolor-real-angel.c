@@ -59,7 +59,7 @@ static struct rc_keymap powercolor_real_angel_map = {
 	.map = {
 		.scan    = powercolor_real_angel,
 		.size    = ARRAY_SIZE(powercolor_real_angel),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_POWERCOLOR_REAL_ANGEL,
 	}
 };

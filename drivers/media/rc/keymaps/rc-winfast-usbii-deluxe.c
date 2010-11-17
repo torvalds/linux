@@ -60,7 +60,7 @@ static struct rc_keymap winfast_usbii_deluxe_map = {
 	.map = {
 		.scan    = winfast_usbii_deluxe,
 		.size    = ARRAY_SIZE(winfast_usbii_deluxe),
-		.ir_type = IR_TYPE_UNKNOWN,	/* Legacy IR type */
+		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
 		.name    = RC_MAP_WINFAST_USBII_DELUXE,
 	}
 };

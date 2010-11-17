@@ -46,7 +46,7 @@ static struct rc_keymap alink_dtu_m_map = {
 	.map = {
 		.scan    = alink_dtu_m,
 		.size    = ARRAY_SIZE(alink_dtu_m),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_ALINK_DTU_M,
 	}
 };

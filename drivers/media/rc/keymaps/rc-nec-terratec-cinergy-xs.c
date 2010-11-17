@@ -83,7 +83,7 @@ static struct rc_keymap nec_terratec_cinergy_xs_map = {
 	.map = {
 		.scan    = nec_terratec_cinergy_xs,
 		.size    = ARRAY_SIZE(nec_terratec_cinergy_xs),
-		.ir_type = IR_TYPE_NEC,
+		.rc_type = RC_TYPE_NEC,
 		.name    = RC_MAP_NEC_TERRATEC_CINERGY_XS,
 	}
 };
