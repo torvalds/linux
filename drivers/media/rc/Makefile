@@ -1,10 +1,8 @@
-ir-common-objs  := ir-functions.o
 rc-core-objs	:= rc-main.o rc-raw.o
 
 obj-y += keymaps/
 
 obj-$(CONFIG_IR_CORE) += rc-core.o
-obj-$(CONFIG_IR_LEGACY) += ir-common.o
 obj-$(CONFIG_LIRC) += lirc_dev.o
 obj-$(CONFIG_IR_NEC_DECODER) += ir-nec-decoder.o
 obj-$(CONFIG_IR_RC5_DECODER) += ir-rc5-decoder.o

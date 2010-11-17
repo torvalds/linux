@@ -140,7 +140,100 @@ static void bttv_input_timer(unsigned long data)
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
-/* ---------------------------------------------------------------*/
+/*
+ * FIXME: Nebula digi uses the legacy way to decode RC5, instead of relying
+ * on the rc-core way. As we need to be sure that both IRQ transitions are
+ * properly triggered, Better to touch it only with this hardware for
+ * testing.
+ */
+
+/* decode raw bit pattern to RC5 code */
+static u32 bttv_rc5_decode(unsigned int code)
+{
+	unsigned int org_code = code;
+	unsigned int pair;
+	unsigned int rc5 = 0;
+	int i;
+
+	for (i = 0; i < 14; ++i) {
+		pair = code & 0x3;
+		code >>= 2;
+
+		rc5 <<= 1;
+		switch (pair) {
+		case 0:
+		case 2:
+			break;
+		case 1:
+			rc5 |= 1;
+		break;
+		case 3:
+			dprintk(KERN_INFO DEVNAME ":rc5_decode(%x) bad code\n",
+				org_code);
+			return 0;
+		}
+	}
+	dprintk(KERN_INFO DEVNAME ":"
+		"code=%x, rc5=%x, start=%x, toggle=%x, address=%x, "
+		"instr=%x\n", rc5, org_code, RC5_START(rc5),
+		RC5_TOGGLE(rc5), RC5_ADDR(rc5), RC5_INSTR(rc5));
+	return rc5;
+}
+
+void bttv_rc5_timer_end(unsigned long data)
+{
+	struct card_ir *ir = (struct card_ir *)data;
+	struct timeval tv;
+	unsigned long current_jiffies;
+	u32 gap;
+	u32 rc5 = 0;
+
+	/* get time */
+	current_jiffies = jiffies;
+	do_gettimeofday(&tv);
+
+	/* avoid overflow with gap >1s */
+	if (tv.tv_sec - ir->base_time.tv_sec > 1) {
+		gap = 200000;
+	} else {
+		gap = 1000000 * (tv.tv_sec - ir->base_time.tv_sec) +
+		    tv.tv_usec - ir->base_time.tv_usec;
+	}
+
+	/* signal we're ready to start a new code */
+	ir->active = 0;
+
+	/* Allow some timer jitter (RC5 is ~24ms anyway so this is ok) */
+	if (gap < 28000) {
+		dprintk(KERN_INFO DEVNAME ": spurious timer_end\n");
+		return;
+	}
+
+	if (ir->last_bit < 20) {
+		/* ignore spurious codes (caused by light/other remotes) */
+		dprintk(KERN_INFO DEVNAME ": short code: %x\n", ir->code);
+	} else {
+		ir->code = (ir->code << ir->shift_by) | 1;
+		rc5 = bttv_rc5_decode(ir->code);
+
+		/* two start bits? */
+		if (RC5_START(rc5) != ir->start) {
+			printk(KERN_INFO DEVNAME ":"
+			       " rc5 start bits invalid: %u\n", RC5_START(rc5));
+
+			/* right address? */
+		} else if (RC5_ADDR(rc5) == ir->addr) {
+			u32 toggle = RC5_TOGGLE(rc5);
+			u32 instr = RC5_INSTR(rc5);
+
+			/* Good code */
+			ir_keydown(ir->dev, instr, toggle);
+			dprintk(KERN_INFO DEVNAME ":"
+				" instruction %x, toggle %x\n",
+				instr, toggle);
+		}
+	}
+}
 
 static int bttv_rc5_irq(struct bttv *btv)
 {
@@ -206,7 +299,7 @@ static void bttv_ir_start(struct bttv *btv, struct card_ir *ir)
 	} else if (ir->rc5_gpio) {
 		/* set timer_end for code completion */
 		init_timer(&ir->timer_end);
-		ir->timer_end.function = ir_rc5_timer_end;
+		ir->timer_end.function = bttv_rc5_timer_end;
 		ir->timer_end.data = (unsigned long)ir;
 		ir->shift_by = 1;
 		ir->start = 3;
@@ -283,10 +376,10 @@ void __devinit init_bttv_i2c_ir(struct bttv *btv)
 	default:
 		/*
 		 * The external IR receiver is at i2c address 0x34 (0x35 for
-                 * reads).  Future Hauppauge cards will have an internal
-                 * receiver at 0x30 (0x31 for reads).  In theory, both can be
-                 * fitted, and Hauppauge suggest an external overrides an
-                 * internal.
+		 * reads).  Future Hauppauge cards will have an internal
+		 * receiver at 0x30 (0x31 for reads).  In theory, both can be
+		 * fitted, and Hauppauge suggest an external overrides an
+		 * internal.
 		 * That's why we probe 0x1a (~0x34) first. CB
 		 */
 
