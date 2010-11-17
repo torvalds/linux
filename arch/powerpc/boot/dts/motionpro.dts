@@ -277,8 +277,6 @@
 			reg = <0 0 0x01000000>;
 			bank-width = <2>;
 			device-width = <2>;
-			#size-cells = <1>;
-			#address-cells = <1>;
 		};
 	};
 };
