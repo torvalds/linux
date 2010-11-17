@@ -28,6 +28,7 @@
 #include <linux/log2.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/async.h>
 
 /**** Helper functions used for Div, Remainder operation on u64 ****/
 
@@ -729,7 +730,7 @@ static void create_sysfs_entry(struct device *dev)
 }
 */
 
-int register_spectra_ftl()
+static void register_spectra_ftl_async(void *unused, async_cookie_t cookie)
 {
 	int i;
 
@@ -738,7 +739,7 @@ int register_spectra_ftl()
 	if (PASS != GLOB_FTL_IdentifyDevice(&IdentifyDeviceData)) {
 		printk(KERN_ERR "Spectra: Unable to Read Flash Device. "
 		       "Aborting\n");
-		return -ENOMEM;
+		return;
 	} else {
 		nand_dbg_print(NAND_DBG_WARN, "In GLOB_SBD_init: "
 			       "Num blocks=%d, pagesperblock=%d, "
@@ -772,15 +773,19 @@ int register_spectra_ftl()
 		       "Spectra: module loaded with major number %d\n",
 		       GLOB_SBD_majornum);
 
-	return PASS;
+	return;
 
 out_blk_register:
 	unregister_blkdev(GLOB_SBD_majornum, GLOB_SBD_NAME);
 out_ftl_flash_register:
 	GLOB_FTL_Cache_Release();
 	printk(KERN_ERR "Spectra: Module load failed.\n");
+}
 
-	return FAIL;
+int register_spectra_ftl()
+{
+	async_schedule(register_spectra_ftl_async, NULL);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(register_spectra_ftl);
 
