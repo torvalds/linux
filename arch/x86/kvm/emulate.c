@@ -568,7 +568,8 @@ static int read_descriptor(struct x86_emulate_ctxt *ctxt,
 			   ctxt->vcpu, NULL);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
-	rc = ops->read_std(linear(ctxt, addr) + 2, address, op_bytes,
+	addr.ea += 2;
+	rc = ops->read_std(linear(ctxt, addr), address, op_bytes,
 			   ctxt->vcpu, NULL);
 	return rc;
 }
