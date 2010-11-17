@@ -1,4 +1,4 @@
-rc-core-objs	:= rc-main.o rc-raw.o
+rc-core-objs	:= rc-main.o ir-raw.o
 
 obj-y += keymaps/
 
