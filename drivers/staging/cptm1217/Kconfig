@@ -2,6 +2,7 @@ config TOUCHSCREEN_CLEARPAD_TM1217
 	tristate "Synaptics Clearpad TM1217"
 	depends on I2C
 	depends on GPIOLIB
+	depends on INPUT
 	help
 	  Say Y here if you have a Synaptics Clearpad TM1217 Controller
 
