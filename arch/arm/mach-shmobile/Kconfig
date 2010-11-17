@@ -20,6 +20,12 @@ config ARCH_SH7372
 	select SH_CLK_CPG
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 
+config ARCH_SH73A0
+	bool "SH-Mobile AG5 (R8A73A00)"
+	select CPU_V7
+	select SH_CLK_CPG
+	select ARM_GIC
+
 comment "SH-Mobile Board Type"
 
 config MACH_G3EVM
@@ -51,6 +57,10 @@ config AP4EVB_WVGA
 
 endchoice
 
+config MACH_AG5EVM
+	bool "AG5EVM board"
+	depends on ARCH_SH73A0
+
 comment "SH-Mobile System Configuration"
 
 menu "Memory configuration"
@@ -60,6 +70,7 @@ config MEMORY_START
 	default "0x50000000" if MACH_G3EVM
 	default "0x40000000" if MACH_G4EVM
 	default "0x40000000" if MACH_AP4EVB
+	default "0x40000000" if MACH_AG5EVM
 	default "0x00000000"
 	---help---
 	  Tweak this only when porting to a new machine which does not
@@ -71,6 +82,7 @@ config MEMORY_SIZE
 	default "0x08000000" if MACH_G3EVM
 	default "0x08000000" if MACH_G4EVM
 	default "0x10000000" if MACH_AP4EVB
+	default "0x20000000" if MACH_AG5EVM
 	default "0x04000000"
 	help
 	  This sets the default memory size assumed by your kernel. It can
