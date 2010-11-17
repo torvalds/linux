@@ -285,28 +285,17 @@ extern int sdio_function_init(void);
 
 int bcmsdh_register(bcmsdh_driver_t *driver)
 {
-	int error = 0;
-
 	drvinfo = *driver;
 
-#if defined(BCMPLATFORM_BUS)
-#if defined(BCMLXSDMMC)
 	SDLX_MSG(("Linux Kernel SDIO/MMC Driver\n"));
-	error = sdio_function_init();
-#endif				/* defined(BCMLXSDMMC) */
-	return error;
-#endif				/* defined(BCMPLATFORM_BUS) */
-
-	return error;
+	return sdio_function_init();
 }
 
 extern void sdio_function_cleanup(void);
 
 void bcmsdh_unregister(void)
 {
-#if defined(BCMLXSDMMC)
 	sdio_function_cleanup();
-#endif				/* BCMLXSDMMC */
 }
 
 #if defined(OOB_INTR_ONLY)
