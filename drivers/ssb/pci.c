@@ -580,10 +580,6 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 		 * Always extract r1. */
 		out->revision = 1;
 		ssb_dprintk(KERN_DEBUG PFX "SPROM treated as revision %d\n", out->revision);
-	} else if (bus->chip_id == 0x4321) {
-		/* the BCM4328 has a chipid == 0x4321 and a rev 4 SPROM */
-		out->revision = 4;
-		ssb_dprintk(KERN_DEBUG PFX "SPROM treated as revision %d\n", out->revision);
 	}
 
 	switch (out->revision) {
