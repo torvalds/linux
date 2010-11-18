@@ -708,6 +708,29 @@ wl_iw_set_power_mode(
 #endif
 
 
+static bool btcoex_is_sco_active(struct net_device *dev)
+{
+	int ioc_res = 0;
+	bool res = false;
+	int temp = 0;
+
+	ioc_res = dev_wlc_intvar_get_reg(dev, "btc_params", 4, &temp);
+
+	if (ioc_res == 0) {
+		WL_TRACE_COEX(("%s: read btc_params[4] = %x\n", __FUNCTION__, temp));
+
+		if (temp > 0xea0) {
+			WL_TRACE_COEX(("%s: BT SCO/eSCO is ACTIVE\n", __FUNCTION__));
+			res = true;
+		} else {
+			WL_TRACE_COEX(("%s: BT SCO/eSCO is NOT detected\n", __FUNCTION__));
+		}
+	} else {
+		WL_ERROR(("%s ioc read btc params error\n", __FUNCTION__));
+	}
+	return res;
+}
+
 #if defined(BT_DHCP_eSCO_FIX)
 
 static int set_btc_esco_params(struct net_device *dev, bool trump_sco)
@@ -855,9 +878,6 @@ wl_iw_set_btcoex_dhcp(
 	static bool saved_status = FALSE;
 
 	char buf_flag7_default[8] =   { 7, 00, 00, 00, 0x0, 0x00, 0x00, 0x00};
-#ifndef CUSTOMER_HW2
-	uint32 temp1, temp2;
-#endif
 
 #ifdef CUSTOMER_HW2
 	strncpy((char *)&powermode_val, extra + strlen("BTCOEXMODE") + 1, 1);
@@ -871,40 +891,33 @@ wl_iw_set_btcoex_dhcp(
 
 		if ((saved_status == FALSE) &&
 #ifndef CUSTOMER_HW2
-			(!dev_wlc_ioctl(dev, WLC_GET_PM, &pm, sizeof(pm))) &&
+		   (!dev_wlc_ioctl(dev, WLC_GET_PM, &pm, sizeof(pm))) &&
 #endif
-			(!dev_wlc_intvar_get_reg(dev, "btc_params", 66,  &saved_reg66)) &&
-			(!dev_wlc_intvar_get_reg(dev, "btc_params", 41,  &saved_reg41)) &&
-			(!dev_wlc_intvar_get_reg(dev, "btc_params", 68,  &saved_reg68)))   {
-				saved_status = TRUE;
-				WL_TRACE_COEX(("save regs {66,41,68} ->: 0x%x 0x%x 0x%x\n", \
-					saved_reg66, saved_reg41, saved_reg68));
+		   (!dev_wlc_intvar_get_reg(dev, "btc_params", 66,  &saved_reg66)) &&
+		   (!dev_wlc_intvar_get_reg(dev, "btc_params", 41,  &saved_reg41)) &&
+		   (!dev_wlc_intvar_get_reg(dev, "btc_params", 68,  &saved_reg68))) {
+			saved_status = TRUE;
+			WL_TRACE_COEX(("save regs {66,41,68} ->: 0x%x 0x%x 0x%x\n", \
+				saved_reg66, saved_reg41, saved_reg68));
 
 #ifndef CUSTOMER_HW2
-				dev_wlc_ioctl(dev, WLC_SET_PM, &pm_local, sizeof(pm_local));
+			dev_wlc_ioctl(dev, WLC_SET_PM, &pm_local, sizeof(pm_local));
 #endif
 
-		dev_wlc_bufvar_set(dev, "btc_params", \
-				   (char *)&buf_reg66va_dhcp_on[0], sizeof(buf_reg66va_dhcp_on));
-		dev_wlc_bufvar_set(dev, "btc_params", \
-				   (char *)&buf_reg41va_dhcp_on[0], sizeof(buf_reg41va_dhcp_on));
-		dev_wlc_bufvar_set(dev, "btc_params", \
-				   (char *)&buf_reg68va_dhcp_on[0], sizeof(buf_reg68va_dhcp_on));
-#ifndef CUSTOMER_HW2
-				if ((!dev_wlc_intvar_get_reg(dev, "btc_params", 12, &temp1)) &&
-					(!dev_wlc_intvar_get_reg(dev, "btc_params", 13, &temp2)))
-				{
-					if ((temp1 != 0) && (temp2 != 0)) {
-#endif
-						g_bt->bt_state = BT_DHCP_START;
-						g_bt->timer_on = 1;
-						mod_timer(&g_bt->timer, g_bt->timer.expires);
-						WL_TRACE_COEX(("%s enable BT DHCP Timer\n", \
-							__FUNCTION__));
-#ifndef CUSTOMER_HW2
-					}
-				}
-#endif
+			dev_wlc_bufvar_set(dev, "btc_params", \
+				(char *)&buf_reg66va_dhcp_on[0], sizeof(buf_reg66va_dhcp_on));
+			dev_wlc_bufvar_set(dev, "btc_params", \
+				(char *)&buf_reg41va_dhcp_on[0], sizeof(buf_reg41va_dhcp_on));
+			dev_wlc_bufvar_set(dev, "btc_params", \
+				(char *)&buf_reg68va_dhcp_on[0], sizeof(buf_reg68va_dhcp_on));
+
+			if (btcoex_is_sco_active(dev)) {
+				g_bt->bt_state = BT_DHCP_START;
+				g_bt->timer_on = 1;
+				mod_timer(&g_bt->timer, g_bt->timer.expires);
+				WL_TRACE_COEX(("%s enable BT DHCP Timer\n", \
+					__FUNCTION__));
+			}
 		}
 		else if (saved_status == TRUE) {
 			WL_ERROR(("%s was called w/o DHCP OFF. Continue\n", __FUNCTION__));
