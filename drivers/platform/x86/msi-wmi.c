@@ -48,11 +48,13 @@ MODULE_ALIAS("wmi:B6F3EEF2-3D2F-49DC-9DE3-85BCE18C62F2");
 #define MSI_WMI_BRIGHTNESSDOWN (KEYCODE_BASE + 1)
 #define MSI_WMI_VOLUMEUP       (KEYCODE_BASE + 2)
 #define MSI_WMI_VOLUMEDOWN     (KEYCODE_BASE + 3)
+#define MSI_WMI_MUTE           (KEYCODE_BASE + 4)
 static struct key_entry msi_wmi_keymap[] = {
 	{ KE_KEY, MSI_WMI_BRIGHTNESSUP,   {KEY_BRIGHTNESSUP} },
 	{ KE_KEY, MSI_WMI_BRIGHTNESSDOWN, {KEY_BRIGHTNESSDOWN} },
 	{ KE_KEY, MSI_WMI_VOLUMEUP,       {KEY_VOLUMEUP} },
 	{ KE_KEY, MSI_WMI_VOLUMEDOWN,     {KEY_VOLUMEDOWN} },
+	{ KE_KEY, MSI_WMI_MUTE,           {KEY_MUTE} },
 	{ KE_END, 0}
 };
 static ktime_t last_pressed[ARRAY_SIZE(msi_wmi_keymap) - 1];
