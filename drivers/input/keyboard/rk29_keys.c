@@ -50,6 +50,7 @@ struct rk29_button_data {
 
 struct rk29_keys_drvdata {
 	int nbuttons;
+	int result;
 	struct input_dev *input;
 	struct adc_client *client;
 	struct timer_list timer;
@@ -79,12 +80,14 @@ static void keys_long_press_timer(unsigned long _data)
 	if(state) {
 		if(bdata->long_press_count != 0) {
 			if(bdata->long_press_count % (LONG_PRESS_COUNT+ONE_SEC_COUNT) == 0){
-				key_dbg(bdata, "key[%s]: report ev[%d] state[0]\n", button->desc, button->code_long_press);
+				key_dbg(bdata, "%skey[%s]: report ev[%d] state[0]\n", 
+					(!button->gpio)?"ad":"io", button->desc, button->code_long_press);
 				input_event(input, type, button->code_long_press, 0);
 				input_sync(input);
 			}
 			else if(bdata->long_press_count%LONG_PRESS_COUNT == 0) {
-				key_dbg(bdata, "key[%s]: report ev[%d] state[1]\n", button->desc, button->code_long_press);
+				key_dbg(bdata, "%skey[%s]: report ev[%d] state[1]\n", 
+					(!button->gpio)?"ad":"io", button->desc, button->code_long_press);
 				input_event(input, type, button->code_long_press, 1);
 				input_sync(input);
 			}
@@ -96,8 +99,8 @@ static void keys_long_press_timer(unsigned long _data)
 	else {
 		if(bdata->long_press_count <= LONG_PRESS_COUNT) {
 			bdata->long_press_count = 0;
-			key_dbg(bdata, "key[%s]: report ev[%d] state[1], report ev[%d] state[0]\n", 
-					button->desc, button->code, button->code);
+			key_dbg(bdata, "%skey[%s]: report ev[%d] state[1], report ev[%d] state[0]\n", 
+					(!button->gpio)?"ad":"io", button->desc, button->code, button->code);
 			input_event(input, type, button->code, 1);
 			input_sync(input);
 			input_event(input, type, button->code, 0);
@@ -105,7 +108,8 @@ static void keys_long_press_timer(unsigned long _data)
 		}
 		else {
 			if(bdata->state != state)
-			key_dbg(bdata, "key[%s]: report ev[%d] state[0]\n", button->desc, button->code_long_press);
+			key_dbg(bdata, "%skey[%s]: report ev[%d] state[0]\n", 
+			(!button->gpio)?"ad":"io", button->desc, button->code_long_press);
 			input_event(input, type, button->code_long_press, 0);
 			input_sync(input);
 		}
@@ -126,7 +130,8 @@ static void keys_timer(unsigned long _data)
 		state = !!button->adc_state;
 	if(bdata->state != state) {
 		bdata->state = state;
-		key_dbg(bdata, "key[%s]: report ev[%d] state[%d]\n", button->desc, button->code, bdata->state);
+		key_dbg(bdata, "%skey[%s]: report ev[%d] state[%d]\n", 
+			(!button->gpio)?"ad":"io", button->desc, button->code, bdata->state);
 		input_event(input, type, button->code, bdata->state);
 		input_sync(input);
 	}
@@ -151,6 +156,8 @@ static void callback(struct adc_client *client, void *client_param, int result)
 {
 	struct rk29_keys_drvdata *ddata = (struct rk29_keys_drvdata *)client_param;
 	int i;
+	if(result > INVALID_ADVALUE && result < EMPTY_ADVALUE)
+		ddata->result = result;
 	for (i = 0; i < ddata->nbuttons; i++) {
 		struct rk29_button_data *bdata = &ddata->data[i];
 		struct rk29_keys_button *button = bdata->button;
@@ -161,7 +168,9 @@ static void callback(struct adc_client *client, void *client_param, int result)
 			button->adc_state = 1;
 		else
 			button->adc_state = 0;
-		
+		if(bdata->state != button->adc_state)
+			mod_timer(&bdata->timer,
+				jiffies + msecs_to_jiffies(DEFAULT_DEBOUNCE_INTERVAL));
 	}
 	return;
 }
@@ -172,6 +181,14 @@ static void adc_timer(unsigned long _data)
 	adc_async_read(ddata->client);
 	mod_timer(&ddata->timer, jiffies + msecs_to_jiffies(ADC_SAMPLE_TIME));
 }
+static ssize_t adc_value_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct rk29_keys_drvdata *ddata = dev_get_drvdata(dev);
+	
+	return sprintf(buf, "adc_value: %d\n", ddata->result);
+}
+
+static DEVICE_ATTR(get_adc_value, S_IRUGO | S_IWUSR, adc_value_show, NULL);
 
 static int __devinit keys_probe(struct platform_device *pdev)
 {
@@ -286,8 +303,8 @@ static int __devinit keys_probe(struct platform_device *pdev)
 	}
 
 	device_init_wakeup(&pdev->dev, wakeup);
-
-	return 0;
+	error = device_create_file(&pdev->dev, &dev_attr_get_adc_value);
+	return error;
 
  fail2:
 	while (--i >= 0) {
@@ -380,7 +397,7 @@ static struct platform_driver keys_device_driver = {
 	.probe		= keys_probe,
 	.remove		= __devexit_p(keys_remove),
 	.driver		= {
-		.name	= "gpio-keys",
+		.name	= "rk29-keys",
 		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &keys_pm_ops,
