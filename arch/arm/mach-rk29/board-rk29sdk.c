@@ -39,7 +39,6 @@
 #include <mach/board.h>
 #include <mach/rk29_nand.h>
 
-
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
@@ -416,6 +415,14 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 
 #ifdef CONFIG_I2C1_RK29
 static struct i2c_board_info __initdata board_i2c1_devices[] = {
+#if defined (CONFIG_RK1000_CONTROL1)
+		{
+			.type			= "rk1000_control",
+			.addr			= 0x40,
+			.flags			= 0,
+		},
+#endif
+
 };
 #endif
 
@@ -583,6 +590,16 @@ struct platform_device rk29_device_gpu = {
     .resource         = resources_gpu,
 };
 #endif
+#ifdef CONFIG_KEYS_RK29
+extern struct rk29_keys_platform_data rk29_keys_pdata; 
+static struct platform_device rk29_device_keys = {
+	.name		= "rk29-keys",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &rk29_keys_pdata,
+	},
+};
+#endif
 
 static void __init rk29_board_iomux_init(void)
 {
@@ -639,7 +656,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_I2C3_RK29
 	&rk29_device_i2c3,
 #endif
-
+#ifdef CONFIG_KEYS_RK29
+	&rk29_device_keys,
+#endif
 #ifdef CONFIG_SDMMC0_RK29	
 	&rk29_device_sdmmc0,
 #endif
