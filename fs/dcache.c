@@ -2453,8 +2453,7 @@ static int prepend_name(char **buffer, int *buflen, struct qstr *name)
 }
 
 /**
- * Prepend path string to a buffer
- *
+ * prepend_path - Prepend path string to a buffer
  * @path: the dentry/vfsmount to report
  * @root: root vfsmnt/dentry (may be modified by this function)
  * @buffer: pointer to the end of the buffer
