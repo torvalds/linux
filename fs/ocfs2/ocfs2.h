@@ -159,9 +159,9 @@ struct ocfs2_lock_res {
 	char                     l_name[OCFS2_LOCK_ID_MAX_LEN];
 	unsigned int             l_ro_holders;
 	unsigned int             l_ex_holders;
-	char			 l_level;
-	char			 l_requested;
-	char			 l_blocking;
+	signed char		 l_level;
+	signed char		 l_requested;
+	signed char		 l_blocking;
 
 	/* Data packed - type enum ocfs2_lock_type */
 	unsigned char            l_type;
