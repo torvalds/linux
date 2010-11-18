@@ -1,3 +1,3 @@
-obj-y += timer.o io.o devices.o iomux.o clock.o rk29-pl330.o dma.o gpio.o key.o
+obj-y += timer.o io.o devices.o iomux.o clock.o rk29-pl330.o dma.o gpio.o
 obj-$(CONFIG_RK29_VPU) += vpu.o
-obj-$(CONFIG_MACH_RK29SDK) += board-rk29sdk.o
+obj-$(CONFIG_MACH_RK29SDK) += board-rk29sdk.o board-rk29sdk-key.o

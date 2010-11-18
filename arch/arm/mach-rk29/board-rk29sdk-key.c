@@ -8,7 +8,6 @@
 #define PRESS_LEV_HIGH			0
 
 static struct rk29_keys_button key_button[] = {
-#ifdef CONFIG_MACH_RK29SDK
 	[0] = {
 		.desc	= "vol+",
 		.code	= KEY_VOLUMEDOWN,
@@ -84,7 +83,6 @@ static struct rk29_keys_button key_button[] = {
 		.adc_value	= 899,
 		.active_low = PRESS_LEV_LOW,
 	},
-#endif
 #endif
 };
 struct rk29_keys_platform_data rk29_keys_pdata = {
