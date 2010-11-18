@@ -911,7 +911,7 @@ out:
 }
 
 /**
- * set_consumer_device_supply: Bind a regulator to a symbolic supply
+ * set_consumer_device_supply - Bind a regulator to a symbolic supply
  * @rdev:         regulator source
  * @consumer_dev: device the supply applies to
  * @consumer_dev_name: dev_name() string for device supply applies to
