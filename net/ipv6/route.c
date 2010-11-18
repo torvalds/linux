@@ -1945,8 +1945,12 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	struct rt6_info *rt = ip6_dst_alloc(&net->ipv6.ip6_dst_ops);
 	struct neighbour *neigh;
 
-	if (rt == NULL)
+	if (rt == NULL) {
+		if (net_ratelimit())
+			pr_warning("IPv6:  Maximum number of routes reached,"
+				   " consider increasing route/max_size.\n");
 		return ERR_PTR(-ENOMEM);
+	}
 
 	dev_hold(net->loopback_dev);
 	in6_dev_hold(idev);

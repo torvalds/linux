@@ -82,18 +82,28 @@ struct svc_xprt {
 	struct net		*xpt_net;
 };
 
-static inline void register_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u)
-{
-	spin_lock(&xpt->xpt_lock);
-	list_add(&u->list, &xpt->xpt_users);
-	spin_unlock(&xpt->xpt_lock);
-}
-
 static inline void unregister_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u)
 {
 	spin_lock(&xpt->xpt_lock);
 	list_del_init(&u->list);
 	spin_unlock(&xpt->xpt_lock);
+}
+
+static inline int register_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u)
+{
+	spin_lock(&xpt->xpt_lock);
+	if (test_bit(XPT_CLOSE, &xpt->xpt_flags)) {
+		/*
+		 * The connection is about to be deleted soon (or,
+		 * worse, may already be deleted--in which case we've
+		 * already notified the xpt_users).
+		 */
+		spin_unlock(&xpt->xpt_lock);
+		return -ENOTCONN;
+	}
+	list_add(&u->list, &xpt->xpt_users);
+	spin_unlock(&xpt->xpt_lock);
+	return 0;
 }
 
 int	svc_reg_xprt_class(struct svc_xprt_class *);

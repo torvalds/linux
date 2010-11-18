@@ -235,7 +235,7 @@ static void free_buffer(struct videobuf_queue *vq, struct omap1_cam_buf *buf,
 
 	BUG_ON(in_interrupt());
 
-	videobuf_waiton(vb, 0, 0);
+	videobuf_waiton(vq, vb, 0, 0);
 
 	if (vb_mode == OMAP1_CAM_DMA_CONTIG) {
 		videobuf_dma_contig_free(vq, vb);
@@ -504,7 +504,7 @@ static void omap1_videobuf_queue(struct videobuf_queue *vq,
 		 * empty. Since the transfer of the DMA programming register set
 		 * content to the DMA working register set is done automatically
 		 * by the DMA hardware, this can pretty well happen while we
-		 * are keeping the lock here. Levae fetching it from the queue
+		 * are keeping the lock here. Leave fetching it from the queue
 		 * to be done when a next DMA interrupt occures instead.
 		 */
 		return;
@@ -1365,12 +1365,12 @@ static void omap1_cam_init_videobuf(struct videobuf_queue *q,
 		videobuf_queue_dma_contig_init(q, &omap1_videobuf_ops,
 				icd->dev.parent, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				sizeof(struct omap1_cam_buf), icd);
+				sizeof(struct omap1_cam_buf), icd, NULL);
 	else
 		videobuf_queue_sg_init(q, &omap1_videobuf_ops,
 				icd->dev.parent, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-				sizeof(struct omap1_cam_buf), icd);
+				sizeof(struct omap1_cam_buf), icd, NULL);
 
 	/* use videobuf mode (auto)selected with the module parameter */
 	pcdev->vb_mode = sg_mode ? OMAP1_CAM_DMA_SG : OMAP1_CAM_DMA_CONTIG;
@@ -1386,7 +1386,7 @@ static void omap1_cam_init_videobuf(struct videobuf_queue *q,
 	}
 }
 
-static int omap1_cam_reqbufs(struct soc_camera_file *icf,
+static int omap1_cam_reqbufs(struct soc_camera_device *icd,
 			      struct v4l2_requestbuffers *p)
 {
 	int i;
@@ -1398,7 +1398,7 @@ static int omap1_cam_reqbufs(struct soc_camera_file *icf,
 	 * it hadn't triggered
 	 */
 	for (i = 0; i < p->count; i++) {
-		struct omap1_cam_buf *buf = container_of(icf->vb_vidq.bufs[i],
+		struct omap1_cam_buf *buf = container_of(icd->vb_vidq.bufs[i],
 						      struct omap1_cam_buf, vb);
 		buf->inwork = 0;
 		INIT_LIST_HEAD(&buf->vb.queue);
@@ -1485,10 +1485,10 @@ static int omap1_cam_set_bus_param(struct soc_camera_device *icd,
 
 static unsigned int omap1_cam_poll(struct file *file, poll_table *pt)
 {
-	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = file->private_data;
 	struct omap1_cam_buf *buf;
 
-	buf = list_entry(icf->vb_vidq.stream.next, struct omap1_cam_buf,
+	buf = list_entry(icd->vb_vidq.stream.next, struct omap1_cam_buf,
 			 vb.stream);
 
 	poll_wait(file, &buf->vb.done, pt);

@@ -729,10 +729,10 @@ static ssize_t s6e63m0_sysfs_show_gamma_table(struct device *dev,
 
 	return strlen(buf);
 }
-static DEVICE_ATTR(gamma_table, 0644,
+static DEVICE_ATTR(gamma_table, 0444,
 		s6e63m0_sysfs_show_gamma_table, NULL);
 
-static int __init s6e63m0_probe(struct spi_device *spi)
+static int __devinit s6e63m0_probe(struct spi_device *spi)
 {
 	int ret = 0;
 	struct s6e63m0 *lcd = NULL;
@@ -829,6 +829,9 @@ static int __devexit s6e63m0_remove(struct spi_device *spi)
 	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
 
 	s6e63m0_power(lcd, FB_BLANK_POWERDOWN);
+	device_remove_file(&spi->dev, &dev_attr_gamma_table);
+	device_remove_file(&spi->dev, &dev_attr_gamma_mode);
+	backlight_device_unregister(lcd->bd);
 	lcd_device_unregister(lcd->ld);
 	kfree(lcd);
 

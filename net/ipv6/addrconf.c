@@ -2740,10 +2740,6 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 			/* Flag it for later restoration when link comes up */
 			ifa->flags |= IFA_F_TENTATIVE;
 			ifa->state = INET6_IFADDR_STATE_DAD;
-
-			write_unlock_bh(&idev->lock);
-
-			in6_ifa_hold(ifa);
 		} else {
 			list_del(&ifa->if_list);
 
@@ -2758,19 +2754,15 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 			ifa->state = INET6_IFADDR_STATE_DEAD;
 			spin_unlock_bh(&ifa->state_lock);
 
-			if (state == INET6_IFADDR_STATE_DEAD)
-				goto put_ifa;
+			if (state == INET6_IFADDR_STATE_DEAD) {
+				in6_ifa_put(ifa);
+			} else {
+				__ipv6_ifa_notify(RTM_DELADDR, ifa);
+				atomic_notifier_call_chain(&inet6addr_chain,
+							   NETDEV_DOWN, ifa);
+			}
+			write_lock_bh(&idev->lock);
 		}
-
-		__ipv6_ifa_notify(RTM_DELADDR, ifa);
-		if (ifa->state == INET6_IFADDR_STATE_DEAD)
-			atomic_notifier_call_chain(&inet6addr_chain,
-						   NETDEV_DOWN, ifa);
-
-put_ifa:
-		in6_ifa_put(ifa);
-
-		write_lock_bh(&idev->lock);
 	}
 
 	list_splice(&keep_list, &idev->addr_list);

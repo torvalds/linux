@@ -706,7 +706,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			arch/x86/kernel/cpu/cpufreq/elanfreq.c.
 
 	elevator=	[IOSCHED]
-			Format: {"anticipatory" | "cfq" | "deadline" | "noop"}
+			Format: {"cfq" | "deadline" | "noop"}
 			See Documentation/block/as-iosched.txt and
 			Documentation/block/deadline-iosched.txt for details.
 
