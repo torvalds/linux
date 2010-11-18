@@ -61,7 +61,9 @@ struct tegra_dma_channel;
 enum tegra_dma_mode {
 	TEGRA_DMA_SHARED = 1,
 	TEGRA_DMA_MODE_CONTINUOUS = 2,
-	TEGRA_DMA_MODE_ONESHOT = 4,
+	TEGRA_DMA_MODE_CONTINUOUS_DOUBLE = TEGRA_DMA_MODE_CONTINUOUS,
+	TEGRA_DMA_MODE_CONTINUOUS_SINGLE = 4,
+	TEGRA_DMA_MODE_ONESHOT = 8,
 };
 
 enum tegra_dma_req_error {
@@ -146,9 +148,11 @@ void tegra_dma_flush(struct tegra_dma_channel *ch);
 bool tegra_dma_is_req_inflight(struct tegra_dma_channel *ch,
 	struct tegra_dma_req *req);
 bool tegra_dma_is_empty(struct tegra_dma_channel *ch);
+bool tegra_dma_is_stopped(struct tegra_dma_channel *ch);
 
 struct tegra_dma_channel *tegra_dma_allocate_channel(int mode);
 void tegra_dma_free_channel(struct tegra_dma_channel *ch);
+int tegra_dma_cancel(struct tegra_dma_channel *ch);
 
 int __init tegra_dma_init(void);
 

@@ -114,6 +114,7 @@
 
 #define UTMIP_TX_CFG0		0x820
 #define   UTMIP_FS_PREABMLE_J		(1 << 19)
+#define   UTMIP_HS_DISCON_DISABLE	(1 << 8)
 
 #define UTMIP_MISC_CFG0		0x824
 #define   UTMIP_SUSPEND_EXIT_ON_EDGE	(1 << 22)
@@ -346,6 +347,8 @@ static void utmi_phy_power_on(struct tegra_usb_phy *phy)
 
 	val = readl(base + UTMIP_TX_CFG0);
 	val &= ~UTMIP_FS_PREABMLE_J;
+	if (phy->instance == 2)
+		val |= UTMIP_HS_DISCON_DISABLE;
 	writel(val, base + UTMIP_TX_CFG0);
 
 	val = readl(base + UTMIP_HSRX_CFG0);

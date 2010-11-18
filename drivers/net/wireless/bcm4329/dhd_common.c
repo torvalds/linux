@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c,v 1.5.6.8.2.6.6.69.4.10 2010/10/29 19:58:08 Exp $
+ * $Id: dhd_common.c,v 1.5.6.8.2.6.6.69.4.16 2010/11/18 03:53:32 Exp $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -1230,8 +1230,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint bcn_timeout = 3;
 	int scan_assoc_time = 40;
 	int scan_unassoc_time = 40;
+	uint32 listen_interval = LISTEN_INTERVAL; /* Default Listen Interval in Beacons */
+	int ret = 0;
 #ifdef GET_CUSTOM_MAC_ENABLE
-	int ret;
 	struct ether_addr ea_addr;
 #endif /* GET_CUSTOM_MAC_ENABLE */
 
@@ -1258,7 +1259,6 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #ifdef SET_RANDOM_MAC_SOFTAP
 	if (strstr(fw_path, "apsta") != NULL) {
 		uint rand_mac;
-		int ret;
 
 		srandom32((uint)jiffies);
 		rand_mac = random32();
@@ -1288,6 +1288,11 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 			DHD_ERROR(("%s: country code setting failed\n", __FUNCTION__));
 		}
 	}
+
+	/* Set Listen Interval */
+	bcm_mkiovar("assoc_listen", (char *)&listen_interval, 4, iovbuf, sizeof(iovbuf));
+	if ((ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf))) < 0)
+		DHD_ERROR(("%s assoc_listen failed %d\n", __FUNCTION__, ret));
 
 	/* query for 'ver' to get version info from firmware */
 	memset(buf, 0, sizeof(buf));
@@ -1796,6 +1801,57 @@ fail:
 }
 
 #endif 
+
+/* Function to estimate possible DTIM_SKIP value */
+int dhd_get_dtim_skip(dhd_pub_t *dhd)
+{
+	int bcn_li_dtim;
+	char buf[128];
+	int ret;
+	int dtim_assoc = 0;
+
+	if ((dhd->dtim_skip == 0) || (dhd->dtim_skip == 1))
+		bcn_li_dtim = 3;
+	else
+		bcn_li_dtim = dhd->dtim_skip;
+
+	/* Read DTIM value if associated */
+	memset(buf, 0, sizeof(buf));
+	bcm_mkiovar("dtim_assoc", 0, 0, buf, sizeof(buf));
+	if ((ret = dhdcdc_query_ioctl(dhd, 0, WLC_GET_VAR, buf, sizeof(buf))) < 0) {
+		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
+		bcn_li_dtim = 1;
+		goto exit;
+	}
+	else
+		dtim_assoc = dtoh32(*(int *)buf);
+
+	DHD_ERROR(("%s bcn_li_dtim=%d DTIM=%d Listen=%d\n", \
+			 __FUNCTION__, bcn_li_dtim, dtim_assoc, LISTEN_INTERVAL));
+
+	/* if not assocated just eixt */
+	if (dtim_assoc == 0) {
+		goto exit;
+	}
+
+	/* check if sta listen interval fits into AP dtim */
+	if (dtim_assoc > LISTEN_INTERVAL) {
+		/* AP DTIM to big for our Listen Interval : no dtim skiping */
+		bcn_li_dtim = 1;
+		DHD_ERROR(("%s DTIM=%d > Listen=%d : too big ...\n", \
+				 __FUNCTION__, dtim_assoc, LISTEN_INTERVAL));
+		goto exit;
+	}
+
+	if ((bcn_li_dtim * dtim_assoc) > LISTEN_INTERVAL) {
+		/* Round up dtim_skip to fit into STAs Listen Interval */
+		bcn_li_dtim = (int)(LISTEN_INTERVAL / dtim_assoc);
+		DHD_TRACE(("%s agjust dtim_skip as %d\n", __FUNCTION__, bcn_li_dtim));
+	}
+
+exit:
+	return bcn_li_dtim;
+}
 
 #ifdef PNO_SUPPORT
 int dhd_pno_clean(dhd_pub_t *dhd)
