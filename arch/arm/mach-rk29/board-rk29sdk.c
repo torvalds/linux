@@ -509,7 +509,7 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	return 0;
 }
 
-#define CONFIG_SDMMC0_USE_DMA
+//#define CONFIG_SDMMC0_USE_DMA
 struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 	.num_slots		= 1,
 	.host_ocr_avail = (MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|
@@ -526,7 +526,7 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 };
 #endif
 #ifdef CONFIG_SDMMC1_RK29
-#define CONFIG_SDMMC1_USE_DMA
+//#define CONFIG_SDMMC1_USE_DMA
 static int rk29_sdmmc1_cfg_gpio(void)
 {
 	rk29_mux_api_set(GPIO1C2_SDMMC1CMD_NAME, GPIO1H_SDMMC1_CMD);
