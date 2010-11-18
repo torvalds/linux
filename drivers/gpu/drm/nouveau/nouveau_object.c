@@ -1017,6 +1017,9 @@ int nouveau_ioctl_gpuobj_free(struct drm_device *dev, void *data,
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 
+	/* Synchronize with the user channel */
+	nouveau_channel_idle(chan);
+
 	ret = nouveau_ramht_remove(chan, objfree->handle);
 	nouveau_channel_put(&chan);
 	return ret;

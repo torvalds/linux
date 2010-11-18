@@ -197,22 +197,10 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 
 	NV_INFO(dev, "Idling channels...\n");
 	for (i = 0; i < pfifo->channels; i++) {
-		struct nouveau_fence *fence = NULL;
-
 		chan = dev_priv->channels.ptr[i];
-		if (!chan || !chan->pushbuf_bo)
-			continue;
 
-		ret = nouveau_fence_new(chan, &fence, true);
-		if (ret == 0) {
-			ret = nouveau_fence_wait(fence, false, false);
-			nouveau_fence_unref(&fence);
-		}
-
-		if (ret) {
-			NV_ERROR(dev, "Failed to idle channel %d for suspend\n",
-				 chan->id);
-		}
+		if (chan && chan->pushbuf_bo)
+			nouveau_channel_idle(chan);
 	}
 
 	pgraph->fifo_access(dev, false);

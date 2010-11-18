@@ -847,6 +847,7 @@ extern void nouveau_channel_put_unlocked(struct nouveau_channel **);
 extern void nouveau_channel_put(struct nouveau_channel **);
 extern void nouveau_channel_ref(struct nouveau_channel *chan,
 				struct nouveau_channel **pchan);
+extern void nouveau_channel_idle(struct nouveau_channel *chan);
 
 /* nouveau_object.c */
 #define NVOBJ_CLASS(d,c,e) do {                                                \

@@ -284,7 +284,6 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	struct nouveau_crypt_engine *pcrypt = &dev_priv->engine.crypt;
 	unsigned long flags;
-	int ret;
 
 	/* decrement the refcount, and we're done if there's still refs */
 	if (likely(!atomic_dec_and_test(&chan->users))) {
@@ -297,19 +296,7 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	nouveau_debugfs_channel_fini(chan);
 
 	/* give it chance to idle */
-	nouveau_fence_update(chan);
-	if (chan->fence.sequence != chan->fence.sequence_ack) {
-		struct nouveau_fence *fence = NULL;
-
-		ret = nouveau_fence_new(chan, &fence, true);
-		if (ret == 0) {
-			ret = nouveau_fence_wait(fence, false, false);
-			nouveau_fence_unref(&fence);
-		}
-
-		if (ret)
-			NV_ERROR(dev, "Failed to idle channel %d.\n", chan->id);
-	}
+	nouveau_channel_idle(chan);
 
 	/* ensure all outstanding fences are signaled.  they should be if the
 	 * above attempts at idling were OK, but if we failed this'll tell TTM
@@ -386,6 +373,27 @@ nouveau_channel_ref(struct nouveau_channel *chan,
 		kref_put(&(*pchan)->ref, nouveau_channel_del);
 
 	*pchan = chan;
+}
+
+void
+nouveau_channel_idle(struct nouveau_channel *chan)
+{
+	struct drm_device *dev = chan->dev;
+	struct nouveau_fence *fence = NULL;
+	int ret;
+
+	nouveau_fence_update(chan);
+
+	if (chan->fence.sequence != chan->fence.sequence_ack) {
+		ret = nouveau_fence_new(chan, &fence, true);
+		if (!ret) {
+			ret = nouveau_fence_wait(fence, false, false);
+			nouveau_fence_unref(&fence);
+		}
+
+		if (ret)
+			NV_ERROR(dev, "Failed to idle channel %d.\n", chan->id);
+	}
 }
 
 /* cleans up all the fifos from file_priv */
