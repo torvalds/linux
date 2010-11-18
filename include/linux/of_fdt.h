@@ -68,6 +68,8 @@ extern void *of_fdt_get_property(struct boot_param_header *blob,
 extern int of_fdt_is_compatible(struct boot_param_header *blob,
 				unsigned long node,
 				const char *compat);
+extern void of_fdt_unflatten_tree(unsigned long *blob,
+			       struct device_node **mynodes);
 
 /* TBD: Temporary export of fdt globals - remove when code fully merged */
 extern int __initdata dt_root_addr_cells;
