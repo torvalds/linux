@@ -96,6 +96,9 @@ struct reg_beacon {
 	struct ieee80211_channel chan;
 };
 
+static void reg_todo(struct work_struct *work);
+static DECLARE_WORK(reg_work, reg_todo);
+
 /* We keep a static world regulatory domain in case of the absence of CRDA */
 static const struct ieee80211_regdomain world_regdom = {
 	.n_reg_rules = 5,
@@ -1493,8 +1496,6 @@ static void reg_todo(struct work_struct *work)
 	reg_process_pending_hints();
 	reg_process_pending_beacon_hints();
 }
-
-static DECLARE_WORK(reg_work, reg_todo);
 
 static void queue_regulatory_request(struct regulatory_request *request)
 {
