@@ -91,8 +91,7 @@ void exit_thread(void)
 void show_regs(struct pt_regs *regs)
 {
 	show_registers(regs);
-	show_trace(NULL, regs, (unsigned long *)kernel_stack_pointer(regs),
-		   regs->bp);
+	show_trace(NULL, regs, (unsigned long *)kernel_stack_pointer(regs));
 }
 
 void show_regs_common(void)

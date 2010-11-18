@@ -82,6 +82,10 @@
 	TRACE_EVENT(name, PARAMS(proto), PARAMS(args),			\
 		PARAMS(tstruct), PARAMS(assign), PARAMS(print))		\
 
+#undef TRACE_EVENT_FLAGS
+#define TRACE_EVENT_FLAGS(name, value)					\
+	__TRACE_EVENT_FLAGS(name, value)
+
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
 
@@ -128,6 +132,9 @@
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, name, proto, args, print)	\
 	DEFINE_EVENT(template, name, PARAMS(proto), PARAMS(args))
+
+#undef TRACE_EVENT_FLAGS
+#define TRACE_EVENT_FLAGS(event, flag)
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
