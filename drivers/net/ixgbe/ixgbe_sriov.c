@@ -227,6 +227,7 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 	int entries;
 	u16 *hash_list;
 	int add, vid;
+	u8 *new_mac;
 
 	retval = ixgbe_read_mbx(hw, msgbuf, mbx_size, vf);
 
@@ -244,15 +245,22 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 
 	if (msgbuf[0] == IXGBE_VF_RESET) {
 		unsigned char *vf_mac = adapter->vfinfo[vf].vf_mac_addresses;
-		u8 *addr = (u8 *)(&msgbuf[1]);
+		new_mac = (u8 *)(&msgbuf[1]);
 		e_info(probe, "VF Reset msg received from vf %d\n", vf);
 		adapter->vfinfo[vf].clear_to_send = false;
 		ixgbe_vf_reset_msg(adapter, vf);
 		adapter->vfinfo[vf].clear_to_send = true;
 
+		if (is_valid_ether_addr(new_mac) &&
+		    !adapter->vfinfo[vf].pf_set_mac)
+			ixgbe_set_vf_mac(adapter, vf, vf_mac);
+		else
+			ixgbe_set_vf_mac(adapter,
+				 vf, adapter->vfinfo[vf].vf_mac_addresses);
+
 		/* reply to reset with ack and vf mac address */
 		msgbuf[0] = IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK;
-		memcpy(addr, vf_mac, IXGBE_ETH_LENGTH_OF_ADDRESS);
+		memcpy(new_mac, vf_mac, IXGBE_ETH_LENGTH_OF_ADDRESS);
 		/*
 		 * Piggyback the multicast filter type so VF can compute the
 		 * correct vectors
@@ -271,14 +279,16 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 
 	switch ((msgbuf[0] & 0xFFFF)) {
 	case IXGBE_VF_SET_MAC_ADDR:
-		{
-			u8 *new_mac = ((u8 *)(&msgbuf[1]));
-			if (is_valid_ether_addr(new_mac) &&
-			    !adapter->vfinfo[vf].pf_set_mac)
-				ixgbe_set_vf_mac(adapter, vf, new_mac);
-			else
-				ixgbe_set_vf_mac(adapter,
-				  vf, adapter->vfinfo[vf].vf_mac_addresses);
+		new_mac = ((u8 *)(&msgbuf[1]));
+		if (is_valid_ether_addr(new_mac) &&
+		    !adapter->vfinfo[vf].pf_set_mac) {
+			ixgbe_set_vf_mac(adapter, vf, new_mac);
+		} else if (memcmp(adapter->vfinfo[vf].vf_mac_addresses,
+				  new_mac, ETH_ALEN)) {
+			e_warn(drv, "VF %d attempted to override "
+			       "administratively set MAC address\nReload "
+			       "the VF driver to resume operations\n", vf);
+			retval = -1;
 		}
 		break;
 	case IXGBE_VF_SET_MULTICAST:
@@ -295,7 +305,15 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 		add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK)
 		      >> IXGBE_VT_MSGINFO_SHIFT;
 		vid = (msgbuf[1] & IXGBE_VLVF_VLANID_MASK);
-		retval = ixgbe_set_vf_vlan(adapter, add, vid, vf);
+		if (adapter->vfinfo[vf].pf_vlan) {
+			e_warn(drv, "VF %d attempted to override "
+			       "administratively set VLAN configuration\n"
+			       "Reload the VF driver to resume operations\n",
+			       vf);
+			retval = -1;
+		} else {
+			retval = ixgbe_set_vf_vlan(adapter, add, vid, vf);
+		}
 		break;
 	default:
 		e_err(drv, "Unhandled Msg %8.8x\n", msgbuf[0]);
