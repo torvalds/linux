@@ -4,6 +4,16 @@
  * Copyright (C) 2010 Canonical Ltd.
  * Author: Bryan Wu <bryan.wu@canonical.com>
  *
+ * LCD panel driver for Sharp LQ043T1DG01
+ *
+ * Copyright (C) 2009 Texas Instruments Inc
+ * Author: Vaibhav Hiremath <hvaibhav@ti.com>
+ *
+ * LCD panel driver for Toppoly TDO35S
+ *
+ * Copyright (C) 2009 CompuLab, Ltd.
+ * Author: Mike Rapoport <mike@compulab.co.il>
+ *
  * Copyright (C) 2008 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *
