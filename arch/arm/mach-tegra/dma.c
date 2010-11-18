@@ -170,6 +170,11 @@ void tegra_dma_stop(struct tegra_dma_channel *ch)
 		writel(status, ch->addr + APB_DMA_CHAN_STA);
 }
 
+bool tegra_dma_is_stopped(struct tegra_dma_channel *ch)
+{
+	return !!(readl(ch->addr + APB_DMA_CHAN_STA) & CSR_ENB);
+}
+
 int tegra_dma_cancel(struct tegra_dma_channel *ch)
 {
 	unsigned long irq_flags;
@@ -207,7 +212,7 @@ static unsigned int dma_active_count(struct tegra_dma_channel *ch,
 	 * half DMA buffer. So, if the DMA already finished half the DMA
 	 * then add the half buffer to the completed count.
 	 */
-	if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS)
+	if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE)
 		if (req->buffer_status == TEGRA_DMA_REQ_BUF_STATUS_HALF_FULL)
 			bytes_transferred += req_transfer_count;
 
@@ -334,7 +339,8 @@ int tegra_dma_enqueue_req(struct tegra_dma_channel *ch,
 
 	req->bytes_transferred = 0;
 	req->status = 0;
-	req->buffer_status = 0;
+	/* STATUS_EMPTY just means the DMA hasn't processed the buf yet. */
+	req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_EMPTY;
 	if (list_empty(&ch->list))
 		start_dma = 1;
 
@@ -342,6 +348,34 @@ int tegra_dma_enqueue_req(struct tegra_dma_channel *ch,
 
 	if (start_dma)
 		tegra_dma_update_hw(ch, req);
+	/* Check to see if this request needs to be pushed immediately.
+	 * For continuous single-buffer DMA:
+	 * The first buffer is always in-flight.  The 2nd buffer should
+	 * also be in-flight.  The 3rd buffer becomes in-flight when the
+	 * first is completed in the interrupt.
+	 */
+	else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_SINGLE) {
+		struct tegra_dma_req *first_req, *second_req;
+		first_req = list_entry(ch->list.next,
+					typeof(*first_req), node);
+		second_req = list_entry(first_req->node.next,
+					typeof(*second_req), node);
+		if (second_req == req) {
+			unsigned long status =
+				readl(ch->addr + APB_DMA_CHAN_STA);
+			if (!(status & STA_ISE_EOC))
+				tegra_dma_update_hw_partial(ch, req);
+			/* Handle the case where the IRQ fired while we're
+			 * writing the interrupts.
+			 */
+			if (status & STA_ISE_EOC) {
+				/* Interrupt fired, let the IRQ stop/restart
+				 * the DMA with this buffer in a clean way.
+				 */
+				req->status = TEGRA_DMA_REQ_SUCCESS;
+			}
+		}
+	}
 
 	spin_unlock_irqrestore(&ch->lock, irq_flags);
 
@@ -394,6 +428,7 @@ static void tegra_dma_update_hw_partial(struct tegra_dma_channel *ch,
 {
 	u32 apb_ptr;
 	u32 ahb_ptr;
+	u32 csr;
 
 	if (req->to_memory) {
 		apb_ptr = req->source_addr;
@@ -404,6 +439,15 @@ static void tegra_dma_update_hw_partial(struct tegra_dma_channel *ch,
 	}
 	writel(apb_ptr, ch->addr + APB_DMA_CHAN_APB_PTR);
 	writel(ahb_ptr, ch->addr + APB_DMA_CHAN_AHB_PTR);
+
+	if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE)
+		ch->req_transfer_count = (req->size >> 3) - 1;
+	else
+		ch->req_transfer_count = (req->size >> 2) - 1;
+	csr = readl(ch->addr + APB_DMA_CHAN_CSR);
+	csr &= ~CSR_WCOUNT_MASK;
+	csr |= ch->req_transfer_count << CSR_WCOUNT_SHIFT;
+	writel(csr, ch->addr + APB_DMA_CHAN_CSR);
 
 	req->status = TEGRA_DMA_REQ_INFLIGHT;
 	return;
@@ -430,21 +474,21 @@ static void tegra_dma_update_hw(struct tegra_dma_channel *ch,
 
 	csr |= req->req_sel << CSR_REQ_SEL_SHIFT;
 
-	/* One shot mode is always single buffered,
-	 * continuous mode is always double buffered
-	 * */
+	ch->req_transfer_count = (req->size >> 2) - 1;
+
+	/* One shot mode is always single buffered.  Continuous mode could
+	 * support either.
+	 */
 	if (ch->mode & TEGRA_DMA_MODE_ONESHOT) {
 		csr |= CSR_ONCE;
-		ch->req_transfer_count = (req->size >> 2) - 1;
-	} else {
+	} else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE) {
 		ahb_seq |= AHB_SEQ_DBL_BUF;
-
-		/* In double buffered mode, we set the size to half the
-		 * requested size and interrupt when half the buffer
-		 * is full */
+		/* We want an interrupt halfway through, then on the
+		 * completion.  The double buffer means 2 interrupts
+		 * pass before the DMA HW latches a new AHB_PTR etc.
+		 */
 		ch->req_transfer_count = (req->size >> 3) - 1;
 	}
-
 	csr |= ch->req_transfer_count << CSR_WCOUNT_SHIFT;
 
 	if (req->to_memory) {
@@ -529,14 +573,8 @@ static void handle_oneshot_dma(struct tegra_dma_channel *ch)
 
 	req = list_entry(ch->list.next, typeof(*req), node);
 	if (req) {
-		int bytes_transferred;
-
-		bytes_transferred = ch->req_transfer_count;
-		bytes_transferred += 1;
-		bytes_transferred <<= 2;
-
 		list_del(&req->node);
-		req->bytes_transferred = bytes_transferred;
+		req->bytes_transferred = req->size;
 		req->status = TEGRA_DMA_REQ_SUCCESS;
 
 		spin_unlock_irqrestore(&ch->lock, irq_flags);
@@ -557,7 +595,7 @@ static void handle_oneshot_dma(struct tegra_dma_channel *ch)
 	spin_unlock_irqrestore(&ch->lock, irq_flags);
 }
 
-static void handle_continuous_dma(struct tegra_dma_channel *ch)
+static void handle_continuous_dbl_dma(struct tegra_dma_channel *ch)
 {
 	struct tegra_dma_req *req;
 	struct tegra_dma_req *next_req;
@@ -580,14 +618,9 @@ static void handle_continuous_dma(struct tegra_dma_channel *ch)
 				is_dma_ping_complete = !is_dma_ping_complete;
 			/* Out of sync - Release current buffer */
 			if (!is_dma_ping_complete) {
-				int bytes_transferred;
-
-				bytes_transferred = ch->req_transfer_count;
-				bytes_transferred += 1;
-				bytes_transferred <<= 3;
 				req->buffer_status =
 						TEGRA_DMA_REQ_BUF_STATUS_FULL;
-				req->bytes_transferred = bytes_transferred;
+				req->bytes_transferred = req->size;
 				req->status = TEGRA_DMA_REQ_SUCCESS;
 				tegra_dma_stop(ch);
 
@@ -624,14 +657,9 @@ static void handle_continuous_dma(struct tegra_dma_channel *ch)
 			TEGRA_DMA_REQ_BUF_STATUS_HALF_FULL) {
 			/* Callback when the buffer is completely full (i.e on
 			 * the second  interrupt */
-			int bytes_transferred;
-
-			bytes_transferred = ch->req_transfer_count;
-			bytes_transferred += 1;
-			bytes_transferred <<= 3;
 
 			req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_FULL;
-			req->bytes_transferred = bytes_transferred;
+			req->bytes_transferred = req->size;
 			req->status = TEGRA_DMA_REQ_SUCCESS;
 			if (list_is_last(&req->node, &ch->list))
 				tegra_dma_stop(ch);
@@ -664,6 +692,57 @@ static void handle_continuous_dma(struct tegra_dma_channel *ch)
 	spin_unlock_irqrestore(&ch->lock, irq_flags);
 }
 
+static void handle_continuous_sngl_dma(struct tegra_dma_channel *ch)
+{
+	struct tegra_dma_req *req;
+	struct tegra_dma_req *next_req;
+	struct tegra_dma_req *next_next_req;
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&ch->lock, irq_flags);
+	if (list_empty(&ch->list)) {
+		tegra_dma_stop(ch);
+		spin_unlock_irqrestore(&ch->lock, irq_flags);
+		pr_err("%s: No requests in the list.\n", __func__);
+		return;
+	}
+	req = list_entry(ch->list.next, typeof(*req), node);
+	if (!req || (req->buffer_status == TEGRA_DMA_REQ_BUF_STATUS_FULL)) {
+		tegra_dma_stop(ch);
+		spin_unlock_irqrestore(&ch->lock, irq_flags);
+		pr_err("%s: DMA complete irq without corresponding req\n",
+				__func__);
+		return;
+	}
+
+	/* Handle the case when buffer is completely full */
+	req->bytes_transferred = req->size;
+	req->buffer_status = TEGRA_DMA_REQ_BUF_STATUS_FULL;
+	req->status = TEGRA_DMA_REQ_SUCCESS;
+	if (list_is_last(&req->node, &ch->list)) {
+		pr_debug("%s: stop\n", __func__);
+		tegra_dma_stop(ch);
+	} else {
+		/* The next entry should have already been queued and is now
+		 * in the middle of xfer.  We can then write the next->next one
+		 * if it exists.
+		 */
+		next_req = list_entry(req->node.next, typeof(*next_req), node);
+		if (next_req->status != TEGRA_DMA_REQ_INFLIGHT) {
+			pr_warning("%s: interrupt during enqueue\n", __func__);
+			tegra_dma_stop(ch);
+			tegra_dma_update_hw(ch, next_req);
+		} else if (!list_is_last(&next_req->node, &ch->list)) {
+			next_next_req = list_entry(next_req->node.next,
+						typeof(*next_next_req), node);
+			tegra_dma_update_hw_partial(ch, next_next_req);
+		}
+	}
+	list_del(&req->node);
+	spin_unlock_irqrestore(&ch->lock, irq_flags);
+	req->complete(req);
+}
+
 static irqreturn_t dma_isr(int irq, void *data)
 {
 	struct tegra_dma_channel *ch = data;
@@ -679,8 +758,12 @@ static irqreturn_t dma_isr(int irq, void *data)
 
 	if (ch->mode & TEGRA_DMA_MODE_ONESHOT)
 		handle_oneshot_dma(ch);
+	else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_DOUBLE)
+		handle_continuous_dbl_dma(ch);
+	else if (ch->mode & TEGRA_DMA_MODE_CONTINUOUS_SINGLE)
+		handle_continuous_sngl_dma(ch);
 	else
-		handle_continuous_dma(ch);
+		pr_err("Bad channel mode for DMA ISR to handle\n");
 	return IRQ_HANDLED;
 }
 
