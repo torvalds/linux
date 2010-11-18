@@ -172,7 +172,7 @@ static ssize_t wacom_store_speed(struct device *dev,
 		return -EINVAL;
 }
 
-static DEVICE_ATTR(speed, S_IRUGO | S_IWUGO,
+static DEVICE_ATTR(speed, S_IRUGO | S_IWUSR | S_IWGRP,
 		wacom_show_speed, wacom_store_speed);
 
 static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
