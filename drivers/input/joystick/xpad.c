@@ -921,19 +921,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	usb_set_intfdata(intf, xpad);
 
-	/*
-	 * Submit the int URB immediately rather than waiting for open
-	 * because we get status messages from the device whether
-	 * or not any controllers are attached.  In fact, it's
-	 * exactly the message that a controller has arrived that
-	 * we're waiting for.
-	 */
 	if (xpad->xtype == XTYPE_XBOX360W) {
-		xpad->irq_in->dev = xpad->udev;
-		error = usb_submit_urb(xpad->irq_in, GFP_KERNEL);
-		if (error)
-			goto fail7;
-
 		/*
 		 * Setup the message to set the LEDs on the
 		 * controller when it shows up
@@ -941,13 +929,13 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		xpad->bulk_out = usb_alloc_urb(0, GFP_KERNEL);
 		if (!xpad->bulk_out) {
 			error = -ENOMEM;
-			goto fail8;
+			goto fail7;
 		}
 
 		xpad->bdata = kzalloc(XPAD_PKT_LEN, GFP_KERNEL);
 		if (!xpad->bdata) {
 			error = -ENOMEM;
-			goto fail9;
+			goto fail8;
 		}
 
 		xpad->bdata[2] = 0x08;
@@ -969,12 +957,24 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 		usb_fill_bulk_urb(xpad->bulk_out, udev,
 				usb_sndbulkpipe(udev, ep_irq_in->bEndpointAddress),
 				xpad->bdata, XPAD_PKT_LEN, xpad_bulk_out, xpad);
+
+		/*
+		 * Submit the int URB immediately rather than waiting for open
+		 * because we get status messages from the device whether
+		 * or not any controllers are attached.  In fact, it's
+		 * exactly the message that a controller has arrived that
+		 * we're waiting for.
+		 */
+		xpad->irq_in->dev = xpad->udev;
+		error = usb_submit_urb(xpad->irq_in, GFP_KERNEL);
+		if (error)
+			goto fail9;
 	}
 
 	return 0;
 
- fail9:	usb_free_urb(xpad->bulk_out);
- fail8:	usb_kill_urb(xpad->irq_in);
+ fail9:	kfree(xpad->bdata);
+ fail8:	usb_free_urb(xpad->bulk_out);
  fail7:	input_unregister_device(input_dev);
 	input_dev = NULL;
  fail6:	xpad_led_disconnect(xpad);
