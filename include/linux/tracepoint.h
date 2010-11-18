@@ -234,6 +234,8 @@ do_trace:								\
 				PARAMS(void *__data, proto),		\
 				PARAMS(__data, args))
 
+#define TRACE_EVENT_FLAGS(event, flag)
+
 #endif /* DECLARE_TRACE */
 
 #ifndef TRACE_EVENT
@@ -353,5 +355,7 @@ do_trace:								\
 #define TRACE_EVENT_FN(name, proto, args, struct,		\
 		assign, print, reg, unreg)			\
 	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
+
+#define TRACE_EVENT_FLAGS(event, flag)
 
 #endif /* ifdef TRACE_EVENT (see note above) */
