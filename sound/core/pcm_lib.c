@@ -374,9 +374,23 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 			   (unsigned long)runtime->hw_ptr_base);
 	}
 
-	/* without period interrupts, there are no regular pointer updates */
-	if (runtime->no_period_wakeup)
+	if (runtime->no_period_wakeup) {
+		/*
+		 * Without regular period interrupts, we have to check
+		 * the elapsed time to detect xruns.
+		 */
+		jdelta = jiffies - runtime->hw_ptr_jiffies;
+		hdelta = jdelta - delta * HZ / runtime->rate;
+		while (hdelta > runtime->hw_ptr_buffer_jiffies / 2 + 1) {
+			delta += runtime->buffer_size;
+			hw_base += runtime->buffer_size;
+			if (hw_base >= runtime->boundary)
+				hw_base = 0;
+			new_hw_ptr = hw_base + pos;
+			hdelta -= runtime->hw_ptr_buffer_jiffies;
+		}
 		goto no_delta_check;
+	}
 
 	/* something must be really wrong */
 	if (delta >= runtime->buffer_size + runtime->period_size) {
