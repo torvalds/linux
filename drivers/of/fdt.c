@@ -22,18 +22,88 @@
 
 #include <asm/page.h>
 
+char *of_fdt_get_string(struct boot_param_header *blob, u32 offset)
+{
+	return ((char *)blob) +
+		be32_to_cpu(blob->off_dt_strings) + offset;
+}
+
+/**
+ * of_fdt_get_property - Given a node in the given flat blob, return
+ * the property ptr
+ */
+void *of_fdt_get_property(struct boot_param_header *blob,
+		       unsigned long node, const char *name,
+		       unsigned long *size)
+{
+	unsigned long p = node;
+
+	do {
+		u32 tag = be32_to_cpup((__be32 *)p);
+		u32 sz, noff;
+		const char *nstr;
+
+		p += 4;
+		if (tag == OF_DT_NOP)
+			continue;
+		if (tag != OF_DT_PROP)
+			return NULL;
+
+		sz = be32_to_cpup((__be32 *)p);
+		noff = be32_to_cpup((__be32 *)(p + 4));
+		p += 8;
+		if (be32_to_cpu(blob->version) < 0x10)
+			p = ALIGN(p, sz >= 8 ? 8 : 4);
+
+		nstr = of_fdt_get_string(blob, noff);
+		if (nstr == NULL) {
+			pr_warning("Can't find property index name !\n");
+			return NULL;
+		}
+		if (strcmp(name, nstr) == 0) {
+			if (size)
+				*size = sz;
+			return (void *)p;
+		}
+		p += sz;
+		p = ALIGN(p, 4);
+	} while (1);
+}
+
+/**
+ * of_fdt_is_compatible - Return true if given node from the given blob has
+ * compat in its compatible list
+ * @blob: A device tree blob
+ * @node: node to test
+ * @compat: compatible string to compare with compatible list.
+ */
+int of_fdt_is_compatible(struct boot_param_header *blob,
+		      unsigned long node, const char *compat)
+{
+	const char *cp;
+	unsigned long cplen, l;
+
+	cp = of_fdt_get_property(blob, node, "compatible", &cplen);
+	if (cp == NULL)
+		return 0;
+	while (cplen > 0) {
+		if (of_compat_cmp(cp, compat, strlen(compat)) == 0)
+			return 1;
+		l = strlen(cp) + 1;
+		cp += l;
+		cplen -= l;
+	}
+
+	return 0;
+}
+
+/* Everything below here references initial_boot_params directly. */
 int __initdata dt_root_addr_cells;
 int __initdata dt_root_size_cells;
 
 struct boot_param_header *initial_boot_params;
 
 #ifdef CONFIG_OF_EARLY_FLATTREE
-
-char *find_flat_dt_string(u32 offset)
-{
-	return ((char *)initial_boot_params) +
-		be32_to_cpu(initial_boot_params->off_dt_strings) + offset;
-}
 
 /**
  * of_scan_flat_dt - scan flattened tree blob and call callback on each.
@@ -123,38 +193,7 @@ unsigned long __init of_get_flat_dt_root(void)
 void *__init of_get_flat_dt_prop(unsigned long node, const char *name,
 				 unsigned long *size)
 {
-	unsigned long p = node;
-
-	do {
-		u32 tag = be32_to_cpup((__be32 *)p);
-		u32 sz, noff;
-		const char *nstr;
-
-		p += 4;
-		if (tag == OF_DT_NOP)
-			continue;
-		if (tag != OF_DT_PROP)
-			return NULL;
-
-		sz = be32_to_cpup((__be32 *)p);
-		noff = be32_to_cpup((__be32 *)(p + 4));
-		p += 8;
-		if (be32_to_cpu(initial_boot_params->version) < 0x10)
-			p = ALIGN(p, sz >= 8 ? 8 : 4);
-
-		nstr = find_flat_dt_string(noff);
-		if (nstr == NULL) {
-			pr_warning("Can't find property index name !\n");
-			return NULL;
-		}
-		if (strcmp(name, nstr) == 0) {
-			if (size)
-				*size = sz;
-			return (void *)p;
-		}
-		p += sz;
-		p = ALIGN(p, 4);
-	} while (1);
+	return of_fdt_get_property(initial_boot_params, node, name, size);
 }
 
 /**
@@ -164,21 +203,7 @@ void *__init of_get_flat_dt_prop(unsigned long node, const char *name,
  */
 int __init of_flat_dt_is_compatible(unsigned long node, const char *compat)
 {
-	const char *cp;
-	unsigned long cplen, l;
-
-	cp = of_get_flat_dt_prop(node, "compatible", &cplen);
-	if (cp == NULL)
-		return 0;
-	while (cplen > 0) {
-		if (of_compat_cmp(cp, compat, strlen(compat)) == 0)
-			return 1;
-		l = strlen(cp) + 1;
-		cp += l;
-		cplen -= l;
-	}
-
-	return 0;
+	return of_fdt_is_compatible(initial_boot_params, node, compat);
 }
 
 static void *__init unflatten_dt_alloc(unsigned long *mem, unsigned long size,
@@ -303,7 +328,7 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 		if (be32_to_cpu(initial_boot_params->version) < 0x10)
 			*p = ALIGN(*p, sz >= 8 ? 8 : 4);
 
-		pname = find_flat_dt_string(noff);
+		pname = of_fdt_get_string(initial_boot_params, noff);
 		if (pname == NULL) {
 			pr_info("Can't find property name in list !\n");
 			break;

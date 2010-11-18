@@ -58,6 +58,17 @@ struct boot_param_header {
 };
 
 #if defined(CONFIG_OF_FLATTREE)
+
+/* For scanning an arbitrary device-tree at any time */
+extern char *of_fdt_get_string(struct boot_param_header *blob, u32 offset);
+extern void *of_fdt_get_property(struct boot_param_header *blob,
+				 unsigned long node,
+				 const char *name,
+				 unsigned long *size);
+extern int of_fdt_is_compatible(struct boot_param_header *blob,
+				unsigned long node,
+				const char *compat);
+
 /* TBD: Temporary export of fdt globals - remove when code fully merged */
 extern int __initdata dt_root_addr_cells;
 extern int __initdata dt_root_size_cells;
