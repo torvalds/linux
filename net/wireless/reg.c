@@ -1412,16 +1412,13 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 
 	BUG_ON(!reg_request->alpha2);
 
-	mutex_lock(&cfg80211_mutex);
-	mutex_lock(&reg_mutex);
-
 	if (wiphy_idx_valid(reg_request->wiphy_idx))
 		wiphy = wiphy_idx_to_wiphy(reg_request->wiphy_idx);
 
 	if (reg_request->initiator == NL80211_REGDOM_SET_BY_DRIVER &&
 	    !wiphy) {
 		kfree(reg_request);
-		goto out;
+		return;
 	}
 
 	r = __regulatory_hint(wiphy, reg_request);
@@ -1429,15 +1426,15 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	if (r == -EALREADY && wiphy &&
 	    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
 		wiphy_update_regulatory(wiphy, initiator);
-out:
-	mutex_unlock(&reg_mutex);
-	mutex_unlock(&cfg80211_mutex);
 }
 
 /* Processes regulatory hints, this is all the NL80211_REGDOM_SET_BY_* */
 static void reg_process_pending_hints(void)
-	{
+{
 	struct regulatory_request *reg_request;
+
+	mutex_lock(&cfg80211_mutex);
+	mutex_lock(&reg_mutex);
 
 	spin_lock(&reg_requests_lock);
 	while (!list_empty(&reg_requests_list)) {
@@ -1451,6 +1448,9 @@ static void reg_process_pending_hints(void)
 		spin_lock(&reg_requests_lock);
 	}
 	spin_unlock(&reg_requests_lock);
+
+	mutex_unlock(&reg_mutex);
+	mutex_unlock(&cfg80211_mutex);
 }
 
 /* Processes beacon hints -- this has nothing to do with country IEs */
