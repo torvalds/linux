@@ -1361,12 +1361,10 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		case TIOCOUTQ: {
 			int amount;
 
-			lock_kernel();
 			amount = sk->sk_sndbuf - sk_wmem_alloc_get(sk);
 			if (amount < 0)
 				amount = 0;
 			rc = put_user(amount, (unsigned int __user *)argp);
-			unlock_kernel();
 			break;
 		}
 
@@ -1377,11 +1375,11 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			 * These two are safe on a single CPU system as
 			 * only user tasks fiddle here
 			 */
-			lock_kernel();
+			lock_sock(sk);
 			if ((skb = skb_peek(&sk->sk_receive_queue)) != NULL)
 				amount = skb->len;
+			release_sock(sk);
 			rc = put_user(amount, (unsigned int __user *)argp);
-			unlock_kernel();
 			break;
 		}
 
