@@ -1157,10 +1157,16 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	struct wl1271 *wl = hw->priv;
 
 	mutex_lock(&wl->mutex);
-	WARN_ON(wl->vif != vif);
-	__wl1271_op_remove_interface(wl);
-	mutex_unlock(&wl->mutex);
+	/*
+	 * wl->vif can be null here if someone shuts down the interface
+	 * just when hardware recovery has been started.
+	 */
+	if (wl->vif) {
+		WARN_ON(wl->vif != vif);
+		__wl1271_op_remove_interface(wl);
+	}
 
+	mutex_unlock(&wl->mutex);
 	cancel_work_sync(&wl->recovery_work);
 }
 
