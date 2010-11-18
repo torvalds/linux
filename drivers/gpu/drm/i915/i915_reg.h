@@ -78,6 +78,12 @@
 #define  GRDOM_RENDER	(1<<2)
 #define  GRDOM_MEDIA	(3<<2)
 
+#define GEN6_GDRST	0x941c
+#define  GEN6_GRDOM_FULL		(1 << 0)
+#define  GEN6_GRDOM_RENDER		(1 << 1)
+#define  GEN6_GRDOM_MEDIA		(1 << 2)
+#define  GEN6_GRDOM_BLT			(1 << 3)
+
 /* VGA stuff */
 
 #define VGA_ST01_MDA 0x3ba

@@ -405,6 +405,14 @@ static int ironlake_do_reset(struct drm_device *dev, u8 flags)
 	return wait_for(I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) & 0x1, 500);
 }
 
+static int gen6_do_reset(struct drm_device *dev, u8 flags)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(GEN6_GDRST, GEN6_GRDOM_FULL);
+	return wait_for((I915_READ(GEN6_GDRST) & GEN6_GRDOM_FULL) == 0, 500);
+}
+
 /**
  * i965_reset - reset chip after a hang
  * @dev: drm device to reset
@@ -439,6 +447,9 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	if (get_seconds() - dev_priv->last_gpu_reset < 5) {
 		DRM_ERROR("GPU hanging too fast, declaring wedged!\n");
 	} else switch (INTEL_INFO(dev)->gen) {
+	case 6:
+		ret = gen6_do_reset(dev, flags);
+		break;
 	case 5:
 		ret = ironlake_do_reset(dev, flags);
 		break;
