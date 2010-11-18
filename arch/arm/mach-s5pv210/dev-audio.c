@@ -66,7 +66,7 @@ static struct resource s5pv210_iis0_resource[] = {
 };
 
 struct platform_device s5pv210_device_iis0 = {
-	.name		  = "s3c64xx-iis-v4",
+	.name		  = "samsung-i2s-v4",
 	.id		  = -1,
 	.num_resources	  = ARRAY_SIZE(s5pv210_iis0_resource),
 	.resource	  = s5pv210_iis0_resource,
@@ -94,7 +94,7 @@ static struct resource s5pv210_iis1_resource[] = {
 };
 
 struct platform_device s5pv210_device_iis1 = {
-	.name		  = "s3c64xx-iis",
+	.name		  = "samsung-i2s",
 	.id		  = 1,
 	.num_resources	  = ARRAY_SIZE(s5pv210_iis1_resource),
 	.resource	  = s5pv210_iis1_resource,
@@ -122,7 +122,7 @@ static struct resource s5pv210_iis2_resource[] = {
 };
 
 struct platform_device s5pv210_device_iis2 = {
-	.name		  = "s3c64xx-iis",
+	.name		  = "samsung-i2s",
 	.id		  = 2,
 	.num_resources	  = ARRAY_SIZE(s5pv210_iis2_resource),
 	.resource	  = s5pv210_iis2_resource,

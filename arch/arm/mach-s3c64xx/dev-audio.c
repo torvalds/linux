@@ -77,7 +77,7 @@ static struct s3c_audio_pdata s3c_i2s0_pdata = {
 };
 
 struct platform_device s3c64xx_device_iis0 = {
-	.name		  = "s3c64xx-iis",
+	.name		  = "samsung-i2s",
 	.id		  = 0,
 	.num_resources	  = ARRAY_SIZE(s3c64xx_iis0_resource),
 	.resource	  = s3c64xx_iis0_resource,
@@ -110,7 +110,7 @@ static struct s3c_audio_pdata s3c_i2s1_pdata = {
 };
 
 struct platform_device s3c64xx_device_iis1 = {
-	.name		  = "s3c64xx-iis",
+	.name		  = "samsung-i2s",
 	.id		  = 1,
 	.num_resources	  = ARRAY_SIZE(s3c64xx_iis1_resource),
 	.resource	  = s3c64xx_iis1_resource,
@@ -143,7 +143,7 @@ static struct s3c_audio_pdata s3c_i2sv4_pdata = {
 };
 
 struct platform_device s3c64xx_device_iisv4 = {
-	.name		  = "s3c64xx-iis-v4",
+	.name		  = "samsung-i2s-v4",
 	.id		  = -1,
 	.num_resources	  = ARRAY_SIZE(s3c64xx_iisv4_resource),
 	.resource	  = s3c64xx_iisv4_resource,
