@@ -215,6 +215,11 @@ static inline void ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 	reg |= (reg | (1 << vf_shift));
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), reg);
 
+	/* Enable counting of spoofed packets in the SSVPC register */
+	reg = IXGBE_READ_REG(hw, IXGBE_VMECM(reg_offset));
+	reg |= (1 << vf_shift);
+	IXGBE_WRITE_REG(hw, IXGBE_VMECM(reg_offset), reg);
+
 	ixgbe_vf_reset_event(adapter, vf);
 }
 
@@ -412,6 +417,7 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 {
 	int err = 0;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
 
 	if ((vf >= adapter->num_vfs) || (vlan > 4095) || (qos > 7))
 		return -EINVAL;
@@ -420,7 +426,8 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 		if (err)
 			goto out;
 		ixgbe_set_vmvir(adapter, vlan | (qos << VLAN_PRIO_SHIFT), vf);
-		ixgbe_set_vmolr(&adapter->hw, vf, false);
+		ixgbe_set_vmolr(hw, vf, false);
+		hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
 		adapter->vfinfo[vf].pf_vlan = vlan;
 		adapter->vfinfo[vf].pf_qos = qos;
 		dev_info(&adapter->pdev->dev,
@@ -437,7 +444,8 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 		err = ixgbe_set_vf_vlan(adapter, false,
 					adapter->vfinfo[vf].pf_vlan, vf);
 		ixgbe_set_vmvir(adapter, vlan, vf);
-		ixgbe_set_vmolr(&adapter->hw, vf, true);
+		ixgbe_set_vmolr(hw, vf, true);
+		hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
 		adapter->vfinfo[vf].pf_vlan = 0;
 		adapter->vfinfo[vf].pf_qos = 0;
        }

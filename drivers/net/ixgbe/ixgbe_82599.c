@@ -2165,6 +2165,8 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.fc_enable              = &ixgbe_fc_enable_generic,
 	.init_uta_tables        = &ixgbe_init_uta_tables_generic,
 	.setup_sfp              = &ixgbe_setup_sfp_modules_82599,
+	.set_mac_anti_spoofing  = &ixgbe_set_mac_anti_spoofing,
+	.set_vlan_anti_spoofing = &ixgbe_set_vlan_anti_spoofing,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_82599 = {

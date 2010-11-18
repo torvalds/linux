@@ -3132,6 +3132,9 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 
 	/* enable Tx loopback for VF/PF communication */
 	IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, IXGBE_PFDTXGSWC_VT_LBEN);
+	/* Enable MAC Anti-Spoofing */
+	hw->mac.ops.set_mac_anti_spoofing(hw, (adapter->num_vfs != 0),
+					  adapter->num_vfs);
 }
 
 static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
@@ -5960,6 +5963,26 @@ static void ixgbe_fdir_reinit_task(struct work_struct *work)
 	netif_tx_start_all_queues(adapter->netdev);
 }
 
+static void ixgbe_spoof_check(struct ixgbe_adapter *adapter)
+{
+	u32 ssvpc;
+
+	/* Do not perform spoof check for 82598 */
+	if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+		return;
+
+	ssvpc = IXGBE_READ_REG(&adapter->hw, IXGBE_SSVPC);
+
+	/*
+	 * ssvpc register is cleared on read, if zero then no
+	 * spoofed packets in the last interval.
+	 */
+	if (!ssvpc)
+		return;
+
+	e_warn(drv, "%d Spoofed packets detected\n", ssvpc);
+}
+
 static DEFINE_MUTEX(ixgbe_watchdog_lock);
 
 /**
@@ -6080,6 +6103,7 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 		}
 	}
 
+	ixgbe_spoof_check(adapter);
 	ixgbe_update_stats(adapter);
 	mutex_unlock(&ixgbe_watchdog_lock);
 }
