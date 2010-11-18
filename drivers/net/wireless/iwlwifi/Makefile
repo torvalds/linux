@@ -7,6 +7,10 @@ iwlcore-$(CONFIG_IWL4965) += iwl-legacy.o
 iwlcore-$(CONFIG_IWLWIFI_DEBUGFS) += iwl-debugfs.o
 iwlcore-$(CONFIG_IWLWIFI_DEVICE_TRACING) += iwl-devtrace.o
 
+# If 3945 is selected only, iwl-legacy.o will be added
+# to iwlcore-m above, but it needs to be built in.
+iwlcore-objs += $(iwlcore-m)
+
 CFLAGS_iwl-devtrace.o := -I$(src)
 
 # AGN
