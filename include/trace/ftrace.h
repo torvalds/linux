@@ -84,12 +84,7 @@
 
 #undef TRACE_EVENT_FLAGS
 #define TRACE_EVENT_FLAGS(name, value)					\
-	static int __init trace_init_flags_##name(void)			\
-	{								\
-		event_##name.flags = value;				\
-		return 0;						\
-	}								\
-	early_initcall(trace_init_flags_##name);
+	__TRACE_EVENT_FLAGS(name, value)
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 

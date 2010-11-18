@@ -198,6 +198,14 @@ struct ftrace_event_call {
 #endif
 };
 
+#define __TRACE_EVENT_FLAGS(name, value)				\
+	static int __init trace_init_flags_##name(void)			\
+	{								\
+		event_##name.flags = value;				\
+		return 0;						\
+	}								\
+	early_initcall(trace_init_flags_##name);
+
 #define PERF_MAX_TRACE_SIZE	2048
 
 #define MAX_FILTER_PRED		32
