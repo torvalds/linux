@@ -17,6 +17,7 @@
 #include <linux/preempt.h>
 #include <linux/msi.h>
 #include <linux/slab.h>
+#include <linux/rcupdate.h>
 #include <asm/signal.h>
 
 #include <linux/kvm.h>
@@ -240,6 +241,10 @@ struct kvm {
 
 	struct mutex irq_lock;
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
+	/*
+	 * Update side is protected by irq_lock and,
+	 * if configured, irqfds.lock.
+	 */
 	struct kvm_irq_routing_table __rcu *irq_routing;
 	struct hlist_head mask_notifier_list;
 	struct hlist_head irq_ack_notifier_list;
@@ -511,6 +516,8 @@ void kvm_get_intr_delivery_bitmask(struct kvm_ioapic *ioapic,
 				   unsigned long *deliver_bitmask);
 #endif
 int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level);
+int kvm_set_msi(struct kvm_kernel_irq_routing_entry *irq_entry, struct kvm *kvm,
+		int irq_source_id, int level);
 void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin);
 void kvm_register_irq_ack_notifier(struct kvm *kvm,
 				   struct kvm_irq_ack_notifier *kian);
@@ -652,17 +659,26 @@ static inline void kvm_free_irq_routing(struct kvm *kvm) {}
 void kvm_eventfd_init(struct kvm *kvm);
 int kvm_irqfd(struct kvm *kvm, int fd, int gsi, int flags);
 void kvm_irqfd_release(struct kvm *kvm);
+void kvm_irq_routing_update(struct kvm *, struct kvm_irq_routing_table *);
 int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args);
 
 #else
 
 static inline void kvm_eventfd_init(struct kvm *kvm) {}
+
 static inline int kvm_irqfd(struct kvm *kvm, int fd, int gsi, int flags)
 {
 	return -EINVAL;
 }
 
 static inline void kvm_irqfd_release(struct kvm *kvm) {}
+
+static inline void kvm_irq_routing_update(struct kvm *kvm,
+					  struct kvm_irq_routing_table *irq_rt)
+{
+	rcu_assign_pointer(kvm->irq_routing, irq_rt);
+}
+
 static inline int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 {
 	return -ENOSYS;
