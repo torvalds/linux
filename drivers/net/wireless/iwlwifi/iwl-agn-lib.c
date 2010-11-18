@@ -1778,7 +1778,7 @@ static const __le32 iwlagn_def_3w_lookup[12] = {
 	cpu_to_le32(0xc0004000),
 	cpu_to_le32(0x00004000),
 	cpu_to_le32(0xf0005000),
-	cpu_to_le32(0xf0004000),
+	cpu_to_le32(0xf0005000),
 };
 
 static const __le32 iwlagn_concurrent_lookup[12] = {
