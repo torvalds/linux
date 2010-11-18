@@ -28,6 +28,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include <plat/io.h>
 #include <plat/board-ams-delta.h>
 #include <mach/gpio.h>
 #include <plat/keypad.h>
@@ -316,7 +317,7 @@ static void __init ams_delta_init(void)
 
 static struct plat_serial8250_port ams_delta_modem_ports[] = {
 	{
-		.membase	= (void *) AMS_DELTA_MODEM_VIRT,
+		.membase	= IOMEM(AMS_DELTA_MODEM_VIRT),
 		.mapbase	= AMS_DELTA_MODEM_PHYS,
 		.irq		= -EINVAL, /* changed later */
 		.flags		= UPF_BOOT_AUTOCONF,
