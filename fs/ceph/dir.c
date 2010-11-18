@@ -358,18 +358,22 @@ more:
 		u64 pos = ceph_make_fpos(frag, off);
 		struct ceph_mds_reply_inode *in =
 			rinfo->dir_in[off - fi->offset].in;
+		struct ceph_vino vino;
+		ino_t ino;
+
 		dout("readdir off %d (%d/%d) -> %lld '%.*s' %p\n",
 		     off, off - fi->offset, rinfo->dir_nr, pos,
 		     rinfo->dir_dname_len[off - fi->offset],
 		     rinfo->dir_dname[off - fi->offset], in);
 		BUG_ON(!in);
 		ftype = le32_to_cpu(in->mode) >> 12;
+		vino.ino = le64_to_cpu(in->ino);
+		vino.snap = le64_to_cpu(in->snapid);
+		ino = ceph_vino_to_ino(vino);
 		if (filldir(dirent,
 			    rinfo->dir_dname[off - fi->offset],
 			    rinfo->dir_dname_len[off - fi->offset],
-			    pos,
-			    le64_to_cpu(in->ino),
-			    ftype) < 0) {
+			    pos, ino, ftype) < 0) {
 			dout("filldir stopping us...\n");
 			return 0;
 		}
