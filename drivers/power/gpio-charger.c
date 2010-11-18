@@ -98,7 +98,7 @@ static int __devinit gpio_charger_probe(struct platform_device *pdev)
 	charger->type = pdata->type;
 	charger->properties = gpio_charger_properties;
 	charger->num_properties = ARRAY_SIZE(gpio_charger_properties);
-	charger->get_property  = gpio_charger_get_property;
+	charger->get_property = gpio_charger_get_property;
 	charger->supplied_to = pdata->supplied_to;
 	charger->num_supplicants = pdata->num_supplicants;
 
@@ -113,9 +113,18 @@ static int __devinit gpio_charger_probe(struct platform_device *pdev)
 		goto err_gpio_free;
 	}
 
+	gpio_charger->pdata = pdata;
+
+	ret = power_supply_register(&pdev->dev, charger);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to register power supply: %d\n",
+			ret);
+		goto err_gpio_free;
+	}
+
 	irq = gpio_to_irq(pdata->gpio);
 	if (irq > 0) {
-		ret = request_irq(irq, gpio_charger_irq,
+		ret = request_any_context_irq(irq, gpio_charger_irq,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				dev_name(&pdev->dev), charger);
 		if (ret)
@@ -124,21 +133,10 @@ static int __devinit gpio_charger_probe(struct platform_device *pdev)
 			gpio_charger->irq = irq;
 	}
 
-	gpio_charger->pdata = pdata;
-
-	ret = power_supply_register(&pdev->dev, charger);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to register power supply: %d\n", ret);
-		goto err_irq_free;
-	}
-
 	platform_set_drvdata(pdev, gpio_charger);
 
 	return 0;
 
-err_irq_free:
-	if (gpio_charger->irq)
-		free_irq(gpio_charger->irq, charger);
 err_gpio_free:
 	gpio_free(pdata->gpio);
 err_free:
@@ -150,10 +148,11 @@ static int __devexit gpio_charger_remove(struct platform_device *pdev)
 {
 	struct gpio_charger *gpio_charger = platform_get_drvdata(pdev);
 
-	power_supply_unregister(&gpio_charger->charger);
-
 	if (gpio_charger->irq)
 		free_irq(gpio_charger->irq, &gpio_charger->charger);
+
+	power_supply_unregister(&gpio_charger->charger);
+
 	gpio_free(gpio_charger->pdata->gpio);
 
 	platform_set_drvdata(pdev, NULL);
