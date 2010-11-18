@@ -1412,9 +1412,7 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			rc = -EPERM;
 			if (!capable(CAP_NET_ADMIN))
 				break;
-			lock_kernel();
 			rc = x25_route_ioctl(cmd, argp);
-			unlock_kernel();
 			break;
 		case SIOCX25GSUBSCRIP:
 			lock_kernel();
@@ -1710,9 +1708,7 @@ static int compat_x25_ioctl(struct socket *sock, unsigned int cmd,
 		rc = -EPERM;
 		if (!capable(CAP_NET_ADMIN))
 			break;
-		lock_kernel();
 		rc = x25_route_ioctl(cmd, argp);
-		unlock_kernel();
 		break;
 	case SIOCX25GSUBSCRIP:
 		lock_kernel();
