@@ -677,6 +677,29 @@ static void hci_cs_set_conn_encrypt(struct hci_dev *hdev, __u8 status)
 	hci_dev_unlock(hdev);
 }
 
+static int hci_request_outgoing_auth(struct hci_dev *hdev,
+						struct hci_conn *conn)
+{
+	struct hci_cp_auth_requested cp;
+
+	if (conn->state != BT_CONFIG || !conn->out)
+		return 0;
+
+	if (conn->sec_level == BT_SECURITY_SDP)
+		return 0;
+
+	/* Only request authentication for SSP connections or non-SSP
+	 * devices with sec_level HIGH */
+	if (!(hdev->ssp_mode > 0 && conn->ssp_mode > 0) &&
+					conn->sec_level != BT_SECURITY_HIGH)
+		return 0;
+
+	cp.handle = __cpu_to_le16(conn->handle);
+	hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
+
+	return 1;
+}
+
 static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 {
 	BT_DBG("%s status 0x%x", hdev->name, status);
@@ -1156,6 +1179,7 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 {
 	struct hci_ev_remote_features *ev = (void *) skb->data;
 	struct hci_conn *conn;
+	int auth_requested;
 
 	BT_DBG("%s status %d", hdev->name, ev->status);
 
@@ -1177,12 +1201,15 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 		cp.page = 0x01;
 		hci_send_cmd(hdev, HCI_OP_READ_REMOTE_EXT_FEATURES,
 							sizeof(cp), &cp);
-	} else if (!ev->status && conn->out &&
-			conn->sec_level == BT_SECURITY_HIGH) {
-		struct hci_cp_auth_requested cp;
-		cp.handle = ev->handle;
-		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
-	} else {
+		goto unlock;
+	}
+
+	if (!ev->status)
+		auth_requested = hci_request_outgoing_auth(hdev, conn);
+	else
+		auth_requested = 0;
+
+	if (!auth_requested) {
 		conn->state = BT_CONNECTED;
 		hci_proto_connect_cfm(conn, ev->status);
 		hci_conn_put(conn);
@@ -1640,6 +1667,7 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 {
 	struct hci_ev_remote_ext_features *ev = (void *) skb->data;
 	struct hci_conn *conn;
+	int auth_requested;
 
 	BT_DBG("%s", hdev->name);
 
@@ -1661,14 +1689,12 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 	if (conn->state != BT_CONFIG)
 		goto unlock;
 
-	if (!ev->status && hdev->ssp_mode > 0 &&
-			conn->ssp_mode > 0 && conn->out &&
-			conn->sec_level != BT_SECURITY_SDP) {
-		struct hci_cp_auth_requested cp;
-		cp.handle = ev->handle;
-		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED,
-				sizeof(cp), &cp);
-	} else {
+	if (!ev->status)
+		auth_requested = hci_request_outgoing_auth(hdev, conn);
+	else
+		auth_requested = 0;
+
+	if (!auth_requested) {
 		conn->state = BT_CONNECTED;
 		hci_proto_connect_cfm(conn, ev->status);
 		hci_conn_put(conn);
