@@ -27,6 +27,8 @@
 #include <mach/gpio.h>
 #include <plat/fpga.h>
 
+#include "pm.h"
+
 static struct clk * uart1_ck;
 static struct clk * uart2_ck;
 static struct clk * uart3_ck;

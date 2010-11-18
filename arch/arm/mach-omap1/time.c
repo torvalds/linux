@@ -52,6 +52,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
+#include <plat/common.h>
 
 #define OMAP_MPU_TIMER_BASE		OMAP_MPU_TIMER1_BASE
 #define OMAP_MPU_TIMER_OFFSET		0x100

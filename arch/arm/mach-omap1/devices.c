@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/spi/spi.h>
 
+#include <mach/camera.h>
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
 
