@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h,v 1.32.4.7.2.4.14.49.4.1 2010/09/23 02:33:19 Exp $
+ * $Id: dhd.h,v 1.32.4.7.2.4.14.49.4.7 2010/11/12 22:48:36 Exp $
  */
 
 /****************
@@ -90,6 +90,7 @@ enum dhd_bus_wake_state {
 	WAKE_LOCK_SOFTAP_SET,
 	WAKE_LOCK_SOFTAP_STOP,
 	WAKE_LOCK_SOFTAP_START,
+	WAKE_LOCK_SOFTAP_THREAD,
 	WAKE_LOCK_MAX
 };
 enum dhd_prealloc_index {
@@ -351,6 +352,7 @@ typedef enum cust_gpio_modes {
 	WLAN_POWER_ON,
 	WLAN_POWER_OFF
 } cust_gpio_modes_t;
+
 extern int wl_iw_iscan_set_scan_broadcast_prep(struct net_device *dev, uint flag);
 extern int wl_iw_send_priv_event(struct net_device *dev, char *flag);
 extern int net_os_send_hang_message(struct net_device *dev);

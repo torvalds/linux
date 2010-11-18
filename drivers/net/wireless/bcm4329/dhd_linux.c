@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c,v 1.65.4.9.2.12.2.104.4.29 2010/11/04 01:14:41 Exp $
+ * $Id: dhd_linux.c,v 1.65.4.9.2.12.2.104.4.35 2010/11/17 03:13:21 Exp $
  */
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
@@ -555,10 +555,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			 *  for better power saving.
 			 *  Note that side effect is chance to miss BC/MC packet
 			*/
-			if ((dhd->dtim_skip == 0) || (dhd->dtim_skip == 1))
-				bcn_li_dtim = 3;
-			else
-				bcn_li_dtim = dhd->dtim_skip;
+			bcn_li_dtim = dhd_get_dtim_skip(dhd);
 			bcm_mkiovar("bcn_li_dtim", (char *)&bcn_li_dtim,
 				4, iovbuf, sizeof(iovbuf));
 			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
@@ -1867,7 +1864,7 @@ dhd_stop(struct net_device *net)
 #if !defined(IGNORE_ETH0_DOWN)
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(net);
 
-	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
+	DHD_TRACE(("%s: Enter %s\n", __FUNCTION__, net->name));
 	if (dhd->pub.up == 0) {
 		return 0;
 	}

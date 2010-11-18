@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.c,v 1.51.4.9.2.6.4.142.4.45 2010/11/04 21:08:09 Exp $
+ * $Id: wl_iw.c,v 1.51.4.9.2.6.4.142.4.58 2010/11/18 02:08:30 Exp $
  */
 
 
@@ -1686,6 +1686,8 @@ int init_ap_profile_from_string(char *param_str, struct ap_profile *ap_cfg)
 
 	get_parmeter_from_string(&str_ptr, "HIDDEN=", PTYPE_INTDEC, &ap_cfg->closednet, 5);
 
+	get_parmeter_from_string(&str_ptr, "COUNTRY=", PTYPE_STRING, &ap_cfg->country_code, 3);
+
 	return ret;
 }
 #endif
@@ -2773,7 +2775,6 @@ wl_iw_iscan(iscan_info_t *iscan, wlc_ssid_t *ssid, uint16 action)
 	WL_SCAN(("scan_type=%d\n", iscan->iscan_ex_params_p->params.scan_type));
 	WL_SCAN(("bss_type=%d\n", iscan->iscan_ex_params_p->params.bss_type));
 
-	
 	if ((err = dev_iw_iovar_setbuf(iscan->dev, "iscan", iscan->iscan_ex_params_p, \
 		iscan->iscan_ex_param_size, iscan->ioctlbuf, sizeof(iscan->ioctlbuf)))) {
 			WL_ERROR(("Set ISCAN for %s failed with %d\n", __FUNCTION__, err));
@@ -5957,15 +5958,22 @@ static int thr_wait_for_2nd_eth_dev(void *data)
 
 	DAEMONIZE("wl0_eth_wthread");
 
-	WL_TRACE(("\n>%s threda started:, PID:%x\n", __FUNCTION__, current->pid));
+	WL_TRACE(("\n>%s thread started:, PID:%x\n", __FUNCTION__, current->pid));
+	iw = *(wl_iw_t **)netdev_priv(dev);
+	if (!iw) {
+		WL_ERROR(("%s: dev is null\n", __FUNCTION__));
+		ret = -1;
+		goto fail;
+	}
 
+#ifndef BCMSDIOH_STD
 	if (down_timeout(&ap_eth_sema,  msecs_to_jiffies(5000)) != 0) {
 		WL_ERROR(("\n%s: sap_eth_sema timeout \n", __FUNCTION__));
 		ret = -1;
 		goto fail;
 	}
+#endif
 
-	iw = *(wl_iw_t **)netdev_priv(dev);
 	flags = dhd_os_spin_lock(iw->pub);
 	if (!ap_net_dev) {
 		WL_ERROR((" ap_net_dev is null !!!"));
@@ -6156,15 +6164,6 @@ static int set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 		WL_TRACE(("\n>in %s: apsta set result: %d \n", __FUNCTION__, res));
 #endif
 
-		iolen = wl_bssiovar_mkbuf("closednet",
-			bsscfg_index,  &ap->closednet, sizeof(ap->closednet)+4,
-			buf, sizeof(buf), &mkvar_err);
-		ASSERT(iolen);
-		if ((res = dev_wlc_ioctl(dev, WLC_SET_VAR, buf, iolen)) < 0) {
-			WL_ERROR(("%s failed to set 'closednet'for apsta \n", __FUNCTION__));
-			goto fail;
-		}
-
 		updown = 1;
 		if ((res = dev_wlc_ioctl(dev, WLC_UP, &updown, sizeof(updown))) < 0) {
 			WL_ERROR(("%s fail to set apsta \n", __FUNCTION__));
@@ -6185,6 +6184,32 @@ static int set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 			WL_ERROR(("%s fail to set bss down\n", __FUNCTION__));
 			goto fail;
 		}
+	}
+
+	if (strlen(ap->country_code)) {
+		int error = 0;
+		if ((error = dev_wlc_ioctl(dev, WLC_SET_COUNTRY,
+			ap->country_code, sizeof(ap->country_code))) >= 0) {
+			WL_SOFTAP(("%s: set country %s OK\n",
+				__FUNCTION__, ap->country_code));
+			dhd_bus_country_set(dev, &ap->country_code[0]);
+		} else {
+			WL_ERROR(("%s: ERROR:%d setting country %s\n",
+				__FUNCTION__, error, ap->country_code));
+		}
+	} else {
+		WL_SOFTAP(("%s: Country code is not specified,"
+			" will use Radio's default\n",
+			__FUNCTION__));
+	}
+
+	iolen = wl_bssiovar_mkbuf("closednet",
+		bsscfg_index,  &ap->closednet, sizeof(ap->closednet)+4,
+		buf, sizeof(buf), &mkvar_err);
+	ASSERT(iolen);
+	if ((res = dev_wlc_ioctl(dev, WLC_SET_VAR, buf, iolen)) < 0) {
+		WL_ERROR(("%s failed to set 'closednet'for apsta \n", __FUNCTION__));
+		goto fail;
 	}
 
 	
