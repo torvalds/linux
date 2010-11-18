@@ -281,6 +281,13 @@ static void __cpuinit smp_callin(void)
 	 */
 	smp_store_cpu_info(cpuid);
 
+	/*
+	 * This must be done before setting cpu_online_mask
+	 * or calling notify_cpu_starting.
+	 */
+	set_cpu_sibling_map(raw_smp_processor_id());
+	wmb();
+
 	notify_cpu_starting(cpuid);
 
 	/*
@@ -315,10 +322,6 @@ notrace static void __cpuinit start_secondary(void *unused)
 	 * Check TSC synchronization with the BP:
 	 */
 	check_tsc_sync_target();
-
-	/* This must be done before setting cpu_online_mask */
-	set_cpu_sibling_map(raw_smp_processor_id());
-	wmb();
 
 	/*
 	 * We need to hold call_lock, so there is no inconsistency
