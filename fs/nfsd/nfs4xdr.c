@@ -3137,13 +3137,9 @@ nfsd4_encode_sequence(struct nfsd4_compoundres *resp, int nfserr,
 	WRITE32(seq->seqid);
 	WRITE32(seq->slotid);
 	WRITE32(seq->maxslots);
-	/*
-	 * FIXME: for now:
-	 *   target_maxslots = maxslots
-	 *   status_flags = 0
-	 */
+	/* For now: target_maxslots = maxslots */
 	WRITE32(seq->maxslots);
-	WRITE32(0);
+	WRITE32(seq->status_flags);
 
 	ADJUST_ARGS();
 	resp->cstate.datap = p; /* DRC cache data pointer */

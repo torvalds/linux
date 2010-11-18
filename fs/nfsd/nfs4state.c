@@ -1800,8 +1800,12 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 out:
 	/* Hold a session reference until done processing the compound. */
 	if (cstate->session) {
+		struct nfs4_client *clp = session->se_client;
+
 		nfsd4_get_session(cstate->session);
-		atomic_inc(&session->se_client->cl_refcount);
+		atomic_inc(&clp->cl_refcount);
+		if (clp->cl_cb_state == NFSD4_CB_DOWN)
+			seq->status_flags |= SEQ4_STATUS_CB_PATH_DOWN;
 	}
 	kfree(conn);
 	spin_unlock(&client_lock);

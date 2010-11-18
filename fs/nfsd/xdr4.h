@@ -378,8 +378,8 @@ struct nfsd4_sequence {
 	u32			cachethis;		/* request */
 #if 0
 	u32			target_maxslots;	/* response */
-	u32			status_flags;		/* response */
 #endif /* not yet */
+	u32			status_flags;		/* response */
 };
 
 struct nfsd4_destroy_session {
