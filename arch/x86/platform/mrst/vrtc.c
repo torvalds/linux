@@ -159,8 +159,7 @@ static int __init mrst_device_create(void)
 	vrtc_resources[1].start = sfi_mrtc_array[0].irq;
 	vrtc_resources[1].end = sfi_mrtc_array[0].irq;
 
-	platform_device_register(&vrtc_device);
-	return 0;
+	return platform_device_register(&vrtc_device);
 }
 
 module_init(mrst_device_create);
