@@ -2974,6 +2974,14 @@ void dump_vmcb(struct kvm_vcpu *vcpu)
 
 }
 
+static void svm_get_exit_info(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2)
+{
+	struct vmcb_control_area *control = &to_svm(vcpu)->vmcb->control;
+
+	*info1 = control->exit_info_1;
+	*info2 = control->exit_info_2;
+}
+
 static int handle_exit(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -3684,7 +3692,9 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.get_tdp_level = get_npt_level,
 	.get_mt_mask = svm_get_mt_mask,
 
+	.get_exit_info = svm_get_exit_info,
 	.exit_reasons_str = svm_exit_reasons_str,
+
 	.get_lpage_level = svm_get_lpage_level,
 
 	.cpuid_update = svm_cpuid_update,
