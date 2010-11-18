@@ -338,7 +338,7 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 }
 
 /**
- * __pci_device_probe()
+ * __pci_device_probe - check if a driver wants to claim a specific PCI device
  * @drv: driver to call to check if it wants the PCI device
  * @pci_dev: PCI device being probed
  * 
