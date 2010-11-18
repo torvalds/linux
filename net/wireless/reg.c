@@ -1320,6 +1320,21 @@ static int ignore_request(struct wiphy *wiphy,
 	return -EINVAL;
 }
 
+static void reg_set_request_processed(void)
+{
+	bool need_more_processing = false;
+
+	last_request->processed = true;
+
+	spin_lock(&reg_requests_lock);
+	if (!list_empty(&reg_requests_list))
+		need_more_processing = true;
+	spin_unlock(&reg_requests_lock);
+
+	if (need_more_processing)
+		schedule_work(&reg_work);
+}
+
 /**
  * __regulatory_hint - hint to the wireless core a regulatory domain
  * @wiphy: if the hint comes from country information from an AP, this
@@ -1395,8 +1410,10 @@ new_request:
 		 * have applied the requested regulatory domain before we just
 		 * inform userspace we have processed the request
 		 */
-		if (r == -EALREADY)
+		if (r == -EALREADY) {
 			nl80211_send_reg_change_event(last_request);
+			reg_set_request_processed();
+		}
 		return r;
 	}
 
@@ -1428,7 +1445,11 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 		wiphy_update_regulatory(wiphy, initiator);
 }
 
-/* Processes regulatory hints, this is all the NL80211_REGDOM_SET_BY_* */
+/*
+ * Processes regulatory hints, this is all the NL80211_REGDOM_SET_BY_*
+ * Regulatory hints come on a first come first serve basis and we
+ * must process each one atomically.
+ */
 static void reg_process_pending_hints(void)
 {
 	struct regulatory_request *reg_request;
@@ -1436,19 +1457,30 @@ static void reg_process_pending_hints(void)
 	mutex_lock(&cfg80211_mutex);
 	mutex_lock(&reg_mutex);
 
-	spin_lock(&reg_requests_lock);
-	while (!list_empty(&reg_requests_list)) {
-		reg_request = list_first_entry(&reg_requests_list,
-					       struct regulatory_request,
-					       list);
-		list_del_init(&reg_request->list);
-
-		spin_unlock(&reg_requests_lock);
-		reg_process_hint(reg_request);
-		spin_lock(&reg_requests_lock);
+	/* When last_request->processed becomes true this will be rescheduled */
+	if (last_request && !last_request->processed) {
+		REG_DBG_PRINT("Pending regulatory request, waiting "
+			      "for it to be processed...");
+		goto out;
 	}
+
+	spin_lock(&reg_requests_lock);
+
+	if (list_empty(&reg_requests_list)) {
+		spin_unlock(&reg_requests_lock);
+		goto out;
+	}
+
+	reg_request = list_first_entry(&reg_requests_list,
+				       struct regulatory_request,
+				       list);
+	list_del_init(&reg_request->list);
+
 	spin_unlock(&reg_requests_lock);
 
+	reg_process_hint(reg_request);
+
+out:
 	mutex_unlock(&reg_mutex);
 	mutex_unlock(&cfg80211_mutex);
 }
@@ -2056,6 +2088,8 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 	print_regdomain(cfg80211_regdomain);
 
 	nl80211_send_reg_change_event(last_request);
+
+	reg_set_request_processed();
 
 	mutex_unlock(&reg_mutex);
 
