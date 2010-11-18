@@ -1,7 +1,7 @@
 #
 # Makefile for the HID driver
 #
-hid-objs			:= hid-core.o hid-input.o
+hid-y			:= hid-core.o hid-input.o
 
 ifdef CONFIG_DEBUG_FS
 	hid-objs		+= hid-debug.o
@@ -11,18 +11,18 @@ obj-$(CONFIG_HID)		+= hid.o
 
 hid-$(CONFIG_HIDRAW)		+= hidraw.o
 
-hid-logitech-objs		:= hid-lg.o
+hid-logitech-y		:= hid-lg.o
 ifdef CONFIG_LOGITECH_FF
-	hid-logitech-objs	+= hid-lgff.o
+	hid-logitech-y	+= hid-lgff.o
 endif
 ifdef CONFIG_LOGIRUMBLEPAD2_FF
-	hid-logitech-objs	+= hid-lg2ff.o
+	hid-logitech-y	+= hid-lg2ff.o
 endif
 ifdef CONFIG_LOGIG940_FF
-	hid-logitech-objs	+= hid-lg3ff.o
+	hid-logitech-y	+= hid-lg3ff.o
 endif
 ifdef CONFIG_LOGIWII_FF
-	hid-logitech-objs	+= hid-lg4ff.o
+	hid-logitech-y	+= hid-lg4ff.o
 endif
 
 obj-$(CONFIG_HID_3M_PCT)	+= hid-3m-pct.o
