@@ -447,10 +447,35 @@ void dump_stacktrace(struct fiq_debugger_state *state,
 		tail = user_backtrace(state, tail);
 }
 
+static void debug_help(struct fiq_debugger_state *state)
+{
+	debug_printf(state,	"FIQ Debugger commands:\n"
+				" pc            PC status\n"
+				" regs          Register dump\n"
+				" allregs       Extended Register dump\n"
+				" bt            Stack trace\n"
+				" reboot        Reboot\n"
+				" irqs          Interupt status\n"
+				" kmsg          Kernel log\n"
+				" version       Kernel version\n");
+	debug_printf(state,	" sleep         Allow sleep while in FIQ\n"
+				" nosleep       Disable sleep while in FIQ\n"
+				" console       Switch terminal to console\n"
+				" cpu           Current CPU\n"
+				" cpu <number>  Switch to CPU<number>\n");
+	if (!state->debug_busy) {
+		strcpy(state->debug_cmd, "help");
+		state->debug_busy = 1;
+		debug_force_irq(state);
+	}
+}
+
 static void debug_exec(struct fiq_debugger_state *state,
 			const char *cmd, unsigned *regs, void *svc_sp)
 {
-	if (!strcmp(cmd, "pc")) {
+	if (!strcmp(cmd, "help") || !strcmp(cmd, "?")) {
+		debug_help(state);
+	} else if (!strcmp(cmd, "pc")) {
 		debug_printf(state, " pc %08x cpsr %08x mode %s\n",
 			regs[15], regs[16], mode_name(regs[16]));
 	} else if (!strcmp(cmd, "regs")) {

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.h,v 1.5.34.1.6.36.4.12 2010/11/03 03:15:49 Exp $
+ * $Id: wl_iw.h,v 1.5.34.1.6.36.4.15 2010/11/17 03:13:51 Exp $
  */
 
 
@@ -160,6 +160,7 @@ struct ap_profile {
 	uint32	preamble;
 	uint32	max_scb;
 	uint32  closednet;
+	char country_code[WLC_CNTRY_BUF_SZ];
 };
 
 
@@ -198,6 +199,7 @@ extern int net_os_set_suspend(struct net_device *dev, int val);
 extern int net_os_set_dtim_skip(struct net_device *dev, int val);
 extern int net_os_set_packet_filter(struct net_device *dev, int val);
 extern void dhd_bus_country_set(struct net_device *dev, char *country_code);
+extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
 #define IWE_STREAM_ADD_EVENT(info, stream, ends, iwe, extra) \
