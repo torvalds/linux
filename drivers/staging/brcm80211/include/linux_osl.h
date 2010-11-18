@@ -273,10 +273,7 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 #define	PKTNEXT(skb)		(((struct sk_buff *)(skb))->next)
 #define	PKTSETNEXT(skb, x)	\
 	(((struct sk_buff *)(skb))->next = (struct sk_buff *)(x))
-#define	PKTSETLEN(skb, len)	__skb_trim((struct sk_buff *)(skb), (len))
 #define PKTALLOCED(osh)		(((struct osl_pubinfo *)(osh))->pktalloced)
-#define PKTSETPOOL(osh, skb, x, y)	do {} while (0)
-#define PKTPOOL(osh, skb)		false
 extern void *osl_pktget(struct osl_info *osh, uint len);
 extern void osl_pktfree(struct osl_info *osh, void *skb, bool send);
 

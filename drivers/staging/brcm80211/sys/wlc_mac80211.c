@@ -7164,7 +7164,7 @@ wlc_recvctl(wlc_info_t *wlc, struct osl_info *osh, d11rxhdr_t *rxh, void *p)
 	/* mac header+body length, exclude CRC and plcp header */
 	len_mpdu = PKTLEN(p) - D11_PHY_HDR_LEN - DOT11_FCS_LEN;
 	skb_pull(p, D11_PHY_HDR_LEN);
-	PKTSETLEN(p, len_mpdu);
+	__skb_trim(p, len_mpdu);
 
 	ASSERT(!PKTNEXT(p));
 	ASSERT(!PKTLINK(p));

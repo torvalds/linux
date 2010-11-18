@@ -366,7 +366,7 @@ extern void bcmsdh_enable_hw_oob_intr(void *sdh, bool enable);
 		ASSERT(PKTLEN((p)) >= ((len) + datalign));	\
 		if (datalign)						\
 			skb_pull((p), datalign);			\
-		PKTSETLEN((p), (len));				\
+		__skb_trim((p), (len));				\
 	} while (0)
 
 /* Limit on rounding up frames */
@@ -3521,7 +3521,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				prhex("Rx Subframe Data", dptr, dlen);
 #endif
 
-			PKTSETLEN(pfirst, sublen);
+			__skb_trim(pfirst, sublen);
 			skb_pull(pfirst, doff);
 
 			if (PKTLEN(pfirst) == 0) {
@@ -4151,7 +4151,7 @@ deliver:
 					prhex("Glom Data", PKTDATA(pkt), len);
 				}
 #endif
-				PKTSETLEN(pkt, len);
+				__skb_trim(pkt, len);
 				ASSERT(doff == SDPCM_HDRLEN);
 				skb_pull(pkt, SDPCM_HDRLEN);
 				bus->glomd = pkt;
@@ -4164,7 +4164,7 @@ deliver:
 		}
 
 		/* Fill in packet len and prio, deliver upward */
-		PKTSETLEN(pkt, len);
+		__skb_trim(pkt, len);
 		skb_pull(pkt, doff);
 
 #ifdef SDTEST

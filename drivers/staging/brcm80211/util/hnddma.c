@@ -1003,7 +1003,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 
 	/* set actual length */
 	pkt_len = min((di->rxoffset + len), di->rxbufsize);
-	PKTSETLEN(head, pkt_len);
+	__skb_trim(head, pkt_len);
 	resid = len - (di->rxbufsize - di->rxoffset);
 
 	/* check for single or multi-buffer rx */
@@ -1012,7 +1012,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 		while ((resid > 0) && (p = _dma_getnextrxp(di, false))) {
 			PKTSETNEXT(tail, p);
 			pkt_len = min(resid, (int)di->rxbufsize);
-			PKTSETLEN(p, pkt_len);
+			__skb_trim(p, pkt_len);
 
 			tail = p;
 			resid -= di->rxbufsize;
