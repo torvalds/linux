@@ -6829,7 +6829,7 @@ nouveau_bios_posted(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	unsigned htotal;
 
-	if (dev_priv->chipset >= NV_50) {
+	if (dev_priv->card_type >= NV_50) {
 		if (NVReadVgaCrtc(dev, 0, 0x00) == 0 &&
 		    NVReadVgaCrtc(dev, 0, 0x1a) == 0)
 			return false;

@@ -256,7 +256,7 @@ nouveau_i2c_find(struct drm_device *dev, int index)
 	if (index >= DCB_MAX_NUM_I2C_ENTRIES)
 		return NULL;
 
-	if (dev_priv->chipset >= NV_50 && (i2c->entry & 0x00000100)) {
+	if (dev_priv->card_type >= NV_50 && (i2c->entry & 0x00000100)) {
 		uint32_t reg = 0xe500, val;
 
 		if (i2c->port_type == 6) {

@@ -158,7 +158,6 @@ nv_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct drm_connector *connector;
 	unsigned char seq1 = 0, crtc17 = 0;
 	unsigned char crtc1A;
 
@@ -213,10 +212,6 @@ nv_crtc_dpms(struct drm_crtc *crtc, int mode)
 	NVVgaSeqReset(dev, nv_crtc->index, false);
 
 	NVWriteVgaCrtc(dev, nv_crtc->index, NV_CIO_CRE_RPC1_INDEX, crtc1A);
-
-	/* Update connector polling modes */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		nouveau_connector_set_polling(connector);
 }
 
 static bool
@@ -831,7 +826,7 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	/* Update the framebuffer location. */
 	regp->fb_start = nv_crtc->fb.offset & ~3;
 	regp->fb_start += (y * drm_fb->pitch) + (x * drm_fb->bits_per_pixel / 8);
-	NVWriteCRTC(dev, nv_crtc->index, NV_PCRTC_START, regp->fb_start);
+	nv_set_crtc_base(dev, nv_crtc->index, regp->fb_start);
 
 	/* Update the arbitration parameters. */
 	nouveau_calc_arb(dev, crtc->mode.clock, drm_fb->bits_per_pixel,

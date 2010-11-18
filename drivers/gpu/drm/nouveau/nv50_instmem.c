@@ -402,7 +402,6 @@ nv50_instmem_bind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 	}
 	dev_priv->engine.instmem.flush(dev);
 
-	nv50_vm_flush(dev, 4);
 	nv50_vm_flush(dev, 6);
 
 	gpuobj->im_bound = 1;
