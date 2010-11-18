@@ -27,6 +27,8 @@ int __initdata dt_root_size_cells;
 
 struct boot_param_header *initial_boot_params;
 
+#ifdef CONFIG_OF_EARLY_FLATTREE
+
 char *find_flat_dt_string(u32 offset)
 {
 	return ((char *)initial_boot_params) +
@@ -604,3 +606,5 @@ void __init unflatten_device_tree(void)
 
 	pr_debug(" <- unflatten_device_tree()\n");
 }
+
+#endif /* CONFIG_OF_EARLY_FLATTREE */
