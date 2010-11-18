@@ -270,7 +270,7 @@ void omap_sram_reprogram_clock(u32 dpllctl, u32 ckctl)
 	_omap_sram_reprogram_clock(dpllctl, ckctl);
 }
 
-int __init omap1_sram_init(void)
+static int __init omap1_sram_init(void)
 {
 	_omap_sram_reprogram_clock =
 			omap_sram_push(omap1_sram_reprogram_clock,

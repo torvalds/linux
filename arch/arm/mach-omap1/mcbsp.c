@@ -174,7 +174,7 @@ static struct omap_mcbsp_platform_data omap16xx_mcbsp_pdata[] = {
 #define OMAP16XX_MCBSP_REG_NUM		0
 #endif
 
-int __init omap1_mcbsp_init(void)
+static int __init omap1_mcbsp_init(void)
 {
 	if (cpu_is_omap7xx()) {
 		omap_mcbsp_count = OMAP7XX_MCBSP_PDATA_SZ;
