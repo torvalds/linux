@@ -784,7 +784,7 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	retval = cx231xx_register_analog_devices(dev);
 	if (retval < 0) {
 		cx231xx_release_resources(dev);
-		goto fail_reg_devices;
+		return retval;
 	}
 
 	cx231xx_ir_init(dev);
@@ -792,10 +792,6 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	cx231xx_init_extension(dev);
 
 	return 0;
-
-fail_reg_devices:
-	mutex_unlock(&dev->lock);
-	return retval;
 }
 
 #if defined(CONFIG_MODULES) && defined(MODULE)
