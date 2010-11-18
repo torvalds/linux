@@ -573,7 +573,6 @@ static void b43_nphy_calc_rx_iq_comp(struct b43_wldev *dev, u8 mask)
 			ii = est.i1_pwr;
 			qq = est.q1_pwr;
 		} else {
-			B43_WARN_ON(1);
 			continue;
 		}
 
@@ -2029,7 +2028,7 @@ static void b43_nphy_rev2_rssi_cal(struct b43_wldev *dev, u8 type)
 	}
 
 	b43_radio_maskset(dev, B2055_C1_PD_RSSIMISC, 0xF8, state[0]);
-	b43_radio_maskset(dev, B2055_C1_PD_RSSIMISC, 0xF8, state[1]);
+	b43_radio_maskset(dev, B2055_C2_PD_RSSIMISC, 0xF8, state[1]);
 
 	switch (state[2]) {
 	case 1:
@@ -3113,7 +3112,7 @@ static void b43_nphy_set_rx_core_state(struct b43_wldev *dev, u8 mask)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_n *nphy = phy->n;
-	u16 buf[16];
+	/* u16 buf[16]; it's rev3+ */
 
 	nphy->phyrxchain = mask;
 
@@ -3409,7 +3408,6 @@ static int b43_nphy_set_channel(struct b43_wldev *dev,
 				enum nl80211_channel_type channel_type)
 {
 	struct b43_phy *phy = &dev->phy;
-	struct b43_phy_n *nphy = dev->phy.n;
 
 	const struct b43_nphy_channeltab_entry_rev2 *tabent_r2;
 	const struct b43_nphy_channeltab_entry_rev3 *tabent_r3;
@@ -3479,8 +3477,9 @@ static void b43_nphy_op_prepare_structs(struct b43_wldev *dev)
 
 	memset(nphy, 0, sizeof(*nphy));
 
-	/* wl goes path which is executed for gain_boost, assume it is true */
-	nphy->gain_boost = true;
+	nphy->gain_boost = true; /* this way we follow wl, assume it is true */
+	nphy->txrx_chain = 2; /* sth different than 0 and 1 for now */
+	nphy->phyrxchain = 3; /* to avoid b43_nphy_set_rx_core_state like wl */
 }
 
 static void b43_nphy_op_free(struct b43_wldev *dev)
@@ -3553,8 +3552,6 @@ static void b43_nphy_op_radio_write(struct b43_wldev *dev, u16 reg, u16 value)
 static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 					bool blocked)
 {
-	struct b43_phy_n *nphy = dev->phy.n;
-
 	if (b43_read32(dev, B43_MMIO_MACCTL) & B43_MACCTL_ENABLED)
 		b43err(dev->wl, "MAC not suspended\n");
 
