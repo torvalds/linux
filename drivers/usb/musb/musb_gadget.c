@@ -1833,6 +1833,8 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		spin_unlock_irqrestore(&musb->lock, flags);
 
 		if (is_otg_enabled(musb)) {
+			struct usb_hcd	*hcd = musb_to_hcd(musb);
+
 			DBG(3, "OTG startup...\n");
 
 			/* REVISIT:  funcall to other code, which also
@@ -1847,6 +1849,8 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 				musb->gadget_driver = NULL;
 				musb->g.dev.driver = NULL;
 				spin_unlock_irqrestore(&musb->lock, flags);
+			} else {
+				hcd->self.uses_pio_for_control = 1;
 			}
 		}
 	}
