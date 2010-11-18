@@ -19,15 +19,19 @@
 #include <mach/dma.h>
 #include <mach/irqs.h>
 
-static int s5p6440_cfg_i2s(struct platform_device *pdev)
+static const char *rclksrc[] = {
+	[0] = "iis",
+	[1] = "sclk_audio2",
+};
+
+static int s5p64x0_cfg_i2s(struct platform_device *pdev)
 {
 	/* configure GPIO for i2s port */
 	switch (pdev->id) {
-	case -1:
+	case 0:
 		s3c_gpio_cfgpin_range(S5P6440_GPR(4), 5, S3C_GPIO_SFN(5));
 		s3c_gpio_cfgpin_range(S5P6440_GPR(13), 2, S3C_GPIO_SFN(5));
 		break;
-
 	default:
 		printk(KERN_ERR "Invalid Device %d\n", pdev->id);
 		return -EINVAL;
@@ -36,31 +40,14 @@ static int s5p6440_cfg_i2s(struct platform_device *pdev)
 	return 0;
 }
 
-static int s5p6450_cfg_i2s(struct platform_device *pdev)
-{
-	/* configure GPIO for i2s port */
-	switch (pdev->id) {
-	case -1:
-		s3c_gpio_cfgpin(S5P6450_GPB(4), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin_range(S5P6450_GPR(4), 5, S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin_range(S5P6450_GPR(13), 2, S3C_GPIO_SFN(5));
-
-		break;
-
-	default:
-		printk(KERN_ERR "Invalid Device %d\n", pdev->id);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static struct s3c_audio_pdata s5p6440_i2s_pdata = {
-	.cfg_gpio = s5p6440_cfg_i2s,
-};
-
-static struct s3c_audio_pdata s5p6450_i2s_pdata = {
-	.cfg_gpio = s5p6450_cfg_i2s,
+static struct s3c_audio_pdata s5p64x0_i2s_pdata = {
+	.cfg_gpio = s5p64x0_cfg_i2s,
+	.type = {
+		.i2s = {
+			.quirks = QUIRK_PRI_6CHAN,
+			.src_clk = rclksrc,
+		},
+	},
 };
 
 static struct resource s5p64x0_iis0_resource[] = {
@@ -82,22 +69,22 @@ static struct resource s5p64x0_iis0_resource[] = {
 };
 
 struct platform_device s5p6440_device_iis = {
-	.name		= "samsung-i2s-v4",
-	.id		= -1,
+	.name		= "samsung-i2s",
+	.id		= 0,
 	.num_resources	= ARRAY_SIZE(s5p64x0_iis0_resource),
 	.resource	= s5p64x0_iis0_resource,
 	.dev = {
-		.platform_data = &s5p6440_i2s_pdata,
+		.platform_data = &s5p64x0_i2s_pdata,
 	},
 };
 
 struct platform_device s5p6450_device_iis0 = {
-	.name		= "samsung-i2s-v4",
-	.id		= -1,
+	.name		= "samsung-i2s",
+	.id		= 0,
 	.num_resources	= ARRAY_SIZE(s5p64x0_iis0_resource),
 	.resource	= s5p64x0_iis0_resource,
 	.dev = {
-		.platform_data = &s5p6450_i2s_pdata,
+		.platform_data = &s5p64x0_i2s_pdata,
 	},
 };
 
