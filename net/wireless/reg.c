@@ -1530,12 +1530,7 @@ static int regulatory_hint_core(const char *alpha2)
 	request->alpha2[1] = alpha2[1];
 	request->initiator = NL80211_REGDOM_SET_BY_CORE;
 
-	/*
-	 * This ensures last_request is populated once modules
-	 * come swinging in and calling regulatory hints and
-	 * wiphy_apply_custom_regulatory().
-	 */
-	reg_process_hint(request);
+	queue_regulatory_request(request);
 
 	return 0;
 }
