@@ -1267,26 +1267,32 @@ EXPORT_SYMBOL(ip_mc_inc_group);
 
 /*
  *	Resend IGMP JOIN report; used for bonding.
+ *	Called with rcu_read_lock()
  */
-void ip_mc_rejoin_group(struct ip_mc_list *im)
+void ip_mc_rejoin_groups(struct in_device *in_dev)
 {
 #ifdef CONFIG_IP_MULTICAST
-	struct in_device *in_dev = im->interface;
+	struct ip_mc_list *im;
+	int type;
 
-	if (im->multiaddr == IGMP_ALL_HOSTS)
-		return;
+	for_each_pmc_rcu(in_dev, im) {
+		if (im->multiaddr == IGMP_ALL_HOSTS)
+			continue;
 
-	/* a failover is happening and switches
-	 * must be notified immediately */
-	if (IGMP_V1_SEEN(in_dev))
-		igmp_send_report(in_dev, im, IGMP_HOST_MEMBERSHIP_REPORT);
-	else if (IGMP_V2_SEEN(in_dev))
-		igmp_send_report(in_dev, im, IGMPV2_HOST_MEMBERSHIP_REPORT);
-	else
-		igmp_send_report(in_dev, im, IGMPV3_HOST_MEMBERSHIP_REPORT);
+		/* a failover is happening and switches
+		 * must be notified immediately
+		 */
+		if (IGMP_V1_SEEN(in_dev))
+			type = IGMP_HOST_MEMBERSHIP_REPORT;
+		else if (IGMP_V2_SEEN(in_dev))
+			type = IGMPV2_HOST_MEMBERSHIP_REPORT;
+		else
+			type = IGMPV3_HOST_MEMBERSHIP_REPORT;
+		igmp_send_report(in_dev, im, type);
+	}
 #endif
 }
-EXPORT_SYMBOL(ip_mc_rejoin_group);
+EXPORT_SYMBOL(ip_mc_rejoin_groups);
 
 /*
  *	A socket has left a multicast group on device dev
