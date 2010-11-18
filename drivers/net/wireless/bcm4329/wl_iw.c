@@ -632,11 +632,13 @@ wl_iw_set_country(
 	country_offset = strcspn(extra, " ");
 	country_code_size = strlen(extra) - country_offset;
 
-	
 	if (country_offset != 0) {
 		strncpy(country_code, extra + country_offset + 1,
 			MIN(country_code_size, sizeof(country_code)));
-
+#ifdef CONFIG_US_NON_DFS_CHANNELS_ONLY
+		if (!strncmp(country_code, "US", 2))
+			strncpy(country_code, "Q2", WLC_CNTRY_BUF_SZ);
+#endif
 		if ((error = dev_wlc_ioctl(dev, WLC_SET_COUNTRY,
 			&country_code, sizeof(country_code))) >= 0) {
 			p += snprintf(p, MAX_WX_STRING, "OK");
