@@ -677,11 +677,9 @@ static void hci_cs_set_conn_encrypt(struct hci_dev *hdev, __u8 status)
 	hci_dev_unlock(hdev);
 }
 
-static int hci_request_outgoing_auth(struct hci_dev *hdev,
+static int hci_outgoing_auth_needed(struct hci_dev *hdev,
 						struct hci_conn *conn)
 {
-	struct hci_cp_auth_requested cp;
-
 	if (conn->state != BT_CONFIG || !conn->out)
 		return 0;
 
@@ -694,15 +692,35 @@ static int hci_request_outgoing_auth(struct hci_dev *hdev,
 					conn->sec_level != BT_SECURITY_HIGH)
 		return 0;
 
-	cp.handle = __cpu_to_le16(conn->handle);
-	hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
-
 	return 1;
 }
 
 static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 {
+	struct hci_cp_remote_name_req *cp;
+	struct hci_conn *conn;
+
 	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	/* If successful wait for the name req complete event before
+	 * checking for the need to do authentication */
+	if (!status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_REMOTE_NAME_REQ);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
+	if (conn && hci_outgoing_auth_needed(hdev, conn)) {
+		struct hci_cp_auth_requested cp;
+		cp.handle = __cpu_to_le16(conn->handle);
+		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
+	}
+
+	hci_dev_unlock(hdev);
 }
 
 static void hci_cs_read_remote_features(struct hci_dev *hdev, __u8 status)
@@ -1113,9 +1131,23 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 
 static inline void hci_remote_name_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
+	struct hci_ev_remote_name *ev = (void *) skb->data;
+	struct hci_conn *conn;
+
 	BT_DBG("%s", hdev->name);
 
 	hci_conn_check_pending(hdev);
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
+	if (conn && hci_outgoing_auth_needed(hdev, conn)) {
+		struct hci_cp_auth_requested cp;
+		cp.handle = __cpu_to_le16(conn->handle);
+		hci_send_cmd(hdev, HCI_OP_AUTH_REQUESTED, sizeof(cp), &cp);
+	}
+
+	hci_dev_unlock(hdev);
 }
 
 static inline void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1179,7 +1211,6 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 {
 	struct hci_ev_remote_features *ev = (void *) skb->data;
 	struct hci_conn *conn;
-	int auth_requested;
 
 	BT_DBG("%s status %d", hdev->name, ev->status);
 
@@ -1204,12 +1235,15 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 		goto unlock;
 	}
 
-	if (!ev->status)
-		auth_requested = hci_request_outgoing_auth(hdev, conn);
-	else
-		auth_requested = 0;
+	if (!ev->status) {
+		struct hci_cp_remote_name_req cp;
+		memset(&cp, 0, sizeof(cp));
+		bacpy(&cp.bdaddr, &conn->dst);
+		cp.pscan_rep_mode = 0x02;
+		hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ, sizeof(cp), &cp);
+	}
 
-	if (!auth_requested) {
+	if (!hci_outgoing_auth_needed(hdev, conn)) {
 		conn->state = BT_CONNECTED;
 		hci_proto_connect_cfm(conn, ev->status);
 		hci_conn_put(conn);
@@ -1667,7 +1701,6 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 {
 	struct hci_ev_remote_ext_features *ev = (void *) skb->data;
 	struct hci_conn *conn;
-	int auth_requested;
 
 	BT_DBG("%s", hdev->name);
 
@@ -1689,12 +1722,15 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 	if (conn->state != BT_CONFIG)
 		goto unlock;
 
-	if (!ev->status)
-		auth_requested = hci_request_outgoing_auth(hdev, conn);
-	else
-		auth_requested = 0;
+	if (!ev->status) {
+		struct hci_cp_remote_name_req cp;
+		memset(&cp, 0, sizeof(cp));
+		bacpy(&cp.bdaddr, &conn->dst);
+		cp.pscan_rep_mode = 0x02;
+		hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ, sizeof(cp), &cp);
+	}
 
-	if (!auth_requested) {
+	if (!hci_outgoing_auth_needed(hdev, conn)) {
 		conn->state = BT_CONNECTED;
 		hci_proto_connect_cfm(conn, ev->status);
 		hci_conn_put(conn);
