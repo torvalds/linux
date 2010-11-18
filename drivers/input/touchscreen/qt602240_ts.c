@@ -969,7 +969,7 @@ static int qt602240_initialize(struct qt602240_data *data)
 		return error;
 
 	data->object_table = kcalloc(info->object_num,
-				     sizeof(struct qt602240_data),
+				     sizeof(struct qt602240_object),
 				     GFP_KERNEL);
 	if (!data->object_table) {
 		dev_err(&client->dev, "Failed to allocate memory\n");
