@@ -303,12 +303,25 @@ volatility of linux-next tends to make it a difficult development target.
 See http://lwn.net/Articles/289013/ for more information on this topic, and
 stay tuned; much is still in flux where linux-next is involved.
 
-Besides the mmotm and linux-next trees, the kernel source tree now contains
-the drivers/staging/ directory and many sub-directories for drivers or
-filesystems that are on their way to being added to the kernel tree
-proper, but they remain in drivers/staging/ while they still need more
-work.
+2.4.1: STAGING TREES
 
+The kernel source tree now contains the drivers/staging/ directory, where
+many sub-directories for drivers or filesystems that are on their way to
+being added to the kernel tree live.  They remain in drivers/staging while
+they still need more work; once complete, they can be moved into the
+kernel proper.  This is a way to keep track of drivers that aren't
+up to Linux kernel coding or quality standards, but people may want to use
+them and track development.
+
+Greg Kroah-Hartman currently (as of 2.6.36) maintains the staging tree.
+Drivers that still need work are sent to him, with each driver having
+its own subdirectory in drivers/staging/.  Along with the driver source
+files, a TODO file should be present in the directory as well.  The TODO
+file lists the pending work that the driver needs for acceptance into
+the kernel proper, as well as a list of people that should be Cc'd for any
+patches to the driver.  Staging drivers that don't currently build should
+have their config entries depend upon CONFIG_BROKEN.  Once they can
+be successfully built without outside patches, CONFIG_BROKEN can be removed.
 
 2.5: TOOLS
 
