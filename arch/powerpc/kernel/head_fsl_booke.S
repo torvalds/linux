@@ -41,6 +41,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
+#include <asm/ptrace.h>
 #include "head_booke.h"
 
 /* As with the other PowerPC ports, it is expected that when code

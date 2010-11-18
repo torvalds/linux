@@ -38,6 +38,7 @@
 #include <asm/page_64.h>
 #include <asm/irqflags.h>
 #include <asm/kvm_book3s_asm.h>
+#include <asm/ptrace.h>
 
 /* The physical memory is layed out such that the secondary processor
  * spin code sits at 0x0000...0x00ff. On server, the vectors follow

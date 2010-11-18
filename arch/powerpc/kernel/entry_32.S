@@ -31,6 +31,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 #include <asm/ftrace.h>
+#include <asm/ptrace.h>
 
 #undef SHOW_SYSCALLS
 #undef SHOW_SYSCALLS_TASK
