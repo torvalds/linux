@@ -10,7 +10,7 @@
  * - Added Port-Write message handling
  * - Added Machine Check exception handling
  *
- * Copyright (C) 2007, 2008 Freescale Semiconductor, Inc.
+ * Copyright (C) 2007, 2008, 2010 Freescale Semiconductor, Inc.
  * Zhang Wei <wei.zhang@freescale.com>
  *
  * Copyright 2005 MontaVista Software, Inc.
@@ -47,15 +47,33 @@
 #define IRQ_RIO_RX(m)		(((struct rio_priv *)(m->priv))->rxirq)
 #define IRQ_RIO_PW(m)		(((struct rio_priv *)(m->priv))->pwirq)
 
+#define IPWSR_CLEAR		0x98
+#define OMSR_CLEAR		0x1cb3
+#define IMSR_CLEAR		0x491
+#define IDSR_CLEAR		0x91
+#define ODSR_CLEAR		0x1c00
+#define LTLEECSR_ENABLE_ALL	0xFFC000FC
+#define ESCSR_CLEAR		0x07120204
+
+#define RIO_PORT1_EDCSR		0x0640
+#define RIO_PORT2_EDCSR		0x0680
+#define RIO_PORT1_IECSR		0x10130
+#define RIO_PORT2_IECSR		0x101B0
+#define RIO_IM0SR		0x13064
+#define RIO_IM1SR		0x13164
+#define RIO_OM0SR		0x13004
+#define RIO_OM1SR		0x13104
+
 #define RIO_ATMU_REGS_OFFSET	0x10c00
 #define RIO_P_MSG_REGS_OFFSET	0x11000
 #define RIO_S_MSG_REGS_OFFSET	0x13000
 #define RIO_GCCSR		0x13c
 #define RIO_ESCSR		0x158
+#define RIO_PORT2_ESCSR		0x178
 #define RIO_CCSR		0x15c
 #define RIO_LTLEDCSR		0x0608
-#define  RIO_LTLEDCSR_IER	0x80000000
-#define  RIO_LTLEDCSR_PRT	0x01000000
+#define RIO_LTLEDCSR_IER	0x80000000
+#define RIO_LTLEDCSR_PRT	0x01000000
 #define RIO_LTLEECSR		0x060c
 #define RIO_EPWISR		0x10010
 #define RIO_ISR_AACR		0x10120
@@ -88,7 +106,10 @@
 #define RIO_IPWSR_PWD		0x00000008
 #define RIO_IPWSR_PWB		0x00000004
 
-#define RIO_EPWISR_PINT		0x80000000
+/* EPWISR Error match value */
+#define RIO_EPWISR_PINT1	0x80000000
+#define RIO_EPWISR_PINT2	0x40000000
+#define RIO_EPWISR_MU		0x00000002
 #define RIO_EPWISR_PW		0x00000001
 
 #define RIO_MSG_DESC_SIZE	32
@@ -1060,6 +1081,40 @@ static int fsl_rio_doorbell_init(struct rio_mport *mport)
 	return rc;
 }
 
+static void port_error_handler(struct rio_mport *port, int offset)
+{
+	/*XXX: Error recovery is not implemented, we just clear errors */
+	out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR), 0);
+
+	if (offset == 0) {
+		out_be32((u32 *)(rio_regs_win + RIO_PORT1_EDCSR), 0);
+		out_be32((u32 *)(rio_regs_win + RIO_PORT1_IECSR), 0);
+		out_be32((u32 *)(rio_regs_win + RIO_ESCSR), ESCSR_CLEAR);
+	} else {
+		out_be32((u32 *)(rio_regs_win + RIO_PORT2_EDCSR), 0);
+		out_be32((u32 *)(rio_regs_win + RIO_PORT2_IECSR), 0);
+		out_be32((u32 *)(rio_regs_win + RIO_PORT2_ESCSR), ESCSR_CLEAR);
+	}
+}
+
+static void msg_unit_error_handler(struct rio_mport *port)
+{
+	struct rio_priv *priv = port->priv;
+
+	/*XXX: Error recovery is not implemented, we just clear errors */
+	out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR), 0);
+
+	out_be32((u32 *)(rio_regs_win + RIO_IM0SR), IMSR_CLEAR);
+	out_be32((u32 *)(rio_regs_win + RIO_IM1SR), IMSR_CLEAR);
+	out_be32((u32 *)(rio_regs_win + RIO_OM0SR), OMSR_CLEAR);
+	out_be32((u32 *)(rio_regs_win + RIO_OM1SR), OMSR_CLEAR);
+
+	out_be32(&priv->msg_regs->odsr, ODSR_CLEAR);
+	out_be32(&priv->msg_regs->dsr, IDSR_CLEAR);
+
+	out_be32(&priv->msg_regs->pwsr, IPWSR_CLEAR);
+}
+
 /**
  * fsl_rio_port_write_handler - MPC85xx port write interrupt handler
  * @irq: Linux interrupt number
@@ -1140,10 +1195,22 @@ fsl_rio_port_write_handler(int irq, void *dev_instance)
 	}
 
 pw_done:
-	if (epwisr & RIO_EPWISR_PINT) {
+	if (epwisr & RIO_EPWISR_PINT1) {
 		tmp = in_be32(priv->regs_win + RIO_LTLEDCSR);
 		pr_debug("RIO_LTLEDCSR = 0x%x\n", tmp);
-		out_be32(priv->regs_win + RIO_LTLEDCSR, 0);
+		port_error_handler(port, 0);
+	}
+
+	if (epwisr & RIO_EPWISR_PINT2) {
+		tmp = in_be32(priv->regs_win + RIO_LTLEDCSR);
+		pr_debug("RIO_LTLEDCSR = 0x%x\n", tmp);
+		port_error_handler(port, 1);
+	}
+
+	if (epwisr & RIO_EPWISR_MU) {
+		tmp = in_be32(priv->regs_win + RIO_LTLEDCSR);
+		pr_debug("RIO_LTLEDCSR = 0x%x\n", tmp);
+		msg_unit_error_handler(port);
 	}
 
 	return IRQ_HANDLED;
@@ -1254,12 +1321,14 @@ static int fsl_rio_port_write_init(struct rio_mport *mport)
 
 
 	/* Hook up port-write handler */
-	rc = request_irq(IRQ_RIO_PW(mport), fsl_rio_port_write_handler, 0,
-			 "port-write", (void *)mport);
+	rc = request_irq(IRQ_RIO_PW(mport), fsl_rio_port_write_handler,
+			IRQF_SHARED, "port-write", (void *)mport);
 	if (rc < 0) {
 		pr_err("MPC85xx RIO: unable to request inbound doorbell irq");
 		goto err_out;
 	}
+	/* Enable Error Interrupt */
+	out_be32((u32 *)(rio_regs_win + RIO_LTLEECSR), LTLEECSR_ENABLE_ALL);
 
 	INIT_WORK(&priv->pw_work, fsl_pw_dpc);
 	spin_lock_init(&priv->pw_fifo_lock);
