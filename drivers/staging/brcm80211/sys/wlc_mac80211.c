@@ -5942,10 +5942,10 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 	ASSERT(tx_info);
 
 	/* add PLCP */
-	plcp = PKTPUSH(p, D11_PHY_HDR_LEN);
+	plcp = skb_push(p, D11_PHY_HDR_LEN);
 
 	/* add Broadcom tx descriptor header */
-	txh = (d11txh_t *) PKTPUSH(p, D11_TXH_LEN);
+	txh = (d11txh_t *) skb_push(p, D11_TXH_LEN);
 	bzero((char *)txh, D11_TXH_LEN);
 
 	/* setup frameid */
@@ -6890,8 +6890,8 @@ wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, u32 frm_tx2)
 		PKTSETLINK(p, NULL);
 		wlc->txretried = 0;
 		/* remove PLCP & Broadcom tx descriptor header */
-		PKTPULL(p, D11_PHY_HDR_LEN);
-		PKTPULL(p, D11_TXH_LEN);
+		skb_pull(p, D11_PHY_HDR_LEN);
+		skb_pull(p, D11_TXH_LEN);
 		ieee80211_tx_status_irqsafe(wlc->pub->ieee_hw, p);
 		WLCNTINCR(wlc->pub->_cnt->ieee_tx_status);
 	} else {
@@ -7163,7 +7163,7 @@ wlc_recvctl(wlc_info_t *wlc, struct osl_info *osh, d11rxhdr_t *rxh, void *p)
 
 	/* mac header+body length, exclude CRC and plcp header */
 	len_mpdu = PKTLEN(p) - D11_PHY_HDR_LEN - DOT11_FCS_LEN;
-	PKTPULL(p, D11_PHY_HDR_LEN);
+	skb_pull(p, D11_PHY_HDR_LEN);
 	PKTSETLEN(p, len_mpdu);
 
 	ASSERT(!PKTNEXT(p));
@@ -7225,7 +7225,7 @@ void BCMFASTPATH wlc_recv(wlc_info_t *wlc, void *p)
 	rxh = (d11rxhdr_t *) PKTDATA(p);
 
 	/* strip off rxhdr */
-	PKTPULL(p, wlc->hwrxoff);
+	skb_pull(p, wlc->hwrxoff);
 
 	/* fixup rx header endianness */
 	ltoh16_buf((void *)rxh, sizeof(d11rxhdr_t));
@@ -7238,7 +7238,7 @@ void BCMFASTPATH wlc_recv(wlc_info_t *wlc, void *p)
 				  wlc->pub->unit, PKTLEN(p)));
 			goto toss;
 		}
-		PKTPULL(p, 2);
+		skb_pull(p, 2);
 	}
 
 	h = (struct dot11_header *)(PKTDATA(p) + D11_PHY_HDR_LEN);

@@ -1187,8 +1187,8 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb, void *p,
 				     status & TX_STATUS_FRM_RTX_MASK) >>
 				    TX_STATUS_FRM_RTX_SHIFT;
 
-				PKTPULL(p, D11_PHY_HDR_LEN);
-				PKTPULL(p, D11_TXH_LEN);
+				skb_pull(p, D11_PHY_HDR_LEN);
+				skb_pull(p, D11_TXH_LEN);
 
 				ieee80211_tx_status_irqsafe(wlc->pub->ieee_hw,
 							    p);
@@ -1213,8 +1213,8 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb, void *p,
 				ieee80211_tx_info_clear_status(tx_info);
 				tx_info->flags |=
 				    IEEE80211_TX_STAT_AMPDU_NO_BACK;
-				PKTPULL(p, D11_PHY_HDR_LEN);
-				PKTPULL(p, D11_TXH_LEN);
+				skb_pull(p, D11_PHY_HDR_LEN);
+				skb_pull(p, D11_TXH_LEN);
 				WL_ERROR(("%s: BA Timeout, seq %d, in_transit %d\n", SHORTNAME, seq, ini->tx_in_transit));
 				ieee80211_tx_status_irqsafe(wlc->pub->ieee_hw,
 							    p);

@@ -365,7 +365,7 @@ extern void bcmsdh_enable_hw_oob_intr(void *sdh, bool enable);
 		ASSERT(datalign < (align));				\
 		ASSERT(PKTLEN((p)) >= ((len) + datalign));	\
 		if (datalign)						\
-			PKTPULL((p), datalign);			\
+			skb_pull((p), datalign);			\
 		PKTSETLEN((p), (len));				\
 	} while (0)
 
@@ -953,7 +953,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 			ASSERT(((unsigned long)frame % DHD_SDALIGN) == 0);
 			pad = 0;
 		} else {
-			PKTPUSH(pkt, pad);
+			skb_push(pkt, pad);
 			frame = (u8 *) PKTDATA(pkt);
 
 			ASSERT((pad + SDPCM_HDRLEN) <= (int)PKTLEN(pkt));
@@ -1052,7 +1052,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 
 done:
 	/* restore pkt buffer pointer before calling tx complete routine */
-	PKTPULL(pkt, SDPCM_HDRLEN + pad);
+	skb_pull(pkt, SDPCM_HDRLEN + pad);
 	dhd_os_sdunlock(bus->dhd);
 	dhd_txcomplete(bus->dhd, pkt, ret != 0);
 	dhd_os_sdlock(bus->dhd);
@@ -1078,7 +1078,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 	/* Push the test header if doing loopback */
 	if (bus->ext_loop) {
 		u8 *data;
-		PKTPUSH(pkt, SDPCM_TEST_HDRLEN);
+		skb_push(pkt, SDPCM_TEST_HDRLEN);
 		data = PKTDATA(pkt);
 		*data++ = SDPCM_TEST_ECHOREQ;
 		*data++ = (u8) bus->loopid++;
@@ -1089,7 +1089,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 #endif				/* SDTEST */
 
 	/* Add space for the header */
-	PKTPUSH(pkt, SDPCM_HDRLEN);
+	skb_push(pkt, SDPCM_HDRLEN);
 	ASSERT(IS_ALIGNED((unsigned long)PKTDATA(pkt), 2));
 
 	prec = PRIO2PREC((PKTPRIO(pkt) & PRIOMASK));
@@ -1107,7 +1107,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 		/* Priority based enq */
 		dhd_os_sdlock_txq(bus->dhd);
 		if (dhd_prec_enq(bus->dhd, &bus->txq, pkt, prec) == false) {
-			PKTPULL(pkt, SDPCM_HDRLEN);
+			skb_pull(pkt, SDPCM_HDRLEN);
 			dhd_txcomplete(bus->dhd, pkt, false);
 			PKTFREE(osh, pkt, true);
 			DHD_ERROR(("%s: out of bus->txq !!!\n", __func__));
@@ -3426,7 +3426,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		bus->tx_max = txmax;
 
 		/* Remove superframe header, remember offset */
-		PKTPULL(pfirst, doff);
+		skb_pull(pfirst, doff);
 		sfdoff = doff;
 
 		/* Validate all the subframe headers */
@@ -3471,7 +3471,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				 a couple retries */
 			if (bus->glomerr++ < 3) {
 				/* Restore superframe header space */
-				PKTPUSH(pfirst, sfdoff);
+				skb_push(pfirst, sfdoff);
 				dhdsdio_rxfail(bus, true, true);
 			} else {
 				bus->glomerr = 0;
@@ -3522,7 +3522,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 #endif
 
 			PKTSETLEN(pfirst, sublen);
-			PKTPULL(pfirst, doff);
+			skb_pull(pfirst, doff);
 
 			if (PKTLEN(pfirst) == 0) {
 				PKTFREE(bus->dhd->osh, pfirst, false);
@@ -4104,7 +4104,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 
 		/* Leave room for what we already read, and align remainder */
 		ASSERT(firstread < (PKTLEN(pkt)));
-		PKTPULL(pkt, firstread);
+		skb_pull(pkt, firstread);
 		PKTALIGN(osh, pkt, rdlen, DHD_SDALIGN);
 
 		/* Read the remaining frame data */
@@ -4132,7 +4132,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		}
 
 		/* Copy the already-read portion */
-		PKTPUSH(pkt, firstread);
+		skb_push(pkt, firstread);
 		bcopy(bus->rxhdr, PKTDATA(pkt), firstread);
 
 #ifdef DHD_DEBUG
@@ -4153,7 +4153,7 @@ deliver:
 #endif
 				PKTSETLEN(pkt, len);
 				ASSERT(doff == SDPCM_HDRLEN);
-				PKTPULL(pkt, SDPCM_HDRLEN);
+				skb_pull(pkt, SDPCM_HDRLEN);
 				bus->glomd = pkt;
 			} else {
 				DHD_ERROR(("%s: glom superframe w/o "
@@ -4165,7 +4165,7 @@ deliver:
 
 		/* Fill in packet len and prio, deliver upward */
 		PKTSETLEN(pkt, len);
-		PKTPULL(pkt, doff);
+		skb_pull(pkt, doff);
 
 #ifdef SDTEST
 		/* Test channel packets are processed separately */

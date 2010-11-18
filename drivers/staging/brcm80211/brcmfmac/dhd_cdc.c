@@ -321,7 +321,7 @@ void dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, void *pktbuf)
 #ifdef BDC
 	/* Push BDC header used to convey priority for buses that don't */
 
-	PKTPUSH(pktbuf, BDC_HEADER_LEN);
+	skb_push(pktbuf, BDC_HEADER_LEN);
 
 	h = (struct bdc_header *)PKTDATA(pktbuf);
 
@@ -398,7 +398,7 @@ int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf)
 
 	PKTSETPRIO(pktbuf, (h->priority & BDC_PRIORITY_MASK));
 
-	PKTPULL(pktbuf, BDC_HEADER_LEN);
+	skb_pull(pktbuf, BDC_HEADER_LEN);
 #endif				/* BDC */
 
 	return 0;

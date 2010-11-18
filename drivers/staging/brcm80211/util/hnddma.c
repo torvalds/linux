@@ -1110,7 +1110,7 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 		}
 		/* reserve an extra headroom, if applicable */
 		if (extra_offset)
-			PKTPULL(p, extra_offset);
+			skb_pull(p, extra_offset);
 
 		/* Do a cached write instead of uncached write since DMA_MAP
 		 * will flush the cache.
