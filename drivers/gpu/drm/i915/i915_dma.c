@@ -1962,7 +1962,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 * bo.
 	 *
 	 * It is also used for periodic low-priority events, such as
-	 * idle-timers and hangcheck.
+	 * idle-timers and recording error state.
 	 *
 	 * All tasks on the workqueue are expected to acquire the dev mutex
 	 * so there is no point in running more than one instance of the
