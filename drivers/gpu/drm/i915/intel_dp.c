@@ -1374,6 +1374,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.base.crtc);
 	uint32_t DP = intel_dp->DP;
 
 	DRM_DEBUG_KMS("\n");
@@ -1398,6 +1399,26 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 
 	if (is_edp(intel_dp))
 		DP |= DP_LINK_TRAIN_OFF;
+
+	if (!HAS_PCH_CPT(dev) && (DP & DP_PIPEB_SELECT)) {
+		/* Hardware workaround: leaving our transcoder select
+		 * set to transcoder B while it's off will prevent the
+		 * corresponding HDMI output on transcoder A.
+		 *
+		 * Combine this with another hardware workaround:
+		 * transcoder select bit can only be cleared while the
+		 * port is enabled.
+		 */
+		DP &= ~DP_PIPEB_SELECT;
+		I915_WRITE(intel_dp->output_reg, DP);
+
+		/* Changes to enable or select take place the vblank
+		 * after being written.
+		 */
+		intel_wait_for_vblank(intel_dp->base.base.dev,
+				      intel_crtc->pipe);
+	}
+
 	I915_WRITE(intel_dp->output_reg, DP & ~DP_PORT_EN);
 	POSTING_READ(intel_dp->output_reg);
 }
