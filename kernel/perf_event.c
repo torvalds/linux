@@ -4747,15 +4747,6 @@ static int perf_tp_event_init(struct perf_event *event)
 	if (event->attr.type != PERF_TYPE_TRACEPOINT)
 		return -ENOENT;
 
-	/*
-	 * Raw tracepoint data is a severe data leak, only allow root to
-	 * have these.
-	 */
-	if ((event->attr.sample_type & PERF_SAMPLE_RAW) &&
-			perf_paranoid_tracepoint_raw() &&
-			!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	err = perf_trace_init(event);
 	if (err)
 		return err;
