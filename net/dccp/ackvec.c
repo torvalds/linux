@@ -282,7 +282,7 @@ void dccp_ackvec_input(struct dccp_ackvec *av, struct sk_buff *skb)
  * packet of group (2) in 11.4.2.
  */
 void dccp_ackvec_clear_state(struct dccp_ackvec *av, const u64 ackno)
- {
+{
 	struct dccp_ackvec_record *avr, *next;
 	u8 runlen_now, eff_runlen;
 	s64 delta;
