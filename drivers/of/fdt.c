@@ -206,7 +206,7 @@ int __init of_flat_dt_is_compatible(unsigned long node, const char *compat)
 	return of_fdt_is_compatible(initial_boot_params, node, compat);
 }
 
-static void *__init unflatten_dt_alloc(unsigned long *mem, unsigned long size,
+static void *unflatten_dt_alloc(unsigned long *mem, unsigned long size,
 				       unsigned long align)
 {
 	void *res;
@@ -220,16 +220,18 @@ static void *__init unflatten_dt_alloc(unsigned long *mem, unsigned long size,
 
 /**
  * unflatten_dt_node - Alloc and populate a device_node from the flat tree
+ * @blob: The parent device tree blob
  * @p: pointer to node in flat tree
  * @dad: Parent struct device_node
  * @allnextpp: pointer to ->allnext from last allocated device_node
  * @fpsize: Size of the node path up at the current depth.
  */
-unsigned long __init unflatten_dt_node(unsigned long mem,
-					unsigned long *p,
-					struct device_node *dad,
-					struct device_node ***allnextpp,
-					unsigned long fpsize)
+unsigned long unflatten_dt_node(struct boot_param_header *blob,
+				unsigned long mem,
+				unsigned long *p,
+				struct device_node *dad,
+				struct device_node ***allnextpp,
+				unsigned long fpsize)
 {
 	struct device_node *np;
 	struct property *pp, **prev_pp = NULL;
@@ -325,10 +327,10 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 		sz = be32_to_cpup((__be32 *)(*p));
 		noff = be32_to_cpup((__be32 *)((*p) + 4));
 		*p += 8;
-		if (be32_to_cpu(initial_boot_params->version) < 0x10)
+		if (be32_to_cpu(blob->version) < 0x10)
 			*p = ALIGN(*p, sz >= 8 ? 8 : 4);
 
-		pname = of_fdt_get_string(initial_boot_params, noff);
+		pname = of_fdt_get_string(blob, noff);
 		if (pname == NULL) {
 			pr_info("Can't find property name in list !\n");
 			break;
@@ -407,7 +409,8 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 		if (tag == OF_DT_NOP)
 			*p += 4;
 		else
-			mem = unflatten_dt_node(mem, p, np, allnextpp, fpsize);
+			mem = unflatten_dt_node(blob, mem, p, np, allnextpp,
+						fpsize);
 		tag = be32_to_cpup((__be32 *)(*p));
 	}
 	if (tag != OF_DT_END_NODE) {
@@ -599,7 +602,8 @@ void __init unflatten_device_tree(void)
 	/* First pass, scan for size */
 	start = ((unsigned long)initial_boot_params) +
 		be32_to_cpu(initial_boot_params->off_dt_struct);
-	size = unflatten_dt_node(0, &start, NULL, NULL, 0);
+	size = unflatten_dt_node(initial_boot_params, 0, &start,
+				 NULL, NULL, 0);
 	size = (size | 3) + 1;
 
 	pr_debug("  size is %lx, allocating...\n", size);
@@ -616,7 +620,8 @@ void __init unflatten_device_tree(void)
 	/* Second pass, do actual unflattening */
 	start = ((unsigned long)initial_boot_params) +
 		be32_to_cpu(initial_boot_params->off_dt_struct);
-	unflatten_dt_node(mem, &start, NULL, &allnextp, 0);
+	unflatten_dt_node(initial_boot_params, mem, &start,
+			  NULL, &allnextp, 0);
 	if (be32_to_cpup((__be32 *)start) != OF_DT_END)
 		pr_warning("Weird tag at end of tree: %08x\n", *((u32 *)start));
 	if (be32_to_cpu(((__be32 *)mem)[size / 4]) != 0xdeadbeef)
