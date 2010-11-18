@@ -2069,21 +2069,33 @@ static int wm8994_get_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const char *aifdac_src_text[] = {
+static const char *aif_chan_src_text[] = {
 	"Left", "Right"
 };
 
+static const struct soc_enum aif1adcl_src =
+	SOC_ENUM_SINGLE(WM8994_AIF1_CONTROL_1, 15, 2, aif_chan_src_text);
+
+static const struct soc_enum aif1adcr_src =
+	SOC_ENUM_SINGLE(WM8994_AIF1_CONTROL_1, 14, 2, aif_chan_src_text);
+
+static const struct soc_enum aif2adcl_src =
+	SOC_ENUM_SINGLE(WM8994_AIF2_CONTROL_1, 15, 2, aif_chan_src_text);
+
+static const struct soc_enum aif2adcr_src =
+	SOC_ENUM_SINGLE(WM8994_AIF2_CONTROL_1, 14, 2, aif_chan_src_text);
+
 static const struct soc_enum aif1dacl_src =
-	SOC_ENUM_SINGLE(WM8994_AIF1_CONTROL_2, 15, 2, aifdac_src_text);
+	SOC_ENUM_SINGLE(WM8994_AIF1_CONTROL_2, 15, 2, aif_chan_src_text);
 
 static const struct soc_enum aif1dacr_src =
-	SOC_ENUM_SINGLE(WM8994_AIF1_CONTROL_2, 14, 2, aifdac_src_text);
+	SOC_ENUM_SINGLE(WM8994_AIF1_CONTROL_2, 14, 2, aif_chan_src_text);
 
 static const struct soc_enum aif2dacl_src =
-	SOC_ENUM_SINGLE(WM8994_AIF2_CONTROL_2, 15, 2, aifdac_src_text);
+	SOC_ENUM_SINGLE(WM8994_AIF2_CONTROL_2, 15, 2, aif_chan_src_text);
 
 static const struct soc_enum aif2dacr_src =
-	SOC_ENUM_SINGLE(WM8994_AIF2_CONTROL_2, 14, 2, aifdac_src_text);
+	SOC_ENUM_SINGLE(WM8994_AIF2_CONTROL_2, 14, 2, aif_chan_src_text);
 
 static const struct snd_kcontrol_new wm8994_snd_controls[] = {
 SOC_DOUBLE_R_TLV("AIF1ADC1 Volume", WM8994_AIF1_ADC1_LEFT_VOLUME,
@@ -2095,6 +2107,11 @@ SOC_DOUBLE_R_TLV("AIF1ADC2 Volume", WM8994_AIF1_ADC2_LEFT_VOLUME,
 SOC_DOUBLE_R_TLV("AIF2ADC Volume", WM8994_AIF2_ADC_LEFT_VOLUME,
 		 WM8994_AIF2_ADC_RIGHT_VOLUME,
 		 1, 119, 0, digital_tlv),
+
+SOC_ENUM("AIF1ADCL Source", aif1adcl_src),
+SOC_ENUM("AIF1ADCR Source", aif1adcr_src),
+SOC_ENUM("AIF2ADCL Source", aif1adcl_src),
+SOC_ENUM("AIF2ADCR Source", aif1adcr_src),
 
 SOC_ENUM("AIF1DACL Source", aif1dacl_src),
 SOC_ENUM("AIF1DACR Source", aif1dacr_src),
