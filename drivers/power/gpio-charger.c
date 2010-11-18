@@ -87,6 +87,10 @@ static int __devinit gpio_charger_probe(struct platform_device *pdev)
 	}
 
 	gpio_charger = kzalloc(sizeof(*gpio_charger), GFP_KERNEL);
+	if (!gpio_charger) {
+		dev_err(&pdev->dev, "Failed to alloc driver structure\n");
+		return -ENOMEM;
+	}
 
 	charger = &gpio_charger->charger;
 
