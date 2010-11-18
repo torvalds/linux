@@ -472,9 +472,14 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	 */
 	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
 			!dev_priv->mm.suspended) {
-		struct intel_ring_buffer *ring = &dev_priv->render_ring;
 		dev_priv->mm.suspended = 0;
-		ring->init(ring);
+
+		dev_priv->render_ring.init(&dev_priv->render_ring);
+		if (HAS_BSD(dev))
+		    dev_priv->bsd_ring.init(&dev_priv->bsd_ring);
+		if (HAS_BLT(dev))
+		    dev_priv->blt_ring.init(&dev_priv->blt_ring);
+
 		mutex_unlock(&dev->struct_mutex);
 		drm_irq_uninstall(dev);
 		drm_irq_install(dev);
