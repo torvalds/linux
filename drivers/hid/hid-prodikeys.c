@@ -130,7 +130,7 @@ static ssize_t store_channel(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR(channel, S_IRUGO | S_IWUGO, show_channel,
+static DEVICE_ATTR(channel, S_IRUGO | S_IWUSR | S_IWGRP , show_channel,
 		store_channel);
 
 static struct device_attribute *sysfs_device_attr_channel = {
@@ -169,7 +169,7 @@ static ssize_t store_sustain(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR(sustain, S_IRUGO | S_IWUGO, show_sustain,
+static DEVICE_ATTR(sustain, S_IRUGO | S_IWUSR | S_IWGRP, show_sustain,
 		store_sustain);
 
 static struct device_attribute *sysfs_device_attr_sustain = {
@@ -207,7 +207,7 @@ static ssize_t store_octave(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR(octave, S_IRUGO | S_IWUGO, show_octave,
+static DEVICE_ATTR(octave, S_IRUGO | S_IWUSR | S_IWGRP, show_octave,
 		store_octave);
 
 static struct device_attribute *sysfs_device_attr_octave = {
