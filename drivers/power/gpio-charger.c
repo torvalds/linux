@@ -94,7 +94,7 @@ static int __devinit gpio_charger_probe(struct platform_device *pdev)
 
 	charger = &gpio_charger->charger;
 
-	charger->name = pdata->name;
+	charger->name = pdata->name ? pdata->name : "gpio-charger";
 	charger->type = pdata->type;
 	charger->properties = gpio_charger_properties;
 	charger->num_properties = ARRAY_SIZE(gpio_charger_properties);
