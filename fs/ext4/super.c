@@ -2799,9 +2799,6 @@ static void ext4_clear_request_list(void)
 	struct ext4_li_request *elr;
 
 	mutex_lock(&ext4_li_info->li_list_mtx);
-	if (list_empty(&ext4_li_info->li_request_list))
-		return;
-
 	list_for_each_safe(pos, n, &ext4_li_info->li_request_list) {
 		elr = list_entry(pos, struct ext4_li_request,
 				 lr_request);
