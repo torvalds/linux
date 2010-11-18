@@ -64,7 +64,7 @@ static int ft1000_probe(struct usb_interface *interface,
 	int i, ret = 0, size;
 
 	struct ft1000_device *ft1000dev;
-	struct ft1000_info *pft1000info;
+	struct ft1000_info *pft1000info = NULL;
 	const struct firmware *dsp_fw;
 
 	ft1000dev = kmalloc(sizeof(struct ft1000_device), GFP_KERNEL);
