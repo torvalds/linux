@@ -1573,6 +1573,7 @@ static void b43_nphy_rf_control_intc_override(struct b43_wldev *dev, u8 field,
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/BPHYInit */
 static void b43_nphy_bphy_init(struct b43_wldev *dev)
 {
 	unsigned int i;
@@ -3240,6 +3241,9 @@ int b43_phy_initn(struct b43_wldev *dev)
 
 	b43_nphy_classifier(dev, 0, 0);
 	b43_nphy_read_clip_detection(dev, clip);
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+		b43_nphy_bphy_init(dev);
+
 	tx_pwr_state = nphy->txpwrctrl;
 	/* TODO N PHY TX power control with argument 0
 		(turning off power control) */
