@@ -13,8 +13,6 @@ use FileHandle;
 
 my $VERSION = "0.2";
 
-$#ARGV >= 0 || die "ktest.pl version: $VERSION\n   usage: ktest.pl config-file\n";
-
 $| = 1;
 
 my %opt;
@@ -47,7 +45,9 @@ $default{"SCP_TO_TARGET"}	= "scp \$SRC_FILE \$SSH_USER\@\$MACHINE:\$DST_FILE";
 $default{"REBOOT"}		= "ssh \$SSH_USER\@\$MACHINE reboot";
 $default{"STOP_AFTER_SUCCESS"}	= 10;
 $default{"STOP_AFTER_FAILURE"}	= 60;
+$default{"LOCALVERSION"}	= "-test";
 
+my $ktest_config;
 my $version;
 my $machine;
 my $ssh_user;
@@ -103,6 +103,156 @@ my $target_image;
 my $localversion;
 my $iteration = 0;
 my $successes = 0;
+
+my %entered_configs;
+my %config_help;
+
+$config_help{"MACHINE"} = << "EOF"
+ The machine hostname that you will test.
+EOF
+    ;
+$config_help{"SSH_USER"} = << "EOF"
+ The box is expected to have ssh on normal bootup, provide the user
+  (most likely root, since you need privileged operations)
+EOF
+    ;
+$config_help{"BUILD_DIR"} = << "EOF"
+ The directory that contains the Linux source code (full path).
+EOF
+    ;
+$config_help{"OUTPUT_DIR"} = << "EOF"
+ The directory that the objects will be built (full path).
+ (can not be same as BUILD_DIR)
+EOF
+    ;
+$config_help{"BUILD_TARGET"} = << "EOF"
+ The location of the compiled file to copy to the target.
+ (relative to OUTPUT_DIR)
+EOF
+    ;
+$config_help{"TARGET_IMAGE"} = << "EOF"
+ The place to put your image on the test machine.
+EOF
+    ;
+$config_help{"POWER_CYCLE"} = << "EOF"
+ A script or command to reboot the box.
+
+ Here is a digital loggers power switch example
+ POWER_CYCLE = wget --no-proxy -O /dev/null -q  --auth-no-challenge 'http://admin:admin\@power/outlet?5=CCL'
+
+ Here is an example to reboot a virtual box on the current host
+ with the name "Guest".
+ POWER_CYCLE = virsh destroy Guest; sleep 5; virsh start Guest
+EOF
+    ;
+$config_help{"CONSOLE"} = << "EOF"
+ The script or command that reads the console
+
+  If you use ttywatch server, something like the following would work.
+CONSOLE = nc -d localhost 3001
+
+ For a virtual machine with guest name "Guest".
+CONSOLE =  virsh console Guest
+EOF
+    ;
+$config_help{"LOCALVERSION"} = << "EOF"
+ Required version ending to differentiate the test
+ from other linux builds on the system.
+EOF
+    ;
+$config_help{"REBOOT_TYPE"} = << "EOF"
+ Way to reboot the box to the test kernel.
+ Only valid options so far are "grub" and "script".
+
+ If you specify grub, it will assume grub version 1
+ and will search in /boot/grub/menu.lst for the title \$GRUB_MENU
+ and select that target to reboot to the kernel. If this is not
+ your setup, then specify "script" and have a command or script
+ specified in REBOOT_SCRIPT to boot to the target.
+
+ The entry in /boot/grub/menu.lst must be entered in manually.
+ The test will not modify that file.
+EOF
+    ;
+$config_help{"GRUB_MENU"} = << "EOF"
+ The grub title name for the test kernel to boot
+ (Only mandatory if REBOOT_TYPE = grub)
+
+ Note, ktest.pl will not update the grub menu.lst, you need to
+ manually add an option for the test. ktest.pl will search
+ the grub menu.lst for this option to find what kernel to
+ reboot into.
+
+ For example, if in the /boot/grub/menu.lst the test kernel title has:
+ title Test Kernel
+ kernel vmlinuz-test
+ GRUB_MENU = Test Kernel
+EOF
+    ;
+$config_help{"REBOOT_SCRIPT"} = << "EOF"
+ A script to reboot the target into the test kernel
+ (Only mandatory if REBOOT_TYPE = script)
+EOF
+    ;
+
+
+sub get_ktest_config {
+    my ($config) = @_;
+
+    return if (defined($opt{$config}));
+
+    if (defined($config_help{$config})) {
+	print "\n";
+	print $config_help{$config};
+    }
+
+    for (;;) {
+	print "$config = ";
+	if (defined($default{$config})) {
+	    print "\[$default{$config}\] ";
+	}
+	$entered_configs{$config} = <STDIN>;
+	$entered_configs{$config} =~ s/^\s*(.*\S)\s*$/$1/;
+	if ($entered_configs{$config} =~ /^\s*$/) {
+	    if ($default{$config}) {
+		$entered_configs{$config} = $default{$config};
+	    } else {
+		print "Your answer can not be blank\n";
+		next;
+	    }
+	}
+	last;
+    }
+}
+
+sub get_ktest_configs {
+    get_ktest_config("MACHINE");
+    get_ktest_config("SSH_USER");
+    get_ktest_config("BUILD_DIR");
+    get_ktest_config("OUTPUT_DIR");
+    get_ktest_config("BUILD_TARGET");
+    get_ktest_config("TARGET_IMAGE");
+    get_ktest_config("POWER_CYCLE");
+    get_ktest_config("CONSOLE");
+    get_ktest_config("LOCALVERSION");
+
+    my $rtype = $opt{"REBOOT_TYPE"};
+
+    if (!defined($rtype)) {
+	if (!defined($opt{"GRUB_MENU"})) {
+	    get_ktest_config("REBOOT_TYPE");
+	    $rtype = $entered_configs{"REBOOT_TYPE"};
+	} else {
+	    $rtype = "grub";
+	}
+    }
+
+    if ($rtype eq "grub") {
+	get_ktest_config("GRUB_MENU");
+    } else {
+	get_ktest_config("REBOOT_SCRIPT");
+    }
+}
 
 sub set_value {
     my ($lvalue, $rvalue) = @_;
@@ -240,6 +390,9 @@ sub read_config {
 	$test_num += $repeat - 1;
 	$opt{"NUM_TESTS"} = $test_num;
     }
+
+    # make sure we have all mandatory configs
+    get_ktest_configs;
 
     # set any defaults
 
@@ -1612,18 +1765,57 @@ sub patchcheck {
     return 1;
 }
 
-read_config $ARGV[0];
+$#ARGV < 1 or die "ktest.pl version: $VERSION\n   usage: ktest.pl config-file\n";
 
-# mandatory configs
-die "MACHINE not defined\n"		if (!defined($opt{"MACHINE"}));
-die "SSH_USER not defined\n"		if (!defined($opt{"SSH_USER"}));
-die "BUILD_DIR not defined\n"		if (!defined($opt{"BUILD_DIR"}));
-die "OUTPUT_DIR not defined\n"		if (!defined($opt{"OUTPUT_DIR"}));
-die "BUILD_TARGET not defined\n"	if (!defined($opt{"BUILD_TARGET"}));
-die "TARGET_IMAGE not defined\n"	if (!defined($opt{"TARGET_IMAGE"}));
-die "POWER_CYCLE not defined\n"		if (!defined($opt{"POWER_CYCLE"}));
-die "CONSOLE not defined\n"		if (!defined($opt{"CONSOLE"}));
-die "LOCALVERSION not defined\n"	if (!defined($opt{"LOCALVERSION"}));
+if ($#ARGV == 0) {
+    $ktest_config = $ARGV[0];
+    if (! -f $ktest_config) {
+	print "$ktest_config does not exist.\n";
+	my $ans;
+        for (;;) {
+	    print "Create it? [Y/n] ";
+	    $ans = <STDIN>;
+	    chomp $ans;
+	    if ($ans =~ /^\s*$/) {
+		$ans = "y";
+	    }
+	    last if ($ans =~ /^y$/i || $ans =~ /^n$/i);
+	    print "Please answer either 'y' or 'n'.\n";
+	}
+	if ($ans !~ /^y$/i) {
+	    exit 0;
+	}
+    }
+} else {
+    $ktest_config = "ktest.conf";
+}
+
+if (! -f $ktest_config) {
+    open(OUT, ">$ktest_config") or die "Can not create $ktest_config";
+    print OUT << "EOF"
+# Generated by ktest.pl
+#
+# Define each test with TEST_START
+# The config options below it will override the defaults
+TEST_START
+
+DEFAULTS
+EOF
+;
+    close(OUT);
+}
+read_config $ktest_config;
+
+# Append any configs entered in manually to the config file.
+my @new_configs = keys %entered_configs;
+if ($#new_configs >= 0) {
+    print "\nAppending entered in configs to $ktest_config\n";
+    open(OUT, ">>$ktest_config") or die "Can not append to $ktest_config";
+    foreach my $config (@new_configs) {
+	print OUT "$config = $entered_configs{$config}\n";
+	$opt{$config} = $entered_configs{$config};
+    }
+}
 
 if ($opt{"CLEAR_LOG"} && defined($opt{"LOG_FILE"})) {
     unlink $opt{"LOG_FILE"};
