@@ -47,28 +47,6 @@ __nf_nat_proto_find(u_int8_t protonum)
 	return rcu_dereference(nf_nat_protos[protonum]);
 }
 
-const struct nf_nat_protocol *
-nf_nat_proto_find_get(u_int8_t protonum)
-{
-	const struct nf_nat_protocol *p;
-
-	rcu_read_lock();
-	p = __nf_nat_proto_find(protonum);
-	if (!try_module_get(p->me))
-		p = &nf_nat_unknown_protocol;
-	rcu_read_unlock();
-
-	return p;
-}
-EXPORT_SYMBOL_GPL(nf_nat_proto_find_get);
-
-void
-nf_nat_proto_put(const struct nf_nat_protocol *p)
-{
-	module_put(p->me);
-}
-EXPORT_SYMBOL_GPL(nf_nat_proto_put);
-
 /* We keep an extra hash for each conntrack, for fast searching. */
 static inline unsigned int
 hash_by_src(const struct net *net, u16 zone,
@@ -262,11 +240,17 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	proto = __nf_nat_proto_find(orig_tuple->dst.protonum);
 
 	/* Only bother mapping if it's not already in range and unique */
-	if (!(range->flags & IP_NAT_RANGE_PROTO_RANDOM) &&
-	    (!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED) ||
-	     proto->in_range(tuple, maniptype, &range->min, &range->max)) &&
-	    !nf_nat_used_tuple(tuple, ct))
-		goto out;
+	if (!(range->flags & IP_NAT_RANGE_PROTO_RANDOM)) {
+		if (range->flags & IP_NAT_RANGE_PROTO_SPECIFIED) {
+			if (proto->in_range(tuple, maniptype, &range->min,
+					    &range->max) &&
+			    (range->min.all == range->max.all ||
+			     !nf_nat_used_tuple(tuple, ct)))
+				goto out;
+		} else if (!nf_nat_used_tuple(tuple, ct)) {
+			goto out;
+		}
+	}
 
 	/* Last change: get protocol to try to obtain unique tuple. */
 	proto->unique_tuple(tuple, range, maniptype, ct);
@@ -458,6 +442,18 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 			return 0;
 	}
 
+	if (manip == IP_NAT_MANIP_SRC)
+		statusbit = IPS_SRC_NAT;
+	else
+		statusbit = IPS_DST_NAT;
+
+	/* Invert if this is reply dir. */
+	if (dir == IP_CT_DIR_REPLY)
+		statusbit ^= IPS_NAT_MASK;
+
+	if (!(ct->status & statusbit))
+		return 1;
+
 	pr_debug("icmp_reply_translation: translating error %p manip %u "
 		 "dir %s\n", skb, manip,
 		 dir == IP_CT_DIR_ORIGINAL ? "ORIG" : "REPLY");
@@ -492,20 +488,9 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 
 	/* Change outer to look the reply to an incoming packet
 	 * (proto 0 means don't invert per-proto part). */
-	if (manip == IP_NAT_MANIP_SRC)
-		statusbit = IPS_SRC_NAT;
-	else
-		statusbit = IPS_DST_NAT;
-
-	/* Invert if this is reply dir. */
-	if (dir == IP_CT_DIR_REPLY)
-		statusbit ^= IPS_NAT_MASK;
-
-	if (ct->status & statusbit) {
-		nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
-		if (!manip_pkt(0, skb, 0, &target, manip))
-			return 0;
-	}
+	nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
+	if (!manip_pkt(0, skb, 0, &target, manip))
+		return 0;
 
 	return 1;
 }
@@ -582,6 +567,26 @@ static struct nf_ct_ext_type nat_extend __read_mostly = {
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
+
+static const struct nf_nat_protocol *
+nf_nat_proto_find_get(u_int8_t protonum)
+{
+	const struct nf_nat_protocol *p;
+
+	rcu_read_lock();
+	p = __nf_nat_proto_find(protonum);
+	if (!try_module_get(p->me))
+		p = &nf_nat_unknown_protocol;
+	rcu_read_unlock();
+
+	return p;
+}
+
+static void
+nf_nat_proto_put(const struct nf_nat_protocol *p)
+{
+	module_put(p->me);
+}
 
 static const struct nla_policy protonat_nla_policy[CTA_PROTONAT_MAX+1] = {
 	[CTA_PROTONAT_PORT_MIN]	= { .type = NLA_U16 },

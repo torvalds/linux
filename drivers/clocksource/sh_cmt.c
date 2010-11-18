@@ -308,7 +308,7 @@ static irqreturn_t sh_cmt_interrupt(int irq, void *dev_id)
 	 * isr before we end up here.
 	 */
 	if (p->flags & FLAG_CLOCKSOURCE)
-		p->total_cycles += p->match_value;
+		p->total_cycles += p->match_value + 1;
 
 	if (!(p->flags & FLAG_REPROGRAM))
 		p->next_match_value = p->max_match_value;
@@ -403,7 +403,7 @@ static cycle_t sh_cmt_clocksource_read(struct clocksource *cs)
 	raw = sh_cmt_get_counter(p, &has_wrapped);
 
 	if (unlikely(has_wrapped))
-		raw += p->match_value;
+		raw += p->match_value + 1;
 	spin_unlock_irqrestore(&p->lock, flags);
 
 	return value + raw;
@@ -445,7 +445,7 @@ static int sh_cmt_register_clocksource(struct sh_cmt_priv *p,
 
 	/* clk_get_rate() needs an enabled clock */
 	clk_enable(p->clk);
-	p->rate = clk_get_rate(p->clk) / (p->width == 16) ? 512 : 8;
+	p->rate = clk_get_rate(p->clk) / ((p->width == 16) ? 512 : 8);
 	clk_disable(p->clk);
 
 	/* TODO: calculate good shift from rate and counter bit width */
@@ -478,7 +478,7 @@ static void sh_cmt_clock_event_start(struct sh_cmt_priv *p, int periodic)
 	ced->min_delta_ns = clockevent_delta2ns(0x1f, ced);
 
 	if (periodic)
-		sh_cmt_set_next(p, (p->rate + HZ/2) / HZ);
+		sh_cmt_set_next(p, ((p->rate + HZ/2) / HZ) - 1);
 	else
 		sh_cmt_set_next(p, p->max_match_value);
 }
@@ -523,9 +523,9 @@ static int sh_cmt_clock_event_next(unsigned long delta,
 
 	BUG_ON(ced->mode != CLOCK_EVT_MODE_ONESHOT);
 	if (likely(p->flags & FLAG_IRQCONTEXT))
-		p->next_match_value = delta;
+		p->next_match_value = delta - 1;
 	else
-		sh_cmt_set_next(p, delta);
+		sh_cmt_set_next(p, delta - 1);
 
 	return 0;
 }
@@ -616,13 +616,9 @@ static int sh_cmt_setup(struct sh_cmt_priv *p, struct platform_device *pdev)
 	/* get hold of clock */
 	p->clk = clk_get(&p->pdev->dev, "cmt_fck");
 	if (IS_ERR(p->clk)) {
-		dev_warn(&p->pdev->dev, "using deprecated clock lookup\n");
-		p->clk = clk_get(&p->pdev->dev, cfg->clk);
-		if (IS_ERR(p->clk)) {
-			dev_err(&p->pdev->dev, "cannot get clock\n");
-			ret = PTR_ERR(p->clk);
-			goto err1;
-		}
+		dev_err(&p->pdev->dev, "cannot get clock\n");
+		ret = PTR_ERR(p->clk);
+		goto err1;
 	}
 
 	if (resource_size(res) == 6) {

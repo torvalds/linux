@@ -52,6 +52,10 @@
 			      (ID_LED_DEF1_DEF2))
 
 #define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
+#define E1000_BASE1000T_STATUS          10
+#define E1000_IDLE_ERROR_COUNT_MASK     0xFF
+#define E1000_RECEIVE_ERROR_COUNTER     21
+#define E1000_RECEIVE_ERROR_MAX         0xFFFF
 
 #define E1000_NVM_INIT_CTRL2_MNGM 0x6000 /* Manageability Operation Mode mask */
 
@@ -1243,6 +1247,39 @@ static s32 e1000_led_on_82574(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_check_phy_82574 - check 82574 phy hung state
+ *  @hw: pointer to the HW structure
+ *
+ *  Returns whether phy is hung or not
+ **/
+bool e1000_check_phy_82574(struct e1000_hw *hw)
+{
+	u16 status_1kbt = 0;
+	u16 receive_errors = 0;
+	bool phy_hung = false;
+	s32 ret_val = 0;
+
+	/*
+	 * Read PHY Receive Error counter first, if its is max - all F's then
+	 * read the Base1000T status register If both are max then PHY is hung.
+	 */
+	ret_val = e1e_rphy(hw, E1000_RECEIVE_ERROR_COUNTER, &receive_errors);
+
+	if (ret_val)
+		goto out;
+	if (receive_errors == E1000_RECEIVE_ERROR_MAX)  {
+		ret_val = e1e_rphy(hw, E1000_BASE1000T_STATUS, &status_1kbt);
+		if (ret_val)
+			goto out;
+		if ((status_1kbt & E1000_IDLE_ERROR_COUNT_MASK) ==
+		    E1000_IDLE_ERROR_COUNT_MASK)
+			phy_hung = true;
+	}
+out:
+	return phy_hung;
+}
+
+/**
  *  e1000_setup_link_82571 - Setup flow control and link settings
  *  @hw: pointer to the HW structure
  *
@@ -1801,7 +1838,8 @@ struct e1000_info e1000_82571_info = {
 				  | FLAG_RESET_OVERWRITES_LAA /* errata */
 				  | FLAG_TARC_SPEED_MODE_BIT /* errata */
 				  | FLAG_APME_CHECK_PORT_B,
-	.flags2			= FLAG2_DISABLE_ASPM_L1, /* errata 13 */
+	.flags2			= FLAG2_DISABLE_ASPM_L1 /* errata 13 */
+				  | FLAG2_DMA_BURST,
 	.pba			= 38,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
@@ -1819,7 +1857,8 @@ struct e1000_info e1000_82572_info = {
 				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_CTRLEXT_ON_LOAD
 				  | FLAG_TARC_SPEED_MODE_BIT, /* errata */
-	.flags2			= FLAG2_DISABLE_ASPM_L1, /* errata 13 */
+	.flags2			= FLAG2_DISABLE_ASPM_L1 /* errata 13 */
+				  | FLAG2_DMA_BURST,
 	.pba			= 38,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
@@ -1857,6 +1896,7 @@ struct e1000_info e1000_82574_info = {
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
+	.flags2			  = FLAG2_CHECK_PHY_HANG,
 	.pba			= 36,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,

@@ -318,8 +318,6 @@ static void hidg_set_report_complete(struct usb_ep *ep, struct usb_request *req)
 	spin_unlock(&hidg->spinlock);
 
 	wake_up(&hidg->read_queue);
-
-	return;
 }
 
 static int hidg_setup(struct usb_function *f,
@@ -413,8 +411,6 @@ static void hidg_disable(struct usb_function *f)
 
 	usb_ep_disable(hidg->in_ep);
 	hidg->in_ep->driver_data = NULL;
-
-	return;
 }
 
 static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
@@ -451,6 +447,7 @@ const struct file_operations f_hidg_fops = {
 	.write		= f_hidg_write,
 	.read		= f_hidg_read,
 	.poll		= f_hidg_poll,
+	.llseek		= noop_llseek,
 };
 
 static int __init hidg_bind(struct usb_configuration *c, struct usb_function *f)

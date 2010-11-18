@@ -475,24 +475,39 @@ err_ret:
 	return ret;
 }
 
-static IIO_DEV_ATTR_ACCEL_X_OFFSET(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_GYRO_X_CALIBBIAS(S_IWUSR | S_IRUGO,
+		adis16350_read_12bit_signed,
+		adis16350_write_16bit,
+		ADIS16350_XGYRO_OFF);
+
+static IIO_DEV_ATTR_GYRO_Y_CALIBBIAS(S_IWUSR | S_IRUGO,
+		adis16350_read_12bit_signed,
+		adis16350_write_16bit,
+		ADIS16350_YGYRO_OFF);
+
+static IIO_DEV_ATTR_GYRO_Z_CALIBBIAS(S_IWUSR | S_IRUGO,
+		adis16350_read_12bit_signed,
+		adis16350_write_16bit,
+		ADIS16350_ZGYRO_OFF);
+
+static IIO_DEV_ATTR_ACCEL_X_CALIBBIAS(S_IWUSR | S_IRUGO,
 		adis16350_read_12bit_signed,
 		adis16350_write_16bit,
 		ADIS16350_XACCL_OFF);
 
-static IIO_DEV_ATTR_ACCEL_Y_OFFSET(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_ACCEL_Y_CALIBBIAS(S_IWUSR | S_IRUGO,
 		adis16350_read_12bit_signed,
 		adis16350_write_16bit,
 		ADIS16350_YACCL_OFF);
 
-static IIO_DEV_ATTR_ACCEL_Z_OFFSET(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_ACCEL_Z_CALIBBIAS(S_IWUSR | S_IRUGO,
 		adis16350_read_12bit_signed,
 		adis16350_write_16bit,
 		ADIS16350_ZACCL_OFF);
 
-static IIO_DEV_ATTR_IN_NAMED_RAW(supply, adis16350_read_12bit_unsigned,
+static IIO_DEV_ATTR_IN_NAMED_RAW(0, supply, adis16350_read_12bit_unsigned,
 		ADIS16350_SUPPLY_OUT);
-static IIO_CONST_ATTR(in_supply_scale, "0.002418");
+static IIO_CONST_ATTR_IN_NAMED_SCALE(0, supply, "0.002418");
 
 static IIO_DEV_ATTR_GYRO_X(adis16350_read_14bit_signed,
 		ADIS16350_XGYRO_OUT);
@@ -500,7 +515,7 @@ static IIO_DEV_ATTR_GYRO_Y(adis16350_read_14bit_signed,
 		ADIS16350_YGYRO_OUT);
 static IIO_DEV_ATTR_GYRO_Z(adis16350_read_14bit_signed,
 		ADIS16350_ZGYRO_OUT);
-static IIO_CONST_ATTR(gyro_scale, "0.05");
+static IIO_CONST_ATTR_GYRO_SCALE("0.00127862821");
 
 static IIO_DEV_ATTR_ACCEL_X(adis16350_read_14bit_signed,
 		ADIS16350_XACCL_OUT);
@@ -508,7 +523,7 @@ static IIO_DEV_ATTR_ACCEL_Y(adis16350_read_14bit_signed,
 		ADIS16350_YACCL_OUT);
 static IIO_DEV_ATTR_ACCEL_Z(adis16350_read_14bit_signed,
 		ADIS16350_ZACCL_OUT);
-static IIO_CONST_ATTR(accel_scale, "0.00333");
+static IIO_CONST_ATTR_ACCEL_SCALE("0.0247323713");
 
 static IIO_DEVICE_ATTR(temp_x_raw, S_IRUGO, adis16350_read_12bit_signed,
 		NULL, ADIS16350_XTEMP_OUT);
@@ -516,11 +531,12 @@ static IIO_DEVICE_ATTR(temp_y_raw, S_IRUGO, adis16350_read_12bit_signed,
 		NULL, ADIS16350_YTEMP_OUT);
 static IIO_DEVICE_ATTR(temp_z_raw, S_IRUGO, adis16350_read_12bit_signed,
 		NULL, ADIS16350_ZTEMP_OUT);
-static IIO_CONST_ATTR(temp_scale, "0.0005");
+static IIO_CONST_ATTR_TEMP_SCALE("0.14534");
+static IIO_CONST_ATTR_TEMP_OFFSET("198.16");
 
-static IIO_DEV_ATTR_IN_RAW(0, adis16350_read_12bit_unsigned,
+static IIO_DEV_ATTR_IN_RAW(1, adis16350_read_12bit_unsigned,
 		ADIS16350_AUX_ADC);
-static IIO_CONST_ATTR(in0_scale, "0.000806");
+static IIO_CONST_ATTR(in1_scale, "0.000806");
 
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		adis16350_read_frequency,
@@ -529,16 +545,19 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL,
 		adis16350_write_reset, 0);
 
-static IIO_CONST_ATTR_AVAIL_SAMP_FREQ("409 546 819 1638");
+static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("409 546 819 1638");
 
-static IIO_CONST_ATTR(name, "adis16350");
+static IIO_CONST_ATTR_NAME("adis16350");
 
 static struct attribute *adis16350_attributes[] = {
-	&iio_dev_attr_accel_x_offset.dev_attr.attr,
-	&iio_dev_attr_accel_y_offset.dev_attr.attr,
-	&iio_dev_attr_accel_z_offset.dev_attr.attr,
-	&iio_dev_attr_in_supply_raw.dev_attr.attr,
-	&iio_const_attr_in_supply_scale.dev_attr.attr,
+	&iio_dev_attr_gyro_x_calibbias.dev_attr.attr,
+	&iio_dev_attr_gyro_y_calibbias.dev_attr.attr,
+	&iio_dev_attr_gyro_z_calibbias.dev_attr.attr,
+	&iio_dev_attr_accel_x_calibbias.dev_attr.attr,
+	&iio_dev_attr_accel_y_calibbias.dev_attr.attr,
+	&iio_dev_attr_accel_z_calibbias.dev_attr.attr,
+	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
+	&iio_const_attr_in0_supply_scale.dev_attr.attr,
 	&iio_dev_attr_gyro_x_raw.dev_attr.attr,
 	&iio_dev_attr_gyro_y_raw.dev_attr.attr,
 	&iio_dev_attr_gyro_z_raw.dev_attr.attr,
@@ -551,10 +570,10 @@ static struct attribute *adis16350_attributes[] = {
 	&iio_dev_attr_temp_y_raw.dev_attr.attr,
 	&iio_dev_attr_temp_z_raw.dev_attr.attr,
 	&iio_const_attr_temp_scale.dev_attr.attr,
-	&iio_dev_attr_in0_raw.dev_attr.attr,
-	&iio_const_attr_in0_scale.dev_attr.attr,
+	&iio_dev_attr_in1_raw.dev_attr.attr,
+	&iio_const_attr_in1_scale.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
-	&iio_const_attr_available_sampling_frequency.dev_attr.attr,
+	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_const_attr_name.dev_attr.attr,
 	NULL

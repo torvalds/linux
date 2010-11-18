@@ -102,7 +102,8 @@ struct ttm_bus_placement {
  */
 
 struct ttm_mem_reg {
-	struct drm_mm_node *mm_node;
+	void *mm_node;
+	unsigned long start;
 	unsigned long size;
 	unsigned long num_pages;
 	uint32_t page_alignment;
@@ -431,6 +432,10 @@ extern void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo);
  * together with the @destroy function,
  * enables driver-specific objects derived from a ttm_buffer_object.
  * On successful return, the object kref and list_kref are set to 1.
+ * If a failure occurs, the function will call the @destroy function, or
+ * kfree() if @destroy is NULL. Thus, after a failure, dereferencing @bo is
+ * illegal and will likely cause memory corruption.
+ *
  * Returns
  * -ENOMEM: Out of memory.
  * -EINVAL: Invalid placement flags.

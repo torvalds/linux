@@ -88,7 +88,8 @@ static ssize_t profile_load(struct file *f, const char __user *buf, size_t size,
 }
 
 static const struct file_operations aa_fs_profile_load = {
-	.write = profile_load
+	.write = profile_load,
+	.llseek = default_llseek,
 };
 
 /* .replace file hook fn to load and/or replace policy */
@@ -109,7 +110,8 @@ static ssize_t profile_replace(struct file *f, const char __user *buf,
 }
 
 static const struct file_operations aa_fs_profile_replace = {
-	.write = profile_replace
+	.write = profile_replace,
+	.llseek = default_llseek,
 };
 
 /* .remove file hook fn to remove loaded policy */
@@ -136,7 +138,8 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 }
 
 static const struct file_operations aa_fs_profile_remove = {
-	.write = profile_remove
+	.write = profile_remove,
+	.llseek = default_llseek,
 };
 
 /** Base file system setup **/

@@ -641,6 +641,7 @@ static const struct file_operations usb_alphatrack_fops = {
 	.open = usb_alphatrack_open,
 	.release = usb_alphatrack_release,
 	.poll = usb_alphatrack_poll,
+	.llseek = no_llseek,
 };
 
 /*
@@ -671,7 +672,7 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 	int true_size;
 	int retval = -ENOMEM;
 
-	/* allocate memory for our device state and intialize it */
+	/* allocate memory for our device state and initialize it */
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {

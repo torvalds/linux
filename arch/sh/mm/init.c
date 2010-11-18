@@ -47,7 +47,6 @@ static pte_t *__get_pte_phys(unsigned long addr)
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte;
 
 	pgd = pgd_offset_k(addr);
 	if (pgd_none(*pgd)) {
@@ -67,8 +66,7 @@ static pte_t *__get_pte_phys(unsigned long addr)
 		return NULL;
 	}
 
-	pte = pte_offset_kernel(pmd, addr);
-	return pte;
+	return pte_offset_kernel(pmd, addr);
 }
 
 static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
@@ -125,13 +123,45 @@ void __clear_fixmap(enum fixed_addresses idx, pgprot_t prot)
 	clear_pte_phys(address, prot);
 }
 
+static pmd_t * __init one_md_table_init(pud_t *pud)
+{
+	if (pud_none(*pud)) {
+		pmd_t *pmd;
+
+		pmd = alloc_bootmem_pages(PAGE_SIZE);
+		pud_populate(&init_mm, pud, pmd);
+		BUG_ON(pmd != pmd_offset(pud, 0));
+	}
+
+	return pmd_offset(pud, 0);
+}
+
+static pte_t * __init one_page_table_init(pmd_t *pmd)
+{
+	if (pmd_none(*pmd)) {
+		pte_t *pte;
+
+		pte = alloc_bootmem_pages(PAGE_SIZE);
+		pmd_populate_kernel(&init_mm, pmd, pte);
+		BUG_ON(pte != pte_offset_kernel(pmd, 0));
+	}
+
+	return pte_offset_kernel(pmd, 0);
+}
+
+static pte_t * __init page_table_kmap_check(pte_t *pte, pmd_t *pmd,
+					    unsigned long vaddr, pte_t *lastpte)
+{
+	return pte;
+}
+
 void __init page_table_range_init(unsigned long start, unsigned long end,
 					 pgd_t *pgd_base)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte;
+	pte_t *pte = NULL;
 	int i, j, k;
 	unsigned long vaddr;
 
@@ -144,19 +174,13 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
 	for ( ; (i < PTRS_PER_PGD) && (vaddr != end); pgd++, i++) {
 		pud = (pud_t *)pgd;
 		for ( ; (j < PTRS_PER_PUD) && (vaddr != end); pud++, j++) {
-#ifdef __PAGETABLE_PMD_FOLDED
-			pmd = (pmd_t *)pud;
-#else
-			pmd = (pmd_t *)alloc_bootmem_low_pages(PAGE_SIZE);
-			pud_populate(&init_mm, pud, pmd);
+			pmd = one_md_table_init(pud);
+#ifndef __PAGETABLE_PMD_FOLDED
 			pmd += k;
 #endif
 			for (; (k < PTRS_PER_PMD) && (vaddr != end); pmd++, k++) {
-				if (pmd_none(*pmd)) {
-					pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
-					pmd_populate_kernel(&init_mm, pmd, pte);
-					BUG_ON(pte != pte_offset_kernel(pmd, 0));
-				}
+				pte = page_table_kmap_check(one_page_table_init(pmd),
+							    pmd, vaddr, pte);
 				vaddr += PMD_SIZE;
 			}
 			k = 0;

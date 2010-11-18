@@ -347,7 +347,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 				if (current_fsuid() != treeCon->ses->linux_uid) {
 					cFYI(1, "Multiuser mode and UID "
 						 "did not match tcon uid");
-					read_lock(&cifs_tcp_ses_lock);
+					spin_lock(&cifs_tcp_ses_lock);
 					list_for_each(temp_item, &treeCon->ses->server->smb_ses_list) {
 						ses = list_entry(temp_item, struct cifsSesInfo, smb_ses_list);
 						if (ses->linux_uid == current_fsuid()) {
@@ -361,7 +361,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 							}
 						}
 					}
-					read_unlock(&cifs_tcp_ses_lock);
+					spin_unlock(&cifs_tcp_ses_lock);
 				}
 			}
 		}
@@ -551,7 +551,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 		return false;
 
 	/* look up tcon based on tid & uid */
-	read_lock(&cifs_tcp_ses_lock);
+	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp, &srv->smb_ses_list) {
 		ses = list_entry(tmp, struct cifsSesInfo, smb_ses_list);
 		list_for_each(tmp1, &ses->tcon_list) {
@@ -560,51 +560,40 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 				continue;
 
 			cifs_stats_inc(&tcon->num_oplock_brks);
-			read_lock(&GlobalSMBSeslock);
+			spin_lock(&cifs_file_list_lock);
 			list_for_each(tmp2, &tcon->openFileList) {
 				netfile = list_entry(tmp2, struct cifsFileInfo,
 						     tlist);
 				if (pSMB->Fid != netfile->netfid)
 					continue;
 
-				/*
-				 * don't do anything if file is about to be
-				 * closed anyway.
-				 */
-				if (netfile->closePend) {
-					read_unlock(&GlobalSMBSeslock);
-					read_unlock(&cifs_tcp_ses_lock);
-					return true;
-				}
-
 				cFYI(1, "file id match, oplock break");
-				pCifsInode = CIFS_I(netfile->pInode);
-				pCifsInode->clientCanCacheAll = false;
-				if (pSMB->OplockLevel == 0)
-					pCifsInode->clientCanCacheRead = false;
+				pCifsInode = CIFS_I(netfile->dentry->d_inode);
 
+				cifs_set_oplock_level(pCifsInode,
+						      pSMB->OplockLevel);
 				/*
 				 * cifs_oplock_break_put() can't be called
 				 * from here.  Get reference after queueing
 				 * succeeded.  cifs_oplock_break() will
-				 * synchronize using GlobalSMSSeslock.
+				 * synchronize using cifs_file_list_lock.
 				 */
 				if (queue_work(system_nrt_wq,
 					       &netfile->oplock_break))
 					cifs_oplock_break_get(netfile);
 				netfile->oplock_break_cancelled = false;
 
-				read_unlock(&GlobalSMBSeslock);
-				read_unlock(&cifs_tcp_ses_lock);
+				spin_unlock(&cifs_file_list_lock);
+				spin_unlock(&cifs_tcp_ses_lock);
 				return true;
 			}
-			read_unlock(&GlobalSMBSeslock);
-			read_unlock(&cifs_tcp_ses_lock);
+			spin_unlock(&cifs_file_list_lock);
+			spin_unlock(&cifs_tcp_ses_lock);
 			cFYI(1, "No matching file for oplock break");
 			return true;
 		}
 	}
-	read_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 	cFYI(1, "Can not process oplock break for non-existent connection");
 	return true;
 }
@@ -729,6 +718,26 @@ cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb)
 			   "properly. Hardlinks will not be recognized on this "
 			   "mount. Consider mounting with the \"noserverino\" "
 			   "option to silence this message.",
-			   cifs_sb->tcon->treeName);
+			   cifs_sb_master_tcon(cifs_sb)->treeName);
+	}
+}
+
+void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
+{
+	oplock &= 0xF;
+
+	if (oplock == OPLOCK_EXCLUSIVE) {
+		cinode->clientCanCacheAll = true;
+		cinode->clientCanCacheRead = true;
+		cFYI(1, "Exclusive Oplock granted on inode %p",
+		     &cinode->vfs_inode);
+	} else if (oplock == OPLOCK_READ) {
+		cinode->clientCanCacheAll = false;
+		cinode->clientCanCacheRead = true;
+		cFYI(1, "Level II Oplock granted on inode %p",
+		    &cinode->vfs_inode);
+	} else {
+		cinode->clientCanCacheAll = false;
+		cinode->clientCanCacheRead = false;
 	}
 }

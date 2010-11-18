@@ -30,7 +30,6 @@
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
 #include <linux/moduleparam.h>
-#include <linux/smp_lock.h>
 #include <linux/bitmap.h>
 
 #include "sysctl.h"
@@ -445,7 +444,6 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 
 	ntfs_debug("Entering with remount options string: %s", opt);
 
-	lock_kernel();
 #ifndef NTFS_RW
 	/* For read-only compiled driver, enforce read-only flag. */
 	*flags |= MS_RDONLY;
@@ -469,18 +467,15 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 		if (NVolErrors(vol)) {
 			ntfs_error(sb, "Volume has errors and is read-only%s",
 					es);
-			unlock_kernel();
 			return -EROFS;
 		}
 		if (vol->vol_flags & VOLUME_IS_DIRTY) {
 			ntfs_error(sb, "Volume is dirty and read-only%s", es);
-			unlock_kernel();
 			return -EROFS;
 		}
 		if (vol->vol_flags & VOLUME_MODIFIED_BY_CHKDSK) {
 			ntfs_error(sb, "Volume has been modified by chkdsk "
 					"and is read-only%s", es);
-			unlock_kernel();
 			return -EROFS;
 		}
 		if (vol->vol_flags & VOLUME_MUST_MOUNT_RO_MASK) {
@@ -488,13 +483,11 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 					"(0x%x) and is read-only%s",
 					(unsigned)le16_to_cpu(vol->vol_flags),
 					es);
-			unlock_kernel();
 			return -EROFS;
 		}
 		if (ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY)) {
 			ntfs_error(sb, "Failed to set dirty bit in volume "
 					"information flags%s", es);
-			unlock_kernel();
 			return -EROFS;
 		}
 #if 0
@@ -514,21 +507,18 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 			ntfs_error(sb, "Failed to empty journal $LogFile%s",
 					es);
 			NVolSetErrors(vol);
-			unlock_kernel();
 			return -EROFS;
 		}
 		if (!ntfs_mark_quotas_out_of_date(vol)) {
 			ntfs_error(sb, "Failed to mark quotas out of date%s",
 					es);
 			NVolSetErrors(vol);
-			unlock_kernel();
 			return -EROFS;
 		}
 		if (!ntfs_stamp_usnjrnl(vol)) {
 			ntfs_error(sb, "Failed to stamp transation log "
 					"($UsnJrnl)%s", es);
 			NVolSetErrors(vol);
-			unlock_kernel();
 			return -EROFS;
 		}
 	} else if (!(sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY)) {
@@ -544,11 +534,9 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 
 	// TODO: Deal with *flags.
 
-	if (!parse_options(vol, opt)) {
-		unlock_kernel();
+	if (!parse_options(vol, opt))
 		return -EINVAL;
-	}
-	unlock_kernel();
+
 	ntfs_debug("Done.");
 	return 0;
 }
@@ -2261,8 +2249,6 @@ static void ntfs_put_super(struct super_block *sb)
 
 	ntfs_debug("Entering.");
 
-	lock_kernel();
-
 #ifdef NTFS_RW
 	/*
 	 * Commit all inodes while they are still open in case some of them
@@ -2433,8 +2419,6 @@ static void ntfs_put_super(struct super_block *sb)
 
 	sb->s_fs_info = NULL;
 	kfree(vol);
-
-	unlock_kernel();
 }
 
 /**
@@ -2772,8 +2756,6 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	init_rwsem(&vol->mftbmp_lock);
 	init_rwsem(&vol->lcnbmp_lock);
 
-	unlock_kernel();
-
 	/* By default, enable sparse support. */
 	NVolSetSparseEnabled(vol);
 
@@ -2929,8 +2911,8 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		goto unl_upcase_iput_tmp_ino_err_out_now;
 	}
 	if ((sb->s_root = d_alloc_root(vol->root_ino))) {
-		/* We increment i_count simulating an ntfs_iget(). */
-		atomic_inc(&vol->root_ino->i_count);
+		/* We grab a reference, simulating an ntfs_iget(). */
+		ihold(vol->root_ino);
 		ntfs_debug("Exiting, status successful.");
 		/* Release the default upcase if it has no users. */
 		mutex_lock(&ntfs_lock);
@@ -2940,7 +2922,6 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		}
 		mutex_unlock(&ntfs_lock);
 		sb->s_export_op = &ntfs_export_ops;
-		lock_kernel();
 		lockdep_on();
 		return 0;
 	}
@@ -3040,24 +3021,8 @@ iput_tmp_ino_err_out_now:
 	if (vol->mft_ino && vol->mft_ino != tmp_ino)
 		iput(vol->mft_ino);
 	vol->mft_ino = NULL;
-	/*
-	 * This is needed to get ntfs_clear_extent_inode() called for each
-	 * inode we have ever called ntfs_iget()/iput() on, otherwise we A)
-	 * leak resources and B) a subsequent mount fails automatically due to
-	 * ntfs_iget() never calling down into our ntfs_read_locked_inode()
-	 * method again... FIXME: Do we need to do this twice now because of
-	 * attribute inodes? I think not, so leave as is for now... (AIA)
-	 */
-	if (invalidate_inodes(sb)) {
-		ntfs_error(sb, "Busy inodes left. This is most likely a NTFS "
-				"driver bug.");
-		/* Copied from fs/super.c. I just love this message. (-; */
-		printk("NTFS: Busy inodes after umount. Self-destruct in 5 "
-				"seconds.  Have a nice day...\n");
-	}
 	/* Errors at this stage are irrelevant. */
 err_out_now:
-	lock_kernel();
 	sb->s_fs_info = NULL;
 	kfree(vol);
 	ntfs_debug("Failed, returning -EINVAL.");
@@ -3094,17 +3059,16 @@ struct kmem_cache *ntfs_index_ctx_cache;
 /* Driver wide mutex. */
 DEFINE_MUTEX(ntfs_lock);
 
-static int ntfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *ntfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, ntfs_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, ntfs_fill_super);
 }
 
 static struct file_system_type ntfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ntfs",
-	.get_sb		= ntfs_get_sb,
+	.mount		= ntfs_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

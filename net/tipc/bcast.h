@@ -84,9 +84,6 @@ static inline int tipc_nmap_equal(struct tipc_node_map *nm_a, struct tipc_node_m
 	return !memcmp(nm_a, nm_b, sizeof(*nm_a));
 }
 
-void tipc_nmap_diff(struct tipc_node_map *nm_a, struct tipc_node_map *nm_b,
-				  struct tipc_node_map *nm_diff);
-
 void tipc_port_list_add(struct port_list *pl_ptr, u32 port);
 void tipc_port_list_free(struct port_list *pl_ptr);
 

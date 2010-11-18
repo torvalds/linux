@@ -28,32 +28,29 @@
 #define CHIPID                 0xFFC00014       /* Chip ID Register */
 
 /* For MMR's that are reserved on Core B, set up defines to better integrate with other ports */
-#define SWRST                   SICA_SWRST
-#define SYSCR                   SICA_SYSCR
 #define DOUBLE_FAULT            (DOUBLE_FAULT_B|DOUBLE_FAULT_A)
 #define RESET_DOUBLE            (SWRST_DBL_FAULT_B|SWRST_DBL_FAULT_A)
 #define RESET_WDOG              (SWRST_WDT_B|SWRST_WDT_A)
 #define RESET_SOFTWARE          (SWRST_OCCURRED)
 
 /* System Reset and Interrupt Controller registers for core A (0xFFC0 0100-0xFFC0 01FF) */
-#define SICA_SWRST              0xFFC00100	/* Software Reset register */
-#define SICA_SYSCR              0xFFC00104	/* System Reset Configuration register */
-#define SICA_RVECT              0xFFC00108	/* SIC Reset Vector Address Register */
-#define SICA_IMASK              0xFFC0010C	/* SIC Interrupt Mask register 0 - hack to fix old tests */
-#define SICA_IMASK0             0xFFC0010C	/* SIC Interrupt Mask register 0 */
-#define SICA_IMASK1             0xFFC00110	/* SIC Interrupt Mask register 1 */
-#define SICA_IAR0               0xFFC00124	/* SIC Interrupt Assignment Register 0 */
-#define SICA_IAR1               0xFFC00128	/* SIC Interrupt Assignment Register 1 */
-#define SICA_IAR2               0xFFC0012C	/* SIC Interrupt Assignment Register 2 */
-#define SICA_IAR3               0xFFC00130	/* SIC Interrupt Assignment Register 3 */
-#define SICA_IAR4               0xFFC00134	/* SIC Interrupt Assignment Register 4 */
-#define SICA_IAR5               0xFFC00138	/* SIC Interrupt Assignment Register 5 */
-#define SICA_IAR6               0xFFC0013C	/* SIC Interrupt Assignment Register 6 */
-#define SICA_IAR7               0xFFC00140	/* SIC Interrupt Assignment Register 7 */
-#define SICA_ISR0               0xFFC00114	/* SIC Interrupt Status register 0 */
-#define SICA_ISR1               0xFFC00118	/* SIC Interrupt Status register 1 */
-#define SICA_IWR0               0xFFC0011C	/* SIC Interrupt Wakeup-Enable register 0 */
-#define SICA_IWR1               0xFFC00120	/* SIC Interrupt Wakeup-Enable register 1 */
+#define SWRST                   0xFFC00100	/* Software Reset register */
+#define SYSCR                   0xFFC00104	/* System Reset Configuration register */
+#define SIC_RVECT               0xFFC00108	/* SIC Reset Vector Address Register */
+#define SIC_IMASK0              0xFFC0010C	/* SIC Interrupt Mask register 0 */
+#define SIC_IMASK1              0xFFC00110	/* SIC Interrupt Mask register 1 */
+#define SIC_IAR0                0xFFC00124	/* SIC Interrupt Assignment Register 0 */
+#define SIC_IAR1                0xFFC00128	/* SIC Interrupt Assignment Register 1 */
+#define SIC_IAR2                0xFFC0012C	/* SIC Interrupt Assignment Register 2 */
+#define SIC_IAR3                0xFFC00130	/* SIC Interrupt Assignment Register 3 */
+#define SIC_IAR4                0xFFC00134	/* SIC Interrupt Assignment Register 4 */
+#define SIC_IAR5                0xFFC00138	/* SIC Interrupt Assignment Register 5 */
+#define SIC_IAR6                0xFFC0013C	/* SIC Interrupt Assignment Register 6 */
+#define SIC_IAR7                0xFFC00140	/* SIC Interrupt Assignment Register 7 */
+#define SIC_ISR0                0xFFC00114	/* SIC Interrupt Status register 0 */
+#define SIC_ISR1                0xFFC00118	/* SIC Interrupt Status register 1 */
+#define SIC_IWR0                0xFFC0011C	/* SIC Interrupt Wakeup-Enable register 0 */
+#define SIC_IWR1                0xFFC00120	/* SIC Interrupt Wakeup-Enable register 1 */
 
 /* System Reset and Interrupt Controller registers for Core B (0xFFC0 1100-0xFFC0 11FF) */
 #define SICB_SWRST              0xFFC01100	/* reserved */
@@ -1270,63 +1267,6 @@
 #define PF13_P        13
 #define PF14_P        14
 #define PF15_P        15
-
-/* ***********  SERIAL PERIPHERAL INTERFACE (SPI) MASKS  **************** */
-
-/* SPI_CTL Masks */
-#define TIMOD                  0x00000003	/* Transfer initiation mode and interrupt generation */
-#define SZ                     0x00000004	/* Send Zero (=0) or last (=1) word when TDBR empty. */
-#define GM                     0x00000008	/* When RDBR full, get more (=1) data or discard (=0) incoming Data */
-#define PSSE                   0x00000010	/* Enable (=1) Slave-Select input for Master. */
-#define EMISO                  0x00000020	/* Enable (=1) MISO pin as an output. */
-#define SIZE                   0x00000100	/* Word length (0 => 8 bits, 1 => 16 bits) */
-#define LSBF                   0x00000200	/* Data format (0 => MSB sent/received first 1 => LSB sent/received first) */
-#define CPHA                   0x00000400	/* Clock phase (0 => SPICLK starts toggling in middle of xfer, 1 => SPICLK toggles at the beginning of xfer. */
-#define CPOL                   0x00000800	/* Clock polarity (0 => active-high, 1 => active-low) */
-#define MSTR                   0x00001000	/* Configures SPI as master (=1) or slave (=0) */
-#define WOM                    0x00002000	/* Open drain (=1) data output enable (for MOSI and MISO) */
-#define SPE                    0x00004000	/* SPI module enable (=1), disable (=0) */
-
-/* SPI_FLG Masks */
-#define FLS1                   0x00000002	/* Enables (=1) SPI_FLOUT1 as flag output for SPI Slave-select */
-#define FLS2                   0x00000004	/* Enables (=1) SPI_FLOUT2 as flag output for SPI Slave-select */
-#define FLS3                   0x00000008	/* Enables (=1) SPI_FLOUT3 as flag output for SPI Slave-select */
-#define FLS4                   0x00000010	/* Enables (=1) SPI_FLOUT4 as flag output for SPI Slave-select */
-#define FLS5                   0x00000020	/* Enables (=1) SPI_FLOUT5 as flag output for SPI Slave-select */
-#define FLS6                   0x00000040	/* Enables (=1) SPI_FLOUT6 as flag output for SPI Slave-select */
-#define FLS7                   0x00000080	/* Enables (=1) SPI_FLOUT7 as flag output for SPI Slave-select */
-#define FLG1                   0x00000200	/* Activates (=0) SPI_FLOUT1 as flag output for SPI Slave-select  */
-#define FLG2                   0x00000400	/* Activates (=0) SPI_FLOUT2 as flag output for SPI Slave-select */
-#define FLG3                   0x00000800	/* Activates (=0) SPI_FLOUT3 as flag output for SPI Slave-select  */
-#define FLG4                   0x00001000	/* Activates (=0) SPI_FLOUT4 as flag output for SPI Slave-select  */
-#define FLG5                   0x00002000	/* Activates (=0) SPI_FLOUT5 as flag output for SPI Slave-select  */
-#define FLG6                   0x00004000	/* Activates (=0) SPI_FLOUT6 as flag output for SPI Slave-select  */
-#define FLG7                   0x00008000	/* Activates (=0) SPI_FLOUT7 as flag output for SPI Slave-select */
-
-/* SPI_FLG Bit Positions */
-#define FLS1_P                 0x00000001	/* Enables (=1) SPI_FLOUT1 as flag output for SPI Slave-select */
-#define FLS2_P                 0x00000002	/* Enables (=1) SPI_FLOUT2 as flag output for SPI Slave-select */
-#define FLS3_P                 0x00000003	/* Enables (=1) SPI_FLOUT3 as flag output for SPI Slave-select */
-#define FLS4_P                 0x00000004	/* Enables (=1) SPI_FLOUT4 as flag output for SPI Slave-select */
-#define FLS5_P                 0x00000005	/* Enables (=1) SPI_FLOUT5 as flag output for SPI Slave-select */
-#define FLS6_P                 0x00000006	/* Enables (=1) SPI_FLOUT6 as flag output for SPI Slave-select */
-#define FLS7_P                 0x00000007	/* Enables (=1) SPI_FLOUT7 as flag output for SPI Slave-select */
-#define FLG1_P                 0x00000009	/* Activates (=0) SPI_FLOUT1 as flag output for SPI Slave-select  */
-#define FLG2_P                 0x0000000A	/* Activates (=0) SPI_FLOUT2 as flag output for SPI Slave-select */
-#define FLG3_P                 0x0000000B	/* Activates (=0) SPI_FLOUT3 as flag output for SPI Slave-select  */
-#define FLG4_P                 0x0000000C	/* Activates (=0) SPI_FLOUT4 as flag output for SPI Slave-select  */
-#define FLG5_P                 0x0000000D	/* Activates (=0) SPI_FLOUT5 as flag output for SPI Slave-select  */
-#define FLG6_P                 0x0000000E	/* Activates (=0) SPI_FLOUT6 as flag output for SPI Slave-select  */
-#define FLG7_P                 0x0000000F	/* Activates (=0) SPI_FLOUT7 as flag output for SPI Slave-select */
-
-/* SPI_STAT Masks */
-#define SPIF                   0x00000001	/* Set (=1) when SPI single-word transfer complete */
-#define MODF                   0x00000002	/* Set (=1) in a master device when some other device tries to become master */
-#define TXE                    0x00000004	/* Set (=1) when transmission occurs with no new data in SPI_TDBR */
-#define TXS                    0x00000008	/* SPI_TDBR Data Buffer Status (0=Empty, 1=Full) */
-#define RBSY                   0x00000010	/* Set (=1) when data is received with RDBR full */
-#define RXS                    0x00000020	/* SPI_RDBR Data Buffer Status (0=Empty, 1=Full)  */
-#define TXCOL                  0x00000040	/* When set (=1), corrupt data may have been transmitted  */
 
 /* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  ************* */
 

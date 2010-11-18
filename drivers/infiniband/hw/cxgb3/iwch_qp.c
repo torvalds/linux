@@ -802,14 +802,12 @@ int iwch_post_terminate(struct iwch_qp *qhp, struct respQ_msg_t *rsp_msg)
 /*
  * Assumes qhp lock is held.
  */
-static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
+static void __flush_qp(struct iwch_qp *qhp, struct iwch_cq *rchp,
+				struct iwch_cq *schp, unsigned long *flag)
 {
-	struct iwch_cq *rchp, *schp;
 	int count;
 	int flushed;
 
-	rchp = get_chp(qhp->rhp, qhp->attr.rcq);
-	schp = get_chp(qhp->rhp, qhp->attr.scq);
 
 	PDBG("%s qhp %p rchp %p schp %p\n", __func__, qhp, rchp, schp);
 	/* take a ref on the qhp since we must release the lock */
@@ -847,10 +845,23 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 
 static void flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 {
-	if (qhp->ibqp.uobject)
+	struct iwch_cq *rchp, *schp;
+
+	rchp = get_chp(qhp->rhp, qhp->attr.rcq);
+	schp = get_chp(qhp->rhp, qhp->attr.scq);
+
+	if (qhp->ibqp.uobject) {
 		cxio_set_wq_in_error(&qhp->wq);
-	else
-		__flush_qp(qhp, flag);
+		cxio_set_cq_in_error(&rchp->cq);
+		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
+		if (schp != rchp) {
+			cxio_set_cq_in_error(&schp->cq);
+			(*schp->ibcq.comp_handler)(&schp->ibcq,
+						   schp->ibcq.cq_context);
+		}
+		return;
+	}
+	__flush_qp(qhp, rchp, schp, flag);
 }
 
 

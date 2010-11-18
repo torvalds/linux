@@ -308,6 +308,12 @@ static int watchdog_start(void)
 		superio_set_bit(watchdog.sioaddr, 0x29, 1);
 		break;
 
+	case f71889fg:
+		/* set pin 40 to WDTRST# */
+		superio_outb(watchdog.sioaddr, 0x2b,
+				superio_inb(watchdog.sioaddr, 0x2b) & 0xcf);
+		break;
+
 	default:
 		/*
 		 * 'default' label to shut up the compiler and catch
@@ -708,8 +714,10 @@ static int __init f71808e_find(int sioaddr)
 	case SIO_F71882_ID:
 		watchdog.type = f71882fg;
 		break;
-	case SIO_F71862_ID:
 	case SIO_F71889_ID:
+		watchdog.type = f71889fg;
+		break;
+	case SIO_F71862_ID:
 		/* These have a watchdog, though it isn't implemented (yet). */
 		err = -ENOSYS;
 		goto exit;

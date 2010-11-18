@@ -1208,6 +1208,9 @@ static Elf_Sym *find_elf_symbol2(struct elf_info *elf, Elf_Addr addr,
  * .cpuinit.data => __cpudata
  * .memexitconst => __memconst
  * etc.
+ *
+ * The memory of returned value has been allocated on a heap. The user of this
+ * method should free it after usage.
 */
 static char *sec2annotation(const char *s)
 {
@@ -1230,7 +1233,7 @@ static char *sec2annotation(const char *s)
 			strcat(p, "data ");
 		else
 			strcat(p, " ");
-		return r; /* we leak her but we do not care */
+		return r;
 	} else {
 		return strdup("");
 	}

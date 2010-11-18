@@ -86,6 +86,8 @@ do { \
 
 /**
  * enum p9_msg_t - 9P message types
+ * @P9_TLERROR: not used
+ * @P9_RLERROR: response for any failed request for 9P2000.L
  * @P9_TSTATFS: file system status request
  * @P9_RSTATFS: file system status response
  * @P9_TSYMLINK: make symlink request
@@ -137,6 +139,8 @@ do { \
  */
 
 enum p9_msg_t {
+	P9_TLERROR = 6,
+	P9_RLERROR,
 	P9_TSTATFS = 8,
 	P9_RSTATFS,
 	P9_TLOPEN = 12,
@@ -149,6 +153,8 @@ enum p9_msg_t {
 	P9_RMKNOD,
 	P9_TRENAME = 20,
 	P9_RRENAME,
+	P9_TREADLINK = 22,
+	P9_RREADLINK,
 	P9_TGETATTR = 24,
 	P9_RGETATTR,
 	P9_TSETATTR = 26,
@@ -159,6 +165,12 @@ enum p9_msg_t {
 	P9_RXATTRCREATE,
 	P9_TREADDIR = 40,
 	P9_RREADDIR,
+	P9_TFSYNC = 50,
+	P9_RFSYNC,
+	P9_TLOCK = 52,
+	P9_RLOCK,
+	P9_TGETLOCK = 54,
+	P9_RGETLOCK,
 	P9_TLINK = 70,
 	P9_RLINK,
 	P9_TMKDIR = 72,
@@ -456,6 +468,48 @@ struct p9_iattr_dotl {
 	u64 atime_nsec;
 	u64 mtime_sec;
 	u64 mtime_nsec;
+};
+
+#define P9_LOCK_SUCCESS 0
+#define P9_LOCK_BLOCKED 1
+#define P9_LOCK_ERROR 2
+#define P9_LOCK_GRACE 3
+
+#define P9_LOCK_FLAGS_BLOCK 1
+#define P9_LOCK_FLAGS_RECLAIM 2
+
+/* struct p9_flock: POSIX lock structure
+ * @type - type of lock
+ * @flags - lock flags
+ * @start - starting offset of the lock
+ * @length - number of bytes
+ * @proc_id - process id which wants to take lock
+ * @client_id - client id
+ */
+
+struct p9_flock {
+	u8 type;
+	u32 flags;
+	u64 start;
+	u64 length;
+	u32 proc_id;
+	char *client_id;
+};
+
+/* struct p9_getlock: getlock structure
+ * @type - type of lock
+ * @start - starting offset of the lock
+ * @length - number of bytes
+ * @proc_id - process id which wants to take lock
+ * @client_id - client id
+ */
+
+struct p9_getlock {
+	u8 type;
+	u64 start;
+	u64 length;
+	u32 proc_id;
+	char *client_id;
 };
 
 /* Structures for Protocol Operations */

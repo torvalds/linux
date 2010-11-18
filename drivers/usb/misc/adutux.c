@@ -679,6 +679,7 @@ static const struct file_operations adu_fops = {
 	.write = adu_write,
 	.open = adu_open,
 	.release = adu_release,
+	.llseek = noop_llseek,
 };
 
 /*

@@ -26,7 +26,7 @@
 #define IS_HW_CLEARED 1
 
 /*
- * The set of interrupts we enable for raw_local_irq_enable().
+ * The set of interrupts we enable for arch_local_irq_enable().
  * This is initialized to have just a single interrupt that the kernel
  * doesn't actually use as a sentinel.  During kernel init,
  * interrupts are added as the kernel gets prepared to support them.
@@ -61,9 +61,9 @@ static DEFINE_SPINLOCK(available_irqs_lock);
 
 #if CHIP_HAS_IPI()
 /* Use SPRs to manipulate device interrupts. */
-#define mask_irqs(irq_mask) __insn_mtspr(SPR_IPI_MASK_SET_1, irq_mask)
-#define unmask_irqs(irq_mask) __insn_mtspr(SPR_IPI_MASK_RESET_1, irq_mask)
-#define clear_irqs(irq_mask) __insn_mtspr(SPR_IPI_EVENT_RESET_1, irq_mask)
+#define mask_irqs(irq_mask) __insn_mtspr(SPR_IPI_MASK_SET_K, irq_mask)
+#define unmask_irqs(irq_mask) __insn_mtspr(SPR_IPI_MASK_RESET_K, irq_mask)
+#define clear_irqs(irq_mask) __insn_mtspr(SPR_IPI_EVENT_RESET_K, irq_mask)
 #else
 /* Use HV to manipulate device interrupts. */
 #define mask_irqs(irq_mask) hv_disable_intr(irq_mask)
@@ -89,16 +89,16 @@ void tile_dev_intr(struct pt_regs *regs, int intnum)
 	 * masked by a previous interrupt.  Then, mask out the ones
 	 * we're going to handle.
 	 */
-	unsigned long masked = __insn_mfspr(SPR_IPI_MASK_1);
-	original_irqs = __insn_mfspr(SPR_IPI_EVENT_1) & ~masked;
-	__insn_mtspr(SPR_IPI_MASK_SET_1, original_irqs);
+	unsigned long masked = __insn_mfspr(SPR_IPI_MASK_K);
+	original_irqs = __insn_mfspr(SPR_IPI_EVENT_K) & ~masked;
+	__insn_mtspr(SPR_IPI_MASK_SET_K, original_irqs);
 #else
 	/*
 	 * Hypervisor performs the equivalent of the Gx code above and
 	 * then puts the pending interrupt mask into a system save reg
 	 * for us to find.
 	 */
-	original_irqs = __insn_mfspr(SPR_SYSTEM_SAVE_1_3);
+	original_irqs = __insn_mfspr(SPR_SYSTEM_SAVE_K_3);
 #endif
 	remaining_irqs = original_irqs;
 
@@ -225,7 +225,7 @@ void __cpuinit setup_irq_regs(void)
 	/* Enable interrupt delivery. */
 	unmask_irqs(~0UL);
 #if CHIP_HAS_IPI()
-	raw_local_irq_unmask(INT_IPI_1);
+	arch_local_irq_unmask(INT_IPI_K);
 #endif
 }
 

@@ -17,6 +17,8 @@
 #include <linux/vmstat.h>
 #include <linux/sched.h>
 #include <linux/math64.h>
+#include <linux/writeback.h>
+#include <linux/compaction.h>
 
 #ifdef CONFIG_VM_EVENT_COUNTERS
 DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
@@ -394,6 +396,7 @@ void zone_statistics(struct zone *preferred_zone, struct zone *z)
 #endif
 
 #ifdef CONFIG_COMPACTION
+
 struct contig_page_info {
 	unsigned long free_pages;
 	unsigned long free_blocks_total;
@@ -745,6 +748,11 @@ static const char * const vmstat_text[] = {
 	"nr_isolated_anon",
 	"nr_isolated_file",
 	"nr_shmem",
+	"nr_dirtied",
+	"nr_written",
+	"nr_dirty_threshold",
+	"nr_dirty_background_threshold",
+
 #ifdef CONFIG_NUMA
 	"numa_hit",
 	"numa_miss",
@@ -904,36 +912,44 @@ static const struct file_operations proc_zoneinfo_file_operations = {
 	.release	= seq_release,
 };
 
+enum writeback_stat_item {
+	NR_DIRTY_THRESHOLD,
+	NR_DIRTY_BG_THRESHOLD,
+	NR_VM_WRITEBACK_STAT_ITEMS,
+};
+
 static void *vmstat_start(struct seq_file *m, loff_t *pos)
 {
 	unsigned long *v;
-#ifdef CONFIG_VM_EVENT_COUNTERS
-	unsigned long *e;
-#endif
-	int i;
+	int i, stat_items_size;
 
 	if (*pos >= ARRAY_SIZE(vmstat_text))
 		return NULL;
+	stat_items_size = NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long) +
+			  NR_VM_WRITEBACK_STAT_ITEMS * sizeof(unsigned long);
 
 #ifdef CONFIG_VM_EVENT_COUNTERS
-	v = kmalloc(NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long)
-			+ sizeof(struct vm_event_state), GFP_KERNEL);
-#else
-	v = kmalloc(NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long),
-			GFP_KERNEL);
+	stat_items_size += sizeof(struct vm_event_state);
 #endif
+
+	v = kmalloc(stat_items_size, GFP_KERNEL);
 	m->private = v;
 	if (!v)
 		return ERR_PTR(-ENOMEM);
 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
 		v[i] = global_page_state(i);
+	v += NR_VM_ZONE_STAT_ITEMS;
+
+	global_dirty_limits(v + NR_DIRTY_BG_THRESHOLD,
+			    v + NR_DIRTY_THRESHOLD);
+	v += NR_VM_WRITEBACK_STAT_ITEMS;
+
 #ifdef CONFIG_VM_EVENT_COUNTERS
-	e = v + NR_VM_ZONE_STAT_ITEMS;
-	all_vm_events(e);
-	e[PGPGIN] /= 2;		/* sectors -> kbytes */
-	e[PGPGOUT] /= 2;
+	all_vm_events(v);
+	v[PGPGIN] /= 2;		/* sectors -> kbytes */
+	v[PGPGOUT] /= 2;
 #endif
-	return v + *pos;
+	return (unsigned long *)m->private + *pos;
 }
 
 static void *vmstat_next(struct seq_file *m, void *arg, loff_t *pos)

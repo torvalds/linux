@@ -968,7 +968,7 @@ static int ath9k_hw_ar9300_get_eeprom_rev(struct ath_hw *ah)
 }
 
 static u8 ath9k_hw_ar9300_get_num_ant_config(struct ath_hw *ah,
-					     enum ieee80211_band freq_band)
+					     enum ath9k_hal_freq_band freq_band)
 {
 	return 1;
 }

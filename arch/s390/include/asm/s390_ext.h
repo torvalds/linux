@@ -12,7 +12,7 @@
 
 #include <linux/types.h>
 
-typedef void (*ext_int_handler_t)(__u16 code);
+typedef void (*ext_int_handler_t)(unsigned int, unsigned int, unsigned long);
 
 typedef struct ext_int_info_t {
 	struct ext_int_info_t *next;

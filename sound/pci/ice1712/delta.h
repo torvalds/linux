@@ -34,7 +34,8 @@
 		"{MidiMan M Audio,Delta 410},"\
 		"{MidiMan M Audio,Audiophile 24/96},"\
 		"{Digigram,VX442},"\
-		"{Lionstracs,Mediastation},"
+		"{Lionstracs,Mediastation},"\
+		"{Edirol,DA2496},"
 
 #define ICE1712_SUBDEVICE_DELTA1010	0x121430d6
 #define ICE1712_SUBDEVICE_DELTA1010E	0xff1430d6
@@ -47,6 +48,7 @@
 #define ICE1712_SUBDEVICE_DELTA1010LT	0x12143bd6
 #define ICE1712_SUBDEVICE_VX442		0x12143cd6
 #define ICE1712_SUBDEVICE_MEDIASTATION	0x694c0100
+#define ICE1712_SUBDEVICE_EDIROLDA2496	0xce164010
 
 /* entry point */
 extern struct snd_ice1712_card_info snd_ice1712_delta_cards[];

@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux/SuperH Kernel Configuration"
-
 config SUPERH
 	def_bool y
 	select EMBEDDED
@@ -24,8 +17,12 @@ config SUPERH
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
 	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_GENERIC_HARDIRQS
+	select HAVE_SPARSE_IRQ
 	select RTC_LIB
 	select GENERIC_ATOMIC64
+	select GENERIC_HARDIRQS_NO_DEPRECATED
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -46,8 +43,9 @@ config SUPERH32
 	select HAVE_ARCH_KGDB
 	select HAVE_HW_BREAKPOINT
 	select HAVE_MIXED_BREAKPOINTS_REGS
-	select PERF_EVENTS if HAVE_HW_BREAKPOINT
+	select PERF_EVENTS
 	select ARCH_HIBERNATION_POSSIBLE if MMU
+	select SPARSE_IRQ
 
 config SUPERH64
 	def_bool ARCH = "sh64"
@@ -77,18 +75,8 @@ config GENERIC_FIND_NEXT_BIT
 config GENERIC_HWEIGHT
 	def_bool y
 
-config GENERIC_HARDIRQS
-	def_bool y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
-
 config IRQ_PER_CPU
 	def_bool y
-
-config SPARSE_IRQ
-	def_bool y
-	depends on SUPERH32
 
 config GENERIC_GPIO
 	def_bool n
@@ -205,6 +193,7 @@ config CPU_SH2
 config CPU_SH2A
 	bool
 	select CPU_SH2
+	select UNCACHED_MAPPING
 
 config CPU_SH3
 	bool
@@ -471,6 +460,7 @@ config CPU_SUBTYPE_SHX3
 	select CPU_SH4A
 	select CPU_SHX3
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select ARCH_REQUIRE_GPIOLIB
 
 # SH4AL-DSP Processor Support
 
@@ -575,7 +565,7 @@ config SH_CLK_CPG
 config SH_CLK_CPG_LEGACY
 	depends on SH_CLK_CPG
 	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE && \
-		      !CPU_SUBTYPE_SH7786
+		      !CPU_SHX3 && !CPU_SUBTYPE_SH7757
 
 config SH_CLK_MD
 	int "CPU Mode Pin Setting"

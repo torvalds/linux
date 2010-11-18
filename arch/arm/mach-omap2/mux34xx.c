@@ -931,7 +931,7 @@ struct omap_ball __initdata omap3_cbc_ball[] = {
  * Signals different on CUS package compared to superset
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_OMAP_PACKAGE_CUS)
-struct omap_mux __initdata omap3_cus_subset[] = {
+static struct omap_mux __initdata omap3_cus_subset[] = {
 	_OMAP3_MUXENTRY(CAM_D10, 109,
 		"cam_d10", NULL, NULL, NULL,
 		"gpio_109", NULL, NULL, "safe_mode"),
@@ -1077,7 +1077,7 @@ struct omap_mux __initdata omap3_cus_subset[] = {
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_DEBUG_FS)		\
 		&& defined(CONFIG_OMAP_PACKAGE_CUS)
-struct omap_ball __initdata omap3_cus_ball[] = {
+static struct omap_ball __initdata omap3_cus_ball[] = {
 	_OMAP3_BALLENTRY(CAM_D0, "ab18", NULL),
 	_OMAP3_BALLENTRY(CAM_D1, "ac18", NULL),
 	_OMAP3_BALLENTRY(CAM_D10, "f21", NULL),
@@ -1269,7 +1269,7 @@ struct omap_ball __initdata omap3_cus_ball[] = {
  * Signals different on CBB package comapared to superset
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_OMAP_PACKAGE_CBB)
-struct omap_mux __initdata omap3_cbb_subset[] = {
+static struct omap_mux __initdata omap3_cbb_subset[] = {
 	_OMAP3_MUXENTRY(CAM_D10, 109,
 		"cam_d10", NULL, NULL, NULL,
 		"gpio_109", NULL, NULL, "safe_mode"),
@@ -1390,7 +1390,7 @@ struct omap_mux __initdata omap3_cbb_subset[] = {
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_DEBUG_FS)		\
 		&& defined(CONFIG_OMAP_PACKAGE_CBB)
-struct omap_ball __initdata omap3_cbb_ball[] = {
+static struct omap_ball __initdata omap3_cbb_ball[] = {
 	_OMAP3_BALLENTRY(CAM_D0, "ag17", NULL),
 	_OMAP3_BALLENTRY(CAM_D1, "ah17", NULL),
 	_OMAP3_BALLENTRY(CAM_D10, "b25", NULL),
@@ -1600,7 +1600,7 @@ struct omap_ball __initdata omap3_cbb_ball[] = {
  * Signals different on 36XX CBP package comapared to 34XX CBC package
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_OMAP_PACKAGE_CBP)
-struct omap_mux __initdata omap36xx_cbp_subset[] = {
+static struct omap_mux __initdata omap36xx_cbp_subset[] = {
 	_OMAP3_MUXENTRY(CAM_D0, 99,
 		"cam_d0", NULL, "csi2_dx2", NULL,
 		"gpio_99", NULL, NULL, "safe_mode"),
@@ -1818,7 +1818,7 @@ struct omap_mux __initdata omap36xx_cbp_subset[] = {
  */
 #if defined(CONFIG_OMAP_MUX) && defined(CONFIG_DEBUG_FS)		\
 		&& defined (CONFIG_OMAP_PACKAGE_CBP)
-struct omap_ball __initdata omap36xx_cbp_ball[] = {
+static struct omap_ball __initdata omap36xx_cbp_ball[] = {
 	_OMAP3_BALLENTRY(CAM_D0, "ag17", NULL),
 	_OMAP3_BALLENTRY(CAM_D1, "ah17", NULL),
 	_OMAP3_BALLENTRY(CAM_D10, "b25", NULL),

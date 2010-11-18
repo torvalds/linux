@@ -301,10 +301,8 @@ static int pohmelfs_cn_dump(struct cn_msg *msg)
 
 	mutex_lock(&pohmelfs_config_lock);
 
-	list_for_each_entry(g, &pohmelfs_config_list, group_entry) {
-		if (g)
-			total_msg += g->num_entry;
-	}
+	list_for_each_entry(g, &pohmelfs_config_list, group_entry)
+		total_msg += g->num_entry;
 	if (total_msg == 0) {
 		if (pohmelfs_send_reply(err, 0, POHMELFS_NOINFO_ACK, msg, NULL))
 			err = -ENOMEM;
@@ -312,15 +310,16 @@ static int pohmelfs_cn_dump(struct cn_msg *msg)
 	}
 
 	list_for_each_entry(g, &pohmelfs_config_list, group_entry) {
-		if (g) {
-			list_for_each_entry_safe(c, tmp, &g->config_list, config_entry) {
-				struct pohmelfs_ctl *sc = &c->state.ctl;
-				if (pohmelfs_send_reply(err, total_msg - i, POHMELFS_CTLINFO_ACK, msg, sc)) {
-					err = -ENOMEM;
-					goto out_unlock;
-				}
-				i += 1;
+		list_for_each_entry_safe(c, tmp, &g->config_list,
+					 config_entry) {
+			struct pohmelfs_ctl *sc = &c->state.ctl;
+			if (pohmelfs_send_reply(err, total_msg - i,
+						POHMELFS_CTLINFO_ACK, msg,
+						sc)) {
+				err = -ENOMEM;
+				goto out_unlock;
 			}
+			i += 1;
 		}
 	}
 
@@ -354,12 +353,11 @@ static int pohmelfs_cn_flush(struct cn_msg *msg)
 		}
 	} else {
 		list_for_each_entry(g, &pohmelfs_config_list, group_entry) {
-			if (g) {
-				list_for_each_entry_safe(c, tmp, &g->config_list, config_entry) {
-					list_del(&c->config_entry);
-					g->num_entry--;
-					kfree(c);
-				}
+			list_for_each_entry_safe(c, tmp, &g->config_list,
+						 config_entry) {
+				list_del(&c->config_entry);
+				g->num_entry--;
+				kfree(c);
 			}
 		}
 	}

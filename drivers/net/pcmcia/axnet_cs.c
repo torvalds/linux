@@ -24,6 +24,8 @@
 
 ======================================================================*/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -32,7 +34,6 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
-#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
@@ -85,7 +86,6 @@ static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
 static struct net_device_stats *get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 static void axnet_tx_timeout(struct net_device *dev);
-static const struct ethtool_ops netdev_ethtool_ops;
 static irqreturn_t ei_irq_wrapper(int irq, void *dev_id);
 static void ei_watchdog(u_long arg);
 static void axnet_reset_8390(struct net_device *dev);
@@ -111,13 +111,14 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id);
 
 typedef struct axnet_dev_t {
 	struct pcmcia_device	*p_dev;
-    caddr_t		base;
-    struct timer_list	watchdog;
-    int			stale, fast_poll;
-    u_short		link_status;
-    u_char		duplex_flag;
-    int			phy_id;
-    int			flags;
+	caddr_t	base;
+	struct timer_list	watchdog;
+	int	stale, fast_poll;
+	u_short	link_status;
+	u_char	duplex_flag;
+	int	phy_id;
+	int	flags;
+	int	active_low;
 } axnet_dev_t;
 
 static inline axnet_dev_t *PRIV(struct net_device *dev)
@@ -161,7 +162,6 @@ static int axnet_probe(struct pcmcia_device *link)
 
     dev->netdev_ops = &axnet_netdev_ops;
 
-    SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
     dev->watchdog_timeo = TX_TIMEOUT;
 
     return axnet_config(link);
@@ -300,8 +300,8 @@ static int axnet_config(struct pcmcia_device *link)
     dev->base_addr = link->resource[0]->start;
 
     if (!get_prom(link)) {
-	printk(KERN_NOTICE "axnet_cs: this is not an AX88190 card!\n");
-	printk(KERN_NOTICE "axnet_cs: use pcnet_cs instead.\n");
+	pr_notice("this is not an AX88190 card!\n");
+	pr_notice("use pcnet_cs instead.\n");
 	goto failed;
     }
 
@@ -310,10 +310,10 @@ static int axnet_config(struct pcmcia_device *link)
     ei_status.tx_start_page = AXNET_START_PG;
     ei_status.rx_start_page = AXNET_START_PG + TX_PAGES;
     ei_status.stop_page = AXNET_STOP_PG;
-    ei_status.reset_8390 = &axnet_reset_8390;
-    ei_status.get_8390_hdr = &get_8390_hdr;
-    ei_status.block_input = &block_input;
-    ei_status.block_output = &block_output;
+    ei_status.reset_8390 = axnet_reset_8390;
+    ei_status.get_8390_hdr = get_8390_hdr;
+    ei_status.block_input = block_input;
+    ei_status.block_output = block_output;
 
     if (inb(dev->base_addr + AXNET_TEST) != 0)
 	info->flags |= IS_AX88790;
@@ -323,6 +323,8 @@ static int axnet_config(struct pcmcia_device *link)
     if (info->flags & IS_AX88790)
 	outb(0x10, dev->base_addr + AXNET_GPIO);  /* select Internal PHY */
 
+    info->active_low = 0;
+
     for (i = 0; i < 32; i++) {
 	j = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 1);
 	j2 = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 2);
@@ -330,15 +332,18 @@ static int axnet_config(struct pcmcia_device *link)
 	if ((j != 0) && (j != 0xffff)) break;
     }
 
-    /* Maybe PHY is in power down mode. (PPD_SET = 1) 
-       Bit 2 of CCSR is active low. */ 
     if (i == 32) {
+	/* Maybe PHY is in power down mode. (PPD_SET = 1)
+	   Bit 2 of CCSR is active low. */
 	pcmcia_write_config_byte(link, CISREG_CCSR, 0x04);
 	for (i = 0; i < 32; i++) {
 	    j = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 1);
 	    j2 = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 2);
 	    if (j == j2) continue;
-	    if ((j != 0) && (j != 0xffff)) break;
+	    if ((j != 0) && (j != 0xffff)) {
+		info->active_low = 1;
+		break;
+	    }
 	}
     }
 
@@ -346,19 +351,18 @@ static int axnet_config(struct pcmcia_device *link)
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
-	printk(KERN_NOTICE "axnet_cs: register_netdev() failed\n");
+	pr_notice("register_netdev() failed\n");
 	goto failed;
     }
 
-    printk(KERN_INFO "%s: Asix AX88%d90: io %#3lx, irq %d, "
-	   "hw_addr %pM\n",
-	   dev->name, ((info->flags & IS_AX88790) ? 7 : 1),
-	   dev->base_addr, dev->irq,
-	   dev->dev_addr);
+    netdev_info(dev, "Asix AX88%d90: io %#3lx, irq %d, hw_addr %pM\n",
+		((info->flags & IS_AX88790) ? 7 : 1),
+		dev->base_addr, dev->irq, dev->dev_addr);
     if (info->phy_id != -1) {
-	dev_dbg(&link->dev, "  MII transceiver at index %d, status %x.\n", info->phy_id, j);
+	netdev_dbg(dev, "  MII transceiver at index %d, status %x\n",
+		   info->phy_id, j);
     } else {
-	printk(KERN_NOTICE "  No MII transceivers found!\n");
+	netdev_notice(dev, "  No MII transceivers found!\n");
     }
     return 0;
 
@@ -385,8 +389,12 @@ static int axnet_suspend(struct pcmcia_device *link)
 static int axnet_resume(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
+	axnet_dev_t *info = PRIV(dev);
 
 	if (link->open) {
+		if (info->active_low == 1)
+			pcmcia_write_config_byte(link, CISREG_CCSR, 0x04);
+
 		axnet_reset_8390(dev);
 		AX88190_init(dev, 1);
 		netif_device_attach(dev);
@@ -477,7 +485,7 @@ static int axnet_open(struct net_device *dev)
 
     info->link_status = 0x00;
     init_timer(&info->watchdog);
-    info->watchdog.function = &ei_watchdog;
+    info->watchdog.function = ei_watchdog;
     info->watchdog.data = (u_long)dev;
     info->watchdog.expires = jiffies + HZ;
     add_timer(&info->watchdog);
@@ -530,8 +538,7 @@ static void axnet_reset_8390(struct net_device *dev)
     outb_p(ENISR_RESET, nic_base + EN0_ISR); /* Ack intr. */
     
     if (i == 100)
-	printk(KERN_ERR "%s: axnet_reset_8390() did not complete.\n",
-	       dev->name);
+	netdev_err(dev, "axnet_reset_8390() did not complete\n");
     
 } /* axnet_reset_8390 */
 
@@ -558,7 +565,7 @@ static void ei_watchdog(u_long arg)
        this, we can limp along even if the interrupt is blocked */
     if (info->stale++ && (inb_p(nic_base + EN0_ISR) & ENISR_ALL)) {
 	if (!info->fast_poll)
-	    printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
+	    netdev_info(dev, "interrupt(s) dropped!\n");
 	ei_irq_wrapper(dev->irq, dev);
 	info->fast_poll = HZ;
     }
@@ -573,7 +580,7 @@ static void ei_watchdog(u_long arg)
 	goto reschedule;
     link = mdio_read(mii_addr, info->phy_id, 1);
     if (!link || (link == 0xffff)) {
-	printk(KERN_INFO "%s: MII is missing!\n", dev->name);
+	netdev_info(dev, "MII is missing!\n");
 	info->phy_id = -1;
 	goto reschedule;
     }
@@ -581,18 +588,14 @@ static void ei_watchdog(u_long arg)
     link &= 0x0004;
     if (link != info->link_status) {
 	u_short p = mdio_read(mii_addr, info->phy_id, 5);
-	printk(KERN_INFO "%s: %s link beat\n", dev->name,
-	       (link) ? "found" : "lost");
+	netdev_info(dev, "%s link beat\n", link ? "found" : "lost");
 	if (link) {
 	    info->duplex_flag = (p & 0x0140) ? 0x80 : 0x00;
 	    if (p)
-		printk(KERN_INFO "%s: autonegotiation complete: "
-		       "%sbaseT-%cD selected\n", dev->name,
-		       ((p & 0x0180) ? "100" : "10"),
-		       ((p & 0x0140) ? 'F' : 'H'));
+		netdev_info(dev, "autonegotiation complete: %dbaseT-%cD selected\n",
+			    (p & 0x0180) ? 100 : 10, (p & 0x0140) ? 'F' : 'H');
 	    else
-		printk(KERN_INFO "%s: link partner did not autonegotiate\n",
-		       dev->name);
+		netdev_info(dev, "link partner did not autonegotiate\n");
 	    AX88190_init(dev, 1);
 	}
 	info->link_status = link;
@@ -602,16 +605,6 @@ reschedule:
     info->watchdog.expires = jiffies + HZ;
     add_timer(&info->watchdog);
 }
-
-static void netdev_get_drvinfo(struct net_device *dev,
-			       struct ethtool_drvinfo *info)
-{
-	strcpy(info->driver, "axnet_cs");
-}
-
-static const struct ethtool_ops netdev_ethtool_ops = {
-	.get_drvinfo		= netdev_get_drvinfo,
-};
 
 /*====================================================================*/
 
@@ -798,9 +791,6 @@ module_exit(exit_axnet_cs);
 
   */
 
-static const char version_8390[] = KERN_INFO \
-    "8390.c:v1.10cvs 9/23/94 Donald Becker (becker@scyld.com)\n";
-
 #include <linux/bitops.h>
 #include <asm/irq.h>
 #include <linux/fcntl.h>
@@ -947,9 +937,11 @@ static void axnet_tx_timeout(struct net_device *dev)
 	isr = inb(e8390_base+EN0_ISR);
 	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 
-	printk(KERN_DEBUG "%s: Tx timed out, %s TSR=%#2x, ISR=%#2x, t=%d.\n",
-		dev->name, (txsr & ENTSR_ABT) ? "excess collisions." :
-		(isr) ? "lost interrupt?" : "cable problem?", txsr, isr, tickssofar);
+	netdev_printk(KERN_DEBUG, dev,
+		      "Tx timed out, %s TSR=%#2x, ISR=%#2x, t=%d.\n",
+		      (txsr & ENTSR_ABT) ? "excess collisions." :
+		      (isr) ? "lost interrupt?" : "cable problem?",
+		      txsr, isr, tickssofar);
 
 	if (!isr && !dev->stats.tx_packets) 
 	{
@@ -1019,22 +1011,28 @@ static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
 		output_page = ei_local->tx_start_page;
 		ei_local->tx1 = send_length;
 		if (ei_debug  &&  ei_local->tx2 > 0)
-			printk(KERN_DEBUG "%s: idle transmitter tx2=%d, lasttx=%d, txing=%d.\n",
-				dev->name, ei_local->tx2, ei_local->lasttx, ei_local->txing);
+			netdev_printk(KERN_DEBUG, dev,
+				      "idle transmitter tx2=%d, lasttx=%d, txing=%d\n",
+				      ei_local->tx2, ei_local->lasttx,
+				      ei_local->txing);
 	}
 	else if (ei_local->tx2 == 0) 
 	{
 		output_page = ei_local->tx_start_page + TX_PAGES/2;
 		ei_local->tx2 = send_length;
 		if (ei_debug  &&  ei_local->tx1 > 0)
-			printk(KERN_DEBUG "%s: idle transmitter, tx1=%d, lasttx=%d, txing=%d.\n",
-				dev->name, ei_local->tx1, ei_local->lasttx, ei_local->txing);
+			netdev_printk(KERN_DEBUG, dev,
+				      "idle transmitter, tx1=%d, lasttx=%d, txing=%d\n",
+				      ei_local->tx1, ei_local->lasttx,
+				      ei_local->txing);
 	}
 	else
 	{	/* We should never get here. */
 		if (ei_debug)
-			printk(KERN_DEBUG "%s: No Tx buffers free! tx1=%d tx2=%d last=%d\n",
-				dev->name, ei_local->tx1, ei_local->tx2, ei_local->lasttx);
+			netdev_printk(KERN_DEBUG, dev,
+				      "No Tx buffers free! tx1=%d tx2=%d last=%d\n",
+				      ei_local->tx1, ei_local->tx2,
+				      ei_local->lasttx);
 		ei_local->irqlock = 0;
 		netif_stop_queue(dev);
 		outb_p(ENISR_ALL, e8390_base + EN0_IMR);
@@ -1122,23 +1120,26 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 	 
 	spin_lock_irqsave(&ei_local->page_lock, flags);
 
-	if (ei_local->irqlock) 
-	{
+	if (ei_local->irqlock) {
 #if 1 /* This might just be an interrupt for a PCI device sharing this line */
+		const char *msg;
 		/* The "irqlock" check is only for testing. */
-		printk(ei_local->irqlock
-			   ? "%s: Interrupted while interrupts are masked! isr=%#2x imr=%#2x.\n"
-			   : "%s: Reentering the interrupt handler! isr=%#2x imr=%#2x.\n",
-			   dev->name, inb_p(e8390_base + EN0_ISR),
-			   inb_p(e8390_base + EN0_IMR));
+		if (ei_local->irqlock)
+			msg = "Interrupted while interrupts are masked!";
+		else
+			msg = "Reentering the interrupt handler!";
+		netdev_info(dev, "%s, isr=%#2x imr=%#2x\n",
+			    msg,
+			    inb_p(e8390_base + EN0_ISR),
+			    inb_p(e8390_base + EN0_IMR));
 #endif
 		spin_unlock_irqrestore(&ei_local->page_lock, flags);
 		return IRQ_NONE;
 	}
     
 	if (ei_debug > 3)
-		printk(KERN_DEBUG "%s: interrupt(isr=%#2.2x).\n", dev->name,
-			   inb_p(e8390_base + EN0_ISR));
+		netdev_printk(KERN_DEBUG, dev, "interrupt(isr=%#2.2x)\n",
+			      inb_p(e8390_base + EN0_ISR));
 
 	outb_p(0x00, e8390_base + EN0_ISR);
 	ei_local->irqlock = 1;
@@ -1149,7 +1150,8 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 	{
 		if (!netif_running(dev) || (interrupts == 0xff)) {
 			if (ei_debug > 1)
-				printk(KERN_WARNING "%s: interrupt from stopped card\n", dev->name);
+				netdev_warn(dev,
+					    "interrupt from stopped card\n");
 			outb_p(interrupts, e8390_base + EN0_ISR);
 			interrupts = 0;
 			break;
@@ -1192,11 +1194,12 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 		{
 			/* 0xFF is valid for a card removal */
 			if(interrupts!=0xFF)
-				printk(KERN_WARNING "%s: Too much work at interrupt, status %#2.2x\n",
-				   dev->name, interrupts);
+				netdev_warn(dev, "Too much work at interrupt, status %#2.2x\n",
+					    interrupts);
 			outb_p(ENISR_ALL, e8390_base + EN0_ISR); /* Ack. most intrs. */
 		} else {
-			printk(KERN_WARNING "%s: unknown interrupt %#2x\n", dev->name, interrupts);
+			netdev_warn(dev, "unknown interrupt %#2x\n",
+				    interrupts);
 			outb_p(0xff, e8390_base + EN0_ISR); /* Ack. all intrs. */
 		}
 	}
@@ -1230,18 +1233,19 @@ static void ei_tx_err(struct net_device *dev)
 	unsigned char tx_was_aborted = txsr & (ENTSR_ABT+ENTSR_FU);
 
 #ifdef VERBOSE_ERROR_DUMP
-	printk(KERN_DEBUG "%s: transmitter error (%#2x): ", dev->name, txsr);
+	netdev_printk(KERN_DEBUG, dev,
+		      "transmitter error (%#2x):", txsr);
 	if (txsr & ENTSR_ABT)
-		printk("excess-collisions ");
+		pr_cont(" excess-collisions");
 	if (txsr & ENTSR_ND)
-		printk("non-deferral ");
+		pr_cont(" non-deferral");
 	if (txsr & ENTSR_CRS)
-		printk("lost-carrier ");
+		pr_cont(" lost-carrier");
 	if (txsr & ENTSR_FU)
-		printk("FIFO-underrun ");
+		pr_cont(" FIFO-underrun");
 	if (txsr & ENTSR_CDH)
-		printk("lost-heartbeat ");
-	printk("\n");
+		pr_cont(" lost-heartbeat");
+	pr_cont("\n");
 #endif
 
 	if (tx_was_aborted)
@@ -1278,8 +1282,9 @@ static void ei_tx_intr(struct net_device *dev)
 	if (ei_local->tx1 < 0) 
 	{
 		if (ei_local->lasttx != 1 && ei_local->lasttx != -1)
-			printk(KERN_ERR "%s: bogus last_tx_buffer %d, tx1=%d.\n",
-				ei_local->name, ei_local->lasttx, ei_local->tx1);
+			netdev_err(dev, "%s: bogus last_tx_buffer %d, tx1=%d\n",
+				   ei_local->name, ei_local->lasttx,
+				   ei_local->tx1);
 		ei_local->tx1 = 0;
 		if (ei_local->tx2 > 0) 
 		{
@@ -1294,8 +1299,9 @@ static void ei_tx_intr(struct net_device *dev)
 	else if (ei_local->tx2 < 0) 
 	{
 		if (ei_local->lasttx != 2  &&  ei_local->lasttx != -2)
-			printk("%s: bogus last_tx_buffer %d, tx2=%d.\n",
-				ei_local->name, ei_local->lasttx, ei_local->tx2);
+			netdev_info(dev, "%s: bogus last_tx_buffer %d, tx2=%d\n",
+				    ei_local->name, ei_local->lasttx,
+				    ei_local->tx2);
 		ei_local->tx2 = 0;
 		if (ei_local->tx1 > 0) 
 		{
@@ -1308,8 +1314,9 @@ static void ei_tx_intr(struct net_device *dev)
 		else
 			ei_local->lasttx = 10, ei_local->txing = 0;
 	}
-//	else printk(KERN_WARNING "%s: unexpected TX-done interrupt, lasttx=%d.\n",
-//			dev->name, ei_local->lasttx);
+//	else
+//		netdev_warn(dev, "unexpected TX-done interrupt, lasttx=%d\n",
+//			    ei_local->lasttx);
 
 	/* Minimize Tx latency: update the statistics after we restart TXing. */
 	if (status & ENTSR_COL)
@@ -1372,8 +1379,8 @@ static void ei_receive(struct net_device *dev)
 		   is that some clones crash in roughly the same way.
 		 */
 		if (ei_debug > 0  &&  this_frame != ei_local->current_page && (this_frame!=0x0 || rxing_page!=0xFF))
-			printk(KERN_ERR "%s: mismatched read page pointers %2x vs %2x.\n",
-				   dev->name, this_frame, ei_local->current_page);
+		    netdev_err(dev, "mismatched read page pointers %2x vs %2x\n",
+			       this_frame, ei_local->current_page);
 		
 		if (this_frame == rxing_page)	/* Read all the frames? */
 			break;				/* Done for now */
@@ -1389,9 +1396,10 @@ static void ei_receive(struct net_device *dev)
 		if (pkt_len < 60  ||  pkt_len > 1518) 
 		{
 			if (ei_debug)
-				printk(KERN_DEBUG "%s: bogus packet size: %d, status=%#2x nxpg=%#2x.\n",
-					   dev->name, rx_frame.count, rx_frame.status,
-					   rx_frame.next);
+				netdev_printk(KERN_DEBUG, dev,
+					      "bogus packet size: %d, status=%#2x nxpg=%#2x\n",
+					      rx_frame.count, rx_frame.status,
+					      rx_frame.next);
 			dev->stats.rx_errors++;
 			dev->stats.rx_length_errors++;
 		}
@@ -1403,8 +1411,9 @@ static void ei_receive(struct net_device *dev)
 			if (skb == NULL) 
 			{
 				if (ei_debug > 1)
-					printk(KERN_DEBUG "%s: Couldn't allocate a sk_buff of size %d.\n",
-						   dev->name, pkt_len);
+					netdev_printk(KERN_DEBUG, dev,
+						      "Couldn't allocate a sk_buff of size %d\n",
+						      pkt_len);
 				dev->stats.rx_dropped++;
 				break;
 			}
@@ -1424,9 +1433,10 @@ static void ei_receive(struct net_device *dev)
 		else 
 		{
 			if (ei_debug)
-				printk(KERN_DEBUG "%s: bogus packet: status=%#2x nxpg=%#2x size=%d\n",
-					   dev->name, rx_frame.status, rx_frame.next,
-					   rx_frame.count);
+				netdev_printk(KERN_DEBUG, dev,
+					      "bogus packet: status=%#2x nxpg=%#2x size=%d\n",
+					      rx_frame.status, rx_frame.next,
+					      rx_frame.count);
 			dev->stats.rx_errors++;
 			/* NB: The NIC counts CRC, frame and missed errors. */
 			if (pkt_stat & ENRSR_FO)
@@ -1436,8 +1446,8 @@ static void ei_receive(struct net_device *dev)
 		
 		/* This _should_ never happen: it's here for avoiding bad clones. */
 		if (next_frame >= ei_local->stop_page) {
-			printk("%s: next frame inconsistency, %#2x\n", dev->name,
-				   next_frame);
+			netdev_info(dev, "next frame inconsistency, %#2x\n",
+				    next_frame);
 			next_frame = ei_local->rx_start_page;
 		}
 		ei_local->current_page = next_frame;
@@ -1472,7 +1482,7 @@ static void ei_rx_overrun(struct net_device *dev)
 	outb_p(E8390_NODMA+E8390_PAGE0+E8390_STOP, e8390_base+E8390_CMD);
     
 	if (ei_debug > 1)
-		printk(KERN_DEBUG "%s: Receiver overrun.\n", dev->name);
+		netdev_printk(KERN_DEBUG, dev, "Receiver overrun\n");
 	dev->stats.rx_over_errors++;
     
 	/* 
@@ -1669,7 +1679,7 @@ static void AX88190_init(struct net_device *dev, int startp)
 	{
 		outb_p(dev->dev_addr[i], e8390_base + EN1_PHYS_SHIFT(i));
 		if(inb_p(e8390_base + EN1_PHYS_SHIFT(i))!=dev->dev_addr[i])
-			printk(KERN_ERR "Hw. address read/write mismap %d\n",i);
+			netdev_err(dev, "Hw. address read/write mismap %d\n", i);
 	}
 
 	outb_p(ei_local->rx_start_page, e8390_base + EN1_CURPAG);
@@ -1706,8 +1716,7 @@ static void NS8390_trigger_send(struct net_device *dev, unsigned int length,
     
 	if (inb_p(e8390_base) & E8390_TRANS) 
 	{
-		printk(KERN_WARNING "%s: trigger_send() called with the transmitter busy.\n",
-			dev->name);
+		netdev_warn(dev, "trigger_send() called with the transmitter busy\n");
 		return;
 	}
 	outb_p(length & 0xff, e8390_base + EN0_TCNTLO);

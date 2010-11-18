@@ -22,7 +22,7 @@
 #define __SMSC911X_H__
 
 #define TX_FIFO_LOW_THRESHOLD	((u32)1600)
-#define SMSC911X_EEPROM_SIZE	((u32)7)
+#define SMSC911X_EEPROM_SIZE	((u32)128)
 #define USE_DEBUG		0
 
 /* This is the maximum number of packets to be received every
@@ -393,5 +393,16 @@
 
 #define LPA_PAUSE_ALL			(LPA_PAUSE_CAP | \
 					 LPA_PAUSE_ASYM)
+
+/*
+ * Provide hooks to let the arch add to the initialisation procedure
+ * and to override the source of the MAC address.
+ */
+#define SMSC_INITIALIZE()		do {} while (0)
+#define smsc_get_mac(dev)		smsc911x_read_mac_address((dev))
+
+#ifdef CONFIG_SMSC911X_ARCH_HOOKS
+#include <asm/smsc911x.h>
+#endif
 
 #endif				/* __SMSC911X_H__ */

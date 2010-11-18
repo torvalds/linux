@@ -24,14 +24,15 @@
 
 #define ETH_P_BATMAN  0x4305	/* unofficial/not registered Ethertype */
 
-#define BAT_PACKET    0x01
-#define BAT_ICMP      0x02
-#define BAT_UNICAST   0x03
-#define BAT_BCAST     0x04
-#define BAT_VIS       0x05
+#define BAT_PACKET       0x01
+#define BAT_ICMP         0x02
+#define BAT_UNICAST      0x03
+#define BAT_BCAST        0x04
+#define BAT_VIS          0x05
+#define BAT_UNICAST_FRAG 0x06
 
 /* this file is included by batctl which needs these defines */
-#define COMPAT_VERSION 11
+#define COMPAT_VERSION 13
 #define DIRECTLINK 0x40
 #define VIS_SERVER 0x20
 #define PRIMARIES_FIRST_HOP 0x10
@@ -46,6 +47,9 @@
 /* vis defines */
 #define VIS_TYPE_SERVER_SYNC		0
 #define VIS_TYPE_CLIENT_UPDATE		1
+
+/* fragmentation defines */
+#define UNI_FRAG_HEAD 0x01
 
 struct batman_packet {
 	uint8_t  packet_type;
@@ -75,7 +79,7 @@ struct icmp_packet {
 #define BAT_RR_LEN 16
 
 /* icmp_packet_rr must start with all fields from imcp_packet
-   as this is assumed by code that handles ICMP packets */
+ * as this is assumed by code that handles ICMP packets */
 struct icmp_packet_rr {
 	uint8_t  packet_type;
 	uint8_t  version;  /* batman version field */
@@ -94,6 +98,16 @@ struct unicast_packet {
 	uint8_t  version;  /* batman version field */
 	uint8_t  dest[6];
 	uint8_t  ttl;
+} __attribute__((packed));
+
+struct unicast_frag_packet {
+	uint8_t  packet_type;
+	uint8_t  version;  /* batman version field */
+	uint8_t  dest[6];
+	uint8_t  ttl;
+	uint8_t  flags;
+	uint8_t  orig[6];
+	uint16_t seqno;
 } __attribute__((packed));
 
 struct bcast_packet {

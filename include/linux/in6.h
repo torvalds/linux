@@ -268,6 +268,10 @@ struct in6_flowlabel_req {
 /* RFC5082: Generalized Ttl Security Mechanism */
 #define IPV6_MINHOPCOUNT		73
 
+#define IPV6_ORIGDSTADDR        74
+#define IPV6_RECVORIGDSTADDR    IPV6_ORIGDSTADDR
+#define IPV6_TRANSPARENT        75
+
 /*
  * Multicast Routing:
  * see include/linux/mroute6.h.

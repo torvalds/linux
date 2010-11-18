@@ -336,7 +336,7 @@ static int sirdev_is_receiving(struct sir_dev *dev)
 	if (!atomic_read(&dev->enable_rx))
 		return 0;
 
-	return (dev->rx_buff.state != OUTSIDE_FRAME);
+	return dev->rx_buff.state != OUTSIDE_FRAME;
 }
 
 int sirdev_set_dongle(struct sir_dev *dev, IRDA_DONGLE type)

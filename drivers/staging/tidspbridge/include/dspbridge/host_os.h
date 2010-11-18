@@ -52,25 +52,6 @@
 /* TODO -- Remove, once BP defines them */
 #define INT_DSP_MMU_IRQ        28
 
-struct dspbridge_platform_data {
-	void (*dsp_set_min_opp) (u8 opp_id);
-	 u8(*dsp_get_opp) (void);
-	void (*cpu_set_freq) (unsigned long f);
-	unsigned long (*cpu_get_freq) (void);
-	unsigned long mpu_speed[6];
-
-	/* functions to write and read PRCM registers */
-	void (*dsp_prm_write)(u32, s16 , u16);
-	u32 (*dsp_prm_read)(s16 , u16);
-	u32 (*dsp_prm_rmw_bits)(u32, u32, s16, s16);
-	void (*dsp_cm_write)(u32, s16 , u16);
-	u32 (*dsp_cm_read)(s16 , u16);
-	u32 (*dsp_cm_rmw_bits)(u32, u32, s16, s16);
-
-	u32 phys_mempool_base;
-	u32 phys_mempool_size;
-};
-
 #define PRCM_VDD1 1
 
 extern struct platform_device *omap_dspbridge_dev;

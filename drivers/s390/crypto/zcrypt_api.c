@@ -897,7 +897,8 @@ static const struct file_operations zcrypt_fops = {
 	.compat_ioctl	= zcrypt_compat_ioctl,
 #endif
 	.open		= zcrypt_open,
-	.release	= zcrypt_release
+	.release	= zcrypt_release,
+	.llseek		= no_llseek,
 };
 
 /*

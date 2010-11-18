@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/upd64083.h>
 
 MODULE_DESCRIPTION("uPD64083 driver");
@@ -234,9 +233,25 @@ static const struct i2c_device_id upd64083_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, upd64083_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "upd64083",
-	.probe = upd64083_probe,
-	.remove = upd64083_remove,
-	.id_table = upd64083_id,
+static struct i2c_driver upd64083_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "upd64083",
+	},
+	.probe		= upd64083_probe,
+	.remove		= upd64083_remove,
+	.id_table	= upd64083_id,
 };
+
+static __init int init_upd64083(void)
+{
+	return i2c_add_driver(&upd64083_driver);
+}
+
+static __exit void exit_upd64083(void)
+{
+	i2c_del_driver(&upd64083_driver);
+}
+
+module_init(init_upd64083);
+module_exit(exit_upd64083);

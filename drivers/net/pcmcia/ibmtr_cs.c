@@ -45,6 +45,8 @@
 
 ======================================================================*/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ptrace.h>
@@ -52,7 +54,6 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/module.h>
-#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/trdevice.h>
 #include <linux/ibmtr.h>
@@ -105,16 +106,6 @@ typedef struct ibmtr_dev_t {
 	struct tok_info		*ti;
 } ibmtr_dev_t;
 
-static void netdev_get_drvinfo(struct net_device *dev,
-			       struct ethtool_drvinfo *info)
-{
-	strcpy(info->driver, "ibmtr_cs");
-}
-
-static const struct ethtool_ops netdev_ethtool_ops = {
-	.get_drvinfo		= netdev_get_drvinfo,
-};
-
 static irqreturn_t ibmtr_interrupt(int irq, void *dev_id) {
 	ibmtr_dev_t *info = dev_id;
 	struct net_device *dev = info->dev;
@@ -147,8 +138,6 @@ static int __devinit ibmtr_attach(struct pcmcia_device *link)
     link->config_regs = PRESENT_OPTION;
 
     info->dev = dev;
-
-    SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
     return ibmtr_config(link);
 } /* ibmtr_attach */
@@ -256,15 +245,14 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
 
     i = ibmtr_probe_card(dev);
     if (i != 0) {
-	printk(KERN_NOTICE "ibmtr_cs: register_netdev() failed\n");
+	pr_notice("register_netdev() failed\n");
 	goto failed;
     }
 
-    printk(KERN_INFO
-	   "%s: port %#3lx, irq %d,  mmio %#5lx, sram %#5lx, hwaddr=%pM\n",
-           dev->name, dev->base_addr, dev->irq,
-	   (u_long)ti->mmio, (u_long)(ti->sram_base << 12),
-	   dev->dev_addr);
+    netdev_info(dev, "port %#3lx, irq %d, mmio %#5lx, sram %#5lx, hwaddr=%pM\n",
+		dev->base_addr, dev->irq,
+		(u_long)ti->mmio, (u_long)(ti->sram_base << 12),
+		dev->dev_addr);
     return 0;
 
 failed:

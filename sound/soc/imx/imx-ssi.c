@@ -61,7 +61,7 @@
 static int imx_ssi_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai,
 	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
-	struct imx_ssi *ssi = cpu_dai->private_data;
+	struct imx_ssi *ssi = snd_soc_dai_get_drvdata(cpu_dai);
 	u32 sccr;
 
 	sccr = readl(ssi->base + SSI_STCCR);
@@ -86,7 +86,7 @@ static int imx_ssi_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai,
  */
 static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
-	struct imx_ssi *ssi = cpu_dai->private_data;
+	struct imx_ssi *ssi = snd_soc_dai_get_drvdata(cpu_dai);
 	u32 strcr = 0, scr;
 
 	scr = readl(ssi->base + SSI_SCR) & ~(SSI_SCR_SYN | SSI_SCR_NET);
@@ -164,7 +164,7 @@ static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 static int imx_ssi_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 				  int clk_id, unsigned int freq, int dir)
 {
-	struct imx_ssi *ssi = cpu_dai->private_data;
+	struct imx_ssi *ssi = snd_soc_dai_get_drvdata(cpu_dai);
 	u32 scr;
 
 	scr = readl(ssi->base + SSI_SCR);
@@ -192,7 +192,7 @@ static int imx_ssi_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 static int imx_ssi_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
 				  int div_id, int div)
 {
-	struct imx_ssi *ssi = cpu_dai->private_data;
+	struct imx_ssi *ssi = snd_soc_dai_get_drvdata(cpu_dai);
 	u32 stccr, srccr;
 
 	stccr = readl(ssi->base + SSI_STCCR);
@@ -241,7 +241,7 @@ static int imx_ssi_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *cpu_dai)
 {
-	struct imx_ssi *ssi = cpu_dai->private_data;
+	struct imx_ssi *ssi = snd_soc_dai_get_drvdata(cpu_dai);
 	struct imx_pcm_dma_params *dma_data;
 	u32 reg, sccr;
 
@@ -282,9 +282,7 @@ static int imx_ssi_hw_params(struct snd_pcm_substream *substream,
 static int imx_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 		struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct imx_ssi *ssi = cpu_dai->private_data;
+	struct imx_ssi *ssi = snd_soc_dai_get_drvdata(dai);
 	unsigned int sier_bits, sier;
 	unsigned int scr;
 
@@ -353,22 +351,6 @@ static struct snd_soc_dai_ops imx_ssi_pcm_dai_ops = {
 	.trigger	= imx_ssi_trigger,
 };
 
-static struct snd_soc_dai imx_ssi_dai = {
-	.playback = {
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_96000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,
-	},
-	.capture = {
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_8000_96000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,
-	},
-	.ops = &imx_ssi_pcm_dai_ops,
-};
-
 int snd_imx_pcm_mmap(struct snd_pcm_substream *substream,
 		struct vm_area_struct *vma)
 {
@@ -384,6 +366,7 @@ int snd_imx_pcm_mmap(struct snd_pcm_substream *substream,
 			runtime->dma_bytes);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(snd_imx_pcm_mmap);
 
 static int imx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 {
@@ -415,14 +398,14 @@ int imx_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 		card->dev->dma_mask = &imx_pcm_dmamask;
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
-	if (dai->playback.channels_min) {
+	if (dai->driver->playback.channels_min) {
 		ret = imx_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			goto out;
 	}
 
-	if (dai->capture.channels_min) {
+	if (dai->driver->capture.channels_min) {
 		ret = imx_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
@@ -432,6 +415,7 @@ int imx_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(imx_pcm_new);
 
 void imx_pcm_free(struct snd_pcm *pcm)
 {
@@ -453,14 +437,40 @@ void imx_pcm_free(struct snd_pcm *pcm)
 		buf->area = NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(imx_pcm_free);
 
-struct snd_soc_platform imx_soc_platform = {
-	.name		= "imx-audio",
+static struct snd_soc_dai_driver imx_ssi_dai = {
+	.playback = {
+		.channels_min = 2,
+		.channels_max = 2,
+		.rates = SNDRV_PCM_RATE_8000_96000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+	.capture = {
+		.channels_min = 2,
+		.channels_max = 2,
+		.rates = SNDRV_PCM_RATE_8000_96000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	},
+	.ops = &imx_ssi_pcm_dai_ops,
 };
-EXPORT_SYMBOL_GPL(imx_soc_platform);
 
-static struct snd_soc_dai imx_ac97_dai = {
-	.name = "AC97",
+static int imx_ssi_dai_probe(struct snd_soc_dai *dai)
+{
+	struct imx_ssi *ssi = dev_get_drvdata(dai->dev);
+	uint32_t val;
+
+	snd_soc_dai_set_drvdata(dai, ssi);
+
+	val = SSI_SFCSR_TFWM0(ssi->dma_params_tx.burstsize) |
+		SSI_SFCSR_RFWM0(ssi->dma_params_rx.burstsize);
+	writel(val, ssi->base + SSI_SFCSR);
+
+	return 0;
+}
+
+static struct snd_soc_dai_driver imx_ac97_dai = {
+	.probe = imx_ssi_dai_probe,
 	.ac97_control = 1,
 	.playback = {
 		.stream_name = "AC97 Playback",
@@ -580,25 +590,18 @@ struct snd_ac97_bus_ops soc_ac97_ops = {
 };
 EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
-struct snd_soc_dai imx_ssi_pcm_dai[2];
-EXPORT_SYMBOL_GPL(imx_ssi_pcm_dai);
-
 static int imx_ssi_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct imx_ssi *ssi;
 	struct imx_ssi_platform_data *pdata = pdev->dev.platform_data;
-	struct snd_soc_platform *platform;
 	int ret = 0;
-	unsigned int val;
-	struct snd_soc_dai *dai = &imx_ssi_pcm_dai[pdev->id];
-
-	if (dai->id >= ARRAY_SIZE(imx_ssi_pcm_dai))
-		return -EINVAL;
+	struct snd_soc_dai_driver *dai;
 
 	ssi = kzalloc(sizeof(*ssi), GFP_KERNEL);
 	if (!ssi)
 		return -ENOMEM;
+	dev_set_drvdata(&pdev->dev, ssi);
 
 	if (pdata) {
 		ssi->ac97_reset = pdata->ac97_reset;
@@ -643,9 +646,9 @@ static int imx_ssi_probe(struct platform_device *pdev)
 		}
 		ac97_ssi = ssi;
 		setup_channel_to_ac97(ssi);
-		memcpy(dai, &imx_ac97_dai, sizeof(imx_ac97_dai));
+		dai = &imx_ac97_dai;
 	} else
-		memcpy(dai, &imx_ssi_dai, sizeof(imx_ssi_dai));
+		dai = &imx_ssi_dai;
 
 	writel(0x0, ssi->base + SSI_SIER);
 
@@ -660,37 +663,36 @@ static int imx_ssi_probe(struct platform_device *pdev)
 	if (res)
 		ssi->dma_params_rx.dma = res->start;
 
-	dai->id = pdev->id;
-	dai->dev = &pdev->dev;
-	dai->name = kasprintf(GFP_KERNEL, "imx-ssi.%d", pdev->id);
-	dai->private_data = ssi;
-
 	if ((cpu_is_mx27() || cpu_is_mx21()) &&
 			!(ssi->flags & IMX_SSI_USE_AC97) &&
 			(ssi->flags & IMX_SSI_DMA)) {
 		ssi->flags |= IMX_SSI_DMA;
-		platform = imx_ssi_dma_mx2_init(pdev, ssi);
-	} else
-		platform = imx_ssi_fiq_init(pdev, ssi);
+	}
 
-	imx_soc_platform.pcm_ops = platform->pcm_ops;
-	imx_soc_platform.pcm_new = platform->pcm_new;
-	imx_soc_platform.pcm_free = platform->pcm_free;
+	platform_set_drvdata(pdev, ssi);
 
-	val = SSI_SFCSR_TFWM0(ssi->dma_params_tx.burstsize) |
-		SSI_SFCSR_RFWM0(ssi->dma_params_rx.burstsize);
-	writel(val, ssi->base + SSI_SFCSR);
-
-	ret = snd_soc_register_dai(dai);
+	ret = snd_soc_register_dai(&pdev->dev, dai);
 	if (ret) {
 		dev_err(&pdev->dev, "register DAI failed\n");
 		goto failed_register;
 	}
 
-	platform_set_drvdata(pdev, ssi);
+	ssi->soc_platform_pdev = platform_device_alloc("imx-fiq-pcm-audio", pdev->id);
+	if (!ssi->soc_platform_pdev)
+		goto failed_pdev_alloc;
+	platform_set_drvdata(ssi->soc_platform_pdev, ssi);
+	ret = platform_device_add(ssi->soc_platform_pdev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to add platform device\n");
+		goto failed_pdev_add;
+	}
 
 	return 0;
 
+failed_pdev_add:
+	platform_device_put(ssi->soc_platform_pdev);
+failed_pdev_alloc:
+	snd_soc_unregister_dai(&pdev->dev);
 failed_register:
 failed_ac97:
 	iounmap(ssi->base);
@@ -709,15 +711,14 @@ static int __devexit imx_ssi_remove(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct imx_ssi *ssi = platform_get_drvdata(pdev);
-	struct snd_soc_dai *dai = &imx_ssi_pcm_dai[pdev->id];
 
-	snd_soc_unregister_dai(dai);
+	platform_device_del(ssi->soc_platform_pdev);
+	platform_device_put(ssi->soc_platform_pdev);
+
+	snd_soc_unregister_dai(&pdev->dev);
 
 	if (ssi->flags & IMX_SSI_USE_AC97)
 		ac97_ssi = NULL;
-
-	if (!(ssi->flags & IMX_SSI_DMA))
-		imx_ssi_fiq_exit(pdev, ssi);
 
 	iounmap(ssi->base);
 	release_mem_region(res->start, resource_size(res));
@@ -733,34 +734,19 @@ static struct platform_driver imx_ssi_driver = {
 	.remove = __devexit_p(imx_ssi_remove),
 
 	.driver = {
-		.name = DRV_NAME,
+		.name = "imx-ssi",
 		.owner = THIS_MODULE,
 	},
 };
 
 static int __init imx_ssi_init(void)
 {
-	int ret;
-
-	ret = snd_soc_register_platform(&imx_soc_platform);
-	if (ret) {
-		pr_err("failed to register soc platform: %d\n", ret);
-		return ret;
-	}
-
-	ret = platform_driver_register(&imx_ssi_driver);
-	if (ret) {
-		snd_soc_unregister_platform(&imx_soc_platform);
-		return ret;
-	}
-
-	return 0;
+	return platform_driver_register(&imx_ssi_driver);
 }
 
 static void __exit imx_ssi_exit(void)
 {
 	platform_driver_unregister(&imx_ssi_driver);
-	snd_soc_unregister_platform(&imx_soc_platform);
 }
 
 module_init(imx_ssi_init);

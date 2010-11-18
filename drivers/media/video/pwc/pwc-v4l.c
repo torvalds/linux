@@ -216,7 +216,7 @@ static void pwc_vidioc_fill_fmt(const struct pwc_device *pdev, struct v4l2_forma
 	f->fmt.pix.width        = pdev->view.x;
 	f->fmt.pix.height       = pdev->view.y;
 	f->fmt.pix.field        = V4L2_FIELD_NONE;
-	if (pdev->vpalette == VIDEO_PALETTE_YUV420P) {
+	if (pdev->pixfmt == V4L2_PIX_FMT_YUV420) {
 		f->fmt.pix.pixelformat  = V4L2_PIX_FMT_YUV420;
 		f->fmt.pix.bytesperline = (f->fmt.pix.width * 3)/2;
 		f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
@@ -304,10 +304,10 @@ static int pwc_vidioc_set_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 			fps = pdev->vframes;
 	}
 
-	if (pixelformat == V4L2_PIX_FMT_YUV420)
-		pdev->vpalette = VIDEO_PALETTE_YUV420P;
-	else
-		pdev->vpalette = VIDEO_PALETTE_RAW;
+	if (pixelformat != V4L2_PIX_FMT_YUV420 &&
+	    pixelformat != V4L2_PIX_FMT_PWC1 &&
+	    pixelformat != V4L2_PIX_FMT_PWC2)
+		return -EINVAL;
 
 	PWC_DEBUG_IOCTL("Try to change format to: width=%d height=%d fps=%d "
 			"compression=%d snapshot=%d format=%c%c%c%c\n",
@@ -329,6 +329,8 @@ static int pwc_vidioc_set_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 
 	if (ret)
 		return ret;
+
+	pdev->pixfmt = pixelformat;
 
 	pwc_vidioc_fill_fmt(pdev, f);
 
@@ -357,152 +359,7 @@ long pwc_video_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 
 	switch (cmd) {
-		/* Query cabapilities */
-		case VIDIOCGCAP:
-		{
-			struct video_capability *caps = arg;
-
-			strcpy(caps->name, vdev->name);
-			caps->type = VID_TYPE_CAPTURE;
-			caps->channels = 1;
-			caps->audios = 1;
-			caps->minwidth  = pdev->view_min.x;
-			caps->minheight = pdev->view_min.y;
-			caps->maxwidth  = pdev->view_max.x;
-			caps->maxheight = pdev->view_max.y;
-			break;
-		}
-
-		/* Channel functions (simulate 1 channel) */
-		case VIDIOCGCHAN:
-		{
-			struct video_channel *v = arg;
-
-			if (v->channel != 0)
-				return -EINVAL;
-			v->flags = 0;
-			v->tuners = 0;
-			v->type = VIDEO_TYPE_CAMERA;
-			strcpy(v->name, "Webcam");
-			return 0;
-		}
-
-		case VIDIOCSCHAN:
-		{
-			/* The spec says the argument is an integer, but
-			   the bttv driver uses a video_channel arg, which
-			   makes sense becasue it also has the norm flag.
-			 */
-			struct video_channel *v = arg;
-			if (v->channel != 0)
-				return -EINVAL;
-			return 0;
-		}
-
-
-		/* Picture functions; contrast etc. */
-		case VIDIOCGPICT:
-		{
-			struct video_picture *p = arg;
-			int val;
-
-			val = pwc_get_brightness(pdev);
-			if (val >= 0)
-				p->brightness = (val<<9);
-			else
-				p->brightness = 0xffff;
-			val = pwc_get_contrast(pdev);
-			if (val >= 0)
-				p->contrast = (val<<10);
-			else
-				p->contrast = 0xffff;
-			/* Gamma, Whiteness, what's the difference? :) */
-			val = pwc_get_gamma(pdev);
-			if (val >= 0)
-				p->whiteness = (val<<11);
-			else
-				p->whiteness = 0xffff;
-			if (pwc_get_saturation(pdev, &val)<0)
-				p->colour = 0xffff;
-			else
-				p->colour = 32768 + val * 327;
-			p->depth = 24;
-			p->palette = pdev->vpalette;
-			p->hue = 0xFFFF; /* N/A */
-			break;
-		}
-
-		case VIDIOCSPICT:
-		{
-			struct video_picture *p = arg;
-			/*
-			 *	FIXME:	Suppose we are mid read
-				ANSWER: No problem: the firmware of the camera
-					can handle brightness/contrast/etc
-					changes at _any_ time, and the palette
-					is used exactly once in the uncompress
-					routine.
-			 */
-			pwc_set_brightness(pdev, p->brightness);
-			pwc_set_contrast(pdev, p->contrast);
-			pwc_set_gamma(pdev, p->whiteness);
-			pwc_set_saturation(pdev, (p->colour-32768)/327);
-			if (p->palette && p->palette != pdev->vpalette) {
-				switch (p->palette) {
-					case VIDEO_PALETTE_YUV420P:
-					case VIDEO_PALETTE_RAW:
-						pdev->vpalette = p->palette;
-						return pwc_try_video_mode(pdev, pdev->image.x, pdev->image.y, pdev->vframes, pdev->vcompression, pdev->vsnapshot);
-						break;
-					default:
-						return -EINVAL;
-						break;
-				}
-			}
-			break;
-		}
-
-		/* Window/size parameters */
-		case VIDIOCGWIN:
-		{
-			struct video_window *vw = arg;
-
-			vw->x = 0;
-			vw->y = 0;
-			vw->width = pdev->view.x;
-			vw->height = pdev->view.y;
-			vw->chromakey = 0;
-			vw->flags = (pdev->vframes << PWC_FPS_SHIFT) |
-				   (pdev->vsnapshot ? PWC_FPS_SNAPSHOT : 0);
-			break;
-		}
-
-		case VIDIOCSWIN:
-		{
-			struct video_window *vw = arg;
-			int fps, snapshot, ret;
-
-			fps = (vw->flags & PWC_FPS_FRMASK) >> PWC_FPS_SHIFT;
-			snapshot = vw->flags & PWC_FPS_SNAPSHOT;
-			if (fps == 0)
-				fps = pdev->vframes;
-			if (pdev->view.x == vw->width && pdev->view.y && fps == pdev->vframes && snapshot == pdev->vsnapshot)
-				return 0;
-			ret = pwc_try_video_mode(pdev, vw->width, vw->height, fps, pdev->vcompression, snapshot);
-			if (ret)
-				return ret;
-			break;
-		}
-
-		/* We don't have overlay support (yet) */
-		case VIDIOCGFBUF:
-		{
-			struct video_buffer *vb = arg;
-
-			memset(vb,0,sizeof(*vb));
-			break;
-		}
-
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 		/* mmap() functions */
 		case VIDIOCGMBUF:
 		{
@@ -517,164 +374,7 @@ long pwc_video_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 				vm->offsets[i] = i * pdev->len_per_image;
 			break;
 		}
-
-		case VIDIOCMCAPTURE:
-		{
-			/* Start capture into a given image buffer (called 'frame' in video_mmap structure) */
-			struct video_mmap *vm = arg;
-
-			PWC_DEBUG_READ("VIDIOCMCAPTURE: %dx%d, frame %d, format %d\n", vm->width, vm->height, vm->frame, vm->format);
-			if (vm->frame < 0 || vm->frame >= pwc_mbufs)
-				return -EINVAL;
-
-			/* xawtv is nasty. It probes the available palettes
-			   by setting a very small image size and trying
-			   various palettes... The driver doesn't support
-			   such small images, so I'm working around it.
-			 */
-			if (vm->format)
-			{
-				switch (vm->format)
-				{
-					case VIDEO_PALETTE_YUV420P:
-					case VIDEO_PALETTE_RAW:
-						break;
-					default:
-						return -EINVAL;
-						break;
-				}
-			}
-
-			if ((vm->width != pdev->view.x || vm->height != pdev->view.y) &&
-			    (vm->width >= pdev->view_min.x && vm->height >= pdev->view_min.y)) {
-				int ret;
-
-				PWC_DEBUG_OPEN("VIDIOCMCAPTURE: changing size to please xawtv :-(.\n");
-				ret = pwc_try_video_mode(pdev, vm->width, vm->height, pdev->vframes, pdev->vcompression, pdev->vsnapshot);
-				if (ret)
-					return ret;
-			} /* ... size mismatch */
-
-			/* FIXME: should we lock here? */
-			if (pdev->image_used[vm->frame])
-				return -EBUSY;	/* buffer wasn't available. Bummer */
-			pdev->image_used[vm->frame] = 1;
-
-			/* Okay, we're done here. In the SYNC call we wait until a
-			   frame comes available, then expand image into the given
-			   buffer.
-			   In contrast to the CPiA cam the Philips cams deliver a
-			   constant stream, almost like a grabber card. Also,
-			   we have separate buffers for the rawdata and the image,
-			   meaning we can nearly always expand into the requested buffer.
-			 */
-			PWC_DEBUG_READ("VIDIOCMCAPTURE done.\n");
-			break;
-		}
-
-		case VIDIOCSYNC:
-		{
-			/* The doc says: "Whenever a buffer is used it should
-			   call VIDIOCSYNC to free this frame up and continue."
-
-			   The only odd thing about this whole procedure is
-			   that MCAPTURE flags the buffer as "in use", and
-			   SYNC immediately unmarks it, while it isn't
-			   after SYNC that you know that the buffer actually
-			   got filled! So you better not start a CAPTURE in
-			   the same frame immediately (use double buffering).
-			   This is not a problem for this cam, since it has
-			   extra intermediate buffers, but a hardware
-			   grabber card will then overwrite the buffer
-			   you're working on.
-			 */
-			int *mbuf = arg;
-			int ret;
-
-			PWC_DEBUG_READ("VIDIOCSYNC called (%d).\n", *mbuf);
-
-			/* bounds check */
-			if (*mbuf < 0 || *mbuf >= pwc_mbufs)
-				return -EINVAL;
-			/* check if this buffer was requested anyway */
-			if (pdev->image_used[*mbuf] == 0)
-				return -EINVAL;
-
-			/* Add ourselves to the frame wait-queue.
-
-			   FIXME: needs auditing for safety.
-			   QUESTION: In what respect? I think that using the
-				     frameq is safe now.
-			 */
-			add_wait_queue(&pdev->frameq, &wait);
-			while (pdev->full_frames == NULL) {
-				/* Check for unplugged/etc. here */
-				if (pdev->error_status) {
-					remove_wait_queue(&pdev->frameq, &wait);
-					set_current_state(TASK_RUNNING);
-					return -pdev->error_status;
-				}
-
-				if (signal_pending(current)) {
-					remove_wait_queue(&pdev->frameq, &wait);
-					set_current_state(TASK_RUNNING);
-					return -ERESTARTSYS;
-				}
-				schedule();
-				set_current_state(TASK_INTERRUPTIBLE);
-			}
-			remove_wait_queue(&pdev->frameq, &wait);
-			set_current_state(TASK_RUNNING);
-
-			/* The frame is ready. Expand in the image buffer
-			   requested by the user. I don't care if you
-			   mmap() 5 buffers and request data in this order:
-			   buffer 4 2 3 0 1 2 3 0 4 3 1 . . .
-			   Grabber hardware may not be so forgiving.
-			 */
-			PWC_DEBUG_READ("VIDIOCSYNC: frame ready.\n");
-			pdev->fill_image = *mbuf; /* tell in which buffer we want the image to be expanded */
-			/* Decompress, etc */
-			ret = pwc_handle_frame(pdev);
-			pdev->image_used[*mbuf] = 0;
-			if (ret)
-				return -EFAULT;
-			break;
-		}
-
-		case VIDIOCGAUDIO:
-		{
-			struct video_audio *v = arg;
-
-			strcpy(v->name, "Microphone");
-			v->audio = -1; /* unknown audio minor */
-			v->flags = 0;
-			v->mode = VIDEO_SOUND_MONO;
-			v->volume = 0;
-			v->bass = 0;
-			v->treble = 0;
-			v->balance = 0x8000;
-			v->step = 1;
-			break;
-		}
-
-		case VIDIOCSAUDIO:
-		{
-			/* Dummy: nothing can be set */
-			break;
-		}
-
-		case VIDIOCGUNIT:
-		{
-			struct video_unit *vu = arg;
-
-			vu->video = pdev->vdev->minor & 0x3F;
-			vu->audio = -1; /* not known yet */
-			vu->vbi = -1;
-			vu->radio = -1;
-			vu->teletext = -1;
-			break;
-		}
+#endif
 
 		/* V4L2 Layer */
 		case VIDIOC_QUERYCAP:
@@ -1081,7 +781,7 @@ long pwc_video_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			buf->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 			buf->index = index;
 			buf->m.offset = index * pdev->len_per_image;
-			if (pdev->vpalette == VIDEO_PALETTE_RAW)
+			if (pdev->pixfmt != V4L2_PIX_FMT_YUV420)
 				buf->bytesused = pdev->frame_size + sizeof(struct pwc_raw_frame);
 			else
 				buf->bytesused = pdev->view.size;
@@ -1158,7 +858,7 @@ long pwc_video_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			PWC_DEBUG_IOCTL("VIDIOC_DQBUF: after pwc_handle_frame\n");
 
 			buf->index = pdev->fill_image;
-			if (pdev->vpalette == VIDEO_PALETTE_RAW)
+			if (pdev->pixfmt != V4L2_PIX_FMT_YUV420)
 				buf->bytesused = pdev->frame_size + sizeof(struct pwc_raw_frame);
 			else
 				buf->bytesused = pdev->view.size;

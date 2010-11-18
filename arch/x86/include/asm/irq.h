@@ -19,17 +19,13 @@ static inline int irq_canonicalize(int irq)
 # define ARCH_HAS_NMI_WATCHDOG
 #endif
 
-#ifdef CONFIG_4KSTACKS
-  extern void irq_ctx_init(int cpu);
-  extern void irq_ctx_exit(int cpu);
-# define __ARCH_HAS_DO_SOFTIRQ
+#ifdef CONFIG_X86_32
+extern void irq_ctx_init(int cpu);
 #else
 # define irq_ctx_init(cpu) do { } while (0)
-# define irq_ctx_exit(cpu) do { } while (0)
-# ifdef CONFIG_X86_64
-#  define __ARCH_HAS_DO_SOFTIRQ
-# endif
 #endif
+
+#define __ARCH_HAS_DO_SOFTIRQ
 
 #ifdef CONFIG_HOTPLUG_CPU
 #include <linux/cpumask.h>

@@ -308,7 +308,7 @@ static const struct uvc_descriptor_header * const uvc_hs_streaming_cls[] = {
  * USB configuration
  */
 
-static int __ref
+static int __init
 webcam_config_bind(struct usb_configuration *c)
 {
 	return uvc_bind_config(c, uvc_control_cls, uvc_fs_streaming_cls,
@@ -317,7 +317,6 @@ webcam_config_bind(struct usb_configuration *c)
 
 static struct usb_configuration webcam_config_driver = {
 	.label			= webcam_config_label,
-	.bind			= webcam_config_bind,
 	.bConfigurationValue	= 1,
 	.iConfiguration		= 0, /* dynamic */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
@@ -330,7 +329,7 @@ webcam_unbind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-static int __ref
+static int __init
 webcam_bind(struct usb_composite_dev *cdev)
 {
 	int ret;
@@ -354,7 +353,8 @@ webcam_bind(struct usb_composite_dev *cdev)
 	webcam_config_driver.iConfiguration = ret;
 
 	/* Register our configuration. */
-	if ((ret = usb_add_config(cdev, &webcam_config_driver)) < 0)
+	if ((ret = usb_add_config(cdev, &webcam_config_driver,
+					webcam_config_bind)) < 0)
 		goto error;
 
 	INFO(cdev, "Webcam Video Gadget\n");
@@ -373,14 +373,13 @@ static struct usb_composite_driver webcam_driver = {
 	.name		= "g_webcam",
 	.dev		= &webcam_device_descriptor,
 	.strings	= webcam_device_strings,
-	.bind		= webcam_bind,
 	.unbind		= webcam_unbind,
 };
 
 static int __init
 webcam_init(void)
 {
-	return usb_composite_register(&webcam_driver);
+	return usb_composite_probe(&webcam_driver, webcam_bind);
 }
 
 static void __exit

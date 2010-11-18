@@ -1588,8 +1588,8 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 			  const struct nf_conntrack_expect *exp)
 {
 	struct nf_conn *master = exp->master;
-	struct nf_conntrack_helper *helper;
 	long timeout = (exp->timeout.expires - jiffies) / HZ;
+	struct nf_conn_help *help;
 
 	if (timeout < 0)
 		timeout = 0;
@@ -1605,9 +1605,15 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 
 	NLA_PUT_BE32(skb, CTA_EXPECT_TIMEOUT, htonl(timeout));
 	NLA_PUT_BE32(skb, CTA_EXPECT_ID, htonl((unsigned long)exp));
-	helper = rcu_dereference(nfct_help(master)->helper);
-	if (helper)
-		NLA_PUT_STRING(skb, CTA_EXPECT_HELP_NAME, helper->name);
+	NLA_PUT_BE32(skb, CTA_EXPECT_FLAGS, htonl(exp->flags));
+	help = nfct_help(master);
+	if (help) {
+		struct nf_conntrack_helper *helper;
+
+		helper = rcu_dereference(help->helper);
+		if (helper)
+			NLA_PUT_STRING(skb, CTA_EXPECT_HELP_NAME, helper->name);
+	}
 
 	return 0;
 
@@ -1654,17 +1660,20 @@ ctnetlink_expect_event(unsigned int events, struct nf_exp_event *item)
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 	struct sk_buff *skb;
-	unsigned int type;
+	unsigned int type, group;
 	int flags = 0;
 
-	if (events & (1 << IPEXP_NEW)) {
+	if (events & (1 << IPEXP_DESTROY)) {
+		type = IPCTNL_MSG_EXP_DELETE;
+		group = NFNLGRP_CONNTRACK_EXP_DESTROY;
+	} else if (events & (1 << IPEXP_NEW)) {
 		type = IPCTNL_MSG_EXP_NEW;
 		flags = NLM_F_CREATE|NLM_F_EXCL;
+		group = NFNLGRP_CONNTRACK_EXP_NEW;
 	} else
 		return 0;
 
-	if (!item->report &&
-	    !nfnetlink_has_listeners(net, NFNLGRP_CONNTRACK_EXP_NEW))
+	if (!item->report && !nfnetlink_has_listeners(net, group))
 		return 0;
 
 	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
@@ -1687,8 +1696,7 @@ ctnetlink_expect_event(unsigned int events, struct nf_exp_event *item)
 	rcu_read_unlock();
 
 	nlmsg_end(skb, nlh);
-	nfnetlink_send(skb, net, item->pid, NFNLGRP_CONNTRACK_EXP_NEW,
-		       item->report, GFP_ATOMIC);
+	nfnetlink_send(skb, net, item->pid, group, item->report, GFP_ATOMIC);
 	return 0;
 
 nla_put_failure:
@@ -1761,6 +1769,8 @@ static const struct nla_policy exp_nla_policy[CTA_EXPECT_MAX+1] = {
 	[CTA_EXPECT_TIMEOUT]	= { .type = NLA_U32 },
 	[CTA_EXPECT_ID]		= { .type = NLA_U32 },
 	[CTA_EXPECT_HELP_NAME]	= { .type = NLA_NUL_STRING },
+	[CTA_EXPECT_ZONE]	= { .type = NLA_U16 },
+	[CTA_EXPECT_FLAGS]	= { .type = NLA_U32 },
 };
 
 static int
@@ -1869,7 +1879,13 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 		}
 
 		/* after list removal, usage count == 1 */
-		nf_ct_unexpect_related(exp);
+		spin_lock_bh(&nf_conntrack_lock);
+		if (del_timer(&exp->timeout)) {
+			nf_ct_unlink_expect_report(exp, NETLINK_CB(skb).pid,
+						   nlmsg_report(nlh));
+			nf_ct_expect_put(exp);
+		}
+		spin_unlock_bh(&nf_conntrack_lock);
 		/* have to put what we 'get' above.
 		 * after this line usage count == 0 */
 		nf_ct_expect_put(exp);
@@ -1886,7 +1902,9 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 				m_help = nfct_help(exp->master);
 				if (!strcmp(m_help->helper->name, name) &&
 				    del_timer(&exp->timeout)) {
-					nf_ct_unlink_expect(exp);
+					nf_ct_unlink_expect_report(exp,
+							NETLINK_CB(skb).pid,
+							nlmsg_report(nlh));
 					nf_ct_expect_put(exp);
 				}
 			}
@@ -1900,7 +1918,9 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 						  &net->ct.expect_hash[i],
 						  hnode) {
 				if (del_timer(&exp->timeout)) {
-					nf_ct_unlink_expect(exp);
+					nf_ct_unlink_expect_report(exp,
+							NETLINK_CB(skb).pid,
+							nlmsg_report(nlh));
 					nf_ct_expect_put(exp);
 				}
 			}
@@ -1946,23 +1966,35 @@ ctnetlink_create_expect(struct net *net, u16 zone,
 	if (!h)
 		return -ENOENT;
 	ct = nf_ct_tuplehash_to_ctrack(h);
-	help = nfct_help(ct);
-
-	if (!help || !help->helper) {
-		/* such conntrack hasn't got any helper, abort */
-		err = -EOPNOTSUPP;
-		goto out;
-	}
-
 	exp = nf_ct_expect_alloc(ct);
 	if (!exp) {
 		err = -ENOMEM;
 		goto out;
 	}
+	help = nfct_help(ct);
+	if (!help) {
+		if (!cda[CTA_EXPECT_TIMEOUT]) {
+			err = -EINVAL;
+			goto out;
+		}
+		exp->timeout.expires =
+		  jiffies + ntohl(nla_get_be32(cda[CTA_EXPECT_TIMEOUT])) * HZ;
+
+		exp->flags = NF_CT_EXPECT_USERSPACE;
+		if (cda[CTA_EXPECT_FLAGS]) {
+			exp->flags |=
+				ntohl(nla_get_be32(cda[CTA_EXPECT_FLAGS]));
+		}
+	} else {
+		if (cda[CTA_EXPECT_FLAGS]) {
+			exp->flags = ntohl(nla_get_be32(cda[CTA_EXPECT_FLAGS]));
+			exp->flags &= ~NF_CT_EXPECT_USERSPACE;
+		} else
+			exp->flags = 0;
+	}
 
 	exp->class = 0;
 	exp->expectfn = NULL;
-	exp->flags = 0;
 	exp->master = ct;
 	exp->helper = NULL;
 	memcpy(&exp->tuple, &tuple, sizeof(struct nf_conntrack_tuple));
@@ -2130,6 +2162,7 @@ static void __exit ctnetlink_exit(void)
 {
 	pr_info("ctnetlink: unregistering from nfnetlink.\n");
 
+	nf_ct_remove_userspace_expectations();
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 	nf_ct_expect_unregister_notifier(&ctnl_notifier_exp);
 	nf_conntrack_unregister_notifier(&ctnl_notifier);

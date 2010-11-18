@@ -114,7 +114,4 @@ struct sh_fsi_platform_info {
 	int (*set_rate)(int is_porta, int rate); /* for master mode */
 };
 
-extern struct snd_soc_dai fsi_soc_dai[2];
-extern struct snd_soc_platform fsi_soc_platform;
-
 #endif /* __SOUND_FSI_H */

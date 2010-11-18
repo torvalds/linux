@@ -18,9 +18,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION			"00.00.04.17.1-rc1"
-#define MEGASAS_RELDATE			"Oct. 29, 2009"
-#define MEGASAS_EXT_VERSION		"Thu. Oct. 29, 11:41:51 PST 2009"
+#define MEGASAS_VERSION			"00.00.04.31-rc1"
+#define MEGASAS_RELDATE			"May 3, 2010"
+#define MEGASAS_EXT_VERSION		"Mon. May 3, 11:41:51 PST 2010"
 
 /*
  * Device IDs
@@ -60,6 +60,7 @@
 #define MFI_STATE_READY				0xB0000000
 #define MFI_STATE_OPERATIONAL			0xC0000000
 #define MFI_STATE_FAULT				0xF0000000
+#define  MFI_RESET_REQUIRED			0x00000001
 
 #define MEGAMFI_FRAME_SIZE			64
 
@@ -73,6 +74,12 @@
  * HOTPLUG	: Resume from Hotplug
  * MFI_STOP_ADP	: Send signal to FW to stop processing
  */
+#define WRITE_SEQUENCE_OFFSET		(0x0000000FC) /* I20 */
+#define HOST_DIAGNOSTIC_OFFSET		(0x000000F8)  /* I20 */
+#define DIAG_WRITE_ENABLE			(0x00000080)
+#define DIAG_RESET_ADAPTER			(0x00000004)
+
+#define MFI_ADP_RESET				0x00000040
 #define MFI_INIT_ABORT				0x00000001
 #define MFI_INIT_READY				0x00000002
 #define MFI_INIT_MFIMODE			0x00000004
@@ -402,8 +409,40 @@ struct megasas_ctrl_prop {
 	u16 ecc_bucket_leak_rate;
 	u8 restore_hotspare_on_insertion;
 	u8 expose_encl_devices;
-	u8 reserved[38];
+	u8 maintainPdFailHistory;
+	u8 disallowHostRequestReordering;
+	u8 abortCCOnError;
+	u8 loadBalanceMode;
+	u8 disableAutoDetectBackplane;
 
+	u8 snapVDSpace;
+
+	/*
+	* Add properties that can be controlled by
+	* a bit in the following structure.
+	*/
+
+	struct {
+		u32     copyBackDisabled            : 1;
+		u32     SMARTerEnabled              : 1;
+		u32     prCorrectUnconfiguredAreas  : 1;
+		u32     useFdeOnly                  : 1;
+		u32     disableNCQ                  : 1;
+		u32     SSDSMARTerEnabled           : 1;
+		u32     SSDPatrolReadEnabled        : 1;
+		u32     enableSpinDownUnconfigured  : 1;
+		u32     autoEnhancedImport          : 1;
+		u32     enableSecretKeyControl      : 1;
+		u32     disableOnlineCtrlReset      : 1;
+		u32     allowBootWithPinnedCache    : 1;
+		u32     disableSpinDownHS           : 1;
+		u32     enableJBOD                  : 1;
+		u32     reserved                    :18;
+	} OnOffProperties;
+	u8 autoSnapVDSpace;
+	u8 viewSpace;
+	u16 spinDownTime;
+	u8  reserved[24];
 } __packed;
 
 /*
@@ -667,6 +706,7 @@ struct megasas_ctrl_info {
 #define MEGASAS_MAX_LD_IDS			(MEGASAS_MAX_LD_CHANNELS * \
 						MEGASAS_MAX_DEV_PER_CHANNEL)
 
+#define MEGASAS_MAX_SECTORS                    (2*1024)
 #define MEGASAS_DBG_LVL				1
 
 #define MEGASAS_FW_BUSY				1
@@ -704,6 +744,12 @@ struct megasas_ctrl_info {
  */
 #define IS_DMA64				(sizeof(dma_addr_t) == 8)
 
+#define MFI_XSCALE_OMR0_CHANGE_INTERRUPT		0x00000001
+
+#define MFI_INTR_FLAG_REPLY_MESSAGE			0x00000001
+#define MFI_INTR_FLAG_FIRMWARE_STATE_CHANGE		0x00000002
+#define MFI_G2_OUTBOUND_DOORBELL_CHANGE_INTERRUPT	0x00000004
+
 #define MFI_OB_INTR_STATUS_MASK			0x00000002
 #define MFI_POLL_TIMEOUT_SECS			60
 #define MEGASAS_COMPLETION_TIMER_INTERVAL      (HZ/10)
@@ -714,6 +760,9 @@ struct megasas_ctrl_info {
 #define MFI_REPLY_SKINNY_MESSAGE_INTERRUPT	0x40000000
 #define MFI_SKINNY_ENABLE_INTERRUPT_MASK	(0x00000001)
 
+#define MFI_1068_PCSR_OFFSET			0x84
+#define MFI_1068_FW_HANDSHAKE_OFFSET		0x64
+#define MFI_1068_FW_READY			0xDDDD0000
 /*
 * register set for both 1068 and 1078 controllers
 * structure extended for 1078 registers
@@ -755,8 +804,10 @@ struct megasas_register_set {
 	u32 	inbound_high_queue_port ;	/*00C4h*/
 
 	u32 	reserved_5;			/*00C8h*/
-	u32 	index_registers[820];		/*00CCh*/
-
+	u32	res_6[11];			/*CCh*/
+	u32	host_diag;
+	u32	seq_offset;
+	u32 	index_registers[807];		/*00CCh*/
 } __attribute__ ((packed));
 
 struct megasas_sge32 {
@@ -1226,11 +1277,12 @@ struct megasas_instance {
 
 	struct megasas_cmd **cmd_list;
 	struct list_head cmd_pool;
+	/* used to sync fire the cmd to fw */
 	spinlock_t cmd_pool_lock;
+	/* used to sync fire the cmd to fw */
+	spinlock_t hba_lock;
 	/* used to synch producer, consumer ptrs in dpc */
 	spinlock_t completion_lock;
-	/* used to sync fire the cmd to fw */
-	spinlock_t fire_lock;
 	struct dma_pool *frame_dma_pool;
 	struct dma_pool *sense_dma_pool;
 
@@ -1247,19 +1299,36 @@ struct megasas_instance {
 
 	struct pci_dev *pdev;
 	u32 unique_id;
+	u32 fw_support_ieee;
 
 	atomic_t fw_outstanding;
-	u32 hw_crit_error;
+	atomic_t fw_reset_no_pci_access;
 
 	struct megasas_instance_template *instancet;
 	struct tasklet_struct isr_tasklet;
+	struct work_struct work_init;
 
 	u8 flag;
 	u8 unload;
 	u8 flag_ieee;
+	u8 issuepend_done;
+	u8 disableOnlineCtrlReset;
+	u8 adprecovery;
 	unsigned long last_time;
+	u32 mfiStatus;
+	u32 last_seq_num;
 
 	struct timer_list io_completion_timer;
+	struct list_head internal_reset_pending_q;
+};
+
+enum {
+	MEGASAS_HBA_OPERATIONAL			= 0,
+	MEGASAS_ADPRESET_SM_INFAULT		= 1,
+	MEGASAS_ADPRESET_SM_FW_RESET_SUCCESS	= 2,
+	MEGASAS_ADPRESET_SM_OPERATIONAL		= 3,
+	MEGASAS_HW_CRITICAL_ERROR		= 4,
+	MEGASAS_ADPRESET_INPROG_SIGN		= 0xDEADDEAD,
 };
 
 struct megasas_instance_template {
@@ -1272,6 +1341,10 @@ struct megasas_instance_template {
 	int (*clear_intr)(struct megasas_register_set __iomem *);
 
 	u32 (*read_fw_status_reg)(struct megasas_register_set __iomem *);
+	int (*adp_reset)(struct megasas_instance *, \
+		struct megasas_register_set __iomem *);
+	int (*check_reset)(struct megasas_instance *, \
+		struct megasas_register_set __iomem *);
 };
 
 #define MEGASAS_IS_LOGICAL(scp)						\
@@ -1291,7 +1364,9 @@ struct megasas_cmd {
 	u32 index;
 	u8 sync_cmd;
 	u8 cmd_status;
-	u16 abort_aen;
+	u8 abort_aen;
+	u8 retry_for_fw_reset;
+
 
 	struct list_head list;
 	struct scsi_cmnd *scmd;

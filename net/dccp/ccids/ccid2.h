@@ -18,18 +18,23 @@
 #ifndef _DCCP_CCID2_H_
 #define _DCCP_CCID2_H_
 
-#include <linux/dccp.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 #include "../ccid.h"
+#include "../dccp.h"
+
+/*
+ * CCID-2 timestamping faces the same issues as TCP timestamping.
+ * Hence we reuse/share as much of the code as possible.
+ */
+#define ccid2_time_stamp	tcp_time_stamp
+
 /* NUMDUPACK parameter from RFC 4341, p. 6 */
 #define NUMDUPACK	3
 
-struct sock;
-
 struct ccid2_seq {
 	u64			ccid2s_seq;
-	unsigned long		ccid2s_sent;
+	u32			ccid2s_sent;
 	int			ccid2s_acked;
 	struct ccid2_seq	*ccid2s_prev;
 	struct ccid2_seq	*ccid2s_next;
@@ -42,7 +47,12 @@ struct ccid2_seq {
  * struct ccid2_hc_tx_sock - CCID2 TX half connection
  * @tx_{cwnd,ssthresh,pipe}: as per RFC 4341, section 5
  * @tx_packets_acked:	     Ack counter for deriving cwnd growth (RFC 3465)
- * @tx_lastrtt:		     time RTT was last measured
+ * @tx_srtt:		     smoothed RTT estimate, scaled by 2^3
+ * @tx_mdev:		     smoothed RTT variation, scaled by 2^2
+ * @tx_mdev_max:	     maximum of @mdev during one flight
+ * @tx_rttvar:		     moving average/maximum of @mdev_max
+ * @tx_rto:		     RTO value deriving from SRTT and RTTVAR (RFC 2988)
+ * @tx_rtt_seq:		     to decay RTTVAR at most once per flight
  * @tx_rpseq:		     last consecutive seqno
  * @tx_rpdupack:	     dupacks since rpseq
  */
@@ -55,16 +65,26 @@ struct ccid2_hc_tx_sock {
 	int			tx_seqbufc;
 	struct ccid2_seq	*tx_seqh;
 	struct ccid2_seq	*tx_seqt;
-	long			tx_rto;
-	long			tx_srtt;
-	long			tx_rttvar;
-	unsigned long		tx_lastrtt;
+
+	/* RTT measurement: variables/principles are the same as in TCP */
+	u32			tx_srtt,
+				tx_mdev,
+				tx_mdev_max,
+				tx_rttvar,
+				tx_rto;
+	u64			tx_rtt_seq:48;
 	struct timer_list	tx_rtotimer;
+
 	u64			tx_rpseq;
 	int			tx_rpdupack;
-	unsigned long		tx_last_cong;
+	u32			tx_last_cong;
 	u64			tx_high_ack;
 };
+
+static inline bool ccid2_cwnd_network_limited(struct ccid2_hc_tx_sock *hc)
+{
+	return hc->tx_pipe >= hc->tx_cwnd;
+}
 
 struct ccid2_hc_rx_sock {
 	int	rx_data;

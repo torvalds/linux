@@ -28,12 +28,7 @@
  * #define ATTR_KILL_SUID	2048
  * #define ATTR_KILL_SGID	4096
  *
- * and this is because they were added in 2.5 development in this patch:
- *
- * http://linux.bkbits.net:8080/linux-2.5/
- * cset@3caf4a12k4XgDzK7wyK-TGpSZ9u2Ww?nav=index.html
- * |src/.|src/include|src/include/linux|related/include/linux/fs.h
- *
+ * and this is because they were added in 2.5 development.
  * Actually, they are not needed by most ->setattr() methods - they are set by
  * callers of notify_change() to notify that the setuid/setgid bits must be
  * dropped.
@@ -96,7 +91,6 @@ extern int rename_file(char *from, char *to);
 extern int do_statfs(char *root, long *bsize_out, long long *blocks_out,
 		     long long *bfree_out, long long *bavail_out,
 		     long long *files_out, long long *ffree_out,
-		     void *fsid_out, int fsid_size, long *namelen_out,
-		     long *spare_out);
+		     void *fsid_out, int fsid_size, long *namelen_out);
 
 #endif

@@ -34,7 +34,7 @@
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
@@ -81,6 +81,7 @@
 
 #define GDROM_DEFAULT_TIMEOUT	(HZ * 7)
 
+static DEFINE_MUTEX(gdrom_mutex);
 static const struct {
 	int sense_key;
 	const char * const text;
@@ -141,18 +142,18 @@ static int gdrom_hardreset(struct cdrom_device_info *cd_info);
 
 static bool gdrom_is_busy(void)
 {
-	return (ctrl_inb(GDROM_ALTSTATUS_REG) & 0x80) != 0;
+	return (__raw_readb(GDROM_ALTSTATUS_REG) & 0x80) != 0;
 }
 
 static bool gdrom_data_request(void)
 {
-	return (ctrl_inb(GDROM_ALTSTATUS_REG) & 0x88) == 8;
+	return (__raw_readb(GDROM_ALTSTATUS_REG) & 0x88) == 8;
 }
 
 static bool gdrom_wait_clrbusy(void)
 {
 	unsigned long timeout = jiffies + GDROM_DEFAULT_TIMEOUT;
-	while ((ctrl_inb(GDROM_ALTSTATUS_REG) & 0x80) &&
+	while ((__raw_readb(GDROM_ALTSTATUS_REG) & 0x80) &&
 		(time_before(jiffies, timeout)))
 		cpu_relax();
 	return time_before(jiffies, timeout + 1);
@@ -180,14 +181,14 @@ static void gdrom_identifydevice(void *buf)
 		gdrom_getsense(NULL);
 		return;
 	}
-	ctrl_outb(GDROM_COM_IDDEV, GDROM_STATUSCOMMAND_REG);
+	__raw_writeb(GDROM_COM_IDDEV, GDROM_STATUSCOMMAND_REG);
 	if (!gdrom_wait_busy_sleeps()) {
 		gdrom_getsense(NULL);
 		return;
 	}
 	/* now read in the data */
 	for (c = 0; c < 40; c++)
-		data[c] = ctrl_inw(GDROM_DATA_REG);
+		data[c] = __raw_readw(GDROM_DATA_REG);
 }
 
 static void gdrom_spicommand(void *spi_string, int buflen)
@@ -196,21 +197,21 @@ static void gdrom_spicommand(void *spi_string, int buflen)
 	unsigned long timeout;
 
 	/* ensure IRQ_WAIT is set */
-	ctrl_outb(0x08, GDROM_ALTSTATUS_REG);
+	__raw_writeb(0x08, GDROM_ALTSTATUS_REG);
 	/* specify how many bytes we expect back */
-	ctrl_outb(buflen & 0xFF, GDROM_BCL_REG);
-	ctrl_outb((buflen >> 8) & 0xFF, GDROM_BCH_REG);
+	__raw_writeb(buflen & 0xFF, GDROM_BCL_REG);
+	__raw_writeb((buflen >> 8) & 0xFF, GDROM_BCH_REG);
 	/* other parameters */
-	ctrl_outb(0, GDROM_INTSEC_REG);
-	ctrl_outb(0, GDROM_SECNUM_REG);
-	ctrl_outb(0, GDROM_ERROR_REG);
+	__raw_writeb(0, GDROM_INTSEC_REG);
+	__raw_writeb(0, GDROM_SECNUM_REG);
+	__raw_writeb(0, GDROM_ERROR_REG);
 	/* Wait until we can go */
 	if (!gdrom_wait_clrbusy()) {
 		gdrom_getsense(NULL);
 		return;
 	}
 	timeout = jiffies + GDROM_DEFAULT_TIMEOUT;
-	ctrl_outb(GDROM_COM_PACKET, GDROM_STATUSCOMMAND_REG);
+	__raw_writeb(GDROM_COM_PACKET, GDROM_STATUSCOMMAND_REG);
 	while (!gdrom_data_request() && time_before(jiffies, timeout))
 		cpu_relax();
 	if (!time_before(jiffies, timeout + 1)) {
@@ -232,10 +233,10 @@ static char gdrom_execute_diagnostic(void)
 	gdrom_hardreset(gd.cd_info);
 	if (!gdrom_wait_clrbusy())
 		return 0;
-	ctrl_outb(GDROM_COM_EXECDIAG, GDROM_STATUSCOMMAND_REG);
+	__raw_writeb(GDROM_COM_EXECDIAG, GDROM_STATUSCOMMAND_REG);
 	if (!gdrom_wait_busy_sleeps())
 		return 0;
-	return ctrl_inb(GDROM_ERROR_REG);
+	return __raw_readb(GDROM_ERROR_REG);
 }
 
 /*
@@ -384,7 +385,7 @@ static void gdrom_release(struct cdrom_device_info *cd_info)
 static int gdrom_drivestatus(struct cdrom_device_info *cd_info, int ignore)
 {
 	/* read the sense key */
-	char sense = ctrl_inb(GDROM_ERROR_REG);
+	char sense = __raw_readb(GDROM_ERROR_REG);
 	sense &= 0xF0;
 	if (sense == 0)
 		return CDS_DISC_OK;
@@ -397,16 +398,16 @@ static int gdrom_drivestatus(struct cdrom_device_info *cd_info, int ignore)
 static int gdrom_mediachanged(struct cdrom_device_info *cd_info, int ignore)
 {
 	/* check the sense key */
-	return (ctrl_inb(GDROM_ERROR_REG) & 0xF0) == 0x60;
+	return (__raw_readb(GDROM_ERROR_REG) & 0xF0) == 0x60;
 }
 
 /* reset the G1 bus */
 static int gdrom_hardreset(struct cdrom_device_info *cd_info)
 {
 	int count;
-	ctrl_outl(0x1fffff, GDROM_RESET_REG);
+	__raw_writel(0x1fffff, GDROM_RESET_REG);
 	for (count = 0xa0000000; count < 0xa0200000; count += 4)
-		ctrl_inl(count);
+		__raw_readl(count);
 	return 0;
 }
 
@@ -494,17 +495,17 @@ static struct cdrom_device_ops gdrom_ops = {
 static int gdrom_bdops_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
-	lock_kernel();
+	mutex_lock(&gdrom_mutex);
 	ret = cdrom_open(gd.cd_info, bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&gdrom_mutex);
 	return ret;
 }
 
 static int gdrom_bdops_release(struct gendisk *disk, fmode_t mode)
 {
-	lock_kernel();
+	mutex_lock(&gdrom_mutex);
 	cdrom_release(gd.cd_info, mode);
-	unlock_kernel();
+	mutex_unlock(&gdrom_mutex);
 	return 0;
 }
 
@@ -518,9 +519,9 @@ static int gdrom_bdops_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&gdrom_mutex);
 	ret = cdrom_ioctl(gd.cd_info, bdev, mode, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&gdrom_mutex);
 
 	return ret;
 }
@@ -535,7 +536,7 @@ static const struct block_device_operations gdrom_bdops = {
 
 static irqreturn_t gdrom_command_interrupt(int irq, void *dev_id)
 {
-	gd.status = ctrl_inb(GDROM_STATUSCOMMAND_REG);
+	gd.status = __raw_readb(GDROM_STATUSCOMMAND_REG);
 	if (gd.pending != 1)
 		return IRQ_HANDLED;
 	gd.pending = 0;
@@ -545,7 +546,7 @@ static irqreturn_t gdrom_command_interrupt(int irq, void *dev_id)
 
 static irqreturn_t gdrom_dma_interrupt(int irq, void *dev_id)
 {
-	gd.status = ctrl_inb(GDROM_STATUSCOMMAND_REG);
+	gd.status = __raw_readb(GDROM_STATUSCOMMAND_REG);
 	if (gd.transfer != 1)
 		return IRQ_HANDLED;
 	gd.transfer = 0;
@@ -599,10 +600,10 @@ static void gdrom_readdisk_dma(struct work_struct *work)
 		spin_unlock(&gdrom_lock);
 		block = blk_rq_pos(req)/GD_TO_BLK + GD_SESSION_OFFSET;
 		block_cnt = blk_rq_sectors(req)/GD_TO_BLK;
-		ctrl_outl(virt_to_phys(req->buffer), GDROM_DMA_STARTADDR_REG);
-		ctrl_outl(block_cnt * GDROM_HARD_SECTOR, GDROM_DMA_LENGTH_REG);
-		ctrl_outl(1, GDROM_DMA_DIRECTION_REG);
-		ctrl_outl(1, GDROM_DMA_ENABLE_REG);
+		__raw_writel(virt_to_phys(req->buffer), GDROM_DMA_STARTADDR_REG);
+		__raw_writel(block_cnt * GDROM_HARD_SECTOR, GDROM_DMA_LENGTH_REG);
+		__raw_writel(1, GDROM_DMA_DIRECTION_REG);
+		__raw_writel(1, GDROM_DMA_ENABLE_REG);
 		read_command->cmd[2] = (block >> 16) & 0xFF;
 		read_command->cmd[3] = (block >> 8) & 0xFF;
 		read_command->cmd[4] = block & 0xFF;
@@ -610,18 +611,18 @@ static void gdrom_readdisk_dma(struct work_struct *work)
 		read_command->cmd[9] = (block_cnt >> 8) & 0xFF;
 		read_command->cmd[10] = block_cnt & 0xFF;
 		/* set for DMA */
-		ctrl_outb(1, GDROM_ERROR_REG);
+		__raw_writeb(1, GDROM_ERROR_REG);
 		/* other registers */
-		ctrl_outb(0, GDROM_SECNUM_REG);
-		ctrl_outb(0, GDROM_BCL_REG);
-		ctrl_outb(0, GDROM_BCH_REG);
-		ctrl_outb(0, GDROM_DSEL_REG);
-		ctrl_outb(0, GDROM_INTSEC_REG);
+		__raw_writeb(0, GDROM_SECNUM_REG);
+		__raw_writeb(0, GDROM_BCL_REG);
+		__raw_writeb(0, GDROM_BCH_REG);
+		__raw_writeb(0, GDROM_DSEL_REG);
+		__raw_writeb(0, GDROM_INTSEC_REG);
 		/* Wait for registers to reset after any previous activity */
 		timeout = jiffies + HZ / 2;
 		while (gdrom_is_busy() && time_before(jiffies, timeout))
 			cpu_relax();
-		ctrl_outb(GDROM_COM_PACKET, GDROM_STATUSCOMMAND_REG);
+		__raw_writeb(GDROM_COM_PACKET, GDROM_STATUSCOMMAND_REG);
 		timeout = jiffies + HZ / 2;
 		/* Wait for packet command to finish */
 		while (gdrom_is_busy() && time_before(jiffies, timeout))
@@ -631,11 +632,11 @@ static void gdrom_readdisk_dma(struct work_struct *work)
 		outsw(GDROM_DATA_REG, &read_command->cmd, 6);
 		timeout = jiffies + HZ / 2;
 		/* Wait for any pending DMA to finish */
-		while (ctrl_inb(GDROM_DMA_STATUS_REG) &&
+		while (__raw_readb(GDROM_DMA_STATUS_REG) &&
 			time_before(jiffies, timeout))
 			cpu_relax();
 		/* start transfer */
-		ctrl_outb(1, GDROM_DMA_STATUS_REG);
+		__raw_writeb(1, GDROM_DMA_STATUS_REG);
 		wait_event_interruptible_timeout(request_queue,
 			gd.transfer == 0, GDROM_DEFAULT_TIMEOUT);
 		err = gd.transfer ? -EIO : 0;
@@ -713,11 +714,11 @@ free_id:
 /* set the default mode for DMA transfer */
 static int __devinit gdrom_init_dma_mode(void)
 {
-	ctrl_outb(0x13, GDROM_ERROR_REG);
-	ctrl_outb(0x22, GDROM_INTSEC_REG);
+	__raw_writeb(0x13, GDROM_ERROR_REG);
+	__raw_writeb(0x22, GDROM_INTSEC_REG);
 	if (!gdrom_wait_clrbusy())
 		return -EBUSY;
-	ctrl_outb(0xEF, GDROM_STATUSCOMMAND_REG);
+	__raw_writeb(0xEF, GDROM_STATUSCOMMAND_REG);
 	if (!gdrom_wait_busy_sleeps())
 		return -EBUSY;
 	/* Memory protection setting for GDROM DMA
@@ -727,8 +728,8 @@ static int __devinit gdrom_init_dma_mode(void)
 	* Bits 6 - 0 end of transfer range in 1 MB blocks OR'ed with 0x80
 	* (0x40 | 0x80) = start range at 0x0C000000
 	* (0x7F | 0x80) = end range at 0x0FFFFFFF */
-	ctrl_outl(0x8843407F, GDROM_DMA_ACCESS_CTRL_REG);
-	ctrl_outl(9, GDROM_DMA_WAIT_REG); /* DMA word setting */
+	__raw_writel(0x8843407F, GDROM_DMA_ACCESS_CTRL_REG);
+	__raw_writel(9, GDROM_DMA_WAIT_REG); /* DMA word setting */
 	return 0;
 }
 

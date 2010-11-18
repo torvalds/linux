@@ -26,7 +26,7 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org/dvb/
+ * the project's page is at http://www.linuxtv.org/ 
  */
 
 
@@ -730,6 +730,7 @@ static const struct file_operations dvb_osd_fops = {
 	.unlocked_ioctl	= dvb_generic_ioctl,
 	.open		= dvb_generic_open,
 	.release	= dvb_generic_release,
+	.llseek		= noop_llseek,
 };
 
 static struct dvb_device dvbdev_osd = {
@@ -2290,12 +2291,7 @@ static int frontend_init(struct av7110 *av7110)
 /* Budgetpatch note:
  * Original hardware design by Roberto Deza:
  * There is a DVB_Wiki at
- * http://212.227.36.83/linuxtv/wiki/index.php/Main_Page
- * where is described this 'DVB TT Budget Patch', on Card Modding:
- * http://212.227.36.83/linuxtv/wiki/index.php/DVB_TT_Budget_Patch
- * On the short description there is also a link to a external file,
- * with more details:
- * http://perso.wanadoo.es/jesussolano/Ttf_tsc1.zip
+ * http://www.linuxtv.org/
  *
  * New software triggering design by Emard that works on
  * original Roberto Deza's hardware:
@@ -2476,7 +2472,6 @@ static int __devinit av7110_attach(struct saa7146_dev* dev,
 	   get recognized before the main driver is fully loaded */
 	saa7146_write(dev, GPIO_CTRL, 0x500000);
 
-	av7110->i2c_adap.class = I2C_CLASS_TV_DIGITAL;
 	strlcpy(av7110->i2c_adap.name, pci_ext->ext_priv, sizeof(av7110->i2c_adap.name));
 
 	saa7146_i2c_adapter_prepare(dev, &av7110->i2c_adap, SAA7146_I2C_BUS_BIT_RATE_120); /* 275 kHz */
@@ -2890,7 +2885,7 @@ MODULE_DEVICE_TABLE(pci, pci_tbl);
 
 
 static struct saa7146_extension av7110_extension_driver = {
-	.name		= "dvb",
+	.name		= "av7110",
 	.flags		= SAA7146_USE_I2C_IRQ,
 
 	.module		= THIS_MODULE,

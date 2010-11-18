@@ -276,7 +276,7 @@ xfs_qm_scall_trunc_qfile(
 		goto out_unlock;
 	}
 
-	xfs_ichgtime(ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 
 out_unlock:
@@ -875,20 +875,13 @@ xfs_dqrele_inode(
 	struct xfs_perag	*pag,
 	int			flags)
 {
-	int			error;
-
 	/* skip quota inodes */
 	if (ip == ip->i_mount->m_quotainfo->qi_uquotaip ||
 	    ip == ip->i_mount->m_quotainfo->qi_gquotaip) {
 		ASSERT(ip->i_udquot == NULL);
 		ASSERT(ip->i_gdquot == NULL);
-		read_unlock(&pag->pag_ici_lock);
 		return 0;
 	}
-
-	error = xfs_sync_inode_valid(ip, pag);
-	if (error)
-		return error;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	if ((flags & XFS_UQUOTA_ACCT) && ip->i_udquot) {
@@ -900,8 +893,6 @@ xfs_dqrele_inode(
 		ip->i_gdquot = NULL;
 	}
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-
-	IRELE(ip);
 	return 0;
 }
 
@@ -918,8 +909,7 @@ xfs_qm_dqrele_all_inodes(
 	uint		 flags)
 {
 	ASSERT(mp->m_quotainfo);
-	xfs_inode_ag_iterator(mp, xfs_dqrele_inode, flags,
-				XFS_ICI_NO_TAG, 0, NULL);
+	xfs_inode_ag_iterator(mp, xfs_dqrele_inode, flags);
 }
 
 /*------------------------------------------------------------------------*/
@@ -1175,7 +1165,7 @@ xfs_qm_internalqcheck_adjust(
 	}
 	xfs_qm_internalqcheck_get_dquots(mp,
 					(xfs_dqid_t) ip->i_d.di_uid,
-					(xfs_dqid_t) ip->i_d.di_projid,
+					(xfs_dqid_t) xfs_get_projid(ip),
 					(xfs_dqid_t) ip->i_d.di_gid,
 					&ud, &gd);
 	if (XFS_IS_UQUOTA_ON(mp)) {

@@ -250,6 +250,7 @@
 #define USBCTRL_USB_BYP			(1 << 2)
 #define USBCTRL_HOST1_TXEN_OE		(1 << 1)
 
+#define USBOTG_DMEM		0x1000
 
 /* Values in TD blocks */
 #define TD_DIR_SETUP	    0
@@ -346,8 +347,8 @@ struct td {
 	struct list_head list;
 	struct urb *urb;
 	struct usb_host_endpoint *ep;
-	dma_addr_t data;
-	unsigned long buf_addr;
+	dma_addr_t dma_handle;
+	void *cpu_buffer;
 	int len;
 	int frame;
 	int isoc_index;
@@ -360,6 +361,8 @@ struct etd_priv {
 	struct td *td;
 	struct list_head queue;
 	dma_addr_t dma_handle;
+	void *cpu_buffer;
+	void *bounce_buffer;
 	int alloc;
 	int len;
 	int dmem_size;
@@ -412,6 +415,7 @@ struct debug_isoc_trace {
 struct imx21 {
 	spinlock_t lock;
 	struct device *dev;
+	struct usb_hcd *hcd;
 	struct mx21_usbh_platform_data *pdata;
 	struct list_head dmem_list;
 	struct list_head queue_for_etd; /* eps queued due to etd shortage */

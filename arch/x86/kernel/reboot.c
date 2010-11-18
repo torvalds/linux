@@ -371,16 +371,10 @@ void machine_real_restart(const unsigned char *code, int length)
 	CMOS_WRITE(0x00, 0x8f);
 	spin_unlock(&rtc_lock);
 
-	/* Remap the kernel at virtual address zero, as well as offset zero
-	   from the kernel segment.  This assumes the kernel segment starts at
-	   virtual address PAGE_OFFSET. */
-	memcpy(swapper_pg_dir, swapper_pg_dir + KERNEL_PGD_BOUNDARY,
-		sizeof(swapper_pg_dir [0]) * KERNEL_PGD_PTRS);
-
 	/*
-	 * Use `swapper_pg_dir' as our page directory.
+	 * Switch back to the initial page table.
 	 */
-	load_cr3(swapper_pg_dir);
+	load_cr3(initial_page_table);
 
 	/* Write 0x1234 to absolute memory location 0x472.  The BIOS reads
 	   this on booting to tell it to "Bypass memory test (also warm
@@ -641,7 +635,7 @@ void native_machine_shutdown(void)
 	/* O.K Now that I'm on the appropriate processor,
 	 * stop all of the others.
 	 */
-	smp_send_stop();
+	stop_other_cpus();
 #endif
 
 	lapic_shutdown();

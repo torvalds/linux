@@ -29,10 +29,9 @@
 #include <mach/nand.h>
 #include <mach/da8xx.h>
 #include <mach/usb.h>
+#include <mach/aemif.h>
 
-#define DA830_EVM_PHY_MASK		0x0
-#define DA830_EVM_MDIO_FREQUENCY	2200000	/* PHY bus frequency */
-
+#define DA830_EVM_PHY_ID		""
 /*
  * USB1 VBUS is controlled by GPIO1[15], over-current is reported on GPIO2[4].
  */
@@ -360,6 +359,16 @@ static struct nand_bbt_descr da830_evm_nand_bbt_mirror_descr = {
 	.pattern	= da830_evm_nand_mirror_pattern
 };
 
+static struct davinci_aemif_timing da830_evm_nandflash_timing = {
+	.wsetup         = 24,
+	.wstrobe        = 21,
+	.whold          = 14,
+	.rsetup         = 19,
+	.rstrobe        = 50,
+	.rhold          = 0,
+	.ta             = 20,
+};
+
 static struct davinci_nand_pdata da830_evm_nand_pdata = {
 	.parts		= da830_evm_nand_partitions,
 	.nr_parts	= ARRAY_SIZE(da830_evm_nand_partitions),
@@ -368,6 +377,7 @@ static struct davinci_nand_pdata da830_evm_nand_pdata = {
 	.options	= NAND_USE_FLASH_BBT,
 	.bbt_td		= &da830_evm_nand_bbt_main_descr,
 	.bbt_md		= &da830_evm_nand_bbt_mirror_descr,
+	.timing         = &da830_evm_nandflash_timing,
 };
 
 static struct resource da830_evm_nand_resources[] = {
@@ -546,9 +556,8 @@ static __init void da830_evm_init(void)
 
 	da830_evm_usb_init();
 
-	soc_info->emac_pdata->phy_mask = DA830_EVM_PHY_MASK;
-	soc_info->emac_pdata->mdio_max_freq = DA830_EVM_MDIO_FREQUENCY;
 	soc_info->emac_pdata->rmii_en = 1;
+	soc_info->emac_pdata->phy_id = DA830_EVM_PHY_ID;
 
 	ret = davinci_cfg_reg_list(da830_cpgmac_pins);
 	if (ret)
@@ -586,6 +595,9 @@ static __init void da830_evm_init(void)
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 static int __init da830_evm_console_init(void)
 {
+	if (!machine_is_davinci_da830_evm())
+		return 0;
+
 	return add_preferred_console("ttyS", 2, "115200");
 }
 console_initcall(da830_evm_console_init);
@@ -596,7 +608,7 @@ static void __init da830_evm_map_io(void)
 	da830_init();
 }
 
-MACHINE_START(DAVINCI_DA830_EVM, "DaVinci DA830/OMAP-L137 EVM")
+MACHINE_START(DAVINCI_DA830_EVM, "DaVinci DA830/OMAP-L137/AM17x EVM")
 	.boot_params	= (DA8XX_DDR_BASE + 0x100),
 	.map_io		= da830_evm_map_io,
 	.init_irq	= cp_intc_init,

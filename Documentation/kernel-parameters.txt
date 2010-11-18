@@ -43,10 +43,11 @@ parameter is applicable:
 	AVR32	AVR32 architecture is enabled.
 	AX25	Appropriate AX.25 support is enabled.
 	BLACKFIN Blackfin architecture is enabled.
-	DRM	Direct Rendering Management support is enabled.
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
 	EFI	EFI Partitioning (GPT) is enabled
 	EIDE	EIDE/ATAPI support is enabled.
+	DRM	Direct Rendering Management support is enabled.
+	DYNAMIC_DEBUG Build in debug messages and enable them at runtime
 	FB	The frame buffer device is enabled.
 	GCOV	GCOV profiling is enabled.
 	HW	Appropriate hardware is enabled.
@@ -570,6 +571,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <port#>,<type>
 			See also Documentation/input/joystick-parport.txt
 
+	ddebug_query=   [KNL,DYNAMIC_DEBUG] Enable debug messages at early boot
+			time. See Documentation/dynamic-debug-howto.txt for
+			details.
+
 	debug		[KNL] Enable kernel debugging (events log level).
 
 	debug_locks_verbose=
@@ -701,7 +706,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			arch/x86/kernel/cpu/cpufreq/elanfreq.c.
 
 	elevator=	[IOSCHED]
-			Format: {"anticipatory" | "cfq" | "deadline" | "noop"}
+			Format: {"cfq" | "deadline" | "noop"}
 			See Documentation/block/as-iosched.txt and
 			Documentation/block/deadline-iosched.txt for details.
 
@@ -1126,8 +1131,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	kvm.oos_shadow=	[KVM] Disable out-of-sync shadow paging.
 			Default is 1 (enabled)
 
-	kvm-amd.nested=	[KVM,AMD] Allow nested virtualization in KVM/SVM.
+	kvm.mmu_audit=	[KVM] This is a R/W parameter which allows audit
+			KVM MMU at runtime.
 			Default is 0 (off)
+
+	kvm-amd.nested=	[KVM,AMD] Allow nested virtualization in KVM/SVM.
+			Default is 1 (enabled)
 
 	kvm-amd.npt=	[KVM,AMD] Disable nested paging (virtualized MMU)
 			for all guests.
@@ -1532,10 +1541,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			1 to enable accounting
 			Default value is 0.
 
-	nfsaddrs=	[NFS]
+	nfsaddrs=	[NFS] Deprecated.  Use ip= instead.
 			See Documentation/filesystems/nfs/nfsroot.txt.
 
 	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
+			See Documentation/filesystems/nfs/nfsroot.txt.
+
+	nfsrootdebug	[NFS] enable nfsroot debugging messages.
 			See Documentation/filesystems/nfs/nfsroot.txt.
 
 	nfs.callback_tcpport=
@@ -1693,6 +1705,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nojitter	[IA64] Disables jitter checking for ITC timers.
 
+	no-kvmclock	[X86,KVM] Disable paravirtualized KVM clock driver
+
 	nolapic		[X86-32,APIC] Do not enable or use the local APIC.
 
 	nolapic_timer	[X86-32,APIC] Do not use the local APIC timer.
@@ -1713,7 +1727,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	norandmaps	Don't use address space randomization.  Equivalent to
 			echo 0 > /proc/sys/kernel/randomize_va_space
 
-	noreplace-paravirt	[X86-32,PV_OPS] Don't patch paravirt_ops
+	noreplace-paravirt	[X86,IA-64,PV_OPS] Don't patch paravirt_ops
 
 	noreplace-smp	[X86-32,SMP] Don't replace SMP instructions
 			with UP alternatives
@@ -2161,6 +2175,11 @@ and is between 256 and 4096 characters. It is defined in the file
 	reset_devices	[KNL] Force drivers to reset the underlying device
 			during initialization.
 
+	resource_alloc_from_bottom
+			Allocate new resources from the beginning of available
+			space, not the end.  If you need to use this, please
+			report a bug.
+
 	resume=		[SWSUSP]
 			Specify the partition device for software suspend
 
@@ -2370,6 +2389,15 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	switches=	[HW,M68k]
 
+	sysfs.deprecated=0|1 [KNL]
+			Enable/disable old style sysfs layout for old udev
+			on older distributions. When this option is enabled
+			very new udev will not work anymore. When this option
+			is disabled (or CONFIG_SYSFS_DEPRECATED not compiled)
+			in older udev will not work anymore.
+			Default depends on CONFIG_SYSFS_DEPRECATED_V2 set in
+			the kernel configuration.
+
 	sysrq_always_enabled
 			[KNL]
 			Ignore sysrq setting - this boot parameter will
@@ -2418,7 +2446,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			topology informations if the hardware supports these.
 			The scheduler will make use of these informations and
 			e.g. base its process migration decisions on it.
-			Default is off.
+			Default is on.
 
 	tp720=		[HW,PS2]
 

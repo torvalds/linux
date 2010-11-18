@@ -18,12 +18,14 @@
 #include <linux/amba/pl022.h>
 #include <linux/spi/spi.h>
 #include <linux/mfd/ab8500.h>
+#include <linux/input/matrix_keypad.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #include <plat/pincfg.h>
 #include <plat/i2c.h>
+#include <plat/ske.h>
 
 #include <mach/hardware.h>
 #include <mach/setup.h>
@@ -49,6 +51,24 @@ static pin_cfg_t mop500_pins[] = {
 	GPIO11_I2C2_SCL,
 	GPIO229_I2C3_SDA,
 	GPIO230_I2C3_SCL,
+
+	/* SKE keypad */
+	GPIO153_KP_I7,
+	GPIO154_KP_I6,
+	GPIO155_KP_I5,
+	GPIO156_KP_I4,
+	GPIO157_KP_O7,
+	GPIO158_KP_O6,
+	GPIO159_KP_O5,
+	GPIO160_KP_O4,
+	GPIO161_KP_I3,
+	GPIO162_KP_I2,
+	GPIO163_KP_I1,
+	GPIO164_KP_I0,
+	GPIO165_KP_O3,
+	GPIO166_KP_O2,
+	GPIO167_KP_O1,
+	GPIO168_KP_O0,
 };
 
 static void ab4500_spi_cs_control(u32 command)
@@ -148,12 +168,120 @@ static struct amba_device *amba_devs[] __initdata = {
 	&u8500_ssp0_device,
 };
 
+static const unsigned int ux500_keymap[] = {
+	KEY(2, 5, KEY_END),
+	KEY(4, 1, KEY_POWER),
+	KEY(3, 5, KEY_VOLUMEDOWN),
+	KEY(1, 3, KEY_3),
+	KEY(5, 2, KEY_RIGHT),
+	KEY(5, 0, KEY_9),
+
+	KEY(0, 5, KEY_MENU),
+	KEY(7, 6, KEY_ENTER),
+	KEY(4, 5, KEY_0),
+	KEY(6, 7, KEY_2),
+	KEY(3, 4, KEY_UP),
+	KEY(3, 3, KEY_DOWN),
+
+	KEY(6, 4, KEY_SEND),
+	KEY(6, 2, KEY_BACK),
+	KEY(4, 2, KEY_VOLUMEUP),
+	KEY(5, 5, KEY_1),
+	KEY(4, 3, KEY_LEFT),
+	KEY(3, 2, KEY_7),
+};
+
+static const struct matrix_keymap_data ux500_keymap_data = {
+	.keymap         = ux500_keymap,
+	.keymap_size    = ARRAY_SIZE(ux500_keymap),
+};
+
+/*
+ * Nomadik SKE keypad
+ */
+#define ROW_PIN_I0      164
+#define ROW_PIN_I1      163
+#define ROW_PIN_I2      162
+#define ROW_PIN_I3      161
+#define ROW_PIN_I4      156
+#define ROW_PIN_I5      155
+#define ROW_PIN_I6      154
+#define ROW_PIN_I7      153
+#define COL_PIN_O0      168
+#define COL_PIN_O1      167
+#define COL_PIN_O2      166
+#define COL_PIN_O3      165
+#define COL_PIN_O4      160
+#define COL_PIN_O5      159
+#define COL_PIN_O6      158
+#define COL_PIN_O7      157
+
+#define SKE_KPD_MAX_ROWS        8
+#define SKE_KPD_MAX_COLS        8
+
+static int ske_kp_rows[] = {
+	ROW_PIN_I0, ROW_PIN_I1, ROW_PIN_I2, ROW_PIN_I3,
+	ROW_PIN_I4, ROW_PIN_I5, ROW_PIN_I6, ROW_PIN_I7,
+};
+
+/*
+ * ske_set_gpio_row: request and set gpio rows
+ */
+static int ske_set_gpio_row(int gpio)
+{
+	int ret;
+
+	ret = gpio_request(gpio, "ske-kp");
+	if (ret < 0) {
+		pr_err("ske_set_gpio_row: gpio request failed\n");
+		return ret;
+	}
+
+	ret = gpio_direction_output(gpio, 1);
+	if (ret < 0) {
+		pr_err("ske_set_gpio_row: gpio direction failed\n");
+		gpio_free(gpio);
+	}
+
+	return ret;
+}
+
+/*
+ * ske_kp_init - enable the gpio configuration
+ */
+static int ske_kp_init(void)
+{
+	int ret, i;
+
+	for (i = 0; i < SKE_KPD_MAX_ROWS; i++) {
+		ret = ske_set_gpio_row(ske_kp_rows[i]);
+		if (ret < 0) {
+			pr_err("ske_kp_init: failed init\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static struct ske_keypad_platform_data ske_keypad_board = {
+	.init           = ske_kp_init,
+	.keymap_data    = &ux500_keymap_data,
+	.no_autorepeat  = true,
+	.krow           = SKE_KPD_MAX_ROWS,     /* 8x8 matrix */
+	.kcol           = SKE_KPD_MAX_COLS,
+	.debounce_ms    = 40,                   /* in millsecs */
+};
+
+
+
 /* add any platform devices here - TODO */
 static struct platform_device *platform_devs[] __initdata = {
 	&u8500_i2c0_device,
 	&ux500_i2c1_device,
 	&ux500_i2c2_device,
 	&ux500_i2c3_device,
+	&ux500_ske_keypad_device,
 };
 
 static void __init u8500_init_machine(void)
@@ -168,6 +296,7 @@ static void __init u8500_init_machine(void)
 	ux500_i2c1_device.dev.platform_data = &u8500_i2c1_data;
 	ux500_i2c2_device.dev.platform_data = &u8500_i2c2_data;
 	ux500_i2c3_device.dev.platform_data = &u8500_i2c3_data;
+	ux500_ske_keypad_device.dev.platform_data = &ske_keypad_board;
 
 	u8500_ssp0_device.dev.platform_data = &ssp0_platform_data;
 

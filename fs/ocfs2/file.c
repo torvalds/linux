@@ -187,8 +187,7 @@ static int ocfs2_sync_file(struct file *file, int datasync)
 		 * platter
 		 */
 		if (osb->s_mount_opt & OCFS2_MOUNT_BARRIER)
-			blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL,
-					   NULL, BLKDEV_IFL_WAIT);
+			blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
 		goto bail;
 	}
 
@@ -797,13 +796,12 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 		block_end = block_start + (1 << inode->i_blkbits);
 
 		/*
-		 * block_start is block-aligned.  Bump it by one to
-		 * force ocfs2_{prepare,commit}_write() to zero the
+		 * block_start is block-aligned.  Bump it by one to force
+		 * __block_write_begin and block_commit_write to zero the
 		 * whole block.
 		 */
-		ret = ocfs2_prepare_write_nolock(inode, page,
-						 block_start + 1,
-						 block_start + 1);
+		ret = __block_write_begin(page, block_start + 1, 0,
+					  ocfs2_get_block);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out_unlock;

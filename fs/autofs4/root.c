@@ -19,7 +19,7 @@
 #include <linux/param.h>
 #include <linux/time.h>
 #include <linux/compat.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include "autofs_i.h"
 
@@ -28,7 +28,9 @@ static int autofs4_dir_unlink(struct inode *,struct dentry *);
 static int autofs4_dir_rmdir(struct inode *,struct dentry *);
 static int autofs4_dir_mkdir(struct inode *,struct dentry *,int);
 static long autofs4_root_ioctl(struct file *,unsigned int,unsigned long);
+#ifdef CONFIG_COMPAT
 static long autofs4_root_compat_ioctl(struct file *,unsigned int,unsigned long);
+#endif
 static int autofs4_dir_open(struct inode *inode, struct file *file);
 static struct dentry *autofs4_lookup(struct inode *,struct dentry *, struct nameidata *);
 static void *autofs4_follow_link(struct dentry *, struct nameidata *);
@@ -978,15 +980,17 @@ static int autofs4_root_ioctl_unlocked(struct inode *inode, struct file *filp,
 	}
 }
 
+static DEFINE_MUTEX(autofs4_ioctl_mutex);
+
 static long autofs4_root_ioctl(struct file *filp,
 			       unsigned int cmd, unsigned long arg)
 {
 	long ret;
 	struct inode *inode = filp->f_dentry->d_inode;
 
-	lock_kernel();
+	mutex_lock(&autofs4_ioctl_mutex);
 	ret = autofs4_root_ioctl_unlocked(inode, filp, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&autofs4_ioctl_mutex);
 
 	return ret;
 }
@@ -998,13 +1002,13 @@ static long autofs4_root_compat_ioctl(struct file *filp,
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&autofs4_ioctl_mutex);
 	if (cmd == AUTOFS_IOC_READY || cmd == AUTOFS_IOC_FAIL)
 		ret = autofs4_root_ioctl_unlocked(inode, filp, cmd, arg);
 	else
 		ret = autofs4_root_ioctl_unlocked(inode, filp, cmd,
 			(unsigned long)compat_ptr(arg));
-	unlock_kernel();
+	mutex_unlock(&autofs4_ioctl_mutex);
 
 	return ret;
 }

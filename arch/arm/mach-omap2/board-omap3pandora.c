@@ -25,14 +25,16 @@
 #include <linux/spi/ads7846.h>
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
-#include <linux/spi/wl12xx.h>
+#include <linux/wl12xx.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
 #include <linux/leds.h>
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/gpio_keys.h>
+#include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
+#include <linux/regulator/fixed.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -276,14 +278,14 @@ static void pandora_wl1251_init_card(struct mmc_card *card)
 static struct omap2_hsmmc_info omap3pandora_mmc[] = {
 	{
 		.mmc		= 1,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= 126,
 		.ext_clock	= 0,
 	},
 	{
 		.mmc		= 2,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= 127,
 		.ext_clock	= 1,
@@ -291,7 +293,7 @@ static struct omap2_hsmmc_info omap3pandora_mmc[] = {
 	},
 	{
 		.mmc		= 3,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 		.init_card	= pandora_wl1251_init_card,
@@ -343,6 +345,9 @@ static struct regulator_consumer_supply pandora_vmmc1_supply =
 
 static struct regulator_consumer_supply pandora_vmmc2_supply =
 	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.1");
+
+static struct regulator_consumer_supply pandora_vmmc3_supply =
+	REGULATOR_SUPPLY("vmmc", "mmci-omap-hs.2");
 
 static struct regulator_consumer_supply pandora_vdda_dac_supply =
 	REGULATOR_SUPPLY("vdda_dac", "omapdss");
@@ -488,6 +493,33 @@ static struct regulator_init_data pandora_vsim = {
 	.consumer_supplies	= &pandora_adac_supply,
 };
 
+/* Fixed regulator internal to Wifi module */
+static struct regulator_init_data pandora_vmmc3 = {
+	.constraints = {
+		.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &pandora_vmmc3_supply,
+};
+
+static struct fixed_voltage_config pandora_vwlan = {
+	.supply_name		= "vwlan",
+	.microvolts		= 1800000, /* 1.8V */
+	.gpio			= PANDORA_WIFI_NRESET_GPIO,
+	.startup_delay		= 50000, /* 50ms */
+	.enable_high		= 1,
+	.enabled_at_boot	= 0,
+	.init_data		= &pandora_vmmc3,
+};
+
+static struct platform_device pandora_vwlan_device = {
+	.name		= "reg-fixed-voltage",
+	.id		= 1,
+	.dev = {
+		.platform_data = &pandora_vwlan,
+	},
+};
+
 static struct twl4030_usb_data omap3pandora_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
@@ -500,6 +532,8 @@ static struct twl4030_codec_data omap3pandora_codec_data = {
 	.audio_mclk = 26000000,
 	.audio = &omap3pandora_audio_data,
 };
+
+static struct twl4030_bci_platform_data pandora_bci_data;
 
 static struct twl4030_platform_data omap3pandora_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
@@ -516,6 +550,7 @@ static struct twl4030_platform_data omap3pandora_twldata = {
 	.vaux4		= &pandora_vaux4,
 	.vsim		= &pandora_vsim,
 	.keypad		= &pandora_kp_data,
+	.bci		= &pandora_bci_data,
 };
 
 static struct i2c_board_info __initdata omap3pandora_i2c_boardinfo[] = {
@@ -644,19 +679,8 @@ static void pandora_wl1251_init(void)
 	if (pandora_wl1251_pdata.irq < 0)
 		goto fail_irq;
 
-	ret = gpio_request(PANDORA_WIFI_NRESET_GPIO, "wl1251 nreset");
-	if (ret < 0)
-		goto fail_irq;
-
-	/* start powered so that it probes with MMC subsystem */
-	ret = gpio_direction_output(PANDORA_WIFI_NRESET_GPIO, 1);
-	if (ret < 0)
-		goto fail_nreset;
-
 	return;
 
-fail_nreset:
-	gpio_free(PANDORA_WIFI_NRESET_GPIO);
 fail_irq:
 	gpio_free(PANDORA_WIFI_IRQ_GPIO);
 fail:
@@ -668,6 +692,7 @@ static struct platform_device *omap3pandora_devices[] __initdata = {
 	&pandora_keys_gpio,
 	&pandora_dss_device,
 	&pandora_wl1251_data,
+	&pandora_vwlan_device,
 };
 
 static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {

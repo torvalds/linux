@@ -14,6 +14,8 @@
 #include <linux/clocksource.h>
 #include <linux/timecompare.h>
 #include <linux/timer.h>
+#include <linux/etherdevice.h>
+#include <linux/bfin_mac.h>
 
 #define BFIN_MAC_CSUM_OFFLOAD
 

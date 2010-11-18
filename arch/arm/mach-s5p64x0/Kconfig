@@ -9,14 +9,12 @@ if ARCH_S5P64X0
 
 config CPU_S5P6440
 	bool
-	select PLAT_S5P
 	select S3C_PL330_DMA
 	help
 	  Enable S5P6440 CPU support
 
 config CPU_S5P6450
 	bool
-	select PLAT_S5P
 	select S3C_PL330_DMA
 	help
 	  Enable S5P6450 CPU support

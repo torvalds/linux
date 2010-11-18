@@ -476,9 +476,9 @@ static struct ib_fast_reg_page_list *nes_alloc_fast_reg_page_list(
 	}
 	nes_debug(NES_DBG_MR, "nes_alloc_fast_reg_pbl: nes_frpl = %p, "
 		  "ibfrpl = %p, ibfrpl.page_list = %p, pbl.kva = %p, "
-		  "pbl.paddr= %p\n", pnesfrpl, &pnesfrpl->ibfrpl,
+		  "pbl.paddr = %llx\n", pnesfrpl, &pnesfrpl->ibfrpl,
 		  pnesfrpl->ibfrpl.page_list, pnesfrpl->nes_wqe_pbl.kva,
-		  (void *)pnesfrpl->nes_wqe_pbl.paddr);
+		  (unsigned long long) pnesfrpl->nes_wqe_pbl.paddr);
 
 	return pifrpl;
 }
@@ -584,7 +584,9 @@ static int nes_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr 
 	props->lmc = 0;
 	props->sm_lid = 0;
 	props->sm_sl = 0;
-	if (nesvnic->linkup)
+	if (netif_queue_stopped(netdev))
+		props->state = IB_PORT_DOWN;
+	else if (nesvnic->linkup)
 		props->state = IB_PORT_ACTIVE;
 	else
 		props->state = IB_PORT_DOWN;
@@ -785,7 +787,7 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 
 	nes_debug(NES_DBG_PD, "nesvnic=%p, netdev=%p %s, ibdev=%p, context=%p, netdev refcnt=%u\n",
 			nesvnic, nesdev->netdev[0], nesdev->netdev[0]->name, ibdev, context,
-			atomic_read(&nesvnic->netdev->refcnt));
+			netdev_refcnt_read(nesvnic->netdev));
 
 	err = nes_alloc_resource(nesadapter, nesadapter->allocated_pds,
 			nesadapter->max_pd, &pd_num, &nesadapter->next_pd);
@@ -1416,7 +1418,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 	/* update the QP table */
 	nesdev->nesadapter->qp_table[nesqp->hwqp.qp_id-NES_FIRST_QPN] = nesqp;
 	nes_debug(NES_DBG_QP, "netdev refcnt=%u\n",
-			atomic_read(&nesvnic->netdev->refcnt));
+			netdev_refcnt_read(nesvnic->netdev));
 
 	return &nesqp->ibqp;
 }
@@ -3483,13 +3485,13 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 			for (i = 0; i < ib_wr->wr.fast_reg.page_list_len; i++)
 				dst_page_list[i] = cpu_to_le64(src_page_list[i]);
 
-			nes_debug(NES_DBG_IW_TX, "SQ_FMR: iova_start: %p, "
-				  "length: %d, rkey: %0x, pgl_paddr: %p, "
+			nes_debug(NES_DBG_IW_TX, "SQ_FMR: iova_start: %llx, "
+				  "length: %d, rkey: %0x, pgl_paddr: %llx, "
 				  "page_list_len: %u, wqe_misc: %x\n",
-				  (void *)ib_wr->wr.fast_reg.iova_start,
+				  (unsigned long long) ib_wr->wr.fast_reg.iova_start,
 				  ib_wr->wr.fast_reg.length,
 				  ib_wr->wr.fast_reg.rkey,
-				  (void *)pnesfrpl->nes_wqe_pbl.paddr,
+				  (unsigned long long) pnesfrpl->nes_wqe_pbl.paddr,
 				  ib_wr->wr.fast_reg.page_list_len,
 				  wqe_misc);
 			break;

@@ -273,14 +273,14 @@ void generic_shutdown_super(struct super_block *sb)
 		get_fs_excl();
 		sb->s_flags &= ~MS_ACTIVE;
 
-		/* bad name - it should be evict_inodes() */
-		invalidate_inodes(sb);
+		fsnotify_unmount_inodes(&sb->s_inodes);
+
+		evict_inodes(sb);
 
 		if (sop->put_super)
 			sop->put_super(sb);
 
-		/* Forget any remaining inodes */
-		if (invalidate_inodes(sb)) {
+		if (!list_empty(&sb->s_inodes)) {
 			printk("VFS: Busy inodes after unmount of %s. "
 			   "Self-destruct in 5 seconds.  Have a nice day...\n",
 			   sb->s_id);
@@ -715,15 +715,14 @@ static int ns_set_super(struct super_block *sb, void *data)
 	return set_anon_super(sb, NULL);
 }
 
-int get_sb_ns(struct file_system_type *fs_type, int flags, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
+struct dentry *mount_ns(struct file_system_type *fs_type, int flags,
+	void *data, int (*fill_super)(struct super_block *, void *, int))
 {
 	struct super_block *sb;
 
 	sb = sget(fs_type, ns_test_super, ns_set_super, data);
 	if (IS_ERR(sb))
-		return PTR_ERR(sb);
+		return ERR_CAST(sb);
 
 	if (!sb->s_root) {
 		int err;
@@ -731,17 +730,16 @@ int get_sb_ns(struct file_system_type *fs_type, int flags, void *data,
 		err = fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
 		if (err) {
 			deactivate_locked_super(sb);
-			return err;
+			return ERR_PTR(err);
 		}
 
 		sb->s_flags |= MS_ACTIVE;
 	}
 
-	simple_set_mnt(mnt, sb);
-	return 0;
+	return dget(sb->s_root);
 }
 
-EXPORT_SYMBOL(get_sb_ns);
+EXPORT_SYMBOL(mount_ns);
 
 #ifdef CONFIG_BLOCK
 static int set_bdev_super(struct super_block *s, void *data)
@@ -762,10 +760,9 @@ static int test_bdev_super(struct super_block *s, void *data)
 	return (void *)s->s_bdev == data;
 }
 
-int get_sb_bdev(struct file_system_type *fs_type,
+struct dentry *mount_bdev(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
+	int (*fill_super)(struct super_block *, void *, int))
 {
 	struct block_device *bdev;
 	struct super_block *s;
@@ -777,7 +774,7 @@ int get_sb_bdev(struct file_system_type *fs_type,
 
 	bdev = open_bdev_exclusive(dev_name, mode, fs_type);
 	if (IS_ERR(bdev))
-		return PTR_ERR(bdev);
+		return ERR_CAST(bdev);
 
 	/*
 	 * once the super is inserted into the list by sget, s_umount
@@ -829,15 +826,30 @@ int get_sb_bdev(struct file_system_type *fs_type,
 		bdev->bd_super = s;
 	}
 
-	simple_set_mnt(mnt, s);
-	return 0;
+	return dget(s->s_root);
 
 error_s:
 	error = PTR_ERR(s);
 error_bdev:
 	close_bdev_exclusive(bdev, mode);
 error:
-	return error;
+	return ERR_PTR(error);
+}
+EXPORT_SYMBOL(mount_bdev);
+
+int get_sb_bdev(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data,
+	int (*fill_super)(struct super_block *, void *, int),
+	struct vfsmount *mnt)
+{
+	struct dentry *root;
+
+	root = mount_bdev(fs_type, flags, dev_name, data, fill_super);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+	mnt->mnt_root = root;
+	mnt->mnt_sb = root->d_sb;
+	return 0;
 }
 
 EXPORT_SYMBOL(get_sb_bdev);
@@ -856,29 +868,42 @@ void kill_block_super(struct super_block *sb)
 EXPORT_SYMBOL(kill_block_super);
 #endif
 
-int get_sb_nodev(struct file_system_type *fs_type,
+struct dentry *mount_nodev(struct file_system_type *fs_type,
 	int flags, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
+	int (*fill_super)(struct super_block *, void *, int))
 {
 	int error;
 	struct super_block *s = sget(fs_type, NULL, set_anon_super, NULL);
 
 	if (IS_ERR(s))
-		return PTR_ERR(s);
+		return ERR_CAST(s);
 
 	s->s_flags = flags;
 
 	error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 	if (error) {
 		deactivate_locked_super(s);
-		return error;
+		return ERR_PTR(error);
 	}
 	s->s_flags |= MS_ACTIVE;
-	simple_set_mnt(mnt, s);
+	return dget(s->s_root);
+}
+EXPORT_SYMBOL(mount_nodev);
+
+int get_sb_nodev(struct file_system_type *fs_type,
+	int flags, void *data,
+	int (*fill_super)(struct super_block *, void *, int),
+	struct vfsmount *mnt)
+{
+	struct dentry *root;
+
+	root = mount_nodev(fs_type, flags, data, fill_super);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+	mnt->mnt_root = root;
+	mnt->mnt_sb = root->d_sb;
 	return 0;
 }
-
 EXPORT_SYMBOL(get_sb_nodev);
 
 static int compare_single(struct super_block *s, void *p)
@@ -886,29 +911,42 @@ static int compare_single(struct super_block *s, void *p)
 	return 1;
 }
 
-int get_sb_single(struct file_system_type *fs_type,
+struct dentry *mount_single(struct file_system_type *fs_type,
 	int flags, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
+	int (*fill_super)(struct super_block *, void *, int))
 {
 	struct super_block *s;
 	int error;
 
 	s = sget(fs_type, compare_single, set_anon_super, NULL);
 	if (IS_ERR(s))
-		return PTR_ERR(s);
+		return ERR_CAST(s);
 	if (!s->s_root) {
 		s->s_flags = flags;
 		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 		if (error) {
 			deactivate_locked_super(s);
-			return error;
+			return ERR_PTR(error);
 		}
 		s->s_flags |= MS_ACTIVE;
 	} else {
 		do_remount_sb(s, flags, data, 0);
 	}
-	simple_set_mnt(mnt, s);
+	return dget(s->s_root);
+}
+EXPORT_SYMBOL(mount_single);
+
+int get_sb_single(struct file_system_type *fs_type,
+	int flags, void *data,
+	int (*fill_super)(struct super_block *, void *, int),
+	struct vfsmount *mnt)
+{
+	struct dentry *root;
+	root = mount_single(fs_type, flags, data, fill_super);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+	mnt->mnt_root = root;
+	mnt->mnt_sb = root->d_sb;
 	return 0;
 }
 
@@ -918,6 +956,7 @@ struct vfsmount *
 vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void *data)
 {
 	struct vfsmount *mnt;
+	struct dentry *root;
 	char *secdata = NULL;
 	int error;
 
@@ -942,9 +981,19 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 			goto out_free_secdata;
 	}
 
-	error = type->get_sb(type, flags, name, data, mnt);
-	if (error < 0)
-		goto out_free_secdata;
+	if (type->mount) {
+		root = type->mount(type, flags, name, data);
+		if (IS_ERR(root)) {
+			error = PTR_ERR(root);
+			goto out_free_secdata;
+		}
+		mnt->mnt_root = root;
+		mnt->mnt_sb = root->d_sb;
+	} else {
+		error = type->get_sb(type, flags, name, data, mnt);
+		if (error < 0)
+			goto out_free_secdata;
+	}
 	BUG_ON(!mnt->mnt_sb);
 	WARN_ON(!mnt->mnt_sb->s_bdi);
 	mnt->mnt_sb->s_flags |= MS_BORN;

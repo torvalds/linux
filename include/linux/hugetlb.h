@@ -43,7 +43,8 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
 						struct vm_area_struct *vma,
 						int acctflags);
 void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
-void __isolate_hwpoisoned_huge_page(struct page *page);
+int dequeue_hwpoisoned_huge_page(struct page *page);
+void copy_huge_page(struct page *dst, struct page *src);
 
 extern unsigned long hugepages_treat_as_movable;
 extern const unsigned long hugetlb_zero, hugetlb_infinity;
@@ -101,7 +102,10 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
 #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
 #define hugetlb_fault(mm, vma, addr, flags)	({ BUG(); 0; })
 #define huge_pte_offset(mm, address)	0
-#define __isolate_hwpoisoned_huge_page(page)	0
+#define dequeue_hwpoisoned_huge_page(page)	0
+static inline void copy_huge_page(struct page *dst, struct page *src)
+{
+}
 
 #define hugetlb_change_protection(vma, address, end, newprot)
 
@@ -228,6 +232,8 @@ struct huge_bootmem_page {
 	struct hstate *hstate;
 };
 
+struct page *alloc_huge_page_node(struct hstate *h, int nid);
+
 /* arch callback */
 int __init alloc_bootmem_huge_page(struct hstate *h);
 
@@ -301,8 +307,14 @@ static inline struct hstate *page_hstate(struct page *page)
 	return size_to_hstate(PAGE_SIZE << compound_order(page));
 }
 
+static inline unsigned hstate_index_to_shift(unsigned index)
+{
+	return hstates[index].order + PAGE_SHIFT;
+}
+
 #else
 struct hstate {};
+#define alloc_huge_page_node(h, nid) NULL
 #define alloc_bootmem_huge_page(h) NULL
 #define hstate_file(f) NULL
 #define hstate_vma(v) NULL
@@ -317,6 +329,7 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
 {
 	return 1;
 }
+#define hstate_index_to_shift(index) 0
 #endif
 
 #endif /* _LINUX_HUGETLB_H */

@@ -66,6 +66,30 @@ static int do_adjust_pte(struct vm_area_struct *vma, unsigned long address,
 	return ret;
 }
 
+#if USE_SPLIT_PTLOCKS
+/*
+ * If we are using split PTE locks, then we need to take the page
+ * lock here.  Otherwise we are using shared mm->page_table_lock
+ * which is already locked, thus cannot take it.
+ */
+static inline void do_pte_lock(spinlock_t *ptl)
+{
+	/*
+	 * Use nested version here to indicate that we are already
+	 * holding one similar spinlock.
+	 */
+	spin_lock_nested(ptl, SINGLE_DEPTH_NESTING);
+}
+
+static inline void do_pte_unlock(spinlock_t *ptl)
+{
+	spin_unlock(ptl);
+}
+#else /* !USE_SPLIT_PTLOCKS */
+static inline void do_pte_lock(spinlock_t *ptl) {}
+static inline void do_pte_unlock(spinlock_t *ptl) {}
+#endif /* USE_SPLIT_PTLOCKS */
+
 static int adjust_pte(struct vm_area_struct *vma, unsigned long address,
 	unsigned long pfn)
 {
@@ -89,13 +113,13 @@ static int adjust_pte(struct vm_area_struct *vma, unsigned long address,
 	 * open-code the spin-locking.
 	 */
 	ptl = pte_lockptr(vma->vm_mm, pmd);
-	pte = pte_offset_map_nested(pmd, address);
-	spin_lock(ptl);
+	pte = pte_offset_map(pmd, address);
+	do_pte_lock(ptl);
 
 	ret = do_adjust_pte(vma, address, pfn, pte);
 
-	spin_unlock(ptl);
-	pte_unmap_nested(pte);
+	do_pte_unlock(ptl);
+	pte_unmap(pte);
 
 	return ret;
 }

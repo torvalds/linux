@@ -163,6 +163,7 @@ enum btrfs_trans_type {
 	TRANS_START,
 	TRANS_JOIN,
 	TRANS_USERSPACE,
+	TRANS_JOIN_NOLOCK,
 };
 
 static int may_wait_transaction(struct btrfs_root *root, int type)
@@ -179,14 +180,14 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 {
 	struct btrfs_trans_handle *h;
 	struct btrfs_transaction *cur_trans;
-	int retries = 0;
 	int ret;
 again:
 	h = kmem_cache_alloc(btrfs_trans_handle_cachep, GFP_NOFS);
 	if (!h)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_lock(&root->fs_info->trans_mutex);
+	if (type != TRANS_JOIN_NOLOCK)
+		mutex_lock(&root->fs_info->trans_mutex);
 	if (may_wait_transaction(root, type))
 		wait_current_trans(root);
 
@@ -195,7 +196,8 @@ again:
 
 	cur_trans = root->fs_info->running_transaction;
 	cur_trans->use_count++;
-	mutex_unlock(&root->fs_info->trans_mutex);
+	if (type != TRANS_JOIN_NOLOCK)
+		mutex_unlock(&root->fs_info->trans_mutex);
 
 	h->transid = cur_trans->transid;
 	h->transaction = cur_trans;
@@ -212,8 +214,7 @@ again:
 	}
 
 	if (num_items > 0) {
-		ret = btrfs_trans_reserve_metadata(h, root, num_items,
-						   &retries);
+		ret = btrfs_trans_reserve_metadata(h, root, num_items);
 		if (ret == -EAGAIN) {
 			btrfs_commit_transaction(h, root);
 			goto again;
@@ -224,9 +225,11 @@ again:
 		}
 	}
 
-	mutex_lock(&root->fs_info->trans_mutex);
+	if (type != TRANS_JOIN_NOLOCK)
+		mutex_lock(&root->fs_info->trans_mutex);
 	record_root_in_trans(h, root);
-	mutex_unlock(&root->fs_info->trans_mutex);
+	if (type != TRANS_JOIN_NOLOCK)
+		mutex_unlock(&root->fs_info->trans_mutex);
 
 	if (!current->journal_info && type != TRANS_USERSPACE)
 		current->journal_info = h;
@@ -242,6 +245,12 @@ struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root,
 						   int num_blocks)
 {
 	return start_transaction(root, 0, TRANS_JOIN);
+}
+
+struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root,
+							  int num_blocks)
+{
+	return start_transaction(root, 0, TRANS_JOIN_NOLOCK);
 }
 
 struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *r,
@@ -268,6 +277,58 @@ static noinline int wait_for_commit(struct btrfs_root *root,
 	mutex_unlock(&root->fs_info->trans_mutex);
 	finish_wait(&commit->commit_wait, &wait);
 	return 0;
+}
+
+int btrfs_wait_for_commit(struct btrfs_root *root, u64 transid)
+{
+	struct btrfs_transaction *cur_trans = NULL, *t;
+	int ret;
+
+	mutex_lock(&root->fs_info->trans_mutex);
+
+	ret = 0;
+	if (transid) {
+		if (transid <= root->fs_info->last_trans_committed)
+			goto out_unlock;
+
+		/* find specified transaction */
+		list_for_each_entry(t, &root->fs_info->trans_list, list) {
+			if (t->transid == transid) {
+				cur_trans = t;
+				break;
+			}
+			if (t->transid > transid)
+				break;
+		}
+		ret = -EINVAL;
+		if (!cur_trans)
+			goto out_unlock;  /* bad transid */
+	} else {
+		/* find newest transaction that is committing | committed */
+		list_for_each_entry_reverse(t, &root->fs_info->trans_list,
+					    list) {
+			if (t->in_commit) {
+				if (t->commit_done)
+					goto out_unlock;
+				cur_trans = t;
+				break;
+			}
+		}
+		if (!cur_trans)
+			goto out_unlock;  /* nothing committing|committed */
+	}
+
+	cur_trans->use_count++;
+	mutex_unlock(&root->fs_info->trans_mutex);
+
+	wait_for_commit(root, cur_trans);
+
+	mutex_lock(&root->fs_info->trans_mutex);
+	put_transaction(cur_trans);
+	ret = 0;
+out_unlock:
+	mutex_unlock(&root->fs_info->trans_mutex);
+	return ret;
 }
 
 #if 0
@@ -348,7 +409,7 @@ int btrfs_should_end_transaction(struct btrfs_trans_handle *trans,
 }
 
 static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root, int throttle)
+			  struct btrfs_root *root, int throttle, int lock)
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_fs_info *info = root->fs_info;
@@ -376,26 +437,29 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_trans_release_metadata(trans, root);
 
-	if (!root->fs_info->open_ioctl_trans &&
+	if (lock && !root->fs_info->open_ioctl_trans &&
 	    should_end_transaction(trans, root))
 		trans->transaction->blocked = 1;
 
-	if (cur_trans->blocked && !cur_trans->in_commit) {
+	if (lock && cur_trans->blocked && !cur_trans->in_commit) {
 		if (throttle)
 			return btrfs_commit_transaction(trans, root);
 		else
 			wake_up_process(info->transaction_kthread);
 	}
 
-	mutex_lock(&info->trans_mutex);
+	if (lock)
+		mutex_lock(&info->trans_mutex);
 	WARN_ON(cur_trans != info->running_transaction);
 	WARN_ON(cur_trans->num_writers < 1);
 	cur_trans->num_writers--;
 
+	smp_mb();
 	if (waitqueue_active(&cur_trans->writer_wait))
 		wake_up(&cur_trans->writer_wait);
 	put_transaction(cur_trans);
-	mutex_unlock(&info->trans_mutex);
+	if (lock)
+		mutex_unlock(&info->trans_mutex);
 
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
@@ -411,13 +475,19 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root)
 {
-	return __btrfs_end_transaction(trans, root, 0);
+	return __btrfs_end_transaction(trans, root, 0, 1);
 }
 
 int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root)
 {
-	return __btrfs_end_transaction(trans, root, 1);
+	return __btrfs_end_transaction(trans, root, 1, 1);
+}
+
+int btrfs_end_transaction_nolock(struct btrfs_trans_handle *trans,
+				 struct btrfs_root *root)
+{
+	return __btrfs_end_transaction(trans, root, 0, 0);
 }
 
 /*
@@ -836,7 +906,6 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
 	int ret;
-	int retries = 0;
 	u64 to_reserve = 0;
 	u64 index = 0;
 	u64 objectid;
@@ -858,7 +927,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 
 	if (to_reserve > 0) {
 		ret = btrfs_block_rsv_add(trans, root, &pending->block_rsv,
-					  to_reserve, &retries);
+					  to_reserve);
 		if (ret) {
 			pending->error = ret;
 			goto fail;
@@ -966,6 +1035,8 @@ static void update_super_roots(struct btrfs_root *root)
 	super->root = root_item->bytenr;
 	super->generation = root_item->generation;
 	super->root_level = root_item->level;
+	if (super->cache_generation != 0 || btrfs_test_opt(root, SPACE_CACHE))
+		super->cache_generation = root_item->generation;
 }
 
 int btrfs_transaction_in_commit(struct btrfs_fs_info *info)
@@ -988,11 +1059,127 @@ int btrfs_transaction_blocked(struct btrfs_fs_info *info)
 	return ret;
 }
 
+/*
+ * wait for the current transaction commit to start and block subsequent
+ * transaction joins
+ */
+static void wait_current_trans_commit_start(struct btrfs_root *root,
+					    struct btrfs_transaction *trans)
+{
+	DEFINE_WAIT(wait);
+
+	if (trans->in_commit)
+		return;
+
+	while (1) {
+		prepare_to_wait(&root->fs_info->transaction_blocked_wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+		if (trans->in_commit) {
+			finish_wait(&root->fs_info->transaction_blocked_wait,
+				    &wait);
+			break;
+		}
+		mutex_unlock(&root->fs_info->trans_mutex);
+		schedule();
+		mutex_lock(&root->fs_info->trans_mutex);
+		finish_wait(&root->fs_info->transaction_blocked_wait, &wait);
+	}
+}
+
+/*
+ * wait for the current transaction to start and then become unblocked.
+ * caller holds ref.
+ */
+static void wait_current_trans_commit_start_and_unblock(struct btrfs_root *root,
+					 struct btrfs_transaction *trans)
+{
+	DEFINE_WAIT(wait);
+
+	if (trans->commit_done || (trans->in_commit && !trans->blocked))
+		return;
+
+	while (1) {
+		prepare_to_wait(&root->fs_info->transaction_wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+		if (trans->commit_done ||
+		    (trans->in_commit && !trans->blocked)) {
+			finish_wait(&root->fs_info->transaction_wait,
+				    &wait);
+			break;
+		}
+		mutex_unlock(&root->fs_info->trans_mutex);
+		schedule();
+		mutex_lock(&root->fs_info->trans_mutex);
+		finish_wait(&root->fs_info->transaction_wait,
+			    &wait);
+	}
+}
+
+/*
+ * commit transactions asynchronously. once btrfs_commit_transaction_async
+ * returns, any subsequent transaction will not be allowed to join.
+ */
+struct btrfs_async_commit {
+	struct btrfs_trans_handle *newtrans;
+	struct btrfs_root *root;
+	struct delayed_work work;
+};
+
+static void do_async_commit(struct work_struct *work)
+{
+	struct btrfs_async_commit *ac =
+		container_of(work, struct btrfs_async_commit, work.work);
+
+	btrfs_commit_transaction(ac->newtrans, ac->root);
+	kfree(ac);
+}
+
+int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
+				   struct btrfs_root *root,
+				   int wait_for_unblock)
+{
+	struct btrfs_async_commit *ac;
+	struct btrfs_transaction *cur_trans;
+
+	ac = kmalloc(sizeof(*ac), GFP_NOFS);
+	BUG_ON(!ac);
+
+	INIT_DELAYED_WORK(&ac->work, do_async_commit);
+	ac->root = root;
+	ac->newtrans = btrfs_join_transaction(root, 0);
+
+	/* take transaction reference */
+	mutex_lock(&root->fs_info->trans_mutex);
+	cur_trans = trans->transaction;
+	cur_trans->use_count++;
+	mutex_unlock(&root->fs_info->trans_mutex);
+
+	btrfs_end_transaction(trans, root);
+	schedule_delayed_work(&ac->work, 0);
+
+	/* wait for transaction to start and unblock */
+	mutex_lock(&root->fs_info->trans_mutex);
+	if (wait_for_unblock)
+		wait_current_trans_commit_start_and_unblock(root, cur_trans);
+	else
+		wait_current_trans_commit_start(root, cur_trans);
+	put_transaction(cur_trans);
+	mutex_unlock(&root->fs_info->trans_mutex);
+
+	return 0;
+}
+
+/*
+ * btrfs_transaction state sequence:
+ *    in_commit = 0, blocked = 0  (initial)
+ *    in_commit = 1, blocked = 1
+ *    blocked = 0
+ *    commit_done = 1
+ */
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root)
 {
 	unsigned long joined = 0;
-	unsigned long timeout = 1;
 	struct btrfs_transaction *cur_trans;
 	struct btrfs_transaction *prev_trans = NULL;
 	DEFINE_WAIT(wait);
@@ -1039,6 +1226,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	trans->transaction->in_commit = 1;
 	trans->transaction->blocked = 1;
+	wake_up(&root->fs_info->transaction_blocked_wait);
+
 	if (cur_trans->list.prev != &root->fs_info->trans_list) {
 		prev_trans = list_entry(cur_trans->list.prev,
 					struct btrfs_transaction, list);
@@ -1063,11 +1252,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			snap_pending = 1;
 
 		WARN_ON(cur_trans != trans->transaction);
-		if (cur_trans->num_writers > 1)
-			timeout = MAX_SCHEDULE_TIMEOUT;
-		else if (should_grow)
-			timeout = 1;
-
 		mutex_unlock(&root->fs_info->trans_mutex);
 
 		if (flush_on_commit || snap_pending) {
@@ -1089,8 +1273,10 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 				TASK_UNINTERRUPTIBLE);
 
 		smp_mb();
-		if (cur_trans->num_writers > 1 || should_grow)
-			schedule_timeout(timeout);
+		if (cur_trans->num_writers > 1)
+			schedule_timeout(MAX_SCHEDULE_TIMEOUT);
+		else if (should_grow)
+			schedule_timeout(1);
 
 		mutex_lock(&root->fs_info->trans_mutex);
 		finish_wait(&cur_trans->writer_wait, &wait);

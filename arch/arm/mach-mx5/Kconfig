@@ -6,6 +6,7 @@ config ARCH_MX51
 	select MXC_TZIC
 	select ARCH_MXC_IOMUX_V3
 	select ARCH_MXC_AUDMUX_V2
+	select ARCH_HAS_CPUFREQ
 
 comment "MX5 platforms:"
 
@@ -13,6 +14,7 @@ config MACH_MX51_BABBAGE
 	bool "Support MX51 BABBAGE platforms"
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_ESDHC
 	help
 	  Include support for MX51 Babbage platform, also known as MX51EVK in
 	  u-boot. This includes specific configurations for the board and its

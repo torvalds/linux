@@ -61,6 +61,8 @@ static void btrfs_put_super(struct super_block *sb)
 
 	ret = close_ctree(root);
 	sb->s_fs_info = NULL;
+
+	(void)ret; /* FIXME: need to fix VFS to return error? */
 }
 
 enum {
@@ -68,7 +70,8 @@ enum {
 	Opt_nodatacow, Opt_max_inline, Opt_alloc_start, Opt_nobarrier, Opt_ssd,
 	Opt_nossd, Opt_ssd_spread, Opt_thread_pool, Opt_noacl, Opt_compress,
 	Opt_compress_force, Opt_notreelog, Opt_ratio, Opt_flushoncommit,
-	Opt_discard, Opt_err,
+	Opt_discard, Opt_space_cache, Opt_clear_cache, Opt_err,
+	Opt_user_subvol_rm_allowed,
 };
 
 static match_table_t tokens = {
@@ -92,6 +95,9 @@ static match_table_t tokens = {
 	{Opt_flushoncommit, "flushoncommit"},
 	{Opt_ratio, "metadata_ratio=%d"},
 	{Opt_discard, "discard"},
+	{Opt_space_cache, "space_cache"},
+	{Opt_clear_cache, "clear_cache"},
+	{Opt_user_subvol_rm_allowed, "user_subvol_rm_allowed"},
 	{Opt_err, NULL},
 };
 
@@ -234,6 +240,16 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			break;
 		case Opt_discard:
 			btrfs_set_opt(info->mount_opt, DISCARD);
+			break;
+		case Opt_space_cache:
+			printk(KERN_INFO "btrfs: enabling disk space caching\n");
+			btrfs_set_opt(info->mount_opt, SPACE_CACHE);
+		case Opt_clear_cache:
+			printk(KERN_INFO "btrfs: force clearing of disk cache\n");
+			btrfs_set_opt(info->mount_opt, CLEAR_CACHE);
+			break;
+		case Opt_user_subvol_rm_allowed:
+			btrfs_set_opt(info->mount_opt, USER_SUBVOL_RM_ALLOWED);
 			break;
 		case Opt_err:
 			printk(KERN_INFO "btrfs: unrecognized mount option "
@@ -380,7 +396,7 @@ static struct dentry *get_default_root(struct super_block *sb,
 find_root:
 	new_root = btrfs_read_fs_root_no_name(root->fs_info, &location);
 	if (IS_ERR(new_root))
-		return ERR_PTR(PTR_ERR(new_root));
+		return ERR_CAST(new_root);
 
 	if (btrfs_root_refs(&new_root->root_item) == 0)
 		return ERR_PTR(-ENOENT);
@@ -436,7 +452,6 @@ static int btrfs_fill_super(struct super_block *sb,
 {
 	struct inode *inode;
 	struct dentry *root_dentry;
-	struct btrfs_super_block *disk_super;
 	struct btrfs_root *tree_root;
 	struct btrfs_key key;
 	int err;
@@ -458,7 +473,6 @@ static int btrfs_fill_super(struct super_block *sb,
 		return PTR_ERR(tree_root);
 	}
 	sb->s_fs_info = tree_root;
-	disk_super = &tree_root->fs_info->super_copy;
 
 	key.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	key.type = BTRFS_INODE_ITEM_KEY;
@@ -560,8 +574,8 @@ static int btrfs_test_super(struct super_block *s, void *data)
  * Note:  This is based on get_sb_bdev from fs/super.c with a few additions
  *	  for multiple device setup.  Make sure to keep it in sync.
  */
-static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
-		const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
+		const char *dev_name, void *data)
 {
 	struct block_device *bdev = NULL;
 	struct super_block *s;
@@ -571,7 +585,6 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 	char *subvol_name = NULL;
 	u64 subvol_objectid = 0;
 	int error = 0;
-	int found = 0;
 
 	if (!(flags & MS_RDONLY))
 		mode |= FMODE_WRITE;
@@ -580,7 +593,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 					  &subvol_name, &subvol_objectid,
 					  &fs_devices);
 	if (error)
-		return error;
+		return ERR_PTR(error);
 
 	error = btrfs_scan_one_device(dev_name, mode, fs_type, &fs_devices);
 	if (error)
@@ -607,7 +620,6 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 			goto error_close_devices;
 		}
 
-		found = 1;
 		btrfs_close_devices(fs_devices);
 	} else {
 		char b[BDEVNAME_SIZE];
@@ -629,7 +641,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 	if (IS_ERR(root)) {
 		error = PTR_ERR(root);
 		deactivate_locked_super(s);
-		goto error;
+		goto error_free_subvol_name;
 	}
 	/* if they gave us a subvolume name bind mount into that */
 	if (strcmp(subvol_name, ".")) {
@@ -643,24 +655,21 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 			deactivate_locked_super(s);
 			error = PTR_ERR(new_root);
 			dput(root);
-			goto error_close_devices;
+			goto error_free_subvol_name;
 		}
 		if (!new_root->d_inode) {
 			dput(root);
 			dput(new_root);
 			deactivate_locked_super(s);
 			error = -ENXIO;
-			goto error_close_devices;
+			goto error_free_subvol_name;
 		}
 		dput(root);
 		root = new_root;
 	}
 
-	mnt->mnt_sb = s;
-	mnt->mnt_root = root;
-
 	kfree(subvol_name);
-	return 0;
+	return root;
 
 error_s:
 	error = PTR_ERR(s);
@@ -668,8 +677,7 @@ error_close_devices:
 	btrfs_close_devices(fs_devices);
 error_free_subvol_name:
 	kfree(subvol_name);
-error:
-	return error;
+	return ERR_PTR(error);
 }
 
 static int btrfs_remount(struct super_block *sb, int *flags, char *data)
@@ -716,18 +724,25 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct list_head *head = &root->fs_info->space_info;
 	struct btrfs_space_info *found;
 	u64 total_used = 0;
+	u64 total_used_data = 0;
 	int bits = dentry->d_sb->s_blocksize_bits;
 	__be32 *fsid = (__be32 *)root->fs_info->fsid;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(found, head, list)
+	list_for_each_entry_rcu(found, head, list) {
+		if (found->flags & (BTRFS_BLOCK_GROUP_METADATA |
+				    BTRFS_BLOCK_GROUP_SYSTEM))
+			total_used_data += found->disk_total;
+		else
+			total_used_data += found->disk_used;
 		total_used += found->disk_used;
+	}
 	rcu_read_unlock();
 
 	buf->f_namelen = BTRFS_NAME_LEN;
 	buf->f_blocks = btrfs_super_total_bytes(disk_super) >> bits;
 	buf->f_bfree = buf->f_blocks - (total_used >> bits);
-	buf->f_bavail = buf->f_bfree;
+	buf->f_bavail = buf->f_blocks - (total_used_data >> bits);
 	buf->f_bsize = dentry->d_sb->s_blocksize;
 	buf->f_type = BTRFS_SUPER_MAGIC;
 
@@ -746,7 +761,7 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 static struct file_system_type btrfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "btrfs",
-	.get_sb		= btrfs_get_sb,
+	.mount		= btrfs_mount,
 	.kill_sb	= kill_anon_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
@@ -815,6 +830,7 @@ static const struct file_operations btrfs_ctl_fops = {
 	.unlocked_ioctl	 = btrfs_control_ioctl,
 	.compat_ioctl = btrfs_control_ioctl,
 	.owner	 = THIS_MODULE,
+	.llseek = noop_llseek,
 };
 
 static struct miscdevice btrfs_misc = {

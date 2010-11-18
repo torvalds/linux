@@ -4,7 +4,6 @@
  *                                                                         *
  * Copyright (C) 2004 by Carlos Eduardo Medaglia Dyonisio                  *
  *                       <medaglia@undl.org.br>                            *
- *                       http://cadu.homelinux.com:8080/                   *
  *                                                                         *
  * Support for SN9C103, DAC Magnitude, exposure and green gain controls    *
  * added by Luca Risolia <luca.risolia@studio.unibo.it>                    *

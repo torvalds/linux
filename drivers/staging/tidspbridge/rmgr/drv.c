@@ -27,7 +27,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/list.h>
 
 /*  ----------------------------------- This */
@@ -309,6 +308,7 @@ int drv_create(struct drv_object **drv_obj)
 {
 	int status = 0;
 	struct drv_object *pdrv_object = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(drv_obj != NULL);
 	DBC_REQUIRE(refs > 0);
@@ -335,9 +335,16 @@ int drv_create(struct drv_object **drv_obj)
 	} else {
 		status = -ENOMEM;
 	}
-	/* Store the DRV Object in the Registry */
-	if (!status)
-		status = cfg_set_object((u32) pdrv_object, REG_DRV_OBJECT);
+	/* Store the DRV Object in the driver data */
+	if (!status) {
+		if (drv_datap) {
+			drv_datap->drv_object = (void *)pdrv_object;
+		} else {
+			status = -EPERM;
+			pr_err("%s: Failed to store DRV object\n", __func__);
+		}
+	}
+
 	if (!status) {
 		*drv_obj = pdrv_object;
 	} else {
@@ -374,6 +381,7 @@ int drv_destroy(struct drv_object *driver_obj)
 {
 	int status = 0;
 	struct drv_object *pdrv_object = (struct drv_object *)driver_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(pdrv_object);
@@ -386,8 +394,13 @@ int drv_destroy(struct drv_object *driver_obj)
 	kfree(pdrv_object->dev_list);
 	kfree(pdrv_object->dev_node_string);
 	kfree(pdrv_object);
-	/* Update the DRV Object in Registry to be 0 */
-	(void)cfg_set_object(0, REG_DRV_OBJECT);
+	/* Update the DRV Object in the driver data */
+	if (drv_datap) {
+		drv_datap->drv_object = NULL;
+	} else {
+		status = -EPERM;
+		pr_err("%s: Failed to store DRV object\n", __func__);
+	}
 
 	return status;
 }
@@ -438,11 +451,15 @@ u32 drv_get_first_dev_object(void)
 {
 	u32 dw_dev_object = 0;
 	struct drv_object *pdrv_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
-	if (!cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT)) {
+	if (drv_datap && drv_datap->drv_object) {
+		pdrv_obj = drv_datap->drv_object;
 		if ((pdrv_obj->dev_list != NULL) &&
 		    !LST_IS_EMPTY(pdrv_obj->dev_list))
 			dw_dev_object = (u32) lst_first(pdrv_obj->dev_list);
+	} else {
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 	}
 
 	return dw_dev_object;
@@ -458,14 +475,17 @@ u32 drv_get_first_dev_extension(void)
 {
 	u32 dw_dev_extension = 0;
 	struct drv_object *pdrv_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
-	if (!cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT)) {
-
+	if (drv_datap && drv_datap->drv_object) {
+		pdrv_obj = drv_datap->drv_object;
 		if ((pdrv_obj->dev_node_string != NULL) &&
 		    !LST_IS_EMPTY(pdrv_obj->dev_node_string)) {
 			dw_dev_extension =
 			    (u32) lst_first(pdrv_obj->dev_node_string);
 		}
+	} else {
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 	}
 
 	return dw_dev_extension;
@@ -482,18 +502,22 @@ u32 drv_get_next_dev_object(u32 hdev_obj)
 {
 	u32 dw_next_dev_object = 0;
 	struct drv_object *pdrv_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(hdev_obj != 0);
 
-	if (!cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT)) {
-
+	if (drv_datap && drv_datap->drv_object) {
+		pdrv_obj = drv_datap->drv_object;
 		if ((pdrv_obj->dev_list != NULL) &&
 		    !LST_IS_EMPTY(pdrv_obj->dev_list)) {
 			dw_next_dev_object = (u32) lst_next(pdrv_obj->dev_list,
 							    (struct list_head *)
 							    hdev_obj);
 		}
+	} else {
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 	}
+
 	return dw_next_dev_object;
 }
 
@@ -509,16 +533,20 @@ u32 drv_get_next_dev_extension(u32 dev_extension)
 {
 	u32 dw_dev_extension = 0;
 	struct drv_object *pdrv_obj;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(dev_extension != 0);
 
-	if (!cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT)) {
+	if (drv_datap && drv_datap->drv_object) {
+		pdrv_obj = drv_datap->drv_object;
 		if ((pdrv_obj->dev_node_string != NULL) &&
 		    !LST_IS_EMPTY(pdrv_obj->dev_node_string)) {
 			dw_dev_extension =
 			    (u32) lst_next(pdrv_obj->dev_node_string,
 					   (struct list_head *)dev_extension);
 		}
+	} else {
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 	}
 
 	return dw_dev_extension;
@@ -616,6 +644,7 @@ int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 	int status = 0;
 	struct drv_object *pdrv_object;
 	struct drv_ext *pszdev_node;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	DBC_REQUIRE(dw_context != 0);
 	DBC_REQUIRE(dev_node_strg != NULL);
@@ -626,7 +655,11 @@ int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 	 *  list.
 	 */
 
-	status = cfg_get_object((u32 *) &pdrv_object, REG_DRV_OBJECT);
+	if (!drv_datap || !drv_datap->drv_object)
+		status = -ENODATA;
+	else
+		pdrv_object = drv_datap->drv_object;
+
 	if (!status) {
 		pszdev_node = kzalloc(sizeof(struct drv_ext), GFP_KERNEL);
 		if (pszdev_node) {

@@ -98,12 +98,33 @@ config MACH_ANW6410
 	help
 	  Machine support for the A&W6410
 
+config MACH_MINI6410
+	bool "MINI6410"
+	select CPU_S3C6410
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C64XX_SETUP_SDHCI
+	select S3C_DEV_USB_HOST
+	select S3C_DEV_NAND
+	select S3C_DEV_FB
+	select S3C64XX_SETUP_FB_24BPP
+	select SAMSUNG_DEV_ADC
+	select SAMSUNG_DEV_TS
+	help
+	  Machine support for the FriendlyARM MINI6410
+
 config MACH_REAL6410
 	bool "REAL6410"
 	select CPU_S3C6410
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C64XX_SETUP_SDHCI
+	select S3C_DEV_FB
+	select S3C64XX_SETUP_FB_24BPP
+	select S3C_DEV_NAND
+	select SAMSUNG_DEV_ADC
+	select SAMSUNG_DEV_TS
+	select S3C_DEV_USB_HOST
 	help
 	  Machine support for the CoreWind REAL6410
 
@@ -122,7 +143,7 @@ config MACH_SMDK6410
 	select S3C_DEV_USB_HSOTG
 	select S3C_DEV_WDT
 	select SAMSUNG_DEV_KEYPAD
-	select HAVE_S3C2410_WATCHDOG
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select S3C64XX_SETUP_SDHCI
 	select S3C64XX_SETUP_I2C1
 	select S3C64XX_SETUP_IDE
@@ -185,6 +206,7 @@ config SMDK6410_WM1192_EV1
 	select REGULATOR_WM831X
 	select S3C24XX_GPIO_EXTRA64
 	select MFD_WM831X
+	select MFD_WM831X_I2C
 	help
 	  The Wolfson Microelectronics 1192-EV1 is a WM831x based PMIC
 	  daughtercard for the Samsung SMDK6410 reference platform.

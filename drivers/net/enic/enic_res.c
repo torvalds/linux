@@ -94,13 +94,14 @@ int enic_get_vnic_config(struct enic *enic)
 		INTR_COALESCE_HW_TO_USEC(VNIC_INTR_TIMER_MAX),
 		c->intr_timer_usec);
 
-	dev_info(enic_get_dev(enic), "vNIC MAC addr %pM wq/rq %d/%d\n",
-		enic->mac_addr, c->wq_desc_count, c->rq_desc_count);
-	dev_info(enic_get_dev(enic), "vNIC mtu %d csum tx/rx %d/%d "
-		"tso/lro %d/%d intr timer %d usec\n",
-		c->mtu, ENIC_SETTING(enic, TXCSUM),
-		ENIC_SETTING(enic, RXCSUM), ENIC_SETTING(enic, TSO),
-		ENIC_SETTING(enic, LRO), c->intr_timer_usec);
+	dev_info(enic_get_dev(enic),
+		"vNIC MAC addr %pM wq/rq %d/%d mtu %d\n",
+		enic->mac_addr, c->wq_desc_count, c->rq_desc_count, c->mtu);
+	dev_info(enic_get_dev(enic), "vNIC csum tx/rx %d/%d "
+		"tso/lro %d/%d intr timer %d usec rss %d\n",
+		ENIC_SETTING(enic, TXCSUM), ENIC_SETTING(enic, RXCSUM),
+		ENIC_SETTING(enic, TSO), ENIC_SETTING(enic, LRO),
+		c->intr_timer_usec, ENIC_SETTING(enic, RSS));
 
 	return 0;
 }
@@ -181,18 +182,11 @@ void enic_free_vnic_resources(struct enic *enic)
 
 void enic_get_res_counts(struct enic *enic)
 {
-	enic->wq_count = min_t(int,
-		vnic_dev_get_res_count(enic->vdev, RES_TYPE_WQ),
-		ENIC_WQ_MAX);
-	enic->rq_count = min_t(int,
-		vnic_dev_get_res_count(enic->vdev, RES_TYPE_RQ),
-		ENIC_RQ_MAX);
-	enic->cq_count = min_t(int,
-		vnic_dev_get_res_count(enic->vdev, RES_TYPE_CQ),
-		ENIC_CQ_MAX);
-	enic->intr_count = min_t(int,
-		vnic_dev_get_res_count(enic->vdev, RES_TYPE_INTR_CTRL),
-		ENIC_INTR_MAX);
+	enic->wq_count = vnic_dev_get_res_count(enic->vdev, RES_TYPE_WQ);
+	enic->rq_count = vnic_dev_get_res_count(enic->vdev, RES_TYPE_RQ);
+	enic->cq_count = vnic_dev_get_res_count(enic->vdev, RES_TYPE_CQ);
+	enic->intr_count = vnic_dev_get_res_count(enic->vdev,
+		RES_TYPE_INTR_CTRL);
 
 	dev_info(enic_get_dev(enic),
 		"vNIC resources avail: wq %d rq %d cq %d intr %d\n",

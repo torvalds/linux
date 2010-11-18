@@ -1066,6 +1066,7 @@ static ssize_t bonding_store_primary(struct device *d,
 
 	if (!rtnl_trylock())
 		return restart_syscall();
+	block_netpoll_tx();
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
@@ -1101,6 +1102,7 @@ static ssize_t bonding_store_primary(struct device *d,
 out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
+	unblock_netpoll_tx();
 	rtnl_unlock();
 
 	return count;
@@ -1146,11 +1148,13 @@ static ssize_t bonding_store_primary_reselect(struct device *d,
 		bond->dev->name, pri_reselect_tbl[new_value].modename,
 		new_value);
 
+	block_netpoll_tx();
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 	bond_select_active_slave(bond);
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
+	unblock_netpoll_tx();
 out:
 	rtnl_unlock();
 	return ret;
@@ -1232,6 +1236,8 @@ static ssize_t bonding_store_active_slave(struct device *d,
 
 	if (!rtnl_trylock())
 		return restart_syscall();
+
+	block_netpoll_tx();
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
@@ -1288,6 +1294,8 @@ static ssize_t bonding_store_active_slave(struct device *d,
  out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
+	unblock_netpoll_tx();
+
 	rtnl_unlock();
 
 	return count;
@@ -1592,6 +1600,49 @@ out:
 static DEVICE_ATTR(all_slaves_active, S_IRUGO | S_IWUSR,
 		   bonding_show_slaves_active, bonding_store_slaves_active);
 
+/*
+ * Show and set the number of IGMP membership reports to send on link failure
+ */
+static ssize_t bonding_show_resend_igmp(struct device *d,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%d\n", bond->params.resend_igmp);
+}
+
+static ssize_t bonding_store_resend_igmp(struct device *d,
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
+{
+	int new_value, ret = count;
+	struct bonding *bond = to_bond(d);
+
+	if (sscanf(buf, "%d", &new_value) != 1) {
+		pr_err("%s: no resend_igmp value specified.\n",
+		       bond->dev->name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (new_value < 0) {
+		pr_err("%s: Invalid resend_igmp value %d not in range 0-255; rejected.\n",
+		       bond->dev->name, new_value);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	pr_info("%s: Setting resend_igmp to %d.\n",
+		bond->dev->name, new_value);
+	bond->params.resend_igmp = new_value;
+out:
+	return ret;
+}
+
+static DEVICE_ATTR(resend_igmp, S_IRUGO | S_IWUSR,
+		   bonding_show_resend_igmp, bonding_store_resend_igmp);
+
 static struct attribute *per_bond_attrs[] = {
 	&dev_attr_slaves.attr,
 	&dev_attr_mode.attr,
@@ -1619,6 +1670,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_ad_partner_mac.attr,
 	&dev_attr_queue_id.attr,
 	&dev_attr_all_slaves_active.attr,
+	&dev_attr_resend_igmp.attr,
 	NULL,
 };
 

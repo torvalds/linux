@@ -2,6 +2,7 @@
 #define _ASM_S390_TOPOLOGY_H
 
 #include <linux/cpumask.h>
+#include <asm/sysinfo.h>
 
 extern unsigned char cpu_core_id[NR_CPUS];
 extern cpumask_t cpu_core_map[NR_CPUS];
@@ -32,6 +33,7 @@ static inline const struct cpumask *cpu_book_mask(unsigned int cpu)
 
 int topology_set_cpu_management(int fc);
 void topology_schedule_update(void);
+void store_topology(struct sysinfo_15_1_x *info);
 
 #define POLARIZATION_UNKNWN	(-1)
 #define POLARIZATION_HRZ	(0)

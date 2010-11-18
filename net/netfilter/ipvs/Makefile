@@ -9,10 +9,13 @@ ip_vs_proto-objs-$(CONFIG_IP_VS_PROTO_UDP) += ip_vs_proto_udp.o
 ip_vs_proto-objs-$(CONFIG_IP_VS_PROTO_AH_ESP) += ip_vs_proto_ah_esp.o
 ip_vs_proto-objs-$(CONFIG_IP_VS_PROTO_SCTP) += ip_vs_proto_sctp.o
 
+ip_vs-extra_objs-y :=
+ip_vs-extra_objs-$(CONFIG_IP_VS_NFCT) += ip_vs_nfct.o
+
 ip_vs-objs :=	ip_vs_conn.o ip_vs_core.o ip_vs_ctl.o ip_vs_sched.o	   \
 		ip_vs_xmit.o ip_vs_app.o ip_vs_sync.o	   		   \
-		ip_vs_est.o ip_vs_proto.o 				   \
-		$(ip_vs_proto-objs-y)
+		ip_vs_est.o ip_vs_proto.o ip_vs_pe.o			   \
+		$(ip_vs_proto-objs-y) $(ip_vs-extra_objs-y)
 
 
 # IPVS core
@@ -32,3 +35,6 @@ obj-$(CONFIG_IP_VS_NQ) += ip_vs_nq.o
 
 # IPVS application helpers
 obj-$(CONFIG_IP_VS_FTP) += ip_vs_ftp.o
+
+# IPVS connection template retrievers
+obj-$(CONFIG_IP_VS_PE_SIP) += ip_vs_pe_sip.o

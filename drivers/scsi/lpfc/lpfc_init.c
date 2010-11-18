@@ -813,6 +813,7 @@ lpfc_hba_down_post_s3(struct lpfc_hba *phba)
 
 	return 0;
 }
+
 /**
  * lpfc_hba_down_post_s4 - Perform lpfc uninitialization after HBA reset
  * @phba: pointer to lpfc HBA data structure.
@@ -1076,21 +1077,16 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 		} else {
 			/*
 			* If heart beat timeout called with hb_outstanding set
-			* we need to take the HBA offline.
+			* we need to give the hb mailbox cmd a chance to
+			* complete or TMO.
 			*/
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"0459 Adapter heartbeat failure, "
-					"taking this port offline.\n");
-
-			spin_lock_irq(&phba->hbalock);
-			psli->sli_flag &= ~LPFC_SLI_ACTIVE;
-			spin_unlock_irq(&phba->hbalock);
-
-			lpfc_offline_prep(phba);
-			lpfc_offline(phba);
-			lpfc_unblock_mgmt_io(phba);
-			phba->link_state = LPFC_HBA_ERROR;
-			lpfc_hba_down_post(phba);
+			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+					"0459 Adapter heartbeat still out"
+					"standing:last compl time was %d ms.\n",
+					jiffies_to_msecs(jiffies
+						 - phba->last_completion_time));
+			mod_timer(&phba->hb_tmofunc,
+				  jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
 		}
 	}
 }
@@ -1277,13 +1273,21 @@ lpfc_handle_eratt_s3(struct lpfc_hba *phba)
 	if (phba->hba_flag & DEFER_ERATT)
 		lpfc_handle_deferred_eratt(phba);
 
-	if (phba->work_hs & HS_FFER6) {
-		/* Re-establishing Link */
-		lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
-				"1301 Re-establishing Link "
-				"Data: x%x x%x x%x\n",
-				phba->work_hs,
-				phba->work_status[0], phba->work_status[1]);
+	if ((phba->work_hs & HS_FFER6) || (phba->work_hs & HS_FFER8)) {
+		if (phba->work_hs & HS_FFER6)
+			/* Re-establishing Link */
+			lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
+					"1301 Re-establishing Link "
+					"Data: x%x x%x x%x\n",
+					phba->work_hs, phba->work_status[0],
+					phba->work_status[1]);
+		if (phba->work_hs & HS_FFER8)
+			/* Device Zeroization */
+			lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
+					"2861 Host Authentication device "
+					"zeroization Data:x%x x%x x%x\n",
+					phba->work_hs, phba->work_status[0],
+					phba->work_status[1]);
 
 		spin_lock_irq(&phba->hbalock);
 		psli->sli_flag &= ~LPFC_SLI_ACTIVE;
@@ -2231,10 +2235,9 @@ lpfc_stop_vport_timers(struct lpfc_vport *vport)
 void
 __lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *phba)
 {
-	/* Clear pending FCF rediscovery wait and failover in progress flags */
-	phba->fcf.fcf_flag &= ~(FCF_REDISC_PEND |
-				FCF_DEAD_DISC |
-				FCF_ACVL_DISC);
+	/* Clear pending FCF rediscovery wait flag */
+	phba->fcf.fcf_flag &= ~FCF_REDISC_PEND;
+
 	/* Now, try to stop the timer */
 	del_timer(&phba->fcf.redisc_wait);
 }
@@ -2258,6 +2261,8 @@ lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *phba)
 		return;
 	}
 	__lpfc_sli4_stop_fcf_redisc_wait_timer(phba);
+	/* Clear failover in progress flags */
+	phba->fcf.fcf_flag &= ~(FCF_DEAD_DISC | FCF_ACVL_DISC);
 	spin_unlock_irq(&phba->hbalock);
 }
 
@@ -2817,6 +2822,8 @@ void lpfc_host_attrib_init(struct Scsi_Host *shost)
 		(((uint32_t) vport->fc_sparam.cmn.bbRcvSizeMsb & 0x0F) << 8) |
 		(uint32_t) vport->fc_sparam.cmn.bbRcvSizeLsb;
 
+	fc_host_dev_loss_tmo(shost) = vport->cfg_devloss_tmo;
+
 	/* This value is also unchanging */
 	memset(fc_host_active_fc4s(shost), 0,
 	       sizeof(fc_host_active_fc4s(shost)));
@@ -2883,65 +2890,6 @@ lpfc_stop_port(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_sli4_remove_dflt_fcf - Remove the driver default fcf record from the port.
- * @phba: pointer to lpfc hba data structure.
- *
- * This routine is invoked to remove the driver default fcf record from
- * the port.  This routine currently acts on FCF Index 0.
- *
- **/
-void
-lpfc_sli_remove_dflt_fcf(struct lpfc_hba *phba)
-{
-	int rc = 0;
-	LPFC_MBOXQ_t *mboxq;
-	struct lpfc_mbx_del_fcf_tbl_entry *del_fcf_record;
-	uint32_t mbox_tmo, req_len;
-	uint32_t shdr_status, shdr_add_status;
-
-	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!mboxq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"2020 Failed to allocate mbox for ADD_FCF cmd\n");
-		return;
-	}
-
-	req_len = sizeof(struct lpfc_mbx_del_fcf_tbl_entry) -
-		  sizeof(struct lpfc_sli4_cfg_mhdr);
-	rc = lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
-			      LPFC_MBOX_OPCODE_FCOE_DELETE_FCF,
-			      req_len, LPFC_SLI4_MBX_EMBED);
-	/*
-	 * In phase 1, there is a single FCF index, 0.  In phase2, the driver
-	 * supports multiple FCF indices.
-	 */
-	del_fcf_record = &mboxq->u.mqe.un.del_fcf_entry;
-	bf_set(lpfc_mbx_del_fcf_tbl_count, del_fcf_record, 1);
-	bf_set(lpfc_mbx_del_fcf_tbl_index, del_fcf_record,
-	       phba->fcf.current_rec.fcf_indx);
-
-	if (!phba->sli4_hba.intr_enable)
-		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-	else {
-		mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
-		rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
-	}
-	/* The IOCTL status is embedded in the mailbox subheader. */
-	shdr_status = bf_get(lpfc_mbox_hdr_status,
-			     &del_fcf_record->header.cfg_shdr.response);
-	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
-				 &del_fcf_record->header.cfg_shdr.response);
-	if (shdr_status || shdr_add_status || rc != MBX_SUCCESS) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"2516 DEL FCF of default FCF Index failed "
-				"mbx status x%x, status x%x add_status x%x\n",
-				rc, shdr_status, shdr_add_status);
-	}
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mboxq, phba->mbox_mem_pool);
-}
-
-/**
  * lpfc_fcf_redisc_wait_start_timer - Start fcf rediscover wait timer
  * @phba: Pointer to hba for which this call is being executed.
  *
@@ -2989,8 +2937,7 @@ lpfc_sli4_fcf_redisc_wait_tmo(unsigned long ptr)
 	phba->fcf.fcf_flag |= FCF_REDISC_EVT;
 	spin_unlock_irq(&phba->hbalock);
 	lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
-			"2776 FCF rediscover wait timer expired, post "
-			"a worker thread event for FCF table scan\n");
+			"2776 FCF rediscover quiescent timer expired\n");
 	/* wake up worker thread */
 	lpfc_worker_wake_up(phba);
 }
@@ -3365,35 +3312,34 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 		if (event_type == LPFC_FCOE_EVENT_TYPE_NEW_FCF)
 			lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
 					LOG_DISCOVERY,
-					"2546 New FCF found event: "
-					"evt_tag:x%x, fcf_index:x%x\n",
+					"2546 New FCF event, evt_tag:x%x, "
+					"index:x%x\n",
 					acqe_fcoe->event_tag,
 					acqe_fcoe->index);
 		else
 			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP |
 					LOG_DISCOVERY,
-					"2788 FCF parameter modified event: "
-					"evt_tag:x%x, fcf_index:x%x\n",
+					"2788 FCF param modified event, "
+					"evt_tag:x%x, index:x%x\n",
 					acqe_fcoe->event_tag,
 					acqe_fcoe->index);
 		if (phba->fcf.fcf_flag & FCF_DISCOVERY) {
 			/*
 			 * During period of FCF discovery, read the FCF
 			 * table record indexed by the event to update
-			 * FCF round robin failover eligible FCF bmask.
+			 * FCF roundrobin failover eligible FCF bmask.
 			 */
 			lpfc_printf_log(phba, KERN_INFO, LOG_FIP |
 					LOG_DISCOVERY,
-					"2779 Read new FCF record with "
-					"fcf_index:x%x for updating FCF "
-					"round robin failover bmask\n",
+					"2779 Read FCF (x%x) for updating "
+					"roundrobin FCF failover bmask\n",
 					acqe_fcoe->index);
 			rc = lpfc_sli4_read_fcf_rec(phba, acqe_fcoe->index);
 		}
 
 		/* If the FCF discovery is in progress, do nothing. */
 		spin_lock_irq(&phba->hbalock);
-		if (phba->hba_flag & FCF_DISC_INPROGRESS) {
+		if (phba->hba_flag & FCF_TS_INPROG) {
 			spin_unlock_irq(&phba->hbalock);
 			break;
 		}
@@ -3412,15 +3358,15 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 
 		/* Otherwise, scan the entire FCF table and re-discover SAN */
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
-				"2770 Start FCF table scan due to new FCF "
-				"event: evt_tag:x%x, fcf_index:x%x\n",
+				"2770 Start FCF table scan per async FCF "
+				"event, evt_tag:x%x, index:x%x\n",
 				acqe_fcoe->event_tag, acqe_fcoe->index);
 		rc = lpfc_sli4_fcf_scan_read_fcf_rec(phba,
 						     LPFC_FCOE_FCF_GET_FIRST);
 		if (rc)
 			lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
 					"2547 Issue FCF scan read FCF mailbox "
-					"command failed 0x%x\n", rc);
+					"command failed (x%x)\n", rc);
 		break;
 
 	case LPFC_FCOE_EVENT_TYPE_FCF_TABLE_FULL:
@@ -3432,9 +3378,8 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 
 	case LPFC_FCOE_EVENT_TYPE_FCF_DEAD:
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
-			"2549 FCF disconnected from network index 0x%x"
-			" tag 0x%x\n", acqe_fcoe->index,
-			acqe_fcoe->event_tag);
+			"2549 FCF (x%x) disconnected from network, "
+			"tag:x%x\n", acqe_fcoe->index, acqe_fcoe->event_tag);
 		/*
 		 * If we are in the middle of FCF failover process, clear
 		 * the corresponding FCF bit in the roundrobin bitmap.
@@ -3548,9 +3493,8 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			spin_unlock_irq(&phba->hbalock);
 			lpfc_printf_log(phba, KERN_INFO, LOG_FIP |
 					LOG_DISCOVERY,
-					"2773 Start FCF fast failover due "
-					"to CVL event: evt_tag:x%x\n",
-					acqe_fcoe->event_tag);
+					"2773 Start FCF failover per CVL, "
+					"evt_tag:x%x\n", acqe_fcoe->event_tag);
 			rc = lpfc_sli4_redisc_fcf_table(phba);
 			if (rc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
@@ -3700,8 +3644,7 @@ void lpfc_sli4_fcf_redisc_event_proc(struct lpfc_hba *phba)
 
 	/* Scan FCF table from the first entry to re-discover SAN */
 	lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
-			"2777 Start FCF table scan after FCF "
-			"rediscovery quiescent period over\n");
+			"2777 Start post-quiescent FCF table scan\n");
 	rc = lpfc_sli4_fcf_scan_read_fcf_rec(phba, LPFC_FCOE_FCF_GET_FIRST);
 	if (rc)
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
@@ -4219,7 +4162,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_free_active_sgl;
 	}
 
-	/* Allocate eligible FCF bmask memory for FCF round robin failover */
+	/* Allocate eligible FCF bmask memory for FCF roundrobin failover */
 	longs = (LPFC_SLI4_FCF_TBL_INDX_MAX + BITS_PER_LONG - 1)/BITS_PER_LONG;
 	phba->fcf.fcf_rr_bmask = kzalloc(longs * sizeof(unsigned long),
 					 GFP_KERNEL);
@@ -4283,12 +4226,6 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 {
 	struct lpfc_fcf_conn_entry *conn_entry, *next_conn_entry;
 
-	/* unregister default FCFI from the HBA */
-	lpfc_sli4_fcfi_unreg(phba, phba->fcf.fcfi);
-
-	/* Free the default FCR table */
-	lpfc_sli_remove_dflt_fcf(phba);
-
 	/* Free memory allocated for msi-x interrupt vector entries */
 	kfree(phba->sli4_hba.msix_entries);
 
@@ -4315,9 +4252,6 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 	/* Free the completion queue EQ event pool */
 	lpfc_sli4_cq_event_release_all(phba);
 	lpfc_sli4_cq_event_pool_destroy(phba);
-
-	/* Reset SLI4 HBA FCoE function */
-	lpfc_pci_function_reset(phba);
 
 	/* Free the bsmbx region. */
 	lpfc_destroy_bootstrap_mbox(phba);
@@ -4545,7 +4479,6 @@ lpfc_free_sgl_list(struct lpfc_hba *phba)
 {
 	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
 	LIST_HEAD(sglq_list);
-	int rc = 0;
 
 	spin_lock_irq(&phba->hbalock);
 	list_splice_init(&phba->sli4_hba.lpfc_sgl_list, &sglq_list);
@@ -4557,11 +4490,6 @@ lpfc_free_sgl_list(struct lpfc_hba *phba)
 		lpfc_mbuf_free(phba, sglq_entry->virt, sglq_entry->phys);
 		kfree(sglq_entry);
 		phba->sli4_hba.total_sglq_bufs--;
-	}
-	rc = lpfc_sli4_remove_all_sgl_pages(phba);
-	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"2005 Unable to deregister pages from HBA: %x\n", rc);
 	}
 	kfree(phba->sli4_hba.lpfc_els_sgl_array);
 }
@@ -4725,8 +4653,8 @@ out_free_mem:
  *
  * Return codes
  * 	0 - successful
- * 	ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ * 	-ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 int
 lpfc_sli4_init_rpi_hdrs(struct lpfc_hba *phba)
@@ -5419,7 +5347,7 @@ lpfc_sli4_bar2_register_memmap(struct lpfc_hba *phba, uint32_t vf)
  *
  * Return codes
  * 	0 - successful
- * 	ENOMEM - could not allocated memory.
+ * 	-ENOMEM - could not allocated memory.
  **/
 static int
 lpfc_create_bootstrap_mbox(struct lpfc_hba *phba)
@@ -5518,8 +5446,8 @@ lpfc_destroy_bootstrap_mbox(struct lpfc_hba *phba)
  *
  * Return codes
  * 	0 - successful
- * 	ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ * 	-ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
 lpfc_sli4_read_config(struct lpfc_hba *phba)
@@ -5622,8 +5550,8 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
  *
  * Return codes
  * 	0 - successful
- * 	ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ * 	-ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
 lpfc_setup_endian_order(struct lpfc_hba *phba)
@@ -5671,8 +5599,8 @@ lpfc_setup_endian_order(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ *      -ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 static int
 lpfc_sli4_queue_create(struct lpfc_hba *phba)
@@ -5966,8 +5894,8 @@ out_error:
  *
  * Return codes
  *      0 - successful
- *      ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ *      -ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 static void
 lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
@@ -6030,8 +5958,8 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ *      -ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 int
 lpfc_sli4_queue_setup(struct lpfc_hba *phba)
@@ -6275,8 +6203,8 @@ out_error:
  *
  * Return codes
  *      0 - successful
- *      ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ *      -ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 void
 lpfc_sli4_queue_unset(struct lpfc_hba *phba)
@@ -6481,8 +6409,8 @@ lpfc_sli4_cq_event_release_all(struct lpfc_hba *phba)
  *
  * Return codes
  *      0 - successful
- *      ENOMEM - No availble memory
- *      EIO - The mailbox failed to complete successfully.
+ *      -ENOMEM - No availble memory
+ *      -EIO - The mailbox failed to complete successfully.
  **/
 int
 lpfc_pci_function_reset(struct lpfc_hba *phba)
@@ -6589,50 +6517,6 @@ lpfc_sli4_send_nop_mbox_cmds(struct lpfc_hba *phba, uint32_t cnt)
 		mempool_free(mboxq, phba->mbox_mem_pool);
 
 	return cmdsent;
-}
-
-/**
- * lpfc_sli4_fcfi_unreg - Unregister fcfi to device
- * @phba: pointer to lpfc hba data structure.
- * @fcfi: fcf index.
- *
- * This routine is invoked to unregister a FCFI from device.
- **/
-void
-lpfc_sli4_fcfi_unreg(struct lpfc_hba *phba, uint16_t fcfi)
-{
-	LPFC_MBOXQ_t *mbox;
-	uint32_t mbox_tmo;
-	int rc;
-	unsigned long flags;
-
-	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-
-	if (!mbox)
-		return;
-
-	lpfc_unreg_fcfi(mbox, fcfi);
-
-	if (!phba->sli4_hba.intr_enable)
-		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
-	else {
-		mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
-		rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
-	}
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mbox, phba->mbox_mem_pool);
-	if (rc != MBX_SUCCESS)
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"2517 Unregister FCFI command failed "
-				"status %d, mbxStatus x%x\n", rc,
-				bf_get(lpfc_mqe_status, &mbox->u.mqe));
-	else {
-		spin_lock_irqsave(&phba->hbalock, flags);
-		/* Mark the FCFI is no longer registered */
-		phba->fcf.fcf_flag &=
-			~(FCF_AVAILABLE | FCF_REGISTERED | FCF_SCAN_DONE);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
-	}
 }
 
 /**
@@ -7372,11 +7256,60 @@ lpfc_sli4_unset_hba(struct lpfc_hba *phba)
 
 	phba->pport->work_port_events = 0;
 
-	lpfc_sli4_hba_down(phba);
+	/* Stop the SLI4 device port */
+	lpfc_stop_port(phba);
 
 	lpfc_sli4_disable_intr(phba);
 
+	/* Reset SLI4 HBA FCoE function */
+	lpfc_pci_function_reset(phba);
+
 	return;
+}
+
+/**
+ * lpfc_sli4_xri_exchange_busy_wait - Wait for device XRI exchange busy
+ * @phba: Pointer to HBA context object.
+ *
+ * This function is called in the SLI4 code path to wait for completion
+ * of device's XRIs exchange busy. It will check the XRI exchange busy
+ * on outstanding FCP and ELS I/Os every 10ms for up to 10 seconds; after
+ * that, it will check the XRI exchange busy on outstanding FCP and ELS
+ * I/Os every 30 seconds, log error message, and wait forever. Only when
+ * all XRI exchange busy complete, the driver unload shall proceed with
+ * invoking the function reset ioctl mailbox command to the CNA and the
+ * the rest of the driver unload resource release.
+ **/
+static void
+lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
+{
+	int wait_time = 0;
+	int fcp_xri_cmpl = list_empty(&phba->sli4_hba.lpfc_abts_scsi_buf_list);
+	int els_xri_cmpl = list_empty(&phba->sli4_hba.lpfc_abts_els_sgl_list);
+
+	while (!fcp_xri_cmpl || !els_xri_cmpl) {
+		if (wait_time > LPFC_XRI_EXCH_BUSY_WAIT_TMO) {
+			if (!fcp_xri_cmpl)
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"2877 FCP XRI exchange busy "
+						"wait time: %d seconds.\n",
+						wait_time/1000);
+			if (!els_xri_cmpl)
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"2878 ELS XRI exchange busy "
+						"wait time: %d seconds.\n",
+						wait_time/1000);
+			msleep(LPFC_XRI_EXCH_BUSY_WAIT_T2);
+			wait_time += LPFC_XRI_EXCH_BUSY_WAIT_T2;
+		} else {
+			msleep(LPFC_XRI_EXCH_BUSY_WAIT_T1);
+			wait_time += LPFC_XRI_EXCH_BUSY_WAIT_T1;
+		}
+		fcp_xri_cmpl =
+			list_empty(&phba->sli4_hba.lpfc_abts_scsi_buf_list);
+		els_xri_cmpl =
+			list_empty(&phba->sli4_hba.lpfc_abts_els_sgl_list);
+	}
 }
 
 /**
@@ -7424,14 +7357,20 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 		spin_unlock_irq(&phba->hbalock);
 	}
 
-	/* Tear down the queues in the HBA */
-	lpfc_sli4_queue_unset(phba);
+	/* Abort all iocbs associated with the hba */
+	lpfc_sli_hba_iocb_abort(phba);
+
+	/* Wait for completion of device XRI exchange busy */
+	lpfc_sli4_xri_exchange_busy_wait(phba);
 
 	/* Disable PCI subsystem interrupt */
 	lpfc_sli4_disable_intr(phba);
 
 	/* Stop kthread signal shall trigger work_done one more time */
 	kthread_stop(phba->worker_thread);
+
+	/* Reset SLI4 HBA FCoE function */
+	lpfc_pci_function_reset(phba);
 
 	/* Stop the SLI4 device port */
 	phba->pport->work_port_events = 0;
@@ -8368,7 +8307,7 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	list_del_init(&vport->listentry);
 	spin_unlock_irq(&phba->hbalock);
 
-	/* Call scsi_free before lpfc_sli4_driver_resource_unset since scsi
+	/* Perform scsi free before driver resource_unset since scsi
 	 * buffers are released to their corresponding pools here.
 	 */
 	lpfc_scsi_free(phba);

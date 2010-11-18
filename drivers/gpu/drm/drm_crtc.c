@@ -1854,7 +1854,8 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	}
 
 	if (fb->funcs->dirty) {
-		ret = fb->funcs->dirty(fb, flags, r->color, clips, num_clips);
+		ret = fb->funcs->dirty(fb, file_priv, flags, r->color,
+				       clips, num_clips);
 	} else {
 		ret = -ENOSYS;
 		goto out_err2;

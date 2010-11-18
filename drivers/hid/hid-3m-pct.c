@@ -2,6 +2,8 @@
  *  HID driver for 3M PCT multitouch panels
  *
  *  Copyright (c) 2009-2010 Stephane Chatty <chatty@enac.fr>
+ *  Copyright (c) 2010      Henrik Rydberg <rydberg@euromail.se>
+ *  Copyright (c) 2010      Canonical, Ltd.
  *
  */
 
@@ -24,15 +26,26 @@ MODULE_LICENSE("GPL");
 
 #include "hid-ids.h"
 
+#define MAX_SLOTS		60
+#define MAX_TRKID		USHRT_MAX
+#define MAX_EVENTS		360
+
+/* estimated signal-to-noise ratios */
+#define SN_MOVE			2048
+#define SN_WIDTH		128
+
 struct mmm_finger {
 	__s32 x, y, w, h;
-	__u8 rank;
+	__u16 id;
+	bool prev_touch;
 	bool touch, valid;
 };
 
 struct mmm_data {
-	struct mmm_finger f[10];
-	__u8 curid, num;
+	struct mmm_finger f[MAX_SLOTS];
+	__u16 id;
+	__u8 curid;
+	__u8 nexp, nreal;
 	bool touch, valid;
 };
 
@@ -40,6 +53,10 @@ static int mmm_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
+	int f1 = field->logical_minimum;
+	int f2 = field->logical_maximum;
+	int df = f2 - f1;
+
 	switch (usage->hid & HID_USAGE_PAGE) {
 
 	case HID_UP_BUTTON:
@@ -50,18 +67,20 @@ static int mmm_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		case HID_GD_X:
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_POSITION_X);
+			input_set_abs_params(hi->input, ABS_MT_POSITION_X,
+					     f1, f2, df / SN_MOVE, 0);
 			/* touchscreen emulation */
 			input_set_abs_params(hi->input, ABS_X,
-						field->logical_minimum,
-						field->logical_maximum, 0, 0);
+					     f1, f2, df / SN_MOVE, 0);
 			return 1;
 		case HID_GD_Y:
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_POSITION_Y);
+			input_set_abs_params(hi->input, ABS_MT_POSITION_Y,
+					     f1, f2, df / SN_MOVE, 0);
 			/* touchscreen emulation */
 			input_set_abs_params(hi->input, ABS_Y,
-						field->logical_minimum,
-						field->logical_maximum, 0, 0);
+					     f1, f2, df / SN_MOVE, 0);
 			return 1;
 		}
 		return 0;
@@ -81,21 +100,31 @@ static int mmm_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		case HID_DG_TIPSWITCH:
 			/* touchscreen emulation */
 			hid_map_usage(hi, usage, bit, max, EV_KEY, BTN_TOUCH);
+			input_set_capability(hi->input, EV_KEY, BTN_TOUCH);
 			return 1;
 		case HID_DG_WIDTH:
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_TOUCH_MAJOR);
+			input_set_abs_params(hi->input, ABS_MT_TOUCH_MAJOR,
+					     f1, f2, df / SN_WIDTH, 0);
 			return 1;
 		case HID_DG_HEIGHT:
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_TOUCH_MINOR);
+			input_set_abs_params(hi->input, ABS_MT_TOUCH_MINOR,
+					     f1, f2, df / SN_WIDTH, 0);
 			input_set_abs_params(hi->input, ABS_MT_ORIENTATION,
-					1, 1, 0, 0);
+					0, 1, 0, 0);
 			return 1;
 		case HID_DG_CONTACTID:
-			field->logical_maximum = 59;
+			field->logical_maximum = MAX_TRKID;
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_TRACKING_ID);
+			input_set_abs_params(hi->input, ABS_MT_TRACKING_ID,
+					     0, MAX_TRKID, 0, 0);
+			if (!hi->input->mt)
+				input_mt_create_slots(hi->input, MAX_SLOTS);
+			input_set_events_per_packet(hi->input, MAX_EVENTS);
 			return 1;
 		}
 		/* let hid-input decide for the others */
@@ -113,10 +142,10 @@ static int mmm_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
+	/* tell hid-input to skip setup of these event types */
 	if (usage->type == EV_KEY || usage->type == EV_ABS)
-		clear_bit(usage->code, *bit);
-
-	return 0;
+		set_bit(usage->type, hi->input->evbit);
+	return -1;
 }
 
 /*
@@ -126,70 +155,49 @@ static int mmm_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 {
 	struct mmm_finger *oldest = 0;
-	bool pressed = false, released = false;
 	int i;
-
-	/*
-	 * we need to iterate on all fingers to decide if we have a press
-	 * or a release event in our touchscreen emulation.
-	 */
-	for (i = 0; i < 10; ++i) {
+	for (i = 0; i < MAX_SLOTS; ++i) {
 		struct mmm_finger *f = &md->f[i];
 		if (!f->valid) {
 			/* this finger is just placeholder data, ignore */
-		} else if (f->touch) {
+			continue;
+		}
+		input_mt_slot(input, i);
+		if (f->touch) {
 			/* this finger is on the screen */
 			int wide = (f->w > f->h);
-			input_event(input, EV_ABS, ABS_MT_TRACKING_ID, i);
+			/* divided by two to match visual scale of touch */
+			int major = max(f->w, f->h) >> 1;
+			int minor = min(f->w, f->h) >> 1;
+
+			if (!f->prev_touch)
+				f->id = md->id++;
+			input_event(input, EV_ABS, ABS_MT_TRACKING_ID, f->id);
 			input_event(input, EV_ABS, ABS_MT_POSITION_X, f->x);
 			input_event(input, EV_ABS, ABS_MT_POSITION_Y, f->y);
 			input_event(input, EV_ABS, ABS_MT_ORIENTATION, wide);
-			input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR,
-						wide ? f->w : f->h);
-			input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR,
-						wide ? f->h : f->w);
-			input_mt_sync(input);
-			/*
-			 * touchscreen emulation: maintain the age rank
-			 * of this finger, decide if we have a press
-			 */
-			if (f->rank == 0) {
-				f->rank = ++(md->num);
-				if (f->rank == 1)
-					pressed = true;
-			}
-			if (f->rank == 1)
+			input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR, major);
+			input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR, minor);
+			/* touchscreen emulation: pick the oldest contact */
+			if (!oldest || ((f->id - oldest->id) & (SHRT_MAX + 1)))
 				oldest = f;
 		} else {
 			/* this finger took off the screen */
-			/* touchscreen emulation: maintain age rank of others */
-			int j;
-
-			for (j = 0; j < 10; ++j) {
-				struct mmm_finger *g = &md->f[j];
-				if (g->rank > f->rank) {
-					g->rank--;
-					if (g->rank == 1)
-						oldest = g;
-				}
-			}
-			f->rank = 0;
-			--(md->num);
-			if (md->num == 0)
-				released = true;
+			input_event(input, EV_ABS, ABS_MT_TRACKING_ID, -1);
 		}
+		f->prev_touch = f->touch;
 		f->valid = 0;
 	}
 
 	/* touchscreen emulation */
 	if (oldest) {
-		if (pressed)
-			input_event(input, EV_KEY, BTN_TOUCH, 1);
+		input_event(input, EV_KEY, BTN_TOUCH, 1);
 		input_event(input, EV_ABS, ABS_X, oldest->x);
 		input_event(input, EV_ABS, ABS_Y, oldest->y);
-	} else if (released) {
+	} else {
 		input_event(input, EV_KEY, BTN_TOUCH, 0);
 	}
+	input_sync(input);
 }
 
 /*
@@ -223,10 +231,12 @@ static int mmm_event(struct hid_device *hid, struct hid_field *field,
 				md->f[md->curid].h = value;
 			break;
 		case HID_DG_CONTACTID:
+			value = clamp_val(value, 0, MAX_SLOTS - 1);
 			if (md->valid) {
 				md->curid = value;
 				md->f[value].touch = md->touch;
 				md->f[value].valid = 1;
+				md->nreal++;
 			}
 			break;
 		case HID_GD_X:
@@ -238,7 +248,12 @@ static int mmm_event(struct hid_device *hid, struct hid_field *field,
 				md->f[md->curid].y = value;
 			break;
 		case HID_DG_CONTACTCOUNT:
-			mmm_filter_event(md, input);
+			if (value)
+				md->nexp = value;
+			if (md->nreal >= md->nexp) {
+				mmm_filter_event(md, input);
+				md->nreal = 0;
+			}
 			break;
 		}
 	}
@@ -254,6 +269,8 @@ static int mmm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret;
 	struct mmm_data *md;
+
+	hdev->quirks |= HID_QUIRK_NO_INPUT_SYNC;
 
 	md = kzalloc(sizeof(struct mmm_data), GFP_KERNEL);
 	if (!md) {

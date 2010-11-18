@@ -20,6 +20,7 @@
  */
 #include <linux/platform_device.h>
 #include <linux/input-polldev.h>
+#include <linux/regulator/consumer.h>
 
 /*
  * This driver tries to support the "digital" accelerometer chips from
@@ -45,6 +46,7 @@ enum lis3_reg {
 	CTRL_REG1	= 0x20,
 	CTRL_REG2	= 0x21,
 	CTRL_REG3	= 0x22,
+	CTRL_REG4	= 0x23,
 	HP_FILTER_RESET	= 0x23,
 	STATUS_REG	= 0x27,
 	OUTX_L		= 0x28,
@@ -93,6 +95,7 @@ enum lis3lv02d_reg {
 };
 
 enum lis3_who_am_i {
+	WAI_3DC		= 0x33,	/* 8 bits: LIS3DC, HP3DC */
 	WAI_12B		= 0x3A, /* 12 bits: LIS3LV02D[LQ]... */
 	WAI_8B		= 0x3B, /* 8 bits: LIS[23]02D[LQ]... */
 	WAI_6B		= 0x52, /* 6 bits: LIS331DLF - not supported */
@@ -118,6 +121,13 @@ enum lis3lv02d_ctrl1_8b {
 	CTRL1_DR	= 0x80,
 };
 
+enum lis3lv02d_ctrl1_3dc {
+	CTRL1_ODR0	= 0x10,
+	CTRL1_ODR1	= 0x20,
+	CTRL1_ODR2	= 0x40,
+	CTRL1_ODR3	= 0x80,
+};
+
 enum lis3lv02d_ctrl2 {
 	CTRL2_DAS	= 0x01,
 	CTRL2_SIM	= 0x02,
@@ -129,9 +139,18 @@ enum lis3lv02d_ctrl2 {
 	CTRL2_FS	= 0x80, /* Full Scale selection */
 };
 
+enum lis3lv02d_ctrl4_3dc {
+	CTRL4_SIM	= 0x01,
+	CTRL4_ST0	= 0x02,
+	CTRL4_ST1	= 0x04,
+	CTRL4_FS0	= 0x10,
+	CTRL4_FS1	= 0x20,
+};
+
 enum lis302d_ctrl2 {
 	HP_FF_WU2	= 0x08,
 	HP_FF_WU1	= 0x04,
+	CTRL2_BOOT_8B   = 0x40,
 };
 
 enum lis3lv02d_ctrl3 {
@@ -206,19 +225,33 @@ enum lis3lv02d_click_src_8b {
 	CLICK_IA	= 0x40,
 };
 
-struct axis_conversion {
-	s8	x;
-	s8	y;
-	s8	z;
+enum lis3lv02d_reg_state {
+	LIS3_REG_OFF	= 0x00,
+	LIS3_REG_ON	= 0x01,
+};
+
+union axis_conversion {
+	struct {
+		int x, y, z;
+	};
+	int as_array[3];
+
 };
 
 struct lis3lv02d {
 	void			*bus_priv; /* used by the bus layer only */
+	struct device		*pm_dev; /* for pm_runtime purposes */
 	int (*init) (struct lis3lv02d *lis3);
 	int (*write) (struct lis3lv02d *lis3, int reg, u8 val);
 	int (*read) (struct lis3lv02d *lis3, int reg, u8 *ret);
+	int (*blkread) (struct lis3lv02d *lis3, int reg, int len, u8 *ret);
+	int (*reg_ctrl) (struct lis3lv02d *lis3, bool state);
 
 	int                     *odrs;     /* Supported output data rates */
+	u8			*regs;	   /* Regs to store / restore */
+	int			regs_size;
+	u8                      *reg_cache;
+	bool			regs_stored;
 	u8                      odr_mask;  /* ODR bit mask */
 	u8			whoami;    /* indicates measurement precision */
 	s16 (*read_data) (struct lis3lv02d *lis3, int reg);
@@ -231,14 +264,18 @@ struct lis3lv02d {
 
 	struct input_polled_dev	*idev;     /* input device */
 	struct platform_device	*pdev;     /* platform device */
+	struct regulator_bulk_data regulators[2];
 	atomic_t		count;     /* interrupt count after last read */
-	struct axis_conversion	ac;        /* hw -> logical axis */
+	union axis_conversion	ac;        /* hw -> logical axis */
 	int			mapped_btns[3];
 
 	u32			irq;       /* IRQ number */
 	struct fasync_struct	*async_queue; /* queue for the misc device */
 	wait_queue_head_t	misc_wait; /* Wait queue for the misc device */
 	unsigned long		misc_opened; /* bit0: whether the device is open */
+	int                     data_ready_count[2];
+	atomic_t		wake_thread;
+	unsigned char           irq_cfg;
 
 	struct lis3lv02d_platform_data *pdata;	/* for passing board config */
 	struct mutex		mutex;     /* Serialize poll and selftest */

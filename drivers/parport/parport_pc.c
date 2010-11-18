@@ -2599,7 +2599,7 @@ static int __devinit sio_ite_8872_probe(struct pci_dev *pdev, int autoirq,
 		printk(KERN_INFO "parport_pc: ITE8873 found (1S)\n");
 		return 0;
 	case 0x8:
-		DPRINTK(KERN_DEBUG "parport_pc: ITE8874 found (2S)\n");
+		printk(KERN_INFO "parport_pc: ITE8874 found (2S)\n");
 		return 0;
 	default:
 		printk(KERN_INFO "parport_pc: unknown ITE887x\n");

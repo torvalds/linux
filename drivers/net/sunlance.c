@@ -1483,7 +1483,7 @@ no_link_test:
 	 */
 	init_timer(&lp->multicast_timer);
 	lp->multicast_timer.data = (unsigned long) dev;
-	lp->multicast_timer.function = &lance_set_multicast_retry;
+	lp->multicast_timer.function = lance_set_multicast_retry;
 
 	if (register_netdev(dev)) {
 		printk(KERN_ERR "SunLance: Cannot register device.\n");

@@ -4,10 +4,19 @@
 #include <linux/list.h>
 #include <linux/seq_file.h>
 #include <linux/cpufreq.h>
+#include <linux/types.h>
+#include <linux/kref.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 
 struct clk;
+
+struct clk_mapping {
+	phys_addr_t		phys;
+	void __iomem		*base;
+	unsigned long		len;
+	struct kref		ref;
+};
 
 struct clk_ops {
 	void (*init)(struct clk *clk);
@@ -21,9 +30,6 @@ struct clk_ops {
 
 struct clk {
 	struct list_head	node;
-	const char		*name;
-	int			id;
-
 	struct clk		*parent;
 	struct clk		**parent_table;	/* list of parents to */
 	unsigned short		parent_num;	/* choose between */
@@ -45,7 +51,9 @@ struct clk {
 	unsigned long		arch_flags;
 	void			*priv;
 	struct dentry		*dentry;
+	struct clk_mapping	*mapping;
 	struct cpufreq_frequency_table *freq_table;
+	unsigned int		nr_freqs;
 };
 
 #define CLK_ENABLE_ON_INIT	(1 << 0)
@@ -110,6 +118,13 @@ long clk_rate_table_round(struct clk *clk,
 int clk_rate_table_find(struct clk *clk,
 			struct cpufreq_frequency_table *freq_table,
 			unsigned long rate);
+
+long clk_rate_div_range_round(struct clk *clk, unsigned int div_min,
+			      unsigned int div_max, unsigned long rate);
+
+long clk_round_parent(struct clk *clk, unsigned long target,
+		      unsigned long *best_freq, unsigned long *parent_freq,
+		      unsigned int div_min, unsigned int div_max);
 
 #define SH_CLK_MSTP32(_parent, _enable_reg, _enable_bit, _flags)	\
 {									\

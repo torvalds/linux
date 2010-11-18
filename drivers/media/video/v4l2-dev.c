@@ -25,7 +25,6 @@
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
@@ -81,7 +80,7 @@ static inline unsigned long *devnode_bits(int vfl_type)
 	/* Any types not assigned to fixed minor ranges must be mapped to
 	   one single bitmap for the purposes of finding a free node number
 	   since all those unassigned types use the same minor range. */
-	int idx = (vfl_type > VFL_TYPE_VTX) ? VFL_TYPE_MAX - 1 : vfl_type;
+	int idx = (vfl_type > VFL_TYPE_RADIO) ? VFL_TYPE_MAX - 1 : vfl_type;
 
 	return devnode_nums[idx];
 }
@@ -187,79 +186,92 @@ static ssize_t v4l2_read(struct file *filp, char __user *buf,
 		size_t sz, loff_t *off)
 {
 	struct video_device *vdev = video_devdata(filp);
+	int ret = -EIO;
 
 	if (!vdev->fops->read)
 		return -EINVAL;
-	if (!video_is_registered(vdev))
-		return -EIO;
-	return vdev->fops->read(filp, buf, sz, off);
+	if (vdev->lock)
+		mutex_lock(vdev->lock);
+	if (video_is_registered(vdev))
+		ret = vdev->fops->read(filp, buf, sz, off);
+	if (vdev->lock)
+		mutex_unlock(vdev->lock);
+	return ret;
 }
 
 static ssize_t v4l2_write(struct file *filp, const char __user *buf,
 		size_t sz, loff_t *off)
 {
 	struct video_device *vdev = video_devdata(filp);
+	int ret = -EIO;
 
 	if (!vdev->fops->write)
 		return -EINVAL;
-	if (!video_is_registered(vdev))
-		return -EIO;
-	return vdev->fops->write(filp, buf, sz, off);
+	if (vdev->lock)
+		mutex_lock(vdev->lock);
+	if (video_is_registered(vdev))
+		ret = vdev->fops->write(filp, buf, sz, off);
+	if (vdev->lock)
+		mutex_unlock(vdev->lock);
+	return ret;
 }
 
 static unsigned int v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 {
 	struct video_device *vdev = video_devdata(filp);
+	int ret = DEFAULT_POLLMASK;
 
-	if (!vdev->fops->poll || !video_is_registered(vdev))
-		return DEFAULT_POLLMASK;
-	return vdev->fops->poll(filp, poll);
+	if (!vdev->fops->poll)
+		return ret;
+	if (vdev->lock)
+		mutex_lock(vdev->lock);
+	if (video_is_registered(vdev))
+		ret = vdev->fops->poll(filp, poll);
+	if (vdev->lock)
+		mutex_unlock(vdev->lock);
+	return ret;
 }
 
 static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct video_device *vdev = video_devdata(filp);
-	int ret;
+	int ret = -ENODEV;
 
-	/* Allow ioctl to continue even if the device was unregistered.
-	   Things like dequeueing buffers might still be useful. */
 	if (vdev->fops->unlocked_ioctl) {
-		ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
+		if (vdev->lock)
+			mutex_lock(vdev->lock);
+		if (video_is_registered(vdev))
+			ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
+		if (vdev->lock)
+			mutex_unlock(vdev->lock);
 	} else if (vdev->fops->ioctl) {
 		/* TODO: convert all drivers to unlocked_ioctl */
-		lock_kernel();
-		ret = vdev->fops->ioctl(filp, cmd, arg);
-		unlock_kernel();
+		static DEFINE_MUTEX(v4l2_ioctl_mutex);
+
+		mutex_lock(&v4l2_ioctl_mutex);
+		if (video_is_registered(vdev))
+			ret = vdev->fops->ioctl(filp, cmd, arg);
+		mutex_unlock(&v4l2_ioctl_mutex);
 	} else
 		ret = -ENOTTY;
 
 	return ret;
 }
 
-#ifdef CONFIG_MMU
-#define v4l2_get_unmapped_area NULL
-#else
-static unsigned long v4l2_get_unmapped_area(struct file *filp,
-		unsigned long addr, unsigned long len, unsigned long pgoff,
-		unsigned long flags)
-{
-	struct video_device *vdev = video_devdata(filp);
-
-	if (!vdev->fops->get_unmapped_area)
-		return -ENOSYS;
-	if (!video_is_registered(vdev))
-		return -ENODEV;
-	return vdev->fops->get_unmapped_area(filp, addr, len, pgoff, flags);
-}
-#endif
-
 static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 {
 	struct video_device *vdev = video_devdata(filp);
+	int ret = -ENODEV;
 
-	if (!vdev->fops->mmap || !video_is_registered(vdev))
-		return -ENODEV;
-	return vdev->fops->mmap(filp, vm);
+	if (!vdev->fops->mmap)
+		return ret;
+	if (vdev->lock)
+		mutex_lock(vdev->lock);
+	if (video_is_registered(vdev))
+		ret = vdev->fops->mmap(filp, vm);
+	if (vdev->lock)
+		mutex_unlock(vdev->lock);
+	return ret;
 }
 
 /* Override for the open function */
@@ -271,17 +283,24 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	/* Check if the video device is available */
 	mutex_lock(&videodev_lock);
 	vdev = video_devdata(filp);
-	/* return ENODEV if the video device has been removed
-	   already or if it is not registered anymore. */
-	if (vdev == NULL || !video_is_registered(vdev)) {
+	/* return ENODEV if the video device has already been removed. */
+	if (vdev == NULL) {
 		mutex_unlock(&videodev_lock);
 		return -ENODEV;
 	}
 	/* and increase the device refcount */
 	video_get(vdev);
 	mutex_unlock(&videodev_lock);
-	if (vdev->fops->open)
-		ret = vdev->fops->open(filp);
+	if (vdev->fops->open) {
+		if (vdev->lock)
+			mutex_lock(vdev->lock);
+		if (video_is_registered(vdev))
+			ret = vdev->fops->open(filp);
+		else
+			ret = -ENODEV;
+		if (vdev->lock)
+			mutex_unlock(vdev->lock);
+	}
 
 	/* decrease the refcount in case of an error */
 	if (ret)
@@ -295,8 +314,13 @@ static int v4l2_release(struct inode *inode, struct file *filp)
 	struct video_device *vdev = video_devdata(filp);
 	int ret = 0;
 
-	if (vdev->fops->release)
+	if (vdev->fops->release) {
+		if (vdev->lock)
+			mutex_lock(vdev->lock);
 		vdev->fops->release(filp);
+		if (vdev->lock)
+			mutex_unlock(vdev->lock);
+	}
 
 	/* decrease the refcount unconditionally since the release()
 	   return value is ignored. */
@@ -309,7 +333,6 @@ static const struct file_operations v4l2_fops = {
 	.read = v4l2_read,
 	.write = v4l2_write,
 	.open = v4l2_open,
-	.get_unmapped_area = v4l2_get_unmapped_area,
 	.mmap = v4l2_mmap,
 	.unlocked_ioctl = v4l2_ioctl,
 #ifdef CONFIG_COMPAT
@@ -377,8 +400,6 @@ static int get_index(struct video_device *vdev)
  *
  *	%VFL_TYPE_GRABBER - A frame grabber
  *
- *	%VFL_TYPE_VTX - A teletext device
- *
  *	%VFL_TYPE_VBI - Vertical blank data (undecoded)
  *
  *	%VFL_TYPE_RADIO - A radio card
@@ -410,9 +431,6 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 	switch (type) {
 	case VFL_TYPE_GRABBER:
 		name_base = "video";
-		break;
-	case VFL_TYPE_VTX:
-		name_base = "vtx";
 		break;
 	case VFL_TYPE_VBI:
 		name_base = "vbi";
@@ -450,10 +468,6 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 	case VFL_TYPE_RADIO:
 		minor_offset = 64;
 		minor_cnt = 64;
-		break;
-	case VFL_TYPE_VTX:
-		minor_offset = 192;
-		minor_cnt = 32;
 		break;
 	case VFL_TYPE_VBI:
 		minor_offset = 224;

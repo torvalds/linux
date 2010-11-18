@@ -4334,10 +4334,10 @@ static int __init vino_module_init(void)
 
 	vino_drvdata->decoder =
 		v4l2_i2c_new_subdev(&vino_drvdata->v4l2_dev, &vino_i2c_adapter,
-			       "saa7191", "saa7191", 0, I2C_ADDRS(0x45));
+			       NULL, "saa7191", 0, I2C_ADDRS(0x45));
 	vino_drvdata->camera =
 		v4l2_i2c_new_subdev(&vino_drvdata->v4l2_dev, &vino_i2c_adapter,
-			       "indycam", "indycam", 0, I2C_ADDRS(0x2b));
+			       NULL, "indycam", 0, I2C_ADDRS(0x2b));
 
 	dprintk("init complete!\n");
 

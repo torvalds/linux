@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux Kernel Configuration"
-
 config AVR32
 	def_bool y
 	# With EMBEDDED=n, we get lots of stuff automatically selected
@@ -146,7 +139,7 @@ config BOARD_HAMMERHEAD
 	  will cover even the most exceptional need of memory bandwidth. Together with the onboard
 	  video decoder the board is ready for video processing.
 
-	  For more information see: http://www.miromico.com/hammerhead
+	  For more information see: http://www.miromico.ch/index.php/hammerhead.html 
 
 config BOARD_FAVR_32
 	bool "Favr-32 LCD-board"

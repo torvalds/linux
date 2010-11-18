@@ -1335,8 +1335,7 @@ static int __init mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 	 * NOTE max_seg_size assumption that small blocks aren't
 	 * normally used (except e.g. for reading SD registers).
 	 */
-	mmc->max_phys_segs = 32;
-	mmc->max_hw_segs = 32;
+	mmc->max_segs = 32;
 	mmc->max_blk_size = 2048;	/* BLEN is 11 bits (+1) */
 	mmc->max_blk_count = 2048;	/* NBLK is 11 bits (+1) */
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;

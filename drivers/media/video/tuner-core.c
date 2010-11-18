@@ -20,7 +20,6 @@
 #include <media/tuner-types.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-i2c-drv.h>
 #include "mt20xx.h"
 #include "tda8290.h"
 #include "tea5761.h"
@@ -428,6 +427,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	{
 		struct tda18271_config cfg = {
 			.config = t->config,
+			.small_i2c = TDA18271_03_BYTE_CHUNK_INIT,
 		};
 
 		if (!dvb_attach(tda18271_attach, &t->fe, t->i2c->addr,
@@ -1053,12 +1053,6 @@ static int tuner_probe(struct i2c_client *client,
 			printk(KERN_CONT "%02x ", buffer[i]);
 		printk("\n");
 	}
-	/* HACK: This test was added to avoid tuner to probe tda9840 and
-	   tea6415c on the MXB card */
-	if (client->adapter->id == I2C_HW_SAA7146 && client->addr < 0x4a) {
-		kfree(t);
-		return -ENODEV;
-	}
 
 	/* autodetection code based on the i2c addr */
 	if (!no_autodetect) {
@@ -1176,15 +1170,31 @@ static const struct i2c_device_id tuner_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tuner_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "tuner",
-	.probe = tuner_probe,
-	.remove = tuner_remove,
-	.command = tuner_command,
-	.suspend = tuner_suspend,
-	.resume = tuner_resume,
-	.id_table = tuner_id,
+static struct i2c_driver tuner_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tuner",
+	},
+	.probe		= tuner_probe,
+	.remove		= tuner_remove,
+	.command	= tuner_command,
+	.suspend	= tuner_suspend,
+	.resume		= tuner_resume,
+	.id_table	= tuner_id,
 };
+
+static __init int init_tuner(void)
+{
+	return i2c_add_driver(&tuner_driver);
+}
+
+static __exit void exit_tuner(void)
+{
+	i2c_del_driver(&tuner_driver);
+}
+
+module_init(init_tuner);
+module_exit(exit_tuner);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

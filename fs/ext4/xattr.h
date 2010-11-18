@@ -83,8 +83,8 @@ extern void ext4_xattr_put_super(struct super_block *);
 extern int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 			    struct ext4_inode *raw_inode, handle_t *handle);
 
-extern int init_ext4_xattr(void);
-extern void exit_ext4_xattr(void);
+extern int __init ext4_init_xattr(void);
+extern void ext4_exit_xattr(void);
 
 extern const struct xattr_handler *ext4_xattr_handlers[];
 
@@ -121,14 +121,14 @@ ext4_xattr_put_super(struct super_block *sb)
 {
 }
 
-static inline int
-init_ext4_xattr(void)
+static __init inline int
+ext4_init_xattr(void)
 {
 	return 0;
 }
 
 static inline void
-exit_ext4_xattr(void)
+ext4_exit_xattr(void)
 {
 }
 

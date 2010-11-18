@@ -67,23 +67,23 @@ static int s5p_irq_eint_set_type(unsigned int irq, unsigned int type)
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
-		newvalue = S5P_EXTINT_RISEEDGE;
+		newvalue = S5P_IRQ_TYPE_EDGE_RISING;
 		break;
 
 	case IRQ_TYPE_EDGE_FALLING:
-		newvalue = S5P_EXTINT_FALLEDGE;
+		newvalue = S5P_IRQ_TYPE_EDGE_FALLING;
 		break;
 
 	case IRQ_TYPE_EDGE_BOTH:
-		newvalue = S5P_EXTINT_BOTHEDGE;
+		newvalue = S5P_IRQ_TYPE_EDGE_BOTH;
 		break;
 
 	case IRQ_TYPE_LEVEL_LOW:
-		newvalue = S5P_EXTINT_LOWLEV;
+		newvalue = S5P_IRQ_TYPE_LEVEL_LOW;
 		break;
 
 	case IRQ_TYPE_LEVEL_HIGH:
-		newvalue = S5P_EXTINT_HILEV;
+		newvalue = S5P_IRQ_TYPE_LEVEL_HIGH;
 		break;
 
 	default:

@@ -28,9 +28,6 @@
 typedef struct auth_domain	svc_client;
 typedef struct svc_export	svc_export;
 
-static void		exp_do_unexport(svc_export *unexp);
-static int		exp_verify_string(char *cp, int max);
-
 /*
  * We have two caches.
  * One maps client+vfsmnt+dentry to export options - the export map
@@ -802,6 +799,7 @@ exp_find_key(svc_client *clp, int fsid_type, u32 *fsidv, struct cache_req *reqp)
 	return ek;
 }
 
+#ifdef CONFIG_NFSD_DEPRECATED
 static int exp_set_key(svc_client *clp, int fsid_type, u32 *fsidv,
 		       struct svc_export *exp)
 {
@@ -852,6 +850,7 @@ exp_get_fsid_key(svc_client *clp, int fsid)
 
 	return exp_find_key(clp, FSID_NUM, fsidv, NULL);
 }
+#endif
 
 static svc_export *exp_get_by_name(svc_client *clp, const struct path *path,
 				     struct cache_req *reqp)
@@ -893,6 +892,7 @@ static struct svc_export *exp_parent(svc_client *clp, struct path *path)
 	return exp;
 }
 
+#ifdef CONFIG_NFSD_DEPRECATED
 /*
  * Hashtable locking. Write locks are placed only by user processes
  * wanting to modify export information.
@@ -925,6 +925,19 @@ exp_writeunlock(void)
 {
 	up_write(&hash_sem);
 }
+#else
+
+/* hash_sem not needed once deprecated interface is removed */
+void exp_readlock(void) {}
+static inline void exp_writelock(void){}
+void exp_readunlock(void) {}
+static inline void exp_writeunlock(void){}
+
+#endif
+
+#ifdef CONFIG_NFSD_DEPRECATED
+static void		exp_do_unexport(svc_export *unexp);
+static int		exp_verify_string(char *cp, int max);
 
 static void exp_fsid_unhash(struct svc_export *exp)
 {
@@ -935,10 +948,9 @@ static void exp_fsid_unhash(struct svc_export *exp)
 
 	ek = exp_get_fsid_key(exp->ex_client, exp->ex_fsid);
 	if (!IS_ERR(ek)) {
-		ek->h.expiry_time = get_seconds()-1;
+		sunrpc_invalidate(&ek->h, &svc_expkey_cache);
 		cache_put(&ek->h, &svc_expkey_cache);
 	}
-	svc_expkey_cache.nextcheck = get_seconds();
 }
 
 static int exp_fsid_hash(svc_client *clp, struct svc_export *exp)
@@ -973,10 +985,9 @@ static void exp_unhash(struct svc_export *exp)
 
 	ek = exp_get_key(exp->ex_client, inode->i_sb->s_dev, inode->i_ino);
 	if (!IS_ERR(ek)) {
-		ek->h.expiry_time = get_seconds()-1;
+		sunrpc_invalidate(&ek->h, &svc_expkey_cache);
 		cache_put(&ek->h, &svc_expkey_cache);
 	}
-	svc_expkey_cache.nextcheck = get_seconds();
 }
 	
 /*
@@ -1097,8 +1108,7 @@ out:
 static void
 exp_do_unexport(svc_export *unexp)
 {
-	unexp->h.expiry_time = get_seconds()-1;
-	svc_export_cache.nextcheck = get_seconds();
+	sunrpc_invalidate(&unexp->h, &svc_export_cache);
 	exp_unhash(unexp);
 	exp_fsid_unhash(unexp);
 }
@@ -1150,6 +1160,7 @@ out_unlock:
 	exp_writeunlock();
 	return err;
 }
+#endif /* CONFIG_NFSD_DEPRECATED */
 
 /*
  * Obtain the root fh on behalf of a client.
@@ -1459,25 +1470,43 @@ static void show_secinfo_flags(struct seq_file *m, int flags)
 	show_expflags(m, flags, NFSEXP_SECINFO_FLAGS);
 }
 
+static bool secinfo_flags_equal(int f, int g)
+{
+	f &= NFSEXP_SECINFO_FLAGS;
+	g &= NFSEXP_SECINFO_FLAGS;
+	return f == g;
+}
+
+static int show_secinfo_run(struct seq_file *m, struct exp_flavor_info **fp, struct exp_flavor_info *end)
+{
+	int flags;
+
+	flags = (*fp)->flags;
+	seq_printf(m, ",sec=%d", (*fp)->pseudoflavor);
+	(*fp)++;
+	while (*fp != end && secinfo_flags_equal(flags, (*fp)->flags)) {
+		seq_printf(m, ":%d", (*fp)->pseudoflavor);
+		(*fp)++;
+	}
+	return flags;
+}
+
 static void show_secinfo(struct seq_file *m, struct svc_export *exp)
 {
 	struct exp_flavor_info *f;
 	struct exp_flavor_info *end = exp->ex_flavors + exp->ex_nflavors;
-	int lastflags = 0, first = 0;
+	int flags;
 
 	if (exp->ex_nflavors == 0)
 		return;
-	for (f = exp->ex_flavors; f < end; f++) {
-		if (first || f->flags != lastflags) {
-			if (!first)
-				show_secinfo_flags(m, lastflags);
-			seq_printf(m, ",sec=%d", f->pseudoflavor);
-			lastflags = f->flags;
-		} else {
-			seq_printf(m, ":%d", f->pseudoflavor);
-		}
+	f = exp->ex_flavors;
+	flags = show_secinfo_run(m, &f, end);
+	if (!secinfo_flags_equal(flags, exp->ex_flags))
+		show_secinfo_flags(m, flags);
+	while (f != end) {
+		flags = show_secinfo_run(m, &f, end);
+		show_secinfo_flags(m, flags);
 	}
-	show_secinfo_flags(m, lastflags);
 }
 
 static void exp_flags(struct seq_file *m, int flag, int fsid,
@@ -1532,6 +1561,7 @@ const struct seq_operations nfs_exports_op = {
 	.show	= e_show,
 };
 
+#ifdef CONFIG_NFSD_DEPRECATED
 /*
  * Add or modify a client.
  * Change requests may involve the list of host addresses. The list of
@@ -1563,7 +1593,7 @@ exp_addclient(struct nfsctl_client *ncp)
 	/* Insert client into hashtable. */
 	for (i = 0; i < ncp->cl_naddr; i++) {
 		ipv6_addr_set_v4mapped(ncp->cl_addrlist[i].s_addr, &addr6);
-		auth_unix_add_addr(&addr6, dom);
+		auth_unix_add_addr(&init_net, &addr6, dom);
 	}
 	auth_unix_forget_old(dom);
 	auth_domain_put(dom);
@@ -1621,6 +1651,7 @@ exp_verify_string(char *cp, int max)
 	printk(KERN_NOTICE "nfsd: couldn't validate string %s\n", cp);
 	return 0;
 }
+#endif /* CONFIG_NFSD_DEPRECATED */
 
 /*
  * Initialize the exports module.

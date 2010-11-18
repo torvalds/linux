@@ -335,6 +335,7 @@ static int tps6507x_ts_probe(struct platform_device *pdev)
 		dev_err(tsc->dev, "schedule failed");
 		goto err2;
 	 }
+	platform_set_drvdata(pdev, tps6507x_dev);
 
 	return 0;
 
@@ -358,7 +359,7 @@ static int __devexit tps6507x_ts_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&tsc->work);
 	destroy_workqueue(tsc->wq);
 
-	input_free_device(input_dev);
+	input_unregister_device(input_dev);
 
 	tps6507x_dev->ts = NULL;
 	kfree(tsc);

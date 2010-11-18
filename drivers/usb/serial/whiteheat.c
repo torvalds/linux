@@ -655,8 +655,6 @@ static void whiteheat_release(struct usb_serial *serial)
 		}
 		kfree(info);
 	}
-
-	return;
 }
 
 static int whiteheat_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -955,8 +953,6 @@ static void whiteheat_throttle(struct tty_struct *tty)
 	spin_lock_irq(&info->lock);
 	info->flags |= THROTTLED;
 	spin_unlock_irq(&info->lock);
-
-	return;
 }
 
 
@@ -975,8 +971,6 @@ static void whiteheat_unthrottle(struct tty_struct *tty)
 
 	if (actually_throttled)
 		rx_data_softint(&info->rx_work);
-
-	return;
 }
 
 

@@ -1454,14 +1454,15 @@ static struct usb_ep_ops m66592_ep_ops = {
 /*-------------------------------------------------------------------------*/
 static struct m66592 *the_controller;
 
-int usb_gadget_register_driver(struct usb_gadget_driver *driver)
+int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *))
 {
 	struct m66592 *m66592 = the_controller;
 	int retval;
 
 	if (!driver
 			|| driver->speed != USB_SPEED_HIGH
-			|| !driver->bind
+			|| !bind
 			|| !driver->setup)
 		return -EINVAL;
 	if (!m66592)
@@ -1480,7 +1481,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		goto error;
 	}
 
-	retval = driver->bind (&m66592->gadget);
+	retval = bind(&m66592->gadget);
 	if (retval) {
 		pr_err("bind to driver error (%d)\n", retval);
 		device_del(&m66592->gadget.dev);
@@ -1505,7 +1506,7 @@ error:
 
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_register_driver);
+EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {

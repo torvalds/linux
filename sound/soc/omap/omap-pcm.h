@@ -35,6 +35,4 @@ struct omap_pcm_dma_data {
 	int		packet_size;	/* packet size only in PACKET mode */
 };
 
-extern struct snd_soc_platform omap_soc_platform;
-
 #endif

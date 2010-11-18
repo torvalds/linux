@@ -78,9 +78,9 @@ extern int checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length);
 extern bool is_valid_oplock_break(struct smb_hdr *smb,
 				  struct TCP_Server_Info *);
 extern bool is_size_safe_to_change(struct cifsInodeInfo *, __u64 eof);
-extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *);
+extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *, bool);
 #ifdef CONFIG_CIFS_EXPERIMENTAL
-extern struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *);
+extern struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *, bool);
 #endif
 extern unsigned int smbCalcSize(struct smb_hdr *ptr);
 extern unsigned int smbCalcSize_LE(struct smb_hdr *ptr);
@@ -104,13 +104,14 @@ extern struct timespec cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
 extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
 				      int offset);
+extern void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
 
-extern struct cifsFileInfo *cifs_new_fileinfo(struct inode *newinode,
-				__u16 fileHandle, struct file *file,
-				struct vfsmount *mnt, unsigned int oflags);
+extern struct cifsFileInfo *cifs_new_fileinfo(__u16 fileHandle,
+				struct file *file, struct tcon_link *tlink,
+				__u32 oplock);
 extern int cifs_posix_open(char *full_path, struct inode **pinode,
 				struct super_block *sb,
-				int mode, int oflags,
+				int mode, unsigned int f_flags,
 				__u32 *poplock, __u16 *pnetfid, int xid);
 void cifs_fill_uniqueid(struct super_block *sb, struct cifs_fattr *fattr);
 extern void cifs_unix_basic_to_fattr(struct cifs_fattr *fattr,
@@ -362,13 +363,15 @@ extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *, __u32 *);
 extern int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
 			  __u32 *);
 extern int cifs_verify_signature(struct smb_hdr *,
-				 const struct mac_key *mac_key,
+				 struct TCP_Server_Info *server,
 				__u32 expected_sequence_number);
-extern int cifs_calculate_mac_key(struct mac_key *key, const char *rn,
-				 const char *pass);
-extern void CalcNTLMv2_response(const struct cifsSesInfo *, char *);
-extern void setup_ntlmv2_rsp(struct cifsSesInfo *, char *,
-			     const struct nls_table *);
+extern void SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *);
+extern int setup_ntlm_response(struct cifsSesInfo *);
+extern int setup_ntlmv2_rsp(struct cifsSesInfo *, const struct nls_table *);
+extern int cifs_crypto_shash_allocate(struct TCP_Server_Info *);
+extern void cifs_crypto_shash_release(struct TCP_Server_Info *);
+extern int calc_seckey(struct cifsSesInfo *);
+
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 extern void calc_lanman_hash(const char *password, const char *cryptkey,
 				bool encrypt, char *lnm_session_key);
@@ -408,4 +411,8 @@ extern int CIFSSMBSetPosixACL(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSGetExtAttr(const int xid, struct cifsTconInfo *tcon,
 			const int netfid, __u64 *pExtAttrBits, __u64 *pMask);
 extern void cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb);
+extern bool CIFSCouldBeMFSymlink(const struct cifs_fattr *fattr);
+extern int CIFSCheckMFSymlink(struct cifs_fattr *fattr,
+		const unsigned char *path,
+		struct cifs_sb_info *cifs_sb, int xid);
 #endif			/* _CIFSPROTO_H */

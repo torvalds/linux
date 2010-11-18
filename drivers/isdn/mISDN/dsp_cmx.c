@@ -1237,6 +1237,7 @@ dsp_cmx_receive(struct dsp *dsp, struct sk_buff *skb)
 			if (dsp->cmx_delay)
 				dsp->rx_W = (dsp->rx_R + dsp->cmx_delay)
 					& CMX_BUFF_MASK;
+			else
 				dsp->rx_W = (dsp->rx_R + (dsp_poll >> 1))
 					& CMX_BUFF_MASK;
 		} else {

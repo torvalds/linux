@@ -299,6 +299,10 @@ qla4xxx_set_ifcb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 {
 	memset(mbox_cmd, 0, sizeof(mbox_cmd[0]) * MBOX_REG_COUNT);
 	memset(mbox_sts, 0, sizeof(mbox_sts[0]) * MBOX_REG_COUNT);
+
+	if (is_qla8022(ha))
+		qla4_8xxx_wr_32(ha, ha->nx_db_wr_ptr, 0);
+
 	mbox_cmd[0] = MBOX_CMD_INITIALIZE_FIRMWARE;
 	mbox_cmd[1] = 0;
 	mbox_cmd[2] = LSDW(init_fw_cb_dma);
@@ -472,6 +476,11 @@ int qla4xxx_initialize_fw_cb(struct scsi_qla_host * ha)
 	init_fw_cb->fw_options |=
 		__constant_cpu_to_le16(FWOPT_SESSION_MODE |
 				       FWOPT_INITIATOR_MODE);
+
+	if (is_qla8022(ha))
+		init_fw_cb->fw_options |=
+		    __constant_cpu_to_le16(FWOPT_ENABLE_CRBDB);
+
 	init_fw_cb->fw_options &= __constant_cpu_to_le16(~FWOPT_TARGET_MODE);
 
 	if (qla4xxx_set_ifcb(ha, &mbox_cmd[0], &mbox_sts[0], init_fw_cb_dma)
@@ -592,7 +601,7 @@ int qla4xxx_get_firmware_status(struct scsi_qla_host * ha)
 	}
 
 	ql4_printk(KERN_INFO, ha, "%ld firmare IOCBs available (%d).\n",
-	    ha->host_no, mbox_cmd[2]);
+	    ha->host_no, mbox_sts[2]);
 
 	return QLA_SUCCESS;
 }

@@ -32,6 +32,7 @@
 #include "drm.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include "intel_drv.h"
 
 #include <linux/console.h>
 #include "drm_crtc_helper.h"
@@ -43,7 +44,7 @@ unsigned int i915_fbpercrtc = 0;
 module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 
 unsigned int i915_powersave = 1;
-module_param_named(powersave, i915_powersave, int, 0400);
+module_param_named(powersave, i915_powersave, int, 0600);
 
 unsigned int i915_lvds_downclock = 0;
 module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
@@ -61,86 +62,110 @@ extern int intel_agp_enabled;
 	.driver_data = (unsigned long) info }
 
 static const struct intel_device_info intel_i830_info = {
-	.gen = 2, .is_i8xx = 1, .is_mobile = 1, .cursor_needs_physical = 1,
+	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1,
+	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_845g_info = {
-	.gen = 2, .is_i8xx = 1,
+	.gen = 2,
+	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_i85x_info = {
-	.gen = 2, .is_i8xx = 1, .is_i85x = 1, .is_mobile = 1,
+	.gen = 2, .is_i85x = 1, .is_mobile = 1,
 	.cursor_needs_physical = 1,
+	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_i865g_info = {
-	.gen = 2, .is_i8xx = 1,
+	.gen = 2,
+	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_i915g_info = {
-	.gen = 3, .is_i915g = 1, .is_i9xx = 1, .cursor_needs_physical = 1,
+	.gen = 3, .is_i915g = 1, .cursor_needs_physical = 1,
+	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 static const struct intel_device_info intel_i915gm_info = {
-	.gen = 3, .is_i9xx = 1,  .is_mobile = 1,
+	.gen = 3, .is_mobile = 1,
 	.cursor_needs_physical = 1,
+	.has_overlay = 1, .overlay_needs_physical = 1,
+	.supports_tv = 1,
 };
 static const struct intel_device_info intel_i945g_info = {
-	.gen = 3, .is_i9xx = 1, .has_hotplug = 1, .cursor_needs_physical = 1,
+	.gen = 3, .has_hotplug = 1, .cursor_needs_physical = 1,
+	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 static const struct intel_device_info intel_i945gm_info = {
-	.gen = 3, .is_i945gm = 1, .is_i9xx = 1, .is_mobile = 1,
+	.gen = 3, .is_i945gm = 1, .is_mobile = 1,
 	.has_hotplug = 1, .cursor_needs_physical = 1,
+	.has_overlay = 1, .overlay_needs_physical = 1,
+	.supports_tv = 1,
 };
 
 static const struct intel_device_info intel_i965g_info = {
-	.gen = 4, .is_broadwater = 1, .is_i965g = 1, .is_i9xx = 1,
+	.gen = 4, .is_broadwater = 1,
 	.has_hotplug = 1,
+	.has_overlay = 1,
 };
 
 static const struct intel_device_info intel_i965gm_info = {
-	.gen = 4, .is_crestline = 1, .is_i965g = 1, .is_i965gm = 1, .is_i9xx = 1,
+	.gen = 4, .is_crestline = 1,
 	.is_mobile = 1, .has_fbc = 1, .has_rc6 = 1, .has_hotplug = 1,
+	.has_overlay = 1,
+	.supports_tv = 1,
 };
 
 static const struct intel_device_info intel_g33_info = {
-	.gen = 3, .is_g33 = 1, .is_i9xx = 1,
+	.gen = 3, .is_g33 = 1,
 	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_overlay = 1,
 };
 
 static const struct intel_device_info intel_g45_info = {
-	.gen = 4, .is_i965g = 1, .is_g4x = 1, .is_i9xx = 1, .need_gfx_hws = 1,
+	.gen = 4, .is_g4x = 1, .need_gfx_hws = 1,
 	.has_pipe_cxsr = 1, .has_hotplug = 1,
+	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_gm45_info = {
-	.gen = 4, .is_i965g = 1, .is_g4x = 1, .is_i9xx = 1,
+	.gen = 4, .is_g4x = 1,
 	.is_mobile = 1, .need_gfx_hws = 1, .has_fbc = 1, .has_rc6 = 1,
 	.has_pipe_cxsr = 1, .has_hotplug = 1,
+	.supports_tv = 1,
+	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_pineview_info = {
-	.gen = 3, .is_g33 = 1, .is_pineview = 1, .is_mobile = 1, .is_i9xx = 1,
+	.gen = 3, .is_g33 = 1, .is_pineview = 1, .is_mobile = 1,
 	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_overlay = 1,
 };
 
 static const struct intel_device_info intel_ironlake_d_info = {
-	.gen = 5, .is_ironlake = 1, .is_i965g = 1, .is_i9xx = 1,
+	.gen = 5,
 	.need_gfx_hws = 1, .has_pipe_cxsr = 1, .has_hotplug = 1,
+	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_ironlake_m_info = {
-	.gen = 5, .is_ironlake = 1, .is_mobile = 1, .is_i965g = 1, .is_i9xx = 1,
+	.gen = 5, .is_mobile = 1,
 	.need_gfx_hws = 1, .has_fbc = 1, .has_rc6 = 1, .has_hotplug = 1,
+	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_sandybridge_d_info = {
-	.gen = 6, .is_i965g = 1, .is_i9xx = 1,
+	.gen = 6,
 	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_bsd_ring = 1,
+	.has_blt_ring = 1,
 };
 
 static const struct intel_device_info intel_sandybridge_m_info = {
-	.gen = 6, .is_i965g = 1, .is_mobile = 1, .is_i9xx = 1,
+	.gen = 6, .is_mobile = 1,
 	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_bsd_ring = 1,
+	.has_blt_ring = 1,
 };
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
@@ -237,7 +262,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	i915_save_state(dev);
 
-	intel_opregion_free(dev, 1);
+	intel_opregion_fini(dev);
 
 	/* Modeset on resume, not lid events */
 	dev_priv->modeset_on_lid = 0;
@@ -258,6 +283,8 @@ int i915_suspend(struct drm_device *dev, pm_message_t state)
 	if (state.event == PM_EVENT_PRETHAW)
 		return 0;
 
+	drm_kms_helper_poll_disable(dev);
+
 	error = i915_drm_freeze(dev);
 	if (error)
 		return error;
@@ -277,8 +304,7 @@ static int i915_drm_thaw(struct drm_device *dev)
 	int error = 0;
 
 	i915_restore_state(dev);
-
-	intel_opregion_init(dev, 1);
+	intel_opregion_setup(dev);
 
 	/* KMS EnterVT equivalent */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -294,6 +320,8 @@ static int i915_drm_thaw(struct drm_device *dev)
 		drm_helper_resume_force_mode(dev);
 	}
 
+	intel_opregion_init(dev);
+
 	dev_priv->modeset_on_lid = 0;
 
 	return error;
@@ -301,12 +329,79 @@ static int i915_drm_thaw(struct drm_device *dev)
 
 int i915_resume(struct drm_device *dev)
 {
+	int ret;
+
 	if (pci_enable_device(dev->pdev))
 		return -EIO;
 
 	pci_set_master(dev->pdev);
 
-	return i915_drm_thaw(dev);
+	ret = i915_drm_thaw(dev);
+	if (ret)
+		return ret;
+
+	drm_kms_helper_poll_enable(dev);
+	return 0;
+}
+
+static int i8xx_do_reset(struct drm_device *dev, u8 flags)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_I85X(dev))
+		return -ENODEV;
+
+	I915_WRITE(D_STATE, I915_READ(D_STATE) | DSTATE_GFX_RESET_I830);
+	POSTING_READ(D_STATE);
+
+	if (IS_I830(dev) || IS_845G(dev)) {
+		I915_WRITE(DEBUG_RESET_I830,
+			   DEBUG_RESET_DISPLAY |
+			   DEBUG_RESET_RENDER |
+			   DEBUG_RESET_FULL);
+		POSTING_READ(DEBUG_RESET_I830);
+		msleep(1);
+
+		I915_WRITE(DEBUG_RESET_I830, 0);
+		POSTING_READ(DEBUG_RESET_I830);
+	}
+
+	msleep(1);
+
+	I915_WRITE(D_STATE, I915_READ(D_STATE) & ~DSTATE_GFX_RESET_I830);
+	POSTING_READ(D_STATE);
+
+	return 0;
+}
+
+static int i965_reset_complete(struct drm_device *dev)
+{
+	u8 gdrst;
+	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
+	return gdrst & 0x1;
+}
+
+static int i965_do_reset(struct drm_device *dev, u8 flags)
+{
+	u8 gdrst;
+
+	/*
+	 * Set the domains we want to reset (GRDOM/bits 2 and 3) as
+	 * well as the reset bit (GR/bit 0).  Setting the GR bit
+	 * triggers the reset; when done, the hardware will clear it.
+	 */
+	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
+	pci_write_config_byte(dev->pdev, I965_GDRST, gdrst | flags | 0x1);
+
+	return wait_for(i965_reset_complete(dev), 500);
+}
+
+static int ironlake_do_reset(struct drm_device *dev, u8 flags)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 gdrst = I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR);
+	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR, gdrst | flags | 0x1);
+	return wait_for(I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) & 0x1, 500);
 }
 
 /**
@@ -325,54 +420,39 @@ int i915_resume(struct drm_device *dev)
  *   - re-init interrupt state
  *   - re-init display
  */
-int i965_reset(struct drm_device *dev, u8 flags)
+int i915_reset(struct drm_device *dev, u8 flags)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	unsigned long timeout;
-	u8 gdrst;
 	/*
 	 * We really should only reset the display subsystem if we actually
 	 * need to
 	 */
 	bool need_display = true;
+	int ret;
 
 	mutex_lock(&dev->struct_mutex);
 
-	/*
-	 * Clear request list
-	 */
-	i915_gem_retire_requests(dev);
+	i915_gem_reset(dev);
 
-	if (need_display)
-		i915_save_display(dev);
-
-	if (IS_I965G(dev) || IS_G4X(dev)) {
-		/*
-		 * Set the domains we want to reset, then the reset bit (bit 0).
-		 * Clear the reset bit after a while and wait for hardware status
-		 * bit (bit 1) to be set
-		 */
-		pci_read_config_byte(dev->pdev, GDRST, &gdrst);
-		pci_write_config_byte(dev->pdev, GDRST, gdrst | flags | ((flags == GDRST_FULL) ? 0x1 : 0x0));
-		udelay(50);
-		pci_write_config_byte(dev->pdev, GDRST, gdrst & 0xfe);
-
-		/* ...we don't want to loop forever though, 500ms should be plenty */
-	       timeout = jiffies + msecs_to_jiffies(500);
-		do {
-			udelay(100);
-			pci_read_config_byte(dev->pdev, GDRST, &gdrst);
-		} while ((gdrst & 0x1) && time_after(timeout, jiffies));
-
-		if (gdrst & 0x1) {
-			WARN(true, "i915: Failed to reset chip\n");
-			mutex_unlock(&dev->struct_mutex);
-			return -EIO;
-		}
-	} else {
-		DRM_ERROR("Error occurred. Don't know how to reset this chip.\n");
+	ret = -ENODEV;
+	if (get_seconds() - dev_priv->last_gpu_reset < 5) {
+		DRM_ERROR("GPU hanging too fast, declaring wedged!\n");
+	} else switch (INTEL_INFO(dev)->gen) {
+	case 5:
+		ret = ironlake_do_reset(dev, flags);
+		break;
+	case 4:
+		ret = i965_do_reset(dev, flags);
+		break;
+	case 2:
+		ret = i8xx_do_reset(dev, flags);
+		break;
+	}
+	dev_priv->last_gpu_reset = get_seconds();
+	if (ret) {
+		DRM_ERROR("Failed to reset chip.\n");
 		mutex_unlock(&dev->struct_mutex);
-		return -ENODEV;
+		return ret;
 	}
 
 	/* Ok, now get things going again... */
@@ -400,13 +480,19 @@ int i965_reset(struct drm_device *dev, u8 flags)
 		mutex_lock(&dev->struct_mutex);
 	}
 
-	/*
-	 * Display needs restore too...
-	 */
-	if (need_display)
-		i915_restore_display(dev);
-
 	mutex_unlock(&dev->struct_mutex);
+
+	/*
+	 * Perform a full modeset as on later generations, e.g. Ironlake, we may
+	 * need to retrain the display link and cannot just restore the register
+	 * values.
+	 */
+	if (need_display) {
+		mutex_lock(&dev->mode_config.mutex);
+		drm_helper_resume_force_mode(dev);
+		mutex_unlock(&dev->mode_config.mutex);
+	}
+
 	return 0;
 }
 
@@ -524,8 +610,6 @@ static struct drm_driver driver = {
 	.irq_uninstall = i915_driver_irq_uninstall,
 	.irq_handler = i915_driver_irq_handler,
 	.reclaim_buffers = drm_core_reclaim_buffers,
-	.get_map_ofs = drm_core_get_map_ofs,
-	.get_reg_ofs = drm_core_get_reg_ofs,
 	.master_create = i915_master_create,
 	.master_destroy = i915_master_destroy,
 #if defined(CONFIG_DEBUG_FS)
@@ -548,6 +632,7 @@ static struct drm_driver driver = {
 #ifdef CONFIG_COMPAT
 		 .compat_ioctl = i915_compat_ioctl,
 #endif
+		 .llseek = noop_llseek,
 	},
 
 	.pci_driver = {

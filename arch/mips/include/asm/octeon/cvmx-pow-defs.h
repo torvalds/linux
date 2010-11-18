@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2008 Cavium Networks
+ * Copyright (c) 2003-2010 Cavium Networks
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -28,52 +28,29 @@
 #ifndef __CVMX_POW_DEFS_H__
 #define __CVMX_POW_DEFS_H__
 
-#define CVMX_POW_BIST_STAT \
-	 CVMX_ADD_IO_SEG(0x00016700000003F8ull)
-#define CVMX_POW_DS_PC \
-	 CVMX_ADD_IO_SEG(0x0001670000000398ull)
-#define CVMX_POW_ECC_ERR \
-	 CVMX_ADD_IO_SEG(0x0001670000000218ull)
-#define CVMX_POW_INT_CTL \
-	 CVMX_ADD_IO_SEG(0x0001670000000220ull)
-#define CVMX_POW_IQ_CNTX(offset) \
-	 CVMX_ADD_IO_SEG(0x0001670000000340ull + (((offset) & 7) * 8))
-#define CVMX_POW_IQ_COM_CNT \
-	 CVMX_ADD_IO_SEG(0x0001670000000388ull)
-#define CVMX_POW_IQ_INT \
-	 CVMX_ADD_IO_SEG(0x0001670000000238ull)
-#define CVMX_POW_IQ_INT_EN \
-	 CVMX_ADD_IO_SEG(0x0001670000000240ull)
-#define CVMX_POW_IQ_THRX(offset) \
-	 CVMX_ADD_IO_SEG(0x00016700000003A0ull + (((offset) & 7) * 8))
-#define CVMX_POW_NOS_CNT \
-	 CVMX_ADD_IO_SEG(0x0001670000000228ull)
-#define CVMX_POW_NW_TIM \
-	 CVMX_ADD_IO_SEG(0x0001670000000210ull)
-#define CVMX_POW_PF_RST_MSK \
-	 CVMX_ADD_IO_SEG(0x0001670000000230ull)
-#define CVMX_POW_PP_GRP_MSKX(offset) \
-	 CVMX_ADD_IO_SEG(0x0001670000000000ull + (((offset) & 15) * 8))
-#define CVMX_POW_QOS_RNDX(offset) \
-	 CVMX_ADD_IO_SEG(0x00016700000001C0ull + (((offset) & 7) * 8))
-#define CVMX_POW_QOS_THRX(offset) \
-	 CVMX_ADD_IO_SEG(0x0001670000000180ull + (((offset) & 7) * 8))
-#define CVMX_POW_TS_PC \
-	 CVMX_ADD_IO_SEG(0x0001670000000390ull)
-#define CVMX_POW_WA_COM_PC \
-	 CVMX_ADD_IO_SEG(0x0001670000000380ull)
-#define CVMX_POW_WA_PCX(offset) \
-	 CVMX_ADD_IO_SEG(0x0001670000000300ull + (((offset) & 7) * 8))
-#define CVMX_POW_WQ_INT \
-	 CVMX_ADD_IO_SEG(0x0001670000000200ull)
-#define CVMX_POW_WQ_INT_CNTX(offset) \
-	 CVMX_ADD_IO_SEG(0x0001670000000100ull + (((offset) & 15) * 8))
-#define CVMX_POW_WQ_INT_PC \
-	 CVMX_ADD_IO_SEG(0x0001670000000208ull)
-#define CVMX_POW_WQ_INT_THRX(offset) \
-	 CVMX_ADD_IO_SEG(0x0001670000000080ull + (((offset) & 15) * 8))
-#define CVMX_POW_WS_PCX(offset) \
-	 CVMX_ADD_IO_SEG(0x0001670000000280ull + (((offset) & 15) * 8))
+#define CVMX_POW_BIST_STAT (CVMX_ADD_IO_SEG(0x00016700000003F8ull))
+#define CVMX_POW_DS_PC (CVMX_ADD_IO_SEG(0x0001670000000398ull))
+#define CVMX_POW_ECC_ERR (CVMX_ADD_IO_SEG(0x0001670000000218ull))
+#define CVMX_POW_INT_CTL (CVMX_ADD_IO_SEG(0x0001670000000220ull))
+#define CVMX_POW_IQ_CNTX(offset) (CVMX_ADD_IO_SEG(0x0001670000000340ull) + ((offset) & 7) * 8)
+#define CVMX_POW_IQ_COM_CNT (CVMX_ADD_IO_SEG(0x0001670000000388ull))
+#define CVMX_POW_IQ_INT (CVMX_ADD_IO_SEG(0x0001670000000238ull))
+#define CVMX_POW_IQ_INT_EN (CVMX_ADD_IO_SEG(0x0001670000000240ull))
+#define CVMX_POW_IQ_THRX(offset) (CVMX_ADD_IO_SEG(0x00016700000003A0ull) + ((offset) & 7) * 8)
+#define CVMX_POW_NOS_CNT (CVMX_ADD_IO_SEG(0x0001670000000228ull))
+#define CVMX_POW_NW_TIM (CVMX_ADD_IO_SEG(0x0001670000000210ull))
+#define CVMX_POW_PF_RST_MSK (CVMX_ADD_IO_SEG(0x0001670000000230ull))
+#define CVMX_POW_PP_GRP_MSKX(offset) (CVMX_ADD_IO_SEG(0x0001670000000000ull) + ((offset) & 15) * 8)
+#define CVMX_POW_QOS_RNDX(offset) (CVMX_ADD_IO_SEG(0x00016700000001C0ull) + ((offset) & 7) * 8)
+#define CVMX_POW_QOS_THRX(offset) (CVMX_ADD_IO_SEG(0x0001670000000180ull) + ((offset) & 7) * 8)
+#define CVMX_POW_TS_PC (CVMX_ADD_IO_SEG(0x0001670000000390ull))
+#define CVMX_POW_WA_COM_PC (CVMX_ADD_IO_SEG(0x0001670000000380ull))
+#define CVMX_POW_WA_PCX(offset) (CVMX_ADD_IO_SEG(0x0001670000000300ull) + ((offset) & 7) * 8)
+#define CVMX_POW_WQ_INT (CVMX_ADD_IO_SEG(0x0001670000000200ull))
+#define CVMX_POW_WQ_INT_CNTX(offset) (CVMX_ADD_IO_SEG(0x0001670000000100ull) + ((offset) & 15) * 8)
+#define CVMX_POW_WQ_INT_PC (CVMX_ADD_IO_SEG(0x0001670000000208ull))
+#define CVMX_POW_WQ_INT_THRX(offset) (CVMX_ADD_IO_SEG(0x0001670000000080ull) + ((offset) & 15) * 8)
+#define CVMX_POW_WS_PCX(offset) (CVMX_ADD_IO_SEG(0x0001670000000280ull) + ((offset) & 15) * 8)
 
 union cvmx_pow_bist_stat {
 	uint64_t u64;
@@ -160,6 +137,19 @@ union cvmx_pow_bist_stat {
 	struct cvmx_pow_bist_stat_cn56xx cn56xxp1;
 	struct cvmx_pow_bist_stat_cn38xx cn58xx;
 	struct cvmx_pow_bist_stat_cn38xx cn58xxp1;
+	struct cvmx_pow_bist_stat_cn63xx {
+		uint64_t reserved_22_63:42;
+		uint64_t pp:6;
+		uint64_t reserved_12_15:4;
+		uint64_t cam:1;
+		uint64_t nbr:3;
+		uint64_t nbt:4;
+		uint64_t index:1;
+		uint64_t fidx:1;
+		uint64_t pend:1;
+		uint64_t adr:1;
+	} cn63xx;
+	struct cvmx_pow_bist_stat_cn63xx cn63xxp1;
 };
 
 union cvmx_pow_ds_pc {
@@ -179,6 +169,8 @@ union cvmx_pow_ds_pc {
 	struct cvmx_pow_ds_pc_s cn56xxp1;
 	struct cvmx_pow_ds_pc_s cn58xx;
 	struct cvmx_pow_ds_pc_s cn58xxp1;
+	struct cvmx_pow_ds_pc_s cn63xx;
+	struct cvmx_pow_ds_pc_s cn63xxp1;
 };
 
 union cvmx_pow_ecc_err {
@@ -219,6 +211,8 @@ union cvmx_pow_ecc_err {
 	struct cvmx_pow_ecc_err_s cn56xxp1;
 	struct cvmx_pow_ecc_err_s cn58xx;
 	struct cvmx_pow_ecc_err_s cn58xxp1;
+	struct cvmx_pow_ecc_err_s cn63xx;
+	struct cvmx_pow_ecc_err_s cn63xxp1;
 };
 
 union cvmx_pow_int_ctl {
@@ -239,6 +233,8 @@ union cvmx_pow_int_ctl {
 	struct cvmx_pow_int_ctl_s cn56xxp1;
 	struct cvmx_pow_int_ctl_s cn58xx;
 	struct cvmx_pow_int_ctl_s cn58xxp1;
+	struct cvmx_pow_int_ctl_s cn63xx;
+	struct cvmx_pow_int_ctl_s cn63xxp1;
 };
 
 union cvmx_pow_iq_cntx {
@@ -258,6 +254,8 @@ union cvmx_pow_iq_cntx {
 	struct cvmx_pow_iq_cntx_s cn56xxp1;
 	struct cvmx_pow_iq_cntx_s cn58xx;
 	struct cvmx_pow_iq_cntx_s cn58xxp1;
+	struct cvmx_pow_iq_cntx_s cn63xx;
+	struct cvmx_pow_iq_cntx_s cn63xxp1;
 };
 
 union cvmx_pow_iq_com_cnt {
@@ -277,6 +275,8 @@ union cvmx_pow_iq_com_cnt {
 	struct cvmx_pow_iq_com_cnt_s cn56xxp1;
 	struct cvmx_pow_iq_com_cnt_s cn58xx;
 	struct cvmx_pow_iq_com_cnt_s cn58xxp1;
+	struct cvmx_pow_iq_com_cnt_s cn63xx;
+	struct cvmx_pow_iq_com_cnt_s cn63xxp1;
 };
 
 union cvmx_pow_iq_int {
@@ -289,6 +289,8 @@ union cvmx_pow_iq_int {
 	struct cvmx_pow_iq_int_s cn52xxp1;
 	struct cvmx_pow_iq_int_s cn56xx;
 	struct cvmx_pow_iq_int_s cn56xxp1;
+	struct cvmx_pow_iq_int_s cn63xx;
+	struct cvmx_pow_iq_int_s cn63xxp1;
 };
 
 union cvmx_pow_iq_int_en {
@@ -301,6 +303,8 @@ union cvmx_pow_iq_int_en {
 	struct cvmx_pow_iq_int_en_s cn52xxp1;
 	struct cvmx_pow_iq_int_en_s cn56xx;
 	struct cvmx_pow_iq_int_en_s cn56xxp1;
+	struct cvmx_pow_iq_int_en_s cn63xx;
+	struct cvmx_pow_iq_int_en_s cn63xxp1;
 };
 
 union cvmx_pow_iq_thrx {
@@ -313,6 +317,8 @@ union cvmx_pow_iq_thrx {
 	struct cvmx_pow_iq_thrx_s cn52xxp1;
 	struct cvmx_pow_iq_thrx_s cn56xx;
 	struct cvmx_pow_iq_thrx_s cn56xxp1;
+	struct cvmx_pow_iq_thrx_s cn63xx;
+	struct cvmx_pow_iq_thrx_s cn63xxp1;
 };
 
 union cvmx_pow_nos_cnt {
@@ -341,6 +347,11 @@ union cvmx_pow_nos_cnt {
 	struct cvmx_pow_nos_cnt_s cn56xxp1;
 	struct cvmx_pow_nos_cnt_s cn58xx;
 	struct cvmx_pow_nos_cnt_s cn58xxp1;
+	struct cvmx_pow_nos_cnt_cn63xx {
+		uint64_t reserved_11_63:53;
+		uint64_t nos_cnt:11;
+	} cn63xx;
+	struct cvmx_pow_nos_cnt_cn63xx cn63xxp1;
 };
 
 union cvmx_pow_nw_tim {
@@ -360,6 +371,8 @@ union cvmx_pow_nw_tim {
 	struct cvmx_pow_nw_tim_s cn56xxp1;
 	struct cvmx_pow_nw_tim_s cn58xx;
 	struct cvmx_pow_nw_tim_s cn58xxp1;
+	struct cvmx_pow_nw_tim_s cn63xx;
+	struct cvmx_pow_nw_tim_s cn63xxp1;
 };
 
 union cvmx_pow_pf_rst_msk {
@@ -375,6 +388,8 @@ union cvmx_pow_pf_rst_msk {
 	struct cvmx_pow_pf_rst_msk_s cn56xxp1;
 	struct cvmx_pow_pf_rst_msk_s cn58xx;
 	struct cvmx_pow_pf_rst_msk_s cn58xxp1;
+	struct cvmx_pow_pf_rst_msk_s cn63xx;
+	struct cvmx_pow_pf_rst_msk_s cn63xxp1;
 };
 
 union cvmx_pow_pp_grp_mskx {
@@ -405,6 +420,8 @@ union cvmx_pow_pp_grp_mskx {
 	struct cvmx_pow_pp_grp_mskx_s cn56xxp1;
 	struct cvmx_pow_pp_grp_mskx_s cn58xx;
 	struct cvmx_pow_pp_grp_mskx_s cn58xxp1;
+	struct cvmx_pow_pp_grp_mskx_s cn63xx;
+	struct cvmx_pow_pp_grp_mskx_s cn63xxp1;
 };
 
 union cvmx_pow_qos_rndx {
@@ -427,6 +444,8 @@ union cvmx_pow_qos_rndx {
 	struct cvmx_pow_qos_rndx_s cn56xxp1;
 	struct cvmx_pow_qos_rndx_s cn58xx;
 	struct cvmx_pow_qos_rndx_s cn58xxp1;
+	struct cvmx_pow_qos_rndx_s cn63xx;
+	struct cvmx_pow_qos_rndx_s cn63xxp1;
 };
 
 union cvmx_pow_qos_thrx {
@@ -485,6 +504,19 @@ union cvmx_pow_qos_thrx {
 	struct cvmx_pow_qos_thrx_s cn56xxp1;
 	struct cvmx_pow_qos_thrx_s cn58xx;
 	struct cvmx_pow_qos_thrx_s cn58xxp1;
+	struct cvmx_pow_qos_thrx_cn63xx {
+		uint64_t reserved_59_63:5;
+		uint64_t des_cnt:11;
+		uint64_t reserved_47_47:1;
+		uint64_t buf_cnt:11;
+		uint64_t reserved_35_35:1;
+		uint64_t free_cnt:11;
+		uint64_t reserved_22_23:2;
+		uint64_t max_thr:10;
+		uint64_t reserved_10_11:2;
+		uint64_t min_thr:10;
+	} cn63xx;
+	struct cvmx_pow_qos_thrx_cn63xx cn63xxp1;
 };
 
 union cvmx_pow_ts_pc {
@@ -504,6 +536,8 @@ union cvmx_pow_ts_pc {
 	struct cvmx_pow_ts_pc_s cn56xxp1;
 	struct cvmx_pow_ts_pc_s cn58xx;
 	struct cvmx_pow_ts_pc_s cn58xxp1;
+	struct cvmx_pow_ts_pc_s cn63xx;
+	struct cvmx_pow_ts_pc_s cn63xxp1;
 };
 
 union cvmx_pow_wa_com_pc {
@@ -523,6 +557,8 @@ union cvmx_pow_wa_com_pc {
 	struct cvmx_pow_wa_com_pc_s cn56xxp1;
 	struct cvmx_pow_wa_com_pc_s cn58xx;
 	struct cvmx_pow_wa_com_pc_s cn58xxp1;
+	struct cvmx_pow_wa_com_pc_s cn63xx;
+	struct cvmx_pow_wa_com_pc_s cn63xxp1;
 };
 
 union cvmx_pow_wa_pcx {
@@ -542,6 +578,8 @@ union cvmx_pow_wa_pcx {
 	struct cvmx_pow_wa_pcx_s cn56xxp1;
 	struct cvmx_pow_wa_pcx_s cn58xx;
 	struct cvmx_pow_wa_pcx_s cn58xxp1;
+	struct cvmx_pow_wa_pcx_s cn63xx;
+	struct cvmx_pow_wa_pcx_s cn63xxp1;
 };
 
 union cvmx_pow_wq_int {
@@ -562,6 +600,8 @@ union cvmx_pow_wq_int {
 	struct cvmx_pow_wq_int_s cn56xxp1;
 	struct cvmx_pow_wq_int_s cn58xx;
 	struct cvmx_pow_wq_int_s cn58xxp1;
+	struct cvmx_pow_wq_int_s cn63xx;
+	struct cvmx_pow_wq_int_s cn63xxp1;
 };
 
 union cvmx_pow_wq_int_cntx {
@@ -604,6 +644,15 @@ union cvmx_pow_wq_int_cntx {
 	struct cvmx_pow_wq_int_cntx_s cn56xxp1;
 	struct cvmx_pow_wq_int_cntx_s cn58xx;
 	struct cvmx_pow_wq_int_cntx_s cn58xxp1;
+	struct cvmx_pow_wq_int_cntx_cn63xx {
+		uint64_t reserved_28_63:36;
+		uint64_t tc_cnt:4;
+		uint64_t reserved_23_23:1;
+		uint64_t ds_cnt:11;
+		uint64_t reserved_11_11:1;
+		uint64_t iq_cnt:11;
+	} cn63xx;
+	struct cvmx_pow_wq_int_cntx_cn63xx cn63xxp1;
 };
 
 union cvmx_pow_wq_int_pc {
@@ -626,6 +675,8 @@ union cvmx_pow_wq_int_pc {
 	struct cvmx_pow_wq_int_pc_s cn56xxp1;
 	struct cvmx_pow_wq_int_pc_s cn58xx;
 	struct cvmx_pow_wq_int_pc_s cn58xxp1;
+	struct cvmx_pow_wq_int_pc_s cn63xx;
+	struct cvmx_pow_wq_int_pc_s cn63xxp1;
 };
 
 union cvmx_pow_wq_int_thrx {
@@ -674,6 +725,16 @@ union cvmx_pow_wq_int_thrx {
 	struct cvmx_pow_wq_int_thrx_s cn56xxp1;
 	struct cvmx_pow_wq_int_thrx_s cn58xx;
 	struct cvmx_pow_wq_int_thrx_s cn58xxp1;
+	struct cvmx_pow_wq_int_thrx_cn63xx {
+		uint64_t reserved_29_63:35;
+		uint64_t tc_en:1;
+		uint64_t tc_thr:4;
+		uint64_t reserved_22_23:2;
+		uint64_t ds_thr:10;
+		uint64_t reserved_10_11:2;
+		uint64_t iq_thr:10;
+	} cn63xx;
+	struct cvmx_pow_wq_int_thrx_cn63xx cn63xxp1;
 };
 
 union cvmx_pow_ws_pcx {
@@ -693,6 +754,8 @@ union cvmx_pow_ws_pcx {
 	struct cvmx_pow_ws_pcx_s cn56xxp1;
 	struct cvmx_pow_ws_pcx_s cn58xx;
 	struct cvmx_pow_ws_pcx_s cn58xxp1;
+	struct cvmx_pow_ws_pcx_s cn63xx;
+	struct cvmx_pow_ws_pcx_s cn63xxp1;
 };
 
 #endif

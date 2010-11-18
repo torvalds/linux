@@ -37,6 +37,8 @@
 
 static int drm_notifier(void *priv);
 
+static int drm_lock_take(struct drm_lock_data *lock_data, unsigned int context);
+
 /**
  * Lock ioctl.
  *
@@ -124,9 +126,6 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		block_all_signals(drm_notifier, &dev->sigdata, &dev->sigmask);
 	}
 
-	if (dev->driver->dma_ready && (lock->flags & _DRM_LOCK_READY))
-		dev->driver->dma_ready(dev);
-
 	if (dev->driver->dma_quiescent && (lock->flags & _DRM_LOCK_QUIESCENT))
 	{
 		if (dev->driver->dma_quiescent(dev)) {
@@ -134,12 +133,6 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 				  lock->context);
 			return -EBUSY;
 		}
-	}
-
-	if (dev->driver->kernel_context_switch &&
-	    dev->last_context != lock->context) {
-		dev->driver->kernel_context_switch(dev, dev->last_context,
-						   lock->context);
 	}
 
 	return 0;
@@ -169,15 +162,8 @@ int drm_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 	atomic_inc(&dev->counts[_DRM_STAT_UNLOCKS]);
 
-	/* kernel_context_switch isn't used by any of the x86 drm
-	 * modules but is required by the Sparc driver.
-	 */
-	if (dev->driver->kernel_context_switch_unlock)
-		dev->driver->kernel_context_switch_unlock(dev);
-	else {
-		if (drm_lock_free(&master->lock, lock->context)) {
-			/* FIXME: Should really bail out here. */
-		}
+	if (drm_lock_free(&master->lock, lock->context)) {
+		/* FIXME: Should really bail out here. */
 	}
 
 	unblock_all_signals();
@@ -193,6 +179,7 @@ int drm_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
  *
  * Attempt to mark the lock as held by the given context, via the \p cmpxchg instruction.
  */
+static
 int drm_lock_take(struct drm_lock_data *lock_data,
 		  unsigned int context)
 {
@@ -229,7 +216,6 @@ int drm_lock_take(struct drm_lock_data *lock_data,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(drm_lock_take);
 
 /**
  * This takes a lock forcibly and hands it to context.	Should ONLY be used
@@ -297,7 +283,6 @@ int drm_lock_free(struct drm_lock_data *lock_data, unsigned int context)
 	wake_up_interruptible(&lock_data->lock_queue);
 	return 0;
 }
-EXPORT_SYMBOL(drm_lock_free);
 
 /**
  * If we get here, it means that the process has called DRM_IOCTL_LOCK
@@ -360,7 +345,6 @@ void drm_idlelock_take(struct drm_lock_data *lock_data)
 	}
 	spin_unlock_bh(&lock_data->spinlock);
 }
-EXPORT_SYMBOL(drm_idlelock_take);
 
 void drm_idlelock_release(struct drm_lock_data *lock_data)
 {
@@ -380,8 +364,6 @@ void drm_idlelock_release(struct drm_lock_data *lock_data)
 	}
 	spin_unlock_bh(&lock_data->spinlock);
 }
-EXPORT_SYMBOL(drm_idlelock_release);
-
 
 int drm_i_have_hw_lock(struct drm_device *dev, struct drm_file *file_priv)
 {
@@ -390,5 +372,3 @@ int drm_i_have_hw_lock(struct drm_device *dev, struct drm_file *file_priv)
 		_DRM_LOCK_IS_HELD(master->lock.hw_lock->lock) &&
 		master->lock.file_priv == file_priv);
 }
-
-EXPORT_SYMBOL(drm_i_have_hw_lock);

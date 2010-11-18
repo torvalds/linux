@@ -766,7 +766,7 @@ static int solo_enc_open(struct file *file)
 				    &solo_enc->lock,
 				    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				    V4L2_FIELD_INTERLACED,
-				    sizeof(struct videobuf_buffer), fh);
+				    sizeof(struct videobuf_buffer), fh, NULL);
 
 	spin_unlock(&solo_enc->lock);
 
@@ -1497,7 +1497,7 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo6010_dev *solo_dev, u8 ch)
 		 "%s-enc (%i/%i)", SOLO6010_NAME, solo_dev->vfd->num,
 		 solo_enc->vfd->num);
 
-	if (video_nr >= 0)
+	if (video_nr != -1)
 		video_nr++;
 
 	spin_lock_init(&solo_enc->lock);

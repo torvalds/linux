@@ -454,7 +454,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 				goto out; /* scan completed */
 
 		}while(!channel_map[ch]);
-		/* this fuction can be called in two situations
+		/* this function can be called in two situations
 		 * 1- We have switched to ad-hoc mode and we are
 		 *    performing a complete syncro scan before conclude
 		 *    there are no interesting cell and to create a
@@ -517,7 +517,7 @@ void ieee80211_softmac_ips_scan_syncro(struct ieee80211_device *ieee)
 //	printk("=======hh===============>ips scan\n");
      	while(1)
         {
-                /* this fuction can be called in two situations
+                /* this function can be called in two situations
                  * 1- We have switched to ad-hoc mode and we are
                  *    performing a complete syncro scan before conclude
                  *    there are no interesting cell and to create a

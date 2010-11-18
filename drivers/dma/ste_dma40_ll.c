@@ -1,10 +1,8 @@
 /*
- * driver/dma/ste_dma40_ll.c
- *
- * Copyright (C) ST-Ericsson 2007-2010
+ * Copyright (C) ST-Ericsson SA 2007-2010
+ * Author: Per Friden <per.friden@stericsson.com> for ST-Ericsson
+ * Author: Jonas Aaberg <jonas.aberg@stericsson.com> for ST-Ericsson
  * License terms: GNU General Public License (GPL) version 2
- * Author: Per Friden <per.friden@stericsson.com>
- * Author: Jonas Aaberg <jonas.aberg@stericsson.com>
  */
 
 #include <linux/kernel.h>
@@ -39,16 +37,13 @@ void d40_log_cfg(struct stedma40_chan_cfg *cfg,
 	    cfg->dir ==  STEDMA40_PERIPH_TO_PERIPH)
 		l3 |= 1 << D40_MEM_LCSP3_DCFG_MST_POS;
 
-	l3 |= 1 << D40_MEM_LCSP3_DCFG_TIM_POS;
 	l3 |= 1 << D40_MEM_LCSP3_DCFG_EIM_POS;
 	l3 |= cfg->dst_info.psize << D40_MEM_LCSP3_DCFG_PSIZE_POS;
 	l3 |= cfg->dst_info.data_width << D40_MEM_LCSP3_DCFG_ESIZE_POS;
-	l3 |= 1 << D40_MEM_LCSP3_DTCP_POS;
 
 	l1 |= 1 << D40_MEM_LCSP1_SCFG_EIM_POS;
 	l1 |= cfg->src_info.psize << D40_MEM_LCSP1_SCFG_PSIZE_POS;
 	l1 |= cfg->src_info.data_width << D40_MEM_LCSP1_SCFG_ESIZE_POS;
-	l1 |= 1 << D40_MEM_LCSP1_STCP_POS;
 
 	*lcsp1 = l1;
 	*lcsp3 = l3;
@@ -113,13 +108,15 @@ void d40_phy_cfg(struct stedma40_chan_cfg *cfg,
 		src |= 1 << D40_SREG_CFG_LOG_GIM_POS;
 	}
 
-	if (cfg->channel_type & STEDMA40_HIGH_PRIORITY_CHANNEL) {
+	if (cfg->high_priority) {
 		src |= 1 << D40_SREG_CFG_PRI_POS;
 		dst |= 1 << D40_SREG_CFG_PRI_POS;
 	}
 
-	src |= cfg->src_info.endianess << D40_SREG_CFG_LBE_POS;
-	dst |= cfg->dst_info.endianess << D40_SREG_CFG_LBE_POS;
+	if (cfg->src_info.big_endian)
+		src |= 1 << D40_SREG_CFG_LBE_POS;
+	if (cfg->dst_info.big_endian)
+		dst |= 1 << D40_SREG_CFG_LBE_POS;
 
 	*src_cfg = src;
 	*dst_cfg = dst;
@@ -197,8 +194,7 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 		      dma_addr_t lli_phys,
 		      u32 reg_cfg,
 		      u32 data_width,
-		      int psize,
-		      bool term_int)
+		      int psize)
 {
 	int total_size = 0;
 	int i;
@@ -238,7 +234,7 @@ int d40_phy_sg_to_lli(struct scatterlist *sg,
 	}
 
 	return total_size;
- err:
+err:
 	return err;
 }
 
@@ -271,11 +267,59 @@ void d40_phy_lli_write(void __iomem *virtbase,
 
 /* DMA logical lli operations */
 
+static void d40_log_lli_link(struct d40_log_lli *lli_dst,
+			     struct d40_log_lli *lli_src,
+			     int next)
+{
+	u32 slos = 0;
+	u32 dlos = 0;
+
+	if (next != -EINVAL) {
+		slos = next * 2;
+		dlos = next * 2 + 1;
+	} else {
+		lli_dst->lcsp13 |= D40_MEM_LCSP1_SCFG_TIM_MASK;
+		lli_dst->lcsp13 |= D40_MEM_LCSP3_DTCP_MASK;
+	}
+
+	lli_src->lcsp13 = (lli_src->lcsp13 & ~D40_MEM_LCSP1_SLOS_MASK) |
+		(slos << D40_MEM_LCSP1_SLOS_POS);
+
+	lli_dst->lcsp13 = (lli_dst->lcsp13 & ~D40_MEM_LCSP1_SLOS_MASK) |
+		(dlos << D40_MEM_LCSP1_SLOS_POS);
+}
+
+void d40_log_lli_lcpa_write(struct d40_log_lli_full *lcpa,
+			   struct d40_log_lli *lli_dst,
+			   struct d40_log_lli *lli_src,
+			   int next)
+{
+	d40_log_lli_link(lli_dst, lli_src, next);
+
+	writel(lli_src->lcsp02, &lcpa[0].lcsp0);
+	writel(lli_src->lcsp13, &lcpa[0].lcsp1);
+	writel(lli_dst->lcsp02, &lcpa[0].lcsp2);
+	writel(lli_dst->lcsp13, &lcpa[0].lcsp3);
+}
+
+void d40_log_lli_lcla_write(struct d40_log_lli *lcla,
+			   struct d40_log_lli *lli_dst,
+			   struct d40_log_lli *lli_src,
+			   int next)
+{
+	d40_log_lli_link(lli_dst, lli_src, next);
+
+	writel(lli_src->lcsp02, &lcla[0].lcsp02);
+	writel(lli_src->lcsp13, &lcla[0].lcsp13);
+	writel(lli_dst->lcsp02, &lcla[1].lcsp02);
+	writel(lli_dst->lcsp13, &lcla[1].lcsp13);
+}
+
 void d40_log_fill_lli(struct d40_log_lli *lli,
 		      dma_addr_t data, u32 data_size,
-		      u32 lli_next_off, u32 reg_cfg,
+		      u32 reg_cfg,
 		      u32 data_width,
-		      bool term_int, bool addr_inc)
+		      bool addr_inc)
 {
 	lli->lcsp13 = reg_cfg;
 
@@ -290,165 +334,69 @@ void d40_log_fill_lli(struct d40_log_lli *lli,
 	if (addr_inc)
 		lli->lcsp13 |= D40_MEM_LCSP1_SCFG_INCR_MASK;
 
-	lli->lcsp13 |= D40_MEM_LCSP3_DTCP_MASK;
-	/* If this scatter list entry is the last one, no next link */
-	lli->lcsp13 |= (lli_next_off << D40_MEM_LCSP1_SLOS_POS) &
-		D40_MEM_LCSP1_SLOS_MASK;
-
-	if (term_int)
-		lli->lcsp13 |= D40_MEM_LCSP1_SCFG_TIM_MASK;
-	else
-		lli->lcsp13 &= ~D40_MEM_LCSP1_SCFG_TIM_MASK;
 }
 
-int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
-		      struct scatterlist *sg,
+int d40_log_sg_to_dev(struct scatterlist *sg,
 		      int sg_len,
 		      struct d40_log_lli_bidir *lli,
 		      struct d40_def_lcsp *lcsp,
 		      u32 src_data_width,
 		      u32 dst_data_width,
 		      enum dma_data_direction direction,
-		      bool term_int, dma_addr_t dev_addr, int max_len,
-		      int llis_per_log)
+		      dma_addr_t dev_addr)
 {
 	int total_size = 0;
 	struct scatterlist *current_sg = sg;
 	int i;
-	u32 next_lli_off_dst = 0;
-	u32 next_lli_off_src = 0;
 
 	for_each_sg(sg, current_sg, sg_len, i) {
 		total_size += sg_dma_len(current_sg);
-
-		/*
-		 * If this scatter list entry is the last one or
-		 * max length, terminate link.
-		 */
-		if (sg_len - 1 == i || ((i+1) % max_len == 0)) {
-			next_lli_off_src = 0;
-			next_lli_off_dst = 0;
-		} else {
-			if (next_lli_off_dst == 0 &&
-			    next_lli_off_src == 0) {
-				/* The first lli will be at next_lli_off */
-				next_lli_off_dst = (lcla->dst_id *
-						    llis_per_log + 1);
-				next_lli_off_src = (lcla->src_id *
-						    llis_per_log + 1);
-			} else {
-				next_lli_off_dst++;
-				next_lli_off_src++;
-			}
-		}
 
 		if (direction == DMA_TO_DEVICE) {
 			d40_log_fill_lli(&lli->src[i],
 					 sg_phys(current_sg),
 					 sg_dma_len(current_sg),
-					 next_lli_off_src,
 					 lcsp->lcsp1, src_data_width,
-					 false,
 					 true);
 			d40_log_fill_lli(&lli->dst[i],
 					 dev_addr,
 					 sg_dma_len(current_sg),
-					 next_lli_off_dst,
 					 lcsp->lcsp3, dst_data_width,
-					 /* No next == terminal interrupt */
-					 term_int && !next_lli_off_dst,
 					 false);
 		} else {
 			d40_log_fill_lli(&lli->dst[i],
 					 sg_phys(current_sg),
 					 sg_dma_len(current_sg),
-					 next_lli_off_dst,
 					 lcsp->lcsp3, dst_data_width,
-					 /* No next == terminal interrupt */
-					 term_int && !next_lli_off_dst,
 					 true);
 			d40_log_fill_lli(&lli->src[i],
 					 dev_addr,
 					 sg_dma_len(current_sg),
-					 next_lli_off_src,
 					 lcsp->lcsp1, src_data_width,
-					 false,
 					 false);
 		}
 	}
 	return total_size;
 }
 
-int d40_log_sg_to_lli(int lcla_id,
-		      struct scatterlist *sg,
+int d40_log_sg_to_lli(struct scatterlist *sg,
 		      int sg_len,
 		      struct d40_log_lli *lli_sg,
 		      u32 lcsp13, /* src or dst*/
-		      u32 data_width,
-		      bool term_int, int max_len, int llis_per_log)
+		      u32 data_width)
 {
 	int total_size = 0;
 	struct scatterlist *current_sg = sg;
 	int i;
-	u32 next_lli_off = 0;
 
 	for_each_sg(sg, current_sg, sg_len, i) {
 		total_size += sg_dma_len(current_sg);
 
-		/*
-		 * If this scatter list entry is the last one or
-		 * max length, terminate link.
-		 */
-		if (sg_len - 1 == i || ((i+1) % max_len == 0))
-			next_lli_off = 0;
-		else {
-			if (next_lli_off == 0)
-				/* The first lli will be at next_lli_off */
-				next_lli_off = lcla_id * llis_per_log + 1;
-			else
-				next_lli_off++;
-		}
-
 		d40_log_fill_lli(&lli_sg[i],
 				 sg_phys(current_sg),
 				 sg_dma_len(current_sg),
-				 next_lli_off,
 				 lcsp13, data_width,
-				 term_int && !next_lli_off,
 				 true);
 	}
 	return total_size;
-}
-
-int d40_log_lli_write(struct d40_log_lli_full *lcpa,
-		       struct d40_log_lli *lcla_src,
-		       struct d40_log_lli *lcla_dst,
-		       struct d40_log_lli *lli_dst,
-		       struct d40_log_lli *lli_src,
-		       int llis_per_log)
-{
-	u32 slos;
-	u32 dlos;
-	int i;
-
-	writel(lli_src->lcsp02, &lcpa->lcsp0);
-	writel(lli_src->lcsp13, &lcpa->lcsp1);
-	writel(lli_dst->lcsp02, &lcpa->lcsp2);
-	writel(lli_dst->lcsp13, &lcpa->lcsp3);
-
-	slos = lli_src->lcsp13 & D40_MEM_LCSP1_SLOS_MASK;
-	dlos = lli_dst->lcsp13 & D40_MEM_LCSP3_DLOS_MASK;
-
-	for (i = 0; (i < llis_per_log) && slos && dlos; i++) {
-		writel(lli_src[i + 1].lcsp02, &lcla_src[i].lcsp02);
-		writel(lli_src[i + 1].lcsp13, &lcla_src[i].lcsp13);
-		writel(lli_dst[i + 1].lcsp02, &lcla_dst[i].lcsp02);
-		writel(lli_dst[i + 1].lcsp13, &lcla_dst[i].lcsp13);
-
-		slos = lli_src[i + 1].lcsp13 & D40_MEM_LCSP1_SLOS_MASK;
-		dlos = lli_dst[i + 1].lcsp13 & D40_MEM_LCSP3_DLOS_MASK;
-	}
-
-	return i;
-
 }

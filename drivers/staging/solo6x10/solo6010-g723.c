@@ -233,7 +233,7 @@ static int snd_solo_pcm_copy(struct snd_pcm_substream *ss, int channel,
 				   solo_pcm->g723_buf, G723_PERIOD_BYTES);
 
 		if (err)
-			return err; 
+			return -EFAULT;
 	}
 
 	return 0;

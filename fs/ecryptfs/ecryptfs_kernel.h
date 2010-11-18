@@ -377,6 +377,7 @@ struct ecryptfs_mount_crypt_stat {
 #define ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES      0x00000010
 #define ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK   0x00000020
 #define ECRYPTFS_GLOBAL_ENCFN_USE_FEK          0x00000040
+#define ECRYPTFS_GLOBAL_MOUNT_AUTH_TOK_ONLY    0x00000080
 	u32 flags;
 	struct list_head global_auth_tok_list;
 	struct mutex global_auth_tok_list_mutex;
@@ -477,7 +478,7 @@ ecryptfs_lower_header_size(struct ecryptfs_crypt_stat *crypt_stat)
 static inline struct ecryptfs_file_info *
 ecryptfs_file_to_private(struct file *file)
 {
-	return (struct ecryptfs_file_info *)file->private_data;
+	return file->private_data;
 }
 
 static inline void

@@ -988,8 +988,12 @@ static long __write_once initfree = 1;
 /* Select whether to free (1) or mark unusable (0) the __init pages. */
 static int __init set_initfree(char *str)
 {
-	strict_strtol(str, 0, &initfree);
-	pr_info("initfree: %s free init pages\n", initfree ? "will" : "won't");
+	long val;
+	if (strict_strtol(str, 0, &val)) {
+		initfree = val;
+		pr_info("initfree: %s free init pages\n",
+			initfree ? "will" : "won't");
+	}
 	return 1;
 }
 __setup("initfree=", set_initfree);
@@ -1060,7 +1064,7 @@ void free_initmem(void)
 
 	/*
 	 * Free the pages mapped from 0xc0000000 that correspond to code
-	 * pages from 0xfd000000 that we won't use again after init.
+	 * pages from MEM_SV_INTRPT that we won't use again after init.
 	 */
 	free_init_pages("unused kernel text",
 			(unsigned long)_sinittext - text_delta,

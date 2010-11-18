@@ -31,9 +31,6 @@
 
 #include "wm8904.h"
 
-static struct snd_soc_codec *wm8904_codec;
-struct snd_soc_codec_device soc_codec_dev_wm8904;
-
 enum wm8904_type {
 	WM8904,
 	WM8912,
@@ -52,10 +49,11 @@ static const char *wm8904_supply_names[WM8904_NUM_SUPPLIES] = {
 
 /* codec private data */
 struct wm8904_priv {
-	struct snd_soc_codec codec;
+
 	u16 reg_cache[WM8904_MAX_REGISTER + 1];
 
 	enum wm8904_type devtype;
+	void *control_data;
 
 	struct regulator_bulk_data supplies[WM8904_NUM_SUPPLIES];
 
@@ -689,7 +687,7 @@ static int wm8904_put_drc_enum(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);	
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	struct wm8904_pdata *pdata = wm8904->pdata;
 	int value = ucontrol->value.integer.value[0];
 
@@ -760,7 +758,7 @@ static int wm8904_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);	
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	struct wm8904_pdata *pdata = wm8904->pdata;
 	int value = ucontrol->value.integer.value[0];
 
@@ -2218,8 +2216,8 @@ static struct snd_soc_dai_ops wm8904_dai_ops = {
 	.digital_mute = wm8904_digital_mute,
 };
 
-struct snd_soc_dai wm8904_dai = {
-	.name = "WM8904",
+static struct snd_soc_dai_driver wm8904_dai = {
+	.name = "wm8904-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
@@ -2237,24 +2235,17 @@ struct snd_soc_dai wm8904_dai = {
 	.ops = &wm8904_dai_ops,
 	.symmetric_rates = 1,
 };
-EXPORT_SYMBOL_GPL(wm8904_dai);
 
 #ifdef CONFIG_PM
-static int wm8904_suspend(struct platform_device *pdev, pm_message_t state)
+static int wm8904_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
 	wm8904_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
 
-static int wm8904_resume(struct platform_device *pdev)
+static int wm8904_resume(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
 	wm8904_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
@@ -2264,9 +2255,9 @@ static int wm8904_resume(struct platform_device *pdev)
 #define wm8904_resume NULL
 #endif
 
-static void wm8904_handle_retune_mobile_pdata(struct wm8904_priv *wm8904)
+static void wm8904_handle_retune_mobile_pdata(struct snd_soc_codec *codec)
 {
-	struct snd_soc_codec *codec = &wm8904->codec;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	struct wm8904_pdata *pdata = wm8904->pdata;
 	struct snd_kcontrol_new control =
 		SOC_ENUM_EXT("EQ Mode",
@@ -2315,20 +2306,20 @@ static void wm8904_handle_retune_mobile_pdata(struct wm8904_priv *wm8904)
 	wm8904->retune_mobile_enum.max = wm8904->num_retune_mobile_texts;
 	wm8904->retune_mobile_enum.texts = wm8904->retune_mobile_texts;
 
-	ret = snd_soc_add_controls(&wm8904->codec, &control, 1);
+	ret = snd_soc_add_controls(codec, &control, 1);
 	if (ret != 0)
-		dev_err(wm8904->codec.dev,
+		dev_err(codec->dev,
 			"Failed to add ReTune Mobile control: %d\n", ret);
 }
 
-static void wm8904_handle_pdata(struct wm8904_priv *wm8904)
+static void wm8904_handle_pdata(struct snd_soc_codec *codec)
 {
-	struct snd_soc_codec *codec = &wm8904->codec;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	struct wm8904_pdata *pdata = wm8904->pdata;
 	int ret, i;
 
 	if (!pdata) {
-		snd_soc_add_controls(&wm8904->codec, wm8904_eq_controls,
+		snd_soc_add_controls(codec, wm8904_eq_controls,
 				     ARRAY_SIZE(wm8904_eq_controls));
 		return;
 	}
@@ -2344,7 +2335,7 @@ static void wm8904_handle_pdata(struct wm8904_priv *wm8904)
 		wm8904->drc_texts = kmalloc(sizeof(char *)
 					    * pdata->num_drc_cfgs, GFP_KERNEL);
 		if (!wm8904->drc_texts) {
-			dev_err(wm8904->codec.dev,
+			dev_err(codec->dev,
 				"Failed to allocate %d DRC config texts\n",
 				pdata->num_drc_cfgs);
 			return;
@@ -2356,9 +2347,9 @@ static void wm8904_handle_pdata(struct wm8904_priv *wm8904)
 		wm8904->drc_enum.max = pdata->num_drc_cfgs;
 		wm8904->drc_enum.texts = wm8904->drc_texts;
 
-		ret = snd_soc_add_controls(&wm8904->codec, &control, 1);
+		ret = snd_soc_add_controls(codec, &control, 1);
 		if (ret != 0)
-			dev_err(wm8904->codec.dev,
+			dev_err(codec->dev,
 				"Failed to add DRC mode control: %d\n", ret);
 
 		wm8904_set_drc(codec);
@@ -2368,89 +2359,19 @@ static void wm8904_handle_pdata(struct wm8904_priv *wm8904)
 		pdata->num_retune_mobile_cfgs);
 
 	if (pdata->num_retune_mobile_cfgs)
-		wm8904_handle_retune_mobile_pdata(wm8904);
+		wm8904_handle_retune_mobile_pdata(codec);
 	else
-		snd_soc_add_controls(&wm8904->codec, wm8904_eq_controls,
+		snd_soc_add_controls(codec, wm8904_eq_controls,
 				     ARRAY_SIZE(wm8904_eq_controls));
 }
 
-static int wm8904_probe(struct platform_device *pdev)
+
+static int wm8904_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	int ret = 0;
-
-	if (wm8904_codec == NULL) {
-		dev_err(&pdev->dev, "Codec device not registered\n");
-		return -ENODEV;
-	}
-
-	socdev->card->codec = wm8904_codec;
-	codec = wm8904_codec;
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to create pcms: %d\n", ret);
-		goto pcm_err;
-	}
-
-	wm8904_handle_pdata(snd_soc_codec_get_drvdata(codec));
-
-	wm8904_add_widgets(codec);
-
-	return ret;
-
-pcm_err:
-	return ret;
-}
-
-static int wm8904_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-
-	return 0;
-}
-
-struct snd_soc_codec_device soc_codec_dev_wm8904 = {
-	.probe = 	wm8904_probe,
-	.remove = 	wm8904_remove,
-	.suspend = 	wm8904_suspend,
-	.resume =	wm8904_resume,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_wm8904);
-
-static int wm8904_register(struct wm8904_priv *wm8904,
-			   enum snd_soc_control_type control)
-{
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	struct wm8904_pdata *pdata = wm8904->pdata;
-	int ret;
-	struct snd_soc_codec *codec = &wm8904->codec;
-	int i;
+	int ret, i;
 
-	if (wm8904_codec) {
-		dev_err(codec->dev, "Another WM8904 is registered\n");
-		ret = -EINVAL;
-		goto err;
-	}
-
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	snd_soc_codec_set_drvdata(codec, wm8904);
-	codec->name = "WM8904";
-	codec->owner = THIS_MODULE;
-	codec->bias_level = SND_SOC_BIAS_OFF;
-	codec->set_bias_level = wm8904_set_bias_level;
-	codec->dai = &wm8904_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = WM8904_MAX_REGISTER;
-	codec->reg_cache = &wm8904->reg_cache;
-	codec->volatile_register = wm8904_volatile_register;
 	codec->cache_sync = 1;
 	codec->idle_bias_off = 1;
 
@@ -2463,16 +2384,13 @@ static int wm8904_register(struct wm8904_priv *wm8904,
 	default:
 		dev_err(codec->dev, "Unknown device type %d\n",
 			wm8904->devtype);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
-	memcpy(codec->reg_cache, wm8904_reg, sizeof(wm8904_reg));
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 16, control);
+	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm8904->supplies); i++)
@@ -2482,7 +2400,7 @@ static int wm8904_register(struct wm8904_priv *wm8904,
 				 wm8904->supplies);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8904->supplies),
@@ -2516,8 +2434,6 @@ static int wm8904_register(struct wm8904_priv *wm8904,
 		dev_err(codec->dev, "Failed to issue reset\n");
 		goto err_enable;
 	}
-
-	wm8904_dai.dev = codec->dev;
 
 	/* Change some default settings - latch VU and enable ZC */
 	wm8904->reg_cache[WM8904_ADC_DIGITAL_VOLUME_LEFT] |= WM8904_ADC_VU;
@@ -2563,72 +2479,68 @@ static int wm8904_register(struct wm8904_priv *wm8904,
 	/* Bias level configuration will have done an extra enable */
 	regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
 
-	wm8904_codec = codec;
+	wm8904_handle_pdata(codec);
 
-	ret = snd_soc_register_codec(codec);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-		goto err_enable;
-	}
-
-	ret = snd_soc_register_dai(&wm8904_dai);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		goto err_codec;
-	}
+	wm8904_add_widgets(codec);
 
 	return 0;
 
-err_codec:
-	snd_soc_unregister_codec(codec);
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
 err_get:
 	regulator_bulk_free(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
-err:
-	kfree(wm8904);
 	return ret;
 }
 
-static void wm8904_unregister(struct wm8904_priv *wm8904)
+static int wm8904_remove(struct snd_soc_codec *codec)
 {
-	wm8904_set_bias_level(&wm8904->codec, SND_SOC_BIAS_OFF);
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
+
+	wm8904_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	regulator_bulk_free(ARRAY_SIZE(wm8904->supplies), wm8904->supplies);
-	snd_soc_unregister_dai(&wm8904_dai);
-	snd_soc_unregister_codec(&wm8904->codec);
-	kfree(wm8904);
-	wm8904_codec = NULL;
+
+	return 0;
 }
+
+static struct snd_soc_codec_driver soc_codec_dev_wm8904 = {
+	.probe =	wm8904_probe,
+	.remove =	wm8904_remove,
+	.suspend =	wm8904_suspend,
+	.resume =	wm8904_resume,
+	.set_bias_level = wm8904_set_bias_level,
+	.reg_cache_size = ARRAY_SIZE(wm8904_reg),
+	.reg_word_size = sizeof(u16),
+	.reg_cache_default = wm8904_reg,
+	.volatile_register = wm8904_volatile_register,
+};
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8904_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8904_priv *wm8904;
-	struct snd_soc_codec *codec;
+	int ret;
 
 	wm8904 = kzalloc(sizeof(struct wm8904_priv), GFP_KERNEL);
 	if (wm8904 == NULL)
 		return -ENOMEM;
 
-	codec = &wm8904->codec;
-	codec->hw_write = (hw_write_t)i2c_master_send;
-
 	wm8904->devtype = id->driver_data;
-
 	i2c_set_clientdata(i2c, wm8904);
-	codec->control_data = i2c;
+	wm8904->control_data = i2c;
 	wm8904->pdata = i2c->dev.platform_data;
 
-	codec->dev = &i2c->dev;
-
-	return wm8904_register(wm8904, SND_SOC_I2C);
+	ret = snd_soc_register_codec(&i2c->dev,
+			&soc_codec_dev_wm8904, &wm8904_dai, 1);
+	if (ret < 0)
+		kfree(wm8904);
+	return ret;
 }
 
 static __devexit int wm8904_i2c_remove(struct i2c_client *client)
 {
-	struct wm8904_priv *wm8904 = i2c_get_clientdata(client);
-	wm8904_unregister(wm8904);
+	snd_soc_unregister_codec(&client->dev);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
@@ -2641,7 +2553,7 @@ MODULE_DEVICE_TABLE(i2c, wm8904_i2c_id);
 
 static struct i2c_driver wm8904_i2c_driver = {
 	.driver = {
-		.name = "WM8904",
+		.name = "wm8904-codec",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8904_i2c_probe,
@@ -2652,15 +2564,15 @@ static struct i2c_driver wm8904_i2c_driver = {
 
 static int __init wm8904_modinit(void)
 {
-	int ret;
+	int ret = 0;
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&wm8904_i2c_driver);
 	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM8904 I2C driver: %d\n",
+		printk(KERN_ERR "Failed to register wm8904 I2C driver: %d\n",
 		       ret);
 	}
 #endif
-	return 0;
+	return ret;
 }
 module_init(wm8904_modinit);
 

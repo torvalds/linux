@@ -49,8 +49,8 @@ static int jive_hw_params(struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct s3c_i2sv2_rate_calc div;
 	unsigned int clk = 0;
 	int ret = 0;
@@ -108,8 +108,9 @@ static struct snd_soc_ops jive_ops = {
 	.hw_params	= jive_hw_params,
 };
 
-static int jive_wm8750_init(struct snd_soc_codec *codec)
+static int jive_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
 	int err;
 
 	/* These endpoints are not being used. */
@@ -138,8 +139,10 @@ static int jive_wm8750_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link jive_dai = {
 	.name		= "wm8750",
 	.stream_name	= "WM8750",
-	.cpu_dai	= &s3c2412_i2s_dai,
-	.codec_dai	= &wm8750_dai,
+	.cpu_dai_name	= "s3c2412-i2s",
+	.codec_dai_name = "wm8750-hifi",
+	.platform_name	= "s3c24xx-pcm-audio",
+	.codec_name	= "wm8750-codec.0-0x1a",
 	.init		= jive_wm8750_init,
 	.ops		= &jive_ops,
 };
@@ -147,15 +150,8 @@ static struct snd_soc_dai_link jive_dai = {
 /* jive audio machine driver */
 static struct snd_soc_card snd_soc_machine_jive = {
 	.name		= "Jive",
-	.platform	= &s3c24xx_soc_platform,
 	.dai_link	= &jive_dai,
 	.num_links	= 1,
-};
-
-/* jive audio subsystem */
-static struct snd_soc_device jive_snd_devdata = {
-	.card		= &snd_soc_machine_jive,
-	.codec_dev	= &soc_codec_dev_wm8750,
 };
 
 static struct platform_device *jive_snd_device;
@@ -173,8 +169,7 @@ static int __init jive_init(void)
 	if (!jive_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(jive_snd_device, &jive_snd_devdata);
-	jive_snd_devdata.dev = &jive_snd_device->dev;
+	platform_set_drvdata(jive_snd_device, &snd_soc_machine_jive);
 	ret = platform_device_add(jive_snd_device);
 
 	if (ret)

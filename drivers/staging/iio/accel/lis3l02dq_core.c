@@ -497,7 +497,7 @@ static LIS3L02DQ_UNSIGNED_ATTR(accel_y_calibscale,
 static LIS3L02DQ_UNSIGNED_ATTR(accel_z_calibscale,
 			       LIS3L02DQ_REG_GAIN_Z_ADDR);
 
-static IIO_DEVICE_ATTR(accel_mag_either_rising_value,
+static IIO_DEVICE_ATTR(accel_raw_mag_value,
 		       S_IWUSR | S_IRUGO,
 		       lis3l02dq_read_16bit_signed,
 		       lis3l02dq_write_16bit_signed,
@@ -639,32 +639,56 @@ static void lis3l02dq_thresh_handler_bh_no_check(struct work_struct *work_s)
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_HIGH)
 		iio_push_event(st->help.indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_Z_HIGH,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Z,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
 			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_LOW)
 		iio_push_event(st->help.indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_Z_LOW,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Z,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
 			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_HIGH)
 		iio_push_event(st->help.indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_Y_HIGH,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Y,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
 			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_LOW)
 		iio_push_event(st->help.indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_Y_LOW,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Y,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
 			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_HIGH)
 		iio_push_event(st->help.indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_X_HIGH,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_X,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
 			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_LOW)
 		iio_push_event(st->help.indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_X_LOW,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_X,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
 			       st->thresh_timestamp);
 	/* reenable the irq */
 	enable_irq(st->us->irq);
@@ -679,37 +703,37 @@ static void lis3l02dq_thresh_handler_bh_no_check(struct work_struct *work_s)
 /* A shared handler for a number of threshold types */
 IIO_EVENT_SH(threshold, &lis3l02dq_thresh_handler_th);
 
-IIO_EVENT_ATTR_SH(accel_x_mag_pos_rising_en,
+IIO_EVENT_ATTR_SH(accel_x_thresh_rising_en,
 		  iio_event_threshold,
 		  lis3l02dq_read_interrupt_config,
 		  lis3l02dq_write_interrupt_config,
 		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_X_HIGH);
 
-IIO_EVENT_ATTR_SH(accel_y_mag_pos_rising_en,
+IIO_EVENT_ATTR_SH(accel_y_thresh_rising_en,
 		  iio_event_threshold,
 		  lis3l02dq_read_interrupt_config,
 		  lis3l02dq_write_interrupt_config,
 		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Y_HIGH);
 
-IIO_EVENT_ATTR_SH(accel_z_mag_pos_rising_en,
+IIO_EVENT_ATTR_SH(accel_z_thresh_rising_en,
 		  iio_event_threshold,
 		  lis3l02dq_read_interrupt_config,
 		  lis3l02dq_write_interrupt_config,
 		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Z_HIGH);
 
-IIO_EVENT_ATTR_SH(accel_x_mag_neg_rising_en,
+IIO_EVENT_ATTR_SH(accel_x_thresh_falling_en,
 		  iio_event_threshold,
 		  lis3l02dq_read_interrupt_config,
 		  lis3l02dq_write_interrupt_config,
 		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_X_LOW);
 
-IIO_EVENT_ATTR_SH(accel_y_mag_neg_rising_en,
+IIO_EVENT_ATTR_SH(accel_y_thresh_falling_en,
 		  iio_event_threshold,
 		  lis3l02dq_read_interrupt_config,
 		  lis3l02dq_write_interrupt_config,
 		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Y_LOW);
 
-IIO_EVENT_ATTR_SH(accel_z_mag_neg_rising_en,
+IIO_EVENT_ATTR_SH(accel_z_thresh_falling_en,
 		  iio_event_threshold,
 		  lis3l02dq_read_interrupt_config,
 		  lis3l02dq_write_interrupt_config,
@@ -717,13 +741,13 @@ IIO_EVENT_ATTR_SH(accel_z_mag_neg_rising_en,
 
 
 static struct attribute *lis3l02dq_event_attributes[] = {
-	&iio_event_attr_accel_x_mag_pos_rising_en.dev_attr.attr,
-	&iio_event_attr_accel_y_mag_pos_rising_en.dev_attr.attr,
-	&iio_event_attr_accel_z_mag_pos_rising_en.dev_attr.attr,
-	&iio_event_attr_accel_x_mag_neg_rising_en.dev_attr.attr,
-	&iio_event_attr_accel_y_mag_neg_rising_en.dev_attr.attr,
-	&iio_event_attr_accel_z_mag_neg_rising_en.dev_attr.attr,
-	&iio_dev_attr_accel_mag_either_rising_value.dev_attr.attr,
+	&iio_event_attr_accel_x_thresh_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_y_thresh_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_z_thresh_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_x_thresh_falling_en.dev_attr.attr,
+	&iio_event_attr_accel_y_thresh_falling_en.dev_attr.attr,
+	&iio_event_attr_accel_z_thresh_falling_en.dev_attr.attr,
+	&iio_dev_attr_accel_raw_mag_value.dev_attr.attr,
 	NULL
 };
 
@@ -731,7 +755,7 @@ static struct attribute_group lis3l02dq_event_attribute_group = {
 	.attrs = lis3l02dq_event_attributes,
 };
 
-static IIO_CONST_ATTR(name, "lis3l02dq");
+static IIO_CONST_ATTR_NAME("lis3l02dq");
 static IIO_CONST_ATTR(accel_scale, "0.00958");
 
 static struct attribute *lis3l02dq_attributes[] = {

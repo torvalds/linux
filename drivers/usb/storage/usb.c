@@ -512,10 +512,10 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id,
 
 	/* Store the entries */
 	us->unusual_dev = unusual_dev;
-	us->subclass = (unusual_dev->useProtocol == US_SC_DEVICE) ?
+	us->subclass = (unusual_dev->useProtocol == USB_SC_DEVICE) ?
 			idesc->bInterfaceSubClass :
 			unusual_dev->useProtocol;
-	us->protocol = (unusual_dev->useTransport == US_PR_DEVICE) ?
+	us->protocol = (unusual_dev->useTransport == USB_PR_DEVICE) ?
 			idesc->bInterfaceProtocol :
 			unusual_dev->useTransport;
 	us->fflags = USB_US_ORIG_FLAGS(id->driver_info);
@@ -552,10 +552,10 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id,
 		struct usb_device_descriptor *ddesc = &dev->descriptor;
 		int msg = -1;
 
-		if (unusual_dev->useProtocol != US_SC_DEVICE &&
+		if (unusual_dev->useProtocol != USB_SC_DEVICE &&
 			us->subclass == idesc->bInterfaceSubClass)
 			msg += 1;
-		if (unusual_dev->useTransport != US_PR_DEVICE &&
+		if (unusual_dev->useTransport != USB_PR_DEVICE &&
 			us->protocol == idesc->bInterfaceProtocol)
 			msg += 2;
 		if (msg >= 0 && !(us->fflags & US_FL_NEED_OVERRIDE))
@@ -582,21 +582,21 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id,
 static void get_transport(struct us_data *us)
 {
 	switch (us->protocol) {
-	case US_PR_CB:
+	case USB_PR_CB:
 		us->transport_name = "Control/Bulk";
 		us->transport = usb_stor_CB_transport;
 		us->transport_reset = usb_stor_CB_reset;
 		us->max_lun = 7;
 		break;
 
-	case US_PR_CBI:
+	case USB_PR_CBI:
 		us->transport_name = "Control/Bulk/Interrupt";
 		us->transport = usb_stor_CB_transport;
 		us->transport_reset = usb_stor_CB_reset;
 		us->max_lun = 7;
 		break;
 
-	case US_PR_BULK:
+	case USB_PR_BULK:
 		us->transport_name = "Bulk";
 		us->transport = usb_stor_Bulk_transport;
 		us->transport_reset = usb_stor_Bulk_reset;
@@ -608,35 +608,35 @@ static void get_transport(struct us_data *us)
 static void get_protocol(struct us_data *us)
 {
 	switch (us->subclass) {
-	case US_SC_RBC:
+	case USB_SC_RBC:
 		us->protocol_name = "Reduced Block Commands (RBC)";
 		us->proto_handler = usb_stor_transparent_scsi_command;
 		break;
 
-	case US_SC_8020:
+	case USB_SC_8020:
 		us->protocol_name = "8020i";
 		us->proto_handler = usb_stor_pad12_command;
 		us->max_lun = 0;
 		break;
 
-	case US_SC_QIC:
+	case USB_SC_QIC:
 		us->protocol_name = "QIC-157";
 		us->proto_handler = usb_stor_pad12_command;
 		us->max_lun = 0;
 		break;
 
-	case US_SC_8070:
+	case USB_SC_8070:
 		us->protocol_name = "8070i";
 		us->proto_handler = usb_stor_pad12_command;
 		us->max_lun = 0;
 		break;
 
-	case US_SC_SCSI:
+	case USB_SC_SCSI:
 		us->protocol_name = "Transparent SCSI";
 		us->proto_handler = usb_stor_transparent_scsi_command;
 		break;
 
-	case US_SC_UFI:
+	case USB_SC_UFI:
 		us->protocol_name = "Uniform Floppy Interface (UFI)";
 		us->proto_handler = usb_stor_ufi_command;
 		break;
@@ -679,7 +679,7 @@ static int get_pipes(struct us_data *us)
 		}
 	}
 
-	if (!ep_in || !ep_out || (us->protocol == US_PR_CBI && !ep_int)) {
+	if (!ep_in || !ep_out || (us->protocol == USB_PR_CBI && !ep_int)) {
 		US_DEBUGP("Endpoint sanity check failed! Rejecting dev.\n");
 		return -EIO;
 	}
@@ -834,7 +834,7 @@ static int usb_stor_scan_thread(void * __us)
 	if (!test_bit(US_FLIDX_DONT_SCAN, &us->dflags)) {
 
 		/* For bulk-only devices, determine the max LUN value */
-		if (us->protocol == US_PR_BULK &&
+		if (us->protocol == USB_PR_BULK &&
 				!(us->fflags & US_FL_SINGLE_LUN)) {
 			mutex_lock(&us->dev_mutex);
 			us->max_lun = usb_stor_Bulk_max_lun(us);

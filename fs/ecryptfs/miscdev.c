@@ -482,6 +482,7 @@ static const struct file_operations ecryptfs_miscdev_fops = {
 	.read    = ecryptfs_miscdev_read,
 	.write   = ecryptfs_miscdev_write,
 	.release = ecryptfs_miscdev_release,
+	.llseek  = noop_llseek,
 };
 
 static struct miscdevice ecryptfs_miscdev = {

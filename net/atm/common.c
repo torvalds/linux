@@ -792,7 +792,7 @@ int vcc_getsockopt(struct socket *sock, int level, int optname,
 	default:
 		if (level == SOL_SOCKET)
 			return -EINVAL;
-			break;
+		break;
 	}
 	if (!vcc->dev || !vcc->dev->ops->getsockopt)
 		return -EINVAL;

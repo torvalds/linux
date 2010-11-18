@@ -493,6 +493,11 @@ int _access_ok(unsigned long addr, unsigned long size)
 		return 1;
 #endif
 
+#ifndef CONFIG_EXCEPTION_L1_SCRATCH
+	if (in_mem_const(addr, size, (unsigned long)l1_stack_base, l1_stack_len))
+		return 1;
+#endif
+
 	aret = in_async(addr, size);
 	if (aret < 2)
 		return aret;

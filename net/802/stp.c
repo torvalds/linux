@@ -21,8 +21,8 @@
 #define GARP_ADDR_MAX	0x2F
 #define GARP_ADDR_RANGE	(GARP_ADDR_MAX - GARP_ADDR_MIN)
 
-static const struct stp_proto *garp_protos[GARP_ADDR_RANGE + 1] __read_mostly;
-static const struct stp_proto *stp_proto __read_mostly;
+static const struct stp_proto __rcu *garp_protos[GARP_ADDR_RANGE + 1] __read_mostly;
+static const struct stp_proto __rcu *stp_proto __read_mostly;
 
 static struct llc_sap *sap __read_mostly;
 static unsigned int sap_registered;

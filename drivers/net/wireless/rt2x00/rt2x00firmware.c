@@ -63,6 +63,9 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 
 	INFO(rt2x00dev, "Firmware detected - version: %d.%d.\n",
 	     fw->data[fw->size - 4], fw->data[fw->size - 3]);
+	snprintf(rt2x00dev->hw->wiphy->fw_version,
+			sizeof(rt2x00dev->hw->wiphy->fw_version), "%d.%d",
+			fw->data[fw->size - 4], fw->data[fw->size - 3]);
 
 	retval = rt2x00dev->ops->lib->check_firmware(rt2x00dev, fw->data, fw->size);
 	switch (retval) {

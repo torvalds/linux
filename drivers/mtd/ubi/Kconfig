@@ -1,9 +1,5 @@
-menu "UBI - Unsorted block images"
-	depends on MTD
-
-config MTD_UBI
-	tristate "Enable UBI"
-	depends on MTD
+menuconfig MTD_UBI
+	tristate "Enable UBI - Unsorted block images"
 	select CRC32
 	help
 	  UBI is a software layer above MTD layer which admits of LVM-like
@@ -12,11 +8,12 @@ config MTD_UBI
 	  capabilities. Please, consult the MTD web site for more details
 	  (www.linux-mtd.infradead.org).
 
+if MTD_UBI
+
 config MTD_UBI_WL_THRESHOLD
 	int "UBI wear-leveling threshold"
 	default 4096
 	range 2 65536
-	depends on MTD_UBI
 	help
 	  This parameter defines the maximum difference between the highest
 	  erase counter value and the lowest erase counter value of eraseblocks
@@ -34,7 +31,6 @@ config MTD_UBI_BEB_RESERVE
 	int "Percentage of reserved eraseblocks for bad eraseblocks handling"
 	default 1
 	range 0 25
-	depends on MTD_UBI
 	help
 	  If the MTD device admits of bad eraseblocks (e.g. NAND flash), UBI
 	  reserves some amount of physical eraseblocks to handle new bad
@@ -48,8 +44,6 @@ config MTD_UBI_BEB_RESERVE
 
 config MTD_UBI_GLUEBI
 	tristate "MTD devices emulation driver (gluebi)"
-	default n
-	depends on MTD_UBI
 	help
 	   This option enables gluebi - an additional driver which emulates MTD
 	   devices on top of UBI volumes: for each UBI volumes an MTD device is
@@ -59,4 +53,5 @@ config MTD_UBI_GLUEBI
 	   software.
 
 source "drivers/mtd/ubi/Kconfig.debug"
-endmenu
+
+endif # MTD_UBI

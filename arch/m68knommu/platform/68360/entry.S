@@ -42,7 +42,7 @@ do_trace:
 	movel	#-ENOSYS,%sp@(PT_OFF_D0) /* needed for strace*/
 	subql	#4,%sp
 	SAVE_SWITCH_STACK
-	jbsr	syscall_trace
+	jbsr	syscall_trace_enter
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
 	movel	%sp@(PT_OFF_ORIG_D0),%d1
@@ -56,7 +56,7 @@ do_trace:
 1:	movel	%d0,%sp@(PT_OFF_D0)	/* save the return value */
 	subql	#4,%sp			/* dummy return address */
 	SAVE_SWITCH_STACK
-	jbsr	syscall_trace
+	jbsr	syscall_trace_leave
 
 ret_from_signal:
 	RESTORE_SWITCH_STACK
@@ -71,7 +71,12 @@ ENTRY(system_call)
 	jbsr	set_esp0
 	addql	#4,%sp
 
-	btst	#PF_TRACESYS_BIT,%a2@(TASK_FLAGS+PF_TRACESYS_OFF)
+	movel	%sp@(PT_OFF_ORIG_D0),%d0
+
+	movel	%sp,%d1			/* get thread_info pointer */
+	andl	#-THREAD_SIZE,%d1
+	movel	%d1,%a2
+	btst	#(TIF_SYSCALL_TRACE%8),%a2@(TI_FLAGS+(31-TIF_SYSCALL_TRACE)/8)
 	jne	do_trace
 	cmpl	#NR_syscalls,%d0
 	jcc	badsys
@@ -124,7 +129,7 @@ Lreturn:
  */
 inthandler:
 	SAVE_ALL
-	movew	%sp@(PT_OFF_VECTOR), %d0
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and.l	#0x3ff, %d0
 	lsr.l   #0x02,  %d0
 

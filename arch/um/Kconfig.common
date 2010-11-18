@@ -19,8 +19,6 @@ config MMU
 config NO_IOMEM
 	def_bool y
 
-mainmenu "Linux/Usermode Kernel Configuration"
-
 config ISA
 	bool
 

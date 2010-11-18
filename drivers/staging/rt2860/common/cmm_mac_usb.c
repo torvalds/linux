@@ -663,10 +663,7 @@ int RTUSBWriteHWMACAddress(struct rt_rtmp_adapter *pAd)
 	StaMacReg1.field.Byte5 = pAd->CurrentAddress[5];
 	StaMacReg1.field.U2MeMask = 0xff;
 	DBGPRINT_RAW(RT_DEBUG_TRACE,
-		     ("Local MAC = %02x:%02x:%02x:%02x:%02x:%02x\n",
-		      pAd->CurrentAddress[0], pAd->CurrentAddress[1],
-		      pAd->CurrentAddress[2], pAd->CurrentAddress[3],
-		      pAd->CurrentAddress[4], pAd->CurrentAddress[5]));
+		("Local MAC = %pM\n", pAd->CurrentAddress));
 
 	RTUSBWriteMACRegister(pAd, MAC_ADDR_DW0, StaMacReg0.word);
 	RTUSBWriteMACRegister(pAd, MAC_ADDR_DW1, StaMacReg1.word);

@@ -4,7 +4,7 @@
  * sensor.
  *
  * The data sheet for this device can be found at:
- *    http://www.marvell.com/products/pcconn/88ALP01.jsp
+ *    http://www.marvell.com/products/pc_connectivity/88alp01/ 
  *
  * Copyright 2006 One Laptop Per Child Association, Inc.
  * Copyright 2006-7 Jonathan Corbet <corbet@lwn.net>
@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+#include <linux/dmi.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/i2c.h>
@@ -46,6 +47,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+#include "ov7670.h"
 #include "cafe_ccic-regs.h"
 
 #define CAFE_VERSION 0x000002
@@ -180,6 +182,7 @@ struct cafe_camera
 	/* Current operating parameters */
 	u32 sensor_type;		/* Currently ov7670 only */
 	struct v4l2_pix_format pix_format;
+	enum v4l2_mbus_pixelcode mbus_code;
 
 	/* Locks */
 	struct mutex s_mutex; /* Access to this structure */
@@ -207,6 +210,49 @@ static inline struct cafe_camera *to_cam(struct v4l2_device *dev)
 	return container_of(dev, struct cafe_camera, v4l2_dev);
 }
 
+static struct cafe_format_struct {
+	__u8 *desc;
+	__u32 pixelformat;
+	int bpp;   /* Bytes per pixel */
+	enum v4l2_mbus_pixelcode mbus_code;
+} cafe_formats[] = {
+	{
+		.desc		= "YUYV 4:2:2",
+		.pixelformat	= V4L2_PIX_FMT_YUYV,
+		.mbus_code	= V4L2_MBUS_FMT_YUYV8_2X8,
+		.bpp		= 2,
+	},
+	{
+		.desc		= "RGB 444",
+		.pixelformat	= V4L2_PIX_FMT_RGB444,
+		.mbus_code	= V4L2_MBUS_FMT_RGB444_2X8_PADHI_LE,
+		.bpp		= 2,
+	},
+	{
+		.desc		= "RGB 565",
+		.pixelformat	= V4L2_PIX_FMT_RGB565,
+		.mbus_code	= V4L2_MBUS_FMT_RGB565_2X8_LE,
+		.bpp		= 2,
+	},
+	{
+		.desc		= "Raw RGB Bayer",
+		.pixelformat	= V4L2_PIX_FMT_SBGGR8,
+		.mbus_code	= V4L2_MBUS_FMT_SBGGR8_1X8,
+		.bpp		= 1
+	},
+};
+#define N_CAFE_FMTS ARRAY_SIZE(cafe_formats)
+
+static struct cafe_format_struct *cafe_find_format(u32 pixelformat)
+{
+	unsigned i;
+
+	for (i = 0; i < N_CAFE_FMTS; i++)
+		if (cafe_formats[i].pixelformat == pixelformat)
+			return cafe_formats + i;
+	/* Not found? Then return the first format. */
+	return cafe_formats;
+}
 
 /*
  * Start over with DMA buffers - dev_lock needed.
@@ -319,7 +365,6 @@ static int cafe_smbus_write_data(struct cafe_camera *cam,
 {
 	unsigned int rval;
 	unsigned long flags;
-	DEFINE_WAIT(the_wait);
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	rval = TWSIC0_EN | ((addr << TWSIC0_SID_SHIFT) & TWSIC0_SID);
@@ -334,28 +379,27 @@ static int cafe_smbus_write_data(struct cafe_camera *cam,
 	cafe_reg_write(cam, REG_TWSIC1, rval);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 
-	/*
-	 * Time to wait for the write to complete.  THIS IS A RACY
-	 * WAY TO DO IT, but the sad fact is that reading the TWSIC1
-	 * register too quickly after starting the operation sends
-	 * the device into a place that may be kinder and better, but
-	 * which is absolutely useless for controlling the sensor.  In
-	 * practice we have plenty of time to get into our sleep state
-	 * before the interrupt hits, and the worst case is that we
-	 * time out and then see that things completed, so this seems
-	 * the best way for now.
+	/* Unfortunately, reading TWSIC1 too soon after sending a command
+	 * causes the device to die.
+	 * Use a busy-wait because we often send a large quantity of small
+	 * commands at-once; using msleep() would cause a lot of context
+	 * switches which take longer than 2ms, resulting in a noticable
+	 * boot-time and capture-start delays.
 	 */
-	do {
-		prepare_to_wait(&cam->smbus_wait, &the_wait,
-				TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1); /* even 1 jiffy is too long */
-		finish_wait(&cam->smbus_wait, &the_wait);
-	} while (!cafe_smbus_write_done(cam));
+	mdelay(2);
 
-#ifdef IF_THE_CAFE_HARDWARE_WORKED_RIGHT
+	/*
+	 * Another sad fact is that sometimes, commands silently complete but
+	 * cafe_smbus_write_done() never becomes aware of this.
+	 * This happens at random and appears to possible occur with any
+	 * command.
+	 * We don't understand why this is. We work around this issue
+	 * with the timeout in the wait below, assuming that all commands
+	 * complete within the timeout.
+	 */
 	wait_event_timeout(cam->smbus_wait, cafe_smbus_write_done(cam),
 			CAFE_SMBUS_TIMEOUT);
-#endif
+
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	rval = cafe_reg_read(cam, REG_TWSIC1);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
@@ -812,15 +856,15 @@ static int cafe_cam_set_flip(struct cafe_camera *cam)
 
 static int cafe_cam_configure(struct cafe_camera *cam)
 {
-	struct v4l2_format fmt;
+	struct v4l2_mbus_framefmt mbus_fmt;
 	int ret;
 
 	if (cam->state != S_IDLE)
 		return -EINVAL;
-	fmt.fmt.pix = cam->pix_format;
+	v4l2_fill_mbus_format(&mbus_fmt, &cam->pix_format, cam->mbus_code);
 	ret = sensor_call(cam, core, init, 0);
 	if (ret == 0)
-		ret = sensor_call(cam, video, s_fmt, &fmt);
+		ret = sensor_call(cam, video, s_mbus_fmt, &mbus_fmt);
 	/*
 	 * OV7670 does weird things if flip is set *before* format...
 	 */
@@ -1481,7 +1525,7 @@ static int cafe_vidioc_querycap(struct file *file, void *priv,
 /*
  * The default format we use until somebody says otherwise.
  */
-static struct v4l2_pix_format cafe_def_pix_format = {
+static const struct v4l2_pix_format cafe_def_pix_format = {
 	.width		= VGA_WIDTH,
 	.height		= VGA_HEIGHT,
 	.pixelformat	= V4L2_PIX_FMT_YUYV,
@@ -1490,28 +1534,38 @@ static struct v4l2_pix_format cafe_def_pix_format = {
 	.sizeimage	= VGA_WIDTH*VGA_HEIGHT*2,
 };
 
+static const enum v4l2_mbus_pixelcode cafe_def_mbus_code =
+					V4L2_MBUS_FMT_YUYV8_2X8;
+
 static int cafe_vidioc_enum_fmt_vid_cap(struct file *filp,
 		void *priv, struct v4l2_fmtdesc *fmt)
 {
-	struct cafe_camera *cam = priv;
-	int ret;
-
-	mutex_lock(&cam->s_mutex);
-	ret = sensor_call(cam, video, enum_fmt, fmt);
-	mutex_unlock(&cam->s_mutex);
-	return ret;
+	if (fmt->index >= N_CAFE_FMTS)
+		return -EINVAL;
+	strlcpy(fmt->description, cafe_formats[fmt->index].desc,
+			sizeof(fmt->description));
+	fmt->pixelformat = cafe_formats[fmt->index].pixelformat;
+	return 0;
 }
-
 
 static int cafe_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 		struct v4l2_format *fmt)
 {
 	struct cafe_camera *cam = priv;
+	struct cafe_format_struct *f;
+	struct v4l2_pix_format *pix = &fmt->fmt.pix;
+	struct v4l2_mbus_framefmt mbus_fmt;
 	int ret;
 
+	f = cafe_find_format(pix->pixelformat);
+	pix->pixelformat = f->pixelformat;
+	v4l2_fill_mbus_format(&mbus_fmt, pix, f->mbus_code);
 	mutex_lock(&cam->s_mutex);
-	ret = sensor_call(cam, video, try_fmt, fmt);
+	ret = sensor_call(cam, video, try_mbus_fmt, &mbus_fmt);
 	mutex_unlock(&cam->s_mutex);
+	v4l2_fill_pix_format(pix, &mbus_fmt);
+	pix->bytesperline = pix->width * f->bpp;
+	pix->sizeimage = pix->height * pix->bytesperline;
 	return ret;
 }
 
@@ -1519,6 +1573,7 @@ static int cafe_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 		struct v4l2_format *fmt)
 {
 	struct cafe_camera *cam = priv;
+	struct cafe_format_struct *f;
 	int ret;
 
 	/*
@@ -1527,6 +1582,9 @@ static int cafe_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 	 */
 	if (cam->state != S_IDLE || cam->n_sbufs > 0)
 		return -EBUSY;
+
+	f = cafe_find_format(fmt->fmt.pix.pixelformat);
+
 	/*
 	 * See if the formatting works in principle.
 	 */
@@ -1539,6 +1597,8 @@ static int cafe_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 	 */
 	mutex_lock(&cam->s_mutex);
 	cam->pix_format = fmt->fmt.pix;
+	cam->mbus_code = f->mbus_code;
+
 	/*
 	 * Make sure we have appropriate DMA buffers.
 	 */
@@ -1652,6 +1712,30 @@ static int cafe_vidioc_g_chip_ident(struct file *file, void *priv,
 	return sensor_call(cam, core, g_chip_ident, chip);
 }
 
+static int cafe_vidioc_enum_framesizes(struct file *filp, void *priv,
+		struct v4l2_frmsizeenum *sizes)
+{
+	struct cafe_camera *cam = priv;
+	int ret;
+
+	mutex_lock(&cam->s_mutex);
+	ret = sensor_call(cam, video, enum_framesizes, sizes);
+	mutex_unlock(&cam->s_mutex);
+	return ret;
+}
+
+static int cafe_vidioc_enum_frameintervals(struct file *filp, void *priv,
+		struct v4l2_frmivalenum *interval)
+{
+	struct cafe_camera *cam = priv;
+	int ret;
+
+	mutex_lock(&cam->s_mutex);
+	ret = sensor_call(cam, video, enum_frameintervals, interval);
+	mutex_unlock(&cam->s_mutex);
+	return ret;
+}
+
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int cafe_vidioc_g_register(struct file *file, void *priv,
 		struct v4l2_dbg_register *reg)
@@ -1715,6 +1799,8 @@ static const struct v4l2_ioctl_ops cafe_v4l_ioctl_ops = {
 	.vidioc_s_ctrl		= cafe_vidioc_s_ctrl,
 	.vidioc_g_parm		= cafe_vidioc_g_parm,
 	.vidioc_s_parm		= cafe_vidioc_s_parm,
+	.vidioc_enum_framesizes = cafe_vidioc_enum_framesizes,
+	.vidioc_enum_frameintervals = cafe_vidioc_enum_frameintervals,
 	.vidioc_g_chip_ident    = cafe_vidioc_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register 	= cafe_vidioc_g_register,
@@ -1890,11 +1976,33 @@ static irqreturn_t cafe_irq(int irq, void *data)
  * PCI interface stuff.
  */
 
+static const struct dmi_system_id olpc_xo1_dmi[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "OLPC"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "XO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "1"),
+		},
+	},
+	{ }
+};
+
 static int cafe_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *id)
 {
 	int ret;
 	struct cafe_camera *cam;
+	struct ov7670_config sensor_cfg = {
+		/* This controller only does SMBUS */
+		.use_smbus = true,
+
+		/*
+		 * Exclude QCIF mode, because it only captures a tiny portion
+		 * of the sensor FOV
+		 */
+		.min_width = 320,
+		.min_height = 240,
+	};
 
 	/*
 	 * Start putting together one of our big camera structures.
@@ -1915,6 +2023,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	init_waitqueue_head(&cam->iowait);
 	cam->pdev = pdev;
 	cam->pix_format = cafe_def_pix_format;
+	cam->mbus_code = cafe_def_mbus_code;
 	INIT_LIST_HEAD(&cam->dev_list);
 	INIT_LIST_HEAD(&cam->sb_avail);
 	INIT_LIST_HEAD(&cam->sb_full);
@@ -1951,13 +2060,19 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto out_freeirq;
 
+	/* Apply XO-1 clock speed */
+	if (dmi_check_system(olpc_xo1_dmi))
+		sensor_cfg.clock_speed = 45;
+
 	cam->sensor_addr = 0x42;
-	cam->sensor = v4l2_i2c_new_subdev(&cam->v4l2_dev, &cam->i2c_adapter,
-			"ov7670", "ov7670", cam->sensor_addr, NULL);
+	cam->sensor = v4l2_i2c_new_subdev_cfg(&cam->v4l2_dev, &cam->i2c_adapter,
+			"ov7670", "ov7670", 0, &sensor_cfg, cam->sensor_addr,
+			NULL);
 	if (cam->sensor == NULL) {
 		ret = -ENODEV;
 		goto out_smbus;
 	}
+
 	ret = cafe_cam_init(cam);
 	if (ret)
 		goto out_smbus;

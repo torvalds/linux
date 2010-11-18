@@ -192,6 +192,7 @@ static const struct file_operations severities_coverage_fops = {
 	.release	= seq_release,
 	.read		= seq_read,
 	.write		= severities_coverage_write,
+	.llseek		= seq_lseek,
 };
 
 static int __init severities_debugfs_init(void)

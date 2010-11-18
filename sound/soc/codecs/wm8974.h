@@ -83,7 +83,4 @@
 #define WM8974_MCLKDIV_8	(6 << 5)
 #define WM8974_MCLKDIV_12	(7 << 5)
 
-extern struct snd_soc_dai wm8974_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8974;
-
 #endif

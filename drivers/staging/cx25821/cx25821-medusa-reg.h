@@ -443,13 +443,13 @@
 /*****************************************************************************/
 /* LUMA_CTRL register fields */
 #define VDEC_A_BRITE_CTRL				0x1014
-#define VDEC_A_CNTRST_CTRL       		0x1015
-#define VDEC_A_PEAK_SEL          		0x1016
+#define VDEC_A_CNTRST_CTRL			0x1015
+#define VDEC_A_PEAK_SEL				0x1016
 
 /*****************************************************************************/
 /* CHROMA_CTRL register fields */
-#define VDEC_A_USAT_CTRL         		0x1018
-#define VDEC_A_VSAT_CTRL         		0x1019
-#define VDEC_A_HUE_CTRL          		0x101A
+#define VDEC_A_USAT_CTRL			0x1018
+#define VDEC_A_VSAT_CTRL			0x1019
+#define VDEC_A_HUE_CTRL				0x101A
 
 #endif

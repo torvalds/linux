@@ -654,7 +654,7 @@ static int prodigy192_ak4114_init(struct snd_ice1712 *ice)
 static void stac9460_proc_regs_read(struct snd_info_entry *entry,
 		struct snd_info_buffer *buffer)
 {
-	struct snd_ice1712 *ice = (struct snd_ice1712 *)entry->private_data;
+	struct snd_ice1712 *ice = entry->private_data;
 	int reg, val;
 	/* registers 0x0 - 0x14 */
 	for (reg = 0; reg <= 0x15; reg++) {

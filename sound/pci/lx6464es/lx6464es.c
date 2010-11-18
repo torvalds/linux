@@ -425,7 +425,7 @@ exit:
 static void lx_trigger_start(struct lx6464es *chip, struct lx_stream *lx_stream)
 {
 	struct snd_pcm_substream *substream = lx_stream->stream;
-	const int is_capture = lx_stream->is_capture;
+	const unsigned int is_capture = lx_stream->is_capture;
 
 	int err;
 
@@ -473,7 +473,7 @@ static void lx_trigger_start(struct lx6464es *chip, struct lx_stream *lx_stream)
 
 static void lx_trigger_stop(struct lx6464es *chip, struct lx_stream *lx_stream)
 {
-	const int is_capture = lx_stream->is_capture;
+	const unsigned int is_capture = lx_stream->is_capture;
 	int err;
 
 	snd_printd(LXP "stopping: stopping stream\n");

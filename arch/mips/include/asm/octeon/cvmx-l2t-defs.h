@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2008 Cavium Networks
+ * Copyright (c) 2003-2010 Cavium Networks
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -28,8 +28,7 @@
 #ifndef __CVMX_L2T_DEFS_H__
 #define __CVMX_L2T_DEFS_H__
 
-#define CVMX_L2T_ERR \
-	 CVMX_ADD_IO_SEG(0x0001180080000008ull)
+#define CVMX_L2T_ERR (CVMX_ADD_IO_SEG(0x0001180080000008ull))
 
 union cvmx_l2t_err {
 	uint64_t u64;

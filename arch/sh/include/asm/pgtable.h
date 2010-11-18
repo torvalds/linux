@@ -66,7 +66,6 @@ static inline unsigned long long neff_sign_extend(unsigned long val)
 #define PHYS_ADDR_MASK29		0x1fffffff
 #define PHYS_ADDR_MASK32		0xffffffff
 
-#ifdef CONFIG_PMB
 static inline unsigned long phys_addr_mask(void)
 {
 	/* Is the MMU in 29bit mode? */
@@ -75,17 +74,6 @@ static inline unsigned long phys_addr_mask(void)
 
 	return PHYS_ADDR_MASK32;
 }
-#elif defined(CONFIG_32BIT)
-static inline unsigned long phys_addr_mask(void)
-{
-	return PHYS_ADDR_MASK32;
-}
-#else
-static inline unsigned long phys_addr_mask(void)
-{
-	return PHYS_ADDR_MASK29;
-}
-#endif
 
 #define PTE_PHYS_MASK		(phys_addr_mask() & PAGE_MASK)
 #define PTE_FLAGS_MASK		(~(PTE_PHYS_MASK) << PAGE_SHIFT)
@@ -168,6 +156,8 @@ extern void page_table_range_init(unsigned long start, unsigned long end,
 /* arch/sh/mm/mmap.c */
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
+
+#define __HAVE_ARCH_PTE_SPECIAL
 
 #include <asm-generic/pgtable.h>
 

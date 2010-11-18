@@ -740,10 +740,10 @@ int pcmidi_snd_terminate(struct pcmidi_snd *pm)
 /*
  * PC-MIDI report descriptor for report id is wrong.
  */
-static void pk_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int rsize)
+static __u8 *pk_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+		unsigned int *rsize)
 {
-	if (rsize == 178 &&
+	if (*rsize == 178 &&
 	      rdesc[111] == 0x06 && rdesc[112] == 0x00 &&
 	      rdesc[113] == 0xff) {
 		dev_info(&hdev->dev, "fixing up pc-midi keyboard report "
@@ -751,6 +751,7 @@ static void pk_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 		rdesc[144] = 0x18; /* report 4: was 0x10 report count */
 	}
+	return rdesc;
 }
 
 static int pk_input_mapping(struct hid_device *hdev, struct hid_input *hi,

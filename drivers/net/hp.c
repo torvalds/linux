@@ -204,10 +204,10 @@ static int __init hp_probe1(struct net_device *dev, int ioaddr)
 	ei_status.rx_start_page = HP_START_PG + TX_PAGES;
 	ei_status.stop_page = wordmode ? HP_16BSTOP_PG : HP_8BSTOP_PG;
 
-	ei_status.reset_8390 = &hp_reset_8390;
-	ei_status.get_8390_hdr = &hp_get_8390_hdr;
-	ei_status.block_input = &hp_block_input;
-	ei_status.block_output = &hp_block_output;
+	ei_status.reset_8390 = hp_reset_8390;
+	ei_status.get_8390_hdr = hp_get_8390_hdr;
+	ei_status.block_input = hp_block_input;
+	ei_status.block_output = hp_block_output;
 	hp_init_card(dev);
 
 	retval = register_netdev(dev);

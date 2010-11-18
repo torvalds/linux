@@ -34,7 +34,7 @@
 	   340747b.pdf  AT-MIO E series Register Level Programmer Manual
 	   341079b.pdf  PCI E Series RLPM
 	   340934b.pdf  DAQ-STC reference manual
-	67xx and 611x registers (from http://www.ni.com/pdf/daq/us)
+	67xx and 611x registers (from ftp://ftp.ni.com/support/daq/mhddk/documentation/)
 	release_ni611x.pdf
 	release_ni67xx.pdf
 	Other possibly relevant info:

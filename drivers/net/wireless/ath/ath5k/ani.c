@@ -355,41 +355,28 @@ ath5k_ani_lower_immunity(struct ath5k_hw *ah, struct ath5k_ani_state *as)
 
 
 /**
- * ath5k_hw_ani_get_listen_time() - Calculate time spent listening
+ * ath5k_hw_ani_get_listen_time() - Update counters and return listening time
  *
  * Return an approximation of the time spent "listening" in milliseconds (ms)
- * since the last call of this function by deducting the cycles spent
- * transmitting and receiving from the total cycle count.
- * Save profile count values for debugging/statistics and because we might want
- * to use them later.
- *
- * We assume no one else clears these registers!
+ * since the last call of this function.
+ * Save a snapshot of the counter values for debugging/statistics.
  */
 static int
 ath5k_hw_ani_get_listen_time(struct ath5k_hw *ah, struct ath5k_ani_state *as)
 {
+	struct ath_common *common = ath5k_hw_common(ah);
 	int listen;
 
-	/* freeze */
-	ath5k_hw_reg_write(ah, AR5K_MIBC_FMC, AR5K_MIBC);
-	/* read */
-	as->pfc_cycles = ath5k_hw_reg_read(ah, AR5K_PROFCNT_CYCLE);
-	as->pfc_busy = ath5k_hw_reg_read(ah, AR5K_PROFCNT_RXCLR);
-	as->pfc_tx = ath5k_hw_reg_read(ah, AR5K_PROFCNT_TX);
-	as->pfc_rx = ath5k_hw_reg_read(ah, AR5K_PROFCNT_RX);
-	/* clear */
-	ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_TX);
-	ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_RX);
-	ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_RXCLR);
-	ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_CYCLE);
-	/* un-freeze */
-	ath5k_hw_reg_write(ah, 0, AR5K_MIBC);
+	spin_lock_bh(&common->cc_lock);
 
-	/* TODO: where does 44000 come from? (11g clock rate?) */
-	listen = (as->pfc_cycles - as->pfc_rx - as->pfc_tx) / 44000;
+	ath_hw_cycle_counters_update(common);
+	memcpy(&as->last_cc, &common->cc_ani, sizeof(as->last_cc));
 
-	if (as->pfc_cycles == 0 || listen < 0)
-		return 0;
+	/* clears common->cc_ani */
+	listen = ath_hw_get_listen_time(common);
+
+	spin_unlock_bh(&common->cc_lock);
+
 	return listen;
 }
 
@@ -552,9 +539,9 @@ ath5k_ani_mib_intr(struct ath5k_hw *ah)
 	if (ah->ah_sc->ani_state.ani_mode != ATH5K_ANI_MODE_AUTO)
 		return;
 
-	/* if one of the errors triggered, we can get a superfluous second
-	 * interrupt, even though we have already reset the register. the
-	 * function detects that so we can return early */
+	/* If one of the errors triggered, we can get a superfluous second
+	 * interrupt, even though we have already reset the register. The
+	 * function detects that so we can return early. */
 	if (ath5k_ani_save_and_clear_phy_errors(ah, as) == 0)
 		return;
 

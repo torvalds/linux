@@ -44,6 +44,8 @@ int lpfc_reg_rpi(struct lpfc_hba *, uint16_t, uint32_t, uint8_t *,
 void lpfc_set_var(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t, uint32_t);
 void lpfc_unreg_login(struct lpfc_hba *, uint16_t, uint32_t, LPFC_MBOXQ_t *);
 void lpfc_unreg_did(struct lpfc_hba *, uint16_t, uint32_t, LPFC_MBOXQ_t *);
+void lpfc_sli4_unreg_all_rpis(struct lpfc_vport *);
+
 void lpfc_reg_vpi(struct lpfc_vport *, LPFC_MBOXQ_t *);
 void lpfc_register_new_vport(struct lpfc_hba *, struct lpfc_vport *,
 			struct lpfc_nodelist *);
@@ -229,6 +231,7 @@ void lpfc_sli4_fcf_dead_failthrough(struct lpfc_hba *);
 uint16_t lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *);
 int lpfc_sli4_fcf_rr_index_set(struct lpfc_hba *, uint16_t);
 void lpfc_sli4_fcf_rr_index_clear(struct lpfc_hba *, uint16_t);
+int lpfc_sli4_fcf_rr_next_proc(struct lpfc_vport *, uint16_t);
 
 int lpfc_mem_alloc(struct lpfc_hba *, int align);
 void lpfc_mem_free(struct lpfc_hba *);
@@ -271,6 +274,7 @@ int lpfc_sli_issue_iocb(struct lpfc_hba *, uint32_t,
 void lpfc_sli_pcimem_bcopy(void *, void *, uint32_t);
 void lpfc_sli_bemem_bcopy(void *, void *, uint32_t);
 void lpfc_sli_abort_iocb_ring(struct lpfc_hba *, struct lpfc_sli_ring *);
+void lpfc_sli_hba_iocb_abort(struct lpfc_hba *);
 void lpfc_sli_flush_fcp_rings(struct lpfc_hba *);
 int lpfc_sli_ringpostbuf_put(struct lpfc_hba *, struct lpfc_sli_ring *,
 			     struct lpfc_dmabuf *);

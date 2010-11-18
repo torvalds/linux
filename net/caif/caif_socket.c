@@ -4,6 +4,8 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
+
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -15,7 +17,6 @@
 #include <linux/poll.h>
 #include <linux/tcp.h>
 #include <linux/uaccess.h>
-#include <linux/mutex.h>
 #include <linux/debugfs.h>
 #include <linux/caif/caif_socket.h>
 #include <asm/atomic.h>
@@ -27,9 +28,6 @@
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(AF_CAIF);
-
-#define CAIF_DEF_SNDBUF (4096*10)
-#define CAIF_DEF_RCVBUF (4096*100)
 
 /*
  * CAIF state is re-using the TCP socket states.
@@ -157,9 +155,7 @@ static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
 		(unsigned)sk->sk_rcvbuf && rx_flow_is_on(cf_sk)) {
-		trace_printk("CAIF: %s():"
-			" sending flow OFF (queue len = %d %d)\n",
-			__func__,
+		pr_debug("sending flow OFF (queue len = %d %d)\n",
 			atomic_read(&cf_sk->sk.sk_rmem_alloc),
 			sk_rcvbuf_lowwater(cf_sk));
 		set_rx_flow_off(cf_sk);
@@ -172,9 +168,7 @@ static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		return err;
 	if (!sk_rmem_schedule(sk, skb->truesize) && rx_flow_is_on(cf_sk)) {
 		set_rx_flow_off(cf_sk);
-		trace_printk("CAIF: %s():"
-			" sending flow OFF due to rmem_schedule\n",
-			__func__);
+		pr_debug("sending flow OFF due to rmem_schedule\n");
 		dbfs_atomic_inc(&cnt.num_rx_flow_off);
 		caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_OFF_REQ);
 	}
@@ -275,8 +269,7 @@ static void caif_ctrl_cb(struct cflayer *layr,
 		break;
 
 	default:
-		pr_debug("CAIF: %s(): Unexpected flow command %d\n",
-				__func__, flow);
+		pr_debug("Unexpected flow command %d\n", flow);
 	}
 }
 
@@ -536,8 +529,7 @@ static int transmit_skb(struct sk_buff *skb, struct caifsock *cf_sk,
 
 		/* Slight paranoia, probably not needed. */
 		if (unlikely(loopcnt++ > 1000)) {
-			pr_warning("CAIF: %s(): transmit retries failed,"
-				" error = %d\n", __func__, ret);
+			pr_warn("transmit retries failed, error = %d\n", ret);
 			break;
 		}
 
@@ -724,8 +716,7 @@ static int setsockopt(struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
-	int prio, linksel;
-	struct ifreq ifreq;
+	int linksel;
 
 	if (cf_sk->sk.sk_socket->state != SS_UNCONNECTED)
 		return -ENOPROTOOPT;
@@ -740,33 +731,6 @@ static int setsockopt(struct socket *sock,
 			return -EINVAL;
 		lock_sock(&(cf_sk->sk));
 		cf_sk->conn_req.link_selector = linksel;
-		release_sock(&cf_sk->sk);
-		return 0;
-
-	case SO_PRIORITY:
-		if (lvl != SOL_SOCKET)
-			goto bad_sol;
-		if (ol < sizeof(int))
-			return -EINVAL;
-		if (copy_from_user(&prio, ov, sizeof(int)))
-			return -EINVAL;
-		lock_sock(&(cf_sk->sk));
-		cf_sk->conn_req.priority = prio;
-		release_sock(&cf_sk->sk);
-		return 0;
-
-	case SO_BINDTODEVICE:
-		if (lvl != SOL_SOCKET)
-			goto bad_sol;
-		if (ol < sizeof(struct ifreq))
-			return -EINVAL;
-		if (copy_from_user(&ifreq, ov, sizeof(ifreq)))
-			return -EFAULT;
-		lock_sock(&(cf_sk->sk));
-		strncpy(cf_sk->conn_req.link_name, ifreq.ifr_name,
-			sizeof(cf_sk->conn_req.link_name));
-		cf_sk->conn_req.link_name
-			[sizeof(cf_sk->conn_req.link_name)-1] = 0;
 		release_sock(&cf_sk->sk);
 		return 0;
 
@@ -888,6 +852,18 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	sock->state = SS_CONNECTING;
 	sk->sk_state = CAIF_CONNECTING;
 
+	/* Check priority value comming from socket */
+	/* if priority value is out of range it will be ajusted */
+	if (cf_sk->sk.sk_priority > CAIF_PRIO_MAX)
+		cf_sk->conn_req.priority = CAIF_PRIO_MAX;
+	else if (cf_sk->sk.sk_priority < CAIF_PRIO_MIN)
+		cf_sk->conn_req.priority = CAIF_PRIO_MIN;
+	else
+		cf_sk->conn_req.priority = cf_sk->sk.sk_priority;
+
+	/*ifindex = id of the interface.*/
+	cf_sk->conn_req.ifindex = cf_sk->sk.sk_bound_dev_if;
+
 	dbfs_atomic_inc(&cnt.num_connect_req);
 	cf_sk->layer.receive = caif_sktrecv_cb;
 	err = caif_connect_client(&cf_sk->conn_req,
@@ -912,8 +888,8 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	cf_sk->tailroom = tailroom;
 	cf_sk->maxframe = mtu - (headroom + tailroom);
 	if (cf_sk->maxframe < 1) {
-		pr_warning("CAIF: %s(): CAIF Interface MTU too small (%u)\n",
-			   __func__, mtu);
+		pr_warn("CAIF Interface MTU too small (%d)\n", dev->mtu);
+		err = -ENODEV;
 		goto out;
 	}
 
@@ -1132,10 +1108,6 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 	/* Store the protocol */
 	sk->sk_protocol = (unsigned char) protocol;
 
-	/* Sendbuf dictates the amount of outbound packets not yet sent */
-	sk->sk_sndbuf = CAIF_DEF_SNDBUF;
-	sk->sk_rcvbuf = CAIF_DEF_RCVBUF;
-
 	/*
 	 * Lock in order to try to stop someone from opening the socket
 	 * too early.
@@ -1155,7 +1127,7 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 	set_rx_flow_on(cf_sk);
 
 	/* Set default options on configuration */
-	cf_sk->conn_req.priority = CAIF_PRIO_NORMAL;
+	cf_sk->sk.sk_priority= CAIF_PRIO_NORMAL;
 	cf_sk->conn_req.link_selector = CAIF_LINK_LOW_LATENCY;
 	cf_sk->conn_req.protocol = protocol;
 	/* Increase the number of sockets created. */

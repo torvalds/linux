@@ -74,6 +74,107 @@ static void fini_debug_store_on_cpu(int cpu)
 	wrmsr_on_cpu(cpu, MSR_IA32_DS_AREA, 0, 0);
 }
 
+static int alloc_pebs_buffer(int cpu)
+{
+	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+	int node = cpu_to_node(cpu);
+	int max, thresh = 1; /* always use a single PEBS record */
+	void *buffer;
+
+	if (!x86_pmu.pebs)
+		return 0;
+
+	buffer = kmalloc_node(PEBS_BUFFER_SIZE, GFP_KERNEL | __GFP_ZERO, node);
+	if (unlikely(!buffer))
+		return -ENOMEM;
+
+	max = PEBS_BUFFER_SIZE / x86_pmu.pebs_record_size;
+
+	ds->pebs_buffer_base = (u64)(unsigned long)buffer;
+	ds->pebs_index = ds->pebs_buffer_base;
+	ds->pebs_absolute_maximum = ds->pebs_buffer_base +
+		max * x86_pmu.pebs_record_size;
+
+	ds->pebs_interrupt_threshold = ds->pebs_buffer_base +
+		thresh * x86_pmu.pebs_record_size;
+
+	return 0;
+}
+
+static void release_pebs_buffer(int cpu)
+{
+	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+
+	if (!ds || !x86_pmu.pebs)
+		return;
+
+	kfree((void *)(unsigned long)ds->pebs_buffer_base);
+	ds->pebs_buffer_base = 0;
+}
+
+static int alloc_bts_buffer(int cpu)
+{
+	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+	int node = cpu_to_node(cpu);
+	int max, thresh;
+	void *buffer;
+
+	if (!x86_pmu.bts)
+		return 0;
+
+	buffer = kmalloc_node(BTS_BUFFER_SIZE, GFP_KERNEL | __GFP_ZERO, node);
+	if (unlikely(!buffer))
+		return -ENOMEM;
+
+	max = BTS_BUFFER_SIZE / BTS_RECORD_SIZE;
+	thresh = max / 16;
+
+	ds->bts_buffer_base = (u64)(unsigned long)buffer;
+	ds->bts_index = ds->bts_buffer_base;
+	ds->bts_absolute_maximum = ds->bts_buffer_base +
+		max * BTS_RECORD_SIZE;
+	ds->bts_interrupt_threshold = ds->bts_absolute_maximum -
+		thresh * BTS_RECORD_SIZE;
+
+	return 0;
+}
+
+static void release_bts_buffer(int cpu)
+{
+	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+
+	if (!ds || !x86_pmu.bts)
+		return;
+
+	kfree((void *)(unsigned long)ds->bts_buffer_base);
+	ds->bts_buffer_base = 0;
+}
+
+static int alloc_ds_buffer(int cpu)
+{
+	int node = cpu_to_node(cpu);
+	struct debug_store *ds;
+
+	ds = kmalloc_node(sizeof(*ds), GFP_KERNEL | __GFP_ZERO, node);
+	if (unlikely(!ds))
+		return -ENOMEM;
+
+	per_cpu(cpu_hw_events, cpu).ds = ds;
+
+	return 0;
+}
+
+static void release_ds_buffer(int cpu)
+{
+	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
+
+	if (!ds)
+		return;
+
+	per_cpu(cpu_hw_events, cpu).ds = NULL;
+	kfree(ds);
+}
+
 static void release_ds_buffers(void)
 {
 	int cpu;
@@ -82,93 +183,77 @@ static void release_ds_buffers(void)
 		return;
 
 	get_online_cpus();
-
 	for_each_online_cpu(cpu)
 		fini_debug_store_on_cpu(cpu);
 
 	for_each_possible_cpu(cpu) {
-		struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-
-		if (!ds)
-			continue;
-
-		per_cpu(cpu_hw_events, cpu).ds = NULL;
-
-		kfree((void *)(unsigned long)ds->pebs_buffer_base);
-		kfree((void *)(unsigned long)ds->bts_buffer_base);
-		kfree(ds);
+		release_pebs_buffer(cpu);
+		release_bts_buffer(cpu);
+		release_ds_buffer(cpu);
 	}
-
 	put_online_cpus();
 }
 
-static int reserve_ds_buffers(void)
+static void reserve_ds_buffers(void)
 {
-	int cpu, err = 0;
+	int bts_err = 0, pebs_err = 0;
+	int cpu;
+
+	x86_pmu.bts_active = 0;
+	x86_pmu.pebs_active = 0;
 
 	if (!x86_pmu.bts && !x86_pmu.pebs)
-		return 0;
+		return;
+
+	if (!x86_pmu.bts)
+		bts_err = 1;
+
+	if (!x86_pmu.pebs)
+		pebs_err = 1;
 
 	get_online_cpus();
 
 	for_each_possible_cpu(cpu) {
-		struct debug_store *ds;
-		void *buffer;
-		int max, thresh;
+		if (alloc_ds_buffer(cpu)) {
+			bts_err = 1;
+			pebs_err = 1;
+		}
 
-		err = -ENOMEM;
-		ds = kzalloc(sizeof(*ds), GFP_KERNEL);
-		if (unlikely(!ds))
+		if (!bts_err && alloc_bts_buffer(cpu))
+			bts_err = 1;
+
+		if (!pebs_err && alloc_pebs_buffer(cpu))
+			pebs_err = 1;
+
+		if (bts_err && pebs_err)
 			break;
-		per_cpu(cpu_hw_events, cpu).ds = ds;
-
-		if (x86_pmu.bts) {
-			buffer = kzalloc(BTS_BUFFER_SIZE, GFP_KERNEL);
-			if (unlikely(!buffer))
-				break;
-
-			max = BTS_BUFFER_SIZE / BTS_RECORD_SIZE;
-			thresh = max / 16;
-
-			ds->bts_buffer_base = (u64)(unsigned long)buffer;
-			ds->bts_index = ds->bts_buffer_base;
-			ds->bts_absolute_maximum = ds->bts_buffer_base +
-				max * BTS_RECORD_SIZE;
-			ds->bts_interrupt_threshold = ds->bts_absolute_maximum -
-				thresh * BTS_RECORD_SIZE;
-		}
-
-		if (x86_pmu.pebs) {
-			buffer = kzalloc(PEBS_BUFFER_SIZE, GFP_KERNEL);
-			if (unlikely(!buffer))
-				break;
-
-			max = PEBS_BUFFER_SIZE / x86_pmu.pebs_record_size;
-
-			ds->pebs_buffer_base = (u64)(unsigned long)buffer;
-			ds->pebs_index = ds->pebs_buffer_base;
-			ds->pebs_absolute_maximum = ds->pebs_buffer_base +
-				max * x86_pmu.pebs_record_size;
-			/*
-			 * Always use single record PEBS
-			 */
-			ds->pebs_interrupt_threshold = ds->pebs_buffer_base +
-				x86_pmu.pebs_record_size;
-		}
-
-		err = 0;
 	}
 
-	if (err)
-		release_ds_buffers();
-	else {
+	if (bts_err) {
+		for_each_possible_cpu(cpu)
+			release_bts_buffer(cpu);
+	}
+
+	if (pebs_err) {
+		for_each_possible_cpu(cpu)
+			release_pebs_buffer(cpu);
+	}
+
+	if (bts_err && pebs_err) {
+		for_each_possible_cpu(cpu)
+			release_ds_buffer(cpu);
+	} else {
+		if (x86_pmu.bts && !bts_err)
+			x86_pmu.bts_active = 1;
+
+		if (x86_pmu.pebs && !pebs_err)
+			x86_pmu.pebs_active = 1;
+
 		for_each_online_cpu(cpu)
 			init_debug_store_on_cpu(cpu);
 	}
 
 	put_online_cpus();
-
-	return err;
 }
 
 /*
@@ -233,7 +318,7 @@ static int intel_pmu_drain_bts_buffer(void)
 	if (!event)
 		return 0;
 
-	if (!ds)
+	if (!x86_pmu.bts_active)
 		return 0;
 
 	at  = (struct bts_record *)(unsigned long)ds->bts_buffer_base;
@@ -503,7 +588,7 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 	struct pebs_record_core *at, *top;
 	int n;
 
-	if (!ds || !x86_pmu.pebs)
+	if (!x86_pmu.pebs_active)
 		return;
 
 	at  = (struct pebs_record_core *)(unsigned long)ds->pebs_buffer_base;
@@ -545,7 +630,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 	u64 status = 0;
 	int bit, n;
 
-	if (!ds || !x86_pmu.pebs)
+	if (!x86_pmu.pebs_active)
 		return;
 
 	at  = (struct pebs_record_nhm *)(unsigned long)ds->pebs_buffer_base;
@@ -630,9 +715,8 @@ static void intel_ds_init(void)
 
 #else /* CONFIG_CPU_SUP_INTEL */
 
-static int reserve_ds_buffers(void)
+static void reserve_ds_buffers(void)
 {
-	return 0;
 }
 
 static void release_ds_buffers(void)

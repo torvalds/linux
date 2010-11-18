@@ -3,6 +3,7 @@
  *
  * Copyright 2008 JMicron Technology Corporation
  * http://www.jmicron.com/
+ * Copyright (c) 2009 - 2010 Guo-Fu Tseng <cooldavid@cooldavid.org>
  *
  * Author: Guo-Fu Tseng <cooldavid@cooldavid.org>
  *
@@ -25,7 +26,7 @@
 #define __JME_H_INCLUDED__
 
 #define DRV_NAME	"jme"
-#define DRV_VERSION	"1.0.6"
+#define DRV_VERSION	"1.0.7"
 #define PFX		DRV_NAME ": "
 
 #define PCI_DEVICE_ID_JMICRON_JMC250	0x0250
@@ -40,9 +41,6 @@
 	NETIF_MSG_RX_ERR | \
 	NETIF_MSG_TX_ERR | \
 	NETIF_MSG_HW)
-
-#define jeprintk(pdev, fmt, args...) \
-	printk(KERN_ERR PFX fmt, ## args)
 
 #ifdef TX_DEBUG
 #define tx_dbg(priv, fmt, args...)					\

@@ -223,6 +223,11 @@ META_COLLECTOR(int_maclen)
 	dst->value = skb->mac_len;
 }
 
+META_COLLECTOR(int_rxhash)
+{
+	dst->value = skb_get_rxhash(skb);
+}
+
 /**************************************************************************
  * Netfilter
  **************************************************************************/
@@ -541,6 +546,7 @@ static struct meta_ops __meta_ops[TCF_META_TYPE_MAX+1][TCF_META_ID_MAX+1] = {
 		[META_ID(SK_SENDMSG_OFF)]	= META_FUNC(int_sk_sendmsg_off),
 		[META_ID(SK_WRITE_PENDING)]	= META_FUNC(int_sk_write_pend),
 		[META_ID(VLAN_TAG)]		= META_FUNC(int_vlan_tag),
+		[META_ID(RXHASH)]		= META_FUNC(int_rxhash),
 	}
 };
 

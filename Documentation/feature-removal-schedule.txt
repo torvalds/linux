@@ -98,7 +98,7 @@ Who:	Pavel Machek <pavel@ucw.cz>
 ---------------------------
 
 What:	Video4Linux API 1 ioctls and from Video devices.
-When:	July 2009
+When:	kernel 2.6.38
 Files:	include/linux/videodev.h
 Check:	include/linux/videodev.h
 Why:	V4L1 AP1 was replaced by V4L2 API during migration from 2.4 to 2.6
@@ -112,6 +112,21 @@ Why:	V4L1 AP1 was replaced by V4L2 API during migration from 2.4 to 2.6
 	V4L2 calls being translated into compatible internal ioctls.
 	Compatibility ioctls will be provided, for a while, via 
 	v4l1-compat module. 
+Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
+
+---------------------------
+
+What:	Video4Linux obsolete drivers using V4L1 API
+When:	kernel 2.6.38
+Files:	drivers/staging/cpia/* drivers/staging/stradis/*
+Check:	drivers/staging/cpia/cpia.c drivers/staging/stradis/stradis.c
+Why:	There are some drivers still using V4L1 API, despite all efforts we've done
+	to migrate. Those drivers are for obsolete hardware that the old maintainer
+	didn't care (or not have the hardware anymore), and that no other developer
+	could find any hardware to buy. They probably have no practical usage today,
+	and people with such old hardware could probably keep using an older version
+	of the kernel. Those drivers will be moved to staging on 2.6.37 and, if nobody
+	care enough to port and test them with V4L2 API, they'll be removed on 2.6.38.
 Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
 
 ---------------------------
@@ -470,45 +485,12 @@ When:	April 2011
 Why:	Superseded by xt_CT
 Who:	Netfilter developer team <netfilter-devel@vger.kernel.org>
 
----------------------------
-
-What:	video4linux /dev/vtx teletext API support
-When:	2.6.35
-Files:	drivers/media/video/saa5246a.c drivers/media/video/saa5249.c
-	include/linux/videotext.h
-Why:	The vtx device nodes have been superseded by vbi device nodes
-	for many years. No applications exist that use the vtx support.
-	Of the two i2c drivers that actually support this API the saa5249
-	has been impossible to use for a year now and no known hardware
-	that supports this device exists. The saa5246a is theoretically
-	supported by the old mxb boards, but it never actually worked.
-
-	In summary: there is no hardware that can use this API and there
-	are no applications actually implementing this API.
-
-	The vtx support still reserves minors 192-223 and we would really
-	like to reuse those for upcoming new functionality. In the unlikely
-	event that new hardware appears that wants to use the functionality
-	provided by the vtx API, then that functionality should be build
-	around the sliced VBI API instead.
-Who:	Hans Verkuil <hverkuil@xs4all.nl>
-
 ----------------------------
 
 What:	IRQF_DISABLED
 When:	2.6.36
 Why:	The flag is a NOOP as we run interrupt handlers with interrupts disabled
 Who:	Thomas Gleixner <tglx@linutronix.de>
-
-----------------------------
-
-What:	old ieee1394 subsystem (CONFIG_IEEE1394)
-When:	2.6.37
-Files:	drivers/ieee1394/ except init_ohci1394_dma.c
-Why:	superseded by drivers/firewire/ (CONFIG_FIREWIRE) which offers more
-	features, better performance, and better security, all with smaller
-	and more modern code base
-Who:	Stefan Richter <stefanr@s5r6.in-berlin.de>
 
 ----------------------------
 
@@ -536,3 +518,49 @@ Who:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
 
 ----------------------------
 
+What:   namespace cgroup (ns_cgroup)
+When:   2.6.38
+Why:    The ns_cgroup leads to some problems:
+	* cgroup creation is out-of-control
+	* cgroup name can conflict when pids are looping
+	* it is not possible to have a single process handling
+	a lot of namespaces without falling in a exponential creation time
+	* we may want to create a namespace without creating a cgroup
+
+	The ns_cgroup is replaced by a compatibility flag 'clone_children',
+	where a newly created cgroup will copy the parent cgroup values.
+	The userspace has to manually create a cgroup and add a task to
+	the 'tasks' file.
+Who:    Daniel Lezcano <daniel.lezcano@free.fr>
+
+----------------------------
+
+What:	iwlwifi disable_hw_scan module parameters
+When:	2.6.40
+Why:	Hareware scan is the prefer method for iwlwifi devices for
+	scanning operation. Remove software scan support for all the
+	iwlwifi devices.
+
+Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
+
+----------------------------
+
+What:   access to nfsd auth cache through sys_nfsservctl or '.' files
+        in the 'nfsd' filesystem.
+When:   2.6.40
+Why:    This is a legacy interface which have been replaced by a more
+        dynamic cache.  Continuing to maintain this interface is an
+        unnecessary burden.
+Who:    NeilBrown <neilb@suse.de>
+
+----------------------------
+
+What:	i2c_adapter.id
+When:	June 2011
+Why:	This field is deprecated. I2C device drivers shouldn't change their
+	behavior based on the underlying I2C adapter. Instead, the I2C
+	adapter driver should instantiate the I2C devices and provide the
+	needed platform-specific information.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+----------------------------

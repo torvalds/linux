@@ -393,7 +393,7 @@ static struct cpufreq_driver nforce2_driver = {
  * Detects nForce2 A2 and C1 stepping
  *
  */
-static unsigned int nforce2_detect_chipset(void)
+static int nforce2_detect_chipset(void)
 {
 	nforce2_dev = pci_get_subsys(PCI_VENDOR_ID_NVIDIA,
 					PCI_DEVICE_ID_NVIDIA_NFORCE2,

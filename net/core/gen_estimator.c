@@ -274,9 +274,9 @@ void gen_kill_estimator(struct gnet_stats_basic_packed *bstats,
 	while ((e = gen_find_node(bstats, rate_est))) {
 		rb_erase(&e->node, &est_root);
 
-		write_lock_bh(&est_lock);
+		write_lock(&est_lock);
 		e->bstats = NULL;
-		write_unlock_bh(&est_lock);
+		write_unlock(&est_lock);
 
 		list_del_rcu(&e->list);
 		call_rcu(&e->e_rcu, __gen_kill_estimator);

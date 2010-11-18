@@ -67,7 +67,7 @@ char *softirq_to_name[NR_SOFTIRQS] = {
  * to the pending events, so lets the scheduler to balance
  * the softirq load for us.
  */
-void wakeup_softirqd(void)
+static void wakeup_softirqd(void)
 {
 	/* Interrupts are disabled: no need to stop preemption */
 	struct task_struct *tsk = __get_cpu_var(ksoftirqd);
@@ -229,18 +229,20 @@ restart:
 
 	do {
 		if (pending & 1) {
+			unsigned int vec_nr = h - softirq_vec;
 			int prev_count = preempt_count();
-			kstat_incr_softirqs_this_cpu(h - softirq_vec);
 
-			trace_softirq_entry(h, softirq_vec);
+			kstat_incr_softirqs_this_cpu(vec_nr);
+
+			trace_softirq_entry(vec_nr);
 			h->action(h);
-			trace_softirq_exit(h, softirq_vec);
+			trace_softirq_exit(vec_nr);
 			if (unlikely(prev_count != preempt_count())) {
-				printk(KERN_ERR "huh, entered softirq %td %s %p"
+				printk(KERN_ERR "huh, entered softirq %u %s %p"
 				       "with preempt_count %08x,"
-				       " exited with %08x?\n", h - softirq_vec,
-				       softirq_to_name[h - softirq_vec],
-				       h->action, prev_count, preempt_count());
+				       " exited with %08x?\n", vec_nr,
+				       softirq_to_name[vec_nr], h->action,
+				       prev_count, preempt_count());
 				preempt_count() = prev_count;
 			}
 

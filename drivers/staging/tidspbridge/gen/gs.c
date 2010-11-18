@@ -19,7 +19,6 @@
 #include <linux/types.h>
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
-#include <linux/types.h>
 
 /*  ----------------------------------- This */
 #include <dspbridge/gs.h>

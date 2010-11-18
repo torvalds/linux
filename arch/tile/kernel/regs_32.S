@@ -85,7 +85,7 @@ STD_ENTRY_SECTION(__switch_to, .sched.text)
 	{
 	  /* Update sp and ksp0 simultaneously to avoid backtracer warnings. */
 	  move sp, r13
-	  mtspr SYSTEM_SAVE_1_0, r2
+	  mtspr SPR_SYSTEM_SAVE_K_0, r2
 	}
 	FOR_EACH_CALLEE_SAVED_REG(LOAD_REG)
 .L__switch_to_pc:

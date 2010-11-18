@@ -56,50 +56,6 @@ void kunmap(struct page *page)
 }
 EXPORT_SYMBOL(kunmap);
 
-static void debug_kmap_atomic_prot(enum km_type type)
-{
-#ifdef CONFIG_DEBUG_HIGHMEM
-	static unsigned warn_count = 10;
-
-	if (unlikely(warn_count == 0))
-		return;
-
-	if (unlikely(in_interrupt())) {
-		if (in_irq()) {
-			if (type != KM_IRQ0 && type != KM_IRQ1 &&
-			    type != KM_BIO_SRC_IRQ &&
-			    /* type != KM_BIO_DST_IRQ && */
-			    type != KM_BOUNCE_READ) {
-				WARN_ON(1);
-				warn_count--;
-			}
-		} else if (!irqs_disabled()) {	/* softirq */
-			if (type != KM_IRQ0 && type != KM_IRQ1 &&
-			    type != KM_SOFTIRQ0 && type != KM_SOFTIRQ1 &&
-			    type != KM_SKB_SUNRPC_DATA &&
-			    type != KM_SKB_DATA_SOFTIRQ &&
-			    type != KM_BOUNCE_READ) {
-				WARN_ON(1);
-				warn_count--;
-			}
-		}
-	}
-
-	if (type == KM_IRQ0 || type == KM_IRQ1 || type == KM_BOUNCE_READ ||
-	    type == KM_BIO_SRC_IRQ /* || type == KM_BIO_DST_IRQ */) {
-		if (!irqs_disabled()) {
-			WARN_ON(1);
-			warn_count--;
-		}
-	} else if (type == KM_SOFTIRQ0 || type == KM_SOFTIRQ1) {
-		if (irq_count() == 0 && !irqs_disabled()) {
-			WARN_ON(1);
-			warn_count--;
-		}
-	}
-#endif
-}
-
 /*
  * Describe a single atomic mapping of a page on a given cpu at a
  * given address, and allow it to be linked into a list.
@@ -240,10 +196,10 @@ void kmap_atomic_fix_kpte(struct page *page, int finished)
  * When holding an atomic kmap is is not legal to sleep, so atomic
  * kmaps are appropriate for short, tight code paths only.
  */
-void *kmap_atomic_prot(struct page *page, enum km_type type, pgprot_t prot)
+void *kmap_atomic_prot(struct page *page, pgprot_t prot)
 {
-	enum fixed_addresses idx;
 	unsigned long vaddr;
+	int idx, type;
 	pte_t *pte;
 
 	/* even !CONFIG_PREEMPT needs this, for in_atomic in do_page_fault */
@@ -255,8 +211,7 @@ void *kmap_atomic_prot(struct page *page, enum km_type type, pgprot_t prot)
 	if (!PageHighMem(page))
 		return page_address(page);
 
-	debug_kmap_atomic_prot(type);
-
+	type = kmap_atomic_idx_push();
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 	pte = kmap_get_pte(vaddr);
@@ -269,28 +224,35 @@ void *kmap_atomic_prot(struct page *page, enum km_type type, pgprot_t prot)
 }
 EXPORT_SYMBOL(kmap_atomic_prot);
 
-void *kmap_atomic(struct page *page, enum km_type type)
+void *__kmap_atomic(struct page *page)
 {
 	/* PAGE_NONE is a magic value that tells us to check immutability. */
-	return kmap_atomic_prot(page, type, PAGE_NONE);
+	return kmap_atomic_prot(page, PAGE_NONE);
 }
-EXPORT_SYMBOL(kmap_atomic);
+EXPORT_SYMBOL(__kmap_atomic);
 
-void kunmap_atomic_notypecheck(void *kvaddr, enum km_type type)
+void __kunmap_atomic(void *kvaddr)
 {
 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
-	enum fixed_addresses idx = type + KM_TYPE_NR*smp_processor_id();
 
-	/*
-	 * Force other mappings to Oops if they try to access this pte without
-	 * first remapping it.  Keeping stale mappings around is a bad idea.
-	 */
-	if (vaddr == __fix_to_virt(FIX_KMAP_BEGIN+idx)) {
+	if (vaddr >= __fix_to_virt(FIX_KMAP_END) &&
+	    vaddr <= __fix_to_virt(FIX_KMAP_BEGIN)) {
 		pte_t *pte = kmap_get_pte(vaddr);
 		pte_t pteval = *pte;
+		int idx, type;
+
+		type = kmap_atomic_idx();
+		idx = type + KM_TYPE_NR*smp_processor_id();
+
+		/*
+		 * Force other mappings to Oops if they try to access this pte
+		 * without first remapping it.  Keeping stale mappings around
+		 * is a bad idea.
+		 */
 		BUG_ON(!pte_present(pteval) && !pte_migrating(pteval));
 		kmap_atomic_unregister(pte_page(pteval), vaddr);
 		kpte_clear_flush(pte, vaddr);
+		kmap_atomic_idx_pop();
 	} else {
 		/* Must be a lowmem page */
 		BUG_ON(vaddr < PAGE_OFFSET);
@@ -300,19 +262,19 @@ void kunmap_atomic_notypecheck(void *kvaddr, enum km_type type)
 	arch_flush_lazy_mmu_mode();
 	pagefault_enable();
 }
-EXPORT_SYMBOL(kunmap_atomic_notypecheck);
+EXPORT_SYMBOL(__kunmap_atomic);
 
 /*
  * This API is supposed to allow us to map memory without a "struct page".
  * Currently we don't support this, though this may change in the future.
  */
-void *kmap_atomic_pfn(unsigned long pfn, enum km_type type)
+void *kmap_atomic_pfn(unsigned long pfn)
 {
-	return kmap_atomic(pfn_to_page(pfn), type);
+	return kmap_atomic(pfn_to_page(pfn));
 }
-void *kmap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot)
+void *kmap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot)
 {
-	return kmap_atomic_prot(pfn_to_page(pfn), type, prot);
+	return kmap_atomic_prot(pfn_to_page(pfn), prot);
 }
 
 struct page *kmap_atomic_to_page(void *ptr)

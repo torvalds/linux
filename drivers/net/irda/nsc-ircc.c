@@ -1348,7 +1348,7 @@ static __u8 nsc_ircc_change_speed(struct nsc_ircc_cb *self, __u32 speed)
 	outb(bank, iobase+BSR);
 
 	/* Make sure interrupt handlers keep the proper interrupt mask */
-	return(ier);
+	return ier;
 }
 
 /*

@@ -235,9 +235,9 @@ via_lock_all_dma_pages(drm_via_sg_info_t *vsg,  drm_via_dmablit_t *xfer)
 	vsg->num_pages = VIA_PFN(xfer->mem_addr + (xfer->num_lines * xfer->mem_stride - 1)) -
 		first_pfn + 1;
 
-	if (NULL == (vsg->pages = vmalloc(sizeof(struct page *) * vsg->num_pages)))
+	vsg->pages = vzalloc(sizeof(struct page *) * vsg->num_pages);
+	if (NULL == vsg->pages)
 		return -ENOMEM;
-	memset(vsg->pages, 0, sizeof(struct page *) * vsg->num_pages);
 	down_read(&current->mm->mmap_sem);
 	ret = get_user_pages(current, current->mm,
 			     (unsigned long)xfer->mem_addr,

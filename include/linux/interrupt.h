@@ -410,13 +410,12 @@ extern void open_softirq(int nr, void (*action)(struct softirq_action *));
 extern void softirq_init(void);
 static inline void __raise_softirq_irqoff(unsigned int nr)
 {
-	trace_softirq_raise((struct softirq_action *)(unsigned long)nr, NULL);
+	trace_softirq_raise(nr);
 	or_softirq_pending(1UL << nr);
 }
 
 extern void raise_softirq_irqoff(unsigned int nr);
 extern void raise_softirq(unsigned int nr);
-extern void wakeup_softirqd(void);
 
 /* This is the worklist that queues up per-cpu softirq work.
  *

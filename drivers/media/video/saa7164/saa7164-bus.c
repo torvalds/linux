@@ -1,7 +1,7 @@
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
- *  Copyright (c) 2009 Steven Toth <stoth@kernellabs.com>
+ *  Copyright (c) 2010 Steven Toth <stoth@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
  */
 int saa7164_bus_setup(struct saa7164_dev *dev)
 {
-	tmComResBusInfo_t *b	= &dev->bus;
+	struct tmComResBusInfo *b	= &dev->bus;
 
 	mutex_init(&b->lock);
 
@@ -43,24 +43,18 @@ int saa7164_bus_setup(struct saa7164_dev *dev)
 
 	b->m_dwSizeGetRing	= SAA_DEVICE_BUFFERBLOCKSIZE;
 
-	b->m_pdwSetWritePos	= (u32 *)((u8 *)(dev->bmmio +
-		((u32)dev->intfdesc.BARLocation) + (2 * sizeof(u64))));
+	b->m_dwSetWritePos	= ((u32)dev->intfdesc.BARLocation) + (2 * sizeof(u64));
+	b->m_dwSetReadPos	= b->m_dwSetWritePos + (1 * sizeof(u32));
 
-	b->m_pdwSetReadPos	= (u32 *)((u8 *)b->m_pdwSetWritePos +
-		1 * sizeof(u32));
-
-	b->m_pdwGetWritePos	= (u32 *)((u8 *)b->m_pdwSetWritePos +
-		2 * sizeof(u32));
-
-	b->m_pdwGetReadPos	= (u32 *)((u8 *)b->m_pdwSetWritePos +
-		3 * sizeof(u32));
+	b->m_dwGetWritePos	= b->m_dwSetWritePos + (2 * sizeof(u32));
+	b->m_dwGetReadPos	= b->m_dwSetWritePos + (3 * sizeof(u32));
 
 	return 0;
 }
 
 void saa7164_bus_dump(struct saa7164_dev *dev)
 {
-	tmComResBusInfo_t *b = &dev->bus;
+	struct tmComResBusInfo *b = &dev->bus;
 
 	dprintk(DBGLVL_BUS, "Dumping the bus structure:\n");
 	dprintk(DBGLVL_BUS, " .type             = %d\n", b->Type);
@@ -71,20 +65,47 @@ void saa7164_bus_dump(struct saa7164_dev *dev)
 	dprintk(DBGLVL_BUS, " .m_pdwGetRing     = 0x%p\n", b->m_pdwGetRing);
 	dprintk(DBGLVL_BUS, " .m_dwSizeGetRing  = 0x%x\n", b->m_dwSizeGetRing);
 
-	dprintk(DBGLVL_BUS, " .m_pdwSetWritePos = 0x%p (0x%08x)\n",
-		b->m_pdwSetWritePos, *b->m_pdwSetWritePos);
+	dprintk(DBGLVL_BUS, " .m_dwSetReadPos   = 0x%x (0x%08x)\n",
+		b->m_dwSetReadPos, saa7164_readl(b->m_dwSetReadPos));
 
-	dprintk(DBGLVL_BUS, " .m_pdwSetReadPos  = 0x%p (0x%08x)\n",
-		b->m_pdwSetReadPos, *b->m_pdwSetReadPos);
+	dprintk(DBGLVL_BUS, " .m_dwSetWritePos  = 0x%x (0x%08x)\n",
+		b->m_dwSetWritePos, saa7164_readl(b->m_dwSetWritePos));
 
-	dprintk(DBGLVL_BUS, " .m_pdwGetWritePos = 0x%p (0x%08x)\n",
-		b->m_pdwGetWritePos, *b->m_pdwGetWritePos);
+	dprintk(DBGLVL_BUS, " .m_dwGetReadPos   = 0x%x (0x%08x)\n",
+		b->m_dwGetReadPos, saa7164_readl(b->m_dwGetReadPos));
 
-	dprintk(DBGLVL_BUS, " .m_pdwGetReadPos  = 0x%p (0x%08x)\n",
-		b->m_pdwGetReadPos, *b->m_pdwGetReadPos);
+	dprintk(DBGLVL_BUS, " .m_dwGetWritePos  = 0x%x (0x%08x)\n",
+		b->m_dwGetWritePos, saa7164_readl(b->m_dwGetWritePos));
+
 }
 
-void saa7164_bus_dumpmsg(struct saa7164_dev *dev, tmComResInfo_t* m, void *buf)
+/* Intensionally throw a BUG() if the state of the message bus looks corrupt */
+void saa7164_bus_verify(struct saa7164_dev *dev)
+{
+	struct tmComResBusInfo *b = &dev->bus;
+	int bug = 0;
+
+	if (saa7164_readl(b->m_dwSetReadPos) > b->m_dwSizeSetRing)
+		bug++;
+
+	if (saa7164_readl(b->m_dwSetWritePos) > b->m_dwSizeSetRing)
+		bug++;
+
+	if (saa7164_readl(b->m_dwGetReadPos) > b->m_dwSizeGetRing)
+		bug++;
+
+	if (saa7164_readl(b->m_dwGetWritePos) > b->m_dwSizeGetRing)
+		bug++;
+
+	if (bug) {
+		saa_debug = 0xffff; /* Ensure we get the bus dump */
+		saa7164_bus_dump(dev);
+		saa_debug = 1024; /* Ensure we get the bus dump */
+		BUG();
+	}
+}
+
+void saa7164_bus_dumpmsg(struct saa7164_dev *dev, struct tmComResInfo* m, void *buf)
 {
 	dprintk(DBGLVL_BUS, "Dumping msg structure:\n");
 	dprintk(DBGLVL_BUS, " .id               = %d\n",   m->id);
@@ -100,7 +121,7 @@ void saa7164_bus_dumpmsg(struct saa7164_dev *dev, tmComResInfo_t* m, void *buf)
 /*
  * Places a command or a response on the bus. The implementation does not
  * know if it is a command or a response it just places the data on the
- * bus depending on the bus information given in the tmComResBusInfo_t
+ * bus depending on the bus information given in the struct tmComResBusInfo
  * structure. If the command or response does not fit into the bus ring
  * buffer it will be refused.
  *
@@ -108,10 +129,10 @@ void saa7164_bus_dumpmsg(struct saa7164_dev *dev, tmComResInfo_t* m, void *buf)
  *  SAA_OK     The function executed successfully.
  *  < 0        One or more members are not initialized.
  */
-int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
+int saa7164_bus_set(struct saa7164_dev *dev, struct tmComResInfo* msg, void *buf)
 {
-	tmComResBusInfo_t *bus = &dev->bus;
-	u32 bytes_to_write, read_distance, timeout, curr_srp, curr_swp;
+	struct tmComResBusInfo *bus = &dev->bus;
+	u32 bytes_to_write, free_write_space, timeout, curr_srp, curr_swp;
 	u32 new_swp, space_rem;
 	int ret = SAA_ERR_BAD_PARAMETER;
 
@@ -121,6 +142,8 @@ int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
 	}
 
 	dprintk(DBGLVL_BUS, "%s()\n", __func__);
+
+	saa7164_bus_verify(dev);
 
 	msg->size = cpu_to_le16(msg->size);
 	msg->command = cpu_to_le16(msg->command);
@@ -141,30 +164,30 @@ int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
 	mutex_lock(&bus->lock);
 
 	bytes_to_write = sizeof(*msg) + msg->size;
-	read_distance = 0;
+	free_write_space = 0;
 	timeout = SAA_BUS_TIMEOUT;
-	curr_srp = le32_to_cpu(*bus->m_pdwSetReadPos);
-	curr_swp = le32_to_cpu(*bus->m_pdwSetWritePos);
+	curr_srp = le32_to_cpu(saa7164_readl(bus->m_dwSetReadPos));
+	curr_swp = le32_to_cpu(saa7164_readl(bus->m_dwSetWritePos));
 
 	/* Deal with ring wrapping issues */
 	if (curr_srp > curr_swp)
-		/* The ring has not wrapped yet */
-		read_distance = curr_srp - curr_swp;
-	else
 		/* Deal with the wrapped ring */
-		read_distance = (curr_srp + bus->m_dwSizeSetRing) - curr_swp;
+		free_write_space = curr_srp - curr_swp;
+	else
+		/* The ring has not wrapped yet */
+		free_write_space = (curr_srp + bus->m_dwSizeSetRing) - curr_swp;
 
 	dprintk(DBGLVL_BUS, "%s() bytes_to_write = %d\n", __func__,
 		bytes_to_write);
 
-	dprintk(DBGLVL_BUS, "%s() read_distance = %d\n", __func__,
-		read_distance);
+	dprintk(DBGLVL_BUS, "%s() free_write_space = %d\n", __func__,
+		free_write_space);
 
 	dprintk(DBGLVL_BUS, "%s() curr_srp = %x\n", __func__, curr_srp);
 	dprintk(DBGLVL_BUS, "%s() curr_swp = %x\n", __func__, curr_swp);
 
 	/* Process the msg and write the content onto the bus */
-	while (bytes_to_write >= read_distance) {
+	while (bytes_to_write >= free_write_space) {
 
 		if (timeout-- == 0) {
 			printk(KERN_ERR "%s() bus timeout\n", __func__);
@@ -177,15 +200,15 @@ int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
 		mdelay(1);
 
 		/* Check the space usage again */
-		curr_srp = le32_to_cpu(*bus->m_pdwSetReadPos);
+		curr_srp = le32_to_cpu(saa7164_readl(bus->m_dwSetReadPos));
 
 		/* Deal with ring wrapping issues */
 		if (curr_srp > curr_swp)
-			/* Read didn't wrap around the buffer */
-			read_distance = curr_srp - curr_swp;
-		else
 			/* Deal with the wrapped ring */
-			read_distance = (curr_srp + bus->m_dwSizeSetRing) -
+			free_write_space = curr_srp - curr_swp;
+		else
+			/* Read didn't wrap around the buffer */
+			free_write_space = (curr_srp + bus->m_dwSizeSetRing) -
 				curr_swp;
 
 	}
@@ -257,36 +280,36 @@ int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
 
 	dprintk(DBGLVL_BUS, "%s() new_swp = %x\n", __func__, new_swp);
 
-	/* TODO: Convert all of the direct PCI writes into
-	 * saa7164_writel/b calls for consistency.
-	 */
-
 	/* Update the bus write position */
-	*bus->m_pdwSetWritePos = cpu_to_le32(new_swp);
+	saa7164_writel(bus->m_dwSetWritePos, cpu_to_le32(new_swp));
 	ret = SAA_OK;
 
 out:
+	saa7164_bus_dump(dev);
 	mutex_unlock(&bus->lock);
+	saa7164_bus_verify(dev);
 	return ret;
 }
 
 /*
  * Receive a command or a response from the bus. The implementation does not
  * know if it is a command or a response it simply dequeues the data,
- * depending on the bus information given in the tmComResBusInfo_t structure.
+ * depending on the bus information given in the struct tmComResBusInfo structure.
  *
  * Return Value:
  *  0          The function executed successfully.
  *  < 0        One or more members are not initialized.
  */
-int saa7164_bus_get(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf,
+int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg, void *buf,
 	int peekonly)
 {
-	tmComResBusInfo_t *bus = &dev->bus;
+	struct tmComResBusInfo *bus = &dev->bus;
 	u32 bytes_to_read, write_distance, curr_grp, curr_gwp,
 		new_grp, buf_size, space_rem;
-	tmComResInfo_t msg_tmp;
+	struct tmComResInfo msg_tmp;
 	int ret = SAA_ERR_BAD_PARAMETER;
+
+	saa7164_bus_verify(dev);
 
 	if (msg == 0)
 		return ret;
@@ -309,11 +332,10 @@ int saa7164_bus_get(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf,
 	/* Peek the bus to see if a msg exists, if it's not what we're expecting
 	 * then return cleanly else read the message from the bus.
 	 */
-	curr_gwp = le32_to_cpu(*bus->m_pdwGetWritePos);
-	curr_grp = le32_to_cpu(*bus->m_pdwGetReadPos);
+	curr_gwp = le32_to_cpu(saa7164_readl(bus->m_dwGetWritePos));
+	curr_grp = le32_to_cpu(saa7164_readl(bus->m_dwGetReadPos));
 
 	if (curr_gwp == curr_grp) {
-		dprintk(DBGLVL_BUS, "%s() No message on the bus\n", __func__);
 		ret = SAA_ERR_EMPTY;
 		goto out;
 	}
@@ -434,7 +456,7 @@ int saa7164_bus_get(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf,
 	}
 
 	/* Update the read positions, adjusting the ring */
-	*bus->m_pdwGetReadPos = cpu_to_le32(new_grp);
+	saa7164_writel(bus->m_dwGetReadPos, cpu_to_le32(new_grp));
 
 peekout:
 	msg->size = le16_to_cpu(msg->size);
@@ -443,6 +465,7 @@ peekout:
 	ret = SAA_OK;
 out:
 	mutex_unlock(&bus->lock);
+	saa7164_bus_verify(dev);
 	return ret;
 }
 
