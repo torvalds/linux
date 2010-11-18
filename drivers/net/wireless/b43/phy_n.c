@@ -876,7 +876,7 @@ static void b43_nphy_adjust_lna_gain_table(struct b43_wldev *dev)
 			data[2] = lna_gain[2] + gain[i];
 			data[3] = lna_gain[3] + gain[i];
 		}
-		b43_ntab_write_bulk(dev, B43_NTAB16(10, 8), 4, data);
+		b43_ntab_write_bulk(dev, B43_NTAB16(i, 8), 4, data);
 
 		minmax[i] = 23 + gain[i];
 	}
@@ -896,6 +896,7 @@ static void b43_nphy_gain_ctrl_workarounds(struct b43_wldev *dev)
 	struct b43_phy_n *nphy = dev->phy.n;
 	u8 i, j;
 	u8 code;
+	u16 tmp;
 
 	/* TODO: for PHY >= 3
 	s8 *lna1_gain, *lna2_gain;
@@ -1000,9 +1001,11 @@ static void b43_nphy_gain_ctrl_workarounds(struct b43_wldev *dev)
 			for (i = 0; i < 4; i++) {
 				b43_phy_write(dev, B43_NPHY_TABLE_ADDR,
 						(0x0400 * i) + 0x0020);
-				for (j = 0; j < 21; j++)
+				for (j = 0; j < 21; j++) {
+					tmp = j * (i < 2 ? 3 : 1);
 					b43_phy_write(dev,
-						B43_NPHY_TABLE_DATALO, 3 * j);
+						B43_NPHY_TABLE_DATALO, tmp);
+				}
 			}
 
 			b43_nphy_set_rf_sequence(dev, 5,
