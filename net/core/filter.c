@@ -37,6 +37,7 @@
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 #include <linux/filter.h>
+#include <linux/reciprocal_div.h>
 
 enum {
 	BPF_S_RET_K = 1,
@@ -205,7 +206,7 @@ unsigned int sk_run_filter(struct sk_buff *skb, const struct sock_filter *fentry
 			A /= X;
 			continue;
 		case BPF_S_ALU_DIV_K:
-			A /= K;
+			A = reciprocal_divide(A, K);
 			continue;
 		case BPF_S_ALU_AND_X:
 			A &= X;
@@ -506,6 +507,7 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
 			/* check for division by zero */
 			if (ftest->k == 0)
 				return -EINVAL;
+			ftest->k = reciprocal_value(ftest->k);
 			break;
 		case BPF_S_LD_MEM:
 		case BPF_S_LDX_MEM:
