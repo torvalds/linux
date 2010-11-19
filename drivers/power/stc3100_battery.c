@@ -146,7 +146,7 @@ static int stc3100_battery_rsoc(struct stc3100_device_info *di)
 		return ret;
 	}
 
-	return (((((int)regs[1])<<8) & (int)regs[0])*67/(10*RSENSE_RESISTANCE));    ////charge data (mA.h) = 6.70 * charge_code / Rsense (m¦¸).
+	return (((((int)regs[1])<<8) & (int)regs[0])*67/(10*RSENSE_RESISTANCE))*100/BATTAERY_CAPACITY_MAH;    ////charge data (mA.h) = 6.70 * charge_code / Rsense (m¦¸).
 }
 
 static int dc_charge_status(void)
