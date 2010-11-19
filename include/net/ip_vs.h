@@ -817,6 +817,7 @@ void ip_vs_unbind_pe(struct ip_vs_service *svc);
 int register_ip_vs_pe(struct ip_vs_pe *pe);
 int unregister_ip_vs_pe(struct ip_vs_pe *pe);
 struct ip_vs_pe *ip_vs_pe_getbyname(const char *name);
+struct ip_vs_pe *__ip_vs_pe_getbyname(const char *pe_name);
 
 static inline void ip_vs_pe_get(const struct ip_vs_pe *pe)
 {

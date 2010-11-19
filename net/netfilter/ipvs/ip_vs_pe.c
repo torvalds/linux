@@ -29,12 +29,11 @@ void ip_vs_unbind_pe(struct ip_vs_service *svc)
 }
 
 /* Get pe in the pe list by name */
-static struct ip_vs_pe *
-__ip_vs_pe_getbyname(const char *pe_name)
+struct ip_vs_pe *__ip_vs_pe_getbyname(const char *pe_name)
 {
 	struct ip_vs_pe *pe;
 
-	IP_VS_DBG(2, "%s(): pe_name \"%s\"\n", __func__,
+	IP_VS_DBG(10, "%s(): pe_name \"%s\"\n", __func__,
 		  pe_name);
 
 	spin_lock_bh(&ip_vs_pe_lock);
