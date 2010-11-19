@@ -919,7 +919,7 @@ extern char ip_vs_master_mcast_ifn[IP_VS_IFNAME_MAXLEN];
 extern char ip_vs_backup_mcast_ifn[IP_VS_IFNAME_MAXLEN];
 extern int start_sync_thread(int state, char *mcast_ifn, __u8 syncid);
 extern int stop_sync_thread(int state);
-extern void ip_vs_sync_conn(const struct ip_vs_conn *cp);
+extern void ip_vs_sync_conn(struct ip_vs_conn *cp);
 
 
 /*
