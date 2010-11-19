@@ -150,7 +150,7 @@ static void __init mxc_board_init(void)
 	imx35_add_mxc_ehci_hs(&usb_host_pdata);
 
 	imx35_add_mxc_nand(&mx35pdk_nand_board_info);
-	imx35_add_esdhc(0, NULL);
+	imx35_add_sdhci_esdhc_imx(0, NULL);
 
 	if (mxc_expio_init(MX35_CS5_BASE_ADDR, EXPIO_PARENT_INT))
 		pr_warn("Init of the debugboard failed, all "

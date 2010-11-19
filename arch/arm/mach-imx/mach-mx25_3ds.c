@@ -200,7 +200,7 @@ static void __init mx25pdk_init(void)
 	imx25_add_fec(&mx25_fec_pdata);
 	imx25_add_imx_keypad(&mx25pdk_keymap_data);
 
-	imx25_add_esdhc(0, NULL);
+	imx25_add_sdhci_esdhc_imx(0, NULL);
 }
 
 static void __init mx25pdk_timer_init(void)

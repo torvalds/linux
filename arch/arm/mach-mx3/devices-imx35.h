@@ -64,12 +64,13 @@ extern const struct imx_mxc_w1_data imx35_mxc_w1_data __initconst;
 #define imx35_add_mxc_w1(pdata)	\
 	imx_add_mxc_w1(&imx35_mxc_w1_data)
 
+extern const struct imx_sdhci_esdhc_imx_data
+imx35_sdhci_esdhc_imx_data[] __initconst;
+#define imx35_add_sdhci_esdhc_imx(id, pdata)	\
+	imx_add_sdhci_esdhc_imx(&imx35_sdhci_esdhc_imx_data[id], pdata)
+
 extern const struct imx_spi_imx_data imx35_cspi_data[] __initconst;
 #define imx35_add_cspi(id, pdata)	\
 	imx_add_spi_imx(&imx35_cspi_data[id], pdata)
 #define imx35_add_spi_imx0(pdata)	imx35_add_cspi(0, pdata)
 #define imx35_add_spi_imx1(pdata)	imx35_add_cspi(1, pdata)
-
-extern const struct imx_esdhc_imx_data imx35_esdhc_data[] __initconst;
-#define imx35_add_esdhc(id, pdata)	\
-	imx_add_esdhc(&imx35_esdhc_data[id], pdata)

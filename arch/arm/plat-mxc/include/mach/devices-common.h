@@ -242,6 +242,16 @@ struct imx_mxc_w1_data {
 struct platform_device *__init imx_add_mxc_w1(
 		const struct imx_mxc_w1_data *data);
 
+#include <mach/esdhc.h>
+struct imx_sdhci_esdhc_imx_data {
+	int id;
+	resource_size_t iobase;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_sdhci_esdhc_imx(
+		const struct imx_sdhci_esdhc_imx_data *data,
+		const struct esdhc_platform_data *pdata);
+
 #include <mach/spi.h>
 struct imx_spi_imx_data {
 	const char *devid;
@@ -253,13 +263,3 @@ struct imx_spi_imx_data {
 struct platform_device *__init imx_add_spi_imx(
 		const struct imx_spi_imx_data *data,
 		const struct spi_imx_master *pdata);
-
-#include <mach/esdhc.h>
-struct imx_esdhc_imx_data {
-	int id;
-	resource_size_t iobase;
-	resource_size_t irq;
-};
-struct platform_device *__init imx_add_esdhc(
-		const struct imx_esdhc_imx_data *data,
-		const struct esdhc_platform_data *pdata);

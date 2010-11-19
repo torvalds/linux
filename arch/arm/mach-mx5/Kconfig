@@ -14,7 +14,7 @@ config MACH_MX51_BABBAGE
 	bool "Support MX51 BABBAGE platforms"
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_ESDHC
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	help
 	  Include support for MX51 Babbage platform, also known as MX51EVK in
 	  u-boot. This includes specific configurations for the board and its
@@ -47,7 +47,7 @@ choice
 config MACH_EUKREA_MBIMX51_BASEBOARD
 	prompt "Eukrea MBIMX51 development board"
 	bool
-	select IMX_HAVE_PLATFORM_ESDHC
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	help
 	  This adds board specific devices that can be found on Eukrea's
 	  MBIMX51 evaluation board.
@@ -72,7 +72,7 @@ choice
 config MACH_EUKREA_MBIMXSD51_BASEBOARD
 	prompt "Eukrea MBIMXSD development board"
 	bool
-	select IMX_HAVE_PLATFORM_ESDHC
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	help
 	  This adds board specific devices that can be found on Eukrea's
 	  MBIMXSD evaluation board.

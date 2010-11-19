@@ -393,7 +393,7 @@ static void __init mxc_board_init(void)
 		imx35_add_fsl_usb2_udc(&otg_device_pdata);
 
 	imx35_add_flexcan1(NULL);
-	imx35_add_esdhc(0, NULL);
+	imx35_add_sdhci_esdhc_imx(0, NULL);
 }
 
 static void __init pcm043_timer_init(void)
