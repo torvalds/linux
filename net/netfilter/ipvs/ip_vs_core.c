@@ -293,7 +293,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		 * and thus param.pe_data will be destroyed
 		 * when the template expires */
 		ct = ip_vs_conn_new(&param, &dest->addr, dport,
-				    IP_VS_CONN_F_TEMPLATE, dest);
+				    IP_VS_CONN_F_TEMPLATE, dest, skb->mark);
 		if (ct == NULL) {
 			kfree(param.pe_data);
 			return NULL;
@@ -319,7 +319,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	 */
 	ip_vs_conn_fill_param(svc->af, iph.protocol, &iph.saddr, ports[0],
 			      &iph.daddr, ports[1], &param);
-	cp = ip_vs_conn_new(&param, &dest->addr, dport, flags, dest);
+	cp = ip_vs_conn_new(&param, &dest->addr, dport, flags, dest, skb->mark);
 	if (cp == NULL) {
 		ip_vs_conn_put(ct);
 		return NULL;
@@ -423,7 +423,7 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 				      pptr[0], &iph.daddr, pptr[1], &p);
 		cp = ip_vs_conn_new(&p, &dest->addr,
 				    dest->port ? dest->port : pptr[1],
-				    flags, dest);
+				    flags, dest, skb->mark);
 		if (!cp)
 			return NULL;
 	}
@@ -489,7 +489,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 					      &iph.daddr, pptr[1], &p);
 			cp = ip_vs_conn_new(&p, &daddr, 0,
 					    IP_VS_CONN_F_BYPASS | flags,
-					    NULL);
+					    NULL, skb->mark);
 			if (!cp)
 				return NF_DROP;
 		}

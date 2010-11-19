@@ -404,7 +404,7 @@ static void ip_vs_process_message(char *buffer, const size_t buflen)
 					       s->dport,
 					       (union nf_inet_addr *)&s->vaddr,
 					       s->vport,
-					       s->protocol);
+					       s->protocol, 0);
 			/*  Set the approprite ativity flag */
 			if (s->protocol == IPPROTO_TCP) {
 				if (state != IP_VS_TCP_S_ESTABLISHED)
@@ -419,7 +419,7 @@ static void ip_vs_process_message(char *buffer, const size_t buflen)
 			}
 			cp = ip_vs_conn_new(&param,
 					    (union nf_inet_addr *)&s->daddr,
-					    s->dport, flags, dest);
+					    s->dport, flags, dest, 0);
 			if (dest)
 				atomic_dec(&dest->refcnt);
 			if (!cp) {

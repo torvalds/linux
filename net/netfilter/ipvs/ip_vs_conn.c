@@ -613,7 +613,7 @@ struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 	if ((cp) && (!cp->dest)) {
 		dest = ip_vs_find_dest(cp->af, &cp->daddr, cp->dport,
 				       &cp->vaddr, cp->vport,
-				       cp->protocol);
+				       cp->protocol, cp->fwmark);
 		ip_vs_bind_dest(cp, dest);
 		return dest;
 	} else
@@ -803,7 +803,7 @@ void ip_vs_conn_expire_now(struct ip_vs_conn *cp)
 struct ip_vs_conn *
 ip_vs_conn_new(const struct ip_vs_conn_param *p,
 	       const union nf_inet_addr *daddr, __be16 dport, unsigned flags,
-	       struct ip_vs_dest *dest)
+	       struct ip_vs_dest *dest, __u32 fwmark)
 {
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp = ip_vs_proto_get(p->protocol);
@@ -827,6 +827,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p,
 			&cp->daddr, daddr);
 	cp->dport          = dport;
 	cp->flags	   = flags;
+	cp->fwmark         = fwmark;
 	if (flags & IP_VS_CONN_F_TEMPLATE && p->pe) {
 		ip_vs_pe_get(p->pe);
 		cp->pe = p->pe;

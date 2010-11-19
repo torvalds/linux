@@ -382,6 +382,7 @@ struct ip_vs_conn {
 	union nf_inet_addr       vaddr;          /* virtual address */
 	union nf_inet_addr       daddr;          /* destination address */
 	volatile __u32           flags;          /* status flags */
+	__u32                    fwmark;         /* Fire wall mark from skb */
 	__be16                   cport;
 	__be16                   vport;
 	__be16                   dport;
@@ -720,7 +721,7 @@ extern void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport);
 struct ip_vs_conn *ip_vs_conn_new(const struct ip_vs_conn_param *p,
 				  const union nf_inet_addr *daddr,
 				  __be16 dport, unsigned flags,
-				  struct ip_vs_dest *dest);
+				  struct ip_vs_dest *dest, __u32 fwmark);
 extern void ip_vs_conn_expire_now(struct ip_vs_conn *cp);
 
 extern const char * ip_vs_state_name(__u16 proto, int state);
@@ -901,7 +902,8 @@ extern int ip_vs_control_init(void);
 extern void ip_vs_control_cleanup(void);
 extern struct ip_vs_dest *
 ip_vs_find_dest(int af, const union nf_inet_addr *daddr, __be16 dport,
-		const union nf_inet_addr *vaddr, __be16 vport, __u16 protocol);
+		const union nf_inet_addr *vaddr, __be16 vport, __u16 protocol,
+		__u32 fwmark);
 extern struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp);
 
 
