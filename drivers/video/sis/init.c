@@ -1578,7 +1578,7 @@ SiS_ClearBuffer(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
    if(SiS_Pr->SiS_ModeType >= ModeEGA) {
       if(ModeNo > 0x13) {
-	 SiS_SetMemory(memaddr, memsize, 0);
+	 memset_io(memaddr, 0, memsize);
       } else {
 	 pBuffer = (unsigned short SISIOMEMTYPE *)memaddr;
 	 for(i = 0; i < 0x4000; i++) writew(0x0000, &pBuffer[i]);
@@ -1587,7 +1587,7 @@ SiS_ClearBuffer(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
       pBuffer = (unsigned short SISIOMEMTYPE *)memaddr;
       for(i = 0; i < 0x4000; i++) writew(0x0720, &pBuffer[i]);
    } else {
-      SiS_SetMemory(memaddr, 0x8000, 0);
+      memset_io(memaddr, 0, 0x8000);
    }
 }
 

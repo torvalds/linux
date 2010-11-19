@@ -63,6 +63,4 @@
 #warning sisfb will not work!
 #endif
 
-#define SiS_SetMemory(MemoryAddress,MemorySize,value) memset_io(MemoryAddress, value, MemorySize)
-
 #endif  /* _OSDEF_H_ */
