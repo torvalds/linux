@@ -2012,6 +2012,7 @@ void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
 		add_timer(&ifmgd->timer);
 	if (test_and_clear_bit(TMR_RUNNING_CHANSW, &ifmgd->timers_running))
 		add_timer(&ifmgd->chswitch_timer);
+	ieee80211_sta_reset_beacon_monitor(sdata);
 }
 #endif
 
