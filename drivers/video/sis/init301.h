@@ -53,7 +53,6 @@
 #ifndef  _INIT301_H_
 #define  _INIT301_H_
 
-#include "osdef.h"
 #include "initdef.h"
 
 #include "vgatypes.h"

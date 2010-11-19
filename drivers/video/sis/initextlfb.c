@@ -25,7 +25,6 @@
  * Author:	Thomas Winischhofer <thomas@winischhofer.net>
  */
 
-#include "osdef.h"
 #include "initdef.h"
 #include "vgatypes.h"
 #include "vstruct.h"
