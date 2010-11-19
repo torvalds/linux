@@ -237,8 +237,6 @@ static int nilfs_mdt_read_block(struct inode *inode, unsigned long block,
  *
  * %-ENOENT - the specified block does not exist (hole block)
  *
- * %-EINVAL - bmap is broken. (the caller should call nilfs_error())
- *
  * %-EROFS - Read only filesystem (for create mode)
  */
 int nilfs_mdt_get_block(struct inode *inode, unsigned long blkoff, int create,
@@ -273,8 +271,6 @@ int nilfs_mdt_get_block(struct inode *inode, unsigned long blkoff, int create,
  * %-ENOMEM - Insufficient memory available.
  *
  * %-EIO - I/O error
- *
- * %-EINVAL - bmap is broken. (the caller should call nilfs_error())
  */
 int nilfs_mdt_delete_block(struct inode *inode, unsigned long block)
 {
@@ -350,8 +346,6 @@ int nilfs_mdt_forget_block(struct inode *inode, unsigned long block)
  * %-EIO - I/O error
  *
  * %-ENOENT - the specified block does not exist (hole block)
- *
- * %-EINVAL - bmap is broken. (the caller should call nilfs_error())
  */
 int nilfs_mdt_mark_block_dirty(struct inode *inode, unsigned long block)
 {

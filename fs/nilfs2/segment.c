@@ -504,17 +504,6 @@ static int nilfs_segctor_add_file_block(struct nilfs_sc_info *sci,
 	return err;
 }
 
-static int nilfs_handle_bmap_error(int err, const char *fname,
-				   struct inode *inode, struct super_block *sb)
-{
-	if (err == -EINVAL) {
-		nilfs_error(sb, fname, "broken bmap (inode=%lu)\n",
-			    inode->i_ino);
-		err = -EIO;
-	}
-	return err;
-}
-
 /*
  * Callback functions that enumerate, mark, and collect dirty blocks
  */
@@ -524,9 +513,8 @@ static int nilfs_collect_file_data(struct nilfs_sc_info *sci,
 	int err;
 
 	err = nilfs_bmap_propagate(NILFS_I(inode)->i_bmap, bh);
-	if (unlikely(err < 0))
-		return nilfs_handle_bmap_error(err, __func__, inode,
-					       sci->sc_super);
+	if (err < 0)
+		return err;
 
 	err = nilfs_segctor_add_file_block(sci, bh, inode,
 					   sizeof(struct nilfs_binfo_v));
@@ -539,13 +527,7 @@ static int nilfs_collect_file_node(struct nilfs_sc_info *sci,
 				   struct buffer_head *bh,
 				   struct inode *inode)
 {
-	int err;
-
-	err = nilfs_bmap_propagate(NILFS_I(inode)->i_bmap, bh);
-	if (unlikely(err < 0))
-		return nilfs_handle_bmap_error(err, __func__, inode,
-					       sci->sc_super);
-	return 0;
+	return nilfs_bmap_propagate(NILFS_I(inode)->i_bmap, bh);
 }
 
 static int nilfs_collect_file_bmap(struct nilfs_sc_info *sci,
@@ -588,9 +570,8 @@ static int nilfs_collect_dat_data(struct nilfs_sc_info *sci,
 	int err;
 
 	err = nilfs_bmap_propagate(NILFS_I(inode)->i_bmap, bh);
-	if (unlikely(err < 0))
-		return nilfs_handle_bmap_error(err, __func__, inode,
-					       sci->sc_super);
+	if (err < 0)
+		return err;
 
 	err = nilfs_segctor_add_file_block(sci, bh, inode, sizeof(__le64));
 	if (!err)
@@ -1563,7 +1544,6 @@ nilfs_segctor_update_payload_blocknr(struct nilfs_sc_info *sci,
 	return 0;
 
  failed_bmap:
-	err = nilfs_handle_bmap_error(err, __func__, inode, sci->sc_super);
 	return err;
 }
 

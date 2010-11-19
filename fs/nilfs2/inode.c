@@ -96,11 +96,6 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 				       inode->i_ino,
 				       (unsigned long long)blkoff);
 				err = 0;
-			} else if (err == -EINVAL) {
-				nilfs_error(inode->i_sb, __func__,
-					    "broken bmap (inode=%lu)\n",
-					    inode->i_ino);
-				err = -EIO;
 			}
 			nilfs_transaction_abort(inode->i_sb);
 			goto out;
@@ -629,7 +624,7 @@ static void nilfs_truncate_bmap(struct nilfs_inode_info *ii,
 
 	if (!test_bit(NILFS_I_BMAP, &ii->i_state))
 		return;
- repeat:
+repeat:
 	ret = nilfs_bmap_last_key(ii->i_bmap, &b);
 	if (ret == -ENOENT)
 		return;
@@ -646,14 +641,10 @@ static void nilfs_truncate_bmap(struct nilfs_inode_info *ii,
 		     nilfs_bmap_truncate(ii->i_bmap, b) == 0))
 		goto repeat;
 
- failed:
-	if (ret == -EINVAL)
-		nilfs_error(ii->vfs_inode.i_sb, __func__,
-			    "bmap is broken (ino=%lu)", ii->vfs_inode.i_ino);
-	else
-		nilfs_warning(ii->vfs_inode.i_sb, __func__,
-			      "failed to truncate bmap (ino=%lu, err=%d)",
-			      ii->vfs_inode.i_ino, ret);
+failed:
+	nilfs_warning(ii->vfs_inode.i_sb, __func__,
+		      "failed to truncate bmap (ino=%lu, err=%d)",
+		      ii->vfs_inode.i_ino, ret);
 }
 
 void nilfs_truncate(struct inode *inode)

@@ -38,6 +38,19 @@ struct inode *nilfs_bmap_get_dat(const struct nilfs_bmap *bmap)
 	return nilfs_dat_inode(NILFS_I_NILFS(bmap->b_inode));
 }
 
+static int nilfs_bmap_convert_error(struct nilfs_bmap *bmap,
+				     const char *fname, int err)
+{
+	struct inode *inode = bmap->b_inode;
+
+	if (err == -EINVAL) {
+		nilfs_error(inode->i_sb, fname,
+			    "broken bmap (inode number=%lu)\n", inode->i_ino);
+		err = -EIO;
+	}
+	return err;
+}
+
 /**
  * nilfs_bmap_lookup_at_level - find a data block or node block
  * @bmap: bmap
@@ -66,8 +79,10 @@ int nilfs_bmap_lookup_at_level(struct nilfs_bmap *bmap, __u64 key, int level,
 
 	down_read(&bmap->b_sem);
 	ret = bmap->b_ops->bop_lookup(bmap, key, level, ptrp);
-	if (ret < 0)
+	if (ret < 0) {
+		ret = nilfs_bmap_convert_error(bmap, __func__, ret);
 		goto out;
+	}
 	if (NILFS_BMAP_USE_VBN(bmap)) {
 		ret = nilfs_dat_translate(nilfs_bmap_get_dat(bmap), *ptrp,
 					  &blocknr);
@@ -88,7 +103,8 @@ int nilfs_bmap_lookup_contig(struct nilfs_bmap *bmap, __u64 key, __u64 *ptrp,
 	down_read(&bmap->b_sem);
 	ret = bmap->b_ops->bop_lookup_contig(bmap, key, ptrp, maxblocks);
 	up_read(&bmap->b_sem);
-	return ret;
+
+	return nilfs_bmap_convert_error(bmap, __func__, ret);
 }
 
 static int nilfs_bmap_do_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
@@ -144,7 +160,8 @@ int nilfs_bmap_insert(struct nilfs_bmap *bmap,
 	down_write(&bmap->b_sem);
 	ret = nilfs_bmap_do_insert(bmap, key, rec);
 	up_write(&bmap->b_sem);
-	return ret;
+
+	return nilfs_bmap_convert_error(bmap, __func__, ret);
 }
 
 static int nilfs_bmap_do_delete(struct nilfs_bmap *bmap, __u64 key)
@@ -180,9 +197,12 @@ int nilfs_bmap_last_key(struct nilfs_bmap *bmap, unsigned long *key)
 
 	down_read(&bmap->b_sem);
 	ret = bmap->b_ops->bop_last_key(bmap, &lastkey);
-	if (!ret)
-		*key = lastkey;
 	up_read(&bmap->b_sem);
+
+	if (ret < 0)
+		ret = nilfs_bmap_convert_error(bmap, __func__, ret);
+	else
+		*key = lastkey;
 	return ret;
 }
 
@@ -210,7 +230,8 @@ int nilfs_bmap_delete(struct nilfs_bmap *bmap, unsigned long key)
 	down_write(&bmap->b_sem);
 	ret = nilfs_bmap_do_delete(bmap, key);
 	up_write(&bmap->b_sem);
-	return ret;
+
+	return nilfs_bmap_convert_error(bmap, __func__, ret);
 }
 
 static int nilfs_bmap_do_truncate(struct nilfs_bmap *bmap, unsigned long key)
@@ -261,7 +282,8 @@ int nilfs_bmap_truncate(struct nilfs_bmap *bmap, unsigned long key)
 	down_write(&bmap->b_sem);
 	ret = nilfs_bmap_do_truncate(bmap, key);
 	up_write(&bmap->b_sem);
-	return ret;
+
+	return nilfs_bmap_convert_error(bmap, __func__, ret);
 }
 
 /**
@@ -300,7 +322,8 @@ int nilfs_bmap_propagate(struct nilfs_bmap *bmap, struct buffer_head *bh)
 	down_write(&bmap->b_sem);
 	ret = bmap->b_ops->bop_propagate(bmap, bh);
 	up_write(&bmap->b_sem);
-	return ret;
+
+	return nilfs_bmap_convert_error(bmap, __func__, ret);
 }
 
 /**
@@ -344,7 +367,8 @@ int nilfs_bmap_assign(struct nilfs_bmap *bmap,
 	down_write(&bmap->b_sem);
 	ret = bmap->b_ops->bop_assign(bmap, bh, blocknr, binfo);
 	up_write(&bmap->b_sem);
-	return ret;
+
+	return nilfs_bmap_convert_error(bmap, __func__, ret);
 }
 
 /**
@@ -373,7 +397,8 @@ int nilfs_bmap_mark(struct nilfs_bmap *bmap, __u64 key, int level)
 	down_write(&bmap->b_sem);
 	ret = bmap->b_ops->bop_mark(bmap, key, level);
 	up_write(&bmap->b_sem);
-	return ret;
+
+	return nilfs_bmap_convert_error(bmap, __func__, ret);
 }
 
 /**
