@@ -547,6 +547,19 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj_priv;
 	int ret = 0;
 
+	if (args->size == 0)
+		return 0;
+
+	if (!access_ok(VERIFY_WRITE,
+		       (char __user *)(uintptr_t)args->data_ptr,
+		       args->size))
+		return -EFAULT;
+
+	ret = fault_in_pages_writeable((char __user *)(uintptr_t)args->data_ptr,
+				       args->size);
+	if (ret)
+		return -EFAULT;
+
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
@@ -561,23 +574,6 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	/* Bounds check source.  */
 	if (args->offset > obj->size || args->size > obj->size - args->offset) {
 		ret = -EINVAL;
-		goto out;
-	}
-
-	if (args->size == 0)
-		goto out;
-
-	if (!access_ok(VERIFY_WRITE,
-		       (char __user *)(uintptr_t)args->data_ptr,
-		       args->size)) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	ret = fault_in_pages_writeable((char __user *)(uintptr_t)args->data_ptr,
-				       args->size);
-	if (ret) {
-		ret = -EFAULT;
 		goto out;
 	}
 
@@ -981,7 +977,20 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_pwrite *args = data;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
-	int ret = 0;
+	int ret;
+
+	if (args->size == 0)
+		return 0;
+
+	if (!access_ok(VERIFY_READ,
+		       (char __user *)(uintptr_t)args->data_ptr,
+		       args->size))
+		return -EFAULT;
+
+	ret = fault_in_pages_readable((char __user *)(uintptr_t)args->data_ptr,
+				      args->size);
+	if (ret)
+		return -EFAULT;
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
@@ -994,27 +1003,9 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	}
 	obj_priv = to_intel_bo(obj);
 
-
 	/* Bounds check destination. */
 	if (args->offset > obj->size || args->size > obj->size - args->offset) {
 		ret = -EINVAL;
-		goto out;
-	}
-
-	if (args->size == 0)
-		goto out;
-
-	if (!access_ok(VERIFY_READ,
-		       (char __user *)(uintptr_t)args->data_ptr,
-		       args->size)) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	ret = fault_in_pages_readable((char __user *)(uintptr_t)args->data_ptr,
-				      args->size);
-	if (ret) {
-		ret = -EFAULT;
 		goto out;
 	}
 
@@ -2905,6 +2896,20 @@ i915_gem_object_set_to_display_plane(struct drm_gem_object *obj,
 					    obj->write_domain);
 
 	return 0;
+}
+
+int
+i915_gem_object_flush_gpu(struct drm_i915_gem_object *obj,
+			  bool interruptible)
+{
+	if (!obj->active)
+		return 0;
+
+	if (obj->base.write_domain & I915_GEM_GPU_DOMAINS)
+		i915_gem_flush_ring(obj->base.dev, NULL, obj->ring,
+				    0, obj->base.write_domain);
+
+	return i915_gem_object_wait_rendering(&obj->base, interruptible);
 }
 
 /**

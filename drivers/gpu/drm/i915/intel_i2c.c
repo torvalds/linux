@@ -160,7 +160,7 @@ intel_gpio_create(struct drm_i915_private *dev_priv, u32 pin)
 	};
 	struct intel_gpio *gpio;
 
-	if (pin < 1 || pin > 7)
+	if (pin >= ARRAY_SIZE(map_pin_to_reg) || !map_pin_to_reg[pin])
 		return NULL;
 
 	gpio = kzalloc(sizeof(struct intel_gpio), GFP_KERNEL);
@@ -172,7 +172,8 @@ intel_gpio_create(struct drm_i915_private *dev_priv, u32 pin)
 		gpio->reg += PCH_GPIOA - GPIOA;
 	gpio->dev_priv = dev_priv;
 
-	snprintf(gpio->adapter.name, I2C_NAME_SIZE, "GPIO%c", "?BACDEF?"[pin]);
+	snprintf(gpio->adapter.name, sizeof(gpio->adapter.name),
+		 "i915 GPIO%c", "?BACDE?F"[pin]);
 	gpio->adapter.owner = THIS_MODULE;
 	gpio->adapter.algo_data	= &gpio->algo;
 	gpio->adapter.dev.parent = &dev_priv->dev->pdev->dev;
@@ -349,7 +350,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 		"panel",
 		"dpc",
 		"dpb",
-		"reserved"
+		"reserved",
 		"dpd",
 	};
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -366,8 +367,8 @@ int intel_setup_gmbus(struct drm_device *dev)
 		bus->adapter.owner = THIS_MODULE;
 		bus->adapter.class = I2C_CLASS_DDC;
 		snprintf(bus->adapter.name,
-			 I2C_NAME_SIZE,
-			 "gmbus %s",
+			 sizeof(bus->adapter.name),
+			 "i915 gmbus %s",
 			 names[i]);
 
 		bus->adapter.dev.parent = &dev->pdev->dev;
