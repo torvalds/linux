@@ -902,18 +902,12 @@ static int fsi_dai_hw_params(struct snd_pcm_substream *substream,
 	struct fsi_master *master = fsi_get_master(fsi);
 	int (*set_rate)(struct device *dev, int is_porta, int rate, int enable);
 	int fsi_ver = master->core->ver;
-	int is_play = fsi_is_play(substream);
 	long rate = params_rate(params);
 	int ret;
 
-	/* if slave mode, set_rate is not needed */
-	if (!fsi_is_master_mode(fsi, is_play))
-		return 0;
-
-	/* it is error if no set_rate */
 	set_rate = master->info->set_rate;
 	if (!set_rate)
-		return -EIO;
+		return 0;
 
 	ret = set_rate(dai->dev, fsi_is_port_a(fsi), rate, 1);
 	if (ret < 0) /* error */
