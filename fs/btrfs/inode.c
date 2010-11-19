@@ -7299,6 +7299,7 @@ static const struct inode_operations btrfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
 	.put_link	= page_put_link,
+	.getattr	= btrfs_getattr,
 	.permission	= btrfs_permission,
 	.setxattr	= btrfs_setxattr,
 	.getxattr	= btrfs_getxattr,
