@@ -546,7 +546,7 @@ static const struct file_operations kallsyms_operations = {
 
 static int __init kallsyms_init(void)
 {
-	proc_create("kallsyms", 0400, NULL, &kallsyms_operations);
+	proc_create("kallsyms", 0444, NULL, &kallsyms_operations);
 	return 0;
 }
 device_initcall(kallsyms_init);
