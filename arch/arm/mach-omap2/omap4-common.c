@@ -82,7 +82,8 @@ static int __init omap_l2_cache_init(void)
 		aux_ctrl |= ((0x3 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT) |
 			(1 << L2X0_AUX_CTRL_SHARE_OVERRIDE_SHIFT) |
 			(1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT) |
-			(1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT));
+			(1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT) |
+			(1 << L2X0_AUX_CTRL_EARLY_BRESP_SHIFT));
 	}
 	if (omap_rev() != OMAP4430_REV_ES1_0)
 		omap_smc1(0x109, aux_ctrl);
