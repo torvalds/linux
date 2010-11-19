@@ -124,7 +124,7 @@ struct saa7134_card_ir {
 
 	char                    name[32];
 	char                    phys[32];
-	int                     users;
+	unsigned                users;
 
 	u32			polling;
         u32			last_gpio;
@@ -551,7 +551,7 @@ struct saa7134_dev {
 
 	/* infrared remote */
 	int                        has_remote;
-	struct saa7134_card_ir		   *remote;
+	struct saa7134_card_ir     *remote;
 
 	/* pci i/o */
 	char                       name[32];
