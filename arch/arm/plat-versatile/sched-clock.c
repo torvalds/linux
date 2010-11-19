@@ -20,6 +20,7 @@
  */
 #include <linux/cnt32_to_63.h>
 #include <linux/io.h>
+#include <linux/sched.h>
 #include <asm/div64.h>
 
 #include <mach/hardware.h>
