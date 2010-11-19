@@ -131,7 +131,7 @@ static int sh_clk_div6_enable(struct clk *clk)
 	unsigned long value;
 	int ret;
 
-	ret = sh_clk_div6_set_rate(clk, clk->rate, 0);
+	ret = sh_clk_div6_set_rate(clk, clk->rate);
 	if (ret == 0) {
 		value = __raw_readl(clk->enable_reg);
 		value &= ~0x100; /* clear stop bit to enable clock */
