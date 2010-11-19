@@ -97,6 +97,7 @@ struct omap_sham_reqctx {
 	unsigned long		flags;
 	unsigned long		op;
 
+	u8			digest[SHA1_DIGEST_SIZE];
 	size_t			digcnt;
 	u8			*buffer;
 	size_t			bufcnt;
@@ -194,7 +195,7 @@ static inline int omap_sham_wait(struct omap_sham_dev *dd, u32 offset, u32 bit)
 static void omap_sham_copy_hash(struct ahash_request *req, int out)
 {
 	struct omap_sham_reqctx *ctx = ahash_request_ctx(req);
-	u32 *hash = (u32 *)req->result;
+	u32 *hash = (u32 *)ctx->digest;
 	int i;
 
 	if (likely(ctx->flags & FLAGS_SHA1)) {
@@ -453,8 +454,11 @@ static void omap_sham_cleanup(struct ahash_request *req)
 	ctx->flags |= FLAGS_CLEAN;
 	spin_unlock_irqrestore(&dd->lock, flags);
 
-	if (ctx->digcnt)
+	if (ctx->digcnt) {
 		clk_disable(dd->iclk);
+		memcpy(req->result, ctx->digest, (ctx->flags & FLAGS_SHA1) ?
+				SHA1_DIGEST_SIZE : MD5_DIGEST_SIZE);
+	}
 
 	if (ctx->dma_addr)
 		dma_unmap_single(dd->dev, ctx->dma_addr, ctx->buflen,
@@ -576,6 +580,7 @@ static int omap_sham_final_req(struct omap_sham_dev *dd)
 
 static int omap_sham_finish_req_hmac(struct ahash_request *req)
 {
+	struct omap_sham_reqctx *ctx = ahash_request_ctx(req);
 	struct omap_sham_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
 	struct omap_sham_hmac_ctx *bctx = tctx->base;
 	int bs = crypto_shash_blocksize(bctx->shash);
@@ -590,7 +595,7 @@ static int omap_sham_finish_req_hmac(struct ahash_request *req)
 
 	return crypto_shash_init(&desc.shash) ?:
 	       crypto_shash_update(&desc.shash, bctx->opad, bs) ?:
-	       crypto_shash_finup(&desc.shash, req->result, ds, req->result);
+	       crypto_shash_finup(&desc.shash, ctx->digest, ds, ctx->digest);
 }
 
 static void omap_sham_finish_req(struct ahash_request *req, int err)
