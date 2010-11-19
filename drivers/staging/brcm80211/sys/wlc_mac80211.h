@@ -496,15 +496,6 @@ struct wlc_hw_info {
 #endif
 	bool ucode_loaded;	/* true after ucode downloaded */
 
-#ifdef WLC_LOW_ONLY
-	struct wl_timer *wdtimer;	/* timer for watchdog routine */
-	struct ether_addr orig_etheraddr;	/* original hw ethernet address */
-	u16 rpc_dngl_agg;	/* rpc agg control for dongle */
-	u32 mem_required_def;	/* memory required to replenish RX DMA ring */
-	u32 mem_required_lower;	/* memory required with lower RX bound */
-	u32 mem_required_least;	/* minimum memory requirement to handle RX */
-
-#endif				/* WLC_LOW_ONLY */
 
 	u8 hw_stf_ss_opmode;	/* STF single stream operation mode */
 	u8 antsel_type;	/* Type of boardlevel mimo antenna switch-logic
