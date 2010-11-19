@@ -4114,14 +4114,6 @@ sisfb_find_rom(struct pci_dev *pdev)
 			if(sisfb_check_rom(rom_base, ivideo)) {
 
 				if((myrombase = vmalloc(65536))) {
-
-					/* Work around bug in pci/rom.c: Folks forgot to check
-					 * whether the size retrieved from the BIOS image eventually
-					 * is larger than the mapped size
-					 */
-					if(pci_resource_len(pdev, PCI_ROM_RESOURCE) < romsize)
-						romsize = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-
 					memcpy_fromio(myrombase, rom_base,
 							(romsize > 65536) ? 65536 : romsize);
 				}
