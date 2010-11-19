@@ -24,12 +24,6 @@
 #define IS_SINGLEBAND_5G(device)	0
 
 /* Keep WLC_HIGH_ONLY, WLC_SPLIT for USB extension later on */
-#if !defined(WLC_LOW)
-#define WLC_HIGH_ONLY
-#endif
-#if !defined(WLC_LOW)
-#define WLC_SPLIT
-#endif
 
 /* **** Core type/rev defaults **** */
 #define D11_DEFAULT	0x0fffffb0	/* Supported  D11 revs: 4, 5, 7-27

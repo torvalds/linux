@@ -480,13 +480,9 @@ static __inline int _wlc_rpc_call(struct rpc_info *rpc, rpc_buf_t *send)
 #include <sbhndpio.h>
 #include <d11.h>
 
-#ifdef WLC_LOW
 extern void wlc_rpc_bmac_dispatch(wlc_rpc_ctx_t *rpc_ctx, struct rpc_buf *buf);
 extern void wlc_rpc_bmac_dump_txfifohist(wlc_hw_info_t *wlc_hw,
 					 bool dump_clear);
-#else
-extern void wlc_rpc_high_dispatch(wlc_rpc_ctx_t *ctx, struct rpc_buf *buf);
-#endif
 
 /* Packed structure for ease of transport across RPC bus along u32 boundary */
 typedef struct wlc_rpc_txstatus {

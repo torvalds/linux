@@ -196,7 +196,6 @@ wlc_info_t *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
 	}
 	wlc->hw->wlc = wlc;
 
-#ifdef WLC_LOW
 	wlc->hw->bandstate[0] = (wlc_hwband_t *)wlc_calloc(osh, unit,
 		(sizeof(wlc_hwband_t) * MAXBANDS));
 	if (wlc->hw->bandstate[0] == NULL) {
@@ -211,7 +210,6 @@ wlc_info_t *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
 			     (sizeof(wlc_hwband_t) * i));
 		}
 	}
-#endif				/* WLC_LOW */
 
 	wlc->modulecb = (modulecb_t *)wlc_calloc(osh, unit,
 		sizeof(modulecb_t) * WLC_MAXMODULES);
@@ -357,12 +355,10 @@ void wlc_detach_mfree(wlc_info_t *wlc, struct osl_info *osh)
 	}
 
 	if (wlc->hw) {
-#ifdef WLC_LOW
 		if (wlc->hw->bandstate[0]) {
 			kfree(wlc->hw->bandstate[0]);
 			wlc->hw->bandstate[0] = NULL;
 		}
-#endif
 
 		/* free hw struct */
 		kfree(wlc->hw);

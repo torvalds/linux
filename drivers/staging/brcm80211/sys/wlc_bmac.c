@@ -14,9 +14,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef WLC_LOW
-#error "This file needs WLC_LOW"
-#endif
 
 #include <linux/kernel.h>
 #include <wlc_cfg.h>

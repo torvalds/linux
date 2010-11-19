@@ -306,13 +306,11 @@ typedef struct wlc_stf {
  * core state (mac)
  */
 typedef struct wlccore {
-#ifdef WLC_LOW
 	uint coreidx;		/* # sb enumerated core */
 
 	/* fifo */
 	uint *txavail[NFIFO];	/* # tx descriptors available */
 	s16 txpktpend[NFIFO];	/* tx admission control */
-#endif				/* WLC_LOW */
 
 	macstat_t *macstat_snapshot;	/* mac hw prev read values */
 } wlccore_t;
@@ -406,7 +404,6 @@ struct wlc_if {
 /* flags for the interface */
 #define WLC_IF_LINKED		0x02	/* this interface is linked to a wl_if */
 
-#ifdef WLC_LOW
 typedef struct wlc_hwband {
 	int bandtype;		/* WLC_BAND_2G, WLC_BAND_5G */
 	uint bandunit;		/* bandstate[] index */
@@ -423,7 +420,6 @@ typedef struct wlc_hwband {
 	wlc_phy_t *pi;		/* pointer to phy specific information */
 	bool abgphy_encore;
 } wlc_hwband_t;
-#endif				/* WLC_LOW */
 
 struct wlc_hw_info {
 #ifdef WLC_SPLIT
@@ -436,7 +432,6 @@ struct wlc_hw_info {
 	/* fifo */
 	hnddma_t *di[NFIFO];	/* hnddma handles, per fifo */
 
-#ifdef WLC_LOW
 	uint unit;		/* device instance number */
 
 	/* version info */
@@ -502,7 +497,6 @@ struct wlc_hw_info {
 				 * 0 = N/A, 1 = 2x4 board, 2 = 2x3 CB2 board
 				 */
 	u32 antsel_avail;	/* put antsel_info_t here if more info is needed */
-#endif				/* WLC_LOW */
 };
 
 /* TX Queue information
@@ -817,11 +811,7 @@ struct antsel_info {
 #define IS_MBAND_UNLOCKED(wlc) \
 	((NBANDS(wlc) > 1) && !(wlc)->bandlocked)
 
-#ifdef WLC_LOW
 #define WLC_BAND_PI_RADIO_CHANSPEC wlc_phy_chanspec_get(wlc->band->pi)
-#else
-#define WLC_BAND_PI_RADIO_CHANSPEC (wlc->chanspec)
-#endif
 
 /* sum the individual fifo tx pending packet counts */
 #define	TXPKTPENDTOT(wlc) ((wlc)->core->txpktpend[0] + (wlc)->core->txpktpend[1] + \
@@ -881,10 +871,8 @@ extern void wlc_print_txdesc(d11txh_t *txh);
 extern void wlc_print_dot11_mac_hdr(u8 *buf, int len);
 #endif
 
-#ifdef WLC_LOW
 extern void wlc_setxband(wlc_hw_info_t *wlc_hw, uint bandunit);
 extern void wlc_coredisable(wlc_hw_info_t *wlc_hw);
-#endif
 
 extern bool wlc_valid_rate(wlc_info_t *wlc, ratespec_t rate, int band,
 			   bool verbose);

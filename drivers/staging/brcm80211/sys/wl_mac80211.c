@@ -759,14 +759,12 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	wlc_iovar_setint(wl->wlc, "sd_drivestrength", sd_drivestrength);
 #endif
 
-#ifdef WLC_LOW
 	/* register our interrupt handler */
 	if (request_irq(irq, wl_isr, IRQF_SHARED, KBUILD_MODNAME, wl)) {
 		WL_ERROR(("wl%d: request_irq() failed\n", unit));
 		goto fail;
 	}
 	wl->irq = irq;
-#endif				/* WLC_LOW */
 
 	/* register module */
 	wlc_module_register(wl->pub, NULL, "linux", wl, NULL, wl_linux_watchdog,
@@ -1349,7 +1347,6 @@ void wl_free(wl_info_t *wl)
 	osl_detach(osh);
 }
 
-#ifdef WLC_LOW
 /* transmit a packet */
 static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t *wl)
 {
@@ -1358,7 +1355,6 @@ static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t *wl)
 
 	return wl_start_int(wl, WL_TO_HW(wl), skb);
 }
-#endif				/* WLC_LOW */
 
 static int BCMFASTPATH
 wl_start_int(wl_info_t *wl, struct ieee80211_hw *hw, struct sk_buff *skb)
@@ -1400,13 +1396,11 @@ uint wl_reset(wl_info_t *wl)
  */
 void BCMFASTPATH wl_intrson(wl_info_t *wl)
 {
-#if defined(WLC_LOW)
 	unsigned long flags;
 
 	INT_LOCK(wl, flags);
 	wlc_intrson(wl->wlc);
 	INT_UNLOCK(wl, flags);
-#endif				/* WLC_LOW */
 }
 
 bool wl_alloc_dma_resources(wl_info_t *wl, uint addrwidth)
@@ -1416,7 +1410,6 @@ bool wl_alloc_dma_resources(wl_info_t *wl, uint addrwidth)
 
 u32 BCMFASTPATH wl_intrsoff(wl_info_t *wl)
 {
-#if defined(WLC_LOW)
 	unsigned long flags;
 	u32 status;
 
@@ -1424,20 +1417,15 @@ u32 BCMFASTPATH wl_intrsoff(wl_info_t *wl)
 	status = wlc_intrsoff(wl->wlc);
 	INT_UNLOCK(wl, flags);
 	return status;
-#else
-	return 0;
-#endif				/* WLC_LOW */
 }
 
 void wl_intrsrestore(wl_info_t *wl, u32 macintmask)
 {
-#if defined(WLC_LOW)
 	unsigned long flags;
 
 	INT_LOCK(wl, flags);
 	wlc_intrsrestore(wl->wlc, macintmask);
 	INT_UNLOCK(wl, flags);
-#endif				/* WLC_LOW */
 }
 
 int wl_up(wl_info_t *wl)
@@ -1473,7 +1461,6 @@ void wl_down(wl_info_t *wl)
 
 irqreturn_t BCMFASTPATH wl_isr(int irq, void *dev_id)
 {
-#if defined(WLC_LOW)
 	wl_info_t *wl;
 	bool ours, wantdpc;
 	unsigned long flags;
@@ -1498,14 +1485,10 @@ irqreturn_t BCMFASTPATH wl_isr(int irq, void *dev_id)
 	WL_ISRUNLOCK(wl, flags);
 
 	return IRQ_RETVAL(ours);
-#else
-	return IRQ_RETVAL(0);
-#endif				/* WLC_LOW */
 }
 
 static void BCMFASTPATH wl_dpc(unsigned long data)
 {
-#ifdef WLC_LOW
 	wl_info_t *wl;
 
 	wl = (wl_info_t *) data;
@@ -1539,7 +1522,6 @@ static void BCMFASTPATH wl_dpc(unsigned long data)
 
  done:
 	WL_UNLOCK(wl);
-#endif				/* WLC_LOW */
 }
 
 static void wl_link_up(wl_info_t *wl, char *ifname)
@@ -1743,7 +1725,6 @@ char *wl_firmwares[WL_MAX_FW] = {
 	NULL
 };
 
-#ifdef WLC_LOW
 int wl_ucode_init_buf(wl_info_t *wl, void **pbuf, u32 idx)
 {
 	int i, entry;
@@ -1790,7 +1771,6 @@ int wl_ucode_init_uint(wl_info_t *wl, u32 *data, u32 idx)
 	printf("ERROR: ucode tag:%d can not be found!\n", idx);
 	return -1;
 }
-#endif				/* WLC_LOW */
 
 static int wl_request_fw(wl_info_t *wl, struct pci_dev *pdev)
 {
@@ -1833,12 +1813,10 @@ static int wl_request_fw(wl_info_t *wl, struct pci_dev *pdev)
 	return 0;
 }
 
-#ifdef WLC_LOW
 void wl_ucode_free_buf(void *p)
 {
 	kfree(p);
 }
-#endif				/* WLC_LOW */
 
 static void wl_release_fw(wl_info_t *wl)
 {

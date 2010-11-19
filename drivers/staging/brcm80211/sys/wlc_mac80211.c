@@ -626,21 +626,11 @@ bool wlc_ps_check(wlc_info_t *wlc)
 
 			res = false;
 		}
-#ifdef WLC_LOW
 		/* For a monolithic build the wake check can be exact since it looks at wake
 		 * override bits. The MCTL_WAKE bit should match the 'wake' value.
 		 */
 		wake = STAY_AWAKE(wlc) || wlc->hw->wake_override;
 		wake_ok = (wake == ((tmp & MCTL_WAKE) != 0));
-#else
-		/* For a split build we will not have access to any wake overrides from the low
-		 * level. The check can only make sure the MCTL_WAKE bit is on if the high
-		 * level 'wake' value is true. If the high level 'wake' is false, the MCTL_WAKE
-		 * may be either true or false due to the low level override.
-		 */
-		wake = STAY_AWAKE(wlc);
-		wake_ok = ((tmp & MCTL_WAKE) != 0) || !wake;
-#endif
 		if (hps && !wake_ok) {
 			WL_ERROR(("wl%d: wake not sync, sw %d maccontrol 0x%x\n", wlc->pub->unit, wake, tmp));
 			res = false;
@@ -1842,14 +1832,12 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	wlc_phy_stf_chain_init(wlc->band->pi, wlc->stf->hw_txchain,
 			       wlc->stf->hw_rxchain);
 
-#ifdef WLC_LOW
 	/* pull up some info resulting from the low attach */
 	{
 		int i;
 		for (i = 0; i < NFIFO; i++)
 			wlc->core->txavail[i] = wlc->hw->txavail[i];
 	}
-#endif				/* WLC_LOW */
 
 	wlc_bmac_hw_etheraddr(wlc->hw, &wlc->perm_etheraddr);
 
@@ -2500,9 +2488,7 @@ static void wlc_watchdog(void *arg)
 	if (wlc->pub->radio_disabled)
 		return;
 
-#ifdef WLC_LOW
 	wlc_bmac_watchdog(wlc);
-#endif
 
 	/* occasionally sample mac stat counters to detect 16-bit counter wrap */
 	if ((WLC_UPDATE_STATS(wlc))
@@ -2531,10 +2517,8 @@ static void wlc_watchdog(void *arg)
 		wlc->tempsense_lasttime = wlc->pub->now;
 		wlc_tempsense_upd(wlc);
 	}
-#ifdef WLC_LOW
 	/* BMAC_NOTE: for HIGH_ONLY driver, this seems being called after RPC bus failed */
 	ASSERT(wlc_bmac_taclear(wlc->hw, true));
-#endif
 
 	/* Verify that tx_prec_map and fifos are in sync to avoid lock ups */
 	ASSERT(wlc_tx_prec_map_verify(wlc));
@@ -4228,14 +4212,12 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 		}
 
 	}
-#ifdef WLC_LOW
 	/* BMAC_NOTE: for HIGH_ONLY driver, this seems being called after RPC bus failed */
 	/* In hw_off condition, IOCTLs that reach here are deemed safe but taclear would
 	 * certainly result in getting -1 for register reads. So skip ta_clear altogether
 	 */
 	if (!(wlc->pub->hw_off))
 		ASSERT(wlc_bmac_taclear(wlc->hw, ta_ok) || !ta_ok);
-#endif
 
 	return bcmerror;
 }

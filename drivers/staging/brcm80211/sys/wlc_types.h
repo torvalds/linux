@@ -35,12 +35,7 @@ typedef struct wlc_auth_info wlc_auth_info_t;
 typedef struct supplicant supplicant_t;
 typedef struct authenticator authenticator_t;
 typedef struct antsel_info antsel_info_t;
-#if !defined(WLC_LOW)
-typedef struct rpctx_info rpctx_info_t;
-#endif
-#ifdef WLC_LOW
 typedef struct bmac_pmq bmac_pmq_t;
-#endif
 
 struct d11init;
 

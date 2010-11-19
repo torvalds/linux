@@ -138,9 +138,7 @@ extern void wlc_bmac_watchdog(void *arg);
 extern void wlc_bmac_info_init(wlc_hw_info_t *wlc_hw);
 
 /* up/down, reset, clk */
-#ifdef WLC_LOW
 extern void wlc_bmac_xtal(wlc_hw_info_t *wlc_hw, bool want);
-#endif
 
 extern void wlc_bmac_copyto_objmem(wlc_hw_info_t *wlc_hw,
 				   uint offset, const void *buf, int len,

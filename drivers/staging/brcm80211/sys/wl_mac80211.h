@@ -122,10 +122,8 @@ extern void wl_free(wl_info_t *wl);
 extern int wl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 extern int wl_ucode_data_init(wl_info_t *wl);
 extern void wl_ucode_data_free(void);
-#ifdef WLC_LOW
 extern void wl_ucode_free_buf(void *);
 extern int wl_ucode_init_buf(wl_info_t *wl, void **pbuf, u32 idx);
 extern int wl_ucode_init_uint(wl_info_t *wl, u32 *data, u32 idx);
-#endif				/* WLC_LOW */
 
 #endif				/* _wl_mac80211_h_ */

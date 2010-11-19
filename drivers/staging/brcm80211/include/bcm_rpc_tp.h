@@ -53,9 +53,7 @@ typedef struct rpc_transport_info rpc_tp_info_t;
 typedef void (*rpc_tx_complete_fn_t) (void *, rpc_buf_t *, int status);
 typedef void (*rpc_rx_fn_t) (void *, rpc_buf_t *);
 
-#ifdef WLC_LOW
 typedef void (*rpc_txflowctl_cb_t) (void *ctx, bool on);
-#endif
 
 extern rpc_tp_info_t *bcm_rpc_tp_attach(struct osl_info *osh, void *bus);
 extern void bcm_rpc_tp_detach(rpc_tp_info_t *rpcb);
@@ -94,7 +92,6 @@ extern int bcm_rpc_tp_get_device_speed(rpc_tp_info_t *rpc_th);
 extern int bcm_rpc_tp_dump(rpc_tp_info_t *rpcb, struct bcmstrbuf *b);
 #endif
 
-#ifdef WLC_LOW
 /* intercept USB pkt to parse RPC header: USB driver rx-> wl_send -> this -> wl driver */
 extern void bcm_rpc_tp_rx_from_dnglbus(rpc_tp_info_t *rpc_th, struct lbuf *lb);
 
@@ -110,7 +107,6 @@ extern void bcm_rpc_tp_txq_wm_set(rpc_tp_info_t *rpc_th, u8 hiwm,
 				  u8 lowm);
 extern void bcm_rpc_tp_txq_wm_get(rpc_tp_info_t *rpc_th, u8 *hiwm,
 				  u8 *lowm);
-#endif				/* WLC_LOW */
 
 extern void bcm_rpc_tp_agg_set(rpc_tp_info_t *rpcb, u32 reason, bool set);
 extern void bcm_rpc_tp_agg_limit_set(rpc_tp_info_t *rpc_th, u8 sf,

@@ -19,9 +19,6 @@
 
 #include <hndsoc.h>
 
-#if !defined(WLC_LOW)
-#include "bcm_rpc.h"
-#endif
 /*
  * Data structure to export all chip specific common variables
  *   public (read-only) portion of siutils handle returned by si_attach()
@@ -50,19 +47,12 @@ struct si_pub {
 	uint socirev;		/* SOC interconnect rev */
 	bool pci_pr32414;
 
-#if !defined(WLC_LOW)
-	rpc_info_t *rpc;
-#endif
 };
 
 /* for HIGH_ONLY driver, the si_t must be writable to allow states sync from BMAC to HIGH driver
  * for monolithic driver, it is readonly to prevent accident change
  */
-#if !defined(WLC_LOW)
-typedef struct si_pub si_t;
-#else
 typedef const struct si_pub si_t;
-#endif
 
 /*
  * Many of the routines below take an 'sih' handle as their first arg.

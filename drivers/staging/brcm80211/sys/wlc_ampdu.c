@@ -908,7 +908,6 @@ wlc_ampdu_dotxstatus(ampdu_info_t *ampdu, struct scb *scb, void *p,
 	 * call the first one
 	 */
 	if (txs->status & TX_STATUS_ACK_RCV) {
-#ifdef WLC_LOW
 		u8 status_delay = 0;
 
 		/* wait till the next 8 bytes of txstatus is available */
@@ -926,18 +925,6 @@ wlc_ampdu_dotxstatus(ampdu_info_t *ampdu, struct scb *scb, void *p,
 		ASSERT(!(s1 & TX_STATUS_INTERMEDIATE));
 		ASSERT(s1 & TX_STATUS_AMPDU);
 		s2 = R_REG(wlc->osh, &wlc->regs->frmtxstatus2);
-#else				/* WLC_LOW */
-
-		/* Store the relevant information in ampdu structure */
-		WL_AMPDU_TX(("wl%d: wlc_ampdu_dotxstatus: High Recvd\n",
-			     wlc->pub->unit));
-
-		ASSERT(!ampdu->p);
-		ampdu->p = p;
-		bcopy(txs, &ampdu->txs, sizeof(tx_status_t));
-		ampdu->waiting_status = true;
-		return;
-#endif				/* WLC_LOW */
 	}
 
 	wlc_ampdu_dotxstatus_complete(ampdu, scb, p, txs, s1, s2);
