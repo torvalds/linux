@@ -214,15 +214,11 @@ extern const u8 prio2fifo[];
  * (some platforms return all 0).
  * If clocks are present, call the sb routine which will figure out if the device is removed.
  */
-#ifdef WLC_HIGH_ONLY
-#define DEVICEREMOVED(wlc)	(!wlc->device_present)
-#else
 #define DEVICEREMOVED(wlc)      \
 	((wlc->hw->clk) ?   \
 	((R_REG(wlc->hw->osh, &wlc->hw->regs->maccontrol) & \
 	(MCTL_PSM_JMP_0 | MCTL_IHR_EN)) != MCTL_IHR_EN) : \
 	(si_deviceremoved(wlc->hw->sih)))
-#endif				/* WLC_HIGH_ONLY */
 
 #define WLCWLUNIT(wlc)		((wlc)->pub->unit)
 
@@ -578,12 +574,6 @@ struct wlc_info {
 	s8 txpwr_local_max;	/* regulatory local txpwr max */
 	u8 txpwr_local_constraint;	/* local power contraint in dB */
 
-#ifdef WLC_HIGH_ONLY
-	rpctx_info_t *rpctx;	/* RPC TX module */
-	bool reset_bmac_pending;	/* bmac reset is in progressing */
-	u32 rpc_agg;		/* host agg: bit 16-31, bmac agg: bit 0-15 */
-	u32 rpc_msglevel;	/* host rpc: bit 16-31, bmac rpc: bit 0-15 */
-#endif
 
 	ampdu_info_t *ampdu;	/* ampdu module handler */
 	antsel_info_t *asi;	/* antsel module handler */
@@ -843,16 +833,6 @@ struct antsel_info {
 #endif
 
 /* sum the individual fifo tx pending packet counts */
-#if defined(WLC_HIGH_ONLY)
-#define TXPKTPENDTOT(wlc)		(wlc_rpctx_txpktpend((wlc)->rpctx, 0, true))
-#define TXPKTPENDGET(wlc, fifo)		(wlc_rpctx_txpktpend((wlc)->rpctx, (fifo), false))
-#define TXPKTPENDINC(wlc, fifo, val)	(wlc_rpctx_txpktpendinc((wlc)->rpctx, (fifo), (val)))
-#define TXPKTPENDDEC(wlc, fifo, val)	(wlc_rpctx_txpktpenddec((wlc)->rpctx, (fifo), (val)))
-#define TXPKTPENDCLR(wlc, fifo)		(wlc_rpctx_txpktpendclr((wlc)->rpctx, (fifo)))
-#define TXAVAIL(wlc, fifo)		(wlc_rpctx_txavail((wlc)->rpctx, (fifo)))
-#define GETNEXTTXP(wlc, _queue)		(wlc_rpctx_getnexttxp((wlc)->rpctx, (_queue)))
-
-#else
 #define	TXPKTPENDTOT(wlc) ((wlc)->core->txpktpend[0] + (wlc)->core->txpktpend[1] + \
 	(wlc)->core->txpktpend[2] + (wlc)->core->txpktpend[3])
 #define TXPKTPENDGET(wlc, fifo)		((wlc)->core->txpktpend[(fifo)])
@@ -862,7 +842,6 @@ struct antsel_info {
 #define TXAVAIL(wlc, fifo)		(*(wlc)->core->txavail[(fifo)])
 #define GETNEXTTXP(wlc, _queue)								\
 		dma_getnexttxp((wlc)->hw->di[(_queue)], HNDDMA_RANGE_TRANSMITTED)
-#endif				/* WLC_HIGH_ONLY */
 
 #define WLC_IS_MATCH_SSID(wlc, ssid1, ssid2, len1, len2) \
 	((len1 == len2) && !bcmp(ssid1, ssid2, len1))

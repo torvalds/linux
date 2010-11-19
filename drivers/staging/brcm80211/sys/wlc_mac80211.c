@@ -53,23 +53,10 @@
 #else
 #include "d11ucode_ext.h"
 #endif
-#ifdef WLC_HIGH_ONLY
-#include <bcm_rpc_tp.h>
-#include <bcm_rpc.h>
-#include <bcm_xdr.h>
-#include <wlc_rpc.h>
-#include <wlc_rpctx.h>
-#endif				/* WLC_HIGH_ONLY */
 #include <wlc_alloc.h>
 #include <net/mac80211.h>
 #include <wl_dbg.h>
 
-#ifdef WLC_HIGH_ONLY
-#undef R_REG
-#undef W_REG
-#define R_REG(osh, r) RPC_READ_REG(osh, r)
-#define W_REG(osh, r, v) RPC_WRITE_REG(osh, r, v)
-#endif
 
 /*
  * buffer length needed for wlc_format_ssid
@@ -109,12 +96,8 @@
 /* To inform the ucode of the last mcast frame posted so that it can clear moredata bit */
 #define BCMCFID(wlc, fid) wlc_bmac_write_shm((wlc)->hw, M_BCMC_FID, (fid))
 
-#ifndef WLC_HIGH_ONLY
 #define WLC_WAR16165(wlc) (BUSTYPE(wlc->pub->sih->bustype) == PCI_BUS && \
 				(!AP_ENAB(wlc->pub)) && (wlc->war16165))
-#else
-#define WLC_WAR16165(wlc) (false)
-#endif				/* WLC_HIGH_ONLY */
 
 /* debug/trace */
 uint wl_msg_level =
@@ -401,22 +384,6 @@ void wlc_reset(wlc_info_t *wlc)
 	wlc_ampdu_reset(wlc->ampdu);
 	wlc->txretried = 0;
 
-#ifdef WLC_HIGH_ONLY
-	/* Need to set a flag(to be cleared asynchronously by BMAC driver with high call)
-	 *  in order to prevent wlc_rpctx_txreclaim() from screwing wlc_rpctx_getnexttxp(),
-	 *  which could be invoked by already QUEUED high call(s) from BMAC driver before
-	 *  wlc_bmac_reset() finishes.
-	 * It's not needed before in monolithic driver model because d11core interrupts would
-	 *  have been cleared instantly in wlc_bmac_reset() and no txstatus interrupt
-	 *  will come to driver to fetch those flushed dma pkt pointers.
-	 */
-	wlc->reset_bmac_pending = true;
-
-	wlc_rpctx_txreclaim(wlc->rpctx);
-
-	wlc_stf_phy_txant_upd(wlc);
-	wlc_phy_ant_rxdiv_set(wlc->band->pi, wlc->stf->ant_rx_ovr);
-#endif
 }
 
 void wlc_fatal_error(wlc_info_t *wlc)
@@ -1858,10 +1825,6 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	/* propagate *vars* from BMAC driver to high driver */
 	wlc_bmac_copyfrom_vars(wlc->hw, &pub->vars, &wlc->vars_size);
 
-#ifdef WLC_HIGH_ONLY
-	WL_TRACE(("nvram : vars %p , vars_size %d\n", pub->vars,
-		  wlc->vars_size));
-#endif
 
 	/* set maximum allowed duty cycle */
 	wlc->tx_duty_cycle_ofdm =
@@ -2139,134 +2102,6 @@ static bool wlc_attach_stf_ant_init(wlc_info_t *wlc)
 	return true;
 }
 
-#ifdef WLC_HIGH_ONLY
-/* HIGH_ONLY bmac_attach, which sync over LOW_ONLY bmac_attach states */
-int wlc_bmac_attach(wlc_info_t *wlc, u16 vendor, u16 device, uint unit,
-		    bool piomode, struct osl_info *osh, void *regsva,
-		    uint bustype, void *btparam)
-{
-	wlc_bmac_revinfo_t revinfo;
-	uint idx = 0;
-	rpc_info_t *rpc = (rpc_info_t *) btparam;
-
-	ASSERT(bustype == RPC_BUS);
-
-	/* install the rpc handle in the various state structures used by stub RPC functions */
-	wlc->rpc = rpc;
-	wlc->hw->rpc = rpc;
-	wlc->hw->osh = osh;
-
-	wlc->regs = 0;
-
-	wlc->rpctx = wlc_rpctx_attach(wlc->pub, wlc);
-	if (wlc->rpctx == NULL)
-		return -1;
-
-	/*
-	 * FIFO 0
-	 * TX: TX_AC_BK_FIFO (TX AC Background data packets)
-	 */
-	/* Always initialized */
-	ASSERT(NRPCTXBUFPOST <= NTXD);
-	wlc_rpctx_fifoinit(wlc->rpctx, TX_DATA_FIFO, NRPCTXBUFPOST);
-	wlc_rpctx_fifoinit(wlc->rpctx, TX_CTL_FIFO, NRPCTXBUFPOST);
-	wlc_rpctx_fifoinit(wlc->rpctx, TX_BCMC_FIFO, NRPCTXBUFPOST);
-
-	/* VI and BK inited only if WME */
-	if (WME_ENAB(wlc->pub)) {
-		wlc_rpctx_fifoinit(wlc->rpctx, TX_AC_BK_FIFO, NRPCTXBUFPOST);
-		wlc_rpctx_fifoinit(wlc->rpctx, TX_AC_VI_FIFO, NRPCTXBUFPOST);
-	}
-
-	/* Allocate SB handle */
-	wlc->pub->sih = osl_malloc(wlc->osh, sizeof(si_t));
-	if (!wlc->pub->sih)
-		return -1;
-	bzero(wlc->pub->sih, sizeof(si_t));
-
-	/* sync up revinfo with BMAC */
-	bzero(&revinfo, sizeof(wlc_bmac_revinfo_t));
-	if (wlc_bmac_revinfo_get(wlc->hw, &revinfo) != 0)
-		return -1;
-	wlc->vendorid = (u16) revinfo.vendorid;
-	wlc->deviceid = (u16) revinfo.deviceid;
-
-	wlc->pub->boardrev = (u16) revinfo.boardrev;
-	wlc->pub->corerev = revinfo.corerev;
-	wlc->pub->sromrev = (u8) revinfo.sromrev;
-	wlc->pub->sih->chiprev = revinfo.chiprev;
-	wlc->pub->sih->chip = revinfo.chip;
-	wlc->pub->sih->chippkg = revinfo.chippkg;
-	wlc->pub->sih->boardtype = revinfo.boardtype;
-	wlc->pub->sih->boardvendor = revinfo.boardvendor;
-	wlc->pub->sih->bustype = revinfo.bustype;
-	wlc->pub->sih->buscoretype = revinfo.buscoretype;
-	wlc->pub->sih->buscorerev = revinfo.buscorerev;
-	wlc->pub->sih->issim = (bool) revinfo.issim;
-	wlc->pub->sih->rpc = rpc;
-
-	if (revinfo.nbands == 0 || revinfo.nbands > 2)
-		return -1;
-	wlc->pub->_nbands = revinfo.nbands;
-
-	for (idx = 0; idx < wlc->pub->_nbands; idx++) {
-		uint bandunit, bandtype;	/* To access bandstate */
-		wlc_phy_t *pi = osl_malloc(wlc->osh, sizeof(wlc_phy_t));
-
-		if (!pi)
-			return -1;
-		bzero(pi, sizeof(wlc_phy_t));
-		pi->rpc = rpc;
-
-		bandunit = revinfo.band[idx].bandunit;
-		bandtype = revinfo.band[idx].bandtype;
-		wlc->bandstate[bandunit]->radiorev =
-		    (u8) revinfo.band[idx].radiorev;
-		wlc->bandstate[bandunit]->phytype =
-		    (u16) revinfo.band[idx].phytype;
-		wlc->bandstate[bandunit]->phyrev =
-		    (u16) revinfo.band[idx].phyrev;
-		wlc->bandstate[bandunit]->radioid =
-		    (u16) revinfo.band[idx].radioid;
-		wlc->bandstate[bandunit]->abgphy_encore =
-		    revinfo.band[idx].abgphy_encore;
-
-		wlc->bandstate[bandunit]->pi = pi;
-		wlc->bandstate[bandunit]->bandunit = bandunit;
-		wlc->bandstate[bandunit]->bandtype = bandtype;
-	}
-
-	/* misc stuff */
-
-	return 0;
-}
-
-/* Free the convenience handles */
-int wlc_bmac_detach(wlc_info_t *wlc)
-{
-	uint idx;
-
-	if (wlc->pub->sih) {
-		osl_mfree(wlc->osh, (void *)wlc->pub->sih, sizeof(si_t));
-		wlc->pub->sih = NULL;
-	}
-
-	for (idx = 0; idx < MAXBANDS; idx++)
-		if (wlc->bandstate[idx]->pi) {
-			kfree(wlc->bandstate[idx]->pi);
-			wlc->bandstate[idx]->pi = NULL;
-		}
-
-	if (wlc->rpctx) {
-		wlc_rpctx_detach(wlc->rpctx);
-		wlc->rpctx = NULL;
-	}
-
-	return 0;
-
-}
-
-#endif				/* WLC_HIGH_ONLY */
 
 static void wlc_timers_deinit(wlc_info_t *wlc)
 {
@@ -2335,15 +2170,6 @@ uint wlc_detach(wlc_info_t *wlc)
 
 	/* free other state */
 
-#ifdef WLC_HIGH_ONLY
-	/* High-Only driver has an allocated copy of vars, monolithic just
-	 * references the wlc->hw->vars which is freed in wlc_bmac_detach()
-	 */
-	if (wlc->pub->vars) {
-		kfree(wlc->pub->vars);
-		wlc->pub->vars = NULL;
-	}
-#endif
 
 #ifdef BCMDBG
 	if (wlc->country_ie_override) {
@@ -2677,10 +2503,6 @@ static void wlc_watchdog(void *arg)
 #ifdef WLC_LOW
 	wlc_bmac_watchdog(wlc);
 #endif
-#ifdef WLC_HIGH_ONLY
-	/* maintenance */
-	wlc_bmac_rpc_watchdog(wlc);
-#endif
 
 	/* occasionally sample mac stat counters to detect 16-bit counter wrap */
 	if ((WLC_UPDATE_STATS(wlc))
@@ -2929,9 +2751,6 @@ uint wlc_down(wlc_info_t *wlc)
 	/* wlc_bmac_down_finish has done wlc_coredisable(). so clk is off */
 	wlc->clk = false;
 
-#ifdef WLC_HIGH_ONLY
-	wlc_rpctx_txreclaim(wlc->rpctx);
-#endif
 
 	/* Verify all packets are flushed from the driver */
 	if (PKTALLOCED(wlc->osh) != 0) {
@@ -3395,10 +3214,6 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 				wlc_set_chanspec(wlc, chspec);
 				wlc_enable_mac(wlc);
 			}
-#ifdef WLC_HIGH_ONLY
-			/* delay for channel change */
-			msleep(50);
-#endif
 			break;
 		}
 
@@ -4629,11 +4444,6 @@ wlc_iovar_op(wlc_info_t *wlc, const char *name,
 	/* iovar name not found */
 	if (i >= WLC_MAXMODULES) {
 		err = BCME_UNSUPPORTED;
-#ifdef WLC_HIGH_ONLY
-		err =
-		    bcmsdh_iovar_op(wlc->btparam, name, params, p_len, arg, len,
-				    set);
-#endif
 		goto exit;
 	}
 
@@ -5195,14 +5005,6 @@ u16 wlc_rate_shm_offset(wlc_info_t *wlc, u8 rate)
 }
 
 /* Callback for device removed */
-#if defined(WLC_HIGH_ONLY)
-void wlc_device_removed(void *arg)
-{
-	wlc_info_t *wlc = (wlc_info_t *) arg;
-
-	wlc->device_present = false;
-}
-#endif				/* WLC_HIGH_ONLY */
 
 /*
  * Attempts to queue a packet onto a multiple-precedence queue,
@@ -5467,13 +5269,6 @@ wlc_txfifo(wlc_info_t *wlc, uint fifo, void *p, bool commit, s8 txpktpend)
 	if (WLC_WAR16165(wlc))
 		wlc_war16165(wlc, true);
 
-#ifdef WLC_HIGH_ONLY
-	if (RPCTX_ENAB(wlc->pub)) {
-		(void)wlc_rpctx_tx(wlc->rpctx, fifo, p, commit, frameid,
-				   txpktpend);
-		return;
-	}
-#else
 
 	/* Bump up pending count for if not using rpc. If rpc is used, this will be handled
 	 * in wlc_bmac_txfifo()
@@ -5491,7 +5286,6 @@ wlc_txfifo(wlc_info_t *wlc, uint fifo, void *p, bool commit, s8 txpktpend)
 	if (dma_txfast(wlc->hw->di[fifo], p, commit) < 0) {
 		WL_ERROR(("wlc_txfifo: fatal, toss frames !!!\n"));
 	}
-#endif				/* WLC_HIGH_ONLY */
 }
 
 static u16
@@ -5805,9 +5599,7 @@ u16 BCMFASTPATH wlc_phytxctl1_calc(wlc_info_t *wlc, ratespec_t rspec)
 	/* phy clock must support 40Mhz if tx descriptor uses it */
 	if ((phyctl1 & PHY_TXC1_BW_MASK) >= PHY_TXC1_BW_40MHZ) {
 		ASSERT(CHSPEC_WLC_BW(wlc->chanspec) == WLC_40_MHZ);
-#ifndef WLC_HIGH_ONLY
 		ASSERT(wlc->chanspec == wlc_phy_chanspec_get(wlc->band->pi));
-#endif
 	}
 #endif				/* BCMDBG */
 	return phyctl1;
@@ -5988,13 +5780,6 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 	if (txrate[1]->idx < 0) {
 		txrate[1] = txrate[0];
 	}
-#ifdef WLC_HIGH_ONLY
-	/* Double protection , just in case */
-	if (txrate[0]->idx > HIGHEST_SINGLE_STREAM_MCS)
-		txrate[0]->idx = HIGHEST_SINGLE_STREAM_MCS;
-	if (txrate[1]->idx > HIGHEST_SINGLE_STREAM_MCS)
-		txrate[1]->idx = HIGHEST_SINGLE_STREAM_MCS;
-#endif
 
 	for (k = 0; k < hw->max_rates; k++) {
 		is_mcs[k] =
@@ -6693,9 +6478,7 @@ void wlc_high_dpc(wlc_info_t *wlc, u32 macintstatus)
 	if (!pktq_empty(&wlc->active_queue->q))
 		wlc_send_q(wlc, wlc->active_queue);
 
-#ifndef WLC_HIGH_ONLY
 	ASSERT(wlc_ps_check(wlc));
-#endif
 }
 
 static void *wlc_15420war(wlc_info_t *wlc, uint queue)
@@ -6906,12 +6689,6 @@ wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, u32 frm_tx2)
 	if (p)
 		PKTFREE(osh, p, true);
 
-#ifdef WLC_HIGH_ONLY
-	/* If this is a split driver, do the big-hammer here.
-	 * If this is a monolithic driver, wlc_bmac.c:wlc_dpc() will do the big-hammer.
-	 */
-	wl_init(wlc->wl);
-#endif
 	return true;
 
 }
@@ -8483,9 +8260,6 @@ void wlc_pllreq(wlc_info_t *wlc, bool set, mbool req_bit)
 
 void wlc_reset_bmac_done(wlc_info_t *wlc)
 {
-#ifdef WLC_HIGH_ONLY
-	wlc->reset_bmac_pending = false;
-#endif
 }
 
 void wlc_ht_mimops_cap_update(wlc_info_t *wlc, u8 mimops_mode)

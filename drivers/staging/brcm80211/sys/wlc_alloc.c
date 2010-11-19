@@ -63,11 +63,6 @@ void wlc_tunables_init(wlc_tunables_t *tunables, uint devid)
 	tunables->ampdudatahiwat = WLC_AMPDUDATAHIWAT;
 	tunables->rxbnd = RXBND;
 	tunables->txsbnd = TXSBND;
-#if defined(WLC_HIGH_ONLY) && defined(NTXD_USB_4319)
-	if (devid == BCM4319_CHIP_ID) {
-		tunables->ntxd = NTXD_USB_4319;
-	}
-#endif				/* WLC_HIGH_ONLY */
 }
 
 static wlc_pub_t *wlc_pub_malloc(struct osl_info *osh, uint unit, uint *err,

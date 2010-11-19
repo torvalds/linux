@@ -242,16 +242,6 @@ extern void wlc_bmac_retrylimit_upd(wlc_hw_info_t *wlc_hw, u16 SRL,
 
 extern void wlc_bmac_fifoerrors(wlc_hw_info_t *wlc_hw);
 
-#ifdef WLC_HIGH_ONLY
-extern void wlc_bmac_dngl_reboot(rpc_info_t *);
-extern void wlc_bmac_dngl_rpc_agg(rpc_info_t *, u16 agg);
-extern void wlc_bmac_dngl_rpc_msglevel(rpc_info_t *, u16 level);
-extern void wlc_bmac_dngl_rpc_txq_wm_set(rpc_info_t *rpc, u32 wm);
-extern void wlc_bmac_dngl_rpc_txq_wm_get(rpc_info_t *rpc, u32 *wm);
-extern void wlc_bmac_dngl_rpc_agg_limit_set(rpc_info_t *rpc, u32 val);
-extern void wlc_bmac_dngl_rpc_agg_limit_get(rpc_info_t *rpc, u32 *pval);
-extern int wlc_bmac_debug_template(wlc_hw_info_t *wlc_hw);
-#endif
 
 /* API for BMAC driver (e.g. wlc_phy.c etc) */
 

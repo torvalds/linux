@@ -29,9 +29,7 @@
 
 #include <wlc_cfg.h>
 #include <net/mac80211.h>
-#ifndef WLC_HIGH_ONLY
 #include <phy_version.h>
-#endif
 #include <bcmutils.h>
 #include <pcicfg.h>
 #include <wlioctl.h>
@@ -46,20 +44,11 @@
 #include <bcmsdh.h>
 #endif
 #include <wl_export.h>
-#ifdef WLC_HIGH_ONLY
-#include "dbus.h"
-#include "bcm_rpc_tp.h"
-#include "bcm_rpc.h"
-#include "bcm_xdr.h"
-#include "wlc_rpc.h"
-#endif
 
 #include <wl_mac80211.h>
 #include <linux/firmware.h>
-#ifndef WLC_HIGH_ONLY
 #include <wl_ucode.h>
 #include <d11ucode_ext.h>
-#endif
 
 #ifdef BCMSDIO
 extern struct device *sdiommc_dev;
@@ -75,21 +64,6 @@ void wlc_set_addrmatch(wlc_info_t *wlc, int match_reg_offset,
 static void wl_timer(unsigned long data);
 static void _wl_timer(wl_timer_t *t);
 
-#ifdef WLC_HIGH_ONLY
-#define RPCQ_LOCK(_wl, _flags) spin_lock_irqsave(&(_wl)->rpcq_lock, (_flags))
-#define RPCQ_UNLOCK(_wl, _flags)  spin_unlock_irqrestore(&(_wl)->rpcq_lock, (_flags))
-#define TXQ_LOCK(_wl, _flags) spin_lock_irqsave(&(_wl)->txq_lock, (_flags))
-#define TXQ_UNLOCK(_wl, _flags)  spin_unlock_irqrestore(&(_wl)->txq_lock, (_flags))
-static void wl_rpc_down(void *wlh);
-static void wl_rpcq_free(wl_info_t *wl);
-static void wl_rpcq_dispatch(struct wl_task *task);
-static void wl_rpc_dispatch_schedule(void *ctx, struct rpc_buf *buf);
-static void wl_start_txqwork(struct wl_task *task);
-static void wl_txq_free(wl_info_t *wl);
-static void wl_timer_task(wl_task_t *task);
-static int wl_schedule_task(wl_info_t *wl, void (*fn) (struct wl_task *),
-			    void *context);
-#endif				/* WLC_HIGH_ONLY */
 
 static int ieee_hw_init(struct ieee80211_hw *hw);
 static int ieee_hw_rate_init(struct ieee80211_hw *hw);
@@ -137,12 +111,10 @@ struct ieee80211_tkip_data {
 	u8 rx_hdr[16], tx_hdr[16];
 };
 
-#ifndef WLC_HIGH_ONLY
 #define WL_DEV_IF(dev)		((wl_if_t *)netdev_priv(dev))
 #define	WL_INFO(dev)		((wl_info_t *)(WL_DEV_IF(dev)->wl))	/* points to wl */
 static int wl_request_fw(wl_info_t *wl, struct pci_dev *pdev);
 static void wl_release_fw(wl_info_t *wl);
-#endif
 
 /* local prototypes */
 static int wl_start(struct sk_buff *skb, wl_info_t *wl);
@@ -176,19 +148,13 @@ module_param(sd_drivestrength, uint, 0);
 #ifdef BCMDBG
 static int msglevel = 0xdeadbeef;
 module_param(msglevel, int, 0);
-#ifndef WLC_HIGH_ONLY
 static int phymsglevel = 0xdeadbeef;
 module_param(phymsglevel, int, 0);
-#endif				/* WLC_HIGH_ONLY */
 #endif				/* BCMDBG */
 
 #define HW_TO_WL(hw)	 (hw->priv)
 #define WL_TO_HW(wl)	  (wl->pub->ieee_hw)
-#ifdef WLC_HIGH_ONLY
-static int wl_ops_tx_nl(struct ieee80211_hw *hw, struct sk_buff *skb);
-#else
 static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
-#endif
 static int wl_ops_start(struct ieee80211_hw *hw);
 static void wl_ops_stop(struct ieee80211_hw *hw);
 static int wl_ops_add_interface(struct ieee80211_hw *hw,
@@ -226,21 +192,6 @@ static int wl_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   enum ieee80211_ampdu_mlme_action action,
 			   struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 
-#ifdef WLC_HIGH_ONLY
-static int wl_ops_tx_nl(struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	int status;
-	wl_info_t *wl = hw->priv;
-	if (!wl->pub->up) {
-		WL_ERROR(("ops->tx called while down\n"));
-		status = -ENETDOWN;
-		goto done;
-	}
-	status = wl_start(skb, wl);
- done:
-	return status;
-}
-#else
 static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	int status;
@@ -256,7 +207,6 @@ static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	WL_UNLOCK(wl);
 	return status;
 }
-#endif				/* WLC_HIGH_ONLY */
 
 static int wl_ops_start(struct ieee80211_hw *hw)
 {
@@ -415,9 +365,6 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 	wl_info_t *wl = HW_TO_WL(hw);
 	int val;
 
-#ifdef WLC_HIGH_ONLY
-	WL_LOCK(wl);
-#endif
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		WL_ERROR(("Associated:\t%s\n", info->assoc ? "True" : "False"));
@@ -477,9 +424,6 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 			  info->enable_beacon ? "True" : "False"));
 		/* Beaconing should be enabled/disabled (beaconing modes) */
 	}
-#ifdef WLC_HIGH_ONLY
-	WL_UNLOCK(wl);
-#endif
 	return;
 }
 
@@ -488,9 +432,7 @@ wl_ops_configure_filter(struct ieee80211_hw *hw,
 			unsigned int changed_flags,
 			unsigned int *total_flags, u64 multicast)
 {
-#ifndef WLC_HIGH_ONLY
 	wl_info_t *wl = hw->priv;
-#endif
 
 	changed_flags &= MAC_FILTERS;
 	*total_flags &= MAC_FILTERS;
@@ -508,7 +450,6 @@ wl_ops_configure_filter(struct ieee80211_hw *hw,
 		WL_ERROR(("FIF_OTHER_BSS\n"));
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
 		WL_NONE(("FIF_BCN_PRBRESP_PROMISC\n"));
-#ifndef WLC_HIGH_ONLY
 		WL_LOCK(wl);
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC) {
 			wl->pub->mac80211_state |= MAC80211_PROMISC_BCNS;
@@ -518,7 +459,6 @@ wl_ops_configure_filter(struct ieee80211_hw *hw,
 			wl->pub->mac80211_state &= ~MAC80211_PROMISC_BCNS;
 		}
 		WL_UNLOCK(wl);
-#endif
 	}
 	return;
 }
@@ -618,20 +558,12 @@ wl_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	wl->pub->global_scb = scb;
 	wl->pub->global_ampdu = &(scb->scb_ampdu);
 	wl->pub->global_ampdu->scb = scb;
-#ifdef WLC_HIGH_ONLY
-	wl->pub->global_ampdu->max_pdu = AMPDU_NUM_MPDU;
-#else
 	wl->pub->global_ampdu->max_pdu = 16;
-#endif
 	pktq_init(&scb->scb_ampdu.txq, AMPDU_MAX_SCB_TID,
 		  AMPDU_MAX_SCB_TID * PKTQ_LEN_DEFAULT);
 
 	sta->ht_cap.ht_supported = true;
-#ifdef WLC_HIGH_ONLY
-	sta->ht_cap.ampdu_factor = AMPDU_RX_FACTOR_16K;
-#else
 	sta->ht_cap.ampdu_factor = AMPDU_RX_FACTOR_64K;
-#endif
 	sta->ht_cap.ampdu_density = AMPDU_DEF_MPDU_DENSITY;
 	sta->ht_cap.cap = IEEE80211_HT_CAP_GRN_FLD |
 	    IEEE80211_HT_CAP_SGI_20 |
@@ -695,11 +627,7 @@ wl_ampdu_action(struct ieee80211_hw *hw,
 }
 
 static const struct ieee80211_ops wl_ops = {
-#ifdef WLC_HIGH_ONLY
-	.tx = wl_ops_tx_nl,
-#else
 	.tx = wl_ops_tx,
-#endif
 	.start = wl_ops_start,
 	.stop = wl_ops_stop,
 	.add_interface = wl_ops_add_interface,
@@ -761,20 +689,9 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	osh = osl_attach(btparam, bustype);
 	ASSERT(osh);
 
-#ifdef WLC_HIGH_ONLY
-	hw = ieee80211_alloc_hw(sizeof(wl_info_t), &wl_ops);
-	if (!hw) {
-		WL_ERROR(("%s: ieee80211_alloc_hw failed\n", __func__));
-		ASSERT(0);
-	}
-
-	bzero(hw->priv, sizeof(*wl));
-	wl = hw->priv;
-#else
 	/* allocate private info */
 	hw = pci_get_drvdata(btparam);	/* btparam == pdev */
 	wl = hw->priv;
-#endif
 	ASSERT(wl);
 
 	wl->osh = osh;
@@ -783,25 +700,6 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	/* setup the bottom half handler */
 	tasklet_init(&wl->tasklet, wl_dpc, (unsigned long) wl);
 
-#ifdef WLC_HIGH_ONLY
-	wl->rpc_th = bcm_rpc_tp_attach(osh, NULL);
-	if (wl->rpc_th == NULL) {
-		WL_ERROR(("wl%d: %s: bcm_rpc_tp_attach failed!\n", unit,
-			  __func__));
-		goto fail;
-	}
-
-	wl->rpc = bcm_rpc_attach(NULL, osh, wl->rpc_th);
-	if (wl->rpc == NULL) {
-		WL_ERROR(("wl%d: %s: bcm_rpc_attach failed!\n", unit,
-			  __func__));
-		goto fail;
-	}
-
-	/* init tx work queue for wl_start/send pkt; no need to destroy workitem  */
-	INIT_WORK(&wl->txq_task.work, (work_func_t) wl_start_txqwork);
-	wl->txq_task.context = wl;
-#endif				/* WLC_HIGH_ONLY */
 
 #ifdef BCMSDIO
 	SET_IEEE80211_DEV(hw, sdiommc_dev);
@@ -819,28 +717,14 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	}
 	wl->bcm_bustype = bustype;
 
-#ifdef WLC_HIGH_ONLY
-	if (wl->bcm_bustype == RPC_BUS) {
-		wl->regsva = (void *)0;
-		btparam = wl->rpc;
-	} else
-#endif
 	wl->regsva = ioremap_nocache(base_addr, PCI_BAR0_WINSZ);
 	if (wl->regsva == NULL) {
 		WL_ERROR(("wl%d: ioremap() failed\n", unit));
 		goto fail;
 	}
-#ifdef WLC_HIGH_ONLY
-	spin_lock_init(&wl->rpcq_lock);
-	spin_lock_init(&wl->txq_lock);
-
-	sema_init(&wl->sem, 1);
-#else
 	spin_lock_init(&wl->lock);
 	spin_lock_init(&wl->isr_lock);
-#endif
 
-#ifndef WLC_HIGH_ONLY
 	/* prepare ucode */
 	if (wl_request_fw(wl, (struct pci_dev *)btparam)) {
 		printf("%s: Failed to find firmware usually in %s\n",
@@ -849,14 +733,11 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 		wl_remove((struct pci_dev *)btparam);
 		goto fail1;
 	}
-#endif
 
 	/* common load-time initialization */
 	wl->wlc = wlc_attach((void *)wl, vendor, device, unit, wl->piomode, osh,
 			     wl->regsva, wl->bcm_bustype, btparam, &err);
-#ifndef WLC_HIGH_ONLY
 	wl_release_fw(wl);
-#endif
 	if (!wl->wlc) {
 		printf("%s: wlc_attach() failed with code %d\n",
 			KBUILD_MODNAME, err);
@@ -868,14 +749,6 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	ASSERT(wl->pub->ieee_hw);
 	ASSERT(wl->pub->ieee_hw->priv == wl);
 
-#ifdef WLC_HIGH_ONLY
-	REGOPSSET(osh, (osl_rreg_fn_t) wlc_reg_read,
-		  (osl_wreg_fn_t) wlc_reg_write, wl->wlc);
-	wl->rpc_dispatch_ctx.rpc = wl->rpc;
-	wl->rpc_dispatch_ctx.wlc = wl->wlc;
-	bcm_rpc_rxcb_init(wl->rpc, wl, wl_rpc_dispatch_schedule, wl,
-			  wl_rpc_down, NULL, NULL);
-#endif				/* WLC_HIGH_ONLY */
 
 	if (wlc_iovar_setint(wl->wlc, "mpc", 0)) {
 		WL_ERROR(("wl%d: Error setting MPC variable to 0\n",
@@ -922,13 +795,8 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 		WL_ERROR(("%s: regulatory_hint failed, status %d\n", __func__,
 			  err));
 	}
-#ifndef WLC_HIGH_ONLY
 	WL_ERROR(("wl%d: Broadcom BCM43xx 802.11 MAC80211 Driver "
 		  " (" PHY_VERSION_STR ")", unit));
-#else
-	WL_ERROR(("wl%d: Broadcom BCM43xx 802.11 Splitmac MAC80211 Driver "
-		  , unit));
-#endif
 
 #ifdef BCMDBG
 	printf(" (Compiled at " __TIME__ " on " __DATE__ ")");
@@ -944,54 +812,6 @@ fail1:
 	return NULL;
 }
 
-#ifdef WLC_HIGH_ONLY
-static void *wl_dbus_probe_cb(void *arg, const char *desc, u32 bustype,
-			      u32 hdrlen)
-{
-	wl_info_t *wl;
-	WL_ERROR(("%s:\n", __func__));
-
-	wl = wl_attach(BCM_DNGL_VID, BCM_DNGL_BDC_PID, (unsigned long) NULL, RPC_BUS,
-		NULL, 0);
-	if (!wl) {
-		WL_ERROR(("%s: wl_attach failed\n", __func__));
-	}
-
-	/* This is later passed to wl_dbus_disconnect_cb */
-	return wl;
-}
-
-static void wl_dbus_disconnect_cb(void *arg)
-{
-	wl_info_t *wl = arg;
-
-	WL_ERROR(("%s:\n", __func__));
-
-	if (wl) {
-#ifdef WLC_HIGH_ONLY
-		if (wl->pub->ieee_hw) {
-			ieee80211_unregister_hw(wl->pub->ieee_hw);
-			WL_ERROR(("%s: Back from down\n", __func__));
-		}
-		wlc_device_removed(wl->wlc);
-		wlc_bmac_dngl_reboot(wl->rpc);
-		bcm_rpc_down(wl->rpc);
-#endif
-		WL_LOCK(wl);
-		wl_down(wl);
-		WL_UNLOCK(wl);
-#ifdef WLC_HIGH_ONLY
-		if (wl->pub->ieee_hw) {
-			ieee80211_free_hw(wl->pub->ieee_hw);
-			WL_ERROR(("%s: Back from ieee80211_free_hw\n",
-				  __func__));
-			wl->pub->ieee_hw = NULL;
-		}
-#endif
-		wl_free(wl);
-	}
-}
-#endif				/* WLC_HIGH_ONLY */
 
 
 #define CHAN2GHZ(channel, freqency, chflags)  { \
@@ -1129,29 +949,13 @@ static struct ieee80211_supported_band wl_band_2GHz_nphy = {
 		   .cap = IEEE80211_HT_CAP_GRN_FLD |
 		   IEEE80211_HT_CAP_SGI_20 |
 		   IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_40MHZ_INTOLERANT,
-#ifdef WLC_HIGH_ONLY
-		   .ht_supported = true,
-		   .ampdu_factor = AMPDU_RX_FACTOR_16K,
-#else
 		   .ht_supported = true,
 		   .ampdu_factor = AMPDU_RX_FACTOR_64K,
-#endif
 		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
 		   .mcs = {
 			   /* placeholders for now */
-#ifdef WLC_HIGH_ONLY
-			   /*
-			    * rx_mask[0] = 0xff by default
-			    * rx_mask[1] = 0xff if number of rx chain >=2
-			    * rx_mask[2] = 0xff if number of rx chain >=3
-			    * rx_mask[4] = 1 if 40Mhz is supported
-			    */
-			   .rx_mask = {0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-			   .rx_highest = 72,	/* max rate of single stream */
-#else
 			   .rx_mask = {0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0},
 			   .rx_highest = 500,
-#endif
 			   .tx_params = IEEE80211_HT_MCS_TX_DEFINED}
 		   }
 };
@@ -1192,16 +996,12 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 	}
 	WL_NONE(("%s: phylist = %c\n", __func__, phy_list[0]));
 
-#ifndef WLC_HIGH_ONLY
 	if (phy_list[0] == 'n' || phy_list[0] == 'c') {
 		if (phy_list[0] == 'c') {
 			/* Single stream */
 			wl_band_2GHz_nphy.ht_cap.mcs.rx_mask[1] = 0;
 			wl_band_2GHz_nphy.ht_cap.mcs.rx_highest = 72;
 		}
-#else
-	if (phy_list[0] == 's') {
-#endif
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl_band_2GHz_nphy;
 	} else {
 		BUG();
@@ -1211,11 +1011,7 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 	/* Assume all bands use the same phy.  True for 11n devices. */
 	if (NBANDS_PUB(wl->pub) > 1) {
 		has_5g++;
-#ifndef WLC_HIGH_ONLY
 		if (phy_list[0] == 'n' || phy_list[0] == 'c') {
-#else
-		if (phy_list[0] == 's') {
-#endif
 			hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			    &wl_band_5GHz_nphy;
 		} else {
@@ -1446,7 +1242,6 @@ static int __init wl_module_init(void)
 		if (var)
 			wl_msg_level = simple_strtoul(var, NULL, 0);
 	}
-#ifndef WLC_HIGH_ONLY
 	{
 		extern u32 phyhal_msg_level;
 
@@ -1458,7 +1253,6 @@ static int __init wl_module_init(void)
 				phyhal_msg_level = simple_strtoul(var, NULL, 0);
 		}
 	}
-#endif				/* WLC_HIGH_ONLY */
 #endif				/* BCMDBG */
 
 #ifndef BCMSDIO
@@ -1468,15 +1262,6 @@ static int __init wl_module_init(void)
 
 #endif				/* !BCMSDIO */
 
-#ifdef WLC_HIGH_ONLY
-	/* BMAC_NOTE: define hardcode number, why NODEVICE is ok ? */
-	error =
-	    dbus_register(BCM_DNGL_VID, 0, wl_dbus_probe_cb,
-			  wl_dbus_disconnect_cb, NULL, NULL, NULL);
-	if (error == DBUS_ERR_NODEVICE) {
-		error = DBUS_OK;
-	}
-#endif				/* WLC_HIGH_ONLY */
 
 	return error;
 }
@@ -1494,9 +1279,6 @@ static void __exit wl_module_exit(void)
 	pci_unregister_driver(&wl_pci_driver);
 #endif				/* !BCMSDIO */
 
-#ifdef WLC_HIGH_ONLY
-	dbus_deregister();
-#endif				/* WLC_HIGH_ONLY */
 }
 
 module_init(wl_module_init);
@@ -1515,13 +1297,11 @@ void wl_free(wl_info_t *wl)
 	struct osl_info *osh;
 
 	ASSERT(wl);
-#ifndef WLC_HIGH_ONLY
 	/* free ucode data */
 	if (wl->fw.fw_cnt)
 		wl_ucode_data_free();
 	if (wl->irq)
 		free_irq(wl->irq, wl);
-#endif
 
 	/* kill dpc */
 	tasklet_kill(&wl->tasklet);
@@ -1565,21 +1345,6 @@ void wl_free(wl_info_t *wl)
 	}
 	wl->regsva = NULL;
 
-#ifdef WLC_HIGH_ONLY
-	wl_rpcq_free(wl);
-
-	wl_txq_free(wl);
-
-	if (wl->rpc) {
-		bcm_rpc_detach(wl->rpc);
-		wl->rpc = NULL;
-	}
-
-	if (wl->rpc_th) {
-		bcm_rpc_tp_detach(wl->rpc_th);
-		wl->rpc_th = NULL;
-	}
-#endif				/* WLC_HIGH_ONLY */
 
 	osl_detach(osh);
 }
@@ -1598,13 +1363,7 @@ static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t *wl)
 static int BCMFASTPATH
 wl_start_int(wl_info_t *wl, struct ieee80211_hw *hw, struct sk_buff *skb)
 {
-#ifdef WLC_HIGH_ONLY
-	WL_LOCK(wl);
-#endif
 	wlc_sendpkt_mac80211(wl->wlc, skb, hw);
-#ifdef WLC_HIGH_ONLY
-	WL_UNLOCK(wl);
-#endif
 	return NETDEV_TX_OK;
 }
 
@@ -1613,36 +1372,6 @@ void wl_txflowcontrol(wl_info_t *wl, struct wl_if *wlif, bool state, int prio)
 	WL_ERROR(("Shouldn't be here %s\n", __func__));
 }
 
-#if defined(WLC_HIGH_ONLY)
-/* Schedule a completion handler to run at safe time */
-static int
-wl_schedule_task(wl_info_t *wl, void (*fn) (struct wl_task *task),
-		 void *context)
-{
-	wl_task_t *task;
-
-	WL_TRACE(("wl%d: wl_schedule_task\n", wl->pub->unit));
-
-	task = kmalloc(sizeof(wl_task_t), GFP_ATOMIC);
-	if (!task) {
-		WL_ERROR(("wl%d: wl_schedule_task: out of memory\n", wl->pub->unit));
-		return -ENOMEM;
-	}
-
-	INIT_WORK(&task->work, (work_func_t) fn);
-	task->context = context;
-
-	if (!schedule_work(&task->work)) {
-		WL_ERROR(("wl%d: schedule_work() failed\n", wl->pub->unit));
-		kfree(task);
-		return -ENOMEM;
-	}
-
-	atomic_inc(&wl->callbacks);
-
-	return 0;
-}
-#endif				/* defined(WLC_HIGH_ONLY) */
 
 void wl_init(wl_info_t *wl)
 {
@@ -1734,12 +1463,10 @@ void wl_down(wl_info_t *wl)
 	/* wait for down callbacks to complete */
 	WL_UNLOCK(wl);
 
-#ifndef WLC_HIGH_ONLY
 	/* For HIGH_only driver, it's important to actually schedule other work,
 	 * not just spin wait since everything runs at schedule level
 	 */
 	SPINWAIT((atomic_read(&wl->callbacks) > callbacks), 100 * 1000);
-#endif				/* WLC_HIGH_ONLY */
 
 	WL_LOCK(wl);
 }
@@ -1843,12 +1570,7 @@ void wl_event(wl_info_t *wl, char *ifname, wlc_event_t *e)
 
 static void wl_timer(unsigned long data)
 {
-#ifndef WLC_HIGH_ONLY
 	_wl_timer((wl_timer_t *) data);
-#else
-	wl_timer_t *t = (wl_timer_t *) data;
-	wl_schedule_task(t->wl, wl_timer_task, t);
-#endif				/* WLC_HIGH_ONLY */
 }
 
 static void _wl_timer(wl_timer_t *t)
@@ -2015,226 +1737,7 @@ struct wl_fw_hdr {
 	u32 idx;
 };
 
-#ifdef WLC_HIGH_ONLY
-static void wl_rpc_down(void *wlh)
-{
-	wl_info_t *wl = (wl_info_t *) (wlh);
 
-	wlc_device_removed(wl->wlc);
-
-	wl_rpcq_free(wl);
-}
-
-static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t *wl)
-{
-
-	unsigned long flags;
-
-	skb->prev = NULL;
-
-	/* Lock the queue as tasklet could be running at this time */
-	TXQ_LOCK(wl, flags);
-	if (wl->txq_head == NULL)
-		wl->txq_head = skb;
-	else {
-		wl->txq_tail->prev = skb;
-	}
-	wl->txq_tail = skb;
-
-	if (wl->txq_dispatched == false) {
-		wl->txq_dispatched = true;
-
-		if (schedule_work(&wl->txq_task.work)) {
-			atomic_inc(&wl->callbacks);
-		} else {
-			WL_ERROR(("wl%d: wl_start/schedule_work failed\n",
-				  wl->pub->unit));
-		}
-	}
-
-	TXQ_UNLOCK(wl, flags);
-
-	return 0;
-
-}
-
-static void wl_start_txqwork(struct wl_task *task)
-{
-	wl_info_t *wl = (wl_info_t *) task->context;
-	struct sk_buff *skb;
-	unsigned long flags;
-	uint count = 0;
-
-	WL_TRACE(("wl%d: wl_start_txqwork\n", wl->pub->unit));
-
-	/* First remove an entry then go for execution */
-	TXQ_LOCK(wl, flags);
-	while (wl->txq_head) {
-		skb = wl->txq_head;
-		wl->txq_head = skb->prev;
-		skb->prev = NULL;
-		if (wl->txq_head == NULL)
-			wl->txq_tail = NULL;
-		TXQ_UNLOCK(wl, flags);
-
-		/* it has WL_LOCK/WL_UNLOCK inside */
-		wl_start_int(wl, WL_TO_HW(wl), skb);
-
-		/* bounded our execution, reshedule ourself next */
-		if (++count >= 10)
-			break;
-
-		TXQ_LOCK(wl, flags);
-	}
-
-	if (count >= 10) {
-		if (!schedule_work(&wl->txq_task.work)) {
-			WL_ERROR(("wl%d: wl_start/schedule_work failed\n",
-				  wl->pub->unit));
-			atomic_dec(&wl->callbacks);
-		}
-	} else {
-		wl->txq_dispatched = false;
-		TXQ_UNLOCK(wl, flags);
-		atomic_dec(&wl->callbacks);
-	}
-
-	return;
-}
-
-static void wl_txq_free(wl_info_t *wl)
-{
-	struct sk_buff *skb;
-
-	if (wl->txq_head == NULL) {
-		ASSERT(wl->txq_tail == NULL);
-		return;
-	}
-
-	while (wl->txq_head) {
-		skb = wl->txq_head;
-		wl->txq_head = skb->prev;
-		PKTFREE(wl->osh, skb, true);
-	}
-
-	wl->txq_tail = NULL;
-}
-
-static void wl_rpcq_free(wl_info_t *wl)
-{
-	rpc_buf_t *buf;
-
-	if (wl->rpcq_head == NULL) {
-		ASSERT(wl->rpcq_tail == NULL);
-		return;
-	}
-
-	while (wl->rpcq_head) {
-		buf = wl->rpcq_head;
-		wl->rpcq_head = bcm_rpc_buf_next_get(wl->rpc_th, buf);
-		bcm_rpc_buf_free(wl->rpc_dispatch_ctx.rpc, buf);
-	}
-
-	wl->rpcq_tail = NULL;
-}
-
-static void wl_rpcq_dispatch(struct wl_task *task)
-{
-	wl_info_t *wl = (wl_info_t *) task->context;
-	rpc_buf_t *buf;
-	unsigned long flags;
-
-	/* First remove an entry then go for execution */
-	RPCQ_LOCK(wl, flags);
-	while (wl->rpcq_head) {
-		buf = wl->rpcq_head;
-		wl->rpcq_head = bcm_rpc_buf_next_get(wl->rpc_th, buf);
-
-		if (wl->rpcq_head == NULL)
-			wl->rpcq_tail = NULL;
-		RPCQ_UNLOCK(wl, flags);
-
-		WL_LOCK(wl);
-		wlc_rpc_high_dispatch(&wl->rpc_dispatch_ctx, buf);
-		WL_UNLOCK(wl);
-
-		RPCQ_LOCK(wl, flags);
-	}
-
-	wl->rpcq_dispatched = false;
-
-	RPCQ_UNLOCK(wl, flags);
-
-	kfree(task);
-	atomic_dec(&wl->callbacks);
-}
-
-static void wl_rpcq_add(wl_info_t *wl, rpc_buf_t *buf)
-{
-	unsigned long flags;
-
-	bcm_rpc_buf_next_set(wl->rpc_th, buf, NULL);
-
-	/* Lock the queue as tasklet could be running at this time */
-	RPCQ_LOCK(wl, flags);
-	if (wl->rpcq_head == NULL)
-		wl->rpcq_head = buf;
-	else
-		bcm_rpc_buf_next_set(wl->rpc_th, wl->rpcq_tail, buf);
-
-	wl->rpcq_tail = buf;
-
-	if (wl->rpcq_dispatched == false) {
-		wl->rpcq_dispatched = true;
-		wl_schedule_task(wl, wl_rpcq_dispatch, wl);
-	}
-
-	RPCQ_UNLOCK(wl, flags);
-}
-
-#if defined(BCMDBG)
-static const struct name_entry rpc_name_tbl[] = RPC_ID_TABLE;
-#endif				/* BCMDBG */
-
-/* dongle-side rpc dispatch routine */
-static void wl_rpc_dispatch_schedule(void *ctx, struct rpc_buf *buf)
-{
-	bcm_xdr_buf_t b;
-	wl_info_t *wl = (wl_info_t *) ctx;
-	wlc_rpc_id_t rpc_id;
-	int err;
-
-	bcm_xdr_buf_init(&b, bcm_rpc_buf_data(wl->rpc_th, buf),
-			 bcm_rpc_buf_len_get(wl->rpc_th, buf));
-
-	err = bcm_xdr_unpack_u32(&b, &rpc_id);
-	ASSERT(!err);
-	WL_TRACE(("%s: Dispatch id %s\n", __func__,
-		  WLC_RPC_ID_LOOKUP(rpc_name_tbl, rpc_id)));
-
-	/* Handle few emergency ones */
-	switch (rpc_id) {
-	default:
-		wl_rpcq_add(wl, buf);
-		break;
-	}
-}
-
-static void wl_timer_task(wl_task_t *task)
-{
-	wl_timer_t *t = (wl_timer_t *) task->context;
-
-	_wl_timer(t);
-	kfree(task);
-
-	/* This dec is for the task_schedule. The timer related
-	 * callback is decremented in _wl_timer
-	 */
-	atomic_dec(&t->wl->callbacks);
-}
-#endif				/* WLC_HIGH_ONLY */
-
-#ifndef WLC_HIGH_ONLY
 char *wl_firmwares[WL_MAX_FW] = {
 	"brcm/bcm43xx",
 	NULL
@@ -2345,4 +1848,3 @@ static void wl_release_fw(wl_info_t *wl)
 		release_firmware(wl->fw.fw_hdr[i]);
 	}
 }
-#endif				/* WLC_HIGH_ONLY */

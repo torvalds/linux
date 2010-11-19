@@ -67,12 +67,8 @@ struct wl_info {
 
 	int irq;
 
-#ifdef WLC_HIGH_ONLY
-	struct semaphore sem;	/* use semaphore to allow sleep */
-#else
 	spinlock_t lock;	/* per-device perimeter lock */
 	spinlock_t isr_lock;	/* per-device ISR synchronization lock */
-#endif
 	uint bcm_bustype;	/* bus type */
 	bool piomode;		/* set from insmod argument */
 	void *regsva;		/* opaque chip registers virtual address */
@@ -88,30 +84,12 @@ struct wl_info {
 	u32 pci_psstate[16];	/* pci ps-state save/restore */
 #endif
 	/* RPC, handle, lock, txq, workitem */
-#ifdef WLC_HIGH_ONLY
-	rpc_info_t *rpc;	/* RPC handle */
-	rpc_tp_info_t *rpc_th;	/* RPC transport handle */
-	wlc_rpc_ctx_t rpc_dispatch_ctx;
-
-	bool rpcq_dispatched;	/* Avoid scheduling multiple tasks */
-	spinlock_t rpcq_lock;	/* Lock for the queue */
-	rpc_buf_t *rpcq_head;	/* RPC Q */
-	rpc_buf_t *rpcq_tail;	/* Points to the last buf */
-
-	bool txq_dispatched;	/* Avoid scheduling multiple tasks */
-	spinlock_t txq_lock;	/* Lock for the queue */
-	struct sk_buff *txq_head;	/* TX Q */
-	struct sk_buff *txq_tail;	/* Points to the last buf */
-
-	wl_task_t txq_task;	/* work queue for wl_start() */
-#endif				/* WLC_HIGH_ONLY */
 	uint stats_id;		/* the current set of stats */
 	/* ping-pong stats counters updated by Linux watchdog */
 	struct net_device_stats stats_watchdog[2];
 	struct wl_firmware fw;
 };
 
-#ifndef WLC_HIGH_ONLY
 #define WL_LOCK(wl)	spin_lock_bh(&(wl)->lock)
 #define WL_UNLOCK(wl)	spin_unlock_bh(&(wl)->lock)
 
@@ -122,14 +100,6 @@ struct wl_info {
 /* locking under WL_LOCK() to synchronize with wl_isr */
 #define INT_LOCK(wl, flags)	spin_lock_irqsave(&(wl)->isr_lock, flags)
 #define INT_UNLOCK(wl, flags)	spin_unlock_irqrestore(&(wl)->isr_lock, flags)
-#else				/* BCMSDIO */
-
-#define WL_LOCK(wl)	down(&(wl)->sem)
-#define WL_UNLOCK(wl)	up(&(wl)->sem)
-
-#define WL_ISRLOCK(wl)
-#define WL_ISRUNLOCK(wl)
-#endif				/* WLC_HIGH_ONLY */
 
 /* handle forward declaration */
 typedef struct wl_info wl_info_t;

@@ -122,11 +122,7 @@ typedef struct shared_phy shared_phy_t;
 
 struct phy_pub;
 
-#ifdef WLC_HIGH_ONLY
-typedef struct wlc_rpc_phy wlc_phy_t;
-#else
 typedef struct phy_pub wlc_phy_t;
-#endif
 
 typedef struct shared_phy_params {
 	void *osh;
