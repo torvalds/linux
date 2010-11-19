@@ -1325,10 +1325,12 @@ int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 			int offset, int len)
 {
 	int err, i;
+	size_t read;
+	loff_t addr = (loff_t)pnum * ubi->peb_size + offset;
 
 	mutex_lock(&ubi->dbg_buf_mutex);
-	err = ubi_io_read(ubi, ubi->dbg_peb_buf, pnum, offset, len);
-	if (err)
+	err = ubi->mtd->read(ubi->mtd, addr, len, &read, ubi->dbg_peb_buf);
+	if (err && err != -EUCLEAN)
 		goto out_unlock;
 
 	for (i = 0; i < len; i++) {
