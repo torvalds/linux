@@ -864,11 +864,7 @@
      ((REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
 
 #define AR_DEVID_7010(_ah) \
-	(((_ah)->hw_version.devid == 0x7010) || \
-	 ((_ah)->hw_version.devid == 0x7015) || \
-	 ((_ah)->hw_version.devid == 0x9018) || \
-	 ((_ah)->hw_version.devid == 0xA704) || \
-	 ((_ah)->hw_version.devid == 0x1200))
+	((_ah)->common.driver_info & AR7010_DEVICE)
 
 #define AR_RADIO_SREV_MAJOR                   0xf0
 #define AR_RAD5133_SREV_MAJOR                 0xc0
