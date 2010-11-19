@@ -1644,8 +1644,13 @@ static int ext3_delete_entry (handle_t *handle,
 		if (!ext3_check_dir_entry("ext3_delete_entry", dir, de, bh, i))
 			return -EIO;
 		if (de == de_del)  {
+			int err;
+
 			BUFFER_TRACE(bh, "get_write_access");
-			ext3_journal_get_write_access(handle, bh);
+			err = ext3_journal_get_write_access(handle, bh);
+			if (err)
+				goto journal_error;
+
 			if (pde)
 				pde->rec_len = ext3_rec_len_to_disk(
 					ext3_rec_len_from_disk(pde->rec_len) +
@@ -1654,7 +1659,12 @@ static int ext3_delete_entry (handle_t *handle,
 				de->inode = 0;
 			dir->i_version++;
 			BUFFER_TRACE(bh, "call ext3_journal_dirty_metadata");
-			ext3_journal_dirty_metadata(handle, bh);
+			err = ext3_journal_dirty_metadata(handle, bh);
+			if (err) {
+journal_error:
+				ext3_std_error(dir->i_sb, err);
+				return err;
+			}
 			return 0;
 		}
 		i += ext3_rec_len_from_disk(de->rec_len);
