@@ -420,11 +420,11 @@ static int __saa7134_ir_start(void *priv)
 	if (ir->polling) {
 		setup_timer(&ir->timer, saa7134_input_timer,
 			    (unsigned long)dev);
-		ir->timer.expires  = jiffies + HZ;
+		ir->timer.expires = jiffies + HZ;
 		add_timer(&ir->timer);
 	} else if (ir->raw_decode) {
 		/* set timer_end for code completion */
-		setup_timer(&ir->timer_end, ir_raw_decode_timer_end,
+		setup_timer(&ir->timer, ir_raw_decode_timer_end,
 			    (unsigned long)dev);
 	}
 
@@ -443,10 +443,8 @@ static void __saa7134_ir_stop(void *priv)
 	if (!ir->running)
 		return;
 
-	if (ir->polling)
+	if (ir->polling || ir->raw_decode)
 		del_timer_sync(&ir->timer);
-	else if (ir->raw_decode)
-		del_timer_sync(&ir->timer_end);
 
 	ir->active = false;
 	ir->running = false;
@@ -923,7 +921,7 @@ static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
 	 */
 	if (!ir->active) {
 		timeout = jiffies + jiffies_to_msecs(15);
-		mod_timer(&ir->timer_end, timeout);
+		mod_timer(&ir->timer, timeout);
 		ir->active = true;
 	}
 

@@ -134,7 +134,6 @@ struct saa7134_card_ir {
 	bool			active;
 
 	struct timer_list       timer;
-	struct timer_list	timer_end;    /* timer_end for code completion */
 
 	/* IR core raw decoding */
 	u32                     raw_decode;
