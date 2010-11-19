@@ -410,6 +410,13 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
+#if defined (CONFIG_BATTERY_STC3100)
+	{
+		.type    		= "stc3100-battery",
+		.addr           = 0x70,
+		.flags			= 0,
+	},
+#endif
 };
 #endif
 
