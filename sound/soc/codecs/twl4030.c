@@ -2272,9 +2272,12 @@ static int twl4030_soc_probe(struct snd_soc_codec *codec)
 
 static int twl4030_soc_remove(struct snd_soc_codec *codec)
 {
+	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
+
 	/* Reset registers to their chip default before leaving */
 	twl4030_reset_registers(codec);
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	kfree(twl4030);
 	return 0;
 }
 
@@ -2306,10 +2309,7 @@ static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 
 static int __devexit twl4030_codec_remove(struct platform_device *pdev)
 {
-	struct twl4030_priv *twl4030 = dev_get_drvdata(&pdev->dev);
-
 	snd_soc_unregister_codec(&pdev->dev);
-	kfree(twl4030);
 	return 0;
 }
 
