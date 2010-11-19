@@ -5,6 +5,18 @@
  *              high-performance and highly available server based on a
  *              cluster of servers.
  *
+ * Version 1,   is capable of handling both version 0 and 1 messages.
+ *              Version 0 is the plain old format.
+ *              Note Version 0 receivers will just drop Ver 1 messages.
+ *              Version 1 is capable of handle IPv6, Persistence data,
+ *              time-outs, and firewall marks.
+ *              In ver.1 "ip_vs_sync_conn_options" will be sent in netw. order.
+ *              Ver. 0 can be turned on by sysctl -w net.ipv4.vs.sync_version=0
+ *
+ * Definitions  Message: is a complete datagram
+ *              Sync_conn: is a part of a Message
+ *              Param Data is an option to a Sync_conn.
+ *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *
  * ip_vs_sync:  sync connection info from master load balancer to backups
@@ -15,6 +27,8 @@
  *	Alexandre Cassen	:	Added SyncID support for incoming sync
  *					messages filtering.
  *	Justin Ossevoort	:	Fix endian problem on sync message size.
+ *	Hans Schillstrom	:	Added Version 1: i.e. IPv6,
+ *					Persistence support, fwmark and time-out.
  */
 
 #define KMSG_COMPONENT "IPVS"
@@ -392,6 +406,121 @@ get_curr_sync_buff(unsigned long time)
 }
 
 /*
+ * Switch mode from sending version 0 or 1
+ *  - must handle sync_buf
+ */
+void ip_vs_sync_switch_mode(int mode) {
+
+	if (!ip_vs_sync_state & IP_VS_STATE_MASTER)
+		return;
+	if (mode == sysctl_ip_vs_sync_ver || !curr_sb)
+		return;
+
+	spin_lock_bh(&curr_sb_lock);
+	/* Buffer empty ? then let buf_create do the job  */
+	if ( curr_sb->mesg->size <=  sizeof(struct ip_vs_sync_mesg)) {
+		kfree(curr_sb);
+		curr_sb = NULL;
+	} else {
+		spin_lock_bh(&ip_vs_sync_lock);
+		if (ip_vs_sync_state & IP_VS_STATE_MASTER)
+			list_add_tail(&curr_sb->list, &ip_vs_sync_queue);
+		else
+			ip_vs_sync_buff_release(curr_sb);
+		spin_unlock_bh(&ip_vs_sync_lock);
+	}
+	spin_unlock_bh(&curr_sb_lock);
+}
+
+/*
+ * Create a new sync buffer for Version 0 proto.
+ */
+static inline struct ip_vs_sync_buff * ip_vs_sync_buff_create_v0(void)
+{
+	struct ip_vs_sync_buff *sb;
+	struct ip_vs_sync_mesg_v0 *mesg;
+
+	if (!(sb=kmalloc(sizeof(struct ip_vs_sync_buff), GFP_ATOMIC)))
+		return NULL;
+
+	if (!(sb->mesg=kmalloc(sync_send_mesg_maxlen, GFP_ATOMIC))) {
+		kfree(sb);
+		return NULL;
+	}
+	mesg = (struct ip_vs_sync_mesg_v0 *)sb->mesg;
+	mesg->nr_conns = 0;
+	mesg->syncid = ip_vs_master_syncid;
+	mesg->size = 4;
+	sb->head = (unsigned char *)mesg + 4;
+	sb->end = (unsigned char *)mesg + sync_send_mesg_maxlen;
+	sb->firstuse = jiffies;
+	return sb;
+}
+
+/*
+ *      Version 0 , could be switched in by sys_ctl.
+ *      Add an ip_vs_conn information into the current sync_buff.
+ */
+void ip_vs_sync_conn_v0(struct ip_vs_conn *cp)
+{
+	struct ip_vs_sync_mesg_v0 *m;
+	struct ip_vs_sync_conn_v0 *s;
+	int len;
+
+	if (unlikely(cp->af != AF_INET))
+		return;
+	/* Do not sync ONE PACKET */
+	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
+		return;
+
+	spin_lock(&curr_sb_lock);
+	if (!curr_sb) {
+		if (!(curr_sb=ip_vs_sync_buff_create_v0())) {
+			spin_unlock(&curr_sb_lock);
+			pr_err("ip_vs_sync_buff_create failed.\n");
+			return;
+		}
+	}
+
+	len = (cp->flags & IP_VS_CONN_F_SEQ_MASK) ? FULL_CONN_SIZE :
+		SIMPLE_CONN_SIZE;
+	m = (struct ip_vs_sync_mesg_v0 *)curr_sb->mesg;
+	s = (struct ip_vs_sync_conn_v0 *)curr_sb->head;
+
+	/* copy members */
+	s->reserved = 0;
+	s->protocol = cp->protocol;
+	s->cport = cp->cport;
+	s->vport = cp->vport;
+	s->dport = cp->dport;
+	s->caddr = cp->caddr.ip;
+	s->vaddr = cp->vaddr.ip;
+	s->daddr = cp->daddr.ip;
+	s->flags = htons(cp->flags & ~IP_VS_CONN_F_HASHED);
+	s->state = htons(cp->state);
+	if (cp->flags & IP_VS_CONN_F_SEQ_MASK) {
+		struct ip_vs_sync_conn_options *opt =
+			(struct ip_vs_sync_conn_options *)&s[1];
+		memcpy(opt, &cp->in_seq, sizeof(*opt));
+	}
+
+	m->nr_conns++;
+	m->size += len;
+	curr_sb->head += len;
+
+	/* check if there is a space for next one */
+	if (curr_sb->head + FULL_CONN_SIZE > curr_sb->end) {
+		sb_queue_tail(curr_sb);
+		curr_sb = NULL;
+	}
+	spin_unlock(&curr_sb_lock);
+
+	/* synchronize its controller if it has */
+	if (cp->control)
+		ip_vs_sync_conn(cp->control);
+}
+
+/*
  *      Add an ip_vs_conn information into the current sync_buff.
  *      Called by ip_vs_in.
  *      Sending Version 1 messages
@@ -403,6 +532,11 @@ void ip_vs_sync_conn(struct ip_vs_conn *cp)
 	__u8 *p;
 	unsigned int len, pe_name_len, pad;
 
+	/* Handle old version of the protocol */
+	if (sysctl_ip_vs_sync_ver == 0) {
+		ip_vs_sync_conn_v0(cp);
+		return;
+	}
 	/* Do not sync ONE PACKET */
 	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
 		goto control;
