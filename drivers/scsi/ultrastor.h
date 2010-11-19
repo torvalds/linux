@@ -15,8 +15,7 @@
 
 static int ultrastor_detect(struct scsi_host_template *);
 static const char *ultrastor_info(struct Scsi_Host *shpnt);
-static int ultrastor_queuecommand(struct scsi_cmnd *,
-				void (*done)(struct scsi_cmnd *));
+static int ultrastor_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
 static int ultrastor_abort(struct scsi_cmnd *);
 static int ultrastor_host_reset(struct scsi_cmnd *);
 static int ultrastor_biosparam(struct scsi_device *, struct block_device *,

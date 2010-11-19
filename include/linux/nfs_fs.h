@@ -593,12 +593,6 @@ nfs_fileid_to_ino_t(u64 fileid)
 	return ino;
 }
 
-#define nfs_wait_event(clnt, wq, condition)				\
-({									\
-	int __retval = wait_event_killable(wq, condition);		\
-	__retval;							\
-})
-
 #define NFS_JUKEBOX_RETRY_TIME (5 * HZ)
 
 #endif /* __KERNEL__ */

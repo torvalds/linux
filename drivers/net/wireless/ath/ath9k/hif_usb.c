@@ -35,6 +35,7 @@ static struct usb_device_id ath9k_hif_usb_ids[] = {
 	{ USB_DEVICE(0x07D1, 0x3A10) }, /* Dlink Wireless 150 */
 	{ USB_DEVICE(0x13D3, 0x3327) }, /* Azurewave */
 	{ USB_DEVICE(0x13D3, 0x3328) }, /* Azurewave */
+	{ USB_DEVICE(0x13D3, 0x3346) }, /* IMC Networks */
 	{ USB_DEVICE(0x04CA, 0x4605) }, /* Liteon */
 	{ USB_DEVICE(0x083A, 0xA704) }, /* SMC Networks */
 	{ },
@@ -540,11 +541,11 @@ static void ath9k_hif_usb_reg_in_cb(struct urb *urb)
 			return;
 		}
 
-		usb_fill_int_urb(urb, hif_dev->udev,
+		usb_fill_bulk_urb(urb, hif_dev->udev,
 				 usb_rcvbulkpipe(hif_dev->udev,
 						 USB_REG_IN_PIPE),
 				 nskb->data, MAX_REG_IN_BUF_SIZE,
-				 ath9k_hif_usb_reg_in_cb, nskb, 1);
+				 ath9k_hif_usb_reg_in_cb, nskb);
 
 		ret = usb_submit_urb(urb, GFP_ATOMIC);
 		if (ret) {
@@ -720,11 +721,11 @@ static int ath9k_hif_usb_alloc_reg_in_urb(struct hif_device_usb *hif_dev)
 	if (!skb)
 		goto err;
 
-	usb_fill_int_urb(hif_dev->reg_in_urb, hif_dev->udev,
+	usb_fill_bulk_urb(hif_dev->reg_in_urb, hif_dev->udev,
 			 usb_rcvbulkpipe(hif_dev->udev,
 					 USB_REG_IN_PIPE),
 			 skb->data, MAX_REG_IN_BUF_SIZE,
-			 ath9k_hif_usb_reg_in_cb, skb, 1);
+			 ath9k_hif_usb_reg_in_cb, skb);
 
 	if (usb_submit_urb(hif_dev->reg_in_urb, GFP_KERNEL) != 0)
 		goto err;
@@ -843,14 +844,6 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev)
 		goto err_fw_req;
 	}
 
-	/* Alloc URBs */
-	ret = ath9k_hif_usb_alloc_urbs(hif_dev);
-	if (ret) {
-		dev_err(&hif_dev->udev->dev,
-			"ath9k_htc: Unable to allocate URBs\n");
-		goto err_urb;
-	}
-
 	/* Download firmware */
 	ret = ath9k_hif_usb_download_fw(hif_dev);
 	if (ret) {
@@ -866,14 +859,20 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev)
 	 */
 	for (idx = 0; idx < alt->desc.bNumEndpoints; idx++) {
 		endp = &alt->endpoint[idx].desc;
-		if (((endp->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK)
-				== 0x04) &&
-		    ((endp->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-				== USB_ENDPOINT_XFER_INT)) {
+		if ((endp->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+				== USB_ENDPOINT_XFER_INT) {
 			endp->bmAttributes &= ~USB_ENDPOINT_XFERTYPE_MASK;
 			endp->bmAttributes |= USB_ENDPOINT_XFER_BULK;
 			endp->bInterval = 0;
 		}
+	}
+
+	/* Alloc URBs */
+	ret = ath9k_hif_usb_alloc_urbs(hif_dev);
+	if (ret) {
+		dev_err(&hif_dev->udev->dev,
+			"ath9k_htc: Unable to allocate URBs\n");
+		goto err_urb;
 	}
 
 	return 0;

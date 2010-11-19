@@ -184,7 +184,7 @@ static void nsp_scsi_done(struct scsi_cmnd *SCpnt)
 	SCpnt->scsi_done(SCpnt);
 }
 
-static int nsp_queuecommand(struct scsi_cmnd *SCpnt,
+static int nsp_queuecommand_lck(struct scsi_cmnd *SCpnt,
 			    void (*done)(struct scsi_cmnd *))
 {
 #ifdef NSP_DEBUG
@@ -263,6 +263,8 @@ static int nsp_queuecommand(struct scsi_cmnd *SCpnt,
 #endif
 	return 0;
 }
+
+static DEF_SCSI_QCMD(nsp_queuecommand)
 
 /*
  * setup PIO FIFO transfer mode and enable/disable to data out

@@ -240,7 +240,8 @@ retry:
 		 */
 		if (seq == rdev->fence_drv.last_seq && radeon_gpu_is_lockup(rdev)) {
 			/* good news we believe it's a lockup */
-			WARN(1, "GPU lockup (waiting for 0x%08X last fence id 0x%08X)\n", fence->seq, seq);
+			WARN(1, "GPU lockup (waiting for 0x%08X last fence id 0x%08X)\n",
+			     fence->seq, seq);
 			/* FIXME: what should we do ? marking everyone
 			 * as signaled for now
 			 */

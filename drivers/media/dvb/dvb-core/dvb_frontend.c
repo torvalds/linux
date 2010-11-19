@@ -36,7 +36,6 @@
 #include <linux/list.h>
 #include <linux/freezer.h>
 #include <linux/jiffies.h>
-#include <linux/smp_lock.h>
 #include <linux/kthread.h>
 #include <asm/processor.h>
 

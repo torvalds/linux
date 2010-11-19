@@ -1947,7 +1947,7 @@ static int tw_scsiop_test_unit_ready_complete(TW_Device_Extension *tw_dev, int r
 } /* End tw_scsiop_test_unit_ready_complete() */
 
 /* This is the main scsi queue function to handle scsi opcodes */
-static int tw_scsi_queue(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *)) 
+static int tw_scsi_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
 	unsigned char *command = SCpnt->cmnd;
 	int request_id = 0;
@@ -2022,6 +2022,8 @@ static int tw_scsi_queue(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd 
 	}
 	return retval;
 } /* End tw_scsi_queue() */
+
+static DEF_SCSI_QCMD(tw_scsi_queue)
 
 /* This function is the interrupt service routine */
 static irqreturn_t tw_interrupt(int irq, void *dev_instance) 

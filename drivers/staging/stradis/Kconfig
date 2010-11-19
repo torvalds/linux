@@ -1,6 +1,6 @@
 config VIDEO_STRADIS
         tristate "Stradis 4:2:2 MPEG-2 video driver (DEPRECATED)"
-        depends on EXPERIMENTAL && PCI && VIDEO_V4L1 && VIRT_TO_BUS
+        depends on EXPERIMENTAL && PCI && VIDEO_V4L1 && VIRT_TO_BUS && BKL
         help
           Say Y here to enable support for the Stradis 4:2:2 MPEG-2 video
           driver for PCI.  There is a product page at

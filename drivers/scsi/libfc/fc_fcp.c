@@ -1753,7 +1753,7 @@ static inline int fc_fcp_lport_queue_ready(struct fc_lport *lport)
  * This is the i/o strategy routine, called by the SCSI layer. This routine
  * is called with the host_lock held.
  */
-int fc_queuecommand(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
+static int fc_queuecommand_lck(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
 {
 	struct fc_lport *lport;
 	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
@@ -1851,6 +1851,8 @@ out:
 	spin_lock_irq(lport->host->host_lock);
 	return rc;
 }
+
+DEF_SCSI_QCMD(fc_queuecommand)
 EXPORT_SYMBOL(fc_queuecommand);
 
 /**

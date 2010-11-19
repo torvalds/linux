@@ -341,8 +341,7 @@ extern int iscsi_eh_abort(struct scsi_cmnd *sc);
 extern int iscsi_eh_recover_target(struct scsi_cmnd *sc);
 extern int iscsi_eh_session_reset(struct scsi_cmnd *sc);
 extern int iscsi_eh_device_reset(struct scsi_cmnd *sc);
-extern int iscsi_queuecommand(struct scsi_cmnd *sc,
-			      void (*done)(struct scsi_cmnd *));
+extern int iscsi_queuecommand(struct Scsi_Host *h, struct scsi_cmnd *sc);
 
 /*
  * iSCSI host helpers.

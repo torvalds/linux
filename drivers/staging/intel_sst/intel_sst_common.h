@@ -231,8 +231,8 @@ struct stream_info {
 	spinlock_t          pcm_lock;
 	bool			mmapped;
 	unsigned int		sg_index; /*  current buf Index  */
-	unsigned char		*cur_ptr; /*  Current static bufs  */
-	struct snd_sst_buf_entry *buf_entry;
+	unsigned char __user 	*cur_ptr; /*  Current static bufs  */
+	struct snd_sst_buf_entry __user *buf_entry;
 	struct sst_block	data_blk; /* stream ops block */
 	struct sst_block	ctrl_blk; /* stream control cmd block */
 	enum snd_sst_buf_type   buf_type;

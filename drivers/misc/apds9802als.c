@@ -123,7 +123,7 @@ static ssize_t als_sensing_range_store(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct als_data *data = i2c_get_clientdata(client);
-	unsigned int ret_val;
+	int ret_val;
 	unsigned long val;
 
 	if (strict_strtoul(buf, 10, &val))
@@ -251,7 +251,6 @@ static int apds9802als_probe(struct i2c_client *client,
 
 	return res;
 als_error1:
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return res;
 }

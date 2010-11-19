@@ -104,9 +104,10 @@ out_destroy_form:
 	return rc;
 }
 
+static const char yes[] = "Yes", no[] = "No";
+
 bool ui__dialog_yesno(const char *msg)
 {
 	/* newtWinChoice should really be accepting const char pointers... */
-	char yes[] = "Yes", no[] = "No";
-	return newtWinChoice(NULL, yes, no, (char *)msg) == 1;
+	return newtWinChoice(NULL, (char *)yes, (char *)no, (char *)msg) == 1;
 }

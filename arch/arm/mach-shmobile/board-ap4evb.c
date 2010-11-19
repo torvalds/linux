@@ -163,11 +163,13 @@ static struct mtd_partition nor_flash_partitions[] = {
 		.name		= "loader",
 		.offset		= 0x00000000,
 		.size		= 512 * 1024,
+		.mask_flags	= MTD_WRITEABLE,
 	},
 	{
 		.name		= "bootenv",
 		.offset		= MTDPART_OFS_APPEND,
 		.size		= 512 * 1024,
+		.mask_flags	= MTD_WRITEABLE,
 	},
 	{
 		.name		= "kernel_ro",
@@ -499,7 +501,12 @@ static struct platform_device keysc_device = {
 static struct resource mipidsi0_resources[] = {
 	[0] = {
 		.start  = 0xffc60000,
-		.end    = 0xffc68fff,
+		.end    = 0xffc63073,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 0xffc68000,
+		.end    = 0xffc680ef,
 		.flags  = IORESOURCE_MEM,
 	},
 };
@@ -581,6 +588,10 @@ static int fsi_set_rate(int is_porta, int rate)
 		return -EINVAL;
 
 	switch (rate) {
+	case 44100:
+		clk_set_rate(fsib_clk, clk_round_rate(fsib_clk, 11283000));
+		ret = SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
+		break;
 	case 48000:
 		clk_set_rate(fsib_clk, clk_round_rate(fsib_clk, 85428000));
 		clk_set_rate(fdiv_clk, clk_round_rate(fdiv_clk, 12204000));
