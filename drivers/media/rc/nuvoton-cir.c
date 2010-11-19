@@ -248,9 +248,12 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 	chip_minor = nvt_cr_read(nvt, CR_CHIP_ID_LO);
 	nvt_dbg("%s: chip id: 0x%02x 0x%02x", chip_id, chip_major, chip_minor);
 
-	if (chip_major != CHIP_ID_HIGH &&
-	    (chip_minor != CHIP_ID_LOW || chip_minor != CHIP_ID_LOW2))
+	if (chip_major != CHIP_ID_HIGH ||
+	    (chip_minor != CHIP_ID_LOW && chip_minor != CHIP_ID_LOW2)) {
+		nvt_pr(KERN_ERR, "%s: unsupported chip, id: 0x%02x 0x%02x",
+		       chip_id, chip_major, chip_minor);
 		ret = -ENODEV;
+	}
 
 	nvt_efm_disable(nvt);
 
