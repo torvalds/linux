@@ -91,10 +91,12 @@ static struct at91_cf_data __initdata dk_cf_data = {
 	// .vcc_pin	= ... always powered
 };
 
+#ifndef CONFIG_MTD_AT91_DATAFLASH_CARD
 static struct at91_mmc_data __initdata dk_mmc_data = {
 	.slot_b		= 0,
 	.wire4		= 1,
 };
+#endif
 
 static struct spi_board_info dk_spi_devices[] = {
 	{	/* DataFlash chip */
