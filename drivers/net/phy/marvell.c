@@ -35,6 +35,8 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
+#define MII_MARVELL_PHY_PAGE		22
+
 #define MII_M1011_IEVENT		0x13
 #define MII_M1011_IEVENT_CLEAR		0x0000
 
@@ -80,7 +82,6 @@
 #define MII_88E1121_PHY_LED_CTRL	16
 #define MII_88E1121_PHY_LED_PAGE	3
 #define MII_88E1121_PHY_LED_DEF		0x0030
-#define MII_88E1121_PHY_PAGE		22
 
 #define MII_M1011_PHY_STATUS		0x11
 #define MII_M1011_PHY_STATUS_1000	0x8000
@@ -190,9 +191,9 @@ static int m88e1121_config_aneg(struct phy_device *phydev)
 {
 	int err, oldpage, mscr;
 
-	oldpage = phy_read(phydev, MII_88E1121_PHY_PAGE);
+	oldpage = phy_read(phydev, MII_MARVELL_PHY_PAGE);
 
-	err = phy_write(phydev, MII_88E1121_PHY_PAGE,
+	err = phy_write(phydev, MII_MARVELL_PHY_PAGE,
 			MII_88E1121_PHY_MSCR_PAGE);
 	if (err < 0)
 		return err;
@@ -218,7 +219,7 @@ static int m88e1121_config_aneg(struct phy_device *phydev)
 			return err;
 	}
 
-	phy_write(phydev, MII_88E1121_PHY_PAGE, oldpage);
+	phy_write(phydev, MII_MARVELL_PHY_PAGE, oldpage);
 
 	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
 	if (err < 0)
@@ -229,11 +230,11 @@ static int m88e1121_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	oldpage = phy_read(phydev, MII_88E1121_PHY_PAGE);
+	oldpage = phy_read(phydev, MII_MARVELL_PHY_PAGE);
 
-	phy_write(phydev, MII_88E1121_PHY_PAGE, MII_88E1121_PHY_LED_PAGE);
+	phy_write(phydev, MII_MARVELL_PHY_PAGE, MII_88E1121_PHY_LED_PAGE);
 	phy_write(phydev, MII_88E1121_PHY_LED_CTRL, MII_88E1121_PHY_LED_DEF);
-	phy_write(phydev, MII_88E1121_PHY_PAGE, oldpage);
+	phy_write(phydev, MII_MARVELL_PHY_PAGE, oldpage);
 
 	err = genphy_config_aneg(phydev);
 
@@ -244,9 +245,9 @@ static int m88e1318_config_aneg(struct phy_device *phydev)
 {
 	int err, oldpage, mscr;
 
-	oldpage = phy_read(phydev, MII_88E1121_PHY_PAGE);
+	oldpage = phy_read(phydev, MII_MARVELL_PHY_PAGE);
 
-	err = phy_write(phydev, MII_88E1121_PHY_PAGE,
+	err = phy_write(phydev, MII_MARVELL_PHY_PAGE,
 			MII_88E1121_PHY_MSCR_PAGE);
 	if (err < 0)
 		return err;
@@ -258,7 +259,7 @@ static int m88e1318_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	err = phy_write(phydev, MII_88E1121_PHY_PAGE, oldpage);
+	err = phy_write(phydev, MII_MARVELL_PHY_PAGE, oldpage);
 	if (err < 0)
 		return err;
 
@@ -398,7 +399,7 @@ static int m88e1118_config_init(struct phy_device *phydev)
 	int err;
 
 	/* Change address */
-	err = phy_write(phydev, 0x16, 0x0002);
+	err = phy_write(phydev, MII_MARVELL_PHY_PAGE, 0x0002);
 	if (err < 0)
 		return err;
 
@@ -408,7 +409,7 @@ static int m88e1118_config_init(struct phy_device *phydev)
 		return err;
 
 	/* Change address */
-	err = phy_write(phydev, 0x16, 0x0003);
+	err = phy_write(phydev, MII_MARVELL_PHY_PAGE, 0x0003);
 	if (err < 0)
 		return err;
 
@@ -421,7 +422,7 @@ static int m88e1118_config_init(struct phy_device *phydev)
 		return err;
 
 	/* Reset address */
-	err = phy_write(phydev, 0x16, 0x0);
+	err = phy_write(phydev, MII_MARVELL_PHY_PAGE, 0x0);
 	if (err < 0)
 		return err;
 
