@@ -52,6 +52,7 @@
 #define PNOSETUP_SET_CMD			"PNOSETUP "
 #define PNOENABLE_SET_CMD			"PNOFORCE"
 #define PNODEBUG_SET_CMD			"PNODEBUG"
+#define SETDFSCHANNELS_CMD			"SETDFSCHANNELS"
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 #define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -199,6 +200,7 @@ extern int net_os_set_suspend(struct net_device *dev, int val);
 extern int net_os_set_dtim_skip(struct net_device *dev, int val);
 extern int net_os_set_packet_filter(struct net_device *dev, int val);
 extern void dhd_bus_country_set(struct net_device *dev, char *country_code);
+extern char *dhd_bus_country_get(struct net_device *dev);
 extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
