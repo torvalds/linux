@@ -20,9 +20,6 @@
 #include <wlioctl.h>
 #include <wlc_phy_hal.h>
 #include <wlc_channel.h>
-#ifdef WLC_SPLIT
-#include <bcm_rpc.h>
-#endif
 #include <wlc_bsscfg.h>
 #include <wlc_scb.h>
 
@@ -422,9 +419,6 @@ typedef struct wlc_hwband {
 } wlc_hwband_t;
 
 struct wlc_hw_info {
-#ifdef WLC_SPLIT
-	rpc_info_t *rpc;	/* Handle to RPC module */
-#endif
 	struct osl_info *osh;		/* pointer to os handle */
 	bool _piomode;		/* true if pio mode */
 	wlc_info_t *wlc;
@@ -522,9 +516,6 @@ struct wlc_info {
 	d11regs_t *regs;	/* pointer to device registers */
 
 	wlc_hw_info_t *hw;	/* HW related state used primarily by BMAC */
-#ifdef WLC_SPLIT
-	rpc_info_t *rpc;	/* Handle to RPC module */
-#endif
 
 	/* clock */
 	int clkreq_override;	/* setting for clkreq for PCIE : Auto, 0, 1 */
